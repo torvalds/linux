@@ -100,8 +100,7 @@ static void swI2CWait(void)
 #else
 	int i, Temp;
 
-	for(i = 0; i < 600; i++)
-	{
+	for(i = 0; i < 600; i++) {
 		Temp = i;
 		Temp += i;
 	}
@@ -126,14 +125,11 @@ void swI2CSCL(unsigned char value)
 	unsigned long ulGPIODirection;
 
 	ulGPIODirection = PEEK32(g_i2cClkGPIODataDirReg);
-	if (value)      /* High */
-	{
+	if (value) {    /* High */
 		/* Set direction as input. This will automatically pull the signal up. */
 		ulGPIODirection &= ~(1 << g_i2cClockGPIO);
 		POKE32(g_i2cClkGPIODataDirReg, ulGPIODirection);
-	}
-	else            /* Low */
-	{
+	} else {        /* Low */
 		/* Set the signal down */
 		ulGPIOData = PEEK32(g_i2cClkGPIODataReg);
 		ulGPIOData &= ~(1 << g_i2cClockGPIO);
@@ -163,14 +159,11 @@ void swI2CSDA(unsigned char value)
 	unsigned long ulGPIODirection;
 
 	ulGPIODirection = PEEK32(g_i2cDataGPIODataDirReg);
-	if (value)      /* High */
-	{
+	if (value) {    /* High */
 		/* Set direction as input. This will automatically pull the signal up. */
 		ulGPIODirection &= ~(1 << g_i2cDataGPIO);
 		POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
-	}
-	else            /* Low */
-	{
+	} else {        /* Low */
 		/* Set the signal down */
 		ulGPIOData = PEEK32(g_i2cDataGPIODataReg);
 		ulGPIOData &= ~(1 << g_i2cDataGPIO);
@@ -195,8 +188,7 @@ static unsigned char swI2CReadSDA(void)
 
 	/* Make sure that the direction is input (High) */
 	ulGPIODirection = PEEK32(g_i2cDataGPIODataDirReg);
-	if ((ulGPIODirection & (1 << g_i2cDataGPIO)) != (~(1 << g_i2cDataGPIO)))
-	{
+	if ((ulGPIODirection & (1 << g_i2cDataGPIO)) != (~(1 << g_i2cDataGPIO))) {
 		ulGPIODirection &= ~(1 << g_i2cDataGPIO);
 		POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
 	}
@@ -255,8 +247,7 @@ static long swI2CWriteByte(unsigned char data)
 	int i;
 
 	/* Sending the data bit by bit */
-	for (i = 0; i < 8; i++)
-	{
+	for (i = 0; i < 8; i++) {
 		/* Set SCL to low */
 		swI2CSCL(0);
 
@@ -286,8 +277,7 @@ static long swI2CWriteByte(unsigned char data)
 	swI2CWait();
 
 	/* Read SDA, until SDA==0 */
-	for(i = 0; i < 0xff; i++)
-	{
+	for(i = 0; i < 0xff; i++) {
 		if (!swI2CReadSDA())
 			break;
 
@@ -322,8 +312,7 @@ static unsigned char swI2CReadByte(unsigned char ack)
 	int i;
 	unsigned char data = 0;
 
-	for(i = 7; i >= 0; i--)
-	{
+	for(i = 7; i >= 0; i--) {
 		/* Set the SCL to Low and SDA to High (Input) */
 		swI2CSCL(0);
 		swI2CSDA(1);
@@ -510,8 +499,7 @@ long swI2CWriteReg(
 	*/
 	if ((swI2CWriteByte(deviceAddress) != 0) ||
 	    (swI2CWriteByte(registerIndex) != 0) ||
-	    (swI2CWriteByte(data) != 0))
-	{
+	    (swI2CWriteByte(data) != 0)) {
 		returnValue = -1;
 	}
 
