@@ -69,8 +69,8 @@ long swI2CWriteReg(
 );
 
 /*
- *  These two functions are used to toggle the data on the SCL and SDA I2C lines.
- *  The used of these two functions are not recommended unless it is necessary.
+ *  These two functions toggle the data on the SCL and SDA I2C lines.
+ *  The use of these two functions is not recommended unless it is necessary.
  */
 
 /*
