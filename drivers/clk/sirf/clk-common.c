@@ -7,6 +7,8 @@
  * Licensed under GPLv2 or later.
  */
 
+#include <linux/clk.h>
+
 #define KHZ     1000
 #define MHZ     (KHZ * KHZ)
 
