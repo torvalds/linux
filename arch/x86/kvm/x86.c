@@ -28,6 +28,7 @@
 #include "x86.h"
 #include "cpuid.h"
 #include "assigned-dev.h"
+#include "pmu.h"
 
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>

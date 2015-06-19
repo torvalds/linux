@@ -19,13 +19,9 @@
 #include "x86.h"
 #include "cpuid.h"
 #include "lapic.h"
+#include "pmu.h"
 
-static struct kvm_arch_event_perf_mapping {
-	u8 eventsel;
-	u8 unit_mask;
-	unsigned event_type;
-	bool inexact;
-} arch_events[] = {
+static struct kvm_event_hw_type_mapping arch_events[] = {
 	/* Index must match CPUID 0x0A.EBX bit vector */
 	[0] = { 0x3c, 0x00, PERF_COUNT_HW_CPU_CYCLES },
 	[1] = { 0xc0, 0x00, PERF_COUNT_HW_INSTRUCTIONS },

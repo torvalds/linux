@@ -24,6 +24,7 @@
 #include "lapic.h"
 #include "mmu.h"
 #include "trace.h"
+#include "pmu.h"
 
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
