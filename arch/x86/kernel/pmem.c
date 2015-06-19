@@ -67,6 +67,7 @@ static __init int register_e820_pmem(void)
 		memset(&ndr_desc, 0, sizeof(ndr_desc));
 		ndr_desc.res = &res;
 		ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
+		ndr_desc.numa_node = NUMA_NO_NODE;
 		if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
 			goto err;
 	}

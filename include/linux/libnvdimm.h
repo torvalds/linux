@@ -89,6 +89,7 @@ struct nd_region_desc {
 	struct nd_interleave_set *nd_set;
 	void *provider_data;
 	int num_lanes;
+	int numa_node;
 };
 
 struct nvdimm_bus;

@@ -97,7 +97,7 @@ struct nd_region {
 	u16 ndr_mappings;
 	u64 ndr_size;
 	u64 ndr_start;
-	int id, num_lanes, ro;
+	int id, num_lanes, ro, numa_node;
 	void *provider_data;
 	struct nd_interleave_set *nd_set;
 	struct nd_percpu_lane __percpu *lane;

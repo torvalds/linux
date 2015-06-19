@@ -1392,6 +1392,12 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 	ndr_desc->res = &res;
 	ndr_desc->provider_data = nfit_spa;
 	ndr_desc->attr_groups = acpi_nfit_region_attribute_groups;
+	if (spa->flags & ACPI_NFIT_PROXIMITY_VALID)
+		ndr_desc->numa_node = acpi_map_pxm_to_online_node(
+						spa->proximity_domain);
+	else
+		ndr_desc->numa_node = NUMA_NO_NODE;
+
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
 		struct acpi_nfit_memory_map *memdev = nfit_memdev->memdev;
 		struct nd_mapping *nd_mapping;
