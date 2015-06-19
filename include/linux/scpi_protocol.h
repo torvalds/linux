@@ -28,6 +28,20 @@ struct scpi_dvfs_info {
 	struct scpi_opp *opps;
 };
 
+enum scpi_sensor_class {
+	TEMPERATURE,
+	VOLTAGE,
+	CURRENT,
+	POWER,
+};
+
+struct scpi_sensor_info {
+	u16 sensor_id;
+	u8 class;
+	u8 trigger_type;
+	char name[20];
+} __packed;
+
 /**
  * struct scpi_ops - represents the various operations provided
  *	by SCP through SCPI message protocol
@@ -52,6 +66,9 @@ struct scpi_ops {
 	int (*dvfs_get_idx)(u8);
 	int (*dvfs_set_idx)(u8, u8);
 	struct scpi_dvfs_info *(*dvfs_get_info)(u8);
+	int (*sensor_get_capability)(u16 *sensors);
+	int (*sensor_get_info)(u16 sensor_id, struct scpi_sensor_info *);
+	int (*sensor_get_value)(u16, u32 *);
 };
 
 #if IS_ENABLED(CONFIG_ARM_SCPI_PROTOCOL)
