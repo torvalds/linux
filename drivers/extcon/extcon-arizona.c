@@ -1128,6 +1128,24 @@ static int arizona_extcon_device_get_pdata(struct arizona *arizona)
 		pdata->hpdet_channel = ARIZONA_ACCDET_MODE_HPL;
 	}
 
+	device_property_read_u32(arizona->dev, "wlf,micd-detect-debounce",
+				 &pdata->micd_detect_debounce);
+
+	device_property_read_u32(arizona->dev, "wlf,micd-bias-start-time",
+				 &pdata->micd_bias_start_time);
+
+	device_property_read_u32(arizona->dev, "wlf,micd-rate",
+				 &pdata->micd_rate);
+
+	device_property_read_u32(arizona->dev, "wlf,micd-dbtime",
+				 &pdata->micd_dbtime);
+
+	device_property_read_u32(arizona->dev, "wlf,micd-timeout",
+				 &pdata->micd_timeout);
+
+	pdata->micd_force_micbias = device_property_read_bool(arizona->dev,
+						"wlf,micd-force-micbias");
+
 	return 0;
 }
 
