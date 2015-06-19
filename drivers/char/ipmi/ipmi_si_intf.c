@@ -2667,7 +2667,7 @@ static struct pci_driver ipmi_pci_driver = {
 };
 #endif /* CONFIG_PCI */
 
-static struct of_device_id ipmi_match[];
+static const struct of_device_id ipmi_match[];
 static int ipmi_probe(struct platform_device *dev)
 {
 #ifdef CONFIG_OF
@@ -2764,7 +2764,7 @@ static int ipmi_remove(struct platform_device *dev)
 	return 0;
 }
 
-static struct of_device_id ipmi_match[] =
+static const struct of_device_id ipmi_match[] =
 {
 	{ .type = "ipmi", .compatible = "ipmi-kcs",
 	  .data = (void *)(unsigned long) SI_KCS },

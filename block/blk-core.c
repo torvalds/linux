@@ -557,6 +557,18 @@ void blk_cleanup_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
 
+/* Allocate memory local to the request queue */
+static void *alloc_request_struct(gfp_t gfp_mask, void *data)
+{
+	int nid = (int)(long)data;
+	return kmem_cache_alloc_node(request_cachep, gfp_mask, nid);
+}
+
+static void free_request_struct(void *element, void *unused)
+{
+	kmem_cache_free(request_cachep, element);
+}
+
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
 		gfp_t gfp_mask)
 {
@@ -569,9 +581,10 @@ int blk_init_rl(struct request_list *rl, struct request_queue *q,
 	init_waitqueue_head(&rl->wait[BLK_RW_SYNC]);
 	init_waitqueue_head(&rl->wait[BLK_RW_ASYNC]);
 
-	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
-					  mempool_free_slab, request_cachep,
-					  gfp_mask, q->node);
+	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, alloc_request_struct,
+					  free_request_struct,
+					  (void *)(long)q->node, gfp_mask,
+					  q->node);
 	if (!rl->rq_pool)
 		return -ENOMEM;
 

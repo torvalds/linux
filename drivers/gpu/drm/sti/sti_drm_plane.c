@@ -6,6 +6,10 @@
  * License terms:  GNU General Public License (GPL), version 2
  */
 
+#include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_plane_helper.h>
+
 #include "sti_compositor.h"
 #include "sti_drm_drv.h"
 #include "sti_drm_plane.h"
@@ -33,9 +37,9 @@ sti_drm_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 	int res;
 
-	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s) drm fb:%d\n",
+	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
 		      crtc->base.id, sti_mixer_to_str(mixer),
-		      plane->base.id, sti_layer_to_str(layer), fb->base.id);
+		      plane->base.id, sti_layer_to_str(layer));
 	DRM_DEBUG_KMS("(%dx%d)@(%d,%d)\n", crtc_w, crtc_h, crtc_x, crtc_y);
 
 	res = sti_mixer_set_layer_depth(mixer, layer);
@@ -110,7 +114,7 @@ static void sti_drm_plane_destroy(struct drm_plane *plane)
 {
 	DRM_DEBUG_DRIVER("\n");
 
-	sti_drm_disable_plane(plane);
+	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
 }
 
@@ -133,10 +137,58 @@ static int sti_drm_plane_set_property(struct drm_plane *plane,
 }
 
 static struct drm_plane_funcs sti_drm_plane_funcs = {
-	.update_plane = sti_drm_update_plane,
-	.disable_plane = sti_drm_disable_plane,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = sti_drm_plane_destroy,
 	.set_property = sti_drm_plane_set_property,
+	.reset = drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+};
+
+static int sti_drm_plane_prepare_fb(struct drm_plane *plane,
+				  struct drm_framebuffer *fb,
+				  const struct drm_plane_state *new_state)
+{
+	return 0;
+}
+
+static void sti_drm_plane_cleanup_fb(struct drm_plane *plane,
+				   struct drm_framebuffer *fb,
+				   const struct drm_plane_state *old_fb)
+{
+}
+
+static int sti_drm_plane_atomic_check(struct drm_plane *plane,
+				      struct drm_plane_state *state)
+{
+	return 0;
+}
+
+static void sti_drm_plane_atomic_update(struct drm_plane *plane,
+					struct drm_plane_state *oldstate)
+{
+	struct drm_plane_state *state = plane->state;
+
+	sti_drm_update_plane(plane, state->crtc, state->fb,
+			    state->crtc_x, state->crtc_y,
+			    state->crtc_w, state->crtc_h,
+			    state->src_x, state->src_y,
+			    state->src_w, state->src_h);
+}
+
+static void sti_drm_plane_atomic_disable(struct drm_plane *plane,
+					 struct drm_plane_state *oldstate)
+{
+	sti_drm_disable_plane(plane);
+}
+
+static const struct drm_plane_helper_funcs sti_drm_plane_helpers_funcs = {
+	.prepare_fb = sti_drm_plane_prepare_fb,
+	.cleanup_fb = sti_drm_plane_cleanup_fb,
+	.atomic_check = sti_drm_plane_atomic_check,
+	.atomic_update = sti_drm_plane_atomic_update,
+	.atomic_disable = sti_drm_plane_atomic_disable,
 };
 
 static void sti_drm_plane_attach_zorder_property(struct drm_plane *plane,
@@ -178,11 +230,13 @@ struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
 		return NULL;
 	}
 
+	drm_plane_helper_add(&layer->plane, &sti_drm_plane_helpers_funcs);
+
 	for (i = 0; i < ARRAY_SIZE(sti_layer_default_zorder); i++)
 		if (sti_layer_default_zorder[i] == layer->desc)
 			break;
 
-	default_zorder = i;
+	default_zorder = i + 1;
 
 	if (type == DRM_PLANE_TYPE_OVERLAY)
 		sti_drm_plane_attach_zorder_property(&layer->plane,

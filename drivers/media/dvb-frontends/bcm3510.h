@@ -34,7 +34,7 @@ struct bcm3510_config
 	int (*request_firmware)(struct dvb_frontend* fe, const struct firmware **fw, char* name);
 };
 
-#if IS_ENABLED(CONFIG_DVB_BCM3510)
+#if IS_REACHABLE(CONFIG_DVB_BCM3510)
 extern struct dvb_frontend* bcm3510_attach(const struct bcm3510_config* config,
 					   struct i2c_adapter* i2c);
 #else

@@ -4176,17 +4176,15 @@ static void alc_fixup_disable_aamix(struct hda_codec *codec,
 	}
 }
 
-static unsigned int alc_power_filter_xps13(struct hda_codec *codec,
-				hda_nid_t nid,
-				unsigned int power_state)
+static void alc_shutup_dell_xps13(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	int hp_pin = spec->gen.autocfg.hp_pins[0];
 
-	/* Avoid pop noises when headphones are plugged in */
-	if (spec->gen.hp_jack_present)
-		if (nid == codec->core.afg || nid == 0x02 || nid == 0x15)
-			return AC_PWRST_D0;
-	return snd_hda_gen_path_power_filter(codec, nid, power_state);
+	/* Prevent pop noises when headphones are plugged in */
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+	msleep(20);
 }
 
 static void alc_fixup_dell_xps13(struct hda_codec *codec,
@@ -4197,8 +4195,7 @@ static void alc_fixup_dell_xps13(struct hda_codec *codec,
 		struct hda_input_mux *imux = &spec->gen.input_mux;
 		int i;
 
-		spec->shutup = alc_no_shutup;
-		codec->power_filter = alc_power_filter_xps13;
+		spec->shutup = alc_shutup_dell_xps13;
 
 		/* Make the internal mic the default input source. */
 		for (i = 0; i < imux->num_items; i++) {
@@ -5231,6 +5228,16 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{0x1b, 0x411111f0}, \
 	{0x1e, 0x411111f0}
 
+#define ALC256_STANDARD_PINS \
+	{0x12, 0x90a60140}, \
+	{0x14, 0x90170110}, \
+	{0x19, 0x411111f0}, \
+	{0x1a, 0x411111f0}, \
+	{0x1b, 0x411111f0}, \
+	{0x1d, 0x40700001}, \
+	{0x1e, 0x411111f0}, \
+	{0x21, 0x02211020}
+
 #define ALC282_STANDARD_PINS \
 	{0x14, 0x90170110}, \
 	{0x18, 0x411111f0}, \
@@ -5331,15 +5338,11 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x1d, 0x40700001},
 		{0x21, 0x02211050}),
 	SND_HDA_PIN_QUIRK(0x10ec0256, 0x1028, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
-		{0x12, 0x90a60140},
-		{0x13, 0x40000000},
-		{0x14, 0x90170110},
-		{0x19, 0x411111f0},
-		{0x1a, 0x411111f0},
-		{0x1b, 0x411111f0},
-		{0x1d, 0x40700001},
-		{0x1e, 0x411111f0},
-		{0x21, 0x02211020}),
+		ALC256_STANDARD_PINS,
+		{0x13, 0x40000000}),
+	SND_HDA_PIN_QUIRK(0x10ec0256, 0x1028, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
+		ALC256_STANDARD_PINS,
+		{0x13, 0x411111f0}),
 	SND_HDA_PIN_QUIRK(0x10ec0280, 0x103c, "HP", ALC280_FIXUP_HP_GPIO4,
 		{0x12, 0x90a60130},
 		{0x13, 0x40000000},
@@ -5667,6 +5670,8 @@ static int patch_alc269(struct hda_codec *codec)
 		break;
 	case 0x10ec0256:
 		spec->codec_variant = ALC269_TYPE_ALC256;
+		spec->gen.mixer_nid = 0; /* ALC256 does not have any loopback mixer path */
+		alc_update_coef_idx(codec, 0x36, 1 << 13, 1 << 5); /* Switch pcbeep path to Line in path*/
 		break;
 	}
 
@@ -5680,8 +5685,8 @@ static int patch_alc269(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog && spec->gen.beep_nid)
-		set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
+	if (!spec->gen.no_analog && spec->gen.beep_nid && spec->gen.mixer_nid)
+		set_beep_amp(spec, spec->gen.mixer_nid, 0x04, HDA_INPUT);
 
 	codec->patch_ops = alc_patch_ops;
 	codec->patch_ops.stream_pm = snd_hda_gen_stream_pm;

@@ -68,16 +68,16 @@ struct si5351_driver_data {
 	struct si5351_hw_data	*clkout;
 };
 
-static const char const *si5351_input_names[] = {
+static const char * const si5351_input_names[] = {
 	"xtal", "clkin"
 };
-static const char const *si5351_pll_names[] = {
+static const char * const si5351_pll_names[] = {
 	"plla", "pllb", "vxco"
 };
-static const char const *si5351_msynth_names[] = {
+static const char * const si5351_msynth_names[] = {
 	"ms0", "ms1", "ms2", "ms3", "ms4", "ms5", "ms6", "ms7"
 };
-static const char const *si5351_clkout_names[] = {
+static const char * const si5351_clkout_names[] = {
 	"clk0", "clk1", "clk2", "clk3", "clk4", "clk5", "clk6", "clk7"
 };
 
@@ -207,7 +207,7 @@ static bool si5351_regmap_is_writeable(struct device *dev, unsigned int reg)
 	return true;
 }
 
-static struct regmap_config si5351_regmap_config = {
+static const struct regmap_config si5351_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.cache_type = REGCACHE_RBTREE,

@@ -230,11 +230,8 @@ static int v9fs_launder_page(struct page *page)
 
 /**
  * v9fs_direct_IO - 9P address space operation for direct I/O
- * @rw: direction (read or write)
  * @iocb: target I/O control block
- * @iov: array of vectors that define I/O buffer
  * @pos: offset in file to begin the operation
- * @nr_segs: size of iovec array
  *
  * The presence of v9fs_direct_IO() in the address space ops vector
  * allowes open() O_DIRECT flags which would have failed otherwise.
@@ -248,12 +245,12 @@ static int v9fs_launder_page(struct page *page)
  *
  */
 static ssize_t
-v9fs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
+v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
 	ssize_t n;
 	int err = 0;
-	if (rw & WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		n = p9_client_write(file->private_data, pos, iter, &err);
 		if (n) {
 			struct inode *inode = file_inode(file);

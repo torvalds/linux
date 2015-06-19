@@ -1139,7 +1139,7 @@ hash_sessionid(struct nfs4_sessionid *sessionid)
 	return sid->sequence % SESSION_HASH_SIZE;
 }
 
-#ifdef NFSD_DEBUG
+#ifdef CONFIG_SUNRPC_DEBUG
 static inline void
 dump_sessionid(const char *fn, struct nfs4_sessionid *sessionid)
 {
@@ -4049,7 +4049,6 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		status = nfserr_bad_stateid;
 		if (nfsd4_is_deleg_cur(open))
 			goto out;
-		status = nfserr_jukebox;
 	}
 
 	/*
@@ -4118,7 +4117,7 @@ out:
 }
 
 void nfsd4_cleanup_open_state(struct nfsd4_compound_state *cstate,
-			      struct nfsd4_open *open, __be32 status)
+			      struct nfsd4_open *open)
 {
 	if (open->op_openowner) {
 		struct nfs4_stateowner *so = &open->op_openowner->oo_owner;
@@ -4473,7 +4472,7 @@ nfs4_preprocess_stateid_op(struct net *net, struct nfsd4_compound_state *cstate,
 	struct nfs4_ol_stateid *stp = NULL;
 	struct nfs4_delegation *dp = NULL;
 	struct svc_fh *current_fh = &cstate->current_fh;
-	struct inode *ino = current_fh->fh_dentry->d_inode;
+	struct inode *ino = d_inode(current_fh->fh_dentry);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct file *file = NULL;
 	__be32 status;
@@ -5171,7 +5170,7 @@ lookup_or_create_lock_state(struct nfsd4_compound_state *cstate,
 	struct nfs4_file *fi = ost->st_stid.sc_file;
 	struct nfs4_openowner *oo = openowner(ost->st_stateowner);
 	struct nfs4_client *cl = oo->oo_owner.so_client;
-	struct inode *inode = cstate->current_fh.fh_dentry->d_inode;
+	struct inode *inode = d_inode(cstate->current_fh.fh_dentry);
 	struct nfs4_lockowner *lo;
 	unsigned int strhashval;
 

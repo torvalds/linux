@@ -1313,7 +1313,8 @@ int hidp_connection_add(struct hidp_connadd_req *req,
 			struct socket *ctrl_sock,
 			struct socket *intr_sock)
 {
-	u32 valid_flags = 0;
+	u32 valid_flags = BIT(HIDP_VIRTUAL_CABLE_UNPLUG) |
+			  BIT(HIDP_BOOT_PROTOCOL_MODE);
 	struct hidp_session *session;
 	struct l2cap_conn *conn;
 	struct l2cap_chan *chan;

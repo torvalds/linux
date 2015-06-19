@@ -1132,7 +1132,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 	path = shp->shm_file->f_path;
 	path_get(&path);
 	shp->shm_nattch++;
-	size = i_size_read(path.dentry->d_inode);
+	size = i_size_read(d_inode(path.dentry));
 	ipc_unlock_object(&shp->shm_perm);
 	rcu_read_unlock();
 

@@ -182,7 +182,7 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 				const char **parent_names, u8 num_parents,
 				void __iomem *reg, int shift);
 
-#define PNAME(x) static const char *x[] __initconst
+#define PNAME(x) static const char *x[] __initdata
 
 enum rockchip_clk_branch_type {
 	branch_composite,
@@ -407,7 +407,7 @@ void rockchip_clk_register_armclk(unsigned int lookup_id, const char *name,
 			const struct rockchip_cpuclk_reg_data *reg_data,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates);
-void rockchip_clk_protect_critical(const char *clocks[], int nclocks);
+void rockchip_clk_protect_critical(const char *const clocks[], int nclocks);
 void rockchip_register_restart_notifier(unsigned int reg);
 
 #define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)

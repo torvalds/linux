@@ -25,8 +25,10 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/of.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 
@@ -322,15 +324,23 @@ out:
 }
 
 static int
-validate_event(struct pmu_hw_events *hw_events,
-	       struct perf_event *event)
+validate_event(struct pmu *pmu, struct pmu_hw_events *hw_events,
+				struct perf_event *event)
 {
-	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
+	struct arm_pmu *armpmu;
 	struct hw_perf_event fake_event = event->hw;
 	struct pmu *leader_pmu = event->group_leader->pmu;
 
 	if (is_software_event(event))
 		return 1;
+
+	/*
+	 * Reject groups spanning multiple HW PMUs (e.g. CPU + CCI). The
+	 * core perf code won't check that the pmu->ctx == leader->ctx
+	 * until after pmu->event_init(event).
+	 */
+	if (event->pmu != pmu)
+		return 0;
 
 	if (event->pmu != leader_pmu || event->state < PERF_EVENT_STATE_OFF)
 		return 1;
@@ -338,6 +348,7 @@ validate_event(struct pmu_hw_events *hw_events,
 	if (event->state == PERF_EVENT_STATE_OFF && !event->attr.enable_on_exec)
 		return 1;
 
+	armpmu = to_arm_pmu(event->pmu);
 	return armpmu->get_event_idx(hw_events, &fake_event) >= 0;
 }
 
@@ -355,15 +366,15 @@ validate_group(struct perf_event *event)
 	memset(fake_used_mask, 0, sizeof(fake_used_mask));
 	fake_pmu.used_mask = fake_used_mask;
 
-	if (!validate_event(&fake_pmu, leader))
+	if (!validate_event(event->pmu, &fake_pmu, leader))
 		return -EINVAL;
 
 	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
-		if (!validate_event(&fake_pmu, sibling))
+		if (!validate_event(event->pmu, &fake_pmu, sibling))
 			return -EINVAL;
 	}
 
-	if (!validate_event(&fake_pmu, event))
+	if (!validate_event(event->pmu, &fake_pmu, event))
 		return -EINVAL;
 
 	return 0;
@@ -396,7 +407,12 @@ armpmu_release_hardware(struct arm_pmu *armpmu)
 		free_percpu_irq(irq, &cpu_hw_events);
 	} else {
 		for (i = 0; i < irqs; ++i) {
-			if (!cpumask_test_and_clear_cpu(i, &armpmu->active_irqs))
+			int cpu = i;
+
+			if (armpmu->irq_affinity)
+				cpu = armpmu->irq_affinity[i];
+
+			if (!cpumask_test_and_clear_cpu(cpu, &armpmu->active_irqs))
 				continue;
 			irq = platform_get_irq(pmu_device, i);
 			if (irq > 0)
@@ -450,19 +466,24 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 		on_each_cpu(armpmu_enable_percpu_irq, &irq, 1);
 	} else {
 		for (i = 0; i < irqs; ++i) {
+			int cpu = i;
+
 			err = 0;
 			irq = platform_get_irq(pmu_device, i);
 			if (irq <= 0)
 				continue;
+
+			if (armpmu->irq_affinity)
+				cpu = armpmu->irq_affinity[i];
 
 			/*
 			 * If we have a single PMU interrupt that we can't shift,
 			 * assume that we're running on a uniprocessor machine and
 			 * continue. Otherwise, continue without this interrupt.
 			 */
-			if (irq_set_affinity(irq, cpumask_of(i)) && irqs > 1) {
+			if (irq_set_affinity(irq, cpumask_of(cpu)) && irqs > 1) {
 				pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
-						irq, i);
+						irq, cpu);
 				continue;
 			}
 
@@ -476,7 +497,7 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 				return err;
 			}
 
-			cpumask_set_cpu(i, &armpmu->active_irqs);
+			cpumask_set_cpu(cpu, &armpmu->active_irqs);
 		}
 	}
 
@@ -1289,8 +1310,45 @@ static const struct of_device_id armpmu_of_device_ids[] = {
 
 static int armpmu_device_probe(struct platform_device *pdev)
 {
+	int i, *irqs;
+
 	if (!cpu_pmu)
 		return -ENODEV;
+
+	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
+	if (!irqs)
+		return -ENOMEM;
+
+	for (i = 0; i < pdev->num_resources; ++i) {
+		struct device_node *dn;
+		int cpu;
+
+		dn = of_parse_phandle(pdev->dev.of_node, "interrupt-affinity",
+				      i);
+		if (!dn) {
+			pr_warn("Failed to parse %s/interrupt-affinity[%d]\n",
+				of_node_full_name(dn), i);
+			break;
+		}
+
+		for_each_possible_cpu(cpu)
+			if (arch_find_n_match_cpu_physical_id(dn, cpu, NULL))
+				break;
+
+		of_node_put(dn);
+		if (cpu >= nr_cpu_ids) {
+			pr_warn("Failed to find logical CPU for %s\n",
+				dn->name);
+			break;
+		}
+
+		irqs[i] = cpu;
+	}
+
+	if (i == pdev->num_resources)
+		cpu_pmu->irq_affinity = irqs;
+	else
+		kfree(irqs);
 
 	cpu_pmu->plat_device = pdev;
 	return 0;

@@ -58,7 +58,6 @@ pattern where a GPIO is optional, the gpiod_get_optional() and
 gpiod_get_index_optional() functions can be used. These functions return NULL
 instead of -ENOENT if no GPIO has been assigned to the requested function:
 
-
 	struct gpio_desc *gpiod_get_optional(struct device *dev,
 					     const char *con_id,
 					     enum gpiod_flags flags)
@@ -67,6 +66,27 @@ instead of -ENOENT if no GPIO has been assigned to the requested function:
 						   const char *con_id,
 						   unsigned int index,
 						   enum gpiod_flags flags)
+
+For a function using multiple GPIOs all of those can be obtained with one call:
+
+	struct gpio_descs *gpiod_get_array(struct device *dev,
+					   const char *con_id,
+					   enum gpiod_flags flags)
+
+This function returns a struct gpio_descs which contains an array of
+descriptors:
+
+	struct gpio_descs {
+		unsigned int ndescs;
+		struct gpio_desc *desc[];
+	}
+
+The following function returns NULL instead of -ENOENT if no GPIOs have been
+assigned to the requested function:
+
+	struct gpio_descs *gpiod_get_array_optional(struct device *dev,
+						    const char *con_id,
+						    enum gpiod_flags flags)
 
 Device-managed variants of these functions are also defined:
 
@@ -82,19 +102,36 @@ Device-managed variants of these functions are also defined:
 						  const char *con_id,
 						  enum gpiod_flags flags)
 
-	struct gpio_desc * devm_gpiod_get_index_optional(struct device *dev,
+	struct gpio_desc *devm_gpiod_get_index_optional(struct device *dev,
 							const char *con_id,
 							unsigned int index,
 							enum gpiod_flags flags)
+
+	struct gpio_descs *devm_gpiod_get_array(struct device *dev,
+						const char *con_id,
+						enum gpiod_flags flags)
+
+	struct gpio_descs *devm_gpiod_get_array_optional(struct device *dev,
+							 const char *con_id,
+							 enum gpiod_flags flags)
 
 A GPIO descriptor can be disposed of using the gpiod_put() function:
 
 	void gpiod_put(struct gpio_desc *desc)
 
-It is strictly forbidden to use a descriptor after calling this function. The
-device-managed variant is, unsurprisingly:
+For an array of GPIOs this function can be used:
+
+	void gpiod_put_array(struct gpio_descs *descs)
+
+It is strictly forbidden to use a descriptor after calling these functions.
+It is also not allowed to individually release descriptors (using gpiod_put())
+from an array acquired with gpiod_get_array().
+
+The device-managed variants are, unsurprisingly:
 
 	void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
+
+	void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs)
 
 
 Using GPIOs
@@ -222,6 +259,26 @@ GPIOs belonging to the same bank or chip simultaneously if supported by the
 corresponding chip driver. In that case a significantly improved performance
 can be expected. If simultaneous setting is not possible the GPIOs will be set
 sequentially.
+
+The gpiod_set_array() functions take three arguments:
+	* array_size	- the number of array elements
+	* desc_array	- an array of GPIO descriptors
+	* value_array	- an array of values to assign to the GPIOs
+
+The descriptor array can be obtained using the gpiod_get_array() function
+or one of its variants. If the group of descriptors returned by that function
+matches the desired group of GPIOs, those GPIOs can be set by simply using
+the struct gpio_descs returned by gpiod_get_array():
+
+	struct gpio_descs *my_gpio_descs = gpiod_get_array(...);
+	gpiod_set_array(my_gpio_descs->ndescs, my_gpio_descs->desc,
+			my_gpio_values);
+
+It is also possible to set a completely arbitrary array of descriptors. The
+descriptors may be obtained using any combination of gpiod_get() and
+gpiod_get_array(). Afterwards the array of descriptors has to be setup
+manually before it can be used with gpiod_set_array().
+
 Note that for optimal performance GPIOs belonging to the same chip should be
 contiguous within the array of descriptors.
 

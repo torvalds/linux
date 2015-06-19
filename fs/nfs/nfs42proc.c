@@ -36,13 +36,16 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 				 loff_t offset, loff_t len)
 {
 	struct inode *inode = file_inode(filep);
+	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs42_falloc_args args = {
 		.falloc_fh	= NFS_FH(inode),
 		.falloc_offset	= offset,
 		.falloc_length	= len,
+		.falloc_bitmask	= server->cache_consistency_bitmask,
 	};
-	struct nfs42_falloc_res res;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs42_falloc_res res = {
+		.falloc_server	= server,
+	};
 	int status;
 
 	msg->rpc_argp = &args;
@@ -52,8 +55,17 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 	if (status)
 		return status;
 
-	return nfs4_call_sync(server->client, server, msg,
-			      &args.seq_args, &res.seq_res, 0);
+	res.falloc_fattr = nfs_alloc_fattr();
+	if (!res.falloc_fattr)
+		return -ENOMEM;
+
+	status = nfs4_call_sync(server->client, server, msg,
+				&args.seq_args, &res.seq_res, 0);
+	if (status == 0)
+		status = nfs_post_op_update_inode(inode, res.falloc_fattr);
+
+	kfree(res.falloc_fattr);
+	return status;
 }
 
 static int nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
@@ -84,9 +96,13 @@ int nfs42_proc_allocate(struct file *filep, loff_t offset, loff_t len)
 	if (!nfs_server_capable(inode, NFS_CAP_ALLOCATE))
 		return -EOPNOTSUPP;
 
+	mutex_lock(&inode->i_mutex);
+
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
 	if (err == -EOPNOTSUPP)
 		NFS_SERVER(inode)->caps &= ~NFS_CAP_ALLOCATE;
+
+	mutex_unlock(&inode->i_mutex);
 	return err;
 }
 
@@ -101,9 +117,16 @@ int nfs42_proc_deallocate(struct file *filep, loff_t offset, loff_t len)
 	if (!nfs_server_capable(inode, NFS_CAP_DEALLOCATE))
 		return -EOPNOTSUPP;
 
+	nfs_wb_all(inode);
+	mutex_lock(&inode->i_mutex);
+
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
+	if (err == 0)
+		truncate_pagecache_range(inode, offset, (offset + len) -1);
 	if (err == -EOPNOTSUPP)
 		NFS_SERVER(inode)->caps &= ~NFS_CAP_DEALLOCATE;
+
+	mutex_unlock(&inode->i_mutex);
 	return err;
 }
 

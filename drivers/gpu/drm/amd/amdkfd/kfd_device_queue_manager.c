@@ -82,7 +82,8 @@ static inline unsigned int get_pipes_num_cpsch(void)
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
-	return kfd2kgd->program_sh_mem_settings(dqm->dev->kgd, qpd->vmid,
+	return dqm->dev->kfd2kgd->program_sh_mem_settings(
+						dqm->dev->kgd, qpd->vmid,
 						qpd->sh_mem_config,
 						qpd->sh_mem_ape1_base,
 						qpd->sh_mem_ape1_limit,
@@ -457,9 +458,12 @@ set_pasid_vmid_mapping(struct device_queue_manager *dqm, unsigned int pasid,
 {
 	uint32_t pasid_mapping;
 
-	pasid_mapping = (pasid == 0) ? 0 : (uint32_t)pasid |
-						ATC_VMID_PASID_MAPPING_VALID;
-	return kfd2kgd->set_pasid_vmid_mapping(dqm->dev->kgd, pasid_mapping,
+	pasid_mapping = (pasid == 0) ? 0 :
+		(uint32_t)pasid |
+		ATC_VMID_PASID_MAPPING_VALID;
+
+	return dqm->dev->kfd2kgd->set_pasid_vmid_mapping(
+						dqm->dev->kgd, pasid_mapping,
 						vmid);
 }
 
@@ -511,7 +515,7 @@ int init_pipelines(struct device_queue_manager *dqm,
 		pipe_hpd_addr = dqm->pipelines_addr + i * CIK_HPD_EOP_BYTES;
 		pr_debug("kfd: pipeline address %llX\n", pipe_hpd_addr);
 		/* = log2(bytes/4)-1 */
-		kfd2kgd->init_pipeline(dqm->dev->kgd, inx,
+		dqm->dev->kfd2kgd->init_pipeline(dqm->dev->kgd, inx,
 				CIK_HPD_EOP_BYTES_LOG2 - 3, pipe_hpd_addr);
 	}
 
@@ -905,7 +909,7 @@ out:
 	return retval;
 }
 
-static int fence_wait_timeout(unsigned int *fence_addr,
+static int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,
 				unsigned long timeout)
 {
@@ -961,7 +965,7 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 	pm_send_query_status(&dqm->packets, dqm->fence_gpu_addr,
 				KFD_FENCE_COMPLETED);
 	/* should be timed out */
-	fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
+	amdkfd_fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
 				QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS);
 	pm_release_ib(&dqm->packets);
 	dqm->active_runlist = false;

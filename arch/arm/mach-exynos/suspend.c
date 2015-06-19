@@ -65,8 +65,6 @@ static struct sleep_save exynos_core_save[] = {
 
 struct exynos_pm_data {
 	const struct exynos_wkup_irq *wkup_irq;
-	struct sleep_save *extra_save;
-	int num_extra_save;
 	unsigned int wake_disable_mask;
 	unsigned int *release_ret_regs;
 
@@ -77,7 +75,7 @@ struct exynos_pm_data {
 	int (*cpu_suspend)(unsigned long);
 };
 
-struct exynos_pm_data *pm_data;
+static const struct exynos_pm_data *pm_data;
 
 static int exynos5420_cpu_state;
 static unsigned int exynos_pmu_spare3;
@@ -106,7 +104,7 @@ static const struct exynos_wkup_irq exynos5250_wkup_irq[] = {
 	{ /* sentinel */ },
 };
 
-unsigned int exynos_release_ret_regs[] = {
+static unsigned int exynos_release_ret_regs[] = {
 	S5P_PAD_RET_MAUDIO_OPTION,
 	S5P_PAD_RET_GPIO_OPTION,
 	S5P_PAD_RET_UART_OPTION,
@@ -117,7 +115,7 @@ unsigned int exynos_release_ret_regs[] = {
 	REG_TABLE_END,
 };
 
-unsigned int exynos3250_release_ret_regs[] = {
+static unsigned int exynos3250_release_ret_regs[] = {
 	S5P_PAD_RET_MAUDIO_OPTION,
 	S5P_PAD_RET_GPIO_OPTION,
 	S5P_PAD_RET_UART_OPTION,
@@ -130,7 +128,7 @@ unsigned int exynos3250_release_ret_regs[] = {
 	REG_TABLE_END,
 };
 
-unsigned int exynos5420_release_ret_regs[] = {
+static unsigned int exynos5420_release_ret_regs[] = {
 	EXYNOS_PAD_RET_DRAM_OPTION,
 	EXYNOS_PAD_RET_MAUDIO_OPTION,
 	EXYNOS_PAD_RET_JTAG_OPTION,
@@ -349,10 +347,6 @@ static void exynos_pm_prepare(void)
 
 	s3c_pm_do_save(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
-	 if (pm_data->extra_save)
-		s3c_pm_do_save(pm_data->extra_save,
-				pm_data->num_extra_save);
-
 	exynos_pm_enter_sleep_mode();
 
 	/* ensure at least INFORM0 has the resume address */
@@ -474,10 +468,6 @@ static void exynos_pm_resume(void)
 
 	/* For release retention */
 	exynos_pm_release_retention();
-
-	if (pm_data->extra_save)
-		s3c_pm_do_restore_core(pm_data->extra_save,
-					pm_data->num_extra_save);
 
 	s3c_pm_do_restore_core(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
@@ -685,7 +675,7 @@ static const struct exynos_pm_data exynos5250_pm_data = {
 	.cpu_suspend	= exynos_cpu_suspend,
 };
 
-static struct exynos_pm_data exynos5420_pm_data = {
+static const struct exynos_pm_data exynos5420_pm_data = {
 	.wkup_irq	= exynos5250_wkup_irq,
 	.wake_disable_mask = (0x7F << 7) | (0x1F << 1),
 	.release_ret_regs = exynos5420_release_ret_regs,
@@ -736,7 +726,7 @@ void __init exynos_pm_init(void)
 	if (WARN_ON(!of_find_property(np, "interrupt-controller", NULL)))
 		pr_warn("Outdated DT detected, suspend/resume will NOT work\n");
 
-	pm_data = (struct exynos_pm_data *) match->data;
+	pm_data = (const struct exynos_pm_data *) match->data;
 
 	/* All wakeup disable */
 	tmp = pmu_raw_readl(S5P_WAKEUP_MASK);

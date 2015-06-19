@@ -94,8 +94,11 @@ specific to ARM.
 		- compatible
 			Usage: required
 			Value type: <string>
-			Definition: must be "arm,cci-400-pmu"
-
+			Definition: Must contain one of:
+				 "arm,cci-400-pmu,r0"
+				 "arm,cci-400-pmu,r1"
+				 "arm,cci-400-pmu"  - DEPRECATED, permitted only where OS has
+						      secure acces to CCI registers
 		- reg:
 			Usage: required
 			Value type: Integer cells. A register entry, expressed

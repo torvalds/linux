@@ -7,7 +7,6 @@
 extern void ppc_printk_progress(char *s, unsigned short hex);
 
 extern unsigned int rtas_data;
-extern int mem_init_done;	/* set on boot once kmalloc can be called */
 extern unsigned long long memory_limit;
 extern unsigned long klimit;
 extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);

@@ -177,7 +177,7 @@ enum bpf_func_id {
 	/**
 	 * skb_store_bytes(skb, offset, from, len, flags) - store bytes into packet
 	 * @skb: pointer to skb
-	 * @offset: offset within packet from skb->data
+	 * @offset: offset within packet from skb->mac_header
 	 * @from: pointer where to copy bytes from
 	 * @len: number of bytes to store into packet
 	 * @flags: bit 0 - if true, recompute skb->csum

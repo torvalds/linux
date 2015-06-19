@@ -378,7 +378,7 @@ static struct prm_ll_data am33xx_prm_ll_data = {
 	.reset_system			= am33xx_prm_global_warm_sw_reset,
 };
 
-int __init am33xx_prm_init(void)
+int __init am33xx_prm_init(const struct omap_prcm_init_data *data)
 {
 	return prm_register(&am33xx_prm_ll_data);
 }

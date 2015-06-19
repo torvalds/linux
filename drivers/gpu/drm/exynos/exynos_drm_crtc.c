@@ -34,9 +34,8 @@ static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 	if (mode > DRM_MODE_DPMS_ON) {
 		/* wait for the completion of page flip. */
 		if (!wait_event_timeout(exynos_crtc->pending_flip_queue,
-				!atomic_read(&exynos_crtc->pending_flip),
-				HZ/20))
-			atomic_set(&exynos_crtc->pending_flip, 0);
+				(exynos_crtc->event == NULL), HZ/20))
+			exynos_crtc->event = NULL;
 		drm_crtc_vblank_off(crtc);
 	}
 
@@ -164,11 +163,10 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 				     uint32_t page_flip_flags)
 {
 	struct drm_device *dev = crtc->dev;
-	struct exynos_drm_private *dev_priv = dev->dev_private;
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	unsigned int crtc_w, crtc_h;
-	int ret = -EINVAL;
+	int ret;
 
 	/* when the page flip is requested, crtc's dpms should be on */
 	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
@@ -176,48 +174,49 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	if (!event)
+		return -EINVAL;
 
-	if (event) {
-		/*
-		 * the pipe from user always is 0 so we can set pipe number
-		 * of current owner to event.
-		 */
-		event->pipe = exynos_crtc->pipe;
-
-		ret = drm_vblank_get(dev, exynos_crtc->pipe);
-		if (ret) {
-			DRM_DEBUG("failed to acquire vblank counter\n");
-
-			goto out;
-		}
-
-		spin_lock_irq(&dev->event_lock);
-		list_add_tail(&event->base.link,
-				&dev_priv->pageflip_event_list);
-		atomic_set(&exynos_crtc->pending_flip, 1);
-		spin_unlock_irq(&dev->event_lock);
-
-		crtc->primary->fb = fb;
-		crtc_w = fb->width - crtc->x;
-		crtc_h = fb->height - crtc->y;
-		ret = exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
-					  crtc_w, crtc_h, crtc->x, crtc->y,
-					  crtc_w, crtc_h);
-		if (ret) {
-			crtc->primary->fb = old_fb;
-
-			spin_lock_irq(&dev->event_lock);
-			drm_vblank_put(dev, exynos_crtc->pipe);
-			list_del(&event->base.link);
-			atomic_set(&exynos_crtc->pending_flip, 0);
-			spin_unlock_irq(&dev->event_lock);
-
-			goto out;
-		}
+	spin_lock_irq(&dev->event_lock);
+	if (exynos_crtc->event) {
+		ret = -EBUSY;
+		goto out;
 	}
+
+	ret = drm_vblank_get(dev, exynos_crtc->pipe);
+	if (ret) {
+		DRM_DEBUG("failed to acquire vblank counter\n");
+		goto out;
+	}
+
+	exynos_crtc->event = event;
+	spin_unlock_irq(&dev->event_lock);
+
+	/*
+	 * the pipe from user always is 0 so we can set pipe number
+	 * of current owner to event.
+	 */
+	event->pipe = exynos_crtc->pipe;
+
+	crtc->primary->fb = fb;
+	crtc_w = fb->width - crtc->x;
+	crtc_h = fb->height - crtc->y;
+	ret = exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
+				  crtc_w, crtc_h, crtc->x, crtc->y,
+				  crtc_w, crtc_h);
+	if (ret) {
+		crtc->primary->fb = old_fb;
+		spin_lock_irq(&dev->event_lock);
+		exynos_crtc->event = NULL;
+		drm_vblank_put(dev, exynos_crtc->pipe);
+		spin_unlock_irq(&dev->event_lock);
+		return ret;
+	}
+
+	return 0;
+
 out:
-	mutex_unlock(&dev->struct_mutex);
+	spin_unlock_irq(&dev->event_lock);
 	return ret;
 }
 
@@ -239,13 +238,13 @@ static struct drm_crtc_funcs exynos_crtc_funcs = {
 };
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
+					       struct drm_plane *plane,
 					       int pipe,
 					       enum exynos_drm_output_type type,
 					       struct exynos_drm_crtc_ops *ops,
 					       void *ctx)
 {
 	struct exynos_drm_crtc *exynos_crtc;
-	struct drm_plane *plane;
 	struct exynos_drm_private *private = drm_dev->dev_private;
 	struct drm_crtc *crtc;
 	int ret;
@@ -255,19 +254,12 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 		return ERR_PTR(-ENOMEM);
 
 	init_waitqueue_head(&exynos_crtc->pending_flip_queue);
-	atomic_set(&exynos_crtc->pending_flip, 0);
 
 	exynos_crtc->dpms = DRM_MODE_DPMS_OFF;
 	exynos_crtc->pipe = pipe;
 	exynos_crtc->type = type;
 	exynos_crtc->ops = ops;
 	exynos_crtc->ctx = ctx;
-	plane = exynos_plane_init(drm_dev, 1 << pipe,
-				  DRM_PLANE_TYPE_PRIMARY);
-	if (IS_ERR(plane)) {
-		ret = PTR_ERR(plane);
-		goto err_plane;
-	}
 
 	crtc = &exynos_crtc->base;
 
@@ -284,7 +276,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 
 err_crtc:
 	plane->funcs->destroy(plane);
-err_plane:
 	kfree(exynos_crtc);
 	return ERR_PTR(ret);
 }
@@ -320,26 +311,20 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
 void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int pipe)
 {
 	struct exynos_drm_private *dev_priv = dev->dev_private;
-	struct drm_pending_vblank_event *e, *t;
 	struct drm_crtc *drm_crtc = dev_priv->crtc[pipe];
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(drm_crtc);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
+	if (exynos_crtc->event) {
 
-	list_for_each_entry_safe(e, t, &dev_priv->pageflip_event_list,
-			base.link) {
-		/* if event's pipe isn't same as crtc then ignore it. */
-		if (pipe != e->pipe)
-			continue;
-
-		list_del(&e->base.link);
-		drm_send_vblank_event(dev, -1, e);
+		drm_send_vblank_event(dev, -1, exynos_crtc->event);
 		drm_vblank_put(dev, pipe);
-		atomic_set(&exynos_crtc->pending_flip, 0);
 		wake_up(&exynos_crtc->pending_flip_queue);
+
 	}
 
+	exynos_crtc->event = NULL;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 

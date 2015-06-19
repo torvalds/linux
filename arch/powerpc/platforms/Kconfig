@@ -72,11 +72,6 @@ config PPC_SMP_MUXED_IPI
 	  cpu.	This will enable the generic code to multiplex the 4
 	  messages on to one ipi.
 
-config PPC_UDBG_BEAT
-	bool "BEAT based debug console"
-	depends on PPC_CELLEB
-	default n
-
 config IPIC
 	bool
 	default n

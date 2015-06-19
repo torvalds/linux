@@ -23,7 +23,7 @@
 
 void mdp5_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask)
 {
-	mdp5_write(to_mdp5_kms(mdp_kms), REG_MDP5_INTR_EN, irqmask);
+	mdp5_write(to_mdp5_kms(mdp_kms), REG_MDP5_MDP_INTR_EN(0), irqmask);
 }
 
 static void mdp5_irq_error_handler(struct mdp_irq *irq, uint32_t irqstatus)
@@ -35,8 +35,8 @@ void mdp5_irq_preinstall(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	mdp5_enable(mdp5_kms);
-	mdp5_write(mdp5_kms, REG_MDP5_INTR_CLEAR, 0xffffffff);
-	mdp5_write(mdp5_kms, REG_MDP5_INTR_EN, 0x00000000);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_INTR_CLEAR(0), 0xffffffff);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_INTR_EN(0), 0x00000000);
 	mdp5_disable(mdp5_kms);
 }
 
@@ -61,7 +61,7 @@ void mdp5_irq_uninstall(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	mdp5_enable(mdp5_kms);
-	mdp5_write(mdp5_kms, REG_MDP5_INTR_EN, 0x00000000);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_INTR_EN(0), 0x00000000);
 	mdp5_disable(mdp5_kms);
 }
 
@@ -73,8 +73,8 @@ static void mdp5_irq_mdp(struct mdp_kms *mdp_kms)
 	unsigned int id;
 	uint32_t status;
 
-	status = mdp5_read(mdp5_kms, REG_MDP5_INTR_STATUS);
-	mdp5_write(mdp5_kms, REG_MDP5_INTR_CLEAR, status);
+	status = mdp5_read(mdp5_kms, REG_MDP5_MDP_INTR_STATUS(0));
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_INTR_CLEAR(0), status);
 
 	VERB("status=%08x", status);
 
@@ -91,13 +91,13 @@ irqreturn_t mdp5_irq(struct msm_kms *kms)
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(mdp_kms);
 	uint32_t intr;
 
-	intr = mdp5_read(mdp5_kms, REG_MDP5_HW_INTR_STATUS);
+	intr = mdp5_read(mdp5_kms, REG_MDSS_HW_INTR_STATUS);
 
 	VERB("intr=%08x", intr);
 
-	if (intr & MDP5_HW_INTR_STATUS_INTR_MDP) {
+	if (intr & MDSS_HW_INTR_STATUS_INTR_MDP) {
 		mdp5_irq_mdp(mdp_kms);
-		intr &= ~MDP5_HW_INTR_STATUS_INTR_MDP;
+		intr &= ~MDSS_HW_INTR_STATUS_INTR_MDP;
 	}
 
 	while (intr) {
@@ -128,10 +128,10 @@ void mdp5_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
  * can register to get their irq's delivered
  */
 
-#define VALID_IRQS  (MDP5_HW_INTR_STATUS_INTR_DSI0 | \
-		MDP5_HW_INTR_STATUS_INTR_DSI1 | \
-		MDP5_HW_INTR_STATUS_INTR_HDMI | \
-		MDP5_HW_INTR_STATUS_INTR_EDP)
+#define VALID_IRQS  (MDSS_HW_INTR_STATUS_INTR_DSI0 | \
+		MDSS_HW_INTR_STATUS_INTR_DSI1 | \
+		MDSS_HW_INTR_STATUS_INTR_HDMI | \
+		MDSS_HW_INTR_STATUS_INTR_EDP)
 
 static void mdp5_hw_mask_irq(struct irq_data *irqd)
 {

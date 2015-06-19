@@ -338,7 +338,8 @@ static int mei_hbm_me_cl_add(struct mei_device *dev,
 	me_cl->client_id = res->me_addr;
 	me_cl->mei_flow_ctrl_creds = 0;
 
-	list_add(&me_cl->list, &dev->me_clients);
+	mei_me_cl_add(dev, me_cl);
+
 	return 0;
 }
 
@@ -638,7 +639,7 @@ static void mei_hbm_cl_res(struct mei_device *dev,
 			continue;
 
 		if (mei_hbm_cl_addr_equal(cl, rs)) {
-			list_del(&cb->list);
+			list_del_init(&cb->list);
 			break;
 		}
 	}
@@ -683,10 +684,9 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 		cl->state = MEI_FILE_DISCONNECTED;
 		cl->timer_count = 0;
 
-		cb = mei_io_cb_init(cl, NULL);
+		cb = mei_io_cb_init(cl, MEI_FOP_DISCONNECT_RSP, NULL);
 		if (!cb)
 			return -ENOMEM;
-		cb->fop_type = MEI_FOP_DISCONNECT_RSP;
 		cl_dbg(dev, cl, "add disconnect response as first\n");
 		list_add(&cb->list, &dev->ctrl_wr_list.list);
 	}

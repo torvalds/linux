@@ -602,8 +602,6 @@ static void _mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 		u32 high = 0;
 
 		if (s->reg >= 0x100) {
-			int ret;
-
 			ret = mv88e6xxx_reg_read(ds, REG_PORT(port),
 						 s->reg - 0x100);
 			if (ret < 0)
@@ -902,14 +900,16 @@ static int _mv88e6xxx_flush_fid(struct dsa_switch *ds, int fid)
 static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int reg, ret;
+	int reg, ret = 0;
 	u8 oldstate;
 
 	mutex_lock(&ps->smi_mutex);
 
 	reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_CONTROL);
-	if (reg < 0)
+	if (reg < 0) {
+		ret = reg;
 		goto abort;
+	}
 
 	oldstate = reg & PORT_CONTROL_STATE_MASK;
 	if (oldstate != state) {
@@ -1251,8 +1251,7 @@ int mv88e6xxx_setup_port_common(struct dsa_switch *ds, int port)
 	/* Port Control 1: disable trunking, disable sending
 	 * learning messages to this port.
 	 */
-	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_DEFAULT_VLAN,
-				   0x0000);
+	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_CONTROL_1, 0x0000);
 	if (ret)
 		goto abort;
 
@@ -1275,7 +1274,8 @@ int mv88e6xxx_setup_port_common(struct dsa_switch *ds, int port)
 	/* Default VLAN ID and priority: don't set a default VLAN
 	 * ID, and set the default packet priority to zero.
 	 */
-	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), 0x07, 0x0000);
+	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_DEFAULT_VLAN,
+				   0x0000);
 abort:
 	mutex_unlock(&ps->smi_mutex);
 	return ret;

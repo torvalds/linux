@@ -44,10 +44,6 @@
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
 #endif
-#ifdef CONFIG_PPC_OF
-#include <asm/prom.h>
-#include <asm/pci-bridge.h>
-#endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/machdep.h>
 #include <asm/backlight.h>
@@ -1735,7 +1731,6 @@ static int riva_set_fbinfo(struct fb_info *info)
 	return (rivafb_check_var(&info->var, info));
 }
 
-#ifdef CONFIG_PPC_OF
 static int riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 {
 	struct riva_par *par = info->par;
@@ -1766,9 +1761,8 @@ static int riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 	NVTRACE_LEAVE();
 	return 0;
 }
-#endif /* CONFIG_PPC_OF */
 
-#if defined(CONFIG_FB_RIVA_I2C) && !defined(CONFIG_PPC_OF)
+#if defined(CONFIG_FB_RIVA_I2C)
 static int riva_get_EDID_i2c(struct fb_info *info)
 {
 	struct riva_par *par = info->par;
@@ -1828,10 +1822,13 @@ static void riva_update_default_var(struct fb_var_screeninfo *var,
 static void riva_get_EDID(struct fb_info *info, struct pci_dev *pdev)
 {
 	NVTRACE_ENTER();
-#ifdef CONFIG_PPC_OF
-	if (!riva_get_EDID_OF(info, pdev))
+	if (riva_get_EDID_OF(info, pdev)) {
+		NVTRACE_LEAVE();
+		return;
+	}
+	if (IS_ENABLED(CONFIG_OF))
 		printk(PFX "could not retrieve EDID from OF\n");
-#elif defined(CONFIG_FB_RIVA_I2C)
+#if defined(CONFIG_FB_RIVA_I2C)
 	if (!riva_get_EDID_i2c(info))
 		printk(PFX "could not retrieve EDID from DDC/I2C\n");
 #endif

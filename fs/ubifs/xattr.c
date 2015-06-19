@@ -364,15 +364,15 @@ int ubifs_setxattr(struct dentry *dentry, const char *name,
 		   const void *value, size_t size, int flags)
 {
 	dbg_gen("xattr '%s', host ino %lu ('%pd'), size %zd",
-		name, dentry->d_inode->i_ino, dentry, size);
+		name, d_inode(dentry)->i_ino, dentry, size);
 
-	return setxattr(dentry->d_inode, name, value, size, flags);
+	return setxattr(d_inode(dentry), name, value, size, flags);
 }
 
 ssize_t ubifs_getxattr(struct dentry *dentry, const char *name, void *buf,
 		       size_t size)
 {
-	struct inode *inode, *host = dentry->d_inode;
+	struct inode *inode, *host = d_inode(dentry);
 	struct ubifs_info *c = host->i_sb->s_fs_info;
 	struct qstr nm = QSTR_INIT(name, strlen(name));
 	struct ubifs_inode *ui;
@@ -432,7 +432,7 @@ out_unlock:
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	union ubifs_key key;
-	struct inode *host = dentry->d_inode;
+	struct inode *host = d_inode(dentry);
 	struct ubifs_info *c = host->i_sb->s_fs_info;
 	struct ubifs_inode *host_ui = ubifs_inode(host);
 	struct ubifs_dent_node *xent, *pxent = NULL;
@@ -535,7 +535,7 @@ out_cancel:
 
 int ubifs_removexattr(struct dentry *dentry, const char *name)
 {
-	struct inode *inode, *host = dentry->d_inode;
+	struct inode *inode, *host = d_inode(dentry);
 	struct ubifs_info *c = host->i_sb->s_fs_info;
 	struct qstr nm = QSTR_INIT(name, strlen(name));
 	struct ubifs_dent_node *xent;

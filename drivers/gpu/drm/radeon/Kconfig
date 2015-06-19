@@ -1,3 +1,11 @@
+config DRM_RADEON_USERPTR
+	bool "Always enable userptr support"
+	depends on DRM_RADEON
+	select MMU_NOTIFIER
+	help
+	  This option selects CONFIG_MMU_NOTIFIER if it isn't already
+	  selected to enabled full userptr support.
+
 config DRM_RADEON_UMS
 	bool "Enable userspace modesetting on radeon (DEPRECATED)"
 	depends on DRM_RADEON

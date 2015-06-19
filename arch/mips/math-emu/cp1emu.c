@@ -45,6 +45,7 @@
 #include <asm/signal.h>
 #include <asm/uaccess.h>
 
+#include <asm/cpu-info.h>
 #include <asm/processor.h>
 #include <asm/fpu_emulator.h>
 #include <asm/fpu.h>
@@ -63,14 +64,14 @@ static int fpux_emu(struct pt_regs *,
 /* Control registers */
 
 #define FPCREG_RID	0	/* $0  = revision id */
+#define FPCREG_FCCR	25	/* $25 = fccr */
+#define FPCREG_FEXR	26	/* $26 = fexr */
+#define FPCREG_FENR	28	/* $28 = fenr */
 #define FPCREG_CSR	31	/* $31 = csr */
-
-/* Determine rounding mode from the RM bits of the FCSR */
-#define modeindex(v) ((v) & FPU_CSR_RM)
 
 /* convert condition code register number to csr bit */
 const unsigned int fpucondbit[8] = {
-	FPU_CSR_COND0,
+	FPU_CSR_COND,
 	FPU_CSR_COND1,
 	FPU_CSR_COND2,
 	FPU_CSR_COND3,
@@ -843,6 +844,127 @@ do {									\
 #define DPTOREG(dp, x)	DITOREG((dp).bits, x)
 
 /*
+ * Emulate a CFC1 instruction.
+ */
+static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
+			    mips_instruction ir)
+{
+	u32 fcr31 = ctx->fcr31;
+	u32 value = 0;
+
+	switch (MIPSInst_RD(ir)) {
+	case FPCREG_CSR:
+		value = fcr31;
+		pr_debug("%p gpr[%d]<-csr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		break;
+
+	case FPCREG_FENR:
+		if (!cpu_has_mips_r)
+			break;
+		value = (fcr31 >> (FPU_CSR_FS_S - MIPS_FENR_FS_S)) &
+			MIPS_FENR_FS;
+		value |= fcr31 & (FPU_CSR_ALL_E | FPU_CSR_RM);
+		pr_debug("%p gpr[%d]<-enr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		break;
+
+	case FPCREG_FEXR:
+		if (!cpu_has_mips_r)
+			break;
+		value = fcr31 & (FPU_CSR_ALL_X | FPU_CSR_ALL_S);
+		pr_debug("%p gpr[%d]<-exr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		break;
+
+	case FPCREG_FCCR:
+		if (!cpu_has_mips_r)
+			break;
+		value = (fcr31 >> (FPU_CSR_COND_S - MIPS_FCCR_COND0_S)) &
+			MIPS_FCCR_COND0;
+		value |= (fcr31 >> (FPU_CSR_COND1_S - MIPS_FCCR_COND1_S)) &
+			 (MIPS_FCCR_CONDX & ~MIPS_FCCR_COND0);
+		pr_debug("%p gpr[%d]<-ccr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		break;
+
+	case FPCREG_RID:
+		value = current_cpu_data.fpu_id;
+		break;
+
+	default:
+		break;
+	}
+
+	if (MIPSInst_RT(ir))
+		xcp->regs[MIPSInst_RT(ir)] = value;
+}
+
+/*
+ * Emulate a CTC1 instruction.
+ */
+static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
+			    mips_instruction ir)
+{
+	u32 fcr31 = ctx->fcr31;
+	u32 value;
+	u32 mask;
+
+	if (MIPSInst_RT(ir) == 0)
+		value = 0;
+	else
+		value = xcp->regs[MIPSInst_RT(ir)];
+
+	switch (MIPSInst_RD(ir)) {
+	case FPCREG_CSR:
+		pr_debug("%p gpr[%d]->csr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+
+		/* Preserve read-only bits.  */
+		mask = current_cpu_data.fpu_msk31;
+		fcr31 = (value & ~mask) | (fcr31 & mask);
+		break;
+
+	case FPCREG_FENR:
+		if (!cpu_has_mips_r)
+			break;
+		pr_debug("%p gpr[%d]->enr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		fcr31 &= ~(FPU_CSR_FS | FPU_CSR_ALL_E | FPU_CSR_RM);
+		fcr31 |= (value << (FPU_CSR_FS_S - MIPS_FENR_FS_S)) &
+			 FPU_CSR_FS;
+		fcr31 |= value & (FPU_CSR_ALL_E | FPU_CSR_RM);
+		break;
+
+	case FPCREG_FEXR:
+		if (!cpu_has_mips_r)
+			break;
+		pr_debug("%p gpr[%d]->exr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		fcr31 &= ~(FPU_CSR_ALL_X | FPU_CSR_ALL_S);
+		fcr31 |= value & (FPU_CSR_ALL_X | FPU_CSR_ALL_S);
+		break;
+
+	case FPCREG_FCCR:
+		if (!cpu_has_mips_r)
+			break;
+		pr_debug("%p gpr[%d]->ccr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		fcr31 &= ~(FPU_CSR_CONDX | FPU_CSR_COND);
+		fcr31 |= (value << (FPU_CSR_COND_S - MIPS_FCCR_COND0_S)) &
+			 FPU_CSR_COND;
+		fcr31 |= (value << (FPU_CSR_COND1_S - MIPS_FCCR_COND1_S)) &
+			 FPU_CSR_CONDX;
+		break;
+
+	default:
+		break;
+	}
+
+	ctx->fcr31 = fcr31;
+}
+
+/*
  * Emulate the single floating point instruction pointed at by EPC.
  * Two instructions if the instruction is in a branch delay slot.
  */
@@ -856,7 +978,6 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	int likely, pc_inc;
 	u32 __user *wva;
 	u64 __user *dva;
-	u32 value;
 	u32 wval;
 	u64 dval;
 	int sig;
@@ -1049,42 +1170,12 @@ emul:
 
 		case cfc_op:
 			/* cop control register rd -> gpr[rt] */
-			if (MIPSInst_RD(ir) == FPCREG_CSR) {
-				value = ctx->fcr31;
-				value = (value & ~FPU_CSR_RM) | modeindex(value);
-				pr_debug("%p gpr[%d]<-csr=%08x\n",
-					 (void *) (xcp->cp0_epc),
-					 MIPSInst_RT(ir), value);
-			}
-			else if (MIPSInst_RD(ir) == FPCREG_RID)
-				value = 0;
-			else
-				value = 0;
-			if (MIPSInst_RT(ir))
-				xcp->regs[MIPSInst_RT(ir)] = value;
+			cop1_cfc(xcp, ctx, ir);
 			break;
 
 		case ctc_op:
 			/* copregister rd <- rt */
-			if (MIPSInst_RT(ir) == 0)
-				value = 0;
-			else
-				value = xcp->regs[MIPSInst_RT(ir)];
-
-			/* we only have one writable control reg
-			 */
-			if (MIPSInst_RD(ir) == FPCREG_CSR) {
-				pr_debug("%p gpr[%d]->csr=%08x\n",
-					 (void *) (xcp->cp0_epc),
-					 MIPSInst_RT(ir), value);
-
-				/*
-				 * Don't write reserved bits,
-				 * and convert to ieee library modes
-				 */
-				ctx->fcr31 = (value & ~(FPU_CSR_RSVD | FPU_CSR_RM)) |
-					     modeindex(value);
-			}
+			cop1_ctc(xcp, ctx, ir);
 			if ((ctx->fcr31 >> 5) & ctx->fcr31 & FPU_CSR_ALL_E) {
 				return SIGFPE;
 			}
@@ -1103,17 +1194,18 @@ emul:
 			likely = 0;
 			switch (MIPSInst_RT(ir) & 3) {
 			case bcfl_op:
-				likely = 1;
+				if (cpu_has_mips_2_3_4_5_r)
+					likely = 1;
+				/* Fall through */
 			case bcf_op:
 				cond = !cond;
 				break;
 			case bctl_op:
-				likely = 1;
+				if (cpu_has_mips_2_3_4_5_r)
+					likely = 1;
+				/* Fall through */
 			case bct_op:
 				break;
-			default:
-				/* thats an illegal instruction */
-				return SIGILL;
 			}
 
 			set_delay_slot(xcp);
@@ -1121,6 +1213,14 @@ emul:
 				/*
 				 * Branch taken: emulate dslot instruction
 				 */
+				unsigned long bcpc;
+
+				/*
+				 * Remember EPC at the branch to point back
+				 * at so that any delay-slot instruction
+				 * signal is not silently ignored.
+				 */
+				bcpc = xcp->cp0_epc;
 				xcp->cp0_epc += dec_insn.pc_inc;
 
 				contpc = MIPSInst_SIMM(ir);
@@ -1146,63 +1246,77 @@ emul:
 						 * Single step the non-CP1
 						 * instruction in the dslot.
 						 */
-						return mips_dsemul(xcp, ir, contpc);
+						sig = mips_dsemul(xcp, ir,
+								  contpc);
+						if (sig)
+							xcp->cp0_epc = bcpc;
+						/*
+						 * SIGILL forces out of
+						 * the emulation loop.
+						 */
+						return sig ? sig : SIGILL;
 					}
 				} else
 					contpc = (xcp->cp0_epc + (contpc << 2));
 
 				switch (MIPSInst_OPCODE(ir)) {
 				case lwc1_op:
-					goto emul;
-
 				case swc1_op:
 					goto emul;
 
 				case ldc1_op:
 				case sdc1_op:
-					if (cpu_has_mips_2_3_4_5 ||
-					    cpu_has_mips64)
+					if (cpu_has_mips_2_3_4_5_r)
 						goto emul;
 
-					return SIGILL;
-					goto emul;
+					goto bc_sigill;
 
 				case cop1_op:
 					goto emul;
 
 				case cop1x_op:
-					if (cpu_has_mips_4_5 || cpu_has_mips64 || cpu_has_mips32r2)
+					if (cpu_has_mips_4_5_64_r2_r6)
 						/* its one of ours */
 						goto emul;
 
-					return SIGILL;
+					goto bc_sigill;
 
 				case spec_op:
-					if (!cpu_has_mips_4_5_r)
-						return SIGILL;
+					switch (MIPSInst_FUNC(ir)) {
+					case movc_op:
+						if (cpu_has_mips_4_5_r)
+							goto emul;
 
-					if (MIPSInst_FUNC(ir) == movc_op)
-						goto emul;
+						goto bc_sigill;
+					}
 					break;
+
+				bc_sigill:
+					xcp->cp0_epc = bcpc;
+					return SIGILL;
 				}
 
 				/*
 				 * Single step the non-cp1
 				 * instruction in the dslot
 				 */
-				return mips_dsemul(xcp, ir, contpc);
+				sig = mips_dsemul(xcp, ir, contpc);
+				if (sig)
+					xcp->cp0_epc = bcpc;
+				/* SIGILL forces out of the emulation loop.  */
+				return sig ? sig : SIGILL;
 			} else if (likely) {	/* branch not taken */
-					/*
-					 * branch likely nullifies
-					 * dslot if not taken
-					 */
-					xcp->cp0_epc += dec_insn.pc_inc;
-					contpc += dec_insn.pc_inc;
-					/*
-					 * else continue & execute
-					 * dslot as normal insn
-					 */
-				}
+				/*
+				 * branch likely nullifies
+				 * dslot if not taken
+				 */
+				xcp->cp0_epc += dec_insn.pc_inc;
+				contpc += dec_insn.pc_inc;
+				/*
+				 * else continue & execute
+				 * dslot as normal insn
+				 */
+			}
 			break;
 
 		default:
@@ -1216,7 +1330,7 @@ emul:
 		break;
 
 	case cop1x_op:
-		if (!cpu_has_mips_4_5 && !cpu_has_mips64 && !cpu_has_mips32r2)
+		if (!cpu_has_mips_4_5_64_r2_r6)
 			return SIGILL;
 
 		sig = fpux_emu(xcp, ctx, ir, fault_addr);
@@ -1549,7 +1663,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 
 			/* unary  ops */
 		case fsqrt_op:
-			if (!cpu_has_mips_4_5_r)
+			if (!cpu_has_mips_2_3_4_5_r)
 				return SIGILL;
 
 			handler.u = ieee754sp_sqrt;
@@ -1561,14 +1675,14 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		 * achieve full IEEE-754 accuracy - however this emulator does.
 		 */
 		case frsqrt_op:
-			if (!cpu_has_mips_4_5_r2_r6)
+			if (!cpu_has_mips_4_5_64_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_sp_rsqrt;
 			goto scopuop;
 
 		case frecip_op:
-			if (!cpu_has_mips_4_5_r2_r6)
+			if (!cpu_has_mips_4_5_64_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_sp_recip;
@@ -1670,19 +1784,19 @@ copcsr:
 		case ftrunc_op:
 		case fceil_op:
 		case ffloor_op:
-			if (!cpu_has_mips_2_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_2_3_4_5_r)
 				return SIGILL;
 
 			oldrm = ieee754_csr.rm;
 			SPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = modeindex(MIPSInst_FUNC(ir));
+			ieee754_csr.rm = MIPSInst_FUNC(ir);
 			rv.w = ieee754sp_tint(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = w_fmt;
 			goto copcsr;
 
 		case fcvtl_op:
-			if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_3_4_5_64_r2_r6)
 				return SIGILL;
 
 			SPFROMREG(fs, MIPSInst_FS(ir));
@@ -1694,12 +1808,12 @@ copcsr:
 		case ftruncl_op:
 		case fceill_op:
 		case ffloorl_op:
-			if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_3_4_5_64_r2_r6)
 				return SIGILL;
 
 			oldrm = ieee754_csr.rm;
 			SPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = modeindex(MIPSInst_FUNC(ir));
+			ieee754_csr.rm = MIPSInst_FUNC(ir);
 			rv.l = ieee754sp_tlong(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = l_fmt;
@@ -1763,13 +1877,13 @@ copcsr:
 		 * achieve full IEEE-754 accuracy - however this emulator does.
 		 */
 		case frsqrt_op:
-			if (!cpu_has_mips_4_5_r2_r6)
+			if (!cpu_has_mips_4_5_64_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_dp_rsqrt;
 			goto dcopuop;
 		case frecip_op:
-			if (!cpu_has_mips_4_5_r2_r6)
+			if (!cpu_has_mips_4_5_64_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_dp_recip;
@@ -1852,14 +1966,14 @@ dcopuop:
 
 			oldrm = ieee754_csr.rm;
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = modeindex(MIPSInst_FUNC(ir));
+			ieee754_csr.rm = MIPSInst_FUNC(ir);
 			rv.w = ieee754dp_tint(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = w_fmt;
 			goto copcsr;
 
 		case fcvtl_op:
-			if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_3_4_5_64_r2_r6)
 				return SIGILL;
 
 			DPFROMREG(fs, MIPSInst_FS(ir));
@@ -1871,12 +1985,12 @@ dcopuop:
 		case ftruncl_op:
 		case fceill_op:
 		case ffloorl_op:
-			if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_3_4_5_64_r2_r6)
 				return SIGILL;
 
 			oldrm = ieee754_csr.rm;
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = modeindex(MIPSInst_FUNC(ir));
+			ieee754_csr.rm = MIPSInst_FUNC(ir);
 			rv.l = ieee754dp_tlong(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = l_fmt;
@@ -1930,7 +2044,7 @@ dcopuop:
 
 	case l_fmt:
 
-		if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+		if (!cpu_has_mips_3_4_5_64_r2_r6)
 			return SIGILL;
 
 		DIFROMREG(bits, MIPSInst_FS(ir));
@@ -1994,7 +2108,7 @@ dcopuop:
 		SITOREG(rv.w, MIPSInst_FD(ir));
 		break;
 	case l_fmt:
-		if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+		if (!cpu_has_mips_3_4_5_64_r2_r6)
 			return SIGILL;
 
 		DITOREG(rv.l, MIPSInst_FD(ir));
@@ -2081,10 +2195,8 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			xcp->cp0_epc += dec_insn.pc_inc;	/* Skip NOPs */
 		else {
 			/*
-			 * The 'ieee754_csr' is an alias of
-			 * ctx->fcr31.	No need to copy ctx->fcr31 to
-			 * ieee754_csr.	 But ieee754_csr.rm is ieee
-			 * library modes. (not mips rounding mode)
+			 * The 'ieee754_csr' is an alias of ctx->fcr31.
+			 * No need to copy ctx->fcr31 to ieee754_csr.
 			 */
 			sig = cop1Emulate(xcp, ctx, dec_insn, fault_addr);
 		}

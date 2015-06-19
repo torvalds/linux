@@ -165,7 +165,7 @@ multipliers 'Kilo', 'Mega', and 'Giga', equalling 2^10, 2^20, and 2^30
 bytes respectively. Such letter suffixes can also be entirely omitted.
 
 
-	acpi=		[HW,ACPI,X86]
+	acpi=		[HW,ACPI,X86,ARM64]
 			Advanced Configuration and Power Interface
 			Format: { force | off | strict | noirq | rsdt }
 			force -- enable ACPI if default was off
@@ -175,6 +175,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT
 			copy_dsdt -- copy DSDT to memory
+			For ARM64, ONLY "acpi=off" or "acpi=force" are available
 
 			See also Documentation/power/runtime_pm.txt, pci=noacpi
 
@@ -713,10 +714,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
+		uart[8250],mmio32,<addr>[,options]
+		uart[8250],0x<addr>[,options]
 			Start an early, polled-mode console on the 8250/16550
 			UART at the specified I/O port or MMIO address,
-			switching to the matching ttyS device later.  The
-			options are the same as for ttyS, above.
+			switching to the matching ttyS device later.
+			MMIO inter-register address stride is either 8-bit
+			(mmio) or 32-bit (mmio32).
+			If none of [io|mmio|mmio32], <addr> is assumed to be
+			equivalent to 'mmio'. 'options' are specified in the
+			same format described for ttyS above; if unspecified,
+			the h/w is not re-initialized.
+
 		hvc<n>	Use the hypervisor console device <n>. This is for
 			both Xen and PowerPC hypervisors.
 
@@ -928,6 +937,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Enable debug messages at boot time.  See
 			Documentation/dynamic-debug-howto.txt for details.
 
+	eagerfpu=	[X86]
+			on	enable eager fpu restore
+			off	disable eager fpu restore
+			auto	selects the default scheme, which automatically
+				enables eagerfpu restore for xsaveopt.
+
 	early_ioremap_debug [KNL]
 			Enable debug messages in early_ioremap support. This
 			is useful for tracking down temporary early mappings
@@ -944,11 +959,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
 		uart[8250],mmio32,<addr>[,options]
+		uart[8250],0x<addr>[,options]
 			Start an early, polled-mode console on the 8250/16550
 			UART at the specified I/O port or MMIO address.
 			MMIO inter-register address stride is either 8-bit
 			(mmio) or 32-bit (mmio32).
-			The options are the same as for ttyS, above.
+			If none of [io|mmio|mmio32], <addr> is assumed to be
+			equivalent to 'mmio'. 'options' are specified in the
+			same format described for "console=ttyS<n>"; if
+			unspecified, the h/w is not initialized.
 
 		pl011,<addr>
 			Start an early, polled-mode console on a pl011 serial
@@ -1966,6 +1985,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			         or
 			         memmap=0x10000$0x18690000
 
+	memmap=nn[KMG]!ss[KMG]
+			[KNL,X86] Mark specific memory as protected.
+			Region of memory to be used, from ss to ss+nn.
+			The memory region may be marked as e820 type 12 (0xc)
+			and is NVDIMM or ADR memory.
+
 	memory_corruption_check=0/1 [X86]
 			Some BIOSes seem to corrupt the first 64k of
 			memory when doing things like suspend/resume.
@@ -2317,7 +2342,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			noexec32=off: disable non-executable mappings
 				read implies executable mappings
 
-	nofpu		[SH] Disable hardware FPU at boot time.
+	nofpu		[MIPS,SH] Disable hardware FPU at boot time.
 
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
@@ -2343,12 +2368,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			in standard form of xsave area. By using this
 			parameter, xsave area per process might occupy more
 			memory on xsaves enabled systems.
-
-	eagerfpu=	[X86]
-			on	enable eager fpu restore
-			off	disable eager fpu restore
-			auto	selects the default scheme, which automatically
-				enables eagerfpu restore for xsaveopt.
 
 	nohlt		[BUGS=ARM,SH] Tells the kernel that the sleep(SH) or
 			wfi(ARM) instruction doesn't work correctly and not to

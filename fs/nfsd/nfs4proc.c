@@ -52,7 +52,7 @@
 static inline void
 nfsd4_security_inode_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
 {
-	struct inode *inode = resfh->fh_dentry->d_inode;
+	struct inode *inode = d_inode(resfh->fh_dentry);
 	int status;
 
 	mutex_lock(&inode->i_mutex);
@@ -110,7 +110,7 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * in current environment or not.
 	 */
 	if (bmval[0] & FATTR4_WORD0_ACL) {
-		if (!IS_POSIXACL(dentry->d_inode))
+		if (!IS_POSIXACL(d_inode(dentry)))
 			return nfserr_attrnotsupp;
 	}
 
@@ -209,7 +209,7 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 
 static __be32 nfsd_check_obj_isreg(struct svc_fh *fh)
 {
-	umode_t mode = fh->fh_dentry->d_inode->i_mode;
+	umode_t mode = d_inode(fh->fh_dentry)->i_mode;
 
 	if (S_ISREG(mode))
 		return nfs_ok;
@@ -470,7 +470,7 @@ out:
 		fh_put(resfh);
 		kfree(resfh);
 	}
-	nfsd4_cleanup_open_state(cstate, open, status);
+	nfsd4_cleanup_open_state(cstate, open);
 	nfsd4_bump_seqid(cstate, status);
 	return status;
 }
@@ -881,7 +881,7 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				    &exp, &dentry);
 	if (err)
 		return err;
-	if (dentry->d_inode == NULL) {
+	if (d_really_is_negative(dentry)) {
 		exp_put(exp);
 		err = nfserr_noent;
 	} else
@@ -1030,6 +1030,8 @@ nfsd4_fallocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		dprintk("NFSD: nfsd4_fallocate: couldn't process stateid!\n");
 		return status;
 	}
+	if (!file)
+		return nfserr_bad_stateid;
 
 	status = nfsd4_vfs_fallocate(rqstp, &cstate->current_fh, file,
 				     fallocate->falloc_offset,
@@ -1069,6 +1071,8 @@ nfsd4_seek(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		dprintk("NFSD: nfsd4_seek: couldn't process stateid!\n");
 		return status;
 	}
+	if (!file)
+		return nfserr_bad_stateid;
 
 	switch (seek->seek_whence) {
 	case NFS4_CONTENT_DATA:
@@ -1308,7 +1312,7 @@ nfsd4_layoutget(struct svc_rqst *rqstp,
 	if (atomic_read(&ls->ls_stid.sc_file->fi_lo_recalls))
 		goto out_put_stid;
 
-	nfserr = ops->proc_layoutget(current_fh->fh_dentry->d_inode,
+	nfserr = ops->proc_layoutget(d_inode(current_fh->fh_dentry),
 				     current_fh, lgp);
 	if (nfserr)
 		goto out_put_stid;
@@ -1342,7 +1346,7 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 	ops = nfsd4_layout_verify(current_fh->fh_export, lcp->lc_layout_type);
 	if (!ops)
 		goto out;
-	inode = current_fh->fh_dentry->d_inode;
+	inode = d_inode(current_fh->fh_dentry);
 
 	nfserr = nfserr_inval;
 	if (new_size <= seg->offset) {
@@ -1815,7 +1819,7 @@ static inline u32 nfsd4_getattr_rsize(struct svc_rqst *rqstp,
 		bmap0 &= ~FATTR4_WORD0_FILEHANDLE;
 	}
 	if (bmap2 & FATTR4_WORD2_SECURITY_LABEL) {
-		ret += NFSD4_MAX_SEC_LABEL_LEN + 12;
+		ret += NFS4_MAXLABELLEN + 12;
 		bmap2 &= ~FATTR4_WORD2_SECURITY_LABEL;
 	}
 	/*
@@ -2282,13 +2286,13 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_allocate,
 		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
 		.op_name = "OP_ALLOCATE",
-		.op_rsize_bop = (nfsd4op_rsize)nfsd4_write_rsize,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_DEALLOCATE] = {
 		.op_func = (nfsd4op_func)nfsd4_deallocate,
 		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
 		.op_name = "OP_DEALLOCATE",
-		.op_rsize_bop = (nfsd4op_rsize)nfsd4_write_rsize,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_SEEK] = {
 		.op_func = (nfsd4op_func)nfsd4_seek,

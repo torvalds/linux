@@ -69,7 +69,48 @@
 		};
 	};
 
-	am43xx_pinmux: pinmux@44e10800 {
+	matrix_keypad: matrix_keypad@0 {
+		compatible = "gpio-matrix-keypad";
+		debounce-delay-ms = <5>;
+		col-scan-delay-us = <2>;
+
+		row-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH		/* Bank0, pin12 */
+			     &gpio0 13 GPIO_ACTIVE_HIGH		/* Bank0, pin13 */
+			     &gpio0 14 GPIO_ACTIVE_HIGH		/* Bank0, pin14 */
+			     &gpio0 15 GPIO_ACTIVE_HIGH>;	/* Bank0, pin15 */
+
+		col-gpios = <&gpio3 9 GPIO_ACTIVE_HIGH		/* Bank3, pin9 */
+			     &gpio3 10 GPIO_ACTIVE_HIGH		/* Bank3, pin10 */
+			     &gpio2 18 GPIO_ACTIVE_HIGH		/* Bank2, pin18 */
+			     &gpio2 19 GPIO_ACTIVE_HIGH>;	/* Bank2, pin19 */
+
+		linux,keymap = <0x00000201	/* P1 */
+			0x01000204	/* P4 */
+			0x02000207	/* P7 */
+			0x0300020a	/* NUMERIC_STAR */
+			0x00010202	/* P2 */
+			0x01010205	/* P5 */
+			0x02010208	/* P8 */
+			0x03010200	/* P0 */
+			0x00020203	/* P3 */
+			0x01020206	/* P6 */
+			0x02020209	/* P9 */
+			0x0302020b	/* NUMERIC_POUND */
+			0x00030067	/* UP */
+			0x0103006a	/* RIGHT */
+			0x0203006c	/* DOWN */
+			0x03030069>;	/* LEFT */
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ecap0 0 50000 PWM_POLARITY_INVERTED>;
+		brightness-levels = <0 51 53 56 62 75 101 152 255>;
+		default-brightness-level = <8>;
+	};
+};
+
+&am43xx_pinmux {
 		cpsw_default: cpsw_default {
 			pinctrl-single,pins = <
 				/* Slave 1 */
@@ -279,47 +320,6 @@
 				0x204 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
 			>;
 		};
-	};
-
-	matrix_keypad: matrix_keypad@0 {
-			compatible = "gpio-matrix-keypad";
-			debounce-delay-ms = <5>;
-			col-scan-delay-us = <2>;
-
-			row-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH		/* Bank0, pin12 */
-				     &gpio0 13 GPIO_ACTIVE_HIGH		/* Bank0, pin13 */
-				     &gpio0 14 GPIO_ACTIVE_HIGH		/* Bank0, pin14 */
-				     &gpio0 15 GPIO_ACTIVE_HIGH>;	/* Bank0, pin15 */
-
-			col-gpios = <&gpio3 9 GPIO_ACTIVE_HIGH		/* Bank3, pin9 */
-				     &gpio3 10 GPIO_ACTIVE_HIGH		/* Bank3, pin10 */
-				     &gpio2 18 GPIO_ACTIVE_HIGH		/* Bank2, pin18 */
-				     &gpio2 19 GPIO_ACTIVE_HIGH>;	/* Bank2, pin19 */
-
-			linux,keymap = <0x00000201	/* P1 */
-				0x01000204	/* P4 */
-				0x02000207	/* P7 */
-				0x0300020a	/* NUMERIC_STAR */
-				0x00010202	/* P2 */
-				0x01010205	/* P5 */
-				0x02010208	/* P8 */
-				0x03010200	/* P0 */
-				0x00020203	/* P3 */
-				0x01020206	/* P6 */
-				0x02020209	/* P9 */
-				0x0302020b	/* NUMERIC_POUND */
-				0x00030067	/* UP */
-				0x0103006a	/* RIGHT */
-				0x0203006c	/* DOWN */
-				0x03030069>;	/* LEFT */
-		};
-
-	backlight {
-		compatible = "pwm-backlight";
-		pwms = <&ecap0 0 50000 PWM_POLARITY_INVERTED>;
-		brightness-levels = <0 51 53 56 62 75 101 152 255>;
-		default-brightness-level = <8>;
-	};
 };
 
 &mmc1 {

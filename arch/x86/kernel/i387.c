@@ -341,7 +341,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 		unsigned int pos, unsigned int count,
 		void *kbuf, void __user *ubuf)
 {
-	struct xsave_struct *xsave = &target->thread.fpu.state->xsave;
+	struct xsave_struct *xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
@@ -350,6 +350,8 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
+
+	xsave = &target->thread.fpu.state->xsave;
 
 	/*
 	 * Copy the 48bytes defined by the software first into the xstate
@@ -369,7 +371,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 		  unsigned int pos, unsigned int count,
 		  const void *kbuf, const void __user *ubuf)
 {
-	struct xsave_struct *xsave = &target->thread.fpu.state->xsave;
+	struct xsave_struct *xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
@@ -378,6 +380,8 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
+
+	xsave = &target->thread.fpu.state->xsave;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 	/*

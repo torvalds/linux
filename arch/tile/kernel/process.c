@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
 #include <linux/signal.h>
+#include <linux/context_tracking.h>
 #include <asm/stack.h>
 #include <asm/switch_to.h>
 #include <asm/homecache.h>
@@ -474,6 +475,8 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	if (!user_mode(regs))
 		return 0;
 
+	user_exit();
+
 	/* Enable interrupts; they are disabled again on return to caller. */
 	local_irq_enable();
 
@@ -496,11 +499,12 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 		tracehook_notify_resume(regs);
 		return 1;
 	}
-	if (thread_info_flags & _TIF_SINGLESTEP) {
+	if (thread_info_flags & _TIF_SINGLESTEP)
 		single_step_once(regs);
-		return 0;
-	}
-	panic("work_pending: bad flags %#x\n", thread_info_flags);
+
+	user_enter();
+
+	return 0;
 }
 
 unsigned long get_wchan(struct task_struct *p)

@@ -2,6 +2,7 @@
 CFLAGS += -m64
 CFLAGS += -I$(CURDIR)
 CFLAGS += -D SELFTEST
+CFLAGS += -maltivec
 
 # Use our CFLAGS for the implicit .S rule
 ASFLAGS = $(CFLAGS)

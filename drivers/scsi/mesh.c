@@ -1287,9 +1287,9 @@ static void set_dma_cmds(struct mesh_state *ms, struct scsi_cmnd *cmd)
 				}
 				if (dma_len > 0xffff)
 					panic("mesh: scatterlist element >= 64k");
-				st_le16(&dcmds->req_count, dma_len - off);
-				st_le16(&dcmds->command, dma_cmd);
-				st_le32(&dcmds->phy_addr, dma_addr + off);
+				dcmds->req_count = cpu_to_le16(dma_len - off);
+				dcmds->command = cpu_to_le16(dma_cmd);
+				dcmds->phy_addr = cpu_to_le32(dma_addr + off);
 				dcmds->xfer_status = 0;
 				++dcmds;
 				dtot += dma_len - off;
@@ -1303,15 +1303,15 @@ static void set_dma_cmds(struct mesh_state *ms, struct scsi_cmnd *cmd)
 		static char mesh_extra_buf[64];
 
 		dtot = sizeof(mesh_extra_buf);
-		st_le16(&dcmds->req_count, dtot);
-		st_le32(&dcmds->phy_addr, virt_to_phys(mesh_extra_buf));
+		dcmds->req_count = cpu_to_le16(dtot);
+		dcmds->phy_addr = cpu_to_le32(virt_to_phys(mesh_extra_buf));
 		dcmds->xfer_status = 0;
 		++dcmds;
 	}
 	dma_cmd += OUTPUT_LAST - OUTPUT_MORE;
-	st_le16(&dcmds[-1].command, dma_cmd);
+	dcmds[-1].command = cpu_to_le16(dma_cmd);
 	memset(dcmds, 0, sizeof(*dcmds));
-	st_le16(&dcmds->command, DBDMA_STOP);
+	dcmds->command = cpu_to_le16(DBDMA_STOP);
 	ms->dma_count = dtot;
 }
 

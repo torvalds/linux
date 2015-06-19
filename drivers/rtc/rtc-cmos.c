@@ -28,6 +28,9 @@
  * interrupts disabled, holding the global rtc_lock, to exclude those
  * other drivers and utilities on correctly configured systems.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -385,8 +388,7 @@ static bool alarm_disable_quirk;
 static int __init set_alarm_disable_quirk(const struct dmi_system_id *id)
 {
 	alarm_disable_quirk = true;
-	pr_info("rtc-cmos: BIOS has alarm-disable quirk. ");
-	pr_info("RTC alarms disabled\n");
+	pr_info("BIOS has alarm-disable quirk - RTC alarms disabled\n");
 	return 0;
 }
 

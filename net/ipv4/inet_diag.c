@@ -111,6 +111,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		      const struct nlmsghdr *unlh)
 {
 	const struct inet_sock *inet = inet_sk(sk);
+	const struct tcp_congestion_ops *ca_ops;
 	const struct inet_diag_handler *handler;
 	int ext = req->idiag_ext;
 	struct inet_diag_msg *r;
@@ -208,16 +209,31 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		info = nla_data(attr);
 	}
 
-	if ((ext & (1 << (INET_DIAG_CONG - 1))) && icsk->icsk_ca_ops)
-		if (nla_put_string(skb, INET_DIAG_CONG,
-				   icsk->icsk_ca_ops->name) < 0)
+	if (ext & (1 << (INET_DIAG_CONG - 1))) {
+		int err = 0;
+
+		rcu_read_lock();
+		ca_ops = READ_ONCE(icsk->icsk_ca_ops);
+		if (ca_ops)
+			err = nla_put_string(skb, INET_DIAG_CONG, ca_ops->name);
+		rcu_read_unlock();
+		if (err < 0)
 			goto errout;
+	}
 
 	handler->idiag_get_info(sk, r, info);
 
-	if (sk->sk_state < TCP_TIME_WAIT &&
-	    icsk->icsk_ca_ops && icsk->icsk_ca_ops->get_info)
-		icsk->icsk_ca_ops->get_info(sk, ext, skb);
+	if (sk->sk_state < TCP_TIME_WAIT) {
+		int err = 0;
+
+		rcu_read_lock();
+		ca_ops = READ_ONCE(icsk->icsk_ca_ops);
+		if (ca_ops && ca_ops->get_info)
+			err = ca_ops->get_info(sk, ext, skb);
+		rcu_read_unlock();
+		if (err < 0)
+			goto errout;
+	}
 
 out:
 	nlmsg_end(skb, nlh);

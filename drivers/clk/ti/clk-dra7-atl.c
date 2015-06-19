@@ -294,7 +294,7 @@ static int of_dra7_atl_clk_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id of_dra7_atl_clk_match_tbl[] = {
+static const struct of_device_id of_dra7_atl_clk_match_tbl[] = {
 	{ .compatible = "ti,dra7-atl", },
 	{},
 };

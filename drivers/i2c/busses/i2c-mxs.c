@@ -913,7 +913,7 @@ static void __exit mxs_i2c_exit(void)
 module_exit(mxs_i2c_exit);
 
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("MXS I2C Bus Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);

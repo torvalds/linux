@@ -37,7 +37,6 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 
 	INIT_LIST_HEAD(&v4l2_dev->subdevs);
 	spin_lock_init(&v4l2_dev->lock);
-	mutex_init(&v4l2_dev->ioctl_lock);
 	v4l2_prio_init(&v4l2_dev->prio);
 	kref_init(&v4l2_dev->ref);
 	get_device(dev);
@@ -248,8 +247,8 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 			goto clean_up;
 		}
 #if defined(CONFIG_MEDIA_CONTROLLER)
-		sd->entity.info.v4l.major = VIDEO_MAJOR;
-		sd->entity.info.v4l.minor = vdev->minor;
+		sd->entity.info.dev.major = VIDEO_MAJOR;
+		sd->entity.info.dev.minor = vdev->minor;
 #endif
 		sd->devnode = vdev;
 	}

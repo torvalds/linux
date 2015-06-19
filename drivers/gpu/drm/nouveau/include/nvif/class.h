@@ -12,6 +12,13 @@
 #define NV_DMA_TO_MEMORY                                             0x00000003
 #define NV_DMA_IN_MEMORY                                             0x0000003d
 
+#define FERMI_TWOD_A                                                 0x0000902d
+
+#define FERMI_MEMORY_TO_MEMORY_FORMAT_A                              0x0000903d
+
+#define KEPLER_INLINE_TO_MEMORY_A                                    0x0000a040
+#define KEPLER_INLINE_TO_MEMORY_B                                    0x0000a140
+
 #define NV04_DISP                                                    0x00000046
 
 #define NV03_CHANNEL_DMA                                             0x0000006b
@@ -25,6 +32,7 @@
 #define G82_CHANNEL_GPFIFO                                           0x0000826f
 #define FERMI_CHANNEL_GPFIFO                                         0x0000906f
 #define KEPLER_CHANNEL_GPFIFO_A                                      0x0000a06f
+#define MAXWELL_CHANNEL_GPFIFO_A                                     0x0000b06f
 
 #define NV50_DISP                                                    0x00005070
 #define G82_DISP                                                     0x00008270
@@ -84,6 +92,7 @@
 #define KEPLER_C                                                     0x0000a297
 
 #define MAXWELL_A                                                    0x0000b097
+#define MAXWELL_B                                                    0x0000b197
 
 #define FERMI_COMPUTE_A                                              0x000090c0
 #define FERMI_COMPUTE_B                                              0x000091c0
@@ -92,6 +101,7 @@
 #define KEPLER_COMPUTE_B                                             0x0000a1c0
 
 #define MAXWELL_COMPUTE_A                                            0x0000b0c0
+#define MAXWELL_COMPUTE_B                                            0x0000b1c0
 
 
 /*******************************************************************************

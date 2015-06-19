@@ -62,6 +62,7 @@
 #define STOP_ARRAY		_IO (MD_MAJOR, 0x32)
 #define STOP_ARRAY_RO		_IO (MD_MAJOR, 0x33)
 #define RESTART_ARRAY_RW	_IO (MD_MAJOR, 0x34)
+#define CLUSTERED_DISK_NACK	_IO (MD_MAJOR, 0x35)
 
 /* 63 partitions with the alternate major number (mdp) */
 #define MdpMinorShift 6

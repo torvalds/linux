@@ -5799,7 +5799,6 @@ int kvm_arch_init(void *opaque)
 	kvm_set_mmio_spte_mask();
 
 	kvm_x86_ops = ops;
-	kvm_init_msr_list();
 
 	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
 			PT_DIRTY_MASK, PT64_NX_MASK, 0);
@@ -7253,7 +7252,14 @@ void kvm_arch_hardware_disable(void)
 
 int kvm_arch_hardware_setup(void)
 {
-	return kvm_x86_ops->hardware_setup();
+	int r;
+
+	r = kvm_x86_ops->hardware_setup();
+	if (r != 0)
+		return r;
+
+	kvm_init_msr_list();
+	return 0;
 }
 
 void kvm_arch_hardware_unsetup(void)

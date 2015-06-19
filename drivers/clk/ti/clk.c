@@ -103,7 +103,8 @@ int __init ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
  * @index: register index from the clock node
  *
  * Builds clock register address from device tree information. This
- * is a struct of type clk_omap_reg.
+ * is a struct of type clk_omap_reg. Returns a pointer to the register
+ * address, or a pointer error value in failure.
  */
 void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index)
 {
@@ -121,14 +122,14 @@ void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index)
 
 	if (i == CLK_MAX_MEMMAPS) {
 		pr_err("clk-provider not found for %s!\n", node->name);
-		return NULL;
+		return ERR_PTR(-ENOENT);
 	}
 
 	reg->index = i;
 
 	if (of_property_read_u32_index(node, "reg", index, &val)) {
 		pr_err("%s must have reg[%d]!\n", node->name, index);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	reg->offset = val;

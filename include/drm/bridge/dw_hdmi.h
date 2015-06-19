@@ -38,17 +38,18 @@ struct dw_hdmi_curr_ctrl {
 	u16 curr[DW_HDMI_RES_MAX];
 };
 
-struct dw_hdmi_sym_term {
+struct dw_hdmi_phy_config {
 	unsigned long mpixelclock;
 	u16 sym_ctr;    /*clock symbol and transmitter control*/
 	u16 term;       /*transmission termination value*/
+	u16 vlev_ctr;   /* voltage level control */
 };
 
 struct dw_hdmi_plat_data {
 	enum dw_hdmi_devtype dev_type;
 	const struct dw_hdmi_mpll_config *mpll_cfg;
 	const struct dw_hdmi_curr_ctrl *cur_ctr;
-	const struct dw_hdmi_sym_term *sym_term;
+	const struct dw_hdmi_phy_config *phy_config;
 	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
 					   struct drm_display_mode *mode);
 };

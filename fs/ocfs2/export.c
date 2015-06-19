@@ -147,7 +147,7 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 	int status;
 	u64 blkno;
 	struct dentry *parent;
-	struct inode *dir = child->d_inode;
+	struct inode *dir = d_inode(child);
 
 	trace_ocfs2_get_parent(child, child->d_name.len, child->d_name.name,
 			       (unsigned long long)OCFS2_I(dir)->ip_blkno);

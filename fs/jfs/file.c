@@ -100,7 +100,7 @@ static int jfs_release(struct inode *inode, struct file *file)
 
 int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int rc;
 
 	rc = inode_change_ok(inode, iattr);

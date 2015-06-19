@@ -102,7 +102,7 @@ static int qxl_drm_freeze(struct drm_device *dev)
 
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 		if (crtc->enabled)
 			(*crtc_funcs->disable)(crtc);
 	}

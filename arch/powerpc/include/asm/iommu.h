@@ -29,6 +29,7 @@
 #include <linux/bitops.h>
 #include <asm/machdep.h>
 #include <asm/types.h>
+#include <asm/pci-bridge.h>
 
 #define IOMMU_PAGE_SHIFT_4K      12
 #define IOMMU_PAGE_SIZE_4K       (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K)
@@ -78,6 +79,9 @@ struct iommu_table {
 	struct iommu_group *it_group;
 #endif
 	void (*set_bypass)(struct iommu_table *tbl, bool enable);
+#ifdef CONFIG_PPC_POWERNV
+	void           *data;
+#endif
 };
 
 /* Pure 2^n version of get_order */
@@ -169,7 +173,7 @@ extern void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
 			     struct dma_attrs *attrs);
 
 extern void iommu_init_early_pSeries(void);
-extern void iommu_init_early_dart(void);
+extern void iommu_init_early_dart(struct pci_controller_ops *controller_ops);
 extern void iommu_init_early_pasemi(void);
 
 extern void alloc_dart_table(void);

@@ -300,7 +300,7 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 		flags |= ZPCI_TABLE_PROTECTED;
 
 	if (!dma_update_trans(zdev, pa, dma_addr, size, flags)) {
-		atomic64_add(nr_pages, &zdev->fmb->mapped_pages);
+		atomic64_add(nr_pages, &zdev->mapped_pages);
 		return dma_addr + (offset & ~PAGE_MASK);
 	}
 
@@ -328,7 +328,7 @@ static void s390_dma_unmap_pages(struct device *dev, dma_addr_t dma_addr,
 		zpci_err_hex(&dma_addr, sizeof(dma_addr));
 	}
 
-	atomic64_add(npages, &zdev->fmb->unmapped_pages);
+	atomic64_add(npages, &zdev->unmapped_pages);
 	iommu_page_index = (dma_addr - zdev->start_dma) >> PAGE_SHIFT;
 	dma_free_iommu(zdev, iommu_page_index, npages);
 }
@@ -357,7 +357,7 @@ static void *s390_dma_alloc(struct device *dev, size_t size,
 		return NULL;
 	}
 
-	atomic64_add(size / PAGE_SIZE, &zdev->fmb->allocated_pages);
+	atomic64_add(size / PAGE_SIZE, &zdev->allocated_pages);
 	if (dma_handle)
 		*dma_handle = map;
 	return (void *) pa;
@@ -370,7 +370,7 @@ static void s390_dma_free(struct device *dev, size_t size,
 	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
 
 	size = PAGE_ALIGN(size);
-	atomic64_sub(size / PAGE_SIZE, &zdev->fmb->allocated_pages);
+	atomic64_sub(size / PAGE_SIZE, &zdev->allocated_pages);
 	s390_dma_unmap_pages(dev, dma_handle, size, DMA_BIDIRECTIONAL, NULL);
 	free_pages((unsigned long) pa, get_order(size));
 }

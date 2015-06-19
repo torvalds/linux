@@ -3275,7 +3275,7 @@ __init int intel_pmu_init(void)
 		hw_cache_extra_regs[C(NODE)][C(OP_WRITE)][C(RESULT_ACCESS)] = HSW_DEMAND_WRITE|
 									      BDW_L3_MISS_LOCAL|HSW_SNOOP_DRAM;
 
-		intel_pmu_lbr_init_snb();
+		intel_pmu_lbr_init_hsw();
 
 		x86_pmu.event_constraints = intel_bdw_event_constraints;
 		x86_pmu.pebs_constraints = intel_hsw_pebs_event_constraints;

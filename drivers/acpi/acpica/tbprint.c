@@ -127,18 +127,12 @@ acpi_tb_print_table_header(acpi_physical_address address,
 {
 	struct acpi_table_header local_header;
 
-	/*
-	 * The reason that we use ACPI_PRINTF_UINT and ACPI_FORMAT_TO_UINT is to
-	 * support both 32-bit and 64-bit hosts/addresses in a consistent manner.
-	 * The %p specifier does not emit uniform output on all hosts. On some,
-	 * leading zeros are not supported.
-	 */
 	if (ACPI_COMPARE_NAME(header->signature, ACPI_SIG_FACS)) {
 
 		/* FACS only has signature and length fields */
 
-		ACPI_INFO((AE_INFO, "%-4.4s " ACPI_PRINTF_UINT " %06X",
-			   header->signature, ACPI_FORMAT_TO_UINT(address),
+		ACPI_INFO((AE_INFO, "%-4.4s 0x%8.8X%8.8X %06X",
+			   header->signature, ACPI_FORMAT_UINT64(address),
 			   header->length));
 	} else if (ACPI_VALIDATE_RSDP_SIG(header->signature)) {
 
@@ -149,9 +143,8 @@ acpi_tb_print_table_header(acpi_physical_address address,
 					  header)->oem_id, ACPI_OEM_ID_SIZE);
 		acpi_tb_fix_string(local_header.oem_id, ACPI_OEM_ID_SIZE);
 
-		ACPI_INFO((AE_INFO,
-			   "RSDP " ACPI_PRINTF_UINT " %06X (v%.2d %-6.6s)",
-			   ACPI_FORMAT_TO_UINT(address),
+		ACPI_INFO((AE_INFO, "RSDP 0x%8.8X%8.8X %06X (v%.2d %-6.6s)",
+			   ACPI_FORMAT_UINT64(address),
 			   (ACPI_CAST_PTR(struct acpi_table_rsdp, header)->
 			    revision >
 			    0) ? ACPI_CAST_PTR(struct acpi_table_rsdp,
@@ -165,9 +158,9 @@ acpi_tb_print_table_header(acpi_physical_address address,
 		acpi_tb_cleanup_table_header(&local_header, header);
 
 		ACPI_INFO((AE_INFO,
-			   "%-4.4s " ACPI_PRINTF_UINT
+			   "%-4.4s 0x%8.8X%8.8X"
 			   " %06X (v%.2d %-6.6s %-8.8s %08X %-4.4s %08X)",
-			   local_header.signature, ACPI_FORMAT_TO_UINT(address),
+			   local_header.signature, ACPI_FORMAT_UINT64(address),
 			   local_header.length, local_header.revision,
 			   local_header.oem_id, local_header.oem_table_id,
 			   local_header.oem_revision,

@@ -221,14 +221,14 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
 
+	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
+	dev_set_name(&rtc->dev, "rtc%d", id);
+
 	/* Check to see if there is an ALARM already set in hw */
 	err = __rtc_read_alarm(rtc, &alrm);
 
 	if (!err && !rtc_valid_tm(&alrm.time))
 		rtc_initialize_alarm(rtc, &alrm);
-
-	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
-	dev_set_name(&rtc->dev, "rtc%d", id);
 
 	rtc_dev_prepare(rtc);
 

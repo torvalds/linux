@@ -440,7 +440,7 @@ int clockevents_unbind_device(struct clock_event_device *ced, int cpu)
 	mutex_unlock(&clockevents_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clockevents_unbind);
+EXPORT_SYMBOL_GPL(clockevents_unbind_device);
 
 /* Sanity check of state transition callbacks */
 static int clockevents_sanity_check(struct clock_event_device *dev)

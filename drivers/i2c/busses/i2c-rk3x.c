@@ -833,7 +833,7 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 	clk_disable(i2c->clk);
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
-	return ret;
+	return ret < 0 ? ret : num;
 }
 
 static u32 rk3x_i2c_func(struct i2c_adapter *adap)

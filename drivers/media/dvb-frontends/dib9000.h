@@ -27,7 +27,7 @@ struct dib9000_config {
 
 #define DEFAULT_DIB9000_I2C_ADDRESS 18
 
-#if IS_ENABLED(CONFIG_DVB_DIB9000)
+#if IS_REACHABLE(CONFIG_DVB_DIB9000)
 extern struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, const struct dib9000_config *cfg);
 extern int dib9000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods, u8 default_addr, u8 first_addr);
 extern struct i2c_adapter *dib9000_get_tuner_interface(struct dvb_frontend *fe);

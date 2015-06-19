@@ -243,7 +243,7 @@ cleanup:
 static int
 ext2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct buffer_head *bh = NULL;
 	struct ext2_xattr_entry *entry;
 	char *end;
@@ -319,7 +319,7 @@ cleanup:
 /*
  * Inode operation listxattr()
  *
- * dentry->d_inode->i_mutex: don't care
+ * d_inode(dentry)->i_mutex: don't care
  */
 ssize_t
 ext2_listxattr(struct dentry *dentry, char *buffer, size_t size)

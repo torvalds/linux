@@ -1568,24 +1568,64 @@ static int mcam_vidioc_enum_framesizes(struct file *filp, void *priv,
 		struct v4l2_frmsizeenum *sizes)
 {
 	struct mcam_camera *cam = priv;
+	struct mcam_format_struct *f;
+	struct v4l2_subdev_frame_size_enum fse = {
+		.index = sizes->index,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
 
+	f = mcam_find_format(sizes->pixel_format);
+	if (f->pixelformat != sizes->pixel_format)
+		return -EINVAL;
+	fse.code = f->mbus_code;
 	mutex_lock(&cam->s_mutex);
-	ret = sensor_call(cam, video, enum_framesizes, sizes);
+	ret = sensor_call(cam, pad, enum_frame_size, NULL, &fse);
 	mutex_unlock(&cam->s_mutex);
-	return ret;
+	if (ret)
+		return ret;
+	if (fse.min_width == fse.max_width &&
+	    fse.min_height == fse.max_height) {
+		sizes->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		sizes->discrete.width = fse.min_width;
+		sizes->discrete.height = fse.min_height;
+		return 0;
+	}
+	sizes->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+	sizes->stepwise.min_width = fse.min_width;
+	sizes->stepwise.max_width = fse.max_width;
+	sizes->stepwise.min_height = fse.min_height;
+	sizes->stepwise.max_height = fse.max_height;
+	sizes->stepwise.step_width = 1;
+	sizes->stepwise.step_height = 1;
+	return 0;
 }
 
 static int mcam_vidioc_enum_frameintervals(struct file *filp, void *priv,
 		struct v4l2_frmivalenum *interval)
 {
 	struct mcam_camera *cam = priv;
+	struct mcam_format_struct *f;
+	struct v4l2_subdev_frame_interval_enum fie = {
+		.index = interval->index,
+		.width = interval->width,
+		.height = interval->height,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
 
+	f = mcam_find_format(interval->pixel_format);
+	if (f->pixelformat != interval->pixel_format)
+		return -EINVAL;
+	fie.code = f->mbus_code;
 	mutex_lock(&cam->s_mutex);
-	ret = sensor_call(cam, video, enum_frameintervals, interval);
+	ret = sensor_call(cam, pad, enum_frame_interval, NULL, &fie);
 	mutex_unlock(&cam->s_mutex);
-	return ret;
+	if (ret)
+		return ret;
+	interval->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	interval->discrete = fie.interval;
+	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG

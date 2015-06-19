@@ -42,7 +42,6 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/nfs_fs.h>
-#include <linux/nfs_idmap.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -57,6 +56,7 @@
 #include "callback.h"
 #include "delegation.h"
 #include "internal.h"
+#include "nfs4idmap.h"
 #include "nfs4session.h"
 #include "pnfs.h"
 #include "netns.h"
@@ -1902,7 +1902,7 @@ static int nfs4_try_migration(struct nfs_server *server, struct rpc_cred *cred)
 		goto out;
 	}
 
-	inode = server->super->s_root->d_inode;
+	inode = d_inode(server->super->s_root);
 	result = nfs4_proc_get_locations(inode, locations, page, cred);
 	if (result) {
 		dprintk("<-- %s: failed to retrieve fs_locations: %d\n",
@@ -2021,7 +2021,7 @@ restart:
 
 		rcu_read_unlock();
 
-		inode = server->super->s_root->d_inode;
+		inode = d_inode(server->super->s_root);
 		status = nfs4_proc_fsid_present(inode, cred);
 		if (status != -NFS4ERR_MOVED)
 			goto restart;	/* wasn't this one */

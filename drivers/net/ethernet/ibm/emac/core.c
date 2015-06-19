@@ -79,13 +79,6 @@ MODULE_AUTHOR
     ("Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>");
 MODULE_LICENSE("GPL");
 
-/*
- * PPC64 doesn't (yet) have a cacheable_memcpy
- */
-#ifdef CONFIG_PPC64
-#define cacheable_memcpy(d,s,n) memcpy((d),(s),(n))
-#endif
-
 /* minimum number of free TX descriptors required to wake up TX process */
 #define EMAC_TX_WAKEUP_THRESH		(NUM_TX_BUFF / 4)
 
@@ -1673,7 +1666,7 @@ static inline int emac_rx_sg_append(struct emac_instance *dev, int slot)
 			dev_kfree_skb(dev->rx_sg_skb);
 			dev->rx_sg_skb = NULL;
 		} else {
-			cacheable_memcpy(skb_tail_pointer(dev->rx_sg_skb),
+			memcpy(skb_tail_pointer(dev->rx_sg_skb),
 					 dev->rx_skb[slot]->data, len);
 			skb_put(dev->rx_sg_skb, len);
 			emac_recycle_rx_skb(dev, slot, len);
@@ -1730,8 +1723,7 @@ static int emac_poll_rx(void *param, int budget)
 				goto oom;
 
 			skb_reserve(copy_skb, EMAC_RX_SKB_HEADROOM + 2);
-			cacheable_memcpy(copy_skb->data - 2, skb->data - 2,
-					 len + 2);
+			memcpy(copy_skb->data - 2, skb->data - 2, len + 2);
 			emac_recycle_rx_skb(dev, slot, len);
 			skb = copy_skb;
 		} else if (unlikely(emac_alloc_rx_skb(dev, slot, GFP_ATOMIC)))

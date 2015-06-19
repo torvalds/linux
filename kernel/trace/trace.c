@@ -6079,7 +6079,7 @@ trace_create_cpu_file(const char *name, umode_t mode, struct dentry *parent,
 	struct dentry *ret = trace_create_file(name, mode, parent, data, fops);
 
 	if (ret) /* See tracing_get_cpu() */
-		ret->d_inode->i_cdev = (void *)(cpu + 1);
+		d_inode(ret)->i_cdev = (void *)(cpu + 1);
 	return ret;
 }
 

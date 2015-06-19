@@ -36,6 +36,7 @@
 #include "sentelic.h"
 #include "cypress_ps2.h"
 #include "focaltech.h"
+#include "vmmouse.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -790,6 +791,13 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		}
 	}
 
+	if (psmouse_do_detect(vmmouse_detect, psmouse, set_properties) == 0) {
+		if (max_proto > PSMOUSE_IMEX) {
+			if (!set_properties || vmmouse_init(psmouse) == 0)
+				return PSMOUSE_VMMOUSE;
+		}
+	}
+
 /*
  * Try Kensington ThinkingMouse (we try first, because synaptics probe
  * upsets the thinkingmouse).
@@ -1111,6 +1119,15 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.alias		= "focaltech",
 		.detect		= focaltech_detect,
 		.init		= focaltech_init,
+	},
+#endif
+#ifdef CONFIG_MOUSE_PS2_VMMOUSE
+	{
+		.type		= PSMOUSE_VMMOUSE,
+		.name		= VMMOUSE_PSNAME,
+		.alias		= "vmmouse",
+		.detect		= vmmouse_detect,
+		.init		= vmmouse_init,
 	},
 #endif
 	{

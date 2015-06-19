@@ -321,29 +321,29 @@ _GLOBAL(memcpy_power7)
 	li	r11,48
 
 	bf	cr7*4+3,5f
-	lvx	vr1,r0,r4
+	lvx	v1,r0,r4
 	addi	r4,r4,16
-	stvx	vr1,r0,r3
+	stvx	v1,r0,r3
 	addi	r3,r3,16
 
 5:	bf	cr7*4+2,6f
-	lvx	vr1,r0,r4
-	lvx	vr0,r4,r9
+	lvx	v1,r0,r4
+	lvx	v0,r4,r9
 	addi	r4,r4,32
-	stvx	vr1,r0,r3
-	stvx	vr0,r3,r9
+	stvx	v1,r0,r3
+	stvx	v0,r3,r9
 	addi	r3,r3,32
 
 6:	bf	cr7*4+1,7f
-	lvx	vr3,r0,r4
-	lvx	vr2,r4,r9
-	lvx	vr1,r4,r10
-	lvx	vr0,r4,r11
+	lvx	v3,r0,r4
+	lvx	v2,r4,r9
+	lvx	v1,r4,r10
+	lvx	v0,r4,r11
 	addi	r4,r4,64
-	stvx	vr3,r0,r3
-	stvx	vr2,r3,r9
-	stvx	vr1,r3,r10
-	stvx	vr0,r3,r11
+	stvx	v3,r0,r3
+	stvx	v2,r3,r9
+	stvx	v1,r3,r10
+	stvx	v0,r3,r11
 	addi	r3,r3,64
 
 7:	sub	r5,r5,r6
@@ -366,23 +366,23 @@ _GLOBAL(memcpy_power7)
 	 */
 	.align	5
 8:
-	lvx	vr7,r0,r4
-	lvx	vr6,r4,r9
-	lvx	vr5,r4,r10
-	lvx	vr4,r4,r11
-	lvx	vr3,r4,r12
-	lvx	vr2,r4,r14
-	lvx	vr1,r4,r15
-	lvx	vr0,r4,r16
+	lvx	v7,r0,r4
+	lvx	v6,r4,r9
+	lvx	v5,r4,r10
+	lvx	v4,r4,r11
+	lvx	v3,r4,r12
+	lvx	v2,r4,r14
+	lvx	v1,r4,r15
+	lvx	v0,r4,r16
 	addi	r4,r4,128
-	stvx	vr7,r0,r3
-	stvx	vr6,r3,r9
-	stvx	vr5,r3,r10
-	stvx	vr4,r3,r11
-	stvx	vr3,r3,r12
-	stvx	vr2,r3,r14
-	stvx	vr1,r3,r15
-	stvx	vr0,r3,r16
+	stvx	v7,r0,r3
+	stvx	v6,r3,r9
+	stvx	v5,r3,r10
+	stvx	v4,r3,r11
+	stvx	v3,r3,r12
+	stvx	v2,r3,r14
+	stvx	v1,r3,r15
+	stvx	v0,r3,r16
 	addi	r3,r3,128
 	bdnz	8b
 
@@ -396,29 +396,29 @@ _GLOBAL(memcpy_power7)
 	mtocrf	0x01,r6
 
 	bf	cr7*4+1,9f
-	lvx	vr3,r0,r4
-	lvx	vr2,r4,r9
-	lvx	vr1,r4,r10
-	lvx	vr0,r4,r11
+	lvx	v3,r0,r4
+	lvx	v2,r4,r9
+	lvx	v1,r4,r10
+	lvx	v0,r4,r11
 	addi	r4,r4,64
-	stvx	vr3,r0,r3
-	stvx	vr2,r3,r9
-	stvx	vr1,r3,r10
-	stvx	vr0,r3,r11
+	stvx	v3,r0,r3
+	stvx	v2,r3,r9
+	stvx	v1,r3,r10
+	stvx	v0,r3,r11
 	addi	r3,r3,64
 
 9:	bf	cr7*4+2,10f
-	lvx	vr1,r0,r4
-	lvx	vr0,r4,r9
+	lvx	v1,r0,r4
+	lvx	v0,r4,r9
 	addi	r4,r4,32
-	stvx	vr1,r0,r3
-	stvx	vr0,r3,r9
+	stvx	v1,r0,r3
+	stvx	v0,r3,r9
 	addi	r3,r3,32
 
 10:	bf	cr7*4+3,11f
-	lvx	vr1,r0,r4
+	lvx	v1,r0,r4
 	addi	r4,r4,16
-	stvx	vr1,r0,r3
+	stvx	v1,r0,r3
 	addi	r3,r3,16
 
 	/* Up to 15B to go */
@@ -494,42 +494,42 @@ _GLOBAL(memcpy_power7)
 	li	r10,32
 	li	r11,48
 
-	LVS(vr16,0,r4)		/* Setup permute control vector */
-	lvx	vr0,0,r4
+	LVS(v16,0,r4)		/* Setup permute control vector */
+	lvx	v0,0,r4
 	addi	r4,r4,16
 
 	bf	cr7*4+3,5f
-	lvx	vr1,r0,r4
-	VPERM(vr8,vr0,vr1,vr16)
+	lvx	v1,r0,r4
+	VPERM(v8,v0,v1,v16)
 	addi	r4,r4,16
-	stvx	vr8,r0,r3
+	stvx	v8,r0,r3
 	addi	r3,r3,16
-	vor	vr0,vr1,vr1
+	vor	v0,v1,v1
 
 5:	bf	cr7*4+2,6f
-	lvx	vr1,r0,r4
-	VPERM(vr8,vr0,vr1,vr16)
-	lvx	vr0,r4,r9
-	VPERM(vr9,vr1,vr0,vr16)
+	lvx	v1,r0,r4
+	VPERM(v8,v0,v1,v16)
+	lvx	v0,r4,r9
+	VPERM(v9,v1,v0,v16)
 	addi	r4,r4,32
-	stvx	vr8,r0,r3
-	stvx	vr9,r3,r9
+	stvx	v8,r0,r3
+	stvx	v9,r3,r9
 	addi	r3,r3,32
 
 6:	bf	cr7*4+1,7f
-	lvx	vr3,r0,r4
-	VPERM(vr8,vr0,vr3,vr16)
-	lvx	vr2,r4,r9
-	VPERM(vr9,vr3,vr2,vr16)
-	lvx	vr1,r4,r10
-	VPERM(vr10,vr2,vr1,vr16)
-	lvx	vr0,r4,r11
-	VPERM(vr11,vr1,vr0,vr16)
+	lvx	v3,r0,r4
+	VPERM(v8,v0,v3,v16)
+	lvx	v2,r4,r9
+	VPERM(v9,v3,v2,v16)
+	lvx	v1,r4,r10
+	VPERM(v10,v2,v1,v16)
+	lvx	v0,r4,r11
+	VPERM(v11,v1,v0,v16)
 	addi	r4,r4,64
-	stvx	vr8,r0,r3
-	stvx	vr9,r3,r9
-	stvx	vr10,r3,r10
-	stvx	vr11,r3,r11
+	stvx	v8,r0,r3
+	stvx	v9,r3,r9
+	stvx	v10,r3,r10
+	stvx	v11,r3,r11
 	addi	r3,r3,64
 
 7:	sub	r5,r5,r6
@@ -552,31 +552,31 @@ _GLOBAL(memcpy_power7)
 	 */
 	.align	5
 8:
-	lvx	vr7,r0,r4
-	VPERM(vr8,vr0,vr7,vr16)
-	lvx	vr6,r4,r9
-	VPERM(vr9,vr7,vr6,vr16)
-	lvx	vr5,r4,r10
-	VPERM(vr10,vr6,vr5,vr16)
-	lvx	vr4,r4,r11
-	VPERM(vr11,vr5,vr4,vr16)
-	lvx	vr3,r4,r12
-	VPERM(vr12,vr4,vr3,vr16)
-	lvx	vr2,r4,r14
-	VPERM(vr13,vr3,vr2,vr16)
-	lvx	vr1,r4,r15
-	VPERM(vr14,vr2,vr1,vr16)
-	lvx	vr0,r4,r16
-	VPERM(vr15,vr1,vr0,vr16)
+	lvx	v7,r0,r4
+	VPERM(v8,v0,v7,v16)
+	lvx	v6,r4,r9
+	VPERM(v9,v7,v6,v16)
+	lvx	v5,r4,r10
+	VPERM(v10,v6,v5,v16)
+	lvx	v4,r4,r11
+	VPERM(v11,v5,v4,v16)
+	lvx	v3,r4,r12
+	VPERM(v12,v4,v3,v16)
+	lvx	v2,r4,r14
+	VPERM(v13,v3,v2,v16)
+	lvx	v1,r4,r15
+	VPERM(v14,v2,v1,v16)
+	lvx	v0,r4,r16
+	VPERM(v15,v1,v0,v16)
 	addi	r4,r4,128
-	stvx	vr8,r0,r3
-	stvx	vr9,r3,r9
-	stvx	vr10,r3,r10
-	stvx	vr11,r3,r11
-	stvx	vr12,r3,r12
-	stvx	vr13,r3,r14
-	stvx	vr14,r3,r15
-	stvx	vr15,r3,r16
+	stvx	v8,r0,r3
+	stvx	v9,r3,r9
+	stvx	v10,r3,r10
+	stvx	v11,r3,r11
+	stvx	v12,r3,r12
+	stvx	v13,r3,r14
+	stvx	v14,r3,r15
+	stvx	v15,r3,r16
 	addi	r3,r3,128
 	bdnz	8b
 
@@ -590,36 +590,36 @@ _GLOBAL(memcpy_power7)
 	mtocrf	0x01,r6
 
 	bf	cr7*4+1,9f
-	lvx	vr3,r0,r4
-	VPERM(vr8,vr0,vr3,vr16)
-	lvx	vr2,r4,r9
-	VPERM(vr9,vr3,vr2,vr16)
-	lvx	vr1,r4,r10
-	VPERM(vr10,vr2,vr1,vr16)
-	lvx	vr0,r4,r11
-	VPERM(vr11,vr1,vr0,vr16)
+	lvx	v3,r0,r4
+	VPERM(v8,v0,v3,v16)
+	lvx	v2,r4,r9
+	VPERM(v9,v3,v2,v16)
+	lvx	v1,r4,r10
+	VPERM(v10,v2,v1,v16)
+	lvx	v0,r4,r11
+	VPERM(v11,v1,v0,v16)
 	addi	r4,r4,64
-	stvx	vr8,r0,r3
-	stvx	vr9,r3,r9
-	stvx	vr10,r3,r10
-	stvx	vr11,r3,r11
+	stvx	v8,r0,r3
+	stvx	v9,r3,r9
+	stvx	v10,r3,r10
+	stvx	v11,r3,r11
 	addi	r3,r3,64
 
 9:	bf	cr7*4+2,10f
-	lvx	vr1,r0,r4
-	VPERM(vr8,vr0,vr1,vr16)
-	lvx	vr0,r4,r9
-	VPERM(vr9,vr1,vr0,vr16)
+	lvx	v1,r0,r4
+	VPERM(v8,v0,v1,v16)
+	lvx	v0,r4,r9
+	VPERM(v9,v1,v0,v16)
 	addi	r4,r4,32
-	stvx	vr8,r0,r3
-	stvx	vr9,r3,r9
+	stvx	v8,r0,r3
+	stvx	v9,r3,r9
 	addi	r3,r3,32
 
 10:	bf	cr7*4+3,11f
-	lvx	vr1,r0,r4
-	VPERM(vr8,vr0,vr1,vr16)
+	lvx	v1,r0,r4
+	VPERM(v8,v0,v1,v16)
 	addi	r4,r4,16
-	stvx	vr8,r0,r3
+	stvx	v8,r0,r3
 	addi	r3,r3,16
 
 	/* Up to 15B to go */

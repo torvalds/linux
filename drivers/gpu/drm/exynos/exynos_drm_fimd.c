@@ -31,7 +31,9 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
+#include "exynos_drm_fimd.h"
 
 /*
  * FIMD stands for Fully Interactive Mobile Display and
@@ -53,6 +55,9 @@
 #define VIDOSD_C(win)		(VIDOSD_BASE + 0x08 + (win) * 16)
 /* size control register for hardware windows 1 ~ 2. */
 #define VIDOSD_D(win)		(VIDOSD_BASE + 0x0C + (win) * 16)
+
+#define VIDWnALPHA0(win)	(VIDW_ALPHA + 0x00 + (win) * 8)
+#define VIDWnALPHA1(win)	(VIDW_ALPHA + 0x04 + (win) * 8)
 
 #define VIDWx_BUF_START(win, buf)	(VIDW_BUF_START(buf) + (win) * 8)
 #define VIDWx_BUF_END(win, buf)		(VIDW_BUF_END(buf) + (win) * 8)
@@ -140,32 +145,15 @@ static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.has_vtsel = 1,
 };
 
-struct fimd_win_data {
-	unsigned int		offset_x;
-	unsigned int		offset_y;
-	unsigned int		ovl_width;
-	unsigned int		ovl_height;
-	unsigned int		fb_width;
-	unsigned int		fb_height;
-	unsigned int		fb_pitch;
-	unsigned int		bpp;
-	unsigned int		pixel_format;
-	dma_addr_t		dma_addr;
-	unsigned int		buf_offsize;
-	unsigned int		line_size;	/* bytes */
-	bool			enabled;
-	bool			resume;
-};
-
 struct fimd_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
+	struct exynos_drm_plane		planes[WINDOWS_NR];
 	struct clk			*bus_clk;
 	struct clk			*lcd_clk;
 	void __iomem			*regs;
 	struct regmap			*sysreg;
-	struct fimd_win_data		win_data[WINDOWS_NR];
 	unsigned int			default_win;
 	unsigned long			irq_flags;
 	u32				vidcon0;
@@ -502,59 +490,9 @@ static void fimd_disable_vblank(struct exynos_drm_crtc *crtc)
 	}
 }
 
-static void fimd_win_mode_set(struct exynos_drm_crtc *crtc,
-			struct exynos_drm_plane *plane)
-{
-	struct fimd_context *ctx = crtc->ctx;
-	struct fimd_win_data *win_data;
-	int win;
-	unsigned long offset;
-
-	if (!plane) {
-		DRM_ERROR("plane is NULL\n");
-		return;
-	}
-
-	win = plane->zpos;
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
-
-	if (win < 0 || win >= WINDOWS_NR)
-		return;
-
-	offset = plane->fb_x * (plane->bpp >> 3);
-	offset += plane->fb_y * plane->pitch;
-
-	DRM_DEBUG_KMS("offset = 0x%lx, pitch = %x\n", offset, plane->pitch);
-
-	win_data = &ctx->win_data[win];
-
-	win_data->offset_x = plane->crtc_x;
-	win_data->offset_y = plane->crtc_y;
-	win_data->ovl_width = plane->crtc_width;
-	win_data->ovl_height = plane->crtc_height;
-	win_data->fb_pitch = plane->pitch;
-	win_data->fb_width = plane->fb_width;
-	win_data->fb_height = plane->fb_height;
-	win_data->dma_addr = plane->dma_addr[0] + offset;
-	win_data->bpp = plane->bpp;
-	win_data->pixel_format = plane->pixel_format;
-	win_data->buf_offsize =
-		plane->pitch - (plane->crtc_width * (plane->bpp >> 3));
-	win_data->line_size = plane->crtc_width * (plane->bpp >> 3);
-
-	DRM_DEBUG_KMS("offset_x = %d, offset_y = %d\n",
-			win_data->offset_x, win_data->offset_y);
-	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			win_data->ovl_width, win_data->ovl_height);
-	DRM_DEBUG_KMS("paddr = 0x%lx\n", (unsigned long)win_data->dma_addr);
-	DRM_DEBUG_KMS("fb_width = %d, crtc_width = %d\n",
-			plane->fb_width, plane->crtc_width);
-}
-
 static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 {
-	struct fimd_win_data *win_data = &ctx->win_data[win];
+	struct exynos_drm_plane *plane = &ctx->planes[win];
 	unsigned long val;
 
 	val = WINCONx_ENWIN;
@@ -564,11 +502,11 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 	 * So the request format is ARGB8888 then change it to XRGB8888.
 	 */
 	if (ctx->driver_data->has_limited_fmt && !win) {
-		if (win_data->pixel_format == DRM_FORMAT_ARGB8888)
-			win_data->pixel_format = DRM_FORMAT_XRGB8888;
+		if (plane->pixel_format == DRM_FORMAT_ARGB8888)
+			plane->pixel_format = DRM_FORMAT_XRGB8888;
 	}
 
-	switch (win_data->pixel_format) {
+	switch (plane->pixel_format) {
 	case DRM_FORMAT_C8:
 		val |= WINCON0_BPPMODE_8BPP_PALETTE;
 		val |= WINCONx_BURSTLEN_8WORD;
@@ -604,7 +542,7 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 		break;
 	}
 
-	DRM_DEBUG_KMS("bpp = %d\n", win_data->bpp);
+	DRM_DEBUG_KMS("bpp = %d\n", plane->bpp);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -614,12 +552,30 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 	 * movement causes unstable DMA which results into iommu crash/tear.
 	 */
 
-	if (win_data->fb_width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
+	if (plane->fb_width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_4WORD;
 	}
 
 	writel(val, ctx->regs + WINCON(win));
+
+	/* hardware window 0 doesn't support alpha channel. */
+	if (win != 0) {
+		/* OSD alpha */
+		val = VIDISD14C_ALPHA0_R(0xf) |
+			VIDISD14C_ALPHA0_G(0xf) |
+			VIDISD14C_ALPHA0_B(0xf) |
+			VIDISD14C_ALPHA1_R(0xf) |
+			VIDISD14C_ALPHA1_G(0xf) |
+			VIDISD14C_ALPHA1_B(0xf);
+
+		writel(val, ctx->regs + VIDOSD_C(win));
+
+		val = VIDW_ALPHA_R(0xf) | VIDW_ALPHA_G(0xf) |
+			VIDW_ALPHA_G(0xf);
+		writel(val, ctx->regs + VIDWnALPHA0(win));
+		writel(val, ctx->regs + VIDWnALPHA1(win));
+	}
 }
 
 static void fimd_win_set_colkey(struct fimd_context *ctx, unsigned int win)
@@ -642,7 +598,7 @@ static void fimd_win_set_colkey(struct fimd_context *ctx, unsigned int win)
  * @protect: 1 to protect (disable updates)
  */
 static void fimd_shadow_protect_win(struct fimd_context *ctx,
-							int win, bool protect)
+				    unsigned int win, bool protect)
 {
 	u32 reg, bits, val;
 
@@ -662,29 +618,25 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 	writel(val, ctx->regs + reg);
 }
 
-static void fimd_win_commit(struct exynos_drm_crtc *crtc, int zpos)
+static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct fimd_context *ctx = crtc->ctx;
-	struct fimd_win_data *win_data;
-	int win = zpos;
-	unsigned long val, alpha, size;
-	unsigned int last_x;
-	unsigned int last_y;
+	struct exynos_drm_plane *plane;
+	dma_addr_t dma_addr;
+	unsigned long val, size, offset;
+	unsigned int last_x, last_y, buf_offsize, line_size;
 
 	if (ctx->suspended)
 		return;
 
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
-
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
 
-	win_data = &ctx->win_data[win];
+	plane = &ctx->planes[win];
 
 	/* If suspended, enable this on resume */
 	if (ctx->suspended) {
-		win_data->resume = true;
+		plane->resume = true;
 		return;
 	}
 
@@ -701,38 +653,45 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	/* protect windows */
 	fimd_shadow_protect_win(ctx, win, true);
 
+
+	offset = plane->src_x * (plane->bpp >> 3);
+	offset += plane->src_y * plane->pitch;
+
 	/* buffer start address */
-	val = (unsigned long)win_data->dma_addr;
+	dma_addr = plane->dma_addr[0] + offset;
+	val = (unsigned long)dma_addr;
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
 	/* buffer end address */
-	size = win_data->fb_pitch * win_data->ovl_height * (win_data->bpp >> 3);
-	val = (unsigned long)(win_data->dma_addr + size);
+	size = plane->pitch * plane->crtc_height;
+	val = (unsigned long)(dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
 	DRM_DEBUG_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
-			(unsigned long)win_data->dma_addr, val, size);
+			(unsigned long)dma_addr, val, size);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			win_data->ovl_width, win_data->ovl_height);
+			plane->crtc_width, plane->crtc_height);
 
 	/* buffer size */
-	val = VIDW_BUF_SIZE_OFFSET(win_data->buf_offsize) |
-		VIDW_BUF_SIZE_PAGEWIDTH(win_data->line_size) |
-		VIDW_BUF_SIZE_OFFSET_E(win_data->buf_offsize) |
-		VIDW_BUF_SIZE_PAGEWIDTH_E(win_data->line_size);
+	buf_offsize = plane->pitch - (plane->crtc_width * (plane->bpp >> 3));
+	line_size = plane->crtc_width * (plane->bpp >> 3);
+	val = VIDW_BUF_SIZE_OFFSET(buf_offsize) |
+		VIDW_BUF_SIZE_PAGEWIDTH(line_size) |
+		VIDW_BUF_SIZE_OFFSET_E(buf_offsize) |
+		VIDW_BUF_SIZE_PAGEWIDTH_E(line_size);
 	writel(val, ctx->regs + VIDWx_BUF_SIZE(win, 0));
 
 	/* OSD position */
-	val = VIDOSDxA_TOPLEFT_X(win_data->offset_x) |
-		VIDOSDxA_TOPLEFT_Y(win_data->offset_y) |
-		VIDOSDxA_TOPLEFT_X_E(win_data->offset_x) |
-		VIDOSDxA_TOPLEFT_Y_E(win_data->offset_y);
+	val = VIDOSDxA_TOPLEFT_X(plane->crtc_x) |
+		VIDOSDxA_TOPLEFT_Y(plane->crtc_y) |
+		VIDOSDxA_TOPLEFT_X_E(plane->crtc_x) |
+		VIDOSDxA_TOPLEFT_Y_E(plane->crtc_y);
 	writel(val, ctx->regs + VIDOSD_A(win));
 
-	last_x = win_data->offset_x + win_data->ovl_width;
+	last_x = plane->crtc_x + plane->crtc_width;
 	if (last_x)
 		last_x--;
-	last_y = win_data->offset_y + win_data->ovl_height;
+	last_y = plane->crtc_y + plane->crtc_height;
 	if (last_y)
 		last_y--;
 
@@ -742,24 +701,14 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	writel(val, ctx->regs + VIDOSD_B(win));
 
 	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
-			win_data->offset_x, win_data->offset_y, last_x, last_y);
-
-	/* hardware window 0 doesn't support alpha channel. */
-	if (win != 0) {
-		/* OSD alpha */
-		alpha = VIDISD14C_ALPHA1_R(0xf) |
-			VIDISD14C_ALPHA1_G(0xf) |
-			VIDISD14C_ALPHA1_B(0xf);
-
-		writel(alpha, ctx->regs + VIDOSD_C(win));
-	}
+			plane->crtc_x, plane->crtc_y, last_x, last_y);
 
 	/* OSD size */
 	if (win != 3 && win != 4) {
 		u32 offset = VIDOSD_D(win);
 		if (win == 0)
 			offset = VIDOSD_C(win);
-		val = win_data->ovl_width * win_data->ovl_height;
+		val = plane->crtc_width * plane->crtc_height;
 		writel(val, ctx->regs + offset);
 
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
@@ -779,29 +728,25 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	/* Enable DMA channel and unprotect windows */
 	fimd_shadow_protect_win(ctx, win, false);
 
-	win_data->enabled = true;
+	plane->enabled = true;
 
 	if (ctx->i80_if)
 		atomic_set(&ctx->win_updated, 1);
 }
 
-static void fimd_win_disable(struct exynos_drm_crtc *crtc, int zpos)
+static void fimd_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct fimd_context *ctx = crtc->ctx;
-	struct fimd_win_data *win_data;
-	int win = zpos;
-
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
+	struct exynos_drm_plane *plane;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
 
-	win_data = &ctx->win_data[win];
+	plane = &ctx->planes[win];
 
 	if (ctx->suspended) {
 		/* do not resume this window*/
-		win_data->resume = false;
+		plane->resume = false;
 		return;
 	}
 
@@ -816,42 +761,42 @@ static void fimd_win_disable(struct exynos_drm_crtc *crtc, int zpos)
 	/* unprotect windows */
 	fimd_shadow_protect_win(ctx, win, false);
 
-	win_data->enabled = false;
+	plane->enabled = false;
 }
 
 static void fimd_window_suspend(struct fimd_context *ctx)
 {
-	struct fimd_win_data *win_data;
+	struct exynos_drm_plane *plane;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		win_data->resume = win_data->enabled;
-		if (win_data->enabled)
+		plane = &ctx->planes[i];
+		plane->resume = plane->enabled;
+		if (plane->enabled)
 			fimd_win_disable(ctx->crtc, i);
 	}
 }
 
 static void fimd_window_resume(struct fimd_context *ctx)
 {
-	struct fimd_win_data *win_data;
+	struct exynos_drm_plane *plane;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		win_data->enabled = win_data->resume;
-		win_data->resume = false;
+		plane = &ctx->planes[i];
+		plane->enabled = plane->resume;
+		plane->resume = false;
 	}
 }
 
 static void fimd_apply(struct fimd_context *ctx)
 {
-	struct fimd_win_data *win_data;
+	struct exynos_drm_plane *plane;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		if (win_data->enabled)
+		plane = &ctx->planes[i];
+		if (plane->enabled)
 			fimd_win_commit(ctx->crtc, i);
 		else
 			fimd_win_disable(ctx->crtc, i);
@@ -1008,7 +953,6 @@ static struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,
 	.wait_for_vblank = fimd_wait_for_vblank,
-	.win_mode_set = fimd_win_mode_set,
 	.win_commit = fimd_win_commit,
 	.win_disable = fimd_win_disable,
 	.te_handler = fimd_te_handler,
@@ -1054,14 +998,29 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_private *priv = drm_dev->dev_private;
+	struct exynos_drm_plane *exynos_plane;
+	enum drm_plane_type type;
+	unsigned int zpos;
 	int ret;
 
 	ctx->drm_dev = drm_dev;
 	ctx->pipe = priv->pipe++;
 
-	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
-					   EXYNOS_DISPLAY_TYPE_LCD,
+	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
+		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
+						DRM_PLANE_TYPE_OVERLAY;
+		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
+					1 << ctx->pipe, type, zpos);
+		if (ret)
+			return ret;
+	}
+
+	exynos_plane = &ctx->planes[ctx->default_win];
+	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
+					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
 					   &fimd_crtc_ops, ctx);
+	if (IS_ERR(ctx->crtc))
+		return PTR_ERR(ctx->crtc);
 
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
@@ -1232,6 +1191,24 @@ static int fimd_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
+{
+	struct fimd_context *ctx = crtc->ctx;
+	u32 val;
+
+	/*
+	 * Only Exynos 5250, 5260, 5410 and 542x requires enabling DP/MIE
+	 * clock. On these SoCs the bootloader may enable it but any
+	 * power domain off/on will reset it to disable state.
+	 */
+	if (ctx->driver_data != &exynos5_fimd_driver_data)
+		return;
+
+	val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
+	writel(DP_MIE_CLK_DP_ENABLE, ctx->regs + DP_MIE_CLKCON);
+}
+EXPORT_SYMBOL_GPL(fimd_dp_clock_enable);
 
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,

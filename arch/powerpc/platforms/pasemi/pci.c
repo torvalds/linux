@@ -31,6 +31,8 @@
 
 #include <asm/ppc-pci.h>
 
+#include "pasemi.h"
+
 #define PA_PXP_CFA(bus, devfn, off) (((bus) << 20) | ((devfn) << 12) | (off))
 
 static inline int pa_pxp_offset_valid(u8 bus, u8 devfn, int offset)
@@ -199,6 +201,7 @@ static int __init pas_add_bridge(struct device_node *dev)
 
 	hose->first_busno = 0;
 	hose->last_busno = 0xff;
+	hose->controller_ops = pasemi_pci_controller_ops;
 
 	setup_pa_pxp(hose);
 
@@ -239,3 +242,5 @@ void __iomem *pasemi_pci_getcfgaddr(struct pci_dev *dev, int offset)
 
 	return (void __iomem *)pa_pxp_cfg_addr(hose, dev->bus->number, dev->devfn, offset);
 }
+
+struct pci_controller_ops pasemi_pci_controller_ops;

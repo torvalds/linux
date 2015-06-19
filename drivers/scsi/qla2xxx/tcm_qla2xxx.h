@@ -33,6 +33,7 @@ struct tcm_qla2xxx_tpg_attrib {
 	int demo_mode_write_protect;
 	int prod_mode_write_protect;
 	int demo_mode_login_only;
+	int fabric_prot_type;
 };
 
 struct tcm_qla2xxx_tpg {

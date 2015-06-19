@@ -30,6 +30,7 @@
 #define ARC_REG_D_UNCACH_BCR	0x6A
 #define ARC_REG_BPU_BCR		0xc0
 #define ARC_REG_ISA_CFG_BCR	0xc1
+#define ARC_REG_RTT_BCR		0xF2
 #define ARC_REG_SMART_BCR	0xFF
 
 /* status32 Bits Positions */
@@ -50,11 +51,7 @@
  * [15: 8] = Exception Cause Code
  * [ 7: 0] = Exception Parameters (for certain types only)
  */
-#define ECR_VEC_MASK			0xff0000
-#define ECR_CODE_MASK			0x00ff00
-#define ECR_PARAM_MASK			0x0000ff
-
-/* Exception Cause Vector Values */
+#define ECR_V_MEM_ERR			0x01
 #define ECR_V_INSN_ERR			0x02
 #define ECR_V_MACH_CHK			0x20
 #define ECR_V_ITLB_MISS			0x21
@@ -62,7 +59,8 @@
 #define ECR_V_PROTV			0x23
 #define ECR_V_TRAP			0x25
 
-/* Protection Violation Exception Cause Code Values */
+/* DTLB Miss and Protection Violation Cause Codes */
+
 #define ECR_C_PROTV_INST_FETCH		0x00
 #define ECR_C_PROTV_LOAD		0x01
 #define ECR_C_PROTV_STORE		0x02
@@ -173,11 +171,11 @@
 	}						\
 }
 
-#define WRITE_BCR(reg, into)				\
+#define WRITE_AUX(reg, into)				\
 {							\
 	unsigned int tmp;				\
 	if (sizeof(tmp) == sizeof(into)) {		\
-		tmp = (*(unsigned int *)(into));	\
+		tmp = (*(unsigned int *)&(into));	\
 		write_aux_reg(reg, tmp);		\
 	} else  {					\
 		extern void bogus_undefined(void);	\

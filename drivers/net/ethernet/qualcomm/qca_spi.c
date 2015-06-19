@@ -41,7 +41,6 @@
 #include <linux/skbuff.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #include "qca_7k.h"
 #include "qca_debug.h"

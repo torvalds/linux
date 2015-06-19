@@ -988,39 +988,36 @@ static int pt_event_add(struct perf_event *event, int mode)
 	int ret = -EBUSY;
 
 	if (pt->handle.event)
-		goto out;
+		goto fail;
 
 	buf = perf_aux_output_begin(&pt->handle, event);
-	if (!buf) {
-		ret = -EINVAL;
-		goto out;
-	}
+	ret = -EINVAL;
+	if (!buf)
+		goto fail_stop;
 
 	pt_buffer_reset_offsets(buf, pt->handle.head);
 	if (!buf->snapshot) {
 		ret = pt_buffer_reset_markers(buf, &pt->handle);
-		if (ret) {
-			perf_aux_output_end(&pt->handle, 0, true);
-			goto out;
-		}
+		if (ret)
+			goto fail_end_stop;
 	}
 
 	if (mode & PERF_EF_START) {
 		pt_event_start(event, 0);
-		if (hwc->state == PERF_HES_STOPPED) {
-			pt_event_del(event, 0);
-			ret = -EBUSY;
-		}
+		ret = -EBUSY;
+		if (hwc->state == PERF_HES_STOPPED)
+			goto fail_end_stop;
 	} else {
 		hwc->state = PERF_HES_STOPPED;
 	}
 
-	ret = 0;
-out:
+	return 0;
 
-	if (ret)
-		hwc->state = PERF_HES_STOPPED;
-
+fail_end_stop:
+	perf_aux_output_end(&pt->handle, 0, true);
+fail_stop:
+	hwc->state = PERF_HES_STOPPED;
+fail:
 	return ret;
 }
 

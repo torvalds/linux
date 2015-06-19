@@ -102,8 +102,8 @@ struct av7110 {
 	struct dvb_device	dvb_dev;
 	struct dvb_net		dvb_net;
 
-	struct video_device	*v4l_dev;
-	struct video_device	*vbi_dev;
+	struct video_device	v4l_dev;
+	struct video_device	vbi_dev;
 
 	struct saa7146_dev	*dev;
 

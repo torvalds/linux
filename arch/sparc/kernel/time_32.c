@@ -194,7 +194,7 @@ static __init int setup_timer_cs(void)
 static void percpu_ce_setup(enum clock_event_mode mode,
 			struct clock_event_device *evt)
 {
-	int cpu = __first_cpu(evt->cpumask);
+	int cpu = cpumask_first(evt->cpumask);
 
 	switch (mode) {
 		case CLOCK_EVT_MODE_PERIODIC:
@@ -214,7 +214,7 @@ static void percpu_ce_setup(enum clock_event_mode mode,
 static int percpu_ce_set_next_event(unsigned long delta,
 				    struct clock_event_device *evt)
 {
-	int cpu = __first_cpu(evt->cpumask);
+	int cpu = cpumask_first(evt->cpumask);
 	unsigned int next = (unsigned int)delta;
 
 	sparc_config.load_profile_irq(cpu, next);

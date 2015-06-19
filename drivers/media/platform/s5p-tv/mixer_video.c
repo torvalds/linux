@@ -287,7 +287,7 @@ static void mxr_mplane_fill(struct v4l2_plane_pix_format *planes,
 		u32 bl_width = divup(width, blk->width);
 		u32 bl_height = divup(height, blk->height);
 		u32 sizeimage = bl_width * bl_height * blk->size;
-		u16 bytesperline = bl_width * blk->size / blk->height;
+		u32 bytesperline = bl_width * blk->size / blk->height;
 
 		plane->sizeimage += sizeimage;
 		plane->bytesperline = max(plane->bytesperline, bytesperline);

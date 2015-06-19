@@ -210,7 +210,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 	avefreeb = freeb / ngroups;
 	ndirs = percpu_counter_read_positive(&sbi->s_dirs_counter);
 
-	if ((parent == sb->s_root->d_inode) ||
+	if ((parent == d_inode(sb->s_root)) ||
 	    (EXT3_I(parent)->i_flags & EXT3_TOPDIR_FL)) {
 		int best_ndir = inodes_per_group;
 		int best_group = -1;

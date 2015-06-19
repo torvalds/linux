@@ -48,8 +48,7 @@
 	compatible = "marvell,a385-gp", "marvell,armada388", "marvell,armada380";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
-		stdout-path = &uart0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -135,7 +134,7 @@
 			};
 
 			/* CON4 */
-			usb@50000 {
+			usb@58000 {
 				vcc-supply = <&reg_usb2_0_vbus>;
 				status = "okay";
 			};

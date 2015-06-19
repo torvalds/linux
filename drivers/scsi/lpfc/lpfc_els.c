@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -2243,8 +2243,7 @@ lpfc_adisc_done(struct lpfc_vport *vport)
 	*/
 	if (vport->port_state < LPFC_VPORT_READY) {
 		/* If we get here, there is nothing to ADISC */
-		if (vport->port_type == LPFC_PHYSICAL_PORT)
-			lpfc_issue_clear_la(phba, vport);
+		lpfc_issue_clear_la(phba, vport);
 		if (!(vport->fc_flag & FC_ABORT_DISCOVERY)) {
 			vport->num_disc_nodes = 0;
 			/* go thru NPR list, issue ELS PLOGIs */
@@ -3338,7 +3337,11 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* FLOGI retry policy */
 		retry = 1;
 		/* retry FLOGI forever */
-		maxretry = 0;
+		if (phba->link_flag != LS_LOOPBACK_MODE)
+			maxretry = 0;
+		else
+			maxretry = 2;
+
 		if (cmdiocb->retry >= 100)
 			delay = 5000;
 		else if (cmdiocb->retry >= 32)
@@ -3701,6 +3704,11 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);
 	if (ndlp) {
+		lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+				 "0006 rpi%x DID:%x flg:%x %d map:%x %p\n",
+				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
+				 atomic_read(&ndlp->kref.refcount),
+				 ndlp->nlp_usg_map, ndlp);
 		if (NLP_CHK_NODE_ACT(ndlp)) {
 			lpfc_nlp_put(ndlp);
 			/* This is the end of the default RPI cleanup logic for
@@ -5198,7 +5206,6 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		port_state = vport->port_state;
 		vport->fc_flag |= FC_PT2PT;
 		vport->fc_flag &= ~(FC_FABRIC | FC_PUBLIC_LOOP);
-		vport->port_state = LPFC_FLOGI;
 		spin_unlock_irq(shost->host_lock);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 				 "3311 Rcv Flogi PS x%x new PS x%x "
@@ -7173,7 +7180,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		return;
 	}
 
-	if (vport->cfg_fdmi_on) {
+	if (vport->cfg_fdmi_on & LPFC_FDMI_SUPPORT) {
 		/* If this is the first time, allocate an ndlp and initialize
 		 * it. Otherwise, make sure the node is enabled and then do the
 		 * login.

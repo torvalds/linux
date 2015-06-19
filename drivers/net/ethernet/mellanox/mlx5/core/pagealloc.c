@@ -211,26 +211,28 @@ static int alloc_4k(struct mlx5_core_dev *dev, u64 *addr)
 	return 0;
 }
 
+#define MLX5_U64_4K_PAGE_MASK ((~(u64)0U) << PAGE_SHIFT)
+
 static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 {
 	struct fw_page *fwp;
 	int n;
 
-	fwp = find_fw_page(dev, addr & PAGE_MASK);
+	fwp = find_fw_page(dev, addr & MLX5_U64_4K_PAGE_MASK);
 	if (!fwp) {
 		mlx5_core_warn(dev, "page not found\n");
 		return;
 	}
 
-	n = (addr & ~PAGE_MASK) >> MLX5_ADAPTER_PAGE_SHIFT;
+	n = (addr & ~MLX5_U64_4K_PAGE_MASK) >> MLX5_ADAPTER_PAGE_SHIFT;
 	fwp->free_count++;
 	set_bit(n, &fwp->bitmask);
 	if (fwp->free_count == MLX5_NUM_4K_IN_PAGE) {
 		rb_erase(&fwp->rb_node, &dev->priv.page_root);
 		if (fwp->free_count != 1)
 			list_del(&fwp->list);
-		dma_unmap_page(&dev->pdev->dev, addr & PAGE_MASK, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
+		dma_unmap_page(&dev->pdev->dev, addr & MLX5_U64_4K_PAGE_MASK,
+			       PAGE_SIZE, DMA_BIDIRECTIONAL);
 		__free_page(fwp->page);
 		kfree(fwp);
 	} else if (fwp->free_count == 1) {

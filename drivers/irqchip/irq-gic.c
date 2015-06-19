@@ -33,12 +33,14 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/acpi.h>
 #include <linux/irqdomain.h>
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/irqchip/arm-gic-acpi.h>
 
 #include <asm/cputype.h>
 #include <asm/irq.h>
@@ -1106,4 +1108,106 @@ IRQCHIP_DECLARE(cortex_a7_gic, "arm,cortex-a7-gic", gic_of_init);
 IRQCHIP_DECLARE(msm_8660_qgic, "qcom,msm-8660-qgic", gic_of_init);
 IRQCHIP_DECLARE(msm_qgic2, "qcom,msm-qgic2", gic_of_init);
 
+#endif
+
+#ifdef CONFIG_ACPI
+static phys_addr_t dist_phy_base, cpu_phy_base __initdata;
+
+static int __init
+gic_acpi_parse_madt_cpu(struct acpi_subtable_header *header,
+			const unsigned long end)
+{
+	struct acpi_madt_generic_interrupt *processor;
+	phys_addr_t gic_cpu_base;
+	static int cpu_base_assigned;
+
+	processor = (struct acpi_madt_generic_interrupt *)header;
+
+	if (BAD_MADT_ENTRY(processor, end))
+		return -EINVAL;
+
+	/*
+	 * There is no support for non-banked GICv1/2 register in ACPI spec.
+	 * All CPU interface addresses have to be the same.
+	 */
+	gic_cpu_base = processor->base_address;
+	if (cpu_base_assigned && gic_cpu_base != cpu_phy_base)
+		return -EINVAL;
+
+	cpu_phy_base = gic_cpu_base;
+	cpu_base_assigned = 1;
+	return 0;
+}
+
+static int __init
+gic_acpi_parse_madt_distributor(struct acpi_subtable_header *header,
+				const unsigned long end)
+{
+	struct acpi_madt_generic_distributor *dist;
+
+	dist = (struct acpi_madt_generic_distributor *)header;
+
+	if (BAD_MADT_ENTRY(dist, end))
+		return -EINVAL;
+
+	dist_phy_base = dist->base_address;
+	return 0;
+}
+
+int __init
+gic_v2_acpi_init(struct acpi_table_header *table)
+{
+	void __iomem *cpu_base, *dist_base;
+	int count;
+
+	/* Collect CPU base addresses */
+	count = acpi_parse_entries(ACPI_SIG_MADT,
+				   sizeof(struct acpi_table_madt),
+				   gic_acpi_parse_madt_cpu, table,
+				   ACPI_MADT_TYPE_GENERIC_INTERRUPT, 0);
+	if (count <= 0) {
+		pr_err("No valid GICC entries exist\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Find distributor base address. We expect one distributor entry since
+	 * ACPI 5.1 spec neither support multi-GIC instances nor GIC cascade.
+	 */
+	count = acpi_parse_entries(ACPI_SIG_MADT,
+				   sizeof(struct acpi_table_madt),
+				   gic_acpi_parse_madt_distributor, table,
+				   ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR, 0);
+	if (count <= 0) {
+		pr_err("No valid GICD entries exist\n");
+		return -EINVAL;
+	} else if (count > 1) {
+		pr_err("More than one GICD entry detected\n");
+		return -EINVAL;
+	}
+
+	cpu_base = ioremap(cpu_phy_base, ACPI_GIC_CPU_IF_MEM_SIZE);
+	if (!cpu_base) {
+		pr_err("Unable to map GICC registers\n");
+		return -ENOMEM;
+	}
+
+	dist_base = ioremap(dist_phy_base, ACPI_GICV2_DIST_MEM_SIZE);
+	if (!dist_base) {
+		pr_err("Unable to map GICD registers\n");
+		iounmap(cpu_base);
+		return -ENOMEM;
+	}
+
+	/*
+	 * Initialize zero GIC instance (no multi-GIC support). Also, set GIC
+	 * as default IRQ domain to allow for GSI registration and GSI to IRQ
+	 * number translation (see acpi_register_gsi() and acpi_gsi_to_irq()).
+	 */
+	gic_init_bases(0, -1, dist_base, cpu_base, 0, NULL);
+	irq_set_default_host(gic_data[0].domain);
+
+	acpi_irq_model = ACPI_IRQ_MODEL_GIC;
+	return 0;
+}
 #endif

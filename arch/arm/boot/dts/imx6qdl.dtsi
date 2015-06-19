@@ -53,6 +53,7 @@
 		interrupt-controller;
 		reg = <0x00a01000 0x1000>,
 		      <0x00a00100 0x100>;
+		interrupt-parent = <&intc>;
 	};
 
 	clocks {
@@ -82,7 +83,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
-		interrupt-parent = <&intc>;
+		interrupt-parent = <&gpc>;
 		ranges;
 
 		dma_apbh: dma-apbh@00110000 {
@@ -122,6 +123,7 @@
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x00a00600 0x20>;
 			interrupts = <1 13 0xf01>;
+			interrupt-parent = <&intc>;
 			clocks = <&clks IMX6QDL_CLK_TWD>;
 		};
 
@@ -357,6 +359,7 @@
 				clocks = <&clks IMX6QDL_CLK_IPG>,
 					 <&clks IMX6QDL_CLK_PWM1>;
 				clock-names = "ipg", "per";
+				status = "disabled";
 			};
 
 			pwm2: pwm@02084000 {
@@ -367,6 +370,7 @@
 				clocks = <&clks IMX6QDL_CLK_IPG>,
 					 <&clks IMX6QDL_CLK_PWM2>;
 				clock-names = "ipg", "per";
+				status = "disabled";
 			};
 
 			pwm3: pwm@02088000 {
@@ -377,6 +381,7 @@
 				clocks = <&clks IMX6QDL_CLK_IPG>,
 					 <&clks IMX6QDL_CLK_PWM3>;
 				clock-names = "ipg", "per";
+				status = "disabled";
 			};
 
 			pwm4: pwm@0208c000 {
@@ -387,6 +392,7 @@
 				clocks = <&clks IMX6QDL_CLK_IPG>,
 					 <&clks IMX6QDL_CLK_PWM4>;
 				clock-names = "ipg", "per";
+				status = "disabled";
 			};
 
 			can1: flexcan@02090000 {
@@ -598,7 +604,7 @@
 					regulator-name = "vddpu";
 					regulator-min-microvolt = <725000>;
 					regulator-max-microvolt = <1450000>;
-					regulator-always-on;
+					regulator-enable-ramp-delay = <150>;
 					anatop-reg-offset = <0x140>;
 					anatop-vol-bit-shift = <9>;
 					anatop-vol-bit-width = <5>;
@@ -658,7 +664,7 @@
 				#size-cells = <1>;
 				ranges = <0 0x020cc000 0x4000>;
 
-				snvs-rtc-lp@34 {
+				snvs_rtc: snvs-rtc-lp@34 {
 					compatible = "fsl,sec-v4.0-mon-rtc-lp";
 					reg = <0x34 0x58>;
 					interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>,
@@ -693,8 +699,19 @@
 			gpc: gpc@020dc000 {
 				compatible = "fsl,imx6q-gpc";
 				reg = <0x020dc000 0x4000>;
+				interrupt-controller;
+				#interrupt-cells = <3>;
 				interrupts = <0 89 IRQ_TYPE_LEVEL_HIGH>,
 					     <0 90 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&intc>;
+				pu-supply = <&reg_pu>;
+				clocks = <&clks IMX6QDL_CLK_GPU3D_CORE>,
+					 <&clks IMX6QDL_CLK_GPU3D_SHADER>,
+					 <&clks IMX6QDL_CLK_GPU2D_CORE>,
+					 <&clks IMX6QDL_CLK_GPU2D_AXI>,
+					 <&clks IMX6QDL_CLK_OPENVG_AXI>,
+					 <&clks IMX6QDL_CLK_VPU_AXI>;
+				#power-domain-cells = <1>;
 			};
 
 			gpr: iomuxc-gpr@020e0000 {
@@ -845,6 +862,7 @@
 				clocks = <&clks IMX6QDL_CLK_USBOH3>;
 				fsl,usbphy = <&usbphy2>;
 				fsl,usbmisc = <&usbmisc 1>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -854,6 +872,7 @@
 				interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6QDL_CLK_USBOH3>;
 				fsl,usbmisc = <&usbmisc 2>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -863,6 +882,7 @@
 				interrupts = <0 42 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6QDL_CLK_USBOH3>;
 				fsl,usbmisc = <&usbmisc 3>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -1022,19 +1042,24 @@
 				reg = <0x021e0000 0x4000>;
 				status = "disabled";
 
-				port@0 {
-					reg = <0>;
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
 
-					mipi_mux_0: endpoint {
-						remote-endpoint = <&ipu1_di0_mipi>;
+					port@0 {
+						reg = <0>;
+
+						mipi_mux_0: endpoint {
+							remote-endpoint = <&ipu1_di0_mipi>;
+						};
 					};
-				};
 
-				port@1 {
-					reg = <1>;
+					port@1 {
+						reg = <1>;
 
-					mipi_mux_1: endpoint {
-						remote-endpoint = <&ipu1_di1_mipi>;
+						mipi_mux_1: endpoint {
+							remote-endpoint = <&ipu1_di1_mipi>;
+						};
 					};
 				};
 			};

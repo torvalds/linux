@@ -183,6 +183,7 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 static int ufshcd_setup_clocks(struct ufs_hba *hba, bool on);
 static int ufshcd_uic_hibern8_exit(struct ufs_hba *hba);
 static int ufshcd_uic_hibern8_enter(struct ufs_hba *hba);
+static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba);
 static int ufshcd_host_reset_and_restore(struct ufs_hba *hba);
 static irqreturn_t ufshcd_intr(int irq, void *__hba);
 static int ufshcd_config_pwr_mode(struct ufs_hba *hba,
@@ -972,6 +973,8 @@ ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
 
 	ufshcd_hold(hba, false);
 	mutex_lock(&hba->uic_cmd_mutex);
+	ufshcd_add_delay_before_dme_cmd(hba);
+
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	ret = __ufshcd_send_uic_cmd(hba, uic_cmd);
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
@@ -2058,6 +2061,37 @@ static int ufshcd_dme_link_startup(struct ufs_hba *hba)
 	return ret;
 }
 
+static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba)
+{
+	#define MIN_DELAY_BEFORE_DME_CMDS_US	1000
+	unsigned long min_sleep_time_us;
+
+	if (!(hba->quirks & UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS))
+		return;
+
+	/*
+	 * last_dme_cmd_tstamp will be 0 only for 1st call to
+	 * this function
+	 */
+	if (unlikely(!ktime_to_us(hba->last_dme_cmd_tstamp))) {
+		min_sleep_time_us = MIN_DELAY_BEFORE_DME_CMDS_US;
+	} else {
+		unsigned long delta =
+			(unsigned long) ktime_to_us(
+				ktime_sub(ktime_get(),
+				hba->last_dme_cmd_tstamp));
+
+		if (delta < MIN_DELAY_BEFORE_DME_CMDS_US)
+			min_sleep_time_us =
+				MIN_DELAY_BEFORE_DME_CMDS_US - delta;
+		else
+			return; /* no more delay required */
+	}
+
+	/* allow sleep for extra 50us if needed */
+	usleep_range(min_sleep_time_us, min_sleep_time_us + 50);
+}
+
 /**
  * ufshcd_dme_set_attr - UIC command for DME_SET, DME_PEER_SET
  * @hba: per adapter instance
@@ -2157,6 +2191,7 @@ static int ufshcd_uic_pwr_ctrl(struct ufs_hba *hba, struct uic_command *cmd)
 
 	mutex_lock(&hba->uic_cmd_mutex);
 	init_completion(&uic_async_done);
+	ufshcd_add_delay_before_dme_cmd(hba);
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	hba->uic_async_done = &uic_async_done;
