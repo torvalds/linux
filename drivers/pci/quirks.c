@@ -1988,14 +1988,18 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1508, quirk_disable_aspm_l0s);
 
 static void fixup_rev1_53c810(struct pci_dev *dev)
 {
-	/* rev 1 ncr53c810 chips don't set the class at all which means
+	u32 class = dev->class;
+
+	/*
+	 * rev 1 ncr53c810 chips don't set the class at all which means
 	 * they don't get their resources remapped. Fix that here.
 	 */
+	if (class)
+		return;
 
-	if (dev->class == PCI_CLASS_NOT_DEFINED) {
-		dev_info(&dev->dev, "NCR 53c810 rev 1 detected; setting PCI class\n");
-		dev->class = PCI_CLASS_STORAGE_SCSI;
-	}
+	dev->class = PCI_CLASS_STORAGE_SCSI << 8;
+	dev_info(&dev->dev, "NCR 53c810 rev 1 PCI class overridden (%#08x -> %#08x)\n",
+		 class, dev->class);
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR, PCI_DEVICE_ID_NCR_53C810, fixup_rev1_53c810);
 
