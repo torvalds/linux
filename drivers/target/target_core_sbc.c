@@ -381,7 +381,9 @@ out:
 static sense_reason_t
 sbc_execute_rw(struct se_cmd *cmd)
 {
-	return cmd->execute_rw(cmd, cmd->t_data_sg, cmd->t_data_nents,
+	struct sbc_ops *ops = cmd->protocol_data;
+
+	return ops->execute_rw(cmd, cmd->t_data_sg, cmd->t_data_nents,
 			       cmd->data_direction);
 }
 
@@ -560,6 +562,7 @@ out:
 static sense_reason_t
 sbc_compare_and_write(struct se_cmd *cmd)
 {
+	struct sbc_ops *ops = cmd->protocol_data;
 	struct se_device *dev = cmd->se_dev;
 	sense_reason_t ret;
 	int rc;
@@ -579,7 +582,7 @@ sbc_compare_and_write(struct se_cmd *cmd)
 	 */
 	cmd->data_length = cmd->t_task_nolb * dev->dev_attrib.block_size;
 
-	ret = cmd->execute_rw(cmd, cmd->t_bidi_data_sg, cmd->t_bidi_data_nents,
+	ret = ops->execute_rw(cmd, cmd->t_bidi_data_sg, cmd->t_bidi_data_nents,
 			      DMA_FROM_DEVICE);
 	if (ret) {
 		cmd->transport_complete_callback = NULL;
@@ -766,12 +769,13 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 	u32 sectors = 0;
 	sense_reason_t ret;
 
+	cmd->protocol_data = ops;
+
 	switch (cdb[0]) {
 	case READ_6:
 		sectors = transport_get_sectors_6(cdb);
 		cmd->t_task_lba = transport_lba_21(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case READ_10:
@@ -786,7 +790,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case READ_12:
@@ -801,7 +804,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case READ_16:
@@ -816,14 +818,12 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_6:
 		sectors = transport_get_sectors_6(cdb);
 		cmd->t_task_lba = transport_lba_21(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_10:
@@ -839,7 +839,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_12:
@@ -854,7 +853,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_16:
@@ -869,7 +867,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case XDWRITEREAD_10:
@@ -887,7 +884,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		/*
 		 * Setup BIDI XOR callback to be run after I/O completion.
 		 */
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		cmd->transport_complete_callback = &xdreadwrite_callback;
 		break;
@@ -911,7 +907,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			 * Setup BIDI XOR callback to be run during after I/O
 			 * completion.
 			 */
-			cmd->execute_rw = ops->execute_rw;
 			cmd->execute_cmd = sbc_execute_rw;
 			cmd->transport_complete_callback = &xdreadwrite_callback;
 			break;
@@ -955,7 +950,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
 		cmd->t_task_nolb = sectors;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB | SCF_COMPARE_AND_WRITE;
-		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_compare_and_write;
 		cmd->transport_complete_callback = compare_and_write_callback;
 		break;
