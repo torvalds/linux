@@ -1951,6 +1951,8 @@ static void blkback_changed(struct xenbus_device *dev,
 
 	switch (backend_state) {
 	case XenbusStateInitWait:
+		if (dev->state != XenbusStateInitialising)
+			break;
 		if (talk_to_blkback(dev, info)) {
 			kfree(info);
 			dev_set_drvdata(&dev->dev, NULL);
