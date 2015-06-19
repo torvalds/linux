@@ -106,6 +106,8 @@ struct variable_list {
 	struct strlist			*vars;	/* Available variables */
 };
 
+struct map;
+
 /* Command string to events */
 extern int parse_perf_probe_command(const char *cmd,
 				    struct perf_probe_event *pev);
