@@ -245,15 +245,13 @@ ufs_extend_tail(struct inode *inode, u64 writes_to,
  * @index: number of block pointer within the inode's array.
  * @new_fragment: number of new allocated fragment(s)
  * @err: we set it if something wrong
- * @phys: pointer to where we save physical number of new allocated fragments,
- *   NULL if we allocate not data(indirect blocks for example).
  * @new: we set it if we allocate new block
  * @locked_page: for ufs_new_fragments()
  */
 static u64
 ufs_inode_getfrag(struct inode *inode, unsigned index,
 		  sector_t new_fragment, int *err,
-		  long *phys, int *new, struct page *locked_page)
+		  int *new, struct page *locked_page)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -286,18 +284,15 @@ ufs_inode_getfrag(struct inode *inode, unsigned index,
 			goal += uspi->s_fpb;
 	}
 	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment),
-				goal, uspi->s_fpb, err,
-				phys != NULL ? locked_page : NULL);
+				goal, uspi->s_fpb, err, locked_page);
 
 	if (!tmp) {
 		*err = -ENOSPC;
 		return 0;
 	}
 
-	if (phys) {
-		*err = 0;
+	if (new)
 		*new = 1;
-	}
 	inode->i_ctime = CURRENT_TIME_SEC;
 	if (IS_SYNC(inode))
 		ufs_sync_inode (inode);
@@ -329,14 +324,13 @@ repeat2:
  * @new_fragment: number of new allocated fragment
  *  (block will hold this fragment and also uspi->s_fpb-1)
  * @err: see ufs_inode_getfrag()
- * @phys: see ufs_inode_getfrag()
  * @new: see ufs_inode_getfrag()
  * @locked_page: see ufs_inode_getfrag()
  */
 static u64
 ufs_inode_getblock(struct inode *inode, u64 ind_block,
 		  unsigned index, sector_t new_fragment, int *err,
-		  long *phys, int *new, struct page *locked_page)
+		  int *new, struct page *locked_page)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
@@ -404,7 +398,6 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 	unsigned offsets[4];
 	int depth = ufs_block_to_path(inode, fragment >> uspi->s_fpbshift, offsets);
 	u64 phys64 = 0;
-	unsigned long phys;
 	unsigned frag = fragment & uspi->s_fpbmask;
 
 	if (!create) {
@@ -435,16 +428,16 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 
 	if (depth == 1) {
 		phys64 = ufs_inode_getfrag(inode, offsets[0], fragment,
-					   &err, &phys, &new, bh_result->b_page);
+					   &err, &new, bh_result->b_page);
 	} else {
 		int i;
 		phys64 = ufs_inode_getfrag(inode, offsets[0], fragment,
-					   &err, NULL, NULL, bh_result->b_page);
+					   &err, NULL, NULL);
 		for (i = 1; i < depth - 1; i++)
 			phys64 = ufs_inode_getblock(inode, phys64, offsets[i],
-						fragment, &err, NULL, NULL, NULL);
+						fragment, &err, NULL, NULL);
 		phys64 = ufs_inode_getblock(inode, phys64, offsets[depth - 1],
-					fragment, &err, &phys, &new, bh_result->b_page);
+					fragment, &err, &new, bh_result->b_page);
 	}
 out:
 	if (phys64) {
