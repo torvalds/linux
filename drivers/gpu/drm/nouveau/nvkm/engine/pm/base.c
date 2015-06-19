@@ -454,6 +454,7 @@ nvkm_perfmon_mthd_query_domain(struct nvkm_object *object, void *data, u32 size)
 
 		args->v0.id         = di;
 		args->v0.signal_nr  = nvkm_perfdom_count_perfsig(dom);
+		strncpy(args->v0.name, dom->name, sizeof(args->v0.name));
 
 		/* Currently only global counters (PCOUNTER) are implemented
 		 * but this will be different for local counters (MP). */
