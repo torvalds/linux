@@ -824,6 +824,27 @@ static struct notifier_block nfqnl_dev_notifier = {
 	.notifier_call	= nfqnl_rcv_dev_event,
 };
 
+static int nf_hook_cmp(struct nf_queue_entry *entry, unsigned long ops_ptr)
+{
+	return entry->elem == (struct nf_hook_ops *)ops_ptr;
+}
+
+static void nfqnl_nf_hook_drop(struct net *net, struct nf_hook_ops *hook)
+{
+	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
+	int i;
+
+	rcu_read_lock();
+	for (i = 0; i < INSTANCE_BUCKETS; i++) {
+		struct nfqnl_instance *inst;
+		struct hlist_head *head = &q->instance_table[i];
+
+		hlist_for_each_entry_rcu(inst, head, hlist)
+			nfqnl_flush(inst, nf_hook_cmp, (unsigned long)hook);
+	}
+	rcu_read_unlock();
+}
+
 static int
 nfqnl_rcv_nl_event(struct notifier_block *this,
 		   unsigned long event, void *ptr)
@@ -1031,7 +1052,8 @@ static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 };
 
 static const struct nf_queue_handler nfqh = {
-	.outfn	= &nfqnl_enqueue_packet,
+	.outfn		= &nfqnl_enqueue_packet,
+	.nf_hook_drop	= &nfqnl_nf_hook_drop,
 };
 
 static int
