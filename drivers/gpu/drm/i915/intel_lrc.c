@@ -1143,6 +1143,29 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *ring,
 	/* WaDisableCtxRestoreArbitration:bdw,chv */
 	wa_ctx_emit(batch, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 
+	/* WaFlushCoherentL3CacheLinesAtContextSwitch:bdw */
+	if (IS_BROADWELL(ring->dev)) {
+		struct drm_i915_private *dev_priv = to_i915(ring->dev);
+		uint32_t l3sqc4_flush = (I915_READ(GEN8_L3SQCREG4) |
+					 GEN8_LQSC_FLUSH_COHERENT_LINES);
+
+		wa_ctx_emit(batch, MI_LOAD_REGISTER_IMM(1));
+		wa_ctx_emit(batch, GEN8_L3SQCREG4);
+		wa_ctx_emit(batch, l3sqc4_flush);
+
+		wa_ctx_emit(batch, GFX_OP_PIPE_CONTROL(6));
+		wa_ctx_emit(batch, (PIPE_CONTROL_CS_STALL |
+				    PIPE_CONTROL_DC_FLUSH_ENABLE));
+		wa_ctx_emit(batch, 0);
+		wa_ctx_emit(batch, 0);
+		wa_ctx_emit(batch, 0);
+		wa_ctx_emit(batch, 0);
+
+		wa_ctx_emit(batch, MI_LOAD_REGISTER_IMM(1));
+		wa_ctx_emit(batch, GEN8_L3SQCREG4);
+		wa_ctx_emit(batch, l3sqc4_flush & ~GEN8_LQSC_FLUSH_COHERENT_LINES);
+	}
+
 	/* Pad to end of cacheline */
 	while (index % CACHELINE_DWORDS)
 		wa_ctx_emit(batch, MI_NOOP);

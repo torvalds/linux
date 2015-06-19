@@ -431,6 +431,7 @@
 #define   PIPE_CONTROL_INDIRECT_STATE_DISABLE		(1<<9)
 #define   PIPE_CONTROL_NOTIFY				(1<<8)
 #define   PIPE_CONTROL_FLUSH_ENABLE			(1<<7) /* gen7+ */
+#define   PIPE_CONTROL_DC_FLUSH_ENABLE			(1<<5)
 #define   PIPE_CONTROL_VF_CACHE_INVALIDATE		(1<<4)
 #define   PIPE_CONTROL_CONST_CACHE_INVALIDATE		(1<<3)
 #define   PIPE_CONTROL_STATE_CACHE_INVALIDATE		(1<<2)
@@ -5811,6 +5812,7 @@ enum skl_disp_power_wells {
 
 #define GEN8_L3SQCREG4				0xb118
 #define  GEN8_LQSC_RO_PERF_DIS			(1<<27)
+#define  GEN8_LQSC_FLUSH_COHERENT_LINES		(1<<21)
 
 /* GEN8 chicken */
 #define HDC_CHICKEN0				0x7300
