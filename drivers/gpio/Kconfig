@@ -307,7 +307,6 @@ config GPIO_MVEBU
 	def_bool y
 	depends on PLAT_ORION
 	depends on OF
-	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 
 config GPIO_MXC
