@@ -19,7 +19,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/clk-provider.h>
-#include <linux/clk.h>
 
 #include "clk.h"
 
