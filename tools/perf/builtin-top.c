@@ -599,7 +599,13 @@ static void *display_thread_tui(void *arg)
 		 * No need to refresh, resort/decay histogram entries
 		 * if we are not collecting samples:
 		 */
-		hbt.refresh = top->evlist->enabled ? top->delay_secs : 0;
+		if (top->evlist->enabled) {
+			hbt.refresh = top->delay_secs;
+			help = "Press 'f' to disable the events or 'h' to see other hotkeys";
+		} else {
+			help = "Press 'f' again to re-enable the events";
+			hbt.refresh = 0;
+		}
 	}
 
 	done = 1;
