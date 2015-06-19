@@ -1224,6 +1224,12 @@ static int intel_init_workaround_bb(struct intel_engine_cs *ring)
 
 	WARN_ON(ring->id != RCS);
 
+	/* some WA perform writes to scratch page, ensure it is valid */
+	if (ring->scratch.obj == NULL) {
+		DRM_ERROR("scratch page not allocated for %s\n", ring->name);
+		return -EINVAL;
+	}
+
 	ret = lrc_setup_wa_ctx_obj(ring, PAGE_SIZE);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Failed to setup context WA page: %d\n", ret);
@@ -1658,7 +1664,8 @@ static int logical_render_ring_init(struct drm_device *dev)
 	ring->emit_bb_start = gen8_emit_bb_start;
 
 	ring->dev = dev;
-	ret = logical_ring_init(dev, ring);
+
+	ret = intel_init_pipe_control(ring);
 	if (ret)
 		return ret;
 
@@ -1673,9 +1680,10 @@ static int logical_render_ring_init(struct drm_device *dev)
 			  ret);
 	}
 
-	ret = intel_init_pipe_control(ring);
-	if (ret)
+	ret = logical_ring_init(dev, ring);
+	if (ret) {
 		lrc_destroy_wa_ctx_obj(ring);
+	}
 
 	return ret;
 }
