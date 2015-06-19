@@ -1337,7 +1337,7 @@ static void rtsx_delink_stage1(struct rtsx_chip *chip, int enter_L1,
 		rtsx_write_register(chip, HOST_SLEEP_STATE, 0x03, 1);
 
 	if (chip->card_exist)
-		val = 0x03;
+		val = 0x02;
 	else
 		val = 0x0A;
 
