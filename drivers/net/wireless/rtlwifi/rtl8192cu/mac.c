@@ -69,8 +69,6 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 		chip_version = NORMAL_CHIP;
 		chip_version |= ((value32 & TYPE_ID) ? CHIP_92C : 0);
 		chip_version |= ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : 0);
-		/* RTL8723 with BT function. */
-		chip_version |= ((value32 & BT_FUNC) ? CHIP_8723 : 0);
 		if (IS_VENDOR_UMC(chip_version))
 			chip_version |= ((value32 & CHIP_VER_RTL_MASK) ?
 					 CHIP_VENDOR_UMC_B_CUT : 0);
@@ -78,10 +76,6 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 			value32 = rtl_read_dword(rtlpriv, REG_HPON_FSM);
 			chip_version |= ((CHIP_BONDING_IDENTIFIER(value32) ==
 				 CHIP_BONDING_92C_1T2R) ? CHIP_92C_1T2R : 0);
-		} else if (IS_8723_SERIES(chip_version)) {
-			value32 = rtl_read_dword(rtlpriv, REG_GPIO_OUTSTS);
-			chip_version |= ((value32 & RF_RL_ID) ?
-					  CHIP_8723_DRV_REV : 0);
 		}
 	}
 	rtlhal->version  = (enum version_8192c)chip_version;
@@ -113,12 +107,6 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 		break;
 	case VERSION_NORMAL_UMC_CHIP_88C_B_CUT:
 		versionid = "NORMAL_UMC_CHIP_88C_B_CUT";
-		break;
-	case VERSION_NORMA_UMC_CHIP_8723_1T1R_A_CUT:
-		versionid = "NORMAL_UMC_CHIP_8723_1T1R_A_CUT";
-		break;
-	case VERSION_NORMA_UMC_CHIP_8723_1T1R_B_CUT:
-		versionid = "NORMAL_UMC_CHIP_8723_1T1R_B_CUT";
 		break;
 	case VERSION_TEST_CHIP_92C:
 		versionid = "TEST_CHIP_92C";

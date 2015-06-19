@@ -2280,7 +2280,6 @@ bool rtl92cu_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 * valid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	enum rf_pwrstate e_rfpowerstate_toset, cur_rfstate;
 	u8 u1tmp = 0;
 	bool actuallyset = false;
@@ -2357,20 +2356,7 @@ bool rtl92cu_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 * valid)
 		if (ppsc->pwrdown_mode && e_rfpowerstate_toset == ERFOFF) {
 			/* Enable register area 0x0-0xc. */
 			rtl_write_byte(rtlpriv, REG_RSV_CTRL, 0x0);
-			if (IS_HARDWARE_TYPE_8723U(rtlhal)) {
-				/*
-				 * We should configure HW PDn source for WiFi
-				 * ONLY, and then our HW will be set in
-				 * power-down mode if PDn source from all
-				 * functions are configured.
-				 */
-				u1tmp = rtl_read_byte(rtlpriv,
-						      REG_MULTI_FUNC_CTRL);
-				rtl_write_byte(rtlpriv, REG_MULTI_FUNC_CTRL,
-					       (u1tmp|WL_HWPDN_EN));
-			} else {
-				rtl_write_word(rtlpriv, REG_APS_FSMCO, 0x8812);
-			}
+			rtl_write_word(rtlpriv, REG_APS_FSMCO, 0x8812);
 		}
 		if (e_rfpowerstate_toset == ERFOFF) {
 			if (ppsc->reg_rfps_level  & RT_RF_OFF_LEVL_ASPM)
