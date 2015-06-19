@@ -1,6 +1,9 @@
 #ifndef TARGET_CORE_INTERNAL_H
 #define TARGET_CORE_INTERNAL_H
 
+#define TARGET_CORE_NAME_MAX_LEN	64
+#define TARGET_FABRIC_NAME_SIZE		32
+
 struct target_backend {
 	struct list_head list;
 
@@ -12,6 +15,37 @@ struct target_backend {
 	struct config_item_type tb_dev_wwn_cit;
 	struct config_item_type tb_dev_alua_tg_pt_gps_cit;
 	struct config_item_type tb_dev_stat_cit;
+};
+
+struct target_fabric_configfs {
+	atomic_t		tf_access_cnt;
+	struct list_head	tf_list;
+	struct config_group	tf_group;
+	struct config_group	tf_disc_group;
+	struct config_group	*tf_default_groups[2];
+	const struct target_core_fabric_ops *tf_ops;
+
+	struct config_item_type tf_discovery_cit;
+	struct config_item_type	tf_wwn_cit;
+	struct config_item_type tf_wwn_fabric_stats_cit;
+	struct config_item_type tf_tpg_cit;
+	struct config_item_type tf_tpg_base_cit;
+	struct config_item_type tf_tpg_lun_cit;
+	struct config_item_type tf_tpg_port_cit;
+	struct config_item_type tf_tpg_port_stat_cit;
+	struct config_item_type tf_tpg_np_cit;
+	struct config_item_type tf_tpg_np_base_cit;
+	struct config_item_type tf_tpg_attrib_cit;
+	struct config_item_type tf_tpg_auth_cit;
+	struct config_item_type tf_tpg_param_cit;
+	struct config_item_type tf_tpg_nacl_cit;
+	struct config_item_type tf_tpg_nacl_base_cit;
+	struct config_item_type tf_tpg_nacl_attrib_cit;
+	struct config_item_type tf_tpg_nacl_auth_cit;
+	struct config_item_type tf_tpg_nacl_param_cit;
+	struct config_item_type tf_tpg_nacl_stat_cit;
+	struct config_item_type tf_tpg_mappedlun_cit;
+	struct config_item_type tf_tpg_mappedlun_stat_cit;
 };
 
 /* target_core_alua.c */
