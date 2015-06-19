@@ -62,20 +62,21 @@ rspin_until_writer_unlock(struct qrwlock *lock, u32 cnts)
 /**
  * queued_read_lock_slowpath - acquire read lock of a queue rwlock
  * @lock: Pointer to queue rwlock structure
+ * @cnts: Current qrwlock lock value
  */
-void queued_read_lock_slowpath(struct qrwlock *lock)
+void queued_read_lock_slowpath(struct qrwlock *lock, u32 cnts)
 {
-	u32 cnts;
-
 	/*
 	 * Readers come here when they cannot get the lock without waiting
 	 */
 	if (unlikely(in_interrupt())) {
 		/*
-		 * Readers in interrupt context will spin until the lock is
-		 * available without waiting in the queue.
+		 * Readers in interrupt context will get the lock immediately
+		 * if the writer is just waiting (not holding the lock yet).
+		 * The rspin_until_writer_unlock() function returns immediately
+		 * in this case. Otherwise, they will spin until the lock
+		 * is available without waiting in the queue.
 		 */
-		cnts = smp_load_acquire((u32 *)&lock->cnts);
 		rspin_until_writer_unlock(lock, cnts);
 		return;
 	}
