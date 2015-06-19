@@ -62,9 +62,16 @@
 #define PAGE_TABLE_SIZE(pages) ((pages) / PTRS_PER_PGD)
 #endif
 
-/* Number of possible pages in the lowmem region */
-LOWMEM_PAGES = (((1<<32) - __PAGE_OFFSET) >> PAGE_SHIFT)
-	
+/*
+ * Number of possible pages in the lowmem region.
+ *
+ * We shift 2 by 31 instead of 1 by 32 to the left in order to avoid a
+ * gas warning about overflowing shift count when gas has been compiled
+ * with only a host target support using a 32-bit type for internal
+ * representation.
+ */
+LOWMEM_PAGES = (((2<<31) - __PAGE_OFFSET) >> PAGE_SHIFT)
+
 /* Enough space to fit pagetables for the low memory linear map */
 MAPPING_BEYOND_END = PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT
 
