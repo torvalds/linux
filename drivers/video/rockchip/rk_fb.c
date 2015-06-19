@@ -2088,7 +2088,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 
 	reg_win_data->reg_area_data[0].smem_start = -1;
 	reg_win_data->area_num = 0;
-	fbi = rk_fb->fb[reg_win_data->win_id];
+	fbi = rk_fb->fb[win_par->win_id + dev_drv->fb_index_base];
 	if (win_par->area_par[0].phy_addr == 0) {
 		for (i = 0; i < RK_WIN_MAX_AREA; i++) {
 			ion_fd = win_par->area_par[i].ion_fd;
@@ -3510,8 +3510,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			 */
 			if (dev_drv->uboot_logo) {
 				for (i = 0; i < dev_drv->lcdc_win_num; i++) {
-					if (dev_drv->win[i] && dev_drv->win[i]->state)
-						dev_drv->ops->open(dev_drv, i, 0);
+					if (dev_drv->win[i] && dev_drv->win[i]->state &&
+					    dev_drv->ops->win_direct_en)
+						dev_drv->ops->win_direct_en(dev_drv, i, 0);
 				}
 			}
 
@@ -3568,8 +3569,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 					}
 					if (dev_drv->uboot_logo) {
 						for (i = 0; i < dev_drv->lcdc_win_num; i++) {
-							if (dev_drv->win[i] && dev_drv->win[i]->state)
-								dev_drv->ops->open(dev_drv, i, 0);
+							if (dev_drv->win[i] && dev_drv->win[i]->state &&
+							    dev_drv->ops->win_direct_en)
+								dev_drv->ops->win_direct_en(dev_drv, i, 0);
 						}
 					} else if (!dev_drv->win[win_id]->state) {
 						dev_drv->ops->open(dev_drv, win_id, 1);
