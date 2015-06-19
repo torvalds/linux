@@ -460,22 +460,6 @@ CFQ_CFQQ_FNS(deep);
 CFQ_CFQQ_FNS(wait_busy);
 #undef CFQ_CFQQ_FNS
 
-static inline struct cfq_group *pd_to_cfqg(struct blkg_policy_data *pd)
-{
-	return pd ? container_of(pd, struct cfq_group, pd) : NULL;
-}
-
-static struct cfq_group_data
-*cpd_to_cfqgd(struct blkcg_policy_data *cpd)
-{
-	return cpd ? container_of(cpd, struct cfq_group_data, pd) : NULL;
-}
-
-static inline struct blkcg_gq *cfqg_to_blkg(struct cfq_group *cfqg)
-{
-	return pd_to_blkg(&cfqg->pd);
-}
-
 #if defined(CONFIG_CFQ_GROUP_IOSCHED) && defined(CONFIG_DEBUG_BLK_CGROUP)
 
 /* cfqg stats flags */
@@ -619,6 +603,22 @@ static inline void cfqg_stats_update_avg_queue_size(struct cfq_group *cfqg) { }
 #endif	/* CONFIG_CFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
+
+static inline struct cfq_group *pd_to_cfqg(struct blkg_policy_data *pd)
+{
+	return pd ? container_of(pd, struct cfq_group, pd) : NULL;
+}
+
+static struct cfq_group_data
+*cpd_to_cfqgd(struct blkcg_policy_data *cpd)
+{
+	return cpd ? container_of(cpd, struct cfq_group_data, pd) : NULL;
+}
+
+static inline struct blkcg_gq *cfqg_to_blkg(struct cfq_group *cfqg)
+{
+	return pd_to_blkg(&cfqg->pd);
+}
 
 static struct blkcg_policy blkcg_policy_cfq;
 
