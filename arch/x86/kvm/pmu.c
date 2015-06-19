@@ -52,7 +52,7 @@ static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
 	return pmu->counter_bitmask[pmc->type];
 }
 
-static inline bool pmc_enabled(struct kvm_pmc *pmc)
+static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
 	return test_bit(pmc->idx, (unsigned long *)&pmu->global_ctrl);
@@ -87,20 +87,20 @@ static struct kvm_pmc *global_idx_to_pmc(struct kvm_pmu *pmu, int idx)
 		return get_fixed_pmc_idx(pmu, idx - INTEL_PMC_IDX_FIXED);
 }
 
-void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
+void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.apic)
 		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
 }
 
-static void trigger_pmi(struct irq_work *irq_work)
+static void kvm_pmi_trigger_fn(struct irq_work *irq_work)
 {
 	struct kvm_pmu *pmu = container_of(irq_work, struct kvm_pmu,
 			irq_work);
 	struct kvm_vcpu *vcpu = container_of(pmu, struct kvm_vcpu,
 			arch.pmu);
 
-	kvm_deliver_pmi(vcpu);
+	kvm_pmu_deliver_pmi(vcpu);
 }
 
 static void kvm_perf_overflow(struct perf_event *perf_event,
@@ -138,7 +138,7 @@ static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 	}
 }
 
-static u64 read_pmc(struct kvm_pmc *pmc)
+static u64 pmc_read_counter(struct kvm_pmc *pmc)
 {
 	u64 counter, enabled, running;
 
@@ -153,16 +153,16 @@ static u64 read_pmc(struct kvm_pmc *pmc)
 	return counter & pmc_bitmask(pmc);
 }
 
-static void stop_counter(struct kvm_pmc *pmc)
+static void pmc_stop_counter(struct kvm_pmc *pmc)
 {
 	if (pmc->perf_event) {
-		pmc->counter = read_pmc(pmc);
+		pmc->counter = pmc_read_counter(pmc);
 		perf_event_release_kernel(pmc->perf_event);
 		pmc->perf_event = NULL;
 	}
 }
 
-static void reprogram_counter(struct kvm_pmc *pmc, u32 type,
+static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 		unsigned config, bool exclude_user, bool exclude_kernel,
 		bool intr, bool in_tx, bool in_tx_cp)
 {
@@ -224,9 +224,9 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 
 	pmc->eventsel = eventsel;
 
-	stop_counter(pmc);
+	pmc_stop_counter(pmc);
 
-	if (!(eventsel & ARCH_PERFMON_EVENTSEL_ENABLE) || !pmc_enabled(pmc))
+	if (!(eventsel & ARCH_PERFMON_EVENTSEL_ENABLE) || !pmc_is_enabled(pmc))
 		return;
 
 	event_select = eventsel & ARCH_PERFMON_EVENTSEL_EVENT;
@@ -246,7 +246,7 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 	if (type == PERF_TYPE_RAW)
 		config = eventsel & X86_RAW_EVENT_MASK;
 
-	reprogram_counter(pmc, type, config,
+	pmc_reprogram_counter(pmc, type, config,
 			!(eventsel & ARCH_PERFMON_EVENTSEL_USR),
 			!(eventsel & ARCH_PERFMON_EVENTSEL_OS),
 			eventsel & ARCH_PERFMON_EVENTSEL_INT,
@@ -259,19 +259,19 @@ static void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 en_pmi, int idx)
 	unsigned en = en_pmi & 0x3;
 	bool pmi = en_pmi & 0x8;
 
-	stop_counter(pmc);
+	pmc_stop_counter(pmc);
 
-	if (!en || !pmc_enabled(pmc))
+	if (!en || !pmc_is_enabled(pmc))
 		return;
 
-	reprogram_counter(pmc, PERF_TYPE_HARDWARE,
+	pmc_reprogram_counter(pmc, PERF_TYPE_HARDWARE,
 			arch_events[fixed_pmc_events[idx]].event_type,
 			!(en & 0x2), /* exclude user */
 			!(en & 0x1), /* exclude kernel */
 			pmi, false, false);
 }
 
-static inline u8 fixed_en_pmi(u64 ctrl, int idx)
+static inline u8 fixed_ctrl_field(u64 ctrl, int idx)
 {
 	return (ctrl >> (idx * 4)) & 0xf;
 }
@@ -281,10 +281,10 @@ static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 	int i;
 
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
-		u8 en_pmi = fixed_en_pmi(data, i);
+		u8 en_pmi = fixed_ctrl_field(data, i);
 		struct kvm_pmc *pmc = get_fixed_pmc_idx(pmu, i);
 
-		if (fixed_en_pmi(pmu->fixed_ctr_ctrl, i) == en_pmi)
+		if (fixed_ctrl_field(pmu->fixed_ctr_ctrl, i) == en_pmi)
 			continue;
 
 		reprogram_fixed_counter(pmc, en_pmi, i);
@@ -293,7 +293,7 @@ static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 	pmu->fixed_ctr_ctrl = data;
 }
 
-static void reprogram_idx(struct kvm_pmu *pmu, int idx)
+static void reprogram_counter(struct kvm_pmu *pmu, int idx)
 {
 	struct kvm_pmc *pmc = global_idx_to_pmc(pmu, idx);
 
@@ -305,7 +305,7 @@ static void reprogram_idx(struct kvm_pmu *pmu, int idx)
 	else {
 		int fidx = idx - INTEL_PMC_IDX_FIXED;
 		reprogram_fixed_counter(pmc,
-				fixed_en_pmi(pmu->fixed_ctr_ctrl, fidx), fidx);
+				fixed_ctrl_field(pmu->fixed_ctr_ctrl, fidx), fidx);
 	}
 }
 
@@ -317,10 +317,10 @@ static void global_ctrl_changed(struct kvm_pmu *pmu, u64 data)
 	pmu->global_ctrl = data;
 
 	for_each_set_bit(bit, (unsigned long *)&diff, X86_PMC_IDX_MAX)
-		reprogram_idx(pmu, bit);
+		reprogram_counter(pmu, bit);
 }
 
-bool kvm_pmu_msr(struct kvm_vcpu *vcpu, u32 msr)
+bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	int ret;
@@ -362,7 +362,7 @@ int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 	default:
 		if ((pmc = get_gp_pmc(pmu, index, MSR_IA32_PERFCTR0)) ||
 				(pmc = get_fixed_pmc(pmu, index))) {
-			*data = read_pmc(pmc);
+			*data = pmc_read_counter(pmc);
 			return 0;
 		} else if ((pmc = get_gp_pmc(pmu, index, MSR_P6_EVNTSEL0))) {
 			*data = pmc->eventsel;
@@ -415,7 +415,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 				(pmc = get_fixed_pmc(pmu, index))) {
 			if (!msr_info->host_initiated)
 				data = (s64)(s32)data;
-			pmc->counter += data - read_pmc(pmc);
+			pmc->counter += data - pmc_read_counter(pmc);
 			return 0;
 		} else if ((pmc = get_gp_pmc(pmu, index, MSR_P6_EVNTSEL0))) {
 			if (data == pmc->eventsel)
@@ -429,7 +429,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 1;
 }
 
-int kvm_pmu_check_pmc(struct kvm_vcpu *vcpu, unsigned pmc)
+int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned pmc)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	bool fixed = pmc & (1u << 30);
@@ -438,7 +438,7 @@ int kvm_pmu_check_pmc(struct kvm_vcpu *vcpu, unsigned pmc)
 		(fixed && pmc >= pmu->nr_arch_fixed_counters);
 }
 
-int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
+int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	bool fast_mode = pmc & (1u << 31);
@@ -452,7 +452,7 @@ int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
 	if (fixed && pmc >= pmu->nr_arch_fixed_counters)
 		return 1;
 	counters = fixed ? pmu->fixed_counters : pmu->gp_counters;
-	ctr = read_pmc(&counters[pmc]);
+	ctr = pmc_read_counter(&counters[pmc]);
 	if (fast_mode)
 		ctr = (u32)ctr;
 	*data = ctr;
@@ -460,7 +460,7 @@ int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
 	return 0;
 }
 
-void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu)
+void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	struct kvm_cpuid_entry2 *entry;
@@ -527,8 +527,8 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu)
 		pmu->fixed_counters[i].vcpu = vcpu;
 		pmu->fixed_counters[i].idx = i + INTEL_PMC_IDX_FIXED;
 	}
-	init_irq_work(&pmu->irq_work, trigger_pmi);
-	kvm_pmu_cpuid_update(vcpu);
+	init_irq_work(&pmu->irq_work, kvm_pmi_trigger_fn);
+	kvm_pmu_refresh(vcpu);
 }
 
 void kvm_pmu_reset(struct kvm_vcpu *vcpu)
@@ -539,12 +539,12 @@ void kvm_pmu_reset(struct kvm_vcpu *vcpu)
 	irq_work_sync(&pmu->irq_work);
 	for (i = 0; i < INTEL_PMC_MAX_GENERIC; i++) {
 		struct kvm_pmc *pmc = &pmu->gp_counters[i];
-		stop_counter(pmc);
+		pmc_stop_counter(pmc);
 		pmc->counter = pmc->eventsel = 0;
 	}
 
 	for (i = 0; i < INTEL_PMC_MAX_FIXED; i++)
-		stop_counter(&pmu->fixed_counters[i]);
+		pmc_stop_counter(&pmu->fixed_counters[i]);
 
 	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status =
 		pmu->global_ovf_ctrl = 0;
@@ -555,7 +555,7 @@ void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 	kvm_pmu_reset(vcpu);
 }
 
-void kvm_handle_pmu_event(struct kvm_vcpu *vcpu)
+void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	u64 bitmask;
@@ -571,6 +571,6 @@ void kvm_handle_pmu_event(struct kvm_vcpu *vcpu)
 			continue;
 		}
 
-		reprogram_idx(pmu, bit);
+		reprogram_counter(pmu, bit);
 	}
 }
