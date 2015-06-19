@@ -265,7 +265,7 @@ static int stk8ba50_probe(struct i2c_client *client,
 			STK8BA50_REG_SWRST, STK8BA50_RESET_CMD);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to reset sensor\n");
-		return ret;
+		goto err_power_off;
 	}
 
 	/* The default range is +/-2g */
@@ -277,9 +277,13 @@ static int stk8ba50_probe(struct i2c_client *client,
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "device_register failed\n");
-		stk8ba50_set_power(data, STK8BA50_MODE_SUSPEND);
+		goto err_power_off;
 	}
 
+	return ret;
+
+err_power_off:
+	stk8ba50_set_power(data, STK8BA50_MODE_SUSPEND);
 	return ret;
 }
 
