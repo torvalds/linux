@@ -100,7 +100,7 @@ static void swI2CWait(void)
 #else
 	int i, Temp;
 
-	for(i=0; i<600; i++)
+	for(i = 0; i < 600; i++)
 	{
 		Temp = i;
 		Temp += i;
@@ -255,7 +255,7 @@ static long swI2CWriteByte(unsigned char data)
 	int i;
 
 	/* Sending the data bit by bit */
-	for (i=0; i<8; i++)
+	for (i = 0; i < 8; i++)
 	{
 		/* Set SCL to low */
 		swI2CSCL(0);
@@ -286,7 +286,7 @@ static long swI2CWriteByte(unsigned char data)
 	swI2CWait();
 
 	/* Read SDA, until SDA==0 */
-	for(i=0; i<0xff; i++)
+	for(i = 0; i < 0xff; i++)
 	{
 		if (!swI2CReadSDA())
 			break;
@@ -301,7 +301,7 @@ static long swI2CWriteByte(unsigned char data)
 	swI2CSCL(0);
 	swI2CSDA(1);
 
-	if (i<0xff)
+	if (i < 0xff)
 		return 0;
 	else
 		return -1;
@@ -322,7 +322,7 @@ static unsigned char swI2CReadByte(unsigned char ack)
 	int i;
 	unsigned char data = 0;
 
-	for(i=7; i>=0; i--)
+	for(i = 7; i >= 0; i--)
 	{
 		/* Set the SCL to Low and SDA to High (Input) */
 		swI2CSCL(0);
@@ -380,7 +380,7 @@ static long swI2CInit_SM750LE(unsigned char i2cClkGPIO,
 	/* Note that SM750LE don't have GPIO MUX and power is always on */
 
 	/* Clear the i2c lines. */
-	for(i=0; i<9; i++)
+	for(i = 0; i < 9; i++)
 		swI2CStop();
 
 	return 0;
@@ -437,7 +437,7 @@ long swI2CInit(
 	enableGPIO(1);
 
 	/* Clear the i2c lines. */
-	for(i=0; i<9; i++)
+	for(i = 0; i < 9; i++)
 		swI2CStop();
 
 	return 0;
