@@ -42,11 +42,6 @@
  * queues are relatively independent, will receive a range of packet sizes,
  * and can often be made to run out completely.  Those issues are important
  * when stress testing peripheral controller drivers.
- *
- *
- * This is currently packaged as a configuration driver, which can't be
- * combined with other functions to make composite devices.  However, it
- * can be combined with other independent configurations.
  */
 struct f_sourcesink {
 	struct usb_function	function;
