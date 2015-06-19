@@ -349,8 +349,10 @@ ufs_inode_getblock(struct inode *inode, u64 ind_block,
 		return 0;
 
 	bh = sb_bread(sb, ind_block + (index >> shift));
-	if (unlikely(!bh))
+	if (unlikely(!bh)) {
+		*err = -EIO;
 		return 0;
+	}
 
 	index &= uspi->s_apbmask >> uspi->s_fpbshift;
 	if (uspi->fs_magic == UFS2_MAGIC)
@@ -454,7 +456,6 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 		phys64 = ufs_inode_getblock(inode, phys64, offsets[depth - 1],
 					fragment, &err, &phys, &new, bh_result->b_page);
 	}
-out:
 	if (phys64) {
 		phys64 += frag;
 		phys = phys64;
