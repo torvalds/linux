@@ -591,7 +591,7 @@ static void *display_thread_tui(void *arg)
 							top->min_percent,
 							&top->session->header.env);
 
-		if (key != CTRL('z'))
+		if (key != 'f')
 			break;
 
 		perf_evlist__toggle_enable(top->evlist);
