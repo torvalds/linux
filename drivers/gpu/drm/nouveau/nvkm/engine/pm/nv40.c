@@ -108,7 +108,7 @@ nv40_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_perfdom_new(&priv->base, "pm", 0, 0, 0, 4, mclass->doms);
+	ret = nvkm_perfdom_new(&priv->base, "pc", 0, 0, 0, 4, mclass->doms);
 	if (ret)
 		return ret;
 
