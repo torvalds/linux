@@ -3664,6 +3664,28 @@ DECLARE_PCI_FIXUP_HEADER(0x1283, 0x8892, quirk_use_pcie_bridge_dma_alias);
 DECLARE_PCI_FIXUP_HEADER(0x8086, 0x244e, quirk_use_pcie_bridge_dma_alias);
 
 /*
+ * Intersil/Techwell TW686[4589]-based video capture cards have an empty (zero)
+ * class code.  Fix it.
+ */
+static void quirk_tw686x_class(struct pci_dev *pdev)
+{
+	u32 class = pdev->class;
+
+	/* Use "Multimedia controller" class */
+	pdev->class = (PCI_CLASS_MULTIMEDIA_OTHER << 8) | 0x01;
+	dev_info(&pdev->dev, "TW686x PCI class overridden (%#08x -> %#08x)\n",
+		 class, pdev->class);
+}
+DECLARE_PCI_FIXUP_CLASS_EARLY(0x1797, 0x6864, PCI_CLASS_NOT_DEFINED, 0,
+			      quirk_tw686x_class);
+DECLARE_PCI_FIXUP_CLASS_EARLY(0x1797, 0x6865, PCI_CLASS_NOT_DEFINED, 0,
+			      quirk_tw686x_class);
+DECLARE_PCI_FIXUP_CLASS_EARLY(0x1797, 0x6868, PCI_CLASS_NOT_DEFINED, 0,
+			      quirk_tw686x_class);
+DECLARE_PCI_FIXUP_CLASS_EARLY(0x1797, 0x6869, PCI_CLASS_NOT_DEFINED, 0,
+			      quirk_tw686x_class);
+
+/*
  * AMD has indicated that the devices below do not support peer-to-peer
  * in any system where they are found in the southbridge with an AMD
  * IOMMU in the system.  Multifunction devices that do not support
