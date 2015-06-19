@@ -131,6 +131,15 @@ void gnttab_cancel_free_callback(struct gnttab_free_callback *callback);
 void gnttab_grant_foreign_access_ref(grant_ref_t ref, domid_t domid,
 				     unsigned long frame, int readonly);
 
+/* Give access to the first 4K of the page */
+static inline void gnttab_page_grant_foreign_access_ref_one(
+	grant_ref_t ref, domid_t domid,
+	struct page *page, int readonly)
+{
+	gnttab_grant_foreign_access_ref(ref, domid, xen_page_to_gfn(page),
+					readonly);
+}
+
 void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
 				       unsigned long pfn);
 
