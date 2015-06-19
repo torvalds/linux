@@ -83,12 +83,6 @@ static struct kvm_pmc *global_idx_to_pmc(struct kvm_pmu *pmu, int idx)
 		return get_fixed_pmc_idx(pmu, idx - INTEL_PMC_IDX_FIXED);
 }
 
-void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
-{
-	if (vcpu->arch.apic)
-		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
-}
-
 static void kvm_pmi_trigger_fn(struct irq_work *irq_work)
 {
 	struct kvm_pmu *pmu = container_of(irq_work, struct kvm_pmu, irq_work);
@@ -324,6 +318,65 @@ static void global_ctrl_changed(struct kvm_pmu *pmu, u64 data)
 		reprogram_counter(pmu, bit);
 }
 
+void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
+{
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	u64 bitmask;
+	int bit;
+
+	bitmask = pmu->reprogram_pmi;
+
+	for_each_set_bit(bit, (unsigned long *)&bitmask, X86_PMC_IDX_MAX) {
+		struct kvm_pmc *pmc = global_idx_to_pmc(pmu, bit);
+
+		if (unlikely(!pmc || !pmc->perf_event)) {
+			clear_bit(bit, (unsigned long *)&pmu->reprogram_pmi);
+			continue;
+		}
+
+		reprogram_counter(pmu, bit);
+	}
+}
+
+/* check if idx is a valid index to access PMU */
+int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
+{
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	bool fixed = idx & (1u << 30);
+	idx &= ~(3u << 30);
+	return (!fixed && idx >= pmu->nr_arch_gp_counters) ||
+		(fixed && idx >= pmu->nr_arch_fixed_counters);
+}
+
+int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
+{
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	bool fast_mode = idx & (1u << 31);
+	bool fixed = idx & (1u << 30);
+	struct kvm_pmc *counters;
+	u64 ctr_val;
+
+	idx &= ~(3u << 30);
+	if (!fixed && idx >= pmu->nr_arch_gp_counters)
+		return 1;
+	if (fixed && idx >= pmu->nr_arch_fixed_counters)
+		return 1;
+	counters = fixed ? pmu->fixed_counters : pmu->gp_counters;
+
+	ctr_val = pmc_read_counter(&counters[idx]);
+	if (fast_mode)
+		ctr_val = (u32)ctr_val;
+
+	*data = ctr_val;
+	return 0;
+}
+
+void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.apic)
+		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
+}
+
 bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -433,39 +486,6 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 1;
 }
 
-/* check if idx is a valid index to access PMU */
-int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
-{
-	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	bool fixed = idx & (1u << 30);
-	idx &= ~(3u << 30);
-	return (!fixed && idx >= pmu->nr_arch_gp_counters) ||
-		(fixed && idx >= pmu->nr_arch_fixed_counters);
-}
-
-int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
-{
-	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	bool fast_mode = idx & (1u << 31);
-	bool fixed = idx & (1u << 30);
-	struct kvm_pmc *counters;
-	u64 ctr_val;
-
-	idx &= ~(3u << 30);
-	if (!fixed && idx >= pmu->nr_arch_gp_counters)
-		return 1;
-	if (fixed && idx >= pmu->nr_arch_fixed_counters)
-		return 1;
-	counters = fixed ? pmu->fixed_counters : pmu->gp_counters;
-
-	ctr_val = pmc_read_counter(&counters[idx]);
-	if (fast_mode)
-		ctr_val = (u32)ctr_val;
-
-	*data = ctr_val;
-	return 0;
-}
-
 /* refresh PMU settings. This function generally is called when underlying
  * settings are changed (such as changes of PMU CPUID by guest VMs), which
  * should rarely happen.
@@ -521,6 +541,25 @@ void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 		pmu->reserved_bits ^= HSW_IN_TX|HSW_IN_TX_CHECKPOINTED;
 }
 
+void kvm_pmu_reset(struct kvm_vcpu *vcpu)
+{
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	int i;
+
+	irq_work_sync(&pmu->irq_work);
+	for (i = 0; i < INTEL_PMC_MAX_GENERIC; i++) {
+		struct kvm_pmc *pmc = &pmu->gp_counters[i];
+		pmc_stop_counter(pmc);
+		pmc->counter = pmc->eventsel = 0;
+	}
+
+	for (i = 0; i < INTEL_PMC_MAX_FIXED; i++)
+		pmc_stop_counter(&pmu->fixed_counters[i]);
+
+	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status =
+		pmu->global_ovf_ctrl = 0;
+}
+
 void kvm_pmu_init(struct kvm_vcpu *vcpu)
 {
 	int i;
@@ -541,46 +580,7 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu)
 	kvm_pmu_refresh(vcpu);
 }
 
-void kvm_pmu_reset(struct kvm_vcpu *vcpu)
-{
-	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	int i;
-
-	irq_work_sync(&pmu->irq_work);
-	for (i = 0; i < INTEL_PMC_MAX_GENERIC; i++) {
-		struct kvm_pmc *pmc = &pmu->gp_counters[i];
-		pmc_stop_counter(pmc);
-		pmc->counter = pmc->eventsel = 0;
-	}
-
-	for (i = 0; i < INTEL_PMC_MAX_FIXED; i++)
-		pmc_stop_counter(&pmu->fixed_counters[i]);
-
-	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status =
-		pmu->global_ovf_ctrl = 0;
-}
-
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 {
 	kvm_pmu_reset(vcpu);
-}
-
-void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
-{
-	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	u64 bitmask;
-	int bit;
-
-	bitmask = pmu->reprogram_pmi;
-
-	for_each_set_bit(bit, (unsigned long *)&bitmask, X86_PMC_IDX_MAX) {
-		struct kvm_pmc *pmc = global_idx_to_pmc(pmu, bit);
-
-		if (unlikely(!pmc || !pmc->perf_event)) {
-			clear_bit(bit, (unsigned long *)&pmu->reprogram_pmi);
-			continue;
-		}
-
-		reprogram_counter(pmu, bit);
-	}
 }
