@@ -248,20 +248,12 @@ ufs_inode_getfrag(struct inode *inode, u64 fragment,
 
 	goal = 0;
 
-repeat:
 	tmp = ufs_data_ptr_to_cpu(sb, p);
 
 	lastfrag = ufsi->i_lastfrag;
 	if (tmp && fragment < lastfrag) {
 		if (!phys) {
-			result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
-			if (tmp == ufs_data_ptr_to_cpu(sb, p)) {
-				UFSD("EXIT, result %llu\n",
-				     (unsigned long long)tmp + blockoff);
-				return result;
-			}
-			brelse (result);
-			goto repeat;
+			return sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
 		} else {
 			*phys = uspi->s_sbbase + tmp + blockoff;
 			return NULL;
@@ -283,14 +275,9 @@ repeat:
 						ufs_data_ptr_to_cpu(sb, p2),
 						uspi->s_fpb - lastblockoff,
 						err, locked_page);
-			if (!tmp) {
-				if (lastfrag != ufsi->i_lastfrag)
-					goto repeat;
-				else
-					return NULL;
-			}
+			if (!tmp)
+				return NULL;
 			lastfrag = ufsi->i_lastfrag;
-
 		}
 		tmp = ufs_data_ptr_to_cpu(sb,
 					 ufs_get_direct_data_ptr(uspi, ufsi,
@@ -325,9 +312,6 @@ repeat:
 					phys != NULL ? locked_page : NULL);
 	}
 	if (!tmp) {
-		if ((!blockoff && ufs_data_ptr_to_cpu(sb, p)) ||
-		    (blockoff && lastfrag != ufsi->i_lastfrag))
-			goto repeat;
 		*err = -ENOSPC;
 		return NULL;
 	}
@@ -345,7 +329,6 @@ repeat:
 	if (IS_SYNC(inode))
 		ufs_sync_inode (inode);
 	mark_inode_dirty(inode);
-	UFSD("EXIT, result %llu\n", (unsigned long long)tmp + blockoff);
 	return result;
 
      /* This part : To be implemented ....
@@ -409,19 +392,14 @@ ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
 		p = (__fs64 *)bh->b_data + block;
 	else
 		p = (__fs32 *)bh->b_data + block;
-repeat:
+
 	tmp = ufs_data_ptr_to_cpu(sb, p);
 	if (tmp) {
-		if (!phys) {
+		if (!phys)
 			result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
-			if (tmp == ufs_data_ptr_to_cpu(sb, p))
-				goto out;
-			brelse (result);
-			goto repeat;
-		} else {
+		else
 			*phys = uspi->s_sbbase + tmp + blockoff;
-			goto out;
-		}
+		goto out;
 	}
 
 	if (block && (uspi->fs_magic == UFS2_MAGIC ?
@@ -432,12 +410,8 @@ repeat:
 		goal = bh->b_blocknr + uspi->s_fpb;
 	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment), goal,
 				uspi->s_fpb, err, locked_page);
-	if (!tmp) {
-		if (ufs_data_ptr_to_cpu(sb, p))
-			goto repeat;
+	if (!tmp)
 		goto out;
-	}
-
 
 	if (!phys) {
 		result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
@@ -451,7 +425,6 @@ repeat:
 		sync_dirty_buffer(bh);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
-	UFSD("result %llu\n", (unsigned long long)tmp + blockoff);
 out:
 	brelse (bh);
 	UFSD("EXIT\n");
