@@ -18,7 +18,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/mfd/palmas.h>
 #include <linux/module.h>
