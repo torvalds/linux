@@ -1,7 +1,7 @@
 /*
- * T104xQDS Device Tree Source
+ * T1023 RDB Device Tree Source
  *
- * Copyright 2013 - 2014 Freescale Semiconductor Inc.
+ * Copyright 2014 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,59 +32,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/include/ "fsl/t102xsi-pre.dtsi"
+
 / {
-	model = "fsl,T1040QDS";
+	model = "fsl,T1023RDB";
+	compatible = "fsl,T1023RDB";
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		bman_fbpr: bman-fbpr {
-			size = <0 0x1000000>;
-			alignment = <0 0x1000000>;
-		};
-		qman_fqd: qman-fqd {
-			size = <0 0x400000>;
-			alignment = <0 0x400000>;
-		};
-		qman_pfdr: qman-pfdr {
-			size = <0 0x2000000>;
-			alignment = <0 0x2000000>;
-		};
-	};
-
 	ifc: localbus@ffe124000 {
 		reg = <0xf 0xfe124000 0 0x2000>;
 		ranges = <0 0 0xf 0xe8000000 0x08000000
-			  2 0 0xf 0xff800000 0x00010000
-			  3 0 0xf 0xffdf0000 0x00008000>;
+			  1 0 0xf 0xff800000 0x00010000>;
 
 		nor@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 			compatible = "cfi-flash";
 			reg = <0x0 0x0 0x8000000>;
-
 			bank-width = <2>;
 			device-width = <1>;
 		};
 
-		nand@2,0 {
+		nand@1,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,ifc-nand";
 			reg = <0x2 0x0 0x10000>;
-		};
-
-		board-control@3,0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "fsl,fpga-qixis";
-			reg = <3 0 0x300>;
 		};
 	};
 
@@ -96,45 +72,40 @@
 		ranges = <0x00000000 0xf 0x00000000 0x01072000>;
 	};
 
-	bportals: bman-portals@ff4000000 {
-		ranges = <0x0 0xf 0xf4000000 0x2000000>;
-	};
-
-	qportals: qman-portals@ff6000000 {
-		ranges = <0x0 0xf 0xf6000000 0x2000000>;
-	};
-
 	soc: soc@ffe000000 {
 		ranges = <0x00000000 0xf 0xfe000000 0x1000000>;
 		reg = <0xf 0xfe000000 0 0x00001000>;
-
 		spi@110000 {
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "micron,n25q128a11";
+				compatible = "spansion,s25fl512s";
 				reg = <0>;
-				spi-max-frequency = <10000000>; /* input clock */
+				spi-max-frequency = <10000000>; /* input clk */
 			};
 		};
 
 		i2c@118000 {
-			pca9547@77 {
-				compatible = "philips,pca9547";
-				reg = <0x77>;
+			eeprom@50 {
+				compatible = "st,m24256";
+				reg = <0x50>;
 			};
+
 			rtc@68 {
-				compatible = "dallas,ds3232";
+				compatible = "dallas,ds1339";
 				reg = <0x68>;
-				interrupts = <0x1 0x1 0 0>;
+				interrupts = <0x5 0x1 0 0>;
 			};
+		};
+
+		i2c@118100 {
 		};
 	};
 
 	pci0: pcie@ffe240000 {
 		reg = <0xf 0xfe240000 0 0x10000>;
-		ranges = <0x02000000 0 0xe0000000 0xc 0x00000000 0x0 0x10000000
-			  0x01000000 0 0x00000000 0xf 0xf8000000 0x0 0x00010000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x00000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xf 0xf8000000 0 0x00010000>;
 		pcie@0 {
 			ranges = <0x02000000 0 0xe0000000
 				  0x02000000 0 0xe0000000
@@ -148,8 +119,8 @@
 
 	pci1: pcie@ffe250000 {
 		reg = <0xf 0xfe250000 0 0x10000>;
-		ranges = <0x02000000 0x0 0xe0000000 0xc 0x10000000 0x0 0x10000000
-			  0x01000000 0x0 0x00000000 0xf 0xf8010000 0x0 0x00010000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x10000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xf 0xf8010000 0 0x00010000>;
 		pcie@0 {
 			ranges = <0x02000000 0 0xe0000000
 				  0x02000000 0 0xe0000000
@@ -175,19 +146,6 @@
 				  0 0x00010000>;
 		};
 	};
-
-	pci3: pcie@ffe270000 {
-		reg = <0xf 0xfe270000 0 0x10000>;
-		ranges = <0x02000000 0 0xe0000000 0xc 0x30000000 0 0x10000000
-			  0x01000000 0 0x00000000 0xf 0xf8030000 0 0x00010000>;
-		pcie@0 {
-			ranges = <0x02000000 0 0xe0000000
-				  0x02000000 0 0xe0000000
-				  0 0x10000000
-
-				  0x01000000 0 0x00000000
-				  0x01000000 0 0x00000000
-				  0 0x00010000>;
-		};
-	};
 };
+
+/include/ "fsl/t1023si-post.dtsi"
