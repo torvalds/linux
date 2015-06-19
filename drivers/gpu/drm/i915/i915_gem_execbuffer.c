@@ -957,6 +957,9 @@ validate_exec_list(struct drm_device *dev,
 		if (exec[i].flags & invalid_flags)
 			return -EINVAL;
 
+		if (exec[i].alignment && !is_power_of_2(exec[i].alignment))
+			return -EINVAL;
+
 		/* First check for malicious input causing overflow in
 		 * the worst case where we need to allocate the entire
 		 * relocation tree as a single array.
