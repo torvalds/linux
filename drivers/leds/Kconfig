@@ -47,6 +47,7 @@ config LEDS_AAT1290
 	depends on LEDS_CLASS_FLASH
 	depends on GPIOLIB
 	depends on OF
+	depends on PINCTRL
 	help
 	 This option enables support for the LEDs on the AAT1290.
 
