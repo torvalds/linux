@@ -17,8 +17,9 @@
 
 #include <linux/regmap.h>
 #include <linux/bitops.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
+
+struct clk;
 
 #define MAX_MUX_GATE_BIT	31
 #define INVALID_MUX_GATE_BIT	(MAX_MUX_GATE_BIT + 1)

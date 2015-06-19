@@ -16,8 +16,9 @@
 #define __DRV_CLK_GATE_H
 
 #include <linux/regmap.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
+
+struct clk;
 
 struct mtk_clk_gate {
 	struct clk_hw	hw;
