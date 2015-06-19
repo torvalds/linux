@@ -519,26 +519,6 @@ fd_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 }
 
 static sense_reason_t
-fd_execute_write_same_unmap(struct se_cmd *cmd)
-{
-	sector_t lba = cmd->t_task_lba;
-	sector_t nolb = sbc_get_write_same_sectors(cmd);
-	sense_reason_t ret;
-
-	if (!nolb) {
-		target_complete_cmd(cmd, SAM_STAT_GOOD);
-		return 0;
-	}
-
-	ret = fd_execute_unmap(cmd, lba, nolb);
-	if (ret)
-		return ret;
-
-	target_complete_cmd(cmd, GOOD);
-	return 0;
-}
-
-static sense_reason_t
 fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	      enum dma_data_direction data_direction)
 {
@@ -827,7 +807,6 @@ static struct sbc_ops fd_sbc_ops = {
 	.execute_rw		= fd_execute_rw,
 	.execute_sync_cache	= fd_execute_sync_cache,
 	.execute_write_same	= fd_execute_write_same,
-	.execute_write_same_unmap = fd_execute_write_same_unmap,
 	.execute_unmap		= fd_execute_unmap,
 };
 

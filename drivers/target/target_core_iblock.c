@@ -431,21 +431,6 @@ iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 }
 
 static sense_reason_t
-iblock_execute_write_same_unmap(struct se_cmd *cmd)
-{
-	sector_t lba = cmd->t_task_lba;
-	sector_t nolb = sbc_get_write_same_sectors(cmd);
-	sense_reason_t ret;
-
-	ret = iblock_execute_unmap(cmd, lba, nolb);
-	if (ret)
-		return ret;
-
-	target_complete_cmd(cmd, GOOD);
-	return 0;
-}
-
-static sense_reason_t
 iblock_execute_write_same(struct se_cmd *cmd)
 {
 	struct iblock_req *ibr;
@@ -836,7 +821,6 @@ static struct sbc_ops iblock_sbc_ops = {
 	.execute_rw		= iblock_execute_rw,
 	.execute_sync_cache	= iblock_execute_sync_cache,
 	.execute_write_same	= iblock_execute_write_same,
-	.execute_write_same_unmap = iblock_execute_write_same_unmap,
 	.execute_unmap		= iblock_execute_unmap,
 };
 

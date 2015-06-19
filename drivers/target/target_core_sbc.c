@@ -178,6 +178,23 @@ sector_t sbc_get_write_same_sectors(struct se_cmd *cmd)
 EXPORT_SYMBOL(sbc_get_write_same_sectors);
 
 static sense_reason_t
+sbc_execute_write_same_unmap(struct se_cmd *cmd)
+{
+	struct sbc_ops *ops = cmd->protocol_data;
+	sector_t nolb = sbc_get_write_same_sectors(cmd);
+	sense_reason_t ret;
+
+	if (nolb) {
+		ret = ops->execute_unmap(cmd, cmd->t_task_lba, nolb);
+		if (ret)
+			return ret;
+	}
+
+	target_complete_cmd(cmd, GOOD);
+	return 0;
+}
+
+static sense_reason_t
 sbc_emulate_noop(struct se_cmd *cmd)
 {
 	target_complete_cmd(cmd, GOOD);
@@ -300,7 +317,7 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	 * translated into block discard requests within backend code.
 	 */
 	if (flags[0] & 0x08) {
-		if (!ops->execute_write_same_unmap)
+		if (!ops->execute_unmap)
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 		if (!dev->dev_attrib.emulate_tpws) {
@@ -308,7 +325,7 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 			       " has emulate_tpws disabled\n");
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 		}
-		cmd->execute_cmd = ops->execute_write_same_unmap;
+		cmd->execute_cmd = sbc_execute_write_same_unmap;
 		return 0;
 	}
 	if (!ops->execute_write_same)
