@@ -1027,7 +1027,6 @@ static void ufs_trunc_direct(struct inode *inode)
 	frag1 = ufs_fragnum (frag1);
 
 	ufs_free_fragments(inode, tmp + frag1, frag2);
-	mark_inode_dirty(inode);
 
 next1:
 	/*
@@ -1043,7 +1042,6 @@ next1:
 		write_sequnlock(&ufsi->meta_lock);
 
 		free_data(&ctx, tmp, uspi->s_fpb);
-		mark_inode_dirty(inode);
 	}
 
 	free_data(&ctx, 0, 0);
@@ -1064,7 +1062,6 @@ next1:
 	write_sequnlock(&ufsi->meta_lock);
 
 	ufs_free_fragments (inode, tmp, frag4);
-	mark_inode_dirty(inode);
  next3:
 
 	UFSD("EXIT: ino %lu\n", inode->i_ino);
@@ -1104,7 +1101,6 @@ static void free_full_branch(struct inode *inode, u64 ind_block, int depth)
 				write_sequnlock(&UFS_I(inode)->meta_lock);
 				ubh_mark_buffer_dirty(ubh);
 				free_data(&ctx, block, uspi->s_fpb);
-				mark_inode_dirty(inode);
 			}
 		}
 		free_data(&ctx, 0, 0);
@@ -1112,7 +1108,6 @@ static void free_full_branch(struct inode *inode, u64 ind_block, int depth)
 
 	ubh_bforget(ubh);
 	ufs_free_blocks(inode, ind_block, uspi->s_fpb);
-	mark_inode_dirty(inode);
 }
 
 static void free_branch_tail(struct inode *inode, unsigned from, struct ufs_buffer_head *ubh, int depth)
@@ -1145,7 +1140,6 @@ static void free_branch_tail(struct inode *inode, unsigned from, struct ufs_buff
 				write_sequnlock(&UFS_I(inode)->meta_lock);
 				ubh_mark_buffer_dirty(ubh);
 				free_data(&ctx, block, uspi->s_fpb);
-				mark_inode_dirty(inode);
 			}
 		}
 		free_data(&ctx, 0, 0);
@@ -1283,6 +1277,7 @@ static void __ufs_truncate_blocks(struct inode *inode)
 		}
 	}
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
+	mark_inode_dirty(inode);
 	mutex_unlock(&ufsi->truncate_mutex);
 }
 
