@@ -280,6 +280,36 @@ struct attribute_group nd_device_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(nd_device_attribute_group);
 
+static ssize_t numa_node_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", dev_to_node(dev));
+}
+static DEVICE_ATTR_RO(numa_node);
+
+static struct attribute *nd_numa_attributes[] = {
+	&dev_attr_numa_node.attr,
+	NULL,
+};
+
+static umode_t nd_numa_attr_visible(struct kobject *kobj, struct attribute *a,
+		int n)
+{
+	if (!IS_ENABLED(CONFIG_NUMA))
+		return 0;
+
+	return a->mode;
+}
+
+/**
+ * nd_numa_attribute_group - NUMA attributes for all devices on an nd bus
+ */
+struct attribute_group nd_numa_attribute_group = {
+	.attrs = nd_numa_attributes,
+	.is_visible = nd_numa_attr_visible,
+};
+EXPORT_SYMBOL_GPL(nd_numa_attribute_group);
+
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus)
 {
 	dev_t devt = MKDEV(nvdimm_bus_major, nvdimm_bus->id);

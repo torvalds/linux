@@ -293,6 +293,7 @@ static struct attribute_group nd_btt_attribute_group = {
 static const struct attribute_group *nd_btt_attribute_groups[] = {
 	&nd_btt_attribute_group,
 	&nd_device_attribute_group,
+	&nd_numa_attribute_group,
 	NULL,
 };
 

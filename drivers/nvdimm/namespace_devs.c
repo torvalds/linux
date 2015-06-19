@@ -1228,6 +1228,7 @@ static struct attribute_group nd_namespace_attribute_group = {
 static const struct attribute_group *nd_namespace_attribute_groups[] = {
 	&nd_device_attribute_group,
 	&nd_namespace_attribute_group,
+	&nd_numa_attribute_group,
 	NULL,
 };
 
