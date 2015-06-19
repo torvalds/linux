@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
@@ -95,6 +96,8 @@ struct arizona_extcon_info {
 	int hpdet_ip_version;
 
 	struct extcon_dev *edev;
+
+	struct gpio_desc *micd_pol_gpio;
 };
 
 static const struct arizona_micd_config micd_default_modes[] = {
@@ -205,6 +208,10 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 	if (arizona->pdata.micd_pol_gpio > 0)
 		gpio_set_value_cansleep(arizona->pdata.micd_pol_gpio,
 					info->micd_modes[mode].gpio);
+	else
+		gpiod_set_value_cansleep(info->micd_pol_gpio,
+					 info->micd_modes[mode].gpio);
+
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 			   ARIZONA_MICD_BIAS_SRC_MASK,
 			   info->micd_modes[mode].bias <<
@@ -1258,6 +1265,27 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 				arizona->pdata.micd_pol_gpio, ret);
 			goto err_register;
 		}
+	} else {
+		if (info->micd_modes[0].gpio)
+			mode = GPIOD_OUT_HIGH;
+		else
+			mode = GPIOD_OUT_LOW;
+
+		/* We can't use devm here because we need to do the get
+		 * against the MFD device, as that is where the of_node
+		 * will reside, but if we devm against that the GPIO
+		 * will not be freed if the extcon driver is unloaded.
+		 */
+		info->micd_pol_gpio = gpiod_get_optional(arizona->dev,
+							 "wlf,micd-pol",
+							 GPIOD_OUT_LOW);
+		if (IS_ERR(info->micd_pol_gpio)) {
+			ret = PTR_ERR(info->micd_pol_gpio);
+			dev_err(arizona->dev,
+				"Failed to get microphone polarity GPIO: %d\n",
+				ret);
+			goto err_register;
+		}
 	}
 
 	if (arizona->pdata.hpdet_id_gpio > 0) {
@@ -1268,7 +1296,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to request GPIO%d: %d\n",
 				arizona->pdata.hpdet_id_gpio, ret);
-			goto err_register;
+			goto err_gpio;
 		}
 	}
 
@@ -1312,7 +1340,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 				dev_err(arizona->dev,
 					"MICD ranges must be sorted\n");
 				ret = -EINVAL;
-				goto err_input;
+				goto err_gpio;
 			}
 		}
 	}
@@ -1331,7 +1359,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			dev_err(arizona->dev, "Unsupported MICD level %d\n",
 				info->micd_ranges[i].max);
 			ret = -EINVAL;
-			goto err_input;
+			goto err_gpio;
 		}
 
 		dev_dbg(arizona->dev, "%d ohms for MICD threshold %d\n",
@@ -1404,7 +1432,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to get JACKDET rise IRQ: %d\n",
 			ret);
-		goto err_input;
+		goto err_gpio;
 	}
 
 	ret = arizona_set_irq_wake(arizona, jack_irq_rise, 1);
@@ -1475,7 +1503,8 @@ err_rise_wake:
 	arizona_set_irq_wake(arizona, jack_irq_rise, 0);
 err_rise:
 	arizona_free_irq(arizona, jack_irq_rise, info);
-err_input:
+err_gpio:
+	gpiod_put(info->micd_pol_gpio);
 err_register:
 	pm_runtime_disable(&pdev->dev);
 	return ret;
@@ -1486,6 +1515,8 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 	struct arizona_extcon_info *info = platform_get_drvdata(pdev);
 	struct arizona *arizona = info->arizona;
 	int jack_irq_rise, jack_irq_fall;
+
+	gpiod_put(info->micd_pol_gpio);
 
 	pm_runtime_disable(&pdev->dev);
 
