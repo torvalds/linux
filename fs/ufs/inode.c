@@ -226,7 +226,6 @@ ufs_inode_getfrag(struct inode *inode, u64 fragment,
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
-	struct buffer_head * result;
 	unsigned blockoff, lastblockoff;
 	u64 tmp, goal, lastfrag, block, lastblock;
 	void *p, *p2;
@@ -249,14 +248,8 @@ ufs_inode_getfrag(struct inode *inode, u64 fragment,
 	tmp = ufs_data_ptr_to_cpu(sb, p);
 
 	lastfrag = ufsi->i_lastfrag;
-	if (tmp && fragment < lastfrag) {
-		if (!phys) {
-			return sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
-		} else {
-			*phys = uspi->s_sbbase + tmp + blockoff;
-			return NULL;
-		}
-	}
+	if (tmp && fragment < lastfrag)
+		goto out;
 
 	lastblock = ufs_fragstoblks (lastfrag);
 	lastblockoff = ufs_fragnum (lastfrag);
@@ -314,20 +307,22 @@ ufs_inode_getfrag(struct inode *inode, u64 fragment,
 		return NULL;
 	}
 
-	if (!phys) {
-		result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
-	} else {
-		*phys = uspi->s_sbbase + tmp + blockoff;
-		result = NULL;
+	if (phys) {
 		*err = 0;
 		*new = 1;
 	}
-
 	inode->i_ctime = CURRENT_TIME_SEC;
 	if (IS_SYNC(inode))
 		ufs_sync_inode (inode);
 	mark_inode_dirty(inode);
-	return result;
+out:
+	tmp += uspi->s_sbbase + blockoff;
+	if (!phys) {
+		return sb_getblk(sb, tmp);
+	} else {
+		*phys = tmp;
+		return NULL;
+	}
 
      /* This part : To be implemented ....
         Required only for writing, not required for READ-ONLY.
@@ -367,7 +362,7 @@ ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct buffer_head * result;
 	unsigned blockoff;
-	u64 tmp, goal, block;
+	u64 tmp = 0, goal, block;
 	void *p;
 
 	block = ufs_fragstoblks (fragment);
@@ -392,13 +387,8 @@ ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
 		p = (__fs32 *)bh->b_data + block;
 
 	tmp = ufs_data_ptr_to_cpu(sb, p);
-	if (tmp) {
-		if (!phys)
-			result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
-		else
-			*phys = uspi->s_sbbase + tmp + blockoff;
+	if (tmp)
 		goto out;
-	}
 
 	if (block && (uspi->fs_magic == UFS2_MAGIC ?
 		      (tmp = fs64_to_cpu(sb, ((__fs64 *)bh->b_data)[block-1])) :
@@ -411,12 +401,8 @@ ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
 	if (!tmp)
 		goto out;
 
-	if (!phys) {
-		result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
-	} else {
-		*phys = uspi->s_sbbase + tmp + blockoff;
+	if (new)
 		*new = 1;
-	}
 
 	mark_buffer_dirty(bh);
 	if (IS_SYNC(inode))
@@ -425,6 +411,14 @@ ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
 	mark_inode_dirty(inode);
 out:
 	brelse (bh);
+	if (tmp) {
+		tmp += uspi->s_sbbase + blockoff;
+		if (phys) {
+			*phys = tmp;
+		} else {
+			result = sb_getblk(sb, tmp);
+		}
+	}
 	UFSD("EXIT\n");
 	return result;
 }
