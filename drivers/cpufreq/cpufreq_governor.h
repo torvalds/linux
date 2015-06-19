@@ -109,7 +109,7 @@ store_one(_gov, file_name)
 
 /* create helper routines */
 #define define_get_cpu_dbs_routines(_dbs_info)				\
-static struct cpu_dbs_common_info *get_cpu_cdbs(int cpu)		\
+static struct cpu_dbs_info *get_cpu_cdbs(int cpu)			\
 {									\
 	return &per_cpu(_dbs_info, cpu).cdbs;				\
 }									\
@@ -129,7 +129,7 @@ static void *get_cpu_dbs_info_s(int cpu)				\
  */
 
 /* Per cpu structures */
-struct cpu_dbs_common_info {
+struct cpu_dbs_info {
 	u64 prev_cpu_idle;
 	u64 prev_cpu_wall;
 	u64 prev_cpu_nice;
@@ -152,7 +152,7 @@ struct cpu_dbs_common_info {
 };
 
 struct od_cpu_dbs_info_s {
-	struct cpu_dbs_common_info cdbs;
+	struct cpu_dbs_info cdbs;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int freq_lo;
 	unsigned int freq_lo_jiffies;
@@ -162,7 +162,7 @@ struct od_cpu_dbs_info_s {
 };
 
 struct cs_cpu_dbs_info_s {
-	struct cpu_dbs_common_info cdbs;
+	struct cpu_dbs_info cdbs;
 	unsigned int down_skip;
 	unsigned int requested_freq;
 	unsigned int enable:1;
@@ -203,7 +203,7 @@ struct common_dbs_data {
 	 */
 	struct dbs_data *gdbs_data;
 
-	struct cpu_dbs_common_info *(*get_cpu_cdbs)(int cpu);
+	struct cpu_dbs_info *(*get_cpu_cdbs)(int cpu);
 	void *(*get_cpu_dbs_info_s)(int cpu);
 	void (*gov_dbs_timer)(struct work_struct *work);
 	void (*gov_check_cpu)(int cpu, unsigned int load);
@@ -264,8 +264,7 @@ static ssize_t show_sampling_rate_min_gov_pol				\
 extern struct mutex cpufreq_governor_lock;
 
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
-bool need_load_eval(struct cpu_dbs_common_info *cdbs,
-		unsigned int sampling_rate);
+bool need_load_eval(struct cpu_dbs_info *cdbs, unsigned int sampling_rate);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		struct common_dbs_data *cdata, unsigned int event);
 void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
