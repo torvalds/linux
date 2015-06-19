@@ -465,49 +465,42 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 	err = 0;
 	ptr = fragment;
 
-	/*
-	 * ok, these macros clean the logic up a bit and make
-	 * it much more readable:
-	 */
-#define GET_INODE_DATABLOCK(x) \
-	ufs_inode_getfrag(inode, x, fragment, 1, &err, &phys, &new,\
-			  bh_result->b_page)
-#define GET_INODE_PTR(x) \
-	ufs_inode_getfrag(inode, x, fragment, uspi->s_fpb, &err, NULL, NULL,\
-			  bh_result->b_page)
-#define GET_INDIRECT_DATABLOCK(x) \
-	ufs_inode_getblock(inode, bh, x, fragment,	\
-			  &err, &phys, &new, bh_result->b_page)
-#define GET_INDIRECT_PTR(x) \
-	ufs_inode_getblock(inode, bh, x, fragment,	\
-			  &err, NULL, NULL, NULL)
-
 	if (depth == 1) {
-		bh = GET_INODE_DATABLOCK(ptr);
+		bh = ufs_inode_getfrag(inode, ptr, fragment, 1, &err, &phys,
+					&new, bh_result->b_page);
 		goto out;
 	}
 	ptr -= UFS_NDIR_FRAGMENT;
 	if (depth == 2) {
-		bh = GET_INODE_PTR(UFS_IND_FRAGMENT + (ptr >> uspi->s_apbshift));
+		bh = ufs_inode_getfrag(inode,
+					UFS_IND_FRAGMENT + (ptr >> uspi->s_apbshift),
+					fragment, uspi->s_fpb, &err, NULL, NULL,
+					bh_result->b_page);
 		goto get_indirect;
 	}
 	ptr -= 1 << (uspi->s_apbshift + uspi->s_fpbshift);
 	if (depth == 3) {
-		bh = GET_INODE_PTR(UFS_DIND_FRAGMENT + (ptr >> uspi->s_2apbshift));
+		bh = ufs_inode_getfrag(inode,
+					UFS_DIND_FRAGMENT + (ptr >> uspi->s_2apbshift),
+					fragment, uspi->s_fpb, &err, NULL, NULL,
+					bh_result->b_page);
 		goto get_double;
 	}
 	ptr -= 1 << (uspi->s_2apbshift + uspi->s_fpbshift);
-	bh = GET_INODE_PTR(UFS_TIND_FRAGMENT + (ptr >> uspi->s_3apbshift));
-	bh = GET_INDIRECT_PTR((ptr >> uspi->s_2apbshift) & uspi->s_apbmask);
+	bh = ufs_inode_getfrag(inode,
+				UFS_TIND_FRAGMENT + (ptr >> uspi->s_3apbshift),
+				fragment, uspi->s_fpb, &err, NULL, NULL,
+				bh_result->b_page);
+	bh = ufs_inode_getblock(inode, bh,
+				(ptr >> uspi->s_2apbshift) & uspi->s_apbmask,
+				fragment, &err, NULL, NULL, NULL);
 get_double:
-	bh = GET_INDIRECT_PTR((ptr >> uspi->s_apbshift) & uspi->s_apbmask);
+	bh = ufs_inode_getblock(inode, bh,
+				(ptr >> uspi->s_apbshift) & uspi->s_apbmask,
+				fragment, &err, NULL, NULL, NULL);
 get_indirect:
-	bh = GET_INDIRECT_DATABLOCK(ptr & uspi->s_apbmask);
-
-#undef GET_INODE_DATABLOCK
-#undef GET_INODE_PTR
-#undef GET_INDIRECT_DATABLOCK
-#undef GET_INDIRECT_PTR
+	bh = ufs_inode_getblock(inode, bh, ptr & uspi->s_apbmask, fragment,
+			  &err, &phys, &new, bh_result->b_page);
 
 out:
 	if (err)
