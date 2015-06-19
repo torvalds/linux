@@ -279,10 +279,10 @@ static int win##id##_enable(struct lcdc_device *lcdc_dev, int en)	\
 	val  =  v_WIN##id##_EN(en);					\
 	lcdc_msk_reg(lcdc_dev, WIN##id##_CTRL0, msk, val);		\
 	lcdc_cfg_done(lcdc_dev);					\
-	val = lcdc_read_bit(lcdc_dev, WIN##id##_CTRL0, msk);		\
+	/*val = lcdc_read_bit(lcdc_dev, WIN##id##_CTRL0, msk);		\
 	while (val !=  (!!en))	{					\
 		val = lcdc_read_bit(lcdc_dev, WIN##id##_CTRL0, msk);	\
-	}								\
+	}*/								\
 	spin_unlock(&lcdc_dev->reg_lock);				\
 	return 0;							\
 }
