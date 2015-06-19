@@ -1140,8 +1140,8 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *ring,
 {
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
-	/* FIXME: Replace me with WA */
-	wa_ctx_emit(batch, MI_NOOP);
+	/* WaDisableCtxRestoreArbitration:bdw,chv */
+	wa_ctx_emit(batch, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 
 	/* Pad to end of cacheline */
 	while (index % CACHELINE_DWORDS)
@@ -1178,6 +1178,9 @@ static int gen8_init_perctx_bb(struct intel_engine_cs *ring,
 			       uint32_t *offset)
 {
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
+
+	/* WaDisableCtxRestoreArbitration:bdw,chv */
+	wa_ctx_emit(batch, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 
 	wa_ctx_emit(batch, MI_BATCH_BUFFER_END);
 
