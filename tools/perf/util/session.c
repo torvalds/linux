@@ -16,6 +16,7 @@
 #include "perf_regs.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
+#include "thread-stack.h"
 
 static int perf_session__deliver_event(struct perf_session *session,
 				       union perf_event *event,
@@ -1063,6 +1064,8 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);
 	case PERF_RECORD_MMAP2:
+		if (event->header.misc & PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT)
+			++evlist->stats.nr_proc_map_timeout;
 		return tool->mmap2(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
 		return tool->comm(tool, event, sample, machine);
@@ -1359,6 +1362,30 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 		ui__warning("%u out of order events recorded.\n", oe->nr_unordered_events);
 
 	events_stats__auxtrace_error_warn(stats);
+
+	if (stats->nr_proc_map_timeout != 0) {
+		ui__warning("%d map information files for pre-existing threads were\n"
+			    "not processed, if there are samples for addresses they\n"
+			    "will not be resolved, you may find out which are these\n"
+			    "threads by running with -v and redirecting the output\n"
+			    "to a file.\n"
+			    "The time limit to process proc map is too short?\n"
+			    "Increase it by --proc-map-timeout\n",
+			    stats->nr_proc_map_timeout);
+	}
+}
+
+static int perf_session__flush_thread_stack(struct thread *thread,
+					    void *p __maybe_unused)
+{
+	return thread_stack__flush(thread);
+}
+
+static int perf_session__flush_thread_stacks(struct perf_session *session)
+{
+	return machines__for_each_thread(&session->machines,
+					 perf_session__flush_thread_stack,
+					 NULL);
 }
 
 volatile int session_done;
@@ -1450,6 +1477,9 @@ done:
 	if (err)
 		goto out_err;
 	err = auxtrace__flush_events(session, tool);
+	if (err)
+		goto out_err;
+	err = perf_session__flush_thread_stacks(session);
 out_err:
 	free(buf);
 	perf_session__warn_about_errors(session);
@@ -1600,6 +1630,9 @@ out:
 	if (err)
 		goto out_err;
 	err = auxtrace__flush_events(session, tool);
+	if (err)
+		goto out_err;
+	err = perf_session__flush_thread_stacks(session);
 out_err:
 	ui_progress__finish();
 	perf_session__warn_about_errors(session);

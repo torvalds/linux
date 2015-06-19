@@ -218,10 +218,14 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       pid_t pid, pid_t tgid,
 				       perf_event__handler_t process,
 				       struct machine *machine,
-				       bool mmap_data)
+				       bool mmap_data,
+				       unsigned int proc_map_timeout)
 {
 	char filename[PATH_MAX];
 	FILE *fp;
+	unsigned long long t;
+	bool truncation = false;
+	unsigned long long timeout = proc_map_timeout * 1000000ULL;
 	int rc = 0;
 
 	if (machine__is_default_guest(machine))
@@ -240,6 +244,7 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 	}
 
 	event->header.type = PERF_RECORD_MMAP2;
+	t = rdclock();
 
 	while (1) {
 		char bf[BUFSIZ];
@@ -252,6 +257,15 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 
 		if (fgets(bf, sizeof(bf), fp) == NULL)
 			break;
+
+		if ((rdclock() - t) > timeout) {
+			pr_warning("Reading %s time out. "
+				   "You may want to increase "
+				   "the time limit by --proc-map-timeout\n",
+				   filename);
+			truncation = true;
+			goto out;
+		}
 
 		/* ensure null termination since stack will be reused. */
 		strcpy(execname, "");
@@ -301,6 +315,10 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			event->header.misc |= PERF_RECORD_MISC_MMAP_DATA;
 		}
 
+out:
+		if (truncation)
+			event->header.misc |= PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT;
+
 		if (!strcmp(execname, ""))
 			strcpy(execname, anonstr);
 
@@ -319,6 +337,9 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			rc = -1;
 			break;
 		}
+
+		if (truncation)
+			break;
 	}
 
 	fclose(fp);
@@ -386,7 +407,9 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 				      pid_t pid, int full,
 					  perf_event__handler_t process,
 				      struct perf_tool *tool,
-				      struct machine *machine, bool mmap_data)
+				      struct machine *machine,
+				      bool mmap_data,
+				      unsigned int proc_map_timeout)
 {
 	char filename[PATH_MAX];
 	DIR *tasks;
@@ -403,7 +426,8 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 			return -1;
 
 		return perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
-							  process, machine, mmap_data);
+							  process, machine, mmap_data,
+							  proc_map_timeout);
 	}
 
 	if (machine__is_default_guest(machine))
@@ -444,7 +468,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		if (_pid == pid) {
 			/* process the parent's maps too */
 			rc = perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
-						process, machine, mmap_data);
+						process, machine, mmap_data, proc_map_timeout);
 			if (rc)
 				break;
 		}
@@ -458,7 +482,8 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine,
-				      bool mmap_data)
+				      bool mmap_data,
+				      unsigned int proc_map_timeout)
 {
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	int err = -1, thread, j;
@@ -481,7 +506,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 					       fork_event,
 					       threads->map[thread], 0,
 					       process, tool, machine,
-					       mmap_data)) {
+					       mmap_data, proc_map_timeout)) {
 			err = -1;
 			break;
 		}
@@ -507,7 +532,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 						       fork_event,
 						       comm_event->comm.pid, 0,
 						       process, tool, machine,
-						       mmap_data)) {
+						       mmap_data, proc_map_timeout)) {
 				err = -1;
 				break;
 			}
@@ -524,7 +549,9 @@ out:
 
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
-				   struct machine *machine, bool mmap_data)
+				   struct machine *machine,
+				   bool mmap_data,
+				   unsigned int proc_map_timeout)
 {
 	DIR *proc;
 	char proc_path[PATH_MAX];
@@ -564,7 +591,8 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
  		 * one thread couldn't be synthesized.
  		 */
 		__event__synthesize_thread(comm_event, mmap_event, fork_event, pid,
-					   1, process, tool, machine, mmap_data);
+					   1, process, tool, machine, mmap_data,
+					   proc_map_timeout);
 	}
 
 	err = 0;

@@ -201,6 +201,12 @@ Default is to monitor all CPUS.
 	Force each column width to the provided list, for large terminal
 	readability.  0 means no limit (default behavior).
 
+--proc-map-timeout::
+	When processing pre-existing threads /proc/XXX/mmap, it may take
+	a long time, because the file may be huge. A time out is needed
+	in such cases.
+	This option sets the time out limit. The default value is 500 ms.
+
 
 INTERACTIVE PROMPTING KEYS
 --------------------------

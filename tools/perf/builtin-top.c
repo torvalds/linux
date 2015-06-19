@@ -591,7 +591,7 @@ static void *display_thread_tui(void *arg)
 							top->min_percent,
 							&top->session->header.env);
 
-		if (key != CTRL('z'))
+		if (key != 'f')
 			break;
 
 		perf_evlist__toggle_enable(top->evlist);
@@ -599,7 +599,13 @@ static void *display_thread_tui(void *arg)
 		 * No need to refresh, resort/decay histogram entries
 		 * if we are not collecting samples:
 		 */
-		hbt.refresh = top->evlist->enabled ? top->delay_secs : 0;
+		if (top->evlist->enabled) {
+			hbt.refresh = top->delay_secs;
+			help = "Press 'f' to disable the events or 'h' to see other hotkeys";
+		} else {
+			help = "Press 'f' again to re-enable the events";
+			hbt.refresh = 0;
+		}
 	}
 
 	done = 1;
@@ -971,7 +977,7 @@ static int __cmd_top(struct perf_top *top)
 		goto out_delete;
 
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
-				    top->evlist->threads, false);
+				    top->evlist->threads, false, opts->proc_map_timeout);
 	ret = perf_top__start_counters(top);
 	if (ret)
 		goto out_delete;
@@ -1081,6 +1087,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 			.target		= {
 				.uses_mmap   = true,
 			},
+			.proc_map_timeout    = 500,
 		},
 		.max_stack	     = PERF_MAX_STACK_DEPTH,
 		.sym_pcnt_filter     = 5,
@@ -1180,6 +1187,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
+	OPT_UINTEGER(0, "proc-map-timeout", &opts->proc_map_timeout,
+			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
