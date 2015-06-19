@@ -205,6 +205,40 @@ changed:
 	goto again;
 }
 
+/*
+ * Unpacking tails: we have a file with partial final block and
+ * we had been asked to extend it.  If the fragment being written
+ * is within the same block, we need to extend the tail just to cover
+ * that fragment.  Otherwise the tail is extended to full block.
+ *
+ * Note that we might need to create a _new_ tail, but that will
+ * be handled elsewhere; this is strictly for resizing old
+ * ones.
+ */
+static bool
+ufs_extend_tail(struct inode *inode, u64 writes_to,
+		  int *err, struct page *locked_page)
+{
+	struct ufs_inode_info *ufsi = UFS_I(inode);
+	struct super_block *sb = inode->i_sb;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	unsigned lastfrag = ufsi->i_lastfrag;	/* it's a short file, so unsigned is enough */
+	unsigned block = ufs_fragstoblks(lastfrag);
+	unsigned new_size;
+	void *p;
+	u64 tmp;
+
+	if (writes_to < (lastfrag | uspi->s_fpbmask))
+		new_size = (writes_to & uspi->s_fpbmask) + 1;
+	else
+		new_size = uspi->s_fpb;
+
+	p = ufs_get_direct_data_ptr(uspi, ufsi, block);
+	tmp = ufs_new_fragments(inode, p, lastfrag, ufs_data_ptr_to_cpu(sb, p),
+				new_size, err, locked_page);
+	return tmp != 0;
+}
+
 /**
  * ufs_inode_getfrag() - allocate new fragment(s)
  * @inode: pointer to inode
@@ -226,13 +260,10 @@ ufs_inode_getfrag(struct inode *inode, u64 fragment,
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
-	unsigned blockoff, lastblockoff;
-	u64 tmp, goal, lastfrag, block, lastblock;
-	void *p, *p2;
-
-	UFSD("ENTER, ino %lu, fragment %llu, new_fragment %llu, required %u, "
-	     "metadata %d\n", inode->i_ino, (unsigned long long)fragment,
-	     (unsigned long long)new_fragment, required, !phys);
+	unsigned blockoff;
+	u64 tmp, goal, lastfrag, block;
+	unsigned nfrags = uspi->s_fpb;
+	void *p;
 
         /* TODO : to be done for write support
         if ( (flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
@@ -242,66 +273,27 @@ ufs_inode_getfrag(struct inode *inode, u64 fragment,
 	block = ufs_fragstoblks (fragment);
 	blockoff = ufs_fragnum (fragment);
 	p = ufs_get_direct_data_ptr(uspi, ufsi, block);
-
-	goal = 0;
-
 	tmp = ufs_data_ptr_to_cpu(sb, p);
-
-	lastfrag = ufsi->i_lastfrag;
-	if (tmp && fragment < lastfrag)
+	if (tmp)
 		goto out;
 
-	lastblock = ufs_fragstoblks (lastfrag);
-	lastblockoff = ufs_fragnum (lastfrag);
-	/*
-	 * We will extend file into new block beyond last allocated block
-	 */
-	if (lastblock < block) {
-		/*
-		 * We must reallocate last allocated block
-		 */
-		if (lastblockoff) {
-			p2 = ufs_get_direct_data_ptr(uspi, ufsi, lastblock);
-			tmp = ufs_new_fragments(inode, p2, lastfrag,
-						ufs_data_ptr_to_cpu(sb, p2),
-						uspi->s_fpb - lastblockoff,
-						err, locked_page);
-			if (!tmp)
-				return 0;
-			lastfrag = ufsi->i_lastfrag;
-		}
-		tmp = ufs_data_ptr_to_cpu(sb,
-					 ufs_get_direct_data_ptr(uspi, ufsi,
-								 lastblock));
-		if (tmp)
-			goal = tmp + uspi->s_fpb;
-		tmp = ufs_new_fragments (inode, p, fragment - blockoff,
-					 goal, required + blockoff,
-					 err,
-					 phys != NULL ? locked_page : NULL);
-	} else if (lastblock == block) {
-	/*
-	 * We will extend last allocated block
-	 */
-		tmp = ufs_new_fragments(inode, p, fragment -
-					(blockoff - lastblockoff),
-					ufs_data_ptr_to_cpu(sb, p),
-					required +  (blockoff - lastblockoff),
-					err, phys != NULL ? locked_page : NULL);
-	} else /* (lastblock > block) */ {
-	/*
-	 * We will allocate new block before last allocated block
-	 */
-		if (block) {
-			tmp = ufs_data_ptr_to_cpu(sb,
-						 ufs_get_direct_data_ptr(uspi, ufsi, block - 1));
-			if (tmp)
-				goal = tmp + uspi->s_fpb;
-		}
-		tmp = ufs_new_fragments(inode, p, fragment - blockoff,
-					goal, uspi->s_fpb, err,
-					phys != NULL ? locked_page : NULL);
+	lastfrag = ufsi->i_lastfrag;
+
+	/* will that be a new tail? */
+	if (new_fragment < UFS_NDIR_FRAGMENT && new_fragment >= lastfrag)
+		nfrags = (new_fragment & uspi->s_fpbmask) + 1;
+
+	goal = 0;
+	if (block) {
+		goal = ufs_data_ptr_to_cpu(sb,
+				 ufs_get_direct_data_ptr(uspi, ufsi, block - 1));
+		if (goal)
+			goal += uspi->s_fpb;
 	}
+	tmp = ufs_new_fragments(inode, p, fragment - blockoff,
+				goal, uspi->s_fpb, err,
+				phys != NULL ? locked_page : NULL);
+
 	if (!tmp) {
 		*err = -ENOSPC;
 		return 0;
@@ -419,7 +411,6 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 	unsigned long ptr,phys;
 	u64 phys64 = 0;
 	unsigned frag = fragment & uspi->s_fpbmask;
-	unsigned mask = uspi->s_apbmask >> uspi->s_fpbshift;
 
 	if (!create) {
 		phys64 = ufs_frag_map(inode, offsets, depth);
@@ -444,6 +435,17 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 		goto abort_too_big;
 
 	err = 0;
+
+	if (UFS_I(inode)->i_lastfrag < UFS_NDIR_FRAGMENT) {
+		unsigned lastfrag = UFS_I(inode)->i_lastfrag;
+		unsigned tailfrags = lastfrag & uspi->s_fpbmask;
+		if (tailfrags && fragment >= lastfrag) {
+			if (!ufs_extend_tail(inode, fragment,
+					     &err, bh_result->b_page))
+				goto abort;
+		}
+	}
+
 	ptr = fragment;
 
 	if (depth == 1) {
