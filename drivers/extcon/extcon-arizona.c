@@ -765,9 +765,10 @@ static void arizona_micd_timeout_work(struct work_struct *work)
 	mutex_lock(&info->lock);
 
 	dev_dbg(info->arizona->dev, "MICD timed out, reporting HP\n");
-	arizona_identify_headphone(info);
 
 	info->detecting = false;
+
+	arizona_identify_headphone(info);
 
 	arizona_stop_mic(info);
 
@@ -834,6 +835,9 @@ static void arizona_micd_detect(struct work_struct *work)
 
 	/* If we got a high impedence we should have a headset, report it. */
 	if (info->detecting && (val & ARIZONA_MICD_LVL_8)) {
+		info->mic = true;
+		info->detecting = false;
+
 		arizona_identify_headphone(info);
 
 		ret = extcon_set_cable_state_(info->edev,
@@ -849,8 +853,6 @@ static void arizona_micd_detect(struct work_struct *work)
 				ret);
 		}
 
-		info->mic = true;
-		info->detecting = false;
 		goto handled;
 	}
 
@@ -863,9 +865,10 @@ static void arizona_micd_detect(struct work_struct *work)
 	if (info->detecting && (val & MICD_LVL_1_TO_7)) {
 		if (info->jack_flips >= info->micd_num_modes * 10) {
 			dev_dbg(arizona->dev, "Detected HP/line\n");
-			arizona_identify_headphone(info);
 
 			info->detecting = false;
+
+			arizona_identify_headphone(info);
 
 			arizona_stop_mic(info);
 		} else {
