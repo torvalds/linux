@@ -39,6 +39,13 @@ static struct proc_dir_entry *f2fs_proc_root;
 static struct kmem_cache *f2fs_inode_cachep;
 static struct kset *f2fs_kset;
 
+/* f2fs-wide shrinker description */
+static struct shrinker f2fs_shrinker_info = {
+	.scan_objects = f2fs_shrink_scan,
+	.count_objects = f2fs_shrink_count,
+	.seeks = DEFAULT_SEEKS,
+};
+
 enum {
 	Opt_gc_background,
 	Opt_disable_roll_forward,
@@ -500,6 +507,9 @@ static void f2fs_put_super(struct super_block *sb)
 
 	stop_gc_thread(sbi);
 
+	/* prevent remaining shrinker jobs */
+	mutex_lock(&sbi->umount_mutex);
+
 	/*
 	 * We don't need to do checkpoint when superblock is clean.
 	 * But, the previous checkpoint was not done by umount, it needs to do
@@ -522,6 +532,9 @@ static void f2fs_put_super(struct super_block *sb)
 	 */
 	release_dirty_inode(sbi);
 	release_discard_addrs(sbi);
+
+	f2fs_leave_shrinker(sbi);
+	mutex_unlock(&sbi->umount_mutex);
 
 	iput(sbi->node_inode);
 	iput(sbi->meta_inode);
@@ -972,6 +985,9 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 
 	sbi->dir_level = DEF_DIR_LEVEL;
 	clear_sbi_flag(sbi, SBI_NEED_FSCK);
+
+	INIT_LIST_HEAD(&sbi->s_list);
+	mutex_init(&sbi->umount_mutex);
 }
 
 /*
@@ -1214,6 +1230,8 @@ try_onemore:
 		goto free_nm;
 	}
 
+	f2fs_join_shrinker(sbi);
+
 	/* if there are nt orphan nodes free them */
 	recover_orphan_inodes(sbi);
 
@@ -1310,7 +1328,10 @@ free_root_inode:
 	dput(sb->s_root);
 	sb->s_root = NULL;
 free_node_inode:
+	mutex_lock(&sbi->umount_mutex);
+	f2fs_leave_shrinker(sbi);
 	iput(sbi->node_inode);
+	mutex_unlock(&sbi->umount_mutex);
 free_nm:
 	destroy_node_manager(sbi);
 free_sm:
@@ -1406,13 +1427,20 @@ static int __init init_f2fs_fs(void)
 	err = f2fs_init_crypto();
 	if (err)
 		goto free_kset;
-	err = register_filesystem(&f2fs_fs_type);
+
+	err = register_shrinker(&f2fs_shrinker_info);
 	if (err)
 		goto free_crypto;
+
+	err = register_filesystem(&f2fs_fs_type);
+	if (err)
+		goto free_shrinker;
 	f2fs_create_root_stats();
 	f2fs_proc_root = proc_mkdir("fs/f2fs", NULL);
 	return 0;
 
+free_shrinker:
+	unregister_shrinker(&f2fs_shrinker_info);
 free_crypto:
 	f2fs_exit_crypto();
 free_kset:
@@ -1435,6 +1463,7 @@ static void __exit exit_f2fs_fs(void)
 {
 	remove_proc_entry("fs/f2fs", NULL);
 	f2fs_destroy_root_stats();
+	unregister_shrinker(&f2fs_shrinker_info);
 	unregister_filesystem(&f2fs_fs_type);
 	f2fs_exit_crypto();
 	destroy_extent_cache();

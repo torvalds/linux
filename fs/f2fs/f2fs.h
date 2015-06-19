@@ -791,6 +791,11 @@ struct f2fs_sb_info {
 	/* For sysfs suppport */
 	struct kobject s_kobj;
 	struct completion s_kobj_unregister;
+
+	/* For shrinker support */
+	struct list_head s_list;
+	struct mutex umount_mutex;
+	unsigned int shrinker_run_no;
 };
 
 /*
@@ -1950,6 +1955,14 @@ void f2fs_delete_inline_entry(struct f2fs_dir_entry *, struct page *,
 bool f2fs_empty_inline_dir(struct inode *);
 int f2fs_read_inline_dir(struct file *, struct dir_context *,
 						struct f2fs_str *);
+
+/*
+ * shrinker.c
+ */
+unsigned long f2fs_shrink_count(struct shrinker *, struct shrink_control *);
+unsigned long f2fs_shrink_scan(struct shrinker *, struct shrink_control *);
+void f2fs_join_shrinker(struct f2fs_sb_info *);
+void f2fs_leave_shrinker(struct f2fs_sb_info *);
 
 /*
  * crypto support
