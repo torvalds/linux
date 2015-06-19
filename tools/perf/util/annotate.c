@@ -654,10 +654,11 @@ struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disa
 }
 
 double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
-			    s64 end, const char **path)
+			    s64 end, const char **path, u64 *nr_samples)
 {
 	struct source_line *src_line = notes->src->lines;
 	double percent = 0.0;
+	*nr_samples = 0;
 
 	if (src_line) {
 		size_t sizeof_src_line = sizeof(*src_line) +
@@ -671,6 +672,7 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 				*path = src_line->path;
 
 			percent += src_line->p[evidx].percent;
+			*nr_samples += src_line->p[evidx].samples;
 			offset++;
 		}
 	} else {
@@ -680,8 +682,10 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 		while (offset < end)
 			hits += h->addr[offset++];
 
-		if (h->sum)
+		if (h->sum) {
+			*nr_samples = hits;
 			percent = 100.0 * hits / h->sum;
+		}
 	}
 
 	return percent;
@@ -696,8 +700,10 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 	if (dl->offset != -1) {
 		const char *path = NULL;
+		u64 nr_samples;
 		double percent, max_percent = 0.0;
 		double *ppercents = &percent;
+		u64 *psamples = &nr_samples;
 		int i, nr_percent = 1;
 		const char *color;
 		struct annotation *notes = symbol__annotation(sym);
@@ -710,8 +716,10 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		if (perf_evsel__is_group_event(evsel)) {
 			nr_percent = evsel->nr_members;
 			ppercents = calloc(nr_percent, sizeof(double));
-			if (ppercents == NULL)
+			psamples = calloc(nr_percent, sizeof(u64));
+			if (ppercents == NULL || psamples == NULL) {
 				return -1;
+			}
 		}
 
 		for (i = 0; i < nr_percent; i++) {
@@ -719,9 +727,10 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 					notes->src->lines ? i : evsel->idx + i,
 					offset,
 					next ? next->offset : (s64) len,
-					&path);
+					&path, &nr_samples);
 
 			ppercents[i] = percent;
+			psamples[i] = nr_samples;
 			if (percent > max_percent)
 				max_percent = percent;
 		}
@@ -759,8 +768,14 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 		for (i = 0; i < nr_percent; i++) {
 			percent = ppercents[i];
+			nr_samples = psamples[i];
 			color = get_percent_color(percent);
-			color_fprintf(stdout, color, " %7.2f", percent);
+
+			if (symbol_conf.show_total_period)
+				color_fprintf(stdout, color, " %7" PRIu64,
+					      nr_samples);
+			else
+				color_fprintf(stdout, color, " %7.2f", percent);
 		}
 
 		printf(" :	");
@@ -769,6 +784,9 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 		if (ppercents != &percent)
 			free(ppercents);
+
+		if (psamples != &nr_samples)
+			free(psamples);
 
 	} else if (max_lines && printed >= max_lines)
 		return 1;

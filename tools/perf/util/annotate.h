@@ -72,7 +72,7 @@ struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disa
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
 double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
-			    s64 end, const char **path);
+			    s64 end, const char **path, u64 *nr_samples);
 
 struct sym_hist {
 	u64		sum;
@@ -82,6 +82,7 @@ struct sym_hist {
 struct source_line_percent {
 	double		percent;
 	double		percent_sum;
+	double          samples;
 };
 
 struct source_line {
