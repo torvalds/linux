@@ -907,7 +907,7 @@ int llog_is_empty(const struct lu_env *env, struct llog_ctxt *ctxt,
 		  char *name)
 {
 	struct llog_handle	*llh;
-	int			 rc = 0;
+	int			 rc;
 
 	rc = llog_open(env, ctxt, &llh, NULL, name, LLOG_OPEN_EXISTS);
 	if (rc < 0) {
