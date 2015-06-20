@@ -356,7 +356,8 @@ static inline unsigned long ifname_compare_aligned(const char *_a,
  * so nothing needs to be done there.
  *
  * xt_percpu_counter_alloc returns the address of the percpu
- * counter, or 0 on !SMP.
+ * counter, or 0 on !SMP. We force an alignment of 16 bytes
+ * so that bytes/packets share a common cache line.
  *
  * Hence caller must use IS_ERR_VALUE to check for error, this
  * allows us to return 0 for single core systems without forcing
@@ -365,12 +366,13 @@ static inline unsigned long ifname_compare_aligned(const char *_a,
 static inline u64 xt_percpu_counter_alloc(void)
 {
 	if (nr_cpu_ids > 1) {
-		void __percpu *res = alloc_percpu(struct xt_counters);
+		void __percpu *res = __alloc_percpu(sizeof(struct xt_counters),
+						    sizeof(struct xt_counters));
 
 		if (res == NULL)
 			return (u64) -ENOMEM;
 
-		return (__force u64) res;
+		return (u64) (__force unsigned long) res;
 	}
 
 	return 0;
@@ -378,14 +380,14 @@ static inline u64 xt_percpu_counter_alloc(void)
 static inline void xt_percpu_counter_free(u64 pcnt)
 {
 	if (nr_cpu_ids > 1)
-		free_percpu((void __percpu *) pcnt);
+		free_percpu((void __percpu *) (unsigned long) pcnt);
 }
 
 static inline struct xt_counters *
 xt_get_this_cpu_counter(struct xt_counters *cnt)
 {
 	if (nr_cpu_ids > 1)
-		return this_cpu_ptr((void __percpu *) cnt->pcnt);
+		return this_cpu_ptr((void __percpu *) (unsigned long) cnt->pcnt);
 
 	return cnt;
 }
@@ -394,7 +396,7 @@ static inline struct xt_counters *
 xt_get_per_cpu_counter(struct xt_counters *cnt, unsigned int cpu)
 {
 	if (nr_cpu_ids > 1)
-		return per_cpu_ptr((void __percpu *) cnt->pcnt, cpu);
+		return per_cpu_ptr((void __percpu *) (unsigned long) cnt->pcnt, cpu);
 
 	return cnt;
 }
