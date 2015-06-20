@@ -730,7 +730,8 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 	struct sh_mobile_i2c_data *pd = i2c_get_adapdata(adapter);
 	struct i2c_msg	*msg;
 	int err = 0;
-	int i, k;
+	int i;
+	long timeout;
 
 	activate_ch(pd);
 
@@ -749,10 +750,10 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 			i2c_op(pd, OP_START, 0);
 
 		/* The interrupt handler takes care of the rest... */
-		k = wait_event_timeout(pd->wait,
+		timeout = wait_event_timeout(pd->wait,
 				       pd->sr & (ICSR_TACK | SW_DONE),
 				       adapter->timeout);
-		if (!k) {
+		if (!timeout) {
 			dev_err(pd->dev, "Transfer request timed out\n");
 			if (pd->dma_direction != DMA_NONE)
 				sh_mobile_i2c_cleanup_dma(pd);
