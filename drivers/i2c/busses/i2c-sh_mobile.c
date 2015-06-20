@@ -751,7 +751,7 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 		/* The interrupt handler takes care of the rest... */
 		k = wait_event_timeout(pd->wait,
 				       pd->sr & (ICSR_TACK | SW_DONE),
-				       5 * HZ);
+				       adapter->timeout);
 		if (!k) {
 			dev_err(pd->dev, "Transfer request timed out\n");
 			if (pd->dma_direction != DMA_NONE)
