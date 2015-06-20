@@ -1993,7 +1993,7 @@ static int lmv_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc     *tgt;
-	int		      rc = 0;
+	int		      rc;
 
 	rc = lmv_check_connect(obd);
 	if (rc)
