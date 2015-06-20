@@ -578,7 +578,7 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
 			continue;
 
 		irq = hpet_assign_irq(hpet_domain, hdev, hdev->num);
-		if (irq < 0)
+		if (irq <= 0)
 			continue;
 
 		sprintf(hdev->name, "hpet%d", i);
