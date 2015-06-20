@@ -53,6 +53,39 @@
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
 		};
+
+		mmc0: mmc@41100000 {
+			compatible = "marvell,pxa-mmc";
+			reg = <0x41100000 0x1000>;
+			interrupts = <23>;
+			clocks = <&clks CLK_MMC>;
+			dmas = <&pdma 21 3
+				&pdma 22 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		mmc1: mmc@42000000 {
+			compatible = "marvell,pxa-mmc";
+			reg = <0x42000000 0x1000>;
+			interrupts = <41>;
+			clocks = <&clks CLK_MMC1>;
+			dmas = <&pdma 93 3
+				&pdma 94 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		mmc2: mmc@42500000 {
+			compatible = "marvell,pxa-mmc";
+			reg = <0x42500000 0x1000>;
+			interrupts = <55>;
+			clocks = <&clks CLK_MMC2>;
+			dmas = <&pdma 46 3
+				&pdma 47 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
 	};
 
 	clocks {
