@@ -700,7 +700,8 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 		if (sport->port.ignore_status_mask & URXD_DUMMY_READ)
 			goto out;
 
-		tty_insert_flip_char(port, rx, flg);
+		if (tty_insert_flip_char(port, rx, flg) == 0)
+			sport->port.icount.buf_overrun++;
 	}
 
 out:
@@ -921,8 +922,13 @@ static void dma_rx_callback(void *data)
 	dev_dbg(sport->port.dev, "We get %d bytes.\n", count);
 
 	if (count) {
-		if (!(sport->port.ignore_status_mask & URXD_DUMMY_READ))
-			tty_insert_flip_string(port, sport->rx_buf, count);
+		if (!(sport->port.ignore_status_mask & URXD_DUMMY_READ)) {
+			int bytes = tty_insert_flip_string(port, sport->rx_buf,
+					count);
+
+			if (bytes != count)
+				sport->port.icount.buf_overrun++;
+		}
 		tty_flip_buffer_push(port);
 
 		start_rx_dma(sport);
