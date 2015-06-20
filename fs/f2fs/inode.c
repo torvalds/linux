@@ -139,7 +139,7 @@ static int do_read_inode(struct inode *inode)
 	fi->i_pino = le32_to_cpu(ri->i_pino);
 	fi->i_dir_level = ri->i_dir_level;
 
-	f2fs_init_extent_cache(inode, &ri->i_ext);
+	f2fs_init_extent_tree(inode, &ri->i_ext);
 
 	get_inline_info(fi, ri);
 
@@ -237,10 +237,11 @@ void update_inode(struct inode *inode, struct page *node_page)
 	ri->i_size = cpu_to_le64(i_size_read(inode));
 	ri->i_blocks = cpu_to_le64(inode->i_blocks);
 
-	read_lock(&F2FS_I(inode)->ext_lock);
-	set_raw_extent(&F2FS_I(inode)->ext, &ri->i_ext);
-	read_unlock(&F2FS_I(inode)->ext_lock);
-
+	if (F2FS_I(inode)->extent_tree)
+		set_raw_extent(&F2FS_I(inode)->extent_tree->largest,
+							&ri->i_ext);
+	else
+		memset(&ri->i_ext, 0, sizeof(ri->i_ext));
 	set_raw_inline(F2FS_I(inode), ri);
 
 	ri->i_atime = cpu_to_le64(inode->i_atime.tv_sec);
@@ -331,6 +332,8 @@ void f2fs_evict_inode(struct inode *inode)
 	f2fs_bug_on(sbi, get_dirty_pages(inode));
 	remove_dirty_dir_inode(inode);
 
+	f2fs_destroy_extent_tree(inode);
+
 	if (inode->i_nlink || is_bad_inode(inode))
 		goto no_delete;
 
@@ -349,11 +352,6 @@ void f2fs_evict_inode(struct inode *inode)
 no_delete:
 	stat_dec_inline_dir(inode);
 	stat_dec_inline_inode(inode);
-
-	/* update extent info in inode */
-	if (inode->i_nlink)
-		f2fs_preserve_extent_tree(inode);
-	f2fs_destroy_extent_tree(inode);
 
 	invalidate_mapping_pages(NODE_MAPPING(sbi), inode->i_ino, inode->i_ino);
 	if (xnid)

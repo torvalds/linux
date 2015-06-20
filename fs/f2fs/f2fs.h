@@ -349,6 +349,7 @@ struct extent_tree {
 	nid_t ino;			/* inode number */
 	struct rb_root root;		/* root of extent info rb-tree */
 	struct extent_node *cached_en;	/* recently accessed extent node */
+	struct extent_info largest;	/* largested extent info */
 	rwlock_t lock;			/* protect extent info rb-tree */
 	atomic_t refcount;		/* reference count of rb-tree */
 	unsigned int count;		/* # of extent node in rb-tree*/
@@ -420,13 +421,13 @@ struct f2fs_inode_info {
 	unsigned int clevel;		/* maximum level of given file name */
 	nid_t i_xattr_nid;		/* node id that contains xattrs */
 	unsigned long long xattr_ver;	/* cp version of xattr modification */
-	struct extent_info ext;		/* in-memory extent cache entry */
-	rwlock_t ext_lock;		/* rwlock for single extent cache */
 	struct inode_entry *dirty_dir;	/* the pointer of dirty dir */
 
 	struct radix_tree_root inmem_root;	/* radix tree for inmem pages */
 	struct list_head inmem_pages;	/* inmemory pages managed by f2fs */
 	struct mutex inmem_lock;	/* lock for inmemory pages */
+
+	struct extent_tree *extent_tree;	/* cached extent_tree entry */
 
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
 	/* Encryption params */
@@ -1548,6 +1549,17 @@ static inline bool is_dot_dotdot(const struct qstr *str)
 	return false;
 }
 
+static inline bool f2fs_may_extent_tree(struct inode *inode)
+{
+	mode_t mode = inode->i_mode;
+
+	if (!test_opt(F2FS_I_SB(inode), EXTENT_CACHE) ||
+			is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
+		return false;
+
+	return S_ISREG(mode);
+}
+
 #define get_inode_mode(i) \
 	((is_inode_flag_set(F2FS_I(i), FI_ACL_MODE)) ? \
 	 (F2FS_I(i)->i_acl_mode) : ((i)->i_mode))
@@ -1755,10 +1767,10 @@ void set_data_blkaddr(struct dnode_of_data *);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_reserve_block(struct dnode_of_data *, pgoff_t);
 unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *, int);
+void f2fs_init_extent_tree(struct inode *, struct f2fs_extent *);
+unsigned int f2fs_destroy_extent_node(struct inode *);
 void f2fs_destroy_extent_tree(struct inode *);
-void f2fs_init_extent_cache(struct inode *, struct f2fs_extent *);
 void f2fs_update_extent_cache(struct dnode_of_data *);
-void f2fs_preserve_extent_tree(struct inode *);
 struct page *get_read_data_page(struct inode *, pgoff_t, int);
 struct page *find_data_page(struct inode *, pgoff_t);
 struct page *get_lock_data_page(struct inode *, pgoff_t);

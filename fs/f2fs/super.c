@@ -422,7 +422,6 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 	atomic_set(&fi->dirty_pages, 0);
 	fi->i_current_depth = 1;
 	fi->i_advise = 0;
-	rwlock_init(&fi->ext_lock);
 	init_rwsem(&fi->i_sem);
 	INIT_RADIX_TREE(&fi->inmem_root, GFP_NOFS);
 	INIT_LIST_HEAD(&fi->inmem_pages);
@@ -453,11 +452,16 @@ static int f2fs_drop_inode(struct inode *inode)
 	 */
 	if (!inode_unhashed(inode) && inode->i_state & I_SYNC) {
 		if (!inode->i_nlink && !is_bad_inode(inode)) {
+			/* to avoid evict_inode call simultaneously */
+			atomic_inc(&inode->i_count);
 			spin_unlock(&inode->i_lock);
 
 			/* some remained atomic pages should discarded */
 			if (f2fs_is_atomic_file(inode))
 				commit_inmem_pages(inode, true);
+
+			/* should remain fi->extent_tree for writepage */
+			f2fs_destroy_extent_node(inode);
 
 			sb_start_intwrite(inode->i_sb);
 			i_size_write(inode, 0);
@@ -473,6 +477,7 @@ static int f2fs_drop_inode(struct inode *inode)
 					F2FS_I(inode)->i_crypt_info);
 #endif
 			spin_lock(&inode->i_lock);
+			atomic_dec(&inode->i_count);
 		}
 		return 0;
 	}
@@ -721,6 +726,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 
 	set_opt(sbi, BG_GC);
 	set_opt(sbi, INLINE_DATA);
+	set_opt(sbi, EXTENT_CACHE);
 
 #ifdef CONFIG_F2FS_FS_XATTR
 	set_opt(sbi, XATTR_USER);

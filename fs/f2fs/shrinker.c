@@ -117,6 +117,8 @@ void f2fs_join_shrinker(struct f2fs_sb_info *sbi)
 
 void f2fs_leave_shrinker(struct f2fs_sb_info *sbi)
 {
+	f2fs_shrink_extent_tree(sbi, __count_extent_cache(sbi));
+
 	spin_lock(&f2fs_list_lock);
 	list_del(&sbi->s_list);
 	spin_unlock(&f2fs_list_lock);

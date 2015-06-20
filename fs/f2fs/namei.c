@@ -65,6 +65,8 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	if (f2fs_may_inline_dentry(inode))
 		set_inode_flag(F2FS_I(inode), FI_INLINE_DENTRY);
 
+	f2fs_init_extent_tree(inode, NULL);
+
 	stat_inc_inline_inode(inode);
 	stat_inc_inline_dir(inode);
 
