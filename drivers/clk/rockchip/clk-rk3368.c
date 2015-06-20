@@ -248,6 +248,8 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 2
 	 */
 
+	FACTOR(0, "xin12m", "xin24m", 0, 1, 2),
+
 	MUX(SCLK_USBPHY480M, "usbphy_480m", mux_usbphy480m_p, CLK_SET_RATE_PARENT,
 			RK3368_CLKSEL_CON(13), 8, 1, MFLAGS),
 
@@ -299,7 +301,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	COMPOSITE_NOGATE_DIVTBL(0, "ddrphy_src", mux_ddrphy_p, CLK_IGNORE_UNUSED,
 			RK3368_CLKSEL_CON(13), 4, 1, MFLAGS, 0, 2, DFLAGS, div_ddrphy_t),
 
-	GATE(0, "sclk_ddr", "ddrphy_div4", CLK_IGNORE_UNUSED,
+	FACTOR_GATE(0, "sclk_ddr", "ddrphy_src", CLK_IGNORE_UNUSED, 1, 4,
 			RK3368_CLKGATE_CON(6), 14, GFLAGS),
 	GATE(0, "sclk_ddr4x", "ddrphy_src", CLK_IGNORE_UNUSED,
 			RK3368_CLKGATE_CON(6), 15, GFLAGS),
@@ -392,10 +394,10 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 			RK3368_CLKGATE_CON(4), 7, GFLAGS),
 
 	/*
-	 * We introduce a virtual node of hclk_vodec_pre_v to split one clock
-	 * struct with a gate and a fix divider into two node in software.
+	 * We use aclk_vdpu by default ---GRF_SOC_CON0[7] setting in system,
+	 * so we ignore the mux and make clocks nodes as following,
 	 */
-	GATE(0, "hclk_video_pre_v", "aclk_vdpu", 0,
+	FACTOR_GATE(0, "hclk_video_pre", "aclk_vdpu", 0, 1, 4,
 		RK3368_CLKGATE_CON(4), 8, GFLAGS),
 
 	COMPOSITE(0, "sclk_hevc_cabac_src", mux_pll_src_cpll_gpll_npll_usb_p, 0,
@@ -841,24 +843,6 @@ static void __init rk3368_clk_init(struct device_node *np)
 	}
 
 	rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
-
-	/* xin12m is created by a cru-internal divider */
-	clk = clk_register_fixed_factor(NULL, "xin12m", "xin24m", 0, 1, 2);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock xin12m: %ld\n",
-			__func__, PTR_ERR(clk));
-
-	/* ddrphy_div4 is created by a cru-internal divider */
-	clk = clk_register_fixed_factor(NULL, "ddrphy_div4", "ddrphy_src", 0, 1, 4);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock xin12m: %ld\n",
-			__func__, PTR_ERR(clk));
-
-	clk = clk_register_fixed_factor(NULL, "hclk_video_pre",
-					"hclk_video_pre_v", 0, 1, 4);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock hclk_vcodec_pre: %ld\n",
-			__func__, PTR_ERR(clk));
 
 	/* Watchdog pclk is controlled by sgrf_soc_con3[7]. */
 	clk = clk_register_fixed_factor(NULL, "pclk_wdt", "pclk_pd_alive", 0, 1, 1);

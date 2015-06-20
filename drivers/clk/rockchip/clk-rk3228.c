@@ -187,7 +187,7 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_CLKGATE_CON(7), 1, GFLAGS),
 	GATE(0, "ddrc", "ddrphy_pre", CLK_IGNORE_UNUSED,
 			RK2928_CLKGATE_CON(8), 5, GFLAGS),
-	GATE(0, "ddrphy", "ddrphy_pre", CLK_IGNORE_UNUSED,
+	FACTOR_GATE(0, "ddrphy", "ddrphy4x", CLK_IGNORE_UNUSED, 1, 4,
 			RK2928_CLKGATE_CON(7), 0, GFLAGS),
 
 	/* PD_CORE */
@@ -240,13 +240,13 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 	COMPOSITE(0, "aclk_vpu_pre", mux_pll_src_4plls_p, 0,
 			RK2928_CLKSEL_CON(32), 5, 2, MFLAGS, 0, 5, DFLAGS,
 			RK2928_CLKGATE_CON(3), 11, GFLAGS),
-	GATE(0, "hclk_vpu_src", "aclk_vpu_pre", 0,
+	FACTOR_GATE(0, "hclk_vpu_pre", "aclk_vpu_pre", 0, 1, 4,
 			RK2928_CLKGATE_CON(4), 4, GFLAGS),
 
 	COMPOSITE(0, "aclk_rkvdec_pre", mux_pll_src_4plls_p, 0,
 			RK2928_CLKSEL_CON(28), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK2928_CLKGATE_CON(3), 2, GFLAGS),
-	GATE(0, "hclk_rkvdec_src", "aclk_rkvdec_pre", 0,
+	FACTOR_GATE(0, "hclk_rkvdec_pre", "aclk_rkvdec_pre", 0, 1, 4,
 			RK2928_CLKGATE_CON(4), 5, GFLAGS),
 
 	COMPOSITE(0, "sclk_vdec_cabac", mux_pll_src_4plls_p, 0,
@@ -370,6 +370,8 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_CLKSEL_CON(27), 8, 8, DFLAGS),
 	MUX(0, "dclk_vop", mux_dclk_vop_p, 0,
 			RK2928_CLKSEL_CON(27), 1, 1, MFLAGS),
+
+	FACTOR(0, "xin12m", "xin24m", 0, 1, 2),
 
 	COMPOSITE(0, "i2s0_src", mux_pll_src_2plls_p, 0,
 			RK2928_CLKSEL_CON(9), 15, 1, MFLAGS, 0, 7, DFLAGS,
@@ -624,7 +626,6 @@ static const char *const rk3228_critical_clocks[] __initconst = {
 static void __init rk3228_clk_init(struct device_node *np)
 {
 	void __iomem *reg_base;
-	struct clk *clk;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -633,29 +634,6 @@ static void __init rk3228_clk_init(struct device_node *np)
 	}
 
 	rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
-
-	/* xin12m is created by an cru-internal divider */
-	clk = clk_register_fixed_factor(NULL, "xin12m", "xin24m", 0, 1, 2);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock xin12m: %ld\n",
-				__func__, PTR_ERR(clk));
-
-	clk = clk_register_fixed_factor(NULL, "ddrphy_pre", "ddrphy4x", 0, 1, 4);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock ddrphy_pre: %ld\n",
-			__func__, PTR_ERR(clk));
-
-	clk = clk_register_fixed_factor(NULL, "hclk_vpu_pre",
-					"hclk_vpu_src", 0, 1, 4);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock hclk_vpu_pre: %ld\n",
-			__func__, PTR_ERR(clk));
-
-	clk = clk_register_fixed_factor(NULL, "hclk_rkvdec_pre",
-					"hclk_rkvdec_src", 0, 1, 4);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock hclk_rkvdec_pre: %ld\n",
-			__func__, PTR_ERR(clk));
 
 	rockchip_clk_register_plls(rk3228_pll_clks,
 				   ARRAY_SIZE(rk3228_pll_clks),
