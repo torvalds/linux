@@ -31,10 +31,10 @@ User manual
 ===========
 
 I2C slave backends behave like standard I2C clients. So, you can instantiate
-them like described in the document 'instantiating-devices'. A quick example
-for instantiating the slave-eeprom driver from userspace:
+them as described in the document 'instantiating-devices'. A quick example for
+instantiating the slave-eeprom driver from userspace at address 0x64 on bus 1:
 
-  # echo 0-0064 > /sys/bus/i2c/drivers/i2c-slave-eeprom/bind
+  # echo slave-24c02 0x64 > /sys/bus/i2c/devices/i2c-1/new_device
 
 Each backend should come with separate documentation to describe its specific
 behaviour and setup.
