@@ -508,7 +508,8 @@ static int rcar_can_open(struct net_device *ndev)
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
-		netdev_err(ndev, "failed to enable periperal clock, error %d\n",
+		netdev_err(ndev,
+			   "failed to enable peripheral clock, error %d\n",
 			   err);
 		goto out;
 	}
