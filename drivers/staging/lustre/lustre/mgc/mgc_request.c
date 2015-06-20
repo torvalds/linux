@@ -1128,7 +1128,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 	LASSERT(cfg->cfg_sb == cfg->cfg_instance);
 
 	inst = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
-	if (inst == NULL)
+	if (!inst)
 		return -ENOMEM;
 
 	if (!IS_SERVER(lsi)) {
@@ -1493,7 +1493,7 @@ static int mgc_process_cfg_log(struct obd_device *mgc,
 		lsi = s2lsi(cld->cld_cfg.cfg_sb);
 
 	env = kzalloc(sizeof(*env), GFP_NOFS);
-	if (env == NULL)
+	if (!env)
 		return -ENOMEM;
 
 	rc = lu_env_init(env, LCT_MG_THREAD);
