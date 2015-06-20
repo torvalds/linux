@@ -1653,10 +1653,13 @@ static int max98095_set_bias_level(struct snd_soc_codec *codec,
 		if (IS_ERR(max98095->mclk))
 			break;
 
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON) {
 			clk_disable_unprepare(max98095->mclk);
-		else
-			clk_prepare_enable(max98095->mclk);
+		} else {
+			ret = clk_prepare_enable(max98095->mclk);
+			if (ret)
+				return ret;
+		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
