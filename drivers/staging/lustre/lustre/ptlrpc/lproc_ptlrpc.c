@@ -652,7 +652,7 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
 		return -EINVAL;
 
 	cmd = kzalloc(LPROCFS_NRS_WR_MAX_CMD, GFP_NOFS);
-	if (cmd == NULL)
+	if (!cmd)
 		return -ENOMEM;
 	/**
 	 * strsep() modifies its argument, so keep a copy
@@ -819,7 +819,7 @@ ptlrpc_lprocfs_svc_req_history_start(struct seq_file *s, loff_t *pos)
 	}
 
 	srhi = kzalloc(sizeof(*srhi), GFP_NOFS);
-	if (srhi == NULL)
+	if (!srhi)
 		return NULL;
 
 	srhi->srhi_seq = 0;
@@ -1219,7 +1219,7 @@ int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
 	char *tmpbuf;
 
 	kbuf = kzalloc(BUFLEN, GFP_NOFS);
-	if (kbuf == NULL)
+	if (!kbuf)
 		return -ENOMEM;
 
 	/*
@@ -1303,7 +1303,7 @@ int lprocfs_wr_import(struct file *file, const char __user *buffer,
 		return -EINVAL;
 
 	kbuf = kzalloc(count + 1, GFP_NOFS);
-	if (kbuf == NULL)
+	if (!kbuf)
 		return -ENOMEM;
 
 	if (copy_from_user(kbuf, buffer, count)) {

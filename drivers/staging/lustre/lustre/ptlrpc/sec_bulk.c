@@ -415,7 +415,7 @@ static int enc_pools_add_pages(int npages)
 
 	for (i = 0; i < npools; i++) {
 		pools[i] = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
-		if (pools[i] == NULL)
+		if (!pools[i])
 			goto out_pools;
 
 		for (j = 0; j < PAGES_PER_POOL && alloced < npages; j++) {
