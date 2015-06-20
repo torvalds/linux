@@ -339,6 +339,8 @@ struct mv88e6xxx_priv_state {
 	u8 port_state[DSA_MAX_PORTS];
 
 	struct work_struct bridge_work;
+
+	struct dentry *dbgfs;
 };
 
 struct mv88e6xxx_hw_stat {

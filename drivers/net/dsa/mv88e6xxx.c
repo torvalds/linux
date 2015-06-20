@@ -8,6 +8,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
@@ -16,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
+#include <linux/seq_file.h>
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
@@ -1601,9 +1603,50 @@ int mv88e6xxx_setup_ports(struct dsa_switch *ds)
 	return 0;
 }
 
+static int mv88e6xxx_regs_show(struct seq_file *s, void *p)
+{
+	struct dsa_switch *ds = s->private;
+
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int reg, port;
+
+	seq_puts(s, "    GLOBAL GLOBAL2 ");
+	for (port = 0 ; port < ps->num_ports; port++)
+		seq_printf(s, " %2d  ", port);
+	seq_puts(s, "\n");
+
+	for (reg = 0; reg < 32; reg++) {
+		seq_printf(s, "%2x: ", reg);
+		seq_printf(s, " %4x    %4x  ",
+			   mv88e6xxx_reg_read(ds, REG_GLOBAL, reg),
+			   mv88e6xxx_reg_read(ds, REG_GLOBAL2, reg));
+
+		for (port = 0 ; port < ps->num_ports; port++)
+			seq_printf(s, "%4x ",
+				   mv88e6xxx_reg_read(ds, REG_PORT(port), reg));
+		seq_puts(s, "\n");
+	}
+
+	return 0;
+}
+
+static int mv88e6xxx_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mv88e6xxx_regs_show, inode->i_private);
+}
+
+static const struct file_operations mv88e6xxx_regs_fops = {
+	.open   = mv88e6xxx_regs_open,
+	.read   = seq_read,
+	.llseek = no_llseek,
+	.release = single_release,
+	.owner  = THIS_MODULE,
+};
+
 int mv88e6xxx_setup_common(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	char *name;
 
 	mutex_init(&ps->smi_mutex);
 
@@ -1612,6 +1655,13 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 	ps->fid_mask = (1 << DSA_MAX_PORTS) - 1;
 
 	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
+
+	name = kasprintf(GFP_KERNEL, "dsa%d", ds->index);
+	ps->dbgfs = debugfs_create_dir(name, NULL);
+	kfree(name);
+
+	debugfs_create_file("regs", S_IRUGO, ps->dbgfs, ds,
+			    &mv88e6xxx_regs_fops);
 
 	return 0;
 }
