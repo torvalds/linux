@@ -1643,6 +1643,84 @@ static const struct file_operations mv88e6xxx_regs_fops = {
 	.owner  = THIS_MODULE,
 };
 
+static void mv88e6xxx_atu_show_header(struct seq_file *s)
+{
+	seq_puts(s, "DB   T/P  Vec State Addr\n");
+}
+
+static void mv88e6xxx_atu_show_entry(struct seq_file *s, int dbnum,
+				     unsigned char *addr, int data)
+{
+	bool trunk = !!(data & GLOBAL_ATU_DATA_TRUNK);
+	int portvec = ((data & GLOBAL_ATU_DATA_PORT_VECTOR_MASK) >>
+		       GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT);
+	int state = data & GLOBAL_ATU_DATA_STATE_MASK;
+
+	seq_printf(s, "%03x %5s %10pb   %x   %pM\n",
+		   dbnum, (trunk ? "Trunk" : "Port"), &portvec, state, addr);
+}
+
+static int mv88e6xxx_atu_show_db(struct seq_file *s, struct dsa_switch *ds,
+				 int dbnum)
+{
+	unsigned char bcast[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	unsigned char addr[6];
+	int ret, data, state;
+
+	ret = __mv88e6xxx_write_addr(ds, bcast);
+	if (ret < 0)
+		return ret;
+
+	do {
+		ret = _mv88e6xxx_atu_cmd(ds, dbnum, GLOBAL_ATU_OP_GET_NEXT_DB);
+		if (ret < 0)
+			return ret;
+		data = _mv88e6xxx_reg_read(ds, REG_GLOBAL, GLOBAL_ATU_DATA);
+		if (data < 0)
+			return data;
+
+		state = data & GLOBAL_ATU_DATA_STATE_MASK;
+		if (state == GLOBAL_ATU_DATA_STATE_UNUSED)
+			break;
+		ret = __mv88e6xxx_read_addr(ds, addr);
+		if (ret < 0)
+			return ret;
+		mv88e6xxx_atu_show_entry(s, dbnum, addr, data);
+	} while (state != GLOBAL_ATU_DATA_STATE_UNUSED);
+
+	return 0;
+}
+
+static int mv88e6xxx_atu_show(struct seq_file *s, void *p)
+{
+	struct dsa_switch *ds = s->private;
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int dbnum;
+
+	mv88e6xxx_atu_show_header(s);
+
+	for (dbnum = 0; dbnum < 255; dbnum++) {
+		mutex_lock(&ps->smi_mutex);
+		mv88e6xxx_atu_show_db(s, ds, dbnum);
+		mutex_unlock(&ps->smi_mutex);
+	}
+
+	return 0;
+}
+
+static int mv88e6xxx_atu_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mv88e6xxx_atu_show, inode->i_private);
+}
+
+static const struct file_operations mv88e6xxx_atu_fops = {
+	.open   = mv88e6xxx_atu_open,
+	.read   = seq_read,
+	.llseek = no_llseek,
+	.release = single_release,
+	.owner  = THIS_MODULE,
+};
+
 int mv88e6xxx_setup_common(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -1662,6 +1740,9 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 
 	debugfs_create_file("regs", S_IRUGO, ps->dbgfs, ds,
 			    &mv88e6xxx_regs_fops);
+
+	debugfs_create_file("atu", S_IRUGO, ps->dbgfs, ds,
+			    &mv88e6xxx_atu_fops);
 
 	return 0;
 }
