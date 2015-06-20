@@ -482,13 +482,18 @@ static int fsl_spdif_startup(struct snd_pcm_substream *substream,
 		mask = SCR_TXFIFO_AUTOSYNC_MASK | SCR_TXFIFO_CTRL_MASK |
 			SCR_TXSEL_MASK | SCR_USRC_SEL_MASK |
 			SCR_TXFIFO_FSEL_MASK;
-		for (i = 0; i < SPDIF_TXRATE_MAX; i++)
-			clk_prepare_enable(spdif_priv->txclk[i]);
+		for (i = 0; i < SPDIF_TXRATE_MAX; i++) {
+			ret = clk_prepare_enable(spdif_priv->txclk[i]);
+			if (ret)
+				goto disable_txclk;
+		}
 	} else {
 		scr = SCR_RXFIFO_FSEL_IF8 | SCR_RXFIFO_AUTOSYNC;
 		mask = SCR_RXFIFO_FSEL_MASK | SCR_RXFIFO_AUTOSYNC_MASK|
 			SCR_RXFIFO_CTL_MASK | SCR_RXFIFO_OFF_MASK;
-		clk_prepare_enable(spdif_priv->rxclk);
+		ret = clk_prepare_enable(spdif_priv->rxclk);
+		if (ret)
+			goto err;
 	}
 	regmap_update_bits(regmap, REG_SPDIF_SCR, mask, scr);
 
@@ -497,6 +502,9 @@ static int fsl_spdif_startup(struct snd_pcm_substream *substream,
 
 	return 0;
 
+disable_txclk:
+	for (i--; i >= 0; i--)
+		clk_disable_unprepare(spdif_priv->txclk[i]);
 err:
 	clk_disable_unprepare(spdif_priv->coreclk);
 
