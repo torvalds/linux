@@ -1422,7 +1422,7 @@ static int ldlm_pools_thread_start(void)
 		return -EALREADY;
 
 	ldlm_pools_thread = kzalloc(sizeof(*ldlm_pools_thread), GFP_NOFS);
-	if (ldlm_pools_thread == NULL)
+	if (!ldlm_pools_thread)
 		return -ENOMEM;
 
 	init_completion(&ldlm_pools_comp);

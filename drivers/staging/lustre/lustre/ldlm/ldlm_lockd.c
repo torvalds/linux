@@ -225,7 +225,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 			void *lvb_data;
 
 			lvb_data = kzalloc(lvb_len, GFP_NOFS);
-			if (lvb_data == NULL) {
+			if (!lvb_data) {
 				LDLM_ERROR(lock, "No memory: %d.\n", lvb_len);
 				rc = -ENOMEM;
 				goto out;
@@ -453,7 +453,7 @@ static int ldlm_bl_to_thread(struct ldlm_namespace *ns,
 		struct ldlm_bl_work_item *blwi;
 
 		blwi = kzalloc(sizeof(*blwi), GFP_NOFS);
-		if (blwi == NULL)
+		if (!blwi)
 			return -ENOMEM;
 		init_blwi(blwi, ns, ld, cancels, count, lock, cancel_flags);
 
@@ -1053,7 +1053,7 @@ static int ldlm_setup(void)
 		return -EALREADY;
 
 	ldlm_state = kzalloc(sizeof(*ldlm_state), GFP_NOFS);
-	if (ldlm_state == NULL)
+	if (!ldlm_state)
 		return -ENOMEM;
 
 	ldlm_kobj = kobject_create_and_add("ldlm", lustre_kobj);
@@ -1123,7 +1123,7 @@ static int ldlm_setup(void)
 
 
 	blp = kzalloc(sizeof(*blp), GFP_NOFS);
-	if (blp == NULL) {
+	if (!blp) {
 		rc = -ENOMEM;
 		goto out;
 	}
