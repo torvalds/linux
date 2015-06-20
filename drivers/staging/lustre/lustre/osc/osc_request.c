@@ -119,7 +119,7 @@ static int osc_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 
 	if (*lmmp == NULL) {
 		*lmmp = kzalloc(lmm_size, GFP_NOFS);
-		if (*lmmp == NULL)
+		if (!*lmmp)
 			return -ENOMEM;
 	}
 
@@ -1909,7 +1909,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 		mpflag = cfs_memory_pressure_get_and_set();
 
 	crattr = kzalloc(sizeof(*crattr), GFP_NOFS);
-	if (crattr == NULL) {
+	if (!crattr) {
 		rc = -ENOMEM;
 		goto out;
 	}
