@@ -830,10 +830,12 @@ static struct irq_data *irq_domain_insert_irq_data(struct irq_domain *domain,
 {
 	struct irq_data *irq_data;
 
-	irq_data = kzalloc_node(sizeof(*irq_data), GFP_KERNEL, child->node);
+	irq_data = kzalloc_node(sizeof(*irq_data), GFP_KERNEL,
+				irq_data_get_node(child));
 	if (irq_data) {
 		child->parent_data = irq_data;
 		irq_data->irq = child->irq;
+		irq_data->common = child->common;
 		irq_data->node = child->node;
 		irq_data->domain = domain;
 	}

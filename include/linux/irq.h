@@ -126,13 +126,21 @@ struct msi_desc;
 struct irq_domain;
 
 /**
- * struct irq_data - per irq and irq chip data passed down to chip functions
+ * struct irq_common_data - per irq data shared by all irqchips
+ * @state_use_accessors: status information for irq chip functions.
+ *			Use accessor functions to deal with it
+ */
+struct irq_common_data {
+	unsigned int		state_use_accessors;
+};
+
+/**
+ * struct irq_data - per irq chip data passed down to chip functions
  * @mask:		precomputed bitmask for accessing the chip registers
  * @irq:		interrupt number
  * @hwirq:		hardware interrupt number, local to the interrupt domain
  * @node:		node index useful for balancing
- * @state_use_accessors: status information for irq chip functions.
- *			Use accessor functions to deal with it
+ * @common:		point to data shared by all irqchips
  * @chip:		low level interrupt hardware access
  * @domain:		Interrupt translation domain; responsible for mapping
  *			between hwirq number and linux irq number.
@@ -153,7 +161,7 @@ struct irq_data {
 	unsigned int		irq;
 	unsigned long		hwirq;
 	unsigned int		node;
-	unsigned int		state_use_accessors;
+	struct irq_common_data	*common;
 	struct irq_chip		*chip;
 	struct irq_domain	*domain;
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
@@ -166,7 +174,7 @@ struct irq_data {
 };
 
 /*
- * Bit masks for irq_data.state
+ * Bit masks for irq_common_data.state_use_accessors
  *
  * IRQD_TRIGGER_MASK		- Mask for the trigger type bits
  * IRQD_SETAFFINITY_PENDING	- Affinity setting is pending
@@ -198,34 +206,36 @@ enum {
 	IRQD_WAKEUP_ARMED		= (1 << 19),
 };
 
+#define __irqd_to_state(d)		((d)->common->state_use_accessors)
+
 static inline bool irqd_is_setaffinity_pending(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_SETAFFINITY_PENDING;
+	return __irqd_to_state(d) & IRQD_SETAFFINITY_PENDING;
 }
 
 static inline bool irqd_is_per_cpu(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_PER_CPU;
+	return __irqd_to_state(d) & IRQD_PER_CPU;
 }
 
 static inline bool irqd_can_balance(struct irq_data *d)
 {
-	return !(d->state_use_accessors & (IRQD_PER_CPU | IRQD_NO_BALANCING));
+	return !(__irqd_to_state(d) & (IRQD_PER_CPU | IRQD_NO_BALANCING));
 }
 
 static inline bool irqd_affinity_was_set(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_AFFINITY_SET;
+	return __irqd_to_state(d) & IRQD_AFFINITY_SET;
 }
 
 static inline void irqd_mark_affinity_was_set(struct irq_data *d)
 {
-	d->state_use_accessors |= IRQD_AFFINITY_SET;
+	__irqd_to_state(d) |= IRQD_AFFINITY_SET;
 }
 
 static inline u32 irqd_get_trigger_type(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_TRIGGER_MASK;
+	return __irqd_to_state(d) & IRQD_TRIGGER_MASK;
 }
 
 /*
@@ -233,43 +243,43 @@ static inline u32 irqd_get_trigger_type(struct irq_data *d)
  */
 static inline void irqd_set_trigger_type(struct irq_data *d, u32 type)
 {
-	d->state_use_accessors &= ~IRQD_TRIGGER_MASK;
-	d->state_use_accessors |= type & IRQD_TRIGGER_MASK;
+	__irqd_to_state(d) &= ~IRQD_TRIGGER_MASK;
+	__irqd_to_state(d) |= type & IRQD_TRIGGER_MASK;
 }
 
 static inline bool irqd_is_level_type(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_LEVEL;
+	return __irqd_to_state(d) & IRQD_LEVEL;
 }
 
 static inline bool irqd_is_wakeup_set(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_WAKEUP_STATE;
+	return __irqd_to_state(d) & IRQD_WAKEUP_STATE;
 }
 
 static inline bool irqd_can_move_in_process_context(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_MOVE_PCNTXT;
+	return __irqd_to_state(d) & IRQD_MOVE_PCNTXT;
 }
 
 static inline bool irqd_irq_disabled(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_IRQ_DISABLED;
+	return __irqd_to_state(d) & IRQD_IRQ_DISABLED;
 }
 
 static inline bool irqd_irq_masked(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_IRQ_MASKED;
+	return __irqd_to_state(d) & IRQD_IRQ_MASKED;
 }
 
 static inline bool irqd_irq_inprogress(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_IRQ_INPROGRESS;
+	return __irqd_to_state(d) & IRQD_IRQ_INPROGRESS;
 }
 
 static inline bool irqd_is_wakeup_armed(struct irq_data *d)
 {
-	return d->state_use_accessors & IRQD_WAKEUP_ARMED;
+	return __irqd_to_state(d) & IRQD_WAKEUP_ARMED;
 }
 
 
@@ -280,12 +290,12 @@ static inline bool irqd_is_wakeup_armed(struct irq_data *d)
  */
 static inline void irqd_set_chained_irq_inprogress(struct irq_data *d)
 {
-	d->state_use_accessors |= IRQD_IRQ_INPROGRESS;
+	__irqd_to_state(d) |= IRQD_IRQ_INPROGRESS;
 }
 
 static inline void irqd_clr_chained_irq_inprogress(struct irq_data *d)
 {
-	d->state_use_accessors &= ~IRQD_IRQ_INPROGRESS;
+	__irqd_to_state(d) &= ~IRQD_IRQ_INPROGRESS;
 }
 
 static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
@@ -639,6 +649,23 @@ static inline u32 irq_get_trigger_type(unsigned int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
 	return d ? irqd_get_trigger_type(d) : 0;
+}
+
+static inline int irq_data_get_node(struct irq_data *d)
+{
+	return d->node;
+}
+
+static inline struct cpumask *irq_get_affinity_mask(int irq)
+{
+	struct irq_data *d = irq_get_irq_data(irq);
+
+	return d ? d->affinity : NULL;
+}
+
+static inline struct cpumask *irq_data_get_affinity_mask(struct irq_data *d)
+{
+	return d->affinity;
 }
 
 unsigned int arch_dynirq_lower_bound(unsigned int from);
