@@ -11,6 +11,10 @@
 #ifndef __MV88E6XXX_H
 #define __MV88E6XXX_H
 
+#ifndef UINT64_MAX
+#define UINT64_MAX		(u64)(~((u64)0))
+#endif
+
 #define SMI_CMD			0x00
 #define SMI_CMD_BUSY		BIT(15)
 #define SMI_CMD_CLAUSE_22	BIT(12)
