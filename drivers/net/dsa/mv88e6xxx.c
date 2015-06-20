@@ -2005,6 +2005,12 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds)
 				  0x9000 | (i << 8));
 	}
 
+	/* Clear the statistics counters for all ports */
+	REG_WRITE(REG_GLOBAL, GLOBAL_STATS_OP, GLOBAL_STATS_OP_FLUSH_ALL);
+
+	/* Wait for the flush to complete. */
+	_mv88e6xxx_stats_wait(ds);
+
 	return 0;
 }
 
