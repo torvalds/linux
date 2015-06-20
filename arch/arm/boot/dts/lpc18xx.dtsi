@@ -78,6 +78,23 @@
 			status = "disabled";
 		};
 
+		usb0: ehci@40006100 {
+			compatible = "nxp,lpc1850-ehci", "generic-ehci";
+			reg = <0x40006100 0x100>;
+			interrupts = <8>;
+			clocks = <&ccu1 CLK_CPU_USB0>;
+			has-transaction-translator;
+			status = "disabled";
+		};
+
+		usb1: ehci@40007100 {
+			compatible = "nxp,lpc1850-ehci", "generic-ehci";
+			reg = <0x40007100 0x100>;
+			interrupts = <9>;
+			clocks = <&ccu1 CLK_CPU_USB1>;
+			status = "disabled";
+		};
+
 		mac: ethernet@40010000 {
 			compatible = "nxp,lpc1850-dwmac", "snps,dwmac-3.611", "snps,dwmac";
 			reg = <0x40010000 0x2000>;
