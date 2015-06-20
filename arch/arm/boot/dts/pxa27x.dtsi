@@ -7,6 +7,15 @@
 	compatible = "marvell,pxa27x";
 
 	pxabus {
+		pdma: dma-controller@40000000 {
+			compatible = "marvell,pdma-1.0";
+			reg = <0x40000000 0x10000>;
+			interrupts = <25>;
+			#dma-channels = <32>;
+			#dma-cells = <2>;
+			status = "okay";
+		};
+
 		pxairq: interrupt-controller@40d00000 {
 			marvell,intc-priority;
 			marvell,intc-nr-irqs = <34>;
