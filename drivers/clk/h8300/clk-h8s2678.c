@@ -84,7 +84,7 @@ static const struct clk_ops pll_ops = {
 
 static void __init h8s2678_pll_clk_setup(struct device_node *node)
 {
-	unsigned int num_parents;
+	int num_parents;
 	struct clk *clk;
 	const char *clk_name = node->name;
 	const char *parent_name;

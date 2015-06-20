@@ -15,7 +15,7 @@ static DEFINE_SPINLOCK(clklock);
 
 static void __init h8300_div_clk_setup(struct device_node *node)
 {
-	unsigned int num_parents;
+	int num_parents;
 	struct clk *clk;
 	const char *clk_name = node->name;
 	const char *parent_name;
