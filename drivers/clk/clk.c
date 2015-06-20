@@ -1660,6 +1660,14 @@ static void clk_core_reparent(struct clk_core *core,
 	__clk_recalc_rates(core, POST_RATE_CHANGE);
 }
 
+void clk_hw_reparent(struct clk_hw *hw, struct clk_hw *new_parent)
+{
+	if (!hw)
+		return;
+
+	clk_core_reparent(hw->core, !new_parent ? NULL : new_parent->core);
+}
+
 /**
  * clk_has_parent - check if a clock is a possible parent for another
  * @clk: clock source

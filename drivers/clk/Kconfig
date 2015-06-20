@@ -176,3 +176,4 @@ endmenu
 source "drivers/clk/mvebu/Kconfig"
 
 source "drivers/clk/samsung/Kconfig"
+source "drivers/clk/tegra/Kconfig"
