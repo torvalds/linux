@@ -2375,7 +2375,7 @@ static int nvme_trans_unmap(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	struct scsi_unmap_parm_list *plist;
 	struct nvme_dsm_range *range;
 	struct nvme_command c;
-	int i, nvme_sc, res = -ENOMEM;
+	int i, nvme_sc, res;
 	u16 ndesc, list_len;
 
 	list_len = get_unaligned_be16(&cmd[7]);
@@ -2397,8 +2397,10 @@ static int nvme_trans_unmap(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	}
 
 	range = kcalloc(ndesc, sizeof(*range), GFP_KERNEL);
-	if (!range)
+	if (!range) {
+		res = -ENOMEM;
 		goto out;
+	}
 
 	for (i = 0; i < ndesc; i++) {
 		range[i].nlb = cpu_to_le32(be32_to_cpu(plist->desc[i].nlb));
