@@ -3005,7 +3005,7 @@ int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat)
 	struct inode *inode = d_inode(de);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ll_inode_info *lli = ll_i2info(inode);
-	int res = 0;
+	int res;
 
 	res = ll_inode_revalidate(de, MDS_INODELOCK_UPDATE |
 				      MDS_INODELOCK_LOOKUP);
