@@ -50,6 +50,9 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_HUMIDITYRELATIVE] = "humidityrelative",
 	[IIO_ACTIVITY] = "activity",
 	[IIO_STEPS] = "steps",
+	[IIO_ENERGY] = "energy",
+	[IIO_DISTANCE] = "distance",
+	[IIO_VELOCITY] = "velocity",
 };
 
 static const char * const iio_ev_type_text[] = {
@@ -98,6 +101,7 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_JOGGING] = "jogging",
 	[IIO_MOD_WALKING] = "walking",
 	[IIO_MOD_STILL] = "still",
+	[IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z] = "sqrt(x^2+y^2+z^2)",
 };
 
 static bool event_is_known(struct iio_event_data *event)
@@ -129,6 +133,9 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_HUMIDITYRELATIVE:
 	case IIO_ACTIVITY:
 	case IIO_STEPS:
+	case IIO_ENERGY:
+	case IIO_DISTANCE:
+	case IIO_VELOCITY:
 		break;
 	default:
 		return false;
@@ -166,6 +173,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MOD_JOGGING:
 	case IIO_MOD_WALKING:
 	case IIO_MOD_STILL:
+	case IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z:
 		break;
 	default:
 		return false;
