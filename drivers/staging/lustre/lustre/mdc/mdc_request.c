@@ -1202,7 +1202,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 	/* Key is KEY_FID2PATH + getinfo_fid2path description */
 	keylen = cfs_size_round(sizeof(KEY_FID2PATH)) + sizeof(*gf);
 	key = kzalloc(keylen, GFP_NOFS);
-	if (key == NULL)
+	if (!key)
 		return -ENOMEM;
 	memcpy(key, KEY_FID2PATH, sizeof(KEY_FID2PATH));
 	memcpy(key + cfs_size_round(sizeof(KEY_FID2PATH)), gf, sizeof(*gf));
@@ -1605,7 +1605,7 @@ static int mdc_changelog_send_thread(void *csdata)
 	       cs->cs_fp, cs->cs_startrec);
 
 	cs->cs_buf = kzalloc(KUC_CHANGELOG_MSG_MAXSIZE, GFP_NOFS);
-	if (cs->cs_buf == NULL) {
+	if (!cs->cs_buf) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -1934,7 +1934,7 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		struct obd_quotactl *oqctl;
 
 		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
-		if (oqctl == NULL) {
+		if (!oqctl) {
 			rc = -ENOMEM;
 			goto out;
 		}
