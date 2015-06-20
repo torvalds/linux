@@ -232,7 +232,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 			goto out;
 		}
 		lcfg = kzalloc(data->ioc_plen1, GFP_NOFS);
-		if (lcfg == NULL) {
+		if (!lcfg) {
 			err = -ENOMEM;
 			goto out;
 		}

@@ -61,7 +61,7 @@ static struct llog_handle *llog_alloc_handle(void)
 	struct llog_handle *loghandle;
 
 	loghandle = kzalloc(sizeof(*loghandle), GFP_NOFS);
-	if (loghandle == NULL)
+	if (!loghandle)
 		return NULL;
 
 	init_rwsem(&loghandle->lgh_lock);
@@ -208,7 +208,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 	LASSERT(handle->lgh_hdr == NULL);
 
 	llh = kzalloc(sizeof(*llh), GFP_NOFS);
-	if (llh == NULL)
+	if (!llh)
 		return -ENOMEM;
 	handle->lgh_hdr = llh;
 	/* first assign flags to use llog_client_ops */
@@ -435,7 +435,7 @@ int llog_process_or_fork(const struct lu_env *env,
 	int		      rc;
 
 	lpi = kzalloc(sizeof(*lpi), GFP_NOFS);
-	if (lpi == NULL) {
+	if (!lpi) {
 		CERROR("cannot alloc pointer\n");
 		return -ENOMEM;
 	}

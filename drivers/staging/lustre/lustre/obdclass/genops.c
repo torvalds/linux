@@ -172,7 +172,7 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 
 	rc = -ENOMEM;
 	type = kzalloc(sizeof(*type), GFP_NOFS);
-	if (type == NULL)
+	if (!type)
 		return rc;
 
 	type->typ_dt_ops = kzalloc(sizeof(*type->typ_dt_ops), GFP_NOFS);
@@ -1016,7 +1016,7 @@ struct obd_import *class_new_import(struct obd_device *obd)
 	struct obd_import *imp;
 
 	imp = kzalloc(sizeof(*imp), GFP_NOFS);
-	if (imp == NULL)
+	if (!imp)
 		return NULL;
 
 	INIT_LIST_HEAD(&imp->imp_pinger_chain);
@@ -1819,7 +1819,7 @@ void *kuc_alloc(int payload_len, int transport, int type)
 	int len = kuc_len(payload_len);
 
 	lh = kzalloc(len, GFP_NOFS);
-	if (lh == NULL)
+	if (!lh)
 		return ERR_PTR(-ENOMEM);
 
 	lh->kuc_magic = KUC_MAGIC;
