@@ -901,6 +901,13 @@ static int _mv88e6xxx_atu_wait(struct dsa_switch *ds)
 			       GLOBAL_ATU_OP_BUSY);
 }
 
+/* Must be called with SMI lock held */
+static int _mv88e6xxx_scratch_wait(struct dsa_switch *ds)
+{
+	return _mv88e6xxx_wait(ds, REG_GLOBAL2, GLOBAL2_SCRATCH_MISC,
+			       GLOBAL2_SCRATCH_BUSY);
+}
+
 /* Must be called with SMI mutex held */
 static int _mv88e6xxx_phy_read_indirect(struct dsa_switch *ds, int addr,
 					int regnum)
@@ -1825,6 +1832,50 @@ static const struct file_operations mv88e6xxx_device_map_fops = {
 	.owner  = THIS_MODULE,
 };
 
+static int mv88e6xxx_scratch_show(struct seq_file *s, void *p)
+{
+	struct dsa_switch *ds = s->private;
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int reg, ret;
+
+	seq_puts(s, "Register Value\n");
+
+	mutex_lock(&ps->smi_mutex);
+	for (reg = 0; reg < 0x80; reg++) {
+		ret = _mv88e6xxx_reg_write(
+			ds, REG_GLOBAL2, GLOBAL2_SCRATCH_MISC,
+			reg << GLOBAL2_SCRATCH_REGISTER_SHIFT);
+		if (ret < 0)
+			goto out;
+
+		ret = _mv88e6xxx_scratch_wait(ds);
+		if (ret < 0)
+			goto out;
+
+		ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL2,
+					  GLOBAL2_SCRATCH_MISC);
+		seq_printf(s, "  %2x   %2x\n", reg,
+			   ret & GLOBAL2_SCRATCH_VALUE_MASK);
+	}
+out:
+	mutex_unlock(&ps->smi_mutex);
+
+	return 0;
+}
+
+static int mv88e6xxx_scratch_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mv88e6xxx_scratch_show, inode->i_private);
+}
+
+static const struct file_operations mv88e6xxx_scratch_fops = {
+	.open   = mv88e6xxx_scratch_open,
+	.read   = seq_read,
+	.llseek = no_llseek,
+	.release = single_release,
+	.owner  = THIS_MODULE,
+};
+
 int mv88e6xxx_setup_common(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -1853,6 +1904,9 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 
 	debugfs_create_file("device_map", S_IRUGO, ps->dbgfs, ds,
 			    &mv88e6xxx_device_map_fops);
+
+	debugfs_create_file("scratch", S_IRUGO, ps->dbgfs, ds,
+			    &mv88e6xxx_scratch_fops);
 	return 0;
 }
 
