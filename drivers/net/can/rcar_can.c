@@ -527,7 +527,8 @@ static int rcar_can_open(struct net_device *ndev)
 	napi_enable(&priv->napi);
 	err = request_irq(ndev->irq, rcar_can_interrupt, 0, ndev->name, ndev);
 	if (err) {
-		netdev_err(ndev, "error requesting interrupt %d\n", ndev->irq);
+		netdev_err(ndev, "request_irq(%d) failed, error %d\n",
+			   ndev->irq, err);
 		goto out_close;
 	}
 	can_led_event(ndev, CAN_LED_EVENT_OPEN);
