@@ -496,8 +496,11 @@ static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		if (wm8731->mclk)
-			clk_prepare_enable(wm8731->mclk);
+		if (wm8731->mclk) {
+			ret = clk_prepare_enable(wm8731->mclk);
+			if (ret)
+				return ret;
+		}
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
