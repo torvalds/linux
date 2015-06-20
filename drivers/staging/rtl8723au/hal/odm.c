@@ -985,7 +985,7 @@ void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal)
 			val32 = rtl8723au_read32(adapter, 0x874);
 			val32 |= pDM_PSTable->Reg874;
 			rtl8723au_write32(adapter, 0x874, val32);
-		
+
 			val32 = rtl8723au_read32(adapter, 0xc70);
 			val32 |= pDM_PSTable->RegC70;
 			rtl8723au_write32(adapter, 0xc70, val32);
