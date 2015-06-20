@@ -222,7 +222,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 			fld->lcf_name, name, tar->ft_idx);
 
 	target = kzalloc(sizeof(*target), GFP_NOFS);
-	if (target == NULL)
+	if (!target)
 		return -ENOMEM;
 
 	spin_lock(&fld->lcf_lock);
