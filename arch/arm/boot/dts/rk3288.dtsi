@@ -447,6 +447,8 @@
 			"mac_clk_rx", "mac_clk_tx",
 			"clk_mac_ref", "clk_mac_refout",
 			"aclk_mac", "pclk_mac";
+		resets = <&cru SRST_MAC>;
+		reset-names = "stmmaceth";
 		status = "disabled";
 	};
 
