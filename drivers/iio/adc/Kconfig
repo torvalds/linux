@@ -149,6 +149,17 @@ config BERLIN2_ADC
 	  Marvell Berlin2 ADC driver. This ADC has 8 channels, with one used for
 	  temperature measurement.
 
+config CC10001_ADC
+	tristate "Cosmic Circuits 10001 ADC driver"
+	depends on HAS_IOMEM && HAVE_CLK && REGULATOR
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Cosmic Circuits 10001 ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cc10001_adc.
+
 config DA9150_GPADC
 	tristate "Dialog DA9150 GPADC driver support"
 	depends on MFD_DA9150
@@ -160,17 +171,6 @@ config DA9150_GPADC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called berlin2-adc.
-
-config CC10001_ADC
-	tristate "Cosmic Circuits 10001 ADC driver"
-	depends on HAS_IOMEM && HAVE_CLK && REGULATOR
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  Say yes here to build support for Cosmic Circuits 10001 ADC.
-
-	  This driver can also be built as a module. If so, the module will be
-	  called cc10001_adc.
 
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
