@@ -182,8 +182,7 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 	sunxi_sc_nmi_write(gc, reg_offs->enable, 0);
 	sunxi_sc_nmi_write(gc, reg_offs->pend, 0x1);
 
-	irq_set_handler_data(irq, domain);
-	irq_set_chained_handler(irq, sunxi_sc_nmi_handle_irq);
+	irq_set_chained_handler_and_data(irq, sunxi_sc_nmi_handle_irq, domain);
 
 	return 0;
 
