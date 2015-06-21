@@ -495,7 +495,7 @@ static void WILC_WFI_mon_setup(struct net_device *dev)
 	ether_setup(dev);
 	dev->tx_queue_len = 0;
 	dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	memset(dev->dev_addr, 0, ETH_ALEN);
+	eth_zero_addr(dev->dev_addr);
 
 	#ifdef USE_WIRELESS
 	{
