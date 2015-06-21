@@ -152,6 +152,7 @@ static int eseqiv_init(struct crypto_tfm *tfm)
 	struct eseqiv_ctx *ctx = crypto_ablkcipher_ctx(geniv);
 	unsigned long alignmask;
 	unsigned int reqsize;
+	int err;
 
 	spin_lock_init(&ctx->lock);
 
@@ -175,9 +176,15 @@ static int eseqiv_init(struct crypto_tfm *tfm)
 	tfm->crt_ablkcipher.reqsize = reqsize +
 				      sizeof(struct ablkcipher_request);
 
-	return crypto_rng_get_bytes(crypto_default_rng, ctx->salt,
-				    crypto_ablkcipher_ivsize(geniv)) ?:
-	       skcipher_geniv_init(tfm);
+	err = 0;
+	if (!crypto_get_default_rng()) {
+		crypto_ablkcipher_crt(geniv)->givencrypt = eseqiv_givencrypt;
+		err = crypto_rng_get_bytes(crypto_default_rng, ctx->salt,
+					   crypto_ablkcipher_ivsize(geniv));
+		crypto_put_default_rng();
+	}
+
+	return err ?: skcipher_geniv_init(tfm);
 }
 
 static struct crypto_template eseqiv_tmpl;
@@ -187,19 +194,13 @@ static struct crypto_instance *eseqiv_alloc(struct rtattr **tb)
 	struct crypto_instance *inst;
 	int err;
 
-	err = crypto_get_default_rng();
-	if (err)
-		return ERR_PTR(err);
-
 	inst = skcipher_geniv_alloc(&eseqiv_tmpl, tb, 0, 0);
 	if (IS_ERR(inst))
-		goto put_rng;
+		goto out;
 
 	err = -EINVAL;
 	if (inst->alg.cra_ablkcipher.ivsize != inst->alg.cra_blocksize)
 		goto free_inst;
-
-	inst->alg.cra_ablkcipher.givencrypt = eseqiv_givencrypt;
 
 	inst->alg.cra_init = eseqiv_init;
 	inst->alg.cra_exit = skcipher_geniv_exit;
@@ -213,21 +214,13 @@ out:
 free_inst:
 	skcipher_geniv_free(inst);
 	inst = ERR_PTR(err);
-put_rng:
-	crypto_put_default_rng();
 	goto out;
-}
-
-static void eseqiv_free(struct crypto_instance *inst)
-{
-	skcipher_geniv_free(inst);
-	crypto_put_default_rng();
 }
 
 static struct crypto_template eseqiv_tmpl = {
 	.name = "eseqiv",
 	.alloc = eseqiv_alloc,
-	.free = eseqiv_free,
+	.free = skcipher_geniv_free,
 	.module = THIS_MODULE,
 };
 
