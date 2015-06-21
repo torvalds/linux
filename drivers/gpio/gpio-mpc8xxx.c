@@ -396,8 +396,8 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	out_be32(mm_gc->regs + GPIO_IER, 0xffffffff);
 	out_be32(mm_gc->regs + GPIO_IMR, 0);
 
-	irq_set_handler_data(mpc8xxx_gc->irqn, mpc8xxx_gc);
-	irq_set_chained_handler(mpc8xxx_gc->irqn, mpc8xxx_gpio_irq_cascade);
+	irq_set_chained_handler_and_data(mpc8xxx_gc->irqn,
+					 mpc8xxx_gpio_irq_cascade, mpc8xxx_gc);
 
 	return 0;
 }
@@ -407,8 +407,7 @@ static int mpc8xxx_remove(struct platform_device *pdev)
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc = platform_get_drvdata(pdev);
 
 	if (mpc8xxx_gc->irq) {
-		irq_set_handler_data(mpc8xxx_gc->irqn, NULL);
-		irq_set_chained_handler(mpc8xxx_gc->irqn, NULL);
+		irq_set_chained_handler_and_data(mpc8xxx_gc->irqn, NULL, NULL);
 		irq_domain_remove(mpc8xxx_gc->irq);
 	}
 
