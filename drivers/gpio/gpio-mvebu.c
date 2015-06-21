@@ -787,8 +787,8 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 		if (irq < 0)
 			continue;
-		irq_set_handler_data(irq, mvchip);
-		irq_set_chained_handler(irq, mvebu_gpio_irq_handler);
+		irq_set_chained_handler_and_data(irq, mvebu_gpio_irq_handler,
+						 mvchip);
 	}
 
 	mvchip->irqbase = irq_alloc_descs(-1, 0, ngpios, -1);
