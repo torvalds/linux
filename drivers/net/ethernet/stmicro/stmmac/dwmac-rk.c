@@ -38,7 +38,6 @@ struct rk_priv_data {
 	bool clock_input;
 
 	struct clk *clk_mac;
-	struct clk *clk_mac_pll;
 	struct clk *gmac_clkin;
 	struct clk *mac_clk_rx;
 	struct clk *mac_clk_tx;
@@ -208,7 +207,7 @@ static int gmac_clk_init(struct rk_priv_data *bsp_priv)
 		dev_info(dev, "%s: clock input from PHY\n", __func__);
 	} else {
 		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII)
-			clk_set_rate(bsp_priv->clk_mac_pll, 50000000);
+			clk_set_rate(bsp_priv->clk_mac, 50000000);
 	}
 
 	return 0;
