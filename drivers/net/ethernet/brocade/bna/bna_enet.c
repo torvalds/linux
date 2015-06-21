@@ -207,7 +207,7 @@ bna_bfi_stats_get_rsp(struct bna *bna, struct bfi_msgq_mhdr *msghdr)
 	for (i = 0; i < BFI_ENET_CFG_MAX; i++) {
 		stats_dst = (u64 *)&(bna->stats.hw_stats.rxf_stats[i]);
 		memset(stats_dst, 0, sizeof(struct bfi_enet_stats_rxf));
-		if (rx_enet_mask & ((u32)BIT(i))) {
+		if (rx_enet_mask & BIT(i)) {
 			int k;
 			count = sizeof(struct bfi_enet_stats_rxf) /
 				sizeof(u64);
@@ -222,7 +222,7 @@ bna_bfi_stats_get_rsp(struct bna *bna, struct bfi_msgq_mhdr *msghdr)
 	for (i = 0; i < BFI_ENET_CFG_MAX; i++) {
 		stats_dst = (u64 *)&(bna->stats.hw_stats.txf_stats[i]);
 		memset(stats_dst, 0, sizeof(struct bfi_enet_stats_txf));
-		if (tx_enet_mask & ((u32)BIT(i))) {
+		if (tx_enet_mask & BIT(i)) {
 			int k;
 			count = sizeof(struct bfi_enet_stats_txf) /
 				sizeof(u64);

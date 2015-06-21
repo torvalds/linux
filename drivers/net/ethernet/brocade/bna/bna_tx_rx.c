@@ -353,7 +353,7 @@ bna_bfi_rss_enable(struct bna_rxf *rxf)
 
 /* This function gets the multicast MAC that has already been added to CAM */
 static struct bna_mac *
-bna_rxf_mcmac_get(struct bna_rxf *rxf, u8 *mac_addr)
+bna_rxf_mcmac_get(struct bna_rxf *rxf, const u8 *mac_addr)
 {
 	struct bna_mac *mac;
 
@@ -729,7 +729,7 @@ bna_rxf_fail(struct bna_rxf *rxf)
 }
 
 enum bna_cb_status
-bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac)
+bna_rx_ucast_set(struct bna_rx *rx, const u8 *ucmac)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 
@@ -751,7 +751,7 @@ bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac)
 }
 
 enum bna_cb_status
-bna_rx_mcast_add(struct bna_rx *rx, u8 *addr,
+bna_rx_mcast_add(struct bna_rx *rx, const u8 *addr,
 		 void (*cbfn)(struct bnad *, struct bna_rx *))
 {
 	struct bna_rxf *rxf = &rx->rxf;
@@ -780,12 +780,12 @@ bna_rx_mcast_add(struct bna_rx *rx, u8 *addr,
 }
 
 enum bna_cb_status
-bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist)
+bna_rx_ucast_listset(struct bna_rx *rx, int count, const u8 *uclist)
 {
 	struct bna_ucam_mod *ucam_mod = &rx->bna->ucam_mod;
 	struct bna_rxf *rxf = &rx->rxf;
 	struct list_head list_head;
-	u8 *mcaddr;
+	const u8 *mcaddr;
 	struct bna_mac *mac, *del_mac;
 	int i;
 
@@ -838,12 +838,12 @@ err_return:
 }
 
 enum bna_cb_status
-bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist)
+bna_rx_mcast_listset(struct bna_rx *rx, int count, const u8 *mclist)
 {
 	struct bna_mcam_mod *mcam_mod = &rx->bna->mcam_mod;
 	struct bna_rxf *rxf = &rx->rxf;
 	struct list_head list_head;
-	u8 *mcaddr;
+	const u8 *mcaddr;
 	struct bna_mac *mac, *del_mac;
 	int i;
 
@@ -933,7 +933,7 @@ bna_rx_vlan_add(struct bna_rx *rx, int vlan_id)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 	int index = (vlan_id >> BFI_VLAN_WORD_SHIFT);
-	int bit = BIT((vlan_id & BFI_VLAN_WORD_MASK));
+	int bit = BIT(vlan_id & BFI_VLAN_WORD_MASK);
 	int group_id = (vlan_id >> BFI_VLAN_BLOCK_SHIFT);
 
 	rxf->vlan_filter_table[index] |= bit;
@@ -948,7 +948,7 @@ bna_rx_vlan_del(struct bna_rx *rx, int vlan_id)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 	int index = (vlan_id >> BFI_VLAN_WORD_SHIFT);
-	int bit = BIT((vlan_id & BFI_VLAN_WORD_MASK));
+	int bit = BIT(vlan_id & BFI_VLAN_WORD_MASK);
 	int group_id = (vlan_id >> BFI_VLAN_BLOCK_SHIFT);
 
 	rxf->vlan_filter_table[index] &= ~bit;

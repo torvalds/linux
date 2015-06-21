@@ -1304,7 +1304,7 @@ bfa_nw_ioc_fwver_get(struct bfa_ioc *ioc, struct bfi_ioc_image_hdr *fwhdr)
 	for (i = 0; i < (sizeof(struct bfi_ioc_image_hdr) / sizeof(u32));
 	     i++) {
 		fwsig[i] =
-			swab32(readl((loff) + (ioc->ioc_regs.smem_page_start)));
+			swab32(readl(loff + ioc->ioc_regs.smem_page_start));
 		loff += sizeof(u32);
 	}
 }
@@ -1675,7 +1675,7 @@ bfa_raw_sem_get(void __iomem *bar)
 {
 	int	locked;
 
-	locked = readl((bar + FLASH_SEM_LOCK_REG));
+	locked = readl(bar + FLASH_SEM_LOCK_REG);
 
 	return !locked;
 }
@@ -2049,8 +2049,8 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 		/**
 		 * write smem
 		 */
-		writel((swab32(fwimg[BFA_IOC_FLASH_OFFSET_IN_CHUNK(i)])),
-			      ((ioc->ioc_regs.smem_page_start) + (loff)));
+		writel(swab32(fwimg[BFA_IOC_FLASH_OFFSET_IN_CHUNK(i)]),
+		       ioc->ioc_regs.smem_page_start + loff);
 
 		loff += sizeof(u32);
 
@@ -2213,7 +2213,7 @@ bfa_nw_ioc_smem_read(struct bfa_ioc *ioc, void *tbuf, u32 soff, u32 sz)
 
 	len = sz/sizeof(u32);
 	for (i = 0; i < len; i++) {
-		r32 = swab32(readl((loff) + (ioc->ioc_regs.smem_page_start)));
+		r32 = swab32(readl(loff + ioc->ioc_regs.smem_page_start));
 		buf[i] = be32_to_cpu(r32);
 		loff += sizeof(u32);
 

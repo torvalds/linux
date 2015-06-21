@@ -268,15 +268,15 @@ bna_reg_offset_check(struct bfa_ioc *ioc, u32 offset, u32 len)
 	area = (offset >> 15) & 0x7;
 	if (area == 0) {
 		/* PCIe core register */
-		if ((offset + (len<<2)) > 0x8000)	/* 8k dwords or 32KB */
+		if (offset + (len << 2) > 0x8000)	/* 8k dwords or 32KB */
 			return BFA_STATUS_EINVAL;
 	} else if (area == 0x1) {
 		/* CB 32 KB memory page */
-		if ((offset + (len<<2)) > 0x10000)	/* 8k dwords or 32KB */
+		if (offset + (len << 2) > 0x10000)	/* 8k dwords or 32KB */
 			return BFA_STATUS_EINVAL;
 	} else {
 		/* CB register space 64KB */
-		if ((offset + (len<<2)) > BFA_REG_ADDRMSK(ioc))
+		if (offset + (len << 2) > BFA_REG_ADDRMSK(ioc))
 			return BFA_STATUS_EINVAL;
 	}
 	return BFA_STATUS_OK;

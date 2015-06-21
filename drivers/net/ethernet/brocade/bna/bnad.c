@@ -309,7 +309,7 @@ bnad_rxq_alloc_init(struct bnad *bnad, struct bna_rcb *rcb)
 		}
 	}
 
-	BUG_ON(((PAGE_SIZE << order) % unmap_q->map_size));
+	BUG_ON((PAGE_SIZE << order) % unmap_q->map_size);
 
 	return 0;
 }
@@ -757,7 +757,7 @@ bnad_msix_rx(int irq, void *data)
 	struct bna_ccb *ccb = (struct bna_ccb *)data;
 
 	if (ccb) {
-		((struct bnad_rx_ctrl *)(ccb->ctrl))->rx_intr_ctr++;
+		((struct bnad_rx_ctrl *)ccb->ctrl)->rx_intr_ctr++;
 		bnad_netif_rx_schedule_poll(ccb->bnad, ccb);
 	}
 
@@ -2327,7 +2327,7 @@ bnad_rx_coalescing_timeo_set(struct bnad *bnad)
  * Called with bnad->bna_lock held
  */
 int
-bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr)
+bnad_mac_addr_set_locked(struct bnad *bnad, const u8 *mac_addr)
 {
 	int ret;
 
@@ -2356,8 +2356,8 @@ bnad_enable_default_bcast(struct bnad *bnad)
 	init_completion(&bnad->bnad_completions.mcast_comp);
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	ret = bna_rx_mcast_add(rx_info->rx, (u8 *)bnad_bcast_addr,
-				bnad_cb_rx_mcast_add);
+	ret = bna_rx_mcast_add(rx_info->rx, bnad_bcast_addr,
+			       bnad_cb_rx_mcast_add);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	if (ret == BNA_CB_SUCCESS)
@@ -3677,13 +3677,13 @@ bnad_pci_probe(struct pci_dev *pdev,
 
 	/* Set up timers */
 	setup_timer(&bnad->bna.ioceth.ioc.ioc_timer, bnad_ioc_timeout,
-				((unsigned long)bnad));
+		    (unsigned long)bnad);
 	setup_timer(&bnad->bna.ioceth.ioc.hb_timer, bnad_ioc_hb_check,
-				((unsigned long)bnad));
+		    (unsigned long)bnad);
 	setup_timer(&bnad->bna.ioceth.ioc.iocpf_timer, bnad_iocpf_timeout,
-				((unsigned long)bnad));
+		    (unsigned long)bnad);
 	setup_timer(&bnad->bna.ioceth.ioc.sem_timer, bnad_iocpf_sem_timeout,
-				((unsigned long)bnad));
+		    (unsigned long)bnad);
 
 	/*
 	 * Start the chip
