@@ -3769,7 +3769,7 @@ xlog_verify_iclog(
 	xlog_in_core_2_t	*xhdr;
 	xfs_caddr_t		ptr;
 	xfs_caddr_t		base_ptr;
-	__psint_t		field_offset;
+	ptrdiff_t		field_offset;
 	__uint8_t		clientid;
 	int			len, i, j, k, op_len;
 	int			idx;
@@ -3806,7 +3806,7 @@ xlog_verify_iclog(
 		ophead = (xlog_op_header_t *)ptr;
 
 		/* clientid is only 1 byte */
-		field_offset = (__psint_t)
+		field_offset = (ptrdiff_t)
 			       ((xfs_caddr_t)&(ophead->oh_clientid) - base_ptr);
 		if (!syncing || (field_offset & 0x1ff)) {
 			clientid = ophead->oh_clientid;
@@ -3829,13 +3829,13 @@ xlog_verify_iclog(
 				(unsigned long)field_offset);
 
 		/* check length */
-		field_offset = (__psint_t)
+		field_offset = (ptrdiff_t)
 			       ((xfs_caddr_t)&(ophead->oh_len) - base_ptr);
 		if (!syncing || (field_offset & 0x1ff)) {
 			op_len = be32_to_cpu(ophead->oh_len);
 		} else {
-			idx = BTOBBT((__psint_t)&ophead->oh_len -
-				    (__psint_t)iclog->ic_datap);
+			idx = BTOBBT((uintptr_t)&ophead->oh_len -
+				    (uintptr_t)iclog->ic_datap);
 			if (idx >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE)) {
 				j = idx / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 				k = idx % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
