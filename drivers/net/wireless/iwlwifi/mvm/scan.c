@@ -140,10 +140,7 @@ struct iwl_mvm_scan_params {
 	int n_match_sets;
 	struct iwl_scan_probe_req preq;
 	struct cfg80211_match_set *match_sets;
-	struct {
-		u8 iterations;
-		u8 full_scan_mul; /* not used for UMAC */
-	} schedule[2];
+	u8 iterations[2];
 };
 
 static u8 iwl_mvm_scan_rx_ant(struct iwl_mvm *mvm)
@@ -750,7 +747,7 @@ static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm,
 
 static int iwl_mvm_scan_total_iterations(struct iwl_mvm_scan_params *params)
 {
-	return params->schedule[0].iterations + params->schedule[1].iterations;
+	return params->iterations[0] + params->iterations[1];
 }
 
 static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
@@ -817,11 +814,11 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ssid_bitmap <<= 1;
 
 	cmd->schedule[0].delay = cpu_to_le16(params->interval);
-	cmd->schedule[0].iterations = params->schedule[0].iterations;
-	cmd->schedule[0].full_scan_mul = params->schedule[0].full_scan_mul;
+	cmd->schedule[0].iterations = params->iterations[0];
+	cmd->schedule[0].full_scan_mul = 1;
 	cmd->schedule[1].delay = cpu_to_le16(params->interval);
-	cmd->schedule[1].iterations = params->schedule[1].iterations;
-	cmd->schedule[1].full_scan_mul = params->schedule[1].iterations;
+	cmd->schedule[1].iterations = params->iterations[1];
+	cmd->schedule[1].full_scan_mul = 1;
 
 	if (iwl_mvm_scan_use_ebs(mvm, vif, n_iterations)) {
 		cmd->channel_opt[0].flags =
@@ -1180,10 +1177,8 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	params.n_match_sets = 0;
 	params.match_sets = NULL;
 
-	params.schedule[0].iterations = 1;
-	params.schedule[0].full_scan_mul = 0;
-	params.schedule[1].iterations = 0;
-	params.schedule[1].full_scan_mul = 0;
+	params.iterations[0] = 1;
+	params.iterations[1] = 0;
 
 	params.type = iwl_mvm_get_scan_type(mvm, vif, &params);
 
@@ -1263,10 +1258,9 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	params.n_match_sets = req->n_match_sets;
 	params.match_sets = req->match_sets;
 
-	params.schedule[0].iterations = IWL_FAST_SCHED_SCAN_ITERATIONS;
-	params.schedule[0].full_scan_mul = 1;
-	params.schedule[1].iterations = 0xff;
-	params.schedule[1].full_scan_mul = IWL_FULL_SCAN_MULTIPLIER;
+	params.iterations[0] = 0;
+	params.iterations[1] = 0xff;
+
 	params.type = iwl_mvm_get_scan_type(mvm, vif, &params);
 
 	if (req->interval > U16_MAX) {
