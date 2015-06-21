@@ -190,7 +190,7 @@ struct batadv_vlan_tt {
 struct batadv_orig_node_vlan {
 	unsigned short vid;
 	struct batadv_vlan_tt tt;
-	struct list_head list;
+	struct hlist_node list;
 	atomic_t refcount;
 	struct rcu_head rcu;
 };
@@ -302,7 +302,7 @@ struct batadv_orig_node {
 	spinlock_t out_coding_list_lock; /* Protects out_coding_list */
 #endif
 	struct batadv_frag_table_entry fragments[BATADV_FRAG_BUFFER_COUNT];
-	struct list_head vlan_list;
+	struct hlist_head vlan_list;
 	spinlock_t vlan_list_lock; /* protects vlan_list */
 	struct batadv_orig_bat_iv bat_iv;
 };
