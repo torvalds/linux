@@ -145,13 +145,18 @@ static int
 ieee802154_set_pan_id(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 		      __le16 pan_id)
 {
+	int ret;
+
 	ASSERT_RTNL();
 
 	if (wpan_dev->pan_id == pan_id)
 		return 0;
 
-	wpan_dev->pan_id = pan_id;
-	return 0;
+	ret = mac802154_wpan_update_llsec(wpan_dev->netdev);
+	if (!ret)
+		wpan_dev->pan_id = pan_id;
+
+	return ret;
 }
 
 static int
