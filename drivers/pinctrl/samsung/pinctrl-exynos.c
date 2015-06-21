@@ -542,8 +542,9 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 			}
 			weint_data[idx].irq = idx;
 			weint_data[idx].bank = bank;
-			irq_set_handler_data(irq, &weint_data[idx]);
-			irq_set_chained_handler(irq, exynos_irq_eint0_15);
+			irq_set_chained_handler_and_data(irq,
+							 exynos_irq_eint0_15,
+							 &weint_data[idx]);
 		}
 	}
 
