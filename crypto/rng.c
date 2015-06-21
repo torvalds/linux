@@ -155,13 +155,32 @@ EXPORT_SYMBOL_GPL(crypto_get_default_rng);
 void crypto_put_default_rng(void)
 {
 	mutex_lock(&crypto_default_rng_lock);
-	if (!--crypto_default_rng_refcnt) {
-		crypto_free_rng(crypto_default_rng);
-		crypto_default_rng = NULL;
-	}
+	crypto_default_rng_refcnt--;
 	mutex_unlock(&crypto_default_rng_lock);
 }
 EXPORT_SYMBOL_GPL(crypto_put_default_rng);
+
+#if defined(CONFIG_CRYPTO_RNG) || defined(CONFIG_CRYPTO_RNG_MODULE)
+int crypto_del_default_rng(void)
+{
+	int err = -EBUSY;
+
+	mutex_lock(&crypto_default_rng_lock);
+	if (crypto_default_rng_refcnt)
+		goto out;
+
+	crypto_free_rng(crypto_default_rng);
+	crypto_default_rng = NULL;
+
+	err = 0;
+
+out:
+	mutex_unlock(&crypto_default_rng_lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(crypto_del_default_rng);
+#endif
 
 int crypto_register_rng(struct rng_alg *alg)
 {

@@ -22,6 +22,15 @@ void crypto_unregister_rng(struct rng_alg *alg);
 int crypto_register_rngs(struct rng_alg *algs, int count);
 void crypto_unregister_rngs(struct rng_alg *algs, int count);
 
+#if defined(CONFIG_CRYPTO_RNG) || defined(CONFIG_CRYPTO_RNG_MODULE)
+int crypto_del_default_rng(void);
+#else
+static inline int crypto_del_default_rng(void)
+{
+	return 0;
+}
+#endif
+
 static inline void *crypto_rng_ctx(struct crypto_rng *tfm)
 {
 	return crypto_tfm_ctx(&tfm->base);
