@@ -130,8 +130,8 @@ static int bcm7120_l2_intc_init_one(struct device_node *dn,
 		}
 	}
 
-	irq_set_handler_data(parent_irq, data);
-	irq_set_chained_handler(parent_irq, bcm7120_l2_intc_irq_handle);
+	irq_set_chained_handler_and_data(parent_irq,
+					 bcm7120_l2_intc_irq_handle, data);
 
 	return 0;
 }
