@@ -32,8 +32,6 @@ typedef unsigned int		__uint32_t;
 typedef signed long long int	__int64_t;
 typedef unsigned long long int	__uint64_t;
 
-typedef __uint32_t		inst_t;		/* an instruction */
-
 typedef __s64			xfs_off_t;	/* <file offset> type */
 typedef unsigned long long	xfs_ino_t;	/* <inode> type */
 typedef __s64			xfs_daddr_t;	/* <disk address> type */
