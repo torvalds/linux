@@ -582,8 +582,9 @@ void __init orion_gpio_init(struct device_node *np,
 
 	for (i = 0; i < 4; i++) {
 		if (irqs[i]) {
-			irq_set_handler_data(irqs[i], ochip);
-			irq_set_chained_handler(irqs[i], gpio_irq_handler);
+			irq_set_chained_handler_and_data(irqs[i],
+							 gpio_irq_handler,
+							 ochip);
 		}
 	}
 
