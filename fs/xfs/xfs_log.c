@@ -109,7 +109,7 @@ xlog_ungrant_log_space(
 STATIC void
 xlog_verify_dest_ptr(
 	struct xlog		*log,
-	char			*ptr);
+	void			*ptr);
 STATIC void
 xlog_verify_grant_tail(
 	struct xlog *log);
@@ -1447,7 +1447,7 @@ xlog_alloc_log(
 		iclog->ic_bp = bp;
 		iclog->ic_data = bp->b_addr;
 #ifdef DEBUG
-		log->l_iclog_bak[i] = (xfs_caddr_t)&(iclog->ic_header);
+		log->l_iclog_bak[i] = &iclog->ic_header;
 #endif
 		head = &iclog->ic_header;
 		memset(head, 0, sizeof(xlog_rec_header_t));
@@ -3664,7 +3664,7 @@ xlog_ticket_alloc(
 void
 xlog_verify_dest_ptr(
 	struct xlog	*log,
-	char		*ptr)
+	void		*ptr)
 {
 	int i;
 	int good_ptr = 0;
@@ -3767,8 +3767,7 @@ xlog_verify_iclog(
 	xlog_op_header_t	*ophead;
 	xlog_in_core_t		*icptr;
 	xlog_in_core_2_t	*xhdr;
-	xfs_caddr_t		ptr;
-	xfs_caddr_t		base_ptr;
+	void			*base_ptr, *ptr, *p;
 	ptrdiff_t		field_offset;
 	__uint8_t		clientid;
 	int			len, i, j, k, op_len;
@@ -3788,9 +3787,9 @@ xlog_verify_iclog(
 	if (iclog->ic_header.h_magicno != cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
 		xfs_emerg(log->l_mp, "%s: invalid magic num", __func__);
 
-	ptr = (xfs_caddr_t) &iclog->ic_header;
-	for (ptr += BBSIZE; ptr < ((xfs_caddr_t)&iclog->ic_header) + count;
-	     ptr += BBSIZE) {
+	base_ptr = ptr = &iclog->ic_header;
+	p = &iclog->ic_header;
+	for (ptr += BBSIZE; ptr < base_ptr + count; ptr += BBSIZE) {
 		if (*(__be32 *)ptr == cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
 			xfs_emerg(log->l_mp, "%s: unexpected magic num",
 				__func__);
@@ -3798,16 +3797,15 @@ xlog_verify_iclog(
 
 	/* check fields */
 	len = be32_to_cpu(iclog->ic_header.h_num_logops);
-	ptr = iclog->ic_datap;
-	base_ptr = ptr;
-	ophead = (xlog_op_header_t *)ptr;
+	base_ptr = ptr = iclog->ic_datap;
+	ophead = ptr;
 	xhdr = iclog->ic_data;
 	for (i = 0; i < len; i++) {
-		ophead = (xlog_op_header_t *)ptr;
+		ophead = ptr;
 
 		/* clientid is only 1 byte */
-		field_offset = (ptrdiff_t)
-			       ((xfs_caddr_t)&(ophead->oh_clientid) - base_ptr);
+		p = &ophead->oh_clientid;
+		field_offset = p - base_ptr;
 		if (!syncing || (field_offset & 0x1ff)) {
 			clientid = ophead->oh_clientid;
 		} else {
@@ -3829,8 +3827,8 @@ xlog_verify_iclog(
 				(unsigned long)field_offset);
 
 		/* check length */
-		field_offset = (ptrdiff_t)
-			       ((xfs_caddr_t)&(ophead->oh_len) - base_ptr);
+		p = &ophead->oh_len;
+		field_offset = p - base_ptr;
 		if (!syncing || (field_offset & 0x1ff)) {
 			op_len = be32_to_cpu(ophead->oh_len);
 		} else {
