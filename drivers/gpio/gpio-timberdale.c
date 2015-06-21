@@ -299,8 +299,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 #endif
 	}
 
-	irq_set_handler_data(irq, tgpio);
-	irq_set_chained_handler(irq, timbgpio_irq);
+	irq_set_chained_handler_and_data(irq, timbgpio_irq, tgpio);
 
 	return 0;
 }
