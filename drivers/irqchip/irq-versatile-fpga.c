@@ -155,8 +155,8 @@ void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
 	f->valid = valid;
 
 	if (parent_irq != -1) {
-		irq_set_handler_data(parent_irq, f);
-		irq_set_chained_handler(parent_irq, fpga_irq_handle);
+		irq_set_chained_handler_and_data(parent_irq, fpga_irq_handle,
+						 f);
 	}
 
 	/* This will also allocate irq descriptors */
