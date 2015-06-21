@@ -1211,9 +1211,6 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	vnt_generate_fifo_header(priv, dma_idx, head_td, skb);
 
-	if (MACbIsRegBitsOn(priv->PortOffset, MAC_REG_PSCTL, PSCTL_PS))
-		MACbPSWakeup(priv->PortOffset);
-
 	spin_lock_irqsave(&priv->lock, flags);
 
 	priv->bPWBitOn = false;
