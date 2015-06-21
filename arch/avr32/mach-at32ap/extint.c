@@ -231,8 +231,7 @@ static int __init eic_probe(struct platform_device *pdev)
 		irq_set_chip_data(eic->first_irq + i, eic);
 	}
 
-	irq_set_chained_handler(int_irq, demux_eic_irq);
-	irq_set_handler_data(int_irq, eic);
+	irq_set_chained_handler_and_data(int_irq, demux_eic_irq, eic);
 
 	if (pdev->id == 0) {
 		nmi_eic = eic;
