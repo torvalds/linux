@@ -1767,9 +1767,9 @@ static int pcs_irq_init_chained_handler(struct pcs_device *pcs,
 			return res;
 		}
 	} else {
-		irq_set_handler_data(pcs_soc->irq, pcs_soc);
-		irq_set_chained_handler(pcs_soc->irq,
-					pcs_irq_chain_handler);
+		irq_set_chained_handler_and_data(pcs_soc->irq,
+						 pcs_irq_chain_handler,
+						 pcs_soc);
 	}
 
 	/*
