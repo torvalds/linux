@@ -4456,6 +4456,8 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		ar.flags |= EXT4_MB_HINT_NOPREALLOC;
 	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
 		ar.flags |= EXT4_MB_DELALLOC_RESERVED;
+	if (flags & EXT4_GET_BLOCKS_METADATA_NOFAIL)
+		ar.flags |= EXT4_MB_USE_RESERVED;
 	newblock = ext4_mb_new_blocks(handle, &ar, &err);
 	if (!newblock)
 		goto out2;

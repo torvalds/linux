@@ -731,18 +731,18 @@ int ext4_get_block(struct inode *inode, sector_t iblock,
  * `handle' can be NULL if create is zero
  */
 struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
-				ext4_lblk_t block, int create)
+				ext4_lblk_t block, int map_flags)
 {
 	struct ext4_map_blocks map;
 	struct buffer_head *bh;
+	int create = map_flags & EXT4_GET_BLOCKS_CREATE;
 	int err;
 
 	J_ASSERT(handle != NULL || create == 0);
 
 	map.m_lblk = block;
 	map.m_len = 1;
-	err = ext4_map_blocks(handle, inode, &map,
-			      create ? EXT4_GET_BLOCKS_CREATE : 0);
+	err = ext4_map_blocks(handle, inode, &map, map_flags);
 
 	if (err == 0)
 		return create ? ERR_PTR(-ENOSPC) : NULL;
@@ -788,11 +788,11 @@ errout:
 }
 
 struct buffer_head *ext4_bread(handle_t *handle, struct inode *inode,
-			       ext4_lblk_t block, int create)
+			       ext4_lblk_t block, int map_flags)
 {
 	struct buffer_head *bh;
 
-	bh = ext4_getblk(handle, inode, block, create);
+	bh = ext4_getblk(handle, inode, block, map_flags);
 	if (IS_ERR(bh))
 		return bh;
 	if (!bh || buffer_uptodate(bh))
