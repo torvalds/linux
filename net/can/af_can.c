@@ -310,8 +310,12 @@ int can_send(struct sk_buff *skb, int loop)
 		return err;
 	}
 
-	if (newskb)
+	if (newskb) {
+		if (!(newskb->tstamp.tv64))
+			__net_timestamp(newskb);
+
 		netif_rx_ni(newskb);
+	}
 
 	/* update statistics */
 	can_stats.tx_frames++;
