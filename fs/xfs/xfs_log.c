@@ -1602,7 +1602,7 @@ xlog_pack_data(
 	int			i, j, k;
 	int			size = iclog->ic_offset + roundoff;
 	__be32			cycle_lsn;
-	xfs_caddr_t		dp;
+	char			*dp;
 
 	cycle_lsn = CYCLE_LSN_DISK(iclog->ic_header.h_lsn);
 
@@ -3809,7 +3809,7 @@ xlog_verify_iclog(
 		if (!syncing || (field_offset & 0x1ff)) {
 			clientid = ophead->oh_clientid;
 		} else {
-			idx = BTOBBT((xfs_caddr_t)&(ophead->oh_clientid) - iclog->ic_datap);
+			idx = BTOBBT((char *)&ophead->oh_clientid - iclog->ic_datap);
 			if (idx >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE)) {
 				j = idx / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 				k = idx % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
