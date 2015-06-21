@@ -586,6 +586,8 @@ static bool batadv_nc_sniffed_purge(struct batadv_priv *bat_priv,
 	unsigned long timeout = bat_priv->nc.max_buffer_time;
 	bool res = false;
 
+	lockdep_assert_held(&nc_path->packet_list_lock);
+
 	/* Packets are added to tail, so the remaining packets did not time
 	 * out and we can stop processing the current queue
 	 */
@@ -621,6 +623,8 @@ static bool batadv_nc_fwd_flush(struct batadv_priv *bat_priv,
 				struct batadv_nc_packet *nc_packet)
 {
 	unsigned long timeout = bat_priv->nc.max_fwd_delay;
+
+	lockdep_assert_held(&nc_path->packet_list_lock);
 
 	/* Packets are added to tail, so the remaining packets did not time
 	 * out and we can stop processing the current queue

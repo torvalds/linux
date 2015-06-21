@@ -30,6 +30,7 @@
 #include <linux/ipv6.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
@@ -737,13 +738,17 @@ static u16 batadv_tvlv_container_list_size(struct batadv_priv *bat_priv)
 /**
  * batadv_tvlv_container_remove - remove tvlv container from the tvlv container
  *  list
+ * @bat_priv: the bat priv with all the soft interface information
  * @tvlv: the to be removed tvlv container
  *
  * Has to be called with the appropriate locks being acquired
  * (tvlv.container_list_lock).
  */
-static void batadv_tvlv_container_remove(struct batadv_tvlv_container *tvlv)
+static void batadv_tvlv_container_remove(struct batadv_priv *bat_priv,
+					 struct batadv_tvlv_container *tvlv)
 {
+	lockdep_assert_held(&bat_priv->tvlv.handler_list_lock);
+
 	if (!tvlv)
 		return;
 
@@ -768,7 +773,7 @@ void batadv_tvlv_container_unregister(struct batadv_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->tvlv.container_list_lock);
 	tvlv = batadv_tvlv_container_get(bat_priv, type, version);
-	batadv_tvlv_container_remove(tvlv);
+	batadv_tvlv_container_remove(bat_priv, tvlv);
 	spin_unlock_bh(&bat_priv->tvlv.container_list_lock);
 }
 
@@ -807,7 +812,7 @@ void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->tvlv.container_list_lock);
 	tvlv_old = batadv_tvlv_container_get(bat_priv, type, version);
-	batadv_tvlv_container_remove(tvlv_old);
+	batadv_tvlv_container_remove(bat_priv, tvlv_old);
 	hlist_add_head(&tvlv_new->list, &bat_priv->tvlv.container_list);
 	spin_unlock_bh(&bat_priv->tvlv.container_list_lock);
 }

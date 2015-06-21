@@ -31,6 +31,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
@@ -103,14 +104,18 @@ static bool batadv_mcast_mla_is_duplicate(u8 *mcast_addr,
 
 /**
  * batadv_mcast_mla_list_free - free a list of multicast addresses
+ * @bat_priv: the bat priv with all the soft interface information
  * @mcast_list: the list to free
  *
  * Removes and frees all items in the given mcast_list.
  */
-static void batadv_mcast_mla_list_free(struct hlist_head *mcast_list)
+static void batadv_mcast_mla_list_free(struct batadv_priv *bat_priv,
+				       struct hlist_head *mcast_list)
 {
 	struct batadv_hw_addr *mcast_entry;
 	struct hlist_node *tmp;
+
+	lockdep_assert_held(&bat_priv->tt.commit_lock);
 
 	hlist_for_each_entry_safe(mcast_entry, tmp, mcast_list, list) {
 		hlist_del(&mcast_entry->list);
@@ -133,6 +138,8 @@ static void batadv_mcast_mla_tt_retract(struct batadv_priv *bat_priv,
 {
 	struct batadv_hw_addr *mcast_entry;
 	struct hlist_node *tmp;
+
+	lockdep_assert_held(&bat_priv->tt.commit_lock);
 
 	hlist_for_each_entry_safe(mcast_entry, tmp, &bat_priv->mcast.mla_list,
 				  list) {
@@ -163,6 +170,8 @@ static void batadv_mcast_mla_tt_add(struct batadv_priv *bat_priv,
 {
 	struct batadv_hw_addr *mcast_entry;
 	struct hlist_node *tmp;
+
+	lockdep_assert_held(&bat_priv->tt.commit_lock);
 
 	if (!mcast_list)
 		return;
@@ -268,7 +277,7 @@ update:
 	batadv_mcast_mla_tt_add(bat_priv, &mcast_list);
 
 out:
-	batadv_mcast_mla_list_free(&mcast_list);
+	batadv_mcast_mla_list_free(bat_priv, &mcast_list);
 }
 
 /**

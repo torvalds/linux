@@ -1672,6 +1672,8 @@ static void
 _batadv_tt_global_del_orig_entry(struct batadv_tt_global_entry *tt_global_entry,
 				 struct batadv_tt_orig_list_entry *orig_entry)
 {
+	lockdep_assert_held(&tt_global_entry->list_lock);
+
 	batadv_tt_global_size_dec(orig_entry->orig_node,
 				  tt_global_entry->common.vid);
 	atomic_dec(&tt_global_entry->orig_list_count);
