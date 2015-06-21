@@ -19,6 +19,7 @@
 #include "main.h"
 
 #include <linux/atomic.h>
+#include <linux/errno.h>
 #include <linux/byteorder/generic.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -160,7 +161,7 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 
 	ret = batadv_parse_gw_bandwidth(net_dev, buff, &down_new, &up_new);
 	if (!ret)
-		goto end;
+		return -EINVAL;
 
 	if (!down_new)
 		down_new = 1;
@@ -184,7 +185,6 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 	atomic_set(&bat_priv->gw.bandwidth_up, up_new);
 	batadv_gw_tvlv_container_update(bat_priv);
 
-end:
 	return count;
 }
 
