@@ -200,6 +200,9 @@ static void bcm47xx_sprom_fill_auto(struct ssb_sprom *sprom,
 	const char *pre = prefix;
 	bool fb = fallback;
 
+	/* Broadcom extracts it for rev 8+ but it was found on 2 and 4 too */
+	ENTRY(0xfffffffe, u16, pre, "devid", dev_id, 0, fallback);
+
 	ENTRY(0xfffffffe, u16, pre, "boardrev", board_rev, 0, true);
 	ENTRY(0xfffffffe, u32, pre, "boardflags", boardflags, 0, fb);
 	ENTRY(0xfffffff0, u32, pre, "boardflags2", boardflags2, 0, fb);
@@ -412,27 +415,6 @@ static void bcm47xx_sprom_fill_auto(struct ssb_sprom *sprom,
 }
 #undef ENTRY /* It's specififc, uses local variable, don't use it (again). */
 
-static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
-					const char *prefix, bool fallback)
-{
-	nvram_read_u16(prefix, NULL, "devid", &sprom->dev_id, 0, fallback);
-	nvram_read_alpha2(prefix, "ccode", sprom->alpha2, fallback);
-}
-
-static void bcm47xx_fill_sprom_r3(struct ssb_sprom *sprom, const char *prefix,
-				  bool fallback)
-{
-	nvram_read_leddc(prefix, "leddc", &sprom->leddc_on_time,
-			 &sprom->leddc_off_time, fallback);
-}
-
-static void bcm47xx_fill_sprom_r4589(struct ssb_sprom *sprom,
-				     const char *prefix, bool fallback)
-{
-	nvram_read_leddc(prefix, "leddc", &sprom->leddc_on_time,
-			 &sprom->leddc_off_time, fallback);
-}
-
 static void bcm47xx_fill_sprom_path_r4589(struct ssb_sprom *sprom,
 					  const char *prefix, bool fallback)
 {
@@ -589,39 +571,22 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix,
 
 	nvram_read_u8(prefix, NULL, "sromrev", &sprom->revision, 0, fallback);
 
+	/* Entries requiring custom functions */
+	nvram_read_alpha2(prefix, "ccode", sprom->alpha2, fallback);
+	if (sprom->revision >= 3)
+		nvram_read_leddc(prefix, "leddc", &sprom->leddc_on_time,
+				 &sprom->leddc_off_time, fallback);
+
 	switch (sprom->revision) {
-	case 1:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		break;
-	case 2:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		break;
-	case 3:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_r3(sprom, prefix, fallback);
-		break;
 	case 4:
 	case 5:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_r4589(sprom, prefix, fallback);
 		bcm47xx_fill_sprom_path_r4589(sprom, prefix, fallback);
 		bcm47xx_fill_sprom_path_r45(sprom, prefix, fallback);
 		break;
 	case 8:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_r4589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_path_r4589(sprom, prefix, fallback);
-		break;
 	case 9:
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
-		bcm47xx_fill_sprom_r4589(sprom, prefix, fallback);
 		bcm47xx_fill_sprom_path_r4589(sprom, prefix, fallback);
 		break;
-	default:
-		pr_warn("Unsupported SPROM revision %d detected. Will extract v1\n",
-			sprom->revision);
-		sprom->revision = 1;
-		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
 	}
 
 	bcm47xx_sprom_fill_auto(sprom, prefix, fallback);
