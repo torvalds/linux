@@ -3271,6 +3271,8 @@ static void batadv_tt_local_purge_pending_clients(struct batadv_priv *bat_priv)
  */
 static void batadv_tt_local_commit_changes_nolock(struct batadv_priv *bat_priv)
 {
+	lockdep_assert_held(&bat_priv->tt.commit_lock);
+
 	/* Update multicast addresses in local translation table */
 	batadv_mcast_mla_update(bat_priv);
 
