@@ -577,16 +577,17 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
 		if (!(cfg & HPET_TN_FSB_CAP))
 			continue;
 
+		hdev->flags = 0;
+		if (cfg & HPET_TN_PERIODIC_CAP)
+			hdev->flags |= HPET_DEV_PERI_CAP;
+		sprintf(hdev->name, "hpet%d", i);
+		hdev->num = i;
+
 		irq = hpet_assign_irq(hpet_domain, hdev, hdev->num);
 		if (irq <= 0)
 			continue;
 
-		sprintf(hdev->name, "hpet%d", i);
-		hdev->num = i;
 		hdev->irq = irq;
-		hdev->flags = 0;
-		if (cfg & HPET_TN_PERIODIC_CAP)
-			hdev->flags |= HPET_DEV_PERI_CAP;
 		hdev->flags |= HPET_DEV_FSB_CAP;
 		hdev->flags |= HPET_DEV_VALID;
 		num_timers_used++;
