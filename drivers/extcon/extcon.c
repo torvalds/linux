@@ -264,6 +264,9 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 	unsigned long flags;
 	bool attached;
 
+	if (!edev)
+		return -EINVAL;
+
 	spin_lock_irqsave(&edev->lock, flags);
 
 	if (edev->state != ((edev->state & ~mask) | (state & mask))) {
@@ -337,6 +340,9 @@ EXPORT_SYMBOL_GPL(extcon_update_state);
  */
 int extcon_set_state(struct extcon_dev *edev, u32 state)
 {
+	if (!edev)
+		return -EINVAL;
+
 	return extcon_update_state(edev, 0xffffffff, state);
 }
 EXPORT_SYMBOL_GPL(extcon_set_state);
@@ -349,6 +355,9 @@ EXPORT_SYMBOL_GPL(extcon_set_state);
 int extcon_get_cable_state_(struct extcon_dev *edev, const unsigned int id)
 {
 	int index;
+
+	if (!edev)
+		return -EINVAL;
 
 	index = find_cable_index_by_id(edev, id);
 	if (index < 0)
@@ -394,6 +403,9 @@ int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
 	u32 state;
 	int index;
 
+	if (!edev)
+		return -EINVAL;
+
 	index = find_cable_index_by_id(edev, id);
 	if (index < 0)
 		return index;
@@ -435,6 +447,9 @@ EXPORT_SYMBOL_GPL(extcon_set_cable_state);
 struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
 {
 	struct extcon_dev *sd;
+
+	if (!extcon_name)
+		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&extcon_dev_list_lock);
 	list_for_each_entry(sd, &extcon_dev_list, entry) {
@@ -564,6 +579,9 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 	unsigned long flags;
 	int ret, idx;
 
+	if (!edev || !nb)
+		return -EINVAL;
+
 	idx = find_cable_index_by_id(edev, id);
 
 	spin_lock_irqsave(&edev->lock, flags);
@@ -585,6 +603,9 @@ int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 {
 	unsigned long flags;
 	int ret, idx;
+
+	if (!edev || !nb)
+		return -EINVAL;
 
 	idx = find_cable_index_by_id(edev, id);
 
@@ -645,6 +666,9 @@ static void dummy_sysfs_dev_release(struct device *dev)
 struct extcon_dev *extcon_dev_allocate(const unsigned int *supported_cable)
 {
 	struct extcon_dev *edev;
+
+	if (!supported_cable)
+		return ERR_PTR(-EINVAL);
 
 	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
 	if (!edev)
@@ -746,7 +770,7 @@ int extcon_dev_register(struct extcon_dev *edev)
 			return ret;
 	}
 
-	if (!edev->supported_cable)
+	if (!edev || !edev->supported_cable)
 		return -EINVAL;
 
 	for (; edev->supported_cable[index] != EXTCON_NONE; index++);
@@ -952,6 +976,9 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 {
 	int index;
 
+	if (!edev)
+		return;
+
 	mutex_lock(&extcon_dev_list_lock);
 	list_del(&edev->entry);
 	mutex_unlock(&extcon_dev_list_lock);
@@ -1057,6 +1084,9 @@ struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 {
 	struct device_node *node;
 	struct extcon_dev *edev;
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
 
 	if (!dev->of_node) {
 		dev_err(dev, "device does not have a device node entry\n");
