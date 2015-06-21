@@ -63,6 +63,13 @@ struct dm_snapshot {
 	 */
 	int valid;
 
+	/*
+	 * The snapshot overflowed because of a write to the snapshot device.
+	 * We don't have to invalidate the snapshot in this case, but we need
+	 * to prevent further writes.
+	 */
+	int snapshot_overflowed;
+
 	/* Origin writes don't trigger exceptions until this is set */
 	int active;
 
@@ -1152,6 +1159,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	s->ti = ti;
 	s->valid = 1;
+	s->snapshot_overflowed = 0;
 	s->active = 0;
 	atomic_set(&s->pending_exceptions_count, 0);
 	s->exception_start_sequence = 0;
@@ -1301,6 +1309,7 @@ static void __handover_exceptions(struct dm_snapshot *snap_src,
 
 	snap_dest->ti->max_io_len = snap_dest->store->chunk_size;
 	snap_dest->valid = snap_src->valid;
+	snap_dest->snapshot_overflowed = snap_src->snapshot_overflowed;
 
 	/*
 	 * Set source invalid to ensure it receives no further I/O.
@@ -1691,7 +1700,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	 * to copy an exception */
 	down_write(&s->lock);
 
-	if (!s->valid) {
+	if (!s->valid || (unlikely(s->snapshot_overflowed) && bio_rw(bio) == WRITE)) {
 		r = -EIO;
 		goto out_unlock;
 	}
@@ -1715,7 +1724,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 			pe = alloc_pending_exception(s);
 			down_write(&s->lock);
 
-			if (!s->valid) {
+			if (!s->valid || s->snapshot_overflowed) {
 				free_pending_exception(pe);
 				r = -EIO;
 				goto out_unlock;
@@ -1730,7 +1739,8 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 
 			pe = __find_pending_exception(s, pe, chunk);
 			if (!pe) {
-				__invalidate_snapshot(s, -ENOMEM);
+				s->snapshot_overflowed = 1;
+				DMERR("Snapshot overflowed: Unable to allocate exception.");
 				r = -EIO;
 				goto out_unlock;
 			}
@@ -1990,6 +2000,8 @@ static void snapshot_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("Invalid");
 		else if (snap->merge_failed)
 			DMEMIT("Merge failed");
+		else if (snap->snapshot_overflowed)
+			DMEMIT("Overflow");
 		else {
 			if (snap->store->type->usage) {
 				sector_t total_sectors, sectors_allocated,
@@ -2368,7 +2380,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 13, 0},
+	.version = {1, 14, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
