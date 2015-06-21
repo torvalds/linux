@@ -121,9 +121,8 @@ static struct irq_chip combiner_chip = {
 static void __init combiner_cascade_irq(struct combiner_chip_data *combiner_data,
 					unsigned int irq)
 {
-	if (irq_set_handler_data(irq, combiner_data) != 0)
-		BUG();
-	irq_set_chained_handler(irq, combiner_handle_cascade_irq);
+	irq_set_chained_handler_and_data(irq, combiner_handle_cascade_irq,
+					 combiner_data);
 }
 
 static void __init combiner_init_one(struct combiner_chip_data *combiner_data,
