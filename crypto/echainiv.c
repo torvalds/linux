@@ -197,8 +197,13 @@ static int echainiv_init(struct crypto_tfm *tfm)
 
 	crypto_aead_set_reqsize(geniv, sizeof(struct aead_request));
 
+	err = crypto_get_default_rng();
+	if (err)
+		goto out;
+
 	err = crypto_rng_get_bytes(crypto_default_rng, ctx->salt,
 				   crypto_aead_ivsize(geniv));
+	crypto_put_default_rng();
 	if (err)
 		goto out;
 
@@ -277,35 +282,14 @@ free_inst:
 	goto out;
 }
 
-static int echainiv_create(struct crypto_template *tmpl, struct rtattr **tb)
-{
-	int err;
-
-	err = crypto_get_default_rng();
-	if (err)
-		goto out;
-
-	err = echainiv_aead_create(tmpl, tb);
-	if (err)
-		goto put_rng;
-
-out:
-	return err;
-
-put_rng:
-	crypto_put_default_rng();
-	goto out;
-}
-
 static void echainiv_free(struct crypto_instance *inst)
 {
 	aead_geniv_free(aead_instance(inst));
-	crypto_put_default_rng();
 }
 
 static struct crypto_template echainiv_tmpl = {
 	.name = "echainiv",
-	.create = echainiv_create,
+	.create = echainiv_aead_create,
 	.free = echainiv_free,
 	.module = THIS_MODULE,
 };
