@@ -331,9 +331,8 @@ void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 {
 	if (gic_nr >= MAX_GIC_NR)
 		BUG();
-	if (irq_set_handler_data(irq, &gic_data[gic_nr]) != 0)
-		BUG();
-	irq_set_chained_handler(irq, gic_handle_cascade_irq);
+	irq_set_chained_handler_and_data(irq, gic_handle_cascade_irq,
+					 &gic_data[gic_nr]);
 }
 
 static u8 gic_get_cpumask(struct gic_chip_data *gic)
