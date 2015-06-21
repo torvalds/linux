@@ -173,8 +173,8 @@ static int __init of_tb10x_init_irq(struct device_node *ictl,
 	for (i = 0; i < nrirqs; i++) {
 		unsigned int irq = irq_of_parse_and_map(ictl, i);
 
-		irq_set_handler_data(irq, domain);
-		irq_set_chained_handler(irq, tb10x_irq_cascade);
+		irq_set_chained_handler_and_data(irq, tb10x_irq_cascade,
+						 domain);
 	}
 
 	ab_irqctl_writereg(gc, AB_IRQCTL_INT_ENABLE, 0);
