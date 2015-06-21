@@ -451,13 +451,13 @@ static int pdc_intc_probe(struct platform_device *pdev)
 	/* Setup chained handlers for the peripheral IRQs */
 	for (i = 0; i < priv->nr_perips; ++i) {
 		irq = priv->perip_irqs[i];
-		irq_set_handler_data(irq, priv);
-		irq_set_chained_handler(irq, pdc_intc_perip_isr);
+		irq_set_chained_handler_and_data(irq, pdc_intc_perip_isr,
+						 priv);
 	}
 
 	/* Setup chained handler for the syswake IRQ */
-	irq_set_handler_data(priv->syswake_irq, priv);
-	irq_set_chained_handler(priv->syswake_irq, pdc_intc_syswake_isr);
+	irq_set_chained_handler_and_data(priv->syswake_irq,
+					 pdc_intc_syswake_isr, priv);
 
 	dev_info(&pdev->dev,
 		 "PDC IRQ controller initialised (%u perip IRQs, %u syswake IRQs)\n",
