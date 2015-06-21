@@ -212,9 +212,9 @@ static void ks_pcie_setup_interrupts(struct keystone_pcie *ks_pcie)
 
 	/* Legacy IRQ */
 	for (i = 0; i < ks_pcie->num_legacy_host_irqs; i++) {
-		irq_set_handler_data(ks_pcie->legacy_host_irqs[i], ks_pcie);
-		irq_set_chained_handler(ks_pcie->legacy_host_irqs[i],
-					ks_pcie_legacy_irq_handler);
+		irq_set_chained_handler_and_data(ks_pcie->legacy_host_irqs[i],
+						 ks_pcie_legacy_irq_handler,
+						 ks_pcie);
 	}
 	ks_dw_pcie_enable_legacy_irqs(ks_pcie);
 
