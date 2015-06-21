@@ -197,8 +197,8 @@ static int __init orion_bridge_irq_init(struct device_node *np,
 	writel(0, gc->reg_base + ORION_BRIDGE_IRQ_MASK);
 	writel(0, gc->reg_base + ORION_BRIDGE_IRQ_CAUSE);
 
-	irq_set_handler_data(irq, domain);
-	irq_set_chained_handler(irq, orion_bridge_irq_handler);
+	irq_set_chained_handler_and_data(irq, orion_bridge_irq_handler,
+					 domain);
 
 	return 0;
 }
