@@ -724,7 +724,7 @@ static struct rbd_client *rbd_client_find(struct ceph_options *ceph_opts)
 }
 
 /*
- * mount options
+ * (Per device) rbd map options
  */
 enum {
 	Opt_last_int,
@@ -733,8 +733,7 @@ enum {
 	/* string args above */
 	Opt_read_only,
 	Opt_read_write,
-	/* Boolean args above */
-	Opt_last_bool,
+	Opt_err
 };
 
 static match_table_t rbd_opts_tokens = {
@@ -744,8 +743,7 @@ static match_table_t rbd_opts_tokens = {
 	{Opt_read_only, "ro"},		/* Alternate spelling */
 	{Opt_read_write, "read_write"},
 	{Opt_read_write, "rw"},		/* Alternate spelling */
-	/* Boolean args above */
-	{-1, NULL}
+	{Opt_err, NULL}
 };
 
 struct rbd_options {
@@ -761,22 +759,15 @@ static int parse_rbd_opts_token(char *c, void *private)
 	int token, intval, ret;
 
 	token = match_token(c, rbd_opts_tokens, argstr);
-	if (token < 0)
-		return -EINVAL;
-
 	if (token < Opt_last_int) {
 		ret = match_int(&argstr[0], &intval);
 		if (ret < 0) {
-			pr_err("bad mount option arg (not int) "
-			       "at '%s'\n", c);
+			pr_err("bad mount option arg (not int) at '%s'\n", c);
 			return ret;
 		}
 		dout("got int token %d val %d\n", token, intval);
 	} else if (token > Opt_last_int && token < Opt_last_string) {
-		dout("got string token %d val %s\n", token,
-		     argstr[0].from);
-	} else if (token > Opt_last_string && token < Opt_last_bool) {
-		dout("got Boolean token %d\n", token);
+		dout("got string token %d val %s\n", token, argstr[0].from);
 	} else {
 		dout("got token %d\n", token);
 	}
@@ -789,9 +780,10 @@ static int parse_rbd_opts_token(char *c, void *private)
 		rbd_opts->read_only = false;
 		break;
 	default:
-		rbd_assert(false);
-		break;
+		/* libceph prints "bad option" msg */
+		return -EINVAL;
 	}
+
 	return 0;
 }
 
