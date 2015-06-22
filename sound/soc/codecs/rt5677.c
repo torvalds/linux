@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/firmware.h>
+#include <linux/property.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -5021,27 +5022,29 @@ static const struct i2c_device_id rt5677_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
 
-static int rt5677_parse_dt(struct rt5677_priv *rt5677, struct device_node *np)
+static void rt5677_read_device_properties(struct rt5677_priv *rt5677,
+		struct device *dev)
 {
-	rt5677->pdata.in1_diff = of_property_read_bool(np,
-					"realtek,in1-differential");
-	rt5677->pdata.in2_diff = of_property_read_bool(np,
-					"realtek,in2-differential");
-	rt5677->pdata.lout1_diff = of_property_read_bool(np,
-					"realtek,lout1-differential");
-	rt5677->pdata.lout2_diff = of_property_read_bool(np,
-					"realtek,lout2-differential");
-	rt5677->pdata.lout3_diff = of_property_read_bool(np,
-					"realtek,lout3-differential");
+	rt5677->pdata.in1_diff = device_property_read_bool(dev,
+			"realtek,in1-differential");
+	rt5677->pdata.in2_diff = device_property_read_bool(dev,
+			"realtek,in2-differential");
+	rt5677->pdata.lout1_diff = device_property_read_bool(dev,
+			"realtek,lout1-differential");
+	rt5677->pdata.lout2_diff = device_property_read_bool(dev,
+			"realtek,lout2-differential");
+	rt5677->pdata.lout3_diff = device_property_read_bool(dev,
+			"realtek,lout3-differential");
 
-	of_property_read_u8_array(np, "realtek,gpio-config",
-		rt5677->pdata.gpio_config, RT5677_GPIO_NUM);
+	device_property_read_u8_array(dev, "realtek,gpio-config",
+			rt5677->pdata.gpio_config, RT5677_GPIO_NUM);
 
-	of_property_read_u32(np, "realtek,jd1-gpio", &rt5677->pdata.jd1_gpio);
-	of_property_read_u32(np, "realtek,jd2-gpio", &rt5677->pdata.jd2_gpio);
-	of_property_read_u32(np, "realtek,jd3-gpio", &rt5677->pdata.jd3_gpio);
-
-	return 0;
+	device_property_read_u32(dev, "realtek,jd1-gpio",
+			&rt5677->pdata.jd1_gpio);
+	device_property_read_u32(dev, "realtek,jd2-gpio",
+			&rt5677->pdata.jd2_gpio);
+	device_property_read_u32(dev, "realtek,jd3-gpio",
+			&rt5677->pdata.jd3_gpio);
 }
 
 static struct regmap_irq rt5677_irqs[] = {
@@ -5124,18 +5127,8 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5677->pdata = *pdata;
-
-	if (i2c->dev.of_node) {
-		ret = rt5677_parse_dt(rt5677, i2c->dev.of_node);
-		if (ret) {
-			dev_err(&i2c->dev, "Failed to parse device tree: %d\n",
-				ret);
-			return ret;
-		}
-	} else {
-		rt5677->pow_ldo2 = -EINVAL;
-		rt5677->reset_pin = -EINVAL;
-	}
+	else
+		rt5677_read_device_properties(rt5677, &i2c->dev);
 
 	/* pow-ldo2 and reset are optional. The codec pins may be statically
 	 * connected on the board without gpios. If the gpio device property
