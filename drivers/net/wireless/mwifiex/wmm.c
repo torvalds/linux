@@ -803,7 +803,10 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 		atomic_set(&priv->wmm.highest_queued_prio,
 			   priv->tos_to_tid_inv[tid_down]);
 
-	atomic_inc(&priv->wmm.tx_pkts_queued);
+	if (ra_list->tx_paused)
+		priv->wmm.pkts_paused[tid_down]++;
+	else
+		atomic_inc(&priv->wmm.tx_pkts_queued);
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 }
