@@ -1207,7 +1207,7 @@
 				clock-names = "adc_clk", "adc_op_clk";
 				atmel,adc-channels-used = <0x01f>;
 				atmel,adc-startup-time = <40>;
-				atmel,adc-use-external;
+				atmel,adc-use-external-triggers;
 				atmel,adc-vref = <3000>;
 				atmel,adc-res = <8 10>;
 				atmel,adc-sample-hold-time = <11>;
