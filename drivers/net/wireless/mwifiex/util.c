@@ -531,6 +531,65 @@ mwifiex_get_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 	return NULL;
 }
 
+static struct mwifiex_sta_node *
+mwifiex_get_tdls_sta_entry(struct mwifiex_private *priv, u8 status)
+{
+	struct mwifiex_sta_node *node;
+
+	list_for_each_entry(node, &priv->sta_list, list) {
+		if (node->tdls_status == status)
+			return node;
+	}
+
+	return NULL;
+}
+
+/* If tdls channel switching is on-going, tx data traffic should be
+ * blocked until the switching stage completed.
+ */
+u8 mwifiex_is_tdls_chan_switching(struct mwifiex_private *priv)
+{
+	struct mwifiex_sta_node *sta_ptr;
+
+	if (!priv || !ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+		return false;
+
+	sta_ptr = mwifiex_get_tdls_sta_entry(priv, TDLS_CHAN_SWITCHING);
+	if (sta_ptr)
+		return true;
+
+	return false;
+}
+
+u8 mwifiex_is_tdls_off_chan(struct mwifiex_private *priv)
+{
+	struct mwifiex_sta_node *sta_ptr;
+
+	if (!priv || !ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+		return false;
+
+	sta_ptr = mwifiex_get_tdls_sta_entry(priv, TDLS_IN_OFF_CHAN);
+	if (sta_ptr)
+		return true;
+
+	return false;
+}
+
+/* If tdls channel switching is on-going or tdls operate on off-channel,
+ * cmd path should be blocked until tdls switched to base-channel.
+ */
+u8 mwifiex_is_send_cmd_allowed(struct mwifiex_private *priv)
+{
+	if (!priv || !ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+		return true;
+
+	if (mwifiex_is_tdls_chan_switching(priv) ||
+	    mwifiex_is_tdls_off_chan(priv))
+		return false;
+
+	return true;
+}
+
 /* This function will add a sta_node entry to associated station list
  * table with the given mac address.
  * If entry exist already, existing entry is returned.
