@@ -1163,6 +1163,8 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 	struct drm_dp_mst_port *port;
 	int i;
 	/* find the port by iterating down */
+
+	mutex_lock(&mgr->lock);
 	mstb = mgr->mst_primary;
 
 	for (i = 0; i < lct - 1; i++) {
@@ -1182,6 +1184,7 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 		}
 	}
 	kref_get(&mstb->kref);
+	mutex_unlock(&mgr->lock);
 	return mstb;
 }
 
