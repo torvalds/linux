@@ -35,16 +35,33 @@ static const struct ieee80211_iface_limit mwifiex_ap_sta_limits[] = {
 	},
 };
 
-static const struct ieee80211_iface_combination mwifiex_iface_comb_ap_sta = {
+static const struct ieee80211_iface_combination
+mwifiex_iface_comb_ap_sta = {
 	.limits = mwifiex_ap_sta_limits,
 	.num_different_channels = 1,
 	.n_limits = ARRAY_SIZE(mwifiex_ap_sta_limits),
 	.max_interfaces = MWIFIEX_MAX_BSS_NUM,
 	.beacon_int_infra_match = true,
+	.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+				BIT(NL80211_CHAN_WIDTH_20) |
+				BIT(NL80211_CHAN_WIDTH_40),
+};
+
+static const struct ieee80211_iface_combination
+mwifiex_iface_comb_ap_sta_vht = {
+	.limits = mwifiex_ap_sta_limits,
+	.num_different_channels = 1,
+	.n_limits = ARRAY_SIZE(mwifiex_ap_sta_limits),
+	.max_interfaces = MWIFIEX_MAX_BSS_NUM,
+	.beacon_int_infra_match = true,
+	.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+				BIT(NL80211_CHAN_WIDTH_20) |
+				BIT(NL80211_CHAN_WIDTH_40) |
+				BIT(NL80211_CHAN_WIDTH_80),
 };
 
 static const struct
-ieee80211_iface_combination mwifiex_drcs_iface_comb_ap_sta = {
+ieee80211_iface_combination mwifiex_iface_comb_ap_sta_drcs = {
 	.limits = mwifiex_ap_sta_limits,
 	.num_different_channels = 2,
 	.n_limits = ARRAY_SIZE(mwifiex_ap_sta_limits),
@@ -3755,7 +3772,9 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 		wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 
 	if (adapter->drcs_enabled && ISSUPP_DRCS_ENABLED(adapter->fw_cap_info))
-		wiphy->iface_combinations = &mwifiex_drcs_iface_comb_ap_sta;
+		wiphy->iface_combinations = &mwifiex_iface_comb_ap_sta_drcs;
+	else if (adapter->is_hw_11ac_capable)
+		wiphy->iface_combinations = &mwifiex_iface_comb_ap_sta_vht;
 	else
 		wiphy->iface_combinations = &mwifiex_iface_comb_ap_sta;
 	wiphy->n_iface_combinations = 1;
