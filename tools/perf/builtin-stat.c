@@ -141,16 +141,6 @@ static inline void diff_timespec(struct timespec *r, struct timespec *a,
 	}
 }
 
-static inline struct cpu_map *perf_evsel__cpus(struct perf_evsel *evsel)
-{
-	return (evsel->cpus && !target.cpu_list) ? evsel->cpus : evsel_list->cpus;
-}
-
-static inline int perf_evsel__nr_cpus(struct perf_evsel *evsel)
-{
-	return perf_evsel__cpus(evsel)->nr;
-}
-
 static void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
 {
 	int i;
