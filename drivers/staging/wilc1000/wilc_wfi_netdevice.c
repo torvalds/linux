@@ -886,8 +886,9 @@ int WILC_WFI_InitModule(void)
 	int result, i, ret = -ENOMEM;
 	struct WILC_WFI_priv *priv[2], *netpriv;
 	struct wireless_dev *wdev;
-	WILC_WFI_Interrupt = use_napi ? WILC_WFI_NapiInterrupt : WILC_WFI_RegularInterrupt;
 	char buf[IFNAMSIZ];
+
+	WILC_WFI_Interrupt = use_napi ? WILC_WFI_NapiInterrupt : WILC_WFI_RegularInterrupt;
 
 	for (i = 0; i < 2; i++)	{
 
