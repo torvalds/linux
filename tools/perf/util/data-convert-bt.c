@@ -14,6 +14,7 @@
 #include <babeltrace/ctf-writer/event.h>
 #include <babeltrace/ctf-writer/event-types.h>
 #include <babeltrace/ctf-writer/event-fields.h>
+#include <babeltrace/ctf-ir/utils.h>
 #include <babeltrace/ctf/events.h>
 #include <traceevent/event-parse.h>
 #include "asm/bug.h"
@@ -38,12 +39,21 @@ struct evsel_priv {
 	struct bt_ctf_event_class *event_class;
 };
 
+#define MAX_CPUS	4096
+
+struct ctf_stream {
+	struct bt_ctf_stream *stream;
+	int cpu;
+	u32 count;
+};
+
 struct ctf_writer {
 	/* writer primitives */
-	struct bt_ctf_writer		*writer;
-	struct bt_ctf_stream		*stream;
-	struct bt_ctf_stream_class	*stream_class;
-	struct bt_ctf_clock		*clock;
+	struct bt_ctf_writer		 *writer;
+	struct ctf_stream		**stream;
+	int				  stream_cnt;
+	struct bt_ctf_stream_class	 *stream_class;
+	struct bt_ctf_clock		 *clock;
 
 	/* data types */
 	union {
@@ -65,6 +75,9 @@ struct convert {
 
 	u64			events_size;
 	u64			events_count;
+
+	/* Ordered events configured queue size. */
+	u64			queue_size;
 };
 
 static int value_set(struct bt_ctf_field_type *type,
@@ -153,6 +166,43 @@ get_tracepoint_field_type(struct ctf_writer *cw, struct format_field *field)
 		return cw->data.u32;
 }
 
+static unsigned long long adjust_signedness(unsigned long long value_int, int size)
+{
+	unsigned long long value_mask;
+
+	/*
+	 * value_mask = (1 << (size * 8 - 1)) - 1.
+	 * Directly set value_mask for code readers.
+	 */
+	switch (size) {
+	case 1:
+		value_mask = 0x7fULL;
+		break;
+	case 2:
+		value_mask = 0x7fffULL;
+		break;
+	case 4:
+		value_mask = 0x7fffffffULL;
+		break;
+	case 8:
+		/*
+		 * For 64 bit value, return it self. There is no need
+		 * to fill high bit.
+		 */
+		/* Fall through */
+	default:
+		/* BUG! */
+		return value_int;
+	}
+
+	/* If it is a positive value, don't adjust. */
+	if ((value_int & (~0ULL - value_mask)) == 0)
+		return value_int;
+
+	/* Fill upper part of value_int with 1 to make it a negative long long. */
+	return (value_int & value_mask) | ~value_mask;
+}
+
 static int add_tracepoint_field_value(struct ctf_writer *cw,
 				      struct bt_ctf_event_class *event_class,
 				      struct bt_ctf_event *event,
@@ -164,7 +214,6 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	struct bt_ctf_field *field;
 	const char *name = fmtf->name;
 	void *data = sample->raw_data;
-	unsigned long long value_int;
 	unsigned long flags = fmtf->flags;
 	unsigned int n_items;
 	unsigned int i;
@@ -172,6 +221,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	unsigned int len;
 	int ret;
 
+	name = fmtf->alias;
 	offset = fmtf->offset;
 	len = fmtf->size;
 	if (flags & FIELD_IS_STRING)
@@ -208,11 +258,6 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	type = get_tracepoint_field_type(cw, fmtf);
 
 	for (i = 0; i < n_items; i++) {
-		if (!(flags & FIELD_IS_STRING))
-			value_int = pevent_read_number(
-					fmtf->event->pevent,
-					data + offset + i * len, len);
-
 		if (flags & FIELD_IS_ARRAY)
 			field = bt_ctf_field_array_get_field(array_field, i);
 		else
@@ -226,12 +271,21 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 		if (flags & FIELD_IS_STRING)
 			ret = bt_ctf_field_string_set_value(field,
 					data + offset + i * len);
-		else if (!(flags & FIELD_IS_SIGNED))
-			ret = bt_ctf_field_unsigned_integer_set_value(
-					field, value_int);
-		else
-			ret = bt_ctf_field_signed_integer_set_value(
-					field, value_int);
+		else {
+			unsigned long long value_int;
+
+			value_int = pevent_read_number(
+					fmtf->event->pevent,
+					data + offset + i * len, len);
+
+			if (!(flags & FIELD_IS_SIGNED))
+				ret = bt_ctf_field_unsigned_integer_set_value(
+						field, value_int);
+			else
+				ret = bt_ctf_field_signed_integer_set_value(
+						field, adjust_signedness(value_int, len));
+		}
+
 		if (ret) {
 			pr_err("failed to set file value %s\n", name);
 			goto err_put_field;
@@ -346,12 +400,6 @@ static int add_generic_values(struct ctf_writer *cw,
 			return -1;
 	}
 
-	if (type & PERF_SAMPLE_CPU) {
-		ret = value_set_u32(cw, event, "perf_cpu", sample->cpu);
-		if (ret)
-			return -1;
-	}
-
 	if (type & PERF_SAMPLE_PERIOD) {
 		ret = value_set_u64(cw, event, "perf_period", sample->period);
 		if (ret)
@@ -381,6 +429,129 @@ static int add_generic_values(struct ctf_writer *cw,
 	return 0;
 }
 
+static int ctf_stream__flush(struct ctf_stream *cs)
+{
+	int err = 0;
+
+	if (cs) {
+		err = bt_ctf_stream_flush(cs->stream);
+		if (err)
+			pr_err("CTF stream %d flush failed\n", cs->cpu);
+
+		pr("Flush stream for cpu %d (%u samples)\n",
+		   cs->cpu, cs->count);
+
+		cs->count = 0;
+	}
+
+	return err;
+}
+
+static struct ctf_stream *ctf_stream__create(struct ctf_writer *cw, int cpu)
+{
+	struct ctf_stream *cs;
+	struct bt_ctf_field *pkt_ctx   = NULL;
+	struct bt_ctf_field *cpu_field = NULL;
+	struct bt_ctf_stream *stream   = NULL;
+	int ret;
+
+	cs = zalloc(sizeof(*cs));
+	if (!cs) {
+		pr_err("Failed to allocate ctf stream\n");
+		return NULL;
+	}
+
+	stream = bt_ctf_writer_create_stream(cw->writer, cw->stream_class);
+	if (!stream) {
+		pr_err("Failed to create CTF stream\n");
+		goto out;
+	}
+
+	pkt_ctx = bt_ctf_stream_get_packet_context(stream);
+	if (!pkt_ctx) {
+		pr_err("Failed to obtain packet context\n");
+		goto out;
+	}
+
+	cpu_field = bt_ctf_field_structure_get_field(pkt_ctx, "cpu_id");
+	bt_ctf_field_put(pkt_ctx);
+	if (!cpu_field) {
+		pr_err("Failed to obtain cpu field\n");
+		goto out;
+	}
+
+	ret = bt_ctf_field_unsigned_integer_set_value(cpu_field, (u32) cpu);
+	if (ret) {
+		pr_err("Failed to update CPU number\n");
+		goto out;
+	}
+
+	bt_ctf_field_put(cpu_field);
+
+	cs->cpu    = cpu;
+	cs->stream = stream;
+	return cs;
+
+out:
+	if (cpu_field)
+		bt_ctf_field_put(cpu_field);
+	if (stream)
+		bt_ctf_stream_put(stream);
+
+	free(cs);
+	return NULL;
+}
+
+static void ctf_stream__delete(struct ctf_stream *cs)
+{
+	if (cs) {
+		bt_ctf_stream_put(cs->stream);
+		free(cs);
+	}
+}
+
+static struct ctf_stream *ctf_stream(struct ctf_writer *cw, int cpu)
+{
+	struct ctf_stream *cs = cw->stream[cpu];
+
+	if (!cs) {
+		cs = ctf_stream__create(cw, cpu);
+		cw->stream[cpu] = cs;
+	}
+
+	return cs;
+}
+
+static int get_sample_cpu(struct ctf_writer *cw, struct perf_sample *sample,
+			  struct perf_evsel *evsel)
+{
+	int cpu = 0;
+
+	if (evsel->attr.sample_type & PERF_SAMPLE_CPU)
+		cpu = sample->cpu;
+
+	if (cpu > cw->stream_cnt) {
+		pr_err("Event was recorded for CPU %d, limit is at %d.\n",
+			cpu, cw->stream_cnt);
+		cpu = 0;
+	}
+
+	return cpu;
+}
+
+#define STREAM_FLUSH_COUNT 100000
+
+/*
+ * Currently we have no other way to determine the
+ * time for the stream flush other than keep track
+ * of the number of events and check it against
+ * threshold.
+ */
+static bool is_flush_needed(struct ctf_stream *cs)
+{
+	return cs->count >= STREAM_FLUSH_COUNT;
+}
+
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *_event __maybe_unused,
 				struct perf_sample *sample,
@@ -390,6 +561,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct convert *c = container_of(tool, struct convert, tool);
 	struct evsel_priv *priv = evsel->priv;
 	struct ctf_writer *cw = &c->writer;
+	struct ctf_stream *cs;
 	struct bt_ctf_event_class *event_class;
 	struct bt_ctf_event *event;
 	int ret;
@@ -424,9 +596,93 @@ static int process_sample_event(struct perf_tool *tool,
 			return -1;
 	}
 
-	bt_ctf_stream_append_event(cw->stream, event);
+	cs = ctf_stream(cw, get_sample_cpu(cw, sample, evsel));
+	if (cs) {
+		if (is_flush_needed(cs))
+			ctf_stream__flush(cs);
+
+		cs->count++;
+		bt_ctf_stream_append_event(cs->stream, event);
+	}
+
 	bt_ctf_event_put(event);
-	return 0;
+	return cs ? 0 : -1;
+}
+
+/* If dup < 0, add a prefix. Else, add _dupl_X suffix. */
+static char *change_name(char *name, char *orig_name, int dup)
+{
+	char *new_name = NULL;
+	size_t len;
+
+	if (!name)
+		name = orig_name;
+
+	if (dup >= 10)
+		goto out;
+	/*
+	 * Add '_' prefix to potential keywork.  According to
+	 * Mathieu Desnoyers (https://lkml.org/lkml/2015/1/23/652),
+	 * futher CTF spec updating may require us to use '$'.
+	 */
+	if (dup < 0)
+		len = strlen(name) + sizeof("_");
+	else
+		len = strlen(orig_name) + sizeof("_dupl_X");
+
+	new_name = malloc(len);
+	if (!new_name)
+		goto out;
+
+	if (dup < 0)
+		snprintf(new_name, len, "_%s", name);
+	else
+		snprintf(new_name, len, "%s_dupl_%d", orig_name, dup);
+
+out:
+	if (name != orig_name)
+		free(name);
+	return new_name;
+}
+
+static int event_class_add_field(struct bt_ctf_event_class *event_class,
+		struct bt_ctf_field_type *type,
+		struct format_field *field)
+{
+	struct bt_ctf_field_type *t = NULL;
+	char *name;
+	int dup = 1;
+	int ret;
+
+	/* alias was already assigned */
+	if (field->alias != field->name)
+		return bt_ctf_event_class_add_field(event_class, type,
+				(char *)field->alias);
+
+	name = field->name;
+
+	/* If 'name' is a keywork, add prefix. */
+	if (bt_ctf_validate_identifier(name))
+		name = change_name(name, field->name, -1);
+
+	if (!name) {
+		pr_err("Failed to fix invalid identifier.");
+		return -1;
+	}
+	while ((t = bt_ctf_event_class_get_field_by_name(event_class, name))) {
+		bt_ctf_field_type_put(t);
+		name = change_name(name, field->name, dup++);
+		if (!name) {
+			pr_err("Failed to create dup name for '%s'\n", field->name);
+			return -1;
+		}
+	}
+
+	ret = bt_ctf_event_class_add_field(event_class, type, name);
+	if (!ret)
+		field->alias = name;
+
+	return ret;
 }
 
 static int add_tracepoint_fields_types(struct ctf_writer *cw,
@@ -457,14 +713,14 @@ static int add_tracepoint_fields_types(struct ctf_writer *cw,
 		if (flags & FIELD_IS_ARRAY)
 			type = bt_ctf_field_type_array_create(type, field->arraylen);
 
-		ret = bt_ctf_event_class_add_field(event_class, type,
-				field->name);
+		ret = event_class_add_field(event_class, type, field);
 
 		if (flags & FIELD_IS_ARRAY)
 			bt_ctf_field_type_put(type);
 
 		if (ret) {
-			pr_err("Failed to add field '%s\n", field->name);
+			pr_err("Failed to add field '%s': %d\n",
+					field->name, ret);
 			return -1;
 		}
 	}
@@ -508,7 +764,7 @@ static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 	do {								\
 		pr2("  field '%s'\n", n);				\
 		if (bt_ctf_event_class_add_field(cl, t, n)) {		\
-			pr_err("Failed to add field '%s;\n", n);	\
+			pr_err("Failed to add field '%s';\n", n);	\
 			return -1;					\
 		}							\
 	} while (0)
@@ -527,9 +783,6 @@ static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 
 	if (type & PERF_SAMPLE_STREAM_ID)
 		ADD_FIELD(event_class, cw->data.u64, "perf_stream_id");
-
-	if (type & PERF_SAMPLE_CPU)
-		ADD_FIELD(event_class, cw->data.u32, "perf_cpu");
 
 	if (type & PERF_SAMPLE_PERIOD)
 		ADD_FIELD(event_class, cw->data.u64, "perf_period");
@@ -602,6 +855,39 @@ static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 			return ret;
 	}
 	return 0;
+}
+
+static int setup_streams(struct ctf_writer *cw, struct perf_session *session)
+{
+	struct ctf_stream **stream;
+	struct perf_header *ph = &session->header;
+	int ncpus;
+
+	/*
+	 * Try to get the number of cpus used in the data file,
+	 * if not present fallback to the MAX_CPUS.
+	 */
+	ncpus = ph->env.nr_cpus_avail ?: MAX_CPUS;
+
+	stream = zalloc(sizeof(*stream) * ncpus);
+	if (!stream) {
+		pr_err("Failed to allocate streams.\n");
+		return -ENOMEM;
+	}
+
+	cw->stream     = stream;
+	cw->stream_cnt = ncpus;
+	return 0;
+}
+
+static void free_streams(struct ctf_writer *cw)
+{
+	int cpu;
+
+	for (cpu = 0; cpu < cw->stream_cnt; cpu++)
+		ctf_stream__delete(cw->stream[cpu]);
+
+	free(cw->stream);
 }
 
 static int ctf_writer__setup_env(struct ctf_writer *cw,
@@ -713,7 +999,7 @@ static void ctf_writer__cleanup(struct ctf_writer *cw)
 	ctf_writer__cleanup_data(cw);
 
 	bt_ctf_clock_put(cw->clock);
-	bt_ctf_stream_put(cw->stream);
+	free_streams(cw);
 	bt_ctf_stream_class_put(cw->stream_class);
 	bt_ctf_writer_put(cw->writer);
 
@@ -725,8 +1011,9 @@ static int ctf_writer__init(struct ctf_writer *cw, const char *path)
 {
 	struct bt_ctf_writer		*writer;
 	struct bt_ctf_stream_class	*stream_class;
-	struct bt_ctf_stream		*stream;
 	struct bt_ctf_clock		*clock;
+	struct bt_ctf_field_type	*pkt_ctx_type;
+	int				ret;
 
 	/* CTF writer */
 	writer = bt_ctf_writer_create(path);
@@ -767,14 +1054,15 @@ static int ctf_writer__init(struct ctf_writer *cw, const char *path)
 	if (ctf_writer__init_data(cw))
 		goto err_cleanup;
 
-	/* CTF stream instance */
-	stream = bt_ctf_writer_create_stream(writer, stream_class);
-	if (!stream) {
-		pr("Failed to create CTF stream.\n");
+	/* Add cpu_id for packet context */
+	pkt_ctx_type = bt_ctf_stream_class_get_packet_context_type(stream_class);
+	if (!pkt_ctx_type)
 		goto err_cleanup;
-	}
 
-	cw->stream = stream;
+	ret = bt_ctf_field_type_structure_add_field(pkt_ctx_type, cw->data.u32, "cpu_id");
+	bt_ctf_field_type_put(pkt_ctx_type);
+	if (ret)
+		goto err_cleanup;
 
 	/* CTF clock writer setup */
 	if (bt_ctf_writer_add_clock(writer, clock)) {
@@ -789,6 +1077,28 @@ err_cleanup:
 err:
 	pr_err("Failed to setup CTF writer.\n");
 	return -1;
+}
+
+static int ctf_writer__flush_streams(struct ctf_writer *cw)
+{
+	int cpu, ret = 0;
+
+	for (cpu = 0; cpu < cw->stream_cnt && !ret; cpu++)
+		ret = ctf_stream__flush(cw->stream[cpu]);
+
+	return ret;
+}
+
+static int convert__config(const char *var, const char *value, void *cb)
+{
+	struct convert *c = cb;
+
+	if (!strcmp(var, "convert.queue-size")) {
+		c->queue_size = perf_config_u64(var, value);
+		return 0;
+	}
+
+	return perf_default_config(var, value, cb);
 }
 
 int bt_convert__perf2ctf(const char *input, const char *path, bool force)
@@ -817,6 +1127,8 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 	struct ctf_writer *cw = &c.writer;
 	int err = -1;
 
+	perf_config(convert__config, &c);
+
 	/* CTF writer */
 	if (ctf_writer__init(cw, path))
 		return -1;
@@ -826,6 +1138,11 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 	if (!session)
 		goto free_writer;
 
+	if (c.queue_size) {
+		ordered_events__set_alloc_size(&session->ordered_events,
+					       c.queue_size);
+	}
+
 	/* CTF writer env/clock setup  */
 	if (ctf_writer__setup_env(cw, session))
 		goto free_session;
@@ -834,9 +1151,14 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 	if (setup_events(cw, session))
 		goto free_session;
 
+	if (setup_streams(cw, session))
+		goto free_session;
+
 	err = perf_session__process_events(session);
 	if (!err)
-		err = bt_ctf_stream_flush(cw->stream);
+		err = ctf_writer__flush_streams(cw);
+	else
+		pr_err("Error during conversion.\n");
 
 	fprintf(stderr,
 		"[ perf data convert: Converted '%s' into CTF data '%s' ]\n",
@@ -847,11 +1169,15 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 		(double) c.events_size / 1024.0 / 1024.0,
 		c.events_count);
 
-	/* its all good */
+	perf_session__delete(session);
+	ctf_writer__cleanup(cw);
+
+	return err;
+
 free_session:
 	perf_session__delete(session);
-
 free_writer:
 	ctf_writer__cleanup(cw);
+	pr_err("Error during conversion setup.\n");
 	return err;
 }

@@ -1,6 +1,6 @@
 #include <math.h>
-
 #include "stat.h"
+#include "evsel.h"
 
 void update_stats(struct stats *stats, u64 val)
 {
@@ -60,4 +60,73 @@ double rel_stddev_stats(double stddev, double avg)
 		pct = 100.0 * stddev/avg;
 
 	return pct;
+}
+
+bool __perf_evsel_stat__is(struct perf_evsel *evsel,
+			   enum perf_stat_evsel_id id)
+{
+	struct perf_stat *ps = evsel->priv;
+
+	return ps->id == id;
+}
+
+#define ID(id, name) [PERF_STAT_EVSEL_ID__##id] = #name
+static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
+	ID(NONE,		x),
+	ID(CYCLES_IN_TX,	cpu/cycles-t/),
+	ID(TRANSACTION_START,	cpu/tx-start/),
+	ID(ELISION_START,	cpu/el-start/),
+	ID(CYCLES_IN_TX_CP,	cpu/cycles-ct/),
+};
+#undef ID
+
+void perf_stat_evsel_id_init(struct perf_evsel *evsel)
+{
+	struct perf_stat *ps = evsel->priv;
+	int i;
+
+	/* ps->id is 0 hence PERF_STAT_EVSEL_ID__NONE by default */
+
+	for (i = 0; i < PERF_STAT_EVSEL_ID__MAX; i++) {
+		if (!strcmp(perf_evsel__name(evsel), id_str[i])) {
+			ps->id = i;
+			break;
+		}
+	}
+}
+
+struct perf_counts *perf_counts__new(int ncpus)
+{
+	int size = sizeof(struct perf_counts) +
+		   ncpus * sizeof(struct perf_counts_values);
+
+	return zalloc(size);
+}
+
+void perf_counts__delete(struct perf_counts *counts)
+{
+	free(counts);
+}
+
+static void perf_counts__reset(struct perf_counts *counts, int ncpus)
+{
+	memset(counts, 0, (sizeof(*counts) +
+	       (ncpus * sizeof(struct perf_counts_values))));
+}
+
+void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus)
+{
+	perf_counts__reset(evsel->counts, ncpus);
+}
+
+int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
+{
+	evsel->counts = perf_counts__new(ncpus);
+	return evsel->counts != NULL ? 0 : -ENOMEM;
+}
+
+void perf_evsel__free_counts(struct perf_evsel *evsel)
+{
+	perf_counts__delete(evsel->counts);
+	evsel->counts = NULL;
 }

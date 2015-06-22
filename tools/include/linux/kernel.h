@@ -1,5 +1,5 @@
-#ifndef PERF_LINUX_KERNEL_H_
-#define PERF_LINUX_KERNEL_H_
+#ifndef __TOOLS_LINUX_KERNEL_H
+#define __TOOLS_LINUX_KERNEL_H
 
 #include <stdarg.h>
 #include <stdio.h>

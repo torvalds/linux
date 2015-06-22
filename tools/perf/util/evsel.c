@@ -26,6 +26,7 @@
 #include "perf_regs.h"
 #include "debug.h"
 #include "trace-event.h"
+#include "stat.h"
 
 static struct {
 	bool sample_id_all;
@@ -851,19 +852,6 @@ int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
 	return 0;
 }
 
-void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus)
-{
-	memset(evsel->counts, 0, (sizeof(*evsel->counts) +
-				 (ncpus * sizeof(struct perf_counts_values))));
-}
-
-int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
-{
-	evsel->counts = zalloc((sizeof(*evsel->counts) +
-				(ncpus * sizeof(struct perf_counts_values))));
-	return evsel->counts != NULL ? 0 : -ENOMEM;
-}
-
 static void perf_evsel__free_fd(struct perf_evsel *evsel)
 {
 	xyarray__delete(evsel->fd);
@@ -889,11 +877,6 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 			close(FD(evsel, cpu, thread));
 			FD(evsel, cpu, thread) = -1;
 		}
-}
-
-void perf_evsel__free_counts(struct perf_evsel *evsel)
-{
-	zfree(&evsel->counts);
 }
 
 void perf_evsel__exit(struct perf_evsel *evsel)
@@ -1058,7 +1041,7 @@ static void __p_read_format(char *buf, size_t size, u64 value)
 
 #define BUF_SIZE		1024
 
-#define p_hex(val)		snprintf(buf, BUF_SIZE, "%"PRIx64, (uint64_t)(val))
+#define p_hex(val)		snprintf(buf, BUF_SIZE, "%#"PRIx64, (uint64_t)(val))
 #define p_unsigned(val)		snprintf(buf, BUF_SIZE, "%"PRIu64, (uint64_t)(val))
 #define p_signed(val)		snprintf(buf, BUF_SIZE, "%"PRId64, (int64_t)(val))
 #define p_sample_type(val)	__p_sample_type(buf, BUF_SIZE, val)
@@ -1121,6 +1104,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(sample_stack_user, p_unsigned);
 	PRINT_ATTRf(clockid, p_signed);
 	PRINT_ATTRf(sample_regs_intr, p_hex);
+	PRINT_ATTRf(aux_watermark, p_unsigned);
 
 	return ret;
 }
@@ -2148,7 +2132,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	case EMFILE:
 		return scnprintf(msg, size, "%s",
 			 "Too many events are opened.\n"
-			 "Try again after reducing the number of events.");
+			 "Probably the maximum number of open file descriptors has been reached.\n"
+			 "Hint: Try again after reducing the number of events.\n"
+			 "Hint: Try increasing the limit with 'ulimit -n <limit>'");
 	case ENODEV:
 		if (target->cpu_list)
 			return scnprintf(msg, size, "%s",

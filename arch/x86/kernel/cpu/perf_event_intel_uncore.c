@@ -922,6 +922,9 @@ static int __init uncore_pci_init(void)
 	case 69: /* Haswell Celeron */
 		ret = hsw_uncore_pci_init();
 		break;
+	case 61: /* Broadwell */
+		ret = bdw_uncore_pci_init();
+		break;
 	default:
 		return 0;
 	}
