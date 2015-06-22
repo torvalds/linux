@@ -353,18 +353,18 @@ void *xlate_dev_mem_ptr(phys_addr_t phys)
 {
 	unsigned long start  = phys &  PAGE_MASK;
 	unsigned long offset = phys & ~PAGE_MASK;
-	unsigned long vaddr;
+	void *vaddr;
 
 	/* If page is RAM, we can use __va. Otherwise ioremap and unmap. */
 	if (page_is_ram(start >> PAGE_SHIFT))
 		return __va(phys);
 
-	vaddr = (unsigned long)ioremap_cache(start, PAGE_SIZE);
+	vaddr = ioremap_cache(start, PAGE_SIZE);
 	/* Only add the offset on success and return NULL if the ioremap() failed: */
 	if (vaddr)
 		vaddr += offset;
 
-	return (void *)vaddr;
+	return vaddr;
 }
 
 void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
@@ -373,7 +373,6 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
 		return;
 
 	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
-	return;
 }
 
 static pte_t bm_pte[PAGE_SIZE/sizeof(pte_t)] __page_aligned_bss;
