@@ -435,8 +435,14 @@ xfs_attr_inactive(
 	 */
 	xfs_trans_ijoin(trans, dp, 0);
 
-	/* invalidate and truncate the attribute fork extents */
-	if (dp->i_d.di_aformat != XFS_DINODE_FMT_LOCAL) {
+	/*
+	 * Invalidate and truncate the attribute fork extents. Make sure the
+	 * fork actually has attributes as otherwise the invalidation has no
+	 * blocks to read and returns an error. In this case, just do the fork
+	 * removal below.
+	 */
+	if (xfs_inode_hasattr(dp) &&
+	    dp->i_d.di_aformat != XFS_DINODE_FMT_LOCAL) {
 		error = xfs_attr3_root_inactive(&trans, dp);
 		if (error)
 			goto out_cancel;
