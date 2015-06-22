@@ -90,14 +90,7 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 	lgr	\scratch,%r9
 	slg	\scratch,BASED(.Lsie_critical)
 	clg	\scratch,BASED(.Lsie_critical_length)
-	.if	\reason==1
-	# Some program interrupts are suppressing (e.g. protection).
-	# We must also check the instruction after SIE in that case.
-	# do_protection_exception will rewind to .Lrewind_pad
-	jh	.+42
-	.else
 	jhe	.+42
-	.endif
 	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
 	LPP	__SF_EMPTY+16(%r15)		# set host id
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
@@ -1308,15 +1301,16 @@ ENTRY(sie64a)
 	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
 	tm	__SIE_PROG20+3(%r14),3		# last exit...
-	jnz	.Lsie_done
+	jnz	.Lsie_skip
 	tm	__LC_CPU_FLAGS+7,_CIF_FPU
-	jo	.Lsie_done			# exit if fp/vx regs changed
+	jo	.Lsie_skip			# exit if fp/vx regs changed
 	LPP	__SF_EMPTY(%r15)		# set guest id
 	sie	0(%r14)
-.Lsie_done:
 	LPP	__SF_EMPTY+16(%r15)		# set host id
+.Lsie_skip:
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
+.Lsie_done:
 # some program checks are suppressing. C code (e.g. do_protection_exception)
 # will rewind the PSW by the ILC, which is 4 bytes in case of SIE. Other
 # instructions between sie64a and .Lsie_done should not cause program
