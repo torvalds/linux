@@ -63,11 +63,12 @@ struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
 			inode->i_mapping->a_ops = &jfs_aops;
 		} else {
 			inode->i_op = &jfs_fast_symlink_inode_operations;
+			inode->i_link = JFS_IP(inode)->i_inline;
 			/*
 			 * The inline data should be null-terminated, but
 			 * don't let on-disk corruption crash the kernel
 			 */
-			JFS_IP(inode)->i_inline[inode->i_size] = '\0';
+			inode->i_link[inode->i_size] = '\0';
 		}
 	} else {
 		inode->i_op = &jfs_file_inode_operations;

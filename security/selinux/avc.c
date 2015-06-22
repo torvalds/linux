@@ -761,7 +761,23 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
 
 	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
 
-	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata);
+	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata, 0);
+	if (rc2)
+		return rc2;
+	return rc;
+}
+
+int avc_has_perm_flags(u32 ssid, u32 tsid, u16 tclass,
+		       u32 requested, struct common_audit_data *auditdata,
+		       int flags)
+{
+	struct av_decision avd;
+	int rc, rc2;
+
+	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
+
+	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc,
+			auditdata, flags);
 	if (rc2)
 		return rc2;
 	return rc;

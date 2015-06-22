@@ -354,6 +354,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 		ret = -ENOMEM;
 		goto fail;
 	}
+	inode->i_link = f->target;
 
 	jffs2_dbg(1, "%s(): symlink's target '%s' cached\n",
 		  __func__, (char *)f->target);

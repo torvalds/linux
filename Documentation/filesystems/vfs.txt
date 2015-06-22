@@ -350,8 +350,8 @@ struct inode_operations {
 	int (*rename2) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
-        void * (*follow_link) (struct dentry *, struct nameidata *);
-        void (*put_link) (struct dentry *, struct nameidata *, void *);
+	const char *(*follow_link) (struct dentry *, void **);
+	void (*put_link) (struct inode *, void *);
 	int (*permission) (struct inode *, int);
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
@@ -436,16 +436,18 @@ otherwise noted.
 
   follow_link: called by the VFS to follow a symbolic link to the
 	inode it points to.  Only required if you want to support
-	symbolic links.  This method returns a void pointer cookie
-	that is passed to put_link().
+	symbolic links.  This method returns the symlink body
+	to traverse (and possibly resets the current position with
+	nd_jump_link()).  If the body won't go away until the inode
+	is gone, nothing else is needed; if it needs to be otherwise
+	pinned, the data needed to release whatever we'd grabbed
+	is to be stored in void * variable passed by address to
+	follow_link() instance.
 
   put_link: called by the VFS to release resources allocated by
-  	follow_link().  The cookie returned by follow_link() is passed
-  	to this method as the last parameter.  It is used by
-  	filesystems such as NFS where page cache is not stable
-  	(i.e. page that was installed when the symbolic link walk
-  	started might not be in the page cache at the end of the
-  	walk).
+	follow_link().  The cookie stored by follow_link() is passed
+	to this method as the last parameter; only called when
+	cookie isn't NULL.
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.

@@ -4213,8 +4213,11 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 		inode->i_op = &ext4_dir_inode_operations;
 		inode->i_fop = &ext4_dir_operations;
 	} else if (S_ISLNK(inode->i_mode)) {
-		if (ext4_inode_is_fast_symlink(inode) &&
-		    !ext4_encrypted_inode(inode)) {
+		if (ext4_encrypted_inode(inode)) {
+			inode->i_op = &ext4_encrypted_symlink_inode_operations;
+			ext4_set_aops(inode);
+		} else if (ext4_inode_is_fast_symlink(inode)) {
+			inode->i_link = (char *)ei->i_data;
 			inode->i_op = &ext4_fast_symlink_inode_operations;
 			nd_terminate_link(ei->i_data, inode->i_size,
 				sizeof(ei->i_data) - 1);
