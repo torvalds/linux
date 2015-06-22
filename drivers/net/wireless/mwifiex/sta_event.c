@@ -153,6 +153,7 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 	struct mwifiex_sta_node *sta_ptr;
 	struct mwifiex_tdls_generic_event *tdls_evt =
 			(void *)event_skb->data + sizeof(adapter->event_cause);
+	u8 *mac = tdls_evt->peer_mac;
 
 	/* reserved 2 bytes are not mandatory in tdls event */
 	if (event_skb->len < (sizeof(struct mwifiex_tdls_generic_event) -
@@ -174,6 +175,59 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 					   NL80211_TDLS_TEARDOWN,
 					   le16_to_cpu(tdls_evt->u.reason_code),
 					   GFP_KERNEL);
+		break;
+	case TDLS_EVENT_CHAN_SWITCH_RESULT:
+		mwifiex_dbg(adapter, EVENT, "tdls channel switch result :\n");
+		mwifiex_dbg(adapter, EVENT,
+			    "status=0x%x, reason=0x%x cur_chan=%d\n",
+			    tdls_evt->u.switch_result.status,
+			    tdls_evt->u.switch_result.reason,
+			    tdls_evt->u.switch_result.cur_chan);
+
+		/* tdls channel switch failed */
+		if (tdls_evt->u.switch_result.status != 0) {
+			switch (tdls_evt->u.switch_result.cur_chan) {
+			case TDLS_BASE_CHANNEL:
+				sta_ptr->tdls_status = TDLS_IN_BASE_CHAN;
+				break;
+			case TDLS_OFF_CHANNEL:
+				sta_ptr->tdls_status = TDLS_IN_OFF_CHAN;
+				break;
+			default:
+				break;
+			}
+			return ret;
+		}
+
+		/* tdls channel switch success */
+		switch (tdls_evt->u.switch_result.cur_chan) {
+		case TDLS_BASE_CHANNEL:
+			if (sta_ptr->tdls_status == TDLS_IN_BASE_CHAN)
+				break;
+			mwifiex_update_ralist_tx_pause_in_tdls_cs(priv, mac,
+								  false);
+			sta_ptr->tdls_status = TDLS_IN_BASE_CHAN;
+			break;
+		case TDLS_OFF_CHANNEL:
+			if (sta_ptr->tdls_status == TDLS_IN_OFF_CHAN)
+				break;
+			mwifiex_update_ralist_tx_pause_in_tdls_cs(priv, mac,
+								  true);
+			sta_ptr->tdls_status = TDLS_IN_OFF_CHAN;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case TDLS_EVENT_START_CHAN_SWITCH:
+		mwifiex_dbg(adapter, EVENT, "tdls start channel switch...\n");
+		sta_ptr->tdls_status = TDLS_CHAN_SWITCHING;
+		break;
+	case TDLS_EVENT_CHAN_SWITCH_STOPPED:
+		mwifiex_dbg(adapter, EVENT,
+			    "tdls chan switch stopped, reason=%d\n",
+			    tdls_evt->u.cs_stop_reason);
 		break;
 	default:
 		break;

@@ -547,7 +547,14 @@ enum P2P_MODES {
 #define ACT_TDLS_DELETE            0x00
 #define ACT_TDLS_CREATE            0x01
 #define ACT_TDLS_CONFIG            0x02
-#define TDLS_EVENT_LINK_TEAR_DOWN  3
+
+#define TDLS_EVENT_LINK_TEAR_DOWN      3
+#define TDLS_EVENT_CHAN_SWITCH_RESULT  7
+#define TDLS_EVENT_START_CHAN_SWITCH   8
+#define TDLS_EVENT_CHAN_SWITCH_STOPPED 9
+
+#define TDLS_BASE_CHANNEL	       0
+#define TDLS_OFF_CHANNEL	       1
 
 #define MWIFIEX_FW_V15		   15
 
@@ -1936,10 +1943,18 @@ struct host_cmd_ds_802_11_subsc_evt {
 	__le16 events;
 } __packed;
 
+struct chan_switch_result {
+	u8 cur_chan;
+	u8 status;
+	u8 reason;
+} __packed;
+
 struct mwifiex_tdls_generic_event {
 	__le16 type;
 	u8 peer_mac[ETH_ALEN];
 	union {
+		struct chan_switch_result switch_result;
+		u8 cs_stop_reason;
 		__le16 reason_code;
 		__le16 reserved;
 	} u;
