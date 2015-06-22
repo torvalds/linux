@@ -204,13 +204,6 @@
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
-	uart3_pins_a: uart3@0 {
-		allwinner,pins = "PG9", "PG10";
-		allwinner,function = "uart3";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
 	emac_pins_a: emac0@0 {
 		allwinner,pins = "PA0", "PA1", "PA2",
 				"PA3", "PA4", "PA5", "PA6",
