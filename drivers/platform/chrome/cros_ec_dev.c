@@ -287,6 +287,12 @@ static int ec_device_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id cros_ec_id[] = {
+	{ "cros-ec-ctl", 0 },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(platform, cros_ec_id);
+
 static struct platform_driver cros_ec_dev_driver = {
 	.driver = {
 		.name = "cros-ec-ctl",
