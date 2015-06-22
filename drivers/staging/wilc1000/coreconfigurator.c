@@ -1568,14 +1568,6 @@ s32 further_process_response(u8 *resp,
 	case WID_STR:
 		WILC_memcpy(cfg_str, resp + idx, cfg_len);
 		/* cfg_str[cfg_len] = '\0'; //mostafa: no need currently for NULL termination */
-		if (process_wid_num) {
-			/*fprintf(out_file,"0x%4.4x = %s\n",g_wid_num,
-			 *                              cfg_str);*/
-		} else {
-			/*fprintf(out_file,"%s = %s\n",gastrWIDs[cnt].cfg_switch,
-			 *                           cfg_str);*/
-		}
-
 		if (pstrWIDresult->s32ValueSize >= cfg_len) {
 			WILC_memcpy(pstrWIDresult->ps8WidVal, cfg_str, cfg_len); /* mostafa: no need currently for the extra NULL byte */
 			pstrWIDresult->s32ValueSize = cfg_len;
@@ -1591,13 +1583,6 @@ s32 further_process_response(u8 *resp,
 
 		WILC_strncpy(pstrWIDresult->ps8WidVal, cfg_str, WILC_strlen(cfg_str));
 		pstrWIDresult->ps8WidVal[WILC_strlen(cfg_str)] = '\0';
-		if (process_wid_num) {
-			/*fprintf(out_file,"0x%4.4x = %s\n",g_wid_num,
-			 *                              cfg_str);*/
-		} else {
-			/*fprintf(out_file,"%s = %s\n",gastrWIDs[cnt].cfg_switch,
-			 *                           cfg_str);*/
-		}
 		break;
 
 	case WID_IP:
@@ -1606,13 +1591,6 @@ s32 further_process_response(u8 *resp,
 				MAKE_WORD16(resp[idx + 2], resp[idx + 3])
 				);
 		conv_int_to_ip(cfg_str, cfg_int);
-		if (process_wid_num) {
-			/*fprintf(out_file,"0x%4.4x = %s\n",g_wid_num,
-			 *                              cfg_str);*/
-		} else {
-			/*fprintf(out_file,"%s = %s\n",gastrWIDs[cnt].cfg_switch,
-			 *                           cfg_str);*/
-		}
 		break;
 
 	case WID_BIN_DATA:
