@@ -1876,8 +1876,8 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	struct wm5102_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	ret = snd_soc_add_codec_controls(codec, wm_adsp2_fw_controls, 2);
-	if (ret != 0)
+	ret = wm_adsp2_codec_probe(&priv->core.adsp[0], codec);
+	if (ret)
 		return ret;
 
 	arizona_init_spk(codec);
@@ -1893,6 +1893,8 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 static int wm5102_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm5102_priv *priv = snd_soc_codec_get_drvdata(codec);
+
+	wm_adsp2_codec_remove(&priv->core.adsp[0], codec);
 
 	priv->core.arizona->dapm = NULL;
 
