@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/string.h>
+#include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -419,7 +420,7 @@ static const struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
 static void get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
-	char *p, *q;
+	char *p, *q, *s;
 
 	if (c->extended_cpuid_level < 0x80000004)
 		return;
@@ -430,19 +431,21 @@ static void get_model_name(struct cpuinfo_x86 *c)
 	cpuid(0x80000004, &v[8], &v[9], &v[10], &v[11]);
 	c->x86_model_id[48] = 0;
 
-	/*
-	 * Intel chips right-justify this string for some dumb reason;
-	 * undo that brain damage:
-	 */
-	p = q = &c->x86_model_id[0];
+	/* Trim whitespace */
+	p = q = s = &c->x86_model_id[0];
+
 	while (*p == ' ')
 		p++;
-	if (p != q) {
-		while (*p)
-			*q++ = *p++;
-		while (q <= &c->x86_model_id[48])
-			*q++ = '\0';	/* Zero-pad the rest */
+
+	while (*p) {
+		/* Note the last non-whitespace index */
+		if (!isspace(*p))
+			s = q;
+
+		*q++ = *p++;
 	}
+
+	*(s + 1) = '\0';
 }
 
 void cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
@@ -1122,7 +1125,7 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 		printk(KERN_CONT "%s ", vendor);
 
 	if (c->x86_model_id[0])
-		printk(KERN_CONT "%s", strim(c->x86_model_id));
+		printk(KERN_CONT "%s", c->x86_model_id);
 	else
 		printk(KERN_CONT "%d86", c->x86);
 
