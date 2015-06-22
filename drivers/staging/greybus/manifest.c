@@ -208,9 +208,6 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 	u8 bundle_id = bundle->id;
 	u32 count = 0;
 
-	if (WARN_ON(!list_empty(&bundle->connections)))
-		return 0;
-
 	/* Set up all cport descriptors associated with this bundle */
 	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
 		struct greybus_descriptor_cport *desc_cport;
@@ -262,9 +259,6 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 	struct gb_bundle *bundle;
 	struct gb_bundle *bundle_next;
 	u32 count = 0;
-
-	if (WARN_ON(!list_empty(&intf->bundles)))
-		return 0;
 
 	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
 		struct greybus_descriptor_bundle *desc_bundle;
