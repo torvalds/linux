@@ -445,8 +445,9 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);
-	for (i = 0; i < parser->num_ibs; i++)
-		amdgpu_ib_free(parser->adev, &parser->ibs[i]);
+	if (parser->ibs)
+		for (i = 0; i < parser->num_ibs; i++)
+			amdgpu_ib_free(parser->adev, &parser->ibs[i]);
 	kfree(parser->ibs);
 	if (parser->uf.bo)
 		drm_gem_object_unreference_unlocked(&parser->uf.bo->gem_base);
