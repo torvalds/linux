@@ -1673,7 +1673,7 @@ CPU from reordering them.
 
 There are some more advanced barrier functions:
 
- (*) set_mb(var, value)
+ (*) smp_store_mb(var, value)
 
      This assigns the value to the variable and then inserts a full memory
      barrier after it, depending on the function.  It isn't guaranteed to
@@ -1985,7 +1985,7 @@ after it has altered the task state:
 	CPU 1
 	===============================
 	set_current_state();
-	  set_mb();
+	  smp_store_mb();
 	    STORE current->state
 	    <general barrier>
 	LOAD event_indicated
@@ -2026,7 +2026,7 @@ between the STORE to indicate the event and the STORE to set TASK_RUNNING:
 	CPU 1				CPU 2
 	===============================	===============================
 	set_current_state();		STORE event_indicated
-	  set_mb();			wake_up();
+	  smp_store_mb();		wake_up();
 	    STORE current->state	  <write barrier>
 	    <general barrier>		  STORE current->state
 	LOAD event_indicated

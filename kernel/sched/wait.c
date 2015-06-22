@@ -341,7 +341,7 @@ long wait_woken(wait_queue_t *wait, unsigned mode, long timeout)
 	 * condition being true _OR_ WQ_FLAG_WOKEN such that we will not miss
 	 * an event.
 	 */
-	set_mb(wait->flags, wait->flags & ~WQ_FLAG_WOKEN); /* B */
+	smp_store_mb(wait->flags, wait->flags & ~WQ_FLAG_WOKEN); /* B */
 
 	return timeout;
 }
@@ -354,7 +354,7 @@ int woken_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 	 * doesn't imply write barrier and the users expects write
 	 * barrier semantics on wakeup functions.  The following
 	 * smp_wmb() is equivalent to smp_wmb() in try_to_wake_up()
-	 * and is paired with set_mb() in wait_woken().
+	 * and is paired with smp_store_mb() in wait_woken().
 	 */
 	smp_wmb(); /* C */
 	wait->flags |= WQ_FLAG_WOKEN;
