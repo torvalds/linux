@@ -263,7 +263,7 @@ struct intel_plane_state {
 	 * plane requiring a scaler:
 	 *   - During check_plane, its bit is set in
 	 *     crtc_state->scaler_state.scaler_users by calling helper function
-	 *     update_scaler_users.
+	 *     update_scaler_plane.
 	 *   - scaler_id indicates the scaler it got assigned.
 	 *
 	 * plane doesn't require a scaler:
@@ -271,7 +271,7 @@ struct intel_plane_state {
 	 *     got disabled.
 	 *   - During check_plane, corresponding bit is reset in
 	 *     crtc_state->scaler_state.scaler_users by calling helper function
-	 *     update_scaler_users.
+	 *     update_scaler_plane.
 	 */
 	int scaler_id;
 };
@@ -1148,9 +1148,11 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc);
 void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file);
 void skl_detach_scalers(struct intel_crtc *intel_crtc);
-int skl_update_scaler_users(struct intel_crtc *intel_crtc,
-	struct intel_crtc_state *crtc_state, struct intel_plane *intel_plane,
-	struct intel_plane_state *plane_state, int force_detach);
+int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
+			    struct intel_plane *intel_plane,
+			    struct intel_plane_state *plane_state);
+
+int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state, int force_detach);
 int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state);
 
 unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,

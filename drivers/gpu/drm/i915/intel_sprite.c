@@ -944,8 +944,7 @@ finish:
 	}
 
 	if (INTEL_INFO(dev)->gen >= 9) {
-		ret = skl_update_scaler_users(intel_crtc, crtc_state, intel_plane,
-			state, 0);
+		ret = skl_update_scaler_plane(crtc_state, intel_plane, state);
 		if (ret)
 			return ret;
 	}

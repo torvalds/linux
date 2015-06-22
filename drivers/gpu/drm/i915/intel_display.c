@@ -4313,62 +4313,16 @@ static void cpt_verify_modeset(struct drm_device *dev, int pipe)
 	}
 }
 
-/**
- * skl_update_scaler_users - Stages update to crtc's scaler state
- * @intel_crtc: crtc
- * @crtc_state: crtc_state
- * @plane: plane (NULL indicates crtc is requesting update)
- * @plane_state: plane's state
- * @force_detach: request unconditional detachment of scaler
- *
- * This function updates scaler state for requested plane or crtc.
- * To request scaler usage update for a plane, caller shall pass plane pointer.
- * To request scaler usage update for crtc, caller shall pass plane pointer
- * as NULL.
- *
- * Return
- *     0 - scaler_usage updated successfully
- *    error - requested scaling cannot be supported or other error condition
- */
-int
-skl_update_scaler_users(
-	struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state,
-	struct intel_plane *intel_plane, struct intel_plane_state *plane_state,
-	int force_detach)
+static int
+skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
+		  unsigned scaler_user, int *scaler_id, unsigned int rotation,
+		  int src_w, int src_h, int dst_w, int dst_h)
 {
+	struct intel_crtc_scaler_state *scaler_state =
+		&crtc_state->scaler_state;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(crtc_state->base.crtc);
 	int need_scaling;
-	int idx;
-	int src_w, src_h, dst_w, dst_h;
-	int *scaler_id;
-	struct drm_framebuffer *fb;
-	struct intel_crtc_scaler_state *scaler_state;
-	unsigned int rotation;
-
-	if (!intel_crtc || !crtc_state)
-		return 0;
-
-	scaler_state = &crtc_state->scaler_state;
-
-	idx = intel_plane ? drm_plane_index(&intel_plane->base) : SKL_CRTC_INDEX;
-	fb = intel_plane ? plane_state->base.fb : NULL;
-
-	if (intel_plane) {
-		src_w = drm_rect_width(&plane_state->src) >> 16;
-		src_h = drm_rect_height(&plane_state->src) >> 16;
-		dst_w = drm_rect_width(&plane_state->dst);
-		dst_h = drm_rect_height(&plane_state->dst);
-		scaler_id = &plane_state->scaler_id;
-		rotation = plane_state->base.rotation;
-	} else {
-		struct drm_display_mode *adjusted_mode =
-			&crtc_state->base.adjusted_mode;
-		src_w = crtc_state->pipe_src_w;
-		src_h = crtc_state->pipe_src_h;
-		dst_w = adjusted_mode->hdisplay;
-		dst_h = adjusted_mode->vdisplay;
-		scaler_id = &scaler_state->scaler_id;
-		rotation = DRM_ROTATE_0;
-	}
 
 	need_scaling = intel_rotation_90_or_270(rotation) ?
 		(src_h != dst_w || src_w != dst_h):
@@ -4384,17 +4338,14 @@ skl_update_scaler_users(
 	 * update to free the scaler is done in plane/panel-fit programming.
 	 * For this purpose crtc/plane_state->scaler_id isn't reset here.
 	 */
-	if (force_detach || !need_scaling || (intel_plane &&
-		(!fb || !plane_state->visible))) {
+	if (force_detach || !need_scaling) {
 		if (*scaler_id >= 0) {
-			scaler_state->scaler_users &= ~(1 << idx);
+			scaler_state->scaler_users &= ~(1 << scaler_user);
 			scaler_state->scalers[*scaler_id].in_use = 0;
 
-			DRM_DEBUG_KMS("Staged freeing scaler id %d.%d from %s:%d "
-				"crtc_state = %p scaler_users = 0x%x\n",
-				intel_crtc->pipe, *scaler_id, intel_plane ? "PLANE" : "CRTC",
-				intel_plane ? intel_plane->base.base.id :
-				intel_crtc->base.base.id, crtc_state,
+			DRM_DEBUG_KMS("scaler_user index %u.%u: "
+				"Staged freeing scaler id %d scaler_users = 0x%x\n",
+				intel_crtc->pipe, scaler_user, *scaler_id,
 				scaler_state->scaler_users);
 			*scaler_id = -1;
 		}
@@ -4407,51 +4358,112 @@ skl_update_scaler_users(
 
 		src_w > SKL_MAX_SRC_W || src_h > SKL_MAX_SRC_H ||
 		dst_w > SKL_MAX_DST_W || dst_h > SKL_MAX_DST_H) {
-		DRM_DEBUG_KMS("%s:%d scaler_user index %u.%u: src %ux%u dst %ux%u "
+		DRM_DEBUG_KMS("scaler_user index %u.%u: src %ux%u dst %ux%u "
 			"size is out of scaler range\n",
-			intel_plane ? "PLANE" : "CRTC",
-			intel_plane ? intel_plane->base.base.id : intel_crtc->base.base.id,
-			intel_crtc->pipe, idx, src_w, src_h, dst_w, dst_h);
+			intel_crtc->pipe, scaler_user, src_w, src_h, dst_w, dst_h);
 		return -EINVAL;
 	}
 
+	/* mark this plane as a scaler user in crtc_state */
+	scaler_state->scaler_users |= (1 << scaler_user);
+	DRM_DEBUG_KMS("scaler_user index %u.%u: "
+		"staged scaling request for %ux%u->%ux%u scaler_users = 0x%x\n",
+		intel_crtc->pipe, scaler_user, src_w, src_h, dst_w, dst_h,
+		scaler_state->scaler_users);
+
+	return 0;
+}
+
+/**
+ * skl_update_scaler_crtc - Stages update to scaler state for a given crtc.
+ *
+ * @state: crtc's scaler state
+ * @force_detach: whether to forcibly disable scaler
+ *
+ * Return
+ *     0 - scaler_usage updated successfully
+ *    error - requested scaling cannot be supported or other error condition
+ */
+int skl_update_scaler_crtc(struct intel_crtc_state *state, int force_detach)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(state->base.crtc);
+	struct drm_display_mode *adjusted_mode =
+		&state->base.adjusted_mode;
+
+	DRM_DEBUG_KMS("Updating scaler for [CRTC:%i] scaler_user index %u.%u\n",
+		      intel_crtc->base.base.id, intel_crtc->pipe, SKL_CRTC_INDEX);
+
+	return skl_update_scaler(state, force_detach, SKL_CRTC_INDEX,
+		&state->scaler_state.scaler_id, DRM_ROTATE_0,
+		state->pipe_src_w, state->pipe_src_h,
+		adjusted_mode->hdisplay, adjusted_mode->hdisplay);
+}
+
+/**
+ * skl_update_scaler_plane - Stages update to scaler state for a given plane.
+ *
+ * @state: crtc's scaler state
+ * @intel_plane: affected plane
+ * @plane_state: atomic plane state to update
+ *
+ * Return
+ *     0 - scaler_usage updated successfully
+ *    error - requested scaling cannot be supported or other error condition
+ */
+int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
+			    struct intel_plane *intel_plane,
+			    struct intel_plane_state *plane_state)
+{
+
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_framebuffer *fb = plane_state->base.fb;
+	int ret;
+
+	bool force_detach = !fb || !plane_state->visible;
+
+	DRM_DEBUG_KMS("Updating scaler for [PLANE:%d] scaler_user index %u.%u\n",
+		      intel_plane->base.base.id, intel_crtc->pipe,
+		      drm_plane_index(&intel_plane->base));
+
+	ret = skl_update_scaler(crtc_state, force_detach,
+				drm_plane_index(&intel_plane->base),
+				&plane_state->scaler_id,
+				plane_state->base.rotation,
+				drm_rect_width(&plane_state->src) >> 16,
+				drm_rect_height(&plane_state->src) >> 16,
+				drm_rect_width(&plane_state->dst),
+				drm_rect_height(&plane_state->dst));
+
+	if (ret || plane_state->scaler_id < 0)
+		return ret;
+
 	/* check colorkey */
-	if (WARN_ON(intel_plane &&
-		intel_plane->ckey.flags != I915_SET_COLORKEY_NONE)) {
-		DRM_DEBUG_KMS("PLANE:%d scaling %ux%u->%ux%u not allowed with colorkey",
-			intel_plane->base.base.id, src_w, src_h, dst_w, dst_h);
+	if (WARN_ON(intel_plane->ckey.flags != I915_SET_COLORKEY_NONE)) {
+		DRM_DEBUG_KMS("[PLANE:%d] scaling with color key not allowed",
+			intel_plane->base.base.id);
 		return -EINVAL;
 	}
 
 	/* Check src format */
-	if (intel_plane) {
-		switch (fb->pixel_format) {
-		case DRM_FORMAT_RGB565:
-		case DRM_FORMAT_XBGR8888:
-		case DRM_FORMAT_XRGB8888:
-		case DRM_FORMAT_ABGR8888:
-		case DRM_FORMAT_ARGB8888:
-		case DRM_FORMAT_XRGB2101010:
-		case DRM_FORMAT_XBGR2101010:
-		case DRM_FORMAT_YUYV:
-		case DRM_FORMAT_YVYU:
-		case DRM_FORMAT_UYVY:
-		case DRM_FORMAT_VYUY:
-			break;
-		default:
-			DRM_DEBUG_KMS("PLANE:%d FB:%d unsupported scaling format 0x%x\n",
-				intel_plane->base.base.id, fb->base.id, fb->pixel_format);
-			return -EINVAL;
-		}
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+		break;
+	default:
+		DRM_DEBUG_KMS("[PLANE:%d] FB:%d unsupported scaling format 0x%x\n",
+			intel_plane->base.base.id, fb->base.id, fb->pixel_format);
+		return -EINVAL;
 	}
 
-	/* mark this plane as a scaler user in crtc_state */
-	scaler_state->scaler_users |= (1 << idx);
-	DRM_DEBUG_KMS("%s:%d staged scaling request for %ux%u->%ux%u "
-		"crtc_state = %p scaler_users = 0x%x\n",
-		intel_plane ? "PLANE" : "CRTC",
-		intel_plane ? intel_plane->base.base.id : intel_crtc->base.base.id,
-		src_w, src_h, dst_w, dst_h, crtc_state, scaler_state->scaler_users);
 	return 0;
 }
 
@@ -4466,7 +4478,7 @@ static void skylake_pfit_update(struct intel_crtc *crtc, int enable)
 	DRM_DEBUG_KMS("for crtc_state = %p\n", crtc->config);
 
 	/* To update pfit, first update scaler state */
-	skl_update_scaler_users(crtc, crtc->config, NULL, NULL, !enable);
+	skl_update_scaler_crtc(crtc->config, !enable);
 	intel_atomic_setup_scalers(crtc->base.dev, crtc, crtc->config);
 	skl_detach_scalers(crtc);
 	if (!enable)
@@ -13660,8 +13672,9 @@ intel_check_primary_plane(struct drm_plane *plane,
 	}
 
 	if (INTEL_INFO(dev)->gen >= 9) {
-		ret = skl_update_scaler_users(intel_crtc, crtc_state,
-			to_intel_plane(plane), state, 0);
+		ret = skl_update_scaler_plane(crtc_state,
+					      to_intel_plane(plane),
+					      state);
 		if (ret)
 			return ret;
 	}
