@@ -546,7 +546,7 @@ out_err:
 		perf_evlist__delete(evlist);
 	} else {
 		cpu_map__put(cpus);
-		thread_map__delete(threads);
+		thread_map__put(threads);
 	}
 	machines__destroy_kernel_maps(&machines);
 	machine__delete_threads(machine);

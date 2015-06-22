@@ -561,7 +561,7 @@ out:
 		perf_evlist__delete(evlist);
 	} else {
 		cpu_map__put(cpus);
-		thread_map__delete(threads);
+		thread_map__put(threads);
 	}
 
 	return err;

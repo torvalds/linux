@@ -115,7 +115,7 @@ void perf_evlist__delete(struct perf_evlist *evlist)
 	perf_evlist__munmap(evlist);
 	perf_evlist__close(evlist);
 	cpu_map__put(evlist->cpus);
-	thread_map__delete(evlist->threads);
+	thread_map__put(evlist->threads);
 	evlist->cpus = NULL;
 	evlist->threads = NULL;
 	perf_evlist__purge(evlist);
@@ -1120,7 +1120,7 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 	return 0;
 
 out_delete_threads:
-	thread_map__delete(evlist->threads);
+	thread_map__put(evlist->threads);
 	evlist->threads = NULL;
 	return -1;
 }

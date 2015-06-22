@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include "strlist.h"
 #include <string.h>
+#include "asm/bug.h"
 #include "thread_map.h"
 #include "util.h"
 
@@ -47,6 +48,7 @@ struct thread_map *thread_map__new_by_pid(pid_t pid)
 		for (i = 0; i < items; i++)
 			thread_map__set_pid(threads, i, atoi(namelist[i]->d_name));
 		threads->nr = items;
+		atomic_set(&threads->refcnt, 1);
 	}
 
 	for (i=0; i<items; i++)
@@ -63,6 +65,7 @@ struct thread_map *thread_map__new_by_tid(pid_t tid)
 	if (threads != NULL) {
 		thread_map__set_pid(threads, 0, tid);
 		threads->nr = 1;
+		atomic_set(&threads->refcnt, 1);
 	}
 
 	return threads;
@@ -84,6 +87,7 @@ struct thread_map *thread_map__new_by_uid(uid_t uid)
 		goto out_free_threads;
 
 	threads->nr = 0;
+	atomic_set(&threads->refcnt, 1);
 
 	while (!readdir_r(proc, &dirent, &next) && next) {
 		char *end;
@@ -212,6 +216,8 @@ static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
 
 out:
 	strlist__delete(slist);
+	if (threads)
+		atomic_set(&threads->refcnt, 1);
 	return threads;
 
 out_free_namelist:
@@ -231,6 +237,7 @@ struct thread_map *thread_map__new_dummy(void)
 	if (threads != NULL) {
 		thread_map__set_pid(threads, 0, -1);
 		threads->nr = 1;
+		atomic_set(&threads->refcnt, 1);
 	}
 	return threads;
 }
@@ -273,6 +280,8 @@ static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 		threads->nr = ntasks;
 	}
 out:
+	if (threads)
+		atomic_set(&threads->refcnt, 1);
 	return threads;
 
 out_free_threads:
@@ -292,9 +301,26 @@ struct thread_map *thread_map__new_str(const char *pid, const char *tid,
 	return thread_map__new_by_tid_str(tid);
 }
 
-void thread_map__delete(struct thread_map *threads)
+static void thread_map__delete(struct thread_map *threads)
 {
-	free(threads);
+	if (threads) {
+		WARN_ONCE(atomic_read(&threads->refcnt) != 0,
+			  "thread map refcnt unbalanced\n");
+		free(threads);
+	}
+}
+
+struct thread_map *thread_map__get(struct thread_map *map)
+{
+	if (map)
+		atomic_inc(&map->refcnt);
+	return map;
+}
+
+void thread_map__put(struct thread_map *map)
+{
+	if (map && atomic_dec_and_test(&map->refcnt))
+		thread_map__delete(map);
 }
 
 size_t thread_map__fprintf(struct thread_map *threads, FILE *fp)
