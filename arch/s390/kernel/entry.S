@@ -75,31 +75,6 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 #endif
 	.endm
 
-	.macro LPP newpp
-#if IS_ENABLED(CONFIG_KVM)
-	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_LPP
-	jz	.+8
-	.insn	s,0xb2800000,\newpp
-#endif
-	.endm
-
-	.macro	HANDLE_SIE_INTERCEPT scratch,reason
-#if IS_ENABLED(CONFIG_KVM)
-	tmhh	%r8,0x0001		# interrupting from user ?
-	jnz	.+62
-	lgr	\scratch,%r9
-	slg	\scratch,BASED(.Lsie_critical)
-	clg	\scratch,BASED(.Lsie_critical_length)
-	jhe	.+42
-	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
-	LPP	__SF_EMPTY+16(%r15)		# set host id
-	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
-	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-	larl	%r9,sie_exit			# skip forward to sie_exit
-	mvi	__SF_EMPTY+31(%r15),\reason	# set exit reason
-#endif
-	.endm
-
 	.macro	CHECK_STACK stacksize,savearea
 #ifdef CONFIG_CHECK_STACK
 	tml	%r15,\stacksize - CONFIG_STACK_GUARD
@@ -192,6 +167,70 @@ ENTRY(__switch_to)
 	br	%r14
 
 .L__critical_start:
+
+#if IS_ENABLED(CONFIG_KVM)
+/*
+ * sie64a calling convention:
+ * %r2 pointer to sie control block
+ * %r3 guest register save area
+ */
+ENTRY(sie64a)
+	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
+	stg	%r2,__SF_EMPTY(%r15)		# save control block pointer
+	stg	%r3,__SF_EMPTY+8(%r15)		# save guest register save area
+	xc	__SF_EMPTY+16(16,%r15),__SF_EMPTY+16(%r15) # host id & reason
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU	# load guest fp/vx registers ?
+	jno	.Lsie_load_guest_gprs
+	lg	%r12,__LC_THREAD_INFO		# load fp/vx regs save area
+	brasl	%r14,load_fpu_regs		# load guest fp/vx regs
+.Lsie_load_guest_gprs:
+	lmg	%r0,%r13,0(%r3)			# load guest gprs 0-13
+	lg	%r14,__LC_GMAP			# get gmap pointer
+	ltgr	%r14,%r14
+	jz	.Lsie_gmap
+	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
+.Lsie_gmap:
+	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
+	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
+	tm	__SIE_PROG20+3(%r14),3		# last exit...
+	jnz	.Lsie_skip
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU
+	jo	.Lsie_skip			# exit if fp/vx regs changed
+	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_LPP
+	jz	.Lsie_enter
+	.insn	s,0xb2800000,__SF_EMPTY(%r15)	# set guest id
+.Lsie_enter:
+	sie	0(%r14)
+	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_LPP
+	jz	.Lsie_skip
+	.insn	s,0xb2800000,__SF_EMPTY+16(%r15)# set host id
+.Lsie_skip:
+	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
+	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
+.Lsie_done:
+# some program checks are suppressing. C code (e.g. do_protection_exception)
+# will rewind the PSW by the ILC, which is 4 bytes in case of SIE. Other
+# instructions between sie64a and .Lsie_done should not cause program
+# interrupts. So lets use a nop (47 00 00 00) as a landing pad.
+# See also .Lcleanup_sie
+.Lrewind_pad:
+	nop	0
+	.globl sie_exit
+sie_exit:
+	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
+	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
+	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
+	lg	%r2,__SF_EMPTY+24(%r15)		# return exit reason code
+	br	%r14
+.Lsie_fault:
+	lghi	%r14,-EFAULT
+	stg	%r14,__SF_EMPTY+24(%r15)	# set exit reason code
+	j	sie_exit
+
+	EX_TABLE(.Lrewind_pad,.Lsie_fault)
+	EX_TABLE(sie_exit,.Lsie_fault)
+#endif
+
 /*
  * SVC interrupt handler routine. System calls are synchronous events and
  * are executed with interrupts enabled.
@@ -411,26 +450,33 @@ ENTRY(pgm_check_handler)
 	lg	%r12,__LC_THREAD_INFO
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW
-	HANDLE_SIE_INTERCEPT %r14,1
 	tmhh	%r8,0x0001		# test problem state bit
-	jnz	1f			# -> fault in user space
-	tmhh	%r8,0x4000		# PER bit set in old PSW ?
-	jnz	0f			# -> enabled, can't be a double fault
+	jnz	2f			# -> fault in user space
+#if IS_ENABLED(CONFIG_KVM)
+	# cleanup critical section for sie64a
+	lgr	%r14,%r9
+	slg	%r14,BASED(.Lsie_critical_start)
+	clg	%r14,BASED(.Lsie_critical_length)
+	jhe	0f
+	brasl	%r14,.Lcleanup_sie
+#endif
+0:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
+	jnz	1f			# -> enabled, can't be a double fault
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
 	jnz	.Lpgm_svcper		# -> single stepped svc
-0:	CHECK_STACK STACK_SIZE,__LC_SAVE_AREA_SYNC
+1:	CHECK_STACK STACK_SIZE,__LC_SAVE_AREA_SYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	j	2f
-1:	UPDATE_VTIME %r14,__LC_SYNC_ENTER_TIMER
+	j	3f
+2:	UPDATE_VTIME %r14,__LC_SYNC_ENTER_TIMER
 	LAST_BREAK %r14
 	lg	%r15,__LC_KERNEL_STACK
 	lg	%r14,__TI_task(%r12)
 	aghi	%r14,__TASK_thread	# pointer to thread_struct
 	lghi	%r13,__LC_PGM_TDB
 	tm	__LC_PGM_ILC+2,0x02	# check for transaction abort
-	jz	2f
+	jz	3f
 	mvc	__THREAD_trap_tdb(256,%r14),0(%r13)
-2:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+3:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
@@ -439,14 +485,14 @@ ENTRY(pgm_check_handler)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	stg	%r10,__PT_ARGS(%r11)
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
-	jz	0f
+	jz	4f
 	tmhh	%r8,0x0001		# kernel per event ?
 	jz	.Lpgm_kprobe
 	oi	__PT_FLAGS+7(%r11),_PIF_PER_TRAP
 	mvc	__THREAD_per_address(8,%r14),__LC_PER_ADDRESS
 	mvc	__THREAD_per_cause(2,%r14),__LC_PER_CODE
 	mvc	__THREAD_per_paid(1,%r14),__LC_PER_ACCESS_ID
-0:	REENABLE_IRQS
+4:	REENABLE_IRQS
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	larl	%r1,pgm_check_table
 	llgh	%r10,__PT_INT_CODE+2(%r11)
@@ -489,7 +535,6 @@ ENTRY(io_int_handler)
 	lg	%r12,__LC_THREAD_INFO
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_IO_OLD_PSW
-	HANDLE_SIE_INTERCEPT %r14,2
 	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT
 	tmhh	%r8,0x0001		# interrupting from user?
 	jz	.Lio_skip
@@ -667,7 +712,6 @@ ENTRY(ext_int_handler)
 	lg	%r12,__LC_THREAD_INFO
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_EXT_OLD_PSW
-	HANDLE_SIE_INTERCEPT %r14,3
 	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT
 	tmhh	%r8,0x0001		# interrupting from user ?
 	jz	.Lext_skip
@@ -832,7 +876,6 @@ ENTRY(mcck_int_handler)
 	lg	%r12,__LC_THREAD_INFO
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
-	HANDLE_SIE_INTERCEPT %r14,4
 	tm	__LC_MCCK_CODE,0x80	# system damage?
 	jo	.Lmcck_panic		# yes -> rest of mcck code invalid
 	lghi	%r14,__LC_CPU_TIMER_SAVE_AREA
@@ -947,26 +990,13 @@ stack_overflow:
 	jg	kernel_stack_overflow
 #endif
 
-	.align	8
-.Lcleanup_table:
-	.quad	system_call
-	.quad	.Lsysc_do_svc
-	.quad	.Lsysc_tif
-	.quad	.Lsysc_restore
-	.quad	.Lsysc_done
-	.quad	.Lio_tif
-	.quad	.Lio_restore
-	.quad	.Lio_done
-	.quad	psw_idle
-	.quad	.Lpsw_idle_end
-	.quad	save_fpu_regs
-	.quad	.Lsave_fpu_regs_end
-	.quad	load_fpu_regs
-	.quad	.Lload_fpu_regs_end
-	.quad	__ctl_set_vx
-	.quad	.L__ctl_set_vx_end
-
 cleanup_critical:
+#if IS_ENABLED(CONFIG_KVM)
+	clg	%r9,BASED(.Lcleanup_table_sie)	# .Lsie_gmap
+	jl	0f
+	clg	%r9,BASED(.Lcleanup_table_sie+8)# .Lsie_done
+	jl	.Lcleanup_sie
+#endif
 	clg	%r9,BASED(.Lcleanup_table)	# system_call
 	jl	0f
 	clg	%r9,BASED(.Lcleanup_table+8)	# .Lsysc_do_svc
@@ -1001,6 +1031,40 @@ cleanup_critical:
 	jl	.Lcleanup___ctl_set_vx
 0:	br	%r14
 
+	.align	8
+.Lcleanup_table:
+	.quad	system_call
+	.quad	.Lsysc_do_svc
+	.quad	.Lsysc_tif
+	.quad	.Lsysc_restore
+	.quad	.Lsysc_done
+	.quad	.Lio_tif
+	.quad	.Lio_restore
+	.quad	.Lio_done
+	.quad	psw_idle
+	.quad	.Lpsw_idle_end
+	.quad	save_fpu_regs
+	.quad	.Lsave_fpu_regs_end
+	.quad	load_fpu_regs
+	.quad	.Lload_fpu_regs_end
+	.quad	__ctl_set_vx
+	.quad	.L__ctl_set_vx_end
+
+#if IS_ENABLED(CONFIG_KVM)
+.Lcleanup_table_sie:
+	.quad	.Lsie_gmap
+	.quad	.Lsie_done
+
+.Lcleanup_sie:
+	lg	%r9,__SF_EMPTY(%r15)		# get control block pointer
+	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_LPP
+	jz	0f
+	.insn	s,0xb2800000,__SF_EMPTY+16(%r15)# set host id
+0:	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
+	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
+	larl	%r9,sie_exit			# skip forward to sie_exit
+	br	%r14
+#endif
 
 .Lcleanup_system_call:
 	# check if stpt has been executed
@@ -1274,70 +1338,11 @@ cleanup_critical:
 	.quad	.L__critical_start
 .Lcritical_length:
 	.quad	.L__critical_end - .L__critical_start
-
-
 #if IS_ENABLED(CONFIG_KVM)
-/*
- * sie64a calling convention:
- * %r2 pointer to sie control block
- * %r3 guest register save area
- */
-ENTRY(sie64a)
-	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
-	stg	%r2,__SF_EMPTY(%r15)		# save control block pointer
-	stg	%r3,__SF_EMPTY+8(%r15)		# save guest register save area
-	xc	__SF_EMPTY+16(16,%r15),__SF_EMPTY+16(%r15) # host id & reason
-	tm	__LC_CPU_FLAGS+7,_CIF_FPU	# load guest fp/vx registers ?
-	jno	.Lsie_load_guest_gprs
-	lg	%r12,__LC_THREAD_INFO		# load fp/vx regs save area
-	brasl	%r14,load_fpu_regs		# load guest fp/vx regs
-.Lsie_load_guest_gprs:
-	lmg	%r0,%r13,0(%r3)			# load guest gprs 0-13
-	lg	%r14,__LC_GMAP			# get gmap pointer
-	ltgr	%r14,%r14
-	jz	.Lsie_gmap
-	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
-.Lsie_gmap:
-	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
-	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
-	tm	__SIE_PROG20+3(%r14),3		# last exit...
-	jnz	.Lsie_skip
-	tm	__LC_CPU_FLAGS+7,_CIF_FPU
-	jo	.Lsie_skip			# exit if fp/vx regs changed
-	LPP	__SF_EMPTY(%r15)		# set guest id
-	sie	0(%r14)
-	LPP	__SF_EMPTY+16(%r15)		# set host id
-.Lsie_skip:
-	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
-	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-.Lsie_done:
-# some program checks are suppressing. C code (e.g. do_protection_exception)
-# will rewind the PSW by the ILC, which is 4 bytes in case of SIE. Other
-# instructions between sie64a and .Lsie_done should not cause program
-# interrupts. So lets use a nop (47 00 00 00) as a landing pad.
-# See also HANDLE_SIE_INTERCEPT
-.Lrewind_pad:
-	nop	0
-	.globl sie_exit
-sie_exit:
-	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
-	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
-	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
-	lg	%r2,__SF_EMPTY+24(%r15)		# return exit reason code
-	br	%r14
-.Lsie_fault:
-	lghi	%r14,-EFAULT
-	stg	%r14,__SF_EMPTY+24(%r15)	# set exit reason code
-	j	sie_exit
-
-	.align	8
-.Lsie_critical:
+.Lsie_critical_start:
 	.quad	.Lsie_gmap
 .Lsie_critical_length:
 	.quad	.Lsie_done - .Lsie_gmap
-
-	EX_TABLE(.Lrewind_pad,.Lsie_fault)
-	EX_TABLE(sie_exit,.Lsie_fault)
 #endif
 
 	.section .rodata, "a"
