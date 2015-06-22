@@ -761,6 +761,22 @@ static struct wmi_vdev_param_map wmi_vdev_param_map = {
 	.tx_encap_type = WMI_VDEV_PARAM_TX_ENCAP_TYPE,
 	.ap_detect_out_of_sync_sleeping_sta_time_secs =
 					WMI_VDEV_PARAM_UNSUPPORTED,
+	.rc_num_retries = WMI_VDEV_PARAM_UNSUPPORTED,
+	.cabq_maxdur = WMI_VDEV_PARAM_UNSUPPORTED,
+	.mfptest_set = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rts_fixed_rate = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht_sgimask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht80_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_enable = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_tgt_bmiss_num = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_bmiss_sample_cycle = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_slop_step = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_init_slop = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_pause = WMI_VDEV_PARAM_UNSUPPORTED,
+	.proxy_sta = WMI_VDEV_PARAM_UNSUPPORTED,
+	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
+	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 /* 10.X WMI VDEV param map */
@@ -820,6 +836,22 @@ static struct wmi_vdev_param_map wmi_10x_vdev_param_map = {
 	.tx_encap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.ap_detect_out_of_sync_sleeping_sta_time_secs =
 		WMI_10X_VDEV_PARAM_AP_DETECT_OUT_OF_SYNC_SLEEPING_STA_TIME_SECS,
+	.rc_num_retries = WMI_VDEV_PARAM_UNSUPPORTED,
+	.cabq_maxdur = WMI_VDEV_PARAM_UNSUPPORTED,
+	.mfptest_set = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rts_fixed_rate = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht_sgimask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht80_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_enable = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_tgt_bmiss_num = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_bmiss_sample_cycle = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_slop_step = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_init_slop = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_pause = WMI_VDEV_PARAM_UNSUPPORTED,
+	.proxy_sta = WMI_VDEV_PARAM_UNSUPPORTED,
+	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
+	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_vdev_param_map wmi_10_2_4_vdev_param_map = {
@@ -878,6 +910,97 @@ static struct wmi_vdev_param_map wmi_10_2_4_vdev_param_map = {
 	.tx_encap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.ap_detect_out_of_sync_sleeping_sta_time_secs =
 		WMI_10X_VDEV_PARAM_AP_DETECT_OUT_OF_SYNC_SLEEPING_STA_TIME_SECS,
+	.rc_num_retries = WMI_VDEV_PARAM_UNSUPPORTED,
+	.cabq_maxdur = WMI_VDEV_PARAM_UNSUPPORTED,
+	.mfptest_set = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rts_fixed_rate = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht_sgimask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht80_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_enable = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_tgt_bmiss_num = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_bmiss_sample_cycle = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_slop_step = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_init_slop = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_pause = WMI_VDEV_PARAM_UNSUPPORTED,
+	.proxy_sta = WMI_VDEV_PARAM_UNSUPPORTED,
+	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
+	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
+};
+
+static struct wmi_vdev_param_map wmi_10_4_vdev_param_map = {
+	.rts_threshold = WMI_10_4_VDEV_PARAM_RTS_THRESHOLD,
+	.fragmentation_threshold = WMI_10_4_VDEV_PARAM_FRAGMENTATION_THRESHOLD,
+	.beacon_interval = WMI_10_4_VDEV_PARAM_BEACON_INTERVAL,
+	.listen_interval = WMI_10_4_VDEV_PARAM_LISTEN_INTERVAL,
+	.multicast_rate = WMI_10_4_VDEV_PARAM_MULTICAST_RATE,
+	.mgmt_tx_rate = WMI_10_4_VDEV_PARAM_MGMT_TX_RATE,
+	.slot_time = WMI_10_4_VDEV_PARAM_SLOT_TIME,
+	.preamble = WMI_10_4_VDEV_PARAM_PREAMBLE,
+	.swba_time = WMI_10_4_VDEV_PARAM_SWBA_TIME,
+	.wmi_vdev_stats_update_period = WMI_10_4_VDEV_STATS_UPDATE_PERIOD,
+	.wmi_vdev_pwrsave_ageout_time = WMI_10_4_VDEV_PWRSAVE_AGEOUT_TIME,
+	.wmi_vdev_host_swba_interval = WMI_10_4_VDEV_HOST_SWBA_INTERVAL,
+	.dtim_period = WMI_10_4_VDEV_PARAM_DTIM_PERIOD,
+	.wmi_vdev_oc_scheduler_air_time_limit =
+	       WMI_10_4_VDEV_OC_SCHEDULER_AIR_TIME_LIMIT,
+	.wds = WMI_10_4_VDEV_PARAM_WDS,
+	.atim_window = WMI_10_4_VDEV_PARAM_ATIM_WINDOW,
+	.bmiss_count_max = WMI_10_4_VDEV_PARAM_BMISS_COUNT_MAX,
+	.bmiss_first_bcnt = WMI_10_4_VDEV_PARAM_BMISS_FIRST_BCNT,
+	.bmiss_final_bcnt = WMI_10_4_VDEV_PARAM_BMISS_FINAL_BCNT,
+	.feature_wmm = WMI_10_4_VDEV_PARAM_FEATURE_WMM,
+	.chwidth = WMI_10_4_VDEV_PARAM_CHWIDTH,
+	.chextoffset = WMI_10_4_VDEV_PARAM_CHEXTOFFSET,
+	.disable_htprotection = WMI_10_4_VDEV_PARAM_DISABLE_HTPROTECTION,
+	.sta_quickkickout = WMI_10_4_VDEV_PARAM_STA_QUICKKICKOUT,
+	.mgmt_rate = WMI_10_4_VDEV_PARAM_MGMT_RATE,
+	.protection_mode = WMI_10_4_VDEV_PARAM_PROTECTION_MODE,
+	.fixed_rate = WMI_10_4_VDEV_PARAM_FIXED_RATE,
+	.sgi = WMI_10_4_VDEV_PARAM_SGI,
+	.ldpc = WMI_10_4_VDEV_PARAM_LDPC,
+	.tx_stbc = WMI_10_4_VDEV_PARAM_TX_STBC,
+	.rx_stbc = WMI_10_4_VDEV_PARAM_RX_STBC,
+	.intra_bss_fwd = WMI_10_4_VDEV_PARAM_INTRA_BSS_FWD,
+	.def_keyid = WMI_10_4_VDEV_PARAM_DEF_KEYID,
+	.nss = WMI_10_4_VDEV_PARAM_NSS,
+	.bcast_data_rate = WMI_10_4_VDEV_PARAM_BCAST_DATA_RATE,
+	.mcast_data_rate = WMI_10_4_VDEV_PARAM_MCAST_DATA_RATE,
+	.mcast_indicate = WMI_10_4_VDEV_PARAM_MCAST_INDICATE,
+	.dhcp_indicate = WMI_10_4_VDEV_PARAM_DHCP_INDICATE,
+	.unknown_dest_indicate = WMI_10_4_VDEV_PARAM_UNKNOWN_DEST_INDICATE,
+	.ap_keepalive_min_idle_inactive_time_secs =
+	       WMI_10_4_VDEV_PARAM_AP_KEEPALIVE_MIN_IDLE_INACTIVE_TIME_SECS,
+	.ap_keepalive_max_idle_inactive_time_secs =
+	       WMI_10_4_VDEV_PARAM_AP_KEEPALIVE_MAX_IDLE_INACTIVE_TIME_SECS,
+	.ap_keepalive_max_unresponsive_time_secs =
+	       WMI_10_4_VDEV_PARAM_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS,
+	.ap_enable_nawds = WMI_10_4_VDEV_PARAM_AP_ENABLE_NAWDS,
+	.mcast2ucast_set = WMI_10_4_VDEV_PARAM_MCAST2UCAST_SET,
+	.enable_rtscts = WMI_10_4_VDEV_PARAM_ENABLE_RTSCTS,
+	.txbf = WMI_10_4_VDEV_PARAM_TXBF,
+	.packet_powersave = WMI_10_4_VDEV_PARAM_PACKET_POWERSAVE,
+	.drop_unencry = WMI_10_4_VDEV_PARAM_DROP_UNENCRY,
+	.tx_encap_type = WMI_10_4_VDEV_PARAM_TX_ENCAP_TYPE,
+	.ap_detect_out_of_sync_sleeping_sta_time_secs =
+	       WMI_10_4_VDEV_PARAM_AP_DETECT_OUT_OF_SYNC_SLEEPING_STA_TIME_SECS,
+	.rc_num_retries = WMI_10_4_VDEV_PARAM_RC_NUM_RETRIES,
+	.cabq_maxdur = WMI_10_4_VDEV_PARAM_CABQ_MAXDUR,
+	.mfptest_set = WMI_10_4_VDEV_PARAM_MFPTEST_SET,
+	.rts_fixed_rate = WMI_10_4_VDEV_PARAM_RTS_FIXED_RATE,
+	.vht_sgimask = WMI_10_4_VDEV_PARAM_VHT_SGIMASK,
+	.vht80_ratemask = WMI_10_4_VDEV_PARAM_VHT80_RATEMASK,
+	.early_rx_adjust_enable = WMI_10_4_VDEV_PARAM_EARLY_RX_ADJUST_ENABLE,
+	.early_rx_tgt_bmiss_num = WMI_10_4_VDEV_PARAM_EARLY_RX_TGT_BMISS_NUM,
+	.early_rx_bmiss_sample_cycle =
+	       WMI_10_4_VDEV_PARAM_EARLY_RX_BMISS_SAMPLE_CYCLE,
+	.early_rx_slop_step = WMI_10_4_VDEV_PARAM_EARLY_RX_SLOP_STEP,
+	.early_rx_init_slop = WMI_10_4_VDEV_PARAM_EARLY_RX_INIT_SLOP,
+	.early_rx_adjust_pause = WMI_10_4_VDEV_PARAM_EARLY_RX_ADJUST_PAUSE,
+	.proxy_sta = WMI_10_4_VDEV_PARAM_PROXY_STA,
+	.meru_vc = WMI_10_4_VDEV_PARAM_MERU_VC,
+	.rx_decap_type = WMI_10_4_VDEV_PARAM_RX_DECAP_TYPE,
+	.bw_nss_ratemask = WMI_10_4_VDEV_PARAM_BW_NSS_RATEMASK,
 };
 
 static struct wmi_pdev_param_map wmi_pdev_param_map = {
@@ -5763,6 +5886,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 	case ATH10K_FW_WMI_OP_VERSION_10_4:
 		ar->wmi.ops = &wmi_10_4_ops;
 		ar->wmi.cmd = &wmi_10_4_cmd_map;
+		ar->wmi.vdev_param = &wmi_10_4_vdev_param_map;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_2_4:
 		ar->wmi.cmd = &wmi_10_2_4_cmd_map;

@@ -3294,6 +3294,22 @@ static struct wmi_vdev_param_map wmi_tlv_vdev_param_map = {
 	.tx_encap_type = WMI_TLV_VDEV_PARAM_TX_ENCAP_TYPE,
 	.ap_detect_out_of_sync_sleeping_sta_time_secs =
 					WMI_TLV_VDEV_PARAM_UNSUPPORTED,
+	.rc_num_retries = WMI_VDEV_PARAM_UNSUPPORTED,
+	.cabq_maxdur = WMI_VDEV_PARAM_UNSUPPORTED,
+	.mfptest_set = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rts_fixed_rate = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht_sgimask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht80_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_enable = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_tgt_bmiss_num = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_bmiss_sample_cycle = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_slop_step = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_init_slop = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_pause = WMI_VDEV_PARAM_UNSUPPORTED,
+	.proxy_sta = WMI_VDEV_PARAM_UNSUPPORTED,
+	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
+	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 static const struct wmi_ops wmi_tlv_ops = {
