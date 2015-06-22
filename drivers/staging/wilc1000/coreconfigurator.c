@@ -605,7 +605,7 @@ INLINE u16 get_cap_info(u8 *data)
 {
 	u16 cap_info = 0;
 	u16 index    = MAC_HDR_LEN;
-	tenuFrmSubtype st = BEACON;
+	tenuFrmSubtype st;
 
 	st = get_sub_type(data);
 
