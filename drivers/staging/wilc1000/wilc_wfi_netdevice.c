@@ -207,6 +207,7 @@ struct WILC_WFI_packet *WILC_WFI_DequeueBuf(struct net_device *dev)
 static void WILC_WFI_RxInts(struct net_device *dev, int enable)
 {
 	struct WILC_WFI_priv *priv = netdev_priv(dev);
+
 	priv->rx_int_enabled = enable;
 }
 
@@ -522,6 +523,7 @@ void WILC_WFI_HwTx(char *buf, int len, struct net_device *dev)
 
 	if (0) {  /* enable this conditional to look at the data */
 		int i;
+
 		PRINT_D(RX_DBG, "len is %i", len);
 		for (i = 14; i < len; i++)
 			PRINT_D(RX_DBG, "TXdata[%d] %02x\n", i, buf[i] & 0xff);
@@ -677,6 +679,7 @@ int WILC_WFI_Ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 struct net_device_stats *WILC_WFI_Stats(struct net_device *dev)
 {
 	struct WILC_WFI_priv *priv = netdev_priv(dev);
+
 	return &priv->stats;
 }
 
