@@ -245,6 +245,8 @@ static const struct snd_soc_dapm_widget aic34_dapm_widgets[] = {
 static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "HPLOUT"},
 	{"Ext Spk", NULL, "HPROUT"},
+	{"Ext Spk", NULL, "HPLCOM"},
+	{"Ext Spk", NULL, "HPRCOM"},
 	{"Headphone Jack", NULL, "LLOUT"},
 	{"Headphone Jack", NULL, "RLOUT"},
 	{"FM Transmitter", NULL, "LLOUT"},
@@ -288,14 +290,7 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = rtd->card;
 	struct rx51_audio_pdata *pdata = snd_soc_card_get_drvdata(card);
-
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
-
-	/* Set up NC codec pins */
-	snd_soc_dapm_nc_pin(dapm, "MIC3L");
-	snd_soc_dapm_nc_pin(dapm, "MIC3R");
-	snd_soc_dapm_nc_pin(dapm, "LINE1R");
 
 	err = tpa6130a2_add_controls(codec);
 	if (err < 0) {
@@ -383,6 +378,7 @@ static struct snd_soc_card rx51_sound_card = {
 	.num_aux_devs = ARRAY_SIZE(rx51_aux_dev),
 	.codec_conf = rx51_codec_conf,
 	.num_configs = ARRAY_SIZE(rx51_codec_conf),
+	.fully_routed = true,
 
 	.controls = aic34_rx51_controls,
 	.num_controls = ARRAY_SIZE(aic34_rx51_controls),
