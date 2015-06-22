@@ -1825,11 +1825,11 @@ xfs_alloc_compute_maxlevels(
 xfs_extlen_t
 xfs_alloc_longest_free_extent(
 	struct xfs_mount	*mp,
-	struct xfs_perag	*pag)
+	struct xfs_perag	*pag,
+	xfs_extlen_t		need)
 {
-	xfs_extlen_t		need, delta = 0;
+	xfs_extlen_t		delta = 0;
 
-	need = XFS_MIN_FREELIST_PAG(pag, mp);
 	if (need > pag->pagf_flcount)
 		delta = need - pag->pagf_flcount;
 
@@ -1848,10 +1848,8 @@ xfs_alloc_fix_freelist(
 	int		flags)	/* XFS_ALLOC_FLAG_... */
 {
 	xfs_buf_t	*agbp;	/* agf buffer pointer */
-	xfs_agf_t	*agf;	/* a.g. freespace structure pointer */
 	xfs_buf_t	*agflbp;/* agfl buffer pointer */
 	xfs_agblock_t	bno;	/* freelist block */
-	xfs_extlen_t	delta;	/* new blocks needed in freelist */
 	int		error;	/* error result code */
 	xfs_extlen_t	longest;/* longest extent in allocation group */
 	xfs_mount_t	*mp;	/* file system mount point structure */
@@ -1895,7 +1893,7 @@ xfs_alloc_fix_freelist(
 		 * total blocks, reject it.
 		 */
 		need = XFS_MIN_FREELIST_PAG(pag, mp);
-		longest = xfs_alloc_longest_free_extent(mp, pag);
+		longest = xfs_alloc_longest_free_extent(mp, pag, need);
 		if ((args->minlen + args->alignment + args->minalignslop - 1) >
 				longest ||
 		    ((int)(pag->pagf_freeblks + pag->pagf_flcount -
@@ -1922,25 +1920,16 @@ xfs_alloc_fix_freelist(
 			return 0;
 		}
 	}
-	/*
-	 * Figure out how many blocks we should have in the freelist.
-	 */
-	agf = XFS_BUF_TO_AGF(agbp);
-	need = XFS_MIN_FREELIST(agf, mp);
-	/*
-	 * If there isn't enough total or single-extent, reject it.
-	 */
+
+
+	/* If there isn't enough total space or single-extent, reject it. */
+	need = XFS_MIN_FREELIST_PAG(pag, mp);
 	if (!(flags & XFS_ALLOC_FLAG_FREEING)) {
-		delta = need > be32_to_cpu(agf->agf_flcount) ?
-			(need - be32_to_cpu(agf->agf_flcount)) : 0;
-		longest = be32_to_cpu(agf->agf_longest);
-		longest = (longest > delta) ? (longest - delta) :
-			(be32_to_cpu(agf->agf_flcount) > 0 || longest > 0);
+		longest = xfs_alloc_longest_free_extent(mp, pag, need);
 		if ((args->minlen + args->alignment + args->minalignslop - 1) >
 				longest ||
-		    ((int)(be32_to_cpu(agf->agf_freeblks) +
-		     be32_to_cpu(agf->agf_flcount) - need - args->total) <
-				(int)args->minleft)) {
+		    ((int)(pag->pagf_freeblks + pag->pagf_flcount -
+			   need - args->total) < (int)args->minleft)) {
 			xfs_trans_brelse(tp, agbp);
 			args->agbp = NULL;
 			return 0;
@@ -1948,21 +1937,25 @@ xfs_alloc_fix_freelist(
 	}
 	/*
 	 * Make the freelist shorter if it's too long.
+	 *
+	 * XXX (dgc): When we have lots of free space, does this buy us
+	 * anything other than extra overhead when we need to put more blocks
+	 * back on the free list? Maybe we should only do this when space is
+	 * getting low or the AGFL is more than half full?
 	 */
-	while (be32_to_cpu(agf->agf_flcount) > need) {
-		xfs_buf_t	*bp;
+	while (pag->pagf_flcount > need) {
+		struct xfs_buf	*bp;
 
 		error = xfs_alloc_get_freelist(tp, agbp, &bno, 0);
 		if (error)
 			return error;
-		if ((error = xfs_free_ag_extent(tp, agbp, args->agno, bno, 1, 1)))
+		error = xfs_free_ag_extent(tp, agbp, args->agno, bno, 1, 1);
+		if (error)
 			return error;
 		bp = xfs_btree_get_bufs(mp, tp, args->agno, bno, 0);
 		xfs_trans_binval(tp, bp);
 	}
-	/*
-	 * Initialize the args structure.
-	 */
+
 	memset(&targs, 0, sizeof(targs));
 	targs.tp = tp;
 	targs.mp = mp;
@@ -1971,18 +1964,18 @@ xfs_alloc_fix_freelist(
 	targs.alignment = targs.minlen = targs.prod = targs.isfl = 1;
 	targs.type = XFS_ALLOCTYPE_THIS_AG;
 	targs.pag = pag;
-	if ((error = xfs_alloc_read_agfl(mp, tp, targs.agno, &agflbp)))
+	error = xfs_alloc_read_agfl(mp, tp, targs.agno, &agflbp);
+	if (error)
 		return error;
-	/*
-	 * Make the freelist longer if it's too short.
-	 */
-	while (be32_to_cpu(agf->agf_flcount) < need) {
+
+	/* Make the freelist longer if it's too short. */
+	while (pag->pagf_flcount < need) {
 		targs.agbno = 0;
-		targs.maxlen = need - be32_to_cpu(agf->agf_flcount);
-		/*
-		 * Allocate as many blocks as possible at once.
-		 */
-		if ((error = xfs_alloc_ag_vextent(&targs))) {
+		targs.maxlen = need - pag->pagf_flcount;
+
+		/* Allocate as many blocks as possible at once. */
+		error = xfs_alloc_ag_vextent(&targs);
+		if (error) {
 			xfs_trans_brelse(tp, agflbp);
 			return error;
 		}

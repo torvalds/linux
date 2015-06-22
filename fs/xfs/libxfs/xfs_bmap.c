@@ -3507,7 +3507,8 @@ xfs_bmap_longest_free_extent(
 		}
 	}
 
-	longest = xfs_alloc_longest_free_extent(mp, pag);
+	longest = xfs_alloc_longest_free_extent(mp, pag,
+						XFS_MIN_FREELIST_PAG(pag, mp));
 	if (*blen < longest)
 		*blen = longest;
 
