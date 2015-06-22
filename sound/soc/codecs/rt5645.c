@@ -464,9 +464,9 @@ static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 		RT5645_L_VOL_SFT, RT5645_R_VOL_SFT, 39, 1, out_vol_tlv),
 
 	/* Headphone Output Volume */
-	SOC_DOUBLE("HP Channel Switch", RT5645_HP_VOL,
+	SOC_DOUBLE("Headphone Channel Switch", RT5645_HP_VOL,
 		RT5645_VOL_L_SFT, RT5645_VOL_R_SFT, 1, 1),
-	SOC_DOUBLE_TLV("HP Playback Volume", RT5645_HP_VOL,
+	SOC_DOUBLE_TLV("Headphone Playback Volume", RT5645_HP_VOL,
 		RT5645_L_VOL_SFT, RT5645_R_VOL_SFT, 39, 1, out_vol_tlv),
 
 	/* OUTPUT Control */
@@ -2837,6 +2837,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
+	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
+
 	if (rt5645->i2c->irq) {
 		ret = request_threaded_irq(rt5645->i2c->irq, NULL, rt5645_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
@@ -2854,8 +2856,6 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		if (ret)
 			dev_err(&i2c->dev, "Fail gpio_direction hp_det_gpio\n");
 	}
-
-	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
 
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5645,
 				      rt5645_dai, ARRAY_SIZE(rt5645_dai));
