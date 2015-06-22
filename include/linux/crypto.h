@@ -102,6 +102,12 @@
 #define CRYPTO_ALG_INTERNAL		0x00002000
 
 /*
+ * Temporary flag used to prevent legacy AEAD implementations from
+ * being used by user-space.
+ */
+#define CRYPTO_ALG_AEAD_NEW		0x00004000
+
+/*
  * Transform masks and values (for crt_flags).
  */
 #define CRYPTO_TFM_REQ_MASK		0x000fff00
