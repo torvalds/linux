@@ -83,7 +83,7 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 #endif
 	.endm
 
-	.macro	SWITCH_ASYNC savearea,stack,shift
+	.macro	SWITCH_ASYNC savearea,stack,shift,timer
 	tmhh	%r8,0x0001		# interrupting from user ?
 	jnz	1f
 	lgr	%r14,%r9
@@ -97,23 +97,25 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 0:	lg	%r14,\stack		# are we already on the target stack?
 	slgr	%r14,%r15
 	srag	%r14,%r14,\shift
-	jnz	1f
+	jnz	2f
 	CHECK_STACK 1<<\shift,\savearea
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	j	2f
-1:	lg	%r15,\stack		# load target stack
-2:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+	j	3f
+1:	LAST_BREAK %r14
+	UPDATE_VTIME %r14,%r15,\timer
+2:	lg	%r15,\stack		# load target stack
+3:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	.endm
 
-	.macro UPDATE_VTIME scratch,enter_timer
-	lg	\scratch,__LC_EXIT_TIMER
-	slg	\scratch,\enter_timer
-	alg	\scratch,__LC_USER_TIMER
-	stg	\scratch,__LC_USER_TIMER
-	lg	\scratch,__LC_LAST_UPDATE_TIMER
-	slg	\scratch,__LC_EXIT_TIMER
-	alg	\scratch,__LC_SYSTEM_TIMER
-	stg	\scratch,__LC_SYSTEM_TIMER
+	.macro UPDATE_VTIME w1,w2,enter_timer
+	lg	\w1,__LC_EXIT_TIMER
+	lg	\w2,__LC_LAST_UPDATE_TIMER
+	slg	\w1,\enter_timer
+	slg	\w2,__LC_EXIT_TIMER
+	alg	\w1,__LC_USER_TIMER
+	alg	\w2,__LC_SYSTEM_TIMER
+	stg	\w1,__LC_USER_TIMER
+	stg	\w2,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),\enter_timer
 	.endm
 
@@ -246,9 +248,9 @@ ENTRY(system_call)
 .Lsysc_per:
 	lg	%r15,__LC_KERNEL_STACK
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
-.Lsysc_vtime:
-	UPDATE_VTIME %r13,__LC_SYNC_ENTER_TIMER
 	LAST_BREAK %r13
+.Lsysc_vtime:
+	UPDATE_VTIME %r10,%r13,__LC_SYNC_ENTER_TIMER
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	mvc	__PT_PSW(16,%r11),__LC_SVC_OLD_PSW
@@ -278,8 +280,6 @@ ENTRY(system_call)
 .Lsysc_return:
 	LOCKDEP_SYS_EXIT
 .Lsysc_tif:
-	tm	__PT_PSW+1(%r11),0x01		# returning to user ?
-	jno	.Lsysc_restore
 	tm	__PT_FLAGS+7(%r11),_PIF_WORK
 	jnz	.Lsysc_work
 	tm	__TI_flags+7(%r12),_TIF_WORK
@@ -467,8 +467,8 @@ ENTRY(pgm_check_handler)
 1:	CHECK_STACK STACK_SIZE,__LC_SAVE_AREA_SYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	3f
-2:	UPDATE_VTIME %r14,__LC_SYNC_ENTER_TIMER
-	LAST_BREAK %r14
+2:	LAST_BREAK %r14
+	UPDATE_VTIME %r14,%r15,__LC_SYNC_ENTER_TIMER
 	lg	%r15,__LC_KERNEL_STACK
 	lg	%r14,__TI_task(%r12)
 	aghi	%r14,__TASK_thread	# pointer to thread_struct
@@ -498,11 +498,15 @@ ENTRY(pgm_check_handler)
 	llgh	%r10,__PT_INT_CODE+2(%r11)
 	nill	%r10,0x007f
 	sll	%r10,2
-	je	.Lsysc_return
+	je	.Lpgm_return
 	lgf	%r1,0(%r10,%r1)		# load address of handler routine
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	basr	%r14,%r1		# branch to interrupt-handler
-	j	.Lsysc_return
+.Lpgm_return:
+	LOCKDEP_SYS_EXIT
+	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
+	jno	.Lsysc_restore
+	j	.Lsysc_tif
 
 #
 # PER event in supervisor state, must be kprobes
@@ -512,7 +516,7 @@ ENTRY(pgm_check_handler)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,do_per_trap
-	j	.Lsysc_return
+	j	.Lpgm_return
 
 #
 # single stepped system call
@@ -535,12 +539,8 @@ ENTRY(io_int_handler)
 	lg	%r12,__LC_THREAD_INFO
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_IO_OLD_PSW
-	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT
-	tmhh	%r8,0x0001		# interrupting from user?
-	jz	.Lio_skip
-	UPDATE_VTIME %r14,__LC_ASYNC_ENTER_TIMER
-	LAST_BREAK %r14
-.Lio_skip:
+	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT,\
+		     __LC_ASYNC_ENTER_TIMER
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
@@ -712,12 +712,8 @@ ENTRY(ext_int_handler)
 	lg	%r12,__LC_THREAD_INFO
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_EXT_OLD_PSW
-	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT
-	tmhh	%r8,0x0001		# interrupting from user ?
-	jz	.Lext_skip
-	UPDATE_VTIME %r14,__LC_ASYNC_ENTER_TIMER
-	LAST_BREAK %r14
-.Lext_skip:
+	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT,\
+		     __LC_ASYNC_ENTER_TIMER
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
@@ -896,11 +892,8 @@ ENTRY(mcck_int_handler)
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
 3:	tm	__LC_MCCK_CODE+2,0x09	# mwp + ia of old psw valid?
 	jno	.Lmcck_panic		# no -> skip cleanup critical
-	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_PANIC_STACK,PAGE_SHIFT
-	tm	%r8,0x0001		# interrupting from user ?
-	jz	.Lmcck_skip
-	UPDATE_VTIME %r14,__LC_MCCK_ENTER_TIMER
-	LAST_BREAK %r14
+	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_PANIC_STACK,PAGE_SHIFT,\
+		     __LC_MCCK_ENTER_TIMER
 .Lmcck_skip:
 	lghi	%r14,__LC_GPREGS_SAVE_AREA+64
 	stmg	%r0,%r7,__PT_R0(%r11)
@@ -1125,7 +1118,7 @@ cleanup_critical:
 	.quad	system_call
 	.quad	.Lsysc_stmg
 	.quad	.Lsysc_per
-	.quad	.Lsysc_vtime+18
+	.quad	.Lsysc_vtime+36
 	.quad	.Lsysc_vtime+42
 
 .Lcleanup_sysc_tif:
