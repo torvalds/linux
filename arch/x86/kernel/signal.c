@@ -35,7 +35,6 @@
 #ifdef CONFIG_X86_64
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
-#include <asm/sys_ia32.h>
 #endif /* CONFIG_X86_64 */
 
 #include <asm/syscall.h>
