@@ -33,7 +33,7 @@ static const struct snd_soc_dapm_route gtm601_dapm_routes[] = {
 	{ "Capture", NULL, "AIN" },
 };
 
-struct snd_soc_dai_driver gtm601_dai = {
+static struct snd_soc_dai_driver gtm601_dai = {
 	.name = "gtm601",
 	.playback = {
 		.stream_name = "Playback",
