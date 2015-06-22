@@ -1571,7 +1571,7 @@ static int max98088_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			regcache_sync(max98088->regmap);
 
 		snd_soc_update_bits(codec, M98088_REG_4C_PWR_EN_IN,
@@ -1584,7 +1584,6 @@ static int max98088_set_bias_level(struct snd_soc_codec *codec,
 		regcache_mark_dirty(max98088->regmap);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

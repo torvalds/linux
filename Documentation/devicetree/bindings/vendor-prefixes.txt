@@ -54,6 +54,7 @@ cosmic	Cosmic Circuits
 crystalfontz	Crystalfontz America, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 davicom	DAVICOM Semiconductor, Inc.
+delta	Delta Electronics, Inc.
 denx	Denx Software Engineering
 digi	Digi International Inc.
 digilent	Diglent, Inc.
