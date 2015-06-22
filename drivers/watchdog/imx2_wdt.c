@@ -291,7 +291,7 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	ret = watchdog_register_device(wdog);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot register watchdog device\n");
-		return ret;
+		goto disable_clk;
 	}
 
 	wdev->restart_handler.notifier_call = imx2_restart_handler;
@@ -304,6 +304,10 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 		 wdog->timeout, nowayout);
 
 	return 0;
+
+disable_clk:
+	clk_disable_unprepare(wdev->clk);
+	return ret;
 }
 
 static int __exit imx2_wdt_remove(struct platform_device *pdev)
