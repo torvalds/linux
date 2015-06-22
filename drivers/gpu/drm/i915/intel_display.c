@@ -553,15 +553,25 @@ intel_limit(struct intel_crtc_state *crtc_state, int refclk)
 	return limit;
 }
 
+/*
+ * Platform specific helpers to calculate the port PLL loopback- (clock.m),
+ * and post-divider (clock.p) values, pre- (clock.vco) and post-divided fast
+ * (clock.dot) clock rates. This fast dot clock is fed to the port's IO logic.
+ * The helpers' return value is the rate of the clock that is fed to the
+ * display engine's pipe which can be the above fast dot clock rate or a
+ * divided-down version of it.
+ */
 /* m1 is reserved as 0 in Pineview, n is a ring counter */
-static void pineview_clock(int refclk, intel_clock_t *clock)
+static int pnv_calc_dpll_params(int refclk, intel_clock_t *clock)
 {
 	clock->m = clock->m2 + 2;
 	clock->p = clock->p1 * clock->p2;
 	if (WARN_ON(clock->n == 0 || clock->p == 0))
-		return;
+		return 0;
 	clock->vco = DIV_ROUND_CLOSEST(refclk * clock->m, clock->n);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
+
+	return clock->dot;
 }
 
 static uint32_t i9xx_dpll_compute_m(struct dpll *dpll)
@@ -569,35 +579,41 @@ static uint32_t i9xx_dpll_compute_m(struct dpll *dpll)
 	return 5 * (dpll->m1 + 2) + (dpll->m2 + 2);
 }
 
-static void i9xx_clock(int refclk, intel_clock_t *clock)
+static int i9xx_calc_dpll_params(int refclk, intel_clock_t *clock)
 {
 	clock->m = i9xx_dpll_compute_m(clock);
 	clock->p = clock->p1 * clock->p2;
 	if (WARN_ON(clock->n + 2 == 0 || clock->p == 0))
-		return;
+		return 0;
 	clock->vco = DIV_ROUND_CLOSEST(refclk * clock->m, clock->n + 2);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
+
+	return clock->dot;
 }
 
-static void vlv_clock(int refclk, intel_clock_t *clock)
+static int vlv_calc_dpll_params(int refclk, intel_clock_t *clock)
 {
 	clock->m = clock->m1 * clock->m2;
 	clock->p = clock->p1 * clock->p2;
 	if (WARN_ON(clock->n == 0 || clock->p == 0))
-		return;
+		return 0;
 	clock->vco = DIV_ROUND_CLOSEST(refclk * clock->m, clock->n);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
+
+	return clock->dot / 5;
 }
 
-static void chv_clock(int refclk, intel_clock_t *clock)
+int chv_calc_dpll_params(int refclk, intel_clock_t *clock)
 {
 	clock->m = clock->m1 * clock->m2;
 	clock->p = clock->p1 * clock->p2;
 	if (WARN_ON(clock->n == 0 || clock->p == 0))
-		return;
+		return 0;
 	clock->vco = DIV_ROUND_CLOSEST_ULL((uint64_t)refclk * clock->m,
 			clock->n << 22);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
+
+	return clock->dot / 5;
 }
 
 #define INTELPllInvalid(s)   do { /* DRM_DEBUG(s); */ return false; } while (0)
@@ -692,7 +708,7 @@ i9xx_find_best_dpll(const intel_limit_t *limit,
 					clock.p1 <= limit->p1.max; clock.p1++) {
 					int this_err;
 
-					i9xx_clock(refclk, &clock);
+					i9xx_calc_dpll_params(refclk, &clock);
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
@@ -737,7 +753,7 @@ pnv_find_best_dpll(const intel_limit_t *limit,
 					clock.p1 <= limit->p1.max; clock.p1++) {
 					int this_err;
 
-					pineview_clock(refclk, &clock);
+					pnv_calc_dpll_params(refclk, &clock);
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
@@ -787,7 +803,7 @@ g4x_find_best_dpll(const intel_limit_t *limit,
 				     clock.p1 >= limit->p1.min; clock.p1--) {
 					int this_err;
 
-					i9xx_clock(refclk, &clock);
+					i9xx_calc_dpll_params(refclk, &clock);
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
@@ -877,7 +893,7 @@ vlv_find_best_dpll(const intel_limit_t *limit,
 					clock.m2 = DIV_ROUND_CLOSEST(target * clock.p * clock.n,
 								     refclk * clock.m1);
 
-					vlv_clock(refclk, &clock);
+					vlv_calc_dpll_params(refclk, &clock);
 
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
@@ -940,7 +956,7 @@ chv_find_best_dpll(const intel_limit_t *limit,
 
 			clock.m2 = m2;
 
-			chv_clock(refclk, &clock);
+			chv_calc_dpll_params(refclk, &clock);
 
 			if (!intel_PLL_is_valid(dev, limit, &clock))
 				continue;
@@ -7925,10 +7941,7 @@ static void vlv_crtc_clock_get(struct intel_crtc *crtc,
 	clock.p1 = (mdiv >> DPIO_P1_SHIFT) & 7;
 	clock.p2 = (mdiv >> DPIO_P2_SHIFT) & 0x1f;
 
-	vlv_clock(refclk, &clock);
-
-	/* clock.dot is the fast clock */
-	pipe_config->port_clock = clock.dot / 5;
+	pipe_config->port_clock = vlv_calc_dpll_params(refclk, &clock);
 }
 
 static void
@@ -8024,10 +8037,7 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 	clock.p1 = (cmn_dw13 >> DPIO_CHV_P1_DIV_SHIFT) & 0x7;
 	clock.p2 = (cmn_dw13 >> DPIO_CHV_P2_DIV_SHIFT) & 0x1f;
 
-	chv_clock(refclk, &clock);
-
-	/* clock.dot is the fast clock */
-	pipe_config->port_clock = clock.dot / 5;
+	pipe_config->port_clock = chv_calc_dpll_params(refclk, &clock);
 }
 
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
@@ -10464,6 +10474,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 	u32 dpll = pipe_config->dpll_hw_state.dpll;
 	u32 fp;
 	intel_clock_t clock;
+	int port_clock;
 	int refclk = i9xx_pll_refclk(dev, pipe_config);
 
 	if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
@@ -10504,9 +10515,9 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		}
 
 		if (IS_PINEVIEW(dev))
-			pineview_clock(refclk, &clock);
+			port_clock = pnv_calc_dpll_params(refclk, &clock);
 		else
-			i9xx_clock(refclk, &clock);
+			port_clock = i9xx_calc_dpll_params(refclk, &clock);
 	} else {
 		u32 lvds = IS_I830(dev) ? 0 : I915_READ(LVDS);
 		bool is_lvds = (pipe == 1) && (lvds & LVDS_PORT_EN);
@@ -10532,7 +10543,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 				clock.p2 = 2;
 		}
 
-		i9xx_clock(refclk, &clock);
+		port_clock = i9xx_calc_dpll_params(refclk, &clock);
 	}
 
 	/*
@@ -10540,7 +10551,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 	 * port_clock to compute adjusted_mode.crtc_clock in the
 	 * encoder's get_config() function.
 	 */
-	pipe_config->port_clock = clock.dot;
+	pipe_config->port_clock = port_clock;
 }
 
 int intel_dotclock_calculate(int link_freq,
