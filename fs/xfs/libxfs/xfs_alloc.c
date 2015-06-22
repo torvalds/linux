@@ -1838,6 +1838,23 @@ xfs_alloc_longest_free_extent(
 	return pag->pagf_flcount > 0 || pag->pagf_longest > 0;
 }
 
+unsigned int
+xfs_alloc_min_freelist(
+	struct xfs_mount	*mp,
+	struct xfs_perag	*pag)
+{
+	unsigned int		min_free;
+
+	/* space needed by-bno freespace btree */
+	min_free = min_t(unsigned int, pag->pagf_levels[XFS_BTNUM_BNOi] + 1,
+				       mp->m_ag_maxlevels);
+	/* space needed by-size freespace btree */
+	min_free += min_t(unsigned int, pag->pagf_levels[XFS_BTNUM_CNTi] + 1,
+				       mp->m_ag_maxlevels);
+
+	return min_free;
+}
+
 /*
  * Check if the operation we are fixing up the freelist for should go ahead or
  * not. If we are freeing blocks, we always allow it, otherwise the allocation
@@ -1912,7 +1929,7 @@ xfs_alloc_fix_freelist(
 		goto out_agbp_relse;
 	}
 
-	need = XFS_MIN_FREELIST_PAG(pag, mp);
+	need = xfs_alloc_min_freelist(mp, pag);
 	if (!xfs_alloc_space_available(args, need, flags))
 		goto out_agbp_relse;
 
@@ -1931,9 +1948,8 @@ xfs_alloc_fix_freelist(
 		}
 	}
 
-
 	/* If there isn't enough total space or single-extent, reject it. */
-	need = XFS_MIN_FREELIST_PAG(pag, mp);
+	need = xfs_alloc_min_freelist(mp, pag);
 	if (!xfs_alloc_space_available(args, need, flags))
 		goto out_agbp_relse;
 

@@ -130,6 +130,8 @@ typedef struct xfs_alloc_arg {
 
 xfs_extlen_t xfs_alloc_longest_free_extent(struct xfs_mount *mp,
 		struct xfs_perag *pag, xfs_extlen_t need);
+unsigned int xfs_alloc_min_freelist(struct xfs_mount *mp,
+		struct xfs_perag *pag);
 
 /*
  * Compute and fill in value of m_ag_maxlevels.
