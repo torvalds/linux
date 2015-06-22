@@ -87,6 +87,11 @@ struct htt_data_tx_desc_frag {
 	__le32 len;
 } __packed;
 
+struct htt_msdu_ext_desc {
+	__le32 tso_flag[4];
+	struct htt_data_tx_desc_frag frags[6];
+};
+
 enum htt_data_tx_desc_flags0 {
 	HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT = 1 << 0,
 	HTT_DATA_TX_DESC_FLAGS0_NO_AGGR         = 1 << 1,
@@ -1466,6 +1471,11 @@ struct ath10k_htt {
 
 	/* rx_status template */
 	struct ieee80211_rx_status rx_status;
+
+	struct {
+		dma_addr_t paddr;
+		struct htt_msdu_ext_desc *vaddr;
+	} frag_desc;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1533,6 +1543,7 @@ void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);
 int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie);
+int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt);
 int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt);
 int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,

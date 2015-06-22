@@ -249,5 +249,9 @@ int ath10k_htt_setup(struct ath10k_htt *htt)
 	if (status)
 		return status;
 
+	status = ath10k_htt_send_frag_desc_bank_cfg(htt);
+	if (status)
+		return status;
+
 	return ath10k_htt_send_rx_ring_cfg_ll(htt);
 }

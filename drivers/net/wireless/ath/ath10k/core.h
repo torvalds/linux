@@ -582,6 +582,12 @@ struct ath10k {
 		 */
 		bool has_shifted_cc_wraparound;
 
+		/* Some of chip expects fragment descriptor to be continuous
+		 * memory for any TX operation. Set continuous_frag_desc flag
+		 * for the hardware which have such requirement.
+		 */
+		bool continuous_frag_desc;
+
 		struct ath10k_hw_params_fw {
 			const char *dir;
 			const char *fw;
