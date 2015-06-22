@@ -20,6 +20,7 @@ And in addition, the compatible shall be extended with the specific
 board. Currently known boards are:
 
 "buffalo,lschlv2"
+"buffalo,lswxl"
 "buffalo,lsxhl"
 "buffalo,lsxl"
 "dlink,dns-320"
