@@ -868,7 +868,6 @@ static int linux_wlan_txq_task(void *vp)
 #define TX_BACKOFF_WEIGHT_MIN (0)
 #define TX_BACKOFF_WEIGHT_UNIT_MS (10)
 	int backoff_weight = TX_BACKOFF_WEIGHT_MIN;
-	signed long timeout;
 #endif
 
 	/* inform wilc1000_wlan_init that TXQ task is started. */
@@ -906,7 +905,6 @@ static int linux_wlan_txq_task(void *vp)
 			}
 
 			if (ret == WILC_TX_ERR_NO_BUF) { /* failed to allocate buffers in chip. */
-				timeout = msecs_to_jiffies(TX_BACKOFF_WEIGHT_UNIT_MS << backoff_weight);
 				do {
 					/* Back off from sending packets for some time. */
 					/* schedule_timeout will allow RX task to run and free buffers.*/
