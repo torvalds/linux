@@ -91,6 +91,7 @@ struct regulator_linear_range {
  * @set_current_limit: Configure a limit for a current-limited regulator.
  *                     The driver should select the current closest to max_uA.
  * @get_current_limit: Get the configured limit for a current-limited regulator.
+ * @set_input_current_limit: Configure an input limit.
  *
  * @set_mode: Set the configured operating mode for the regulator.
  * @get_mode: Get the configured operating mode for the regulator.
@@ -121,6 +122,9 @@ struct regulator_linear_range {
  * @set_suspend_mode: Set the operating mode for the regulator when the
  *                    system is suspended.
  *
+ * @set_pull_down: Configure the regulator to pull down when the regulator
+ *		   is disabled.
+ *
  * This struct describes regulator operations which can be implemented by
  * regulator chip drivers.
  */
@@ -142,6 +146,8 @@ struct regulator_ops {
 				 int min_uA, int max_uA);
 	int (*get_current_limit) (struct regulator_dev *);
 
+	int (*set_input_current_limit) (struct regulator_dev *, int lim_uA);
+
 	/* enable/disable regulator */
 	int (*enable) (struct regulator_dev *);
 	int (*disable) (struct regulator_dev *);
@@ -157,6 +163,8 @@ struct regulator_ops {
 	int (*set_voltage_time_sel) (struct regulator_dev *,
 				     unsigned int old_selector,
 				     unsigned int new_selector);
+
+	int (*set_soft_start) (struct regulator_dev *);
 
 	/* report regulator status ... most other accessors report
 	 * control inputs, this reports results of combining inputs
@@ -187,6 +195,8 @@ struct regulator_ops {
 
 	/* set regulator suspend operating mode (defined in consumer.h) */
 	int (*set_suspend_mode) (struct regulator_dev *, unsigned int mode);
+
+	int (*set_pull_down) (struct regulator_dev *);
 };
 
 /*

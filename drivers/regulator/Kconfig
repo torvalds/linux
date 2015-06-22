@@ -243,7 +243,7 @@ config REGULATOR_FAN53555
 
 config REGULATOR_GPIO
 	tristate "GPIO regulator support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This driver provides support for regulators that can be
 	  controlled via gpios.
