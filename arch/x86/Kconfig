@@ -2517,6 +2517,7 @@ config IA32_EMULATION
 	select BINFMT_ELF
 	select COMPAT_BINFMT_ELF
 	select HAVE_UID16
+	select ARCH_WANT_OLD_COMPAT_IPC
 	---help---
 	  Include code to run legacy 32-bit programs under a
 	  64-bit kernel. You should likely turn this on, unless you're
@@ -2544,7 +2545,6 @@ config X86_X32
 config COMPAT
 	def_bool y
 	depends on IA32_EMULATION || X86_X32
-	select ARCH_WANT_OLD_COMPAT_IPC
 
 if COMPAT
 config COMPAT_FOR_U64_ALIGNMENT
