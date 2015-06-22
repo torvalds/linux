@@ -449,6 +449,11 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 	}
 }
 
+int mwifiex_bypass_txlist_empty(struct mwifiex_adapter *adapter)
+{
+	return atomic_read(&adapter->bypass_tx_pending) ? false : true;
+}
+
 /*
  * This function checks if WMM Tx queue is empty.
  */
@@ -580,6 +585,10 @@ mwifiex_clean_txrx(struct mwifiex_private *priv)
 
 	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp)
 		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+
+	skb_queue_walk_safe(&priv->bypass_txq, skb, tmp)
+		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+	atomic_set(&priv->adapter->bypass_tx_pending, 0);
 
 	idr_for_each(&priv->ack_status_frames, mwifiex_free_ack_frame, NULL);
 	idr_destroy(&priv->ack_status_frames);
@@ -750,6 +759,18 @@ mwifiex_is_ralist_valid(struct mwifiex_private *priv,
 	}
 
 	return false;
+}
+
+/*
+ * This function adds a packet to bypass TX queue.
+ * This is special TX queue for packets which can be sent even when port_open
+ * is false.
+ */
+void
+mwifiex_wmm_add_buf_bypass_txqueue(struct mwifiex_private *priv,
+				   struct sk_buff *skb)
+{
+	skb_queue_tail(&priv->bypass_txq, skb);
 }
 
 /*
@@ -1427,6 +1448,38 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 			   mwifiex_send_single_packet() */
 	}
 	return 0;
+}
+
+void mwifiex_process_bypass_tx(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_tx_param tx_param;
+	struct sk_buff *skb;
+	struct mwifiex_txinfo *tx_info;
+	struct mwifiex_private *priv;
+	int i;
+
+	if (adapter->data_sent || adapter->tx_lock_flag)
+		return;
+
+	for (i = 0; i < adapter->priv_num; ++i) {
+		priv = adapter->priv[i];
+
+		if (skb_queue_empty(&priv->bypass_txq))
+			continue;
+
+		skb = skb_dequeue(&priv->bypass_txq);
+		tx_info = MWIFIEX_SKB_TXCB(skb);
+
+		/* no aggregation for bypass packets */
+		tx_param.next_pkt_len = 0;
+
+		if (mwifiex_process_tx(priv, skb, &tx_param) == -EBUSY) {
+			skb_queue_head(&priv->bypass_txq, skb);
+			tx_info->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
+		} else {
+			atomic_dec(&adapter->bypass_tx_pending);
+		}
+	}
 }
 
 /*

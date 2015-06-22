@@ -499,6 +499,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 		INIT_LIST_HEAD(&priv->sta_list);
 		INIT_LIST_HEAD(&priv->auto_tdls_list);
 		skb_queue_head_init(&priv->tdls_txq);
+		skb_queue_head_init(&priv->bypass_txq);
 
 		spin_lock_init(&priv->tx_ba_stream_tbl_lock);
 		spin_lock_init(&priv->rx_reorder_tbl_lock);
