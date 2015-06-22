@@ -31,7 +31,7 @@ module_param(timeout, int, 0);
 /*
  * Do we run in NAPI mode?
  */
-static int use_napi ;
+static int use_napi;
 module_param(use_napi, int, 0);
 
 
