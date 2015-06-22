@@ -724,6 +724,33 @@ TRACE_EVENT(sched_tune_config,
 	TP_printk("boost=%d ", __entry->boost)
 );
 
+/*
+ * Tracepoint for accounting CPU  boosted utilization
+ */
+TRACE_EVENT(sched_boost_cpu,
+
+	TP_PROTO(int cpu, unsigned long util, unsigned long margin),
+
+	TP_ARGS(cpu, util, margin),
+
+	TP_STRUCT__entry(
+		__field( int,		cpu			)
+		__field( unsigned long,	util			)
+		__field( unsigned long,	margin			)
+	),
+
+	TP_fast_assign(
+		__entry->cpu	= cpu;
+		__entry->util	= util;
+		__entry->margin	= margin;
+	),
+
+	TP_printk("cpu=%d util=%lu margin=%lu",
+		  __entry->cpu,
+		  __entry->util,
+		  __entry->margin)
+);
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
