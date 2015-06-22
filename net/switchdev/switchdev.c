@@ -510,23 +510,23 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 		vinfo = nla_data(attr);
 		vlan->flags = vinfo->flags;
 		if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_BEGIN) {
-			if (vlan->vid_start)
+			if (vlan->vid_begin)
 				return -EINVAL;
-			vlan->vid_start = vinfo->vid;
+			vlan->vid_begin = vinfo->vid;
 		} else if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_END) {
-			if (!vlan->vid_start)
+			if (!vlan->vid_begin)
 				return -EINVAL;
 			vlan->vid_end = vinfo->vid;
-			if (vlan->vid_end <= vlan->vid_start)
+			if (vlan->vid_end <= vlan->vid_begin)
 				return -EINVAL;
 			err = f(dev, &obj);
 			if (err)
 				return err;
 			memset(vlan, 0, sizeof(*vlan));
 		} else {
-			if (vlan->vid_start)
+			if (vlan->vid_begin)
 				return -EINVAL;
-			vlan->vid_start = vinfo->vid;
+			vlan->vid_begin = vinfo->vid;
 			vlan->vid_end = vinfo->vid;
 			err = f(dev, &obj);
 			if (err)
