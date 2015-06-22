@@ -475,8 +475,7 @@ static void __locomo_remove(struct locomo *lchip)
 	device_for_each_child(lchip->dev, NULL, locomo_remove_child);
 
 	if (lchip->irq != NO_IRQ) {
-		irq_set_chained_handler(lchip->irq, NULL);
-		irq_set_handler_data(lchip->irq, NULL);
+		irq_set_chained_handler_and_data(lchip->irq, NULL, NULL);
 	}
 
 	iounmap(lchip->base);
