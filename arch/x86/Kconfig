@@ -132,7 +132,7 @@ config X86
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_UID16			if X86_32
+	select HAVE_UID16			if X86_32 || IA32_EMULATION
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
 	select IRQ_FORCED_THREADING
@@ -2516,7 +2516,6 @@ config IA32_EMULATION
 	depends on X86_64
 	select BINFMT_ELF
 	select COMPAT_BINFMT_ELF
-	select HAVE_UID16
 	select ARCH_WANT_OLD_COMPAT_IPC
 	---help---
 	  Include code to run legacy 32-bit programs under a
