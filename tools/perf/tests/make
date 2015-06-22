@@ -58,6 +58,7 @@ make_install_man    := install-man
 make_install_html   := install-html
 make_install_info   := install-info
 make_install_pdf    := install-pdf
+make_install_prefix := install prefix=/tmp/krava
 make_static         := LDFLAGS=-static
 
 # all the NO_* variable combined
@@ -99,6 +100,7 @@ run += make_util_map_o
 run += make_util_pmu_bison_o
 run += make_install
 run += make_install_bin
+run += make_install_prefix
 # FIXME 'install-*' commented out till they're fixed
 # run += make_install_doc
 # run += make_install_man
@@ -172,6 +174,12 @@ test_make_install       := $(call test_dest_files,$(installed_files_all))
 test_make_install_O     := $(call test_dest_files,$(installed_files_all))
 test_make_install_bin   := $(call test_dest_files,$(installed_files_bin))
 test_make_install_bin_O := $(call test_dest_files,$(installed_files_bin))
+
+# We prefix all installed files for make_install_prefix
+# with '/tmp/krava' to match installed/prefix-ed files.
+installed_files_all_prefix := $(addprefix /tmp/krava/,$(installed_files_all))
+test_make_install_prefix   := $(call test_dest_files,$(installed_files_all_prefix))
+test_make_install_prefix_O := $(call test_dest_files,$(installed_files_all_prefix))
 
 # FIXME nothing gets installed
 test_make_install_man    := test -f $$TMP_DEST/share/man/man1/perf.1
