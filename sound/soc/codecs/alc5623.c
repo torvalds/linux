@@ -826,7 +826,6 @@ static int alc5623_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, ALC5623_PWR_MANAG_ADD1, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -894,7 +893,7 @@ static int alc5623_resume(struct snd_soc_codec *codec)
 static int alc5623_probe(struct snd_soc_codec *codec)
 {
 	struct alc5623_priv *alc5623 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	alc5623_reset(codec);
 
