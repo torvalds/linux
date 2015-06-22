@@ -1416,3 +1416,67 @@ void mwifiex_clean_auto_tdls(struct mwifiex_private *priv)
 		mwifiex_flush_auto_tdls_list(priv);
 	}
 }
+
+static int mwifiex_config_tdls(struct mwifiex_private *priv, u8 enable)
+{
+	struct mwifiex_tdls_config config;
+
+	config.enable = cpu_to_le16(enable);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_CONFIG,
+				ACT_TDLS_CS_ENABLE_CONFIG, 0, &config, true);
+}
+
+int mwifiex_config_tdls_enable(struct mwifiex_private *priv)
+{
+	return mwifiex_config_tdls(priv, true);
+}
+
+int mwifiex_config_tdls_disable(struct mwifiex_private *priv)
+{
+	return mwifiex_config_tdls(priv, false);
+}
+
+int mwifiex_config_tdls_cs_params(struct mwifiex_private *priv)
+{
+	struct mwifiex_tdls_config_cs_params config_tdls_cs_params;
+
+	config_tdls_cs_params.unit_time = MWIFIEX_DEF_CS_UNIT_TIME;
+	config_tdls_cs_params.thr_otherlink = MWIFIEX_DEF_CS_THR_OTHERLINK;
+	config_tdls_cs_params.thr_directlink = MWIFIEX_DEF_THR_DIRECTLINK;
+
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_CONFIG,
+				ACT_TDLS_CS_PARAMS, 0,
+				&config_tdls_cs_params, true);
+}
+
+int mwifiex_stop_tdls_cs(struct mwifiex_private *priv, const u8 *peer_mac)
+{
+	struct mwifiex_tdls_stop_cs_params stop_tdls_cs_params;
+
+	ether_addr_copy(stop_tdls_cs_params.peer_mac, peer_mac);
+
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_CONFIG,
+				ACT_TDLS_CS_STOP, 0,
+				&stop_tdls_cs_params, true);
+}
+
+int mwifiex_start_tdls_cs(struct mwifiex_private *priv, const u8 *peer_mac,
+			  u8 primary_chan, u8 second_chan_offset, u8 band)
+{
+	struct mwifiex_tdls_init_cs_params start_tdls_cs_params;
+
+	ether_addr_copy(start_tdls_cs_params.peer_mac, peer_mac);
+	start_tdls_cs_params.primary_chan = primary_chan;
+	start_tdls_cs_params.second_chan_offset = second_chan_offset;
+	start_tdls_cs_params.band = band;
+
+	start_tdls_cs_params.switch_time = cpu_to_le16(MWIFIEX_DEF_CS_TIME);
+	start_tdls_cs_params.switch_timeout =
+					cpu_to_le16(MWIFIEX_DEF_CS_TIMEOUT);
+	start_tdls_cs_params.reg_class = MWIFIEX_DEF_CS_REG_CLASS;
+	start_tdls_cs_params.periodicity = MWIFIEX_DEF_CS_PERIODICITY;
+
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_CONFIG,
+				ACT_TDLS_CS_INIT, 0,
+				&start_tdls_cs_params, true);
+}

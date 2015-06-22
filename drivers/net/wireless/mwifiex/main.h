@@ -1494,6 +1494,13 @@ void mwifiex_check_auto_tdls(unsigned long context);
 void mwifiex_add_auto_tdls_peer(struct mwifiex_private *priv, const u8 *mac);
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv);
 void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);
+int mwifiex_config_tdls_enable(struct mwifiex_private *priv);
+int mwifiex_config_tdls_disable(struct mwifiex_private *priv);
+int mwifiex_config_tdls_cs_params(struct mwifiex_private *priv);
+int mwifiex_stop_tdls_cs(struct mwifiex_private *priv, const u8 *peer_mac);
+int mwifiex_start_tdls_cs(struct mwifiex_private *priv, const u8 *peer_mac,
+			  u8 primary_chan, u8 second_chan_offset, u8 band);
+
 int mwifiex_cmd_issue_chan_report_request(struct mwifiex_private *priv,
 					  struct host_cmd_ds_command *cmd,
 					  void *data_buf);

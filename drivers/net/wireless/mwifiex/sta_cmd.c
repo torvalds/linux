@@ -1576,6 +1576,50 @@ mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 }
 
 static int
+mwifiex_cmd_tdls_config(struct mwifiex_private *priv,
+			struct host_cmd_ds_command *cmd,
+			u16 cmd_action, void *data_buf)
+{
+	struct host_cmd_ds_tdls_config *tdls_config = &cmd->params.tdls_config;
+	struct mwifiex_tdls_init_cs_params *config;
+	struct mwifiex_tdls_config *init_config;
+	u16 len;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_TDLS_CONFIG);
+	cmd->size = cpu_to_le16(S_DS_GEN);
+	tdls_config->tdls_action = cpu_to_le16(cmd_action);
+	le16_add_cpu(&cmd->size, sizeof(tdls_config->tdls_action));
+
+	switch (cmd_action) {
+	case ACT_TDLS_CS_ENABLE_CONFIG:
+		init_config = data_buf;
+		len = sizeof(*init_config);
+		memcpy(tdls_config->tdls_data, init_config, len);
+		break;
+	case ACT_TDLS_CS_INIT:
+		config = data_buf;
+		len = sizeof(*config);
+		memcpy(tdls_config->tdls_data, config, len);
+		break;
+	case ACT_TDLS_CS_STOP:
+		len = sizeof(struct mwifiex_tdls_stop_cs_params);
+		memcpy(tdls_config->tdls_data, data_buf, len);
+		break;
+	case ACT_TDLS_CS_PARAMS:
+		len = sizeof(struct mwifiex_tdls_config_cs_params);
+		memcpy(tdls_config->tdls_data, data_buf, len);
+		break;
+	default:
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Unknown TDLS configuration\n");
+		return -ENOTSUPP;
+	}
+
+	le16_add_cpu(&cmd->size, len);
+	return 0;
+}
+
+static int
 mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 		      struct host_cmd_ds_command *cmd,
 		      void *data_buf)
@@ -1957,6 +2001,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		break;
 	case HostCmd_CMD_TDLS_OPER:
 		ret = mwifiex_cmd_tdls_oper(priv, cmd_ptr, data_buf);
+		break;
+	case HostCmd_CMD_TDLS_CONFIG:
+		ret = mwifiex_cmd_tdls_config(priv, cmd_ptr, cmd_action,
+					      data_buf);
 		break;
 	case HostCmd_CMD_CHAN_REPORT_REQUEST:
 		ret = mwifiex_cmd_issue_chan_report_request(priv, cmd_ptr,

@@ -1197,6 +1197,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
 		ret = mwifiex_ret_sdio_rx_aggr_cfg(priv, resp);
 		break;
+	case HostCmd_CMD_TDLS_CONFIG:
+		break;
 	default:
 		mwifiex_dbg(adapter, ERROR,
 			    "CMD_RESP: unknown cmd response %#x\n",

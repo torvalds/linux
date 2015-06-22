@@ -360,6 +360,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
 #define HostCmd_CMD_11AC_CFG			      0x0112
+#define HostCmd_CMD_TDLS_CONFIG                       0x0100
 #define HostCmd_CMD_TDLS_OPER                         0x0122
 #define HostCmd_CMD_SDIO_SP_RX_AGGR_CFG               0x0223
 
@@ -555,6 +556,19 @@ enum P2P_MODES {
 
 #define TDLS_BASE_CHANNEL	       0
 #define TDLS_OFF_CHANNEL	       1
+
+#define ACT_TDLS_CS_ENABLE_CONFIG 0x00
+#define ACT_TDLS_CS_INIT	  0x06
+#define ACT_TDLS_CS_STOP	  0x07
+#define ACT_TDLS_CS_PARAMS	  0x08
+
+#define MWIFIEX_DEF_CS_UNIT_TIME	2
+#define MWIFIEX_DEF_CS_THR_OTHERLINK	10
+#define MWIFIEX_DEF_THR_DIRECTLINK	0
+#define MWIFIEX_DEF_CS_TIME		10
+#define MWIFIEX_DEF_CS_TIMEOUT		16
+#define MWIFIEX_DEF_CS_REG_CLASS	12
+#define MWIFIEX_DEF_CS_PERIODICITY	1
 
 #define MWIFIEX_FW_V15		   15
 
@@ -1263,6 +1277,36 @@ struct host_cmd_ds_tdls_oper {
 	__le16 tdls_action;
 	__le16 reason;
 	u8 peer_mac[ETH_ALEN];
+} __packed;
+
+struct mwifiex_tdls_config {
+	__le16 enable;
+};
+
+struct mwifiex_tdls_config_cs_params {
+	u8 unit_time;
+	u8 thr_otherlink;
+	u8 thr_directlink;
+};
+
+struct mwifiex_tdls_init_cs_params {
+	u8 peer_mac[ETH_ALEN];
+	u8 primary_chan;
+	u8 second_chan_offset;
+	u8 band;
+	__le16 switch_time;
+	__le16 switch_timeout;
+	u8 reg_class;
+	u8 periodicity;
+} __packed;
+
+struct mwifiex_tdls_stop_cs_params {
+	u8 peer_mac[ETH_ALEN];
+};
+
+struct host_cmd_ds_tdls_config {
+	__le16 tdls_action;
+	u8 tdls_data[1];
 } __packed;
 
 struct mwifiex_chan_desc {
@@ -2059,6 +2103,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_sta_list sta_list;
 		struct host_cmd_11ac_vht_cfg vht_cfg;
 		struct host_cmd_ds_coalesce_cfg coalesce_cfg;
+		struct host_cmd_ds_tdls_config tdls_config;
 		struct host_cmd_ds_tdls_oper tdls_oper;
 		struct host_cmd_ds_chan_rpt_req chan_rpt_req;
 		struct host_cmd_sdio_sp_rx_aggr_cfg sdio_rx_aggr_cfg;
