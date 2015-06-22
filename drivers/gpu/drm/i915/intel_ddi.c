@@ -1140,8 +1140,26 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 static int bxt_calc_pll_link(struct drm_i915_private *dev_priv,
 				enum intel_dpll_id dpll)
 {
-	/* FIXME formula not available in bspec */
-	return 0;
+	struct intel_shared_dpll *pll;
+	struct intel_dpll_hw_state *state;
+	intel_clock_t clock;
+
+	/* For DDI ports we always use a shared PLL. */
+	if (WARN_ON(dpll == DPLL_ID_PRIVATE))
+		return 0;
+
+	pll = &dev_priv->shared_dplls[dpll];
+	state = &pll->config.hw_state;
+
+	clock.m1 = 2;
+	clock.m2 = (state->pll0 & PORT_PLL_M2_MASK) << 22;
+	if (state->pll3 & PORT_PLL_M2_FRAC_ENABLE)
+		clock.m2 |= state->pll2 & PORT_PLL_M2_FRAC_MASK;
+	clock.n = (state->pll1 & PORT_PLL_N_MASK) >> PORT_PLL_N_SHIFT;
+	clock.p1 = (state->ebb0 & PORT_PLL_P1_MASK) >> PORT_PLL_P1_SHIFT;
+	clock.p2 = (state->ebb0 & PORT_PLL_P2_MASK) >> PORT_PLL_P2_SHIFT;
+
+	return chv_calc_dpll_params(100000, &clock);
 }
 
 static void bxt_ddi_clock_get(struct intel_encoder *encoder,

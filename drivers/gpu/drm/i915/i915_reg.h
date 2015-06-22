@@ -1170,10 +1170,12 @@ enum skl_disp_power_wells {
 #define _PORT_PLL_EBB_0_A		0x162034
 #define _PORT_PLL_EBB_0_B		0x6C034
 #define _PORT_PLL_EBB_0_C		0x6C340
-#define   PORT_PLL_P1_MASK		(0x07 << 13)
-#define   PORT_PLL_P1(x)		((x)  << 13)
-#define   PORT_PLL_P2_MASK		(0x1f << 8)
-#define   PORT_PLL_P2(x)		((x)  << 8)
+#define   PORT_PLL_P1_SHIFT		13
+#define   PORT_PLL_P1_MASK		(0x07 << PORT_PLL_P1_SHIFT)
+#define   PORT_PLL_P1(x)		((x)  << PORT_PLL_P1_SHIFT)
+#define   PORT_PLL_P2_SHIFT		8
+#define   PORT_PLL_P2_MASK		(0x1f << PORT_PLL_P2_SHIFT)
+#define   PORT_PLL_P2(x)		((x)  << PORT_PLL_P2_SHIFT)
 #define BXT_PORT_PLL_EBB_0(port)	_PORT3(port, _PORT_PLL_EBB_0_A, \
 						_PORT_PLL_EBB_0_B,	\
 						_PORT_PLL_EBB_0_C)
@@ -1193,8 +1195,9 @@ enum skl_disp_power_wells {
 /* PORT_PLL_0_A */
 #define   PORT_PLL_M2_MASK		0xFF
 /* PORT_PLL_1_A */
-#define   PORT_PLL_N_MASK		(0x0F << 8)
-#define   PORT_PLL_N(x)			((x) << 8)
+#define   PORT_PLL_N_SHIFT		8
+#define   PORT_PLL_N_MASK		(0x0F << PORT_PLL_N_SHIFT)
+#define   PORT_PLL_N(x)			((x) << PORT_PLL_N_SHIFT)
 /* PORT_PLL_2_A */
 #define   PORT_PLL_M2_FRAC_MASK		0x3FFFFF
 /* PORT_PLL_3_A */
