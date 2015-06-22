@@ -281,6 +281,7 @@ struct mwifiex_ra_list_tbl {
 	u8 amsdu_in_ampdu;
 	u16 total_pkt_count;
 	bool tdls_link;
+	bool tx_paused;
 };
 
 struct mwifiex_tid_tbl {
@@ -294,6 +295,7 @@ struct mwifiex_tid_tbl {
 struct mwifiex_wmm_desc {
 	struct mwifiex_tid_tbl tid_tbl_ptr[MAX_NUM_TID];
 	u32 packets_out[MAX_NUM_TID];
+	u32 pkts_paused[MAX_NUM_TID];
 	/* spin lock to protect ra_list */
 	spinlock_t ra_list_spinlock;
 	struct mwifiex_wmm_ac_status ac_status[IEEE80211_NUM_ACS];
@@ -768,6 +770,7 @@ struct mwifiex_sta_node {
 	u8 tdls_status;
 	struct mwifiex_tdls_capab tdls_cap;
 	struct mwifiex_station_stats stats;
+	u8 tx_pause;
 };
 
 struct mwifiex_auto_tdls_peer {
