@@ -1739,7 +1739,6 @@ s32 ParseResponse(u8 *resp, tstrWID *pstrWIDcfgResult)
 s32 ParseWriteResponse(u8 *pu8RespBuffer)
 {
 	s32 s32Error = WILC_FAIL;
-	u16 u16RespLen   = 0;
 	u16 u16WIDtype = (u16)WID_NIL;
 
 	/* Check whether the received frame is a valid response */
@@ -1747,9 +1746,6 @@ s32 ParseWriteResponse(u8 *pu8RespBuffer)
 		PRINT_ER("Received Message format incorrect.\n");
 		return WILC_FAIL;
 	}
-
-	/* Extract Response Length */
-	u16RespLen = MAKE_WORD16(pu8RespBuffer[2], pu8RespBuffer[3]);
 
 	u16WIDtype = MAKE_WORD16(pu8RespBuffer[4], pu8RespBuffer[5]);
 
