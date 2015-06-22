@@ -248,11 +248,28 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 int gb_connection_init(struct gb_connection *connection)
 {
+	int cport_id = connection->intf_cport_id;
 	int ret;
 
 	if (!connection->protocol) {
 		dev_warn(&connection->dev, "init without protocol.\n");
 		return 0;
+	}
+
+	/*
+	 * Inform Interface about Active CPorts. We don't need to do this
+	 * operation for control cport.
+	 */
+	if (cport_id != GB_CONTROL_CPORT_ID) {
+		struct gb_control *control = connection->bundle->intf->control;
+
+		ret = gb_control_connected_operation(control, cport_id);
+		if (ret) {
+			dev_warn(&connection->dev,
+				 "Failed to connect CPort-%d (%d)\n",
+				 cport_id, ret);
+			return 0;
+		}
 	}
 
 	/* Need to enable the connection to initialize it */
@@ -266,6 +283,8 @@ int gb_connection_init(struct gb_connection *connection)
 
 void gb_connection_exit(struct gb_connection *connection)
 {
+	int cport_id = connection->intf_cport_id;
+
 	if (!connection->protocol) {
 		dev_warn(&connection->dev, "exit without protocol.\n");
 		return;
@@ -276,4 +295,19 @@ void gb_connection_exit(struct gb_connection *connection)
 
 	connection->state = GB_CONNECTION_STATE_DESTROYING;
 	connection->protocol->connection_exit(connection);
+
+	/*
+	 * Inform Interface about In-active CPorts. We don't need to do this
+	 * operation for control cport.
+	 */
+	if (cport_id != GB_CONTROL_CPORT_ID) {
+		struct gb_control *control = connection->bundle->intf->control;
+		int ret;
+
+		ret = gb_control_disconnected_operation(control, cport_id);
+		if (ret)
+			dev_warn(&connection->dev,
+				 "Failed to disconnect CPort-%d (%d)\n",
+				 cport_id, ret);
+	}
 }
