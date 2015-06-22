@@ -83,7 +83,7 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 #endif
 	.endm
 
-	.macro	SWITCH_ASYNC savearea,stack,shift,timer
+	.macro	SWITCH_ASYNC savearea,timer
 	tmhh	%r8,0x0001		# interrupting from user ?
 	jnz	1f
 	lgr	%r14,%r9
@@ -94,16 +94,16 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 	brasl	%r14,cleanup_critical
 	tmhh	%r8,0x0001		# retest problem state after cleanup
 	jnz	1f
-0:	lg	%r14,\stack		# are we already on the target stack?
+0:	lg	%r14,__LC_ASYNC_STACK	# are we already on the async stack?
 	slgr	%r14,%r15
-	srag	%r14,%r14,\shift
+	srag	%r14,%r14,STACK_SHIFT
 	jnz	2f
-	CHECK_STACK 1<<\shift,\savearea
+	CHECK_STACK 1<<STACK_SHIFT,\savearea
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	3f
 1:	LAST_BREAK %r14
 	UPDATE_VTIME %r14,%r15,\timer
-2:	lg	%r15,\stack		# load target stack
+2:	lg	%r15,__LC_ASYNC_STACK	# load async stack
 3:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	.endm
 
@@ -539,8 +539,7 @@ ENTRY(io_int_handler)
 	lg	%r12,__LC_THREAD_INFO
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_IO_OLD_PSW
-	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT,\
-		     __LC_ASYNC_ENTER_TIMER
+	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_ENTER_TIMER
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
@@ -712,8 +711,7 @@ ENTRY(ext_int_handler)
 	lg	%r12,__LC_THREAD_INFO
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_EXT_OLD_PSW
-	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT,\
-		     __LC_ASYNC_ENTER_TIMER
+	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_ENTER_TIMER
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
@@ -892,8 +890,7 @@ ENTRY(mcck_int_handler)
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
 3:	tm	__LC_MCCK_CODE+2,0x09	# mwp + ia of old psw valid?
 	jno	.Lmcck_panic		# no -> skip cleanup critical
-	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_PANIC_STACK,PAGE_SHIFT,\
-		     __LC_MCCK_ENTER_TIMER
+	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_MCCK_ENTER_TIMER
 .Lmcck_skip:
 	lghi	%r14,__LC_GPREGS_SAVE_AREA+64
 	stmg	%r0,%r7,__PT_R0(%r11)
@@ -928,12 +925,8 @@ ENTRY(mcck_int_handler)
 	lpswe	__LC_RETURN_MCCK_PSW
 
 .Lmcck_panic:
-	lg	%r14,__LC_PANIC_STACK
-	slgr	%r14,%r15
-	srag	%r14,%r14,PAGE_SHIFT
-	jz	0f
 	lg	%r15,__LC_PANIC_STACK
-0:	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
+	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	.Lmcck_skip
 
 #
