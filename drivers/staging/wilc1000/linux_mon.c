@@ -237,14 +237,12 @@ static void mgmt_tx_complete(void *priv, int status)
 }
 static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 {
-	linux_wlan_t *nic;
 	struct tx_complete_mon_data *mgmt_tx = NULL;
 
 	if (dev == NULL) {
 		PRINT_D(HOSTAPD_DBG, "ERROR: dev == NULL\n");
 		return WILC_FAIL;
 	}
-	nic = netdev_priv(dev);
 
 	netif_stop_queue(dev);
 	mgmt_tx = kmalloc(sizeof(struct tx_complete_mon_data), GFP_ATOMIC);
@@ -298,7 +296,6 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
-	struct ieee80211_radiotap_header *rtap_hdr;
 	u32 rtap_len, i, ret = 0;
 	struct WILC_WFI_mon_priv  *mon_priv;
 
@@ -318,7 +315,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 		return WILC_FAIL;
 	}
 
-	rtap_hdr = (struct ieee80211_radiotap_header *)skb->data;
 
 	rtap_len = ieee80211_get_radiotap_len(skb->data);
 	if (skb->len < rtap_len) {
