@@ -1765,7 +1765,9 @@ static void netcp_ethss_link_state_action(struct gbe_priv *gbe_dev,
 				     ALE_PORT_STATE,
 				     ALE_PORT_STATE_FORWARD);
 
-		if (ndev && slave->open)
+		if (ndev && slave->open &&
+		    slave->link_interface != SGMII_LINK_MAC_PHY &&
+		    slave->link_interface != XGMII_LINK_MAC_PHY)
 			netif_carrier_on(ndev);
 	} else {
 		writel(mac_control, GBE_REG_ADDR(slave, emac_regs,
@@ -1773,7 +1775,9 @@ static void netcp_ethss_link_state_action(struct gbe_priv *gbe_dev,
 		cpsw_ale_control_set(gbe_dev->ale, slave->port_num,
 				     ALE_PORT_STATE,
 				     ALE_PORT_STATE_DISABLE);
-		if (ndev)
+		if (ndev &&
+		    slave->link_interface != SGMII_LINK_MAC_PHY &&
+		    slave->link_interface != XGMII_LINK_MAC_PHY)
 			netif_carrier_off(ndev);
 	}
 

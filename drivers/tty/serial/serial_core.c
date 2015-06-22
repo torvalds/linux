@@ -1770,7 +1770,7 @@ static const struct file_operations uart_proc_fops = {
  *	@port: the port to write the message
  *	@s: array of characters
  *	@count: number of characters in string to write
- *	@write: function to write character to port
+ *	@putchar: function to write character to port
  */
 void uart_console_write(struct uart_port *port, const char *s,
 			unsigned int count,

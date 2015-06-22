@@ -755,10 +755,11 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (!child)
 		goto listen_overflow;
 
-	inet_csk_reqsk_queue_unlink(sk, req);
-	inet_csk_reqsk_queue_removed(sk, req);
-
+	inet_csk_reqsk_queue_drop(sk, req);
 	inet_csk_reqsk_queue_add(sk, req, child);
+	/* Warning: caller must not call reqsk_put(req);
+	 * child stole last reference on it.
+	 */
 	return child;
 
 listen_overflow:

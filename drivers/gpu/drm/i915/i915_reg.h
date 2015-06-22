@@ -6074,6 +6074,8 @@ enum skl_disp_power_wells {
 #define  GTFIFOCTL				0x120008
 #define    GT_FIFO_FREE_ENTRIES_MASK		0x7f
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
+#define    GT_FIFO_CTL_BLOCK_ALL_POLICY_STALL	(1 << 12)
+#define    GT_FIFO_CTL_RC6_POLICY_STALL		(1 << 11)
 
 #define  HSW_IDICR				0x9008
 #define    IDIHASHMSK(x)			(((x) & 0x3f) << 16)

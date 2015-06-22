@@ -543,7 +543,7 @@ struct bcm_sysport_tx_counters {
 	u32	jbr;		/* RO # of xmited jabber count*/
 	u32	bytes;		/* RO # of xmited byte count */
 	u32	pok;		/* RO # of xmited good pkt */
-	u32	uc;		/* RO (0x0x4f0)# of xmited unitcast pkt */
+	u32	uc;		/* RO (0x4f0) # of xmited unicast pkt */
 };
 
 struct bcm_sysport_mib {

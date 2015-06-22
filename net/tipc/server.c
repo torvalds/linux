@@ -102,7 +102,7 @@ static void tipc_conn_kref_release(struct kref *kref)
 		}
 		saddr->scope = -TIPC_NODE_SCOPE;
 		kernel_bind(sock, (struct sockaddr *)saddr, sizeof(*saddr));
-		sk_release_kernel(sk);
+		sock_release(sock);
 		con->sock = NULL;
 	}
 
@@ -321,12 +321,9 @@ static struct socket *tipc_create_listen_sock(struct tipc_conn *con)
 	struct socket *sock = NULL;
 	int ret;
 
-	ret = sock_create_kern(AF_TIPC, SOCK_SEQPACKET, 0, &sock);
+	ret = __sock_create(s->net, AF_TIPC, SOCK_SEQPACKET, 0, &sock, 1);
 	if (ret < 0)
 		return NULL;
-
-	sk_change_net(sock->sk, s->net);
-
 	ret = kernel_setsockopt(sock, SOL_TIPC, TIPC_IMPORTANCE,
 				(char *)&s->imp, sizeof(s->imp));
 	if (ret < 0)
@@ -376,7 +373,7 @@ static struct socket *tipc_create_listen_sock(struct tipc_conn *con)
 
 create_err:
 	kernel_sock_shutdown(sock, SHUT_RDWR);
-	sk_release_kernel(sock->sk);
+	sock_release(sock);
 	return NULL;
 }
 

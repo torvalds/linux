@@ -3632,16 +3632,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->generation = btrfs_inode_generation(leaf, inode_item);
 	BTRFS_I(inode)->last_trans = btrfs_inode_transid(leaf, inode_item);
 
-	/*
-	 * If we were modified in the current generation and evicted from memory
-	 * and then re-read we need to do a full sync since we don't have any
-	 * idea about which extents were modified before we were evicted from
-	 * cache.
-	 */
-	if (BTRFS_I(inode)->last_trans == root->fs_info->generation)
-		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-			&BTRFS_I(inode)->runtime_flags);
-
 	inode->i_version = btrfs_inode_sequence(leaf, inode_item);
 	inode->i_generation = BTRFS_I(inode)->generation;
 	inode->i_rdev = 0;
@@ -3651,6 +3641,19 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 
 cache_index:
+	/*
+	 * If we were modified in the current generation and evicted from memory
+	 * and then re-read we need to do a full sync since we don't have any
+	 * idea about which extents were modified before we were evicted from
+	 * cache.
+	 *
+	 * This is required for both inode re-read from disk and delayed inode
+	 * in delayed_nodes_tree.
+	 */
+	if (BTRFS_I(inode)->last_trans == root->fs_info->generation)
+		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+			&BTRFS_I(inode)->runtime_flags);
+
 	path->slots[0]++;
 	if (inode->i_nlink != 1 ||
 	    path->slots[0] >= btrfs_header_nritems(leaf))

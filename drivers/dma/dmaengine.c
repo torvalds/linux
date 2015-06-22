@@ -571,11 +571,15 @@ struct dma_chan *dma_get_any_slave_channel(struct dma_device *device)
 
 	chan = private_candidate(&mask, device, NULL, NULL);
 	if (chan) {
+		dma_cap_set(DMA_PRIVATE, device->cap_mask);
+		device->privatecnt++;
 		err = dma_chan_get(chan);
 		if (err) {
 			pr_debug("%s: failed to get %s: (%d)\n",
 				__func__, dma_chan_name(chan), err);
 			chan = NULL;
+			if (--device->privatecnt == 0)
+				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
 		}
 	}
 

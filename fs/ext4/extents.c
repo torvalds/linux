@@ -4927,13 +4927,6 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (ret)
 		return ret;
 
-	/*
-	 * currently supporting (pre)allocate mode for extent-based
-	 * files _only_
-	 */
-	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
-		return -EOPNOTSUPP;
-
 	if (mode & FALLOC_FL_COLLAPSE_RANGE)
 		return ext4_collapse_range(inode, offset, len);
 
@@ -4954,6 +4947,14 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 		flags |= EXT4_GET_BLOCKS_KEEP_SIZE;
 
 	mutex_lock(&inode->i_mutex);
+
+	/*
+	 * We only support preallocation for extent-based files only
+	 */
+	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
 	     offset + len > i_size_read(inode)) {

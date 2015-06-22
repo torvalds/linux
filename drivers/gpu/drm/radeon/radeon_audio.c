@@ -102,7 +102,6 @@ static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 void r600_hdmi_enable(struct drm_encoder *encoder, bool enable);
 void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable);
 void evergreen_dp_enable(struct drm_encoder *encoder, bool enable);
-void dce6_dp_enable(struct drm_encoder *encoder, bool enable);
 
 static const u32 pin_offsets[7] =
 {
@@ -240,7 +239,7 @@ static struct radeon_audio_funcs dce6_dp_funcs = {
 	.set_avi_packet = evergreen_set_avi_packet,
 	.set_audio_packet = dce4_set_audio_packet,
 	.mode_set = radeon_audio_dp_mode_set,
-	.dpms = dce6_dp_enable,
+	.dpms = evergreen_dp_enable,
 };
 
 static void radeon_audio_interface_init(struct radeon_device *rdev)
@@ -461,30 +460,33 @@ void radeon_audio_detect(struct drm_connector *connector,
 	if (!connector || !connector->encoder)
 		return;
 
+	if (!radeon_encoder_is_digital(connector->encoder))
+		return;
+
 	rdev = connector->encoder->dev->dev_private;
 	radeon_encoder = to_radeon_encoder(connector->encoder);
 	dig = radeon_encoder->enc_priv;
 
+	if (!dig->afmt)
+		return;
+
 	if (status == connector_status_connected) {
-		struct radeon_connector *radeon_connector;
-		int sink_type;
-
-		if (!drm_detect_monitor_audio(radeon_connector_edid(connector))) {
-			radeon_encoder->audio = NULL;
-			return;
-		}
-
-		radeon_connector = to_radeon_connector(connector);
-		sink_type = radeon_dp_getsinktype(radeon_connector);
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
 		if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort &&
-			sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
+		    radeon_dp_getsinktype(radeon_connector) ==
+		    CONNECTOR_OBJECT_ID_DISPLAYPORT)
 			radeon_encoder->audio = rdev->audio.dp_funcs;
 		else
 			radeon_encoder->audio = rdev->audio.hdmi_funcs;
 
 		dig->afmt->pin = radeon_audio_get_pin(connector->encoder);
-		radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
+		if (drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+			radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
+		} else {
+			radeon_audio_enable(rdev, dig->afmt->pin, 0);
+			dig->afmt->pin = NULL;
+		}
 	} else {
 		radeon_audio_enable(rdev, dig->afmt->pin, 0);
 		dig->afmt->pin = NULL;

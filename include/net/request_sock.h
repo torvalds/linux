@@ -212,24 +212,6 @@ static inline int reqsk_queue_empty(struct request_sock_queue *queue)
 	return queue->rskq_accept_head == NULL;
 }
 
-static inline void reqsk_queue_unlink(struct request_sock_queue *queue,
-				      struct request_sock *req)
-{
-	struct listen_sock *lopt = queue->listen_opt;
-	struct request_sock **prev;
-
-	spin_lock(&queue->syn_wait_lock);
-
-	prev = &lopt->syn_table[req->rsk_hash];
-	while (*prev != req)
-		prev = &(*prev)->dl_next;
-	*prev = req->dl_next;
-
-	spin_unlock(&queue->syn_wait_lock);
-	if (del_timer(&req->rsk_timer))
-		reqsk_put(req);
-}
-
 static inline void reqsk_queue_add(struct request_sock_queue *queue,
 				   struct request_sock *req,
 				   struct sock *parent,

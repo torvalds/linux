@@ -95,7 +95,6 @@ unsigned __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src,
 
 struct pvclock_vsyscall_time_info {
 	struct pvclock_vcpu_time_info pvti;
-	u32 migrate_count;
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 #define PVTI_SIZE sizeof(struct pvclock_vsyscall_time_info)

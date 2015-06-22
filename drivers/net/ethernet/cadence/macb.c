@@ -707,6 +707,9 @@ static void gem_rx_refill(struct macb *bp)
 
 			/* properly align Ethernet header */
 			skb_reserve(skb, NET_IP_ALIGN);
+		} else {
+			bp->rx_ring[entry].addr &= ~MACB_BIT(RX_USED);
+			bp->rx_ring[entry].ctrl = 0;
 		}
 	}
 
@@ -1473,9 +1476,9 @@ static void macb_init_rings(struct macb *bp)
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		bp->queues[0].tx_ring[i].addr = 0;
 		bp->queues[0].tx_ring[i].ctrl = MACB_BIT(TX_USED);
-		bp->queues[0].tx_head = 0;
-		bp->queues[0].tx_tail = 0;
 	}
+	bp->queues[0].tx_head = 0;
+	bp->queues[0].tx_tail = 0;
 	bp->queues[0].tx_ring[TX_RING_SIZE - 1].ctrl |= MACB_BIT(TX_WRAP);
 
 	bp->rx_tail = 0;

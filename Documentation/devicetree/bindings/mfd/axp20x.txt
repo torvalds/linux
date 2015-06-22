@@ -1,15 +1,16 @@
-AXP202/AXP209 device tree bindings
+AXP family PMIC device tree bindings
 
 The axp20x family current members :
 axp202 (X-Powers)
 axp209 (X-Powers)
+axp221 (X-Powers)
 
 Required properties:
-- compatible: "x-powers,axp202" or "x-powers,axp209"
+- compatible: "x-powers,axp202", "x-powers,axp209", "x-powers,axp221"
 - reg: The I2C slave address for the AXP chip
 - interrupt-parent: The parent interrupt controller
 - interrupts: SoC NMI / GPIO interrupt connected to the PMIC's IRQ pin
-- interrupt-controller: axp20x has its own internal IRQs
+- interrupt-controller: The PMIC has its own internal IRQs
 - #interrupt-cells: Should be set to 1
 
 Optional properties:
@@ -47,6 +48,31 @@ LDO2		: LDO		: ldo24in-supply	: shared supply
 LDO3		: LDO		: ldo3in-supply
 LDO4		: LDO		: ldo24in-supply	: shared supply
 LDO5		: LDO		: ldo5in-supply
+
+AXP221 regulators, type, and corresponding input supply names:
+
+Regulator	  Type		  Supply Name		  Notes
+---------	  ----		  -----------		  -----
+DCDC1		: DC-DC buck	: vin1-supply
+DCDC2		: DC-DC buck	: vin2-supply
+DCDC3		: DC-DC	buck	: vin3-supply
+DCDC4		: DC-DC	buck	: vin4-supply
+DCDC5		: DC-DC	buck	: vin5-supply
+DC1SW		: On/Off Switch	: dcdc1-supply		: DCDC1 secondary output
+DC5LDO		: LDO		: dcdc5-supply		: input from DCDC5
+ALDO1		: LDO		: aldoin-supply		: shared supply
+ALDO2		: LDO		: aldoin-supply		: shared supply
+ALDO3		: LDO		: aldoin-supply		: shared supply
+DLDO1		: LDO		: dldoin-supply		: shared supply
+DLDO2		: LDO		: dldoin-supply		: shared supply
+DLDO3		: LDO		: dldoin-supply		: shared supply
+DLDO4		: LDO		: dldoin-supply		: shared supply
+ELDO1		: LDO		: eldoin-supply		: shared supply
+ELDO2		: LDO		: eldoin-supply		: shared supply
+ELDO3		: LDO		: eldoin-supply		: shared supply
+LDO_IO0		: LDO		: ips-supply		: GPIO 0
+LDO_IO1		: LDO		: ips-supply		: GPIO 1
+RTC_LDO		: LDO		: ips-supply		: always on
 
 Example:
 
