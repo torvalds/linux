@@ -91,7 +91,7 @@ static void decon_wait_for_vblank(struct exynos_drm_crtc *crtc)
 
 static void decon_clear_channel(struct decon_context *ctx)
 {
-	int win, ch_enabled = 0;
+	unsigned int win, ch_enabled = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -710,7 +710,7 @@ static void decon_dpms(struct exynos_drm_crtc *crtc, int mode)
 	}
 }
 
-static struct exynos_drm_crtc_ops decon_crtc_ops = {
+static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.dpms = decon_dpms,
 	.mode_fixup = decon_mode_fixup,
 	.commit = decon_commit,

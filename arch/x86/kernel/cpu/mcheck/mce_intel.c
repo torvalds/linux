@@ -91,6 +91,36 @@ static int cmci_supported(int *banks)
 	return !!(cap & MCG_CMCI_P);
 }
 
+static bool lmce_supported(void)
+{
+	u64 tmp;
+
+	if (mca_cfg.lmce_disabled)
+		return false;
+
+	rdmsrl(MSR_IA32_MCG_CAP, tmp);
+
+	/*
+	 * LMCE depends on recovery support in the processor. Hence both
+	 * MCG_SER_P and MCG_LMCE_P should be present in MCG_CAP.
+	 */
+	if ((tmp & (MCG_SER_P | MCG_LMCE_P)) !=
+		   (MCG_SER_P | MCG_LMCE_P))
+		return false;
+
+	/*
+	 * BIOS should indicate support for LMCE by setting bit 20 in
+	 * IA32_FEATURE_CONTROL without which touching MCG_EXT_CTL will
+	 * generate a #GP fault.
+	 */
+	rdmsrl(MSR_IA32_FEATURE_CONTROL, tmp);
+	if ((tmp & (FEATURE_CONTROL_LOCKED | FEATURE_CONTROL_LMCE)) ==
+		   (FEATURE_CONTROL_LOCKED | FEATURE_CONTROL_LMCE))
+		return true;
+
+	return false;
+}
+
 bool mce_intel_cmci_poll(void)
 {
 	if (__this_cpu_read(cmci_storm_state) == CMCI_STORM_NONE)
@@ -405,8 +435,22 @@ static void intel_init_cmci(void)
 	cmci_recheck();
 }
 
+void intel_init_lmce(void)
+{
+	u64 val;
+
+	if (!lmce_supported())
+		return;
+
+	rdmsrl(MSR_IA32_MCG_EXT_CTL, val);
+
+	if (!(val & MCG_EXT_CTL_LMCE_EN))
+		wrmsrl(MSR_IA32_MCG_EXT_CTL, val | MCG_EXT_CTL_LMCE_EN);
+}
+
 void mce_intel_feature_init(struct cpuinfo_x86 *c)
 {
 	intel_init_thermal(c);
 	intel_init_cmci();
+	intel_init_lmce();
 }

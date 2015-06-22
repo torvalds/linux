@@ -32,7 +32,6 @@
 #include <drm/bridge/ptn3460.h>
 
 #include "exynos_dp_core.h"
-#include "exynos_drm_fimd.h"
 
 #define ctx_from_connector(c)	container_of(c, struct exynos_dp_device, \
 					connector)
@@ -196,7 +195,7 @@ static int exynos_dp_read_edid(struct exynos_dp_device *dp)
 		}
 	}
 
-	dev_err(dp->dev, "EDID Read success!\n");
+	dev_dbg(dp->dev, "EDID Read success!\n");
 	return 0;
 }
 
@@ -1066,6 +1065,8 @@ static void exynos_dp_phy_exit(struct exynos_dp_device *dp)
 
 static void exynos_dp_poweron(struct exynos_dp_device *dp)
 {
+	struct exynos_drm_crtc *crtc = dp_to_crtc(dp);
+
 	if (dp->dpms_mode == DRM_MODE_DPMS_ON)
 		return;
 
@@ -1076,7 +1077,8 @@ static void exynos_dp_poweron(struct exynos_dp_device *dp)
 		}
 	}
 
-	fimd_dp_clock_enable(dp_to_crtc(dp), true);
+	if (crtc->ops->clock_enable)
+		crtc->ops->clock_enable(dp_to_crtc(dp), true);
 
 	clk_prepare_enable(dp->clock);
 	exynos_dp_phy_init(dp);
@@ -1087,6 +1089,8 @@ static void exynos_dp_poweron(struct exynos_dp_device *dp)
 
 static void exynos_dp_poweroff(struct exynos_dp_device *dp)
 {
+	struct exynos_drm_crtc *crtc = dp_to_crtc(dp);
+
 	if (dp->dpms_mode != DRM_MODE_DPMS_ON)
 		return;
 
@@ -1102,7 +1106,8 @@ static void exynos_dp_poweroff(struct exynos_dp_device *dp)
 	exynos_dp_phy_exit(dp);
 	clk_disable_unprepare(dp->clock);
 
-	fimd_dp_clock_enable(dp_to_crtc(dp), false);
+	if (crtc->ops->clock_enable)
+		crtc->ops->clock_enable(dp_to_crtc(dp), false);
 
 	if (dp->panel) {
 		if (drm_panel_unprepare(dp->panel))

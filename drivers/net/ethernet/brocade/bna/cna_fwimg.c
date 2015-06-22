@@ -30,6 +30,7 @@ cna_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 			u32 *bfi_image_size, char *fw_name)
 {
 	const struct firmware *fw;
+	u32 n;
 
 	if (request_firmware(&fw, fw_name, &pdev->dev)) {
 		pr_alert("Can't locate firmware %s\n", fw_name);
@@ -39,6 +40,12 @@ cna_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 	*bfi_image = (u32 *)fw->data;
 	*bfi_image_size = fw->size/sizeof(u32);
 	bfi_fw = fw;
+
+	/* Convert loaded firmware to host order as it is stored in file
+	 * as sequence of LE32 integers.
+	 */
+	for (n = 0; n < *bfi_image_size; n++)
+		le32_to_cpus(*bfi_image + n);
 
 	return *bfi_image;
 error:

@@ -66,7 +66,7 @@ int main(void)
 	DEFINE(__NR_syscall_max, sizeof(syscalls_64) - 1);
 	DEFINE(NR_syscalls, sizeof(syscalls_64));
 
-	DEFINE(__NR_ia32_syscall_max, sizeof(syscalls_ia32) - 1);
+	DEFINE(__NR_syscall_compat_max, sizeof(syscalls_ia32) - 1);
 	DEFINE(IA32_NR_syscalls, sizeof(syscalls_ia32));
 
 	return 0;

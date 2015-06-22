@@ -1468,6 +1468,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 {
 	struct physdev_set_iopl set_iopl;
 	unsigned long initrd_start = 0;
+	u64 pat;
 	int rc;
 
 	if (!xen_start_info)
@@ -1575,8 +1576,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 * Modify the cache mode translation tables to match Xen's PAT
 	 * configuration.
 	 */
-
-	pat_init_cache_modes();
+	rdmsrl(MSR_IA32_CR_PAT, pat);
+	pat_init_cache_modes(pat);
 
 	/* keep using Xen gdt for now; no urgent need to change it */
 

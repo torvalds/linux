@@ -135,6 +135,10 @@ static void __init apic_intr_init(void)
 	alloc_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
 #endif
 
+#ifdef CONFIG_X86_MCE_AMD
+	alloc_intr_gate(DEFERRED_ERROR_VECTOR, deferred_error_interrupt);
+#endif
+
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* self generated IPI for local APIC timer */
 	alloc_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);

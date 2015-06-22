@@ -302,22 +302,13 @@ static const struct file_operations vgem_driver_fops = {
 };
 
 static struct drm_driver vgem_driver = {
-	.driver_features		= DRIVER_GEM | DRIVER_PRIME,
+	.driver_features		= DRIVER_GEM,
 	.gem_free_object		= vgem_gem_free_object,
 	.gem_vm_ops			= &vgem_gem_vm_ops,
 	.ioctls				= vgem_ioctls,
 	.fops				= &vgem_driver_fops,
 	.dumb_create			= vgem_gem_dumb_create,
 	.dumb_map_offset		= vgem_gem_dumb_map,
-	.prime_handle_to_fd		= drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle		= drm_gem_prime_fd_to_handle,
-	.gem_prime_export		= drm_gem_prime_export,
-	.gem_prime_import		= vgem_gem_prime_import,
-	.gem_prime_pin			= vgem_gem_prime_pin,
-	.gem_prime_unpin		= vgem_gem_prime_unpin,
-	.gem_prime_get_sg_table		= vgem_gem_prime_get_sg_table,
-	.gem_prime_vmap			= vgem_gem_prime_vmap,
-	.gem_prime_vunmap		= vgem_gem_prime_vunmap,
 	.name	= DRIVER_NAME,
 	.desc	= DRIVER_DESC,
 	.date	= DRIVER_DATE,

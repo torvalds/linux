@@ -332,4 +332,15 @@ config X86_DEBUG_STATIC_CPU_HAS
 
 	  If unsure, say N.
 
+config PUNIT_ATOM_DEBUG
+	tristate "ATOM Punit debug driver"
+	select DEBUG_FS
+	select IOSF_MBI
+	---help---
+	  This is a debug driver, which gets the power states
+	  of all Punit North Complex devices. The power states of
+	  each device is exposed as part of the debugfs interface.
+	  The current power state can be read from
+	  /sys/kernel/debug/punit_atom/dev_power_state
+
 endmenu
