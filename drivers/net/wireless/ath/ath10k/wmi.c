@@ -1923,6 +1923,8 @@ ath10k_wmi_event_scan_type_str(enum wmi_scan_event_type type,
 			return "completed [preempted]";
 		case WMI_SCAN_REASON_TIMEDOUT:
 			return "completed [timedout]";
+		case WMI_SCAN_REASON_INTERNAL_FAILURE:
+			return "completed [internal err]";
 		case WMI_SCAN_REASON_MAX:
 			break;
 		}
@@ -1937,6 +1939,10 @@ ath10k_wmi_event_scan_type_str(enum wmi_scan_event_type type,
 		return "preempted";
 	case WMI_SCAN_EVENT_START_FAILED:
 		return "start failed";
+	case WMI_SCAN_EVENT_RESTARTED:
+		return "restarted";
+	case WMI_SCAN_EVENT_FOREIGN_CHANNEL_EXIT:
+		return "foreign channel exit";
 	default:
 		return "unknown";
 	}
@@ -2012,6 +2018,8 @@ int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_SCAN_EVENT_DEQUEUED:
 	case WMI_SCAN_EVENT_PREEMPTED:
+	case WMI_SCAN_EVENT_RESTARTED:
+	case WMI_SCAN_EVENT_FOREIGN_CHANNEL_EXIT:
 	default:
 		break;
 	}
@@ -2314,6 +2322,29 @@ static int ath10k_wmi_op_pull_ch_info_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->noise_floor = ev->noise_floor;
 	arg->rx_clear_count = ev->rx_clear_count;
 	arg->cycle_count = ev->cycle_count;
+
+	return 0;
+}
+
+static int ath10k_wmi_10_4_op_pull_ch_info_ev(struct ath10k *ar,
+					      struct sk_buff *skb,
+					      struct wmi_ch_info_ev_arg *arg)
+{
+	struct wmi_10_4_chan_info_event *ev = (void *)skb->data;
+
+	if (skb->len < sizeof(*ev))
+		return -EPROTO;
+
+	skb_pull(skb, sizeof(*ev));
+	arg->err_code = ev->err_code;
+	arg->freq = ev->freq;
+	arg->cmd_flags = ev->cmd_flags;
+	arg->noise_floor = ev->noise_floor;
+	arg->rx_clear_count = ev->rx_clear_count;
+	arg->cycle_count = ev->cycle_count;
+	arg->chan_tx_pwr_range = ev->chan_tx_pwr_range;
+	arg->chan_tx_pwr_tp = ev->chan_tx_pwr_tp;
+	arg->rx_frame_count = ev->rx_frame_count;
 
 	return 0;
 }
@@ -4431,6 +4462,12 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_4_SERVICE_READY_EVENTID:
 		ath10k_wmi_event_service_ready(ar, skb);
 		break;
+	case WMI_10_4_SCAN_EVENTID:
+		ath10k_wmi_event_scan(ar, skb);
+		break;
+	case WMI_10_4_CHAN_INFO_EVENTID:
+		ath10k_wmi_event_chan_info(ar, skb);
+		break;
 	case WMI_10_4_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
 		break;
@@ -6386,7 +6423,10 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 static const struct wmi_ops wmi_10_4_ops = {
 	.rx = ath10k_wmi_10_4_op_rx,
 	.map_svc = wmi_10_4_svc_map,
+
+	.pull_scan = ath10k_wmi_op_pull_scan_ev,
 	.pull_mgmt_rx = ath10k_wmi_10_4_op_pull_mgmt_rx_ev,
+	.pull_ch_info = ath10k_wmi_10_4_op_pull_ch_info_ev,
 	.pull_vdev_start = ath10k_wmi_op_pull_vdev_start_ev,
 	.pull_peer_kick = ath10k_wmi_op_pull_peer_kick_ev,
 	.pull_swba = ath10k_wmi_10_4_op_pull_swba_ev,
@@ -6398,6 +6438,8 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.gen_pdev_set_rd = ath10k_wmi_10x_op_gen_pdev_set_rd,
 	.gen_pdev_set_param = ath10k_wmi_op_gen_pdev_set_param,
 	.gen_init = ath10k_wmi_10_4_op_gen_init,
+	.gen_start_scan = ath10k_wmi_op_gen_start_scan,
+	.gen_stop_scan = ath10k_wmi_op_gen_stop_scan,
 	.gen_vdev_create = ath10k_wmi_op_gen_vdev_create,
 	.gen_vdev_delete = ath10k_wmi_op_gen_vdev_delete,
 	.gen_vdev_start = ath10k_wmi_op_gen_vdev_start,
