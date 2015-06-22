@@ -10,6 +10,8 @@
 
 #include <linux/regmap.h>
 
+#include <sound/dmaengine_pcm.h>
+
 /*
  * Register access macros
  */
@@ -1097,3 +1099,117 @@
 		UNIPERIF_DBG_STANDBY_LEFT_SP_OFFSET(ip), \
 		UNIPERIF_DBG_STANDBY_LEFT_SP_SHIFT(ip), \
 		UNIPERIF_DBG_STANDBY_LEFT_SP_MASK(ip), value)
+
+/*
+ * uniperipheral IP capabilities
+ */
+
+#define UNIPERIF_FIFO_SIZE		70 /* FIFO is 70 cells deep */
+#define UNIPERIF_FIFO_FRAMES		4  /* FDMA trigger limit in frames */
+
+/*
+ * Uniperipheral IP revisions
+ */
+enum uniperif_version {
+	SND_ST_UNIPERIF_VERSION_UNKNOWN,
+	/* SASG1 (Orly), Newman */
+	SND_ST_UNIPERIF_VERSION_C6AUD0_UNI_1_0,
+	/* SASC1, SASG2 (Orly2) */
+	SND_ST_UNIPERIF_VERSION_UNI_PLR_1_0,
+	/* SASC1, SASG2 (Orly2), TELSS, Cannes */
+	SND_ST_UNIPERIF_VERSION_UNI_RDR_1_0,
+	/* TELSS (SASC1) */
+	SND_ST_UNIPERIF_VERSION_TDM_PLR_1_0,
+	/* Cannes/Monaco */
+	SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0
+};
+
+enum uniperif_type {
+	SND_ST_UNIPERIF_PLAYER_TYPE_NONE,
+	SND_ST_UNIPERIF_PLAYER_TYPE_HDMI,
+	SND_ST_UNIPERIF_PLAYER_TYPE_PCM,
+	SND_ST_UNIPERIF_PLAYER_TYPE_SPDIF
+};
+
+enum uniperif_state {
+	UNIPERIF_STATE_STOPPED,
+	UNIPERIF_STATE_STARTED,
+	UNIPERIF_STATE_STANDBY,
+	UNIPERIF_STATE_UNDERFLOW,
+	UNIPERIF_STATE_OVERFLOW = UNIPERIF_STATE_UNDERFLOW,
+	UNIPERIF_STATE_XRUN
+};
+
+enum uniperif_iec958_encoding_mode {
+	UNIPERIF_IEC958_ENCODING_MODE_PCM,
+	UNIPERIF_IEC958_ENCODING_MODE_ENCODED
+};
+
+struct uniperif_info {
+	int id; /* instance value of the uniperipheral IP */
+	enum uniperif_type player_type;
+	int underflow_enabled;		/* Underflow recovery mode */
+};
+
+struct uniperif_iec958_settings {
+	enum uniperif_iec958_encoding_mode encoding_mode;
+	struct snd_aes_iec958 iec958;
+};
+
+struct uniperif {
+	/* System information */
+	struct uniperif_info *info;
+	struct device *dev;
+	int ver; /* IP version, used by register access macros */
+	struct regmap_field *clk_sel;
+
+	/* capabilities */
+	const struct snd_pcm_hardware *hw;
+
+	/* Resources */
+	struct resource *mem_region;
+	void *base;
+	unsigned long fifo_phys_address;
+	int irq;
+
+	/* Clocks */
+	struct clk *clk;
+	int mclk;
+
+	/* Runtime data */
+	enum uniperif_state state;
+
+	struct snd_pcm_substream *substream;
+
+	/* Specific to IEC958 player */
+	struct uniperif_iec958_settings stream_settings;
+
+	/*alsa ctrl*/
+	struct snd_kcontrol_new *snd_ctrls;
+	int num_ctrls;
+
+	/* dai properties */
+	unsigned int daifmt;
+
+	/* DAI callbacks */
+	const struct snd_soc_dai_ops *dai_ops;
+};
+
+struct sti_uniperiph_dai {
+	int stream;
+	struct uniperif *uni;
+	struct snd_dmaengine_dai_dma_data dma_data;
+};
+
+struct sti_uniperiph_data {
+	struct platform_device *pdev;
+	struct snd_soc_dai_driver *dai;
+	struct sti_uniperiph_dai dai_data;
+};
+
+/* uniperiph player*/
+int uni_player_init(struct platform_device *pdev,
+		    struct uniperif *uni_player);
+int uni_player_resume(struct uniperif *player);
+
+#endif
