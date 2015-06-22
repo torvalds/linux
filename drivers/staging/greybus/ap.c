@@ -167,8 +167,7 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 	switch (hotplug->hotplug_event) {
 	case SVC_HOTPLUG_EVENT:
 		/* Add a new interface to the system */
-		if (payload_length < 0x03) {
-			/* Hotplug message is at least 3 bytes big */
+		if (payload_length != sizeof(*hotplug)) {
 			dev_err(hd->parent,
 				"Illegal size of svc hotplug message %d\n",
 				payload_length);
@@ -180,8 +179,7 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 
 	case SVC_HOTUNPLUG_EVENT:
 		/* Remove a interface from the system */
-		if (payload_length != 0x02) {
-			/* Hotunplug message is only 2 bytes big */
+		if (payload_length != sizeof(*hotplug)) {
 			dev_err(hd->parent,
 				"Illegal size of svc hotunplug message %d\n",
 				payload_length);
