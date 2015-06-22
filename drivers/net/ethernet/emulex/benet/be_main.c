@@ -5096,7 +5096,7 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev,
 				       hsw_mode == PORT_FWD_TYPE_VEPA ?
 				       BRIDGE_MODE_VEPA : BRIDGE_MODE_VEB,
-				       0, 0, nlflags);
+				       0, 0, nlflags, filter_mask, NULL);
 }
 
 #ifdef CONFIG_BE2NET_VXLAN

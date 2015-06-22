@@ -4456,6 +4456,28 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 	return err;
 }
 
+static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
+				 struct switchdev_obj *obj)
+{
+	struct switchdev_obj_vlan *vlan = &obj->u.vlan;
+	u16 vid;
+	int err = 0;
+
+	for (vid = 1; vid < VLAN_N_VID; vid++) {
+		if (!test_bit(vid, rocker_port->vlan_bitmap))
+			continue;
+		vlan->flags = 0;
+		if (rocker_vlan_id_is_internal(htons(vid)))
+			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
+		vlan->vid_begin = vlan->vid_end = vid;
+		err = obj->cb(rocker_port->dev, obj);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static int rocker_port_obj_dump(struct net_device *dev,
 				struct switchdev_obj *obj)
 {
@@ -4465,6 +4487,9 @@ static int rocker_port_obj_dump(struct net_device *dev,
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_PORT_FDB:
 		err = rocker_port_fdb_dump(rocker_port, obj);
+		break;
+	case SWITCHDEV_OBJ_PORT_VLAN:
+		err = rocker_port_vlan_dump(rocker_port, obj);
 		break;
 	default:
 		err = -EOPNOTSUPP;

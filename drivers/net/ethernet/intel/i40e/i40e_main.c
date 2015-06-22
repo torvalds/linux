@@ -8069,7 +8069,7 @@ static int i40e_ndo_bridge_setlink(struct net_device *dev,
 #ifdef HAVE_BRIDGE_FILTER
 static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				   struct net_device *dev,
-				   u32 __always_unused filter_mask, int nlflags)
+				   u32 filter_mask, int nlflags)
 #else
 static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				   struct net_device *dev, int nlflags)
@@ -8095,7 +8095,7 @@ static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 		return 0;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, veb->bridge_mode,
-				       nlflags);
+				       nlflags, 0, 0, filter_mask, NULL);
 }
 #endif /* HAVE_BRIDGE_ATTRIBS */
 

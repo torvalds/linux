@@ -2908,7 +2908,11 @@ static int brport_nla_put_flag(struct sk_buff *skb, u32 flags, u32 mask,
 
 int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 			    struct net_device *dev, u16 mode,
-			    u32 flags, u32 mask, int nlflags)
+			    u32 flags, u32 mask, int nlflags,
+			    u32 filter_mask,
+			    int (*vlan_fill)(struct sk_buff *skb,
+					     struct net_device *dev,
+					     u32 filter_mask))
 {
 	struct nlmsghdr *nlh;
 	struct ifinfomsg *ifm;
@@ -2916,6 +2920,7 @@ int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	struct nlattr *protinfo;
 	u8 operstate = netif_running(dev) ? dev->operstate : IF_OPER_DOWN;
 	struct net_device *br_dev = netdev_master_upper_dev_get(dev);
+	int err = 0;
 
 	nlh = nlmsg_put(skb, pid, seq, RTM_NEWLINK, sizeof(*ifm), nlflags);
 	if (nlh == NULL)
@@ -2956,6 +2961,13 @@ int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 			goto nla_put_failure;
 		}
 	}
+	if (vlan_fill) {
+		err = vlan_fill(skb, dev, filter_mask);
+		if (err) {
+			nla_nest_cancel(skb, br_afspec);
+			goto nla_put_failure;
+		}
+	}
 	nla_nest_end(skb, br_afspec);
 
 	protinfo = nla_nest_start(skb, IFLA_PROTINFO | NLA_F_NESTED);
@@ -2989,9 +3001,9 @@ int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	return 0;
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
-	return -EMSGSIZE;
+	return err ? err : -EMSGSIZE;
 }
-EXPORT_SYMBOL(ndo_dflt_bridge_getlink);
+EXPORT_SYMBOL_GPL(ndo_dflt_bridge_getlink);
 
 static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 {
