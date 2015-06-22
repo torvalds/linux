@@ -106,6 +106,12 @@ int xtensa_irq_map(struct irq_domain *d, unsigned int irq,
 		irq_set_chip_and_handler_name(irq, irq_chip,
 				handle_percpu_irq, "timer");
 		irq_clear_status_flags(irq, IRQ_LEVEL);
+#ifdef XCHAL_INTTYPE_MASK_PROFILING
+	} else if (mask & XCHAL_INTTYPE_MASK_PROFILING) {
+		irq_set_chip_and_handler_name(irq, irq_chip,
+				handle_percpu_irq, "profiling");
+		irq_set_status_flags(irq, IRQ_LEVEL);
+#endif
 	} else {/* XCHAL_INTTYPE_MASK_WRITE_ERROR */
 		/* XCHAL_INTTYPE_MASK_NMI */
 		irq_set_chip_and_handler_name(irq, irq_chip,
