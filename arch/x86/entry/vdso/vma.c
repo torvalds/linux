@@ -177,7 +177,7 @@ up_fail:
 	return ret;
 }
 
-#if defined(CONFIG_X86_32) || defined(CONFIG_COMPAT)
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 static int load_vdso32(void)
 {
 	int ret;
@@ -219,8 +219,11 @@ int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 		return map_vdso(&vdso_image_x32, true);
 	}
 #endif
-
+#ifdef CONFIG_IA32_EMULATION
 	return load_vdso32();
+#else
+	return 0;
+#endif
 }
 #endif
 #else

@@ -78,7 +78,7 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 #ifdef CONFIG_X86_64
 extern unsigned int vdso64_enabled;
 #endif
-#if defined(CONFIG_X86_32) || defined(CONFIG_COMPAT)
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 extern unsigned int vdso32_enabled;
 #endif
 
