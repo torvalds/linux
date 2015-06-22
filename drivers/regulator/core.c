@@ -779,7 +779,7 @@ static int suspend_prepare(struct regulator_dev *rdev, suspend_state_t state)
 static void print_constraints(struct regulator_dev *rdev)
 {
 	struct regulation_constraints *constraints = rdev->constraints;
-	char buf[80] = "";
+	char buf[160] = "";
 	int count = 0;
 	int ret;
 
@@ -801,7 +801,7 @@ static void print_constraints(struct regulator_dev *rdev)
 	}
 
 	if (constraints->uV_offset)
-		count += sprintf(buf, "%dmV offset ",
+		count += sprintf(buf + count, "%dmV offset ",
 				 constraints->uV_offset / 1000);
 
 	if (constraints->min_uA && constraints->max_uA) {
