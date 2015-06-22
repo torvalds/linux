@@ -766,19 +766,6 @@ typedef struct xfs_agfl {
 
 #define XFS_AGFL_CRC_OFF	offsetof(struct xfs_agfl, agfl_crc)
 
-
-#define	XFS_AG_MAXLEVELS(mp)		((mp)->m_ag_maxlevels)
-#define	XFS_MIN_FREELIST_RAW(bl,cl,mp)	\
-	(MIN(bl + 1, XFS_AG_MAXLEVELS(mp)) + MIN(cl + 1, XFS_AG_MAXLEVELS(mp)))
-#define	XFS_MIN_FREELIST(a,mp)		\
-	(XFS_MIN_FREELIST_RAW(		\
-		be32_to_cpu((a)->agf_levels[XFS_BTNUM_BNOi]), \
-		be32_to_cpu((a)->agf_levels[XFS_BTNUM_CNTi]), mp))
-#define	XFS_MIN_FREELIST_PAG(pag,mp)	\
-	(XFS_MIN_FREELIST_RAW(		\
-		(unsigned int)(pag)->pagf_levels[XFS_BTNUM_BNOi], \
-		(unsigned int)(pag)->pagf_levels[XFS_BTNUM_CNTi], mp))
-
 #define XFS_AGB_TO_FSB(mp,agno,agbno)	\
 	(((xfs_fsblock_t)(agno) << (mp)->m_sb.sb_agblklog) | (agbno))
 #define	XFS_FSB_TO_AGNO(mp,fsbno)	\
