@@ -79,6 +79,7 @@ config EXPORTFS_BLOCK_OPS
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EXPERT
 	default y
+	select PERCPU_RWSEM
 	help
 	  This option enables standard file locking support, required
           for filesystems like NFS and for the flock() system

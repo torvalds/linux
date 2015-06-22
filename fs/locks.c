@@ -127,7 +127,6 @@
 #include <linux/pid_namespace.h>
 #include <linux/hashtable.h>
 #include <linux/percpu.h>
-#include <linux/lglock.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/filelock.h>
@@ -158,12 +157,17 @@ int lease_break_time = 45;
 
 /*
  * The global file_lock_list is only used for displaying /proc/locks, so we
- * keep a list on each CPU, with each list protected by its own spinlock via
- * the file_lock_lglock. Note that alterations to the list also require that
- * the relevant flc_lock is held.
+ * keep a list on each CPU, with each list protected by its own spinlock.
+ * Global serialization is done using file_rwsem.
+ *
+ * Note that alterations to the list also require that the relevant flc_lock is
+ * held.
  */
-DEFINE_STATIC_LGLOCK(file_lock_lglock);
-static DEFINE_PER_CPU(struct hlist_head, file_lock_list);
+struct file_lock_list_struct {
+	spinlock_t		lock;
+	struct hlist_head	hlist;
+};
+static DEFINE_PER_CPU(struct file_lock_list_struct, file_lock_list);
 DEFINE_STATIC_PERCPU_RWSEM(file_rwsem);
 
 /*
@@ -588,17 +592,21 @@ static int posix_same_owner(struct file_lock *fl1, struct file_lock *fl2)
 /* Must be called with the flc_lock held! */
 static void locks_insert_global_locks(struct file_lock *fl)
 {
+	struct file_lock_list_struct *fll = this_cpu_ptr(&file_lock_list);
+
 	percpu_rwsem_assert_held(&file_rwsem);
 
-	lg_local_lock(&file_lock_lglock);
+	spin_lock(&fll->lock);
 	fl->fl_link_cpu = smp_processor_id();
-	hlist_add_head(&fl->fl_link, this_cpu_ptr(&file_lock_list));
-	lg_local_unlock(&file_lock_lglock);
+	hlist_add_head(&fl->fl_link, &fll->hlist);
+	spin_unlock(&fll->lock);
 }
 
 /* Must be called with the flc_lock held! */
 static void locks_delete_global_locks(struct file_lock *fl)
 {
+	struct file_lock_list_struct *fll;
+
 	percpu_rwsem_assert_held(&file_rwsem);
 
 	/*
@@ -608,9 +616,11 @@ static void locks_delete_global_locks(struct file_lock *fl)
 	 */
 	if (hlist_unhashed(&fl->fl_link))
 		return;
-	lg_local_lock_cpu(&file_lock_lglock, fl->fl_link_cpu);
+
+	fll = per_cpu_ptr(&file_lock_list, fl->fl_link_cpu);
+	spin_lock(&fll->lock);
 	hlist_del_init(&fl->fl_link);
-	lg_local_unlock_cpu(&file_lock_lglock, fl->fl_link_cpu);
+	spin_unlock(&fll->lock);
 }
 
 static unsigned long
@@ -2723,9 +2733,8 @@ static void *locks_start(struct seq_file *f, loff_t *pos)
 
 	iter->li_pos = *pos + 1;
 	percpu_down_write(&file_rwsem);
-	lg_global_lock(&file_lock_lglock);
 	spin_lock(&blocked_lock_lock);
-	return seq_hlist_start_percpu(&file_lock_list, &iter->li_cpu, *pos);
+	return seq_hlist_start_percpu(&file_lock_list.hlist, &iter->li_cpu, *pos);
 }
 
 static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
@@ -2733,14 +2742,13 @@ static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
 	struct locks_iterator *iter = f->private;
 
 	++iter->li_pos;
-	return seq_hlist_next_percpu(v, &file_lock_list, &iter->li_cpu, pos);
+	return seq_hlist_next_percpu(v, &file_lock_list.hlist, &iter->li_cpu, pos);
 }
 
 static void locks_stop(struct seq_file *f, void *v)
 	__releases(&blocked_lock_lock)
 {
 	spin_unlock(&blocked_lock_lock);
-	lg_global_unlock(&file_lock_lglock);
 	percpu_up_write(&file_rwsem);
 }
 
@@ -2782,10 +2790,13 @@ static int __init filelock_init(void)
 	filelock_cache = kmem_cache_create("file_lock_cache",
 			sizeof(struct file_lock), 0, SLAB_PANIC, NULL);
 
-	lg_lock_init(&file_lock_lglock, "file_lock_lglock");
 
-	for_each_possible_cpu(i)
-		INIT_HLIST_HEAD(per_cpu_ptr(&file_lock_list, i));
+	for_each_possible_cpu(i) {
+		struct file_lock_list_struct *fll = per_cpu_ptr(&file_lock_list, i);
+
+		spin_lock_init(&fll->lock);
+		INIT_HLIST_HEAD(&fll->hlist);
+	}
 
 	return 0;
 }
