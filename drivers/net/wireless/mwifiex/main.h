@@ -985,6 +985,7 @@ struct mwifiex_adapter {
 	u8 coex_win_size;
 	u8 coex_tx_win_size;
 	u8 coex_rx_win_size;
+	bool drcs_enabled;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);

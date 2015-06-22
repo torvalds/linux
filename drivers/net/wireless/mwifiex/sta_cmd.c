@@ -2155,12 +2155,17 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 				return -1;
 		}
 
-		if (ISSUPP_DRCS_ENABLED(adapter->fw_cap_info))
-			ret = mwifiex_send_cmd(priv, HostCmd_CMD_MC_POLICY,
-					       HostCmd_ACT_GEN_SET, 0, &drcs,
-					       true);
+		if (drcs) {
+			adapter->drcs_enabled = true;
+			if (ISSUPP_DRCS_ENABLED(adapter->fw_cap_info))
+				ret = mwifiex_send_cmd(priv,
+						       HostCmd_CMD_MC_POLICY,
+						       HostCmd_ACT_GEN_SET, 0,
+						       &adapter->drcs_enabled,
+						       true);
 			if (ret)
 				return -1;
+		}
 	}
 
 	/* get tx rate */

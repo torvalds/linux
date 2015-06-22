@@ -43,6 +43,15 @@ static const struct ieee80211_iface_combination mwifiex_iface_comb_ap_sta = {
 	.beacon_int_infra_match = true,
 };
 
+static const struct
+ieee80211_iface_combination mwifiex_drcs_iface_comb_ap_sta = {
+	.limits = mwifiex_ap_sta_limits,
+	.num_different_channels = 2,
+	.n_limits = ARRAY_SIZE(mwifiex_ap_sta_limits),
+	.max_interfaces = MWIFIEX_MAX_BSS_NUM,
+	.beacon_int_infra_match = true,
+};
+
 /*
  * This function maps the nl802.11 channel type into driver channel type.
  *
@@ -3745,7 +3754,10 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	else
 		wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 
-	wiphy->iface_combinations = &mwifiex_iface_comb_ap_sta;
+	if (adapter->drcs_enabled && ISSUPP_DRCS_ENABLED(adapter->fw_cap_info))
+		wiphy->iface_combinations = &mwifiex_drcs_iface_comb_ap_sta;
+	else
+		wiphy->iface_combinations = &mwifiex_iface_comb_ap_sta;
 	wiphy->n_iface_combinations = 1;
 
 	/* Initialize cipher suits */
