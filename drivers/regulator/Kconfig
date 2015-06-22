@@ -522,6 +522,17 @@ config REGULATOR_QCOM_RPM
 	  Qualcomm RPM as a module. The module will be named
 	  "qcom_rpm-regulator".
 
+config REGULATOR_QCOM_SPMI
+	tristate "Qualcomm SPMI regulator driver"
+	depends on SPMI || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  regulators found in Qualcomm SPMI PMICs.
+
+	  Say M here if you want to include support for the regulators on the
+	  Qualcomm SPMI PMICs as a module. The module will be named
+	  "qcom_spmi-regulator".
+
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
 	depends on MFD_RC5T583
