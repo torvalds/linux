@@ -1237,6 +1237,32 @@ config SCHED_AUTOGROUP
 	  desktop applications.  Task group autogeneration is currently based
 	  upon task session.
 
+config SCHED_TUNE
+	bool "Boosting for CFS tasks (EXPERIMENTAL)"
+	help
+	  This option enables the system-wide support for task boosting.
+	  When this support is enabled a new sysctl interface is exposed to
+	  userspace via:
+	     /proc/sys/kernel/sched_cfs_boost
+	  which allows to set a system-wide boost value in range [0..100].
+
+	  The currently boosting strategy is implemented in such a way that:
+	  - a 0% boost value requires to operate in "standard" mode by
+	    scheduling all tasks at the minimum capacities required by their
+	    workload demand
+	  - a 100% boost value requires to push at maximum the task
+	    performances, "regardless" of the incurred energy consumption
+
+	  A boost value in between these two boundaries is used to bias the
+	  power/performance trade-off, the higher the boost value the more the
+	  scheduler is biased toward performance boosting instead of energy
+	  efficiency.
+
+	  Since this support exposes a single system-wide knob, the specified
+	  boost value is applied to all (CFS) tasks in the system.
+
+	  If unsure, say N.
+
 config SYSFS_DEPRECATED
 	bool "Enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS
