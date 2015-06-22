@@ -71,7 +71,7 @@ void WILC_WFI_SetupPool(struct net_device *dev)
 
 	priv->ppool = NULL;
 	for (i = 0; i < pool_size; i++) {
-		pkt = kmalloc (sizeof (struct WILC_WFI_packet), GFP_KERNEL);
+		pkt = kmalloc(sizeof(struct WILC_WFI_packet), GFP_KERNEL);
 		if (pkt == NULL) {
 			PRINT_D(RX_DBG, "Ran out of memory allocating packet pool\n");
 			return;
@@ -99,7 +99,7 @@ void WILC_WFI_TearDownPool(struct net_device *dev)
 
 	while ((pkt = priv->ppool)) {
 		priv->ppool = pkt->next;
-		kfree (pkt);
+		kfree(pkt);
 		/* FIXME - in-flight packets ? */
 	}
 }
