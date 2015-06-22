@@ -523,9 +523,11 @@ static void __btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 		fs_devs->device_dir_kobj = NULL;
 	}
 
-	kobject_del(&fs_devs->super_kobj);
-	kobject_put(&fs_devs->super_kobj);
-	wait_for_completion(&fs_devs->kobj_unregister);
+	if (fs_devs->super_kobj.state_initialized) {
+		kobject_del(&fs_devs->super_kobj);
+		kobject_put(&fs_devs->super_kobj);
+		wait_for_completion(&fs_devs->kobj_unregister);
+	}
 }
 
 /* when fs_devs is NULL it will remove all fsid kobject */
