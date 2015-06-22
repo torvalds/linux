@@ -118,11 +118,10 @@ static void wilc_debug(uint32_t flag, char *fmt, ...)
 {
 	char buf[256];
 	va_list args;
-	int len;
 
 	if (flag & dbgflag) {
 		va_start(args, fmt);
-		len = vsprintf(buf, fmt, args);
+		vsprintf(buf, fmt, args);
 		va_end(args);
 
 		if (g_wlan.os_func.os_debug)
