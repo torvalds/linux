@@ -1123,6 +1123,73 @@ static int genregs32_set(struct task_struct *target,
 	return ret;
 }
 
+static long ia32_arch_ptrace(struct task_struct *child, compat_long_t request,
+			     compat_ulong_t caddr, compat_ulong_t cdata)
+{
+	unsigned long addr = caddr;
+	unsigned long data = cdata;
+	void __user *datap = compat_ptr(data);
+	int ret;
+	__u32 val;
+
+	switch (request) {
+	case PTRACE_PEEKUSR:
+		ret = getreg32(child, addr, &val);
+		if (ret == 0)
+			ret = put_user(val, (__u32 __user *)datap);
+		break;
+
+	case PTRACE_POKEUSR:
+		ret = putreg32(child, addr, data);
+		break;
+
+	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_GENERAL,
+					   0, sizeof(struct user_regs_struct32),
+					   datap);
+
+	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
+		return copy_regset_from_user(child, &user_x86_32_view,
+					     REGSET_GENERAL, 0,
+					     sizeof(struct user_regs_struct32),
+					     datap);
+
+	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_FP, 0,
+					   sizeof(struct user_i387_ia32_struct),
+					   datap);
+
+	case PTRACE_SETFPREGS:	/* Set the child FPU state. */
+		return copy_regset_from_user(
+			child, &user_x86_32_view, REGSET_FP,
+			0, sizeof(struct user_i387_ia32_struct), datap);
+
+	case PTRACE_GETFPXREGS:	/* Get the child extended FPU state. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_XFP, 0,
+					   sizeof(struct user32_fxsr_struct),
+					   datap);
+
+	case PTRACE_SETFPXREGS:	/* Set the child extended FPU state. */
+		return copy_regset_from_user(child, &user_x86_32_view,
+					     REGSET_XFP, 0,
+					     sizeof(struct user32_fxsr_struct),
+					     datap);
+
+	case PTRACE_GET_THREAD_AREA:
+	case PTRACE_SET_THREAD_AREA:
+		return arch_ptrace(child, request, addr, data);
+
+	default:
+		return compat_ptrace_request(child, request, addr, data);
+	}
+
+	return ret;
+}
+#endif /* CONFIG_IA32_EMULATION */
+
 #ifdef CONFIG_X86_X32_ABI
 static long x32_arch_ptrace(struct task_struct *child,
 			    compat_long_t request, compat_ulong_t caddr,
@@ -1211,78 +1278,21 @@ static long x32_arch_ptrace(struct task_struct *child,
 }
 #endif
 
+#ifdef CONFIG_COMPAT
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	unsigned long addr = caddr;
-	unsigned long data = cdata;
-	void __user *datap = compat_ptr(data);
-	int ret;
-	__u32 val;
-
 #ifdef CONFIG_X86_X32_ABI
 	if (!is_ia32_task())
 		return x32_arch_ptrace(child, request, caddr, cdata);
 #endif
-
-	switch (request) {
-	case PTRACE_PEEKUSR:
-		ret = getreg32(child, addr, &val);
-		if (ret == 0)
-			ret = put_user(val, (__u32 __user *)datap);
-		break;
-
-	case PTRACE_POKEUSR:
-		ret = putreg32(child, addr, data);
-		break;
-
-	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
-		return copy_regset_to_user(child, &user_x86_32_view,
-					   REGSET_GENERAL,
-					   0, sizeof(struct user_regs_struct32),
-					   datap);
-
-	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
-		return copy_regset_from_user(child, &user_x86_32_view,
-					     REGSET_GENERAL, 0,
-					     sizeof(struct user_regs_struct32),
-					     datap);
-
-	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
-		return copy_regset_to_user(child, &user_x86_32_view,
-					   REGSET_FP, 0,
-					   sizeof(struct user_i387_ia32_struct),
-					   datap);
-
-	case PTRACE_SETFPREGS:	/* Set the child FPU state. */
-		return copy_regset_from_user(
-			child, &user_x86_32_view, REGSET_FP,
-			0, sizeof(struct user_i387_ia32_struct), datap);
-
-	case PTRACE_GETFPXREGS:	/* Get the child extended FPU state. */
-		return copy_regset_to_user(child, &user_x86_32_view,
-					   REGSET_XFP, 0,
-					   sizeof(struct user32_fxsr_struct),
-					   datap);
-
-	case PTRACE_SETFPXREGS:	/* Set the child extended FPU state. */
-		return copy_regset_from_user(child, &user_x86_32_view,
-					     REGSET_XFP, 0,
-					     sizeof(struct user32_fxsr_struct),
-					     datap);
-
-	case PTRACE_GET_THREAD_AREA:
-	case PTRACE_SET_THREAD_AREA:
-		return arch_ptrace(child, request, addr, data);
-
-	default:
-		return compat_ptrace_request(child, request, addr, data);
-	}
-
-	return ret;
+#ifdef CONFIG_IA32_EMULATION
+	return ia32_arch_ptrace(child, request, caddr, cdata);
+#else
+	return 0;
+#endif
 }
-
-#endif	/* CONFIG_IA32_EMULATION */
+#endif	/* CONFIG_COMPAT */
 
 #ifdef CONFIG_X86_64
 
