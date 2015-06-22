@@ -1025,7 +1025,8 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 				list_for_each_entry(ptr, &tid_ptr->ra_list,
 						    list) {
 
-					if (!skb_queue_empty(&ptr->skb_head))
+					if (!ptr->tx_paused &&
+					    !skb_queue_empty(&ptr->skb_head))
 						/* holds both locks */
 						goto found;
 				}
