@@ -1550,6 +1550,8 @@ void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags);
 void mwifiex_queue_main_work(struct mwifiex_adapter *adapter);
 void mwifiex_coex_ampdu_rxwinsize(struct mwifiex_adapter *adapter);
 void mwifiex_11n_delba(struct mwifiex_private *priv, int tid);
+int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy);
+
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
 void mwifiex_debugfs_remove(void);

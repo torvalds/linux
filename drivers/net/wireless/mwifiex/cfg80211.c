@@ -442,7 +442,7 @@ mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
  *      - Country codes
  *      - Sub bands (first channel, number of channels, maximum Tx power)
  */
-static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
+int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 {
 	u8 no_of_triplet = 0;
 	struct ieee80211_country_ie_triplet *t;
