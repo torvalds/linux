@@ -622,7 +622,7 @@ static int pnv_ioda_set_peltv(struct pnv_phb *phb,
 		pdev = pe->pdev->bus->self;
 #ifdef CONFIG_PCI_IOV
 	else if (pe->flags & PNV_IODA_PE_VF)
-		pdev = pe->parent_dev->bus->self;
+		pdev = pe->parent_dev;
 #endif /* CONFIG_PCI_IOV */
 	while (pdev) {
 		struct pci_dn *pdn = pci_get_pdn(pdev);
