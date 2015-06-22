@@ -144,9 +144,7 @@ bool g_wep_keys_saved = false;
 
 void clear_shadow_scan(void *pUserVoid)
 {
-	struct WILC_WFI_priv *priv;
 	int i;
-	priv = (struct WILC_WFI_priv *)pUserVoid;
 	if (op_ifcs == 0) {
 		WILC_TimerDestroy(&hAgingTimer, NULL);
 		PRINT_INFO(CORECONFIG_DBG, "destroy aging timer\n");
@@ -219,9 +217,7 @@ void refresh_scan(void *pUserVoid, uint8_t all, bool bDirectScan)
 
 void reset_shadow_found(void *pUserVoid)
 {
-	struct WILC_WFI_priv *priv;
 	int i;
-	priv = (struct WILC_WFI_priv *)pUserVoid;
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
 		astrLastScannedNtwrksShadow[i].u8Found = 0;
 
@@ -230,9 +226,7 @@ void reset_shadow_found(void *pUserVoid)
 
 void update_scan_time(void *pUserVoid)
 {
-	struct WILC_WFI_priv *priv;
 	int i;
-	priv = (struct WILC_WFI_priv *)pUserVoid;
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
 		astrLastScannedNtwrksShadow[i].u32TimeRcvdInScan = jiffies;
 	}
@@ -240,11 +234,9 @@ void update_scan_time(void *pUserVoid)
 
 void remove_network_from_shadow(void *pUserVoid)
 {
-	struct WILC_WFI_priv *priv;
 	unsigned long now = jiffies;
 	int i, j;
 
-	priv = (struct WILC_WFI_priv *)pUserVoid;
 
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
 		if (time_after(now, astrLastScannedNtwrksShadow[i].u32TimeRcvdInScan + (unsigned long)(SCAN_RESULT_EXPIRE))) {
@@ -281,11 +273,9 @@ void clear_duringIP(void *pUserVoid)
 
 int8_t is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid)
 {
-	struct WILC_WFI_priv *priv;
 	int8_t state = -1;
 	int i;
 
-	priv = (struct WILC_WFI_priv *)pUserVoid;
 	if (u32LastScannedNtwrksCountShadow == 0) {
 		PRINT_D(CFG80211_DBG, "Starting Aging timer\n");
 		WILC_TimerStart(&(hAgingTimer), AGING_TIME, pUserVoid, NULL);
@@ -305,11 +295,9 @@ int8_t is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid)
 
 void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, void *pJoinParams)
 {
-	struct WILC_WFI_priv *priv;
 	int8_t ap_found = is_network_in_shadow(pstrNetworkInfo, pUserVoid);
 	uint32_t ap_index = 0;
 	uint8_t rssi_index = 0;
-	priv = (struct WILC_WFI_priv *)pUserVoid;
 
 	if (u32LastScannedNtwrksCountShadow >= MAX_NUM_SCANNED_NETWORKS_SHADOW) {
 		PRINT_D(CFG80211_DBG, "Shadow network reached its maximum limit\n");
