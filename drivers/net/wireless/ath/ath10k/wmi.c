@@ -5412,10 +5412,15 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	/* .gen_adaptive_qcs not implemented */
 };
 
+static const struct wmi_ops wmi_10_4_ops = {
+	.map_svc = wmi_10_4_svc_map,
+};
+
 int ath10k_wmi_attach(struct ath10k *ar)
 {
 	switch (ar->wmi.op_version) {
 	case ATH10K_FW_WMI_OP_VERSION_10_4:
+		ar->wmi.ops = &wmi_10_4_ops;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_2_4:
 		ar->wmi.cmd = &wmi_10_2_4_cmd_map;
