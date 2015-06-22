@@ -355,6 +355,7 @@ static void mwifiex_tdls_add_ext_capab(struct mwifiex_private *priv,
 	extcap->ieee_hdr.len = 8;
 	memset(extcap->ext_capab, 0, 8);
 	extcap->ext_capab[4] |= WLAN_EXT_CAPA5_TDLS_ENABLED;
+	extcap->ext_capab[3] |= WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH;
 
 	if (priv->adapter->is_hw_11ac_capable)
 		extcap->ext_capab[7] |= WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED;
@@ -1070,6 +1071,11 @@ mwifiex_tdls_process_enable_link(struct mwifiex_private *priv, const u8 *peer)
 		} else {
 			for (i = 0; i < MAX_NUM_TID; i++)
 				sta_ptr->ampdu_sta[i] = BA_STREAM_NOT_ALLOWED;
+		}
+		if (sta_ptr->tdls_cap.extcap.ext_capab[3] &
+		    WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH) {
+			mwifiex_config_tdls_enable(priv);
+			mwifiex_config_tdls_cs_params(priv);
 		}
 
 		memset(sta_ptr->rx_seq, 0xff, sizeof(sta_ptr->rx_seq));
