@@ -3826,20 +3826,39 @@ void ath10k_wmi_event_service_ready(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	}
 
+	if (test_bit(WMI_SERVICE_PEER_CACHING, ar->wmi.svc_map)) {
+		ar->max_num_peers = TARGET_10_4_NUM_QCACHE_PEERS_MAX +
+				    TARGET_10_4_NUM_VDEVS;
+		ar->num_active_peers = TARGET_10_4_QCACHE_ACTIVE_PEERS +
+				       TARGET_10_4_NUM_VDEVS;
+		ar->num_tids = ar->num_active_peers * 2;
+		ar->max_num_stations = TARGET_10_4_NUM_QCACHE_PEERS_MAX;
+	}
+
+	/* TODO: Adjust max peer count for cases like WMI_SERVICE_RATECTRL_CACHE
+	 * and WMI_SERVICE_IRAM_TIDS, etc.
+	 */
+
 	for (i = 0; i < num_mem_reqs; ++i) {
 		req_id = __le32_to_cpu(arg.mem_reqs[i]->req_id);
 		num_units = __le32_to_cpu(arg.mem_reqs[i]->num_units);
 		unit_size = __le32_to_cpu(arg.mem_reqs[i]->unit_size);
 		num_unit_info = __le32_to_cpu(arg.mem_reqs[i]->num_unit_info);
 
-		if (num_unit_info & NUM_UNITS_IS_NUM_PEERS)
+		if (num_unit_info & NUM_UNITS_IS_NUM_ACTIVE_PEERS) {
+			if (ar->num_active_peers)
+				num_units = ar->num_active_peers + 1;
+			else
+				num_units = ar->max_num_peers + 1;
+		} else if (num_unit_info & NUM_UNITS_IS_NUM_PEERS) {
 			/* number of units to allocate is number of
 			 * peers, 1 extra for self peer on target */
 			/* this needs to be tied, host and target
 			 * can get out of sync */
-			num_units = TARGET_10X_NUM_PEERS + 1;
-		else if (num_unit_info & NUM_UNITS_IS_NUM_VDEVS)
-			num_units = TARGET_10X_NUM_VDEVS + 1;
+			num_units = ar->max_num_peers + 1;
+		} else if (num_unit_info & NUM_UNITS_IS_NUM_VDEVS) {
+			num_units = ar->max_num_vdevs + 1;
+		}
 
 		ath10k_dbg(ar, ATH10K_DBG_WMI,
 			   "wmi mem_req_id %d num_units %d num_unit_info %d unit size %d actual units %d\n",

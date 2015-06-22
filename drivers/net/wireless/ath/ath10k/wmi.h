@@ -2377,8 +2377,9 @@ struct wmi_resource_config_10_2 {
 	__le32 feature_mask;
 } __packed;
 
-#define NUM_UNITS_IS_NUM_VDEVS   0x1
-#define NUM_UNITS_IS_NUM_PEERS   0x2
+#define NUM_UNITS_IS_NUM_VDEVS         BIT(0)
+#define NUM_UNITS_IS_NUM_PEERS         BIT(1)
+#define NUM_UNITS_IS_NUM_ACTIVE_PEERS  BIT(2)
 
 struct wmi_resource_config_10_4 {
 	/* Number of virtual devices (VAPs) to support */

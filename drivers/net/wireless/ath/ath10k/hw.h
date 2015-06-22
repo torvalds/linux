@@ -360,6 +360,12 @@ enum ath10k_hw_rate_cck {
 #define TARGET_10_4_NUM_PEERS			((TARGET_10_4_NUM_STATIONS) + \
 						 (TARGET_10_4_NUM_VDEVS))
 #define TARGET_10_4_ACTIVE_PEERS		0
+
+/* TODO: increase qcache max client limit to 512 after
+ * testing with 512 client.
+ */
+#define TARGET_10_4_NUM_QCACHE_PEERS_MAX	256
+#define TARGET_10_4_QCACHE_ACTIVE_PEERS		50
 #define TARGET_10_4_NUM_OFFLOAD_PEERS		0
 #define TARGET_10_4_NUM_OFFLOAD_REORDER_BUFFS	0
 #define TARGET_10_4_NUM_PEER_KEYS		2
