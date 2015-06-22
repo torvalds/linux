@@ -153,6 +153,8 @@ enum ath10k_fw_htt_op_version {
 
 	ATH10K_FW_HTT_OP_VERSION_TLV = 3,
 
+	ATH10K_FW_HTT_OP_VERSION_10_4 = 4,
+
 	/* keep last */
 	ATH10K_FW_HTT_OP_VERSION_MAX,
 };

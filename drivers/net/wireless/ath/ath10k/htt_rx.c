@@ -2072,6 +2072,10 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case HTT_T2H_MSG_TYPE_CHAN_CHANGE:
 		break;
+	case HTT_T2H_MSG_TYPE_EN_STATS:
+	case HTT_T2H_MSG_TYPE_TX_FETCH_IND:
+	case HTT_T2H_MSG_TYPE_TX_FETCH_CONF:
+	case HTT_T2H_MSG_TYPE_TX_LOW_LATENCY_IND:
 	default:
 		ath10k_warn(ar, "htt event (%d) not handled\n",
 			    resp->hdr.msg_type);
