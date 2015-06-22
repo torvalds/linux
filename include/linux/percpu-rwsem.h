@@ -16,6 +16,15 @@ struct percpu_rw_semaphore {
 	int			readers_block;
 };
 
+#define DEFINE_STATIC_PERCPU_RWSEM(name)				\
+static DEFINE_PER_CPU(unsigned int, __percpu_rwsem_rc_##name);		\
+static struct percpu_rw_semaphore name = {				\
+	.rss = __RCU_SYNC_INITIALIZER(name.rss, RCU_SCHED_SYNC),	\
+	.read_count = &__percpu_rwsem_rc_##name,			\
+	.rw_sem = __RWSEM_INITIALIZER(name.rw_sem),			\
+	.writer = __WAIT_QUEUE_HEAD_INITIALIZER(name.writer),		\
+}
+
 extern int __percpu_down_read(struct percpu_rw_semaphore *, int);
 extern void __percpu_up_read(struct percpu_rw_semaphore *);
 
@@ -101,6 +110,9 @@ extern void percpu_free_rwsem(struct percpu_rw_semaphore *);
 })
 
 #define percpu_rwsem_is_held(sem) lockdep_is_held(&(sem)->rw_sem)
+
+#define percpu_rwsem_assert_held(sem)				\
+	lockdep_assert_held(&(sem)->rw_sem)
 
 static inline void percpu_rwsem_release(struct percpu_rw_semaphore *sem,
 					bool read, unsigned long ip)
