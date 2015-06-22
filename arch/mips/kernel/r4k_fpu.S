@@ -13,6 +13,7 @@
  * Copyright (C) 1999, 2001 Silicon Graphics, Inc.
  */
 #include <asm/asm.h>
+#include <asm/asmmacro.h>
 #include <asm/errno.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
@@ -273,6 +274,72 @@ LEAF(_restore_fp_context32)
 	.set pop
 	END(_restore_fp_context32)
 #endif
+
+#ifdef CONFIG_CPU_HAS_MSA
+
+	.macro	op_one_wr	op, idx, base
+	.align	4
+\idx:	\op	\idx, 0, \base
+	jr	ra
+	 nop
+	.endm
+
+	.macro	op_msa_wr	name, op
+LEAF(\name)
+	.set		push
+	.set		noreorder
+	sll		t0, a0, 4
+	PTR_LA		t1, 0f
+	PTR_ADDU	t0, t0, t1
+	jr		t0
+	  nop
+	op_one_wr	\op, 0, a1
+	op_one_wr	\op, 1, a1
+	op_one_wr	\op, 2, a1
+	op_one_wr	\op, 3, a1
+	op_one_wr	\op, 4, a1
+	op_one_wr	\op, 5, a1
+	op_one_wr	\op, 6, a1
+	op_one_wr	\op, 7, a1
+	op_one_wr	\op, 8, a1
+	op_one_wr	\op, 9, a1
+	op_one_wr	\op, 10, a1
+	op_one_wr	\op, 11, a1
+	op_one_wr	\op, 12, a1
+	op_one_wr	\op, 13, a1
+	op_one_wr	\op, 14, a1
+	op_one_wr	\op, 15, a1
+	op_one_wr	\op, 16, a1
+	op_one_wr	\op, 17, a1
+	op_one_wr	\op, 18, a1
+	op_one_wr	\op, 19, a1
+	op_one_wr	\op, 20, a1
+	op_one_wr	\op, 21, a1
+	op_one_wr	\op, 22, a1
+	op_one_wr	\op, 23, a1
+	op_one_wr	\op, 24, a1
+	op_one_wr	\op, 25, a1
+	op_one_wr	\op, 26, a1
+	op_one_wr	\op, 27, a1
+	op_one_wr	\op, 28, a1
+	op_one_wr	\op, 29, a1
+	op_one_wr	\op, 30, a1
+	op_one_wr	\op, 31, a1
+	.set		pop
+	END(\name)
+	.endm
+
+	op_msa_wr	read_msa_wr_b, st_b
+	op_msa_wr	read_msa_wr_h, st_h
+	op_msa_wr	read_msa_wr_w, st_w
+	op_msa_wr	read_msa_wr_d, st_d
+
+	op_msa_wr	write_msa_wr_b, ld_b
+	op_msa_wr	write_msa_wr_h, ld_h
+	op_msa_wr	write_msa_wr_w, ld_w
+	op_msa_wr	write_msa_wr_d, ld_d
+
+#endif /* CONFIG_CPU_HAS_MSA */
 
 	.set	reorder
 
