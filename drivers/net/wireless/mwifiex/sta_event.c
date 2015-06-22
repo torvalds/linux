@@ -309,6 +309,31 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 	}
 }
 
+void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
+				      struct sk_buff *event_skb)
+{
+	struct mwifiex_ie_types_multi_chan_info *chan_info;
+	u16 status;
+
+	chan_info = (void *)event_skb->data + sizeof(u32);
+
+	if (le16_to_cpu(chan_info->header.type) != TLV_TYPE_MULTI_CHAN_INFO) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "unknown TLV in chan_info event\n");
+		return;
+	}
+
+	status = le16_to_cpu(chan_info->status);
+
+	if (status) {
+		mwifiex_dbg(priv->adapter, EVENT,
+			    "multi-channel operation started\n");
+	} else {
+		mwifiex_dbg(priv->adapter, EVENT,
+			    "multi-channel operation over\n");
+	}
+}
+
 void mwifiex_process_tx_pause_event(struct mwifiex_private *priv,
 				    struct sk_buff *event_skb)
 {
@@ -746,6 +771,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	case EVENT_TX_DATA_PAUSE:
 		mwifiex_dbg(adapter, EVENT, "event: TX DATA PAUSE\n");
 		mwifiex_process_tx_pause_event(priv, adapter->event_skb);
+		break;
+
+	case EVENT_MULTI_CHAN_INFO:
+		mwifiex_dbg(adapter, EVENT, "event: multi-chan info\n");
+		mwifiex_process_multi_chan_event(priv, adapter->event_skb);
 		break;
 
 	case EVENT_TX_STATUS_REPORT:

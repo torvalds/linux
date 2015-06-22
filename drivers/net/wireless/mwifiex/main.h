@@ -1557,6 +1557,8 @@ void mwifiex_11n_delba(struct mwifiex_private *priv, int tid);
 int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy);
 void mwifiex_process_tx_pause_event(struct mwifiex_private *priv,
 				    struct sk_buff *event);
+void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
+				      struct sk_buff *event_skb);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
