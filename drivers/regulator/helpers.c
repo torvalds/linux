@@ -275,7 +275,7 @@ int regulator_map_voltage_linear(struct regulator_dev *rdev,
 EXPORT_SYMBOL_GPL(regulator_map_voltage_linear);
 
 /**
- * regulator_map_voltage_linear - map_voltage() for multiple linear ranges
+ * regulator_map_voltage_linear_range - map_voltage() for multiple linear ranges
  *
  * @rdev: Regulator to operate on
  * @min_uV: Lower bound for voltage
