@@ -2380,6 +2380,221 @@ struct wmi_resource_config_10_2 {
 #define NUM_UNITS_IS_NUM_VDEVS   0x1
 #define NUM_UNITS_IS_NUM_PEERS   0x2
 
+struct wmi_resource_config_10_4 {
+	/* Number of virtual devices (VAPs) to support */
+	__le32 num_vdevs;
+
+	/* Number of peer nodes to support */
+	__le32 num_peers;
+
+	/* Number of active peer nodes to support */
+	__le32 num_active_peers;
+
+	/* In offload mode, target supports features like WOW, chatter and other
+	 * protocol offloads. In order to support them some functionalities like
+	 * reorder buffering, PN checking need to be done in target.
+	 * This determines maximum number of peers supported by target in
+	 * offload mode.
+	 */
+	__le32 num_offload_peers;
+
+	/* Number of reorder buffers available for doing target based reorder
+	 * Rx reorder buffering
+	 */
+	__le32 num_offload_reorder_buffs;
+
+	/* Number of keys per peer */
+	__le32 num_peer_keys;
+
+	/* Total number of TX/RX data TIDs */
+	__le32 num_tids;
+
+	/* Max skid for resolving hash collisions.
+	 * The address search table is sparse, so that if two MAC addresses
+	 * result in the same hash value, the second of these conflicting
+	 * entries can slide to the next index in the address search table,
+	 * and use it, if it is unoccupied.  This ast_skid_limit parameter
+	 * specifies the upper bound on how many subsequent indices to search
+	 * over to find an unoccupied space.
+	 */
+	__le32 ast_skid_limit;
+
+	/* The nominal chain mask for transmit.
+	 * The chain mask may be modified dynamically, e.g. to operate AP tx
+	 * with a reduced number of chains if no clients are associated.
+	 * This configuration parameter specifies the nominal chain-mask that
+	 * should be used when not operating with a reduced set of tx chains.
+	 */
+	__le32 tx_chain_mask;
+
+	/* The nominal chain mask for receive.
+	 * The chain mask may be modified dynamically, e.g. for a client to use
+	 * a reduced number of chains for receive if the traffic to the client
+	 * is low enough that it doesn't require downlink MIMO or antenna
+	 * diversity. This configuration parameter specifies the nominal
+	 * chain-mask that should be used when not operating with a reduced
+	 * set of rx chains.
+	 */
+	__le32 rx_chain_mask;
+
+	/* What rx reorder timeout (ms) to use for the AC.
+	 * Each WMM access class (voice, video, best-effort, background) will
+	 * have its own timeout value to dictate how long to wait for missing
+	 * rx MPDUs to arrive before flushing subsequent MPDUs that have already
+	 * been received. This parameter specifies the timeout in milliseconds
+	 * for each class.
+	 */
+	__le32 rx_timeout_pri[4];
+
+	/* What mode the rx should decap packets to.
+	 * MAC can decap to RAW (no decap), native wifi or Ethernet types.
+	 * This setting also determines the default TX behavior, however TX
+	 * behavior can be modified on a per VAP basis during VAP init
+	 */
+	__le32 rx_decap_mode;
+
+	__le32 scan_max_pending_req;
+
+	__le32 bmiss_offload_max_vdev;
+
+	__le32 roam_offload_max_vdev;
+
+	__le32 roam_offload_max_ap_profiles;
+
+	/* How many groups to use for mcast->ucast conversion.
+	 * The target's WAL maintains a table to hold information regarding
+	 * which peers belong to a given multicast group, so that if
+	 * multicast->unicast conversion is enabled, the target can convert
+	 * multicast tx frames to a series of unicast tx frames, to each peer
+	 * within the multicast group. This num_mcast_groups configuration
+	 * parameter tells the target how many multicast groups to provide
+	 * storage for within its multicast group membership table.
+	 */
+	__le32 num_mcast_groups;
+
+	/* Size to alloc for the mcast membership table.
+	 * This num_mcast_table_elems configuration parameter tells the target
+	 * how many peer elements it needs to provide storage for in its
+	 * multicast group membership table. These multicast group membership
+	 * table elements are shared by the multicast groups stored within
+	 * the table.
+	 */
+	__le32 num_mcast_table_elems;
+
+	/* Whether/how to do multicast->unicast conversion.
+	 * This configuration parameter specifies whether the target should
+	 * perform multicast --> unicast conversion on transmit, and if so,
+	 * what to do if it finds no entries in its multicast group membership
+	 * table for the multicast IP address in the tx frame.
+	 * Configuration value:
+	 * 0 -> Do not perform multicast to unicast conversion.
+	 * 1 -> Convert multicast frames to unicast, if the IP multicast address
+	 *      from the tx frame is found in the multicast group membership
+	 *      table.  If the IP multicast address is not found, drop the frame
+	 * 2 -> Convert multicast frames to unicast, if the IP multicast address
+	 *      from the tx frame is found in the multicast group membership
+	 *      table.  If the IP multicast address is not found, transmit the
+	 *      frame as multicast.
+	 */
+	__le32 mcast2ucast_mode;
+
+	/* How much memory to allocate for a tx PPDU dbg log.
+	 * This parameter controls how much memory the target will allocate to
+	 * store a log of tx PPDU meta-information (how large the PPDU was,
+	 * when it was sent, whether it was successful, etc.)
+	 */
+	__le32 tx_dbg_log_size;
+
+	/* How many AST entries to be allocated for WDS */
+	__le32 num_wds_entries;
+
+	/* MAC DMA burst size. 0 -default, 1 -256B */
+	__le32 dma_burst_size;
+
+	/* Fixed delimiters to be inserted after every MPDU to account for
+	 * interface latency to avoid underrun.
+	 */
+	__le32 mac_aggr_delim;
+
+	/* Determine whether target is responsible for detecting duplicate
+	 * non-aggregate MPDU and timing out stale fragments. A-MPDU reordering
+	 * is always performed on the target.
+	 *
+	 * 0: target responsible for frag timeout and dup checking
+	 * 1: host responsible for frag timeout and dup checking
+	 */
+	__le32 rx_skip_defrag_timeout_dup_detection_check;
+
+	/* Configuration for VoW : No of Video nodes to be supported and max
+	 * no of descriptors for each video link (node).
+	 */
+	__le32 vow_config;
+
+	/* Maximum vdev that could use gtk offload */
+	__le32 gtk_offload_max_vdev;
+
+	/* Number of msdu descriptors target should use */
+	__le32 num_msdu_desc;
+
+	/* Max number of tx fragments per MSDU.
+	 * This parameter controls the max number of tx fragments per MSDU.
+	 * This will passed by target as part of the WMI_SERVICE_READY event
+	 * and is overridden by the OS shim as required.
+	 */
+	__le32 max_frag_entries;
+
+	/* Max number of extended peer stats.
+	 * This parameter controls the max number of peers for which extended
+	 * statistics are supported by target
+	 */
+	__le32 max_peer_ext_stats;
+
+	/* Smart antenna capabilities information.
+	 * 1 - Smart antenna is enabled
+	 * 0 - Smart antenna is disabled
+	 * In future this can contain smart antenna specific capabilities.
+	 */
+	__le32 smart_ant_cap;
+
+	/* User can configure the buffers allocated for each AC (BE, BK, VI, VO)
+	 * during init.
+	 */
+	__le32 bk_minfree;
+	__le32 be_minfree;
+	__le32 vi_minfree;
+	__le32 vo_minfree;
+
+	/* Rx batch mode capability.
+	 * 1 - Rx batch mode enabled
+	 * 0 - Rx batch mode disabled
+	 */
+	__le32 rx_batchmode;
+
+	/* Thermal throttling capability.
+	 * 1 - Capable of thermal throttling
+	 * 0 - Not capable of thermal throttling
+	 */
+	__le32 tt_support;
+
+	/* ATF configuration.
+	 * 1  - Enable ATF
+	 * 0  - Disable ATF
+	 */
+	__le32 atf_config;
+
+	/* Configure padding to manage IP header un-alignment
+	 * 1  - Enable padding
+	 * 0  - Disable padding
+	 */
+	__le32 iphdr_pad_config;
+
+	/* qwrap configuration
+	 * 1  - This is qwrap configuration
+	 * 0  - This is not qwrap
+	 */
+	__le32 qwrap_config;
+} __packed;
+
 /* strucutre describing host memory chunk. */
 struct host_memory_chunk {
 	/* id of the request that is passed up in service ready */
@@ -2409,6 +2624,11 @@ struct wmi_init_cmd_10x {
 
 struct wmi_init_cmd_10_2 {
 	struct wmi_resource_config_10_2 resource_config;
+	struct wmi_host_mem_chunks mem_chunks;
+} __packed;
+
+struct wmi_init_cmd_10_4 {
+	struct wmi_resource_config_10_4 resource_config;
 	struct wmi_host_mem_chunks mem_chunks;
 } __packed;
 

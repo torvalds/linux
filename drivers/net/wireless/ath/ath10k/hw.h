@@ -354,6 +354,60 @@ enum ath10k_hw_rate_cck {
 
 #define NUM_TARGET_CE_CONFIG_WLAN ar->hw_values->num_target_ce_config_wlan
 
+/* Target specific defines for 10.4 firmware */
+#define TARGET_10_4_NUM_VDEVS			16
+#define TARGET_10_4_NUM_STATIONS		32
+#define TARGET_10_4_NUM_PEERS			((TARGET_10_4_NUM_STATIONS) + \
+						 (TARGET_10_4_NUM_VDEVS))
+#define TARGET_10_4_ACTIVE_PEERS		0
+#define TARGET_10_4_NUM_OFFLOAD_PEERS		0
+#define TARGET_10_4_NUM_OFFLOAD_REORDER_BUFFS	0
+#define TARGET_10_4_NUM_PEER_KEYS		2
+#define TARGET_10_4_TGT_NUM_TIDS		((TARGET_10_4_NUM_PEERS) * 2)
+#define TARGET_10_4_AST_SKID_LIMIT		32
+#define TARGET_10_4_TX_CHAIN_MASK		(BIT(0) | BIT(1) | \
+						 BIT(2) | BIT(3))
+#define TARGET_10_4_RX_CHAIN_MASK		(BIT(0) | BIT(1) | \
+						 BIT(2) | BIT(3))
+
+/* 100 ms for video, best-effort, and background */
+#define TARGET_10_4_RX_TIMEOUT_LO_PRI		100
+
+/* 40 ms for voice */
+#define TARGET_10_4_RX_TIMEOUT_HI_PRI		40
+
+#define TARGET_10_4_RX_DECAP_MODE		ATH10K_HW_TXRX_NATIVE_WIFI
+#define TARGET_10_4_SCAN_MAX_REQS		4
+#define TARGET_10_4_BMISS_OFFLOAD_MAX_VDEV	3
+#define TARGET_10_4_ROAM_OFFLOAD_MAX_VDEV	3
+#define TARGET_10_4_ROAM_OFFLOAD_MAX_PROFILES   8
+
+/* Note: mcast to ucast is disabled by default */
+#define TARGET_10_4_NUM_MCAST_GROUPS		0
+#define TARGET_10_4_NUM_MCAST_TABLE_ELEMS	0
+#define TARGET_10_4_MCAST2UCAST_MODE		0
+
+#define TARGET_10_4_TX_DBG_LOG_SIZE		1024
+#define TARGET_10_4_NUM_WDS_ENTRIES		32
+#define TARGET_10_4_DMA_BURST_SIZE		1
+#define TARGET_10_4_MAC_AGGR_DELIM		0
+#define TARGET_10_4_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK 1
+#define TARGET_10_4_VOW_CONFIG			0
+#define TARGET_10_4_GTK_OFFLOAD_MAX_VDEV	3
+#define TARGET_10_4_NUM_MSDU_DESC		(1024 + 400)
+#define TARGET_10_4_11AC_TX_MAX_FRAGS		2
+#define TARGET_10_4_MAX_PEER_EXT_STATS		16
+#define TARGET_10_4_SMART_ANT_CAP		0
+#define TARGET_10_4_BK_MIN_FREE			0
+#define TARGET_10_4_BE_MIN_FREE			0
+#define TARGET_10_4_VI_MIN_FREE			0
+#define TARGET_10_4_VO_MIN_FREE			0
+#define TARGET_10_4_RX_BATCH_MODE		1
+#define TARGET_10_4_THERMAL_THROTTLING_CONFIG	0
+#define TARGET_10_4_ATF_CONFIG			0
+#define TARGET_10_4_IPHDR_PAD_CONFIG		1
+#define TARGET_10_4_QWRAP_CONFIG		0
+
 /* Number of Copy Engines supported */
 #define CE_COUNT ar->hw_values->ce_count
 

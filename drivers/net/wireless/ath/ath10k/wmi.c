@@ -4641,6 +4641,88 @@ static struct sk_buff *ath10k_wmi_10_2_op_gen_init(struct ath10k *ar)
 	return buf;
 }
 
+static struct sk_buff *ath10k_wmi_10_4_op_gen_init(struct ath10k *ar)
+{
+	struct wmi_init_cmd_10_4 *cmd;
+	struct sk_buff *buf;
+	struct wmi_resource_config_10_4 config = {};
+	u32 len;
+
+	config.num_vdevs = __cpu_to_le32(ar->max_num_vdevs);
+	config.num_peers = __cpu_to_le32(ar->max_num_peers);
+	config.num_active_peers = __cpu_to_le32(ar->num_active_peers);
+	config.num_tids = __cpu_to_le32(ar->num_tids);
+
+	config.num_offload_peers = __cpu_to_le32(TARGET_10_4_NUM_OFFLOAD_PEERS);
+	config.num_offload_reorder_buffs =
+			__cpu_to_le32(TARGET_10_4_NUM_OFFLOAD_REORDER_BUFFS);
+	config.num_peer_keys  = __cpu_to_le32(TARGET_10_4_NUM_PEER_KEYS);
+	config.ast_skid_limit = __cpu_to_le32(TARGET_10_4_AST_SKID_LIMIT);
+	config.tx_chain_mask  = __cpu_to_le32(TARGET_10_4_TX_CHAIN_MASK);
+	config.rx_chain_mask  = __cpu_to_le32(TARGET_10_4_RX_CHAIN_MASK);
+
+	config.rx_timeout_pri[0] = __cpu_to_le32(TARGET_10_4_RX_TIMEOUT_LO_PRI);
+	config.rx_timeout_pri[1] = __cpu_to_le32(TARGET_10_4_RX_TIMEOUT_LO_PRI);
+	config.rx_timeout_pri[2] = __cpu_to_le32(TARGET_10_4_RX_TIMEOUT_LO_PRI);
+	config.rx_timeout_pri[3] = __cpu_to_le32(TARGET_10_4_RX_TIMEOUT_HI_PRI);
+
+	config.rx_decap_mode	    = __cpu_to_le32(TARGET_10_4_RX_DECAP_MODE);
+	config.scan_max_pending_req = __cpu_to_le32(TARGET_10_4_SCAN_MAX_REQS);
+	config.bmiss_offload_max_vdev =
+			__cpu_to_le32(TARGET_10_4_BMISS_OFFLOAD_MAX_VDEV);
+	config.roam_offload_max_vdev  =
+			__cpu_to_le32(TARGET_10_4_ROAM_OFFLOAD_MAX_VDEV);
+	config.roam_offload_max_ap_profiles =
+			__cpu_to_le32(TARGET_10_4_ROAM_OFFLOAD_MAX_PROFILES);
+	config.num_mcast_groups = __cpu_to_le32(TARGET_10_4_NUM_MCAST_GROUPS);
+	config.num_mcast_table_elems =
+			__cpu_to_le32(TARGET_10_4_NUM_MCAST_TABLE_ELEMS);
+
+	config.mcast2ucast_mode = __cpu_to_le32(TARGET_10_4_MCAST2UCAST_MODE);
+	config.tx_dbg_log_size  = __cpu_to_le32(TARGET_10_4_TX_DBG_LOG_SIZE);
+	config.num_wds_entries  = __cpu_to_le32(TARGET_10_4_NUM_WDS_ENTRIES);
+	config.dma_burst_size   = __cpu_to_le32(TARGET_10_4_DMA_BURST_SIZE);
+	config.mac_aggr_delim   = __cpu_to_le32(TARGET_10_4_MAC_AGGR_DELIM);
+
+	config.rx_skip_defrag_timeout_dup_detection_check =
+	  __cpu_to_le32(TARGET_10_4_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK);
+
+	config.vow_config = __cpu_to_le32(TARGET_10_4_VOW_CONFIG);
+	config.gtk_offload_max_vdev =
+			__cpu_to_le32(TARGET_10_4_GTK_OFFLOAD_MAX_VDEV);
+	config.num_msdu_desc = __cpu_to_le32(TARGET_10_4_NUM_MSDU_DESC);
+	config.max_frag_entries = __cpu_to_le32(TARGET_10_4_11AC_TX_MAX_FRAGS);
+	config.max_peer_ext_stats =
+			__cpu_to_le32(TARGET_10_4_MAX_PEER_EXT_STATS);
+	config.smart_ant_cap = __cpu_to_le32(TARGET_10_4_SMART_ANT_CAP);
+
+	config.bk_minfree = __cpu_to_le32(TARGET_10_4_BK_MIN_FREE);
+	config.be_minfree = __cpu_to_le32(TARGET_10_4_BE_MIN_FREE);
+	config.vi_minfree = __cpu_to_le32(TARGET_10_4_VI_MIN_FREE);
+	config.vo_minfree = __cpu_to_le32(TARGET_10_4_VO_MIN_FREE);
+
+	config.rx_batchmode = __cpu_to_le32(TARGET_10_4_RX_BATCH_MODE);
+	config.tt_support =
+			__cpu_to_le32(TARGET_10_4_THERMAL_THROTTLING_CONFIG);
+	config.atf_config = __cpu_to_le32(TARGET_10_4_ATF_CONFIG);
+	config.iphdr_pad_config = __cpu_to_le32(TARGET_10_4_IPHDR_PAD_CONFIG);
+	config.qwrap_config = __cpu_to_le32(TARGET_10_4_QWRAP_CONFIG);
+
+	len = sizeof(*cmd) +
+	      (sizeof(struct host_memory_chunk) * ar->wmi.num_mem_chunks);
+
+	buf = ath10k_wmi_alloc_skb(ar, len);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_init_cmd_10_4 *)buf->data;
+	memcpy(&cmd->resource_config, &config, sizeof(config));
+	ath10k_wmi_put_host_mem_chunks(ar, &cmd->mem_chunks);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi init 10.4\n");
+	return buf;
+}
+
 int ath10k_wmi_start_scan_verify(const struct wmi_start_scan_arg *arg)
 {
 	if (arg->ie_len && !arg->ie)
@@ -6105,6 +6187,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 
 static const struct wmi_ops wmi_10_4_ops = {
 	.map_svc = wmi_10_4_svc_map,
+	.gen_init = ath10k_wmi_10_4_op_gen_init,
 };
 
 int ath10k_wmi_attach(struct ath10k *ar)

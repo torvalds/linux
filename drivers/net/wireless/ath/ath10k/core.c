@@ -1116,6 +1116,13 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 			WMI_STAT_PEER;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_4:
+		ar->max_num_peers = TARGET_10_4_NUM_PEERS;
+		ar->max_num_stations = TARGET_10_4_NUM_STATIONS;
+		ar->num_active_peers = TARGET_10_4_ACTIVE_PEERS;
+		ar->max_num_vdevs = TARGET_10_4_NUM_VDEVS;
+		ar->num_tids = TARGET_10_4_TGT_NUM_TIDS;
+		ar->fw_stats_req_mask = WMI_STAT_PEER;
+		break;
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:
 		WARN_ON(1);
