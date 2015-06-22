@@ -114,7 +114,7 @@ void perf_evlist__delete(struct perf_evlist *evlist)
 {
 	perf_evlist__munmap(evlist);
 	perf_evlist__close(evlist);
-	cpu_map__delete(evlist->cpus);
+	cpu_map__put(evlist->cpus);
 	thread_map__delete(evlist->threads);
 	evlist->cpus = NULL;
 	evlist->threads = NULL;
@@ -1353,7 +1353,7 @@ static int perf_evlist__create_syswide_maps(struct perf_evlist *evlist)
 out:
 	return err;
 out_free_cpus:
-	cpu_map__delete(evlist->cpus);
+	cpu_map__put(evlist->cpus);
 	evlist->cpus = NULL;
 	goto out;
 }

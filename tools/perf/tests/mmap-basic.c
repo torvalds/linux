@@ -140,7 +140,7 @@ out_delete_evlist:
 	cpus	= NULL;
 	threads = NULL;
 out_free_cpus:
-	cpu_map__delete(cpus);
+	cpu_map__put(cpus);
 out_free_threads:
 	thread_map__delete(threads);
 	return err;
