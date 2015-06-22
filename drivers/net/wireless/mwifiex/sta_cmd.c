@@ -26,6 +26,10 @@
 #include "11n.h"
 #include "11ac.h"
 
+static bool drcs;
+module_param(drcs, bool, 0644);
+MODULE_PARM_DESC(drcs, "multi-channel operation:1, single-channel operation:0");
+
 static bool disable_auto_ds;
 module_param(disable_auto_ds, bool, 0);
 MODULE_PARM_DESC(disable_auto_ds,
@@ -1512,6 +1516,22 @@ static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
 }
 
 static int
+mwifiex_cmd_set_mc_policy(struct mwifiex_private *priv,
+			  struct host_cmd_ds_command *cmd,
+			  u16 cmd_action, void *data_buf)
+{
+	struct host_cmd_ds_multi_chan_policy *mc_pol = &cmd->params.mc_policy;
+	const u16 *drcs_info = data_buf;
+
+	mc_pol->action = cpu_to_le16(cmd_action);
+	mc_pol->policy = cpu_to_le16(*drcs_info);
+	cmd->command = cpu_to_le16(HostCmd_CMD_MC_POLICY);
+	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_multi_chan_policy) +
+				S_DS_GEN);
+	return 0;
+}
+
+static int
 mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 			 struct host_cmd_ds_command *cmd,
 			 u16 cmd_action, void *data_buf)
@@ -2014,6 +2034,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_sdio_rx_aggr_cfg(cmd_ptr, cmd_action,
 						   data_buf);
 		break;
+	case HostCmd_CMD_MC_POLICY:
+		ret = mwifiex_cmd_set_mc_policy(priv, cmd_ptr, cmd_action,
+						data_buf);
+		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "PREP_CMD: unknown cmd- %#x\n", cmd_no);
@@ -2130,6 +2154,13 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 			if (ret)
 				return -1;
 		}
+
+		if (ISSUPP_DRCS_ENABLED(adapter->fw_cap_info))
+			ret = mwifiex_send_cmd(priv, HostCmd_CMD_MC_POLICY,
+					       HostCmd_ACT_GEN_SET, 0, &drcs,
+					       true);
+			if (ret)
+				return -1;
 	}
 
 	/* get tx rate */
