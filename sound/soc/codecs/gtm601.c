@@ -83,7 +83,6 @@ MODULE_DEVICE_TABLE(of, gtm601_codec_of_match);
 static struct platform_driver gtm601_codec_driver = {
 	.driver = {
 			.name = "gtm601",
-			.owner = THIS_MODULE,
 			.of_match_table = of_match_ptr(gtm601_codec_of_match),
 	},
 
