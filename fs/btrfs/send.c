@@ -2947,6 +2947,10 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 		}
 
 		if (loc.objectid > send_progress) {
+			struct orphan_dir_info *odi;
+
+			odi = get_orphan_dir_info(sctx, dir);
+			free_orphan_dir_info(sctx, odi);
 			ret = 0;
 			goto out;
 		}
