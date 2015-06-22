@@ -2874,33 +2874,42 @@ exit:
 static void ath10k_wmi_update_tim(struct ath10k *ar,
 				  struct ath10k_vif *arvif,
 				  struct sk_buff *bcn,
-				  const struct wmi_tim_info *tim_info)
+				  const struct wmi_tim_info_arg *tim_info)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)bcn->data;
 	struct ieee80211_tim_ie *tim;
 	u8 *ies, *ie;
 	u8 ie_len, pvm_len;
 	__le32 t;
-	u32 v;
+	u32 v, tim_len;
+
+	/* When FW reports 0 in tim_len, ensure atleast first byte
+	 * in tim_bitmap is considered for pvm calculation.
+	 */
+	tim_len = tim_info->tim_len ? __le32_to_cpu(tim_info->tim_len) : 1;
 
 	/* if next SWBA has no tim_changed the tim_bitmap is garbage.
 	 * we must copy the bitmap upon change and reuse it later */
 	if (__le32_to_cpu(tim_info->tim_changed)) {
 		int i;
 
-		BUILD_BUG_ON(sizeof(arvif->u.ap.tim_bitmap) !=
-			     sizeof(tim_info->tim_bitmap));
+		if (sizeof(arvif->u.ap.tim_bitmap) < tim_len) {
+			ath10k_warn(ar, "SWBA TIM field is too big (%u), truncated it to %zu",
+				    tim_len, sizeof(arvif->u.ap.tim_bitmap));
+			tim_len = sizeof(arvif->u.ap.tim_bitmap);
+		}
 
-		for (i = 0; i < sizeof(arvif->u.ap.tim_bitmap); i++) {
+		for (i = 0; i < tim_len; i++) {
 			t = tim_info->tim_bitmap[i / 4];
 			v = __le32_to_cpu(t);
 			arvif->u.ap.tim_bitmap[i] = (v >> ((i % 4) * 8)) & 0xFF;
 		}
 
-		/* FW reports either length 0 or 16
-		 * so we calculate this on our own */
+		/* FW reports either length 0 or length based on max supported
+		 * station. so we calculate this on our own
+		 */
 		arvif->u.ap.tim_len = 0;
-		for (i = 0; i < sizeof(arvif->u.ap.tim_bitmap); i++)
+		for (i = 0; i < tim_len; i++)
 			if (arvif->u.ap.tim_bitmap[i])
 				arvif->u.ap.tim_len = i;
 
@@ -2924,7 +2933,7 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 	pvm_len = ie_len - 3; /* exclude dtim count, dtim period, bmap ctl */
 
 	if (pvm_len < arvif->u.ap.tim_len) {
-		int expand_size = sizeof(arvif->u.ap.tim_bitmap) - pvm_len;
+		int expand_size = tim_len - pvm_len;
 		int move_size = skb_tail_pointer(bcn) - (ie + 2 + ie_len);
 		void *next_ie = ie + 2 + ie_len;
 
@@ -2939,7 +2948,7 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 		}
 	}
 
-	if (pvm_len > sizeof(arvif->u.ap.tim_bitmap)) {
+	if (pvm_len > tim_len) {
 		ath10k_warn(ar, "tim pvm length is too great (%d)\n", pvm_len);
 		return;
 	}
@@ -3003,7 +3012,21 @@ static int ath10k_wmi_op_pull_swba_ev(struct ath10k *ar, struct sk_buff *skb,
 		if (WARN_ON_ONCE(i == ARRAY_SIZE(arg->tim_info)))
 			break;
 
-		arg->tim_info[i] = &ev->bcn_info[i].tim_info;
+		if (__le32_to_cpu(ev->bcn_info[i].tim_info.tim_len) >
+		     sizeof(ev->bcn_info[i].tim_info.tim_bitmap)) {
+			ath10k_warn(ar, "refusing to parse invalid swba structure\n");
+			return -EPROTO;
+		}
+
+		arg->tim_info[i].tim_len = ev->bcn_info[i].tim_info.tim_len;
+		arg->tim_info[i].tim_mcast = ev->bcn_info[i].tim_info.tim_mcast;
+		arg->tim_info[i].tim_bitmap =
+				ev->bcn_info[i].tim_info.tim_bitmap;
+		arg->tim_info[i].tim_changed =
+				ev->bcn_info[i].tim_info.tim_changed;
+		arg->tim_info[i].tim_num_ps_pending =
+				ev->bcn_info[i].tim_info.tim_num_ps_pending;
+
 		arg->noa_info[i] = &ev->bcn_info[i].p2p_noa_info;
 		i++;
 	}
@@ -3016,7 +3039,7 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 	struct wmi_swba_ev_arg arg = {};
 	u32 map;
 	int i = -1;
-	const struct wmi_tim_info *tim_info;
+	const struct wmi_tim_info_arg *tim_info;
 	const struct wmi_p2p_noa_info *noa_info;
 	struct ath10k_vif *arvif;
 	struct sk_buff *bcn;
@@ -3045,7 +3068,7 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 			break;
 		}
 
-		tim_info = arg.tim_info[i];
+		tim_info = &arg.tim_info[i];
 		noa_info = arg.noa_info[i];
 
 		ath10k_dbg(ar, ATH10K_DBG_MGMT,
@@ -3059,6 +3082,10 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 			   __le32_to_cpu(tim_info->tim_bitmap[2]),
 			   __le32_to_cpu(tim_info->tim_bitmap[1]),
 			   __le32_to_cpu(tim_info->tim_bitmap[0]));
+
+		/* TODO: Only first 4 word from tim_bitmap is dumped.
+		 * Extend debug code to dump full tim_bitmap.
+		 */
 
 		arvif = ath10k_get_arvif(ar, vdev_id);
 		if (arvif == NULL) {

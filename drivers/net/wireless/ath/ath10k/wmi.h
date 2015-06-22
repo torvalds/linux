@@ -5160,6 +5160,14 @@ struct wmi_tim_info {
 	__le32 tim_num_ps_pending;
 } __packed;
 
+struct wmi_tim_info_arg {
+	__le32 tim_len;
+	__le32 tim_mcast;
+	const __le32 *tim_bitmap;
+	__le32 tim_changed;
+	__le32 tim_num_ps_pending;
+} __packed;
+
 /* Maximum number of NOA Descriptors supported */
 #define WMI_P2P_MAX_NOA_DESCRIPTORS 4
 #define WMI_P2P_OPPPS_ENABLE_BIT	BIT(0)
@@ -5710,7 +5718,7 @@ struct wmi_peer_kick_ev_arg {
 
 struct wmi_swba_ev_arg {
 	__le32 vdev_map;
-	const struct wmi_tim_info *tim_info[WMI_MAX_AP_VDEV];
+	struct wmi_tim_info_arg tim_info[WMI_MAX_AP_VDEV];
 	const struct wmi_p2p_noa_info *noa_info[WMI_MAX_AP_VDEV];
 };
 

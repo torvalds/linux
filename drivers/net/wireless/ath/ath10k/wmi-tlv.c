@@ -709,6 +709,8 @@ static int ath10k_wmi_tlv_swba_tim_parse(struct ath10k *ar, u16 tag, u16 len,
 					 const void *ptr, void *data)
 {
 	struct wmi_tlv_swba_parse *swba = data;
+	struct wmi_tim_info_arg *tim_info_arg;
+	const struct wmi_tim_info *tim_info_ev = ptr;
 
 	if (tag != WMI_TLV_TAG_STRUCT_TIM_INFO)
 		return -EPROTO;
@@ -716,7 +718,21 @@ static int ath10k_wmi_tlv_swba_tim_parse(struct ath10k *ar, u16 tag, u16 len,
 	if (swba->n_tim >= ARRAY_SIZE(swba->arg->tim_info))
 		return -ENOBUFS;
 
-	swba->arg->tim_info[swba->n_tim++] = ptr;
+	if (__le32_to_cpu(tim_info_ev->tim_len) >
+	     sizeof(tim_info_ev->tim_bitmap)) {
+		ath10k_warn(ar, "refusing to parse invalid swba structure\n");
+		return -EPROTO;
+	}
+
+	tim_info_arg = &swba->arg->tim_info[swba->n_tim];
+	tim_info_arg->tim_len = tim_info_ev->tim_len;
+	tim_info_arg->tim_mcast = tim_info_ev->tim_mcast;
+	tim_info_arg->tim_bitmap = tim_info_ev->tim_bitmap;
+	tim_info_arg->tim_changed = tim_info_ev->tim_changed;
+	tim_info_arg->tim_num_ps_pending = tim_info_ev->tim_num_ps_pending;
+
+	swba->n_tim++;
+
 	return 0;
 }
 
