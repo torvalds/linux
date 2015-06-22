@@ -3034,6 +3034,63 @@ static int ath10k_wmi_op_pull_swba_ev(struct ath10k *ar, struct sk_buff *skb,
 	return 0;
 }
 
+static int ath10k_wmi_10_4_op_pull_swba_ev(struct ath10k *ar,
+					   struct sk_buff *skb,
+					   struct wmi_swba_ev_arg *arg)
+{
+	struct wmi_10_4_host_swba_event *ev = (void *)skb->data;
+	u32 map, tim_len;
+	size_t i;
+
+	if (skb->len < sizeof(*ev))
+		return -EPROTO;
+
+	skb_pull(skb, sizeof(*ev));
+	arg->vdev_map = ev->vdev_map;
+
+	for (i = 0, map = __le32_to_cpu(ev->vdev_map); map; map >>= 1) {
+		if (!(map & BIT(0)))
+			continue;
+
+		/* If this happens there were some changes in firmware and
+		 * ath10k should update the max size of tim_info array.
+		 */
+		if (WARN_ON_ONCE(i == ARRAY_SIZE(arg->tim_info)))
+			break;
+
+		if (__le32_to_cpu(ev->bcn_info[i].tim_info.tim_len) >
+		      sizeof(ev->bcn_info[i].tim_info.tim_bitmap)) {
+			ath10k_warn(ar, "refusing to parse invalid swba structure\n");
+			return -EPROTO;
+		}
+
+		tim_len = __le32_to_cpu(ev->bcn_info[i].tim_info.tim_len);
+		if (tim_len) {
+			/* Exclude 4 byte guard length */
+			tim_len -= 4;
+			arg->tim_info[i].tim_len = __cpu_to_le32(tim_len);
+		} else {
+			arg->tim_info[i].tim_len = 0;
+		}
+
+		arg->tim_info[i].tim_mcast = ev->bcn_info[i].tim_info.tim_mcast;
+		arg->tim_info[i].tim_bitmap =
+				ev->bcn_info[i].tim_info.tim_bitmap;
+		arg->tim_info[i].tim_changed =
+				ev->bcn_info[i].tim_info.tim_changed;
+		arg->tim_info[i].tim_num_ps_pending =
+				ev->bcn_info[i].tim_info.tim_num_ps_pending;
+
+		/* 10.4 firmware doesn't have p2p support. notice of absence
+		 * info can be ignored for now.
+		 */
+
+		i++;
+	}
+
+	return 0;
+}
+
 void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_swba_ev_arg arg = {};
@@ -4367,6 +4424,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	case WMI_10_4_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
+		break;
+	case WMI_10_4_HOST_SWBA_EVENTID:
+		ath10k_wmi_event_host_swba(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
@@ -6299,6 +6359,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.rx = ath10k_wmi_10_4_op_rx,
 	.map_svc = wmi_10_4_svc_map,
 	.pull_mgmt_rx = ath10k_wmi_10_4_op_pull_mgmt_rx_ev,
+	.pull_swba = ath10k_wmi_10_4_op_pull_swba_ev,
 	.pull_svc_rdy = ath10k_wmi_main_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.gen_init = ath10k_wmi_10_4_op_gen_init,

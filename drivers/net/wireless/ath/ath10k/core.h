@@ -328,8 +328,8 @@ struct ath10k_vif {
 			u32 uapsd;
 		} sta;
 		struct {
-			/* 127 stations; wmi limit */
-			u8 tim_bitmap[16];
+			/* 512 stations */
+			u8 tim_bitmap[64];
 			u8 tim_len;
 			u32 ssid_len;
 			u8 ssid[IEEE80211_MAX_SSID_LEN];

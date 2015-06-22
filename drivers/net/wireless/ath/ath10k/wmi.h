@@ -5199,6 +5199,47 @@ struct wmi_host_swba_event {
 	struct wmi_bcn_info bcn_info[0];
 } __packed;
 
+/* 16 words = 512 client + 1 word = for guard */
+#define WMI_10_4_TIM_BITMAP_ARRAY_SIZE 17
+
+struct wmi_10_4_tim_info {
+	__le32 tim_len;
+	__le32 tim_mcast;
+	__le32 tim_bitmap[WMI_10_4_TIM_BITMAP_ARRAY_SIZE];
+	__le32 tim_changed;
+	__le32 tim_num_ps_pending;
+} __packed;
+
+#define WMI_10_4_P2P_MAX_NOA_DESCRIPTORS 1
+
+struct wmi_10_4_p2p_noa_info {
+	/* Bit 0 - Flag to indicate an update in NOA schedule
+	 * Bits 7-1 - Reserved
+	 */
+	u8 changed;
+	/* NOA index */
+	u8 index;
+	/* Bit 0 - Opp PS state of the AP
+	 * Bits 1-7 - Ctwindow in TUs
+	 */
+	u8 ctwindow_oppps;
+	/* Number of NOA descriptors */
+	u8 num_descriptors;
+
+	struct wmi_p2p_noa_descriptor
+		noa_descriptors[WMI_10_4_P2P_MAX_NOA_DESCRIPTORS];
+} __packed;
+
+struct wmi_10_4_bcn_info {
+	struct wmi_10_4_tim_info tim_info;
+	struct wmi_10_4_p2p_noa_info p2p_noa_info;
+} __packed;
+
+struct wmi_10_4_host_swba_event {
+	__le32 vdev_map;
+	struct wmi_10_4_bcn_info bcn_info[0];
+} __packed;
+
 #define WMI_MAX_AP_VDEV 16
 
 struct wmi_tbtt_offset_event {
