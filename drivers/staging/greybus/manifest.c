@@ -225,12 +225,20 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		if (cport_id > CPORT_ID_MAX)
 			goto cleanup;
 
-		/* Don't recreate connection for control cport */
-		if (cport_id == GB_CONTROL_CPORT_ID)
-			goto release_descriptor;
-
 		/* Found one.  Set up its function structure */
 		protocol_id = desc_cport->protocol_id;
+
+		/* Don't recreate connection for control cport */
+		if (cport_id == GB_CONTROL_CPORT_ID) {
+			/* This should have protocol set to control protocol*/
+			WARN_ON(protocol_id != GREYBUS_PROTOCOL_CONTROL);
+
+			goto release_descriptor;
+		}
+
+		/* Nothing else should have its protocol as control protocol */
+		if (WARN_ON(protocol_id == GREYBUS_PROTOCOL_CONTROL))
+			goto release_descriptor;
 
 		if (!gb_connection_create(bundle, cport_id, protocol_id))
 			goto cleanup;
@@ -277,9 +285,16 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 
 		/* Don't recreate bundle for control cport */
 		if (desc_bundle->id == GB_CONTROL_BUNDLE_ID) {
+			/* This should have class set to control class */
+			WARN_ON(desc_bundle->class != GREYBUS_CLASS_CONTROL);
+
 			bundle = intf->control->connection->bundle;
 			goto parse_cports;
 		}
+
+		/* Nothing else should have its class set to control class */
+		if (WARN_ON(desc_bundle->class == GREYBUS_CLASS_CONTROL))
+			goto release_descriptor;
 
 		bundle = gb_bundle_create(intf, desc_bundle->id,
 					  desc_bundle->class);
@@ -291,6 +306,7 @@ parse_cports:
 		if (!gb_manifest_parse_cports(bundle))
 			goto cleanup;
 
+release_descriptor:
 		count++;
 
 		/* Done with this bundle descriptor */
