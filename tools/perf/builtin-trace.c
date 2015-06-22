@@ -2325,7 +2325,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	 */
 	if (trace->filter_pids.nr > 0)
 		err = perf_evlist__set_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
-	else if (evlist->threads->map[0] == -1)
+	else if (thread_map__pid(evlist->threads, 0) == -1)
 		err = perf_evlist__set_filter_pid(evlist, getpid());
 
 	if (err < 0) {
@@ -2343,7 +2343,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (forks)
 		perf_evlist__start_workload(evlist);
 
-	trace->multiple_threads = evlist->threads->map[0] == -1 ||
+	trace->multiple_threads = thread_map__pid(evlist->threads, 0) == -1 ||
 				  evlist->threads->nr > 1 ||
 				  perf_evlist__first(evlist)->attr.inherit;
 again:

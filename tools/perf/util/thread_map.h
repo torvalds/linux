@@ -27,4 +27,14 @@ static inline int thread_map__nr(struct thread_map *threads)
 	return threads ? threads->nr : 1;
 }
 
+static inline pid_t thread_map__pid(struct thread_map *map, int thread)
+{
+	return map->map[thread];
+}
+
+static inline void
+thread_map__set_pid(struct thread_map *map, int thread, pid_t pid)
+{
+	map->map[thread] = pid;
+}
 #endif	/* __PERF_THREAD_MAP_H */

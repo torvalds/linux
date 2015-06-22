@@ -548,7 +548,7 @@ static void perf_evlist__set_sid_idx(struct perf_evlist *evlist,
 	else
 		sid->cpu = -1;
 	if (!evsel->system_wide && evlist->threads && thread >= 0)
-		sid->tid = evlist->threads->map[thread];
+		sid->tid = thread_map__pid(evlist->threads, thread);
 	else
 		sid->tid = -1;
 }
@@ -1475,7 +1475,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 				__func__, __LINE__);
 			goto out_close_pipes;
 		}
-		evlist->threads->map[0] = evlist->workload.pid;
+		thread_map__set_pid(evlist->threads, 0, evlist->workload.pid);
 	}
 
 	close(child_ready_pipe[1]);
