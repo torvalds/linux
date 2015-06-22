@@ -1839,6 +1839,39 @@ xfs_alloc_longest_free_extent(
 }
 
 /*
+ * Check if the operation we are fixing up the freelist for should go ahead or
+ * not. If we are freeing blocks, we always allow it, otherwise the allocation
+ * is dependent on whether the size and shape of free space available will
+ * permit the requested allocation to take place.
+ */
+static bool
+xfs_alloc_space_available(
+	struct xfs_alloc_arg	*args,
+	xfs_extlen_t		min_free,
+	int			flags)
+{
+	struct xfs_perag	*pag = args->pag;
+	xfs_extlen_t		longest;
+	int			available;
+
+	if (flags & XFS_ALLOC_FLAG_FREEING)
+		return true;
+
+	/* do we have enough contiguous free space for the allocation? */
+	longest = xfs_alloc_longest_free_extent(args->mp, pag, min_free);
+	if ((args->minlen + args->alignment + args->minalignslop - 1) > longest)
+		return false;
+
+	/* do have enough free space remaining for the allocation? */
+	available = (int)(pag->pagf_freeblks + pag->pagf_flcount -
+			  min_free - args->total);
+	if (available < (int)args->minleft)
+		return false;
+
+	return true;
+}
+
+/*
  * Decide whether to use this allocation group for this allocation.
  * If so, fix up the btree freelist's size.
  */
@@ -1851,7 +1884,6 @@ xfs_alloc_fix_freelist(
 	xfs_buf_t	*agflbp;/* agfl buffer pointer */
 	xfs_agblock_t	bno;	/* freelist block */
 	int		error;	/* error result code */
-	xfs_extlen_t	longest;/* longest extent in allocation group */
 	xfs_mount_t	*mp;	/* file system mount point structure */
 	xfs_extlen_t	need;	/* total blocks needed in freelist */
 	xfs_perag_t	*pag;	/* per-ag information structure */
@@ -1887,22 +1919,12 @@ xfs_alloc_fix_freelist(
 		return 0;
 	}
 
-	if (!(flags & XFS_ALLOC_FLAG_FREEING)) {
-		/*
-		 * If it looks like there isn't a long enough extent, or enough
-		 * total blocks, reject it.
-		 */
-		need = XFS_MIN_FREELIST_PAG(pag, mp);
-		longest = xfs_alloc_longest_free_extent(mp, pag, need);
-		if ((args->minlen + args->alignment + args->minalignslop - 1) >
-				longest ||
-		    ((int)(pag->pagf_freeblks + pag->pagf_flcount -
-			   need - args->total) < (int)args->minleft)) {
-			if (agbp)
-				xfs_trans_brelse(tp, agbp);
-			args->agbp = NULL;
-			return 0;
-		}
+	need = XFS_MIN_FREELIST_PAG(pag, mp);
+	if (!xfs_alloc_space_available(args, need, flags)) {
+		if (agbp)
+			xfs_trans_brelse(tp, agbp);
+		args->agbp = NULL;
+		return 0;
 	}
 
 	/*
@@ -1924,17 +1946,12 @@ xfs_alloc_fix_freelist(
 
 	/* If there isn't enough total space or single-extent, reject it. */
 	need = XFS_MIN_FREELIST_PAG(pag, mp);
-	if (!(flags & XFS_ALLOC_FLAG_FREEING)) {
-		longest = xfs_alloc_longest_free_extent(mp, pag, need);
-		if ((args->minlen + args->alignment + args->minalignslop - 1) >
-				longest ||
-		    ((int)(pag->pagf_freeblks + pag->pagf_flcount -
-			   need - args->total) < (int)args->minleft)) {
-			xfs_trans_brelse(tp, agbp);
-			args->agbp = NULL;
-			return 0;
-		}
+	if (!xfs_alloc_space_available(args, need, flags)) {
+		xfs_trans_brelse(tp, agbp);
+		args->agbp = NULL;
+		return 0;
 	}
+
 	/*
 	 * Make the freelist shorter if it's too long.
 	 *
