@@ -1750,6 +1750,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	struct nvme_iod *iod;
 	dma_addr_t meta_dma = 0;
 	void *meta = NULL;
+	void __user *metadata;
 
 	if (copy_from_user(&io, uio, sizeof(io)))
 		return -EFAULT;
@@ -1762,6 +1763,8 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 		length += meta_len;
 		meta_len = 0;
 	}
+
+	metadata = (void __user *)(unsigned long)io.metadata;
 
 	write = io.opcode & 1;
 
@@ -1786,13 +1789,13 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	if (meta_len) {
 		meta = dma_alloc_coherent(&dev->pci_dev->dev, meta_len,
 						&meta_dma, GFP_KERNEL);
+
 		if (!meta) {
 			status = -ENOMEM;
 			goto unmap;
 		}
 		if (write) {
-			if (copy_from_user(meta, (void __user *)io.metadata,
-								meta_len)) {
+			if (copy_from_user(meta, metadata, meta_len)) {
 				status = -EFAULT;
 				goto unmap;
 			}
@@ -1819,8 +1822,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	nvme_free_iod(dev, iod);
 	if (meta) {
 		if (status == NVME_SC_SUCCESS && !write) {
-			if (copy_to_user((void __user *)io.metadata, meta,
-								meta_len))
+			if (copy_to_user(metadata, meta, meta_len))
 				status = -EFAULT;
 		}
 		dma_free_coherent(&dev->pci_dev->dev, meta_len, meta, meta_dma);

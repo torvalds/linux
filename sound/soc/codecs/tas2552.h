@@ -19,7 +19,7 @@
 #define __TAS2552_H__
 
 /* Register Address Map */
-#define TAS2552_DEVICE_STATUS	0x00
+#define TAS2552_DEVICE_STATUS		0x00
 #define TAS2552_CFG_1			0x01
 #define TAS2552_CFG_2			0x02
 #define TAS2552_CFG_3			0x03
@@ -33,13 +33,13 @@
 #define TAS2552_BTIP			0x0b
 #define TAS2552_BTS_CTRL		0x0c
 #define TAS2552_RESERVED_0D		0x0d
-#define TAS2552_LIMIT_RATE_HYS	0x0e
-#define TAS2552_LIMIT_RELEASE	0x0f
-#define TAS2552_LIMIT_INT_COUNT	0x10
+#define TAS2552_LIMIT_RATE_HYS		0x0e
+#define TAS2552_LIMIT_RELEASE		0x0f
+#define TAS2552_LIMIT_INT_COUNT		0x10
 #define TAS2552_PDM_CFG			0x11
 #define TAS2552_PGA_GAIN		0x12
-#define TAS2552_EDGE_RATE_CTRL	0x13
-#define TAS2552_BOOST_PT_CTRL	0x14
+#define TAS2552_EDGE_RATE_CTRL		0x13
+#define TAS2552_BOOST_APT_CTRL		0x14
 #define TAS2552_VER_NUM			0x16
 #define TAS2552_VBAT_DATA		0x19
 #define TAS2552_MAX_REG			0x20
@@ -103,10 +103,21 @@
 #define TAS2552_WCLKDIR			(1 << 7)
 
 /* OUTPUT_DATA register */
-#define TAS2552_PDM_DATA_I		0x00
-#define TAS2552_PDM_DATA_V		(1 << 6)
-#define TAS2552_PDM_DATA_I_V	(1 << 7)
-#define TAS2552_PDM_DATA_V_I	(0x11 << 6)
+#define TAS2552_DATA_OUT_I_DATA		(0x0)
+#define TAS2552_DATA_OUT_V_DATA		(0x1)
+#define TAS2552_DATA_OUT_VBAT_DATA	(0x2)
+#define TAS2552_DATA_OUT_VBOOST_DATA	(0x3)
+#define TAS2552_DATA_OUT_PGA_GAIN	(0x4)
+#define TAS2552_DATA_OUT_IV_DATA	(0x5)
+#define TAS2552_DATA_OUT_VBAT_VBOOST_GAIN	(0x6)
+#define TAS2552_DATA_OUT_DISABLED	(0x7)
+#define TAS2552_L_DATA_OUT(x)		((x) << 0)
+#define TAS2552_R_DATA_OUT(x)		((x) << 3)
+#define TAS2552_PDM_DATA_SEL_I		(0x0 << 6)
+#define TAS2552_PDM_DATA_SEL_V		(0x1 << 6)
+#define TAS2552_PDM_DATA_SEL_I_V	(0x2 << 6)
+#define TAS2552_PDM_DATA_SEL_V_I	(0x3 << 6)
+#define TAS2552_PDM_DATA_SEL_MASK	TAS2552_PDM_DATA_SEL_V_I
 
 /* PDM CFG Register */
 #define TAS2552_PDM_CLK_SEL_PLL		(0x0 << 0)
@@ -116,24 +127,20 @@
 #define TAS2552_PDM_CLK_SEL_MASK	TAS2552_PDM_CLK_SEL_MCLK
 #define TAS2552_PDM_DATA_ES	 	(1 << 2)
 
-/* Boost pass-through register */
-#define TAS2552_APT_DELAY_50	0x00
-#define TAS2552_APT_DELAY_75	(1 << 1)
-#define TAS2552_APT_DELAY_125	(1 << 2)
-#define TAS2552_APT_DELAY_200	(1 << 3)
-
-#define TAS2552_APT_THRESH_2_5		0x00
-#define TAS2552_APT_THRESH_1_7		(1 << 3)
-#define TAS2552_APT_THRESH_1_4_1_1	(1 << 4)
-#define TAS2552_APT_THRESH_2_1_7	(0x11 << 2)
+/* Boost Auto-pass through register */
+#define TAS2552_APT_DELAY_50		(0x0 << 0)
+#define TAS2552_APT_DELAY_75		(0x1 << 0)
+#define TAS2552_APT_DELAY_125		(0x2 << 0)
+#define TAS2552_APT_DELAY_200		(0x3 << 0)
+#define TAS2552_APT_THRESH_05_02	(0x0 << 2)
+#define TAS2552_APT_THRESH_10_07	(0x1 << 2)
+#define TAS2552_APT_THRESH_14_11	(0x2 << 2)
+#define TAS2552_APT_THRESH_20_17	(0x3 << 2)
 
 /* PLL Control Register */
-#define TAS2552_245MHZ_CLK			24576000
-#define TAS2552_225MHZ_CLK			22579200
-#define TAS2552_PLL_J_MASK			0x7f
-#define TAS2552_PLL_D_UPPER_MASK	0x3f
-#define TAS2552_PLL_D_LOWER_MASK	0xff
-#define TAS2552_PLL_BYPASS_MASK		0x80
-#define TAS2552_PLL_BYPASS			0x80
+#define TAS2552_PLL_J_MASK		0x7f
+#define TAS2552_PLL_D_UPPER(x)		(((x) >> 8) & 0x3f)
+#define TAS2552_PLL_D_LOWER(x)		((x) & 0xff)
+#define TAS2552_PLL_BYPASS		(1 << 7)
 
 #endif

@@ -27,7 +27,7 @@
 #include "max98090.h"
 
 /* Allows for sparsely populated register maps */
-static struct reg_default max98090_reg[] = {
+static const struct reg_default max98090_reg[] = {
 	{ 0x00, 0x00 }, /* 00 Software Reset */
 	{ 0x03, 0x04 }, /* 03 Interrupt Masks */
 	{ 0x04, 0x00 }, /* 04 System Clock Quick */
@@ -2704,7 +2704,7 @@ static const struct of_device_id max98090_of_match[] = {
 MODULE_DEVICE_TABLE(of, max98090_of_match);
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id max98090_acpi_match[] = {
+static const struct acpi_device_id max98090_acpi_match[] = {
 	{ "193C9890", MAX98090 },
 	{ }
 };

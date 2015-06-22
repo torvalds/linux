@@ -681,11 +681,7 @@ static unsigned int get_stack_depth(struct jit_ctx *ctx)
 		sp_off += config_enabled(CONFIG_64BIT) ?
 			(ARGS_USED_BY_JIT + 1) * RSIZE : RSIZE;
 
-	/*
-	 * Subtract the bytes for the last registers since we only care about
-	 * the location on the stack pointer.
-	 */
-	return sp_off - RSIZE;
+	return sp_off;
 }
 
 static void build_prologue(struct jit_ctx *ctx)

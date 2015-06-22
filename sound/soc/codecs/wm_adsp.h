@@ -46,17 +46,26 @@ struct wm_adsp {
 	struct list_head alg_regions;
 
 	int fw_id;
+	int fw_id_version;
 
 	const struct wm_adsp_region *mem;
 	int num_mems;
 
 	int fw;
 	int fw_ver;
-	bool running;
+	u32 running;
 
 	struct list_head ctl_list;
 
 	struct work_struct boot_work;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_root;
+	struct mutex debugfs_lock;
+	char *wmfw_file_name;
+	char *bin_file_name;
+#endif
+
 };
 
 #define WM_ADSP1(wname, num) \
@@ -75,10 +84,11 @@ struct wm_adsp {
 	WM_ADSP2_E(wname, num, wm_adsp2_early_event)
 
 extern const struct snd_kcontrol_new wm_adsp1_fw_controls[];
-extern const struct snd_kcontrol_new wm_adsp2_fw_controls[];
 
 int wm_adsp1_init(struct wm_adsp *dsp);
 int wm_adsp2_init(struct wm_adsp *dsp);
+int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec);
+int wm_adsp2_codec_remove(struct wm_adsp *dsp, struct snd_soc_codec *codec);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,

@@ -611,6 +611,8 @@ struct usbhs_pkt_handle usbhs_fifo_pio_push_handler = {
 static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_fifo *fifo = usbhsf_get_cfifo(priv);
 
 	if (usbhs_pipe_is_busy(pipe))
 		return 0;
@@ -623,6 +625,9 @@ static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 	 */
 	usbhs_pipe_data_sequence(pipe, pkt->sequence);
 	pkt->sequence = -1; /* -1 sequence will be ignored */
+
+	if (usbhs_pipe_is_dcp(pipe))
+		usbhsf_fifo_clear(pipe, fifo);
 
 	usbhs_pipe_set_trans_count_if_bulk(pipe, pkt->length);
 	usbhs_pipe_enable(pipe);
@@ -673,7 +678,14 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 		*is_done = 1;
 		usbhsf_rx_irq_ctrl(pipe, 0);
 		usbhs_pipe_running(pipe, 0);
-		usbhs_pipe_disable(pipe);	/* disable pipe first */
+		/*
+		 * If function mode, since this controller is possible to enter
+		 * Control Write status stage at this timing, this driver
+		 * should not disable the pipe. If such a case happens, this
+		 * controller is not able to complete the status stage.
+		 */
+		if (!usbhs_mod_is_host(priv) && !usbhs_pipe_is_dcp(pipe))
+			usbhs_pipe_disable(pipe);	/* disable pipe first */
 	}
 
 	/*
@@ -1227,15 +1239,21 @@ static void usbhsf_dma_init_dt(struct device *dev, struct usbhs_fifo *fifo,
 {
 	char name[16];
 
-	snprintf(name, sizeof(name), "tx%d", channel);
-	fifo->tx_chan = dma_request_slave_channel_reason(dev, name);
-	if (IS_ERR(fifo->tx_chan))
-		fifo->tx_chan = NULL;
-
-	snprintf(name, sizeof(name), "rx%d", channel);
-	fifo->rx_chan = dma_request_slave_channel_reason(dev, name);
-	if (IS_ERR(fifo->rx_chan))
-		fifo->rx_chan = NULL;
+	/*
+	 * To avoid complex handing for DnFIFOs, the driver uses each
+	 * DnFIFO as TX or RX direction (not bi-direction).
+	 * So, the driver uses odd channels for TX, even channels for RX.
+	 */
+	snprintf(name, sizeof(name), "ch%d", channel);
+	if (channel & 1) {
+		fifo->tx_chan = dma_request_slave_channel_reason(dev, name);
+		if (IS_ERR(fifo->tx_chan))
+			fifo->tx_chan = NULL;
+	} else {
+		fifo->rx_chan = dma_request_slave_channel_reason(dev, name);
+		if (IS_ERR(fifo->rx_chan))
+			fifo->rx_chan = NULL;
+	}
 }
 
 static void usbhsf_dma_init(struct usbhs_priv *priv, struct usbhs_fifo *fifo,

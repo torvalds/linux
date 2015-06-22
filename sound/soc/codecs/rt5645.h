@@ -2182,6 +2182,7 @@ struct rt5645_priv {
 	struct rt5645_platform_data pdata;
 	struct regmap *regmap;
 	struct i2c_client *i2c;
+	struct gpio_desc *gpiod_hp_det;
 	struct snd_soc_jack *hp_jack;
 	struct snd_soc_jack *mic_jack;
 	struct snd_soc_jack *btn_jack;

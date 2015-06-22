@@ -1930,7 +1930,7 @@ static int wm8995_set_dai_sysclk(struct snd_soc_dai *dai,
 			dai->id + 1, freq);
 		break;
 	case WM8995_SYSCLK_MCLK2:
-		wm8995->sysclk[dai->id] = WM8995_SYSCLK_MCLK1;
+		wm8995->sysclk[dai->id] = WM8995_SYSCLK_MCLK2;
 		wm8995->mclk[1] = freq;
 		dev_dbg(dai->dev, "AIF%d using MCLK2 at %uHz\n",
 			dai->id + 1, freq);
