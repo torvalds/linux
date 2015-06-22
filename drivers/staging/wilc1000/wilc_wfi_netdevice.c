@@ -931,10 +931,8 @@ int WILC_WFI_InitModule(void)
 	/* ret = host_int_init(&priv[0]->hWILCWFIDrv); */
 	/*copy handle to the other driver*/
 	/* priv[1]->hWILCWFIDrv = priv[0]->hWILCWFIDrv; */
-	if (ret) {
+	if (ret)
 		PRINT_ER("Error Init Driver\n");
-	}
-
 
 out:
 	if (ret)
