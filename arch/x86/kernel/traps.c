@@ -123,7 +123,7 @@ enum ctx_state ist_enter(struct pt_regs *regs)
 		 * but we need to notify RCU.
 		 */
 		rcu_nmi_enter();
-		prev_state = IN_KERNEL;  /* the value is irrelevant. */
+		prev_state = CONTEXT_KERNEL;  /* the value is irrelevant. */
 	}
 
 	/*

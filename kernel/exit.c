@@ -756,8 +756,6 @@ void do_exit(long code)
 
 	cgroup_exit(tsk);
 
-	module_put(task_thread_info(tsk)->exec_domain->module);
-
 	/*
 	 * FIXME: do that only when needed, using sched_exit tracepoint
 	 */

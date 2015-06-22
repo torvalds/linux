@@ -818,23 +818,28 @@ static bool valid_reg(const u32 *table, int count, u32 addr)
 	return false;
 }
 
-static u32 *vmap_batch(struct drm_i915_gem_object *obj)
+static u32 *vmap_batch(struct drm_i915_gem_object *obj,
+		       unsigned start, unsigned len)
 {
 	int i;
 	void *addr = NULL;
 	struct sg_page_iter sg_iter;
+	int first_page = start >> PAGE_SHIFT;
+	int last_page = (len + start + 4095) >> PAGE_SHIFT;
+	int npages = last_page - first_page;
 	struct page **pages;
 
-	pages = drm_malloc_ab(obj->base.size >> PAGE_SHIFT, sizeof(*pages));
+	pages = drm_malloc_ab(npages, sizeof(*pages));
 	if (pages == NULL) {
 		DRM_DEBUG_DRIVER("Failed to get space for pages\n");
 		goto finish;
 	}
 
 	i = 0;
-	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
-		pages[i] = sg_page_iter_page(&sg_iter);
-		i++;
+	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, first_page) {
+		pages[i++] = sg_page_iter_page(&sg_iter);
+		if (i == npages)
+			break;
 	}
 
 	addr = vmap(pages, i, 0, PAGE_KERNEL);
@@ -855,61 +860,61 @@ static u32 *copy_batch(struct drm_i915_gem_object *dest_obj,
 		       u32 batch_start_offset,
 		       u32 batch_len)
 {
-	int ret = 0;
 	int needs_clflush = 0;
-	u32 *src_base, *dest_base = NULL;
-	u32 *src_addr, *dest_addr;
-	u32 offset = batch_start_offset / sizeof(*dest_addr);
-	u32 end = batch_start_offset + batch_len;
+	void *src_base, *src;
+	void *dst = NULL;
+	int ret;
 
-	if (end > dest_obj->base.size || end > src_obj->base.size)
+	if (batch_len > dest_obj->base.size ||
+	    batch_len + batch_start_offset > src_obj->base.size)
 		return ERR_PTR(-E2BIG);
 
 	ret = i915_gem_obj_prepare_shmem_read(src_obj, &needs_clflush);
 	if (ret) {
-		DRM_DEBUG_DRIVER("CMD: failed to prep read\n");
+		DRM_DEBUG_DRIVER("CMD: failed to prepare shadow batch\n");
 		return ERR_PTR(ret);
 	}
 
-	src_base = vmap_batch(src_obj);
+	src_base = vmap_batch(src_obj, batch_start_offset, batch_len);
 	if (!src_base) {
 		DRM_DEBUG_DRIVER("CMD: Failed to vmap batch\n");
 		ret = -ENOMEM;
 		goto unpin_src;
 	}
 
-	src_addr = src_base + offset;
-
-	if (needs_clflush)
-		drm_clflush_virt_range((char *)src_addr, batch_len);
+	ret = i915_gem_object_get_pages(dest_obj);
+	if (ret) {
+		DRM_DEBUG_DRIVER("CMD: Failed to get pages for shadow batch\n");
+		goto unmap_src;
+	}
+	i915_gem_object_pin_pages(dest_obj);
 
 	ret = i915_gem_object_set_to_cpu_domain(dest_obj, true);
 	if (ret) {
-		DRM_DEBUG_DRIVER("CMD: Failed to set batch CPU domain\n");
+		DRM_DEBUG_DRIVER("CMD: Failed to set shadow batch to CPU\n");
 		goto unmap_src;
 	}
 
-	dest_base = vmap_batch(dest_obj);
-	if (!dest_base) {
+	dst = vmap_batch(dest_obj, 0, batch_len);
+	if (!dst) {
 		DRM_DEBUG_DRIVER("CMD: Failed to vmap shadow batch\n");
+		i915_gem_object_unpin_pages(dest_obj);
 		ret = -ENOMEM;
 		goto unmap_src;
 	}
 
-	dest_addr = dest_base + offset;
+	src = src_base + offset_in_page(batch_start_offset);
+	if (needs_clflush)
+		drm_clflush_virt_range(src, batch_len);
 
-	if (batch_start_offset != 0)
-		memset((u8 *)dest_base, 0, batch_start_offset);
-
-	memcpy(dest_addr, src_addr, batch_len);
-	memset((u8 *)dest_addr + batch_len, 0, dest_obj->base.size - end);
+	memcpy(dst, src, batch_len);
 
 unmap_src:
 	vunmap(src_base);
 unpin_src:
 	i915_gem_object_unpin_pages(src_obj);
 
-	return ret ? ERR_PTR(ret) : dest_base;
+	return ret ? ERR_PTR(ret) : dst;
 }
 
 /**
@@ -1046,34 +1051,26 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 		    u32 batch_len,
 		    bool is_master)
 {
-	int ret = 0;
 	u32 *cmd, *batch_base, *batch_end;
 	struct drm_i915_cmd_descriptor default_desc = { 0 };
 	bool oacontrol_set = false; /* OACONTROL tracking. See check_cmd() */
-
-	ret = i915_gem_obj_ggtt_pin(shadow_batch_obj, 4096, 0);
-	if (ret) {
-		DRM_DEBUG_DRIVER("CMD: Failed to pin shadow batch\n");
-		return -1;
-	}
+	int ret = 0;
 
 	batch_base = copy_batch(shadow_batch_obj, batch_obj,
 				batch_start_offset, batch_len);
 	if (IS_ERR(batch_base)) {
 		DRM_DEBUG_DRIVER("CMD: Failed to copy batch\n");
-		i915_gem_object_ggtt_unpin(shadow_batch_obj);
 		return PTR_ERR(batch_base);
 	}
-
-	cmd = batch_base + (batch_start_offset / sizeof(*cmd));
 
 	/*
 	 * We use the batch length as size because the shadow object is as
 	 * large or larger and copy_batch() will write MI_NOPs to the extra
 	 * space. Parsing should be faster in some cases this way.
 	 */
-	batch_end = cmd + (batch_len / sizeof(*batch_end));
+	batch_end = batch_base + (batch_len / sizeof(*batch_end));
 
+	cmd = batch_base;
 	while (cmd < batch_end) {
 		const struct drm_i915_cmd_descriptor *desc;
 		u32 length;
@@ -1132,7 +1129,7 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 	}
 
 	vunmap(batch_base);
-	i915_gem_object_ggtt_unpin(shadow_batch_obj);
+	i915_gem_object_unpin_pages(shadow_batch_obj);
 
 	return ret;
 }

@@ -346,7 +346,7 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 {
 	int rc;
 	tid_t tid;		/* transaction id */
-	struct inode *ip = dentry->d_inode;
+	struct inode *ip = d_inode(dentry);
 	ino_t ino;
 	struct component_name dname;
 	struct inode *iplist[2];
@@ -472,7 +472,7 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 {
 	int rc;
 	tid_t tid;		/* transaction id */
-	struct inode *ip = dentry->d_inode;
+	struct inode *ip = d_inode(dentry);
 	ino_t ino;
 	struct component_name dname;	/* object name */
 	struct inode *iplist[2];
@@ -791,7 +791,7 @@ static int jfs_link(struct dentry *old_dentry,
 {
 	int rc;
 	tid_t tid;
-	struct inode *ip = old_dentry->d_inode;
+	struct inode *ip = d_inode(old_dentry);
 	ino_t ino;
 	struct component_name dname;
 	struct btstack btstack;
@@ -879,7 +879,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	struct component_name dname;
 	int ssize;		/* source pathname size */
 	struct btstack btstack;
-	struct inode *ip = dentry->d_inode;
+	struct inode *ip = d_inode(dentry);
 	unchar *i_fastsymlink;
 	s64 xlen = 0;
 	int bmask = 0, xsize;
@@ -1086,8 +1086,8 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	dquot_initialize(old_dir);
 	dquot_initialize(new_dir);
 
-	old_ip = old_dentry->d_inode;
-	new_ip = new_dentry->d_inode;
+	old_ip = d_inode(old_dentry);
+	new_ip = d_inode(new_dentry);
 
 	if ((rc = get_UCSname(&old_dname, old_dentry)))
 		goto out1;
@@ -1500,9 +1500,9 @@ struct dentry *jfs_get_parent(struct dentry *dentry)
 	unsigned long parent_ino;
 
 	parent_ino =
-		le32_to_cpu(JFS_IP(dentry->d_inode)->i_dtroot.header.idotdot);
+		le32_to_cpu(JFS_IP(d_inode(dentry))->i_dtroot.header.idotdot);
 
-	return d_obtain_alias(jfs_iget(dentry->d_inode->i_sb, parent_ino));
+	return d_obtain_alias(jfs_iget(d_inode(dentry)->i_sb, parent_ino));
 }
 
 const struct inode_operations jfs_dir_inode_operations = {
@@ -1578,7 +1578,7 @@ static int jfs_ci_revalidate(struct dentry *dentry, unsigned int flags)
 	 * positive dentry isn't good idea. So it's unsupported like
 	 * rename("filename", "FILENAME") for now.
 	 */
-	if (dentry->d_inode)
+	if (d_really_is_positive(dentry))
 		return 1;
 
 	/*

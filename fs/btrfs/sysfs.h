@@ -61,11 +61,23 @@ static struct btrfs_feature_attr btrfs_attr_##_name = {			     \
 	BTRFS_FEAT_ATTR(name, FEAT_INCOMPAT, BTRFS_FEATURE_INCOMPAT, feature)
 
 /* convert from attribute */
-#define to_btrfs_feature_attr(a) \
-			container_of(a, struct btrfs_feature_attr, kobj_attr)
-#define attr_to_btrfs_attr(a) container_of(a, struct kobj_attribute, attr)
-#define attr_to_btrfs_feature_attr(a) \
-			to_btrfs_feature_attr(attr_to_btrfs_attr(a))
+static inline struct btrfs_feature_attr *
+to_btrfs_feature_attr(struct kobj_attribute *a)
+{
+	return container_of(a, struct btrfs_feature_attr, kobj_attr);
+}
+
+static inline struct kobj_attribute *attr_to_btrfs_attr(struct attribute *attr)
+{
+	return container_of(attr, struct kobj_attribute, attr);
+}
+
+static inline struct btrfs_feature_attr *
+attr_to_btrfs_feature_attr(struct attribute *attr)
+{
+	return to_btrfs_feature_attr(attr_to_btrfs_attr(attr));
+}
+
 char *btrfs_printable_features(enum btrfs_feature_set set, u64 flags);
 extern const char * const btrfs_feature_set_names[3];
 extern struct kobj_type space_info_ktype;

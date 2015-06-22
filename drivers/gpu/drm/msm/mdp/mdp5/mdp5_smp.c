@@ -43,7 +43,7 @@
  *     set.
  *
  *  2) mdp5_smp_configure():
- *     As hw is programmed, before FLUSH, MDP5_SMP_ALLOC registers
+ *     As hw is programmed, before FLUSH, MDP5_MDP_SMP_ALLOC registers
  *     are configured for the union(pending, inuse)
  *
  *  3) mdp5_smp_commit():
@@ -74,7 +74,7 @@ struct mdp5_smp {
 	spinlock_t state_lock;
 	mdp5_smp_state_t state; /* to track smp allocation amongst pipes: */
 
-	struct mdp5_client_smp_state client_state[CID_MAX];
+	struct mdp5_client_smp_state client_state[MAX_CLIENTS];
 };
 
 static inline
@@ -85,27 +85,31 @@ struct mdp5_kms *get_kms(struct mdp5_smp *smp)
 	return to_mdp5_kms(to_mdp_kms(priv->kms));
 }
 
-static inline enum mdp5_client_id pipe2client(enum mdp5_pipe pipe, int plane)
+static inline u32 pipe2client(enum mdp5_pipe pipe, int plane)
 {
-	WARN_ON(plane >= pipe2nclients(pipe));
-	switch (pipe) {
-	case SSPP_VIG0: return CID_VIG0_Y + plane;
-	case SSPP_VIG1: return CID_VIG1_Y + plane;
-	case SSPP_VIG2: return CID_VIG2_Y + plane;
-	case SSPP_RGB0: return CID_RGB0;
-	case SSPP_RGB1: return CID_RGB1;
-	case SSPP_RGB2: return CID_RGB2;
-	case SSPP_DMA0: return CID_DMA0_Y + plane;
-	case SSPP_DMA1: return CID_DMA1_Y + plane;
-	case SSPP_VIG3: return CID_VIG3_Y + plane;
-	case SSPP_RGB3: return CID_RGB3;
-	default:        return CID_UNUSED;
-	}
+#define CID_UNUSED	0
+
+	if (WARN_ON(plane >= pipe2nclients(pipe)))
+		return CID_UNUSED;
+
+	/*
+	 * Note on SMP clients:
+	 * For ViG pipes, fetch Y/Cr/Cb-components clients are always
+	 * consecutive, and in that order.
+	 *
+	 * e.g.:
+	 * if mdp5_cfg->smp.clients[SSPP_VIG0] = N,
+	 *	Y  plane's client ID is N
+	 *	Cr plane's client ID is N + 1
+	 *	Cb plane's client ID is N + 2
+	 */
+
+	return mdp5_cfg->smp.clients[pipe] + plane;
 }
 
 /* step #1: update # of blocks pending for the client: */
 static int smp_request_block(struct mdp5_smp *smp,
-		enum mdp5_client_id cid, int nblks)
+		u32 cid, int nblks)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	const struct mdp5_cfg_hw *hw_cfg;
@@ -227,7 +231,7 @@ void mdp5_smp_release(struct mdp5_smp *smp, enum mdp5_pipe pipe)
 }
 
 static void update_smp_state(struct mdp5_smp *smp,
-		enum mdp5_client_id cid, mdp5_smp_state_t *assigned)
+		u32 cid, mdp5_smp_state_t *assigned)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	int cnt = smp->blk_cnt;
@@ -237,25 +241,25 @@ static void update_smp_state(struct mdp5_smp *smp,
 		int idx = blk / 3;
 		int fld = blk % 3;
 
-		val = mdp5_read(mdp5_kms, REG_MDP5_SMP_ALLOC_W_REG(idx));
+		val = mdp5_read(mdp5_kms, REG_MDP5_MDP_SMP_ALLOC_W_REG(0, idx));
 
 		switch (fld) {
 		case 0:
-			val &= ~MDP5_SMP_ALLOC_W_REG_CLIENT0__MASK;
-			val |= MDP5_SMP_ALLOC_W_REG_CLIENT0(cid);
+			val &= ~MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0__MASK;
+			val |= MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0(cid);
 			break;
 		case 1:
-			val &= ~MDP5_SMP_ALLOC_W_REG_CLIENT1__MASK;
-			val |= MDP5_SMP_ALLOC_W_REG_CLIENT1(cid);
+			val &= ~MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1__MASK;
+			val |= MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1(cid);
 			break;
 		case 2:
-			val &= ~MDP5_SMP_ALLOC_W_REG_CLIENT2__MASK;
-			val |= MDP5_SMP_ALLOC_W_REG_CLIENT2(cid);
+			val &= ~MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2__MASK;
+			val |= MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2(cid);
 			break;
 		}
 
-		mdp5_write(mdp5_kms, REG_MDP5_SMP_ALLOC_W_REG(idx), val);
-		mdp5_write(mdp5_kms, REG_MDP5_SMP_ALLOC_R_REG(idx), val);
+		mdp5_write(mdp5_kms, REG_MDP5_MDP_SMP_ALLOC_W_REG(0, idx), val);
+		mdp5_write(mdp5_kms, REG_MDP5_MDP_SMP_ALLOC_R_REG(0, idx), val);
 	}
 }
 
@@ -267,7 +271,7 @@ void mdp5_smp_configure(struct mdp5_smp *smp, enum mdp5_pipe pipe)
 	int i;
 
 	for (i = 0; i < pipe2nclients(pipe); i++) {
-		enum mdp5_client_id cid = pipe2client(pipe, i);
+		u32 cid = pipe2client(pipe, i);
 		struct mdp5_client_smp_state *ps = &smp->client_state[cid];
 
 		bitmap_or(assigned, ps->inuse, ps->pending, cnt);
@@ -283,7 +287,7 @@ void mdp5_smp_commit(struct mdp5_smp *smp, enum mdp5_pipe pipe)
 	int i;
 
 	for (i = 0; i < pipe2nclients(pipe); i++) {
-		enum mdp5_client_id cid = pipe2client(pipe, i);
+		u32 cid = pipe2client(pipe, i);
 		struct mdp5_client_smp_state *ps = &smp->client_state[cid];
 
 		/*

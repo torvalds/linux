@@ -33,6 +33,7 @@
 		regulator-max-microvolt = <1350000>;
 		regulator-always-on;
 		regulator-boot-on;
+		vin-supply = <&vcc_sys>;
 	};
 
 	vdd_gpu: syr828@41 {
@@ -43,6 +44,7 @@
 		regulator-min-microvolt = <850000>;
 		regulator-max-microvolt = <1350000>;
 		regulator-always-on;
+		vin-supply = <&vcc_sys>;
 	};
 
 	hym8563@51 {
@@ -63,6 +65,14 @@
 		compatible = "active-semi,act8846";
 		reg = <0x5a>;
 		status = "okay";
+
+		vp1-supply = <&vcc_sys>;
+		vp2-supply = <&vcc_sys>;
+		vp3-supply = <&vcc_sys>;
+		vp4-supply = <&vcc_sys>;
+		inl1-supply = <&vcc_io>;
+		inl2-supply = <&vcc_sys>;
+		inl3-supply = <&vcc_20>;
 
 		regulators {
 			vcc_ddr: REG1 {

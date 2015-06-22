@@ -336,6 +336,7 @@ struct drm_mode_fb_cmd {
 };
 
 #define DRM_MODE_FB_INTERLACED	(1<<0) /* for interlaced framebuffers */
+#define DRM_MODE_FB_MODIFIERS	(1<<1) /* enables ->modifer[] */
 
 struct drm_mode_fb_cmd2 {
 	__u32 fb_id;
@@ -356,10 +357,18 @@ struct drm_mode_fb_cmd2 {
 	 * So it would consist of Y as offsets[0] and UV as
 	 * offsets[1].  Note that offsets[0] will generally
 	 * be 0 (but this is not required).
+	 *
+	 * To accommodate tiled, compressed, etc formats, a per-plane
+	 * modifier can be specified.  The default value of zero
+	 * indicates "native" format as specified by the fourcc.
+	 * Vendor specific modifier token.  This allows, for example,
+	 * different tiling/swizzling pattern on different planes.
+	 * See discussion above of DRM_FORMAT_MOD_xxx.
 	 */
 	__u32 handles[4];
 	__u32 pitches[4]; /* pitch for each plane */
 	__u32 offsets[4]; /* offset of each plane */
+	__u64 modifier[4]; /* ie, tiling, compressed (per plane) */
 };
 
 #define DRM_MODE_FB_DIRTY_ANNOTATE_COPY 0x01

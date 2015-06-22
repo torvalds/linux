@@ -205,8 +205,7 @@ static int siena_map_reset_flags(u32 *flags)
  */
 static void siena_monitor(struct efx_nic *efx)
 {
-	struct eeh_dev *eehdev =
-		of_node_to_eeh_dev(pci_device_to_OF_node(efx->pci_dev));
+	struct eeh_dev *eehdev = pci_dev_to_eeh_dev(efx->pci_dev);
 
 	eeh_dev_check_failure(eehdev);
 }

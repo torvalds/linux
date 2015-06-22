@@ -108,22 +108,14 @@ static int serial2002_tty_write(struct file *f, unsigned char *buf, int count)
 {
 	const char __user *p = (__force const char __user *)buf;
 	int result;
+	loff_t offset = 0;
 	mm_segment_t oldfs;
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	f->f_pos = 0;
-	result = f->f_op->write(f, p, count, &f->f_pos);
+	result = __vfs_write(f, p, count, &offset);
 	set_fs(oldfs);
 	return result;
-}
-
-static int serial2002_tty_readb(struct file *f, unsigned char *buf)
-{
-	char __user *p = (__force char __user *)buf;
-
-	f->f_pos = 0;
-	return f->f_op->read(f, p, 1, &f->f_pos);
 }
 
 static void serial2002_tty_read_poll_wait(struct file *f, int timeout)
@@ -161,13 +153,15 @@ static int serial2002_tty_read(struct file *f, int timeout)
 	result = -1;
 	if (!IS_ERR(f)) {
 		mm_segment_t oldfs;
+		char __user *p = (__force char __user *)&ch;
+		loff_t offset = 0;
 
 		oldfs = get_fs();
 		set_fs(KERNEL_DS);
 		if (f->f_op->poll) {
 			serial2002_tty_read_poll_wait(f, timeout);
 
-			if (serial2002_tty_readb(f, &ch) == 1)
+			if (__vfs_read(f, p, 1, &offset) == 1)
 				result = ch;
 		} else {
 			/* Device does not support poll, busy wait */
@@ -178,7 +172,7 @@ static int serial2002_tty_read(struct file *f, int timeout)
 				if (retries >= timeout)
 					break;
 
-				if (serial2002_tty_readb(f, &ch) == 1) {
+				if (__vfs_read(f, p, 1, &offset) == 1) {
 					result = ch;
 					break;
 				}

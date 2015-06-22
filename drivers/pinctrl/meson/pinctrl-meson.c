@@ -13,8 +13,9 @@
 
 /*
  * The available pins are organized in banks (A,B,C,D,E,X,Y,Z,AO,
- * BOOT,CARD for meson6 and X,Y,DV,H,Z,AO,BOOT,CARD for meson8) and
- * each bank has a variable number of pins.
+ * BOOT,CARD for meson6, X,Y,DV,H,Z,AO,BOOT,CARD for meson8 and
+ * X,Y,DV,H,AO,BOOT,CARD,DIF for meson8b) and each bank has a
+ * variable number of pins.
  *
  * The AO bank is special because it belongs to the Always-On power
  * domain which can't be powered off; the bank also uses a set of
@@ -543,6 +544,10 @@ static const struct of_device_id meson_pinctrl_dt_match[] = {
 	{
 		.compatible = "amlogic,meson8-pinctrl",
 		.data = &meson8_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8b-pinctrl",
+		.data = &meson8b_pinctrl_data,
 	},
 	{ },
 };

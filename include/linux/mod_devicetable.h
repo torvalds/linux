@@ -546,6 +546,14 @@ struct amba_id {
 	void			*data;
 };
 
+/**
+ * struct mips_cdmm_device_id - identifies devices in MIPS CDMM bus
+ * @type:	Device type identifier.
+ */
+struct mips_cdmm_device_id {
+	__u8	type;
+};
+
 /*
  * Match x86 CPUs for CPU specific drivers.
  * See documentation of "x86_match_cpu" for details.

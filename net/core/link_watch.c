@@ -40,7 +40,7 @@ static DEFINE_SPINLOCK(lweventlist_lock);
 static unsigned char default_operstate(const struct net_device *dev)
 {
 	if (!netif_carrier_ok(dev))
-		return (dev->ifindex != dev->iflink ?
+		return (dev->ifindex != dev_get_iflink(dev) ?
 			IF_OPER_LOWERLAYERDOWN : IF_OPER_DOWN);
 
 	if (netif_dormant(dev))
@@ -89,7 +89,7 @@ static bool linkwatch_urgent_event(struct net_device *dev)
 	if (!netif_running(dev))
 		return false;
 
-	if (dev->ifindex != dev->iflink)
+	if (dev->ifindex != dev_get_iflink(dev))
 		return true;
 
 	if (dev->priv_flags & IFF_TEAM_PORT)

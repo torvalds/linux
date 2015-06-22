@@ -140,15 +140,17 @@ static struct clk_regmap pll14_vote = {
 	},
 };
 
-#define P_PXO	0
-#define P_PLL8	1
-#define P_PLL3	1
-#define P_PLL0	2
-#define P_CXO	2
+enum {
+	P_PXO,
+	P_PLL8,
+	P_PLL3,
+	P_PLL0,
+	P_CXO,
+};
 
-static const u8 gcc_pxo_pll8_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
+static const struct parent_map gcc_pxo_pll8_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 }
 };
 
 static const char *gcc_pxo_pll8[] = {
@@ -156,10 +158,10 @@ static const char *gcc_pxo_pll8[] = {
 	"pll8_vote",
 };
 
-static const u8 gcc_pxo_pll8_cxo_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
-	[P_CXO]		= 5,
+static const struct parent_map gcc_pxo_pll8_cxo_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 },
+	{ P_CXO, 5 }
 };
 
 static const char *gcc_pxo_pll8_cxo[] = {
@@ -168,14 +170,14 @@ static const char *gcc_pxo_pll8_cxo[] = {
 	"cxo",
 };
 
-static const u8 gcc_pxo_pll3_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL3]	= 1,
+static const struct parent_map gcc_pxo_pll3_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL3, 1 }
 };
 
-static const u8 gcc_pxo_pll3_sata_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL3]	= 6,
+static const struct parent_map gcc_pxo_pll3_sata_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL3, 6 }
 };
 
 static const char *gcc_pxo_pll3[] = {
@@ -183,10 +185,10 @@ static const char *gcc_pxo_pll3[] = {
 	"pll3",
 };
 
-static const u8 gcc_pxo_pll8_pll0[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
-	[P_PLL0]	= 2,
+static const struct parent_map gcc_pxo_pll8_pll0[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 },
+	{ P_PLL0, 2 }
 };
 
 static const char *gcc_pxo_pll8_pll0_map[] = {
@@ -525,8 +527,8 @@ static struct freq_tbl clk_tbl_gsbi_qup[] = {
 	{ 10800000, P_PXO,  1, 2,  5 },
 	{ 15060000, P_PLL8, 1, 2, 51 },
 	{ 24000000, P_PLL8, 4, 1,  4 },
+	{ 25000000, P_PXO,  1, 0,  0 },
 	{ 25600000, P_PLL8, 1, 1, 15 },
-	{ 27000000, P_PXO,  1, 0,  0 },
 	{ 48000000, P_PLL8, 4, 1,  2 },
 	{ 51200000, P_PLL8, 1, 2, 15 },
 	{ }
@@ -2170,6 +2172,36 @@ static struct clk_branch usb_fs1_h_clk = {
 	},
 };
 
+static struct clk_branch ebi2_clk = {
+	.hwcg_reg = 0x3b00,
+	.hwcg_bit = 6,
+	.halt_reg = 0x2fcc,
+	.halt_bit = 1,
+	.clkr = {
+		.enable_reg = 0x3b00,
+		.enable_mask = BIT(4),
+		.hw.init = &(struct clk_init_data){
+			.name = "ebi2_clk",
+			.ops = &clk_branch_ops,
+			.flags = CLK_IS_ROOT,
+		},
+	},
+};
+
+static struct clk_branch ebi2_aon_clk = {
+	.halt_reg = 0x2fcc,
+	.halt_bit = 0,
+	.clkr = {
+		.enable_reg = 0x3b00,
+		.enable_mask = BIT(8),
+		.hw.init = &(struct clk_init_data){
+			.name = "ebi2_always_on_clk",
+			.ops = &clk_branch_ops,
+			.flags = CLK_IS_ROOT,
+		},
+	},
+};
+
 static struct clk_regmap *gcc_ipq806x_clks[] = {
 	[PLL0] = &pll0.clkr,
 	[PLL0_VOTE] = &pll0_vote,
@@ -2273,6 +2305,8 @@ static struct clk_regmap *gcc_ipq806x_clks[] = {
 	[USB_FS1_XCVR_SRC] = &usb_fs1_xcvr_clk_src.clkr,
 	[USB_FS1_XCVR_CLK] = &usb_fs1_xcvr_clk.clkr,
 	[USB_FS1_SYSTEM_CLK] = &usb_fs1_sys_clk.clkr,
+	[EBI2_CLK] = &ebi2_clk.clkr,
+	[EBI2_AON_CLK] = &ebi2_aon_clk.clkr,
 };
 
 static const struct qcom_reset_map gcc_ipq806x_resets[] = {

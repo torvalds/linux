@@ -64,7 +64,7 @@
 		};
 
 		arcpmu0: pmu {
-			compatible = "snps,arc700-pmu";
+			compatible = "snps,arc700-pct";
 		};
 	};
 };

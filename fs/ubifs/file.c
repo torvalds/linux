@@ -50,7 +50,6 @@
  */
 
 #include "ubifs.h"
-#include <linux/aio.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/slab.h>
@@ -80,7 +79,7 @@ static int read_block(struct inode *inode, void *addr, unsigned int block,
 
 	dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
 	out_len = UBIFS_BLOCK_SIZE;
-	err = ubifs_decompress(&dn->data, dlen, addr, &out_len,
+	err = ubifs_decompress(c, &dn->data, dlen, addr, &out_len,
 			       le16_to_cpu(dn->compr_type));
 	if (err || len != out_len)
 		goto dump;
@@ -96,7 +95,7 @@ static int read_block(struct inode *inode, void *addr, unsigned int block,
 	return 0;
 
 dump:
-	ubifs_err("bad data node (block %u, inode %lu)",
+	ubifs_err(c, "bad data node (block %u, inode %lu)",
 		  block, inode->i_ino);
 	ubifs_dump_node(c, dn);
 	return -EINVAL;
@@ -161,13 +160,14 @@ static int do_readpage(struct page *page)
 		addr += UBIFS_BLOCK_SIZE;
 	}
 	if (err) {
+		struct ubifs_info *c = inode->i_sb->s_fs_info;
 		if (err == -ENOENT) {
 			/* Not found, so it must be a hole */
 			SetPageChecked(page);
 			dbg_gen("hole");
 			goto out_free;
 		}
-		ubifs_err("cannot read page %lu of inode %lu, error %d",
+		ubifs_err(c, "cannot read page %lu of inode %lu, error %d",
 			  page->index, inode->i_ino, err);
 		goto error;
 	}
@@ -650,7 +650,7 @@ static int populate_page(struct ubifs_info *c, struct page *page,
 
 			dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
 			out_len = UBIFS_BLOCK_SIZE;
-			err = ubifs_decompress(&dn->data, dlen, addr, &out_len,
+			err = ubifs_decompress(c, &dn->data, dlen, addr, &out_len,
 					       le16_to_cpu(dn->compr_type));
 			if (err || len != out_len)
 				goto out_err;
@@ -698,7 +698,7 @@ out_err:
 	SetPageError(page);
 	flush_dcache_page(page);
 	kunmap(page);
-	ubifs_err("bad data node (block %u, inode %lu)",
+	ubifs_err(c, "bad data node (block %u, inode %lu)",
 		  page_block, inode->i_ino);
 	return -EINVAL;
 }
@@ -802,7 +802,7 @@ out_free:
 	return ret;
 
 out_warn:
-	ubifs_warn("ignoring error %d and skipping bulk-read", err);
+	ubifs_warn(c, "ignoring error %d and skipping bulk-read", err);
 	goto out_free;
 
 out_bu_off:
@@ -930,7 +930,7 @@ static int do_writepage(struct page *page, int len)
 	}
 	if (err) {
 		SetPageError(page);
-		ubifs_err("cannot write page %lu of inode %lu, error %d",
+		ubifs_err(c, "cannot write page %lu of inode %lu, error %d",
 			  page->index, inode->i_ino, err);
 		ubifs_ro_mode(c, err);
 	}
@@ -1257,7 +1257,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int err;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 	dbg_gen("ino %lu, mode %#x, ia_valid %#x",
@@ -1302,7 +1302,7 @@ static void ubifs_invalidatepage(struct page *page, unsigned int offset,
 
 static void *ubifs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct ubifs_inode *ui = ubifs_inode(dentry->d_inode);
+	struct ubifs_inode *ui = ubifs_inode(d_inode(dentry));
 
 	nd_set_link(nd, ui->data);
 	return NULL;
@@ -1485,7 +1485,7 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma,
 	err = ubifs_budget_space(c, &req);
 	if (unlikely(err)) {
 		if (err == -ENOSPC)
-			ubifs_warn("out of space for mmapped file (inode number %lu)",
+			ubifs_warn(c, "out of space for mmapped file (inode number %lu)",
 				   inode->i_ino);
 		return VM_FAULT_SIGBUS;
 	}
@@ -1581,8 +1581,6 @@ const struct inode_operations ubifs_symlink_inode_operations = {
 
 const struct file_operations ubifs_file_operations = {
 	.llseek         = generic_file_llseek,
-	.read           = new_sync_read,
-	.write          = new_sync_write,
 	.read_iter      = generic_file_read_iter,
 	.write_iter     = ubifs_write_iter,
 	.mmap           = ubifs_file_mmap,

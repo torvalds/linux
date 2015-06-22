@@ -80,9 +80,9 @@ ENTRY(stext)
 	ldr	r13, =__mmap_switched		@ address to jump to after
 						@ initialising sctlr
 	adr	lr, BSYM(1f)			@ return (PIC) address
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	ret	r12				)
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10
+	ret	r12
  1:	b	__after_proc_init
 ENDPROC(stext)
 
@@ -117,9 +117,9 @@ ENTRY(secondary_startup)
 
 	adr	lr, BSYM(__after_proc_init)	@ return address
 	mov	r13, r12			@ __secondary_switched address
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	ret	r12				)
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10
+	ret	r12
 ENDPROC(secondary_startup)
 
 ENTRY(__secondary_switched)

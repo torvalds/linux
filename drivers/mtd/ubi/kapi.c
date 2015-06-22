@@ -314,7 +314,7 @@ struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 	if (error)
 		return ERR_PTR(error);
 
-	inode = path.dentry->d_inode;
+	inode = d_backing_inode(path.dentry);
 	mod = inode->i_mode;
 	ubi_num = ubi_major2num(imajor(inode));
 	vol_id = iminor(inode) - 1;

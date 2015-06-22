@@ -64,4 +64,13 @@
 	vmmc-supply = <&lbep5clwmc_wlen>;
 	bus-width = <4>;
 	non-removable;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1835";
+		reg = <2>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>; /* gpio 136 */
+	};
 };

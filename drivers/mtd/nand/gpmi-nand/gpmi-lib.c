@@ -1105,7 +1105,7 @@ int gpmi_is_ready(struct gpmi_nand_data *this, unsigned chip)
 		mask = MX28_BF_GPMI_STAT_READY_BUSY(1 << chip);
 		reg = readl(r->gpmi_regs + HW_GPMI_STAT);
 	} else
-		dev_err(this->dev, "unknow arch.\n");
+		dev_err(this->dev, "unknown arch.\n");
 	return reg & mask;
 }
 

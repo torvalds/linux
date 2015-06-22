@@ -357,8 +357,8 @@ select_insn:
 	ALU64_MOD_X:
 		if (unlikely(SRC == 0))
 			return 0;
-		tmp = DST;
-		DST = do_div(tmp, SRC);
+		div64_u64_rem(DST, SRC, &tmp);
+		DST = tmp;
 		CONT;
 	ALU_MOD_X:
 		if (unlikely(SRC == 0))
@@ -367,8 +367,8 @@ select_insn:
 		DST = do_div(tmp, (u32) SRC);
 		CONT;
 	ALU64_MOD_K:
-		tmp = DST;
-		DST = do_div(tmp, IMM);
+		div64_u64_rem(DST, IMM, &tmp);
+		DST = tmp;
 		CONT;
 	ALU_MOD_K:
 		tmp = (u32) DST;
@@ -377,7 +377,7 @@ select_insn:
 	ALU64_DIV_X:
 		if (unlikely(SRC == 0))
 			return 0;
-		do_div(DST, SRC);
+		DST = div64_u64(DST, SRC);
 		CONT;
 	ALU_DIV_X:
 		if (unlikely(SRC == 0))
@@ -387,7 +387,7 @@ select_insn:
 		DST = (u32) tmp;
 		CONT;
 	ALU64_DIV_K:
-		do_div(DST, IMM);
+		DST = div64_u64(DST, IMM);
 		CONT;
 	ALU_DIV_K:
 		tmp = (u32) DST;
@@ -655,6 +655,14 @@ void bpf_prog_free(struct bpf_prog *fp)
 	schedule_work(&aux->work);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);
+
+/* Weak definitions of helper functions in case we don't have bpf syscall. */
+const struct bpf_func_proto bpf_map_lookup_elem_proto __weak;
+const struct bpf_func_proto bpf_map_update_elem_proto __weak;
+const struct bpf_func_proto bpf_map_delete_elem_proto __weak;
+
+const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
+const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;
 
 /* To execute LD_ABS/LD_IND instructions __bpf_prog_run() may call
  * skb_copy_bits(), so provide a weak definition of it for NET-less config.

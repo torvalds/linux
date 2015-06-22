@@ -263,7 +263,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"1:	ll	%1, %2		# arch_read_unlock	\n"
-		"	addiu	%1, 1					\n"
+		"	addiu	%1, -1					\n"
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
 		: "=" GCC_OFF_SMALL_ASM() (rw->lock), "=&r" (tmp)

@@ -71,12 +71,8 @@ static int clk_pll_enable(struct clk_hw *hw)
 	udelay(50);
 
 	/* Enable PLL output. */
-	ret = regmap_update_bits(pll->clkr.regmap, pll->mode_reg, PLL_OUTCTRL,
+	return regmap_update_bits(pll->clkr.regmap, pll->mode_reg, PLL_OUTCTRL,
 				 PLL_OUTCTRL);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static void clk_pll_disable(struct clk_hw *hw)

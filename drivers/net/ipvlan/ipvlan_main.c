@@ -114,7 +114,6 @@ static int ipvlan_init(struct net_device *dev)
 	dev->features = phy_dev->features & IPVLAN_FEATURES;
 	dev->features |= NETIF_F_LLTX;
 	dev->gso_max_size = phy_dev->gso_max_size;
-	dev->iflink = phy_dev->ifindex;
 	dev->hard_header_len = phy_dev->hard_header_len;
 
 	ipvlan_set_lockdep_class(dev);
@@ -305,6 +304,13 @@ static int ipvlan_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	return 0;
 }
 
+static int ipvlan_get_iflink(const struct net_device *dev)
+{
+	struct ipvl_dev *ipvlan = netdev_priv(dev);
+
+	return ipvlan->phy_dev->ifindex;
+}
+
 static const struct net_device_ops ipvlan_netdev_ops = {
 	.ndo_init		= ipvlan_init,
 	.ndo_uninit		= ipvlan_uninit,
@@ -317,6 +323,7 @@ static const struct net_device_ops ipvlan_netdev_ops = {
 	.ndo_get_stats64	= ipvlan_get_stats64,
 	.ndo_vlan_rx_add_vid	= ipvlan_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ipvlan_vlan_rx_kill_vid,
+	.ndo_get_iflink		= ipvlan_get_iflink,
 };
 
 static int ipvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
@@ -336,7 +343,6 @@ static int ipvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 static const struct header_ops ipvlan_header_ops = {
 	.create  	= ipvlan_hard_header,
-	.rebuild	= eth_rebuild_header,
 	.parse		= eth_header_parse,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,

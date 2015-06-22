@@ -4481,9 +4481,11 @@ static bool kvm_mmu_zap_collapsible_spte(struct kvm *kvm,
 		pfn = spte_to_pfn(*sptep);
 
 		/*
-		 * Only EPT supported for now; otherwise, one would need to
-		 * find out efficiently whether the guest page tables are
-		 * also using huge pages.
+		 * We cannot do huge page mapping for indirect shadow pages,
+		 * which are found on the last rmap (level = 1) when not using
+		 * tdp; such shadow pages are synced with the page table in
+		 * the guest, and the guest page table is using 4K page size
+		 * mapping if the indirect sp has level = 1.
 		 */
 		if (sp->role.direct &&
 			!kvm_is_reserved_pfn(pfn) &&
@@ -4504,19 +4506,12 @@ void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 	bool flush = false;
 	unsigned long *rmapp;
 	unsigned long last_index, index;
-	gfn_t gfn_start, gfn_end;
 
 	spin_lock(&kvm->mmu_lock);
 
-	gfn_start = memslot->base_gfn;
-	gfn_end = memslot->base_gfn + memslot->npages - 1;
-
-	if (gfn_start >= gfn_end)
-		goto out;
-
 	rmapp = memslot->arch.rmap[0];
-	last_index = gfn_to_index(gfn_end, memslot->base_gfn,
-					PT_PAGE_TABLE_LEVEL);
+	last_index = gfn_to_index(memslot->base_gfn + memslot->npages - 1,
+				memslot->base_gfn, PT_PAGE_TABLE_LEVEL);
 
 	for (index = 0; index <= last_index; ++index, ++rmapp) {
 		if (*rmapp)
@@ -4534,7 +4529,6 @@ void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 	if (flush)
 		kvm_flush_remote_tlbs(kvm);
 
-out:
 	spin_unlock(&kvm->mmu_lock);
 }
 

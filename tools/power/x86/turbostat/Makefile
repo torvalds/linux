@@ -1,7 +1,11 @@
 CC		= $(CROSS_COMPILE)gcc
-BUILD_OUTPUT	:= $(PWD)
+BUILD_OUTPUT	:= $(CURDIR)
 PREFIX		:= /usr
 DESTDIR		:=
+
+ifeq ("$(origin O)", "command line")
+	BUILD_OUTPUT := $(O)
+endif
 
 turbostat : turbostat.c
 CFLAGS +=	-Wall

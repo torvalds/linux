@@ -1167,7 +1167,7 @@ static int gelic_wl_set_ap(struct net_device *netdev,
 	} else {
 		pr_debug("%s: clear bssid\n", __func__);
 		clear_bit(GELIC_WL_STAT_BSSID_SET, &wl->stat);
-		memset(wl->bssid, 0, ETH_ALEN);
+		eth_zero_addr(wl->bssid);
 	}
 	spin_unlock_irqrestore(&wl->lock, irqflag);
 	pr_debug("%s: ->\n", __func__);
@@ -1189,7 +1189,7 @@ static int gelic_wl_get_ap(struct net_device *netdev,
 		memcpy(data->ap_addr.sa_data, wl->active_bssid,
 		       ETH_ALEN);
 	} else
-		memset(data->ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(data->ap_addr.sa_data);
 
 	spin_unlock_irqrestore(&wl->lock, irqflag);
 	mutex_unlock(&wl->assoc_stat_lock);

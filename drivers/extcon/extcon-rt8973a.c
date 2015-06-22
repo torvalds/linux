@@ -582,10 +582,8 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c,
 		return -EINVAL;
 
 	info = devm_kzalloc(&i2c->dev, sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		dev_err(&i2c->dev, "failed to allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 	i2c_set_clientdata(i2c, info);
 
 	info->dev = &i2c->dev;
@@ -681,7 +679,7 @@ static int rt8973a_muic_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static struct of_device_id rt8973a_dt_match[] = {
+static const struct of_device_id rt8973a_dt_match[] = {
 	{ .compatible = "richtek,rt8973a-muic" },
 	{ },
 };

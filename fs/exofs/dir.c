@@ -379,7 +379,7 @@ ino_t exofs_parent_ino(struct dentry *child)
 	struct exofs_dir_entry *de;
 	ino_t ino;
 
-	de = exofs_dotdot(child->d_inode, &page);
+	de = exofs_dotdot(d_inode(child), &page);
 	if (!de)
 		return 0;
 
@@ -429,7 +429,7 @@ int exofs_set_link(struct inode *dir, struct exofs_dir_entry *de,
 
 int exofs_add_link(struct dentry *dentry, struct inode *inode)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	const unsigned char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	unsigned chunk_size = exofs_chunk_size(dir);

@@ -101,7 +101,7 @@ int snd_hda_create_hwdep(struct hda_codec *codec)
 	int err;
 
 	sprintf(hwname, "HDA Codec %d", codec->addr);
-	err = snd_hwdep_new(codec->bus->card, hwname, codec->addr, &hwdep);
+	err = snd_hwdep_new(codec->card, hwname, codec->addr, &hwdep);
 	if (err < 0)
 		return err;
 	codec->hwdep = hwdep;
@@ -115,9 +115,6 @@ int snd_hda_create_hwdep(struct hda_codec *codec)
 #ifdef CONFIG_COMPAT
 	hwdep->ops.ioctl_compat = hda_hwdep_ioctl_compat;
 #endif
-
-	/* link to codec */
-	hwdep->dev.parent = &codec->dev;
 
 	/* for sysfs */
 	hwdep->dev.groups = snd_hda_dev_attr_groups;

@@ -45,7 +45,7 @@ struct ipu_crtc {
 	struct drm_pending_vblank_event *page_flip_event;
 	struct drm_framebuffer	*newfb;
 	int			irq;
-	u32			interface_pix_fmt;
+	u32			bus_format;
 	int			di_hsync_pin;
 	int			di_vsync_pin;
 };
@@ -145,7 +145,6 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_di_signal_cfg sig_cfg = {};
 	unsigned long encoder_types = 0;
-	u32 out_pixel_fmt;
 	int ret;
 
 	dev_dbg(ipu_crtc->dev, "%s: mode->hdisplay: %d\n", __func__,
@@ -161,21 +160,21 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 		__func__, encoder_types);
 
 	/*
-	 * If we have DAC, TVDAC or LDB, then we need the IPU DI clock
-	 * to be the same as the LDB DI clock.
+	 * If we have DAC or LDB, then we need the IPU DI clock to be
+	 * the same as the LDB DI clock. For TVDAC, derive the IPU DI
+	 * clock from 27 MHz TVE_DI clock, but allow to divide it.
 	 */
 	if (encoder_types & (BIT(DRM_MODE_ENCODER_DAC) |
-			     BIT(DRM_MODE_ENCODER_TVDAC) |
 			     BIT(DRM_MODE_ENCODER_LVDS)))
 		sig_cfg.clkflags = IPU_DI_CLKMODE_SYNC | IPU_DI_CLKMODE_EXT;
+	else if (encoder_types & BIT(DRM_MODE_ENCODER_TVDAC))
+		sig_cfg.clkflags = IPU_DI_CLKMODE_EXT;
 	else
 		sig_cfg.clkflags = 0;
 
-	out_pixel_fmt = ipu_crtc->interface_pix_fmt;
-
 	sig_cfg.enable_pol = 1;
 	sig_cfg.clk_pol = 0;
-	sig_cfg.pixel_fmt = out_pixel_fmt;
+	sig_cfg.bus_format = ipu_crtc->bus_format;
 	sig_cfg.v_to_h_sync = 0;
 	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
 	sig_cfg.vsync_pin = ipu_crtc->di_vsync_pin;
@@ -184,7 +183,7 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 
 	ret = ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di,
 			       mode->flags & DRM_MODE_FLAG_INTERLACE,
-			       out_pixel_fmt, mode->hdisplay);
+			       ipu_crtc->bus_format, mode->hdisplay);
 	if (ret) {
 		dev_err(ipu_crtc->dev,
 				"initializing display controller failed with %d\n",
@@ -202,7 +201,8 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 	return ipu_plane_mode_set(ipu_crtc->plane[0], crtc, mode,
 				  crtc->primary->fb,
 				  0, 0, mode->hdisplay, mode->vdisplay,
-				  x, y, mode->hdisplay, mode->vdisplay);
+				  x, y, mode->hdisplay, mode->vdisplay,
+				  mode->flags & DRM_MODE_FLAG_INTERLACE);
 }
 
 static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
@@ -291,11 +291,11 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 }
 
 static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc,
-		u32 pixfmt, int hsync_pin, int vsync_pin)
+		u32 bus_format, int hsync_pin, int vsync_pin)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
-	ipu_crtc->interface_pix_fmt = pixfmt;
+	ipu_crtc->bus_format = bus_format;
 	ipu_crtc->di_hsync_pin = hsync_pin;
 	ipu_crtc->di_vsync_pin = vsync_pin;
 

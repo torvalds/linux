@@ -85,11 +85,15 @@ struct crypto_aead *ieee80211_aes_key_setup_encrypt(const u8 key[],
 		return tfm;
 
 	err = crypto_aead_setkey(tfm, key, key_len);
-	if (!err)
-		err = crypto_aead_setauthsize(tfm, mic_len);
-	if (!err)
-		return tfm;
+	if (err)
+		goto free_aead;
+	err = crypto_aead_setauthsize(tfm, mic_len);
+	if (err)
+		goto free_aead;
 
+	return tfm;
+
+free_aead:
 	crypto_free_aead(tfm);
 	return ERR_PTR(err);
 }

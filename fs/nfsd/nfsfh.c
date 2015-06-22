@@ -38,7 +38,7 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
 		/* make sure parents give x permission to user */
 		int err;
 		parent = dget_parent(tdentry);
-		err = inode_permission(parent->d_inode, MAY_EXEC);
+		err = inode_permission(d_inode(parent), MAY_EXEC);
 		if (err < 0) {
 			dput(parent);
 			break;
@@ -340,7 +340,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 	if (error)
 		goto out;
 
-	error = nfsd_mode_check(rqstp, dentry->d_inode->i_mode, type);
+	error = nfsd_mode_check(rqstp, d_inode(dentry)->i_mode, type);
 	if (error)
 		goto out;
 
@@ -412,8 +412,8 @@ static inline void _fh_update_old(struct dentry *dentry,
 				  struct svc_export *exp,
 				  struct knfsd_fh *fh)
 {
-	fh->ofh_ino = ino_t_to_u32(dentry->d_inode->i_ino);
-	fh->ofh_generation = dentry->d_inode->i_generation;
+	fh->ofh_ino = ino_t_to_u32(d_inode(dentry)->i_ino);
+	fh->ofh_generation = d_inode(dentry)->i_generation;
 	if (d_is_dir(dentry) ||
 	    (exp->ex_flags & NFSEXP_NOSUBTREECHECK))
 		fh->ofh_dirino = 0;
@@ -426,7 +426,7 @@ static bool is_root_export(struct svc_export *exp)
 
 static struct super_block *exp_sb(struct svc_export *exp)
 {
-	return exp->ex_path.dentry->d_inode->i_sb;
+	return d_inode(exp->ex_path.dentry)->i_sb;
 }
 
 static bool fsid_type_ok_for_exp(u8 fsid_type, struct svc_export *exp)
@@ -520,12 +520,12 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	 *
 	 */
 
-	struct inode * inode = dentry->d_inode;
+	struct inode * inode = d_inode(dentry);
 	dev_t ex_dev = exp_sb(exp)->s_dev;
 
 	dprintk("nfsd: fh_compose(exp %02x:%02x/%ld %pd2, ino=%ld)\n",
 		MAJOR(ex_dev), MINOR(ex_dev),
-		(long) exp->ex_path.dentry->d_inode->i_ino,
+		(long) d_inode(exp->ex_path.dentry)->i_ino,
 		dentry,
 		(inode ? inode->i_ino : 0));
 
@@ -558,7 +558,7 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 		fhp->fh_handle.ofh_dev =  old_encode_dev(ex_dev);
 		fhp->fh_handle.ofh_xdev = fhp->fh_handle.ofh_dev;
 		fhp->fh_handle.ofh_xino =
-			ino_t_to_u32(exp->ex_path.dentry->d_inode->i_ino);
+			ino_t_to_u32(d_inode(exp->ex_path.dentry)->i_ino);
 		fhp->fh_handle.ofh_dirino = ino_t_to_u32(parent_ino(dentry));
 		if (inode)
 			_fh_update_old(dentry, exp, &fhp->fh_handle);
@@ -570,7 +570,7 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 		mk_fsid(fhp->fh_handle.fh_fsid_type,
 			fhp->fh_handle.fh_fsid,
 			ex_dev,
-			exp->ex_path.dentry->d_inode->i_ino,
+			d_inode(exp->ex_path.dentry)->i_ino,
 			exp->ex_fsid, exp->ex_uuid);
 
 		if (inode)
@@ -597,7 +597,7 @@ fh_update(struct svc_fh *fhp)
 		goto out_bad;
 
 	dentry = fhp->fh_dentry;
-	if (!dentry->d_inode)
+	if (d_really_is_negative(dentry))
 		goto out_negative;
 	if (fhp->fh_handle.fh_version != 1) {
 		_fh_update_old(dentry, fhp->fh_export, &fhp->fh_handle);

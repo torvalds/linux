@@ -23,7 +23,6 @@
 
 #include "ccp-crypto.h"
 
-
 static int ccp_aes_cmac_complete(struct crypto_async_request *async_req,
 				 int ret)
 {
@@ -38,11 +37,13 @@ static int ccp_aes_cmac_complete(struct crypto_async_request *async_req,
 	if (rctx->hash_rem) {
 		/* Save remaining data to buffer */
 		unsigned int offset = rctx->nbytes - rctx->hash_rem;
+
 		scatterwalk_map_and_copy(rctx->buf, rctx->src,
 					 offset, rctx->hash_rem, 0);
 		rctx->buf_count = rctx->hash_rem;
-	} else
+	} else {
 		rctx->buf_count = 0;
+	}
 
 	/* Update result area if supplied */
 	if (req->result)
@@ -202,7 +203,7 @@ static int ccp_aes_cmac_digest(struct ahash_request *req)
 }
 
 static int ccp_aes_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
-			   unsigned int key_len)
+			       unsigned int key_len)
 {
 	struct ccp_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
 	struct ccp_crypto_ahash_alg *alg =
@@ -292,7 +293,8 @@ static int ccp_aes_cmac_cra_init(struct crypto_tfm *tfm)
 	crypto_ahash_set_reqsize(ahash, sizeof(struct ccp_aes_cmac_req_ctx));
 
 	cipher_tfm = crypto_alloc_cipher("aes", 0,
-			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+					 CRYPTO_ALG_ASYNC |
+					 CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(cipher_tfm)) {
 		pr_warn("could not load aes cipher driver\n");
 		return PTR_ERR(cipher_tfm);
@@ -354,7 +356,7 @@ int ccp_register_aes_cmac_algs(struct list_head *head)
 	ret = crypto_register_ahash(alg);
 	if (ret) {
 		pr_err("%s ahash algorithm registration error (%d)\n",
-			base->cra_name, ret);
+		       base->cra_name, ret);
 		kfree(ccp_alg);
 		return ret;
 	}

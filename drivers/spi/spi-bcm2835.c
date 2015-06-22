@@ -164,13 +164,12 @@ static int bcm2835_spi_transfer_one_poll(struct spi_master *master,
 					 unsigned long xfer_time_us)
 {
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
-	unsigned long timeout = jiffies +
-		max(4 * xfer_time_us * HZ / 1000000, 2uL);
+	/* set timeout to 1 second of maximum polling */
+	unsigned long timeout = jiffies + HZ;
 
 	/* enable HW block without interrupts */
 	bcm2835_wr(bs, BCM2835_SPI_CS, cs | BCM2835_SPI_CS_TA);
 
-	/* set timeout to 4x the expected time, or 2 jiffies */
 	/* loop until finished the transfer */
 	while (bs->rx_len) {
 		/* read from fifo as much as possible */

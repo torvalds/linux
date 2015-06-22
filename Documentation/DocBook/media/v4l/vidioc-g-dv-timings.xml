@@ -318,10 +318,20 @@ can't generate such frequencies, then the flag will also be cleared.
 	  </row>
 	  <row>
 	    <entry>V4L2_DV_FL_HALF_LINE</entry>
-	    <entry>Specific to interlaced formats: if set, then field 1 (aka the odd field)
-is really one half-line longer and field 2 (aka the even field) is really one half-line
-shorter, so each field has exactly the same number of half-lines. Whether half-lines can be
-detected or used depends on the hardware.
+	    <entry>Specific to interlaced formats: if set, then the vertical frontporch
+of field 1 (aka the odd field) is really one half-line longer and the vertical backporch
+of field 2 (aka the even field) is really one half-line shorter, so each field has exactly
+the same number of half-lines. Whether half-lines can be detected or used depends on
+the hardware.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_FL_IS_CE_VIDEO</entry>
+	    <entry>If set, then this is a Consumer Electronics (CE) video format.
+Such formats differ from other formats (commonly called IT formats) in that if
+R'G'B' encoding is used then by default the R'G'B' values use limited range
+(i.e. 16-235) as opposed to full range (i.e. 0-255). All formats defined in CEA-861
+except for the 640x480p59.94 format are CE formats.
 	    </entry>
 	  </row>
 	</tbody>

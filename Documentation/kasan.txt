@@ -9,7 +9,9 @@ a fast and comprehensive solution for finding use-after-free and out-of-bounds
 bugs.
 
 KASan uses compile-time instrumentation for checking every memory access,
-therefore you will need a certain version of GCC > 4.9.2
+therefore you will need a gcc version of 4.9.2 or later. KASan could detect out
+of bounds accesses to stack or global variables, but only if gcc 5.0 or later was
+used to built the kernel.
 
 Currently KASan is supported only for x86_64 architecture and requires that the
 kernel be built with the SLUB allocator.
@@ -23,8 +25,8 @@ To enable KASAN configure kernel with:
 
 and choose between CONFIG_KASAN_OUTLINE and CONFIG_KASAN_INLINE. Outline/inline
 is compiler instrumentation types. The former produces smaller binary the
-latter is 1.1 - 2 times faster. Inline instrumentation requires GCC 5.0 or
-latter.
+latter is 1.1 - 2 times faster. Inline instrumentation requires a gcc version
+of 5.0 or later.
 
 Currently KASAN works only with the SLUB memory allocator.
 For better bug detection and nicer report, enable CONFIG_STACKTRACE and put

@@ -58,7 +58,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	 */
 
 	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
-	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, 0);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_DISP_INTF_SEL(0), 0);
 	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
 
 	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
@@ -84,6 +84,18 @@ static long mdp5_round_pixclk(struct msm_kms *kms, unsigned long rate,
 		struct drm_encoder *encoder)
 {
 	return rate;
+}
+
+static int mdp5_set_split_display(struct msm_kms *kms,
+		struct drm_encoder *encoder,
+		struct drm_encoder *slave_encoder,
+		bool is_cmd_mode)
+{
+	if (is_cmd_mode)
+		return mdp5_cmd_encoder_set_split_display(encoder,
+							slave_encoder);
+	else
+		return mdp5_encoder_set_split_display(encoder, slave_encoder);
 }
 
 static void mdp5_preclose(struct msm_kms *kms, struct drm_file *file)
@@ -131,6 +143,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.complete_commit = mdp5_complete_commit,
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
+		.set_split_display = mdp5_set_split_display,
 		.preclose        = mdp5_preclose,
 		.destroy         = mdp5_destroy,
 	},
@@ -161,6 +174,134 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 	return 0;
 }
 
+static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
+		enum mdp5_intf_type intf_type, int intf_num,
+		enum mdp5_intf_mode intf_mode)
+{
+	struct drm_device *dev = mdp5_kms->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_encoder *encoder;
+	struct mdp5_interface intf = {
+			.num	= intf_num,
+			.type	= intf_type,
+			.mode	= intf_mode,
+	};
+
+	if ((intf_type == INTF_DSI) &&
+		(intf_mode == MDP5_INTF_DSI_MODE_COMMAND))
+		encoder = mdp5_cmd_encoder_init(dev, &intf);
+	else
+		encoder = mdp5_encoder_init(dev, &intf);
+
+	if (IS_ERR(encoder)) {
+		dev_err(dev->dev, "failed to construct encoder\n");
+		return encoder;
+	}
+
+	encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
+	priv->encoders[priv->num_encoders++] = encoder;
+
+	return encoder;
+}
+
+static int get_dsi_id_from_intf(const struct mdp5_cfg_hw *hw_cfg, int intf_num)
+{
+	const int intf_cnt = hw_cfg->intf.count;
+	const u32 *intfs = hw_cfg->intfs;
+	int id = 0, i;
+
+	for (i = 0; i < intf_cnt; i++) {
+		if (intfs[i] == INTF_DSI) {
+			if (intf_num == i)
+				return id;
+
+			id++;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
+{
+	struct drm_device *dev = mdp5_kms->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	const struct mdp5_cfg_hw *hw_cfg =
+					mdp5_cfg_get_hw_config(mdp5_kms->cfg);
+	enum mdp5_intf_type intf_type = hw_cfg->intfs[intf_num];
+	struct drm_encoder *encoder;
+	int ret = 0;
+
+	switch (intf_type) {
+	case INTF_DISABLED:
+		break;
+	case INTF_eDP:
+		if (!priv->edp)
+			break;
+
+		encoder = construct_encoder(mdp5_kms, INTF_eDP, intf_num,
+					MDP5_INTF_MODE_NONE);
+		if (IS_ERR(encoder)) {
+			ret = PTR_ERR(encoder);
+			break;
+		}
+
+		ret = msm_edp_modeset_init(priv->edp, dev, encoder);
+		break;
+	case INTF_HDMI:
+		if (!priv->hdmi)
+			break;
+
+		encoder = construct_encoder(mdp5_kms, INTF_HDMI, intf_num,
+					MDP5_INTF_MODE_NONE);
+		if (IS_ERR(encoder)) {
+			ret = PTR_ERR(encoder);
+			break;
+		}
+
+		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+		break;
+	case INTF_DSI:
+	{
+		int dsi_id = get_dsi_id_from_intf(hw_cfg, intf_num);
+		struct drm_encoder *dsi_encs[MSM_DSI_ENCODER_NUM];
+		enum mdp5_intf_mode mode;
+		int i;
+
+		if ((dsi_id >= ARRAY_SIZE(priv->dsi)) || (dsi_id < 0)) {
+			dev_err(dev->dev, "failed to find dsi from intf %d\n",
+				intf_num);
+			ret = -EINVAL;
+			break;
+		}
+
+		if (!priv->dsi[dsi_id])
+			break;
+
+		for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
+			mode = (i == MSM_DSI_CMD_ENCODER_ID) ?
+				MDP5_INTF_DSI_MODE_COMMAND :
+				MDP5_INTF_DSI_MODE_VIDEO;
+			dsi_encs[i] = construct_encoder(mdp5_kms, INTF_DSI,
+							intf_num, mode);
+			if (IS_ERR(dsi_encs)) {
+				ret = PTR_ERR(dsi_encs);
+				break;
+			}
+		}
+
+		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
+		break;
+	}
+	default:
+		dev_err(dev->dev, "unknown intf: %d\n", intf_type);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static int modeset_init(struct mdp5_kms *mdp5_kms)
 {
 	static const enum mdp5_pipe crtcs[] = {
@@ -171,7 +312,6 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	};
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
-	struct drm_encoder *encoder;
 	const struct mdp5_cfg_hw *hw_cfg;
 	int i, ret;
 
@@ -222,44 +362,13 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		}
 	}
 
-	if (priv->hdmi) {
-		/* Construct encoder for HDMI: */
-		encoder = mdp5_encoder_init(dev, 3, INTF_HDMI);
-		if (IS_ERR(encoder)) {
-			dev_err(dev->dev, "failed to construct encoder\n");
-			ret = PTR_ERR(encoder);
+	/* Construct encoders and modeset initialize connector devices
+	 * for each external display interface.
+	 */
+	for (i = 0; i < ARRAY_SIZE(hw_cfg->intfs); i++) {
+		ret = modeset_init_intf(mdp5_kms, i);
+		if (ret)
 			goto fail;
-		}
-
-		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;;
-		priv->encoders[priv->num_encoders++] = encoder;
-
-		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
-		if (ret) {
-			dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
-			goto fail;
-		}
-	}
-
-	if (priv->edp) {
-		/* Construct encoder for eDP: */
-		encoder = mdp5_encoder_init(dev, 0, INTF_eDP);
-		if (IS_ERR(encoder)) {
-			dev_err(dev->dev, "failed to construct eDP encoder\n");
-			ret = PTR_ERR(encoder);
-			goto fail;
-		}
-
-		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
-		priv->encoders[priv->num_encoders++] = encoder;
-
-		/* Construct bridge/connector for eDP: */
-		ret = msm_edp_modeset_init(priv->edp, dev, encoder);
-		if (ret) {
-			dev_err(dev->dev, "failed to initialize eDP: %d\n",
-									ret);
-			goto fail;
-		}
 	}
 
 	return 0;
@@ -274,11 +383,11 @@ static void read_hw_revision(struct mdp5_kms *mdp5_kms,
 	uint32_t version;
 
 	mdp5_enable(mdp5_kms);
-	version = mdp5_read(mdp5_kms, REG_MDP5_MDP_VERSION);
+	version = mdp5_read(mdp5_kms, REG_MDSS_HW_VERSION);
 	mdp5_disable(mdp5_kms);
 
-	*major = FIELD(version, MDP5_MDP_VERSION_MAJOR);
-	*minor = FIELD(version, MDP5_MDP_VERSION_MINOR);
+	*major = FIELD(version, MDSS_HW_VERSION_MAJOR);
+	*minor = FIELD(version, MDSS_HW_VERSION_MINOR);
 
 	DBG("MDP5 version v%d.%d", *major, *minor);
 }
@@ -321,6 +430,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	mdp5_kms->dev = dev;
 
+	/* mdp5_kms->mmio actually represents the MDSS base address */
 	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
 	if (IS_ERR(mdp5_kms->mmio)) {
 		ret = PTR_ERR(mdp5_kms->mmio);
@@ -403,8 +513,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	 * we don't disable):
 	 */
 	mdp5_enable(mdp5_kms);
-	for (i = 0; i < config->hw->intf.count; i++)
+	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
+		if (!config->hw->intf.base[i] ||
+				mdp5_cfg_intf_is_virtual(config->hw->intfs[i]))
+			continue;
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
+	}
 	mdp5_disable(mdp5_kms);
 	mdelay(16);
 

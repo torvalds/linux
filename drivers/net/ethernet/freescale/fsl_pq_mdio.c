@@ -294,7 +294,7 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 
 #endif
 
-static struct of_device_id fsl_pq_mdio_match[] = {
+static const struct of_device_id fsl_pq_mdio_match[] = {
 #if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
 	{
 		.compatible = "fsl,gianfar-tbi",

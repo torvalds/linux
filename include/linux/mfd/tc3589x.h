@@ -140,36 +140,13 @@ extern int tc3589x_set_bits(struct tc3589x *tc3589x, u8 reg, u8 mask, u8 val);
 #define TC_KPD_DEBOUNCE_PERIOD  0xA3
 #define TC_KPD_SETTLE_TIME      0xA3
 
-/**
- * struct tc35893_platform_data - data structure for platform specific data
- * @keymap_data:        matrix scan code table for keycodes
- * @krow:               mask for available rows, value is 0xFF
- * @kcol:               mask for available columns, value is 0xFF
- * @debounce_period:    platform specific debounce time
- * @settle_time:        platform specific settle down time
- * @irqtype:            type of interrupt, falling or rising edge
- * @enable_wakeup:      specifies if keypad event can wake up system from sleep
- * @no_autorepeat:      flag for auto repetition
- */
-struct tc3589x_keypad_platform_data {
-	const struct matrix_keymap_data *keymap_data;
-	u8                      krow;
-	u8                      kcol;
-	u8                      debounce_period;
-	u8                      settle_time;
-	unsigned long           irqtype;
-	bool                    enable_wakeup;
-	bool                    no_autorepeat;
-};
 
 /**
  * struct tc3589x_platform_data - TC3589x platform data
  * @block: bitmask of blocks to enable (use TC3589x_BLOCK_*)
- * @keypad: keypad-specific platform data
  */
 struct tc3589x_platform_data {
 	unsigned int block;
-	const struct tc3589x_keypad_platform_data *keypad;
 };
 
 #endif

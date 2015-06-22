@@ -47,6 +47,7 @@
 #define _COMPONENT          ACPI_COMPILER
 ACPI_MODULE_NAME("utuuid")
 
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_HELP_APP)
 /*
  * UUID support functions.
  *
@@ -94,3 +95,4 @@ void acpi_ut_convert_string_to_uuid(char *in_string, u8 *uuid_buffer)
 					       1]);
 	}
 }
+#endif

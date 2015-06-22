@@ -60,6 +60,11 @@ enum {
 };
 
 enum {
+	T4_REGMAP_SIZE = (160 * 1024),
+	T5_REGMAP_SIZE = (332 * 1024),
+};
+
+enum {
 	MEM_EDC0,
 	MEM_EDC1,
 	MEM_MC,
@@ -369,8 +374,19 @@ enum {
 	MAX_OFLD_QSETS = 16,          /* # of offload Tx/Rx queue sets */
 	MAX_CTRL_QUEUES = NCHAN,      /* # of control Tx queues */
 	MAX_RDMA_QUEUES = NCHAN,      /* # of streaming RDMA Rx queues */
-	MAX_RDMA_CIQS = NCHAN,        /* # of  RDMA concentrator IQs */
+	MAX_RDMA_CIQS = 32,        /* # of  RDMA concentrator IQs */
 	MAX_ISCSI_QUEUES = NCHAN,     /* # of streaming iSCSI Rx queues */
+};
+
+enum {
+	MAX_TXQ_ENTRIES      = 16384,
+	MAX_CTRL_TXQ_ENTRIES = 1024,
+	MAX_RSPQ_ENTRIES     = 16384,
+	MAX_RX_BUFFERS       = 16384,
+	MIN_TXQ_ENTRIES      = 32,
+	MIN_CTRL_TXQ_ENTRIES = 32,
+	MIN_RSPQ_ENTRIES     = 128,
+	MIN_FL_ENTRIES       = 16
 };
 
 enum {
@@ -384,6 +400,10 @@ struct adapter;
 struct sge_rspq;
 
 #include "cxgb4_dcb.h"
+
+#ifdef CONFIG_CHELSIO_T4_FCOE
+#include "cxgb4_fcoe.h"
+#endif /* CONFIG_CHELSIO_T4_FCOE */
 
 struct port_info {
 	struct adapter *adapter;
@@ -404,6 +424,9 @@ struct port_info {
 #ifdef CONFIG_CHELSIO_T4_DCB
 	struct port_dcb_info dcb;     /* Data Center Bridging support */
 #endif
+#ifdef CONFIG_CHELSIO_T4_FCOE
+	struct cxgb_fcoe fcoe;
+#endif /* CONFIG_CHELSIO_T4_FCOE */
 };
 
 struct dentry;
@@ -597,8 +620,8 @@ struct sge {
 	u16 rdmaqs;                 /* # of available RDMA Rx queues */
 	u16 rdmaciqs;               /* # of available RDMA concentrator IQs */
 	u16 ofld_rxq[MAX_OFLD_QSETS];
-	u16 rdma_rxq[NCHAN];
-	u16 rdma_ciq[NCHAN];
+	u16 rdma_rxq[MAX_RDMA_QUEUES];
+	u16 rdma_ciq[MAX_RDMA_CIQS];
 	u16 timer_val[SGE_NTIMERS];
 	u8 counter_val[SGE_NCOUNTERS];
 	u32 fl_pg_order;            /* large page allocation size */
@@ -993,6 +1016,30 @@ static inline bool cxgb_poll_busy_polling(struct sge_rspq *q)
 }
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
+/* Return a version number to identify the type of adapter.  The scheme is:
+ * - bits 0..9: chip version
+ * - bits 10..15: chip revision
+ * - bits 16..23: register dump version
+ */
+static inline unsigned int mk_adap_vers(struct adapter *ap)
+{
+	return CHELSIO_CHIP_VERSION(ap->params.chip) |
+		(CHELSIO_CHIP_RELEASE(ap->params.chip) << 10) | (1 << 16);
+}
+
+/* Return a queue's interrupt hold-off time in us.  0 means no timer. */
+static inline unsigned int qtimer_val(const struct adapter *adap,
+				      const struct sge_rspq *q)
+{
+	unsigned int idx = q->intr_params >> 1;
+
+	return idx < SGE_NTIMERS ? adap->sge.timer_val[idx] : 0;
+}
+
+/* driver version & name used for ethtool_drvinfo */
+extern char cxgb4_driver_name[];
+extern const char cxgb4_driver_version[];
+
 void t4_os_portmod_changed(const struct adapter *adap, int port_id);
 void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 
@@ -1022,6 +1069,10 @@ int t4_sge_init(struct adapter *adap);
 void t4_sge_start(struct adapter *adap);
 void t4_sge_stop(struct adapter *adap);
 int cxgb_busy_poll(struct napi_struct *napi);
+int cxgb4_set_rspq_intr_params(struct sge_rspq *q, unsigned int us,
+			       unsigned int cnt);
+void cxgb4_set_ethtool_ops(struct net_device *netdev);
+int cxgb4_write_rss(const struct port_info *pi, const u16 *queues);
 extern int dbfifo_int_thresh;
 
 #define for_each_port(adapter, iter) \
@@ -1109,6 +1160,9 @@ static inline int t4_memory_write(struct adapter *adap, int mtype, u32 addr,
 {
 	return t4_memory_rw(adap, 0, mtype, addr, len, buf, 0);
 }
+
+unsigned int t4_get_regs_len(struct adapter *adapter);
+void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size);
 
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int get_vpd_params(struct adapter *adapter, struct vpd_params *p);

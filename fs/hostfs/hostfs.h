@@ -66,7 +66,8 @@ extern int stat_file(const char *path, struct hostfs_stat *p, int fd);
 extern int access_file(char *path, int r, int w, int x);
 extern int open_file(char *path, int r, int w, int append);
 extern void *open_dir(char *path, int *err_out);
-extern char *read_dir(void *stream, unsigned long long *pos,
+extern void seek_dir(void *stream, unsigned long long pos);
+extern char *read_dir(void *stream, unsigned long long *pos_out,
 		      unsigned long long *ino_out, int *len_out,
 		      unsigned int *type_out);
 extern void close_file(void *stream);
@@ -77,8 +78,7 @@ extern int write_file(int fd, unsigned long long *offset, const char *buf,
 		      int len);
 extern int lseek_file(int fd, long long offset, int whence);
 extern int fsync_file(int fd, int datasync);
-extern int file_create(char *name, int ur, int uw, int ux, int gr,
-		       int gw, int gx, int or, int ow, int ox);
+extern int file_create(char *name, int mode);
 extern int set_attr(const char *file, struct hostfs_iattr *attrs, int fd);
 extern int make_symlink(const char *from, const char *to);
 extern int unlink_file(const char *file);

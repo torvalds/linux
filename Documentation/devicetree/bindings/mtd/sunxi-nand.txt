@@ -21,7 +21,7 @@ Optional properties:
 - nand-ecc-mode : one of the supported ECC modes ("hw", "hw_syndrome", "soft",
   "soft_bch" or "none")
 
-see Documentation/devicetree/mtd/nand.txt for generic bindings.
+see Documentation/devicetree/bindings/mtd/nand.txt for generic bindings.
 
 
 Examples:

@@ -425,6 +425,12 @@ u32 host1x_syncpt_read_min(struct host1x_syncpt *sp)
 }
 EXPORT_SYMBOL(host1x_syncpt_read_min);
 
+u32 host1x_syncpt_read(struct host1x_syncpt *sp)
+{
+	return host1x_syncpt_load(sp);
+}
+EXPORT_SYMBOL(host1x_syncpt_read);
+
 int host1x_syncpt_nb_pts(struct host1x *host)
 {
 	return host->info->nb_pts;

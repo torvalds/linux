@@ -298,13 +298,6 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 		}							\
 	} while(0)
 
-static inline u8 virtio_cread8(struct virtio_device *vdev, unsigned int offset)
-{
-	u8 ret;
-	vdev->config->get(vdev, offset, &ret, sizeof(ret));
-	return ret;
-}
-
 /* Read @count fields, @bytes each. */
 static inline void __virtio_cread_many(struct virtio_device *vdev,
 				       unsigned int offset,
@@ -326,12 +319,18 @@ static inline void __virtio_cread_many(struct virtio_device *vdev,
 	} while (gen != old);
 }
 
-
 static inline void virtio_cread_bytes(struct virtio_device *vdev,
 				      unsigned int offset,
 				      void *buf, size_t len)
 {
 	__virtio_cread_many(vdev, offset, buf, len, 1);
+}
+
+static inline u8 virtio_cread8(struct virtio_device *vdev, unsigned int offset)
+{
+	u8 ret;
+	vdev->config->get(vdev, offset, &ret, sizeof(ret));
+	return ret;
 }
 
 static inline void virtio_cwrite8(struct virtio_device *vdev,
@@ -374,7 +373,6 @@ static inline u64 virtio_cread64(struct virtio_device *vdev,
 				 unsigned int offset)
 {
 	u64 ret;
-	vdev->config->get(vdev, offset, &ret, sizeof(ret));
 	__virtio_cread_many(vdev, offset, &ret, 1, sizeof(ret));
 	return virtio64_to_cpu(vdev, (__force __virtio64)ret);
 }

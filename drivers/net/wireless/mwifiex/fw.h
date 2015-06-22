@@ -197,6 +197,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
 #define ISSUPP_TDLS_ENABLED(FwCapInfo) (FwCapInfo & BIT(14))
+#define ISSUPP_SDIO_SPA_ENABLED(FwCapInfo) (FwCapInfo & BIT(16))
 
 #define MWIFIEX_DEF_HT_CAP	(IEEE80211_HT_CAP_DSSSCCK40 | \
 				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \
@@ -353,6 +354,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
 #define HostCmd_CMD_11AC_CFG			      0x0112
 #define HostCmd_CMD_TDLS_OPER                         0x0122
+#define HostCmd_CMD_SDIO_SP_RX_AGGR_CFG               0x0223
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -523,9 +525,11 @@ enum P2P_MODES {
 #define TYPE_OR				(MAX_OPERAND+5)
 #define MEF_MODE_HOST_SLEEP			1
 #define MEF_ACTION_ALLOW_AND_WAKEUP_HOST	3
+#define MEF_ACTION_AUTO_ARP                    0x10
 #define MWIFIEX_CRITERIA_BROADCAST	BIT(0)
 #define MWIFIEX_CRITERIA_UNICAST	BIT(1)
 #define MWIFIEX_CRITERIA_MULTICAST	BIT(3)
+#define MWIFIEX_MAX_SUPPORTED_IPADDR              4
 
 #define ACT_TDLS_DELETE            0x00
 #define ACT_TDLS_CREATE            0x01
@@ -1238,6 +1242,12 @@ struct host_cmd_ds_chan_rpt_event {
 	__le64 start_tsf;
 	__le32 duration;
 	u8 tlvbuf[0];
+} __packed;
+
+struct host_cmd_sdio_sp_rx_aggr_cfg {
+	u8 action;
+	u8 enable;
+	__le16 block_size;
 } __packed;
 
 struct mwifiex_fixed_bcn_param {
@@ -1962,6 +1972,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_coalesce_cfg coalesce_cfg;
 		struct host_cmd_ds_tdls_oper tdls_oper;
 		struct host_cmd_ds_chan_rpt_req chan_rpt_req;
+		struct host_cmd_sdio_sp_rx_aggr_cfg sdio_rx_aggr_cfg;
 	} params;
 } __packed;
 

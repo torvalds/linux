@@ -237,7 +237,7 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 			beiscsi_log(phba, KERN_WARNING,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
 				    BEISCSI_LOG_CONFIG,
-				    "BC_%d : Insufficent Buffer Error "
+				    "BC_%d : Insufficient Buffer Error "
 				    "Resp_Len : %d Actual_Resp_Len : %d\n",
 				    mbx_resp_hdr->response_length,
 				    mbx_resp_hdr->actual_resp_len);

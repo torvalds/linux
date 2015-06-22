@@ -66,8 +66,8 @@
 	.word		0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6
 
 	/*
-	 * void sha1_ce_transform(int blocks, u8 const *src, u32 *state,
-	 * 			  u8 *head, long bytes)
+	 * void sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
+	 *			  int blocks)
 	 */
 ENTRY(sha1_ce_transform)
 	/* load round constants */
@@ -78,25 +78,22 @@ ENTRY(sha1_ce_transform)
 	ld1r		{k3.4s}, [x6]
 
 	/* load state */
-	ldr		dga, [x2]
-	ldr		dgb, [x2, #16]
+	ldr		dga, [x0]
+	ldr		dgb, [x0, #16]
 
-	/* load partial state (if supplied) */
-	cbz		x3, 0f
-	ld1		{v8.4s-v11.4s}, [x3]
-	b		1f
+	/* load sha1_ce_state::finalize */
+	ldr		w4, [x0, #:lo12:sha1_ce_offsetof_finalize]
 
 	/* load input */
 0:	ld1		{v8.4s-v11.4s}, [x1], #64
-	sub		w0, w0, #1
+	sub		w2, w2, #1
 
-1:
 CPU_LE(	rev32		v8.16b, v8.16b		)
 CPU_LE(	rev32		v9.16b, v9.16b		)
 CPU_LE(	rev32		v10.16b, v10.16b	)
 CPU_LE(	rev32		v11.16b, v11.16b	)
 
-2:	add		t0.4s, v8.4s, k0.4s
+1:	add		t0.4s, v8.4s, k0.4s
 	mov		dg0v.16b, dgav.16b
 
 	add_update	c, ev, k0,  8,  9, 10, 11, dgb
@@ -127,15 +124,15 @@ CPU_LE(	rev32		v11.16b, v11.16b	)
 	add		dgbv.2s, dgbv.2s, dg1v.2s
 	add		dgav.4s, dgav.4s, dg0v.4s
 
-	cbnz		w0, 0b
+	cbnz		w2, 0b
 
 	/*
 	 * Final block: add padding and total bit count.
-	 * Skip if we have no total byte count in x4. In that case, the input
-	 * size was not a round multiple of the block size, and the padding is
-	 * handled by the C code.
+	 * Skip if the input size was not a round multiple of the block size,
+	 * the padding is handled by the C code in that case.
 	 */
 	cbz		x4, 3f
+	ldr		x4, [x0, #:lo12:sha1_ce_offsetof_count]
 	movi		v9.2d, #0
 	mov		x8, #0x80000000
 	movi		v10.2d, #0
@@ -144,10 +141,10 @@ CPU_LE(	rev32		v11.16b, v11.16b	)
 	mov		x4, #0
 	mov		v11.d[0], xzr
 	mov		v11.d[1], x7
-	b		2b
+	b		1b
 
 	/* store new state */
-3:	str		dga, [x2]
-	str		dgb, [x2, #16]
+3:	str		dga, [x0]
+	str		dgb, [x0, #16]
 	ret
 ENDPROC(sha1_ce_transform)

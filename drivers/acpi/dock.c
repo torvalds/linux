@@ -615,7 +615,7 @@ void acpi_dock_add(struct acpi_device *adev)
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	pdevinfo.name = "dock";
 	pdevinfo.id = dock_station_count;
-	pdevinfo.acpi_node.companion = adev;
+	pdevinfo.fwnode = acpi_fwnode_handle(adev);
 	pdevinfo.data = &ds;
 	pdevinfo.size_data = sizeof(ds);
 	dd = platform_device_register_full(&pdevinfo);

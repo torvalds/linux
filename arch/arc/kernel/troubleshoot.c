@@ -52,7 +52,7 @@ static void show_callee_regs(struct callee_regs *cregs)
 	print_reg_file(&(cregs->r13), 13);
 }
 
-void print_task_path_n_nm(struct task_struct *tsk, char *buf)
+static void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 {
 	struct path path;
 	char *path_nm = NULL;
@@ -77,7 +77,6 @@ void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 done:
 	pr_info("Path: %s\n", path_nm);
 }
-EXPORT_SYMBOL(print_task_path_n_nm);
 
 static void show_faulting_vma(unsigned long address, char *buf)
 {

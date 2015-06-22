@@ -492,6 +492,7 @@ ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 				for (j = 0; j < len; j++)
 					key->u.gen.rx_pn[i][j] =
 							seq[len - j - 1];
+			key->flags |= KEY_FLAG_CIPHER_SCHEME;
 		}
 	}
 	memcpy(key->conf.key, key_data, key_len);

@@ -143,6 +143,8 @@
 
 struct bcma_drv_pcie2 {
 	struct bcma_device *core;
+
+	u16 reqsize;
 };
 
 #define pcie2_read16(pcie2, offset)		bcma_read16((pcie2)->core, offset)
@@ -152,7 +154,5 @@ struct bcma_drv_pcie2 {
 
 #define pcie2_set32(pcie2, offset, set)		bcma_set32((pcie2)->core, offset, set)
 #define pcie2_mask32(pcie2, offset, mask)	bcma_mask32((pcie2)->core, offset, mask)
-
-void bcma_core_pcie2_init(struct bcma_drv_pcie2 *pcie2);
 
 #endif /* LINUX_BCMA_DRIVER_PCIE2_H_ */

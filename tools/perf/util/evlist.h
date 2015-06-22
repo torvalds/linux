@@ -27,7 +27,7 @@ struct perf_mmap {
 	void		 *base;
 	int		 mask;
 	int		 refcnt;
-	unsigned int	 prev;
+	u64		 prev;
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __attribute__((aligned(8)));
 };
 
@@ -51,6 +51,7 @@ struct perf_evlist {
 	struct thread_map *threads;
 	struct cpu_map	  *cpus;
 	struct perf_evsel *selected;
+	struct events_stats stats;
 };
 
 struct perf_evsel_str_handler {
@@ -77,6 +78,8 @@ int perf_evlist__add_newtp(struct perf_evlist *evlist,
 			   const char *sys, const char *name, void *handler);
 
 int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter);
+int perf_evlist__set_filter_pid(struct perf_evlist *evlist, pid_t pid);
+int perf_evlist__set_filter_pids(struct perf_evlist *evlist, size_t npids, pid_t *pids);
 
 struct perf_evsel *
 perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id);
@@ -149,7 +152,7 @@ static inline void perf_evlist__set_maps(struct perf_evlist *evlist,
 }
 
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target);
-int perf_evlist__apply_filters(struct perf_evlist *evlist);
+int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel);
 
 void __perf_evlist__set_leader(struct list_head *list);
 void perf_evlist__set_leader(struct perf_evlist *evlist);
@@ -186,16 +189,15 @@ size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp);
 int perf_evlist__strerror_open(struct perf_evlist *evlist, int err, char *buf, size_t size);
 int perf_evlist__strerror_mmap(struct perf_evlist *evlist, int err, char *buf, size_t size);
 
-static inline unsigned int perf_mmap__read_head(struct perf_mmap *mm)
+static inline u64 perf_mmap__read_head(struct perf_mmap *mm)
 {
 	struct perf_event_mmap_page *pc = mm->base;
-	int head = ACCESS_ONCE(pc->data_head);
+	u64 head = ACCESS_ONCE(pc->data_head);
 	rmb();
 	return head;
 }
 
-static inline void perf_mmap__write_tail(struct perf_mmap *md,
-					 unsigned long tail)
+static inline void perf_mmap__write_tail(struct perf_mmap *md, u64 tail)
 {
 	struct perf_event_mmap_page *pc = md->base;
 

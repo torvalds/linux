@@ -29,6 +29,7 @@ typedef struct {
 #define KUIDT_INIT(value) (kuid_t){ value }
 #define KGIDT_INIT(value) (kgid_t){ value }
 
+#ifdef CONFIG_MULTIUSER
 static inline uid_t __kuid_val(kuid_t uid)
 {
 	return uid.val;
@@ -38,6 +39,17 @@ static inline gid_t __kgid_val(kgid_t gid)
 {
 	return gid.val;
 }
+#else
+static inline uid_t __kuid_val(kuid_t uid)
+{
+	return 0;
+}
+
+static inline gid_t __kgid_val(kgid_t gid)
+{
+	return 0;
+}
+#endif
 
 #define GLOBAL_ROOT_UID KUIDT_INIT(0)
 #define GLOBAL_ROOT_GID KGIDT_INIT(0)
@@ -97,12 +109,12 @@ static inline bool gid_lte(kgid_t left, kgid_t right)
 
 static inline bool uid_valid(kuid_t uid)
 {
-	return !uid_eq(uid, INVALID_UID);
+	return __kuid_val(uid) != (uid_t) -1;
 }
 
 static inline bool gid_valid(kgid_t gid)
 {
-	return !gid_eq(gid, INVALID_GID);
+	return __kgid_val(gid) != (gid_t) -1;
 }
 
 #ifdef CONFIG_USER_NS

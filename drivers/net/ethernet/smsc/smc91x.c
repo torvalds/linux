@@ -2204,27 +2204,17 @@ static int try_toggle_control_gpio(struct device *dev,
 				   int value, unsigned int nsdelay)
 {
 	struct gpio_desc *gpio = *desc;
-	int res;
+	enum gpiod_flags flags = value ? GPIOD_OUT_LOW : GPIOD_OUT_HIGH;
 
-	gpio = devm_gpiod_get_index(dev, name, index);
-	if (IS_ERR(gpio)) {
-		if (PTR_ERR(gpio) == -ENOENT) {
-			*desc = NULL;
-			return 0;
-		}
-
+	gpio = devm_gpiod_get_index_optional(dev, name, index, flags);
+	if (IS_ERR(gpio))
 		return PTR_ERR(gpio);
+
+	if (gpio) {
+		if (nsdelay)
+			usleep_range(nsdelay, 2 * nsdelay);
+		gpiod_set_value_cansleep(gpio, value);
 	}
-	res = gpiod_direction_output(gpio, !value);
-	if (res) {
-		dev_err(dev, "unable to toggle gpio %s: %i\n", name, res);
-		devm_gpiod_put(dev, gpio);
-		gpio = NULL;
-		return res;
-	}
-	if (nsdelay)
-		usleep_range(nsdelay, 2 * nsdelay);
-	gpiod_set_value_cansleep(gpio, value);
 	*desc = gpio;
 
 	return 0;
@@ -2248,9 +2238,10 @@ static int smc_drv_probe(struct platform_device *pdev)
 	const struct of_device_id *match = NULL;
 	struct smc_local *lp;
 	struct net_device *ndev;
-	struct resource *res, *ires;
+	struct resource *res;
 	unsigned int __iomem *addr;
 	unsigned long irq_flags = SMC_IRQ_FLAGS;
+	unsigned long irq_resflags;
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct smc_local));
@@ -2342,16 +2333,19 @@ static int smc_drv_probe(struct platform_device *pdev)
 		goto out_free_netdev;
 	}
 
-	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!ires) {
+	ndev->irq = platform_get_irq(pdev, 0);
+	if (ndev->irq <= 0) {
 		ret = -ENODEV;
 		goto out_release_io;
 	}
-
-	ndev->irq = ires->start;
-
-	if (irq_flags == -1 || ires->flags & IRQF_TRIGGER_MASK)
-		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
+	/*
+	 * If this platform does not specify any special irqflags, or if
+	 * the resource supplies a trigger, override the irqflags with
+	 * the trigger flags from the resource.
+	 */
+	irq_resflags = irqd_get_trigger_type(irq_get_irq_data(ndev->irq));
+	if (irq_flags == -1 || irq_resflags & IRQF_TRIGGER_MASK)
+		irq_flags = irq_resflags & IRQF_TRIGGER_MASK;
 
 	ret = smc_request_attrib(pdev, ndev);
 	if (ret)

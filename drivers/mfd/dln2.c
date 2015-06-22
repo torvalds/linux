@@ -435,7 +435,7 @@ static int _dln2_transfer(struct dln2_dev *dln2, u16 handle, u16 cmd,
 	struct dln2_response *rsp;
 	struct dln2_rx_context *rxc;
 	struct device *dev = &dln2->interface->dev;
-	const unsigned long timeout = DLN2_USB_TIMEOUT * HZ / 1000;
+	const unsigned long timeout = msecs_to_jiffies(DLN2_USB_TIMEOUT);
 	struct dln2_mod_rx_slots *rxs = &dln2->mod_rx_slots[handle];
 	int size;
 

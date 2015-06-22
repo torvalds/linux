@@ -811,8 +811,8 @@ static void tipc_purge_publications(struct net *net, struct name_seq *seq)
 	sseq = seq->sseqs;
 	info = sseq->info;
 	list_for_each_entry_safe(publ, safe, &info->zone_list, zone_list) {
-		tipc_nametbl_remove_publ(net, publ->type, publ->lower,
-					 publ->node, publ->ref, publ->key);
+		tipc_nameseq_remove_publ(net, seq, publ->lower, publ->node,
+					 publ->ref, publ->key);
 		kfree_rcu(publ, rcu);
 	}
 	hlist_del_init_rcu(&seq->ns_list);

@@ -233,9 +233,12 @@ static pgprot_t __init init_pgprot(ulong address)
 	if (kdata_huge)
 		return construct_pgprot(PAGE_KERNEL, PAGE_HOME_HASH);
 
-	/* We map the aliased pages of permanent text inaccessible. */
+	/*
+	 * We map the aliased pages of permanent text so we can
+	 * update them if necessary, for ftrace, etc.
+	 */
 	if (address < (ulong) _sinittext - CODE_DELTA)
-		return PAGE_NONE;
+		return construct_pgprot(PAGE_KERNEL, PAGE_HOME_HASH);
 
 	/* We map read-only data non-coherent for performance. */
 	if ((address >= (ulong) __start_rodata &&

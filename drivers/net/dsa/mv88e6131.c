@@ -17,12 +17,6 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
-/* Switch product IDs */
-#define ID_6085		0x04a0
-#define ID_6095		0x0950
-#define ID_6131		0x1060
-#define ID_6131_B2	0x1066
-
 static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 {
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
@@ -31,54 +25,21 @@ static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 	if (bus == NULL)
 		return NULL;
 
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
+	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
 	if (ret >= 0) {
 		int ret_masked = ret & 0xfff0;
 
-		if (ret_masked == ID_6085)
+		if (ret_masked == PORT_SWITCH_ID_6085)
 			return "Marvell 88E6085";
-		if (ret_masked == ID_6095)
+		if (ret_masked == PORT_SWITCH_ID_6095)
 			return "Marvell 88E6095/88E6095F";
-		if (ret == ID_6131_B2)
+		if (ret == PORT_SWITCH_ID_6131_B2)
 			return "Marvell 88E6131 (B2)";
-		if (ret_masked == ID_6131)
+		if (ret_masked == PORT_SWITCH_ID_6131)
 			return "Marvell 88E6131";
 	}
 
 	return NULL;
-}
-
-static int mv88e6131_switch_reset(struct dsa_switch *ds)
-{
-	int i;
-	int ret;
-	unsigned long timeout;
-
-	/* Set all ports to the disabled state. */
-	for (i = 0; i < 11; i++) {
-		ret = REG_READ(REG_PORT(i), 0x04);
-		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
-	}
-
-	/* Wait for transmit queues to drain. */
-	usleep_range(2000, 4000);
-
-	/* Reset the switch. */
-	REG_WRITE(REG_GLOBAL, 0x04, 0xc400);
-
-	/* Wait up to one second for reset to complete. */
-	timeout = jiffies + 1 * HZ;
-	while (time_before(jiffies, timeout)) {
-		ret = REG_READ(REG_GLOBAL, 0x00);
-		if ((ret & 0xc800) == 0xc800)
-			break;
-
-		usleep_range(1000, 2000);
-	}
-	if (time_after(jiffies, timeout))
-		return -ETIMEDOUT;
-
-	return 0;
 }
 
 static int mv88e6131_setup_global(struct dsa_switch *ds)
@@ -174,7 +135,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 * (100 Mb/s on 6085) full duplex.
 	 */
 	if (dsa_is_cpu_port(ds, p) || ds->dsa_port_mask & (1 << p))
-		if (ps->id == ID_6085)
+		if (ps->id == PORT_SWITCH_ID_6085)
 			REG_WRITE(addr, 0x01, 0x003d); /* 100 Mb/s */
 		else
 			REG_WRITE(addr, 0x01, 0x003e); /* 1000 Mb/s */
@@ -201,34 +162,12 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 		/* On 6085, unknown multicast forward is controlled
 		 * here rather than in Port Control 2 register.
 		 */
-		if (ps->id == ID_6085)
+		if (ps->id == PORT_SWITCH_ID_6085)
 			val |= 0x0008;
 	}
 	if (ds->dsa_port_mask & (1 << p))
 		val |= 0x0100;
 	REG_WRITE(addr, 0x04, val);
-
-	/* Port Control 1: disable trunking.  Also, if this is the
-	 * CPU port, enable learn messages to be sent to this port.
-	 */
-	REG_WRITE(addr, 0x05, dsa_is_cpu_port(ds, p) ? 0x8000 : 0x0000);
-
-	/* Port based VLAN map: give each port its own address
-	 * database, allow the CPU port to talk to each of the 'real'
-	 * ports, and allow each of the 'real' ports to only talk to
-	 * the upstream port.
-	 */
-	val = (p & 0xf) << 12;
-	if (dsa_is_cpu_port(ds, p))
-		val |= ds->phys_port_mask;
-	else
-		val |= 1 << dsa_upstream_port(ds);
-	REG_WRITE(addr, 0x06, val);
-
-	/* Default VLAN ID and priority: don't set a default VLAN
-	 * ID, and set the default packet priority to zero.
-	 */
-	REG_WRITE(addr, 0x07, 0x0000);
 
 	/* Port Control 2: don't force a good FCS, don't use
 	 * VLAN-based, source address-based or destination
@@ -242,7 +181,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 * If this is the upstream port for this switch, enable
 	 * forwarding of unknown multicast addresses.
 	 */
-	if (ps->id == ID_6085)
+	if (ps->id == PORT_SWITCH_ID_6085)
 		/* on 6085, bits 3:0 are reserved, bit 6 control ARP
 		 * mirroring, and multicast forward is handled in
 		 * Port Control register.
@@ -278,7 +217,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 */
 	REG_WRITE(addr, 0x19, 0x7654);
 
-	return 0;
+	return mv88e6xxx_setup_port_common(ds, p);
 }
 
 static int mv88e6131_setup(struct dsa_switch *ds)
@@ -287,13 +226,28 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	int i;
 	int ret;
 
-	mutex_init(&ps->smi_mutex);
+	ret = mv88e6xxx_setup_common(ds);
+	if (ret < 0)
+		return ret;
+
 	mv88e6xxx_ppu_state_init(ds);
-	mutex_init(&ps->stats_mutex);
 
-	ps->id = REG_READ(REG_PORT(0), 0x03) & 0xfff0;
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6085:
+		ps->num_ports = 10;
+		break;
+	case PORT_SWITCH_ID_6095:
+		ps->num_ports = 11;
+		break;
+	case PORT_SWITCH_ID_6131:
+	case PORT_SWITCH_ID_6131_B2:
+		ps->num_ports = 8;
+		break;
+	default:
+		return -ENODEV;
+	}
 
-	ret = mv88e6131_switch_reset(ds);
+	ret = mv88e6xxx_switch_reset(ds, false);
 	if (ret < 0)
 		return ret;
 
@@ -303,7 +257,7 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < 11; i++) {
+	for (i = 0; i < ps->num_ports; i++) {
 		ret = mv88e6131_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
@@ -312,17 +266,24 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6131_port_to_phy_addr(int port)
+static int mv88e6131_port_to_phy_addr(struct dsa_switch *ds, int port)
 {
-	if (port >= 0 && port <= 11)
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (port >= 0 && port < ps->num_ports)
 		return port;
-	return -1;
+
+	return -EINVAL;
 }
 
 static int
 mv88e6131_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
-	int addr = mv88e6131_port_to_phy_addr(port);
+	int addr = mv88e6131_port_to_phy_addr(ds, port);
+
+	if (addr < 0)
+		return addr;
+
 	return mv88e6xxx_phy_read_ppu(ds, addr, regnum);
 }
 
@@ -330,61 +291,12 @@ static int
 mv88e6131_phy_write(struct dsa_switch *ds,
 			      int port, int regnum, u16 val)
 {
-	int addr = mv88e6131_port_to_phy_addr(port);
+	int addr = mv88e6131_port_to_phy_addr(ds, port);
+
+	if (addr < 0)
+		return addr;
+
 	return mv88e6xxx_phy_write_ppu(ds, addr, regnum, val);
-}
-
-static struct mv88e6xxx_hw_stat mv88e6131_hw_stats[] = {
-	{ "in_good_octets", 8, 0x00, },
-	{ "in_bad_octets", 4, 0x02, },
-	{ "in_unicast", 4, 0x04, },
-	{ "in_broadcasts", 4, 0x06, },
-	{ "in_multicasts", 4, 0x07, },
-	{ "in_pause", 4, 0x16, },
-	{ "in_undersize", 4, 0x18, },
-	{ "in_fragments", 4, 0x19, },
-	{ "in_oversize", 4, 0x1a, },
-	{ "in_jabber", 4, 0x1b, },
-	{ "in_rx_error", 4, 0x1c, },
-	{ "in_fcs_error", 4, 0x1d, },
-	{ "out_octets", 8, 0x0e, },
-	{ "out_unicast", 4, 0x10, },
-	{ "out_broadcasts", 4, 0x13, },
-	{ "out_multicasts", 4, 0x12, },
-	{ "out_pause", 4, 0x15, },
-	{ "excessive", 4, 0x11, },
-	{ "collisions", 4, 0x1e, },
-	{ "deferred", 4, 0x05, },
-	{ "single", 4, 0x14, },
-	{ "multiple", 4, 0x17, },
-	{ "out_fcs_error", 4, 0x03, },
-	{ "late", 4, 0x1f, },
-	{ "hist_64bytes", 4, 0x08, },
-	{ "hist_65_127bytes", 4, 0x09, },
-	{ "hist_128_255bytes", 4, 0x0a, },
-	{ "hist_256_511bytes", 4, 0x0b, },
-	{ "hist_512_1023bytes", 4, 0x0c, },
-	{ "hist_1024_max_bytes", 4, 0x0d, },
-};
-
-static void
-mv88e6131_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
-{
-	mv88e6xxx_get_strings(ds, ARRAY_SIZE(mv88e6131_hw_stats),
-			      mv88e6131_hw_stats, port, data);
-}
-
-static void
-mv88e6131_get_ethtool_stats(struct dsa_switch *ds,
-				  int port, uint64_t *data)
-{
-	mv88e6xxx_get_ethtool_stats(ds, ARRAY_SIZE(mv88e6131_hw_stats),
-				    mv88e6131_hw_stats, port, data);
-}
-
-static int mv88e6131_get_sset_count(struct dsa_switch *ds)
-{
-	return ARRAY_SIZE(mv88e6131_hw_stats);
 }
 
 struct dsa_switch_driver mv88e6131_switch_driver = {
@@ -396,9 +308,9 @@ struct dsa_switch_driver mv88e6131_switch_driver = {
 	.phy_read		= mv88e6131_phy_read,
 	.phy_write		= mv88e6131_phy_write,
 	.poll_link		= mv88e6xxx_poll_link,
-	.get_strings		= mv88e6131_get_strings,
-	.get_ethtool_stats	= mv88e6131_get_ethtool_stats,
-	.get_sset_count		= mv88e6131_get_sset_count,
+	.get_strings		= mv88e6xxx_get_strings,
+	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
+	.get_sset_count		= mv88e6xxx_get_sset_count,
 };
 
 MODULE_ALIAS("platform:mv88e6085");

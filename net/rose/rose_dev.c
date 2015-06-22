@@ -41,6 +41,9 @@ static int rose_header(struct sk_buff *skb, struct net_device *dev,
 {
 	unsigned char *buff = skb_push(skb, ROSE_MIN_LEN + 2);
 
+	if (daddr)
+		memcpy(buff + 7, daddr, dev->addr_len);
+
 	*buff++ = ROSE_GFI | ROSE_Q_BIT;
 	*buff++ = 0x00;
 	*buff++ = ROSE_DATA;
@@ -51,43 +54,6 @@ static int rose_header(struct sk_buff *skb, struct net_device *dev,
 		return 37;
 
 	return -37;
-}
-
-static int rose_rebuild_header(struct sk_buff *skb)
-{
-#ifdef CONFIG_INET
-	struct net_device *dev = skb->dev;
-	struct net_device_stats *stats = &dev->stats;
-	unsigned char *bp = (unsigned char *)skb->data;
-	struct sk_buff *skbn;
-	unsigned int len;
-
-	if (arp_find(bp + 7, skb)) {
-		return 1;
-	}
-
-	if ((skbn = skb_clone(skb, GFP_ATOMIC)) == NULL) {
-		kfree_skb(skb);
-		return 1;
-	}
-
-	if (skb->sk != NULL)
-		skb_set_owner_w(skbn, skb->sk);
-
-	kfree_skb(skb);
-
-	len = skbn->len;
-
-	if (!rose_route_frame(skbn, NULL)) {
-		kfree_skb(skbn);
-		stats->tx_errors++;
-		return 1;
-	}
-
-	stats->tx_packets++;
-	stats->tx_bytes += len;
-#endif
-	return 1;
 }
 
 static int rose_set_mac_address(struct net_device *dev, void *addr)
@@ -134,19 +100,26 @@ static int rose_close(struct net_device *dev)
 static netdev_tx_t rose_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device_stats *stats = &dev->stats;
+	unsigned int len = skb->len;
 
 	if (!netif_running(dev)) {
 		printk(KERN_ERR "ROSE: rose_xmit - called when iface is down\n");
 		return NETDEV_TX_BUSY;
 	}
-	dev_kfree_skb(skb);
-	stats->tx_errors++;
+
+	if (!rose_route_frame(skb, NULL)) {
+		dev_kfree_skb(skb);
+		stats->tx_errors++;
+		return NETDEV_TX_OK;
+	}
+
+	stats->tx_packets++;
+	stats->tx_bytes += len;
 	return NETDEV_TX_OK;
 }
 
 static const struct header_ops rose_header_ops = {
 	.create	= rose_header,
-	.rebuild = rose_rebuild_header,
 };
 
 static const struct net_device_ops rose_netdev_ops = {

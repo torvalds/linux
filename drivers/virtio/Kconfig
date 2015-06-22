@@ -48,6 +48,16 @@ config VIRTIO_BALLOON
 
 	 If unsure, say M.
 
+config VIRTIO_INPUT
+	tristate "Virtio input driver"
+	depends on VIRTIO
+	depends on INPUT
+	---help---
+	 This driver supports virtio input devices such as
+	 keyboards, mice and tablets.
+
+	 If unsure, say M.
+
  config VIRTIO_MMIO
 	tristate "Platform bus driver for memory mapped virtio devices"
 	depends on HAS_IOMEM

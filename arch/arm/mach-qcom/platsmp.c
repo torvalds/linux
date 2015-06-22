@@ -17,10 +17,10 @@
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/qcom_scm.h>
 
 #include <asm/smp_plat.h>
 
-#include "scm-boot.h"
 
 #define VDD_SC1_ARRAY_CLAMP_GFS_CTL	0x35a0
 #define SCSS_CPU1CORE_RESET		0x2d80
@@ -319,25 +319,10 @@ static int kpssv2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int cpu, map;
-	unsigned int flags = 0;
-	static const int cold_boot_flags[] = {
-		0,
-		SCM_FLAG_COLDBOOT_CPU1,
-		SCM_FLAG_COLDBOOT_CPU2,
-		SCM_FLAG_COLDBOOT_CPU3,
-	};
+	int cpu;
 
-	for_each_present_cpu(cpu) {
-		map = cpu_logical_map(cpu);
-		if (WARN_ON(map >= ARRAY_SIZE(cold_boot_flags))) {
-			set_cpu_present(cpu, false);
-			continue;
-		}
-		flags |= cold_boot_flags[map];
-	}
-
-	if (scm_set_boot_addr(virt_to_phys(secondary_startup_arm), flags)) {
+	if (qcom_scm_set_cold_boot_addr(secondary_startup_arm,
+					cpu_present_mask)) {
 		for_each_present_cpu(cpu) {
 			if (cpu == smp_processor_id())
 				continue;

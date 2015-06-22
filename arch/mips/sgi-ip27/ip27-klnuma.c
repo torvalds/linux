@@ -29,8 +29,8 @@ static cpumask_t ktext_repmask;
 void __init setup_replication_mask(void)
 {
 	/* Set only the master cnode's bit.  The master cnode is always 0. */
-	cpus_clear(ktext_repmask);
-	cpu_set(0, ktext_repmask);
+	cpumask_clear(&ktext_repmask);
+	cpumask_set_cpu(0, &ktext_repmask);
 
 #ifdef CONFIG_REPLICATE_KTEXT
 #ifndef CONFIG_MAPPED_KERNEL
@@ -43,7 +43,7 @@ void __init setup_replication_mask(void)
 			if (cnode == 0)
 				continue;
 			/* Advertise that we have a copy of the kernel */
-			cpu_set(cnode, ktext_repmask);
+			cpumask_set_cpu(cnode, &ktext_repmask);
 		}
 	}
 #endif
@@ -99,7 +99,7 @@ void __init replicate_kernel_text()
 		client_nasid = COMPACT_TO_NASID_NODEID(cnode);
 
 		/* Check if this node should get a copy of the kernel */
-		if (cpu_isset(cnode, ktext_repmask)) {
+		if (cpumask_test_cpu(cnode, &ktext_repmask)) {
 			server_nasid = client_nasid;
 			copy_kernel(server_nasid);
 		}
@@ -124,7 +124,7 @@ unsigned long node_getfirstfree(cnodeid_t cnode)
 	loadbase += 16777216;
 #endif
 	offset = PAGE_ALIGN((unsigned long)(&_end)) - loadbase;
-	if ((cnode == 0) || (cpu_isset(cnode, ktext_repmask)))
+	if ((cnode == 0) || (cpumask_test_cpu(cnode, &ktext_repmask)))
 		return TO_NODE(nasid, offset) >> PAGE_SHIFT;
 	else
 		return KDM_TO_PHYS(PAGE_ALIGN(SYMMON_STK_ADDR(nasid, 0))) >> PAGE_SHIFT;

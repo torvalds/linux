@@ -96,13 +96,15 @@ struct crush_rule {
  *  uniform         O(1)       poor         poor
  *  list            O(n)       optimal      poor
  *  tree            O(log n)   good         good
- *  straw           O(n)       optimal      optimal
+ *  straw           O(n)       better       better
+ *  straw2          O(n)       optimal      optimal
  */
 enum {
 	CRUSH_BUCKET_UNIFORM = 1,
 	CRUSH_BUCKET_LIST = 2,
 	CRUSH_BUCKET_TREE = 3,
-	CRUSH_BUCKET_STRAW = 4
+	CRUSH_BUCKET_STRAW = 4,
+	CRUSH_BUCKET_STRAW2 = 5,
 };
 extern const char *crush_bucket_alg_name(int alg);
 
@@ -149,6 +151,11 @@ struct crush_bucket_straw {
 	__u32 *straws;         /* 16-bit fixed point */
 };
 
+struct crush_bucket_straw2 {
+	struct crush_bucket h;
+	__u32 *item_weights;   /* 16-bit fixed point */
+};
+
 
 
 /*
@@ -189,6 +196,7 @@ extern void crush_destroy_bucket_uniform(struct crush_bucket_uniform *b);
 extern void crush_destroy_bucket_list(struct crush_bucket_list *b);
 extern void crush_destroy_bucket_tree(struct crush_bucket_tree *b);
 extern void crush_destroy_bucket_straw(struct crush_bucket_straw *b);
+extern void crush_destroy_bucket_straw2(struct crush_bucket_straw2 *b);
 extern void crush_destroy_bucket(struct crush_bucket *b);
 extern void crush_destroy_rule(struct crush_rule *r);
 extern void crush_destroy(struct crush_map *map);

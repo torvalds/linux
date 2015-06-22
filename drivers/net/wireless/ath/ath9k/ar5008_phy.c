@@ -681,11 +681,12 @@ static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
 			phymode |= AR_PHY_FC_DYN2040_PRI_CH;
 
 	}
+	ENABLE_REGWRITE_BUFFER(ah);
 	REG_WRITE(ah, AR_PHY_TURBO, phymode);
 
+	/* This function do only REG_WRITE, so
+	 * we can include it to REGWRITE_BUFFER. */
 	ath9k_hw_set11nmac2040(ah, chan);
-
-	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_GTXTO, 25 << AR_GTXTO_TIMEOUT_LIMIT_S);
 	REG_WRITE(ah, AR_CST, 0xF << AR_CST_TIMEOUT_LIMIT_S);

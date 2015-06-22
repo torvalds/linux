@@ -211,6 +211,7 @@ int arizona_irq_init(struct arizona *arizona)
 #endif
 #ifdef CONFIG_MFD_WM5110
 	case WM5110:
+	case WM8280:
 		aod = &wm5110_aod;
 
 		switch (arizona->rev) {

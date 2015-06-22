@@ -395,9 +395,20 @@ int rt286_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 
 	rt286->jack = jack;
 
-	/* Send an initial empty report */
-	snd_soc_jack_report(rt286->jack, 0,
-		SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
+	if (jack) {
+		/* enable IRQ */
+		if (rt286->jack->status & SND_JACK_HEADPHONE)
+			snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO1");
+		regmap_update_bits(rt286->regmap, RT286_IRQ_CTRL, 0x2, 0x2);
+		/* Send an initial empty report */
+		snd_soc_jack_report(rt286->jack, rt286->jack->status,
+			SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
+	} else {
+		/* disable IRQ */
+		regmap_update_bits(rt286->regmap, RT286_IRQ_CTRL, 0x2, 0x0);
+		snd_soc_dapm_disable_pin(&codec->dapm, "LDO1");
+	}
+	snd_soc_dapm_sync(&codec->dapm);
 
 	return 0;
 }
@@ -1037,7 +1048,6 @@ static int rt286_probe(struct snd_soc_codec *codec)
 	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
 
 	rt286->codec = codec;
-	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 
 	if (rt286->i2c->irq) {
 		regmap_update_bits(rt286->regmap,
@@ -1209,7 +1219,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt286_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt286_priv *rt286;
-	int i, ret;
+	int i, ret, val;
 
 	rt286 = devm_kzalloc(&i2c->dev,	sizeof(*rt286),
 				GFP_KERNEL);
@@ -1224,17 +1234,29 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	regmap_read(rt286->regmap,
-		RT286_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID), &ret);
-	if (ret != RT286_VENDOR_ID && ret != RT288_VENDOR_ID) {
+	ret = regmap_read(rt286->regmap,
+		RT286_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID), &val);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "I2C error %d\n", ret);
+		return ret;
+	}
+	if (val != RT286_VENDOR_ID && val != RT288_VENDOR_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt286\n", ret);
+			"Device with ID register %x is not rt286\n", val);
 		return -ENODEV;
 	}
 
 	rt286->index_cache = rt286_index_def;
 	rt286->i2c = i2c;
 	i2c_set_clientdata(i2c, rt286);
+
+	/* restore codec default */
+	for (i = 0; i < INDEX_CACHE_SIZE; i++)
+		regmap_write(rt286->regmap, rt286->index_cache[i].reg,
+				rt286->index_cache[i].def);
+	for (i = 0; i < ARRAY_SIZE(rt286_reg); i++)
+		regmap_write(rt286->regmap, rt286_reg[i].reg,
+				rt286_reg[i].def);
 
 	if (pdata)
 		rt286->pdata = *pdata;

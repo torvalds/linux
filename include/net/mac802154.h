@@ -19,6 +19,7 @@
 #include <net/af_ieee802154.h>
 #include <linux/ieee802154.h>
 #include <linux/skbuff.h>
+#include <linux/unaligned/memmove.h>
 
 #include <net/cfg802154.h>
 
@@ -212,7 +213,7 @@ struct ieee802154_ops {
 	int		(*set_hw_addr_filt)(struct ieee802154_hw *hw,
 					    struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed);
-	int		(*set_txpower)(struct ieee802154_hw *hw, int db);
+	int		(*set_txpower)(struct ieee802154_hw *hw, s8 dbm);
 	int		(*set_lbt)(struct ieee802154_hw *hw, bool on);
 	int		(*set_cca_mode)(struct ieee802154_hw *hw,
 					const struct wpan_phy_cca *cca);
@@ -233,9 +234,7 @@ struct ieee802154_ops {
  */
 static inline void ieee802154_be64_to_le64(void *le64_dst, const void *be64_src)
 {
-	__le64 tmp = (__force __le64)swab64p(be64_src);
-
-	memcpy(le64_dst, &tmp, IEEE802154_EXTENDED_ADDR_LEN);
+	__put_unaligned_memmove64(swab64p(be64_src), le64_dst);
 }
 
 /**
@@ -245,24 +244,112 @@ static inline void ieee802154_be64_to_le64(void *le64_dst, const void *be64_src)
  */
 static inline void ieee802154_le64_to_be64(void *be64_dst, const void *le64_src)
 {
-	__be64 tmp = (__force __be64)swab64p(le64_src);
-
-	memcpy(be64_dst, &tmp, IEEE802154_EXTENDED_ADDR_LEN);
+	__put_unaligned_memmove64(swab64p(le64_src), be64_dst);
 }
 
-/* Basic interface to register ieee802154 hwice */
+/**
+ * ieee802154_alloc_hw - Allocate a new hardware device
+ *
+ * This must be called once for each hardware device. The returned pointer
+ * must be used to refer to this device when calling other functions.
+ * mac802154 allocates a private data area for the driver pointed to by
+ * @priv in &struct ieee802154_hw, the size of this area is given as
+ * @priv_data_len.
+ *
+ * @priv_data_len: length of private data
+ * @ops: callbacks for this device
+ *
+ * Return: A pointer to the new hardware device, or %NULL on error.
+ */
 struct ieee802154_hw *
 ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops);
+
+/**
+ * ieee802154_free_hw - free hardware descriptor
+ *
+ * This function frees everything that was allocated, including the
+ * private data for the driver. You must call ieee802154_unregister_hw()
+ * before calling this function.
+ *
+ * @hw: the hardware to free
+ */
 void ieee802154_free_hw(struct ieee802154_hw *hw);
+
+/**
+ * ieee802154_register_hw - Register hardware device
+ *
+ * You must call this function before any other functions in
+ * mac802154. Note that before a hardware can be registered, you
+ * need to fill the contained wpan_phy's information.
+ *
+ * @hw: the device to register as returned by ieee802154_alloc_hw()
+ *
+ * Return: 0 on success. An error code otherwise.
+ */
 int ieee802154_register_hw(struct ieee802154_hw *hw);
+
+/**
+ * ieee802154_unregister_hw - Unregister a hardware device
+ *
+ * This function instructs mac802154 to free allocated resources
+ * and unregister netdevices from the networking subsystem.
+ *
+ * @hw: the hardware to unregister
+ */
 void ieee802154_unregister_hw(struct ieee802154_hw *hw);
 
+/**
+ * ieee802154_rx - receive frame
+ *
+ * Use this function to hand received frames to mac802154. The receive
+ * buffer in @skb must start with an IEEE 802.15.4 header. In case of a
+ * paged @skb is used, the driver is recommended to put the ieee802154
+ * header of the frame on the linear part of the @skb to avoid memory
+ * allocation and/or memcpy by the stack.
+ *
+ * This function may not be called in IRQ context. Calls to this function
+ * for a single hardware must be synchronized against each other.
+ *
+ * @hw: the hardware this frame came in on
+ * @skb: the buffer to receive, owned by mac802154 after this call
+ */
 void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb);
+
+/**
+ * ieee802154_rx_irqsafe - receive frame
+ *
+ * Like ieee802154_rx() but can be called in IRQ context
+ * (internally defers to a tasklet.)
+ *
+ * @hw: the hardware this frame came in on
+ * @skb: the buffer to receive, owned by mac802154 after this call
+ * @lqi: link quality indicator
+ */
 void ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
 			   u8 lqi);
-
+/**
+ * ieee802154_wake_queue - wake ieee802154 queue
+ * @hw: pointer as obtained from ieee802154_alloc_hw().
+ *
+ * Drivers should use this function instead of netif_wake_queue.
+ */
 void ieee802154_wake_queue(struct ieee802154_hw *hw);
+
+/**
+ * ieee802154_stop_queue - stop ieee802154 queue
+ * @hw: pointer as obtained from ieee802154_alloc_hw().
+ *
+ * Drivers should use this function instead of netif_stop_queue.
+ */
 void ieee802154_stop_queue(struct ieee802154_hw *hw);
+
+/**
+ * ieee802154_xmit_complete - frame transmission complete
+ *
+ * @hw: pointer as obtained from ieee802154_alloc_hw().
+ * @skb: buffer for transmission
+ * @ifs_handling: indicate interframe space handling
+ */
 void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 			      bool ifs_handling);
 

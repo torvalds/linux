@@ -130,6 +130,13 @@ config COMMON_CLK_PALMAS
 	  This driver supports TI Palmas devices 32KHz output KG and KG_AUDIO
 	  using common clock framework.
 
+config COMMON_CLK_PWM
+	tristate "Clock driver for PWMs used as clock outputs"
+	depends on PWM
+	---help---
+	  Adapter driver so that any PWM output can be (mis)used as clock signal
+	  at 50% duty cycle.
+
 config COMMON_CLK_PXA
 	def_bool COMMON_CLK && ARCH_PXA
 	---help---

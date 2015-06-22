@@ -260,10 +260,7 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	tc3589x_gpio->chip.ngpio = tc3589x->num_gpio;
 	tc3589x_gpio->chip.dev = &pdev->dev;
 	tc3589x_gpio->chip.base = -1;
-
-#ifdef CONFIG_OF_GPIO
 	tc3589x_gpio->chip.of_node = np;
-#endif
 
 	/* Bring the GPIO module out of reset */
 	ret = tc3589x_set_bits(tc3589x, TC3589x_RSTCTRL,

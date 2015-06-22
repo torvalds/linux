@@ -43,9 +43,16 @@
 		#clock-cells = <1>;
 		clock-output-names = "xin32k", "rk808-clkout2";
 
+		vcc1-supply = <&vcc_sys>;
+		vcc2-supply = <&vcc_sys>;
+		vcc3-supply = <&vcc_sys>;
+		vcc4-supply = <&vcc_sys>;
+		vcc6-supply = <&vcc_sys>;
+		vcc7-supply = <&vcc_sys>;
 		vcc8-supply = <&vcc_18>;
 		vcc9-supply = <&vcc_io>;
 		vcc10-supply = <&vcc_io>;
+		vcc11-supply = <&vcc_sys>;
 		vcc12-supply = <&vcc_io>;
 		vddio-supply = <&vccio_pmu>;
 

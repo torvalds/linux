@@ -257,21 +257,17 @@ static ssize_t process_vm_rw(pid_t pid,
 	struct iovec *iov_r = iovstack_r;
 	struct iov_iter iter;
 	ssize_t rc;
+	int dir = vm_write ? WRITE : READ;
 
 	if (flags != 0)
 		return -EINVAL;
 
 	/* Check iovecs */
-	if (vm_write)
-		rc = rw_copy_check_uvector(WRITE, lvec, liovcnt, UIO_FASTIOV,
-					   iovstack_l, &iov_l);
-	else
-		rc = rw_copy_check_uvector(READ, lvec, liovcnt, UIO_FASTIOV,
-					   iovstack_l, &iov_l);
-	if (rc <= 0)
+	rc = import_iovec(dir, lvec, liovcnt, UIO_FASTIOV, &iov_l, &iter);
+	if (rc < 0)
+		return rc;
+	if (!iov_iter_count(&iter))
 		goto free_iovecs;
-
-	iov_iter_init(&iter, vm_write ? WRITE : READ, iov_l, liovcnt, rc);
 
 	rc = rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt, UIO_FASTIOV,
 				   iovstack_r, &iov_r);
@@ -283,8 +279,7 @@ static ssize_t process_vm_rw(pid_t pid,
 free_iovecs:
 	if (iov_r != iovstack_r)
 		kfree(iov_r);
-	if (iov_l != iovstack_l)
-		kfree(iov_l);
+	kfree(iov_l);
 
 	return rc;
 }
@@ -320,21 +315,16 @@ compat_process_vm_rw(compat_pid_t pid,
 	struct iovec *iov_r = iovstack_r;
 	struct iov_iter iter;
 	ssize_t rc = -EFAULT;
+	int dir = vm_write ? WRITE : READ;
 
 	if (flags != 0)
 		return -EINVAL;
 
-	if (vm_write)
-		rc = compat_rw_copy_check_uvector(WRITE, lvec, liovcnt,
-						  UIO_FASTIOV, iovstack_l,
-						  &iov_l);
-	else
-		rc = compat_rw_copy_check_uvector(READ, lvec, liovcnt,
-						  UIO_FASTIOV, iovstack_l,
-						  &iov_l);
-	if (rc <= 0)
+	rc = compat_import_iovec(dir, lvec, liovcnt, UIO_FASTIOV, &iov_l, &iter);
+	if (rc < 0)
+		return rc;
+	if (!iov_iter_count(&iter))
 		goto free_iovecs;
-	iov_iter_init(&iter, vm_write ? WRITE : READ, iov_l, liovcnt, rc);
 	rc = compat_rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt,
 					  UIO_FASTIOV, iovstack_r,
 					  &iov_r);
@@ -346,8 +336,7 @@ compat_process_vm_rw(compat_pid_t pid,
 free_iovecs:
 	if (iov_r != iovstack_r)
 		kfree(iov_r);
-	if (iov_l != iovstack_l)
-		kfree(iov_l);
+	kfree(iov_l);
 	return rc;
 }
 

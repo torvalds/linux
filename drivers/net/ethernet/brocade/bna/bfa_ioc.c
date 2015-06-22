@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 
 #include "bfa_ioc.h"
@@ -1339,7 +1340,7 @@ bfa_ioc_fwver_md5_check(struct bfi_ioc_image_hdr *fwhdr_1,
 	return true;
 }
 
-/* Returns TRUE if major minor and maintainence are same.
+/* Returns TRUE if major minor and maintenance are same.
  * If patch version are same, check for MD5 Checksum to be same.
  */
 static bool
@@ -2763,7 +2764,7 @@ bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
 	list_add_tail(&notify->qe, &ioc->notify_q);
 }
 
-#define BFA_MFG_NAME "Brocade"
+#define BFA_MFG_NAME "QLogic"
 static void
 bfa_ioc_get_adapter_attr(struct bfa_ioc *ioc,
 			 struct bfa_adapter_attr *ad_attr)

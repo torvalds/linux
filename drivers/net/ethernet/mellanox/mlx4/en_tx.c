@@ -143,8 +143,10 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->hwtstamp_tx_type = priv->hwtstamp_config.tx_type;
 	ring->queue_index = queue_index;
 
-	if (queue_index < priv->num_tx_rings_p_up && cpu_online(queue_index))
-		cpumask_set_cpu(queue_index, &ring->affinity_mask);
+	if (queue_index < priv->num_tx_rings_p_up)
+		cpumask_set_cpu_local_first(queue_index,
+					    priv->mdev->dev->numa_node,
+					    &ring->affinity_mask);
 
 	*pring = ring;
 	return 0;
@@ -213,7 +215,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 
 	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, &ring->context,
 			       &ring->qp, &ring->qp_state);
-	if (!user_prio && cpu_online(ring->queue_index))
+	if (!cpumask_empty(&ring->affinity_mask))
 		netif_set_xps_queue(priv->dev, &ring->affinity_mask,
 				    ring->queue_index);
 
@@ -416,7 +418,7 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 		 * make sure we read the CQE after we read the
 		 * ownership bit
 		 */
-		rmb();
+		dma_rmb();
 
 		if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
 			     MLX4_CQE_OPCODE_ERROR)) {
@@ -667,7 +669,7 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc,
 				       skb_frag_size(&shinfo->frags[0]));
 		}
 
-		wmb();
+		dma_wmb();
 		inl->byte_count = cpu_to_be32(1 << 31 | (skb->len - spc));
 	}
 }
@@ -804,7 +806,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			data->addr = cpu_to_be64(dma);
 			data->lkey = ring->mr_key;
-			wmb();
+			dma_wmb();
 			data->byte_count = cpu_to_be32(byte_count);
 			--data;
 		}
@@ -821,7 +823,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			data->addr = cpu_to_be64(dma);
 			data->lkey = ring->mr_key;
-			wmb();
+			dma_wmb();
 			data->byte_count = cpu_to_be32(byte_count);
 		}
 		/* tx completion can avoid cache line miss for common cases */
@@ -938,7 +940,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Ensure new descriptor hits memory
 		 * before setting ownership of this descriptor to HW
 		 */
-		wmb();
+		dma_wmb();
 		tx_desc->ctrl.owner_opcode = op_own;
 
 		wmb();
@@ -958,7 +960,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Ensure new descriptor hits memory
 		 * before setting ownership of this descriptor to HW
 		 */
-		wmb();
+		dma_wmb();
 		tx_desc->ctrl.owner_opcode = op_own;
 		if (send_doorbell) {
 			wmb();

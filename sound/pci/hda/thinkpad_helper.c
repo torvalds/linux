@@ -21,7 +21,7 @@ static acpi_status acpi_check_cb(acpi_handle handle, u32 lvl, void *context,
 static bool is_thinkpad(struct hda_codec *codec)
 {
 	bool found = false;
-	if (codec->subsystem_id >> 16 != 0x17aa)
+	if (codec->core.subsystem_id >> 16 != 0x17aa)
 		return false;
 	if (ACPI_SUCCESS(acpi_get_devices("LEN0068", acpi_check_cb, &found, NULL)) && found)
 		return true;
@@ -72,6 +72,7 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 		if (led_set_func(TPACPI_LED_MUTE, false) >= 0) {
 			old_vmaster_hook = spec->vmaster_mute.hook;
 			spec->vmaster_mute.hook = update_tpacpi_mute_led;
+			spec->vmaster_mute_enum = 1;
 			removefunc = false;
 		}
 		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0) {

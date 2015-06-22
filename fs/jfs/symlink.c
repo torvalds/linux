@@ -24,7 +24,7 @@
 
 static void *jfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	char *s = JFS_IP(dentry->d_inode)->i_inline;
+	char *s = JFS_IP(d_inode(dentry))->i_inline;
 	nd_set_link(nd, s);
 	return NULL;
 }

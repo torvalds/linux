@@ -13,7 +13,7 @@
  *
  * Transaction substance:
  *  At first, 6 data exist. Following to the data, parameters for each command
- *  exist. All of the parameters are 32 bit alighed to big endian.
+ *  exist. All of the parameters are 32 bit aligned to big endian.
  *   data[0]:	Length of transaction substance
  *   data[1]:	Transaction version
  *   data[2]:	Sequence number. This is incremented by the device

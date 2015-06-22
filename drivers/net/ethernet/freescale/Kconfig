@@ -58,14 +58,12 @@ source "drivers/net/ethernet/freescale/fs_enet/Kconfig"
 
 config FSL_PQ_MDIO
 	tristate "Freescale PQ MDIO"
-	depends on FSL_SOC
 	select PHYLIB
 	---help---
 	  This driver supports the MDIO bus used by the gianfar and UCC drivers.
 
 config FSL_XGMAC_MDIO
 	tristate "Freescale XGMAC MDIO"
-	depends on FSL_SOC
 	select PHYLIB
 	select OF_MDIO
 	---help---

@@ -38,7 +38,7 @@ property exists to define the pin configuration. Each state may also be
 assigned a name. When names are used, another property exists to map from
 those names to the integer IDs.
 
-Each client device's own binding determines the set of states the must be
+Each client device's own binding determines the set of states that must be
 defined in its device tree node, and whether to define the set of state
 IDs that must be provided, or whether to define the set of state names that
 must be provided.
@@ -133,16 +133,27 @@ pin multiplexing nodes:
 
 function		- the mux function to select
 groups			- the list of groups to select with this function
+			  (either this or "pins" must be specified)
+pins			- the list of pins to select with this function (either
+			  this or "groups" must be specified)
 
 Example:
 
 state_0_node_a {
-	function = "uart0";
-	groups = "u0rxtx", "u0rtscts";
+	uart0 {
+		function = "uart0";
+		groups = "u0rxtx", "u0rtscts";
+	};
 };
 state_1_node_a {
-	function = "spi0";
-	groups = "spi0pins";
+	spi0 {
+		function = "spi0";
+		groups = "spi0pins";
+	};
+};
+state_2_node_a {
+	function = "i2c0";
+	pins = "mfio29", "mfio30";
 };
 
 == Generic pin configuration node content ==
@@ -188,16 +199,22 @@ slew-rate		- set the slew rate
 For example:
 
 state_0_node_a {
-	pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
-	bias-pull-up;
+	cts_rxd {
+		pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
+		bias-pull-up;
+	};
 };
 state_1_node_a {
-	pins = "GPIO1_AJ3", "GPIO3_AH3"; /* RTS+TXD */
-	output-high;
+	rts_txd {
+		pins = "GPIO1_AJ3", "GPIO3_AH3"; /* RTS+TXD */
+		output-high;
+	};
 };
 state_2_node_a {
-	group = "foo-group";
-	bias-pull-up;
+	foo {
+		group = "foo-group";
+		bias-pull-up;
+	};
 };
 
 Some of the generic properties take arguments. For those that do, the

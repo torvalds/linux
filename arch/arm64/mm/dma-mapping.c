@@ -67,8 +67,7 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page, gfp_t flags)
 
 		*ret_page = phys_to_page(phys);
 		ptr = (void *)val;
-		if (flags & __GFP_ZERO)
-			memset(ptr, 0, size);
+		memset(ptr, 0, size);
 	}
 
 	return ptr;
@@ -105,7 +104,6 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 		struct page *page;
 		void *addr;
 
-		size = PAGE_ALIGN(size);
 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
 							get_order(size));
 		if (!page)
@@ -113,8 +111,7 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 
 		*dma_handle = phys_to_dma(dev, page_to_phys(page));
 		addr = page_address(page);
-		if (flags & __GFP_ZERO)
-			memset(addr, 0, size);
+		memset(addr, 0, size);
 		return addr;
 	} else {
 		return swiotlb_alloc_coherent(dev, size, dma_handle, flags);
@@ -194,6 +191,8 @@ static void __dma_free(struct device *dev, size_t size,
 		       struct dma_attrs *attrs)
 {
 	void *swiotlb_addr = phys_to_virt(dma_to_phys(dev, dma_handle));
+
+	size = PAGE_ALIGN(size);
 
 	if (!is_device_dma_coherent(dev)) {
 		if (__free_from_pool(vaddr, size))

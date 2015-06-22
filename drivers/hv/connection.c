@@ -216,10 +216,21 @@ int vmbus_connect(void)
 
 cleanup:
 	pr_err("Unable to connect to host\n");
-	vmbus_connection.conn_state = DISCONNECTED;
 
-	if (vmbus_connection.work_queue)
+	vmbus_connection.conn_state = DISCONNECTED;
+	vmbus_disconnect();
+
+	kfree(msginfo);
+
+	return ret;
+}
+
+void vmbus_disconnect(void)
+{
+	if (vmbus_connection.work_queue) {
+		drain_workqueue(vmbus_connection.work_queue);
 		destroy_workqueue(vmbus_connection.work_queue);
+	}
 
 	if (vmbus_connection.int_page) {
 		free_pages((unsigned long)vmbus_connection.int_page, 0);
@@ -230,10 +241,6 @@ cleanup:
 	free_pages((unsigned long)vmbus_connection.monitor_pages[1], 0);
 	vmbus_connection.monitor_pages[0] = NULL;
 	vmbus_connection.monitor_pages[1] = NULL;
-
-	kfree(msginfo);
-
-	return ret;
 }
 
 /*
@@ -311,10 +318,8 @@ static void process_chn_event(u32 relid)
 	 */
 	channel = pcpu_relid2channel(relid);
 
-	if (!channel) {
-		pr_err("channel not found for relid - %u\n", relid);
+	if (!channel)
 		return;
-	}
 
 	/*
 	 * A channel once created is persistent even when there
@@ -349,10 +354,7 @@ static void process_chn_event(u32 relid)
 			else
 				bytes_to_read = 0;
 		} while (read_state && (bytes_to_read != 0));
-	} else {
-		pr_err("no channel callback for relid - %u\n", relid);
 	}
-
 }
 
 /*
@@ -420,6 +422,7 @@ int vmbus_post_msg(void *buffer, size_t buflen)
 	union hv_connection_id conn_id;
 	int ret = 0;
 	int retries = 0;
+	u32 msec = 1;
 
 	conn_id.asu32 = 0;
 	conn_id.u.id = VMBUS_MESSAGE_CONNECTION_ID;
@@ -429,13 +432,20 @@ int vmbus_post_msg(void *buffer, size_t buflen)
 	 * insufficient resources. Retry the operation a couple of
 	 * times before giving up.
 	 */
-	while (retries < 10) {
+	while (retries < 20) {
 		ret = hv_post_message(conn_id, 1, buffer, buflen);
 
 		switch (ret) {
+		case HV_STATUS_INVALID_CONNECTION_ID:
+			/*
+			 * We could get this if we send messages too
+			 * frequently.
+			 */
+			ret = -EAGAIN;
+			break;
+		case HV_STATUS_INSUFFICIENT_MEMORY:
 		case HV_STATUS_INSUFFICIENT_BUFFERS:
 			ret = -ENOMEM;
-		case -ENOMEM:
 			break;
 		case HV_STATUS_SUCCESS:
 			return ret;
@@ -445,7 +455,9 @@ int vmbus_post_msg(void *buffer, size_t buflen)
 		}
 
 		retries++;
-		msleep(100);
+		msleep(msec);
+		if (msec < 2048)
+			msec *= 2;
 	}
 	return ret;
 }

@@ -277,6 +277,7 @@ void gen6_reset_rps_interrupts(struct drm_device *dev)
 	I915_WRITE(reg, dev_priv->pm_rps_events);
 	I915_WRITE(reg, dev_priv->pm_rps_events);
 	POSTING_READ(reg);
+	dev_priv->rps.pm_iir = 0;
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
@@ -330,12 +331,10 @@ void gen6_disable_rps_interrupts(struct drm_device *dev)
 	__gen6_disable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
 				~dev_priv->pm_rps_events);
-	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
-	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
-
-	dev_priv->rps.pm_iir = 0;
 
 	spin_unlock_irq(&dev_priv->irq_lock);
+
+	synchronize_irq(dev->irq);
 }
 
 /**
@@ -492,31 +491,6 @@ static void i915_enable_asle_pipestat(struct drm_device *dev)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-/**
- * i915_pipe_enabled - check if a pipe is enabled
- * @dev: DRM device
- * @pipe: pipe to check
- *
- * Reading certain registers when the pipe is disabled can hang the chip.
- * Use this routine to make sure the PLL is running and the pipe is active
- * before reading such registers if unsure.
- */
-static int
-i915_pipe_enabled(struct drm_device *dev, int pipe)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		/* Locking is horribly broken here, but whatever. */
-		struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-		return intel_crtc->active;
-	} else {
-		return I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE;
-	}
-}
-
 /*
  * This timing diagram depicts the video signal in and
  * around the vertical blanking period.
@@ -582,34 +556,16 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	unsigned long high_frame;
 	unsigned long low_frame;
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+	const struct drm_display_mode *mode =
+		&intel_crtc->config->base.adjusted_mode;
 
-	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
-				"pipe %c\n", pipe_name(pipe));
-		return 0;
-	}
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		struct intel_crtc *intel_crtc =
-			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
-		const struct drm_display_mode *mode =
-			&intel_crtc->config->base.adjusted_mode;
-
-		htotal = mode->crtc_htotal;
-		hsync_start = mode->crtc_hsync_start;
-		vbl_start = mode->crtc_vblank_start;
-		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			vbl_start = DIV_ROUND_UP(vbl_start, 2);
-	} else {
-		enum transcoder cpu_transcoder = (enum transcoder) pipe;
-
-		htotal = ((I915_READ(HTOTAL(cpu_transcoder)) >> 16) & 0x1fff) + 1;
-		hsync_start = (I915_READ(HSYNC(cpu_transcoder))  & 0x1fff) + 1;
-		vbl_start = (I915_READ(VBLANK(cpu_transcoder)) & 0x1fff) + 1;
-		if ((I915_READ(PIPECONF(cpu_transcoder)) &
-		     PIPECONF_INTERLACE_MASK) != PIPECONF_PROGRESSIVE)
-			vbl_start = DIV_ROUND_UP(vbl_start, 2);
-	}
+	htotal = mode->crtc_htotal;
+	hsync_start = mode->crtc_hsync_start;
+	vbl_start = mode->crtc_vblank_start;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vbl_start = DIV_ROUND_UP(vbl_start, 2);
 
 	/* Convert to pixel count */
 	vbl_start *= htotal;
@@ -647,12 +603,6 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int reg = PIPE_FRMCOUNT_GM45(pipe);
-
-	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
-				 "pipe %c\n", pipe_name(pipe));
-		return 0;
-	}
 
 	return I915_READ(reg);
 }
@@ -840,7 +790,7 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 		return -EINVAL;
 	}
 
-	if (!crtc->enabled) {
+	if (!crtc->state->enable) {
 		DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
 		return -EBUSY;
 	}
@@ -1046,129 +996,73 @@ static void notify_ring(struct drm_device *dev,
 	wake_up_all(&ring->irq_queue);
 }
 
-static u32 vlv_c0_residency(struct drm_i915_private *dev_priv,
-			    struct intel_rps_ei *rps_ei)
+static void vlv_c0_read(struct drm_i915_private *dev_priv,
+			struct intel_rps_ei *ei)
 {
-	u32 cz_ts, cz_freq_khz;
-	u32 render_count, media_count;
-	u32 elapsed_render, elapsed_media, elapsed_time;
-	u32 residency = 0;
-
-	cz_ts = vlv_punit_read(dev_priv, PUNIT_REG_CZ_TIMESTAMP);
-	cz_freq_khz = DIV_ROUND_CLOSEST(dev_priv->mem_freq * 1000, 4);
-
-	render_count = I915_READ(VLV_RENDER_C0_COUNT_REG);
-	media_count = I915_READ(VLV_MEDIA_C0_COUNT_REG);
-
-	if (rps_ei->cz_clock == 0) {
-		rps_ei->cz_clock = cz_ts;
-		rps_ei->render_c0 = render_count;
-		rps_ei->media_c0 = media_count;
-
-		return dev_priv->rps.cur_freq;
-	}
-
-	elapsed_time = cz_ts - rps_ei->cz_clock;
-	rps_ei->cz_clock = cz_ts;
-
-	elapsed_render = render_count - rps_ei->render_c0;
-	rps_ei->render_c0 = render_count;
-
-	elapsed_media = media_count - rps_ei->media_c0;
-	rps_ei->media_c0 = media_count;
-
-	/* Convert all the counters into common unit of milli sec */
-	elapsed_time /= VLV_CZ_CLOCK_TO_MILLI_SEC;
-	elapsed_render /=  cz_freq_khz;
-	elapsed_media /= cz_freq_khz;
-
-	/*
-	 * Calculate overall C0 residency percentage
-	 * only if elapsed time is non zero
-	 */
-	if (elapsed_time) {
-		residency =
-			((max(elapsed_render, elapsed_media) * 100)
-				/ elapsed_time);
-	}
-
-	return residency;
+	ei->cz_clock = vlv_punit_read(dev_priv, PUNIT_REG_CZ_TIMESTAMP);
+	ei->render_c0 = I915_READ(VLV_RENDER_C0_COUNT);
+	ei->media_c0 = I915_READ(VLV_MEDIA_C0_COUNT);
 }
 
-/**
- * vlv_calc_delay_from_C0_counters - Increase/Decrease freq based on GPU
- * busy-ness calculated from C0 counters of render & media power wells
- * @dev_priv: DRM device private
- *
- */
-static int vlv_calc_delay_from_C0_counters(struct drm_i915_private *dev_priv)
+static bool vlv_c0_above(struct drm_i915_private *dev_priv,
+			 const struct intel_rps_ei *old,
+			 const struct intel_rps_ei *now,
+			 int threshold)
 {
-	u32 residency_C0_up = 0, residency_C0_down = 0;
-	int new_delay, adj;
+	u64 time, c0;
 
-	dev_priv->rps.ei_interrupt_count++;
+	if (old->cz_clock == 0)
+		return false;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	time = now->cz_clock - old->cz_clock;
+	time *= threshold * dev_priv->mem_freq;
 
-
-	if (dev_priv->rps.up_ei.cz_clock == 0) {
-		vlv_c0_residency(dev_priv, &dev_priv->rps.up_ei);
-		vlv_c0_residency(dev_priv, &dev_priv->rps.down_ei);
-		return dev_priv->rps.cur_freq;
-	}
-
-
-	/*
-	 * To down throttle, C0 residency should be less than down threshold
-	 * for continous EI intervals. So calculate down EI counters
-	 * once in VLV_INT_COUNT_FOR_DOWN_EI
+	/* Workload can be split between render + media, e.g. SwapBuffers
+	 * being blitted in X after being rendered in mesa. To account for
+	 * this we need to combine both engines into our activity counter.
 	 */
-	if (dev_priv->rps.ei_interrupt_count == VLV_INT_COUNT_FOR_DOWN_EI) {
+	c0 = now->render_c0 - old->render_c0;
+	c0 += now->media_c0 - old->media_c0;
+	c0 *= 100 * VLV_CZ_CLOCK_TO_MILLI_SEC * 4 / 1000;
 
-		dev_priv->rps.ei_interrupt_count = 0;
+	return c0 >= time;
+}
 
-		residency_C0_down = vlv_c0_residency(dev_priv,
-						     &dev_priv->rps.down_ei);
-	} else {
-		residency_C0_up = vlv_c0_residency(dev_priv,
-						   &dev_priv->rps.up_ei);
+void gen6_rps_reset_ei(struct drm_i915_private *dev_priv)
+{
+	vlv_c0_read(dev_priv, &dev_priv->rps.down_ei);
+	dev_priv->rps.up_ei = dev_priv->rps.down_ei;
+}
+
+static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
+{
+	struct intel_rps_ei now;
+	u32 events = 0;
+
+	if ((pm_iir & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED)) == 0)
+		return 0;
+
+	vlv_c0_read(dev_priv, &now);
+	if (now.cz_clock == 0)
+		return 0;
+
+	if (pm_iir & GEN6_PM_RP_DOWN_EI_EXPIRED) {
+		if (!vlv_c0_above(dev_priv,
+				  &dev_priv->rps.down_ei, &now,
+				  VLV_RP_DOWN_EI_THRESHOLD))
+			events |= GEN6_PM_RP_DOWN_THRESHOLD;
+		dev_priv->rps.down_ei = now;
 	}
 
-	new_delay = dev_priv->rps.cur_freq;
-
-	adj = dev_priv->rps.last_adj;
-	/* C0 residency is greater than UP threshold. Increase Frequency */
-	if (residency_C0_up >= VLV_RP_UP_EI_THRESHOLD) {
-		if (adj > 0)
-			adj *= 2;
-		else
-			adj = 1;
-
-		if (dev_priv->rps.cur_freq < dev_priv->rps.max_freq_softlimit)
-			new_delay = dev_priv->rps.cur_freq + adj;
-
-		/*
-		 * For better performance, jump directly
-		 * to RPe if we're below it.
-		 */
-		if (new_delay < dev_priv->rps.efficient_freq)
-			new_delay = dev_priv->rps.efficient_freq;
-
-	} else if (!dev_priv->rps.ei_interrupt_count &&
-			(residency_C0_down < VLV_RP_DOWN_EI_THRESHOLD)) {
-		if (adj < 0)
-			adj *= 2;
-		else
-			adj = -1;
-		/*
-		 * This means, C0 residency is less than down threshold over
-		 * a period of VLV_INT_COUNT_FOR_DOWN_EI. So, reduce the freq
-		 */
-		if (dev_priv->rps.cur_freq > dev_priv->rps.min_freq_softlimit)
-			new_delay = dev_priv->rps.cur_freq + adj;
+	if (pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) {
+		if (vlv_c0_above(dev_priv,
+				 &dev_priv->rps.up_ei, &now,
+				 VLV_RP_UP_EI_THRESHOLD))
+			events |= GEN6_PM_RP_UP_THRESHOLD;
+		dev_priv->rps.up_ei = now;
 	}
 
-	return new_delay;
+	return events;
 }
 
 static void gen6_pm_rps_work(struct work_struct *work)
@@ -1198,6 +1092,8 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
+	pm_iir |= vlv_wa_c0_ei(dev_priv, pm_iir);
+
 	adj = dev_priv->rps.last_adj;
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
 		if (adj > 0)
@@ -1220,8 +1116,6 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		else
 			new_delay = dev_priv->rps.min_freq_softlimit;
 		adj = 0;
-	} else if (pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) {
-		new_delay = vlv_calc_delay_from_C0_counters(dev_priv);
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
 		if (adj < 0)
 			adj *= 2;
@@ -1243,10 +1137,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	dev_priv->rps.last_adj = new_delay - dev_priv->rps.cur_freq;
 
-	if (IS_VALLEYVIEW(dev_priv->dev))
-		valleyview_set_rps(dev_priv->dev, new_delay);
-	else
-		gen6_set_rps(dev_priv->dev, new_delay);
+	intel_set_rps(dev_priv->dev, new_delay);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
@@ -1748,11 +1639,6 @@ static void i9xx_pipe_crc_irq_handler(struct drm_device *dev, enum pipe pipe)
  * the work queue. */
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
-	/* TODO: RPS on GEN9+ is not supported yet. */
-	if (WARN_ONCE(INTEL_INFO(dev_priv)->gen >= 9,
-		      "GEN9+: unexpected RPS IRQ\n"))
-		return;
-
 	if (pm_iir & dev_priv->pm_rps_events) {
 		spin_lock(&dev_priv->irq_lock);
 		gen6_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
@@ -2662,9 +2548,6 @@ static int i915_enable_vblank(struct drm_device *dev, int pipe)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
-	if (!i915_pipe_enabled(dev, pipe))
-		return -EINVAL;
-
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	if (INTEL_INFO(dev)->gen >= 4)
 		i915_enable_pipestat(dev_priv, pipe,
@@ -2684,9 +2567,6 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 	uint32_t bit = (INTEL_INFO(dev)->gen >= 7) ? DE_PIPE_VBLANK_IVB(pipe) :
 						     DE_PIPE_VBLANK(pipe);
 
-	if (!i915_pipe_enabled(dev, pipe))
-		return -EINVAL;
-
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_enable_display_irq(dev_priv, bit);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
@@ -2698,9 +2578,6 @@ static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-
-	if (!i915_pipe_enabled(dev, pipe))
-		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_enable_pipestat(dev_priv, pipe,
@@ -2714,9 +2591,6 @@ static int gen8_enable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-
-	if (!i915_pipe_enabled(dev, pipe))
-		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	dev_priv->de_irq_mask[pipe] &= ~GEN8_PIPE_VBLANK;
@@ -2768,9 +2642,6 @@ static void gen8_disable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-
-	if (!i915_pipe_enabled(dev, pipe))
-		return;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	dev_priv->de_irq_mask[pipe] |= GEN8_PIPE_VBLANK;
@@ -3236,15 +3107,24 @@ static void gen8_irq_reset(struct drm_device *dev)
 	ibx_irq_reset(dev);
 }
 
-void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv)
+void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
+				     unsigned int pipe_mask)
 {
 	uint32_t extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_B, dev_priv->de_irq_mask[PIPE_B],
-			  ~dev_priv->de_irq_mask[PIPE_B] | extra_ier);
-	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_C, dev_priv->de_irq_mask[PIPE_C],
-			  ~dev_priv->de_irq_mask[PIPE_C] | extra_ier);
+	if (pipe_mask & 1 << PIPE_A)
+		GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_A,
+				  dev_priv->de_irq_mask[PIPE_A],
+				  ~dev_priv->de_irq_mask[PIPE_A] | extra_ier);
+	if (pipe_mask & 1 << PIPE_B)
+		GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_B,
+				  dev_priv->de_irq_mask[PIPE_B],
+				  ~dev_priv->de_irq_mask[PIPE_B] | extra_ier);
+	if (pipe_mask & 1 << PIPE_C)
+		GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_C,
+				  dev_priv->de_irq_mask[PIPE_C],
+				  ~dev_priv->de_irq_mask[PIPE_C] | extra_ier);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
@@ -3718,14 +3598,12 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
 		  I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
-		  I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT |
-		  I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
+		  I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT);
 	I915_WRITE16(IMR, dev_priv->irq_mask);
 
 	I915_WRITE16(IER,
 		     I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		     I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		     I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT |
 		     I915_USER_INTERRUPT);
 	POSTING_READ16(IER);
 
@@ -3887,14 +3765,12 @@ static int i915_irq_postinstall(struct drm_device *dev)
 		  I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
 		  I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
-		  I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT |
-		  I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
+		  I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT);
 
 	enable_mask =
 		I915_ASLE_INTERRUPT |
 		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT |
 		I915_USER_INTERRUPT;
 
 	if (I915_HAS_HOTPLUG(dev)) {
@@ -4362,7 +4238,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	/* Let's track the enabled rps events */
 	if (IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		/* WaGsvRC0ResidencyMethod:vlv */
-		dev_priv->pm_rps_events = GEN6_PM_RP_UP_EI_EXPIRED;
+		dev_priv->pm_rps_events = GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED;
 	else
 		dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
 
@@ -4392,10 +4268,8 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (!IS_GEN2(dev_priv))
 		dev->vblank_disable_immediate = true;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
-		dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
-	}
+	dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
+	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		dev->driver->irq_handler = cherryview_irq_handler;

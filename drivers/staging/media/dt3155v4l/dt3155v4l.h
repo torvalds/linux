@@ -178,7 +178,7 @@ struct dt3155_stats {
 /**
  * struct dt3155_priv - private data structure
  *
- * @vdev:		pointer to video_device structure
+ * @vdev:		video_device structure
  * @pdev:		pointer to pci_dev structure
  * @q			pointer to vb2_queue structure
  * @curr_buf:		pointer to curren buffer
@@ -193,7 +193,7 @@ struct dt3155_stats {
  * @config:		local copy of config register
  */
 struct dt3155_priv {
-	struct video_device *vdev;
+	struct video_device vdev;
 	struct pci_dev *pdev;
 	struct vb2_queue *q;
 	struct vb2_buffer *curr_buf;

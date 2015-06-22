@@ -88,16 +88,6 @@ struct gstr str_new(void)
 	return gs;
 }
 
-/* Allocate and assign growable string */
-struct gstr str_assign(const char *s)
-{
-	struct gstr gs;
-	gs.s = strdup(s);
-	gs.len = strlen(s) + 1;
-	gs.max_width = 0;
-	return gs;
-}
-
 /* Free storage for growable string */
 void str_free(struct gstr *gs)
 {

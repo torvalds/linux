@@ -1,5 +1,5 @@
 /*
- * at91sama5d3_emac.dtsi - Device Tree Include file for AT91SAM9x5 SoC with
+ * sama5d3_emac.dtsi - Device Tree Include file for SAMA5D3 SoC with
  * Ethernet.
  *
  * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
@@ -41,7 +41,7 @@
 			};
 
 			macb1: ethernet@f802c000 {
-				compatible = "cdns,at32ap7000-macb", "cdns,macb";
+				compatible = "cdns,at91sam9260-macb", "cdns,macb";
 				reg = <0xf802c000 0x100>;
 				interrupts = <35 IRQ_TYPE_LEVEL_HIGH 3>;
 				pinctrl-names = "default";

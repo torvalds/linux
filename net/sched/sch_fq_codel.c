@@ -391,7 +391,7 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
 	q->perturbation = prandom_u32();
 	INIT_LIST_HEAD(&q->new_flows);
 	INIT_LIST_HEAD(&q->old_flows);
-	codel_params_init(&q->cparams);
+	codel_params_init(&q->cparams, sch);
 	codel_stats_init(&q->cstats);
 	q->cparams.ecn = true;
 

@@ -19,10 +19,11 @@
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_panel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
-#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 #include <video/of_videomode.h>
 #include <linux/regmap.h>
 #include <linux/videodev2.h>
@@ -55,12 +56,14 @@ struct imx_ldb_channel {
 	struct imx_ldb *ldb;
 	struct drm_connector connector;
 	struct drm_encoder encoder;
+	struct drm_panel *panel;
 	struct device_node *child;
 	int chno;
 	void *edid;
 	int edid_len;
 	struct drm_display_mode mode;
 	int mode_valid;
+	int bus_format;
 };
 
 struct bus_mux {
@@ -75,6 +78,7 @@ struct imx_ldb {
 	struct imx_ldb_channel channel[2];
 	struct clk *clk[2]; /* our own clock */
 	struct clk *clk_sel[4]; /* parent of display clock */
+	struct clk *clk_parent[4]; /* original parent of clk_sel */
 	struct clk *clk_pll[2]; /* upstream clock we can adjust */
 	u32 ldb_ctrl;
 	const struct bus_mux *lvds_mux;
@@ -90,6 +94,17 @@ static int imx_ldb_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_ldb_channel *imx_ldb_ch = con_to_imx_ldb_ch(connector);
 	int num_modes = 0;
+
+	if (imx_ldb_ch->panel && imx_ldb_ch->panel->funcs &&
+	    imx_ldb_ch->panel->funcs->get_modes) {
+		struct drm_display_info *di = &connector->display_info;
+
+		num_modes = imx_ldb_ch->panel->funcs->get_modes(imx_ldb_ch->panel);
+		if (!imx_ldb_ch->bus_format && di->num_bus_formats)
+			imx_ldb_ch->bus_format = di->bus_formats[0];
+		if (num_modes > 0)
+			return num_modes;
+	}
 
 	if (imx_ldb_ch->edid) {
 		drm_mode_connector_update_edid_property(connector,
@@ -163,24 +178,36 @@ static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
-	u32 pixel_fmt;
+	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
+	u32 bus_format;
 
-	switch (imx_ldb_ch->chno) {
-	case 0:
-		pixel_fmt = (ldb->ldb_ctrl & LDB_DATA_WIDTH_CH0_24) ?
-			V4L2_PIX_FMT_RGB24 : V4L2_PIX_FMT_BGR666;
-		break;
-	case 1:
-		pixel_fmt = (ldb->ldb_ctrl & LDB_DATA_WIDTH_CH1_24) ?
-			V4L2_PIX_FMT_RGB24 : V4L2_PIX_FMT_BGR666;
-		break;
+	switch (imx_ldb_ch->bus_format) {
 	default:
-		dev_err(ldb->dev, "unable to config di%d panel format\n",
-			imx_ldb_ch->chno);
-		pixel_fmt = V4L2_PIX_FMT_RGB24;
+		dev_warn(ldb->dev,
+			 "could not determine data mapping, default to 18-bit \"spwg\"\n");
+		/* fallthrough */
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
+		bus_format = MEDIA_BUS_FMT_RGB666_1X18;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		if (imx_ldb_ch->chno == 0 || dual)
+			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24;
+		if (imx_ldb_ch->chno == 1 || dual)
+			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
+		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		if (imx_ldb_ch->chno == 0 || dual)
+			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24 |
+					 LDB_BIT_MAP_CH0_JEIDA;
+		if (imx_ldb_ch->chno == 1 || dual)
+			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24 |
+					 LDB_BIT_MAP_CH1_JEIDA;
+		break;
 	}
 
-	imx_drm_panel_format(encoder, pixel_fmt);
+	imx_drm_set_bus_format(encoder, bus_format);
 }
 
 static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
@@ -189,6 +216,8 @@ static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
 	int mux = imx_drm_encoder_get_mux_id(imx_ldb_ch->child, encoder);
+
+	drm_panel_prepare(imx_ldb_ch->panel);
 
 	if (dual) {
 		clk_prepare_enable(ldb->clk[0]);
@@ -223,6 +252,8 @@ static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
 	}
 
 	regmap_write(ldb->regmap, IOMUXC_GPR2, ldb->ldb_ctrl);
+
+	drm_panel_enable(imx_ldb_ch->panel);
 }
 
 static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
@@ -274,6 +305,7 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
+	int mux, ret;
 
 	/*
 	 * imx_ldb_encoder_disable is called by
@@ -287,6 +319,8 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 		 (ldb->ldb_ctrl & LDB_CH1_MODE_EN_MASK) == 0)
 		return;
 
+	drm_panel_disable(imx_ldb_ch->panel);
+
 	if (imx_ldb_ch == &ldb->channel[0])
 		ldb->ldb_ctrl &= ~LDB_CH0_MODE_EN_MASK;
 	else if (imx_ldb_ch == &ldb->channel[1])
@@ -298,6 +332,30 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 		clk_disable_unprepare(ldb->clk[0]);
 		clk_disable_unprepare(ldb->clk[1]);
 	}
+
+	if (ldb->lvds_mux) {
+		const struct bus_mux *lvds_mux = NULL;
+
+		if (imx_ldb_ch == &ldb->channel[0])
+			lvds_mux = &ldb->lvds_mux[0];
+		else if (imx_ldb_ch == &ldb->channel[1])
+			lvds_mux = &ldb->lvds_mux[1];
+
+		regmap_read(ldb->regmap, lvds_mux->reg, &mux);
+		mux &= lvds_mux->mask;
+		mux >>= lvds_mux->shift;
+	} else {
+		mux = (imx_ldb_ch == &ldb->channel[0]) ? 0 : 1;
+	}
+
+	/* set display clock mux back to original input clock */
+	ret = clk_set_parent(ldb->clk_sel[mux], ldb->clk_parent[mux]);
+	if (ret)
+		dev_err(ldb->dev,
+			"unable to set di%d parent clock to original parent\n",
+			mux);
+
+	drm_panel_unprepare(imx_ldb_ch->panel);
 }
 
 static struct drm_connector_funcs imx_ldb_connector_funcs = {
@@ -371,6 +429,9 @@ static int imx_ldb_register(struct drm_device *drm,
 	drm_connector_init(drm, &imx_ldb_ch->connector,
 			   &imx_ldb_connector_funcs, DRM_MODE_CONNECTOR_LVDS);
 
+	if (imx_ldb_ch->panel)
+		drm_panel_attach(imx_ldb_ch->panel, &imx_ldb_ch->connector);
+
 	drm_mode_connector_attach_encoder(&imx_ldb_ch->connector,
 			&imx_ldb_ch->encoder);
 
@@ -382,25 +443,39 @@ enum {
 	LVDS_BIT_MAP_JEIDA
 };
 
-static const char * const imx_ldb_bit_mappings[] = {
-	[LVDS_BIT_MAP_SPWG]  = "spwg",
-	[LVDS_BIT_MAP_JEIDA] = "jeida",
+struct imx_ldb_bit_mapping {
+	u32 bus_format;
+	u32 datawidth;
+	const char * const mapping;
 };
 
-static const int of_get_data_mapping(struct device_node *np)
+static const struct imx_ldb_bit_mapping imx_ldb_bit_mappings[] = {
+	{ MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,  18, "spwg" },
+	{ MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,  24, "spwg" },
+	{ MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA, 24, "jeida" },
+};
+
+static u32 of_get_bus_format(struct device *dev, struct device_node *np)
 {
 	const char *bm;
+	u32 datawidth = 0;
 	int ret, i;
 
 	ret = of_property_read_string(np, "fsl,data-mapping", &bm);
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(imx_ldb_bit_mappings); i++)
-		if (!strcasecmp(bm, imx_ldb_bit_mappings[i]))
-			return i;
+	of_property_read_u32(np, "fsl,data-width", &datawidth);
 
-	return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(imx_ldb_bit_mappings); i++) {
+		if (!strcasecmp(bm, imx_ldb_bit_mappings[i].mapping) &&
+		    datawidth == imx_ldb_bit_mappings[i].datawidth)
+			return imx_ldb_bit_mappings[i].bus_format;
+	}
+
+	dev_err(dev, "invalid data mapping: %d-bit \"%s\"\n", datawidth, bm);
+
+	return -ENOENT;
 }
 
 static struct bus_mux imx6q_lvds_mux[2] = {
@@ -437,8 +512,6 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 	struct device_node *child;
 	const u8 *edidp;
 	struct imx_ldb *imx_ldb;
-	int datawidth;
-	int mapping;
 	int dual;
 	int ret;
 	int i;
@@ -479,12 +552,15 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 			imx_ldb->clk_sel[i] = NULL;
 			break;
 		}
+
+		imx_ldb->clk_parent[i] = clk_get_parent(imx_ldb->clk_sel[i]);
 	}
 	if (i == 0)
 		return ret;
 
 	for_each_child_of_node(np, child) {
 		struct imx_ldb_channel *channel;
+		struct device_node *port;
 
 		ret = of_property_read_u32(child, "reg", &i);
 		if (ret || i < 0 || i > 1)
@@ -503,49 +579,53 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		channel->chno = i;
 		channel->child = child;
 
+		/*
+		 * The output port is port@4 with an external 4-port mux or
+		 * port@2 with the internal 2-port mux.
+		 */
+		port = of_graph_get_port_by_id(child, imx_ldb->lvds_mux ? 4 : 2);
+		if (port) {
+			struct device_node *endpoint, *remote;
+
+			endpoint = of_get_child_by_name(port, "endpoint");
+			if (endpoint) {
+				remote = of_graph_get_remote_port_parent(endpoint);
+				if (remote)
+					channel->panel = of_drm_find_panel(remote);
+				else
+					return -EPROBE_DEFER;
+				if (!channel->panel) {
+					dev_err(dev, "panel not found: %s\n",
+						remote->full_name);
+					return -EPROBE_DEFER;
+				}
+			}
+		}
+
 		edidp = of_get_property(child, "edid", &channel->edid_len);
 		if (edidp) {
 			channel->edid = kmemdup(edidp, channel->edid_len,
 						GFP_KERNEL);
-		} else {
+		} else if (!channel->panel) {
 			ret = of_get_drm_display_mode(child, &channel->mode, 0);
 			if (!ret)
 				channel->mode_valid = 1;
 		}
 
-		ret = of_property_read_u32(child, "fsl,data-width", &datawidth);
-		if (ret)
-			datawidth = 0;
-		else if (datawidth != 18 && datawidth != 24)
-			return -EINVAL;
-
-		mapping = of_get_data_mapping(child);
-		switch (mapping) {
-		case LVDS_BIT_MAP_SPWG:
-			if (datawidth == 24) {
-				if (i == 0 || dual)
-					imx_ldb->ldb_ctrl |=
-						LDB_DATA_WIDTH_CH0_24;
-				if (i == 1 || dual)
-					imx_ldb->ldb_ctrl |=
-						LDB_DATA_WIDTH_CH1_24;
-			}
-			break;
-		case LVDS_BIT_MAP_JEIDA:
-			if (datawidth == 18) {
-				dev_err(dev, "JEIDA standard only supported in 24 bit\n");
-				return -EINVAL;
-			}
-			if (i == 0 || dual)
-				imx_ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24 |
-					LDB_BIT_MAP_CH0_JEIDA;
-			if (i == 1 || dual)
-				imx_ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24 |
-					LDB_BIT_MAP_CH1_JEIDA;
-			break;
-		default:
-			dev_err(dev, "data mapping not specified or invalid\n");
-			return -EINVAL;
+		channel->bus_format = of_get_bus_format(dev, child);
+		if (channel->bus_format == -EINVAL) {
+			/*
+			 * If no bus format was specified in the device tree,
+			 * we can still get it from the connected panel later.
+			 */
+			if (channel->panel && channel->panel->funcs &&
+			    channel->panel->funcs->get_modes)
+				channel->bus_format = 0;
+		}
+		if (channel->bus_format < 0) {
+			dev_err(dev, "could not determine data mapping: %d\n",
+				channel->bus_format);
+			return channel->bus_format;
 		}
 
 		ret = imx_ldb_register(drm, channel);

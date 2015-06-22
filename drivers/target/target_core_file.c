@@ -264,40 +264,32 @@ static int fd_do_prot_rw(struct se_cmd *cmd, struct fd_prot *fd_prot,
 	struct se_device *se_dev = cmd->se_dev;
 	struct fd_dev *dev = FD_DEV(se_dev);
 	struct file *prot_fd = dev->fd_prot_file;
-	struct scatterlist *sg;
 	loff_t pos = (cmd->t_task_lba * se_dev->prot_length);
 	unsigned char *buf;
-	u32 prot_size, len, size;
-	int rc, ret = 1, i;
+	u32 prot_size;
+	int rc, ret = 1;
 
 	prot_size = (cmd->data_length / se_dev->dev_attrib.block_size) *
 		     se_dev->prot_length;
 
 	if (!is_write) {
-		fd_prot->prot_buf = vzalloc(prot_size);
+		fd_prot->prot_buf = kzalloc(prot_size, GFP_KERNEL);
 		if (!fd_prot->prot_buf) {
 			pr_err("Unable to allocate fd_prot->prot_buf\n");
 			return -ENOMEM;
 		}
 		buf = fd_prot->prot_buf;
 
-		fd_prot->prot_sg_nents = cmd->t_prot_nents;
-		fd_prot->prot_sg = kzalloc(sizeof(struct scatterlist) *
-					   fd_prot->prot_sg_nents, GFP_KERNEL);
+		fd_prot->prot_sg_nents = 1;
+		fd_prot->prot_sg = kzalloc(sizeof(struct scatterlist),
+					   GFP_KERNEL);
 		if (!fd_prot->prot_sg) {
 			pr_err("Unable to allocate fd_prot->prot_sg\n");
-			vfree(fd_prot->prot_buf);
+			kfree(fd_prot->prot_buf);
 			return -ENOMEM;
 		}
-		size = prot_size;
-
-		for_each_sg(fd_prot->prot_sg, sg, fd_prot->prot_sg_nents, i) {
-
-			len = min_t(u32, PAGE_SIZE, size);
-			sg_set_buf(sg, buf, len);
-			size -= len;
-			buf += len;
-		}
+		sg_init_table(fd_prot->prot_sg, fd_prot->prot_sg_nents);
+		sg_set_buf(fd_prot->prot_sg, buf, prot_size);
 	}
 
 	if (is_write) {
@@ -318,7 +310,7 @@ static int fd_do_prot_rw(struct se_cmd *cmd, struct fd_prot *fd_prot,
 
 	if (is_write || ret < 0) {
 		kfree(fd_prot->prot_sg);
-		vfree(fd_prot->prot_buf);
+		kfree(fd_prot->prot_buf);
 	}
 
 	return ret;
@@ -331,36 +323,33 @@ static int fd_do_rw(struct se_cmd *cmd, struct scatterlist *sgl,
 	struct fd_dev *dev = FD_DEV(se_dev);
 	struct file *fd = dev->fd_file;
 	struct scatterlist *sg;
-	struct iovec *iov;
-	mm_segment_t old_fs;
+	struct iov_iter iter;
+	struct bio_vec *bvec;
+	ssize_t len = 0;
 	loff_t pos = (cmd->t_task_lba * se_dev->dev_attrib.block_size);
 	int ret = 0, i;
 
-	iov = kzalloc(sizeof(struct iovec) * sgl_nents, GFP_KERNEL);
-	if (!iov) {
+	bvec = kcalloc(sgl_nents, sizeof(struct bio_vec), GFP_KERNEL);
+	if (!bvec) {
 		pr_err("Unable to allocate fd_do_readv iov[]\n");
 		return -ENOMEM;
 	}
 
 	for_each_sg(sgl, sg, sgl_nents, i) {
-		iov[i].iov_len = sg->length;
-		iov[i].iov_base = kmap(sg_page(sg)) + sg->offset;
+		bvec[i].bv_page = sg_page(sg);
+		bvec[i].bv_len = sg->length;
+		bvec[i].bv_offset = sg->offset;
+
+		len += sg->length;
 	}
 
-	old_fs = get_fs();
-	set_fs(get_ds());
-
+	iov_iter_bvec(&iter, ITER_BVEC, bvec, sgl_nents, len);
 	if (is_write)
-		ret = vfs_writev(fd, &iov[0], sgl_nents, &pos);
+		ret = vfs_iter_write(fd, &iter, &pos);
 	else
-		ret = vfs_readv(fd, &iov[0], sgl_nents, &pos);
+		ret = vfs_iter_read(fd, &iter, &pos);
 
-	set_fs(old_fs);
-
-	for_each_sg(sgl, sg, sgl_nents, i)
-		kunmap(sg_page(sg));
-
-	kfree(iov);
+	kfree(bvec);
 
 	if (is_write) {
 		if (ret < 0 || ret != cmd->data_length) {
@@ -436,59 +425,17 @@ fd_execute_sync_cache(struct se_cmd *cmd)
 	return 0;
 }
 
-static unsigned char *
-fd_setup_write_same_buf(struct se_cmd *cmd, struct scatterlist *sg,
-		    unsigned int len)
-{
-	struct se_device *se_dev = cmd->se_dev;
-	unsigned int block_size = se_dev->dev_attrib.block_size;
-	unsigned int i = 0, end;
-	unsigned char *buf, *p, *kmap_buf;
-
-	buf = kzalloc(min_t(unsigned int, len, PAGE_SIZE), GFP_KERNEL);
-	if (!buf) {
-		pr_err("Unable to allocate fd_execute_write_same buf\n");
-		return NULL;
-	}
-
-	kmap_buf = kmap(sg_page(sg)) + sg->offset;
-	if (!kmap_buf) {
-		pr_err("kmap() failed in fd_setup_write_same\n");
-		kfree(buf);
-		return NULL;
-	}
-	/*
-	 * Fill local *buf to contain multiple WRITE_SAME blocks up to
-	 * min(len, PAGE_SIZE)
-	 */
-	p = buf;
-	end = min_t(unsigned int, len, PAGE_SIZE);
-
-	while (i < end) {
-		memcpy(p, kmap_buf, block_size);
-
-		i += block_size;
-		p += block_size;
-	}
-	kunmap(sg_page(sg));
-
-	return buf;
-}
-
 static sense_reason_t
 fd_execute_write_same(struct se_cmd *cmd)
 {
 	struct se_device *se_dev = cmd->se_dev;
 	struct fd_dev *fd_dev = FD_DEV(se_dev);
-	struct file *f = fd_dev->fd_file;
-	struct scatterlist *sg;
-	struct iovec *iov;
-	mm_segment_t old_fs;
-	sector_t nolb = sbc_get_write_same_sectors(cmd);
 	loff_t pos = cmd->t_task_lba * se_dev->dev_attrib.block_size;
-	unsigned int len, len_tmp, iov_num;
-	int i, rc;
-	unsigned char *buf;
+	sector_t nolb = sbc_get_write_same_sectors(cmd);
+	struct iov_iter iter;
+	struct bio_vec *bvec;
+	unsigned int len = 0, i;
+	ssize_t ret;
 
 	if (!nolb) {
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
@@ -499,54 +446,90 @@ fd_execute_write_same(struct se_cmd *cmd)
 		       " backends not supported\n");
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
-	sg = &cmd->t_data_sg[0];
 
 	if (cmd->t_data_nents > 1 ||
-	    sg->length != cmd->se_dev->dev_attrib.block_size) {
+	    cmd->t_data_sg[0].length != cmd->se_dev->dev_attrib.block_size) {
 		pr_err("WRITE_SAME: Illegal SGL t_data_nents: %u length: %u"
-			" block_size: %u\n", cmd->t_data_nents, sg->length,
+			" block_size: %u\n",
+			cmd->t_data_nents,
+			cmd->t_data_sg[0].length,
 			cmd->se_dev->dev_attrib.block_size);
 		return TCM_INVALID_CDB_FIELD;
 	}
 
-	len = len_tmp = nolb * se_dev->dev_attrib.block_size;
-	iov_num = DIV_ROUND_UP(len, PAGE_SIZE);
-
-	buf = fd_setup_write_same_buf(cmd, sg, len);
-	if (!buf)
+	bvec = kcalloc(nolb, sizeof(struct bio_vec), GFP_KERNEL);
+	if (!bvec)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
-	iov = vzalloc(sizeof(struct iovec) * iov_num);
-	if (!iov) {
-		pr_err("Unable to allocate fd_execute_write_same iovecs\n");
-		kfree(buf);
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	}
-	/*
-	 * Map the single fabric received scatterlist block now populated
-	 * in *buf into each iovec for I/O submission.
-	 */
-	for (i = 0; i < iov_num; i++) {
-		iov[i].iov_base = buf;
-		iov[i].iov_len = min_t(unsigned int, len_tmp, PAGE_SIZE);
-		len_tmp -= iov[i].iov_len;
+	for (i = 0; i < nolb; i++) {
+		bvec[i].bv_page = sg_page(&cmd->t_data_sg[0]);
+		bvec[i].bv_len = cmd->t_data_sg[0].length;
+		bvec[i].bv_offset = cmd->t_data_sg[0].offset;
+
+		len += se_dev->dev_attrib.block_size;
 	}
 
-	old_fs = get_fs();
-	set_fs(get_ds());
-	rc = vfs_writev(f, &iov[0], iov_num, &pos);
-	set_fs(old_fs);
+	iov_iter_bvec(&iter, ITER_BVEC, bvec, nolb, len);
+	ret = vfs_iter_write(fd_dev->fd_file, &iter, &pos);
 
-	vfree(iov);
-	kfree(buf);
-
-	if (rc < 0 || rc != len) {
-		pr_err("vfs_writev() returned %d for write same\n", rc);
+	kfree(bvec);
+	if (ret < 0 || ret != len) {
+		pr_err("vfs_iter_write() returned %zd for write same\n", ret);
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
 	target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
+}
+
+static int
+fd_do_prot_fill(struct se_device *se_dev, sector_t lba, sector_t nolb,
+		void *buf, size_t bufsize)
+{
+	struct fd_dev *fd_dev = FD_DEV(se_dev);
+	struct file *prot_fd = fd_dev->fd_prot_file;
+	sector_t prot_length, prot;
+	loff_t pos = lba * se_dev->prot_length;
+
+	if (!prot_fd) {
+		pr_err("Unable to locate fd_dev->fd_prot_file\n");
+		return -ENODEV;
+	}
+
+	prot_length = nolb * se_dev->prot_length;
+
+	for (prot = 0; prot < prot_length;) {
+		sector_t len = min_t(sector_t, bufsize, prot_length - prot);
+		ssize_t ret = kernel_write(prot_fd, buf, len, pos + prot);
+
+		if (ret != len) {
+			pr_err("vfs_write to prot file failed: %zd\n", ret);
+			return ret < 0 ? ret : -ENODEV;
+		}
+		prot += ret;
+	}
+
+	return 0;
+}
+
+static int
+fd_do_prot_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
+{
+	void *buf;
+	int rc;
+
+	buf = (void *)__get_free_page(GFP_KERNEL);
+	if (!buf) {
+		pr_err("Unable to allocate FILEIO prot buf\n");
+		return -ENOMEM;
+	}
+	memset(buf, 0xff, PAGE_SIZE);
+
+	rc = fd_do_prot_fill(cmd->se_dev, lba, nolb, buf, PAGE_SIZE);
+
+	free_page((unsigned long)buf);
+
+	return rc;
 }
 
 static sense_reason_t
@@ -555,6 +538,12 @@ fd_do_unmap(struct se_cmd *cmd, void *priv, sector_t lba, sector_t nolb)
 	struct file *file = priv;
 	struct inode *inode = file->f_mapping->host;
 	int ret;
+
+	if (cmd->se_dev->dev_attrib.pi_prot_type) {
+		ret = fd_do_prot_unmap(cmd, lba, nolb);
+		if (ret)
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
 
 	if (S_ISBLK(inode->i_mode)) {
 		/* The backend is block device, use discard */
@@ -595,7 +584,7 @@ fd_execute_write_same_unmap(struct se_cmd *cmd)
 	struct file *file = fd_dev->fd_file;
 	sector_t lba = cmd->t_task_lba;
 	sector_t nolb = sbc_get_write_same_sectors(cmd);
-	int ret;
+	sense_reason_t ret;
 
 	if (!nolb) {
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
@@ -643,7 +632,7 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	if (data_direction == DMA_FROM_DEVICE) {
 		memset(&fd_prot, 0, sizeof(struct fd_prot));
 
-		if (cmd->prot_type) {
+		if (cmd->prot_type && dev->dev_attrib.pi_prot_type) {
 			ret = fd_do_prot_rw(cmd, &fd_prot, false);
 			if (ret < 0)
 				return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -651,23 +640,23 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 		ret = fd_do_rw(cmd, sgl, sgl_nents, 0);
 
-		if (ret > 0 && cmd->prot_type) {
+		if (ret > 0 && cmd->prot_type && dev->dev_attrib.pi_prot_type) {
 			u32 sectors = cmd->data_length / dev->dev_attrib.block_size;
 
 			rc = sbc_dif_verify_read(cmd, cmd->t_task_lba, sectors,
 						 0, fd_prot.prot_sg, 0);
 			if (rc) {
 				kfree(fd_prot.prot_sg);
-				vfree(fd_prot.prot_buf);
+				kfree(fd_prot.prot_buf);
 				return rc;
 			}
 			kfree(fd_prot.prot_sg);
-			vfree(fd_prot.prot_buf);
+			kfree(fd_prot.prot_buf);
 		}
 	} else {
 		memset(&fd_prot, 0, sizeof(struct fd_prot));
 
-		if (cmd->prot_type) {
+		if (cmd->prot_type && dev->dev_attrib.pi_prot_type) {
 			u32 sectors = cmd->data_length / dev->dev_attrib.block_size;
 
 			ret = fd_do_prot_rw(cmd, &fd_prot, false);
@@ -678,7 +667,7 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 						  0, fd_prot.prot_sg, 0);
 			if (rc) {
 				kfree(fd_prot.prot_sg);
-				vfree(fd_prot.prot_buf);
+				kfree(fd_prot.prot_buf);
 				return rc;
 			}
 		}
@@ -705,7 +694,7 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			vfs_fsync_range(fd_dev->fd_file, start, end, 1);
 		}
 
-		if (ret > 0 && cmd->prot_type) {
+		if (ret > 0 && cmd->prot_type && dev->dev_attrib.pi_prot_type) {
 			ret = fd_do_prot_rw(cmd, &fd_prot, true);
 			if (ret < 0)
 				return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -714,7 +703,7 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 	if (ret < 0) {
 		kfree(fd_prot.prot_sg);
-		vfree(fd_prot.prot_buf);
+		kfree(fd_prot.prot_buf);
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
@@ -878,20 +867,12 @@ static int fd_init_prot(struct se_device *dev)
 
 static int fd_format_prot(struct se_device *dev)
 {
-	struct fd_dev *fd_dev = FD_DEV(dev);
-	struct file *prot_fd = fd_dev->fd_prot_file;
-	sector_t prot_length, prot;
 	unsigned char *buf;
-	loff_t pos = 0;
 	int unit_size = FDBD_FORMAT_UNIT_SIZE * dev->dev_attrib.block_size;
-	int rc, ret = 0, size, len;
+	int ret;
 
 	if (!dev->dev_attrib.pi_prot_type) {
 		pr_err("Unable to format_prot while pi_prot_type == 0\n");
-		return -ENODEV;
-	}
-	if (!prot_fd) {
-		pr_err("Unable to locate fd_dev->fd_prot_file\n");
 		return -ENODEV;
 	}
 
@@ -900,26 +881,14 @@ static int fd_format_prot(struct se_device *dev)
 		pr_err("Unable to allocate FILEIO prot buf\n");
 		return -ENOMEM;
 	}
-	prot_length = (dev->transport->get_blocks(dev) + 1) * dev->prot_length;
-	size = prot_length;
 
 	pr_debug("Using FILEIO prot_length: %llu\n",
-		 (unsigned long long)prot_length);
+		 (unsigned long long)(dev->transport->get_blocks(dev) + 1) *
+					dev->prot_length);
 
 	memset(buf, 0xff, unit_size);
-	for (prot = 0; prot < prot_length; prot += unit_size) {
-		len = min(unit_size, size);
-		rc = kernel_write(prot_fd, buf, len, pos);
-		if (rc != len) {
-			pr_err("vfs_write to prot file failed: %d\n", rc);
-			ret = -ENODEV;
-			goto out;
-		}
-		pos += len;
-		size -= len;
-	}
-
-out:
+	ret = fd_do_prot_fill(dev, 0, dev->transport->get_blocks(dev) + 1,
+			      buf, unit_size);
 	vfree(buf);
 	return ret;
 }

@@ -103,8 +103,8 @@ static struct imx_drm_crtc *imx_drm_find_crtc(struct drm_crtc *crtc)
 	return NULL;
 }
 
-int imx_drm_panel_format_pins(struct drm_encoder *encoder,
-		u32 interface_pix_fmt, int hsync_pin, int vsync_pin)
+int imx_drm_set_bus_format_pins(struct drm_encoder *encoder, u32 bus_format,
+		int hsync_pin, int vsync_pin)
 {
 	struct imx_drm_crtc_helper_funcs *helper;
 	struct imx_drm_crtc *imx_crtc;
@@ -116,16 +116,16 @@ int imx_drm_panel_format_pins(struct drm_encoder *encoder,
 	helper = &imx_crtc->imx_drm_helper_funcs;
 	if (helper->set_interface_pix_fmt)
 		return helper->set_interface_pix_fmt(encoder->crtc,
-				interface_pix_fmt, hsync_pin, vsync_pin);
+					bus_format, hsync_pin, vsync_pin);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(imx_drm_panel_format_pins);
+EXPORT_SYMBOL_GPL(imx_drm_set_bus_format_pins);
 
-int imx_drm_panel_format(struct drm_encoder *encoder, u32 interface_pix_fmt)
+int imx_drm_set_bus_format(struct drm_encoder *encoder, u32 bus_format)
 {
-	return imx_drm_panel_format_pins(encoder, interface_pix_fmt, 2, 3);
+	return imx_drm_set_bus_format_pins(encoder, bus_format, 2, 3);
 }
-EXPORT_SYMBOL_GPL(imx_drm_panel_format);
+EXPORT_SYMBOL_GPL(imx_drm_set_bus_format);
 
 int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
 {
@@ -431,15 +431,6 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 }
 EXPORT_SYMBOL_GPL(imx_drm_encoder_parse_of);
 
-static struct device_node *imx_drm_of_get_next_endpoint(
-		const struct device_node *parent, struct device_node *prev)
-{
-	struct device_node *node = of_graph_get_next_endpoint(parent, prev);
-
-	of_node_put(prev);
-	return node;
-}
-
 /*
  * @node: device tree node containing encoder input ports
  * @encoder: drm_encoder
@@ -448,7 +439,7 @@ int imx_drm_encoder_get_mux_id(struct device_node *node,
 			       struct drm_encoder *encoder)
 {
 	struct imx_drm_crtc *imx_crtc = imx_drm_find_crtc(encoder->crtc);
-	struct device_node *ep = NULL;
+	struct device_node *ep;
 	struct of_endpoint endpoint;
 	struct device_node *port;
 	int ret;
@@ -456,18 +447,15 @@ int imx_drm_encoder_get_mux_id(struct device_node *node,
 	if (!node || !imx_crtc)
 		return -EINVAL;
 
-	do {
-		ep = imx_drm_of_get_next_endpoint(node, ep);
-		if (!ep)
-			break;
-
+	for_each_endpoint_of_node(node, ep) {
 		port = of_graph_get_remote_port(ep);
 		of_node_put(port);
 		if (port == imx_crtc->crtc->port) {
 			ret = of_graph_parse_endpoint(ep, &endpoint);
+			of_node_put(ep);
 			return ret ? ret : endpoint.port;
 		}
-	} while (ep);
+	}
 
 	return -EINVAL;
 }

@@ -953,7 +953,7 @@ static int pn544_hci_i2c_acpi_request_resources(struct i2c_client *client)
 	}
 
 	nfc_info(dev, "GPIO resource, no:%d irq:%d\n",
-			desc_to_gpio(gpiod_irq), ret);
+		 desc_to_gpio(gpiod_irq), ret);
 	client->irq = ret;
 
 	return 0;
@@ -1062,11 +1062,8 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct pn544_i2c_phy),
 			   GFP_KERNEL);
-	if (!phy) {
-		nfc_err(&client->dev,
-			"Cannot allocate memory for pn544 i2c phy.\n");
+	if (!phy)
 		return -ENOMEM;
-	}
 
 	INIT_WORK(&phy->fw_work, pn544_hci_i2c_fw_work);
 	phy->fw_work_state = FW_WORK_STATE_IDLE;

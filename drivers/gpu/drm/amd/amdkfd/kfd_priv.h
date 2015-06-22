@@ -148,6 +148,11 @@ struct kfd_dev {
 
 	struct kgd2kfd_shared_resources shared_resources;
 
+	const struct kfd2kgd_calls *kfd2kgd;
+	struct mutex doorbell_mutex;
+	unsigned long doorbell_available_index[DIV_ROUND_UP(
+		KFD_MAX_NUM_OF_QUEUES_PER_PROCESS, BITS_PER_LONG)];
+
 	void *gtt_mem;
 	uint64_t gtt_start_gpu_addr;
 	void *gtt_start_cpu_ptr;
@@ -164,12 +169,11 @@ struct kfd_dev {
 
 /* KGD2KFD callbacks */
 void kgd2kfd_exit(void);
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev);
+struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
+			struct pci_dev *pdev, const struct kfd2kgd_calls *f2g);
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
-			 const struct kgd2kfd_shared_resources *gpu_resources);
+			const struct kgd2kfd_shared_resources *gpu_resources);
 void kgd2kfd_device_exit(struct kfd_dev *kfd);
-
-extern const struct kfd2kgd_calls *kfd2kgd;
 
 enum kfd_mempool {
 	KFD_MEMPOOL_SYSTEM_CACHEABLE = 1,
@@ -378,8 +382,6 @@ struct qcm_process_device {
 	/* The Device Queue Manager that owns this data */
 	struct device_queue_manager *dqm;
 	struct process_queue_manager *pqm;
-	/* Device Queue Manager lock */
-	struct mutex *lock;
 	/* Queues list */
 	struct list_head queues_list;
 	struct list_head priv_queue_list;

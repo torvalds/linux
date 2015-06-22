@@ -581,14 +581,6 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	}
 	vm_dev->vdev.id.vendor = readl(vm_dev->base + VIRTIO_MMIO_VENDOR_ID);
 
-	/* Reject legacy-only IDs for version 2 devices */
-	if (vm_dev->version == 2 &&
-			virtio_device_is_legacy_only(vm_dev->vdev.id)) {
-		dev_err(&pdev->dev, "Version 2 not supported for devices %u!\n",
-				vm_dev->vdev.id.device);
-		return -ENODEV;
-	}
-
 	if (vm_dev->version == 1)
 		writel(PAGE_SIZE, vm_dev->base + VIRTIO_MMIO_GUEST_PAGE_SIZE);
 

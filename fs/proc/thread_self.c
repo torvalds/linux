@@ -47,7 +47,7 @@ static unsigned thread_self_inum;
 
 int proc_setup_thread_self(struct super_block *s)
 {
-	struct inode *root_inode = s->s_root->d_inode;
+	struct inode *root_inode = d_inode(s->s_root);
 	struct pid_namespace *ns = s->s_fs_info;
 	struct dentry *thread_self;
 

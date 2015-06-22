@@ -182,7 +182,7 @@ mxm_show_unmatched(struct nvkm_mxm *mxm, u8 *data, void *info)
 {
 	u64 desc = *(u64 *)data;
 	if ((desc & 0xf0) != 0xf0)
-	nv_info(mxm, "unmatched output device 0x%016llx\n", desc);
+		nv_info(mxm, "unmatched output device 0x%016llx\n", desc);
 	return true;
 }
 

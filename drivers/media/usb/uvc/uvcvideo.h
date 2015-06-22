@@ -443,7 +443,7 @@ struct uvc_stats_stream {
 struct uvc_streaming {
 	struct list_head list;
 	struct uvc_device *dev;
-	struct video_device *vdev;
+	struct video_device vdev;
 	struct uvc_video_chain *chain;
 	atomic_t active;
 

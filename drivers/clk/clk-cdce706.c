@@ -58,7 +58,7 @@
 #define CDCE706_CLKOUT_DIVIDER_MASK	0x7
 #define CDCE706_CLKOUT_ENABLE_MASK	0x8
 
-static struct regmap_config cdce706_regmap_config = {
+static const struct regmap_config cdce706_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,

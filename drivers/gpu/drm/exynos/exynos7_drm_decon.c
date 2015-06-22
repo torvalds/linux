@@ -28,6 +28,7 @@
 #include <video/exynos7_decon.h>
 
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_plane.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_iommu.h"
@@ -41,32 +42,16 @@
 
 #define WINDOWS_NR	2
 
-struct decon_win_data {
-	unsigned int		ovl_x;
-	unsigned int		ovl_y;
-	unsigned int		offset_x;
-	unsigned int		offset_y;
-	unsigned int		ovl_width;
-	unsigned int		ovl_height;
-	unsigned int		fb_width;
-	unsigned int		fb_height;
-	unsigned int		bpp;
-	unsigned int		pixel_format;
-	dma_addr_t		dma_addr;
-	bool			enabled;
-	bool			resume;
-};
-
 struct decon_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
+	struct exynos_drm_plane		planes[WINDOWS_NR];
 	struct clk			*pclk;
 	struct clk			*aclk;
 	struct clk			*eclk;
 	struct clk			*vclk;
 	void __iomem			*regs;
-	struct decon_win_data		win_data[WINDOWS_NR];
 	unsigned int			default_win;
 	unsigned long			irq_flags;
 	bool				i80_if;
@@ -296,59 +281,16 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 	}
 }
 
-static void decon_win_mode_set(struct exynos_drm_crtc *crtc,
-			struct exynos_drm_plane *plane)
-{
-	struct decon_context *ctx = crtc->ctx;
-	struct decon_win_data *win_data;
-	int win, padding;
-
-	if (!plane) {
-		DRM_ERROR("plane is NULL\n");
-		return;
-	}
-
-	win = plane->zpos;
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
-
-	if (win < 0 || win >= WINDOWS_NR)
-		return;
-
-
-	win_data = &ctx->win_data[win];
-
-	padding = (plane->pitch / (plane->bpp >> 3)) - plane->fb_width;
-	win_data->offset_x = plane->fb_x;
-	win_data->offset_y = plane->fb_y;
-	win_data->fb_width = plane->fb_width + padding;
-	win_data->fb_height = plane->fb_height;
-	win_data->ovl_x = plane->crtc_x;
-	win_data->ovl_y = plane->crtc_y;
-	win_data->ovl_width = plane->crtc_width;
-	win_data->ovl_height = plane->crtc_height;
-	win_data->dma_addr = plane->dma_addr[0];
-	win_data->bpp = plane->bpp;
-	win_data->pixel_format = plane->pixel_format;
-
-	DRM_DEBUG_KMS("offset_x = %d, offset_y = %d\n",
-			win_data->offset_x, win_data->offset_y);
-	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			win_data->ovl_width, win_data->ovl_height);
-	DRM_DEBUG_KMS("paddr = 0x%lx\n", (unsigned long)win_data->dma_addr);
-	DRM_DEBUG_KMS("fb_width = %d, crtc_width = %d\n",
-			plane->fb_width, plane->crtc_width);
-}
-
 static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win)
 {
-	struct decon_win_data *win_data = &ctx->win_data[win];
+	struct exynos_drm_plane *plane = &ctx->planes[win];
 	unsigned long val;
+	int padding;
 
 	val = readl(ctx->regs + WINCON(win));
 	val &= ~WINCONx_BPPMODE_MASK;
 
-	switch (win_data->pixel_format) {
+	switch (plane->pixel_format) {
 	case DRM_FORMAT_RGB565:
 		val |= WINCONx_BPPMODE_16BPP_565;
 		val |= WINCONx_BURSTLEN_16WORD;
@@ -397,7 +339,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win)
 		break;
 	}
 
-	DRM_DEBUG_KMS("bpp = %d\n", win_data->bpp);
+	DRM_DEBUG_KMS("bpp = %d\n", plane->bpp);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -407,7 +349,8 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win)
 	 * movement causes unstable DMA which results into iommu crash/tear.
 	 */
 
-	if (win_data->fb_width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
+	padding = (plane->pitch / (plane->bpp >> 3)) - plane->fb_width;
+	if (plane->fb_width + padding < MIN_FB_WIDTH_FOR_16WORD_BURST) {
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_8WORD;
 	}
@@ -435,7 +378,7 @@ static void decon_win_set_colkey(struct decon_context *ctx, unsigned int win)
  * @protect: 1 to protect (disable updates)
  */
 static void decon_shadow_protect_win(struct decon_context *ctx,
-							int win, bool protect)
+				     unsigned int win, bool protect)
 {
 	u32 bits, val;
 
@@ -449,12 +392,12 @@ static void decon_shadow_protect_win(struct decon_context *ctx,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
-static void decon_win_commit(struct exynos_drm_crtc *crtc, int zpos)
+static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_display_mode *mode = &crtc->base.mode;
-	struct decon_win_data *win_data;
-	int win = zpos;
+	struct exynos_drm_plane *plane;
+	int padding;
 	unsigned long val, alpha;
 	unsigned int last_x;
 	unsigned int last_y;
@@ -462,17 +405,14 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	if (ctx->suspended)
 		return;
 
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
-
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
 
-	win_data = &ctx->win_data[win];
+	plane = &ctx->planes[win];
 
 	/* If suspended, enable this on resume */
 	if (ctx->suspended) {
-		win_data->resume = true;
+		plane->resume = true;
 		return;
 	}
 
@@ -490,39 +430,41 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	decon_shadow_protect_win(ctx, win, true);
 
 	/* buffer start address */
-	val = (unsigned long)win_data->dma_addr;
+	val = (unsigned long)plane->dma_addr[0];
 	writel(val, ctx->regs + VIDW_BUF_START(win));
 
+	padding = (plane->pitch / (plane->bpp >> 3)) - plane->fb_width;
+
 	/* buffer size */
-	writel(win_data->fb_width, ctx->regs + VIDW_WHOLE_X(win));
-	writel(win_data->fb_height, ctx->regs + VIDW_WHOLE_Y(win));
+	writel(plane->fb_width + padding, ctx->regs + VIDW_WHOLE_X(win));
+	writel(plane->fb_height, ctx->regs + VIDW_WHOLE_Y(win));
 
 	/* offset from the start of the buffer to read */
-	writel(win_data->offset_x, ctx->regs + VIDW_OFFSET_X(win));
-	writel(win_data->offset_y, ctx->regs + VIDW_OFFSET_Y(win));
+	writel(plane->src_x, ctx->regs + VIDW_OFFSET_X(win));
+	writel(plane->src_y, ctx->regs + VIDW_OFFSET_Y(win));
 
 	DRM_DEBUG_KMS("start addr = 0x%lx\n",
-			(unsigned long)win_data->dma_addr);
+			(unsigned long)val);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			win_data->ovl_width, win_data->ovl_height);
+			plane->crtc_width, plane->crtc_height);
 
 	/*
 	 * OSD position.
 	 * In case the window layout goes of LCD layout, DECON fails.
 	 */
-	if ((win_data->ovl_x + win_data->ovl_width) > mode->hdisplay)
-		win_data->ovl_x = mode->hdisplay - win_data->ovl_width;
-	if ((win_data->ovl_y + win_data->ovl_height) > mode->vdisplay)
-		win_data->ovl_y = mode->vdisplay - win_data->ovl_height;
+	if ((plane->crtc_x + plane->crtc_width) > mode->hdisplay)
+		plane->crtc_x = mode->hdisplay - plane->crtc_width;
+	if ((plane->crtc_y + plane->crtc_height) > mode->vdisplay)
+		plane->crtc_y = mode->vdisplay - plane->crtc_height;
 
-	val = VIDOSDxA_TOPLEFT_X(win_data->ovl_x) |
-		VIDOSDxA_TOPLEFT_Y(win_data->ovl_y);
+	val = VIDOSDxA_TOPLEFT_X(plane->crtc_x) |
+		VIDOSDxA_TOPLEFT_Y(plane->crtc_y);
 	writel(val, ctx->regs + VIDOSD_A(win));
 
-	last_x = win_data->ovl_x + win_data->ovl_width;
+	last_x = plane->crtc_x + plane->crtc_width;
 	if (last_x)
 		last_x--;
-	last_y = win_data->ovl_y + win_data->ovl_height;
+	last_y = plane->crtc_y + plane->crtc_height;
 	if (last_y)
 		last_y--;
 
@@ -531,7 +473,7 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	writel(val, ctx->regs + VIDOSD_B(win));
 
 	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
-			win_data->ovl_x, win_data->ovl_y, last_x, last_y);
+			plane->crtc_x, plane->crtc_y, last_x, last_y);
 
 	/* OSD alpha */
 	alpha = VIDOSDxC_ALPHA0_R_F(0x0) |
@@ -565,27 +507,23 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	val |= DECON_UPDATE_STANDALONE_F;
 	writel(val, ctx->regs + DECON_UPDATE);
 
-	win_data->enabled = true;
+	plane->enabled = true;
 }
 
-static void decon_win_disable(struct exynos_drm_crtc *crtc, int zpos)
+static void decon_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct decon_context *ctx = crtc->ctx;
-	struct decon_win_data *win_data;
-	int win = zpos;
+	struct exynos_drm_plane *plane;
 	u32 val;
-
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
 
-	win_data = &ctx->win_data[win];
+	plane = &ctx->planes[win];
 
 	if (ctx->suspended) {
 		/* do not resume this window*/
-		win_data->resume = false;
+		plane->resume = false;
 		return;
 	}
 
@@ -604,42 +542,42 @@ static void decon_win_disable(struct exynos_drm_crtc *crtc, int zpos)
 	val |= DECON_UPDATE_STANDALONE_F;
 	writel(val, ctx->regs + DECON_UPDATE);
 
-	win_data->enabled = false;
+	plane->enabled = false;
 }
 
 static void decon_window_suspend(struct decon_context *ctx)
 {
-	struct decon_win_data *win_data;
+	struct exynos_drm_plane *plane;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		win_data->resume = win_data->enabled;
-		if (win_data->enabled)
+		plane = &ctx->planes[i];
+		plane->resume = plane->enabled;
+		if (plane->enabled)
 			decon_win_disable(ctx->crtc, i);
 	}
 }
 
 static void decon_window_resume(struct decon_context *ctx)
 {
-	struct decon_win_data *win_data;
+	struct exynos_drm_plane *plane;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		win_data->enabled = win_data->resume;
-		win_data->resume = false;
+		plane = &ctx->planes[i];
+		plane->enabled = plane->resume;
+		plane->resume = false;
 	}
 }
 
 static void decon_apply(struct decon_context *ctx)
 {
-	struct decon_win_data *win_data;
+	struct exynos_drm_plane *plane;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		if (win_data->enabled)
+		plane = &ctx->planes[i];
+		if (plane->enabled)
 			decon_win_commit(ctx->crtc, i);
 		else
 			decon_win_disable(ctx->crtc, i);
@@ -779,7 +717,6 @@ static struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
 	.wait_for_vblank = decon_wait_for_vblank,
-	.win_mode_set = decon_win_mode_set,
 	.win_commit = decon_win_commit,
 	.win_disable = decon_win_disable,
 };
@@ -818,6 +755,9 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
+	struct exynos_drm_plane *exynos_plane;
+	enum drm_plane_type type;
+	unsigned int zpos;
 	int ret;
 
 	ret = decon_ctx_initialize(ctx, drm_dev);
@@ -826,8 +766,18 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
-					   EXYNOS_DISPLAY_TYPE_LCD,
+	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
+		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
+						DRM_PLANE_TYPE_OVERLAY;
+		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
+					1 << ctx->pipe, type, zpos);
+		if (ret)
+			return ret;
+	}
+
+	exynos_plane = &ctx->planes[ctx->default_win];
+	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
+					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
 					   &decon_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		decon_ctx_remove(ctx);

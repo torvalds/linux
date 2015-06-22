@@ -11,10 +11,10 @@
 #include <linux/module.h>
 
 #include <linux/sunrpc/metrics.h>
-#include <linux/nfs_idmap.h>
 
 #include "flexfilelayout.h"
 #include "../nfs4session.h"
+#include "../nfs4idmap.h"
 #include "../internal.h"
 #include "../delegation.h"
 #include "../nfs4trace.h"
@@ -891,7 +891,8 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 static void
 ff_layout_set_layoutcommit(struct nfs_pgio_header *hdr)
 {
-	pnfs_set_layoutcommit(hdr);
+	pnfs_set_layoutcommit(hdr->inode, hdr->lseg,
+			hdr->mds_offset + hdr->res.count);
 	dprintk("%s inode %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
 		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
 }
@@ -1074,7 +1075,7 @@ static int ff_layout_commit_done_cb(struct rpc_task *task,
 	}
 
 	if (data->verf.committed == NFS_UNSTABLE)
-		pnfs_commit_set_layoutcommit(data);
+		pnfs_set_layoutcommit(data->inode, data->lseg, data->lwb);
 
 	return 0;
 }
@@ -1414,7 +1415,7 @@ ff_layout_get_ds_info(struct inode *inode)
 }
 
 static void
-ff_layout_free_deveiceid_node(struct nfs4_deviceid_node *d)
+ff_layout_free_deviceid_node(struct nfs4_deviceid_node *d)
 {
 	nfs4_ff_layout_free_deviceid(container_of(d, struct nfs4_ff_layout_ds,
 						  id_node));
@@ -1498,7 +1499,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.pg_read_ops		= &ff_layout_pg_read_ops,
 	.pg_write_ops		= &ff_layout_pg_write_ops,
 	.get_ds_info		= ff_layout_get_ds_info,
-	.free_deviceid_node	= ff_layout_free_deveiceid_node,
+	.free_deviceid_node	= ff_layout_free_deviceid_node,
 	.mark_request_commit	= pnfs_layout_mark_request_commit,
 	.clear_request_commit	= pnfs_generic_clear_request_commit,
 	.scan_commit_lists	= pnfs_generic_scan_commit_lists,
@@ -1508,6 +1509,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.write_pagelist		= ff_layout_write_pagelist,
 	.alloc_deviceid_node    = ff_layout_alloc_deviceid_node,
 	.encode_layoutreturn    = ff_layout_encode_layoutreturn,
+	.sync			= pnfs_nfs_generic_sync,
 };
 
 static int __init nfs4flexfilelayout_init(void)

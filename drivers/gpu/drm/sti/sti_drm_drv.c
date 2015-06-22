@@ -12,6 +12,8 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -28,8 +30,87 @@
 #define STI_MAX_FB_HEIGHT	4096
 #define STI_MAX_FB_WIDTH	4096
 
+static void sti_drm_atomic_schedule(struct sti_drm_private *private,
+				  struct drm_atomic_state *state)
+{
+	private->commit.state = state;
+	schedule_work(&private->commit.work);
+}
+
+static void sti_drm_atomic_complete(struct sti_drm_private *private,
+				  struct drm_atomic_state *state)
+{
+	struct drm_device *drm = private->drm_dev;
+
+	/*
+	 * Everything below can be run asynchronously without the need to grab
+	 * any modeset locks at all under one condition: It must be guaranteed
+	 * that the asynchronous work has either been cancelled (if the driver
+	 * supports it, which at least requires that the framebuffers get
+	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
+	 * before the new state gets committed on the software side with
+	 * drm_atomic_helper_swap_state().
+	 *
+	 * This scheme allows new atomic state updates to be prepared and
+	 * checked in parallel to the asynchronous completion of the previous
+	 * update. Which is important since compositors need to figure out the
+	 * composition of the next frame right after having submitted the
+	 * current layout.
+	 */
+
+	drm_atomic_helper_commit_modeset_disables(drm, state);
+	drm_atomic_helper_commit_planes(drm, state);
+	drm_atomic_helper_commit_modeset_enables(drm, state);
+
+	drm_atomic_helper_wait_for_vblanks(drm, state);
+
+	drm_atomic_helper_cleanup_planes(drm, state);
+	drm_atomic_state_free(state);
+}
+
+static void sti_drm_atomic_work(struct work_struct *work)
+{
+	struct sti_drm_private *private = container_of(work,
+			struct sti_drm_private, commit.work);
+
+	sti_drm_atomic_complete(private, private->commit.state);
+}
+
+static int sti_drm_atomic_commit(struct drm_device *drm,
+			       struct drm_atomic_state *state, bool async)
+{
+	struct sti_drm_private *private = drm->dev_private;
+	int err;
+
+	err = drm_atomic_helper_prepare_planes(drm, state);
+	if (err)
+		return err;
+
+	/* serialize outstanding asynchronous commits */
+	mutex_lock(&private->commit.lock);
+	flush_work(&private->commit.work);
+
+	/*
+	 * This is the point of no return - everything below never fails except
+	 * when the hw goes bonghits. Which means we can commit the new state on
+	 * the software side now.
+	 */
+
+	drm_atomic_helper_swap_state(drm, state);
+
+	if (async)
+		sti_drm_atomic_schedule(private, state);
+	else
+		sti_drm_atomic_complete(private, state);
+
+	mutex_unlock(&private->commit.lock);
+	return 0;
+}
+
 static struct drm_mode_config_funcs sti_drm_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = sti_drm_atomic_commit,
 };
 
 static void sti_drm_mode_config_init(struct drm_device *dev)
@@ -61,6 +142,9 @@ static int sti_drm_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = (void *)private;
 	private->drm_dev = dev;
 
+	mutex_init(&private->commit.lock);
+	INIT_WORK(&private->commit.work, sti_drm_atomic_work);
+
 	drm_mode_config_init(dev);
 	drm_kms_helper_poll_init(dev);
 
@@ -74,7 +158,7 @@ static int sti_drm_load(struct drm_device *dev, unsigned long flags)
 		return ret;
 	}
 
-	drm_helper_disable_unused_functions(dev);
+	drm_mode_config_reset(dev);
 
 #ifdef CONFIG_DRM_STI_FBDEV
 	drm_fbdev_cma_init(dev, 32,

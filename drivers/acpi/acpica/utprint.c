@@ -357,11 +357,11 @@ int
 acpi_ut_vsnprintf(char *string,
 		  acpi_size size, const char *format, va_list args)
 {
-	u8 base = 10;
-	u8 type = 0;
-	s32 width = -1;
-	s32 precision = -1;
-	char qualifier = 0;
+	u8 base;
+	u8 type;
+	s32 width;
+	s32 precision;
+	char qualifier;
 	u64 number;
 	char *pos;
 	char *end;
@@ -379,6 +379,9 @@ acpi_ut_vsnprintf(char *string,
 			pos = acpi_ut_bound_string_output(pos, end, *format);
 			continue;
 		}
+
+		type = 0;
+		base = 10;
 
 		/* Process sign */
 

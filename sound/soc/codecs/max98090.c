@@ -2605,8 +2605,24 @@ err_enable:
 	return ret;
 }
 
+static void max98090_i2c_shutdown(struct i2c_client *i2c)
+{
+	struct max98090_priv *max98090 = dev_get_drvdata(&i2c->dev);
+
+	/*
+	 * Enable volume smoothing, disable zero cross.  This will cause
+	 * a quick 40ms ramp to mute on shutdown.
+	 */
+	regmap_write(max98090->regmap,
+		M98090_REG_LEVEL_CONTROL, M98090_VSENN_MASK);
+	regmap_write(max98090->regmap,
+		M98090_REG_DEVICE_SHUTDOWN, 0x00);
+	msleep(40);
+}
+
 static int max98090_i2c_remove(struct i2c_client *client)
 {
+	max98090_i2c_shutdown(client);
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
 }
@@ -2696,6 +2712,7 @@ static struct i2c_driver max98090_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(max98090_acpi_match),
 	},
 	.probe  = max98090_i2c_probe,
+	.shutdown = max98090_i2c_shutdown,
 	.remove = max98090_i2c_remove,
 	.id_table = max98090_i2c_id,
 };

@@ -573,7 +573,7 @@ EXPORT_SYMBOL_GPL(acpi_dev_get_resources);
  * @ares: Input ACPI resource object.
  * @types: Valid resource types of IORESOURCE_XXX
  *
- * This is a hepler function to support acpi_dev_get_resources(), which filters
+ * This is a helper function to support acpi_dev_get_resources(), which filters
  * ACPI resource objects according to resource types.
  */
 int acpi_dev_filter_resource_type(struct acpi_resource *ares,

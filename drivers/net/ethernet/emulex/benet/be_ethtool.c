@@ -1097,7 +1097,7 @@ static int be_set_rss_hash_opts(struct be_adapter *adapter,
 		return status;
 
 	if (be_multi_rxq(adapter)) {
-		for (j = 0; j < 128; j += adapter->num_rx_qs - 1) {
+		for (j = 0; j < 128; j += adapter->num_rss_qs) {
 			for_all_rss_queues(adapter, rxo, i) {
 				if ((j + i) >= 128)
 					break;

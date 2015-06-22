@@ -36,10 +36,6 @@ void __init detect_memory_memblock(void)
 	memsize = rzm * rnmax;
 	if (!rzm)
 		rzm = 1ULL << 17;
-	if (IS_ENABLED(CONFIG_32BIT)) {
-		rzm = min(ADDR2G, rzm);
-		memsize = min(ADDR2G, memsize);
-	}
 	max_physmem_end = memsize;
 	addr = 0;
 	/* keep memblock lists close to the kernel */

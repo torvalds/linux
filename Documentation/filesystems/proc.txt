@@ -200,12 +200,12 @@ contains details information about the process itself.  Its fields are
 explained in Table 1-4.
 
 (for SMP CONFIG users)
-For making accounting scalable, RSS related information are handled in
-asynchronous manner and the vaule may not be very precise. To see a precise
+For making accounting scalable, RSS related information are handled in an
+asynchronous manner and the value may not be very precise. To see a precise
 snapshot of a moment, you can see /proc/<pid>/smaps file and scan page table.
 It's slow but very precise.
 
-Table 1-2: Contents of the status files (as of 2.6.30-rc7)
+Table 1-2: Contents of the status files (as of 3.20.0)
 ..............................................................................
  Field                       Content
  Name                        filename of the executable
@@ -213,6 +213,7 @@ Table 1-2: Contents of the status files (as of 2.6.30-rc7)
                              in an uninterruptible wait, Z is zombie,
 			     T is traced or stopped)
  Tgid                        thread group ID
+ Ngid                        NUMA group ID (0 if none)
  Pid                         process id
  PPid                        process id of the parent process
  TracerPid                   PID of process tracing this process (0 if not)
@@ -220,6 +221,10 @@ Table 1-2: Contents of the status files (as of 2.6.30-rc7)
  Gid                         Real, effective, saved set, and  file system GIDs
  FDSize                      number of file descriptor slots currently allocated
  Groups                      supplementary group list
+ NStgid                      descendant namespace thread group ID hierarchy
+ NSpid                       descendant namespace process ID hierarchy
+ NSpgid                      descendant namespace process group ID hierarchy
+ NSsid                       descendant namespace session ID hierarchy
  VmPeak                      peak virtual memory size
  VmSize                      total program size
  VmLck                       locked memory size
@@ -1255,9 +1260,9 @@ Various pieces   of  information about  kernel activity  are  available in the
 since the system first booted.  For a quick look, simply cat the file:
 
   > cat /proc/stat
-  cpu  2255 34 2290 22625563 6290 127 456 0 0
-  cpu0 1132 34 1441 11311718 3675 127 438 0 0
-  cpu1 1123 0 849 11313845 2614 0 18 0 0
+  cpu  2255 34 2290 22625563 6290 127 456 0 0 0
+  cpu0 1132 34 1441 11311718 3675 127 438 0 0 0
+  cpu1 1123 0 849 11313845 2614 0 18 0 0 0
   intr 114930548 113199788 3 0 5 263 0 4 [... lots more numbers ...]
   ctxt 1990473
   btime 1062191376
@@ -1703,6 +1708,10 @@ A typical output is
 	pos:	0
 	flags:	0100002
 	mnt_id:	19
+
+All locks associated with a file descriptor are shown in its fdinfo too.
+
+lock:       1: FLOCK  ADVISORY  WRITE 359 00:13:11691 0 EOF
 
 The files such as eventfd, fsnotify, signalfd, epoll among the regular pos/flags
 pair provide additional information particular to the objects they represent.

@@ -11,9 +11,24 @@ struct hwsq {
 struct hwsq_reg {
 	int sequence;
 	bool force;
-	u32 addr[2];
+	u32 addr;
+	u32 stride; /* in bytes */
+	u32 mask;
 	u32 data;
 };
+
+static inline struct hwsq_reg
+hwsq_stride(u32 addr, u32 stride, u32 mask)
+{
+	return (struct hwsq_reg) {
+		.sequence = 0,
+		.force = 0,
+		.addr = addr,
+		.stride = stride,
+		.mask = mask,
+		.data = 0xdeadbeef,
+	};
+}
 
 static inline struct hwsq_reg
 hwsq_reg2(u32 addr1, u32 addr2)
@@ -21,7 +36,9 @@ hwsq_reg2(u32 addr1, u32 addr2)
 	return (struct hwsq_reg) {
 		.sequence = 0,
 		.force = 0,
-		.addr = { addr1, addr2 },
+		.addr = addr1,
+		.stride = addr2 - addr1,
+		.mask = 0x3,
 		.data = 0xdeadbeef,
 	};
 }
@@ -29,7 +46,14 @@ hwsq_reg2(u32 addr1, u32 addr2)
 static inline struct hwsq_reg
 hwsq_reg(u32 addr)
 {
-	return hwsq_reg2(addr, addr);
+	return (struct hwsq_reg) {
+		.sequence = 0,
+		.force = 0,
+		.addr = addr,
+		.stride = 0,
+		.mask = 0x1,
+		.data = 0xdeadbeef,
+	};
 }
 
 static inline int
@@ -62,18 +86,24 @@ static inline u32
 hwsq_rd32(struct hwsq *ram, struct hwsq_reg *reg)
 {
 	if (reg->sequence != ram->sequence)
-		reg->data = nv_rd32(ram->subdev, reg->addr[0]);
+		reg->data = nv_rd32(ram->subdev, reg->addr);
 	return reg->data;
 }
 
 static inline void
 hwsq_wr32(struct hwsq *ram, struct hwsq_reg *reg, u32 data)
 {
+	u32 mask, off = 0;
+
 	reg->sequence = ram->sequence;
 	reg->data = data;
-	if (reg->addr[0] != reg->addr[1])
-		nvkm_hwsq_wr32(ram->hwsq, reg->addr[1], reg->data);
-	nvkm_hwsq_wr32(ram->hwsq, reg->addr[0], reg->data);
+
+	for (mask = reg->mask; mask > 0; mask = (mask & ~1) >> 1) {
+		if (mask & 1)
+			nvkm_hwsq_wr32(ram->hwsq, reg->addr+off, reg->data);
+
+		off += reg->stride;
+	}
 }
 
 static inline void

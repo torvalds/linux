@@ -490,6 +490,43 @@ out:
 }
 EXPORT_SYMBOL(ceph_parse_options);
 
+int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
+{
+	struct ceph_options *opt = client->options;
+	size_t pos = m->count;
+
+	if (opt->name)
+		seq_printf(m, "name=%s,", opt->name);
+	if (opt->key)
+		seq_puts(m, "secret=<hidden>,");
+
+	if (opt->flags & CEPH_OPT_FSID)
+		seq_printf(m, "fsid=%pU,", &opt->fsid);
+	if (opt->flags & CEPH_OPT_NOSHARE)
+		seq_puts(m, "noshare,");
+	if (opt->flags & CEPH_OPT_NOCRC)
+		seq_puts(m, "nocrc,");
+	if (opt->flags & CEPH_OPT_NOMSGAUTH)
+		seq_puts(m, "nocephx_require_signatures,");
+	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
+		seq_puts(m, "notcp_nodelay,");
+
+	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
+		seq_printf(m, "mount_timeout=%d,", opt->mount_timeout);
+	if (opt->osd_idle_ttl != CEPH_OSD_IDLE_TTL_DEFAULT)
+		seq_printf(m, "osd_idle_ttl=%d,", opt->osd_idle_ttl);
+	if (opt->osd_keepalive_timeout != CEPH_OSD_KEEPALIVE_DEFAULT)
+		seq_printf(m, "osdkeepalivetimeout=%d,",
+			   opt->osd_keepalive_timeout);
+
+	/* drop redundant comma */
+	if (m->count != pos)
+		m->count--;
+
+	return 0;
+}
+EXPORT_SYMBOL(ceph_print_client_options);
+
 u64 ceph_client_id(struct ceph_client *client)
 {
 	return client->monc.auth->global_id;

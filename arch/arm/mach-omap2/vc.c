@@ -316,7 +316,8 @@ static void __init omap3_vc_init_pmic_signaling(struct voltagedomain *voltdm)
 	 * idle. And we can also scale voltages to zero for off-idle.
 	 * Note that no actual voltage scaling during off-idle will
 	 * happen unless the board specific twl4030 PMIC scripts are
-	 * loaded.
+	 * loaded. See also omap_vc_i2c_init for comments regarding
+	 * erratum i531.
 	 */
 	val = voltdm->read(OMAP3_PRM_VOLTCTRL_OFFSET);
 	if (!(val & OMAP3430_PRM_VOLTCTRL_SEL_OFF)) {
@@ -704,9 +705,16 @@ static void __init omap_vc_i2c_init(struct voltagedomain *voltdm)
 		return;
 	}
 
+	/*
+	 * Note that for omap3 OMAP3430_SREN_MASK clears SREN to work around
+	 * erratum i531 "Extra Power Consumed When Repeated Start Operation
+	 * Mode Is Enabled on I2C Interface Dedicated for Smart Reflex (I2C4)".
+	 * Otherwise I2C4 eventually leads into about 23mW extra power being
+	 * consumed even during off idle using VMODE.
+	 */
 	i2c_high_speed = voltdm->pmic->i2c_high_speed;
 	if (i2c_high_speed)
-		voltdm->rmw(vc->common->i2c_cfg_hsen_mask,
+		voltdm->rmw(vc->common->i2c_cfg_clear_mask,
 			    vc->common->i2c_cfg_hsen_mask,
 			    vc->common->i2c_cfg_reg);
 

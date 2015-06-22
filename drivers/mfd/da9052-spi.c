@@ -32,7 +32,7 @@ static int da9052_spi_probe(struct spi_device *spi)
 	if (!da9052)
 		return -ENOMEM;
 
-	spi->mode = SPI_MODE_0 | SPI_CPOL;
+	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;
 	spi_setup(spi);
 
@@ -43,6 +43,10 @@ static int da9052_spi_probe(struct spi_device *spi)
 
 	config = da9052_regmap_config;
 	config.read_flag_mask = 1;
+	config.reg_bits = 7;
+	config.pad_bits = 1;
+	config.val_bits = 8;
+	config.use_single_rw = 1;
 
 	da9052->regmap = devm_regmap_init_spi(spi, &config);
 	if (IS_ERR(da9052->regmap)) {

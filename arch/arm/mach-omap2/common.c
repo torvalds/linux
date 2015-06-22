@@ -30,5 +30,4 @@ int __weak omap_secure_ram_reserve_memblock(void)
 void __init omap_reserve(void)
 {
 	omap_secure_ram_reserve_memblock();
-	omap_barrier_reserve_memblock();
 }

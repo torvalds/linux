@@ -413,6 +413,15 @@ out:
 	return count;
 }
 
+static void hip04_start_tx_timer(struct hip04_priv *priv)
+{
+	unsigned long ns = priv->tx_coalesce_usecs * NSEC_PER_USEC / 2;
+
+	/* allow timer to fire after half the time at the earliest */
+	hrtimer_start_range_ns(&priv->tx_coalesce_timer, ns_to_ktime(ns),
+			       ns, HRTIMER_MODE_REL);
+}
+
 static int hip04_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct hip04_priv *priv = netdev_priv(ndev);
@@ -466,8 +475,7 @@ static int hip04_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		}
 	} else if (!hrtimer_is_queued(&priv->tx_coalesce_timer)) {
 		/* cleanup not pending yet, start a new timer */
-		hrtimer_start_expires(&priv->tx_coalesce_timer,
-				      HRTIMER_MODE_REL);
+		hip04_start_tx_timer(priv);
 	}
 
 	return NETDEV_TX_OK;
@@ -549,7 +557,7 @@ done:
 	/* clean up tx descriptors and start a new timer if necessary */
 	tx_remaining = hip04_tx_reclaim(ndev, false);
 	if (rx < budget && tx_remaining)
-		hrtimer_start_expires(&priv->tx_coalesce_timer, HRTIMER_MODE_REL);
+		hip04_start_tx_timer(priv);
 
 	return rx;
 }
@@ -809,7 +817,6 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	struct hip04_priv *priv;
 	struct resource *res;
 	unsigned int irq;
-	ktime_t txtime;
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct hip04_priv));
@@ -846,9 +853,6 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	 */
 	priv->tx_coalesce_frames = TX_DESC_NUM * 3 / 4;
 	priv->tx_coalesce_usecs = 200;
-	/* allow timer to fire after half the time at the earliest */
-	txtime = ktime_set(0, priv->tx_coalesce_usecs * NSEC_PER_USEC / 2);
-	hrtimer_set_expires_range(&priv->tx_coalesce_timer, txtime, txtime);
 	priv->tx_coalesce_timer.function = tx_done;
 
 	priv->map = syscon_node_to_regmap(arg.np);

@@ -388,7 +388,7 @@ int ll_file_release(struct inode *inode, struct file *file)
 static int ll_intent_file_open(struct dentry *dentry, void *lmm,
 			       int lmmsize, struct lookup_intent *itp)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct dentry *parent = dentry->d_parent;
 	const char *name = dentry->d_name.name;
@@ -413,7 +413,7 @@ static int ll_intent_file_open(struct dentry *dentry, void *lmm,
 			opc = LUSTRE_OPC_CREATE;
 	}
 
-	op_data  = ll_prep_md_op_data(NULL, parent->d_inode,
+	op_data  = ll_prep_md_op_data(NULL, d_inode(parent),
 				      inode, name, len,
 				      O_RDWR, opc, NULL);
 	if (IS_ERR(op_data))
@@ -2896,7 +2896,7 @@ static int ll_inode_revalidate_fini(struct inode *inode, int rc)
 
 static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ptlrpc_request *req = NULL;
 	struct obd_export *exp;
 	int rc = 0;
@@ -2948,12 +2948,12 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 		   do_lookup() -> ll_revalidate_it(). We cannot use d_drop
 		   here to preserve get_cwd functionality on 2.6.
 		   Bug 10503 */
-		if (!dentry->d_inode->i_nlink)
+		if (!d_inode(dentry)->i_nlink)
 			d_lustre_invalidate(dentry, 0);
 
 		ll_lookup_finish_locks(&oit, inode);
-	} else if (!ll_have_md_lock(dentry->d_inode, &ibits, LCK_MINMODE)) {
-		struct ll_sb_info *sbi = ll_i2sbi(dentry->d_inode);
+	} else if (!ll_have_md_lock(d_inode(dentry), &ibits, LCK_MINMODE)) {
+		struct ll_sb_info *sbi = ll_i2sbi(d_inode(dentry));
 		u64 valid = OBD_MD_FLGETATTR;
 		struct md_op_data *op_data;
 		int ealen = 0;
@@ -2991,7 +2991,7 @@ out:
 
 static int ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int rc;
 
 	rc = __ll_inode_revalidate(dentry, ibits);
@@ -3019,7 +3019,7 @@ static int ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 
 int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat)
 {
-	struct inode *inode = de->d_inode;
+	struct inode *inode = d_inode(de);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int res = 0;
@@ -3135,9 +3135,7 @@ int ll_inode_permission(struct inode *inode, int mask)
 
 /* -o localflock - only provides locally consistent flock locks */
 struct file_operations ll_file_operations = {
-	.read	   = new_sync_read,
 	.read_iter = ll_file_read_iter,
-	.write	  = new_sync_write,
 	.write_iter = ll_file_write_iter,
 	.unlocked_ioctl = ll_file_ioctl,
 	.open	   = ll_file_open,
@@ -3150,9 +3148,7 @@ struct file_operations ll_file_operations = {
 };
 
 struct file_operations ll_file_operations_flock = {
-	.read	   = new_sync_read,
 	.read_iter    = ll_file_read_iter,
-	.write	  = new_sync_write,
 	.write_iter   = ll_file_write_iter,
 	.unlocked_ioctl = ll_file_ioctl,
 	.open	   = ll_file_open,
@@ -3168,9 +3164,7 @@ struct file_operations ll_file_operations_flock = {
 
 /* These are for -o noflock - to return ENOSYS on flock calls */
 struct file_operations ll_file_operations_noflock = {
-	.read	   = new_sync_read,
 	.read_iter    = ll_file_read_iter,
-	.write	  = new_sync_write,
 	.write_iter   = ll_file_write_iter,
 	.unlocked_ioctl = ll_file_ioctl,
 	.open	   = ll_file_open,

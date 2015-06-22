@@ -24,7 +24,7 @@
 #include <linux/mfd/intel_soc_pmic.h>
 
 #define CRYSTALCOVE_GPIO_NUM	16
-#define CRYSTALCOVE_VGPIO_NUM	94
+#define CRYSTALCOVE_VGPIO_NUM	95
 
 #define UPDATE_IRQ_TYPE		BIT(0)
 #define UPDATE_IRQ_MASK		BIT(1)
@@ -39,6 +39,7 @@
 #define GPIO0P0CTLI		0x33
 #define GPIO1P0CTLO		0x3b
 #define GPIO1P0CTLI		0x43
+#define GPIOPANELCTL		0x52
 
 #define CTLI_INTCNT_DIS		(0)
 #define CTLI_INTCNT_NE		(1 << 1)
@@ -92,6 +93,10 @@ static inline struct crystalcove_gpio *to_cg(struct gpio_chip *gc)
 static inline int to_reg(int gpio, enum ctrl_register reg_type)
 {
 	int reg;
+
+	if (gpio == 94) {
+		return GPIOPANELCTL;
+	}
 
 	if (reg_type == CTRL_IN) {
 		if (gpio < 8)

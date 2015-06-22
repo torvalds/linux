@@ -244,7 +244,7 @@ dt3155_wait_prepare(struct vb2_queue *q)
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(q);
 
-	mutex_unlock(pd->vdev->lock);
+	mutex_unlock(pd->vdev.lock);
 }
 
 static void
@@ -252,7 +252,7 @@ dt3155_wait_finish(struct vb2_queue *q)
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(q);
 
-	mutex_lock(pd->vdev->lock);
+	mutex_lock(pd->vdev.lock);
 }
 
 static int
@@ -824,7 +824,7 @@ static struct video_device dt3155_vdev = {
 	.fops = &dt3155_fops,
 	.ioctl_ops = &dt3155_ioctl_ops,
 	.minor = -1,
-	.release = video_device_release,
+	.release = video_device_release_empty,
 	.tvnorms = DT3155_CURRENT_NORM,
 };
 
@@ -901,28 +901,24 @@ dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err)
 		return -ENODEV;
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc(&pdev->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
-	pd->vdev = video_device_alloc();
-	if (!pd->vdev) {
-		err = -ENOMEM;
-		goto err_video_device_alloc;
-	}
-	*pd->vdev = dt3155_vdev;
+
+	pd->vdev = dt3155_vdev;
 	pci_set_drvdata(pdev, pd);    /* for use in dt3155_remove() */
-	video_set_drvdata(pd->vdev, pd);  /* for use in video_fops */
+	video_set_drvdata(&pd->vdev, pd);  /* for use in video_fops */
 	pd->users = 0;
 	pd->pdev = pdev;
 	INIT_LIST_HEAD(&pd->dmaq);
 	mutex_init(&pd->mux);
-	pd->vdev->lock = &pd->mux; /* for locking v4l2_file_operations */
+	pd->vdev.lock = &pd->mux; /* for locking v4l2_file_operations */
 	spin_lock_init(&pd->lock);
 	pd->csr2 = csr2_init;
 	pd->config = config_init;
 	err = pci_enable_device(pdev);
 	if (err)
-		goto err_enable_dev;
+		return err;
 	err = pci_request_region(pdev, 0, pci_name(pdev));
 	if (err)
 		goto err_req_region;
@@ -934,13 +930,13 @@ dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = dt3155_init_board(pdev);
 	if (err)
 		goto err_init_board;
-	err = video_register_device(pd->vdev, VFL_TYPE_GRABBER, -1);
+	err = video_register_device(&pd->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)
 		goto err_init_board;
 	if (dt3155_alloc_coherent(&pdev->dev, DT3155_CHUNK_SIZE,
 							DMA_MEMORY_MAP))
 		dev_info(&pdev->dev, "preallocated 8 buffers\n");
-	dev_info(&pdev->dev, "/dev/video%i is ready\n", pd->vdev->minor);
+	dev_info(&pdev->dev, "/dev/video%i is ready\n", pd->vdev.minor);
 	return 0;  /*   success   */
 
 err_init_board:
@@ -949,10 +945,6 @@ err_pci_iomap:
 	pci_release_region(pdev, 0);
 err_req_region:
 	pci_disable_device(pdev);
-err_enable_dev:
-	video_device_release(pd->vdev);
-err_video_device_alloc:
-	kfree(pd);
 	return err;
 }
 
@@ -962,15 +954,10 @@ dt3155_remove(struct pci_dev *pdev)
 	struct dt3155_priv *pd = pci_get_drvdata(pdev);
 
 	dt3155_free_coherent(&pdev->dev);
-	video_unregister_device(pd->vdev);
+	video_unregister_device(&pd->vdev);
 	pci_iounmap(pdev, pd->regs);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
-	/*
-	 * video_device_release() is invoked automatically
-	 * see: struct video_device dt3155_vdev
-	 */
-	kfree(pd);
 }
 
 static const struct pci_device_id pci_ids[] = {

@@ -40,6 +40,12 @@
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 		};
+
+		clk54: clk54 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <54000000>;
+		};
 	};
 
 	soc {
@@ -64,6 +70,64 @@
 			interrupts = <1 1>; /* external irq 1 */
 			local-mac-address = [00 50 c2 13 6f 00];
 			clocks = <&osc>;
+		};
+
+		i2s0: xtfpga-i2s@0d080000 {
+			#sound-dai-cells = <0>;
+			compatible = "cdns,xtfpga-i2s";
+			reg = <0x0d080000 0x40>;
+			interrupts = <2 1>; /* external irq 2 */
+			clocks = <&cdce706 4>;
+		};
+
+		i2c0: i2c-master@0d090000 {
+			compatible = "opencores,i2c-ocores";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0d090000 0x20>;
+			reg-shift = <2>;
+			reg-io-width = <1>;
+			interrupts = <4 1>;
+			clocks = <&osc>;
+
+			cdce706: clock-synth@69 {
+				compatible = "ti,cdce706";
+				#clock-cells = <1>;
+				reg = <0x69>;
+				clocks = <&clk54>;
+				clock-names = "clk_in0";
+			};
+		};
+
+		spi0: spi-master@0d0a0000 {
+			compatible = "cdns,xtfpga-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0d0a0000 0xc>;
+
+			tlv320aic23: sound-codec@0 {
+				#sound-dai-cells = <0>;
+				compatible = "tlv320aic23";
+				reg = <0>;
+				spi-max-frequency = <12500000>;
+			};
+		};
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&tlv320aic23>;
+			simple-audio-card,bitclock-master = <0>;
+			simple-audio-card,frame-master = <0>;
+			clocks = <&cdce706 4>;
 		};
 	};
 };

@@ -109,7 +109,7 @@ nv04_display_create(struct drm_device *dev)
 		crtc->funcs->save(crtc);
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct drm_encoder_helper_funcs *func = encoder->helper_private;
+		const struct drm_encoder_helper_funcs *func = encoder->helper_private;
 
 		func->save(encoder);
 	}
@@ -138,7 +138,7 @@ nv04_display_destroy(struct drm_device *dev)
 
 	/* Restore state */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct drm_encoder_helper_funcs *func = encoder->helper_private;
+		const struct drm_encoder_helper_funcs *func = encoder->helper_private;
 
 		func->restore(encoder);
 	}
@@ -169,7 +169,7 @@ nv04_display_init(struct drm_device *dev)
 	 * on suspend too.
 	 */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct drm_encoder_helper_funcs *func = encoder->helper_private;
+		const struct drm_encoder_helper_funcs *func = encoder->helper_private;
 
 		func->restore(encoder);
 	}

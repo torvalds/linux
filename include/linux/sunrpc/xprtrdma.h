@@ -41,11 +41,6 @@
 #define _LINUX_SUNRPC_XPRTRDMA_H
 
 /*
- * rpcbind (v3+) RDMA netid.
- */
-#define RPCBIND_NETID_RDMA	"rdma"
-
-/*
  * Constants. Max RPC/NFS header is big enough to account for
  * additional marshaling buffers passed down by Linux client.
  *

@@ -37,7 +37,6 @@
 #define I40E_FILTER_CONTEXT_DESC(R, i)  \
 	(&(((struct i40e_fcoe_filter_context_desc *)((R)->desc))[i]))
 
-
 /* receive queue descriptor filter status for FCoE */
 #define I40E_RX_DESC_FLTSTAT_FCMASK	0x3
 #define I40E_RX_DESC_FLTSTAT_NOMTCH	0x0	/* no ddp context match */

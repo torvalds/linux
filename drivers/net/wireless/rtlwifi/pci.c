@@ -887,7 +887,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 				unicast = true;
 				rtlpriv->stats.rxbytesunicast += skb->len;
 			}
-			rtl_is_special_data(hw, skb, false);
+			rtl_is_special_data(hw, skb, false, true);
 
 			if (ieee80211_is_data(fc)) {
 				rtlpriv->cfg->ops->led_control(hw, LED_CTL_RX);

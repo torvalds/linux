@@ -2990,8 +2990,8 @@ static void __btrfsic_submit_bio(int rw, struct bio *bio)
 			       (unsigned long long)bio->bi_iter.bi_sector,
 			       dev_bytenr, bio->bi_bdev);
 
-		mapped_datav = kmalloc(sizeof(*mapped_datav) * bio->bi_vcnt,
-				       GFP_NOFS);
+		mapped_datav = kmalloc_array(bio->bi_vcnt,
+					     sizeof(*mapped_datav), GFP_NOFS);
 		if (!mapped_datav)
 			goto leave;
 		cur_bytenr = dev_bytenr;
@@ -3241,8 +3241,5 @@ void btrfsic_unmount(struct btrfs_root *root,
 
 	mutex_unlock(&btrfsic_mutex);
 
-	if (is_vmalloc_addr(state))
-		vfree(state);
-	else
-		kfree(state);
+	kvfree(state);
 }

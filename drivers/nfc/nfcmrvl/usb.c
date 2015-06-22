@@ -80,7 +80,7 @@ static void nfcmrvl_bulk_complete(struct urb *urb)
 	if (!urb->status) {
 		if (nfcmrvl_nci_recv_frame(drv_data->priv, urb->transfer_buffer,
 					   urb->actual_length) < 0)
-			nfc_err(&drv_data->udev->dev, "corrupted Rx packet");
+			nfc_err(&drv_data->udev->dev, "corrupted Rx packet\n");
 	}
 
 	if (!test_bit(NFCMRVL_USB_BULK_RUNNING, &drv_data->flags))
@@ -96,7 +96,7 @@ static void nfcmrvl_bulk_complete(struct urb *urb)
 		 */
 		if (err != -EPERM && err != -ENODEV)
 			nfc_err(&drv_data->udev->dev,
-				"urb %p failed to resubmit (%d)", urb, -err);
+				"urb %p failed to resubmit (%d)\n", urb, -err);
 		usb_unanchor_urb(urb);
 	}
 }
@@ -137,7 +137,7 @@ nfcmrvl_submit_bulk_urb(struct nfcmrvl_usb_drv_data *drv_data, gfp_t mem_flags)
 	if (err) {
 		if (err != -EPERM && err != -ENODEV)
 			nfc_err(&drv_data->udev->dev,
-				"urb %p submission failed (%d)", urb, -err);
+				"urb %p submission failed (%d)\n", urb, -err);
 		usb_unanchor_urb(urb);
 	}
 
@@ -153,7 +153,7 @@ static void nfcmrvl_tx_complete(struct urb *urb)
 	struct nfcmrvl_private *priv = nci_get_drvdata(ndev);
 	struct nfcmrvl_usb_drv_data *drv_data = priv->drv_data;
 
-	nfc_info(priv->dev, "urb %p status %d count %d",
+	nfc_info(priv->dev, "urb %p status %d count %d\n",
 		 urb, urb->status, urb->actual_length);
 
 	spin_lock(&drv_data->txlock);
@@ -253,7 +253,7 @@ static int nfcmrvl_usb_nci_send(struct nfcmrvl_private *priv,
 	if (err) {
 		if (err != -EPERM && err != -ENODEV)
 			nfc_err(&drv_data->udev->dev,
-				"urb %p submission failed (%d)", urb, -err);
+				"urb %p submission failed (%d)\n", urb, -err);
 		kfree(urb->setup_packet);
 		usb_unanchor_urb(urb);
 	} else {
@@ -293,7 +293,7 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	int i;
 	struct usb_device *udev = interface_to_usbdev(intf);
 
-	nfc_info(&udev->dev, "intf %p id %p", intf, id);
+	nfc_info(&udev->dev, "intf %p id %p\n", intf, id);
 
 	drv_data = devm_kzalloc(&intf->dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)
@@ -348,7 +348,7 @@ static void nfcmrvl_disconnect(struct usb_interface *intf)
 	if (!drv_data)
 		return;
 
-	nfc_info(&drv_data->udev->dev, "intf %p", intf);
+	nfc_info(&drv_data->udev->dev, "intf %p\n", intf);
 
 	nfcmrvl_nci_unregister_dev(drv_data->priv);
 
@@ -360,7 +360,7 @@ static int nfcmrvl_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct nfcmrvl_usb_drv_data *drv_data = usb_get_intfdata(intf);
 
-	nfc_info(&drv_data->udev->dev, "intf %p", intf);
+	nfc_info(&drv_data->udev->dev, "intf %p\n", intf);
 
 	if (drv_data->suspend_count++)
 		return 0;
@@ -401,7 +401,7 @@ static int nfcmrvl_resume(struct usb_interface *intf)
 	struct nfcmrvl_usb_drv_data *drv_data = usb_get_intfdata(intf);
 	int err = 0;
 
-	nfc_info(&drv_data->udev->dev, "intf %p", intf);
+	nfc_info(&drv_data->udev->dev, "intf %p\n", intf);
 
 	if (--drv_data->suspend_count)
 		return 0;

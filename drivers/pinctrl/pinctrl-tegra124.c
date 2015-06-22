@@ -1536,6 +1536,7 @@ enum tegra_mux {
 	TEGRA_MUX_CLK,
 	TEGRA_MUX_CLK12,
 	TEGRA_MUX_CPU,
+	TEGRA_MUX_CSI,
 	TEGRA_MUX_DAP,
 	TEGRA_MUX_DAP1,
 	TEGRA_MUX_DAP2,
@@ -1544,6 +1545,7 @@ enum tegra_mux {
 	TEGRA_MUX_DISPLAYA_ALT,
 	TEGRA_MUX_DISPLAYB,
 	TEGRA_MUX_DP,
+	TEGRA_MUX_DSI_B,
 	TEGRA_MUX_DTV,
 	TEGRA_MUX_EXTPERIPH1,
 	TEGRA_MUX_EXTPERIPH2,
@@ -1613,8 +1615,6 @@ enum tegra_mux {
 	TEGRA_MUX_VI_ALT3,
 	TEGRA_MUX_VIMCLK2,
 	TEGRA_MUX_VIMCLK2_ALT,
-	TEGRA_MUX_CSI,
-	TEGRA_MUX_DSI_B,
 };
 
 #define FUNCTION(fname)					\
@@ -1630,6 +1630,7 @@ static struct tegra_function tegra124_functions[] = {
 	FUNCTION(clk),
 	FUNCTION(clk12),
 	FUNCTION(cpu),
+	FUNCTION(csi),
 	FUNCTION(dap),
 	FUNCTION(dap1),
 	FUNCTION(dap2),
@@ -1638,6 +1639,7 @@ static struct tegra_function tegra124_functions[] = {
 	FUNCTION(displaya_alt),
 	FUNCTION(displayb),
 	FUNCTION(dp),
+	FUNCTION(dsi_b),
 	FUNCTION(dtv),
 	FUNCTION(extperiph1),
 	FUNCTION(extperiph2),
@@ -1707,15 +1709,15 @@ static struct tegra_function tegra124_functions[] = {
 	FUNCTION(vi_alt3),
 	FUNCTION(vimclk2),
 	FUNCTION(vimclk2_alt),
-	FUNCTION(csi),
-	FUNCTION(dsi_b),
 };
 
 #define DRV_PINGROUP_REG_A		0x868	/* bank 0 */
 #define PINGROUP_REG_A			0x3000	/* bank 1 */
 #define MIPI_PAD_CTRL_PINGROUP_REG_A	0x820	/* bank 2 */
 
+#define DRV_PINGROUP_REG(r)		((r) - DRV_PINGROUP_REG_A)
 #define PINGROUP_REG(r)			((r) - PINGROUP_REG_A)
+#define MIPI_PAD_CTRL_PINGROUP_REG_Y(r)	((r) - MIPI_PAD_CTRL_PINGROUP_REG_A)
 
 #define PINGROUP_BIT_Y(b)		(b)
 #define PINGROUP_BIT_N(b)		(-1)
@@ -1740,20 +1742,17 @@ static struct tegra_function tegra124_functions[] = {
 		.tri_reg = PINGROUP_REG(r),				\
 		.tri_bank = 1,						\
 		.tri_bit = 4,						\
-		.einput_bit = PINGROUP_BIT_Y(5),			\
+		.einput_bit = 5,					\
 		.odrain_bit = PINGROUP_BIT_##od(6),			\
-		.lock_bit = PINGROUP_BIT_Y(7),				\
+		.lock_bit = 7,						\
 		.ioreset_bit = PINGROUP_BIT_##ior(8),			\
 		.rcv_sel_bit = PINGROUP_BIT_##rcv_sel(9),		\
 		.drv_reg = -1,						\
 	}
 
-#define DRV_PINGROUP_REG(r)		((r) - DRV_PINGROUP_REG_A)
-
-#define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b,		\
-		     drvdn_b, drvdn_w, drvup_b, drvup_w,		\
-		     slwr_b, slwr_w, slwf_b, slwf_w,			\
-		     drvtype)						\
+#define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b, drvdn_b,	\
+		     drvdn_w, drvup_b, drvup_w, slwr_b, slwr_w,		\
+		     slwf_b, slwf_w, drvtype)				\
 	{								\
 		.name = "drive_" #pg_name,				\
 		.pins = drive_##pg_name##_pins,				\
@@ -1781,8 +1780,6 @@ static struct tegra_function tegra124_functions[] = {
 		.slwf_width = slwf_w,					\
 		.drvtype_bit = PINGROUP_BIT_##drvtype(6),		\
 	}
-
-#define MIPI_PAD_CTRL_PINGROUP_REG_Y(r)	((r) - MIPI_PAD_CTRL_PINGROUP_REG_A)
 
 #define MIPI_PAD_CTRL_PINGROUP(pg_name, r, b, f0, f1)			\
 	{								\
@@ -2044,8 +2041,8 @@ static const struct tegra_pingroup tegra124_groups[] = {
 	DRV_PINGROUP(sdio4,       0x9c4,  2,  3,  4,  12,  5,  20,  5,  28,  2,  30,  2,  N),
 	DRV_PINGROUP(ao4,         0x9c8,  2,  3,  4,  12,  7,  20,  7,  28,  2,  30,  2,  Y),
 
-	/*		       pg_name, r      b  f0,  f1 */
-	MIPI_PAD_CTRL_PINGROUP(dsi_b,   0x820, 1, CSI, DSI_B)
+	/*                     pg_name, r,     b, f0,  f1 */
+	MIPI_PAD_CTRL_PINGROUP(dsi_b,   0x820, 1, CSI, DSI_B),
 };
 
 static const struct tegra_pinctrl_soc_data tegra124_pinctrl = {
@@ -2056,6 +2053,9 @@ static const struct tegra_pinctrl_soc_data tegra124_pinctrl = {
 	.nfunctions = ARRAY_SIZE(tegra124_functions),
 	.groups = tegra124_groups,
 	.ngroups = ARRAY_SIZE(tegra124_groups),
+	.hsm_in_mux = false,
+	.schmitt_in_mux = false,
+	.drvtype_in_mux = false,
 };
 
 static int tegra124_pinctrl_probe(struct platform_device *pdev)
