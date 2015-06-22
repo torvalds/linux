@@ -87,10 +87,9 @@ struct rsnd_ssi {
 #define rsnd_ssi_of_node(priv) \
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,ssi")
 
-int rsnd_ssi_use_busif(struct rsnd_mod *mod)
+int rsnd_ssi_use_busif(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int use_busif = 0;
 
 	if (!rsnd_ssi_is_dma_mode(mod))
@@ -199,15 +198,17 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		}
 	}
 
-	cr_mode = rsnd_ssi_is_dma_mode(&ssi->mod) ?
-		DMEN :	/* DMA : enable DMA */
-		DIEN;	/* PIO : enable Data interrupt */
-
+	if (rsnd_ssi_is_dma_mode(&ssi->mod)) {
+		cr_mode = UIEN | OIEN |	/* over/under run */
+			  DMEN;		/* DMA : enable DMA */
+	} else {
+		cr_mode = DIEN;		/* PIO : enable Data interrupt */
+	}
 
 	cr  =	ssi->cr_own	|
 		ssi->cr_clk	|
 		cr_mode		|
-		UIEN | OIEN | EN;
+		EN;
 
 	rsnd_mod_write(&ssi->mod, SSICR, cr);
 
@@ -224,10 +225,9 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		rsnd_mod_name(&ssi->mod), rsnd_mod_id(&ssi->mod));
 }
 
-static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi)
+static void rsnd_ssi_hw_stop(struct rsnd_dai_stream *io, struct rsnd_ssi *ssi)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(&ssi->mod);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 cr;
@@ -261,7 +261,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi)
 			struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
 
 			if (ssi_parent)
-				rsnd_ssi_hw_stop(ssi_parent);
+				rsnd_ssi_hw_stop(io, ssi_parent);
 			else
 				rsnd_ssi_master_clk_stop(ssi);
 		}
@@ -279,10 +279,10 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi)
  *	SSI mod common functions
  */
 static int rsnd_ssi_init(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	u32 cr;
@@ -330,6 +330,7 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_quit(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
@@ -346,6 +347,7 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
 			      struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
@@ -369,7 +371,8 @@ static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
 	/* It will be removed on rsnd_ssi_hw_stop */
 	ssi->chan = chan;
 	if (ssi_parent)
-		return rsnd_ssi_hw_params(&ssi_parent->mod, substream, params);
+		return rsnd_ssi_hw_params(&ssi_parent->mod, io,
+					  substream, params);
 
 	return 0;
 }
@@ -386,12 +389,12 @@ static void rsnd_ssi_record_error(struct rsnd_ssi *ssi, u32 status)
 }
 
 static int rsnd_ssi_start(struct rsnd_mod *mod,
+			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
-	rsnd_src_ssiu_start(mod, rsnd_ssi_use_busif(mod));
+	rsnd_src_ssiu_start(mod, io, rsnd_ssi_use_busif(io, mod));
 
 	rsnd_ssi_hw_start(ssi, io);
 
@@ -401,6 +404,7 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_stop(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
@@ -409,26 +413,26 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 
 	rsnd_ssi_record_error(ssi, rsnd_mod_read(mod, SSISR));
 
-	rsnd_ssi_hw_stop(ssi);
+	rsnd_ssi_hw_stop(io, ssi);
 
-	rsnd_src_ssiu_stop(mod);
+	rsnd_src_ssiu_stop(mod, io);
 
 	return 0;
 }
 
-static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
+static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
+				 struct rsnd_dai_stream *io)
 {
-	struct rsnd_ssi *ssi = data;
-	struct rsnd_mod *mod = &ssi->mod;
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int is_dma = rsnd_ssi_is_dma_mode(mod);
 	u32 status;
+	bool elapsed = false;
 
 	spin_lock(&priv->lock);
 
 	/* ignore all cases if not working */
-	if (!rsnd_mod_is_working(mod))
+	if (!rsnd_io_is_working(io))
 		goto rsnd_ssi_interrupt_out;
 
 	status = rsnd_mod_read(mod, SSISR);
@@ -449,11 +453,11 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 		else
 			*buf = rsnd_mod_read(mod, SSIRDR);
 
-		rsnd_dai_pointer_update(io, sizeof(*buf));
+		elapsed = rsnd_dai_pointer_update(io, sizeof(*buf));
 	}
 
-	/* PIO / DMA */
-	if (status & (UIRQ | OIRQ)) {
+	/* DMA only */
+	if (is_dma && (status & (UIRQ | OIRQ))) {
 		struct device *dev = rsnd_priv_to_dev(priv);
 
 		/*
@@ -462,9 +466,9 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 		dev_dbg(dev, "%s[%d] restart\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
-		rsnd_ssi_stop(mod, priv);
+		rsnd_ssi_stop(mod, io, priv);
 		if (ssi->err < 1024)
-			rsnd_ssi_start(mod, priv);
+			rsnd_ssi_start(mod, io, priv);
 		else
 			dev_warn(dev, "no more SSI restart\n");
 	}
@@ -474,6 +478,16 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 rsnd_ssi_interrupt_out:
 	spin_unlock(&priv->lock);
 
+	if (elapsed)
+		rsnd_dai_period_elapsed(io);
+}
+
+static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
+{
+	struct rsnd_mod *mod = data;
+
+	rsnd_mod_interrupt(mod, __rsnd_ssi_interrupt);
+
 	return IRQ_HANDLED;
 }
 
@@ -481,6 +495,7 @@ rsnd_ssi_interrupt_out:
  *		SSI PIO
  */
 static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
 			      struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
@@ -490,7 +505,7 @@ static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
 	ret = devm_request_irq(dev, ssi->info->irq,
 			       rsnd_ssi_interrupt,
 			       IRQF_SHARED,
-			       dev_name(dev), ssi);
+			       dev_name(dev), mod);
 
 	return ret;
 }
@@ -506,6 +521,7 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 };
 
 static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
 			      struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
@@ -516,25 +532,26 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 	ret = devm_request_irq(dev, ssi->info->irq,
 			       rsnd_ssi_interrupt,
 			       IRQF_SHARED,
-			       dev_name(dev), ssi);
+			       dev_name(dev), mod);
 	if (ret)
 		return ret;
 
 	ret = rsnd_dma_init(
-		priv, rsnd_mod_to_dma(mod),
+		io, rsnd_mod_to_dma(mod),
 		dma_id);
 
 	return ret;
 }
 
 static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
+			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int irq = ssi->info->irq;
 
-	rsnd_dma_quit(rsnd_mod_to_dma(mod));
+	rsnd_dma_quit(io, rsnd_mod_to_dma(mod));
 
 	/* PIO will request IRQ again */
 	devm_free_irq(dev, irq, ssi);
@@ -543,6 +560,7 @@ static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_fallback(struct rsnd_mod *mod,
+			     struct rsnd_dai_stream *io,
 			     struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
@@ -563,37 +581,39 @@ static int rsnd_ssi_fallback(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
 			      struct rsnd_priv *priv)
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
-	rsnd_dma_start(dma);
+	rsnd_dma_start(io, dma);
 
-	rsnd_ssi_start(mod, priv);
+	rsnd_ssi_start(mod, io, priv);
 
 	return 0;
 }
 
 static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
+			     struct rsnd_dai_stream *io,
 			     struct rsnd_priv *priv)
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
-	rsnd_ssi_stop(mod, priv);
+	rsnd_ssi_stop(mod, io, priv);
 
-	rsnd_dma_stop(dma);
+	rsnd_dma_stop(io, dma);
 
 	return 0;
 }
 
-static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_mod *mod)
+static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
+					 struct rsnd_mod *mod)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int is_play = rsnd_io_is_play(io);
 	char *name;
 
-	if (rsnd_ssi_use_busif(mod))
+	if (rsnd_ssi_use_busif(io, mod))
 		name = is_play ? "rxu" : "txu";
 	else
 		name = is_play ? "rx" : "tx";
@@ -776,7 +796,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		else if (rsnd_ssi_pio_available(ssi))
 			ops = &rsnd_ssi_pio_ops;
 
-		ret = rsnd_mod_init(&ssi->mod, ops, clk, RSND_MOD_SSI, i);
+		ret = rsnd_mod_init(priv, &ssi->mod, ops, clk, RSND_MOD_SSI, i);
 		if (ret)
 			return ret;
 

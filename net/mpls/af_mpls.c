@@ -541,7 +541,7 @@ static void mpls_ifdown(struct net_device *dev)
 
 	RCU_INIT_POINTER(dev->mpls_ptr, NULL);
 
-	kfree(mdev);
+	kfree_rcu(mdev, rcu);
 }
 
 static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
@@ -563,6 +563,17 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 
 	case NETDEV_UNREGISTER:
 		mpls_ifdown(dev);
+		break;
+	case NETDEV_CHANGENAME:
+		mdev = mpls_dev_get(dev);
+		if (mdev) {
+			int err;
+
+			mpls_dev_sysctl_unregister(mdev);
+			err = mpls_dev_sysctl_register(dev, mdev);
+			if (err)
+				return notifier_from_errno(err);
+		}
 		break;
 	}
 	return NOTIFY_OK;

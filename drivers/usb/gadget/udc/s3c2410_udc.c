@@ -1487,7 +1487,7 @@ static int s3c2410_udc_pullup(struct usb_gadget *gadget, int is_on)
 
 	dprintk(DEBUG_NORMAL, "%s()\n", __func__);
 
-	s3c2410_udc_set_pullup(udc, is_on ? 0 : 1);
+	s3c2410_udc_set_pullup(udc, is_on);
 	return 0;
 }
 

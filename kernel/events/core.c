@@ -3442,7 +3442,6 @@ static void free_event_rcu(struct rcu_head *head)
 	if (event->ns)
 		put_pid_ns(event->ns);
 	perf_event_free_filter(event);
-	perf_event_free_bpf_prog(event);
 	kfree(event);
 }
 
@@ -3572,6 +3571,8 @@ static void __free_event(struct perf_event *event)
 		if (event->attr.sample_type & PERF_SAMPLE_CALLCHAIN)
 			put_callchain_buffers();
 	}
+
+	perf_event_free_bpf_prog(event);
 
 	if (event->destroy)
 		event->destroy(event);

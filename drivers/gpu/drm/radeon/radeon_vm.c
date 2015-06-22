@@ -458,14 +458,16 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		/* make sure object fit at this offset */
 		eoffset = soffset + size;
 		if (soffset >= eoffset) {
-			return -EINVAL;
+			r = -EINVAL;
+			goto error_unreserve;
 		}
 
 		last_pfn = eoffset / RADEON_GPU_PAGE_SIZE;
 		if (last_pfn > rdev->vm_manager.max_pfn) {
 			dev_err(rdev->dev, "va above limit (0x%08X > 0x%08X)\n",
 				last_pfn, rdev->vm_manager.max_pfn);
-			return -EINVAL;
+			r = -EINVAL;
+			goto error_unreserve;
 		}
 
 	} else {
@@ -486,7 +488,8 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 				"(bo %p 0x%010lx 0x%010lx)\n", bo_va->bo,
 				soffset, tmp->bo, tmp->it.start, tmp->it.last);
 			mutex_unlock(&vm->mutex);
-			return -EINVAL;
+			r = -EINVAL;
+			goto error_unreserve;
 		}
 	}
 
@@ -497,7 +500,8 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			tmp = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
 			if (!tmp) {
 				mutex_unlock(&vm->mutex);
-				return -ENOMEM;
+				r = -ENOMEM;
+				goto error_unreserve;
 			}
 			tmp->it.start = bo_va->it.start;
 			tmp->it.last = bo_va->it.last;
@@ -555,7 +559,6 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		r = radeon_vm_clear_bo(rdev, pt);
 		if (r) {
 			radeon_bo_unref(&pt);
-			radeon_bo_reserve(bo_va->bo, false);
 			return r;
 		}
 
@@ -575,6 +578,10 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 
 	mutex_unlock(&vm->mutex);
 	return 0;
+
+error_unreserve:
+	radeon_bo_unreserve(bo_va->bo);
+	return r;
 }
 
 /**

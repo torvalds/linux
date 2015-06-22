@@ -509,6 +509,11 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5670=m
 	default m if SND_SOC_RT5677=m
 
+config SND_SOC_RL6347A
+	tristate
+	default y if SND_SOC_RT286=y
+	default m if SND_SOC_RT286=m
+
 config SND_SOC_RT286
 	tristate
 	depends on I2C

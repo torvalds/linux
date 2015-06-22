@@ -48,7 +48,9 @@ extern u8 sk_load_word[], sk_load_half[], sk_load_byte[];
  * We get 160 bytes stack space from calling function, but only use
  * 11 * 8 byte (old backchain + r15 - r6) for storing registers.
  */
-#define STK_OFF (MAX_BPF_STACK + 8 + 4 + 4 + (160 - 11 * 8))
+#define STK_SPACE	(MAX_BPF_STACK + 8 + 4 + 4 + 160)
+#define STK_160_UNUSED	(160 - 11 * 8)
+#define STK_OFF		(STK_SPACE - STK_160_UNUSED)
 #define STK_OFF_TMP	160	/* Offset of tmp buffer on stack */
 #define STK_OFF_HLEN	168	/* Offset of SKB header length on stack */
 

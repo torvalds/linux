@@ -223,6 +223,25 @@
 /include/ "tps65217.dtsi"
 
 &tps {
+	/*
+	 * Configure pmic to enter OFF-state instead of SLEEP-state ("RTC-only
+	 * mode") at poweroff.  Most BeagleBone versions do not support RTC-only
+	 * mode and risk hardware damage if this mode is entered.
+	 *
+	 * For details, see linux-omap mailing list May 2015 thread
+	 *	[PATCH] ARM: dts: am335x-bone* enable pmic-shutdown-controller
+	 * In particular, messages:
+	 *	http://www.spinics.net/lists/linux-omap/msg118585.html
+	 *	http://www.spinics.net/lists/linux-omap/msg118615.html
+	 *
+	 * You can override this later with
+	 *	&tps {  /delete-property/ ti,pmic-shutdown-controller;  }
+	 * if you want to use RTC-only mode and made sure you are not affected
+	 * by the hardware problems. (Tip: double-check by performing a current
+	 * measurement after shutdown: it should be less than 1 mA.)
+	 */
+	ti,pmic-shutdown-controller;
+
 	regulators {
 		dcdc1_reg: regulator@0 {
 			regulator-name = "vdds_dpr";
