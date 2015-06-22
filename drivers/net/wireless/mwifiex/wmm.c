@@ -162,8 +162,8 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 		ra_list->amsdu_in_ampdu = false;
 		ra_list->tx_paused = false;
 		if (!mwifiex_queuing_ra_based(priv)) {
-			if (mwifiex_get_tdls_link_status(priv, ra) ==
-			    TDLS_SETUP_COMPLETE) {
+			if (mwifiex_is_tdls_link_setup
+				(mwifiex_get_tdls_link_status(priv, ra))) {
 				ra_list->tdls_link = true;
 				ra_list->is_11n_enabled =
 					mwifiex_tdls_peer_11n_enabled(priv, ra);
@@ -806,6 +806,9 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	    !mwifiex_is_skb_mgmt_frame(skb)) {
 		switch (tdls_status) {
 		case TDLS_SETUP_COMPLETE:
+		case TDLS_CHAN_SWITCHING:
+		case TDLS_IN_BASE_CHAN:
+		case TDLS_IN_OFF_CHAN:
 			ra_list = mwifiex_wmm_get_queue_raptr(priv, tid_down,
 							      ra);
 			tx_info->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;

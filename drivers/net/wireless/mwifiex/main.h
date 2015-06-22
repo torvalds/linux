@@ -1333,6 +1333,21 @@ static inline u8 mwifiex_is_any_intf_active(struct mwifiex_private *priv)
 	return 0;
 }
 
+static inline u8 mwifiex_is_tdls_link_setup(u8 status)
+{
+	switch (status) {
+	case TDLS_SETUP_COMPLETE:
+	case TDLS_CHAN_SWITCHING:
+	case TDLS_IN_BASE_CHAN:
+	case TDLS_IN_OFF_CHAN:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);

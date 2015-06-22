@@ -49,7 +49,7 @@ static void mwifiex_restore_tdls_packets(struct mwifiex_private *priv,
 		tid = skb->priority;
 		tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
 
-		if (status == TDLS_SETUP_COMPLETE) {
+		if (mwifiex_is_tdls_link_setup(status)) {
 			ra_list = mwifiex_wmm_get_queue_raptr(priv, tid, mac);
 			ra_list->tdls_link = true;
 			tx_info->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;
@@ -1147,7 +1147,7 @@ int mwifiex_get_tdls_list(struct mwifiex_private *priv,
 
 	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 	list_for_each_entry(sta_ptr, &priv->sta_list, list) {
-		if (sta_ptr->tdls_status == TDLS_SETUP_COMPLETE) {
+		if (mwifiex_is_tdls_link_setup(sta_ptr->tdls_status)) {
 			ether_addr_copy(peer->peer_addr, sta_ptr->mac_addr);
 			peer++;
 			count++;
@@ -1301,7 +1301,7 @@ void mwifiex_auto_tdls_update_peer_status(struct mwifiex_private *priv,
 			if ((link_status == TDLS_NOT_SETUP) &&
 			    (peer->tdls_status == TDLS_SETUP_INPROGRESS))
 				peer->failure_count++;
-			else if (link_status == TDLS_SETUP_COMPLETE)
+			else if (mwifiex_is_tdls_link_setup(link_status))
 				peer->failure_count = 0;
 
 			peer->tdls_status = link_status;
@@ -1373,7 +1373,7 @@ void mwifiex_check_auto_tdls(unsigned long context)
 
 		if (((tdls_peer->rssi >= MWIFIEX_TDLS_RSSI_LOW) ||
 		     !tdls_peer->rssi) &&
-		    tdls_peer->tdls_status == TDLS_SETUP_COMPLETE) {
+		    mwifiex_is_tdls_link_setup(tdls_peer->tdls_status)) {
 			tdls_peer->tdls_status = TDLS_LINK_TEARDOWN;
 			mwifiex_dbg(priv->adapter, MSG,
 				    "teardown TDLS link,peer=%pM rssi=%d\n",

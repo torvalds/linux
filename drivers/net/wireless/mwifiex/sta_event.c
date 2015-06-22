@@ -273,7 +273,7 @@ mwifiex_process_sta_tx_pause_event(struct mwifiex_private *priv,
 				    tp_tlv->pkt_cnt);
 			status = mwifiex_get_tdls_link_status
 					(priv,	tp_tlv->peermac);
-			if (status == TDLS_SETUP_COMPLETE) {
+			if (mwifiex_is_tdls_link_setup(status)) {
 				spin_lock_irqsave(&priv->sta_list_spinlock,
 						  flags);
 				sta_ptr = mwifiex_get_sta_entry
