@@ -546,6 +546,7 @@ struct ath10k {
 	u32 ht_cap_info;
 	u32 vht_cap_info;
 	u32 num_rf_chains;
+	u32 max_spatial_stream;
 	/* protected by conf_mutex */
 	bool ani_enabled;
 
