@@ -187,8 +187,8 @@ static inline void elf_common_init(struct thread_struct *t,
 #define	COMPAT_ELF_PLAT_INIT(regs, load_addr)		\
 	elf_common_init(&current->thread, regs, __USER_DS)
 
-void start_thread_ia32(struct pt_regs *regs, u32 new_ip, u32 new_sp);
-#define compat_start_thread start_thread_ia32
+void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp);
+#define compat_start_thread compat_start_thread
 
 void set_personality_ia32(bool);
 #define COMPAT_SET_PERSONALITY(ex)			\
