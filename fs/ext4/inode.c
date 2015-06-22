@@ -1261,13 +1261,12 @@ static int ext4_journalled_write_end(struct file *file,
 }
 
 /*
- * Reserve a single cluster located at lblock
+ * Reserve space for a single cluster
  */
-static int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock)
+static int ext4_da_reserve_space(struct inode *inode)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	unsigned int md_needed;
 	int ret;
 
 	/*
@@ -1279,25 +1278,14 @@ static int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock)
 	if (ret)
 		return ret;
 
-	/*
-	 * recalculate the amount of metadata blocks to reserve
-	 * in order to allocate nrblocks
-	 * worse case is one extent per block
-	 */
 	spin_lock(&ei->i_block_reservation_lock);
-	/*
-	 * ext4_calc_metadata_amount() has side effects, which we have
-	 * to be prepared undo if we fail to claim space.
-	 */
-	md_needed = 0;
-	trace_ext4_da_reserve_space(inode, 0);
-
 	if (ext4_claim_free_clusters(sbi, 1, 0)) {
 		spin_unlock(&ei->i_block_reservation_lock);
 		dquot_release_reservation_block(inode, EXT4_C2B(sbi, 1));
 		return -ENOSPC;
 	}
 	ei->i_reserved_data_blocks++;
+	trace_ext4_da_reserve_space(inode);
 	spin_unlock(&ei->i_block_reservation_lock);
 
 	return 0;       /* success */
@@ -1566,9 +1554,9 @@ add_delayed:
 		 * then we don't need to reserve it again. However we still need
 		 * to reserve metadata for every block we're going to write.
 		 */
-		if (EXT4_SB(inode->i_sb)->s_cluster_ratio <= 1 ||
+		if (EXT4_SB(inode->i_sb)->s_cluster_ratio == 1 ||
 		    !ext4_find_delalloc_cluster(inode, map->m_lblk)) {
-			ret = ext4_da_reserve_space(inode, iblock);
+			ret = ext4_da_reserve_space(inode);
 			if (ret) {
 				/* not enough space to reserve */
 				retval = ret;
