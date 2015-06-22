@@ -302,6 +302,11 @@
 					bias-disable;
 				};
 
+				pinctrl_key_gpio_default: key_gpio_default {
+					pinmux = <PIN_PB9__GPIO>;
+					bias-pull-up;
+				};
+
 				pinctrl_macb0_default: macb0_default {
 					pinmux = <PIN_PB14__GTXCK>,
 						 <PIN_PB15__GTXEN>,
@@ -398,6 +403,19 @@
 				};
 
 			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_key_gpio_default>;
+
+		bp1 {
+			label = "PB_USER";
+			gpios = <&pioA 41 GPIO_ACTIVE_LOW>;
+			linux,code = <0x104>;
 		};
 	};
 };
