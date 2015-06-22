@@ -4,9 +4,13 @@
 #include <sys/types.h>
 #include <stdio.h>
 
+struct thread_map_data {
+	pid_t    pid;
+};
+
 struct thread_map {
 	int nr;
-	pid_t map[];
+	struct thread_map_data map[];
 };
 
 struct thread_map *thread_map__new_dummy(void);
@@ -29,12 +33,12 @@ static inline int thread_map__nr(struct thread_map *threads)
 
 static inline pid_t thread_map__pid(struct thread_map *map, int thread)
 {
-	return map->map[thread];
+	return map->map[thread].pid;
 }
 
 static inline void
 thread_map__set_pid(struct thread_map *map, int thread, pid_t pid)
 {
-	map->map[thread] = pid;
+	map->map[thread].pid = pid;
 }
 #endif	/* __PERF_THREAD_MAP_H */
