@@ -166,19 +166,9 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 
 	/* Check result */
 	msg->result = inb(EC_LPC_ADDR_HOST_DATA);
-
-	switch (msg->result) {
-	case EC_RES_SUCCESS:
-		break;
-	case EC_RES_IN_PROGRESS:
-		ret = -EAGAIN;
-		dev_dbg(ec->dev, "command 0x%02x in progress\n",
-			msg->command);
+	ret = cros_ec_check_result(ec, msg);
+	if (ret)
 		goto done;
-	default:
-		dev_dbg(ec->dev, "command 0x%02x returned %d\n",
-			msg->command, msg->result);
-	}
 
 	/* Read back args */
 	args.flags = inb(EC_LPC_ADDR_HOST_ARGS);
