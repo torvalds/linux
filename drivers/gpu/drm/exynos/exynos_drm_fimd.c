@@ -298,8 +298,9 @@ static void fimd_enable_shadow_channel_path(struct fimd_context *ctx,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
-static void fimd_clear_channel(struct fimd_context *ctx)
+static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 {
+	struct fimd_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -345,30 +346,6 @@ static void fimd_clear_channel(struct fimd_context *ctx)
 	clk_disable_unprepare(ctx->bus_clk);
 
 	pm_runtime_put(ctx->dev);
-}
-
-static int fimd_iommu_attach_devices(struct fimd_context *ctx,
-			struct drm_device *drm_dev)
-{
-
-	/* attach this sub driver to iommu mapping if supported. */
-	if (is_drm_iommu_supported(ctx->drm_dev)) {
-		int ret;
-
-		/*
-		 * If any channel is already active, iommu will throw
-		 * a PAGE FAULT when enabled. So clear any channel if enabled.
-		 */
-		fimd_clear_channel(ctx);
-		ret = drm_iommu_attach_device(ctx->drm_dev, ctx->dev);
-		if (ret) {
-			DRM_ERROR("drm_iommu_attach failed.\n");
-			return ret;
-		}
-
-	}
-
-	return 0;
 }
 
 static void fimd_iommu_detach_devices(struct fimd_context *ctx)
@@ -917,6 +894,7 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.win_disable = fimd_win_disable,
 	.te_handler = fimd_te_handler,
 	.clock_enable = fimd_dp_clock_enable,
+	.clear_channels = fimd_clear_channels,
 };
 
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
@@ -986,7 +964,11 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
 
-	return fimd_iommu_attach_devices(ctx, drm_dev);
+	ret = drm_iommu_attach_device_if_possible(ctx->crtc, drm_dev, dev);
+	if (ret)
+		priv->pipe--;
+
+	return ret;
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,

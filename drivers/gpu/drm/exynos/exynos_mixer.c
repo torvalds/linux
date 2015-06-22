@@ -882,10 +882,12 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 		}
 	}
 
-	if (!is_drm_iommu_supported(mixer_ctx->drm_dev))
-		return 0;
+	ret = drm_iommu_attach_device_if_possible(mixer_ctx->crtc, drm_dev,
+								mixer_ctx->dev);
+	if (ret)
+		priv->pipe--;
 
-	return drm_iommu_attach_device(mixer_ctx->drm_dev, mixer_ctx->dev);
+	return ret;
 }
 
 static void mixer_ctx_remove(struct mixer_context *mixer_ctx)

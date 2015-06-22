@@ -89,8 +89,9 @@ static void decon_wait_for_vblank(struct exynos_drm_crtc *crtc)
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 
-static void decon_clear_channel(struct decon_context *ctx)
+static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 {
+	struct decon_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -120,27 +121,16 @@ static int decon_ctx_initialize(struct decon_context *ctx,
 			struct drm_device *drm_dev)
 {
 	struct exynos_drm_private *priv = drm_dev->dev_private;
+	int ret;
 
 	ctx->drm_dev = drm_dev;
 	ctx->pipe = priv->pipe++;
 
-	/* attach this sub driver to iommu mapping if supported. */
-	if (is_drm_iommu_supported(ctx->drm_dev)) {
-		int ret;
+	ret = drm_iommu_attach_device_if_possible(ctx->crtc, drm_dev, ctx->dev);
+	if (ret)
+		priv->pipe--;
 
-		/*
-		 * If any channel is already active, iommu will throw
-		 * a PAGE FAULT when enabled. So clear any channel if enabled.
-		 */
-		decon_clear_channel(ctx);
-		ret = drm_iommu_attach_device(ctx->drm_dev, ctx->dev);
-		if (ret) {
-			DRM_ERROR("drm_iommu_attach failed.\n");
-			return ret;
-		}
-	}
-
-	return 0;
+	return ret;
 }
 
 static void decon_ctx_remove(struct decon_context *ctx)
@@ -633,6 +623,7 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.wait_for_vblank = decon_wait_for_vblank,
 	.win_commit = decon_win_commit,
 	.win_disable = decon_win_disable,
+	.clear_channels = decon_clear_channels,
 };
 
 
