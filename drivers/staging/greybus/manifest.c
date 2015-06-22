@@ -225,11 +225,17 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		if (cport_id > CPORT_ID_MAX)
 			goto cleanup;
 
+		/* Don't recreate connection for control cport */
+		if (cport_id == GB_CONTROL_CPORT_ID)
+			goto release_descriptor;
+
 		/* Found one.  Set up its function structure */
 		protocol_id = desc_cport->protocol_id;
+
 		if (!gb_connection_create(bundle, cport_id, protocol_id))
 			goto cleanup;
 
+release_descriptor:
 		count++;
 
 		/* Release the cport descriptor */
@@ -268,11 +274,19 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 
 		/* Found one.  Set up its bundle structure*/
 		desc_bundle = desc->data;
+
+		/* Don't recreate bundle for control cport */
+		if (desc_bundle->id == GB_CONTROL_BUNDLE_ID) {
+			bundle = intf->control->connection->bundle;
+			goto parse_cports;
+		}
+
 		bundle = gb_bundle_create(intf, desc_bundle->id,
 					  desc_bundle->class);
 		if (!bundle)
 			goto cleanup;
 
+parse_cports:
 		/* Now go set up this bundle's functions and cports */
 		if (!gb_manifest_parse_cports(bundle))
 			goto cleanup;

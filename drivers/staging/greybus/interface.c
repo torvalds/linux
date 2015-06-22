@@ -67,6 +67,36 @@ struct device_type greybus_interface_type = {
 };
 
 /*
+ * Create kernel structures corresponding to a bundle and connection for
+ * managing control CPort. Also initialize the bundle, which will request SVC to
+ * set route and will initialize the control protocol for this connection.
+ */
+static int gb_create_control_connection(struct gb_interface *intf, u8 device_id)
+{
+	struct gb_bundle *bundle;
+	int ret;
+
+	bundle = gb_bundle_create(intf, GB_CONTROL_BUNDLE_ID,
+				  GREYBUS_CLASS_CONTROL);
+	if (!bundle)
+		return -EINVAL;
+
+	if (!gb_connection_create(bundle, GB_CONTROL_CPORT_ID,
+				  GREYBUS_PROTOCOL_CONTROL))
+		return -EINVAL;
+
+	ret = gb_bundle_init(bundle, device_id);
+	if (ret) {
+		dev_err(&intf->dev,
+			"error %d initializing bundles for interface %hu\n",
+			ret, intf->interface_id);
+		return ret;
+	}
+
+	return 0;
+}
+
+/*
  * A Greybus module represents a user-replicable component on an Ara
  * phone.  An interface is the physical connection on that module.  A
  * module may have more than one interface.
@@ -78,8 +108,8 @@ struct device_type greybus_interface_type = {
  * Returns a pointer to the new interfce or a null pointer if a
  * failure occurs due to memory exhaustion.
  */
-static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
-						u8 interface_id)
+struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
+					 u8 interface_id)
 {
 	struct gb_module *module;
 	struct gb_interface *intf;
@@ -165,28 +195,59 @@ static void gb_interface_destroy(struct gb_interface *intf)
 /**
  * gb_interface_add
  *
- * Pass in a buffer that _should_ contain a Greybus manifest
- * and register a greybus device structure with the kernel core.
+ * Create connection for control CPort and then request/parse manifest.
+ * Finally initialize all the bundles to set routes via SVC and initialize all
+ * connections.
  */
-void gb_interface_add(struct greybus_host_device *hd, u8 interface_id, u8 *data,
-		      int size)
+int gb_interface_init(struct gb_interface *intf, u8 device_id)
 {
-	struct gb_interface *intf;
+	int ret, size;
+	void *manifest;
 
-	intf = gb_interface_create(hd, interface_id);
-	if (!intf) {
-		dev_err(hd->parent, "failed to create interface\n");
-		return;
+	/* Establish control CPort connection */
+	ret = gb_create_control_connection(intf, device_id);
+	if (ret) {
+		dev_err(&intf->dev, "Failed to create control CPort connection (%d)\n", ret);
+		return ret;
+	}
+
+	/* Get manifest size using control protocol on CPort */
+	size = gb_control_get_manifest_size_operation(intf);
+	if (size <= 0) {
+		dev_err(&intf->dev, "%s: Failed to get manifest size (%d)\n",
+			__func__, size);
+		if (size)
+			return size;
+		else
+			return -EINVAL;
+	}
+
+	manifest = kmalloc(size, GFP_KERNEL);
+	if (!manifest)
+		return -ENOMEM;
+
+	/* Get manifest using control protocol on CPort */
+	ret = gb_control_get_manifest_operation(intf, manifest, size);
+	if (ret) {
+		dev_err(&intf->dev, "%s: Failed to get manifest\n", __func__);
+		goto free_manifest;
 	}
 
 	/*
-	 * Parse the manifest and build up our data structures
-	 * representing what's in it.
+	 * Parse the manifest and build up our data structures representing
+	 * what's in it.
 	 */
-	if (!gb_manifest_parse(intf, data, size)) {
-		dev_err(hd->parent, "manifest error\n");
-		goto err_parse;
+	if (!gb_manifest_parse(intf, manifest, size)) {
+		dev_err(&intf->dev, "%s: Failed to parse manifest\n", __func__);
+		ret = -EINVAL;
+		goto free_manifest;
 	}
+
+	ret = gb_bundles_init(intf, device_id);
+	if (ret)
+		dev_err(&intf->dev,
+			"Error %d initializing bundles for interface %hu\n",
+			ret, intf->interface_id);
 
 	/*
 	 * XXX
@@ -197,10 +258,9 @@ void gb_interface_add(struct greybus_host_device *hd, u8 interface_id, u8 *data,
 	 * configuring the switch to allow them to communicate).
 	 */
 
-	return;
-
-err_parse:
-	gb_interface_destroy(intf);
+free_manifest:
+	kfree(manifest);
+	return ret;
 }
 
 void gb_interface_remove(struct greybus_host_device *hd, u8 interface_id)

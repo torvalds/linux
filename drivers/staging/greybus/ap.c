@@ -146,10 +146,10 @@ static void svc_management(struct svc_function_unipro_management *management,
 				management->link_up.interface_id);
 			return;
 		}
-		ret = gb_bundles_init(intf, management->link_up.device_id);
+		ret = gb_interface_init(intf, management->link_up.device_id);
 		if (ret) {
 			dev_err(hd->parent,
-				"error %d initializing bundles for interface %hhu\n",
+				"error %d initializing interface %hhu\n",
 				ret, management->link_up.interface_id);
 			return;
 		}
@@ -175,8 +175,7 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 			return;
 		}
 		dev_dbg(hd->parent, "interface id %d added\n", interface_id);
-		gb_interface_add(hd, interface_id, hotplug->data,
-				 payload_length - 0x02);
+		gb_interface_create(hd, interface_id);
 		break;
 
 	case SVC_HOTUNPLUG_EVENT:

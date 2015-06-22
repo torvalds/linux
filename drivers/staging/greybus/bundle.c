@@ -230,6 +230,10 @@ int gb_bundle_init(struct gb_bundle *bundle, u8 device_id)
 	struct gb_interface *intf = bundle->intf;
 	int ret;
 
+	/* Don't reinitialize control cport's bundle */
+	if (intf->control && bundle->id == GB_CONTROL_BUNDLE_ID)
+		return 0;
+
 	bundle->device_id = device_id;
 
 	ret = svc_set_route_send(bundle, intf->hd);
