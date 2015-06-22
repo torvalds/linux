@@ -120,6 +120,9 @@ Optional properties:
   frequency for a short duration of time limited by the device's power, current
   and thermal limits.
 
+- opp-suspend: Marks the OPP to be used during device suspend. Only one OPP in
+  the table should have this.
+
 - status: Marks the node enabled/disabled.
 
 Example 1: Single cluster Dual-core ARM cortex A9, switch DVFS states together.
@@ -159,6 +162,7 @@ Example 1: Single cluster Dual-core ARM cortex A9, switch DVFS states together.
 			opp-microvolt = <970000 975000 985000>;
 			opp-microamp = <70000>;
 			clock-latency-ns = <300000>;
+			opp-suspend;
 		};
 		opp01 {
 			opp-hz = <1100000000>;
@@ -237,6 +241,7 @@ independently.
 			opp-microvolt = <970000 975000 985000>;
 			opp-microamp = <70000>;
 			clock-latency-ns = <300000>;
+			opp-suspend;
 		};
 		opp01 {
 			opp-hz = <1100000000>;
@@ -312,6 +317,7 @@ DVFS state together.
 			opp-microvolt = <970000 975000 985000>;
 			opp-microamp = <70000>;
 			clock-latency-ns = <300000>;
+			opp-suspend;
 		};
 		opp01 {
 			opp-hz = <1100000000>;
@@ -337,6 +343,7 @@ DVFS state together.
 			opp-microvolt = <1045000 1050000 1055000>;
 			opp-microamp = <95000>;
 			clock-latency-ns = <400000>;
+			opp-suspend;
 		};
 		opp11 {
 			opp-hz = <1400000000>;
