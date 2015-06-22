@@ -290,7 +290,7 @@ static struct vm_area_struct gate_vma = {
 
 struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 {
-#ifdef CONFIG_IA32_EMULATION
+#ifdef CONFIG_COMPAT
 	if (!mm || mm->context.ia32_compat)
 		return NULL;
 #endif
