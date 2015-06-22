@@ -300,6 +300,10 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		mwifiex_bt_coex_wlan_param_update_event(priv,
 							adapter->event_skb);
 		break;
+	case EVENT_TX_DATA_PAUSE:
+		mwifiex_dbg(adapter, EVENT, "event: TX DATA PAUSE\n");
+		mwifiex_process_tx_pause_event(priv, adapter->event_skb);
+		break;
 	default:
 		mwifiex_dbg(adapter, EVENT,
 			    "event: unknown event id: %#x\n", eventcause);
