@@ -164,6 +164,7 @@ int lease_break_time = 45;
  */
 DEFINE_STATIC_LGLOCK(file_lock_lglock);
 static DEFINE_PER_CPU(struct hlist_head, file_lock_list);
+DEFINE_STATIC_PERCPU_RWSEM(file_rwsem);
 
 /*
  * The blocked_hash is used to find POSIX lock loops for deadlock detection.
@@ -587,6 +588,8 @@ static int posix_same_owner(struct file_lock *fl1, struct file_lock *fl2)
 /* Must be called with the flc_lock held! */
 static void locks_insert_global_locks(struct file_lock *fl)
 {
+	percpu_rwsem_assert_held(&file_rwsem);
+
 	lg_local_lock(&file_lock_lglock);
 	fl->fl_link_cpu = smp_processor_id();
 	hlist_add_head(&fl->fl_link, this_cpu_ptr(&file_lock_list));
@@ -596,6 +599,8 @@ static void locks_insert_global_locks(struct file_lock *fl)
 /* Must be called with the flc_lock held! */
 static void locks_delete_global_locks(struct file_lock *fl)
 {
+	percpu_rwsem_assert_held(&file_rwsem);
+
 	/*
 	 * Avoid taking lock if already unhashed. This is safe since this check
 	 * is done while holding the flc_lock, and new insertions into the list
@@ -915,6 +920,7 @@ static int flock_lock_inode(struct inode *inode, struct file_lock *request)
 			return -ENOMEM;
 	}
 
+	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	if (request->fl_flags & FL_ACCESS)
 		goto find_conflict;
@@ -955,6 +961,7 @@ find_conflict:
 
 out:
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read(&file_rwsem);
 	if (new_fl)
 		locks_free_lock(new_fl);
 	locks_dispose_list(&dispose);
@@ -991,6 +998,7 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 		new_fl2 = locks_alloc_lock();
 	}
 
+	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	/*
 	 * New lock request. Walk all POSIX locks and look for conflicts. If
@@ -1162,6 +1170,7 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 	}
  out:
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read(&file_rwsem);
 	/*
 	 * Free any unused locks.
 	 */
@@ -1436,6 +1445,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 		return error;
 	}
 
+	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 
 	time_out_leases(inode, &dispose);
@@ -1487,9 +1497,13 @@ restart:
 	locks_insert_block(fl, new_fl);
 	trace_break_lease_block(inode, new_fl);
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read(&file_rwsem);
+
 	locks_dispose_list(&dispose);
 	error = wait_event_interruptible_timeout(new_fl->fl_wait,
 						!new_fl->fl_next, break_time);
+
+	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	trace_break_lease_unblock(inode, new_fl);
 	locks_delete_block(new_fl);
@@ -1506,6 +1520,7 @@ restart:
 	}
 out:
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read(&file_rwsem);
 	locks_dispose_list(&dispose);
 	locks_free_lock(new_fl);
 	return error;
@@ -1660,6 +1675,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 		return -EINVAL;
 	}
 
+	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	time_out_leases(inode, &dispose);
 	error = check_conflicting_open(dentry, arg, lease->fl_flags);
@@ -1730,6 +1746,7 @@ out_setup:
 		lease->fl_lmops->lm_setup(lease, priv);
 out:
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read(&file_rwsem);
 	locks_dispose_list(&dispose);
 	if (is_deleg)
 		inode_unlock(inode);
@@ -1752,6 +1769,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 		return error;
 	}
 
+	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	list_for_each_entry(fl, &ctx->flc_lease, fl_list) {
 		if (fl->fl_file == filp &&
@@ -1764,6 +1782,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 	if (victim)
 		error = fl->fl_lmops->lm_change(victim, F_UNLCK, &dispose);
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read(&file_rwsem);
 	locks_dispose_list(&dispose);
 	return error;
 }
@@ -2703,6 +2722,7 @@ static void *locks_start(struct seq_file *f, loff_t *pos)
 	struct locks_iterator *iter = f->private;
 
 	iter->li_pos = *pos + 1;
+	percpu_down_write(&file_rwsem);
 	lg_global_lock(&file_lock_lglock);
 	spin_lock(&blocked_lock_lock);
 	return seq_hlist_start_percpu(&file_lock_list, &iter->li_cpu, *pos);
@@ -2721,6 +2741,7 @@ static void locks_stop(struct seq_file *f, void *v)
 {
 	spin_unlock(&blocked_lock_lock);
 	lg_global_unlock(&file_lock_lglock);
+	percpu_up_write(&file_rwsem);
 }
 
 static const struct seq_operations locks_seq_operations = {
