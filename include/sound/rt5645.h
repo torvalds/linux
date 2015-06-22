@@ -20,9 +20,6 @@ struct rt5645_platform_data {
 	unsigned int dmic2_data_pin;
 	/* 0 = IN2P; 1 = GPIO6; 2 = GPIO10; 3 = GPIO12 */
 
-	unsigned int hp_det_gpio;
-	bool gpio_hp_det_active_high;
-
 	unsigned int jd_mode;
 };
 
