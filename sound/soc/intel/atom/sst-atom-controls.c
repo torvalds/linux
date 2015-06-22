@@ -1401,36 +1401,32 @@ static int sst_fill_widget_module_info(struct snd_soc_dapm_widget *w,
 	down_read(&card->controls_rwsem);
 
 	list_for_each_entry(kctl, &card->controls, list) {
-		idx = strstr(kctl->id.name, " ");
+		idx = strchr(kctl->id.name, ' ');
 		if (idx == NULL)
 			continue;
-		index  = strlen(kctl->id.name) - strlen(idx);
+		index = idx - (char*)kctl->id.name;
+		if (strncmp(kctl->id.name, w->name, index))
+			continue;
 
-		if (strstr(kctl->id.name, "Volume") &&
-		    !strncmp(kctl->id.name, w->name, index))
+		if (strstr(kctl->id.name, "Volume"))
 			ret = sst_fill_module_list(kctl, w, SST_MODULE_GAIN);
 
-		else if (strstr(kctl->id.name, "params") &&
-			 !strncmp(kctl->id.name, w->name, index))
+		else if (strstr(kctl->id.name, "params"))
 			ret = sst_fill_module_list(kctl, w, SST_MODULE_ALGO);
 
 		else if (strstr(kctl->id.name, "Switch") &&
-			 !strncmp(kctl->id.name, w->name, index) &&
 			 strstr(kctl->id.name, "Gain")) {
 			struct sst_gain_mixer_control *mc =
 						(void *)kctl->private_value;
 
 			mc->w = w;
 
-		} else if (strstr(kctl->id.name, "interleaver") &&
-			 !strncmp(kctl->id.name, w->name, index)) {
+		} else if (strstr(kctl->id.name, "interleaver")) {
 			struct sst_enum *e = (void *)kctl->private_value;
 
 			e->w = w;
 
-		} else if (strstr(kctl->id.name, "deinterleaver") &&
-			 !strncmp(kctl->id.name, w->name, index)) {
-
+		} else if (strstr(kctl->id.name, "deinterleaver")) {
 			struct sst_enum *e = (void *)kctl->private_value;
 
 			e->w = w;

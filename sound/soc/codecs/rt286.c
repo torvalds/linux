@@ -31,12 +31,15 @@
 #include <sound/rt286.h>
 #include <sound/hda_verbs.h>
 
+#include "rl6347a.h"
 #include "rt286.h"
 
 #define RT286_VENDOR_ID 0x10ec0286
 #define RT288_VENDOR_ID 0x10ec0288
 
 struct rt286_priv {
+	struct reg_default *index_cache;
+	int index_cache_size;
 	struct regmap *regmap;
 	struct snd_soc_codec *codec;
 	struct rt286_platform_data pdata;
@@ -45,7 +48,6 @@ struct rt286_priv {
 	struct delayed_work jack_detect_work;
 	int sys_clk;
 	int clk_id;
-	struct reg_default *index_cache;
 };
 
 static struct reg_default rt286_index_def[] = {
@@ -183,94 +185,6 @@ static bool rt286_readable_register(struct device *dev, unsigned int reg)
 	default:
 		return false;
 	}
-}
-
-static int rt286_hw_write(void *context, unsigned int reg, unsigned int value)
-{
-	struct i2c_client *client = context;
-	struct rt286_priv *rt286 = i2c_get_clientdata(client);
-	u8 data[4];
-	int ret, i;
-
-	/* handle index registers */
-	if (reg <= 0xff) {
-		rt286_hw_write(client, RT286_COEF_INDEX, reg);
-		for (i = 0; i < INDEX_CACHE_SIZE; i++) {
-			if (reg == rt286->index_cache[i].reg) {
-				rt286->index_cache[i].def = value;
-				break;
-			}
-
-		}
-		reg = RT286_PROC_COEF;
-	}
-
-	data[0] = (reg >> 24) & 0xff;
-	data[1] = (reg >> 16) & 0xff;
-	/*
-	 * 4 bit VID: reg should be 0
-	 * 12 bit VID: value should be 0
-	 * So we use an OR operator to handle it rather than use if condition.
-	 */
-	data[2] = ((reg >> 8) & 0xff) | ((value >> 8) & 0xff);
-	data[3] = value & 0xff;
-
-	ret = i2c_master_send(client, data, 4);
-
-	if (ret == 4)
-		return 0;
-	else
-		pr_err("ret=%d\n", ret);
-	if (ret < 0)
-		return ret;
-	else
-		return -EIO;
-}
-
-static int rt286_hw_read(void *context, unsigned int reg, unsigned int *value)
-{
-	struct i2c_client *client = context;
-	struct i2c_msg xfer[2];
-	int ret;
-	__be32 be_reg;
-	unsigned int index, vid, buf = 0x0;
-
-	/* handle index registers */
-	if (reg <= 0xff) {
-		rt286_hw_write(client, RT286_COEF_INDEX, reg);
-		reg = RT286_PROC_COEF;
-	}
-
-	reg = reg | 0x80000;
-	vid = (reg >> 8) & 0xfff;
-
-	if (AC_VERB_GET_AMP_GAIN_MUTE == (vid & 0xf00)) {
-		index = (reg >> 8) & 0xf;
-		reg = (reg & ~0xf0f) | index;
-	}
-	be_reg = cpu_to_be32(reg);
-
-	/* Write register */
-	xfer[0].addr = client->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 4;
-	xfer[0].buf = (u8 *)&be_reg;
-
-	/* Read data */
-	xfer[1].addr = client->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = 4;
-	xfer[1].buf = (u8 *)&buf;
-
-	ret = i2c_transfer(client->adapter, xfer, 2);
-	if (ret < 0)
-		return ret;
-	else if (ret != 2)
-		return -EIO;
-
-	*value = be32_to_cpu(buf);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1174,8 +1088,8 @@ static const struct regmap_config rt286_regmap = {
 	.max_register = 0x02370100,
 	.volatile_reg = rt286_volatile_register,
 	.readable_reg = rt286_readable_register,
-	.reg_write = rt286_hw_write,
-	.reg_read = rt286_hw_read,
+	.reg_write = rl6347a_hw_write,
+	.reg_read = rl6347a_hw_read,
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = rt286_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt286_reg),
@@ -1248,6 +1162,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	}
 
 	rt286->index_cache = rt286_index_def;
+	rt286->index_cache_size = INDEX_CACHE_SIZE;
 	rt286->i2c = i2c;
 	i2c_set_clientdata(i2c, rt286);
 
