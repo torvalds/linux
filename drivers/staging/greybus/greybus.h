@@ -28,6 +28,7 @@
 #include "endo.h"
 #include "svc.h"
 #include "module.h"
+#include "control.h"
 #include "interface.h"
 #include "bundle.h"
 #include "connection.h"

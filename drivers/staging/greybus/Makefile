@@ -8,6 +8,7 @@ greybus-y :=	core.o		\
 		bundle.o	\
 		connection.o	\
 		protocol.o	\
+		control.o	\
 		operation.o
 
 gb-phy-y :=	gpbridge.o	\

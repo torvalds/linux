@@ -52,6 +52,45 @@
 #ifndef __GREYBUS_PROTOCOLS_H
 #define __GREYBUS_PROTOCOLS_H
 
+/* Control Protocol */
+
+/* Bundle-id and cport-id for control cport */
+#define GB_CONTROL_BUNDLE_ID			0
+#define GB_CONTROL_CPORT_ID			2
+
+/* Version of the Greybus control protocol we support */
+#define GB_CONTROL_VERSION_MAJOR		0x00
+#define GB_CONTROL_VERSION_MINOR		0x01
+
+/* Greybus control request types */
+#define GB_CONTROL_TYPE_INVALID			0x00
+#define GB_CONTROL_TYPE_PROTOCOL_VERSION	0x01
+#define GB_CONTROL_TYPE_PROBE_AP		0x02
+#define GB_CONTROL_TYPE_GET_MANIFEST_SIZE	0x03
+#define GB_CONTROL_TYPE_GET_MANIFEST		0x04
+#define GB_CONTROL_TYPE_CONNECTED		0x05
+#define GB_CONTROL_TYPE_DISCONNECTED		0x06
+
+/* Control protocol manifest get size request has no payload*/
+struct gb_control_get_manifest_size_response {
+	__le16			size;
+};
+
+/* Control protocol manifest get request has no payload */
+struct gb_control_get_manifest_response {
+	__u8			data[0];
+};
+
+/* Control protocol [dis]connected request */
+struct gb_control_connected_request {
+	__le16			cport_id;
+};
+
+struct gb_control_disconnected_request {
+	__le16			cport_id;
+};
+/* Control protocol [dis]connected response has no payload */
+
 /* I2C */
 
 /* Version of the Greybus i2c protocol we support */

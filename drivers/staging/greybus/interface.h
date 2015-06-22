@@ -13,6 +13,7 @@
 /* Greybus "public" definitions" */
 struct gb_interface {
 	struct device dev;
+	struct gb_control *control;
 
 	struct list_head bundles;
 	struct list_head links;	/* greybus_host_device->interfaces */
