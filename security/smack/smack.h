@@ -143,6 +143,24 @@ struct smack_onlycap {
 	struct smack_known	*smk_label;
 };
 
+/* Super block security struct flags for mount options */
+#define FSDEFAULT_MNT	0x01
+#define FSFLOOR_MNT	0x02
+#define FSHAT_MNT	0x04
+#define FSROOT_MNT	0x08
+#define FSTRANS_MNT	0x10
+
+#define NUM_SMK_MNT_OPTS	5
+
+enum {
+	Opt_error = -1,
+	Opt_fsdefault = 1,
+	Opt_fsfloor = 2,
+	Opt_fshat = 3,
+	Opt_fsroot = 4,
+	Opt_fstransmute = 5,
+};
+
 /*
  * Mount options
  */
