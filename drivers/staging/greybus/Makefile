@@ -49,7 +49,7 @@ INSTALL_MOD_PATH	?= /..
 PWD			:= $(shell pwd)
 
 # kernel config option that shall be enable
-CONFIG_OPTIONS_ENABLE := SYSFS SPI USB SND_SOC
+CONFIG_OPTIONS_ENABLE := SYSFS SPI USB SND_SOC MMC
 
 # kernel config option that shall be disable
 CONFIG_OPTIONS_DISABLE :=
