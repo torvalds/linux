@@ -320,6 +320,13 @@ static struct dmi_system_id cros_ec_lpc_dmi_table[] __initdata = {
 		},
 	},
 	{
+		/* x86-samus, the Chromebook Pixel 2. */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Samus"),
+		},
+	},
+	{
 		/* x86-peppy, the Acer C720 Chromebook. */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
