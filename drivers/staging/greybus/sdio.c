@@ -1,51 +1,626 @@
 /*
  * SD/MMC Greybus driver.
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
+#include <linux/mmc/core.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
+#include <linux/scatterlist.h>
+#include <linux/workqueue.h>
 
 #include "greybus.h"
 
 struct gb_sdio_host {
-	struct gb_connection *connection;
-	struct mmc_host	*mmc;
-	struct mmc_request *mrq;
-	// FIXME - some lock?
+	struct gb_connection	*connection;
+	u8			version_major;
+	u8			version_minor;
+	struct mmc_host		*mmc;
+	struct mmc_request	*mrq;
+	struct mutex		lock;	/* lock for this host */
+	size_t			data_max;
+	void			*xfer_buffer;
+	spinlock_t		xfer;	/* lock to cancel ongoing transfer */
+	bool			xfer_stop;
+	struct work_struct	mrqwork;
+	bool			removed;
+	bool			card_present;
+	bool			read_only;
 };
 
-static void gb_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
+static struct workqueue_struct *gb_sdio_mrq_workqueue;
+
+/* Define get_version() routine */
+define_get_version(gb_sdio_host, SDIO);
+
+static void _gb_sdio_set_host_caps(struct gb_sdio_host *host, u32 r)
 {
-	// FIXME - do something here...
+	u32 caps = 0;
+	u32 caps2 = 0;
+
+	caps = (r & GB_SDIO_CAP_NONREMOVABLE ? MMC_CAP_NONREMOVABLE : 0) |
+		(r & GB_SDIO_CAP_4_BIT_DATA ? MMC_CAP_4_BIT_DATA : 0) |
+		(r & GB_SDIO_CAP_8_BIT_DATA ? MMC_CAP_8_BIT_DATA : 0) |
+		(r & GB_SDIO_CAP_MMC_HS ? MMC_CAP_MMC_HIGHSPEED : 0) |
+		(r & GB_SDIO_CAP_SD_HS ? MMC_CAP_SD_HIGHSPEED : 0) |
+		(r & GB_SDIO_CAP_ERASE ? MMC_CAP_ERASE : 0) |
+		(r & GB_SDIO_CAP_1_2V_DDR ? MMC_CAP_1_2V_DDR : 0) |
+		(r & GB_SDIO_CAP_1_8V_DDR ? MMC_CAP_1_8V_DDR : 0) |
+		(r & GB_SDIO_CAP_POWER_OFF_CARD ? MMC_CAP_POWER_OFF_CARD : 0) |
+		(r & GB_SDIO_CAP_UHS_SDR12 ? MMC_CAP_UHS_SDR12 : 0) |
+		(r & GB_SDIO_CAP_UHS_SDR25 ? MMC_CAP_UHS_SDR25 : 0) |
+		(r & GB_SDIO_CAP_UHS_SDR50 ? MMC_CAP_UHS_SDR50 : 0) |
+		(r & GB_SDIO_CAP_UHS_SDR104 ? MMC_CAP_UHS_SDR104 : 0) |
+		(r & GB_SDIO_CAP_UHS_DDR50 ? MMC_CAP_UHS_DDR50 : 0) |
+		(r & GB_SDIO_CAP_DRIVER_TYPE_A ? MMC_CAP_DRIVER_TYPE_A : 0) |
+		(r & GB_SDIO_CAP_DRIVER_TYPE_C ? MMC_CAP_DRIVER_TYPE_C : 0) |
+		(r & GB_SDIO_CAP_DRIVER_TYPE_D ? MMC_CAP_DRIVER_TYPE_D : 0);
+
+	caps2 = (r & GB_SDIO_CAP_HS200_1_2V ? MMC_CAP2_HS200_1_2V_SDR : 0) |
+		(r & GB_SDIO_CAP_HS200_1_8V ? MMC_CAP2_HS200_1_8V_SDR : 0) |
+		(r & GB_SDIO_CAP_HS400_1_2V ? MMC_CAP2_HS400_1_2V : 0) |
+		(r & GB_SDIO_CAP_HS400_1_8V ? MMC_CAP2_HS400_1_8V : 0);
+
+	host->mmc->caps = caps;
+	host->mmc->caps2 = caps2;
+
+	if (caps & MMC_CAP_NONREMOVABLE)
+		host->card_present = true;
 }
 
-static void gb_sd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+static int gb_sdio_get_caps(struct gb_sdio_host *host)
 {
-	// FIXME - do something here...
-}
+	struct gb_sdio_get_caps_response response;
+	struct mmc_host *mmc = host->mmc;
+	u16 data_max;
+	u32 blksz;
+	u32 r;
+	int ret;
 
-static int gb_sd_get_ro(struct mmc_host *mmc)
-{
-	// FIXME - do something here...
+	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_GET_CAPABILITIES,
+				NULL, 0, &response, sizeof(response));
+	if (ret < 0)
+		return ret;
+	r = le32_to_cpu(response.caps);
+
+	_gb_sdio_set_host_caps(host, r);
+
+	/* get the max block size that could fit our payload */
+	data_max = gb_operation_get_payload_size_max(host->connection);
+	data_max = min(data_max - sizeof(struct gb_sdio_transfer_request),
+		       data_max - sizeof(struct gb_sdio_transfer_response));
+
+	blksz = min(le16_to_cpu(response.max_blk_size), data_max);
+	blksz = max_t(u32, 512, blksz);
+
+	mmc->max_blk_size = rounddown_pow_of_two(blksz);
+	mmc->max_blk_count = le16_to_cpu(response.max_blk_count);
+	host->data_max = data_max;
+
+	/* get ocr supported values */
+	mmc->ocr_avail = le32_to_cpu(response.ocr);
+	mmc->ocr_avail_sdio = mmc->ocr_avail;
+	mmc->ocr_avail_sd = mmc->ocr_avail;
+	mmc->ocr_avail_mmc = mmc->ocr_avail;
+
 	return 0;
 }
 
-static const struct mmc_host_ops gb_sd_ops = {
-	.request	= gb_sd_request,
-	.set_ios	= gb_sd_set_ios,
-	.get_ro		= gb_sd_get_ro,
+static int gb_sdio_event_recv(u8 type, struct gb_operation *op)
+{
+	struct gb_connection *connection = op->connection;
+	struct gb_sdio_host *host = connection->private;
+	struct gb_message *request;
+	struct gb_sdio_event_request *payload;
+	u8 state_changed = 0;
+	u8 event;
+
+	if (type != GB_SDIO_TYPE_EVENT) {
+		dev_err(&connection->dev,
+			"unsupported unsolicited event: %u\n", type);
+		return -EINVAL;
+	}
+
+	request = op->request;
+
+	if (request->payload_size != sizeof(*payload)) {
+		dev_err(mmc_dev(host->mmc), "wrong event size received\n");
+		return -EINVAL;
+	}
+
+	payload = request->payload;
+	event = payload->event;
+
+	switch (event) {
+	case GB_SDIO_CARD_INSERTED:
+		if (!mmc_card_is_removable(host->mmc))
+			return 0;
+		if (host->card_present)
+			return 0;
+		host->card_present = true;
+		state_changed = 1;
+		break;
+	case GB_SDIO_CARD_REMOVED:
+		if (!mmc_card_is_removable(host->mmc))
+			return 0;
+		if (!(host->card_present))
+			return 0;
+		host->card_present = false;
+		state_changed = 1;
+		break;
+	case GB_SDIO_WP:
+		host->read_only = true;
+		break;
+	default:
+		dev_err(mmc_dev(host->mmc), "wrong event received %d\n", event);
+		return -EINVAL;
+	}
+
+	if (state_changed) {
+		dev_info(mmc_dev(host->mmc), "card %s now event\n",
+			 (host->card_present ?  "inserted" : "removed"));
+		mmc_detect_change(host->mmc, 0);
+	}
+
+	return 0;
+}
+
+static int gb_sdio_set_ios(struct gb_sdio_host *host,
+			   struct gb_sdio_set_ios_request *request)
+{
+	return gb_operation_sync(host->connection, GB_SDIO_TYPE_SET_IOS,
+				 request, sizeof(*request), NULL, 0);
+}
+
+static int _gb_sdio_send(struct gb_sdio_host *host, struct mmc_data *data,
+			 size_t len, u16 nblocks, off_t skip)
+{
+	struct gb_sdio_transfer_request *request;
+	struct gb_sdio_transfer_response response;
+	struct scatterlist *sg = data->sg;
+	unsigned int sg_len = data->sg_len;
+	size_t copied;
+	u16 send_blksz;
+	u16 send_blocks;
+	int ret;
+
+	WARN_ON(len > host->data_max);
+
+	request = host->xfer_buffer;
+	request->data_flags = (data->flags >> 8);
+	request->data_blocks = cpu_to_le16(nblocks);
+	request->data_blksz = cpu_to_le16(data->blksz);
+
+	copied = sg_pcopy_to_buffer(sg, sg_len, &request->data[0] + skip, len,
+				    skip);
+
+	if (copied != len)
+		return -EINVAL;
+
+	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_TRANSFER,
+				request, len, &response, sizeof(response));
+	if (ret < 0)
+		return ret;
+
+	send_blocks = le16_to_cpu(response.data_blocks);
+	send_blksz = le16_to_cpu(response.data_blksz);
+
+	if (len != send_blksz * send_blocks)
+		return -EINVAL;
+
+	return ret;
+}
+
+static int _gb_sdio_recv(struct gb_sdio_host *host, struct mmc_data *data,
+			 size_t len, u16 nblocks, off_t skip)
+{
+	struct gb_sdio_transfer_request request;
+	struct gb_sdio_transfer_response *response;
+	struct scatterlist *sg = data->sg;
+	unsigned int sg_len = data->sg_len;
+	size_t copied;
+	u16 recv_blksz;
+	u16 recv_blocks;
+	int ret;
+
+	WARN_ON(len > host->data_max);
+
+	request.data_flags = (data->flags >> 8);
+	request.data_blocks = cpu_to_le16(nblocks);
+	request.data_blksz = cpu_to_le16(data->blksz);
+
+	response = host->xfer_buffer;
+
+	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_TRANSFER,
+				&request, sizeof(request), response, len);
+	if (ret < 0)
+		return ret;
+
+	recv_blocks = le16_to_cpu(response->data_blocks);
+	recv_blksz = le16_to_cpu(response->data_blksz);
+
+	if (len != recv_blksz * recv_blocks)
+		return -EINVAL;
+
+	copied = sg_pcopy_from_buffer(sg, sg_len, &response->data[0] + skip,
+				      len, skip);
+	if (copied != len)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int gb_sdio_transfer(struct gb_sdio_host *host, struct mmc_request *mrq)
+{
+	struct mmc_data *data = mrq->data;
+	size_t left, len;
+	off_t skip = 0;
+	int ret = 0;
+	u16 nblocks;
+
+	left = data->blksz * data->blocks;
+
+	while (left) {
+		/* check is a stop transmission is pending */
+		spin_lock(&host->xfer);
+		if (host->xfer_stop) {
+			host->xfer_stop = false;
+			spin_unlock(&host->xfer);
+			ret = -EINTR;
+			goto out;
+		}
+		spin_unlock(&host->xfer);
+		len = min(left, host->data_max);
+		nblocks = do_div(len, data->blksz);
+		len = nblocks * data->blksz;
+
+		if (data->flags & MMC_DATA_READ) {
+			ret = _gb_sdio_recv(host, data, len, nblocks, skip);
+			if (ret < 0)
+				goto out;
+		} else {
+			ret = _gb_sdio_send(host, data, len, nblocks, skip);
+			if (ret < 0)
+				goto out;
+		}
+		data->bytes_xfered += len;
+		left -= len;
+		skip += len;
+	}
+
+out:
+	data->error = ret;
+	return ret;
+}
+
+static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
+{
+	struct gb_sdio_command_request request;
+	struct gb_sdio_command_response response;
+	u8 cmd_flags;
+	u8 cmd_type;
+	int i;
+	int ret = 0;
+
+	switch (mmc_resp_type(cmd)) {
+	case MMC_RSP_NONE:
+		cmd_flags = GB_SDIO_RSP_NONE;
+		break;
+	case MMC_RSP_R1:
+		cmd_flags = GB_SDIO_RSP_R1_R5_R6_R7;
+		break;
+	case MMC_RSP_R1B:
+		cmd_flags = GB_SDIO_RSP_R1B;
+		break;
+	case MMC_RSP_R2:
+		cmd_flags = GB_SDIO_RSP_R2;
+		break;
+	case MMC_RSP_R3:
+		cmd_flags = GB_SDIO_RSP_R3_R4;
+	default:
+		dev_err(mmc_dev(host->mmc), "cmd flag invalid %04x\n",
+			mmc_resp_type(cmd));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	switch (mmc_cmd_type(cmd)) {
+	case MMC_CMD_BC:
+		cmd_type = GB_SDIO_CMD_BC;
+		break;
+	case MMC_CMD_BCR:
+		cmd_type = GB_SDIO_CMD_BCR;
+		break;
+	case MMC_CMD_AC:
+		cmd_type = GB_SDIO_CMD_AC;
+		break;
+	case MMC_CMD_ADTC:
+		cmd_type = GB_SDIO_CMD_ADTC;
+		break;
+	default:
+		dev_err(mmc_dev(host->mmc), "cmd type invalid %04x\n",
+			mmc_cmd_type(cmd));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	request.cmd = cmd->opcode;
+	request.cmd_flags = cmd_flags;
+	request.cmd_type = cmd_type;
+	request.cmd_arg = cpu_to_le32(cmd->arg);
+
+	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_COMMAND,
+				&request, sizeof(request), &response,
+				sizeof(response));
+	if (ret < 0)
+		goto out;
+
+	/* no response expected */
+	if (cmd_flags & GB_SDIO_RSP_NONE)
+		goto out;
+
+	/* long response expected */
+	if (cmd_flags & GB_SDIO_RSP_R2)
+		for (i = 0; i < 4; i++)
+			cmd->resp[i] = le32_to_cpu(response.resp[i]);
+	else
+		cmd->resp[0] = le32_to_cpu(response.resp[0]);
+
+out:
+	cmd->error = ret;
+	return ret;
+}
+
+static void gb_sdio_mrq_work(struct work_struct *work)
+{
+	struct gb_sdio_host *host;
+	struct mmc_request *mrq;
+	int ret;
+
+	host = container_of(work, struct gb_sdio_host, mrqwork);
+
+	mutex_lock(&host->lock);
+	if (host->removed) {
+		mrq->cmd->error = -ESHUTDOWN;
+		goto done;
+	}
+
+	mrq = host->mrq;
+
+	if (mrq->sbc) {
+		ret = gb_sdio_command(host, mrq->sbc);
+		if (ret < 0)
+			goto done;
+	}
+
+	ret = gb_sdio_command(host, mrq->cmd);
+	if (ret < 0)
+		goto done;
+
+	if (mrq->data) {
+		ret = gb_sdio_transfer(host, host->mrq);
+		if (ret < 0)
+			goto done;
+	}
+
+	if (mrq->data->stop) {
+		ret = gb_sdio_command(host, mrq->data->stop);
+		if (ret < 0)
+			goto done;
+	}
+
+done:
+	mrq = NULL;
+	mutex_unlock(&host->lock);
+	mmc_request_done(host->mmc, mrq);
+}
+
+static void gb_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	struct gb_sdio_host *host = mmc_priv(mmc);
+	struct mmc_command *cmd = mrq->cmd;
+
+	/* Check if it is a cancel to ongoing transfer */
+	if (cmd->opcode == MMC_STOP_TRANSMISSION) {
+		spin_lock(&host->xfer);
+		host->xfer_stop = true;
+		spin_unlock(&host->xfer);
+	}
+
+	mutex_lock(&host->lock);
+
+	WARN_ON(host->mrq);
+	host->mrq = mrq;
+
+	if (host->removed) {
+		mrq->cmd->error = -ESHUTDOWN;
+		goto out;
+	}
+	if (!host->card_present) {
+		mrq->cmd->error = -ENOMEDIUM;
+		goto out;
+	}
+
+	queue_work(gb_sdio_mrq_workqueue, &host->mrqwork);
+
+	mutex_unlock(&host->lock);
+	return;
+
+out:
+	host->mrq = NULL;
+	mutex_unlock(&host->lock);
+	mmc_request_done(mmc, mrq);
+}
+
+static void gb_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	struct gb_sdio_host *host = mmc_priv(mmc);
+	struct gb_sdio_set_ios_request request;
+	int ret;
+	u8 power_mode;
+	u8 bus_width;
+	u8 timing;
+	u8 signal_voltage;
+	u8 drv_type;
+
+	mutex_lock(&host->lock);
+	request.clock = cpu_to_le32(ios->clock);
+	request.vdd = cpu_to_le32(1 << ios->vdd);
+
+	request.bus_mode = (ios->bus_mode == MMC_BUSMODE_OPENDRAIN ?
+			    GB_SDIO_BUSMODE_OPENDRAIN :
+			    GB_SDIO_BUSMODE_PUSHPULL);
+
+	switch (ios->power_mode) {
+	case MMC_POWER_OFF:
+		power_mode = GB_SDIO_POWER_OFF;
+		break;
+	case MMC_POWER_UP:
+		power_mode = GB_SDIO_POWER_UP;
+		break;
+	case MMC_POWER_ON:
+		power_mode = GB_SDIO_POWER_ON;
+		break;
+	case MMC_POWER_UNDEFINED:
+	default:
+		power_mode = GB_SDIO_POWER_UNDEFINED;
+		break;
+	}
+	request.power_mode = power_mode;
+
+	switch (ios->bus_width) {
+	case MMC_BUS_WIDTH_1:
+		bus_width = GB_SDIO_BUS_WIDTH_1;
+		break;
+	case MMC_BUS_WIDTH_4:
+	default:
+		bus_width = GB_SDIO_BUS_WIDTH_4;
+		break;
+	case MMC_BUS_WIDTH_8:
+		bus_width = GB_SDIO_BUS_WIDTH_8;
+		break;
+	}
+	request.bus_width = bus_width;
+
+	switch (ios->timing) {
+	case MMC_TIMING_LEGACY:
+	default:
+		timing = GB_SDIO_TIMING_LEGACY;
+		break;
+	case MMC_TIMING_MMC_HS:
+		timing = GB_SDIO_TIMING_MMC_HS;
+		break;
+	case MMC_TIMING_SD_HS:
+		timing = GB_SDIO_TIMING_SD_HS;
+		break;
+	case MMC_TIMING_UHS_SDR12:
+		timing = GB_SDIO_TIMING_UHS_SDR12;
+		break;
+	case MMC_TIMING_UHS_SDR25:
+		timing = GB_SDIO_TIMING_UHS_SDR25;
+		break;
+	case MMC_TIMING_UHS_SDR50:
+		timing = GB_SDIO_TIMING_UHS_SDR50;
+		break;
+	case MMC_TIMING_UHS_SDR104:
+		timing = GB_SDIO_TIMING_UHS_SDR104;
+		break;
+	case MMC_TIMING_UHS_DDR50:
+		timing = GB_SDIO_TIMING_UHS_DDR50;
+		break;
+	case MMC_TIMING_MMC_DDR52:
+		timing = GB_SDIO_TIMING_MMC_DDR52;
+		break;
+	case MMC_TIMING_MMC_HS200:
+		timing = GB_SDIO_TIMING_MMC_HS200;
+		break;
+	case MMC_TIMING_MMC_HS400:
+		timing = GB_SDIO_TIMING_MMC_HS400;
+		break;
+	}
+	request.timing = timing;
+
+	switch (ios->signal_voltage) {
+	case MMC_SIGNAL_VOLTAGE_330:
+		signal_voltage = GB_SDIO_SIGNAL_VOLTAGE_330;
+		break;
+	case MMC_SIGNAL_VOLTAGE_180:
+	default:
+		signal_voltage = GB_SDIO_SIGNAL_VOLTAGE_180;
+		break;
+	case MMC_SIGNAL_VOLTAGE_120:
+		signal_voltage = GB_SDIO_SIGNAL_VOLTAGE_120;
+		break;
+	}
+	request.signal_voltage = signal_voltage;
+
+	switch (ios->drv_type) {
+	case MMC_SET_DRIVER_TYPE_A:
+		drv_type = GB_SDIO_SET_DRIVER_TYPE_A;
+		break;
+	case MMC_SET_DRIVER_TYPE_C:
+		drv_type = GB_SDIO_SET_DRIVER_TYPE_C;
+		break;
+	case MMC_SET_DRIVER_TYPE_D:
+		drv_type = GB_SDIO_SET_DRIVER_TYPE_D;
+		break;
+	case MMC_SET_DRIVER_TYPE_B:
+	default:
+		drv_type = GB_SDIO_SET_DRIVER_TYPE_B;
+		break;
+	}
+	request.drv_type = drv_type;
+
+	ret = gb_sdio_set_ios(host, &request);
+	if (ret < 0)
+		goto out;
+
+	memcpy(&mmc->ios, ios, sizeof(mmc->ios));
+
+out:
+	mutex_unlock(&host->lock);
+}
+
+static int gb_mmc_get_ro(struct mmc_host *mmc)
+{
+	struct gb_sdio_host *host = mmc_priv(mmc);
+
+	mutex_lock(&host->lock);
+	if (host->removed)
+		return -ESHUTDOWN;
+	mutex_unlock(&host->lock);
+	return host->card_present;
+}
+
+static int gb_mmc_get_cd(struct mmc_host *mmc)
+{
+	struct gb_sdio_host *host = mmc_priv(mmc);
+
+	mutex_lock(&host->lock);
+	if (host->removed)
+		return -ESHUTDOWN;
+	mutex_unlock(&host->lock);
+	return host->read_only;
+}
+
+static const struct mmc_host_ops gb_sdio_ops = {
+	.request	= gb_mmc_request,
+	.set_ios	= gb_mmc_set_ios,
+	.get_ro		= gb_mmc_get_ro,
+	.get_cd		= gb_mmc_get_cd,
 };
 
 static int gb_sdio_connection_init(struct gb_connection *connection)
 {
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
+	size_t max_buffer;
+	int ret = 0;
 
 	mmc = mmc_alloc_host(sizeof(*host), &connection->dev);
 	if (!mmc)
@@ -54,38 +629,82 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 
-	mmc->ops = &gb_sd_ops;
-	// FIXME - set up size limits we can handle.
-	// FIXME - register the host controller.
-
 	host->connection = connection;
 	connection->private = host;
-	return 0;
+
+	ret = get_version(host);
+	if (ret < 0)
+		goto free_mmc;
+
+	ret = gb_sdio_get_caps(host);
+	if (ret < 0)
+		goto free_mmc;
+
+	mmc->ops = &gb_sdio_ops;
+
+	/* for now we just make a map 1:1 between max blocks and segments */
+	mmc->max_segs = host->mmc->max_blk_count;
+	mmc->max_seg_size = host->mmc->max_blk_size;
+
+	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+
+	max_buffer = gb_operation_get_payload_size_max(host->connection);
+	host->xfer_buffer = kzalloc(max_buffer, GFP_KERNEL);
+	if (!host->xfer_buffer) {
+		ret = -ENOMEM;
+		goto free_mmc;
+	}
+	mutex_init(&host->lock);
+	spin_lock_init(&host->xfer);
+	gb_sdio_mrq_workqueue = alloc_workqueue("gb_sdio_mrq", 0, 1);
+	INIT_WORK(&host->mrqwork, gb_sdio_mrq_work);
+
+	ret = mmc_add_host(mmc);
+	if (ret < 0)
+		goto free_work;
+
+	return ret;
+
+free_work:
+	destroy_workqueue(gb_sdio_mrq_workqueue);
+	kfree(host->xfer_buffer);
+
+free_mmc:
+	connection->private = NULL;
+	mmc_free_host(mmc);
+
+	return ret;
 }
 
 static void gb_sdio_connection_exit(struct gb_connection *connection)
 {
 	struct mmc_host *mmc;
-	struct gb_sdio_host *host;
+	struct gb_sdio_host *host = connection->private;
 
-	host = connection->private;
 	if (!host)
 		return;
 
+	mutex_lock(&host->lock);
+	host->removed = true;
 	mmc = host->mmc;
-	mmc_remove_host(mmc);
-	mmc_free_host(mmc);
 	connection->private = NULL;
+	mutex_unlock(&host->lock);
+
+	flush_workqueue(gb_sdio_mrq_workqueue);
+	destroy_workqueue(gb_sdio_mrq_workqueue);
+	mmc_free_host(mmc);
+	mmc_remove_host(mmc);
+	kfree(host->xfer_buffer);
 }
 
 static struct gb_protocol sdio_protocol = {
 	.name			= "sdio",
 	.id			= GREYBUS_PROTOCOL_SDIO,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_SDIO_VERSION_MAJOR,
+	.minor			= GB_SDIO_VERSION_MINOR,
 	.connection_init	= gb_sdio_connection_init,
 	.connection_exit	= gb_sdio_connection_exit,
-	.request_recv		= NULL,	/* no incoming requests */
+	.request_recv		= gb_sdio_event_recv,
 };
 
 gb_gpbridge_protocol_driver(sdio_protocol);
