@@ -519,6 +519,7 @@ struct mwifiex_private {
 	u8 frame_type;
 	u8 curr_addr[ETH_ALEN];
 	u8 media_connected;
+	u8 port_open;
 	u32 num_tx_timeout;
 	/* track consecutive timeout */
 	u8 tx_timeout_cnt;

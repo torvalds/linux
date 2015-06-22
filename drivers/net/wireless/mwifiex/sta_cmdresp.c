@@ -599,6 +599,7 @@ static int mwifiex_ret_802_11_key_material_v1(struct mwifiex_private *priv,
 				    "info: key: GTK is set\n");
 			priv->wpa_is_gtk_set = true;
 			priv->scan_block = false;
+			priv->port_open = true;
 		}
 	}
 
@@ -629,6 +630,7 @@ static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
 			mwifiex_dbg(priv->adapter, INFO, "info: key: GTK is set\n");
 			priv->wpa_is_gtk_set = true;
 			priv->scan_block = false;
+			priv->port_open = true;
 		}
 	}
 

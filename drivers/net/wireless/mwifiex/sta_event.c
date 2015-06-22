@@ -54,6 +54,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	priv->media_connected = false;
 
 	priv->scan_block = false;
+	priv->port_open = false;
 
 	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
 	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info)) {
@@ -474,7 +475,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_PS_AWAKE:
 		mwifiex_dbg(adapter, EVENT, "info: EVENT: AWAKE\n");
-		if (!adapter->pps_uapsd_mode &&
+		if (!adapter->pps_uapsd_mode && priv->port_open &&
 		    priv->media_connected && adapter->sleep_period.period) {
 				adapter->pps_uapsd_mode = true;
 				mwifiex_dbg(adapter, EVENT,
@@ -553,6 +554,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_PORT_RELEASE:
 		mwifiex_dbg(adapter, EVENT, "event: PORT RELEASE\n");
+		priv->port_open = true;
 		break;
 
 	case EVENT_EXT_SCAN_REPORT:

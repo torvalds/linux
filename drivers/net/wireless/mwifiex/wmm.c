@@ -465,6 +465,8 @@ mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 
 	for (i = 0; i < adapter->priv_num; ++i) {
 		priv = adapter->priv[i];
+		if (priv && !priv->port_open)
+			continue;
 		if (priv && atomic_read(&priv->wmm.tx_pkts_queued))
 			return false;
 	}
@@ -1080,7 +1082,8 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 
 			priv_tmp = adapter->bss_prio_tbl[j].bss_prio_cur->priv;
 
-			if (atomic_read(&priv_tmp->wmm.tx_pkts_queued) == 0)
+			if (!priv_tmp->port_open ||
+			    (atomic_read(&priv_tmp->wmm.tx_pkts_queued) == 0))
 				continue;
 
 			/* iterate over the WMM queues of the BSS */
