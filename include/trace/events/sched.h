@@ -703,6 +703,27 @@ TRACE_EVENT(sched_load_avg_cpu,
 	TP_printk("cpu=%d load_avg=%lu util_avg=%lu",
 		  __entry->cpu, __entry->load_avg, __entry->util_avg)
 );
+
+/*
+ * Tracepoint for sched_tune_config settings
+ */
+TRACE_EVENT(sched_tune_config,
+
+	TP_PROTO(int boost),
+
+	TP_ARGS(boost),
+
+	TP_STRUCT__entry(
+		__field( int,	boost		)
+	),
+
+	TP_fast_assign(
+		__entry->boost 	= boost;
+	),
+
+	TP_printk("boost=%d ", __entry->boost)
+);
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
