@@ -2947,6 +2947,21 @@ struct wmi_mgmt_rx_event_v2 {
 	u8 buf[0];
 } __packed;
 
+struct wmi_10_4_mgmt_rx_hdr {
+	__le32 channel;
+	__le32 snr;
+	    u8 rssi_ctl[4];
+	__le32 rate;
+	__le32 phy_mode;
+	__le32 buf_len;
+	__le32 status;
+} __packed;
+
+struct wmi_10_4_mgmt_rx_event {
+	struct wmi_10_4_mgmt_rx_hdr hdr;
+	u8 buf[0];
+} __packed;
+
 #define WMI_RX_STATUS_OK			0x00
 #define WMI_RX_STATUS_ERR_CRC			0x01
 #define WMI_RX_STATUS_ERR_DECRYPT		0x08

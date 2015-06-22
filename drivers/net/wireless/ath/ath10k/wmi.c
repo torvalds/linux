@@ -2124,6 +2124,40 @@ static int ath10k_wmi_op_pull_mgmt_rx_ev(struct ath10k *ar, struct sk_buff *skb,
 	return 0;
 }
 
+static int ath10k_wmi_10_4_op_pull_mgmt_rx_ev(struct ath10k *ar,
+					      struct sk_buff *skb,
+					      struct wmi_mgmt_rx_ev_arg *arg)
+{
+	struct wmi_10_4_mgmt_rx_event *ev;
+	struct wmi_10_4_mgmt_rx_hdr *ev_hdr;
+	size_t pull_len;
+	u32 msdu_len;
+
+	ev = (struct wmi_10_4_mgmt_rx_event *)skb->data;
+	ev_hdr = &ev->hdr;
+	pull_len = sizeof(*ev);
+
+	if (skb->len < pull_len)
+		return -EPROTO;
+
+	skb_pull(skb, pull_len);
+	arg->channel = ev_hdr->channel;
+	arg->buf_len = ev_hdr->buf_len;
+	arg->status = ev_hdr->status;
+	arg->snr = ev_hdr->snr;
+	arg->phy_mode = ev_hdr->phy_mode;
+	arg->rate = ev_hdr->rate;
+
+	msdu_len = __le32_to_cpu(arg->buf_len);
+	if (skb->len < msdu_len)
+		return -EPROTO;
+
+	/* Make sure bytes added for padding are removed. */
+	skb_trim(skb, msdu_len);
+
+	return 0;
+}
+
 int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_mgmt_rx_ev_arg arg = {};
@@ -4267,6 +4301,33 @@ out:
 	dev_kfree_skb(skb);
 }
 
+static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct wmi_cmd_hdr *cmd_hdr;
+	enum wmi_10_4_event_id id;
+
+	cmd_hdr = (struct wmi_cmd_hdr *)skb->data;
+	id = MS(__le32_to_cpu(cmd_hdr->cmd_id), WMI_CMD_HDR_CMD_ID);
+
+	if (!skb_pull(skb, sizeof(struct wmi_cmd_hdr)))
+		goto out;
+
+	trace_ath10k_wmi_event(ar, id, skb->data, skb->len);
+
+	switch (id) {
+	case WMI_10_4_MGMT_RX_EVENTID:
+		ath10k_wmi_event_mgmt_rx(ar, skb);
+		/* mgmt_rx() owns the skb now! */
+		return;
+	default:
+		ath10k_warn(ar, "Unknown eventid: %d\n", id);
+		break;
+	}
+
+out:
+	dev_kfree_skb(skb);
+}
+
 static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	int ret;
@@ -6186,7 +6247,10 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 };
 
 static const struct wmi_ops wmi_10_4_ops = {
+	.rx = ath10k_wmi_10_4_op_rx,
 	.map_svc = wmi_10_4_svc_map,
+	.pull_mgmt_rx = ath10k_wmi_10_4_op_pull_mgmt_rx_ev,
+	.pull_svc_rdy = ath10k_wmi_main_op_pull_svc_rdy_ev,
 	.gen_init = ath10k_wmi_10_4_op_gen_init,
 };
 
