@@ -75,8 +75,6 @@ static int rsrc_card_startup(struct snd_pcm_substream *substream)
 	struct rsrc_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
 	struct rsrc_card_dai *dai_props =
 		rsrc_priv_to_props(priv, rtd - rtd->card->rtd);
-	int ret;
-
 
 	return clk_prepare_enable(dai_props->clk);
 }
