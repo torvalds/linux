@@ -114,11 +114,13 @@ static int p8_ghash_setkey(struct crypto_shash *tfm, const u8 *key,
     if (keylen != GHASH_KEY_LEN)
         return -EINVAL;
 
+    preempt_disable();
     pagefault_disable();
     enable_kernel_altivec();
     enable_kernel_fp();
     gcm_init_p8(ctx->htable, (const u64 *) key);
     pagefault_enable();
+    preempt_enable();
     return crypto_shash_setkey(ctx->fallback, key, keylen);
 }
 
@@ -140,23 +142,27 @@ static int p8_ghash_update(struct shash_desc *desc,
             }
             memcpy(dctx->buffer + dctx->bytes, src,
                     GHASH_DIGEST_SIZE - dctx->bytes);
+	    preempt_disable();
             pagefault_disable();
             enable_kernel_altivec();
             enable_kernel_fp();
             gcm_ghash_p8(dctx->shash, ctx->htable, dctx->buffer,
                     GHASH_DIGEST_SIZE);
             pagefault_enable();
+	    preempt_enable();
             src += GHASH_DIGEST_SIZE - dctx->bytes;
             srclen -= GHASH_DIGEST_SIZE - dctx->bytes;
             dctx->bytes = 0;
         }
         len = srclen & ~(GHASH_DIGEST_SIZE - 1);
         if (len) {
+	    preempt_disable();
             pagefault_disable();
             enable_kernel_altivec();
             enable_kernel_fp();
             gcm_ghash_p8(dctx->shash, ctx->htable, src, len);
             pagefault_enable();
+	    preempt_enable();
             src += len;
             srclen -= len;
         }
@@ -180,12 +186,14 @@ static int p8_ghash_final(struct shash_desc *desc, u8 *out)
         if (dctx->bytes) {
             for (i = dctx->bytes; i < GHASH_DIGEST_SIZE; i++)
                 dctx->buffer[i] = 0;
+	    preempt_disable();
             pagefault_disable();
             enable_kernel_altivec();
             enable_kernel_fp();
             gcm_ghash_p8(dctx->shash, ctx->htable, dctx->buffer,
                     GHASH_DIGEST_SIZE);
             pagefault_enable();
+	    preempt_enable();
             dctx->bytes = 0;
         }
         memcpy(out, dctx->shash, GHASH_DIGEST_SIZE);

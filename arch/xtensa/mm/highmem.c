@@ -42,6 +42,7 @@ void *kmap_atomic(struct page *page)
 	enum fixed_addresses idx;
 	unsigned long vaddr;
 
+	preempt_disable();
 	pagefault_disable();
 	if (!PageHighMem(page))
 		return page_address(page);
@@ -79,6 +80,7 @@ void __kunmap_atomic(void *kvaddr)
 	}
 
 	pagefault_enable();
+	preempt_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);
 

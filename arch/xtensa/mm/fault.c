@@ -15,10 +15,10 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/hardirq.h>
-#include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 
 DEFINE_PER_CPU(unsigned long, asid_cache) = ASID_USER_FIRST;
@@ -57,7 +57,7 @@ void do_page_fault(struct pt_regs *regs)
 	/* If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm) {
+	if (faulthandler_disabled() || !mm) {
 		bad_page_fault(regs, address, SIGSEGV);
 		return;
 	}

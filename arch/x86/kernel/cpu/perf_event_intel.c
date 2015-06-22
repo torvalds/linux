@@ -2576,7 +2576,7 @@ static void intel_pmu_cpu_starting(int cpu)
 	if (!(x86_pmu.flags & PMU_FL_NO_HT_SHARING)) {
 		void **onln = &cpuc->kfree_on_online[X86_PERF_KFREE_SHARED];
 
-		for_each_cpu(i, topology_thread_cpumask(cpu)) {
+		for_each_cpu(i, topology_sibling_cpumask(cpu)) {
 			struct intel_shared_regs *pc;
 
 			pc = per_cpu(cpu_hw_events, i).shared_regs;
@@ -2594,7 +2594,7 @@ static void intel_pmu_cpu_starting(int cpu)
 		cpuc->lbr_sel = &cpuc->shared_regs->regs[EXTRA_REG_LBR];
 
 	if (x86_pmu.flags & PMU_FL_EXCL_CNTRS) {
-		for_each_cpu(i, topology_thread_cpumask(cpu)) {
+		for_each_cpu(i, topology_sibling_cpumask(cpu)) {
 			struct intel_excl_cntrs *c;
 
 			c = per_cpu(cpu_hw_events, i).excl_cntrs;
@@ -3362,7 +3362,7 @@ static __init int fixup_ht_bug(void)
 	if (!(x86_pmu.flags & PMU_FL_EXCL_ENABLED))
 		return 0;
 
-	w = cpumask_weight(topology_thread_cpumask(cpu));
+	w = cpumask_weight(topology_sibling_cpumask(cpu));
 	if (w > 1) {
 		pr_info("PMU erratum BJ122, BV98, HSD29 worked around, HT is on\n");
 		return 0;

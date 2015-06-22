@@ -113,7 +113,7 @@ static void check_tsc_warp(unsigned int timeout)
  */
 static inline unsigned int loop_timeout(int cpu)
 {
-	return (cpumask_weight(cpu_core_mask(cpu)) > 1) ? 2 : 20;
+	return (cpumask_weight(topology_core_cpumask(cpu)) > 1) ? 2 : 20;
 }
 
 /*

@@ -511,7 +511,7 @@ static bool set_nr_and_not_polling(struct task_struct *p)
 static bool set_nr_if_polling(struct task_struct *p)
 {
 	struct thread_info *ti = task_thread_info(p);
-	typeof(ti->flags) old, val = ACCESS_ONCE(ti->flags);
+	typeof(ti->flags) old, val = READ_ONCE(ti->flags);
 
 	for (;;) {
 		if (!(val & _TIF_POLLING_NRFLAG))
@@ -540,6 +540,52 @@ static bool set_nr_if_polling(struct task_struct *p)
 }
 #endif
 #endif
+
+void wake_q_add(struct wake_q_head *head, struct task_struct *task)
+{
+	struct wake_q_node *node = &task->wake_q;
+
+	/*
+	 * Atomically grab the task, if ->wake_q is !nil already it means
+	 * its already queued (either by us or someone else) and will get the
+	 * wakeup due to that.
+	 *
+	 * This cmpxchg() implies a full barrier, which pairs with the write
+	 * barrier implied by the wakeup in wake_up_list().
+	 */
+	if (cmpxchg(&node->next, NULL, WAKE_Q_TAIL))
+		return;
+
+	get_task_struct(task);
+
+	/*
+	 * The head is context local, there can be no concurrency.
+	 */
+	*head->lastp = node;
+	head->lastp = &node->next;
+}
+
+void wake_up_q(struct wake_q_head *head)
+{
+	struct wake_q_node *node = head->first;
+
+	while (node != WAKE_Q_TAIL) {
+		struct task_struct *task;
+
+		task = container_of(node, struct task_struct, wake_q);
+		BUG_ON(!task);
+		/* task can safely be re-inserted now */
+		node = node->next;
+		task->wake_q.next = NULL;
+
+		/*
+		 * wake_up_process() implies a wmb() to pair with the queueing
+		 * in wake_q_add() so as not to miss wakeups.
+		 */
+		wake_up_process(task);
+		put_task_struct(task);
+	}
+}
 
 /*
  * resched_curr - mark rq's current task 'to be rescheduled now'.
@@ -2105,12 +2151,15 @@ void wake_up_new_task(struct task_struct *p)
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 
+static struct static_key preempt_notifier_key = STATIC_KEY_INIT_FALSE;
+
 /**
  * preempt_notifier_register - tell me when current is being preempted & rescheduled
  * @notifier: notifier struct to register
  */
 void preempt_notifier_register(struct preempt_notifier *notifier)
 {
+	static_key_slow_inc(&preempt_notifier_key);
 	hlist_add_head(&notifier->link, &current->preempt_notifiers);
 }
 EXPORT_SYMBOL_GPL(preempt_notifier_register);
@@ -2119,15 +2168,16 @@ EXPORT_SYMBOL_GPL(preempt_notifier_register);
  * preempt_notifier_unregister - no longer interested in preemption notifications
  * @notifier: notifier struct to unregister
  *
- * This is safe to call from within a preemption notifier.
+ * This is *not* safe to call from within a preemption notifier.
  */
 void preempt_notifier_unregister(struct preempt_notifier *notifier)
 {
 	hlist_del(&notifier->link);
+	static_key_slow_dec(&preempt_notifier_key);
 }
 EXPORT_SYMBOL_GPL(preempt_notifier_unregister);
 
-static void fire_sched_in_preempt_notifiers(struct task_struct *curr)
+static void __fire_sched_in_preempt_notifiers(struct task_struct *curr)
 {
 	struct preempt_notifier *notifier;
 
@@ -2135,9 +2185,15 @@ static void fire_sched_in_preempt_notifiers(struct task_struct *curr)
 		notifier->ops->sched_in(notifier, raw_smp_processor_id());
 }
 
+static __always_inline void fire_sched_in_preempt_notifiers(struct task_struct *curr)
+{
+	if (static_key_false(&preempt_notifier_key))
+		__fire_sched_in_preempt_notifiers(curr);
+}
+
 static void
-fire_sched_out_preempt_notifiers(struct task_struct *curr,
-				 struct task_struct *next)
+__fire_sched_out_preempt_notifiers(struct task_struct *curr,
+				   struct task_struct *next)
 {
 	struct preempt_notifier *notifier;
 
@@ -2145,13 +2201,21 @@ fire_sched_out_preempt_notifiers(struct task_struct *curr,
 		notifier->ops->sched_out(notifier, next);
 }
 
+static __always_inline void
+fire_sched_out_preempt_notifiers(struct task_struct *curr,
+				 struct task_struct *next)
+{
+	if (static_key_false(&preempt_notifier_key))
+		__fire_sched_out_preempt_notifiers(curr, next);
+}
+
 #else /* !CONFIG_PREEMPT_NOTIFIERS */
 
-static void fire_sched_in_preempt_notifiers(struct task_struct *curr)
+static inline void fire_sched_in_preempt_notifiers(struct task_struct *curr)
 {
 }
 
-static void
+static inline void
 fire_sched_out_preempt_notifiers(struct task_struct *curr,
 				 struct task_struct *next)
 {
@@ -2397,9 +2461,9 @@ unsigned long nr_iowait_cpu(int cpu)
 
 void get_iowait_load(unsigned long *nr_waiters, unsigned long *load)
 {
-	struct rq *this = this_rq();
-	*nr_waiters = atomic_read(&this->nr_iowait);
-	*load = this->cpu_load[0];
+	struct rq *rq = this_rq();
+	*nr_waiters = atomic_read(&rq->nr_iowait);
+	*load = rq->load.weight;
 }
 
 #ifdef CONFIG_SMP
@@ -2497,6 +2561,7 @@ void scheduler_tick(void)
 	update_rq_clock(rq);
 	curr->sched_class->task_tick(rq, curr, 0);
 	update_cpu_load_active(rq);
+	calc_global_load_tick(rq);
 	raw_spin_unlock(&rq->lock);
 
 	perf_event_task_tick();
@@ -2525,7 +2590,7 @@ void scheduler_tick(void)
 u64 scheduler_tick_max_deferment(void)
 {
 	struct rq *rq = this_rq();
-	unsigned long next, now = ACCESS_ONCE(jiffies);
+	unsigned long next, now = READ_ONCE(jiffies);
 
 	next = rq->last_sched_tick + HZ;
 
@@ -2726,9 +2791,7 @@ again:
  *          - return from syscall or exception to user-space
  *          - return from interrupt-handler to user-space
  *
- * WARNING: all callers must re-check need_resched() afterward and reschedule
- * accordingly in case an event triggered the need for rescheduling (such as
- * an interrupt waking up a task) while preemption was disabled in __schedule().
+ * WARNING: must be called with preemption disabled!
  */
 static void __sched __schedule(void)
 {
@@ -2737,7 +2800,6 @@ static void __sched __schedule(void)
 	struct rq *rq;
 	int cpu;
 
-	preempt_disable();
 	cpu = smp_processor_id();
 	rq = cpu_rq(cpu);
 	rcu_note_context_switch();
@@ -2801,8 +2863,6 @@ static void __sched __schedule(void)
 		raw_spin_unlock_irq(&rq->lock);
 
 	post_schedule(rq);
-
-	sched_preempt_enable_no_resched();
 }
 
 static inline void sched_submit_work(struct task_struct *tsk)
@@ -2823,7 +2883,9 @@ asmlinkage __visible void __sched schedule(void)
 
 	sched_submit_work(tsk);
 	do {
+		preempt_disable();
 		__schedule();
+		sched_preempt_enable_no_resched();
 	} while (need_resched());
 }
 EXPORT_SYMBOL(schedule);
@@ -2862,15 +2924,14 @@ void __sched schedule_preempt_disabled(void)
 static void __sched notrace preempt_schedule_common(void)
 {
 	do {
-		__preempt_count_add(PREEMPT_ACTIVE);
+		preempt_active_enter();
 		__schedule();
-		__preempt_count_sub(PREEMPT_ACTIVE);
+		preempt_active_exit();
 
 		/*
 		 * Check again in case we missed a preemption opportunity
 		 * between schedule and now.
 		 */
-		barrier();
 	} while (need_resched());
 }
 
@@ -2894,9 +2955,8 @@ asmlinkage __visible void __sched notrace preempt_schedule(void)
 NOKPROBE_SYMBOL(preempt_schedule);
 EXPORT_SYMBOL(preempt_schedule);
 
-#ifdef CONFIG_CONTEXT_TRACKING
 /**
- * preempt_schedule_context - preempt_schedule called by tracing
+ * preempt_schedule_notrace - preempt_schedule called by tracing
  *
  * The tracing infrastructure uses preempt_enable_notrace to prevent
  * recursion and tracing preempt enabling caused by the tracing
@@ -2909,7 +2969,7 @@ EXPORT_SYMBOL(preempt_schedule);
  * instead of preempt_schedule() to exit user context if needed before
  * calling the scheduler.
  */
-asmlinkage __visible void __sched notrace preempt_schedule_context(void)
+asmlinkage __visible void __sched notrace preempt_schedule_notrace(void)
 {
 	enum ctx_state prev_ctx;
 
@@ -2917,7 +2977,13 @@ asmlinkage __visible void __sched notrace preempt_schedule_context(void)
 		return;
 
 	do {
-		__preempt_count_add(PREEMPT_ACTIVE);
+		/*
+		 * Use raw __prempt_count() ops that don't call function.
+		 * We can't call functions before disabling preemption which
+		 * disarm preemption tracing recursions.
+		 */
+		__preempt_count_add(PREEMPT_ACTIVE + PREEMPT_DISABLE_OFFSET);
+		barrier();
 		/*
 		 * Needs preempt disabled in case user_exit() is traced
 		 * and the tracer calls preempt_enable_notrace() causing
@@ -2927,12 +2993,11 @@ asmlinkage __visible void __sched notrace preempt_schedule_context(void)
 		__schedule();
 		exception_exit(prev_ctx);
 
-		__preempt_count_sub(PREEMPT_ACTIVE);
 		barrier();
+		__preempt_count_sub(PREEMPT_ACTIVE + PREEMPT_DISABLE_OFFSET);
 	} while (need_resched());
 }
-EXPORT_SYMBOL_GPL(preempt_schedule_context);
-#endif /* CONFIG_CONTEXT_TRACKING */
+EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
 
 #endif /* CONFIG_PREEMPT */
 
@@ -2952,17 +3017,11 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
 	prev_state = exception_enter();
 
 	do {
-		__preempt_count_add(PREEMPT_ACTIVE);
+		preempt_active_enter();
 		local_irq_enable();
 		__schedule();
 		local_irq_disable();
-		__preempt_count_sub(PREEMPT_ACTIVE);
-
-		/*
-		 * Check again in case we missed a preemption opportunity
-		 * between schedule and now.
-		 */
-		barrier();
+		preempt_active_exit();
 	} while (need_resched());
 
 	exception_exit(prev_state);
@@ -3040,7 +3099,6 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 		if (!dl_prio(p->normal_prio) ||
 		    (pi_task && dl_entity_preempt(&pi_task->dl, &p->dl))) {
 			p->dl.dl_boosted = 1;
-			p->dl.dl_throttled = 0;
 			enqueue_flag = ENQUEUE_REPLENISH;
 		} else
 			p->dl.dl_boosted = 0;
@@ -5314,7 +5372,7 @@ static struct notifier_block migration_notifier = {
 	.priority = CPU_PRI_MIGRATION,
 };
 
-static void __cpuinit set_cpu_rq_start_time(void)
+static void set_cpu_rq_start_time(void)
 {
 	int cpu = smp_processor_id();
 	struct rq *rq = cpu_rq(cpu);
@@ -7734,11 +7792,11 @@ static long sched_group_rt_runtime(struct task_group *tg)
 	return rt_runtime_us;
 }
 
-static int sched_group_set_rt_period(struct task_group *tg, long rt_period_us)
+static int sched_group_set_rt_period(struct task_group *tg, u64 rt_period_us)
 {
 	u64 rt_runtime, rt_period;
 
-	rt_period = (u64)rt_period_us * NSEC_PER_USEC;
+	rt_period = rt_period_us * NSEC_PER_USEC;
 	rt_runtime = tg->rt_bandwidth.rt_runtime;
 
 	return tg_set_rt_bandwidth(tg, rt_period, rt_runtime);
