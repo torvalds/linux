@@ -1059,11 +1059,15 @@ static int __l2cap_wait_ack(struct sock *sk, struct l2cap_chan *chan)
 	DECLARE_WAITQUEUE(wait, current);
 	int err = 0;
 	int timeo = L2CAP_WAIT_ACK_POLL_PERIOD;
+	/* Timeout to prevent infinite loop */
+	unsigned long timeout = jiffies + L2CAP_WAIT_ACK_TIMEOUT;
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
 	do {
-		BT_DBG("Waiting for %d ACKs", chan->unacked_frames);
+		BT_DBG("Waiting for %d ACKs, timeout %04d ms",
+		       chan->unacked_frames, time_after(jiffies, timeout) ? 0 :
+		       jiffies_to_msecs(timeout - jiffies));
 
 		if (!timeo)
 			timeo = L2CAP_WAIT_ACK_POLL_PERIOD;
@@ -1081,6 +1085,11 @@ static int __l2cap_wait_ack(struct sock *sk, struct l2cap_chan *chan)
 		err = sock_error(sk);
 		if (err)
 			break;
+
+		if (time_after(jiffies, timeout)) {
+			err = -ENOLINK;
+			break;
+		}
 
 	} while (chan->unacked_frames > 0 &&
 		 chan->state == BT_CONNECTED);
