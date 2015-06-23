@@ -1313,8 +1313,6 @@ static int ntb_setup_intx(struct ntb_device *ndev)
 	struct pci_dev *pdev = ndev->pdev;
 	int rc;
 
-	pci_msi_off(pdev);
-
 	/* Verify intx is enabled */
 	pci_intx(pdev, 1);
 

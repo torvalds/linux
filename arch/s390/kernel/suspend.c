@@ -9,10 +9,10 @@
 #include <linux/pfn.h>
 #include <linux/suspend.h>
 #include <linux/mm.h>
+#include <linux/pci.h>
 #include <asm/ctl_reg.h>
 #include <asm/ipl.h>
 #include <asm/cio.h>
-#include <asm/pci.h>
 #include <asm/sections.h>
 #include "entry.h"
 
