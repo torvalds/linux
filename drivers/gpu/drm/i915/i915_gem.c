@@ -2813,9 +2813,6 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 {
 	WARN_ON(i915_verify_lists(ring->dev));
 
-	if (list_empty(&ring->active_list))
-		return;
-
 	/* Retire requests first as we use it above for the early return.
 	 * If we retire requests last, we may use a later seqno and so clear
 	 * the requests lists without clearing the active list, leading to

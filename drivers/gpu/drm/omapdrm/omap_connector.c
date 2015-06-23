@@ -17,10 +17,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include "omap_drv.h"
 
 /*
  * connector funcs
@@ -259,10 +260,13 @@ struct drm_encoder *omap_connector_attached_encoder(
 }
 
 static const struct drm_connector_funcs omap_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
+	.reset = drm_atomic_helper_connector_reset,
 	.detect = omap_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = omap_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {

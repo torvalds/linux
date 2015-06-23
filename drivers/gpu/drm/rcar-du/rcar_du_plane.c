@@ -302,13 +302,15 @@ rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 	struct rcar_du_plane_state *state;
 	struct rcar_du_plane_state *copy;
 
+	if (WARN_ON(!plane->state))
+		return NULL;
+
 	state = to_rcar_plane_state(plane->state);
 	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
 	if (copy == NULL)
 		return NULL;
 
-	if (copy->state.fb)
-		drm_framebuffer_reference(copy->state.fb);
+	__drm_atomic_helper_plane_duplicate_state(plane, &copy->state);
 
 	return &copy->state;
 }
@@ -316,9 +318,7 @@ rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 static void rcar_du_plane_atomic_destroy_state(struct drm_plane *plane,
 					       struct drm_plane_state *state)
 {
-	if (state->fb)
-		drm_framebuffer_unreference(state->fb);
-
+	__drm_atomic_helper_plane_destroy_state(plane, state);
 	kfree(to_rcar_plane_state(state));
 }
 
@@ -390,7 +390,6 @@ static const uint32_t formats[] = {
 int rcar_du_planes_init(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_device *rcdu = rgrp->dev;
-	unsigned int num_planes;
 	unsigned int crtcs;
 	unsigned int i;
 	int ret;
@@ -398,11 +397,11 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	 /* Create one primary plane per CRTC in this group and seven overlay
 	  * planes.
 	  */
-	num_planes = rgrp->num_crtcs + 7;
+	rgrp->num_planes = rgrp->num_crtcs + 7;
 
 	crtcs = ((1 << rcdu->num_crtcs) - 1) & (3 << (2 * rgrp->index));
 
-	for (i = 0; i < num_planes; ++i) {
+	for (i = 0; i < rgrp->num_planes; ++i) {
 		enum drm_plane_type type = i < rgrp->num_crtcs
 					 ? DRM_PLANE_TYPE_PRIMARY
 					 : DRM_PLANE_TYPE_OVERLAY;

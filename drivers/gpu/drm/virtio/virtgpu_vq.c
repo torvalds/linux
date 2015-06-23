@@ -79,6 +79,7 @@ int virtio_gpu_alloc_vbufs(struct virtio_gpu_device *vgdev)
 	void *ptr;
 
 	INIT_LIST_HEAD(&vgdev->free_vbufs);
+	spin_lock_init(&vgdev->free_vbufs_lock);
 	count += virtqueue_get_vring_size(vgdev->ctrlq.vq);
 	count += virtqueue_get_vring_size(vgdev->cursorq.vq);
 	size = count * VBUFFER_SIZE;
@@ -106,6 +107,7 @@ void virtio_gpu_free_vbufs(struct virtio_gpu_device *vgdev)
 	count += virtqueue_get_vring_size(vgdev->ctrlq.vq);
 	count += virtqueue_get_vring_size(vgdev->cursorq.vq);
 
+	spin_lock(&vgdev->free_vbufs_lock);
 	for (i = 0; i < count; i++) {
 		if (WARN_ON(list_empty(&vgdev->free_vbufs)))
 			return;
@@ -113,6 +115,7 @@ void virtio_gpu_free_vbufs(struct virtio_gpu_device *vgdev)
 					struct virtio_gpu_vbuffer, list);
 		list_del(&vbuf->list);
 	}
+	spin_unlock(&vgdev->free_vbufs_lock);
 	kfree(vgdev->vbufs);
 }
 
@@ -123,10 +126,12 @@ virtio_gpu_get_vbuf(struct virtio_gpu_device *vgdev,
 {
 	struct virtio_gpu_vbuffer *vbuf;
 
+	spin_lock(&vgdev->free_vbufs_lock);
 	BUG_ON(list_empty(&vgdev->free_vbufs));
 	vbuf = list_first_entry(&vgdev->free_vbufs,
 				struct virtio_gpu_vbuffer, list);
 	list_del(&vbuf->list);
+	spin_unlock(&vgdev->free_vbufs_lock);
 	memset(vbuf, 0, VBUFFER_SIZE);
 
 	BUG_ON(size > MAX_INLINE_CMD_SIZE);
@@ -201,7 +206,9 @@ static void free_vbuf(struct virtio_gpu_device *vgdev,
 	if (vbuf->resp_size > MAX_INLINE_RESP_SIZE)
 		kfree(vbuf->resp_buf);
 	kfree(vbuf->data_buf);
+	spin_lock(&vgdev->free_vbufs_lock);
 	list_add(&vbuf->list, &vgdev->free_vbufs);
+	spin_unlock(&vgdev->free_vbufs_lock);
 }
 
 static void reclaim_vbufs(struct virtqueue *vq, struct list_head *reclaim_list)
@@ -534,6 +541,7 @@ static void virtio_gpu_cmd_get_display_info_cb(struct virtio_gpu_device *vgdev,
 		}
 	}
 
+	vgdev->display_info_pending = false;
 	spin_unlock(&vgdev->display_info_lock);
 	wake_up(&vgdev->resp_wq);
 
@@ -558,6 +566,7 @@ int virtio_gpu_cmd_get_display_info(struct virtio_gpu_device *vgdev)
 		 resp_buf);
 	memset(cmd_p, 0, sizeof(*cmd_p));
 
+	vgdev->display_info_pending = true;
 	cmd_p->type = cpu_to_le32(VIRTIO_GPU_CMD_GET_DISPLAY_INFO);
 	virtio_gpu_queue_ctrl_buffer(vgdev, vbuf);
 	return 0;

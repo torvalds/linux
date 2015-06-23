@@ -37,6 +37,26 @@ int drm_virtio_set_busid(struct drm_device *dev, struct drm_master *master)
 	return 0;
 }
 
+static void virtio_pci_kick_out_firmware_fb(struct pci_dev *pci_dev)
+{
+	struct apertures_struct *ap;
+	bool primary;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return;
+
+	ap->ranges[0].base = pci_resource_start(pci_dev, 0);
+	ap->ranges[0].size = pci_resource_len(pci_dev, 0);
+
+	primary = pci_dev->resource[PCI_ROM_RESOURCE].flags
+		& IORESOURCE_ROM_SHADOW;
+
+	remove_conflicting_framebuffers(ap, "virtiodrmfb", primary);
+
+	kfree(ap);
+}
+
 int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev)
 {
 	struct drm_device *dev;
@@ -52,27 +72,11 @@ int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev)
 		struct pci_dev *pdev = to_pci_dev(vdev->dev.parent);
 		bool vga = (pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA;
 
-		if (vga) {
-			/*
-			 * Need to make sure we don't have two drivers
-			 * for the same hardware here.  Some day we
-			 * will simply kick out the firmware
-			 * (vesa/efi) framebuffer.
-			 *
-			 * Virtual hardware specs for virtio-vga are
-			 * not finalized yet, therefore we can't add
-			 * code for that yet.
-			 *
-			 * So ignore the device for the time being,
-			 * and suggest to the user use the device
-			 * variant without vga compatibility mode.
-			 */
-			DRM_ERROR("virtio-vga not (yet) supported\n");
-			DRM_ERROR("please use virtio-gpu-pci instead\n");
-			ret = -ENODEV;
-			goto err_free;
-		}
+		DRM_INFO("pci: %s detected\n",
+			 vga ? "virtio-vga" : "virtio-gpu-pci");
 		dev->pdev = pdev;
+		if (vga)
+			virtio_pci_kick_out_firmware_fb(pdev);
 	}
 
 	ret = drm_dev_register(dev, 0);

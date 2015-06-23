@@ -2458,7 +2458,6 @@ struct radeon_device {
 
 	/* amdkfd interface */
 	struct kfd_dev		*kfd;
-	struct radeon_sa_manager	kfd_bo;
 
 	struct mutex	mn_lock;
 	DECLARE_HASHTABLE(mn_hash, 7);

@@ -167,7 +167,7 @@
 		phys = <&mipi_phy 1>;
 		phy-names = "dsim";
 		clocks = <&clock CLK_DSIM0>, <&clock CLK_SCLK_MIPI0>;
-		clock-names = "bus_clk", "pll_clk";
+		clock-names = "bus_clk", "sclk_mipi";
 		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <0>;

@@ -553,7 +553,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 	/* Validate arguments */
 
 	if ((args->buf_size_in_bytes > MAX_ALLOWED_AW_BUFF_SIZE) ||
-		(args->buf_size_in_bytes <= sizeof(*args)) ||
+		(args->buf_size_in_bytes <= sizeof(*args) + sizeof(int) * 2) ||
 		(cmd_from_user == NULL))
 		return -EINVAL;
 
@@ -590,7 +590,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 	/* skip over the addresses buffer */
 	args_idx += sizeof(aw_info.watch_address) * aw_info.num_watch_points;
 
-	if (args_idx >= args->buf_size_in_bytes) {
+	if (args_idx >= args->buf_size_in_bytes - sizeof(*args)) {
 		kfree(args_buff);
 		return -EINVAL;
 	}
@@ -614,7 +614,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 		args_idx += sizeof(aw_info.watch_mask);
 	}
 
-	if (args_idx > args->buf_size_in_bytes) {
+	if (args_idx >= args->buf_size_in_bytes - sizeof(args)) {
 		kfree(args_buff);
 		return -EINVAL;
 	}
