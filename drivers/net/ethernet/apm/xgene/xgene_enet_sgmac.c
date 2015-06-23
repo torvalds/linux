@@ -334,9 +334,11 @@ static int xgene_enet_reset(struct xgene_enet_pdata *p)
 	if (!xgene_ring_mgr_init(p))
 		return -ENODEV;
 
-	clk_prepare_enable(p->clk);
-	clk_disable_unprepare(p->clk);
-	clk_prepare_enable(p->clk);
+	if (!IS_ERR(p->clk)) {
+		clk_prepare_enable(p->clk);
+		clk_disable_unprepare(p->clk);
+		clk_prepare_enable(p->clk);
+	}
 
 	xgene_enet_ecc_init(p);
 	xgene_enet_config_ring_if_assoc(p);
@@ -369,7 +371,8 @@ static void xgene_enet_cle_bypass(struct xgene_enet_pdata *p,
 
 static void xgene_enet_shutdown(struct xgene_enet_pdata *p)
 {
-	clk_disable_unprepare(p->clk);
+	if (!IS_ERR(p->clk))
+		clk_disable_unprepare(p->clk);
 }
 
 static void xgene_enet_link_state(struct work_struct *work)

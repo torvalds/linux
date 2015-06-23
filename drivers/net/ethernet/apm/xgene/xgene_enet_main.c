@@ -1036,7 +1036,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
 		/* Firmware may have set up the clock already. */
-		pdata->clk = NULL;
+		dev_info(dev, "clocks have been setup already\n");
 	}
 
 	if (pdata->phy_mode != PHY_INTERFACE_MODE_XGMII)
