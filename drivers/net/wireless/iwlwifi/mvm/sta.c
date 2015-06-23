@@ -1680,9 +1680,8 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }
 
-int iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
-			  struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
+			   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm_eosp_notification *notif = (void *)pkt->data;
@@ -1690,15 +1689,13 @@ int iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
 	u32 sta_id = le32_to_cpu(notif->sta_id);
 
 	if (WARN_ON_ONCE(sta_id >= IWL_MVM_STATION_COUNT))
-		return 0;
+		return;
 
 	rcu_read_lock();
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 	if (!IS_ERR_OR_NULL(sta))
 		ieee80211_sta_eosp(sta);
 	rcu_read_unlock();
-
-	return 0;
 }
 
 void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,

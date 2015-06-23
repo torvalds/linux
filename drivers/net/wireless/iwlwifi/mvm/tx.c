@@ -911,8 +911,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	rcu_read_unlock();
 }
 
-int iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-		      struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
@@ -921,8 +920,6 @@ int iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		iwl_mvm_rx_tx_cmd_single(mvm, pkt);
 	else
 		iwl_mvm_rx_tx_cmd_agg(mvm, pkt);
-
-	return 0;
 }
 
 static void iwl_mvm_tx_info_from_ba_notif(struct ieee80211_tx_info *info,
@@ -942,8 +939,7 @@ static void iwl_mvm_tx_info_from_ba_notif(struct ieee80211_tx_info *info,
 		(void *)(uintptr_t)tid_data->rate_n_flags;
 }
 
-int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm_ba_notif *ba_notif = (void *)pkt->data;
@@ -965,7 +961,7 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT ||
 		      tid >= IWL_MAX_TID_COUNT,
 		      "sta_id %d tid %d", sta_id, tid))
-		return 0;
+		return;
 
 	rcu_read_lock();
 
@@ -974,7 +970,7 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	/* Reclaiming frames for a station that has been deleted ? */
 	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
 		rcu_read_unlock();
-		return 0;
+		return;
 	}
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -985,7 +981,7 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			"invalid BA notification: Q %d, tid %d, flow %d\n",
 			tid_data->txq_id, tid, scd_flow);
 		rcu_read_unlock();
-		return 0;
+		return;
 	}
 
 	spin_lock_bh(&mvmsta->lock);
@@ -1072,8 +1068,6 @@ out:
 		skb = __skb_dequeue(&reclaimed_skbs);
 		ieee80211_tx_status(mvm->hw, skb);
 	}
-
-	return 0;
 }
 
 /*

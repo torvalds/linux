@@ -410,9 +410,8 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 /*
  * The Rx handler for time event notifications
  */
-int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
-				struct iwl_rx_cmd_buffer *rxb,
-				struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_time_event_notif *notif = (void *)pkt->data;
@@ -433,8 +432,6 @@ int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
 	}
 unlock:
 	spin_unlock_bh(&mvm->time_event_lock);
-
-	return 0;
 }
 
 static bool iwl_mvm_te_notif(struct iwl_notif_wait_data *notif_wait,

@@ -243,8 +243,7 @@ u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx)
 	return fw_rate_idx_to_plcp[rate_idx];
 }
 
-int iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_error_resp *err_resp = (void *)pkt->data;
@@ -256,7 +255,6 @@ int iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		le32_to_cpu(err_resp->error_service));
 	IWL_ERR(mvm, "FW Error notification: timestamp 0x%16llX\n",
 		le64_to_cpu(err_resp->timestamp));
-	return 0;
 }
 
 /*

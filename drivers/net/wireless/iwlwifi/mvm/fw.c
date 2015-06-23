@@ -814,9 +814,8 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
-				    struct iwl_rx_cmd_buffer *rxb,
-				    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_card_state_notif *card_state_notif = (void *)pkt->data;
@@ -827,13 +826,10 @@ int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & CT_KILL_CARD_DISABLED) ?
 			  "Reached" : "Not reached");
-
-	return 0;
 }
 
-int iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
-			    struct iwl_rx_cmd_buffer *rxb,
-			    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
+			     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mfuart_load_notif *mfuart_notif = (void *)pkt->data;
@@ -844,5 +840,4 @@ int iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
 		       le32_to_cpu(mfuart_notif->external_ver),
 		       le32_to_cpu(mfuart_notif->status),
 		       le32_to_cpu(mfuart_notif->duration));
-	return 0;
 }

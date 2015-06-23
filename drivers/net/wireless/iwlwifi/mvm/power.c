@@ -509,9 +509,8 @@ static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
 		       ETH_ALEN);
 }
 
-int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
-					     struct iwl_rx_cmd_buffer *rxb,
-					     struct iwl_device_cmd *cmd)
+void iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
+					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_uapsd_misbehaving_ap_notif *notif = (void *)pkt->data;
@@ -520,8 +519,6 @@ int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_power_uapsd_misbehav_ap_iterator, &ap_sta_id);
-
-	return 0;
 }
 
 struct iwl_power_vifs {

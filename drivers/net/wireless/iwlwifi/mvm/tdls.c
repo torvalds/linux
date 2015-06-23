@@ -261,8 +261,7 @@ static void iwl_mvm_tdls_update_cs_state(struct iwl_mvm *mvm,
 		mvm->tdls_cs.cur_sta_id = IWL_MVM_STATION_COUNT;
 }
 
-int iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_tdls_channel_switch_notif *notif = (void *)pkt->data;
@@ -277,17 +276,17 @@ int iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	/* can fail sometimes */
 	if (!le32_to_cpu(notif->status)) {
 		iwl_mvm_tdls_update_cs_state(mvm, IWL_MVM_TDLS_SW_IDLE);
-		goto out;
+		return;
 	}
 
 	if (WARN_ON(sta_id >= IWL_MVM_STATION_COUNT))
-		goto out;
+		return;
 
 	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 					lockdep_is_held(&mvm->mutex));
 	/* the station may not be here, but if it is, it must be a TDLS peer */
 	if (IS_ERR_OR_NULL(sta) || WARN_ON(!sta->tdls))
-		goto out;
+		return;
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	vif = mvmsta->vif;
@@ -301,9 +300,6 @@ int iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			 msecs_to_jiffies(delay));
 
 	iwl_mvm_tdls_update_cs_state(mvm, IWL_MVM_TDLS_SW_ACTIVE);
-
-out:
-	return 0;
 }
 
 static int

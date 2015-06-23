@@ -71,8 +71,7 @@
  * Copies the phy information in mvm->last_phy_info, it will be used when the
  * actual data will come from the fw in the next packet.
  */
-int iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
@@ -86,8 +85,6 @@ int iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		spin_unlock(&mvm->drv_stats_lock);
 	}
 #endif
-
-	return 0;
 }
 
 /*
@@ -242,8 +239,7 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
  *
  * Handles the actual data of the Rx packet from the fw
  */
-int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-		       struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_rx_status *rx_status;
@@ -271,7 +267,7 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	skb = alloc_skb(128, GFP_ATOMIC);
 	if (!skb) {
 		IWL_ERR(mvm, "alloc_skb failed\n");
-		return 0;
+		return;
 	}
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
@@ -284,14 +280,14 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		IWL_DEBUG_DROP(mvm, "Bad decryption results 0x%08x\n",
 			       rx_pkt_status);
 		kfree_skb(skb);
-		return 0;
+		return;
 	}
 
 	if ((unlikely(phy_info->cfg_phy_cnt > 20))) {
 		IWL_DEBUG_DROP(mvm, "dsp size out of range [0,20]: %d\n",
 			       phy_info->cfg_phy_cnt);
 		kfree_skb(skb);
-		return 0;
+		return;
 	}
 
 	/*
@@ -431,7 +427,6 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 #endif
 	iwl_mvm_pass_packet_to_mac80211(mvm, skb, hdr, len, ampdu_status,
 					crypt_len, rxb);
-	return 0;
 }
 
 static void iwl_mvm_update_rx_statistics(struct iwl_mvm *mvm,
@@ -623,10 +618,7 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		iwl_rx_packet_payload_len(pkt));
 }
 
-int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
-			  struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_statistics(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	iwl_mvm_handle_rx_statistics(mvm, rxb_addr(rxb));
-	return 0;
 }

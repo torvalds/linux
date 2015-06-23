@@ -839,9 +839,8 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	return retval;
 }
 
-int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
-			       struct iwl_rx_cmd_buffer *rxb,
-			       struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
+				struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mcc_chub_notif *notif = (void *)pkt->data;
@@ -852,7 +851,7 @@ int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
-		return 0;
+		return;
 
 	mcc[0] = notif->mcc >> 8;
 	mcc[1] = notif->mcc & 0xff;
@@ -864,10 +863,8 @@ int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 		      mcc, src);
 	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc, src, NULL);
 	if (IS_ERR_OR_NULL(regd))
-		return 0;
+		return;
 
 	regulatory_set_wiphy_regd(mvm->hw->wiphy, regd);
 	kfree(regd);
-
-	return 0;
 }

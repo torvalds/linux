@@ -203,8 +203,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 struct iwl_rx_handlers {
 	u8 cmd_id;
 	bool async;
-	int (*fn)(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-		  struct iwl_device_cmd *cmd);
+	void (*fn)(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 };
 
 #define RX_HANDLER(_cmd_id, _fn, _async)	\
@@ -628,8 +627,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 struct iwl_async_handler_entry {
 	struct list_head list;
 	struct iwl_rx_cmd_buffer rxb;
-	int (*fn)(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-		  struct iwl_device_cmd *cmd);
+	void (*fn)(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 };
 
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm)
@@ -666,9 +664,7 @@ static void iwl_mvm_async_handlers_wk(struct work_struct *wk)
 	spin_unlock_bh(&mvm->async_handlers_lock);
 
 	list_for_each_entry_safe(entry, tmp, &local_list, list) {
-		if (entry->fn(mvm, &entry->rxb, NULL))
-			IWL_WARN(mvm,
-				 "returned value from ASYNC handlers are ignored\n");
+		entry->fn(mvm, &entry->rxb);
 		iwl_free_rxb(&entry->rxb);
 		list_del(&entry->list);
 		kfree(entry);
@@ -715,8 +711,10 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	u8 i;
 
-	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
-		return iwl_mvm_rx_rx_mpdu(mvm, rxb, cmd);
+	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD)) {
+		iwl_mvm_rx_rx_mpdu(mvm, rxb);
+		return 0;
+	}
 
 	iwl_mvm_rx_check_trigger(mvm, pkt);
 
@@ -734,8 +732,10 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 		if (rx_h->cmd_id != pkt->hdr.cmd)
 			continue;
 
-		if (!rx_h->async)
-			return rx_h->fn(mvm, rxb, cmd);
+		if (!rx_h->async) {
+			rx_h->fn(mvm, rxb);
+			return 0;
+		}
 
 		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 		/* we can't do much... */

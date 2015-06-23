@@ -327,9 +327,8 @@ static u8 *iwl_mvm_dump_channel_list(struct iwl_scan_results_notif *res,
 	return buf;
 }
 
-int iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
-					     struct iwl_rx_cmd_buffer *rxb,
-					     struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_lmac_scan_complete_notif *notif = (void *)pkt->data;
@@ -341,17 +340,13 @@ int iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 		       iwl_mvm_dump_channel_list(notif->results,
 						 notif->scanned_channels, buf,
 						 sizeof(buf)));
-	return 0;
 }
 
-int iwl_mvm_rx_scan_match_found(struct iwl_mvm *mvm,
-				struct iwl_rx_cmd_buffer *rxb,
-				struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_scan_match_found(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb)
 {
 	IWL_DEBUG_SCAN(mvm, "Scheduled scan results\n");
 	ieee80211_sched_scan_results(mvm->hw);
-
-	return 0;
 }
 
 static const char *iwl_mvm_ebs_status_str(enum iwl_scan_ebs_status status)
@@ -368,9 +363,8 @@ static const char *iwl_mvm_ebs_status_str(enum iwl_scan_ebs_status status)
 	}
 }
 
-int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
-					struct iwl_rx_cmd_buffer *rxb,
-					struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
+					 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_periodic_scan_complete *scan_notif = (void *)pkt->data;
@@ -426,8 +420,6 @@ int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 	mvm->last_ebs_successful =
 			scan_notif->ebs_status == IWL_SCAN_EBS_SUCCESS ||
 			scan_notif->ebs_status == IWL_SCAN_EBS_INACTIVE;
-
-	return 0;
 }
 
 static int iwl_ssid_exist(u8 *ssid, u8 ssid_len, struct iwl_ssid_ie *ssid_list)
@@ -1371,9 +1363,8 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	return ret;
 }
 
-int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
-					struct iwl_rx_cmd_buffer *rxb,
-					struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
+					 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_umac_scan_complete *notif = (void *)pkt->data;
@@ -1381,7 +1372,7 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	bool aborted = (notif->status == IWL_SCAN_OFFLOAD_ABORTED);
 
 	if (WARN_ON(!(mvm->scan_uid_status[uid] & mvm->scan_status)))
-		return 0;
+		return;
 
 	/* if the scan is already stopping, we don't need to notify mac80211 */
 	if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_REGULAR) {
@@ -1405,13 +1396,10 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		mvm->last_ebs_successful = false;
 
 	mvm->scan_uid_status[uid] = 0;
-
-	return 0;
 }
 
-int iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
-					     struct iwl_rx_cmd_buffer *rxb,
-					     struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_umac_scan_iter_complete_notif *notif = (void *)pkt->data;
@@ -1423,7 +1411,6 @@ int iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 		       iwl_mvm_dump_channel_list(notif->results,
 						 notif->scanned_channels, buf,
 						 sizeof(buf)));
-	return 0;
 }
 
 static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
