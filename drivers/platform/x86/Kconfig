@@ -660,7 +660,7 @@ config TOSHIBA_HAPS
 	depends on ACPI
 	---help---
 	  This driver adds support for the built-in accelerometer
-	  found on recent Toshiba laptops equiped with HID TOS620A
+	  found on recent Toshiba laptops equipped with HID TOS620A
 	  device.
 
 	  This driver receives ACPI notify events 0x80 when the sensor
@@ -669,7 +669,7 @@ config TOSHIBA_HAPS
 	  been stabilized.
 
 	  Also provides sysfs entries to get/set the desired protection
-	  level and reseting the HDD protection interface.
+	  level and resetting the HDD protection interface.
 
 	  If you have a recent Toshiba laptop with a built-in accelerometer
 	  device, say Y.

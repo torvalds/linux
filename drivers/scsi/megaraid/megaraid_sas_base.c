@@ -4747,7 +4747,7 @@ fail_ready_state:
 
 /**
  * megasas_release_mfi -	Reverses the FW initialization
- * @intance:			Adapter soft state
+ * @instance:			Adapter soft state
  */
 static void megasas_release_mfi(struct megasas_instance *instance)
 {

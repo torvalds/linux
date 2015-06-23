@@ -2334,7 +2334,7 @@ megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 
 /**
  * megasas_release_fusion -	Reverses the FW initialization
- * @intance:			Adapter soft state
+ * @instance:			Adapter soft state
  */
 void
 megasas_release_fusion(struct megasas_instance *instance)
