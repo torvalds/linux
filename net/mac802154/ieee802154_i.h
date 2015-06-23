@@ -94,8 +94,6 @@ struct ieee802154_sub_if_data {
 	struct mac802154_llsec sec;
 };
 
-#define MAC802154_CHAN_NONE		0xff /* No channel is assigned */
-
 /* utility functions/constants */
 extern const void *const mac802154_wpan_phy_privid; /*  for wpan_phy privid */
 
