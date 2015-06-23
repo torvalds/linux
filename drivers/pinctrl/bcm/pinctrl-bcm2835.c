@@ -584,9 +584,9 @@ static int bcm2835_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 		ret = __bcm2835_gpio_irq_set_type_disabled(pc, gpio, type);
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
-		__irq_set_handler_locked(data->irq, handle_edge_irq);
+		irq_set_handler_locked(data, handle_edge_irq);
 	else
-		__irq_set_handler_locked(data->irq, handle_level_irq);
+		irq_set_handler_locked(data, handle_level_irq);
 
 	spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
 
