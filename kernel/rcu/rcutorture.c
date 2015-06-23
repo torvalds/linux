@@ -823,9 +823,7 @@ rcu_torture_cbflood(void *arg)
 	}
 	if (err) {
 		VERBOSE_TOROUT_STRING("rcu_torture_cbflood disabled: Bad args or OOM");
-		while (!torture_must_stop())
-			schedule_timeout_interruptible(HZ);
-		return 0;
+		goto wait_for_stop;
 	}
 	VERBOSE_TOROUT_STRING("rcu_torture_cbflood task started");
 	do {
@@ -844,6 +842,7 @@ rcu_torture_cbflood(void *arg)
 		stutter_wait("rcu_torture_cbflood");
 	} while (!torture_must_stop());
 	vfree(rhp);
+wait_for_stop:
 	torture_kthread_stopping("rcu_torture_cbflood");
 	return 0;
 }
