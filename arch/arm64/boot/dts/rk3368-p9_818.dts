@@ -742,3 +742,23 @@
        reg = <0x00000000 0x00000000>; /* 0MB */
 };
 
+&rockchip_clocks_init {
+	rockchip,clocks-init-rate =
+		<&clk_gpll 576000000>,		<&clk_core_b 792000000>,
+		<&clk_core_l 600000000>,	<&clk_cpll 400000000>,
+		/*<&clk_npll 500000000>,*/	<&aclk_bus 150000000>,
+		<&hclk_bus 75000000>,		<&pclk_bus 75000000>,
+		<&clk_crypto 150000000>,	<&aclk_peri 150000000>,
+		<&hclk_peri 75000000>,		<&pclk_peri 75000000>,
+		<&pclk_alive_pre 100000000>,	<&pclk_pmu_pre 100000000>,
+		<&clk_cs 300000000>,		<&clkin_trace 300000000>,
+		<&aclk_cci 600000000>,		<&clk_mac 125000000>,
+		<&aclk_vio0 400000000>,		<&hclk_vio 100000000>,
+		<&aclk_rga_pre 400000000>,	<&clk_rga 400000000>,
+		<&clk_isp 400000000>,		<&clk_edp 200000000>,
+		<&clk_gpu_core 400000000>,	<&aclk_gpu_mem 400000000>,
+		<&aclk_gpu_cfg 400000000>,	<&aclk_vepu 400000000>,
+		<&aclk_vdpu 400000000>,		<&clk_hevc_core 300000000>,
+		<&clk_hevc_cabac 300000000>;
+};
+
