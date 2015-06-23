@@ -1325,7 +1325,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 
 		spin_lock_irqsave(&pctrl->lock, flags);
 		if (!pctrl->intr_lines[intsel]) {
-			__irq_set_handler_locked(d->irq, handler);
+			irq_set_handler_locked(d, handler);
 			pctrl->intr_lines[intsel] = offset;
 		}
 		spin_unlock_irqrestore(&pctrl->lock, flags);
@@ -1389,9 +1389,9 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned type)
 	pctrl->intr_lines[value] = offset;
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	else if (type & IRQ_TYPE_LEVEL_MASK)
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
