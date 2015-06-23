@@ -686,6 +686,8 @@ static int process_finished_round(struct perf_tool *tool __maybe_unused,
 				  union perf_event *event __maybe_unused,
 				  struct ordered_events *oe)
 {
+	if (dump_trace)
+		fprintf(stdout, "\n");
 	return ordered_events__flush(oe, OE_FLUSH__ROUND);
 }
 
