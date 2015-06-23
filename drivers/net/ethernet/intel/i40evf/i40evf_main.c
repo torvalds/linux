@@ -1461,7 +1461,7 @@ static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
 		lut = 0;
 		for (j = 0; j < 4; j++) {
-			if (cqueue == adapter->vsi_res->num_queue_pairs)
+			if (cqueue == adapter->num_active_queues)
 				cqueue = 0;
 			lut |= ((cqueue) << (8 * j));
 			cqueue++;
