@@ -165,3 +165,30 @@ loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 
 	return vfs_setpos(filep, res.sr_offset, inode->i_sb->s_maxbytes);
 }
+
+static const struct rpc_call_ops nfs42_layoutstat_ops = {
+};
+
+int nfs42_proc_layoutstats_generic(struct nfs_server *server,
+				   struct nfs42_layoutstat_data *data)
+{
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LAYOUTSTATS],
+		.rpc_argp = &data->args,
+		.rpc_resp = &data->res,
+	};
+	struct rpc_task_setup task_setup = {
+		.rpc_client = server->client,
+		.rpc_message = &msg,
+		.callback_ops = &nfs42_layoutstat_ops,
+		.callback_data = data,
+		.flags = RPC_TASK_ASYNC,
+	};
+	struct rpc_task *task;
+
+	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0);
+	task = rpc_run_task(&task_setup);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	return 0;
+}
