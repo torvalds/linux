@@ -330,9 +330,11 @@ void br_fdb_flush(struct net_bridge *br)
 
 /* Flush all entries referring to a specific port.
  * if do_all is set also flush static entries
+ * if vid is set delete all entries that match the vlan_id
  */
 void br_fdb_delete_by_port(struct net_bridge *br,
 			   const struct net_bridge_port *p,
+			   u16 vid,
 			   int do_all)
 {
 	int i;
@@ -347,8 +349,9 @@ void br_fdb_delete_by_port(struct net_bridge *br,
 			if (f->dst != p)
 				continue;
 
-			if (f->is_static && !do_all)
-				continue;
+			if (!do_all)
+				if (f->is_static || (vid && f->vlan_id != vid))
+					continue;
 
 			if (f->is_local)
 				fdb_delete_local(br, p, f);
