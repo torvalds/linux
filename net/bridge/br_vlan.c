@@ -54,7 +54,7 @@ static int __vlan_vid_add(struct net_device *dev, struct net_bridge *br,
 			.id = SWITCHDEV_OBJ_PORT_VLAN,
 			.u.vlan = {
 				.flags = flags,
-				.vid_start = vid,
+				.vid_begin = vid,
 				.vid_end = vid,
 			},
 		};
@@ -132,7 +132,7 @@ static void __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
 		struct switchdev_obj vlan_obj = {
 			.id = SWITCHDEV_OBJ_PORT_VLAN,
 			.u.vlan = {
-				.vid_start = vid,
+				.vid_begin = vid,
 				.vid_end = vid,
 			},
 		};

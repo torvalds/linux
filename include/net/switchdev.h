@@ -57,7 +57,7 @@ struct switchdev_obj {
 	union {
 		struct switchdev_obj_vlan {		/* PORT_VLAN */
 			u16 flags;
-			u16 vid_start;
+			u16 vid_begin;
 			u16 vid_end;
 		} vlan;
 		struct switchdev_obj_ipv4_fib {		/* IPV4_FIB */
