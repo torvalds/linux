@@ -158,7 +158,6 @@ static irqreturn_t ltc2952_poweroff_handler(int irq, void *dev_id)
 			      HRTIMER_MODE_REL);
 	} else {
 		hrtimer_cancel(&data->timer_trigger);
-		/* omitting return value check, timer should have been valid */
 	}
 	return IRQ_HANDLED;
 }

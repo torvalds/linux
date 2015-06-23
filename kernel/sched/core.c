@@ -90,26 +90,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 
-void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
-{
-	unsigned long delta;
-	ktime_t soft, hard, now;
-
-	for (;;) {
-		if (hrtimer_active(period_timer))
-			break;
-
-		now = hrtimer_cb_get_time(period_timer);
-		hrtimer_forward(period_timer, now, period);
-
-		soft = hrtimer_get_softexpires(period_timer);
-		hard = hrtimer_get_expires(period_timer);
-		delta = ktime_to_ns(ktime_sub(hard, soft));
-		__hrtimer_start_range_ns(period_timer, soft, delta,
-					 HRTIMER_MODE_ABS_PINNED, 0);
-	}
-}
-
 DEFINE_MUTEX(sched_domains_mutex);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
@@ -355,12 +335,11 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
 
 #ifdef CONFIG_SMP
 
-static int __hrtick_restart(struct rq *rq)
+static void __hrtick_restart(struct rq *rq)
 {
 	struct hrtimer *timer = &rq->hrtick_timer;
-	ktime_t time = hrtimer_get_softexpires(timer);
 
-	return __hrtimer_start_range_ns(timer, time, 0, HRTIMER_MODE_ABS_PINNED, 0);
+	hrtimer_start_expires(timer, HRTIMER_MODE_ABS_PINNED);
 }
 
 /*
@@ -440,8 +419,8 @@ void hrtick_start(struct rq *rq, u64 delay)
 	 * doesn't make sense. Rely on vruntime for fairness.
 	 */
 	delay = max_t(u64, delay, 10000LL);
-	__hrtimer_start_range_ns(&rq->hrtick_timer, ns_to_ktime(delay), 0,
-			HRTIMER_MODE_REL_PINNED, 0);
+	hrtimer_start(&rq->hrtick_timer, ns_to_ktime(delay),
+		      HRTIMER_MODE_REL_PINNED);
 }
 
 static inline void init_hrtick(void)
@@ -639,13 +618,12 @@ void resched_cpu(int cpu)
  * selecting an idle cpu will add more delays to the timers than intended
  * (as that cpu's timer base may not be uptodate wrt jiffies etc).
  */
-int get_nohz_timer_target(int pinned)
+int get_nohz_timer_target(void)
 {
-	int cpu = smp_processor_id();
-	int i;
+	int i, cpu = smp_processor_id();
 	struct sched_domain *sd;
 
-	if (pinned || !get_sysctl_timer_migration() || !idle_cpu(cpu))
+	if (!idle_cpu(cpu))
 		return cpu;
 
 	rcu_read_lock();
@@ -7126,8 +7104,6 @@ void __init sched_init_smp(void)
 }
 #endif /* CONFIG_SMP */
 
-const_debug unsigned int sysctl_timer_migration = 1;
-
 int in_sched_functions(unsigned long addr)
 {
 	return in_lock_functions(addr) ||
@@ -8163,10 +8139,8 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 
 	__refill_cfs_bandwidth_runtime(cfs_b);
 	/* restart the period timer (if active) to handle new period expiry */
-	if (runtime_enabled && cfs_b->timer_active) {
-		/* force a reprogram */
-		__start_cfs_bandwidth(cfs_b, true);
-	}
+	if (runtime_enabled)
+		start_cfs_bandwidth(cfs_b);
 	raw_spin_unlock_irq(&cfs_b->lock);
 
 	for_each_online_cpu(i) {

@@ -31,7 +31,7 @@
 #define __LINUX_RCUTREE_H
 
 void rcu_note_context_switch(void);
-int rcu_needs_cpu(unsigned long *delta_jiffies);
+int rcu_needs_cpu(u64 basem, u64 *nextevt);
 void rcu_cpu_stall_reset(void);
 
 /*
