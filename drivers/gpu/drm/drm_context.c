@@ -89,14 +89,13 @@ static int drm_legacy_ctxbitmap_next(struct drm_device * dev)
  *
  * Initialise the drm_device::ctx_idr
  */
-int drm_legacy_ctxbitmap_init(struct drm_device * dev)
+void drm_legacy_ctxbitmap_init(struct drm_device * dev)
 {
 	if (!drm_core_check_feature(dev, DRIVER_KMS_LEGACY_CONTEXT) &&
 	    drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return;
 
 	idr_init(&dev->ctx_idr);
-	return 0;
 }
 
 /**
