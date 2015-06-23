@@ -3270,8 +3270,18 @@ finish:
 	 * and old parent(s).
 	 */
 	list_for_each_entry(cur, &pm->update_refs, list) {
-		if (cur->dir == rmdir_ino)
+		/*
+		 * The parent inode might have been deleted in the send snapshot
+		 */
+		ret = get_inode_info(sctx->send_root, cur->dir, NULL,
+				     NULL, NULL, NULL, NULL, NULL);
+		if (ret == -ENOENT) {
+			ret = 0;
 			continue;
+		}
+		if (ret < 0)
+			goto out;
+
 		ret = send_utimes(sctx, cur->dir, cur->dir_gen);
 		if (ret < 0)
 			goto out;
