@@ -181,6 +181,26 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 #endif
 		break;
+	case 0x12b:
+		device->cname = "GM20B";
+
+		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
+		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gm107_fuse_oclass;
+		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
+		device->oclass[NVDEV_SUBDEV_FB     ] =  gk20a_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_LTC    ] =  gm107_ltc_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gk20a_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = gk20a_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;
+		device->oclass[NVDEV_SUBDEV_BAR    ] = &gk20a_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm20b_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  gm20b_gr_oclass;
+		device->oclass[NVDEV_ENGINE_CE2    ] = &gm204_ce2_oclass;
+		break;
 	default:
 		nv_fatal(device, "unknown Maxwell chipset\n");
 		return -EINVAL;
