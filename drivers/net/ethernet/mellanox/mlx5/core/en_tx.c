@@ -210,7 +210,6 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	cseg->opmod_idx_opcode	= cpu_to_be32((sq->pc << 8) | opcode);
 	cseg->qpn_ds		= cpu_to_be32((sq->sqn << 8) | ds_cnt);
-	cseg->fm_ce_se		= MLX5_WQE_CTRL_CQ_UPDATE;
 
 	sq->skb[pi] = skb;
 
@@ -225,8 +224,10 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		sq->stats.stopped++;
 	}
 
-	if (!skb->xmit_more || netif_xmit_stopped(sq->txq))
+	if (!skb->xmit_more || netif_xmit_stopped(sq->txq)) {
+		cseg->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
 		mlx5e_tx_notify_hw(sq, wqe);
+	}
 
 	/* fill sq edge with nops to avoid wqe wrap around */
 	while ((sq->pc & wq->sz_m1) > sq->edge)
@@ -280,36 +281,46 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq)
 
 	for (i = 0; i < MLX5E_TX_CQ_POLL_BUDGET; i++) {
 		struct mlx5_cqe64 *cqe;
-		struct sk_buff *skb;
-		u16 ci;
-		int j;
+		u16 wqe_counter;
+		bool last_wqe;
 
 		cqe = mlx5e_get_cqe(cq);
 		if (!cqe)
 			break;
 
-		ci = sqcc & sq->wq.sz_m1;
-		skb = sq->skb[ci];
+		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
-		if (unlikely(!skb)) { /* nop */
-			sq->stats.nop++;
-			sqcc++;
-			continue;
-		}
+		do {
+			struct sk_buff *skb;
+			u16 ci;
+			int j;
 
-		for (j = 0; j < MLX5E_TX_SKB_CB(skb)->num_dma; j++) {
-			dma_addr_t addr;
-			u32 size;
+			last_wqe = (sqcc == wqe_counter);
 
-			mlx5e_dma_get(sq, dma_fifo_cc, &addr, &size);
-			dma_fifo_cc++;
-			dma_unmap_single(sq->pdev, addr, size, DMA_TO_DEVICE);
-		}
+			ci = sqcc & sq->wq.sz_m1;
+			skb = sq->skb[ci];
 
-		npkts++;
-		nbytes += MLX5E_TX_SKB_CB(skb)->num_bytes;
-		sqcc += MLX5E_TX_SKB_CB(skb)->num_wqebbs;
-		dev_kfree_skb(skb);
+			if (unlikely(!skb)) { /* nop */
+				sq->stats.nop++;
+				sqcc++;
+				continue;
+			}
+
+			for (j = 0; j < MLX5E_TX_SKB_CB(skb)->num_dma; j++) {
+				dma_addr_t addr;
+				u32 size;
+
+				mlx5e_dma_get(sq, dma_fifo_cc, &addr, &size);
+				dma_fifo_cc++;
+				dma_unmap_single(sq->pdev, addr, size,
+						 DMA_TO_DEVICE);
+			}
+
+			npkts++;
+			nbytes += MLX5E_TX_SKB_CB(skb)->num_bytes;
+			sqcc += MLX5E_TX_SKB_CB(skb)->num_wqebbs;
+			dev_kfree_skb(skb);
+		} while (!last_wqe);
 	}
 
 	mlx5_cqwq_update_db_record(&cq->wq);
