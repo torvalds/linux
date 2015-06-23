@@ -703,9 +703,8 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 	}
 }
 
-static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
-			       struct iwl_rx_cmd_buffer *rxb,
-			       struct iwl_device_cmd *cmd)
+static void iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
+				struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
@@ -713,7 +712,7 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 
 	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD)) {
 		iwl_mvm_rx_rx_mpdu(mvm, rxb);
-		return 0;
+		return;
 	}
 
 	iwl_mvm_rx_check_trigger(mvm, pkt);
@@ -734,13 +733,13 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 
 		if (!rx_h->async) {
 			rx_h->fn(mvm, rxb);
-			return 0;
+			return;
 		}
 
 		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 		/* we can't do much... */
 		if (!entry)
-			return 0;
+			return;
 
 		entry->rxb._page = rxb_steal_page(rxb);
 		entry->rxb._offset = rxb->_offset;
@@ -752,8 +751,6 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 		schedule_work(&mvm->async_handlers_wk);
 		break;
 	}
-
-	return 0;
 }
 
 static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)

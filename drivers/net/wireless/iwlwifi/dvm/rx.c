@@ -1073,8 +1073,7 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 		iwlagn_bt_rx_handler_setup(priv);
 }
 
-int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
-		    struct iwl_device_cmd *cmd)
+void iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
@@ -1098,6 +1097,4 @@ int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 			     iwl_dvm_get_cmd_string(pkt->hdr.cmd),
 			     pkt->hdr.cmd);
 	}
-
-	return 0;
 }

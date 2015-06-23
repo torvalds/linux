@@ -261,8 +261,6 @@ enum iwl_hcmd_dataflag {
  * @resp_pkt: response packet, if %CMD_WANT_SKB was set
  * @_rx_page_order: (internally used to free response packet)
  * @_rx_page_addr: (internally used to free response packet)
- * @handler_status: return value of the handler of the command
- *	(put in setup_rx_handlers) - valid for SYNC mode only
  * @flags: can be CMD_*
  * @len: array of the lengths of the chunks in data
  * @dataflags: IWL_HCMD_DFL_*
@@ -273,7 +271,6 @@ struct iwl_host_cmd {
 	struct iwl_rx_packet *resp_pkt;
 	unsigned long _rx_page_addr;
 	u32 _rx_page_order;
-	int handler_status;
 
 	u32 flags;
 	u16 len[IWL_MAX_CMD_TBS_PER_TFD];

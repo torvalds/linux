@@ -823,10 +823,9 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 	while (offset + sizeof(u32) + sizeof(struct iwl_cmd_header) < max_len) {
 		struct iwl_rx_packet *pkt;
-		struct iwl_device_cmd *cmd;
 		u16 sequence;
 		bool reclaim;
-		int index, cmd_index, err, len;
+		int index, cmd_index, len;
 		struct iwl_rx_cmd_buffer rxcb = {
 			._offset = offset,
 			._rx_page_order = trans_pcie->rx_page_order,
@@ -874,12 +873,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = get_cmd_index(&txq->q, index);
 
-		if (reclaim)
-			cmd = txq->entries[cmd_index].cmd;
-		else
-			cmd = NULL;
-
-		err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
+		iwl_op_mode_rx(trans->op_mode, &rxcb);
 
 		if (reclaim) {
 			kzfree(txq->entries[cmd_index].free_buf);
@@ -897,7 +891,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			 * iwl_trans_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (!rxcb._page_stolen)
-				iwl_pcie_hcmd_complete(trans, &rxcb, err);
+				iwl_pcie_hcmd_complete(trans, &rxcb);
 			else
 				IWL_WARN(trans, "Claim null rxb?\n");
 		}
