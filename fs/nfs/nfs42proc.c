@@ -198,6 +198,10 @@ static void
 nfs42_layoutstat_release(void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
+	struct nfs_server *nfss = NFS_SERVER(data->args.inode);
+
+	if (nfss->pnfs_curr_ld->cleanup_layoutstats)
+		nfss->pnfs_curr_ld->cleanup_layoutstats(data);
 
 	pnfs_put_layout_hdr(NFS_I(data->args.inode)->layout);
 	nfs_iput_and_deactive(data->inode);
