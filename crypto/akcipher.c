@@ -114,4 +114,4 @@ void crypto_unregister_akcipher(struct akcipher_alg *alg)
 EXPORT_SYMBOL_GPL(crypto_unregister_akcipher);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Generic public key cihper type");
+MODULE_DESCRIPTION("Generic public key cipher type");
