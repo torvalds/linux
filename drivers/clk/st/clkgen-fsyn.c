@@ -1082,10 +1082,6 @@ static const struct of_device_id quadfs_of_match[] = {
 		.compatible = "st,stih407-quadfs660-D",
 		.data = &st_fs660c32_D_407
 	},
-	{
-		.compatible = "st,stih407-quadfs660-D",
-		.data = (void *)&st_fs660c32_D_407
-	},
 	{}
 };
 
