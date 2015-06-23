@@ -272,6 +272,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 
 		spin_lock_init(&fls->mirror_array[i]->lock);
 		fls->mirror_array[i]->ds_count = ds_count;
+		fls->mirror_array[i]->lseg = &fls->generic_hdr;
 
 		/* deviceid */
 		rc = decode_deviceid(&stream, &devid);
@@ -1660,6 +1661,161 @@ out:
 	dprintk("%s: Return\n", __func__);
 }
 
+static int
+ff_layout_ntop4(const struct sockaddr *sap, char *buf, const size_t buflen)
+{
+	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
+
+	return snprintf(buf, buflen, "%pI4", &sin->sin_addr);
+}
+
+static size_t
+ff_layout_ntop6_noscopeid(const struct sockaddr *sap, char *buf,
+			  const int buflen)
+{
+	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
+	const struct in6_addr *addr = &sin6->sin6_addr;
+
+	/*
+	 * RFC 4291, Section 2.2.2
+	 *
+	 * Shorthanded ANY address
+	 */
+	if (ipv6_addr_any(addr))
+		return snprintf(buf, buflen, "::");
+
+	/*
+	 * RFC 4291, Section 2.2.2
+	 *
+	 * Shorthanded loopback address
+	 */
+	if (ipv6_addr_loopback(addr))
+		return snprintf(buf, buflen, "::1");
+
+	/*
+	 * RFC 4291, Section 2.2.3
+	 *
+	 * Special presentation address format for mapped v4
+	 * addresses.
+	 */
+	if (ipv6_addr_v4mapped(addr))
+		return snprintf(buf, buflen, "::ffff:%pI4",
+					&addr->s6_addr32[3]);
+
+	/*
+	 * RFC 4291, Section 2.2.1
+	 */
+	return snprintf(buf, buflen, "%pI6c", addr);
+}
+
+/* Derived from rpc_sockaddr2uaddr */
+static void
+ff_layout_encode_netaddr(struct xdr_stream *xdr, struct nfs4_pnfs_ds_addr *da)
+{
+	struct sockaddr *sap = (struct sockaddr *)&da->da_addr;
+	char portbuf[RPCBIND_MAXUADDRPLEN];
+	char addrbuf[RPCBIND_MAXUADDRLEN];
+	char *netid;
+	unsigned short port;
+	int len, netid_len;
+	__be32 *p;
+
+	switch (sap->sa_family) {
+	case AF_INET:
+		if (ff_layout_ntop4(sap, addrbuf, sizeof(addrbuf)) == 0)
+			return;
+		port = ntohs(((struct sockaddr_in *)sap)->sin_port);
+		netid = "tcp";
+		netid_len = 3;
+		break;
+	case AF_INET6:
+		if (ff_layout_ntop6_noscopeid(sap, addrbuf, sizeof(addrbuf)) == 0)
+			return;
+		port = ntohs(((struct sockaddr_in6 *)sap)->sin6_port);
+		netid = "tcp6";
+		netid_len = 4;
+		break;
+	default:
+		/* we only support tcp and tcp6 */
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	snprintf(portbuf, sizeof(portbuf), ".%u.%u", port >> 8, port & 0xff);
+	len = strlcat(addrbuf, portbuf, sizeof(addrbuf));
+
+	p = xdr_reserve_space(xdr, 4 + netid_len);
+	xdr_encode_opaque(p, netid, netid_len);
+
+	p = xdr_reserve_space(xdr, 4 + len);
+	xdr_encode_opaque(p, addrbuf, len);
+}
+
+static void
+ff_layout_encode_nfstime(struct xdr_stream *xdr,
+			 ktime_t t)
+{
+	struct timespec64 ts;
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, 12);
+	ts = ktime_to_timespec64(t);
+	p = xdr_encode_hyper(p, ts.tv_sec);
+	*p++ = cpu_to_be32(ts.tv_nsec);
+}
+
+static void
+ff_layout_encode_io_latency(struct xdr_stream *xdr,
+			    struct nfs4_ff_io_stat *stat)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, 5 * 8);
+	p = xdr_encode_hyper(p, stat->ops_requested);
+	p = xdr_encode_hyper(p, stat->bytes_requested);
+	p = xdr_encode_hyper(p, stat->ops_completed);
+	p = xdr_encode_hyper(p, stat->bytes_completed);
+	p = xdr_encode_hyper(p, stat->bytes_not_delivered);
+	ff_layout_encode_nfstime(xdr, stat->total_busy_time);
+	ff_layout_encode_nfstime(xdr, stat->aggregate_completion_time);
+}
+
+static void
+ff_layout_encode_layoutstats(struct xdr_stream *xdr,
+			     struct nfs42_layoutstat_args *args,
+			     struct nfs42_layoutstat_devinfo *devinfo)
+{
+	struct nfs4_ff_layout_mirror *mirror = devinfo->layout_private;
+	struct nfs4_pnfs_ds_addr *da;
+	struct nfs4_pnfs_ds *ds = mirror->mirror_ds->ds;
+	struct nfs_fh *fh = &mirror->fh_versions[0];
+	__be32 *p, *start;
+
+	da = list_first_entry(&ds->ds_addrs, struct nfs4_pnfs_ds_addr, da_node);
+	dprintk("%s: DS %s: encoding address %s\n",
+		__func__, ds->ds_remotestr, da->da_remotestr);
+	/* layoutupdate length */
+	start = xdr_reserve_space(xdr, 4);
+	/* netaddr4 */
+	ff_layout_encode_netaddr(xdr, da);
+	/* nfs_fh4 */
+	p = xdr_reserve_space(xdr, 4 + fh->size);
+	xdr_encode_opaque(p, fh->data, fh->size);
+	/* ff_io_latency4 read */
+	spin_lock(&mirror->lock);
+	ff_layout_encode_io_latency(xdr, &mirror->read_stat.io_stat);
+	/* ff_io_latency4 write */
+	ff_layout_encode_io_latency(xdr, &mirror->write_stat.io_stat);
+	spin_unlock(&mirror->lock);
+	/* nfstime4 */
+	ff_layout_encode_nfstime(xdr, ktime_sub(ktime_get(), mirror->start_time));
+	/* bool */
+	p = xdr_reserve_space(xdr, 4);
+	*p = cpu_to_be32(false);
+
+	*start = cpu_to_be32((xdr->p - start - 1) * 4);
+}
+
 static bool
 ff_layout_mirror_prepare_stats(struct nfs42_layoutstat_args *args,
 			       struct pnfs_layout_segment *pls,
@@ -1674,6 +1830,8 @@ ff_layout_mirror_prepare_stats(struct nfs42_layoutstat_args *args,
 		if (*dev_count >= dev_limit)
 			break;
 		mirror = FF_LAYOUT_COMP(pls, i);
+		if (!mirror || !mirror->mirror_ds)
+			continue;
 		dev = FF_LAYOUT_DEVID_NODE(pls, i);
 		devinfo = &args->devinfo[*dev_count];
 		memcpy(&devinfo->dev_id, &dev->deviceid, NFS4_DEVICEID4_SIZE);
@@ -1685,8 +1843,10 @@ ff_layout_mirror_prepare_stats(struct nfs42_layoutstat_args *args,
 		devinfo->write_count = mirror->write_stat.io_stat.bytes_completed;
 		devinfo->write_bytes = mirror->write_stat.io_stat.bytes_completed;
 		devinfo->layout_type = LAYOUT_FLEX_FILES;
-		devinfo->layoutstats_encode = NULL;
-		devinfo->layout_private = NULL;
+		devinfo->layoutstats_encode = ff_layout_encode_layoutstats;
+		devinfo->layout_private = mirror;
+		/* lseg refcount put in cleanup_layoutstats */
+		pnfs_get_lseg(pls);
 
 		++(*dev_count);
 	}
@@ -1729,6 +1889,19 @@ ff_layout_prepare_layoutstats(struct nfs42_layoutstat_args *args)
 	return 0;
 }
 
+static void
+ff_layout_cleanup_layoutstats(struct nfs42_layoutstat_data *data)
+{
+	struct nfs4_ff_layout_mirror *mirror;
+	int i;
+
+	for (i = 0; i < data->args.num_dev; i++) {
+		mirror = data->args.devinfo[i].layout_private;
+		data->args.devinfo[i].layout_private = NULL;
+		pnfs_put_lseg(mirror->lseg);
+	}
+}
+
 static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.id			= LAYOUT_FLEX_FILES,
 	.name			= "LAYOUT_FLEX_FILES",
@@ -1752,6 +1925,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.encode_layoutreturn    = ff_layout_encode_layoutreturn,
 	.sync			= pnfs_nfs_generic_sync,
 	.prepare_layoutstats	= ff_layout_prepare_layoutstats,
+	.cleanup_layoutstats	= ff_layout_cleanup_layoutstats,
 };
 
 static int __init nfs4flexfilelayout_init(void)

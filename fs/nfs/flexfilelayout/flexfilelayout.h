@@ -75,6 +75,7 @@ struct nfs4_ff_layout_mirror {
 	struct nfs4_ff_layoutstat	read_stat;
 	struct nfs4_ff_layoutstat	write_stat;
 	ktime_t				start_time;
+	struct pnfs_layout_segment	*lseg; /* back pointer */
 };
 
 struct nfs4_ff_layout_segment {
