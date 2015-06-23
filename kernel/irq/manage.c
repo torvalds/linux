@@ -363,7 +363,7 @@ static int
 setup_affinity(unsigned int irq, struct irq_desc *desc, struct cpumask *mask)
 {
 	struct cpumask *set = irq_default_affinity;
-	int node = desc->irq_data.node;
+	int node = irq_desc_get_node(desc);
 
 	/* Excludes PER_CPU and NO_BALANCE interrupts */
 	if (!irq_can_set_affinity(irq))
