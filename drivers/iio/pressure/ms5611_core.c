@@ -163,13 +163,11 @@ static int ms5611_read_raw(struct iio_dev *indio_dev,
 static const struct iio_chan_spec ms5611_channels[] = {
 	{
 		.type = IIO_PRESSURE,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
-			BIT(IIO_CHAN_INFO_SCALE)
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
 	},
 	{
 		.type = IIO_TEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
-			BIT(IIO_CHAN_INFO_SCALE)
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
 	}
 };
 
