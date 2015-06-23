@@ -85,7 +85,7 @@ static bool suspend_device_irq(struct irq_desc *desc, int irq)
 	}
 
 	desc->istate |= IRQS_SUSPENDED;
-	__disable_irq(desc, irq);
+	__disable_irq(desc);
 
 	/*
 	 * Hardware which has no wakeup source configuration facility
@@ -150,7 +150,7 @@ static void resume_irq(struct irq_desc *desc, int irq)
 	desc->depth++;
 resume:
 	desc->istate &= ~IRQS_SUSPENDED;
-	__enable_irq(desc, irq);
+	__enable_irq(desc);
 }
 
 static void resume_irqs(bool want_early)
