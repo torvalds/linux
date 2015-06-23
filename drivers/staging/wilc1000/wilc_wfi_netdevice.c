@@ -906,9 +906,6 @@ int WILC_WFI_InitModule(void)
 	priv[0] = netdev_priv(WILC_WFI_devs[0]);
 	priv[1] = netdev_priv(WILC_WFI_devs[1]);
 
-	if (priv[1]->dev->ieee80211_ptr->wiphy->interface_modes && BIT(NL80211_IFTYPE_MONITOR))	{
-
-	}
 	priv[0]->bCfgScanning = false;
 	priv[0]->u32RcvdChCount = 0;
 
