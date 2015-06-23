@@ -653,11 +653,9 @@ struct rand_data *jent_entropy_collector_alloc(unsigned int osr,
 
 void jent_entropy_collector_free(struct rand_data *entropy_collector)
 {
-	if (entropy_collector->mem)
-		jent_zfree(entropy_collector->mem);
+	jent_zfree(entropy_collector->mem);
 	entropy_collector->mem = NULL;
-	if (entropy_collector)
-		jent_zfree(entropy_collector);
+	jent_zfree(entropy_collector);
 	entropy_collector = NULL;
 }
 
