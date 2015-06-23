@@ -96,7 +96,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
+
+	axp152: pmic@30 {
+		reg = <0x30>;
+		interrupts = <0>;
+	};
 };
+
+#include "axp152.dtsi"
 
 &i2c1 {
 	pinctrl-names = "default";
