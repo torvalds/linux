@@ -1063,9 +1063,9 @@ static void nl_fib_lookup_exit(struct net *net)
 	net->ipv4.fibnl = NULL;
 }
 
-static void fib_disable_ip(struct net_device *dev, int force)
+static void fib_disable_ip(struct net_device *dev, unsigned long event)
 {
-	if (fib_sync_down_dev(dev, force))
+	if (fib_sync_down_dev(dev, event))
 		fib_flush(dev_net(dev));
 	rt_cache_flush(dev_net(dev));
 	arp_ifdown(dev);
@@ -1081,7 +1081,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 	case NETDEV_UP:
 		fib_add_ifaddr(ifa);
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-		fib_sync_up(dev);
+		fib_sync_up(dev, RTNH_F_DEAD);
 #endif
 		atomic_inc(&net->ipv4.dev_addr_genid);
 		rt_cache_flush(dev_net(dev));
@@ -1093,7 +1093,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 			/* Last address was deleted from this interface.
 			 * Disable IP.
 			 */
-			fib_disable_ip(dev, 1);
+			fib_disable_ip(dev, event);
 		} else {
 			rt_cache_flush(dev_net(dev));
 		}
@@ -1107,9 +1107,10 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
+	unsigned int flags;
 
 	if (event == NETDEV_UNREGISTER) {
-		fib_disable_ip(dev, 2);
+		fib_disable_ip(dev, event);
 		rt_flush_dev(dev);
 		return NOTIFY_DONE;
 	}
@@ -1124,16 +1125,22 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 			fib_add_ifaddr(ifa);
 		} endfor_ifa(in_dev);
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-		fib_sync_up(dev);
+		fib_sync_up(dev, RTNH_F_DEAD);
 #endif
 		atomic_inc(&net->ipv4.dev_addr_genid);
 		rt_cache_flush(net);
 		break;
 	case NETDEV_DOWN:
-		fib_disable_ip(dev, 0);
+		fib_disable_ip(dev, event);
 		break;
-	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGE:
+		flags = dev_get_flags(dev);
+		if (flags & (IFF_RUNNING | IFF_LOWER_UP))
+			fib_sync_up(dev, RTNH_F_LINKDOWN);
+		else
+			fib_sync_down_dev(dev, event);
+		/* fall through */
+	case NETDEV_CHANGEMTU:
 		rt_cache_flush(net);
 		break;
 	}
