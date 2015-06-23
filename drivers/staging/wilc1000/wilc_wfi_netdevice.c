@@ -325,7 +325,6 @@ void WILC_WFI_Rx(struct net_device *dev, struct WILC_WFI_packet *pkt)
 		PRINT_INFO(RX_DBG, "In monitor device name %s\n", dev->name);
 		priv = wiphy_priv(priv->dev->ieee80211_ptr->wiphy);
 		PRINT_D(RX_DBG, "VALUE PASSED IN OF HRWD %p\n", priv->hWILCWFIDrv);
-		/* host_int_get_rssi(priv->hWILCWFIDrv, &(rssi)); */
 		if (INFO) {
 			for (i = 14; i < skb->len; i++)
 				PRINT_INFO(RX_DBG, "RXdata[%d] %02x\n", i, skb->data[i]);
@@ -600,12 +599,6 @@ int WILC_WFI_Tx(struct sk_buff *skb, struct net_device *dev)
 	char *data, shortpkt[ETH_ZLEN];
 	struct WILC_WFI_priv *priv = netdev_priv(dev);
 
-	/* priv = wiphy_priv(priv->dev->ieee80211_ptr->wiphy); */
-
-	/*  if(priv->monitor_flag) */
-	/*	 mac80211_hwsim_monitor_rx(skb); */
-
-
 	data = skb->data;
 	len = skb->len;
 
@@ -836,12 +829,6 @@ void WILC_WFI_Cleanup(void)
 	int i;
 	struct WILC_WFI_priv *priv[2];
 
-	/*if(hwsim_mon!=NULL)
-	 * {
-	 *      PRINT_D(RX_DBG, "Freeing monitor interface\n");
-	 *      unregister_netdev(hwsim_mon);
-	 *      free_netdev(hwsim_mon);
-	 * }*/
 	for (i = 0; i < 2; i++) {
 		priv[i] = netdev_priv(WILC_WFI_devs[i]);
 
@@ -897,7 +884,6 @@ int WILC_WFI_InitModule(void)
 						WILC_WFI_Init);
 		if (WILC_WFI_devs[i] == NULL)
 			goto out;
-		/* priv[i] = netdev_priv(WILC_WFI_devs[i]); */
 
 		wdev = WILC_WFI_WiphyRegister(WILC_WFI_devs[i]);
 		WILC_WFI_devs[i]->ieee80211_ptr = wdev;
@@ -921,9 +907,6 @@ int WILC_WFI_InitModule(void)
 	priv[1] = netdev_priv(WILC_WFI_devs[1]);
 
 	if (priv[1]->dev->ieee80211_ptr->wiphy->interface_modes && BIT(NL80211_IFTYPE_MONITOR))	{
-		/* snprintf(buf, IFNAMSIZ, "mon.%s",  priv[1]->dev->name); */
-		/*	WILC_WFI_init_mon_interface(); */
-		/*	priv[1]->monitor_flag = 1; */
 
 	}
 	priv[0]->bCfgScanning = false;
@@ -931,10 +914,6 @@ int WILC_WFI_InitModule(void)
 
 	WILC_memset(priv[0]->au8AssociatedBss, 0xFF, ETH_ALEN);
 
-
-	/* ret = host_int_init(&priv[0]->hWILCWFIDrv); */
-	/*copy handle to the other driver*/
-	/* priv[1]->hWILCWFIDrv = priv[0]->hWILCWFIDrv; */
 	if (ret)
 		PRINT_ER("Error Init Driver\n");
 
