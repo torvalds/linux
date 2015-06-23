@@ -8,7 +8,6 @@
  * Licensed under GPLv2 or later.
  */
 
-#include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
