@@ -1041,6 +1041,14 @@
 						/*temp    freq*/
 						100     816000
 						>;
+					lkg_adjust_volt_en = <1>;
+					channel = <0>;
+					def_table_lkg = <25>;
+					min_adjust_freq = <216000>;
+					lkg_adjust_volt_table = <
+						/*lkg(mA)  volt(uV)*/
+						0         25000
+						>;
 				};
 				clk_core_l_dvfs_table: clk_core_l {
 					operating-points = <
@@ -1064,6 +1072,14 @@
 					performance-temp-limit = <
 						/*temp    freq*/
 						100     816000
+						>;
+					lkg_adjust_volt_en = <1>;
+					channel = <0>;
+					def_table_lkg = <25>;
+					min_adjust_freq = <216000>;
+					lkg_adjust_volt_table = <
+						/*lkg(mA)  volt(uV)*/
+						0         25000
 						>;
 				};
 			};
