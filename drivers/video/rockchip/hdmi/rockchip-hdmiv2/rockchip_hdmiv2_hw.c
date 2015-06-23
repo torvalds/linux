@@ -1569,6 +1569,8 @@ static int hdmi_dev_control_output(struct hdmi *hdmi, int enable)
 		}
 */		if (enable == (HDMI_VIDEO_MUTE | HDMI_AUDIO_MUTE)) {
 			msleep(100);
+			if (hdmi->ops->hdcp_power_off_cb)
+				hdmi->ops->hdcp_power_off_cb(hdmi);
 			rockchip_hdmiv2_powerdown(hdmi_dev);
 			hdmi_dev->tmdsclk = 0;
 /*
@@ -1596,6 +1598,8 @@ static int hdmi_dev_remove(struct hdmi *hdmi)
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
 	HDMIDBG("%s\n", __func__);
+	if (hdmi->ops->hdcp_power_off_cb)
+		hdmi->ops->hdcp_power_off_cb(hdmi);
 	rockchip_hdmiv2_powerdown(hdmi_dev);
 	hdmi_dev->tmdsclk = 0;
 	return HDMI_ERROR_SUCESS;
@@ -1733,7 +1737,7 @@ irqreturn_t rockchip_hdmiv2_dev_irq(int irq, void *priv)
 	/* HDCP */
 	if (hdcp_int) {
 		hdmi_writel(hdmi_dev, A_APIINTCLR, hdcp_int);
-		pr_info("hdcp_int is 0x%02x\n", hdcp_int);
+		rockchip_hdmiv2_hdcp_isr(hdmi_dev, hdcp_int);
 	}
 
 	/* HDCP2 */

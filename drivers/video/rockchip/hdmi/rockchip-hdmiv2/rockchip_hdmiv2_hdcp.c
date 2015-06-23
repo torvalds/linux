@@ -5,6 +5,7 @@
 #include <linux/miscdevice.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
+#include <linux/delay.h>
 #include "rockchip_hdmiv2.h"
 #include "rockchip_hdmiv2_hw.h"
 
@@ -12,6 +13,12 @@
 #define HDCP_PRIVATE_KEY_SIZE	280
 #define HDCP_KEY_SHA_SIZE	20
 #define HDCP_KEY_SEED_SIZE	2
+
+#define KSV_LEN			5
+#define HEADER			10
+#define SHAMAX			20
+
+#define MAX_DOWNSTREAM_DEVICE_NUM	5
 
 struct hdcp_keys {
 	u8 KSV[8];
@@ -29,8 +36,288 @@ struct hdcp {
 	char			*invalidkeys;
 };
 
+struct sha_t {
+	u8 mlength[8];
+	u8 mblock[64];
+	int mindex;
+	int mcomputed;
+	int mcorrupted;
+	unsigned int mdigest[5];
+};
+
 static struct miscdevice mdev;
 static struct hdcp *hdcp;
+
+static void sha_reset(struct sha_t *sha)
+{
+	u32 i = 0;
+
+	sha->mindex = 0;
+	sha->mcomputed = false;
+	sha->mcorrupted = false;
+	for (i = 0; i < sizeof(sha->mlength); i++)
+		sha->mlength[i] = 0;
+
+	sha->mdigest[0] = 0x67452301;
+	sha->mdigest[1] = 0xEFCDAB89;
+	sha->mdigest[2] = 0x98BADCFE;
+	sha->mdigest[3] = 0x10325476;
+	sha->mdigest[4] = 0xC3D2E1F0;
+}
+
+#define shacircularshift(bits, word) ((((word) << (bits)) & 0xFFFFFFFF) | \
+				     ((word) >> (32 - (bits))))
+void sha_processblock(struct sha_t *sha)
+{
+	const unsigned K[] = {
+	/* constants defined in SHA-1 */
+	0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6 };
+	unsigned W[80]; /* word sequence */
+	unsigned A, B, C, D, E; /* word buffers */
+	unsigned temp = 0;
+	int t = 0;
+
+	/* Initialize the first 16 words in the array W */
+	for (t = 0; t < 80; t++) {
+		if (t < 16) {
+			W[t] = ((unsigned) sha->mblock[t * 4 + 0]) << 24;
+			W[t] |= ((unsigned) sha->mblock[t * 4 + 1]) << 16;
+			W[t] |= ((unsigned) sha->mblock[t * 4 + 2]) << 8;
+			W[t] |= ((unsigned) sha->mblock[t * 4 + 3]) << 0;
+		} else {
+			A = W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16];
+			W[t] = shacircularshift(1, A);
+		}
+	}
+
+	A = sha->mdigest[0];
+	B = sha->mdigest[1];
+	C = sha->mdigest[2];
+	D = sha->mdigest[3];
+	E = sha->mdigest[4];
+
+	for (t = 0; t < 80; t++) {
+		temp = shacircularshift(5, A);
+		if (t < 20)
+			temp += ((B & C) | ((~B) & D)) + E + W[t] + K[0];
+		else if (t < 40)
+			temp += (B ^ C ^ D) + E + W[t] + K[1];
+		else if (t < 60)
+			temp += ((B & C) | (B & D) | (C & D)) + E + W[t] + K[2];
+		else
+			temp += (B ^ C ^ D) + E + W[t] + K[3];
+
+		E = D;
+		D = C;
+		C = shacircularshift(30, B);
+		B = A;
+		A = (temp & 0xFFFFFFFF);
+	}
+
+	sha->mdigest[0] = (sha->mdigest[0] + A) & 0xFFFFFFFF;
+	sha->mdigest[1] = (sha->mdigest[1] + B) & 0xFFFFFFFF;
+	sha->mdigest[2] = (sha->mdigest[2] + C) & 0xFFFFFFFF;
+	sha->mdigest[3] = (sha->mdigest[3] + D) & 0xFFFFFFFF;
+	sha->mdigest[4] = (sha->mdigest[4] + E) & 0xFFFFFFFF;
+
+	sha->mindex = 0;
+}
+
+static void sha_padmessage(struct sha_t *sha)
+{
+	/*
+	 *  Check to see if the current message block is too small to hold
+	 *  the initial padding bits and length.  If so, we will pad the
+	 *  block, process it, and then continue padding into a second
+	 *  block.
+	 */
+	if (sha->mindex > 55) {
+		sha->mblock[sha->mindex++] = 0x80;
+		while (sha->mindex < 64)
+			sha->mblock[sha->mindex++] = 0;
+
+		sha_processblock(sha);
+		while (sha->mindex < 56)
+			sha->mblock[sha->mindex++] = 0;
+	} else {
+		sha->mblock[sha->mindex++] = 0x80;
+		while (sha->mindex < 56)
+			sha->mblock[sha->mindex++] = 0;
+	}
+
+	/* Store the message length as the last 8 octets */
+	sha->mblock[56] = sha->mlength[7];
+	sha->mblock[57] = sha->mlength[6];
+	sha->mblock[58] = sha->mlength[5];
+	sha->mblock[59] = sha->mlength[4];
+	sha->mblock[60] = sha->mlength[3];
+	sha->mblock[61] = sha->mlength[2];
+	sha->mblock[62] = sha->mlength[1];
+	sha->mblock[63] = sha->mlength[0];
+
+	sha_processblock(sha);
+}
+
+static int sha_result(struct sha_t *sha)
+{
+	if (sha->mcorrupted)
+		return false;
+
+	if (sha->mcomputed == 0) {
+		sha_padmessage(sha);
+		sha->mcomputed = true;
+	}
+	return true;
+}
+
+static void sha_input(struct sha_t *sha, const u8 *data, u32 size)
+{
+	int i = 0;
+	unsigned j = 0;
+	int rc = true;
+
+	if (data == 0 || size == 0) {
+		pr_err("invalid input data");
+		return;
+	}
+	if (sha->mcomputed || sha->mcorrupted) {
+		sha->mcorrupted = true;
+		return;
+	}
+	while (size-- && !sha->mcorrupted) {
+		sha->mblock[sha->mindex++] = *data;
+
+		for (i = 0; i < 8; i++) {
+			rc = true;
+			for (j = 0; j < sizeof(sha->mlength); j++) {
+				sha->mlength[j]++;
+				if (sha->mlength[j] != 0) {
+					rc = false;
+					break;
+				}
+			}
+			sha->mcorrupted = (sha->mcorrupted  ||
+					   rc) ? true : false;
+		}
+		/* if corrupted then message is too long */
+		if (sha->mindex == 64)
+			sha_processblock(sha);
+		data++;
+	}
+}
+
+static int hdcpverify_ksv(const u8 *data, u32 size)
+{
+	u32 i = 0;
+	struct sha_t sha;
+
+	if ((data == NULL) || (size < (HEADER + SHAMAX))) {
+		pr_err("invalid input data");
+		return false;
+	}
+
+	sha_reset(&sha);
+	sha_input(&sha, data, size - SHAMAX);
+	if (sha_result(&sha) == false) {
+		pr_err("cannot process SHA digest");
+		return false;
+	}
+
+	for (i = 0; i < SHAMAX; i++) {
+		if (data[size - SHAMAX + i] != (u8) (sha.mdigest[i / 4]
+				>> ((i % 4) * 8))) {
+			pr_err("SHA digest does not match");
+			return false;
+		}
+	}
+	return true;
+}
+
+static int rockchip_hdmiv2_hdcp_ksvsha1(struct hdmi_dev *hdmi_dev)
+{
+	int rc = 0, value, list, i;
+	char bstaus0, bstaus1;
+	char *ksvlistbuf;
+
+	hdmi_msk_reg(hdmi_dev, A_KSVMEMCTRL, m_KSV_MEM_REQ, v_KSV_MEM_REQ(1));
+	list = 20;
+	do {
+		value = hdmi_readl(hdmi_dev, A_KSVMEMCTRL);
+		usleep_range(500, 1000);
+	} while ((value & m_KSV_MEM_ACCESS) == 0 && --list);
+
+	if ((value & m_KSV_MEM_ACCESS) == 0) {
+		pr_err("KSV memory can not access\n");
+		rc = -1;
+		goto out;
+	}
+
+	hdmi_readl(hdmi_dev, HDCP_BSTATUS_0);
+	bstaus0 = hdmi_readl(hdmi_dev, HDCP_BSTATUS_0 + 1);
+	bstaus1 = hdmi_readl(hdmi_dev, HDCP_BSTATUS_1 + 1);
+
+	if (bstaus0 & m_MAX_DEVS_EXCEEDED) {
+		pr_err("m_MAX_DEVS_EXCEEDED\n");
+		rc = -1;
+		goto out;
+	}
+	list = bstaus0 & m_DEVICE_COUNT;
+	if (list > MAX_DOWNSTREAM_DEVICE_NUM) {
+		pr_err("MAX_DOWNSTREAM_DEVICE_NUM\n");
+		rc = -1;
+		goto out;
+	}
+	if (bstaus1 & (1 << 3)) {
+		pr_err("MAX_CASCADE_EXCEEDED\n");
+		rc = -1;
+		goto out;
+	}
+	value = (list * KSV_LEN) + HEADER + SHAMAX;
+	ksvlistbuf = kmalloc(value, GFP_KERNEL);
+	if (!ksvlistbuf) {
+		pr_err("HDCP: kmalloc ksvlistbuf fail!\n");
+		rc = -ENOMEM;
+		goto out;
+	}
+	ksvlistbuf[(list * KSV_LEN)] = bstaus0;
+	ksvlistbuf[(list * KSV_LEN) + 1] = bstaus1;
+	for (i = 2; i < value; i++) {
+		if (i < HEADER)	/* BSTATUS & M0 */
+			ksvlistbuf[(list * KSV_LEN) + i] =
+				hdmi_readl(hdmi_dev, HDCP_BSTATUS_0 + i + 1);
+		else if (i < (HEADER + (list * KSV_LEN))) /* KSV list */
+			ksvlistbuf[i - HEADER] =
+				hdmi_readl(hdmi_dev, HDCP_BSTATUS_0 + i + 1);
+		else /* SHA */
+			ksvlistbuf[i] =
+				hdmi_readl(hdmi_dev, HDCP_BSTATUS_0 + i + 1);
+	}
+	if (hdcpverify_ksv(ksvlistbuf, value) == true) {
+		rc = 0;
+		pr_info("ksv check valid\n");
+	} else {
+		pr_info("ksv check invalid\n");
+		rc = -1;
+	}
+	kfree(ksvlistbuf);
+out:
+	hdmi_msk_reg(hdmi_dev, A_KSVMEMCTRL, m_KSV_MEM_REQ, v_KSV_MEM_REQ(0));
+	return rc;
+}
+
+static void rockchip_hdmiv2_hdcp_2nd_auth(struct hdmi *hdmi)
+{
+	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
+
+	if (rockchip_hdmiv2_hdcp_ksvsha1(hdmi_dev))
+		hdmi_msk_reg(hdmi_dev, A_KSVMEMCTRL,
+			     m_SHA1_FAIL | m_KSV_UPDATE,
+			     v_SHA1_FAIL(1) | v_KSV_UPDATE(1));
+	else
+		hdmi_msk_reg(hdmi_dev, A_KSVMEMCTRL,
+			     m_SHA1_FAIL | m_KSV_UPDATE,
+			     v_SHA1_FAIL(0) | v_KSV_UPDATE(1));
+}
 
 static void hdcp_load_key(struct hdmi *hdmi, struct hdcp_keys *key)
 {
@@ -221,7 +508,25 @@ static void rockchip_hdmiv2_hdcp_stop(struct hdmi *hdmi)
 		     m_HDCPCLK_DISABLE, v_HDCPCLK_DISABLE(1));
 	hdmi_writel(hdmi_dev, A_APIINTMSK, 0xff);
 	hdmi_msk_reg(hdmi_dev, A_HDCPCFG0, m_RX_DETECT, v_RX_DETECT(0));
+	hdmi_msk_reg(hdmi_dev, A_KSVMEMCTRL,
+		     m_SHA1_FAIL | m_KSV_UPDATE,
+		     v_SHA1_FAIL(0) | v_KSV_UPDATE(0));
 	rockchip_hdmiv2_hdcp2_enable(0);
+}
+
+void rockchip_hdmiv2_hdcp_isr(struct hdmi_dev *hdmi_dev, int hdcp_int)
+{
+	pr_info("hdcp_int is 0x%02x\n", hdcp_int);
+
+	if (hdcp_int & m_KSVSHA1_CALC_INT) {
+		pr_info("hdcp sink is a repeater\n");
+		hdmi_submit_work(hdcp->hdmi, HDMI_HDCP_AUTH_2ND, 0, NULL);
+	}
+	if (hdcp_int & 0x40) {
+		pr_info("hdcp check failed\n");
+		rockchip_hdmiv2_hdcp_stop(hdmi_dev->hdmi);
+		hdmi_submit_work(hdcp->hdmi, HDMI_ENABLE_HDCP, 0, NULL);
+	}
 }
 
 static ssize_t hdcp_enable_read(struct device *device,
@@ -339,6 +644,8 @@ static int hdcp_init(struct hdmi *hdmi)
 	if ((hdmi_readl(hdmi_dev, MC_CLKDIS) & m_HDCPCLK_DISABLE) == 0)
 		hdcp->enable = 1;
 	hdmi->ops->hdcp_cb = rockchip_hdmiv2_hdcp_start;
+	hdmi->ops->hdcp_auth2nd = rockchip_hdmiv2_hdcp_2nd_auth;
+	hdmi->ops->hdcp_power_off_cb = rockchip_hdmiv2_hdcp_stop;
 	return 0;
 
 error4:
