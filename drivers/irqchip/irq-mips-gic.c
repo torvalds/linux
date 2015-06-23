@@ -367,15 +367,12 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 		break;
 	}
 
-	if (is_edge) {
-		__irq_set_chip_handler_name_locked(d->irq,
-						   &gic_edge_irq_controller,
-						   handle_edge_irq, NULL);
-	} else {
-		__irq_set_chip_handler_name_locked(d->irq,
-						   &gic_level_irq_controller,
-						   handle_level_irq, NULL);
-	}
+	if (is_edge)
+		irq_set_chip_handler_name_locked(d, &gic_edge_irq_controller,
+						 handle_edge_irq, NULL);
+	else
+		irq_set_chip_handler_name_locked(d, &gic_level_irq_controller,
+						 handle_level_irq, NULL);
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return 0;
