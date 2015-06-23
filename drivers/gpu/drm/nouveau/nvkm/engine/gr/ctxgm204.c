@@ -918,7 +918,7 @@ gm204_grctx_pack_ppc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
-static void
+void
 gm204_grctx_generate_tpcid(struct gf100_gr_priv *priv)
 {
 	int gpc, tpc, id;
@@ -943,7 +943,7 @@ gm204_grctx_generate_rop_active_fbps(struct gf100_gr_priv *priv)
 	nv_mask(priv, 0x408958, 0x0000000f, fbp_count); /* crop */
 }
 
-static void
+void
 gm204_grctx_generate_405b60(struct gf100_gr_priv *priv)
 {
 	const u32 dist_nr = DIV_ROUND_UP(priv->tpc_total, 4);

@@ -74,6 +74,7 @@ extern struct nvkm_oclass *gk208_gr_oclass;
 extern struct nvkm_oclass *gm107_gr_oclass;
 extern struct nvkm_oclass *gm204_gr_oclass;
 extern struct nvkm_oclass *gm206_gr_oclass;
+extern struct nvkm_oclass *gm20b_gr_oclass;
 
 #include <core/enum.h>
 

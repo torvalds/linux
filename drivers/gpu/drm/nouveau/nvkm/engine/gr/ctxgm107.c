@@ -931,7 +931,7 @@ gm107_grctx_generate_attrib(struct gf100_grctx *info)
 	}
 }
 
-static void
+void
 gm107_grctx_generate_tpcid(struct gf100_gr_priv *priv)
 {
 	int gpc, tpc, id;

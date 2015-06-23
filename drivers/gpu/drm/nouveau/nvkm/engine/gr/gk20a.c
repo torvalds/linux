@@ -154,7 +154,7 @@ gk20a_gr_av_to_method(struct gf100_gr_fuc *fuc)
 	return pack;
 }
 
-static int
+int
 gk20a_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
@@ -204,7 +204,7 @@ gk20a_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	return 0;
 }
 
-static void
+void
 gk20a_gr_dtor(struct nvkm_object *object)
 {
 	struct gf100_gr_priv *priv = (void *)object;
@@ -240,7 +240,7 @@ gk20a_gr_set_hww_esr_report_mask(struct gf100_gr_priv *priv)
 	nv_wr32(priv, 0x419e4c, 0x7f);
 }
 
-static int
+int
 gk20a_gr_init(struct nvkm_object *object)
 {
 	struct gk20a_gr_oclass *oclass = (void *)object->oclass;

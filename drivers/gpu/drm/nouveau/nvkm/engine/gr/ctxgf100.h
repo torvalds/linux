@@ -91,6 +91,10 @@ void gk104_grctx_generate_r418bb8(struct gf100_gr_priv *);
 void gk104_grctx_generate_rop_active_fbps(struct gf100_gr_priv *);
 
 
+void gm107_grctx_generate_bundle(struct gf100_grctx *);
+void gm107_grctx_generate_pagepool(struct gf100_grctx *);
+void gm107_grctx_generate_attrib(struct gf100_grctx *);
+
 extern struct nvkm_oclass *gk110_grctx_oclass;
 extern struct nvkm_oclass *gk110b_grctx_oclass;
 extern struct nvkm_oclass *gk208_grctx_oclass;
@@ -102,8 +106,11 @@ void gm107_grctx_generate_attrib(struct gf100_grctx *);
 
 extern struct nvkm_oclass *gm204_grctx_oclass;
 void gm204_grctx_generate_main(struct gf100_gr_priv *, struct gf100_grctx *);
+void gm204_grctx_generate_tpcid(struct gf100_gr_priv *);
+void gm204_grctx_generate_405b60(struct gf100_gr_priv *);
 
 extern struct nvkm_oclass *gm206_grctx_oclass;
+extern struct nvkm_oclass *gm20b_grctx_oclass;
 
 /* context init value lists */
 
