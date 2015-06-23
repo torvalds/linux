@@ -9,9 +9,9 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/clk/shmobile.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 
 struct r8a7778_cpg {
 	struct clk_onecell_data data;
