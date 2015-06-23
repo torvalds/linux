@@ -1161,7 +1161,7 @@ static void __init init_mmcsd_host(struct mmc_davinci_host *host)
 	mmc_davinci_reset_ctrl(host, 0);
 }
 
-static struct platform_device_id davinci_mmc_devtype[] = {
+static const struct platform_device_id davinci_mmc_devtype[] = {
 	{
 		.name	= "dm6441-mmc",
 		.driver_data = MMC_CTLR_VERSION_1,
