@@ -2599,6 +2599,9 @@ static inline unsigned long wait_task_inactive(struct task_struct *p,
 }
 #endif
 
+#define tasklist_empty() \
+	list_empty(&init_task.tasks)
+
 #define next_task(p) \
 	list_entry_rcu((p)->tasks.next, struct task_struct, tasks)
 
