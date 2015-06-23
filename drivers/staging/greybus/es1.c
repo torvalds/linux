@@ -679,16 +679,6 @@ static int ap_probe(struct usb_interface *interface,
 		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
 
-	/* Start up our svc urb, which allows events to start flowing */
-	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
-	if (retval)
-		goto error;
-
-	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
-							(S_IWUSR | S_IRUGO),
-							gb_debugfs_get(), es1,
-							&apb1_log_enable_fops);
-
 	/*
 	 * XXX Soon this will be initiated later, with a combination
 	 * XXX of a Control protocol probe operation and a
@@ -700,6 +690,15 @@ static int ap_probe(struct usb_interface *interface,
 	if (retval)
 		goto error;
 
+	/* Start up our svc urb, which allows events to start flowing */
+	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
+	if (retval)
+		goto error;
+
+	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
+							(S_IWUSR | S_IRUGO),
+							gb_debugfs_get(), es1,
+							&apb1_log_enable_fops);
 	return 0;
 error:
 	ap_disconnect(interface);
