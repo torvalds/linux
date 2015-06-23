@@ -252,6 +252,7 @@ static int nouveau_platform_remove(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id nouveau_platform_match[] = {
 	{ .compatible = "nvidia,gk20a" },
+	{ .compatible = "nvidia,gm20b" },
 	{ }
 };
 
