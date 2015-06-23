@@ -58,11 +58,9 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	struct ieee802154_local *local;
 	size_t priv_size;
 
-	if (!ops || !(ops->xmit_async || ops->xmit_sync) || !ops->ed ||
-	    !ops->start || !ops->stop || !ops->set_channel) {
-		pr_err("undefined IEEE802.15.4 device operations\n");
+	if (WARN_ON(!ops || !(ops->xmit_async || ops->xmit_sync) || !ops->ed ||
+		    !ops->start || !ops->stop || !ops->set_channel))
 		return NULL;
-	}
 
 	/* Ensure 32-byte alignment of our private data and hw private data.
 	 * We use the wpan_phy priv data for both our ieee802154_local and for
