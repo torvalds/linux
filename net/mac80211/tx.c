@@ -2771,7 +2771,11 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 		sdata->sequence_number += 0x10;
 	}
 
-	sta->tx_msdu[tid]++;
+	if (skb_shinfo(skb)->gso_size)
+		sta->tx_msdu[tid] +=
+			DIV_ROUND_UP(skb->len, skb_shinfo(skb)->gso_size);
+	else
+		sta->tx_msdu[tid]++;
 
 	info->hw_queue = sdata->vif.hw_queue[skb_get_queue_mapping(skb)];
 
