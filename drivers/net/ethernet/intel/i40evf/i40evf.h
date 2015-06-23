@@ -101,6 +101,8 @@ struct i40e_vsi {
 #define MAX_RX_QUEUES 8
 #define MAX_TX_QUEUES MAX_RX_QUEUES
 
+#define I40EVF_HKEY_ARRAY_SIZE ((I40E_VFQF_HKEY_MAX_INDEX + 1) * 4)
+
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
  */

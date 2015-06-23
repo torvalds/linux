@@ -1173,6 +1173,113 @@ out:
 }
 
 /**
+ * i40e_configure_rss_aq - Prepare for RSS using AQ commands
+ * @vsi: vsi structure
+ * @seed: RSS hash seed
+ **/
+static void i40evf_configure_rss_aq(struct i40e_vsi *vsi, const u8 *seed)
+{
+	struct i40e_aqc_get_set_rss_key_data rss_key;
+	struct i40evf_adapter *adapter = vsi->back;
+	struct i40e_hw *hw = &adapter->hw;
+	int ret = 0, i;
+	u8 *rss_lut;
+
+	if (!vsi->id)
+		return;
+
+	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot confiure RSS, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+
+	memset(&rss_key, 0, sizeof(rss_key));
+	memcpy(&rss_key, seed, sizeof(rss_key));
+
+	rss_lut = kzalloc(((I40E_VFQF_HLUT_MAX_INDEX + 1) * 4), GFP_KERNEL);
+	if (!rss_lut)
+		return;
+
+	/* Populate the LUT with max no. PF queues in round robin fashion */
+	for (i = 0; i <= (I40E_VFQF_HLUT_MAX_INDEX * 4); i++)
+		rss_lut[i] = i % adapter->num_active_queues;
+
+	ret = i40evf_aq_set_rss_key(hw, vsi->id, &rss_key);
+	if (ret) {
+		dev_err(&adapter->pdev->dev,
+			"Cannot set RSS key, err %s aq_err %s\n",
+			i40evf_stat_str(hw, ret),
+			i40evf_aq_str(hw, hw->aq.asq_last_status));
+		return;
+	}
+
+	ret = i40evf_aq_set_rss_lut(hw, vsi->id, false, rss_lut,
+				    (I40E_VFQF_HLUT_MAX_INDEX + 1) * 4);
+	if (ret)
+		dev_err(&adapter->pdev->dev,
+			"Cannot set RSS lut, err %s aq_err %s\n",
+			i40evf_stat_str(hw, ret),
+			i40evf_aq_str(hw, hw->aq.asq_last_status));
+}
+
+/**
+ * i40e_configure_rss_reg - Prepare for RSS if used
+ * @adapter: board private structure
+ * @seed: RSS hash seed
+ **/
+static void i40evf_configure_rss_reg(struct i40evf_adapter *adapter,
+				     const u8 *seed)
+{
+	struct i40e_hw *hw = &adapter->hw;
+	u32 *seed_dw = (u32 *)seed;
+	u32 cqueue = 0;
+	u32 lut = 0;
+	int i, j;
+
+	/* Fill out hash function seed */
+	for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
+		wr32(hw, I40E_VFQF_HKEY(i), seed_dw[i]);
+
+	/* Populate the LUT with max no. PF queues in round robin fashion */
+	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
+		lut = 0;
+		for (j = 0; j < 4; j++) {
+			if (cqueue == adapter->num_active_queues)
+				cqueue = 0;
+			lut |= ((cqueue) << (8 * j));
+			cqueue++;
+		}
+		wr32(hw, I40E_VFQF_HLUT(i), lut);
+	}
+	i40e_flush(hw);
+}
+
+/**
+ * i40evf_configure_rss - Prepare for RSS
+ * @adapter: board private structure
+ **/
+static void i40evf_configure_rss(struct i40evf_adapter *adapter)
+{
+	struct i40e_hw *hw = &adapter->hw;
+	u8 seed[I40EVF_HKEY_ARRAY_SIZE];
+	u64 hena;
+
+	netdev_rss_key_fill((void *)seed, I40EVF_HKEY_ARRAY_SIZE);
+
+	/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
+	hena = I40E_DEFAULT_RSS_HENA;
+	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
+	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
+
+	if (RSS_AQ(adapter))
+		i40evf_configure_rss_aq(&adapter->vsi, seed);
+	else
+		i40evf_configure_rss_reg(adapter, seed);
+}
+
+/**
  * i40evf_alloc_q_vectors - Allocate memory for interrupt vectors
  * @adapter: board private structure to initialize
  *
@@ -1417,6 +1524,16 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		goto watchdog_done;
 	}
 
+	if (adapter->aq_required & I40EVF_FLAG_AQ_CONFIGURE_RSS) {
+		/* This message goes straight to the firmware, not the
+		 * PF, so we don't have to set current_op as we will
+		 * not get a response through the ARQ.
+		 */
+		i40evf_configure_rss(adapter);
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_CONFIGURE_RSS;
+		goto watchdog_done;
+	}
+
 	if (adapter->state == __I40EVF_RUNNING)
 		i40evf_request_stats(adapter);
 watchdog_done:
@@ -1437,45 +1554,6 @@ restart_watchdog:
 	else
 		mod_timer(&adapter->watchdog_timer, jiffies + (HZ * 2));
 	schedule_work(&adapter->adminq_task);
-}
-
-/**
- * i40evf_configure_rss - Prepare for RSS
- * @adapter: board private structure
- **/
-static void i40evf_configure_rss(struct i40evf_adapter *adapter)
-{
-	u32 rss_key[I40E_VFQF_HKEY_MAX_INDEX + 1];
-	struct i40e_hw *hw = &adapter->hw;
-	u32 cqueue = 0;
-	u32 lut = 0;
-	int i, j;
-	u64 hena;
-
-	/* Hash type is configured by the PF - we just supply the key */
-	netdev_rss_key_fill(rss_key, sizeof(rss_key));
-
-	/* Fill out hash function seed */
-	for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
-		wr32(hw, I40E_VFQF_HKEY(i), rss_key[i]);
-
-	/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
-	hena = I40E_DEFAULT_RSS_HENA;
-	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
-	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
-
-	/* Populate the LUT with max no. of queues in round robin fashion */
-	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
-		lut = 0;
-		for (j = 0; j < 4; j++) {
-			if (cqueue == adapter->num_active_queues)
-				cqueue = 0;
-			lut |= ((cqueue) << (8 * j));
-			cqueue++;
-		}
-		wr32(hw, I40E_VFQF_HLUT(i), lut);
-	}
-	i40e_flush(hw);
 }
 
 #define I40EVF_RESET_WAIT_MS 10
@@ -2187,7 +2265,8 @@ static void i40evf_init_task(struct work_struct *work)
 	if (err)
 		goto err_sw_init;
 	i40evf_map_rings_to_vectors(adapter);
-	i40evf_configure_rss(adapter);
+	if (!RSS_AQ(adapter))
+		i40evf_configure_rss(adapter);
 	err = i40evf_request_misc_irq(adapter);
 	if (err)
 		goto err_sw_init;
@@ -2212,6 +2291,13 @@ static void i40evf_init_task(struct work_struct *work)
 	adapter->state = __I40EVF_DOWN;
 	set_bit(__I40E_DOWN, &adapter->vsi.state);
 	i40evf_misc_irq_enable(adapter);
+
+	if (RSS_AQ(adapter)) {
+		adapter->aq_required |= I40EVF_FLAG_AQ_CONFIGURE_RSS;
+		mod_timer_pending(&adapter->watchdog_timer, jiffies + 1);
+	} else {
+		i40evf_configure_rss(adapter);
+	}
 	return;
 restart:
 	schedule_delayed_work(&adapter->init_task,

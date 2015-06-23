@@ -79,10 +79,13 @@
 #define I40E_MIN_MSIX                 2
 #define I40E_DEFAULT_NUM_VMDQ_VSI     8 /* max 256 VSIs */
 #define I40E_MIN_VSI_ALLOC            51 /* LAN, ATR, FCOE, 32 VF, 16 VMDQ */
-#define I40E_DEFAULT_QUEUES_PER_VMDQ  2 /* max 16 qps */
+/* max 16 qps */
+#define i40e_default_queues_per_vmdq(pf) \
+		(((pf)->flags & I40E_FLAG_RSS_AQ_CAPABLE) ? 4 : 1)
 #define I40E_DEFAULT_QUEUES_PER_VF    4
 #define I40E_DEFAULT_QUEUES_PER_TC    1 /* should be a power of 2 */
-#define I40E_MAX_QUEUES_PER_TC        64 /* should be a power of 2 */
+#define i40e_pf_get_max_q_per_tc(pf) \
+		(((pf)->flags & I40E_FLAG_128_QP_RSS_CAPABLE) ? 128 : 64)
 #define I40E_FDIR_RING                0
 #define I40E_FDIR_RING_COUNT          32
 #ifdef I40E_FCOE
