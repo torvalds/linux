@@ -143,16 +143,13 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	if (skb_is_gso(skb)) {
 		u32 payload_len;
-		int num_pkts;
 
 		eseg->mss    = cpu_to_be16(skb_shinfo(skb)->gso_size);
 		opcode       = MLX5_OPCODE_LSO;
 		ihs          = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		payload_len  = skb->len - ihs;
-		num_pkts     =    (payload_len / skb_shinfo(skb)->gso_size) +
-				!!(payload_len % skb_shinfo(skb)->gso_size);
 		MLX5E_TX_SKB_CB(skb)->num_bytes = skb->len +
-						  (num_pkts - 1) * ihs;
+					(skb_shinfo(skb)->gso_segs - 1) * ihs;
 		sq->stats.tso_packets++;
 		sq->stats.tso_bytes += payload_len;
 	} else {
