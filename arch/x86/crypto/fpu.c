@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/crypto.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 struct crypto_fpu_ctx {
 	struct crypto_blkcipher *child;

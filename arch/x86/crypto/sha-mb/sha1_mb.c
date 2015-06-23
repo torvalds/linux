@@ -65,11 +65,8 @@
 #include <crypto/mcryptd.h>
 #include <crypto/crypto_wq.h>
 #include <asm/byteorder.h>
-#include <asm/i387.h>
-#include <asm/xcr.h>
-#include <asm/xsave.h>
 #include <linux/hardirq.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/api.h>
 #include "sha_mb_ctx.h"
 
 #define FLUSH_INTERVAL 1000 /* in usec */

@@ -21,8 +21,8 @@
 #include <linux/binfmts.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
+#include <asm/fpu/signal.h>
 #include <asm/ptrace.h>
 #include <asm/ia32_unistd.h>
 #include <asm/user32.h>
@@ -198,7 +198,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 		buf = compat_ptr(tmp);
 	} get_user_catch(err);
 
-	err |= restore_xstate_sig(buf, 1);
+	err |= fpu__restore_sig(buf, 1);
 
 	force_iret();
 
@@ -308,6 +308,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 				 size_t frame_size,
 				 void __user **fpstate)
 {
+	struct fpu *fpu = &current->thread.fpu;
 	unsigned long sp;
 
 	/* Default to using normal stack */
@@ -322,12 +323,12 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		 ksig->ka.sa.sa_restorer)
 		sp = (unsigned long) ksig->ka.sa.sa_restorer;
 
-	if (used_math()) {
+	if (fpu->fpstate_active) {
 		unsigned long fx_aligned, math_size;
 
-		sp = alloc_mathframe(sp, 1, &fx_aligned, &math_size);
+		sp = fpu__alloc_mathframe(sp, 1, &fx_aligned, &math_size);
 		*fpstate = (struct _fpstate_ia32 __user *) sp;
-		if (save_xstate_sig(*fpstate, (void __user *)fx_aligned,
+		if (copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
 				    math_size) < 0)
 			return (void __user *) -1L;
 	}

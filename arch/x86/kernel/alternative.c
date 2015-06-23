@@ -21,6 +21,10 @@
 #include <asm/io.h>
 #include <asm/fixmap.h>
 
+int __read_mostly alternatives_patched;
+
+EXPORT_SYMBOL_GPL(alternatives_patched);
+
 #define MAX_PATCH_LEN (255-1)
 
 static int __initdata_or_module debug_alternative;
@@ -627,6 +631,7 @@ void __init alternative_instructions(void)
 	apply_paravirt(__parainstructions, __parainstructions_end);
 
 	restart_nmi();
+	alternatives_patched = 1;
 }
 
 /**
