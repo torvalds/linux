@@ -46,6 +46,7 @@
 #include "sama5d2.dtsi"
 #include "sama5d2-pinfunc.h"
 #include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Atmel SAMA5D2 Xplained";
@@ -71,11 +72,20 @@
 
 	ahb {
 		usb0: gadget@00300000 {
+			atmel,vbus-gpio = <&pioA 31 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "okay";
 		};
 
 		usb1: ohci@00400000 {
 			num-ports = <3>;
+			atmel,vbus-gpio = <0 /* &pioA 41 GPIO_ACTIVE_HIGH */
+					   &pioA 42 GPIO_ACTIVE_HIGH
+					   0
+					  >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb_default>;
 			status = "okay";
 		};
 
@@ -376,6 +386,17 @@
 						 <PIN_PB12__UTXD3>;
 					bias-disable;
 				};
+
+				pinctrl_usb_default: usb_default {
+					pinmux = <PIN_PB10__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_usba_vbus: usba_vbus {
+					pinmux = <PIN_PA31__GPIO>;
+					bias-disable;
+				};
+
 			};
 		};
 	};
