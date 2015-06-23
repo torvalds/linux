@@ -751,7 +751,7 @@ static int xgene_mdiobus_register(struct xgene_enet_pdata *pdata,
 	if (ret)
 		return -EINVAL;
 
-	phy = get_phy_device(mdio, phy_id, true);
+	phy = get_phy_device(mdio, phy_id, false);
 	if (!phy || IS_ERR(phy))
 		return -EIO;
 
