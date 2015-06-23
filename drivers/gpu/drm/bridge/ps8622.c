@@ -32,6 +32,7 @@
 #include "drmP.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
+#include "drm_atomic_helper.h"
 
 /* Brightness scale on the Parade chip */
 #define PS8622_MAX_BRIGHTNESS 0xff
@@ -499,10 +500,13 @@ static void ps8622_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs ps8622_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = ps8622_detect,
 	.destroy = ps8622_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int ps8622_attach(struct drm_bridge *bridge)

@@ -26,6 +26,7 @@
 
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
+#include "drm_atomic_helper.h"
 #include "drm_edid.h"
 #include "drmP.h"
 
@@ -258,10 +259,13 @@ static void ptn3460_connector_destroy(struct drm_connector *connector)
 }
 
 static struct drm_connector_funcs ptn3460_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = ptn3460_detect,
 	.destroy = ptn3460_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int ptn3460_bridge_attach(struct drm_bridge *bridge)
