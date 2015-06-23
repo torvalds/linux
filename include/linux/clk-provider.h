@@ -11,7 +11,6 @@
 #ifndef __LINUX_CLK_PROVIDER_H
 #define __LINUX_CLK_PROVIDER_H
 
-#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of.h>
 
@@ -33,6 +32,7 @@
 #define CLK_GET_ACCURACY_NOCACHE BIT(8) /* do not use the cached clk accuracy */
 #define CLK_RECALC_NEW_RATES	BIT(9) /* recalc rates after notifications */
 
+struct clk;
 struct clk_hw;
 struct clk_core;
 struct dentry;
