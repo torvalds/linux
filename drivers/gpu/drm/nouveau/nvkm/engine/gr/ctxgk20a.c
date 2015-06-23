@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2014-2015, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,14 +19,56 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include "ctxgf100.h"
 
-static const struct gf100_gr_pack
-gk20a_grctx_pack_mthd[] = {
-	{ gk104_grctx_init_a097_0, 0xa297 },
-	{ gf100_grctx_init_902d_0, 0x902d },
-	{}
-};
+#include "ctxgf100.h"
+#include "gk20a.h"
+
+#include <subdev/mc.h>
+
+static void
+gk20a_grctx_generate_main(struct gf100_gr_priv *priv, struct gf100_grctx *info)
+{
+	struct gf100_grctx_oclass *oclass = (void *)nv_engine(priv)->cclass;
+	int idle_timeout_save;
+	int i;
+
+	gf100_gr_mmio(priv, priv->fuc_sw_ctx);
+
+	gf100_gr_wait_idle(priv);
+
+	idle_timeout_save = nv_rd32(priv, 0x404154);
+	nv_wr32(priv, 0x404154, 0x00000000);
+
+	oclass->attrib(info);
+
+	oclass->unkn(priv);
+
+	gf100_grctx_generate_tpcid(priv);
+	gf100_grctx_generate_r406028(priv);
+	gk104_grctx_generate_r418bb8(priv);
+	gf100_grctx_generate_r406800(priv);
+
+	for (i = 0; i < 8; i++)
+		nv_wr32(priv, 0x4064d0 + (i * 0x04), 0x00000000);
+
+	nv_wr32(priv, 0x405b00, (priv->tpc_total << 8) | priv->gpc_nr);
+
+	gk104_grctx_generate_rop_active_fbps(priv);
+
+	nv_mask(priv, 0x5044b0, 0x8000000, 0x8000000);
+
+	gf100_gr_wait_idle(priv);
+
+	nv_wr32(priv, 0x404154, idle_timeout_save);
+	gf100_gr_wait_idle(priv);
+
+	gf100_gr_mthd(priv, priv->fuc_method);
+	gf100_gr_wait_idle(priv);
+
+	gf100_gr_icmd(priv, priv->fuc_bundle);
+	oclass->pagepool(info);
+	oclass->bundle(info);
+}
 
 struct nvkm_oclass *
 gk20a_grctx_oclass = &(struct gf100_grctx_oclass) {
@@ -39,15 +81,8 @@ gk20a_grctx_oclass = &(struct gf100_grctx_oclass) {
 		.rd32 = _nvkm_gr_context_rd32,
 		.wr32 = _nvkm_gr_context_wr32,
 	},
-	.main  = gk104_grctx_generate_main,
+	.main  = gk20a_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
-	.hub   = gk104_grctx_pack_hub,
-	.gpc   = gk104_grctx_pack_gpc,
-	.zcull = gf100_grctx_pack_zcull,
-	.tpc   = gk104_grctx_pack_tpc,
-	.ppc   = gk104_grctx_pack_ppc,
-	.icmd  = gk104_grctx_pack_icmd,
-	.mthd  = gk20a_grctx_pack_mthd,
 	.bundle = gk104_grctx_generate_bundle,
 	.bundle_size = 0x1800,
 	.bundle_min_gpm_fifo_depth = 0x62,

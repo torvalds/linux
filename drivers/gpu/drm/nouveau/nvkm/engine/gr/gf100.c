@@ -1537,7 +1537,7 @@ gf100_gr_init(struct nvkm_object *object)
 	return gf100_gr_init_ctxctl(priv);
 }
 
-static void
+void
 gf100_gr_dtor_fw(struct gf100_gr_fuc *fuc)
 {
 	kfree(fuc->data);
@@ -1690,6 +1690,7 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		break;
 	case 0xd7:
 	case 0xd9: /* 1/0/0/0, 1 */
+	case 0xea: /* gk20a */
 		priv->magic_not_rop_nr = 0x01;
 		break;
 	}

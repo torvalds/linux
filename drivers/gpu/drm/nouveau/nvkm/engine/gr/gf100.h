@@ -76,6 +76,15 @@ struct gf100_gr_priv {
 	struct gf100_gr_fuc fuc41ad;
 	bool firmware;
 
+	/*
+	 * Used if the register packs are loaded from NVIDIA fw instead of
+	 * using hardcoded arrays.
+	 */
+	struct gf100_gr_pack *fuc_sw_nonctx;
+	struct gf100_gr_pack *fuc_sw_ctx;
+	struct gf100_gr_pack *fuc_bundle;
+	struct gf100_gr_pack *fuc_method;
+
 	struct gf100_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_CNT];
 	struct gf100_gr_zbc_depth zbc_depth[NVKM_LTC_MAX_ZBC_CNT];
 
@@ -116,6 +125,9 @@ void gf100_gr_context_dtor(struct nvkm_object *);
 
 void gf100_gr_ctxctl_debug(struct gf100_gr_priv *);
 
+void gf100_gr_dtor_fw(struct gf100_gr_fuc *);
+int  gf100_gr_ctor_fw(struct gf100_gr_priv *, const char *,
+		      struct gf100_gr_fuc *);
 u64  gf100_gr_units(struct nvkm_gr *);
 int  gf100_gr_ctor(struct nvkm_object *, struct nvkm_object *,
 		     struct nvkm_oclass *, void *data, u32 size,
