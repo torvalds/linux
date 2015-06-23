@@ -2320,11 +2320,7 @@ static const struct file_operations smk_revoke_subj_ops = {
  */
 static int smk_init_sysfs(void)
 {
-	int err;
-	err = sysfs_create_mount_point(fs_kobj, "smackfs");
-	if (err)
-		return err;
-	return 0;
+	return sysfs_create_mount_point(fs_kobj, "smackfs");
 }
 
 /**
