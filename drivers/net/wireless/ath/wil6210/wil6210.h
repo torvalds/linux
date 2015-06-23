@@ -281,7 +281,7 @@ struct fw_map {
 };
 
 /* array size should be in sync with actual definition in the wmi.c */
-extern const struct fw_map fw_mapping[7];
+extern const struct fw_map fw_mapping[8];
 
 /**
  * mk_cidxtid - construct @cidxtid field
@@ -464,6 +464,7 @@ enum wil_sta_status {
 };
 
 #define WIL_STA_TID_NUM (16)
+#define WIL_MCS_MAX (12) /* Maximum MCS supported */
 
 struct wil_net_stats {
 	unsigned long	rx_packets;
@@ -473,6 +474,7 @@ struct wil_net_stats {
 	unsigned long	tx_errors;
 	unsigned long	rx_dropped;
 	u16 last_mcs_rx;
+	u64 rx_per_mcs[WIL_MCS_MAX + 1];
 };
 
 /**
@@ -684,7 +686,7 @@ void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 			size_t count);
 
-void *wil_if_alloc(struct device *dev, void __iomem *csr);
+void *wil_if_alloc(struct device *dev);
 void wil_if_free(struct wil6210_priv *wil);
 int wil_if_add(struct wil6210_priv *wil);
 void wil_if_remove(struct wil6210_priv *wil);
@@ -762,7 +764,8 @@ struct wireless_dev *wil_cfg80211_init(struct device *dev);
 void wil_wdev_free(struct wil6210_priv *wil);
 
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
-int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan);
+int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
+		  u8 chan, u8 hidden_ssid);
 int wmi_pcp_stop(struct wil6210_priv *wil);
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			u16 reason_code, bool from_event);

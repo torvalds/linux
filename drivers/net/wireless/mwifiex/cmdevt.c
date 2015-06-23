@@ -469,10 +469,11 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 		memset(rx_info, 0, sizeof(*rx_info));
 		rx_info->bss_num = priv->bss_num;
 		rx_info->bss_type = priv->bss_type;
+		mwifiex_dbg_dump(adapter, EVT_D, "Event Buf:",
+				 skb->data, skb->len);
 	}
 
 	mwifiex_dbg(adapter, EVENT, "EVENT: cause: %#x\n", eventcause);
-	mwifiex_dbg_dump(adapter, EVT_D, "Event Buf:", skb->data, skb->len);
 
 	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
 		ret = mwifiex_process_uap_event(priv);
@@ -574,6 +575,8 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		case HostCmd_CMD_UAP_BSS_START:
 		case HostCmd_CMD_UAP_BSS_STOP:
 		case HostCmd_CMD_UAP_STA_DEAUTH:
+		case HOST_CMD_APCMD_SYS_RESET:
+		case HOST_CMD_APCMD_STA_LIST:
 			ret = mwifiex_uap_prepare_cmd(priv, cmd_no, cmd_action,
 						      cmd_oid, data_buf,
 						      cmd_ptr);

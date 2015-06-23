@@ -289,6 +289,26 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	}
 
 	wil_dbg_misc(wil, "Start scan_request 0x%p\n", request);
+	wil_dbg_misc(wil, "SSID count: %d", request->n_ssids);
+
+	for (i = 0; i < request->n_ssids; i++) {
+		wil_dbg_misc(wil, "SSID[%d]", i);
+		print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
+				     request->ssids[i].ssid,
+				     request->ssids[i].ssid_len);
+	}
+
+	if (request->n_ssids)
+		rc = wmi_set_ssid(wil, request->ssids[0].ssid_len,
+				  request->ssids[0].ssid);
+	else
+		rc = wmi_set_ssid(wil, 0, NULL);
+
+	if (rc) {
+		wil_err(wil, "set SSID for scan request failed: %d\n", rc);
+		return rc;
+	}
+
 	wil->scan_request = request;
 	mod_timer(&wil->scan_timer, jiffies + WIL6210_SCAN_TO);
 
@@ -778,6 +798,7 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	size_t hlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
 	const u8 *pr_ies = NULL;
 	size_t pr_ies_len = 0;
+	u8 hidden_ssid;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
@@ -790,6 +811,8 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		     channel->center_freq, info->privacy ? "secure" : "open");
 	wil_dbg_misc(wil, "Privacy: %d auth_type %d\n",
 		     info->privacy, info->auth_type);
+	wil_dbg_misc(wil, "Hidden SSID mode: %d\n",
+		     info->hidden_ssid);
 	wil_dbg_misc(wil, "BI %d DTIM %d\n", info->beacon_interval,
 		     info->dtim_period);
 	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
@@ -835,10 +858,28 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	wil->privacy = info->privacy;
 
+	switch (info->hidden_ssid) {
+	case NL80211_HIDDEN_SSID_NOT_IN_USE:
+		hidden_ssid = WMI_HIDDEN_SSID_DISABLED;
+		break;
+
+	case NL80211_HIDDEN_SSID_ZERO_LEN:
+		hidden_ssid = WMI_HIDDEN_SSID_SEND_EMPTY;
+		break;
+
+	case NL80211_HIDDEN_SSID_ZERO_CONTENTS:
+		hidden_ssid = WMI_HIDDEN_SSID_CLEAR;
+		break;
+
+	default:
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
 	netif_carrier_on(ndev);
 
 	rc = wmi_pcp_start(wil, info->beacon_interval, wmi_nettype,
-			   channel->hw_value);
+			   channel->hw_value, hidden_ssid);
 	if (rc)
 		goto err_pcp_start;
 
@@ -1023,8 +1064,7 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 
 static void wil_wiphy_init(struct wiphy *wiphy)
 {
-	/* TODO: set real value */
-	wiphy->max_scan_ssids = 10;
+	wiphy->max_scan_ssids = 1;
 	wiphy->max_scan_ie_len = WMI_MAX_IE_LEN;
 	wiphy->max_num_pmkids = 0 /* TODO: */;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |

@@ -67,6 +67,22 @@ u8 mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type)
 	}
 }
 
+/* This function maps IEEE HT secondary channel type to NL80211 channel type
+ */
+u8 mwifiex_sec_chan_offset_to_chan_type(u8 second_chan_offset)
+{
+	switch (second_chan_offset) {
+	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
+		return NL80211_CHAN_HT20;
+	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+		return NL80211_CHAN_HT40PLUS;
+	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+		return NL80211_CHAN_HT40MINUS;
+	default:
+		return NL80211_CHAN_HT20;
+	}
+}
+
 /*
  * This function checks whether WEP is set.
  */
@@ -1213,6 +1229,7 @@ mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 tx_htinfo,
  */
 static int
 mwifiex_dump_station_info(struct mwifiex_private *priv,
+			  struct mwifiex_sta_node *node,
 			  struct station_info *sinfo)
 {
 	u32 rate;
@@ -1221,6 +1238,30 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			BIT(NL80211_STA_INFO_RX_PACKETS) | BIT(NL80211_STA_INFO_TX_PACKETS) |
 			BIT(NL80211_STA_INFO_TX_BITRATE) |
 			BIT(NL80211_STA_INFO_SIGNAL) | BIT(NL80211_STA_INFO_SIGNAL_AVG);
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		if (!node)
+			return -ENOENT;
+
+		sinfo->filled |= BIT(NL80211_STA_INFO_INACTIVE_TIME) |
+				BIT(NL80211_STA_INFO_TX_FAILED);
+		sinfo->inactive_time =
+			jiffies_to_msecs(jiffies - node->stats.last_rx);
+
+		sinfo->signal = node->stats.rssi;
+		sinfo->signal_avg = node->stats.rssi;
+		sinfo->rx_bytes = node->stats.rx_bytes;
+		sinfo->tx_bytes = node->stats.tx_bytes;
+		sinfo->rx_packets = node->stats.rx_packets;
+		sinfo->tx_packets = node->stats.tx_packets;
+		sinfo->tx_failed = node->stats.tx_failed;
+
+		mwifiex_parse_htinfo(priv, node->stats.last_tx_htinfo,
+				     &sinfo->txrate);
+		sinfo->txrate.legacy = node->stats.last_tx_rate * 5;
+
+		return 0;
+	}
 
 	/* Get signal information from the firmware */
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
@@ -1288,7 +1329,7 @@ mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	if (memcmp(mac, priv->cfg_bssid, ETH_ALEN))
 		return -ENOENT;
 
-	return mwifiex_dump_station_info(priv, sinfo);
+	return mwifiex_dump_station_info(priv, NULL, sinfo);
 }
 
 /*
@@ -1299,13 +1340,29 @@ mwifiex_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
 			      int idx, u8 *mac, struct station_info *sinfo)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	static struct mwifiex_sta_node *node;
 
-	if (!priv->media_connected || idx)
-		return -ENOENT;
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
+	    priv->media_connected && idx == 0) {
+		ether_addr_copy(mac, priv->cfg_bssid);
+		return mwifiex_dump_station_info(priv, NULL, sinfo);
+	} else if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		mwifiex_send_cmd(priv, HOST_CMD_APCMD_STA_LIST,
+				 HostCmd_ACT_GEN_GET, 0, NULL, true);
 
-	memcpy(mac, priv->cfg_bssid, ETH_ALEN);
+		if (node && (&node->list == &priv->sta_list)) {
+			node = NULL;
+			return -ENOENT;
+		}
 
-	return mwifiex_dump_station_info(priv, sinfo);
+		node = list_prepare_entry(node, &priv->sta_list, list);
+		list_for_each_entry_continue(node, &priv->sta_list, list) {
+			ether_addr_copy(mac, node->mac_addr);
+			return mwifiex_dump_station_info(priv, node, sinfo);
+		}
+	}
+
+	return -ENOENT;
 }
 
 static int
@@ -1725,6 +1782,13 @@ static int mwifiex_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 		return -1;
 	}
 
+	if (mwifiex_send_cmd(priv, HOST_CMD_APCMD_SYS_RESET,
+			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Failed to reset BSS\n");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -1778,7 +1842,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	mwifiex_uap_set_channel(bss_cfg, params->chandef);
+	mwifiex_uap_set_channel(priv, bss_cfg, params->chandef);
 	mwifiex_set_uap_rates(bss_cfg, params);
 
 	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
@@ -1803,6 +1867,9 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	mwifiex_set_wmm_params(priv, bss_cfg, params);
 
+	if (mwifiex_is_11h_active(priv))
+		mwifiex_set_tpc_params(priv, bss_cfg, params);
+
 	if (mwifiex_is_11h_active(priv) &&
 	    !cfg80211_chandef_dfs_required(wiphy, &params->chandef,
 					   priv->bss_mode)) {
@@ -1813,7 +1880,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 				    "Failed to disable 11h extensions!!");
 			return -1;
 		}
-		priv->state_11h.is_11h_active = true;
+		priv->state_11h.is_11h_active = false;
 	}
 
 	if (mwifiex_config_start_uap(priv, bss_cfg)) {
@@ -2518,7 +2585,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
 		priv->bss_priority = 0;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
-		priv->bss_num = 0;
+		priv->bss_num = adapter->curr_iface_comb.sta_intf;
 
 		break;
 	case NL80211_IFTYPE_AP:
@@ -2544,7 +2611,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->bss_priority = 0;
 		priv->bss_role = MWIFIEX_BSS_ROLE_UAP;
 		priv->bss_started = 0;
-		priv->bss_num = 0;
+		priv->bss_num = adapter->curr_iface_comb.uap_intf;
 		priv->bss_mode = type;
 
 		break;
@@ -2580,7 +2647,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->bss_priority = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_started = 0;
-		priv->bss_num = 0;
+		priv->bss_num = adapter->curr_iface_comb.p2p_intf;
 
 		if (mwifiex_cfg80211_init_p2p_client(priv)) {
 			memset(&priv->wdev, 0, sizeof(priv->wdev));
@@ -3366,6 +3433,45 @@ mwifiex_cfg80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static int mwifiex_cfg80211_get_channel(struct wiphy *wiphy,
+					struct wireless_dev *wdev,
+					struct cfg80211_chan_def *chandef)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
+	struct mwifiex_bssdescriptor *curr_bss;
+	struct ieee80211_channel *chan;
+	u8 second_chan_offset;
+	enum nl80211_channel_type chan_type;
+	enum ieee80211_band band;
+	int freq;
+	int ret = -ENODATA;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP &&
+	    cfg80211_chandef_valid(&priv->bss_chandef)) {
+		*chandef = priv->bss_chandef;
+		ret = 0;
+	} else if (priv->media_connected) {
+		curr_bss = &priv->curr_bss_params.bss_descriptor;
+		band = mwifiex_band_to_radio_type(priv->curr_bss_params.band);
+		freq = ieee80211_channel_to_frequency(curr_bss->channel, band);
+		chan = ieee80211_get_channel(wiphy, freq);
+
+		if (curr_bss->bcn_ht_oper) {
+			second_chan_offset = curr_bss->bcn_ht_oper->ht_param &
+					IEEE80211_HT_PARAM_CHA_SEC_OFFSET;
+			chan_type = mwifiex_sec_chan_offset_to_chan_type
+							(second_chan_offset);
+			cfg80211_chandef_create(chandef, chan, chan_type);
+		} else {
+			cfg80211_chandef_create(chandef, chan,
+						NL80211_CHAN_NO_HT);
+		}
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static int
 mwifiex_cfg80211_start_radar_detection(struct wiphy *wiphy,
 				       struct net_device *dev,
@@ -3471,6 +3577,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.tdls_oper = mwifiex_cfg80211_tdls_oper,
 	.add_station = mwifiex_cfg80211_add_station,
 	.change_station = mwifiex_cfg80211_change_station,
+	.get_channel = mwifiex_cfg80211_get_channel,
 	.start_radar_detection = mwifiex_cfg80211_start_radar_detection,
 	.channel_switch = mwifiex_cfg80211_channel_switch,
 };
@@ -3578,7 +3685,8 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+			WIPHY_FLAG_HAS_CHANNEL_SWITCH |
+			WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	if (ISSUPP_TDLS_ENABLED(adapter->fw_cap_info))
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |

@@ -450,9 +450,13 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct mt7601u_rxwi *rxwi = rxi;
-	u32 ctl = le32_to_cpu(rxwi->ctl);
+	u32 len, ctl = le32_to_cpu(rxwi->ctl);
 	u16 rate = le16_to_cpu(rxwi->rate);
 	int rssi;
+
+	len = MT76_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
+	if (len < 10)
+		return 0;
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_DECRYPT)) {
 		status->flag |= RX_FLAG_DECRYPTED;
@@ -474,7 +478,7 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 		dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
 	spin_unlock_bh(&dev->con_mon_lock);
 
-	return MT76_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
+	return len;
 }
 
 static enum mt76_cipher_type

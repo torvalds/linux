@@ -97,6 +97,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	struct mwifiex_txinfo *tx_info;
 	int hdr_chop;
 	struct ethhdr *p_ethhdr;
+	struct mwifiex_sta_node *src_node;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
 	rx_pkt_hdr = (void *)uap_rx_pd + le16_to_cpu(uap_rx_pd->rx_pkt_offset);
@@ -179,6 +180,15 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
 	tx_info->flags |= MWIFIEX_BUF_FLAG_BRIDGED_PKT;
+
+	src_node = mwifiex_get_sta_entry(priv, rx_pkt_hdr->eth803_hdr.h_source);
+	if (src_node) {
+		src_node->stats.last_rx = jiffies;
+		src_node->stats.rx_bytes += skb->len;
+		src_node->stats.rx_packets++;
+		src_node->stats.last_tx_rate = uap_rx_pd->rx_rate;
+		src_node->stats.last_tx_htinfo = uap_rx_pd->ht_info;
+	}
 
 	if (is_unicast_ether_addr(rx_pkt_hdr->eth803_hdr.h_dest)) {
 		/* Update bridge packet statistics as the
@@ -275,6 +285,8 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 	rx_pkt_type = le16_to_cpu(uap_rx_pd->rx_pkt_type);
 	rx_pkt_hdr = (void *)uap_rx_pd + le16_to_cpu(uap_rx_pd->rx_pkt_offset);
 
+	ether_addr_copy(ta, rx_pkt_hdr->eth803_hdr.h_source);
+
 	if ((le16_to_cpu(uap_rx_pd->rx_pkt_offset) +
 	     le16_to_cpu(uap_rx_pd->rx_pkt_length)) > (u16) skb->len) {
 		mwifiex_dbg(adapter, ERROR,
@@ -282,6 +294,11 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 			    skb->len, le16_to_cpu(uap_rx_pd->rx_pkt_offset),
 			    le16_to_cpu(uap_rx_pd->rx_pkt_length));
 		priv->stats.rx_dropped++;
+
+		node = mwifiex_get_sta_entry(priv, ta);
+		if (node)
+			node->stats.tx_failed++;
+
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -295,7 +312,6 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 		return ret;
 	}
 
-	memcpy(ta, rx_pkt_hdr->eth803_hdr.h_source, ETH_ALEN);
 
 	if (rx_pkt_type != PKT_TYPE_BAR && uap_rx_pd->priority < MAX_NUM_TID) {
 		spin_lock_irqsave(&priv->sta_list_spinlock, flags);

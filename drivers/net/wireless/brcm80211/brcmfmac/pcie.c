@@ -1629,20 +1629,7 @@ static void brcmf_pcie_buscore_write32(void *ctx, u32 addr, u32 value)
 
 static int brcmf_pcie_buscoreprep(void *ctx)
 {
-	struct brcmf_pciedev_info *devinfo = (struct brcmf_pciedev_info *)ctx;
-	int err;
-
-	err = brcmf_pcie_get_resource(devinfo);
-	if (err == 0) {
-		/* Set CC watchdog to reset all the cores on the chip to bring
-		 * back dongle to a sane state.
-		 */
-		brcmf_pcie_buscore_write32(ctx, CORE_CC_REG(SI_ENUM_BASE,
-							    watchdog), 4);
-		msleep(100);
-	}
-
-	return err;
+	return brcmf_pcie_get_resource(ctx);
 }
 
 
@@ -1824,6 +1811,7 @@ brcmf_pcie_remove(struct pci_dev *pdev)
 		brcmf_pcie_intr_disable(devinfo);
 
 	brcmf_detach(&pdev->dev);
+	brcmf_pcie_reset_device(devinfo);
 
 	kfree(bus->bus_priv.pcie);
 	kfree(bus->msgbuf->flowrings);

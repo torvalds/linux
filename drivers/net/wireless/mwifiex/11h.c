@@ -161,11 +161,27 @@ int mwifiex_cmd_issue_chan_report_request(struct mwifiex_private *priv,
 	cr_req->chan_desc.chan_width = radar_params->chandef->width;
 	cr_req->msec_dwell_time = cpu_to_le32(radar_params->cac_time_ms);
 
-	mwifiex_dbg(priv->adapter, MSG,
-		    "11h: issuing DFS Radar check for channel=%d\n",
-		    radar_params->chandef->chan->hw_value);
+	if (radar_params->cac_time_ms)
+		mwifiex_dbg(priv->adapter, MSG,
+			    "11h: issuing DFS Radar check for channel=%d\n",
+			    radar_params->chandef->chan->hw_value);
+	else
+		mwifiex_dbg(priv->adapter, MSG, "cancelling CAC\n");
 
 	return 0;
+}
+
+int mwifiex_stop_radar_detection(struct mwifiex_private *priv,
+				 struct cfg80211_chan_def *chandef)
+{
+	struct mwifiex_radar_params radar_params;
+
+	memset(&radar_params, 0, sizeof(struct mwifiex_radar_params));
+	radar_params.chandef = chandef;
+	radar_params.cac_time_ms = 0;
+
+	return mwifiex_send_cmd(priv, HostCmd_CMD_CHAN_REPORT_REQUEST,
+				HostCmd_ACT_GEN_SET, 0, &radar_params, true);
 }
 
 /* This function is to abort ongoing CAC upon stopping AP operations
@@ -174,6 +190,9 @@ int mwifiex_cmd_issue_chan_report_request(struct mwifiex_private *priv,
 void mwifiex_abort_cac(struct mwifiex_private *priv)
 {
 	if (priv->wdev.cac_started) {
+		if (mwifiex_stop_radar_detection(priv, &priv->dfs_chandef))
+			mwifiex_dbg(priv->adapter, ERROR,
+				    "failed to stop CAC in FW\n");
 		mwifiex_dbg(priv->adapter, MSG,
 			    "Aborting delayed work for CAC.\n");
 		cancel_delayed_work_sync(&priv->dfs_cac_work);
@@ -245,6 +264,9 @@ int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
 	if (le32_to_cpu(rdr_event->passed)) {
 		mwifiex_dbg(priv->adapter, MSG,
 			    "radar detected; indicating kernel\n");
+		if (mwifiex_stop_radar_detection(priv, &priv->dfs_chandef))
+			mwifiex_dbg(priv->adapter, ERROR,
+				    "Failed to stop CAC in FW\n");
 		cfg80211_radar_event(priv->adapter->wiphy, &priv->dfs_chandef,
 				     GFP_KERNEL);
 		mwifiex_dbg(priv->adapter, MSG, "regdomain: %d\n",
@@ -252,7 +274,7 @@ int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
 		mwifiex_dbg(priv->adapter, MSG, "radar detection type: %d\n",
 			    rdr_event->det_type);
 	} else {
-		mwifiex_dbg(priv->adapter, ERROR,
+		mwifiex_dbg(priv->adapter, MSG,
 			    "false radar detection event!\n");
 	}
 
@@ -283,7 +305,7 @@ void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
 		return;
 	}
 
-	mwifiex_uap_set_channel(bss_cfg, priv->dfs_chandef);
+	mwifiex_uap_set_channel(priv, bss_cfg, priv->dfs_chandef);
 
 	if (mwifiex_config_start_uap(priv, bss_cfg)) {
 		mwifiex_dbg(priv->adapter, ERROR,

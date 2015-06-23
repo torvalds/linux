@@ -277,6 +277,10 @@ mt7601u_extra_power_over_mac(struct mt7601u_dev *dev)
 static void
 mt7601u_set_power_rate(struct power_per_rate *rate, s8 delta, u8 value)
 {
+	/* Invalid? Note: vendor driver does not handle this */
+	if (value == 0xff)
+		return;
+
 	rate->raw = s6_validate(value);
 	rate->bw20 = s6_to_int(value);
 	/* Note: vendor driver does cap the value to s6 right away */

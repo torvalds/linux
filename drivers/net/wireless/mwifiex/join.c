@@ -556,6 +556,23 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 	return 0;
 }
 
+static const char *assoc_failure_reason_to_str(u16 cap_info)
+{
+	switch (cap_info) {
+	case CONNECT_ERR_AUTH_ERR_STA_FAILURE:
+		return "CONNECT_ERR_AUTH_ERR_STA_FAILURE";
+	case CONNECT_ERR_AUTH_MSG_UNHANDLED:
+		return "CONNECT_ERR_AUTH_MSG_UNHANDLED";
+	case CONNECT_ERR_ASSOC_ERR_TIMEOUT:
+		return "CONNECT_ERR_ASSOC_ERR_TIMEOUT";
+	case CONNECT_ERR_ASSOC_ERR_AUTH_REFUSED:
+		return "CONNECT_ERR_ASSOC_ERR_AUTH_REFUSED";
+	case CONNECT_ERR_STA_FAILURE:
+		return "CONNECT_ERR_STA_FAILURE";
+	}
+
+	return "Unknown connect failure";
+}
 /*
  * Association firmware command response handler
  *
@@ -656,11 +673,18 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 			    status_code, cap_info,
 			    le16_to_cpu(assoc_rsp->a_id));
 
-		if (cap_info == MWIFIEX_TIMEOUT_FOR_AP_RESP) {
-			if (status_code == MWIFIEX_STATUS_CODE_AUTH_TIMEOUT)
+		mwifiex_dbg(priv->adapter, ERROR, "assoc failure: reason %s\n",
+			    assoc_failure_reason_to_str(cap_info));
+		if (cap_info == CONNECT_ERR_ASSOC_ERR_TIMEOUT) {
+			if (status_code == MWIFIEX_ASSOC_CMD_FAILURE_AUTH) {
 				ret = WLAN_STATUS_AUTH_TIMEOUT;
-			else
+				mwifiex_dbg(priv->adapter, ERROR,
+					    "ASSOC_RESP: AUTH timeout\n");
+			} else {
 				ret = WLAN_STATUS_UNSPECIFIED_FAILURE;
+				mwifiex_dbg(priv->adapter, ERROR,
+					    "ASSOC_RESP: UNSPECIFIED failure\n");
+			}
 		} else {
 			ret = status_code;
 		}

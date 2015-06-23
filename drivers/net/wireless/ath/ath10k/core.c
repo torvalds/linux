@@ -48,6 +48,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.name = "qca988x hw2.0",
 		.patch_load_addr = QCA988X_HW_2_0_PATCH_LOAD_ADDR,
 		.uart_pin = 7,
+		.has_shifted_cc_wraparound = true,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
 			.fw = QCA988X_HW_2_0_FW_FILE,
@@ -1083,6 +1084,22 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 	status = ath10k_download_cal_data(ar);
 	if (status)
 		goto err;
+
+	/* Some of of qca988x solutions are having global reset issue
+         * during target initialization. Bypassing PLL setting before
+         * downloading firmware and letting the SoC run on REF_CLK is
+         * fixing the problem. Corresponding firmware change is also needed
+         * to set the clock source once the target is initialized.
+	 */
+	if (test_bit(ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT,
+		     ar->fw_features)) {
+		status = ath10k_bmi_write32(ar, hi_skip_clock_init, 1);
+		if (status) {
+			ath10k_err(ar, "could not write to skip_clock_init: %d\n",
+				   status);
+			goto err;
+		}
+	}
 
 	status = ath10k_download_fw(ar, mode);
 	if (status)

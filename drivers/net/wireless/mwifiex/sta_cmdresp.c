@@ -958,6 +958,27 @@ static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int mwifiex_ret_uap_sta_list(struct mwifiex_private *priv,
+				    struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_sta_list *sta_list =
+		&resp->params.sta_list;
+	struct mwifiex_ie_types_sta_info *sta_info = (void *)&sta_list->tlv;
+	int i;
+	struct mwifiex_sta_node *sta_node;
+
+	for (i = 0; i < sta_list->sta_count; i++) {
+		sta_node = mwifiex_get_sta_entry(priv, sta_info->mac);
+		if (unlikely(!sta_node))
+			continue;
+
+		sta_node->stats.rssi = sta_info->rssi;
+		sta_info++;
+	}
+
+	return 0;
+}
+
 /* This function handles the command response of set_cfg_data */
 static int mwifiex_ret_cfg_data(struct mwifiex_private *priv,
 				struct host_cmd_ds_command *resp)
@@ -1148,6 +1169,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_UAP_SYS_CONFIG:
 		break;
+	case HOST_CMD_APCMD_STA_LIST:
+		ret = mwifiex_ret_uap_sta_list(priv, resp);
+		break;
 	case HostCmd_CMD_UAP_BSS_START:
 		adapter->tx_lock_flag = false;
 		adapter->pps_uapsd_mode = false;
@@ -1158,6 +1182,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		priv->bss_started = 0;
 		break;
 	case HostCmd_CMD_UAP_STA_DEAUTH:
+		break;
+	case HOST_CMD_APCMD_SYS_RESET:
 		break;
 	case HostCmd_CMD_MEF_CFG:
 		break;

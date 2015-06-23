@@ -113,6 +113,7 @@ struct mwifiex_uap_bss_param {
 	u32 sta_ao_timer;
 	u32 ps_sta_ao_timer;
 	u8 qos_info;
+	u8 power_constraint;
 	struct mwifiex_types_wmm_info wmm_info;
 };
 

@@ -34,56 +34,32 @@ static unsigned int ieee80211_get_hdrlen_from_buf(const u8 *data, unsigned len)
 
 static struct sk_buff *
 mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
-			u8 *data, u32 seg_len)
+			void *data, u32 seg_len, u32 truesize, struct page *p)
 {
 	struct sk_buff *skb;
-	u32 true_len;
+	u32 true_len, hdr_len = 0, copy, frag;
 
-	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD))
-		seg_len -= 2;
-
-	skb = alloc_skb(seg_len, GFP_ATOMIC);
-	if (!skb)
-		return NULL;
-
-	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD)) {
-		int hdr_len = ieee80211_get_hdrlen_from_buf(data, seg_len);
-
-		memcpy(skb_put(skb, hdr_len), data, hdr_len);
-		data += hdr_len + 2;
-		seg_len -= hdr_len;
-	}
-
-	memcpy(skb_put(skb, seg_len), data, seg_len);
-
-	true_len = mt76_mac_process_rx(dev, skb, skb->data, rxwi);
-	skb_trim(skb, true_len);
-
-	return skb;
-}
-
-static struct sk_buff *
-mt7601u_rx_skb_from_seg_paged(struct mt7601u_dev *dev,
-			      struct mt7601u_rxwi *rxwi, void *data,
-			      u32 seg_len, u32 truesize, struct page *p)
-{
-	unsigned int hdr_len = ieee80211_get_hdrlen_from_buf(data, seg_len);
-	unsigned int true_len, copy, frag;
-	struct sk_buff *skb;
-
-	skb = alloc_skb(128, GFP_ATOMIC);
+	skb = alloc_skb(p ? 128 : seg_len, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
 
 	true_len = mt76_mac_process_rx(dev, skb, data, rxwi);
+	if (!true_len || true_len > seg_len)
+		goto bad_frame;
+
+	hdr_len = ieee80211_get_hdrlen_from_buf(data, true_len);
+	if (!hdr_len)
+		goto bad_frame;
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD)) {
 		memcpy(skb_put(skb, hdr_len), data, hdr_len);
+
 		data += hdr_len + 2;
 		true_len -= hdr_len;
 		hdr_len = 0;
 	}
 
+	/* If not doing paged RX allocated skb will always have enough space */
 	copy = (true_len <= skb_tailroom(skb)) ? true_len : hdr_len + 8;
 	frag = true_len - copy;
 
@@ -97,10 +73,16 @@ mt7601u_rx_skb_from_seg_paged(struct mt7601u_dev *dev,
 	}
 
 	return skb;
+
+bad_frame:
+	dev_err_ratelimited(dev->dev, "Error: incorrect frame len:%u hdr:%u\n",
+			    true_len, hdr_len);
+	dev_kfree_skb(skb);
+	return NULL;
 }
 
 static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
-				   u32 seg_len, struct page *p, bool paged)
+				   u32 seg_len, struct page *p)
 {
 	struct sk_buff *skb;
 	struct mt7601u_rxwi *rxwi;
@@ -126,11 +108,7 @@ static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
 
 	trace_mt_rx(dev, rxwi, fce_info);
 
-	if (paged)
-		skb = mt7601u_rx_skb_from_seg_paged(dev, rxwi, data, seg_len,
-						    truesize, p);
-	else
-		skb = mt7601u_rx_skb_from_seg(dev, rxwi, data, seg_len);
+	skb = mt7601u_rx_skb_from_seg(dev, rxwi, data, seg_len, truesize, p);
 	if (!skb)
 		return;
 
@@ -158,23 +136,17 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf_rx *e)
 	u32 seg_len, data_len = e->urb->actual_length;
 	u8 *data = page_address(e->p);
 	struct page *new_p = NULL;
-	bool paged = true;
 	int cnt = 0;
 
 	if (!test_bit(MT7601U_STATE_INITIALIZED, &dev->state))
 		return;
 
 	/* Copy if there is very little data in the buffer. */
-	if (data_len < 512) {
-		paged = false;
-	} else {
+	if (data_len > 512)
 		new_p = dev_alloc_pages(MT_RX_ORDER);
-		if (!new_p)
-			paged = false;
-	}
 
 	while ((seg_len = mt7601u_rx_next_seg_len(data, data_len))) {
-		mt7601u_rx_process_seg(dev, data, seg_len, e->p, paged);
+		mt7601u_rx_process_seg(dev, data, seg_len, new_p ? e->p : NULL);
 
 		data_len -= seg_len;
 		data += seg_len;
@@ -182,9 +154,9 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf_rx *e)
 	}
 
 	if (cnt > 1)
-		trace_mt_rx_dma_aggr(dev, cnt, paged);
+		trace_mt_rx_dma_aggr(dev, cnt, !!new_p);
 
-	if (paged) {
+	if (new_p) {
 		/* we have one extra ref from the allocator */
 		__free_pages(e->p, MT_RX_ORDER);
 

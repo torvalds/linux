@@ -222,6 +222,23 @@ void mwifiex_set_vht_params(struct mwifiex_private *priv,
 	return;
 }
 
+/* This function updates 11ac related parameters from IE
+ * and sets them into bss_config structure.
+ */
+void mwifiex_set_tpc_params(struct mwifiex_private *priv,
+			    struct mwifiex_uap_bss_param *bss_cfg,
+			    struct cfg80211_ap_settings *params)
+{
+	const u8 *tpc_ie;
+
+	tpc_ie = cfg80211_find_ie(WLAN_EID_TPC_REQUEST, params->beacon.tail,
+				  params->beacon.tail_len);
+	if (tpc_ie)
+		bss_cfg->power_constraint = *(tpc_ie + 2);
+	else
+		bss_cfg->power_constraint = 0;
+}
+
 /* Enable VHT only when cfg80211_ap_settings has VHT IE.
  * Otherwise disable VHT.
  */
@@ -466,6 +483,7 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	struct host_cmd_tlv_auth_type *auth_type;
 	struct host_cmd_tlv_rates *tlv_rates;
 	struct host_cmd_tlv_ageout_timer *ao_timer, *ps_ao_timer;
+	struct host_cmd_tlv_power_constraint *pwr_ct;
 	struct mwifiex_ie_types_htcap *htcap;
 	struct mwifiex_ie_types_wmmcap *wmm_cap;
 	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
@@ -644,6 +662,15 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 		tlv += sizeof(*ao_timer);
 	}
 
+	if (bss_cfg->power_constraint) {
+		pwr_ct = (void *)tlv;
+		pwr_ct->header.type = cpu_to_le16(TLV_TYPE_PWR_CONSTRAINT);
+		pwr_ct->header.len = cpu_to_le16(sizeof(u8));
+		pwr_ct->constraint = bss_cfg->power_constraint;
+		cmd_size += sizeof(*pwr_ct);
+		tlv += sizeof(*pwr_ct);
+	}
+
 	if (bss_cfg->ps_sta_ao_timer) {
 		ps_ao_timer = (struct host_cmd_tlv_ageout_timer *)tlv;
 		ps_ao_timer->header.type =
@@ -754,6 +781,8 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		break;
 	case HostCmd_CMD_UAP_BSS_START:
 	case HostCmd_CMD_UAP_BSS_STOP:
+	case HOST_CMD_APCMD_SYS_RESET:
+	case HOST_CMD_APCMD_STA_LIST:
 		cmd->command = cpu_to_le16(cmd_no);
 		cmd->size = cpu_to_le16(S_DS_GEN);
 		break;
@@ -775,10 +804,13 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	return 0;
 }
 
-void mwifiex_uap_set_channel(struct mwifiex_uap_bss_param *bss_cfg,
+void mwifiex_uap_set_channel(struct mwifiex_private *priv,
+			     struct mwifiex_uap_bss_param *bss_cfg,
 			     struct cfg80211_chan_def chandef)
 {
 	u8 config_bands = 0;
+
+	priv->bss_chandef = chandef;
 
 	bss_cfg->channel = ieee80211_frequency_to_channel(
 						     chandef.chan->center_freq);
@@ -800,19 +832,28 @@ void mwifiex_uap_set_channel(struct mwifiex_uap_bss_param *bss_cfg,
 		if (chandef.width > NL80211_CHAN_WIDTH_40)
 			config_bands |= BAND_AAC;
 	}
+
+	priv->adapter->config_bands = config_bands;
 }
 
 int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg)
 {
+	enum state_11d_t state_11d;
+
 	if (mwifiex_del_mgmt_ies(priv))
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "Failed to delete mgmt IEs!\n");
 
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
 			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
-		mwifiex_dbg(priv->adapter, ERROR,
-			    "Failed to stop the BSS\n");
+		mwifiex_dbg(priv->adapter, ERROR, "Failed to stop the BSS\n");
+		return -1;
+	}
+
+	if (mwifiex_send_cmd(priv, HOST_CMD_APCMD_SYS_RESET,
+			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
+		mwifiex_dbg(priv->adapter, ERROR, "Failed to reset BSS\n");
 		return -1;
 	}
 
@@ -821,6 +862,16 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     UAP_BSS_PARAMS_I, bss_cfg, false)) {
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "Failed to set the SSID\n");
+		return -1;
+	}
+
+	/* Send cmd to FW to enable 11D function */
+	state_11d = ENABLE_11D;
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			     HostCmd_ACT_GEN_SET, DOT11D_I,
+			     &state_11d, true)) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "11D: failed to enable 11D\n");
 		return -1;
 	}
 

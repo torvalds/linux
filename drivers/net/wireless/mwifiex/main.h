@@ -642,6 +642,7 @@ struct mwifiex_private {
 	u8 del_list_idx;
 	bool hs2_enabled;
 	struct mwifiex_uap_bss_param bss_cfg;
+	struct cfg80211_chan_def bss_chandef;
 	struct station_parameters *sta_params;
 	struct sk_buff_head tdls_txq;
 	u8 check_tdls_tx;
@@ -740,6 +741,18 @@ struct mwifiex_tdls_capab {
 	struct ieee80211_vht_operation vhtoper;
 };
 
+struct mwifiex_station_stats {
+	u64 last_rx;
+	s8 rssi;
+	u64 rx_bytes;
+	u64 tx_bytes;
+	u32 rx_packets;
+	u32 tx_packets;
+	u32 tx_failed;
+	u8 last_tx_rate;
+	u8 last_tx_htinfo;
+};
+
 /* This is AP/TDLS specific structure which stores information
  * about associated/peer STA
  */
@@ -754,6 +767,7 @@ struct mwifiex_sta_node {
 	u16 max_amsdu;
 	u8 tdls_status;
 	struct mwifiex_tdls_capab tdls_cap;
+	struct mwifiex_station_stats stats;
 };
 
 struct mwifiex_auto_tdls_peer {
@@ -959,6 +973,12 @@ struct mwifiex_adapter {
 	u32 num_in_chan_stats;
 	int survey_idx;
 	bool auto_tdls;
+	u8 coex_scan;
+	u8 coex_min_scan_time;
+	u8 coex_max_scan_time;
+	u8 coex_win_size;
+	u8 coex_tx_win_size;
+	u8 coex_rx_win_size;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1135,6 +1155,9 @@ void mwifiex_set_ht_params(struct mwifiex_private *priv,
 void mwifiex_set_vht_params(struct mwifiex_private *priv,
 			    struct mwifiex_uap_bss_param *bss_cfg,
 			    struct cfg80211_ap_settings *params);
+void mwifiex_set_tpc_params(struct mwifiex_private *priv,
+			    struct mwifiex_uap_bss_param *bss_cfg,
+			    struct cfg80211_ap_settings *params);
 void mwifiex_set_uap_rates(struct mwifiex_uap_bss_param *bss_cfg,
 			   struct cfg80211_ap_settings *params);
 void mwifiex_set_vht_width(struct mwifiex_private *priv,
@@ -1145,6 +1168,11 @@ mwifiex_set_wmm_params(struct mwifiex_private *priv,
 		       struct mwifiex_uap_bss_param *bss_cfg,
 		       struct cfg80211_ap_settings *params);
 void mwifiex_set_ba_params(struct mwifiex_private *priv);
+
+void mwifiex_update_ampdu_txwinsize(struct mwifiex_adapter *pmadapter);
+void mwifiex_bt_coex_wlan_param_update_event(struct mwifiex_private *priv,
+					     struct sk_buff *event_skb);
+
 void mwifiex_set_11ac_ba_params(struct mwifiex_private *priv);
 int mwifiex_cmd_802_11_scan_ext(struct mwifiex_private *priv,
 				struct host_cmd_ds_command *cmd,
@@ -1382,6 +1410,7 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 					struct mwifiex_bssdescriptor *bss_desc);
 
 u8 mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type);
+u8 mwifiex_sec_chan_offset_to_chan_type(u8 second_chan_offset);
 
 struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					      const char *name,
@@ -1399,7 +1428,8 @@ int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 			 struct cfg80211_beacon_data *data);
 int mwifiex_del_mgmt_ies(struct mwifiex_private *priv);
 u8 *mwifiex_11d_code_2_region(u8 code);
-void mwifiex_uap_set_channel(struct mwifiex_uap_bss_param *bss_cfg,
+void mwifiex_uap_set_channel(struct mwifiex_private *priv,
+			     struct mwifiex_uap_bss_param *bss_cfg,
 			     struct cfg80211_chan_def chandef);
 int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg);
@@ -1473,6 +1503,8 @@ mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 void mwifiex_dfs_cac_work_queue(struct work_struct *work);
 void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work);
 void mwifiex_abort_cac(struct mwifiex_private *priv);
+int mwifiex_stop_radar_detection(struct mwifiex_private *priv,
+				 struct cfg80211_chan_def *chandef);
 int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
 				      struct sk_buff *skb);
 
@@ -1488,7 +1520,8 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter);
 void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter);
 void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags);
 void mwifiex_queue_main_work(struct mwifiex_adapter *adapter);
-
+void mwifiex_coex_ampdu_rxwinsize(struct mwifiex_adapter *adapter);
+void mwifiex_11n_delba(struct mwifiex_private *priv, int tid);
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
 void mwifiex_debugfs_remove(void);

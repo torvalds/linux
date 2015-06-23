@@ -427,6 +427,9 @@ err:
 
 void mt7601u_cleanup(struct mt7601u_dev *dev)
 {
+	if (!test_and_clear_bit(MT7601U_STATE_INITIALIZED, &dev->state))
+		return;
+
 	mt7601u_stop_hardware(dev);
 	mt7601u_dma_cleanup(dev);
 	mt7601u_mcu_cmd_deinit(dev);
