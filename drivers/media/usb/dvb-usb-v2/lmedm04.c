@@ -262,7 +262,7 @@ static void lme2510_update_stats(struct dvb_usb_adapter *adap)
 	struct lme2510_state *st = adap_to_priv(adap);
 	struct dvb_frontend *fe = adap->fe[0];
 	struct dtv_frontend_properties *c;
-	u64 s_tmp = 0, c_tmp = 0;
+	u32 s_tmp = 0, c_tmp = 0;
 
 	if (!fe)
 		return;
@@ -309,11 +309,11 @@ static void lme2510_update_stats(struct dvb_usb_adapter *adap)
 
 	c->strength.len = 1;
 	c->strength.stat[0].scale = FE_SCALE_RELATIVE;
-	c->strength.stat[0].uvalue = s_tmp;
+	c->strength.stat[0].uvalue = (u64)s_tmp;
 
 	c->cnr.len = 1;
 	c->cnr.stat[0].scale = FE_SCALE_RELATIVE;
-	c->cnr.stat[0].uvalue = c_tmp;
+	c->cnr.stat[0].uvalue = (u64)c_tmp;
 }
 
 static void lme2510_int_response(struct urb *lme_urb)
