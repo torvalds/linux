@@ -451,9 +451,13 @@ nfs4_ff_layout_calc_completion_time(struct rpc_task *task)
 }
 
 static void
-nfs4_ff_layoutstat_start_io(struct nfs4_ff_layoutstat *layoutstat)
+nfs4_ff_layoutstat_start_io(struct nfs4_ff_layout_mirror *mirror,
+			    struct nfs4_ff_layoutstat *layoutstat)
 {
+	static const ktime_t notime = {0};
+
 	nfs4_ff_start_busy_timer(&layoutstat->busy_timer);
+	cmpxchg(&mirror->start_time, notime, ktime_get());
 }
 
 static void
@@ -491,7 +495,7 @@ nfs4_ff_layout_stat_io_start_read(struct nfs4_ff_layout_mirror *mirror,
 		__u64 requested)
 {
 	spin_lock(&mirror->lock);
-	nfs4_ff_layoutstat_start_io(&mirror->read_stat);
+	nfs4_ff_layoutstat_start_io(mirror, &mirror->read_stat);
 	nfs4_ff_layout_stat_io_update_requested(&mirror->read_stat, requested);
 	spin_unlock(&mirror->lock);
 }
@@ -514,7 +518,7 @@ nfs4_ff_layout_stat_io_start_write(struct nfs4_ff_layout_mirror *mirror,
 		__u64 requested)
 {
 	spin_lock(&mirror->lock);
-	nfs4_ff_layoutstat_start_io(&mirror->write_stat);
+	nfs4_ff_layoutstat_start_io(mirror, &mirror->write_stat);
 	nfs4_ff_layout_stat_io_update_requested(&mirror->write_stat, requested);
 	spin_unlock(&mirror->lock);
 }

@@ -74,6 +74,7 @@ struct nfs4_ff_layout_mirror {
 	spinlock_t			lock;
 	struct nfs4_ff_layoutstat	read_stat;
 	struct nfs4_ff_layoutstat	write_stat;
+	ktime_t				start_time;
 };
 
 struct nfs4_ff_layout_segment {
