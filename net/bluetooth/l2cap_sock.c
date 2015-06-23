@@ -1058,7 +1058,7 @@ static int __l2cap_wait_ack(struct sock *sk, struct l2cap_chan *chan)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int err = 0;
-	int timeo = HZ/5;
+	int timeo = L2CAP_WAIT_ACK_POLL_PERIOD;
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -1066,7 +1066,7 @@ static int __l2cap_wait_ack(struct sock *sk, struct l2cap_chan *chan)
 		BT_DBG("Waiting for %d ACKs", chan->unacked_frames);
 
 		if (!timeo)
-			timeo = HZ/5;
+			timeo = L2CAP_WAIT_ACK_POLL_PERIOD;
 
 		if (signal_pending(current)) {
 			err = sock_intr_errno(timeo);
