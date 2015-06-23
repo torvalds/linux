@@ -79,8 +79,7 @@ struct mlx4_en_flow_stats_tx {
 
 #define NUM_FLOW_STATS (NUM_FLOW_STATS_RX + NUM_FLOW_STATS_TX + \
 			NUM_FLOW_PRIORITY_STATS_TX + \
-			NUM_FLOW_PRIORITY_STATS_RX + \
-			NUM_PF_STATS)
+			NUM_FLOW_PRIORITY_STATS_RX)
 
 struct mlx4_en_stat_out_flow_control_mbox {
 	/* Total number of PAUSE frames received from the far-end port */
@@ -108,7 +107,7 @@ enum {
 };
 
 #define NUM_ALL_STATS	(NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PKT_STATS + \
-			 NUM_FLOW_STATS + NUM_PERF_STATS)
+			 NUM_FLOW_STATS + NUM_PERF_STATS + NUM_PF_STATS)
 
 #define MLX4_FIND_NETDEV_STAT(n) (offsetof(struct net_device_stats, n) / \
 				  sizeof(((struct net_device_stats *)0)->n))
