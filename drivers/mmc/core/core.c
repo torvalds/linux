@@ -403,9 +403,13 @@ static void mmc_get_req_timeout(struct mmc_request *mrq, u32 *timeout)
 		    (mrq->cmd->opcode == MMC_ERASE_GROUP_START) ||
 		    (mrq->cmd->opcode == MMC_ERASE_GROUP_END) ||
 		    (mrq->cmd->opcode == MMC_SEND_STATUS))
-			*timeout = 2500000;
+			((mrq->cmd->opcode == MMC_ERASE) &&
+			 ((mrq->cmd->arg == MMC_DISCARD_ARG) ||
+			 (mrq->cmd->arg == MMC_TRIM_ARG))) ?
+			 (*timeout = 10000) : (*timeout = 25000);
 		else
 			*timeout = 500;
+
 	} else {
 		*timeout = mrq->cmd->data->blocks *
 			mrq->cmd->data->blksz * 500;
