@@ -726,7 +726,7 @@ read-only attributes:
 
     	"label" ... provided for diagnostics (not always unique)
 
-    	"ngpio" ... how many GPIOs this manges (N to N + ngpio - 1)
+    	"ngpio" ... how many GPIOs this manages (N to N + ngpio - 1)
 
 Board documentation should in most cases cover what GPIOs are used for
 what purposes.  However, those numbers are not always stable; GPIOs on
@@ -769,7 +769,7 @@ use this to provide the interface under their own device in sysfs with
 a descriptive name.
 
 Drivers can use gpio_sysfs_set_active_low() to hide GPIO line polarity
-differences between boards from user space.  This only affects the
+differences between boards from userspace.  This only affects the
 sysfs interface.  Polarity change can be done both before and after
 gpio_export(), and previously enabled poll(2) support for either
 rising or falling edge will be reconfigured to follow this setting.

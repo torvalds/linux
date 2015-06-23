@@ -150,6 +150,6 @@ use this to provide the interface under their own device in sysfs with
 a descriptive name.
 
 Drivers can use gpiod_sysfs_set_active_low() to hide GPIO line polarity
-differences between boards from user space. Polarity change can be done both
+differences between boards from userspace. Polarity change can be done both
 before and after gpiod_export(), and previously enabled poll(2) support for
 either rising or falling edge will be reconfigured to follow this setting.
