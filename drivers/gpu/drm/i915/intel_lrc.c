@@ -1260,6 +1260,12 @@ static int intel_init_workaround_bb(struct intel_engine_cs *ring)
 
 	WARN_ON(ring->id != RCS);
 
+	/* update this when WA for higher Gen are added */
+	if (WARN(INTEL_INFO(ring->dev)->gen > 8,
+		 "WA batch buffer is not initialized for Gen%d\n",
+		 INTEL_INFO(ring->dev)->gen))
+		return 0;
+
 	/* some WA perform writes to scratch page, ensure it is valid */
 	if (ring->scratch.obj == NULL) {
 		DRM_ERROR("scratch page not allocated for %s\n", ring->name);
@@ -1290,11 +1296,6 @@ static int intel_init_workaround_bb(struct intel_engine_cs *ring)
 					  &offset);
 		if (ret)
 			goto out;
-	} else {
-		WARN(INTEL_INFO(ring->dev)->gen >= 8,
-		     "WA batch buffer is not initialized for Gen%d\n",
-		     INTEL_INFO(ring->dev)->gen);
-		lrc_destroy_wa_ctx_obj(ring);
 	}
 
 out:
