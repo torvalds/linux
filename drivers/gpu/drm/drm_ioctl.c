@@ -350,9 +350,6 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		file_priv->universal_planes = req->value;
 		break;
 	case DRM_CLIENT_CAP_ATOMIC:
-		/* for now, hide behind experimental drm.atomic moduleparam */
-		if (!drm_atomic)
-			return -EINVAL;
 		if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
 			return -EINVAL;
 		if (req->value > 1)
