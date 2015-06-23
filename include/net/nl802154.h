@@ -102,6 +102,8 @@ enum nl802154_attrs {
 
 	NL802154_ATTR_WPAN_PHY_CAPS,
 
+	NL802154_ATTR_SUPPORTED_COMMANDS,
+
 	/* add attributes here, update the policy in nl802154.c */
 
 	__NL802154_ATTR_AFTER_LAST,
@@ -185,7 +187,7 @@ enum nl802154_wpan_phy_capability_attr {
  * @NL802154_CCA_ENERGY_CARRIER: Carrier sense with energy above threshold
  * @NL802154_CCA_ALOHA: CCA shall always report an idle medium
  * @NL802154_CCA_UWB_SHR: UWB preamble sense based on the SHR of a frame
- * @NL802154_CCA_UWB_MULTIPEXED: UWB preamble sense based on the packet with
+ * @NL802154_CCA_UWB_MULTIPLEXED: UWB preamble sense based on the packet with
  *	the multiplexed preamble
  * @__NL802154_CCA_ATTR_AFTER_LAST: Internal
  * @NL802154_CCA_ATTR_MAX: Maximum CCA attribute number
@@ -197,7 +199,7 @@ enum nl802154_cca_modes {
 	NL802154_CCA_ENERGY_CARRIER,
 	NL802154_CCA_ALOHA,
 	NL802154_CCA_UWB_SHR,
-	NL802154_CCA_UWB_MULTIPEXED,
+	NL802154_CCA_UWB_MULTIPLEXED,
 
 	/* keep last */
 	__NL802154_CCA_ATTR_AFTER_LAST,

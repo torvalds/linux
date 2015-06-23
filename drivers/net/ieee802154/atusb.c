@@ -58,17 +58,6 @@ struct atusb {
 	uint8_t tx_ack_seq;		/* current TX ACK sequence number */
 };
 
-/* at86rf230.h defines values as <reg, mask, shift> tuples. We use the more
- * traditional style of having registers and or-able values. SR_REG extracts
- * the register number. SR_VALUE uses the shift to prepare a value accordingly.
- */
-
-#define __SR_REG(reg, mask, shift)	(reg)
-#define SR_REG(sr)			__SR_REG(sr)
-
-#define __SR_VALUE(reg, mask, shift, val)	((val) << (shift))
-#define SR_VALUE(sr, val)			__SR_VALUE(sr, (val))
-
 /* ----- USB commands without data ----------------------------------------- */
 
 /* To reduce the number of error checks in the code, we record the first error
@@ -128,6 +117,30 @@ static int atusb_read_reg(struct atusb *atusb, uint8_t reg)
 				ATUSB_REG_READ, ATUSB_REQ_FROM_DEV,
 				0, reg, &value, 1, 1000);
 	return ret >= 0 ? value : ret;
+}
+
+static int atusb_write_subreg(struct atusb *atusb, uint8_t reg, uint8_t mask,
+			      uint8_t shift, uint8_t value)
+{
+	struct usb_device *usb_dev = atusb->usb_dev;
+	uint8_t orig, tmp;
+	int ret = 0;
+
+	dev_dbg(&usb_dev->dev, "atusb_write_subreg: 0x%02x <- 0x%02x\n",
+		reg, value);
+
+	orig = atusb_read_reg(atusb, reg);
+
+	/* Write the value only into that part of the register which is allowed
+	 * by the mask. All other bits stay as before.
+	 */
+	tmp = orig & ~mask;
+	tmp |= (value << shift) & mask;
+
+	if (tmp != orig)
+		ret = atusb_write_reg(atusb, reg, tmp);
+
+	return ret;
 }
 
 static int atusb_get_and_clear_error(struct atusb *atusb)
@@ -376,7 +389,6 @@ static int atusb_set_hw_addr_filt(struct ieee802154_hw *hw,
 {
 	struct atusb *atusb = hw->priv;
 	struct device *dev = &atusb->usb_dev->dev;
-	uint8_t reg;
 
 	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		u16 addr = le16_to_cpu(filt->short_addr);
@@ -406,12 +418,10 @@ static int atusb_set_hw_addr_filt(struct ieee802154_hw *hw,
 	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
 		dev_vdbg(dev,
 			 "atusb_set_hw_addr_filt called for panc change\n");
-		reg = atusb_read_reg(atusb, SR_REG(SR_AACK_I_AM_COORD));
 		if (filt->pan_coord)
-			reg |= SR_VALUE(SR_AACK_I_AM_COORD, 1);
+			atusb_write_subreg(atusb, SR_AACK_I_AM_COORD, 1);
 		else
-			reg &= ~SR_VALUE(SR_AACK_I_AM_COORD, 1);
-		atusb_write_reg(atusb, SR_REG(SR_AACK_I_AM_COORD), reg);
+			atusb_write_subreg(atusb, SR_AACK_I_AM_COORD, 0);
 	}
 
 	return atusb_get_and_clear_error(atusb);
@@ -443,6 +453,53 @@ static void atusb_stop(struct ieee802154_hw *hw)
 	atusb_get_and_clear_error(atusb);
 }
 
+#define ATUSB_MAX_TX_POWERS 0xF
+static const s32 atusb_powers[ATUSB_MAX_TX_POWERS + 1] = {
+	300, 280, 230, 180, 130, 70, 0, -100, -200, -300, -400, -500, -700,
+	-900, -1200, -1700,
+};
+
+static int
+atusb_set_txpower(struct ieee802154_hw *hw, s32 mbm)
+{
+	struct atusb *atusb = hw->priv;
+	u32 i;
+
+	for (i = 0; i < hw->phy->supported.tx_powers_size; i++) {
+		if (hw->phy->supported.tx_powers[i] == mbm)
+			return atusb_write_subreg(atusb, SR_TX_PWR_23X, i);
+	}
+
+	return -EINVAL;
+}
+
+static int
+atusb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
+{
+	struct atusb *atusb = hw->priv;
+	int ret;
+
+	if (on) {
+		ret = atusb_write_subreg(atusb, SR_AACK_DIS_ACK, 1);
+		if (ret < 0)
+			return ret;
+
+		ret = atusb_write_subreg(atusb, SR_AACK_PROM_MODE, 1);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = atusb_write_subreg(atusb, SR_AACK_PROM_MODE, 0);
+		if (ret < 0)
+			return ret;
+
+		ret = atusb_write_subreg(atusb, SR_AACK_DIS_ACK, 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static struct ieee802154_ops atusb_ops = {
 	.owner			= THIS_MODULE,
 	.xmit_async		= atusb_xmit,
@@ -451,6 +508,8 @@ static struct ieee802154_ops atusb_ops = {
 	.start			= atusb_start,
 	.stop			= atusb_stop,
 	.set_hw_addr_filt	= atusb_set_hw_addr_filt,
+	.set_txpower		= atusb_set_txpower,
+	.set_promiscuous_mode	= atusb_set_promiscuous_mode,
 };
 
 /* ----- Firmware and chip version information ----------------------------- */
@@ -569,11 +628,16 @@ static int atusb_probe(struct usb_interface *interface,
 
 	hw->parent = &usb_dev->dev;
 	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
-		    IEEE802154_HW_AACK;
+		    IEEE802154_HW_PROMISCUOUS;
+
+	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER;
 
 	hw->phy->current_page = 0;
 	hw->phy->current_channel = 11;	/* reset default */
 	hw->phy->supported.channels[0] = 0x7FFF800;
+	hw->phy->supported.tx_powers = atusb_powers;
+	hw->phy->supported.tx_powers_size = ARRAY_SIZE(atusb_powers);
+	hw->phy->transmit_power = hw->phy->supported.tx_powers[0];
 	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
 
 	atusb_command(atusb, ATUSB_RF_RESET, 0);
@@ -622,8 +686,7 @@ static int atusb_probe(struct usb_interface *interface,
 	 *     http://www.jennic.com/download_file.php?supportFile=JN-AN-1035%20Calculating%20802-15-4%20Data%20Rates-1v0.pdf
 	 */
 
-	atusb_write_reg(atusb,
-			SR_REG(SR_RX_SAFE_MODE), SR_VALUE(SR_RX_SAFE_MODE, 1));
+	atusb_write_subreg(atusb, SR_RX_SAFE_MODE, 1);
 #endif
 	atusb_write_reg(atusb, RG_IRQ_MASK, 0xff);
 

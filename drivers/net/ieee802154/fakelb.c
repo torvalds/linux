@@ -41,6 +41,8 @@ struct fakelb_phy {
 	u8 page;
 	u8 channel;
 
+	bool suspended;
+
 	struct list_head list;
 	struct list_head list_ifup;
 };
@@ -69,6 +71,7 @@ static int fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	struct fakelb_phy *current_phy = hw->priv, *phy;
 
 	read_lock_bh(&fakelb_ifup_phys_lock);
+	WARN_ON(current_phy->suspended);
 	list_for_each_entry(phy, &fakelb_ifup_phys, list_ifup) {
 		if (current_phy == phy)
 			continue;
@@ -92,6 +95,7 @@ static int fakelb_hw_start(struct ieee802154_hw *hw)
 	struct fakelb_phy *phy = hw->priv;
 
 	write_lock_bh(&fakelb_ifup_phys_lock);
+	phy->suspended = false;
 	list_add(&phy->list_ifup, &fakelb_ifup_phys);
 	write_unlock_bh(&fakelb_ifup_phys_lock);
 
@@ -103,6 +107,7 @@ static void fakelb_hw_stop(struct ieee802154_hw *hw)
 	struct fakelb_phy *phy = hw->priv;
 
 	write_lock_bh(&fakelb_ifup_phys_lock);
+	phy->suspended = true;
 	list_del(&phy->list_ifup);
 	write_unlock_bh(&fakelb_ifup_phys_lock);
 }

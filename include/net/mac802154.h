@@ -31,79 +31,117 @@
  */
 #define MAC802154_FRAME_HARD_HEADER_LEN		(2 + 1 + 20 + 14)
 
-/* The following flags are used to indicate changed address settings from
+/**
+ * enum ieee802154_hw_addr_filt_flags - hardware address filtering flags
+ *
+ * The following flags are used to indicate changed address settings from
  * the stack to the hardware.
+ *
+ * @IEEE802154_AFILT_SADDR_CHANGED: Indicates that the short address will be
+ *	change.
+ *
+ * @IEEE802154_AFILT_IEEEADDR_CHANGED: Indicates that the extended address
+ *	will be change.
+ *
+ * @IEEE802154_AFILT_PANID_CHANGED: Indicates that the pan id will be change.
+ *
+ * @IEEE802154_AFILT_PANC_CHANGED: Indicates that the address filter will
+ *	do frame address filtering as a pan coordinator.
  */
+enum ieee802154_hw_addr_filt_flags {
+	IEEE802154_AFILT_SADDR_CHANGED		= BIT(0),
+	IEEE802154_AFILT_IEEEADDR_CHANGED	= BIT(1),
+	IEEE802154_AFILT_PANID_CHANGED		= BIT(2),
+	IEEE802154_AFILT_PANC_CHANGED		= BIT(3),
+};
 
-/* indicates that the Short Address changed */
-#define IEEE802154_AFILT_SADDR_CHANGED		0x00000001
-/* indicates that the IEEE Address changed */
-#define IEEE802154_AFILT_IEEEADDR_CHANGED	0x00000002
-/* indicates that the PAN ID changed */
-#define IEEE802154_AFILT_PANID_CHANGED		0x00000004
-/* indicates that PAN Coordinator status changed */
-#define IEEE802154_AFILT_PANC_CHANGED		0x00000008
-
+/**
+ * struct ieee802154_hw_addr_filt - hardware address filtering settings
+ *
+ * @pan_id: pan_id which should be set to the hardware address filter.
+ *
+ * @short_addr: short_addr which should be set to the hardware address filter.
+ *
+ * @ieee_addr: extended address which should be set to the hardware address
+ *	filter.
+ *
+ * @pan_coord: boolean if hardware filtering should be operate as coordinator.
+ */
 struct ieee802154_hw_addr_filt {
-	__le16	pan_id;		/* Each independent PAN selects a unique
-				 * identifier. This PAN id allows communication
-				 * between devices within a network using short
-				 * addresses and enables transmissions between
-				 * devices across independent networks.
-				 */
+	__le16	pan_id;
 	__le16	short_addr;
 	__le64	ieee_addr;
-	u8	pan_coord;
+	bool	pan_coord;
 };
 
-struct ieee802154_vif {
-	int type;
-
-	/* must be last */
-	u8 drv_priv[0] __aligned(sizeof(void *));
-};
-
+/**
+ * struct ieee802154_hw - ieee802154 hardware
+ *
+ * @extra_tx_headroom: headroom to reserve in each transmit skb for use by the
+ *	driver (e.g. for transmit headers.)
+ *
+ * @flags: hardware flags, see &enum ieee802154_hw_flags
+ *
+ * @parent: parent device of the hardware.
+ *
+ * @priv: pointer to private area that was allocated for driver use along with
+ *	this structure.
+ *
+ * @phy: This points to the &struct wpan_phy allocated for this 802.15.4 PHY.
+ */
 struct ieee802154_hw {
 	/* filled by the driver */
 	int	extra_tx_headroom;
 	u32	flags;
 	struct	device *parent;
+	void	*priv;
 
 	/* filled by mac802154 core */
-	struct	ieee802154_hw_addr_filt hw_filt;
-	void	*priv;
 	struct	wpan_phy *phy;
-	size_t vif_data_size;
 };
 
-/* Checksum is in hardware and is omitted from a packet
+/**
+ * enum ieee802154_hw_flags - hardware flags
  *
- * These following flags are used to indicate hardware capabilities to
+ * These flags are used to indicate hardware capabilities to
  * the stack. Generally, flags here should have their meaning
  * done in a way that the simplest hardware doesn't need setting
  * any particular flags. There are some exceptions to this rule,
  * however, so you are advised to review these flags carefully.
+ *
+ * @IEEE802154_HW_TX_OMIT_CKSUM: Indicates that xmitter will add FCS on it's
+ *	own.
+ *
+ * @IEEE802154_HW_LBT: Indicates that transceiver will support listen before
+ *	transmit.
+ *
+ * @IEEE802154_HW_CSMA_PARAMS: Indicates that transceiver will support csma
+ *	parameters (max_be, min_be, backoff exponents).
+ *
+ * @IEEE802154_HW_FRAME_RETRIES: Indicates that transceiver will support ARET
+ *	frame retries setting.
+ *
+ * @IEEE802154_HW_AFILT: Indicates that transceiver will support hardware
+ *	address filter setting.
+ *
+ * @IEEE802154_HW_PROMISCUOUS: Indicates that transceiver will support
+ *	promiscuous mode setting.
+ *
+ * @IEEE802154_HW_RX_OMIT_CKSUM: Indicates that receiver omits FCS.
+ *
+ * @IEEE802154_HW_RX_DROP_BAD_CKSUM: Indicates that receiver will not filter
+ *	frames with bad checksum.
  */
-
-/* Indicates that xmitter will add FCS on it's own. */
-#define IEEE802154_HW_TX_OMIT_CKSUM	0x00000001
-/* Indicates that receiver will autorespond with ACK frames. */
-#define IEEE802154_HW_AACK		0x00000002
-/* Indicates that transceiver will support listen before transmit. */
-#define IEEE802154_HW_LBT		0x00000004
-/* Indicates that transceiver will support csma (max_be, min_be, csma retries)
- * settings. */
-#define IEEE802154_HW_CSMA_PARAMS	0x00000008
-/* Indicates that transceiver will support ARET frame retries setting. */
-#define IEEE802154_HW_FRAME_RETRIES	0x00000010
-/* Indicates that transceiver will support hardware address filter setting. */
-#define IEEE802154_HW_AFILT		0x00000020
-/* Indicates that transceiver will support promiscuous mode setting. */
-#define IEEE802154_HW_PROMISCUOUS	0x00000040
-/* Indicates that receiver omits FCS. */
-#define IEEE802154_HW_RX_OMIT_CKSUM	0x00000080
-/* Indicates that receiver will not filter frames with bad checksum. */
-#define IEEE802154_HW_RX_DROP_BAD_CKSUM	0x00000100
+enum ieee802154_hw_flags {
+	IEEE802154_HW_TX_OMIT_CKSUM	= BIT(0),
+	IEEE802154_HW_LBT		= BIT(1),
+	IEEE802154_HW_CSMA_PARAMS	= BIT(2),
+	IEEE802154_HW_FRAME_RETRIES	= BIT(3),
+	IEEE802154_HW_AFILT		= BIT(4),
+	IEEE802154_HW_PROMISCUOUS	= BIT(5),
+	IEEE802154_HW_RX_OMIT_CKSUM	= BIT(6),
+	IEEE802154_HW_RX_DROP_BAD_CKSUM	= BIT(7),
+};
 
 /* Indicates that receiver omits FCS and xmitter will add FCS on it's own. */
 #define IEEE802154_HW_OMIT_CKSUM	(IEEE802154_HW_TX_OMIT_CKSUM | \

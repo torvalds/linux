@@ -202,8 +202,10 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 	}
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->vif.type != NL802154_IFTYPE_NODE ||
-		    !netif_running(sdata->dev))
+		if (sdata->wpan_dev.iftype != NL802154_IFTYPE_NODE)
+			continue;
+
+		if (!ieee802154_sdata_running(sdata))
 			continue;
 
 		ieee802154_subif_frame(sdata, skb, &hdr);
@@ -227,7 +229,7 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	skb->protocol = htons(ETH_P_IEEE802154);
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->vif.type != NL802154_IFTYPE_MONITOR)
+		if (sdata->wpan_dev.iftype != NL802154_IFTYPE_MONITOR)
 			continue;
 
 		if (!ieee802154_sdata_running(sdata))

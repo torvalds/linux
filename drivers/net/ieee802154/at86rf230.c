@@ -47,6 +47,8 @@ struct at86rf2xx_chip_data {
 	u16 t_reset_to_off;
 	u16 t_off_to_aack;
 	u16 t_off_to_tx_on;
+	u16 t_off_to_sleep;
+	u16 t_sleep_to_off;
 	u16 t_frame;
 	u16 t_p_ack;
 	int rssi_base_val;
@@ -88,6 +90,7 @@ struct at86rf230_local {
 	struct at86rf2xx_chip_data *data;
 	struct regmap *regmap;
 	int slp_tr;
+	bool sleep;
 
 	struct completion state_complete;
 	struct at86rf230_state_change state;
@@ -112,18 +115,66 @@ at86rf230_async_state_change(struct at86rf230_local *lp,
 			     const u8 state, void (*complete)(void *context),
 			     const bool irq_enable);
 
+static inline void
+at86rf230_sleep(struct at86rf230_local *lp)
+{
+	if (gpio_is_valid(lp->slp_tr)) {
+		gpio_set_value(lp->slp_tr, 1);
+		usleep_range(lp->data->t_off_to_sleep,
+			     lp->data->t_off_to_sleep + 10);
+		lp->sleep = true;
+	}
+}
+
+static inline void
+at86rf230_awake(struct at86rf230_local *lp)
+{
+	if (gpio_is_valid(lp->slp_tr)) {
+		gpio_set_value(lp->slp_tr, 0);
+		usleep_range(lp->data->t_sleep_to_off,
+			     lp->data->t_sleep_to_off + 100);
+		lp->sleep = false;
+	}
+}
+
 static inline int
 __at86rf230_write(struct at86rf230_local *lp,
 		  unsigned int addr, unsigned int data)
 {
-	return regmap_write(lp->regmap, addr, data);
+	bool sleep = lp->sleep;
+	int ret;
+
+	/* awake for register setting if sleep */
+	if (sleep)
+		at86rf230_awake(lp);
+
+	ret = regmap_write(lp->regmap, addr, data);
+
+	/* sleep again if was sleeping */
+	if (sleep)
+		at86rf230_sleep(lp);
+
+	return ret;
 }
 
 static inline int
 __at86rf230_read(struct at86rf230_local *lp,
 		 unsigned int addr, unsigned int *data)
 {
-	return regmap_read(lp->regmap, addr, data);
+	bool sleep = lp->sleep;
+	int ret;
+
+	/* awake for register setting if sleep */
+	if (sleep)
+		at86rf230_awake(lp);
+
+	ret = regmap_read(lp->regmap, addr, data);
+
+	/* sleep again if was sleeping */
+	if (sleep)
+		at86rf230_sleep(lp);
+
+	return ret;
 }
 
 static inline int
@@ -145,7 +196,20 @@ at86rf230_write_subreg(struct at86rf230_local *lp,
 		       unsigned int addr, unsigned int mask,
 		       unsigned int shift, unsigned int data)
 {
-	return regmap_update_bits(lp->regmap, addr, mask, data << shift);
+	bool sleep = lp->sleep;
+	int ret;
+
+	/* awake for register setting if sleep */
+	if (sleep)
+		at86rf230_awake(lp);
+
+	ret = regmap_update_bits(lp->regmap, addr, mask, data << shift);
+
+	/* sleep again if was sleeping */
+	if (sleep)
+		at86rf230_sleep(lp);
+
+	return ret;
 }
 
 static inline void
@@ -869,13 +933,34 @@ at86rf230_ed(struct ieee802154_hw *hw, u8 *level)
 static int
 at86rf230_start(struct ieee802154_hw *hw)
 {
-	return at86rf230_sync_state_change(hw->priv, STATE_RX_AACK_ON);
+	struct at86rf230_local *lp = hw->priv;
+
+	at86rf230_awake(lp);
+	enable_irq(lp->spi->irq);
+
+	return at86rf230_sync_state_change(lp, STATE_RX_AACK_ON);
 }
 
 static void
 at86rf230_stop(struct ieee802154_hw *hw)
 {
-	at86rf230_sync_state_change(hw->priv, STATE_FORCE_TRX_OFF);
+	struct at86rf230_local *lp = hw->priv;
+	u8 csma_seed[2];
+
+	at86rf230_sync_state_change(lp, STATE_FORCE_TRX_OFF);
+
+	disable_irq(lp->spi->irq);
+
+	/* It's recommended to set random new csma_seeds before sleep state.
+	 * Makes only sense in the stop callback, not doing this inside of
+	 * at86rf230_sleep, this is also used when we don't transmit afterwards
+	 * when calling start callback again.
+	 */
+	get_random_bytes(csma_seed, ARRAY_SIZE(csma_seed));
+	at86rf230_write_subreg(lp, SR_CSMA_SEED_0, csma_seed[0]);
+	at86rf230_write_subreg(lp, SR_CSMA_SEED_1, csma_seed[1]);
+
+	at86rf230_sleep(lp);
 }
 
 static int
@@ -1241,6 +1326,8 @@ static struct at86rf2xx_chip_data at86rf233_data = {
 	.t_reset_to_off = 26,
 	.t_off_to_aack = 80,
 	.t_off_to_tx_on = 80,
+	.t_off_to_sleep = 35,
+	.t_sleep_to_off = 210,
 	.t_frame = 4096,
 	.t_p_ack = 545,
 	.rssi_base_val = -91,
@@ -1254,6 +1341,8 @@ static struct at86rf2xx_chip_data at86rf231_data = {
 	.t_reset_to_off = 37,
 	.t_off_to_aack = 110,
 	.t_off_to_tx_on = 110,
+	.t_off_to_sleep = 35,
+	.t_sleep_to_off = 380,
 	.t_frame = 4096,
 	.t_p_ack = 545,
 	.rssi_base_val = -91,
@@ -1267,6 +1356,8 @@ static struct at86rf2xx_chip_data at86rf212_data = {
 	.t_reset_to_off = 26,
 	.t_off_to_aack = 200,
 	.t_off_to_tx_on = 200,
+	.t_off_to_sleep = 35,
+	.t_sleep_to_off = 380,
 	.t_frame = 4096,
 	.t_p_ack = 545,
 	.rssi_base_val = -100,
@@ -1443,7 +1534,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		return -EINVAL;
 	}
 
-	lp->hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AACK |
+	lp->hw->flags = IEEE802154_HW_TX_OMIT_CKSUM |
 			IEEE802154_HW_CSMA_PARAMS |
 			IEEE802154_HW_FRAME_RETRIES | IEEE802154_HW_AFILT |
 			IEEE802154_HW_PROMISCUOUS;
@@ -1602,7 +1693,6 @@ static int at86rf230_probe(struct spi_device *spi)
 	lp->spi = spi;
 	lp->slp_tr = slp_tr;
 	hw->parent = &spi->dev;
-	hw->vif_data_size = sizeof(*lp);
 	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
 
 	lp->regmap = devm_regmap_init_spi(spi, &at86rf230_regmap_spi_config);
@@ -1634,12 +1724,18 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	irq_type = irq_get_trigger_type(spi->irq);
 	if (!irq_type)
-		irq_type = IRQF_TRIGGER_RISING;
+		irq_type = IRQF_TRIGGER_HIGH;
 
 	rc = devm_request_irq(&spi->dev, spi->irq, at86rf230_isr,
 			      IRQF_SHARED | irq_type, dev_name(&spi->dev), lp);
 	if (rc)
 		goto free_dev;
+
+	/* disable_irq by default and wait for starting hardware */
+	disable_irq(spi->irq);
+
+	/* going into sleep by default */
+	at86rf230_sleep(lp);
 
 	rc = ieee802154_register_hw(lp->hw);
 	if (rc)
