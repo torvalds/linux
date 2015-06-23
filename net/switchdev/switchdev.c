@@ -532,7 +532,7 @@ int switchdev_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	int err;
 
 	err = switchdev_port_attr_get(dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		return err;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode,
