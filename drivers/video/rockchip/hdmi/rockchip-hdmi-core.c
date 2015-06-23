@@ -235,8 +235,7 @@ static void hdmi_wq_insert(struct hdmi *hdmi)
 		#endif
 		hdmi_wq_set_audio(hdmi);
 		hdmi_wq_set_output(hdmi, hdmi->mute);
-		if (hdmi->ops->hdcp_cb)
-			hdmi->ops->hdcp_cb(hdmi);
+		hdmi_submit_work(hdmi, HDMI_ENABLE_HDCP, 100, NULL);
 		if (hdmi->ops->setcec)
 			hdmi->ops->setcec(hdmi);
 	}
@@ -408,6 +407,11 @@ static void hdmi_work_queue(struct work_struct *work)
 	case HDMI_ENABLE_HDCP:
 		if (hdmi->hotplug == HDMI_HPD_ACTIVED && hdmi->ops->hdcp_cb)
 			hdmi->ops->hdcp_cb(hdmi);
+		break;
+	case HDMI_HDCP_AUTH_2ND:
+		if (hdmi->hotplug == HDMI_HPD_ACTIVED &&
+		    hdmi->ops->hdcp_auth2nd)
+			hdmi->ops->hdcp_auth2nd(hdmi);
 		break;
 	default:
 		pr_err("HDMI: hdmi_work_queue() unkown event\n");
