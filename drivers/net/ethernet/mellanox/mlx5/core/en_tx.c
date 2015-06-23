@@ -288,6 +288,8 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq)
 		if (!cqe)
 			break;
 
+		mlx5_cqwq_pop(&cq->wq);
+
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
 		do {

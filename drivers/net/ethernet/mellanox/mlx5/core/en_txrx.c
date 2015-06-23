@@ -43,8 +43,6 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq)
 	if (cqe_ownership_bit != sw_ownership_val)
 		return NULL;
 
-	mlx5_cqwq_pop(wq);
-
 	/* ensure cqe content is read after cqe ownership bit */
 	rmb();
 
