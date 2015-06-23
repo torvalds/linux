@@ -201,7 +201,9 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->vf_id = mbx.nic_cfg.vf_id & 0x7F;
 		nic->tns_mode = mbx.nic_cfg.tns_mode & 0x7F;
 		nic->node = mbx.nic_cfg.node_id;
-		ether_addr_copy(nic->netdev->dev_addr, mbx.nic_cfg.mac_addr);
+		if (!nic->set_mac_pending)
+			ether_addr_copy(nic->netdev->dev_addr,
+					mbx.nic_cfg.mac_addr);
 		nic->link_up = false;
 		nic->duplex = 0;
 		nic->speed = 0;
@@ -941,6 +943,11 @@ int nicvf_open(struct net_device *netdev)
 		nicvf_hw_set_mac_addr(nic, netdev);
 	}
 
+	if (nic->set_mac_pending) {
+		nic->set_mac_pending = false;
+		nicvf_hw_set_mac_addr(nic, netdev);
+	}
+
 	/* Init tasklet for handling Qset err interrupt */
 	tasklet_init(&nic->qs_err_task, nicvf_handle_qs_err,
 		     (unsigned long)nic);
@@ -1040,9 +1047,12 @@ static int nicvf_set_mac_address(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
-	if (nic->msix_enabled)
+	if (nic->msix_enabled) {
 		if (nicvf_hw_set_mac_addr(nic, netdev))
 			return -EBUSY;
+	} else {
+		nic->set_mac_pending = true;
+	}
 
 	return 0;
 }

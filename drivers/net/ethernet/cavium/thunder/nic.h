@@ -263,6 +263,7 @@ struct nicvf {
 	bool			pf_acked;
 	bool			pf_nacked;
 	bool			bgx_stats_acked;
+	bool			set_mac_pending;
 } ____cacheline_aligned_in_smp;
 
 /* PF <--> VF Mailbox communication
