@@ -163,5 +163,11 @@ int __must_check drm_atomic_async_commit(struct drm_atomic_state *state);
 	     (plane_state) = (state)->plane_states[__i], 1);		\
 	     (__i)++)							\
 		if (plane_state)
+static inline bool
+drm_atomic_crtc_needs_modeset(struct drm_crtc_state *state)
+{
+	return state->mode_changed || state->active_changed;
+}
+
 
 #endif /* DRM_ATOMIC_H_ */

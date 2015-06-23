@@ -1216,8 +1216,7 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 
 	if (!state->allow_modeset) {
 		for_each_crtc_in_state(state, crtc, crtc_state, i) {
-			if (crtc_state->mode_changed ||
-			    crtc_state->active_changed) {
+			if (drm_atomic_crtc_needs_modeset(crtc_state)) {
 				DRM_DEBUG_ATOMIC("[CRTC:%d] requires full modeset\n",
 						 crtc->base.id);
 				return -EINVAL;
