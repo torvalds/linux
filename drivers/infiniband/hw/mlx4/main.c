@@ -132,14 +132,35 @@ static int num_ib_ports(struct mlx4_dev *dev)
 }
 
 static int mlx4_ib_query_device(struct ib_device *ibdev,
-				struct ib_device_attr *props)
+				struct ib_device_attr *props,
+				struct ib_udata *uhw)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
 	int err = -ENOMEM;
 	int have_ib_ports;
+	struct mlx4_uverbs_ex_query_device cmd;
+	struct mlx4_uverbs_ex_query_device_resp resp = {.comp_mask = 0};
+	struct mlx4_clock_params clock_params;
 
+	if (uhw->inlen) {
+		if (uhw->inlen < sizeof(cmd))
+			return -EINVAL;
+
+		err = ib_copy_from_udata(&cmd, uhw, sizeof(cmd));
+		if (err)
+			return err;
+
+		if (cmd.comp_mask)
+			return -EINVAL;
+
+		if (cmd.reserved)
+			return -EINVAL;
+	}
+
+	resp.response_length = offsetof(typeof(resp), response_length) +
+		sizeof(resp.response_length);
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
 	if (!in_mad || !out_mad)
@@ -229,7 +250,24 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
 	props->max_map_per_fmr = dev->dev->caps.max_fmr_maps;
+	props->hca_core_clock = dev->dev->caps.hca_core_clock * 1000UL;
+	props->timestamp_mask = 0xFFFFFFFFFFFFULL;
 
+	err = mlx4_get_internal_clock_params(dev->dev, &clock_params);
+	if (err)
+		goto out;
+
+	if (uhw->outlen >= resp.response_length + sizeof(resp.hca_core_clock_offset)) {
+		resp.hca_core_clock_offset = clock_params.offset % PAGE_SIZE;
+		resp.response_length += sizeof(resp.hca_core_clock_offset);
+		resp.comp_mask |= QUERY_DEVICE_RESP_MASK_TIMESTAMP;
+	}
+
+	if (uhw->outlen) {
+		err = ib_copy_to_udata(uhw, &resp, resp.response_length);
+		if (err)
+			goto out;
+	}
 out:
 	kfree(in_mad);
 	kfree(out_mad);
@@ -712,8 +750,24 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 				       dev->dev->caps.num_uars,
 				       PAGE_SIZE, vma->vm_page_prot))
 			return -EAGAIN;
-	} else
+	} else if (vma->vm_pgoff == 3) {
+		struct mlx4_clock_params params;
+		int ret = mlx4_get_internal_clock_params(dev->dev, &params);
+
+		if (ret)
+			return ret;
+
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		if (io_remap_pfn_range(vma, vma->vm_start,
+				       (pci_resource_start(dev->dev->persist->pdev,
+							   params.bar) +
+					params.offset)
+				       >> PAGE_SHIFT,
+				       PAGE_SIZE, vma->vm_page_prot))
+			return -EAGAIN;
+	} else {
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -758,6 +812,7 @@ static struct ib_xrcd *mlx4_ib_alloc_xrcd(struct ib_device *ibdev,
 					  struct ib_udata *udata)
 {
 	struct mlx4_ib_xrcd *xrcd;
+	struct ib_cq_init_attr cq_attr = {};
 	int err;
 
 	if (!(to_mdev(ibdev)->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC))
@@ -777,7 +832,8 @@ static struct ib_xrcd *mlx4_ib_alloc_xrcd(struct ib_device *ibdev,
 		goto err2;
 	}
 
-	xrcd->cq = ib_create_cq(ibdev, NULL, NULL, xrcd, 1, 0);
+	cq_attr.cqe = 1;
+	xrcd->cq = ib_create_cq(ibdev, NULL, NULL, xrcd, &cq_attr);
 	if (IS_ERR(xrcd->cq)) {
 		err = PTR_ERR(xrcd->cq);
 		goto err3;
@@ -1185,7 +1241,6 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 					    &mflow->reg_id[i].id);
 		if (err)
 			goto err_create_flow;
-		i++;
 		if (is_bonded) {
 			/* Application always sees one port so the mirror rule
 			 * must be on port #2
@@ -1200,6 +1255,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 			j++;
 		}
 
+		i++;
 	}
 
 	if (i < ARRAY_SIZE(type) && flow_attr->type == IB_FLOW_ATTR_NORMAL) {
@@ -1207,7 +1263,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 					       &mflow->reg_id[i].id);
 		if (err)
 			goto err_create_flow;
-		i++;
+
 		if (is_bonded) {
 			flow_attr->port = 2;
 			err = mlx4_ib_tunnel_steer_add(qp, flow_attr,
@@ -1218,6 +1274,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 			j++;
 		}
 		/* function to create mirror rule */
+		i++;
 	}
 
 	return &mflow->ibflow;
@@ -2114,6 +2171,29 @@ static void mlx4_ib_free_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	kfree(ibdev->eq_table);
 }
 
+static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = mlx4_ib_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+
+	if (mlx4_ib_port_link_layer(ibdev, port_num) == IB_LINK_LAYER_INFINIBAND)
+		immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+	else
+		immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+
+	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
+	return 0;
+}
+
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	struct mlx4_ib_dev *ibdev;
@@ -2241,6 +2321,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.attach_mcast	= mlx4_ib_mcg_attach;
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
+	ibdev->ib_dev.get_port_immutable = mlx4_port_immutable;
 
 	if (!mlx4_is_slave(ibdev->dev)) {
 		ibdev->ib_dev.alloc_fmr		= mlx4_ib_fmr_alloc;
@@ -2277,6 +2358,10 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			(1ull << IB_USER_VERBS_EX_CMD_CREATE_FLOW) |
 			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_FLOW);
 	}
+
+	ibdev->ib_dev.uverbs_ex_cmd_mask |=
+		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE) |
+		(1ull << IB_USER_VERBS_EX_CMD_CREATE_CQ);
 
 	mlx4_ib_alloc_eqs(dev, ibdev);
 

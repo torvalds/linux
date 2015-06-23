@@ -956,7 +956,7 @@ static inline void rds_poll_cq(struct rds_ib_connection *ic,
 	while (ib_poll_cq(ic->i_recv_cq, 1, &wc) > 0) {
 		rdsdebug("wc wr_id 0x%llx status %u (%s) byte_len %u imm_data %u\n",
 			 (unsigned long long)wc.wr_id, wc.status,
-			 rds_ib_wc_status_str(wc.status), wc.byte_len,
+			 ib_wc_status_msg(wc.status), wc.byte_len,
 			 be32_to_cpu(wc.ex.imm_data));
 		rds_ib_stats_inc(s_ib_rx_cq_event);
 
@@ -978,7 +978,7 @@ static inline void rds_poll_cq(struct rds_ib_connection *ic,
 						  "status %u (%s), disconnecting and "
 						  "reconnecting\n", &conn->c_faddr,
 						  wc.status,
-						  rds_ib_wc_status_str(wc.status));
+						  ib_wc_status_msg(wc.status));
 		}
 
 		/*

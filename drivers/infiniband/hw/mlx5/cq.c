@@ -736,10 +736,13 @@ static void destroy_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq)
 	mlx5_db_free(dev->mdev, &cq->db);
 }
 
-struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev, int entries,
-				int vector, struct ib_ucontext *context,
+struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
+				const struct ib_cq_init_attr *attr,
+				struct ib_ucontext *context,
 				struct ib_udata *udata)
 {
+	int entries = attr->cqe;
+	int vector = attr->comp_vector;
 	struct mlx5_create_cq_mbox_in *cqb = NULL;
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_ib_cq *cq;
@@ -749,6 +752,9 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev, int entries,
 	int irqn;
 	int eqn;
 	int err;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	if (entries < 0)
 		return ERR_PTR(-EINVAL);
