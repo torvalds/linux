@@ -854,7 +854,7 @@ int rockchip_hdmiv1_removed(struct hdmi *hdmi_drv)
 {
 	dev_info(hdmi_drv->dev, "Removed.\n");
 	if (hdmi_drv->ops->hdcp_power_off_cb)
-		hdmi_drv->ops->hdcp_power_off_cb();
+		hdmi_drv->ops->hdcp_power_off_cb(hdmi_drv);
 
 	rockchip_hdmiv1_control_output(hdmi_drv, -1);
 	rockchip_hdmiv1_set_pwr_mode(hdmi_drv, LOWER_PWR);

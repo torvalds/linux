@@ -620,7 +620,7 @@ static int hdcp_power_on_cb(void)
  * Function: hdcp_power_off_cb
  *-----------------------------------------------------------------------------
  */
-static void hdcp_power_off_cb(void)
+static void hdcp_power_off_cb(struct hdmi *hdmi)
 {
 	unsigned int time;
 
