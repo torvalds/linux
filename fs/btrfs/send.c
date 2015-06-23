@@ -3236,7 +3236,7 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 			/* already deleted */
 			goto finish;
 		}
-		ret = can_rmdir(sctx, rmdir_ino, odi->gen, sctx->cur_ino + 1);
+		ret = can_rmdir(sctx, rmdir_ino, odi->gen, sctx->cur_ino);
 		if (ret < 0)
 			goto out;
 		if (!ret)
