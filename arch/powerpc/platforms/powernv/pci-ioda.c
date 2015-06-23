@@ -701,7 +701,7 @@ static int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 		parent = parent->bus->self;
 	}
 
-	opal_pci_eeh_freeze_set(phb->opal_id, pe->pe_number,
+	opal_pci_eeh_freeze_clear(phb->opal_id, pe->pe_number,
 				  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 
 	/* Disassociate PE in PELT */
