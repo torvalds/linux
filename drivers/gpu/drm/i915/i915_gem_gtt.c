@@ -2899,9 +2899,10 @@ size_t
 i915_ggtt_view_size(struct drm_i915_gem_object *obj,
 		    const struct i915_ggtt_view *view)
 {
-	if (view->type == I915_GGTT_VIEW_NORMAL ||
-	    view->type == I915_GGTT_VIEW_ROTATED) {
+	if (view->type == I915_GGTT_VIEW_NORMAL) {
 		return obj->base.size;
+	} else if (view->type == I915_GGTT_VIEW_ROTATED) {
+		return view->rotation_info.size;
 	} else if (view->type == I915_GGTT_VIEW_PARTIAL) {
 		return view->params.partial.size << PAGE_SHIFT;
 	} else {
