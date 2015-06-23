@@ -960,7 +960,7 @@ void ci_hdrc_otg_fsm_remove(struct ci_hdrc *ci)
 	ci->enabled_otg_timer_bits = 0;
 
 	/* Turn off vbus if vbus is on */
-	if (ci->fsm.a_vbus_vld)
+	if (ci->fsm.drv_vbus)
 		otg_drv_vbus(&ci->fsm, 0);
 
 	sysfs_remove_group(&ci->dev->kobj, &inputs_attr_group);
