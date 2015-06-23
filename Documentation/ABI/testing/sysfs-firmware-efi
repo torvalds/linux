@@ -18,3 +18,13 @@ Contact:	Dave Young <dyoung@redhat.com>
 Description:	It shows the physical address of config table entry in the EFI
 		system table.
 Users:		Kexec
+
+What:		/sys/firmware/efi/systab
+Date:		April 2005
+Contact:	linux-efi@vger.kernel.org
+Description:	Displays the physical addresses of all EFI Configuration
+		Tables found via the EFI System Table. The order in
+		which the tables are printed forms an ABI and newer
+		versions are always printed first, i.e. ACPI20 comes
+		before ACPI.
+Users:		dmidecode
