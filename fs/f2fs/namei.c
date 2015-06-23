@@ -78,9 +78,9 @@ out:
 fail:
 	trace_f2fs_new_inode(inode, err);
 	make_bad_inode(inode);
-	iput(inode);
 	if (nid_free)
-		alloc_nid_failed(sbi, ino);
+		set_inode_flag(F2FS_I(inode), FI_FREE_NID);
+	iput(inode);
 	return ERR_PTR(err);
 }
 

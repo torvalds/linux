@@ -314,7 +314,8 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 void f2fs_evict_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	nid_t xnid = F2FS_I(inode)->i_xattr_nid;
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	nid_t xnid = fi->i_xattr_nid;
 
 	/* some remained atomic pages should discarded */
 	if (f2fs_is_atomic_file(inode))
@@ -334,7 +335,7 @@ void f2fs_evict_inode(struct inode *inode)
 		goto no_delete;
 
 	sb_start_intwrite(inode->i_sb);
-	set_inode_flag(F2FS_I(inode), FI_NO_ALLOC);
+	set_inode_flag(fi, FI_NO_ALLOC);
 	i_size_write(inode, 0);
 
 	if (F2FS_HAS_BLOCKS(inode))
@@ -357,14 +358,18 @@ no_delete:
 	invalidate_mapping_pages(NODE_MAPPING(sbi), inode->i_ino, inode->i_ino);
 	if (xnid)
 		invalidate_mapping_pages(NODE_MAPPING(sbi), xnid, xnid);
-	if (is_inode_flag_set(F2FS_I(inode), FI_APPEND_WRITE))
+	if (is_inode_flag_set(fi, FI_APPEND_WRITE))
 		add_dirty_inode(sbi, inode->i_ino, APPEND_INO);
-	if (is_inode_flag_set(F2FS_I(inode), FI_UPDATE_WRITE))
+	if (is_inode_flag_set(fi, FI_UPDATE_WRITE))
 		add_dirty_inode(sbi, inode->i_ino, UPDATE_INO);
+	if (is_inode_flag_set(fi, FI_FREE_NID)) {
+		alloc_nid_failed(sbi, inode->i_ino);
+		clear_inode_flag(fi, FI_FREE_NID);
+	}
 out_clear:
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
-	if (F2FS_I(inode)->i_crypt_info)
-		f2fs_free_encryption_info(inode, F2FS_I(inode)->i_crypt_info);
+	if (fi->i_crypt_info)
+		f2fs_free_encryption_info(inode, fi->i_crypt_info);
 #endif
 	clear_inode(inode);
 }
@@ -384,9 +389,9 @@ void handle_failed_inode(struct inode *inode)
 
 	remove_inode_page(inode);
 
+	set_inode_flag(F2FS_I(inode), FI_FREE_NID);
 	clear_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
 	clear_inode_flag(F2FS_I(inode), FI_INLINE_DENTRY);
-	alloc_nid_failed(sbi, inode->i_ino);
 	f2fs_unlock_op(sbi);
 
 	/* iput will drop the inode object */
