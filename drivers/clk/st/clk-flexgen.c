@@ -303,6 +303,8 @@ void __init st_of_flexgen_setup(struct device_node *np)
 	if (!rlock)
 		goto err;
 
+	spin_lock_init(rlock);
+
 	for (i = 0; i < clk_data->clk_num; i++) {
 		struct clk *clk;
 		const char *clk_name;
