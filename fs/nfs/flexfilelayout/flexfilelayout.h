@@ -48,8 +48,6 @@ struct nfs4_ff_layout_mirror {
 	u32				fh_versions_cnt;
 	struct nfs_fh			*fh_versions;
 	nfs4_stateid			stateid;
-	struct nfs4_string		user_name;
-	struct nfs4_string		group_name;
 	u32				uid;
 	u32				gid;
 	struct rpc_cred			*cred;
