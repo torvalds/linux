@@ -20,6 +20,7 @@
 #include "../nfs4trace.h"
 #include "../iostat.h"
 #include "../nfs.h"
+#include "../nfs42.h"
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
 
@@ -1659,6 +1660,75 @@ out:
 	dprintk("%s: Return\n", __func__);
 }
 
+static bool
+ff_layout_mirror_prepare_stats(struct nfs42_layoutstat_args *args,
+			       struct pnfs_layout_segment *pls,
+			       int *dev_count, int dev_limit)
+{
+	struct nfs4_ff_layout_mirror *mirror;
+	struct nfs4_deviceid_node *dev;
+	struct nfs42_layoutstat_devinfo *devinfo;
+	int i;
+
+	for (i = 0; i <= FF_LAYOUT_MIRROR_COUNT(pls); i++) {
+		if (*dev_count >= dev_limit)
+			break;
+		mirror = FF_LAYOUT_COMP(pls, i);
+		dev = FF_LAYOUT_DEVID_NODE(pls, i);
+		devinfo = &args->devinfo[*dev_count];
+		memcpy(&devinfo->dev_id, &dev->deviceid, NFS4_DEVICEID4_SIZE);
+		devinfo->offset = pls->pls_range.offset;
+		devinfo->length = pls->pls_range.length;
+		/* well, we don't really know if IO is continuous or not! */
+		devinfo->read_count = mirror->read_stat.io_stat.bytes_completed;
+		devinfo->read_bytes = mirror->read_stat.io_stat.bytes_completed;
+		devinfo->write_count = mirror->write_stat.io_stat.bytes_completed;
+		devinfo->write_bytes = mirror->write_stat.io_stat.bytes_completed;
+		devinfo->layout_type = LAYOUT_FLEX_FILES;
+		devinfo->layoutstats_encode = NULL;
+		devinfo->layout_private = NULL;
+
+		++(*dev_count);
+	}
+
+	return *dev_count < dev_limit;
+}
+
+static int
+ff_layout_prepare_layoutstats(struct nfs42_layoutstat_args *args)
+{
+	struct pnfs_layout_segment *pls;
+	int dev_count = 0;
+
+	spin_lock(&args->inode->i_lock);
+	list_for_each_entry(pls, &NFS_I(args->inode)->layout->plh_segs, pls_list) {
+		dev_count += FF_LAYOUT_MIRROR_COUNT(pls);
+	}
+	spin_unlock(&args->inode->i_lock);
+	/* For now, send at most PNFS_LAYOUTSTATS_MAXDEV statistics */
+	if (dev_count > PNFS_LAYOUTSTATS_MAXDEV) {
+		dprintk("%s: truncating devinfo to limit (%d:%d)\n",
+			__func__, dev_count, PNFS_LAYOUTSTATS_MAXDEV);
+		dev_count = PNFS_LAYOUTSTATS_MAXDEV;
+	}
+	args->devinfo = kmalloc(dev_count * sizeof(*args->devinfo), GFP_KERNEL);
+	if (!args->devinfo)
+		return -ENOMEM;
+
+	dev_count = 0;
+	spin_lock(&args->inode->i_lock);
+	list_for_each_entry(pls, &NFS_I(args->inode)->layout->plh_segs, pls_list) {
+		if (!ff_layout_mirror_prepare_stats(args, pls, &dev_count,
+						    PNFS_LAYOUTSTATS_MAXDEV)) {
+			break;
+		}
+	}
+	spin_unlock(&args->inode->i_lock);
+	args->num_dev = dev_count;
+
+	return 0;
+}
+
 static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.id			= LAYOUT_FLEX_FILES,
 	.name			= "LAYOUT_FLEX_FILES",
@@ -1681,6 +1751,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.alloc_deviceid_node    = ff_layout_alloc_deviceid_node,
 	.encode_layoutreturn    = ff_layout_encode_layoutreturn,
 	.sync			= pnfs_nfs_generic_sync,
+	.prepare_layoutstats	= ff_layout_prepare_layoutstats,
 };
 
 static int __init nfs4flexfilelayout_init(void)
