@@ -1046,7 +1046,7 @@ static void update_backups(struct super_block *sb, int blk_off, char *data,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	ext4_group_t last;
 	const int bpg = EXT4_BLOCKS_PER_GROUP(sb);
-	unsigned three = 1;
+	unsigned three = 3;
 	unsigned five = 5;
 	unsigned seven = 7;
 	ext4_group_t group = 0;
