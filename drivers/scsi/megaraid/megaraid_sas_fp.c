@@ -66,7 +66,15 @@ MODULE_PARM_DESC(lb_pending_cmds, "Change raid-1 load balancing outstanding "
 
 #define ABS_DIFF(a, b)   (((a) > (b)) ? ((a) - (b)) : ((b) - (a)))
 #define MR_LD_STATE_OPTIMAL 3
+
+#ifdef FALSE
+#undef FALSE
+#endif
 #define FALSE 0
+
+#ifdef TRUE
+#undef TRUE
+#endif
 #define TRUE 1
 
 #define SPAN_DEBUG 0

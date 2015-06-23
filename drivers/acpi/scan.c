@@ -11,6 +11,7 @@
 #include <linux/kthread.h>
 #include <linux/dmi.h>
 #include <linux/nls.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/pgtable.h>
 
@@ -135,12 +136,13 @@ static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
 	struct acpi_hardware_id *id;
 
 	/*
-	 * Since we skip PRP0001 from the modalias below, 0 should be returned
-	 * if PRP0001 is the only ACPI/PNP ID in the device's list.
+	 * Since we skip ACPI_DT_NAMESPACE_HID from the modalias below, 0 should
+	 * be returned if ACPI_DT_NAMESPACE_HID is the only ACPI/PNP ID in the
+	 * device's list.
 	 */
 	count = 0;
 	list_for_each_entry(id, &acpi_dev->pnp.ids, list)
-		if (strcmp(id->id, "PRP0001"))
+		if (strcmp(id->id, ACPI_DT_NAMESPACE_HID))
 			count++;
 
 	if (!count)
@@ -153,7 +155,7 @@ static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
 	size -= len;
 
 	list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
-		if (!strcmp(id->id, "PRP0001"))
+		if (!strcmp(id->id, ACPI_DT_NAMESPACE_HID))
 			continue;
 
 		count = snprintf(&modalias[len], size, "%s:", id->id);
@@ -177,7 +179,8 @@ static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
  * @size: Size of the buffer.
  *
  * Expose DT compatible modalias as of:NnameTCcompatible.  This function should
- * only be called for devices having PRP0001 in their list of ACPI/PNP IDs.
+ * only be called for devices having ACPI_DT_NAMESPACE_HID in their list of
+ * ACPI/PNP IDs.
  */
 static int create_of_modalias(struct acpi_device *acpi_dev, char *modalias,
 			      int size)
@@ -980,9 +983,9 @@ static void acpi_device_remove_files(struct acpi_device *dev)
  * @adev: ACPI device object to match.
  * @of_match_table: List of device IDs to match against.
  *
- * If @dev has an ACPI companion which has the special PRP0001 device ID in its
- * list of identifiers and a _DSD object with the "compatible" property, use
- * that property to match against the given list of identifiers.
+ * If @dev has an ACPI companion which has ACPI_DT_NAMESPACE_HID in its list of
+ * identifiers and a _DSD object with the "compatible" property, use that
+ * property to match against the given list of identifiers.
  */
 static bool acpi_of_match_device(struct acpi_device *adev,
 				 const struct of_device_id *of_match_table)
@@ -1038,14 +1041,14 @@ static const struct acpi_device_id *__acpi_match_device(
 				return id;
 
 		/*
-		 * Next, check the special "PRP0001" ID and try to match the
+		 * Next, check ACPI_DT_NAMESPACE_HID and try to match the
 		 * "compatible" property if found.
 		 *
 		 * The id returned by the below is not valid, but the only
 		 * caller passing non-NULL of_ids here is only interested in
 		 * whether or not the return value is NULL.
 		 */
-		if (!strcmp("PRP0001", hwid->id)
+		if (!strcmp(ACPI_DT_NAMESPACE_HID, hwid->id)
 		    && acpi_of_match_device(device, of_ids))
 			return id;
 	}
@@ -1671,7 +1674,7 @@ static int acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 
 static void acpi_wakeup_gpe_init(struct acpi_device *device)
 {
-	struct acpi_device_id button_device_ids[] = {
+	static const struct acpi_device_id button_device_ids[] = {
 		{"PNP0C0C", 0},
 		{"PNP0C0D", 0},
 		{"PNP0C0E", 0},
@@ -1766,15 +1769,9 @@ static void acpi_bus_init_power_state(struct acpi_device *device, int state)
 	if (acpi_has_method(device->handle, pathname))
 		ps->flags.explicit_set = 1;
 
-	/*
-	 * State is valid if there are means to put the device into it.
-	 * D3hot is only valid if _PR3 present.
-	 */
-	if (!list_empty(&ps->resources)
-	    || (ps->flags.explicit_set && state < ACPI_STATE_D3_HOT)) {
+	/* State is valid if there are means to put the device into it. */
+	if (!list_empty(&ps->resources) || ps->flags.explicit_set)
 		ps->flags.valid = 1;
-		ps->flags.os_accessible = 1;
-	}
 
 	ps->power = -1;		/* Unknown - driver assigned */
 	ps->latency = -1;	/* Unknown - driver assigned */
@@ -1810,21 +1807,13 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 		acpi_bus_init_power_state(device, i);
 
 	INIT_LIST_HEAD(&device->power.states[ACPI_STATE_D3_COLD].resources);
+	if (!list_empty(&device->power.states[ACPI_STATE_D3_HOT].resources))
+		device->power.states[ACPI_STATE_D3_COLD].flags.valid = 1;
 
-	/* Set defaults for D0 and D3 states (always valid) */
+	/* Set defaults for D0 and D3hot states (always valid) */
 	device->power.states[ACPI_STATE_D0].flags.valid = 1;
 	device->power.states[ACPI_STATE_D0].power = 100;
-	device->power.states[ACPI_STATE_D3_COLD].flags.valid = 1;
-	device->power.states[ACPI_STATE_D3_COLD].power = 0;
-
-	/* Set D3cold's explicit_set flag if _PS3 exists. */
-	if (device->power.states[ACPI_STATE_D3_HOT].flags.explicit_set)
-		device->power.states[ACPI_STATE_D3_COLD].flags.explicit_set = 1;
-
-	/* Presence of _PS3 or _PRx means we can put the device into D3 cold */
-	if (device->power.states[ACPI_STATE_D3_HOT].flags.explicit_set ||
-			device->power.flags.power_resources)
-		device->power.states[ACPI_STATE_D3_COLD].flags.os_accessible = 1;
+	device->power.states[ACPI_STATE_D3_HOT].flags.valid = 1;
 
 	if (acpi_bus_init_power(device))
 		device->flags.power_manageable = 0;
@@ -1946,6 +1935,62 @@ bool acpi_dock_match(acpi_handle handle)
 {
 	return acpi_has_method(handle, "_DCK");
 }
+
+static acpi_status
+acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
+			  void **return_value)
+{
+	long *cap = context;
+
+	if (acpi_has_method(handle, "_BCM") &&
+	    acpi_has_method(handle, "_BCL")) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found generic backlight "
+				  "support\n"));
+		*cap |= ACPI_VIDEO_BACKLIGHT;
+		if (!acpi_has_method(handle, "_BQC"))
+			printk(KERN_WARNING FW_BUG PREFIX "No _BQC method, "
+				"cannot determine initial brightness\n");
+		/* We have backlight support, no need to scan further */
+		return AE_CTRL_TERMINATE;
+	}
+	return 0;
+}
+
+/* Returns true if the ACPI object is a video device which can be
+ * handled by video.ko.
+ * The device will get a Linux specific CID added in scan.c to
+ * identify the device as an ACPI graphics device
+ * Be aware that the graphics device may not be physically present
+ * Use acpi_video_get_capabilities() to detect general ACPI video
+ * capabilities of present cards
+ */
+long acpi_is_video_device(acpi_handle handle)
+{
+	long video_caps = 0;
+
+	/* Is this device able to support video switching ? */
+	if (acpi_has_method(handle, "_DOD") || acpi_has_method(handle, "_DOS"))
+		video_caps |= ACPI_VIDEO_OUTPUT_SWITCHING;
+
+	/* Is this device able to retrieve a video ROM ? */
+	if (acpi_has_method(handle, "_ROM"))
+		video_caps |= ACPI_VIDEO_ROM_AVAILABLE;
+
+	/* Is this device able to configure which video head to be POSTed ? */
+	if (acpi_has_method(handle, "_VPO") &&
+	    acpi_has_method(handle, "_GPD") &&
+	    acpi_has_method(handle, "_SPD"))
+		video_caps |= ACPI_VIDEO_DEVICE_POSTING;
+
+	/* Only check for backlight functionality if one of the above hit. */
+	if (video_caps)
+		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
+				    ACPI_UINT32_MAX, acpi_backlight_cap_match, NULL,
+				    &video_caps, NULL);
+
+	return video_caps;
+}
+EXPORT_SYMBOL(acpi_is_video_device);
 
 const char *acpi_device_hid(struct acpi_device *device)
 {
@@ -2109,6 +2154,39 @@ void acpi_free_pnp_ids(struct acpi_device_pnp *pnp)
 	kfree(pnp->unique_id);
 }
 
+static void acpi_init_coherency(struct acpi_device *adev)
+{
+	unsigned long long cca = 0;
+	acpi_status status;
+	struct acpi_device *parent = adev->parent;
+
+	if (parent && parent->flags.cca_seen) {
+		/*
+		 * From ACPI spec, OSPM will ignore _CCA if an ancestor
+		 * already saw one.
+		 */
+		adev->flags.cca_seen = 1;
+		cca = parent->flags.coherent_dma;
+	} else {
+		status = acpi_evaluate_integer(adev->handle, "_CCA",
+					       NULL, &cca);
+		if (ACPI_SUCCESS(status))
+			adev->flags.cca_seen = 1;
+		else if (!IS_ENABLED(CONFIG_ACPI_CCA_REQUIRED))
+			/*
+			 * If architecture does not specify that _CCA is
+			 * required for DMA-able devices (e.g. x86),
+			 * we default to _CCA=1.
+			 */
+			cca = 1;
+		else
+			acpi_handle_debug(adev->handle,
+					  "ACPI device is missing _CCA.\n");
+	}
+
+	adev->flags.coherent_dma = cca;
+}
+
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta)
 {
@@ -2127,6 +2205,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->flags.visited = false;
 	device_initialize(&device->dev);
 	dev_set_uevent_suppress(&device->dev, true);
+	acpi_init_coherency(device);
 }
 
 void acpi_device_add_finalize(struct acpi_device *device)
@@ -2405,7 +2484,7 @@ static void acpi_default_enumeration(struct acpi_device *device)
 }
 
 static const struct acpi_device_id generic_device_ids[] = {
-	{"PRP0001", },
+	{ACPI_DT_NAMESPACE_HID, },
 	{"", },
 };
 
@@ -2413,8 +2492,8 @@ static int acpi_generic_device_attach(struct acpi_device *adev,
 				      const struct acpi_device_id *not_used)
 {
 	/*
-	 * Since PRP0001 is the only ID handled here, the test below can be
-	 * unconditional.
+	 * Since ACPI_DT_NAMESPACE_HID is the only ID handled here, the test
+	 * below can be unconditional.
 	 */
 	if (adev->data.of_compatible)
 		acpi_default_enumeration(adev);

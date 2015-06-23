@@ -158,6 +158,16 @@ typedef u32 phys_cpuid_t;
 #define PHYS_CPUID_INVALID (phys_cpuid_t)(-1)
 #endif
 
+static inline bool invalid_logical_cpuid(u32 cpuid)
+{
+	return (int)cpuid < 0;
+}
+
+static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
+{
+	return phys_id == PHYS_CPUID_INVALID;
+}
+
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
 int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
@@ -243,50 +253,12 @@ extern bool wmi_has_guid(const char *guid);
 #define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VENDOR		0x0400
 #define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VIDEO		0x0800
 
-#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
-
-extern long acpi_video_get_capabilities(acpi_handle graphics_dev_handle);
+extern char acpi_video_backlight_string[];
 extern long acpi_is_video_device(acpi_handle handle);
-extern void acpi_video_dmi_promote_vendor(void);
-extern void acpi_video_dmi_demote_vendor(void);
-extern int acpi_video_backlight_support(void);
-extern int acpi_video_display_switch_support(void);
-
-#else
-
-static inline long acpi_video_get_capabilities(acpi_handle graphics_dev_handle)
-{
-	return 0;
-}
-
-static inline long acpi_is_video_device(acpi_handle handle)
-{
-	return 0;
-}
-
-static inline void acpi_video_dmi_promote_vendor(void)
-{
-}
-
-static inline void acpi_video_dmi_demote_vendor(void)
-{
-}
-
-static inline int acpi_video_backlight_support(void)
-{
-	return 0;
-}
-
-static inline int acpi_video_display_switch_support(void)
-{
-	return 0;
-}
-
-#endif /* defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE) */
-
 extern int acpi_blacklisted(void);
 extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
 extern void acpi_osi_setup(char *str);
+extern bool acpi_osi_is_win8(void);
 
 #ifdef CONFIG_ACPI_NUMA
 int acpi_get_node(acpi_handle handle);
@@ -331,6 +303,9 @@ int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
 
 int acpi_resources_are_enforced(void);
+
+int acpi_reserve_region(u64 start, unsigned int length, u8 space_id,
+			unsigned long flags, char *desc);
 
 #ifdef CONFIG_HIBERNATION
 void __init acpi_no_s4_hw_signature(void);
@@ -440,6 +415,7 @@ extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 #define ACPI_OST_SC_INSERT_NOT_SUPPORTED	0x82
 
 extern void acpi_early_init(void);
+extern void acpi_subsystem_init(void);
 
 extern int acpi_nvs_register(__u64 start, __u64 size);
 
@@ -494,6 +470,7 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 }
 
 static inline void acpi_early_init(void) { }
+static inline void acpi_subsystem_init(void) { }
 
 static inline int early_acpi_boot_init(void)
 {
@@ -523,6 +500,13 @@ static inline int acpi_check_region(resource_size_t start, resource_size_t n,
 				    const char *name)
 {
 	return 0;
+}
+
+static inline int acpi_reserve_region(u64 start, unsigned int length,
+				      u8 space_id, unsigned long flags,
+				      char *desc)
+{
+	return -ENXIO;
 }
 
 struct acpi_table_header;
@@ -567,6 +551,11 @@ static inline int acpi_device_modalias(struct device *dev,
 				char *buf, int size)
 {
 	return -ENODEV;
+}
+
+static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
+{
+	return false;
 }
 
 #define ACPI_PTR(_ptr)	(NULL)
