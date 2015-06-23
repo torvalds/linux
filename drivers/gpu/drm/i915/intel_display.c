@@ -4352,7 +4352,7 @@ int skl_update_scaler_crtc(struct intel_crtc_state *state, int force_detach)
 	return skl_update_scaler(state, force_detach, SKL_CRTC_INDEX,
 		&state->scaler_state.scaler_id, DRM_ROTATE_0,
 		state->pipe_src_w, state->pipe_src_h,
-		adjusted_mode->hdisplay, adjusted_mode->hdisplay);
+		adjusted_mode->hdisplay, adjusted_mode->vdisplay);
 }
 
 /**
