@@ -294,7 +294,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq)
 		if (unlikely(!skb)) { /* nop */
 			sq->stats.nop++;
 			sqcc++;
-			goto free_skb;
+			continue;
 		}
 
 		for (j = 0; j < MLX5E_TX_SKB_CB(skb)->num_dma; j++) {
@@ -309,8 +309,6 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq)
 		npkts++;
 		nbytes += MLX5E_TX_SKB_CB(skb)->num_bytes;
 		sqcc += MLX5E_TX_SKB_CB(skb)->num_wqebbs;
-
-free_skb:
 		dev_kfree_skb(skb);
 	}
 
