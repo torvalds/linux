@@ -581,11 +581,12 @@ int security_inode_readlink(struct dentry *dentry)
 	return security_ops->inode_readlink(dentry);
 }
 
-int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd)
+int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
+			       bool rcu)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
-	return security_ops->inode_follow_link(dentry, nd);
+	return security_ops->inode_follow_link(dentry, inode, rcu);
 }
 
 int security_inode_permission(struct inode *inode, int mask)

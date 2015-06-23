@@ -59,10 +59,10 @@ load_microcode_early(struct microcode_intel **saved,
 		ucode_ptr = saved[i];
 		mc_hdr	  = (struct microcode_header_intel *)ucode_ptr;
 
-		ret = get_matching_microcode(uci->cpu_sig.sig,
-					     uci->cpu_sig.pf,
-					     new_rev,
-					     ucode_ptr);
+		ret = has_newer_microcode(ucode_ptr,
+					  uci->cpu_sig.sig,
+					  uci->cpu_sig.pf,
+					  new_rev);
 		if (!ret)
 			continue;
 
@@ -246,7 +246,7 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
 			     u8 *ucode_ptr, unsigned int num_saved)
 {
 	struct microcode_header_intel *mc_hdr, *mc_saved_hdr;
-	unsigned int sig, pf, new_rev;
+	unsigned int sig, pf;
 	int found = 0, i;
 
 	mc_hdr = (struct microcode_header_intel *)ucode_ptr;
@@ -255,14 +255,13 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
 		mc_saved_hdr = (struct microcode_header_intel *)mc_saved[i];
 		sig	     = mc_saved_hdr->sig;
 		pf	     = mc_saved_hdr->pf;
-		new_rev	     = mc_hdr->rev;
 
-		if (!get_matching_sig(sig, pf, new_rev, ucode_ptr))
+		if (!find_matching_signature(ucode_ptr, sig, pf))
 			continue;
 
 		found = 1;
 
-		if (!revision_is_newer(mc_hdr, new_rev))
+		if (mc_hdr->rev <= mc_saved_hdr->rev)
 			continue;
 
 		/*
@@ -522,6 +521,27 @@ out:
 EXPORT_SYMBOL_GPL(save_mc_for_early);
 #endif
 
+static bool __init load_builtin_intel_microcode(struct cpio_data *cp)
+{
+#ifdef CONFIG_X86_64
+	unsigned int eax = 0x00000001, ebx, ecx = 0, edx;
+	unsigned int family, model, stepping;
+	char name[30];
+
+	native_cpuid(&eax, &ebx, &ecx, &edx);
+
+	family   = __x86_family(eax);
+	model    = x86_model(eax);
+	stepping = eax & 0xf;
+
+	sprintf(name, "intel-ucode/%02x-%02x-%02x", family, model, stepping);
+
+	return get_builtin_firmware(cp, name);
+#else
+	return false;
+#endif
+}
+
 static __initdata char ucode_name[] = "kernel/x86/microcode/GenuineIntel.bin";
 static __init enum ucode_state
 scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
@@ -540,8 +560,10 @@ scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
 	cd.size = 0;
 
 	cd = find_cpio_data(p, (void *)start, size, &offset);
-	if (!cd.data)
-		return UCODE_ERROR;
+	if (!cd.data) {
+		if (!load_builtin_intel_microcode(&cd))
+			return UCODE_ERROR;
+	}
 
 	return get_matching_model_microcode(0, start, cd.data, cd.size,
 					    mc_saved_data, initrd, uci);

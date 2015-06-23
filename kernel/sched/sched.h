@@ -26,8 +26,14 @@ extern __read_mostly int scheduler_running;
 extern unsigned long calc_load_update;
 extern atomic_long_t calc_load_tasks;
 
+extern void calc_global_load_tick(struct rq *this_rq);
 extern long calc_load_fold_active(struct rq *this_rq);
+
+#ifdef CONFIG_SMP
 extern void update_cpu_load_active(struct rq *this_rq);
+#else
+static inline void update_cpu_load_active(struct rq *this_rq) { }
+#endif
 
 /*
  * Helpers for converting nanosecond timing to jiffy resolution
@@ -131,6 +137,7 @@ struct rt_bandwidth {
 	ktime_t			rt_period;
 	u64			rt_runtime;
 	struct hrtimer		rt_period_timer;
+	unsigned int		rt_period_active;
 };
 
 void __dl_clear_params(struct task_struct *p);
@@ -215,7 +222,7 @@ struct cfs_bandwidth {
 	s64 hierarchical_quota;
 	u64 runtime_expires;
 
-	int idle, timer_active;
+	int idle, period_active;
 	struct hrtimer period_timer, slack_timer;
 	struct list_head throttled_cfs_rq;
 
@@ -306,7 +313,7 @@ extern void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b);
 extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
 
 extern void __refill_cfs_bandwidth_runtime(struct cfs_bandwidth *cfs_b);
-extern void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b, bool force);
+extern void start_cfs_bandwidth(struct cfs_bandwidth *cfs_b);
 extern void unthrottle_cfs_rq(struct cfs_rq *cfs_rq);
 
 extern void free_rt_sched_group(struct task_group *tg);
@@ -707,7 +714,7 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
 static inline u64 __rq_clock_broken(struct rq *rq)
 {
-	return ACCESS_ONCE(rq->clock);
+	return READ_ONCE(rq->clock);
 }
 
 static inline u64 rq_clock(struct rq *rq)
@@ -1284,7 +1291,6 @@ extern void update_max_interval(void);
 extern void init_sched_dl_class(void);
 extern void init_sched_rt_class(void);
 extern void init_sched_fair_class(void);
-extern void init_sched_dl_class(void);
 
 extern void resched_curr(struct rq *rq);
 extern void resched_cpu(int cpu);
@@ -1297,8 +1303,6 @@ extern void init_dl_bandwidth(struct dl_bandwidth *dl_b, u64 period, u64 runtime
 extern void init_dl_task_timer(struct sched_dl_entity *dl_se);
 
 unsigned long to_ratio(u64 period, u64 runtime);
-
-extern void update_idle_cpu_load(struct rq *this_rq);
 
 extern void init_task_runnable_average(struct task_struct *p);
 
@@ -1405,8 +1409,6 @@ static inline void sched_rt_avg_update(struct rq *rq, u64 rt_delta)
 static inline void sched_rt_avg_update(struct rq *rq, u64 rt_delta) { }
 static inline void sched_avg_update(struct rq *rq) { }
 #endif
-
-extern void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period);
 
 /*
  * __task_rq_lock - lock the rq @p resides on.

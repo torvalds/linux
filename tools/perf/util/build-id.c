@@ -43,6 +43,7 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
 
+	thread__put(thread);
 	return 0;
 }
 
@@ -59,8 +60,10 @@ static int perf_event__exit_del_thread(struct perf_tool *tool __maybe_unused,
 	dump_printf("(%d:%d):(%d:%d)\n", event->fork.pid, event->fork.tid,
 		    event->fork.ppid, event->fork.ptid);
 
-	if (thread)
+	if (thread) {
 		machine__remove_thread(machine, thread);
+		thread__put(thread);
+	}
 
 	return 0;
 }
@@ -159,15 +162,20 @@ static int write_buildid(const char *name, size_t name_len, u8 *build_id,
 	return write_padded(fd, name, name_len + 1, len);
 }
 
-static int __dsos__write_buildid_table(struct list_head *head,
-				       struct machine *machine,
-				       pid_t pid, u16 misc, int fd)
+static int machine__write_buildid_table(struct machine *machine, int fd)
 {
+	int err = 0;
 	char nm[PATH_MAX];
 	struct dso *pos;
+	u16 kmisc = PERF_RECORD_MISC_KERNEL,
+	    umisc = PERF_RECORD_MISC_USER;
 
-	dsos__for_each_with_build_id(pos, head) {
-		int err;
+	if (!machine__is_host(machine)) {
+		kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
+		umisc = PERF_RECORD_MISC_GUEST_USER;
+	}
+
+	dsos__for_each_with_build_id(pos, &machine->dsos.head) {
 		const char *name;
 		size_t name_len;
 
@@ -186,32 +194,12 @@ static int __dsos__write_buildid_table(struct list_head *head,
 			name_len = pos->long_name_len + 1;
 		}
 
-		err = write_buildid(name, name_len, pos->build_id,
-				    pid, misc, fd);
+		err = write_buildid(name, name_len, pos->build_id, machine->pid,
+				    pos->kernel ? kmisc : umisc, fd);
 		if (err)
-			return err;
+			break;
 	}
 
-	return 0;
-}
-
-static int machine__write_buildid_table(struct machine *machine, int fd)
-{
-	int err;
-	u16 kmisc = PERF_RECORD_MISC_KERNEL,
-	    umisc = PERF_RECORD_MISC_USER;
-
-	if (!machine__is_host(machine)) {
-		kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
-		umisc = PERF_RECORD_MISC_GUEST_USER;
-	}
-
-	err = __dsos__write_buildid_table(&machine->kernel_dsos.head, machine,
-					  machine->pid, kmisc, fd);
-	if (err == 0)
-		err = __dsos__write_buildid_table(&machine->user_dsos.head,
-						  machine, machine->pid, umisc,
-						  fd);
 	return err;
 }
 
@@ -244,13 +232,7 @@ static int __dsos__hit_all(struct list_head *head)
 
 static int machine__hit_all_dsos(struct machine *machine)
 {
-	int err;
-
-	err = __dsos__hit_all(&machine->kernel_dsos.head);
-	if (err)
-		return err;
-
-	return __dsos__hit_all(&machine->user_dsos.head);
+	return __dsos__hit_all(&machine->dsos.head);
 }
 
 int dsos__hit_all(struct perf_session *session)
@@ -490,9 +472,7 @@ static int __dsos__cache_build_ids(struct list_head *head,
 
 static int machine__cache_build_ids(struct machine *machine)
 {
-	int ret = __dsos__cache_build_ids(&machine->kernel_dsos.head, machine);
-	ret |= __dsos__cache_build_ids(&machine->user_dsos.head, machine);
-	return ret;
+	return __dsos__cache_build_ids(&machine->dsos.head, machine);
 }
 
 int perf_session__cache_build_ids(struct perf_session *session)
@@ -517,11 +497,7 @@ int perf_session__cache_build_ids(struct perf_session *session)
 
 static bool machine__read_build_ids(struct machine *machine, bool with_hits)
 {
-	bool ret;
-
-	ret  = __dsos__read_build_ids(&machine->kernel_dsos.head, with_hits);
-	ret |= __dsos__read_build_ids(&machine->user_dsos.head, with_hits);
-	return ret;
+	return __dsos__read_build_ids(&machine->dsos.head, with_hits);
 }
 
 bool perf_session__read_build_ids(struct perf_session *session, bool with_hits)

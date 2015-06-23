@@ -2656,6 +2656,9 @@ void i915_gem_reset(struct drm_device *dev)
 void
 i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 {
+	if (list_empty(&ring->request_list))
+		return;
+
 	WARN_ON(i915_verify_lists(ring->dev));
 
 	/* Retire requests first as we use it above for the early return.
@@ -3000,8 +3003,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 		} else if (vma->ggtt_view.pages) {
 			sg_free_table(vma->ggtt_view.pages);
 			kfree(vma->ggtt_view.pages);
-			vma->ggtt_view.pages = NULL;
 		}
+		vma->ggtt_view.pages = NULL;
 	}
 
 	drm_mm_remove_node(&vma->node);

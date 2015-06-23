@@ -294,6 +294,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 
 	case S_IFLNK:
 		inode->i_op = &jffs2_symlink_inode_operations;
+		inode->i_link = f->target;
 		break;
 
 	case S_IFDIR:

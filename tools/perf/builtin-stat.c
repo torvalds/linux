@@ -73,8 +73,8 @@ static void print_counter(struct perf_evsel *counter, char *prefix);
 static void print_aggr(char *prefix);
 
 /* Default events used for perf stat -T */
-static const char * const transaction_attrs[] = {
-	"task-clock",
+static const char *transaction_attrs = {
+	"task-clock,"
 	"{"
 	"instructions,"
 	"cycles,"
@@ -86,8 +86,8 @@ static const char * const transaction_attrs[] = {
 };
 
 /* More limited version when the CPU does not have all events. */
-static const char * const transaction_limited_attrs[] = {
-	"task-clock",
+static const char * transaction_limited_attrs = {
+	"task-clock,"
 	"{"
 	"instructions,"
 	"cycles,"
@@ -96,28 +96,10 @@ static const char * const transaction_limited_attrs[] = {
 	"}"
 };
 
-/* must match transaction_attrs and the beginning limited_attrs */
-enum {
-	T_TASK_CLOCK,
-	T_INSTRUCTIONS,
-	T_CYCLES,
-	T_CYCLES_IN_TX,
-	T_TRANSACTION_START,
-	T_ELISION_START,
-	T_CYCLES_IN_TX_CP,
-};
-
 static struct perf_evlist	*evsel_list;
 
 static struct target target = {
 	.uid	= UINT_MAX,
-};
-
-enum aggr_mode {
-	AGGR_NONE,
-	AGGR_GLOBAL,
-	AGGR_SOCKET,
-	AGGR_CORE,
 };
 
 static int			run_count			=  1;
@@ -146,10 +128,6 @@ static struct cpu_map		*aggr_map;
 static int			(*aggr_get_id)(struct cpu_map *m, int cpu);
 
 static volatile int done = 0;
-
-struct perf_stat {
-	struct stats	  res_stats[3];
-};
 
 static inline void diff_timespec(struct timespec *r, struct timespec *a,
 				 struct timespec *b)
@@ -180,6 +158,8 @@ static void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
 
 	for (i = 0; i < 3; i++)
 		init_stats(&ps->res_stats[i]);
+
+	perf_stat_evsel_id_init(evsel);
 }
 
 static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
@@ -198,24 +178,19 @@ static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 
 static int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel)
 {
-	void *addr;
-	size_t sz;
+	struct perf_counts *counts;
 
-	sz = sizeof(*evsel->counts) +
-	     (perf_evsel__nr_cpus(evsel) * sizeof(struct perf_counts_values));
+	counts = perf_counts__new(perf_evsel__nr_cpus(evsel));
+	if (counts)
+		evsel->prev_raw_counts = counts;
 
-	addr = zalloc(sz);
-	if (!addr)
-		return -ENOMEM;
-
-	evsel->prev_raw_counts =  addr;
-
-	return 0;
+	return counts ? 0 : -ENOMEM;
 }
 
 static void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel)
 {
-	zfree(&evsel->prev_raw_counts);
+	perf_counts__delete(evsel->prev_raw_counts);
+	evsel->prev_raw_counts = NULL;
 }
 
 static void perf_evlist__free_stats(struct perf_evlist *evlist)
@@ -247,22 +222,6 @@ out_free:
 	return -1;
 }
 
-static struct stats runtime_nsecs_stats[MAX_NR_CPUS];
-static struct stats runtime_cycles_stats[MAX_NR_CPUS];
-static struct stats runtime_stalled_cycles_front_stats[MAX_NR_CPUS];
-static struct stats runtime_stalled_cycles_back_stats[MAX_NR_CPUS];
-static struct stats runtime_branches_stats[MAX_NR_CPUS];
-static struct stats runtime_cacherefs_stats[MAX_NR_CPUS];
-static struct stats runtime_l1_dcache_stats[MAX_NR_CPUS];
-static struct stats runtime_l1_icache_stats[MAX_NR_CPUS];
-static struct stats runtime_ll_cache_stats[MAX_NR_CPUS];
-static struct stats runtime_itlb_cache_stats[MAX_NR_CPUS];
-static struct stats runtime_dtlb_cache_stats[MAX_NR_CPUS];
-static struct stats runtime_cycles_in_tx_stats[MAX_NR_CPUS];
-static struct stats walltime_nsecs_stats;
-static struct stats runtime_transaction_stats[MAX_NR_CPUS];
-static struct stats runtime_elision_stats[MAX_NR_CPUS];
-
 static void perf_stat__reset_stats(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
@@ -272,23 +231,7 @@ static void perf_stat__reset_stats(struct perf_evlist *evlist)
 		perf_evsel__reset_counts(evsel, perf_evsel__nr_cpus(evsel));
 	}
 
-	memset(runtime_nsecs_stats, 0, sizeof(runtime_nsecs_stats));
-	memset(runtime_cycles_stats, 0, sizeof(runtime_cycles_stats));
-	memset(runtime_stalled_cycles_front_stats, 0, sizeof(runtime_stalled_cycles_front_stats));
-	memset(runtime_stalled_cycles_back_stats, 0, sizeof(runtime_stalled_cycles_back_stats));
-	memset(runtime_branches_stats, 0, sizeof(runtime_branches_stats));
-	memset(runtime_cacherefs_stats, 0, sizeof(runtime_cacherefs_stats));
-	memset(runtime_l1_dcache_stats, 0, sizeof(runtime_l1_dcache_stats));
-	memset(runtime_l1_icache_stats, 0, sizeof(runtime_l1_icache_stats));
-	memset(runtime_ll_cache_stats, 0, sizeof(runtime_ll_cache_stats));
-	memset(runtime_itlb_cache_stats, 0, sizeof(runtime_itlb_cache_stats));
-	memset(runtime_dtlb_cache_stats, 0, sizeof(runtime_dtlb_cache_stats));
-	memset(runtime_cycles_in_tx_stats, 0,
-			sizeof(runtime_cycles_in_tx_stats));
-	memset(runtime_transaction_stats, 0,
-		sizeof(runtime_transaction_stats));
-	memset(runtime_elision_stats, 0, sizeof(runtime_elision_stats));
-	memset(&walltime_nsecs_stats, 0, sizeof(walltime_nsecs_stats));
+	perf_stat__reset_shadow_stats();
 }
 
 static int create_perf_stat_counter(struct perf_evsel *evsel)
@@ -323,70 +266,6 @@ static inline int nsec_counter(struct perf_evsel *evsel)
 		return 1;
 
 	return 0;
-}
-
-static struct perf_evsel *nth_evsel(int n)
-{
-	static struct perf_evsel **array;
-	static int array_len;
-	struct perf_evsel *ev;
-	int j;
-
-	/* Assumes this only called when evsel_list does not change anymore. */
-	if (!array) {
-		evlist__for_each(evsel_list, ev)
-			array_len++;
-		array = malloc(array_len * sizeof(void *));
-		if (!array)
-			exit(ENOMEM);
-		j = 0;
-		evlist__for_each(evsel_list, ev)
-			array[j++] = ev;
-	}
-	if (n < array_len)
-		return array[n];
-	return NULL;
-}
-
-/*
- * Update various tracking values we maintain to print
- * more semantic information such as miss/hit ratios,
- * instruction rates, etc:
- */
-static void update_shadow_stats(struct perf_evsel *counter, u64 *count,
-				int cpu)
-{
-	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
-		update_stats(&runtime_nsecs_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-		update_stats(&runtime_cycles_stats[cpu], count[0]);
-	else if (transaction_run &&
-		 perf_evsel__cmp(counter, nth_evsel(T_CYCLES_IN_TX)))
-		update_stats(&runtime_cycles_in_tx_stats[cpu], count[0]);
-	else if (transaction_run &&
-		 perf_evsel__cmp(counter, nth_evsel(T_TRANSACTION_START)))
-		update_stats(&runtime_transaction_stats[cpu], count[0]);
-	else if (transaction_run &&
-		 perf_evsel__cmp(counter, nth_evsel(T_ELISION_START)))
-		update_stats(&runtime_elision_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
-		update_stats(&runtime_stalled_cycles_front_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
-		update_stats(&runtime_stalled_cycles_back_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-		update_stats(&runtime_branches_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
-		update_stats(&runtime_cacherefs_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1D))
-		update_stats(&runtime_l1_dcache_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1I))
-		update_stats(&runtime_l1_icache_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_LL))
-		update_stats(&runtime_ll_cache_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_DTLB))
-		update_stats(&runtime_dtlb_cache_stats[cpu], count[0]);
-	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
-		update_stats(&runtime_itlb_cache_stats[cpu], count[0]);
 }
 
 static void zero_per_pkg(struct perf_evsel *counter)
@@ -449,7 +328,7 @@ static int read_cb(struct perf_evsel *evsel, int cpu, int thread __maybe_unused,
 		perf_counts_values__scale(count, scale, NULL);
 		evsel->counts->cpu[cpu] = *count;
 		if (aggr_mode == AGGR_NONE)
-			update_shadow_stats(evsel, count->values, cpu);
+			perf_stat__update_shadow_stats(evsel, count->values, cpu);
 		break;
 	case AGGR_GLOBAL:
 		aggr->val += count->val;
@@ -497,7 +376,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	update_shadow_stats(counter, count, 0);
+	perf_stat__update_shadow_stats(counter, count, 0);
 
 	return 0;
 }
@@ -665,7 +544,10 @@ static int __run_perf_stat(int argc, const char **argv)
 					ui__warning("%s event is not supported by the kernel.\n",
 						    perf_evsel__name(counter));
 				counter->supported = false;
-				continue;
+
+				if ((counter->leader != counter) ||
+				    !(counter->leader->nr_members > 1))
+					continue;
 			}
 
 			perf_evsel__open_strerror(counter, &target,
@@ -875,188 +757,8 @@ static void nsec_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 		fprintf(output, "                                   ");
 }
 
-/* used for get_ratio_color() */
-enum grc_type {
-	GRC_STALLED_CYCLES_FE,
-	GRC_STALLED_CYCLES_BE,
-	GRC_CACHE_MISSES,
-	GRC_MAX_NR
-};
-
-static const char *get_ratio_color(enum grc_type type, double ratio)
-{
-	static const double grc_table[GRC_MAX_NR][3] = {
-		[GRC_STALLED_CYCLES_FE] = { 50.0, 30.0, 10.0 },
-		[GRC_STALLED_CYCLES_BE] = { 75.0, 50.0, 20.0 },
-		[GRC_CACHE_MISSES] 	= { 20.0, 10.0, 5.0 },
-	};
-	const char *color = PERF_COLOR_NORMAL;
-
-	if (ratio > grc_table[type][0])
-		color = PERF_COLOR_RED;
-	else if (ratio > grc_table[type][1])
-		color = PERF_COLOR_MAGENTA;
-	else if (ratio > grc_table[type][2])
-		color = PERF_COLOR_YELLOW;
-
-	return color;
-}
-
-static void print_stalled_cycles_frontend(int cpu,
-					  struct perf_evsel *evsel
-					  __maybe_unused, double avg)
-{
-	double total, ratio = 0.0;
-	const char *color;
-
-	total = avg_stats(&runtime_cycles_stats[cpu]);
-
-	if (total)
-		ratio = avg / total * 100.0;
-
-	color = get_ratio_color(GRC_STALLED_CYCLES_FE, ratio);
-
-	fprintf(output, " #  ");
-	color_fprintf(output, color, "%6.2f%%", ratio);
-	fprintf(output, " frontend cycles idle   ");
-}
-
-static void print_stalled_cycles_backend(int cpu,
-					 struct perf_evsel *evsel
-					 __maybe_unused, double avg)
-{
-	double total, ratio = 0.0;
-	const char *color;
-
-	total = avg_stats(&runtime_cycles_stats[cpu]);
-
-	if (total)
-		ratio = avg / total * 100.0;
-
-	color = get_ratio_color(GRC_STALLED_CYCLES_BE, ratio);
-
-	fprintf(output, " #  ");
-	color_fprintf(output, color, "%6.2f%%", ratio);
-	fprintf(output, " backend  cycles idle   ");
-}
-
-static void print_branch_misses(int cpu,
-				struct perf_evsel *evsel __maybe_unused,
-				double avg)
-{
-	double total, ratio = 0.0;
-	const char *color;
-
-	total = avg_stats(&runtime_branches_stats[cpu]);
-
-	if (total)
-		ratio = avg / total * 100.0;
-
-	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
-
-	fprintf(output, " #  ");
-	color_fprintf(output, color, "%6.2f%%", ratio);
-	fprintf(output, " of all branches        ");
-}
-
-static void print_l1_dcache_misses(int cpu,
-				   struct perf_evsel *evsel __maybe_unused,
-				   double avg)
-{
-	double total, ratio = 0.0;
-	const char *color;
-
-	total = avg_stats(&runtime_l1_dcache_stats[cpu]);
-
-	if (total)
-		ratio = avg / total * 100.0;
-
-	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
-
-	fprintf(output, " #  ");
-	color_fprintf(output, color, "%6.2f%%", ratio);
-	fprintf(output, " of all L1-dcache hits  ");
-}
-
-static void print_l1_icache_misses(int cpu,
-				   struct perf_evsel *evsel __maybe_unused,
-				   double avg)
-{
-	double total, ratio = 0.0;
-	const char *color;
-
-	total = avg_stats(&runtime_l1_icache_stats[cpu]);
-
-	if (total)
-		ratio = avg / total * 100.0;
-
-	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
-
-	fprintf(output, " #  ");
-	color_fprintf(output, color, "%6.2f%%", ratio);
-	fprintf(output, " of all L1-icache hits  ");
-}
-
-static void print_dtlb_cache_misses(int cpu,
-				    struct perf_evsel *evsel __maybe_unused,
-				    double avg)
-{
-	double total, ratio = 0.0;
-	const char *color;
-
-	total = avg_stats(&runtime_dtlb_cache_stats[cpu]);
-
-	if (total)
-		ratio = avg / total * 100.0;
-
-	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
-
-	fprintf(output, " #  ");
-	color_fprintf(output, color, "%6.2f%%", ratio);
-	fprintf(output, " of all dTLB cache hits ");
-}
-
-static void print_itlb_cache_misses(int cpu,
-				    struct perf_evsel *evsel __maybe_unused,
-				    double avg)
-{
-	double total, ratio = 0.0;
-	const char *color;
-
-	total = avg_stats(&runtime_itlb_cache_stats[cpu]);
-
-	if (total)
-		ratio = avg / total * 100.0;
-
-	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
-
-	fprintf(output, " #  ");
-	color_fprintf(output, color, "%6.2f%%", ratio);
-	fprintf(output, " of all iTLB cache hits ");
-}
-
-static void print_ll_cache_misses(int cpu,
-				  struct perf_evsel *evsel __maybe_unused,
-				  double avg)
-{
-	double total, ratio = 0.0;
-	const char *color;
-
-	total = avg_stats(&runtime_ll_cache_stats[cpu]);
-
-	if (total)
-		ratio = avg / total * 100.0;
-
-	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
-
-	fprintf(output, " #  ");
-	color_fprintf(output, color, "%6.2f%%", ratio);
-	fprintf(output, " of all LL-cache hits   ");
-}
-
 static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 {
-	double total, ratio = 0.0, total2;
 	double sc =  evsel->scale;
 	const char *fmt;
 	int cpu = cpu_map__id_to_cpu(id);
@@ -1090,138 +792,7 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 	if (csv_output || interval)
 		return;
 
-	if (perf_evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
-		total = avg_stats(&runtime_cycles_stats[cpu]);
-		if (total) {
-			ratio = avg / total;
-			fprintf(output, " #   %5.2f  insns per cycle        ", ratio);
-		} else {
-			fprintf(output, "                                   ");
-		}
-		total = avg_stats(&runtime_stalled_cycles_front_stats[cpu]);
-		total = max(total, avg_stats(&runtime_stalled_cycles_back_stats[cpu]));
-
-		if (total && avg) {
-			ratio = total / avg;
-			fprintf(output, "\n");
-			if (aggr_mode == AGGR_NONE)
-				fprintf(output, "        ");
-			fprintf(output, "                                                  #   %5.2f  stalled cycles per insn", ratio);
-		}
-
-	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
-			runtime_branches_stats[cpu].n != 0) {
-		print_branch_misses(cpu, evsel, avg);
-	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_L1D |
-					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
-					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
-			runtime_l1_dcache_stats[cpu].n != 0) {
-		print_l1_dcache_misses(cpu, evsel, avg);
-	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_L1I |
-					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
-					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
-			runtime_l1_icache_stats[cpu].n != 0) {
-		print_l1_icache_misses(cpu, evsel, avg);
-	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_DTLB |
-					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
-					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
-			runtime_dtlb_cache_stats[cpu].n != 0) {
-		print_dtlb_cache_misses(cpu, evsel, avg);
-	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_ITLB |
-					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
-					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
-			runtime_itlb_cache_stats[cpu].n != 0) {
-		print_itlb_cache_misses(cpu, evsel, avg);
-	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_LL |
-					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
-					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
-			runtime_ll_cache_stats[cpu].n != 0) {
-		print_ll_cache_misses(cpu, evsel, avg);
-	} else if (perf_evsel__match(evsel, HARDWARE, HW_CACHE_MISSES) &&
-			runtime_cacherefs_stats[cpu].n != 0) {
-		total = avg_stats(&runtime_cacherefs_stats[cpu]);
-
-		if (total)
-			ratio = avg * 100 / total;
-
-		fprintf(output, " # %8.3f %% of all cache refs    ", ratio);
-
-	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_FRONTEND)) {
-		print_stalled_cycles_frontend(cpu, evsel, avg);
-	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_BACKEND)) {
-		print_stalled_cycles_backend(cpu, evsel, avg);
-	} else if (perf_evsel__match(evsel, HARDWARE, HW_CPU_CYCLES)) {
-		total = avg_stats(&runtime_nsecs_stats[cpu]);
-
-		if (total) {
-			ratio = avg / total;
-			fprintf(output, " # %8.3f GHz                    ", ratio);
-		} else {
-			fprintf(output, "                                   ");
-		}
-	} else if (transaction_run &&
-		   perf_evsel__cmp(evsel, nth_evsel(T_CYCLES_IN_TX))) {
-		total = avg_stats(&runtime_cycles_stats[cpu]);
-		if (total)
-			fprintf(output,
-				" #   %5.2f%% transactional cycles   ",
-				100.0 * (avg / total));
-	} else if (transaction_run &&
-		   perf_evsel__cmp(evsel, nth_evsel(T_CYCLES_IN_TX_CP))) {
-		total = avg_stats(&runtime_cycles_stats[cpu]);
-		total2 = avg_stats(&runtime_cycles_in_tx_stats[cpu]);
-		if (total2 < avg)
-			total2 = avg;
-		if (total)
-			fprintf(output,
-				" #   %5.2f%% aborted cycles         ",
-				100.0 * ((total2-avg) / total));
-	} else if (transaction_run &&
-		   perf_evsel__cmp(evsel, nth_evsel(T_TRANSACTION_START)) &&
-		   avg > 0 &&
-		   runtime_cycles_in_tx_stats[cpu].n != 0) {
-		total = avg_stats(&runtime_cycles_in_tx_stats[cpu]);
-
-		if (total)
-			ratio = total / avg;
-
-		fprintf(output, " # %8.0f cycles / transaction   ", ratio);
-	} else if (transaction_run &&
-		   perf_evsel__cmp(evsel, nth_evsel(T_ELISION_START)) &&
-		   avg > 0 &&
-		   runtime_cycles_in_tx_stats[cpu].n != 0) {
-		total = avg_stats(&runtime_cycles_in_tx_stats[cpu]);
-
-		if (total)
-			ratio = total / avg;
-
-		fprintf(output, " # %8.0f cycles / elision       ", ratio);
-	} else if (runtime_nsecs_stats[cpu].n != 0) {
-		char unit = 'M';
-
-		total = avg_stats(&runtime_nsecs_stats[cpu]);
-
-		if (total)
-			ratio = 1000.0 * avg / total;
-		if (ratio < 0.001) {
-			ratio *= 1000;
-			unit = 'K';
-		}
-
-		fprintf(output, " # %8.3f %c/sec                  ", ratio, unit);
-	} else {
-		fprintf(output, "                                   ");
-	}
+	perf_stat__print_shadow_stats(output, evsel, avg, cpu, aggr_mode);
 }
 
 static void print_aggr(char *prefix)
@@ -1536,17 +1107,6 @@ static int perf_stat_init_aggr_mode(void)
 	return 0;
 }
 
-static int setup_events(const char * const *attrs, unsigned len)
-{
-	unsigned i;
-
-	for (i = 0; i < len; i++) {
-		if (parse_events(evsel_list, attrs[i]))
-			return -1;
-	}
-	return 0;
-}
-
 /*
  * Add default attributes, if there were no attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
@@ -1668,12 +1228,10 @@ static int add_default_attributes(void)
 		int err;
 		if (pmu_have_event("cpu", "cycles-ct") &&
 		    pmu_have_event("cpu", "el-start"))
-			err = setup_events(transaction_attrs,
-					ARRAY_SIZE(transaction_attrs));
+			err = parse_events(evsel_list, transaction_attrs, NULL);
 		else
-			err = setup_events(transaction_limited_attrs,
-				 ARRAY_SIZE(transaction_limited_attrs));
-		if (err < 0) {
+			err = parse_events(evsel_list, transaction_limited_attrs, NULL);
+		if (err) {
 			fprintf(stderr, "Cannot set up transaction events\n");
 			return -1;
 		}

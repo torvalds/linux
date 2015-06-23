@@ -18,19 +18,22 @@ static enum hrtimer_restart sched_rt_period_timer(struct hrtimer *timer)
 {
 	struct rt_bandwidth *rt_b =
 		container_of(timer, struct rt_bandwidth, rt_period_timer);
-	ktime_t now;
-	int overrun;
 	int idle = 0;
+	int overrun;
 
+	raw_spin_lock(&rt_b->rt_runtime_lock);
 	for (;;) {
-		now = hrtimer_cb_get_time(timer);
-		overrun = hrtimer_forward(timer, now, rt_b->rt_period);
-
+		overrun = hrtimer_forward_now(timer, rt_b->rt_period);
 		if (!overrun)
 			break;
 
+		raw_spin_unlock(&rt_b->rt_runtime_lock);
 		idle = do_sched_rt_period_timer(rt_b, overrun);
+		raw_spin_lock(&rt_b->rt_runtime_lock);
 	}
+	if (idle)
+		rt_b->rt_period_active = 0;
+	raw_spin_unlock(&rt_b->rt_runtime_lock);
 
 	return idle ? HRTIMER_NORESTART : HRTIMER_RESTART;
 }
@@ -52,11 +55,12 @@ static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 	if (!rt_bandwidth_enabled() || rt_b->rt_runtime == RUNTIME_INF)
 		return;
 
-	if (hrtimer_active(&rt_b->rt_period_timer))
-		return;
-
 	raw_spin_lock(&rt_b->rt_runtime_lock);
-	start_bandwidth_timer(&rt_b->rt_period_timer, rt_b->rt_period);
+	if (!rt_b->rt_period_active) {
+		rt_b->rt_period_active = 1;
+		hrtimer_forward_now(&rt_b->rt_period_timer, rt_b->rt_period);
+		hrtimer_start_expires(&rt_b->rt_period_timer, HRTIMER_MODE_ABS_PINNED);
+	}
 	raw_spin_unlock(&rt_b->rt_runtime_lock);
 }
 
@@ -1323,7 +1327,7 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 	rq = cpu_rq(cpu);
 
 	rcu_read_lock();
-	curr = ACCESS_ONCE(rq->curr); /* unlocked access */
+	curr = READ_ONCE(rq->curr); /* unlocked access */
 
 	/*
 	 * If the current task on @p's runqueue is an RT task, then

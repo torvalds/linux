@@ -40,8 +40,7 @@
 #include <asm/vmx.h>
 #include <asm/virtext.h>
 #include <asm/mce.h>
-#include <asm/i387.h>
-#include <asm/xcr.h>
+#include <asm/fpu/internal.h>
 #include <asm/perf_event.h>
 #include <asm/debugreg.h>
 #include <asm/kexec.h>
@@ -1883,7 +1882,7 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 	 * If the FPU is not active (through the host task or
 	 * the guest vcpu), then restore the cr0.TS bit.
 	 */
-	if (!user_has_fpu() && !vmx->vcpu.guest_fpu_loaded)
+	if (!fpregs_active() && !vmx->vcpu.guest_fpu_loaded)
 		stts();
 	load_gdt(this_cpu_ptr(&host_gdt));
 }

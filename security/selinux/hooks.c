@@ -1564,7 +1564,7 @@ static int cred_has_capability(const struct cred *cred,
 
 	rc = avc_has_perm_noaudit(sid, sid, sclass, av, 0, &avd);
 	if (audit == SECURITY_CAP_AUDIT) {
-		int rc2 = avc_audit(sid, sid, sclass, av, &avd, rc, &ad);
+		int rc2 = avc_audit(sid, sid, sclass, av, &avd, rc, &ad, 0);
 		if (rc2)
 			return rc2;
 	}
@@ -2861,11 +2861,23 @@ static int selinux_inode_readlink(struct dentry *dentry)
 	return dentry_has_perm(cred, dentry, FILE__READ);
 }
 
-static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *nameidata)
+static int selinux_inode_follow_link(struct dentry *dentry, struct inode *inode,
+				     bool rcu)
 {
 	const struct cred *cred = current_cred();
+	struct common_audit_data ad;
+	struct inode_security_struct *isec;
+	u32 sid;
 
-	return dentry_has_perm(cred, dentry, FILE__READ);
+	validate_creds(cred);
+
+	ad.type = LSM_AUDIT_DATA_DENTRY;
+	ad.u.dentry = dentry;
+	sid = cred_sid(cred);
+	isec = inode->i_security;
+
+	return avc_has_perm_flags(sid, isec->sid, isec->sclass, FILE__READ, &ad,
+				  rcu ? MAY_NOT_BLOCK : 0);
 }
 
 static noinline int audit_inode_permission(struct inode *inode,

@@ -38,8 +38,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 #include <asm/mmu_context.h>
 #include <asm/prctl.h>
 #include <asm/desc.h>
@@ -274,12 +273,14 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread;
 	struct thread_struct *next = &next_p->thread;
+	struct fpu *prev_fpu = &prev->fpu;
+	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
 	unsigned fsindex, gsindex;
-	fpu_switch_t fpu;
+	fpu_switch_t fpu_switch;
 
-	fpu = switch_fpu_prepare(prev_p, next_p, cpu);
+	fpu_switch = switch_fpu_prepare(prev_fpu, next_fpu, cpu);
 
 	/* We must save %fs and %gs before load_TLS() because
 	 * %fs and %gs may be cleared by load_TLS().
@@ -299,7 +300,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * Leave lazy mode, flushing any hypercalls made here.  This
 	 * must be done after loading TLS entries in the GDT but before
 	 * loading segments that might reference them, and and it must
-	 * be done before math_state_restore, so the TS bit is up to
+	 * be done before fpu__restore(), so the TS bit is up to
 	 * date.
 	 */
 	arch_end_context_switch(next_p);
@@ -391,7 +392,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		wrmsrl(MSR_KERNEL_GS_BASE, next->gs);
 	prev->gsindex = gsindex;
 
-	switch_fpu_finish(next_p, fpu);
+	switch_fpu_finish(next_fpu, fpu_switch);
 
 	/*
 	 * Switch the PDA and FPU contexts.
@@ -408,9 +409,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	/* Reload esp0 and ss1.  This changes current_thread_info(). */
 	load_sp0(tss, next);
-
-	this_cpu_write(kernel_stack,
-		(unsigned long)task_stack_page(next_p) + THREAD_SIZE);
 
 	/*
 	 * Now maybe reload the debug registers and handle I/O bitmaps

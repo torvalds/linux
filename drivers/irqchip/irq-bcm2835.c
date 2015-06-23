@@ -135,7 +135,7 @@ static int armctrl_xlate(struct irq_domain *d, struct device_node *ctrlr,
 	return 0;
 }
 
-static struct irq_domain_ops armctrl_ops = {
+static const struct irq_domain_ops armctrl_ops = {
 	.xlate = armctrl_xlate
 };
 

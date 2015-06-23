@@ -503,8 +503,6 @@ static int start_dl_timer(struct sched_dl_entity *dl_se, bool boosted)
 	struct dl_rq *dl_rq = dl_rq_of_se(dl_se);
 	struct rq *rq = rq_of_dl_rq(dl_rq);
 	ktime_t now, act;
-	ktime_t soft, hard;
-	unsigned long range;
 	s64 delta;
 
 	if (boosted)
@@ -527,15 +525,9 @@ static int start_dl_timer(struct sched_dl_entity *dl_se, bool boosted)
 	if (ktime_us_delta(act, now) < 0)
 		return 0;
 
-	hrtimer_set_expires(&dl_se->dl_timer, act);
+	hrtimer_start(&dl_se->dl_timer, act, HRTIMER_MODE_ABS);
 
-	soft = hrtimer_get_softexpires(&dl_se->dl_timer);
-	hard = hrtimer_get_expires(&dl_se->dl_timer);
-	range = ktime_to_ns(ktime_sub(hard, soft));
-	__hrtimer_start_range_ns(&dl_se->dl_timer, soft,
-				 range, HRTIMER_MODE_ABS, 0);
-
-	return hrtimer_active(&dl_se->dl_timer);
+	return 1;
 }
 
 /*
@@ -640,7 +632,7 @@ void init_dl_task_timer(struct sched_dl_entity *dl_se)
 }
 
 static
-int dl_runtime_exceeded(struct rq *rq, struct sched_dl_entity *dl_se)
+int dl_runtime_exceeded(struct sched_dl_entity *dl_se)
 {
 	return (dl_se->runtime <= 0);
 }
@@ -684,7 +676,7 @@ static void update_curr_dl(struct rq *rq)
 	sched_rt_avg_update(rq, delta_exec);
 
 	dl_se->runtime -= dl_se->dl_yielded ? 0 : delta_exec;
-	if (dl_runtime_exceeded(rq, dl_se)) {
+	if (dl_runtime_exceeded(dl_se)) {
 		dl_se->dl_throttled = 1;
 		__dequeue_task_dl(rq, curr, 0);
 		if (unlikely(!start_dl_timer(dl_se, curr->dl.dl_boosted)))
@@ -995,7 +987,7 @@ select_task_rq_dl(struct task_struct *p, int cpu, int sd_flag, int flags)
 	rq = cpu_rq(cpu);
 
 	rcu_read_lock();
-	curr = ACCESS_ONCE(rq->curr); /* unlocked access */
+	curr = READ_ONCE(rq->curr); /* unlocked access */
 
 	/*
 	 * If we are dealing with a -deadline task, we must
@@ -1012,7 +1004,9 @@ select_task_rq_dl(struct task_struct *p, int cpu, int sd_flag, int flags)
 	    (p->nr_cpus_allowed > 1)) {
 		int target = find_later_rq(p);
 
-		if (target != -1)
+		if (target != -1 &&
+				dl_time_before(p->dl.deadline,
+					cpu_rq(target)->dl.earliest_dl.curr))
 			cpu = target;
 	}
 	rcu_read_unlock();
@@ -1230,6 +1224,32 @@ next_node:
 	return NULL;
 }
 
+/*
+ * Return the earliest pushable rq's task, which is suitable to be executed
+ * on the CPU, NULL otherwise:
+ */
+static struct task_struct *pick_earliest_pushable_dl_task(struct rq *rq, int cpu)
+{
+	struct rb_node *next_node = rq->dl.pushable_dl_tasks_leftmost;
+	struct task_struct *p = NULL;
+
+	if (!has_pushable_dl_tasks(rq))
+		return NULL;
+
+next_node:
+	if (next_node) {
+		p = rb_entry(next_node, struct task_struct, pushable_dl_tasks);
+
+		if (pick_dl_task(rq, p, cpu))
+			return p;
+
+		next_node = rb_next(next_node);
+		goto next_node;
+	}
+
+	return NULL;
+}
+
 static DEFINE_PER_CPU(cpumask_var_t, local_cpu_mask_dl);
 
 static int find_later_rq(struct task_struct *task)
@@ -1332,6 +1352,17 @@ static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq)
 			break;
 
 		later_rq = cpu_rq(cpu);
+
+		if (!dl_time_before(task->dl.deadline,
+					later_rq->dl.earliest_dl.curr)) {
+			/*
+			 * Target rq has tasks of equal or earlier deadline,
+			 * retrying does not release any lock and is unlikely
+			 * to yield a different result.
+			 */
+			later_rq = NULL;
+			break;
+		}
 
 		/* Retry if something changed. */
 		if (double_lock_balance(rq, later_rq)) {
@@ -1514,7 +1545,7 @@ static int pull_dl_task(struct rq *this_rq)
 		if (src_rq->dl.dl_nr_running <= 1)
 			goto skip;
 
-		p = pick_next_earliest_dl_task(src_rq, this_cpu);
+		p = pick_earliest_pushable_dl_task(src_rq, this_cpu);
 
 		/*
 		 * We found a task to be pulled if:
@@ -1659,7 +1690,7 @@ static void rq_offline_dl(struct rq *rq)
 	cpudl_clear_freecpu(&rq->rd->cpudl, rq->cpu);
 }
 
-void init_sched_dl_class(void)
+void __init init_sched_dl_class(void)
 {
 	unsigned int i;
 

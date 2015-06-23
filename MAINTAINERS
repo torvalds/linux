@@ -4879,13 +4879,23 @@ M:	Marcelo Henrique Cerri <mhcerri@linux.vnet.ibm.com>
 M:	Fionnuala Gunter <fin@linux.vnet.ibm.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
-F:	drivers/crypto/nx/
+F:	drivers/crypto/nx/Makefile
+F:	drivers/crypto/nx/Kconfig
+F:	drivers/crypto/nx/nx-aes*
+F:	drivers/crypto/nx/nx-sha*
+F:	drivers/crypto/nx/nx.*
+F:	drivers/crypto/nx/nx_csbcpb.h
+F:	drivers/crypto/nx/nx_debugfs.h
 
 IBM Power 842 compression accelerator
 M:	Dan Streetman <ddstreet@us.ibm.com>
 S:	Supported
-F:	drivers/crypto/nx/nx-842.c
-F:	include/linux/nx842.h
+F:	drivers/crypto/nx/Makefile
+F:	drivers/crypto/nx/Kconfig
+F:	drivers/crypto/nx/nx-842*
+F:	include/linux/sw842.h
+F:	crypto/842.c
+F:	lib/842/
 
 IBM Power Linux RAID adapter
 M:	Brian King <brking@us.ibm.com>
@@ -7634,7 +7644,6 @@ F:	kernel/delayacct.c
 
 PERFORMANCE EVENTS SUBSYSTEM
 M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
-M:	Paul Mackerras <paulus@samba.org>
 M:	Ingo Molnar <mingo@redhat.com>
 M:	Arnaldo Carvalho de Melo <acme@kernel.org>
 L:	linux-kernel@vger.kernel.org
@@ -10895,7 +10904,7 @@ M:	Andy Lutomirski <luto@amacapital.net>
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/vdso
 S:	Maintained
-F:	arch/x86/vdso/
+F:	arch/x86/entry/vdso/
 
 XC2028/3028 TUNER DRIVER
 M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>

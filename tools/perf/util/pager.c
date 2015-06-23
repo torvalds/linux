@@ -50,11 +50,6 @@ void setup_pager(void)
 
 	if (!isatty(1))
 		return;
-	if (!pager) {
-		if (!pager_program)
-			perf_config(perf_default_config, NULL);
-		pager = pager_program;
-	}
 	if (!pager)
 		pager = getenv("PAGER");
 	if (!(pager || access("/usr/bin/pager", X_OK)))

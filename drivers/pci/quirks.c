@@ -819,13 +819,6 @@ static void quirk_amd_ioapic(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_VIPER_7410,	quirk_amd_ioapic);
-
-static void quirk_ioapic_rmw(struct pci_dev *dev)
-{
-	if (dev->devfn == 0 && dev->bus->number == 0)
-		sis_apic_bug = 1;
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SI,	PCI_ANY_ID,			quirk_ioapic_rmw);
 #endif /* CONFIG_X86_IO_APIC */
 
 /*

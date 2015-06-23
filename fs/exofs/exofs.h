@@ -207,10 +207,6 @@ extern const struct address_space_operations exofs_aops;
 extern const struct inode_operations exofs_dir_inode_operations;
 extern const struct inode_operations exofs_special_inode_operations;
 
-/* symlink.c         */
-extern const struct inode_operations exofs_symlink_inode_operations;
-extern const struct inode_operations exofs_fast_symlink_inode_operations;
-
 /* exofs_init_comps will initialize an ore_components device array
  * pointing to a single ore_comp struct, and a round-robin view
  * of the device table.

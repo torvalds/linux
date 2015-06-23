@@ -1578,8 +1578,12 @@ static int sahara_probe(struct platform_device *pdev)
 
 	init_completion(&dev->dma_completion);
 
-	clk_prepare_enable(dev->clk_ipg);
-	clk_prepare_enable(dev->clk_ahb);
+	err = clk_prepare_enable(dev->clk_ipg);
+	if (err)
+		goto err_link;
+	err = clk_prepare_enable(dev->clk_ahb);
+	if (err)
+		goto clk_ipg_disable;
 
 	version = sahara_read(dev, SAHARA_REG_VERSION);
 	if (of_device_is_compatible(pdev->dev.of_node, "fsl,imx27-sahara")) {
@@ -1619,10 +1623,11 @@ err_algs:
 	dma_free_coherent(&pdev->dev,
 			  SAHARA_MAX_HW_LINK * sizeof(struct sahara_hw_link),
 			  dev->hw_link[0], dev->hw_phys_link[0]);
-	clk_disable_unprepare(dev->clk_ipg);
-	clk_disable_unprepare(dev->clk_ahb);
 	kthread_stop(dev->kthread);
 	dev_ptr = NULL;
+	clk_disable_unprepare(dev->clk_ahb);
+clk_ipg_disable:
+	clk_disable_unprepare(dev->clk_ipg);
 err_link:
 	dma_free_coherent(&pdev->dev,
 			  2 * AES_KEYSIZE_128,

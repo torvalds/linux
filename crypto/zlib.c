@@ -78,7 +78,7 @@ static void zlib_exit(struct crypto_tfm *tfm)
 }
 
 
-static int zlib_compress_setup(struct crypto_pcomp *tfm, void *params,
+static int zlib_compress_setup(struct crypto_pcomp *tfm, const void *params,
 			       unsigned int len)
 {
 	struct zlib_ctx *ctx = crypto_tfm_ctx(crypto_pcomp_tfm(tfm));
@@ -209,7 +209,7 @@ static int zlib_compress_final(struct crypto_pcomp *tfm,
 }
 
 
-static int zlib_decompress_setup(struct crypto_pcomp *tfm, void *params,
+static int zlib_decompress_setup(struct crypto_pcomp *tfm, const void *params,
 				 unsigned int len)
 {
 	struct zlib_ctx *ctx = crypto_tfm_ctx(crypto_pcomp_tfm(tfm));

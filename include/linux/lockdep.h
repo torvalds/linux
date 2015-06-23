@@ -130,8 +130,8 @@ enum bounce_type {
 };
 
 struct lock_class_stats {
-	unsigned long			contention_point[4];
-	unsigned long			contending_point[4];
+	unsigned long			contention_point[LOCKSTAT_POINTS];
+	unsigned long			contending_point[LOCKSTAT_POINTS];
 	struct lock_time		read_waittime;
 	struct lock_time		write_waittime;
 	struct lock_time		read_holdtime;

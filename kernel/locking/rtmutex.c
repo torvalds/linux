@@ -70,10 +70,10 @@ static void fixup_rt_mutex_waiters(struct rt_mutex *lock)
 }
 
 /*
- * We can speed up the acquire/release, if the architecture
- * supports cmpxchg and if there's no debugging state to be set up
+ * We can speed up the acquire/release, if there's no debugging state to be
+ * set up.
  */
-#if defined(__HAVE_ARCH_CMPXCHG) && !defined(CONFIG_DEBUG_RT_MUTEXES)
+#ifndef CONFIG_DEBUG_RT_MUTEXES
 # define rt_mutex_cmpxchg(l,c,n)	(cmpxchg(&l->owner, c, n) == c)
 static inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
 {
@@ -1182,11 +1182,8 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 	set_current_state(state);
 
 	/* Setup the timer, when timeout != NULL */
-	if (unlikely(timeout)) {
+	if (unlikely(timeout))
 		hrtimer_start_expires(&timeout->timer, HRTIMER_MODE_ABS);
-		if (!hrtimer_active(&timeout->timer))
-			timeout->task = NULL;
-	}
 
 	ret = task_blocks_on_rt_mutex(lock, &waiter, current, chwalk);
 
@@ -1443,10 +1440,17 @@ EXPORT_SYMBOL_GPL(rt_mutex_timed_lock);
  *
  * @lock:	the rt_mutex to be locked
  *
+ * This function can only be called in thread context. It's safe to
+ * call it from atomic regions, but not from hard interrupt or soft
+ * interrupt context.
+ *
  * Returns 1 on success and 0 on contention
  */
 int __sched rt_mutex_trylock(struct rt_mutex *lock)
 {
+	if (WARN_ON(in_irq() || in_nmi() || in_serving_softirq()))
+		return 0;
+
 	return rt_mutex_fasttrylock(lock, rt_mutex_slowtrylock);
 }
 EXPORT_SYMBOL_GPL(rt_mutex_trylock);

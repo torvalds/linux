@@ -22,12 +22,12 @@
 #include <linux/kdebug.h>
 #include <linux/percpu.h>
 #include <linux/context_tracking.h>
+#include <linux/uaccess.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/openprom.h>
 #include <asm/oplib.h>
-#include <asm/uaccess.h>
 #include <asm/asi.h>
 #include <asm/lsu.h>
 #include <asm/sections.h>
@@ -330,7 +330,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto intr_or_no_mm;
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);

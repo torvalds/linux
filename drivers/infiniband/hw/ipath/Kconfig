@@ -9,3 +9,6 @@ config INFINIBAND_IPATH
 	as IP-over-InfiniBand as well as with userspace applications
 	(in conjunction with InfiniBand userspace access).
 	For QLogic PCIe QLE based cards, use the QIB driver instead.
+
+	If you have this hardware you will need to boot with PAT disabled
+	on your x86-64 systems, use the nopat kernel parameter.

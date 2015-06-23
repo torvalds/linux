@@ -29,7 +29,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <asm/cpufeature.h>
 #include <asm/cpu_device_id.h>
 
