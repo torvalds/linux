@@ -1156,9 +1156,10 @@ read_rtc:
 	}
 
 	if (want_irq) {
-		err = request_threaded_irq(client->irq, NULL, irq_handler,
-					   IRQF_SHARED | IRQF_ONESHOT,
-					   ds1307->rtc->name, client);
+		err = devm_request_threaded_irq(&client->dev,
+						client->irq, NULL, irq_handler,
+						IRQF_SHARED | IRQF_ONESHOT,
+						ds1307->rtc->name, client);
 		if (err) {
 			client->irq = 0;
 			dev_err(&client->dev, "unable to request IRQ!\n");
@@ -1211,9 +1212,6 @@ exit:
 static int ds1307_remove(struct i2c_client *client)
 {
 	struct ds1307 *ds1307 = i2c_get_clientdata(client);
-
-	if (test_and_clear_bit(HAS_ALARM, &ds1307->flags))
-		free_irq(client->irq, client);
 
 	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags))
 		sysfs_remove_bin_file(&client->dev.kobj, ds1307->nvram);
