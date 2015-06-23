@@ -21,8 +21,8 @@ Required properties:
 	"st,stih416-plls-c32-ddr",	"st,clkgen-plls-c32"
 	"st,stih407-plls-c32-a0",	"st,clkgen-plls-c32"
 	"st,stih407-plls-c32-a9",	"st,clkgen-plls-c32"
-	"st,stih407-plls-c32-c0_0",	"st,clkgen-plls-c32"
-	"st,stih407-plls-c32-c0_1",	"st,clkgen-plls-c32"
+	"sst,plls-c32-cx_0",		"st,clkgen-plls-c32"
+	"sst,plls-c32-cx_1",		"st,clkgen-plls-c32"
 
 	"st,stih415-gpu-pll-c32",	"st,clkgengpu-pll-c32"
 	"st,stih416-gpu-pll-c32",	"st,clkgengpu-pll-c32"
