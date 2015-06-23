@@ -131,13 +131,13 @@ static int s3c24xx_eint_get_trigger(unsigned int type)
 	}
 }
 
-static void s3c24xx_eint_set_handler(unsigned int irq, unsigned int type)
+static void s3c24xx_eint_set_handler(struct irq_data *d, unsigned int type)
 {
 	/* Edge- and level-triggered interrupts need different handlers */
 	if (type & IRQ_TYPE_EDGE_BOTH)
-		__irq_set_handler_locked(irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	else
-		__irq_set_handler_locked(irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 }
 
 static void s3c24xx_eint_set_function(struct samsung_pinctrl_drv_data *d,
@@ -181,7 +181,7 @@ static int s3c24xx_eint_type(struct irq_data *data, unsigned int type)
 		return -EINVAL;
 	}
 
-	s3c24xx_eint_set_handler(data->irq, type);
+	s3c24xx_eint_set_handler(data, type);
 
 	/* Set up interrupt trigger */
 	reg = d->virt_base + EINT_REG(index);
