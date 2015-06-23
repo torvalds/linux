@@ -58,7 +58,7 @@ struct i915_params i915 __read_mostly = {
 
 module_param_named(modeset, i915.modeset, int, 0400);
 MODULE_PARM_DESC(modeset,
-	"Use kernel modesetting [KMS] (0=DRM_I915_KMS from .config, "
+	"Use kernel modesetting [KMS] (0=disable, "
 	"1=on, -1=force vga console preference [default])");
 
 module_param_named(panel_ignore_lid, i915.panel_ignore_lid, int, 0600);

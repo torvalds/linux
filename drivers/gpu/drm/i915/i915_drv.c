@@ -440,9 +440,7 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 	{0, 0, 0}
 };
 
-#if defined(CONFIG_DRM_I915_KMS)
 MODULE_DEVICE_TABLE(pci, pciidlist);
-#endif
 
 void intel_detect_pch(struct drm_device *dev)
 {
