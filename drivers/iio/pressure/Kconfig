@@ -56,7 +56,7 @@ config MS5611
 	tristate "Measurement Specialties MS5611 pressure sensor driver"
 	help
 	  Say Y here to build support for the Measurement Specialties
-	  MS5611 pressure and temperature sensor.
+	  MS5611, MS5607 pressure and temperature sensors.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called ms5611_core.
