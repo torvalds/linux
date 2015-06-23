@@ -181,8 +181,6 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		}
 		p->chunks[i].chunk_id = user_chunk.chunk_id;
 		p->chunks[i].length_dw = user_chunk.length_dw;
-		if (p->chunks[i].chunk_id == AMDGPU_CHUNK_ID_IB)
-			p->num_ibs++;
 
 		size = p->chunks[i].length_dw;
 		cdata = (void __user *)(unsigned long)user_chunk.chunk_data;
@@ -199,7 +197,12 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 			goto out;
 		}
 
-		if (p->chunks[i].chunk_id == AMDGPU_CHUNK_ID_FENCE) {
+		switch (p->chunks[i].chunk_id) {
+		case AMDGPU_CHUNK_ID_IB:
+			p->num_ibs++;
+			break;
+
+		case AMDGPU_CHUNK_ID_FENCE:
 			size = sizeof(struct drm_amdgpu_cs_chunk_fence);
 			if (p->chunks[i].length_dw * sizeof(uint32_t) >= size) {
 				uint32_t handle;
@@ -221,6 +224,11 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 				r = -EINVAL;
 				goto out;
 			}
+			break;
+
+		default:
+			r = -EINVAL;
+			goto out;
 		}
 	}
 
