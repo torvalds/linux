@@ -1147,6 +1147,7 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *ring,
 				    uint32_t *const batch,
 				    uint32_t *offset)
 {
+	uint32_t scratch_addr;
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
 	/* WaDisableCtxRestoreArbitration:bdw,chv */
@@ -1174,6 +1175,20 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *ring,
 		wa_ctx_emit(batch, GEN8_L3SQCREG4);
 		wa_ctx_emit(batch, l3sqc4_flush & ~GEN8_LQSC_FLUSH_COHERENT_LINES);
 	}
+
+	/* WaClearSlmSpaceAtContextSwitch:bdw,chv */
+	/* Actual scratch location is at 128 bytes offset */
+	scratch_addr = ring->scratch.gtt_offset + 2*CACHELINE_BYTES;
+
+	wa_ctx_emit(batch, GFX_OP_PIPE_CONTROL(6));
+	wa_ctx_emit(batch, (PIPE_CONTROL_FLUSH_L3 |
+			    PIPE_CONTROL_GLOBAL_GTT_IVB |
+			    PIPE_CONTROL_CS_STALL |
+			    PIPE_CONTROL_QW_WRITE));
+	wa_ctx_emit(batch, scratch_addr);
+	wa_ctx_emit(batch, 0);
+	wa_ctx_emit(batch, 0);
+	wa_ctx_emit(batch, 0);
 
 	/* Pad to end of cacheline */
 	while (index % CACHELINE_DWORDS)
