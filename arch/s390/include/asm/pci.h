@@ -170,7 +170,11 @@ static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
 #endif /* CONFIG_HOTPLUG_PCI_S390 */
 
 /* Helpers */
-struct zpci_dev *get_zdev(struct pci_dev *);
+static inline struct zpci_dev *to_zpci(struct pci_dev *pdev)
+{
+	return pdev->sysdata;
+}
+
 struct zpci_dev *get_zdev_by_fid(u32);
 
 /* DMA */

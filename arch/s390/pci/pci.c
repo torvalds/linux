@@ -76,11 +76,6 @@ EXPORT_SYMBOL_GPL(zpci_iomap_start);
 
 static struct kmem_cache *zdev_fmb_cache;
 
-struct zpci_dev *get_zdev(struct pci_dev *pdev)
-{
-	return (struct zpci_dev *) pdev->sysdata;
-}
-
 struct zpci_dev *get_zdev_by_fid(u32 fid)
 {
 	struct zpci_dev *tmp, *zdev = NULL;
@@ -269,7 +264,7 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 			      unsigned long offset,
 			      unsigned long max)
 {
-	struct zpci_dev *zdev =	get_zdev(pdev);
+	struct zpci_dev *zdev =	to_zpci(pdev);
 	u64 addr;
 	int idx;
 
@@ -385,7 +380,7 @@ static void zpci_irq_handler(struct airq_struct *airq)
 
 int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 	unsigned int hwirq, msi_vecs;
 	unsigned long aisb;
 	struct msi_desc *msi;
@@ -460,7 +455,7 @@ out:
 
 void arch_teardown_msi_irqs(struct pci_dev *pdev)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 	struct msi_desc *msi;
 	int rc;
 
@@ -648,7 +643,7 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 
 int pcibios_add_device(struct pci_dev *pdev)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 	struct resource *res;
 	int i;
 
@@ -673,7 +668,7 @@ void pcibios_release_device(struct pci_dev *pdev)
 
 int pcibios_enable_device(struct pci_dev *pdev, int mask)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 
 	zdev->pdev = pdev;
 	zpci_debug_init_device(zdev);
@@ -684,7 +679,7 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 
 void pcibios_disable_device(struct pci_dev *pdev)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 
 	zpci_fmb_disable_device(zdev);
 	zpci_debug_exit_device(zdev);
@@ -695,7 +690,7 @@ void pcibios_disable_device(struct pci_dev *pdev)
 static int zpci_restore(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 	int ret = 0;
 
 	if (zdev->state != ZPCI_FN_STATE_ONLINE)
@@ -717,7 +712,7 @@ out:
 static int zpci_freeze(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 
 	if (zdev->state != ZPCI_FN_STATE_ONLINE)
 		return 0;

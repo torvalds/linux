@@ -16,7 +16,7 @@
 static ssize_t name##_show(struct device *dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));		\
+	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));		\
 									\
 	return sprintf(buf, fmt, zdev->member);				\
 }									\
@@ -38,7 +38,7 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 	int ret;
 
 	if (!device_remove_file_self(dev, attr))
@@ -64,7 +64,7 @@ static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 
 	return memory_read_from_buffer(buf, count, &off, zdev->util_str,
 				       sizeof(zdev->util_str));

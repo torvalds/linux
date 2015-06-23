@@ -277,7 +277,7 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 				     enum dma_data_direction direction,
 				     struct dma_attrs *attrs)
 {
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
+	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 	unsigned long nr_pages, iommu_page_index;
 	unsigned long pa = page_to_phys(page) + offset;
 	int flags = ZPCI_PTE_VALID;
@@ -316,7 +316,7 @@ static void s390_dma_unmap_pages(struct device *dev, dma_addr_t dma_addr,
 				 size_t size, enum dma_data_direction direction,
 				 struct dma_attrs *attrs)
 {
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
+	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 	unsigned long iommu_page_index;
 	int npages;
 
@@ -337,7 +337,7 @@ static void *s390_dma_alloc(struct device *dev, size_t size,
 			    dma_addr_t *dma_handle, gfp_t flag,
 			    struct dma_attrs *attrs)
 {
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
+	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 	struct page *page;
 	unsigned long pa;
 	dma_addr_t map;
@@ -367,7 +367,7 @@ static void s390_dma_free(struct device *dev, size_t size,
 			  void *pa, dma_addr_t dma_handle,
 			  struct dma_attrs *attrs)
 {
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
+	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 
 	size = PAGE_ALIGN(size);
 	atomic64_sub(size / PAGE_SIZE, &zdev->allocated_pages);
