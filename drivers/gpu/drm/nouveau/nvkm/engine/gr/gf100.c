@@ -1550,18 +1550,25 @@ gf100_gr_ctor_fw(struct gf100_gr_priv *priv, const char *fwname,
 {
 	struct nvkm_device *device = nv_device(priv);
 	const struct firmware *fw;
-	char f[32];
+	char f[64];
+	char cname[16];
 	int ret;
+	int i;
 
-	snprintf(f, sizeof(f), "nouveau/nv%02x_%s", device->chipset, fwname);
+	/* Convert device name to lowercase */
+	strncpy(cname, device->cname, sizeof(cname));
+	cname[sizeof(cname) - 1] = '\0';
+	i = strlen(cname);
+	while (i) {
+		--i;
+		cname[i] = tolower(cname[i]);
+	}
+
+	snprintf(f, sizeof(f), "nvidia/%s/%s.bin", cname, fwname);
 	ret = request_firmware(&fw, f, nv_device_base(device));
 	if (ret) {
-		snprintf(f, sizeof(f), "nouveau/%s", fwname);
-		ret = request_firmware(&fw, f, nv_device_base(device));
-		if (ret) {
-			nv_error(priv, "failed to load %s\n", fwname);
-			return ret;
-		}
+		nv_error(priv, "failed to load %s\n", fwname);
+		return ret;
 	}
 
 	fuc->size = fw->size;
@@ -1615,10 +1622,10 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	if (use_ext_fw) {
 		nv_info(priv, "using external firmware\n");
-		if (gf100_gr_ctor_fw(priv, "fuc409c", &priv->fuc409c) ||
-		    gf100_gr_ctor_fw(priv, "fuc409d", &priv->fuc409d) ||
-		    gf100_gr_ctor_fw(priv, "fuc41ac", &priv->fuc41ac) ||
-		    gf100_gr_ctor_fw(priv, "fuc41ad", &priv->fuc41ad))
+		if (gf100_gr_ctor_fw(priv, "fecs_inst", &priv->fuc409c) ||
+		    gf100_gr_ctor_fw(priv, "fecs_data", &priv->fuc409d) ||
+		    gf100_gr_ctor_fw(priv, "gpccs_inst", &priv->fuc41ac) ||
+		    gf100_gr_ctor_fw(priv, "gpccs_data", &priv->fuc41ad))
 			return -ENODEV;
 		priv->firmware = true;
 	}
