@@ -55,7 +55,7 @@ void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
 			value_array[count] = !!(mctrl & mctrl_gpios_desc[i].mctrl);
 			count++;
 		}
-	gpiod_set_array(count, desc_array, value_array);
+	gpiod_set_array_value(count, desc_array, value_array);
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_set);
 
