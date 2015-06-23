@@ -87,6 +87,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 /*
  * Decoding Capability Register
  */
+#define cap_pi_support(c)	(((c) >> 59) & 1)
 #define cap_read_drain(c)	(((c) >> 55) & 1)
 #define cap_write_drain(c)	(((c) >> 54) & 1)
 #define cap_max_amask_val(c)	(((c) >> 48) & 0x3f)
@@ -299,6 +300,8 @@ struct q_inval {
 
 #define INTR_REMAP_TABLE_ENTRIES	65536
 
+struct irq_domain;
+
 struct ir_table {
 	struct irte *base;
 	unsigned long *bitmap;
@@ -348,6 +351,8 @@ struct intel_iommu {
 
 #ifdef CONFIG_IRQ_REMAP
 	struct ir_table *ir_table;	/* Interrupt remapping info */
+	struct irq_domain *ir_domain;
+	struct irq_domain *ir_msi_domain;
 #endif
 	struct device	*iommu_dev; /* IOMMU-sysfs device */
 	int		node;

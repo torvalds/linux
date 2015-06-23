@@ -6,16 +6,14 @@
  */
 	#include <linux/linkage.h>
 	#include <asm/asm.h>
-	#include <asm/dwarf2.h>
 
 	/* put return address in eax (arg1) */
 	.macro THUNK name, func, put_ret_addr_in_eax=0
 	.globl \name
 \name:
-	CFI_STARTPROC
-	pushl_cfi_reg eax
-	pushl_cfi_reg ecx
-	pushl_cfi_reg edx
+	pushl %eax
+	pushl %ecx
+	pushl %edx
 
 	.if \put_ret_addr_in_eax
 	/* Place EIP in the arg1 */
@@ -23,11 +21,10 @@
 	.endif
 
 	call \func
-	popl_cfi_reg edx
-	popl_cfi_reg ecx
-	popl_cfi_reg eax
+	popl %edx
+	popl %ecx
+	popl %eax
 	ret
-	CFI_ENDPROC
 	_ASM_NOKPROBE(\name)
 	.endm
 

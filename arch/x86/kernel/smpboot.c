@@ -515,6 +515,40 @@ void __inquire_remote_apic(int apicid)
 }
 
 /*
+ * The Multiprocessor Specification 1.4 (1997) example code suggests
+ * that there should be a 10ms delay between the BSP asserting INIT
+ * and de-asserting INIT, when starting a remote processor.
+ * But that slows boot and resume on modern processors, which include
+ * many cores and don't require that delay.
+ *
+ * Cmdline "init_cpu_udelay=" is available to over-ride this delay.
+ * Modern processor families are quirked to remove the delay entirely.
+ */
+#define UDELAY_10MS_DEFAULT 10000
+
+static unsigned int init_udelay = UDELAY_10MS_DEFAULT;
+
+static int __init cpu_init_udelay(char *str)
+{
+	get_option(&str, &init_udelay);
+
+	return 0;
+}
+early_param("cpu_init_udelay", cpu_init_udelay);
+
+static void __init smp_quirk_init_udelay(void)
+{
+	/* if cmdline changed it from default, leave it alone */
+	if (init_udelay != UDELAY_10MS_DEFAULT)
+		return;
+
+	/* if modern processor, use no delay */
+	if (((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) && (boot_cpu_data.x86 == 6)) ||
+	    ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && (boot_cpu_data.x86 >= 0xF)))
+		init_udelay = 0;
+}
+
+/*
  * Poke the other CPU in the eye via NMI to wake it up. Remember that the normal
  * INIT, INIT, STARTUP sequence will reset the chip hard for us, and this
  * won't ... remember to clear down the APIC, etc later.
@@ -556,7 +590,7 @@ wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
 static int
 wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 {
-	unsigned long send_status, accept_status = 0;
+	unsigned long send_status = 0, accept_status = 0;
 	int maxlvt, num_starts, j;
 
 	maxlvt = lapic_get_maxlvt();
@@ -584,7 +618,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
 
-	mdelay(10);
+	udelay(init_udelay);
 
 	pr_debug("Deasserting INIT\n");
 
@@ -652,6 +686,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		 * Give the other CPU some time to accept the IPI.
 		 */
 		udelay(200);
+
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
 		accept_status = (apic_read(APIC_ESR) & 0xEF);
@@ -793,8 +828,6 @@ void common_cpu_up(unsigned int cpu, struct task_struct *idle)
 	clear_tsk_thread_flag(idle, TIF_FORK);
 	initial_gs = per_cpu_offset(cpu);
 #endif
-	per_cpu(kernel_stack, cpu) =
-		(unsigned long)task_stack_page(idle) + THREAD_SIZE;
 }
 
 /*
@@ -1177,6 +1210,8 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		uv_system_init();
 
 	set_mtrr_aps_delayed_init();
+
+	smp_quirk_init_udelay();
 }
 
 void arch_enable_nonboot_cpus_begin(void)

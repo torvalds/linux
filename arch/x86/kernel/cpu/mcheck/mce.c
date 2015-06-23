@@ -1053,6 +1053,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	char *msg = "Unknown";
 	u64 recover_paddr = ~0ull;
 	int flags = MF_ACTION_REQUIRED;
+	int lmce = 0;
 
 	prev_state = ist_enter(regs);
 
@@ -1080,11 +1081,20 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		kill_it = 1;
 
 	/*
-	 * Go through all the banks in exclusion of the other CPUs.
-	 * This way we don't report duplicated events on shared banks
-	 * because the first one to see it will clear it.
+	 * Check if this MCE is signaled to only this logical processor
 	 */
-	order = mce_start(&no_way_out);
+	if (m.mcgstatus & MCG_STATUS_LMCES)
+		lmce = 1;
+	else {
+		/*
+		 * Go through all the banks in exclusion of the other CPUs.
+		 * This way we don't report duplicated events on shared banks
+		 * because the first one to see it will clear it.
+		 * If this is a Local MCE, then no need to perform rendezvous.
+		 */
+		order = mce_start(&no_way_out);
+	}
+
 	for (i = 0; i < cfg->banks; i++) {
 		__clear_bit(i, toclear);
 		if (!test_bit(i, valid_banks))
@@ -1161,8 +1171,18 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * Do most of the synchronization with other CPUs.
 	 * When there's any problem use only local no_way_out state.
 	 */
-	if (mce_end(order) < 0)
-		no_way_out = worst >= MCE_PANIC_SEVERITY;
+	if (!lmce) {
+		if (mce_end(order) < 0)
+			no_way_out = worst >= MCE_PANIC_SEVERITY;
+	} else {
+		/*
+		 * Local MCE skipped calling mce_reign()
+		 * If we found a fatal error, we need to panic here.
+		 */
+		 if (worst >= MCE_PANIC_SEVERITY && mca_cfg.tolerant < 3)
+			mce_panic("Machine check from unknown source",
+				NULL, NULL);
+	}
 
 	/*
 	 * At insane "tolerant" levels we take no action. Otherwise
@@ -1643,10 +1663,16 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 		mce_intel_feature_init(c);
 		mce_adjust_timer = cmci_intel_adjust_timer;
 		break;
-	case X86_VENDOR_AMD:
+
+	case X86_VENDOR_AMD: {
+		u32 ebx = cpuid_ebx(0x80000007);
+
 		mce_amd_feature_init(c);
-		mce_flags.overflow_recov = cpuid_ebx(0x80000007) & 0x1;
+		mce_flags.overflow_recov = !!(ebx & BIT(0));
+		mce_flags.succor	 = !!(ebx & BIT(1));
 		break;
+		}
+
 	default:
 		break;
 	}
@@ -1982,6 +2008,7 @@ void mce_disable_bank(int bank)
 /*
  * mce=off Disables machine check
  * mce=no_cmci Disables CMCI
+ * mce=no_lmce Disables LMCE
  * mce=dont_log_ce Clears corrected events silently, no log created for CEs.
  * mce=ignore_ce Disables polling and CMCI, corrected events are not cleared.
  * mce=TOLERANCELEVEL[,monarchtimeout] (number, see above)
@@ -2005,6 +2032,8 @@ static int __init mcheck_enable(char *str)
 		cfg->disabled = true;
 	else if (!strcmp(str, "no_cmci"))
 		cfg->cmci_disabled = true;
+	else if (!strcmp(str, "no_lmce"))
+		cfg->lmce_disabled = true;
 	else if (!strcmp(str, "dont_log_ce"))
 		cfg->dont_log_ce = true;
 	else if (!strcmp(str, "ignore_ce"))
@@ -2014,11 +2043,8 @@ static int __init mcheck_enable(char *str)
 	else if (!strcmp(str, "bios_cmci_threshold"))
 		cfg->bios_cmci_threshold = true;
 	else if (isdigit(str[0])) {
-		get_option(&str, &(cfg->tolerant));
-		if (*str == ',') {
-			++str;
+		if (get_option(&str, &cfg->tolerant) == 2)
 			get_option(&str, &(cfg->monarch_timeout));
-		}
 	} else {
 		pr_info("mce argument %s ignored. Please use /sys\n", str);
 		return 0;

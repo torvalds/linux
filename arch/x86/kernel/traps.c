@@ -73,8 +73,7 @@ gate_desc debug_idt_table[NR_VECTORS] __page_aligned_bss;
 #else
 #include <asm/processor-flags.h>
 #include <asm/setup.h>
-
-asmlinkage int system_call(void);
+#include <asm/proto.h>
 #endif
 
 /* Must be page-aligned because the real IDT is used in a fixmap. */
@@ -769,18 +768,6 @@ dotraplinkage void
 do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
-#if 0
-	/* No need to warn about this any longer. */
-	pr_info("Ignoring P6 Local APIC Spurious Interrupt Bug...\n");
-#endif
-}
-
-asmlinkage __visible void __attribute__((weak)) smp_thermal_interrupt(void)
-{
-}
-
-asmlinkage __visible void __attribute__((weak)) smp_threshold_interrupt(void)
-{
 }
 
 dotraplinkage void
@@ -906,13 +893,13 @@ void __init trap_init(void)
 		set_bit(i, used_vectors);
 
 #ifdef CONFIG_IA32_EMULATION
-	set_system_intr_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
+	set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_compat);
 	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
 #endif
 
 #ifdef CONFIG_X86_32
-	set_system_trap_gate(SYSCALL_VECTOR, &system_call);
-	set_bit(SYSCALL_VECTOR, used_vectors);
+	set_system_trap_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
+	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
 #endif
 
 	/*

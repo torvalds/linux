@@ -7,7 +7,7 @@
 void irq_move_masked_irq(struct irq_data *idata)
 {
 	struct irq_desc *desc = irq_data_to_desc(idata);
-	struct irq_chip *chip = idata->chip;
+	struct irq_chip *chip = desc->irq_data.chip;
 
 	if (likely(!irqd_is_setaffinity_pending(&desc->irq_data)))
 		return;
@@ -51,6 +51,13 @@ void irq_move_masked_irq(struct irq_data *idata)
 void irq_move_irq(struct irq_data *idata)
 {
 	bool masked;
+
+	/*
+	 * Get top level irq_data when CONFIG_IRQ_DOMAIN_HIERARCHY is enabled,
+	 * and it should be optimized away when CONFIG_IRQ_DOMAIN_HIERARCHY is
+	 * disabled. So we avoid an "#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY" here.
+	 */
+	idata = irq_desc_get_irq_data(irq_data_to_desc(idata));
 
 	if (likely(!irqd_is_setaffinity_pending(idata)))
 		return;
