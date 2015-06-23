@@ -45,6 +45,7 @@ static phys_addr_t rk3288_bootram_phy;
 
 static struct regmap *pmu_regmap;
 static struct regmap *sgrf_regmap;
+static struct regmap *grf_regmap;
 
 static u32 rk3288_pmu_pwr_mode_con;
 static u32 rk3288_sgrf_soc_con0;
@@ -67,9 +68,35 @@ static void rk3288_config_bootdata(void)
 	rkpm_bootdata_l2ctlr = rk3288_l2_config();
 }
 
+#define GRF_UOC0_CON0			0x320
+#define GRF_UOC1_CON0			0x334
+#define GRF_UOC2_CON0			0x348
+#define GRF_SIDDQ			BIT(13)
+
+static bool rk3288_slp_disable_osc(void)
+{
+	static const u32 reg_offset[] = { GRF_UOC0_CON0, GRF_UOC1_CON0,
+					  GRF_UOC2_CON0 };
+	u32 reg, i;
+
+	/*
+	 * if any usb phy is still on(GRF_SIDDQ==0), that means we need the
+	 * function of usb wakeup, so do not switch to 32khz, since the usb phy
+	 * clk does not connect to 32khz osc
+	 */
+	for (i = 0; i < ARRAY_SIZE(reg_offset); i++) {
+		regmap_read(grf_regmap, reg_offset[i], &reg);
+		if (!(reg & GRF_SIDDQ))
+			return false;
+	}
+
+	return true;
+}
+
 static void rk3288_slp_mode_set(int level)
 {
 	u32 mode_set, mode_set1;
+	bool osc_switch_to_32k = rk3288_slp_disable_osc();
 
 	regmap_read(sgrf_regmap, RK3288_SGRF_CPU_CON0, &rk3288_sgrf_cpu_con0);
 	regmap_read(sgrf_regmap, RK3288_SGRF_SOC_CON0, &rk3288_sgrf_soc_con0);
@@ -109,10 +136,12 @@ static void rk3288_slp_mode_set(int level)
 
 	if (level == ROCKCHIP_ARM_OFF_LOGIC_DEEP) {
 		/* arm off, logic deep sleep */
-		mode_set |= BIT(PMU_BUS_PD_EN) |
+		mode_set |= BIT(PMU_BUS_PD_EN) | BIT(PMU_PMU_USE_LF) |
 			    BIT(PMU_DDR1IO_RET_EN) | BIT(PMU_DDR0IO_RET_EN) |
-			    BIT(PMU_OSC_24M_DIS) | BIT(PMU_PMU_USE_LF) |
 			    BIT(PMU_ALIVE_USE_LF) | BIT(PMU_PLL_PD_EN);
+
+		if (osc_switch_to_32k)
+			mode_set |= BIT(PMU_OSC_24M_DIS);
 
 		mode_set1 |= BIT(PMU_CLR_ALIVE) | BIT(PMU_CLR_BUS) |
 			     BIT(PMU_CLR_PERI) | BIT(PMU_CLR_DMA);
@@ -195,6 +224,13 @@ static int rk3288_suspend_init(struct device_node *np)
 				"rockchip,rk3288-sgrf");
 	if (IS_ERR(sgrf_regmap)) {
 		pr_err("%s: could not find sgrf regmap\n", __func__);
+		return PTR_ERR(pmu_regmap);
+	}
+
+	grf_regmap = syscon_regmap_lookup_by_compatible(
+				"rockchip,rk3288-grf");
+	if (IS_ERR(grf_regmap)) {
+		pr_err("%s: could not find grf regmap\n", __func__);
 		return PTR_ERR(pmu_regmap);
 	}
 
