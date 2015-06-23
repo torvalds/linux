@@ -2264,6 +2264,7 @@ struct device_node *of_graph_get_endpoint_by_regs(
 
 	return NULL;
 }
+EXPORT_SYMBOL(of_graph_get_endpoint_by_regs);
 
 /**
  * of_graph_get_remote_port_parent() - get remote port's parent node
