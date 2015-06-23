@@ -65,7 +65,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	busy |= mlx5e_poll_rx_cq(&c->rq.cq, budget);
 
-	busy |= mlx5e_post_rx_wqes(c->rq.cq.sqrq);
+	busy |= mlx5e_post_rx_wqes(&c->rq);
 
 	if (busy)
 		return budget;

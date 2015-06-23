@@ -208,7 +208,6 @@ enum cq_flags {
 struct mlx5e_cq {
 	/* data path - accessed per cqe */
 	struct mlx5_cqwq           wq;
-	void                      *sqrq;
 	unsigned long              flags;
 
 	/* data path - accessed per napi poll */

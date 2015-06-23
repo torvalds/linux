@@ -191,7 +191,7 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 
 bool mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
-	struct mlx5e_rq *rq = cq->sqrq;
+	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
 	int i;
 
 	/* avoid accessing cq (dma coherent memory) if not needed */

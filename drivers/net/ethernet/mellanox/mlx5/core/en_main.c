@@ -853,8 +853,6 @@ static int mlx5e_open_tx_cqs(struct mlx5e_channel *c,
 				    priv->params.tx_cq_moderation_pkts);
 		if (err)
 			goto err_close_tx_cqs;
-
-		c->sq[tc].cq.sqrq = &c->sq[tc];
 	}
 
 	return 0;
@@ -946,7 +944,6 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 			    priv->params.rx_cq_moderation_pkts);
 	if (err)
 		goto err_close_tx_cqs;
-	c->rq.cq.sqrq = &c->rq;
 
 	napi_enable(&c->napi);
 

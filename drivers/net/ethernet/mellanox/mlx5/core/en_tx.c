@@ -266,7 +266,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq)
 	if (!test_and_clear_bit(MLX5E_CQ_HAS_CQES, &cq->flags))
 		return false;
 
-	sq = cq->sqrq;
+	sq = container_of(cq, struct mlx5e_sq, cq);
 
 	npkts = 0;
 	nbytes = 0;
