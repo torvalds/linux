@@ -188,10 +188,9 @@ static inline int bad_action_ret(irqreturn_t action_ret)
  * (The other 100-of-100,000 interrupts may have been a correctly
  *  functioning device sharing an IRQ with the failing one)
  */
-static void
-__report_bad_irq(unsigned int irq, struct irq_desc *desc,
-		 irqreturn_t action_ret)
+static void __report_bad_irq(struct irq_desc *desc, irqreturn_t action_ret)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	struct irqaction *action;
 	unsigned long flags;
 
@@ -224,14 +223,13 @@ __report_bad_irq(unsigned int irq, struct irq_desc *desc,
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
-static void
-report_bad_irq(unsigned int irq, struct irq_desc *desc, irqreturn_t action_ret)
+static void report_bad_irq(struct irq_desc *desc, irqreturn_t action_ret)
 {
 	static int count = 100;
 
 	if (count > 0) {
 		count--;
-		__report_bad_irq(irq, desc, action_ret);
+		__report_bad_irq(desc, action_ret);
 	}
 }
 
@@ -280,7 +278,7 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		return;
 
 	if (bad_action_ret(action_ret)) {
-		report_bad_irq(irq, desc, action_ret);
+		report_bad_irq(desc, action_ret);
 		return;
 	}
 
@@ -413,7 +411,7 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		/*
 		 * The interrupt is stuck
 		 */
-		__report_bad_irq(irq, desc, action_ret);
+		__report_bad_irq(desc, action_ret);
 		/*
 		 * Now kill the IRQ
 		 */
