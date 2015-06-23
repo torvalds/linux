@@ -41,6 +41,26 @@ struct nfs4_ff_layout_ds_err {
 	struct nfs4_deviceid		deviceid;
 };
 
+struct nfs4_ff_io_stat {
+	__u64				ops_requested;
+	__u64				bytes_requested;
+	__u64				ops_completed;
+	__u64				bytes_completed;
+	__u64				bytes_not_delivered;
+	ktime_t				total_busy_time;
+	ktime_t				aggregate_completion_time;
+};
+
+struct nfs4_ff_busy_timer {
+	ktime_t start_time;
+	atomic_t n_ops;
+};
+
+struct nfs4_ff_layoutstat {
+	struct nfs4_ff_io_stat io_stat;
+	struct nfs4_ff_busy_timer busy_timer;
+};
+
 struct nfs4_ff_layout_mirror {
 	u32				ds_count;
 	u32				efficiency;
@@ -52,6 +72,8 @@ struct nfs4_ff_layout_mirror {
 	u32				gid;
 	struct rpc_cred			*cred;
 	spinlock_t			lock;
+	struct nfs4_ff_layoutstat	read_stat;
+	struct nfs4_ff_layoutstat	write_stat;
 };
 
 struct nfs4_ff_layout_segment {
