@@ -2268,6 +2268,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 			const struct drm_plane_state *plane_state)
 {
 	struct intel_rotation_info *info = &view->rotation_info;
+	unsigned int tile_height, tile_pitch;
 
 	*view = i915_ggtt_view_normal;
 
@@ -2283,6 +2284,13 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 	info->pixel_format = fb->pixel_format;
 	info->pitch = fb->pitches[0];
 	info->fb_modifier = fb->modifier[0];
+
+	tile_height = intel_tile_height(fb->dev, fb->pixel_format,
+					fb->modifier[0]);
+	tile_pitch = PAGE_SIZE / tile_height;
+	info->width_pages = DIV_ROUND_UP(fb->pitches[0], tile_pitch);
+	info->height_pages = DIV_ROUND_UP(fb->height, tile_height);
+	info->size = info->width_pages * info->height_pages * PAGE_SIZE;
 
 	return 0;
 }
