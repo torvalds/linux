@@ -352,10 +352,10 @@ int core_enable_device_list_for_node(
 		hlist_add_head_rcu(&new->link, &nacl->lun_entry_hlist);
 		mutex_unlock(&nacl->lun_entry_mutex);
 
-		spin_lock_bh(&lun->lun_deve_lock);
+		spin_lock(&lun->lun_deve_lock);
 		list_del(&orig->lun_link);
 		list_add_tail(&new->lun_link, &lun->lun_deve_list);
-		spin_unlock_bh(&lun->lun_deve_lock);
+		spin_unlock(&lun->lun_deve_lock);
 
 		kref_put(&orig->pr_kref, target_pr_kref_release);
 		wait_for_completion(&orig->pr_comp);
@@ -369,9 +369,9 @@ int core_enable_device_list_for_node(
 	hlist_add_head_rcu(&new->link, &nacl->lun_entry_hlist);
 	mutex_unlock(&nacl->lun_entry_mutex);
 
-	spin_lock_bh(&lun->lun_deve_lock);
+	spin_lock(&lun->lun_deve_lock);
 	list_add_tail(&new->lun_link, &lun->lun_deve_list);
-	spin_unlock_bh(&lun->lun_deve_lock);
+	spin_unlock(&lun->lun_deve_lock);
 
 	return 0;
 }
@@ -403,9 +403,9 @@ void core_disable_device_list_for_node(
 	 * NodeACL context specific PR metadata for demo-mode
 	 * MappedLUN *deve will be released below..
 	 */
-	spin_lock_bh(&lun->lun_deve_lock);
+	spin_lock(&lun->lun_deve_lock);
 	list_del(&orig->lun_link);
-	spin_unlock_bh(&lun->lun_deve_lock);
+	spin_unlock(&lun->lun_deve_lock);
 	/*
 	 * Disable struct se_dev_entry LUN ACL mapping
 	 */

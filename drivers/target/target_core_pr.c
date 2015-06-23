@@ -709,7 +709,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			continue;
 		spin_unlock(&dev->se_port_lock);
 
-		spin_lock_bh(&lun_tmp->lun_deve_lock);
+		spin_lock(&lun_tmp->lun_deve_lock);
 		list_for_each_entry(deve_tmp, &lun_tmp->lun_deve_list, lun_link) {
 			/*
 			 * This pointer will be NULL for demo mode MappedLUNs
@@ -742,7 +742,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 				continue;
 
 			kref_get(&deve_tmp->pr_kref);
-			spin_unlock_bh(&lun_tmp->lun_deve_lock);
+			spin_unlock(&lun_tmp->lun_deve_lock);
 			/*
 			 * Grab a configfs group dependency that is released
 			 * for the exception path at label out: below, or upon
@@ -779,9 +779,9 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 
 			list_add_tail(&pr_reg_atp->pr_reg_atp_mem_list,
 				      &pr_reg->pr_reg_atp_list);
-			spin_lock_bh(&lun_tmp->lun_deve_lock);
+			spin_lock(&lun_tmp->lun_deve_lock);
 		}
-		spin_unlock_bh(&lun_tmp->lun_deve_lock);
+		spin_unlock(&lun_tmp->lun_deve_lock);
 
 		spin_lock(&dev->se_port_lock);
 		percpu_ref_put(&lun_tmp->lun_ref);

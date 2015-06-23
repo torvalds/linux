@@ -968,7 +968,7 @@ static void core_alua_queue_state_change_ua(struct t10_alua_tg_pt_gp *tg_pt_gp)
 			continue;
 		spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
 
-		spin_lock_bh(&lun->lun_deve_lock);
+		spin_lock(&lun->lun_deve_lock);
 		list_for_each_entry(se_deve, &lun->lun_deve_list, lun_link) {
 			lacl = rcu_dereference_check(se_deve->se_lun_acl,
 					lockdep_is_held(&lun->lun_deve_lock));
@@ -1000,7 +1000,7 @@ static void core_alua_queue_state_change_ua(struct t10_alua_tg_pt_gp *tg_pt_gp)
 			core_scsi3_ua_allocate(se_deve, 0x2A,
 				ASCQ_2AH_ASYMMETRIC_ACCESS_STATE_CHANGED);
 		}
-		spin_unlock_bh(&lun->lun_deve_lock);
+		spin_unlock(&lun->lun_deve_lock);
 
 		spin_lock(&tg_pt_gp->tg_pt_gp_lock);
 		percpu_ref_put(&lun->lun_ref);
