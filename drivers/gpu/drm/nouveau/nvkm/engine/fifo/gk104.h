@@ -15,4 +15,8 @@ struct gk104_fifo_impl {
 };
 
 extern struct nvkm_ofuncs gk104_fifo_chan_ofuncs;
+
+int  gm204_fifo_ctor(struct nvkm_object *, struct nvkm_object *,
+		    struct nvkm_oclass *, void *, u32,
+		    struct nvkm_object **);
 #endif
