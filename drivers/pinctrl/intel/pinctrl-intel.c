@@ -758,9 +758,9 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned type)
 	writel(value, reg);
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	else if (type & IRQ_TYPE_LEVEL_MASK)
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
