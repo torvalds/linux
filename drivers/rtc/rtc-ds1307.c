@@ -11,14 +11,14 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/i2c.h>
-#include <linux/string.h>
-#include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/rtc/ds1307.h>
+#include <linux/rtc.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 /*
  * We can't determine type by probing, but if we expect pre-Linux code
