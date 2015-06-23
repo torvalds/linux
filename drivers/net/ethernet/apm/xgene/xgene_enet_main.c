@@ -1289,6 +1289,8 @@ static const struct acpi_device_id xgene_enet_acpi_match[] = {
 	{ "APMC0D05", XGENE_ENET1},
 	{ "APMC0D30", XGENE_ENET1},
 	{ "APMC0D31", XGENE_ENET1},
+	{ "APMC0D26", XGENE_ENET2},
+	{ "APMC0D25", XGENE_ENET2},
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, xgene_enet_acpi_match);
