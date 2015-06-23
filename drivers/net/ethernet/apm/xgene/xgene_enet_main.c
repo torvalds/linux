@@ -1024,11 +1024,13 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	if (pdata->phy_mode != PHY_INTERFACE_MODE_RGMII) {
 		ret = platform_get_irq(pdev, 1);
 		if (ret <= 0) {
-			dev_err(dev, "Unable to get ENET Tx completion IRQ\n");
-			ret = ret ? : -ENXIO;
-			return ret;
+			pdata->cq_cnt = 0;
+			dev_info(dev, "Unable to get Tx completion IRQ,"
+				 "using Rx IRQ instead\n");
+		} else {
+			pdata->cq_cnt = XGENE_MAX_TXC_RINGS;
+			pdata->txc_irq = ret;
 		}
-		pdata->txc_irq = ret;
 	}
 
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
@@ -1105,13 +1107,11 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 		pdata->mac_ops = &xgene_sgmac_ops;
 		pdata->port_ops = &xgene_sgport_ops;
 		pdata->rm = RM1;
-		pdata->cq_cnt = XGENE_MAX_TXC_RINGS;
 		break;
 	default:
 		pdata->mac_ops = &xgene_xgmac_ops;
 		pdata->port_ops = &xgene_xgport_ops;
 		pdata->rm = RM0;
-		pdata->cq_cnt = XGENE_MAX_TXC_RINGS;
 		break;
 	}
 
