@@ -882,7 +882,6 @@ static struct scsi_host_template wd719x_template = {
 	.can_queue			= 255,
 	.this_id			= 7,
 	.sg_tablesize			= WD719X_SG,
-	.cmd_per_lun			= WD719X_CMD_PER_LUN,
 	.use_clustering			= ENABLE_CLUSTERING,
 };
 

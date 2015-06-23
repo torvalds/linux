@@ -32,10 +32,6 @@
 #include <linux/rculist.h>
 #include <linux/kref.h>
 #include <asm/unaligned.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_cmnd.h>
 #include <scsi/libfc.h>
 
 #include <target/target_core_base.h>
