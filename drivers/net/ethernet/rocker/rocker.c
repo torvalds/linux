@@ -5040,7 +5040,7 @@ static int __init rocker_module_init(void)
 	return 0;
 
 err_pci_register_driver:
-	unregister_netdevice_notifier(&rocker_netevent_nb);
+	unregister_netevent_notifier(&rocker_netevent_nb);
 	unregister_netdevice_notifier(&rocker_netdevice_nb);
 	return err;
 }
