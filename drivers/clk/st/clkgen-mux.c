@@ -582,7 +582,7 @@ static struct clkgen_mux_data stih416_a9_mux_data = {
 };
 static struct clkgen_mux_data stih407_a9_mux_data = {
 	.offset = 0x1a4,
-	.shift = 1,
+	.shift = 0,
 	.width = 2,
 };
 
