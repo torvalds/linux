@@ -6624,6 +6624,34 @@ static int skylake_get_display_clock_speed(struct drm_device *dev)
 	return 24000;
 }
 
+static int broxton_get_display_clock_speed(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	uint32_t cdctl = I915_READ(CDCLK_CTL);
+	uint32_t pll_ratio = I915_READ(BXT_DE_PLL_CTL) & BXT_DE_PLL_RATIO_MASK;
+	uint32_t pll_enab = I915_READ(BXT_DE_PLL_ENABLE);
+	int cdclk;
+
+	if (!(pll_enab & BXT_DE_PLL_PLL_ENABLE))
+		return 19200;
+
+	cdclk = 19200 * pll_ratio / 2;
+
+	switch (cdctl & BXT_CDCLK_CD2X_DIV_SEL_MASK) {
+	case BXT_CDCLK_CD2X_DIV_SEL_1:
+		return cdclk;  /* 576MHz or 624MHz */
+	case BXT_CDCLK_CD2X_DIV_SEL_1_5:
+		return cdclk * 2 / 3; /* 384MHz */
+	case BXT_CDCLK_CD2X_DIV_SEL_2:
+		return cdclk / 2; /* 288MHz */
+	case BXT_CDCLK_CD2X_DIV_SEL_4:
+		return cdclk / 4; /* 144MHz */
+	}
+
+	/* error case, do as if DE PLL isn't enabled */
+	return 19200;
+}
+
 static int broadwell_get_display_clock_speed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -14615,6 +14643,9 @@ static void intel_init_display(struct drm_device *dev)
 	if (IS_SKYLAKE(dev))
 		dev_priv->display.get_display_clock_speed =
 			skylake_get_display_clock_speed;
+	else if (IS_BROXTON(dev))
+		dev_priv->display.get_display_clock_speed =
+			broxton_get_display_clock_speed;
 	else if (IS_BROADWELL(dev))
 		dev_priv->display.get_display_clock_speed =
 			broadwell_get_display_clock_speed;
