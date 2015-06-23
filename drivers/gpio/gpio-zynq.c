@@ -441,10 +441,10 @@ static int zynq_gpio_set_irq_type(struct irq_data *irq_data, unsigned int type)
 		       gpio->base_addr + ZYNQ_GPIO_INTANY_OFFSET(bank_num));
 
 	if (type & IRQ_TYPE_LEVEL_MASK) {
-		__irq_set_chip_handler_name_locked(irq_data->irq,
+		irq_set_chip_handler_name_locked(irq_data,
 			&zynq_gpio_level_irqchip, handle_fasteoi_irq, NULL);
 	} else {
-		__irq_set_chip_handler_name_locked(irq_data->irq,
+		irq_set_chip_handler_name_locked(irq_data,
 			&zynq_gpio_edge_irqchip, handle_level_irq, NULL);
 	}
 
