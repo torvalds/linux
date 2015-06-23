@@ -1555,9 +1555,9 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 	spin_unlock_irqrestore(&bank->slock, flags);
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	else
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 
 	spin_lock_irqsave(&bank->slock, flags);
 	irq_gc_lock(gc);
