@@ -637,8 +637,7 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
 	return canrequest;
 }
 
-int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
-		      unsigned long flags)
+int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
 {
 	struct irq_chip *chip = desc->irq_data.chip;
 	int ret, unmask = 0;
@@ -648,7 +647,8 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		 * IRQF_TRIGGER_* but the PIC does not support multiple
 		 * flow-types?
 		 */
-		pr_debug("No set_type function for IRQ %d (%s)\n", irq,
+		pr_debug("No set_type function for IRQ %d (%s)\n",
+			 irq_desc_get_irq(desc),
 			 chip ? (chip->name ? : "unknown") : "unknown");
 		return 0;
 	}
@@ -685,7 +685,7 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		break;
 	default:
 		pr_err("Setting trigger mode %lu for irq %u failed (%pF)\n",
-		       flags, irq, chip->irq_set_type);
+		       flags, irq_desc_get_irq(desc), chip->irq_set_type);
 	}
 	if (unmask)
 		unmask_irq(desc);
@@ -1221,8 +1221,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 
 		/* Setup the type (level, edge polarity) if configured: */
 		if (new->flags & IRQF_TRIGGER_MASK) {
-			ret = __irq_set_trigger(desc, irq,
-					new->flags & IRQF_TRIGGER_MASK);
+			ret = __irq_set_trigger(desc,
+						new->flags & IRQF_TRIGGER_MASK);
 
 			if (ret)
 				goto out_mask;
@@ -1650,7 +1650,7 @@ void enable_percpu_irq(unsigned int irq, unsigned int type)
 	if (type != IRQ_TYPE_NONE) {
 		int ret;
 
-		ret = __irq_set_trigger(desc, irq, type);
+		ret = __irq_set_trigger(desc, type);
 
 		if (ret) {
 			WARN(1, "failed to set type for IRQ%d\n", irq);
