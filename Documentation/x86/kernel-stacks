@@ -1,3 +1,6 @@
+Kernel stacks on x86-64 bit
+---------------------------
+
 Most of the text from Keith Owens, hacked by AK
 
 x86_64 page size (PAGE_SIZE) is 4K.
@@ -56,13 +59,6 @@ If that assumption is ever broken then the stacks will become corrupt.
 
 The currently assigned IST stacks are :-
 
-* STACKFAULT_STACK.  EXCEPTION_STKSZ (PAGE_SIZE).
-
-  Used for interrupt 12 - Stack Fault Exception (#SS).
-
-  This allows the CPU to recover from invalid stack segments. Rarely
-  happens.
-
 * DOUBLEFAULT_STACK.  EXCEPTION_STKSZ (PAGE_SIZE).
 
   Used for interrupt 8 - Double Fault Exception (#DF).
@@ -99,3 +95,47 @@ The currently assigned IST stacks are :-
   assumptions about the previous state of the kernel stack.
 
 For more details see the Intel IA32 or AMD AMD64 architecture manuals.
+
+
+Printing backtraces on x86
+--------------------------
+
+The question about the '?' preceding function names in an x86 stacktrace
+keeps popping up, here's an indepth explanation. It helps if the reader
+stares at print_context_stack() and the whole machinery in and around
+arch/x86/kernel/dumpstack.c.
+
+Adapted from Ingo's mail, Message-ID: <20150521101614.GA10889@gmail.com>:
+
+We always scan the full kernel stack for return addresses stored on
+the kernel stack(s) [*], from stack top to stack bottom, and print out
+anything that 'looks like' a kernel text address.
+
+If it fits into the frame pointer chain, we print it without a question
+mark, knowing that it's part of the real backtrace.
+
+If the address does not fit into our expected frame pointer chain we
+still print it, but we print a '?'. It can mean two things:
+
+ - either the address is not part of the call chain: it's just stale
+   values on the kernel stack, from earlier function calls. This is
+   the common case.
+
+ - or it is part of the call chain, but the frame pointer was not set
+   up properly within the function, so we don't recognize it.
+
+This way we will always print out the real call chain (plus a few more
+entries), regardless of whether the frame pointer was set up correctly
+or not - but in most cases we'll get the call chain right as well. The
+entries printed are strictly in stack order, so you can deduce more
+information from that as well.
+
+The most important property of this method is that we _never_ lose
+information: we always strive to print _all_ addresses on the stack(s)
+that look like kernel text addresses, so if debug information is wrong,
+we still print out the real call chain as well - just with more question
+marks than ideal.
+
+[*] For things like IRQ and IST stacks, we also scan those stacks, in
+    the right order, and try to cross from one stack into another
+    reconstructing the call chain. This works most of the time.
