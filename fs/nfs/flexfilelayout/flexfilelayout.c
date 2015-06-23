@@ -452,14 +452,23 @@ nfs4_ff_layout_calc_completion_time(struct rpc_task *task)
 	return ktime_sub(ktime_get(), task->tk_start);
 }
 
-static void
+static bool
 nfs4_ff_layoutstat_start_io(struct nfs4_ff_layout_mirror *mirror,
 			    struct nfs4_ff_layoutstat *layoutstat)
 {
 	static const ktime_t notime = {0};
+	ktime_t now = ktime_get();
 
 	nfs4_ff_start_busy_timer(&layoutstat->busy_timer);
-	cmpxchg(&mirror->start_time, notime, ktime_get());
+	cmpxchg(&mirror->start_time.tv64, notime.tv64, now.tv64);
+	cmpxchg(&mirror->last_report_time.tv64, notime.tv64, now.tv64);
+	if (ktime_to_ms(ktime_sub(now, mirror->last_report_time)) >=
+			FF_LAYOUTSTATS_REPORT_INTERVAL) {
+		mirror->last_report_time = now;
+		return true;
+	}
+
+	return false;
 }
 
 static void
@@ -496,10 +505,15 @@ static void
 nfs4_ff_layout_stat_io_start_read(struct nfs4_ff_layout_mirror *mirror,
 		__u64 requested)
 {
+	bool report;
+
 	spin_lock(&mirror->lock);
-	nfs4_ff_layoutstat_start_io(mirror, &mirror->read_stat);
+	report = nfs4_ff_layoutstat_start_io(mirror, &mirror->read_stat);
 	nfs4_ff_layout_stat_io_update_requested(&mirror->read_stat, requested);
 	spin_unlock(&mirror->lock);
+
+	if (report)
+		pnfs_report_layoutstat(mirror->lseg->pls_layout->plh_inode);
 }
 
 static void
@@ -519,10 +533,15 @@ static void
 nfs4_ff_layout_stat_io_start_write(struct nfs4_ff_layout_mirror *mirror,
 		__u64 requested)
 {
+	bool report;
+
 	spin_lock(&mirror->lock);
-	nfs4_ff_layoutstat_start_io(mirror, &mirror->write_stat);
+	report = nfs4_ff_layoutstat_start_io(mirror , &mirror->write_stat);
 	nfs4_ff_layout_stat_io_update_requested(&mirror->write_stat, requested);
 	spin_unlock(&mirror->lock);
+
+	if (report)
+		pnfs_report_layoutstat(mirror->lseg->pls_layout->plh_inode);
 }
 
 static void

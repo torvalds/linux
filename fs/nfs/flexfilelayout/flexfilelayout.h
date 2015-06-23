@@ -15,6 +15,9 @@
  * due to network error etc. */
 #define NFS4_FLEXFILE_LAYOUT_MAX_MIRROR_CNT 4096
 
+/* LAYOUTSTATS report interval in ms */
+#define FF_LAYOUTSTATS_REPORT_INTERVAL (60000L)
+
 struct nfs4_ff_ds_version {
 	u32				version;
 	u32				minor_version;
@@ -62,6 +65,7 @@ struct nfs4_ff_layoutstat {
 };
 
 struct nfs4_ff_layout_mirror {
+	struct pnfs_layout_segment	*lseg; /* back pointer */
 	u32				ds_count;
 	u32				efficiency;
 	struct nfs4_ff_layout_ds	*mirror_ds;
@@ -75,7 +79,7 @@ struct nfs4_ff_layout_mirror {
 	struct nfs4_ff_layoutstat	read_stat;
 	struct nfs4_ff_layoutstat	write_stat;
 	ktime_t				start_time;
-	struct pnfs_layout_segment	*lseg; /* back pointer */
+	ktime_t				last_report_time;
 };
 
 struct nfs4_ff_layout_segment {
