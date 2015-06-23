@@ -106,7 +106,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		 priv->default_vlan_prio;
 	int tc = netdev_get_prio_tc_map(dev, up);
 
-	return (tc << priv->order_base_2_num_channels) | channel_ix;
+	return priv->channel[channel_ix]->tc_to_txq_map[tc];
 }
 
 static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
@@ -250,21 +250,7 @@ dma_unmap_wqe_err:
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int ix = skb->queue_mapping;
-	int tc = 0;
-	struct mlx5e_channel *c = priv->channel[ix];
-	struct mlx5e_sq *sq = &c->sq[tc];
-
-	return mlx5e_sq_xmit(sq, skb);
-}
-
-netdev_tx_t mlx5e_xmit_multi_tc(struct sk_buff *skb, struct net_device *dev)
-{
-	struct mlx5e_priv *priv = netdev_priv(dev);
-	int ix = skb->queue_mapping & priv->queue_mapping_channel_mask;
-	int tc = skb->queue_mapping >> priv->order_base_2_num_channels;
-	struct mlx5e_channel *c = priv->channel[ix];
-	struct mlx5e_sq *sq = &c->sq[tc];
+	struct mlx5e_sq *sq = priv->txq_to_sq_map[skb_get_queue_mapping(skb)];
 
 	return mlx5e_sq_xmit(sq, skb);
 }

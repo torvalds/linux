@@ -316,6 +316,7 @@ struct mlx5e_channel {
 	__be32                     mkey_be;
 	u8                         num_tc;
 	unsigned long              flags;
+	int                        tc_to_txq_map[MLX5E_MAX_NUM_TC];
 
 	/* control */
 	struct mlx5e_priv         *priv;
@@ -379,10 +380,9 @@ struct mlx5e_flow_table {
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
-	int                        order_base_2_num_channels;
-	int                        queue_mapping_channel_mask;
 	int                        num_tc;
 	int                        default_vlan_prio;
+	struct mlx5e_sq            **txq_to_sq_map;
 	/* priv data path fields - end */
 
 	unsigned long              state;
@@ -460,7 +460,6 @@ void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw);
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       void *accel_priv, select_queue_fallback_t fallback);
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
-netdev_tx_t mlx5e_xmit_multi_tc(struct sk_buff *skb, struct net_device *dev);
 
 void mlx5e_completion_event(struct mlx5_core_cq *mcq);
 void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event);
