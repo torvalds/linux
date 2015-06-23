@@ -60,7 +60,7 @@ bool irq_wait_for_poll(struct irq_desc *desc)
 /*
  * Recovery handler for misrouted interrupts.
  */
-static int try_one_irq(int irq, struct irq_desc *desc, bool force)
+static int try_one_irq(struct irq_desc *desc, bool force)
 {
 	irqreturn_t ret = IRQ_NONE;
 	struct irqaction *action;
@@ -133,7 +133,7 @@ static int misrouted_irq(int irq)
 		if (i == irq)	/* Already tried */
 			continue;
 
-		if (try_one_irq(i, desc, false))
+		if (try_one_irq(desc, false))
 			ok = 1;
 	}
 out:
@@ -164,7 +164,7 @@ static void poll_spurious_irqs(unsigned long dummy)
 			continue;
 
 		local_irq_disable();
-		try_one_irq(i, desc, true);
+		try_one_irq(desc, true);
 		local_irq_enable();
 	}
 out:
