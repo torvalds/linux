@@ -75,7 +75,7 @@ RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
     {
         x_flag = 1;
         #if SCALE_DOWN_LARGE
-        param_x = ((dw) << 16) / (sw);
+        param_x = ((dw) << 16) / (sw) + 1;
 		#else
         param_x = ((dw) << 16) / (sw);
         #endif
@@ -100,7 +100,7 @@ RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
     {
         y_flag = 1;
         #if SCALE_DOWN_LARGE
-        param_y = ((dh) << 16) / (sh);
+        param_y = ((dh) << 16) / (sh) + 1;
 		#else
         param_y = ((dh) << 16) / (sh);
         #endif
