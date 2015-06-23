@@ -53,6 +53,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *          Add rk_tf_check_version to compatible for rk3328.
  *  L 0.17:
  *          merge 1.4_ED3573678 DDK code
+ *  L 0.18:
+ *          If fix freq,then don't force to drop freq to the lowest.
  */
 
 #define PVR_STR(X) #X
@@ -80,5 +82,5 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRVERSION_UNPACK_MIN(VERSION) (((VERSION) >> 0) & 0xFFFF)
 
 //chenli:define rockchip version
-#define RKVERSION                   "Rogue L 0.17"
+#define RKVERSION                   "Rogue L 0.18"
 #endif /* _PVRVERSION_H_ */

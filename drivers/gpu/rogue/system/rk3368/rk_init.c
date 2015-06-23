@@ -1795,8 +1795,11 @@ static IMG_VOID RgxDisableClock(IMG_VOID)
     if (platform->aclk_gpu_mem && platform->aclk_gpu_cfg && platform->gpu_active)
     {
 #if RK33_DVFS_SUPPORT
-        //Force to drop freq to the lowest.
-        rk33_dvfs_set_level(0);
+        if(platform->fix_freq <= 0)
+        {
+            //Force to drop freq to the lowest.
+            rk33_dvfs_set_level(0);
+        }
 
         if(platform->dvfs_enabled && platform->timer_active)
         {
