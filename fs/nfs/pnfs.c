@@ -2257,11 +2257,15 @@ pnfs_report_layoutstat(struct inode *inode)
 {
 	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
 	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs42_layoutstat_data *data;
 	struct pnfs_layout_hdr *hdr;
 	int status = 0;
 
 	if (!pnfs_enabled_sb(server) || !ld->prepare_layoutstats)
+		goto out;
+
+	if (test_and_set_bit(NFS_INO_LAYOUTSTATS, &nfsi->flags))
 		goto out;
 
 	spin_lock(&inode->i_lock);
@@ -2296,6 +2300,9 @@ out_free:
 	kfree(data);
 out_put:
 	pnfs_put_layout_hdr(hdr);
+	smp_mb__before_atomic();
+	clear_bit(NFS_INO_LAYOUTSTATS, &nfsi->flags);
+	smp_mb__after_atomic();
 	goto out;
 }
 EXPORT_SYMBOL_GPL(pnfs_report_layoutstat);

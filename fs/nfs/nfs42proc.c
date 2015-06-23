@@ -204,6 +204,9 @@ nfs42_layoutstat_release(void *calldata)
 		nfss->pnfs_curr_ld->cleanup_layoutstats(data);
 
 	pnfs_put_layout_hdr(NFS_I(data->args.inode)->layout);
+	smp_mb__before_atomic();
+	clear_bit(NFS_INO_LAYOUTSTATS, &NFS_I(data->args.inode)->flags);
+	smp_mb__after_atomic();
 	nfs_iput_and_deactive(data->inode);
 	kfree(data->args.devinfo);
 	kfree(data);
