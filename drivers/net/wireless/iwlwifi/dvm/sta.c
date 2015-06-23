@@ -60,15 +60,15 @@ static int iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 	return 0;
 }
 
-static int iwl_process_add_sta_resp(struct iwl_priv *priv,
-				    struct iwl_rx_packet *pkt)
+static void iwl_process_add_sta_resp(struct iwl_priv *priv,
+				     struct iwl_rx_packet *pkt)
 {
 	struct iwl_add_sta_resp *add_sta_resp = (void *)pkt->data;
 
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
 			pkt->hdr.flags);
-		return 0;
+		return;
 	}
 
 	IWL_DEBUG_INFO(priv, "Processing response for adding station\n");
@@ -96,19 +96,13 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 	}
 
 	spin_unlock_bh(&priv->sta_lock);
-
-	return 0;
 }
 
-int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
-			       struct iwl_device_cmd *cmd)
+void iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
-	if (!cmd)
-		return 0;
-
-	return iwl_process_add_sta_resp(priv, pkt);
+	iwl_process_add_sta_resp(priv, pkt);
 }
 
 int iwl_send_add_sta(struct iwl_priv *priv,
