@@ -623,7 +623,8 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			/* It is not necessary, but requires a bit of thinking */
 			if (fl4.flowi4_scope < RT_SCOPE_LINK)
 				fl4.flowi4_scope = RT_SCOPE_LINK;
-			err = fib_lookup(net, &fl4, &res);
+			err = fib_lookup(net, &fl4, &res,
+					 FIB_LOOKUP_IGNORE_LINKSTATE);
 			if (err) {
 				rcu_read_unlock();
 				return err;
@@ -1035,12 +1036,20 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 	    nla_put_in_addr(skb, RTA_PREFSRC, fi->fib_prefsrc))
 		goto nla_put_failure;
 	if (fi->fib_nhs == 1) {
+		struct in_device *in_dev;
+
 		if (fi->fib_nh->nh_gw &&
 		    nla_put_in_addr(skb, RTA_GATEWAY, fi->fib_nh->nh_gw))
 			goto nla_put_failure;
 		if (fi->fib_nh->nh_oif &&
 		    nla_put_u32(skb, RTA_OIF, fi->fib_nh->nh_oif))
 			goto nla_put_failure;
+		if (fi->fib_nh->nh_flags & RTNH_F_LINKDOWN) {
+			in_dev = __in_dev_get_rcu(fi->fib_nh->nh_dev);
+			if (in_dev &&
+			    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev))
+				rtm->rtm_flags |= RTNH_F_DEAD;
+		}
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		if (fi->fib_nh[0].nh_tclassid &&
 		    nla_put_u32(skb, RTA_FLOW, fi->fib_nh[0].nh_tclassid))
@@ -1057,11 +1066,19 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			goto nla_put_failure;
 
 		for_nexthops(fi) {
+			struct in_device *in_dev;
+
 			rtnh = nla_reserve_nohdr(skb, sizeof(*rtnh));
 			if (!rtnh)
 				goto nla_put_failure;
 
 			rtnh->rtnh_flags = nh->nh_flags & 0xFF;
+			if (nh->nh_flags & RTNH_F_LINKDOWN) {
+				in_dev = __in_dev_get_rcu(nh->nh_dev);
+				if (in_dev &&
+				    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev))
+					rtnh->rtnh_flags |= RTNH_F_DEAD;
+			}
 			rtnh->rtnh_hops = nh->nh_weight - 1;
 			rtnh->rtnh_ifindex = nh->nh_oif;
 
@@ -1310,16 +1327,22 @@ int fib_sync_up(struct net_device *dev, unsigned int nh_flags)
 void fib_select_multipath(struct fib_result *res)
 {
 	struct fib_info *fi = res->fi;
+	struct in_device *in_dev;
 	int w;
 
 	spin_lock_bh(&fib_multipath_lock);
 	if (fi->fib_power <= 0) {
 		int power = 0;
 		change_nexthops(fi) {
-			if (!(nexthop_nh->nh_flags & RTNH_F_DEAD)) {
-				power += nexthop_nh->nh_weight;
-				nexthop_nh->nh_power = nexthop_nh->nh_weight;
-			}
+			in_dev = __in_dev_get_rcu(nexthop_nh->nh_dev);
+			if (nexthop_nh->nh_flags & RTNH_F_DEAD)
+				continue;
+			if (in_dev &&
+			    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+			    nexthop_nh->nh_flags & RTNH_F_LINKDOWN)
+				continue;
+			power += nexthop_nh->nh_weight;
+			nexthop_nh->nh_power = nexthop_nh->nh_weight;
 		} endfor_nexthops(fi);
 		fi->fib_power = power;
 		if (power <= 0) {
