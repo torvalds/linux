@@ -153,7 +153,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		sq->stats.tso_packets++;
 		sq->stats.tso_bytes += payload_len;
 	} else {
-		ihs             = mlx5e_get_inline_hdr_size(sq, skb);
+		ihs = mlx5e_get_inline_hdr_size(sq, skb);
 		MLX5E_TX_SKB_CB(skb)->num_bytes = max_t(unsigned int, skb->len,
 							ETH_ZLEN);
 	}
@@ -161,7 +161,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	skb_copy_from_linear_data(skb, eseg->inline_hdr_start, ihs);
 	skb_pull_inline(skb, ihs);
 
-	eseg->inline_hdr_sz	= cpu_to_be16(ihs);
+	eseg->inline_hdr_sz = cpu_to_be16(ihs);
 
 	ds_cnt  = sizeof(*wqe) / MLX5_SEND_WQE_DS;
 	ds_cnt += DIV_ROUND_UP(ihs - sizeof(eseg->inline_hdr_start),
@@ -208,8 +208,8 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	ds_cnt += MLX5E_TX_SKB_CB(skb)->num_dma;
 
-	cseg->opmod_idx_opcode	= cpu_to_be32((sq->pc << 8) | opcode);
-	cseg->qpn_ds		= cpu_to_be32((sq->sqn << 8) | ds_cnt);
+	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | opcode);
+	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | ds_cnt);
 
 	sq->skb[pi] = skb;
 
