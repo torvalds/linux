@@ -257,6 +257,9 @@ static int lme2510_enable_pid(struct dvb_usb_device *d, u8 index, u16 pid_out)
 	return ret;
 }
 
+/* Convert range from 0x00-0xff to 0x0000-0xffff */
+#define reg_to_16bits(x)	((x) | ((x) << 8))
+
 static void lme2510_update_stats(struct dvb_usb_adapter *adap)
 {
 	struct lme2510_state *st = adap_to_priv(adap);
@@ -288,23 +291,17 @@ static void lme2510_update_stats(struct dvb_usb_adapter *adap)
 
 	switch (st->tuner_config) {
 	case TUNER_LG:
-		s_tmp = 0xff - st->signal_level;
-		s_tmp |= s_tmp << 8;
-
-		c_tmp = 0xff - st->signal_sn;
-		c_tmp |= c_tmp << 8;
+		s_tmp = reg_to_16bits(0xff - st->signal_level);
+		c_tmp = reg_to_16bits(0xff - st->signal_sn);
 		break;
-	/* fall through */
 	case TUNER_S7395:
 	case TUNER_S0194:
 		s_tmp = 0xffff - (((st->signal_level * 2) << 8) * 5 / 4);
-
-		c_tmp = ((0xff - st->signal_sn - 0xa1) * 3) << 8;
+		c_tmp = reg_to_16bits((0xff - st->signal_sn - 0xa1) * 3);
 		break;
 	case TUNER_RS2000:
-		s_tmp = st->signal_level * 0xffff / 0xff;
-
-		c_tmp = st->signal_sn * 0xffff / 0x7f;
+		s_tmp = reg_to_16bits(st->signal_level);
+		c_tmp = reg_to_16bits(st->signal_sn);
 	}
 
 	c->strength.len = 1;
