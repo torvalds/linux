@@ -2052,7 +2052,7 @@ static void ami_set_sprite(const struct amifb_par *par)
 {
 	copins *copl, *cops;
 	u_short hs, vs, ve;
-	u_long pl, ps, pt;
+	u_long pl, ps;
 	short mx, my;
 
 	cops = copdisplay.list[currentcop][0];
@@ -2078,7 +2078,7 @@ static void ami_set_sprite(const struct amifb_par *par)
 			if (mod2(vs)) {
 				lofsprite[1 << par->crsr.fmode] = spr2hw_ctl(vs, hs, ve);
 				shfsprite[1 << par->crsr.fmode] = spr2hw_ctl(vs + 1, hs, ve + 1);
-				pt = pl; pl = ps; ps = pt;
+				swap(pl, ps);
 			} else {
 				lofsprite[1 << par->crsr.fmode] = spr2hw_ctl(vs, hs, ve + 1);
 				shfsprite[1 << par->crsr.fmode] = spr2hw_ctl(vs + 1, hs, ve);
