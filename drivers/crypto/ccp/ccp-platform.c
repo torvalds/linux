@@ -174,8 +174,6 @@ static int ccp_platform_probe(struct platform_device *pdev)
 	}
 	ccp->io_regs = ccp->io_map;
 
-	if (!dev->dma_mask)
-		dev->dma_mask = &dev->coherent_dma_mask;
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (ret) {
 		dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n", ret);
