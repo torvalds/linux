@@ -4415,9 +4415,32 @@ enum skl_disp_power_wells {
 #define   DSPARB_BSTART_SHIFT	0
 #define   DSPARB_BEND_SHIFT	9 /* on 855 */
 #define   DSPARB_AEND_SHIFT	0
-
+#define   DSPARB_SPRITEA_SHIFT_VLV	0
+#define   DSPARB_SPRITEA_MASK_VLV	(0xff << 0)
+#define   DSPARB_SPRITEB_SHIFT_VLV	8
+#define   DSPARB_SPRITEB_MASK_VLV	(0xff << 8)
+#define   DSPARB_SPRITEC_SHIFT_VLV	16
+#define   DSPARB_SPRITEC_MASK_VLV	(0xff << 16)
+#define   DSPARB_SPRITED_SHIFT_VLV	24
+#define   DSPARB_SPRITED_MASK_VLV	(0xff << 24)
 #define DSPARB2			(VLV_DISPLAY_BASE + 0x70060) /* vlv/chv */
+#define   DSPARB_SPRITEA_HI_SHIFT_VLV	0
+#define   DSPARB_SPRITEA_HI_MASK_VLV	(0x1 << 0)
+#define   DSPARB_SPRITEB_HI_SHIFT_VLV	4
+#define   DSPARB_SPRITEB_HI_MASK_VLV	(0x1 << 4)
+#define   DSPARB_SPRITEC_HI_SHIFT_VLV	8
+#define   DSPARB_SPRITEC_HI_MASK_VLV	(0x1 << 8)
+#define   DSPARB_SPRITED_HI_SHIFT_VLV	12
+#define   DSPARB_SPRITED_HI_MASK_VLV	(0x1 << 12)
+#define   DSPARB_SPRITEE_HI_SHIFT_VLV	16
+#define   DSPARB_SPRITEE_HI_MASK_VLV	(0x1 << 16)
+#define   DSPARB_SPRITEF_HI_SHIFT_VLV	20
+#define   DSPARB_SPRITEF_HI_MASK_VLV	(0x1 << 20)
 #define DSPARB3			(VLV_DISPLAY_BASE + 0x7006c) /* chv */
+#define   DSPARB_SPRITEE_SHIFT_VLV	0
+#define   DSPARB_SPRITEE_MASK_VLV	(0xff << 0)
+#define   DSPARB_SPRITEF_SHIFT_VLV	8
+#define   DSPARB_SPRITEF_MASK_VLV	(0xff << 8)
 
 /* pnv/gen4/g4x/vlv/chv */
 #define DSPFW1			(dev_priv->info.display_mmio_offset + 0x70034)
