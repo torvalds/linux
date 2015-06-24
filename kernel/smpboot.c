@@ -338,6 +338,7 @@ EXPORT_SYMBOL_GPL(smpboot_unregister_percpu_thread);
  *
  * The cpumask field in the smp_hotplug_thread must not be updated directly
  * by the client, but only by calling this function.
+ * This function can only be called on a registered smp_hotplug_thread.
  */
 int smpboot_update_cpumask_percpu_thread(struct smp_hotplug_thread *plug_thread,
 					 const struct cpumask *new)
