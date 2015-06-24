@@ -151,6 +151,10 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 			if (nla_put_u8(skb, INET_DIAG_TCLASS,
 				       inet6_sk(sk)->tclass) < 0)
 				goto errout;
+
+		if (ipv6_only_sock(sk) &&
+		    nla_put_u8(skb, INET_DIAG_SKV6ONLY, 1))
+			goto errout;
 	}
 #endif
 
