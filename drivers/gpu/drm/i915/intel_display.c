@@ -2110,6 +2110,8 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	int reg;
 	u32 val;
 
+	DRM_DEBUG_KMS("enabling pipe %c\n", pipe_name(pipe));
+
 	assert_planes_disabled(dev_priv, pipe);
 	assert_cursor_disabled(dev_priv, pipe);
 	assert_sprites_disabled(dev_priv, pipe);
@@ -2168,6 +2170,8 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 	enum pipe pipe = crtc->pipe;
 	int reg;
 	u32 val;
+
+	DRM_DEBUG_KMS("disabling pipe %c\n", pipe_name(pipe));
 
 	/*
 	 * Make sure planes won't keep trying to pump pixels to us,
