@@ -29,6 +29,8 @@
 #include <linux/mipi_dsi_samsung.h>
 #include <linux/module.h>
 #include <linux/mxcfb.h>
+#include <linux/pm_runtime.h>
+#include <linux/busfreq-imx.h>
 #include <linux/backlight.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
@@ -550,8 +552,8 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 		msleep(120);
 	}
 
-	/* power on dphy */
-	mipi_dsi_dphy_power_on(mipi_dsi->pdev);
+	if (!mipi_dsi->dsi_power_on)
+		pm_runtime_get_sync(&mipi_dsi->pdev->dev);
 
 	ret = clk_prepare_enable(mipi_dsi->dphy_clk);
 	ret |= clk_prepare_enable(mipi_dsi->cfg_clk);
@@ -603,7 +605,11 @@ static void mipi_dsi_disable(struct mxc_dispdrv_handle *disp,
 	mipi_dsi_power_off(mipi_dsi->disp_mipi);
 
 	if (fbi->state == FBINFO_STATE_SUSPENDED) {
-		mipi_dsi_dphy_power_down();
+		if (mipi_dsi->dsi_power_on) {
+			pm_runtime_put_noidle(&mipi_dsi->pdev->dev);
+			pm_runtime_put_sync_suspend(&mipi_dsi->pdev->dev);
+			pm_runtime_get_noresume(&mipi_dsi->pdev->dev);
+		}
 
 		if (mipi_dsi->disp_power_on)
 			regulator_disable(mipi_dsi->disp_power_on);
@@ -789,6 +795,8 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		goto dispdrv_reg_fail;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	mxc_dispdrv_setdata(mipi_dsi->disp_mipi, mipi_dsi);
 	dev_set_drvdata(&pdev->dev, mipi_dsi);
 
@@ -829,10 +837,49 @@ static int mipi_dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int mipi_dsi_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(&pdev->dev);
+
+	if (mipi_dsi->dsi_power_on) {
+		release_bus_freq(BUS_FREQ_HIGH);
+		dev_dbg(dev, "mipi dsi busfreq high release.\n");
+
+		mipi_dsi_dphy_power_down();
+		mipi_dsi->dsi_power_on = 0;
+	}
+
+	return 0;
+}
+
+static int mipi_dsi_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(&pdev->dev);
+
+	if (!mipi_dsi->dsi_power_on) {
+		request_bus_freq(BUS_FREQ_HIGH);
+		dev_dbg(dev, "mipi dsi busfreq high request.\n");
+
+		mipi_dsi_dphy_power_on(pdev);
+		mipi_dsi->dsi_power_on = 1;
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops mipi_dsi_pm_ops = {
+	.runtime_suspend = mipi_dsi_runtime_suspend,
+	.runtime_resume  = mipi_dsi_runtime_resume,
+	.runtime_idle	 = NULL,
+};
+
 static struct platform_driver mipi_dsi_driver = {
 	.driver = {
 		   .of_match_table = imx_mipi_dsi_dt_ids,
 		   .name = "mxc_mipi_dsi_samsung",
+		   .pm = &mipi_dsi_pm_ops,
 	},
 	.probe  = mipi_dsi_probe,
 	.remove = mipi_dsi_remove,
