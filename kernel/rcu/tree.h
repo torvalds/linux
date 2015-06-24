@@ -480,6 +480,7 @@ struct rcu_state {
 						/*  _rcu_barrier(). */
 	/* End of fields guarded by barrier_mutex. */
 
+	struct mutex  expedited_mutex;		/* Serializes expediting. */
 	atomic_long_t expedited_start;		/* Starting ticket. */
 	atomic_long_t expedited_done;		/* Done ticket. */
 	atomic_long_t expedited_wrap;		/* # near-wrap incidents. */

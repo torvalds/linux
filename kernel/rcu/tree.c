@@ -103,6 +103,7 @@ struct rcu_state sname##_state = { \
 	.orphan_nxttail = &sname##_state.orphan_nxtlist, \
 	.orphan_donetail = &sname##_state.orphan_donelist, \
 	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
+	.expedited_mutex = __MUTEX_INITIALIZER(sname##_state.expedited_mutex), \
 	.name = RCU_STATE_NAME(sname), \
 	.abbr = sabbr, \
 }
@@ -3305,8 +3306,6 @@ static int synchronize_sched_expedited_cpu_stop(void *data)
  */
 void synchronize_sched_expedited(void)
 {
-	cpumask_var_t cm;
-	bool cma = false;
 	int cpu;
 	long firstsnap, s, snap;
 	int trycount = 0;
@@ -3342,28 +3341,11 @@ void synchronize_sched_expedited(void)
 	}
 	WARN_ON_ONCE(cpu_is_offline(raw_smp_processor_id()));
 
-	/* Offline CPUs, idle CPUs, and any CPU we run on are quiescent. */
-	cma = zalloc_cpumask_var(&cm, GFP_KERNEL);
-	if (cma) {
-		cpumask_copy(cm, cpu_online_mask);
-		cpumask_clear_cpu(raw_smp_processor_id(), cm);
-		for_each_cpu(cpu, cm) {
-			struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
-
-			if (!(atomic_add_return(0, &rdtp->dynticks) & 0x1))
-				cpumask_clear_cpu(cpu, cm);
-		}
-		if (cpumask_weight(cm) == 0)
-			goto all_cpus_idle;
-	}
-
 	/*
 	 * Each pass through the following loop attempts to force a
 	 * context switch on each CPU.
 	 */
-	while (try_stop_cpus(cma ? cm : cpu_online_mask,
-			     synchronize_sched_expedited_cpu_stop,
-			     NULL) == -EAGAIN) {
+	while (!mutex_trylock(&rsp->expedited_mutex)) {
 		put_online_cpus();
 		atomic_long_inc(&rsp->expedited_tryfail);
 
@@ -3373,7 +3355,6 @@ void synchronize_sched_expedited(void)
 			/* ensure test happens before caller kfree */
 			smp_mb__before_atomic(); /* ^^^ */
 			atomic_long_inc(&rsp->expedited_workdone1);
-			free_cpumask_var(cm);
 			return;
 		}
 
@@ -3383,7 +3364,6 @@ void synchronize_sched_expedited(void)
 		} else {
 			wait_rcu_gp(call_rcu_sched);
 			atomic_long_inc(&rsp->expedited_normal);
-			free_cpumask_var(cm);
 			return;
 		}
 
@@ -3393,7 +3373,6 @@ void synchronize_sched_expedited(void)
 			/* ensure test happens before caller kfree */
 			smp_mb__before_atomic(); /* ^^^ */
 			atomic_long_inc(&rsp->expedited_workdone2);
-			free_cpumask_var(cm);
 			return;
 		}
 
@@ -3408,16 +3387,23 @@ void synchronize_sched_expedited(void)
 			/* CPU hotplug operation in flight, use normal GP. */
 			wait_rcu_gp(call_rcu_sched);
 			atomic_long_inc(&rsp->expedited_normal);
-			free_cpumask_var(cm);
 			return;
 		}
 		snap = atomic_long_read(&rsp->expedited_start);
 		smp_mb(); /* ensure read is before try_stop_cpus(). */
 	}
-	atomic_long_inc(&rsp->expedited_stoppedcpus);
 
-all_cpus_idle:
-	free_cpumask_var(cm);
+	/* Stop each CPU that is online, non-idle, and not us. */
+	for_each_online_cpu(cpu) {
+		struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
+
+		/* Skip our CPU and any idle CPUs. */
+		if (raw_smp_processor_id() == cpu ||
+		    !(atomic_add_return(0, &rdtp->dynticks) & 0x1))
+			continue;
+		stop_one_cpu(cpu, synchronize_sched_expedited_cpu_stop, NULL);
+	}
+	atomic_long_inc(&rsp->expedited_stoppedcpus);
 
 	/*
 	 * Everyone up to our most recent fetch is covered by our grace
@@ -3436,6 +3422,7 @@ all_cpus_idle:
 		}
 	} while (atomic_long_cmpxchg(&rsp->expedited_done, s, snap) != s);
 	atomic_long_inc(&rsp->expedited_done_exit);
+	mutex_unlock(&rsp->expedited_mutex);
 
 	put_online_cpus();
 }
