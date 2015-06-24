@@ -58,6 +58,8 @@ const struct mdp5_cfg_hw msm8x74_config = {
 		.count = 5,
 		.base = { 0x03200, 0x03600, 0x03a00, 0x03e00, 0x04200 },
 		.nb_stages = 5,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 3,
@@ -126,6 +128,8 @@ const struct mdp5_cfg_hw apq8084_config = {
 		.count = 6,
 		.base = { 0x03a00, 0x03e00, 0x04200, 0x04600, 0x04a00, 0x04e00 },
 		.nb_stages = 5,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 4,
@@ -187,6 +191,8 @@ const struct mdp5_cfg_hw msm8x16_config = {
 		.count = 2, /* LM0 and LM3 */
 		.base = { 0x45000, 0x48000 },
 		.nb_stages = 5,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 1,
@@ -248,6 +254,8 @@ const struct mdp5_cfg_hw msm8x94_config = {
 		.count = 6,
 		.base = { 0x45000, 0x46000, 0x47000, 0x48000, 0x49000, 0x4a000 },
 		.nb_stages = 8,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 4,

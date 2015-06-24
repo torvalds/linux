@@ -331,10 +331,6 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-	dev->mode_config.max_width = 2048;
-	dev->mode_config.max_height = 2048;
 	dev->mode_config.funcs = &mode_config_funcs;
 
 	ret = drm_vblank_init(dev, priv->num_crtcs);

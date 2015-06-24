@@ -42,6 +42,8 @@ struct mdp5_sub_block {
 struct mdp5_lm_block {
 	MDP5_SUB_BLOCK_DEFINITION;
 	uint32_t nb_stages;		/* number of stages per blender */
+	uint32_t max_width;		/* Maximum output resolution */
+	uint32_t max_height;
 };
 
 struct mdp5_ctl_block {
