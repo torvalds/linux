@@ -1622,6 +1622,7 @@ extern struct smb_version_values smb30_values;
 /*extern struct smb_version_operations smb302_operations;*/ /* not needed yet */
 extern struct smb_version_values smb302_values;
 #define SMB311_VERSION_STRING	"3.1.1"
-/*extern struct smb_version_operations smb311_operations;*/ /* not needed yet */
+#define ALT_SMB311_VERSION_STRING "3.11"
+extern struct smb_version_operations smb311_operations;
 extern struct smb_version_values smb311_values;
 #endif	/* _CIFS_GLOB_H */
