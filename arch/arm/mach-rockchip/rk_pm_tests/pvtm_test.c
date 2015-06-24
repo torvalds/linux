@@ -394,15 +394,116 @@ void scale_min_pvtm_fix_rate(void)
 }
 
 #endif
+
+void scale_pvtm_fix_freq(void)
+{
+	struct regulator *regulator_arm;
+	struct clk *clk_core_b, *clk_core_l;
+	unsigned long rate;
+	u32 pvtm, old_pvtm = 0;
+	int volt, ret = 0;
+
+	regulator_arm = regulator_get(NULL, "vdd_arm");
+	if (IS_ERR_OR_NULL(regulator_arm)) {
+		pr_info("get regulator err\n");
+		return;
+	}
+
+	clk_core_b = clk_get(NULL, "clk_core_b");
+	if (IS_ERR_OR_NULL(clk_core_b)) {
+		pr_info("get clk err\n");
+		return;
+	}
+	clk_core_l = clk_get(NULL, "clk_core_l");
+	if (IS_ERR_OR_NULL(clk_core_l)) {
+		pr_info("get clk err\n");
+		return;
+	}
+
+	volt = 1300000;
+	rate = 216000000;
+	ret = regulator_set_voltage(regulator_arm, volt, volt);
+	if (ret)
+		pr_err("set volt(%d) err:%d\n", volt, ret);
+
+	do {
+		clk_set_rate(clk_core_b, rate);
+		clk_set_rate(clk_core_l, rate);
+		mdelay(500);
+		pvtm = pvtm_get_value(0, 1000);
+		if (!old_pvtm)
+			old_pvtm = pvtm;
+		pr_info("%d %lu %d %d\n",
+			volt, clk_get_rate(clk_core_b), pvtm, old_pvtm-pvtm);
+
+		old_pvtm = pvtm;
+		rate += 48000000;
+		if (rate > 1200000000)
+			break;
+	} while (1);
+}
+
+void scale_pvtm_fix_volt(void)
+{
+	struct regulator *regulator_arm;
+	struct clk *clk_core_b, *clk_core_l;
+	unsigned long rate;
+	u32 pvtm, old_pvtm = 0;
+	int volt, ret = 0;
+
+	regulator_arm = regulator_get(NULL, "vdd_arm");
+	if (IS_ERR_OR_NULL(regulator_arm)) {
+		pr_info("get regulator err\n");
+		return;
+	}
+
+	clk_core_b = clk_get(NULL, "clk_core_b");
+	if (IS_ERR_OR_NULL(clk_core_b)) {
+		pr_info("get clk err\n");
+		return;
+	}
+
+	clk_core_l = clk_get(NULL, "clk_core_b");
+	if (IS_ERR_OR_NULL(clk_core_l)) {
+		pr_info("get clk err\n");
+		return;
+	}
+
+	volt = 1300000;
+	rate = 816000000;
+
+	ret = regulator_set_voltage(regulator_arm, volt, volt);
+	if (ret)
+		pr_err("set volt(%d) err:%d\n", volt, ret);
+
+	ret = clk_set_rate(clk_core_b, rate);
+	ret = clk_set_rate(clk_core_l, rate);
+	do {
+		regulator_set_voltage(regulator_arm, volt, volt);
+		mdelay(500);
+		pvtm = pvtm_get_value(0, 1000);
+		if (!old_pvtm)
+			old_pvtm = pvtm;
+
+		pr_info("%d %lu %d %d\n",
+			volt, clk_get_rate(clk_core_b), pvtm, old_pvtm-pvtm);
+		old_pvtm = pvtm;
+		volt -= 12500;
+		if (volt < 950000) {
+			regulator_set_voltage(regulator_arm, 1300000, 1300000);
+			break;
+		}
+	} while (1);
+}
+
 ssize_t pvtm_show(struct kobject *kobj, struct kobj_attribute *attr,
 		  char *buf)
 {
 	char *str = buf;
 
-	str += sprintf(str, "core:%d\ngpu:%d\nlogic:%d\n",
+	str += sprintf(str, "core:%d\ngpu:%d\n",
 		pvtm_get_value(0, 1000),
-		pvtm_get_value(1, 1000),
-		pvtm_get_value(2, 1000));
+		pvtm_get_value(1, 1000));
 	return (str - buf);
 }
 
