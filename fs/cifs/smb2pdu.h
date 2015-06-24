@@ -621,6 +621,28 @@ struct copychunk_ioctl_rsp {
 	__le32 TotalBytesWritten;
 } __packed;
 
+struct fsctl_set_integrity_information_req {
+	__le16	ChecksumAlgorithm;
+	__le16	Reserved;
+	__le32	Flags;
+} __packed;
+
+struct fsctl_get_integrity_information_rsp {
+	__le16	ChecksumAlgorithm;
+	__le16	Reserved;
+	__le32	Flags;
+	__le32	ChecksumChunkSizeInBytes;
+	__le32	ClusterSizeInBytes;
+} __packed;
+
+/* Integrity ChecksumAlgorithm choices for above */
+#define	CHECKSUM_TYPE_NONE	0x0000
+#define	CHECKSUM_TYPE_CRC64	0x0002
+
+/* Integrity flags for above */
+#define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF	0x00000001
+
+
 struct validate_negotiate_info_req {
 	__le32 Capabilities;
 	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
