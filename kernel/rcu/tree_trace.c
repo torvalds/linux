@@ -185,18 +185,14 @@ static int show_rcuexp(struct seq_file *m, void *v)
 {
 	struct rcu_state *rsp = (struct rcu_state *)m->private;
 
-	seq_printf(m, "s=%lu d=%lu w=%lu tf=%lu wd1=%lu wd2=%lu n=%lu sc=%lu dt=%lu dl=%lu dx=%lu\n",
-		   atomic_long_read(&rsp->expedited_start),
-		   atomic_long_read(&rsp->expedited_done),
-		   atomic_long_read(&rsp->expedited_wrap),
+	seq_printf(m, "t=%lu tf=%lu wd1=%lu wd2=%lu wd3=%lu n=%lu sc=%lu\n",
+		   rsp->expedited_sequence,
 		   atomic_long_read(&rsp->expedited_tryfail),
 		   atomic_long_read(&rsp->expedited_workdone1),
 		   atomic_long_read(&rsp->expedited_workdone2),
+		   rsp->expedited_workdone3,
 		   atomic_long_read(&rsp->expedited_normal),
-		   atomic_long_read(&rsp->expedited_stoppedcpus),
-		   atomic_long_read(&rsp->expedited_done_tries),
-		   atomic_long_read(&rsp->expedited_done_lost),
-		   atomic_long_read(&rsp->expedited_done_exit));
+		   rsp->expedited_sequence / 2);
 	return 0;
 }
 

@@ -481,17 +481,12 @@ struct rcu_state {
 	/* End of fields guarded by barrier_mutex. */
 
 	struct mutex  expedited_mutex;		/* Serializes expediting. */
-	atomic_long_t expedited_start;		/* Starting ticket. */
-	atomic_long_t expedited_done;		/* Done ticket. */
-	atomic_long_t expedited_wrap;		/* # near-wrap incidents. */
+	unsigned long expedited_sequence;	/* Take a ticket. */
 	atomic_long_t expedited_tryfail;	/* # acquisition failures. */
 	atomic_long_t expedited_workdone1;	/* # done by others #1. */
 	atomic_long_t expedited_workdone2;	/* # done by others #2. */
+	unsigned long expedited_workdone3;	/* # done by others #3. */
 	atomic_long_t expedited_normal;		/* # fallbacks to normal. */
-	atomic_long_t expedited_stoppedcpus;	/* # successful stop_cpus. */
-	atomic_long_t expedited_done_tries;	/* # tries to update _done. */
-	atomic_long_t expedited_done_lost;	/* # times beaten to _done. */
-	atomic_long_t expedited_done_exit;	/* # times exited _done loop. */
 
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
 						/*  force_quiescent_state(). */
