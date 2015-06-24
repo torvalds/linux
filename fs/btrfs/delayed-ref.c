@@ -650,18 +650,13 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 		return -ENOMEM;
 
 	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
-	if (!head_ref) {
-		kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
-		return -ENOMEM;
-	}
+	if (!head_ref)
+		goto free_ref;
 
 	if (fs_info->quota_enabled && is_fstree(ref_root)) {
 		record = kmalloc(sizeof(*record), GFP_NOFS);
-		if (!record) {
-			kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
-			kmem_cache_free(btrfs_delayed_ref_head_cachep, ref);
-			return -ENOMEM;
-		}
+		if (!record)
+			goto free_head_ref;
 	}
 
 	head_ref->extent_op = extent_op;
@@ -682,6 +677,13 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	spin_unlock(&delayed_refs->lock);
 
 	return 0;
+
+free_head_ref:
+	kmem_cache_free(btrfs_delayed_ref_head_cachep, head_ref);
+free_ref:
+	kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
+
+	return -ENOMEM;
 }
 
 /*
