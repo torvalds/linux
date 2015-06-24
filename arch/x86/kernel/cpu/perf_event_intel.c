@@ -1114,7 +1114,7 @@ static struct extra_reg intel_slm_extra_regs[] __read_mostly =
 {
 	/* must define OFFCORE_RSP_X first, see intel_fixup_er() */
 	INTEL_UEVENT_EXTRA_REG(0x01b7, MSR_OFFCORE_RSP_0, 0x768005ffffull, RSP_0),
-	INTEL_UEVENT_EXTRA_REG(0x02b7, MSR_OFFCORE_RSP_1, 0x768005ffffull, RSP_1),
+	INTEL_UEVENT_EXTRA_REG(0x02b7, MSR_OFFCORE_RSP_1, 0x368005ffffull, RSP_1),
 	EVENT_EXTRA_END
 };
 
@@ -1699,18 +1699,22 @@ intel_bts_constraints(struct perf_event *event)
 	return NULL;
 }
 
-static int intel_alt_er(int idx)
+static int intel_alt_er(int idx, u64 config)
 {
+	int alt_idx;
 	if (!(x86_pmu.flags & PMU_FL_HAS_RSP_1))
 		return idx;
 
 	if (idx == EXTRA_REG_RSP_0)
-		return EXTRA_REG_RSP_1;
+		alt_idx = EXTRA_REG_RSP_1;
 
 	if (idx == EXTRA_REG_RSP_1)
-		return EXTRA_REG_RSP_0;
+		alt_idx = EXTRA_REG_RSP_0;
 
-	return idx;
+	if (config & ~x86_pmu.extra_regs[alt_idx].valid_mask)
+		return idx;
+
+	return alt_idx;
 }
 
 static void intel_fixup_er(struct perf_event *event, int idx)
@@ -1799,7 +1803,7 @@ again:
 		 */
 		c = NULL;
 	} else {
-		idx = intel_alt_er(idx);
+		idx = intel_alt_er(idx, reg->config);
 		if (idx != reg->idx) {
 			raw_spin_unlock_irqrestore(&era->lock, flags);
 			goto again;
