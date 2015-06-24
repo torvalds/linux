@@ -120,7 +120,7 @@ static int RSAVP1(const struct public_key *key, MPI s, MPI *_m)
 /*
  * Integer to Octet String conversion [RFC3447 sec 4.1]
  */
-static int RSA_I2OSP(MPI x, size_t xLen, u8 **_X)
+static int RSA_I2OSP(MPI x, size_t xLen, u8 **pX)
 {
 	unsigned X_size, x_size;
 	int X_sign;
@@ -147,7 +147,7 @@ static int RSA_I2OSP(MPI x, size_t xLen, u8 **_X)
 		return -EBADMSG;
 	}
 
-	*_X = X;
+	*pX = X;
 	return 0;
 }
 
