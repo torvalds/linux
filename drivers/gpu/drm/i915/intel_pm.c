@@ -1327,6 +1327,9 @@ static void vlv_merge_wm(struct drm_device *dev,
 	if (num_active_crtcs != 1)
 		wm->cxsr = false;
 
+	if (num_active_crtcs > 1)
+		wm->level = VLV_WM_LEVEL_PM2;
+
 	for_each_intel_crtc(dev, crtc) {
 		struct vlv_wm_state *wm_state = &crtc->wm_state;
 		enum pipe pipe = crtc->pipe;
