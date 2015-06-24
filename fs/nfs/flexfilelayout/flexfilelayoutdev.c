@@ -387,7 +387,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 	/* matching smp_wmb() in _nfs4_pnfs_v3/4_ds_connect */
 	smp_rmb();
 	if (ds->ds_clp)
-		goto out;
+		goto out_update_creds;
 
 	flavor = nfs4_ff_layout_choose_authflavor(mirror);
 
@@ -431,7 +431,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 			}
 		}
 	}
-
+out_update_creds:
 	if (ff_layout_update_mirror_cred(mirror, ds))
 		ds = NULL;
 out:
