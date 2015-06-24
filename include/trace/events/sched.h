@@ -751,6 +751,68 @@ TRACE_EVENT(sched_boost_cpu,
 		  __entry->margin)
 );
 
+/*
+ * Tracepoint for schedtune_tasks_update
+ */
+TRACE_EVENT(sched_tune_tasks_update,
+
+	TP_PROTO(struct task_struct *tsk, int cpu, int tasks, int idx,
+		unsigned int boost, unsigned int max_boost),
+
+	TP_ARGS(tsk, cpu, tasks, idx, boost, max_boost),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,		pid		)
+		__field( int,		cpu		)
+		__field( int,		tasks		)
+		__field( int,		idx		)
+		__field( unsigned int,	boost		)
+		__field( unsigned int,	max_boost	)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid		= tsk->pid;
+		__entry->cpu 		= cpu;
+		__entry->tasks		= tasks;
+		__entry->idx 		= idx;
+		__entry->boost		= boost;
+		__entry->max_boost	= max_boost;
+	),
+
+	TP_printk("pid=%d comm=%s "
+			"cpu=%d tasks=%d idx=%d boost=%u max_boost=%u",
+		__entry->pid, __entry->comm,
+		__entry->cpu, __entry->tasks, __entry->idx,
+		__entry->boost, __entry->max_boost)
+);
+
+/*
+ * Tracepoint for schedtune_boostgroup_update
+ */
+TRACE_EVENT(sched_tune_boostgroup_update,
+
+	TP_PROTO(int cpu, int variation, int max_boost),
+
+	TP_ARGS(cpu, variation, max_boost),
+
+	TP_STRUCT__entry(
+		__field( int,	cpu		)
+		__field( int,	variation	)
+		__field( int,	max_boost	)
+	),
+
+	TP_fast_assign(
+		__entry->cpu		= cpu;
+		__entry->variation	= variation;
+		__entry->max_boost	= max_boost;
+	),
+
+	TP_printk("cpu=%d variation=%d max_boost=%d",
+		__entry->cpu, __entry->variation, __entry->max_boost)
+);
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
