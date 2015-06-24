@@ -203,6 +203,16 @@
 			};
 		};
 
+		scpsys: scpsys@10006000 {
+			compatible = "mediatek,mt8173-scpsys";
+			#power-domain-cells = <1>;
+			reg = <0 0x10006000 0 0x1000>;
+			clocks = <&clk26m>,
+				 <&topckgen CLK_TOP_MM_SEL>;
+			clock-names = "mfg", "mm";
+			infracfg = <&infracfg>;
+		};
+
 		watchdog: watchdog@10007000 {
 			compatible = "mediatek,mt8173-wdt",
 				     "mediatek,mt6589-wdt";
