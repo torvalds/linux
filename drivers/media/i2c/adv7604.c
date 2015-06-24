@@ -42,6 +42,7 @@
 #include <media/adv7604.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-of.h>
 
@@ -2362,6 +2363,8 @@ static const struct v4l2_ctrl_ops adv76xx_ctrl_ops = {
 static const struct v4l2_subdev_core_ops adv76xx_core_ops = {
 	.log_status = adv76xx_log_status,
 	.interrupt_service_routine = adv76xx_isr,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = adv76xx_g_register,
 	.s_register = adv76xx_s_register,
@@ -3047,7 +3050,7 @@ static int adv76xx_probe(struct i2c_client *client,
 	snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",
 		id->name, i2c_adapter_id(client->adapter),
 		client->addr);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	/* Configure IO Regmap region */
 	err = configure_regmap(state, ADV76XX_PAGE_IO);
