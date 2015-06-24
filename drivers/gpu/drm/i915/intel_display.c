@@ -4722,6 +4722,9 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 
 	intel_frontbuffer_flip(dev, atomic->fb_bits);
 
+	if (crtc->atomic.update_wm_post)
+		intel_update_watermarks(&crtc->base);
+
 	if (atomic->update_fbc) {
 		mutex_lock(&dev->struct_mutex);
 		intel_fbc_update(dev);
@@ -11606,8 +11609,12 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			 plane->base.id, was_visible, visible,
 			 turn_off, turn_on, mode_changed);
 
-	if (intel_wm_need_update(plane, plane_state))
-		intel_crtc->atomic.update_wm = true;
+	if (turn_on)
+		intel_crtc->atomic.update_wm_pre = true;
+	else if (turn_off)
+		intel_crtc->atomic.update_wm_post = true;
+	else if (intel_wm_need_update(plane, plane_state))
+		intel_crtc->atomic.update_wm_pre = true;
 
 	if (visible)
 		intel_crtc->atomic.fb_bits |=
@@ -11776,7 +11783,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 		intel_crtc_check_initial_planes(crtc, crtc_state);
 
 	if (mode_changed)
-		intel_crtc->atomic.update_wm = !crtc_state->active;
+		intel_crtc->atomic.update_wm_post = !crtc_state->active;
 
 	if (mode_changed && crtc_state->enable &&
 	    dev_priv->display.crtc_compute_clock &&
@@ -13705,7 +13712,7 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 	if (!needs_modeset(crtc->state))
 		intel_pre_plane_update(intel_crtc);
 
-	if (intel_crtc->atomic.update_wm)
+	if (intel_crtc->atomic.update_wm_pre)
 		intel_update_watermarks(crtc);
 
 	intel_runtime_pm_get(dev_priv);
