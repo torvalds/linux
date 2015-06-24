@@ -1116,8 +1116,6 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 	int inode1_is_ancestor, inode2_is_ancestor;
 	struct ocfs2_inode_info *oi1 = OCFS2_I(inode1);
 	struct ocfs2_inode_info *oi2 = OCFS2_I(inode2);
-	struct buffer_head **tmpbh;
-	struct inode *tmpinode;
 
 	trace_ocfs2_double_lock((unsigned long long)oi1->ip_blkno,
 				(unsigned long long)oi2->ip_blkno);
@@ -1148,13 +1146,8 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 				(oi1->ip_blkno < oi2->ip_blkno &&
 				inode2_is_ancestor == 0)) {
 			/* switch id1 and id2 around */
-			tmpbh = bh2;
-			bh2 = bh1;
-			bh1 = tmpbh;
-
-			tmpinode = inode2;
-			inode2 = inode1;
-			inode1 = tmpinode;
+			swap(bh2, bh1);
+			swap(inode2, inode1);
 		}
 		/* lock id2 */
 		status = ocfs2_inode_lock_nested(inode2, bh2, 1,
