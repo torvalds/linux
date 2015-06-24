@@ -2702,7 +2702,7 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct intel_rotation_info *rot_info = &ggtt_view->rotation_info;
-	unsigned long size, pages, rot_pages;
+	unsigned long pages, rot_pages;
 	struct sg_page_iter sg_iter;
 	unsigned long i;
 	dma_addr_t *page_addr_list;
@@ -2720,7 +2720,6 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 	width_pages = DIV_ROUND_UP(rot_info->pitch, tile_pitch);
 	height_pages = DIV_ROUND_UP(rot_info->height, tile_height);
 	rot_pages = width_pages * height_pages;
-	size = rot_pages * PAGE_SIZE;
 
 	/* Allocate a temporary list of source pages for random access. */
 	page_addr_list = drm_malloc_ab(pages, sizeof(dma_addr_t));
@@ -2747,8 +2746,8 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 	rotate_pages(page_addr_list, width_pages, height_pages, st);
 
 	DRM_DEBUG_KMS(
-		      "Created rotated page mapping for object size %lu (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %lu pages).\n",
-		      size, rot_info->pitch, rot_info->height,
+		      "Created rotated page mapping for object size %zu (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %lu pages).\n",
+		      obj->base.size, rot_info->pitch, rot_info->height,
 		      rot_info->pixel_format, width_pages, height_pages,
 		      rot_pages);
 
@@ -2762,8 +2761,8 @@ err_st_alloc:
 	drm_free_large(page_addr_list);
 
 	DRM_DEBUG_KMS(
-		      "Failed to create rotated mapping for object size %lu! (%d) (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %lu pages)\n",
-		      size, ret, rot_info->pitch, rot_info->height,
+		      "Failed to create rotated mapping for object size %zu! (%d) (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %lu pages)\n",
+		      obj->base.size, ret, rot_info->pitch, rot_info->height,
 		      rot_info->pixel_format, width_pages, height_pages,
 		      rot_pages);
 	return ERR_PTR(ret);
