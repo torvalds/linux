@@ -927,6 +927,12 @@ static void vlv_write_wm_values(struct intel_crtc *crtc,
 			   FW_WM(wm->pipe[PIPE_A].primary >> 8, PLANEA_HI));
 	}
 
+	/* zero (unused) WM1 watermarks */
+	I915_WRITE(DSPFW4, 0);
+	I915_WRITE(DSPFW5, 0);
+	I915_WRITE(DSPFW6, 0);
+	I915_WRITE(DSPHOWM1, 0);
+
 	POSTING_READ(DSPFW1);
 }
 
