@@ -70,6 +70,7 @@ MODULE_ALIAS("rcutree");
 
 static struct lock_class_key rcu_node_class[RCU_NUM_LVLS];
 static struct lock_class_key rcu_fqs_class[RCU_NUM_LVLS];
+static struct lock_class_key rcu_exp_class[RCU_NUM_LVLS];
 
 /*
  * In order to export the rcu_state name to the tracing tools, it
@@ -103,7 +104,6 @@ struct rcu_state sname##_state = { \
 	.orphan_nxttail = &sname##_state.orphan_nxtlist, \
 	.orphan_donetail = &sname##_state.orphan_donelist, \
 	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
-	.expedited_mutex = __MUTEX_INITIALIZER(sname##_state.expedited_mutex), \
 	.name = RCU_STATE_NAME(sname), \
 	.abbr = sabbr, \
 }
@@ -3272,6 +3272,22 @@ static int synchronize_sched_expedited_cpu_stop(void *data)
 	return 0;
 }
 
+/* Common code for synchronize_sched_expedited() work-done checking. */
+static bool sync_sched_exp_wd(struct rcu_state *rsp, struct rcu_node *rnp,
+			      atomic_long_t *stat, unsigned long s)
+{
+	if (ULONG_CMP_GE(READ_ONCE(rsp->expedited_sequence), s)) {
+		if (rnp)
+			mutex_unlock(&rnp->exp_funnel_mutex);
+		/* Ensure test happens before caller kfree(). */
+		smp_mb__before_atomic(); /* ^^^ */
+		atomic_long_inc(stat);
+		put_online_cpus();
+		return true;
+	}
+	return false;
+}
+
 /**
  * synchronize_sched_expedited - Brute-force RCU-sched grace period
  *
@@ -3286,15 +3302,15 @@ static int synchronize_sched_expedited_cpu_stop(void *data)
  * This implementation can be thought of as an application of sequence
  * locking to expedited grace periods, but using the sequence counter to
  * determine when someone else has already done the work instead of for
- * retrying readers.  We do a mutex_trylock() polling loop, but if we fail
- * too many times in a row, we fall back to synchronize_sched().
+ * retrying readers.
  */
 void synchronize_sched_expedited(void)
 {
 	int cpu;
 	long s;
-	int trycount = 0;
 	struct rcu_state *rsp = &rcu_sched_state;
+	struct rcu_node *rnp0;
+	struct rcu_node *rnp1 = NULL;
 
 	/* Take a snapshot of the sequence number.  */
 	smp_mb(); /* Caller's modifications seen first by other CPUs. */
@@ -3310,60 +3326,25 @@ void synchronize_sched_expedited(void)
 	WARN_ON_ONCE(cpu_is_offline(raw_smp_processor_id()));
 
 	/*
-	 * Each pass through the following loop attempts to acquire
-	 * ->expedited_mutex, checking for others doing our work each time.
+	 * Each pass through the following loop works its way
+	 * up the rcu_node tree, returning if others have done the
+	 * work or otherwise falls through holding the root rnp's
+	 * ->exp_funnel_mutex.  The mapping from CPU to rcu_node structure
+	 * can be inexact, as it is just promoting locality and is not
+	 * strictly needed for correctness.
 	 */
-	while (!mutex_trylock(&rsp->expedited_mutex)) {
-		put_online_cpus();
-		atomic_long_inc(&rsp->expedited_tryfail);
-
-		/* Check to see if someone else did our work for us. */
-		if (ULONG_CMP_GE(READ_ONCE(rsp->expedited_sequence), s)) {
-			/* ensure test happens before caller kfree */
-			smp_mb__before_atomic(); /* ^^^ */
-			atomic_long_inc(&rsp->expedited_workdone1);
+	rnp0 = per_cpu_ptr(rsp->rda, raw_smp_processor_id())->mynode;
+	for (; rnp0 != NULL; rnp0 = rnp0->parent) {
+		if (sync_sched_exp_wd(rsp, rnp1, &rsp->expedited_workdone1, s))
 			return;
-		}
-
-		/* No joy, try again later.  Or just synchronize_sched(). */
-		if (trycount++ < 10) {
-			udelay(trycount * num_online_cpus());
-		} else {
-			wait_rcu_gp(call_rcu_sched);
-			atomic_long_inc(&rsp->expedited_normal);
-			return;
-		}
-
-		/* Recheck to see if someone else did our work for us. */
-		if (ULONG_CMP_GE(READ_ONCE(rsp->expedited_sequence), s)) {
-			/* ensure test happens before caller kfree */
-			smp_mb__before_atomic(); /* ^^^ */
-			atomic_long_inc(&rsp->expedited_workdone2);
-			return;
-		}
-
-		/*
-		 * Refetching sync_sched_expedited_started allows later
-		 * callers to piggyback on our grace period.  We retry
-		 * after they started, so our grace period works for them,
-		 * and they started after our first try, so their grace
-		 * period works for us.
-		 */
-		if (!try_get_online_cpus()) {
-			/* CPU hotplug operation in flight, use normal GP. */
-			wait_rcu_gp(call_rcu_sched);
-			atomic_long_inc(&rsp->expedited_normal);
-			return;
-		}
+		mutex_lock(&rnp0->exp_funnel_mutex);
+		if (rnp1)
+			mutex_unlock(&rnp1->exp_funnel_mutex);
+		rnp1 = rnp0;
 	}
-
-	/* Recheck yet again to see if someone else did our work for us. */
-	if (ULONG_CMP_GE(READ_ONCE(rsp->expedited_sequence), s)) {
-		rsp->expedited_workdone3++;
-		mutex_unlock(&rsp->expedited_mutex);
-		smp_mb(); /* ensure test happens before caller kfree */
+	rnp0 = rnp1;  /* rcu_get_root(rsp), AKA root rcu_node structure. */
+	if (sync_sched_exp_wd(rsp, rnp0, &rsp->expedited_workdone2, s))
 		return;
-	}
 
 	WRITE_ONCE(rsp->expedited_sequence, rsp->expedited_sequence + 1);
 	smp_mb(); /* Ensure expedited GP seen after counter increment. */
@@ -3383,7 +3364,7 @@ void synchronize_sched_expedited(void)
 	smp_mb(); /* Ensure expedited GP seen before counter increment. */
 	WRITE_ONCE(rsp->expedited_sequence, rsp->expedited_sequence + 1);
 	WARN_ON_ONCE(rsp->expedited_sequence & 0x1);
-	mutex_unlock(&rsp->expedited_mutex);
+	mutex_unlock(&rnp0->exp_funnel_mutex);
 	smp_mb(); /* ensure subsequent action seen after grace period. */
 
 	put_online_cpus();
@@ -3940,6 +3921,7 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 {
 	static const char * const buf[] = RCU_NODE_NAME_INIT;
 	static const char * const fqs[] = RCU_FQS_NAME_INIT;
+	static const char * const exp[] = RCU_EXP_NAME_INIT;
 	static u8 fl_mask = 0x1;
 
 	int levelcnt[RCU_NUM_LVLS];		/* # nodes in each level. */
@@ -3998,6 +3980,9 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 			rnp->level = i;
 			INIT_LIST_HEAD(&rnp->blkd_tasks);
 			rcu_init_one_nocb(rnp);
+			mutex_init(&rnp->exp_funnel_mutex);
+			lockdep_set_class_and_name(&rnp->exp_funnel_mutex,
+						   &rcu_exp_class[i], exp[i]);
 		}
 	}
 
