@@ -278,7 +278,6 @@ static void _ceph_msgr_exit(void)
 	ceph_msgr_slab_exit();
 
 	BUG_ON(zero_page == NULL);
-	kunmap(zero_page);
 	page_cache_release(zero_page);
 	zero_page = NULL;
 }
