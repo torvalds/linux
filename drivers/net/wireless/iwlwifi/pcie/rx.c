@@ -1014,6 +1014,7 @@ restart:
 static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int i;
 
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
 	if (trans->cfg->internal_wimax_coex &&
@@ -1036,6 +1037,9 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	 * before we wake up the command caller, to ensure a proper cleanup. */
 	iwl_trans_fw_error(trans);
 	local_bh_enable();
+
+	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++)
+		del_timer(&trans_pcie->txq[i].stuck_timer);
 
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	wake_up(&trans_pcie->wait_command_queue);
