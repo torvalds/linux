@@ -35,6 +35,7 @@
 
 #define CIFS_IOCTL_MAGIC	0xCF
 #define CIFS_IOC_COPYCHUNK_FILE	_IOW(CIFS_IOCTL_MAGIC, 3, int)
+#define CIFS_IOC_SET_INTEGRITY  _IO(CIFS_IOCTL_MAGIC, 4)
 
 static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 			unsigned long srcfd, u64 off, u64 len, u64 destoff,
@@ -216,6 +217,16 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			break;
 		case BTRFS_IOC_CLONE:
 			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0, true);
+			break;
+		case CIFS_IOC_SET_INTEGRITY:
+			if (pSMBFile == NULL)
+				break;
+			tcon = tlink_tcon(pSMBFile->tlink);
+			if (tcon->ses->server->ops->set_integrity)
+				rc = tcon->ses->server->ops->set_integrity(xid,
+						tcon, pSMBFile);
+			else
+				rc = -EOPNOTSUPP;
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

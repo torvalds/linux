@@ -862,6 +862,28 @@ smb2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 static int
+smb3_set_integrity(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile)
+{
+	struct fsctl_set_integrity_information_req integr_info;
+	char *retbuf = NULL;
+	unsigned int ret_data_len;
+
+	integr_info.ChecksumAlgorithm = cpu_to_le16(CHECKSUM_TYPE_UNCHANGED);
+	integr_info.Flags = 0;
+	integr_info.Reserved = 0;
+
+	return SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+			cfile->fid.volatile_fid,
+			FSCTL_SET_INTEGRITY_INFORMATION,
+			true /* is_fsctl */, (char *)&integr_info,
+			sizeof(struct fsctl_set_integrity_information_req),
+			(char **)&retbuf,
+			&ret_data_len);
+
+}
+
+static int
 smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 		     const char *path, struct cifs_sb_info *cifs_sb,
 		     struct cifs_fid *fid, __u16 search_flags,
@@ -1671,6 +1693,7 @@ struct smb_version_operations smb30_operations = {
 	.new_lease_key = smb2_new_lease_key,
 	.generate_signingkey = generate_smb3signingkey,
 	.calc_signature = smb3_calc_signature,
+	.set_integrity  = smb3_set_integrity,
 	.is_read_op = smb21_is_read_op,
 	.set_oplock_level = smb3_set_oplock_level,
 	.create_lease_buf = smb3_create_lease_buf,
@@ -1756,6 +1779,7 @@ struct smb_version_operations smb311_operations = {
 	.new_lease_key = smb2_new_lease_key,
 	.generate_signingkey = generate_smb3signingkey,
 	.calc_signature = smb3_calc_signature,
+	.set_integrity  = smb3_set_integrity,
 	.is_read_op = smb21_is_read_op,
 	.set_oplock_level = smb3_set_oplock_level,
 	.create_lease_buf = smb3_create_lease_buf,
