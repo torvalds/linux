@@ -192,7 +192,8 @@ static void rose_kill_by_device(struct net_device *dev)
 
 		if (rose->device == dev) {
 			rose_disconnect(s, ENETUNREACH, ROSE_OUT_OF_ORDER, 0);
-			rose->neighbour->use--;
+			if (rose->neighbour)
+				rose->neighbour->use--;
 			rose->device = NULL;
 		}
 	}
