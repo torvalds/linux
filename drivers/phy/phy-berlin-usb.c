@@ -208,7 +208,7 @@ static struct platform_driver phy_berlin_usb_driver = {
 	.driver	= {
 		.name		= "phy-berlin-usb",
 		.of_match_table	= phy_berlin_usb_of_match,
-	 },
+	},
 };
 module_platform_driver(phy_berlin_usb_driver);
 
