@@ -207,6 +207,7 @@ static void slc_bump(struct slcan *sl)
 	if (!skb)
 		return;
 
+	__net_timestamp(skb);
 	skb->dev = sl->dev;
 	skb->protocol = htons(ETH_P_CAN);
 	skb->pkt_type = PACKET_BROADCAST;

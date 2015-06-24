@@ -78,6 +78,9 @@ enum qca6174_chip_id_rev {
 /* added support for ATH10K_FW_IE_WMI_OP_VERSION */
 #define ATH10K_FW_API4_FILE		"firmware-4.bin"
 
+/* HTT id conflict fix for management frames over HTT */
+#define ATH10K_FW_API5_FILE		"firmware-5.bin"
+
 #define ATH10K_FW_UTF_FILE		"utf.bin"
 
 /* includes also the null byte */
@@ -104,6 +107,11 @@ enum ath10k_fw_ie_type {
 	 * FW API 4 and above.
 	 */
 	ATH10K_FW_IE_WMI_OP_VERSION = 5,
+
+	/* HTT "operations" interface version, 32 bit value. Supported from
+	 * FW API 5 and above.
+	 */
+	ATH10K_FW_IE_HTT_OP_VERSION = 6,
 };
 
 enum ath10k_fw_wmi_op_version {
@@ -117,6 +125,20 @@ enum ath10k_fw_wmi_op_version {
 
 	/* keep last */
 	ATH10K_FW_WMI_OP_VERSION_MAX,
+};
+
+enum ath10k_fw_htt_op_version {
+	ATH10K_FW_HTT_OP_VERSION_UNSET = 0,
+
+	ATH10K_FW_HTT_OP_VERSION_MAIN = 1,
+
+	/* also used in 10.2 and 10.2.4 branches */
+	ATH10K_FW_HTT_OP_VERSION_10_1 = 2,
+
+	ATH10K_FW_HTT_OP_VERSION_TLV = 3,
+
+	/* keep last */
+	ATH10K_FW_HTT_OP_VERSION_MAX,
 };
 
 enum ath10k_hw_rev {
@@ -146,6 +168,9 @@ struct ath10k_hw_regs {
 
 extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
+
+void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
+				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
 
 #define QCA_REV_988X(ar) ((ar)->hw_rev == ATH10K_HW_QCA988X)
 #define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
@@ -179,6 +204,27 @@ struct ath10k_pktlog_hdr {
 	__le32 timestamp;
 	u8 payload[0];
 } __packed;
+
+enum ath10k_hw_rate_ofdm {
+	ATH10K_HW_RATE_OFDM_48M = 0,
+	ATH10K_HW_RATE_OFDM_24M,
+	ATH10K_HW_RATE_OFDM_12M,
+	ATH10K_HW_RATE_OFDM_6M,
+	ATH10K_HW_RATE_OFDM_54M,
+	ATH10K_HW_RATE_OFDM_36M,
+	ATH10K_HW_RATE_OFDM_18M,
+	ATH10K_HW_RATE_OFDM_9M,
+};
+
+enum ath10k_hw_rate_cck {
+	ATH10K_HW_RATE_CCK_LP_11M = 0,
+	ATH10K_HW_RATE_CCK_LP_5_5M,
+	ATH10K_HW_RATE_CCK_LP_2M,
+	ATH10K_HW_RATE_CCK_LP_1M,
+	ATH10K_HW_RATE_CCK_SP_11M,
+	ATH10K_HW_RATE_CCK_SP_5_5M,
+	ATH10K_HW_RATE_CCK_SP_2M,
+};
 
 /* Target specific defines for MAIN firmware */
 #define TARGET_NUM_VDEVS			8
@@ -223,7 +269,7 @@ struct ath10k_pktlog_hdr {
 #define TARGET_10X_NUM_WDS_ENTRIES		32
 #define TARGET_10X_DMA_BURST_SIZE		0
 #define TARGET_10X_MAC_AGGR_DELIM		0
-#define TARGET_10X_AST_SKID_LIMIT		16
+#define TARGET_10X_AST_SKID_LIMIT		128
 #define TARGET_10X_NUM_STATIONS			128
 #define TARGET_10X_NUM_PEERS			((TARGET_10X_NUM_STATIONS) + \
 						 (TARGET_10X_NUM_VDEVS))
@@ -256,13 +302,13 @@ struct ath10k_pktlog_hdr {
 #define TARGET_10_2_DMA_BURST_SIZE		1
 
 /* Target specific defines for WMI-TLV firmware */
-#define TARGET_TLV_NUM_VDEVS			3
+#define TARGET_TLV_NUM_VDEVS			4
 #define TARGET_TLV_NUM_STATIONS			32
-#define TARGET_TLV_NUM_PEERS			((TARGET_TLV_NUM_STATIONS) + \
-						 (TARGET_TLV_NUM_VDEVS) + \
-						 2)
+#define TARGET_TLV_NUM_PEERS			35
+#define TARGET_TLV_NUM_TDLS_VDEVS		1
 #define TARGET_TLV_NUM_TIDS			((TARGET_TLV_NUM_PEERS) * 2)
 #define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
+#define TARGET_TLV_NUM_WOW_PATTERNS		22
 
 /* Number of Copy Engines supported */
 #define CE_COUNT 8
@@ -405,6 +451,9 @@ struct ath10k_pktlog_hdr {
 #define PCIE_INTR_CLR_ADDRESS			0x0014
 #define SCRATCH_3_ADDRESS			ar->regs->scratch_3_address
 #define CPU_INTR_ADDRESS			0x0010
+
+/* Cycle counters are running at 88MHz */
+#define CCNT_TO_MSEC(x) ((x) / 88000)
 
 /* Firmware indications to the Host via SCRATCH_3 register. */
 #define FW_INDICATOR_ADDRESS	(SOC_CORE_BASE_ADDRESS + SCRATCH_3_ADDRESS)

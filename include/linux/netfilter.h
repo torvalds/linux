@@ -10,7 +10,8 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/static_key.h>
-#include <uapi/linux/netfilter.h>
+#include <linux/netfilter_defs.h>
+
 #ifdef CONFIG_NETFILTER
 static inline int NF_DROP_GETERR(int verdict)
 {
@@ -38,9 +39,6 @@ static inline void nf_inet_addr_mask(const union nf_inet_addr *a1,
 
 int netfilter_init(void);
 
-/* Largest hook number + 1 */
-#define NF_MAX_HOOKS 8
-
 struct sk_buff;
 
 struct nf_hook_ops;
@@ -54,10 +52,12 @@ struct nf_hook_state {
 	struct net_device *in;
 	struct net_device *out;
 	struct sock *sk;
+	struct list_head *hook_list;
 	int (*okfn)(struct sock *, struct sk_buff *);
 };
 
 static inline void nf_hook_state_init(struct nf_hook_state *p,
+				      struct list_head *hook_list,
 				      unsigned int hook,
 				      int thresh, u_int8_t pf,
 				      struct net_device *indev,
@@ -71,6 +71,7 @@ static inline void nf_hook_state_init(struct nf_hook_state *p,
 	p->in = indev;
 	p->out = outdev;
 	p->sk = sk;
+	p->hook_list = hook_list;
 	p->okfn = okfn;
 }
 
@@ -79,16 +80,17 @@ typedef unsigned int nf_hookfn(const struct nf_hook_ops *ops,
 			       const struct nf_hook_state *state);
 
 struct nf_hook_ops {
-	struct list_head list;
+	struct list_head 	list;
 
 	/* User fills in from here down. */
-	nf_hookfn	*hook;
-	struct module	*owner;
-	void		*priv;
-	u_int8_t	pf;
-	unsigned int	hooknum;
+	nf_hookfn		*hook;
+	struct net_device	*dev;
+	struct module		*owner;
+	void			*priv;
+	u_int8_t		pf;
+	unsigned int		hooknum;
 	/* Hooks are ordered in ascending priority. */
-	int		priority;
+	int			priority;
 };
 
 struct nf_sockopt_ops {
@@ -131,26 +133,33 @@ extern struct list_head nf_hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 #ifdef HAVE_JUMP_LABEL
 extern struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 
-static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
+static inline bool nf_hook_list_active(struct list_head *nf_hook_list,
+				       u_int8_t pf, unsigned int hook)
 {
 	if (__builtin_constant_p(pf) &&
 	    __builtin_constant_p(hook))
 		return static_key_false(&nf_hooks_needed[pf][hook]);
 
-	return !list_empty(&nf_hooks[pf][hook]);
+	return !list_empty(nf_hook_list);
 }
 #else
-static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
+static inline bool nf_hook_list_active(struct list_head *nf_hook_list,
+				       u_int8_t pf, unsigned int hook)
 {
-	return !list_empty(&nf_hooks[pf][hook]);
+	return !list_empty(nf_hook_list);
 }
 #endif
+
+static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
+{
+	return nf_hook_list_active(&nf_hooks[pf][hook], pf, hook);
+}
 
 int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state);
 
 /**
  *	nf_hook_thresh - call a netfilter hook
- *	
+ *
  *	Returns 1 if the hook has allowed the packet to pass.  The function
  *	okfn must be invoked by the caller in this case.  Any other return
  *	value indicates the packet has been consumed by the hook.
@@ -166,8 +175,8 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 	if (nf_hooks_active(pf, hook)) {
 		struct nf_hook_state state;
 
-		nf_hook_state_init(&state, hook, thresh, pf,
-				   indev, outdev, sk, okfn);
+		nf_hook_state_init(&state, &nf_hooks[pf][hook], hook, thresh,
+				   pf, indev, outdev, sk, okfn);
 		return nf_hook_slow(skb, &state);
 	}
 	return 1;

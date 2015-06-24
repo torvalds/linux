@@ -1115,7 +1115,7 @@ static void uli526x_timer(unsigned long data)
 				netif_carrier_off(dev);
 			}
 		}
-		db->init=0;
+	db->init = 0;
 
 	/* Timer active again */
 	db->timer.expires = ULI526X_TIMER_WUT;

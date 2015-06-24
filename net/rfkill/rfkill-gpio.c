@@ -112,21 +112,17 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 
 	rfkill->clk = devm_clk_get(&pdev->dev, NULL);
 
-	gpio = devm_gpiod_get(&pdev->dev, "reset");
-	if (!IS_ERR(gpio)) {
-		ret = gpiod_direction_output(gpio, 0);
-		if (ret)
-			return ret;
-		rfkill->reset_gpio = gpio;
-	}
+	gpio = devm_gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
 
-	gpio = devm_gpiod_get(&pdev->dev, "shutdown");
-	if (!IS_ERR(gpio)) {
-		ret = gpiod_direction_output(gpio, 0);
-		if (ret)
-			return ret;
-		rfkill->shutdown_gpio = gpio;
-	}
+	rfkill->reset_gpio = gpio;
+
+	gpio = devm_gpiod_get_optional(&pdev->dev, "shutdown", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
+	rfkill->shutdown_gpio = gpio;
 
 	/* Make sure at-least one of the GPIO is defined and that
 	 * a name is specified for this instance

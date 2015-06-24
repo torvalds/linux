@@ -46,8 +46,9 @@
 
 #define MAX_MSIX_P_PORT		17
 #define MAX_MSIX		64
-#define MSIX_LEGACY_SZ		4
 #define MIN_MSIX_P_PORT		5
+#define MLX4_IS_LEGACY_EQ_MODE(dev_cap) ((dev_cap).num_comp_vectors < \
+					 (dev_cap).num_ports * MIN_MSIX_P_PORT)
 
 #define MLX4_MAX_100M_UNITS_VAL		255	/*
 						 * work around: can't set values
@@ -528,7 +529,6 @@ struct mlx4_caps {
 	int			num_eqs;
 	int			reserved_eqs;
 	int			num_comp_vectors;
-	int			comp_pool;
 	int			num_mpts;
 	int			max_fmr_maps;
 	int			num_mtts;
@@ -771,6 +771,14 @@ union mlx4_ext_av {
 	struct mlx4_eth_av	eth;
 };
 
+/* Counters should be saturate once they reach their maximum value */
+#define ASSIGN_32BIT_COUNTER(counter, value) do {	\
+	if ((value) > U32_MAX)				\
+		counter = cpu_to_be32(U32_MAX);		\
+	else						\
+		counter = cpu_to_be32(value);		\
+} while (0)
+
 struct mlx4_counter {
 	u8	reserved1[3];
 	u8	counter_mode;
@@ -963,6 +971,7 @@ struct mlx4_mad_ifc {
 			((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
 
 #define MLX4_INVALID_SLAVE_ID	0xFF
+#define MLX4_SINK_COUNTER_INDEX(dev)	(dev->caps.max_counters - 1)
 
 void handle_port_mgmt_change_event(struct work_struct *work);
 
@@ -1338,10 +1347,13 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
 int mlx4_SYNC_TPT(struct mlx4_dev *dev);
 int mlx4_test_interrupts(struct mlx4_dev *dev);
-int mlx4_assign_eq(struct mlx4_dev *dev, char *name, struct cpu_rmap *rmap,
-		   int *vector);
+u32 mlx4_get_eqs_per_port(struct mlx4_dev *dev, u8 port);
+bool mlx4_is_eq_vector_valid(struct mlx4_dev *dev, u8 port, int vector);
+struct cpu_rmap *mlx4_get_cpu_rmap(struct mlx4_dev *dev, int port);
+int mlx4_assign_eq(struct mlx4_dev *dev, u8 port, int *vector);
 void mlx4_release_eq(struct mlx4_dev *dev, int vec);
 
+int mlx4_is_eq_shared(struct mlx4_dev *dev, int vector);
 int mlx4_eq_get_irq(struct mlx4_dev *dev, int vec);
 
 int mlx4_get_phys_port_id(struct mlx4_dev *dev);
@@ -1350,6 +1362,7 @@ int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
 
 int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
 void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
+int mlx4_get_default_counter_index(struct mlx4_dev *dev, int port);
 
 void mlx4_set_admin_guid(struct mlx4_dev *dev, __be64 guid, int entry,
 			 int port);

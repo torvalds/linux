@@ -66,6 +66,8 @@ struct ath_ht20_fft_packet {
 } __packed;
 
 #define SPECTRAL_HT20_TOTAL_DATA_LEN	(sizeof(struct ath_ht20_fft_packet))
+#define	SPECTRAL_HT20_SAMPLE_LEN	(sizeof(struct ath_ht20_mag_info) +\
+					SPECTRAL_HT20_NUM_BINS)
 
 /* Dynamic 20/40 mode:
  *
@@ -101,6 +103,10 @@ struct ath_spec_scan_priv {
 };
 
 #define SPECTRAL_HT20_40_TOTAL_DATA_LEN	(sizeof(struct ath_ht20_40_fft_packet))
+#define	SPECTRAL_HT20_40_SAMPLE_LEN	(sizeof(struct ath_ht20_40_mag_info) +\
+					SPECTRAL_HT20_40_NUM_BINS)
+
+#define	SPECTRAL_SAMPLE_MAX_LEN		SPECTRAL_HT20_40_SAMPLE_LEN
 
 /* grabs the max magnitude from the all/upper/lower bins */
 static inline u16 spectral_max_magnitude(u8 *bins)
@@ -111,17 +117,32 @@ static inline u16 spectral_max_magnitude(u8 *bins)
 }
 
 /* return the max magnitude from the all/upper/lower bins */
-static inline u8 spectral_max_index(u8 *bins)
+static inline u8 spectral_max_index(u8 *bins, int num_bins)
 {
 	s8 m = (bins[2] & 0xfc) >> 2;
+	u8 zero_idx = num_bins / 2;
 
-	/* TODO: this still doesn't always report the right values ... */
-	if (m > 32)
+	/* It's a 5 bit signed int, remove its sign and use one's
+	 * complement interpretation to add the sign back to the 8
+	 * bit int
+	 */
+	if (m & 0x20) {
+		m &= ~0x20;
 		m |= 0xe0;
-	else
-		m &= ~0xe0;
+	}
 
-	return m + 29;
+	/* Bring the zero point to the beginning
+	 * instead of the middle so that we can use
+	 * it for array lookup and that we don't deal
+	 * with negative values later
+	 */
+	m += zero_idx;
+
+	/* Sanity check to make sure index is within bounds */
+	if (m < 0 || m > num_bins - 1)
+		m = 0;
+
+	return m;
 }
 
 /* return the bitmap weight from the all/upper/lower bins */

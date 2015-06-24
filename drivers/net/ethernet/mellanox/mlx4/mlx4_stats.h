@@ -23,6 +23,14 @@ struct mlx4_en_pkt_stats {
 #define NUM_PKT_STATS		43
 };
 
+struct mlx4_en_counter_stats {
+	unsigned long rx_packets;
+	unsigned long rx_bytes;
+	unsigned long tx_packets;
+	unsigned long tx_bytes;
+#define NUM_PF_STATS      4
+};
+
 struct mlx4_en_port_stats {
 	unsigned long tso_packets;
 	unsigned long xmit_more;
@@ -99,7 +107,7 @@ enum {
 };
 
 #define NUM_ALL_STATS	(NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PKT_STATS + \
-			 NUM_FLOW_STATS + NUM_PERF_STATS)
+			 NUM_FLOW_STATS + NUM_PERF_STATS + NUM_PF_STATS)
 
 #define MLX4_FIND_NETDEV_STAT(n) (offsetof(struct net_device_stats, n) / \
 				  sizeof(((struct net_device_stats *)0)->n))

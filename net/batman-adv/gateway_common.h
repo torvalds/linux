@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -17,6 +17,13 @@
 
 #ifndef _NET_BATMAN_ADV_GATEWAY_COMMON_H_
 #define _NET_BATMAN_ADV_GATEWAY_COMMON_H_
+
+#include "main.h"
+
+#include <linux/types.h>
+
+struct batadv_priv;
+struct net_device;
 
 enum batadv_gw_modes {
 	BATADV_GW_MODE_OFF,

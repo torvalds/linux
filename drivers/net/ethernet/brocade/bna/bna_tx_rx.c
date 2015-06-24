@@ -46,7 +46,6 @@ do {									\
 
 static int bna_rxf_cfg_apply(struct bna_rxf *rxf);
 static void bna_rxf_cfg_reset(struct bna_rxf *rxf);
-static int bna_rxf_fltr_clear(struct bna_rxf *rxf);
 static int bna_rxf_ucast_cfg_apply(struct bna_rxf *rxf);
 static int bna_rxf_promisc_cfg_apply(struct bna_rxf *rxf);
 static int bna_rxf_allmulti_cfg_apply(struct bna_rxf *rxf);
@@ -60,13 +59,9 @@ static int bna_rxf_allmulti_cfg_reset(struct bna_rxf *rxf,
 
 bfa_fsm_state_decl(bna_rxf, stopped, struct bna_rxf,
 			enum bna_rxf_event);
-bfa_fsm_state_decl(bna_rxf, paused, struct bna_rxf,
-			enum bna_rxf_event);
 bfa_fsm_state_decl(bna_rxf, cfg_wait, struct bna_rxf,
 			enum bna_rxf_event);
 bfa_fsm_state_decl(bna_rxf, started, struct bna_rxf,
-			enum bna_rxf_event);
-bfa_fsm_state_decl(bna_rxf, fltr_clr_wait, struct bna_rxf,
 			enum bna_rxf_event);
 bfa_fsm_state_decl(bna_rxf, last_resp_wait, struct bna_rxf,
 			enum bna_rxf_event);
@@ -82,11 +77,7 @@ bna_rxf_sm_stopped(struct bna_rxf *rxf, enum bna_rxf_event event)
 {
 	switch (event) {
 	case RXF_E_START:
-		if (rxf->flags & BNA_RXF_F_PAUSED) {
-			bfa_fsm_set_state(rxf, bna_rxf_sm_paused);
-			call_rxf_start_cbfn(rxf);
-		} else
-			bfa_fsm_set_state(rxf, bna_rxf_sm_cfg_wait);
+		bfa_fsm_set_state(rxf, bna_rxf_sm_cfg_wait);
 		break;
 
 	case RXF_E_STOP:
@@ -99,45 +90,6 @@ bna_rxf_sm_stopped(struct bna_rxf *rxf, enum bna_rxf_event event)
 
 	case RXF_E_CONFIG:
 		call_rxf_cam_fltr_cbfn(rxf);
-		break;
-
-	case RXF_E_PAUSE:
-		rxf->flags |= BNA_RXF_F_PAUSED;
-		call_rxf_pause_cbfn(rxf);
-		break;
-
-	case RXF_E_RESUME:
-		rxf->flags &= ~BNA_RXF_F_PAUSED;
-		call_rxf_resume_cbfn(rxf);
-		break;
-
-	default:
-		bfa_sm_fault(event);
-	}
-}
-
-static void
-bna_rxf_sm_paused_entry(struct bna_rxf *rxf)
-{
-	call_rxf_pause_cbfn(rxf);
-}
-
-static void
-bna_rxf_sm_paused(struct bna_rxf *rxf, enum bna_rxf_event event)
-{
-	switch (event) {
-	case RXF_E_STOP:
-	case RXF_E_FAIL:
-		bfa_fsm_set_state(rxf, bna_rxf_sm_stopped);
-		break;
-
-	case RXF_E_CONFIG:
-		call_rxf_cam_fltr_cbfn(rxf);
-		break;
-
-	case RXF_E_RESUME:
-		rxf->flags &= ~BNA_RXF_F_PAUSED;
-		bfa_fsm_set_state(rxf, bna_rxf_sm_cfg_wait);
 		break;
 
 	default:
@@ -166,18 +118,11 @@ bna_rxf_sm_cfg_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 		bna_rxf_cfg_reset(rxf);
 		call_rxf_start_cbfn(rxf);
 		call_rxf_cam_fltr_cbfn(rxf);
-		call_rxf_resume_cbfn(rxf);
 		bfa_fsm_set_state(rxf, bna_rxf_sm_stopped);
 		break;
 
 	case RXF_E_CONFIG:
 		/* No-op */
-		break;
-
-	case RXF_E_PAUSE:
-		rxf->flags |= BNA_RXF_F_PAUSED;
-		call_rxf_start_cbfn(rxf);
-		bfa_fsm_set_state(rxf, bna_rxf_sm_fltr_clr_wait);
 		break;
 
 	case RXF_E_FW_RESP:
@@ -197,7 +142,6 @@ bna_rxf_sm_started_entry(struct bna_rxf *rxf)
 {
 	call_rxf_start_cbfn(rxf);
 	call_rxf_cam_fltr_cbfn(rxf);
-	call_rxf_resume_cbfn(rxf);
 }
 
 static void
@@ -212,41 +156,6 @@ bna_rxf_sm_started(struct bna_rxf *rxf, enum bna_rxf_event event)
 
 	case RXF_E_CONFIG:
 		bfa_fsm_set_state(rxf, bna_rxf_sm_cfg_wait);
-		break;
-
-	case RXF_E_PAUSE:
-		rxf->flags |= BNA_RXF_F_PAUSED;
-		if (!bna_rxf_fltr_clear(rxf))
-			bfa_fsm_set_state(rxf, bna_rxf_sm_paused);
-		else
-			bfa_fsm_set_state(rxf, bna_rxf_sm_fltr_clr_wait);
-		break;
-
-	default:
-		bfa_sm_fault(event);
-	}
-}
-
-static void
-bna_rxf_sm_fltr_clr_wait_entry(struct bna_rxf *rxf)
-{
-}
-
-static void
-bna_rxf_sm_fltr_clr_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
-{
-	switch (event) {
-	case RXF_E_FAIL:
-		bna_rxf_cfg_reset(rxf);
-		call_rxf_pause_cbfn(rxf);
-		bfa_fsm_set_state(rxf, bna_rxf_sm_stopped);
-		break;
-
-	case RXF_E_FW_RESP:
-		if (!bna_rxf_fltr_clear(rxf)) {
-			/* No more pending CAM entries to clear */
-			bfa_fsm_set_state(rxf, bna_rxf_sm_paused);
-		}
 		break;
 
 	default:
@@ -283,7 +192,7 @@ bna_bfi_ucast_req(struct bna_rxf *rxf, struct bna_mac *mac,
 	bfi_msgq_mhdr_set(req->mh, BFI_MC_ENET, req_type, 0, rxf->rx->rid);
 	req->mh.num_entries = htons(
 	bfi_msgq_num_cmd_entries(sizeof(struct bfi_enet_ucast_req)));
-	memcpy(&req->mac_addr, &mac->addr, sizeof(mac_t));
+	ether_addr_copy(req->mac_addr, mac->addr);
 	bfa_msgq_cmd_set(&rxf->msgq_cmd, NULL, NULL,
 		sizeof(struct bfi_enet_ucast_req), &req->mh);
 	bfa_msgq_cmd_post(&rxf->rx->bna->msgq, &rxf->msgq_cmd);
@@ -299,7 +208,7 @@ bna_bfi_mcast_add_req(struct bna_rxf *rxf, struct bna_mac *mac)
 		0, rxf->rx->rid);
 	req->mh.num_entries = htons(
 	bfi_msgq_num_cmd_entries(sizeof(struct bfi_enet_mcast_add_req)));
-	memcpy(&req->mac_addr, &mac->addr, sizeof(mac_t));
+	ether_addr_copy(req->mac_addr, mac->addr);
 	bfa_msgq_cmd_set(&rxf->msgq_cmd, NULL, NULL,
 		sizeof(struct bfi_enet_mcast_add_req), &req->mh);
 	bfa_msgq_cmd_post(&rxf->rx->bna->msgq, &rxf->msgq_cmd);
@@ -444,22 +353,17 @@ bna_bfi_rss_enable(struct bna_rxf *rxf)
 
 /* This function gets the multicast MAC that has already been added to CAM */
 static struct bna_mac *
-bna_rxf_mcmac_get(struct bna_rxf *rxf, u8 *mac_addr)
+bna_rxf_mcmac_get(struct bna_rxf *rxf, const u8 *mac_addr)
 {
 	struct bna_mac *mac;
-	struct list_head *qe;
 
-	list_for_each(qe, &rxf->mcast_active_q) {
-		mac = (struct bna_mac *)qe;
-		if (BNA_MAC_IS_EQUAL(&mac->addr, mac_addr))
+	list_for_each_entry(mac, &rxf->mcast_active_q, qe)
+		if (ether_addr_equal(mac->addr, mac_addr))
 			return mac;
-	}
 
-	list_for_each(qe, &rxf->mcast_pending_del_q) {
-		mac = (struct bna_mac *)qe;
-		if (BNA_MAC_IS_EQUAL(&mac->addr, mac_addr))
+	list_for_each_entry(mac, &rxf->mcast_pending_del_q, qe)
+		if (ether_addr_equal(mac->addr, mac_addr))
 			return mac;
-	}
 
 	return NULL;
 }
@@ -468,13 +372,10 @@ static struct bna_mcam_handle *
 bna_rxf_mchandle_get(struct bna_rxf *rxf, int handle)
 {
 	struct bna_mcam_handle *mchandle;
-	struct list_head *qe;
 
-	list_for_each(qe, &rxf->mcast_handle_q) {
-		mchandle = (struct bna_mcam_handle *)qe;
+	list_for_each_entry(mchandle, &rxf->mcast_handle_q, qe)
 		if (mchandle->handle == handle)
 			return mchandle;
-	}
 
 	return NULL;
 }
@@ -515,7 +416,6 @@ bna_rxf_mcast_del(struct bna_rxf *rxf, struct bna_mac *mac,
 			ret = 1;
 		}
 		list_del(&mchandle->qe);
-		bfa_q_qe_init(&mchandle->qe);
 		bna_mcam_mod_handle_put(&rxf->rx->bna->mcam_mod, mchandle);
 	}
 	mac->handle = NULL;
@@ -527,26 +427,23 @@ static int
 bna_rxf_mcast_cfg_apply(struct bna_rxf *rxf)
 {
 	struct bna_mac *mac = NULL;
-	struct list_head *qe;
 	int ret;
 
 	/* First delete multicast entries to maintain the count */
 	while (!list_empty(&rxf->mcast_pending_del_q)) {
-		bfa_q_deq(&rxf->mcast_pending_del_q, &qe);
-		bfa_q_qe_init(qe);
-		mac = (struct bna_mac *)qe;
+		mac = list_first_entry(&rxf->mcast_pending_del_q,
+				       struct bna_mac, qe);
 		ret = bna_rxf_mcast_del(rxf, mac, BNA_HARD_CLEANUP);
-		bna_cam_mod_mac_put(bna_mcam_mod_del_q(rxf->rx->bna), mac);
+		list_move_tail(&mac->qe, bna_mcam_mod_del_q(rxf->rx->bna));
 		if (ret)
 			return ret;
 	}
 
 	/* Add multicast entries */
 	if (!list_empty(&rxf->mcast_pending_add_q)) {
-		bfa_q_deq(&rxf->mcast_pending_add_q, &qe);
-		bfa_q_qe_init(qe);
-		mac = (struct bna_mac *)qe;
-		list_add_tail(&mac->qe, &rxf->mcast_active_q);
+		mac = list_first_entry(&rxf->mcast_pending_add_q,
+				       struct bna_mac, qe);
+		list_move_tail(&mac->qe, &rxf->mcast_active_q);
 		bna_bfi_mcast_add_req(rxf, mac);
 		return 1;
 	}
@@ -566,7 +463,7 @@ bna_rxf_vlan_cfg_apply(struct bna_rxf *rxf)
 			block_idx++;
 			vlan_pending_bitmask >>= 1;
 		}
-		rxf->vlan_pending_bitmask &= ~(1 << block_idx);
+		rxf->vlan_pending_bitmask &= ~BIT(block_idx);
 		bna_bfi_rx_vlan_filter_set(rxf, block_idx);
 		return 1;
 	}
@@ -577,27 +474,24 @@ bna_rxf_vlan_cfg_apply(struct bna_rxf *rxf)
 static int
 bna_rxf_mcast_cfg_reset(struct bna_rxf *rxf, enum bna_cleanup_type cleanup)
 {
-	struct list_head *qe;
 	struct bna_mac *mac;
 	int ret;
 
 	/* Throw away delete pending mcast entries */
 	while (!list_empty(&rxf->mcast_pending_del_q)) {
-		bfa_q_deq(&rxf->mcast_pending_del_q, &qe);
-		bfa_q_qe_init(qe);
-		mac = (struct bna_mac *)qe;
+		mac = list_first_entry(&rxf->mcast_pending_del_q,
+				       struct bna_mac, qe);
 		ret = bna_rxf_mcast_del(rxf, mac, cleanup);
-		bna_cam_mod_mac_put(bna_mcam_mod_del_q(rxf->rx->bna), mac);
+		list_move_tail(&mac->qe, bna_mcam_mod_del_q(rxf->rx->bna));
 		if (ret)
 			return ret;
 	}
 
 	/* Move active mcast entries to pending_add_q */
 	while (!list_empty(&rxf->mcast_active_q)) {
-		bfa_q_deq(&rxf->mcast_active_q, &qe);
-		bfa_q_qe_init(qe);
-		list_add_tail(qe, &rxf->mcast_pending_add_q);
-		mac = (struct bna_mac *)qe;
+		mac = list_first_entry(&rxf->mcast_active_q,
+				       struct bna_mac, qe);
+		list_move_tail(&mac->qe, &rxf->mcast_pending_add_q);
 		if (bna_rxf_mcast_del(rxf, mac, cleanup))
 			return 1;
 	}
@@ -658,25 +552,6 @@ bna_rxf_cfg_apply(struct bna_rxf *rxf)
 	return 0;
 }
 
-/* Only software reset */
-static int
-bna_rxf_fltr_clear(struct bna_rxf *rxf)
-{
-	if (bna_rxf_ucast_cfg_reset(rxf, BNA_HARD_CLEANUP))
-		return 1;
-
-	if (bna_rxf_mcast_cfg_reset(rxf, BNA_HARD_CLEANUP))
-		return 1;
-
-	if (bna_rxf_promisc_cfg_reset(rxf, BNA_HARD_CLEANUP))
-		return 1;
-
-	if (bna_rxf_allmulti_cfg_reset(rxf, BNA_HARD_CLEANUP))
-		return 1;
-
-	return 0;
-}
-
 static void
 bna_rxf_cfg_reset(struct bna_rxf *rxf)
 {
@@ -693,16 +568,13 @@ bna_rit_init(struct bna_rxf *rxf, int rit_size)
 {
 	struct bna_rx *rx = rxf->rx;
 	struct bna_rxp *rxp;
-	struct list_head *qe;
 	int offset = 0;
 
 	rxf->rit_size = rit_size;
-	list_for_each(qe, &rx->rxp_q) {
-		rxp = (struct bna_rxp *)qe;
+	list_for_each_entry(rxp, &rx->rxp_q, qe) {
 		rxf->rit[offset] = rxp->cq.ccb->id;
 		offset++;
 	}
-
 }
 
 void
@@ -760,9 +632,6 @@ bna_rxf_init(struct bna_rxf *rxf,
 	INIT_LIST_HEAD(&rxf->mcast_active_q);
 	INIT_LIST_HEAD(&rxf->mcast_handle_q);
 
-	if (q_config->paused)
-		rxf->flags |= BNA_RXF_F_PAUSED;
-
 	rxf->rit = (u8 *)
 		res_info[BNA_RX_RES_MEM_T_RIT].res_u.mem_info.mdl[0].kva;
 	bna_rit_init(rxf, q_config->num_paths);
@@ -795,22 +664,21 @@ bna_rxf_uninit(struct bna_rxf *rxf)
 	rxf->ucast_active_set = 0;
 
 	while (!list_empty(&rxf->ucast_pending_add_q)) {
-		bfa_q_deq(&rxf->ucast_pending_add_q, &mac);
-		bfa_q_qe_init(&mac->qe);
-		bna_cam_mod_mac_put(bna_ucam_mod_free_q(rxf->rx->bna), mac);
+		mac = list_first_entry(&rxf->ucast_pending_add_q,
+				       struct bna_mac, qe);
+		list_move_tail(&mac->qe, bna_ucam_mod_free_q(rxf->rx->bna));
 	}
 
 	if (rxf->ucast_pending_mac) {
-		bfa_q_qe_init(&rxf->ucast_pending_mac->qe);
-		bna_cam_mod_mac_put(bna_ucam_mod_free_q(rxf->rx->bna),
-				    rxf->ucast_pending_mac);
+		list_add_tail(&rxf->ucast_pending_mac->qe,
+			      bna_ucam_mod_free_q(rxf->rx->bna));
 		rxf->ucast_pending_mac = NULL;
 	}
 
 	while (!list_empty(&rxf->mcast_pending_add_q)) {
-		bfa_q_deq(&rxf->mcast_pending_add_q, &mac);
-		bfa_q_qe_init(&mac->qe);
-		bna_cam_mod_mac_put(bna_mcam_mod_free_q(rxf->rx->bna), mac);
+		mac = list_first_entry(&rxf->mcast_pending_add_q,
+				       struct bna_mac, qe);
+		list_move_tail(&mac->qe, bna_mcam_mod_free_q(rxf->rx->bna));
 	}
 
 	rxf->rxmode_pending = 0;
@@ -822,8 +690,6 @@ bna_rxf_uninit(struct bna_rxf *rxf)
 
 	rxf->rss_pending = 0;
 	rxf->vlan_strip_pending = false;
-
-	rxf->flags = 0;
 
 	rxf->rx = NULL;
 }
@@ -863,8 +729,7 @@ bna_rxf_fail(struct bna_rxf *rxf)
 }
 
 enum bna_cb_status
-bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac,
-		 void (*cbfn)(struct bnad *, struct bna_rx *))
+bna_rx_ucast_set(struct bna_rx *rx, const u8 *ucmac)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 
@@ -873,12 +738,11 @@ bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac,
 			bna_cam_mod_mac_get(bna_ucam_mod_free_q(rxf->rx->bna));
 		if (rxf->ucast_pending_mac == NULL)
 			return BNA_CB_UCAST_CAM_FULL;
-		bfa_q_qe_init(&rxf->ucast_pending_mac->qe);
 	}
 
-	memcpy(rxf->ucast_pending_mac->addr, ucmac, ETH_ALEN);
+	ether_addr_copy(rxf->ucast_pending_mac->addr, ucmac);
 	rxf->ucast_pending_set = 1;
-	rxf->cam_fltr_cbfn = cbfn;
+	rxf->cam_fltr_cbfn = NULL;
 	rxf->cam_fltr_cbarg = rx->bna->bnad;
 
 	bfa_fsm_send_event(rxf, RXF_E_CONFIG);
@@ -887,7 +751,7 @@ bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac,
 }
 
 enum bna_cb_status
-bna_rx_mcast_add(struct bna_rx *rx, u8 *addr,
+bna_rx_mcast_add(struct bna_rx *rx, const u8 *addr,
 		 void (*cbfn)(struct bnad *, struct bna_rx *))
 {
 	struct bna_rxf *rxf = &rx->rxf;
@@ -904,8 +768,7 @@ bna_rx_mcast_add(struct bna_rx *rx, u8 *addr,
 	mac = bna_cam_mod_mac_get(bna_mcam_mod_free_q(rxf->rx->bna));
 	if (mac == NULL)
 		return BNA_CB_MCAST_LIST_FULL;
-	bfa_q_qe_init(&mac->qe);
-	memcpy(mac->addr, addr, ETH_ALEN);
+	ether_addr_copy(mac->addr, addr);
 	list_add_tail(&mac->qe, &rxf->mcast_pending_add_q);
 
 	rxf->cam_fltr_cbfn = cbfn;
@@ -917,35 +780,31 @@ bna_rx_mcast_add(struct bna_rx *rx, u8 *addr,
 }
 
 enum bna_cb_status
-bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist,
-		     void (*cbfn)(struct bnad *, struct bna_rx *))
+bna_rx_ucast_listset(struct bna_rx *rx, int count, const u8 *uclist)
 {
 	struct bna_ucam_mod *ucam_mod = &rx->bna->ucam_mod;
 	struct bna_rxf *rxf = &rx->rxf;
 	struct list_head list_head;
-	struct list_head *qe;
-	u8 *mcaddr;
+	const u8 *mcaddr;
 	struct bna_mac *mac, *del_mac;
 	int i;
 
 	/* Purge the pending_add_q */
 	while (!list_empty(&rxf->ucast_pending_add_q)) {
-		bfa_q_deq(&rxf->ucast_pending_add_q, &qe);
-		bfa_q_qe_init(qe);
-		mac = (struct bna_mac *)qe;
-		bna_cam_mod_mac_put(&ucam_mod->free_q, mac);
+		mac = list_first_entry(&rxf->ucast_pending_add_q,
+				       struct bna_mac, qe);
+		list_move_tail(&mac->qe, &ucam_mod->free_q);
 	}
 
 	/* Schedule active_q entries for deletion */
 	while (!list_empty(&rxf->ucast_active_q)) {
-		bfa_q_deq(&rxf->ucast_active_q, &qe);
-		mac = (struct bna_mac *)qe;
-		bfa_q_qe_init(&mac->qe);
-
+		mac = list_first_entry(&rxf->ucast_active_q,
+				       struct bna_mac, qe);
 		del_mac = bna_cam_mod_mac_get(&ucam_mod->del_q);
-		memcpy(del_mac, mac, sizeof(*del_mac));
+		ether_addr_copy(del_mac->addr, mac->addr);
+		del_mac->handle = mac->handle;
 		list_add_tail(&del_mac->qe, &rxf->ucast_pending_del_q);
-		bna_cam_mod_mac_put(&ucam_mod->free_q, mac);
+		list_move_tail(&mac->qe, &ucam_mod->free_q);
 	}
 
 	/* Allocate nodes */
@@ -954,69 +813,57 @@ bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist,
 		mac = bna_cam_mod_mac_get(&ucam_mod->free_q);
 		if (mac == NULL)
 			goto err_return;
-		bfa_q_qe_init(&mac->qe);
-		memcpy(mac->addr, mcaddr, ETH_ALEN);
+		ether_addr_copy(mac->addr, mcaddr);
 		list_add_tail(&mac->qe, &list_head);
 		mcaddr += ETH_ALEN;
 	}
 
 	/* Add the new entries */
 	while (!list_empty(&list_head)) {
-		bfa_q_deq(&list_head, &qe);
-		mac = (struct bna_mac *)qe;
-		bfa_q_qe_init(&mac->qe);
-		list_add_tail(&mac->qe, &rxf->ucast_pending_add_q);
+		mac = list_first_entry(&list_head, struct bna_mac, qe);
+		list_move_tail(&mac->qe, &rxf->ucast_pending_add_q);
 	}
 
-	rxf->cam_fltr_cbfn = cbfn;
-	rxf->cam_fltr_cbarg = rx->bna->bnad;
 	bfa_fsm_send_event(rxf, RXF_E_CONFIG);
 
 	return BNA_CB_SUCCESS;
 
 err_return:
 	while (!list_empty(&list_head)) {
-		bfa_q_deq(&list_head, &qe);
-		mac = (struct bna_mac *)qe;
-		bfa_q_qe_init(&mac->qe);
-		bna_cam_mod_mac_put(&ucam_mod->free_q, mac);
+		mac = list_first_entry(&list_head, struct bna_mac, qe);
+		list_move_tail(&mac->qe, &ucam_mod->free_q);
 	}
 
 	return BNA_CB_UCAST_CAM_FULL;
 }
 
 enum bna_cb_status
-bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist,
-		     void (*cbfn)(struct bnad *, struct bna_rx *))
+bna_rx_mcast_listset(struct bna_rx *rx, int count, const u8 *mclist)
 {
 	struct bna_mcam_mod *mcam_mod = &rx->bna->mcam_mod;
 	struct bna_rxf *rxf = &rx->rxf;
 	struct list_head list_head;
-	struct list_head *qe;
-	u8 *mcaddr;
+	const u8 *mcaddr;
 	struct bna_mac *mac, *del_mac;
 	int i;
 
 	/* Purge the pending_add_q */
 	while (!list_empty(&rxf->mcast_pending_add_q)) {
-		bfa_q_deq(&rxf->mcast_pending_add_q, &qe);
-		bfa_q_qe_init(qe);
-		mac = (struct bna_mac *)qe;
-		bna_cam_mod_mac_put(&mcam_mod->free_q, mac);
+		mac = list_first_entry(&rxf->mcast_pending_add_q,
+				       struct bna_mac, qe);
+		list_move_tail(&mac->qe, &mcam_mod->free_q);
 	}
 
 	/* Schedule active_q entries for deletion */
 	while (!list_empty(&rxf->mcast_active_q)) {
-		bfa_q_deq(&rxf->mcast_active_q, &qe);
-		mac = (struct bna_mac *)qe;
-		bfa_q_qe_init(&mac->qe);
-
+		mac = list_first_entry(&rxf->mcast_active_q,
+				       struct bna_mac, qe);
 		del_mac = bna_cam_mod_mac_get(&mcam_mod->del_q);
-
-		memcpy(del_mac, mac, sizeof(*del_mac));
+		ether_addr_copy(del_mac->addr, mac->addr);
+		del_mac->handle = mac->handle;
 		list_add_tail(&del_mac->qe, &rxf->mcast_pending_del_q);
 		mac->handle = NULL;
-		bna_cam_mod_mac_put(&mcam_mod->free_q, mac);
+		list_move_tail(&mac->qe, &mcam_mod->free_q);
 	}
 
 	/* Allocate nodes */
@@ -1025,8 +872,7 @@ bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist,
 		mac = bna_cam_mod_mac_get(&mcam_mod->free_q);
 		if (mac == NULL)
 			goto err_return;
-		bfa_q_qe_init(&mac->qe);
-		memcpy(mac->addr, mcaddr, ETH_ALEN);
+		ether_addr_copy(mac->addr, mcaddr);
 		list_add_tail(&mac->qe, &list_head);
 
 		mcaddr += ETH_ALEN;
@@ -1034,70 +880,52 @@ bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist,
 
 	/* Add the new entries */
 	while (!list_empty(&list_head)) {
-		bfa_q_deq(&list_head, &qe);
-		mac = (struct bna_mac *)qe;
-		bfa_q_qe_init(&mac->qe);
-		list_add_tail(&mac->qe, &rxf->mcast_pending_add_q);
+		mac = list_first_entry(&list_head, struct bna_mac, qe);
+		list_move_tail(&mac->qe, &rxf->mcast_pending_add_q);
 	}
 
-	rxf->cam_fltr_cbfn = cbfn;
-	rxf->cam_fltr_cbarg = rx->bna->bnad;
 	bfa_fsm_send_event(rxf, RXF_E_CONFIG);
 
 	return BNA_CB_SUCCESS;
 
 err_return:
 	while (!list_empty(&list_head)) {
-		bfa_q_deq(&list_head, &qe);
-		mac = (struct bna_mac *)qe;
-		bfa_q_qe_init(&mac->qe);
-		bna_cam_mod_mac_put(&mcam_mod->free_q, mac);
+		mac = list_first_entry(&list_head, struct bna_mac, qe);
+		list_move_tail(&mac->qe, &mcam_mod->free_q);
 	}
 
 	return BNA_CB_MCAST_LIST_FULL;
 }
 
 void
-bna_rx_mcast_delall(struct bna_rx *rx,
-		    void (*cbfn)(struct bnad *, struct bna_rx *))
+bna_rx_mcast_delall(struct bna_rx *rx)
 {
 	struct bna_rxf *rxf = &rx->rxf;
-	struct list_head *qe;
 	struct bna_mac *mac, *del_mac;
 	int need_hw_config = 0;
 
 	/* Purge all entries from pending_add_q */
 	while (!list_empty(&rxf->mcast_pending_add_q)) {
-		bfa_q_deq(&rxf->mcast_pending_add_q, &qe);
-		mac = (struct bna_mac *)qe;
-		bfa_q_qe_init(&mac->qe);
-		bna_cam_mod_mac_put(bna_mcam_mod_free_q(rxf->rx->bna), mac);
+		mac = list_first_entry(&rxf->mcast_pending_add_q,
+				       struct bna_mac, qe);
+		list_move_tail(&mac->qe, bna_mcam_mod_free_q(rxf->rx->bna));
 	}
 
 	/* Schedule all entries in active_q for deletion */
 	while (!list_empty(&rxf->mcast_active_q)) {
-		bfa_q_deq(&rxf->mcast_active_q, &qe);
-		mac = (struct bna_mac *)qe;
-		bfa_q_qe_init(&mac->qe);
-
+		mac = list_first_entry(&rxf->mcast_active_q,
+				       struct bna_mac, qe);
+		list_del(&mac->qe);
 		del_mac = bna_cam_mod_mac_get(bna_mcam_mod_del_q(rxf->rx->bna));
-
 		memcpy(del_mac, mac, sizeof(*del_mac));
 		list_add_tail(&del_mac->qe, &rxf->mcast_pending_del_q);
 		mac->handle = NULL;
-		bna_cam_mod_mac_put(bna_mcam_mod_free_q(rxf->rx->bna), mac);
+		list_add_tail(&mac->qe, bna_mcam_mod_free_q(rxf->rx->bna));
 		need_hw_config = 1;
 	}
 
-	if (need_hw_config) {
-		rxf->cam_fltr_cbfn = cbfn;
-		rxf->cam_fltr_cbarg = rx->bna->bnad;
+	if (need_hw_config)
 		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
-		return;
-	}
-
-	if (cbfn)
-		(*cbfn)(rx->bna->bnad, rx);
 }
 
 void
@@ -1105,12 +933,12 @@ bna_rx_vlan_add(struct bna_rx *rx, int vlan_id)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 	int index = (vlan_id >> BFI_VLAN_WORD_SHIFT);
-	int bit = (1 << (vlan_id & BFI_VLAN_WORD_MASK));
+	int bit = BIT(vlan_id & BFI_VLAN_WORD_MASK);
 	int group_id = (vlan_id >> BFI_VLAN_BLOCK_SHIFT);
 
 	rxf->vlan_filter_table[index] |= bit;
 	if (rxf->vlan_filter_status == BNA_STATUS_T_ENABLED) {
-		rxf->vlan_pending_bitmask |= (1 << group_id);
+		rxf->vlan_pending_bitmask |= BIT(group_id);
 		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
 	}
 }
@@ -1120,12 +948,12 @@ bna_rx_vlan_del(struct bna_rx *rx, int vlan_id)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 	int index = (vlan_id >> BFI_VLAN_WORD_SHIFT);
-	int bit = (1 << (vlan_id & BFI_VLAN_WORD_MASK));
+	int bit = BIT(vlan_id & BFI_VLAN_WORD_MASK);
 	int group_id = (vlan_id >> BFI_VLAN_BLOCK_SHIFT);
 
 	rxf->vlan_filter_table[index] &= ~bit;
 	if (rxf->vlan_filter_status == BNA_STATUS_T_ENABLED) {
-		rxf->vlan_pending_bitmask |= (1 << group_id);
+		rxf->vlan_pending_bitmask |= BIT(group_id);
 		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
 	}
 }
@@ -1134,23 +962,21 @@ static int
 bna_rxf_ucast_cfg_apply(struct bna_rxf *rxf)
 {
 	struct bna_mac *mac = NULL;
-	struct list_head *qe;
 
 	/* Delete MAC addresses previousely added */
 	if (!list_empty(&rxf->ucast_pending_del_q)) {
-		bfa_q_deq(&rxf->ucast_pending_del_q, &qe);
-		bfa_q_qe_init(qe);
-		mac = (struct bna_mac *)qe;
+		mac = list_first_entry(&rxf->ucast_pending_del_q,
+				       struct bna_mac, qe);
 		bna_bfi_ucast_req(rxf, mac, BFI_ENET_H2I_MAC_UCAST_DEL_REQ);
-		bna_cam_mod_mac_put(bna_ucam_mod_del_q(rxf->rx->bna), mac);
+		list_move_tail(&mac->qe, bna_ucam_mod_del_q(rxf->rx->bna));
 		return 1;
 	}
 
 	/* Set default unicast MAC */
 	if (rxf->ucast_pending_set) {
 		rxf->ucast_pending_set = 0;
-		memcpy(rxf->ucast_active_mac.addr,
-			rxf->ucast_pending_mac->addr, ETH_ALEN);
+		ether_addr_copy(rxf->ucast_active_mac.addr,
+				rxf->ucast_pending_mac->addr);
 		rxf->ucast_active_set = 1;
 		bna_bfi_ucast_req(rxf, &rxf->ucast_active_mac,
 			BFI_ENET_H2I_MAC_UCAST_SET_REQ);
@@ -1159,9 +985,8 @@ bna_rxf_ucast_cfg_apply(struct bna_rxf *rxf)
 
 	/* Add additional MAC entries */
 	if (!list_empty(&rxf->ucast_pending_add_q)) {
-		bfa_q_deq(&rxf->ucast_pending_add_q, &qe);
-		bfa_q_qe_init(qe);
-		mac = (struct bna_mac *)qe;
+		mac = list_first_entry(&rxf->ucast_pending_add_q,
+				       struct bna_mac, qe);
 		list_add_tail(&mac->qe, &rxf->ucast_active_q);
 		bna_bfi_ucast_req(rxf, mac, BFI_ENET_H2I_MAC_UCAST_ADD_REQ);
 		return 1;
@@ -1173,33 +998,30 @@ bna_rxf_ucast_cfg_apply(struct bna_rxf *rxf)
 static int
 bna_rxf_ucast_cfg_reset(struct bna_rxf *rxf, enum bna_cleanup_type cleanup)
 {
-	struct list_head *qe;
 	struct bna_mac *mac;
 
 	/* Throw away delete pending ucast entries */
 	while (!list_empty(&rxf->ucast_pending_del_q)) {
-		bfa_q_deq(&rxf->ucast_pending_del_q, &qe);
-		bfa_q_qe_init(qe);
-		mac = (struct bna_mac *)qe;
+		mac = list_first_entry(&rxf->ucast_pending_del_q,
+				       struct bna_mac, qe);
 		if (cleanup == BNA_SOFT_CLEANUP)
-			bna_cam_mod_mac_put(bna_ucam_mod_del_q(rxf->rx->bna),
-					    mac);
+			list_move_tail(&mac->qe,
+				       bna_ucam_mod_del_q(rxf->rx->bna));
 		else {
 			bna_bfi_ucast_req(rxf, mac,
-				BFI_ENET_H2I_MAC_UCAST_DEL_REQ);
-			bna_cam_mod_mac_put(bna_ucam_mod_del_q(rxf->rx->bna),
-					    mac);
+					  BFI_ENET_H2I_MAC_UCAST_DEL_REQ);
+			list_move_tail(&mac->qe,
+				       bna_ucam_mod_del_q(rxf->rx->bna));
 			return 1;
 		}
 	}
 
 	/* Move active ucast entries to pending_add_q */
 	while (!list_empty(&rxf->ucast_active_q)) {
-		bfa_q_deq(&rxf->ucast_active_q, &qe);
-		bfa_q_qe_init(qe);
-		list_add_tail(qe, &rxf->ucast_pending_add_q);
+		mac = list_first_entry(&rxf->ucast_active_q,
+				       struct bna_mac, qe);
+		list_move_tail(&mac->qe, &rxf->ucast_pending_add_q);
 		if (cleanup == BNA_HARD_CLEANUP) {
-			mac = (struct bna_mac *)qe;
 			bna_bfi_ucast_req(rxf, mac,
 				BFI_ENET_H2I_MAC_UCAST_DEL_REQ);
 			return 1;
@@ -1654,14 +1476,11 @@ static void
 bna_rx_sm_started_entry(struct bna_rx *rx)
 {
 	struct bna_rxp *rxp;
-	struct list_head *qe_rxp;
 	int is_regular = (rx->type == BNA_RX_T_REGULAR);
 
 	/* Start IB */
-	list_for_each(qe_rxp, &rx->rxp_q) {
-		rxp = (struct bna_rxp *)qe_rxp;
+	list_for_each_entry(rxp, &rx->rxp_q, qe)
 		bna_ib_start(rx->bna, &rxp->cq.ib, is_regular);
-	}
 
 	bna_ethport_cb_rx_started(&rx->bna->ethport);
 }
@@ -1804,7 +1623,6 @@ bna_bfi_rx_enet_start(struct bna_rx *rx)
 	struct bfi_enet_rx_cfg_req *cfg_req = &rx->bfi_enet_cmd.cfg_req;
 	struct bna_rxp *rxp = NULL;
 	struct bna_rxq *q0 = NULL, *q1 = NULL;
-	struct list_head *rxp_qe;
 	int i;
 
 	bfi_msgq_mhdr_set(cfg_req->mh, BFI_MC_ENET,
@@ -1814,11 +1632,9 @@ bna_bfi_rx_enet_start(struct bna_rx *rx)
 
 	cfg_req->rx_cfg.frame_size = bna_enet_mtu_get(&rx->bna->enet);
 	cfg_req->num_queue_sets = rx->num_paths;
-	for (i = 0, rxp_qe = bfa_q_first(&rx->rxp_q);
-		i < rx->num_paths;
-		i++, rxp_qe = bfa_q_next(rxp_qe)) {
-		rxp = (struct bna_rxp *)rxp_qe;
-
+	for (i = 0; i < rx->num_paths; i++) {
+		rxp = rxp ? list_next_entry(rxp, qe)
+			: list_first_entry(&rx->rxp_q, struct bna_rxp, qe);
 		GET_RXQS(rxp, q0, q1);
 		switch (rxp->type) {
 		case BNA_RXP_SLR:
@@ -1921,13 +1737,10 @@ static void
 bna_rx_enet_stop(struct bna_rx *rx)
 {
 	struct bna_rxp *rxp;
-	struct list_head		 *qe_rxp;
 
 	/* Stop IB */
-	list_for_each(qe_rxp, &rx->rxp_q) {
-		rxp = (struct bna_rxp *)qe_rxp;
+	list_for_each_entry(rxp, &rx->rxp_q, qe)
 		bna_ib_stop(rx->bna, &rxp->cq.ib);
-	}
 
 	bna_bfi_rx_enet_stop(rx);
 }
@@ -1957,12 +1770,10 @@ static struct bna_rxq *
 bna_rxq_get(struct bna_rx_mod *rx_mod)
 {
 	struct bna_rxq *rxq = NULL;
-	struct list_head	*qe = NULL;
 
-	bfa_q_deq(&rx_mod->rxq_free_q, &qe);
+	rxq = list_first_entry(&rx_mod->rxq_free_q, struct bna_rxq, qe);
+	list_del(&rxq->qe);
 	rx_mod->rxq_free_count--;
-	rxq = (struct bna_rxq *)qe;
-	bfa_q_qe_init(&rxq->qe);
 
 	return rxq;
 }
@@ -1970,7 +1781,6 @@ bna_rxq_get(struct bna_rx_mod *rx_mod)
 static void
 bna_rxq_put(struct bna_rx_mod *rx_mod, struct bna_rxq *rxq)
 {
-	bfa_q_qe_init(&rxq->qe);
 	list_add_tail(&rxq->qe, &rx_mod->rxq_free_q);
 	rx_mod->rxq_free_count++;
 }
@@ -1978,13 +1788,11 @@ bna_rxq_put(struct bna_rx_mod *rx_mod, struct bna_rxq *rxq)
 static struct bna_rxp *
 bna_rxp_get(struct bna_rx_mod *rx_mod)
 {
-	struct list_head	*qe = NULL;
 	struct bna_rxp *rxp = NULL;
 
-	bfa_q_deq(&rx_mod->rxp_free_q, &qe);
+	rxp = list_first_entry(&rx_mod->rxp_free_q, struct bna_rxp, qe);
+	list_del(&rxp->qe);
 	rx_mod->rxp_free_count--;
-	rxp = (struct bna_rxp *)qe;
-	bfa_q_qe_init(&rxp->qe);
 
 	return rxp;
 }
@@ -1992,7 +1800,6 @@ bna_rxp_get(struct bna_rx_mod *rx_mod)
 static void
 bna_rxp_put(struct bna_rx_mod *rx_mod, struct bna_rxp *rxp)
 {
-	bfa_q_qe_init(&rxp->qe);
 	list_add_tail(&rxp->qe, &rx_mod->rxp_free_q);
 	rx_mod->rxp_free_count++;
 }
@@ -2000,18 +1807,16 @@ bna_rxp_put(struct bna_rx_mod *rx_mod, struct bna_rxp *rxp)
 static struct bna_rx *
 bna_rx_get(struct bna_rx_mod *rx_mod, enum bna_rx_type type)
 {
-	struct list_head	*qe = NULL;
 	struct bna_rx *rx = NULL;
 
-	if (type == BNA_RX_T_REGULAR) {
-		bfa_q_deq(&rx_mod->rx_free_q, &qe);
-	} else
-		bfa_q_deq_tail(&rx_mod->rx_free_q, &qe);
+	BUG_ON(list_empty(&rx_mod->rx_free_q));
+	if (type == BNA_RX_T_REGULAR)
+		rx = list_first_entry(&rx_mod->rx_free_q, struct bna_rx, qe);
+	else
+		rx = list_last_entry(&rx_mod->rx_free_q, struct bna_rx, qe);
 
 	rx_mod->rx_free_count--;
-	rx = (struct bna_rx *)qe;
-	bfa_q_qe_init(&rx->qe);
-	list_add_tail(&rx->qe, &rx_mod->rx_active_q);
+	list_move_tail(&rx->qe, &rx_mod->rx_active_q);
 	rx->type = type;
 
 	return rx;
@@ -2020,32 +1825,13 @@ bna_rx_get(struct bna_rx_mod *rx_mod, enum bna_rx_type type)
 static void
 bna_rx_put(struct bna_rx_mod *rx_mod, struct bna_rx *rx)
 {
-	struct list_head *prev_qe = NULL;
 	struct list_head *qe;
 
-	bfa_q_qe_init(&rx->qe);
-
-	list_for_each(qe, &rx_mod->rx_free_q) {
+	list_for_each_prev(qe, &rx_mod->rx_free_q)
 		if (((struct bna_rx *)qe)->rid < rx->rid)
-			prev_qe = qe;
-		else
 			break;
-	}
 
-	if (prev_qe == NULL) {
-		/* This is the first entry */
-		bfa_q_enq_head(&rx_mod->rx_free_q, &rx->qe);
-	} else if (bfa_q_next(prev_qe) == &rx_mod->rx_free_q) {
-		/* This is the last entry */
-		list_add_tail(&rx->qe, &rx_mod->rx_free_q);
-	} else {
-		/* Somewhere in the middle */
-		bfa_q_next(&rx->qe) = bfa_q_next(prev_qe);
-		bfa_q_prev(&rx->qe) = prev_qe;
-		bfa_q_next(prev_qe) = &rx->qe;
-		bfa_q_prev(bfa_q_next(&rx->qe)) = &rx->qe;
-	}
-
+	list_add(&rx->qe, qe);
 	rx_mod->rx_free_count++;
 }
 
@@ -2199,24 +1985,20 @@ void
 bna_rx_mod_start(struct bna_rx_mod *rx_mod, enum bna_rx_type type)
 {
 	struct bna_rx *rx;
-	struct list_head *qe;
 
 	rx_mod->flags |= BNA_RX_MOD_F_ENET_STARTED;
 	if (type == BNA_RX_T_LOOPBACK)
 		rx_mod->flags |= BNA_RX_MOD_F_ENET_LOOPBACK;
 
-	list_for_each(qe, &rx_mod->rx_active_q) {
-		rx = (struct bna_rx *)qe;
+	list_for_each_entry(rx, &rx_mod->rx_active_q, qe)
 		if (rx->type == type)
 			bna_rx_start(rx);
-	}
 }
 
 void
 bna_rx_mod_stop(struct bna_rx_mod *rx_mod, enum bna_rx_type type)
 {
 	struct bna_rx *rx;
-	struct list_head *qe;
 
 	rx_mod->flags &= ~BNA_RX_MOD_F_ENET_STARTED;
 	rx_mod->flags &= ~BNA_RX_MOD_F_ENET_LOOPBACK;
@@ -2225,13 +2007,11 @@ bna_rx_mod_stop(struct bna_rx_mod *rx_mod, enum bna_rx_type type)
 
 	bfa_wc_init(&rx_mod->rx_stop_wc, bna_rx_mod_cb_rx_stopped_all, rx_mod);
 
-	list_for_each(qe, &rx_mod->rx_active_q) {
-		rx = (struct bna_rx *)qe;
+	list_for_each_entry(rx, &rx_mod->rx_active_q, qe)
 		if (rx->type == type) {
 			bfa_wc_up(&rx_mod->rx_stop_wc);
 			bna_rx_stop(rx);
 		}
-	}
 
 	bfa_wc_wait(&rx_mod->rx_stop_wc);
 }
@@ -2240,15 +2020,12 @@ void
 bna_rx_mod_fail(struct bna_rx_mod *rx_mod)
 {
 	struct bna_rx *rx;
-	struct list_head *qe;
 
 	rx_mod->flags &= ~BNA_RX_MOD_F_ENET_STARTED;
 	rx_mod->flags &= ~BNA_RX_MOD_F_ENET_LOOPBACK;
 
-	list_for_each(qe, &rx_mod->rx_active_q) {
-		rx = (struct bna_rx *)qe;
+	list_for_each_entry(rx, &rx_mod->rx_active_q, qe)
 		bna_rx_fail(rx);
-	}
 }
 
 void bna_rx_mod_init(struct bna_rx_mod *rx_mod, struct bna *bna,
@@ -2282,7 +2059,6 @@ void bna_rx_mod_init(struct bna_rx_mod *rx_mod, struct bna *bna,
 	for (index = 0; index < bna->ioceth.attr.num_rxp; index++) {
 		rx_ptr = &rx_mod->rx[index];
 
-		bfa_q_qe_init(&rx_ptr->qe);
 		INIT_LIST_HEAD(&rx_ptr->rxp_q);
 		rx_ptr->bna = NULL;
 		rx_ptr->rid = index;
@@ -2296,7 +2072,6 @@ void bna_rx_mod_init(struct bna_rx_mod *rx_mod, struct bna *bna,
 	/* build RX-path queue */
 	for (index = 0; index < bna->ioceth.attr.num_rxp; index++) {
 		rxp_ptr = &rx_mod->rxp[index];
-		bfa_q_qe_init(&rxp_ptr->qe);
 		list_add_tail(&rxp_ptr->qe, &rx_mod->rxp_free_q);
 		rx_mod->rxp_free_count++;
 	}
@@ -2304,7 +2079,6 @@ void bna_rx_mod_init(struct bna_rx_mod *rx_mod, struct bna *bna,
 	/* build RXQ queue */
 	for (index = 0; index < (bna->ioceth.attr.num_rxp * 2); index++) {
 		rxq_ptr = &rx_mod->rxq[index];
-		bfa_q_qe_init(&rxq_ptr->qe);
 		list_add_tail(&rxq_ptr->qe, &rx_mod->rxq_free_q);
 		rx_mod->rxq_free_count++;
 	}
@@ -2313,21 +2087,6 @@ void bna_rx_mod_init(struct bna_rx_mod *rx_mod, struct bna *bna,
 void
 bna_rx_mod_uninit(struct bna_rx_mod *rx_mod)
 {
-	struct list_head		*qe;
-	int i;
-
-	i = 0;
-	list_for_each(qe, &rx_mod->rx_free_q)
-		i++;
-
-	i = 0;
-	list_for_each(qe, &rx_mod->rxp_free_q)
-		i++;
-
-	i = 0;
-	list_for_each(qe, &rx_mod->rxq_free_q)
-		i++;
-
 	rx_mod->bna = NULL;
 }
 
@@ -2337,7 +2096,6 @@ bna_bfi_rx_enet_start_rsp(struct bna_rx *rx, struct bfi_msgq_mhdr *msghdr)
 	struct bfi_enet_rx_cfg_rsp *cfg_rsp = &rx->bfi_enet_cmd.cfg_rsp;
 	struct bna_rxp *rxp = NULL;
 	struct bna_rxq *q0 = NULL, *q1 = NULL;
-	struct list_head *rxp_qe;
 	int i;
 
 	bfa_msgq_rsp_copy(&rx->bna->msgq, (u8 *)cfg_rsp,
@@ -2345,10 +2103,8 @@ bna_bfi_rx_enet_start_rsp(struct bna_rx *rx, struct bfi_msgq_mhdr *msghdr)
 
 	rx->hw_id = cfg_rsp->hw_id;
 
-	for (i = 0, rxp_qe = bfa_q_first(&rx->rxp_q);
-		i < rx->num_paths;
-		i++, rxp_qe = bfa_q_next(rxp_qe)) {
-		rxp = (struct bna_rxp *)rxp_qe;
+	for (i = 0, rxp = list_first_entry(&rx->rxp_q, struct bna_rxp, qe);
+	     i < rx->num_paths; i++, rxp = list_next_entry(rxp, qe)) {
 		GET_RXQS(rxp, q0, q1);
 
 		/* Setup doorbells */
@@ -2396,20 +2152,19 @@ bna_rx_res_req(struct bna_rx_config *q_cfg, struct bna_res_info *res_info)
 
 	dq_depth = q_cfg->q0_depth;
 	hq_depth = ((q_cfg->rxp_type == BNA_RXP_SINGLE) ? 0 : q_cfg->q1_depth);
-	cq_depth = dq_depth + hq_depth;
+	cq_depth = roundup_pow_of_two(dq_depth + hq_depth);
 
-	BNA_TO_POWER_OF_2_HIGH(cq_depth);
 	cq_size = cq_depth * BFI_CQ_WI_SIZE;
 	cq_size = ALIGN(cq_size, PAGE_SIZE);
 	cpage_count = SIZE_TO_PAGES(cq_size);
 
-	BNA_TO_POWER_OF_2_HIGH(dq_depth);
+	dq_depth = roundup_pow_of_two(dq_depth);
 	dq_size = dq_depth * BFI_RXQ_WI_SIZE;
 	dq_size = ALIGN(dq_size, PAGE_SIZE);
 	dpage_count = SIZE_TO_PAGES(dq_size);
 
 	if (BNA_RXP_SINGLE != q_cfg->rxp_type) {
-		BNA_TO_POWER_OF_2_HIGH(hq_depth);
+		hq_depth = roundup_pow_of_two(hq_depth);
 		hq_size = hq_depth * BFI_RXQ_WI_SIZE;
 		hq_size = ALIGN(hq_size, PAGE_SIZE);
 		hpage_count = SIZE_TO_PAGES(hq_size);
@@ -2620,7 +2375,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 		if (intr_info->intr_type == BNA_INTR_T_MSIX)
 			rxp->cq.ib.intr_vector = rxp->vector;
 		else
-			rxp->cq.ib.intr_vector = (1 << rxp->vector);
+			rxp->cq.ib.intr_vector = BIT(rxp->vector);
 		rxp->cq.ib.coalescing_timeo = rx_cfg->coalescing_timeo;
 		rxp->cq.ib.interpkt_count = BFI_RX_INTERPKT_COUNT;
 		rxp->cq.ib.interpkt_timeo = BFI_RX_INTERPKT_TIMEO;
@@ -2691,7 +2446,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 		/* if multi-buffer is enabled sum of q0_depth
 		 * and q1_depth need not be a power of 2
 		 */
-		BNA_TO_POWER_OF_2_HIGH(cq_depth);
+		cq_depth = roundup_pow_of_two(cq_depth);
 		rxp->cq.ccb->q_depth = cq_depth;
 		rxp->cq.ccb->cq = &rxp->cq;
 		rxp->cq.ccb->rcb[0] = q0->rcb;
@@ -2725,7 +2480,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 
 	bfa_fsm_set_state(rx, bna_rx_sm_stopped);
 
-	rx_mod->rid_mask |= (1 << rx->rid);
+	rx_mod->rid_mask |= BIT(rx->rid);
 
 	return rx;
 }
@@ -2742,7 +2497,8 @@ bna_rx_destroy(struct bna_rx *rx)
 	bna_rxf_uninit(&rx->rxf);
 
 	while (!list_empty(&rx->rxp_q)) {
-		bfa_q_deq(&rx->rxp_q, &rxp);
+		rxp = list_first_entry(&rx->rxp_q, struct bna_rxp, qe);
+		list_del(&rxp->qe);
 		GET_RXQS(rxp, q0, q1);
 		if (rx->rcb_destroy_cbfn)
 			rx->rcb_destroy_cbfn(rx->bna->bnad, q0->rcb);
@@ -2769,15 +2525,13 @@ bna_rx_destroy(struct bna_rx *rx)
 		bna_rxp_put(rx_mod, rxp);
 	}
 
-	list_for_each(qe, &rx_mod->rx_active_q) {
+	list_for_each(qe, &rx_mod->rx_active_q)
 		if (qe == &rx->qe) {
 			list_del(&rx->qe);
-			bfa_q_qe_init(&rx->qe);
 			break;
 		}
-	}
 
-	rx_mod->rid_mask &= ~(1 << rx->rid);
+	rx_mod->rid_mask &= ~BIT(rx->rid);
 
 	rx->bna = NULL;
 	rx->priv = NULL;
@@ -2844,8 +2598,7 @@ bna_rx_vlan_strip_disable(struct bna_rx *rx)
 
 enum bna_cb_status
 bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode new_mode,
-		enum bna_rxmode bitmask,
-		void (*cbfn)(struct bnad *, struct bna_rx *))
+		enum bna_rxmode bitmask)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 	int need_hw_config = 0;
@@ -2900,11 +2653,10 @@ bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode new_mode,
 	/* Trigger h/w if needed */
 
 	if (need_hw_config) {
-		rxf->cam_fltr_cbfn = cbfn;
+		rxf->cam_fltr_cbfn = NULL;
 		rxf->cam_fltr_cbarg = rx->bna->bnad;
 		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
-	} else if (cbfn)
-		(*cbfn)(rx->bna->bnad, rx);
+	}
 
 	return BNA_CB_SUCCESS;
 
@@ -2928,10 +2680,8 @@ void
 bna_rx_coalescing_timeo_set(struct bna_rx *rx, int coalescing_timeo)
 {
 	struct bna_rxp *rxp;
-	struct list_head *qe;
 
-	list_for_each(qe, &rx->rxp_q) {
-		rxp = (struct bna_rxp *)qe;
+	list_for_each_entry(rxp, &rx->rxp_q, qe) {
 		rxp->cq.ccb->rx_coalescing_timeo = coalescing_timeo;
 		bna_ib_coalescing_timeo_set(&rxp->cq.ib, coalescing_timeo);
 	}
@@ -3024,16 +2774,6 @@ do {									\
 	}								\
 } while (0)
 
-#define call_tx_prio_change_cbfn(tx)					\
-do {									\
-	if ((tx)->prio_change_cbfn) {					\
-		void (*cbfn)(struct bnad *, struct bna_tx *);	\
-		cbfn = (tx)->prio_change_cbfn;				\
-		(tx)->prio_change_cbfn = NULL;				\
-		cbfn((tx)->bna->bnad, (tx));				\
-	}								\
-} while (0)
-
 static void bna_tx_mod_cb_tx_stopped(void *tx_mod, struct bna_tx *tx);
 static void bna_bfi_tx_enet_start(struct bna_tx *tx);
 static void bna_tx_enet_stop(struct bna_tx *tx);
@@ -3044,7 +2784,6 @@ enum bna_tx_event {
 	TX_E_FAIL			= 3,
 	TX_E_STARTED			= 4,
 	TX_E_STOPPED			= 5,
-	TX_E_PRIO_CHANGE		= 6,
 	TX_E_CLEANUP_DONE		= 7,
 	TX_E_BW_UPDATE			= 8,
 };
@@ -3085,10 +2824,6 @@ bna_tx_sm_stopped(struct bna_tx *tx, enum bna_tx_event event)
 		/* No-op */
 		break;
 
-	case TX_E_PRIO_CHANGE:
-		call_tx_prio_change_cbfn(tx);
-		break;
-
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;
@@ -3109,26 +2844,21 @@ bna_tx_sm_start_wait(struct bna_tx *tx, enum bna_tx_event event)
 {
 	switch (event) {
 	case TX_E_STOP:
-		tx->flags &= ~(BNA_TX_F_PRIO_CHANGED | BNA_TX_F_BW_UPDATED);
+		tx->flags &= ~BNA_TX_F_BW_UPDATED;
 		bfa_fsm_set_state(tx, bna_tx_sm_stop_wait);
 		break;
 
 	case TX_E_FAIL:
-		tx->flags &= ~(BNA_TX_F_PRIO_CHANGED | BNA_TX_F_BW_UPDATED);
+		tx->flags &= ~BNA_TX_F_BW_UPDATED;
 		bfa_fsm_set_state(tx, bna_tx_sm_stopped);
 		break;
 
 	case TX_E_STARTED:
-		if (tx->flags & (BNA_TX_F_PRIO_CHANGED | BNA_TX_F_BW_UPDATED)) {
-			tx->flags &= ~(BNA_TX_F_PRIO_CHANGED |
-				BNA_TX_F_BW_UPDATED);
+		if (tx->flags & BNA_TX_F_BW_UPDATED) {
+			tx->flags &= ~BNA_TX_F_BW_UPDATED;
 			bfa_fsm_set_state(tx, bna_tx_sm_prio_stop_wait);
 		} else
 			bfa_fsm_set_state(tx, bna_tx_sm_started);
-		break;
-
-	case TX_E_PRIO_CHANGE:
-		tx->flags |=  BNA_TX_F_PRIO_CHANGED;
 		break;
 
 	case TX_E_BW_UPDATE:
@@ -3144,11 +2874,9 @@ static void
 bna_tx_sm_started_entry(struct bna_tx *tx)
 {
 	struct bna_txq *txq;
-	struct list_head		 *qe;
 	int is_regular = (tx->type == BNA_TX_T_REGULAR);
 
-	list_for_each(qe, &tx->txq_q) {
-		txq = (struct bna_txq *)qe;
+	list_for_each_entry(txq, &tx->txq_q, qe) {
 		txq->tcb->priority = txq->priority;
 		/* Start IB */
 		bna_ib_start(tx->bna, &txq->ib, is_regular);
@@ -3172,7 +2900,6 @@ bna_tx_sm_started(struct bna_tx *tx, enum bna_tx_event event)
 		tx->tx_cleanup_cbfn(tx->bna->bnad, tx);
 		break;
 
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		bfa_fsm_set_state(tx, bna_tx_sm_prio_stop_wait);
 		break;
@@ -3205,7 +2932,6 @@ bna_tx_sm_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 		bna_tx_enet_stop(tx);
 		break;
 
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;
@@ -3225,7 +2951,6 @@ bna_tx_sm_cleanup_wait(struct bna_tx *tx, enum bna_tx_event event)
 {
 	switch (event) {
 	case TX_E_FAIL:
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;
@@ -3256,7 +2981,6 @@ bna_tx_sm_prio_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 
 	case TX_E_FAIL:
 		bfa_fsm_set_state(tx, bna_tx_sm_failed);
-		call_tx_prio_change_cbfn(tx);
 		tx->tx_cleanup_cbfn(tx->bna->bnad, tx);
 		break;
 
@@ -3264,7 +2988,6 @@ bna_tx_sm_prio_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 		bfa_fsm_set_state(tx, bna_tx_sm_prio_cleanup_wait);
 		break;
 
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;
@@ -3277,7 +3000,6 @@ bna_tx_sm_prio_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 static void
 bna_tx_sm_prio_cleanup_wait_entry(struct bna_tx *tx)
 {
-	call_tx_prio_change_cbfn(tx);
 	tx->tx_cleanup_cbfn(tx->bna->bnad, tx);
 }
 
@@ -3293,7 +3015,6 @@ bna_tx_sm_prio_cleanup_wait(struct bna_tx *tx, enum bna_tx_event event)
 		bfa_fsm_set_state(tx, bna_tx_sm_failed);
 		break;
 
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;
@@ -3372,7 +3093,6 @@ bna_bfi_tx_enet_start(struct bna_tx *tx)
 {
 	struct bfi_enet_tx_cfg_req *cfg_req = &tx->bfi_enet_cmd.cfg_req;
 	struct bna_txq *txq = NULL;
-	struct list_head *qe;
 	int i;
 
 	bfi_msgq_mhdr_set(cfg_req->mh, BFI_MC_ENET,
@@ -3381,11 +3101,9 @@ bna_bfi_tx_enet_start(struct bna_tx *tx)
 		bfi_msgq_num_cmd_entries(sizeof(struct bfi_enet_tx_cfg_req)));
 
 	cfg_req->num_queues = tx->num_txq;
-	for (i = 0, qe = bfa_q_first(&tx->txq_q);
-		i < tx->num_txq;
-		i++, qe = bfa_q_next(qe)) {
-		txq = (struct bna_txq *)qe;
-
+	for (i = 0; i < tx->num_txq; i++) {
+		txq = txq ? list_next_entry(txq, qe)
+			: list_first_entry(&tx->txq_q, struct bna_txq, qe);
 		bfi_enet_datapath_q_init(&cfg_req->q_cfg[i].q.q, &txq->qpt);
 		cfg_req->q_cfg[i].q.priority = txq->priority;
 
@@ -3437,13 +3155,10 @@ static void
 bna_tx_enet_stop(struct bna_tx *tx)
 {
 	struct bna_txq *txq;
-	struct list_head		 *qe;
 
 	/* Stop IB */
-	list_for_each(qe, &tx->txq_q) {
-		txq = (struct bna_txq *)qe;
+	list_for_each_entry(txq, &tx->txq_q, qe)
 		bna_ib_stop(tx->bna, &txq->ib);
-	}
 
 	bna_bfi_tx_enet_stop(tx);
 }
@@ -3487,18 +3202,15 @@ bna_txq_qpt_setup(struct bna_txq *txq, int page_count, int page_size,
 static struct bna_tx *
 bna_tx_get(struct bna_tx_mod *tx_mod, enum bna_tx_type type)
 {
-	struct list_head	*qe = NULL;
 	struct bna_tx *tx = NULL;
 
 	if (list_empty(&tx_mod->tx_free_q))
 		return NULL;
-	if (type == BNA_TX_T_REGULAR) {
-		bfa_q_deq(&tx_mod->tx_free_q, &qe);
-	} else {
-		bfa_q_deq_tail(&tx_mod->tx_free_q, &qe);
-	}
-	tx = (struct bna_tx *)qe;
-	bfa_q_qe_init(&tx->qe);
+	if (type == BNA_TX_T_REGULAR)
+		tx = list_first_entry(&tx_mod->tx_free_q, struct bna_tx, qe);
+	else
+		tx = list_last_entry(&tx_mod->tx_free_q, struct bna_tx, qe);
+	list_del(&tx->qe);
 	tx->type = type;
 
 	return tx;
@@ -3509,21 +3221,18 @@ bna_tx_free(struct bna_tx *tx)
 {
 	struct bna_tx_mod *tx_mod = &tx->bna->tx_mod;
 	struct bna_txq *txq;
-	struct list_head *prev_qe;
 	struct list_head *qe;
 
 	while (!list_empty(&tx->txq_q)) {
-		bfa_q_deq(&tx->txq_q, &txq);
-		bfa_q_qe_init(&txq->qe);
+		txq = list_first_entry(&tx->txq_q, struct bna_txq, qe);
 		txq->tcb = NULL;
 		txq->tx = NULL;
-		list_add_tail(&txq->qe, &tx_mod->txq_free_q);
+		list_move_tail(&txq->qe, &tx_mod->txq_free_q);
 	}
 
 	list_for_each(qe, &tx_mod->tx_active_q) {
 		if (qe == &tx->qe) {
 			list_del(&tx->qe);
-			bfa_q_qe_init(&tx->qe);
 			break;
 		}
 	}
@@ -3531,28 +3240,11 @@ bna_tx_free(struct bna_tx *tx)
 	tx->bna = NULL;
 	tx->priv = NULL;
 
-	prev_qe = NULL;
-	list_for_each(qe, &tx_mod->tx_free_q) {
+	list_for_each_prev(qe, &tx_mod->tx_free_q)
 		if (((struct bna_tx *)qe)->rid < tx->rid)
-			prev_qe = qe;
-		else {
 			break;
-		}
-	}
 
-	if (prev_qe == NULL) {
-		/* This is the first entry */
-		bfa_q_enq_head(&tx_mod->tx_free_q, &tx->qe);
-	} else if (bfa_q_next(prev_qe) == &tx_mod->tx_free_q) {
-		/* This is the last entry */
-		list_add_tail(&tx->qe, &tx_mod->tx_free_q);
-	} else {
-		/* Somewhere in the middle */
-		bfa_q_next(&tx->qe) = bfa_q_next(prev_qe);
-		bfa_q_prev(&tx->qe) = prev_qe;
-		bfa_q_next(prev_qe) = &tx->qe;
-		bfa_q_prev(bfa_q_next(&tx->qe)) = &tx->qe;
-	}
+	list_add(&tx->qe, qe);
 }
 
 static void
@@ -3585,7 +3277,6 @@ bna_bfi_tx_enet_start_rsp(struct bna_tx *tx, struct bfi_msgq_mhdr *msghdr)
 {
 	struct bfi_enet_tx_cfg_rsp *cfg_rsp = &tx->bfi_enet_cmd.cfg_rsp;
 	struct bna_txq *txq = NULL;
-	struct list_head *qe;
 	int i;
 
 	bfa_msgq_rsp_copy(&tx->bna->msgq, (u8 *)cfg_rsp,
@@ -3593,10 +3284,8 @@ bna_bfi_tx_enet_start_rsp(struct bna_tx *tx, struct bfi_msgq_mhdr *msghdr)
 
 	tx->hw_id = cfg_rsp->hw_id;
 
-	for (i = 0, qe = bfa_q_first(&tx->txq_q);
-		i < tx->num_txq; i++, qe = bfa_q_next(qe)) {
-		txq = (struct bna_txq *)qe;
-
+	for (i = 0, txq = list_first_entry(&tx->txq_q, struct bna_txq, qe);
+	     i < tx->num_txq; i++, txq = list_next_entry(txq, qe)) {
 		/* Setup doorbells */
 		txq->tcb->i_dbell->doorbell_addr =
 			tx->bna->pcidev.pci_bar_kva
@@ -3624,12 +3313,9 @@ void
 bna_bfi_bw_update_aen(struct bna_tx_mod *tx_mod)
 {
 	struct bna_tx *tx;
-	struct list_head		*qe;
 
-	list_for_each(qe, &tx_mod->tx_active_q) {
-		tx = (struct bna_tx *)qe;
+	list_for_each_entry(tx, &tx_mod->tx_active_q, qe)
 		bfa_fsm_send_event(tx, TX_E_BW_UPDATE);
-	}
 }
 
 void
@@ -3689,7 +3375,6 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 	struct bna_tx_mod *tx_mod = &bna->tx_mod;
 	struct bna_tx *tx;
 	struct bna_txq *txq;
-	struct list_head *qe;
 	int page_count;
 	int i;
 
@@ -3719,9 +3404,8 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 		if (list_empty(&tx_mod->txq_free_q))
 			goto err_return;
 
-		bfa_q_deq(&tx_mod->txq_free_q, &txq);
-		bfa_q_qe_init(&txq->qe);
-		list_add_tail(&txq->qe, &tx->txq_q);
+		txq = list_first_entry(&tx_mod->txq_free_q, struct bna_txq, qe);
+		list_move_tail(&txq->qe, &tx->txq_q);
 		txq->tx = tx;
 	}
 
@@ -3760,8 +3444,7 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 	/* TxQ */
 
 	i = 0;
-	list_for_each(qe, &tx->txq_q) {
-		txq = (struct bna_txq *)qe;
+	list_for_each_entry(txq, &tx->txq_q, qe) {
 		txq->tcb = (struct bna_tcb *)
 		res_info[BNA_TX_RES_MEM_T_TCB].res_u.mem_info.mdl[i].kva;
 		txq->tx_packets = 0;
@@ -3779,7 +3462,7 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 					intr_info->idl[0].vector :
 					intr_info->idl[i].vector;
 		if (intr_info->intr_type == BNA_INTR_T_INTX)
-			txq->ib.intr_vector = (1 <<  txq->ib.intr_vector);
+			txq->ib.intr_vector = BIT(txq->ib.intr_vector);
 		txq->ib.coalescing_timeo = tx_cfg->coalescing_timeo;
 		txq->ib.interpkt_timeo = BFI_TX_INTERPKT_TIMEO;
 		txq->ib.interpkt_count = BFI_TX_INTERPKT_COUNT;
@@ -3821,7 +3504,7 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 
 	bfa_fsm_set_state(tx, bna_tx_sm_stopped);
 
-	tx_mod->rid_mask |= (1 << tx->rid);
+	tx_mod->rid_mask |= BIT(tx->rid);
 
 	return tx;
 
@@ -3834,15 +3517,12 @@ void
 bna_tx_destroy(struct bna_tx *tx)
 {
 	struct bna_txq *txq;
-	struct list_head *qe;
 
-	list_for_each(qe, &tx->txq_q) {
-		txq = (struct bna_txq *)qe;
+	list_for_each_entry(txq, &tx->txq_q, qe)
 		if (tx->tcb_destroy_cbfn)
 			(tx->tcb_destroy_cbfn)(tx->bna->bnad, txq->tcb);
-	}
 
-	tx->bna->tx_mod.rid_mask &= ~(1 << tx->rid);
+	tx->bna->tx_mod.rid_mask &= ~BIT(tx->rid);
 	bna_tx_free(tx);
 }
 
@@ -3920,9 +3600,7 @@ bna_tx_mod_init(struct bna_tx_mod *tx_mod, struct bna *bna,
 
 	for (i = 0; i < bna->ioceth.attr.num_txq; i++) {
 		tx_mod->tx[i].rid = i;
-		bfa_q_qe_init(&tx_mod->tx[i].qe);
 		list_add_tail(&tx_mod->tx[i].qe, &tx_mod->tx_free_q);
-		bfa_q_qe_init(&tx_mod->txq[i].qe);
 		list_add_tail(&tx_mod->txq[i].qe, &tx_mod->txq_free_q);
 	}
 
@@ -3935,17 +3613,6 @@ bna_tx_mod_init(struct bna_tx_mod *tx_mod, struct bna *bna,
 void
 bna_tx_mod_uninit(struct bna_tx_mod *tx_mod)
 {
-	struct list_head		*qe;
-	int i;
-
-	i = 0;
-	list_for_each(qe, &tx_mod->tx_free_q)
-		i++;
-
-	i = 0;
-	list_for_each(qe, &tx_mod->txq_free_q)
-		i++;
-
 	tx_mod->bna = NULL;
 }
 
@@ -3953,24 +3620,20 @@ void
 bna_tx_mod_start(struct bna_tx_mod *tx_mod, enum bna_tx_type type)
 {
 	struct bna_tx *tx;
-	struct list_head		*qe;
 
 	tx_mod->flags |= BNA_TX_MOD_F_ENET_STARTED;
 	if (type == BNA_TX_T_LOOPBACK)
 		tx_mod->flags |= BNA_TX_MOD_F_ENET_LOOPBACK;
 
-	list_for_each(qe, &tx_mod->tx_active_q) {
-		tx = (struct bna_tx *)qe;
+	list_for_each_entry(tx, &tx_mod->tx_active_q, qe)
 		if (tx->type == type)
 			bna_tx_start(tx);
-	}
 }
 
 void
 bna_tx_mod_stop(struct bna_tx_mod *tx_mod, enum bna_tx_type type)
 {
 	struct bna_tx *tx;
-	struct list_head		*qe;
 
 	tx_mod->flags &= ~BNA_TX_MOD_F_ENET_STARTED;
 	tx_mod->flags &= ~BNA_TX_MOD_F_ENET_LOOPBACK;
@@ -3979,13 +3642,11 @@ bna_tx_mod_stop(struct bna_tx_mod *tx_mod, enum bna_tx_type type)
 
 	bfa_wc_init(&tx_mod->tx_stop_wc, bna_tx_mod_cb_tx_stopped_all, tx_mod);
 
-	list_for_each(qe, &tx_mod->tx_active_q) {
-		tx = (struct bna_tx *)qe;
+	list_for_each_entry(tx, &tx_mod->tx_active_q, qe)
 		if (tx->type == type) {
 			bfa_wc_up(&tx_mod->tx_stop_wc);
 			bna_tx_stop(tx);
 		}
-	}
 
 	bfa_wc_wait(&tx_mod->tx_stop_wc);
 }
@@ -3994,25 +3655,19 @@ void
 bna_tx_mod_fail(struct bna_tx_mod *tx_mod)
 {
 	struct bna_tx *tx;
-	struct list_head		*qe;
 
 	tx_mod->flags &= ~BNA_TX_MOD_F_ENET_STARTED;
 	tx_mod->flags &= ~BNA_TX_MOD_F_ENET_LOOPBACK;
 
-	list_for_each(qe, &tx_mod->tx_active_q) {
-		tx = (struct bna_tx *)qe;
+	list_for_each_entry(tx, &tx_mod->tx_active_q, qe)
 		bna_tx_fail(tx);
-	}
 }
 
 void
 bna_tx_coalescing_timeo_set(struct bna_tx *tx, int coalescing_timeo)
 {
 	struct bna_txq *txq;
-	struct list_head *qe;
 
-	list_for_each(qe, &tx->txq_q) {
-		txq = (struct bna_txq *)qe;
+	list_for_each_entry(txq, &tx->txq_q, qe)
 		bna_ib_coalescing_timeo_set(&txq->ib, coalescing_timeo);
-	}
 }

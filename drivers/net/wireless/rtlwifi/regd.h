@@ -49,6 +49,7 @@ enum country_code_type_t {
 	COUNTRY_CODE_GLOBAL_DOMAIN = 10,
 	COUNTRY_CODE_WORLD_WIDE_13 = 11,
 	COUNTRY_CODE_TELEC_NETGEAR = 12,
+	COUNTRY_CODE_WORLD_WIDE_13_5G_ALL = 13,
 
 	/*add new channel plan above this line */
 	COUNTRY_CODE_MAX

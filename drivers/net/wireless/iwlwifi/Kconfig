@@ -21,6 +21,7 @@ config IWLWIFI
 		Intel 7260 Wi-Fi Adapter
 		Intel 3160 Wi-Fi Adapter
 		Intel 7265 Wi-Fi Adapter
+		Intel 8260 Wi-Fi Adapter
 		Intel 3165 Wi-Fi Adapter
 
 
@@ -54,16 +55,17 @@ config IWLDVM
 	tristate "Intel Wireless WiFi DVM Firmware support"
 	default IWLWIFI
 	help
-	  This is the driver that supports the DVM firmware which is
-	  used by most existing devices (with the exception of 7260
-	  and 3160).
+	  This is the driver that supports the DVM firmware. The list
+	  of the devices that use this firmware is available here:
+	  https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#firmware
 
 config IWLMVM
 	tristate "Intel Wireless WiFi MVM Firmware support"
 	select WANT_DEV_COREDUMP
 	help
-	  This is the driver that supports the MVM firmware which is
-	  currently only available for 7260 and 3160 devices.
+	  This is the driver that supports the MVM firmware. The list
+	  of the devices that use this firmware is available here:
+	  https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#firmware
 
 # don't call it _MODULE -- will confuse Kconfig/fixdep/...
 config IWLWIFI_OPMODE_MODULAR

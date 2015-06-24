@@ -33,7 +33,7 @@ cna_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 	u32 n;
 
 	if (request_firmware(&fw, fw_name, &pdev->dev)) {
-		pr_alert("Can't locate firmware %s\n", fw_name);
+		dev_alert(&pdev->dev, "can't load firmware %s\n", fw_name);
 		goto error;
 	}
 

@@ -181,6 +181,9 @@ struct mii_bus {
 	/* PHY addresses to be ignored when probing */
 	u32 phy_mask;
 
+	/* PHY addresses to ignore the TA/read failure */
+	u32 phy_ignore_ta_mask;
+
 	/*
 	 * Pointer to an array of interrupts, each PHY's
 	 * interrupt at the index matching its address
@@ -672,6 +675,17 @@ static inline bool phy_interrupt_is_valid(struct phy_device *phydev)
 static inline bool phy_is_internal(struct phy_device *phydev)
 {
 	return phydev->is_internal;
+}
+
+/**
+ * phy_interface_is_rgmii - Convenience function for testing if a PHY interface
+ * is RGMII (all variants)
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_interface_is_rgmii(struct phy_device *phydev)
+{
+	return phydev->interface >= PHY_INTERFACE_MODE_RGMII &&
+		phydev->interface <= PHY_INTERFACE_MODE_RGMII_TXID;
 }
 
 /**
