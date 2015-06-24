@@ -1694,6 +1694,9 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		}
 	}
 
+	if (!(device->cap & (IOAT_CAP_XOR | IOAT_CAP_PQ)))
+		dma_cap_set(DMA_PRIVATE, dma->cap_mask);
+
 	err = ioat_probe(device);
 	if (err)
 		return err;
