@@ -127,4 +127,12 @@ static inline void sysfs_remove_groups(struct kobject *kobj,
 }
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
+#define MMC_HS400_SUPPORTED
+#define MMC_DDR52_DEFINED
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+#define MMC_POWER_UNDEFINED_SUPPORTED
+#endif
 #endif	/* __GREYBUS_KERNEL_VER_H */
