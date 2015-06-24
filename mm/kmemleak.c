@@ -53,6 +53,11 @@
  *   modifications to the memory scanning parameters including the scan_thread
  *   pointer
  *
+ * Locks and mutexes should only be acquired/nested in the following order:
+ *
+ *   scan_mutex -> object->lock -> other_object->lock (SINGLE_DEPTH_NESTING)
+ *				-> kmemleak_lock
+ *
  * The kmemleak_object structures have a use_count incremented or decremented
  * using the get_object()/put_object() functions. When the use_count becomes
  * 0, this count can no longer be incremented and put_object() schedules the
@@ -603,11 +608,13 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 			kmemleak_stop("Cannot insert 0x%lx into the object "
 				      "search tree (overlaps existing)\n",
 				      ptr);
+			/*
+			 * No need for parent->lock here since "parent" cannot
+			 * be freed while the kmemleak_lock is held.
+			 */
+			dump_object_info(parent);
 			kmem_cache_free(object_cache, object);
-			object = parent;
-			spin_lock(&object->lock);
-			dump_object_info(object);
-			spin_unlock(&object->lock);
+			object = NULL;
 			goto out;
 		}
 	}
