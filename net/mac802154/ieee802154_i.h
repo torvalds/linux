@@ -56,6 +56,7 @@ struct ieee802154_local {
 	struct hrtimer ifs_timer;
 
 	bool started;
+	bool suspended;
 
 	struct tasklet_struct tasklet;
 	struct sk_buff_head skb_queue;

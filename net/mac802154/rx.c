@@ -253,6 +253,9 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	WARN_ON_ONCE(softirq_count() == 0);
 
+	if (local->suspended)
+		goto drop;
+
 	/* TODO: When a transceiver omits the checksum here, we
 	 * add an own calculated one. This is currently an ugly
 	 * solution because the monitor needs a crc here.
@@ -273,8 +276,7 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 		crc = crc_ccitt(0, skb->data, skb->len);
 		if (crc) {
 			rcu_read_unlock();
-			kfree_skb(skb);
-			return;
+			goto drop;
 		}
 	}
 	/* remove crc */
@@ -283,6 +285,10 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 	__ieee802154_rx_handle_packet(local, skb);
 
 	rcu_read_unlock();
+
+	return;
+drop:
+	kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee802154_rx);
 
