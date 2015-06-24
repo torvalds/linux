@@ -2137,6 +2137,8 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 	struct inode *inode = NULL;
 	struct inode *iter;
 	struct ocfs2_inode_info *oi;
+	struct buffer_head *di_bh = NULL;
+	struct ocfs2_dinode *di = NULL;
 
 	trace_ocfs2_recover_orphans(slot);
 
@@ -2157,16 +2159,22 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		iter = oi->ip_next_orphan;
 		oi->ip_next_orphan = NULL;
 
+		ret = ocfs2_rw_lock(inode, 1);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto next;
+		}
 		/*
 		 * We need to take and drop the inode lock to
 		 * force read inode from disk.
 		 */
-		ret = ocfs2_inode_lock(inode, NULL, 0);
+		ret = ocfs2_inode_lock(inode, &di_bh, 1);
 		if (ret) {
 			mlog_errno(ret);
-			goto next;
+			goto unlock_rw;
 		}
-		ocfs2_inode_unlock(inode, 0);
+
+		di = (struct ocfs2_dinode *)di_bh->b_data;
 
 		if (inode->i_nlink == 0) {
 			spin_lock(&oi->ip_lock);
@@ -2174,43 +2182,30 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 			 * ocfs2_delete_inode. */
 			oi->ip_flags |= OCFS2_INODE_MAYBE_ORPHANED;
 			spin_unlock(&oi->ip_lock);
-		} else if (orphan_reco_type == ORPHAN_NEED_TRUNCATE) {
-			struct buffer_head *di_bh = NULL;
-
-			ret = ocfs2_rw_lock(inode, 1);
-			if (ret) {
-				mlog_errno(ret);
-				goto next;
-			}
-
-			ret = ocfs2_inode_lock(inode, &di_bh, 1);
-			if (ret < 0) {
-				ocfs2_rw_unlock(inode, 1);
-				mlog_errno(ret);
-				goto next;
-			}
-
+		} else if ((orphan_reco_type == ORPHAN_NEED_TRUNCATE) &&
+				(di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL))) {
 			ret = ocfs2_truncate_file(inode, di_bh,
 					i_size_read(inode));
-			ocfs2_inode_unlock(inode, 1);
-			ocfs2_rw_unlock(inode, 1);
-			brelse(di_bh);
 			if (ret < 0) {
 				if (ret != -ENOSPC)
 					mlog_errno(ret);
-				goto next;
+				goto unlock_inode;
 			}
 
-			ret = ocfs2_del_inode_from_orphan(osb, inode, 0, 0);
+			ret = ocfs2_del_inode_from_orphan(osb, inode, di_bh, 0, 0);
 			if (ret)
 				mlog_errno(ret);
 
 			wake_up(&OCFS2_I(inode)->append_dio_wq);
 		} /* else if ORPHAN_NO_NEED_TRUNCATE, do nothing */
-
+unlock_inode:
+		ocfs2_inode_unlock(inode, 1);
+unlock_rw:
+		ocfs2_rw_unlock(inode, 1);
 next:
 		iput(inode);
-
+		brelse(di_bh);
+		di_bh = NULL;
 		inode = iter;
 	}
 

@@ -925,12 +925,22 @@ clean_orphan:
 		int update_isize = written > 0 ? 1 : 0;
 		loff_t end = update_isize ? offset + written : 0;
 
-		tmp_ret = ocfs2_del_inode_from_orphan(osb, inode,
+		tmp_ret = ocfs2_inode_lock(inode, &di_bh, 1);
+		if (tmp_ret < 0) {
+			ret = tmp_ret;
+			mlog_errno(ret);
+			goto out;
+		}
+
+		tmp_ret = ocfs2_del_inode_from_orphan(osb, inode, di_bh,
 				update_isize, end);
 		if (tmp_ret < 0) {
 			ret = tmp_ret;
+			mlog_errno(ret);
 			goto out;
 		}
+
+		ocfs2_inode_unlock(inode, 1);
 
 		tmp_ret = jbd2_journal_force_commit(journal);
 		if (tmp_ret < 0) {
