@@ -2056,6 +2056,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "__driver-ecb-twofish-avx",
 		.test = alg_test_null,
 	}, {
+		.alg = "__driver-gcm-aes-aesni",
+		.test = alg_test_null,
+		.fips_allowed = 1,
+	}, {
 		.alg = "__ghash-pclmulqdqni",
 		.test = alg_test_null,
 		.fips_allowed = 1,
