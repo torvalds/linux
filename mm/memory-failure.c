@@ -36,13 +36,6 @@
  * are rare we hope to get away with this. This avoids impacting the core 
  * VM.
  */
-
-/*
- * Notebook:
- * - hugetlb needs more code
- * - kcore/oldmem/vmcore/mem/kmem check for hwpoison pages
- * - pass bad pages to kdump next kernel
- */
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/page-flags.h>
