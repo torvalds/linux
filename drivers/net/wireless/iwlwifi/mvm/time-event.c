@@ -596,8 +596,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
 	time_cmd.id = cpu_to_le32(TE_BSS_STA_AGGRESSIVE_ASSOC);
 
-	time_cmd.apply_time =
-		cpu_to_le32(iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG));
+	time_cmd.apply_time = cpu_to_le32(0);
 
 	time_cmd.max_frags = TE_V2_FRAG_NONE;
 	time_cmd.max_delay = cpu_to_le32(max_delay);
