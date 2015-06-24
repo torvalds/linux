@@ -276,6 +276,12 @@ struct i915_hotplug {
 			    &dev->mode_config.plane_list,	\
 			    base.head)
 
+#define for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane)	\
+	list_for_each_entry(intel_plane,				\
+			    &(dev)->mode_config.plane_list,		\
+			    base.head)					\
+		if ((intel_plane)->pipe == (intel_crtc)->pipe)
+
 #define for_each_intel_crtc(dev, intel_crtc) \
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
 
@@ -1498,18 +1504,20 @@ struct ilk_wm_values {
 	enum intel_ddb_partitioning partitioning;
 };
 
+struct vlv_pipe_wm {
+	uint16_t primary;
+	uint16_t sprite[2];
+	uint8_t cursor;
+};
+
+struct vlv_sr_wm {
+	uint16_t plane;
+	uint8_t cursor;
+};
+
 struct vlv_wm_values {
-	struct {
-		uint16_t primary;
-		uint16_t sprite[2];
-		uint8_t cursor;
-	} pipe[3];
-
-	struct {
-		uint16_t plane;
-		uint8_t cursor;
-	} sr;
-
+	struct vlv_pipe_wm pipe[3];
+	struct vlv_sr_wm sr;
 	struct {
 		uint8_t cursor;
 		uint8_t sprite[2];

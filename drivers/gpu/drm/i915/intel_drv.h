@@ -462,6 +462,15 @@ struct intel_crtc_state {
 	enum pipe hsw_workaround_pipe;
 };
 
+struct vlv_wm_state {
+	struct vlv_pipe_wm wm[3];
+	struct vlv_sr_wm sr[3];
+	uint8_t num_active_planes;
+	uint8_t num_levels;
+	uint8_t level;
+	bool cxsr;
+};
+
 struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
 	uint32_t linetime;
@@ -565,6 +574,8 @@ struct intel_crtc {
 
 	/* scalers available on this crtc */
 	int num_scalers;
+
+	struct vlv_wm_state wm_state;
 };
 
 struct intel_plane_wm_parameters {

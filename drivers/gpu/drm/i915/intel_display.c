@@ -4699,8 +4699,11 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 	 * event which is after the vblank start event, so we need to have a
 	 * wait-for-vblank between disabling the plane and the pipe.
 	 */
-	if (HAS_GMCH_DISPLAY(dev))
+	if (HAS_GMCH_DISPLAY(dev)) {
 		intel_set_memory_cxsr(dev_priv, false);
+		dev_priv->wm.vlv.cxsr = false;
+		intel_wait_for_vblank(dev, pipe);
+	}
 
 	/*
 	 * FIXME IPS should be fine as long as one plane is
@@ -6017,7 +6020,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc_load_lut(crtc);
 
-	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
 
 	assert_vblank_disabled(crtc);
