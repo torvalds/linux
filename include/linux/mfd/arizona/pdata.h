@@ -156,7 +156,10 @@ struct arizona_pdata {
 	/** MICBIAS configurations */
 	struct arizona_micbias micbias[ARIZONA_MAX_MICBIAS];
 
-	/** Mode of input structures */
+	/**
+	 * Mode of input structures
+	 * One of the ARIZONA_INMODE_xxx values
+	 */
 	int inmode[ARIZONA_MAX_INPUT];
 
 	/** Mode for outputs */

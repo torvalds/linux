@@ -2640,13 +2640,10 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 	 */
 	if (dev->tr_backlight_supported ||
 	    dmi_check_system(toshiba_vendor_backlight_dmi))
-		acpi_video_dmi_promote_vendor();
+		acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
 
-	if (acpi_video_backlight_support())
+	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		return 0;
-
-	/* acpi-video may have loaded before we called dmi_promote_vendor() */
-	acpi_video_unregister_backlight();
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;

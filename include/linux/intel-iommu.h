@@ -297,6 +297,7 @@ struct q_inval {
 /* 1MB - maximum possible interrupt remapping table size */
 #define INTR_REMAP_PAGE_ORDER	8
 #define INTR_REMAP_TABLE_REG_SIZE	0xf
+#define INTR_REMAP_TABLE_REG_SIZE_MASK  0xf
 
 #define INTR_REMAP_TABLE_ENTRIES	65536
 
@@ -322,6 +323,9 @@ enum {
 	SR_DMAR_FEUADDR_REG,
 	MAX_SR_DMAR_REGS
 };
+
+#define VTD_FLAG_TRANS_PRE_ENABLED	(1 << 0)
+#define VTD_FLAG_IRQ_REMAP_PRE_ENABLED	(1 << 1)
 
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
@@ -356,6 +360,7 @@ struct intel_iommu {
 #endif
 	struct device	*iommu_dev; /* IOMMU-sysfs device */
 	int		node;
+	u32		flags;      /* Software defined flags */
 };
 
 static inline void __iommu_flush_cache(

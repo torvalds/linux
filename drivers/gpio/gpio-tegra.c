@@ -288,7 +288,7 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			tegra_gpio_writel(1 << pin, GPIO_INT_CLR(gpio));
 
 			/* if gpio is edge triggered, clear condition
-			 * before executing the hander so that we don't
+			 * before executing the handler so that we don't
 			 * miss edges
 			 */
 			if (lvl & (0x100 << pin)) {

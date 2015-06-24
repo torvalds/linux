@@ -30,7 +30,7 @@ extern void amd_iommu_reset_cmd_buffer(struct amd_iommu *iommu);
 extern int amd_iommu_init_devices(void);
 extern void amd_iommu_uninit_devices(void);
 extern void amd_iommu_init_notifier(void);
-extern void amd_iommu_init_api(void);
+extern int amd_iommu_init_api(void);
 
 /* Needed for interrupt remapping */
 extern int amd_iommu_prepare(void);

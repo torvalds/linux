@@ -11,6 +11,7 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
+#include <linux/clkdev.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/clk.h>

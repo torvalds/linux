@@ -20,6 +20,46 @@ static inline void pm_runtime_early_init(struct device *dev)
 extern void pm_runtime_init(struct device *dev);
 extern void pm_runtime_remove(struct device *dev);
 
+struct wake_irq {
+	struct device *dev;
+	int irq;
+	bool dedicated_irq:1;
+};
+
+extern void dev_pm_arm_wake_irq(struct wake_irq *wirq);
+extern void dev_pm_disarm_wake_irq(struct wake_irq *wirq);
+
+#ifdef CONFIG_PM_SLEEP
+
+extern int device_wakeup_attach_irq(struct device *dev,
+				    struct wake_irq *wakeirq);
+extern void device_wakeup_detach_irq(struct device *dev);
+extern void device_wakeup_arm_wake_irqs(void);
+extern void device_wakeup_disarm_wake_irqs(void);
+
+#else
+
+static inline int
+device_wakeup_attach_irq(struct device *dev,
+			 struct wake_irq *wakeirq)
+{
+	return 0;
+}
+
+static inline void device_wakeup_detach_irq(struct device *dev)
+{
+}
+
+static inline void device_wakeup_arm_wake_irqs(void)
+{
+}
+
+static inline void device_wakeup_disarm_wake_irqs(void)
+{
+}
+
+#endif /* CONFIG_PM_SLEEP */
+
 /*
  * sysfs.c
  */
@@ -51,6 +91,14 @@ static inline int wakeup_sysfs_add(struct device *dev) { return 0; }
 static inline void wakeup_sysfs_remove(struct device *dev) {}
 static inline int pm_qos_sysfs_add(struct device *dev) { return 0; }
 static inline void pm_qos_sysfs_remove(struct device *dev) {}
+
+static inline void dev_pm_arm_wake_irq(struct wake_irq *wirq)
+{
+}
+
+static inline void dev_pm_disarm_wake_irq(struct wake_irq *wirq)
+{
+}
 
 #endif
 

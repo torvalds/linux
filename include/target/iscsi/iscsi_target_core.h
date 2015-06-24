@@ -5,7 +5,6 @@
 #include <linux/configfs.h>
 #include <net/sock.h>
 #include <net/tcp.h>
-#include <scsi/scsi_cmnd.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 

@@ -48,6 +48,71 @@
 
 #include "core_priv.h"
 
+static const char * const ib_events[] = {
+	[IB_EVENT_CQ_ERR]		= "CQ error",
+	[IB_EVENT_QP_FATAL]		= "QP fatal error",
+	[IB_EVENT_QP_REQ_ERR]		= "QP request error",
+	[IB_EVENT_QP_ACCESS_ERR]	= "QP access error",
+	[IB_EVENT_COMM_EST]		= "communication established",
+	[IB_EVENT_SQ_DRAINED]		= "send queue drained",
+	[IB_EVENT_PATH_MIG]		= "path migration successful",
+	[IB_EVENT_PATH_MIG_ERR]		= "path migration error",
+	[IB_EVENT_DEVICE_FATAL]		= "device fatal error",
+	[IB_EVENT_PORT_ACTIVE]		= "port active",
+	[IB_EVENT_PORT_ERR]		= "port error",
+	[IB_EVENT_LID_CHANGE]		= "LID change",
+	[IB_EVENT_PKEY_CHANGE]		= "P_key change",
+	[IB_EVENT_SM_CHANGE]		= "SM change",
+	[IB_EVENT_SRQ_ERR]		= "SRQ error",
+	[IB_EVENT_SRQ_LIMIT_REACHED]	= "SRQ limit reached",
+	[IB_EVENT_QP_LAST_WQE_REACHED]	= "last WQE reached",
+	[IB_EVENT_CLIENT_REREGISTER]	= "client reregister",
+	[IB_EVENT_GID_CHANGE]		= "GID changed",
+};
+
+const char *ib_event_msg(enum ib_event_type event)
+{
+	size_t index = event;
+
+	return (index < ARRAY_SIZE(ib_events) && ib_events[index]) ?
+			ib_events[index] : "unrecognized event";
+}
+EXPORT_SYMBOL(ib_event_msg);
+
+static const char * const wc_statuses[] = {
+	[IB_WC_SUCCESS]			= "success",
+	[IB_WC_LOC_LEN_ERR]		= "local length error",
+	[IB_WC_LOC_QP_OP_ERR]		= "local QP operation error",
+	[IB_WC_LOC_EEC_OP_ERR]		= "local EE context operation error",
+	[IB_WC_LOC_PROT_ERR]		= "local protection error",
+	[IB_WC_WR_FLUSH_ERR]		= "WR flushed",
+	[IB_WC_MW_BIND_ERR]		= "memory management operation error",
+	[IB_WC_BAD_RESP_ERR]		= "bad response error",
+	[IB_WC_LOC_ACCESS_ERR]		= "local access error",
+	[IB_WC_REM_INV_REQ_ERR]		= "invalid request error",
+	[IB_WC_REM_ACCESS_ERR]		= "remote access error",
+	[IB_WC_REM_OP_ERR]		= "remote operation error",
+	[IB_WC_RETRY_EXC_ERR]		= "transport retry counter exceeded",
+	[IB_WC_RNR_RETRY_EXC_ERR]	= "RNR retry counter exceeded",
+	[IB_WC_LOC_RDD_VIOL_ERR]	= "local RDD violation error",
+	[IB_WC_REM_INV_RD_REQ_ERR]	= "remote invalid RD request",
+	[IB_WC_REM_ABORT_ERR]		= "operation aborted",
+	[IB_WC_INV_EECN_ERR]		= "invalid EE context number",
+	[IB_WC_INV_EEC_STATE_ERR]	= "invalid EE context state",
+	[IB_WC_FATAL_ERR]		= "fatal error",
+	[IB_WC_RESP_TIMEOUT_ERR]	= "response timeout error",
+	[IB_WC_GENERAL_ERR]		= "general error",
+};
+
+const char *ib_wc_status_msg(enum ib_wc_status status)
+{
+	size_t index = status;
+
+	return (index < ARRAY_SIZE(wc_statuses) && wc_statuses[index]) ?
+			wc_statuses[index] : "unrecognized status";
+}
+EXPORT_SYMBOL(ib_wc_status_msg);
+
 __attribute_const__ int ib_rate_to_mult(enum ib_rate rate)
 {
 	switch (rate) {
@@ -192,17 +257,16 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(ib_create_ah);
 
-int ib_init_ah_from_wc(struct ib_device *device, u8 port_num, struct ib_wc *wc,
-		       struct ib_grh *grh, struct ib_ah_attr *ah_attr)
+int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
+		       const struct ib_wc *wc, const struct ib_grh *grh,
+		       struct ib_ah_attr *ah_attr)
 {
 	u32 flow_class;
 	u16 gid_index;
 	int ret;
-	int is_eth = (rdma_port_get_link_layer(device, port_num) ==
-			IB_LINK_LAYER_ETHERNET);
 
 	memset(ah_attr, 0, sizeof *ah_attr);
-	if (is_eth) {
+	if (rdma_cap_eth_ah(device, port_num)) {
 		if (!(wc->wc_flags & IB_WC_GRH))
 			return -EPROTOTYPE;
 
@@ -244,8 +308,8 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num, struct ib_wc *wc,
 }
 EXPORT_SYMBOL(ib_init_ah_from_wc);
 
-struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, struct ib_wc *wc,
-				   struct ib_grh *grh, u8 port_num)
+struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
+				   const struct ib_grh *grh, u8 port_num)
 {
 	struct ib_ah_attr ah_attr;
 	int ret;
@@ -871,7 +935,7 @@ int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
 	union ib_gid  sgid;
 
 	if ((*qp_attr_mask & IB_QP_AV)  &&
-	    (rdma_port_get_link_layer(qp->device, qp_attr->ah_attr.port_num) == IB_LINK_LAYER_ETHERNET)) {
+	    (rdma_cap_eth_ah(qp->device, qp_attr->ah_attr.port_num))) {
 		ret = ib_query_gid(qp->device, qp_attr->ah_attr.port_num,
 				   qp_attr->ah_attr.grh.sgid_index, &sgid);
 		if (ret)
@@ -1012,11 +1076,12 @@ EXPORT_SYMBOL(ib_destroy_qp);
 struct ib_cq *ib_create_cq(struct ib_device *device,
 			   ib_comp_handler comp_handler,
 			   void (*event_handler)(struct ib_event *, void *),
-			   void *cq_context, int cqe, int comp_vector)
+			   void *cq_context,
+			   const struct ib_cq_init_attr *cq_attr)
 {
 	struct ib_cq *cq;
 
-	cq = device->create_cq(device, cqe, comp_vector, NULL, NULL);
+	cq = device->create_cq(device, cq_attr, NULL, NULL);
 
 	if (!IS_ERR(cq)) {
 		cq->device        = device;

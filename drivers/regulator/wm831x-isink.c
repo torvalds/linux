@@ -204,7 +204,8 @@ static int wm831x_isink_probe(struct platform_device *pdev)
 	irq = wm831x_irq(wm831x, platform_get_irq(pdev, 0));
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					wm831x_isink_irq,
-					IRQF_TRIGGER_RISING, isink->name,
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					isink->name,
 					isink);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request ISINK IRQ %d: %d\n",

@@ -239,7 +239,7 @@ static int mxs_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 	return !(dir & mask);
 }
 
-static struct platform_device_id mxs_gpio_ids[] = {
+static const struct platform_device_id mxs_gpio_ids[] = {
 	{
 		.name = "imx23-gpio",
 		.driver_data = IMX23_GPIO,

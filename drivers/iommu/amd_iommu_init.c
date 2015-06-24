@@ -226,6 +226,7 @@ static enum iommu_init_state init_state = IOMMU_START_STATE;
 
 static int amd_iommu_enable_interrupts(void);
 static int __init iommu_go_to_state(enum iommu_init_state state);
+static void init_device_table_dma(void);
 
 static inline void update_last_devid(u16 devid)
 {
@@ -1389,9 +1390,15 @@ static int __init amd_iommu_init_pci(void)
 			break;
 	}
 
-	ret = amd_iommu_init_devices();
+	init_device_table_dma();
 
-	print_iommu_info();
+	for_each_iommu(iommu)
+		iommu_flush_all_caches(iommu);
+
+	ret = amd_iommu_init_api();
+
+	if (!ret)
+		print_iommu_info();
 
 	return ret;
 }
@@ -1829,8 +1836,6 @@ static bool __init check_ioapic_information(void)
 
 static void __init free_dma_resources(void)
 {
-	amd_iommu_uninit_devices();
-
 	free_pages((unsigned long)amd_iommu_pd_alloc_bitmap,
 		   get_order(MAX_DOMAIN_ID/8));
 
@@ -2023,27 +2028,10 @@ static bool detect_ivrs(void)
 
 static int amd_iommu_init_dma(void)
 {
-	struct amd_iommu *iommu;
-	int ret;
-
 	if (iommu_pass_through)
-		ret = amd_iommu_init_passthrough();
+		return amd_iommu_init_passthrough();
 	else
-		ret = amd_iommu_init_dma_ops();
-
-	if (ret)
-		return ret;
-
-	init_device_table_dma();
-
-	for_each_iommu(iommu)
-		iommu_flush_all_caches(iommu);
-
-	amd_iommu_init_api();
-
-	amd_iommu_init_notifier();
-
-	return 0;
+		return amd_iommu_init_dma_ops();
 }
 
 /****************************************************************************

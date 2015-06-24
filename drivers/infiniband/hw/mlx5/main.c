@@ -63,7 +63,8 @@ static char mlx5_version[] =
 	DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
 
 static int mlx5_ib_query_device(struct ib_device *ibdev,
-				struct ib_device_attr *props)
+				struct ib_device_attr *props,
+				struct ib_udata *uhw)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct ib_smp *in_mad  = NULL;
@@ -73,6 +74,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	int max_rq_sg;
 	int max_sq_sg;
 	u64 flags;
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	gen = &dev->mdev->caps.gen;
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
@@ -910,6 +914,7 @@ static int get_port_caps(struct mlx5_ib_dev *dev)
 	struct mlx5_general_caps *gen;
 	int err = -ENOMEM;
 	int port;
+	struct ib_udata uhw = {.inlen = 0, .outlen = 0};
 
 	gen = &dev->mdev->caps.gen;
 	pprops = kmalloc(sizeof(*pprops), GFP_KERNEL);
@@ -920,7 +925,7 @@ static int get_port_caps(struct mlx5_ib_dev *dev)
 	if (!dprops)
 		goto out;
 
-	err = mlx5_ib_query_device(&dev->ib_dev, dprops);
+	err = mlx5_ib_query_device(&dev->ib_dev, dprops, &uhw);
 	if (err) {
 		mlx5_ib_warn(dev, "query_device failed %d\n", err);
 		goto out;
@@ -971,6 +976,7 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 	struct ib_cq *cq;
 	struct ib_qp *qp;
 	struct ib_mr *mr;
+	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
 	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
@@ -994,8 +1000,9 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 		goto error_1;
 	}
 
-	cq = ib_create_cq(&dev->ib_dev, mlx5_umr_cq_handler, NULL, NULL, 128,
-			  0);
+	cq_attr.cqe = 128;
+	cq = ib_create_cq(&dev->ib_dev, mlx5_umr_cq_handler, NULL, NULL,
+			  &cq_attr);
 	if (IS_ERR(cq)) {
 		mlx5_ib_dbg(dev, "Couldn't create CQ for sync UMR QP\n");
 		ret = PTR_ERR(cq);
@@ -1087,6 +1094,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 {
 	struct ib_srq_init_attr attr;
 	struct mlx5_ib_dev *dev;
+	struct ib_cq_init_attr cq_attr = {.cqe = 1};
 	int ret = 0;
 
 	dev = container_of(devr, struct mlx5_ib_dev, devr);
@@ -1100,7 +1108,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->p0->uobject = NULL;
 	atomic_set(&devr->p0->usecnt, 0);
 
-	devr->c0 = mlx5_ib_create_cq(&dev->ib_dev, 1, 0, NULL, NULL);
+	devr->c0 = mlx5_ib_create_cq(&dev->ib_dev, &cq_attr, NULL, NULL);
 	if (IS_ERR(devr->c0)) {
 		ret = PTR_ERR(devr->c0);
 		goto error1;
@@ -1180,6 +1188,24 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	mlx5_ib_dealloc_xrcd(devr->x1);
 	mlx5_ib_destroy_cq(devr->c0);
 	mlx5_ib_dealloc_pd(devr->p0);
+}
+
+static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = mlx5_ib_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
+	return 0;
 }
 
 static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
@@ -1285,6 +1311,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.alloc_fast_reg_page_list = mlx5_ib_alloc_fast_reg_page_list;
 	dev->ib_dev.free_fast_reg_page_list  = mlx5_ib_free_fast_reg_page_list;
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
+	dev->ib_dev.get_port_immutable  = mlx5_port_immutable;
 
 	mlx5_ib_internal_query_odp_caps(dev);
 

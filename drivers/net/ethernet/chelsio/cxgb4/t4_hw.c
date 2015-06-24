@@ -5102,6 +5102,7 @@ int t4_prep_adapter(struct adapter *adapter)
  *	@adapter: the adapter
  *	@qid: the Queue ID
  *	@qtype: the Ingress or Egress type for @qid
+ *	@user: true if this request is for a user mode queue
  *	@pbar2_qoffset: BAR2 Queue Offset
  *	@pbar2_qid: BAR2 Queue ID or 0 for Queue ID inferred SGE Queues
  *
@@ -5125,6 +5126,7 @@ int t4_prep_adapter(struct adapter *adapter)
 int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 		      unsigned int qid,
 		      enum t4_bar2_qtype qtype,
+		      int user,
 		      u64 *pbar2_qoffset,
 		      unsigned int *pbar2_qid)
 {
@@ -5132,9 +5134,8 @@ int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 	u64 bar2_page_offset, bar2_qoffset;
 	unsigned int bar2_qid, bar2_qid_offset, bar2_qinferred;
 
-	/* T4 doesn't support BAR2 SGE Queue registers.
-	 */
-	if (is_t4(adapter->params.chip))
+	/* T4 doesn't support BAR2 SGE Queue registers for kernel mode queues */
+	if (!user && is_t4(adapter->params.chip))
 		return -EINVAL;
 
 	/* Get our SGE Page Size parameters.

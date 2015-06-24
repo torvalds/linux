@@ -30,7 +30,7 @@
 #include <linux/ctype.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
-#include <scsi/scsi.h>
+#include <scsi/scsi_proto.h>
 #include <scsi/scsi_tcq.h>
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>

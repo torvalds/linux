@@ -50,7 +50,8 @@ static unsigned int limit_uint(unsigned int value)
 	return min_t(unsigned int, value, INT_MAX);
 }
 
-int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
+int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+		      struct ib_udata *uhw)
 {
 	int i, ret = 0;
 	struct ehca_shca *shca = container_of(ibdev, struct ehca_shca,
@@ -70,6 +71,9 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 		IB_DEVICE_INIT_TYPE,          HCA_CAP_INIT_TYPE,
 		IB_DEVICE_PORT_ACTIVE_EVENT,  HCA_CAP_PORT_ACTIVE_EVENT,
 	};
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!rblock) {

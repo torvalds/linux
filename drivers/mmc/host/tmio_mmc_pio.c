@@ -1108,7 +1108,8 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 	if (ret < 0)
 		goto host_free;
 
-	_host->ctl = ioremap(res_ctl->start, resource_size(res_ctl));
+	_host->ctl = devm_ioremap(&pdev->dev,
+				  res_ctl->start, resource_size(res_ctl));
 	if (!_host->ctl) {
 		ret = -ENOMEM;
 		goto host_free;
@@ -1230,8 +1231,6 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	iounmap(host->ctl);
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
 

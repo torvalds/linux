@@ -168,13 +168,8 @@ static void xgbe_init_all_fptrs(struct xgbe_prv_data *pdata)
 #ifdef CONFIG_ACPI
 static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 {
-	struct acpi_device *adev = pdata->adev;
 	struct device *dev = pdata->dev;
 	u32 property;
-	acpi_handle handle;
-	acpi_status status;
-	unsigned long long data;
-	int cca;
 	int ret;
 
 	/* Obtain the system clock setting */
@@ -194,24 +189,6 @@ static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 	pdata->ptpclk_rate = property;
-
-	/* Retrieve the device cache coherency value */
-	handle = adev->handle;
-	do {
-		status = acpi_evaluate_integer(handle, "_CCA", NULL, &data);
-		if (!ACPI_FAILURE(status)) {
-			cca = data;
-			break;
-		}
-
-		status = acpi_get_parent(handle, &handle);
-	} while (!ACPI_FAILURE(status));
-
-	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "error obtaining acpi coherency value\n");
-		return -EINVAL;
-	}
-	pdata->coherent = !!cca;
 
 	return 0;
 }
@@ -242,9 +219,6 @@ static int xgbe_of_support(struct xgbe_prv_data *pdata)
 		return PTR_ERR(pdata->ptpclk);
 	}
 	pdata->ptpclk_rate = clk_get_rate(pdata->ptpclk);
-
-	/* Retrieve the device cache coherency value */
-	pdata->coherent = of_dma_is_coherent(dev->of_node);
 
 	return 0;
 }
@@ -364,6 +338,7 @@ static int xgbe_probe(struct platform_device *pdev)
 		goto err_io;
 
 	/* Set the DMA coherency values */
+	pdata->coherent = device_dma_is_coherent(pdata->dev);
 	if (pdata->coherent) {
 		pdata->axdomain = XGBE_DMA_OS_AXDOMAIN;
 		pdata->arcache = XGBE_DMA_OS_ARCACHE;

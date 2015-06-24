@@ -458,7 +458,7 @@ struct sis_video_info {
 
 	unsigned char	*bios_abase;
 
-	int		mtrr;
+	int		wc_cookie;
 
 	u32		sisfb_mem;
 
