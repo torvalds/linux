@@ -366,18 +366,29 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		IEEE80211_SKB_CB(skb)->hw_queue = mvm->aux_queue;
 
 	/*
-	 * If the interface on which frame is sent is the P2P_DEVICE
+	 * If the interface on which the frame is sent is the P2P_DEVICE
 	 * or an AP/GO interface use the broadcast station associated
-	 * with it; otherwise use the AUX station.
+	 * with it; otherwise if the interface is a managed interface
+	 * use the AP station associated with it for multicast traffic
+	 * (this is not possible for unicast packets as a TLDS discovery
+	 * response are sent without a station entry); otherwise use the
+	 * AUX station.
 	 */
-	if (info->control.vif &&
-	    (info->control.vif->type == NL80211_IFTYPE_P2P_DEVICE ||
-	     info->control.vif->type == NL80211_IFTYPE_AP)) {
+	sta_id = mvm->aux_sta.sta_id;
+	if (info->control.vif) {
 		struct iwl_mvm_vif *mvmvif =
 			iwl_mvm_vif_from_mac80211(info->control.vif);
-		sta_id = mvmvif->bcast_sta.sta_id;
-	} else {
-		sta_id = mvm->aux_sta.sta_id;
+
+		if (info->control.vif->type == NL80211_IFTYPE_P2P_DEVICE ||
+		    info->control.vif->type == NL80211_IFTYPE_AP)
+			sta_id = mvmvif->bcast_sta.sta_id;
+		else if (info->control.vif->type == NL80211_IFTYPE_STATION &&
+			 is_multicast_ether_addr(hdr->addr1)) {
+			u8 ap_sta_id = ACCESS_ONCE(mvmvif->ap_sta_id);
+
+			if (ap_sta_id != IWL_MVM_STATION_COUNT)
+				sta_id = ap_sta_id;
+		}
 	}
 
 	IWL_DEBUG_TX(mvm, "station Id %d, queue=%d\n", sta_id, info->hw_queue);
