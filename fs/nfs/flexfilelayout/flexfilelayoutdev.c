@@ -324,7 +324,8 @@ static int ff_layout_update_mirror_cred(struct nfs4_ff_layout_mirror *mirror,
 				__func__, PTR_ERR(cred));
 			return PTR_ERR(cred);
 		} else {
-			mirror->cred = cred;
+			if (cmpxchg(&mirror->cred, NULL, cred))
+				put_rpccred(cred);
 		}
 	}
 	return 0;
