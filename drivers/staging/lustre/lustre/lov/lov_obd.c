@@ -107,6 +107,10 @@ static void lov_putref(struct obd_device *obd)
 			/* Disconnect */
 			__lov_del_obd(obd, tgt);
 		}
+
+		if (lov->lov_tgts_kobj)
+			kobject_put(lov->lov_tgts_kobj);
+
 	} else {
 		mutex_unlock(&lov->lov_lock);
 	}
@@ -321,9 +325,6 @@ static int lov_disconnect(struct obd_export *exp)
 			lov_del_target(obd, i, NULL, lov->lov_tgts[i]->ltd_gen);
 		}
 	}
-
-	if (lov->lov_tgts_kobj)
-		kobject_put(lov->lov_tgts_kobj);
 
 	obd_putref(obd);
 
