@@ -662,7 +662,7 @@ static int fsl_qspi_nor_setup_last(struct fsl_qspi *q)
 	return 0;
 }
 
-static struct of_device_id fsl_qspi_dt_ids[] = {
+static const struct of_device_id fsl_qspi_dt_ids[] = {
 	{ .compatible = "fsl,vf610-qspi", .data = (void *)&vybrid_data, },
 	{ .compatible = "fsl,imx6sx-qspi", .data = (void *)&imx6sx_data, },
 	{ /* sentinel */ }
