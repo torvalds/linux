@@ -500,8 +500,10 @@ static int omap_gpio_irq_type(struct irq_data *d, unsigned type)
 
 	spin_lock_irqsave(&bank->lock, flags);
 	retval = omap_set_gpio_triggering(bank, offset, type);
-	if (retval)
+	if (retval) {
+		spin_unlock_irqrestore(&bank->lock, flags);
 		goto error;
+	}
 	omap_gpio_init_irq(bank, offset);
 	if (!omap_gpio_is_input(bank, offset)) {
 		spin_unlock_irqrestore(&bank->lock, flags);
