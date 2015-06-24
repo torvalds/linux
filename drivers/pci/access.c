@@ -531,6 +531,14 @@ static inline int pcie_cap_version(const struct pci_dev *dev)
 	return pcie_caps_reg(dev) & PCI_EXP_FLAGS_VERS;
 }
 
+static bool pcie_downstream_port(const struct pci_dev *dev)
+{
+	int type = pci_pcie_type(dev);
+
+	return type == PCI_EXP_TYPE_ROOT_PORT ||
+	       type == PCI_EXP_TYPE_DOWNSTREAM;
+}
+
 bool pcie_cap_has_lnkctl(const struct pci_dev *dev)
 {
 	int type = pci_pcie_type(dev);
@@ -546,10 +554,7 @@ bool pcie_cap_has_lnkctl(const struct pci_dev *dev)
 
 static inline bool pcie_cap_has_sltctl(const struct pci_dev *dev)
 {
-	int type = pci_pcie_type(dev);
-
-	return (type == PCI_EXP_TYPE_ROOT_PORT ||
-		type == PCI_EXP_TYPE_DOWNSTREAM) &&
+	return pcie_downstream_port(dev) &&
 	       pcie_caps_reg(dev) & PCI_EXP_FLAGS_SLOT;
 }
 
@@ -628,10 +633,9 @@ int pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val)
 	 * State bit in the Slot Status register of Downstream Ports,
 	 * which must be hardwired to 1b.  (PCIe Base Spec 3.0, sec 7.8)
 	 */
-	if (pci_is_pcie(dev) && pos == PCI_EXP_SLTSTA &&
-		 pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM) {
+	if (pci_is_pcie(dev) && pcie_downstream_port(dev) &&
+	    pos == PCI_EXP_SLTSTA)
 		*val = PCI_EXP_SLTSTA_PDS;
-	}
 
 	return 0;
 }
@@ -657,10 +661,9 @@ int pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *val)
 		return ret;
 	}
 
-	if (pci_is_pcie(dev) && pos == PCI_EXP_SLTCTL &&
-		 pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM) {
+	if (pci_is_pcie(dev) && pcie_downstream_port(dev) &&
+	    pos == PCI_EXP_SLTSTA)
 		*val = PCI_EXP_SLTSTA_PDS;
-	}
 
 	return 0;
 }
