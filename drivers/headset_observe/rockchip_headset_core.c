@@ -123,6 +123,10 @@ static int rockchip_headset_probe(struct platform_device *pdev)
 	}
 	#endif
 
+	ret = of_property_read_u32(node, "rockchip,headset_wakeup", &pdata->headset_wakeup);
+	if (ret < 0)
+		pdata->headset_wakeup = 1;
+
 	if(pdata->chan != NULL)
 	{//hook adc mode
 		printk("%s() headset have hook adc mode\n",__FUNCTION__);

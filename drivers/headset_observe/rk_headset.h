@@ -21,6 +21,7 @@ struct rk_headset_pdata{
 	unsigned int main_mic_io_value;	
 #endif
 	struct iio_channel *chan;
+	int headset_wakeup;
 };
 
 #define HOOK_KEY_CODE KEY_MEDIA

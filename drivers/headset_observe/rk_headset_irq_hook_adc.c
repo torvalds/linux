@@ -470,7 +470,8 @@ int rk_headset_adc_probe(struct platform_device *pdev,struct rk_headset_pdata *p
 		ret = request_threaded_irq(headset->irq[HEADSET], NULL,headset_interrupt, headset->irq_type[HEADSET]|IRQF_NO_SUSPEND, "headset_input", NULL);
 		if (ret) 
 			goto failed_free_dev;
-		enable_irq_wake(headset->irq[HEADSET]);
+		if (pdata->headset_wakeup)
+			enable_irq_wake(headset->irq[HEADSET]);
 	}
 	else
 		goto failed_free_dev;
