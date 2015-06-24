@@ -37,12 +37,20 @@ static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 {
 	void *ptr;
 	u64 addr;
+	ulong flags = choose_memblock_flags();
 
 	if (limit > memblock.current_limit)
 		limit = memblock.current_limit;
 
+again:
 	addr = memblock_find_in_range_node(size, align, goal, limit, nid,
-					   MEMBLOCK_NONE);
+					   flags);
+	if (!addr && (flags & MEMBLOCK_MIRROR)) {
+		flags &= ~MEMBLOCK_MIRROR;
+		pr_warn("Could not allocate %pap bytes of mirrored memory\n",
+			&size);
+		goto again;
+	}
 	if (!addr)
 		return NULL;
 

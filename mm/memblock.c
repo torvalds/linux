@@ -54,9 +54,15 @@ int memblock_debug __initdata_memblock;
 #ifdef CONFIG_MOVABLE_NODE
 bool movable_node_enabled __initdata_memblock = false;
 #endif
+static bool system_has_some_mirror __initdata_memblock = false;
 static int memblock_can_resize __initdata_memblock;
 static int memblock_memory_in_slab __initdata_memblock = 0;
 static int memblock_reserved_in_slab __initdata_memblock = 0;
+
+ulong __init_memblock choose_memblock_flags(void)
+{
+	return system_has_some_mirror ? MEMBLOCK_MIRROR : MEMBLOCK_NONE;
+}
 
 /* inline so we don't get a warning when pr_debug is compiled out */
 static __init_memblock const char *
@@ -259,8 +265,21 @@ phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
 					phys_addr_t end, phys_addr_t size,
 					phys_addr_t align)
 {
-	return memblock_find_in_range_node(size, align, start, end,
-					    NUMA_NO_NODE, MEMBLOCK_NONE);
+	phys_addr_t ret;
+	ulong flags = choose_memblock_flags();
+
+again:
+	ret = memblock_find_in_range_node(size, align, start, end,
+					    NUMA_NO_NODE, flags);
+
+	if (!ret && (flags & MEMBLOCK_MIRROR)) {
+		pr_warn("Could not allocate %pap bytes of mirrored memory\n",
+			&size);
+		flags &= ~MEMBLOCK_MIRROR;
+		goto again;
+	}
+
+	return ret;
 }
 
 static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
@@ -786,6 +805,21 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
 }
 
 /**
+ * memblock_mark_mirror - Mark mirrored memory with flag MEMBLOCK_MIRROR.
+ * @base: the base phys addr of the region
+ * @size: the size of the region
+ *
+ * Return 0 on succees, -errno on failure.
+ */
+int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
+{
+	system_has_some_mirror = true;
+
+	return memblock_setclr_flag(base, size, 1, MEMBLOCK_MIRROR);
+}
+
+
+/**
  * __next__mem_range - next function for for_each_free_mem_range() etc.
  * @idx: pointer to u64 loop variable
  * @nid: node selector, %NUMA_NO_NODE for all nodes
@@ -837,6 +871,10 @@ void __init_memblock __next_mem_range(u64 *idx, int nid, ulong flags,
 
 		/* skip hotpluggable memory regions if needed */
 		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
+			continue;
+
+		/* if we want mirror memory skip non-mirror memory regions */
+		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
 			continue;
 
 		if (!type_b) {
@@ -942,6 +980,10 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid, ulong flags,
 
 		/* skip hotpluggable memory regions if needed */
 		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
+			continue;
+
+		/* if we want mirror memory skip non-mirror memory regions */
+		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
 			continue;
 
 		if (!type_b) {
@@ -1096,8 +1138,18 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
 
 phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
 {
-	return memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE,
-				       nid, MEMBLOCK_NONE);
+	ulong flags = choose_memblock_flags();
+	phys_addr_t ret;
+
+again:
+	ret = memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE,
+				      nid, flags);
+
+	if (!ret && (flags & MEMBLOCK_MIRROR)) {
+		flags &= ~MEMBLOCK_MIRROR;
+		goto again;
+	}
+	return ret;
 }
 
 phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys_addr_t max_addr)
@@ -1167,6 +1219,7 @@ static void * __init memblock_virt_alloc_internal(
 {
 	phys_addr_t alloc;
 	void *ptr;
+	ulong flags = choose_memblock_flags();
 
 	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
 		nid = NUMA_NO_NODE;
@@ -1187,14 +1240,14 @@ static void * __init memblock_virt_alloc_internal(
 
 again:
 	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
-					    nid, MEMBLOCK_NONE);
+					    nid, flags);
 	if (alloc)
 		goto done;
 
 	if (nid != NUMA_NO_NODE) {
 		alloc = memblock_find_in_range_node(size, align, min_addr,
 						    max_addr, NUMA_NO_NODE,
-						    MEMBLOCK_NONE);
+						    flags);
 		if (alloc)
 			goto done;
 	}
@@ -1202,10 +1255,16 @@ again:
 	if (min_addr) {
 		min_addr = 0;
 		goto again;
-	} else {
-		goto error;
 	}
 
+	if (flags & MEMBLOCK_MIRROR) {
+		flags &= ~MEMBLOCK_MIRROR;
+		pr_warn("Could not allocate %pap bytes of mirrored memory\n",
+			&size);
+		goto again;
+	}
+
+	return NULL;
 done:
 	memblock_reserve(alloc, size);
 	ptr = phys_to_virt(alloc);
@@ -1220,9 +1279,6 @@ done:
 	kmemleak_alloc(ptr, size, 0, 0);
 
 	return ptr;
-
-error:
-	return NULL;
 }
 
 /**
