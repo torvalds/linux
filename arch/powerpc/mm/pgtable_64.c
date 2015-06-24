@@ -812,8 +812,8 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 	return;
 }
 
-pmd_t pmdp_get_and_clear(struct mm_struct *mm,
-			 unsigned long addr, pmd_t *pmdp)
+pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
+			      unsigned long addr, pmd_t *pmdp)
 {
 	pmd_t old_pmd;
 	pgtable_t pgtable;
