@@ -1520,6 +1520,17 @@ config RTC_DRV_SIRFSOC
 	  Say "yes" here to support the real time clock on SiRF SOC chips.
 	  This driver can also be built as a module called rtc-sirfsoc.
 
+config RTC_DRV_ST_LPC
+	tristate "STMicroelectronics LPC RTC"
+	depends on ARCH_STI
+	depends on OF
+	help
+	  Say Y here to include STMicroelectronics Low Power Controller
+	  (LPC) based RTC support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-st-lpc.
+
 config RTC_DRV_MOXART
 	tristate "MOXA ART RTC"
 	depends on ARCH_MOXART || COMPILE_TEST

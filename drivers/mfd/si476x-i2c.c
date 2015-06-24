@@ -777,7 +777,8 @@ static int si476x_core_probe(struct i2c_client *client,
 		rval = devm_request_threaded_irq(&client->dev,
 						 client->irq, NULL,
 						 si476x_core_interrupt,
-						 IRQF_TRIGGER_FALLING,
+						 IRQF_TRIGGER_FALLING |
+						 IRQF_ONESHOT,
 						 client->name, core);
 		if (rval < 0) {
 			dev_err(&client->dev, "Could not request IRQ %d\n",
