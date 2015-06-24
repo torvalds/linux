@@ -12,6 +12,7 @@
 #include <linux/kvm_host.h>
 #include <linux/hugetlb.h>
 #include <linux/module.h>
+#include <linux/log2.h>
 
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
@@ -97,6 +98,20 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 }
 EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
+/* Update the changed page order field of an rmap entry */
+void kvmppc_update_rmap_change(unsigned long *rmap, unsigned long psize)
+{
+	unsigned long order;
+
+	if (!psize)
+		return;
+	order = ilog2(psize);
+	order <<= KVMPPC_RMAP_CHG_SHIFT;
+	if (order > (*rmap & KVMPPC_RMAP_CHG_ORDER))
+		*rmap = (*rmap & ~KVMPPC_RMAP_CHG_ORDER) | order;
+}
+EXPORT_SYMBOL_GPL(kvmppc_update_rmap_change);
+
 /* Remove this HPTE from the chain for a real page */
 static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 				struct revmap_entry *rev,
@@ -131,6 +146,8 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 			*rmap = (*rmap & ~KVMPPC_RMAP_INDEX) | head;
 	}
 	*rmap |= rcbits << KVMPPC_RMAP_RC_SHIFT;
+	if (rcbits & HPTE_R_C)
+		kvmppc_update_rmap_change(rmap, hpte_page_size(hpte_v, hpte_r));
 	unlock_rmap(rmap);
 }
 
