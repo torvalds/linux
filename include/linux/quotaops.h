@@ -43,7 +43,7 @@ void inode_claim_rsv_space(struct inode *inode, qsize_t number);
 void inode_sub_rsv_space(struct inode *inode, qsize_t number);
 void inode_reclaim_rsv_space(struct inode *inode, qsize_t number);
 
-void dquot_initialize(struct inode *inode);
+int dquot_initialize(struct inode *inode);
 void dquot_drop(struct inode *inode);
 struct dquot *dqget(struct super_block *sb, struct kqid qid);
 static inline struct dquot *dqgrab(struct dquot *dquot)
@@ -200,8 +200,9 @@ static inline int sb_has_quota_active(struct super_block *sb, int type)
 	return 0;
 }
 
-static inline void dquot_initialize(struct inode *inode)
+static inline int dquot_initialize(struct inode *inode)
 {
+	return 0;
 }
 
 static inline void dquot_drop(struct inode *inode)

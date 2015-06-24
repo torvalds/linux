@@ -499,8 +499,8 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			dquot = dqget(sb,
 				      make_kqid(&init_user_ns, type,
 						le64_to_cpu(dqblk->dqb_id)));
-			if (!dquot) {
-				status = -EIO;
+			if (IS_ERR(dquot)) {
+				status = PTR_ERR(dquot);
 				mlog(ML_ERROR, "Failed to get quota structure "
 				     "for id %u, type %d. Cannot finish quota "
 				     "file recovery.\n",
