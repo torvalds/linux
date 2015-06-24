@@ -2799,7 +2799,7 @@ static void khugepaged_do_scan(void)
 
 		cond_resched();
 
-		if (unlikely(kthread_should_stop() || freezing(current)))
+		if (unlikely(kthread_should_stop() || try_to_freeze()))
 			break;
 
 		spin_lock(&khugepaged_mm_lock);
@@ -2820,8 +2820,6 @@ static void khugepaged_do_scan(void)
 
 static void khugepaged_wait_work(void)
 {
-	try_to_freeze();
-
 	if (khugepaged_has_work()) {
 		if (!khugepaged_scan_sleep_millisecs)
 			return;
