@@ -1565,9 +1565,9 @@ static inline int has_transparent_hugepage(void)
 /*
  * 64 bit swap entry format:
  * A page-table entry has some bits we have to treat in a special way.
- * Bits 52 and bit 55 have to be zero, otherwise an specification
+ * Bits 52 and bit 55 have to be zero, otherwise a specification
  * exception will occur instead of a page translation exception. The
- * specifiation exception has the bad habit not to store necessary
+ * specification exception has the bad habit not to store necessary
  * information in the lowcore.
  * Bits 54 and 63 are used to indicate the page type.
  * A swap pte is indicated by bit pattern (pte & 0x201) == 0x200

@@ -799,7 +799,7 @@ int kvm_s390_ext_call_pending(struct kvm_vcpu *vcpu)
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	uint8_t sigp_ctrl = vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sigp_ctrl;
 
-	if (!sclp_has_sigpif())
+	if (!sclp.has_sigpif)
 		return test_bit(IRQ_PEND_EXT_EXTERNAL, &li->pending_irqs);
 
 	return (sigp_ctrl & SIGP_CTRL_C) &&
@@ -1058,7 +1058,7 @@ static int __inject_extcall(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	    kvm_get_vcpu(vcpu->kvm, src_id) == NULL)
 		return -EINVAL;
 
-	if (sclp_has_sigpif())
+	if (sclp.has_sigpif)
 		return __inject_extcall_sigpif(vcpu, src_id);
 
 	if (!test_and_set_bit(IRQ_PEND_EXT_EXTERNAL, &li->pending_irqs))

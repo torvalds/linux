@@ -450,7 +450,7 @@ static int __init test_devices_support(unsigned long addr)
 static int __init kvm_devices_init(void)
 {
 	int rc;
-	unsigned long total_memory_size = sclp_get_rzm() * sclp_get_rnmax();
+	unsigned long total_memory_size = sclp.rzm * sclp.rnmax;
 
 	if (!MACHINE_IS_KVM)
 		return -ENODEV;
@@ -497,7 +497,7 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 
 static int __init s390_virtio_console_init(void)
 {
-	if (sclp_has_vt220() || sclp_has_linemode())
+	if (sclp.has_vt220 || sclp.has_linemode)
 		return -ENODEV;
 	return virtio_cons_early_init(early_put_chars);
 }

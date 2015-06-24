@@ -604,7 +604,7 @@ static int kvm_s390_get_machine(struct kvm *kvm, struct kvm_device_attr *attr)
 		goto out;
 	}
 	get_cpu_id((struct cpuid *) &mach->cpuid);
-	mach->ibc = sclp_get_ibc();
+	mach->ibc = sclp.ibc;
 	memcpy(&mach->fac_mask, kvm->arch.model.fac->mask,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	memcpy((unsigned long *)&mach->fac_list, S390_lowcore.stfle_fac_list,
@@ -1068,7 +1068,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 
 	kvm_s390_get_cpu_id(&kvm->arch.model.cpu_id);
-	kvm->arch.model.ibc = sclp_get_ibc() & 0x0fff;
+	kvm->arch.model.ibc = sclp.ibc & 0x0fff;
 
 	if (kvm_s390_crypto_init(kvm) < 0)
 		goto out_err;
@@ -1321,9 +1321,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.sie_block->ecb2  = 8;
 	vcpu->arch.sie_block->eca   = 0xC1002000U;
-	if (sclp_has_siif())
+	if (sclp.has_siif)
 		vcpu->arch.sie_block->eca |= 1;
-	if (sclp_has_sigpif())
+	if (sclp.has_sigpif)
 		vcpu->arch.sie_block->eca |= 0x10000000U;
 	if (test_kvm_facility(vcpu->kvm, 129)) {
 		vcpu->arch.sie_block->eca |= 0x00020000;
