@@ -185,19 +185,6 @@ static s32 fm10k_init_hw_pf(struct fm10k_hw *hw)
 }
 
 /**
- *  fm10k_is_slot_appropriate_pf - Indicate appropriate slot for this SKU
- *  @hw: pointer to hardware structure
- *
- *  Looks at the PCIe bus info to confirm whether or not this slot can support
- *  the necessary bandwidth for this device.
- **/
-static bool fm10k_is_slot_appropriate_pf(struct fm10k_hw *hw)
-{
-	return (hw->bus.speed == hw->bus_caps.speed) &&
-	       (hw->bus.width == hw->bus_caps.width);
-}
-
-/**
  *  fm10k_update_vlan_pf - Update status of VLAN ID in VLAN filter table
  *  @hw: pointer to hardware structure
  *  @vid: VLAN ID to add to table
@@ -1849,7 +1836,6 @@ static struct fm10k_mac_ops mac_ops_pf = {
 	.init_hw		= &fm10k_init_hw_pf,
 	.start_hw		= &fm10k_start_hw_generic,
 	.stop_hw		= &fm10k_stop_hw_generic,
-	.is_slot_appropriate	= &fm10k_is_slot_appropriate_pf,
 	.update_vlan		= &fm10k_update_vlan_pf,
 	.read_mac_addr		= &fm10k_read_mac_addr_pf,
 	.update_uc_addr		= &fm10k_update_uc_addr_pf,
