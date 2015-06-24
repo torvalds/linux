@@ -448,7 +448,7 @@ static int resume_iter(struct device *dev, void *data)
 }
 
 /**
- * pcie_port_device_suspend - resume port services associated with a PCIe port
+ * pcie_port_device_resume - resume port services associated with a PCIe port
  * @dev: PCI Express port to handle
  */
 int pcie_port_device_resume(struct device *dev)
