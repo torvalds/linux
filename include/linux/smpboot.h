@@ -27,6 +27,8 @@ struct smpboot_thread_data;
  * @pre_unpark:		Optional unpark function, called before the thread is
  *			unparked (cpu online). This is not guaranteed to be
  *			called on the target cpu of the thread. Careful!
+ * @cpumask:		Internal state.  To update which threads are unparked,
+ *			call smpboot_update_cpumask_percpu_thread().
  * @selfparking:	Thread is not parked by the park function.
  * @thread_comm:	The base name of the thread
  */
@@ -41,11 +43,14 @@ struct smp_hotplug_thread {
 	void				(*park)(unsigned int cpu);
 	void				(*unpark)(unsigned int cpu);
 	void				(*pre_unpark)(unsigned int cpu);
+	cpumask_var_t			cpumask;
 	bool				selfparking;
 	const char			*thread_comm;
 };
 
 int smpboot_register_percpu_thread(struct smp_hotplug_thread *plug_thread);
 void smpboot_unregister_percpu_thread(struct smp_hotplug_thread *plug_thread);
+int smpboot_update_cpumask_percpu_thread(struct smp_hotplug_thread *plug_thread,
+					 const struct cpumask *);
 
 #endif
