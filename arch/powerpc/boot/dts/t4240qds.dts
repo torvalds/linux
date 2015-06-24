@@ -109,6 +109,14 @@
 			size = <0 0x1000000>;
 			alignment = <0 0x1000000>;
 		};
+		qman_fqd: qman-fqd {
+			size = <0 0x400000>;
+			alignment = <0 0x400000>;
+		};
+		qman_pfdr: qman-pfdr {
+			size = <0 0x2000000>;
+			alignment = <0 0x2000000>;
+		};
 	};
 
 	dcsr: dcsr@f00000000 {
@@ -117,6 +125,10 @@
 
 	bportals: bman-portals@ff4000000 {
 		ranges = <0x0 0xf 0xf4000000 0x2000000>;
+	};
+
+	qportals: qman-portals@ff6000000 {
+		ranges = <0x0 0xf 0xf6000000 0x2000000>;
 	};
 
 	soc: soc@ffe000000 {

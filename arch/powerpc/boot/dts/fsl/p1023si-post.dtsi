@@ -37,6 +37,16 @@
 	alloc-ranges = <0 0 0x10 0>;
 };
 
+&qman_fqd {
+	compatible = "fsl,qman-fqd";
+	alloc-ranges = <0 0 0x10 0>;
+};
+
+&qman_pfdr {
+	compatible = "fsl,qman-pfdr";
+	alloc-ranges = <0 0 0x10 0>;
+};
+
 &lbc {
 	#address-cells = <2>;
 	#size-cells = <1>;
@@ -99,6 +109,31 @@
 		#address-cells = <3>;
 		device_type = "pci";
 		interrupts = <16 2 0 0>;
+	};
+};
+
+&qportals {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "simple-bus";
+
+	qportal0: qman-portal@0 {
+		compatible = "fsl,qman-portal";
+		reg = <0x0 0x4000>, <0x100000 0x1000>;
+		interrupts = <29 2 0 0>;
+		cell-index = <0>;
+	};
+	qportal1: qman-portal@4000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x4000 0x4000>, <0x101000 0x1000>;
+		interrupts = <31 2 0 0>;
+		cell-index = <1>;
+	};
+	qportal2: qman-portal@8000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x8000 0x4000>, <0x102000 0x1000>;
+		interrupts = <33 2 0 0>;
+		cell-index = <2>;
 	};
 };
 
@@ -247,6 +282,14 @@
 
 /include/ "pq3-mpic.dtsi"
 /include/ "pq3-mpic-timer-B.dtsi"
+
+	qman: qman@88000 {
+		compatible = "fsl,qman";
+		reg = <0x88000 0x1000>;
+		interrupts = <16 2 0 0>;
+		fsl,qman-portals = <&qportals>;
+		memory-region = <&qman_fqd &qman_pfdr>;
+	};
 
 	bman: bman@8a000 {
 		compatible = "fsl,bman";

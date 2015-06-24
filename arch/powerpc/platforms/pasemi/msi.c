@@ -13,8 +13,6 @@
  *
  */
 
-#undef DEBUG
-
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <asm/mpic.h>
@@ -23,7 +21,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/msi_bitmap.h>
 
-#include "mpic.h"
+#include <sysdev/mpic.h>
 
 /* Allocate 16 interrupts per device, to give an alignment of 16,
  * since that's the size of the grouping w.r.t. affinity. If someone
@@ -144,6 +142,7 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 int mpic_pasemi_msi_init(struct mpic *mpic)
 {
 	int rc;
+	struct pci_controller *phb;
 
 	if (!mpic->irqhost->of_node ||
 	    !of_device_is_compatible(mpic->irqhost->of_node,
@@ -159,9 +158,11 @@ int mpic_pasemi_msi_init(struct mpic *mpic)
 	pr_debug("pasemi_msi: Registering PA Semi MPIC MSI callbacks\n");
 
 	msi_mpic = mpic;
-	WARN_ON(ppc_md.setup_msi_irqs);
-	ppc_md.setup_msi_irqs = pasemi_msi_setup_msi_irqs;
-	ppc_md.teardown_msi_irqs = pasemi_msi_teardown_msi_irqs;
+	list_for_each_entry(phb, &hose_list, list_node) {
+		WARN_ON(phb->controller_ops.setup_msi_irqs);
+		phb->controller_ops.setup_msi_irqs = pasemi_msi_setup_msi_irqs;
+		phb->controller_ops.teardown_msi_irqs = pasemi_msi_teardown_msi_irqs;
+	}
 
 	return 0;
 }
