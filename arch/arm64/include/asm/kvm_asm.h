@@ -132,11 +132,6 @@ extern int __kvm_vcpu_run(struct kvm_vcpu *vcpu);
 
 extern u64 __vgic_v3_get_ich_vtr_el2(void);
 
-extern char __save_vgic_v2_state[];
-extern char __restore_vgic_v2_state[];
-extern char __save_vgic_v3_state[];
-extern char __restore_vgic_v3_state[];
-
 #endif
 
 #endif /* __ARM_KVM_ASM_H__ */

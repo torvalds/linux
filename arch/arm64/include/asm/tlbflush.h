@@ -28,8 +28,6 @@
  *	TLB Management
  *	==============
  *
- *	The arch/arm64/mm/tlb.S files implement these methods.
- *
  *	The TLB specific code is expected to perform whatever tests it needs
  *	to determine if it should invalidate the TLB for each call.  Start
  *	addresses are inclusive and end addresses are exclusive; it is safe to
