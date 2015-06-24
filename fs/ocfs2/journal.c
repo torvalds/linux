@@ -571,9 +571,7 @@ static void ocfs2_abort_trigger(struct jbd2_buffer_trigger_type *triggers,
 	     (unsigned long)bh,
 	     (unsigned long long)bh->b_blocknr);
 
-	/* We aren't guaranteed to have the superblock here - but if we
-	 * don't, it'll just crash. */
-	ocfs2_error(bh->b_assoc_map->host->i_sb,
+	ocfs2_error(bh->b_bdev->bd_super,
 		    "JBD2 has aborted our journal, ocfs2 cannot continue\n");
 }
 
