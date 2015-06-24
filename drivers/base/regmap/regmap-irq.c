@@ -109,7 +109,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		if (!d->chip->init_ack_masked)
 			continue;
 		/*
-		 * Ack all the masked interrupts uncondictionly,
+		 * Ack all the masked interrupts unconditionally,
 		 * OR if there is masked interrupt which hasn't been Acked,
 		 * it'll be ignored in irq handler, then may introduce irq storm
 		 */
@@ -306,19 +306,12 @@ static int regmap_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_data(virq, data);
 	irq_set_chip(virq, &data->irq_chip);
 	irq_set_nested_thread(virq, 1);
-
-	/* ARM needs us to explicitly flag the IRQ as valid
-	 * and will set them noprobe when we do so. */
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 
 	return 0;
 }
 
-static struct irq_domain_ops regmap_domain_ops = {
+static const struct irq_domain_ops regmap_domain_ops = {
 	.map	= regmap_irq_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
