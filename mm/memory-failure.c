@@ -20,6 +20,14 @@
  * this code has to be extremely careful. Generally it tries to use 
  * normal locking rules, as in get the standard locks, even if that means 
  * the error handling takes potentially a long time.
+ *
+ * It can be very tempting to add handling for obscure cases here.
+ * In general any code for handling new cases should only be added iff:
+ * - You know how to test it.
+ * - You have a test that can be added to mce-test
+ *   https://git.kernel.org/cgit/utils/cpu/mce/mce-test.git/
+ * - The case actually shows up as a frequent (top 10) page state in
+ *   tools/vm/page-types when running a real workload.
  * 
  * There are several operations here with exponential complexity because
  * of unsuitable VM data structures. For example the operation to map back 
