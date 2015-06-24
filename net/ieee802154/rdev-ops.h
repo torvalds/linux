@@ -24,6 +24,26 @@ rdev_del_virtual_intf_deprecated(struct cfg802154_registered_device *rdev,
 }
 
 static inline int
+rdev_suspend(struct cfg802154_registered_device *rdev)
+{
+	int ret;
+	trace_802154_rdev_suspend(&rdev->wpan_phy);
+	ret = rdev->ops->suspend(&rdev->wpan_phy);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
+static inline int
+rdev_resume(struct cfg802154_registered_device *rdev)
+{
+	int ret;
+	trace_802154_rdev_resume(&rdev->wpan_phy);
+	ret = rdev->ops->resume(&rdev->wpan_phy);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
+static inline int
 rdev_add_virtual_intf(struct cfg802154_registered_device *rdev, char *name,
 		      unsigned char name_assign_type,
 		      enum nl802154_iftype type, __le64 extended_addr)

@@ -34,6 +34,8 @@ struct cfg802154_ops {
 							   int type);
 	void	(*del_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
 					       struct net_device *dev);
+	int	(*suspend)(struct wpan_phy *wpan_phy);
+	int	(*resume)(struct wpan_phy *wpan_phy);
 	int	(*add_virtual_intf)(struct wpan_phy *wpan_phy,
 				    const char *name,
 				    unsigned char name_assign_type,
