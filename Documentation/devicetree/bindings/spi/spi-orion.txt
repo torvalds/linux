@@ -1,7 +1,13 @@
 Marvell Orion SPI device
 
 Required properties:
-- compatible : should be "marvell,orion-spi" or "marvell,armada-370-spi".
+- compatible : should be on of the following:
+    - "marvell,orion-spi" for the Orion, mv78x00, Kirkwood and Dove SoCs
+    - "marvell,armada-370-spi", for the Armada 370 SoCs
+    - "marvell,armada-375-spi", for the Armada 375 SoCs
+    - "marvell,armada-380-spi", for the Armada 38x SoCs
+    - "marvell,armada-390-spi", for the Armada 39x SoCs
+    - "marvell,armada-xp-spi", for the Armada XP SoCs
 - reg : offset and length of the register set for the device
 - cell-index : Which of multiple SPI controllers is this.
 Optional properties:
