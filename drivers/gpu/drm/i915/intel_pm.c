@@ -335,6 +335,7 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 	if (IS_VALLEYVIEW(dev)) {
 		I915_WRITE(FW_BLC_SELF_VLV, enable ? FW_CSPWRDWNEN : 0);
 		POSTING_READ(FW_BLC_SELF_VLV);
+		dev_priv->wm.vlv.cxsr = enable;
 	} else if (IS_G4X(dev) || IS_CRESTLINE(dev)) {
 		I915_WRITE(FW_BLC_SELF, enable ? FW_BLC_SELF_EN : 0);
 		POSTING_READ(FW_BLC_SELF);
@@ -1116,7 +1117,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 
 	memset(wm_state, 0, sizeof(*wm_state));
 
-	wm_state->cxsr = crtc->pipe != PIPE_C;
+	wm_state->cxsr = crtc->pipe != PIPE_C && crtc->wm.cxsr_allowed;
 	if (IS_CHERRYVIEW(dev))
 		wm_state->num_levels = CHV_WM_NUM_LEVELS;
 	else
@@ -1369,10 +1370,8 @@ static void vlv_update_wm(struct drm_crtc *crtc)
 	    dev_priv->wm.vlv.level >= VLV_WM_LEVEL_PM5)
 		chv_set_memory_pm5(dev_priv, false);
 
-	if (!wm.cxsr && dev_priv->wm.vlv.cxsr) {
+	if (!wm.cxsr && dev_priv->wm.vlv.cxsr)
 		intel_set_memory_cxsr(dev_priv, false);
-		intel_wait_for_vblank(dev, pipe);
-	}
 
 	/* FIXME should be part of crtc atomic commit */
 	vlv_pipe_set_fifo_size(intel_crtc);
@@ -1385,10 +1384,8 @@ static void vlv_update_wm(struct drm_crtc *crtc)
 		      wm.pipe[pipe].sprite[0], wm.pipe[pipe].sprite[1],
 		      wm.sr.plane, wm.sr.cursor, wm.level, wm.cxsr);
 
-	if (wm.cxsr && !dev_priv->wm.vlv.cxsr) {
-		intel_wait_for_vblank(dev, pipe);
+	if (wm.cxsr && !dev_priv->wm.vlv.cxsr)
 		intel_set_memory_cxsr(dev_priv, true);
-	}
 
 	if (wm.level >= VLV_WM_LEVEL_PM5 &&
 	    dev_priv->wm.vlv.level < VLV_WM_LEVEL_PM5)

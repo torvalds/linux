@@ -508,6 +508,7 @@ struct intel_crtc_atomic_commit {
 	bool wait_for_flips;
 	bool disable_fbc;
 	bool disable_ips;
+	bool disable_cxsr;
 	bool pre_disable_primary;
 	bool update_wm_pre, update_wm_post;
 	unsigned disabled_planes;
@@ -566,6 +567,8 @@ struct intel_crtc {
 		struct intel_pipe_wm active;
 		/* SKL wm values currently in use */
 		struct skl_pipe_wm skl_active;
+		/* allow CxSR on this pipe */
+		bool cxsr_allowed;
 	} wm;
 
 	int scanline_offset;
