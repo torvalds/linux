@@ -242,19 +242,16 @@ static const struct file_operations efuse_fops = {
 #define MACCHAR(x)	(('A' <= (x) && (x) <= 'F') \
 				? (x) - 'A' + 'a' : (x))
 
-static char *aml_efuse_mac(void)
+void aml_efuse_mac(unsigned char* hwmac)
 {
-	char hwmac[20];
 	char buf[80];
         char mac_mask;
 	efuseinfo_item_t info;
-
-	if (efuse_getinfo_byID(EFUSE_MAC_ID, &info) < 0)
-		return 0;
-
-	if (efuse_read_item(buf, info.data_len,
-				(loff_t*)&info.offset) < 0)
-		return 0;
+	if (efuse_getinfo_byID(EFUSE_MAC_ID, &info) < 0
+		|| efuse_read_item(buf, info.data_len, (loff_t*)&info.offset) < 0) {
+		hwmac[0] = '\0';
+		return;
+	}
 
 	sprintf(hwmac, "%02x:%02x:%02x:%02x:%02x:%02x",
 			buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
@@ -275,11 +272,9 @@ static char *aml_efuse_mac(void)
                         MACCHAR(buf[11]), MACCHAR(buf[12]), MACCHAR(buf[13]),
                         MACCHAR(buf[14]), MACCHAR(buf[15]));
         }
-
-	return hwmac;
 }
 
-unsigned char *aml_efuse_get_item(unsigned char* key_name)
+unsigned char *aml_efuse_get_item(unsigned char* key_name, unsigned char* value)
 {
         unsigned char *ret = 0;
 	int id;
@@ -294,7 +289,7 @@ unsigned char *aml_efuse_get_item(unsigned char* key_name)
         }
 
 	if (id == EFUSE_MAC_ID) {
-		return aml_efuse_mac();
+		aml_efuse_mac(value);
 	}
 
         return ret;
@@ -304,7 +299,9 @@ EXPORT_SYMBOL(aml_efuse_get_item);
 /* Sysfs Files */
 static ssize_t mac_show(struct class *cla, struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", aml_efuse_mac());
+	char hwmac[20];
+	aml_efuse_mac(hwmac);
+	return sprintf(buf, "%s\n", hwmac);
 }
 
 static ssize_t mac_wifi_show(struct class *cla, struct class_attribute *attr, char *buf)

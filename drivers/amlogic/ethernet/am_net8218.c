@@ -117,7 +117,7 @@ static int reset_mac(struct net_device *dev);
 static void am_net_dump_macreg(void);
 static void read_macreg(void);
 void hardware_reset_phy(void);
-extern char *aml_efuse_get_item(unsigned char* key_name);
+extern char *aml_efuse_get_item(unsigned char* key_name, unsigned char *value);
 
 /* --------------------------------------------------------------------------*/
 /**
@@ -1351,13 +1351,13 @@ static void config_mac_addr(struct net_device *dev, void *mac)
 static void mac_from_efuse_to_DEFMAC(void)
 {
 	unsigned char mac[6];
-	unsigned char *efuse_mac;
-	int i;
+	unsigned char efuse_mac[20];
+	int i, j;
 	
-	efuse_mac = aml_efuse_get_item("mac");
-	for (i = 0; i < 6 && efuse_mac[0] != '\0' && efuse_mac[1] != '\0'; i++) {
-		mac[i] = chartonum(efuse_mac[0]) << 4 | chartonum(efuse_mac[1]);
-		efuse_mac += 3;
+	aml_efuse_get_item("mac", efuse_mac);
+	for (i = 0, j = 0; i < 6 && efuse_mac[j] != '\0' && efuse_mac[j+1] != '\0'; i++) {
+		mac[i] = chartonum(efuse_mac[j]) << 4 | chartonum(efuse_mac[j+1]);
+		j += 3;
 	}
 	memcpy(DEFMAC, mac, 6);
 	g_mac_addr_setup++;
