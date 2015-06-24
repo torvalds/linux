@@ -426,7 +426,7 @@ EXPORT_SYMBOL(dwc_otg_check_dpdm);
 static ATOMIC_NOTIFIER_HEAD(rk_bc_notifier);
 
 int rk_bc_detect_notifier_register(struct notifier_block *nb,
-					   int *type)
+				   enum bc_port_type *type)
 {
 	*type = (int)usb_battery_charger_detect(0);
 	return atomic_notifier_chain_register(&rk_bc_notifier, nb);
