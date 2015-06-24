@@ -421,14 +421,20 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
 	v = pte & ~HPTE_V_HVLOCK;
 	if (v & HPTE_V_VALID) {
-		u64 pte1;
-
-		pte1 = be64_to_cpu(hpte[1]);
 		hpte[0] &= ~cpu_to_be64(HPTE_V_VALID);
-		rb = compute_tlbie_rb(v, pte1, pte_index);
+		rb = compute_tlbie_rb(v, be64_to_cpu(hpte[1]), pte_index);
 		do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags), true);
-		/* Read PTE low word after tlbie to get final R/C values */
-		remove_revmap_chain(kvm, pte_index, rev, v, pte1);
+		/*
+		 * The reference (R) and change (C) bits in a HPT
+		 * entry can be set by hardware at any time up until
+		 * the HPTE is invalidated and the TLB invalidation
+		 * sequence has completed.  This means that when
+		 * removing a HPTE, we need to re-read the HPTE after
+		 * the invalidation sequence has completed in order to
+		 * obtain reliable values of R and C.
+		 */
+		remove_revmap_chain(kvm, pte_index, rev, v,
+				    be64_to_cpu(hpte[1]));
 	}
 	r = rev->guest_rpte & ~HPTE_GR_RESERVED;
 	note_hpte_modification(kvm, rev);
