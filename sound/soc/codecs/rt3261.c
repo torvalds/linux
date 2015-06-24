@@ -112,7 +112,7 @@ static struct rt3261_init_reg init_list[] = {
 	{RT3261_DEPOP_M3  	, 0x636},//0424
 	{RT3261_DEPOP_M1  	, 0x84},//0424
 	{RT3261_PWR_DIG1  	, 0x8000},//0424
-	//{0x64  	, 0x0c00},//0424
+	{RT3261_PWR_ANLG2  	, 0x0800},
 	// huangcun 20130816 s
 #if 0
 	/*speaker*/
