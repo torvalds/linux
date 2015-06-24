@@ -14,6 +14,7 @@
  */
 
 #include "ieee802154_i.h"
+#include "driver-ops.h"
 
 /* privid for wpan_phys to determine whether they belong to us or not */
 const void *const mac802154_wpan_phy_privid = &mac802154_wpan_phy_privid;
@@ -92,3 +93,10 @@ void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 	dev_consume_skb_any(skb);
 }
 EXPORT_SYMBOL(ieee802154_xmit_complete);
+
+void ieee802154_stop_device(struct ieee802154_local *local)
+{
+	flush_workqueue(local->workqueue);
+	hrtimer_cancel(&local->ifs_timer);
+	drv_stop(local);
+}
