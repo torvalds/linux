@@ -110,14 +110,15 @@ void __init kvm_cma_reserve(void)
 long int kvmppc_rm_h_confer(struct kvm_vcpu *vcpu, int target,
 			    unsigned int yield_count)
 {
-	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	struct kvmppc_vcore *vc = local_paca->kvm_hstate.kvm_vcore;
+	int ptid = local_paca->kvm_hstate.ptid;
 	int threads_running;
 	int threads_ceded;
 	int threads_conferring;
 	u64 stop = get_tb() + 10 * tb_ticks_per_usec;
 	int rv = H_SUCCESS; /* => don't yield */
 
-	set_bit(vcpu->arch.ptid, &vc->conferring_threads);
+	set_bit(ptid, &vc->conferring_threads);
 	while ((get_tb() < stop) && !VCORE_IS_EXITING(vc)) {
 		threads_running = VCORE_ENTRY_MAP(vc);
 		threads_ceded = vc->napping_threads;
@@ -127,7 +128,7 @@ long int kvmppc_rm_h_confer(struct kvm_vcpu *vcpu, int target,
 			break;
 		}
 	}
-	clear_bit(vcpu->arch.ptid, &vc->conferring_threads);
+	clear_bit(ptid, &vc->conferring_threads);
 	return rv;
 }
 

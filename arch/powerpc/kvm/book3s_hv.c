@@ -81,6 +81,9 @@ static DECLARE_BITMAP(default_enabled_hcalls, MAX_HCALL_OPCODE/4 + 1);
 #define MPP_BUFFER_ORDER	3
 #endif
 
+static int target_smt_mode;
+module_param(target_smt_mode, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(target_smt_mode, "Target threads per core (0 = max)");
 
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
@@ -114,7 +117,7 @@ static bool kvmppc_ipi_thread(int cpu)
 
 static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 {
-	int cpu = vcpu->cpu;
+	int cpu;
 	wait_queue_head_t *wqp;
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
@@ -123,10 +126,11 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 		++vcpu->stat.halt_wakeup;
 	}
 
-	if (kvmppc_ipi_thread(cpu + vcpu->arch.ptid))
+	if (kvmppc_ipi_thread(vcpu->arch.thread_cpu))
 		return;
 
 	/* CPU points to the first thread of the core */
+	cpu = vcpu->cpu;
 	if (cpu >= 0 && cpu < nr_cpu_ids && cpu_online(cpu))
 		smp_send_reschedule(cpu);
 }
@@ -164,6 +168,27 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
  * they should never fail.)
  */
 
+static void kvmppc_core_start_stolen(struct kvmppc_vcore *vc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&vc->stoltb_lock, flags);
+	vc->preempt_tb = mftb();
+	spin_unlock_irqrestore(&vc->stoltb_lock, flags);
+}
+
+static void kvmppc_core_end_stolen(struct kvmppc_vcore *vc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&vc->stoltb_lock, flags);
+	if (vc->preempt_tb != TB_NIL) {
+		vc->stolen_tb += mftb() - vc->preempt_tb;
+		vc->preempt_tb = TB_NIL;
+	}
+	spin_unlock_irqrestore(&vc->stoltb_lock, flags);
+}
+
 static void kvmppc_core_vcpu_load_hv(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
@@ -175,14 +200,9 @@ static void kvmppc_core_vcpu_load_hv(struct kvm_vcpu *vcpu, int cpu)
 	 * vcpu, and once it is set to this vcpu, only this task
 	 * ever sets it to NULL.
 	 */
-	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE) {
-		spin_lock_irqsave(&vc->stoltb_lock, flags);
-		if (vc->preempt_tb != TB_NIL) {
-			vc->stolen_tb += mftb() - vc->preempt_tb;
-			vc->preempt_tb = TB_NIL;
-		}
-		spin_unlock_irqrestore(&vc->stoltb_lock, flags);
-	}
+	if (vc->runner == vcpu && vc->vcore_state >= VCORE_SLEEPING)
+		kvmppc_core_end_stolen(vc);
+
 	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
 	if (vcpu->arch.state == KVMPPC_VCPU_BUSY_IN_HOST &&
 	    vcpu->arch.busy_preempt != TB_NIL) {
@@ -197,11 +217,9 @@ static void kvmppc_core_vcpu_put_hv(struct kvm_vcpu *vcpu)
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	unsigned long flags;
 
-	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE) {
-		spin_lock_irqsave(&vc->stoltb_lock, flags);
-		vc->preempt_tb = mftb();
-		spin_unlock_irqrestore(&vc->stoltb_lock, flags);
-	}
+	if (vc->runner == vcpu && vc->vcore_state >= VCORE_SLEEPING)
+		kvmppc_core_start_stolen(vc);
+
 	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
 	if (vcpu->arch.state == KVMPPC_VCPU_BUSY_IN_HOST)
 		vcpu->arch.busy_preempt = mftb();
@@ -641,7 +659,8 @@ static int kvm_arch_vcpu_yield_to(struct kvm_vcpu *target)
 
 	spin_lock(&vcore->lock);
 	if (target->arch.state == KVMPPC_VCPU_RUNNABLE &&
-	    vcore->vcore_state != VCORE_INACTIVE)
+	    vcore->vcore_state != VCORE_INACTIVE &&
+	    vcore->runner)
 		target = vcore->runner;
 	spin_unlock(&vcore->lock);
 
@@ -1431,6 +1450,7 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int core)
 	vcore->lpcr = kvm->arch.lpcr;
 	vcore->first_vcpuid = core * threads_per_subcore;
 	vcore->kvm = kvm;
+	INIT_LIST_HEAD(&vcore->preempt_list);
 
 	vcore->mpp_buffer_is_valid = false;
 
@@ -1655,6 +1675,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	spin_unlock(&vcore->lock);
 	vcpu->arch.vcore = vcore;
 	vcpu->arch.ptid = vcpu->vcpu_id - vcore->first_vcpuid;
+	vcpu->arch.thread_cpu = -1;
 
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
@@ -1787,6 +1808,7 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	int cpu;
 	struct paca_struct *tpaca;
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	struct kvmppc_vcore *mvc = vc->master_vcore;
 
 	if (vcpu->arch.timer_running) {
 		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
@@ -1794,10 +1816,11 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	}
 	cpu = vc->pcpu + vcpu->arch.ptid;
 	tpaca = &paca[cpu];
-	tpaca->kvm_hstate.kvm_vcore = vc;
-	tpaca->kvm_hstate.ptid = vcpu->arch.ptid;
-	vcpu->cpu = vc->pcpu;
-	/* Order stores to hstate.kvm_vcore etc. before store to kvm_vcpu */
+	tpaca->kvm_hstate.kvm_vcore = mvc;
+	tpaca->kvm_hstate.ptid = cpu - mvc->pcpu;
+	vcpu->cpu = mvc->pcpu;
+	vcpu->arch.thread_cpu = cpu;
+	/* Order stores to hstate.kvm_vcpu etc. before store to kvm_vcore */
 	smp_wmb();
 	tpaca->kvm_hstate.kvm_vcpu = vcpu;
 	if (cpu != smp_processor_id())
@@ -1890,6 +1913,114 @@ static void kvmppc_start_restoring_l2_cache(const struct kvmppc_vcore *vc)
 	mtspr(SPRN_MPPR, mpp_addr | PPC_MPPR_FETCH_WHOLE_TABLE);
 }
 
+/*
+ * A list of virtual cores for each physical CPU.
+ * These are vcores that could run but their runner VCPU tasks are
+ * (or may be) preempted.
+ */
+struct preempted_vcore_list {
+	struct list_head	list;
+	spinlock_t		lock;
+};
+
+static DEFINE_PER_CPU(struct preempted_vcore_list, preempted_vcores);
+
+static void init_vcore_lists(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct preempted_vcore_list *lp = &per_cpu(preempted_vcores, cpu);
+		spin_lock_init(&lp->lock);
+		INIT_LIST_HEAD(&lp->list);
+	}
+}
+
+static void kvmppc_vcore_preempt(struct kvmppc_vcore *vc)
+{
+	struct preempted_vcore_list *lp = this_cpu_ptr(&preempted_vcores);
+
+	vc->vcore_state = VCORE_PREEMPT;
+	vc->pcpu = smp_processor_id();
+	if (vc->num_threads < threads_per_subcore) {
+		spin_lock(&lp->lock);
+		list_add_tail(&vc->preempt_list, &lp->list);
+		spin_unlock(&lp->lock);
+	}
+
+	/* Start accumulating stolen time */
+	kvmppc_core_start_stolen(vc);
+}
+
+static void kvmppc_vcore_end_preempt(struct kvmppc_vcore *vc)
+{
+	struct preempted_vcore_list *lp = this_cpu_ptr(&preempted_vcores);
+
+	kvmppc_core_end_stolen(vc);
+	if (!list_empty(&vc->preempt_list)) {
+		spin_lock(&lp->lock);
+		list_del_init(&vc->preempt_list);
+		spin_unlock(&lp->lock);
+	}
+	vc->vcore_state = VCORE_INACTIVE;
+}
+
+struct core_info {
+	int		total_threads;
+	struct list_head vcs;
+};
+
+static void init_core_info(struct core_info *cip, struct kvmppc_vcore *vc)
+{
+	memset(cip, 0, sizeof(*cip));
+	cip->total_threads = vc->num_threads;
+	INIT_LIST_HEAD(&cip->vcs);
+	list_add_tail(&vc->preempt_list, &cip->vcs);
+}
+
+static void init_master_vcore(struct kvmppc_vcore *vc)
+{
+	vc->master_vcore = vc;
+	vc->entry_exit_map = 0;
+	vc->in_guest = 0;
+	vc->napping_threads = 0;
+	vc->conferring_threads = 0;
+}
+
+/*
+ * Work out whether it is possible to piggyback the execute of
+ * vcore *pvc onto the execution of the other vcores described in *cip.
+ */
+static bool can_piggyback(struct kvmppc_vcore *pvc, struct core_info *cip,
+			  int target_threads)
+{
+	struct kvmppc_vcore *vc;
+
+	vc = list_first_entry(&cip->vcs, struct kvmppc_vcore, preempt_list);
+
+	/* require same VM and same per-core reg values */
+	if (pvc->kvm != vc->kvm ||
+	    pvc->tb_offset != vc->tb_offset ||
+	    pvc->pcr != vc->pcr ||
+	    pvc->lpcr != vc->lpcr)
+		return false;
+
+	/* P8 guest with > 1 thread per core would see wrong TIR value */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
+	    (vc->num_threads > 1 || pvc->num_threads > 1))
+		return false;
+
+	if (cip->total_threads + pvc->num_threads > target_threads)
+		return false;
+
+	cip->total_threads += pvc->num_threads;
+	pvc->master_vcore = vc;
+	list_del(&pvc->preempt_list);
+	list_add_tail(&pvc->preempt_list, &cip->vcs);
+
+	return true;
+}
+
 static void prepare_threads(struct kvmppc_vcore *vc)
 {
 	struct kvm_vcpu *vcpu, *vnext;
@@ -1909,12 +2040,45 @@ static void prepare_threads(struct kvmppc_vcore *vc)
 	}
 }
 
-static void post_guest_process(struct kvmppc_vcore *vc)
+static void collect_piggybacks(struct core_info *cip, int target_threads)
 {
+	struct preempted_vcore_list *lp = this_cpu_ptr(&preempted_vcores);
+	struct kvmppc_vcore *pvc, *vcnext;
+
+	spin_lock(&lp->lock);
+	list_for_each_entry_safe(pvc, vcnext, &lp->list, preempt_list) {
+		if (!spin_trylock(&pvc->lock))
+			continue;
+		prepare_threads(pvc);
+		if (!pvc->n_runnable) {
+			list_del_init(&pvc->preempt_list);
+			if (pvc->runner == NULL) {
+				pvc->vcore_state = VCORE_INACTIVE;
+				kvmppc_core_end_stolen(pvc);
+			}
+			spin_unlock(&pvc->lock);
+			continue;
+		}
+		if (!can_piggyback(pvc, cip, target_threads)) {
+			spin_unlock(&pvc->lock);
+			continue;
+		}
+		kvmppc_core_end_stolen(pvc);
+		pvc->vcore_state = VCORE_PIGGYBACK;
+		if (cip->total_threads >= target_threads)
+			break;
+	}
+	spin_unlock(&lp->lock);
+}
+
+static void post_guest_process(struct kvmppc_vcore *vc, bool is_master)
+{
+	int still_running = 0;
 	u64 now;
 	long ret;
 	struct kvm_vcpu *vcpu, *vnext;
 
+	spin_lock(&vc->lock);
 	now = get_tb();
 	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
 				 arch.run_list) {
@@ -1933,17 +2097,31 @@ static void post_guest_process(struct kvmppc_vcore *vc)
 		vcpu->arch.ret = ret;
 		vcpu->arch.trap = 0;
 
-		if (vcpu->arch.ceded) {
-			if (!is_kvmppc_resume_guest(ret))
-				kvmppc_end_cede(vcpu);
-			else
+		if (is_kvmppc_resume_guest(vcpu->arch.ret)) {
+			if (vcpu->arch.pending_exceptions)
+				kvmppc_core_prepare_to_enter(vcpu);
+			if (vcpu->arch.ceded)
 				kvmppc_set_timer(vcpu);
-		}
-		if (!is_kvmppc_resume_guest(vcpu->arch.ret)) {
+			else
+				++still_running;
+		} else {
 			kvmppc_remove_runnable(vc, vcpu);
 			wake_up(&vcpu->arch.cpu_run);
 		}
 	}
+	list_del_init(&vc->preempt_list);
+	if (!is_master) {
+		vc->vcore_state = vc->runner ? VCORE_PREEMPT : VCORE_INACTIVE;
+		if (still_running > 0)
+			kvmppc_vcore_preempt(vc);
+		if (vc->n_runnable > 0 && vc->runner == NULL) {
+			/* make sure there's a candidate runner awake */
+			vcpu = list_first_entry(&vc->runnable_threads,
+						struct kvm_vcpu, arch.run_list);
+			wake_up(&vcpu->arch.cpu_run);
+		}
+	}
+	spin_unlock(&vc->lock);
 }
 
 /*
@@ -1955,6 +2133,10 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	struct kvm_vcpu *vcpu, *vnext;
 	int i;
 	int srcu_idx;
+	struct core_info core_info;
+	struct kvmppc_vcore *pvc, *vcnext;
+	int pcpu, thr;
+	int target_threads;
 
 	/*
 	 * Remove from the list any threads that have a signal pending
@@ -1969,11 +2151,8 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	/*
 	 * Initialize *vc.
 	 */
-	vc->entry_exit_map = 0;
+	init_master_vcore(vc);
 	vc->preempt_tb = TB_NIL;
-	vc->in_guest = 0;
-	vc->napping_threads = 0;
-	vc->conferring_threads = 0;
 
 	/*
 	 * Make sure we are running on primary threads, and that secondary
@@ -1991,12 +2170,28 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		goto out;
 	}
 
+	/*
+	 * See if we could run any other vcores on the physical core
+	 * along with this one.
+	 */
+	init_core_info(&core_info, vc);
+	pcpu = smp_processor_id();
+	target_threads = threads_per_subcore;
+	if (target_smt_mode && target_smt_mode < target_threads)
+		target_threads = target_smt_mode;
+	if (vc->num_threads < target_threads)
+		collect_piggybacks(&core_info, target_threads);
 
-	vc->pcpu = smp_processor_id();
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
-		kvmppc_start_thread(vcpu);
-		kvmppc_create_dtl_entry(vcpu, vc);
-		trace_kvm_guest_enter(vcpu);
+	thr = 0;
+	list_for_each_entry(pvc, &core_info.vcs, preempt_list) {
+		pvc->pcpu = pcpu + thr;
+		list_for_each_entry(vcpu, &pvc->runnable_threads,
+				    arch.run_list) {
+			kvmppc_start_thread(vcpu);
+			kvmppc_create_dtl_entry(vcpu, pvc);
+			trace_kvm_guest_enter(vcpu);
+		}
+		thr += pvc->num_threads;
 	}
 
 	/* Set this explicitly in case thread 0 doesn't have a vcpu */
@@ -2008,7 +2203,8 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	trace_kvmppc_run_core(vc, 0);
 
-	spin_unlock(&vc->lock);
+	list_for_each_entry(pvc, &core_info.vcs, preempt_list)
+		spin_unlock(&pvc->lock);
 
 	kvm_guest_enter();
 
@@ -2019,32 +2215,30 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	__kvmppc_vcore_entry();
 
-	spin_lock(&vc->lock);
-
 	if (vc->mpp_buffer)
 		kvmppc_start_saving_l2_cache(vc);
 
-	/* disable sending of IPIs on virtual external irqs */
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
-		vcpu->cpu = -1;
+	srcu_read_unlock(&vc->kvm->srcu, srcu_idx);
+
+	spin_lock(&vc->lock);
+	/* prevent other vcpu threads from doing kvmppc_start_thread() now */
+	vc->vcore_state = VCORE_EXITING;
+
 	/* wait for secondary threads to finish writing their state to memory */
 	kvmppc_wait_for_nap();
 	for (i = 0; i < threads_per_subcore; ++i)
 		kvmppc_release_hwthread(vc->pcpu + i);
-	/* prevent other vcpu threads from doing kvmppc_start_thread() now */
-	vc->vcore_state = VCORE_EXITING;
 	spin_unlock(&vc->lock);
-
-	srcu_read_unlock(&vc->kvm->srcu, srcu_idx);
 
 	/* make sure updates to secondary vcpu structs are visible now */
 	smp_mb();
 	kvm_guest_exit();
 
-	preempt_enable();
+	list_for_each_entry_safe(pvc, vcnext, &core_info.vcs, preempt_list)
+		post_guest_process(pvc, pvc == vc);
 
 	spin_lock(&vc->lock);
-	post_guest_process(vc);
+	preempt_enable();
 
  out:
 	vc->vcore_state = VCORE_INACTIVE;
@@ -2055,13 +2249,17 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
  * Wait for some other vcpu thread to execute us, and
  * wake us up when we need to handle something in the host.
  */
-static void kvmppc_wait_for_exec(struct kvm_vcpu *vcpu, int wait_state)
+static void kvmppc_wait_for_exec(struct kvmppc_vcore *vc,
+				 struct kvm_vcpu *vcpu, int wait_state)
 {
 	DEFINE_WAIT(wait);
 
 	prepare_to_wait(&vcpu->arch.cpu_run, &wait, wait_state);
-	if (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE)
+	if (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE) {
+		spin_unlock(&vc->lock);
 		schedule();
+		spin_lock(&vc->lock);
+	}
 	finish_wait(&vcpu->arch.cpu_run, &wait);
 }
 
@@ -2137,7 +2335,19 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * this thread straight away and have it join in.
 	 */
 	if (!signal_pending(current)) {
-		if (vc->vcore_state == VCORE_RUNNING && !VCORE_IS_EXITING(vc)) {
+		if (vc->vcore_state == VCORE_PIGGYBACK) {
+			struct kvmppc_vcore *mvc = vc->master_vcore;
+			if (spin_trylock(&mvc->lock)) {
+				if (mvc->vcore_state == VCORE_RUNNING &&
+				    !VCORE_IS_EXITING(mvc)) {
+					kvmppc_create_dtl_entry(vcpu, vc);
+					kvmppc_start_thread(vcpu);
+					trace_kvm_guest_enter(vcpu);
+				}
+				spin_unlock(&mvc->lock);
+			}
+		} else if (vc->vcore_state == VCORE_RUNNING &&
+			   !VCORE_IS_EXITING(vc)) {
 			kvmppc_create_dtl_entry(vcpu, vc);
 			kvmppc_start_thread(vcpu);
 			trace_kvm_guest_enter(vcpu);
@@ -2149,10 +2359,11 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
 	       !signal_pending(current)) {
+		if (vc->vcore_state == VCORE_PREEMPT && vc->runner == NULL)
+			kvmppc_vcore_end_preempt(vc);
+
 		if (vc->vcore_state != VCORE_INACTIVE) {
-			spin_unlock(&vc->lock);
-			kvmppc_wait_for_exec(vcpu, TASK_INTERRUPTIBLE);
-			spin_lock(&vc->lock);
+			kvmppc_wait_for_exec(vc, vcpu, TASK_INTERRUPTIBLE);
 			continue;
 		}
 		list_for_each_entry_safe(v, vn, &vc->runnable_threads,
@@ -2179,10 +2390,11 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		if (n_ceded == vc->n_runnable) {
 			kvmppc_vcore_blocked(vc);
 		} else if (should_resched()) {
-			vc->vcore_state = VCORE_PREEMPT;
+			kvmppc_vcore_preempt(vc);
 			/* Let something else run */
 			cond_resched_lock(&vc->lock);
-			vc->vcore_state = VCORE_INACTIVE;
+			if (vc->vcore_state == VCORE_PREEMPT)
+				kvmppc_vcore_end_preempt(vc);
 		} else {
 			kvmppc_run_core(vc);
 		}
@@ -2191,11 +2403,8 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
 	       (vc->vcore_state == VCORE_RUNNING ||
-		vc->vcore_state == VCORE_EXITING)) {
-		spin_unlock(&vc->lock);
-		kvmppc_wait_for_exec(vcpu, TASK_UNINTERRUPTIBLE);
-		spin_lock(&vc->lock);
-	}
+		vc->vcore_state == VCORE_EXITING))
+		kvmppc_wait_for_exec(vc, vcpu, TASK_UNINTERRUPTIBLE);
 
 	if (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE) {
 		kvmppc_remove_runnable(vc, vcpu);
@@ -2754,6 +2963,8 @@ static int kvmppc_book3s_init_hv(void)
 	kvmppc_hv_ops = &kvm_ops_hv;
 
 	init_default_hcalls();
+
+	init_vcore_lists();
 
 	r = kvmppc_mmu_hv_init();
 	return r;

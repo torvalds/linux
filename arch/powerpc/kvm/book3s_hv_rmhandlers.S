@@ -1176,6 +1176,11 @@ mc_cont:
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	lwz	r12, VCPU_TRAP(r9)
 
+	/* Stop others sending VCPU interrupts to this physical CPU */
+	li	r0, -1
+	stw	r0, VCPU_CPU(r9)
+	stw	r0, VCPU_THREAD_CPU(r9)
+
 	/* Save guest CTRL register, set runlatch to 1 */
 	mfspr	r6,SPRN_CTRLF
 	stw	r6,VCPU_CTRL(r9)
