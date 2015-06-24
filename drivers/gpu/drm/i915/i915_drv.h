@@ -1515,6 +1515,8 @@ struct vlv_wm_values {
 		uint8_t sprite[2];
 		uint8_t primary;
 	} ddl[3];
+	uint8_t level;
+	bool cxsr;
 };
 
 struct skl_ddb_entry {

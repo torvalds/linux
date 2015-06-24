@@ -1006,6 +1006,14 @@ static int vlv_compute_wm(struct intel_crtc *crtc,
 	return fifo_size - clamp(DIV_ROUND_UP(256 * entries, 64), 0, fifo_size - 8);
 }
 
+enum vlv_wm_level {
+	VLV_WM_LEVEL_PM2,
+	VLV_WM_LEVEL_PM5,
+	VLV_WM_LEVEL_DDR_DVFS,
+	CHV_WM_NUM_LEVELS,
+	VLV_WM_NUM_LEVELS = 1,
+};
+
 static bool vlv_compute_sr_wm(struct drm_device *dev,
 			      struct vlv_wm_values *wm)
 {
@@ -3687,6 +3695,139 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 		for (level = 0; level <= max_level; level++)
 			active->wm[level].enable = true;
 	}
+}
+
+#define _FW_WM(value, plane) \
+	(((value) & DSPFW_ ## plane ## _MASK) >> DSPFW_ ## plane ## _SHIFT)
+#define _FW_WM_VLV(value, plane) \
+	(((value) & DSPFW_ ## plane ## _MASK_VLV) >> DSPFW_ ## plane ## _SHIFT)
+
+static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
+			       struct vlv_wm_values *wm)
+{
+	enum pipe pipe;
+	uint32_t tmp;
+
+	for_each_pipe(dev_priv, pipe) {
+		tmp = I915_READ(VLV_DDL(pipe));
+
+		wm->ddl[pipe].primary =
+			(tmp >> DDL_PLANE_SHIFT) & (DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK);
+		wm->ddl[pipe].cursor =
+			(tmp >> DDL_CURSOR_SHIFT) & (DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK);
+		wm->ddl[pipe].sprite[0] =
+			(tmp >> DDL_SPRITE_SHIFT(0)) & (DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK);
+		wm->ddl[pipe].sprite[1] =
+			(tmp >> DDL_SPRITE_SHIFT(1)) & (DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK);
+	}
+
+	tmp = I915_READ(DSPFW1);
+	wm->sr.plane = _FW_WM(tmp, SR);
+	wm->pipe[PIPE_B].cursor = _FW_WM(tmp, CURSORB);
+	wm->pipe[PIPE_B].primary = _FW_WM_VLV(tmp, PLANEB);
+	wm->pipe[PIPE_A].primary = _FW_WM_VLV(tmp, PLANEA);
+
+	tmp = I915_READ(DSPFW2);
+	wm->pipe[PIPE_A].sprite[1] = _FW_WM_VLV(tmp, SPRITEB);
+	wm->pipe[PIPE_A].cursor = _FW_WM(tmp, CURSORA);
+	wm->pipe[PIPE_A].sprite[0] = _FW_WM_VLV(tmp, SPRITEA);
+
+	tmp = I915_READ(DSPFW3);
+	wm->sr.cursor = _FW_WM(tmp, CURSOR_SR);
+
+	if (IS_CHERRYVIEW(dev_priv)) {
+		tmp = I915_READ(DSPFW7_CHV);
+		wm->pipe[PIPE_B].sprite[1] = _FW_WM_VLV(tmp, SPRITED);
+		wm->pipe[PIPE_B].sprite[0] = _FW_WM_VLV(tmp, SPRITEC);
+
+		tmp = I915_READ(DSPFW8_CHV);
+		wm->pipe[PIPE_C].sprite[1] = _FW_WM_VLV(tmp, SPRITEF);
+		wm->pipe[PIPE_C].sprite[0] = _FW_WM_VLV(tmp, SPRITEE);
+
+		tmp = I915_READ(DSPFW9_CHV);
+		wm->pipe[PIPE_C].primary = _FW_WM_VLV(tmp, PLANEC);
+		wm->pipe[PIPE_C].cursor = _FW_WM(tmp, CURSORC);
+
+		tmp = I915_READ(DSPHOWM);
+		wm->sr.plane |= _FW_WM(tmp, SR_HI) << 9;
+		wm->pipe[PIPE_C].sprite[1] |= _FW_WM(tmp, SPRITEF_HI) << 8;
+		wm->pipe[PIPE_C].sprite[0] |= _FW_WM(tmp, SPRITEE_HI) << 8;
+		wm->pipe[PIPE_C].primary |= _FW_WM(tmp, PLANEC_HI) << 8;
+		wm->pipe[PIPE_B].sprite[1] |= _FW_WM(tmp, SPRITED_HI) << 8;
+		wm->pipe[PIPE_B].sprite[0] |= _FW_WM(tmp, SPRITEC_HI) << 8;
+		wm->pipe[PIPE_B].primary |= _FW_WM(tmp, PLANEB_HI) << 8;
+		wm->pipe[PIPE_A].sprite[1] |= _FW_WM(tmp, SPRITEB_HI) << 8;
+		wm->pipe[PIPE_A].sprite[0] |= _FW_WM(tmp, SPRITEA_HI) << 8;
+		wm->pipe[PIPE_A].primary |= _FW_WM(tmp, PLANEA_HI) << 8;
+	} else {
+		tmp = I915_READ(DSPFW7);
+		wm->pipe[PIPE_B].sprite[1] = _FW_WM_VLV(tmp, SPRITED);
+		wm->pipe[PIPE_B].sprite[0] = _FW_WM_VLV(tmp, SPRITEC);
+
+		tmp = I915_READ(DSPHOWM);
+		wm->sr.plane |= _FW_WM(tmp, SR_HI) << 9;
+		wm->pipe[PIPE_B].sprite[1] |= _FW_WM(tmp, SPRITED_HI) << 8;
+		wm->pipe[PIPE_B].sprite[0] |= _FW_WM(tmp, SPRITEC_HI) << 8;
+		wm->pipe[PIPE_B].primary |= _FW_WM(tmp, PLANEB_HI) << 8;
+		wm->pipe[PIPE_A].sprite[1] |= _FW_WM(tmp, SPRITEB_HI) << 8;
+		wm->pipe[PIPE_A].sprite[0] |= _FW_WM(tmp, SPRITEA_HI) << 8;
+		wm->pipe[PIPE_A].primary |= _FW_WM(tmp, PLANEA_HI) << 8;
+	}
+}
+
+#undef _FW_WM
+#undef _FW_WM_VLV
+
+void vlv_wm_get_hw_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct vlv_wm_values *wm = &dev_priv->wm.vlv;
+	struct intel_plane *plane;
+	enum pipe pipe;
+	u32 val;
+
+	vlv_read_wm_values(dev_priv, wm);
+
+	for_each_intel_plane(dev, plane) {
+		switch (plane->base.type) {
+			int sprite;
+		case DRM_PLANE_TYPE_CURSOR:
+			plane->wm.fifo_size = 63;
+			break;
+		case DRM_PLANE_TYPE_PRIMARY:
+			plane->wm.fifo_size = vlv_get_fifo_size(dev, plane->pipe, 0);
+			break;
+		case DRM_PLANE_TYPE_OVERLAY:
+			sprite = plane->plane;
+			plane->wm.fifo_size = vlv_get_fifo_size(dev, plane->pipe, sprite + 1);
+			break;
+		}
+	}
+
+	wm->cxsr = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
+	wm->level = VLV_WM_LEVEL_PM2;
+
+	if (IS_CHERRYVIEW(dev_priv)) {
+		mutex_lock(&dev_priv->rps.hw_lock);
+
+		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+		if (val & DSP_MAXFIFO_PM5_ENABLE)
+			wm->level = VLV_WM_LEVEL_PM5;
+
+		val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
+		if ((val & FORCE_DDR_HIGH_FREQ) == 0)
+			wm->level = VLV_WM_LEVEL_DDR_DVFS;
+
+		mutex_unlock(&dev_priv->rps.hw_lock);
+	}
+
+	for_each_pipe(dev_priv, pipe)
+		DRM_DEBUG_KMS("Initial watermarks: pipe %c, plane=%d, cursor=%d, sprite0=%d, sprite1=%d\n",
+			      pipe_name(pipe), wm->pipe[pipe].primary, wm->pipe[pipe].cursor,
+			      wm->pipe[pipe].sprite[0], wm->pipe[pipe].sprite[1]);
+
+	DRM_DEBUG_KMS("Initial watermarks: SR plane=%d, SR cursor=%d level=%d cxsr=%d\n",
+		      wm->sr.plane, wm->sr.cursor, wm->level, wm->cxsr);
 }
 
 void ilk_wm_get_hw_state(struct drm_device *dev)

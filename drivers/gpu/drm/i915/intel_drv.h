@@ -583,6 +583,7 @@ struct intel_plane_wm_parameters {
 	bool scaled;
 	u64 tiling;
 	unsigned int rotation;
+	uint16_t fifo_size;
 };
 
 struct intel_plane {
@@ -1368,6 +1369,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 		    unsigned long submitted);
 void intel_queue_rps_boost_for_request(struct drm_device *dev,
 				       struct drm_i915_gem_request *req);
+void vlv_wm_get_hw_state(struct drm_device *dev);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 void skl_wm_get_hw_state(struct drm_device *dev);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
