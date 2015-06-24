@@ -57,6 +57,7 @@
 #include <linux/mm_inline.h>
 #include <linux/kfifo.h>
 #include "internal.h"
+#include "ras/ras_event.h"
 
 int sysctl_memory_failure_early_kill __read_mostly = 0;
 
@@ -855,6 +856,8 @@ static struct page_state {
 static void action_result(unsigned long pfn, enum mf_action_page_type type,
 			  enum mf_result result)
 {
+	trace_memory_failure_event(pfn, type, result);
+
 	pr_err("MCE %#lx: recovery action for %s: %s\n",
 		pfn, action_page_types[type], action_name[result]);
 }
