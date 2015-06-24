@@ -60,6 +60,8 @@ static int nap_loop(struct cpuidle_device *dev,
 	return index;
 }
 
+/* Register for fastsleep only in oneshot mode of broadcast */
+#ifdef CONFIG_TICK_ONESHOT
 static int fastsleep_loop(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
@@ -83,7 +85,7 @@ static int fastsleep_loop(struct cpuidle_device *dev,
 
 	return index;
 }
-
+#endif
 /*
  * States for dedicated partition case.
  */
@@ -209,7 +211,14 @@ static int powernv_add_idle_states(void)
 			powernv_states[nr_idle_states].flags = 0;
 			powernv_states[nr_idle_states].target_residency = 100;
 			powernv_states[nr_idle_states].enter = &nap_loop;
-		} else if (flags[i] & OPAL_PM_SLEEP_ENABLED ||
+		}
+
+		/*
+		 * All cpuidle states with CPUIDLE_FLAG_TIMER_STOP set must come
+		 * within this config dependency check.
+		 */
+#ifdef CONFIG_TICK_ONESHOT
+		if (flags[i] & OPAL_PM_SLEEP_ENABLED ||
 			flags[i] & OPAL_PM_SLEEP_ENABLED_ER1) {
 			/* Add FASTSLEEP state */
 			strcpy(powernv_states[nr_idle_states].name, "FastSleep");
@@ -218,7 +227,7 @@ static int powernv_add_idle_states(void)
 			powernv_states[nr_idle_states].target_residency = 300000;
 			powernv_states[nr_idle_states].enter = &fastsleep_loop;
 		}
-
+#endif
 		powernv_states[nr_idle_states].exit_latency =
 				((unsigned int)latency_ns[i]) / 1000;
 
