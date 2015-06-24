@@ -70,8 +70,6 @@ static int gtm601_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-MODULE_ALIAS("platform:gtm601_codec_audio");
-
 #if defined(CONFIG_OF)
 static const struct of_device_id gtm601_codec_of_match[] = {
 	{ .compatible = "option,gtm601", },
@@ -95,3 +93,4 @@ module_platform_driver(gtm601_codec_driver);
 MODULE_DESCRIPTION("ASoC gtm601 driver");
 MODULE_AUTHOR("Marek Belisko <marek@goldelico.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:gtm601");
