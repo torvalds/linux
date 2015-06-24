@@ -1904,8 +1904,8 @@ hcall_real_table:
 	.long	DOTSYM(kvmppc_h_remove) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_enter) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_read) - hcall_real_table
-	.long	0		/* 0x10 - H_CLEAR_MOD */
-	.long	0		/* 0x14 - H_CLEAR_REF */
+	.long	DOTSYM(kvmppc_h_clear_mod) - hcall_real_table
+	.long	DOTSYM(kvmppc_h_clear_ref) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_protect) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_get_tce) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_put_tce) - hcall_real_table
