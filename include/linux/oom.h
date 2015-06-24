@@ -32,6 +32,8 @@ enum oom_scan_t {
 /* Thread is the potential origin of an oom condition; kill first on oom */
 #define OOM_FLAG_ORIGIN		((__force oom_flags_t)0x1)
 
+extern struct mutex oom_lock;
+
 static inline void set_current_oom_origin(void)
 {
 	current->signal->oom_flags |= OOM_FLAG_ORIGIN;
@@ -59,9 +61,6 @@ extern void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			     unsigned int points, unsigned long totalpages,
 			     struct mem_cgroup *memcg, nodemask_t *nodemask,
 			     const char *message);
-
-extern bool oom_zonelist_trylock(struct zonelist *zonelist, gfp_t gfp_flags);
-extern void oom_zonelist_unlock(struct zonelist *zonelist, gfp_t gfp_flags);
 
 extern void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
 			       int order, const nodemask_t *nodemask,

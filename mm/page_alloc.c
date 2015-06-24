@@ -2360,10 +2360,10 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 	*did_some_progress = 0;
 
 	/*
-	 * Acquire the per-zone oom lock for each zone.  If that
-	 * fails, somebody else is making progress for us.
+	 * Acquire the oom lock.  If that fails, somebody else is
+	 * making progress for us.
 	 */
-	if (!oom_zonelist_trylock(ac->zonelist, gfp_mask)) {
+	if (!mutex_trylock(&oom_lock)) {
 		*did_some_progress = 1;
 		schedule_timeout_uninterruptible(1);
 		return NULL;
@@ -2408,7 +2408,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 			|| WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
 		*did_some_progress = 1;
 out:
-	oom_zonelist_unlock(ac->zonelist, gfp_mask);
+	mutex_unlock(&oom_lock);
 	return page;
 }
 
