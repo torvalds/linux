@@ -64,19 +64,6 @@ static ssize_t mlog_mask_store(u64 mask, const char *buf, size_t count)
 	return count;
 }
 
-/*
- * smp_processor_id() "helpfully" screams when called outside preemptible
- * regions in current kernels.  sles doesn't have the variants that don't
- * scream.  just do this instead of trying to guess which we're building
- * against.. *sigh*.
- */
-#define __mlog_cpu_guess						\
-({									\
-	unsigned long _cpu = get_cpu();					\
-	put_cpu();							\
-	_cpu;								\
-})
-
 void __mlog_printk(const u64 *mask, const char *func, int line,
 		   const char *fmt, ...)
 {
@@ -103,9 +90,9 @@ void __mlog_printk(const u64 *mask, const char *func, int line,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk("%s(%s,%u,%lu):%s:%d %s%pV",
-	       level, current->comm, task_pid_nr(current), __mlog_cpu_guess,
-	       func, line, prefix, &vaf);
+	printk("%s(%s,%u,%u):%s:%d %s%pV",
+	       level, current->comm, task_pid_nr(current),
+	       raw_smp_processor_id(), func, line, prefix, &vaf);
 
 	va_end(args);
 }
