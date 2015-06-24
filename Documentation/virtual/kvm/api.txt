@@ -254,6 +254,11 @@ since the last call to this ioctl.  Bit 0 is the first page in the
 memory slot.  Ensure the entire structure is cleared to avoid padding
 issues.
 
+If KVM_CAP_MULTI_ADDRESS_SPACE is available, bits 16-31 specifies
+the address space for which you want to return the dirty bitmap.
+They must be less than the value that KVM_CHECK_EXTENSION returns for
+the KVM_CAP_MULTI_ADDRESS_SPACE capability.
+
 
 4.9 KVM_SET_MEMORY_ALIAS
 
@@ -820,11 +825,21 @@ struct kvm_vcpu_events {
 	} nmi;
 	__u32 sipi_vector;
 	__u32 flags;
+	struct {
+		__u8 smm;
+		__u8 pending;
+		__u8 smm_inside_nmi;
+		__u8 latched_init;
+	} smi;
 };
 
-KVM_VCPUEVENT_VALID_SHADOW may be set in the flags field to signal that
-interrupt.shadow contains a valid state. Otherwise, this field is undefined.
+Only two fields are defined in the flags field:
 
+- KVM_VCPUEVENT_VALID_SHADOW may be set in the flags field to signal that
+  interrupt.shadow contains a valid state.
+
+- KVM_VCPUEVENT_VALID_SMM may be set in the flags field to signal that
+  smi contains a valid state.
 
 4.32 KVM_SET_VCPU_EVENTS
 
@@ -841,16 +856,19 @@ vcpu.
 See KVM_GET_VCPU_EVENTS for the data structure.
 
 Fields that may be modified asynchronously by running VCPUs can be excluded
-from the update. These fields are nmi.pending and sipi_vector. Keep the
-corresponding bits in the flags field cleared to suppress overwriting the
-current in-kernel state. The bits are:
+from the update. These fields are nmi.pending, sipi_vector, smi.smm,
+smi.pending. Keep the corresponding bits in the flags field cleared to
+suppress overwriting the current in-kernel state. The bits are:
 
 KVM_VCPUEVENT_VALID_NMI_PENDING - transfer nmi.pending to the kernel
 KVM_VCPUEVENT_VALID_SIPI_VECTOR - transfer sipi_vector
+KVM_VCPUEVENT_VALID_SMM         - transfer the smi sub-struct.
 
 If KVM_CAP_INTR_SHADOW is available, KVM_VCPUEVENT_VALID_SHADOW can be set in
 the flags field to signal that interrupt.shadow contains a valid state and
 shall be written into the VCPU.
+
+KVM_VCPUEVENT_VALID_SMM can only be set if KVM_CAP_X86_SMM is available.
 
 
 4.33 KVM_GET_DEBUGREGS
@@ -911,6 +929,13 @@ slot.  When changing an existing slot, it may be moved in the guest
 physical memory space, or its flags may be modified.  It may not be
 resized.  Slots may not overlap in guest physical address space.
 
+If KVM_CAP_MULTI_ADDRESS_SPACE is available, bits 16-31 of "slot"
+specifies the address space which is being modified.  They must be
+less than the value that KVM_CHECK_EXTENSION returns for the
+KVM_CAP_MULTI_ADDRESS_SPACE capability.  Slots in separate address spaces
+are unrelated; the restriction on overlapping slots only applies within
+each address space.
+
 Memory for the region is taken starting at the address denoted by the
 field userspace_addr, which must point at user addressable memory for
 the entire memory slot size.  Any object may back this memory, including
@@ -959,7 +984,8 @@ documentation when it pops into existence).
 4.37 KVM_ENABLE_CAP
 
 Capability: KVM_CAP_ENABLE_CAP, KVM_CAP_ENABLE_CAP_VM
-Architectures: ppc, s390
+Architectures: x86 (only KVM_CAP_ENABLE_CAP_VM),
+	       mips (only KVM_CAP_ENABLE_CAP), ppc, s390
 Type: vcpu ioctl, vm ioctl (with KVM_CAP_ENABLE_CAP_VM)
 Parameters: struct kvm_enable_cap (in)
 Returns: 0 on success; -1 on error
@@ -1268,7 +1294,7 @@ The flags bitmap is defined as:
    /* the host supports the ePAPR idle hcall
    #define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
 
-4.48 KVM_ASSIGN_PCI_DEVICE
+4.48 KVM_ASSIGN_PCI_DEVICE (deprecated)
 
 Capability: none
 Architectures: x86
@@ -1318,7 +1344,7 @@ Errors:
   have their standard meanings.
 
 
-4.49 KVM_DEASSIGN_PCI_DEVICE
+4.49 KVM_DEASSIGN_PCI_DEVICE (deprecated)
 
 Capability: none
 Architectures: x86
@@ -1337,7 +1363,7 @@ Errors:
   Other error conditions may be defined by individual device types or
   have their standard meanings.
 
-4.50 KVM_ASSIGN_DEV_IRQ
+4.50 KVM_ASSIGN_DEV_IRQ (deprecated)
 
 Capability: KVM_CAP_ASSIGN_DEV_IRQ
 Architectures: x86
@@ -1377,7 +1403,7 @@ Errors:
   have their standard meanings.
 
 
-4.51 KVM_DEASSIGN_DEV_IRQ
+4.51 KVM_DEASSIGN_DEV_IRQ (deprecated)
 
 Capability: KVM_CAP_ASSIGN_DEV_IRQ
 Architectures: x86
@@ -1451,7 +1477,7 @@ struct kvm_irq_routing_s390_adapter {
 };
 
 
-4.53 KVM_ASSIGN_SET_MSIX_NR
+4.53 KVM_ASSIGN_SET_MSIX_NR (deprecated)
 
 Capability: none
 Architectures: x86
@@ -1473,7 +1499,7 @@ struct kvm_assigned_msix_nr {
 #define KVM_MAX_MSIX_PER_DEV		256
 
 
-4.54 KVM_ASSIGN_SET_MSIX_ENTRY
+4.54 KVM_ASSIGN_SET_MSIX_ENTRY (deprecated)
 
 Capability: none
 Architectures: x86
@@ -1629,7 +1655,7 @@ should skip processing the bitmap and just invalidate everything.  It must
 be set to the number of set bits in the bitmap.
 
 
-4.61 KVM_ASSIGN_SET_INTX_MASK
+4.61 KVM_ASSIGN_SET_INTX_MASK (deprecated)
 
 Capability: KVM_CAP_PCI_2_3
 Architectures: x86
@@ -2978,6 +3004,16 @@ len must be a multiple of sizeof(struct kvm_s390_irq). It must be > 0
 and it must not exceed (max_vcpus + 32) * sizeof(struct kvm_s390_irq),
 which is the maximum number of possibly pending cpu-local interrupts.
 
+4.90 KVM_SMI
+
+Capability: KVM_CAP_X86_SMM
+Architectures: x86
+Type: vcpu ioctl
+Parameters: none
+Returns: 0 on success, -1 on error
+
+Queues an SMI on the thread's vcpu.
+
 5. The kvm_run structure
 ------------------------
 
@@ -3013,7 +3049,12 @@ an interrupt can be injected now with KVM_INTERRUPT.
 The value of the current interrupt flag.  Only valid if in-kernel
 local APIC is not used.
 
-	__u8 padding2[2];
+	__u16 flags;
+
+More architecture-specific flags detailing state of the VCPU that may
+affect the device's behavior.  The only currently defined flag is
+KVM_RUN_X86_SMM, which is valid on x86 machines and is set if the
+VCPU is in system management mode.
 
 	/* in (pre_kvm_run), out (post_kvm_run) */
 	__u64 cr8;
