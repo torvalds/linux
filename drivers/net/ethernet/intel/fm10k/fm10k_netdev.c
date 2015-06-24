@@ -1048,7 +1048,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 					   vid, true, 0);
 	}
 
-	/* update xcast mode before syncronizing addresses */
+	/* update xcast mode before synchronizing addresses */
 	hw->mac.ops.update_xcast_mode(hw, glort, xcast_mode);
 
 	/* synchronize all of the addresses */
