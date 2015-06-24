@@ -43,8 +43,6 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq)
 	if (cqe_ownership_bit != sw_ownership_val)
 		return NULL;
 
-	mlx5_cqwq_pop(wq);
-
 	/* ensure cqe content is read after cqe ownership bit */
 	rmb();
 
@@ -65,7 +63,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	busy |= mlx5e_poll_rx_cq(&c->rq.cq, budget);
 
-	busy |= mlx5e_post_rx_wqes(c->rq.cq.sqrq);
+	busy |= mlx5e_post_rx_wqes(&c->rq);
 
 	if (busy)
 		return budget;

@@ -191,7 +191,7 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 
 bool mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
-	struct mlx5e_rq *rq = cq->sqrq;
+	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
 	int i;
 
 	/* avoid accessing cq (dma coherent memory) if not needed */
@@ -209,10 +209,13 @@ bool mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 		if (!cqe)
 			break;
 
+		mlx5_cqwq_pop(&cq->wq);
+
 		wqe_counter_be = cqe->wqe_counter;
 		wqe_counter    = be16_to_cpu(wqe_counter_be);
 		wqe            = mlx5_wq_ll_get_wqe(&rq->wq, wqe_counter);
 		skb            = rq->skb[wqe_counter];
+		prefetch(skb->data);
 		rq->skb[wqe_counter] = NULL;
 
 		dma_unmap_single(rq->pdev,
