@@ -163,12 +163,6 @@ static bool mtip_check_surprise_removal(struct pci_dev *pdev)
 		else
 			dev_warn(&dd->pdev->dev,
 				"%s: dd->queue is NULL\n", __func__);
-		if (dd->port) {
-			set_bit(MTIP_PF_SR_CLEANUP_BIT, &dd->port->flags);
-			wake_up_interruptible(&dd->port->svc_wait);
-		} else
-			dev_warn(&dd->pdev->dev,
-				"%s: dd->port is NULL\n", __func__);
 		return true; /* device removed */
 	}
 
@@ -2938,10 +2932,6 @@ static int mtip_service_thread(void *data)
 			test_bit(MTIP_PF_SVC_THD_STOP_BIT, &port->flags))
 			goto st_out;
 
-		/* If I am an orphan, start self cleanup */
-		if (test_bit(MTIP_PF_SR_CLEANUP_BIT, &port->flags))
-			break;
-
 		if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 				&dd->dd_flag)))
 			goto st_out;
@@ -2995,14 +2985,6 @@ restart_eh:
 		}
 	}
 
-	/* wait for pci remove to exit */
-	while (1) {
-		if (test_bit(MTIP_DDF_REMOVE_DONE_BIT, &dd->dd_flag))
-			break;
-		msleep_interruptible(1000);
-		if (kthread_should_stop())
-			goto st_out;
-	}
 st_out:
 	return 0;
 }
@@ -4486,7 +4468,6 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&dev_lock, flags);
 
 	kfree(dd);
-	set_bit(MTIP_DDF_REMOVE_DONE_BIT, &dd->dd_flag);
 
 	pcim_iounmap_regions(pdev, 1 << MTIP_ABAR);
 	pci_set_drvdata(pdev, NULL);

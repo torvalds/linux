@@ -142,7 +142,6 @@ enum {
 	MTIP_PF_SVC_THD_ACTIVE_BIT  = 4,
 	MTIP_PF_ISSUE_CMDS_BIT      = 5,
 	MTIP_PF_REBUILD_BIT         = 6,
-	MTIP_PF_SR_CLEANUP_BIT      = 7,
 	MTIP_PF_SVC_THD_STOP_BIT    = 8,
 
 	/* below are bit numbers in 'dd_flag' defined in driver_data */
@@ -150,7 +149,6 @@ enum {
 	MTIP_DDF_REMOVE_PENDING_BIT = 1,
 	MTIP_DDF_OVER_TEMP_BIT      = 2,
 	MTIP_DDF_WRITE_PROTECT_BIT  = 3,
-	MTIP_DDF_REMOVE_DONE_BIT    = 4,
 	MTIP_DDF_CLEANUP_BIT        = 5,
 	MTIP_DDF_RESUME_BIT         = 6,
 	MTIP_DDF_INIT_DONE_BIT      = 7,
