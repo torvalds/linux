@@ -611,6 +611,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio0_c7>;//gpio0_c7
 		io-channels = <&adc 2>;
+		rockchip,headset_wakeup = <0>;
        /*
                hook_gpio = ;
                hook_down_type = ; //interrupt hook key down status
