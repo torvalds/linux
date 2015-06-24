@@ -590,6 +590,7 @@ struct intel_plane {
 	enum pipe pipe;
 	bool can_scale;
 	int max_downscale;
+	uint32_t frontbuffer_bit;
 
 	/* Since we need to change the watermarks before/after
 	 * enabling/disabling the planes, we need to store the parameters here

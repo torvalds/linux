@@ -2613,7 +2613,7 @@ valid_fb:
 	primary->crtc = primary->state->crtc = &intel_crtc->base;
 	update_state_fb(primary);
 	intel_crtc->base.state->plane_mask |= (1 << drm_plane_index(primary));
-	obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
+	obj->frontbuffer_bits |= to_intel_plane(primary)->frontbuffer_bit;
 }
 
 static void i9xx_update_primary_plane(struct drm_crtc *crtc,
@@ -4742,25 +4742,12 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	struct drm_plane *p;
 
 	/* Track fb's for any planes being disabled */
-
 	drm_for_each_plane_mask(p, dev, atomic->disabled_planes) {
 		struct intel_plane *plane = to_intel_plane(p);
-		unsigned fb_bits = 0;
-
-		switch (p->type) {
-		case DRM_PLANE_TYPE_PRIMARY:
-			fb_bits = INTEL_FRONTBUFFER_PRIMARY(plane->pipe);
-			break;
-		case DRM_PLANE_TYPE_CURSOR:
-			fb_bits = INTEL_FRONTBUFFER_CURSOR(plane->pipe);
-			break;
-		case DRM_PLANE_TYPE_OVERLAY:
-			fb_bits = INTEL_FRONTBUFFER_SPRITE(plane->pipe);
-			break;
-		}
 
 		mutex_lock(&dev->struct_mutex);
-		i915_gem_track_fb(intel_fb_obj(plane->base.fb), NULL, fb_bits);
+		i915_gem_track_fb(intel_fb_obj(plane->base.fb), NULL,
+				  plane->frontbuffer_bit);
 		mutex_unlock(&dev->struct_mutex);
 	}
 
@@ -10676,11 +10663,12 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 {
 	struct intel_unpin_work *work =
 		container_of(__work, struct intel_unpin_work, work);
-	struct drm_device *dev = work->crtc->dev;
-	enum pipe pipe = to_intel_crtc(work->crtc)->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(work->crtc);
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_plane *primary = crtc->base.primary;
 
 	mutex_lock(&dev->struct_mutex);
-	intel_unpin_fb_obj(work->old_fb, work->crtc->primary->state);
+	intel_unpin_fb_obj(work->old_fb, primary->state);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
 
 	intel_fbc_update(dev);
@@ -10689,11 +10677,11 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 		i915_gem_request_assign(&work->flip_queued_req, NULL);
 	mutex_unlock(&dev->struct_mutex);
 
-	intel_frontbuffer_flip_complete(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
+	intel_frontbuffer_flip_complete(dev, to_intel_plane(primary)->frontbuffer_bit);
 	drm_framebuffer_unreference(work->old_fb);
 
-	BUG_ON(atomic_read(&to_intel_crtc(work->crtc)->unpin_work_count) == 0);
-	atomic_dec(&to_intel_crtc(work->crtc)->unpin_work_count);
+	BUG_ON(atomic_read(&crtc->unpin_work_count) == 0);
+	atomic_dec(&crtc->unpin_work_count);
 
 	kfree(work);
 }
@@ -11455,10 +11443,11 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->enable_stall_check = true;
 
 	i915_gem_track_fb(intel_fb_obj(work->old_fb), obj,
-			  INTEL_FRONTBUFFER_PRIMARY(pipe));
+			  to_intel_plane(primary)->frontbuffer_bit);
 
 	intel_fbc_disable(dev);
-	intel_frontbuffer_flip_prepare(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
+	intel_frontbuffer_flip_prepare(dev,
+				       to_intel_plane(primary)->frontbuffer_bit);
 	mutex_unlock(&dev->struct_mutex);
 
 	trace_i915_flip_request(intel_crtc->plane, obj);
@@ -11613,12 +11602,12 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	if (intel_wm_need_update(plane, plane_state))
 		intel_crtc->atomic.update_wm = true;
 
+	if (visible)
+		intel_crtc->atomic.fb_bits |=
+			to_intel_plane(plane)->frontbuffer_bit;
+
 	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:
-		if (visible)
-			intel_crtc->atomic.fb_bits |=
-			    INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
-
 		intel_crtc->atomic.wait_for_flips = true;
 		intel_crtc->atomic.pre_disable_primary = turn_off;
 		intel_crtc->atomic.post_enable_primary = turn_on;
@@ -11654,25 +11643,13 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		intel_crtc->atomic.update_fbc |= visible || mode_changed;
 		break;
 	case DRM_PLANE_TYPE_CURSOR:
-		if (visible)
-			intel_crtc->atomic.fb_bits |=
-			    INTEL_FRONTBUFFER_CURSOR(intel_crtc->pipe);
 		break;
 	case DRM_PLANE_TYPE_OVERLAY:
-		/*
-		 * 'prepare' is never called when plane is being disabled, so
-		 * we need to handle frontbuffer tracking as a special case
-		 */
-		if (visible)
-			intel_crtc->atomic.fb_bits |=
-			    INTEL_FRONTBUFFER_SPRITE(intel_crtc->pipe);
-
 		if (turn_off && !mode_changed) {
 			intel_crtc->atomic.wait_vblank = true;
 			intel_crtc->atomic.update_sprite_watermarks |=
 				1 << i;
 		}
-		break;
 	}
 	return 0;
 }
@@ -13554,26 +13531,12 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	enum pipe pipe = intel_plane->pipe;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
-	unsigned frontbuffer_bits = 0;
 	int ret = 0;
 
 	if (!obj)
 		return 0;
-
-	switch (plane->type) {
-	case DRM_PLANE_TYPE_PRIMARY:
-		frontbuffer_bits = INTEL_FRONTBUFFER_PRIMARY(pipe);
-		break;
-	case DRM_PLANE_TYPE_CURSOR:
-		frontbuffer_bits = INTEL_FRONTBUFFER_CURSOR(pipe);
-		break;
-	case DRM_PLANE_TYPE_OVERLAY:
-		frontbuffer_bits = INTEL_FRONTBUFFER_SPRITE(pipe);
-		break;
-	}
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -13588,7 +13551,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	}
 
 	if (ret == 0)
-		i915_gem_track_fb(old_obj, obj, frontbuffer_bits);
+		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -13807,6 +13770,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	}
 	primary->pipe = pipe;
 	primary->plane = pipe;
+	primary->frontbuffer_bit = INTEL_FRONTBUFFER_PRIMARY(pipe);
 	primary->check_plane = intel_check_primary_plane;
 	primary->commit_plane = intel_commit_primary_plane;
 	primary->disable_plane = intel_disable_primary_plane;
@@ -13962,6 +13926,7 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	cursor->max_downscale = 1;
 	cursor->pipe = pipe;
 	cursor->plane = pipe;
+	cursor->frontbuffer_bit = INTEL_FRONTBUFFER_CURSOR(pipe);
 	cursor->check_plane = intel_check_cursor_plane;
 	cursor->commit_plane = intel_commit_cursor_plane;
 	cursor->disable_plane = intel_disable_cursor_plane;
