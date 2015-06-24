@@ -82,6 +82,9 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+        bool
+
 config PPC
 	bool
 	default y
@@ -155,6 +158,7 @@ config PPC
 	select HAVE_PERF_EVENTS_NMI if PPC64
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
