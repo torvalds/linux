@@ -451,7 +451,7 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 			/* Fall through */
 		case jr_op:
 			/* For R6, JR already emulated in jalr_op */
-			if (NO_R6EMU && insn.r_format.opcode == jr_op)
+			if (NO_R6EMU && insn.r_format.func == jr_op)
 				break;
 			*contpc = regs->regs[insn.r_format.rs];
 			return 1;
