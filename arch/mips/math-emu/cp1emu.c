@@ -551,7 +551,7 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				dec_insn.next_pc_inc;
 		return 1;
 	case blezl_op:
-		if (NO_R6EMU)
+		if (!insn.i_format.rt && NO_R6EMU)
 			break;
 	case blez_op:
 
@@ -588,7 +588,7 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				dec_insn.next_pc_inc;
 		return 1;
 	case bgtzl_op:
-		if (NO_R6EMU)
+		if (!insn.i_format.rt && NO_R6EMU)
 			break;
 	case bgtz_op:
 		/*
