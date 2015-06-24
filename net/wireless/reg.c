@@ -2079,10 +2079,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 		reg_process_hint_core(reg_request);
 		return;
 	case NL80211_REGDOM_SET_BY_USER:
-		treatment = reg_process_hint_user(reg_request);
-		if (treatment == REG_REQ_IGNORE ||
-		    treatment == REG_REQ_ALREADY_SET)
-			return;
+		reg_process_hint_user(reg_request);
 		return;
 	case NL80211_REGDOM_SET_BY_DRIVER:
 		if (!wiphy)
@@ -2099,7 +2096,9 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 		goto out_free;
 	}
 
-	/* This is required so that the orig_* parameters are saved */
+	/* This is required so that the orig_* parameters are saved.
+	 * NOTE: treatment must be set for any case that reaches here!
+	 */
 	if (treatment == REG_REQ_ALREADY_SET && wiphy &&
 	    wiphy->regulatory_flags & REGULATORY_STRICT_REG) {
 		wiphy_update_regulatory(wiphy, reg_request->initiator);
