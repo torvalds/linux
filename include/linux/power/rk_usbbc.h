@@ -21,8 +21,8 @@ enum bc_port_type{
  * 3 : CDP - pc with big currect charge
  ************************************/
 extern int dwc_otg_check_dpdm(bool wait);
-extern int rk_bc_detect_register_notifier(struct notifier_block *nb,
+extern int rk_bc_detect_notifier_register(struct notifier_block *nb,
 					  enum bc_port_type *type);
-extern int rk_bc_detect_unregister_notifier(struct notifier_block *nb);
+extern int rk_bc_detect_notifier_unregister(struct notifier_block *nb);
 
 #endif
