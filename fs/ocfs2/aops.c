@@ -523,7 +523,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
 	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
 	unsigned long len = bh_result->b_size;
-	unsigned int clusters_to_alloc = 0;
+	unsigned int clusters_to_alloc = 0, contig_clusters = 0;
 
 	cpos = ocfs2_blocks_to_clusters(inode->i_sb, iblock);
 
@@ -560,8 +560,10 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		/* fill hole, allocate blocks can't be larger than the size
 		 * of the hole */
 		clusters_to_alloc = ocfs2_clusters_for_bytes(inode->i_sb, len);
-		if (clusters_to_alloc > contig_blocks)
-			clusters_to_alloc = contig_blocks;
+		contig_clusters = ocfs2_clusters_for_blocks(inode->i_sb,
+				contig_blocks);
+		if (clusters_to_alloc > contig_clusters)
+			clusters_to_alloc = contig_clusters;
 
 		/* allocate extent and insert them into the extent tree */
 		ret = ocfs2_extend_allocation(inode, cpos,
