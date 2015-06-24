@@ -4203,8 +4203,15 @@ static const struct file_operations i915_displayport_test_type_fops = {
 static void wm_latency_show(struct seq_file *m, const uint16_t wm[8])
 {
 	struct drm_device *dev = m->private;
-	int num_levels = ilk_wm_max_level(dev) + 1;
 	int level;
+	int num_levels;
+
+	if (IS_CHERRYVIEW(dev))
+		num_levels = 3;
+	else if (IS_VALLEYVIEW(dev))
+		num_levels = 1;
+	else
+		num_levels = ilk_wm_max_level(dev) + 1;
 
 	drm_modeset_lock_all(dev);
 
@@ -4213,9 +4220,9 @@ static void wm_latency_show(struct seq_file *m, const uint16_t wm[8])
 
 		/*
 		 * - WM1+ latency values in 0.5us units
-		 * - latencies are in us on gen9
+		 * - latencies are in us on gen9/vlv/chv
 		 */
-		if (INTEL_INFO(dev)->gen >= 9)
+		if (INTEL_INFO(dev)->gen >= 9 || IS_VALLEYVIEW(dev))
 			latency *= 10;
 		else if (level > 0)
 			latency *= 5;
@@ -4279,7 +4286,7 @@ static int pri_wm_latency_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 
-	if (HAS_GMCH_DISPLAY(dev))
+	if (INTEL_INFO(dev)->gen < 5)
 		return -ENODEV;
 
 	return single_open(file, pri_wm_latency_show, dev);
@@ -4311,10 +4318,17 @@ static ssize_t wm_latency_write(struct file *file, const char __user *ubuf,
 	struct seq_file *m = file->private_data;
 	struct drm_device *dev = m->private;
 	uint16_t new[8] = { 0 };
-	int num_levels = ilk_wm_max_level(dev) + 1;
+	int num_levels;
 	int level;
 	int ret;
 	char tmp[32];
+
+	if (IS_CHERRYVIEW(dev))
+		num_levels = 3;
+	else if (IS_VALLEYVIEW(dev))
+		num_levels = 1;
+	else
+		num_levels = ilk_wm_max_level(dev) + 1;
 
 	if (len >= sizeof(tmp))
 		return -EINVAL;
