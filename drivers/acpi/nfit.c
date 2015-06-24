@@ -668,6 +668,20 @@ static ssize_t serial_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(serial);
 
+static ssize_t flags_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	u16 flags = to_nfit_memdev(dev)->flags;
+
+	return sprintf(buf, "%s%s%s%s%s\n",
+			flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save " : "",
+			flags & ACPI_NFIT_MEM_RESTORE_FAILED ? "restore " : "",
+			flags & ACPI_NFIT_MEM_FLUSH_FAILED ? "flush " : "",
+			flags & ACPI_NFIT_MEM_ARMED ? "arm " : "",
+			flags & ACPI_NFIT_MEM_HEALTH_OBSERVED ? "smart " : "");
+}
+static DEVICE_ATTR_RO(flags);
+
 static struct attribute *acpi_nfit_dimm_attributes[] = {
 	&dev_attr_handle.attr,
 	&dev_attr_phys_id.attr,
@@ -676,6 +690,7 @@ static struct attribute *acpi_nfit_dimm_attributes[] = {
 	&dev_attr_format.attr,
 	&dev_attr_serial.attr,
 	&dev_attr_rev_id.attr,
+	&dev_attr_flags.attr,
 	NULL,
 };
 
@@ -768,6 +783,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		struct nvdimm *nvdimm;
 		unsigned long flags = 0;
 		u32 device_handle;
+		u16 mem_flags;
 		int rc;
 
 		device_handle = __to_nfit_memdev(nfit_mem)->device_handle;
@@ -785,6 +801,10 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		if (nfit_mem->bdw && nfit_mem->memdev_pmem)
 			flags |= NDD_ALIASING;
 
+		mem_flags = __to_nfit_memdev(nfit_mem)->flags;
+		if (mem_flags & ACPI_NFIT_MEM_ARMED)
+			flags |= NDD_UNARMED;
+
 		rc = acpi_nfit_add_dimm(acpi_desc, nfit_mem, device_handle);
 		if (rc)
 			continue;
@@ -797,6 +817,17 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 
 		nfit_mem->nvdimm = nvdimm;
 		dimm_count++;
+
+		if ((mem_flags & ACPI_NFIT_MEM_FAILED_MASK) == 0)
+			continue;
+
+		dev_info(acpi_desc->dev, "%s: failed: %s%s%s%s\n",
+				nvdimm_name(nvdimm),
+			mem_flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save " : "",
+			mem_flags & ACPI_NFIT_MEM_RESTORE_FAILED ? "restore " : "",
+			mem_flags & ACPI_NFIT_MEM_FLUSH_FAILED ? "flush " : "",
+			mem_flags & ACPI_NFIT_MEM_ARMED ? "arm " : "");
+
 	}
 
 	return nvdimm_bus_check_dimm_count(acpi_desc->nvdimm_bus, dimm_count);

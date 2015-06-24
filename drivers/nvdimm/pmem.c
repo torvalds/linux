@@ -104,6 +104,7 @@ static const struct block_device_operations pmem_fops = {
 	.owner =		THIS_MODULE,
 	.rw_page =		pmem_rw_page,
 	.direct_access =	pmem_direct_access,
+	.revalidate_disk =	nvdimm_revalidate_disk,
 };
 
 static struct pmem_device *pmem_alloc(struct device *dev,
@@ -178,6 +179,7 @@ static int pmem_attach_disk(struct nd_namespace_common *ndns,
 	pmem->pmem_disk = disk;
 
 	add_disk(disk);
+	revalidate_disk(disk);
 
 	return 0;
 }

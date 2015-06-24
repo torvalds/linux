@@ -227,6 +227,24 @@ int __nd_driver_register(struct nd_device_driver *nd_drv, struct module *owner,
 }
 EXPORT_SYMBOL(__nd_driver_register);
 
+int nvdimm_revalidate_disk(struct gendisk *disk)
+{
+	struct device *dev = disk->driverfs_dev;
+	struct nd_region *nd_region = to_nd_region(dev->parent);
+	const char *pol = nd_region->ro ? "only" : "write";
+
+	if (nd_region->ro == get_disk_ro(disk))
+		return 0;
+
+	dev_info(dev, "%s read-%s, marking %s read-%s\n",
+			dev_name(&nd_region->dev), pol, disk->disk_name, pol);
+	set_disk_ro(disk, nd_region->ro);
+
+	return 0;
+
+}
+EXPORT_SYMBOL(nvdimm_revalidate_disk);
+
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {

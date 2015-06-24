@@ -345,11 +345,35 @@ static ssize_t btt_seed_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(btt_seed);
 
+static ssize_t read_only_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	return sprintf(buf, "%d\n", nd_region->ro);
+}
+
+static ssize_t read_only_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	bool ro;
+	int rc = strtobool(buf, &ro);
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	if (rc)
+		return rc;
+
+	nd_region->ro = ro;
+	return len;
+}
+static DEVICE_ATTR_RW(read_only);
+
 static struct attribute *nd_region_attributes[] = {
 	&dev_attr_size.attr,
 	&dev_attr_nstype.attr,
 	&dev_attr_mappings.attr,
 	&dev_attr_btt_seed.attr,
+	&dev_attr_read_only.attr,
 	&dev_attr_set_cookie.attr,
 	&dev_attr_available_size.attr,
 	&dev_attr_namespace_seed.attr,
@@ -641,6 +665,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	struct device *dev;
 	void *region_buf;
 	unsigned int i;
+	int ro = 0;
 
 	for (i = 0; i < ndr_desc->num_mappings; i++) {
 		struct nd_mapping *nd_mapping = &ndr_desc->nd_mapping[i];
@@ -652,6 +677,9 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 
 			return NULL;
 		}
+
+		if (nvdimm->flags & NDD_UNARMED)
+			ro = 1;
 	}
 
 	if (dev_type == &nd_blk_device_type) {
@@ -707,6 +735,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	nd_region->provider_data = ndr_desc->provider_data;
 	nd_region->nd_set = ndr_desc->nd_set;
 	nd_region->num_lanes = ndr_desc->num_lanes;
+	nd_region->ro = ro;
 	ida_init(&nd_region->ns_ida);
 	ida_init(&nd_region->btt_ida);
 	dev = &nd_region->dev;

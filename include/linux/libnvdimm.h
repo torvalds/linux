@@ -21,6 +21,8 @@
 enum {
 	/* when a dimm supports both PMEM and BLK access a label is required */
 	NDD_ALIASING = 1 << 0,
+	/* unarmed memory devices may not persist writes */
+	NDD_UNARMED = 1 << 1,
 
 	/* need to set a limit somewhere, but yes, this is likely overkill */
 	ND_IOCTL_MAX_BUFLEN = SZ_4M,

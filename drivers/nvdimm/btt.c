@@ -1245,6 +1245,7 @@ static const struct block_device_operations btt_fops = {
 	.owner =		THIS_MODULE,
 	.rw_page =		btt_rw_page,
 	.getgeo =		btt_getgeo,
+	.revalidate_disk =	nvdimm_revalidate_disk,
 };
 
 static int btt_blk_init(struct btt *btt)
@@ -1292,6 +1293,7 @@ static int btt_blk_init(struct btt *btt)
 		}
 	}
 	set_capacity(btt->btt_disk, btt->nlba * btt->sector_size >> 9);
+	revalidate_disk(btt->btt_disk);
 
 	return 0;
 }
@@ -1346,7 +1348,11 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 		goto out_free;
 	}
 
-	if (btt->init_state != INIT_READY) {
+	if (btt->init_state != INIT_READY && nd_region->ro) {
+		dev_info(dev, "%s is read-only, unable to init btt metadata\n",
+				dev_name(&nd_region->dev));
+		goto out_free;
+	} else if (btt->init_state != INIT_READY) {
 		btt->num_arenas = (rawsize / ARENA_MAX_SIZE) +
 			((rawsize % ARENA_MAX_SIZE) ? 1 : 0);
 		dev_dbg(dev, "init: %d arenas for %llu rawsize\n",
@@ -1361,7 +1367,7 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 		ret = btt_meta_init(btt);
 		if (ret) {
 			dev_err(dev, "init: error in meta_init: %d\n", ret);
-			return NULL;
+			goto out_free;
 		}
 	}
 

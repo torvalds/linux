@@ -232,6 +232,7 @@ static int nd_blk_rw_bytes(struct nd_namespace_common *ndns,
 
 static const struct block_device_operations nd_blk_fops = {
 	.owner = THIS_MODULE,
+	.revalidate_disk = nvdimm_revalidate_disk,
 };
 
 static int nd_blk_attach_disk(struct nd_namespace_common *ndns,
@@ -283,6 +284,7 @@ static int nd_blk_attach_disk(struct nd_namespace_common *ndns,
 	}
 
 	set_capacity(disk, available_disk_size >> SECTOR_SHIFT);
+	revalidate_disk(disk);
 	return 0;
 }
 
