@@ -53,6 +53,8 @@
 
 #if defined(CONFIG_X86_INTEL_SOFIA)
 #include <linux/usb/phy-intel.h>
+#else
+#include <linux/power/rk_usbbc.h>
 #endif
 #include "rk818_battery.h"
 
@@ -289,7 +291,7 @@ struct rk81x_battery {
 	struct delayed_work		charge_check_work;
 	struct delayed_work             usb_phy_delay_work;
 	struct delayed_work		chrg_term_mode_switch_work;
-	int				charge_otg;
+	enum bc_port_type		charge_otg;
 	int				ma;
 
 	struct wake_lock		resume_wake_lock;
@@ -599,7 +601,7 @@ static void rk81x_bat_capacity_init(struct rk81x_battery *di, u32 capacity)
 
 	} while (buf == 0);
 
-	dev_info(di->dev, "update capacity :%d--remain_cap:%d\n",
+	dev_dbg(di->dev, "update capacity :%d--remain_cap:%d\n",
 		 capacity, di->remain_capacity);
 }
 
@@ -1098,7 +1100,7 @@ static bool rk81x_bat_zero_current_calib(struct rk81x_battery *di)
 		for (retry = 0; retry < 5; retry++) {
 			adc_value = rk81x_bat_get_raw_adc_current(di);
 			if (!rk81x_chrg_online(di) || abs(adc_value) > 30) {
-				dev_dbg(di->dev, "charger plugout\n");
+				dev_warn(di->dev, "charger plugout\n");
 				ret = true;
 				break;
 			}
@@ -1134,7 +1136,7 @@ static bool rk81x_bat_zero_current_calib(struct rk81x_battery *di)
 				ret = false;
 				break;
 			} else {
-				dev_warn(di->dev, "ioffset cal failed\n");
+				dev_dbg(di->dev, "ioffset cal failed\n");
 				rk81x_bat_set_cal_offset(di, C0);
 			}
 
@@ -2339,16 +2341,23 @@ static void rk81x_bat_charger_init(struct  rk81x_battery *di)
 
 void rk81x_charge_disable_open_otg(struct rk81x_battery *di)
 {
-	int value = di->charge_otg;
+	enum bc_port_type event = di->charge_otg;
 
-	if (value) {
+	switch (event) {
+	case USB_OTG_POWER_ON:
 		DBG("charge disable, enable OTG.\n");
 		rk818_set_bits(di->rk818, CHRG_CTRL_REG1, 1 << 7, 0 << 7);
 		rk818_set_bits(di->rk818, 0x23, 1 << 7, 1 << 7);
-	} else {
+		break;
+
+	case USB_OTG_POWER_OFF:
 		DBG("charge enable, disable OTG.\n");
 		rk818_set_bits(di->rk818, 0x23, 1 << 7, 0 << 7);
 		rk818_set_bits(di->rk818, CHRG_CTRL_REG1, 1 << 7, 1 << 7);
+		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2962,7 +2971,7 @@ static void rk81x_bat_finish_chrg(struct rk81x_battery *di)
 		temp = di->fcc * 3600 / 100;
 		if (di->ac_online)
 			soc_time = temp / DSOC_CHRG_FINISH_CURR;
-		else if (di->usb_online)
+		else
 			soc_time = temp / 450;
 
 		plus_soc = sec_finish / soc_time;
@@ -3374,7 +3383,7 @@ static int  rk81x_bat_sleep_dischrg(struct rk81x_battery *di)
 
 static int rk81x_bat_sleep_chrg(struct rk81x_battery *di)
 {
-	int sleep_soc;
+	int sleep_soc = 0;
 	unsigned long sleep_sec;
 
 	sleep_sec = di->suspend_time_sum;
@@ -3750,17 +3759,6 @@ int battery_notifier_call_chain(unsigned long val)
 }
 EXPORT_SYMBOL_GPL(battery_notifier_call_chain);
 
-static void poweron_lowerpoer_handle(struct rk81x_battery *di)
-{
-#ifdef CONFIG_LOGO_LOWERPOWER_WARNING
-	if ((di->dsoc <= 2) &&
-	    (di->psy_status == POWER_SUPPLY_STATUS_DISCHARGING)) {
-		mdelay(1500);
-		/* kernel_power_off(); */
-	}
-#endif
-}
-
 static int rk81x_bat_notifier_call(struct notifier_block *nb,
 				   unsigned long event, void *data)
 {
@@ -3768,24 +3766,22 @@ static int rk81x_bat_notifier_call(struct notifier_block *nb,
 	    container_of(nb, struct rk81x_battery, battery_nb);
 
 	switch (event) {
-	case 0:
-		DBG(" CHARGE enable\n");
-		di->charge_otg = 0;
-		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
-		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
-		queue_delayed_work(di->wq, &di->charge_check_work,
-				   msecs_to_jiffies(50));
-		break;
-	case 1:
-		di->charge_otg  = 1;
+	case USB_OTG_POWER_ON:
+		dev_info(di->dev, "charge disable, otg enable\n");
+		di->charge_otg	= USB_OTG_POWER_ON;
 		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
 		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
 		queue_delayed_work(di->wq, &di->charge_check_work,
 				   msecs_to_jiffies(50));
-		DBG("charge disable OTG enable\n");
 		break;
-	case 2:
-		poweron_lowerpoer_handle(di);
+
+	case USB_OTG_POWER_OFF:
+		dev_info(di->dev, "charge enable, otg disable\n");
+		di->charge_otg = USB_OTG_POWER_OFF;
+		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
+		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
+		queue_delayed_work(di->wq, &di->charge_check_work,
+				   msecs_to_jiffies(50));
 		break;
 	default:
 		return NOTIFY_OK;
@@ -4202,11 +4198,12 @@ static int rk81x_battery_probe(struct platform_device *pdev)
 	queue_delayed_work(di->wq, &di->battery_monitor_work,
 			   msecs_to_jiffies(TIMER_MS_COUNTS * 5));
 
+#if defined(CONFIG_ARCH_ROCKCHIP)
 	INIT_DELAYED_WORK(&di->charge_check_work,
 			  rk81x_battery_charge_check_work);
 	di->battery_nb.notifier_call = rk81x_bat_notifier_call;
-	register_battery_notifier(&di->battery_nb);
-
+	rk_bc_detect_notifier_register(&di->battery_nb, &di->charge_otg);
+#endif
 	dev_info(di->dev, "battery driver version %s\n", DRIVER_VERSION);
 
 	return ret;
@@ -4325,6 +4322,8 @@ static void rk81x_battery_shutdown(struct platform_device *dev)
 	struct rk81x_battery *di = platform_get_drvdata(dev);
 
 	cancel_delayed_work_sync(&di->battery_monitor_work);
+	rk_bc_detect_notifier_unregister(&di->battery_nb);
+
 	if (BASE_TO_MIN(di->power_on_base) <= REBOOT_INTER_MIN)
 		rk81x_bat_check_reboot(di);
 	else
