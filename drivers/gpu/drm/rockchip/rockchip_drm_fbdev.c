@@ -33,6 +33,23 @@ static int rockchip_fbdev_mmap(struct fb_info *info,
 	return rockchip_gem_mmap_buf(private->fbdev_bo, vma);
 }
 
+static struct dma_buf *rockchip_fbdev_get_dma_buf(struct fb_info *info)
+{
+	struct dma_buf *buf = NULL;
+	struct drm_fb_helper *helper = info->par;
+	struct rockchip_drm_private *private = helper->dev->dev_private;
+	struct drm_device *dev = helper->dev;
+
+	if (dev->driver->gem_prime_export) {
+		buf = dev->driver->gem_prime_export(dev, private->fbdev_bo,
+						    O_RDWR);
+		if (buf)
+			drm_gem_object_reference(private->fbdev_bo);
+	}
+
+	return buf;
+}
+
 static struct fb_ops rockchip_drm_fbdev_ops = {
 	.owner		= THIS_MODULE,
 	.fb_mmap	= rockchip_fbdev_mmap,
@@ -44,6 +61,7 @@ static struct fb_ops rockchip_drm_fbdev_ops = {
 	.fb_blank	= drm_fb_helper_blank,
 	.fb_pan_display	= drm_fb_helper_pan_display,
 	.fb_setcmap	= drm_fb_helper_setcmap,
+	.fb_dmabuf_export	= rockchip_fbdev_get_dma_buf,
 };
 
 static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
