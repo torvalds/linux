@@ -1472,12 +1472,6 @@ retry:
 			goto fail;
 		}
 
-		if (obj->type == DRM_MODE_OBJECT_PLANE) {
-			plane = obj_to_plane(obj);
-			plane_mask |= (1 << drm_plane_index(plane));
-			plane->old_fb = plane->fb;
-		}
-
 		if (get_user(count_props, count_props_ptr + copied_objs)) {
 			ret = -EFAULT;
 			goto fail;
@@ -1513,6 +1507,12 @@ retry:
 				goto fail;
 
 			copied_props++;
+		}
+
+		if (obj->type == DRM_MODE_OBJECT_PLANE && count_props) {
+			plane = obj_to_plane(obj);
+			plane_mask |= (1 << drm_plane_index(plane));
+			plane->old_fb = plane->fb;
 		}
 	}
 
