@@ -33,11 +33,12 @@ static struct memblock_type oldmem_type = {
 };
 
 #define for_each_dump_mem_range(i, nid, p_start, p_end, p_nid)		\
-	for (i = 0, __next_mem_range(&i, nid, &memblock.physmem,	\
+	for (i = 0, __next_mem_range(&i, nid, MEMBLOCK_NONE,		\
+				     &memblock.physmem,			\
 				     &oldmem_type, p_start,		\
 				     p_end, p_nid);			\
 	     i != (u64)ULLONG_MAX;					\
-	     __next_mem_range(&i, nid, &memblock.physmem,		\
+	     __next_mem_range(&i, nid, MEMBLOCK_NONE, &memblock.physmem,\
 			      &oldmem_type,				\
 			      p_start, p_end, p_nid))
 

@@ -41,7 +41,8 @@ static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 	if (limit > memblock.current_limit)
 		limit = memblock.current_limit;
 
-	addr = memblock_find_in_range_node(size, align, goal, limit, nid);
+	addr = memblock_find_in_range_node(size, align, goal, limit, nid,
+					   MEMBLOCK_NONE);
 	if (!addr)
 		return NULL;
 
@@ -121,7 +122,8 @@ static unsigned long __init free_low_memory_core_early(void)
 
 	memblock_clear_hotplug(0, -1);
 
-	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
+	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
+				NULL)
 		count += __free_memory_core(start, end);
 
 #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
