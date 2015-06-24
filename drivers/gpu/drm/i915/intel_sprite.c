@@ -402,10 +402,6 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	if (obj->tiling_mode != I915_TILING_NONE)
 		sprctl |= SP_TILED;
 
-	intel_update_sprite_watermarks(dplane, crtc, src_w, src_h,
-				       pixel_size, true,
-				       src_w != crtc_w || src_h != crtc_h);
-
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
@@ -470,8 +466,6 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 
 	I915_WRITE(SPSURF(pipe, plane), 0);
 	POSTING_READ(SPSURF(pipe, plane));
-
-	intel_update_sprite_watermarks(dplane, crtc, 0, 0, 0, false, false);
 }
 
 static void

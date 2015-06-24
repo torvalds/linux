@@ -15455,7 +15455,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		pll->on = false;
 	}
 
-	if (IS_CHERRYVIEW(dev))
+	if (IS_VALLEYVIEW(dev))
 		vlv_wm_get_hw_state(dev);
 	else if (IS_GEN9(dev))
 		skl_wm_get_hw_state(dev);

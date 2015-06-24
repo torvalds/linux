@@ -931,77 +931,6 @@ static void vlv_write_wm_values(struct intel_crtc *crtc,
 
 #undef FW_WM_VLV
 
-static uint8_t vlv_compute_drain_latency(struct drm_crtc *crtc,
-					 struct drm_plane *plane)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int entries, prec_mult, drain_latency, pixel_size;
-	int clock = intel_crtc->config->base.adjusted_mode.crtc_clock;
-	const int high_precision = IS_CHERRYVIEW(dev) ? 16 : 64;
-
-	/*
-	 * FIXME the plane might have an fb
-	 * but be invisible (eg. due to clipping)
-	 */
-	if (!intel_crtc->active || !plane->state->fb)
-		return 0;
-
-	if (WARN(clock == 0, "Pixel clock is zero!\n"))
-		return 0;
-
-	pixel_size = drm_format_plane_cpp(plane->state->fb->pixel_format, 0);
-
-	if (WARN(pixel_size == 0, "Pixel size is zero!\n"))
-		return 0;
-
-	entries = DIV_ROUND_UP(clock, 1000) * pixel_size;
-
-	prec_mult = high_precision;
-	drain_latency = 64 * prec_mult * 4 / entries;
-
-	if (drain_latency > DRAIN_LATENCY_MASK) {
-		prec_mult /= 2;
-		drain_latency = 64 * prec_mult * 4 / entries;
-	}
-
-	if (drain_latency > DRAIN_LATENCY_MASK)
-		drain_latency = DRAIN_LATENCY_MASK;
-
-	return drain_latency | (prec_mult == high_precision ?
-				DDL_PRECISION_HIGH : DDL_PRECISION_LOW);
-}
-
-static int vlv_compute_wm(struct intel_crtc *crtc,
-			  struct intel_plane *plane,
-			  int fifo_size)
-{
-	int clock, entries, pixel_size;
-
-	/*
-	 * FIXME the plane might have an fb
-	 * but be invisible (eg. due to clipping)
-	 */
-	if (!crtc->active || !plane->base.state->fb)
-		return 0;
-
-	pixel_size = drm_format_plane_cpp(plane->base.state->fb->pixel_format, 0);
-	clock = crtc->config->base.adjusted_mode.crtc_clock;
-
-	entries = DIV_ROUND_UP(clock, 1000) * pixel_size;
-
-	/*
-	 * Set up the watermark such that we don't start issuing memory
-	 * requests until we are within PND's max deadline value (256us).
-	 * Idea being to be idle as long as possible while still taking
-	 * advatange of PND's deadline scheduling. The limit of 8
-	 * cachelines (used when the FIFO will anyway drain in less time
-	 * than 256us) should match what we would be done if trickle
-	 * feed were enabled.
-	 */
-	return fifo_size - clamp(DIV_ROUND_UP(256 * entries, 64), 0, fifo_size - 8);
-}
-
 enum vlv_wm_level {
 	VLV_WM_LEVEL_PM2,
 	VLV_WM_LEVEL_PM5,
@@ -1074,101 +1003,6 @@ static uint16_t vlv_compute_wm_level(struct intel_plane *plane,
 	}
 
 	return min_t(int, wm, USHRT_MAX);
-}
-
-static bool vlv_compute_sr_wm(struct drm_device *dev,
-			      struct vlv_wm_values *wm)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc *crtc;
-	enum pipe pipe = INVALID_PIPE;
-	int num_planes = 0;
-	int fifo_size = 0;
-	struct intel_plane *plane;
-
-	wm->sr.cursor = wm->sr.plane = 0;
-
-	crtc = single_enabled_crtc(dev);
-	/* maxfifo not supported on pipe C */
-	if (crtc && to_intel_crtc(crtc)->pipe != PIPE_C) {
-		pipe = to_intel_crtc(crtc)->pipe;
-		num_planes = !!wm->pipe[pipe].primary +
-			!!wm->pipe[pipe].sprite[0] +
-			!!wm->pipe[pipe].sprite[1];
-		fifo_size = INTEL_INFO(dev_priv)->num_pipes * 512 - 1;
-	}
-
-	if (fifo_size == 0 || num_planes > 1)
-		return false;
-
-	wm->sr.cursor = vlv_compute_wm(to_intel_crtc(crtc),
-				       to_intel_plane(crtc->cursor), 0x3f);
-
-	list_for_each_entry(plane, &dev->mode_config.plane_list, base.head) {
-		if (plane->base.type == DRM_PLANE_TYPE_CURSOR)
-			continue;
-
-		if (plane->pipe != pipe)
-			continue;
-
-		wm->sr.plane = vlv_compute_wm(to_intel_crtc(crtc),
-					      plane, fifo_size);
-		if (wm->sr.plane != 0)
-			break;
-	}
-
-	return true;
-}
-
-static void valleyview_update_wm(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
-	bool cxsr_enabled;
-	struct vlv_wm_values wm = dev_priv->wm.vlv;
-
-	wm.ddl[pipe].primary = vlv_compute_drain_latency(crtc, crtc->primary);
-	wm.pipe[pipe].primary = vlv_compute_wm(intel_crtc,
-					       to_intel_plane(crtc->primary),
-					       vlv_get_fifo_size(dev, pipe, 0));
-
-	wm.ddl[pipe].cursor = vlv_compute_drain_latency(crtc, crtc->cursor);
-	wm.pipe[pipe].cursor = vlv_compute_wm(intel_crtc,
-					      to_intel_plane(crtc->cursor),
-					      0x3f);
-
-	cxsr_enabled = vlv_compute_sr_wm(dev, &wm);
-
-	if (memcmp(&wm, &dev_priv->wm.vlv, sizeof(wm)) == 0)
-		return;
-
-	DRM_DEBUG_KMS("Setting FIFO watermarks - %c: plane=%d, cursor=%d, "
-		      "SR: plane=%d, cursor=%d\n", pipe_name(pipe),
-		      wm.pipe[pipe].primary, wm.pipe[pipe].cursor,
-		      wm.sr.plane, wm.sr.cursor);
-
-	/*
-	 * FIXME DDR DVFS introduces massive memory latencies which
-	 * are not known to system agent so any deadline specified
-	 * by the display may not be respected. To support DDR DVFS
-	 * the watermark code needs to be rewritten to essentially
-	 * bypass deadline mechanism and rely solely on the
-	 * watermarks. For now disable DDR DVFS.
-	 */
-	if (IS_CHERRYVIEW(dev_priv))
-		chv_set_memory_dvfs(dev_priv, false);
-
-	if (!cxsr_enabled)
-		intel_set_memory_cxsr(dev_priv, false);
-
-	vlv_write_wm_values(intel_crtc, &wm);
-
-	if (cxsr_enabled)
-		intel_set_memory_cxsr(dev_priv, true);
-
-	dev_priv->wm.vlv = wm;
 }
 
 static void vlv_compute_fifo(struct intel_crtc *crtc)
@@ -1272,7 +1106,7 @@ static void vlv_invert_wms(struct intel_crtc *crtc)
 	}
 }
 
-static void _vlv_compute_wm(struct intel_crtc *crtc)
+static void vlv_compute_wm(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct vlv_wm_state *wm_state = &crtc->wm_state;
@@ -1518,7 +1352,7 @@ static void vlv_update_wm(struct drm_crtc *crtc)
 	enum pipe pipe = intel_crtc->pipe;
 	struct vlv_wm_values wm = {};
 
-	_vlv_compute_wm(intel_crtc);
+	vlv_compute_wm(intel_crtc);
 	vlv_merge_wm(dev, &wm);
 
 	if (memcmp(&dev_priv->wm.vlv, &wm, sizeof(wm)) == 0) {
@@ -1565,54 +1399,6 @@ static void vlv_update_wm(struct drm_crtc *crtc)
 		chv_set_memory_dvfs(dev_priv, true);
 
 	dev_priv->wm.vlv = wm;
-}
-
-static void valleyview_update_sprite_wm(struct drm_plane *plane,
-					struct drm_crtc *crtc,
-					uint32_t sprite_width,
-					uint32_t sprite_height,
-					int pixel_size,
-					bool enabled, bool scaled)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
-	int sprite = to_intel_plane(plane)->plane;
-	bool cxsr_enabled;
-	struct vlv_wm_values wm = dev_priv->wm.vlv;
-
-	if (enabled) {
-		wm.ddl[pipe].sprite[sprite] =
-			vlv_compute_drain_latency(crtc, plane);
-
-		wm.pipe[pipe].sprite[sprite] =
-			vlv_compute_wm(intel_crtc,
-				       to_intel_plane(plane),
-				       vlv_get_fifo_size(dev, pipe, sprite+1));
-	} else {
-		wm.ddl[pipe].sprite[sprite] = 0;
-		wm.pipe[pipe].sprite[sprite] = 0;
-	}
-
-	cxsr_enabled = vlv_compute_sr_wm(dev, &wm);
-
-	if (memcmp(&wm, &dev_priv->wm.vlv, sizeof(wm)) == 0)
-		return;
-
-	DRM_DEBUG_KMS("Setting FIFO watermarks - %c: sprite %c=%d, "
-		      "SR: plane=%d, cursor=%d\n", pipe_name(pipe),
-		      sprite_name(pipe, sprite),
-		      wm.pipe[pipe].sprite[sprite],
-		      wm.sr.plane, wm.sr.cursor);
-
-	if (!cxsr_enabled)
-		intel_set_memory_cxsr(dev_priv, false);
-
-	vlv_write_wm_values(intel_crtc, &wm);
-
-	if (cxsr_enabled)
-		intel_set_memory_cxsr(dev_priv, true);
 }
 
 #define single_plane_enabled(mask) is_power_of_2(mask)
@@ -7297,8 +7083,9 @@ void intel_init_pm(struct drm_device *dev)
 		dev_priv->display.init_clock_gating =
 			cherryview_init_clock_gating;
 	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->display.update_wm = valleyview_update_wm;
-		dev_priv->display.update_sprite_wm = valleyview_update_sprite_wm;
+		vlv_setup_wm_latency(dev);
+
+		dev_priv->display.update_wm = vlv_update_wm;
 		dev_priv->display.init_clock_gating =
 			valleyview_init_clock_gating;
 	} else if (IS_PINEVIEW(dev)) {
