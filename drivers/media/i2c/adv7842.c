@@ -1981,8 +1981,7 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 	select_input(sd, state->vid_std_select);
 	enable_input(sd);
 
-	v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT,
-			   (void *)&adv7842_ev_fmt);
+	v4l2_subdev_notify_event(sd, &adv7842_ev_fmt);
 
 	return 0;
 }
@@ -2215,8 +2214,7 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			 "%s: fmt_change_cp = 0x%x, fmt_change_digital = 0x%x, fmt_change_sdp = 0x%x\n",
 			 __func__, fmt_change_cp, fmt_change_digital,
 			 fmt_change_sdp);
-		v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT,
-				   (void *)&adv7842_ev_fmt);
+		v4l2_subdev_notify_event(sd, &adv7842_ev_fmt);
 		if (handled)
 			*handled = true;
 	}
@@ -3006,6 +3004,20 @@ static long adv7842_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	return -ENOTTY;
 }
 
+static int adv7842_subscribe_event(struct v4l2_subdev *sd,
+				   struct v4l2_fh *fh,
+				   struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_SOURCE_CHANGE:
+		return v4l2_src_change_event_subdev_subscribe(sd, fh, sub);
+	case V4L2_EVENT_CTRL:
+		return v4l2_ctrl_subdev_subscribe_event(sd, fh, sub);
+	default:
+		return -EINVAL;
+	}
+}
+
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_ctrl_ops adv7842_ctrl_ops = {
@@ -3016,7 +3028,7 @@ static const struct v4l2_subdev_core_ops adv7842_core_ops = {
 	.log_status = adv7842_log_status,
 	.ioctl = adv7842_ioctl,
 	.interrupt_service_routine = adv7842_isr,
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.subscribe_event = adv7842_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = adv7842_g_register,
