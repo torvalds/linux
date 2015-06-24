@@ -678,6 +678,10 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	/* assign default VLAN to queue */
 	ring->vid = hw->mac.default_vid;
 
+	/* if we have an active VLAN, disable default VID */
+	if (test_bit(hw->mac.default_vid, interface->active_vlans))
+		ring->vid |= FM10K_VLAN_CLEAR;
+
 	/* Map interrupt */
 	if (ring->q_vector) {
 		rxint = ring->q_vector->v_idx + NON_Q_VECTORS(hw);

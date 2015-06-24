@@ -497,8 +497,11 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 	if (rx_desc->w.vlan) {
 		u16 vid = le16_to_cpu(rx_desc->w.vlan);
 
-		if (vid != rx_ring->vid)
+		if ((vid & VLAN_VID_MASK) != rx_ring->vid)
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
+		else if (vid & VLAN_PRIO_MASK)
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       vid & VLAN_PRIO_MASK);
 	}
 
 	fm10k_type_trans(rx_ring, rx_desc, skb);
