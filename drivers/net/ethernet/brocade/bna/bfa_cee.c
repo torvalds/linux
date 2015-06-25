@@ -282,7 +282,6 @@ bfa_nw_cee_attach(struct bfa_cee *cee, struct bfa_ioc *ioc,
 	cee->ioc = ioc;
 
 	bfa_nw_ioc_mbox_regisr(cee->ioc, BFI_MC_CEE, bfa_cee_isr, cee);
-	bfa_q_qe_init(&cee->ioc_notify);
 	bfa_ioc_notify_init(&cee->ioc_notify, bfa_cee_notify, cee);
 	bfa_nw_ioc_notify_register(cee->ioc, &cee->ioc_notify);
 }

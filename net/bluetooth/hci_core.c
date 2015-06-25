@@ -94,7 +94,6 @@ static ssize_t dut_mode_write(struct file *file, const char __user *user_buf,
 	char buf[32];
 	size_t buf_size = min(count, (sizeof(buf)-1));
 	bool enable;
-	int err;
 
 	if (!test_bit(HCI_UP, &hdev->flags))
 		return -ENETDOWN;
@@ -121,11 +120,7 @@ static ssize_t dut_mode_write(struct file *file, const char __user *user_buf,
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	err = -bt_to_errno(skb->data[0]);
 	kfree_skb(skb);
-
-	if (err < 0)
-		return err;
 
 	hci_dev_change_flag(hdev, HCI_DUT_MODE);
 
@@ -1558,6 +1553,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	BT_DBG("%s %p", hdev->name, hdev);
 
 	if (!hci_dev_test_flag(hdev, HCI_UNREGISTER) &&
+	    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
 	    test_bit(HCI_UP, &hdev->flags)) {
 		/* Execute vendor specific shutdown routine */
 		if (hdev->shutdown)
@@ -1594,6 +1590,11 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	if (hci_dev_test_flag(hdev, HCI_MGMT))
 		cancel_delayed_work_sync(&hdev->rpa_expired);
+
+	if (hdev->adv_instance_timeout) {
+		cancel_delayed_work_sync(&hdev->adv_instance_expire);
+		hdev->adv_instance_timeout = 0;
+	}
 
 	/* Avoid potential lockdep warnings from the *_flush() calls by
 	 * ensuring the workqueue is empty up front.
@@ -2151,6 +2152,17 @@ static void hci_discov_off(struct work_struct *work)
 	mgmt_discoverable_timeout(hdev);
 }
 
+static void hci_adv_timeout_expire(struct work_struct *work)
+{
+	struct hci_dev *hdev;
+
+	hdev = container_of(work, struct hci_dev, adv_instance_expire.work);
+
+	BT_DBG("%s", hdev->name);
+
+	mgmt_adv_timeout_expired(hdev);
+}
+
 void hci_uuids_clear(struct hci_dev *hdev)
 {
 	struct bt_uuid *uuid, *tmp;
@@ -2614,6 +2626,130 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	return 0;
 }
 
+/* This function requires the caller holds hdev->lock */
+struct adv_info *hci_find_adv_instance(struct hci_dev *hdev, u8 instance)
+{
+	struct adv_info *adv_instance;
+
+	list_for_each_entry(adv_instance, &hdev->adv_instances, list) {
+		if (adv_instance->instance == instance)
+			return adv_instance;
+	}
+
+	return NULL;
+}
+
+/* This function requires the caller holds hdev->lock */
+struct adv_info *hci_get_next_instance(struct hci_dev *hdev, u8 instance) {
+	struct adv_info *cur_instance;
+
+	cur_instance = hci_find_adv_instance(hdev, instance);
+	if (!cur_instance)
+		return NULL;
+
+	if (cur_instance == list_last_entry(&hdev->adv_instances,
+					    struct adv_info, list))
+		return list_first_entry(&hdev->adv_instances,
+						 struct adv_info, list);
+	else
+		return list_next_entry(cur_instance, list);
+}
+
+/* This function requires the caller holds hdev->lock */
+int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
+{
+	struct adv_info *adv_instance;
+
+	adv_instance = hci_find_adv_instance(hdev, instance);
+	if (!adv_instance)
+		return -ENOENT;
+
+	BT_DBG("%s removing %dMR", hdev->name, instance);
+
+	if (hdev->cur_adv_instance == instance && hdev->adv_instance_timeout) {
+		cancel_delayed_work(&hdev->adv_instance_expire);
+		hdev->adv_instance_timeout = 0;
+	}
+
+	list_del(&adv_instance->list);
+	kfree(adv_instance);
+
+	hdev->adv_instance_cnt--;
+
+	return 0;
+}
+
+/* This function requires the caller holds hdev->lock */
+void hci_adv_instances_clear(struct hci_dev *hdev)
+{
+	struct adv_info *adv_instance, *n;
+
+	if (hdev->adv_instance_timeout) {
+		cancel_delayed_work(&hdev->adv_instance_expire);
+		hdev->adv_instance_timeout = 0;
+	}
+
+	list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances, list) {
+		list_del(&adv_instance->list);
+		kfree(adv_instance);
+	}
+
+	hdev->adv_instance_cnt = 0;
+}
+
+/* This function requires the caller holds hdev->lock */
+int hci_add_adv_instance(struct hci_dev *hdev, u8 instance, u32 flags,
+			 u16 adv_data_len, u8 *adv_data,
+			 u16 scan_rsp_len, u8 *scan_rsp_data,
+			 u16 timeout, u16 duration)
+{
+	struct adv_info *adv_instance;
+
+	adv_instance = hci_find_adv_instance(hdev, instance);
+	if (adv_instance) {
+		memset(adv_instance->adv_data, 0,
+		       sizeof(adv_instance->adv_data));
+		memset(adv_instance->scan_rsp_data, 0,
+		       sizeof(adv_instance->scan_rsp_data));
+	} else {
+		if (hdev->adv_instance_cnt >= HCI_MAX_ADV_INSTANCES ||
+		    instance < 1 || instance > HCI_MAX_ADV_INSTANCES)
+			return -EOVERFLOW;
+
+		adv_instance = kzalloc(sizeof(*adv_instance), GFP_KERNEL);
+		if (!adv_instance)
+			return -ENOMEM;
+
+		adv_instance->pending = true;
+		adv_instance->instance = instance;
+		list_add(&adv_instance->list, &hdev->adv_instances);
+		hdev->adv_instance_cnt++;
+	}
+
+	adv_instance->flags = flags;
+	adv_instance->adv_data_len = adv_data_len;
+	adv_instance->scan_rsp_len = scan_rsp_len;
+
+	if (adv_data_len)
+		memcpy(adv_instance->adv_data, adv_data, adv_data_len);
+
+	if (scan_rsp_len)
+		memcpy(adv_instance->scan_rsp_data,
+		       scan_rsp_data, scan_rsp_len);
+
+	adv_instance->timeout = timeout;
+	adv_instance->remaining_time = timeout;
+
+	if (duration == 0)
+		adv_instance->duration = HCI_DEFAULT_ADV_DURATION;
+	else
+		adv_instance->duration = duration;
+
+	BT_DBG("%s for %dMR", hdev->name, instance);
+
+	return 0;
+}
+
 struct bdaddr_list *hci_bdaddr_list_lookup(struct list_head *bdaddr_list,
 					 bdaddr_t *bdaddr, u8 type)
 {
@@ -3019,6 +3155,9 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->manufacturer = 0xffff;	/* Default to internal use */
 	hdev->inq_tx_power = HCI_TX_POWER_INVALID;
 	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
+	hdev->adv_instance_cnt = 0;
+	hdev->cur_adv_instance = 0x00;
+	hdev->adv_instance_timeout = 0;
 
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;
@@ -3060,6 +3199,7 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_LIST_HEAD(&hdev->pend_le_conns);
 	INIT_LIST_HEAD(&hdev->pend_le_reports);
 	INIT_LIST_HEAD(&hdev->conn_hash.list);
+	INIT_LIST_HEAD(&hdev->adv_instances);
 
 	INIT_WORK(&hdev->rx_work, hci_rx_work);
 	INIT_WORK(&hdev->cmd_work, hci_cmd_work);
@@ -3071,6 +3211,7 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
+	INIT_DELAYED_WORK(&hdev->adv_instance_expire, hci_adv_timeout_expire);
 
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);
@@ -3082,7 +3223,6 @@ struct hci_dev *hci_alloc_dev(void)
 
 	hci_init_sysfs(hdev);
 	discovery_init(hdev);
-	adv_info_init(hdev);
 
 	return hdev;
 }
@@ -3253,6 +3393,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_smp_ltks_clear(hdev);
 	hci_smp_irks_clear(hdev);
 	hci_remote_oob_data_clear(hdev);
+	hci_adv_instances_clear(hdev);
 	hci_bdaddr_list_clear(&hdev->le_white_list);
 	hci_conn_params_clear_all(hdev);
 	hci_discovery_filter_clear(hdev);

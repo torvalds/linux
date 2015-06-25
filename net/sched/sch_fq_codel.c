@@ -6,7 +6,7 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  *
- *  Copyright (C) 2012 Eric Dumazet <edumazet@google.com>
+ *  Copyright (C) 2012,2015 Eric Dumazet <edumazet@google.com>
  */
 
 #include <linux/module.h>
@@ -23,7 +23,6 @@
 #include <linux/vmalloc.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
-#include <net/flow_keys.h>
 #include <net/codel.h>
 
 /*	Fair Queue CoDel.
@@ -68,15 +67,9 @@ struct fq_codel_sched_data {
 };
 
 static unsigned int fq_codel_hash(const struct fq_codel_sched_data *q,
-				  const struct sk_buff *skb)
+				  struct sk_buff *skb)
 {
-	struct flow_keys keys;
-	unsigned int hash;
-
-	skb_flow_dissect(skb, &keys);
-	hash = jhash_3words((__force u32)keys.dst,
-			    (__force u32)keys.src ^ keys.ip_proto,
-			    (__force u32)keys.ports, q->perturbation);
+	u32 hash = skb_get_hash_perturb(skb, q->perturbation);
 
 	return reciprocal_scale(hash, q->flows_cnt);
 }
@@ -299,6 +292,7 @@ static const struct nla_policy fq_codel_policy[TCA_FQ_CODEL_MAX + 1] = {
 	[TCA_FQ_CODEL_ECN]	= { .type = NLA_U32 },
 	[TCA_FQ_CODEL_FLOWS]	= { .type = NLA_U32 },
 	[TCA_FQ_CODEL_QUANTUM]	= { .type = NLA_U32 },
+	[TCA_FQ_CODEL_CE_THRESHOLD] = { .type = NLA_U32 },
 };
 
 static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt)
@@ -327,6 +321,12 @@ static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt)
 		u64 target = nla_get_u32(tb[TCA_FQ_CODEL_TARGET]);
 
 		q->cparams.target = (target * NSEC_PER_USEC) >> CODEL_SHIFT;
+	}
+
+	if (tb[TCA_FQ_CODEL_CE_THRESHOLD]) {
+		u64 val = nla_get_u32(tb[TCA_FQ_CODEL_CE_THRESHOLD]);
+
+		q->cparams.ce_threshold = (val * NSEC_PER_USEC) >> CODEL_SHIFT;
 	}
 
 	if (tb[TCA_FQ_CODEL_INTERVAL]) {
@@ -448,6 +448,11 @@ static int fq_codel_dump(struct Qdisc *sch, struct sk_buff *skb)
 			q->flows_cnt))
 		goto nla_put_failure;
 
+	if (q->cparams.ce_threshold != CODEL_DISABLED_THRESHOLD &&
+	    nla_put_u32(skb, TCA_FQ_CODEL_CE_THRESHOLD,
+			codel_time_to_us(q->cparams.ce_threshold)))
+		goto nla_put_failure;
+
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:
@@ -466,6 +471,7 @@ static int fq_codel_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	st.qdisc_stats.drop_overlimit = q->drop_overlimit;
 	st.qdisc_stats.ecn_mark = q->cstats.ecn_mark;
 	st.qdisc_stats.new_flow_count = q->new_flow_count;
+	st.qdisc_stats.ce_mark = q->cstats.ce_mark;
 
 	list_for_each(pos, &q->new_flows)
 		st.qdisc_stats.new_flows_len++;

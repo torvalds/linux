@@ -186,12 +186,34 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	ssize_t size;
 	ssize_t ecc_notice_size;
 	struct ramoops_context *cxt = psi->data;
-	struct persistent_ram_zone *prz;
-	int header_length;
+	struct persistent_ram_zone *prz = NULL;
+	int header_length = 0;
 
-	prz = ramoops_get_next_prz(cxt->przs, &cxt->dump_read_cnt,
-				   cxt->max_dump_cnt, id, type,
-				   PSTORE_TYPE_DMESG, 1);
+	/* Ramoops headers provide time stamps for PSTORE_TYPE_DMESG, but
+	 * PSTORE_TYPE_CONSOLE and PSTORE_TYPE_FTRACE don't currently have
+	 * valid time stamps, so it is initialized to zero.
+	 */
+	time->tv_sec = 0;
+	time->tv_nsec = 0;
+	*compressed = false;
+
+	/* Find the next valid persistent_ram_zone for DMESG */
+	while (cxt->dump_read_cnt < cxt->max_dump_cnt && !prz) {
+		prz = ramoops_get_next_prz(cxt->przs, &cxt->dump_read_cnt,
+					   cxt->max_dump_cnt, id, type,
+					   PSTORE_TYPE_DMESG, 1);
+		if (!prz_ok(prz))
+			continue;
+		header_length = ramoops_read_kmsg_hdr(persistent_ram_old(prz),
+						      time, compressed);
+		/* Clear and skip this DMESG record if it has no valid header */
+		if (!header_length) {
+			persistent_ram_free_old(prz);
+			persistent_ram_zap(prz);
+			prz = NULL;
+		}
+	}
+
 	if (!prz_ok(prz))
 		prz = ramoops_get_next_prz(&cxt->cprz, &cxt->console_read_cnt,
 					   1, id, type, PSTORE_TYPE_CONSOLE, 0);
@@ -204,13 +226,7 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	if (!prz_ok(prz))
 		return 0;
 
-	if (!persistent_ram_old(prz))
-		return 0;
-
-	size = persistent_ram_old_size(prz);
-	header_length = ramoops_read_kmsg_hdr(persistent_ram_old(prz), time,
-			compressed);
-	size -= header_length;
+	size = persistent_ram_old_size(prz) - header_length;
 
 	/* ECC correction notice */
 	ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
@@ -394,18 +410,16 @@ static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
 	}
 
 	for (i = 0; i < cxt->max_dump_cnt; i++) {
-		size_t sz = cxt->record_size;
-
-		cxt->przs[i] = persistent_ram_new(*paddr, sz, 0,
+		cxt->przs[i] = persistent_ram_new(*paddr, cxt->record_size, 0,
 						  &cxt->ecc_info,
 						  cxt->memtype);
 		if (IS_ERR(cxt->przs[i])) {
 			err = PTR_ERR(cxt->przs[i]);
 			dev_err(dev, "failed to request mem region (0x%zx@0x%llx): %d\n",
-				sz, (unsigned long long)*paddr, err);
+				cxt->record_size, (unsigned long long)*paddr, err);
 			goto fail_prz;
 		}
-		*paddr += sz;
+		*paddr += cxt->record_size;
 	}
 
 	return 0;
@@ -608,7 +622,7 @@ static void ramoops_register_dummy(void)
 
 	dummy_data->mem_size = mem_size;
 	dummy_data->mem_address = mem_address;
-	dummy_data->mem_type = 0;
+	dummy_data->mem_type = mem_type;
 	dummy_data->record_size = record_size;
 	dummy_data->console_size = ramoops_console_size;
 	dummy_data->ftrace_size = ramoops_ftrace_size;

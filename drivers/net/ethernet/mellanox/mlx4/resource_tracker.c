@@ -46,8 +46,11 @@
 
 #include "mlx4.h"
 #include "fw.h"
+#include "mlx4_stats.h"
 
 #define MLX4_MAC_VALID		(1ull << 63)
+#define MLX4_PF_COUNTERS_PER_PORT	2
+#define MLX4_VF_COUNTERS_PER_PORT	1
 
 struct mac_res {
 	struct list_head list;
@@ -459,11 +462,21 @@ void mlx4_init_quotas(struct mlx4_dev *dev)
 	dev->quotas.mpt =
 		priv->mfunc.master.res_tracker.res_alloc[RES_MPT].quota[pf];
 }
+
+static int get_max_gauranteed_vfs_counter(struct mlx4_dev *dev)
+{
+	/* reduce the sink counter */
+	return (dev->caps.max_counters - 1 -
+		(MLX4_PF_COUNTERS_PER_PORT * MLX4_MAX_PORTS))
+		/ MLX4_MAX_PORTS;
+}
+
 int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int i, j;
 	int t;
+	int max_vfs_guarantee_counter = get_max_gauranteed_vfs_counter(dev);
 
 	priv->mfunc.master.res_tracker.slave_list =
 		kzalloc(dev->num_slaves * sizeof(struct slave_list),
@@ -499,6 +512,9 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 			res_alloc->allocated = kzalloc((dev->persist->
 							num_vfs + 1) *
 						       sizeof(int), GFP_KERNEL);
+		/* Reduce the sink counter */
+		if (i == RES_COUNTER)
+			res_alloc->res_free = dev->caps.max_counters - 1;
 
 		if (!res_alloc->quota || !res_alloc->guaranteed ||
 		    !res_alloc->allocated)
@@ -577,9 +593,17 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 				break;
 			case RES_COUNTER:
 				res_alloc->quota[t] = dev->caps.max_counters;
-				res_alloc->guaranteed[t] = 0;
 				if (t == mlx4_master_func_num(dev))
-					res_alloc->res_free = res_alloc->quota[t];
+					res_alloc->guaranteed[t] =
+						MLX4_PF_COUNTERS_PER_PORT *
+						MLX4_MAX_PORTS;
+				else if (t <= max_vfs_guarantee_counter)
+					res_alloc->guaranteed[t] =
+						MLX4_VF_COUNTERS_PER_PORT *
+						MLX4_MAX_PORTS;
+				else
+					res_alloc->guaranteed[t] = 0;
+				res_alloc->res_free -= res_alloc->guaranteed[t];
 				break;
 			default:
 				break;
@@ -700,6 +724,9 @@ static void update_gid(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *inbox,
 	}
 }
 
+static int handle_counter(struct mlx4_dev *dev, struct mlx4_qp_context *qpc,
+			  u8 slave, int port);
+
 static int update_vport_qp_param(struct mlx4_dev *dev,
 				 struct mlx4_cmd_mailbox *inbox,
 				 u8 slave, u32 qpn)
@@ -714,6 +741,10 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 	priv = mlx4_priv(dev);
 	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 	qp_type	= (be32_to_cpu(qpc->flags) >> 16) & 0xff;
+
+	err = handle_counter(dev, qpc, slave, port);
+	if (err)
+		goto out;
 
 	if (MLX4_VGT != vp_oper->state.default_vlan) {
 		/* the reserved QPs (special, proxy, tunnel)
@@ -859,6 +890,83 @@ static void put_res(struct mlx4_dev *dev, int slave, u64 res_id,
 	spin_unlock_irq(mlx4_tlock(dev));
 }
 
+static int counter_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
+			     u64 in_param, u64 *out_param, int port);
+
+static int handle_existing_counter(struct mlx4_dev *dev, u8 slave, int port,
+				   int counter_index)
+{
+	struct res_common *r;
+	struct res_counter *counter;
+	int ret = 0;
+
+	if (counter_index == MLX4_SINK_COUNTER_INDEX(dev))
+		return ret;
+
+	spin_lock_irq(mlx4_tlock(dev));
+	r = find_res(dev, counter_index, RES_COUNTER);
+	if (!r || r->owner != slave)
+		ret = -EINVAL;
+	counter = container_of(r, struct res_counter, com);
+	if (!counter->port)
+		counter->port = port;
+
+	spin_unlock_irq(mlx4_tlock(dev));
+	return ret;
+}
+
+static int handle_unexisting_counter(struct mlx4_dev *dev,
+				     struct mlx4_qp_context *qpc, u8 slave,
+				     int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
+	struct res_common *tmp;
+	struct res_counter *counter;
+	u64 counter_idx = MLX4_SINK_COUNTER_INDEX(dev);
+	int err = 0;
+
+	spin_lock_irq(mlx4_tlock(dev));
+	list_for_each_entry(tmp,
+			    &tracker->slave_list[slave].res_list[RES_COUNTER],
+			    list) {
+		counter = container_of(tmp, struct res_counter, com);
+		if (port == counter->port) {
+			qpc->pri_path.counter_index  = counter->com.res_id;
+			spin_unlock_irq(mlx4_tlock(dev));
+			return 0;
+		}
+	}
+	spin_unlock_irq(mlx4_tlock(dev));
+
+	/* No existing counter, need to allocate a new counter */
+	err = counter_alloc_res(dev, slave, RES_OP_RESERVE, 0, 0, &counter_idx,
+				port);
+	if (err == -ENOENT) {
+		err = 0;
+	} else if (err && err != -ENOSPC) {
+		mlx4_err(dev, "%s: failed to create new counter for slave %d err %d\n",
+			 __func__, slave, err);
+	} else {
+		qpc->pri_path.counter_index = counter_idx;
+		mlx4_dbg(dev, "%s: alloc new counter for slave %d index %d\n",
+			 __func__, slave, qpc->pri_path.counter_index);
+		err = 0;
+	}
+
+	return err;
+}
+
+static int handle_counter(struct mlx4_dev *dev, struct mlx4_qp_context *qpc,
+			  u8 slave, int port)
+{
+	if (qpc->pri_path.counter_index != MLX4_SINK_COUNTER_INDEX(dev))
+		return handle_existing_counter(dev, slave, port,
+					       qpc->pri_path.counter_index);
+
+	return handle_unexisting_counter(dev, qpc, slave, port);
+}
+
 static struct res_common *alloc_qp_tr(int id)
 {
 	struct res_qp *ret;
@@ -952,7 +1060,7 @@ static struct res_common *alloc_srq_tr(int id)
 	return &ret->com;
 }
 
-static struct res_common *alloc_counter_tr(int id)
+static struct res_common *alloc_counter_tr(int id, int port)
 {
 	struct res_counter *ret;
 
@@ -962,6 +1070,7 @@ static struct res_common *alloc_counter_tr(int id)
 
 	ret->com.res_id = id;
 	ret->com.state = RES_COUNTER_ALLOCATED;
+	ret->port = port;
 
 	return &ret->com;
 }
@@ -1022,7 +1131,7 @@ static struct res_common *alloc_tr(u64 id, enum mlx4_resource type, int slave,
 		pr_err("implementation missing\n");
 		return NULL;
 	case RES_COUNTER:
-		ret = alloc_counter_tr(id);
+		ret = alloc_counter_tr(id, extra);
 		break;
 	case RES_XRCD:
 		ret = alloc_xrcdn_tr(id);
@@ -1037,6 +1146,53 @@ static struct res_common *alloc_tr(u64 id, enum mlx4_resource type, int slave,
 		ret->owner = slave;
 
 	return ret;
+}
+
+int mlx4_calc_vf_counters(struct mlx4_dev *dev, int slave, int port,
+			  struct mlx4_counter *data)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
+	struct res_common *tmp;
+	struct res_counter *counter;
+	int *counters_arr;
+	int i = 0, err = 0;
+
+	memset(data, 0, sizeof(*data));
+
+	counters_arr = kmalloc_array(dev->caps.max_counters,
+				     sizeof(*counters_arr), GFP_KERNEL);
+	if (!counters_arr)
+		return -ENOMEM;
+
+	spin_lock_irq(mlx4_tlock(dev));
+	list_for_each_entry(tmp,
+			    &tracker->slave_list[slave].res_list[RES_COUNTER],
+			    list) {
+		counter = container_of(tmp, struct res_counter, com);
+		if (counter->port == port) {
+			counters_arr[i] = (int)tmp->res_id;
+			i++;
+		}
+	}
+	spin_unlock_irq(mlx4_tlock(dev));
+	counters_arr[i] = -1;
+
+	i = 0;
+
+	while (counters_arr[i] != -1) {
+		err = mlx4_get_counter_stats(dev, counters_arr[i], data,
+					     0);
+		if (err) {
+			memset(data, 0, sizeof(*data));
+			goto table_changed;
+		}
+		i++;
+	}
+
+table_changed:
+	kfree(counters_arr);
+	return 0;
 }
 
 static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
@@ -2001,7 +2157,7 @@ static int vlan_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 }
 
 static int counter_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
-			     u64 in_param, u64 *out_param)
+			     u64 in_param, u64 *out_param, int port)
 {
 	u32 index;
 	int err;
@@ -2019,7 +2175,7 @@ static int counter_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		return err;
 	}
 
-	err = add_res_range(dev, slave, index, 1, RES_COUNTER, 0);
+	err = add_res_range(dev, slave, index, 1, RES_COUNTER, port);
 	if (err) {
 		__mlx4_counter_free(dev, index);
 		mlx4_release_resource(dev, slave, RES_COUNTER, 1, 0);
@@ -2101,7 +2257,7 @@ int mlx4_ALLOC_RES_wrapper(struct mlx4_dev *dev, int slave,
 
 	case RES_COUNTER:
 		err = counter_alloc_res(dev, slave, vhcr->op_modifier, alop,
-					vhcr->in_param, &vhcr->out_param);
+					vhcr->in_param, &vhcr->out_param, 0);
 		break;
 
 	case RES_XRCD:
@@ -2335,6 +2491,9 @@ static int counter_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		return -EINVAL;
 
 	index = get_param_l(&in_param);
+	if (index == MLX4_SINK_COUNTER_INDEX(dev))
+		return 0;
+
 	err = rem_res_range(dev, slave, index, 1, RES_COUNTER, 0);
 	if (err)
 		return err;
@@ -2703,6 +2862,10 @@ static void adjust_proxy_tun_qkey(struct mlx4_dev *dev, struct mlx4_vhcr *vhcr,
 	context->qkey = cpu_to_be32(qkey);
 }
 
+static int adjust_qp_sched_queue(struct mlx4_dev *dev, int slave,
+				 struct mlx4_qp_context *qpc,
+				 struct mlx4_cmd_mailbox *inbox);
+
 int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 			     struct mlx4_vhcr *vhcr,
 			     struct mlx4_cmd_mailbox *inbox,
@@ -2724,6 +2887,10 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 	int use_srq = (qp_get_srqn(qpc) >> 24) & 1;
 	struct res_srq *srq;
 	int local_qpn = be32_to_cpu(qpc->local_qpn) & 0xffffff;
+
+	err = adjust_qp_sched_queue(dev, slave, qpc, inbox);
+	if (err)
+		return err;
 
 	err = qp_res_start_move_to(dev, slave, qpn, RES_QP_HW, &qp, 0);
 	if (err)
@@ -3526,8 +3693,8 @@ static int adjust_qp_sched_queue(struct mlx4_dev *dev, int slave,
 	pri_sched_queue = (qpc->pri_path.sched_queue & ~(1 << 6)) |
 			  ((port & 1) << 6);
 
-	if (optpar & MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH ||
-	    mlx4_is_eth(dev, port + 1)) {
+	if (optpar & (MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH | MLX4_QP_OPTPAR_SCHED_QUEUE) ||
+	    qpc->pri_path.sched_queue || mlx4_is_eth(dev, port + 1)) {
 		qpc->pri_path.sched_queue = pri_sched_queue;
 	}
 
@@ -3965,6 +4132,22 @@ static int validate_eth_header_mac(int slave, struct _rule_hw *eth_header,
 	return 0;
 }
 
+static void handle_eth_header_mcast_prio(struct mlx4_net_trans_rule_hw_ctrl *ctrl,
+					 struct _rule_hw *eth_header)
+{
+	if (is_multicast_ether_addr(eth_header->eth.dst_mac) ||
+	    is_broadcast_ether_addr(eth_header->eth.dst_mac)) {
+		struct mlx4_net_trans_rule_hw_eth *eth =
+			(struct mlx4_net_trans_rule_hw_eth *)eth_header;
+		struct _rule_hw *next_rule = (struct _rule_hw *)(eth + 1);
+		bool last_rule = next_rule->size == 0 && next_rule->id == 0 &&
+			next_rule->rsvd == 0;
+
+		if (last_rule)
+			ctrl->prio = cpu_to_be16(MLX4_DOMAIN_NIC);
+	}
+}
+
 /*
  * In case of missing eth header, append eth header with a MAC address
  * assigned to the VF.
@@ -4117,6 +4300,12 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	rule_header = (struct _rule_hw *)(ctrl + 1);
 	header_id = map_hw_to_sw_id(be16_to_cpu(rule_header->id));
 
+	if (header_id == MLX4_NET_TRANS_RULE_ID_ETH)
+		handle_eth_header_mcast_prio(ctrl, rule_header);
+
+	if (slave == dev->caps.function)
+		goto execute;
+
 	switch (header_id) {
 	case MLX4_NET_TRANS_RULE_ID_ETH:
 		if (validate_eth_header_mac(slave, rule_header, rlist)) {
@@ -4143,6 +4332,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		goto err_put;
 	}
 
+execute:
 	err = mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
 			   vhcr->in_modifier, 0,
 			   MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,

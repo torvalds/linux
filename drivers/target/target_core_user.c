@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/parser.h>
+#include <linux/vmalloc.h>
 #include <linux/uio_driver.h>
 #include <net/genetlink.h>
 #include <scsi/scsi_common.h>

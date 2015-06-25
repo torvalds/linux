@@ -353,6 +353,7 @@ static int fec_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	tmp = readl(fep->hwp + FEC_ATIME_INC) & FEC_T_INC_MASK;
 	tmp |= corr_ns << FEC_T_INC_CORR_OFFSET;
 	writel(tmp, fep->hwp + FEC_ATIME_INC);
+	corr_period = corr_period > 1 ? corr_period - 1 : corr_period;
 	writel(corr_period, fep->hwp + FEC_ATIME_CORR);
 	/* dummy read to update the timer. */
 	timecounter_read(&fep->tc);

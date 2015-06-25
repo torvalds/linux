@@ -104,15 +104,16 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	hw->rate_control_algorithm = "iwl-agn-rs";
 
 	/* Tell mac80211 our characteristics */
-	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_AMPDU_AGGREGATION |
-		    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
-		    IEEE80211_HW_SPECTRUM_MGMT |
-		    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		    IEEE80211_HW_QUEUE_CONTROL |
-		    IEEE80211_HW_SUPPORTS_PS |
-		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		    IEEE80211_HW_WANT_MONITOR_VIF;
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(hw, NEED_DTIM_BEFORE_ASSOC);
+	ieee80211_hw_set(hw, SPECTRUM_MGMT);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, QUEUE_CONTROL);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
+	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
+	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 
 	hw->offchannel_tx_hw_queue = IWL_AUX_QUEUE;
 	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FMT;
@@ -135,7 +136,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 */
 	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
 	    !iwlwifi_mod_params.sw_crypto)
-		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
+		ieee80211_hw_set(hw, MFP_CAPABLE);
 
 	hw->sta_data_size = sizeof(struct iwl_station_priv);
 	hw->vif_data_size = sizeof(struct iwl_vif_priv);
@@ -1061,7 +1062,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "Enter: changed: 0x%x, total: 0x%x\n",
 			changed_flags, *total_flags);
 
-	CHK(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS, RXON_FILTER_PROMISC_MSK);
+	CHK(FIF_OTHER_BSS, RXON_FILTER_PROMISC_MSK);
 	/* Setting _just_ RXON_FILTER_CTL2HOST_MSK causes FH errors */
 	CHK(FIF_CONTROL, RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_PROMISC_MSK);
 	CHK(FIF_BCN_PRBRESP_PROMISC, RXON_FILTER_BCON_AWARE_MSK);
@@ -1088,7 +1089,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 	 * since we currently do not support programming multicast
 	 * filters into the device.
 	 */
-	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI | FIF_PROMISC_IN_BSS |
+	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI |
 			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
 }
 
@@ -1140,7 +1141,6 @@ static void iwlagn_mac_event_callback(struct ieee80211_hw *hw,
 		return;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->mutex);
 
 	if (priv->lib->bt_params &&
 	    priv->lib->bt_params->advanced_bt_coexist) {
@@ -1149,13 +1149,12 @@ static void iwlagn_mac_event_callback(struct ieee80211_hw *hw,
 		else if (event->u.rssi.data == RSSI_EVENT_HIGH)
 			priv->bt_enable_pspoll = false;
 
-		iwlagn_send_advance_bt_config(priv);
+		queue_work(priv->workqueue, &priv->bt_runtime_config);
 	} else {
 		IWL_DEBUG_MAC80211(priv, "Advanced BT coex disabled,"
 				"ignoring RSSI callback\n");
 	}
 
-	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -1343,9 +1342,9 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	 * other interfaces are added, this is safe.
 	 */
 	if (vif->type == NL80211_IFTYPE_MONITOR)
-		priv->hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS;
+		ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
 	else
-		priv->hw->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, priv->hw->flags);
 
 	err = iwl_setup_interface(priv, ctx);
 	if (!err || reset)

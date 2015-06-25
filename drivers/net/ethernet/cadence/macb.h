@@ -71,6 +71,7 @@
 #define GEM_NCFGR		0x0004 /* Network Config */
 #define GEM_USRIO		0x000c /* User IO */
 #define GEM_DMACFG		0x0010 /* DMA Configuration */
+#define GEM_JML			0x0048 /* Jumbo Max Length */
 #define GEM_HRB			0x0080 /* Hash Bottom */
 #define GEM_HRT			0x0084 /* Hash Top */
 #define GEM_SA1B		0x0088 /* Specific1 Bottom */
@@ -398,6 +399,7 @@
 #define MACB_CAPS_GIGABIT_MODE_AVAILABLE	0x20000000
 #define MACB_CAPS_SG_DISABLED			0x40000000
 #define MACB_CAPS_MACB_IS_GEM			0x80000000
+#define MACB_CAPS_JUMBO				0x00000008
 
 /* Bit manipulation macros */
 #define MACB_BIT(name)					\
@@ -514,6 +516,9 @@ struct macb_dma_desc {
 #define MACB_RX_MHASH_MATCH_SIZE		1
 #define MACB_RX_BROADCAST_OFFSET		31
 #define MACB_RX_BROADCAST_SIZE			1
+
+#define MACB_RX_FRMLEN_MASK			0xFFF
+#define MACB_RX_JFRMLEN_MASK			0x3FFF
 
 /* RX checksum offload disabled: bit 24 clear in NCFGR */
 #define GEM_RX_TYPEID_MATCH_OFFSET		22
@@ -758,6 +763,7 @@ struct macb_config {
 	int	(*clk_init)(struct platform_device *pdev, struct clk **pclk,
 			    struct clk **hclk, struct clk **tx_clk);
 	int	(*init)(struct platform_device *pdev);
+	int	jumbo_max_len;
 };
 
 struct macb_queue {
@@ -827,6 +833,9 @@ struct macb {
 	unsigned int		max_tx_length;
 
 	u64			ethtool_stats[GEM_STATS_LEN];
+
+	unsigned int		rx_frm_len_mask;
+	unsigned int		jumbo_max_len;
 };
 
 static inline bool macb_is_gem(struct macb *bp)

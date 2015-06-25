@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -138,7 +138,7 @@ struct rs_tx_column;
 
 typedef bool (*allow_column_func_t) (struct iwl_mvm *mvm,
 				     struct ieee80211_sta *sta,
-				     struct iwl_scale_tbl_info *tbl,
+				     struct rs_rate *rate,
 				     const struct rs_tx_column *next_col);
 
 struct rs_tx_column {
@@ -150,14 +150,14 @@ struct rs_tx_column {
 };
 
 static bool rs_ant_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			 struct iwl_scale_tbl_info *tbl,
+			 struct rs_rate *rate,
 			 const struct rs_tx_column *next_col)
 {
 	return iwl_mvm_bt_coex_is_ant_avail(mvm, next_col->ant);
 }
 
 static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  struct iwl_scale_tbl_info *tbl,
+			  struct rs_rate *rate,
 			  const struct rs_tx_column *next_col)
 {
 	struct iwl_mvm_sta *mvmsta;
@@ -187,7 +187,7 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 }
 
 static bool rs_siso_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  struct iwl_scale_tbl_info *tbl,
+			  struct rs_rate *rate,
 			  const struct rs_tx_column *next_col)
 {
 	if (!sta->ht_cap.ht_supported)
@@ -197,10 +197,9 @@ static bool rs_siso_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 }
 
 static bool rs_sgi_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			 struct iwl_scale_tbl_info *tbl,
+			 struct rs_rate *rate,
 			 const struct rs_tx_column *next_col)
 {
-	struct rs_rate *rate = &tbl->rate;
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
 
@@ -1128,8 +1127,8 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	u32 tx_resp_hwrate = (uintptr_t)info->status.status_driver_data[1];
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta;
-	bool allow_ant_mismatch = mvm->fw->ucode_capa.api[0] &
-		IWL_UCODE_TLV_API_LQ_SS_PARAMS;
+	bool allow_ant_mismatch = fw_has_api(&mvm->fw->ucode_capa,
+					     IWL_UCODE_TLV_API_LQ_SS_PARAMS);
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (!lq_sta) {
@@ -1659,7 +1658,8 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 
 		for (j = 0; j < MAX_COLUMN_CHECKS; j++) {
 			allow_func = next_col->checks[j];
-			if (allow_func && !allow_func(mvm, sta, tbl, next_col))
+			if (allow_func && !allow_func(mvm, sta, &tbl->rate,
+						      next_col))
 				break;
 		}
 
@@ -2136,7 +2136,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	}
 
 	/* current tx rate */
-	index = lq_sta->last_txrate_idx;
+	index = rate->index;
 
 	/* rates available for this association, and for modulation mode */
 	rate_mask = rs_get_supported_rates(lq_sta, rate);
@@ -2184,14 +2184,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 		 * or search for a new one? */
 		rs_stay_in_table(lq_sta, false);
 
-		goto out;
-	}
-	/* Else we have enough samples; calculate estimate of
-	 * actual average throughput */
-	if (window->average_tpt != ((window->success_ratio *
-			tbl->expected_tpt[index] + 64) / 128)) {
-		window->average_tpt = ((window->success_ratio *
-					tbl->expected_tpt[index] + 64) / 128);
+		return;
 	}
 
 	/* If we are searching for better modulation mode, check success. */
@@ -2403,9 +2396,6 @@ lq_update:
 			rs_set_stay_in_table(mvm, 0, lq_sta);
 		}
 	}
-
-out:
-	lq_sta->last_txrate_idx = index;
 }
 
 struct rs_init_rate_info {
@@ -2548,7 +2538,6 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	rate = &tbl->rate;
 
 	rs_get_initial_rate(mvm, lq_sta, band, rate);
-	lq_sta->last_txrate_idx = rate->index;
 
 	WARN_ON_ONCE(rate->ant != ANT_A && rate->ant != ANT_B);
 	if (rate->ant == ANT_A)
@@ -2725,7 +2714,7 @@ static void rs_vht_init(struct iwl_mvm *mvm,
 	    (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK))
 		lq_sta->stbc_capable = true;
 
-	if ((mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BEAMFORMER) &&
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_BEAMFORMER) &&
 	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
 	    (vht_cap->cap & IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE))
 		lq_sta->bfer_capable = true;
@@ -3009,7 +2998,7 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 	valid_tx_ant = iwl_mvm_get_valid_tx_ant(mvm);
 
 	/* TODO: remove old API when min FW API hits 14 */
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LQ_SS_PARAMS) &&
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_LQ_SS_PARAMS) &&
 	    rs_stbc_allow(mvm, sta, lq_sta))
 		rate.stbc = true;
 
@@ -3223,11 +3212,8 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 
 	rs_build_rates_table(mvm, sta, lq_sta, initial_rate);
 
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LQ_SS_PARAMS)
+	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_LQ_SS_PARAMS))
 		rs_set_lq_ss_params(mvm, sta, lq_sta, initial_rate);
-
-	if (num_of_ant(initial_rate->ant) == 1)
-		lq_cmd->single_stream_ant_msk = initial_rate->ant;
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);

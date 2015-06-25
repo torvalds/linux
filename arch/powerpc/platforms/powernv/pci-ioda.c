@@ -23,6 +23,9 @@
 #include <linux/io.h>
 #include <linux/msi.h>
 #include <linux/memblock.h>
+#include <linux/iommu.h>
+#include <linux/rculist.h>
+#include <linux/sizes.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -38,14 +41,20 @@
 #include <asm/debug.h>
 #include <asm/firmware.h>
 #include <asm/pnv-pci.h>
+#include <asm/mmzone.h>
 
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 #include "powernv.h"
 #include "pci.h"
 
 /* 256M DMA window, 4K TCE pages, 8 bytes TCE */
 #define TCE32_TABLE_SIZE	((0x10000000 / 0x1000) * 8)
+
+#define POWERNV_IOMMU_DEFAULT_LEVELS	1
+#define POWERNV_IOMMU_MAX_LEVELS	5
+
+static void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl);
 
 static void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 			    const char *fmt, ...)
@@ -1086,10 +1095,6 @@ static void pnv_ioda_setup_bus_PE(struct pci_bus *bus, int all)
 		return;
 	}
 
-	pe->tce32_table = kzalloc_node(sizeof(struct iommu_table),
-			GFP_KERNEL, hose->node);
-	pe->tce32_table->data = pe;
-
 	/* Associate it with all child devices */
 	pnv_ioda_setup_same_PE(bus, pe);
 
@@ -1283,36 +1288,27 @@ m64_failed:
 	return -EBUSY;
 }
 
+static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
+		int num);
+static void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable);
+
 static void pnv_pci_ioda2_release_dma_pe(struct pci_dev *dev, struct pnv_ioda_pe *pe)
 {
-	struct pci_bus        *bus;
-	struct pci_controller *hose;
-	struct pnv_phb        *phb;
 	struct iommu_table    *tbl;
-	unsigned long         addr;
 	int64_t               rc;
 
-	bus = dev->bus;
-	hose = pci_bus_to_host(bus);
-	phb = hose->private_data;
-	tbl = pe->tce32_table;
-	addr = tbl->it_base;
-
-	opal_pci_map_pe_dma_window(phb->opal_id, pe->pe_number,
-				   pe->pe_number << 1, 1, __pa(addr),
-				   0, 0x1000);
-
-	rc = opal_pci_map_pe_dma_window_real(pe->phb->opal_id,
-				        pe->pe_number,
-				        (pe->pe_number << 1) + 1,
-				        pe->tce_bypass_base,
-				        0);
+	tbl = pe->table_group.tables[0];
+	rc = pnv_pci_ioda2_unset_window(&pe->table_group, 0);
 	if (rc)
 		pe_warn(pe, "OPAL error %ld release DMA window\n", rc);
 
+	pnv_pci_ioda2_set_bypass(pe, false);
+	if (pe->table_group.group) {
+		iommu_group_put(pe->table_group.group);
+		BUG_ON(pe->table_group.group);
+	}
+	pnv_pci_ioda2_table_free_pages(tbl);
 	iommu_free_table(tbl, of_node_full_name(dev->dev.of_node));
-	free_pages(addr, get_order(TCE32_TABLE_SIZE));
-	pe->tce32_table = NULL;
 }
 
 static void pnv_ioda_release_vf_PE(struct pci_dev *pdev, u16 num_vfs)
@@ -1460,10 +1456,6 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 			continue;
 		}
 
-		pe->tce32_table = kzalloc_node(sizeof(struct iommu_table),
-				GFP_KERNEL, hose->node);
-		pe->tce32_table->data = pe;
-
 		/* Put PE to the list */
 		mutex_lock(&phb->ioda.pe_list_mutex);
 		list_add_tail(&pe->list, &phb->ioda.pe_list);
@@ -1598,12 +1590,19 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev
 
 	pe = &phb->ioda.pe_array[pdn->pe_number];
 	WARN_ON(get_dma_ops(&pdev->dev) != &dma_iommu_ops);
-	set_iommu_table_base_and_group(&pdev->dev, pe->tce32_table);
+	set_iommu_table_base(&pdev->dev, pe->table_group.tables[0]);
+	/*
+	 * Note: iommu_add_device() will fail here as
+	 * for physical PE: the device is already added by now;
+	 * for virtual PE: sysfs entries are not ready yet and
+	 * tce_iommu_bus_notifier will add the device to a group later.
+	 */
 }
 
-static int pnv_pci_ioda_dma_set_mask(struct pnv_phb *phb,
-				     struct pci_dev *pdev, u64 dma_mask)
+static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 {
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
 	struct pci_dn *pdn = pci_get_pdn(pdev);
 	struct pnv_ioda_pe *pe;
 	uint64_t top;
@@ -1625,7 +1624,7 @@ static int pnv_pci_ioda_dma_set_mask(struct pnv_phb *phb,
 	} else {
 		dev_info(&pdev->dev, "Using 32-bit DMA via iommu\n");
 		set_dma_ops(&pdev->dev, &dma_iommu_ops);
-		set_iommu_table_base(&pdev->dev, pe->tce32_table);
+		set_iommu_table_base(&pdev->dev, pe->table_group.tables[0]);
 	}
 	*pdev->dev.dma_mask = dma_mask;
 	return 0;
@@ -1654,36 +1653,36 @@ static u64 pnv_pci_ioda_dma_get_required_mask(struct pnv_phb *phb,
 }
 
 static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
-				   struct pci_bus *bus,
-				   bool add_to_iommu_group)
+				   struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		if (add_to_iommu_group)
-			set_iommu_table_base_and_group(&dev->dev,
-						       pe->tce32_table);
-		else
-			set_iommu_table_base(&dev->dev, pe->tce32_table);
+		set_iommu_table_base(&dev->dev, pe->table_group.tables[0]);
+		iommu_add_device(&dev->dev);
 
-		if (dev->subordinate)
-			pnv_ioda_setup_bus_dma(pe, dev->subordinate,
-					       add_to_iommu_group);
+		if ((pe->flags & PNV_IODA_PE_BUS_ALL) && dev->subordinate)
+			pnv_ioda_setup_bus_dma(pe, dev->subordinate);
 	}
 }
 
-static void pnv_pci_ioda1_tce_invalidate(struct pnv_ioda_pe *pe,
-					 struct iommu_table *tbl,
-					 __be64 *startp, __be64 *endp, bool rm)
+static void pnv_pci_ioda1_tce_invalidate(struct iommu_table *tbl,
+		unsigned long index, unsigned long npages, bool rm)
 {
+	struct iommu_table_group_link *tgl = list_first_entry_or_null(
+			&tbl->it_group_list, struct iommu_table_group_link,
+			next);
+	struct pnv_ioda_pe *pe = container_of(tgl->table_group,
+			struct pnv_ioda_pe, table_group);
 	__be64 __iomem *invalidate = rm ?
-		(__be64 __iomem *)pe->tce_inval_reg_phys :
-		(__be64 __iomem *)tbl->it_index;
+		(__be64 __iomem *)pe->phb->ioda.tce_inval_reg_phys :
+		pe->phb->ioda.tce_inval_reg;
 	unsigned long start, end, inc;
 	const unsigned shift = tbl->it_page_shift;
 
-	start = __pa(startp);
-	end = __pa(endp);
+	start = __pa(((__be64 *)tbl->it_base) + index - tbl->it_offset);
+	end = __pa(((__be64 *)tbl->it_base) + index - tbl->it_offset +
+			npages - 1);
 
 	/* BML uses this case for p6/p7/galaxy2: Shift addr and put in node */
 	if (tbl->it_busno) {
@@ -1719,26 +1718,79 @@ static void pnv_pci_ioda1_tce_invalidate(struct pnv_ioda_pe *pe,
 	 */
 }
 
-static void pnv_pci_ioda2_tce_invalidate(struct pnv_ioda_pe *pe,
-					 struct iommu_table *tbl,
-					 __be64 *startp, __be64 *endp, bool rm)
+static int pnv_ioda1_tce_build(struct iommu_table *tbl, long index,
+		long npages, unsigned long uaddr,
+		enum dma_data_direction direction,
+		struct dma_attrs *attrs)
+{
+	int ret = pnv_tce_build(tbl, index, npages, uaddr, direction,
+			attrs);
+
+	if (!ret && (tbl->it_type & TCE_PCI_SWINV_CREATE))
+		pnv_pci_ioda1_tce_invalidate(tbl, index, npages, false);
+
+	return ret;
+}
+
+#ifdef CONFIG_IOMMU_API
+static int pnv_ioda1_tce_xchg(struct iommu_table *tbl, long index,
+		unsigned long *hpa, enum dma_data_direction *direction)
+{
+	long ret = pnv_tce_xchg(tbl, index, hpa, direction);
+
+	if (!ret && (tbl->it_type &
+			(TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE)))
+		pnv_pci_ioda1_tce_invalidate(tbl, index, 1, false);
+
+	return ret;
+}
+#endif
+
+static void pnv_ioda1_tce_free(struct iommu_table *tbl, long index,
+		long npages)
+{
+	pnv_tce_free(tbl, index, npages);
+
+	if (tbl->it_type & TCE_PCI_SWINV_FREE)
+		pnv_pci_ioda1_tce_invalidate(tbl, index, npages, false);
+}
+
+static struct iommu_table_ops pnv_ioda1_iommu_ops = {
+	.set = pnv_ioda1_tce_build,
+#ifdef CONFIG_IOMMU_API
+	.exchange = pnv_ioda1_tce_xchg,
+#endif
+	.clear = pnv_ioda1_tce_free,
+	.get = pnv_tce_get,
+};
+
+static inline void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_ioda_pe *pe)
+{
+	/* 01xb - invalidate TCEs that match the specified PE# */
+	unsigned long val = (0x4ull << 60) | (pe->pe_number & 0xFF);
+	struct pnv_phb *phb = pe->phb;
+
+	if (!phb->ioda.tce_inval_reg)
+		return;
+
+	mb(); /* Ensure above stores are visible */
+	__raw_writeq(cpu_to_be64(val), phb->ioda.tce_inval_reg);
+}
+
+static void pnv_pci_ioda2_do_tce_invalidate(unsigned pe_number, bool rm,
+		__be64 __iomem *invalidate, unsigned shift,
+		unsigned long index, unsigned long npages)
 {
 	unsigned long start, end, inc;
-	__be64 __iomem *invalidate = rm ?
-		(__be64 __iomem *)pe->tce_inval_reg_phys :
-		(__be64 __iomem *)tbl->it_index;
-	const unsigned shift = tbl->it_page_shift;
 
 	/* We'll invalidate DMA address in PE scope */
 	start = 0x2ull << 60;
-	start |= (pe->pe_number & 0xFF);
+	start |= (pe_number & 0xFF);
 	end = start;
 
 	/* Figure out the start, end and step */
-	inc = tbl->it_offset + (((u64)startp - tbl->it_base) / sizeof(u64));
-	start |= (inc << shift);
-	inc = tbl->it_offset + (((u64)endp - tbl->it_base) / sizeof(u64));
-	end |= (inc << shift);
+	start |= (index << shift);
+	end |= ((index + npages - 1) << shift);
 	inc = (0x1ull << shift);
 	mb();
 
@@ -1751,17 +1803,76 @@ static void pnv_pci_ioda2_tce_invalidate(struct pnv_ioda_pe *pe,
 	}
 }
 
-void pnv_pci_ioda_tce_invalidate(struct iommu_table *tbl,
-				 __be64 *startp, __be64 *endp, bool rm)
+static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
+		unsigned long index, unsigned long npages, bool rm)
 {
-	struct pnv_ioda_pe *pe = tbl->data;
-	struct pnv_phb *phb = pe->phb;
+	struct iommu_table_group_link *tgl;
 
-	if (phb->type == PNV_PHB_IODA1)
-		pnv_pci_ioda1_tce_invalidate(pe, tbl, startp, endp, rm);
-	else
-		pnv_pci_ioda2_tce_invalidate(pe, tbl, startp, endp, rm);
+	list_for_each_entry_rcu(tgl, &tbl->it_group_list, next) {
+		struct pnv_ioda_pe *pe = container_of(tgl->table_group,
+				struct pnv_ioda_pe, table_group);
+		__be64 __iomem *invalidate = rm ?
+			(__be64 __iomem *)pe->phb->ioda.tce_inval_reg_phys :
+			pe->phb->ioda.tce_inval_reg;
+
+		pnv_pci_ioda2_do_tce_invalidate(pe->pe_number, rm,
+			invalidate, tbl->it_page_shift,
+			index, npages);
+	}
 }
+
+static int pnv_ioda2_tce_build(struct iommu_table *tbl, long index,
+		long npages, unsigned long uaddr,
+		enum dma_data_direction direction,
+		struct dma_attrs *attrs)
+{
+	int ret = pnv_tce_build(tbl, index, npages, uaddr, direction,
+			attrs);
+
+	if (!ret && (tbl->it_type & TCE_PCI_SWINV_CREATE))
+		pnv_pci_ioda2_tce_invalidate(tbl, index, npages, false);
+
+	return ret;
+}
+
+#ifdef CONFIG_IOMMU_API
+static int pnv_ioda2_tce_xchg(struct iommu_table *tbl, long index,
+		unsigned long *hpa, enum dma_data_direction *direction)
+{
+	long ret = pnv_tce_xchg(tbl, index, hpa, direction);
+
+	if (!ret && (tbl->it_type &
+			(TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE)))
+		pnv_pci_ioda2_tce_invalidate(tbl, index, 1, false);
+
+	return ret;
+}
+#endif
+
+static void pnv_ioda2_tce_free(struct iommu_table *tbl, long index,
+		long npages)
+{
+	pnv_tce_free(tbl, index, npages);
+
+	if (tbl->it_type & TCE_PCI_SWINV_FREE)
+		pnv_pci_ioda2_tce_invalidate(tbl, index, npages, false);
+}
+
+static void pnv_ioda2_table_free(struct iommu_table *tbl)
+{
+	pnv_pci_ioda2_table_free_pages(tbl);
+	iommu_free_table(tbl, "pnv");
+}
+
+static struct iommu_table_ops pnv_ioda2_iommu_ops = {
+	.set = pnv_ioda2_tce_build,
+#ifdef CONFIG_IOMMU_API
+	.exchange = pnv_ioda2_tce_xchg,
+#endif
+	.clear = pnv_ioda2_tce_free,
+	.get = pnv_tce_get,
+	.free = pnv_ioda2_table_free,
+};
 
 static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 				      struct pnv_ioda_pe *pe, unsigned int base,
@@ -1769,7 +1880,6 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 {
 
 	struct page *tce_mem = NULL;
-	const __be64 *swinvp;
 	struct iommu_table *tbl;
 	unsigned int i;
 	int64_t rc;
@@ -1782,6 +1892,11 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 	/* We shouldn't already have a 32-bit DMA associated */
 	if (WARN_ON(pe->tce32_seg >= 0))
 		return;
+
+	tbl = pnv_pci_table_alloc(phb->hose->node);
+	iommu_register_group(&pe->table_group, phb->hose->global_number,
+			pe->pe_number);
+	pnv_pci_link_table_and_group(phb->hose->node, 0, tbl, &pe->table_group);
 
 	/* Grab a 32-bit TCE table */
 	pe->tce32_seg = base;
@@ -1817,39 +1932,30 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 	}
 
 	/* Setup linux iommu table */
-	tbl = pe->tce32_table;
 	pnv_pci_setup_iommu_table(tbl, addr, TCE32_TABLE_SIZE * segs,
 				  base << 28, IOMMU_PAGE_SHIFT_4K);
 
 	/* OPAL variant of P7IOC SW invalidated TCEs */
-	swinvp = of_get_property(phb->hose->dn, "ibm,opal-tce-kill", NULL);
-	if (swinvp) {
-		/* We need a couple more fields -- an address and a data
-		 * to or.  Since the bus is only printed out on table free
-		 * errors, and on the first pass the data will be a relative
-		 * bus number, print that out instead.
-		 */
-		pe->tce_inval_reg_phys = be64_to_cpup(swinvp);
-		tbl->it_index = (unsigned long)ioremap(pe->tce_inval_reg_phys,
-				8);
+	if (phb->ioda.tce_inval_reg)
 		tbl->it_type |= (TCE_PCI_SWINV_CREATE |
 				 TCE_PCI_SWINV_FREE   |
 				 TCE_PCI_SWINV_PAIR);
-	}
+
+	tbl->it_ops = &pnv_ioda1_iommu_ops;
+	pe->table_group.tce32_start = tbl->it_offset << tbl->it_page_shift;
+	pe->table_group.tce32_size = tbl->it_size << tbl->it_page_shift;
 	iommu_init_table(tbl, phb->hose->node);
 
 	if (pe->flags & PNV_IODA_PE_DEV) {
-		iommu_register_group(tbl, phb->hose->global_number,
-				     pe->pe_number);
-		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
-	} else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)) {
-		iommu_register_group(tbl, phb->hose->global_number,
-				     pe->pe_number);
-		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
-	} else if (pe->flags & PNV_IODA_PE_VF) {
-		iommu_register_group(tbl, phb->hose->global_number,
-				     pe->pe_number);
-	}
+		/*
+		 * Setting table base here only for carrying iommu_group
+		 * further down to let iommu_add_device() do the job.
+		 * pnv_pci_ioda_dma_dev_setup will override it later anyway.
+		 */
+		set_iommu_table_base(&pe->pdev->dev, tbl);
+		iommu_add_device(&pe->pdev->dev);
+	} else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
+		pnv_ioda_setup_bus_dma(pe, pe->pbus);
 
 	return;
  fail:
@@ -1858,11 +1964,53 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 		pe->tce32_seg = -1;
 	if (tce_mem)
 		__free_pages(tce_mem, get_order(TCE32_TABLE_SIZE * segs));
+	if (tbl) {
+		pnv_pci_unlink_table_and_group(tbl, &pe->table_group);
+		iommu_free_table(tbl, "pnv");
+	}
 }
 
-static void pnv_pci_ioda2_set_bypass(struct iommu_table *tbl, bool enable)
+static long pnv_pci_ioda2_set_window(struct iommu_table_group *table_group,
+		int num, struct iommu_table *tbl)
 {
-	struct pnv_ioda_pe *pe = tbl->data;
+	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
+	struct pnv_phb *phb = pe->phb;
+	int64_t rc;
+	const unsigned long size = tbl->it_indirect_levels ?
+			tbl->it_level_size : tbl->it_size;
+	const __u64 start_addr = tbl->it_offset << tbl->it_page_shift;
+	const __u64 win_size = tbl->it_size << tbl->it_page_shift;
+
+	pe_info(pe, "Setting up window#%d %llx..%llx pg=%x\n", num,
+			start_addr, start_addr + win_size - 1,
+			IOMMU_PAGE_SIZE(tbl));
+
+	/*
+	 * Map TCE table through TVT. The TVE index is the PE number
+	 * shifted by 1 bit for 32-bits DMA space.
+	 */
+	rc = opal_pci_map_pe_dma_window(phb->opal_id,
+			pe->pe_number,
+			(pe->pe_number << 1) + num,
+			tbl->it_indirect_levels + 1,
+			__pa(tbl->it_base),
+			size << 3,
+			IOMMU_PAGE_SIZE(tbl));
+	if (rc) {
+		pe_err(pe, "Failed to configure TCE table, err %ld\n", rc);
+		return rc;
+	}
+
+	pnv_pci_link_table_and_group(phb->hose->node, num,
+			tbl, &pe->table_group);
+	pnv_pci_ioda2_tce_invalidate_entire(pe);
+
+	return 0;
+}
+
+static void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable)
+{
 	uint16_t window_id = (pe->pe_number << 1 ) + 1;
 	int64_t rc;
 
@@ -1882,17 +2030,6 @@ static void pnv_pci_ioda2_set_bypass(struct iommu_table *tbl, bool enable)
 						     window_id,
 						     pe->tce_bypass_base,
 						     0);
-
-		/*
-		 * EEH needs the mapping between IOMMU table and group
-		 * of those VFIO/KVM pass-through devices. We can postpone
-		 * resetting DMA ops until the DMA mask is configured in
-		 * host side.
-		 */
-		if (pe->pdev)
-			set_iommu_table_base(&pe->pdev->dev, tbl);
-		else
-			pnv_ioda_setup_bus_dma(pe, pe->pbus, false);
 	}
 	if (rc)
 		pe_err(pe, "OPAL error %lld configuring bypass window\n", rc);
@@ -1900,106 +2037,363 @@ static void pnv_pci_ioda2_set_bypass(struct iommu_table *tbl, bool enable)
 		pe->tce_bypass_enabled = enable;
 }
 
-static void pnv_pci_ioda2_setup_bypass_pe(struct pnv_phb *phb,
-					  struct pnv_ioda_pe *pe)
+static long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
+		__u32 page_shift, __u64 window_size, __u32 levels,
+		struct iommu_table *tbl);
+
+static long pnv_pci_ioda2_create_table(struct iommu_table_group *table_group,
+		int num, __u32 page_shift, __u64 window_size, __u32 levels,
+		struct iommu_table **ptbl)
 {
-	/* TVE #1 is selected by PCI address bit 59 */
-	pe->tce_bypass_base = 1ull << 59;
+	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
+	int nid = pe->phb->hose->node;
+	__u64 bus_offset = num ? pe->tce_bypass_base : table_group->tce32_start;
+	long ret;
+	struct iommu_table *tbl;
 
-	/* Install set_bypass callback for VFIO */
-	pe->tce32_table->set_bypass = pnv_pci_ioda2_set_bypass;
+	tbl = pnv_pci_table_alloc(nid);
+	if (!tbl)
+		return -ENOMEM;
 
-	/* Enable bypass by default */
-	pnv_pci_ioda2_set_bypass(pe->tce32_table, true);
+	ret = pnv_pci_ioda2_table_alloc_pages(nid,
+			bus_offset, page_shift, window_size,
+			levels, tbl);
+	if (ret) {
+		iommu_free_table(tbl, "pnv");
+		return ret;
+	}
+
+	tbl->it_ops = &pnv_ioda2_iommu_ops;
+	if (pe->phb->ioda.tce_inval_reg)
+		tbl->it_type |= (TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE);
+
+	*ptbl = tbl;
+
+	return 0;
+}
+
+static long pnv_pci_ioda2_setup_default_config(struct pnv_ioda_pe *pe)
+{
+	struct iommu_table *tbl = NULL;
+	long rc;
+
+	rc = pnv_pci_ioda2_create_table(&pe->table_group, 0,
+			IOMMU_PAGE_SHIFT_4K,
+			pe->table_group.tce32_size,
+			POWERNV_IOMMU_DEFAULT_LEVELS, &tbl);
+	if (rc) {
+		pe_err(pe, "Failed to create 32-bit TCE table, err %ld",
+				rc);
+		return rc;
+	}
+
+	iommu_init_table(tbl, pe->phb->hose->node);
+
+	rc = pnv_pci_ioda2_set_window(&pe->table_group, 0, tbl);
+	if (rc) {
+		pe_err(pe, "Failed to configure 32-bit TCE table, err %ld\n",
+				rc);
+		pnv_ioda2_table_free(tbl);
+		return rc;
+	}
+
+	if (!pnv_iommu_bypass_disabled)
+		pnv_pci_ioda2_set_bypass(pe, true);
+
+	/* OPAL variant of PHB3 invalidated TCEs */
+	if (pe->phb->ioda.tce_inval_reg)
+		tbl->it_type |= (TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE);
+
+	/*
+	 * Setting table base here only for carrying iommu_group
+	 * further down to let iommu_add_device() do the job.
+	 * pnv_pci_ioda_dma_dev_setup will override it later anyway.
+	 */
+	if (pe->flags & PNV_IODA_PE_DEV)
+		set_iommu_table_base(&pe->pdev->dev, tbl);
+
+	return 0;
+}
+
+#if defined(CONFIG_IOMMU_API) || defined(CONFIG_PCI_IOV)
+static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
+		int num)
+{
+	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
+	struct pnv_phb *phb = pe->phb;
+	long ret;
+
+	pe_info(pe, "Removing DMA window #%d\n", num);
+
+	ret = opal_pci_map_pe_dma_window(phb->opal_id, pe->pe_number,
+			(pe->pe_number << 1) + num,
+			0/* levels */, 0/* table address */,
+			0/* table size */, 0/* page size */);
+	if (ret)
+		pe_warn(pe, "Unmapping failed, ret = %ld\n", ret);
+	else
+		pnv_pci_ioda2_tce_invalidate_entire(pe);
+
+	pnv_pci_unlink_table_and_group(table_group->tables[num], table_group);
+
+	return ret;
+}
+#endif
+
+#ifdef CONFIG_IOMMU_API
+static unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
+		__u64 window_size, __u32 levels)
+{
+	unsigned long bytes = 0;
+	const unsigned window_shift = ilog2(window_size);
+	unsigned entries_shift = window_shift - page_shift;
+	unsigned table_shift = entries_shift + 3;
+	unsigned long tce_table_size = max(0x1000UL, 1UL << table_shift);
+	unsigned long direct_table_size;
+
+	if (!levels || (levels > POWERNV_IOMMU_MAX_LEVELS) ||
+			(window_size > memory_hotplug_max()) ||
+			!is_power_of_2(window_size))
+		return 0;
+
+	/* Calculate a direct table size from window_size and levels */
+	entries_shift = (entries_shift + levels - 1) / levels;
+	table_shift = entries_shift + 3;
+	table_shift = max_t(unsigned, table_shift, PAGE_SHIFT);
+	direct_table_size =  1UL << table_shift;
+
+	for ( ; levels; --levels) {
+		bytes += _ALIGN_UP(tce_table_size, direct_table_size);
+
+		tce_table_size /= direct_table_size;
+		tce_table_size <<= 3;
+		tce_table_size = _ALIGN_UP(tce_table_size, direct_table_size);
+	}
+
+	return bytes;
+}
+
+static void pnv_ioda2_take_ownership(struct iommu_table_group *table_group)
+{
+	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
+						table_group);
+	/* Store @tbl as pnv_pci_ioda2_unset_window() resets it */
+	struct iommu_table *tbl = pe->table_group.tables[0];
+
+	pnv_pci_ioda2_set_bypass(pe, false);
+	pnv_pci_ioda2_unset_window(&pe->table_group, 0);
+	pnv_ioda2_table_free(tbl);
+}
+
+static void pnv_ioda2_release_ownership(struct iommu_table_group *table_group)
+{
+	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
+						table_group);
+
+	pnv_pci_ioda2_setup_default_config(pe);
+}
+
+static struct iommu_table_group_ops pnv_pci_ioda2_ops = {
+	.get_table_size = pnv_pci_ioda2_get_table_size,
+	.create_table = pnv_pci_ioda2_create_table,
+	.set_window = pnv_pci_ioda2_set_window,
+	.unset_window = pnv_pci_ioda2_unset_window,
+	.take_ownership = pnv_ioda2_take_ownership,
+	.release_ownership = pnv_ioda2_release_ownership,
+};
+#endif
+
+static void pnv_pci_ioda_setup_opal_tce_kill(struct pnv_phb *phb)
+{
+	const __be64 *swinvp;
+
+	/* OPAL variant of PHB3 invalidated TCEs */
+	swinvp = of_get_property(phb->hose->dn, "ibm,opal-tce-kill", NULL);
+	if (!swinvp)
+		return;
+
+	phb->ioda.tce_inval_reg_phys = be64_to_cpup(swinvp);
+	phb->ioda.tce_inval_reg = ioremap(phb->ioda.tce_inval_reg_phys, 8);
+}
+
+static __be64 *pnv_pci_ioda2_table_do_alloc_pages(int nid, unsigned shift,
+		unsigned levels, unsigned long limit,
+		unsigned long *current_offset)
+{
+	struct page *tce_mem = NULL;
+	__be64 *addr, *tmp;
+	unsigned order = max_t(unsigned, shift, PAGE_SHIFT) - PAGE_SHIFT;
+	unsigned long allocated = 1UL << (order + PAGE_SHIFT);
+	unsigned entries = 1UL << (shift - 3);
+	long i;
+
+	tce_mem = alloc_pages_node(nid, GFP_KERNEL, order);
+	if (!tce_mem) {
+		pr_err("Failed to allocate a TCE memory, order=%d\n", order);
+		return NULL;
+	}
+	addr = page_address(tce_mem);
+	memset(addr, 0, allocated);
+
+	--levels;
+	if (!levels) {
+		*current_offset += allocated;
+		return addr;
+	}
+
+	for (i = 0; i < entries; ++i) {
+		tmp = pnv_pci_ioda2_table_do_alloc_pages(nid, shift,
+				levels, limit, current_offset);
+		if (!tmp)
+			break;
+
+		addr[i] = cpu_to_be64(__pa(tmp) |
+				TCE_PCI_READ | TCE_PCI_WRITE);
+
+		if (*current_offset >= limit)
+			break;
+	}
+
+	return addr;
+}
+
+static void pnv_pci_ioda2_table_do_free_pages(__be64 *addr,
+		unsigned long size, unsigned level);
+
+static long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
+		__u32 page_shift, __u64 window_size, __u32 levels,
+		struct iommu_table *tbl)
+{
+	void *addr;
+	unsigned long offset = 0, level_shift;
+	const unsigned window_shift = ilog2(window_size);
+	unsigned entries_shift = window_shift - page_shift;
+	unsigned table_shift = max_t(unsigned, entries_shift + 3, PAGE_SHIFT);
+	const unsigned long tce_table_size = 1UL << table_shift;
+
+	if (!levels || (levels > POWERNV_IOMMU_MAX_LEVELS))
+		return -EINVAL;
+
+	if ((window_size > memory_hotplug_max()) || !is_power_of_2(window_size))
+		return -EINVAL;
+
+	/* Adjust direct table size from window_size and levels */
+	entries_shift = (entries_shift + levels - 1) / levels;
+	level_shift = entries_shift + 3;
+	level_shift = max_t(unsigned, level_shift, PAGE_SHIFT);
+
+	/* Allocate TCE table */
+	addr = pnv_pci_ioda2_table_do_alloc_pages(nid, level_shift,
+			levels, tce_table_size, &offset);
+
+	/* addr==NULL means that the first level allocation failed */
+	if (!addr)
+		return -ENOMEM;
+
+	/*
+	 * First level was allocated but some lower level failed as
+	 * we did not allocate as much as we wanted,
+	 * release partially allocated table.
+	 */
+	if (offset < tce_table_size) {
+		pnv_pci_ioda2_table_do_free_pages(addr,
+				1ULL << (level_shift - 3), levels - 1);
+		return -ENOMEM;
+	}
+
+	/* Setup linux iommu table */
+	pnv_pci_setup_iommu_table(tbl, addr, tce_table_size, bus_offset,
+			page_shift);
+	tbl->it_level_size = 1ULL << (level_shift - 3);
+	tbl->it_indirect_levels = levels - 1;
+	tbl->it_allocated_size = offset;
+
+	pr_devel("Created TCE table: ws=%08llx ts=%lx @%08llx\n",
+			window_size, tce_table_size, bus_offset);
+
+	return 0;
+}
+
+static void pnv_pci_ioda2_table_do_free_pages(__be64 *addr,
+		unsigned long size, unsigned level)
+{
+	const unsigned long addr_ul = (unsigned long) addr &
+			~(TCE_PCI_READ | TCE_PCI_WRITE);
+
+	if (level) {
+		long i;
+		u64 *tmp = (u64 *) addr_ul;
+
+		for (i = 0; i < size; ++i) {
+			unsigned long hpa = be64_to_cpu(tmp[i]);
+
+			if (!(hpa & (TCE_PCI_READ | TCE_PCI_WRITE)))
+				continue;
+
+			pnv_pci_ioda2_table_do_free_pages(__va(hpa), size,
+					level - 1);
+		}
+	}
+
+	free_pages(addr_ul, get_order(size << 3));
+}
+
+static void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl)
+{
+	const unsigned long size = tbl->it_indirect_levels ?
+			tbl->it_level_size : tbl->it_size;
+
+	if (!tbl->it_size)
+		return;
+
+	pnv_pci_ioda2_table_do_free_pages((__be64 *)tbl->it_base, size,
+			tbl->it_indirect_levels);
 }
 
 static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 				       struct pnv_ioda_pe *pe)
 {
-	struct page *tce_mem = NULL;
-	void *addr;
-	const __be64 *swinvp;
-	struct iommu_table *tbl;
-	unsigned int tce_table_size, end;
 	int64_t rc;
 
 	/* We shouldn't already have a 32-bit DMA associated */
 	if (WARN_ON(pe->tce32_seg >= 0))
 		return;
 
+	/* TVE #1 is selected by PCI address bit 59 */
+	pe->tce_bypass_base = 1ull << 59;
+
+	iommu_register_group(&pe->table_group, phb->hose->global_number,
+			pe->pe_number);
+
 	/* The PE will reserve all possible 32-bits space */
 	pe->tce32_seg = 0;
-	end = (1 << ilog2(phb->ioda.m32_pci_base));
-	tce_table_size = (end / 0x1000) * 8;
 	pe_info(pe, "Setting up 32-bit TCE table at 0..%08x\n",
-		end);
-
-	/* Allocate TCE table */
-	tce_mem = alloc_pages_node(phb->hose->node, GFP_KERNEL,
-				   get_order(tce_table_size));
-	if (!tce_mem) {
-		pe_err(pe, "Failed to allocate a 32-bit TCE memory\n");
-		goto fail;
-	}
-	addr = page_address(tce_mem);
-	memset(addr, 0, tce_table_size);
-
-	/*
-	 * Map TCE table through TVT. The TVE index is the PE number
-	 * shifted by 1 bit for 32-bits DMA space.
-	 */
-	rc = opal_pci_map_pe_dma_window(phb->opal_id, pe->pe_number,
-					pe->pe_number << 1, 1, __pa(addr),
-					tce_table_size, 0x1000);
-	if (rc) {
-		pe_err(pe, "Failed to configure 32-bit TCE table,"
-		       " err %ld\n", rc);
-		goto fail;
-	}
+		phb->ioda.m32_pci_base);
 
 	/* Setup linux iommu table */
-	tbl = pe->tce32_table;
-	pnv_pci_setup_iommu_table(tbl, addr, tce_table_size, 0,
-			IOMMU_PAGE_SHIFT_4K);
+	pe->table_group.tce32_start = 0;
+	pe->table_group.tce32_size = phb->ioda.m32_pci_base;
+	pe->table_group.max_dynamic_windows_supported =
+			IOMMU_TABLE_GROUP_MAX_TABLES;
+	pe->table_group.max_levels = POWERNV_IOMMU_MAX_LEVELS;
+	pe->table_group.pgsizes = SZ_4K | SZ_64K | SZ_16M;
+#ifdef CONFIG_IOMMU_API
+	pe->table_group.ops = &pnv_pci_ioda2_ops;
+#endif
 
-	/* OPAL variant of PHB3 invalidated TCEs */
-	swinvp = of_get_property(phb->hose->dn, "ibm,opal-tce-kill", NULL);
-	if (swinvp) {
-		/* We need a couple more fields -- an address and a data
-		 * to or.  Since the bus is only printed out on table free
-		 * errors, and on the first pass the data will be a relative
-		 * bus number, print that out instead.
-		 */
-		pe->tce_inval_reg_phys = be64_to_cpup(swinvp);
-		tbl->it_index = (unsigned long)ioremap(pe->tce_inval_reg_phys,
-				8);
-		tbl->it_type |= (TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE);
-	}
-	iommu_init_table(tbl, phb->hose->node);
-
-	if (pe->flags & PNV_IODA_PE_DEV) {
-		iommu_register_group(tbl, phb->hose->global_number,
-				     pe->pe_number);
-		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
-	} else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)) {
-		iommu_register_group(tbl, phb->hose->global_number,
-				     pe->pe_number);
-		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
-	} else if (pe->flags & PNV_IODA_PE_VF) {
-		iommu_register_group(tbl, phb->hose->global_number,
-				     pe->pe_number);
+	rc = pnv_pci_ioda2_setup_default_config(pe);
+	if (rc) {
+		if (pe->tce32_seg >= 0)
+			pe->tce32_seg = -1;
+		return;
 	}
 
-	/* Also create a bypass window */
-	if (!pnv_iommu_bypass_disabled)
-		pnv_pci_ioda2_setup_bypass_pe(phb, pe);
-
-	return;
-fail:
-	if (pe->tce32_seg >= 0)
-		pe->tce32_seg = -1;
-	if (tce_mem)
-		__free_pages(tce_mem, get_order(tce_table_size));
+	if (pe->flags & PNV_IODA_PE_DEV)
+		iommu_add_device(&pe->pdev->dev);
+	else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
+		pnv_ioda_setup_bus_dma(pe, pe->pbus);
 }
 
 static void pnv_ioda_setup_dma(struct pnv_phb *phb)
@@ -2023,6 +2417,8 @@ static void pnv_ioda_setup_dma(struct pnv_phb *phb)
 		hose->global_number, phb->ioda.tce32_count);
 	pr_info("PCI: %d PE# for a total weight of %d\n",
 		phb->ioda.dma_pe_count, phb->ioda.dma_weight);
+
+	pnv_pci_ioda_setup_opal_tce_kill(phb);
 
 	/* Walk our PE list and configure their DMA segments, hand them
 	 * out one base segment plus any residual segments based on
@@ -2642,11 +3038,26 @@ static u32 pnv_ioda_bdfn_to_pe(struct pnv_phb *phb, struct pci_bus *bus,
 	return phb->ioda.pe_rmap[(bus->number << 8) | devfn];
 }
 
-static void pnv_pci_ioda_shutdown(struct pnv_phb *phb)
+static void pnv_pci_ioda_shutdown(struct pci_controller *hose)
 {
+	struct pnv_phb *phb = hose->private_data;
+
 	opal_pci_reset(phb->opal_id, OPAL_RESET_PCI_IODA_TABLE,
 		       OPAL_ASSERT_RESET);
 }
+
+static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
+       .dma_dev_setup = pnv_pci_dma_dev_setup,
+#ifdef CONFIG_PCI_MSI
+       .setup_msi_irqs = pnv_setup_msi_irqs,
+       .teardown_msi_irqs = pnv_teardown_msi_irqs,
+#endif
+       .enable_device_hook = pnv_pci_enable_device_hook,
+       .window_alignment = pnv_pci_window_alignment,
+       .reset_secondary_bus = pnv_pci_reset_secondary_bus,
+       .dma_set_mask = pnv_pci_ioda_dma_set_mask,
+       .shutdown = pnv_pci_ioda_shutdown,
+};
 
 static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 					 u64 hub_id, int ioda_type)
@@ -2791,11 +3202,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 
 	/* Setup TCEs */
 	phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
-	phb->dma_set_mask = pnv_pci_ioda_dma_set_mask;
 	phb->dma_get_required_mask = pnv_pci_ioda_dma_get_required_mask;
-
-	/* Setup shutdown function for kexec */
-	phb->shutdown = pnv_pci_ioda_shutdown;
 
 	/* Setup MSI support */
 	pnv_pci_init_ioda_msis(phb);
@@ -2808,10 +3215,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	 * the child P2P bridges) can form individual PE.
 	 */
 	ppc_md.pcibios_fixup = pnv_pci_ioda_fixup;
-	pnv_pci_controller_ops.enable_device_hook = pnv_pci_enable_device_hook;
-	pnv_pci_controller_ops.window_alignment = pnv_pci_window_alignment;
-	pnv_pci_controller_ops.reset_secondary_bus = pnv_pci_reset_secondary_bus;
-	hose->controller_ops = pnv_pci_controller_ops;
+	hose->controller_ops = pnv_pci_ioda_controller_ops;
 
 #ifdef CONFIG_PCI_IOV
 	ppc_md.pcibios_fixup_sriov = pnv_pci_ioda_fixup_iov_resources;

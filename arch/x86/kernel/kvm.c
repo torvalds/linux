@@ -331,7 +331,7 @@ static void kvm_guest_apic_eoi_write(u32 reg, u32 val)
 	apic_write(APIC_EOI, APIC_EOI_ACK);
 }
 
-void kvm_guest_cpu_init(void)
+static void kvm_guest_cpu_init(void)
 {
 	if (!kvm_para_available())
 		return;
@@ -688,7 +688,7 @@ static inline void spin_time_accum_blocked(u64 start)
 static struct dentry *d_spin_debug;
 static struct dentry *d_kvm_debug;
 
-struct dentry *kvm_init_debugfs(void)
+static struct dentry *kvm_init_debugfs(void)
 {
 	d_kvm_debug = debugfs_create_dir("kvm-guest", NULL);
 	if (!d_kvm_debug)

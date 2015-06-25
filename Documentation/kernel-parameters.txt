@@ -1019,6 +1019,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			earlyprintk=serial[,0x...[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
+			earlyprintk=pciserial,bus:device.function[,baudrate]
 
 			earlyprintk is useful when the kernel crashes before
 			the normal console is initialized. It is not enabled by
@@ -2453,7 +2454,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nomca		[IA-64] Disable machine check abort handling
 
-	nomce		[X86-32] Machine Check Exception
+	nomce		[X86-32] Disable Machine Check Exception
 
 	nomfgpt		[X86-32] Disable Multi-Function General Purpose
 			Timer usage (for AMD Geode machines).

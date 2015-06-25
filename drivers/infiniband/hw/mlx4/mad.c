@@ -64,14 +64,6 @@ enum {
 #define GUID_TBL_BLK_NUM_ENTRIES 8
 #define GUID_TBL_BLK_SIZE (GUID_TBL_ENTRY_SIZE * GUID_TBL_BLK_NUM_ENTRIES)
 
-/* Counters should be saturate once they reach their maximum value */
-#define ASSIGN_32BIT_COUNTER(counter, value) do {\
-	if ((value) > U32_MAX)			 \
-		counter = cpu_to_be32(U32_MAX); \
-	else					 \
-		counter = cpu_to_be32(value);	 \
-} while (0)
-
 struct mlx4_mad_rcv_buf {
 	struct ib_grh grh;
 	u8 payload[256];
@@ -830,39 +822,31 @@ static int iboe_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 			const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
-	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_counter counter_stats;
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	int err;
-	u32 inmod = dev->counters[port_num - 1] & 0xffff;
-	u8 mode;
 
 	if (in_mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_PERF_MGMT)
 		return -EINVAL;
 
-	mailbox = mlx4_alloc_cmd_mailbox(dev->dev);
-	if (IS_ERR(mailbox))
-		return IB_MAD_RESULT_FAILURE;
-
-	err = mlx4_cmd_box(dev->dev, 0, mailbox->dma, inmod, 0,
-			   MLX4_CMD_QUERY_IF_STAT, MLX4_CMD_TIME_CLASS_C,
-			   MLX4_CMD_WRAPPED);
+	memset(&counter_stats, 0, sizeof(counter_stats));
+	err = mlx4_get_counter_stats(dev->dev,
+				     dev->counters[port_num - 1].index,
+				     &counter_stats, 0);
 	if (err)
 		err = IB_MAD_RESULT_FAILURE;
 	else {
 		memset(out_mad->data, 0, sizeof out_mad->data);
-		mode = ((struct mlx4_counter *)mailbox->buf)->counter_mode;
-		switch (mode & 0xf) {
+		switch (counter_stats.counter_mode & 0xf) {
 		case 0:
-			edit_counter(mailbox->buf,
-						(void *)(out_mad->data + 40));
+			edit_counter(&counter_stats,
+				     (void *)(out_mad->data + 40));
 			err = IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 			break;
 		default:
 			err = IB_MAD_RESULT_FAILURE;
 		}
 	}
-
-	mlx4_free_cmd_mailbox(dev->dev, mailbox);
 
 	return err;
 }
@@ -873,6 +857,7 @@ int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			struct ib_mad_hdr *out, size_t *out_mad_size,
 			u16 *out_mad_pkey_index)
 {
+	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	const struct ib_mad *in_mad = (const struct ib_mad *)in;
 	struct ib_mad *out_mad = (struct ib_mad *)out;
 
@@ -881,8 +866,9 @@ int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 
 	switch (rdma_port_get_link_layer(ibdev, port_num)) {
 	case IB_LINK_LAYER_INFINIBAND:
-		return ib_process_mad(ibdev, mad_flags, port_num, in_wc,
-				      in_grh, in_mad, out_mad);
+		if (!mlx4_is_slave(dev->dev))
+			return ib_process_mad(ibdev, mad_flags, port_num, in_wc,
+					      in_grh, in_mad, out_mad);
 	case IB_LINK_LAYER_ETHERNET:
 		return iboe_process_mad(ibdev, mad_flags, port_num, in_wc,
 					  in_grh, in_mad, out_mad);
@@ -1375,14 +1361,17 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	 * stadard address handle by decoding the tunnelled mlx4_ah fields */
 	memcpy(&ah.av, &tunnel->hdr.av, sizeof (struct mlx4_av));
 	ah.ibah.device = ctx->ib_dev;
+
+	port = be32_to_cpu(ah.av.ib.port_pd) >> 24;
+	port = mlx4_slave_convert_port(dev->dev, slave, port);
+	if (port < 0)
+		return;
+	ah.av.ib.port_pd = cpu_to_be32(port << 24 | (be32_to_cpu(ah.av.ib.port_pd) & 0xffffff));
+
 	mlx4_ib_query_ah(&ah.ibah, &ah_attr);
 	if (ah_attr.ah_flags & IB_AH_GRH)
 		fill_in_real_sgid_index(dev, slave, ctx->port, &ah_attr);
 
-	port = mlx4_slave_convert_port(dev->dev, slave, ah_attr.port_num);
-	if (port < 0)
-		return;
-	ah_attr.port_num = port;
 	memcpy(ah_attr.dmac, tunnel->hdr.mac, 6);
 	ah_attr.vlan_id = be16_to_cpu(tunnel->hdr.vlan);
 	/* if slave have default vlan use it */

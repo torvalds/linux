@@ -20,7 +20,7 @@
 #include <linux/idr.h>
 #include <linux/pci.h>
 #include <asm/cputable.h>
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 #include "cxl.h"
 #include "trace.h"

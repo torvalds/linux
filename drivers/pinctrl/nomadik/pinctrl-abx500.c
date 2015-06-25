@@ -787,6 +787,7 @@ static const struct pinmux_ops abx500_pinmux_ops = {
 	.set_mux = abx500_pmx_set,
 	.gpio_request_enable = abx500_gpio_request_enable,
 	.gpio_disable_free = abx500_gpio_disable_free,
+	.strict = true,
 };
 
 static int abx500_get_groups_cnt(struct pinctrl_dev *pctldev)
@@ -1234,10 +1235,10 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	abx500_pinctrl_desc.pins = pct->soc->pins;
 	abx500_pinctrl_desc.npins = pct->soc->npins;
 	pct->pctldev = pinctrl_register(&abx500_pinctrl_desc, &pdev->dev, pct);
-	if (!pct->pctldev) {
+	if (IS_ERR(pct->pctldev)) {
 		dev_err(&pdev->dev,
 			"could not register abx500 pinctrl driver\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(pct->pctldev);
 		goto out_rem_chip;
 	}
 	dev_info(&pdev->dev, "registered pin controller\n");

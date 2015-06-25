@@ -235,28 +235,34 @@ extern struct workqueue_struct *rds_ib_wq;
  * doesn't define it.
  */
 static inline void rds_ib_dma_sync_sg_for_cpu(struct ib_device *dev,
-		struct scatterlist *sg, unsigned int sg_dma_len, int direction)
+					      struct scatterlist *sglist,
+					      unsigned int sg_dma_len,
+					      int direction)
 {
+	struct scatterlist *sg;
 	unsigned int i;
 
-	for (i = 0; i < sg_dma_len; ++i) {
+	for_each_sg(sglist, sg, sg_dma_len, i) {
 		ib_dma_sync_single_for_cpu(dev,
-				ib_sg_dma_address(dev, &sg[i]),
-				ib_sg_dma_len(dev, &sg[i]),
+				ib_sg_dma_address(dev, sg),
+				ib_sg_dma_len(dev, sg),
 				direction);
 	}
 }
 #define ib_dma_sync_sg_for_cpu	rds_ib_dma_sync_sg_for_cpu
 
 static inline void rds_ib_dma_sync_sg_for_device(struct ib_device *dev,
-		struct scatterlist *sg, unsigned int sg_dma_len, int direction)
+						 struct scatterlist *sglist,
+						 unsigned int sg_dma_len,
+						 int direction)
 {
+	struct scatterlist *sg;
 	unsigned int i;
 
-	for (i = 0; i < sg_dma_len; ++i) {
+	for_each_sg(sglist, sg, sg_dma_len, i) {
 		ib_dma_sync_single_for_device(dev,
-				ib_sg_dma_address(dev, &sg[i]),
-				ib_sg_dma_len(dev, &sg[i]),
+				ib_sg_dma_address(dev, sg),
+				ib_sg_dma_len(dev, sg),
 				direction);
 	}
 }

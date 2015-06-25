@@ -1498,9 +1498,9 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 	return pmd_young(pmd);
 }
 
-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
-				       unsigned long address, pmd_t *pmdp)
+#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
+static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
+					    unsigned long address, pmd_t *pmdp)
 {
 	pmd_t pmd = *pmdp;
 
@@ -1509,10 +1509,10 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 	return pmd;
 }
 
-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR_FULL
-static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
-					    unsigned long address,
-					    pmd_t *pmdp, int full)
+#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR_FULL
+static inline pmd_t pmdp_huge_get_and_clear_full(struct mm_struct *mm,
+						 unsigned long address,
+						 pmd_t *pmdp, int full)
 {
 	pmd_t pmd = *pmdp;
 
@@ -1522,11 +1522,11 @@ static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
 	return pmd;
 }
 
-#define __HAVE_ARCH_PMDP_CLEAR_FLUSH
-static inline pmd_t pmdp_clear_flush(struct vm_area_struct *vma,
-				     unsigned long address, pmd_t *pmdp)
+#define __HAVE_ARCH_PMDP_HUGE_CLEAR_FLUSH
+static inline pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma,
+					  unsigned long address, pmd_t *pmdp)
 {
-	return pmdp_get_and_clear(vma->vm_mm, address, pmdp);
+	return pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
 }
 
 #define __HAVE_ARCH_PMDP_INVALIDATE
@@ -1548,6 +1548,14 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 	}
 }
 
+static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+					unsigned long address,
+					pmd_t *pmdp)
+{
+	return pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
+}
+#define pmdp_collapse_flush pmdp_collapse_flush
+
 #define pfn_pmd(pfn, pgprot)	mk_pmd_phys(__pa((pfn) << PAGE_SHIFT), (pgprot))
 #define mk_pmd(page, pgprot)	pfn_pmd(page_to_pfn(page), (pgprot))
 
@@ -1565,9 +1573,9 @@ static inline int has_transparent_hugepage(void)
 /*
  * 64 bit swap entry format:
  * A page-table entry has some bits we have to treat in a special way.
- * Bits 52 and bit 55 have to be zero, otherwise an specification
+ * Bits 52 and bit 55 have to be zero, otherwise a specification
  * exception will occur instead of a page translation exception. The
- * specifiation exception has the bad habit not to store necessary
+ * specification exception has the bad habit not to store necessary
  * information in the lowcore.
  * Bits 54 and 63 are used to indicate the page type.
  * A swap pte is indicated by bit pattern (pte & 0x201) == 0x200

@@ -13,6 +13,7 @@
 	dev_dbg(&(bgmac)->core->dev, fmt, ##__VA_ARGS__)
 
 #include <linux/bcma/bcma.h>
+#include <linux/brcmphy.h>
 #include <linux/netdevice.h>
 
 #define BGMAC_DEV_CTL				0x000
@@ -349,7 +350,7 @@
 #define BGMAC_DESC_CTL0_SOF			0x80000000	/* Start of frame */
 #define BGMAC_DESC_CTL1_LEN			0x00001FFF
 
-#define BGMAC_PHY_NOREGS			0x1E
+#define BGMAC_PHY_NOREGS			BRCM_PSEUDO_PHY_ADDR
 #define BGMAC_PHY_MASK				0x1F
 
 #define BGMAC_MAX_TX_RINGS			4

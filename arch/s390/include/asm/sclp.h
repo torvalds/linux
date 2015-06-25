@@ -46,33 +46,39 @@ struct sclp_cpu_info {
 	struct sclp_cpu_entry cpu[MAX_CPU_ADDRESS + 1];
 };
 
+struct sclp_info {
+	unsigned char has_linemode : 1;
+	unsigned char has_vt220 : 1;
+	unsigned char has_siif : 1;
+	unsigned char has_sigpif : 1;
+	unsigned char has_cpu_type : 1;
+	unsigned char has_sprp : 1;
+	unsigned int ibc;
+	unsigned int mtid;
+	unsigned int mtid_cp;
+	unsigned int mtid_prev;
+	unsigned long long rzm;
+	unsigned long long rnmax;
+	unsigned long long hamax;
+	unsigned int max_cpu;
+	unsigned long hsa_size;
+	unsigned long long facilities;
+};
+extern struct sclp_info sclp;
+
 int sclp_get_cpu_info(struct sclp_cpu_info *info);
 int sclp_cpu_configure(u8 cpu);
 int sclp_cpu_deconfigure(u8 cpu);
-unsigned long long sclp_get_rnmax(void);
-unsigned long long sclp_get_rzm(void);
-unsigned int sclp_get_max_cpu(void);
-unsigned int sclp_get_mtid(u8 cpu_type);
-unsigned int sclp_get_mtid_max(void);
-unsigned int sclp_get_mtid_prev(void);
 int sclp_sdias_blk_count(void);
 int sclp_sdias_copy(void *dest, int blk_num, int nr_blks);
 int sclp_chp_configure(struct chp_id chpid);
 int sclp_chp_deconfigure(struct chp_id chpid);
 int sclp_chp_read_info(struct sclp_chp_info *info);
 void sclp_get_ipl_info(struct sclp_ipl_info *info);
-bool __init sclp_has_linemode(void);
-bool __init sclp_has_vt220(void);
-bool sclp_has_sprp(void);
 int sclp_pci_configure(u32 fid);
 int sclp_pci_deconfigure(u32 fid);
 int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode);
-unsigned long sclp_get_hsa_size(void);
 void sclp_early_detect(void);
-int sclp_has_siif(void);
-int sclp_has_sigpif(void);
-unsigned int sclp_get_ibc(void);
-
 long _sclp_print_early(const char *);
 
 #endif /* _ASM_S390_SCLP_H */

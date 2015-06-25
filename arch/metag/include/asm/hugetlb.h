@@ -14,10 +14,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
 int prepare_hugepage_range(struct file *file, unsigned long addr,
 						unsigned long len);
 
-static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
-{
-}
-
 static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 					  unsigned long addr, unsigned long end,
 					  unsigned long floor,

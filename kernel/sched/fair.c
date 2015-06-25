@@ -5392,7 +5392,15 @@ simple:
 	return p;
 
 idle:
+	/*
+	 * This is OK, because current is on_cpu, which avoids it being picked
+	 * for load-balance and preemption/IRQs are still disabled avoiding
+	 * further scheduler activity on it and we're being very careful to
+	 * re-start the picking loop.
+	 */
+	lockdep_unpin_lock(&rq->lock);
 	new_tasks = idle_balance(rq);
+	lockdep_pin_lock(&rq->lock);
 	/*
 	 * Because idle_balance() releases (and re-acquires) rq->lock, it is
 	 * possible for any higher priority task to appear. In that case we
@@ -7426,9 +7434,6 @@ static int idle_balance(struct rq *this_rq)
 		goto out;
 	}
 
-	/*
-	 * Drop the rq->lock, but keep IRQ/preempt disabled.
-	 */
 	raw_spin_unlock(&this_rq->lock);
 
 	update_blocked_averages(this_cpu);

@@ -285,9 +285,9 @@ struct mem_cgroup {
 	 */
 	bool use_hierarchy;
 
+	/* protected by memcg_oom_lock */
 	bool		oom_lock;
-	atomic_t	under_oom;
-	atomic_t	oom_wakeups;
+	int		under_oom;
 
 	int	swappiness;
 	/* OOM-Killer disable */
@@ -1530,14 +1530,16 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 	unsigned int points = 0;
 	struct task_struct *chosen = NULL;
 
+	mutex_lock(&oom_lock);
+
 	/*
 	 * If current has a pending SIGKILL or is exiting, then automatically
 	 * select it.  The goal is to allow it to allocate so that it may
 	 * quickly exit and free its memory.
 	 */
 	if (fatal_signal_pending(current) || task_will_free_mem(current)) {
-		mark_tsk_oom_victim(current);
-		return;
+		mark_oom_victim(current);
+		goto unlock;
 	}
 
 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL, memcg);
@@ -1564,7 +1566,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 				mem_cgroup_iter_break(memcg, iter);
 				if (chosen)
 					put_task_struct(chosen);
-				return;
+				goto unlock;
 			case OOM_SCAN_OK:
 				break;
 			};
@@ -1585,11 +1587,13 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 		css_task_iter_end(&it);
 	}
 
-	if (!chosen)
-		return;
-	points = chosen_points * 1000 / totalpages;
-	oom_kill_process(chosen, gfp_mask, order, points, totalpages, memcg,
-			 NULL, "Memory cgroup out of memory");
+	if (chosen) {
+		points = chosen_points * 1000 / totalpages;
+		oom_kill_process(chosen, gfp_mask, order, points, totalpages,
+				 memcg, NULL, "Memory cgroup out of memory");
+	}
+unlock:
+	mutex_unlock(&oom_lock);
 }
 
 #if MAX_NUMNODES > 1
@@ -1806,8 +1810,10 @@ static void mem_cgroup_mark_under_oom(struct mem_cgroup *memcg)
 {
 	struct mem_cgroup *iter;
 
+	spin_lock(&memcg_oom_lock);
 	for_each_mem_cgroup_tree(iter, memcg)
-		atomic_inc(&iter->under_oom);
+		iter->under_oom++;
+	spin_unlock(&memcg_oom_lock);
 }
 
 static void mem_cgroup_unmark_under_oom(struct mem_cgroup *memcg)
@@ -1816,11 +1822,13 @@ static void mem_cgroup_unmark_under_oom(struct mem_cgroup *memcg)
 
 	/*
 	 * When a new child is created while the hierarchy is under oom,
-	 * mem_cgroup_oom_lock() may not be called. We have to use
-	 * atomic_add_unless() here.
+	 * mem_cgroup_oom_lock() may not be called. Watch for underflow.
 	 */
+	spin_lock(&memcg_oom_lock);
 	for_each_mem_cgroup_tree(iter, memcg)
-		atomic_add_unless(&iter->under_oom, -1, 0);
+		if (iter->under_oom > 0)
+			iter->under_oom--;
+	spin_unlock(&memcg_oom_lock);
 }
 
 static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
@@ -1846,17 +1854,18 @@ static int memcg_oom_wake_function(wait_queue_t *wait,
 	return autoremove_wake_function(wait, mode, sync, arg);
 }
 
-static void memcg_wakeup_oom(struct mem_cgroup *memcg)
-{
-	atomic_inc(&memcg->oom_wakeups);
-	/* for filtering, pass "memcg" as argument. */
-	__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, memcg);
-}
-
 static void memcg_oom_recover(struct mem_cgroup *memcg)
 {
-	if (memcg && atomic_read(&memcg->under_oom))
-		memcg_wakeup_oom(memcg);
+	/*
+	 * For the following lockless ->under_oom test, the only required
+	 * guarantee is that it must see the state asserted by an OOM when
+	 * this function is called as a result of userland actions
+	 * triggered by the notification of the OOM.  This is trivially
+	 * achieved by invoking mem_cgroup_mark_under_oom() before
+	 * triggering notification.
+	 */
+	if (memcg && memcg->under_oom)
+		__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, memcg);
 }
 
 static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
@@ -3864,7 +3873,7 @@ static int mem_cgroup_oom_register_event(struct mem_cgroup *memcg,
 	list_add(&event->list, &memcg->oom_notify);
 
 	/* already in OOM ? */
-	if (atomic_read(&memcg->under_oom))
+	if (memcg->under_oom)
 		eventfd_signal(eventfd, 1);
 	spin_unlock(&memcg_oom_lock);
 
@@ -3893,7 +3902,7 @@ static int mem_cgroup_oom_control_read(struct seq_file *sf, void *v)
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(sf));
 
 	seq_printf(sf, "oom_kill_disable %d\n", memcg->oom_kill_disable);
-	seq_printf(sf, "under_oom %d\n", (bool)atomic_read(&memcg->under_oom));
+	seq_printf(sf, "under_oom %d\n", (bool)memcg->under_oom);
 	return 0;
 }
 

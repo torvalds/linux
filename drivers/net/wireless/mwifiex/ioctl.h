@@ -113,6 +113,7 @@ struct mwifiex_uap_bss_param {
 	u32 sta_ao_timer;
 	u32 ps_sta_ao_timer;
 	u8 qos_info;
+	u8 power_constraint;
 	struct mwifiex_types_wmm_info wmm_info;
 };
 
@@ -189,6 +190,7 @@ struct tdls_peer_info {
 };
 
 struct mwifiex_debug_info {
+	unsigned int debug_mask;
 	u32 int_counter;
 	u32 packets_out[MAX_NUM_TID];
 	u32 tx_buf_size;
@@ -340,6 +342,11 @@ struct mwifiex_ds_read_eeprom {
 	__le16 offset;
 	__le16 byte_count;
 	u8 value[MAX_EEPROM_DATA];
+};
+
+struct mwifiex_ds_mem_rw {
+	u32 addr;
+	u32 value;
 };
 
 #define IEEE_MAX_IE_SIZE		256

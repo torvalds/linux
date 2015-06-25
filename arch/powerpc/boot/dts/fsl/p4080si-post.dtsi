@@ -37,6 +37,16 @@
 	alloc-ranges = <0 0 0x10 0>;
 };
 
+&qman_fqd {
+	compatible = "fsl,qman-fqd";
+	alloc-ranges = <0 0 0x10 0>;
+};
+
+&qman_pfdr {
+	compatible = "fsl,qman-pfdr";
+	alloc-ranges = <0 0 0x10 0>;
+};
+
 &lbc {
 	compatible = "fsl,p4080-elbc", "fsl,elbc", "simple-bus";
 	interrupts = <25 2 0 0>;
@@ -249,6 +259,8 @@
 };
 
 /include/ "qoriq-bman1-portals.dtsi"
+
+/include/ "qoriq-qman1-portals.dtsi"
 
 &soc {
 	#address-cells = <1>;
@@ -499,5 +511,6 @@ crypto: crypto@300000 {
 		fsl,iommu-parent = <&pamu1>;
 	};
 
+/include/ "qoriq-qman1.dtsi"
 /include/ "qoriq-bman1.dtsi"
 };

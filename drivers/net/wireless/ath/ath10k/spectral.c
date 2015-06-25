@@ -519,9 +519,12 @@ int ath10k_spectral_vif_stop(struct ath10k_vif *arvif)
 
 int ath10k_spectral_create(struct ath10k *ar)
 {
+	/* The buffer size covers whole channels in dual bands up to 128 bins.
+	 * Scan with bigger than 128 bins needs to be run on single band each.
+	 */
 	ar->spectral.rfs_chan_spec_scan = relay_open("spectral_scan",
 						     ar->debug.debugfs_phy,
-						     1024, 256,
+						     1140, 2500,
 						     &rfs_spec_scan_cb, NULL);
 	debugfs_create_file("spectral_scan_ctl",
 			    S_IRUSR | S_IWUSR,

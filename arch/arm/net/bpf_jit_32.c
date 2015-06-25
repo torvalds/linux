@@ -873,6 +873,16 @@ b_epilogue:
 			off = offsetof(struct sk_buff, queue_mapping);
 			emit(ARM_LDRH_I(r_A, r_skb, off), ctx);
 			break;
+		case BPF_LDX | BPF_W | BPF_ABS:
+			/*
+			 * load a 32bit word from struct seccomp_data.
+			 * seccomp_check_filter() will already have checked
+			 * that k is 32bit aligned and lies within the
+			 * struct seccomp_data.
+			 */
+			ctx->seen |= SEEN_SKB;
+			emit(ARM_LDR_I(r_A, r_skb, k), ctx);
+			break;
 		default:
 			return -1;
 		}

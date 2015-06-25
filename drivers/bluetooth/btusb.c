@@ -31,13 +31,14 @@
 
 #include "btintel.h"
 #include "btbcm.h"
+#include "btrtl.h"
 
 #define VERSION "0.8"
 
 static bool disable_scofix;
 static bool force_scofix;
 
-static bool reset = 1;
+static bool reset = true;
 
 static struct usb_driver btusb_driver;
 
@@ -178,6 +179,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0489, 0xe056), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0489, 0xe057), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0489, 0xe05f), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0489, 0xe076), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0489, 0xe078), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04c5, 0x1330), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3004), .driver_info = BTUSB_ATH3012 },
@@ -186,6 +188,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x04ca, 0x3007), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3008), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x300b), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x04ca, 0x300d), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x300f), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3010), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0930, 0x0219), .driver_info = BTUSB_ATH3012 },
@@ -211,6 +214,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x13d3, 0x3408), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x13d3, 0x3423), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x13d3, 0x3432), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x13d3, 0x3474), .driver_info = BTUSB_ATH3012 },
 
 	/* Atheros AR5BBU12 with sflash firmware */
 	{ USB_DEVICE(0x0489, 0xe02c), .driver_info = BTUSB_IGNORE },
@@ -265,7 +269,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0e5e, 0x6622), .driver_info = BTUSB_BROKEN_ISOC },
 
 	/* Roper Class 1 Bluetooth Dongle (Silicon Wave based) */
-	{ USB_DEVICE(0x1300, 0x0001), .driver_info = BTUSB_SWAVE },
+	{ USB_DEVICE(0x1310, 0x0001), .driver_info = BTUSB_SWAVE },
 
 	/* Digianswer devices */
 	{ USB_DEVICE(0x08fd, 0x0001), .driver_info = BTUSB_DIGIANSWER },
@@ -330,6 +334,7 @@ static const struct usb_device_id blacklist_table[] = {
 #define BTUSB_FIRMWARE_LOADED	7
 #define BTUSB_FIRMWARE_FAILED	8
 #define BTUSB_BOOTING		9
+#define BTUSB_RESET_RESUME	10
 
 struct btusb_data {
 	struct hci_dev       *hdev;
@@ -1298,28 +1303,6 @@ static void btusb_waker(struct work_struct *work)
 	usb_autopm_put_interface(data->intf);
 }
 
-static struct sk_buff *btusb_read_local_version(struct hci_dev *hdev)
-{
-	struct sk_buff *skb;
-
-	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
-		return skb;
-	}
-
-	if (skb->len != sizeof(struct hci_rp_read_local_version)) {
-		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION event length mismatch",
-		       hdev->name);
-		kfree_skb(skb);
-		return ERR_PTR(-EIO);
-	}
-
-	return skb;
-}
-
 static int btusb_setup_bcm92035(struct hci_dev *hdev)
 {
 	struct sk_buff *skb;
@@ -1340,408 +1323,40 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 {
 	struct hci_rp_read_local_version *rp;
 	struct sk_buff *skb;
-	int ret;
 
 	BT_DBG("%s", hdev->name);
 
-	skb = btusb_read_local_version(hdev);
-	if (IS_ERR(skb))
-		return -PTR_ERR(skb);
-
-	rp = (struct hci_rp_read_local_version *)skb->data;
-
-	if (!rp->status) {
-		if (le16_to_cpu(rp->manufacturer) != 10) {
-			/* Clear the reset quirk since this is not an actual
-			 * early Bluetooth 1.1 device from CSR.
-			 */
-			clear_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
-
-			/* These fake CSR controllers have all a broken
-			 * stored link key handling and so just disable it.
-			 */
-			set_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY,
-				&hdev->quirks);
-		}
-	}
-
-	ret = -bt_to_errno(rp->status);
-
-	kfree_skb(skb);
-
-	return ret;
-}
-
-#define RTL_FRAG_LEN 252
-
-struct rtl_download_cmd {
-	__u8 index;
-	__u8 data[RTL_FRAG_LEN];
-} __packed;
-
-struct rtl_download_response {
-	__u8 status;
-	__u8 index;
-} __packed;
-
-struct rtl_rom_version_evt {
-	__u8 status;
-	__u8 version;
-} __packed;
-
-struct rtl_epatch_header {
-	__u8 signature[8];
-	__le32 fw_version;
-	__le16 num_patches;
-} __packed;
-
-#define RTL_EPATCH_SIGNATURE	"Realtech"
-#define RTL_ROM_LMP_3499	0x3499
-#define RTL_ROM_LMP_8723A	0x1200
-#define RTL_ROM_LMP_8723B	0x8723
-#define RTL_ROM_LMP_8821A	0x8821
-#define RTL_ROM_LMP_8761A	0x8761
-
-static int rtl_read_rom_version(struct hci_dev *hdev, u8 *version)
-{
-	struct rtl_rom_version_evt *rom_version;
-	struct sk_buff *skb;
-	int ret;
-
-	/* Read RTL ROM version command */
-	skb = __hci_cmd_sync(hdev, 0xfc6d, 0, NULL, HCI_INIT_TIMEOUT);
+	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
+			     HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Read ROM version failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
-		return PTR_ERR(skb);
+		int err = PTR_ERR(skb);
+		BT_ERR("%s: CSR: Local version failed (%d)", hdev->name, err);
+		return err;
 	}
 
-	if (skb->len != sizeof(*rom_version)) {
-		BT_ERR("%s: RTL version event length mismatch", hdev->name);
+	if (skb->len != sizeof(struct hci_rp_read_local_version)) {
+		BT_ERR("%s: CSR: Local version length mismatch", hdev->name);
 		kfree_skb(skb);
 		return -EIO;
 	}
 
-	rom_version = (struct rtl_rom_version_evt *)skb->data;
-	BT_INFO("%s: rom_version status=%x version=%x",
-		hdev->name, rom_version->status, rom_version->version);
+	rp = (struct hci_rp_read_local_version *)skb->data;
 
-	ret = rom_version->status;
-	if (ret == 0)
-		*version = rom_version->version;
+	if (le16_to_cpu(rp->manufacturer) != 10) {
+		/* Clear the reset quirk since this is not an actual
+		 * early Bluetooth 1.1 device from CSR.
+		 */
+		clear_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
+
+		/* These fake CSR controllers have all a broken
+		 * stored link key handling and so just disable it.
+		 */
+		set_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY, &hdev->quirks);
+	}
 
 	kfree_skb(skb);
-	return ret;
-}
 
-static int rtl8723b_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
-				   const struct firmware *fw,
-				   unsigned char **_buf)
-{
-	const u8 extension_sig[] = { 0x51, 0x04, 0xfd, 0x77 };
-	struct rtl_epatch_header *epatch_info;
-	unsigned char *buf;
-	int i, ret, len;
-	size_t min_size;
-	u8 opcode, length, data, rom_version = 0;
-	int project_id = -1;
-	const unsigned char *fwptr, *chip_id_base;
-	const unsigned char *patch_length_base, *patch_offset_base;
-	u32 patch_offset = 0;
-	u16 patch_length, num_patches;
-	const u16 project_id_to_lmp_subver[] = {
-		RTL_ROM_LMP_8723A,
-		RTL_ROM_LMP_8723B,
-		RTL_ROM_LMP_8821A,
-		RTL_ROM_LMP_8761A
-	};
-
-	ret = rtl_read_rom_version(hdev, &rom_version);
-	if (ret)
-		return -bt_to_errno(ret);
-
-	min_size = sizeof(struct rtl_epatch_header) + sizeof(extension_sig) + 3;
-	if (fw->size < min_size)
-		return -EINVAL;
-
-	fwptr = fw->data + fw->size - sizeof(extension_sig);
-	if (memcmp(fwptr, extension_sig, sizeof(extension_sig)) != 0) {
-		BT_ERR("%s: extension section signature mismatch", hdev->name);
-		return -EINVAL;
-	}
-
-	/* Loop from the end of the firmware parsing instructions, until
-	 * we find an instruction that identifies the "project ID" for the
-	 * hardware supported by this firwmare file.
-	 * Once we have that, we double-check that that project_id is suitable
-	 * for the hardware we are working with.
-	 */
-	while (fwptr >= fw->data + (sizeof(struct rtl_epatch_header) + 3)) {
-		opcode = *--fwptr;
-		length = *--fwptr;
-		data = *--fwptr;
-
-		BT_DBG("check op=%x len=%x data=%x", opcode, length, data);
-
-		if (opcode == 0xff) /* EOF */
-			break;
-
-		if (length == 0) {
-			BT_ERR("%s: found instruction with length 0",
-			       hdev->name);
-			return -EINVAL;
-		}
-
-		if (opcode == 0 && length == 1) {
-			project_id = data;
-			break;
-		}
-
-		fwptr -= length;
-	}
-
-	if (project_id < 0) {
-		BT_ERR("%s: failed to find version instruction", hdev->name);
-		return -EINVAL;
-	}
-
-	if (project_id >= ARRAY_SIZE(project_id_to_lmp_subver)) {
-		BT_ERR("%s: unknown project id %d", hdev->name, project_id);
-		return -EINVAL;
-	}
-
-	if (lmp_subver != project_id_to_lmp_subver[project_id]) {
-		BT_ERR("%s: firmware is for %x but this is a %x", hdev->name,
-		       project_id_to_lmp_subver[project_id], lmp_subver);
-		return -EINVAL;
-	}
-
-	epatch_info = (struct rtl_epatch_header *)fw->data;
-	if (memcmp(epatch_info->signature, RTL_EPATCH_SIGNATURE, 8) != 0) {
-		BT_ERR("%s: bad EPATCH signature", hdev->name);
-		return -EINVAL;
-	}
-
-	num_patches = le16_to_cpu(epatch_info->num_patches);
-	BT_DBG("fw_version=%x, num_patches=%d",
-	       le32_to_cpu(epatch_info->fw_version), num_patches);
-
-	/* After the rtl_epatch_header there is a funky patch metadata section.
-	 * Assuming 2 patches, the layout is:
-	 * ChipID1 ChipID2 PatchLength1 PatchLength2 PatchOffset1 PatchOffset2
-	 *
-	 * Find the right patch for this chip.
-	 */
-	min_size += 8 * num_patches;
-	if (fw->size < min_size)
-		return -EINVAL;
-
-	chip_id_base = fw->data + sizeof(struct rtl_epatch_header);
-	patch_length_base = chip_id_base + (sizeof(u16) * num_patches);
-	patch_offset_base = patch_length_base + (sizeof(u16) * num_patches);
-	for (i = 0; i < num_patches; i++) {
-		u16 chip_id = get_unaligned_le16(chip_id_base +
-						 (i * sizeof(u16)));
-		if (chip_id == rom_version + 1) {
-			patch_length = get_unaligned_le16(patch_length_base +
-							  (i * sizeof(u16)));
-			patch_offset = get_unaligned_le32(patch_offset_base +
-							  (i * sizeof(u32)));
-			break;
-		}
-	}
-
-	if (!patch_offset) {
-		BT_ERR("%s: didn't find patch for chip id %d",
-		       hdev->name, rom_version);
-		return -EINVAL;
-	}
-
-	BT_DBG("length=%x offset=%x index %d", patch_length, patch_offset, i);
-	min_size = patch_offset + patch_length;
-	if (fw->size < min_size)
-		return -EINVAL;
-
-	/* Copy the firmware into a new buffer and write the version at
-	 * the end.
-	 */
-	len = patch_length;
-	buf = kmemdup(fw->data + patch_offset, patch_length, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	memcpy(buf + patch_length - 4, &epatch_info->fw_version, 4);
-
-	*_buf = buf;
-	return len;
-}
-
-static int rtl_download_firmware(struct hci_dev *hdev,
-				 const unsigned char *data, int fw_len)
-{
-	struct rtl_download_cmd *dl_cmd;
-	int frag_num = fw_len / RTL_FRAG_LEN + 1;
-	int frag_len = RTL_FRAG_LEN;
-	int ret = 0;
-	int i;
-
-	dl_cmd = kmalloc(sizeof(struct rtl_download_cmd), GFP_KERNEL);
-	if (!dl_cmd)
-		return -ENOMEM;
-
-	for (i = 0; i < frag_num; i++) {
-		struct rtl_download_response *dl_resp;
-		struct sk_buff *skb;
-
-		BT_DBG("download fw (%d/%d)", i, frag_num);
-
-		dl_cmd->index = i;
-		if (i == (frag_num - 1)) {
-			dl_cmd->index |= 0x80; /* data end */
-			frag_len = fw_len % RTL_FRAG_LEN;
-		}
-		memcpy(dl_cmd->data, data, frag_len);
-
-		/* Send download command */
-		skb = __hci_cmd_sync(hdev, 0xfc20, frag_len + 1, dl_cmd,
-				     HCI_INIT_TIMEOUT);
-		if (IS_ERR(skb)) {
-			BT_ERR("%s: download fw command failed (%ld)",
-			       hdev->name, PTR_ERR(skb));
-			ret = -PTR_ERR(skb);
-			goto out;
-		}
-
-		if (skb->len != sizeof(*dl_resp)) {
-			BT_ERR("%s: download fw event length mismatch",
-			       hdev->name);
-			kfree_skb(skb);
-			ret = -EIO;
-			goto out;
-		}
-
-		dl_resp = (struct rtl_download_response *)skb->data;
-		if (dl_resp->status != 0) {
-			kfree_skb(skb);
-			ret = bt_to_errno(dl_resp->status);
-			goto out;
-		}
-
-		kfree_skb(skb);
-		data += RTL_FRAG_LEN;
-	}
-
-out:
-	kfree(dl_cmd);
-	return ret;
-}
-
-static int btusb_setup_rtl8723a(struct hci_dev *hdev)
-{
-	struct btusb_data *data = dev_get_drvdata(&hdev->dev);
-	struct usb_device *udev = interface_to_usbdev(data->intf);
-	const struct firmware *fw;
-	int ret;
-
-	BT_INFO("%s: rtl: loading rtl_bt/rtl8723a_fw.bin", hdev->name);
-	ret = request_firmware(&fw, "rtl_bt/rtl8723a_fw.bin", &udev->dev);
-	if (ret < 0) {
-		BT_ERR("%s: Failed to load rtl_bt/rtl8723a_fw.bin", hdev->name);
-		return ret;
-	}
-
-	if (fw->size < 8) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* Check that the firmware doesn't have the epatch signature
-	 * (which is only for RTL8723B and newer).
-	 */
-	if (!memcmp(fw->data, RTL_EPATCH_SIGNATURE, 8)) {
-		BT_ERR("%s: unexpected EPATCH signature!", hdev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = rtl_download_firmware(hdev, fw->data, fw->size);
-
-out:
-	release_firmware(fw);
-	return ret;
-}
-
-static int btusb_setup_rtl8723b(struct hci_dev *hdev, u16 lmp_subver,
-				const char *fw_name)
-{
-	struct btusb_data *data = dev_get_drvdata(&hdev->dev);
-	struct usb_device *udev = interface_to_usbdev(data->intf);
-	unsigned char *fw_data = NULL;
-	const struct firmware *fw;
-	int ret;
-
-	BT_INFO("%s: rtl: loading %s", hdev->name, fw_name);
-	ret = request_firmware(&fw, fw_name, &udev->dev);
-	if (ret < 0) {
-		BT_ERR("%s: Failed to load %s", hdev->name, fw_name);
-		return ret;
-	}
-
-	ret = rtl8723b_parse_firmware(hdev, lmp_subver, fw, &fw_data);
-	if (ret < 0)
-		goto out;
-
-	ret = rtl_download_firmware(hdev, fw_data, ret);
-	kfree(fw_data);
-	if (ret < 0)
-		goto out;
-
-out:
-	release_firmware(fw);
-	return ret;
-}
-
-static int btusb_setup_realtek(struct hci_dev *hdev)
-{
-	struct sk_buff *skb;
-	struct hci_rp_read_local_version *resp;
-	u16 lmp_subver;
-
-	skb = btusb_read_local_version(hdev);
-	if (IS_ERR(skb))
-		return -PTR_ERR(skb);
-
-	resp = (struct hci_rp_read_local_version *)skb->data;
-	BT_INFO("%s: rtl: examining hci_ver=%02x hci_rev=%04x lmp_ver=%02x "
-		"lmp_subver=%04x", hdev->name, resp->hci_ver, resp->hci_rev,
-		resp->lmp_ver, resp->lmp_subver);
-
-	lmp_subver = le16_to_cpu(resp->lmp_subver);
-	kfree_skb(skb);
-
-	/* Match a set of subver values that correspond to stock firmware,
-	 * which is not compatible with standard btusb.
-	 * If matched, upload an alternative firmware that does conform to
-	 * standard btusb. Once that firmware is uploaded, the subver changes
-	 * to a different value.
-	 */
-	switch (lmp_subver) {
-	case RTL_ROM_LMP_8723A:
-	case RTL_ROM_LMP_3499:
-		return btusb_setup_rtl8723a(hdev);
-	case RTL_ROM_LMP_8723B:
-		return btusb_setup_rtl8723b(hdev, lmp_subver,
-					    "rtl_bt/rtl8723b_fw.bin");
-	case RTL_ROM_LMP_8821A:
-		return btusb_setup_rtl8723b(hdev, lmp_subver,
-					    "rtl_bt/rtl8821a_fw.bin");
-	case RTL_ROM_LMP_8761A:
-		return btusb_setup_rtl8723b(hdev, lmp_subver,
-					    "rtl_bt/rtl8761a_fw.bin");
-	default:
-		BT_INFO("rtl: assuming no firmware upload needed.");
-		return 0;
-	}
+	return 0;
 }
 
 static const struct firmware *btusb_setup_intel_get_fw(struct hci_dev *hdev,
@@ -1951,12 +1566,6 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	}
 
 	ver = (struct intel_version *)skb->data;
-	if (ver->status) {
-		BT_ERR("%s Intel fw version event failed (%02x)", hdev->name,
-		       ver->status);
-		kfree_skb(skb);
-		return -bt_to_errno(ver->status);
-	}
 
 	BT_INFO("%s: read Intel version: %02x%02x%02x%02x%02x%02x%02x%02x%02x",
 		hdev->name, ver->hw_platform, ver->hw_variant,
@@ -1990,6 +1599,8 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	}
 	fw_ptr = fw->data;
 
+	kfree_skb(skb);
+
 	/* This Intel specific command enables the manufacturer mode of the
 	 * controller.
 	 *
@@ -2004,15 +1615,6 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 		return PTR_ERR(skb);
 	}
 
-	if (skb->data[0]) {
-		u8 evt_status = skb->data[0];
-
-		BT_ERR("%s enable Intel manufacturer mode event failed (%02x)",
-		       hdev->name, evt_status);
-		kfree_skb(skb);
-		release_firmware(fw);
-		return -bt_to_errno(evt_status);
-	}
 	kfree_skb(skb);
 
 	disable_patch = 1;
@@ -2331,6 +1933,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	struct intel_boot_params *params;
 	const struct firmware *fw;
 	const u8 *fw_ptr;
+	u32 frag_len;
 	char fwname[64];
 	ktime_t calltime, delta, rettime;
 	unsigned long long duration;
@@ -2358,13 +1961,6 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	}
 
 	ver = (struct intel_version *)skb->data;
-	if (ver->status) {
-		BT_ERR("%s: Intel version command failure (%02x)",
-		       hdev->name, ver->status);
-		err = -bt_to_errno(ver->status);
-		kfree_skb(skb);
-		return err;
-	}
 
 	/* The hardware platform number has a fixed value of 0x37 and
 	 * for now only accept this single value.
@@ -2439,13 +2035,6 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	}
 
 	params = (struct intel_boot_params *)skb->data;
-	if (params->status) {
-		BT_ERR("%s: Intel boot parameters command failure (%02x)",
-		       hdev->name, params->status);
-		err = -bt_to_errno(params->status);
-		kfree_skb(skb);
-		return err;
-	}
 
 	BT_INFO("%s: Device revision is %u", hdev->name,
 		le16_to_cpu(params->dev_revid));
@@ -2495,6 +2084,12 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 
 	BT_INFO("%s: Found device firmware: %s", hdev->name, fwname);
 
+	/* Save the DDC file name for later use to apply once the firmware
+	 * downloading is done.
+	 */
+	snprintf(fwname, sizeof(fwname), "intel/ibt-11-%u.ddc",
+		 le16_to_cpu(params->dev_revid));
+
 	kfree_skb(skb);
 
 	if (fw->size < 644) {
@@ -2537,24 +2132,33 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	}
 
 	fw_ptr = fw->data + 644;
+	frag_len = 0;
 
 	while (fw_ptr - fw->data < fw->size) {
-		struct hci_command_hdr *cmd = (void *)fw_ptr;
-		u8 cmd_len;
+		struct hci_command_hdr *cmd = (void *)(fw_ptr + frag_len);
 
-		cmd_len = sizeof(*cmd) + cmd->plen;
+		frag_len += sizeof(*cmd) + cmd->plen;
 
-		/* Send each command from the firmware data buffer as
-		 * a single Data fragment.
+		/* The paramter length of the secure send command requires
+		 * a 4 byte alignment. It happens so that the firmware file
+		 * contains proper Intel_NOP commands to align the fragments
+		 * as needed.
+		 *
+		 * Send set of commands with 4 byte alignment from the
+		 * firmware data buffer as a single Data fragement.
 		 */
-		err = btusb_intel_secure_send(hdev, 0x01, cmd_len, fw_ptr);
-		if (err < 0) {
-			BT_ERR("%s: Failed to send firmware data (%d)",
-			       hdev->name, err);
-			goto done;
-		}
+		if (!(frag_len % 4)) {
+			err = btusb_intel_secure_send(hdev, 0x01, frag_len,
+						      fw_ptr);
+			if (err < 0) {
+				BT_ERR("%s: Failed to send firmware data (%d)",
+				       hdev->name, err);
+				goto done;
+			}
 
-		fw_ptr += cmd_len;
+			fw_ptr += frag_len;
+			frag_len = 0;
+		}
 	}
 
 	set_bit(BTUSB_FIRMWARE_LOADED, &data->flags);
@@ -2647,6 +2251,43 @@ done:
 
 	clear_bit(BTUSB_BOOTLOADER, &data->flags);
 
+	/* Once the device is running in operational mode, it needs to apply
+	 * the device configuration (DDC) parameters.
+	 *
+	 * The device can work without DDC parameters, so even if it fails
+	 * to load the file, no need to fail the setup.
+	 */
+	err = request_firmware_direct(&fw, fwname, &hdev->dev);
+	if (err < 0)
+		return 0;
+
+	BT_INFO("%s: Found Intel DDC parameters: %s", hdev->name, fwname);
+
+	fw_ptr = fw->data;
+
+	/* DDC file contains one or more DDC structure which has
+	 * Length (1 byte), DDC ID (2 bytes), and DDC value (Length - 2).
+	 */
+	while (fw->size > fw_ptr - fw->data) {
+		u8 cmd_plen = fw_ptr[0] + sizeof(u8);
+
+		skb = __hci_cmd_sync(hdev, 0xfc8b, cmd_plen, fw_ptr,
+				     HCI_INIT_TIMEOUT);
+		if (IS_ERR(skb)) {
+			BT_ERR("%s: Failed to send Intel_Write_DDC (%ld)",
+			       hdev->name, PTR_ERR(skb));
+			release_firmware(fw);
+			return PTR_ERR(skb);
+		}
+
+		fw_ptr += cmd_plen;
+		kfree_skb(skb);
+	}
+
+	release_firmware(fw);
+
+	BT_INFO("%s: Applying Intel DDC parameters completed", hdev->name);
+
 	return 0;
 }
 
@@ -2674,13 +2315,6 @@ static void btusb_hw_error_intel(struct hci_dev *hdev, u8 code)
 
 	if (skb->len != 13) {
 		BT_ERR("%s: Exception info size mismatch", hdev->name);
-		kfree_skb(skb);
-		return;
-	}
-
-	if (skb->data[0] != 0x00) {
-		BT_ERR("%s: Exception info command failure (%02x)",
-		       hdev->name, skb->data[0]);
 		kfree_skb(skb);
 		return;
 	}
@@ -2792,6 +2426,7 @@ struct qca_device_info {
 static const struct qca_device_info qca_devices_table[] = {
 	{ 0x00000100, 20, 4, 10 }, /* Rome 1.0 */
 	{ 0x00000101, 20, 4, 10 }, /* Rome 1.1 */
+	{ 0x00000200, 28, 4, 18 }, /* Rome 2.0 */
 	{ 0x00000201, 28, 4, 18 }, /* Rome 2.1 */
 	{ 0x00000300, 28, 4, 18 }, /* Rome 3.0 */
 	{ 0x00000302, 28, 4, 18 }, /* Rome 3.2 */
@@ -3175,8 +2810,17 @@ static int btusb_probe(struct usb_interface *intf,
 		hdev->set_bdaddr = btusb_set_bdaddr_ath3012;
 	}
 
-	if (id->driver_info & BTUSB_REALTEK)
-		hdev->setup = btusb_setup_realtek;
+#ifdef CONFIG_BT_HCIBTUSB_RTL
+	if (id->driver_info & BTUSB_REALTEK) {
+		hdev->setup = btrtl_setup_realtek;
+
+		/* Realtek devices lose their updated firmware over suspend,
+		 * but the USB hub doesn't notice any status change.
+		 * Explicitly request a device reset on resume.
+		 */
+		set_bit(BTUSB_RESET_RESUME, &data->flags);
+	}
+#endif
 
 	if (id->driver_info & BTUSB_AMP) {
 		/* AMP controllers do not support SCO packets */
@@ -3307,6 +2951,14 @@ static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 
 	btusb_stop_traffic(data);
 	usb_kill_anchored_urbs(&data->tx_anchor);
+
+	/* Optionally request a device reset on resume, but only when
+	 * wakeups are disabled. If wakeups are enabled we assume the
+	 * device will stay powered up throughout suspend.
+	 */
+	if (test_bit(BTUSB_RESET_RESUME, &data->flags) &&
+	    !device_may_wakeup(&data->udev->dev))
+		data->udev->reset_resume = 1;
 
 	return 0;
 }

@@ -540,7 +540,7 @@ static void bcm_kona_gpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 	irq_set_chip_data(irq, NULL);
 }
 
-static struct irq_domain_ops bcm_kona_irq_ops = {
+static const struct irq_domain_ops bcm_kona_irq_ops = {
 	.map = bcm_kona_gpio_irq_map,
 	.unmap = bcm_kona_gpio_irq_unmap,
 	.xlate = irq_domain_xlate_twocell,

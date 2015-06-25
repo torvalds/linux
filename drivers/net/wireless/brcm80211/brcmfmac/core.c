@@ -867,8 +867,6 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 		}
 		/* unregister will take care of freeing it */
 		unregister_netdev(ifp->ndev);
-	} else {
-		kfree(ifp);
 	}
 }
 
@@ -1100,6 +1098,8 @@ void brcmf_detach(struct device *dev)
 
 	/* stop firmware event handling */
 	brcmf_fweh_detach(drvr);
+	if (drvr->config)
+		brcmf_p2p_detach(&drvr->config->p2p);
 
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_DOWN);
 

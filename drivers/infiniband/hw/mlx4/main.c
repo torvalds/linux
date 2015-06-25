@@ -1146,7 +1146,7 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 
 	ret = mlx4_cmd_imm(mdev->dev, mailbox->dma, reg_id, size >> 2, 0,
 			   MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
-			   MLX4_CMD_NATIVE);
+			   MLX4_CMD_WRAPPED);
 	if (ret == -ENOMEM)
 		pr_err("mcg table is full. Fail to register network rule.\n");
 	else if (ret == -ENXIO)
@@ -1163,7 +1163,7 @@ static int __mlx4_ib_destroy_flow(struct mlx4_dev *dev, u64 reg_id)
 	int err;
 	err = mlx4_cmd(dev, reg_id, 0, 0,
 		       MLX4_QP_FLOW_STEERING_DETACH, MLX4_CMD_TIME_CLASS_A,
-		       MLX4_CMD_NATIVE);
+		       MLX4_CMD_WRAPPED);
 	if (err)
 		pr_err("Fail to detach network rule. registration id = 0x%llx\n",
 		       reg_id);
@@ -2098,77 +2098,52 @@ static void init_pkeys(struct mlx4_ib_dev *ibdev)
 
 static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 {
-	char name[80];
-	int eq_per_port = 0;
-	int added_eqs = 0;
-	int total_eqs = 0;
-	int i, j, eq;
+	int i, j, eq = 0, total_eqs = 0;
 
-	/* Legacy mode or comp_pool is not large enough */
-	if (dev->caps.comp_pool == 0 ||
-	    dev->caps.num_ports > dev->caps.comp_pool)
-		return;
-
-	eq_per_port = dev->caps.comp_pool / dev->caps.num_ports;
-
-	/* Init eq table */
-	added_eqs = 0;
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
-		added_eqs += eq_per_port;
-
-	total_eqs = dev->caps.num_comp_vectors + added_eqs;
-
-	ibdev->eq_table = kzalloc(total_eqs * sizeof(int), GFP_KERNEL);
+	ibdev->eq_table = kcalloc(dev->caps.num_comp_vectors,
+				  sizeof(ibdev->eq_table[0]), GFP_KERNEL);
 	if (!ibdev->eq_table)
 		return;
 
-	ibdev->eq_added = added_eqs;
-
-	eq = 0;
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
-		for (j = 0; j < eq_per_port; j++) {
-			snprintf(name, sizeof(name), "mlx4-ib-%d-%d@%s",
-				 i, j, dev->persist->pdev->bus->name);
-			/* Set IRQ for specific name (per ring) */
-			if (mlx4_assign_eq(dev, name, NULL,
-					   &ibdev->eq_table[eq])) {
-				/* Use legacy (same as mlx4_en driver) */
-				pr_warn("Can't allocate EQ %d; reverting to legacy\n", eq);
-				ibdev->eq_table[eq] =
-					(eq % dev->caps.num_comp_vectors);
-			}
-			eq++;
+	for (i = 1; i <= dev->caps.num_ports; i++) {
+		for (j = 0; j < mlx4_get_eqs_per_port(dev, i);
+		     j++, total_eqs++) {
+			if (i > 1 &&  mlx4_is_eq_shared(dev, total_eqs))
+				continue;
+			ibdev->eq_table[eq] = total_eqs;
+			if (!mlx4_assign_eq(dev, i,
+					    &ibdev->eq_table[eq]))
+				eq++;
+			else
+				ibdev->eq_table[eq] = -1;
 		}
 	}
 
-	/* Fill the reset of the vector with legacy EQ */
-	for (i = 0, eq = added_eqs; i < dev->caps.num_comp_vectors; i++)
-		ibdev->eq_table[eq++] = i;
+	for (i = eq; i < dev->caps.num_comp_vectors;
+	     ibdev->eq_table[i++] = -1)
+		;
 
 	/* Advertise the new number of EQs to clients */
-	ibdev->ib_dev.num_comp_vectors = total_eqs;
+	ibdev->ib_dev.num_comp_vectors = eq;
 }
 
 static void mlx4_ib_free_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 {
 	int i;
+	int total_eqs = ibdev->ib_dev.num_comp_vectors;
 
-	/* no additional eqs were added */
+	/* no eqs were allocated */
 	if (!ibdev->eq_table)
 		return;
 
 	/* Reset the advertised EQ number */
-	ibdev->ib_dev.num_comp_vectors = dev->caps.num_comp_vectors;
+	ibdev->ib_dev.num_comp_vectors = 0;
 
-	/* Free only the added eqs */
-	for (i = 0; i < ibdev->eq_added; i++) {
-		/* Don't free legacy eqs if used */
-		if (ibdev->eq_table[i] <= dev->caps.num_comp_vectors)
-			continue;
+	for (i = 0; i < total_eqs; i++)
 		mlx4_release_eq(dev, ibdev->eq_table[i]);
-	}
 
 	kfree(ibdev->eq_table);
+	ibdev->eq_table = NULL;
 }
 
 static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
@@ -2203,6 +2178,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	struct mlx4_ib_iboe *iboe;
 	int ib_num_ports = 0;
 	int num_req_counters;
+	int allocated;
+	u32 counter_index;
 
 	pr_info_once("%s", mlx4_ib_version);
 
@@ -2373,19 +2350,31 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	num_req_counters = mlx4_is_bonded(dev) ? 1 : ibdev->num_ports;
 	for (i = 0; i < num_req_counters; ++i) {
 		mutex_init(&ibdev->qp1_proxy_lock[i]);
+		allocated = 0;
 		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i + 1) ==
 						IB_LINK_LAYER_ETHERNET) {
-			err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[i]);
+			err = mlx4_counter_alloc(ibdev->dev, &counter_index);
+			/* if failed to allocate a new counter, use default */
 			if (err)
-				ibdev->counters[i] = -1;
-		} else {
-			ibdev->counters[i] = -1;
+				counter_index =
+					mlx4_get_default_counter_index(dev,
+								       i + 1);
+			else
+				allocated = 1;
+		} else { /* IB_LINK_LAYER_INFINIBAND use the default counter */
+			counter_index = mlx4_get_default_counter_index(dev,
+								       i + 1);
 		}
+		ibdev->counters[i].index = counter_index;
+		ibdev->counters[i].allocated = allocated;
+		pr_info("counter index %d for port %d allocated %d\n",
+			counter_index, i + 1, allocated);
 	}
 	if (mlx4_is_bonded(dev))
-		for (i = 1; i < ibdev->num_ports ; ++i)
-			ibdev->counters[i] = ibdev->counters[0];
-
+		for (i = 1; i < ibdev->num_ports ; ++i) {
+			ibdev->counters[i].index = ibdev->counters[0].index;
+			ibdev->counters[i].allocated = 0;
+		}
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
 		ib_num_ports++;
@@ -2525,10 +2514,12 @@ err_steer_qp_release:
 		mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
 				      ibdev->steer_qpn_count);
 err_counter:
-	for (; i; --i)
-		if (ibdev->counters[i - 1] != -1)
-			mlx4_counter_free(ibdev->dev, ibdev->counters[i - 1]);
-
+	for (i = 0; i < ibdev->num_ports; ++i) {
+		if (ibdev->counters[i].index != -1 &&
+		    ibdev->counters[i].allocated)
+			mlx4_counter_free(ibdev->dev,
+					  ibdev->counters[i].index);
+	}
 err_map:
 	iounmap(ibdev->uar_map);
 
@@ -2645,8 +2636,9 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 
 	iounmap(ibdev->uar_map);
 	for (p = 0; p < ibdev->num_ports; ++p)
-		if (ibdev->counters[p] != -1)
-			mlx4_counter_free(ibdev->dev, ibdev->counters[p]);
+		if (ibdev->counters[p].index != -1 &&
+		    ibdev->counters[p].allocated)
+			mlx4_counter_free(ibdev->dev, ibdev->counters[p].index);
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
 

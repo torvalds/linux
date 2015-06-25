@@ -165,7 +165,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		 * infrastructure. There is no real reason why the selected
 		 * task should have access to the memory reserves.
 		 */
-		mark_tsk_oom_victim(selected);
+		mark_oom_victim(selected);
 		send_sig(SIGKILL, selected, 0);
 		rem += selected_tasksize;
 	}

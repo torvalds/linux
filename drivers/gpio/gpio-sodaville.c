@@ -125,7 +125,7 @@ static int sdv_xlate(struct irq_domain *h, struct device_node *node,
 	return 0;
 }
 
-static struct irq_domain_ops irq_domain_sdv_ops = {
+static const struct irq_domain_ops irq_domain_sdv_ops = {
 	.xlate = sdv_xlate,
 };
 
