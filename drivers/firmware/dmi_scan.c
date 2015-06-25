@@ -501,12 +501,12 @@ static int __init dmi_present(const u8 *buf)
 		switch (smbios_ver) {
 		case 0x021F:
 		case 0x0221:
-			pr_debug("SMBIOS version fixup(2.%d->2.%d)\n",
+			pr_debug("SMBIOS version fixup (2.%d->2.%d)\n",
 				 smbios_ver & 0xFF, 3);
 			smbios_ver = 0x0203;
 			break;
 		case 0x0233:
-			pr_debug("SMBIOS version fixup(2.%d->2.%d)\n", 51, 6);
+			pr_debug("SMBIOS version fixup (2.%d->2.%d)\n", 51, 6);
 			smbios_ver = 0x0206;
 			break;
 		}
@@ -554,8 +554,7 @@ static int __init dmi_smbios3_present(const u8 *buf)
 {
 	if (memcmp(buf, "_SM3_", 5) == 0 &&
 	    buf[6] < 32 && dmi_checksum(buf, buf[6])) {
-		dmi_ver = get_unaligned_be32(buf + 6);
-		dmi_ver &= 0xFFFFFF;
+		dmi_ver = get_unaligned_be32(buf + 6) & 0xFFFFFF;
 		dmi_num = 0;			/* No longer specified */
 		dmi_len = get_unaligned_le32(buf + 12);
 		dmi_base = get_unaligned_le64(buf + 16);
