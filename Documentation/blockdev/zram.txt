@@ -99,7 +99,24 @@ size of the disk when not in use so a huge zram is wasteful.
 	mkfs.ext4 /dev/zram1
 	mount /dev/zram1 /tmp
 
-7) Stats:
+7) Add/remove zram devices
+
+zram provides a control interface, which enables dynamic (on-demand) device
+addition and removal.
+
+In order to add a new /dev/zramX device, perform read operation on hot_add
+attribute. This will return either new device's device id (meaning that you
+can use /dev/zram<id>) or error code.
+
+Example:
+	cat /sys/class/zram-control/hot_add
+	1
+
+To remove the existing /dev/zramX device (where X is a device id)
+execute
+	echo X > /sys/class/zram-control/hot_remove
+
+8) Stats:
 Per-device statistics are exported as various nodes under /sys/block/zram<id>/
 
 A brief description of exported device attritbutes. For more details please
@@ -174,11 +191,11 @@ line of text and contains the following stats separated by whitespace:
 	zero_pages
 	num_migrated
 
-8) Deactivate:
+9) Deactivate:
 	swapoff /dev/zram0
 	umount /dev/zram1
 
-9) Reset:
+10) Reset:
 	Write any positive value to 'reset' sysfs node
 	echo 1 > /sys/block/zram0/reset
 	echo 1 > /sys/block/zram1/reset
