@@ -1157,7 +1157,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	}
 	if (val != RT286_VENDOR_ID && val != RT288_VENDOR_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt286\n", val);
+			"Device with ID register %#x is not rt286\n", val);
 		return -ENODEV;
 	}
 
