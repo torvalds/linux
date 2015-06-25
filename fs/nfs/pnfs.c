@@ -2252,6 +2252,7 @@ struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 	return thp;
 }
 
+#if IS_ENABLED(CONFIG_NFS_V4_2)
 int
 pnfs_report_layoutstat(struct inode *inode)
 {
@@ -2306,3 +2307,4 @@ out_put:
 	goto out;
 }
 EXPORT_SYMBOL_GPL(pnfs_report_layoutstat);
+#endif

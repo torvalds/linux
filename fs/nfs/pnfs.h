@@ -292,8 +292,6 @@ int pnfs_write_done_resend_to_mds(struct nfs_pgio_header *);
 struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
 void pnfs_error_mark_layout_for_return(struct inode *inode,
 				       struct pnfs_layout_segment *lseg);
-int pnfs_report_layoutstat(struct inode *inode);
-
 /* nfs4_deviceid_flags */
 enum {
 	NFS_DEVICEID_INVALID = 0,       /* set when MDS clientid recalled */
@@ -691,5 +689,15 @@ static inline void nfs4_pnfs_v3_ds_connect_unload(void)
 }
 
 #endif /* CONFIG_NFS_V4_1 */
+
+#if IS_ENABLED(CONFIG_NFS_V4_2)
+int pnfs_report_layoutstat(struct inode *inode);
+#else
+static inline int
+pnfs_report_layoutstat(struct inode *inode)
+{
+	return 0;
+}
+#endif
 
 #endif /* FS_NFS_PNFS_H */
