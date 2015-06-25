@@ -203,7 +203,7 @@ sub hash_save_array_words {
 sub hash_show_words {
 	my ($hashRef, $prefix) = @_;
 
-	if ($quiet == 0 && keys %$hashRef) {
+	if (keys %$hashRef) {
 		print "\nNOTE: $prefix message types:";
 		foreach my $word (sort keys %$hashRef) {
 			print " $word";
@@ -770,6 +770,9 @@ for my $filename (@ARGV) {
 }
 
 if (!$quiet) {
+	hash_show_words(\%use_type, "Used");
+	hash_show_words(\%ignore_type, "Ignored");
+
 	if ($^V lt 5.10.0) {
 		print << "EOM"
 
@@ -5706,9 +5709,6 @@ NOTE: Whitespace errors detected.
 EOM
 		}
 	}
-
-	hash_show_words(\%use_type, "Used");
-	hash_show_words(\%ignore_type, "Ignored");
 
 	if ($clean == 0 && $fix &&
 	    ("@rawlines" ne "@fixed" ||
