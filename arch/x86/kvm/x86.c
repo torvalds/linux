@@ -1455,7 +1455,7 @@ static cycle_t read_tsc(void)
 	 * but no one has ever seen it happen.
 	 */
 	rdtsc_barrier();
-	ret = (cycle_t)vget_cycles();
+	ret = (cycle_t)native_read_tsc();
 
 	last = pvclock_gtod_data.clock.cycle_last;
 
