@@ -3421,8 +3421,13 @@ static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			u32 wnd_sum = 0;
 
 			/* Headers length */
-			hlen = (int)(skb_transport_header(skb) - skb->data) +
-				tcp_hdrlen(skb);
+			if (xmit_type & XMIT_GSO_ENC)
+				hlen = (int)(skb_inner_transport_header(skb) -
+					     skb->data) +
+					     inner_tcp_hdrlen(skb);
+			else
+				hlen = (int)(skb_transport_header(skb) -
+					     skb->data) + tcp_hdrlen(skb);
 
 			/* Amount of data (w/o headers) on linear part of SKB*/
 			first_bd_sz = skb_headlen(skb) - hlen;
