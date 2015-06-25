@@ -287,6 +287,9 @@ int gpiochip_add(struct gpio_chip *chip)
 	INIT_LIST_HEAD(&chip->pin_ranges);
 #endif
 
+	if (!chip->owner && chip->dev && chip->dev->driver)
+		chip->owner = chip->dev->driver->owner;
+
 	of_gpiochip_add(chip);
 	acpi_gpiochip_add(chip);
 
