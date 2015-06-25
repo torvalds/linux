@@ -136,17 +136,16 @@ static void balloon_append(struct page *page)
 }
 
 /* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
-static struct page *balloon_retrieve(bool prefer_highmem)
+static struct page *balloon_retrieve(bool require_lowmem)
 {
 	struct page *page;
 
 	if (list_empty(&ballooned_pages))
 		return NULL;
 
-	if (prefer_highmem)
-		page = list_entry(ballooned_pages.prev, struct page, lru);
-	else
-		page = list_entry(ballooned_pages.next, struct page, lru);
+	page = list_entry(ballooned_pages.next, struct page, lru);
+	if (require_lowmem && PageHighMem(page))
+		return NULL;
 	list_del(&page->lru);
 
 	if (PageHighMem(page))
@@ -521,24 +520,20 @@ EXPORT_SYMBOL_GPL(balloon_set_new_target);
  * alloc_xenballooned_pages - get pages that have been ballooned out
  * @nr_pages: Number of pages to get
  * @pages: pages returned
- * @highmem: allow highmem pages
  * @return 0 on success, error otherwise
  */
-int alloc_xenballooned_pages(int nr_pages, struct page **pages, bool highmem)
+int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 {
 	int pgno = 0;
 	struct page *page;
 	mutex_lock(&balloon_mutex);
 	while (pgno < nr_pages) {
-		page = balloon_retrieve(highmem);
-		if (page && (highmem || !PageHighMem(page))) {
+		page = balloon_retrieve(true);
+		if (page) {
 			pages[pgno++] = page;
 		} else {
 			enum bp_state st;
-			if (page)
-				balloon_append(page);
-			st = decrease_reservation(nr_pages - pgno,
-					highmem ? GFP_HIGHUSER : GFP_USER);
+			st = decrease_reservation(nr_pages - pgno, GFP_USER);
 			if (st != BP_DONE)
 				goto out_undo;
 		}

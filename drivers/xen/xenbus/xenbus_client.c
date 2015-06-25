@@ -614,8 +614,7 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 	if (!node)
 		return -ENOMEM;
 
-	err = alloc_xenballooned_pages(nr_grefs, node->hvm.pages,
-				       false /* lowmem */);
+	err = alloc_xenballooned_pages(nr_grefs, node->hvm.pages);
 	if (err)
 		goto out_err;
 

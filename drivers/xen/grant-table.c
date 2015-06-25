@@ -687,7 +687,7 @@ int gnttab_alloc_pages(int nr_pages, struct page **pages)
 	int i;
 	int ret;
 
-	ret = alloc_xenballooned_pages(nr_pages, pages, false);
+	ret = alloc_xenballooned_pages(nr_pages, pages);
 	if (ret < 0)
 		return ret;
 
