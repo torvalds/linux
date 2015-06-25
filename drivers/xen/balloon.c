@@ -194,21 +194,6 @@ static enum bp_state update_schedule(enum bp_state state)
 }
 
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-static long current_credit(void)
-{
-	return balloon_stats.target_pages - balloon_stats.current_pages -
-		balloon_stats.hotplug_pages;
-}
-
-static bool balloon_is_inflated(void)
-{
-	if (balloon_stats.balloon_low || balloon_stats.balloon_high ||
-			balloon_stats.balloon_hotplug)
-		return true;
-	else
-		return false;
-}
-
 static struct resource *additional_memory_resource(phys_addr_t size)
 {
 	struct resource *res;
@@ -289,10 +274,7 @@ static enum bp_state reserve_additional_memory(long credit)
 		goto err;
 	}
 
-	balloon_hotplug -= credit;
-
-	balloon_stats.hotplug_pages += credit;
-	balloon_stats.balloon_hotplug = balloon_hotplug;
+	balloon_stats.total_pages += balloon_hotplug;
 
 	return BP_DONE;
   err:
@@ -307,11 +289,6 @@ static void xen_online_page(struct page *page)
 	mutex_lock(&balloon_mutex);
 
 	__balloon_append(page);
-
-	if (balloon_stats.hotplug_pages)
-		--balloon_stats.hotplug_pages;
-	else
-		--balloon_stats.balloon_hotplug;
 
 	mutex_unlock(&balloon_mutex);
 }
@@ -329,32 +306,22 @@ static struct notifier_block xen_memory_nb = {
 	.priority = 0
 };
 #else
-static long current_credit(void)
-{
-	unsigned long target = balloon_stats.target_pages;
-
-	target = min(target,
-		     balloon_stats.current_pages +
-		     balloon_stats.balloon_low +
-		     balloon_stats.balloon_high);
-
-	return target - balloon_stats.current_pages;
-}
-
-static bool balloon_is_inflated(void)
-{
-	if (balloon_stats.balloon_low || balloon_stats.balloon_high)
-		return true;
-	else
-		return false;
-}
-
 static enum bp_state reserve_additional_memory(long credit)
 {
 	balloon_stats.target_pages = balloon_stats.current_pages;
 	return BP_DONE;
 }
 #endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
+
+static long current_credit(void)
+{
+	return balloon_stats.target_pages - balloon_stats.current_pages;
+}
+
+static bool balloon_is_inflated(void)
+{
+	return balloon_stats.balloon_low || balloon_stats.balloon_high;
+}
 
 static enum bp_state increase_reservation(unsigned long nr_pages)
 {
@@ -366,15 +333,6 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
-
-#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-	if (!balloon_stats.balloon_low && !balloon_stats.balloon_high) {
-		nr_pages = min(nr_pages, balloon_stats.balloon_hotplug);
-		balloon_stats.hotplug_pages += nr_pages;
-		balloon_stats.balloon_hotplug -= nr_pages;
-		return BP_DONE;
-	}
-#endif
 
 	if (nr_pages > ARRAY_SIZE(frame_list))
 		nr_pages = ARRAY_SIZE(frame_list);
@@ -437,15 +395,6 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
-
-#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-	if (balloon_stats.hotplug_pages) {
-		nr_pages = min(nr_pages, balloon_stats.hotplug_pages);
-		balloon_stats.hotplug_pages -= nr_pages;
-		balloon_stats.balloon_hotplug += nr_pages;
-		return BP_DONE;
-	}
-#endif
 
 	if (nr_pages > ARRAY_SIZE(frame_list))
 		nr_pages = ARRAY_SIZE(frame_list);
@@ -635,6 +584,8 @@ static void __init balloon_add_region(unsigned long start_pfn,
 		   don't subtract from it. */
 		__balloon_append(page);
 	}
+
+	balloon_stats.total_pages += extra_pfn_end - start_pfn;
 }
 
 static int __init balloon_init(void)
@@ -652,6 +603,7 @@ static int __init balloon_init(void)
 	balloon_stats.target_pages  = balloon_stats.current_pages;
 	balloon_stats.balloon_low   = 0;
 	balloon_stats.balloon_high  = 0;
+	balloon_stats.total_pages   = balloon_stats.current_pages;
 
 	balloon_stats.schedule_delay = 1;
 	balloon_stats.max_schedule_delay = 32;
@@ -659,9 +611,6 @@ static int __init balloon_init(void)
 	balloon_stats.max_retry_count = RETRY_UNLIMITED;
 
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-	balloon_stats.hotplug_pages = 0;
-	balloon_stats.balloon_hotplug = 0;
-
 	set_online_page_callback(&xen_online_page);
 	register_memory_notifier(&xen_memory_nb);
 #endif

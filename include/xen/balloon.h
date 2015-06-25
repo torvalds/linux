@@ -11,14 +11,11 @@ struct balloon_stats {
 	/* Number of pages in high- and low-memory balloons. */
 	unsigned long balloon_low;
 	unsigned long balloon_high;
+	unsigned long total_pages;
 	unsigned long schedule_delay;
 	unsigned long max_schedule_delay;
 	unsigned long retry_count;
 	unsigned long max_retry_count;
-#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-	unsigned long hotplug_pages;
-	unsigned long balloon_hotplug;
-#endif
 };
 
 extern struct balloon_stats balloon_stats;
