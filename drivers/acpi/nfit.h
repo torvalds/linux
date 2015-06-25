@@ -52,6 +52,11 @@ struct nfit_bdw {
 	struct list_head list;
 };
 
+struct nfit_idt {
+	struct acpi_nfit_interleave *idt;
+	struct list_head list;
+};
+
 struct nfit_memdev {
 	struct acpi_nfit_memory_map *memdev;
 	struct list_head list;
@@ -62,10 +67,13 @@ struct nfit_mem {
 	struct nvdimm *nvdimm;
 	struct acpi_nfit_memory_map *memdev_dcr;
 	struct acpi_nfit_memory_map *memdev_pmem;
+	struct acpi_nfit_memory_map *memdev_bdw;
 	struct acpi_nfit_control_region *dcr;
 	struct acpi_nfit_data_region *bdw;
 	struct acpi_nfit_system_address *spa_dcr;
 	struct acpi_nfit_system_address *spa_bdw;
+	struct acpi_nfit_interleave *idt_dcr;
+	struct acpi_nfit_interleave *idt_bdw;
 	struct list_head list;
 	struct acpi_device *adev;
 	unsigned long dsm_mask;
@@ -74,15 +82,56 @@ struct nfit_mem {
 struct acpi_nfit_desc {
 	struct nvdimm_bus_descriptor nd_desc;
 	struct acpi_table_nfit *nfit;
+	struct mutex spa_map_mutex;
+	struct list_head spa_maps;
 	struct list_head memdevs;
 	struct list_head dimms;
 	struct list_head spas;
 	struct list_head dcrs;
 	struct list_head bdws;
+	struct list_head idts;
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
 	unsigned long dimm_dsm_force_en;
 };
+
+enum nd_blk_mmio_selector {
+	BDW,
+	DCR,
+};
+
+struct nfit_blk {
+	struct nfit_blk_mmio {
+		union {
+			void __iomem *base;
+			void *aperture;
+		};
+		u64 size;
+		u64 base_offset;
+		u32 line_size;
+		u32 num_lines;
+		u32 table_size;
+		struct acpi_nfit_interleave *idt;
+		struct acpi_nfit_system_address *spa;
+	} mmio[2];
+	struct nd_region *nd_region;
+	u64 bdw_offset; /* post interleave offset */
+	u64 stat_offset;
+	u64 cmd_offset;
+};
+
+struct nfit_spa_mapping {
+	struct acpi_nfit_desc *acpi_desc;
+	struct acpi_nfit_system_address *spa;
+	struct list_head list;
+	struct kref kref;
+	void __iomem *iomem;
+};
+
+static inline struct nfit_spa_mapping *to_spa_map(struct kref *kref)
+{
+	return container_of(kref, struct nfit_spa_mapping, kref);
+}
 
 static inline struct acpi_nfit_memory_map *__to_nfit_memdev(
 		struct nfit_mem *nfit_mem)

@@ -209,6 +209,15 @@ struct nvdimm *to_nvdimm(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(to_nvdimm);
 
+struct nvdimm *nd_blk_region_to_dimm(struct nd_blk_region *ndbr)
+{
+	struct nd_region *nd_region = &ndbr->nd_region;
+	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
+
+	return nd_mapping->nvdimm;
+}
+EXPORT_SYMBOL_GPL(nd_blk_region_to_dimm);
+
 struct nvdimm_drvdata *to_ndd(struct nd_mapping *nd_mapping)
 {
 	struct nvdimm *nvdimm = nd_mapping->nvdimm;

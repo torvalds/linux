@@ -43,9 +43,8 @@ struct nvdimm {
 };
 
 bool is_nvdimm(struct device *dev);
-bool is_nd_blk(struct device *dev);
 bool is_nd_pmem(struct device *dev);
-struct nd_btt;
+bool is_nd_blk(struct device *dev);
 struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void nvdimm_bus_exit(void);

@@ -34,6 +34,19 @@ config BLK_DEV_PMEM
 
 	  Say Y if you want to use an NVDIMM
 
+config ND_BLK
+	tristate "BLK: Block data window (aperture) device support"
+	default LIBNVDIMM
+	select ND_BTT if BTT
+	help
+	  Support NVDIMMs, or other devices, that implement a BLK-mode
+	  access capability.  BLK-mode access uses memory-mapped-i/o
+	  apertures to access persistent media.
+
+	  Say Y if your platform firmware emits an ACPI.NFIT table
+	  (CONFIG_ACPI_NFIT), or otherwise exposes BLK-mode
+	  capabilities.
+
 config ND_BTT
 	tristate
 

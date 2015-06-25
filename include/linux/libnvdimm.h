@@ -14,6 +14,7 @@
  */
 #ifndef __LIBNVDIMM_H__
 #define __LIBNVDIMM_H__
+#include <linux/kernel.h>
 #include <linux/sizes.h>
 #include <linux/types.h>
 
@@ -89,8 +90,24 @@ struct nd_region_desc {
 };
 
 struct nvdimm_bus;
-struct device;
 struct module;
+struct device;
+struct nd_blk_region;
+struct nd_blk_region_desc {
+	int (*enable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
+	void (*disable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
+	int (*do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
+			void *iobuf, u64 len, int rw);
+	struct nd_region_desc ndr_desc;
+};
+
+static inline struct nd_blk_region_desc *to_blk_region_desc(
+		struct nd_region_desc *ndr_desc)
+{
+	return container_of(ndr_desc, struct nd_blk_region_desc, ndr_desc);
+
+}
+
 struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 		struct nvdimm_bus_descriptor *nfit_desc, struct module *module);
 #define nvdimm_bus_register(parent, desc) \
@@ -99,10 +116,10 @@ void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus);
 struct nvdimm_bus *to_nvdimm_bus(struct device *dev);
 struct nvdimm *to_nvdimm(struct device *dev);
 struct nd_region *to_nd_region(struct device *dev);
+struct nd_blk_region *to_nd_blk_region(struct device *dev);
 struct nvdimm_bus_descriptor *to_nd_desc(struct nvdimm_bus *nvdimm_bus);
 const char *nvdimm_name(struct nvdimm *nvdimm);
 void *nvdimm_provider_data(struct nvdimm *nvdimm);
-void *nd_region_provider_data(struct nd_region *nd_region);
 struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 		const struct attribute_group **groups, unsigned long flags,
 		unsigned long *dsm_mask);
@@ -120,5 +137,11 @@ struct nd_region *nvdimm_blk_region_create(struct nvdimm_bus *nvdimm_bus,
 		struct nd_region_desc *ndr_desc);
 struct nd_region *nvdimm_volatile_region_create(struct nvdimm_bus *nvdimm_bus,
 		struct nd_region_desc *ndr_desc);
+void *nd_region_provider_data(struct nd_region *nd_region);
+void *nd_blk_region_provider_data(struct nd_blk_region *ndbr);
+void nd_blk_region_set_provider_data(struct nd_blk_region *ndbr, void *data);
+struct nvdimm *nd_blk_region_to_dimm(struct nd_blk_region *ndbr);
+unsigned int nd_region_acquire_lane(struct nd_region *nd_region);
+void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane);
 u64 nd_fletcher64(void *addr, size_t len, bool le);
 #endif /* __LIBNVDIMM_H__ */

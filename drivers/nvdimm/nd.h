@@ -102,6 +102,15 @@ struct nd_region {
 	struct nd_mapping mapping[0];
 };
 
+struct nd_blk_region {
+	int (*enable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
+	void (*disable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
+	int (*do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
+			void *iobuf, u64 len, int rw);
+	void *blk_provider_data;
+	struct nd_region nd_region;
+};
+
 /*
  * Lookup next in the repeating sequence of 01, 10, and 11.
  */
@@ -171,8 +180,6 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
 
 #endif
 struct nd_region *to_nd_region(struct device *dev);
-unsigned int nd_region_acquire_lane(struct nd_region *nd_region);
-void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane);
 int nd_region_to_nstype(struct nd_region *nd_region);
 int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
 u64 nd_region_interleave_set_cookie(struct nd_region *nd_region);
@@ -192,4 +199,6 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns);
 int nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns);
 const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 		char *name);
+int nd_blk_region_init(struct nd_region *nd_region);
+resource_size_t nd_namespace_blk_validate(struct nd_namespace_blk *nsblk);
 #endif /* __ND_H__ */
