@@ -189,9 +189,6 @@ do {							\
 
 #endif	/* !CONFIG_PARAVIRT */
 
-#define rdtscl(low)						\
-	((low) = (u32)native_read_tsc())
-
 /*
  * 64-bit version of wrmsr_safe():
  */
