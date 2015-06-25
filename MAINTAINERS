@@ -2075,6 +2075,7 @@ M:	Jens Axboe <axboe@kernel.dk>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git
 S:	Maintained
 F:	block/
+F:	kernel/trace/blktrace.c
 
 BLOCK2MTD DRIVER
 M:	Joern Engel <joern@lazybastard.org>

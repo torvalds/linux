@@ -292,8 +292,6 @@ struct btrfs_bio_stripe {
 struct btrfs_bio;
 typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
 
-#define BTRFS_BIO_ORIG_BIO_SUBMITTED	(1 << 0)
-
 struct btrfs_bio {
 	atomic_t refs;
 	atomic_t stripes_pending;

@@ -359,7 +359,6 @@ void ext4_io_submit(struct ext4_io_submit *io)
 	if (bio) {
 		bio_get(io->io_bio);
 		submit_bio(io->io_op, io->io_bio);
-		BUG_ON(bio_flagged(io->io_bio, BIO_EOPNOTSUPP));
 		bio_put(io->io_bio);
 	}
 	io->io_bio = NULL;
