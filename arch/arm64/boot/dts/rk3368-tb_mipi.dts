@@ -610,7 +610,6 @@
 		headset_gpio = <&gpio0 GPIO_C7 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio0_c7>;//gpio0_c7
-		io-channels = <&adc 2>;
 		rockchip,headset_wakeup = <0>;
        /*
                hook_gpio = ;
