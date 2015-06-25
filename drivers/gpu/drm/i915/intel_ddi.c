@@ -1104,6 +1104,103 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 	return true;
 }
 
+struct skl_wrpll_context {
+	uint64_t min_deviation;		/* current minimal deviation */
+	uint64_t central_freq;		/* chosen central freq */
+	uint64_t dco_freq;		/* chosen dco freq */
+	unsigned int p;			/* chosen divider */
+};
+
+static void skl_wrpll_context_init(struct skl_wrpll_context *ctx)
+{
+	memset(ctx, 0, sizeof(*ctx));
+
+	ctx->min_deviation = U64_MAX;
+}
+
+/* DCO freq must be within +1%/-6%  of the DCO central freq */
+#define SKL_DCO_MAX_PDEVIATION	100
+#define SKL_DCO_MAX_NDEVIATION	600
+
+static void skl_wrpll_try_divider(struct skl_wrpll_context *ctx,
+				  uint64_t central_freq,
+				  uint64_t dco_freq,
+				  unsigned int divider)
+{
+	uint64_t deviation;
+
+	deviation = div64_u64(10000 * abs_diff(dco_freq, central_freq),
+			      central_freq);
+
+	/* positive deviation */
+	if (dco_freq >= central_freq) {
+		if (deviation < SKL_DCO_MAX_PDEVIATION &&
+		    deviation < ctx->min_deviation) {
+			ctx->min_deviation = deviation;
+			ctx->central_freq = central_freq;
+			ctx->dco_freq = dco_freq;
+			ctx->p = divider;
+		}
+	/* negative deviation */
+	} else if (deviation < SKL_DCO_MAX_NDEVIATION &&
+		   deviation < ctx->min_deviation) {
+		ctx->min_deviation = deviation;
+		ctx->central_freq = central_freq;
+		ctx->dco_freq = dco_freq;
+		ctx->p = divider;
+	}
+
+}
+
+static void skl_wrpll_get_multipliers(unsigned int p,
+				      unsigned int *p0 /* out */,
+				      unsigned int *p1 /* out */,
+				      unsigned int *p2 /* out */)
+{
+	/* even dividers */
+	if (p % 2 == 0) {
+		unsigned int half = p / 2;
+
+		if (half == 1 || half == 2 || half == 3 || half == 5) {
+			*p0 = 2;
+			*p1 = 1;
+			*p2 = half;
+		} else if (half % 2 == 0) {
+			*p0 = 2;
+			*p1 = half / 2;
+			*p2 = 2;
+		} else if (half % 3 == 0) {
+			*p0 = 3;
+			*p1 = half / 3;
+			*p2 = 2;
+		} else if (half % 7 == 0) {
+			*p0 = 7;
+			*p1 = half / 7;
+			*p2 = 2;
+		}
+	} else if (p == 3 || p == 9) {  /* 3, 5, 7, 9, 15, 21, 35 */
+		*p0 = 3;
+		*p1 = 1;
+		*p2 = p / 3;
+	} else if (p == 5 || p == 7) {
+		*p0 = p;
+		*p1 = 1;
+		*p2 = 1;
+	} else if (p == 15) {
+		*p0 = 3;
+		*p1 = 1;
+		*p2 = 5;
+	} else if (p == 21) {
+		*p0 = 7;
+		*p1 = 1;
+		*p2 = 3;
+	} else if (p == 35) {
+		*p0 = 7;
+		*p1 = 1;
+		*p2 = 5;
+	}
+}
+
 struct skl_wrpll_params {
 	uint32_t        dco_fraction;
 	uint32_t        dco_integer;
@@ -1189,89 +1286,55 @@ skl_ddi_calculate_wrpll(int clock /* in Hz */,
 	uint64_t dco_central_freq[3] = {8400000000ULL,
 					9000000000ULL,
 					9600000000ULL};
-	uint32_t min_dco_deviation = 400;
-	uint32_t min_dco_index = 3;
-	uint32_t P0[4] = {1, 2, 3, 7};
-	uint32_t P2[4] = {1, 2, 3, 5};
-	bool found = false;
-	uint32_t candidate_p = 0;
-	uint32_t candidate_p0[3] = {0}, candidate_p1[3] = {0};
-	uint32_t candidate_p2[3] = {0};
-	uint32_t dco_central_freq_deviation[3];
-	uint32_t i, P1, k, dco_count;
-	bool retry_with_odd = false;
+	static const int even_dividers[] = {  4,  6,  8, 10, 12, 14, 16, 18, 20,
+					     24, 28, 30, 32, 36, 40, 42, 44,
+					     48, 52, 54, 56, 60, 64, 66, 68,
+					     70, 72, 76, 78, 80, 84, 88, 90,
+					     92, 96, 98 };
+	static const int odd_dividers[] = { 3, 5, 7, 9, 15, 21, 35 };
+	static const struct {
+		const int *list;
+		int n_dividers;
+	} dividers[] = {
+		{ even_dividers, ARRAY_SIZE(even_dividers) },
+		{ odd_dividers, ARRAY_SIZE(odd_dividers) },
+	};
+	struct skl_wrpll_context ctx;
+	unsigned int dco, d, i;
+	unsigned int p0, p1, p2;
 
-	/* Determine P0, P1 or P2 */
-	for (dco_count = 0; dco_count < 3; dco_count++) {
-		found = false;
-		candidate_p =
-			div64_u64(dco_central_freq[dco_count], afe_clock);
-		if (retry_with_odd == false)
-			candidate_p = (candidate_p % 2 == 0 ?
-				candidate_p : candidate_p + 1);
+	skl_wrpll_context_init(&ctx);
 
-		for (P1 = 1; P1 < candidate_p; P1++) {
-			for (i = 0; i < 4; i++) {
-				if (!(P0[i] != 1 || P1 == 1))
-					continue;
+	for (d = 0; d < ARRAY_SIZE(dividers); d++) {
+		for (dco = 0; dco < ARRAY_SIZE(dco_central_freq); dco++) {
+			for (i = 0; i < dividers[d].n_dividers; i++) {
+				unsigned int p = dividers[d].list[i];
+				uint64_t dco_freq = p * afe_clock;
 
-				for (k = 0; k < 4; k++) {
-					if (P1 != 1 && P2[k] != 2)
-						continue;
-
-					if (candidate_p == P0[i] * P1 * P2[k]) {
-						/* Found possible P0, P1, P2 */
-						found = true;
-						candidate_p0[dco_count] = P0[i];
-						candidate_p1[dco_count] = P1;
-						candidate_p2[dco_count] = P2[k];
-						goto found;
-					}
-
-				}
+				skl_wrpll_try_divider(&ctx,
+						      dco_central_freq[dco],
+						      dco_freq,
+						      p);
 			}
-		}
-
-found:
-		if (found) {
-			dco_central_freq_deviation[dco_count] =
-				div64_u64(10000 *
-					  abs_diff(candidate_p * afe_clock,
-						   dco_central_freq[dco_count]),
-					  dco_central_freq[dco_count]);
-
-			if (dco_central_freq_deviation[dco_count] <
-				min_dco_deviation) {
-				min_dco_deviation =
-					dco_central_freq_deviation[dco_count];
-				min_dco_index = dco_count;
-			}
-		}
-
-		if (min_dco_index > 2 && dco_count == 2) {
-                        /* oh well, we tried... */
-                        if (retry_with_odd)
-                                break;
-
-			retry_with_odd = true;
-			dco_count = 0;
 		}
 	}
 
-	if (WARN(min_dco_index > 2,
-		 "No valid parameters found for pixel clock: %dHz\n", clock))
+	if (!ctx.p) {
+		DRM_DEBUG_DRIVER("No valid divider found for %dHz\n", clock);
 		return false;
+	}
 
-	skl_wrpll_params_populate(wrpll_params,
-				  afe_clock,
-				  dco_central_freq[min_dco_index],
-				  candidate_p0[min_dco_index],
-				  candidate_p1[min_dco_index],
-				  candidate_p2[min_dco_index]);
+	/*
+	 * gcc incorrectly analyses that these can be used without being
+	 * initialized. To be fair, it's hard to guess.
+	 */
+	p0 = p1 = p2 = 0;
+	skl_wrpll_get_multipliers(ctx.p, &p0, &p1, &p2);
+	skl_wrpll_params_populate(wrpll_params, afe_clock, ctx.central_freq,
+				  p0, p1, p2);
 
 	return true;
 }
-
 
 static bool
 skl_ddi_pll_select(struct intel_crtc *intel_crtc,
