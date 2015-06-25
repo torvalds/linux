@@ -1178,6 +1178,8 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state)
 
 static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	iwl_disable_interrupts(trans);
 
 	/*
@@ -1188,6 +1190,8 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
 		return;
 
 	iwl_pcie_disable_ict(trans);
+
+	synchronize_irq(trans_pcie->pci_dev->irq);
 
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
 		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
@@ -1326,7 +1330,10 @@ static void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans)
 	spin_unlock(&trans_pcie->irq_lock);
 
 	iwl_pcie_disable_ict(trans);
+
 	mutex_unlock(&trans_pcie->mutex);
+
+	synchronize_irq(trans_pcie->pci_dev->irq);
 }
 
 static void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val)
