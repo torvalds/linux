@@ -161,13 +161,10 @@ static int srp_tmo_set(const char *val, const struct kernel_param *kp)
 {
 	int tmo, res;
 
-	if (strncmp(val, "off", 3) != 0) {
-		res = kstrtoint(val, 0, &tmo);
-		if (res)
-			goto out;
-	} else {
-		tmo = -1;
-	}
+	res = srp_parse_tmo(&tmo, val);
+	if (res)
+		goto out;
+
 	if (kp->arg == &srp_reconnect_delay)
 		res = srp_tmo_valid(tmo, srp_fast_io_fail_tmo,
 				    srp_dev_loss_tmo);
