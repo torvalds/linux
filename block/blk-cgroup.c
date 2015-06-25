@@ -19,11 +19,12 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/slab.h>
 #include <linux/genhd.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
-#include "blk-cgroup.h"
+#include <linux/blk-cgroup.h>
 #include "blk.h"
 
 #define MAX_KEY_LEN 100
@@ -32,6 +33,8 @@ static DEFINE_MUTEX(blkcg_pol_mutex);
 
 struct blkcg blkcg_root;
 EXPORT_SYMBOL_GPL(blkcg_root);
+
+struct cgroup_subsys_state * const blkcg_root_css = &blkcg_root.css;
 
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
@@ -182,6 +185,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 				    struct blkcg_gq *new_blkg)
 {
 	struct blkcg_gq *blkg;
+	struct bdi_writeback_congested *wb_congested;
 	int i, ret;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
@@ -193,22 +197,30 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 		goto err_free_blkg;
 	}
 
+	wb_congested = wb_congested_get_create(&q->backing_dev_info,
+					       blkcg->css.id, GFP_ATOMIC);
+	if (!wb_congested) {
+		ret = -ENOMEM;
+		goto err_put_css;
+	}
+
 	/* allocate */
 	if (!new_blkg) {
 		new_blkg = blkg_alloc(blkcg, q, GFP_ATOMIC);
 		if (unlikely(!new_blkg)) {
 			ret = -ENOMEM;
-			goto err_put_css;
+			goto err_put_congested;
 		}
 	}
 	blkg = new_blkg;
+	blkg->wb_congested = wb_congested;
 
 	/* link parent */
 	if (blkcg_parent(blkcg)) {
 		blkg->parent = __blkg_lookup(blkcg_parent(blkcg), q, false);
 		if (WARN_ON_ONCE(!blkg->parent)) {
 			ret = -EINVAL;
-			goto err_put_css;
+			goto err_put_congested;
 		}
 		blkg_get(blkg->parent);
 	}
@@ -238,18 +250,15 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	blkg->online = true;
 	spin_unlock(&blkcg->lock);
 
-	if (!ret) {
-		if (blkcg == &blkcg_root) {
-			q->root_blkg = blkg;
-			q->root_rl.blkg = blkg;
-		}
+	if (!ret)
 		return blkg;
-	}
 
 	/* @blkg failed fully initialized, use the usual release path */
 	blkg_put(blkg);
 	return ERR_PTR(ret);
 
+err_put_congested:
+	wb_congested_put(wb_congested);
 err_put_css:
 	css_put(&blkcg->css);
 err_free_blkg:
@@ -343,15 +352,6 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 		rcu_assign_pointer(blkcg->blkg_hint, NULL);
 
 	/*
-	 * If root blkg is destroyed.  Just clear the pointer since root_rl
-	 * does not take reference on root blkg.
-	 */
-	if (blkcg == &blkcg_root) {
-		blkg->q->root_blkg = NULL;
-		blkg->q->root_rl.blkg = NULL;
-	}
-
-	/*
 	 * Put the reference taken at the time of creation so that when all
 	 * queues are gone, group can be destroyed.
 	 */
@@ -404,6 +404,8 @@ void __blkg_release_rcu(struct rcu_head *rcu_head)
 	css_put(&blkg->blkcg->css);
 	if (blkg->parent)
 		blkg_put(blkg->parent);
+
+	wb_congested_put(blkg->wb_congested);
 
 	blkg_free(blkg);
 }
@@ -812,6 +814,8 @@ static void blkcg_css_offline(struct cgroup_subsys_state *css)
 	}
 
 	spin_unlock_irq(&blkcg->lock);
+
+	wb_blkcg_offline(blkcg);
 }
 
 static void blkcg_css_free(struct cgroup_subsys_state *css)
@@ -868,7 +872,9 @@ done:
 	spin_lock_init(&blkcg->lock);
 	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_ATOMIC);
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
-
+#ifdef CONFIG_CGROUP_WRITEBACK
+	INIT_LIST_HEAD(&blkcg->cgwb_list);
+#endif
 	return &blkcg->css;
 
 free_pd_blkcg:
@@ -892,9 +898,45 @@ free_blkcg:
  */
 int blkcg_init_queue(struct request_queue *q)
 {
-	might_sleep();
+	struct blkcg_gq *new_blkg, *blkg;
+	bool preloaded;
+	int ret;
 
-	return blk_throtl_init(q);
+	new_blkg = blkg_alloc(&blkcg_root, q, GFP_KERNEL);
+	if (!new_blkg)
+		return -ENOMEM;
+
+	preloaded = !radix_tree_preload(GFP_KERNEL);
+
+	/*
+	 * Make sure the root blkg exists and count the existing blkgs.  As
+	 * @q is bypassing at this point, blkg_lookup_create() can't be
+	 * used.  Open code insertion.
+	 */
+	rcu_read_lock();
+	spin_lock_irq(q->queue_lock);
+	blkg = blkg_create(&blkcg_root, q, new_blkg);
+	spin_unlock_irq(q->queue_lock);
+	rcu_read_unlock();
+
+	if (preloaded)
+		radix_tree_preload_end();
+
+	if (IS_ERR(blkg)) {
+		kfree(new_blkg);
+		return PTR_ERR(blkg);
+	}
+
+	q->root_blkg = blkg;
+	q->root_rl.blkg = blkg;
+
+	ret = blk_throtl_init(q);
+	if (ret) {
+		spin_lock_irq(q->queue_lock);
+		blkg_destroy_all(q);
+		spin_unlock_irq(q->queue_lock);
+	}
+	return ret;
 }
 
 /**
@@ -996,50 +1038,19 @@ int blkcg_activate_policy(struct request_queue *q,
 {
 	LIST_HEAD(pds);
 	LIST_HEAD(cpds);
-	struct blkcg_gq *blkg, *new_blkg;
+	struct blkcg_gq *blkg;
 	struct blkg_policy_data *pd, *nd;
 	struct blkcg_policy_data *cpd, *cnd;
 	int cnt = 0, ret;
-	bool preloaded;
 
 	if (blkcg_policy_enabled(q, pol))
 		return 0;
 
-	/* preallocations for root blkg */
-	new_blkg = blkg_alloc(&blkcg_root, q, GFP_KERNEL);
-	if (!new_blkg)
-		return -ENOMEM;
-
+	/* count and allocate policy_data for all existing blkgs */
 	blk_queue_bypass_start(q);
-
-	preloaded = !radix_tree_preload(GFP_KERNEL);
-
-	/*
-	 * Make sure the root blkg exists and count the existing blkgs.  As
-	 * @q is bypassing at this point, blkg_lookup_create() can't be
-	 * used.  Open code it.
-	 */
 	spin_lock_irq(q->queue_lock);
-
-	rcu_read_lock();
-	blkg = __blkg_lookup(&blkcg_root, q, false);
-	if (blkg)
-		blkg_free(new_blkg);
-	else
-		blkg = blkg_create(&blkcg_root, q, new_blkg);
-	rcu_read_unlock();
-
-	if (preloaded)
-		radix_tree_preload_end();
-
-	if (IS_ERR(blkg)) {
-		ret = PTR_ERR(blkg);
-		goto out_unlock;
-	}
-
 	list_for_each_entry(blkg, &q->blkg_list, q_node)
 		cnt++;
-
 	spin_unlock_irq(q->queue_lock);
 
 	/*
@@ -1139,10 +1150,6 @@ void blkcg_deactivate_policy(struct request_queue *q,
 	spin_lock_irq(q->queue_lock);
 
 	__clear_bit(pol->plid, q->blkcg_pols);
-
-	/* if no policy is left, no need for blkgs - shoot them down */
-	if (bitmap_empty(q->blkcg_pols, BLKCG_MAX_POLS))
-		blkg_destroy_all(q);
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
 		/* grab blkcg lock too while removing @pd from @blkg */

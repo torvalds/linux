@@ -14,8 +14,8 @@
 #include <linux/rbtree.h>
 #include <linux/ioprio.h>
 #include <linux/blktrace_api.h>
+#include <linux/blk-cgroup.h>
 #include "blk.h"
-#include "blk-cgroup.h"
 
 /*
  * tunables

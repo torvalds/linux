@@ -11,6 +11,7 @@
 #include <linux/compat.h>
 #include <linux/mount.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/fsnotify.h>
 #include <linux/security.h>
 #include "fat.h"
