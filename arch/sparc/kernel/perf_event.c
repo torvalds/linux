@@ -21,7 +21,7 @@
 
 #include <asm/stacktrace.h>
 #include <asm/cpudata.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <asm/nmi.h>
 #include <asm/pcr.h>
@@ -1741,18 +1741,31 @@ void perf_callchain_kernel(struct perf_callchain_entry *entry,
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 
+static inline int
+valid_user_frame(const void __user *fp, unsigned long size)
+{
+	/* addresses should be at least 4-byte aligned */
+	if (((unsigned long) fp) & 3)
+		return 0;
+
+	return (__range_not_ok(fp, size, TASK_SIZE) == 0);
+}
+
 static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 				   struct pt_regs *regs)
 {
 	unsigned long ufp;
 
-	ufp = regs->u_regs[UREG_I6] + STACK_BIAS;
+	ufp = regs->u_regs[UREG_FP] + STACK_BIAS;
 	do {
 		struct sparc_stackf __user *usf;
 		struct sparc_stackf sf;
 		unsigned long pc;
 
 		usf = (struct sparc_stackf __user *)ufp;
+		if (!valid_user_frame(usf, sizeof(sf)))
+			break;
+
 		if (__copy_from_user_inatomic(&sf, usf, sizeof(sf)))
 			break;
 
@@ -1767,7 +1780,7 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 {
 	unsigned long ufp;
 
-	ufp = regs->u_regs[UREG_I6] & 0xffffffffUL;
+	ufp = regs->u_regs[UREG_FP] & 0xffffffffUL;
 	do {
 		unsigned long pc;
 
@@ -1803,8 +1816,13 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		return;
 
 	flushw_user();
+
+	pagefault_disable();
+
 	if (test_thread_flag(TIF_32BIT))
 		perf_callchain_user_32(entry, regs);
 	else
 		perf_callchain_user_64(entry, regs);
+
+	pagefault_enable();
 }
