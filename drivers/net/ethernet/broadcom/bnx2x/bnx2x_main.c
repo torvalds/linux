@@ -8435,7 +8435,7 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 					 BNX2X_ETH_MAC, &ramrod_flags);
 	} else { /* vf */
 		return bnx2x_vfpf_config_mac(bp, bp->dev->dev_addr,
-					     bp->fp->index, true);
+					     bp->fp->index, set);
 	}
 }
 
