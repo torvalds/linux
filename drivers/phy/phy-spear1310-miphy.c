@@ -2,7 +2,7 @@
  * ST SPEAr1310-miphy driver
  *
  * Copyright (C) 2014 ST Microelectronics
- * Pratyush Anand <pratyush.anand@st.com>
+ * Pratyush Anand <pratyush.anand@gmail.com>
  * Mohit Kumar <mohit.kumar@st.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -257,5 +257,5 @@ static struct platform_driver spear1310_miphy_driver = {
 module_platform_driver(spear1310_miphy_driver);
 
 MODULE_DESCRIPTION("ST SPEAR1310-MIPHY driver");
-MODULE_AUTHOR("Pratyush Anand <pratyush.anand@st.com>");
+MODULE_AUTHOR("Pratyush Anand <pratyush.anand@gmail.com>");
 MODULE_LICENSE("GPL v2");
