@@ -53,10 +53,6 @@ static inline int prepare_hugepage_range(struct file *file,
 	return 0;
 }
 
-static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
-{
-}
-
 static inline int huge_pte_none(pte_t pte)
 {
 	return pte_none(pte);

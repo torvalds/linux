@@ -35,7 +35,6 @@ static inline int prepare_hugepage_range(struct file *file,
 	return 0;
 }
 
-#define hugetlb_prefault_arch_hook(mm)		do { } while (0)
 #define arch_clear_hugepage_flags(page)		do { } while (0)
 
 int arch_prepare_hugepage(struct page *page);
