@@ -307,6 +307,13 @@
 					bias-pull-up;
 				};
 
+				pinctrl_led_gpio_default: led_gpio_default {
+					pinmux = <PIN_PB0__GPIO>,
+						 <PIN_PB5__GPIO>,
+						 <PIN_PB6__GPIO>;
+					bias-pull-up;
+				};
+
 				pinctrl_macb0_default: macb0_default {
 					pinmux = <PIN_PB14__GTXCK>,
 						 <PIN_PB15__GTXEN>,
@@ -416,6 +423,29 @@
 			label = "PB_USER";
 			gpios = <&pioA 41 GPIO_ACTIVE_LOW>;
 			linux,code = <0x104>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_led_gpio_default>;
+		status = "okay";
+
+		red {
+			label = "red";
+			gpios = <&pioA 38 GPIO_ACTIVE_LOW>;
+		};
+
+		green {
+			label = "green";
+			gpios = <&pioA 37 GPIO_ACTIVE_LOW>;
+		};
+
+		blue {
+			label = "blue";
+			gpios = <&pioA 32 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
 		};
 	};
 };
