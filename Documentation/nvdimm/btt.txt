@@ -80,9 +80,17 @@ block. Each map entry is 32 bits. The two most significant bits are special
 flags, and the remaining form the internal block number.
 
 Bit      Description
-31     : TRIM flag - marks if the block was trimmed or discarded
-30     : ERROR flag - marks an error block. Cleared on write.
-29 - 0 : Mappings to internal 'postmap' blocks
+31 - 30	: Error and Zero flags - Used in the following way:
+	 Bit		      Description
+	31 30
+	-----------------------------------------------------------------------
+	 00	Initial state. Reads return zeroes; Premap = Postmap
+	 01	Zero state: Reads return zeroes
+	 10	Error state: Reads fail; Writes clear 'E' bit
+	 11	Normal Block – has valid postmap
+
+
+29 - 0	: Mappings to internal 'postmap' blocks
 
 
 Some of the terminology that will be subsequently used:
@@ -127,10 +135,11 @@ old_map': alternate old postmap entry
 new_map': alternate new postmap entry
 seq'	: alternate sequence number.
 
-Each of the above fields is 32-bit, making one entry 16 bytes. Flog updates are
+Each of the above fields is 32-bit, making one entry 32 bytes. Entries are also
+padded to 64 bytes to avoid cache line sharing or aliasing. Flog updates are
 done such that for any entry being written, it:
 a. overwrites the 'old' section in the entry based on sequence numbers
-b. writes the new entry such that the sequence number is written last.
+b. writes the 'new' section such that the sequence number is written last.
 
 
 c. The concept of lanes
@@ -141,8 +150,9 @@ concurrently, 'nlanes' is the number of IOs the BTT device as a whole can
 process.
  nlanes = min(nfree, num_cpus)
 A lane number is obtained at the start of any IO, and is used for indexing into
-all the on-disk and in-memory data structures for the duration of the IO. It is
-protected by a spinlock.
+all the on-disk and in-memory data structures for the duration of the IO. If
+there are more CPUs than the max number of available lanes, than lanes are
+protected by spinlocks.
 
 
 d. In-memory data structure: Read Tracking Table (RTT)
