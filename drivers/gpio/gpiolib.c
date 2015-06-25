@@ -522,10 +522,14 @@ static int gpiochip_irq_reqres(struct irq_data *d)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 
+	if (!try_module_get(chip->owner))
+		return -ENODEV;
+
 	if (gpiochip_lock_as_irq(chip, d->hwirq)) {
 		chip_err(chip,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			d->hwirq);
+		module_put(chip->owner);
 		return -EINVAL;
 	}
 	return 0;
@@ -536,6 +540,7 @@ static void gpiochip_irq_relres(struct irq_data *d)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 
 	gpiochip_unlock_as_irq(chip, d->hwirq);
+	module_put(chip->owner);
 }
 
 static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
