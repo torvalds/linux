@@ -15,7 +15,7 @@ u64 notrace trace_clock_x86_tsc(void)
 	u64 ret;
 
 	rdtsc_barrier();
-	rdtscll(ret);
+	ret = native_read_tsc();
 
 	return ret;
 }

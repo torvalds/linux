@@ -192,9 +192,6 @@ do {							\
 #define rdtscl(low)						\
 	((low) = (u32)native_read_tsc())
 
-#define rdtscll(val)						\
-	((val) = native_read_tsc())
-
 #define rdtscp(low, high, aux)					\
 do {                                                            \
 	unsigned long long _val = native_read_tscp(&(aux));     \

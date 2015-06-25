@@ -263,7 +263,7 @@ static int apbt_clocksource_register(void)
 
 	/* Verify whether apbt counter works */
 	t1 = dw_apb_clocksource_read(clocksource_apbt);
-	rdtscll(start);
+	start = native_read_tsc();
 
 	/*
 	 * We don't know the TSC frequency yet, but waiting for
@@ -273,7 +273,7 @@ static int apbt_clocksource_register(void)
 	 */
 	do {
 		rep_nop();
-		rdtscll(now);
+		now = native_read_tsc();
 	} while ((now - start) < 200000UL);
 
 	/* APBT is the only always on clocksource, it has to work! */

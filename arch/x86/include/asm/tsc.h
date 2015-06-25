@@ -21,15 +21,12 @@ extern void disable_TSC(void);
 
 static inline cycles_t get_cycles(void)
 {
-	unsigned long long ret = 0;
-
 #ifndef CONFIG_X86_TSC
 	if (!cpu_has_tsc)
 		return 0;
 #endif
-	rdtscll(ret);
 
-	return ret;
+	return native_read_tsc();
 }
 
 extern void tsc_init(void);

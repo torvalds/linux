@@ -125,7 +125,7 @@ void mce_setup(struct mce *m)
 {
 	memset(m, 0, sizeof(struct mce));
 	m->cpu = m->extcpu = smp_processor_id();
-	rdtscll(m->tsc);
+	m->tsc = native_read_tsc();
 	/* We hope get_seconds stays lockless */
 	m->time = get_seconds();
 	m->cpuvendor = boot_cpu_data.x86_vendor;
@@ -1784,7 +1784,7 @@ static void collect_tscs(void *data)
 {
 	unsigned long *cpu_tsc = (unsigned long *)data;
 
-	rdtscll(cpu_tsc[smp_processor_id()]);
+	cpu_tsc[smp_processor_id()] = native_read_tsc();
 }
 
 static int mce_apei_read_done;
