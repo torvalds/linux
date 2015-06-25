@@ -3257,18 +3257,11 @@ EXPORT_SYMBOL_GPL(cond_synchronize_rcu);
 
 static int synchronize_sched_expedited_cpu_stop(void *data)
 {
-	/*
-	 * There must be a full memory barrier on each affected CPU
-	 * between the time that try_stop_cpus() is called and the
-	 * time that it returns.
-	 *
-	 * In the current initial implementation of cpu_stop, the
-	 * above condition is already met when the control reaches
-	 * this point and the following smp_mb() is not strictly
-	 * necessary.  Do smp_mb() anyway for documentation and
-	 * robustness against future implementation changes.
-	 */
-	smp_mb(); /* See above comment block. */
+	struct rcu_state *rsp = data;
+
+	/* We are here: If we are last, do the wakeup. */
+	if (atomic_dec_and_test(&rsp->expedited_need_qs))
+		wake_up(&rsp->expedited_wq);
 	return 0;
 }
 
@@ -3308,9 +3301,9 @@ void synchronize_sched_expedited(void)
 {
 	int cpu;
 	long s;
-	struct rcu_state *rsp = &rcu_sched_state;
 	struct rcu_node *rnp0;
 	struct rcu_node *rnp1 = NULL;
+	struct rcu_state *rsp = &rcu_sched_state;
 
 	/* Take a snapshot of the sequence number.  */
 	smp_mb(); /* Caller's modifications seen first by other CPUs. */
@@ -3351,15 +3344,25 @@ void synchronize_sched_expedited(void)
 	WARN_ON_ONCE(!(rsp->expedited_sequence & 0x1));
 
 	/* Stop each CPU that is online, non-idle, and not us. */
+	init_waitqueue_head(&rsp->expedited_wq);
+	atomic_set(&rsp->expedited_need_qs, 1); /* Extra count avoids race. */
 	for_each_online_cpu(cpu) {
+		struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 		struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
 
 		/* Skip our CPU and any idle CPUs. */
 		if (raw_smp_processor_id() == cpu ||
 		    !(atomic_add_return(0, &rdtp->dynticks) & 0x1))
 			continue;
-		stop_one_cpu(cpu, synchronize_sched_expedited_cpu_stop, NULL);
+		atomic_inc(&rsp->expedited_need_qs);
+		stop_one_cpu_nowait(cpu, synchronize_sched_expedited_cpu_stop,
+				    rsp, &rdp->exp_stop_work);
 	}
+
+	/* Remove extra count and, if necessary, wait for CPUs to stop. */
+	if (!atomic_dec_and_test(&rsp->expedited_need_qs))
+		wait_event(rsp->expedited_wq,
+			   !atomic_read(&rsp->expedited_need_qs));
 
 	smp_mb(); /* Ensure expedited GP seen before counter increment. */
 	WRITE_ONCE(rsp->expedited_sequence, rsp->expedited_sequence + 1);
