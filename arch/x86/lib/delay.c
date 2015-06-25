@@ -49,16 +49,16 @@ static void delay_loop(unsigned long loops)
 /* TSC based delay: */
 static void delay_tsc(unsigned long __loops)
 {
-	u32 bclock, now, loops = __loops;
+	u64 bclock, now, loops = __loops;
 	int cpu;
 
 	preempt_disable();
 	cpu = smp_processor_id();
 	rdtsc_barrier();
-	rdtscl(bclock);
+	bclock = native_read_tsc();
 	for (;;) {
 		rdtsc_barrier();
-		rdtscl(now);
+		now = native_read_tsc();
 		if ((now - bclock) >= loops)
 			break;
 
@@ -80,7 +80,7 @@ static void delay_tsc(unsigned long __loops)
 			loops -= (now - bclock);
 			cpu = smp_processor_id();
 			rdtsc_barrier();
-			rdtscl(bclock);
+			bclock = native_read_tsc();
 		}
 	}
 	preempt_enable();
