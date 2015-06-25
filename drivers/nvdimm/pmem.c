@@ -121,44 +121,61 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 		struct resource *res, int id)
 {
 	struct pmem_device *pmem;
-	struct gendisk *disk;
-	int err;
 
-	err = -ENOMEM;
 	pmem = kzalloc(sizeof(*pmem), GFP_KERNEL);
 	if (!pmem)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
 	pmem->phys_addr = res->start;
 	pmem->size = resource_size(res);
 
-	err = -EINVAL;
-	if (!request_mem_region(pmem->phys_addr, pmem->size, "pmem")) {
+	if (!request_mem_region(pmem->phys_addr, pmem->size, dev_name(dev))) {
 		dev_warn(dev, "could not reserve region [0x%pa:0x%zx]\n",
 				&pmem->phys_addr, pmem->size);
-		goto out_free_dev;
+		kfree(pmem);
+		return ERR_PTR(-EBUSY);
 	}
 
 	/*
 	 * Map the memory as non-cachable, as we can't write back the contents
 	 * of the CPU caches in case of a crash.
 	 */
-	err = -ENOMEM;
 	pmem->virt_addr = ioremap_nocache(pmem->phys_addr, pmem->size);
-	if (!pmem->virt_addr)
-		goto out_release_region;
+	if (!pmem->virt_addr) {
+		release_mem_region(pmem->phys_addr, pmem->size);
+		kfree(pmem);
+		return ERR_PTR(-ENXIO);
+	}
+
+	return pmem;
+}
+
+static void pmem_detach_disk(struct pmem_device *pmem)
+{
+	del_gendisk(pmem->pmem_disk);
+	put_disk(pmem->pmem_disk);
+	blk_cleanup_queue(pmem->pmem_queue);
+}
+
+static int pmem_attach_disk(struct nd_namespace_common *ndns,
+		struct pmem_device *pmem)
+{
+	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
+	struct gendisk *disk;
 
 	pmem->pmem_queue = blk_alloc_queue(GFP_KERNEL);
 	if (!pmem->pmem_queue)
-		goto out_unmap;
+		return -ENOMEM;
 
 	blk_queue_make_request(pmem->pmem_queue, pmem_make_request);
 	blk_queue_max_hw_sectors(pmem->pmem_queue, 1024);
 	blk_queue_bounce_limit(pmem->pmem_queue, BLK_BOUNCE_ANY);
 
 	disk = alloc_disk(0);
-	if (!disk)
-		goto out_free_queue;
+	if (!disk) {
+		blk_cleanup_queue(pmem->pmem_queue);
+		return -ENOMEM;
+	}
 
 	disk->major		= pmem_major;
 	disk->first_minor	= 0;
@@ -166,32 +183,47 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 	disk->private_data	= pmem;
 	disk->queue		= pmem->pmem_queue;
 	disk->flags		= GENHD_FL_EXT_DEVT;
-	sprintf(disk->disk_name, "pmem%d", id);
-	disk->driverfs_dev = dev;
+	sprintf(disk->disk_name, "pmem%d", nd_region->id);
+	disk->driverfs_dev = &ndns->dev;
 	set_capacity(disk, pmem->size >> 9);
 	pmem->pmem_disk = disk;
 
 	add_disk(disk);
 
-	return pmem;
+	return 0;
+}
 
-out_free_queue:
-	blk_cleanup_queue(pmem->pmem_queue);
-out_unmap:
-	iounmap(pmem->virt_addr);
-out_release_region:
-	release_mem_region(pmem->phys_addr, pmem->size);
-out_free_dev:
-	kfree(pmem);
-out:
-	return ERR_PTR(err);
+static int pmem_rw_bytes(struct nd_namespace_common *ndns,
+		resource_size_t offset, void *buf, size_t size, int rw)
+{
+	struct pmem_device *pmem = dev_get_drvdata(ndns->claim);
+
+	if (unlikely(offset + size > pmem->size)) {
+		dev_WARN_ONCE(&ndns->dev, 1, "request out of range\n");
+		return -EFAULT;
+	}
+
+	if (rw == READ)
+		memcpy(buf, pmem->virt_addr + offset, size);
+	else
+		memcpy(pmem->virt_addr + offset, buf, size);
+
+	return 0;
+}
+
+static int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
+{
+	/* TODO */
+	return -ENXIO;
+}
+
+static void nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns)
+{
+	/* TODO */
 }
 
 static void pmem_free(struct pmem_device *pmem)
 {
-	del_gendisk(pmem->pmem_disk);
-	put_disk(pmem->pmem_disk);
-	blk_cleanup_queue(pmem->pmem_queue);
 	iounmap(pmem->virt_addr);
 	release_mem_region(pmem->phys_addr, pmem->size);
 	kfree(pmem);
@@ -200,40 +232,44 @@ static void pmem_free(struct pmem_device *pmem)
 static int nd_pmem_probe(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	struct nd_namespace_io *nsio = to_nd_namespace_io(dev);
+	struct nd_namespace_common *ndns;
+	struct nd_namespace_io *nsio;
 	struct pmem_device *pmem;
+	int rc;
 
-	if (resource_size(&nsio->res) < ND_MIN_NAMESPACE_SIZE) {
-		resource_size_t size = resource_size(&nsio->res);
+	ndns = nvdimm_namespace_common_probe(dev);
+	if (IS_ERR(ndns))
+		return PTR_ERR(ndns);
 
-		dev_dbg(dev, "%s: size: %pa, too small must be at least %#x\n",
-				__func__, &size, ND_MIN_NAMESPACE_SIZE);
-		return -ENODEV;
-	}
-
-	if (nd_region_to_nstype(nd_region) == ND_DEVICE_NAMESPACE_PMEM) {
-		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
-
-		if (!nspm->uuid) {
-			dev_dbg(dev, "%s: uuid not set\n", __func__);
-			return -ENODEV;
-		}
-	}
-
+	nsio = to_nd_namespace_io(&ndns->dev);
 	pmem = pmem_alloc(dev, &nsio->res, nd_region->id);
 	if (IS_ERR(pmem))
 		return PTR_ERR(pmem);
 
 	dev_set_drvdata(dev, pmem);
-
-	return 0;
+	ndns->rw_bytes = pmem_rw_bytes;
+	if (is_nd_btt(dev))
+		rc = nvdimm_namespace_attach_btt(ndns);
+	else if (nd_btt_probe(ndns, pmem) == 0) {
+		/* we'll come back as btt-pmem */
+		rc = -ENXIO;
+	} else
+		rc = pmem_attach_disk(ndns, pmem);
+	if (rc)
+		pmem_free(pmem);
+	return rc;
 }
 
 static int nd_pmem_remove(struct device *dev)
 {
 	struct pmem_device *pmem = dev_get_drvdata(dev);
 
+	if (is_nd_btt(dev))
+		nvdimm_namespace_detach_btt(to_nd_btt(dev)->ndns);
+	else
+		pmem_detach_disk(pmem);
 	pmem_free(pmem);
+
 	return 0;
 }
 

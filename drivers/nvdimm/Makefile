@@ -11,3 +11,4 @@ libnvdimm-y += region_devs.o
 libnvdimm-y += region.o
 libnvdimm-y += namespace_devs.o
 libnvdimm-y += label.o
+libnvdimm-$(CONFIG_BTT) += btt_devs.o

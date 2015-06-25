@@ -12,6 +12,7 @@
  */
 #ifndef __LINUX_ND_H__
 #define __LINUX_ND_H__
+#include <linux/fs.h>
 #include <linux/ndctl.h>
 #include <linux/device.h>
 
@@ -29,12 +30,32 @@ static inline struct nd_device_driver *to_nd_device_driver(
 };
 
 /**
+ * struct nd_namespace_common - core infrastructure of a namespace
+ * @force_raw: ignore other personalities for the namespace (e.g. btt)
+ * @dev: device model node
+ * @claim: when set a another personality has taken ownership of the namespace
+ * @rw_bytes: access the raw namespace capacity with byte-aligned transfers
+ */
+struct nd_namespace_common {
+	int force_raw;
+	struct device dev;
+	struct device *claim;
+	int (*rw_bytes)(struct nd_namespace_common *, resource_size_t offset,
+			void *buf, size_t size, int rw);
+};
+
+static inline struct nd_namespace_common *to_ndns(struct device *dev)
+{
+	return container_of(dev, struct nd_namespace_common, dev);
+}
+
+/**
  * struct nd_namespace_io - infrastructure for loading an nd_pmem instance
  * @dev: namespace device created by the nd region driver
  * @res: struct resource conversion of a NFIT SPA table
  */
 struct nd_namespace_io {
-	struct device dev;
+	struct nd_namespace_common common;
 	struct resource res;
 };
 
@@ -52,7 +73,6 @@ struct nd_namespace_pmem {
 
 /**
  * struct nd_namespace_blk - namespace for dimm-bounded persistent memory
- * @dev: namespace device creation by the nd region driver
  * @alt_name: namespace name supplied in the dimm label
  * @uuid: namespace name supplied in the dimm label
  * @id: ida allocated id
@@ -61,7 +81,7 @@ struct nd_namespace_pmem {
  * @res: discontiguous dpa extents for given dimm
  */
 struct nd_namespace_blk {
-	struct device dev;
+	struct nd_namespace_common common;
 	char *alt_name;
 	u8 *uuid;
 	int id;
@@ -72,7 +92,7 @@ struct nd_namespace_blk {
 
 static inline struct nd_namespace_io *to_nd_namespace_io(struct device *dev)
 {
-	return container_of(dev, struct nd_namespace_io, dev);
+	return container_of(dev, struct nd_namespace_io, common.dev);
 }
 
 static inline struct nd_namespace_pmem *to_nd_namespace_pmem(struct device *dev)
@@ -84,7 +104,40 @@ static inline struct nd_namespace_pmem *to_nd_namespace_pmem(struct device *dev)
 
 static inline struct nd_namespace_blk *to_nd_namespace_blk(struct device *dev)
 {
-	return container_of(dev, struct nd_namespace_blk, dev);
+	return container_of(dev, struct nd_namespace_blk, common.dev);
+}
+
+/**
+ * nvdimm_read_bytes() - synchronously read bytes from an nvdimm namespace
+ * @ndns: device to read
+ * @offset: namespace-relative starting offset
+ * @buf: buffer to fill
+ * @size: transfer length
+ *
+ * @buf is up-to-date upon return from this routine.
+ */
+static inline int nvdimm_read_bytes(struct nd_namespace_common *ndns,
+		resource_size_t offset, void *buf, size_t size)
+{
+	return ndns->rw_bytes(ndns, offset, buf, size, READ);
+}
+
+/**
+ * nvdimm_write_bytes() - synchronously write bytes to an nvdimm namespace
+ * @ndns: device to read
+ * @offset: namespace-relative starting offset
+ * @buf: buffer to drain
+ * @size: transfer length
+ *
+ * NVDIMM Namepaces disks do not implement sectors internally.  Depending on
+ * the @ndns, the contents of @buf may be in cpu cache, platform buffers,
+ * or on backing memory media upon return from this routine.  Flushing
+ * to media is handled internal to the @ndns driver, if at all.
+ */
+static inline int nvdimm_write_bytes(struct nd_namespace_common *ndns,
+		resource_size_t offset, void *buf, size_t size)
+{
+	return ndns->rw_bytes(ndns, offset, buf, size, WRITE);
 }
 
 #define MODULE_ALIAS_ND_DEVICE(type) \

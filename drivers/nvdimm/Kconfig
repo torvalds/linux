@@ -33,4 +33,7 @@ config BLK_DEV_PMEM
 
 	  Say Y if you want to use an NVDIMM
 
+config BTT
+	def_bool y
+
 endif

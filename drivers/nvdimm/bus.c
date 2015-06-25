@@ -14,8 +14,10 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
+#include <linux/blkdev.h>
 #include <linux/fcntl.h>
 #include <linux/async.h>
+#include <linux/genhd.h>
 #include <linux/ndctl.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -103,6 +105,7 @@ static int nvdimm_bus_probe(struct device *dev)
 
 	dev_dbg(&nvdimm_bus->dev, "%s.probe(%s) = %d\n", dev->driver->name,
 			dev_name(dev), rc);
+
 	if (rc != 0)
 		module_put(provider);
 	return rc;
@@ -163,13 +166,18 @@ static void nd_async_device_unregister(void *d, async_cookie_t cookie)
 	put_device(dev);
 }
 
-void nd_device_register(struct device *dev)
+void __nd_device_register(struct device *dev)
 {
 	dev->bus = &nvdimm_bus_type;
-	device_initialize(dev);
 	get_device(dev);
 	async_schedule_domain(nd_async_device_register, dev,
 			&nd_async_domain);
+}
+
+void nd_device_register(struct device *dev)
+{
+	device_initialize(dev);
+	__nd_device_register(dev);
 }
 EXPORT_SYMBOL(nd_device_register);
 

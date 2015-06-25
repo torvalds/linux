@@ -666,7 +666,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 
 	/* don't allow updates that consume the last label */
 	if (nfree - alloc < 0 || nfree - alloc + victims < 1) {
-		dev_info(&nsblk->dev, "insufficient label space\n");
+		dev_info(&nsblk->common.dev, "insufficient label space\n");
 		kfree(victim_map);
 		return -ENOSPC;
 	}
@@ -762,7 +762,8 @@ static int __blk_label_update(struct nd_region *nd_region,
 			continue;
 		res = to_resource(ndd, nd_label);
 		res->flags &= ~DPA_RESOURCE_ADJUSTED;
-		dev_vdbg(&nsblk->dev, "assign label[%d] slot: %d\n", l, slot);
+		dev_vdbg(&nsblk->common.dev, "assign label[%d] slot: %d\n",
+				l, slot);
 		nd_mapping->labels[l++] = nd_label;
 	}
 	nd_mapping->labels[l] = NULL;

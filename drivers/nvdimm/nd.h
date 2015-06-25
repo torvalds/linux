@@ -19,6 +19,10 @@
 #include <linux/types.h>
 #include "label.h"
 
+enum {
+	SECTOR_SHIFT = 9,
+};
+
 struct nvdimm_drvdata {
 	struct device *dev;
 	int nsindex_size;
@@ -74,7 +78,9 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 struct nd_region {
 	struct device dev;
 	struct ida ns_ida;
+	struct ida btt_ida;
 	struct device *ns_seed;
+	struct device *btt_seed;
 	u16 ndr_mappings;
 	u64 ndr_size;
 	u64 ndr_start;
@@ -93,6 +99,14 @@ static inline unsigned nd_inc_seq(unsigned seq)
 
 	return next[seq & 3];
 }
+
+struct nd_btt {
+	struct device dev;
+	struct nd_namespace_common *ndns;
+	unsigned long lbasize;
+	u8 *uuid;
+	int id;
+};
 
 enum nd_async_mode {
 	ND_SYNC,
@@ -118,6 +132,30 @@ int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd);
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
 int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 		void *buf, size_t len);
+struct nd_btt *to_nd_btt(struct device *dev);
+struct btt_sb;
+u64 nd_btt_sb_checksum(struct btt_sb *btt_sb);
+#if IS_ENABLED(CONFIG_BTT)
+int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata);
+bool is_nd_btt(struct device *dev);
+struct device *nd_btt_create(struct nd_region *nd_region);
+#else
+static inline nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata)
+{
+	return -ENODEV;
+}
+
+static inline bool is_nd_btt(struct device *dev)
+{
+	return false;
+}
+
+static inline struct device *nd_btt_create(struct nd_region *nd_region)
+{
+	return NULL;
+}
+
+#endif
 struct nd_region *to_nd_region(struct device *dev);
 int nd_region_to_nstype(struct nd_region *nd_region);
 int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
@@ -132,4 +170,6 @@ void nvdimm_free_dpa(struct nvdimm_drvdata *ndd, struct resource *res);
 struct resource *nvdimm_allocate_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id, resource_size_t start,
 		resource_size_t n);
+resource_size_t nvdimm_namespace_capacity(struct nd_namespace_common *ndns);
+struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev);
 #endif /* __ND_H__ */

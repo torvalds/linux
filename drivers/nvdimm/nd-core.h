@@ -45,12 +45,14 @@ struct nvdimm {
 bool is_nvdimm(struct device *dev);
 bool is_nd_blk(struct device *dev);
 bool is_nd_pmem(struct device *dev);
+struct nd_btt;
 struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void nvdimm_bus_exit(void);
 void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 struct nd_region;
 void nd_region_create_blk_seed(struct nd_region *nd_region);
+void nd_region_create_btt_seed(struct nd_region *nd_region);
 void nd_region_disable(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
@@ -58,6 +60,7 @@ void nd_synchronize(void);
 int nvdimm_bus_register_dimms(struct nvdimm_bus *nvdimm_bus);
 int nvdimm_bus_register_regions(struct nvdimm_bus *nvdimm_bus);
 int nvdimm_bus_init_interleave_sets(struct nvdimm_bus *nvdimm_bus);
+void __nd_device_register(struct device *dev);
 int nd_match_dimm(struct device *dev, void *data);
 struct nd_label_id;
 char *nd_label_gen_id(struct nd_label_id *label_id, u8 *uuid, u32 flags);
@@ -77,4 +80,5 @@ struct resource *nsblk_add_resource(struct nd_region *nd_region,
 		resource_size_t start);
 int nvdimm_num_label_slots(struct nvdimm_drvdata *ndd);
 void get_ndd(struct nvdimm_drvdata *ndd);
+resource_size_t __nvdimm_namespace_capacity(struct nd_namespace_common *ndns);
 #endif /* __ND_CORE_H__ */

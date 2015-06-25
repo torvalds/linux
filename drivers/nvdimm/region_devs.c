@@ -296,10 +296,28 @@ static ssize_t namespace_seed_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(namespace_seed);
 
+static ssize_t btt_seed_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+	ssize_t rc;
+
+	nvdimm_bus_lock(dev);
+	if (nd_region->btt_seed)
+		rc = sprintf(buf, "%s\n", dev_name(nd_region->btt_seed));
+	else
+		rc = sprintf(buf, "\n");
+	nvdimm_bus_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(btt_seed);
+
 static struct attribute *nd_region_attributes[] = {
 	&dev_attr_size.attr,
 	&dev_attr_nstype.attr,
 	&dev_attr_mappings.attr,
+	&dev_attr_btt_seed.attr,
 	&dev_attr_set_cookie.attr,
 	&dev_attr_available_size.attr,
 	&dev_attr_namespace_seed.attr,
@@ -345,15 +363,18 @@ u64 nd_region_interleave_set_cookie(struct nd_region *nd_region)
 
 /*
  * Upon successful probe/remove, take/release a reference on the
- * associated interleave set (if present)
+ * associated interleave set (if present), and plant new btt + namespace
+ * seeds.
  */
 static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		struct device *dev, bool probe)
 {
+	struct nd_region *nd_region;
+
 	if (!probe && (is_nd_pmem(dev) || is_nd_blk(dev))) {
-		struct nd_region *nd_region = to_nd_region(dev);
 		int i;
 
+		nd_region = to_nd_region(dev);
 		for (i = 0; i < nd_region->ndr_mappings; i++) {
 			struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 			struct nvdimm_drvdata *ndd = nd_mapping->ndd;
@@ -365,12 +386,19 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 			nd_mapping->ndd = NULL;
 			atomic_dec(&nvdimm->busy);
 		}
-	} else if (dev->parent && is_nd_blk(dev->parent) && probe) {
-		struct nd_region *nd_region = to_nd_region(dev->parent);
-
+	}
+	if (dev->parent && is_nd_blk(dev->parent) && probe) {
+		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->ns_seed == dev)
 			nd_region_create_blk_seed(nd_region);
+		nvdimm_bus_unlock(dev);
+	}
+	if (is_nd_btt(dev) && probe) {
+		nd_region = to_nd_region(dev->parent);
+		nvdimm_bus_lock(dev);
+		if (nd_region->btt_seed == dev)
+			nd_region_create_btt_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 }
@@ -546,6 +574,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	nd_region->provider_data = ndr_desc->provider_data;
 	nd_region->nd_set = ndr_desc->nd_set;
 	ida_init(&nd_region->ns_ida);
+	ida_init(&nd_region->btt_ida);
 	dev = &nd_region->dev;
 	dev_set_name(dev, "region%d", nd_region->id);
 	dev->parent = &nvdimm_bus->dev;

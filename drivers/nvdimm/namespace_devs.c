@@ -102,7 +102,7 @@ static ssize_t __alt_name_store(struct device *dev, const char *buf,
 	} else
 		return -ENXIO;
 
-	if (dev->driver)
+	if (dev->driver || to_ndns(dev)->claim)
 		return -EBUSY;
 
 	input = kmemdup(buf, len + 1, GFP_KERNEL);
@@ -133,7 +133,7 @@ out:
 
 static resource_size_t nd_namespace_blk_size(struct nd_namespace_blk *nsblk)
 {
-	struct nd_region *nd_region = to_nd_region(nsblk->dev.parent);
+	struct nd_region *nd_region = to_nd_region(nsblk->common.dev.parent);
 	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_label_id label_id;
@@ -152,9 +152,9 @@ static resource_size_t nd_namespace_blk_size(struct nd_namespace_blk *nsblk)
 static int nd_namespace_label_update(struct nd_region *nd_region,
 		struct device *dev)
 {
-	dev_WARN_ONCE(dev, dev->driver,
+	dev_WARN_ONCE(dev, dev->driver || to_ndns(dev)->claim,
 			"namespace must be idle during label update\n");
-	if (dev->driver)
+	if (dev->driver || to_ndns(dev)->claim)
 		return 0;
 
 	/*
@@ -666,7 +666,7 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 	u8 *uuid = NULL;
 	int rc, i;
 
-	if (dev->driver)
+	if (dev->driver || to_ndns(dev)->claim)
 		return -EBUSY;
 
 	if (is_namespace_pmem(dev)) {
@@ -733,12 +733,16 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 		nd_namespace_pmem_set_size(nd_region, nspm,
 				val * nd_region->ndr_mappings);
 	} else if (is_namespace_blk(dev)) {
+		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
+
 		/*
 		 * Try to delete the namespace if we deleted all of its
-		 * allocation and this is not the seed device for the
-		 * region.
+		 * allocation, this is not the seed device for the
+		 * region, and it is not actively claimed by a btt
+		 * instance.
 		 */
-		if (val == 0 && nd_region->ns_seed != dev)
+		if (val == 0 && nd_region->ns_seed != dev
+				&& !nsblk->common.claim)
 			nd_device_unregister(dev, ND_ASYNC);
 	}
 
@@ -789,26 +793,42 @@ static ssize_t size_store(struct device *dev,
 	return rc < 0 ? rc : len;
 }
 
-static ssize_t size_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+resource_size_t __nvdimm_namespace_capacity(struct nd_namespace_common *ndns)
 {
-	unsigned long long size = 0;
+	struct device *dev = &ndns->dev;
 
-	nvdimm_bus_lock(dev);
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
 
-		size = resource_size(&nspm->nsio.res);
+		return resource_size(&nspm->nsio.res);
 	} else if (is_namespace_blk(dev)) {
-		size = nd_namespace_blk_size(to_nd_namespace_blk(dev));
+		return nd_namespace_blk_size(to_nd_namespace_blk(dev));
 	} else if (is_namespace_io(dev)) {
 		struct nd_namespace_io *nsio = to_nd_namespace_io(dev);
 
-		size = resource_size(&nsio->res);
-	}
-	nvdimm_bus_unlock(dev);
+		return resource_size(&nsio->res);
+	} else
+		WARN_ONCE(1, "unknown namespace type\n");
+	return 0;
+}
 
-	return sprintf(buf, "%llu\n", size);
+resource_size_t nvdimm_namespace_capacity(struct nd_namespace_common *ndns)
+{
+	resource_size_t size;
+
+	nvdimm_bus_lock(&ndns->dev);
+	size = __nvdimm_namespace_capacity(ndns);
+	nvdimm_bus_unlock(&ndns->dev);
+
+	return size;
+}
+EXPORT_SYMBOL(nvdimm_namespace_capacity);
+
+static ssize_t size_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%llu\n", (unsigned long long)
+			nvdimm_namespace_capacity(to_ndns(dev)));
 }
 static DEVICE_ATTR(size, S_IRUGO, size_show, size_store);
 
@@ -897,8 +917,8 @@ static ssize_t uuid_store(struct device *dev,
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
 	u8 *uuid = NULL;
+	ssize_t rc = 0;
 	u8 **ns_uuid;
-	ssize_t rc;
 
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
@@ -914,7 +934,10 @@ static ssize_t uuid_store(struct device *dev,
 	device_lock(dev);
 	nvdimm_bus_lock(dev);
 	wait_nvdimm_bus_probe_idle(dev);
-	rc = nd_uuid_store(dev, &uuid, buf, len);
+	if (to_ndns(dev)->claim)
+		rc = -EBUSY;
+	if (rc >= 0)
+		rc = nd_uuid_store(dev, &uuid, buf, len);
 	if (rc >= 0)
 		rc = namespace_update_uuid(nd_region, dev, uuid, ns_uuid);
 	if (rc >= 0)
@@ -971,15 +994,18 @@ static ssize_t sector_size_store(struct device *dev,
 {
 	struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	ssize_t rc;
+	ssize_t rc = 0;
 
 	if (!is_namespace_blk(dev))
 		return -ENXIO;
 
 	device_lock(dev);
 	nvdimm_bus_lock(dev);
-	rc = nd_sector_size_store(dev, buf, &nsblk->lbasize,
-			ns_lbasize_supported);
+	if (to_ndns(dev)->claim)
+		rc = -EBUSY;
+	if (rc >= 0)
+		rc = nd_sector_size_store(dev, buf, &nsblk->lbasize,
+				ns_lbasize_supported);
 	if (rc >= 0)
 		rc = nd_namespace_label_update(nd_region, dev);
 	dev_dbg(dev, "%s: result: %zd %s: %s%s", __func__,
@@ -1034,12 +1060,48 @@ static ssize_t dpa_extents_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(dpa_extents);
 
+static ssize_t holder_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_namespace_common *ndns = to_ndns(dev);
+	ssize_t rc;
+
+	device_lock(dev);
+	rc = sprintf(buf, "%s\n", ndns->claim ? dev_name(ndns->claim) : "");
+	device_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(holder);
+
+static ssize_t force_raw_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	bool force_raw;
+	int rc = strtobool(buf, &force_raw);
+
+	if (rc)
+		return rc;
+
+	to_ndns(dev)->force_raw = force_raw;
+	return len;
+}
+
+static ssize_t force_raw_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", to_ndns(dev)->force_raw);
+}
+static DEVICE_ATTR_RW(force_raw);
+
 static struct attribute *nd_namespace_attributes[] = {
 	&dev_attr_nstype.attr,
 	&dev_attr_size.attr,
 	&dev_attr_uuid.attr,
+	&dev_attr_holder.attr,
 	&dev_attr_resource.attr,
 	&dev_attr_alt_name.attr,
+	&dev_attr_force_raw.attr,
 	&dev_attr_sector_size.attr,
 	&dev_attr_dpa_extents.attr,
 	NULL,
@@ -1066,7 +1128,9 @@ static umode_t namespace_visible(struct kobject *kobj,
 		return a->mode;
 	}
 
-	if (a == &dev_attr_nstype.attr || a == &dev_attr_size.attr)
+	if (a == &dev_attr_nstype.attr || a == &dev_attr_size.attr
+			|| a == &dev_attr_holder.attr
+			|| a == &dev_attr_force_raw.attr)
 		return a->mode;
 
 	return 0;
@@ -1082,6 +1146,66 @@ static const struct attribute_group *nd_namespace_attribute_groups[] = {
 	&nd_namespace_attribute_group,
 	NULL,
 };
+
+struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
+{
+	struct nd_btt *nd_btt = is_nd_btt(dev) ? to_nd_btt(dev) : NULL;
+	struct nd_namespace_common *ndns;
+	resource_size_t size;
+
+	if (nd_btt) {
+		ndns = nd_btt->ndns;
+		if (!ndns)
+			return ERR_PTR(-ENODEV);
+
+		/*
+		 * Flush any in-progess probes / removals in the driver
+		 * for the raw personality of this namespace.
+		 */
+		device_lock(&ndns->dev);
+		device_unlock(&ndns->dev);
+		if (ndns->dev.driver) {
+			dev_dbg(&ndns->dev, "is active, can't bind %s\n",
+					dev_name(&nd_btt->dev));
+			return ERR_PTR(-EBUSY);
+		}
+		if (dev_WARN_ONCE(&ndns->dev, ndns->claim != &nd_btt->dev,
+					"host (%s) vs claim (%s) mismatch\n",
+					dev_name(&nd_btt->dev),
+					dev_name(ndns->claim)))
+			return ERR_PTR(-ENXIO);
+	} else {
+		ndns = to_ndns(dev);
+		if (ndns->claim) {
+			dev_dbg(dev, "claimed by %s, failing probe\n",
+				dev_name(ndns->claim));
+
+			return ERR_PTR(-ENXIO);
+		}
+	}
+
+	size = nvdimm_namespace_capacity(ndns);
+	if (size < ND_MIN_NAMESPACE_SIZE) {
+		dev_dbg(&ndns->dev, "%pa, too small must be at least %#x\n",
+				&size, ND_MIN_NAMESPACE_SIZE);
+		return ERR_PTR(-ENODEV);
+	}
+
+	if (is_namespace_pmem(&ndns->dev)) {
+		struct nd_namespace_pmem *nspm;
+
+		nspm = to_nd_namespace_pmem(&ndns->dev);
+		if (!nspm->uuid) {
+			dev_dbg(&ndns->dev, "%s: uuid not set\n", __func__);
+			return ERR_PTR(-ENODEV);
+		}
+	} else if (is_namespace_blk(&ndns->dev)) {
+		return ERR_PTR(-ENODEV); /* TODO */
+	}
+
+	return ndns;
+}
+EXPORT_SYMBOL(nvdimm_namespace_common_probe);
 
 static struct device **create_namespace_io(struct nd_region *nd_region)
 {
@@ -1099,7 +1223,7 @@ static struct device **create_namespace_io(struct nd_region *nd_region)
 		return NULL;
 	}
 
-	dev = &nsio->dev;
+	dev = &nsio->common.dev;
 	dev->type = &namespace_io_device_type;
 	dev->parent = &nd_region->dev;
 	res = &nsio->res;
@@ -1313,7 +1437,7 @@ static struct device **create_namespace_pmem(struct nd_region *nd_region)
 	if (!nspm)
 		return NULL;
 
-	dev = &nspm->nsio.dev;
+	dev = &nspm->nsio.common.dev;
 	dev->type = &namespace_pmem_device_type;
 	dev->parent = &nd_region->dev;
 	res = &nspm->nsio.res;
@@ -1346,7 +1470,7 @@ static struct device **create_namespace_pmem(struct nd_region *nd_region)
 	return devs;
 
  err:
-	namespace_pmem_release(&nspm->nsio.dev);
+	namespace_pmem_release(&nspm->nsio.common.dev);
 	return NULL;
 }
 
@@ -1385,7 +1509,7 @@ static struct device *nd_namespace_blk_create(struct nd_region *nd_region)
 	if (!nsblk)
 		return NULL;
 
-	dev = &nsblk->dev;
+	dev = &nsblk->common.dev;
 	dev->type = &namespace_blk_device_type;
 	nsblk->id = ida_simple_get(&nd_region->ns_ida, 0, 0, GFP_KERNEL);
 	if (nsblk->id < 0) {
@@ -1396,7 +1520,7 @@ static struct device *nd_namespace_blk_create(struct nd_region *nd_region)
 	dev->parent = &nd_region->dev;
 	dev->groups = nd_namespace_attribute_groups;
 
-	return &nsblk->dev;
+	return &nsblk->common.dev;
 }
 
 void nd_region_create_blk_seed(struct nd_region *nd_region)
@@ -1411,6 +1535,18 @@ void nd_region_create_blk_seed(struct nd_region *nd_region)
 		dev_err(&nd_region->dev, "failed to create blk namespace\n");
 	else
 		nd_device_register(nd_region->ns_seed);
+}
+
+void nd_region_create_btt_seed(struct nd_region *nd_region)
+{
+	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
+	nd_region->btt_seed = nd_btt_create(nd_region);
+	/*
+	 * Seed creation failures are not fatal, provisioning is simply
+	 * disabled until memory becomes available
+	 */
+	if (!nd_region->btt_seed)
+		dev_err(&nd_region->dev, "failed to create btt namespace\n");
 }
 
 static struct device **create_namespace_blk(struct nd_region *nd_region)
@@ -1446,7 +1582,7 @@ static struct device **create_namespace_blk(struct nd_region *nd_region)
 				if (!res)
 					goto err;
 				nd_dbg_dpa(nd_region, ndd, res, "%s assign\n",
-					dev_name(&nsblk->dev));
+					dev_name(&nsblk->common.dev));
 				break;
 			}
 		}
@@ -1462,7 +1598,7 @@ static struct device **create_namespace_blk(struct nd_region *nd_region)
 		nsblk = kzalloc(sizeof(*nsblk), GFP_KERNEL);
 		if (!nsblk)
 			goto err;
-		dev = &nsblk->dev;
+		dev = &nsblk->common.dev;
 		dev->type = &namespace_blk_device_type;
 		dev->parent = &nd_region->dev;
 		dev_set_name(dev, "namespace%d.%d", nd_region->id, count);
@@ -1482,7 +1618,7 @@ static struct device **create_namespace_blk(struct nd_region *nd_region)
 		if (!res)
 			goto err;
 		nd_dbg_dpa(nd_region, ndd, res, "%s assign\n",
-				dev_name(&nsblk->dev));
+				dev_name(&nsblk->common.dev));
 	}
 
 	dev_dbg(&nd_region->dev, "%s: discovered %d blk namespace%s\n",
@@ -1503,7 +1639,7 @@ static struct device **create_namespace_blk(struct nd_region *nd_region)
 		nsblk = kzalloc(sizeof(*nsblk), GFP_KERNEL);
 		if (!nsblk)
 			goto err;
-		dev = &nsblk->dev;
+		dev = &nsblk->common.dev;
 		dev->type = &namespace_blk_device_type;
 		dev->parent = &nd_region->dev;
 		devs[count++] = dev;
@@ -1514,7 +1650,7 @@ static struct device **create_namespace_blk(struct nd_region *nd_region)
 err:
 	for (i = 0; i < count; i++) {
 		nsblk = to_nd_namespace_blk(devs[i]);
-		namespace_blk_release(&nsblk->dev);
+		namespace_blk_release(&nsblk->common.dev);
 	}
 	kfree(devs);
 	return NULL;
