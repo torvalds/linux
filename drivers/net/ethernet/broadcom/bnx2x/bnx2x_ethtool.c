@@ -1230,6 +1230,7 @@ static int bnx2x_acquire_nvram_lock(struct bnx2x *bp)
 	if (!(val & (MCPR_NVM_SW_ARB_ARB_ARB1 << port))) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot get access to nvram interface\n");
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_NVRAM);
 		return -EBUSY;
 	}
 
