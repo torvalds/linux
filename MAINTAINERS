@@ -2498,7 +2498,7 @@ F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
 
 CEPH DISTRIBUTED FILE SYSTEM CLIENT
-M:	Yan, Zheng <zyan@redhat.com>
+M:	"Yan, Zheng" <zyan@redhat.com>
 M:	Sage Weil <sage@redhat.com>
 L:	ceph-devel@vger.kernel.org
 W:	http://ceph.com/
@@ -9105,7 +9105,7 @@ F:	arch/arm/mach-davinci/
 F:	drivers/i2c/busses/i2c-davinci.c
 
 TI DAVINCI SERIES MEDIA DRIVER
-M:	Lad, Prabhakar <prabhakar.csengg@gmail.com>
+M:	"Lad, Prabhakar" <prabhakar.csengg@gmail.com>
 L:	linux-media@vger.kernel.org
 W:	http://linuxtv.org/
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
@@ -9115,7 +9115,7 @@ F:	drivers/media/platform/davinci/
 F:	include/media/davinci/
 
 TI AM437X VPFE DRIVER
-M:	Lad, Prabhakar <prabhakar.csengg@gmail.com>
+M:	"Lad, Prabhakar" <prabhakar.csengg@gmail.com>
 L:	linux-media@vger.kernel.org
 W:	http://linuxtv.org/
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
@@ -9124,7 +9124,7 @@ S:	Maintained
 F:	drivers/media/platform/am437x/
 
 OV2659 OMNIVISION SENSOR DRIVER
-M:	Lad, Prabhakar <prabhakar.csengg@gmail.com>
+M:	"Lad, Prabhakar" <prabhakar.csengg@gmail.com>
 L:	linux-media@vger.kernel.org
 W:	http://linuxtv.org/
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
