@@ -1187,6 +1187,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	bank->irq = res->start;
 	bank->dev = dev;
 	bank->chip.dev = dev;
+	bank->chip.owner = THIS_MODULE;
 	bank->dbck_flag = pdata->dbck_flag;
 	bank->stride = pdata->bank_stride;
 	bank->width = pdata->bank_width;
