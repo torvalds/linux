@@ -219,6 +219,10 @@ struct i915_page_dma {
 	};
 };
 
+#define px_base(px) (&(px)->base)
+#define px_page(px) (px_base(px)->page)
+#define px_dma(px) (px_base(px)->daddr)
+
 struct i915_page_table {
 	struct i915_page_dma base;
 
@@ -481,8 +485,8 @@ static inline dma_addr_t
 i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
 {
 	return test_bit(n, ppgtt->pdp.used_pdpes) ?
-		ppgtt->pdp.page_directory[n]->base.daddr :
-		ppgtt->scratch_pd->base.daddr;
+		px_dma(ppgtt->pdp.page_directory[n]) :
+		px_dma(ppgtt->scratch_pd);
 }
 
 int i915_gem_gtt_init(struct drm_device *dev);

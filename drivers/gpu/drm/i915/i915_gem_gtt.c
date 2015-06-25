@@ -349,8 +349,13 @@ static void kunmap_page_dma(struct drm_device *dev, void *vaddr)
 	kunmap_atomic(vaddr);
 }
 
-#define kmap_px(px) kmap_page_dma(&(px)->base)
+#define kmap_px(px) kmap_page_dma(px_base(px))
 #define kunmap_px(ppgtt, vaddr) kunmap_page_dma((ppgtt)->base.dev, (vaddr))
+
+#define setup_px(dev, px) setup_page_dma((dev), px_base(px))
+#define cleanup_px(dev, px) cleanup_page_dma((dev), px_base(px))
+#define fill_px(dev, px, v) fill_page_dma((dev), px_base(px), (v))
+#define fill32_px(dev, px, v) fill_page_dma_32((dev), px_base(px), (v))
 
 static void fill_page_dma(struct drm_device *dev, struct i915_page_dma *p,
 			  const uint64_t val)
@@ -376,7 +381,7 @@ static void fill_page_dma_32(struct drm_device *dev, struct i915_page_dma *p,
 
 static void free_pt(struct drm_device *dev, struct i915_page_table *pt)
 {
-	cleanup_page_dma(dev, &pt->base);
+	cleanup_px(dev, pt);
 	kfree(pt->used_ptes);
 	kfree(pt);
 }
@@ -388,7 +393,7 @@ static void gen8_initialize_pt(struct i915_address_space *vm,
 
 	scratch_pte = gen8_pte_encode(vm->scratch.addr, I915_CACHE_LLC, true);
 
-	fill_page_dma(vm->dev, &pt->base, scratch_pte);
+	fill_px(vm->dev, pt, scratch_pte);
 }
 
 static struct i915_page_table *alloc_pt(struct drm_device *dev)
@@ -408,7 +413,7 @@ static struct i915_page_table *alloc_pt(struct drm_device *dev)
 	if (!pt->used_ptes)
 		goto fail_bitmap;
 
-	ret = setup_page_dma(dev, &pt->base);
+	ret = setup_px(dev, pt);
 	if (ret)
 		goto fail_page_m;
 
@@ -424,8 +429,8 @@ fail_bitmap:
 
 static void free_pd(struct drm_device *dev, struct i915_page_directory *pd)
 {
-	if (pd->base.page) {
-		cleanup_page_dma(dev, &pd->base);
+	if (px_page(pd)) {
+		cleanup_px(dev, pd);
 		kfree(pd->used_pdes);
 		kfree(pd);
 	}
@@ -445,7 +450,7 @@ static struct i915_page_directory *alloc_pd(struct drm_device *dev)
 	if (!pd->used_pdes)
 		goto fail_bitmap;
 
-	ret = setup_page_dma(dev, &pd->base);
+	ret = setup_px(dev, pd);
 	if (ret)
 		goto fail_page_m;
 
@@ -531,7 +536,7 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 
 		pt = pd->page_table[pde];
 
-		if (WARN_ON(!pt->base.page))
+		if (WARN_ON(!px_page(pt)))
 			continue;
 
 		last_pte = pte + num_entries;
@@ -603,7 +608,7 @@ static void __gen8_do_map_pt(gen8_pde_t * const pde,
 			     struct drm_device *dev)
 {
 	gen8_pde_t entry =
-		gen8_pde_encode(dev, pt->base.daddr, I915_CACHE_LLC);
+		gen8_pde_encode(dev, px_dma(pt), I915_CACHE_LLC);
 	*pde = entry;
 }
 
@@ -614,17 +619,17 @@ static void gen8_initialize_pd(struct i915_address_space *vm,
 		container_of(vm, struct i915_hw_ppgtt, base);
 	gen8_pde_t scratch_pde;
 
-	scratch_pde = gen8_pde_encode(vm->dev, ppgtt->scratch_pt->base.daddr,
+	scratch_pde = gen8_pde_encode(vm->dev, px_dma(ppgtt->scratch_pt),
 				      I915_CACHE_LLC);
 
-	fill_page_dma(vm->dev, &pd->base, scratch_pde);
+	fill_px(vm->dev, pd, scratch_pde);
 }
 
 static void gen8_free_page_tables(struct i915_page_directory *pd, struct drm_device *dev)
 {
 	int i;
 
-	if (!pd->base.page)
+	if (!px_page(pd))
 		return;
 
 	for_each_set_bit(i, pd->used_pdes, I915_PDES) {
@@ -983,7 +988,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	gen6_for_each_pde(unused, &ppgtt->pd, start, length, temp, pde) {
 		u32 expected;
 		gen6_pte_t *pt_vaddr;
-		dma_addr_t pt_addr = ppgtt->pd.page_table[pde]->base.daddr;
+		const dma_addr_t pt_addr = px_dma(ppgtt->pd.page_table[pde]);
 		pd_entry = readl(ppgtt->pd_addr + pde);
 		expected = (GEN6_PDE_ADDR_ENCODE(pt_addr) | GEN6_PDE_VALID);
 
@@ -1030,7 +1035,7 @@ static void gen6_write_pde(struct i915_page_directory *pd,
 		container_of(pd, struct i915_hw_ppgtt, pd);
 	u32 pd_entry;
 
-	pd_entry = GEN6_PDE_ADDR_ENCODE(pt->base.daddr);
+	pd_entry = GEN6_PDE_ADDR_ENCODE(px_dma(pt));
 	pd_entry |= GEN6_PDE_VALID;
 
 	writel(pd_entry, ppgtt->pd_addr + pde);
@@ -1279,7 +1284,7 @@ static void gen6_initialize_pt(struct i915_address_space *vm,
 
 	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true, 0);
 
-	fill_page_dma_32(vm->dev, &pt->base, scratch_pte);
+	fill32_px(vm->dev, pt, scratch_pte);
 }
 
 static int gen6_alloc_va_range(struct i915_address_space *vm,
