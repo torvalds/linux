@@ -55,6 +55,7 @@
 #include <linux/memory_hotplug.h>
 #include <linux/percpu-defs.h>
 #include <linux/slab.h>
+#include <linux/sysctl.h>
 
 #include <asm/page.h>
 #include <asm/pgalloc.h>
@@ -70,6 +71,46 @@
 #include <xen/balloon.h>
 #include <xen/features.h>
 #include <xen/page.h>
+
+static int xen_hotplug_unpopulated;
+
+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+
+static int zero;
+static int one = 1;
+
+static struct ctl_table balloon_table[] = {
+	{
+		.procname	= "hotplug_unpopulated",
+		.data		= &xen_hotplug_unpopulated,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1         = &zero,
+		.extra2         = &one,
+	},
+	{ }
+};
+
+static struct ctl_table balloon_root[] = {
+	{
+		.procname	= "balloon",
+		.mode		= 0555,
+		.child		= balloon_table,
+	},
+	{ }
+};
+
+static struct ctl_table xen_root[] = {
+	{
+		.procname	= "xen",
+		.mode		= 0555,
+		.child		= balloon_root,
+	},
+	{ }
+};
+
+#endif
 
 /*
  * balloon_process() state:
@@ -99,6 +140,7 @@ static xen_pfn_t frame_list[PAGE_SIZE / sizeof(unsigned long)];
 
 /* List of ballooned pages, threaded through the mem_map array. */
 static LIST_HEAD(ballooned_pages);
+static DECLARE_WAIT_QUEUE_HEAD(balloon_wq);
 
 /* Main work function, always executed in process context. */
 static void balloon_process(struct work_struct *work);
@@ -127,6 +169,7 @@ static void __balloon_append(struct page *page)
 		list_add(&page->lru, &ballooned_pages);
 		balloon_stats.balloon_low++;
 	}
+	wake_up(&balloon_wq);
 }
 
 static void balloon_append(struct page *page)
@@ -242,7 +285,8 @@ static enum bp_state reserve_additional_memory(void)
 	int nid, rc;
 	unsigned long balloon_hotplug;
 
-	credit = balloon_stats.target_pages - balloon_stats.total_pages;
+	credit = balloon_stats.target_pages + balloon_stats.target_unpopulated
+		- balloon_stats.total_pages;
 
 	/*
 	 * Already hotplugged enough pages?  Wait for them to be
@@ -323,7 +367,7 @@ static struct notifier_block xen_memory_nb = {
 static enum bp_state reserve_additional_memory(void)
 {
 	balloon_stats.target_pages = balloon_stats.current_pages;
-	return BP_DONE;
+	return BP_ECANCELED;
 }
 #endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
 
@@ -516,6 +560,28 @@ void balloon_set_new_target(unsigned long target)
 }
 EXPORT_SYMBOL_GPL(balloon_set_new_target);
 
+static int add_ballooned_pages(int nr_pages)
+{
+	enum bp_state st;
+
+	if (xen_hotplug_unpopulated) {
+		st = reserve_additional_memory();
+		if (st != BP_ECANCELED) {
+			mutex_unlock(&balloon_mutex);
+			wait_event(balloon_wq,
+				   !list_empty(&ballooned_pages));
+			mutex_lock(&balloon_mutex);
+			return 0;
+		}
+	}
+
+	st = decrease_reservation(nr_pages, GFP_USER);
+	if (st != BP_DONE)
+		return -ENOMEM;
+
+	return 0;
+}
+
 /**
  * alloc_xenballooned_pages - get pages that have been ballooned out
  * @nr_pages: Number of pages to get
@@ -526,27 +592,28 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 {
 	int pgno = 0;
 	struct page *page;
+	int ret;
+
 	mutex_lock(&balloon_mutex);
+
+	balloon_stats.target_unpopulated += nr_pages;
+
 	while (pgno < nr_pages) {
 		page = balloon_retrieve(true);
 		if (page) {
 			pages[pgno++] = page;
 		} else {
-			enum bp_state st;
-			st = decrease_reservation(nr_pages - pgno, GFP_USER);
-			if (st != BP_DONE)
+			ret = add_ballooned_pages(nr_pages - pgno);
+			if (ret < 0)
 				goto out_undo;
 		}
 	}
 	mutex_unlock(&balloon_mutex);
 	return 0;
  out_undo:
-	while (pgno)
-		balloon_append(pages[--pgno]);
-	/* Free the memory back to the kernel soon */
-	schedule_delayed_work(&balloon_worker, 0);
 	mutex_unlock(&balloon_mutex);
-	return -ENOMEM;
+	free_xenballooned_pages(pgno, pages);
+	return ret;
 }
 EXPORT_SYMBOL(alloc_xenballooned_pages);
 
@@ -565,6 +632,8 @@ void free_xenballooned_pages(int nr_pages, struct page **pages)
 		if (pages[i])
 			balloon_append(pages[i]);
 	}
+
+	balloon_stats.target_unpopulated -= nr_pages;
 
 	/* The balloon may be too large now. Shrink it if needed. */
 	if (current_credit())
@@ -623,6 +692,7 @@ static int __init balloon_init(void)
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
 	set_online_page_callback(&xen_online_page);
 	register_memory_notifier(&xen_memory_nb);
+	register_sysctl_table(xen_root);
 #endif
 
 	/*
