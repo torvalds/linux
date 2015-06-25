@@ -45,7 +45,7 @@ struct thread_map *thread_map__new_by_pid(pid_t pid)
 	threads = thread_map__alloc(items);
 	if (threads != NULL) {
 		for (i = 0; i < items; i++)
-			threads->map[i] = atoi(namelist[i]->d_name);
+			thread_map__set_pid(threads, i, atoi(namelist[i]->d_name));
 		threads->nr = items;
 	}
 
@@ -61,8 +61,8 @@ struct thread_map *thread_map__new_by_tid(pid_t tid)
 	struct thread_map *threads = thread_map__alloc(1);
 
 	if (threads != NULL) {
-		threads->map[0] = tid;
-		threads->nr	= 1;
+		thread_map__set_pid(threads, 0, tid);
+		threads->nr = 1;
 	}
 
 	return threads;
@@ -123,8 +123,10 @@ struct thread_map *thread_map__new_by_uid(uid_t uid)
 			threads = tmp;
 		}
 
-		for (i = 0; i < items; i++)
-			threads->map[threads->nr + i] = atoi(namelist[i]->d_name);
+		for (i = 0; i < items; i++) {
+			thread_map__set_pid(threads, threads->nr + i,
+					    atoi(namelist[i]->d_name));
+		}
 
 		for (i = 0; i < items; i++)
 			zfree(&namelist[i]);
@@ -201,7 +203,7 @@ static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
 		threads = nt;
 
 		for (i = 0; i < items; i++) {
-			threads->map[j++] = atoi(namelist[i]->d_name);
+			thread_map__set_pid(threads, j++, atoi(namelist[i]->d_name));
 			zfree(&namelist[i]);
 		}
 		threads->nr = total_tasks;
@@ -227,8 +229,8 @@ struct thread_map *thread_map__new_dummy(void)
 	struct thread_map *threads = thread_map__alloc(1);
 
 	if (threads != NULL) {
-		threads->map[0]	= -1;
-		threads->nr	= 1;
+		thread_map__set_pid(threads, 0, -1);
+		threads->nr = 1;
 	}
 	return threads;
 }
@@ -267,8 +269,8 @@ static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 			goto out_free_threads;
 
 		threads = nt;
-		threads->map[ntasks - 1] = tid;
-		threads->nr		 = ntasks;
+		thread_map__set_pid(threads, ntasks - 1, tid);
+		threads->nr = ntasks;
 	}
 out:
 	return threads;
@@ -301,7 +303,7 @@ size_t thread_map__fprintf(struct thread_map *threads, FILE *fp)
 	size_t printed = fprintf(fp, "%d thread%s: ",
 				 threads->nr, threads->nr > 1 ? "s" : "");
 	for (i = 0; i < threads->nr; ++i)
-		printed += fprintf(fp, "%s%d", i ? ", " : "", threads->map[i]);
+		printed += fprintf(fp, "%s%d", i ? ", " : "", thread_map__pid(threads, i));
 
 	return printed + fprintf(fp, "\n");
 }

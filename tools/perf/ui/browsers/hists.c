@@ -1902,8 +1902,23 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		case CTRL('c'):
 			goto out_free_stack;
 		case 'f':
-			if (!is_report_browser(hbt))
-				goto out_free_stack;
+			if (!is_report_browser(hbt)) {
+				struct perf_top *top = hbt->arg;
+
+				perf_evlist__toggle_enable(top->evlist);
+				/*
+				 * No need to refresh, resort/decay histogram
+				 * entries if we are not collecting samples:
+				 */
+				if (top->evlist->enabled) {
+					helpline = "Press 'f' to disable the events or 'h' to see other hotkeys";
+					hbt->refresh = delay_secs;
+				} else {
+					helpline = "Press 'f' again to re-enable the events";
+					hbt->refresh = 0;
+				}
+				continue;
+			}
 			/* Fall thru */
 		default:
 			helpline = "Press '?' for help on key bindings";

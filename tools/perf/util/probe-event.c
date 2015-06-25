@@ -249,8 +249,12 @@ static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 static bool kprobe_blacklist__listed(unsigned long address);
 static bool kprobe_warn_out_range(const char *symbol, unsigned long address)
 {
+	u64 etext_addr;
+
 	/* Get the address of _etext for checking non-probable text symbol */
-	if (kernel_get_symbol_address_by_name("_etext", false) < address)
+	etext_addr = kernel_get_symbol_address_by_name("_etext", false);
+
+	if (etext_addr != 0 && etext_addr < address)
 		pr_warning("%s is out of .text, skip it.\n", symbol);
 	else if (kprobe_blacklist__listed(address))
 		pr_warning("%s is blacklisted function, skip it.\n", symbol);

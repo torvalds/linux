@@ -1167,7 +1167,7 @@ retry_sample_id:
 			int group_fd;
 
 			if (!evsel->cgrp && !evsel->system_wide)
-				pid = threads->map[thread];
+				pid = thread_map__pid(threads, thread);
 
 			group_fd = get_group_fd(evsel, cpu, thread);
 retry_open:
