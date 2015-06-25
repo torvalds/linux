@@ -192,9 +192,8 @@ static gen8_pte_t gen8_pte_encode(dma_addr_t addr,
 	return pte;
 }
 
-static gen8_pde_t gen8_pde_encode(struct drm_device *dev,
-				  dma_addr_t addr,
-				  enum i915_cache_level level)
+static gen8_pde_t gen8_pde_encode(const dma_addr_t addr,
+				  const enum i915_cache_level level)
 {
 	gen8_pde_t pde = _PAGE_PRESENT | _PAGE_RW;
 	pde |= addr;
@@ -610,15 +609,6 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 		kunmap_px(ppgtt, pt_vaddr);
 }
 
-static void __gen8_do_map_pt(gen8_pde_t * const pde,
-			     struct i915_page_table *pt,
-			     struct drm_device *dev)
-{
-	gen8_pde_t entry =
-		gen8_pde_encode(dev, px_dma(pt), I915_CACHE_LLC);
-	*pde = entry;
-}
-
 static void gen8_initialize_pd(struct i915_address_space *vm,
 			       struct i915_page_directory *pd)
 {
@@ -626,7 +616,7 @@ static void gen8_initialize_pd(struct i915_address_space *vm,
 		container_of(vm, struct i915_hw_ppgtt, base);
 	gen8_pde_t scratch_pde;
 
-	scratch_pde = gen8_pde_encode(vm->dev, px_dma(ppgtt->scratch_pt),
+	scratch_pde = gen8_pde_encode(px_dma(ppgtt->scratch_pt),
 				      I915_CACHE_LLC);
 
 	fill_px(vm->dev, pd, scratch_pde);
@@ -911,7 +901,8 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 			set_bit(pde, pd->used_pdes);
 
 			/* Map the PDE to the page table */
-			__gen8_do_map_pt(page_directory + pde, pt, vm->dev);
+			page_directory[pde] = gen8_pde_encode(px_dma(pt),
+							      I915_CACHE_LLC);
 
 			/* NB: We haven't yet mapped ptes to pages. At this
 			 * point we're still relying on insert_entries() */
