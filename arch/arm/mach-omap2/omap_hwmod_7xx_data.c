@@ -819,8 +819,8 @@ static struct omap_hwmod dra7xx_gpmc_hwmod = {
 	.name		= "gpmc",
 	.class		= &dra7xx_gpmc_hwmod_class,
 	.clkdm_name	= "l3main1_clkdm",
-	.flags		= (HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET |
-			   HWMOD_SWSUP_SIDLE),
+	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
+	.flags		= HWMOD_SWSUP_SIDLE | DEBUG_OMAP_GPMC_HWMOD_FLAGS,
 	.main_clk	= "l3_iclk_div",
 	.prcm = {
 		.omap4 = {

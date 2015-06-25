@@ -227,7 +227,7 @@ static int imx_gpc_domain_alloc(struct irq_domain *domain,
 	return irq_domain_alloc_irqs_parent(domain, irq, nr_irqs, &parent_args);
 }
 
-static struct irq_domain_ops imx_gpc_domain_ops = {
+static const struct irq_domain_ops imx_gpc_domain_ops = {
 	.xlate	= imx_gpc_domain_xlate,
 	.alloc	= imx_gpc_domain_alloc,
 	.free	= irq_domain_free_irqs_common,

@@ -13,20 +13,25 @@
  * option) any later version.
  */
 
+#include <linux/delay.h>
+#include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
 
 #define PM_RSTC				0x1c
+#define PM_RSTS				0x20
 #define PM_WDOG				0x24
 
 #define PM_PASSWORD			0x5a000000
 
 #define PM_WDOG_TIME_SET		0x000fffff
 #define PM_RSTC_WRCFG_CLR		0xffffffcf
+#define PM_RSTS_HADWRH_SET		0x00000040
 #define PM_RSTC_WRCFG_SET		0x00000030
 #define PM_RSTC_WRCFG_FULL_RESET	0x00000020
 #define PM_RSTC_RESET			0x00000102
@@ -37,6 +42,7 @@
 struct bcm2835_wdt {
 	void __iomem		*base;
 	spinlock_t		lock;
+	struct notifier_block	restart_handler;
 };
 
 static unsigned int heartbeat;
@@ -106,6 +112,53 @@ static struct watchdog_device bcm2835_wdt_wdd = {
 	.timeout =	WDOG_TICKS_TO_SECS(PM_WDOG_TIME_SET),
 };
 
+static int
+bcm2835_restart(struct notifier_block *this, unsigned long mode, void *cmd)
+{
+	struct bcm2835_wdt *wdt = container_of(this, struct bcm2835_wdt,
+					       restart_handler);
+	u32 val;
+
+	/* use a timeout of 10 ticks (~150us) */
+	writel_relaxed(10 | PM_PASSWORD, wdt->base + PM_WDOG);
+	val = readl_relaxed(wdt->base + PM_RSTC);
+	val &= PM_RSTC_WRCFG_CLR;
+	val |= PM_PASSWORD | PM_RSTC_WRCFG_FULL_RESET;
+	writel_relaxed(val, wdt->base + PM_RSTC);
+
+	/* No sleeping, possibly atomic. */
+	mdelay(1);
+
+	return 0;
+}
+
+/*
+ * We can't really power off, but if we do the normal reset scheme, and
+ * indicate to bootcode.bin not to reboot, then most of the chip will be
+ * powered off.
+ */
+static void bcm2835_power_off(void)
+{
+	struct device_node *np =
+		of_find_compatible_node(NULL, NULL, "brcm,bcm2835-pm-wdt");
+	struct platform_device *pdev = of_find_device_by_node(np);
+	struct bcm2835_wdt *wdt = platform_get_drvdata(pdev);
+	u32 val;
+
+	/*
+	 * We set the watchdog hard reset bit here to distinguish this reset
+	 * from the normal (full) reset. bootcode.bin will not reboot after a
+	 * hard reset.
+	 */
+	val = readl_relaxed(wdt->base + PM_RSTS);
+	val &= PM_RSTC_WRCFG_CLR;
+	val |= PM_PASSWORD | PM_RSTS_HADWRH_SET;
+	writel_relaxed(val, wdt->base + PM_RSTS);
+
+	/* Continue with normal reset mechanism */
+	bcm2835_restart(&wdt->restart_handler, REBOOT_HARD, NULL);
+}
+
 static int bcm2835_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -136,6 +189,12 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	wdt->restart_handler.notifier_call = bcm2835_restart;
+	wdt->restart_handler.priority = 128;
+	register_restart_handler(&wdt->restart_handler);
+	if (pm_power_off == NULL)
+		pm_power_off = bcm2835_power_off;
+
 	dev_info(dev, "Broadcom BCM2835 watchdog timer");
 	return 0;
 }
@@ -144,6 +203,9 @@ static int bcm2835_wdt_remove(struct platform_device *pdev)
 {
 	struct bcm2835_wdt *wdt = platform_get_drvdata(pdev);
 
+	unregister_restart_handler(&wdt->restart_handler);
+	if (pm_power_off == bcm2835_power_off)
+		pm_power_off = NULL;
 	watchdog_unregister_device(&bcm2835_wdt_wdd);
 	iounmap(wdt->base);
 

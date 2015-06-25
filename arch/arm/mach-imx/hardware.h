@@ -22,6 +22,7 @@
 
 #ifndef __ASSEMBLY__
 #include <asm/io.h>
+#include <soc/imx/revision.h>
 #endif
 #include <asm/sizes.h>
 
