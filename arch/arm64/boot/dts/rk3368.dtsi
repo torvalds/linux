@@ -1029,7 +1029,7 @@
 					status = "okay";
 					temp-limit-enable = <1>;
 					target-temp = <80>;
-					min_temp_limit = <216>;
+					min_temp_limit = <216000>;
 					normal-temp-limit = <
 					/*delta-temp    delta-freq*/
 						3	96000
@@ -1061,7 +1061,7 @@
 					status = "okay";
 					temp-limit-enable = <1>;
 					target-temp = <80>;
-					min_temp_limit = <216>;
+					min_temp_limit = <216000>;
 					normal-temp-limit = <
 					/*delta-temp    delta-freq*/
 						3	96000
