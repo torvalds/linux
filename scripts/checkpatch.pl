@@ -5165,6 +5165,29 @@ sub process {
 			     "Prefer ether_addr_equal() or ether_addr_equal_unaligned() over memcmp()\n" . "$here\n$stat\n")
 		}
 
+# check for memset(foo, 0x0, ETH_ALEN) that could be eth_zero_addr
+# check for memset(foo, 0xFF, ETH_ALEN) that could be eth_broadcast_addr
+		if ($^V && $^V ge 5.10.0 &&
+		    defined $stat &&
+		    $stat =~ /^\+(?:.*?)\bmemset\s*\(\s*$FuncArg\s*,\s*$FuncArg\s*\,\s*ETH_ALEN\s*\)/) {
+
+			my $ms_val = $7;
+
+			if ($ms_val =~ /^(?:0x|)0+$/i) {
+				if (WARN("PREFER_ETH_ZERO_ADDR",
+					 "Prefer eth_zero_addr over memset()\n" . "$here\n$stat\n") &&
+				    $fix) {
+					$fixed[$fixlinenr] =~ s/\bmemset\s*\(\s*$FuncArg\s*,\s*$FuncArg\s*,\s*ETH_ALEN\s*\)/eth_zero_addr($2)/;
+				}
+			} elsif ($ms_val =~ /^(?:0xff|255)$/i) {
+				if (WARN("PREFER_ETH_BROADCAST_ADDR",
+					 "Prefer eth_broadcast_addr() over memset()\n" . "$here\n$stat\n") &&
+				    $fix) {
+					$fixed[$fixlinenr] =~ s/\bmemset\s*\(\s*$FuncArg\s*,\s*$FuncArg\s*,\s*ETH_ALEN\s*\)/eth_broadcast_addr($2)/;
+				}
+			}
+		}
+
 # typecasts on min/max could be min_t/max_t
 		if ($^V && $^V ge 5.10.0 &&
 		    defined $stat &&
