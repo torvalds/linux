@@ -8,7 +8,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/ptrace-abi.h>
 #include <sysdep/ptrace.h>
 
 struct pt_regs {
