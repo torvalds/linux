@@ -638,7 +638,7 @@ static const struct dev_pm_ops pata_s3c_pm_ops = {
 #endif
 
 /* driver device registration */
-static struct platform_device_id pata_s3c_driver_ids[] = {
+static const struct platform_device_id pata_s3c_driver_ids[] = {
 	{
 		.name		= "s3c64xx-pata",
 		.driver_data	= TYPE_S3C64XX,
