@@ -197,8 +197,8 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%P	global pid (init PID namespace)
 	%i	tid
 	%I	global tid (init PID namespace)
-	%u	uid
-	%g	gid
+	%u	uid (in initial user namespace)
+	%g	gid (in initial user namespace)
 	%d	dump mode, matches PR_SET_DUMPABLE and
 		/proc/sys/fs/suid_dumpable
 	%s	signal number

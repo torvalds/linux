@@ -209,11 +209,15 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 				break;
 			/* uid */
 			case 'u':
-				err = cn_printf(cn, "%d", cred->uid);
+				err = cn_printf(cn, "%u",
+						from_kuid(&init_user_ns,
+							  cred->uid));
 				break;
 			/* gid */
 			case 'g':
-				err = cn_printf(cn, "%d", cred->gid);
+				err = cn_printf(cn, "%u",
+						from_kgid(&init_user_ns,
+							  cred->gid));
 				break;
 			case 'd':
 				err = cn_printf(cn, "%d",
