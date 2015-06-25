@@ -3296,7 +3296,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		break;
 	default:
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt5645 or rt5650\n",
+			"Device with ID register %#x is not rt5645 or rt5650\n",
 			val);
 		return -ENODEV;
 	}
