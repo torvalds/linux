@@ -1,4 +1,4 @@
-What:		/sys/firmware/dmi/
+What:		/sys/firmware/dmi/entries/
 Date:		February 2011
 Contact:	Mike Waychison <mikew@google.com>
 Description:
