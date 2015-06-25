@@ -840,7 +840,11 @@ unsigned int get_next_ino(void)
 	}
 #endif
 
-	*p = ++res;
+	res++;
+	/* get_next_ino should not provide a 0 inode number */
+	if (unlikely(!res))
+		res++;
+	*p = res;
 	put_cpu_var(last_ino);
 	return res;
 }
