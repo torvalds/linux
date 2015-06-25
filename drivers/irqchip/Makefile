@@ -47,3 +47,5 @@ obj-$(CONFIG_KEYSTONE_IRQ)		+= irq-keystone.o
 obj-$(CONFIG_MIPS_GIC)			+= irq-mips-gic.o
 obj-$(CONFIG_ARCH_MEDIATEK)		+= irq-mtk-sysirq.o
 obj-$(CONFIG_ARCH_DIGICOLOR)		+= irq-digicolor.o
+obj-$(CONFIG_RENESAS_H8300H_INTC)	+= irq-renesas-h8300h.o
+obj-$(CONFIG_RENESAS_H8S_INTC)		+= irq-renesas-h8s.o
