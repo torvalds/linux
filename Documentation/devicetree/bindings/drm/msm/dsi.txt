@@ -41,6 +41,9 @@ Optional properties:
 - pinctrl-names: the pin control state names; should contain "default"
 - pinctrl-0: the default pinctrl state (active)
 - pinctrl-n: the "sleep" pinctrl state
+- port: DSI controller output port. This contains one endpoint subnode, with its
+  remote-endpoint set to the phandle of the connected panel's endpoint.
+  See Documentation/devicetree/bindings/graph.txt for device graph info.
 
 DSI PHY:
 Required properties:
@@ -113,6 +116,18 @@ Example:
 
 			power-supply = <...>;
 			backlight = <...>;
+
+			port {
+				panel_in: endpoint {
+					remote-endpoint = <&dsi0_out>;
+				};
+			};
+		};
+
+		port {
+			dsi0_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
 		};
 	};
 

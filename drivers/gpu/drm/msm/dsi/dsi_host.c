@@ -21,6 +21,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
 #include <video/mipi_display.h>
@@ -1402,7 +1403,7 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 	msm_host->format = dsi->format;
 	msm_host->mode_flags = dsi->mode_flags;
 
-	msm_host->panel_node = dsi->dev.of_node;
+	WARN_ON(dsi->dev.of_node != msm_host->panel_node);
 
 	/* Some gpios defined in panel DT need to be controlled by host */
 	ret = dsi_host_init_panel_gpios(msm_host, &dsi->dev);
@@ -1452,6 +1453,48 @@ static struct mipi_dsi_host_ops dsi_host_ops = {
 	.transfer = dsi_host_transfer,
 };
 
+static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
+{
+	struct device *dev = &msm_host->pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct device_node *endpoint, *panel_node;
+	int ret;
+
+	ret = of_property_read_u32(np, "qcom,dsi-host-index", &msm_host->id);
+	if (ret) {
+		dev_err(dev, "%s: host index not specified, ret=%d\n",
+			__func__, ret);
+		return ret;
+	}
+
+	/*
+	 * Get the first endpoint node. In our case, dsi has one output port
+	 * to which the panel is connected. Don't return an error if a port
+	 * isn't defined. It's possible that there is nothing connected to
+	 * the dsi output.
+	 */
+	endpoint = of_graph_get_next_endpoint(np, NULL);
+	if (!endpoint) {
+		dev_dbg(dev, "%s: no endpoint\n", __func__);
+		return 0;
+	}
+
+	/* Get panel node from the output port's endpoint data */
+	panel_node = of_graph_get_remote_port_parent(endpoint);
+	if (!panel_node) {
+		dev_err(dev, "%s: no valid device\n", __func__);
+		of_node_put(endpoint);
+		return -ENODEV;
+	}
+
+	of_node_put(endpoint);
+	of_node_put(panel_node);
+
+	msm_host->panel_node = panel_node;
+
+	return 0;
+}
+
 int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 {
 	struct msm_dsi_host *msm_host = NULL;
@@ -1466,15 +1509,13 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-				"qcom,dsi-host-index", &msm_host->id);
+	msm_host->pdev = pdev;
+
+	ret = dsi_host_parse_dt(msm_host);
 	if (ret) {
-		dev_err(&pdev->dev,
-			"%s: host index not specified, ret=%d\n",
-			__func__, ret);
+		pr_err("%s: failed to parse dt\n", __func__);
 		goto fail;
 	}
-	msm_host->pdev = pdev;
 
 	ret = dsi_clk_init(msm_host);
 	if (ret) {
@@ -1582,7 +1623,6 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
-	struct device_node *node;
 	int ret;
 
 	/* Register mipi dsi host */
@@ -1600,18 +1640,12 @@ int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 		 * It makes sure panel is connected when fbcon detects
 		 * connector status and gets the proper display mode to
 		 * create framebuffer.
+		 * Don't try to defer if there is nothing connected to the dsi
+		 * output
 		 */
-		if (check_defer) {
-			node = of_get_child_by_name(msm_host->pdev->dev.of_node,
-							"panel");
-			if (node) {
-				if (!of_drm_find_panel(node)) {
-					of_node_put(node);
-					return -EPROBE_DEFER;
-				}
-
-				of_node_put(node);
-			}
+		if (check_defer && msm_host->panel_node) {
+			if (!of_drm_find_panel(msm_host->panel_node))
+				return -EPROBE_DEFER;
 		}
 	}
 
