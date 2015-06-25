@@ -198,7 +198,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct i915_vma *vma;
-	size_t total_obj_size, total_gtt_size;
+	u64 total_obj_size, total_gtt_size;
 	int count, ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -231,7 +231,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	seq_printf(m, "Total %d objects, %zu bytes, %zu GTT size\n",
+	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
 	return 0;
 }
@@ -253,7 +253,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
-	size_t total_obj_size, total_gtt_size;
+	u64 total_obj_size, total_gtt_size;
 	LIST_HEAD(stolen);
 	int count, ret;
 
@@ -292,7 +292,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	seq_printf(m, "Total %d objects, %zu bytes, %zu GTT size\n",
+	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
 	return 0;
 }
@@ -310,10 +310,10 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 
 struct file_stats {
 	struct drm_i915_file_private *file_priv;
-	int count;
-	size_t total, unbound;
-	size_t global, shared;
-	size_t active, inactive;
+	unsigned long count;
+	u64 total, unbound;
+	u64 global, shared;
+	u64 active, inactive;
 };
 
 static int per_file_stats(int id, void *ptr, void *data)
@@ -370,7 +370,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 
 #define print_file_stats(m, name, stats) do { \
 	if (stats.count) \
-		seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu shared, %zu unbound)\n", \
+		seq_printf(m, "%s: %lu objects, %llu bytes (%llu active, %llu inactive, %llu global, %llu shared, %llu unbound)\n", \
 			   name, \
 			   stats.count, \
 			   stats.total, \
@@ -420,7 +420,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 count, mappable_count, purgeable_count;
-	size_t size, mappable_size, purgeable_size;
+	u64 size, mappable_size, purgeable_size;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_file *file;
@@ -437,17 +437,17 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 
 	size = count = mappable_size = mappable_count = 0;
 	count_objects(&dev_priv->mm.bound_list, global_list);
-	seq_printf(m, "%u [%u] objects, %zu [%zu] bytes in gtt\n",
+	seq_printf(m, "%u [%u] objects, %llu [%llu] bytes in gtt\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
 	count_vmas(&vm->active_list, mm_list);
-	seq_printf(m, "  %u [%u] active objects, %zu [%zu] bytes\n",
+	seq_printf(m, "  %u [%u] active objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
 	count_vmas(&vm->inactive_list, mm_list);
-	seq_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
+	seq_printf(m, "  %u [%u] inactive objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = purgeable_size = purgeable_count = 0;
@@ -456,7 +456,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		if (obj->madv == I915_MADV_DONTNEED)
 			purgeable_size += obj->base.size, ++purgeable_count;
 	}
-	seq_printf(m, "%u unbound objects, %zu bytes\n", count, size);
+	seq_printf(m, "%u unbound objects, %llu bytes\n", count, size);
 
 	size = count = mappable_size = mappable_count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
@@ -473,16 +473,16 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 			++purgeable_count;
 		}
 	}
-	seq_printf(m, "%u purgeable objects, %zu bytes\n",
+	seq_printf(m, "%u purgeable objects, %llu bytes\n",
 		   purgeable_count, purgeable_size);
-	seq_printf(m, "%u pinned mappable objects, %zu bytes\n",
+	seq_printf(m, "%u pinned mappable objects, %llu bytes\n",
 		   mappable_count, mappable_size);
-	seq_printf(m, "%u fault mappable objects, %zu bytes\n",
+	seq_printf(m, "%u fault mappable objects, %llu bytes\n",
 		   count, size);
 
-	seq_printf(m, "%zu [%lu] gtt total\n",
+	seq_printf(m, "%llu [%llu] gtt total\n",
 		   dev_priv->gtt.base.total,
-		   dev_priv->gtt.mappable_end - dev_priv->gtt.base.start);
+		   (u64)dev_priv->gtt.mappable_end - dev_priv->gtt.base.start);
 
 	seq_putc(m, '\n');
 	print_batch_pool_stats(m, dev_priv);
@@ -519,7 +519,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 	uintptr_t list = (uintptr_t) node->info_ent->data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
-	size_t total_obj_size, total_gtt_size;
+	u64 total_obj_size, total_gtt_size;
 	int count, ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -541,7 +541,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 
 	mutex_unlock(&dev->struct_mutex);
 
-	seq_printf(m, "Total %d objects, %zu bytes, %zu GTT size\n",
+	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
 
 	return 0;

@@ -2112,7 +2112,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 void i915_gem_init_global_gtt(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long gtt_size, mappable_size;
+	u64 gtt_size, mappable_size;
 
 	gtt_size = dev_priv->gtt.base.total;
 	mappable_size = dev_priv->gtt.mappable_end;
@@ -2369,13 +2369,13 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 }
 
 static int gen8_gmch_probe(struct drm_device *dev,
-			   size_t *gtt_total,
+			   u64 *gtt_total,
 			   size_t *stolen,
 			   phys_addr_t *mappable_base,
-			   unsigned long *mappable_end)
+			   u64 *mappable_end)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned int gtt_size;
+	u64 gtt_size;
 	u16 snb_gmch_ctl;
 	int ret;
 
@@ -2417,10 +2417,10 @@ static int gen8_gmch_probe(struct drm_device *dev,
 }
 
 static int gen6_gmch_probe(struct drm_device *dev,
-			   size_t *gtt_total,
+			   u64 *gtt_total,
 			   size_t *stolen,
 			   phys_addr_t *mappable_base,
-			   unsigned long *mappable_end)
+			   u64 *mappable_end)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned int gtt_size;
@@ -2434,7 +2434,7 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	 * a coarse sanity check.
 	 */
 	if ((*mappable_end < (64<<20) || (*mappable_end > (512<<20)))) {
-		DRM_ERROR("Unknown GMADR size (%lx)\n",
+		DRM_ERROR("Unknown GMADR size (%llx)\n",
 			  dev_priv->gtt.mappable_end);
 		return -ENXIO;
 	}
@@ -2468,10 +2468,10 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 }
 
 static int i915_gmch_probe(struct drm_device *dev,
-			   size_t *gtt_total,
+			   u64 *gtt_total,
 			   size_t *stolen,
 			   phys_addr_t *mappable_base,
-			   unsigned long *mappable_end)
+			   u64 *mappable_end)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
@@ -2536,9 +2536,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	gtt->base.dev = dev;
 
 	/* GMADR is the PCI mmio aperture into the global GTT. */
-	DRM_INFO("Memory usable by graphics device = %zdM\n",
+	DRM_INFO("Memory usable by graphics device = %lluM\n",
 		 gtt->base.total >> 20);
-	DRM_DEBUG_DRIVER("GMADR size = %ldM\n", gtt->mappable_end >> 20);
+	DRM_DEBUG_DRIVER("GMADR size = %lldM\n", gtt->mappable_end >> 20);
 	DRM_DEBUG_DRIVER("GTT stolen size = %zdM\n", gtt->stolen_size >> 20);
 #ifdef CONFIG_INTEL_IOMMU
 	if (intel_iommu_gfx_mapped)
