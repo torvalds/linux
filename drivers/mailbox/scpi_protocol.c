@@ -574,6 +574,29 @@ int scpi_ddr_get_clk_rate(void)
 }
 EXPORT_SYMBOL_GPL(scpi_ddr_get_clk_rate);
 
+int scpi_thermal_get_temperature(void)
+{
+	struct scpi_data_buf sdata;
+	struct rockchip_mbox_msg mdata;
+	struct __packed1 {
+		u32 status;
+	} tx_buf;
+
+	struct __packed2 {
+		u32 status;
+		u32 tsadc_data;
+	} rx_buf;
+
+	tx_buf.status = 0;
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_THERMAL,
+			SCPI_THERMAL_GET_TSADC_DATA, tx_buf, rx_buf);
+	if (scpi_execute_cmd(&sdata))
+		return 0;
+
+	return rx_buf.tsadc_data;
+}
+EXPORT_SYMBOL_GPL(scpi_thermal_get_temperature);
+
 static struct of_device_id mobx_scpi_of_match[] = {
 	{ .compatible = "rockchip,mbox-scpi"},
 	{ },

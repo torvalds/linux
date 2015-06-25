@@ -47,4 +47,5 @@ int scpi_ddr_set_auto_self_refresh(u32 en);
 int scpi_ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0,
 			   struct ddr_bw_info *ddr_bw_ch1);
 int scpi_ddr_get_clk_rate(void);
+int scpi_thermal_get_temperature(void);
 

@@ -97,3 +97,8 @@ enum scpi_std_cmd {
 	SCPI_CMD_COUNT
 };
 
+enum scpi_thermal_cmd {
+	SCPI_THERMAL_GET_TSADC_DATA,
+	SCPI_THERMAL_COUNT
+};
+
