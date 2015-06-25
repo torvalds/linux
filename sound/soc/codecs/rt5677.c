@@ -5209,7 +5209,7 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 	regmap_read(rt5677->regmap, RT5677_VENDOR_ID2, &val);
 	if (val != RT5677_DEVICE_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt5677\n", val);
+			"Device with ID register %#x is not rt5677\n", val);
 		return -ENODEV;
 	}
 
