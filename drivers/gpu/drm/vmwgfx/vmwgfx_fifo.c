@@ -310,7 +310,8 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
  * Returns:
  *   Pointer to the fifo, or null on error (possible hardware hang).
  */
-void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes)
+static void *vmw_local_fifo_reserve(struct vmw_private *dev_priv,
+				    uint32_t bytes)
 {
 	struct vmw_fifo_state *fifo_state = &dev_priv->fifo;
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
@@ -389,7 +390,27 @@ void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes)
 out_err:
 	fifo_state->reserved_size = 0;
 	mutex_unlock(&fifo_state->fifo_mutex);
+
 	return NULL;
+}
+
+void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes)
+{
+	void *ret;
+
+	if (dev_priv->cman)
+		ret = vmw_cmdbuf_reserve(dev_priv->cman, bytes,
+					 SVGA3D_INVALID_ID, false, NULL);
+	else
+		ret = vmw_local_fifo_reserve(dev_priv, bytes);
+	if (IS_ERR_OR_NULL(ret)) {
+		DRM_ERROR("Fifo reserve failure of %u bytes.\n",
+			  (unsigned) bytes);
+		dump_stack();
+		return NULL;
+	}
+
+	return ret;
 }
 
 static void vmw_fifo_res_copy(struct vmw_fifo_state *fifo_state,
@@ -434,7 +455,7 @@ static void vmw_fifo_slow_copy(struct vmw_fifo_state *fifo_state,
 	}
 }
 
-void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
+void vmw_local_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
 {
 	struct vmw_fifo_state *fifo_state = &dev_priv->fifo;
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
@@ -480,6 +501,46 @@ void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
 	mutex_unlock(&fifo_state->fifo_mutex);
 }
 
+void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
+{
+	if (dev_priv->cman)
+		vmw_cmdbuf_commit(dev_priv->cman, bytes, NULL, false);
+	else
+		vmw_local_fifo_commit(dev_priv, bytes);
+}
+
+
+/**
+ * vmw_fifo_commit_flush - Commit fifo space and flush any buffered commands.
+ *
+ * @dev_priv: Pointer to device private structure.
+ * @bytes: Number of bytes to commit.
+ */
+static void vmw_fifo_commit_flush(struct vmw_private *dev_priv, uint32_t bytes)
+{
+	if (dev_priv->cman)
+		vmw_cmdbuf_commit(dev_priv->cman, bytes, NULL, true);
+	else
+		vmw_local_fifo_commit(dev_priv, bytes);
+}
+
+/**
+ * vmw_fifo_flush - Flush any buffered commands and make sure command processing
+ * starts.
+ *
+ * @dev_priv: Pointer to device private structure.
+ * @interruptible: Whether to wait interruptible if function needs to sleep.
+ */
+int vmw_fifo_flush(struct vmw_private *dev_priv, bool interruptible)
+{
+	might_sleep();
+
+	if (dev_priv->cman)
+		return vmw_cmdbuf_cur_flush(dev_priv->cman, interruptible);
+	else
+		return 0;
+}
+
 int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 {
 	struct vmw_fifo_state *fifo_state = &dev_priv->fifo;
@@ -517,7 +578,7 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 	    ((unsigned long)fm + sizeof(__le32));
 
 	iowrite32(*seqno, &cmd_fence->fence);
-	vmw_fifo_commit(dev_priv, bytes);
+	vmw_fifo_commit_flush(dev_priv, bytes);
 	(void) vmw_marker_push(&fifo_state->marker_queue, *seqno);
 	vmw_update_seqno(dev_priv, fifo_state);
 

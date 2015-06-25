@@ -56,6 +56,9 @@ irqreturn_t vmw_irq_handler(int irq, void *arg)
 	if (masked_status & SVGA_IRQFLAG_FIFO_PROGRESS)
 		wake_up_all(&dev_priv->fifo_queue);
 
+	if (masked_status & (SVGA_IRQFLAG_COMMAND_BUFFER |
+			     SVGA_IRQFLAG_ERROR))
+		vmw_cmdbuf_tasklet_schedule(dev_priv->cman);
 
 	return IRQ_HANDLED;
 }
@@ -131,8 +134,16 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	 * Block command submission while waiting for idle.
 	 */
 
-	if (fifo_idle)
+	if (fifo_idle) {
 		down_read(&fifo_state->rwsem);
+		if (dev_priv->cman) {
+			ret = vmw_cmdbuf_idle(dev_priv->cman, interruptible,
+					      10*HZ);
+			if (ret)
+				goto out_err;
+		}
+	}
+
 	signal_seq = atomic_read(&dev_priv->marker_seq);
 	ret = 0;
 
@@ -171,6 +182,7 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 		iowrite32(signal_seq, fifo_mem + SVGA_FIFO_FENCE);
 	}
 	wake_up_all(&dev_priv->fence_queue);
+out_err:
 	if (fifo_idle)
 		up_read(&fifo_state->rwsem);
 
@@ -314,4 +326,31 @@ void vmw_irq_uninstall(struct drm_device *dev)
 
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
+}
+
+void vmw_generic_waiter_add(struct vmw_private *dev_priv,
+			    u32 flag, int *waiter_count)
+{
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
+	if ((*waiter_count)++ == 0) {
+		outl(flag, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
+		dev_priv->irq_mask |= flag;
+		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
+	}
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
+}
+
+void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
+			       u32 flag, int *waiter_count)
+{
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
+	if (--(*waiter_count) == 0) {
+		dev_priv->irq_mask &= ~flag;
+		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
+	}
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
 }

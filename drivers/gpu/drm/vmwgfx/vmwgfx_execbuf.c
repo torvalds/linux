@@ -2417,7 +2417,126 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 	}
 }
 
+/**
+ * vmw_execbuf_submit_fifo - Patch a command batch and submit it using
+ * the fifo.
+ *
+ * @dev_priv: Pointer to a device private structure.
+ * @kernel_commands: Pointer to the unpatched command batch.
+ * @command_size: Size of the unpatched command batch.
+ * @sw_context: Structure holding the relocation lists.
+ *
+ * Side effects: If this function returns 0, then the command batch
+ * pointed to by @kernel_commands will have been modified.
+ */
+static int vmw_execbuf_submit_fifo(struct vmw_private *dev_priv,
+				   void *kernel_commands,
+				   u32 command_size,
+				   struct vmw_sw_context *sw_context)
+{
+	void *cmd = vmw_fifo_reserve(dev_priv, command_size);
 
+	if (!cmd) {
+		DRM_ERROR("Failed reserving fifo space for commands.\n");
+		return -ENOMEM;
+	}
+
+	vmw_apply_relocations(sw_context);
+	memcpy(cmd, kernel_commands, command_size);
+	vmw_resource_relocations_apply(cmd, &sw_context->res_relocations);
+	vmw_resource_relocations_free(&sw_context->res_relocations);
+	vmw_fifo_commit(dev_priv, command_size);
+
+	return 0;
+}
+
+/**
+ * vmw_execbuf_submit_cmdbuf - Patch a command batch and submit it using
+ * the command buffer manager.
+ *
+ * @dev_priv: Pointer to a device private structure.
+ * @header: Opaque handle to the command buffer allocation.
+ * @command_size: Size of the unpatched command batch.
+ * @sw_context: Structure holding the relocation lists.
+ *
+ * Side effects: If this function returns 0, then the command buffer
+ * represented by @header will have been modified.
+ */
+static int vmw_execbuf_submit_cmdbuf(struct vmw_private *dev_priv,
+				     struct vmw_cmdbuf_header *header,
+				     u32 command_size,
+				     struct vmw_sw_context *sw_context)
+{
+	void *cmd = vmw_cmdbuf_reserve(dev_priv->cman, command_size,
+				       SVGA3D_INVALID_ID, false, header);
+
+	vmw_apply_relocations(sw_context);
+	vmw_resource_relocations_apply(cmd, &sw_context->res_relocations);
+	vmw_resource_relocations_free(&sw_context->res_relocations);
+	vmw_cmdbuf_commit(dev_priv->cman, command_size, header, false);
+
+	return 0;
+}
+
+/**
+ * vmw_execbuf_cmdbuf - Prepare, if possible, a user-space command batch for
+ * submission using a command buffer.
+ *
+ * @dev_priv: Pointer to a device private structure.
+ * @user_commands: User-space pointer to the commands to be submitted.
+ * @command_size: Size of the unpatched command batch.
+ * @header: Out parameter returning the opaque pointer to the command buffer.
+ *
+ * This function checks whether we can use the command buffer manager for
+ * submission and if so, creates a command buffer of suitable size and
+ * copies the user data into that buffer.
+ *
+ * On successful return, the function returns a pointer to the data in the
+ * command buffer and *@header is set to non-NULL.
+ * If command buffers could not be used, the function will return the value
+ * of @kernel_commands on function call. That value may be NULL. In that case,
+ * the value of *@header will be set to NULL.
+ * If an error is encountered, the function will return a pointer error value.
+ * If the function is interrupted by a signal while sleeping, it will return
+ * -ERESTARTSYS casted to a pointer error value.
+ */
+void *vmw_execbuf_cmdbuf(struct vmw_private *dev_priv,
+			 void __user *user_commands,
+			 void *kernel_commands,
+			 u32 command_size,
+			 struct vmw_cmdbuf_header **header)
+{
+	size_t cmdbuf_size;
+	int ret;
+
+	*header = NULL;
+	if (!dev_priv->cman || kernel_commands)
+		return kernel_commands;
+
+	if (command_size > SVGA_CB_MAX_SIZE) {
+		DRM_ERROR("Command buffer is too large.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* If possible, add a little space for fencing. */
+	cmdbuf_size = command_size + 512;
+	cmdbuf_size = min_t(size_t, cmdbuf_size, SVGA_CB_MAX_SIZE);
+	kernel_commands = vmw_cmdbuf_alloc(dev_priv->cman, cmdbuf_size,
+					   true, header);
+	if (IS_ERR(kernel_commands))
+		return kernel_commands;
+
+	ret = copy_from_user(kernel_commands, user_commands,
+			     command_size);
+	if (ret) {
+		DRM_ERROR("Failed copying commands.\n");
+		vmw_cmdbuf_header_free(*header);
+		*header = NULL;
+		return ERR_PTR(-EFAULT);
+	}
+
+	return kernel_commands;
+}
 
 int vmw_execbuf_process(struct drm_file *file_priv,
 			struct vmw_private *dev_priv,
@@ -2432,18 +2551,33 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	struct vmw_fence_obj *fence = NULL;
 	struct vmw_resource *error_resource;
 	struct list_head resource_list;
+	struct vmw_cmdbuf_header *header;
 	struct ww_acquire_ctx ticket;
 	uint32_t handle;
-	void *cmd;
 	int ret;
 
+     	if (throttle_us) {
+		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.marker_queue,
+				   throttle_us);
+		
+		if (ret)
+			return ret;
+	}
+	
+	kernel_commands = vmw_execbuf_cmdbuf(dev_priv, user_commands,
+					     kernel_commands, command_size,
+					     &header);
+	if (IS_ERR(kernel_commands))
+		return PTR_ERR(kernel_commands);
+
 	ret = mutex_lock_interruptible(&dev_priv->cmdbuf_mutex);
-	if (unlikely(ret != 0))
-		return -ERESTARTSYS;
+	if (ret) {
+		ret = -ERESTARTSYS;
+		goto out_free_header;
+	}
 
+	sw_context->kernel = false;
 	if (kernel_commands == NULL) {
-		sw_context->kernel = false;
-
 		ret = vmw_resize_cmd_bounce(sw_context, command_size);
 		if (unlikely(ret != 0))
 			goto out_unlock;
@@ -2458,7 +2592,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 			goto out_unlock;
 		}
 		kernel_commands = sw_context->cmd_bounce;
-	} else
+	} else if (!header)
 		sw_context->kernel = true;
 
 	sw_context->fp = vmw_fpriv(file_priv);
@@ -2478,7 +2612,6 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 		sw_context->res_ht_initialized = true;
 	}
 	INIT_LIST_HEAD(&sw_context->staged_cmd_res);
-
 	INIT_LIST_HEAD(&resource_list);
 	ret = vmw_cmd_check_all(dev_priv, sw_context, kernel_commands,
 				command_size);
@@ -2502,14 +2635,6 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (unlikely(ret != 0))
 		goto out_err;
 
-	if (throttle_us) {
-		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.marker_queue,
-				   throttle_us);
-
-		if (unlikely(ret != 0))
-			goto out_err;
-	}
-
 	ret = mutex_lock_interruptible(&dev_priv->binding_mutex);
 	if (unlikely(ret != 0)) {
 		ret = -ERESTARTSYS;
@@ -2522,20 +2647,16 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 			goto out_unlock_binding;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, command_size);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving fifo space for commands.\n");
-		ret = -ENOMEM;
-		goto out_unlock_binding;
+	if (!header) {
+		ret = vmw_execbuf_submit_fifo(dev_priv, kernel_commands,
+					      command_size, sw_context);
+	} else {
+		ret = vmw_execbuf_submit_cmdbuf(dev_priv, header, command_size,
+						sw_context);
+		header = NULL;
 	}
-
-	vmw_apply_relocations(sw_context);
-	memcpy(cmd, kernel_commands, command_size);
-
-	vmw_resource_relocations_apply(cmd, &sw_context->res_relocations);
-	vmw_resource_relocations_free(&sw_context->res_relocations);
-
-	vmw_fifo_commit(dev_priv, command_size);
+	if (ret)
+		goto out_unlock_binding;
 
 	vmw_query_bo_switch_commit(dev_priv, sw_context);
 	ret = vmw_execbuf_fence_commands(file_priv, dev_priv,
@@ -2610,6 +2731,9 @@ out_unlock:
 	vmw_resource_list_unreference(&resource_list);
 	if (unlikely(error_resource != NULL))
 		vmw_resource_unreference(&error_resource);
+out_free_header:
+	if (header)
+		vmw_cmdbuf_header_free(header);
 
 	return ret;
 }

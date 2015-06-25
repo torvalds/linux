@@ -453,6 +453,8 @@ struct vmw_private {
 	spinlock_t waiter_lock;
 	int fence_queue_waiters; /* Protected by waiter_lock */
 	int goal_queue_waiters; /* Protected by waiter_lock */
+	int cmdbuf_waiters; /* Protected by irq_lock */
+	int error_waiters; /* Protected by irq_lock */
 	atomic_t fifo_queue_waiters;
 	uint32_t last_read_seqno;
 	spinlock_t irq_lock;
@@ -535,6 +537,8 @@ struct vmw_private {
 	 */
 	struct ttm_buffer_object *otable_bo;
 	struct vmw_otable *otables;
+
+	struct vmw_cmdbuf_man *cman;
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -729,6 +733,8 @@ extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
 extern int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
 				     uint32_t cid);
+extern int vmw_fifo_flush(struct vmw_private *dev_priv,
+			  bool interruptible);
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
@@ -753,6 +759,7 @@ extern struct ttm_placement vmw_sys_ne_placement;
 extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_placement vmw_mob_placement;
+extern struct ttm_placement vmw_mob_ne_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);
 extern int vmw_bo_map_dma(struct ttm_buffer_object *bo);
@@ -855,6 +862,10 @@ extern void vmw_seqno_waiter_add(struct vmw_private *dev_priv);
 extern void vmw_seqno_waiter_remove(struct vmw_private *dev_priv);
 extern void vmw_goal_waiter_add(struct vmw_private *dev_priv);
 extern void vmw_goal_waiter_remove(struct vmw_private *dev_priv);
+extern void vmw_generic_waiter_add(struct vmw_private *dev_priv, u32 flag,
+				   int *waiter_count);
+extern void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
+				      u32 flag, int *waiter_count);
 
 /**
  * Rudimentary fence-like objects currently used only for throttling -
@@ -1075,6 +1086,35 @@ extern int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
 				 enum vmw_cmdbuf_res_type res_type,
 				 u32 user_key,
 				 struct list_head *list);
+
+
+/*
+ * Command buffer managerment vmwgfx_cmdbuf.c
+ */
+struct vmw_cmdbuf_man;
+struct vmw_cmdbuf_header;
+
+extern struct vmw_cmdbuf_man *
+vmw_cmdbuf_man_create(struct vmw_private *dev_priv);
+extern int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
+				    size_t size, size_t default_size);
+extern void vmw_cmdbuf_remove_pool(struct vmw_cmdbuf_man *man);
+extern void vmw_cmdbuf_man_destroy(struct vmw_cmdbuf_man *man);
+extern int vmw_cmdbuf_idle(struct vmw_cmdbuf_man *man, bool interruptible,
+			   unsigned long timeout);
+extern void *vmw_cmdbuf_reserve(struct vmw_cmdbuf_man *man, size_t size,
+				int ctx_id, bool interruptible,
+				struct vmw_cmdbuf_header *header);
+extern void vmw_cmdbuf_commit(struct vmw_cmdbuf_man *man, size_t size,
+			      struct vmw_cmdbuf_header *header,
+			      bool flush);
+extern void vmw_cmdbuf_tasklet_schedule(struct vmw_cmdbuf_man *man);
+extern void *vmw_cmdbuf_alloc(struct vmw_cmdbuf_man *man,
+			      size_t size, bool interruptible,
+			      struct vmw_cmdbuf_header **p_header);
+extern void vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header);
+extern int vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man,
+				bool interruptible);
 
 
 /**

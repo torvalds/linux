@@ -257,6 +257,7 @@ static void vmw_fb_dirty_flush(struct vmw_fb_par *par)
 	cmd->body.width = cpu_to_le32(w);
 	cmd->body.height = cpu_to_le32(h);
 	vmw_fifo_commit(vmw_priv, sizeof(*cmd));
+	vmw_fifo_flush(vmw_priv, false);
 }
 
 static void vmw_fb_dirty_mark(struct vmw_fb_par *par,

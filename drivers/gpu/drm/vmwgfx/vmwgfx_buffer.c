@@ -72,6 +72,12 @@ static struct ttm_place mob_placement_flags = {
 	.flags = VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED
 };
 
+static struct ttm_place mob_ne_placement_flags = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.flags = VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
+};
+
 struct ttm_placement vmw_vram_placement = {
 	.num_placement = 1,
 	.placement = &vram_placement_flags,
@@ -198,6 +204,13 @@ struct ttm_placement vmw_mob_placement = {
 	.num_busy_placement = 1,
 	.placement = &mob_placement_flags,
 	.busy_placement = &mob_placement_flags
+};
+
+struct ttm_placement vmw_mob_ne_placement = {
+	.num_placement = 1,
+	.num_busy_placement = 1,
+	.placement = &mob_ne_placement_flags,
+	.busy_placement = &mob_ne_placement_flags
 };
 
 struct vmw_ttm_tt {

@@ -278,6 +278,8 @@ static void vmw_print_capabilities(uint32_t capabilities)
 		DRM_INFO("  Command Buffers 2.\n");
 	if (capabilities & SVGA_CAP_GBOBJECTS)
 		DRM_INFO("  Guest Backed Resources.\n");
+	if (capabilities & SVGA_CAP_CMD_BUFFERS_3)
+		DRM_INFO("  Command Buffers 3.\n");
 }
 
 /**
@@ -362,6 +364,17 @@ static int vmw_request_device_late(struct vmw_private *dev_priv)
 		}
 	}
 
+	if (dev_priv->cman) {
+		ret = vmw_cmdbuf_set_pool_size(dev_priv->cman,
+					       256*4096, 2*4096);
+		if (ret) {
+			struct vmw_cmdbuf_man *man = dev_priv->cman;
+
+			dev_priv->cman = NULL;
+			vmw_cmdbuf_man_destroy(man);
+		}
+	}
+
 	return 0;
 }
 
@@ -375,6 +388,9 @@ static int vmw_request_device(struct vmw_private *dev_priv)
 		return ret;
 	}
 	vmw_fence_fifo_up(dev_priv->fman);
+	dev_priv->cman = vmw_cmdbuf_man_create(dev_priv);
+	if (IS_ERR(dev_priv->cman))
+		dev_priv->cman = NULL;
 
 	ret = vmw_request_device_late(dev_priv);
 	if (ret)
@@ -387,10 +403,14 @@ static int vmw_request_device(struct vmw_private *dev_priv)
 	return 0;
 
 out_no_query_bo:
+	if (dev_priv->cman)
+		vmw_cmdbuf_remove_pool(dev_priv->cman);
 	if (dev_priv->has_mob) {
 		(void) ttm_bo_evict_mm(&dev_priv->bdev, VMW_PL_MOB);
 		vmw_otables_takedown(dev_priv);
 	}
+	if (dev_priv->cman)
+		vmw_cmdbuf_man_destroy(dev_priv->cman);
 out_no_mob:
 	vmw_fence_fifo_down(dev_priv->fman);
 	vmw_fifo_release(dev_priv, &dev_priv->fifo);
@@ -415,6 +435,9 @@ static void vmw_release_device_early(struct vmw_private *dev_priv)
 	BUG_ON(dev_priv->pinned_bo != NULL);
 
 	ttm_bo_unref(&dev_priv->dummy_query_bo);
+	if (dev_priv->cman)
+		vmw_cmdbuf_remove_pool(dev_priv->cman);
+
 	if (dev_priv->has_mob) {
 		ttm_bo_evict_mm(&dev_priv->bdev, VMW_PL_MOB);
 		vmw_otables_takedown(dev_priv);
@@ -432,6 +455,9 @@ static void vmw_release_device_early(struct vmw_private *dev_priv)
 static void vmw_release_device_late(struct vmw_private *dev_priv)
 {
 	vmw_fence_fifo_down(dev_priv->fman);
+	if (dev_priv->cman)
+		vmw_cmdbuf_man_destroy(dev_priv->cman);
+
 	vmw_fifo_release(dev_priv, &dev_priv->fifo);
 }
 
