@@ -3309,16 +3309,6 @@ static bool rcu_exp_gp_seq_done(struct rcu_state *rsp, unsigned long s)
 	return rcu_seq_done(&rsp->expedited_sequence, s);
 }
 
-static int synchronize_sched_expedited_cpu_stop(void *data)
-{
-	struct rcu_state *rsp = data;
-
-	/* We are here: If we are last, do the wakeup. */
-	if (atomic_dec_and_test(&rsp->expedited_need_qs))
-		wake_up(&rsp->expedited_wq);
-	return 0;
-}
-
 /* Common code for synchronize_sched_expedited() work-done checking. */
 static bool sync_sched_exp_wd(struct rcu_state *rsp, struct rcu_node *rnp,
 			      atomic_long_t *stat, unsigned long s)
@@ -3333,6 +3323,48 @@ static bool sync_sched_exp_wd(struct rcu_state *rsp, struct rcu_node *rnp,
 		return true;
 	}
 	return false;
+}
+
+/*
+ * Funnel-lock acquisition for expedited grace periods.  Returns a
+ * pointer to the root rcu_node structure, or NULL if some other
+ * task did the expedited grace period for us.
+ */
+static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
+{
+	struct rcu_node *rnp0;
+	struct rcu_node *rnp1 = NULL;
+
+	/*
+	 * Each pass through the following loop works its way
+	 * up the rcu_node tree, returning if others have done the
+	 * work or otherwise falls through holding the root rnp's
+	 * ->exp_funnel_mutex.  The mapping from CPU to rcu_node structure
+	 * can be inexact, as it is just promoting locality and is not
+	 * strictly needed for correctness.
+	 */
+	rnp0 = per_cpu_ptr(rsp->rda, raw_smp_processor_id())->mynode;
+	for (; rnp0 != NULL; rnp0 = rnp0->parent) {
+		if (sync_sched_exp_wd(rsp, rnp1, &rsp->expedited_workdone1, s))
+			return NULL;
+		mutex_lock(&rnp0->exp_funnel_mutex);
+		if (rnp1)
+			mutex_unlock(&rnp1->exp_funnel_mutex);
+		rnp1 = rnp0;
+	}
+	if (sync_sched_exp_wd(rsp, rnp1, &rsp->expedited_workdone2, s))
+		return NULL;
+	return rnp1;
+}
+
+static int synchronize_sched_expedited_cpu_stop(void *data)
+{
+	struct rcu_state *rsp = data;
+
+	/* We are here: If we are last, do the wakeup. */
+	if (atomic_dec_and_test(&rsp->expedited_need_qs))
+		wake_up(&rsp->expedited_wq);
+	return 0;
 }
 
 /**
@@ -3355,8 +3387,7 @@ void synchronize_sched_expedited(void)
 {
 	int cpu;
 	long s;
-	struct rcu_node *rnp0;
-	struct rcu_node *rnp1 = NULL;
+	struct rcu_node *rnp;
 	struct rcu_state *rsp = &rcu_sched_state;
 
 	/* Take a snapshot of the sequence number.  */
@@ -3370,26 +3401,9 @@ void synchronize_sched_expedited(void)
 	}
 	WARN_ON_ONCE(cpu_is_offline(raw_smp_processor_id()));
 
-	/*
-	 * Each pass through the following loop works its way
-	 * up the rcu_node tree, returning if others have done the
-	 * work or otherwise falls through holding the root rnp's
-	 * ->exp_funnel_mutex.  The mapping from CPU to rcu_node structure
-	 * can be inexact, as it is just promoting locality and is not
-	 * strictly needed for correctness.
-	 */
-	rnp0 = per_cpu_ptr(rsp->rda, raw_smp_processor_id())->mynode;
-	for (; rnp0 != NULL; rnp0 = rnp0->parent) {
-		if (sync_sched_exp_wd(rsp, rnp1, &rsp->expedited_workdone1, s))
-			return;
-		mutex_lock(&rnp0->exp_funnel_mutex);
-		if (rnp1)
-			mutex_unlock(&rnp1->exp_funnel_mutex);
-		rnp1 = rnp0;
-	}
-	rnp0 = rnp1;  /* rcu_get_root(rsp), AKA root rcu_node structure. */
-	if (sync_sched_exp_wd(rsp, rnp0, &rsp->expedited_workdone2, s))
-		return;
+	rnp = exp_funnel_lock(rsp, s);
+	if (rnp == NULL)
+		return;  /* Someone else did our work for us. */
 
 	rcu_exp_gp_seq_start(rsp);
 
@@ -3415,7 +3429,7 @@ void synchronize_sched_expedited(void)
 			   !atomic_read(&rsp->expedited_need_qs));
 
 	rcu_exp_gp_seq_end(rsp);
-	mutex_unlock(&rnp0->exp_funnel_mutex);
+	mutex_unlock(&rnp->exp_funnel_mutex);
 	smp_mb(); /* ensure subsequent action seen after grace period. */
 
 	put_online_cpus();
