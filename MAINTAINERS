@@ -3777,7 +3777,7 @@ S:	Maintained
 F:	drivers/edac/ie31200_edac.c
 
 EDAC-MPC85XX
-M:	Johannes Thumshirn <johannes.thumshirn@men.de>
+M:	Johannes Thumshirn <morbidrsa@gmail.com>
 L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
@@ -3803,6 +3803,13 @@ L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/sb_edac.c
+
+EDAC-XGENE
+APPLIED MICRO (APM) X-GENE SOC EDAC
+M:     Loc Ho <lho@apm.com>
+S:     Supported
+F:     drivers/edac/xgene_edac.c
+F:     Documentation/devicetree/bindings/edac/apm-xgene-edac.txt
 
 EDIROL UA-101/UA-1000 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
@@ -6488,14 +6495,14 @@ F:	include/linux/mtd/
 F:	include/uapi/mtd/
 
 MEN A21 WATCHDOG DRIVER
-M:	Johannes Thumshirn <johannes.thumshirn@men.de>
+M:	Johannes Thumshirn <morbidrsa@gmail.com>
 L:	linux-watchdog@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/watchdog/mena21_wdt.c
 
 MEN CHAMELEON BUS (mcb)
-M:	Johannes Thumshirn <johannes.thumshirn@men.de>
-S:	Supported
+M:	Johannes Thumshirn <morbidrsa@gmail.com>
+S:	Maintained
 F:	drivers/mcb/
 F:	include/linux/mcb.h
 

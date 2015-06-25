@@ -1,0 +1,79 @@
+* APM X-Gene SoC EDAC node
+
+EDAC node is defined to describe on-chip error detection and correction.
+The follow error types are supported:
+
+  memory controller	- Memory controller
+  PMD (L1/L2)		- Processor module unit (PMD) L1/L2 cache
+
+The following section describes the EDAC DT node binding.
+
+Required properties:
+- compatible		: Shall be "apm,xgene-edac".
+- regmap-csw		: Regmap of the CPU switch fabric (CSW) resource.
+- regmap-mcba		: Regmap of the MCB-A (memory bridge) resource.
+- regmap-mcbb		: Regmap of the MCB-B (memory bridge) resource.
+- regmap-efuse		: Regmap of the PMD efuse resource.
+- reg			: First resource shall be the CPU bus (PCP) resource.
+- interrupts            : Interrupt-specifier for MCU, PMD, L3, or SoC error
+			  IRQ(s).
+
+Required properties for memory controller subnode:
+- compatible		: Shall be "apm,xgene-edac-mc".
+- reg			: First resource shall be the memory controller unit
+                          (MCU) resource.
+- memory-controller	: Instance number of the memory controller.
+
+Required properties for PMD subnode:
+- compatible		: Shall be "apm,xgene-edac-pmd" or
+                          "apm,xgene-edac-pmd-v2".
+- reg			: First resource shall be the PMD resource.
+- pmd-controller	: Instance number of the PMD controller.
+
+Example:
+	csw: csw@7e200000 {
+		compatible = "apm,xgene-csw", "syscon";
+		reg = <0x0 0x7e200000 0x0 0x1000>;
+	};
+
+	mcba: mcba@7e700000 {
+		compatible = "apm,xgene-mcb", "syscon";
+		reg = <0x0 0x7e700000 0x0 0x1000>;
+	};
+
+	mcbb: mcbb@7e720000 {
+		compatible = "apm,xgene-mcb", "syscon";
+		reg = <0x0 0x7e720000 0x0 0x1000>;
+	};
+
+	efuse: efuse@1054a000 {
+		compatible = "apm,xgene-efuse", "syscon";
+		reg = <0x0 0x1054a000 0x0 0x20>;
+	};
+
+	edac@78800000 {
+		compatible = "apm,xgene-edac";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		regmap-csw = <&csw>;
+		regmap-mcba = <&mcba>;
+		regmap-mcbb = <&mcbb>;
+		regmap-efuse = <&efuse>;
+		reg = <0x0 0x78800000 0x0 0x100>;
+		interrupts = <0x0 0x20 0x4>,
+			     <0x0 0x21 0x4>,
+			     <0x0 0x27 0x4>;
+
+		edacmc@7e800000 {
+			compatible = "apm,xgene-edac-mc";
+			reg = <0x0 0x7e800000 0x0 0x1000>;
+			memory-controller = <0>;
+		};
+
+		edacpmd@7c000000 {
+			compatible = "apm,xgene-edac-pmd";
+			reg = <0x0 0x7c000000 0x0 0x200000>;
+			pmd-controller = <0>;
+		};
+	};

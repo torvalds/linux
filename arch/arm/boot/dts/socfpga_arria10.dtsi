@@ -253,6 +253,17 @@
 			status = "disabled";
 		};
 
+		sdr: sdr@ffc25000 {
+			compatible = "syscon";
+			reg = <0xffcfb100 0x80>;
+		};
+
+		sdramedac {
+			compatible = "altr,sdram-edac-a10";
+			altr,sdr-syscon = <&sdr>;
+			interrupts = <0 2 4>, <0 0 4>;
+		};
+
 		L2: l2-cache@fffff000 {
 			compatible = "arm,pl310-cache";
 			reg = <0xfffff000 0x1000>;
