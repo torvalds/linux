@@ -607,14 +607,22 @@ void devm_clk_unregister(struct device *dev, struct clk *clk);
 
 /* helper functions */
 const char *__clk_get_name(struct clk *clk);
+const char *clk_hw_get_name(struct clk_hw *hw);
 struct clk_hw *__clk_get_hw(struct clk *clk);
 u8 __clk_get_num_parents(struct clk *clk);
+unsigned int clk_hw_get_num_parents(struct clk_hw *hw);
 struct clk *__clk_get_parent(struct clk *clk);
+struct clk_hw *clk_hw_get_parent(struct clk_hw *hw);
 struct clk *clk_get_parent_by_index(struct clk *clk, u8 index);
+struct clk_hw *clk_hw_get_parent_by_index(struct clk_hw *hw,
+					  unsigned int index);
 unsigned int __clk_get_enable_count(struct clk *clk);
 unsigned long __clk_get_rate(struct clk *clk);
+unsigned long clk_hw_get_rate(struct clk_hw *hw);
 unsigned long __clk_get_flags(struct clk *clk);
+unsigned long clk_hw_get_flags(struct clk_hw *hw);
 bool __clk_is_prepared(struct clk *clk);
+bool clk_hw_is_prepared(struct clk_hw *hw);
 bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
 int __clk_mux_determine_rate(struct clk_hw *hw,
@@ -636,6 +644,7 @@ static inline void __clk_hw_set_clk(struct clk_hw *dst, struct clk_hw *src)
  * FIXME clock api without lock protection
  */
 unsigned long __clk_round_rate(struct clk *clk, unsigned long rate);
+unsigned long clk_hw_round_rate(struct clk_hw *hw, unsigned long rate);
 
 struct of_device_id;
 
