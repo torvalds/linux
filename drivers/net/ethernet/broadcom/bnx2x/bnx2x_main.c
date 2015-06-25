@@ -2347,12 +2347,16 @@ int bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 		if (load_mode == LOAD_DIAG) {
 			struct link_params *lp = &bp->link_params;
 			lp->loopback_mode = LOOPBACK_XGXS;
-			/* do PHY loopback at 10G speed, if possible */
-			if (lp->req_line_speed[cfx_idx] < SPEED_10000) {
+			/* Prefer doing PHY loopback at highest speed */
+			if (lp->req_line_speed[cfx_idx] < SPEED_20000) {
 				if (lp->speed_cap_mask[cfx_idx] &
-				    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
+				    PORT_HW_CFG_SPEED_CAPABILITY_D0_20G)
 					lp->req_line_speed[cfx_idx] =
-					SPEED_10000;
+					SPEED_20000;
+				else if (lp->speed_cap_mask[cfx_idx] &
+					    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
+						lp->req_line_speed[cfx_idx] =
+						SPEED_10000;
 				else
 					lp->req_line_speed[cfx_idx] =
 					SPEED_1000;
