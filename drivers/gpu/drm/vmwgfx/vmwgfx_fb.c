@@ -402,12 +402,12 @@ static int vmw_fb_create_bo(struct vmw_private *vmw_priv,
 
 	*out = vmw_bo;
 
-	ttm_write_unlock(&vmw_priv->fbdev_master.lock);
+	ttm_write_unlock(&vmw_priv->reservation_sem);
 
 	return 0;
 
 err_unlock:
-	ttm_write_unlock(&vmw_priv->fbdev_master.lock);
+	ttm_write_unlock(&vmw_priv->reservation_sem);
 	return ret;
 }
 
