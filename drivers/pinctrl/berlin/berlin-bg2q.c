@@ -380,11 +380,11 @@ static const struct berlin_pinctrl_desc berlin2q_sysmgr_pinctrl_data = {
 
 static const struct of_device_id berlin2q_pinctrl_match[] = {
 	{
-		.compatible = "marvell,berlin2q-chip-ctrl",
+		.compatible = "marvell,berlin2q-soc-pinctrl",
 		.data = &berlin2q_soc_pinctrl_data,
 	},
 	{
-		.compatible = "marvell,berlin2q-system-ctrl",
+		.compatible = "marvell,berlin2q-system-pinctrl",
 		.data = &berlin2q_sysmgr_pinctrl_data,
 	},
 	{}
@@ -395,28 +395,6 @@ static int berlin2q_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
 		of_match_device(berlin2q_pinctrl_match, &pdev->dev);
-	struct regmap_config *rmconfig;
-	struct regmap *regmap;
-	struct resource *res;
-	void __iomem *base;
-
-	rmconfig = devm_kzalloc(&pdev->dev, sizeof(*rmconfig), GFP_KERNEL);
-	if (!rmconfig)
-		return -ENOMEM;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	rmconfig->reg_bits = 32,
-	rmconfig->val_bits = 32,
-	rmconfig->reg_stride = 4,
-	rmconfig->max_register = resource_size(res);
-
-	regmap = devm_regmap_init_mmio(&pdev->dev, base, rmconfig);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
 
 	return berlin_pinctrl_probe(pdev, match->data);
 }
