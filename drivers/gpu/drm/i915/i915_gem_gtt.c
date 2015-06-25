@@ -831,6 +831,16 @@ err_out:
 	return -ENOMEM;
 }
 
+/* PDE TLBs are a pain to invalidate on GEN8+. When we modify
+ * the page table structures, we mark them dirty so that
+ * context switching/execlist queuing code takes extra steps
+ * to ensure that tlbs are flushed.
+ */
+static void mark_tlbs_dirty(struct i915_hw_ppgtt *ppgtt)
+{
+	ppgtt->pd_dirty_rings = INTEL_INFO(ppgtt->base.dev)->ring_mask;
+}
+
 static int gen8_alloc_va_range(struct i915_address_space *vm,
 			       uint64_t start,
 			       uint64_t length)
@@ -916,6 +926,7 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 	}
 
 	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables);
+	mark_tlbs_dirty(ppgtt);
 	return 0;
 
 err_out:
@@ -928,6 +939,7 @@ err_out:
 		unmap_and_free_pd(ppgtt->pdp.page_directory[pdpe], vm->dev);
 
 	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables);
+	mark_tlbs_dirty(ppgtt);
 	return ret;
 }
 
@@ -1270,16 +1282,6 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	}
 	if (pt_vaddr)
 		kunmap_atomic(pt_vaddr);
-}
-
-/* PDE TLBs are a pain invalidate pre GEN8. It requires a context reload. If we
- * are switching between contexts with the same LRCA, we also must do a force
- * restore.
- */
-static void mark_tlbs_dirty(struct i915_hw_ppgtt *ppgtt)
-{
-	/* If current vm != vm, */
-	ppgtt->pd_dirty_rings = INTEL_INFO(ppgtt->base.dev)->ring_mask;
 }
 
 static void gen6_initialize_pt(struct i915_address_space *vm,
