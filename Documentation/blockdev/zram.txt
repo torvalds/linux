@@ -126,7 +126,7 @@ mem_used_max      RW    the maximum amount memory zram have consumed to
 mem_limit         RW    the maximum amount of memory ZRAM can use to store
                         the compressed data
 num_migrated      RO    the number of objects migrated migrated by compaction
-
+compact           WO    trigger memory compaction
 
 WARNING
 =======
