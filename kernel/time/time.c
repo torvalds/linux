@@ -287,26 +287,20 @@ EXPORT_SYMBOL(jiffies_to_usecs);
  * @t: Timespec
  * @gran: Granularity in ns.
  *
- * Truncate a timespec to a granularity. gran must be smaller than a second.
- * Always rounds down.
- *
- * This function should be only used for timestamps returned by
- * current_kernel_time() or CURRENT_TIME, not with do_gettimeofday() because
- * it doesn't handle the better resolution of the latter.
+ * Truncate a timespec to a granularity. Always rounds down. gran must
+ * not be 0 nor greater than a second (NSEC_PER_SEC, or 10^9 ns).
  */
 struct timespec timespec_trunc(struct timespec t, unsigned gran)
 {
-	/*
-	 * Division is pretty slow so avoid it for common cases.
-	 * Currently current_kernel_time() never returns better than
-	 * jiffies resolution. Exploit that.
-	 */
-	if (gran <= jiffies_to_usecs(1) * 1000) {
+	/* Avoid division in the common cases 1 ns and 1 s. */
+	if (gran == 1) {
 		/* nothing */
-	} else if (gran == 1000000000) {
+	} else if (gran == NSEC_PER_SEC) {
 		t.tv_nsec = 0;
-	} else {
+	} else if (gran > 1 && gran < NSEC_PER_SEC) {
 		t.tv_nsec -= t.tv_nsec % gran;
+	} else {
+		WARN(1, "illegal file time granularity: %u", gran);
 	}
 	return t;
 }
