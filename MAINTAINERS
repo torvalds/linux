@@ -5178,7 +5178,7 @@ K:	\b(ABS|SYN)_MT_
 
 INTEL ASoC BDW/HSW DRIVERS
 M:	Jie Yang <yang.jie@linux.intel.com>
-L:	alsa-devel@alsa-project.org
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/intel/sst-haswell*
 F:	sound/soc/intel/sst-dsp*
@@ -6761,7 +6761,7 @@ F:	drivers/net/ethernet/natsemi/natsemi.c
 NATIVE INSTRUMENTS USB SOUND INTERFACE DRIVER
 M:	Daniel Mack <zonque@gmail.com>
 S:	Maintained
-L:	alsa-devel@alsa-project.org
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://www.native-instruments.com
 F:	sound/usb/caiaq/
 
@@ -7179,7 +7179,7 @@ F:	arch/arm/mach-omap2/prm*
 OMAP AUDIO SUPPORT
 M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
 M:	Jarkko Nikula <jarkko.nikula@bitmer.com>
-L:	alsa-devel@alsa-project.org (subscribers-only)
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	sound/soc/omap/
