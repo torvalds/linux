@@ -62,7 +62,7 @@ static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 static __always_inline
 u64 pvclock_get_nsec_offset(const struct pvclock_vcpu_time_info *src)
 {
-	u64 delta = __native_read_tsc() - src->tsc_timestamp;
+	u64 delta = native_read_tsc() - src->tsc_timestamp;
 	return pvclock_scale_delta(delta, src->tsc_to_system_mul,
 				   src->tsc_shift);
 }

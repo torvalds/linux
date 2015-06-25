@@ -186,7 +186,7 @@ notrace static cycle_t vread_tsc(void)
 	 * but no one has ever seen it happen.
 	 */
 	rdtsc_barrier();
-	ret = (cycle_t)__native_read_tsc();
+	ret = (cycle_t)native_read_tsc();
 
 	last = gtod->cycle_last;
 
