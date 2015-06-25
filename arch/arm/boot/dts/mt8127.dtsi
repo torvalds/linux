@@ -107,7 +107,7 @@
 			      <0 0x10216000 0 0x2000>;
 		};
 
-		uart0: serial@11006000 {
+		uart0: serial@11002000 {
 			compatible = "mediatek,mt8127-uart","mediatek,mt6577-uart";
 			reg = <0 0x11002000 0 0x400>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
@@ -115,7 +115,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@11007000 {
+		uart1: serial@11003000 {
 			compatible = "mediatek,mt8127-uart","mediatek,mt6577-uart";
 			reg = <0 0x11003000 0 0x400>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_LOW>;
@@ -123,7 +123,7 @@
 			status = "disabled";
 		};
 
-		uart2: serial@11008000 {
+		uart2: serial@11004000 {
 			compatible = "mediatek,mt8127-uart","mediatek,mt6577-uart";
 			reg = <0 0x11004000 0 0x400>;
 			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_LOW>;
@@ -131,7 +131,7 @@
 			status = "disabled";
 		};
 
-		uart3: serial@11009000 {
+		uart3: serial@11005000 {
 			compatible = "mediatek,mt8127-uart","mediatek,mt6577-uart";
 			reg = <0 0x11005000 0 0x400>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_LOW>;

@@ -633,11 +633,11 @@
 		clocks = <&tegra_car TEGRA124_CLK_HDA>,
 		         <&tegra_car TEGRA124_CLK_HDA2HDMI>,
 			 <&tegra_car TEGRA124_CLK_HDA2CODEC_2X>;
-		clock-names = "hda", "hda2hdmi", "hdacodec_2x";
+		clock-names = "hda", "hda2hdmi", "hda2codec_2x";
 		resets = <&tegra_car 125>, /* hda */
 			 <&tegra_car 128>, /* hda2hdmi */
 			 <&tegra_car 111>; /* hda2codec_2x */
-		reset-names = "hda", "hda2hdmi", "hdacodec_2x";
+		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
 		status = "disabled";
 	};
 
