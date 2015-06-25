@@ -502,17 +502,17 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 		struct page *page_table;
 
 		if (WARN_ON(!ppgtt->pdp.page_directory[pdpe]))
-			continue;
+			break;
 
 		pd = ppgtt->pdp.page_directory[pdpe];
 
 		if (WARN_ON(!pd->page_table[pde]))
-			continue;
+			break;
 
 		pt = pd->page_table[pde];
 
 		if (WARN_ON(!pt->page))
-			continue;
+			break;
 
 		page_table = pt->page;
 
