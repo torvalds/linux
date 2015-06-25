@@ -4197,6 +4197,107 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+/*
+ * If the no holes feature is enabled we need to make sure any hole between the
+ * last extent and the i_size of our inode is explicitly marked in the log. This
+ * is to make sure that doing something like:
+ *
+ *      1) create file with 128Kb of data
+ *      2) truncate file to 64Kb
+ *      3) truncate file to 256Kb
+ *      4) fsync file
+ *      5) <crash/power failure>
+ *      6) mount fs and trigger log replay
+ *
+ * Will give us a file with a size of 256Kb, the first 64Kb of data match what
+ * the file had in its first 64Kb of data at step 1 and the last 192Kb of the
+ * file correspond to a hole. The presence of explicit holes in a log tree is
+ * what guarantees that log replay will remove/adjust file extent items in the
+ * fs/subvol tree.
+ *
+ * Here we do not need to care about holes between extents, that is already done
+ * by copy_items(). We also only need to do this in the full sync path, where we
+ * lookup for extents from the fs/subvol tree only. In the fast path case, we
+ * lookup the list of modified extent maps and if any represents a hole, we
+ * insert a corresponding extent representing a hole in the log tree.
+ */
+static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root,
+				   struct inode *inode,
+				   struct btrfs_path *path)
+{
+	int ret;
+	struct btrfs_key key;
+	u64 hole_start;
+	u64 hole_size;
+	struct extent_buffer *leaf;
+	struct btrfs_root *log = root->log_root;
+	const u64 ino = btrfs_ino(inode);
+	const u64 i_size = i_size_read(inode);
+
+	if (!btrfs_fs_incompat(root->fs_info, NO_HOLES))
+		return 0;
+
+	key.objectid = ino;
+	key.type = BTRFS_EXTENT_DATA_KEY;
+	key.offset = (u64)-1;
+
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	ASSERT(ret != 0);
+	if (ret < 0)
+		return ret;
+
+	ASSERT(path->slots[0] > 0);
+	path->slots[0]--;
+	leaf = path->nodes[0];
+	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+
+	if (key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY) {
+		/* inode does not have any extents */
+		hole_start = 0;
+		hole_size = i_size;
+	} else {
+		struct btrfs_file_extent_item *extent;
+		u64 len;
+
+		/*
+		 * If there's an extent beyond i_size, an explicit hole was
+		 * already inserted by copy_items().
+		 */
+		if (key.offset >= i_size)
+			return 0;
+
+		extent = btrfs_item_ptr(leaf, path->slots[0],
+					struct btrfs_file_extent_item);
+
+		if (btrfs_file_extent_type(leaf, extent) ==
+		    BTRFS_FILE_EXTENT_INLINE) {
+			len = btrfs_file_extent_inline_len(leaf,
+							   path->slots[0],
+							   extent);
+			ASSERT(len == i_size);
+			return 0;
+		}
+
+		len = btrfs_file_extent_num_bytes(leaf, extent);
+		/* Last extent goes beyond i_size, no need to log a hole. */
+		if (key.offset + len > i_size)
+			return 0;
+		hole_start = key.offset + len;
+		hole_size = i_size - hole_start;
+	}
+	btrfs_release_path(path);
+
+	/* Last extent ends at i_size. */
+	if (hole_size == 0)
+		return 0;
+
+	hole_size = ALIGN(hole_size, root->sectorsize);
+	ret = btrfs_insert_file_extent(trans, log, ino, hole_start, 0, 0,
+				       hole_size, 0, hole_size, 0, 0, 0);
+	return ret;
+}
+
 /* log a single inode in the tree log.
  * At least one parent directory for this inode must exist in the tree
  * or be logged already.
@@ -4460,6 +4561,13 @@ next_slot:
 	err = btrfs_log_all_xattrs(trans, root, inode, path, dst_path);
 	if (err)
 		goto out_unlock;
+	if (max_key.type >= BTRFS_EXTENT_DATA_KEY && !fast_search) {
+		btrfs_release_path(path);
+		btrfs_release_path(dst_path);
+		err = btrfs_log_trailing_hole(trans, root, inode, path);
+		if (err)
+			goto out_unlock;
+	}
 log_extents:
 	btrfs_release_path(path);
 	btrfs_release_path(dst_path);
