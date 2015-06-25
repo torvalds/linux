@@ -23,31 +23,28 @@
 #include "xattr.h"
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-static const char *ext4_follow_link(struct dentry *dentry, void **cookie)
+static const char *ext4_encrypted_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct page *cpage = NULL;
 	char *caddr, *paddr = NULL;
 	struct ext4_str cstr, pstr;
 	struct inode *inode = d_inode(dentry);
-	struct ext4_fname_crypto_ctx *ctx = NULL;
 	struct ext4_encrypted_symlink_data *sd;
 	loff_t size = min_t(loff_t, i_size_read(inode), PAGE_SIZE - 1);
 	int res;
 	u32 plen, max_size = inode->i_sb->s_blocksize;
 
-	ctx = ext4_get_fname_crypto_ctx(inode, inode->i_sb->s_blocksize);
-	if (IS_ERR(ctx))
-		return ERR_CAST(ctx);
+	res = ext4_get_encryption_info(inode);
+	if (res)
+		return ERR_PTR(res);
 
 	if (ext4_inode_is_fast_symlink(inode)) {
 		caddr = (char *) EXT4_I(inode)->i_data;
 		max_size = sizeof(EXT4_I(inode)->i_data);
 	} else {
 		cpage = read_mapping_page(inode->i_mapping, 0, NULL);
-		if (IS_ERR(cpage)) {
-			ext4_put_fname_crypto_ctx(&ctx);
+		if (IS_ERR(cpage))
 			return ERR_CAST(cpage);
-		}
 		caddr = kmap(cpage);
 		caddr[size] = 0;
 	}
@@ -71,20 +68,19 @@ static const char *ext4_follow_link(struct dentry *dentry, void **cookie)
 		goto errout;
 	}
 	pstr.name = paddr;
-	res = _ext4_fname_disk_to_usr(ctx, NULL, &cstr, &pstr);
+	pstr.len = plen;
+	res = _ext4_fname_disk_to_usr(inode, NULL, &cstr, &pstr);
 	if (res < 0)
 		goto errout;
 	/* Null-terminate the name */
 	if (res <= plen)
 		paddr[res] = '\0';
-	ext4_put_fname_crypto_ctx(&ctx);
 	if (cpage) {
 		kunmap(cpage);
 		page_cache_release(cpage);
 	}
 	return *cookie = paddr;
 errout:
-	ext4_put_fname_crypto_ctx(&ctx);
 	if (cpage) {
 		kunmap(cpage);
 		page_cache_release(cpage);
@@ -95,7 +91,7 @@ errout:
 
 const struct inode_operations ext4_encrypted_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link    = ext4_follow_link,
+	.follow_link    = ext4_encrypted_follow_link,
 	.put_link       = kfree_put_link,
 	.setattr	= ext4_setattr,
 	.setxattr	= generic_setxattr,
