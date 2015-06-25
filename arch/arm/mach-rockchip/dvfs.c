@@ -2111,6 +2111,7 @@ static int dvfs_node_parse_dt(struct device_node *np,
 	if (dvfs_node->temp_limit_enable) {
 		of_property_read_u32_index(np, "min_temp_limit",
 					   0, &dvfs_node->min_temp_limit);
+		dvfs_node->min_temp_limit *= 1000;
 		of_property_read_u32_index(np, "target-temp",
 					   0, &dvfs_node->target_temp);
 		pr_info("target-temp:%d\n", dvfs_node->target_temp);
