@@ -188,7 +188,6 @@ static struct reg_default lm49453_reg_defs[] = {
 /* codec private data */
 struct lm49453_priv {
 	struct regmap *regmap;
-	int fs_rate;
 };
 
 /* capture path controls */
@@ -1112,13 +1111,10 @@ static int lm49453_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct lm49453_priv *lm49453 = snd_soc_codec_get_drvdata(codec);
 	u16 clk_div = 0;
 
-	lm49453->fs_rate = params_rate(params);
-
 	/* Setting DAC clock dividers based on substream sample rate. */
-	switch (lm49453->fs_rate) {
+	switch (params_rate(params)) {
 	case 8000:
 	case 16000:
 	case 32000:
