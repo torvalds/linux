@@ -223,6 +223,10 @@ struct i915_page_dma {
 #define px_page(px) (px_base(px)->page)
 #define px_dma(px) (px_base(px)->daddr)
 
+struct i915_page_scratch {
+	struct i915_page_dma base;
+};
+
 struct i915_page_table {
 	struct i915_page_dma base;
 
@@ -249,10 +253,7 @@ struct i915_address_space {
 	u64 start;		/* Start offset always 0 for dri2 */
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 
-	struct {
-		dma_addr_t addr;
-		struct page *page;
-	} scratch;
+	struct i915_page_scratch *scratch_page;
 
 	/**
 	 * List of objects currently involved in rendering.
