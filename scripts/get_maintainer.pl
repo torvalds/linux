@@ -305,7 +305,7 @@ open (my $maint, '<', "${lk_path}MAINTAINERS")
 while (<$maint>) {
     my $line = $_;
 
-    if ($line =~ m/^(\C):\s*(.*)/) {
+    if ($line =~ m/^([A-Z]):\s*(.*)/) {
 	my $type = $1;
 	my $value = $2;
 
@@ -550,7 +550,7 @@ sub range_is_maintained {
 
     for (my $i = $start; $i < $end; $i++) {
 	my $line = $typevalue[$i];
-	if ($line =~ m/^(\C):\s*(.*)/) {
+	if ($line =~ m/^([A-Z]):\s*(.*)/) {
 	    my $type = $1;
 	    my $value = $2;
 	    if ($type eq 'S') {
@@ -568,7 +568,7 @@ sub range_has_maintainer {
 
     for (my $i = $start; $i < $end; $i++) {
 	my $line = $typevalue[$i];
-	if ($line =~ m/^(\C):\s*(.*)/) {
+	if ($line =~ m/^([A-Z]):\s*(.*)/) {
 	    my $type = $1;
 	    my $value = $2;
 	    if ($type eq 'M') {
@@ -617,7 +617,7 @@ sub get_maintainers {
 
 	    for ($i = $start; $i < $end; $i++) {
 		my $line = $typevalue[$i];
-		if ($line =~ m/^(\C):\s*(.*)/) {
+		if ($line =~ m/^([A-Z]):\s*(.*)/) {
 		    my $type = $1;
 		    my $value = $2;
 		    if ($type eq 'X') {
@@ -632,7 +632,7 @@ sub get_maintainers {
 	    if (!$exclude) {
 		for ($i = $start; $i < $end; $i++) {
 		    my $line = $typevalue[$i];
-		    if ($line =~ m/^(\C):\s*(.*)/) {
+		    if ($line =~ m/^([A-Z]):\s*(.*)/) {
 			my $type = $1;
 			my $value = $2;
 			if ($type eq 'F') {
@@ -933,7 +933,7 @@ sub find_first_section {
 
     while ($index < @typevalue) {
 	my $tv = $typevalue[$index];
-	if (($tv =~ m/^(\C):\s*(.*)/)) {
+	if (($tv =~ m/^([A-Z]):\s*(.*)/)) {
 	    last;
 	}
 	$index++;
@@ -947,7 +947,7 @@ sub find_starting_index {
 
     while ($index > 0) {
 	my $tv = $typevalue[$index];
-	if (!($tv =~ m/^(\C):\s*(.*)/)) {
+	if (!($tv =~ m/^([A-Z]):\s*(.*)/)) {
 	    last;
 	}
 	$index--;
@@ -961,7 +961,7 @@ sub find_ending_index {
 
     while ($index < @typevalue) {
 	my $tv = $typevalue[$index];
-	if (!($tv =~ m/^(\C):\s*(.*)/)) {
+	if (!($tv =~ m/^([A-Z]):\s*(.*)/)) {
 	    last;
 	}
 	$index++;
@@ -987,7 +987,7 @@ sub get_maintainer_role {
 
     for ($i = $start + 1; $i < $end; $i++) {
 	my $tv = $typevalue[$i];
-	if ($tv =~ m/^(\C):\s*(.*)/) {
+	if ($tv =~ m/^([A-Z]):\s*(.*)/) {
 	    my $ptype = $1;
 	    my $pvalue = $2;
 	    if ($ptype eq "S") {
@@ -1046,7 +1046,7 @@ sub add_categories {
 
     for ($i = $start + 1; $i < $end; $i++) {
 	my $tv = $typevalue[$i];
-	if ($tv =~ m/^(\C):\s*(.*)/) {
+	if ($tv =~ m/^([A-Z]):\s*(.*)/) {
 	    my $ptype = $1;
 	    my $pvalue = $2;
 	    if ($ptype eq "L") {
@@ -1088,7 +1088,7 @@ sub add_categories {
 		if ($name eq "") {
 		    if ($i > 0) {
 			my $tv = $typevalue[$i - 1];
-			if ($tv =~ m/^(\C):\s*(.*)/) {
+			if ($tv =~ m/^([A-Z]):\s*(.*)/) {
 			    if ($1 eq "P") {
 				$name = $2;
 				$pvalue = format_email($name, $address, $email_usename);
@@ -1105,7 +1105,7 @@ sub add_categories {
 		if ($name eq "") {
 		    if ($i > 0) {
 			my $tv = $typevalue[$i - 1];
-			if ($tv =~ m/^(\C):\s*(.*)/) {
+			if ($tv =~ m/^([A-Z]):\s*(.*)/) {
 			    if ($1 eq "P") {
 				$name = $2;
 				$pvalue = format_email($name, $address, $email_usename);
