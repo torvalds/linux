@@ -696,7 +696,7 @@ static int gen8_ppgtt_alloc_pagetabs(struct i915_hw_ppgtt *ppgtt,
 
 		gen8_initialize_pt(&ppgtt->base, pt);
 		pd->page_table[pde] = pt;
-		set_bit(pde, new_pts);
+		__set_bit(pde, new_pts);
 	}
 
 	return 0;
@@ -754,7 +754,7 @@ static int gen8_ppgtt_alloc_page_directories(struct i915_hw_ppgtt *ppgtt,
 
 		gen8_initialize_pd(&ppgtt->base, pd);
 		pdp->page_directory[pdpe] = pd;
-		set_bit(pdpe, new_pds);
+		__set_bit(pdpe, new_pds);
 	}
 
 	return 0;
@@ -895,7 +895,7 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 				   gen8_pte_count(pd_start, pd_len));
 
 			/* Our pde is now pointing to the pagetable, pt */
-			set_bit(pde, pd->used_pdes);
+			__set_bit(pde, pd->used_pdes);
 
 			/* Map the PDE to the page table */
 			page_directory[pde] = gen8_pde_encode(px_dma(pt),
@@ -907,7 +907,7 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 
 		kunmap_px(ppgtt, page_directory);
 
-		set_bit(pdpe, ppgtt->pdp.used_pdpes);
+		__set_bit(pdpe, ppgtt->pdp.used_pdpes);
 	}
 
 	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables);
@@ -1329,7 +1329,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 		gen6_initialize_pt(vm, pt);
 
 		ppgtt->pd.page_table[pde] = pt;
-		set_bit(pde, new_page_tables);
+		__set_bit(pde, new_page_tables);
 		trace_i915_page_table_entry_alloc(vm, pde, start, GEN6_PDE_SHIFT);
 	}
 
@@ -1343,7 +1343,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 		bitmap_set(tmp_bitmap, gen6_pte_index(start),
 			   gen6_pte_count(start, length));
 
-		if (test_and_clear_bit(pde, new_page_tables))
+		if (__test_and_clear_bit(pde, new_page_tables))
 			gen6_write_pde(&ppgtt->pd, pde, pt);
 
 		trace_i915_page_table_entry_map(vm, pde, pt,
