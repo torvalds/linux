@@ -121,6 +121,7 @@ struct rockchip_thermal_data {
 	int cpu_temp;
 	bool logout;
 	bool b_suspend;
+	struct mutex suspend_lock;
 
 	void __iomem *regs;
 
@@ -847,19 +848,26 @@ int rockchip_tsadc_get_temp(int chn, int voltage)
 {
 	struct rockchip_thermal_data *thermal = rockchip_thermal_get_data();
 	long out_temp;
+	int temp;
+
+	mutex_lock(&thermal->suspend_lock);
+	if(thermal->b_suspend) {
+		temp = INVALID_TEMP;
+		mutex_unlock(&thermal->suspend_lock);
+		return temp;
+	}
 
 	if (thermal->chip->mode == TSADC_AUTO_MODE)
 	{
 		thermal->chip->get_temp(chn, thermal->regs, &out_temp);
-		return (int)out_temp/1000;
+		temp = (int)out_temp/1000;
 	}
-	else
-	{
-		if(thermal->b_suspend)
-			return INVALID_TEMP;
-		else
-			return rockchip_thermal_user_mode_get_temp(thermal, chn, voltage);
+	else {
+		temp = rockchip_thermal_user_mode_get_temp(thermal, chn, voltage);
 	}
+	mutex_unlock(&thermal->suspend_lock);
+
+	return temp;
 }
 EXPORT_SYMBOL(rockchip_tsadc_get_temp);
 
@@ -1100,6 +1108,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 		}
 	}
 
+	mutex_init(&thermal->suspend_lock);
 	s_thermal = thermal;
 	platform_set_drvdata(pdev, thermal);
 
@@ -1147,6 +1156,7 @@ static int __maybe_unused rockchip_thermal_suspend(struct device *dev)
 	struct rockchip_thermal_data *thermal = platform_get_drvdata(pdev);
 	int i;
 
+	mutex_lock(&thermal->suspend_lock);
 	thermal->b_suspend = true;
 	if (thermal->chip->mode == TSADC_AUTO_MODE)
 	{
@@ -1157,6 +1167,7 @@ static int __maybe_unused rockchip_thermal_suspend(struct device *dev)
 	}
 	clk_disable(thermal->pclk);
 	clk_disable(thermal->clk);
+	mutex_unlock(&thermal->suspend_lock);
 
 	return 0;
 }
@@ -1168,13 +1179,18 @@ static int __maybe_unused rockchip_thermal_resume(struct device *dev)
 	int i;
 	int error;
 
+	mutex_lock(&thermal->suspend_lock);
 	error = clk_enable(thermal->clk);
-	if (error)
+	if (error) {
+		mutex_unlock(&thermal->suspend_lock);
 		return error;
+	}
 
 	error = clk_enable(thermal->pclk);
-	if (error)
+	if (error) {
+		mutex_unlock(&thermal->suspend_lock);
 		return error;
+	}
 
 	rockchip_thermal_reset_controller(thermal->reset);
 	if (thermal->chip->mode == TSADC_AUTO_MODE)
@@ -1197,6 +1213,8 @@ static int __maybe_unused rockchip_thermal_resume(struct device *dev)
 	}
 
 	thermal->b_suspend = false;
+	mutex_unlock(&thermal->suspend_lock);
+
 	return 0;
 }
 
