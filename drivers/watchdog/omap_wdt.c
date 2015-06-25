@@ -55,6 +55,11 @@ MODULE_PARM_DESC(timer_margin, "initial watchdog timeout (in seconds)");
 
 #define to_omap_wdt_dev(_wdog)	container_of(_wdog, struct omap_wdt_dev, wdog)
 
+static bool early_enable;
+module_param(early_enable, bool, 0);
+MODULE_PARM_DESC(early_enable,
+	"Watchdog is started on module insertion (default=0)");
+
 struct omap_wdt_dev {
 	struct watchdog_device wdog;
 	void __iomem    *base;          /* physical */
@@ -278,6 +283,9 @@ static int omap_wdt_probe(struct platform_device *pdev)
 		wdev->wdog.timeout);
 
 	pm_runtime_put_sync(wdev->dev);
+
+	if (early_enable)
+		omap_wdt_start(&wdev->wdog);
 
 	return 0;
 }
