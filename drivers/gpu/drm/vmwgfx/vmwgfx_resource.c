@@ -900,20 +900,21 @@ int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   vmw_user_stream_size,
 				   false, true);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	if (unlikely(ret != 0)) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Out of graphics memory for stream"
 				  " creation.\n");
-		goto out_unlock;
-	}
 
+		goto out_ret;
+	}
 
 	stream = kmalloc(sizeof(*stream), GFP_KERNEL);
 	if (unlikely(stream == NULL)) {
 		ttm_mem_global_free(vmw_mem_glob(dev_priv),
 				    vmw_user_stream_size);
 		ret = -ENOMEM;
-		goto out_unlock;
+		goto out_ret;
 	}
 
 	res = &stream->stream.res;
@@ -926,7 +927,7 @@ int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 
 	ret = vmw_stream_init(dev_priv, &stream->stream, vmw_user_stream_free);
 	if (unlikely(ret != 0))
-		goto out_unlock;
+		goto out_ret;
 
 	tmp = vmw_resource_reference(res);
 	ret = ttm_base_object_init(tfile, &stream->base, false, VMW_RES_STREAM,
@@ -940,8 +941,7 @@ int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 	arg->stream_id = res->id;
 out_err:
 	vmw_resource_unreference(&res);
-out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
+out_ret:
 	return ret;
 }
 
