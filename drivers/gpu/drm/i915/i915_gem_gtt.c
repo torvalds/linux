@@ -757,9 +757,6 @@ static int gen8_ppgtt_alloc_page_directories(struct i915_hw_ppgtt *ppgtt,
 
 	WARN_ON(!bitmap_empty(new_pds, GEN8_LEGACY_PDPES));
 
-	/* FIXME: upper bound must not overflow 32 bits  */
-	WARN_ON((start + length) > (1ULL << 32));
-
 	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
 		if (pd)
 			continue;
@@ -859,7 +856,10 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 	 * actually use the other side of the canonical address space.
 	 */
 	if (WARN_ON(start + length < start))
-		return -ERANGE;
+		return -ENODEV;
+
+	if (WARN_ON(start + length > ppgtt->base.total))
+		return -ENODEV;
 
 	ret = alloc_gen8_temp_bitmaps(&new_page_dirs, &new_page_tables);
 	if (ret)
@@ -1304,7 +1304,7 @@ static void gen6_initialize_pt(struct i915_address_space *vm,
 }
 
 static int gen6_alloc_va_range(struct i915_address_space *vm,
-			       uint64_t start, uint64_t length)
+			       uint64_t start_in, uint64_t length_in)
 {
 	DECLARE_BITMAP(new_page_tables, I915_PDES);
 	struct drm_device *dev = vm->dev;
@@ -1312,11 +1312,15 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	struct i915_hw_ppgtt *ppgtt =
 				container_of(vm, struct i915_hw_ppgtt, base);
 	struct i915_page_table *pt;
-	const uint32_t start_save = start, length_save = length;
+	uint32_t start, length, start_save, length_save;
 	uint32_t pde, temp;
 	int ret;
 
-	WARN_ON(upper_32_bits(start));
+	if (WARN_ON(start_in + length_in > ppgtt->base.total))
+		return -ENODEV;
+
+	start = start_save = start_in;
+	length = length_save = length_in;
 
 	bitmap_zero(new_page_tables, I915_PDES);
 
