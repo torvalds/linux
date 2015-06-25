@@ -14,6 +14,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#include <linux/clk/shmobile.h>
+#include <linux/clocksource.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -756,6 +758,14 @@ u32 __init r8a7779_read_mode_pins(void)
 	return mode;
 }
 
+#ifdef CONFIG_ARCH_SHMOBILE_MULTI
+
+static void __init r8a7779_init_time(void)
+{
+	r8a7779_clocks_init(r8a7779_read_mode_pins());
+	clocksource_of_init();
+}
+
 static const char *r8a7779_compat_dt[] __initdata = {
 	"renesas,r8a7779",
 	NULL,
@@ -764,8 +774,10 @@ static const char *r8a7779_compat_dt[] __initdata = {
 DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.map_io		= r8a7779_map_io,
 	.init_early	= shmobile_init_delay,
+	.init_time	= r8a7779_init_time,
 	.init_irq	= r8a7779_init_irq_dt,
 	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7779_compat_dt,
 MACHINE_END
+#endif /* CONFIG_ARCH_SHMOBILE_MULTI */
 #endif /* CONFIG_USE_OF */
