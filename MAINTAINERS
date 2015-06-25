@@ -4537,7 +4537,7 @@ S:	Maintained
 F:	drivers/media/usb/gspca/
 
 GUID PARTITION TABLE (GPT)
-M:	Davidlohr Bueso <davidlohr@hp.com>
+M:	Davidlohr Bueso <dave@stgolabs.net>
 L:	linux-efi@vger.kernel.org
 S:	Maintained
 F:	block/partitions/efi.*
