@@ -1383,7 +1383,8 @@ static int dsi_host_init_panel_gpios(struct msm_dsi_host *msm_host,
 		return PTR_ERR(msm_host->disp_en_gpio);
 	}
 
-	msm_host->te_gpio = devm_gpiod_get(panel_device, "disp-te", GPIOD_IN);
+	msm_host->te_gpio = devm_gpiod_get_optional(panel_device, "disp-te",
+								GPIOD_IN);
 	if (IS_ERR(msm_host->te_gpio)) {
 		DBG("cannot get disp-te-gpios %ld", PTR_ERR(msm_host->te_gpio));
 		return PTR_ERR(msm_host->te_gpio);
