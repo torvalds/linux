@@ -1059,7 +1059,8 @@ static ssize_t resource_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(resource);
 
-static const unsigned long ns_lbasize_supported[] = { 512, 0 };
+static const unsigned long ns_lbasize_supported[] = { 512, 520, 528,
+	4096, 4104, 4160, 4224, 0 };
 
 static ssize_t sector_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
