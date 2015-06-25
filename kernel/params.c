@@ -25,12 +25,22 @@
 #include <linux/slab.h>
 #include <linux/ctype.h>
 
+#ifdef CONFIG_SYSFS
 /* Protects all built-in parameters, modules use their own param_lock */
 static DEFINE_MUTEX(param_lock);
 
 /* Use the module's mutex, or if built-in use the built-in mutex */
 #define KPARAM_MUTEX(mod)	((mod) ? &(mod)->param_lock : &param_lock)
-#define KPARAM_IS_LOCKED(mod)	mutex_is_locked(KPARAM_MUTEX(mod))
+
+static inline void check_kparam_locked(struct module *mod)
+{
+	BUG_ON(!mutex_is_locked(KPARAM_MUTEX(mod)));
+}
+#else
+static inline void check_kparam_locked(struct module *mod)
+{
+}
+#endif /* !CONFIG_SYSFS */
 
 /* This just allows us to keep track of which parameters are kmalloced. */
 struct kmalloced_param {
@@ -459,7 +469,7 @@ static int param_array(struct module *mod,
 		/* nul-terminate and parse */
 		save = val[len];
 		((char *)val)[len] = '\0';
-		BUG_ON(!KPARAM_IS_LOCKED(mod));
+		check_kparam_locked(mod);
 		ret = set(val, &kp);
 
 		if (ret != 0)
@@ -496,7 +506,7 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 		if (i)
 			buffer[off++] = ',';
 		p.arg = arr->elem + arr->elemsize * i;
-		BUG_ON(!KPARAM_IS_LOCKED(p.mod));
+		check_kparam_locked(p.mod);
 		ret = arr->ops->get(buffer + off, &p);
 		if (ret < 0)
 			return ret;
@@ -616,6 +626,7 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
 #define __modinit __init
 #endif
 
+#ifdef CONFIG_SYSFS
 void kernel_param_lock(struct module *mod)
 {
 	mutex_lock(KPARAM_MUTEX(mod));
@@ -626,7 +637,6 @@ void kernel_param_unlock(struct module *mod)
 	mutex_unlock(KPARAM_MUTEX(mod));
 }
 
-#ifdef CONFIG_SYSFS
 EXPORT_SYMBOL(kernel_param_lock);
 EXPORT_SYMBOL(kernel_param_unlock);
 

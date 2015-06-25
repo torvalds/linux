@@ -240,7 +240,9 @@ struct module {
 	unsigned int num_syms;
 
 	/* Kernel parameters. */
+#ifdef CONFIG_SYSFS
 	struct mutex param_lock;
+#endif
 	struct kernel_param *kp;
 	unsigned int num_kp;
 
