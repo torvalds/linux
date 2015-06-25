@@ -276,21 +276,21 @@ static void _ceph_msgr_exit(void)
 		ceph_msgr_wq = NULL;
 	}
 
-	ceph_msgr_slab_exit();
-
 	BUG_ON(zero_page == NULL);
 	page_cache_release(zero_page);
 	zero_page = NULL;
+
+	ceph_msgr_slab_exit();
 }
 
 int ceph_msgr_init(void)
 {
+	if (ceph_msgr_slab_init())
+		return -ENOMEM;
+
 	BUG_ON(zero_page != NULL);
 	zero_page = ZERO_PAGE(0);
 	page_cache_get(zero_page);
-
-	if (ceph_msgr_slab_init())
-		return -ENOMEM;
 
 	/*
 	 * The number of active work items is limited by the number of
