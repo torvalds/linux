@@ -1276,7 +1276,11 @@ static void dsi_dln0_phy_err(struct msm_dsi_host *msm_host)
 
 	status = dsi_read(msm_host, REG_DSI_DLN0_PHY_ERR);
 
-	if (status) {
+	if (status & (DSI_DLN0_PHY_ERR_DLN0_ERR_ESC |
+			DSI_DLN0_PHY_ERR_DLN0_ERR_SYNC_ESC |
+			DSI_DLN0_PHY_ERR_DLN0_ERR_CONTROL |
+			DSI_DLN0_PHY_ERR_DLN0_ERR_CONTENTION_LP0 |
+			DSI_DLN0_PHY_ERR_DLN0_ERR_CONTENTION_LP1)) {
 		dsi_write(msm_host, REG_DSI_DLN0_PHY_ERR, status);
 		msm_host->err_work_state |= DSI_ERR_STATE_DLN0_PHY;
 	}
