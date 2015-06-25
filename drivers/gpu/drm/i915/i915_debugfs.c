@@ -1132,15 +1132,24 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
 	} else if (IS_GEN6(dev) || (IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) ||
 		   IS_BROADWELL(dev) || IS_GEN9(dev)) {
-		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
-		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
-		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+		u32 rp_state_limits;
+		u32 gt_perf_status;
+		u32 rp_state_cap;
 		u32 rpmodectl, rpinclimit, rpdeclimit;
 		u32 rpstat, cagf, reqf;
 		u32 rpupei, rpcurup, rpprevup;
 		u32 rpdownei, rpcurdown, rpprevdown;
 		u32 pm_ier, pm_imr, pm_isr, pm_iir, pm_mask;
 		int max_freq;
+
+		rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
+		if (IS_BROXTON(dev)) {
+			rp_state_cap = I915_READ(BXT_RP_STATE_CAP);
+			gt_perf_status = I915_READ(BXT_GT_PERF_STATUS);
+		} else {
+			rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+			gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
+		}
 
 		/* RPSTAT1 is in the GT power well */
 		ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -1229,7 +1238,8 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Down threshold: %d%%\n",
 			   dev_priv->rps.down_threshold);
 
-		max_freq = (rp_state_cap & 0xff0000) >> 16;
+		max_freq = (IS_BROXTON(dev) ? rp_state_cap >> 0 :
+			    rp_state_cap >> 16) & 0xff;
 		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
@@ -1239,7 +1249,8 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
-		max_freq = rp_state_cap & 0xff;
+		max_freq = (IS_BROXTON(dev) ? rp_state_cap >> 16 :
+			    rp_state_cap >> 0) & 0xff;
 		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));

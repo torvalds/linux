@@ -4288,13 +4288,21 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 	u32 ddcc_status = 0;
 	int ret;
 
-	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	/* All of these values are in units of 50MHz */
 	dev_priv->rps.cur_freq		= 0;
 	/* static values from HW: RP0 > RP1 > RPn (min_freq) */
-	dev_priv->rps.rp0_freq		= (rp_state_cap >>  0) & 0xff;
-	dev_priv->rps.rp1_freq		= (rp_state_cap >>  8) & 0xff;
-	dev_priv->rps.min_freq		= (rp_state_cap >> 16) & 0xff;
+	if (IS_BROXTON(dev)) {
+		rp_state_cap = I915_READ(BXT_RP_STATE_CAP);
+		dev_priv->rps.rp0_freq = (rp_state_cap >> 16) & 0xff;
+		dev_priv->rps.rp1_freq = (rp_state_cap >>  8) & 0xff;
+		dev_priv->rps.min_freq = (rp_state_cap >>  0) & 0xff;
+	} else {
+		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+		dev_priv->rps.rp0_freq = (rp_state_cap >>  0) & 0xff;
+		dev_priv->rps.rp1_freq = (rp_state_cap >>  8) & 0xff;
+		dev_priv->rps.min_freq = (rp_state_cap >> 16) & 0xff;
+	}
+
 	if (IS_SKYLAKE(dev)) {
 		/* Store the frequency values in 16.66 MHZ units, which is
 		   the natural hardware unit for SKL */
