@@ -332,6 +332,7 @@ static const struct apll_clk_set rk3368_aplll_table[] = {
 static const struct pll_clk_set rk3368_pll_table_low_jitter[] = {
 	/*                             _khz, nr,  nf, no, nb */
 	_RK3188PLUS_PLL_SET_CLKS_NB(1188000,  1,  99,  2,  1),
+	_RK3188PLUS_PLL_SET_CLKS_NB(400000,  1,  100,  6,  1),
 	_RK3188PLUS_PLL_SET_CLKS(         0,  0,   0,  0),
 };
 
