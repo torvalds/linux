@@ -4898,6 +4898,13 @@ sub process {
 				     "memory barrier without comment\n" . $herecurr);
 			}
 		}
+# check for waitqueue_active without a comment.
+		if ($line =~ /\bwaitqueue_active\s*\(/) {
+			if (!ctx_has_comment($first_line, $linenr)) {
+				WARN("WAITQUEUE_ACTIVE",
+				     "waitqueue_active without comment\n" . $herecurr);
+			}
+		}
 # check of hardware specific defines
 		if ($line =~ m@^.\s*\#\s*if.*\b(__i386__|__powerpc64__|__sun__|__s390x__)\b@ && $realfile !~ m@include/asm-@) {
 			CHK("ARCH_DEFINES",
