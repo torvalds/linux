@@ -574,7 +574,7 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
 		vmw_fence_single_bo(bo, NULL);
 		ttm_bo_unreserve(bo);
 	}
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 }
 
 /*
@@ -627,7 +627,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PTDEPTH_1;
 	}
 
-	(void) vmw_3d_resource_inc(dev_priv, false);
+	vmw_fifo_resource_inc(dev_priv);
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
@@ -648,7 +648,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 	return 0;
 
 out_no_cmd_space:
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 	if (pt_set_up)
 		ttm_bo_unref(&mob->pt_bo);
 

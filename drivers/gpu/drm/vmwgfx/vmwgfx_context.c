@@ -140,7 +140,7 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 	cmd->body.cid = cpu_to_le32(res->id);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 }
 
 static int vmw_gb_context_init(struct vmw_private *dev_priv,
@@ -220,7 +220,7 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 	cmd->body.cid = cpu_to_le32(res->id);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
-	(void) vmw_3d_resource_inc(dev_priv, false);
+	vmw_fifo_resource_inc(dev_priv);
 	vmw_resource_activate(res, vmw_hw_context_destroy);
 	return 0;
 
@@ -281,7 +281,7 @@ static int vmw_gb_context_create(struct vmw_resource *res)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = res->id;
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
-	(void) vmw_3d_resource_inc(dev_priv, false);
+	vmw_fifo_resource_inc(dev_priv);
 
 	return 0;
 
@@ -414,7 +414,7 @@ static int vmw_gb_context_destroy(struct vmw_resource *res)
 	if (dev_priv->query_cid == res->id)
 		dev_priv->query_cid_valid = false;
 	vmw_resource_release_id(res);
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 
 	return 0;
 }

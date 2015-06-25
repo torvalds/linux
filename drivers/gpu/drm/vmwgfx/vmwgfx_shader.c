@@ -165,7 +165,7 @@ static int vmw_gb_shader_create(struct vmw_resource *res)
 	cmd->body.type = shader->type;
 	cmd->body.sizeInBytes = shader->size;
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
-	(void) vmw_3d_resource_inc(dev_priv, false);
+	vmw_fifo_resource_inc(dev_priv);
 
 	return 0;
 
@@ -275,7 +275,7 @@ static int vmw_gb_shader_destroy(struct vmw_resource *res)
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	mutex_unlock(&dev_priv->binding_mutex);
 	vmw_resource_release_id(res);
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 
 	return 0;
 }

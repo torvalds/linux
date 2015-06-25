@@ -484,6 +484,7 @@ struct vmw_private {
 
 	bool stealth;
 	bool enable_fb;
+	spinlock_t svga_lock;
 
 	/**
 	 * Master management.
@@ -493,9 +494,10 @@ struct vmw_private {
 	struct vmw_master fbdev_master;
 	struct notifier_block pm_nb;
 	bool suspended;
+	bool refuse_hibernation;
 
 	struct mutex release_mutex;
-	uint32_t num_3d_resources;
+	atomic_t num_fifo_resources;
 
 	/*
 	 * Replace this with an rwsem as soon as we have down_xx_interruptible()
@@ -587,8 +589,9 @@ static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 	return val;
 }
 
-int vmw_3d_resource_inc(struct vmw_private *dev_priv, bool unhide_svga);
-void vmw_3d_resource_dec(struct vmw_private *dev_priv, bool hide_svga);
+extern void vmw_svga_enable(struct vmw_private *dev_priv);
+extern void vmw_svga_disable(struct vmw_private *dev_priv);
+
 
 /**
  * GMR utilities - vmwgfx_gmr.c
@@ -1115,5 +1118,15 @@ static inline struct vmw_dma_buffer *vmw_dmabuf_reference(struct vmw_dma_buffer 
 static inline struct ttm_mem_global *vmw_mem_glob(struct vmw_private *dev_priv)
 {
 	return (struct ttm_mem_global *) dev_priv->mem_global_ref.object;
+}
+
+static inline void vmw_fifo_resource_inc(struct vmw_private *dev_priv)
+{
+	atomic_inc(&dev_priv->num_fifo_resources);
+}
+
+static inline void vmw_fifo_resource_dec(struct vmw_private *dev_priv)
+{
+	atomic_dec(&dev_priv->num_fifo_resources);
 }
 #endif

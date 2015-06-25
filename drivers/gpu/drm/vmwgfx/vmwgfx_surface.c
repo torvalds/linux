@@ -340,7 +340,7 @@ static void vmw_hw_surface_destroy(struct vmw_resource *res)
 		dev_priv->used_memory_size -= res->backup_size;
 		mutex_unlock(&dev_priv->cmdbuf_mutex);
 	}
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 }
 
 /**
@@ -576,14 +576,14 @@ static int vmw_surface_init(struct vmw_private *dev_priv,
 
 	BUG_ON(res_free == NULL);
 	if (!dev_priv->has_mob)
-		(void) vmw_3d_resource_inc(dev_priv, false);
+		vmw_fifo_resource_inc(dev_priv);
 	ret = vmw_resource_init(dev_priv, res, true, res_free,
 				(dev_priv->has_mob) ? &vmw_gb_surface_func :
 				&vmw_legacy_surface_func);
 
 	if (unlikely(ret != 0)) {
 		if (!dev_priv->has_mob)
-			vmw_3d_resource_dec(dev_priv, false);
+			vmw_fifo_resource_dec(dev_priv);
 		res_free(res);
 		return ret;
 	}
@@ -1028,7 +1028,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 	if (likely(res->id != -1))
 		return 0;
 
-	(void) vmw_3d_resource_inc(dev_priv, false);
+	vmw_fifo_resource_inc(dev_priv);
 	ret = vmw_resource_alloc_id(res);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a surface id.\n");
@@ -1068,7 +1068,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 out_no_fifo:
 	vmw_resource_release_id(res);
 out_no_id:
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 	return ret;
 }
 
@@ -1213,7 +1213,7 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	mutex_unlock(&dev_priv->binding_mutex);
 	vmw_resource_release_id(res);
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 
 	return 0;
 }

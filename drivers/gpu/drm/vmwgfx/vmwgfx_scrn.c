@@ -332,6 +332,7 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 	}
 
 	vmw_fb_off(dev_priv);
+	vmw_svga_enable(dev_priv);
 
 	if (mode->hdisplay != crtc->mode.hdisplay ||
 	    mode->vdisplay != crtc->mode.vdisplay) {

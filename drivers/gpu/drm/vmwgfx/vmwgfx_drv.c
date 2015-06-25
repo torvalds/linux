@@ -339,6 +339,32 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	return ret;
 }
 
+/**
+ * vmw_request_device_late - Perform late device setup
+ *
+ * @dev_priv: Pointer to device private.
+ *
+ * This function performs setup of otables and enables large command
+ * buffer submission. These tasks are split out to a separate function
+ * because it reverts vmw_release_device_early and is intended to be used
+ * by an error path in the hibernation code.
+ */
+static int vmw_request_device_late(struct vmw_private *dev_priv)
+{
+	int ret;
+
+	if (dev_priv->has_mob) {
+		ret = vmw_otables_setup(dev_priv);
+		if (unlikely(ret != 0)) {
+			DRM_ERROR("Unable to initialize "
+				  "guest Memory OBjects.\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int vmw_request_device(struct vmw_private *dev_priv)
 {
 	int ret;
@@ -349,14 +375,11 @@ static int vmw_request_device(struct vmw_private *dev_priv)
 		return ret;
 	}
 	vmw_fence_fifo_up(dev_priv->fman);
-	if (dev_priv->has_mob) {
-		ret = vmw_otables_setup(dev_priv);
-		if (unlikely(ret != 0)) {
-			DRM_ERROR("Unable to initialize "
-				  "guest Memory OBjects.\n");
-			goto out_no_mob;
-		}
-	}
+
+	ret = vmw_request_device_late(dev_priv);
+	if (ret)
+		goto out_no_mob;
+
 	ret = vmw_dummy_query_bo_create(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_query_bo;
@@ -364,15 +387,25 @@ static int vmw_request_device(struct vmw_private *dev_priv)
 	return 0;
 
 out_no_query_bo:
-	if (dev_priv->has_mob)
+	if (dev_priv->has_mob) {
+		(void) ttm_bo_evict_mm(&dev_priv->bdev, VMW_PL_MOB);
 		vmw_otables_takedown(dev_priv);
+	}
 out_no_mob:
 	vmw_fence_fifo_down(dev_priv->fman);
 	vmw_fifo_release(dev_priv, &dev_priv->fifo);
 	return ret;
 }
 
-static void vmw_release_device(struct vmw_private *dev_priv)
+/**
+ * vmw_release_device_early - Early part of fifo takedown.
+ *
+ * @dev_priv: Pointer to device private struct.
+ *
+ * This is the first part of command submission takedown, to be called before
+ * buffer management is taken down.
+ */
+static void vmw_release_device_early(struct vmw_private *dev_priv)
 {
 	/*
 	 * Previous destructions should've released
@@ -382,64 +415,24 @@ static void vmw_release_device(struct vmw_private *dev_priv)
 	BUG_ON(dev_priv->pinned_bo != NULL);
 
 	ttm_bo_unref(&dev_priv->dummy_query_bo);
-	if (dev_priv->has_mob)
+	if (dev_priv->has_mob) {
+		ttm_bo_evict_mm(&dev_priv->bdev, VMW_PL_MOB);
 		vmw_otables_takedown(dev_priv);
+	}
+}
+
+/**
+ * vmw_release_device_late - Late part of fifo takedown.
+ *
+ * @dev_priv: Pointer to device private struct.
+ *
+ * This is the last part of the command submission takedown, to be called when
+ * command submission is no longer needed. It may wait on pending fences.
+ */
+static void vmw_release_device_late(struct vmw_private *dev_priv)
+{
 	vmw_fence_fifo_down(dev_priv->fman);
 	vmw_fifo_release(dev_priv, &dev_priv->fifo);
-}
-
-
-/**
- * Increase the 3d resource refcount.
- * If the count was prevously zero, initialize the fifo, switching to svga
- * mode. Note that the master holds a ref as well, and may request an
- * explicit switch to svga mode if fb is not running, using @unhide_svga.
- */
-int vmw_3d_resource_inc(struct vmw_private *dev_priv,
-			bool unhide_svga)
-{
-	int ret = 0;
-
-	mutex_lock(&dev_priv->release_mutex);
-	if (unlikely(dev_priv->num_3d_resources++ == 0)) {
-		ret = vmw_request_device(dev_priv);
-		if (unlikely(ret != 0))
-			--dev_priv->num_3d_resources;
-	} else if (unhide_svga) {
-		vmw_write(dev_priv, SVGA_REG_ENABLE,
-			  vmw_read(dev_priv, SVGA_REG_ENABLE) &
-			  ~SVGA_REG_ENABLE_HIDE);
-	}
-
-	mutex_unlock(&dev_priv->release_mutex);
-	return ret;
-}
-
-/**
- * Decrease the 3d resource refcount.
- * If the count reaches zero, disable the fifo, switching to vga mode.
- * Note that the master holds a refcount as well, and may request an
- * explicit switch to vga mode when it releases its refcount to account
- * for the situation of an X server vt switch to VGA with 3d resources
- * active.
- */
-void vmw_3d_resource_dec(struct vmw_private *dev_priv,
-			 bool hide_svga)
-{
-	int32_t n3d;
-
-	mutex_lock(&dev_priv->release_mutex);
-	if (unlikely(--dev_priv->num_3d_resources == 0))
-		vmw_release_device(dev_priv);
-	else if (hide_svga)
-		vmw_write(dev_priv, SVGA_REG_ENABLE,
-			  vmw_read(dev_priv, SVGA_REG_ENABLE) |
-			  SVGA_REG_ENABLE_HIDE);
-
-	n3d = (int32_t) dev_priv->num_3d_resources;
-	mutex_unlock(&dev_priv->release_mutex);
-
-	BUG_ON(n3d < 0);
 }
 
 /**
@@ -603,6 +596,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	spin_lock_init(&dev_priv->hw_lock);
 	spin_lock_init(&dev_priv->waiter_lock);
 	spin_lock_init(&dev_priv->cap_lock);
+	spin_lock_init(&dev_priv->svga_lock);
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i) {
 		idr_init(&dev_priv->res_idr[i]);
@@ -714,17 +708,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->active_master = &dev_priv->fbdev_master;
 
 
-	ret = ttm_bo_device_init(&dev_priv->bdev,
-				 dev_priv->bo_global_ref.ref.object,
-				 &vmw_bo_driver,
-				 dev->anon_inode->i_mapping,
-				 VMWGFX_FILE_PAGE_OFFSET,
-				 false);
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Failed initializing TTM buffer object driver.\n");
-		goto out_err1;
-	}
-
 	dev_priv->mmio_mtrr = arch_phys_wc_add(dev_priv->mmio_start,
 					       dev_priv->mmio_size);
 
@@ -787,13 +770,28 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_no_fman;
 	}
 
+	ret = ttm_bo_device_init(&dev_priv->bdev,
+				 dev_priv->bo_global_ref.ref.object,
+				 &vmw_bo_driver,
+				 dev->anon_inode->i_mapping,
+				 VMWGFX_FILE_PAGE_OFFSET,
+				 false);
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Failed initializing TTM buffer object driver.\n");
+		goto out_no_bdev;
+	}
 
+	/*
+	 * Enable VRAM, but initially don't use it until SVGA is enabled and
+	 * unhidden.
+	 */
 	ret = ttm_bo_init_mm(&dev_priv->bdev, TTM_PL_VRAM,
 			     (dev_priv->vram_size >> PAGE_SHIFT));
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed initializing memory manager for VRAM.\n");
 		goto out_no_vram;
 	}
+	dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
 
 	dev_priv->has_gmr = true;
 	if (((dev_priv->capabilities & (SVGA_CAP_GMR | SVGA_CAP_GMR2)) == 0) ||
@@ -814,18 +812,18 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		}
 	}
 
-	vmw_kms_save_vga(dev_priv);
-
-	/* Start kms and overlay systems, needs fifo. */
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_kms;
 	vmw_overlay_init(dev_priv);
 
+	ret = vmw_request_device(dev_priv);
+	if (ret)
+		goto out_no_fifo;
+
 	if (dev_priv->enable_fb) {
-		ret = vmw_3d_resource_inc(dev_priv, true);
-		if (unlikely(ret != 0))
-			goto out_no_fifo;
+		vmw_fifo_resource_inc(dev_priv);
+		vmw_svga_enable(dev_priv);
 		vmw_fb_init(dev_priv);
 	}
 
@@ -838,13 +836,14 @@ out_no_fifo:
 	vmw_overlay_close(dev_priv);
 	vmw_kms_close(dev_priv);
 out_no_kms:
-	vmw_kms_restore_vga(dev_priv);
 	if (dev_priv->has_mob)
 		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_MOB);
 	if (dev_priv->has_gmr)
 		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
 out_no_vram:
+	(void)ttm_bo_device_release(&dev_priv->bdev);
+out_no_bdev:
 	vmw_fence_manager_takedown(dev_priv->fman);
 out_no_fman:
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
@@ -860,8 +859,6 @@ out_err4:
 	iounmap(dev_priv->mmio_virt);
 out_err3:
 	arch_phys_wc_del(dev_priv->mmio_mtrr);
-	(void)ttm_bo_device_release(&dev_priv->bdev);
-out_err1:
 	vmw_ttm_global_release(dev_priv);
 out_err0:
 	for (i = vmw_res_context; i < vmw_res_max; ++i)
@@ -883,18 +880,22 @@ static int vmw_driver_unload(struct drm_device *dev)
 	vfree(dev_priv->ctx.cmd_bounce);
 	if (dev_priv->enable_fb) {
 		vmw_fb_close(dev_priv);
-		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv, false);
+		vmw_fifo_resource_dec(dev_priv);
+		vmw_svga_disable(dev_priv);
 	}
+
 	vmw_kms_close(dev_priv);
 	vmw_overlay_close(dev_priv);
 
-	if (dev_priv->has_mob)
-		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_MOB);
 	if (dev_priv->has_gmr)
 		(void)ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
 
+	vmw_release_device_early(dev_priv);
+	if (dev_priv->has_mob)
+		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_MOB);
+	(void) ttm_bo_device_release(&dev_priv->bdev);
+	vmw_release_device_late(dev_priv);
 	vmw_fence_manager_takedown(dev_priv->fman);
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
 		drm_irq_uninstall(dev_priv->dev);
@@ -1148,27 +1149,13 @@ static int vmw_master_set(struct drm_device *dev,
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret = 0;
 
-	if (!dev_priv->enable_fb) {
-		ret = vmw_3d_resource_inc(dev_priv, true);
-		if (unlikely(ret != 0))
-			return ret;
-		vmw_kms_save_vga(dev_priv);
-		vmw_write(dev_priv, SVGA_REG_TRACES, 0);
-	}
-
 	if (active) {
 		BUG_ON(active != &dev_priv->fbdev_master);
 		ret = ttm_vt_lock(&active->lock, false, vmw_fp->tfile);
 		if (unlikely(ret != 0))
-			goto out_no_active_lock;
+			return ret;
 
 		ttm_lock_set_kill(&active->lock, true, SIGTERM);
-		ret = ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_VRAM);
-		if (unlikely(ret != 0)) {
-			DRM_ERROR("Unable to clean VRAM on "
-				  "master drop.\n");
-		}
-
 		dev_priv->active_master = NULL;
 	}
 
@@ -1182,14 +1169,6 @@ static int vmw_master_set(struct drm_device *dev,
 	dev_priv->active_master = vmaster;
 
 	return 0;
-
-out_no_active_lock:
-	if (!dev_priv->enable_fb) {
-		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv, true);
-		vmw_write(dev_priv, SVGA_REG_TRACES, 1);
-	}
-	return ret;
 }
 
 static void vmw_master_drop(struct drm_device *dev,
@@ -1214,16 +1193,9 @@ static void vmw_master_drop(struct drm_device *dev,
 	}
 
 	ttm_lock_set_kill(&vmaster->lock, false, SIGTERM);
-	vmw_execbuf_release_pinned_bo(dev_priv);
 
-	if (!dev_priv->enable_fb) {
-		ret = ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_VRAM);
-		if (unlikely(ret != 0))
-			DRM_ERROR("Unable to clean VRAM on master drop.\n");
-		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv, true);
-		vmw_write(dev_priv, SVGA_REG_TRACES, 1);
-	}
+	if (!dev_priv->enable_fb)
+		vmw_svga_disable(dev_priv);
 
 	dev_priv->active_master = &dev_priv->fbdev_master;
 	ttm_lock_set_kill(&dev_priv->fbdev_master.lock, false, SIGTERM);
@@ -1233,6 +1205,74 @@ static void vmw_master_drop(struct drm_device *dev,
 		vmw_fb_on(dev_priv);
 }
 
+/**
+ * __vmw_svga_enable - Enable SVGA mode, FIFO and use of VRAM.
+ *
+ * @dev_priv: Pointer to device private struct.
+ * Needs the reservation sem to be held in non-exclusive mode.
+ */
+void __vmw_svga_enable(struct vmw_private *dev_priv)
+{
+	spin_lock(&dev_priv->svga_lock);
+	if (!dev_priv->bdev.man[TTM_PL_VRAM].use_type) {
+		vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE);
+		dev_priv->bdev.man[TTM_PL_VRAM].use_type = true;
+	}
+	spin_unlock(&dev_priv->svga_lock);
+}
+
+/**
+ * vmw_svga_enable - Enable SVGA mode, FIFO and use of VRAM.
+ *
+ * @dev_priv: Pointer to device private struct.
+ */
+void vmw_svga_enable(struct vmw_private *dev_priv)
+{
+	ttm_read_lock(&dev_priv->reservation_sem, false);
+	__vmw_svga_enable(dev_priv);
+	ttm_read_unlock(&dev_priv->reservation_sem);
+}
+
+/**
+ * __vmw_svga_disable - Disable SVGA mode and use of VRAM.
+ *
+ * @dev_priv: Pointer to device private struct.
+ * Needs the reservation sem to be held in exclusive mode.
+ * Will not empty VRAM. VRAM must be emptied by caller.
+ */
+void __vmw_svga_disable(struct vmw_private *dev_priv)
+{
+	spin_lock(&dev_priv->svga_lock);
+	if (dev_priv->bdev.man[TTM_PL_VRAM].use_type) {
+		dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
+		vmw_write(dev_priv, SVGA_REG_ENABLE,
+			  SVGA_REG_ENABLE_ENABLE_HIDE);
+	}
+	spin_unlock(&dev_priv->svga_lock);
+}
+
+/**
+ * vmw_svga_disable - Disable SVGA_MODE, and use of VRAM. Keep the fifo
+ * running.
+ *
+ * @dev_priv: Pointer to device private struct.
+ * Will empty VRAM.
+ */
+void vmw_svga_disable(struct vmw_private *dev_priv)
+{
+	ttm_write_lock(&dev_priv->reservation_sem, false);
+	spin_lock(&dev_priv->svga_lock);
+	if (dev_priv->bdev.man[TTM_PL_VRAM].use_type) {
+		dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
+		vmw_write(dev_priv, SVGA_REG_ENABLE,
+			  SVGA_REG_ENABLE_ENABLE_HIDE);
+		spin_unlock(&dev_priv->svga_lock);
+		if (ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_VRAM))
+			DRM_ERROR("Failed evicting VRAM buffers.\n");
+	} else
+		spin_unlock(&dev_priv->svga_lock);
+	ttm_write_unlock(&dev_priv->reservation_sem);
+}
 
 static void vmw_remove(struct pci_dev *pdev)
 {
@@ -1250,21 +1290,21 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 
 	switch (val) {
 	case PM_HIBERNATION_PREPARE:
-	case PM_SUSPEND_PREPARE:
 		ttm_suspend_lock(&dev_priv->reservation_sem);
 
-		/**
+		/*
 		 * This empties VRAM and unbinds all GMR bindings.
 		 * Buffer contents is moved to swappable memory.
 		 */
 		vmw_execbuf_release_pinned_bo(dev_priv);
 		vmw_resource_evict_all(dev_priv);
+		vmw_release_device_early(dev_priv);
 		ttm_bo_swapout_all(&dev_priv->bdev);
-
+		vmw_fence_fifo_down(dev_priv->fman);
 		break;
 	case PM_POST_HIBERNATION:
-	case PM_POST_SUSPEND:
 	case PM_POST_RESTORE:
+		vmw_fence_fifo_up(dev_priv->fman);
 		ttm_suspend_unlock(&dev_priv->reservation_sem);
 
 		break;
@@ -1276,20 +1316,13 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 	return 0;
 }
 
-/**
- * These might not be needed with the virtual SVGA device.
- */
-
 static int vmw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct vmw_private *dev_priv = vmw_priv(dev);
 
-	if (dev_priv->num_3d_resources != 0) {
-		DRM_INFO("Can't suspend or hibernate "
-			 "while 3D resources are active.\n");
+	if (dev_priv->refuse_hibernation)
 		return -EBUSY;
-	}
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
@@ -1321,56 +1354,62 @@ static int vmw_pm_resume(struct device *kdev)
 	return vmw_pci_resume(pdev);
 }
 
-static int vmw_pm_prepare(struct device *kdev)
+static int vmw_pm_freeze(struct device *kdev)
 {
 	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct vmw_private *dev_priv = vmw_priv(dev);
 
-	/**
-	 * Release 3d reference held by fbdev and potentially
-	 * stop fifo.
-	 */
 	dev_priv->suspended = true;
 	if (dev_priv->enable_fb)
-			vmw_3d_resource_dec(dev_priv, true);
+		vmw_fifo_resource_dec(dev_priv);
 
-	if (dev_priv->num_3d_resources != 0) {
-
-		DRM_INFO("Can't suspend or hibernate "
-			 "while 3D resources are active.\n");
-
+	if (atomic_read(&dev_priv->num_fifo_resources) != 0) {
+		DRM_ERROR("Can't hibernate while 3D resources are active.\n");
 		if (dev_priv->enable_fb)
-			vmw_3d_resource_inc(dev_priv, true);
+			vmw_fifo_resource_inc(dev_priv);
+		WARN_ON(vmw_request_device_late(dev_priv));
 		dev_priv->suspended = false;
 		return -EBUSY;
 	}
 
+	if (dev_priv->enable_fb)
+		__vmw_svga_disable(dev_priv);
+	
+	vmw_release_device_late(dev_priv);
+
 	return 0;
 }
 
-static void vmw_pm_complete(struct device *kdev)
+static int vmw_pm_restore(struct device *kdev)
 {
 	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct vmw_private *dev_priv = vmw_priv(dev);
+	int ret;
 
 	vmw_write(dev_priv, SVGA_REG_ID, SVGA_ID_2);
 	(void) vmw_read(dev_priv, SVGA_REG_ID);
 
-	/**
-	 * Reclaim 3d reference held by fbdev and potentially
-	 * start fifo.
-	 */
 	if (dev_priv->enable_fb)
-			vmw_3d_resource_inc(dev_priv, false);
+		vmw_fifo_resource_inc(dev_priv);
+
+	ret = vmw_request_device(dev_priv);
+	if (ret)
+		return ret;
+
+	if (dev_priv->enable_fb)
+		__vmw_svga_enable(dev_priv);
 
 	dev_priv->suspended = false;
+
+	return 0;
 }
 
 static const struct dev_pm_ops vmw_pm_ops = {
-	.prepare = vmw_pm_prepare,
-	.complete = vmw_pm_complete,
+	.freeze = vmw_pm_freeze,
+	.thaw = vmw_pm_restore,
+	.restore = vmw_pm_restore,
 	.suspend = vmw_pm_suspend,
 	.resume = vmw_pm_resume,
 };

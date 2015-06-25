@@ -98,7 +98,6 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
 	uint32_t max;
 	uint32_t min;
-	uint32_t dummy;
 
 	fifo->static_buffer_size = VMWGFX_FIFO_STATIC_SIZE;
 	fifo->static_buffer = vmalloc(fifo->static_buffer_size);
@@ -112,10 +111,6 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	mutex_init(&fifo->fifo_mutex);
 	init_rwsem(&fifo->rwsem);
 
-	/*
-	 * Allow mapping the first page read-only to user-space.
-	 */
-
 	DRM_INFO("width %d\n", vmw_read(dev_priv, SVGA_REG_WIDTH));
 	DRM_INFO("height %d\n", vmw_read(dev_priv, SVGA_REG_HEIGHT));
 	DRM_INFO("bpp %d\n", vmw_read(dev_priv, SVGA_REG_BITS_PER_PIXEL));
@@ -123,7 +118,9 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	dev_priv->enable_state = vmw_read(dev_priv, SVGA_REG_ENABLE);
 	dev_priv->config_done_state = vmw_read(dev_priv, SVGA_REG_CONFIG_DONE);
 	dev_priv->traces_state = vmw_read(dev_priv, SVGA_REG_TRACES);
-	vmw_write(dev_priv, SVGA_REG_ENABLE, 1);
+
+	vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE_ENABLE_HIDE);
+	vmw_write(dev_priv, SVGA_REG_TRACES, 0);
 
 	min = 4;
 	if (dev_priv->capabilities & SVGA_CAP_EXTENDED_FIFO)
@@ -155,7 +152,8 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	atomic_set(&dev_priv->marker_seq, dev_priv->last_read_seqno);
 	iowrite32(dev_priv->last_read_seqno, fifo_mem + SVGA_FIFO_FENCE);
 	vmw_marker_queue_init(&fifo->marker_queue);
-	return vmw_fifo_send_fence(dev_priv, &dummy);
+
+	return 0;
 }
 
 void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason)

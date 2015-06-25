@@ -596,7 +596,10 @@ int vmw_fb_off(struct vmw_private *vmw_priv)
 
 	info = vmw_priv->fb_info;
 	par = info->par;
+	if (!par->bo_ptr)
+		return 0;
 
+	vmw_kms_save_vga(vmw_priv);
 	spin_lock_irqsave(&par->dirty.lock, flags);
 	par->dirty.active = false;
 	spin_unlock_irqrestore(&par->dirty.lock, flags);
@@ -648,6 +651,7 @@ int vmw_fb_on(struct vmw_private *vmw_priv)
 	spin_lock_irqsave(&par->dirty.lock, flags);
 	par->dirty.active = true;
 	spin_unlock_irqrestore(&par->dirty.lock, flags);
+	vmw_kms_restore_vga(vmw_priv);
 
 err_no_buffer:
 	vmw_fb_set_par(info);
