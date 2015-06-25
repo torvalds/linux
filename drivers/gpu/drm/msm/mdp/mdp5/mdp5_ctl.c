@@ -287,29 +287,85 @@ int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, int cursor_id, bool enable)
 		blend_cfg &= ~MDP5_CTL_LAYER_REG_CURSOR_OUT;
 
 	ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, lm), blend_cfg);
+	ctl->cursor_on = enable;
 
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
 
 	ctl->pending_ctl_trigger = mdp_ctl_flush_mask_cursor(cursor_id);
-	ctl->cursor_on = enable;
 
 	return 0;
 }
 
-int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u32 blend_cfg)
+static u32 mdp_ctl_blend_mask(enum mdp5_pipe pipe,
+		enum mdp_mixer_stage_id stage)
+{
+	switch (pipe) {
+	case SSPP_VIG0: return MDP5_CTL_LAYER_REG_VIG0(stage);
+	case SSPP_VIG1: return MDP5_CTL_LAYER_REG_VIG1(stage);
+	case SSPP_VIG2: return MDP5_CTL_LAYER_REG_VIG2(stage);
+	case SSPP_RGB0: return MDP5_CTL_LAYER_REG_RGB0(stage);
+	case SSPP_RGB1: return MDP5_CTL_LAYER_REG_RGB1(stage);
+	case SSPP_RGB2: return MDP5_CTL_LAYER_REG_RGB2(stage);
+	case SSPP_DMA0: return MDP5_CTL_LAYER_REG_DMA0(stage);
+	case SSPP_DMA1: return MDP5_CTL_LAYER_REG_DMA1(stage);
+	case SSPP_VIG3: return MDP5_CTL_LAYER_REG_VIG3(stage);
+	case SSPP_RGB3: return MDP5_CTL_LAYER_REG_RGB3(stage);
+	default:	return 0;
+	}
+}
+
+static u32 mdp_ctl_blend_ext_mask(enum mdp5_pipe pipe,
+		enum mdp_mixer_stage_id stage)
+{
+	if (stage < STAGE6)
+		return 0;
+
+	switch (pipe) {
+	case SSPP_VIG0: return MDP5_CTL_LAYER_EXT_REG_VIG0_BIT3;
+	case SSPP_VIG1: return MDP5_CTL_LAYER_EXT_REG_VIG1_BIT3;
+	case SSPP_VIG2: return MDP5_CTL_LAYER_EXT_REG_VIG2_BIT3;
+	case SSPP_RGB0: return MDP5_CTL_LAYER_EXT_REG_RGB0_BIT3;
+	case SSPP_RGB1: return MDP5_CTL_LAYER_EXT_REG_RGB1_BIT3;
+	case SSPP_RGB2: return MDP5_CTL_LAYER_EXT_REG_RGB2_BIT3;
+	case SSPP_DMA0: return MDP5_CTL_LAYER_EXT_REG_DMA0_BIT3;
+	case SSPP_DMA1: return MDP5_CTL_LAYER_EXT_REG_DMA1_BIT3;
+	case SSPP_VIG3: return MDP5_CTL_LAYER_EXT_REG_VIG3_BIT3;
+	case SSPP_RGB3: return MDP5_CTL_LAYER_EXT_REG_RGB3_BIT3;
+	default:	return 0;
+	}
+}
+
+int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u8 *stage, u32 stage_cnt,
+	u32 ctl_blend_op_flags)
 {
 	unsigned long flags;
+	u32 blend_cfg = 0, blend_ext_cfg = 0;
+	int i, start_stage;
 
-	if (ctl->cursor_on)
-		blend_cfg |=  MDP5_CTL_LAYER_REG_CURSOR_OUT;
-	else
-		blend_cfg &= ~MDP5_CTL_LAYER_REG_CURSOR_OUT;
+	if (ctl_blend_op_flags & MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT) {
+		start_stage = STAGE0;
+		blend_cfg |= MDP5_CTL_LAYER_REG_BORDER_COLOR;
+	} else {
+		start_stage = STAGE_BASE;
+	}
+
+	for (i = start_stage; i < start_stage + stage_cnt; i++) {
+		blend_cfg |= mdp_ctl_blend_mask(stage[i], i);
+		blend_ext_cfg |= mdp_ctl_blend_ext_mask(stage[i], i);
+	}
 
 	spin_lock_irqsave(&ctl->hw_lock, flags);
+	if (ctl->cursor_on)
+		blend_cfg |=  MDP5_CTL_LAYER_REG_CURSOR_OUT;
+
 	ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, lm), blend_cfg);
+	ctl_write(ctl, REG_MDP5_CTL_LAYER_EXT_REG(ctl->id, lm), blend_ext_cfg);
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
 
 	ctl->pending_ctl_trigger = mdp_ctl_flush_mask_lm(lm);
+
+	DBG("lm%d: blend config = 0x%08x. ext_cfg = 0x%08x", lm,
+		blend_cfg, blend_ext_cfg);
 
 	return 0;
 }

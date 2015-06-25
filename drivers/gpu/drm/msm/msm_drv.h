@@ -64,6 +64,13 @@ struct msm_file_private {
 	int dummy;
 };
 
+enum msm_mdp_plane_property {
+	PLANE_PROP_ZPOS,
+	PLANE_PROP_ALPHA,
+	PLANE_PROP_PREMULTIPLIED,
+	PLANE_PROP_MAX_NUM
+};
+
 struct msm_drm_private {
 
 	struct msm_kms *kms;
@@ -127,6 +134,9 @@ struct msm_drm_private {
 
 	unsigned int num_connectors;
 	struct drm_connector *connectors[8];
+
+	/* Properties */
+	struct drm_property *plane_property[PLANE_PROP_MAX_NUM];
 
 	/* VRAM carveout, used when no IOMMU: */
 	struct {

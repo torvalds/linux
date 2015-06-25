@@ -42,39 +42,19 @@ int mdp5_ctl_set_encoder_state(struct mdp5_ctl *ctl, bool enabled);
 int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, int cursor_id, bool enable);
 
 /*
- * blend_cfg (LM blender config):
- *
- * The function below allows the caller of mdp5_ctl_blend() to specify how pipes
- * are being blended according to their stage (z-order), through @blend_cfg arg.
- */
-static inline u32 mdp_ctl_blend_mask(enum mdp5_pipe pipe,
-		enum mdp_mixer_stage_id stage)
-{
-	switch (pipe) {
-	case SSPP_VIG0: return MDP5_CTL_LAYER_REG_VIG0(stage);
-	case SSPP_VIG1: return MDP5_CTL_LAYER_REG_VIG1(stage);
-	case SSPP_VIG2: return MDP5_CTL_LAYER_REG_VIG2(stage);
-	case SSPP_RGB0: return MDP5_CTL_LAYER_REG_RGB0(stage);
-	case SSPP_RGB1: return MDP5_CTL_LAYER_REG_RGB1(stage);
-	case SSPP_RGB2: return MDP5_CTL_LAYER_REG_RGB2(stage);
-	case SSPP_DMA0: return MDP5_CTL_LAYER_REG_DMA0(stage);
-	case SSPP_DMA1: return MDP5_CTL_LAYER_REG_DMA1(stage);
-	case SSPP_VIG3: return MDP5_CTL_LAYER_REG_VIG3(stage);
-	case SSPP_RGB3: return MDP5_CTL_LAYER_REG_RGB3(stage);
-	default:	return 0;
-	}
-}
-
-/*
  * mdp5_ctl_blend() - Blend multiple layers on a Layer Mixer (LM)
  *
- * @blend_cfg: see LM blender config definition below
+ * @stage: array to contain the pipe num for each stage
+ * @stage_cnt: valid stage number in stage array
+ * @ctl_blend_op_flags: blender operation mode flags
  *
  * Note:
  * CTL registers need to be flushed after calling this function
  * (call mdp5_ctl_commit() with mdp_ctl_flush_mask_ctl() mask)
  */
-int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u32 blend_cfg);
+#define MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT	BIT(0)
+int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u8 *stage, u32 stage_cnt,
+	u32 ctl_blend_op_flags);
 
 /**
  * mdp_ctl_flush_mask...() - Register FLUSH masks

@@ -68,14 +68,103 @@ static void mdp5_plane_destroy(struct drm_plane *plane)
 static void mdp5_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj)
 {
-	// XXX
+	struct drm_device *dev = plane->dev;
+	struct msm_drm_private *dev_priv = dev->dev_private;
+	struct drm_property *prop;
+
+#define INSTALL_PROPERTY(name, NAME, init_val, fnc, ...) do { \
+		prop = dev_priv->plane_property[PLANE_PROP_##NAME]; \
+		if (!prop) { \
+			prop = drm_property_##fnc(dev, 0, #name, \
+				##__VA_ARGS__); \
+			if (!prop) { \
+				dev_warn(dev->dev, \
+					"Create property %s failed\n", \
+					#name); \
+				return; \
+			} \
+			dev_priv->plane_property[PLANE_PROP_##NAME] = prop; \
+		} \
+		drm_object_attach_property(&plane->base, prop, init_val); \
+	} while (0)
+
+#define INSTALL_RANGE_PROPERTY(name, NAME, min, max, init_val) \
+		INSTALL_PROPERTY(name, NAME, init_val, \
+				create_range, min, max)
+
+#define INSTALL_ENUM_PROPERTY(name, NAME, init_val) \
+		INSTALL_PROPERTY(name, NAME, init_val, \
+				create_enum, name##_prop_enum_list, \
+				ARRAY_SIZE(name##_prop_enum_list))
+
+	INSTALL_RANGE_PROPERTY(zpos, ZPOS, 1, 255, 1);
+
+#undef INSTALL_RANGE_PROPERTY
+#undef INSTALL_ENUM_PROPERTY
+#undef INSTALL_PROPERTY
 }
 
-int mdp5_plane_set_property(struct drm_plane *plane,
+static int mdp5_plane_atomic_set_property(struct drm_plane *plane,
+		struct drm_plane_state *state, struct drm_property *property,
+		uint64_t val)
+{
+	struct drm_device *dev = plane->dev;
+	struct mdp5_plane_state *pstate;
+	struct msm_drm_private *dev_priv = dev->dev_private;
+	int ret = 0;
+
+	pstate = to_mdp5_plane_state(state);
+
+#define SET_PROPERTY(name, NAME, type) do { \
+		if (dev_priv->plane_property[PLANE_PROP_##NAME] == property) { \
+			pstate->name = (type)val; \
+			DBG("Set property %s %d", #name, (type)val); \
+			goto done; \
+		} \
+	} while (0)
+
+	SET_PROPERTY(zpos, ZPOS, uint8_t);
+
+	dev_err(dev->dev, "Invalid property\n");
+	ret = -EINVAL;
+done:
+	return ret;
+#undef SET_PROPERTY
+}
+
+static int mdp5_plane_set_property(struct drm_plane *plane,
 		struct drm_property *property, uint64_t val)
 {
-	// XXX
-	return -EINVAL;
+	return mdp5_plane_atomic_set_property(plane, plane->state, property,
+		val);
+}
+
+static int mdp5_plane_atomic_get_property(struct drm_plane *plane,
+		const struct drm_plane_state *state,
+		struct drm_property *property, uint64_t *val)
+{
+	struct drm_device *dev = plane->dev;
+	struct mdp5_plane_state *pstate;
+	struct msm_drm_private *dev_priv = dev->dev_private;
+	int ret = 0;
+
+	pstate = to_mdp5_plane_state(state);
+
+#define GET_PROPERTY(name, NAME, type) do { \
+		if (dev_priv->plane_property[PLANE_PROP_##NAME] == property) { \
+			*val = pstate->name; \
+			DBG("Get property %s %lld", #name, *val); \
+			goto done; \
+		} \
+	} while (0)
+
+	GET_PROPERTY(zpos, ZPOS, uint8_t);
+
+	dev_err(dev->dev, "Invalid property\n");
+	ret = -EINVAL;
+done:
+	return ret;
+#undef SET_PROPERTY
 }
 
 static void mdp5_plane_reset(struct drm_plane *plane)
@@ -88,11 +177,15 @@ static void mdp5_plane_reset(struct drm_plane *plane)
 	kfree(to_mdp5_plane_state(plane->state));
 	mdp5_state = kzalloc(sizeof(*mdp5_state), GFP_KERNEL);
 
-	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
-		mdp5_state->zpos = 0;
-	} else {
-		mdp5_state->zpos = 1 + drm_plane_index(plane);
-	}
+	/* assign default blend parameters */
+	mdp5_state->alpha = 255;
+	mdp5_state->premultiplied = 0;
+
+	if (plane->type == DRM_PLANE_TYPE_PRIMARY)
+		mdp5_state->zpos = STAGE_BASE;
+	else
+		mdp5_state->zpos = STAGE0 + drm_plane_index(plane);
+
 	mdp5_state->base.plane = plane;
 
 	plane->state = &mdp5_state->base;
@@ -132,6 +225,8 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.disable_plane = drm_atomic_helper_disable_plane,
 		.destroy = mdp5_plane_destroy,
 		.set_property = mdp5_plane_set_property,
+		.atomic_set_property = mdp5_plane_atomic_set_property,
+		.atomic_get_property = mdp5_plane_atomic_get_property,
 		.reset = mdp5_plane_reset,
 		.atomic_duplicate_state = mdp5_plane_duplicate_state,
 		.atomic_destroy_state = mdp5_plane_destroy_state,

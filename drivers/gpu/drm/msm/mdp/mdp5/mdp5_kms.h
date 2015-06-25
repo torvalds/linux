@@ -70,18 +70,12 @@ struct mdp5_kms {
 struct mdp5_plane_state {
 	struct drm_plane_state base;
 
-	/* "virtual" zpos.. we calculate actual mixer-stage at runtime
-	 * by sorting the attached planes by zpos and then assigning
-	 * mixer stage lowest to highest.  Private planes get default
-	 * zpos of zero, and public planes a unique value that is
-	 * greater than zero.  This way, things work out if a naive
-	 * userspace assigns planes to a crtc without setting zpos.
-	 */
-	int zpos;
+	/* aligned with property */
+	uint8_t premultiplied;
+	uint8_t zpos;
+	uint8_t alpha;
 
-	/* the actual mixer stage, calculated in crtc->atomic_check()
-	 * NOTE: this should move to mdp5_crtc_state, when that exists
-	 */
+	/* assigned by crtc blender */
 	enum mdp_mixer_stage_id stage;
 
 	/* some additional transactional status to help us know in the
