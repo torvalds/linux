@@ -64,7 +64,7 @@ static int clk_programmable_determine_rate(struct clk_hw *hw,
 	int shift;
 	int i;
 
-	for (i = 0; i < __clk_get_num_parents(hw->clk); i++) {
+	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
 		parent = clk_get_parent_by_index(hw->clk, i);
 		if (!parent)
 			continue;

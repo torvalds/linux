@@ -66,7 +66,7 @@ static int at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
 	int tmp_diff;
 	int i;
 
-	for (i = 0; i < __clk_get_num_parents(hw->clk); i++) {
+	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
 		int div;
 
 		parent = clk_get_parent_by_index(hw->clk, i);

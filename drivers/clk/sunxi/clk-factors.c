@@ -87,7 +87,7 @@ static int clk_factors_determine_rate(struct clk_hw *hw,
 	unsigned long parent_rate, best = 0, child_rate, best_child_rate = 0;
 
 	/* find the parent that can help provide the fastest rate <= rate */
-	num_parents = __clk_get_num_parents(clk);
+	num_parents = clk_hw_get_num_parents(hw);
 	for (i = 0; i < num_parents; i++) {
 		parent = clk_get_parent_by_index(clk, i);
 		if (!parent)

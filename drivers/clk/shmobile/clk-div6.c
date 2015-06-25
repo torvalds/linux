@@ -133,7 +133,7 @@ static u8 cpg_div6_clock_get_parent(struct clk_hw *hw)
 
 	hw_index = (clk_readl(clock->reg) >> clock->src_shift) &
 		   (BIT(clock->src_width) - 1);
-	for (i = 0; i < __clk_get_num_parents(hw->clk); i++) {
+	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
 		if (clock->parents[i] == hw_index)
 			return i;
 	}
@@ -149,7 +149,7 @@ static int cpg_div6_clock_set_parent(struct clk_hw *hw, u8 index)
 	u8 hw_index;
 	u32 mask;
 
-	if (index >= __clk_get_num_parents(hw->clk))
+	if (index >= clk_hw_get_num_parents(hw))
 		return -EINVAL;
 
 	mask = ~((BIT(clock->src_width) - 1) << clock->src_shift);

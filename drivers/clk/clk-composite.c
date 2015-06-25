@@ -92,7 +92,7 @@ static int clk_composite_determine_rate(struct clk_hw *hw,
 			return 0;
 		}
 
-		for (i = 0; i < __clk_get_num_parents(mux_hw->clk); i++) {
+		for (i = 0; i < clk_hw_get_num_parents(mux_hw); i++) {
 			parent = clk_get_parent_by_index(mux_hw->clk, i);
 			if (!parent)
 				continue;

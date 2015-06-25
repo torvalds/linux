@@ -46,7 +46,7 @@ EXPORT_SYMBOL_GPL(qcom_find_freq);
 
 int qcom_find_src_index(struct clk_hw *hw, const struct parent_map *map, u8 src)
 {
-	int i, num_parents = __clk_get_num_parents(hw->clk);
+	int i, num_parents = clk_hw_get_num_parents(hw);
 
 	for (i = 0; i < num_parents; i++)
 		if (src == map[i].src)

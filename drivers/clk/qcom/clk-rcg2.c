@@ -63,7 +63,7 @@ static int clk_rcg2_is_enabled(struct clk_hw *hw)
 static u8 clk_rcg2_get_parent(struct clk_hw *hw)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
-	int num_parents = __clk_get_num_parents(hw->clk);
+	int num_parents = clk_hw_get_num_parents(hw);
 	u32 cfg;
 	int i, ret;
 

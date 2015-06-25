@@ -61,7 +61,7 @@ struct s3c24xx_clkout {
 static u8 s3c24xx_clkout_get_parent(struct clk_hw *hw)
 {
 	struct s3c24xx_clkout *clkout = to_s3c24xx_clkout(hw);
-	int num_parents = __clk_get_num_parents(hw->clk);
+	int num_parents = clk_hw_get_num_parents(hw);
 	u32 val;
 
 	val = readl_relaxed(S3C24XX_MISCCR) >> clkout->shift;

@@ -510,7 +510,7 @@ static int pix_rdi_set_parent(struct clk_hw *hw, u8 index)
 	u32 val;
 	struct clk_pix_rdi *rdi = to_clk_pix_rdi(hw);
 	struct clk *clk = hw->clk;
-	int num_parents = __clk_get_num_parents(hw->clk);
+	int num_parents = clk_hw_get_num_parents(hw);
 
 	/*
 	 * These clocks select three inputs via two muxes. One mux selects

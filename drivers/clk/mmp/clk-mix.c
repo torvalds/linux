@@ -63,7 +63,7 @@ static unsigned int _get_div(struct mmp_clk_mix *mix, unsigned int val)
 
 static unsigned int _get_mux(struct mmp_clk_mix *mix, unsigned int val)
 {
-	int num_parents = __clk_get_num_parents(mix->hw.clk);
+	int num_parents = clk_hw_get_num_parents(&mix->hw);
 	int i;
 
 	if (mix->mux_flags & CLK_MUX_INDEX_BIT)
@@ -241,7 +241,7 @@ static int mmp_clk_mix_determine_rate(struct clk_hw *hw,
 			}
 		}
 	} else {
-		for (i = 0; i < __clk_get_num_parents(mix_clk); i++) {
+		for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
 			parent = clk_get_parent_by_index(mix_clk, i);
 			parent_rate = __clk_get_rate(parent);
 			div_val_max = _get_maxdiv(mix);
@@ -408,13 +408,13 @@ static int mmp_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		else
 			return -EINVAL;
 	} else {
-		for (i = 0; i < __clk_get_num_parents(mix_clk); i++) {
+		for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
 			parent = clk_get_parent_by_index(mix_clk, i);
 			parent_rate = __clk_get_rate(parent);
 			if (parent_rate == best_parent_rate)
 				break;
 		}
-		if (i < __clk_get_num_parents(mix_clk))
+		if (i < clk_hw_get_num_parents(hw))
 			return _set_rate(mix, _get_mux_val(mix, i),
 					_get_div_val(mix, best_divisor), 1, 1);
 		else
