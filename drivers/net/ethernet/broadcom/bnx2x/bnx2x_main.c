@@ -11143,6 +11143,12 @@ static void bnx2x_link_settings_requested(struct bnx2x *bp)
 				bp->port.advertising[idx] |=
 					(ADVERTISED_1000baseT_Full |
 					 ADVERTISED_TP);
+			} else if (bp->port.supported[idx] &
+				   SUPPORTED_1000baseKX_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_1000;
+				bp->port.advertising[idx] |=
+					ADVERTISED_1000baseKX_Full;
 			} else {
 				BNX2X_ERR("NVRAM config error. Invalid link_config 0x%x  speed_cap_mask 0x%x\n",
 				    link_config,
@@ -11174,6 +11180,13 @@ static void bnx2x_link_settings_requested(struct bnx2x *bp)
 					SPEED_10000;
 				bp->port.advertising[idx] |=
 					(ADVERTISED_10000baseT_Full |
+						ADVERTISED_FIBRE);
+			} else if (bp->port.supported[idx] &
+				   SUPPORTED_10000baseKR_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_10000;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_10000baseKR_Full |
 						ADVERTISED_FIBRE);
 			} else {
 				BNX2X_ERR("NVRAM config error. Invalid link_config 0x%x  speed_cap_mask 0x%x\n",
