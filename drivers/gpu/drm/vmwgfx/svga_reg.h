@@ -106,6 +106,8 @@
 #define SVGA_IRQFLAG_ANY_FENCE            0x1    /* Any fence was passed */
 #define SVGA_IRQFLAG_FIFO_PROGRESS        0x2    /* Made forward progress in the FIFO */
 #define SVGA_IRQFLAG_FENCE_GOAL           0x4    /* SVGA_FIFO_FENCE_GOAL reached */
+#define SVGA_IRQFLAG_COMMAND_BUFFER       0x8    /* Command buffer completed */
+#define SVGA_IRQFLAG_ERROR                0x10   /* Error while processing commands */
 
 /*
  * Registers
@@ -299,6 +301,190 @@ struct SVGAGuestPtr {
    uint32 offset;
 } SVGAGuestPtr;
 
+/*
+ * Register based command buffers --
+ *
+ * Provide an SVGA device interface that allows the guest to submit
+ * command buffers to the SVGA device through an SVGA device register.
+ * The metadata for each command buffer is contained in the
+ * SVGACBHeader structure along with the return status codes.
+ *
+ * The SVGA device supports command buffers if
+ * SVGA_CAP_COMMAND_BUFFERS is set in the device caps register.  The
+ * fifo must be enabled for command buffers to be submitted.
+ *
+ * Command buffers are submitted when the guest writing the 64 byte
+ * aligned physical address into the SVGA_REG_COMMAND_LOW and
+ * SVGA_REG_COMMAND_HIGH.  SVGA_REG_COMMAND_HIGH contains the upper 32
+ * bits of the physical address.  SVGA_REG_COMMAND_LOW contains the
+ * lower 32 bits of the physical address, since the command buffer
+ * headers are required to be 64 byte aligned the lower 6 bits are
+ * used for the SVGACBContext value.  Writing to SVGA_REG_COMMAND_LOW
+ * submits the command buffer to the device and queues it for
+ * execution.  The SVGA device supports at least
+ * SVGA_CB_MAX_QUEUED_PER_CONTEXT command buffers that can be queued
+ * per context and if that limit is reached the device will write the
+ * status SVGA_CB_STATUS_QUEUE_FULL to the status value of the command
+ * buffer header synchronously and not raise any IRQs.
+ *
+ * It is invalid to submit a command buffer without a valid physical
+ * address and results are undefined.
+ *
+ * The device guarantees that command buffers of size SVGA_CB_MAX_SIZE
+ * will be supported.  If a larger command buffer is submitted results
+ * are unspecified and the device will either complete the command
+ * buffer or return an error.
+ *
+ * The device guarantees that any individual command in a command
+ * buffer can be up to SVGA_CB_MAX_COMMAND_SIZE in size which is
+ * enough to fit a 64x64 color-cursor definition.  If the command is
+ * too large the device is allowed to process the command or return an
+ * error.
+ *
+ * The device context is a special SVGACBContext that allows for
+ * synchronous register like accesses with the flexibility of
+ * commands.  There is a different command set defined by
+ * SVGADeviceContextCmdId.  The commands in each command buffer is not
+ * allowed to straddle physical pages.
+ *
+ * The offset field which is available starting with the
+ * SVGA_CAP_CMD_BUFFERS_2 cap bit can be set by the guest to bias the
+ * start of command processing into the buffer.  If an error is
+ * encountered the errorOffset will still be relative to the specific
+ * PA, not biased by the offset.  When the command buffer is finished
+ * the guest should not read the offset field as there is no guarantee
+ * what it will set to.
+ */
+
+#define SVGA_CB_MAX_SIZE (512 * 1024)  // 512 KB
+#define SVGA_CB_MAX_QUEUED_PER_CONTEXT 32
+#define SVGA_CB_MAX_COMMAND_SIZE (32 * 1024) // 32 KB
+
+#define SVGA_CB_CONTEXT_MASK 0x3f
+typedef enum {
+   SVGA_CB_CONTEXT_DEVICE = 0x3f,
+   SVGA_CB_CONTEXT_0      = 0x0,
+   SVGA_CB_CONTEXT_MAX    = 0x1,
+} SVGACBContext;
+
+
+typedef enum {
+   /*
+    * The guest is supposed to write SVGA_CB_STATUS_NONE to the status
+    * field before submitting the command buffer header, the host will
+    * change the value when it is done with the command buffer.
+    */
+   SVGA_CB_STATUS_NONE             = 0,
+
+   /*
+    * Written by the host when a command buffer completes successfully.
+    * The device raises an IRQ with SVGA_IRQFLAG_COMMAND_BUFFER unless
+    * the SVGA_CB_FLAG_NO_IRQ flag is set.
+    */
+   SVGA_CB_STATUS_COMPLETED        = 1,
+
+   /*
+    * Written by the host synchronously with the command buffer
+    * submission to indicate the command buffer was not submitted.  No
+    * IRQ is raised.
+    */
+   SVGA_CB_STATUS_QUEUE_FULL       = 2,
+
+   /*
+    * Written by the host when an error was detected parsing a command
+    * in the command buffer, errorOffset is written to contain the
+    * offset to the first byte of the failing command.  The device
+    * raises the IRQ with both SVGA_IRQFLAG_ERROR and
+    * SVGA_IRQFLAG_COMMAND_BUFFER.  Some of the commands may have been
+    * processed.
+    */
+   SVGA_CB_STATUS_COMMAND_ERROR    = 3,
+
+   /*
+    * Written by the host if there is an error parsing the command
+    * buffer header.  The device raises the IRQ with both
+    * SVGA_IRQFLAG_ERROR and SVGA_IRQFLAG_COMMAND_BUFFER.  The device
+    * did not processes any of the command buffer.
+    */
+   SVGA_CB_STATUS_CB_HEADER_ERROR  = 4,
+
+   /*
+    * Written by the host if the guest requested the host to preempt
+    * the command buffer.  The device will not raise any IRQs and the
+    * command buffer was not processed.
+    */
+   SVGA_CB_STATUS_PREEMPTED        = 5,
+
+   /*
+    * Written by the host synchronously with the command buffer
+    * submission to indicate the the command buffer was not submitted
+    * due to an error.  No IRQ is raised.
+    */
+   SVGA_CB_STATUS_SUBMISSION_ERROR = 6,
+} SVGACBStatus;
+
+typedef enum {
+   SVGA_CB_FLAG_NONE       = 0,
+   SVGA_CB_FLAG_NO_IRQ     = 1 << 0,
+   SVGA_CB_FLAG_DX_CONTEXT = 1 << 1,
+   SVGA_CB_FLAG_MOB        = 1 << 2,
+} SVGACBFlags;
+
+typedef
+struct {
+   volatile SVGACBStatus status; /* Modified by device. */
+   volatile uint32 errorOffset;  /* Modified by device. */
+   uint64 id;
+   SVGACBFlags flags;
+   uint32 length;
+   union {
+      PA pa;
+      struct {
+         SVGAMobId mobid;
+         uint32 mobOffset;
+      } mob;
+   } ptr;
+   uint32 offset; /* Valid if CMD_BUFFERS_2 cap set, must be zero otherwise,
+                   * modified by device.
+                   */
+   uint32 dxContext; /* Valid if DX_CONTEXT flag set, must be zero otherwise */
+   uint32 mustBeZero[6];
+}
+__attribute__((__packed__))
+SVGACBHeader;
+
+typedef enum {
+   SVGA_DC_CMD_NOP                   = 0,
+   SVGA_DC_CMD_START_STOP_CONTEXT    = 1,
+   SVGA_DC_CMD_PREEMPT               = 2,
+   SVGA_DC_CMD_MAX                   = 3,
+} SVGADeviceContextCmdId;
+
+
+typedef struct {
+   uint32 enable;
+   SVGACBContext context;
+} SVGADCCmdStartStop;
+
+/*
+ * SVGADCCmdPreempt --
+ *
+ * This command allows the guest to request that all command buffers
+ * on the specified context be preempted that can be.  After execution
+ * of this command all command buffers that were preempted will
+ * already have SVGA_CB_STATUS_PREEMPTED written into the status
+ * field.  The device might still be processing a command buffer,
+ * assuming execution of it started before the preemption request was
+ * received.  Specifying the ignoreIDZero flag to TRUE will cause the
+ * device to not preempt command buffers with the id field in the
+ * command buffer header set to zero.
+ */
+
+typedef struct {
+   SVGACBContext context;
+   uint32 ignoreIDZero;
+} SVGADCCmdPreempt;
+
 
 /*
  * SVGAGMRImageFormat --
@@ -444,6 +630,7 @@ struct SVGASignedPoint {
 #define SVGA_CAP_DEAD1              0x02000000
 #define SVGA_CAP_CMD_BUFFERS_2      0x04000000
 #define SVGA_CAP_GBOBJECTS          0x08000000
+#define SVGA_CAP_CMD_BUFFERS_3      0x10000000
 
 /*
  * FIFO register indices.
