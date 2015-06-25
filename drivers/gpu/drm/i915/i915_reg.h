@@ -1384,6 +1384,18 @@ enum skl_disp_power_wells {
 							_PORT_TX_DW14_LN0_C) + \
 					 _BXT_LANE_OFFSET(lane))
 
+/* UAIMI scratch pad register 1 */
+#define UAIMI_SPR1			0x4F074
+/* SKL VccIO mask */
+#define SKL_VCCIO_MASK			0x1
+/* SKL balance leg register */
+#define DISPIO_CR_TX_BMU_CR0		0x6C00C
+/* I_boost values */
+#define BALANCE_LEG_SHIFT(port)		(8+3*(port))
+#define BALANCE_LEG_MASK(port)		(7<<(8+3*(port)))
+/* Balance leg disable bits */
+#define BALANCE_LEG_DISABLE_SHIFT	23
+
 /*
  * Fence registers
  */

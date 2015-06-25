@@ -2436,6 +2436,14 @@ struct drm_i915_cmd_table {
 /* ULX machines are also considered ULT. */
 #define IS_HSW_ULX(dev)		(INTEL_DEVID(dev) == 0x0A0E || \
 				 INTEL_DEVID(dev) == 0x0A1E)
+#define IS_SKL_ULT(dev)		(INTEL_DEVID(dev) == 0x1906 || \
+				 INTEL_DEVID(dev) == 0x1913 || \
+				 INTEL_DEVID(dev) == 0x1916 || \
+				 INTEL_DEVID(dev) == 0x1921 || \
+				 INTEL_DEVID(dev) == 0x1926)
+#define IS_SKL_ULX(dev)		(INTEL_DEVID(dev) == 0x190E || \
+				 INTEL_DEVID(dev) == 0x1915 || \
+				 INTEL_DEVID(dev) == 0x191E)
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
 
 #define SKL_REVID_A0		(0x0)
