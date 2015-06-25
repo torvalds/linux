@@ -254,6 +254,8 @@ struct i915_address_space {
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 
 	struct i915_page_scratch *scratch_page;
+	struct i915_page_table *scratch_pt;
+	struct i915_page_directory *scratch_pd;
 
 	/**
 	 * List of objects currently involved in rendering.
@@ -342,9 +344,6 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory_pointer pdp;
 		struct i915_page_directory pd;
 	};
-
-	struct i915_page_table *scratch_pt;
-	struct i915_page_directory *scratch_pd;
 
 	struct drm_i915_file_private *file_priv;
 
@@ -487,7 +486,7 @@ i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
 {
 	return test_bit(n, ppgtt->pdp.used_pdpes) ?
 		px_dma(ppgtt->pdp.page_directory[n]) :
-		px_dma(ppgtt->scratch_pd);
+		px_dma(ppgtt->base.scratch_pd);
 }
 
 int i915_gem_gtt_init(struct drm_device *dev);

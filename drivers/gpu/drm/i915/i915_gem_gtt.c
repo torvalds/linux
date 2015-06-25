@@ -612,12 +612,9 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 static void gen8_initialize_pd(struct i915_address_space *vm,
 			       struct i915_page_directory *pd)
 {
-	struct i915_hw_ppgtt *ppgtt =
-		container_of(vm, struct i915_hw_ppgtt, base);
 	gen8_pde_t scratch_pde;
 
-	scratch_pde = gen8_pde_encode(px_dma(ppgtt->scratch_pt),
-				      I915_CACHE_LLC);
+	scratch_pde = gen8_pde_encode(px_dma(vm->scratch_pt), I915_CACHE_LLC);
 
 	fill_px(vm->dev, pd, scratch_pde);
 }
@@ -652,8 +649,8 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 		free_pd(ppgtt->base.dev, ppgtt->pdp.page_directory[i]);
 	}
 
-	free_pd(ppgtt->base.dev, ppgtt->scratch_pd);
-	free_pt(ppgtt->base.dev, ppgtt->scratch_pt);
+	free_pd(vm->dev, vm->scratch_pd);
+	free_pt(vm->dev, vm->scratch_pt);
 }
 
 /**
@@ -689,7 +686,7 @@ static int gen8_ppgtt_alloc_pagetabs(struct i915_hw_ppgtt *ppgtt,
 		/* Don't reallocate page tables */
 		if (pt) {
 			/* Scratch is never allocated this way */
-			WARN_ON(pt == ppgtt->scratch_pt);
+			WARN_ON(pt == ppgtt->base.scratch_pt);
 			continue;
 		}
 
@@ -940,16 +937,16 @@ err_out:
  */
 static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 {
-	ppgtt->scratch_pt = alloc_pt(ppgtt->base.dev);
-	if (IS_ERR(ppgtt->scratch_pt))
-		return PTR_ERR(ppgtt->scratch_pt);
+	ppgtt->base.scratch_pt = alloc_pt(ppgtt->base.dev);
+	if (IS_ERR(ppgtt->base.scratch_pt))
+		return PTR_ERR(ppgtt->base.scratch_pt);
 
-	ppgtt->scratch_pd = alloc_pd(ppgtt->base.dev);
-	if (IS_ERR(ppgtt->scratch_pd))
-		return PTR_ERR(ppgtt->scratch_pd);
+	ppgtt->base.scratch_pd = alloc_pd(ppgtt->base.dev);
+	if (IS_ERR(ppgtt->base.scratch_pd))
+		return PTR_ERR(ppgtt->base.scratch_pd);
 
-	gen8_initialize_pt(&ppgtt->base, ppgtt->scratch_pt);
-	gen8_initialize_pd(&ppgtt->base, ppgtt->scratch_pd);
+	gen8_initialize_pt(&ppgtt->base, ppgtt->base.scratch_pt);
+	gen8_initialize_pd(&ppgtt->base, ppgtt->base.scratch_pd);
 
 	ppgtt->base.start = 0;
 	ppgtt->base.total = 1ULL << 32;
@@ -981,7 +978,8 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	uint32_t  pte, pde, temp;
 	uint32_t start = ppgtt->base.start, length = ppgtt->base.total;
 
-	scratch_pte = vm->pte_encode(px_dma(vm->scratch_page), I915_CACHE_LLC, true, 0);
+	scratch_pte = vm->pte_encode(px_dma(vm->scratch_page),
+				     I915_CACHE_LLC, true, 0);
 
 	gen6_for_each_pde(unused, &ppgtt->pd, start, length, temp, pde) {
 		u32 expected;
@@ -1314,7 +1312,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	 * tables.
 	 */
 	gen6_for_each_pde(pt, &ppgtt->pd, start, length, temp, pde) {
-		if (pt != ppgtt->scratch_pt) {
+		if (pt != vm->scratch_pt) {
 			WARN_ON(bitmap_empty(pt->used_ptes, GEN6_PTES));
 			continue;
 		}
@@ -1369,7 +1367,7 @@ unwind_out:
 	for_each_set_bit(pde, new_page_tables, I915_PDES) {
 		struct i915_page_table *pt = ppgtt->pd.page_table[pde];
 
-		ppgtt->pd.page_table[pde] = ppgtt->scratch_pt;
+		ppgtt->pd.page_table[pde] = vm->scratch_pt;
 		free_pt(vm->dev, pt);
 	}
 
@@ -1384,15 +1382,14 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	struct i915_page_table *pt;
 	uint32_t pde;
 
-
 	drm_mm_remove_node(&ppgtt->node);
 
 	gen6_for_all_pdes(pt, ppgtt, pde) {
-		if (pt != ppgtt->scratch_pt)
+		if (pt != vm->scratch_pt)
 			free_pt(ppgtt->base.dev, pt);
 	}
 
-	free_pt(ppgtt->base.dev, ppgtt->scratch_pt);
+	free_pt(vm->dev, vm->scratch_pt);
 }
 
 static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
@@ -1407,11 +1404,11 @@ static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
 	 * size. We allocate at the top of the GTT to avoid fragmentation.
 	 */
 	BUG_ON(!drm_mm_initialized(&dev_priv->gtt.base.mm));
-	ppgtt->scratch_pt = alloc_pt(ppgtt->base.dev);
-	if (IS_ERR(ppgtt->scratch_pt))
-		return PTR_ERR(ppgtt->scratch_pt);
+	ppgtt->base.scratch_pt = alloc_pt(ppgtt->base.dev);
+	if (IS_ERR(ppgtt->base.scratch_pt))
+		return PTR_ERR(ppgtt->base.scratch_pt);
 
-	gen6_initialize_pt(&ppgtt->base, ppgtt->scratch_pt);
+	gen6_initialize_pt(&ppgtt->base, ppgtt->base.scratch_pt);
 
 alloc:
 	ret = drm_mm_insert_node_in_range_generic(&dev_priv->gtt.base.mm,
@@ -1442,7 +1439,7 @@ alloc:
 	return 0;
 
 err_out:
-	free_pt(ppgtt->base.dev, ppgtt->scratch_pt);
+	free_pt(ppgtt->base.dev, ppgtt->base.scratch_pt);
 	return ret;
 }
 
@@ -1458,7 +1455,7 @@ static void gen6_scratch_va_range(struct i915_hw_ppgtt *ppgtt,
 	uint32_t pde, temp;
 
 	gen6_for_each_pde(unused, &ppgtt->pd, start, length, temp, pde)
-		ppgtt->pd.page_table[pde] = ppgtt->scratch_pt;
+		ppgtt->pd.page_table[pde] = ppgtt->base.scratch_pt;
 }
 
 static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
