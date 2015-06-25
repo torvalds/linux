@@ -3255,6 +3255,60 @@ void cond_synchronize_rcu(unsigned long oldstate)
 }
 EXPORT_SYMBOL_GPL(cond_synchronize_rcu);
 
+/* Adjust sequence number for start of update-side operation. */
+static void rcu_seq_start(unsigned long *sp)
+{
+	WRITE_ONCE(*sp, *sp + 1);
+	smp_mb(); /* Ensure update-side operation after counter increment. */
+	WARN_ON_ONCE(!(*sp & 0x1));
+}
+
+/* Adjust sequence number for end of update-side operation. */
+static void rcu_seq_end(unsigned long *sp)
+{
+	smp_mb(); /* Ensure update-side operation before counter increment. */
+	WRITE_ONCE(*sp, *sp + 1);
+	WARN_ON_ONCE(*sp & 0x1);
+}
+
+/* Take a snapshot of the update side's sequence number. */
+static unsigned long rcu_seq_snap(unsigned long *sp)
+{
+	unsigned long s;
+
+	smp_mb(); /* Caller's modifications seen first by other CPUs. */
+	s = (READ_ONCE(*sp) + 3) & ~0x1;
+	smp_mb(); /* Above access must not bleed into critical section. */
+	return s;
+}
+
+/*
+ * Given a snapshot from rcu_seq_snap(), determine whether or not a
+ * full update-side operation has occurred.
+ */
+static bool rcu_seq_done(unsigned long *sp, unsigned long s)
+{
+	return ULONG_CMP_GE(READ_ONCE(*sp), s);
+}
+
+/* Wrapper functions for expedited grace periods.  */
+static void rcu_exp_gp_seq_start(struct rcu_state *rsp)
+{
+	rcu_seq_start(&rsp->expedited_sequence);
+}
+static void rcu_exp_gp_seq_end(struct rcu_state *rsp)
+{
+	rcu_seq_end(&rsp->expedited_sequence);
+}
+static unsigned long rcu_exp_gp_seq_snap(struct rcu_state *rsp)
+{
+	return rcu_seq_snap(&rsp->expedited_sequence);
+}
+static bool rcu_exp_gp_seq_done(struct rcu_state *rsp, unsigned long s)
+{
+	return rcu_seq_done(&rsp->expedited_sequence, s);
+}
+
 static int synchronize_sched_expedited_cpu_stop(void *data)
 {
 	struct rcu_state *rsp = data;
@@ -3269,7 +3323,7 @@ static int synchronize_sched_expedited_cpu_stop(void *data)
 static bool sync_sched_exp_wd(struct rcu_state *rsp, struct rcu_node *rnp,
 			      atomic_long_t *stat, unsigned long s)
 {
-	if (ULONG_CMP_GE(READ_ONCE(rsp->expedited_sequence), s)) {
+	if (rcu_exp_gp_seq_done(rsp, s)) {
 		if (rnp)
 			mutex_unlock(&rnp->exp_funnel_mutex);
 		/* Ensure test happens before caller kfree(). */
@@ -3306,9 +3360,7 @@ void synchronize_sched_expedited(void)
 	struct rcu_state *rsp = &rcu_sched_state;
 
 	/* Take a snapshot of the sequence number.  */
-	smp_mb(); /* Caller's modifications seen first by other CPUs. */
-	s = (READ_ONCE(rsp->expedited_sequence) + 3) & ~0x1;
-	smp_mb(); /* Above access must not bleed into critical section. */
+	s = rcu_exp_gp_seq_snap(rsp);
 
 	if (!try_get_online_cpus()) {
 		/* CPU hotplug operation in flight, fall back to normal GP. */
@@ -3339,9 +3391,7 @@ void synchronize_sched_expedited(void)
 	if (sync_sched_exp_wd(rsp, rnp0, &rsp->expedited_workdone2, s))
 		return;
 
-	WRITE_ONCE(rsp->expedited_sequence, rsp->expedited_sequence + 1);
-	smp_mb(); /* Ensure expedited GP seen after counter increment. */
-	WARN_ON_ONCE(!(rsp->expedited_sequence & 0x1));
+	rcu_exp_gp_seq_start(rsp);
 
 	/* Stop each CPU that is online, non-idle, and not us. */
 	init_waitqueue_head(&rsp->expedited_wq);
@@ -3364,9 +3414,7 @@ void synchronize_sched_expedited(void)
 		wait_event(rsp->expedited_wq,
 			   !atomic_read(&rsp->expedited_need_qs));
 
-	smp_mb(); /* Ensure expedited GP seen before counter increment. */
-	WRITE_ONCE(rsp->expedited_sequence, rsp->expedited_sequence + 1);
-	WARN_ON_ONCE(rsp->expedited_sequence & 0x1);
+	rcu_exp_gp_seq_end(rsp);
 	mutex_unlock(&rnp0->exp_funnel_mutex);
 	smp_mb(); /* ensure subsequent action seen after grace period. */
 
