@@ -86,6 +86,9 @@ struct dm_rq_target_io {
 	struct kthread_work work;
 	int error;
 	union map_info info;
+	struct dm_stats_aux stats_aux;
+	unsigned long duration_jiffies;
+	unsigned n_sectors;
 };
 
 /*
@@ -995,6 +998,17 @@ static struct dm_rq_target_io *tio_from_request(struct request *rq)
 	return (rq->q->mq_ops ? blk_mq_rq_to_pdu(rq) : rq->special);
 }
 
+static void rq_end_stats(struct mapped_device *md, struct request *orig)
+{
+	if (unlikely(dm_stats_used(&md->stats))) {
+		struct dm_rq_target_io *tio = tio_from_request(orig);
+		tio->duration_jiffies = jiffies - tio->duration_jiffies;
+		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
+				    tio->n_sectors, true, tio->duration_jiffies,
+				    &tio->stats_aux);
+	}
+}
+
 /*
  * Don't touch any member of the md after calling this function because
  * the md may be freed in dm_put() at the end of this function.
@@ -1078,6 +1092,7 @@ static void dm_end_request(struct request *clone, int error)
 	}
 
 	free_rq_clone(clone);
+	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
 		blk_end_request_all(rq, error);
 	else
@@ -1113,13 +1128,14 @@ static void old_requeue_request(struct request *rq)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
-static void dm_requeue_unmapped_original_request(struct mapped_device *md,
-						 struct request *rq)
+static void dm_requeue_original_request(struct mapped_device *md,
+					struct request *rq)
 {
 	int rw = rq_data_dir(rq);
 
 	dm_unprep_request(rq);
 
+	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
 		old_requeue_request(rq);
 	else {
@@ -1128,13 +1144,6 @@ static void dm_requeue_unmapped_original_request(struct mapped_device *md,
 	}
 
 	rq_completed(md, rw, false);
-}
-
-static void dm_requeue_unmapped_request(struct request *clone)
-{
-	struct dm_rq_target_io *tio = clone->end_io_data;
-
-	dm_requeue_unmapped_original_request(tio->md, tio->orig);
 }
 
 static void old_stop_queue(struct request_queue *q)
@@ -1200,7 +1209,7 @@ static void dm_done(struct request *clone, int error, bool mapped)
 		return;
 	else if (r == DM_ENDIO_REQUEUE)
 		/* The target wants to requeue the I/O */
-		dm_requeue_unmapped_request(clone);
+		dm_requeue_original_request(tio->md, tio->orig);
 	else {
 		DMWARN("unimplemented target endio return value: %d", r);
 		BUG();
@@ -1218,6 +1227,7 @@ static void dm_softirq_done(struct request *rq)
 	int rw;
 
 	if (!clone) {
+		rq_end_stats(tio->md, rq);
 		rw = rq_data_dir(rq);
 		if (!rq->q->mq_ops) {
 			blk_end_request_all(rq, tio->error);
@@ -1910,7 +1920,7 @@ static int map_request(struct dm_rq_target_io *tio, struct request *rq,
 		break;
 	case DM_MAPIO_REQUEUE:
 		/* The target wants to requeue the I/O */
-		dm_requeue_unmapped_request(clone);
+		dm_requeue_original_request(md, tio->orig);
 		break;
 	default:
 		if (r > 0) {
@@ -1933,7 +1943,7 @@ static void map_tio_request(struct kthread_work *work)
 	struct mapped_device *md = tio->md;
 
 	if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE)
-		dm_requeue_unmapped_original_request(md, rq);
+		dm_requeue_original_request(md, rq);
 }
 
 static void dm_start_request(struct mapped_device *md, struct request *orig)
@@ -1948,6 +1958,14 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
 		md->last_rq_pos = rq_end_sector(orig);
 		md->last_rq_rw = rq_data_dir(orig);
 		md->last_rq_start_time = ktime_get();
+	}
+
+	if (unlikely(dm_stats_used(&md->stats))) {
+		struct dm_rq_target_io *tio = tio_from_request(orig);
+		tio->duration_jiffies = jiffies;
+		tio->n_sectors = blk_rq_sectors(orig);
+		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
+				    tio->n_sectors, false, 0, &tio->stats_aux);
 	}
 
 	/*
@@ -2173,6 +2191,40 @@ static void dm_init_old_md_queue(struct mapped_device *md)
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 }
 
+static void cleanup_mapped_device(struct mapped_device *md)
+{
+	cleanup_srcu_struct(&md->io_barrier);
+
+	if (md->wq)
+		destroy_workqueue(md->wq);
+	if (md->kworker_task)
+		kthread_stop(md->kworker_task);
+	if (md->io_pool)
+		mempool_destroy(md->io_pool);
+	if (md->rq_pool)
+		mempool_destroy(md->rq_pool);
+	if (md->bs)
+		bioset_free(md->bs);
+
+	if (md->disk) {
+		spin_lock(&_minor_lock);
+		md->disk->private_data = NULL;
+		spin_unlock(&_minor_lock);
+		if (blk_get_integrity(md->disk))
+			blk_integrity_unregister(md->disk);
+		del_gendisk(md->disk);
+		put_disk(md->disk);
+	}
+
+	if (md->queue)
+		blk_cleanup_queue(md->queue);
+
+	if (md->bdev) {
+		bdput(md->bdev);
+		md->bdev = NULL;
+	}
+}
+
 /*
  * Allocate and initialise a blank device with a given minor.
  */
@@ -2218,13 +2270,13 @@ static struct mapped_device *alloc_dev(int minor)
 
 	md->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!md->queue)
-		goto bad_queue;
+		goto bad;
 
 	dm_init_md_queue(md);
 
 	md->disk = alloc_disk(1);
 	if (!md->disk)
-		goto bad_disk;
+		goto bad;
 
 	atomic_set(&md->pending[0], 0);
 	atomic_set(&md->pending[1], 0);
@@ -2245,11 +2297,11 @@ static struct mapped_device *alloc_dev(int minor)
 
 	md->wq = alloc_workqueue("kdmflush", WQ_MEM_RECLAIM, 0);
 	if (!md->wq)
-		goto bad_thread;
+		goto bad;
 
 	md->bdev = bdget_disk(md->disk, 0);
 	if (!md->bdev)
-		goto bad_bdev;
+		goto bad;
 
 	bio_init(&md->flush_bio);
 	md->flush_bio.bi_bdev = md->bdev;
@@ -2266,15 +2318,8 @@ static struct mapped_device *alloc_dev(int minor)
 
 	return md;
 
-bad_bdev:
-	destroy_workqueue(md->wq);
-bad_thread:
-	del_gendisk(md->disk);
-	put_disk(md->disk);
-bad_disk:
-	blk_cleanup_queue(md->queue);
-bad_queue:
-	cleanup_srcu_struct(&md->io_barrier);
+bad:
+	cleanup_mapped_device(md);
 bad_io_barrier:
 	free_minor(minor);
 bad_minor:
@@ -2291,63 +2336,58 @@ static void free_dev(struct mapped_device *md)
 	int minor = MINOR(disk_devt(md->disk));
 
 	unlock_fs(md);
-	destroy_workqueue(md->wq);
 
-	if (md->kworker_task)
-		kthread_stop(md->kworker_task);
-	if (md->io_pool)
-		mempool_destroy(md->io_pool);
-	if (md->rq_pool)
-		mempool_destroy(md->rq_pool);
-	if (md->bs)
-		bioset_free(md->bs);
-
-	cleanup_srcu_struct(&md->io_barrier);
-	free_table_devices(&md->table_devices);
-	dm_stats_cleanup(&md->stats);
-
-	spin_lock(&_minor_lock);
-	md->disk->private_data = NULL;
-	spin_unlock(&_minor_lock);
-	if (blk_get_integrity(md->disk))
-		blk_integrity_unregister(md->disk);
-	del_gendisk(md->disk);
-	put_disk(md->disk);
-	blk_cleanup_queue(md->queue);
+	cleanup_mapped_device(md);
 	if (md->use_blk_mq)
 		blk_mq_free_tag_set(&md->tag_set);
-	bdput(md->bdev);
+
+	free_table_devices(&md->table_devices);
+	dm_stats_cleanup(&md->stats);
 	free_minor(minor);
 
 	module_put(THIS_MODULE);
 	kfree(md);
 }
 
+static unsigned filter_md_type(unsigned type, struct mapped_device *md)
+{
+	if (type == DM_TYPE_BIO_BASED)
+		return type;
+
+	return !md->use_blk_mq ? DM_TYPE_REQUEST_BASED : DM_TYPE_MQ_REQUEST_BASED;
+}
+
 static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 {
 	struct dm_md_mempools *p = dm_table_get_md_mempools(t);
 
-	if (md->bs) {
-		/* The md already has necessary mempools. */
-		if (dm_table_get_type(t) == DM_TYPE_BIO_BASED) {
+	switch (filter_md_type(dm_table_get_type(t), md)) {
+	case DM_TYPE_BIO_BASED:
+		if (md->bs && md->io_pool) {
 			/*
+			 * This bio-based md already has necessary mempools.
 			 * Reload bioset because front_pad may have changed
 			 * because a different table was loaded.
 			 */
 			bioset_free(md->bs);
 			md->bs = p->bs;
 			p->bs = NULL;
+			goto out;
 		}
-		/*
-		 * There's no need to reload with request-based dm
-		 * because the size of front_pad doesn't change.
-		 * Note for future: If you are to reload bioset,
-		 * prep-ed requests in the queue may refer
-		 * to bio from the old bioset, so you must walk
-		 * through the queue to unprep.
-		 */
-		goto out;
+		break;
+	case DM_TYPE_REQUEST_BASED:
+		if (md->rq_pool && md->io_pool)
+			/*
+			 * This request-based md already has necessary mempools.
+			 */
+			goto out;
+		break;
+	case DM_TYPE_MQ_REQUEST_BASED:
+		BUG_ON(p); /* No mempools needed */
+		return;
 	}
+
+	BUG_ON(!p || md->io_pool || md->rq_pool || md->bs);
 
 	md->io_pool = p->io_pool;
 	p->io_pool = NULL;
@@ -2355,7 +2395,6 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 	p->rq_pool = NULL;
 	md->bs = p->bs;
 	p->bs = NULL;
-
 out:
 	/* mempool bind completed, no longer need any mempools in the table */
 	dm_table_free_md_mempools(t);
@@ -2675,6 +2714,7 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 		/* Direct call is fine since .queue_rq allows allocations */
 		if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE) {
 			/* Undo dm_start_request() before requeuing */
+			rq_end_stats(md, rq);
 			rq_completed(md, rq_data_dir(rq), false);
 			return BLK_MQ_RQ_QUEUE_BUSY;
 		}
@@ -2732,14 +2772,6 @@ static int dm_init_request_based_blk_mq_queue(struct mapped_device *md)
 out_tag_set:
 	blk_mq_free_tag_set(&md->tag_set);
 	return err;
-}
-
-static unsigned filter_md_type(unsigned type, struct mapped_device *md)
-{
-	if (type == DM_TYPE_BIO_BASED)
-		return type;
-
-	return !md->use_blk_mq ? DM_TYPE_REQUEST_BASED : DM_TYPE_MQ_REQUEST_BASED;
 }
 
 /*
@@ -3463,7 +3495,7 @@ struct dm_md_mempools *dm_alloc_bio_mempools(unsigned integrity,
 
 	pools = kzalloc(sizeof(*pools), GFP_KERNEL);
 	if (!pools)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	front_pad = roundup(per_bio_data_size, __alignof__(struct dm_target_io)) +
 		offsetof(struct dm_target_io, clone);
@@ -3482,24 +3514,26 @@ struct dm_md_mempools *dm_alloc_bio_mempools(unsigned integrity,
 	return pools;
 out:
 	dm_free_md_mempools(pools);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 struct dm_md_mempools *dm_alloc_rq_mempools(struct mapped_device *md,
 					    unsigned type)
 {
-	unsigned int pool_size = dm_get_reserved_rq_based_ios();
+	unsigned int pool_size;
 	struct dm_md_mempools *pools;
 
+	if (filter_md_type(type, md) == DM_TYPE_MQ_REQUEST_BASED)
+		return NULL; /* No mempools needed */
+
+	pool_size = dm_get_reserved_rq_based_ios();
 	pools = kzalloc(sizeof(*pools), GFP_KERNEL);
 	if (!pools)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	if (filter_md_type(type, md) == DM_TYPE_REQUEST_BASED) {
-		pools->rq_pool = mempool_create_slab_pool(pool_size, _rq_cache);
-		if (!pools->rq_pool)
-			goto out;
-	}
+	pools->rq_pool = mempool_create_slab_pool(pool_size, _rq_cache);
+	if (!pools->rq_pool)
+		goto out;
 
 	pools->io_pool = mempool_create_slab_pool(pool_size, _rq_tio_cache);
 	if (!pools->io_pool)
@@ -3508,7 +3542,7 @@ struct dm_md_mempools *dm_alloc_rq_mempools(struct mapped_device *md,
 	return pools;
 out:
 	dm_free_md_mempools(pools);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 void dm_free_md_mempools(struct dm_md_mempools *pools)
