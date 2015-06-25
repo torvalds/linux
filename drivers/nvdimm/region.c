@@ -10,6 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  */
+#include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/nd.h>
@@ -18,9 +19,20 @@
 static int nd_region_probe(struct device *dev)
 {
 	int err;
+	static unsigned long once;
 	struct nd_region_namespaces *num_ns;
 	struct nd_region *nd_region = to_nd_region(dev);
 	int rc = nd_region_register_namespaces(nd_region, &err);
+
+	if (nd_region->num_lanes > num_online_cpus()
+			&& nd_region->num_lanes < num_possible_cpus()
+			&& !test_and_set_bit(0, &once)) {
+		dev_info(dev, "online cpus (%d) < concurrent i/o lanes (%d) < possible cpus (%d)\n",
+				num_online_cpus(), nd_region->num_lanes,
+				num_possible_cpus());
+		dev_info(dev, "setting nr_cpus=%d may yield better libnvdimm device performance\n",
+				nd_region->num_lanes);
+	}
 
 	num_ns = devm_kzalloc(dev, sizeof(*num_ns), GFP_KERNEL);
 	if (!num_ns)

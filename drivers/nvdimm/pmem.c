@@ -160,7 +160,6 @@ static void pmem_detach_disk(struct pmem_device *pmem)
 static int pmem_attach_disk(struct nd_namespace_common *ndns,
 		struct pmem_device *pmem)
 {
-	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
 	struct gendisk *disk;
 
 	pmem->pmem_queue = blk_alloc_queue(GFP_KERNEL);
@@ -183,7 +182,7 @@ static int pmem_attach_disk(struct nd_namespace_common *ndns,
 	disk->private_data	= pmem;
 	disk->queue		= pmem->pmem_queue;
 	disk->flags		= GENHD_FL_EXT_DEVT;
-	sprintf(disk->disk_name, "pmem%d", nd_region->id);
+	nvdimm_namespace_disk_name(ndns, disk->disk_name);
 	disk->driverfs_dev = &ndns->dev;
 	set_capacity(disk, pmem->size >> 9);
 	pmem->pmem_disk = disk;
@@ -209,17 +208,6 @@ static int pmem_rw_bytes(struct nd_namespace_common *ndns,
 		memcpy(pmem->virt_addr + offset, buf, size);
 
 	return 0;
-}
-
-static int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
-{
-	/* TODO */
-	return -ENXIO;
-}
-
-static void nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns)
-{
-	/* TODO */
 }
 
 static void pmem_free(struct pmem_device *pmem)

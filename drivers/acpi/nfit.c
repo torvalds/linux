@@ -902,6 +902,7 @@ static int acpi_nfit_init_mapping(struct acpi_nfit_desc *acpi_desc,
 		} else {
 			nd_mapping->size = nfit_mem->bdw->capacity;
 			nd_mapping->start = nfit_mem->bdw->start_address;
+			ndr_desc->num_lanes = nfit_mem->bdw->windows;
 			blk_valid = 1;
 		}
 

@@ -32,6 +32,7 @@ static void nd_region_release(struct device *dev)
 
 		put_device(&nvdimm->dev);
 	}
+	free_percpu(nd_region->lane);
 	ida_simple_remove(&region_ida, nd_region->id);
 	kfree(nd_region);
 }
@@ -531,13 +532,66 @@ void *nd_region_provider_data(struct nd_region *nd_region)
 }
 EXPORT_SYMBOL_GPL(nd_region_provider_data);
 
+/**
+ * nd_region_acquire_lane - allocate and lock a lane
+ * @nd_region: region id and number of lanes possible
+ *
+ * A lane correlates to a BLK-data-window and/or a log slot in the BTT.
+ * We optimize for the common case where there are 256 lanes, one
+ * per-cpu.  For larger systems we need to lock to share lanes.  For now
+ * this implementation assumes the cost of maintaining an allocator for
+ * free lanes is on the order of the lock hold time, so it implements a
+ * static lane = cpu % num_lanes mapping.
+ *
+ * In the case of a BTT instance on top of a BLK namespace a lane may be
+ * acquired recursively.  We lock on the first instance.
+ *
+ * In the case of a BTT instance on top of PMEM, we only acquire a lane
+ * for the BTT metadata updates.
+ */
+unsigned int nd_region_acquire_lane(struct nd_region *nd_region)
+{
+	unsigned int cpu, lane;
+
+	cpu = get_cpu();
+	if (nd_region->num_lanes < nr_cpu_ids) {
+		struct nd_percpu_lane *ndl_lock, *ndl_count;
+
+		lane = cpu % nd_region->num_lanes;
+		ndl_count = per_cpu_ptr(nd_region->lane, cpu);
+		ndl_lock = per_cpu_ptr(nd_region->lane, lane);
+		if (ndl_count->count++ == 0)
+			spin_lock(&ndl_lock->lock);
+	} else
+		lane = cpu;
+
+	return lane;
+}
+EXPORT_SYMBOL(nd_region_acquire_lane);
+
+void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane)
+{
+	if (nd_region->num_lanes < nr_cpu_ids) {
+		unsigned int cpu = get_cpu();
+		struct nd_percpu_lane *ndl_lock, *ndl_count;
+
+		ndl_count = per_cpu_ptr(nd_region->lane, cpu);
+		ndl_lock = per_cpu_ptr(nd_region->lane, lane);
+		if (--ndl_count->count == 0)
+			spin_unlock(&ndl_lock->lock);
+		put_cpu();
+	}
+	put_cpu();
+}
+EXPORT_SYMBOL(nd_region_release_lane);
+
 static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 		struct nd_region_desc *ndr_desc, struct device_type *dev_type,
 		const char *caller)
 {
 	struct nd_region *nd_region;
 	struct device *dev;
-	u16 i;
+	unsigned int i;
 
 	for (i = 0; i < ndr_desc->num_mappings; i++) {
 		struct nd_mapping *nd_mapping = &ndr_desc->nd_mapping[i];
@@ -557,9 +611,19 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	if (!nd_region)
 		return NULL;
 	nd_region->id = ida_simple_get(&region_ida, 0, 0, GFP_KERNEL);
-	if (nd_region->id < 0) {
-		kfree(nd_region);
-		return NULL;
+	if (nd_region->id < 0)
+		goto err_id;
+
+	nd_region->lane = alloc_percpu(struct nd_percpu_lane);
+	if (!nd_region->lane)
+		goto err_percpu;
+
+        for (i = 0; i < nr_cpu_ids; i++) {
+		struct nd_percpu_lane *ndl;
+
+		ndl = per_cpu_ptr(nd_region->lane, i);
+		spin_lock_init(&ndl->lock);
+		ndl->count = 0;
 	}
 
 	memcpy(nd_region->mapping, ndr_desc->nd_mapping,
@@ -573,6 +637,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	nd_region->ndr_mappings = ndr_desc->num_mappings;
 	nd_region->provider_data = ndr_desc->provider_data;
 	nd_region->nd_set = ndr_desc->nd_set;
+	nd_region->num_lanes = ndr_desc->num_lanes;
 	ida_init(&nd_region->ns_ida);
 	ida_init(&nd_region->btt_ida);
 	dev = &nd_region->dev;
@@ -585,11 +650,18 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	nd_device_register(dev);
 
 	return nd_region;
+
+ err_percpu:
+	ida_simple_remove(&region_ida, nd_region->id);
+ err_id:
+	kfree(nd_region);
+	return NULL;
 }
 
 struct nd_region *nvdimm_pmem_region_create(struct nvdimm_bus *nvdimm_bus,
 		struct nd_region_desc *ndr_desc)
 {
+	ndr_desc->num_lanes = ND_MAX_LANES;
 	return nd_region_create(nvdimm_bus, ndr_desc, &nd_pmem_device_type,
 			__func__);
 }
@@ -600,6 +672,7 @@ struct nd_region *nvdimm_blk_region_create(struct nvdimm_bus *nvdimm_bus,
 {
 	if (ndr_desc->num_mappings > 1)
 		return NULL;
+	ndr_desc->num_lanes = min(ndr_desc->num_lanes, ND_MAX_LANES);
 	return nd_region_create(nvdimm_bus, ndr_desc, &nd_blk_device_type,
 			__func__);
 }
@@ -608,6 +681,7 @@ EXPORT_SYMBOL_GPL(nvdimm_blk_region_create);
 struct nd_region *nvdimm_volatile_region_create(struct nvdimm_bus *nvdimm_bus,
 		struct nd_region_desc *ndr_desc)
 {
+	ndr_desc->num_lanes = ND_MAX_LANES;
 	return nd_region_create(nvdimm_bus, ndr_desc, &nd_volatile_device_type,
 			__func__);
 }

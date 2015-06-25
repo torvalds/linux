@@ -348,7 +348,8 @@ struct device *nd_btt_create(struct nd_region *nd_region)
  */
 u64 nd_btt_sb_checksum(struct btt_sb *btt_sb)
 {
-	u64 sum, sum_save;
+	u64 sum;
+	__le64 sum_save;
 
 	sum_save = btt_sb->checksum;
 	btt_sb->checksum = 0;

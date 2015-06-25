@@ -20,6 +20,12 @@
 #include "label.h"
 
 enum {
+	/*
+	 * Limits the maximum number of block apertures a dimm can
+	 * support and is an input to the geometry/on-disk-format of a
+	 * BTT instance
+	 */
+	ND_MAX_LANES = 256,
 	SECTOR_SHIFT = 9,
 };
 
@@ -75,6 +81,11 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 	for (res = (ndd)->dpa.child, next = res ? res->sibling : NULL; \
 			res; res = next, next = next ? next->sibling : NULL)
 
+struct nd_percpu_lane {
+	int count;
+	spinlock_t lock;
+};
+
 struct nd_region {
 	struct device dev;
 	struct ida ns_ida;
@@ -84,9 +95,10 @@ struct nd_region {
 	u16 ndr_mappings;
 	u64 ndr_size;
 	u64 ndr_start;
-	int id;
+	int id, num_lanes;
 	void *provider_data;
 	struct nd_interleave_set *nd_set;
+	struct nd_percpu_lane __percpu *lane;
 	struct nd_mapping mapping[0];
 };
 
@@ -100,9 +112,11 @@ static inline unsigned nd_inc_seq(unsigned seq)
 	return next[seq & 3];
 }
 
+struct btt;
 struct nd_btt {
 	struct device dev;
 	struct nd_namespace_common *ndns;
+	struct btt *btt;
 	unsigned long lbasize;
 	u8 *uuid;
 	int id;
@@ -157,6 +171,8 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
 
 #endif
 struct nd_region *to_nd_region(struct device *dev);
+unsigned int nd_region_acquire_lane(struct nd_region *nd_region);
+void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane);
 int nd_region_to_nstype(struct nd_region *nd_region);
 int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
 u64 nd_region_interleave_set_cookie(struct nd_region *nd_region);
@@ -172,4 +188,8 @@ struct resource *nvdimm_allocate_dpa(struct nvdimm_drvdata *ndd,
 		resource_size_t n);
 resource_size_t nvdimm_namespace_capacity(struct nd_namespace_common *ndns);
 struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev);
+int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns);
+int nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns);
+const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
+		char *name);
 #endif /* __ND_H__ */

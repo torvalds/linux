@@ -76,6 +76,30 @@ static bool is_namespace_io(struct device *dev)
 	return dev ? dev->type == &namespace_io_device_type : false;
 }
 
+const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
+		char *name)
+{
+	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
+	const char *suffix = "";
+
+	if (ndns->claim && is_nd_btt(ndns->claim))
+		suffix = "s";
+
+	if (is_namespace_pmem(&ndns->dev) || is_namespace_io(&ndns->dev))
+		sprintf(name, "pmem%d%s", nd_region->id, suffix);
+	else if (is_namespace_blk(&ndns->dev)) {
+		struct nd_namespace_blk *nsblk;
+
+		nsblk = to_nd_namespace_blk(&ndns->dev);
+		sprintf(name, "ndblk%d.%d%s", nd_region->id, nsblk->id, suffix);
+	} else {
+		return NULL;
+	}
+
+	return name;
+}
+EXPORT_SYMBOL(nvdimm_namespace_disk_name);
+
 static ssize_t nstype_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
