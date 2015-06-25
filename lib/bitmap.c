@@ -462,19 +462,20 @@ EXPORT_SYMBOL(bitmap_parse_user);
  * Output format is a comma-separated list of decimal numbers and
  * ranges if list is specified or hex digits grouped into comma-separated
  * sets of 8 digits/set. Returns the number of characters written to buf.
+ *
+ * It is assumed that @buf is a pointer into a PAGE_SIZE area and that
+ * sufficient storage remains at @buf to accommodate the
+ * bitmap_print_to_pagebuf() output.
  */
 int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
 			    int nmaskbits)
 {
-	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf - 2;
+	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf;
 	int n = 0;
 
-	if (len > 1) {
-		n = list ? scnprintf(buf, len, "%*pbl", nmaskbits, maskp) :
-			   scnprintf(buf, len, "%*pb", nmaskbits, maskp);
-		buf[n++] = '\n';
-		buf[n] = '\0';
-	}
+	if (len > 1)
+		n = list ? scnprintf(buf, len, "%*pbl\n", nmaskbits, maskp) :
+			   scnprintf(buf, len, "%*pb\n", nmaskbits, maskp);
 	return n;
 }
 EXPORT_SYMBOL(bitmap_print_to_pagebuf);
