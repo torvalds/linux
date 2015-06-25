@@ -50,7 +50,7 @@ my $minimum_perl_version = 5.10.0;
 my $min_conf_desc_length = 4;
 my $spelling_file = "$D/spelling.txt";
 my $codespell = 0;
-my $codespellfile = "/usr/local/share/codespell/dictionary.txt";
+my $codespellfile = "/usr/share/codespell/dictionary.txt";
 my $color = 1;
 
 sub help {
@@ -95,7 +95,7 @@ Options:
   --ignore-perl-version      override checking of perl version.  expect
                              runtime errors.
   --codespell                Use the codespell dictionary for spelling/typos
-                             (default:/usr/local/share/codespell/dictionary.txt)
+                             (default:/usr/share/codespell/dictionary.txt)
   --codespellfile            Use this codespell dictionary
   --color                    Use colors when output is STDOUT (default: on)
   -h, --help, --version      display this help and exit
