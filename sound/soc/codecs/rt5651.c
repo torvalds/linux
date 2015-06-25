@@ -1769,7 +1769,7 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 	regmap_read(rt5651->regmap, RT5651_DEVICE_ID, &ret);
 	if (ret != RT5651_DEVICE_ID_VALUE) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt5651\n", ret);
+			"Device with ID register %#x is not rt5651\n", ret);
 		return -ENODEV;
 	}
 
