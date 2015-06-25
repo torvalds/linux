@@ -29,24 +29,25 @@
 static int sh_pfc_map_resources(struct sh_pfc *pfc,
 				struct platform_device *pdev)
 {
-	unsigned int num_windows = 0;
-	unsigned int num_irqs = 0;
+	unsigned int num_windows, num_irqs;
 	struct sh_pfc_window *windows;
 	unsigned int *irqs = NULL;
 	struct resource *res;
 	unsigned int i;
+	int irq;
 
 	/* Count the MEM and IRQ resources. */
-	for (i = 0; i < pdev->num_resources; ++i) {
-		switch (resource_type(&pdev->resource[i])) {
-		case IORESOURCE_MEM:
-			num_windows++;
+	for (num_windows = 0;; num_windows++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, num_windows);
+		if (!res)
 			break;
-
-		case IORESOURCE_IRQ:
-			num_irqs++;
+	}
+	for (num_irqs = 0;; num_irqs++) {
+		irq = platform_get_irq(pdev, num_irqs);
+		if (irq == -EPROBE_DEFER)
+			return irq;
+		if (irq < 0)
 			break;
-		}
 	}
 
 	if (num_windows == 0)
@@ -72,22 +73,17 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 	}
 
 	/* Fill them. */
-	for (i = 0, res = pdev->resource; i < pdev->num_resources; i++, res++) {
-		switch (resource_type(res)) {
-		case IORESOURCE_MEM:
-			windows->phys = res->start;
-			windows->size = resource_size(res);
-			windows->virt = devm_ioremap_resource(pfc->dev, res);
-			if (IS_ERR(windows->virt))
-				return -ENOMEM;
-			windows++;
-			break;
-
-		case IORESOURCE_IRQ:
-			*irqs++ = res->start;
-			break;
-		}
+	for (i = 0; i < num_windows; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		windows->phys = res->start;
+		windows->size = resource_size(res);
+		windows->virt = devm_ioremap_resource(pfc->dev, res);
+		if (IS_ERR(windows->virt))
+			return -ENOMEM;
+		windows++;
 	}
+	for (i = 0; i < num_irqs; i++)
+		*irqs++ = platform_get_irq(pdev, i);
 
 	return 0;
 }
