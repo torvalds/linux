@@ -165,7 +165,7 @@ int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 			synth_printf("\n");
 			return 1;
 		}
-	cur_item = letter_offsets[ch-'a'];
+		cur_item = letter_offsets[ch-'a'];
 	} else if (type == KT_CUR) {
 		if (ch == 0
 		    && (MSG_FUNCNAMES_START + cur_item + 1) <=
