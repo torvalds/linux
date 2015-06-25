@@ -1379,7 +1379,6 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	}
 
 	free_pt(ppgtt->base.dev, ppgtt->scratch_pt);
-	free_pd(ppgtt->base.dev, &ppgtt->pd);
 }
 
 static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
