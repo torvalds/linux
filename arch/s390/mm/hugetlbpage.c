@@ -141,10 +141,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 
 int pmd_huge(pmd_t pmd)
 {
-	if (!MACHINE_HAS_HPAGE)
-		return 0;
-
-	return !!(pmd_val(pmd) & _SEGMENT_ENTRY_LARGE);
+	return pmd_large(pmd);
 }
 
 int pud_huge(pud_t pud)
