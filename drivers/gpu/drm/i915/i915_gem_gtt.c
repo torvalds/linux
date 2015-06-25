@@ -2870,9 +2870,12 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 				    vma->node.size,
 				    VM_TO_TRACE_NAME(vma->vm));
 
+		/* XXX: i915_vma_pin() will fix this +- hack */
+		vma->pin_count++;
 		ret = vma->vm->allocate_va_range(vma->vm,
 						 vma->node.start,
 						 vma->node.size);
+		vma->pin_count--;
 		if (ret)
 			return ret;
 	}
