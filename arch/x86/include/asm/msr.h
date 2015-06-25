@@ -178,12 +178,6 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	return err;
 }
 
-#define rdtscl(low)						\
-	((low) = (u32)native_read_tsc())
-
-#define rdtscll(val)						\
-	((val) = native_read_tsc())
-
 #define rdpmc(counter, low, high)			\
 do {							\
 	u64 _l = native_read_pmc((counter));		\
@@ -193,6 +187,14 @@ do {							\
 
 #define rdpmcl(counter, val) ((val) = native_read_pmc(counter))
 
+#endif	/* !CONFIG_PARAVIRT */
+
+#define rdtscl(low)						\
+	((low) = (u32)native_read_tsc())
+
+#define rdtscll(val)						\
+	((val) = native_read_tsc())
+
 #define rdtscp(low, high, aux)					\
 do {                                                            \
 	unsigned long long _val = native_read_tscp(&(aux));     \
@@ -201,8 +203,6 @@ do {                                                            \
 } while (0)
 
 #define rdtscpll(val, aux) (val) = native_read_tscp(&(aux))
-
-#endif	/* !CONFIG_PARAVIRT */
 
 /*
  * 64-bit version of wrmsr_safe():
