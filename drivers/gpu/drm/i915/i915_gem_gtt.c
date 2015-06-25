@@ -330,15 +330,16 @@ static void cleanup_page_dma(struct drm_device *dev, struct i915_page_dma *p)
 	memset(p, 0, sizeof(*p));
 }
 
-static void fill_page_dma(struct drm_device *dev, struct i915_page_dma *p,
-			  const uint64_t val)
+static void *kmap_page_dma(struct i915_page_dma *p)
 {
-	int i;
-	uint64_t * const vaddr = kmap_atomic(p->page);
+	return kmap_atomic(p->page);
+}
 
-	for (i = 0; i < 512; i++)
-		vaddr[i] = val;
-
+/* We use the flushing unmap only with ppgtt structures:
+ * page directories, page tables and scratch pages.
+ */
+static void kunmap_page_dma(struct drm_device *dev, void *vaddr)
+{
 	/* There are only few exceptions for gen >=6. chv and bxt.
 	 * And we are not sure about the latter so play safe for now.
 	 */
@@ -346,6 +347,21 @@ static void fill_page_dma(struct drm_device *dev, struct i915_page_dma *p,
 		drm_clflush_virt_range(vaddr, PAGE_SIZE);
 
 	kunmap_atomic(vaddr);
+}
+
+#define kmap_px(px) kmap_page_dma(&(px)->base)
+#define kunmap_px(ppgtt, vaddr) kunmap_page_dma((ppgtt)->base.dev, (vaddr))
+
+static void fill_page_dma(struct drm_device *dev, struct i915_page_dma *p,
+			  const uint64_t val)
+{
+	int i;
+	uint64_t * const vaddr = kmap_page_dma(p);
+
+	for (i = 0; i < 512; i++)
+		vaddr[i] = val;
+
+	kunmap_page_dma(dev, vaddr);
 }
 
 static void fill_page_dma_32(struct drm_device *dev, struct i915_page_dma *p,
@@ -504,7 +520,6 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 	while (num_entries) {
 		struct i915_page_directory *pd;
 		struct i915_page_table *pt;
-		struct page *page_table;
 
 		if (WARN_ON(!ppgtt->pdp.page_directory[pdpe]))
 			continue;
@@ -519,22 +534,18 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 		if (WARN_ON(!pt->base.page))
 			continue;
 
-		page_table = pt->base.page;
-
 		last_pte = pte + num_entries;
 		if (last_pte > GEN8_PTES)
 			last_pte = GEN8_PTES;
 
-		pt_vaddr = kmap_atomic(page_table);
+		pt_vaddr = kmap_px(pt);
 
 		for (i = pte; i < last_pte; i++) {
 			pt_vaddr[i] = scratch_pte;
 			num_entries--;
 		}
 
-		if (!HAS_LLC(ppgtt->base.dev))
-			drm_clflush_virt_range(pt_vaddr, PAGE_SIZE);
-		kunmap_atomic(pt_vaddr);
+		kunmap_px(ppgtt, pt);
 
 		pte = 0;
 		if (++pde == I915_PDES) {
@@ -566,18 +577,14 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 		if (pt_vaddr == NULL) {
 			struct i915_page_directory *pd = ppgtt->pdp.page_directory[pdpe];
 			struct i915_page_table *pt = pd->page_table[pde];
-			struct page *page_table = pt->base.page;
-
-			pt_vaddr = kmap_atomic(page_table);
+			pt_vaddr = kmap_px(pt);
 		}
 
 		pt_vaddr[pte] =
 			gen8_pte_encode(sg_page_iter_dma_address(&sg_iter),
 					cache_level, true);
 		if (++pte == GEN8_PTES) {
-			if (!HAS_LLC(ppgtt->base.dev))
-				drm_clflush_virt_range(pt_vaddr, PAGE_SIZE);
-			kunmap_atomic(pt_vaddr);
+			kunmap_px(ppgtt, pt_vaddr);
 			pt_vaddr = NULL;
 			if (++pde == I915_PDES) {
 				pdpe++;
@@ -586,11 +593,9 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 			pte = 0;
 		}
 	}
-	if (pt_vaddr) {
-		if (!HAS_LLC(ppgtt->base.dev))
-			drm_clflush_virt_range(pt_vaddr, PAGE_SIZE);
-		kunmap_atomic(pt_vaddr);
-	}
+
+	if (pt_vaddr)
+		kunmap_px(ppgtt, pt_vaddr);
 }
 
 static void __gen8_do_map_pt(gen8_pde_t * const pde,
@@ -870,7 +875,7 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 	/* Allocations have completed successfully, so set the bitmaps, and do
 	 * the mappings. */
 	gen8_for_each_pdpe(pd, &ppgtt->pdp, start, length, temp, pdpe) {
-		gen8_pde_t *const page_directory = kmap_atomic(pd->base.page);
+		gen8_pde_t *const page_directory = kmap_px(pd);
 		struct i915_page_table *pt;
 		uint64_t pd_len = gen8_clamp_pd(start, length);
 		uint64_t pd_start = start;
@@ -900,10 +905,7 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 			 * point we're still relying on insert_entries() */
 		}
 
-		if (!HAS_LLC(vm->dev))
-			drm_clflush_virt_range(page_directory, PAGE_SIZE);
-
-		kunmap_atomic(page_directory);
+		kunmap_px(ppgtt, page_directory);
 
 		set_bit(pdpe, ppgtt->pdp.used_pdpes);
 	}
@@ -992,7 +994,8 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 				   expected);
 		seq_printf(m, "\tPDE: %x\n", pd_entry);
 
-		pt_vaddr = kmap_atomic(ppgtt->pd.page_table[pde]->base.page);
+		pt_vaddr = kmap_px(ppgtt->pd.page_table[pde]);
+
 		for (pte = 0; pte < GEN6_PTES; pte+=4) {
 			unsigned long va =
 				(pde * PAGE_SIZE * GEN6_PTES) +
@@ -1014,7 +1017,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 			}
 			seq_puts(m, "\n");
 		}
-		kunmap_atomic(pt_vaddr);
+		kunmap_px(ppgtt, pt_vaddr);
 	}
 }
 
@@ -1221,12 +1224,12 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 		if (last_pte > GEN6_PTES)
 			last_pte = GEN6_PTES;
 
-		pt_vaddr = kmap_atomic(ppgtt->pd.page_table[act_pt]->base.page);
+		pt_vaddr = kmap_px(ppgtt->pd.page_table[act_pt]);
 
 		for (i = first_pte; i < last_pte; i++)
 			pt_vaddr[i] = scratch_pte;
 
-		kunmap_atomic(pt_vaddr);
+		kunmap_px(ppgtt, pt_vaddr);
 
 		num_entries -= last_pte - first_pte;
 		first_pte = 0;
@@ -1250,21 +1253,21 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	pt_vaddr = NULL;
 	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
 		if (pt_vaddr == NULL)
-			pt_vaddr = kmap_atomic(ppgtt->pd.page_table[act_pt]->base.page);
+			pt_vaddr = kmap_px(ppgtt->pd.page_table[act_pt]);
 
 		pt_vaddr[act_pte] =
 			vm->pte_encode(sg_page_iter_dma_address(&sg_iter),
 				       cache_level, true, flags);
 
 		if (++act_pte == GEN6_PTES) {
-			kunmap_atomic(pt_vaddr);
+			kunmap_px(ppgtt, pt_vaddr);
 			pt_vaddr = NULL;
 			act_pt++;
 			act_pte = 0;
 		}
 	}
 	if (pt_vaddr)
-		kunmap_atomic(pt_vaddr);
+		kunmap_px(ppgtt, pt_vaddr);
 }
 
 static void gen6_initialize_pt(struct i915_address_space *vm,
