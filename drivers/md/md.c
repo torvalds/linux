@@ -5178,6 +5178,7 @@ int md_run(struct mddev *mddev)
 		mddev_detach(mddev);
 		if (mddev->private)
 			pers->free(mddev, mddev->private);
+		mddev->private = NULL;
 		module_put(pers->owner);
 		bitmap_destroy(mddev);
 		return err;
@@ -5313,6 +5314,7 @@ static void md_clean(struct mddev *mddev)
 	mddev->changed = 0;
 	mddev->degraded = 0;
 	mddev->safemode = 0;
+	mddev->private = NULL;
 	mddev->merge_check_needed = 0;
 	mddev->bitmap_info.offset = 0;
 	mddev->bitmap_info.default_offset = 0;
@@ -5385,6 +5387,7 @@ static void __md_stop(struct mddev *mddev)
 	mddev->pers = NULL;
 	spin_unlock(&mddev->lock);
 	pers->free(mddev, mddev->private);
+	mddev->private = NULL;
 	if (pers->sync_request && mddev->to_remove == NULL)
 		mddev->to_remove = &md_redundancy_group;
 	module_put(pers->owner);
