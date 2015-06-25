@@ -1598,10 +1598,18 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 		vm_srb->data_in = READ_TYPE;
 		vm_srb->win8_extension.srb_flags |= SRB_FLAGS_DATA_IN;
 		break;
-	default:
+	case DMA_NONE:
 		vm_srb->data_in = UNKNOWN_TYPE;
 		vm_srb->win8_extension.srb_flags |= SRB_FLAGS_NO_DATA_TRANSFER;
 		break;
+	default:
+		/*
+		 * This is DMA_BIDIRECTIONAL or something else we are never
+		 * supposed to see here.
+		 */
+		WARN(1, "Unexpected data direction: %d\n",
+		     scmnd->sc_data_direction);
+		return -EINVAL;
 	}
 
 
