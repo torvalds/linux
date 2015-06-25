@@ -330,6 +330,34 @@ static void cleanup_page_dma(struct drm_device *dev, struct i915_page_dma *p)
 	memset(p, 0, sizeof(*p));
 }
 
+static void fill_page_dma(struct drm_device *dev, struct i915_page_dma *p,
+			  const uint64_t val)
+{
+	int i;
+	uint64_t * const vaddr = kmap_atomic(p->page);
+
+	for (i = 0; i < 512; i++)
+		vaddr[i] = val;
+
+	/* There are only few exceptions for gen >=6. chv and bxt.
+	 * And we are not sure about the latter so play safe for now.
+	 */
+	if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
+		drm_clflush_virt_range(vaddr, PAGE_SIZE);
+
+	kunmap_atomic(vaddr);
+}
+
+static void fill_page_dma_32(struct drm_device *dev, struct i915_page_dma *p,
+			     const uint32_t val32)
+{
+	uint64_t v = val32;
+
+	v = v << 32 | val32;
+
+	fill_page_dma(dev, p, v);
+}
+
 static void free_pt(struct drm_device *dev, struct i915_page_table *pt)
 {
 	cleanup_page_dma(dev, &pt->base);
@@ -340,19 +368,11 @@ static void free_pt(struct drm_device *dev, struct i915_page_table *pt)
 static void gen8_initialize_pt(struct i915_address_space *vm,
 			       struct i915_page_table *pt)
 {
-	gen8_pte_t *pt_vaddr, scratch_pte;
-	int i;
+	gen8_pte_t scratch_pte;
 
-	pt_vaddr = kmap_atomic(pt->base.page);
-	scratch_pte = gen8_pte_encode(vm->scratch.addr,
-				      I915_CACHE_LLC, true);
+	scratch_pte = gen8_pte_encode(vm->scratch.addr, I915_CACHE_LLC, true);
 
-	for (i = 0; i < GEN8_PTES; i++)
-		pt_vaddr[i] = scratch_pte;
-
-	if (!HAS_LLC(vm->dev))
-		drm_clflush_virt_range(pt_vaddr, PAGE_SIZE);
-	kunmap_atomic(pt_vaddr);
+	fill_page_dma(vm->dev, &pt->base, scratch_pte);
 }
 
 static struct i915_page_table *alloc_pt(struct drm_device *dev)
@@ -586,20 +606,13 @@ static void gen8_initialize_pd(struct i915_address_space *vm,
 			       struct i915_page_directory *pd)
 {
 	struct i915_hw_ppgtt *ppgtt =
-			container_of(vm, struct i915_hw_ppgtt, base);
-	gen8_pde_t *page_directory;
-	struct i915_page_table *pt;
-	int i;
+		container_of(vm, struct i915_hw_ppgtt, base);
+	gen8_pde_t scratch_pde;
 
-	page_directory = kmap_atomic(pd->base.page);
-	pt = ppgtt->scratch_pt;
-	for (i = 0; i < I915_PDES; i++)
-		/* Map the PDE to the page table */
-		__gen8_do_map_pt(page_directory + i, pt, vm->dev);
+	scratch_pde = gen8_pde_encode(vm->dev, ppgtt->scratch_pt->base.daddr,
+				      I915_CACHE_LLC);
 
-	if (!HAS_LLC(vm->dev))
-		drm_clflush_virt_range(page_directory, PAGE_SIZE);
-	kunmap_atomic(page_directory);
+	fill_page_dma(vm->dev, &pd->base, scratch_pde);
 }
 
 static void gen8_free_page_tables(struct i915_page_directory *pd, struct drm_device *dev)
@@ -1255,22 +1268,15 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 }
 
 static void gen6_initialize_pt(struct i915_address_space *vm,
-		struct i915_page_table *pt)
+			       struct i915_page_table *pt)
 {
-	gen6_pte_t *pt_vaddr, scratch_pte;
-	int i;
+	gen6_pte_t scratch_pte;
 
 	WARN_ON(vm->scratch.addr == 0);
 
-	scratch_pte = vm->pte_encode(vm->scratch.addr,
-			I915_CACHE_LLC, true, 0);
+	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true, 0);
 
-	pt_vaddr = kmap_atomic(pt->base.page);
-
-	for (i = 0; i < GEN6_PTES; i++)
-		pt_vaddr[i] = scratch_pte;
-
-	kunmap_atomic(pt_vaddr);
+	fill_page_dma_32(vm->dev, &pt->base, scratch_pte);
 }
 
 static int gen6_alloc_va_range(struct i915_address_space *vm,
