@@ -505,6 +505,11 @@ int check_syslog_permissions(int type, bool from_file)
 	return security_syslog(type);
 }
 
+static void append_char(char **pp, char *e, char c)
+{
+	if (*pp < e)
+		*(*pp)++ = c;
+}
 
 /* /dev/kmsg - userspace message inject/listen interface */
 struct devkmsg_user {
@@ -512,7 +517,7 @@ struct devkmsg_user {
 	u32 idx;
 	enum log_flags prev;
 	struct mutex lock;
-	char buf[8192];
+	char buf[CONSOLE_EXT_LOG_MAX];
 };
 
 static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
@@ -570,6 +575,7 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 {
 	struct devkmsg_user *user = file->private_data;
 	struct printk_log *msg;
+	char *p, *e;
 	u64 ts_usec;
 	size_t i;
 	char cont = '-';
@@ -578,6 +584,9 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 
 	if (!user)
 		return -EBADF;
+
+	p = user->buf;
+	e = user->buf + sizeof(user->buf);
 
 	ret = mutex_lock_interruptible(&user->lock);
 	if (ret)
@@ -625,9 +634,9 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 		 ((user->prev & LOG_CONT) && !(msg->flags & LOG_PREFIX)))
 		cont = '+';
 
-	len = sprintf(user->buf, "%u,%llu,%llu,%c;",
-		      (msg->facility << 3) | msg->level,
-		      user->seq, ts_usec, cont);
+	p += scnprintf(p, e - p, "%u,%llu,%llu,%c;",
+		       (msg->facility << 3) | msg->level,
+		       user->seq, ts_usec, cont);
 	user->prev = msg->flags;
 
 	/* escape non-printable characters */
@@ -635,11 +644,11 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 		unsigned char c = log_text(msg)[i];
 
 		if (c < ' ' || c >= 127 || c == '\\')
-			len += sprintf(user->buf + len, "\\x%02x", c);
+			p += scnprintf(p, e - p, "\\x%02x", c);
 		else
-			user->buf[len++] = c;
+			append_char(&p, e, c);
 	}
-	user->buf[len++] = '\n';
+	append_char(&p, e, '\n');
 
 	if (msg->dict_len) {
 		bool line = true;
@@ -648,30 +657,31 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 			unsigned char c = log_dict(msg)[i];
 
 			if (line) {
-				user->buf[len++] = ' ';
+				append_char(&p, e, ' ');
 				line = false;
 			}
 
 			if (c == '\0') {
-				user->buf[len++] = '\n';
+				append_char(&p, e, '\n');
 				line = true;
 				continue;
 			}
 
 			if (c < ' ' || c >= 127 || c == '\\') {
-				len += sprintf(user->buf + len, "\\x%02x", c);
+				p += scnprintf(p, e - p, "\\x%02x", c);
 				continue;
 			}
 
-			user->buf[len++] = c;
+			append_char(&p, e, c);
 		}
-		user->buf[len++] = '\n';
+		append_char(&p, e, '\n');
 	}
 
 	user->idx = log_next(user->idx);
 	user->seq++;
 	raw_spin_unlock_irq(&logbuf_lock);
 
+	len = p - user->buf;
 	if (len > count) {
 		ret = -EINVAL;
 		goto out;
