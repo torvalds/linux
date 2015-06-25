@@ -75,7 +75,7 @@ struct dmi_header {
 	u8 type;
 	u8 length;
 	u16 handle;
-};
+} __packed;
 
 struct dmi_device {
 	struct list_head list;
