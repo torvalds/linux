@@ -9,6 +9,7 @@ use strict;
 use POSIX;
 use File::Basename;
 use Cwd 'abs_path';
+use Term::ANSIColor qw(:constants);
 
 my $P = $0;
 my $D = dirname(abs_path($P));
@@ -49,6 +50,7 @@ my $min_conf_desc_length = 4;
 my $spelling_file = "$D/spelling.txt";
 my $codespell = 0;
 my $codespellfile = "/usr/local/share/codespell/dictionary.txt";
+my $color = 1;
 
 sub help {
 	my ($exitcode) = @_;
@@ -93,6 +95,7 @@ Options:
   --codespell                Use the codespell dictionary for spelling/typos
                              (default:/usr/local/share/codespell/dictionary.txt)
   --codespellfile            Use this codespell dictionary
+  --color                    Use colors when output is STDOUT (default: on)
   -h, --help, --version      display this help and exit
 
 When FILE is - read standard input.
@@ -153,6 +156,7 @@ GetOptions(
 	'test-only=s'	=> \$tst_only,
 	'codespell!'	=> \$codespell,
 	'codespellfile=s'	=> \$codespellfile,
+	'color!'	=> \$color,
 	'h|help'	=> \$help,
 	'version'	=> \$help
 ) or help(1);
@@ -1672,15 +1676,26 @@ sub report {
 	    (defined $tst_only && $msg !~ /\Q$tst_only\E/)) {
 		return 0;
 	}
-	my $line;
-	if ($show_types) {
-		$line = "$prefix$level:$type: $msg\n";
-	} else {
-		$line = "$prefix$level: $msg\n";
+	my $output = '';
+	if (-t STDOUT && $color) {
+		if ($level eq 'ERROR') {
+			$output .= RED;
+		} elsif ($level eq 'WARNING') {
+			$output .= YELLOW;
+		} else {
+			$output .= GREEN;
+		}
 	}
-	$line = (split('\n', $line))[0] . "\n" if ($terse);
+	$output .= $prefix . $level . ':';
+	if ($show_types) {
+		$output .= BLUE if (-t STDOUT && $color);
+		$output .= "$type:";
+	}
+	$output .= RESET if (-t STDOUT && $color);
+	$output .= ' ' . $msg . "\n";
+	$output = (split('\n', $output))[0] . "\n" if ($terse);
 
-	push(our @report, $line);
+	push(our @report, $output);
 
 	return 1;
 }
