@@ -795,7 +795,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 			goto out;
 		}
 		opa_drslid = be32_to_cpu(opa_smp->route.dr.dr_slid);
-		if (opa_drslid != OPA_LID_PERMISSIVE &&
+		if (opa_drslid != be32_to_cpu(OPA_LID_PERMISSIVE) &&
 		    opa_drslid & 0xffff0000) {
 			ret = -EINVAL;
 			dev_err(&device->dev, "OPA Invalid dr_slid 0x%x\n",
