@@ -113,9 +113,9 @@ static inline void emit_a64_mov_i(const int is64, const int reg,
 static inline int bpf2a64_offset(int bpf_to, int bpf_from,
 				 const struct jit_ctx *ctx)
 {
-	int to = ctx->offset[bpf_to + 1];
+	int to = ctx->offset[bpf_to];
 	/* -1 to account for the Branch instruction */
-	int from = ctx->offset[bpf_from + 1] - 1;
+	int from = ctx->offset[bpf_from] - 1;
 
 	return to - from;
 }
@@ -640,10 +640,11 @@ static int build_body(struct jit_ctx *ctx)
 		const struct bpf_insn *insn = &prog->insnsi[i];
 		int ret;
 
+		ret = build_insn(insn, ctx);
+
 		if (ctx->image == NULL)
 			ctx->offset[i] = ctx->idx;
 
-		ret = build_insn(insn, ctx);
 		if (ret > 0) {
 			i++;
 			continue;
