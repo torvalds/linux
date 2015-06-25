@@ -735,7 +735,7 @@ static int hpet_clocksource_register(void)
 
 	/* Verify whether hpet counter works */
 	t1 = hpet_readl(HPET_COUNTER);
-	start = native_read_tsc();
+	start = rdtsc();
 
 	/*
 	 * We don't know the TSC frequency yet, but waiting for
@@ -745,7 +745,7 @@ static int hpet_clocksource_register(void)
 	 */
 	do {
 		rep_nop();
-		now = native_read_tsc();
+		now = rdtsc();
 	} while ((now - start) < 200000UL);
 
 	if (t1 == hpet_readl(HPET_COUNTER)) {

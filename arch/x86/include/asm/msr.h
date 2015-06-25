@@ -109,7 +109,16 @@ notrace static inline int native_write_msr_safe(unsigned int msr,
 extern int rdmsr_safe_regs(u32 regs[8]);
 extern int wrmsr_safe_regs(u32 regs[8]);
 
-static __always_inline unsigned long long native_read_tsc(void)
+/**
+ * rdtsc() - returns the current TSC without ordering constraints
+ *
+ * rdtsc() returns the result of RDTSC as a 64-bit integer.  The
+ * only ordering constraint it supplies is the ordering implied by
+ * "asm volatile": it will put the RDTSC in the place you expect.  The
+ * CPU can and will speculatively execute that RDTSC, though, so the
+ * results can be non-monotonic if compared on different CPUs.
+ */
+static __always_inline unsigned long long rdtsc(void)
 {
 	DECLARE_ARGS(val, low, high);
 

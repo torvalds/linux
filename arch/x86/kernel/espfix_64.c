@@ -110,7 +110,7 @@ static void init_espfix_random(void)
 	 */
 	if (!arch_get_random_long(&rand)) {
 		/* The constant is an arbitrary large prime */
-		rand = native_read_tsc();
+		rand = rdtsc();
 		rand *= 0xc345c6b72fd16123UL;
 	}
 

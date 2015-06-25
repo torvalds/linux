@@ -1455,7 +1455,7 @@ static cycle_t read_tsc(void)
 	 * but no one has ever seen it happen.
 	 */
 	rdtsc_barrier();
-	ret = (cycle_t)native_read_tsc();
+	ret = (cycle_t)rdtsc();
 
 	last = pvclock_gtod_data.clock.cycle_last;
 
@@ -1646,7 +1646,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		return 1;
 	}
 	if (!use_master_clock) {
-		host_tsc = native_read_tsc();
+		host_tsc = rdtsc();
 		kernel_ns = get_kernel_ns();
 	}
 
@@ -2810,7 +2810,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	if (unlikely(vcpu->cpu != cpu) || check_tsc_unstable()) {
 		s64 tsc_delta = !vcpu->arch.last_host_tsc ? 0 :
-				native_read_tsc() - vcpu->arch.last_host_tsc;
+				rdtsc() - vcpu->arch.last_host_tsc;
 		if (tsc_delta < 0)
 			mark_tsc_unstable("KVM discovered backwards TSC");
 		if (check_tsc_unstable()) {
@@ -2838,7 +2838,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvm_x86_ops->vcpu_put(vcpu);
 	kvm_put_guest_fpu(vcpu);
-	vcpu->arch.last_host_tsc = native_read_tsc();
+	vcpu->arch.last_host_tsc = rdtsc();
 }
 
 static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
@@ -6623,7 +6623,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		hw_breakpoint_restore();
 
 	vcpu->arch.last_guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu,
-							   native_read_tsc());
+							   rdtsc());
 
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
@@ -7437,7 +7437,7 @@ int kvm_arch_hardware_enable(void)
 	if (ret != 0)
 		return ret;
 
-	local_tsc = native_read_tsc();
+	local_tsc = rdtsc();
 	stable = !check_tsc_unstable();
 	list_for_each_entry(kvm, &vm_list, vm_list) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {

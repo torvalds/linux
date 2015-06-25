@@ -55,10 +55,10 @@ static void delay_tsc(unsigned long __loops)
 	preempt_disable();
 	cpu = smp_processor_id();
 	rdtsc_barrier();
-	bclock = native_read_tsc();
+	bclock = rdtsc();
 	for (;;) {
 		rdtsc_barrier();
-		now = native_read_tsc();
+		now = rdtsc();
 		if ((now - bclock) >= loops)
 			break;
 
@@ -80,7 +80,7 @@ static void delay_tsc(unsigned long __loops)
 			loops -= (now - bclock);
 			cpu = smp_processor_id();
 			rdtsc_barrier();
-			bclock = native_read_tsc();
+			bclock = rdtsc();
 		}
 	}
 	preempt_enable();
@@ -100,7 +100,7 @@ void use_tsc_delay(void)
 int read_current_timer(unsigned long *timer_val)
 {
 	if (delay_fn == delay_tsc) {
-		*timer_val = native_read_tsc();
+		*timer_val = rdtsc();
 		return 0;
 	}
 	return -1;

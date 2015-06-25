@@ -26,7 +26,7 @@ static inline cycles_t get_cycles(void)
 		return 0;
 #endif
 
-	return native_read_tsc();
+	return rdtsc();
 }
 
 extern void tsc_init(void);

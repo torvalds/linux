@@ -125,10 +125,10 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 
 		n = K6_BUG_LOOP;
 		f_vide = vide;
-		d = native_read_tsc();
+		d = rdtsc();
 		while (n--)
 			f_vide();
-		d2 = native_read_tsc();
+		d2 = rdtsc();
 		d = d2-d;
 
 		if (d > 20*K6_BUG_LOOP)

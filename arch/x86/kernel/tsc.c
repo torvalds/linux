@@ -248,7 +248,7 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 
 	data = cyc2ns_write_begin(cpu);
 
-	tsc_now = native_read_tsc();
+	tsc_now = rdtsc();
 	ns_now = cycles_2_ns(tsc_now);
 
 	/*
@@ -290,7 +290,7 @@ u64 native_sched_clock(void)
 	}
 
 	/* read the Time Stamp Counter: */
-	tsc_now = native_read_tsc();
+	tsc_now = rdtsc();
 
 	/* return the value in ns */
 	return cycles_2_ns(tsc_now);
