@@ -19,7 +19,9 @@ Following shows a typical sequence of steps for using zram.
 1) Load Module:
 	modprobe zram num_devices=4
 	This creates 4 devices: /dev/zram{0,1,2,3}
-	(num_devices parameter is optional. Default: 1)
+
+num_devices parameter is optional and tells zram how many devices should be
+pre-created. Default: 1.
 
 2) Set max number of compression streams
 	Compression backend may use up to max_comp_streams compression streams,
