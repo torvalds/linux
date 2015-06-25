@@ -42,3 +42,7 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "google,veyron-pinky-rev2", "google,veyron-pinky",
 		     "google,veyron", "rockchip,rk3288";
+
+- Rockchip R88 board:
+    Required root node properties:
+      - compatible = "rockchip,r88", "rockchip,rk3368";
