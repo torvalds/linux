@@ -22,7 +22,7 @@ static int filter(const struct dirent *dir)
 
 static struct thread_map *thread_map__realloc(struct thread_map *map, int nr)
 {
-	size_t size = sizeof(*map) + sizeof(pid_t) * nr;
+	size_t size = sizeof(*map) + sizeof(map->map[0]) * nr;
 
 	return realloc(map, size);
 }
