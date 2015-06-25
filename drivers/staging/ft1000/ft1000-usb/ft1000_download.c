@@ -95,7 +95,6 @@ struct dsp_file_hdr {
 	long              nDspImages;          /* Number of DSP images in file. */
 };
 
-#pragma pack(1)
 struct dsp_image_info {
 	long              coff_date;           /* Date/time when DSP Coff image was built. */
 	long              begin_offset;        /* Offset in file where image begins. */
@@ -105,7 +104,7 @@ struct dsp_image_info {
 	long              version;             /* Embedded version # of DSP code. */
 	unsigned short    checksum;            /* DSP File checksum */
 	unsigned short    pad1;
-};
+} __packed;
 
 
 /* checks if the doorbell register is cleared */
