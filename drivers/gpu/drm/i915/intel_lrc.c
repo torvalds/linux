@@ -190,9 +190,7 @@
 #define GEN8_CTX_PRIVILEGE (1<<8)
 
 #define ASSIGN_CTX_PDP(ppgtt, reg_state, n) { \
-	const u64 _addr = test_bit(n, ppgtt->pdp.used_pdpes) ? \
-		ppgtt->pdp.page_directory[n]->daddr : \
-		ppgtt->scratch_pd->daddr; \
+	const u64 _addr = i915_page_dir_dma_addr((ppgtt), (n));	\
 	reg_state[CTX_PDP ## n ## _UDW+1] = upper_32_bits(_addr); \
 	reg_state[CTX_PDP ## n ## _LDW+1] = lower_32_bits(_addr); \
 }

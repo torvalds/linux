@@ -470,6 +470,14 @@ static inline size_t gen8_pte_count(uint64_t address, uint64_t length)
 	return i915_pte_count(address, length, GEN8_PDE_SHIFT);
 }
 
+static inline dma_addr_t
+i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
+{
+	return test_bit(n, ppgtt->pdp.used_pdpes) ?
+		ppgtt->pdp.page_directory[n]->daddr :
+		ppgtt->scratch_pd->daddr;
+}
+
 int i915_gem_gtt_init(struct drm_device *dev);
 void i915_gem_init_global_gtt(struct drm_device *dev);
 void i915_global_gtt_cleanup(struct drm_device *dev);

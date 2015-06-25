@@ -482,10 +482,8 @@ static int gen8_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	int i, ret;
 
 	for (i = GEN8_LEGACY_PDPES - 1; i >= 0; i--) {
-		struct i915_page_directory *pd = ppgtt->pdp.page_directory[i];
-		dma_addr_t pd_daddr = pd ? pd->daddr : ppgtt->scratch_pd->daddr;
-		/* The page directory might be NULL, but we need to clear out
-		 * whatever the previous context might have used. */
+		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
+
 		ret = gen8_write_pdp(req, i, pd_daddr);
 		if (ret)
 			return ret;
