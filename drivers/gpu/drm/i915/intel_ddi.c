@@ -1317,6 +1317,13 @@ skl_ddi_calculate_wrpll(int clock /* in Hz */,
 						      p);
 			}
 		}
+
+		/*
+		 * If a solution is found with an even divider, prefer
+		 * this one.
+		 */
+		if (d == 0 && ctx.p)
+			break;
 	}
 
 	if (!ctx.p) {
