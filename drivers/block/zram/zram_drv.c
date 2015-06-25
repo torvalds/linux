@@ -1153,20 +1153,24 @@ static struct attribute_group zram_disk_attr_group = {
 	.attrs = zram_disk_attrs,
 };
 
-static int zram_add(int device_id)
+/*
+ * Allocate and initialize new zram device. the function returns
+ * '>= 0' device_id upon success, and negative value otherwise.
+ */
+static int zram_add(void)
 {
 	struct zram *zram;
 	struct request_queue *queue;
-	int ret;
+	int ret, device_id;
 
 	zram = kzalloc(sizeof(struct zram), GFP_KERNEL);
 	if (!zram)
 		return -ENOMEM;
 
-	ret = idr_alloc(&zram_index_idr, zram, device_id,
-			device_id + 1, GFP_KERNEL);
+	ret = idr_alloc(&zram_index_idr, zram, 0, 0, GFP_KERNEL);
 	if (ret < 0)
 		goto out_free_dev;
+	device_id = ret;
 
 	init_rwsem(&zram->init_lock);
 
@@ -1240,7 +1244,7 @@ static int zram_add(int device_id)
 	zram->max_comp_streams = 1;
 
 	pr_info("Added device: %s\n", zram->disk->disk_name);
-	return 0;
+	return device_id;
 
 out_free_disk:
 	del_gendisk(zram->disk);
@@ -1287,7 +1291,7 @@ static void destroy_devices(void)
 
 static int __init zram_init(void)
 {
-	int ret, dev_id;
+	int ret;
 
 	zram_major = register_blkdev(0, "zram");
 	if (zram_major <= 0) {
@@ -1295,10 +1299,11 @@ static int __init zram_init(void)
 		return -EBUSY;
 	}
 
-	for (dev_id = 0; dev_id < num_devices; dev_id++) {
-		ret = zram_add(dev_id);
-		if (ret != 0)
+	while (num_devices != 0) {
+		ret = zram_add();
+		if (ret < 0)
 			goto out_error;
+		num_devices--;
 	}
 
 	return 0;
