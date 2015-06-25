@@ -122,6 +122,7 @@ _user_exception:
 	/* Save SAR and turn off single stepping */
 
 	movi	a2, 0
+	wsr	a2, depc		# terminate user stack trace with 0
 	rsr	a3, sar
 	xsr	a2, icountlevel
 	s32i	a3, a1, PT_SAR
@@ -301,7 +302,18 @@ _kernel_exception:
 	s32i	a14, a1, PT_AREG14
 	s32i	a15, a1, PT_AREG15
 
+	_bnei	a2, 1, 1f
+
+	/* Copy spill slots of a0 and a1 to imitate movsp
+	 * in order to keep exception stack continuous
+	 */
+	l32i	a3, a1, PT_SIZE
+	l32i	a0, a1, PT_SIZE + 4
+	s32e	a3, a1, -16
+	s32e	a0, a1, -12
 1:
+	l32i	a0, a1, PT_AREG0	# restore saved a0
+	wsr	a0, depc
 
 #ifdef KERNEL_STACK_OVERFLOW_CHECK
 
@@ -346,12 +358,12 @@ common_exception:
 	s32i	a0, a1, PT_EXCCAUSE
 	s32i	a3, a2, EXC_TABLE_FIXUP
 
-	/* All unrecoverable states are saved on stack, now, and a1 is valid,
-	 * so we can allow exceptions and interrupts (*) again.
-	 * Set PS(EXCM = 0, UM = 0, RING = 0, OWB = 0, WOE = 1, INTLEVEL = X)
+	/* All unrecoverable states are saved on stack, now, and a1 is valid.
+	 * Now we can allow exceptions again. In case we've got an interrupt
+	 * PS.INTLEVEL is set to LOCKLEVEL disabling furhter interrupts,
+	 * otherwise it's left unchanged.
 	 *
-	 * (*) We only allow interrupts if they were previously enabled and
-	 *     we're not handling an IRQ
+	 * Set PS(EXCM = 0, UM = 0, RING = 0, OWB = 0, WOE = 1, INTLEVEL = X)
 	 */
 
 	rsr	a3, ps
@@ -362,28 +374,30 @@ common_exception:
 	moveqz	a3, a2, a0		# a3 = LOCKLEVEL iff interrupt
 	movi	a2, 1 << PS_WOE_BIT
 	or	a3, a3, a2
-	rsr	a0, exccause
+	rsr	a2, exccause
+	/* restore return address (or 0 if return to userspace) */
+	rsr	a0, depc
 	xsr	a3, ps
 
 	s32i	a3, a1, PT_PS		# save ps
 
 	/* Save lbeg, lend */
 
-	rsr	a2, lbeg
+	rsr	a4, lbeg
 	rsr	a3, lend
-	s32i	a2, a1, PT_LBEG
+	s32i	a4, a1, PT_LBEG
 	s32i	a3, a1, PT_LEND
 
 	/* Save SCOMPARE1 */
 
 #if XCHAL_HAVE_S32C1I
-	rsr     a2, scompare1
-	s32i    a2, a1, PT_SCOMPARE1
+	rsr     a3, scompare1
+	s32i    a3, a1, PT_SCOMPARE1
 #endif
 
 	/* Save optional registers. */
 
-	save_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
+	save_xtregs_opt a1 a3 a4 a5 a6 a7 PT_XTREGS_OPT
 	
 #ifdef CONFIG_TRACE_IRQFLAGS
 	l32i	a4, a1, PT_DEPC
@@ -391,8 +405,7 @@ common_exception:
 	 * while PS.EXCM was set, i.e. interrupts disabled.
 	 */
 	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-	l32i	a4, a1, PT_EXCCAUSE
-	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
+	bnei	a2, EXCCAUSE_LEVEL1_INTERRUPT, 1f
 	/* We came here with an interrupt means interrupts were enabled
 	 * and we've just disabled them.
 	 */
@@ -407,8 +420,8 @@ common_exception:
 
 	rsr	a4, excsave1
 	mov	a6, a1			# pass stack frame
-	mov	a7, a0			# pass EXCCAUSE
-	addx4	a4, a0, a4
+	mov	a7, a2			# pass EXCCAUSE
+	addx4	a4, a2, a4
 	l32i	a4, a4, EXC_TABLE_DEFAULT		# load handler
 
 	/* Call the second-level handler */
