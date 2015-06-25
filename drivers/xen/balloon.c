@@ -75,12 +75,14 @@
  * balloon_process() state:
  *
  * BP_DONE: done or nothing to do,
+ * BP_WAIT: wait to be rescheduled,
  * BP_EAGAIN: error, go to sleep,
  * BP_ECANCELED: error, balloon operation canceled.
  */
 
 enum bp_state {
 	BP_DONE,
+	BP_WAIT,
 	BP_EAGAIN,
 	BP_ECANCELED
 };
@@ -167,6 +169,9 @@ static struct page *balloon_next_page(struct page *page)
 
 static enum bp_state update_schedule(enum bp_state state)
 {
+	if (state == BP_WAIT)
+		return BP_WAIT;
+
 	if (state == BP_ECANCELED)
 		return BP_ECANCELED;
 
@@ -231,11 +236,21 @@ static void release_memory_resource(struct resource *resource)
 	kfree(resource);
 }
 
-static enum bp_state reserve_additional_memory(long credit)
+static enum bp_state reserve_additional_memory(void)
 {
+	long credit;
 	struct resource *resource;
 	int nid, rc;
 	unsigned long balloon_hotplug;
+
+	credit = balloon_stats.target_pages - balloon_stats.total_pages;
+
+	/*
+	 * Already hotplugged enough pages?  Wait for them to be
+	 * onlined.
+	 */
+	if (credit <= 0)
+		return BP_WAIT;
 
 	balloon_hotplug = round_up(credit, PAGES_PER_SECTION);
 
@@ -276,7 +291,7 @@ static enum bp_state reserve_additional_memory(long credit)
 
 	balloon_stats.total_pages += balloon_hotplug;
 
-	return BP_DONE;
+	return BP_WAIT;
   err:
 	release_memory_resource(resource);
 	return BP_ECANCELED;
@@ -306,7 +321,7 @@ static struct notifier_block xen_memory_nb = {
 	.priority = 0
 };
 #else
-static enum bp_state reserve_additional_memory(long credit)
+static enum bp_state reserve_additional_memory(void)
 {
 	balloon_stats.target_pages = balloon_stats.current_pages;
 	return BP_DONE;
@@ -474,7 +489,7 @@ static void balloon_process(struct work_struct *work)
 			if (balloon_is_inflated())
 				state = increase_reservation(credit);
 			else
-				state = reserve_additional_memory(credit);
+				state = reserve_additional_memory();
 		}
 
 		if (credit < 0)
