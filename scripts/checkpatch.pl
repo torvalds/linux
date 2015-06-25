@@ -25,6 +25,7 @@ my $chk_patch = 1;
 my $tst_only;
 my $emacs = 0;
 my $terse = 0;
+my $showfile = 0;
 my $file = 0;
 my $check = 0;
 my $check_orig = 0;
@@ -66,6 +67,7 @@ Options:
   --patch                    treat FILE as patchfile (default)
   --emacs                    emacs compile window format
   --terse                    one line per report
+  --showfile                 emit diffed file position, not input file position
   -f, --file                 treat FILE as regular source file
   --subjective, --strict     enable more subjective tests
   --types TYPE(,TYPE2...)    show only these comma separated message types
@@ -137,6 +139,7 @@ GetOptions(
 	'patch!'	=> \$chk_patch,
 	'emacs!'	=> \$emacs,
 	'terse!'	=> \$terse,
+	'showfile!'	=> \$showfile,
 	'f|file!'	=> \$file,
 	'subjective!'	=> \$check,
 	'strict!'	=> \$check,
@@ -1693,6 +1696,12 @@ sub report {
 	}
 	$output .= RESET if (-t STDOUT && $color);
 	$output .= ' ' . $msg . "\n";
+
+	if ($showfile) {
+		my @lines = split("\n", $output, -1);
+		splice(@lines, 1, 1);
+		$output = join("\n", @lines);
+	}
 	$output = (split('\n', $output))[0] . "\n" if ($terse);
 
 	push(our @report, $output);
@@ -2119,10 +2128,6 @@ sub process {
 
 		my $hunk_line = ($realcnt != 0);
 
-#make up the handle for any error we report on this line
-		$prefix = "$filename:$realline: " if ($emacs && $file);
-		$prefix = "$filename:$linenr: " if ($emacs && !$file);
-
 		$here = "#$linenr: " if (!$file);
 		$here = "#$realline: " if ($file);
 
@@ -2150,6 +2155,13 @@ sub process {
 				      "do not modify files in include/asm, change architecture specific files in include/asm-<architecture>\n" . "$here$rawline\n");
 			}
 			$found_file = 1;
+		}
+
+#make up the handle for any error we report on this line
+		if ($showfile) {
+			$prefix = "$realfile:$realline: "
+		} elsif ($emacs) {
+			$prefix = "$filename:$linenr: ";
 		}
 
 		if ($found_file) {
@@ -5606,7 +5618,7 @@ sub process {
 		ERROR("NOT_UNIFIED_DIFF",
 		      "Does not appear to be a unified-diff format patch\n");
 	}
-	if ($is_patch && $chk_signoff && $signoff == 0) {
+	if ($is_patch && $filename ne '-' && $chk_signoff && $signoff == 0) {
 		ERROR("MISSING_SIGN_OFF",
 		      "Missing Signed-off-by: line(s)\n");
 	}
