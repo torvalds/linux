@@ -423,6 +423,7 @@ our @typeList = (
 	qr{${Ident}_handler_fn},
 	@typeListMisordered,
 );
+our @typeListFile = ();
 our @typeListWithAttr = (
 	@typeList,
 	qr{struct\s+$InitAttribute\s+$Ident},
@@ -432,6 +433,7 @@ our @typeListWithAttr = (
 our @modifierList = (
 	qr{fastcall},
 );
+our @modifierListFile = ();
 
 our @mode_permission_funcs = (
 	["module_param", 3],
@@ -515,8 +517,8 @@ if ($codespell) {
 $misspellings = join("|", sort keys %spelling_fix) if keys %spelling_fix;
 
 sub build_types {
-	my $mods = "(?x:  \n" . join("|\n  ", @modifierList) . "\n)";
-	my $all = "(?x:  \n" . join("|\n  ", @typeList) . "\n)";
+	my $mods = "(?x:  \n" . join("|\n  ", (@modifierList, @modifierListFile)) . "\n)";
+	my $all = "(?x:  \n" . join("|\n  ", (@typeList, @typeListFile)) . "\n)";
 	my $Misordered = "(?x:  \n" . join("|\n  ", @typeListMisordered) . "\n)";
 	my $allWithAttr = "(?x:  \n" . join("|\n  ", @typeListWithAttr) . "\n)";
 	$Modifier	= qr{(?:$Attribute|$Sparse|$mods)};
@@ -748,6 +750,9 @@ for my $filename (@ARGV) {
 	@fixed_inserted = ();
 	@fixed_deleted = ();
 	$fixlinenr = -1;
+	@modifierListFile = ();
+	@typeListFile = ();
+	build_types();
 }
 
 exit($exit);
@@ -1612,13 +1617,13 @@ sub possible {
 			for my $modifier (split(' ', $possible)) {
 				if ($modifier !~ $notPermitted) {
 					warn "MODIFIER: $modifier ($possible) ($line)\n" if ($dbg_possible);
-					push(@modifierList, $modifier);
+					push(@modifierListFile, $modifier);
 				}
 			}
 
 		} else {
 			warn "POSSIBLE: $possible ($line)\n" if ($dbg_possible);
-			push(@typeList, $possible);
+			push(@typeListFile, $possible);
 		}
 		build_types();
 	} else {
