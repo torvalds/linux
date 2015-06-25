@@ -2227,7 +2227,7 @@ static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 
 		seq_puts(m, "aliasing PPGTT:\n");
-		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd.pd_offset);
+		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd.base.ggtt_offset);
 
 		ppgtt->debug_dump(ppgtt, m);
 	}

@@ -207,19 +207,26 @@ struct i915_vma {
 #define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 };
 
-struct i915_page_table {
+struct i915_page_dma {
 	struct page *page;
-	dma_addr_t daddr;
+	union {
+		dma_addr_t daddr;
+
+		/* For gen6/gen7 only. This is the offset in the GGTT
+		 * where the page directory entries for PPGTT begin
+		 */
+		uint32_t ggtt_offset;
+	};
+};
+
+struct i915_page_table {
+	struct i915_page_dma base;
 
 	unsigned long *used_ptes;
 };
 
 struct i915_page_directory {
-	struct page *page; /* NULL for GEN6-GEN7 */
-	union {
-		uint32_t pd_offset;
-		dma_addr_t daddr;
-	};
+	struct i915_page_dma base;
 
 	unsigned long *used_pdes;
 	struct i915_page_table *page_table[I915_PDES]; /* PDEs */
@@ -474,8 +481,8 @@ static inline dma_addr_t
 i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
 {
 	return test_bit(n, ppgtt->pdp.used_pdpes) ?
-		ppgtt->pdp.page_directory[n]->daddr :
-		ppgtt->scratch_pd->daddr;
+		ppgtt->pdp.page_directory[n]->base.daddr :
+		ppgtt->scratch_pd->base.daddr;
 }
 
 int i915_gem_gtt_init(struct drm_device *dev);

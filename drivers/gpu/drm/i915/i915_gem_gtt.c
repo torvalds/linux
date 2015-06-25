@@ -301,52 +301,39 @@ static gen6_pte_t iris_pte_encode(dma_addr_t addr,
 	return pte;
 }
 
-#define i915_dma_unmap_single(px, dev) \
-	__i915_dma_unmap_single((px)->daddr, dev)
-
-static void __i915_dma_unmap_single(dma_addr_t daddr,
-				    struct drm_device *dev)
+static int setup_page_dma(struct drm_device *dev, struct i915_page_dma *p)
 {
 	struct device *device = &dev->pdev->dev;
 
-	dma_unmap_page(device, daddr, 4096, PCI_DMA_BIDIRECTIONAL);
-}
-
-/**
- * i915_dma_map_single() - Create a dma mapping for a page table/dir/etc.
- * @px:	Page table/dir/etc to get a DMA map for
- * @dev:	drm device
- *
- * Page table allocations are unified across all gens. They always require a
- * single 4k allocation, as well as a DMA mapping. If we keep the structs
- * symmetric here, the simple macro covers us for every page table type.
- *
- * Return: 0 if success.
- */
-#define i915_dma_map_single(px, dev) \
-	i915_dma_map_page_single((px)->page, (dev), &(px)->daddr)
-
-static int i915_dma_map_page_single(struct page *page,
-				    struct drm_device *dev,
-				    dma_addr_t *daddr)
-{
-	struct device *device = &dev->pdev->dev;
-
-	*daddr = dma_map_page(device, page, 0, 4096, PCI_DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(device, *daddr))
+	p->page = alloc_page(GFP_KERNEL);
+	if (!p->page)
 		return -ENOMEM;
 
+	p->daddr = dma_map_page(device,
+				p->page, 0, 4096, PCI_DMA_BIDIRECTIONAL);
+
+	if (dma_mapping_error(device, p->daddr)) {
+		__free_page(p->page);
+		return -EINVAL;
+	}
+
 	return 0;
+}
+
+static void cleanup_page_dma(struct drm_device *dev, struct i915_page_dma *p)
+{
+	if (WARN_ON(!p->page))
+		return;
+
+	dma_unmap_page(&dev->pdev->dev, p->daddr, 4096, PCI_DMA_BIDIRECTIONAL);
+	__free_page(p->page);
+	memset(p, 0, sizeof(*p));
 }
 
 static void unmap_and_free_pt(struct i915_page_table *pt,
 			       struct drm_device *dev)
 {
-	if (WARN_ON(!pt->page))
-		return;
-
-	i915_dma_unmap_single(pt, dev);
-	__free_page(pt->page);
+	cleanup_page_dma(dev, &pt->base);
 	kfree(pt->used_ptes);
 	kfree(pt);
 }
@@ -357,7 +344,7 @@ static void gen8_initialize_pt(struct i915_address_space *vm,
 	gen8_pte_t *pt_vaddr, scratch_pte;
 	int i;
 
-	pt_vaddr = kmap_atomic(pt->page);
+	pt_vaddr = kmap_atomic(pt->base.page);
 	scratch_pte = gen8_pte_encode(vm->scratch.addr,
 				      I915_CACHE_LLC, true);
 
@@ -386,19 +373,13 @@ static struct i915_page_table *alloc_pt(struct drm_device *dev)
 	if (!pt->used_ptes)
 		goto fail_bitmap;
 
-	pt->page = alloc_page(GFP_KERNEL);
-	if (!pt->page)
-		goto fail_page;
-
-	ret = i915_dma_map_single(pt, dev);
+	ret = setup_page_dma(dev, &pt->base);
 	if (ret)
-		goto fail_dma;
+		goto fail_page_m;
 
 	return pt;
 
-fail_dma:
-	__free_page(pt->page);
-fail_page:
+fail_page_m:
 	kfree(pt->used_ptes);
 fail_bitmap:
 	kfree(pt);
@@ -409,9 +390,8 @@ fail_bitmap:
 static void unmap_and_free_pd(struct i915_page_directory *pd,
 			      struct drm_device *dev)
 {
-	if (pd->page) {
-		i915_dma_unmap_single(pd, dev);
-		__free_page(pd->page);
+	if (pd->base.page) {
+		cleanup_page_dma(dev, &pd->base);
 		kfree(pd->used_pdes);
 		kfree(pd);
 	}
@@ -431,18 +411,12 @@ static struct i915_page_directory *alloc_pd(struct drm_device *dev)
 	if (!pd->used_pdes)
 		goto free_pd;
 
-	pd->page = alloc_page(GFP_KERNEL);
-	if (!pd->page)
-		goto free_bitmap;
-
-	ret = i915_dma_map_single(pd, dev);
+	ret = setup_page_dma(dev, &pd->base);
 	if (ret)
-		goto free_page;
+		goto free_bitmap;
 
 	return pd;
 
-free_page:
-	__free_page(pd->page);
 free_bitmap:
 	kfree(pd->used_pdes);
 free_pd:
@@ -524,10 +498,10 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 
 		pt = pd->page_table[pde];
 
-		if (WARN_ON(!pt->page))
+		if (WARN_ON(!pt->base.page))
 			continue;
 
-		page_table = pt->page;
+		page_table = pt->base.page;
 
 		last_pte = pte + num_entries;
 		if (last_pte > GEN8_PTES)
@@ -574,7 +548,7 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 		if (pt_vaddr == NULL) {
 			struct i915_page_directory *pd = ppgtt->pdp.page_directory[pdpe];
 			struct i915_page_table *pt = pd->page_table[pde];
-			struct page *page_table = pt->page;
+			struct page *page_table = pt->base.page;
 
 			pt_vaddr = kmap_atomic(page_table);
 		}
@@ -606,7 +580,7 @@ static void __gen8_do_map_pt(gen8_pde_t * const pde,
 			     struct drm_device *dev)
 {
 	gen8_pde_t entry =
-		gen8_pde_encode(dev, pt->daddr, I915_CACHE_LLC);
+		gen8_pde_encode(dev, pt->base.daddr, I915_CACHE_LLC);
 	*pde = entry;
 }
 
@@ -619,7 +593,7 @@ static void gen8_initialize_pd(struct i915_address_space *vm,
 	struct i915_page_table *pt;
 	int i;
 
-	page_directory = kmap_atomic(pd->page);
+	page_directory = kmap_atomic(pd->base.page);
 	pt = ppgtt->scratch_pt;
 	for (i = 0; i < I915_PDES; i++)
 		/* Map the PDE to the page table */
@@ -634,7 +608,7 @@ static void gen8_free_page_tables(struct i915_page_directory *pd, struct drm_dev
 {
 	int i;
 
-	if (!pd->page)
+	if (!pd->base.page)
 		return;
 
 	for_each_set_bit(i, pd->used_pdes, I915_PDES) {
@@ -885,7 +859,7 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 	/* Allocations have completed successfully, so set the bitmaps, and do
 	 * the mappings. */
 	gen8_for_each_pdpe(pd, &ppgtt->pdp, start, length, temp, pdpe) {
-		gen8_pde_t *const page_directory = kmap_atomic(pd->page);
+		gen8_pde_t *const page_directory = kmap_atomic(pd->base.page);
 		struct i915_page_table *pt;
 		uint64_t pd_len = gen8_clamp_pd(start, length);
 		uint64_t pd_start = start;
@@ -996,7 +970,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	gen6_for_each_pde(unused, &ppgtt->pd, start, length, temp, pde) {
 		u32 expected;
 		gen6_pte_t *pt_vaddr;
-		dma_addr_t pt_addr = ppgtt->pd.page_table[pde]->daddr;
+		dma_addr_t pt_addr = ppgtt->pd.page_table[pde]->base.daddr;
 		pd_entry = readl(ppgtt->pd_addr + pde);
 		expected = (GEN6_PDE_ADDR_ENCODE(pt_addr) | GEN6_PDE_VALID);
 
@@ -1007,7 +981,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 				   expected);
 		seq_printf(m, "\tPDE: %x\n", pd_entry);
 
-		pt_vaddr = kmap_atomic(ppgtt->pd.page_table[pde]->page);
+		pt_vaddr = kmap_atomic(ppgtt->pd.page_table[pde]->base.page);
 		for (pte = 0; pte < GEN6_PTES; pte+=4) {
 			unsigned long va =
 				(pde * PAGE_SIZE * GEN6_PTES) +
@@ -1042,7 +1016,7 @@ static void gen6_write_pde(struct i915_page_directory *pd,
 		container_of(pd, struct i915_hw_ppgtt, pd);
 	u32 pd_entry;
 
-	pd_entry = GEN6_PDE_ADDR_ENCODE(pt->daddr);
+	pd_entry = GEN6_PDE_ADDR_ENCODE(pt->base.daddr);
 	pd_entry |= GEN6_PDE_VALID;
 
 	writel(pd_entry, ppgtt->pd_addr + pde);
@@ -1067,9 +1041,9 @@ static void gen6_write_page_range(struct drm_i915_private *dev_priv,
 
 static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 {
-	BUG_ON(ppgtt->pd.pd_offset & 0x3f);
+	BUG_ON(ppgtt->pd.base.ggtt_offset & 0x3f);
 
-	return (ppgtt->pd.pd_offset / 64) << 16;
+	return (ppgtt->pd.base.ggtt_offset / 64) << 16;
 }
 
 static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
@@ -1236,7 +1210,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 		if (last_pte > GEN6_PTES)
 			last_pte = GEN6_PTES;
 
-		pt_vaddr = kmap_atomic(ppgtt->pd.page_table[act_pt]->page);
+		pt_vaddr = kmap_atomic(ppgtt->pd.page_table[act_pt]->base.page);
 
 		for (i = first_pte; i < last_pte; i++)
 			pt_vaddr[i] = scratch_pte;
@@ -1265,7 +1239,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	pt_vaddr = NULL;
 	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
 		if (pt_vaddr == NULL)
-			pt_vaddr = kmap_atomic(ppgtt->pd.page_table[act_pt]->page);
+			pt_vaddr = kmap_atomic(ppgtt->pd.page_table[act_pt]->base.page);
 
 		pt_vaddr[act_pte] =
 			vm->pte_encode(sg_page_iter_dma_address(&sg_iter),
@@ -1293,7 +1267,7 @@ static void gen6_initialize_pt(struct i915_address_space *vm,
 	scratch_pte = vm->pte_encode(vm->scratch.addr,
 			I915_CACHE_LLC, true, 0);
 
-	pt_vaddr = kmap_atomic(pt->page);
+	pt_vaddr = kmap_atomic(pt->base.page);
 
 	for (i = 0; i < GEN6_PTES; i++)
 		pt_vaddr[i] = scratch_pte;
@@ -1509,11 +1483,11 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
 	ppgtt->debug_dump = gen6_dump_ppgtt;
 
-	ppgtt->pd.pd_offset =
+	ppgtt->pd.base.ggtt_offset =
 		ppgtt->node.start / PAGE_SIZE * sizeof(gen6_pte_t);
 
 	ppgtt->pd_addr = (gen6_pte_t __iomem *)dev_priv->gtt.gsm +
-		ppgtt->pd.pd_offset / sizeof(gen6_pte_t);
+		ppgtt->pd.base.ggtt_offset / sizeof(gen6_pte_t);
 
 	gen6_scratch_va_range(ppgtt, 0, ppgtt->base.total);
 
@@ -1524,7 +1498,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 			 ppgtt->node.start / PAGE_SIZE);
 
 	DRM_DEBUG("Adding PPGTT at offset %x\n",
-		  ppgtt->pd.pd_offset << 10);
+		  ppgtt->pd.base.ggtt_offset << 10);
 
 	return 0;
 }
