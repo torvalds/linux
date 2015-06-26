@@ -631,7 +631,7 @@ static void ff_layout_reset_write(struct nfs_pgio_header *hdr, bool retry_pnfs)
 			nfs_direct_set_resched_writes(hdr->dreq);
 			/* fake unstable write to let common nfs resend pages */
 			hdr->verf.committed = NFS_UNSTABLE;
-			hdr->good_bytes = 0;
+			hdr->good_bytes = hdr->args.count;
 		}
 		return;
 	}
