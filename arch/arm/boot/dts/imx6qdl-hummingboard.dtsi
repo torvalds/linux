@@ -7,9 +7,8 @@
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License.
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
  *
  *     This file is distributed in the hope that it will be useful
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -192,6 +191,12 @@
 			>;
 		};
 
+		pinctrl_hummingboard_pcie_reset: hummingboard-pcie-reset {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_DA4__GPIO3_IO04 0x1b0b1
+			>;
+		};
+
 		pinctrl_hummingboard_pwm1: pwm1grp {
 			fsl,pins = <MX6QDL_PAD_DISP0_DAT8__PWM1_OUT 0x1b0b1>;
 		};
@@ -245,6 +250,13 @@
 	};
 };
 
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_pcie_reset>;
+	reset-gpio = <&gpio3 4 0>;
+	status = "okay";
+};
+
 &pwm1 {
 	 pinctrl-names = "default";
 	 pinctrl-0 = <&pinctrl_hummingboard_pwm1>;
@@ -263,7 +275,6 @@
 };
 
 &ssi1 {
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
