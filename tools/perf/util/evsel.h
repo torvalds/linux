@@ -9,23 +9,7 @@
 #include "xyarray.h"
 #include "symbol.h"
 #include "cpumap.h"
-
-struct perf_counts_values {
-	union {
-		struct {
-			u64 val;
-			u64 ena;
-			u64 run;
-		};
-		u64 values[3];
-	};
-};
-
-struct perf_counts {
-	s8		   	  scaled;
-	struct perf_counts_values aggr;
-	struct perf_counts_values cpu[];
-};
+#include "stat.h"
 
 struct perf_evsel;
 

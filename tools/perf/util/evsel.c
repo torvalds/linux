@@ -910,8 +910,8 @@ void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
 		tmp = evsel->prev_raw_counts->aggr;
 		evsel->prev_raw_counts->aggr = *count;
 	} else {
-		tmp = evsel->prev_raw_counts->cpu[cpu];
-		evsel->prev_raw_counts->cpu[cpu] = *count;
+		tmp = *perf_counts(evsel->prev_raw_counts, cpu);
+		*perf_counts(evsel->prev_raw_counts, cpu) = *count;
 	}
 
 	count->val = count->val - tmp.val;
@@ -972,7 +972,7 @@ int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 
 	perf_evsel__compute_deltas(evsel, cpu, &count);
 	perf_counts_values__scale(&count, scale, NULL);
-	evsel->counts->cpu[cpu] = count;
+	*perf_counts(evsel->counts, cpu) = count;
 	return 0;
 }
 

@@ -316,7 +316,7 @@ static int read_cb(struct perf_evsel *evsel, int cpu, int thread __maybe_unused,
 		if (!evsel->snapshot)
 			perf_evsel__compute_deltas(evsel, cpu, count);
 		perf_counts_values__scale(count, scale, NULL);
-		evsel->counts->cpu[cpu] = *count;
+		*perf_counts(evsel->counts, cpu) = *count;
 		if (aggr_mode == AGGR_NONE)
 			perf_stat__update_shadow_stats(evsel, count->values, cpu);
 		break;
@@ -805,9 +805,9 @@ static void print_aggr(char *prefix)
 				s2 = aggr_get_id(evsel_list->cpus, cpu2);
 				if (s2 != id)
 					continue;
-				val += counter->counts->cpu[cpu].val;
-				ena += counter->counts->cpu[cpu].ena;
-				run += counter->counts->cpu[cpu].run;
+				val += perf_counts(counter->counts, cpu)->val;
+				ena += perf_counts(counter->counts, cpu)->ena;
+				run += perf_counts(counter->counts, cpu)->run;
 				nr++;
 			}
 			if (prefix)
@@ -915,9 +915,9 @@ static void print_counter(struct perf_evsel *counter, char *prefix)
 	int cpu;
 
 	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
-		val = counter->counts->cpu[cpu].val;
-		ena = counter->counts->cpu[cpu].ena;
-		run = counter->counts->cpu[cpu].run;
+		val = perf_counts(counter->counts, cpu)->val;
+		ena = perf_counts(counter->counts, cpu)->ena;
+		run = perf_counts(counter->counts, cpu)->run;
 
 		if (prefix)
 			fprintf(output, "%s", prefix);

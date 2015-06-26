@@ -98,9 +98,9 @@ int test__openat_syscall_event_on_all_cpus(void)
 		}
 
 		expected = nr_openat_calls + cpu;
-		if (evsel->counts->cpu[cpu].val != expected) {
+		if (perf_counts(evsel->counts, cpu)->val != expected) {
 			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
-				 expected, cpus->map[cpu], evsel->counts->cpu[cpu].val);
+				 expected, cpus->map[cpu], perf_counts(evsel->counts, cpu)->val);
 			err = -1;
 		}
 	}

@@ -31,6 +31,29 @@ enum aggr_mode {
 	AGGR_CORE,
 };
 
+struct perf_counts_values {
+	union {
+		struct {
+			u64 val;
+			u64 ena;
+			u64 run;
+		};
+		u64 values[3];
+	};
+};
+
+struct perf_counts {
+	s8			  scaled;
+	struct perf_counts_values aggr;
+	struct perf_counts_values cpu[];
+};
+
+static inline struct perf_counts_values*
+perf_counts(struct perf_counts *counts, int cpu)
+{
+	return &counts->cpu[cpu];
+}
+
 void update_stats(struct stats *stats, u64 val);
 double avg_stats(struct stats *stats);
 double stddev_stats(struct stats *stats);
