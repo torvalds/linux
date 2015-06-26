@@ -3450,16 +3450,17 @@ F:	drivers/block/drbd/
 F:	lib/lru_cache.c
 F:	Documentation/blockdev/drbd/
 
-DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
+DRIVER CORE, KOBJECTS, DEBUGFS, KERNFS AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
 S:	Supported
 F:	Documentation/kobject.txt
 F:	drivers/base/
-F:	fs/sysfs/
 F:	fs/debugfs/
-F:	include/linux/kobj*
+F:	fs/kernfs/
+F:	fs/sysfs/
 F:	include/linux/debugfs.h
+F:	include/linux/kobj*
 F:	lib/kobj*
 
 DRM DRIVERS
