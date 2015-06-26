@@ -236,6 +236,9 @@ typedef int (perf_evsel__read_cb_t)(struct perf_evsel *evsel,
 int perf_evsel__read_cb(struct perf_evsel *evsel, int cpu, int thread,
 			perf_evsel__read_cb_t cb);
 
+int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
+		     struct perf_counts_values *count);
+
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 			      int cpu, int thread, bool scale);
 
