@@ -1373,12 +1373,54 @@ static int gen9_init_render_ring(struct intel_engine_cs *ring)
 	return init_workarounds_ring(ring);
 }
 
+static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
+{
+	struct i915_hw_ppgtt *ppgtt = req->ctx->ppgtt;
+	struct intel_engine_cs *ring = req->ring;
+	struct intel_ringbuffer *ringbuf = req->ringbuf;
+	const int num_lri_cmds = GEN8_LEGACY_PDPES * 2;
+	int i, ret;
+
+	ret = intel_logical_ring_begin(req, num_lri_cmds * 2 + 2);
+	if (ret)
+		return ret;
+
+	intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(num_lri_cmds));
+	for (i = GEN8_LEGACY_PDPES - 1; i >= 0; i--) {
+		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
+
+		intel_logical_ring_emit(ringbuf, GEN8_RING_PDP_UDW(ring, i));
+		intel_logical_ring_emit(ringbuf, upper_32_bits(pd_daddr));
+		intel_logical_ring_emit(ringbuf, GEN8_RING_PDP_LDW(ring, i));
+		intel_logical_ring_emit(ringbuf, lower_32_bits(pd_daddr));
+	}
+
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+	intel_logical_ring_advance(ringbuf);
+
+	return 0;
+}
+
 static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 			      u64 offset, unsigned dispatch_flags)
 {
 	struct intel_ringbuffer *ringbuf = req->ringbuf;
 	bool ppgtt = !(dispatch_flags & I915_DISPATCH_SECURE);
 	int ret;
+
+	/* Don't rely in hw updating PDPs, specially in lite-restore.
+	 * Ideally, we should set Force PD Restore in ctx descriptor,
+	 * but we can't. Force Restore would be a second option, but
+	 * it is unsafe in case of lite-restore (because the ctx is
+	 * not idle). */
+	if (req->ctx->ppgtt &&
+	    (intel_ring_flag(req->ring) & req->ctx->ppgtt->pd_dirty_rings)) {
+		ret = intel_logical_ring_emit_pdps(req);
+		if (ret)
+			return ret;
+
+		req->ctx->ppgtt->pd_dirty_rings &= ~intel_ring_flag(req->ring);
+	}
 
 	ret = intel_logical_ring_begin(req, 4);
 	if (ret)
