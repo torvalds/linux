@@ -128,7 +128,6 @@ static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
 	if (count > image[minor].size_buf)
 		count = image[minor].size_buf;
 
-	/* We copy to kernel buffer */
 	copied = vme_master_read(image[minor].resource, image[minor].kern_buf,
 				 count, *ppos);
 	if (copied < 0)
