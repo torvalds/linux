@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include "xyarray.h"
 #include "symbol.h"
+#include "cpumap.h"
 
 struct perf_counts_values {
 	union {
@@ -82,6 +83,7 @@ struct perf_evsel {
 	struct cgroup_sel	*cgrp;
 	void			*handler;
 	struct cpu_map		*cpus;
+	struct thread_map	*threads;
 	unsigned int		sample_size;
 	int			id_pos;
 	int			is_pos;
@@ -112,6 +114,16 @@ struct target;
 struct thread_map;
 struct perf_evlist;
 struct record_opts;
+
+static inline struct cpu_map *perf_evsel__cpus(struct perf_evsel *evsel)
+{
+	return evsel->cpus;
+}
+
+static inline int perf_evsel__nr_cpus(struct perf_evsel *evsel)
+{
+	return perf_evsel__cpus(evsel)->nr;
+}
 
 void perf_counts_values__scale(struct perf_counts_values *count,
 			       bool scale, s8 *pscaled);

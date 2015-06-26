@@ -111,6 +111,6 @@ out_close_fd:
 out_evsel_delete:
 	perf_evsel__delete(evsel);
 out_thread_map_delete:
-	thread_map__delete(threads);
+	thread_map__put(threads);
 	return err;
 }

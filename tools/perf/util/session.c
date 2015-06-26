@@ -1895,7 +1895,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	err = 0;
 
 out_delete_map:
-	cpu_map__delete(map);
+	cpu_map__put(map);
 	return err;
 }
 
