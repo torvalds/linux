@@ -632,7 +632,7 @@ F:	drivers/iommu/amd_iommu*.[ch]
 F:	include/linux/amd-iommu.h
 
 AMD KFD
-M:	Oded Gabbay <oded.gabbay@amd.com>
+M:	Oded Gabbay <oded.gabbay@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~gabbayo/linux.git
 S:	Supported
@@ -10776,6 +10776,15 @@ F:	drivers/net/virtio_net.c
 F:	drivers/block/virtio_blk.c
 F:	include/linux/virtio_*.h
 F:	include/uapi/linux/virtio_*.h
+
+VIRTIO GPU DRIVER
+M:	David Airlie <airlied@linux.ie>
+M:	Gerd Hoffmann <kraxel@redhat.com>
+L:	dri-devel@lists.freedesktop.org
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/gpu/drm/virtio/
+F:	include/uapi/linux/virtio_gpu.h
 
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>

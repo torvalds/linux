@@ -178,6 +178,9 @@ config OMAP_IOMMU
 	depends on ARM && MMU
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select IOMMU_API
+	---help---
+	  The OMAP3 media platform drivers depend on iommu support,
+	  if you need them say Y here.
 
 config OMAP_IOMMU_DEBUG
 	bool "Export OMAP IOMMU internals in DebugFS"

@@ -17,9 +17,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
+#include <linux/spinlock.h>
+
 #include <drm/drm_vma_manager.h>
 
 #include "omap_drv.h"

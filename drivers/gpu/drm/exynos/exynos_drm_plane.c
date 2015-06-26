@@ -13,6 +13,7 @@
 
 #include <drm/exynos_drm.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_fb.h"
@@ -61,42 +62,21 @@ static int exynos_plane_get_size(int start, unsigned length, unsigned last)
 	return size;
 }
 
-int exynos_check_plane(struct drm_plane *plane, struct drm_framebuffer *fb)
+static void exynos_plane_mode_set(struct drm_plane *plane,
+				  struct drm_crtc *crtc,
+				  struct drm_framebuffer *fb,
+				  int crtc_x, int crtc_y,
+				  unsigned int crtc_w, unsigned int crtc_h,
+				  uint32_t src_x, uint32_t src_y,
+				  uint32_t src_w, uint32_t src_h)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	int nr;
-	int i;
-
-	nr = exynos_drm_fb_get_buf_cnt(fb);
-	for (i = 0; i < nr; i++) {
-		struct exynos_drm_gem_buf *buffer = exynos_drm_fb_buffer(fb, i);
-
-		if (!buffer) {
-			DRM_DEBUG_KMS("buffer is null\n");
-			return -EFAULT;
-		}
-
-		exynos_plane->dma_addr[i] = buffer->dma_addr + fb->offsets[i];
-
-		DRM_DEBUG_KMS("buffer: %d, dma_addr = 0x%lx\n",
-				i, (unsigned long)exynos_plane->dma_addr[i]);
-	}
-
-	return 0;
-}
-
-void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
-			  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-			  unsigned int crtc_w, unsigned int crtc_h,
-			  uint32_t src_x, uint32_t src_y,
-			  uint32_t src_w, uint32_t src_h)
-{
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	unsigned int actual_w;
 	unsigned int actual_h;
 
-	actual_w = exynos_plane_get_size(crtc_x, crtc_w, crtc->mode.hdisplay);
-	actual_h = exynos_plane_get_size(crtc_y, crtc_h, crtc->mode.vdisplay);
+	actual_w = exynos_plane_get_size(crtc_x, crtc_w, mode->hdisplay);
+	actual_h = exynos_plane_get_size(crtc_y, crtc_h, mode->vdisplay);
 
 	if (crtc_x < 0) {
 		if (actual_w)
@@ -132,10 +112,10 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 	exynos_plane->crtc_height = actual_h;
 
 	/* set drm mode data. */
-	exynos_plane->mode_width = crtc->mode.hdisplay;
-	exynos_plane->mode_height = crtc->mode.vdisplay;
-	exynos_plane->refresh = crtc->mode.vrefresh;
-	exynos_plane->scan_flag = crtc->mode.flags;
+	exynos_plane->mode_width = mode->hdisplay;
+	exynos_plane->mode_height = mode->vdisplay;
+	exynos_plane->refresh = mode->vrefresh;
+	exynos_plane->scan_flag = mode->flags;
 
 	DRM_DEBUG_KMS("plane : offset_x/y(%d,%d), width/height(%d,%d)",
 			exynos_plane->crtc_x, exynos_plane->crtc_y,
@@ -144,48 +124,83 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 	plane->crtc = crtc;
 }
 
-int
-exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
-		     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-		     unsigned int crtc_w, unsigned int crtc_h,
-		     uint32_t src_x, uint32_t src_y,
-		     uint32_t src_w, uint32_t src_h)
+static struct drm_plane_funcs exynos_plane_funcs = {
+	.update_plane	= drm_atomic_helper_update_plane,
+	.disable_plane	= drm_atomic_helper_disable_plane,
+	.destroy	= drm_plane_cleanup,
+	.reset = drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+};
+
+static int exynos_plane_atomic_check(struct drm_plane *plane,
+				     struct drm_plane_state *state)
 {
-
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	int ret;
+	int nr;
+	int i;
 
-	ret = exynos_check_plane(plane, fb);
-	if (ret < 0)
-		return ret;
+	if (!state->fb)
+		return 0;
 
-	exynos_plane_mode_set(plane, crtc, fb, crtc_x, crtc_y,
-			      crtc_w, crtc_h, src_x >> 16, src_y >> 16,
-			      src_w >> 16, src_h >> 16);
+	nr = exynos_drm_fb_get_buf_cnt(state->fb);
+	for (i = 0; i < nr; i++) {
+		struct exynos_drm_gem_buf *buffer =
+					exynos_drm_fb_buffer(state->fb, i);
+
+		if (!buffer) {
+			DRM_DEBUG_KMS("buffer is null\n");
+			return -EFAULT;
+		}
+
+		exynos_plane->dma_addr[i] = buffer->dma_addr +
+					    state->fb->offsets[i];
+
+		DRM_DEBUG_KMS("buffer: %d, dma_addr = 0x%lx\n",
+				i, (unsigned long)exynos_plane->dma_addr[i]);
+	}
+
+	return 0;
+}
+
+static void exynos_plane_atomic_update(struct drm_plane *plane,
+				       struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = plane->state;
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(state->crtc);
+	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
+
+	if (!state->crtc)
+		return;
+
+	exynos_plane_mode_set(plane, state->crtc, state->fb,
+			      state->crtc_x, state->crtc_y,
+			      state->crtc_w, state->crtc_h,
+			      state->src_x >> 16, state->src_y >> 16,
+			      state->src_w >> 16, state->src_h >> 16);
 
 	if (exynos_crtc->ops->win_commit)
 		exynos_crtc->ops->win_commit(exynos_crtc, exynos_plane->zpos);
-
-	return 0;
 }
 
-static int exynos_disable_plane(struct drm_plane *plane)
+static void exynos_plane_atomic_disable(struct drm_plane *plane,
+					struct drm_plane_state *old_state)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(plane->crtc);
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(old_state->crtc);
 
-	if (exynos_crtc && exynos_crtc->ops->win_disable)
+	if (!old_state->crtc)
+		return;
+
+	if (exynos_crtc->ops->win_disable)
 		exynos_crtc->ops->win_disable(exynos_crtc,
 					      exynos_plane->zpos);
-
-	return 0;
 }
 
-static struct drm_plane_funcs exynos_plane_funcs = {
-	.update_plane	= exynos_update_plane,
-	.disable_plane	= exynos_disable_plane,
-	.destroy	= drm_plane_cleanup,
+static const struct drm_plane_helper_funcs plane_helper_funcs = {
+	.atomic_check = exynos_plane_atomic_check,
+	.atomic_update = exynos_plane_atomic_update,
+	.atomic_disable = exynos_plane_atomic_disable,
 };
 
 static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
@@ -222,6 +237,8 @@ int exynos_plane_init(struct drm_device *dev,
 		DRM_ERROR("failed to initialize plane\n");
 		return err;
 	}
+
+	drm_plane_helper_add(&exynos_plane->base, &plane_helper_funcs);
 
 	exynos_plane->zpos = zpos;
 
