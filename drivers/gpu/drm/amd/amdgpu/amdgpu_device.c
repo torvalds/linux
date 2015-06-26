@@ -1191,7 +1191,9 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-
+	adev->ip_block_enabled = kcalloc(adev->num_ip_blocks, sizeof(bool), GFP_KERNEL);
+	if (adev->ip_block_enabled == NULL)
+		return -ENOMEM;
 
 	if (adev->ip_blocks == NULL) {
 		DRM_ERROR("No IP blocks found!\n");

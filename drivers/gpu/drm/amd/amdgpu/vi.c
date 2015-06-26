@@ -1189,10 +1189,6 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	adev->ip_block_enabled = kcalloc(adev->num_ip_blocks, sizeof(bool), GFP_KERNEL);
-	if (adev->ip_block_enabled == NULL)
-		return -ENOMEM;
-
 	return 0;
 }
 
