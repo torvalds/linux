@@ -1614,6 +1614,11 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	else
 		ret = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
 
+	if (write_domain != 0)
+		intel_fb_obj_invalidate(obj,
+					write_domain == I915_GEM_DOMAIN_GTT ?
+					ORIGIN_GTT : ORIGIN_CPU);
+
 unref:
 	drm_gem_object_unreference(&obj->base);
 unlock:
@@ -3982,9 +3987,6 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 		obj->dirty = 1;
 	}
 
-	if (write)
-		intel_fb_obj_invalidate(obj, ORIGIN_GTT);
-
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
 					    old_write_domain);
@@ -4255,9 +4257,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	}
-
-	if (write)
-		intel_fb_obj_invalidate(obj, ORIGIN_CPU);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
