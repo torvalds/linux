@@ -468,7 +468,7 @@ int of_irq_to_resource_table(struct device_node *dev, struct resource *res,
 }
 EXPORT_SYMBOL_GPL(of_irq_to_resource_table);
 
-struct intc_desc {
+struct of_intc_desc {
 	struct list_head	list;
 	struct device_node	*dev;
 	struct device_node	*interrupt_parent;
@@ -484,7 +484,7 @@ struct intc_desc {
 void __init of_irq_init(const struct of_device_id *matches)
 {
 	struct device_node *np, *parent = NULL;
-	struct intc_desc *desc, *temp_desc;
+	struct of_intc_desc *desc, *temp_desc;
 	struct list_head intc_desc_list, intc_parent_list;
 
 	INIT_LIST_HEAD(&intc_desc_list);
@@ -495,7 +495,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 				!of_device_is_available(np))
 			continue;
 		/*
-		 * Here, we allocate and populate an intc_desc with the node
+		 * Here, we allocate and populate an of_intc_desc with the node
 		 * pointer, interrupt-parent device_node etc.
 		 */
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
