@@ -343,6 +343,10 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 			fls->mirror_array[i]->gid);
 	}
 
+	p = xdr_inline_decode(&stream, 4);
+	if (p)
+		fls->flags = be32_to_cpup(p);
+
 	ff_layout_sort_mirrors(fls);
 	rc = ff_layout_check_layout(lgr);
 	if (rc)
@@ -1018,6 +1022,12 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 	return 0;
 }
 
+static bool
+ff_layout_need_layoutcommit(struct pnfs_layout_segment *lseg)
+{
+	return !(FF_LAYOUT_LSEG(lseg)->flags & FF_FLAGS_NO_LAYOUTCOMMIT);
+}
+
 /*
  * We reference the rpc_cred of the first WRITE that triggers the need for
  * a LAYOUTCOMMIT, and use it to send the layoutcommit compound.
@@ -1030,6 +1040,9 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 static void
 ff_layout_set_layoutcommit(struct nfs_pgio_header *hdr)
 {
+	if (!ff_layout_need_layoutcommit(hdr->lseg))
+		return;
+
 	pnfs_set_layoutcommit(hdr->inode, hdr->lseg,
 			hdr->mds_offset + hdr->res.count);
 	dprintk("%s inode %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
@@ -1221,7 +1234,8 @@ static int ff_layout_commit_done_cb(struct rpc_task *task,
 		return -EAGAIN;
 	}
 
-	if (data->verf.committed == NFS_UNSTABLE)
+	if (data->verf.committed == NFS_UNSTABLE
+	    && ff_layout_need_layoutcommit(data->lseg))
 		pnfs_set_layoutcommit(data->inode, data->lseg, data->lwb);
 
 	return 0;

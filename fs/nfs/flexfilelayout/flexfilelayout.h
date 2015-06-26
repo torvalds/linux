@@ -9,6 +9,8 @@
 #ifndef FS_NFS_NFS4FLEXFILELAYOUT_H
 #define FS_NFS_NFS4FLEXFILELAYOUT_H
 
+#define FF_FLAGS_NO_LAYOUTCOMMIT 1
+
 #include "../pnfs.h"
 
 /* XXX: Let's filter out insanely large mirror count for now to avoid oom
@@ -85,6 +87,7 @@ struct nfs4_ff_layout_mirror {
 struct nfs4_ff_layout_segment {
 	struct pnfs_layout_segment	generic_hdr;
 	u64				stripe_unit;
+	u32				flags;
 	u32				mirror_array_cnt;
 	struct nfs4_ff_layout_mirror	**mirror_array;
 };
