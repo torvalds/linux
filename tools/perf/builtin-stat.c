@@ -323,27 +323,35 @@ static int read_counter(struct perf_evsel *counter)
 	return 0;
 }
 
+static void read_counters(bool close)
+{
+	struct perf_evsel *counter;
+	struct perf_stat *ps;
+
+	evlist__for_each(evsel_list, counter) {
+		ps = counter->priv;
+		memset(ps->res_stats, 0, sizeof(ps->res_stats));
+
+		if (aggr_mode == AGGR_GLOBAL)
+			read_counter_aggr(counter);
+		else
+			read_counter(counter);
+
+		if (close) {
+			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter),
+					     thread_map__nr(evsel_list->threads));
+		}
+	}
+}
+
 static void print_interval(void)
 {
 	static int num_print_interval;
 	struct perf_evsel *counter;
-	struct perf_stat *ps;
 	struct timespec ts, rs;
 	char prefix[64];
 
-	if (aggr_mode == AGGR_GLOBAL) {
-		evlist__for_each(evsel_list, counter) {
-			ps = counter->priv;
-			memset(ps->res_stats, 0, sizeof(ps->res_stats));
-			read_counter_aggr(counter);
-		}
-	} else	{
-		evlist__for_each(evsel_list, counter) {
-			ps = counter->priv;
-			memset(ps->res_stats, 0, sizeof(ps->res_stats));
-			read_counter(counter);
-		}
-	}
+	read_counters(false);
 
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	diff_timespec(&rs, &ts, &ref_time);
@@ -525,18 +533,7 @@ static int __run_perf_stat(int argc, const char **argv)
 
 	update_stats(&walltime_nsecs_stats, t1 - t0);
 
-	if (aggr_mode == AGGR_GLOBAL) {
-		evlist__for_each(evsel_list, counter) {
-			read_counter_aggr(counter);
-			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter),
-					     thread_map__nr(evsel_list->threads));
-		}
-	} else {
-		evlist__for_each(evsel_list, counter) {
-			read_counter(counter);
-			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter), 1);
-		}
-	}
+	read_counters(true);
 
 	return WEXITSTATUS(status);
 }
