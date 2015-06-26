@@ -899,6 +899,27 @@ static void fm10k_mbx_create_disconnect_hdr(struct fm10k_mbx_info *mbx)
 }
 
 /**
+ *  fm10k_mbx_create_fake_disconnect_hdr - Generate a false disconnect mailbox header
+ *  @mbx: pointer to mailbox
+ *
+ *  This function creates a fake disconnect header for loading into remote
+ *  mailbox header. The primary purpose is to prevent errors on immediate
+ *  start up after mbx->connect.
+ **/
+static void fm10k_mbx_create_fake_disconnect_hdr(struct fm10k_mbx_info *mbx)
+{
+	u32 hdr = FM10K_MSG_HDR_FIELD_SET(FM10K_MSG_DISCONNECT, TYPE) |
+		  FM10K_MSG_HDR_FIELD_SET(mbx->head, TAIL) |
+		  FM10K_MSG_HDR_FIELD_SET(mbx->tail, HEAD);
+	u16 crc = fm10k_crc_16b(&hdr, mbx->local, 1);
+
+	mbx->mbx_lock |= FM10K_MBX_ACK;
+
+	/* load header to memory to be written */
+	mbx->mbx_hdr = hdr | FM10K_MSG_HDR_FIELD_SET(crc, CRC);
+}
+
+/**
  *  fm10k_mbx_create_error_msg - Generate a error message
  *  @mbx: pointer to mailbox
  *  @err: local error encountered
@@ -1435,8 +1456,10 @@ static s32 fm10k_mbx_connect(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
 	/* Place mbx in ready to connect state */
 	mbx->state = FM10K_STATE_CONNECT;
 
+	fm10k_mbx_reset_work(mbx);
+
 	/* initialize header of remote mailbox */
-	fm10k_mbx_create_disconnect_hdr(mbx);
+	fm10k_mbx_create_fake_disconnect_hdr(mbx);
 	fm10k_write_reg(hw, mbx->mbmem_reg ^ mbx->mbmem_len, mbx->mbx_hdr);
 
 	/* enable interrupt and notify other party of new message */
