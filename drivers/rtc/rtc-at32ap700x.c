@@ -282,6 +282,6 @@ static struct platform_driver at32_rtc_driver = {
 
 module_platform_driver_probe(at32_rtc_driver, at32_rtc_probe);
 
-MODULE_AUTHOR("Hans-Christian Egtvedt <hcegtvedt@atmel.com>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("Real time clock for AVR32 AT32AP700x");
 MODULE_LICENSE("GPL");
