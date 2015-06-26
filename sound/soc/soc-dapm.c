@@ -389,8 +389,8 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 
 			data->value = template.on_val;
 
-			data->widget = snd_soc_dapm_new_control(widget->dapm,
-					&template);
+			data->widget = snd_soc_dapm_new_control_unlocked(
+						widget->dapm, &template);
 			if (!data->widget) {
 				ret = -ENOMEM;
 				goto err_name;
