@@ -19,6 +19,8 @@
  ******************************************************************************/
 #define _IEEE80211_C
 
+#include <linux/ieee80211.h>
+
 #include <drv_types.h>
 #include <osdep_intf.h>
 #include <ieee80211.h>

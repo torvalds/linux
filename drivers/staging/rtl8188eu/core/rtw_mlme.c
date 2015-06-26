@@ -19,6 +19,7 @@
  ******************************************************************************/
 #define _RTW_MLME_C_
 
+#include <linux/ieee80211.h>
 
 #include <osdep_service.h>
 #include <drv_types.h>
@@ -352,8 +353,8 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 		((!memcmp(src->Ssid.Ssid, dst->Ssid.Ssid, src->Ssid.SsidLength)) == true) &&
 		((s_cap & WLAN_CAPABILITY_IBSS) ==
 		(d_cap & WLAN_CAPABILITY_IBSS)) &&
-		((s_cap & WLAN_CAPABILITY_BSS) ==
-		(d_cap & WLAN_CAPABILITY_BSS)));
+		((s_cap & WLAN_CAPABILITY_ESS) ==
+		(d_cap & WLAN_CAPABILITY_ESS)));
 }
 
 struct	wlan_network	*rtw_get_oldest_wlan_network(struct __queue *scanned_queue)
