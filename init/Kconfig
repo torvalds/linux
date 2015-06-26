@@ -1136,6 +1136,7 @@ endif # CGROUPS
 
 config CHECKPOINT_RESTORE
 	bool "Checkpoint/restore support" if EXPERT
+	select PROC_CHILDREN
 	default n
 	help
 	  Enables additional kernel features in a sake of checkpoint/restore.

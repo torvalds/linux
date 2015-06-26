@@ -2,7 +2,7 @@ Spear PCIe Gadget Driver:
 
 Author
 =============
-Pratyush Anand (pratyush.anand@st.com)
+Pratyush Anand (pratyush.anand@gmail.com)
 
 Location
 ============

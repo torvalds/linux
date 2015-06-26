@@ -257,23 +257,20 @@ static int kobject_add_internal(struct kobject *kobj)
 int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 				  va_list vargs)
 {
-	const char *old_name = kobj->name;
 	char *s;
 
 	if (kobj->name && !fmt)
 		return 0;
 
-	kobj->name = kvasprintf(GFP_KERNEL, fmt, vargs);
-	if (!kobj->name) {
-		kobj->name = old_name;
+	s = kvasprintf(GFP_KERNEL, fmt, vargs);
+	if (!s)
 		return -ENOMEM;
-	}
 
 	/* ewww... some of these buggers have '/' in the name ... */
-	while ((s = strchr(kobj->name, '/')))
-		s[0] = '!';
+	strreplace(s, '/', '!');
+	kfree(kobj->name);
+	kobj->name = s;
 
-	kfree(old_name);
 	return 0;
 }
 
