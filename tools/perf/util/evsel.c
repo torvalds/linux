@@ -939,22 +939,6 @@ void perf_counts_values__scale(struct perf_counts_values *count,
 		*pscaled = scaled;
 }
 
-int perf_evsel__read_cb(struct perf_evsel *evsel, int cpu, int thread,
-			perf_evsel__read_cb_t cb)
-{
-	struct perf_counts_values count;
-
-	memset(&count, 0, sizeof(count));
-
-	if (FD(evsel, cpu, thread) < 0)
-		return -EINVAL;
-
-	if (readn(FD(evsel, cpu, thread), &count, sizeof(count)) < 0)
-		return -errno;
-
-	return cb(evsel, cpu, thread, &count);
-}
-
 int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 		     struct perf_counts_values *count)
 {
