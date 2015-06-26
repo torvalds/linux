@@ -141,48 +141,6 @@ static inline void diff_timespec(struct timespec *r, struct timespec *a,
 	}
 }
 
-static void perf_evlist__free_stats(struct perf_evlist *evlist)
-{
-	struct perf_evsel *evsel;
-
-	evlist__for_each(evlist, evsel) {
-		perf_evsel__free_stat_priv(evsel);
-		perf_evsel__free_counts(evsel);
-		perf_evsel__free_prev_raw_counts(evsel);
-	}
-}
-
-static int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw)
-{
-	struct perf_evsel *evsel;
-	int nthreads = thread_map__nr(evsel_list->threads);
-
-	evlist__for_each(evlist, evsel) {
-		int ncpus = perf_evsel__nr_cpus(evsel);
-
-		if (perf_evsel__alloc_stat_priv(evsel) < 0 ||
-		    perf_evsel__alloc_counts(evsel, ncpus, nthreads) < 0 ||
-		    (alloc_raw && perf_evsel__alloc_prev_raw_counts(evsel, ncpus, nthreads) < 0))
-			goto out_free;
-	}
-
-	return 0;
-
-out_free:
-	perf_evlist__free_stats(evlist);
-	return -1;
-}
-
-static void perf_evlist__reset_stats(struct perf_evlist *evlist)
-{
-	struct perf_evsel *evsel;
-
-	evlist__for_each(evlist, evsel) {
-		perf_evsel__reset_stat_priv(evsel);
-		perf_evsel__reset_counts(evsel);
-	}
-}
-
 static void perf_stat__reset_stats(void)
 {
 	perf_evlist__reset_stats(evsel_list);

@@ -70,6 +70,8 @@ static inline void init_stats(struct stats *stats)
 }
 
 struct perf_evsel;
+struct perf_evlist;
+
 bool __perf_evsel_stat__is(struct perf_evsel *evsel,
 			   enum perf_stat_evsel_id id);
 
@@ -100,4 +102,8 @@ void perf_evsel__free_stat_priv(struct perf_evsel *evsel);
 int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
 				      int ncpus, int nthreads);
 void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel);
+
+int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw);
+void perf_evlist__free_stats(struct perf_evlist *evlist);
+void perf_evlist__reset_stats(struct perf_evlist *evlist);
 #endif
