@@ -81,7 +81,7 @@ ENTRY(__cpu_suspend)
 	mov	r1, r4			@ size of save block
 	add	r0, sp, #8		@ pointer to save block
 	bl	__cpu_suspend_save
-	adr	lr, BSYM(cpu_suspend_abort)
+	badr	lr, cpu_suspend_abort
 	ldmfd	sp!, {r0, pc}		@ call suspend fn
 ENDPROC(__cpu_suspend)
 	.ltorg
@@ -122,7 +122,7 @@ ENDPROC(cpu_resume_after_mmu)
 #ifdef CONFIG_MMU
 	.arm
 ENTRY(cpu_resume_arm)
- THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is entered in ARM.
+ THUMB(	badr	r9, 1f		)	@ Kernel is entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
  THUMB(	.thumb			)	@ switch to Thumb now.
  THUMB(1:			)

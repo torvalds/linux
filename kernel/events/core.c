@@ -1502,11 +1502,17 @@ static int __init perf_workqueue_init(void)
 
 core_initcall(perf_workqueue_init);
 
+static inline int pmu_filter_match(struct perf_event *event)
+{
+	struct pmu *pmu = event->pmu;
+	return pmu->filter_match ? pmu->filter_match(event) : 1;
+}
+
 static inline int
 event_filter_match(struct perf_event *event)
 {
 	return (event->cpu == -1 || event->cpu == smp_processor_id())
-	    && perf_cgroup_match(event);
+	    && perf_cgroup_match(event) && pmu_filter_match(event);
 }
 
 static void

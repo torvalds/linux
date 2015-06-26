@@ -33,8 +33,8 @@ config ARM
 	select HARDIRQS_SW_RESEND
 	select HAVE_ARCH_AUDITSYSCALL if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_BITREVERSE if (CPU_32v7M || CPU_32v7) && !CPU_32v6
-	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
-	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL && !CPU_ENDIAN_BE32
+	select HAVE_ARCH_KGDB if !CPU_ENDIAN_BE32
 	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_BPF_JIT
@@ -45,7 +45,7 @@ config ARM
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_CONTIGUOUS if MMU
-	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL)
+	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL) && !CPU_ENDIAN_BE32
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && MMU
 	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
 	select HAVE_FUNCTION_GRAPH_TRACER if (!THUMB2_KERNEL)
@@ -59,10 +59,10 @@ config ARM
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_XZ
-	select HAVE_KPROBES if !XIP_KERNEL
+	select HAVE_KPROBES if !XIP_KERNEL && !CPU_ENDIAN_BE32 && !CPU_V7M
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_MEMBLOCK
-	select HAVE_MOD_ARCH_SPECIFIC if ARM_UNWIND
+	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_OPTPROBES if !THUMB2_KERNEL
 	select HAVE_PERF_EVENTS
@@ -173,7 +173,7 @@ config LOCKDEP_SUPPORT
 
 config TRACE_IRQFLAGS_SUPPORT
 	bool
-	default y
+	default !CPU_V7M
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
@@ -1010,11 +1010,6 @@ config PLAT_PXA
 config PLAT_VERSATILE
 	bool
 
-config ARM_TIMER_SP804
-	bool
-	select CLKSRC_MMIO
-	select CLKSRC_OF if OF
-
 source "arch/arm/firmware/Kconfig"
 
 source arch/arm/mm/Kconfig
@@ -1342,6 +1337,7 @@ config SMP
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAVE_SMP
 	depends on MMU || ARM_MPU
+	select IRQ_WORK
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
@@ -1717,6 +1713,21 @@ config HAVE_ARCH_TRANSPARENT_HUGEPAGE
 config ARCH_WANT_GENERAL_HUGETLB
 	def_bool y
 
+config ARM_MODULE_PLTS
+	bool "Use PLTs to allow module memory to spill over into vmalloc area"
+	depends on MODULES
+	help
+	  Allocate PLTs when loading modules so that jumps and calls whose
+	  targets are too far away for their relative offsets to be encoded
+	  in the instructions themselves can be bounced via veneers in the
+	  module's PLT. This allows modules to be allocated in the generic
+	  vmalloc area after the dedicated module memory area has been
+	  exhausted. The modules will use slightly more memory, but after
+	  rounding up to page size, the actual memory footprint is usually
+	  the same.
+
+	  Say y if you are getting out of memory errors while loading modules
+
 source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
@@ -1987,6 +1998,7 @@ config XIP_PHYS_ADDR
 config KEXEC
 	bool "Kexec system call (EXPERIMENTAL)"
 	depends on (!SMP || PM_SLEEP_SMP)
+	depends on !CPU_V7M
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
