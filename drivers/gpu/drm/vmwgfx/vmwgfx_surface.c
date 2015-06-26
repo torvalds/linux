@@ -1486,6 +1486,10 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 					srf->mip_levels[0],
 					srf->flags & SVGA3D_SURFACE_CUBEMAP);
 
+	if (dev_priv->active_display_unit == vmw_du_screen_target &&
+	    for_scanout)
+		srf->flags |= SVGA3D_SURFACE_SCREENTARGET;
+
 	/*
 	 * From this point, the generic resource management functions
 	 * destroy the object on failure.

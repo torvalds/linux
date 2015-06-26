@@ -88,6 +88,7 @@
 #define DRM_VMW_PARAM_3D_CAPS_SIZE     8
 #define DRM_VMW_PARAM_MAX_MOB_MEMORY   9
 #define DRM_VMW_PARAM_MAX_MOB_SIZE     10
+#define DRM_VMW_PARAM_SCREEN_TARGET    11
 
 /**
  * enum drm_vmw_handle_type - handle type for ref ioctls

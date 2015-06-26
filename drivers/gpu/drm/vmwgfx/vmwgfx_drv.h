@@ -40,17 +40,17 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20140704"
+#define VMWGFX_DRIVER_DATE "20150626"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 6
-#define VMWGFX_DRIVER_PATCHLEVEL 1
+#define VMWGFX_DRIVER_MINOR 7
+#define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
 #define VMWGFX_MAX_VALIDATIONS 2048
 #define VMWGFX_MAX_DISPLAYS 16
 #define VMWGFX_CMD_BOUNCE_INIT_SIZE 32768
-#define VMWGFX_ENABLE_SCREEN_TARGET_OTABLE 0
+#define VMWGFX_ENABLE_SCREEN_TARGET_OTABLE 1
 
 /*
  * Perhaps we should have sysfs entries for these.
@@ -337,7 +337,8 @@ struct vmw_ctx_binding_state {
 enum vmw_display_unit_type {
 	vmw_du_invalid = 0,
 	vmw_du_legacy,
-	vmw_du_screen_object
+	vmw_du_screen_object,
+	vmw_du_screen_target
 };
 
 
@@ -402,6 +403,10 @@ struct vmw_private {
 	uint32_t mmio_size;
 	uint32_t fb_max_width;
 	uint32_t fb_max_height;
+	uint32_t texture_max_width;
+	uint32_t texture_max_height;
+	uint32_t stdu_max_width;
+	uint32_t stdu_max_height;
 	uint32_t initial_width;
 	uint32_t initial_height;
 	__le32 __iomem *mmio_virt;

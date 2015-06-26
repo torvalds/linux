@@ -463,6 +463,11 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 						   flags, color,
 						   clips, num_clips,
 						   inc, NULL);
+	else
+		ret = vmw_kms_stdu_do_surface_dirty(dev_priv, file_priv,
+						    &vfbs->base,
+						    clips, num_clips,
+						    inc);
 
 	vmw_fifo_flush(dev_priv, false);
 	ttm_read_unlock(&dev_priv->reservation_sem);
@@ -636,6 +641,11 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 						  flags, color,
 						  clips, num_clips, increment,
 						  NULL);
+	} else {
+		ret = vmw_kms_stdu_do_surface_dirty(dev_priv, file_priv,
+						    &vfbd->base,
+						    clips, num_clips,
+						    increment);
 	}
 
 	vmw_fifo_flush(dev_priv, false);
@@ -999,8 +1009,6 @@ int vmw_kms_generic_present(struct vmw_private *dev_priv,
 			break;
 	}
 
-	vmw_fifo_flush(dev_priv, false);
-
 	kfree(cmd);
 out_free_tmp:
 	kfree(tmp);
@@ -1017,8 +1025,21 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 		    struct drm_vmw_rect *clips,
 		    uint32_t num_clips)
 {
-	return vmw_kms_generic_present(dev_priv, file_priv, vfb, surface, sid,
-				       destX, destY, clips, num_clips);
+	int ret;
+
+	if (dev_priv->active_display_unit == vmw_du_screen_target)
+		ret = vmw_kms_stdu_present(dev_priv, file_priv, vfb, sid,
+					   destX, destY, clips, num_clips);
+	else
+		ret = vmw_kms_generic_present(dev_priv, file_priv, vfb,
+					      surface, sid, destX, destY,
+					      clips, num_clips);
+	if (ret)
+		return ret;
+
+	vmw_fifo_flush(dev_priv, false);
+
+	return 0;
 }
 
 int vmw_kms_readback(struct vmw_private *dev_priv,
@@ -1141,9 +1162,12 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 	dev->mode_config.max_width = 8192;
 	dev->mode_config.max_height = 8192;
 
-	ret = vmw_kms_sou_init_display(dev_priv);
-	if (ret) /* Fallback */
-		ret = vmw_kms_ldu_init_display(dev_priv);
+	ret = vmw_kms_stdu_init_display(dev_priv);
+	if (ret) {
+		ret = vmw_kms_sou_init_display(dev_priv);
+		if (ret) /* Fallback */
+			ret = vmw_kms_ldu_init_display(dev_priv);
+	}
 
 	return ret;
 }
@@ -1160,6 +1184,8 @@ int vmw_kms_close(struct vmw_private *dev_priv)
 	drm_mode_config_cleanup(dev_priv->dev);
 	if (dev_priv->active_display_unit == vmw_du_screen_object)
 		ret = vmw_kms_sou_close_display(dev_priv);
+	else if (dev_priv->active_display_unit == vmw_du_screen_target)
+		ret = vmw_kms_stdu_close_display(dev_priv);
 	else
 		ret = vmw_kms_ldu_close_display(dev_priv);
 
@@ -1311,7 +1337,9 @@ bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 				uint32_t pitch,
 				uint32_t height)
 {
-	return ((u64) pitch * (u64) height) < (u64) dev_priv->prim_bb_mem;
+	return ((u64) pitch * (u64) height) < (u64)
+		((dev_priv->active_display_unit == vmw_du_screen_target) ?
+		 dev_priv->prim_bb_mem : dev_priv->vram_size);
 }
 
 
@@ -1558,6 +1586,11 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 	if (dev_priv->active_display_unit == vmw_du_screen_object)
 		assumed_bpp = 4;
 
+	if (dev_priv->active_display_unit == vmw_du_screen_target) {
+		max_width  = min(max_width,  dev_priv->stdu_max_width);
+		max_height = min(max_height, dev_priv->stdu_max_height);
+	}
+
 	/* Add preferred mode */
 	mode = drm_mode_duplicate(dev, &prefmode);
 	if (!mode)
@@ -1673,6 +1706,19 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		if (rects[i].y + rects[i].h > bounding_box.h)
 			bounding_box.h = rects[i].y + rects[i].h;
 	}
+
+	/*
+	 * For Screen Target Display Unit, all the displays must fit
+	 * inside of maximum texture size.
+	 */
+	if (dev_priv->active_display_unit == vmw_du_screen_target)
+		if (bounding_box.w > dev_priv->texture_max_width ||
+		    bounding_box.h > dev_priv->texture_max_height) {
+			DRM_ERROR("Layout exceeds maximum texture size\n");
+			ret = -EINVAL;
+			goto out_free;
+		}
+
 
 	vmw_du_update_layout(dev_priv, arg->num_outputs, rects);
 

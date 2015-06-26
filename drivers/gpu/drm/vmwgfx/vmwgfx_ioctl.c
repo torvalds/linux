@@ -105,6 +105,10 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	case DRM_VMW_PARAM_MAX_MOB_SIZE:
 		param->value = dev_priv->max_mob_size;
 		break;
+	case DRM_VMW_PARAM_SCREEN_TARGET:
+		param->value =
+			(dev_priv->active_display_unit == vmw_du_screen_target);
+		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
 			  param->param);
