@@ -536,7 +536,6 @@ void synchronize_rcu(void)
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
 static DECLARE_WAIT_QUEUE_HEAD(sync_rcu_preempt_exp_wq);
-static DEFINE_MUTEX(sync_rcu_preempt_exp_mutex);
 
 /*
  * Return non-zero if there are any tasks in RCU read-side critical
@@ -556,7 +555,7 @@ static int rcu_preempted_readers_exp(struct rcu_node *rnp)
  * for the current expedited grace period.  Works only for preemptible
  * RCU -- other RCU implementation use other means.
  *
- * Caller must hold sync_rcu_preempt_exp_mutex.
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
  */
 static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
 {
@@ -572,7 +571,7 @@ static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
  * recursively up the tree.  (Calm down, calm down, we do the recursion
  * iteratively!)
  *
- * Caller must hold sync_rcu_preempt_exp_mutex.
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
  */
 static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			       bool wake)
@@ -611,7 +610,7 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
  * set the ->expmask bits on the leaf rcu_node structures to tell phase 2
  * that work is needed here.
  *
- * Caller must hold sync_rcu_preempt_exp_mutex.
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
  */
 static void
 sync_rcu_preempt_exp_init1(struct rcu_state *rsp, struct rcu_node *rnp)
@@ -654,7 +653,7 @@ sync_rcu_preempt_exp_init1(struct rcu_state *rsp, struct rcu_node *rnp)
  * invoke rcu_report_exp_rnp() to clear out the upper-level ->expmask bits,
  * enabling rcu_read_unlock_special() to do the bit-clearing.
  *
- * Caller must hold sync_rcu_preempt_exp_mutex.
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
  */
 static void
 sync_rcu_preempt_exp_init2(struct rcu_state *rsp, struct rcu_node *rnp)
@@ -702,29 +701,16 @@ sync_rcu_preempt_exp_init2(struct rcu_state *rsp, struct rcu_node *rnp)
 void synchronize_rcu_expedited(void)
 {
 	struct rcu_node *rnp;
+	struct rcu_node *rnp_unlock;
 	struct rcu_state *rsp = rcu_state_p;
 	unsigned long s;
-	int trycount = 0;
 
 	s = rcu_exp_gp_seq_snap(rsp);
 
-	/*
-	 * Acquire lock, falling back to synchronize_rcu() if too many
-	 * lock-acquisition failures.  Of course, if someone does the
-	 * expedited grace period for us, just leave.
-	 */
-	while (!mutex_trylock(&sync_rcu_preempt_exp_mutex)) {
-		if (rcu_exp_gp_seq_done(rsp, s))
-			goto mb_ret; /* Others did our work for us. */
-		if (trycount++ < 10) {
-			udelay(trycount * num_online_cpus());
-		} else {
-			wait_rcu_gp(call_rcu);
-			return;
-		}
-	}
-	if (rcu_exp_gp_seq_done(rsp, s))
-		goto unlock_mb_ret; /* Others did our work for us. */
+	rnp_unlock = exp_funnel_lock(rsp, s);
+	if (rnp_unlock == NULL)
+		return;  /* Someone else did our work for us. */
+
 	rcu_exp_gp_seq_start(rsp);
 
 	/* force all RCU readers onto ->blkd_tasks lists. */
@@ -748,9 +734,7 @@ void synchronize_rcu_expedited(void)
 
 	/* Clean up and exit. */
 	rcu_exp_gp_seq_end(rsp);
-unlock_mb_ret:
-	mutex_unlock(&sync_rcu_preempt_exp_mutex);
-mb_ret:
+	mutex_unlock(&rnp_unlock->exp_funnel_mutex);
 	smp_mb(); /* ensure subsequent action seen after grace period. */
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
