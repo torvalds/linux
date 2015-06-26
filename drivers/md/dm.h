@@ -222,9 +222,8 @@ void dm_kcopyd_exit(void);
 /*
  * Mempool operations
  */
-struct dm_md_mempools *dm_alloc_bio_mempools(unsigned integrity,
-					     unsigned per_bio_data_size);
-struct dm_md_mempools *dm_alloc_rq_mempools(struct mapped_device *md, unsigned type);
+struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned type,
+					    unsigned integrity, unsigned per_bio_data_size);
 void dm_free_md_mempools(struct dm_md_mempools *pools);
 
 /*
