@@ -284,6 +284,7 @@ static int process_counter(struct perf_evsel *counter)
 	int i, ret;
 
 	aggr->val = aggr->ena = aggr->run = 0;
+	memset(ps->res_stats, 0, sizeof(ps->res_stats));
 
 	if (counter->per_pkg)
 		zero_per_pkg(counter);
@@ -347,12 +348,8 @@ static int read_counter(struct perf_evsel *counter)
 static void read_counters(bool close)
 {
 	struct perf_evsel *counter;
-	struct perf_stat *ps;
 
 	evlist__for_each(evsel_list, counter) {
-		ps = counter->priv;
-		memset(ps->res_stats, 0, sizeof(ps->res_stats));
-
 		if (read_counter(counter))
 			pr_warning("failed to read counter %s\n", counter->name);
 
