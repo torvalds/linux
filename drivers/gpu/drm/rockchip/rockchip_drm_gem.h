@@ -21,6 +21,7 @@ struct rockchip_gem_object {
 	struct drm_gem_object base;
 	unsigned int flags;
 
+	struct sg_table *sgt;
 	void *kvaddr;
 	dma_addr_t dma_addr;
 	struct dma_attrs dma_attrs;
@@ -45,7 +46,8 @@ struct rockchip_gem_object_node {
 
 struct sg_table *rockchip_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
-rockchip_gem_prime_import_sg_table(struct drm_device *dev, size_t size,
+rockchip_gem_prime_import_sg_table(struct drm_device *dev,
+				   struct dma_buf_attachment *attach,
 				   struct sg_table *sgt);
 void *rockchip_gem_prime_vmap(struct drm_gem_object *obj);
 void rockchip_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
