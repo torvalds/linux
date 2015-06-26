@@ -100,15 +100,15 @@ struct perf_counts *perf_counts__new(int ncpus, int nthreads)
 	struct perf_counts *counts = zalloc(sizeof(*counts));
 
 	if (counts) {
-		struct xyarray *cpu;
+		struct xyarray *values;
 
-		cpu = xyarray__new(ncpus, nthreads, sizeof(struct perf_counts_values));
-		if (!cpu) {
+		values = xyarray__new(ncpus, nthreads, sizeof(struct perf_counts_values));
+		if (!values) {
 			free(counts);
 			return NULL;
 		}
 
-		counts->cpu = cpu;
+		counts->values = values;
 	}
 
 	return counts;
@@ -117,14 +117,14 @@ struct perf_counts *perf_counts__new(int ncpus, int nthreads)
 void perf_counts__delete(struct perf_counts *counts)
 {
 	if (counts) {
-		xyarray__delete(counts->cpu);
+		xyarray__delete(counts->values);
 		free(counts);
 	}
 }
 
 static void perf_counts__reset(struct perf_counts *counts)
 {
-	xyarray__reset(counts->cpu);
+	xyarray__reset(counts->values);
 }
 
 void perf_evsel__reset_counts(struct perf_evsel *evsel)

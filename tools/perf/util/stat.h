@@ -46,13 +46,13 @@ struct perf_counts_values {
 struct perf_counts {
 	s8			  scaled;
 	struct perf_counts_values aggr;
-	struct xyarray		  *cpu;
+	struct xyarray		  *values;
 };
 
 static inline struct perf_counts_values*
 perf_counts(struct perf_counts *counts, int cpu, int thread)
 {
-	return xyarray__entry(counts->cpu, cpu, thread);
+	return xyarray__entry(counts->values, cpu, thread);
 }
 
 void update_stats(struct stats *stats, u64 val);
