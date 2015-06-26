@@ -530,7 +530,6 @@ enum bnx2x_tpa_mode_t {
 
 struct bnx2x_alloc_pool {
 	struct page	*page;
-	dma_addr_t	dma;
 	unsigned int	offset;
 };
 

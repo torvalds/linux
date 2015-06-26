@@ -807,8 +807,8 @@ static inline void bnx2x_free_rx_sge(struct bnx2x *bp,
 	/* Since many fragments can share the same page, make sure to
 	 * only unmap and free the page once.
 	 */
-	dma_unmap_single(&bp->pdev->dev, dma_unmap_addr(sw_buf, mapping),
-			 SGE_PAGE_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_page(&bp->pdev->dev, dma_unmap_addr(sw_buf, mapping),
+		       SGE_PAGE_SIZE, DMA_FROM_DEVICE);
 
 	put_page(page);
 
@@ -973,14 +973,6 @@ static inline void bnx2x_free_rx_mem_pool(struct bnx2x *bp,
 {
 	if (!pool->page)
 		return;
-
-	/* Page was not fully fragmented.  Unmap unused space */
-	if (pool->offset < PAGE_SIZE) {
-		dma_addr_t dma = pool->dma + pool->offset;
-		int size = PAGE_SIZE - pool->offset;
-
-		dma_unmap_single(&bp->pdev->dev, dma, size, DMA_FROM_DEVICE);
-	}
 
 	put_page(pool->page);
 
