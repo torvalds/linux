@@ -475,6 +475,32 @@ static void i915_audio_component_put_power(struct device *dev)
 	intel_display_power_put(dev_to_i915(dev), POWER_DOMAIN_AUDIO);
 }
 
+static void i915_audio_component_codec_wake_override(struct device *dev,
+						     bool enable)
+{
+	struct drm_i915_private *dev_priv = dev_to_i915(dev);
+	u32 tmp;
+
+	if (!IS_SKYLAKE(dev_priv))
+		return;
+
+	/*
+	 * Enable/disable generating the codec wake signal, overriding the
+	 * internal logic to generate the codec wake to controller.
+	 */
+	tmp = I915_READ(HSW_AUD_CHICKENBIT);
+	tmp &= ~SKL_AUD_CODEC_WAKE_SIGNAL;
+	I915_WRITE(HSW_AUD_CHICKENBIT, tmp);
+	usleep_range(1000, 1500);
+
+	if (enable) {
+		tmp = I915_READ(HSW_AUD_CHICKENBIT);
+		tmp |= SKL_AUD_CODEC_WAKE_SIGNAL;
+		I915_WRITE(HSW_AUD_CHICKENBIT, tmp);
+		usleep_range(1000, 1500);
+	}
+}
+
 /* Get CDCLK in kHz  */
 static int i915_audio_component_get_cdclk_freq(struct device *dev)
 {
@@ -495,6 +521,7 @@ static const struct i915_audio_component_ops i915_audio_component_ops = {
 	.owner		= THIS_MODULE,
 	.get_power	= i915_audio_component_get_power,
 	.put_power	= i915_audio_component_put_power,
+	.codec_wake_override = i915_audio_component_codec_wake_override,
 	.get_cdclk_freq	= i915_audio_component_get_cdclk_freq,
 };
 

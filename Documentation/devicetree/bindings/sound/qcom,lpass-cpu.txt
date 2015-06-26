@@ -4,12 +4,21 @@ This node models the Qualcomm Technologies Low-Power Audio SubSystem (LPASS).
 
 Required properties:
 
-- compatible		: "qcom,lpass-cpu"
+- compatible		: "qcom,lpass-cpu" or "qcom,apq8016-lpass-cpu"
 - clocks		: Must contain an entry for each entry in clock-names.
 - clock-names		: A list which must include the following entries:
 				* "ahbix-clk"
 				* "mi2s-osr-clk"
 				* "mi2s-bit-clk"
+			: required clocks for "qcom,lpass-cpu-apq8016"
+				* "ahbix-clk"
+				* "mi2s-bit-clk0"
+				* "mi2s-bit-clk1"
+				* "mi2s-bit-clk2"
+				* "mi2s-bit-clk3"
+				* "pcnoc-mport-clk"
+				* "pcnoc-sway-clk"
+
 - interrupts		: Must contain an entry for each entry in
 			  interrupt-names.
 - interrupt-names	: A list which must include the following entries:
@@ -21,6 +30,8 @@ Required properties:
 - reg			: Must contain an address for each entry in reg-names.
 - reg-names		: A list which must include the following entries:
 				* "lpass-lpaif"
+
+
 
 Optional properties:
 

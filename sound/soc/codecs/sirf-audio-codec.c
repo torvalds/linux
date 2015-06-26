@@ -395,7 +395,7 @@ struct snd_soc_dai_driver sirf_audio_codec_dai = {
 
 static int sirf_audio_codec_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	pm_runtime_enable(codec->dev);
 

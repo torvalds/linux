@@ -1156,7 +1156,6 @@ static SIMPLE_DEV_PM_OPS(snd_atiixp_pm, snd_atiixp_suspend, snd_atiixp_resume);
 #define SND_ATIIXP_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PROC_FS
 /*
  * proc interface for register dump
  */
@@ -1178,9 +1177,6 @@ static void snd_atiixp_proc_init(struct atiixp_modem *chip)
 	if (! snd_card_proc_new(chip->card, "atiixp-modem", &entry))
 		snd_info_set_text_ops(entry, chip, snd_atiixp_proc_read);
 }
-#else
-#define snd_atiixp_proc_init(chip)
-#endif
 
 
 /*

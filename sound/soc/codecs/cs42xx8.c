@@ -380,7 +380,7 @@ EXPORT_SYMBOL_GPL(cs42xx8_regmap_config);
 static int cs42xx8_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs42xx8_priv *cs42xx8 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	switch (cs42xx8->drvdata->num_adcs) {
 	case 3:
