@@ -336,7 +336,7 @@ struct module {
 	const char **trace_bprintk_fmt_start;
 #endif
 #ifdef CONFIG_EVENT_TRACING
-	struct ftrace_event_call **trace_events;
+	struct trace_event_call **trace_events;
 	unsigned int num_trace_events;
 	struct trace_enum_map **trace_enums;
 	unsigned int num_trace_enums;

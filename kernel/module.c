@@ -18,7 +18,7 @@
 */
 #include <linux/export.h>
 #include <linux/moduleloader.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 #include <linux/init.h>
 #include <linux/kallsyms.h>
 #include <linux/file.h>

@@ -1,6 +1,6 @@
 
-#ifndef _LINUX_FTRACE_EVENT_H
-#define _LINUX_FTRACE_EVENT_H
+#ifndef _LINUX_TRACE_EVENT_H
+#define _LINUX_TRACE_EVENT_H
 
 #include <linux/ring_buffer.h>
 #include <linux/trace_seq.h>
@@ -25,35 +25,35 @@ struct trace_print_flags_u64 {
 	const char		*name;
 };
 
-const char *ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
-				   unsigned long flags,
-				   const struct trace_print_flags *flag_array);
+const char *trace_print_flags_seq(struct trace_seq *p, const char *delim,
+				  unsigned long flags,
+				  const struct trace_print_flags *flag_array);
 
-const char *ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
-				     const struct trace_print_flags *symbol_array);
+const char *trace_print_symbols_seq(struct trace_seq *p, unsigned long val,
+				    const struct trace_print_flags *symbol_array);
 
 #if BITS_PER_LONG == 32
-const char *ftrace_print_symbols_seq_u64(struct trace_seq *p,
-					 unsigned long long val,
-					 const struct trace_print_flags_u64
+const char *trace_print_symbols_seq_u64(struct trace_seq *p,
+					unsigned long long val,
+					const struct trace_print_flags_u64
 								 *symbol_array);
 #endif
 
-const char *ftrace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
-				     unsigned int bitmask_size);
+const char *trace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
+				    unsigned int bitmask_size);
 
-const char *ftrace_print_hex_seq(struct trace_seq *p,
-				 const unsigned char *buf, int len);
+const char *trace_print_hex_seq(struct trace_seq *p,
+				const unsigned char *buf, int len);
 
-const char *ftrace_print_array_seq(struct trace_seq *p,
+const char *trace_print_array_seq(struct trace_seq *p,
 				   const void *buf, int count,
 				   size_t el_size);
 
 struct trace_iterator;
 struct trace_event;
 
-int ftrace_raw_output_prep(struct trace_iterator *iter,
-			   struct trace_event *event);
+int trace_raw_output_prep(struct trace_iterator *iter,
+			  struct trace_event *event);
 
 /*
  * The trace entry - the most basic unit of tracing. This is what
@@ -68,7 +68,7 @@ struct trace_entry {
 	int			pid;
 };
 
-#define FTRACE_MAX_EVENT						\
+#define TRACE_EVENT_TYPE_MAX						\
 	((1 << (sizeof(((struct trace_entry *)0)->type) * 8)) - 1)
 
 /*
@@ -132,8 +132,8 @@ struct trace_event {
 	struct trace_event_functions	*funcs;
 };
 
-extern int register_ftrace_event(struct trace_event *event);
-extern int unregister_ftrace_event(struct trace_event *event);
+extern int register_trace_event(struct trace_event *event);
+extern int unregister_trace_event(struct trace_event *event);
 
 /* Return values for print_line callback */
 enum print_line_t {
@@ -157,11 +157,11 @@ static inline enum print_line_t trace_handle_return(struct trace_seq *s)
 void tracing_generic_entry_update(struct trace_entry *entry,
 				  unsigned long flags,
 				  int pc);
-struct ftrace_event_file;
+struct trace_event_file;
 
 struct ring_buffer_event *
 trace_event_buffer_lock_reserve(struct ring_buffer **current_buffer,
-				struct ftrace_event_file *ftrace_file,
+				struct trace_event_file *trace_file,
 				int type, unsigned long len,
 				unsigned long flags, int pc);
 struct ring_buffer_event *
@@ -183,7 +183,7 @@ void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
 
 void tracing_record_cmdline(struct task_struct *tsk);
 
-int ftrace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...);
+int trace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...);
 
 struct event_filter;
 
@@ -200,50 +200,39 @@ enum trace_reg {
 #endif
 };
 
-struct ftrace_event_call;
+struct trace_event_call;
 
-struct ftrace_event_class {
+struct trace_event_class {
 	const char		*system;
 	void			*probe;
 #ifdef CONFIG_PERF_EVENTS
 	void			*perf_probe;
 #endif
-	int			(*reg)(struct ftrace_event_call *event,
+	int			(*reg)(struct trace_event_call *event,
 				       enum trace_reg type, void *data);
-	int			(*define_fields)(struct ftrace_event_call *);
-	struct list_head	*(*get_fields)(struct ftrace_event_call *);
+	int			(*define_fields)(struct trace_event_call *);
+	struct list_head	*(*get_fields)(struct trace_event_call *);
 	struct list_head	fields;
-	int			(*raw_init)(struct ftrace_event_call *);
+	int			(*raw_init)(struct trace_event_call *);
 };
 
-extern int ftrace_event_reg(struct ftrace_event_call *event,
+extern int trace_event_reg(struct trace_event_call *event,
 			    enum trace_reg type, void *data);
 
-int ftrace_output_event(struct trace_iterator *iter, struct ftrace_event_call *event,
-			char *fmt, ...);
-
-int ftrace_event_define_field(struct ftrace_event_call *call,
-			      char *type, int len, char *item, int offset,
-			      int field_size, int sign, int filter);
-
-struct ftrace_event_buffer {
+struct trace_event_buffer {
 	struct ring_buffer		*buffer;
 	struct ring_buffer_event	*event;
-	struct ftrace_event_file	*ftrace_file;
+	struct trace_event_file		*trace_file;
 	void				*entry;
 	unsigned long			flags;
 	int				pc;
 };
 
-void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
-				  struct ftrace_event_file *ftrace_file,
+void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
+				  struct trace_event_file *trace_file,
 				  unsigned long len);
 
-void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer);
-
-int ftrace_event_define_field(struct ftrace_event_call *call,
-			      char *type, int len, char *item, int offset,
-			      int field_size, int sign, int filter);
+void trace_event_buffer_commit(struct trace_event_buffer *fbuffer);
 
 enum {
 	TRACE_EVENT_FL_FILTERED_BIT,
@@ -261,11 +250,11 @@ enum {
  *  FILTERED	  - The event has a filter attached
  *  CAP_ANY	  - Any user can enable for perf
  *  NO_SET_FILTER - Set when filter has error and is to be ignored
- *  IGNORE_ENABLE - For ftrace internal events, do not enable with debugfs file
+ *  IGNORE_ENABLE - For trace internal events, do not enable with debugfs file
  *  WAS_ENABLED   - Set and stays set when an event was ever enabled
  *                    (used for module unloading, if a module event is enabled,
  *                     it is best to clear the buffers that used it).
- *  USE_CALL_FILTER - For ftrace internal events, don't use file filter
+ *  USE_CALL_FILTER - For trace internal events, don't use file filter
  *  TRACEPOINT    - Event is a tracepoint
  *  KPROBE        - Event is a kprobe
  */
@@ -280,9 +269,9 @@ enum {
 	TRACE_EVENT_FL_KPROBE		= (1 << TRACE_EVENT_FL_KPROBE_BIT),
 };
 
-struct ftrace_event_call {
+struct trace_event_call {
 	struct list_head	list;
-	struct ftrace_event_class *class;
+	struct trace_event_class *class;
 	union {
 		char			*name;
 		/* Set TRACE_EVENT_FL_TRACEPOINT flag when using "tp" */
@@ -297,7 +286,7 @@ struct ftrace_event_call {
 	 *   bit 0:		filter_active
 	 *   bit 1:		allow trace by non root (cap any)
 	 *   bit 2:		failed to apply filter
-	 *   bit 3:		ftrace internal event (do not enable)
+	 *   bit 3:		trace internal event (do not enable)
 	 *   bit 4:		Event was enabled by module
 	 *   bit 5:		use call filter rather than file filter
 	 *   bit 6:		Event is a tracepoint
@@ -309,13 +298,13 @@ struct ftrace_event_call {
 	struct hlist_head __percpu	*perf_events;
 	struct bpf_prog			*prog;
 
-	int	(*perf_perm)(struct ftrace_event_call *,
+	int	(*perf_perm)(struct trace_event_call *,
 			     struct perf_event *);
 #endif
 };
 
 static inline const char *
-ftrace_event_name(struct ftrace_event_call *call)
+trace_event_name(struct trace_event_call *call)
 {
 	if (call->flags & TRACE_EVENT_FL_TRACEPOINT)
 		return call->tp ? call->tp->name : NULL;
@@ -324,21 +313,21 @@ ftrace_event_name(struct ftrace_event_call *call)
 }
 
 struct trace_array;
-struct ftrace_subsystem_dir;
+struct trace_subsystem_dir;
 
 enum {
-	FTRACE_EVENT_FL_ENABLED_BIT,
-	FTRACE_EVENT_FL_RECORDED_CMD_BIT,
-	FTRACE_EVENT_FL_FILTERED_BIT,
-	FTRACE_EVENT_FL_NO_SET_FILTER_BIT,
-	FTRACE_EVENT_FL_SOFT_MODE_BIT,
-	FTRACE_EVENT_FL_SOFT_DISABLED_BIT,
-	FTRACE_EVENT_FL_TRIGGER_MODE_BIT,
-	FTRACE_EVENT_FL_TRIGGER_COND_BIT,
+	EVENT_FILE_FL_ENABLED_BIT,
+	EVENT_FILE_FL_RECORDED_CMD_BIT,
+	EVENT_FILE_FL_FILTERED_BIT,
+	EVENT_FILE_FL_NO_SET_FILTER_BIT,
+	EVENT_FILE_FL_SOFT_MODE_BIT,
+	EVENT_FILE_FL_SOFT_DISABLED_BIT,
+	EVENT_FILE_FL_TRIGGER_MODE_BIT,
+	EVENT_FILE_FL_TRIGGER_COND_BIT,
 };
 
 /*
- * Ftrace event file flags:
+ * Event file flags:
  *  ENABLED	  - The event is enabled
  *  RECORDED_CMD  - The comms should be recorded at sched_switch
  *  FILTERED	  - The event has a filter attached
@@ -350,23 +339,23 @@ enum {
  *  TRIGGER_COND  - When set, one or more triggers has an associated filter
  */
 enum {
-	FTRACE_EVENT_FL_ENABLED		= (1 << FTRACE_EVENT_FL_ENABLED_BIT),
-	FTRACE_EVENT_FL_RECORDED_CMD	= (1 << FTRACE_EVENT_FL_RECORDED_CMD_BIT),
-	FTRACE_EVENT_FL_FILTERED	= (1 << FTRACE_EVENT_FL_FILTERED_BIT),
-	FTRACE_EVENT_FL_NO_SET_FILTER	= (1 << FTRACE_EVENT_FL_NO_SET_FILTER_BIT),
-	FTRACE_EVENT_FL_SOFT_MODE	= (1 << FTRACE_EVENT_FL_SOFT_MODE_BIT),
-	FTRACE_EVENT_FL_SOFT_DISABLED	= (1 << FTRACE_EVENT_FL_SOFT_DISABLED_BIT),
-	FTRACE_EVENT_FL_TRIGGER_MODE	= (1 << FTRACE_EVENT_FL_TRIGGER_MODE_BIT),
-	FTRACE_EVENT_FL_TRIGGER_COND	= (1 << FTRACE_EVENT_FL_TRIGGER_COND_BIT),
+	EVENT_FILE_FL_ENABLED		= (1 << EVENT_FILE_FL_ENABLED_BIT),
+	EVENT_FILE_FL_RECORDED_CMD	= (1 << EVENT_FILE_FL_RECORDED_CMD_BIT),
+	EVENT_FILE_FL_FILTERED		= (1 << EVENT_FILE_FL_FILTERED_BIT),
+	EVENT_FILE_FL_NO_SET_FILTER	= (1 << EVENT_FILE_FL_NO_SET_FILTER_BIT),
+	EVENT_FILE_FL_SOFT_MODE		= (1 << EVENT_FILE_FL_SOFT_MODE_BIT),
+	EVENT_FILE_FL_SOFT_DISABLED	= (1 << EVENT_FILE_FL_SOFT_DISABLED_BIT),
+	EVENT_FILE_FL_TRIGGER_MODE	= (1 << EVENT_FILE_FL_TRIGGER_MODE_BIT),
+	EVENT_FILE_FL_TRIGGER_COND	= (1 << EVENT_FILE_FL_TRIGGER_COND_BIT),
 };
 
-struct ftrace_event_file {
+struct trace_event_file {
 	struct list_head		list;
-	struct ftrace_event_call	*event_call;
+	struct trace_event_call		*event_call;
 	struct event_filter		*filter;
 	struct dentry			*dir;
 	struct trace_array		*tr;
-	struct ftrace_subsystem_dir	*system;
+	struct trace_subsystem_dir	*system;
 	struct list_head		triggers;
 
 	/*
@@ -399,7 +388,7 @@ struct ftrace_event_file {
 	early_initcall(trace_init_flags_##name);
 
 #define __TRACE_EVENT_PERF_PERM(name, expr...)				\
-	static int perf_perm_##name(struct ftrace_event_call *tp_event, \
+	static int perf_perm_##name(struct trace_event_call *tp_event, \
 				    struct perf_event *p_event)		\
 	{								\
 		return ({ expr; });					\
@@ -425,19 +414,19 @@ enum event_trigger_type {
 
 extern int filter_match_preds(struct event_filter *filter, void *rec);
 
-extern int filter_check_discard(struct ftrace_event_file *file, void *rec,
+extern int filter_check_discard(struct trace_event_file *file, void *rec,
 				struct ring_buffer *buffer,
 				struct ring_buffer_event *event);
-extern int call_filter_check_discard(struct ftrace_event_call *call, void *rec,
+extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
 				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event);
-extern enum event_trigger_type event_triggers_call(struct ftrace_event_file *file,
+extern enum event_trigger_type event_triggers_call(struct trace_event_file *file,
 						   void *rec);
-extern void event_triggers_post_call(struct ftrace_event_file *file,
+extern void event_triggers_post_call(struct trace_event_file *file,
 				     enum event_trigger_type tt);
 
 /**
- * ftrace_trigger_soft_disabled - do triggers and test if soft disabled
+ * trace_trigger_soft_disabled - do triggers and test if soft disabled
  * @file: The file pointer of the event to test
  *
  * If any triggers without filters are attached to this event, they
@@ -446,14 +435,14 @@ extern void event_triggers_post_call(struct ftrace_event_file *file,
  * otherwise false.
  */
 static inline bool
-ftrace_trigger_soft_disabled(struct ftrace_event_file *file)
+trace_trigger_soft_disabled(struct trace_event_file *file)
 {
 	unsigned long eflags = file->flags;
 
-	if (!(eflags & FTRACE_EVENT_FL_TRIGGER_COND)) {
-		if (eflags & FTRACE_EVENT_FL_TRIGGER_MODE)
+	if (!(eflags & EVENT_FILE_FL_TRIGGER_COND)) {
+		if (eflags & EVENT_FILE_FL_TRIGGER_MODE)
 			event_triggers_call(file, NULL);
-		if (eflags & FTRACE_EVENT_FL_SOFT_DISABLED)
+		if (eflags & EVENT_FILE_FL_SOFT_DISABLED)
 			return true;
 	}
 	return false;
@@ -473,7 +462,7 @@ ftrace_trigger_soft_disabled(struct ftrace_event_file *file)
  * Returns true if the event is discarded, false otherwise.
  */
 static inline bool
-__event_trigger_test_discard(struct ftrace_event_file *file,
+__event_trigger_test_discard(struct trace_event_file *file,
 			     struct ring_buffer *buffer,
 			     struct ring_buffer_event *event,
 			     void *entry,
@@ -481,10 +470,10 @@ __event_trigger_test_discard(struct ftrace_event_file *file,
 {
 	unsigned long eflags = file->flags;
 
-	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
+	if (eflags & EVENT_FILE_FL_TRIGGER_COND)
 		*tt = event_triggers_call(file, entry);
 
-	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags))
+	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags))
 		ring_buffer_discard_commit(buffer, event);
 	else if (!filter_check_discard(file, entry, buffer, event))
 		return false;
@@ -506,7 +495,7 @@ __event_trigger_test_discard(struct ftrace_event_file *file,
  * if the event is soft disabled and should be discarded.
  */
 static inline void
-event_trigger_unlock_commit(struct ftrace_event_file *file,
+event_trigger_unlock_commit(struct trace_event_file *file,
 			    struct ring_buffer *buffer,
 			    struct ring_buffer_event *event,
 			    void *entry, unsigned long irq_flags, int pc)
@@ -537,7 +526,7 @@ event_trigger_unlock_commit(struct ftrace_event_file *file,
  * trace_buffer_unlock_commit_regs() instead of trace_buffer_unlock_commit().
  */
 static inline void
-event_trigger_unlock_commit_regs(struct ftrace_event_file *file,
+event_trigger_unlock_commit_regs(struct trace_event_file *file,
 				 struct ring_buffer *buffer,
 				 struct ring_buffer_event *event,
 				 void *entry, unsigned long irq_flags, int pc,
@@ -570,12 +559,12 @@ enum {
 	FILTER_TRACE_FN,
 };
 
-extern int trace_event_raw_init(struct ftrace_event_call *call);
-extern int trace_define_field(struct ftrace_event_call *call, const char *type,
+extern int trace_event_raw_init(struct trace_event_call *call);
+extern int trace_define_field(struct trace_event_call *call, const char *type,
 			      const char *name, int offset, int size,
 			      int is_signed, int filter_type);
-extern int trace_add_event_call(struct ftrace_event_call *call);
-extern int trace_remove_event_call(struct ftrace_event_call *call);
+extern int trace_add_event_call(struct trace_event_call *call);
+extern int trace_remove_event_call(struct trace_event_call *call);
 
 #define is_signed_type(type)	(((type)(-1)) < (type)1)
 
@@ -624,4 +613,4 @@ perf_trace_buf_submit(void *raw_data, int size, int rctx, u64 addr,
 }
 #endif
 
-#endif /* _LINUX_FTRACE_EVENT_H */
+#endif /* _LINUX_TRACE_EVENT_H */

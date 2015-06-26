@@ -7,7 +7,7 @@
 #include <linux/ktime.h>
 #include <linux/pm_qos.h>
 #include <linux/tracepoint.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 
 #define TPS(x)  tracepoint_string(x)
 

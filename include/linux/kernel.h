@@ -533,12 +533,6 @@ bool mac_pton(const char *s, u8 *mac);
  *
  * Most likely, you want to use tracing_on/tracing_off.
  */
-#ifdef CONFIG_RING_BUFFER
-/* trace_off_permanent stops recording with no way to bring it back */
-void tracing_off_permanent(void);
-#else
-static inline void tracing_off_permanent(void) { }
-#endif
 
 enum ftrace_dump_mode {
 	DUMP_NONE,
