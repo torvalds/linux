@@ -63,7 +63,6 @@ static void ap_interrupt_handler(struct airq_struct *airq);
 static void ap_reset(struct ap_device *ap_dev, unsigned long *flags);
 static void ap_config_timeout(unsigned long ptr);
 static int ap_select_domain(void);
-static void ap_query_configuration(void);
 
 /*
  * Module description.
@@ -115,6 +114,8 @@ static unsigned long long poll_timeout = 250000;
 
 /* Suspend flag */
 static int ap_suspend_flag;
+/* Maximum domain id */
+static int ap_max_domain_id;
 /* Flag to check if domain was set through module parameter domain=. This is
  * important when supsend and resume is done in a z/VM environment where the
  * domain might change. */
@@ -242,12 +243,19 @@ ap_queue_interruption_control(ap_qid_t qid, void *ind)
 	return reg1_out;
 }
 
-static inline int __ap_query_configuration(struct ap_config_info *config)
+/**
+ * ap_query_configuration(): Get AP configuration data
+ *
+ * Returns 0 on success, or -EOPNOTSUPP.
+ */
+static inline int ap_query_configuration(void)
 {
 	register unsigned long reg0 asm ("0") = 0x04000000UL;
 	register unsigned long reg1 asm ("1") = -EINVAL;
-	register unsigned char *reg2 asm ("2") = (unsigned char *)config;
+	register void *reg2 asm ("2") = (void *) ap_configuration;
 
+	if (!ap_configuration)
+		return -EOPNOTSUPP;
 	asm volatile(
 		".long 0xb2af0000\n"		/* PQAP(QCI) */
 		"0: la    %1,0\n"
@@ -258,6 +266,63 @@ static inline int __ap_query_configuration(struct ap_config_info *config)
 		: "cc");
 
 	return reg1;
+}
+
+/**
+ * ap_init_configuration(): Allocate and query configuration array.
+ */
+static void ap_init_configuration(void)
+{
+	if (!ap_configuration_available())
+		return;
+
+	ap_configuration = kzalloc(sizeof(*ap_configuration), GFP_KERNEL);
+	if (!ap_configuration)
+		return;
+	if (ap_query_configuration() != 0) {
+		kfree(ap_configuration);
+		ap_configuration = NULL;
+		return;
+	}
+}
+
+/*
+ * ap_test_config(): helper function to extract the nrth bit
+ *		     within the unsigned int array field.
+ */
+static inline int ap_test_config(unsigned int *field, unsigned int nr)
+{
+	return ap_test_bit((field + (nr >> 5)), (nr & 0x1f));
+}
+
+/*
+ * ap_test_config_card_id(): Test, whether an AP card ID is configured.
+ * @id AP card ID
+ *
+ * Returns 0 if the card is not configured
+ *	   1 if the card is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_card_id(unsigned int id)
+{
+	if (!ap_configuration)	/* QCI not supported */
+		return 1;
+	return ap_test_config(ap_configuration->apm, id);
+}
+
+/*
+ * ap_test_config_domain(): Test, whether an AP usage domain is configured.
+ * @domain AP usage domain ID
+ *
+ * Returns 0 if the usage domain is not configured
+ *	   1 if the usage domain is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_domain(unsigned int domain)
+{
+	if (!ap_configuration)	/* QCI not supported */
+		return domain < 16;
+	return ap_test_config(ap_configuration->aqm, domain);
 }
 
 /**
@@ -450,6 +515,10 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
 {
 	struct ap_queue_status status;
 	unsigned long info;
+	int nd;
+
+	if (!ap_test_config_card_id(AP_QID_DEVICE(qid)))
+		return -ENODEV;
 
 	status = ap_test_queue(qid, &info);
 	switch (status.response_code) {
@@ -457,6 +526,10 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
 		*queue_depth = (int)(info & 0xff);
 		*device_type = (int)((info >> 24) & 0xff);
 		*facilities = (unsigned int)(info >> 32);
+		/* Update maximum domain id */
+		nd = (info >> 16) & 0xff;
+		if ((info & (1UL << 57)) && nd > 0)
+			ap_max_domain_id = nd;
 		return 0;
 	case AP_RESPONSE_Q_NOT_AVAIL:
 	case AP_RESPONSE_DECONFIGURED:
@@ -953,51 +1026,6 @@ void ap_bus_force_rescan(void)
 EXPORT_SYMBOL(ap_bus_force_rescan);
 
 /*
- * ap_test_config(): helper function to extract the nrth bit
- *		     within the unsigned int array field.
- */
-static inline int ap_test_config(unsigned int *field, unsigned int nr)
-{
-	if (nr > 0xFFu)
-		return 0;
-	return ap_test_bit((field + (nr >> 5)), (nr & 0x1f));
-}
-
-/*
- * ap_test_config_card_id(): Test, whether an AP card ID is configured.
- * @id AP card ID
- *
- * Returns 0 if the card is not configured
- *	   1 if the card is configured or
- *	     if the configuration information is not available
- */
-static inline int ap_test_config_card_id(unsigned int id)
-{
-	if (!ap_configuration)
-		return 1;
-	return ap_test_config(ap_configuration->apm, id);
-}
-
-/*
- * ap_test_config_domain(): Test, whether an AP usage domain is configured.
- * @domain AP usage domain ID
- *
- * Returns 0 if the usage domain is not configured
- *	   1 if the usage domain is configured or
- *	     if the configuration information is not available
- */
-static inline int ap_test_config_domain(unsigned int domain)
-{
-	if (!ap_configuration)	  /* QCI not supported */
-		if (domain < 16)
-			return 1; /* then domains 0...15 are configured */
-		else
-			return 0;
-	else
-		return ap_test_config(ap_configuration->aqm, domain);
-}
-
-/*
  * AP bus attributes.
  */
 static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
@@ -1009,21 +1037,20 @@ static BUS_ATTR(ap_domain, 0444, ap_domain_show, NULL);
 
 static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
 {
-	if (ap_configuration != NULL) { /* QCI not supported */
-		if (test_facility(76)) { /* format 1 - 256 bit domain field */
-			return snprintf(buf, PAGE_SIZE,
-				"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+	if (!ap_configuration)	/* QCI not supported */
+		return snprintf(buf, PAGE_SIZE, "not supported\n");
+	if (!test_facility(76))
+		/* format 0 - 16 bit domain field */
+		return snprintf(buf, PAGE_SIZE, "%08x%08x\n",
+				ap_configuration->adm[0],
+				ap_configuration->adm[1]);
+	/* format 1 - 256 bit domain field */
+	return snprintf(buf, PAGE_SIZE,
+			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
 			ap_configuration->adm[0], ap_configuration->adm[1],
 			ap_configuration->adm[2], ap_configuration->adm[3],
 			ap_configuration->adm[4], ap_configuration->adm[5],
 			ap_configuration->adm[6], ap_configuration->adm[7]);
-		} else { /* format 0 - 16 bit domain field */
-			return snprintf(buf, PAGE_SIZE, "%08x%08x\n",
-			ap_configuration->adm[0], ap_configuration->adm[1]);
-		  }
-	} else {
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
-	  }
 }
 
 static BUS_ATTR(ap_control_domain_mask, 0444,
@@ -1115,38 +1142,12 @@ static BUS_ATTR(poll_timeout, 0644, poll_timeout_show, poll_timeout_store);
 
 static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
 {
-	struct ap_queue_status status;
-	ap_qid_t qid;
-	int i, nd, max_domain_id = -1;
-	unsigned long fbits;
+	int max_domain_id;
 
-	if (ap_configuration) {
-		if (ap_domain_index >= 0 && ap_domain_index < AP_DOMAINS) {
-			for (i = 0; i < AP_DEVICES; i++) {
-				if (!ap_test_config_card_id(i))
-					continue;
-				qid = AP_MKQID(i, ap_domain_index);
-				status = ap_test_queue(qid, &fbits);
-				if (status.response_code != AP_RESPONSE_NORMAL)
-					continue;
-				if (fbits & (1UL << 57)) {
-					/* the N bit is 0, Nd field is filled */
-					nd = (int)((fbits & 0x00FF0000UL)>>16);
-					if (nd > 0)
-						max_domain_id = nd;
-					else
-						max_domain_id = 15;
-				} else {
-					/* N bit is 1, max 16 domains */
-					max_domain_id = 15;
-				}
-				break;
-			}
-		}
-	} else {
-		/* no APXA support, older machines with max 16 domains */
+	if (ap_configuration)
+		max_domain_id = ap_max_domain_id ? : -1;
+	else
 		max_domain_id = 15;
-	}
 	return snprintf(buf, PAGE_SIZE, "%d\n", max_domain_id);
 }
 
@@ -1164,24 +1165,6 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 };
 
 /**
- * ap_query_configuration(): Query AP configuration information.
- *
- * Query information of installed cards and configured domains from AP.
- */
-static void ap_query_configuration(void)
-{
-	if (ap_configuration_available()) {
-		if (!ap_configuration)
-			ap_configuration =
-				kzalloc(sizeof(struct ap_config_info),
-					GFP_KERNEL);
-		if (ap_configuration)
-			__ap_query_configuration(ap_configuration);
-	} else
-		ap_configuration = NULL;
-}
-
-/**
  * ap_select_domain(): Select an AP domain.
  *
  * Pick one of the 16 AP domains.
@@ -1192,16 +1175,12 @@ static int ap_select_domain(void)
 	struct ap_queue_status status;
 	int i, j;
 
-	/* IF APXA isn't installed, only 16 domains could be defined */
-	if (!ap_configuration->ap_extended && (ap_domain_index > 15))
-		return -EINVAL;
-
 	/*
 	 * We want to use a single domain. Either the one specified with
 	 * the "domain=" parameter or the domain with the maximum number
 	 * of devices.
 	 */
-	if (ap_domain_index >= 0 && ap_domain_index < AP_DOMAINS)
+	if (ap_domain_index >= 0)
 		/* Domain has already been selected. */
 		return 0;
 	best_domain = -1;
@@ -1365,16 +1344,14 @@ static void ap_scan_bus(struct work_struct *unused)
 	if (ap_select_domain() != 0) {
 		return;
 	}
+
 	for (i = 0; i < AP_DEVICES; i++) {
 		qid = AP_MKQID(i, ap_domain_index);
 		dev = bus_find_device(&ap_bus_type, NULL,
 				      (void *)(unsigned long)qid,
 				      __ap_scan_bus);
-		if (ap_test_config_card_id(i))
-			rc = ap_query_queue(qid, &queue_depth, &device_type,
-					    &device_functions);
-		else
-			rc = -ENODEV;
+		rc = ap_query_queue(qid, &queue_depth, &device_type,
+				    &device_functions);
 		if (dev) {
 			ap_dev = to_ap_dev(dev);
 			spin_lock_bh(&ap_dev->lock);
@@ -1902,9 +1879,10 @@ static void ap_reset_domain(void)
 {
 	int i;
 
-	if ((ap_domain_index != -1) && (ap_test_config_domain(ap_domain_index)))
-		for (i = 0; i < AP_DEVICES; i++)
-			ap_reset_queue(AP_MKQID(i, ap_domain_index));
+	if (ap_domain_index == -1 || !ap_test_config_domain(ap_domain_index))
+		return;
+	for (i = 0; i < AP_DEVICES; i++)
+		ap_reset_queue(AP_MKQID(i, ap_domain_index));
 }
 
 static void ap_reset_all(void)
@@ -1933,11 +1911,24 @@ static struct reset_call ap_reset_call = {
  */
 int __init ap_module_init(void)
 {
+	int max_domain_id;
 	int rc, i;
 
-	if (ap_domain_index < -1 || ap_domain_index >= AP_DOMAINS) {
-		pr_warning("%d is not a valid cryptographic domain\n",
-			   ap_domain_index);
+	if (ap_instructions_available() != 0) {
+		pr_warn("The hardware system does not support AP instructions\n");
+		return -ENODEV;
+	}
+
+	/* Get AP configuration data if available */
+	ap_init_configuration();
+
+	if (ap_configuration)
+		max_domain_id = ap_max_domain_id ? : (AP_DOMAINS - 1);
+	else
+		max_domain_id = 15;
+	if (ap_domain_index < -1 || ap_domain_index > max_domain_id) {
+		pr_warn("%d is not a valid cryptographic domain\n",
+			ap_domain_index);
 		return -EINVAL;
 	}
 	/* In resume callback we need to know if the user had set the domain.
@@ -1946,11 +1937,6 @@ int __init ap_module_init(void)
 	if (ap_domain_index >= 0)
 		user_set_domain = 1;
 
-	if (ap_instructions_available() != 0) {
-		pr_warning("The hardware system does not support "
-			   "AP instructions\n");
-		return -ENODEV;
-	}
 	if (ap_interrupts_available()) {
 		rc = register_adapter_interrupt(&ap_airq);
 		ap_airq_flag = (rc == 0);
@@ -1980,7 +1966,6 @@ int __init ap_module_init(void)
 		goto out_root;
 	}
 
-	ap_query_configuration();
 	if (ap_select_domain() == 0)
 		ap_scan_bus(NULL);
 
@@ -2023,6 +2008,7 @@ out:
 	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())
 		unregister_adapter_interrupt(&ap_airq);
+	kfree(ap_configuration);
 	return rc;
 }
 
@@ -2057,6 +2043,7 @@ void ap_module_exit(void)
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	root_device_unregister(ap_root_device);
 	bus_unregister(&ap_bus_type);
+	kfree(ap_configuration);
 	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())
 		unregister_adapter_interrupt(&ap_airq);

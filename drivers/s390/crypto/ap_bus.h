@@ -76,11 +76,8 @@ struct ap_queue_status {
 } __packed;
 
 
-#define AP_MAX_BITS 31
 static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 {
-	if (nr > AP_MAX_BITS)
-		return 0;
 	return (*ptr & (0x80000000u >> nr)) != 0;
 }
 
