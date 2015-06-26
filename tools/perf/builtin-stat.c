@@ -284,7 +284,7 @@ static int process_counter(struct perf_evsel *counter)
 	int i, ret;
 
 	aggr->val = aggr->ena = aggr->run = 0;
-	memset(ps->res_stats, 0, sizeof(ps->res_stats));
+	init_stats(ps->res_stats);
 
 	if (counter->per_pkg)
 		zero_per_pkg(counter);
