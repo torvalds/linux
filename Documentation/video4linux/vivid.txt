@@ -631,26 +631,33 @@ Timestamp Source: selects when the timestamp for each buffer is taken.
 
 Colorspace: selects which colorspace should be used when generating the image.
 	This only applies if the CSC Colorbar test pattern is selected,
-	otherwise the test pattern will go through unconverted (except for
-	the so-called 'Transfer Function' corrections and the R'G'B' to Y'CbCr
-	conversion). This behavior is also what you want, since a 75% Colorbar
+	otherwise the test pattern will go through unconverted.
+	This behavior is also what you want, since a 75% Colorbar
 	should really have 75% signal intensity and should not be affected
 	by colorspace conversions.
 
 	Changing the colorspace will result in the V4L2_EVENT_SOURCE_CHANGE
 	to be sent since it emulates a detected colorspace change.
 
+Transfer Function: selects which colorspace transfer function should be used when
+	generating an image. This only applies if the CSC Colorbar test pattern is
+	selected, otherwise the test pattern will go through unconverted.
+        This behavior is also what you want, since a 75% Colorbar
+        should really have 75% signal intensity and should not be affected
+        by colorspace conversions.
+
+	Changing the transfer function will result in the V4L2_EVENT_SOURCE_CHANGE
+	to be sent since it emulates a detected colorspace change.
+
 Y'CbCr Encoding: selects which Y'CbCr encoding should be used when generating
-	a Y'CbCr image.	This only applies if the CSC Colorbar test pattern is
-	selected, and if the format is set to a Y'CbCr format as opposed to an
-	RGB format.
+	a Y'CbCr image.	This only applies if the format is set to a Y'CbCr format
+	as opposed to an RGB format.
 
 	Changing the Y'CbCr encoding will result in the V4L2_EVENT_SOURCE_CHANGE
 	to be sent since it emulates a detected colorspace change.
 
 Quantization: selects which quantization should be used for the RGB or Y'CbCr
-	encoding when generating the test pattern. This only applies if the CSC
-	Colorbar test pattern is selected.
+	encoding when generating the test pattern.
 
 	Changing the quantization will result in the V4L2_EVENT_SOURCE_CHANGE
 	to be sent since it emulates a detected colorspace change.
@@ -888,7 +895,7 @@ Section 10.1: Video and Sliced VBI looping
 
 The way to enable video/VBI looping is currently fairly crude. A 'Loop Video'
 control is available in the "Vivid" control class of the video
-output and VBI output devices. When checked the video looping will be enabled.
+capture and VBI capture devices. When checked the video looping will be enabled.
 Once enabled any video S-Video or HDMI input will show a static test pattern
 until the video output has started. At that time the video output will be
 looped to the video input provided that:
@@ -985,8 +992,9 @@ to change crop and compose rectangles on the fly.
 Section 12: Formats
 -------------------
 
-The driver supports all the regular packed YUYV formats, 16, 24 and 32 RGB
-packed formats and two multiplanar formats (one luma and one chroma plane).
+The driver supports all the regular packed and planar 4:4:4, 4:2:2 and 4:2:0
+YUYV formats, 8, 16, 24 and 32 RGB packed formats and various multiplanar
+formats.
 
 The alpha component can be set through the 'Alpha Component' User control
 for those formats that support it. If the 'Apply Alpha To Red Only' control
@@ -1119,11 +1127,9 @@ Just as a reminder and in no particular order:
 - Use per-queue locks and/or per-device locks to improve throughput
 - Add support to loop from a specific output to a specific input across
   vivid instances
-- Add support for VIDIOC_EXPBUF once support for that has been added to vb2
 - The SDR radio should use the same 'frequencies' for stations as the normal
   radio receiver, and give back noise if the frequency doesn't match up with
   a station frequency
-- Improve the sine generation of the SDR radio.
 - Make a thread for the RDS generation, that would help in particular for the
   "Controls" RDS Rx I/O Mode as the read-only RDS controls could be updated
   in real-time.

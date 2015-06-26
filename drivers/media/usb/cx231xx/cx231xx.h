@@ -77,6 +77,7 @@
 #define CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx 19
 #define CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx 20
 #define CX231XX_BOARD_HAUPPAUGE_955Q 21
+#define CX231XX_BOARD_TERRATEC_GRABBY 22
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4

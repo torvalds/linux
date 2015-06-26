@@ -133,7 +133,10 @@
 	    <entry>struct timespec</entry>
 	    <entry><structfield>timestamp</structfield></entry>
             <entry></entry>
-	    <entry>Event timestamp.</entry>
+	    <entry>Event timestamp. The timestamp has been taken from the
+	    <constant>CLOCK_MONOTONIC</constant> clock. To access the
+	    same clock outside V4L2, use <function>clock_gettime(2)</function>.
+	    </entry>
 	  </row>
 	  <row>
 	    <entry>u32</entry>

@@ -1305,7 +1305,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
-	v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
+	coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_DONE);
 
 	ctx->gopcounter--;
 	if (ctx->gopcounter < 0)
@@ -1975,7 +1975,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		}
 		vb2_set_plane_payload(dst_buf, 0, payload);
 
-		v4l2_m2m_buf_done(dst_buf, ctx->frame_errors[display_idx] ?
+		coda_m2m_buf_done(ctx, dst_buf, ctx->frame_errors[display_idx] ?
 				  VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 
 		v4l2_dbg(1, coda_debug, &dev->v4l2_dev,

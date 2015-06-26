@@ -12,24 +12,20 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
  *   GNU General Public License for more details.                          *
  *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
 /*    DT3155 header file    */
 #ifndef _DT3155_H_
 #define _DT3155_H_
 
-#ifdef __KERNEL__
-
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-dev.h>
 
 #define DT3155_NAME "dt3155"
-#define DT3155_VER_MAJ 1
-#define DT3155_VER_MIN 1
+#define DT3155_VER_MAJ 2
+#define DT3155_VER_MIN 0
 #define DT3155_VER_EXT 0
 #define DT3155_VERSION  __stringify(DT3155_VER_MAJ)	"."		\
 			__stringify(DT3155_VER_MIN)	"."		\
@@ -78,7 +74,10 @@
 #define AD_NEG_REF   0x02
 
 /* CSR1 bit masks */
+#define RANGE_EN       0x00008000
 #define CRPT_DIS       0x00004000
+#define ADDR_ERR_ODD   0x00000800
+#define ADDR_ERR_EVEN  0x00000400
 #define FLD_CRPT_ODD   0x00000200
 #define FLD_CRPT_EVEN  0x00000100
 #define FIFO_EN        0x00000080
@@ -153,60 +152,45 @@
 /* DT3155 identificator */
 #define DT3155_ID   0x20
 
-#ifdef CONFIG_DT3155_CCIR
-#define DMA_STRIDE 768
-#else
-#define DMA_STRIDE 640
-#endif
-
-/**
- * struct dt3155_stats - statistics structure
- *
- * @free_bufs_empty:	no free image buffers
- * @corrupted_fields:	corrupted fields
- * @dma_map_failed:	dma mapping failed
- * @start_before_end:	new started before old ended
- */
-struct dt3155_stats {
-	int free_bufs_empty;
-	int corrupted_fields;
-	int dma_map_failed;
-	int start_before_end;
-};
-
 /*    per board private data structure   */
 /**
  * struct dt3155_priv - private data structure
  *
+ * @v4l2_dev:		v4l2_device structure
  * @vdev:		video_device structure
  * @pdev:		pointer to pci_dev structure
- * @q			pointer to vb2_queue structure
+ * @vidq:		vb2_queue structure
+ * @alloc_ctx:		dma_contig allocation context
  * @curr_buf:		pointer to curren buffer
  * @mux:		mutex to protect the instance
- * @dmaq		queue for dma buffers
- * @lock		spinlock for dma queue
- * @field_count		fields counter
+ * @dmaq:		queue for dma buffers
+ * @lock:		spinlock for dma queue
+ * @std:		input standard
+ * @width:		frame width
+ * @height:		frame height
+ * @input:		current input
+ * @sequence:		frame counter
  * @stats:		statistics structure
- * @users		open count
  * @regs:		local copy of mmio base register
  * @csr2:		local copy of csr2 register
  * @config:		local copy of config register
  */
 struct dt3155_priv {
+	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
 	struct pci_dev *pdev;
-	struct vb2_queue *q;
+	struct vb2_queue vidq;
+	struct vb2_alloc_ctx *alloc_ctx;
 	struct vb2_buffer *curr_buf;
 	struct mutex mux;
 	struct list_head dmaq;
 	spinlock_t lock;
-	unsigned int field_count;
-	struct dt3155_stats stats;
+	v4l2_std_id std;
+	unsigned width, height;
+	unsigned input;
+	unsigned int sequence;
 	void __iomem *regs;
-	int users;
 	u8 csr2, config;
 };
-
-#endif /*  __KERNEL__  */
 
 #endif /*  _DT3155_H_  */

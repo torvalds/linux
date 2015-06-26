@@ -71,15 +71,10 @@ static int venc_is_second_field(struct vpbe_display *disp_dev)
 static void vpbe_isr_even_field(struct vpbe_display *disp_obj,
 				struct vpbe_layer *layer)
 {
-	struct timespec timevalue;
-
 	if (layer->cur_frm == layer->next_frm)
 		return;
-	ktime_get_ts(&timevalue);
-	layer->cur_frm->vb.v4l2_buf.timestamp.tv_sec =
-		timevalue.tv_sec;
-	layer->cur_frm->vb.v4l2_buf.timestamp.tv_usec =
-		timevalue.tv_nsec / NSEC_PER_USEC;
+
+	v4l2_get_timestamp(&layer->cur_frm->vb.v4l2_buf.timestamp);
 	vb2_buffer_done(&layer->cur_frm->vb, VB2_BUF_STATE_DONE);
 	/* Make cur_frm pointing to next_frm */
 	layer->cur_frm = layer->next_frm;

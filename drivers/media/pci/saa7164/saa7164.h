@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -83,6 +83,9 @@
 #define SAA7164_BOARD_HAUPPAUGE_HVR2250_3	8
 #define SAA7164_BOARD_HAUPPAUGE_HVR2200_4	9
 #define SAA7164_BOARD_HAUPPAUGE_HVR2200_5	10
+#define SAA7164_BOARD_HAUPPAUGE_HVR2255proto	11
+#define SAA7164_BOARD_HAUPPAUGE_HVR2255		12
+#define SAA7164_BOARD_HAUPPAUGE_HVR2205		13
 
 #define SAA7164_MAX_UNITS		8
 #define SAA7164_TS_NUMBER_OF_LINES	312
@@ -371,6 +374,8 @@ struct saa7164_port {
 
 	/* --- DVB Transport Specific --- */
 	struct saa7164_dvb dvb;
+	struct i2c_client *i2c_client_demod;
+	struct i2c_client *i2c_client_tuner;
 
 	/* --- Encoder/V4L related attributes --- */
 	/* Encoder */
@@ -459,6 +464,7 @@ struct saa7164_dev {
 	/* Interrupt status and ack registers */
 	u32 int_status;
 	u32 int_ack;
+	bool msi;
 
 	struct cmd			cmds[SAA_CMD_MAX_MSG_UNITS];
 	struct mutex			lock;

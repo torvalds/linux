@@ -125,7 +125,7 @@ struct sur40_image_header {
 #define VIDEO_PACKET_SIZE  16384
 
 /* polling interval (ms) */
-#define POLL_INTERVAL 10
+#define POLL_INTERVAL 4
 
 /* maximum number of contacts FIXME: this is a guess? */
 #define MAX_CONTACTS 64
@@ -342,7 +342,7 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		 * instead of at the end.
 		 */
 		if (packet_id != header->packet_id)
-			dev_warn(sur40->dev, "packet ID mismatch\n");
+			dev_dbg(sur40->dev, "packet ID mismatch\n");
 
 		packet_blobs = result / sizeof(struct sur40_blob);
 		dev_dbg(sur40->dev, "received %d blobs\n", packet_blobs);
@@ -389,6 +389,8 @@ static void sur40_process_video(struct sur40_state *sur40)
 	list_del(&new_buf->list);
 	spin_unlock(&sur40->qlock);
 
+	dev_dbg(sur40->dev, "buffer acquired\n");
+
 	/* retrieve data via bulk read */
 	result = usb_bulk_msg(sur40->usbdev,
 			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT),
@@ -416,6 +418,8 @@ static void sur40_process_video(struct sur40_state *sur40)
 		goto err_poll;
 	}
 
+	dev_dbg(sur40->dev, "header acquired\n");
+
 	sgt = vb2_dma_sg_plane_desc(&new_buf->vb, 0);
 
 	result = usb_sg_init(&sgr, sur40->usbdev,
@@ -432,11 +436,18 @@ static void sur40_process_video(struct sur40_state *sur40)
 		goto err_poll;
 	}
 
+	dev_dbg(sur40->dev, "image acquired\n");
+
+	/* return error if streaming was stopped in the meantime */
+	if (sur40->sequence == -1)
+		goto err_poll;
+
 	/* mark as finished */
 	v4l2_get_timestamp(&new_buf->vb.v4l2_buf.timestamp);
 	new_buf->vb.v4l2_buf.sequence = sur40->sequence++;
 	new_buf->vb.v4l2_buf.field = V4L2_FIELD_NONE;
 	vb2_buffer_done(&new_buf->vb, VB2_BUF_STATE_DONE);
+	dev_dbg(sur40->dev, "buffer marked done\n");
 	return;
 
 err_poll:
@@ -716,6 +727,7 @@ static int sur40_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void sur40_stop_streaming(struct vb2_queue *vq)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
+	sur40->sequence = -1;
 
 	/* Release all active buffers */
 	return_all_buffers(sur40, VB2_BUF_STATE_ERROR);
@@ -778,6 +790,33 @@ static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 	return 0;
 }
 
+static int sur40_vidioc_enum_framesizes(struct file *file, void *priv,
+					struct v4l2_frmsizeenum *f)
+{
+	if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY))
+		return -EINVAL;
+
+	f->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+	f->discrete.width  = sur40_video_format.width;
+	f->discrete.height = sur40_video_format.height;
+	return 0;
+}
+
+static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
+					    struct v4l2_frmivalenum *f)
+{
+	if ((f->index > 1) || (f->pixel_format != V4L2_PIX_FMT_GREY)
+		|| (f->width  != sur40_video_format.width)
+		|| (f->height != sur40_video_format.height))
+			return -EINVAL;
+
+	f->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	f->discrete.denominator  = 60/(f->index+1);
+	f->discrete.numerator = 1;
+	return 0;
+}
+
+
 static const struct usb_device_id sur40_table[] = {
 	{ USB_DEVICE(ID_MICROSOFT, ID_SUR40) },  /* Samsung SUR40 */
 	{ }                                      /* terminating null entry */
@@ -828,6 +867,9 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap	= sur40_vidioc_fmt,
 	.vidioc_s_fmt_vid_cap	= sur40_vidioc_fmt,
 	.vidioc_g_fmt_vid_cap	= sur40_vidioc_fmt,
+
+	.vidioc_enum_framesizes = sur40_vidioc_enum_framesizes,
+	.vidioc_enum_frameintervals = sur40_vidioc_enum_frameintervals,
 
 	.vidioc_enum_input	= sur40_vidioc_enum_input,
 	.vidioc_g_input		= sur40_vidioc_g_input,
