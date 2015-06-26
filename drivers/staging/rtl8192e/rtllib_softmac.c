@@ -3086,7 +3086,7 @@ static int rtllib_wpa_enable(struct rtllib_device *ieee, int value)
 	 */
 	netdev_info(ieee->dev, "%s WPA\n", value ? "enabling" : "disabling");
 	ieee->wpa_enabled = value;
-	memset(ieee->ap_mac_addr, 0, 6);
+	eth_zero_addr(ieee->ap_mac_addr);
 	return 0;
 }
 
