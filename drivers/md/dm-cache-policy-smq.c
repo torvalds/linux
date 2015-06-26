@@ -1750,7 +1750,7 @@ static struct dm_cache_policy_type smq_policy_type = {
 
 static struct dm_cache_policy_type default_policy_type = {
 	.name = "default",
-	.version = {1, 0, 0},
+	.version = {1, 4, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = smq_create,
