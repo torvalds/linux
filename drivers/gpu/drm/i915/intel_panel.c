@@ -879,6 +879,14 @@ static void i9xx_enable_backlight(struct intel_connector *connector)
 
 	/* XXX: combine this into above write? */
 	intel_panel_actually_set_backlight(connector, panel->backlight.level);
+
+	/*
+	 * Needed to enable backlight on some 855gm models. BLC_HIST_CTL is
+	 * 855gm only, but checking for gen2 is safe, as 855gm is the only gen2
+	 * that has backlight.
+	 */
+	if (IS_GEN2(dev))
+		I915_WRITE(BLC_HIST_CTL, BLM_HISTOGRAM_ENABLE);
 }
 
 static void i965_enable_backlight(struct intel_connector *connector)
