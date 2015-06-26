@@ -1,12 +1,12 @@
 /*
- * i8k.c -- Linux driver for accessing the SMM BIOS on Dell laptops.
+ * dell-smm-hwmon.c -- Linux driver for accessing the SMM BIOS on Dell laptops.
  *
  * Copyright (C) 2001  Massimo Dal Zotto <dz@debian.org>
  *
  * Hwmon integration:
  * Copyright (C) 2011  Jean Delvare <jdelvare@suse.de>
  * Copyright (C) 2013, 2014  Guenter Roeck <linux@roeck-us.net>
- * Copyright (C) 2014  Pali Rohár <pali.rohar@gmail.com>
+ * Copyright (C) 2014, 2015  Pali Rohár <pali.rohar@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -80,8 +80,10 @@ static uint i8k_fan_max = I8K_FAN_HIGH;
 #define I8K_HWMON_HAVE_FAN2	(1 << 5)
 
 MODULE_AUTHOR("Massimo Dal Zotto (dz@debian.org)");
-MODULE_DESCRIPTION("Driver for accessing SMM BIOS on Dell laptops");
+MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
+MODULE_DESCRIPTION("Dell laptop SMM BIOS hwmon driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("i8k");
 
 static bool force;
 module_param(force, bool, 0);
@@ -91,6 +93,7 @@ static bool ignore_dmi;
 module_param(ignore_dmi, bool, 0);
 MODULE_PARM_DESC(ignore_dmi, "Continue probing hardware even if DMI data does not match");
 
+#if IS_ENABLED(CONFIG_I8K)
 static bool restricted;
 module_param(restricted, bool, 0);
 MODULE_PARM_DESC(restricted, "Allow fan control if SYS_ADMIN capability set");
@@ -98,6 +101,7 @@ MODULE_PARM_DESC(restricted, "Allow fan control if SYS_ADMIN capability set");
 static bool power_status;
 module_param(power_status, bool, 0600);
 MODULE_PARM_DESC(power_status, "Report power status in /proc/i8k");
+#endif
 
 static uint fan_mult;
 module_param(fan_mult, uint, 0);
@@ -106,18 +110,6 @@ MODULE_PARM_DESC(fan_mult, "Factor to multiply fan speed with (default: autodete
 static uint fan_max;
 module_param(fan_max, uint, 0);
 MODULE_PARM_DESC(fan_max, "Maximum configurable fan speed (default: autodetect)");
-
-static int i8k_open_fs(struct inode *inode, struct file *file);
-static long i8k_ioctl(struct file *, unsigned int, unsigned long);
-
-static const struct file_operations i8k_fops = {
-	.owner		= THIS_MODULE,
-	.open		= i8k_open_fs,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.unlocked_ioctl	= i8k_ioctl,
-};
 
 struct smm_regs {
 	unsigned int eax;
@@ -216,45 +208,6 @@ out:
 	set_cpus_allowed_ptr(current, old_mask);
 	free_cpumask_var(old_mask);
 	return rc;
-}
-
-/*
- * Read the Fn key status.
- */
-static int i8k_get_fn_status(void)
-{
-	struct smm_regs regs = { .eax = I8K_SMM_FN_STATUS, };
-	int rc;
-
-	rc = i8k_smm(&regs);
-	if (rc < 0)
-		return rc;
-
-	switch ((regs.eax >> I8K_FN_SHIFT) & I8K_FN_MASK) {
-	case I8K_FN_UP:
-		return I8K_VOL_UP;
-	case I8K_FN_DOWN:
-		return I8K_VOL_DOWN;
-	case I8K_FN_MUTE:
-		return I8K_VOL_MUTE;
-	default:
-		return 0;
-	}
-}
-
-/*
- * Read the power status.
- */
-static int i8k_get_power_status(void)
-{
-	struct smm_regs regs = { .eax = I8K_SMM_POWER_STATUS, };
-	int rc;
-
-	rc = i8k_smm(&regs);
-	if (rc < 0)
-		return rc;
-
-	return (regs.eax & 0xff) == I8K_POWER_AC ? I8K_AC : I8K_BATTERY;
 }
 
 /*
@@ -375,6 +328,51 @@ static int i8k_get_dell_signature(int req_fn)
 
 	return regs.eax == 1145651527 && regs.edx == 1145392204 ? 0 : -1;
 }
+
+#if IS_ENABLED(CONFIG_I8K)
+
+/*
+ * Read the Fn key status.
+ */
+static int i8k_get_fn_status(void)
+{
+	struct smm_regs regs = { .eax = I8K_SMM_FN_STATUS, };
+	int rc;
+
+	rc = i8k_smm(&regs);
+	if (rc < 0)
+		return rc;
+
+	switch ((regs.eax >> I8K_FN_SHIFT) & I8K_FN_MASK) {
+	case I8K_FN_UP:
+		return I8K_VOL_UP;
+	case I8K_FN_DOWN:
+		return I8K_VOL_DOWN;
+	case I8K_FN_MUTE:
+		return I8K_VOL_MUTE;
+	default:
+		return 0;
+	}
+}
+
+/*
+ * Read the power status.
+ */
+static int i8k_get_power_status(void)
+{
+	struct smm_regs regs = { .eax = I8K_SMM_POWER_STATUS, };
+	int rc;
+
+	rc = i8k_smm(&regs);
+	if (rc < 0)
+		return rc;
+
+	return (regs.eax & 0xff) == I8K_POWER_AC ? I8K_AC : I8K_BATTERY;
+}
+
+/*
+ * Procfs interface
+ */
 
 static int
 i8k_ioctl_unlocked(struct file *fp, unsigned int cmd, unsigned long arg)
@@ -526,6 +524,37 @@ static int i8k_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, i8k_proc_show, NULL);
 }
 
+static const struct file_operations i8k_fops = {
+	.owner		= THIS_MODULE,
+	.open		= i8k_open_fs,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.unlocked_ioctl	= i8k_ioctl,
+};
+
+static void __init i8k_init_procfs(void)
+{
+	/* Register the proc entry */
+	proc_create("i8k", 0, NULL, &i8k_fops);
+}
+
+static void __exit i8k_exit_procfs(void)
+{
+	remove_proc_entry("i8k", NULL);
+}
+
+#else
+
+static inline void __init i8k_init_procfs(void)
+{
+}
+
+static inline void __exit i8k_exit_procfs(void)
+{
+}
+
+#endif
 
 /*
  * Hwmon interface
@@ -748,8 +777,8 @@ static int __init i8k_init_hwmon(void)
 	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_FAN2;
 
-	i8k_hwmon_dev = hwmon_device_register_with_groups(NULL, "i8k", NULL,
-							  i8k_groups);
+	i8k_hwmon_dev = hwmon_device_register_with_groups(NULL, "dell-smm",
+							  NULL, i8k_groups);
 	if (IS_ERR(i8k_hwmon_dev)) {
 		err = PTR_ERR(i8k_hwmon_dev);
 		i8k_hwmon_dev = NULL;
@@ -974,33 +1003,24 @@ static int __init i8k_probe(void)
 
 static int __init i8k_init(void)
 {
-	struct proc_dir_entry *proc_i8k;
 	int err;
 
 	/* Are we running on an supported laptop? */
 	if (i8k_probe())
 		return -ENODEV;
 
-	/* Register the proc entry */
-	proc_i8k = proc_create("i8k", 0, NULL, &i8k_fops);
-	if (!proc_i8k)
-		return -ENOENT;
-
 	err = i8k_init_hwmon();
 	if (err)
-		goto exit_remove_proc;
+		return err;
 
+	i8k_init_procfs();
 	return 0;
-
- exit_remove_proc:
-	remove_proc_entry("i8k", NULL);
-	return err;
 }
 
 static void __exit i8k_exit(void)
 {
 	hwmon_device_unregister(i8k_hwmon_dev);
-	remove_proc_entry("i8k", NULL);
+	i8k_exit_procfs();
 }
 
 module_init(i8k_init);

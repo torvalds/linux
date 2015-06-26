@@ -232,6 +232,7 @@ static int pt_identify(struct pt_unit *tape);
 static struct pt_unit pt[PT_UNITS];
 
 static char pt_scratch[512];	/* scratch block buffer */
+static void *par_drv;		/* reference of parport driver */
 
 /* kernel glue structures */
 
@@ -605,6 +606,12 @@ static int pt_detect(void)
 
 	printk("%s: %s version %s, major %d\n", name, name, PT_VERSION, major);
 
+	par_drv = pi_register_driver(name);
+	if (!par_drv) {
+		pr_err("failed to register %s driver\n", name);
+		return -1;
+	}
+
 	specified = 0;
 	for (unit = 0; unit < PT_UNITS; unit++) {
 		struct pt_unit *tape = &pt[unit];
@@ -644,6 +651,7 @@ static int pt_detect(void)
 	if (found)
 		return 0;
 
+	pi_unregister_driver(par_drv);
 	printk("%s: No ATAPI tape drive detected\n", name);
 	return -1;
 }

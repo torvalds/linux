@@ -2190,6 +2190,8 @@ static struct notifier_block panel_notifier = {
 
 static void panel_attach(struct parport *port)
 {
+	struct pardev_cb panel_cb;
+
 	if (port->number != parport)
 		return;
 
@@ -2199,10 +2201,11 @@ static void panel_attach(struct parport *port)
 		return;
 	}
 
-	pprt = parport_register_device(port, "panel", NULL, NULL,  /* pf, kf */
-				       NULL,
-				       /*PARPORT_DEV_EXCL */
-				       0, (void *)&pprt);
+	memset(&panel_cb, 0, sizeof(panel_cb));
+	panel_cb.private = &pprt;
+	/* panel_cb.flags = 0 should be PARPORT_DEV_EXCL? */
+
+	pprt = parport_register_dev_model(port, "panel", &panel_cb, 0);
 	if (pprt == NULL) {
 		pr_err("%s: port->number=%d parport=%d, parport_register_device() failed\n",
 		       __func__, port->number, parport);
@@ -2270,8 +2273,9 @@ static void panel_detach(struct parport *port)
 
 static struct parport_driver panel_driver = {
 	.name = "panel",
-	.attach = panel_attach,
+	.match_port = panel_attach,
 	.detach = panel_detach,
+	.devmodel = true,
 };
 
 /* init function */

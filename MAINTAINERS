@@ -732,7 +732,7 @@ ANDROID DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	Arve Hjønnevåg <arve@android.com>
 M:	Riley Andrews <riandrews@android.com>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/gregkh/staging.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging.git
 L:	devel@driverdev.osuosl.org
 S:	Supported
 F:	drivers/android/
@@ -3207,9 +3207,9 @@ S:	Maintained
 F:	drivers/platform/x86/dell-smo8800.c
 
 DELL LAPTOP SMM DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
+M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
-F:	drivers/char/i8k.c
+F:	drivers/hwmon/dell-smm-hwmon.c
 F:	include/uapi/linux/i8k.h
 
 DELL SYSTEMS MANAGEMENT BASE DRIVER (dcdbas)
@@ -5444,6 +5444,7 @@ M:	Tomas Winkler <tomas.winkler@intel.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	include/uapi/linux/mei.h
+F:	include/linux/mei_cl_bus.h
 F:	drivers/misc/mei/*
 F:	Documentation/misc-devices/mei/*
 
@@ -7572,13 +7573,16 @@ S:	Maintained
 F:	Documentation/mn10300/
 F:	arch/mn10300/
 
-PARALLEL PORT SUPPORT
+PARALLEL PORT SUBSYSTEM
+M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+M:	Sudip Mukherjee <sudip@vectorindia.org>
 L:	linux-parport@lists.infradead.org (subscribers-only)
-S:	Orphan
+S:	Maintained
 F:	drivers/parport/
 F:	include/linux/parport*.h
 F:	drivers/char/ppdev.c
 F:	include/uapi/linux/ppdev.h
+F:	Documentation/parport*.txt
 
 PARAVIRT_OPS INTERFACE
 M:	Jeremy Fitzhardinge <jeremy@goop.org>

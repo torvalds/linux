@@ -282,7 +282,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		return -EIO;
 
 	/* Null reads or writes succeeds */
-	if (unlikely(bufflen) == 0)
+	if (unlikely(bufflen == 0))
 		return 0;
 
 	/* Check the buffer range for access */
