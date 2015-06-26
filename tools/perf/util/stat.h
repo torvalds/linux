@@ -30,6 +30,7 @@ enum aggr_mode {
 	AGGR_GLOBAL,
 	AGGR_SOCKET,
 	AGGR_CORE,
+	AGGR_THREAD,
 };
 
 struct perf_counts_values {
