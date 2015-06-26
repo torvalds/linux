@@ -166,6 +166,18 @@ htable_bits(u32 hashsize)
 
 #endif /* _IP_SET_HASH_GEN_H */
 
+#ifndef MTYPE
+#error "MTYPE is not defined!"
+#endif
+
+#ifndef HTYPE
+#error "HTYPE is not defined!"
+#endif
+
+#ifndef HOST_MASK
+#error "HOST_MASK is not defined!"
+#endif
+
 /* Family dependent templates */
 
 #undef ahash_data
@@ -189,7 +201,6 @@ htable_bits(u32 hashsize)
 #undef mtype_same_set
 #undef mtype_kadt
 #undef mtype_uadt
-#undef mtype
 
 #undef mtype_add
 #undef mtype_del
@@ -205,6 +216,7 @@ htable_bits(u32 hashsize)
 #undef mtype_variant
 #undef mtype_data_match
 
+#undef htype
 #undef HKEY
 
 #define mtype_data_equal	IPSET_TOKEN(MTYPE, _data_equal)
@@ -231,7 +243,6 @@ htable_bits(u32 hashsize)
 #define mtype_same_set		IPSET_TOKEN(MTYPE, _same_set)
 #define mtype_kadt		IPSET_TOKEN(MTYPE, _kadt)
 #define mtype_uadt		IPSET_TOKEN(MTYPE, _uadt)
-#define mtype			MTYPE
 
 #define mtype_add		IPSET_TOKEN(MTYPE, _add)
 #define mtype_del		IPSET_TOKEN(MTYPE, _del)
@@ -247,17 +258,11 @@ htable_bits(u32 hashsize)
 #define mtype_variant		IPSET_TOKEN(MTYPE, _variant)
 #define mtype_data_match	IPSET_TOKEN(MTYPE, _data_match)
 
-#ifndef MTYPE
-#error "MTYPE is not defined!"
-#endif
-
-#ifndef HOST_MASK
-#error "HOST_MASK is not defined!"
-#endif
-
 #ifndef HKEY_DATALEN
 #define HKEY_DATALEN		sizeof(struct mtype_elem)
 #endif
+
+#define htype			MTYPE
 
 #define HKEY(data, initval, htable_bits)			\
 ({								\
@@ -269,33 +274,26 @@ htable_bits(u32 hashsize)
 	jhash2(__k, __l, initval) & jhash_mask(htable_bits);	\
 })
 
-#ifndef htype
-#ifndef HTYPE
-#error "HTYPE is not defined!"
-#endif /* HTYPE */
-#define htype			HTYPE
-
 /* The generic hash structure */
 struct htype {
 	struct htable __rcu *table; /* the hash table */
+	struct timer_list gc;	/* garbage collection when timeout enabled */
 	u32 maxelem;		/* max elements in the hash */
 	u32 initval;		/* random jhash init value */
 #ifdef IP_SET_HASH_WITH_MARKMASK
 	u32 markmask;		/* markmask value for mark mask to store */
 #endif
-	struct timer_list gc;	/* garbage collection when timeout enabled */
-	struct mtype_elem next; /* temporary storage for uadd */
 #ifdef IP_SET_HASH_WITH_MULTI
 	u8 ahash_max;		/* max elements in an array block */
 #endif
 #ifdef IP_SET_HASH_WITH_NETMASK
 	u8 netmask;		/* netmask value for subnets to store */
 #endif
+	struct mtype_elem next; /* temporary storage for uadd */
 #ifdef IP_SET_HASH_WITH_NETS
-	struct net_prefixes nets[0]; /* book-keeping of prefixes */
+	struct net_prefixes nets[NLEN]; /* book-keeping of prefixes */
 #endif
 };
-#endif /* htype */
 
 #ifdef IP_SET_HASH_WITH_NETS
 /* Network cidr size book keeping when the hash stores different
@@ -348,13 +346,7 @@ mtype_del_cidr(struct htype *h, u8 cidr, u8 n)
 static size_t
 mtype_ahash_memsize(const struct htype *h, const struct htable *t)
 {
-	size_t memsize = sizeof(*h) + sizeof(*t);
-
-#ifdef IP_SET_HASH_WITH_NETS
-	memsize += sizeof(struct net_prefixes) * NLEN;
-#endif
-
-	return memsize;
+	return sizeof(*h) + sizeof(*t);
 }
 
 /* Get the ith element from the array block n */
@@ -392,7 +384,7 @@ mtype_flush(struct ip_set *set)
 		kfree_rcu(n, rcu);
 	}
 #ifdef IP_SET_HASH_WITH_NETS
-	memset(h->nets, 0, sizeof(struct net_prefixes) * NLEN);
+	memset(h->nets, 0, sizeof(h->nets));
 #endif
 	set->elements = 0;
 	set->ext_size = 0;
@@ -1290,9 +1282,6 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 		maxelem = ip_set_get_h32(tb[IPSET_ATTR_MAXELEM]);
 
 	hsize = sizeof(*h);
-#ifdef IP_SET_HASH_WITH_NETS
-	hsize += sizeof(struct net_prefixes) * NLEN;
-#endif
 	h = kzalloc(hsize, GFP_KERNEL);
 	if (!h)
 		return -ENOMEM;
