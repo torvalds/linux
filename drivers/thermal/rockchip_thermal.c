@@ -750,6 +750,7 @@ int rockchip_tsadc_get_temp(int chn, int voltage)
 		code_temp = (tsadc_data * voltage + 500000) / 1000000;
 		temp = rk_tsadcv3_code_to_temp(code_temp) / 1000;
 		temp = temp - thermal->cpu_temp_adjust;
+		thermal->cpu_temp = temp;
 		if(thermal->logout)
 			printk("cpu temp:[%d], voltage: %d\n"
 				, temp, voltage);
