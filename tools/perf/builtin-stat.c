@@ -218,7 +218,7 @@ static void perf_stat__reset_stats(struct perf_evlist *evlist)
 
 	evlist__for_each(evlist, evsel) {
 		perf_evsel__reset_stat_priv(evsel);
-		perf_evsel__reset_counts(evsel, perf_evsel__nr_cpus(evsel));
+		perf_evsel__reset_counts(evsel);
 	}
 
 	perf_stat__reset_shadow_stats();

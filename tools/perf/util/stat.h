@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <stdio.h>
+#include "xyarray.h"
 
 struct stats
 {
@@ -45,13 +46,13 @@ struct perf_counts_values {
 struct perf_counts {
 	s8			  scaled;
 	struct perf_counts_values aggr;
-	struct perf_counts_values cpu[];
+	struct xyarray		  *cpu;
 };
 
 static inline struct perf_counts_values*
 perf_counts(struct perf_counts *counts, int cpu)
 {
-	return &counts->cpu[cpu];
+	return xyarray__entry(counts->cpu, cpu, 0);
 }
 
 void update_stats(struct stats *stats, u64 val);
@@ -88,7 +89,7 @@ void perf_stat__print_shadow_stats(FILE *out, struct perf_evsel *evsel,
 struct perf_counts *perf_counts__new(int ncpus);
 void perf_counts__delete(struct perf_counts *counts);
 
-void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus);
+void perf_evsel__reset_counts(struct perf_evsel *evsel);
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus);
 void perf_evsel__free_counts(struct perf_evsel *evsel);
 #endif
