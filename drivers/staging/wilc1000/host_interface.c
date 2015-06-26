@@ -3688,7 +3688,7 @@ static void Handle_DelAllSta(void *drvHandler, tstrHostIFDelAllSta *pstrDelAllSt
 	s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
 	if (s32Error) {
 
-		PRINT_ER("Failed to send add station config packe\n");
+		PRINT_ER("Failed to send add station config packet\n");
 		WILC_ERRORREPORT(s32Error, WILC_FAIL);
 	}
 
@@ -3735,7 +3735,7 @@ static void Handle_DelStation(void *drvHandler, tstrHostIFDelSta *pstrDelStaPara
 	s32Error = SendConfigPkt(SET_CFG, &strWID, 1, false, (u32)pstrWFIDrv);
 	if (s32Error) {
 
-		PRINT_ER("Failed to send add station config packe\n");
+		PRINT_ER("Failed to send add station config packet\n");
 		WILC_ERRORREPORT(s32Error, WILC_FAIL);
 	}
 
