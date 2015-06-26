@@ -298,30 +298,31 @@ static void vmw_print_capabilities(uint32_t capabilities)
 static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 {
 	int ret;
-	struct ttm_buffer_object *bo;
+	struct vmw_dma_buffer *vbo;
 	struct ttm_bo_kmap_obj map;
 	volatile SVGA3dQueryResult *result;
 	bool dummy;
 
 	/*
-	 * Create the bo as pinned, so that a tryreserve will
+	 * Create the vbo as pinned, so that a tryreserve will
 	 * immediately succeed. This is because we're the only
 	 * user of the bo currently.
 	 */
-	ret = ttm_bo_create(&dev_priv->bdev,
-			    PAGE_SIZE,
-			    ttm_bo_type_device,
-			    &vmw_sys_ne_placement,
-			    0, false, NULL,
-			    &bo);
+	vbo = kzalloc(sizeof(*vbo), GFP_KERNEL);
+	if (!vbo)
+		return -ENOMEM;
 
+	ret = vmw_dmabuf_init(dev_priv, vbo, PAGE_SIZE,
+			      &vmw_sys_ne_placement, false,
+			      &vmw_dmabuf_bo_free);
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_reserve(bo, false, true, false, NULL);
+	ret = ttm_bo_reserve(&vbo->base, false, true, false, NULL);
 	BUG_ON(ret != 0);
+	vmw_bo_pin_reserved(vbo, true);
 
-	ret = ttm_bo_kmap(bo, 0, 1, &map);
+	ret = ttm_bo_kmap(&vbo->base, 0, 1, &map);
 	if (likely(ret == 0)) {
 		result = ttm_kmap_obj_virtual(&map, &dummy);
 		result->totalSize = sizeof(*result);
@@ -329,14 +330,14 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 		result->result32 = 0xff;
 		ttm_bo_kunmap(&map);
 	}
-	vmw_bo_pin(bo, false);
-	ttm_bo_unreserve(bo);
+	vmw_bo_pin_reserved(vbo, false);
+	ttm_bo_unreserve(&vbo->base);
 
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Dummy query buffer map failed.\n");
-		ttm_bo_unref(&bo);
+		vmw_dmabuf_unreference(&vbo);
 	} else
-		dev_priv->dummy_query_bo = bo;
+		dev_priv->dummy_query_bo = vbo;
 
 	return ret;
 }
@@ -434,7 +435,7 @@ static void vmw_release_device_early(struct vmw_private *dev_priv)
 
 	BUG_ON(dev_priv->pinned_bo != NULL);
 
-	ttm_bo_unref(&dev_priv->dummy_query_bo);
+	vmw_dmabuf_unreference(&dev_priv->dummy_query_bo);
 	if (dev_priv->cman)
 		vmw_cmdbuf_remove_pool(dev_priv->cman);
 

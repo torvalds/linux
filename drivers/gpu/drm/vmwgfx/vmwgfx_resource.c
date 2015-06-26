@@ -1596,25 +1596,29 @@ int vmw_resource_pin(struct vmw_resource *res)
 		goto out_no_reserve;
 
 	if (res->pin_count == 0) {
-		struct ttm_buffer_object *bo = NULL;
+		struct vmw_dma_buffer *vbo = NULL;
 
 		if (res->backup) {
-			bo = &res->backup->base;
+			vbo = res->backup;
 
-			ttm_bo_reserve(bo, false, false, false, NULL);
-			ret = ttm_bo_validate(bo, res->func->backup_placement,
-					      false, false);
-			if (ret) {
-				ttm_bo_unreserve(bo);
-				goto out_no_validate;
+			ttm_bo_reserve(&vbo->base, false, false, false, NULL);
+			if (!vbo->pin_count) {
+				ret = ttm_bo_validate
+					(&vbo->base,
+					 res->func->backup_placement,
+					 false, false);
+				if (ret) {
+					ttm_bo_unreserve(&vbo->base);
+					goto out_no_validate;
+				}
 			}
 
 			/* Do we really need to pin the MOB as well? */
-			vmw_bo_pin(bo, true);
+			vmw_bo_pin_reserved(vbo, true);
 		}
 		ret = vmw_resource_validate(res);
-		if (bo)
-			ttm_bo_unreserve(bo);
+		if (vbo)
+			ttm_bo_unreserve(&vbo->base);
 		if (ret)
 			goto out_no_validate;
 	}
@@ -1650,11 +1654,11 @@ void vmw_resource_unpin(struct vmw_resource *res)
 
 	WARN_ON(res->pin_count == 0);
 	if (--res->pin_count == 0 && res->backup) {
-		struct ttm_buffer_object *bo = &res->backup->base;
+		struct vmw_dma_buffer *vbo = res->backup;
 
-		ttm_bo_reserve(bo, false, false, false, NULL);
-		vmw_bo_pin(bo, false);
-		ttm_bo_unreserve(bo);
+		ttm_bo_reserve(&vbo->base, false, false, false, NULL);
+		vmw_bo_pin_reserved(vbo, false);
+		ttm_bo_unreserve(&vbo->base);
 	}
 
 	vmw_resource_unreserve(res, NULL, 0UL);

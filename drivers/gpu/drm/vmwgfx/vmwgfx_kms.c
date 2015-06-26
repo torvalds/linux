@@ -678,7 +678,7 @@ static int vmw_framebuffer_dmabuf_pin(struct vmw_framebuffer *vfb)
 
 	vmw_overlay_pause_all(dev_priv);
 
-	ret = vmw_dmabuf_to_start_of_vram(dev_priv, vfbd->buffer, true, false);
+	ret = vmw_dmabuf_pin_in_start_of_vram(dev_priv, vfbd->buffer, false);
 
 	vmw_overlay_resume_all(dev_priv);
 

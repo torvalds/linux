@@ -85,6 +85,7 @@ struct vmw_fpriv {
 struct vmw_dma_buffer {
 	struct ttm_buffer_object base;
 	struct list_head res_list;
+	s32 pin_count;
 };
 
 /**
@@ -358,7 +359,7 @@ struct vmw_sw_context{
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
 	struct list_head resource_list;
-	struct ttm_buffer_object *cur_query_bo;
+	struct vmw_dma_buffer *cur_query_bo;
 	struct list_head res_relocations;
 	uint32_t *buf_start;
 	struct vmw_res_cache_entry res_cache[vmw_res_max];
@@ -533,8 +534,8 @@ struct vmw_private {
 	 * are protected by the cmdbuf mutex.
 	 */
 
-	struct ttm_buffer_object *dummy_query_bo;
-	struct ttm_buffer_object *pinned_bo;
+	struct vmw_dma_buffer *dummy_query_bo;
+	struct vmw_dma_buffer *pinned_bo;
 	uint32_t query_cid;
 	uint32_t query_cid_valid;
 	bool dummy_query_bo_pinned;
@@ -700,25 +701,25 @@ extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 /**
  * DMA buffer helper routines - vmwgfx_dmabuf.c
  */
-extern int vmw_dmabuf_to_placement(struct vmw_private *vmw_priv,
-				   struct vmw_dma_buffer *bo,
-				   struct ttm_placement *placement,
-				   bool interruptible);
-extern int vmw_dmabuf_to_vram(struct vmw_private *dev_priv,
-			      struct vmw_dma_buffer *buf,
-			      bool pin, bool interruptible);
-extern int vmw_dmabuf_to_vram_or_gmr(struct vmw_private *dev_priv,
-				     struct vmw_dma_buffer *buf,
-				     bool pin, bool interruptible);
-extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
+extern int vmw_dmabuf_pin_in_placement(struct vmw_private *vmw_priv,
 				       struct vmw_dma_buffer *bo,
-				       bool pin, bool interruptible);
+				       struct ttm_placement *placement,
+				       bool interruptible);
+extern int vmw_dmabuf_pin_in_vram(struct vmw_private *dev_priv,
+				  struct vmw_dma_buffer *buf,
+				  bool interruptible);
+extern int vmw_dmabuf_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
+					 struct vmw_dma_buffer *buf,
+					 bool interruptible);
+extern int vmw_dmabuf_pin_in_start_of_vram(struct vmw_private *vmw_priv,
+					   struct vmw_dma_buffer *bo,
+					   bool interruptible);
 extern int vmw_dmabuf_unpin(struct vmw_private *vmw_priv,
 			    struct vmw_dma_buffer *bo,
 			    bool interruptible);
 extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
 				 SVGAGuestPtr *ptr);
-extern void vmw_bo_pin(struct ttm_buffer_object *bo, bool pin);
+extern void vmw_bo_pin_reserved(struct vmw_dma_buffer *bo, bool pin);
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c

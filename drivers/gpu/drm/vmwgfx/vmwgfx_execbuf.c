@@ -308,7 +308,7 @@ static int vmw_cmd_ok(struct vmw_private *dev_priv,
  * submission is reached.
  */
 static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
-				   struct ttm_buffer_object *bo,
+				   struct vmw_dma_buffer *vbo,
 				   bool validate_as_mob,
 				   uint32_t *p_val_node)
 {
@@ -318,7 +318,7 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 	struct drm_hash_item *hash;
 	int ret;
 
-	if (likely(drm_ht_find_item(&sw_context->res_ht, (unsigned long) bo,
+	if (likely(drm_ht_find_item(&sw_context->res_ht, (unsigned long) vbo,
 				    &hash) == 0)) {
 		vval_buf = container_of(hash, struct vmw_validate_buffer,
 					hash);
@@ -336,7 +336,7 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 			return -EINVAL;
 		}
 		vval_buf = &sw_context->val_bufs[val_node];
-		vval_buf->hash.key = (unsigned long) bo;
+		vval_buf->hash.key = (unsigned long) vbo;
 		ret = drm_ht_insert_item(&sw_context->res_ht, &vval_buf->hash);
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Failed to initialize a buffer validation "
@@ -345,7 +345,7 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 		}
 		++sw_context->cur_val_buf;
 		val_buf = &vval_buf->base;
-		val_buf->bo = ttm_bo_reference(bo);
+		val_buf->bo = ttm_bo_reference(&vbo->base);
 		val_buf->shared = false;
 		list_add_tail(&val_buf->head, &sw_context->validate_nodes);
 		vval_buf->validate_as_mob = validate_as_mob;
@@ -380,10 +380,10 @@ static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
 			return ret;
 
 		if (res->backup) {
-			struct ttm_buffer_object *bo = &res->backup->base;
+			struct vmw_dma_buffer *vbo = res->backup;
 
 			ret = vmw_bo_to_validate_list
-				(sw_context, bo,
+				(sw_context, vbo,
 				 vmw_resource_needs_backup(res), NULL);
 
 			if (unlikely(ret != 0))
@@ -759,7 +759,7 @@ static int vmw_cmd_present_check(struct vmw_private *dev_priv,
  * command batch.
  */
 static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
-				       struct ttm_buffer_object *new_query_bo,
+				       struct vmw_dma_buffer *new_query_bo,
 				       struct vmw_sw_context *sw_context)
 {
 	struct vmw_res_cache_entry *ctx_entry =
@@ -771,7 +771,7 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
 
 	if (unlikely(new_query_bo != sw_context->cur_query_bo)) {
 
-		if (unlikely(new_query_bo->num_pages > 4)) {
+		if (unlikely(new_query_bo->base.num_pages > 4)) {
 			DRM_ERROR("Query buffer too large.\n");
 			return -EINVAL;
 		}
@@ -840,12 +840,12 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 
 	if (dev_priv->pinned_bo != sw_context->cur_query_bo) {
 		if (dev_priv->pinned_bo) {
-			vmw_bo_pin(dev_priv->pinned_bo, false);
-			ttm_bo_unref(&dev_priv->pinned_bo);
+			vmw_bo_pin_reserved(dev_priv->pinned_bo, false);
+			vmw_dmabuf_unreference(&dev_priv->pinned_bo);
 		}
 
 		if (!sw_context->needs_post_query_barrier) {
-			vmw_bo_pin(sw_context->cur_query_bo, true);
+			vmw_bo_pin_reserved(sw_context->cur_query_bo, true);
 
 			/*
 			 * We pin also the dummy_query_bo buffer so that we
@@ -853,14 +853,17 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 			 * dummy queries in context destroy paths.
 			 */
 
-			vmw_bo_pin(dev_priv->dummy_query_bo, true);
-			dev_priv->dummy_query_bo_pinned = true;
+			if (!dev_priv->dummy_query_bo_pinned) {
+				vmw_bo_pin_reserved(dev_priv->dummy_query_bo,
+						    true);
+				dev_priv->dummy_query_bo_pinned = true;
+			}
 
 			BUG_ON(sw_context->last_query_ctx == NULL);
 			dev_priv->query_cid = sw_context->last_query_ctx->id;
 			dev_priv->query_cid_valid = true;
 			dev_priv->pinned_bo =
-				ttm_bo_reference(sw_context->cur_query_bo);
+				vmw_dmabuf_reference(sw_context->cur_query_bo);
 		}
 	}
 }
@@ -889,7 +892,6 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 				 struct vmw_dma_buffer **vmw_bo_p)
 {
 	struct vmw_dma_buffer *vmw_bo = NULL;
-	struct ttm_buffer_object *bo;
 	uint32_t handle = *id;
 	struct vmw_relocation *reloc;
 	int ret;
@@ -900,7 +902,6 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 		ret = -EINVAL;
 		goto out_no_reloc;
 	}
-	bo = &vmw_bo->base;
 
 	if (unlikely(sw_context->cur_reloc >= VMWGFX_MAX_RELOCATIONS)) {
 		DRM_ERROR("Max number relocations per submission"
@@ -913,7 +914,7 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 	reloc->mob_loc = id;
 	reloc->location = NULL;
 
-	ret = vmw_bo_to_validate_list(sw_context, bo, true, &reloc->index);
+	ret = vmw_bo_to_validate_list(sw_context, vmw_bo, true, &reloc->index);
 	if (unlikely(ret != 0))
 		goto out_no_reloc;
 
@@ -951,7 +952,6 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 				   struct vmw_dma_buffer **vmw_bo_p)
 {
 	struct vmw_dma_buffer *vmw_bo = NULL;
-	struct ttm_buffer_object *bo;
 	uint32_t handle = ptr->gmrId;
 	struct vmw_relocation *reloc;
 	int ret;
@@ -962,7 +962,6 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 		ret = -EINVAL;
 		goto out_no_reloc;
 	}
-	bo = &vmw_bo->base;
 
 	if (unlikely(sw_context->cur_reloc >= VMWGFX_MAX_RELOCATIONS)) {
 		DRM_ERROR("Max number relocations per submission"
@@ -974,7 +973,7 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	reloc = &sw_context->relocs[sw_context->cur_reloc++];
 	reloc->location = ptr;
 
-	ret = vmw_bo_to_validate_list(sw_context, bo, false, &reloc->index);
+	ret = vmw_bo_to_validate_list(sw_context, vmw_bo, false, &reloc->index);
 	if (unlikely(ret != 0))
 		goto out_no_reloc;
 
@@ -1081,7 +1080,7 @@ static int vmw_cmd_end_gb_query(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = vmw_query_bo_switch_prepare(dev_priv, &vmw_bo->base, sw_context);
+	ret = vmw_query_bo_switch_prepare(dev_priv, vmw_bo, sw_context);
 
 	vmw_dmabuf_unreference(&vmw_bo);
 	return ret;
@@ -1135,7 +1134,7 @@ static int vmw_cmd_end_query(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = vmw_query_bo_switch_prepare(dev_priv, &vmw_bo->base, sw_context);
+	ret = vmw_query_bo_switch_prepare(dev_priv, vmw_bo, sw_context);
 
 	vmw_dmabuf_unreference(&vmw_bo);
 	return ret;
@@ -2239,16 +2238,11 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 				      struct ttm_buffer_object *bo,
 				      bool validate_as_mob)
 {
+	struct vmw_dma_buffer *vbo = container_of(bo, struct vmw_dma_buffer,
+						  base);
 	int ret;
 
-
-	/*
-	 * Don't validate pinned buffers.
-	 */
-
-	if (bo == dev_priv->pinned_bo ||
-	    (bo == dev_priv->dummy_query_bo &&
-	     dev_priv->dummy_query_bo_pinned))
+	if (vbo->pin_count > 0)
 		return 0;
 
 	if (validate_as_mob)
@@ -2767,9 +2761,11 @@ static void vmw_execbuf_unpin_panic(struct vmw_private *dev_priv)
 	DRM_ERROR("Can't unpin query buffer. Trying to recover.\n");
 
 	(void) vmw_fallback_wait(dev_priv, false, true, 0, false, 10*HZ);
-	vmw_bo_pin(dev_priv->pinned_bo, false);
-	vmw_bo_pin(dev_priv->dummy_query_bo, false);
-	dev_priv->dummy_query_bo_pinned = false;
+	vmw_bo_pin_reserved(dev_priv->pinned_bo, false);
+	if (dev_priv->dummy_query_bo_pinned) {
+		vmw_bo_pin_reserved(dev_priv->dummy_query_bo, false);
+		dev_priv->dummy_query_bo_pinned = false;
+	}
 }
 
 
@@ -2811,11 +2807,11 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 
 	INIT_LIST_HEAD(&validate_list);
 
-	pinned_val.bo = ttm_bo_reference(dev_priv->pinned_bo);
+	pinned_val.bo = ttm_bo_reference(&dev_priv->pinned_bo->base);
 	pinned_val.shared = false;
 	list_add_tail(&pinned_val.head, &validate_list);
 
-	query_val.bo = ttm_bo_reference(dev_priv->dummy_query_bo);
+	query_val.bo = ttm_bo_reference(&dev_priv->dummy_query_bo->base);
 	query_val.shared = false;
 	list_add_tail(&query_val.head, &validate_list);
 
@@ -2836,10 +2832,11 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 		dev_priv->query_cid_valid = false;
 	}
 
-	vmw_bo_pin(dev_priv->pinned_bo, false);
-	vmw_bo_pin(dev_priv->dummy_query_bo, false);
-	dev_priv->dummy_query_bo_pinned = false;
-
+	vmw_bo_pin_reserved(dev_priv->pinned_bo, false);
+	if (dev_priv->dummy_query_bo_pinned) {
+		vmw_bo_pin_reserved(dev_priv->dummy_query_bo, false);
+		dev_priv->dummy_query_bo_pinned = false;
+	}
 	if (fence == NULL) {
 		(void) vmw_execbuf_fence_commands(NULL, dev_priv, &lfence,
 						  NULL);
@@ -2851,7 +2848,9 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 
 	ttm_bo_unref(&query_val.bo);
 	ttm_bo_unref(&pinned_val.bo);
-	ttm_bo_unref(&dev_priv->pinned_bo);
+	vmw_dmabuf_unreference(&dev_priv->pinned_bo);
+	DRM_INFO("Dummy query bo pin count: %d\n",
+		 dev_priv->dummy_query_bo->pin_count);
 
 out_unlock:
 	return;
@@ -2861,7 +2860,7 @@ out_no_emit:
 out_no_reserve:
 	ttm_bo_unref(&query_val.bo);
 	ttm_bo_unref(&pinned_val.bo);
-	ttm_bo_unref(&dev_priv->pinned_bo);
+	vmw_dmabuf_unreference(&dev_priv->pinned_bo);
 }
 
 /**

@@ -636,7 +636,7 @@ int vmw_fb_on(struct vmw_private *vmw_priv)
 	/* Make sure that all overlays are stoped when we take over */
 	vmw_overlay_stop_all(vmw_priv);
 
-	ret = vmw_dmabuf_to_start_of_vram(vmw_priv, par->vmw_bo, true, false);
+	ret = vmw_dmabuf_pin_in_start_of_vram(vmw_priv, par->vmw_bo, false);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("could not move buffer to start of VRAM\n");
 		goto err_no_buffer;

@@ -232,9 +232,9 @@ static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
 		return vmw_dmabuf_unpin(dev_priv, buf, inter);
 
 	if (dev_priv->active_display_unit == vmw_du_legacy)
-		return vmw_dmabuf_to_vram(dev_priv, buf, true, inter);
+		return vmw_dmabuf_pin_in_vram(dev_priv, buf, inter);
 
-	return vmw_dmabuf_to_vram_or_gmr(dev_priv, buf, true, inter);
+	return vmw_dmabuf_pin_in_vram_or_gmr(dev_priv, buf, inter);
 }
 
 /**
