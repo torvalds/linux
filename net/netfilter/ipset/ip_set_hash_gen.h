@@ -260,8 +260,14 @@ htable_bits(u32 hashsize)
 #endif
 
 #define HKEY(data, initval, htable_bits)			\
-(jhash2((u32 *)(data), HKEY_DATALEN / sizeof(u32), initval)	\
-	& jhash_mask(htable_bits))
+({								\
+	const u32 *__k = (const u32 *)data;			\
+	u32 __l = HKEY_DATALEN / sizeof(u32);			\
+								\
+	BUILD_BUG_ON(HKEY_DATALEN % sizeof(u32) != 0);		\
+								\
+	jhash2(__k, __l, initval) & jhash_mask(htable_bits);	\
+})
 
 #ifndef htype
 #ifndef HTYPE
