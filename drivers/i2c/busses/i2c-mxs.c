@@ -784,7 +784,7 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	return 0;
 }
 
-static struct platform_device_id mxs_i2c_devtype[] = {
+static const struct platform_device_id mxs_i2c_devtype[] = {
 	{
 		.name = "imx23-i2c",
 		.driver_data = MXS_I2C_V1,

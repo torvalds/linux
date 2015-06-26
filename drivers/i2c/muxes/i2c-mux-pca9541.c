@@ -104,7 +104,7 @@ static int pca9541_reg_write(struct i2c_client *client, u8 command, u8 val)
 		buf[0] = command;
 		buf[1] = val;
 		msg.buf = buf;
-		ret = adap->algo->master_xfer(adap, &msg, 1);
+		ret = __i2c_transfer(adap, &msg, 1);
 	} else {
 		union i2c_smbus_data data;
 
@@ -144,7 +144,7 @@ static int pca9541_reg_read(struct i2c_client *client, u8 command)
 				.buf = &val
 			}
 		};
-		ret = adap->algo->master_xfer(adap, msg, 2);
+		ret = __i2c_transfer(adap, msg, 2);
 		if (ret == 2)
 			ret = val;
 		else if (ret >= 0)

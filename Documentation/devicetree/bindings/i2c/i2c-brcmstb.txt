@@ -1,0 +1,28 @@
+Broadcom stb bsc iic master controller
+
+Required properties:
+
+- compatible: should be "brcm,brcmstb-i2c"
+- clock-frequency: 32-bit decimal value of iic master clock freqency in Hz
+		   valid values are 375000, 390000, 187500, 200000
+		   93750, 97500, 46875 and 50000
+- reg: specifies the base physical address and size of the registers
+
+Optional properties :
+
+- interrupt-parent: specifies the phandle to the parent interrupt controller
+  this one is cascaded from
+- interrupts: specifies the interrupt number, the irq line to be used
+- interrupt-names: Interrupt name string
+
+Example:
+
+bsca: i2c@f0406200 {
+      clock-frequency = <390000>;
+      compatible = "brcm,brcmstb-i2c";
+      interrupt-parent = <&irq0_intc>;
+      reg = <0xf0406200 0x58>;
+      interrupts = <0x18>;
+      interrupt-names = "upg_bsca";
+};
+
