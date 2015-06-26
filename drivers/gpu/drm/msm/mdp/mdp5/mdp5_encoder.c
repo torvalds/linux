@@ -27,6 +27,8 @@ struct mdp5_encoder {
 	spinlock_t intf_lock;	/* protect REG_MDP5_INTF_* registers */
 	bool enabled;
 	uint32_t bsc;
+
+	struct mdp5_ctl *ctl;
 };
 #define to_mdp5_encoder(x) container_of(x, struct mdp5_encoder, base)
 
@@ -222,14 +224,15 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 
 	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
 
-	mdp5_crtc_set_intf(encoder->crtc, &mdp5_encoder->intf);
+	mdp5_crtc_set_pipeline(encoder->crtc, &mdp5_encoder->intf,
+				mdp5_encoder->ctl);
 }
 
 static void mdp5_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
-	struct mdp5_ctl *ctl = mdp5_crtc_get_ctl(encoder->crtc);
+	struct mdp5_ctl *ctl = mdp5_encoder->ctl;
 	int lm = mdp5_crtc_get_lm(encoder->crtc);
 	struct mdp5_interface *intf = &mdp5_encoder->intf;
 	int intfn = mdp5_encoder->intf.num;
@@ -264,7 +267,7 @@ static void mdp5_encoder_enable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
-	struct mdp5_ctl *ctl = mdp5_crtc_get_ctl(encoder->crtc);
+	struct mdp5_ctl *ctl = mdp5_encoder->ctl;
 	struct mdp5_interface *intf = &mdp5_encoder->intf;
 	int intfn = mdp5_encoder->intf.num;
 	unsigned long flags;
@@ -329,7 +332,7 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 
 /* initialize encoder */
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
-				struct mdp5_interface *intf)
+			struct mdp5_interface *intf, struct mdp5_ctl *ctl)
 {
 	struct drm_encoder *encoder = NULL;
 	struct mdp5_encoder *mdp5_encoder;
@@ -345,6 +348,7 @@ struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 
 	memcpy(&mdp5_encoder->intf, intf, sizeof(mdp5_encoder->intf));
 	encoder = &mdp5_encoder->base;
+	mdp5_encoder->ctl = ctl;
 
 	spin_lock_init(&mdp5_encoder->intf_lock);
 

@@ -160,8 +160,7 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 
 	if (mdp5_crtc->ctl && !crtc->state->enable) {
 		/* set STAGE_UNUSED for all layers */
-		mdp5_ctl_blend(mdp5_crtc->ctl, mdp5_crtc->lm, NULL, 0, 0);
-		mdp5_ctl_release(mdp5_crtc->ctl);
+		mdp5_ctl_blend(mdp5_crtc->ctl, NULL, 0, 0);
 		mdp5_crtc->ctl = NULL;
 	}
 }
@@ -289,7 +288,7 @@ static void blend_setup(struct drm_crtc *crtc)
 				blender(i)), bg_alpha);
 	}
 
-	mdp5_ctl_blend(mdp5_crtc->ctl, lm, stage, plane_cnt, ctl_blend_flags);
+	mdp5_ctl_blend(mdp5_crtc->ctl, stage, plane_cnt, ctl_blend_flags);
 
 out:
 	spin_unlock_irqrestore(&mdp5_crtc->lm_lock, flags);
@@ -385,13 +384,6 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	int cnt = 0, i;
 
 	DBG("%s: check", mdp5_crtc->name);
-
-	/* request a free CTL, if none is already allocated for this CRTC */
-	if (state->enable && !mdp5_crtc->ctl) {
-		mdp5_crtc->ctl = mdp5_ctlm_request(mdp5_kms->ctlm, crtc);
-		if (WARN_ON(!mdp5_crtc->ctl))
-			return -EINVAL;
-	}
 
 	/* verify that there are not too many planes attached to crtc
 	 * and that we don't have conflicting mixer stages:
@@ -735,8 +727,8 @@ void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file)
 	complete_flip(crtc, file);
 }
 
-/* set interface for routing crtc->encoder: */
-void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf)
+void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
@@ -759,19 +751,14 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf)
 
 	mdp_irq_update(&mdp5_kms->base);
 
-	mdp5_ctl_set_intf(mdp5_crtc->ctl, intf);
+	mdp5_crtc->ctl = ctl;
+	mdp5_ctl_set_pipeline(ctl, intf, lm);
 }
 
 int mdp5_crtc_get_lm(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	return WARN_ON(!crtc) ? -EINVAL : mdp5_crtc->lm;
-}
-
-struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc)
-{
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	return WARN_ON(!crtc) ? NULL : mdp5_crtc->ctl;
 }
 
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc)

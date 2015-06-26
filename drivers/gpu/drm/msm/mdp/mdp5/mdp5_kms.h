@@ -228,26 +228,26 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 
 int mdp5_crtc_get_lm(struct drm_crtc *crtc);
-struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc);
 void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file);
-void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf);
+void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc);
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, int id);
 
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
-		struct mdp5_interface *intf);
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 					struct drm_encoder *slave_encoder);
 
 #ifdef CONFIG_DRM_MSM_DSI
 struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
-				struct mdp5_interface *intf);
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 					struct drm_encoder *slave_encoder);
 #else
-static inline struct drm_encoder *mdp5_cmd_encoder_init(
-			struct drm_device *dev, struct mdp5_interface *intf)
+static inline struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl)
 {
 	return ERR_PTR(-EINVAL);
 }

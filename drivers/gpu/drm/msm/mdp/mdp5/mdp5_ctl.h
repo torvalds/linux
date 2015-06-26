@@ -32,11 +32,12 @@ void mdp5_ctlm_destroy(struct mdp5_ctl_manager *ctlm);
  * mdp5_ctl_request(ctlm, ...) returns a ctl (CTL resource) handler,
  * which is then used to call the other mdp5_ctl_*(ctl, ...) functions.
  */
-struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctlm, struct drm_crtc *crtc);
+struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctlm, int intf_num);
 int mdp5_ctl_get_ctl_id(struct mdp5_ctl *ctl);
 
 struct mdp5_interface;
-int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, struct mdp5_interface *intf);
+int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_interface *intf,
+				int lm);
 int mdp5_ctl_set_encoder_state(struct mdp5_ctl *ctl, bool enabled);
 
 int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, int cursor_id, bool enable);
@@ -53,7 +54,7 @@ int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, int cursor_id, bool enable);
  * (call mdp5_ctl_commit() with mdp_ctl_flush_mask_ctl() mask)
  */
 #define MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT	BIT(0)
-int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u8 *stage, u32 stage_cnt,
+int mdp5_ctl_blend(struct mdp5_ctl *ctl, u8 *stage, u32 stage_cnt,
 	u32 ctl_blend_op_flags);
 
 /**
@@ -70,8 +71,6 @@ u32 mdp_ctl_flush_mask_encoder(struct mdp5_interface *intf);
 /* @flush_mask: see CTL flush masks definitions below */
 u32 mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask);
 u32 mdp5_ctl_get_commit_status(struct mdp5_ctl *ctl);
-
-void mdp5_ctl_release(struct mdp5_ctl *ctl);
 
 
 
