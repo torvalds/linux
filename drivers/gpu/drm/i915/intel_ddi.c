@@ -1149,7 +1149,6 @@ static void skl_wrpll_try_divider(struct skl_wrpll_context *ctx,
 		ctx->dco_freq = dco_freq;
 		ctx->p = divider;
 	}
-
 }
 
 static void skl_wrpll_get_multipliers(unsigned int p,
@@ -1315,9 +1314,17 @@ skl_ddi_calculate_wrpll(int clock /* in Hz */,
 						      dco_central_freq[dco],
 						      dco_freq,
 						      p);
+				/*
+				 * Skip the remaining dividers if we're sure to
+				 * have found the definitive divider, we can't
+				 * improve a 0 deviation.
+				 */
+				if (ctx.min_deviation == 0)
+					goto skip_remaining_dividers;
 			}
 		}
 
+skip_remaining_dividers:
 		/*
 		 * If a solution is found with an even divider, prefer
 		 * this one.
