@@ -28,6 +28,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/rockchip/common.h>
+#include <linux/reboot.h>
 #include <linux/scpi_protocol.h>
 #include "../../arch/arm/mach-rockchip/efuse.h"
 
@@ -123,6 +124,7 @@ struct rockchip_thermal_data {
 	bool logout;
 	bool b_suspend;
 	struct mutex suspend_lock;
+	int shuttemp_count;
 
 	void __iomem *regs;
 
@@ -169,6 +171,8 @@ struct rockchip_thermal_data {
 
 #define TSADC_TEST
 #define TSADC_TEST_SAMPLE_TIME			200/* msec */
+
+#define TSADC_MAX_HW_SHUT_TEMP_COUNT            3
 
 struct tsadc_table {
 	unsigned long code;
@@ -749,6 +753,17 @@ int rockchip_tsadc_get_temp(int chn, int voltage)
 		if(thermal->logout)
 			printk("cpu temp:[%d], voltage: %d\n"
 				, temp, voltage);
+
+		if (temp > thermal->hw_shut_temp / 1000)
+			thermal->shuttemp_count++;
+		else
+			thermal->shuttemp_count = 0;
+		if (thermal->shuttemp_count >= TSADC_MAX_HW_SHUT_TEMP_COUNT) {
+			dev_err(&thermal->pdev->dev,
+				"critical temperature reached(%ld C),shutting down\n",
+				 thermal->hw_shut_temp / 1000);
+			orderly_poweroff(true);
+		}
 	}
 	mutex_unlock(&thermal->suspend_lock);
 
