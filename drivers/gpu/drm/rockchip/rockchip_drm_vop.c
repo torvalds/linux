@@ -667,7 +667,7 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	offset += (src.y1 >> 16) * fb->pitches[0];
 	yrgb_mst = rk_obj->dma_addr + offset;
 
-	y_vir_stride = fb->pitches[0] / (fb->bits_per_pixel >> 3);
+	y_vir_stride = fb->pitches[0] >> 2;
 
 	/*
 	 * If this plane update changes the plane's framebuffer, (or more
