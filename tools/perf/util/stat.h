@@ -103,6 +103,8 @@ int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
 				      int ncpus, int nthreads);
 void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel);
 
+int perf_evsel__alloc_stats(struct perf_evsel *evsel, bool alloc_raw);
+
 int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw);
 void perf_evlist__free_stats(struct perf_evlist *evlist);
 void perf_evlist__reset_stats(struct perf_evlist *evlist);

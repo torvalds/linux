@@ -189,17 +189,25 @@ void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel)
 	evsel->prev_raw_counts = NULL;
 }
 
+int perf_evsel__alloc_stats(struct perf_evsel *evsel, bool alloc_raw)
+{
+	int ncpus = perf_evsel__nr_cpus(evsel);
+	int nthreads = thread_map__nr(evsel->threads);
+
+	if (perf_evsel__alloc_stat_priv(evsel) < 0 ||
+	    perf_evsel__alloc_counts(evsel, ncpus, nthreads) < 0 ||
+	    (alloc_raw && perf_evsel__alloc_prev_raw_counts(evsel, ncpus, nthreads) < 0))
+		return -ENOMEM;
+
+	return 0;
+}
+
 int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw)
 {
 	struct perf_evsel *evsel;
-	int nthreads = thread_map__nr(evlist->threads);
 
 	evlist__for_each(evlist, evsel) {
-		int ncpus = perf_evsel__nr_cpus(evsel);
-
-		if (perf_evsel__alloc_stat_priv(evsel) < 0 ||
-		    perf_evsel__alloc_counts(evsel, ncpus, nthreads) < 0 ||
-		    (alloc_raw && perf_evsel__alloc_prev_raw_counts(evsel, ncpus, nthreads) < 0))
+		if (perf_evsel__alloc_stats(evsel, alloc_raw))
 			goto out_free;
 	}
 
