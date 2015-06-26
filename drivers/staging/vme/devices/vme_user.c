@@ -526,7 +526,7 @@ static int vme_user_master_mmap(unsigned int minor, struct vm_area_struct *vma)
 		return err;
 	}
 
-	vma_priv = kmalloc(sizeof(struct vme_user_vma_priv), GFP_KERNEL);
+	vma_priv = kmalloc(sizeof(*vma_priv), GFP_KERNEL);
 	if (!vma_priv) {
 		mutex_unlock(&image[minor].mutex);
 		return -ENOMEM;
