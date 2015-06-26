@@ -126,15 +126,6 @@ struct vmw_framebuffer_dmabuf {
 
 
 /*
- * Basic clip rect manipulation
- */
-void vmw_clip_cliprects(struct drm_clip_rect *rects,
-			int num_rects,
-			struct vmw_clip_rect clip,
-			SVGASignedRect *out_rects,
-			int *out_num);
-
-/*
  * Basic cursor manipulation
  */
 int vmw_cursor_update_image(struct vmw_private *dev_priv,
@@ -241,6 +232,12 @@ int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
 void vmw_kms_helper_resource_revert(struct vmw_resource *res);
 void vmw_kms_helper_resource_finish(struct vmw_resource *res,
 				    struct vmw_fence_obj **out_fence);
+int vmw_kms_readback(struct vmw_private *dev_priv,
+		     struct drm_file *file_priv,
+		     struct vmw_framebuffer *vfb,
+		     struct drm_vmw_fence_rep __user *user_fence_rep,
+		     struct drm_vmw_rect *vclips,
+		     uint32_t num_clips);
 
 /*
  * Legacy display unit functions - vmwgfx_ldu.c
@@ -259,20 +256,26 @@ int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
 int vmw_kms_sou_init_display(struct vmw_private *dev_priv);
 int vmw_kms_sou_close_display(struct vmw_private *dev_priv);
 int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
-				 struct drm_file *file_priv,
 				 struct vmw_framebuffer *framebuffer,
-				 unsigned flags, unsigned color,
 				 struct drm_clip_rect *clips,
+				 struct drm_vmw_rect *vclips,
+				 struct vmw_resource *srf,
+				 s32 dest_x,
+				 s32 dest_y,
 				 unsigned num_clips, int inc,
 				 struct vmw_fence_obj **out_fence);
-int vmw_kms_sou_do_dmabuf_dirty(struct drm_file *file_priv,
-				struct vmw_private *dev_priv,
+int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 				struct vmw_framebuffer *framebuffer,
-				unsigned flags, unsigned color,
 				struct drm_clip_rect *clips,
 				unsigned num_clips, int increment,
+				bool interruptible,
 				struct vmw_fence_obj **out_fence);
-
+int vmw_kms_sou_readback(struct vmw_private *dev_priv,
+			 struct drm_file *file_priv,
+			 struct vmw_framebuffer *vfb,
+			 struct drm_vmw_fence_rep __user *user_fence_rep,
+			 struct drm_vmw_rect *vclips,
+			 uint32_t num_clips);
 
 /*
  * Screen Target Display Unit functions - vmwgfx_stdu.c

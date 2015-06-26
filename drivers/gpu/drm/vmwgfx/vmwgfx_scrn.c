@@ -36,10 +36,55 @@
 #define vmw_connector_to_sou(x) \
 	container_of(x, struct vmw_screen_object_unit, base.connector)
 
+/**
+ * struct vmw_kms_sou_surface_dirty - Closure structure for
+ * blit surface to screen command.
+ * @base: The base type we derive from. Used by vmw_kms_helper_dirty().
+ * @left: Left side of bounding box.
+ * @right: Right side of bounding box.
+ * @top: Top side of bounding box.
+ * @bottom: Bottom side of bounding box.
+ * @dst_x: Difference between source clip rects and framebuffer coordinates.
+ * @dst_y: Difference between source clip rects and framebuffer coordinates.
+ * @sid: Surface id of surface to copy from.
+ */
+struct vmw_kms_sou_surface_dirty {
+	struct vmw_kms_dirty base;
+	s32 left, right, top, bottom;
+	s32 dst_x, dst_y;
+	u32 sid;
+};
+
+/*
+ * SVGA commands that are used by this code. Please see the device headers
+ * for explanation.
+ */
+struct vmw_kms_sou_readback_blit {
+	uint32 header;
+	SVGAFifoCmdBlitScreenToGMRFB body;
+};
+
+struct vmw_kms_sou_dmabuf_blit {
+	uint32 header;
+	SVGAFifoCmdBlitGMRFBToScreen body;
+};
+
+struct vmw_kms_sou_dirty_cmd {
+	SVGA3dCmdHeader header;
+	SVGA3dCmdBlitSurfaceToScreen body;
+};
+
+
+/*
+ * Other structs.
+ */
+
 struct vmw_screen_object_display {
 	unsigned num_implicit;
 
 	struct vmw_framebuffer *implicit_fb;
+	SVGAFifoCmdDefineGMRFB cur;
+	struct vmw_dma_buffer *pinned_gmrfb;
 };
 
 /**
@@ -202,14 +247,7 @@ static int vmw_sou_fifo_destroy(struct vmw_private *dev_priv,
 static void vmw_sou_backing_free(struct vmw_private *dev_priv,
 				 struct vmw_screen_object_unit *sou)
 {
-	struct ttm_buffer_object *bo;
-
-	if (unlikely(sou->buffer == NULL))
-		return;
-
-	bo = &sou->buffer->base;
-	ttm_bo_unref(&bo);
-	sou->buffer = NULL;
+	vmw_dmabuf_unreference(&sou->buffer);
 	sou->buffer_size = 0;
 }
 
@@ -432,7 +470,6 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(fb);
-	struct drm_file *file_priv = event->base.file_priv;
 	struct vmw_fence_obj *fence = NULL;
 	struct drm_clip_rect clips;
 	int ret;
@@ -452,11 +489,13 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 	clips.y2 = fb->height;
 
 	if (vfb->dmabuf)
-		ret = vmw_kms_sou_do_dmabuf_dirty(file_priv, dev_priv, vfb,
-						  0, 0, &clips, 1, 1, &fence);
+		ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, vfb,
+						  &clips, 1, 1,
+						  true, &fence);
 	else
-		ret = vmw_kms_sou_do_surface_dirty(dev_priv, file_priv, vfb,
-						   0, 0, &clips, 1, 1, &fence);
+		ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb,
+						   &clips, NULL, NULL,
+						   0, 0, 1, 1, &fence);
 
 
 	if (ret != 0)
@@ -466,11 +505,15 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 		goto out_no_fence;
 	}
 
-	ret = vmw_event_fence_action_queue(file_priv, fence,
-					   &event->base,
-					   &event->event.tv_sec,
-					   &event->event.tv_usec,
-					   true);
+	if (event) {
+		struct drm_file *file_priv = event->base.file_priv;
+
+		ret = vmw_event_fence_action_queue(file_priv, fence,
+						   &event->base,
+						   &event->event.tv_sec,
+						   &event->event.tv_usec,
+						   true);
+	}
 
 	/*
 	 * No need to hold on to this now. The only cleanup
@@ -485,153 +528,6 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 
 out_no_fence:
 	crtc->primary->fb = old_fb;
-	return ret;
-}
-
-int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
-				 struct drm_file *file_priv,
-				 struct vmw_framebuffer *framebuffer,
-				 unsigned flags, unsigned color,
-				 struct drm_clip_rect *clips,
-				 unsigned num_clips, int inc,
-				 struct vmw_fence_obj **out_fence)
-{
-	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
-	struct drm_clip_rect *clips_ptr;
-	struct drm_clip_rect *tmp;
-	struct drm_crtc *crtc;
-	size_t fifo_size;
-	int i, num_units;
-	int ret = 0; /* silence warning */
-	int left, right, top, bottom;
-
-	struct {
-		SVGA3dCmdHeader header;
-		SVGA3dCmdBlitSurfaceToScreen body;
-	} *cmd;
-	SVGASignedRect *blits;
-
-	num_units = 0;
-	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list,
-			    head) {
-		if (crtc->primary->fb != &framebuffer->base)
-			continue;
-		units[num_units++] = vmw_crtc_to_du(crtc);
-	}
-
-	BUG_ON(!clips || !num_clips);
-
-	tmp = kzalloc(sizeof(*tmp) * num_clips, GFP_KERNEL);
-	if (unlikely(tmp == NULL)) {
-		DRM_ERROR("Temporary cliprect memory alloc failed.\n");
-		return -ENOMEM;
-	}
-
-	fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num_clips;
-	cmd = kzalloc(fifo_size, GFP_KERNEL);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Temporary fifo memory alloc failed.\n");
-		ret = -ENOMEM;
-		goto out_free_tmp;
-	}
-
-	/* setup blits pointer */
-	blits = (SVGASignedRect *)&cmd[1];
-
-	/* initial clip region */
-	left = clips->x1;
-	right = clips->x2;
-	top = clips->y1;
-	bottom = clips->y2;
-
-	/* skip the first clip rect */
-	for (i = 1, clips_ptr = clips + inc;
-	     i < num_clips; i++, clips_ptr += inc) {
-		left = min_t(int, left, (int)clips_ptr->x1);
-		right = max_t(int, right, (int)clips_ptr->x2);
-		top = min_t(int, top, (int)clips_ptr->y1);
-		bottom = max_t(int, bottom, (int)clips_ptr->y2);
-	}
-
-	/* only need to do this once */
-	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN);
-	cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
-
-	cmd->body.srcRect.left = left;
-	cmd->body.srcRect.right = right;
-	cmd->body.srcRect.top = top;
-	cmd->body.srcRect.bottom = bottom;
-
-	clips_ptr = clips;
-	for (i = 0; i < num_clips; i++, clips_ptr += inc) {
-		tmp[i].x1 = clips_ptr->x1 - left;
-		tmp[i].x2 = clips_ptr->x2 - left;
-		tmp[i].y1 = clips_ptr->y1 - top;
-		tmp[i].y2 = clips_ptr->y2 - top;
-	}
-
-	/* do per unit writing, reuse fifo for each */
-	for (i = 0; i < num_units; i++) {
-		struct vmw_display_unit *unit = units[i];
-		struct vmw_clip_rect clip;
-		int num;
-
-		clip.x1 = left - unit->crtc.x;
-		clip.y1 = top - unit->crtc.y;
-		clip.x2 = right - unit->crtc.x;
-		clip.y2 = bottom - unit->crtc.y;
-
-		/* skip any crtcs that misses the clip region */
-		if (clip.x1 >= unit->crtc.mode.hdisplay ||
-		    clip.y1 >= unit->crtc.mode.vdisplay ||
-		    clip.x2 <= 0 || clip.y2 <= 0)
-			continue;
-
-		/*
-		 * In order for the clip rects to be correctly scaled
-		 * the src and dest rects needs to be the same size.
-		 */
-		cmd->body.destRect.left = clip.x1;
-		cmd->body.destRect.right = clip.x2;
-		cmd->body.destRect.top = clip.y1;
-		cmd->body.destRect.bottom = clip.y2;
-
-		/* create a clip rect of the crtc in dest coords */
-		clip.x2 = unit->crtc.mode.hdisplay - clip.x1;
-		clip.y2 = unit->crtc.mode.vdisplay - clip.y1;
-		clip.x1 = 0 - clip.x1;
-		clip.y1 = 0 - clip.y1;
-
-		/* need to reset sid as it is changed by execbuf */
-		cmd->body.srcImage.sid = cpu_to_le32(framebuffer->user_handle);
-		cmd->body.destScreenId = unit->unit;
-
-		/* clip and write blits to cmd stream */
-		vmw_clip_cliprects(tmp, num_clips, clip, blits, &num);
-
-		/* if no cliprects hit skip this */
-		if (num == 0)
-			continue;
-
-		/* only return the last fence */
-		if (out_fence && *out_fence)
-			vmw_fence_obj_unreference(out_fence);
-
-		/* recalculate package length */
-		fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num;
-		cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
-		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-					  fifo_size, 0, 0, NULL, out_fence);
-
-		if (unlikely(ret != 0))
-			break;
-	}
-
-
-	kfree(cmd);
-out_free_tmp:
-	kfree(tmp);
-
 	return ret;
 }
 
@@ -790,14 +686,13 @@ int vmw_kms_sou_close_display(struct vmw_private *dev_priv)
 	return 0;
 }
 
-static int do_dmabuf_define_gmrfb(struct drm_file *file_priv,
-				  struct vmw_private *dev_priv,
+static int do_dmabuf_define_gmrfb(struct vmw_private *dev_priv,
 				  struct vmw_framebuffer *framebuffer)
 {
+	struct vmw_dma_buffer *buf =
+		container_of(framebuffer, struct vmw_framebuffer_dmabuf,
+			     base)->buffer;
 	int depth = framebuffer->base.depth;
-	size_t fifo_size;
-	int ret;
-
 	struct {
 		uint32_t header;
 		SVGAFifoCmdDefineGMRFB body;
@@ -810,123 +705,350 @@ static int do_dmabuf_define_gmrfb(struct drm_file *file_priv,
 	if (depth == 32)
 		depth = 24;
 
-	fifo_size = sizeof(*cmd);
-	cmd = kmalloc(fifo_size, GFP_KERNEL);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed to allocate temporary cmd buffer.\n");
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	if (!cmd) {
+		DRM_ERROR("Out of fifo space for dirty framebuffer command.\n");
 		return -ENOMEM;
 	}
 
-	memset(cmd, 0, fifo_size);
 	cmd->header = SVGA_CMD_DEFINE_GMRFB;
 	cmd->body.format.bitsPerPixel = framebuffer->base.bits_per_pixel;
 	cmd->body.format.colorDepth = depth;
 	cmd->body.format.reserved = 0;
 	cmd->body.bytesPerLine = framebuffer->base.pitches[0];
-	cmd->body.ptr.gmrId = framebuffer->user_handle;
-	cmd->body.ptr.offset = 0;
+	/* Buffer is reserved in vram or GMR */
+	vmw_bo_get_guest_ptr(&buf->base, &cmd->body.ptr);
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
-	ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-				  fifo_size, 0, 0, NULL, NULL);
+	return 0;
+}
 
-	kfree(cmd);
+/**
+ * vmw_sou_surface_fifo_commit - Callback to fill in and submit a
+ * blit surface to screen command.
+ *
+ * @dirty: The closure structure.
+ *
+ * Fills in the missing fields in the command, and translates the cliprects
+ * to match the destination bounding box encoded.
+ */
+static void vmw_sou_surface_fifo_commit(struct vmw_kms_dirty *dirty)
+{
+	struct vmw_kms_sou_surface_dirty *sdirty =
+		container_of(dirty, typeof(*sdirty), base);
+	struct vmw_kms_sou_dirty_cmd *cmd = dirty->cmd;
+	s32 trans_x = dirty->unit->crtc.x - sdirty->dst_x;
+	s32 trans_y = dirty->unit->crtc.y - sdirty->dst_y;
+	size_t region_size = dirty->num_hits * sizeof(SVGASignedRect);
+	SVGASignedRect *blit = (SVGASignedRect *) &cmd[1];
+	int i;
+
+	cmd->header.id = SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN;
+	cmd->header.size = sizeof(cmd->body) + region_size;
+
+	/*
+	 * Use the destination bounding box to specify destination - and
+	 * source bounding regions.
+	 */
+	cmd->body.destRect.left = sdirty->left;
+	cmd->body.destRect.right = sdirty->right;
+	cmd->body.destRect.top = sdirty->top;
+	cmd->body.destRect.bottom = sdirty->bottom;
+
+	cmd->body.srcRect.left = sdirty->left + trans_x;
+	cmd->body.srcRect.right = sdirty->right + trans_x;
+	cmd->body.srcRect.top = sdirty->top + trans_y;
+	cmd->body.srcRect.bottom = sdirty->bottom + trans_y;
+
+	cmd->body.srcImage.sid = sdirty->sid;
+	cmd->body.destScreenId = dirty->unit->unit;
+
+	/* Blits are relative to the destination rect. Translate. */
+	for (i = 0; i < dirty->num_hits; ++i, ++blit) {
+		blit->left -= sdirty->left;
+		blit->right -= sdirty->left;
+		blit->top -= sdirty->top;
+		blit->bottom -= sdirty->top;
+	}
+
+	vmw_fifo_commit(dirty->dev_priv, region_size + sizeof(*cmd));
+
+	sdirty->left = sdirty->top = S32_MAX;
+	sdirty->right = sdirty->bottom = S32_MIN;
+}
+
+/**
+ * vmw_sou_surface_clip - Callback to encode a blit surface to screen cliprect.
+ *
+ * @dirty: The closure structure
+ *
+ * Encodes a SVGASignedRect cliprect and updates the bounding box of the
+ * BLIT_SURFACE_TO_SCREEN command.
+ */
+static void vmw_sou_surface_clip(struct vmw_kms_dirty *dirty)
+{
+	struct vmw_kms_sou_surface_dirty *sdirty =
+		container_of(dirty, typeof(*sdirty), base);
+	struct vmw_kms_sou_dirty_cmd *cmd = dirty->cmd;
+	SVGASignedRect *blit = (SVGASignedRect *) &cmd[1];
+
+	/* Destination rect. */
+	blit += dirty->num_hits;
+	blit->left = dirty->unit_x1;
+	blit->top = dirty->unit_y1;
+	blit->right = dirty->unit_x2;
+	blit->bottom = dirty->unit_y2;
+
+	/* Destination bounding box */
+	sdirty->left = min_t(s32, sdirty->left, dirty->unit_x1);
+	sdirty->top = min_t(s32, sdirty->top, dirty->unit_y1);
+	sdirty->right = max_t(s32, sdirty->right, dirty->unit_x2);
+	sdirty->bottom = max_t(s32, sdirty->bottom, dirty->unit_y2);
+
+	dirty->num_hits++;
+}
+
+/**
+ * vmw_kms_sou_do_surface_dirty - Dirty part of a surface backed framebuffer
+ *
+ * @dev_priv: Pointer to the device private structure.
+ * @framebuffer: Pointer to the surface-buffer backed framebuffer.
+ * @clips: Array of clip rects. Either @clips or @vclips must be NULL.
+ * @vclips: Alternate array of clip rects. Either @clips or @vclips must
+ * be NULL.
+ * @srf: Pointer to surface to blit from. If NULL, the surface attached
+ * to @framebuffer will be used.
+ * @dest_x: X coordinate offset to align @srf with framebuffer coordinates.
+ * @dest_y: Y coordinate offset to align @srf with framebuffer coordinates.
+ * @num_clips: Number of clip rects in @clips.
+ * @inc: Increment to use when looping over @clips.
+ * @out_fence: If non-NULL, will return a ref-counted pointer to a
+ * struct vmw_fence_obj. The returned fence pointer may be NULL in which
+ * case the device has already synchronized.
+ *
+ * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
+ * interrupted.
+ */
+int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
+				 struct vmw_framebuffer *framebuffer,
+				 struct drm_clip_rect *clips,
+				 struct drm_vmw_rect *vclips,
+				 struct vmw_resource *srf,
+				 s32 dest_x,
+				 s32 dest_y,
+				 unsigned num_clips, int inc,
+				 struct vmw_fence_obj **out_fence)
+{
+	struct vmw_framebuffer_surface *vfbs =
+		container_of(framebuffer, typeof(*vfbs), base);
+	struct vmw_kms_sou_surface_dirty sdirty;
+	int ret;
+
+	if (!srf)
+		srf = &vfbs->surface->res;
+
+	ret = vmw_kms_helper_resource_prepare(srf, true);
+	if (ret)
+		return ret;
+
+	sdirty.base.fifo_commit = vmw_sou_surface_fifo_commit;
+	sdirty.base.clip = vmw_sou_surface_clip;
+	sdirty.base.dev_priv = dev_priv;
+	sdirty.base.fifo_reserve_size = sizeof(struct vmw_kms_sou_dirty_cmd) +
+	  sizeof(SVGASignedRect) * num_clips;
+
+	sdirty.sid = srf->id;
+	sdirty.left = sdirty.top = S32_MAX;
+	sdirty.right = sdirty.bottom = S32_MIN;
+	sdirty.dst_x = dest_x;
+	sdirty.dst_y = dest_y;
+
+	ret = vmw_kms_helper_dirty(dev_priv, framebuffer, clips, vclips,
+				   dest_x, dest_y, num_clips, inc,
+				   &sdirty.base);
+	vmw_kms_helper_resource_finish(srf, out_fence);
 
 	return ret;
 }
 
-int vmw_kms_sou_do_dmabuf_dirty(struct drm_file *file_priv,
-				struct vmw_private *dev_priv,
+/**
+ * vmw_sou_dmabuf_fifo_commit - Callback to submit a set of readback clips.
+ *
+ * @dirty: The closure structure.
+ *
+ * Commits a previously built command buffer of readback clips.
+ */
+static void vmw_sou_dmabuf_fifo_commit(struct vmw_kms_dirty *dirty)
+{
+	vmw_fifo_commit(dirty->dev_priv,
+			sizeof(struct vmw_kms_sou_dmabuf_blit) *
+			dirty->num_hits);
+}
+
+/**
+ * vmw_sou_dmabuf_clip - Callback to encode a readback cliprect.
+ *
+ * @dirty: The closure structure
+ *
+ * Encodes a BLIT_GMRFB_TO_SCREEN cliprect.
+ */
+static void vmw_sou_dmabuf_clip(struct vmw_kms_dirty *dirty)
+{
+	struct vmw_kms_sou_dmabuf_blit *blit = dirty->cmd;
+
+	blit += dirty->num_hits;
+	blit->header = SVGA_CMD_BLIT_GMRFB_TO_SCREEN;
+	blit->body.destScreenId = dirty->unit->unit;
+	blit->body.srcOrigin.x = dirty->fb_x;
+	blit->body.srcOrigin.y = dirty->fb_y;
+	blit->body.destRect.left = dirty->unit_x1;
+	blit->body.destRect.top = dirty->unit_y1;
+	blit->body.destRect.right = dirty->unit_x2;
+	blit->body.destRect.bottom = dirty->unit_y2;
+	dirty->num_hits++;
+}
+
+/**
+ * vmw_kms_do_dmabuf_dirty - Dirty part of a dma-buffer backed framebuffer
+ *
+ * @dev_priv: Pointer to the device private structure.
+ * @framebuffer: Pointer to the dma-buffer backed framebuffer.
+ * @clips: Array of clip rects.
+ * @num_clips: Number of clip rects in @clips.
+ * @increment: Increment to use when looping over @clips.
+ * @interruptible: Whether to perform waits interruptible if possible.
+ * @out_fence: If non-NULL, will return a ref-counted pointer to a
+ * struct vmw_fence_obj. The returned fence pointer may be NULL in which
+ * case the device has already synchronized.
+ *
+ * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
+ * interrupted.
+ */
+int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 				struct vmw_framebuffer *framebuffer,
-				unsigned flags, unsigned color,
 				struct drm_clip_rect *clips,
 				unsigned num_clips, int increment,
+				bool interruptible,
 				struct vmw_fence_obj **out_fence)
 {
-	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
-	struct drm_clip_rect *clips_ptr;
-	int i, k, num_units, ret;
-	struct drm_crtc *crtc;
-	size_t fifo_size;
+	struct vmw_dma_buffer *buf =
+		container_of(framebuffer, struct vmw_framebuffer_dmabuf,
+			     base)->buffer;
+	struct vmw_kms_dirty dirty;
+	int ret;
 
-	struct {
-		uint32_t header;
-		SVGAFifoCmdBlitGMRFBToScreen body;
-	} *blits;
+	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, interruptible,
+					    false);
+	if (ret)
+		return ret;
 
-	ret = do_dmabuf_define_gmrfb(file_priv, dev_priv, framebuffer);
+	ret = do_dmabuf_define_gmrfb(dev_priv, framebuffer);
 	if (unlikely(ret != 0))
-		return ret; /* define_gmrfb prints warnings */
+		goto out_revert;
 
-	fifo_size = sizeof(*blits) * num_clips;
-	blits = kmalloc(fifo_size, GFP_KERNEL);
-	if (unlikely(blits == NULL)) {
-		DRM_ERROR("Failed to allocate temporary cmd buffer.\n");
-		return -ENOMEM;
-	}
+	dirty.fifo_commit = vmw_sou_dmabuf_fifo_commit;
+	dirty.clip = vmw_sou_dmabuf_clip;
+	dirty.fifo_reserve_size = sizeof(struct vmw_kms_sou_dmabuf_blit) *
+		num_clips;
+	ret = vmw_kms_helper_dirty(dev_priv, framebuffer, clips, NULL,
+				   0, 0, num_clips, increment, &dirty);
+	vmw_kms_helper_buffer_finish(dev_priv, NULL, buf, out_fence, NULL);
 
-	num_units = 0;
-	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->primary->fb != &framebuffer->base)
-			continue;
-		units[num_units++] = vmw_crtc_to_du(crtc);
-	}
+	return ret;
 
-	for (k = 0; k < num_units; k++) {
-		struct vmw_display_unit *unit = units[k];
-		int hit_num = 0;
-
-		clips_ptr = clips;
-		for (i = 0; i < num_clips; i++, clips_ptr += increment) {
-			int clip_x1 = clips_ptr->x1 - unit->crtc.x;
-			int clip_y1 = clips_ptr->y1 - unit->crtc.y;
-			int clip_x2 = clips_ptr->x2 - unit->crtc.x;
-			int clip_y2 = clips_ptr->y2 - unit->crtc.y;
-			int move_x, move_y;
-
-			/* skip any crtcs that misses the clip region */
-			if (clip_x1 >= unit->crtc.mode.hdisplay ||
-			    clip_y1 >= unit->crtc.mode.vdisplay ||
-			    clip_x2 <= 0 || clip_y2 <= 0)
-				continue;
-
-			/* clip size to crtc size */
-			clip_x2 = min_t(int, clip_x2, unit->crtc.mode.hdisplay);
-			clip_y2 = min_t(int, clip_y2, unit->crtc.mode.vdisplay);
-
-			/* translate both src and dest to bring clip into screen */
-			move_x = min_t(int, clip_x1, 0);
-			move_y = min_t(int, clip_y1, 0);
-
-			/* actual translate done here */
-			blits[hit_num].header = SVGA_CMD_BLIT_GMRFB_TO_SCREEN;
-			blits[hit_num].body.destScreenId = unit->unit;
-			blits[hit_num].body.srcOrigin.x = clips_ptr->x1 - move_x;
-			blits[hit_num].body.srcOrigin.y = clips_ptr->y1 - move_y;
-			blits[hit_num].body.destRect.left = clip_x1 - move_x;
-			blits[hit_num].body.destRect.top = clip_y1 - move_y;
-			blits[hit_num].body.destRect.right = clip_x2;
-			blits[hit_num].body.destRect.bottom = clip_y2;
-			hit_num++;
-		}
-
-		/* no clips hit the crtc */
-		if (hit_num == 0)
-			continue;
-
-		/* only return the last fence */
-		if (out_fence && *out_fence)
-			vmw_fence_obj_unreference(out_fence);
-
-		fifo_size = sizeof(*blits) * hit_num;
-		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, blits,
-					  fifo_size, 0, 0, NULL, out_fence);
-
-		if (unlikely(ret != 0))
-			break;
-	}
-
-	kfree(blits);
+out_revert:
+	vmw_kms_helper_buffer_revert(buf);
 
 	return ret;
 }
 
+
+/**
+ * vmw_sou_readback_fifo_commit - Callback to submit a set of readback clips.
+ *
+ * @dirty: The closure structure.
+ *
+ * Commits a previously built command buffer of readback clips.
+ */
+static void vmw_sou_readback_fifo_commit(struct vmw_kms_dirty *dirty)
+{
+	vmw_fifo_commit(dirty->dev_priv,
+			sizeof(struct vmw_kms_sou_readback_blit) *
+			dirty->num_hits);
+}
+
+/**
+ * vmw_sou_readback_clip - Callback to encode a readback cliprect.
+ *
+ * @dirty: The closure structure
+ *
+ * Encodes a BLIT_SCREEN_TO_GMRFB cliprect.
+ */
+static void vmw_sou_readback_clip(struct vmw_kms_dirty *dirty)
+{
+	struct vmw_kms_sou_readback_blit *blit = dirty->cmd;
+
+	blit += dirty->num_hits;
+	blit->header = SVGA_CMD_BLIT_SCREEN_TO_GMRFB;
+	blit->body.srcScreenId = dirty->unit->unit;
+	blit->body.destOrigin.x = dirty->fb_x;
+	blit->body.destOrigin.y = dirty->fb_y;
+	blit->body.srcRect.left = dirty->unit_x1;
+	blit->body.srcRect.top = dirty->unit_y1;
+	blit->body.srcRect.right = dirty->unit_x2;
+	blit->body.srcRect.bottom = dirty->unit_y2;
+	dirty->num_hits++;
+}
+
+/**
+ * vmw_kms_sou_readback - Perform a readback from the screen object system to
+ * a dma-buffer backed framebuffer.
+ *
+ * @dev_priv: Pointer to the device private structure.
+ * @file_priv: Pointer to a struct drm_file identifying the caller.
+ * Must be set to NULL if @user_fence_rep is NULL.
+ * @vfb: Pointer to the dma-buffer backed framebuffer.
+ * @user_fence_rep: User-space provided structure for fence information.
+ * Must be set to non-NULL if @file_priv is non-NULL.
+ * @vclips: Array of clip rects.
+ * @num_clips: Number of clip rects in @vclips.
+ *
+ * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
+ * interrupted.
+ */
+int vmw_kms_sou_readback(struct vmw_private *dev_priv,
+			 struct drm_file *file_priv,
+			 struct vmw_framebuffer *vfb,
+			 struct drm_vmw_fence_rep __user *user_fence_rep,
+			 struct drm_vmw_rect *vclips,
+			 uint32_t num_clips)
+{
+	struct vmw_dma_buffer *buf =
+		container_of(vfb, struct vmw_framebuffer_dmabuf, base)->buffer;
+	struct vmw_kms_dirty dirty;
+	int ret;
+
+	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, true, false);
+	if (ret)
+		return ret;
+
+	ret = do_dmabuf_define_gmrfb(dev_priv, vfb);
+	if (unlikely(ret != 0))
+		goto out_revert;
+
+	dirty.fifo_commit = vmw_sou_readback_fifo_commit;
+	dirty.clip = vmw_sou_readback_clip;
+	dirty.fifo_reserve_size = sizeof(struct vmw_kms_sou_readback_blit) *
+		num_clips;
+	ret = vmw_kms_helper_dirty(dev_priv, vfb, NULL, vclips,
+				   0, 0, num_clips, 1, &dirty);
+	vmw_kms_helper_buffer_finish(dev_priv, file_priv, buf, NULL,
+				     user_fence_rep);
+
+	return ret;
+
+out_revert:
+	vmw_kms_helper_buffer_revert(buf);
+
+	return ret;
+}

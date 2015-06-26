@@ -952,12 +952,6 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 		    uint32_t sid, int32_t destX, int32_t destY,
 		    struct drm_vmw_rect *clips,
 		    uint32_t num_clips);
-int vmw_kms_readback(struct vmw_private *dev_priv,
-		     struct drm_file *file_priv,
-		     struct vmw_framebuffer *vfb,
-		     struct drm_vmw_fence_rep __user *user_fence_rep,
-		     struct drm_vmw_rect *clips,
-		     uint32_t num_clips);
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 
