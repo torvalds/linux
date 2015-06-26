@@ -95,6 +95,7 @@ struct wilc_wfi_key {
 	int seq_len;
 	u32 cipher;
 };
+
 struct wilc_wfi_wep_key {
 	u8 *key;
 	u8 key_len;
