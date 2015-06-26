@@ -4766,6 +4766,9 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
+	if (crtc->atomic.disable_ips)
+		hsw_disable_ips(crtc);
+
 	if (atomic->pre_disable_primary)
 		intel_pre_disable_primary(&crtc->base);
 }
@@ -11616,8 +11619,19 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		intel_crtc->atomic.pre_disable_primary = turn_off;
 		intel_crtc->atomic.post_enable_primary = turn_on;
 
-		if (turn_off)
+		if (turn_off) {
+			/*
+			 * FIXME: Actually if we will still have any other
+			 * plane enabled on the pipe we could let IPS enabled
+			 * still, but for now lets consider that when we make
+			 * primary invisible by setting DSPCNTR to 0 on
+			 * update_primary_plane function IPS needs to be
+			 * disable.
+			 */
+			intel_crtc->atomic.disable_ips = true;
+
 			intel_crtc->atomic.disable_fbc = true;
+		}
 
 		/*
 		 * FBC does not work on some platforms for rotated
