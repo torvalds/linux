@@ -402,6 +402,8 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 
 		intel_dsi_port_enable(encoder);
 	}
+
+	intel_panel_enable_backlight(intel_dsi->attached_connector);
 }
 
 static void intel_dsi_pre_enable(struct intel_encoder *encoder)
@@ -465,6 +467,8 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder)
 	enum port port;
 
 	DRM_DEBUG_KMS("\n");
+
+	intel_panel_disable_backlight(intel_dsi->attached_connector);
 
 	if (is_vid_mode(intel_dsi)) {
 		/* Send Shutdown command to the panel in LP mode */
@@ -1132,6 +1136,7 @@ void intel_dsi_init(struct drm_device *dev)
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	return;
 
