@@ -112,7 +112,7 @@ static void TsAddBaProcess(unsigned long data)
 
 static void ResetTsCommonInfo(PTS_COMMON_INFO pTsCommonInfo)
 {
-	memset(pTsCommonInfo->Addr, 0, 6);
+	eth_zero_addr(pTsCommonInfo->Addr);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(TSPEC_BODY));
 	memset(&pTsCommonInfo->TClass, 0, sizeof(QOS_TCLAS)*TCLAS_NUM);
 	pTsCommonInfo->TClasProc = 0;
