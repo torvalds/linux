@@ -216,7 +216,7 @@ out_free:
 	return -1;
 }
 
-static void perf_stat__reset_stats(struct perf_evlist *evlist)
+static void perf_evlist__reset_stats(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
@@ -224,7 +224,11 @@ static void perf_stat__reset_stats(struct perf_evlist *evlist)
 		perf_evsel__reset_stat_priv(evsel);
 		perf_evsel__reset_counts(evsel);
 	}
+}
 
+static void perf_stat__reset_stats(void)
+{
+	perf_evlist__reset_stats(evsel_list);
 	perf_stat__reset_shadow_stats();
 }
 
@@ -1473,7 +1477,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		status = run_perf_stat(argc, argv);
 		if (forever && status != -1) {
 			print_stat(argc, argv);
-			perf_stat__reset_stats(evsel_list);
+			perf_stat__reset_stats();
 		}
 	}
 
