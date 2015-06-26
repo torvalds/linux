@@ -1,1 +1,0 @@
-obj-$(CONFIG_VIDEO_DT3155)	+= dt3155v4l.o

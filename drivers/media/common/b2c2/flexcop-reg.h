@@ -24,6 +24,7 @@ typedef enum {
 	FC_SKY_REV26,
 	FC_SKY_REV27,
 	FC_SKY_REV28,
+	FC_SKYS2_REV33,
 } flexcop_device_type_t;
 
 typedef enum {

@@ -439,7 +439,7 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 {
 	struct blk_trace *old_bt, *bt = NULL;
 	struct dentry *dir = NULL;
-	int ret, i;
+	int ret;
 
 	if (!buts->buf_size || !buts->buf_nr)
 		return -EINVAL;
@@ -451,9 +451,7 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	 * some device names have larger paths - convert the slashes
 	 * to underscores for this to work as expected
 	 */
-	for (i = 0; i < strlen(buts->name); i++)
-		if (buts->name[i] == '/')
-			buts->name[i] = '_';
+	strreplace(buts->name, '/', '_');
 
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
 	if (!bt)

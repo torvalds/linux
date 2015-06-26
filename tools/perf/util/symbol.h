@@ -158,8 +158,6 @@ struct ref_reloc_sym {
 struct map_symbol {
 	struct map    *map;
 	struct symbol *sym;
-	bool	      unfolded;
-	bool	      has_children;
 };
 
 struct addr_map_symbol {
@@ -302,5 +300,15 @@ int setup_list(struct strlist **list, const char *list_str,
 	       const char *list_name);
 int setup_intlist(struct intlist **list, const char *list_str,
 		  const char *list_name);
+
+#ifdef HAVE_LIBELF_SUPPORT
+bool elf__needs_adjust_symbols(GElf_Ehdr ehdr);
+void arch__elf_sym_adjust(GElf_Sym *sym);
+#endif
+
+#define SYMBOL_A 0
+#define SYMBOL_B 1
+
+int arch__choose_best_symbol(struct symbol *syma, struct symbol *symb);
 
 #endif /* __PERF_SYMBOL */

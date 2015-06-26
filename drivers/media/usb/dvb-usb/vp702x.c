@@ -259,11 +259,10 @@ static struct rc_map_table rc_map_vp702x_table[] = {
 /* remote control stuff (does not work with my box) */
 static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
+/* remove the following return to enabled remote querying */
+#if 0
 	u8 *key;
 	int i;
-
-/* remove the following return to enabled remote querying */
-	return 0;
 
 	key = kmalloc(10, GFP_KERNEL);
 	if (!key)
@@ -286,6 +285,8 @@ static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			break;
 		}
 	kfree(key);
+#endif
+
 	return 0;
 }
 

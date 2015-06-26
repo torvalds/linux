@@ -243,6 +243,17 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 			cmd = container_of(entry, struct nullb_cmd, ll_list);
 			entry = entry->next;
 			end_cmd(cmd);
+
+			if (cmd->rq) {
+				struct request_queue *q = cmd->rq->q;
+
+				if (!q->mq_ops && blk_queue_stopped(q)) {
+					spin_lock(q->queue_lock);
+					if (blk_queue_stopped(q))
+						blk_start_queue(q);
+					spin_unlock(q->queue_lock);
+				}
+			}
 		} while (entry);
 	}
 
@@ -257,7 +268,7 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 	if (llist_add(&cmd->ll_list, &cq->list)) {
 		ktime_t kt = ktime_set(0, completion_nsec);
 
-		hrtimer_start(&cq->timer, kt, HRTIMER_MODE_REL);
+		hrtimer_start(&cq->timer, kt, HRTIMER_MODE_REL_PINNED);
 	}
 
 	put_cpu();
@@ -334,6 +345,7 @@ static int null_rq_prep_fn(struct request_queue *q, struct request *req)
 		req->special = cmd;
 		return BLKPREP_OK;
 	}
+	blk_stop_queue(q);
 
 	return BLKPREP_DEFER;
 }

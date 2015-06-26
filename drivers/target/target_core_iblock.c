@@ -35,8 +35,7 @@
 #include <linux/genhd.h>
 #include <linux/file.h>
 #include <linux/module.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
+#include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
@@ -904,7 +903,6 @@ static struct se_subsystem_api iblock_template = {
 	.inquiry_prod		= "IBLOCK",
 	.inquiry_rev		= IBLOCK_VERSION,
 	.owner			= THIS_MODULE,
-	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
 	.attach_hba		= iblock_attach_hba,
 	.detach_hba		= iblock_detach_hba,
 	.alloc_device		= iblock_alloc_device,

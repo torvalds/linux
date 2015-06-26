@@ -371,6 +371,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->lane = pdata->lane;
 	mcam->chip_id = MCAM_ARMADA610;
 	mcam->buffer_mode = B_DMA_sg;
+	strlcpy(mcam->bus_info, "platform:mmp-camera", sizeof(mcam->bus_info));
 	spin_lock_init(&mcam->dev_lock);
 	/*
 	 * Get our I/O memory.

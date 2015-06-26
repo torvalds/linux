@@ -1,8 +1,8 @@
 <title>Kernel Demux API</title>
 <para>The kernel demux API defines a driver-internal interface for registering low-level,
 hardware specific driver to a hardware independent demux layer. It is only of interest for
-DVB device driver writers. The header file for this API is named <emphasis role="tt">demux.h</emphasis> and located in
-<emphasis role="tt">drivers/media/dvb-core</emphasis>.
+DVB device driver writers. The header file for this API is named <constant>demux.h</constant> and located in
+<constant>">drivers/media/dvb-core</constant>.
 </para>
 <para>Maintainer note: This section must be reviewed. It is probably out of date.
 </para>

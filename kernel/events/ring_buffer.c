@@ -141,7 +141,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 	perf_output_get_handle(handle);
 
 	do {
-		tail = ACCESS_ONCE(rb->user_page->data_tail);
+		tail = READ_ONCE_CTRL(rb->user_page->data_tail);
 		offset = head = local_read(&rb->head);
 		if (!rb->overwrite &&
 		    unlikely(CIRC_SPACE(head, tail, perf_data_size(rb)) < size))
@@ -491,6 +491,20 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 		for (last = rb->aux_nr_pages + (1 << page_private(page));
 		     last > rb->aux_nr_pages; rb->aux_nr_pages++)
 			rb->aux_pages[rb->aux_nr_pages] = page_address(page++);
+	}
+
+	/*
+	 * In overwrite mode, PMUs that don't support SG may not handle more
+	 * than one contiguous allocation, since they rely on PMI to do double
+	 * buffering. In this case, the entire buffer has to be one contiguous
+	 * chunk.
+	 */
+	if ((event->pmu->capabilities & PERF_PMU_CAP_AUX_NO_SG) &&
+	    overwrite) {
+		struct page *page = virt_to_page(rb->aux_pages[0]);
+
+		if (page_private(page) != max_order)
+			goto out;
 	}
 
 	rb->aux_priv = event->pmu->setup_aux(event->cpu, rb->aux_pages, nr_pages,

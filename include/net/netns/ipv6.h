@@ -34,6 +34,7 @@ struct netns_sysctl_ipv6 {
 	int fwmark_reflect;
 	int idgen_retries;
 	int idgen_delay;
+	int flowlabel_state_ranges;
 };
 
 struct netns_ipv6 {

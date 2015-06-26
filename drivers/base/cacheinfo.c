@@ -179,7 +179,7 @@ static int detect_cache_attributes(unsigned int cpu)
 {
 	int ret;
 
-	if (init_cache_level(cpu))
+	if (init_cache_level(cpu) || !cache_leaves(cpu))
 		return -ENOENT;
 
 	per_cpu_cacheinfo(cpu) = kcalloc(cache_leaves(cpu),

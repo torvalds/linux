@@ -929,13 +929,9 @@ static void preview_setup_hw(struct isp_prev_device *prev, u32 update,
 			     u32 active)
 {
 	unsigned int i;
-	u32 features;
 
 	if (update == 0)
 		return;
-
-	features = (prev->params.params[0].features & active)
-		 | (prev->params.params[1].features & ~active);
 
 	for (i = 0; i < ARRAY_SIZE(update_attrs); i++) {
 		const struct preview_update *attr = &update_attrs[i];

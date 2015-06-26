@@ -47,7 +47,12 @@ static int bcmgenet_mii_read(struct mii_bus *bus, int phy_id, int location)
 			   HZ / 100);
 	ret = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
 
-	if (ret & MDIO_READ_FAIL)
+	/* Some broken devices are known not to release the line during
+	 * turn-around, e.g: Broadcom BCM53125 external switches, so check for
+	 * that condition here and ignore the MDIO controller read failure
+	 * indication.
+	 */
+	if (!(bus->phy_ignore_ta_mask & 1 << phy_id) && (ret & MDIO_READ_FAIL))
 		return -EIO;
 
 	return ret & 0xffff;
@@ -299,15 +304,21 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 			phy_name = "external RGMII (no delay)";
 		else
 			phy_name = "external RGMII (TX delay)";
-		reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
-		reg |= RGMII_MODE_EN | id_mode_dis;
-		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 		bcmgenet_sys_writel(priv,
 				    PORT_MODE_EXT_GPHY, SYS_PORT_CTRL);
 		break;
 	default:
 		dev_err(kdev, "unknown phy mode: %d\n", priv->phy_interface);
 		return -EINVAL;
+	}
+
+	/* This is an external PHY (xMII), so we need to enable the RGMII
+	 * block for the interface to work
+	 */
+	if (priv->ext_phy) {
+		reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
+		reg |= RGMII_MODE_EN | id_mode_dis;
+		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 	}
 
 	if (init)

@@ -503,7 +503,6 @@ static int cs4265_set_bias_level(struct snd_soc_codec *codec,
 			CS4265_PWRCTL_PDN);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

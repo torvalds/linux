@@ -7,43 +7,12 @@
 struct scsi_device;
 struct Scsi_Host;
 
-/*
- * This is a slightly modified SCSI sense "descriptor" format header.
- * The addition is to allow the 0x70 and 0x71 response codes. The idea
- * is to place the salient data from either "fixed" or "descriptor" sense
- * format into one structure to ease application processing.
- *
- * The original sense buffer should be kept around for those cases
- * in which more information is required (e.g. the LBA of a MEDIUM ERROR).
- */
-struct scsi_sense_hdr {		/* See SPC-3 section 4.5 */
-	u8 response_code;	/* permit: 0x0, 0x70, 0x71, 0x72, 0x73 */
-	u8 sense_key;
-	u8 asc;
-	u8 ascq;
-	u8 byte4;
-	u8 byte5;
-	u8 byte6;
-	u8 additional_length;	/* always 0 for fixed sense format */
-};
-
-static inline bool scsi_sense_valid(const struct scsi_sense_hdr *sshdr)
-{
-	if (!sshdr)
-		return false;
-
-	return (sshdr->response_code & 0x70) == 0x70;
-}
-
-
 extern void scsi_eh_finish_cmd(struct scsi_cmnd *scmd,
 			       struct list_head *done_q);
 extern void scsi_eh_flush_done_q(struct list_head *done_q);
 extern void scsi_report_bus_reset(struct Scsi_Host *, int);
 extern void scsi_report_device_reset(struct Scsi_Host *, int, int);
 extern int scsi_block_when_processing_errors(struct scsi_device *);
-extern bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
-				 struct scsi_sense_hdr *sshdr);
 extern bool scsi_command_normalize_sense(const struct scsi_cmnd *cmd,
 					 struct scsi_sense_hdr *sshdr);
 

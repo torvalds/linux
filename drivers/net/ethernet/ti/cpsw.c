@@ -1361,7 +1361,6 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	if (cpsw_common_res_usage_state(priv) <= 1) {
 		cpts_unregister(priv->cpts);
 		cpsw_intr_disable(priv);
-		cpdma_ctlr_int_ctrl(priv->dma, false);
 		cpdma_ctlr_stop(priv->dma);
 		cpsw_ale_stop(priv->ale);
 	}
@@ -1456,7 +1455,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 
 		if (priv->cpts->rx_enable)
 			ctrl |= CTRL_V2_RX_TS_BITS;
-	break;
+		break;
 	case CPSW_VERSION_3:
 	default:
 		ctrl &= ~CTRL_V3_ALL_TS_MASK;
@@ -1466,7 +1465,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 
 		if (priv->cpts->rx_enable)
 			ctrl |= CTRL_V3_RX_TS_BITS;
-	break;
+		break;
 	}
 
 	mtype = (30 << TS_SEQ_ID_OFFSET_SHIFT) | EVENT_MSG_BITS;
@@ -1589,10 +1588,8 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 	cpsw_err(priv, tx_err, "transmit timeout, restarting dma\n");
 	ndev->stats.tx_errors++;
 	cpsw_intr_disable(priv);
-	cpdma_ctlr_int_ctrl(priv->dma, false);
 	cpdma_chan_stop(priv->txch);
 	cpdma_chan_start(priv->txch);
-	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
 }
 
@@ -1629,10 +1626,8 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 	struct cpsw_priv *priv = netdev_priv(ndev);
 
 	cpsw_intr_disable(priv);
-	cpdma_ctlr_int_ctrl(priv->dma, false);
 	cpsw_rx_interrupt(priv->irqs_table[0], priv);
 	cpsw_tx_interrupt(priv->irqs_table[1], priv);
-	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
 }
 #endif

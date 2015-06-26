@@ -29,7 +29,7 @@
 int kgdb_early_setup;
 #endif
 
-static unsigned long irq_map[NR_IRQS / BITS_PER_LONG];
+static DECLARE_BITMAP(irq_map, NR_IRQS);
 
 int allocate_irqno(void)
 {
@@ -109,7 +109,7 @@ void __init init_IRQ(void)
 #endif
 }
 
-#ifdef DEBUG_STACKOVERFLOW
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
 static inline void check_stack_overflow(void)
 {
 	unsigned long sp;

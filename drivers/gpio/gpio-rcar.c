@@ -177,8 +177,17 @@ static int gpio_rcar_irq_set_wake(struct irq_data *d, unsigned int on)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct gpio_rcar_priv *p = container_of(gc, struct gpio_rcar_priv,
 						gpio_chip);
+	int error;
 
-	irq_set_irq_wake(p->irq_parent, on);
+	if (p->irq_parent) {
+		error = irq_set_irq_wake(p->irq_parent, on);
+		if (error) {
+			dev_dbg(&p->pdev->dev,
+				"irq %u doesn't support irq_set_wake\n",
+				p->irq_parent);
+			p->irq_parent = 0;
+		}
+	}
 
 	if (!p->clk)
 		return 0;

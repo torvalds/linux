@@ -176,20 +176,17 @@ static void pcie_wait_cmd(struct controller *ctrl)
 			  jiffies_to_msecs(jiffies - ctrl->cmd_started));
 }
 
-/**
- * pcie_write_cmd - Issue controller command
- * @ctrl: controller to which the command is issued
- * @cmd:  command value written to slot control register
- * @mask: bitmask of slot control register to be modified
- */
-static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
+static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
+			      u16 mask, bool wait)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_ctrl;
 
 	mutex_lock(&ctrl->ctrl_lock);
 
-	/* Wait for any previous command that might still be in progress */
+	/*
+	 * Always wait for any previous command that might still be in progress
+	 */
 	pcie_wait_cmd(ctrl);
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
@@ -201,7 +198,31 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	ctrl->cmd_started = jiffies;
 	ctrl->slot_ctrl = slot_ctrl;
 
+	/*
+	 * Optionally wait for the hardware to be ready for a new command,
+	 * indicating completion of the above issued command.
+	 */
+	if (wait)
+		pcie_wait_cmd(ctrl);
+
 	mutex_unlock(&ctrl->ctrl_lock);
+}
+
+/**
+ * pcie_write_cmd - Issue controller command
+ * @ctrl: controller to which the command is issued
+ * @cmd:  command value written to slot control register
+ * @mask: bitmask of slot control register to be modified
+ */
+static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
+{
+	pcie_do_write_cmd(ctrl, cmd, mask, true);
+}
+
+/* Same as above without waiting for the hardware to latch */
+static void pcie_write_cmd_nowait(struct controller *ctrl, u16 cmd, u16 mask)
+{
+	pcie_do_write_cmd(ctrl, cmd, mask, false);
 }
 
 bool pciehp_check_link_active(struct controller *ctrl)
@@ -291,7 +312,8 @@ int pciehp_check_link_status(struct controller *ctrl)
 	ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
 	if ((lnk_status & PCI_EXP_LNKSTA_LT) ||
 	    !(lnk_status & PCI_EXP_LNKSTA_NLW)) {
-		ctrl_err(ctrl, "Link Training Error occurs\n");
+		ctrl_err(ctrl, "link training error: status %#06x\n",
+			 lnk_status);
 		return -1;
 	}
 
@@ -422,7 +444,7 @@ void pciehp_set_attention_status(struct slot *slot, u8 value)
 	default:
 		return;
 	}
-	pcie_write_cmd(ctrl, slot_cmd, PCI_EXP_SLTCTL_AIC);
+	pcie_write_cmd_nowait(ctrl, slot_cmd, PCI_EXP_SLTCTL_AIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
 }
@@ -434,7 +456,8 @@ void pciehp_green_led_on(struct slot *slot)
 	if (!PWR_LED(ctrl))
 		return;
 
-	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON, PCI_EXP_SLTCTL_PIC);
+	pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON,
+			      PCI_EXP_SLTCTL_PIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
 		 PCI_EXP_SLTCTL_PWR_IND_ON);
@@ -447,7 +470,8 @@ void pciehp_green_led_off(struct slot *slot)
 	if (!PWR_LED(ctrl))
 		return;
 
-	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF, PCI_EXP_SLTCTL_PIC);
+	pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
+			      PCI_EXP_SLTCTL_PIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
 		 PCI_EXP_SLTCTL_PWR_IND_OFF);
@@ -460,7 +484,8 @@ void pciehp_green_led_blink(struct slot *slot)
 	if (!PWR_LED(ctrl))
 		return;
 
-	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK, PCI_EXP_SLTCTL_PIC);
+	pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK,
+			      PCI_EXP_SLTCTL_PIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
 		 PCI_EXP_SLTCTL_PWR_IND_BLINK);
@@ -510,6 +535,8 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	struct pci_dev *dev;
 	struct slot *slot = ctrl->slot;
 	u16 detected, intr_loc;
+	u8 open, present;
+	bool link;
 
 	/*
 	 * In order to guarantee that all interrupt events are
@@ -532,7 +559,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 						   intr_loc);
 	} while (detected);
 
-	ctrl_dbg(ctrl, "%s: intr_loc %x\n", __func__, intr_loc);
+	ctrl_dbg(ctrl, "pending interrupts %#06x from Slot Status\n", intr_loc);
 
 	/* Check Command Complete Interrupt Pending */
 	if (intr_loc & PCI_EXP_SLTSTA_CC) {
@@ -555,25 +582,44 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	/* Check MRL Sensor Changed */
-	if (intr_loc & PCI_EXP_SLTSTA_MRLSC)
-		pciehp_handle_switch_change(slot);
+	if (intr_loc & PCI_EXP_SLTSTA_MRLSC) {
+		pciehp_get_latch_status(slot, &open);
+		ctrl_info(ctrl, "Latch %s on Slot(%s)\n",
+			  open ? "open" : "close", slot_name(slot));
+		pciehp_queue_interrupt_event(slot, open ? INT_SWITCH_OPEN :
+					     INT_SWITCH_CLOSE);
+	}
 
 	/* Check Attention Button Pressed */
-	if (intr_loc & PCI_EXP_SLTSTA_ABP)
-		pciehp_handle_attention_button(slot);
+	if (intr_loc & PCI_EXP_SLTSTA_ABP) {
+		ctrl_info(ctrl, "Button pressed on Slot(%s)\n",
+			  slot_name(slot));
+		pciehp_queue_interrupt_event(slot, INT_BUTTON_PRESS);
+	}
 
 	/* Check Presence Detect Changed */
-	if (intr_loc & PCI_EXP_SLTSTA_PDC)
-		pciehp_handle_presence_change(slot);
+	if (intr_loc & PCI_EXP_SLTSTA_PDC) {
+		pciehp_get_adapter_status(slot, &present);
+		ctrl_info(ctrl, "Card %spresent on Slot(%s)\n",
+			  present ? "" : "not ", slot_name(slot));
+		pciehp_queue_interrupt_event(slot, present ? INT_PRESENCE_ON :
+					     INT_PRESENCE_OFF);
+	}
 
 	/* Check Power Fault Detected */
 	if ((intr_loc & PCI_EXP_SLTSTA_PFD) && !ctrl->power_fault_detected) {
 		ctrl->power_fault_detected = 1;
-		pciehp_handle_power_fault(slot);
+		ctrl_err(ctrl, "Power fault on slot %s\n", slot_name(slot));
+		pciehp_queue_interrupt_event(slot, INT_POWER_FAULT);
 	}
 
-	if (intr_loc & PCI_EXP_SLTSTA_DLLSC)
-		pciehp_handle_linkstate_change(slot);
+	if (intr_loc & PCI_EXP_SLTSTA_DLLSC) {
+		link = pciehp_check_link_active(ctrl);
+		ctrl_info(ctrl, "slot(%s): Link %s event\n",
+			  slot_name(slot), link ? "Up" : "Down");
+		pciehp_queue_interrupt_event(slot, link ? INT_LINK_UP :
+					     INT_LINK_DOWN);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -613,7 +659,7 @@ void pcie_enable_notification(struct controller *ctrl)
 		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
 		PCI_EXP_SLTCTL_DLLSCE);
 
-	pcie_write_cmd(ctrl, cmd, mask);
+	pcie_write_cmd_nowait(ctrl, cmd, mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, cmd);
 }
@@ -664,7 +710,7 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	pci_reset_bridge_secondary_bus(ctrl->pcie->port);
 
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, stat_mask);
-	pcie_write_cmd(ctrl, ctrl_mask, ctrl_mask);
+	pcie_write_cmd_nowait(ctrl, ctrl_mask, ctrl_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
 	if (pciehp_poll_mode)
@@ -724,48 +770,13 @@ static void pcie_cleanup_slot(struct controller *ctrl)
 
 static inline void dbg_ctrl(struct controller *ctrl)
 {
-	int i;
-	u16 reg16;
 	struct pci_dev *pdev = ctrl->pcie->port;
+	u16 reg16;
 
 	if (!pciehp_debug)
 		return;
 
-	ctrl_info(ctrl, "Hotplug Controller:\n");
-	ctrl_info(ctrl, "  Seg/Bus/Dev/Func/IRQ : %s IRQ %d\n",
-		  pci_name(pdev), pdev->irq);
-	ctrl_info(ctrl, "  Vendor ID            : 0x%04x\n", pdev->vendor);
-	ctrl_info(ctrl, "  Device ID            : 0x%04x\n", pdev->device);
-	ctrl_info(ctrl, "  Subsystem ID         : 0x%04x\n",
-		  pdev->subsystem_device);
-	ctrl_info(ctrl, "  Subsystem Vendor ID  : 0x%04x\n",
-		  pdev->subsystem_vendor);
-	ctrl_info(ctrl, "  PCIe Cap offset      : 0x%02x\n",
-		  pci_pcie_cap(pdev));
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		if (!pci_resource_len(pdev, i))
-			continue;
-		ctrl_info(ctrl, "  PCI resource [%d]     : %pR\n",
-			  i, &pdev->resource[i]);
-	}
 	ctrl_info(ctrl, "Slot Capabilities      : 0x%08x\n", ctrl->slot_cap);
-	ctrl_info(ctrl, "  Physical Slot Number : %d\n", PSN(ctrl));
-	ctrl_info(ctrl, "  Attention Button     : %3s\n",
-		  ATTN_BUTTN(ctrl) ? "yes" : "no");
-	ctrl_info(ctrl, "  Power Controller     : %3s\n",
-		  POWER_CTRL(ctrl) ? "yes" : "no");
-	ctrl_info(ctrl, "  MRL Sensor           : %3s\n",
-		  MRL_SENS(ctrl)   ? "yes" : "no");
-	ctrl_info(ctrl, "  Attention Indicator  : %3s\n",
-		  ATTN_LED(ctrl)   ? "yes" : "no");
-	ctrl_info(ctrl, "  Power Indicator      : %3s\n",
-		  PWR_LED(ctrl)    ? "yes" : "no");
-	ctrl_info(ctrl, "  Hot-Plug Surprise    : %3s\n",
-		  HP_SUPR_RM(ctrl) ? "yes" : "no");
-	ctrl_info(ctrl, "  EMI Present          : %3s\n",
-		  EMI(ctrl)        ? "yes" : "no");
-	ctrl_info(ctrl, "  Command Completed    : %3s\n",
-		  NO_CMD_CMPL(ctrl) ? "no" : "yes");
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &reg16);
 	ctrl_info(ctrl, "Slot Status            : 0x%04x\n", reg16);
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &reg16);
@@ -794,10 +805,8 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	/* Check if Data Link Layer Link Active Reporting is implemented */
 	pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &link_cap);
-	if (link_cap & PCI_EXP_LNKCAP_DLLLARC) {
-		ctrl_dbg(ctrl, "Link Active Reporting supported\n");
+	if (link_cap & PCI_EXP_LNKCAP_DLLLARC)
 		ctrl->link_active_reporting = 1;
-	}
 
 	/* Clear all remaining event bits in Slot Status register */
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
@@ -805,13 +814,15 @@ struct controller *pcie_init(struct pcie_device *dev)
 		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
 		PCI_EXP_SLTSTA_CC | PCI_EXP_SLTSTA_DLLSC);
 
-	ctrl_info(ctrl, "Slot #%d AttnBtn%c AttnInd%c PwrInd%c PwrCtrl%c MRL%c Interlock%c NoCompl%c LLActRep%c\n",
+	ctrl_info(ctrl, "Slot #%d AttnBtn%c PwrCtrl%c MRL%c AttnInd%c PwrInd%c HotPlug%c Surprise%c Interlock%c NoCompl%c LLActRep%c\n",
 		(slot_cap & PCI_EXP_SLTCAP_PSN) >> 19,
 		FLAG(slot_cap, PCI_EXP_SLTCAP_ABP),
-		FLAG(slot_cap, PCI_EXP_SLTCAP_AIP),
-		FLAG(slot_cap, PCI_EXP_SLTCAP_PIP),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_PCP),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_MRLSP),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_AIP),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_PIP),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_HPC),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_HPS),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_EIP),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_NCCS),
 		FLAG(link_cap, PCI_EXP_LNKCAP_DLLLARC));

@@ -14,6 +14,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/property.h>
 
 /**
@@ -519,3 +520,16 @@ unsigned int device_get_child_node_count(struct device *dev)
 	return count;
 }
 EXPORT_SYMBOL_GPL(device_get_child_node_count);
+
+bool device_dma_is_coherent(struct device *dev)
+{
+	bool coherent = false;
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node)
+		coherent = of_dma_is_coherent(dev->of_node);
+	else
+		acpi_check_dma(ACPI_COMPANION(dev), &coherent);
+
+	return coherent;
+}
+EXPORT_SYMBOL_GPL(device_dma_is_coherent);

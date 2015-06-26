@@ -24,6 +24,8 @@ struct nf_queue_entry {
 struct nf_queue_handler {
 	int			(*outfn)(struct nf_queue_entry *entry,
 					 unsigned int queuenum);
+	void			(*nf_hook_drop)(struct net *net,
+						struct nf_hook_ops *ops);
 };
 
 void nf_register_queue_handler(const struct nf_queue_handler *qh);

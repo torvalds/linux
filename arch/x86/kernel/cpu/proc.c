@@ -12,7 +12,8 @@ static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
 {
 #ifdef CONFIG_SMP
 	seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
-	seq_printf(m, "siblings\t: %d\n", cpumask_weight(cpu_core_mask(cpu)));
+	seq_printf(m, "siblings\t: %d\n",
+		   cpumask_weight(topology_core_cpumask(cpu)));
 	seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
 	seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
 	seq_printf(m, "apicid\t\t: %d\n", c->apicid);

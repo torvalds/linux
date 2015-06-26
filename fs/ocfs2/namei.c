@@ -1116,8 +1116,6 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 	int inode1_is_ancestor, inode2_is_ancestor;
 	struct ocfs2_inode_info *oi1 = OCFS2_I(inode1);
 	struct ocfs2_inode_info *oi2 = OCFS2_I(inode2);
-	struct buffer_head **tmpbh;
-	struct inode *tmpinode;
 
 	trace_ocfs2_double_lock((unsigned long long)oi1->ip_blkno,
 				(unsigned long long)oi2->ip_blkno);
@@ -1148,13 +1146,8 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 				(oi1->ip_blkno < oi2->ip_blkno &&
 				inode2_is_ancestor == 0)) {
 			/* switch id1 and id2 around */
-			tmpbh = bh2;
-			bh2 = bh1;
-			bh1 = tmpbh;
-
-			tmpinode = inode2;
-			inode2 = inode1;
-			inode1 = tmpinode;
+			swap(bh2, bh1);
+			swap(inode2, inode1);
 		}
 		/* lock id2 */
 		status = ocfs2_inode_lock_nested(inode2, bh2, 1,
@@ -2670,22 +2663,14 @@ bail:
 }
 
 int ocfs2_del_inode_from_orphan(struct ocfs2_super *osb,
-		struct inode *inode, int update_isize,
-		loff_t end)
+		struct inode *inode, struct buffer_head *di_bh,
+		int update_isize, loff_t end)
 {
 	struct inode *orphan_dir_inode = NULL;
 	struct buffer_head *orphan_dir_bh = NULL;
-	struct buffer_head *di_bh = NULL;
-	struct ocfs2_dinode *di = NULL;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 	handle_t *handle = NULL;
 	int status = 0;
-
-	status = ocfs2_inode_lock(inode, &di_bh, 1);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-	di = (struct ocfs2_dinode *) di_bh->b_data;
 
 	orphan_dir_inode = ocfs2_get_system_file_inode(osb,
 			ORPHAN_DIR_SYSTEM_INODE,
@@ -2693,7 +2678,7 @@ int ocfs2_del_inode_from_orphan(struct ocfs2_super *osb,
 	if (!orphan_dir_inode) {
 		status = -ENOENT;
 		mlog_errno(status);
-		goto bail_unlock_inode;
+		goto bail;
 	}
 
 	mutex_lock(&orphan_dir_inode->i_mutex);
@@ -2702,7 +2687,7 @@ int ocfs2_del_inode_from_orphan(struct ocfs2_super *osb,
 		mutex_unlock(&orphan_dir_inode->i_mutex);
 		iput(orphan_dir_inode);
 		mlog_errno(status);
-		goto bail_unlock_inode;
+		goto bail;
 	}
 
 	handle = ocfs2_start_trans(osb,
@@ -2748,10 +2733,6 @@ bail_unlock_orphan:
 	mutex_unlock(&orphan_dir_inode->i_mutex);
 	brelse(orphan_dir_bh);
 	iput(orphan_dir_inode);
-
-bail_unlock_inode:
-	ocfs2_inode_unlock(inode, 1);
-	brelse(di_bh);
 
 bail:
 	return status;

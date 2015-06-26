@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/hardirq.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -35,10 +36,10 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	*code_out = SEGV_MAPERR;
 
 	/*
-	 * If the fault was during atomic operation, don't take the fault, just
+	 * If the fault was with pagefaults disabled, don't take the fault, just
 	 * fail.
 	 */
-	if (in_atomic())
+	if (faulthandler_disabled())
 		goto out_nosemaphore;
 
 	if (is_user)

@@ -61,7 +61,7 @@ static DEVICE_ATTR_RO(physical_package_id);
 define_id_show_func(core_id);
 static DEVICE_ATTR_RO(core_id);
 
-define_siblings_show_func(thread_siblings, thread_cpumask);
+define_siblings_show_func(thread_siblings, sibling_cpumask);
 static DEVICE_ATTR_RO(thread_siblings);
 static DEVICE_ATTR_RO(thread_siblings_list);
 

@@ -41,6 +41,7 @@
 #include <linux/dcache.h>
 #include <linux/falloc.h>
 #include <linux/pagevec.h>
+#include <linux/backing-dev.h>
 
 static const struct vm_operations_struct xfs_file_vm_ops;
 
@@ -124,7 +125,7 @@ xfs_iozero(
 		status = 0;
 	} while (count);
 
-	return (-status);
+	return status;
 }
 
 int

@@ -45,8 +45,9 @@ to specify in a pinconf subnode:
 
  Valid values for groups are:
    ethernet0_0_grp, ethernet1_0_grp, mdio0_0_grp, mdio1_0_grp,
-   qspi0_0_grp, qspi1_0_grp, qspi_fbclk, qspi_cs1_grp, spi0_0_grp,
-   spi0_1_grp - spi0_2_grp, spi1_0_grp - spi1_3_grp, sdio0_0_grp - sdio0_2_grp,
+   qspi0_0_grp, qspi1_0_grp, qspi_fbclk, qspi_cs1_grp, spi0_0_grp - spi0_2_grp,
+   spi0_X_ssY (X=0..2, Y=0..2), spi1_0_grp - spi1_3_grp,
+   spi1_X_ssY (X=0..3, Y=0..2), sdio0_0_grp - sdio0_2_grp,
    sdio1_0_grp - sdio1_3_grp, sdio0_emio_wp, sdio0_emio_cd, sdio1_emio_wp,
    sdio1_emio_cd, smc0_nor, smc0_nor_cs1_grp, smc0_nor_addr25_grp, smc0_nand,
    can0_0_grp - can0_10_grp, can1_0_grp - can1_11_grp, uart0_0_grp - uart0_10_grp,
@@ -59,7 +60,7 @@ to specify in a pinconf subnode:
 
  Valid values for function are:
    ethernet0, ethernet1, mdio0, mdio1, qspi0, qspi1, qspi_fbclk, qspi_cs1,
-   spi0, spi1, sdio0, sdio0_pc, sdio0_cd, sdio0_wp,
+   spi0, spi0_ss, spi1, spi1_ss, sdio0, sdio0_pc, sdio0_cd, sdio0_wp,
    sdio1, sdio1_pc, sdio1_cd, sdio1_wp,
    smc0_nor, smc0_nor_cs1, smc0_nor_addr25, smc0_nand, can0, can1, uart0, uart1,
    i2c0, i2c1, ttc0, ttc1, swdt0, gpio0, usb0, usb1

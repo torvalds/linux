@@ -41,10 +41,10 @@
 /**
  * struct xgpio_instance - Stores information about GPIO device
  * @mmchip: OF GPIO chip for memory mapped banks
+ * @gpio_width: GPIO width for every channel
  * @gpio_state: GPIO state shadow register
  * @gpio_dir: GPIO direction shadow register
  * @gpio_lock: Lock used for synchronization
- * @inited: True if the port has been inited
  */
 struct xgpio_instance {
 	struct of_mm_gpio_chip mmchip;
@@ -231,6 +231,8 @@ static void xgpio_save_regs(struct of_mm_gpio_chip *mm_gc)
  * @pdev: pointer to the platform device
  *
  * This function remove gpiochips and frees all the allocated resources.
+ *
+ * Return: 0 always
  */
 static int xgpio_remove(struct platform_device *pdev)
 {

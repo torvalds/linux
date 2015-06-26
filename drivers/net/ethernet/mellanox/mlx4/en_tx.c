@@ -144,9 +144,9 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->queue_index = queue_index;
 
 	if (queue_index < priv->num_tx_rings_p_up)
-		cpumask_set_cpu_local_first(queue_index,
-					    priv->mdev->dev->numa_node,
-					    &ring->affinity_mask);
+		cpumask_set_cpu(cpumask_local_spread(queue_index,
+						     priv->mdev->dev->numa_node),
+				&ring->affinity_mask);
 
 	*pring = ring;
 	return 0;

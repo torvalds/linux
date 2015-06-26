@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -15,19 +15,37 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
-#include "distributed-arp-table.h"
 #include "send.h"
-#include "routing.h"
-#include "translation-table.h"
-#include "soft-interface.h"
-#include "hard-interface.h"
-#include "gateway_common.h"
-#include "gateway_client.h"
-#include "originator.h"
-#include "network-coding.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
+#include <linux/if_ether.h>
+#include <linux/if.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/netdevice.h>
+#include <linux/printk.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
+#include <linux/workqueue.h>
+
+#include "distributed-arp-table.h"
 #include "fragmentation.h"
-#include "multicast.h"
+#include "gateway_client.h"
+#include "hard-interface.h"
+#include "network-coding.h"
+#include "originator.h"
+#include "routing.h"
+#include "soft-interface.h"
+#include "translation-table.h"
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 
@@ -255,8 +273,8 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 			    struct batadv_orig_node *orig_node,
 			    unsigned short vid)
 {
-	struct ethhdr *ethhdr;
 	struct batadv_unicast_packet *unicast_packet;
+	struct ethhdr *ethhdr;
 	int ret = NET_XMIT_DROP;
 
 	if (!orig_node)

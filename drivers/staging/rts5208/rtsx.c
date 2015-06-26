@@ -230,7 +230,6 @@ static struct scsi_host_template rtsx_host_template = {
 
 	/* queue commands only, only one command per LUN */
 	.can_queue =			1,
-	.cmd_per_lun =			1,
 
 	/* unknown initiator id */
 	.this_id =			-1,

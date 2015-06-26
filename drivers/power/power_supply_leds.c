@@ -25,7 +25,7 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 	unsigned long delay_on = 0;
 	unsigned long delay_off = 0;
 
-	if (psy->desc->get_property(psy, POWER_SUPPLY_PROP_STATUS, &status))
+	if (power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS, &status))
 		return;
 
 	dev_dbg(&psy->dev, "%s %d\n", __func__, status.intval);
@@ -115,7 +115,7 @@ static void power_supply_update_gen_leds(struct power_supply *psy)
 {
 	union power_supply_propval online;
 
-	if (psy->desc->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &online))
+	if (power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE, &online))
 		return;
 
 	dev_dbg(&psy->dev, "%s %d\n", __func__, online.intval);

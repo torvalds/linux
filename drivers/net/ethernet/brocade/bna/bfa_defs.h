@@ -24,7 +24,6 @@
 #include "bfa_defs_status.h"
 #include "bfa_defs_mfg_comm.h"
 
-#define BFA_STRING_32	32
 #define BFA_VERSION_LEN 64
 
 /* ---------------------- adapter definitions ------------ */
@@ -55,7 +54,7 @@ struct bfa_adapter_attr {
 	char		optrom_ver[BFA_VERSION_LEN];
 	char		os_type[BFA_ADAPTER_OS_TYPE_LEN];
 	struct bfa_mfg_vpd vpd;
-	struct mac mac;
+	u8		mac[ETH_ALEN];
 
 	u8		nports;
 	u8		max_speed;
@@ -187,8 +186,6 @@ enum {
 #define BFA_MFG_SUPPLIER_SERIALNUM_SIZE		20
 #define BFA_MFG_SUPPLIER_REVISION_SIZE		4
 
-#pragma pack(1)
-
 /* BFA adapter manufacturing block definition.
  *
  * All numerical fields are in big-endian format.
@@ -211,7 +208,7 @@ struct bfa_mfg_block {
 	char	supplier_partnum[STRSZ(BFA_MFG_SUPPLIER_PARTNUM_SIZE)];
 	char	supplier_serialnum[STRSZ(BFA_MFG_SUPPLIER_SERIALNUM_SIZE)];
 	char	supplier_revision[STRSZ(BFA_MFG_SUPPLIER_REVISION_SIZE)];
-	mac_t	mfg_mac;	/* base mac address */
+	u8	mfg_mac[ETH_ALEN]; /* base mac address */
 	u8	num_mac;	/* number of mac addresses */
 	u8	rsv2;
 	u32	card_type;	/* card type          */
@@ -227,9 +224,7 @@ struct bfa_mfg_block {
 	char	initial_mode[8]; /* initial mode: hba/cna/nic */
 	u8	rsv4[84];
 	u8	md5_chksum[BFA_MFG_CHKSUM_SIZE]; /* md5 checksum */
-};
-
-#pragma pack()
+} __packed;
 
 /* ---------------------- pci definitions ------------ */
 

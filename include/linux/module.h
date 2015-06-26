@@ -655,4 +655,16 @@ static inline void module_bug_finalize(const Elf_Ehdr *hdr,
 static inline void module_bug_cleanup(struct module *mod) {}
 #endif	/* CONFIG_GENERIC_BUG */
 
+#ifdef CONFIG_MODULE_SIG
+static inline bool module_sig_ok(struct module *module)
+{
+	return module->sig_ok;
+}
+#else	/* !CONFIG_MODULE_SIG */
+static inline bool module_sig_ok(struct module *module)
+{
+	return true;
+}
+#endif	/* CONFIG_MODULE_SIG */
+
 #endif /* _LINUX_MODULE_H */

@@ -17,7 +17,7 @@ struct pt_regs;
 
 /**
  * struct irq_desc - interrupt descriptor
- * @irq_data:		per irq and chip data passed down to chip functions
+ * @irq_common_data:	per irq and chip data passed down to chip functions
  * @kstat_irqs:		irq stats per cpu
  * @handle_irq:		highlevel irq-events handler
  * @preflow_handler:	handler called before the flow handler (currently used by sparc)
@@ -47,6 +47,7 @@ struct pt_regs;
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
+	struct irq_common_data	irq_common_data;
 	struct irq_data		irq_data;
 	unsigned int __percpu	*kstat_irqs;
 	irq_flow_handler_t	handle_irq;
@@ -92,6 +93,15 @@ struct irq_desc {
 #ifndef CONFIG_SPARSE_IRQ
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
+
+static inline struct irq_desc *irq_data_to_desc(struct irq_data *data)
+{
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+	return irq_to_desc(data->irq);
+#else
+	return container_of(data, struct irq_desc, irq_data);
+#endif
+}
 
 static inline struct irq_data *irq_desc_get_irq_data(struct irq_desc *desc)
 {

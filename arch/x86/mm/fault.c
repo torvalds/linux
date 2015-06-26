@@ -13,6 +13,7 @@
 #include <linux/hugetlb.h>		/* hstate_index_to_shift	*/
 #include <linux/prefetch.h>		/* prefetchw			*/
 #include <linux/context_tracking.h>	/* exception_enter(), ...	*/
+#include <linux/uaccess.h>		/* faulthandler_disabled()	*/
 
 #include <asm/traps.h>			/* dotraplinkage, ...		*/
 #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
@@ -1126,9 +1127,9 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
 
 	/*
 	 * If we're in an interrupt, have no user context or are running
-	 * in an atomic region then we must not take the fault:
+	 * in a region with pagefaults disabled then we must not take the fault
 	 */
-	if (unlikely(in_atomic() || !mm)) {
+	if (unlikely(faulthandler_disabled() || !mm)) {
 		bad_area_nosemaphore(regs, error_code, address);
 		return;
 	}

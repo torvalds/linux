@@ -6,16 +6,16 @@
 #include <linux/bitops.h>
 
 struct frontswap_ops {
-	void (*init)(unsigned);
-	int (*store)(unsigned, pgoff_t, struct page *);
-	int (*load)(unsigned, pgoff_t, struct page *);
-	void (*invalidate_page)(unsigned, pgoff_t);
-	void (*invalidate_area)(unsigned);
+	void (*init)(unsigned); /* this swap type was just swapon'ed */
+	int (*store)(unsigned, pgoff_t, struct page *); /* store a page */
+	int (*load)(unsigned, pgoff_t, struct page *); /* load a page */
+	void (*invalidate_page)(unsigned, pgoff_t); /* page no longer needed */
+	void (*invalidate_area)(unsigned); /* swap type just swapoff'ed */
+	struct frontswap_ops *next; /* private pointer to next ops */
 };
 
 extern bool frontswap_enabled;
-extern struct frontswap_ops *
-	frontswap_register_ops(struct frontswap_ops *ops);
+extern void frontswap_register_ops(struct frontswap_ops *ops);
 extern void frontswap_shrink(unsigned long);
 extern unsigned long frontswap_curr_pages(void);
 extern void frontswap_writethrough(bool);

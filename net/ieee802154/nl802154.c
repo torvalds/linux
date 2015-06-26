@@ -207,10 +207,11 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_PAGE] = { .type = NLA_U8, },
 	[NL802154_ATTR_CHANNEL] = { .type = NLA_U8, },
 
-	[NL802154_ATTR_TX_POWER] = { .type = NLA_S8, },
+	[NL802154_ATTR_TX_POWER] = { .type = NLA_S32, },
 
 	[NL802154_ATTR_CCA_MODE] = { .type = NLA_U32, },
 	[NL802154_ATTR_CCA_OPT] = { .type = NLA_U32, },
+	[NL802154_ATTR_CCA_ED_LEVEL] = { .type = NLA_S32, },
 
 	[NL802154_ATTR_SUPPORTED_CHANNEL] = { .type = NLA_U32, },
 
@@ -225,6 +226,10 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_MAX_FRAME_RETRIES] = { .type = NLA_S8, },
 
 	[NL802154_ATTR_LBT_MODE] = { .type = NLA_U8, },
+
+	[NL802154_ATTR_WPAN_PHY_CAPS] = { .type = NLA_NESTED },
+
+	[NL802154_ATTR_SUPPORTED_COMMANDS] = { .type = NLA_NESTED },
 };
 
 /* message building helper */
@@ -233,6 +238,28 @@ static inline void *nl802154hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
 {
 	/* since there is no private header just add the generic one */
 	return genlmsg_put(skb, portid, seq, &nl802154_fam, flags, cmd);
+}
+
+static int
+nl802154_put_flags(struct sk_buff *msg, int attr, u32 mask)
+{
+	struct nlattr *nl_flags = nla_nest_start(msg, attr);
+	int i;
+
+	if (!nl_flags)
+		return -ENOBUFS;
+
+	i = 0;
+	while (mask) {
+		if ((mask & 1) && nla_put_flag(msg, i))
+			return -ENOBUFS;
+
+		mask >>= 1;
+		i++;
+	}
+
+	nla_nest_end(msg, nl_flags);
+	return 0;
 }
 
 static int
@@ -248,10 +275,96 @@ nl802154_send_wpan_phy_channels(struct cfg802154_registered_device *rdev,
 
 	for (page = 0; page <= IEEE802154_MAX_PAGE; page++) {
 		if (nla_put_u32(msg, NL802154_ATTR_SUPPORTED_CHANNEL,
-				rdev->wpan_phy.channels_supported[page]))
+				rdev->wpan_phy.supported.channels[page]))
 			return -ENOBUFS;
 	}
 	nla_nest_end(msg, nl_page);
+
+	return 0;
+}
+
+static int
+nl802154_put_capabilities(struct sk_buff *msg,
+			  struct cfg802154_registered_device *rdev)
+{
+	const struct wpan_phy_supported *caps = &rdev->wpan_phy.supported;
+	struct nlattr *nl_caps, *nl_channels;
+	int i;
+
+	nl_caps = nla_nest_start(msg, NL802154_ATTR_WPAN_PHY_CAPS);
+	if (!nl_caps)
+		return -ENOBUFS;
+
+	nl_channels = nla_nest_start(msg, NL802154_CAP_ATTR_CHANNELS);
+	if (!nl_channels)
+		return -ENOBUFS;
+
+	for (i = 0; i <= IEEE802154_MAX_PAGE; i++) {
+		if (caps->channels[i]) {
+			if (nl802154_put_flags(msg, i, caps->channels[i]))
+				return -ENOBUFS;
+		}
+	}
+
+	nla_nest_end(msg, nl_channels);
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_ED_LEVEL) {
+		struct nlattr *nl_ed_lvls;
+
+		nl_ed_lvls = nla_nest_start(msg,
+					    NL802154_CAP_ATTR_CCA_ED_LEVELS);
+		if (!nl_ed_lvls)
+			return -ENOBUFS;
+
+		for (i = 0; i < caps->cca_ed_levels_size; i++) {
+			if (nla_put_s32(msg, i, caps->cca_ed_levels[i]))
+				return -ENOBUFS;
+		}
+
+		nla_nest_end(msg, nl_ed_lvls);
+	}
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER) {
+		struct nlattr *nl_tx_pwrs;
+
+		nl_tx_pwrs = nla_nest_start(msg, NL802154_CAP_ATTR_TX_POWERS);
+		if (!nl_tx_pwrs)
+			return -ENOBUFS;
+
+		for (i = 0; i < caps->tx_powers_size; i++) {
+			if (nla_put_s32(msg, i, caps->tx_powers[i]))
+				return -ENOBUFS;
+		}
+
+		nla_nest_end(msg, nl_tx_pwrs);
+	}
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE) {
+		if (nl802154_put_flags(msg, NL802154_CAP_ATTR_CCA_MODES,
+				       caps->cca_modes) ||
+		    nl802154_put_flags(msg, NL802154_CAP_ATTR_CCA_OPTS,
+				       caps->cca_opts))
+			return -ENOBUFS;
+	}
+
+	if (nla_put_u8(msg, NL802154_CAP_ATTR_MIN_MINBE, caps->min_minbe) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MAX_MINBE, caps->max_minbe) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MIN_MAXBE, caps->min_maxbe) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MAX_MAXBE, caps->max_maxbe) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MIN_CSMA_BACKOFFS,
+		       caps->min_csma_backoffs) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MAX_CSMA_BACKOFFS,
+		       caps->max_csma_backoffs) ||
+	    nla_put_s8(msg, NL802154_CAP_ATTR_MIN_FRAME_RETRIES,
+		       caps->min_frame_retries) ||
+	    nla_put_s8(msg, NL802154_CAP_ATTR_MAX_FRAME_RETRIES,
+		       caps->max_frame_retries) ||
+	    nl802154_put_flags(msg, NL802154_CAP_ATTR_IFTYPES,
+			       caps->iftypes) ||
+	    nla_put_u32(msg, NL802154_CAP_ATTR_LBT, caps->lbt))
+		return -ENOBUFS;
+
+	nla_nest_end(msg, nl_caps);
 
 	return 0;
 }
@@ -261,7 +374,9 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 				  struct sk_buff *msg, u32 portid, u32 seq,
 				  int flags)
 {
+	struct nlattr *nl_cmds;
 	void *hdr;
+	int i;
 
 	hdr = nl802154hdr_put(msg, portid, seq, flags, cmd);
 	if (!hdr)
@@ -286,24 +401,75 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 		       rdev->wpan_phy.current_channel))
 		goto nla_put_failure;
 
-	/* supported channels array */
+	/* TODO remove this behaviour, we still keep support it for a while
+	 * so users can change the behaviour to the new one.
+	 */
 	if (nl802154_send_wpan_phy_channels(rdev, msg))
 		goto nla_put_failure;
 
 	/* cca mode */
-	if (nla_put_u32(msg, NL802154_ATTR_CCA_MODE,
-			rdev->wpan_phy.cca.mode))
-		goto nla_put_failure;
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE) {
+		if (nla_put_u32(msg, NL802154_ATTR_CCA_MODE,
+				rdev->wpan_phy.cca.mode))
+			goto nla_put_failure;
 
-	if (rdev->wpan_phy.cca.mode == NL802154_CCA_ENERGY_CARRIER) {
-		if (nla_put_u32(msg, NL802154_ATTR_CCA_OPT,
-				rdev->wpan_phy.cca.opt))
+		if (rdev->wpan_phy.cca.mode == NL802154_CCA_ENERGY_CARRIER) {
+			if (nla_put_u32(msg, NL802154_ATTR_CCA_OPT,
+					rdev->wpan_phy.cca.opt))
+				goto nla_put_failure;
+		}
+	}
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER) {
+		if (nla_put_s32(msg, NL802154_ATTR_TX_POWER,
+				rdev->wpan_phy.transmit_power))
 			goto nla_put_failure;
 	}
 
-	if (nla_put_s8(msg, NL802154_ATTR_TX_POWER,
-		       rdev->wpan_phy.transmit_power))
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_ED_LEVEL) {
+		if (nla_put_s32(msg, NL802154_ATTR_CCA_ED_LEVEL,
+				rdev->wpan_phy.cca_ed_level))
+			goto nla_put_failure;
+	}
+
+	if (nl802154_put_capabilities(msg, rdev))
 		goto nla_put_failure;
+
+	nl_cmds = nla_nest_start(msg, NL802154_ATTR_SUPPORTED_COMMANDS);
+	if (!nl_cmds)
+		goto nla_put_failure;
+
+	i = 0;
+#define CMD(op, n)							\
+	do {								\
+		if (rdev->ops->op) {					\
+			i++;						\
+			if (nla_put_u32(msg, i, NL802154_CMD_ ## n))	\
+				goto nla_put_failure;			\
+		}							\
+	} while (0)
+
+	CMD(add_virtual_intf, NEW_INTERFACE);
+	CMD(del_virtual_intf, DEL_INTERFACE);
+	CMD(set_channel, SET_CHANNEL);
+	CMD(set_pan_id, SET_PAN_ID);
+	CMD(set_short_addr, SET_SHORT_ADDR);
+	CMD(set_backoff_exponent, SET_BACKOFF_EXPONENT);
+	CMD(set_max_csma_backoffs, SET_MAX_CSMA_BACKOFFS);
+	CMD(set_max_frame_retries, SET_MAX_FRAME_RETRIES);
+	CMD(set_lbt_mode, SET_LBT_MODE);
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER)
+		CMD(set_tx_power, SET_TX_POWER);
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_ED_LEVEL)
+		CMD(set_cca_ed_level, SET_CCA_ED_LEVEL);
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE)
+		CMD(set_cca_mode, SET_CCA_MODE);
+
+#undef CMD
+	nla_nest_end(msg, nl_cmds);
 
 finish:
 	genlmsg_end(msg, hdr);
@@ -575,7 +741,8 @@ static int nl802154_new_interface(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL802154_ATTR_IFTYPE]) {
 		type = nla_get_u32(info->attrs[NL802154_ATTR_IFTYPE]);
-		if (type > NL802154_IFTYPE_MAX)
+		if (type > NL802154_IFTYPE_MAX ||
+		    !(rdev->wpan_phy.supported.iftypes & BIT(type)))
 			return -EINVAL;
 	}
 
@@ -625,7 +792,8 @@ static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 	channel = nla_get_u8(info->attrs[NL802154_ATTR_CHANNEL]);
 
 	/* check 802.15.4 constraints */
-	if (page > IEEE802154_MAX_PAGE || channel > IEEE802154_MAX_CHANNEL)
+	if (page > IEEE802154_MAX_PAGE || channel > IEEE802154_MAX_CHANNEL ||
+	    !(rdev->wpan_phy.supported.channels[page] & BIT(channel)))
 		return -EINVAL;
 
 	return rdev_set_channel(rdev, page, channel);
@@ -636,12 +804,17 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct wpan_phy_cca cca;
 
+	if (!(rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE))
+		return -EOPNOTSUPP;
+
 	if (!info->attrs[NL802154_ATTR_CCA_MODE])
 		return -EINVAL;
 
 	cca.mode = nla_get_u32(info->attrs[NL802154_ATTR_CCA_MODE]);
 	/* checking 802.15.4 constraints */
-	if (cca.mode < NL802154_CCA_ENERGY || cca.mode > NL802154_CCA_ATTR_MAX)
+	if (cca.mode < NL802154_CCA_ENERGY ||
+	    cca.mode > NL802154_CCA_ATTR_MAX ||
+	    !(rdev->wpan_phy.supported.cca_modes & BIT(cca.mode)))
 		return -EINVAL;
 
 	if (cca.mode == NL802154_CCA_ENERGY_CARRIER) {
@@ -649,11 +822,56 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 
 		cca.opt = nla_get_u32(info->attrs[NL802154_ATTR_CCA_OPT]);
-		if (cca.opt > NL802154_CCA_OPT_ATTR_MAX)
+		if (cca.opt > NL802154_CCA_OPT_ATTR_MAX ||
+		    !(rdev->wpan_phy.supported.cca_opts & BIT(cca.opt)))
 			return -EINVAL;
 	}
 
 	return rdev_set_cca_mode(rdev, &cca);
+}
+
+static int nl802154_set_cca_ed_level(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	s32 ed_level;
+	int i;
+
+	if (!(rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_ED_LEVEL))
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL802154_ATTR_CCA_ED_LEVEL])
+		return -EINVAL;
+
+	ed_level = nla_get_s32(info->attrs[NL802154_ATTR_CCA_ED_LEVEL]);
+
+	for (i = 0; i < rdev->wpan_phy.supported.cca_ed_levels_size; i++) {
+		if (ed_level == rdev->wpan_phy.supported.cca_ed_levels[i])
+			return rdev_set_cca_ed_level(rdev, ed_level);
+	}
+
+	return -EINVAL;
+}
+
+static int nl802154_set_tx_power(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	s32 power;
+	int i;
+
+	if (!(rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER))
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL802154_ATTR_TX_POWER])
+		return -EINVAL;
+
+	power = nla_get_s32(info->attrs[NL802154_ATTR_TX_POWER]);
+
+	for (i = 0; i < rdev->wpan_phy.supported.tx_powers_size; i++) {
+		if (power == rdev->wpan_phy.supported.tx_powers[i])
+			return rdev_set_tx_power(rdev, power);
+	}
+
+	return -EINVAL;
 }
 
 static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
@@ -668,13 +886,21 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 		return -EBUSY;
 
 	/* don't change address fields on monitor */
-	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
-		return -EINVAL;
-
-	if (!info->attrs[NL802154_ATTR_PAN_ID])
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR ||
+	    !info->attrs[NL802154_ATTR_PAN_ID])
 		return -EINVAL;
 
 	pan_id = nla_get_le16(info->attrs[NL802154_ATTR_PAN_ID]);
+
+	/* TODO
+	 * I am not sure about to check here on broadcast pan_id.
+	 * Broadcast is a valid setting, comment from 802.15.4:
+	 * If this value is 0xffff, the device is not associated.
+	 *
+	 * This could useful to simple deassociate an device.
+	 */
+	if (pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
+		return -EINVAL;
 
 	return rdev_set_pan_id(rdev, wpan_dev, pan_id);
 }
@@ -691,13 +917,26 @@ static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
 		return -EBUSY;
 
 	/* don't change address fields on monitor */
-	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
-		return -EINVAL;
-
-	if (!info->attrs[NL802154_ATTR_SHORT_ADDR])
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR ||
+	    !info->attrs[NL802154_ATTR_SHORT_ADDR])
 		return -EINVAL;
 
 	short_addr = nla_get_le16(info->attrs[NL802154_ATTR_SHORT_ADDR]);
+
+	/* TODO
+	 * I am not sure about to check here on broadcast short_addr.
+	 * Broadcast is a valid setting, comment from 802.15.4:
+	 * A value of 0xfffe indicates that the device has
+	 * associated but has not been allocated an address. A
+	 * value of 0xffff indicates that the device does not
+	 * have a short address.
+	 *
+	 * I think we should allow to set these settings but
+	 * don't allow to allow socket communication with it.
+	 */
+	if (short_addr == cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC) ||
+	    short_addr == cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST))
+		return -EINVAL;
 
 	return rdev_set_short_addr(rdev, wpan_dev, short_addr);
 }
@@ -722,7 +961,11 @@ nl802154_set_backoff_exponent(struct sk_buff *skb, struct genl_info *info)
 	max_be = nla_get_u8(info->attrs[NL802154_ATTR_MAX_BE]);
 
 	/* check 802.15.4 constraints */
-	if (max_be < 3 || max_be > 8 || min_be > max_be)
+	if (min_be < rdev->wpan_phy.supported.min_minbe ||
+	    min_be > rdev->wpan_phy.supported.max_minbe ||
+	    max_be < rdev->wpan_phy.supported.min_maxbe ||
+	    max_be > rdev->wpan_phy.supported.max_maxbe ||
+	    min_be > max_be)
 		return -EINVAL;
 
 	return rdev_set_backoff_exponent(rdev, wpan_dev, min_be, max_be);
@@ -747,7 +990,8 @@ nl802154_set_max_csma_backoffs(struct sk_buff *skb, struct genl_info *info)
 			info->attrs[NL802154_ATTR_MAX_CSMA_BACKOFFS]);
 
 	/* check 802.15.4 constraints */
-	if (max_csma_backoffs > 5)
+	if (max_csma_backoffs < rdev->wpan_phy.supported.min_csma_backoffs ||
+	    max_csma_backoffs > rdev->wpan_phy.supported.max_csma_backoffs)
 		return -EINVAL;
 
 	return rdev_set_max_csma_backoffs(rdev, wpan_dev, max_csma_backoffs);
@@ -771,7 +1015,8 @@ nl802154_set_max_frame_retries(struct sk_buff *skb, struct genl_info *info)
 			info->attrs[NL802154_ATTR_MAX_FRAME_RETRIES]);
 
 	/* check 802.15.4 constraints */
-	if (max_frame_retries < -1 || max_frame_retries > 7)
+	if (max_frame_retries < rdev->wpan_phy.supported.min_frame_retries ||
+	    max_frame_retries > rdev->wpan_phy.supported.max_frame_retries)
 		return -EINVAL;
 
 	return rdev_set_max_frame_retries(rdev, wpan_dev, max_frame_retries);
@@ -791,6 +1036,9 @@ static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	mode = !!nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
+	if (!wpan_phy_supported_bool(mode, rdev->wpan_phy.supported.lbt))
+		return -EINVAL;
+
 	return rdev_set_lbt_mode(rdev, wpan_dev, mode);
 }
 
@@ -931,6 +1179,22 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_CCA_MODE,
 		.doit = nl802154_set_cca_mode,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_CCA_ED_LEVEL,
+		.doit = nl802154_set_cca_ed_level,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_TX_POWER,
+		.doit = nl802154_set_tx_power,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |

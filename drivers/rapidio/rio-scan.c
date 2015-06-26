@@ -83,7 +83,7 @@ static u16 rio_destid_alloc(struct rio_net *net)
  * @destid: destID to reserve
  *
  * Tries to reserve the specified destID.
- * Returns 0 if successfull.
+ * Returns 0 if successful.
  */
 static int rio_destid_reserve(struct rio_net *net, u16 destid)
 {

@@ -42,7 +42,7 @@
 			m25p40@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mxicy,mx25l1606e";
+				compatible = "mxicy,mx25l1606e", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <50000000>;
 				mode = <0>;

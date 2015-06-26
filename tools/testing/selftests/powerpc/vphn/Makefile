@@ -1,15 +1,12 @@
-PROG := test-vphn
+TEST_PROGS := test-vphn
 
 CFLAGS += -m64
 
-all: $(PROG)
+all: $(TEST_PROGS)
 
-$(PROG): ../harness.c
+$(TEST_PROGS): ../harness.c
 
-run_tests: all
-	./$(PROG)
+include ../../lib.mk
 
 clean:
-	rm -f $(PROG)
-
-.PHONY: all run_tests clean
+	rm -f $(TEST_PROGS)

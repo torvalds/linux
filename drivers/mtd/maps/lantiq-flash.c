@@ -45,7 +45,6 @@ struct ltq_mtd {
 };
 
 static const char ltq_map_name[] = "ltq_nor";
-static const char * const ltq_probe_types[] = { "cmdlinepart", "ofpart", NULL };
 
 static map_word
 ltq_read16(struct map_info *map, unsigned long adr)
@@ -168,8 +167,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 	cfi->addr_unlock2 ^= 1;
 
 	ppdata.of_node = pdev->dev.of_node;
-	err = mtd_device_parse_register(ltq_mtd->mtd, ltq_probe_types,
-					&ppdata, NULL, 0);
+	err = mtd_device_parse_register(ltq_mtd->mtd, NULL, &ppdata, NULL, 0);
 	if (err) {
 		dev_err(&pdev->dev, "failed to add partitions\n");
 		goto err_destroy;

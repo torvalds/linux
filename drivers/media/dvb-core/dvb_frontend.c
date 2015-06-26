@@ -40,6 +40,7 @@
 #include <linux/freezer.h>
 #include <linux/jiffies.h>
 #include <linux/kthread.h>
+#include <linux/ktime.h>
 #include <asm/processor.h>
 
 #include "dvb_frontend.h"
@@ -110,7 +111,7 @@ struct dvb_frontend_private {
 	struct task_struct *thread;
 	unsigned long release_jiffies;
 	unsigned int wakeup;
-	fe_status_t status;
+	enum fe_status status;
 	unsigned long tune_mode_flags;
 	unsigned int delay;
 	unsigned int reinitialise;
@@ -198,7 +199,8 @@ static enum dvbv3_emulation_type dvbv3_type(u32 delivery_system)
 	}
 }
 
-static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
+static void dvb_frontend_add_event(struct dvb_frontend *fe,
+				   enum fe_status status)
 {
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dvb_fe_events *events = &fepriv->events;
@@ -429,7 +431,7 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 
 static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 {
-	fe_status_t s = 0;
+	enum fe_status s = 0;
 	int retval = 0;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache, tmp;
@@ -690,7 +692,7 @@ static int dvb_frontend_thread(void *data)
 {
 	struct dvb_frontend *fe = data;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
-	fe_status_t s;
+	enum fe_status s;
 	enum dvbfe_algo algo;
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	int ret;
@@ -889,42 +891,21 @@ static void dvb_frontend_stop(struct dvb_frontend *fe)
 				fepriv->thread);
 }
 
-s32 timeval_usec_diff(struct timeval lasttime, struct timeval curtime)
-{
-	return ((curtime.tv_usec < lasttime.tv_usec) ?
-		1000000 - lasttime.tv_usec + curtime.tv_usec :
-		curtime.tv_usec - lasttime.tv_usec);
-}
-EXPORT_SYMBOL(timeval_usec_diff);
-
-static inline void timeval_usec_add(struct timeval *curtime, u32 add_usec)
-{
-	curtime->tv_usec += add_usec;
-	if (curtime->tv_usec >= 1000000) {
-		curtime->tv_usec -= 1000000;
-		curtime->tv_sec++;
-	}
-}
-
 /*
  * Sleep until gettimeofday() > waketime + add_usec
  * This needs to be as precise as possible, but as the delay is
  * usually between 2ms and 32ms, it is done using a scheduled msleep
  * followed by usleep (normally a busy-wait loop) for the remainder
  */
-void dvb_frontend_sleep_until(struct timeval *waketime, u32 add_usec)
+void dvb_frontend_sleep_until(ktime_t *waketime, u32 add_usec)
 {
-	struct timeval lasttime;
 	s32 delta, newdelta;
 
-	timeval_usec_add(waketime, add_usec);
-
-	do_gettimeofday(&lasttime);
-	delta = timeval_usec_diff(lasttime, *waketime);
+	ktime_add_us(*waketime, add_usec);
+	delta = ktime_us_delta(ktime_get_real(), *waketime);
 	if (delta > 2500) {
 		msleep((delta - 1500) / 1000);
-		do_gettimeofday(&lasttime);
-		newdelta = timeval_usec_diff(lasttime, *waketime);
+		newdelta = ktime_us_delta(ktime_get_real(), *waketime);
 		delta = (newdelta > delta) ? 0 : newdelta;
 	}
 	if (delta > 0)
@@ -2216,7 +2197,7 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 		break;
 	}
 	if (rolloff)
-		c->bandwidth_hz = (c->symbol_rate * rolloff) / 100;
+		c->bandwidth_hz = mult_frac(c->symbol_rate, rolloff, 100);
 
 	/* force auto frequency inversion if requested */
 	if (dvb_force_auto_inversion)
@@ -2341,7 +2322,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 	}
 
 	case FE_READ_STATUS: {
-		fe_status_t* status = parg;
+		enum fe_status *status = parg;
 
 		/* if retune was requested but hasn't occurred yet, prevent
 		 * that user get signal state from previous tuning */
@@ -2403,7 +2384,13 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 	case FE_DISEQC_SEND_MASTER_CMD:
 		if (fe->ops.diseqc_send_master_cmd) {
-			err = fe->ops.diseqc_send_master_cmd(fe, (struct dvb_diseqc_master_cmd*) parg);
+			struct dvb_diseqc_master_cmd *cmd = parg;
+
+			if (cmd->msg_len > sizeof(cmd->msg)) {
+				err = -EINVAL;
+				break;
+			}
+			err = fe->ops.diseqc_send_master_cmd(fe, cmd);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}
@@ -2411,7 +2398,8 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 	case FE_DISEQC_SEND_BURST:
 		if (fe->ops.diseqc_send_burst) {
-			err = fe->ops.diseqc_send_burst(fe, (fe_sec_mini_cmd_t) parg);
+			err = fe->ops.diseqc_send_burst(fe,
+						(enum fe_sec_mini_cmd)parg);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}
@@ -2419,8 +2407,9 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 	case FE_SET_TONE:
 		if (fe->ops.set_tone) {
-			err = fe->ops.set_tone(fe, (fe_sec_tone_mode_t) parg);
-			fepriv->tone = (fe_sec_tone_mode_t) parg;
+			err = fe->ops.set_tone(fe,
+					       (enum fe_sec_tone_mode)parg);
+			fepriv->tone = (enum fe_sec_tone_mode)parg;
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}
@@ -2428,8 +2417,9 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 	case FE_SET_VOLTAGE:
 		if (fe->ops.set_voltage) {
-			err = fe->ops.set_voltage(fe, (fe_sec_voltage_t) parg);
-			fepriv->voltage = (fe_sec_voltage_t) parg;
+			err = fe->ops.set_voltage(fe,
+						  (enum fe_sec_voltage)parg);
+			fepriv->voltage = (enum fe_sec_voltage)parg;
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}
@@ -2437,7 +2427,8 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 	case FE_DISHNETWORK_SEND_LEGACY_CMD:
 		if (fe->ops.dishnetwork_send_legacy_command) {
-			err = fe->ops.dishnetwork_send_legacy_command(fe, (unsigned long) parg);
+			err = fe->ops.dishnetwork_send_legacy_command(fe,
+							 (unsigned long)parg);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		} else if (fe->ops.set_voltage) {
@@ -2458,13 +2449,13 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 			 * include the initialization or start bit
 			 */
 			unsigned long swcmd = ((unsigned long) parg) << 1;
-			struct timeval nexttime;
-			struct timeval tv[10];
+			ktime_t nexttime;
+			ktime_t tv[10];
 			int i;
 			u8 last = 1;
 			if (dvb_frontend_debug)
 				printk("%s switch command: 0x%04lx\n", __func__, swcmd);
-			do_gettimeofday(&nexttime);
+			nexttime = ktime_get_real();
 			if (dvb_frontend_debug)
 				tv[0] = nexttime;
 			/* before sending a command, initialize by sending
@@ -2475,7 +2466,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 			for (i = 0; i < 9; i++) {
 				if (dvb_frontend_debug)
-					do_gettimeofday(&tv[i + 1]);
+					tv[i+1] = ktime_get_real();
 				if ((swcmd & 0x01) != last) {
 					/* set voltage to (last ? 13V : 18V) */
 					fe->ops.set_voltage(fe, (last) ? SEC_VOLTAGE_13 : SEC_VOLTAGE_18);
@@ -2489,7 +2480,8 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 				printk("%s(%d): switch delay (should be 32k followed by all 8k\n",
 					__func__, fe->dvb->num);
 				for (i = 1; i < 10; i++)
-					printk("%d: %d\n", i, timeval_usec_diff(tv[i-1] , tv[i]));
+					printk("%d: %d\n", i,
+					(int) ktime_us_delta(tv[i], tv[i-1]));
 			}
 			err = 0;
 			fepriv->state = FESTATE_DISEQC;

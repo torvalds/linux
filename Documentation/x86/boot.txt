@@ -1124,7 +1124,6 @@ The boot loader *must* fill out the following fields in bp,
 
     o hdr.code32_start
     o hdr.cmd_line_ptr
-    o hdr.cmdline_size
     o hdr.ramdisk_image (if applicable)
     o hdr.ramdisk_size  (if applicable)
 

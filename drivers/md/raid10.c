@@ -914,7 +914,7 @@ static int raid10_congested(struct mddev *mddev, int bits)
 	struct r10conf *conf = mddev->private;
 	int i, ret = 0;
 
-	if ((bits & (1 << BDI_async_congested)) &&
+	if ((bits & (1 << WB_async_congested)) &&
 	    conf->pending_count >= max_queued_requests)
 		return 1;
 
@@ -4156,6 +4156,7 @@ static int raid10_start_reshape(struct mddev *mddev)
 
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 	clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
+	clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
 	set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 

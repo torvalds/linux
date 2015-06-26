@@ -196,13 +196,6 @@ static inline int gpio_export_link(struct device *dev, const char *name,
 	return -EINVAL;
 }
 
-static inline int gpio_sysfs_set_active_low(unsigned gpio, int value)
-{
-	/* GPIO can never have been requested */
-	WARN_ON(1);
-	return -EINVAL;
-}
-
 static inline void gpio_unexport(unsigned gpio)
 {
 	/* GPIO can never have been exported */

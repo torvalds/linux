@@ -911,9 +911,9 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 
 	pctl->pctl_dev = pinctrl_register(pctrl_desc,
 					  &pdev->dev, pctl);
-	if (!pctl->pctl_dev) {
+	if (IS_ERR(pctl->pctl_dev)) {
 		dev_err(&pdev->dev, "couldn't register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(pctl->pctl_dev);
 	}
 
 	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);

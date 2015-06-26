@@ -468,10 +468,10 @@ static struct proto dn_proto = {
 	.obj_size		= sizeof(struct dn_sock),
 };
 
-static struct sock *dn_alloc_sock(struct net *net, struct socket *sock, gfp_t gfp)
+static struct sock *dn_alloc_sock(struct net *net, struct socket *sock, gfp_t gfp, int kern)
 {
 	struct dn_scp *scp;
-	struct sock *sk = sk_alloc(net, PF_DECnet, gfp, &dn_proto);
+	struct sock *sk = sk_alloc(net, PF_DECnet, gfp, &dn_proto, kern);
 
 	if  (!sk)
 		goto out;
@@ -693,7 +693,7 @@ static int dn_create(struct net *net, struct socket *sock, int protocol,
 	}
 
 
-	if ((sk = dn_alloc_sock(net, sock, GFP_KERNEL)) == NULL)
+	if ((sk = dn_alloc_sock(net, sock, GFP_KERNEL, kern)) == NULL)
 		return -ENOBUFS;
 
 	sk->sk_protocol = protocol;
@@ -1096,7 +1096,7 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	cb = DN_SKB_CB(skb);
 	sk->sk_ack_backlog--;
-	newsk = dn_alloc_sock(sock_net(sk), newsock, sk->sk_allocation);
+	newsk = dn_alloc_sock(sock_net(sk), newsock, sk->sk_allocation, 0);
 	if (newsk == NULL) {
 		release_sock(sk);
 		kfree_skb(skb);

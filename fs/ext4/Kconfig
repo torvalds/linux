@@ -72,6 +72,7 @@ config EXT4_ENCRYPTION
 	select CRYPTO_ECB
 	select CRYPTO_XTS
 	select CRYPTO_CTS
+	select CRYPTO_CTR
 	select CRYPTO_SHA256
 	select KEYS
 	select ENCRYPTED_KEYS

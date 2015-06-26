@@ -339,6 +339,15 @@ static int __init aic5_of_init(struct device_node *node,
 	return 0;
 }
 
+#define NR_SAMA5D2_IRQS		77
+
+static int __init sama5d2_aic5_of_init(struct device_node *node,
+				       struct device_node *parent)
+{
+	return aic5_of_init(node, parent, NR_SAMA5D2_IRQS);
+}
+IRQCHIP_DECLARE(sama5d2_aic5, "atmel,sama5d2-aic", sama5d2_aic5_of_init);
+
 #define NR_SAMA5D3_IRQS		48
 
 static int __init sama5d3_aic5_of_init(struct device_node *node,

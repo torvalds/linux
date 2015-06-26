@@ -15,12 +15,25 @@ config PINCTRL_MT8135
 	default MACH_MT8135
 	select PINCTRL_MTK_COMMON
 
+config PINCTRL_MT8127
+	bool "Mediatek MT8127 pin control" if COMPILE_TEST && !MACH_MT8127
+	depends on OF
+	default MACH_MT8127
+	select PINCTRL_MTK_COMMON
+
 # For ARMv8 SoCs
 config PINCTRL_MT8173
 	bool "Mediatek MT8173 pin control"
 	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_COMMON
+
+# For PMIC
+config PINCTRL_MT6397
+	bool "Mediatek MT6397 pin control" if COMPILE_TEST && !MFD_MT6397
+	depends on OF
+	default MFD_MT6397
 	select PINCTRL_MTK_COMMON
 
 endif

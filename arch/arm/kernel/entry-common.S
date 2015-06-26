@@ -33,7 +33,9 @@ ret_fast_syscall:
  UNWIND(.fnstart	)
  UNWIND(.cantunwind	)
 	disable_irq				@ disable interrupts
-	ldr	r1, [tsk, #TI_FLAGS]
+	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
+	tst	r1, #_TIF_SYSCALL_WORK
+	bne	__sys_trace_return
 	tst	r1, #_TIF_WORK_MASK
 	bne	fast_work_pending
 	asm_trace_hardirqs_on
@@ -88,7 +90,7 @@ ENTRY(ret_from_fork)
 	bl	schedule_tail
 	cmp	r5, #0
 	movne	r0, r4
-	adrne	lr, BSYM(1f)
+	badrne	lr, 1f
 	retne	r5
 1:	get_thread_info tsk
 	b	ret_slow_syscall
@@ -196,7 +198,7 @@ local_restart:
 	bne	__sys_trace
 
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
-	adr	lr, BSYM(ret_fast_syscall)	@ return address
+	badr	lr, ret_fast_syscall		@ return address
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 
 	add	r1, sp, #S_OFF
@@ -231,7 +233,7 @@ __sys_trace:
 	add	r0, sp, #S_OFF
 	bl	syscall_trace_enter
 
-	adr	lr, BSYM(__sys_trace_return)	@ return address
+	badr	lr, __sys_trace_return		@ return address
 	mov	scno, r0			@ syscall number (possibly new)
 	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
 	cmp	scno, #NR_syscalls		@ check upper syscall limit

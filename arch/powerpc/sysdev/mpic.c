@@ -1195,7 +1195,7 @@ static void mpic_cascade(unsigned int irq, struct irq_desc *desc)
 	chip->irq_eoi(&desc->irq_data);
 }
 
-static struct irq_domain_ops mpic_host_ops = {
+static const struct irq_domain_ops mpic_host_ops = {
 	.match = mpic_host_match,
 	.map = mpic_host_map,
 	.xlate = mpic_host_xlate,

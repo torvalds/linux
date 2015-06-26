@@ -75,9 +75,9 @@ char acpi_ut_hex_to_ascii_char(u64 integer, u32 position)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_hex_char_to_value
+ * FUNCTION:    acpi_ut_ascii_char_to_hex
  *
- * PARAMETERS:  ascii_char            - Hex character in Ascii
+ * PARAMETERS:  hex_char                - Hex character in Ascii
  *
  * RETURN:      The binary value of the ascii/hex character
  *

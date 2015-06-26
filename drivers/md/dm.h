@@ -14,6 +14,7 @@
 #include <linux/device-mapper.h>
 #include <linux/list.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/hdreg.h>
 #include <linux/completion.h>
 #include <linux/kobject.h>
@@ -222,8 +223,9 @@ void dm_kcopyd_exit(void);
 /*
  * Mempool operations
  */
-struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned type,
-					    unsigned integrity, unsigned per_bio_data_size);
+struct dm_md_mempools *dm_alloc_bio_mempools(unsigned integrity,
+					     unsigned per_bio_data_size);
+struct dm_md_mempools *dm_alloc_rq_mempools(struct mapped_device *md, unsigned type);
 void dm_free_md_mempools(struct dm_md_mempools *pools);
 
 /*

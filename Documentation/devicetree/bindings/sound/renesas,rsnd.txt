@@ -5,6 +5,7 @@ Required properties:
 				  "renesas,rcar_sound-gen1" if generation1, and
 				  "renesas,rcar_sound-gen2" if generation2
 				  Examples with soctypes are:
+				    - "renesas,rcar_sound-r8a7778" (R-Car M1A)
 				    - "renesas,rcar_sound-r8a7790" (R-Car H2)
 				    - "renesas,rcar_sound-r8a7791" (R-Car M2-W)
 - reg				: Should contain the register physical address.
@@ -47,7 +48,7 @@ DAI subnode properties:
 
 Example:
 
-rcar_sound: rcar_sound@ec500000 {
+rcar_sound: sound@ec500000 {
 	#sound-dai-cells = <1>;
 	compatible = "renesas,rcar_sound-r8a7791", "renesas,rcar_sound-gen2";
 	reg =	<0 0xec500000 0 0x1000>, /* SCU */

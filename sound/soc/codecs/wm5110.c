@@ -167,7 +167,7 @@ static int wm5110_sysclk_ev(struct snd_soc_dapm_widget *w,
 static DECLARE_TLV_DB_SCALE(ana_tlv, 0, 100, 0);
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
-static DECLARE_TLV_DB_SCALE(noise_tlv, 0, 600, 0);
+static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 #define WM5110_NG_SRC(name, base) \
@@ -1598,22 +1598,29 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 
 static int wm5110_codec_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
-	int ret;
+	int i, ret;
 
-	priv->core.arizona->dapm = &codec->dapm;
+	priv->core.arizona->dapm = dapm;
 
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
 
-	ret = snd_soc_add_codec_controls(codec, wm_adsp2_fw_controls, 8);
-	if (ret != 0)
+	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
+		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
+		if (ret)
+			return ret;
+	}
+
+	ret = snd_soc_add_codec_controls(codec,
+					 arizona_adsp2_rate_controls,
+					 WM5110_NUM_ADSP);
+	if (ret)
 		return ret;
 
-	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
-
-	priv->core.arizona->dapm = &codec->dapm;
+	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
 
 	return 0;
 }
@@ -1621,6 +1628,10 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 static int wm5110_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
+	int i;
+
+	for (i = 0; i < WM5110_NUM_ADSP; ++i)
+		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
 
 	priv->core.arizona->dapm = NULL;
 
@@ -1697,7 +1708,7 @@ static int wm5110_probe(struct platform_device *pdev)
 		wm5110->core.adsp[i].num_mems
 			= ARRAY_SIZE(wm5110_dsp1_regions);
 
-		ret = wm_adsp2_init(&wm5110->core.adsp[i], false);
+		ret = wm_adsp2_init(&wm5110->core.adsp[i]);
 		if (ret != 0)
 			return ret;
 	}

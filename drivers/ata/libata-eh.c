@@ -1507,16 +1507,21 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
+	bool dma = false;
 
 	DPRINTK("read log page - log 0x%x, page 0x%x\n", log, page);
 
+retry:
 	ata_tf_init(dev, &tf);
-	if (dev->dma_mode && ata_id_has_read_log_dma_ext(dev->id)) {
+	if (dev->dma_mode && ata_id_has_read_log_dma_ext(dev->id) &&
+	    !(dev->horkage & ATA_HORKAGE_NO_NCQ_LOG)) {
 		tf.command = ATA_CMD_READ_LOG_DMA_EXT;
 		tf.protocol = ATA_PROT_DMA;
+		dma = true;
 	} else {
 		tf.command = ATA_CMD_READ_LOG_EXT;
 		tf.protocol = ATA_PROT_PIO;
+		dma = false;
 	}
 	tf.lbal = log;
 	tf.lbam = page;
@@ -1526,6 +1531,12 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     buf, sectors * ATA_SECT_SIZE, 0);
+
+	if (err_mask && dma) {
+		dev->horkage |= ATA_HORKAGE_NO_NCQ_LOG;
+		ata_dev_warn(dev, "READ LOG DMA EXT failed, trying unqueued\n");
+		goto retry;
+	}
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;

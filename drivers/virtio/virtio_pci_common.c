@@ -423,6 +423,7 @@ int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
 		if (cpu == -1)
 			irq_set_affinity_hint(irq, NULL);
 		else {
+			cpumask_clear(mask);
 			cpumask_set_cpu(cpu, mask);
 			irq_set_affinity_hint(irq, mask);
 		}
@@ -500,9 +501,6 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	vp_dev->pci_dev = pci_dev;
 	INIT_LIST_HEAD(&vp_dev->virtqueues);
 	spin_lock_init(&vp_dev->lock);
-
-	/* Disable MSI/MSIX to bring device to a known good state. */
-	pci_msi_off(pci_dev);
 
 	/* enable the device */
 	rc = pci_enable_device(pci_dev);

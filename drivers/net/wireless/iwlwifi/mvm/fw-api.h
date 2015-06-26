@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,6 +108,7 @@ enum {
 	ANTENNA_COUPLING_NOTIFICATION = 0xa,
 
 	/* UMAC scan commands */
+	SCAN_ITERATION_COMPLETE_UMAC = 0xb5,
 	SCAN_CFG_CMD = 0xc,
 	SCAN_REQ_UMAC = 0xd,
 	SCAN_ABORT_UMAC = 0xe,
@@ -147,13 +148,6 @@ enum {
 
 	LQ_CMD = 0x4e,
 
-	/* Calibration */
-	TEMPERATURE_NOTIFICATION = 0x62,
-	CALIBRATION_CFG_CMD = 0x65,
-	CALIBRATION_RES_NOTIFICATION = 0x66,
-	CALIBRATION_COMPLETE_NOTIFICATION = 0x67,
-	RADIO_VERSION_NOTIFICATION = 0x68,
-
 	/* Scan offload */
 	SCAN_OFFLOAD_REQUEST_CMD = 0x51,
 	SCAN_OFFLOAD_ABORT_CMD = 0x52,
@@ -177,12 +171,8 @@ enum {
 	/* Thermal Throttling*/
 	REPLY_THERMAL_MNG_BACKOFF = 0x7e,
 
-	/* Scanning */
-	SCAN_REQUEST_CMD = 0x80,
-	SCAN_ABORT_CMD = 0x81,
-	SCAN_START_NOTIFICATION = 0x82,
-	SCAN_RESULTS_NOTIFICATION = 0x83,
-	SCAN_COMPLETE_NOTIFICATION = 0x84,
+	/* Set/Get DC2DC frequency tune */
+	DC2DC_CONFIG_CMD = 0x83,
 
 	/* NVM */
 	NVM_ACCESS_CMD = 0x88,
@@ -1401,6 +1391,49 @@ struct iwl_mvm_marker {
 	__le64 timestamp;
 	__le32 metadata[0];
 } __packed; /* MARKER_API_S_VER_1 */
+
+/*
+ * enum iwl_dc2dc_config_id - flag ids
+ *
+ * Ids of dc2dc configuration flags
+ */
+enum iwl_dc2dc_config_id {
+	DCDC_LOW_POWER_MODE_MSK_SET  = 0x1, /* not used */
+	DCDC_FREQ_TUNE_SET = 0x2,
+}; /* MARKER_ID_API_E_VER_1 */
+
+/**
+ * struct iwl_dc2dc_config_cmd - configure dc2dc values
+ *
+ * (DC2DC_CONFIG_CMD = 0x83)
+ *
+ * Set/Get & configure dc2dc values.
+ * The command always returns the current dc2dc values.
+ *
+ * @flags: set/get dc2dc
+ * @enable_low_power_mode: not used.
+ * @dc2dc_freq_tune0: frequency divider - digital domain
+ * @dc2dc_freq_tune1: frequency divider - analog domain
+ */
+struct iwl_dc2dc_config_cmd {
+	__le32 flags;
+	__le32 enable_low_power_mode; /* not used */
+	__le32 dc2dc_freq_tune0;
+	__le32 dc2dc_freq_tune1;
+} __packed; /* DC2DC_CONFIG_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_dc2dc_config_resp - response for iwl_dc2dc_config_cmd
+ *
+ * Current dc2dc values returned by the FW.
+ *
+ * @dc2dc_freq_tune0: frequency divider - digital domain
+ * @dc2dc_freq_tune1: frequency divider - analog domain
+ */
+struct iwl_dc2dc_config_resp {
+	__le32 dc2dc_freq_tune0;
+	__le32 dc2dc_freq_tune1;
+} __packed; /* DC2DC_CONFIG_RESP_API_S_VER_1 */
 
 /***********************************
  * Smart Fifo API

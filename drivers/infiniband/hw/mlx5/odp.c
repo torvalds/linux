@@ -109,40 +109,33 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 	ib_umem_odp_unmap_dma_pages(umem, start, end);
 }
 
-#define COPY_ODP_BIT_MLX_TO_IB(reg, ib_caps, field_name, bit_name) do {	\
-	if (be32_to_cpu(reg.field_name) & MLX5_ODP_SUPPORT_##bit_name)	\
-		ib_caps->field_name |= IB_ODP_SUPPORT_##bit_name;	\
-} while (0)
-
-int mlx5_ib_internal_query_odp_caps(struct mlx5_ib_dev *dev)
+void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 {
-	int err;
-	struct mlx5_odp_caps hw_caps;
 	struct ib_odp_caps *caps = &dev->odp_caps;
 
 	memset(caps, 0, sizeof(*caps));
 
-	if (!(dev->mdev->caps.gen.flags & MLX5_DEV_CAP_FLAG_ON_DMND_PG))
-		return 0;
-
-	err = mlx5_query_odp_caps(dev->mdev, &hw_caps);
-	if (err)
-		goto out;
+	if (!MLX5_CAP_GEN(dev->mdev, pg))
+		return;
 
 	caps->general_caps = IB_ODP_SUPPORT;
-	COPY_ODP_BIT_MLX_TO_IB(hw_caps, caps, per_transport_caps.ud_odp_caps,
-			       SEND);
-	COPY_ODP_BIT_MLX_TO_IB(hw_caps, caps, per_transport_caps.rc_odp_caps,
-			       SEND);
-	COPY_ODP_BIT_MLX_TO_IB(hw_caps, caps, per_transport_caps.rc_odp_caps,
-			       RECV);
-	COPY_ODP_BIT_MLX_TO_IB(hw_caps, caps, per_transport_caps.rc_odp_caps,
-			       WRITE);
-	COPY_ODP_BIT_MLX_TO_IB(hw_caps, caps, per_transport_caps.rc_odp_caps,
-			       READ);
 
-out:
-	return err;
+	if (MLX5_CAP_ODP(dev->mdev, ud_odp_caps.send))
+		caps->per_transport_caps.ud_odp_caps |= IB_ODP_SUPPORT_SEND;
+
+	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.send))
+		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_SEND;
+
+	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.receive))
+		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_RECV;
+
+	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.write))
+		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_WRITE;
+
+	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.read))
+		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_READ;
+
+	return;
 }
 
 static struct mlx5_ib_mr *mlx5_ib_odp_find_mr_lkey(struct mlx5_ib_dev *dev,

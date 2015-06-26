@@ -130,7 +130,7 @@ static int tc90522t_set_layers(struct dvb_frontend *fe)
 
 /* frontend ops */
 
-static int tc90522s_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int tc90522s_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct tc90522_state *state;
 	int ret;
@@ -158,7 +158,7 @@ static int tc90522s_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
-static int tc90522t_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int tc90522t_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct tc90522_state *state;
 	int ret;
@@ -194,7 +194,7 @@ static int tc90522t_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
-static const fe_code_rate_t fec_conv_sat[] = {
+static const enum fe_code_rate fec_conv_sat[] = {
 	FEC_NONE, /* unused */
 	FEC_1_2, /* for BPSK */
 	FEC_1_2, FEC_2_3, FEC_3_4, FEC_5_6, FEC_7_8, /* for QPSK */
@@ -238,7 +238,10 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe)
 			c->layer[1].segment_count = 0;
 		else
 			c->layer[1].segment_count = val[4] & 0x3f; /* slots */
-		/* actually, BPSK if v==1, but not defined in fe_modulation_t */
+		/*
+		 * actually, BPSK if v==1, but not defined in
+		 * enum fe_modulation
+		 */
 		c->layer[1].modulation = QPSK;
 		layers = (v > 0) ? 2 : 1;
 	}
@@ -319,18 +322,18 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe)
 }
 
 
-static const fe_transmit_mode_t tm_conv[] = {
+static const enum fe_transmit_mode tm_conv[] = {
 	TRANSMISSION_MODE_2K,
 	TRANSMISSION_MODE_4K,
 	TRANSMISSION_MODE_8K,
 	0
 };
 
-static const fe_code_rate_t fec_conv_ter[] = {
+static const enum fe_code_rate fec_conv_ter[] = {
 	FEC_1_2, FEC_2_3, FEC_3_4, FEC_5_6, FEC_7_8, 0, 0, 0
 };
 
-static const fe_modulation_t mod_conv[] = {
+static const enum fe_modulation mod_conv[] = {
 	DQPSK, QPSK, QAM_16, QAM_64, 0, 0, 0, 0
 };
 

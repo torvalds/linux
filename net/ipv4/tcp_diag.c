@@ -19,13 +19,14 @@
 static void tcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 			      void *_info)
 {
-	const struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_info *info = _info;
 
 	if (sk->sk_state == TCP_LISTEN) {
 		r->idiag_rqueue = sk->sk_ack_backlog;
 		r->idiag_wqueue = sk->sk_max_ack_backlog;
-	} else {
+	} else if (sk->sk_type == SOCK_STREAM) {
+		const struct tcp_sock *tp = tcp_sk(sk);
+
 		r->idiag_rqueue = max_t(int, tp->rcv_nxt - tp->copied_seq, 0);
 		r->idiag_wqueue = tp->write_seq - tp->snd_una;
 	}
@@ -50,6 +51,7 @@ static const struct inet_diag_handler tcp_diag_handler = {
 	.dump_one	 = tcp_diag_dump_one,
 	.idiag_get_info	 = tcp_diag_get_info,
 	.idiag_type	 = IPPROTO_TCP,
+	.idiag_info_size = sizeof(struct tcp_info),
 };
 
 static int __init tcp_diag_init(void)

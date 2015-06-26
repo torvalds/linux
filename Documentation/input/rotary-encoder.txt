@@ -33,7 +33,7 @@ The phase diagram of these two outputs look like this:
 	          one step (half-period mode)
 
 For more information, please see
-	http://en.wikipedia.org/wiki/Rotary_encoder
+	https://en.wikipedia.org/wiki/Rotary_encoder
 
 
 1. Events / state machine

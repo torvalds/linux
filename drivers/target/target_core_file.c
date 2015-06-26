@@ -30,9 +30,9 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 #include <linux/falloc.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
+#include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
@@ -958,7 +958,6 @@ static struct se_subsystem_api fileio_template = {
 	.inquiry_prod		= "FILEIO",
 	.inquiry_rev		= FD_VERSION,
 	.owner			= THIS_MODULE,
-	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
 	.attach_hba		= fd_attach_hba,
 	.detach_hba		= fd_detach_hba,
 	.alloc_device		= fd_alloc_device,

@@ -131,7 +131,6 @@ void put_unrefcounted_compound_page(struct page *page_head, struct page *page)
 		 * here, see the comment above this function.
 		 */
 		VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
-		VM_BUG_ON_PAGE(page_mapcount(page) != 0, page);
 		if (put_page_testzero(page_head)) {
 			/*
 			 * If this is the tail of a slab THP page,

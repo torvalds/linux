@@ -13,6 +13,10 @@ TRACE_DEFINE_ENUM(NODE);
 TRACE_DEFINE_ENUM(DATA);
 TRACE_DEFINE_ENUM(META);
 TRACE_DEFINE_ENUM(META_FLUSH);
+TRACE_DEFINE_ENUM(INMEM);
+TRACE_DEFINE_ENUM(INMEM_DROP);
+TRACE_DEFINE_ENUM(IPU);
+TRACE_DEFINE_ENUM(OPU);
 TRACE_DEFINE_ENUM(CURSEG_HOT_DATA);
 TRACE_DEFINE_ENUM(CURSEG_WARM_DATA);
 TRACE_DEFINE_ENUM(CURSEG_COLD_DATA);
@@ -37,6 +41,7 @@ TRACE_DEFINE_ENUM(__REQ_META);
 TRACE_DEFINE_ENUM(CP_UMOUNT);
 TRACE_DEFINE_ENUM(CP_FASTBOOT);
 TRACE_DEFINE_ENUM(CP_SYNC);
+TRACE_DEFINE_ENUM(CP_RECOVERY);
 TRACE_DEFINE_ENUM(CP_DISCARD);
 
 #define show_block_type(type)						\
@@ -112,6 +117,7 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 		{ CP_DISCARD,	"Discard" })
 
 struct victim_sel_policy;
+struct f2fs_map_blocks;
 
 DECLARE_EVENT_CLASS(f2fs__inode,
 
@@ -476,36 +482,35 @@ TRACE_EVENT(f2fs_truncate_partial_nodes,
 		__entry->err)
 );
 
-TRACE_EVENT(f2fs_get_data_block,
-	TP_PROTO(struct inode *inode, sector_t iblock,
-				struct buffer_head *bh, int ret),
+TRACE_EVENT(f2fs_map_blocks,
+	TP_PROTO(struct inode *inode, struct f2fs_map_blocks *map, int ret),
 
-	TP_ARGS(inode, iblock, bh, ret),
+	TP_ARGS(inode, map, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
-		__field(sector_t,	iblock)
-		__field(sector_t,	bh_start)
-		__field(size_t,	bh_size)
+		__field(block_t,	m_lblk)
+		__field(block_t,	m_pblk)
+		__field(unsigned int,	m_len)
 		__field(int,	ret)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= inode->i_sb->s_dev;
 		__entry->ino		= inode->i_ino;
-		__entry->iblock		= iblock;
-		__entry->bh_start	= bh->b_blocknr;
-		__entry->bh_size	= bh->b_size;
+		__entry->m_lblk		= map->m_lblk;
+		__entry->m_pblk		= map->m_pblk;
+		__entry->m_len		= map->m_len;
 		__entry->ret		= ret;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, file offset = %llu, "
-		"start blkaddr = 0x%llx, len = 0x%llx bytes, err = %d",
+		"start blkaddr = 0x%llx, len = 0x%llx, err = %d",
 		show_dev_ino(__entry),
-		(unsigned long long)__entry->iblock,
-		(unsigned long long)__entry->bh_start,
-		(unsigned long long)__entry->bh_size,
+		(unsigned long long)__entry->m_lblk,
+		(unsigned long long)__entry->m_pblk,
+		(unsigned long long)__entry->m_len,
 		__entry->ret)
 );
 

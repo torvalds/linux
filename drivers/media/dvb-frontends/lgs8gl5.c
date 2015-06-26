@@ -249,7 +249,7 @@ lgs8gl5_init(struct dvb_frontend *fe)
 
 
 static int
-lgs8gl5_read_status(struct dvb_frontend *fe, fe_status_t *status)
+lgs8gl5_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct lgs8gl5_state *state = fe->demodulator_priv;
 	u8 level = lgs8gl5_read_reg(state, REG_STRENGTH);
