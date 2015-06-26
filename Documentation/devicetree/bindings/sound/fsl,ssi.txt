@@ -62,6 +62,10 @@ Optional properties:
                     "ac97-slave" - AC97 mode, SSI is clock slave
                     "ac97-master" - AC97 mode, SSI is clock master
 
+- fsl,dma-buffer-size: It specify the audio buffer size of playback and
+  capture. If this property is absent, using the default value of audio buffer
+  size.
+
 Child 'codec' node required properties:
 - compatible:       Compatible list, contains the name of the codec
 

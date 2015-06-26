@@ -32,6 +32,10 @@ Required properties:
 			  will be in use as default, or the big endian mode
 			  will be in use for all the device registers.
 
+   - fsl,dma-buffer-size: It specify the audio buffer size of playback and
+   capture. If this property is absent, using the default value of audio buffer
+   size.
+
 Example:
 
 spdif: spdif@02004000 {

@@ -1191,6 +1191,7 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node;
 	u32 dmas[4];
 	int ret;
+	u32 buffer_size;
 
 	if (ssi_private->has_ipg_clk_name)
 		ssi_private->clk = devm_clk_get(&pdev->dev, "ipg");
@@ -1237,6 +1238,9 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 		ssi_private->dma_params_rx.maxburst &= ~0x1;
 	}
 
+	if (of_property_read_u32(np, "fsl,dma-buffer-size", &buffer_size))
+		buffer_size = IMX_SSI_DMABUF_SIZE;
+
 	if (!ssi_private->use_dma) {
 
 		/*
@@ -1257,7 +1261,7 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 		if (ret)
 			goto error_pcm;
 	} else {
-		ret = imx_pcm_dma_init(pdev, IMX_SSI_DMABUF_SIZE);
+		ret = imx_pcm_dma_init(pdev, buffer_size);
 		if (ret)
 			goto error_pcm;
 	}

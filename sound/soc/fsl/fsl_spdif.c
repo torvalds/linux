@@ -1160,6 +1160,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *regs;
 	int irq, ret, i;
+	u32 buffer_size;
 
 	if (!np)
 		return -ENODEV;
@@ -1257,7 +1258,10 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = imx_pcm_dma_init(pdev, IMX_SPDIF_DMABUF_SIZE);
+	if (of_property_read_u32(np, "fsl,dma-buffer-size", &buffer_size))
+		buffer_size = IMX_SPDIF_DMABUF_SIZE;
+
+	ret = imx_pcm_dma_init(pdev, buffer_size);
 	if (ret)
 		dev_err(&pdev->dev, "imx_pcm_dma_init failed: %d\n", ret);
 
