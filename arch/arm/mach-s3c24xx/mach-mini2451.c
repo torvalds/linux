@@ -56,6 +56,7 @@
 #include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/s3c-hsudc.h>
+#include <linux/platform_data/touchscreen-one-wire.h>
 #include <plat/samsung-time.h>
 
 #include <plat/fb.h>
@@ -318,6 +319,20 @@ static void __init mini2451_hsmmc_gpio_setup(void)
 	s3c_gpio_cfgrange_nopull(S3C2410_GPJ(13), 3, S3C_GPIO_SFN(2));
 }
 
+static struct ts_onewire_platform_data mini2451_1wire_pdata = {
+	.timer_irq	= IRQ_TIMER2,
+	.pwm_id		= 2,
+	.gpio		= S3C2410_GPG(2),
+};
+
+static struct platform_device mini2451_1wire = {
+	.name		= "mini2451-1wire",
+	.id			= -1,
+	.dev		= {
+		.platform_data	= &mini2451_1wire_pdata,
+	},
+};
+
 static struct platform_device *mini2451_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_wdt,
@@ -327,6 +342,8 @@ static struct platform_device *mini2451_devices[] __initdata = {
 	&s3c_device_usb_hsudc,
 	&s3c_device_ohci,
 	&s3c2443_device_dma,
+	&samsung_device_pwm,
+	&mini2451_1wire,
 };
 
 static void __init mini2451_init_time(void)

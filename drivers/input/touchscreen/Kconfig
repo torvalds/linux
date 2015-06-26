@@ -385,6 +385,22 @@ config TOUCHSCREEN_S3C2410
 	  To compile this driver as a module, choose M here: the
 	  module will be called s3c2410_ts.
 
+config TOUCHSCREEN_1WIRE
+	tristate "Mini2451 1-Wire host and Touch Screen Driver"
+	depends on MACH_MINI2451
+	help
+	  Say Y here to enable the 1-Wire host and Touch Screen driver for
+	  FriendlyARM Mini2451 development board.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mini2451_1wire_host.
+
+config TOUCHSCREEN_IF
+	bool
+	default y if TOUCHSCREEN_1WIRE
+
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
 	select SERIO
