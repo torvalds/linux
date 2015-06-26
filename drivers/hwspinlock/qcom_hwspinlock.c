@@ -123,7 +123,7 @@ static int qcom_hwspinlock_probe(struct platform_device *pdev)
 	for (i = 0; i < QCOM_MUTEX_NUM_LOCKS; i++) {
 		field.reg = base + i * stride;
 		field.lsb = 0;
-		field.msb = 32;
+		field.msb = 31;
 
 		bank->lock[i].priv = devm_regmap_field_alloc(&pdev->dev,
 							     regmap, field);
