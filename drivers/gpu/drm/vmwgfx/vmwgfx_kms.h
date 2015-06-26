@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2014 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -32,11 +32,17 @@
 #include <drm/drm_crtc_helper.h>
 #include "vmwgfx_drv.h"
 
+
+
 #define VMWGFX_NUM_DISPLAY_UNITS 8
 
 
 #define vmw_framebuffer_to_vfb(x) \
 	container_of(x, struct vmw_framebuffer, base)
+#define vmw_framebuffer_to_vfbs(x) \
+	container_of(x, struct vmw_framebuffer_surface, base.base)
+#define vmw_framebuffer_to_vfbd(x) \
+	container_of(x, struct vmw_framebuffer_dmabuf, base.base)
 
 /**
  * Base class for framebuffers
@@ -53,9 +59,36 @@ struct vmw_framebuffer {
 	uint32_t user_handle;
 };
 
+/*
+ * Clip rectangle
+ */
+struct vmw_clip_rect {
+	int x1, x2, y1, y2;
+};
 
-#define vmw_crtc_to_du(x) \
-	container_of(x, struct vmw_display_unit, crtc)
+struct vmw_framebuffer_surface {
+	struct vmw_framebuffer base;
+	struct vmw_surface *surface;
+	struct vmw_dma_buffer *buffer;
+	struct list_head head;
+	struct drm_master *master;
+};
+
+
+struct vmw_framebuffer_dmabuf {
+	struct vmw_framebuffer base;
+	struct vmw_dma_buffer *buffer;
+};
+
+
+/*
+ * Basic clip rect manipulation
+ */
+void vmw_clip_cliprects(struct drm_clip_rect *rects,
+			int num_rects,
+			struct vmw_clip_rect clip,
+			SVGASignedRect *out_rects,
+			int *out_num);
 
 /*
  * Basic cursor manipulation
@@ -120,11 +153,7 @@ struct vmw_display_unit {
 /*
  * Shared display unit functions - vmwgfx_kms.c
  */
-void vmw_display_unit_cleanup(struct vmw_display_unit *du);
-int vmw_du_page_flip(struct drm_crtc *crtc,
-		     struct drm_framebuffer *fb,
-		     struct drm_pending_vblank_event *event,
-		     uint32_t page_flip_flags);
+void vmw_du_cleanup(struct vmw_display_unit *du);
 void vmw_du_crtc_save(struct drm_crtc *crtc);
 void vmw_du_crtc_restore(struct drm_crtc *crtc);
 void vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
@@ -148,20 +177,31 @@ int vmw_du_connector_set_property(struct drm_connector *connector,
 /*
  * Legacy display unit functions - vmwgfx_ldu.c
  */
-int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv);
-int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv);
+int vmw_kms_ldu_init_display(struct vmw_private *dev_priv);
+int vmw_kms_ldu_close_display(struct vmw_private *dev_priv);
+int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
+				struct vmw_framebuffer *framebuffer,
+				unsigned flags, unsigned color,
+				struct drm_clip_rect *clips,
+				unsigned num_clips, int increment);
 
 /*
  * Screen Objects display functions - vmwgfx_scrn.c
  */
-int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv);
-int vmw_kms_close_screen_object_display(struct vmw_private *dev_priv);
-int vmw_kms_sou_update_layout(struct vmw_private *dev_priv, unsigned num,
-			      struct drm_vmw_rect *rects);
-bool vmw_kms_screen_object_flippable(struct vmw_private *dev_priv,
-				     struct drm_crtc *crtc);
-void vmw_kms_screen_object_update_implicit_fb(struct vmw_private *dev_priv,
-					      struct drm_crtc *crtc);
-
-
+int vmw_kms_sou_init_display(struct vmw_private *dev_priv);
+int vmw_kms_sou_close_display(struct vmw_private *dev_priv);
+int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
+				 struct drm_file *file_priv,
+				 struct vmw_framebuffer *framebuffer,
+				 unsigned flags, unsigned color,
+				 struct drm_clip_rect *clips,
+				 unsigned num_clips, int inc,
+				 struct vmw_fence_obj **out_fence);
+int vmw_kms_sou_do_dmabuf_dirty(struct drm_file *file_priv,
+				struct vmw_private *dev_priv,
+				struct vmw_framebuffer *framebuffer,
+				unsigned flags, unsigned color,
+				struct drm_clip_rect *clips,
+				unsigned num_clips, int increment,
+				struct vmw_fence_obj **out_fence);
 #endif

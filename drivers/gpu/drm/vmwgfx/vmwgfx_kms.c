@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2014 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -32,15 +32,12 @@
 #define VMWGFX_PRESENT_RATE ((HZ / 60 > 0) ? HZ / 60 : 1)
 
 
-struct vmw_clip_rect {
-	int x1, x2, y1, y2;
-};
 
 /**
  * Clip @num_rects number of @rects against @clip storing the
  * results in @out_rects and the number of passed rects in @out_num.
  */
-static void vmw_clip_cliprects(struct drm_clip_rect *rects,
+void vmw_clip_cliprects(struct drm_clip_rect *rects,
 			int num_rects,
 			struct vmw_clip_rect clip,
 			SVGASignedRect *out_rects,
@@ -69,7 +66,7 @@ static void vmw_clip_cliprects(struct drm_clip_rect *rects,
 	*out_num = k;
 }
 
-void vmw_display_unit_cleanup(struct vmw_display_unit *du)
+void vmw_du_cleanup(struct vmw_display_unit *du)
 {
 	if (du->cursor_surface)
 		vmw_surface_unreference(&du->cursor_surface);
@@ -367,15 +364,6 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 
 	srf->snooper.age++;
 
-	/* we can't call this function from this function since execbuf has
-	 * reserved fifo space.
-	 *
-	 * if (srf->snooper.crtc)
-	 *	vmw_ldu_crtc_cursor_update_image(dev_priv,
-	 *					 srf->snooper.image, 64, 64,
-	 *					 du->hotspot_x, du->hotspot_y);
-	 */
-
 	ttm_bo_kunmap(&map);
 err_unreserve:
 	ttm_bo_unreserve(bo);
@@ -412,17 +400,6 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
  * Surface framebuffer code
  */
 
-#define vmw_framebuffer_to_vfbs(x) \
-	container_of(x, struct vmw_framebuffer_surface, base.base)
-
-struct vmw_framebuffer_surface {
-	struct vmw_framebuffer base;
-	struct vmw_surface *surface;
-	struct vmw_dma_buffer *buffer;
-	struct list_head head;
-	struct drm_master *master;
-};
-
 static void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 {
 	struct vmw_framebuffer_surface *vfbs =
@@ -442,153 +419,6 @@ static void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 	kfree(vfbs);
 }
 
-static int do_surface_dirty_sou(struct vmw_private *dev_priv,
-				struct drm_file *file_priv,
-				struct vmw_framebuffer *framebuffer,
-				unsigned flags, unsigned color,
-				struct drm_clip_rect *clips,
-				unsigned num_clips, int inc,
-				struct vmw_fence_obj **out_fence)
-{
-	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
-	struct drm_clip_rect *clips_ptr;
-	struct drm_clip_rect *tmp;
-	struct drm_crtc *crtc;
-	size_t fifo_size;
-	int i, num_units;
-	int ret = 0; /* silence warning */
-	int left, right, top, bottom;
-
-	struct {
-		SVGA3dCmdHeader header;
-		SVGA3dCmdBlitSurfaceToScreen body;
-	} *cmd;
-	SVGASignedRect *blits;
-
-	num_units = 0;
-	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list,
-			    head) {
-		if (crtc->primary->fb != &framebuffer->base)
-			continue;
-		units[num_units++] = vmw_crtc_to_du(crtc);
-	}
-
-	BUG_ON(!clips || !num_clips);
-
-	tmp = kzalloc(sizeof(*tmp) * num_clips, GFP_KERNEL);
-	if (unlikely(tmp == NULL)) {
-		DRM_ERROR("Temporary cliprect memory alloc failed.\n");
-		return -ENOMEM;
-	}
-
-	fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num_clips;
-	cmd = kzalloc(fifo_size, GFP_KERNEL);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Temporary fifo memory alloc failed.\n");
-		ret = -ENOMEM;
-		goto out_free_tmp;
-	}
-
-	/* setup blits pointer */
-	blits = (SVGASignedRect *)&cmd[1];
-
-	/* initial clip region */
-	left = clips->x1;
-	right = clips->x2;
-	top = clips->y1;
-	bottom = clips->y2;
-
-	/* skip the first clip rect */
-	for (i = 1, clips_ptr = clips + inc;
-	     i < num_clips; i++, clips_ptr += inc) {
-		left = min_t(int, left, (int)clips_ptr->x1);
-		right = max_t(int, right, (int)clips_ptr->x2);
-		top = min_t(int, top, (int)clips_ptr->y1);
-		bottom = max_t(int, bottom, (int)clips_ptr->y2);
-	}
-
-	/* only need to do this once */
-	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN);
-	cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
-
-	cmd->body.srcRect.left = left;
-	cmd->body.srcRect.right = right;
-	cmd->body.srcRect.top = top;
-	cmd->body.srcRect.bottom = bottom;
-
-	clips_ptr = clips;
-	for (i = 0; i < num_clips; i++, clips_ptr += inc) {
-		tmp[i].x1 = clips_ptr->x1 - left;
-		tmp[i].x2 = clips_ptr->x2 - left;
-		tmp[i].y1 = clips_ptr->y1 - top;
-		tmp[i].y2 = clips_ptr->y2 - top;
-	}
-
-	/* do per unit writing, reuse fifo for each */
-	for (i = 0; i < num_units; i++) {
-		struct vmw_display_unit *unit = units[i];
-		struct vmw_clip_rect clip;
-		int num;
-
-		clip.x1 = left - unit->crtc.x;
-		clip.y1 = top - unit->crtc.y;
-		clip.x2 = right - unit->crtc.x;
-		clip.y2 = bottom - unit->crtc.y;
-
-		/* skip any crtcs that misses the clip region */
-		if (clip.x1 >= unit->crtc.mode.hdisplay ||
-		    clip.y1 >= unit->crtc.mode.vdisplay ||
-		    clip.x2 <= 0 || clip.y2 <= 0)
-			continue;
-
-		/*
-		 * In order for the clip rects to be correctly scaled
-		 * the src and dest rects needs to be the same size.
-		 */
-		cmd->body.destRect.left = clip.x1;
-		cmd->body.destRect.right = clip.x2;
-		cmd->body.destRect.top = clip.y1;
-		cmd->body.destRect.bottom = clip.y2;
-
-		/* create a clip rect of the crtc in dest coords */
-		clip.x2 = unit->crtc.mode.hdisplay - clip.x1;
-		clip.y2 = unit->crtc.mode.vdisplay - clip.y1;
-		clip.x1 = 0 - clip.x1;
-		clip.y1 = 0 - clip.y1;
-
-		/* need to reset sid as it is changed by execbuf */
-		cmd->body.srcImage.sid = cpu_to_le32(framebuffer->user_handle);
-		cmd->body.destScreenId = unit->unit;
-
-		/* clip and write blits to cmd stream */
-		vmw_clip_cliprects(tmp, num_clips, clip, blits, &num);
-
-		/* if no cliprects hit skip this */
-		if (num == 0)
-			continue;
-
-		/* only return the last fence */
-		if (out_fence && *out_fence)
-			vmw_fence_obj_unreference(out_fence);
-
-		/* recalculate package length */
-		fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num;
-		cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
-		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-					  fifo_size, 0, NULL, out_fence);
-
-		if (unlikely(ret != 0))
-			break;
-	}
-
-
-	kfree(cmd);
-out_free_tmp:
-	kfree(tmp);
-
-	return ret;
-}
-
 static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 				  struct drm_file *file_priv,
 				  unsigned flags, unsigned color,
@@ -604,8 +434,8 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 	if (unlikely(vfbs->master != file_priv->master))
 		return -EINVAL;
 
-	/* Require ScreenObject support for 3D */
-	if (!dev_priv->sou_priv)
+	/* Legacy Display Unit does not support 3D */
+	if (dev_priv->active_display_unit == vmw_du_legacy)
 		return -EINVAL;
 
 	drm_modeset_lock_all(dev_priv->dev);
@@ -627,9 +457,12 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 		inc = 2; /* skip source rects */
 	}
 
-	ret = do_surface_dirty_sou(dev_priv, file_priv, &vfbs->base,
-				   flags, color,
-				   clips, num_clips, inc, NULL);
+	if (dev_priv->active_display_unit == vmw_du_screen_object)
+		ret = vmw_kms_sou_do_surface_dirty(dev_priv, file_priv,
+						   &vfbs->base,
+						   flags, color,
+						   clips, num_clips,
+						   inc, NULL);
 
 	vmw_fifo_flush(dev_priv, false);
 	ttm_read_unlock(&dev_priv->reservation_sem);
@@ -658,8 +491,8 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
 
-	/* 3D is only supported on HWv8 hosts which supports screen objects */
-	if (!dev_priv->sou_priv)
+	/* 3D is only supported on HWv8 and newer hosts */
+	if (dev_priv->active_display_unit == vmw_du_legacy)
 		return -ENOSYS;
 
 	/*
@@ -692,9 +525,6 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		break;
 	case 15:
 		format = SVGA3D_A1R5G5B5;
-		break;
-	case 8:
-		format = SVGA3D_LUMINANCE8;
 		break;
 	default:
 		DRM_ERROR("Invalid color depth: %d\n", mode_cmd->depth);
@@ -753,14 +583,6 @@ out_err1:
  * Dmabuf framebuffer code
  */
 
-#define vmw_framebuffer_to_vfbd(x) \
-	container_of(x, struct vmw_framebuffer_dmabuf, base.base)
-
-struct vmw_framebuffer_dmabuf {
-	struct vmw_framebuffer base;
-	struct vmw_dma_buffer *buffer;
-};
-
 static void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
 {
 	struct vmw_framebuffer_dmabuf *vfbd =
@@ -771,180 +593,6 @@ static void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
 	ttm_base_object_unref(&vfbd->base.user_obj);
 
 	kfree(vfbd);
-}
-
-static int do_dmabuf_dirty_ldu(struct vmw_private *dev_priv,
-			       struct vmw_framebuffer *framebuffer,
-			       unsigned flags, unsigned color,
-			       struct drm_clip_rect *clips,
-			       unsigned num_clips, int increment)
-{
-	size_t fifo_size;
-	int i;
-
-	struct {
-		uint32_t header;
-		SVGAFifoCmdUpdate body;
-	} *cmd;
-
-	fifo_size = sizeof(*cmd) * num_clips;
-	cmd = vmw_fifo_reserve(dev_priv, fifo_size);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
-		return -ENOMEM;
-	}
-
-	memset(cmd, 0, fifo_size);
-	for (i = 0; i < num_clips; i++, clips += increment) {
-		cmd[i].header = cpu_to_le32(SVGA_CMD_UPDATE);
-		cmd[i].body.x = cpu_to_le32(clips->x1);
-		cmd[i].body.y = cpu_to_le32(clips->y1);
-		cmd[i].body.width = cpu_to_le32(clips->x2 - clips->x1);
-		cmd[i].body.height = cpu_to_le32(clips->y2 - clips->y1);
-	}
-
-	vmw_fifo_commit(dev_priv, fifo_size);
-	return 0;
-}
-
-static int do_dmabuf_define_gmrfb(struct drm_file *file_priv,
-				  struct vmw_private *dev_priv,
-				  struct vmw_framebuffer *framebuffer)
-{
-	int depth = framebuffer->base.depth;
-	size_t fifo_size;
-	int ret;
-
-	struct {
-		uint32_t header;
-		SVGAFifoCmdDefineGMRFB body;
-	} *cmd;
-
-	/* Emulate RGBA support, contrary to svga_reg.h this is not
-	 * supported by hosts. This is only a problem if we are reading
-	 * this value later and expecting what we uploaded back.
-	 */
-	if (depth == 32)
-		depth = 24;
-
-	fifo_size = sizeof(*cmd);
-	cmd = kmalloc(fifo_size, GFP_KERNEL);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed to allocate temporary cmd buffer.\n");
-		return -ENOMEM;
-	}
-
-	memset(cmd, 0, fifo_size);
-	cmd->header = SVGA_CMD_DEFINE_GMRFB;
-	cmd->body.format.bitsPerPixel = framebuffer->base.bits_per_pixel;
-	cmd->body.format.colorDepth = depth;
-	cmd->body.format.reserved = 0;
-	cmd->body.bytesPerLine = framebuffer->base.pitches[0];
-	cmd->body.ptr.gmrId = framebuffer->user_handle;
-	cmd->body.ptr.offset = 0;
-
-	ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-				  fifo_size, 0, NULL, NULL);
-
-	kfree(cmd);
-
-	return ret;
-}
-
-static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
-			       struct vmw_private *dev_priv,
-			       struct vmw_framebuffer *framebuffer,
-			       unsigned flags, unsigned color,
-			       struct drm_clip_rect *clips,
-			       unsigned num_clips, int increment,
-			       struct vmw_fence_obj **out_fence)
-{
-	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
-	struct drm_clip_rect *clips_ptr;
-	int i, k, num_units, ret;
-	struct drm_crtc *crtc;
-	size_t fifo_size;
-
-	struct {
-		uint32_t header;
-		SVGAFifoCmdBlitGMRFBToScreen body;
-	} *blits;
-
-	ret = do_dmabuf_define_gmrfb(file_priv, dev_priv, framebuffer);
-	if (unlikely(ret != 0))
-		return ret; /* define_gmrfb prints warnings */
-
-	fifo_size = sizeof(*blits) * num_clips;
-	blits = kmalloc(fifo_size, GFP_KERNEL);
-	if (unlikely(blits == NULL)) {
-		DRM_ERROR("Failed to allocate temporary cmd buffer.\n");
-		return -ENOMEM;
-	}
-
-	num_units = 0;
-	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->primary->fb != &framebuffer->base)
-			continue;
-		units[num_units++] = vmw_crtc_to_du(crtc);
-	}
-
-	for (k = 0; k < num_units; k++) {
-		struct vmw_display_unit *unit = units[k];
-		int hit_num = 0;
-
-		clips_ptr = clips;
-		for (i = 0; i < num_clips; i++, clips_ptr += increment) {
-			int clip_x1 = clips_ptr->x1 - unit->crtc.x;
-			int clip_y1 = clips_ptr->y1 - unit->crtc.y;
-			int clip_x2 = clips_ptr->x2 - unit->crtc.x;
-			int clip_y2 = clips_ptr->y2 - unit->crtc.y;
-			int move_x, move_y;
-
-			/* skip any crtcs that misses the clip region */
-			if (clip_x1 >= unit->crtc.mode.hdisplay ||
-			    clip_y1 >= unit->crtc.mode.vdisplay ||
-			    clip_x2 <= 0 || clip_y2 <= 0)
-				continue;
-
-			/* clip size to crtc size */
-			clip_x2 = min_t(int, clip_x2, unit->crtc.mode.hdisplay);
-			clip_y2 = min_t(int, clip_y2, unit->crtc.mode.vdisplay);
-
-			/* translate both src and dest to bring clip into screen */
-			move_x = min_t(int, clip_x1, 0);
-			move_y = min_t(int, clip_y1, 0);
-
-			/* actual translate done here */
-			blits[hit_num].header = SVGA_CMD_BLIT_GMRFB_TO_SCREEN;
-			blits[hit_num].body.destScreenId = unit->unit;
-			blits[hit_num].body.srcOrigin.x = clips_ptr->x1 - move_x;
-			blits[hit_num].body.srcOrigin.y = clips_ptr->y1 - move_y;
-			blits[hit_num].body.destRect.left = clip_x1 - move_x;
-			blits[hit_num].body.destRect.top = clip_y1 - move_y;
-			blits[hit_num].body.destRect.right = clip_x2;
-			blits[hit_num].body.destRect.bottom = clip_y2;
-			hit_num++;
-		}
-
-		/* no clips hit the crtc */
-		if (hit_num == 0)
-			continue;
-
-		/* only return the last fence */
-		if (out_fence && *out_fence)
-			vmw_fence_obj_unreference(out_fence);
-
-		fifo_size = sizeof(*blits) * hit_num;
-		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, blits,
-					  fifo_size, 0, NULL, out_fence);
-
-		if (unlikely(ret != 0))
-			break;
-	}
-
-	kfree(blits);
-
-	return ret;
 }
 
 static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
@@ -979,13 +627,15 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	}
 
 	if (dev_priv->ldu_priv) {
-		ret = do_dmabuf_dirty_ldu(dev_priv, &vfbd->base,
-					  flags, color,
-					  clips, num_clips, increment);
-	} else {
-		ret = do_dmabuf_dirty_sou(file_priv, dev_priv, &vfbd->base,
-					  flags, color,
-					  clips, num_clips, increment, NULL);
+		ret = vmw_kms_ldu_do_dmabuf_dirty(dev_priv, &vfbd->base,
+						  flags, color,
+						  clips, num_clips, increment);
+	} else if (dev_priv->active_display_unit == vmw_du_screen_object) {
+		ret = vmw_kms_sou_do_dmabuf_dirty(file_priv, dev_priv,
+						  &vfbd->base,
+						  flags, color,
+						  clips, num_clips, increment,
+						  NULL);
 	}
 
 	vmw_fifo_flush(dev_priv, false);
@@ -1011,8 +661,8 @@ static int vmw_framebuffer_dmabuf_pin(struct vmw_framebuffer *vfb)
 		vmw_framebuffer_to_vfbd(&vfb->base);
 	int ret;
 
-	/* This code should not be used with screen objects */
-	BUG_ON(dev_priv->sou_priv);
+	/* This code should only be used with Legacy Display Unit */
+	BUG_ON(dev_priv->active_display_unit != vmw_du_legacy);
 
 	vmw_overlay_pause_all(dev_priv);
 
@@ -1059,7 +709,7 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 	}
 
 	/* Limited framebuffer color depth support for screen objects */
-	if (dev_priv->sou_priv) {
+	if (dev_priv->active_display_unit == vmw_du_screen_object) {
 		switch (mode_cmd->depth) {
 		case 32:
 		case 24:
@@ -1102,7 +752,7 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 	vfbd->base.base.depth = mode_cmd->depth;
 	vfbd->base.base.width = mode_cmd->width;
 	vfbd->base.base.height = mode_cmd->height;
-	if (!dev_priv->sou_priv) {
+	if (dev_priv->active_display_unit == vmw_du_legacy) {
 		vfbd->base.pin = vmw_framebuffer_dmabuf_pin;
 		vfbd->base.unpin = vmw_framebuffer_dmabuf_unpin;
 	}
@@ -1159,7 +809,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	if (!vmw_kms_validate_mode_vram(dev_priv,
 					mode_cmd.pitch,
 					mode_cmd.height)) {
-		DRM_ERROR("VRAM size is too small for requested mode.\n");
+		DRM_ERROR("Requested mode exceed bounding box limit.\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1220,7 +870,7 @@ static const struct drm_mode_config_funcs vmw_kms_funcs = {
 	.fb_create = vmw_kms_fb_create,
 };
 
-int vmw_kms_present(struct vmw_private *dev_priv,
+int vmw_kms_generic_present(struct vmw_private *dev_priv,
 		    struct drm_file *file_priv,
 		    struct vmw_framebuffer *vfb,
 		    struct vmw_surface *surface,
@@ -1358,6 +1008,19 @@ out_free_tmp:
 	return ret;
 }
 
+int vmw_kms_present(struct vmw_private *dev_priv,
+		    struct drm_file *file_priv,
+		    struct vmw_framebuffer *vfb,
+		    struct vmw_surface *surface,
+		    uint32_t sid,
+		    int32_t destX, int32_t destY,
+		    struct drm_vmw_rect *clips,
+		    uint32_t num_clips)
+{
+	return vmw_kms_generic_present(dev_priv, file_priv, vfb, surface, sid,
+				       destX, destY, clips, num_clips);
+}
+
 int vmw_kms_readback(struct vmw_private *dev_priv,
 		     struct drm_file *file_priv,
 		     struct vmw_framebuffer *vfb,
@@ -1478,26 +1141,29 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 	dev->mode_config.max_width = 8192;
 	dev->mode_config.max_height = 8192;
 
-	ret = vmw_kms_init_screen_object_display(dev_priv);
+	ret = vmw_kms_sou_init_display(dev_priv);
 	if (ret) /* Fallback */
-		(void)vmw_kms_init_legacy_display_system(dev_priv);
+		ret = vmw_kms_ldu_init_display(dev_priv);
 
-	return 0;
+	return ret;
 }
 
 int vmw_kms_close(struct vmw_private *dev_priv)
 {
+	int ret;
+
 	/*
 	 * Docs says we should take the lock before calling this function
 	 * but since it destroys encoders and our destructor calls
 	 * drm_encoder_cleanup which takes the lock we deadlock.
 	 */
 	drm_mode_config_cleanup(dev_priv->dev);
-	if (dev_priv->sou_priv)
-		vmw_kms_close_screen_object_display(dev_priv);
+	if (dev_priv->active_display_unit == vmw_du_screen_object)
+		ret = vmw_kms_sou_close_display(dev_priv);
 	else
-		vmw_kms_close_legacy_display_system(dev_priv);
-	return 0;
+		ret = vmw_kms_ldu_close_display(dev_priv);
+
+	return ret;
 }
 
 int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
@@ -1573,7 +1239,7 @@ int vmw_kms_save_vga(struct vmw_private *vmw_priv)
 		  vmw_read(vmw_priv, SVGA_REG_PITCHLOCK);
 	else if (vmw_fifo_have_pitchlock(vmw_priv))
 		vmw_priv->vga_pitchlock = ioread32(vmw_priv->mmio_virt +
-						       SVGA_FIFO_PITCHLOCK);
+						   SVGA_FIFO_PITCHLOCK);
 
 	if (!(vmw_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY))
 		return 0;
@@ -1718,75 +1384,6 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 
 	return 0;
 }
-
-int vmw_du_page_flip(struct drm_crtc *crtc,
-		     struct drm_framebuffer *fb,
-		     struct drm_pending_vblank_event *event,
-		     uint32_t page_flip_flags)
-{
-	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(fb);
-	struct drm_file *file_priv ;
-	struct vmw_fence_obj *fence = NULL;
-	struct drm_clip_rect clips;
-	int ret;
-
-	if (event == NULL)
-		return -EINVAL;
-
-	/* require ScreenObject support for page flipping */
-	if (!dev_priv->sou_priv)
-		return -ENOSYS;
-
-	file_priv = event->base.file_priv;
-	if (!vmw_kms_screen_object_flippable(dev_priv, crtc))
-		return -EINVAL;
-
-	crtc->primary->fb = fb;
-
-	/* do a full screen dirty update */
-	clips.x1 = clips.y1 = 0;
-	clips.x2 = fb->width;
-	clips.y2 = fb->height;
-
-	if (vfb->dmabuf)
-		ret = do_dmabuf_dirty_sou(file_priv, dev_priv, vfb,
-					  0, 0, &clips, 1, 1, &fence);
-	else
-		ret = do_surface_dirty_sou(dev_priv, file_priv, vfb,
-					   0, 0, &clips, 1, 1, &fence);
-
-
-	if (ret != 0)
-		goto out_no_fence;
-	if (!fence) {
-		ret = -EINVAL;
-		goto out_no_fence;
-	}
-
-	ret = vmw_event_fence_action_queue(file_priv, fence,
-					   &event->base,
-					   &event->event.tv_sec,
-					   &event->event.tv_usec,
-					   true);
-
-	/*
-	 * No need to hold on to this now. The only cleanup
-	 * we need to do if we fail is unref the fence.
-	 */
-	vmw_fence_obj_unreference(&fence);
-
-	if (vmw_crtc_to_du(crtc)->is_implicit)
-		vmw_kms_screen_object_update_implicit_fb(dev_priv, crtc);
-
-	return ret;
-
-out_no_fence:
-	crtc->primary->fb = old_fb;
-	return ret;
-}
-
 
 void vmw_du_crtc_save(struct drm_crtc *crtc)
 {
@@ -1958,35 +1555,33 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 	 * If using screen objects, then assume 32-bpp because that's what the
 	 * SVGA device is assuming
 	 */
-	if (dev_priv->sou_priv)
+	if (dev_priv->active_display_unit == vmw_du_screen_object)
 		assumed_bpp = 4;
 
 	/* Add preferred mode */
-	{
-		mode = drm_mode_duplicate(dev, &prefmode);
-		if (!mode)
-			return 0;
-		mode->hdisplay = du->pref_width;
-		mode->vdisplay = du->pref_height;
-		vmw_guess_mode_timing(mode);
+	mode = drm_mode_duplicate(dev, &prefmode);
+	if (!mode)
+		return 0;
+	mode->hdisplay = du->pref_width;
+	mode->vdisplay = du->pref_height;
+	vmw_guess_mode_timing(mode);
 
-		if (vmw_kms_validate_mode_vram(dev_priv,
-						mode->hdisplay * assumed_bpp,
-						mode->vdisplay)) {
-			drm_mode_probed_add(connector, mode);
-		} else {
-			drm_mode_destroy(dev, mode);
-			mode = NULL;
-		}
-
-		if (du->pref_mode) {
-			list_del_init(&du->pref_mode->head);
-			drm_mode_destroy(dev, du->pref_mode);
-		}
-
-		/* mode might be null here, this is intended */
-		du->pref_mode = mode;
+	if (vmw_kms_validate_mode_vram(dev_priv,
+					mode->hdisplay * assumed_bpp,
+					mode->vdisplay)) {
+		drm_mode_probed_add(connector, mode);
+	} else {
+		drm_mode_destroy(dev, mode);
+		mode = NULL;
 	}
+
+	if (du->pref_mode) {
+		list_del_init(&du->pref_mode->head);
+		drm_mode_destroy(dev, du->pref_mode);
+	}
+
+	/* mode might be null here, this is intended */
+	du->pref_mode = mode;
 
 	for (i = 0; vmw_kms_connector_builtin[i].type != 0; i++) {
 		bmode = &vmw_kms_connector_builtin[i];
@@ -2036,6 +1631,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	int ret;
 	int i;
 	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_vmw_rect bounding_box = {0};
 
 	if (!arg->num_outputs) {
 		struct drm_vmw_rect def_rect = {0, 0, 800, 600};
@@ -2066,6 +1662,16 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 			ret = -EINVAL;
 			goto out_free;
 		}
+
+		/*
+		 * bounding_box.w and bunding_box.h are used as
+		 * lower-right coordinates
+		 */
+		if (rects[i].x + rects[i].w > bounding_box.w)
+			bounding_box.w = rects[i].x + rects[i].w;
+
+		if (rects[i].y + rects[i].h > bounding_box.h)
+			bounding_box.h = rects[i].y + rects[i].h;
 	}
 
 	vmw_du_update_layout(dev_priv, arg->num_outputs, rects);

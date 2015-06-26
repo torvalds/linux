@@ -100,7 +100,7 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 {
 	struct vmw_escape_video_flush *flush;
 	size_t fifo_size;
-	bool have_so = dev_priv->sou_priv ? true : false;
+	bool have_so = (dev_priv->active_display_unit == vmw_du_screen_object);
 	int i, num_items;
 	SVGAGuestPtr ptr;
 
@@ -231,7 +231,7 @@ static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
 	if (!pin)
 		return vmw_dmabuf_unpin(dev_priv, buf, inter);
 
-	if (!dev_priv->sou_priv)
+	if (dev_priv->active_display_unit == vmw_du_legacy)
 		return vmw_dmabuf_to_vram(dev_priv, buf, true, inter);
 
 	return vmw_dmabuf_to_vram_or_gmr(dev_priv, buf, true, inter);
@@ -453,7 +453,7 @@ int vmw_overlay_pause_all(struct vmw_private *dev_priv)
 
 static bool vmw_overlay_available(const struct vmw_private *dev_priv)
 {
-	return (dev_priv->overlay_priv != NULL && 
+	return (dev_priv->overlay_priv != NULL &&
 		((dev_priv->fifo.capabilities & VMW_OVERLAY_CAP_MASK) ==
 		 VMW_OVERLAY_CAP_MASK));
 }

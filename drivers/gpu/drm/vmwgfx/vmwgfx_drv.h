@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2014 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -330,6 +330,17 @@ struct vmw_ctx_binding_state {
 	struct vmw_ctx_binding shaders[SVGA3D_SHADERTYPE_MAX];
 };
 
+
+/*
+ * enum vmw_display_unit_type - Describes the display unit
+ */
+enum vmw_display_unit_type {
+	vmw_du_invalid = 0,
+	vmw_du_legacy,
+	vmw_du_screen_object
+};
+
+
 struct vmw_sw_context{
 	struct drm_open_hash res_ht;
 	bool res_ht_initialized;
@@ -421,6 +432,7 @@ struct vmw_private {
 	 */
 
 	void *fb_info;
+	enum vmw_display_unit_type active_display_unit;
 	struct vmw_legacy_display *ldu_priv;
 	struct vmw_screen_object_display *sou_priv;
 	struct vmw_overlay *overlay_priv;
@@ -844,8 +856,8 @@ extern void vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 
 extern irqreturn_t vmw_irq_handler(int irq, void *arg);
 extern int vmw_wait_seqno(struct vmw_private *dev_priv, bool lazy,
-			     uint32_t seqno, bool interruptible,
-			     unsigned long timeout);
+			  uint32_t seqno, bool interruptible,
+			  unsigned long timeout);
 extern void vmw_irq_preinstall(struct drm_device *dev);
 extern int vmw_irq_postinstall(struct drm_device *dev);
 extern void vmw_irq_uninstall(struct drm_device *dev);
@@ -876,9 +888,9 @@ extern void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
 extern void vmw_marker_queue_init(struct vmw_marker_queue *queue);
 extern void vmw_marker_queue_takedown(struct vmw_marker_queue *queue);
 extern int vmw_marker_push(struct vmw_marker_queue *queue,
-			  uint32_t seqno);
+			   uint32_t seqno);
 extern int vmw_marker_pull(struct vmw_marker_queue *queue,
-			  uint32_t signaled_seqno);
+			   uint32_t signaled_seqno);
 extern int vmw_wait_lag(struct vmw_private *dev_priv,
 			struct vmw_marker_queue *queue, uint32_t us);
 
