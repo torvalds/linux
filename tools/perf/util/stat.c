@@ -143,3 +143,28 @@ void perf_evsel__free_counts(struct perf_evsel *evsel)
 	perf_counts__delete(evsel->counts);
 	evsel->counts = NULL;
 }
+
+void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
+{
+	int i;
+	struct perf_stat *ps = evsel->priv;
+
+	for (i = 0; i < 3; i++)
+		init_stats(&ps->res_stats[i]);
+
+	perf_stat_evsel_id_init(evsel);
+}
+
+int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
+{
+	evsel->priv = zalloc(sizeof(struct perf_stat));
+	if (evsel->priv == NULL)
+		return -ENOMEM;
+	perf_evsel__reset_stat_priv(evsel);
+	return 0;
+}
+
+void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
+{
+	zfree(&evsel->priv);
+}

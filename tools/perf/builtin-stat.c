@@ -141,31 +141,6 @@ static inline void diff_timespec(struct timespec *r, struct timespec *a,
 	}
 }
 
-static void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
-{
-	int i;
-	struct perf_stat *ps = evsel->priv;
-
-	for (i = 0; i < 3; i++)
-		init_stats(&ps->res_stats[i]);
-
-	perf_stat_evsel_id_init(evsel);
-}
-
-static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
-{
-	evsel->priv = zalloc(sizeof(struct perf_stat));
-	if (evsel->priv == NULL)
-		return -ENOMEM;
-	perf_evsel__reset_stat_priv(evsel);
-	return 0;
-}
-
-static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
-{
-	zfree(&evsel->priv);
-}
-
 static int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
 					     int ncpus, int nthreads)
 {
