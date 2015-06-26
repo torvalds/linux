@@ -1575,8 +1575,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_fini(adev);
-	if (adev->ip_block_enabled)
-		kfree(adev->ip_block_enabled);
+	kfree(adev->ip_block_enabled);
 	adev->ip_block_enabled = NULL;
 	adev->accel_working = false;
 	/* free i2c buses */
