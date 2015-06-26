@@ -120,75 +120,50 @@ struct vme_user_vma_priv {
 	atomic_t refcnt;
 };
 
-/*
- * We are going ot alloc a page during init per window for small transfers.
- * Small transfers will go VME -> buffer -> user space. Larger (more than a
- * page) transfers will lock the user space buffer into memory and then
- * transfer the data directly into the user space buffers.
- */
 static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
 				loff_t *ppos)
 {
 	ssize_t retval;
 	ssize_t copied = 0;
 
-	if (count <= image[minor].size_buf) {
-		/* We copy to kernel buffer */
-		copied = vme_master_read(image[minor].resource,
-			image[minor].kern_buf, count, *ppos);
-		if (copied < 0)
-			return (int)copied;
+	if (count > image[minor].size_buf)
+		count = image[minor].size_buf;
 
-		retval = __copy_to_user(buf, image[minor].kern_buf,
-			(unsigned long)copied);
-		if (retval != 0) {
-			copied = (copied - retval);
-			pr_info("User copy failed\n");
-			return -EINVAL;
-		}
+	/* We copy to kernel buffer */
+	copied = vme_master_read(image[minor].resource, image[minor].kern_buf,
+				 count, *ppos);
+	if (copied < 0)
+		return (int)copied;
 
-	} else {
-		/* XXX Need to write this */
-		pr_info("Currently don't support large transfers\n");
-		/* Map in pages from userspace */
-
-		/* Call vme_master_read to do the transfer */
+	retval = __copy_to_user(buf, image[minor].kern_buf,
+				(unsigned long)copied);
+	if (retval != 0) {
+		copied = (copied - retval);
+		pr_info("User copy failed\n");
 		return -EINVAL;
 	}
 
 	return copied;
 }
 
-/*
- * We are going to alloc a page during init per window for small transfers.
- * Small transfers will go user space -> buffer -> VME. Larger (more than a
- * page) transfers will lock the user space buffer into memory and then
- * transfer the data directly from the user space buffers out to VME.
- */
 static ssize_t resource_from_user(unsigned int minor, const char __user *buf,
 				  size_t count, loff_t *ppos)
 {
 	ssize_t retval;
 	ssize_t copied = 0;
 
-	if (count <= image[minor].size_buf) {
-		retval = __copy_from_user(image[minor].kern_buf, buf,
-			(unsigned long)count);
-		if (retval != 0)
-			copied = (copied - retval);
-		else
-			copied = count;
+	if (count > image[minor].size_buf)
+		count = image[minor].size_buf;
 
-		copied = vme_master_write(image[minor].resource,
-			image[minor].kern_buf, copied, *ppos);
-	} else {
-		/* XXX Need to write this */
-		pr_info("Currently don't support large transfers\n");
-		/* Map in pages from userspace */
+	retval = __copy_from_user(image[minor].kern_buf, buf,
+				  (unsigned long)count);
+	if (retval != 0)
+		copied = (copied - retval);
+	else
+		copied = count;
 
-		/* Call vme_master_write to do the transfer */
-		return -EINVAL;
-	}
+	copied = vme_master_write(image[minor].resource, image[minor].kern_buf,
+				  copied, *ppos);
 
 	return copied;
 }
