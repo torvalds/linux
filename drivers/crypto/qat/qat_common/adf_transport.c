@@ -449,7 +449,7 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 err:
 	for (i = 0; i < ADF_ETR_MAX_RINGS_PER_BANK; i++) {
 		ring = &bank->rings[i];
-		if (hw_data->tx_rings_mask & (1 << i) && ring->inflights)
+		if (hw_data->tx_rings_mask & (1 << i))
 			kfree(ring->inflights);
 	}
 	return -ENOMEM;
