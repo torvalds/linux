@@ -81,9 +81,9 @@ static void r_stop(struct seq_file *m, void *v)
 static int show_rcubarrier(struct seq_file *m, void *v)
 {
 	struct rcu_state *rsp = (struct rcu_state *)m->private;
-	seq_printf(m, "bcc: %d nbd: %lu\n",
+	seq_printf(m, "bcc: %d bseq: %lu\n",
 		   atomic_read(&rsp->barrier_cpu_count),
-		   rsp->n_barrier_done);
+		   rsp->barrier_sequence);
 	return 0;
 }
 

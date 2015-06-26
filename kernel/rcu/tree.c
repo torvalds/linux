@@ -3568,10 +3568,10 @@ static void rcu_barrier_callback(struct rcu_head *rhp)
 	struct rcu_state *rsp = rdp->rsp;
 
 	if (atomic_dec_and_test(&rsp->barrier_cpu_count)) {
-		_rcu_barrier_trace(rsp, "LastCB", -1, rsp->n_barrier_done);
+		_rcu_barrier_trace(rsp, "LastCB", -1, rsp->barrier_sequence);
 		complete(&rsp->barrier_completion);
 	} else {
-		_rcu_barrier_trace(rsp, "CB", -1, rsp->n_barrier_done);
+		_rcu_barrier_trace(rsp, "CB", -1, rsp->barrier_sequence);
 	}
 }
 
@@ -3583,7 +3583,7 @@ static void rcu_barrier_func(void *type)
 	struct rcu_state *rsp = type;
 	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
 
-	_rcu_barrier_trace(rsp, "IRQ", -1, rsp->n_barrier_done);
+	_rcu_barrier_trace(rsp, "IRQ", -1, rsp->barrier_sequence);
 	atomic_inc(&rsp->barrier_cpu_count);
 	rsp->call(&rdp->barrier_head, rcu_barrier_callback);
 }
@@ -3596,55 +3596,24 @@ static void _rcu_barrier(struct rcu_state *rsp)
 {
 	int cpu;
 	struct rcu_data *rdp;
-	unsigned long snap = READ_ONCE(rsp->n_barrier_done);
-	unsigned long snap_done;
+	unsigned long s = rcu_seq_snap(&rsp->barrier_sequence);
 
-	_rcu_barrier_trace(rsp, "Begin", -1, snap);
+	_rcu_barrier_trace(rsp, "Begin", -1, s);
 
 	/* Take mutex to serialize concurrent rcu_barrier() requests. */
 	mutex_lock(&rsp->barrier_mutex);
 
-	/*
-	 * Ensure that all prior references, including to ->n_barrier_done,
-	 * are ordered before the _rcu_barrier() machinery.
-	 */
-	smp_mb();  /* See above block comment. */
-
-	/*
-	 * Recheck ->n_barrier_done to see if others did our work for us.
-	 * This means checking ->n_barrier_done for an even-to-odd-to-even
-	 * transition.  The "if" expression below therefore rounds the old
-	 * value up to the next even number and adds two before comparing.
-	 */
-	snap_done = rsp->n_barrier_done;
-	_rcu_barrier_trace(rsp, "Check", -1, snap_done);
-
-	/*
-	 * If the value in snap is odd, we needed to wait for the current
-	 * rcu_barrier() to complete, then wait for the next one, in other
-	 * words, we need the value of snap_done to be three larger than
-	 * the value of snap.  On the other hand, if the value in snap is
-	 * even, we only had to wait for the next rcu_barrier() to complete,
-	 * in other words, we need the value of snap_done to be only two
-	 * greater than the value of snap.  The "(snap + 3) & ~0x1" computes
-	 * this for us (thank you, Linus!).
-	 */
-	if (ULONG_CMP_GE(snap_done, (snap + 3) & ~0x1)) {
-		_rcu_barrier_trace(rsp, "EarlyExit", -1, snap_done);
+	/* Did someone else do our work for us? */
+	if (rcu_seq_done(&rsp->barrier_sequence, s)) {
+		_rcu_barrier_trace(rsp, "EarlyExit", -1, rsp->barrier_sequence);
 		smp_mb(); /* caller's subsequent code after above check. */
 		mutex_unlock(&rsp->barrier_mutex);
 		return;
 	}
 
-	/*
-	 * Increment ->n_barrier_done to avoid duplicate work.  Use
-	 * WRITE_ONCE() to prevent the compiler from speculating
-	 * the increment to precede the early-exit check.
-	 */
-	WRITE_ONCE(rsp->n_barrier_done, rsp->n_barrier_done + 1);
-	WARN_ON_ONCE((rsp->n_barrier_done & 0x1) != 1);
-	_rcu_barrier_trace(rsp, "Inc1", -1, rsp->n_barrier_done);
-	smp_mb(); /* Order ->n_barrier_done increment with below mechanism. */
+	/* Mark the start of the barrier operation. */
+	rcu_seq_start(&rsp->barrier_sequence);
+	_rcu_barrier_trace(rsp, "Inc1", -1, rsp->barrier_sequence);
 
 	/*
 	 * Initialize the count to one rather than to zero in order to
@@ -3668,10 +3637,10 @@ static void _rcu_barrier(struct rcu_state *rsp)
 		if (rcu_is_nocb_cpu(cpu)) {
 			if (!rcu_nocb_cpu_needs_barrier(rsp, cpu)) {
 				_rcu_barrier_trace(rsp, "OfflineNoCB", cpu,
-						   rsp->n_barrier_done);
+						   rsp->barrier_sequence);
 			} else {
 				_rcu_barrier_trace(rsp, "OnlineNoCB", cpu,
-						   rsp->n_barrier_done);
+						   rsp->barrier_sequence);
 				smp_mb__before_atomic();
 				atomic_inc(&rsp->barrier_cpu_count);
 				__call_rcu(&rdp->barrier_head,
@@ -3679,11 +3648,11 @@ static void _rcu_barrier(struct rcu_state *rsp)
 			}
 		} else if (READ_ONCE(rdp->qlen)) {
 			_rcu_barrier_trace(rsp, "OnlineQ", cpu,
-					   rsp->n_barrier_done);
+					   rsp->barrier_sequence);
 			smp_call_function_single(cpu, rcu_barrier_func, rsp, 1);
 		} else {
 			_rcu_barrier_trace(rsp, "OnlineNQ", cpu,
-					   rsp->n_barrier_done);
+					   rsp->barrier_sequence);
 		}
 	}
 	put_online_cpus();
@@ -3695,15 +3664,12 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	if (atomic_dec_and_test(&rsp->barrier_cpu_count))
 		complete(&rsp->barrier_completion);
 
-	/* Increment ->n_barrier_done to prevent duplicate work. */
-	smp_mb(); /* Keep increment after above mechanism. */
-	WRITE_ONCE(rsp->n_barrier_done, rsp->n_barrier_done + 1);
-	WARN_ON_ONCE((rsp->n_barrier_done & 0x1) != 0);
-	_rcu_barrier_trace(rsp, "Inc2", -1, rsp->n_barrier_done);
-	smp_mb(); /* Keep increment before caller's subsequent code. */
-
 	/* Wait for all rcu_barrier_callback() callbacks to be invoked. */
 	wait_for_completion(&rsp->barrier_completion);
+
+	/* Mark the end of the barrier operation. */
+	_rcu_barrier_trace(rsp, "Inc2", -1, rsp->barrier_sequence);
+	rcu_seq_end(&rsp->barrier_sequence);
 
 	/* Other rcu_barrier() invocations can now safely proceed. */
 	mutex_unlock(&rsp->barrier_mutex);
