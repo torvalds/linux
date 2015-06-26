@@ -660,10 +660,6 @@ struct gb_uart_serial_state_request {
 #define GB_SDIO_VERSION_MAJOR		0x00
 #define GB_SDIO_VERSION_MINOR		0x01
 
-/* Version of the Greybus SDIO protocol we support */
-#define GB_SDIO_VERSION_MAJOR		0x00
-#define GB_SDIO_VERSION_MINOR		0x01
-
 /* Greybus SDIO operation types */
 #define GB_SDIO_TYPE_INVALID			0x00
 #define GB_SDIO_TYPE_PROTOCOL_VERSION		0x01
