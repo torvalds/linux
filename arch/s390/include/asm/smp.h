@@ -55,6 +55,7 @@ static inline int smp_store_status(int cpu) { return 0; }
 static inline int smp_vcpu_scheduled(int cpu) { return 1; }
 static inline void smp_yield_cpu(int cpu) { }
 static inline void smp_fill_possible_mask(void) { }
+static inline void smp_save_dump_cpus(void) { }
 
 #endif /* CONFIG_SMP */
 

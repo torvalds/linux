@@ -560,6 +560,25 @@ static void __smp_store_cpu_state(struct save_area_ext *sa_ext, u16 address,
 	memblock_free(vx_sa, PAGE_SIZE);
 }
 
+int smp_store_status(int cpu)
+{
+	unsigned long vx_sa;
+	struct pcpu *pcpu;
+
+	pcpu = pcpu_devices + cpu;
+	if (__pcpu_sigp_relax(pcpu->address, SIGP_STOP_AND_STORE_STATUS,
+			      0, NULL) != SIGP_CC_ORDER_CODE_ACCEPTED)
+		return -EIO;
+	if (!MACHINE_HAS_VX)
+		return 0;
+	vx_sa = __pa(pcpu->lowcore->vector_save_area_addr);
+	__pcpu_sigp_relax(pcpu->address, SIGP_STORE_ADDITIONAL_STATUS,
+			  vx_sa, NULL);
+	return 0;
+}
+
+#endif /* CONFIG_CRASH_DUMP */
+
 /*
  * Collect CPU state of the previous, crashed system.
  * There are four cases:
@@ -589,6 +608,7 @@ static void __smp_store_cpu_state(struct save_area_ext *sa_ext, u16 address,
  */
 void __init smp_save_dump_cpus(void)
 {
+#ifdef CONFIG_CRASH_DUMP
 	int addr, cpu, boot_cpu_addr, max_cpu_addr;
 	struct save_area_ext *sa_ext;
 	bool is_boot_cpu;
@@ -629,30 +649,8 @@ void __init smp_save_dump_cpus(void)
 	}
 	diag308_reset();
 	pcpu_set_smt(0);
-}
-
-int smp_store_status(int cpu)
-{
-	unsigned long vx_sa;
-	struct pcpu *pcpu;
-
-	pcpu = pcpu_devices + cpu;
-	if (__pcpu_sigp_relax(pcpu->address, SIGP_STOP_AND_STORE_STATUS,
-			      0, NULL) != SIGP_CC_ORDER_CODE_ACCEPTED)
-		return -EIO;
-	if (!MACHINE_HAS_VX)
-		return 0;
-	vx_sa = __pa(pcpu->lowcore->vector_save_area_addr);
-	__pcpu_sigp_relax(pcpu->address, SIGP_STORE_ADDITIONAL_STATUS,
-			  vx_sa, NULL);
-	return 0;
-}
-
-#else
-void smp_save_dump_cpus(void)
-{
-}
 #endif /* CONFIG_CRASH_DUMP */
+}
 
 void smp_cpu_set_polarization(int cpu, int val)
 {
