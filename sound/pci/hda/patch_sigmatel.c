@@ -4362,7 +4362,7 @@ static void stac_shutup(struct hda_codec *codec)
 
 #define stac_free	snd_hda_gen_free
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 static void stac92hd_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
 {
@@ -4442,6 +4442,7 @@ static int alloc_stac_spec(struct hda_codec *codec)
 	codec->spec = spec;
 	codec->no_trigger_sense = 1; /* seems common with STAC/IDT codecs */
 	spec->gen.dac_min_mute = true;
+	codec->patch_ops = stac_patch_ops;
 	return 0;
 }
 
@@ -4458,7 +4459,6 @@ static int patch_stac9200(struct hda_codec *codec)
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
 
-	codec->patch_ops = stac_patch_ops;
 	codec->power_filter = snd_hda_codec_eapd_power_filter;
 
 	snd_hda_add_verbs(codec, stac9200_eapd_init);
@@ -4490,8 +4490,6 @@ static int patch_stac925x(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_add_verbs(codec, stac925x_core_init);
 
@@ -4561,8 +4559,6 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_pick_fixup(codec, stac92hd73xx_models, stac92hd73xx_fixup_tbl,
 			   stac92hd73xx_fixups);
@@ -4639,8 +4635,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
 	spec->default_polarity = -1; /* no default cfg */
 
-	codec->patch_ops = stac_patch_ops;
-
 	snd_hda_add_verbs(codec, stac92hd83xxx_core_init);
 
 	snd_hda_pick_fixup(codec, stac92hd83xxx_models, stac92hd83xxx_fixup_tbl,
@@ -4689,8 +4683,6 @@ static int patch_stac92hd95(struct hda_codec *codec)
 	spec->num_pwrs = ARRAY_SIZE(stac92hd95_pwr_nids);
 	spec->default_polarity = 0;
 
-	codec->patch_ops = stac_patch_ops;
-
 	snd_hda_pick_fixup(codec, stac92hd95_models, stac92hd95_fixup_tbl,
 			   stac92hd95_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -4728,8 +4720,6 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	spec->gen.power_down_unused = 1;
 	spec->gen.mixer_nid = 0x17;
 	spec->have_spdif_mux = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	/* GPIO0 = EAPD */
 	spec->gpio_mask = 0x01;
@@ -4809,8 +4799,6 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
 
-	codec->patch_ops = stac_patch_ops;
-
 	snd_hda_add_verbs(codec, stac922x_core_init);
 
 	/* Fix Mux capture level; max to 2 */
@@ -4865,8 +4853,6 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->aloopback_mask = 0x40;
 	spec->aloopback_shift = 0;
 	spec->eapd_switch = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_pick_fixup(codec, stac927x_models, stac927x_fixup_tbl,
 			   stac927x_fixups);
@@ -4928,8 +4914,6 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	/* Turn on/off EAPD per HP plugging */
 	spec->eapd_switch = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_pick_fixup(codec, stac9205_models, stac9205_fixup_tbl,
 			   stac9205_fixups);
@@ -5001,8 +4985,6 @@ static int patch_stac9872(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_add_verbs(codec, stac9872_core_init);
 

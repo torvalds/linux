@@ -533,7 +533,7 @@ static inline int sst_calc_tstamp(struct intel_sst_drv *ctx,
 
 	info->buffer_ptr = pointer_samples / substream->runtime->channels;
 
-	info->pcm_delay = delay_frames / substream->runtime->channels;
+	info->pcm_delay = delay_frames;
 	dev_dbg(ctx->dev, "buffer ptr %llu pcm_delay rep: %llu\n",
 			info->buffer_ptr, info->pcm_delay);
 	return 0;

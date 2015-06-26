@@ -6479,6 +6479,9 @@ enum skl_disp_power_wells {
 #define   AUDIO_CP_READY(trans)		((1 << 1) << ((trans) * 4))
 #define   AUDIO_ELD_VALID(trans)	((1 << 0) << ((trans) * 4))
 
+#define HSW_AUD_CHICKENBIT			0x65f10
+#define   SKL_AUD_CODEC_WAKE_SIGNAL		(1 << 15)
+
 /* HSW Power Wells */
 #define HSW_PWR_WELL_BIOS			0x45400 /* CTL1 */
 #define HSW_PWR_WELL_DRIVER			0x45404 /* CTL2 */

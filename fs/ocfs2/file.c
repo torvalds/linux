@@ -37,6 +37,7 @@
 #include <linux/falloc.h>
 #include <linux/quotaops.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 
 #include <cluster/masklog.h>
 

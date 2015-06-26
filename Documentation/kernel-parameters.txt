@@ -1791,6 +1791,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			* [no]ncq: Turn on or off NCQ.
 
+			* [no]ncqtrim: Turn off queued DSM TRIM.
+
 			* nohrst, nosrst, norst: suppress hard, soft
                           and both resets.
 

@@ -95,7 +95,7 @@ config MEDIA_CONTROLLER
 	  This API is mostly used by camera interfaces in embedded platforms.
 
 config MEDIA_CONTROLLER_DVB
-	bool "Enable Media controller for DVB"
+	bool "Enable Media controller for DVB (EXPERIMENTAL)"
 	depends on MEDIA_CONTROLLER
 	depends on BROKEN
 	---help---

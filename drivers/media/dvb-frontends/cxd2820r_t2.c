@@ -284,7 +284,7 @@ error:
 	return ret;
 }
 
-int cxd2820r_read_status_t2(struct dvb_frontend *fe, fe_status_t *status)
+int cxd2820r_read_status_t2(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret;

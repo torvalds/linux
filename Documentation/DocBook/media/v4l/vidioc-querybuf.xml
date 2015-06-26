@@ -60,7 +60,8 @@ buffer at any time after buffers have been allocated with the
     field. Valid index numbers range from zero
 to the number of buffers allocated with &VIDIOC-REQBUFS;
     (&v4l2-requestbuffers; <structfield>count</structfield>) minus one.
-The <structfield>reserved</structfield> field should to set to 0.
+The <structfield>reserved</structfield> and <structfield>reserved2 </structfield>
+fields must be set to 0.
 When using the <link linkend="planar-apis">multi-planar API</link>, the
 <structfield>m.planes</structfield> field must contain a userspace pointer to an
 array of &v4l2-plane; and the <structfield>length</structfield> field has

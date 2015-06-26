@@ -5,7 +5,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <asm/io.h>
 #include <asm/x86_init.h>
 

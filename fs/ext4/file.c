@@ -223,9 +223,11 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 	struct inode *inode = file->f_mapping->host;
 
 	if (ext4_encrypted_inode(inode)) {
-		int err = ext4_generate_encryption_key(inode);
+		int err = ext4_get_encryption_info(inode);
 		if (err)
 			return 0;
+		if (ext4_encryption_info(inode) == NULL)
+			return -ENOKEY;
 	}
 	file_accessed(file);
 	if (IS_DAX(file_inode(file))) {
@@ -278,6 +280,13 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			ext4_journal_stop(handle);
 		}
 	}
+	if (ext4_encrypted_inode(inode)) {
+		ret = ext4_get_encryption_info(inode);
+		if (ret)
+			return -EACCES;
+		if (ext4_encryption_info(inode) == NULL)
+			return -ENOKEY;
+	}
 	/*
 	 * Set up the jbd2_inode if we are opening the inode for
 	 * writing and the journal is present
@@ -287,13 +296,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 		if (ret < 0)
 			return ret;
 	}
-	ret = dquot_file_open(inode, filp);
-	if (!ret && ext4_encrypted_inode(inode)) {
-		ret = ext4_generate_encryption_key(inode);
-		if (ret)
-			ret = -EACCES;
-	}
-	return ret;
+	return dquot_file_open(inode, filp);
 }
 
 /*

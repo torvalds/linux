@@ -361,7 +361,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;
-	bio_endio_nodec(bio, error);
+	bio_endio(bio, error);
 }
 
 /**
@@ -388,7 +388,7 @@ void bio_integrity_endio(struct bio *bio, int error)
 	 */
 	if (error) {
 		bio->bi_end_io = bip->bip_end_io;
-		bio_endio_nodec(bio, error);
+		bio_endio(bio, error);
 
 		return;
 	}

@@ -335,7 +335,8 @@ static int atbm8830_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int atbm8830_read_status(struct dvb_frontend *fe, fe_status_t *fe_status)
+static int atbm8830_read_status(struct dvb_frontend *fe,
+				enum fe_status *fe_status)
 {
 	struct atbm_state *priv = fe->demodulator_priv;
 	u8 locked = 0;

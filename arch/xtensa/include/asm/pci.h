@@ -33,7 +33,7 @@ extern struct pci_controller* pcibios_alloc_controller(void);
 
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <asm/io.h>
 

@@ -6,9 +6,9 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/scatterlist.h>
 
 #include <asm/io.h>
-#include <asm/scatterlist.h>
 #include <asm/hw_irq.h>
 
 struct pci_vector_struct {

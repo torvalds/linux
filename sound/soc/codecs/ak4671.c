@@ -577,7 +577,6 @@ static int ak4671_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, AK4671_AD_DA_POWER_MANAGEMENT, 0x00);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

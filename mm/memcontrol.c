@@ -77,6 +77,7 @@ EXPORT_SYMBOL(memory_cgrp_subsys);
 
 #define MEM_CGROUP_RECLAIM_RETRIES	5
 static struct mem_cgroup *root_mem_cgroup __read_mostly;
+struct cgroup_subsys_state *mem_cgroup_root_css __read_mostly;
 
 /* Whether the swap controller is active */
 #ifdef CONFIG_MEMCG_SWAP
@@ -90,6 +91,7 @@ static const char * const mem_cgroup_stat_names[] = {
 	"rss",
 	"rss_huge",
 	"mapped_file",
+	"dirty",
 	"writeback",
 	"swap",
 };
@@ -322,11 +324,6 @@ struct mem_cgroup {
 	 * percpu counter.
 	 */
 	struct mem_cgroup_stat_cpu __percpu *stat;
-	/*
-	 * used when a cpu is offlined or other synchronizations
-	 * See mem_cgroup_read_stat().
-	 */
-	struct mem_cgroup_stat_cpu nocpu_base;
 	spinlock_t pcp_counter_lock;
 
 #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
@@ -344,6 +341,11 @@ struct mem_cgroup {
 	nodemask_t	scan_nodes;
 	atomic_t	numainfo_events;
 	atomic_t	numainfo_updating;
+#endif
+
+#ifdef CONFIG_CGROUP_WRITEBACK
+	struct list_head cgwb_list;
+	struct wb_domain cgwb_domain;
 #endif
 
 	/* List of events which userspace want to receive */
@@ -596,6 +598,39 @@ struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg)
 	return &memcg->css;
 }
 
+/**
+ * mem_cgroup_css_from_page - css of the memcg associated with a page
+ * @page: page of interest
+ *
+ * If memcg is bound to the default hierarchy, css of the memcg associated
+ * with @page is returned.  The returned css remains associated with @page
+ * until it is released.
+ *
+ * If memcg is bound to a traditional hierarchy, the css of root_mem_cgroup
+ * is returned.
+ *
+ * XXX: The above description of behavior on the default hierarchy isn't
+ * strictly true yet as replace_page_cache_page() can modify the
+ * association before @page is released even on the default hierarchy;
+ * however, the current and planned usages don't mix the the two functions
+ * and replace_page_cache_page() will soon be updated to make the invariant
+ * actually true.
+ */
+struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page)
+{
+	struct mem_cgroup *memcg;
+
+	rcu_read_lock();
+
+	memcg = page->mem_cgroup;
+
+	if (!memcg || !cgroup_on_dfl(memcg->css.cgroup))
+		memcg = root_mem_cgroup;
+
+	rcu_read_unlock();
+	return &memcg->css;
+}
+
 static struct mem_cgroup_per_zone *
 mem_cgroup_page_zoneinfo(struct mem_cgroup *memcg, struct page *page)
 {
@@ -795,15 +830,8 @@ static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
 	long val = 0;
 	int cpu;
 
-	get_online_cpus();
-	for_each_online_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		val += per_cpu(memcg->stat->count[idx], cpu);
-#ifdef CONFIG_HOTPLUG_CPU
-	spin_lock(&memcg->pcp_counter_lock);
-	val += memcg->nocpu_base.count[idx];
-	spin_unlock(&memcg->pcp_counter_lock);
-#endif
-	put_online_cpus();
 	return val;
 }
 
@@ -813,15 +841,8 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
 	unsigned long val = 0;
 	int cpu;
 
-	get_online_cpus();
-	for_each_online_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		val += per_cpu(memcg->stat->events[idx], cpu);
-#ifdef CONFIG_HOTPLUG_CPU
-	spin_lock(&memcg->pcp_counter_lock);
-	val += memcg->nocpu_base.events[idx];
-	spin_unlock(&memcg->pcp_counter_lock);
-#endif
-	put_online_cpus();
 	return val;
 }
 
@@ -2020,6 +2041,7 @@ again:
 
 	return memcg;
 }
+EXPORT_SYMBOL(mem_cgroup_begin_page_stat);
 
 /**
  * mem_cgroup_end_page_stat - finish a page state statistics transaction
@@ -2038,6 +2060,7 @@ void mem_cgroup_end_page_stat(struct mem_cgroup *memcg)
 
 	rcu_read_unlock();
 }
+EXPORT_SYMBOL(mem_cgroup_end_page_stat);
 
 /**
  * mem_cgroup_update_page_stat - update page state statistics
@@ -2178,46 +2201,18 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
 	mutex_unlock(&percpu_charge_mutex);
 }
 
-/*
- * This function drains percpu counter value from DEAD cpu and
- * move it to local cpu. Note that this function can be preempted.
- */
-static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
-{
-	int i;
-
-	spin_lock(&memcg->pcp_counter_lock);
-	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-		long x = per_cpu(memcg->stat->count[i], cpu);
-
-		per_cpu(memcg->stat->count[i], cpu) = 0;
-		memcg->nocpu_base.count[i] += x;
-	}
-	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
-		unsigned long x = per_cpu(memcg->stat->events[i], cpu);
-
-		per_cpu(memcg->stat->events[i], cpu) = 0;
-		memcg->nocpu_base.events[i] += x;
-	}
-	spin_unlock(&memcg->pcp_counter_lock);
-}
-
 static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
 					unsigned long action,
 					void *hcpu)
 {
 	int cpu = (unsigned long)hcpu;
 	struct memcg_stock_pcp *stock;
-	struct mem_cgroup *iter;
 
 	if (action == CPU_ONLINE)
 		return NOTIFY_OK;
 
 	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
 		return NOTIFY_OK;
-
-	for_each_mem_cgroup(iter)
-		mem_cgroup_drain_pcp_counter(iter, cpu);
 
 	stock = &per_cpu(memcg_stock, cpu);
 	drain_stock(stock);
@@ -4004,6 +3999,98 @@ static void memcg_destroy_kmem(struct mem_cgroup *memcg)
 }
 #endif
 
+#ifdef CONFIG_CGROUP_WRITEBACK
+
+struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg)
+{
+	return &memcg->cgwb_list;
+}
+
+static int memcg_wb_domain_init(struct mem_cgroup *memcg, gfp_t gfp)
+{
+	return wb_domain_init(&memcg->cgwb_domain, gfp);
+}
+
+static void memcg_wb_domain_exit(struct mem_cgroup *memcg)
+{
+	wb_domain_exit(&memcg->cgwb_domain);
+}
+
+static void memcg_wb_domain_size_changed(struct mem_cgroup *memcg)
+{
+	wb_domain_size_changed(&memcg->cgwb_domain);
+}
+
+struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
+
+	if (!memcg->css.parent)
+		return NULL;
+
+	return &memcg->cgwb_domain;
+}
+
+/**
+ * mem_cgroup_wb_stats - retrieve writeback related stats from its memcg
+ * @wb: bdi_writeback in question
+ * @pavail: out parameter for number of available pages
+ * @pdirty: out parameter for number of dirty pages
+ * @pwriteback: out parameter for number of pages under writeback
+ *
+ * Determine the numbers of available, dirty, and writeback pages in @wb's
+ * memcg.  Dirty and writeback are self-explanatory.  Available is a bit
+ * more involved.
+ *
+ * A memcg's headroom is "min(max, high) - used".  The available memory is
+ * calculated as the lowest headroom of itself and the ancestors plus the
+ * number of pages already being used for file pages.  Note that this
+ * doesn't consider the actual amount of available memory in the system.
+ * The caller should further cap *@pavail accordingly.
+ */
+void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pavail,
+			 unsigned long *pdirty, unsigned long *pwriteback)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
+	struct mem_cgroup *parent;
+	unsigned long head_room = PAGE_COUNTER_MAX;
+	unsigned long file_pages;
+
+	*pdirty = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_DIRTY);
+
+	/* this should eventually include NR_UNSTABLE_NFS */
+	*pwriteback = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
+
+	file_pages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
+						    (1 << LRU_ACTIVE_FILE));
+	while ((parent = parent_mem_cgroup(memcg))) {
+		unsigned long ceiling = min(memcg->memory.limit, memcg->high);
+		unsigned long used = page_counter_read(&memcg->memory);
+
+		head_room = min(head_room, ceiling - min(ceiling, used));
+		memcg = parent;
+	}
+
+	*pavail = file_pages + head_room;
+}
+
+#else	/* CONFIG_CGROUP_WRITEBACK */
+
+static int memcg_wb_domain_init(struct mem_cgroup *memcg, gfp_t gfp)
+{
+	return 0;
+}
+
+static void memcg_wb_domain_exit(struct mem_cgroup *memcg)
+{
+}
+
+static void memcg_wb_domain_size_changed(struct mem_cgroup *memcg)
+{
+}
+
+#endif	/* CONFIG_CGROUP_WRITEBACK */
+
 /*
  * DO NOT USE IN NEW FILES.
  *
@@ -4388,9 +4475,15 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
 	memcg->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
 	if (!memcg->stat)
 		goto out_free;
+
+	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
+		goto out_free_stat;
+
 	spin_lock_init(&memcg->pcp_counter_lock);
 	return memcg;
 
+out_free_stat:
+	free_percpu(memcg->stat);
 out_free:
 	kfree(memcg);
 	return NULL;
@@ -4417,6 +4510,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
 		free_mem_cgroup_per_zone_info(memcg, node);
 
 	free_percpu(memcg->stat);
+	memcg_wb_domain_exit(memcg);
 	kfree(memcg);
 }
 
@@ -4449,6 +4543,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	/* root ? */
 	if (parent_css == NULL) {
 		root_mem_cgroup = memcg;
+		mem_cgroup_root_css = &memcg->css;
 		page_counter_init(&memcg->memory, NULL);
 		memcg->high = PAGE_COUNTER_MAX;
 		memcg->soft_limit = PAGE_COUNTER_MAX;
@@ -4467,7 +4562,9 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 #ifdef CONFIG_MEMCG_KMEM
 	memcg->kmemcg_id = -1;
 #endif
-
+#ifdef CONFIG_CGROUP_WRITEBACK
+	INIT_LIST_HEAD(&memcg->cgwb_list);
+#endif
 	return &memcg->css;
 
 free_out:
@@ -4555,6 +4652,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
 	vmpressure_cleanup(&memcg->vmpressure);
 
 	memcg_deactivate_kmem(memcg);
+
+	wb_memcg_offline(memcg);
 }
 
 static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
@@ -4588,6 +4687,7 @@ static void mem_cgroup_css_reset(struct cgroup_subsys_state *css)
 	memcg->low = 0;
 	memcg->high = PAGE_COUNTER_MAX;
 	memcg->soft_limit = PAGE_COUNTER_MAX;
+	memcg_wb_domain_size_changed(memcg);
 }
 
 #ifdef CONFIG_MMU
@@ -4757,6 +4857,7 @@ static int mem_cgroup_move_account(struct page *page,
 {
 	unsigned long flags;
 	int ret;
+	bool anon;
 
 	VM_BUG_ON(from == to);
 	VM_BUG_ON_PAGE(PageLRU(page), page);
@@ -4782,13 +4883,31 @@ static int mem_cgroup_move_account(struct page *page,
 	if (page->mem_cgroup != from)
 		goto out_unlock;
 
+	anon = PageAnon(page);
+
 	spin_lock_irqsave(&from->move_lock, flags);
 
-	if (!PageAnon(page) && page_mapped(page)) {
+	if (!anon && page_mapped(page)) {
 		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
 			       nr_pages);
 		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
 			       nr_pages);
+	}
+
+	/*
+	 * move_lock grabbed above and caller set from->moving_account, so
+	 * mem_cgroup_update_page_stat() will serialize updates to PageDirty.
+	 * So mapping should be stable for dirty pages.
+	 */
+	if (!anon && PageDirty(page)) {
+		struct address_space *mapping = page_mapping(page);
+
+		if (mapping_cap_account_dirty(mapping)) {
+			__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_DIRTY],
+				       nr_pages);
+			__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_DIRTY],
+				       nr_pages);
+		}
 	}
 
 	if (PageWriteback(page)) {
@@ -5306,6 +5425,7 @@ static ssize_t memory_high_write(struct kernfs_open_file *of,
 
 	memcg->high = high;
 
+	memcg_wb_domain_size_changed(memcg);
 	return nbytes;
 }
 
@@ -5338,6 +5458,7 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
 	if (err)
 		return err;
 
+	memcg_wb_domain_size_changed(memcg);
 	return nbytes;
 }
 
