@@ -77,8 +77,8 @@ struct WILC_WFI_stats {
 #define num_reg_frame 2
 /*
  * If you use RX_BH_WORK_QUEUE on LPC3131: You may lose the first interrupt on
- * LPC3131 which is important to get the MAC start status when you are blocked inside
- * linux_wlan_firmware_download() which blocks mac_open().
+ * LPC3131 which is important to get the MAC start status when you are blocked
+ * inside linux_wlan_firmware_download() which blocks mac_open().
  */
 #if defined(NM73131_0_BOARD)
  #define RX_BH_TYPE  RX_BH_KTHREAD
@@ -151,7 +151,8 @@ struct WILC_WFI_priv {
 	u8 WILC_WFI_wep_default;
 	u8 WILC_WFI_wep_key[4][WLAN_KEY_LEN_WEP104];
 	u8 WILC_WFI_wep_key_len[4];
-	struct net_device *real_ndev;   /* The real interface that the monitor is on */
+	/* The real interface that the monitor is on */
+	struct net_device *real_ndev;
 	struct wilc_wfi_key *wilc_gtk[MAX_NUM_STA];
 	struct wilc_wfi_key *wilc_ptk[MAX_NUM_STA];
 	u8 wilc_groupkey;
