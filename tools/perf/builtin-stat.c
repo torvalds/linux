@@ -285,6 +285,9 @@ static int process_counter(struct perf_evsel *counter)
 
 	aggr->val = aggr->ena = aggr->run = 0;
 
+	if (counter->per_pkg)
+		zero_per_pkg(counter);
+
 	ret = process_counter_maps(counter);
 	if (ret)
 		return ret;
@@ -327,9 +330,6 @@ static int read_counter(struct perf_evsel *counter)
 
 	if (counter->system_wide)
 		nthreads = 1;
-
-	if (counter->per_pkg)
-		zero_per_pkg(counter);
 
 	for (thread = 0; thread < nthreads; thread++) {
 		for (cpu = 0; cpu < ncpus; cpu++) {
