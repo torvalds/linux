@@ -22,7 +22,7 @@
  * Boot code for secondary CPUs.
  *
  * First we turn on L1 cache coherency for our CPU. Then we jump to
- * shmobile_invalidate_start that invalidates the cache and hands over control
+ * secondary_startup that invalidates the cache and hands over control
  * to the common ARM startup code.
  */
 ENTRY(shmobile_boot_scu)
@@ -36,7 +36,7 @@ ENTRY(shmobile_boot_scu)
 	bic	r2, r2, r3		@ Clear bits of our CPU (Run Mode)
 	str	r2, [r0, #8]		@ write back
 
-	b	shmobile_invalidate_start
+	b	secondary_startup
 ENDPROC(shmobile_boot_scu)
 
 	.text
