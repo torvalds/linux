@@ -220,12 +220,14 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 	uint32_t op_mode = 0;
 	uint32_t phasex_step = MDP4_VG_PHASE_STEP_DEFAULT;
 	uint32_t phasey_step = MDP4_VG_PHASE_STEP_DEFAULT;
-	enum mdp4_frame_format frame_type = mdp4_get_frame_format(fb);
+	enum mdp4_frame_format frame_type;
 
 	if (!(crtc && fb)) {
 		DBG("%s: disabled!", mdp4_plane->name);
 		return 0;
 	}
+
+	frame_type = mdp4_get_frame_format(fb);
 
 	/* src values are in Q16 fixed point, convert to integer: */
 	src_x = src_x >> 16;
