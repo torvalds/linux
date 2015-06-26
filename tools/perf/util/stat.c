@@ -168,3 +168,21 @@ void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 {
 	zfree(&evsel->priv);
 }
+
+int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
+				      int ncpus, int nthreads)
+{
+	struct perf_counts *counts;
+
+	counts = perf_counts__new(ncpus, nthreads);
+	if (counts)
+		evsel->prev_raw_counts = counts;
+
+	return counts ? 0 : -ENOMEM;
+}
+
+void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel)
+{
+	perf_counts__delete(evsel->prev_raw_counts);
+	evsel->prev_raw_counts = NULL;
+}
