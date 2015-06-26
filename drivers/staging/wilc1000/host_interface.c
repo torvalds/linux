@@ -740,7 +740,7 @@ s32 Handle_set_IPAddress(void *drvHandler, u8 *pu8IPAddr, u8 idx)
 	if (pu8IPAddr[0] < 192)
 		pu8IPAddr[0] = 0;
 
-	PRINT_INFO(HOSTINF_DBG, "Indx = %d, Handling set  IP = %d.%d.%d.%d\n", idx, pu8IPAddr[0], pu8IPAddr[1], pu8IPAddr[2], pu8IPAddr[3]);
+	PRINT_INFO(HOSTINF_DBG, "Indx = %d, Handling set  IP = %pI4\n", idx, pu8IPAddr);
 
 	WILC_memcpy(gs8SetIP[idx], pu8IPAddr, IP_ALEN);
 
@@ -796,7 +796,7 @@ s32 Handle_get_IPAddress(void *drvHandler, u8 *pu8IPAddr, u8 idx)
 
 	s32Error = SendConfigPkt(GET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
 
-	PRINT_INFO(HOSTINF_DBG, "%d.%d.%d.%d\n", (u8)(strWID.ps8WidVal[0]), (u8)(strWID.ps8WidVal[1]), (u8)(strWID.ps8WidVal[2]), (u8)(strWID.ps8WidVal[3]));
+	PRINT_INFO(HOSTINF_DBG, "%pI4\n", strWID.ps8WidVal);
 
 	WILC_memcpy(gs8GetIP[idx], strWID.ps8WidVal, IP_ALEN);
 
@@ -811,7 +811,7 @@ s32 Handle_get_IPAddress(void *drvHandler, u8 *pu8IPAddr, u8 idx)
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_STATE);
 	} else {
 		PRINT_INFO(HOSTINF_DBG, "IP address retrieved:: u8IfIdx = %d\n", idx);
-		PRINT_INFO(HOSTINF_DBG, "%d.%d.%d.%d\n", gs8GetIP[idx][0], gs8GetIP[idx][1], gs8GetIP[idx][2], gs8GetIP[idx][3]);
+		PRINT_INFO(HOSTINF_DBG, "%pI4\n", gs8GetIP[idx]);
 		PRINT_INFO(HOSTINF_DBG, "\n");
 	}
 
