@@ -167,6 +167,7 @@ static int gb_i2s_transmitter_connection_init(struct gb_connection *connection)
 	struct asoc_simple_card_info *simple_card;
 #if USE_RT5645
 	struct i2c_board_info rt5647_info;
+	struct i2c_adapter *i2c_adap;
 #endif
 	unsigned long flags;
 	int ret;
@@ -234,8 +235,14 @@ static int gb_i2s_transmitter_connection_init(struct gb_connection *connection)
 	rt5647_info.addr = RT5647_I2C_ADDR;
 	strlcpy(rt5647_info.type, "rt5647", I2C_NAME_SIZE);
 
-	snd_dev->rt5647 = i2c_new_device(i2c_get_adapter(RT5647_I2C_ADAPTER_NR),
-					 &rt5647_info);
+	i2c_adap = i2c_get_adapter(RT5647_I2C_ADAPTER_NR);
+	if (!i2c_adap) {
+		pr_err("codec unavailable\n");
+		ret = -ENODEV;
+		goto out_get_ver;
+	}
+
+	snd_dev->rt5647 = i2c_new_device(i2c_adap, &rt5647_info);
 	if (!snd_dev->rt5647) {
 		pr_err("can't create rt5647 i2c device\n");
 		goto out_get_ver;
