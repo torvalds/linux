@@ -769,9 +769,12 @@ ep_config (struct ep_data *data, const char *buf, size_t len)
 	if (data->dev->state == STATE_DEV_UNBOUND) {
 		value = -ENOENT;
 		goto gone;
-	} else if ((ep = data->ep) == NULL) {
-		value = -ENODEV;
-		goto gone;
+	} else {
+		ep = data->ep;
+		if (ep == NULL) {
+			value = -ENODEV;
+			goto gone;
+		}
 	}
 	switch (data->dev->gadget->speed) {
 	case USB_SPEED_LOW:
