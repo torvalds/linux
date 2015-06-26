@@ -417,21 +417,9 @@ ff_layout_get_lseg_count(struct nfs4_ff_layout_segment *fls)
 static void
 nfs4_ff_start_busy_timer(struct nfs4_ff_busy_timer *timer)
 {
-	ktime_t old, new;
-
-	/*
-	 * Note: careful here!
-	 * If the counter is zero, then we must not increment it until after
-	 * we've set the start_time.
-	 * If we were instead to use atomic_inc_return(), then another
-	 * request might come in, bump, and then call end_busy_timer()
-	 * before we've set the timer->start_time.
-	 */
-	old = timer->start_time;
-	if (atomic_inc_not_zero(&timer->n_ops) == 0) {
-		new = ktime_get();
-		cmpxchg(&timer->start_time.tv64, old.tv64, new.tv64);
-		atomic_inc(&timer->n_ops);
+	/* first IO request? */
+	if (atomic_inc_return(&timer->n_ops) == 1) {
+		timer->start_time = ktime_get();
 	}
 }
 
@@ -440,9 +428,12 @@ nfs4_ff_end_busy_timer(struct nfs4_ff_busy_timer *timer)
 {
 	ktime_t start, now;
 
+	if (atomic_dec_return(&timer->n_ops) < 0)
+		WARN_ON_ONCE(1);
+
 	now = ktime_get();
-	start.tv64 = xchg(&timer->start_time.tv64, now.tv64);
-	atomic_dec(&timer->n_ops);
+	start = timer->start_time;
+	timer->start_time = now;
 	return ktime_sub(now, start);
 }
 
@@ -460,8 +451,10 @@ nfs4_ff_layoutstat_start_io(struct nfs4_ff_layout_mirror *mirror,
 	ktime_t now = ktime_get();
 
 	nfs4_ff_start_busy_timer(&layoutstat->busy_timer);
-	cmpxchg(&mirror->start_time.tv64, notime.tv64, now.tv64);
-	cmpxchg(&mirror->last_report_time.tv64, notime.tv64, now.tv64);
+	if (ktime_equal(mirror->start_time, notime))
+		mirror->start_time = now;
+	if (ktime_equal(mirror->last_report_time, notime))
+		mirror->last_report_time = now;
 	if (ktime_to_ms(ktime_sub(now, mirror->last_report_time)) >=
 			FF_LAYOUTSTATS_REPORT_INTERVAL) {
 		mirror->last_report_time = now;
