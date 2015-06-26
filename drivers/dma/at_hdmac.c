@@ -659,13 +659,13 @@ atc_prep_dma_interleaved(struct dma_chan *chan,
 	size_t			len = 0;
 	int			i;
 
+	if (unlikely(!xt || xt->numf != 1 || !xt->frame_size))
+		return NULL;
+
 	dev_info(chan2dev(chan),
 		 "%s: src=0x%08x, dest=0x%08x, numf=%d, frame_size=%d, flags=0x%lx\n",
 		__func__, xt->src_start, xt->dst_start, xt->numf,
 		xt->frame_size, flags);
-
-	if (unlikely(!xt || xt->numf != 1 || !xt->frame_size))
-		return NULL;
 
 	/*
 	 * The controller can only "skip" X bytes every Y bytes, so we
