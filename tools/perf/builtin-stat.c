@@ -217,8 +217,9 @@ static int check_per_pkg(struct perf_evsel *counter, int cpu, bool *skip)
 	return 0;
 }
 
-static int read_cb(struct perf_evsel *evsel, int cpu, int thread,
-		   struct perf_counts_values *count)
+static int
+process_counter_values(struct perf_evsel *evsel, int cpu, int thread,
+		       struct perf_counts_values *count)
 {
 	struct perf_counts_values *aggr = &evsel->counts->aggr;
 	static struct perf_counts_values zero;
@@ -239,7 +240,6 @@ static int read_cb(struct perf_evsel *evsel, int cpu, int thread,
 		if (!evsel->snapshot)
 			perf_evsel__compute_deltas(evsel, cpu, thread, count);
 		perf_counts_values__scale(count, scale, NULL);
-		*perf_counts(evsel->counts, cpu, thread) = *count;
 		if (aggr_mode == AGGR_NONE)
 			perf_stat__update_shadow_stats(evsel, count->values, cpu);
 		break;
@@ -256,23 +256,41 @@ static int read_cb(struct perf_evsel *evsel, int cpu, int thread,
 	return 0;
 }
 
-static int read_counter(struct perf_evsel *counter);
+static int process_counter_maps(struct perf_evsel *counter)
+{
+	int nthreads = thread_map__nr(counter->threads);
+	int ncpus = perf_evsel__nr_cpus(counter);
+	int cpu, thread;
 
-/*
- * Read out the results of a single counter:
- * aggregate counts across CPUs in system-wide mode
- */
-static int read_counter_aggr(struct perf_evsel *counter)
+	if (counter->system_wide)
+		nthreads = 1;
+
+	for (thread = 0; thread < nthreads; thread++) {
+		for (cpu = 0; cpu < ncpus; cpu++) {
+			if (process_counter_values(counter, cpu, thread,
+						   perf_counts(counter->counts, cpu, thread)))
+				return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int process_counter(struct perf_evsel *counter)
 {
 	struct perf_counts_values *aggr = &counter->counts->aggr;
 	struct perf_stat *ps = counter->priv;
 	u64 *count = counter->counts->aggr.values;
-	int i;
+	int i, ret;
 
 	aggr->val = aggr->ena = aggr->run = 0;
 
-	if (read_counter(counter))
-		return -1;
+	ret = process_counter_maps(counter);
+	if (ret)
+		return ret;
+
+	if (aggr_mode != AGGR_GLOBAL)
+		return 0;
 
 	if (!counter->snapshot)
 		perf_evsel__compute_deltas(counter, -1, -1, aggr);
@@ -315,7 +333,10 @@ static int read_counter(struct perf_evsel *counter)
 
 	for (thread = 0; thread < nthreads; thread++) {
 		for (cpu = 0; cpu < ncpus; cpu++) {
-			if (perf_evsel__read_cb(counter, cpu, thread, read_cb))
+			struct perf_counts_values *count;
+
+			count = perf_counts(counter->counts, cpu, thread);
+			if (perf_evsel__read(counter, cpu, thread, count))
 				return -1;
 		}
 	}
@@ -332,10 +353,11 @@ static void read_counters(bool close)
 		ps = counter->priv;
 		memset(ps->res_stats, 0, sizeof(ps->res_stats));
 
-		if (aggr_mode == AGGR_GLOBAL)
-			read_counter_aggr(counter);
-		else
-			read_counter(counter);
+		if (read_counter(counter))
+			pr_warning("failed to read counter %s\n", counter->name);
+
+		if (process_counter(counter))
+			pr_warning("failed to process counter %s\n", counter->name);
 
 		if (close) {
 			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter),
