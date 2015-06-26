@@ -87,7 +87,7 @@ static struct vnt_usb_send_context
 			return NULL;
 
 		context = priv->tx_context[ii];
-		if (context->in_use == false) {
+		if (!context->in_use) {
 			context->in_use = true;
 			memset(context->data, 0,
 					MAX_TOTAL_SIZE_WITH_ALL_HEADERS);

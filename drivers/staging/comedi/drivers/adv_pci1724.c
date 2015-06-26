@@ -180,11 +180,7 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 	s->insn_write	= adv_pci1724_insn_write;
 	s->private	= (void *)PCI1724_DAC_CTRL_MODE_GAIN;
 
-	ret = comedi_alloc_subdev_readback(s);
-	if (ret)
-		return ret;
-
-	return 0;
+	return comedi_alloc_subdev_readback(s);
 }
 
 static struct comedi_driver adv_pci1724_driver = {

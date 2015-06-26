@@ -239,7 +239,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	ll_pagevec_lru_add_file(&lru_pvec);
 
 	if (page_pool != &page0)
-		OBD_FREE(page_pool, sizeof(struct page *) * max_pages);
+		kfree(page_pool);
 	return rc;
 }
 
@@ -650,7 +650,7 @@ static int ll_send_mgc_param(struct obd_export *mgc, char *string)
 				sizeof(struct mgs_send_param), msp, NULL);
 	if (rc)
 		CERROR("Failed to set parameter: %d\n", rc);
-	OBD_FREE_PTR(msp);
+	kfree(msp);
 
 	return rc;
 }
@@ -754,10 +754,8 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 		char *buf;
 
 		param = kzalloc(MGS_PARAM_MAXLEN, GFP_NOFS);
-		if (!param) {
-			rc = -ENOMEM;
-			goto end;
-		}
+		if (!param)
+			return -ENOMEM;
 
 		buf = param;
 		/* Get fsname and assume devname to be -MDT0000. */
@@ -786,8 +784,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 		rc = ll_send_mgc_param(mgc->u.cli.cl_mgc_mgsexp, param);
 
 end:
-		if (param != NULL)
-			OBD_FREE(param, MGS_PARAM_MAXLEN);
+		kfree(param);
 	}
 	return rc;
 }
@@ -1072,7 +1069,7 @@ static int copy_and_ioctl(int cmd, struct obd_export *exp,
 
 	rc = obd_iocontrol(cmd, exp, size, copy, NULL);
 out:
-	OBD_FREE(copy, size);
+	kfree(copy);
 
 	return rc;
 }
@@ -1163,7 +1160,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 				oqctl->qc_cmd = Q_QUOTAOFF;
 				obd_quotactl(sbi->ll_md_exp, oqctl);
 			}
-			OBD_FREE_PTR(oqctl);
+			kfree(oqctl);
 			return rc;
 		}
 		/* If QIF_SPACE is not set, client should collect the
@@ -1206,39 +1203,44 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 				oqctl->qc_dqblk.dqb_valid &= ~QIF_SPACE;
 			}
 
-			OBD_FREE_PTR(oqctl_tmp);
+			kfree(oqctl_tmp);
 		}
 out:
 		QCTL_COPY(qctl, oqctl);
-		OBD_FREE_PTR(oqctl);
+		kfree(oqctl);
 	}
 
 	return rc;
 }
 
-static char *
-ll_getname(const char __user *filename)
+/* This function tries to get a single name component,
+ * to send to the server. No actual path traversal involved,
+ * so we limit to NAME_MAX */
+static char *ll_getname(const char __user *filename)
 {
 	int ret = 0, len;
-	char *tmp = __getname();
+	char *tmp;
 
+	tmp = kzalloc(NAME_MAX + 1, GFP_KERNEL);
 	if (!tmp)
 		return ERR_PTR(-ENOMEM);
 
-	len = strncpy_from_user(tmp, filename, PATH_MAX);
-	if (len == 0)
+	len = strncpy_from_user(tmp, filename, NAME_MAX + 1);
+	if (len < 0)
+		ret = len;
+	else if (len == 0)
 		ret = -ENOENT;
-	else if (len > PATH_MAX)
+	else if (len > NAME_MAX && tmp[NAME_MAX] != 0)
 		ret = -ENAMETOOLONG;
 
 	if (ret) {
-		__putname(tmp);
+		kfree(tmp);
 		tmp =  ERR_PTR(ret);
 	}
 	return tmp;
 }
 
-#define ll_putname(filename) __putname(filename)
+#define ll_putname(filename) kfree(filename)
 
 static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -1436,37 +1438,7 @@ lmv_out_free:
 			goto free_lmv;
 		}
 free_lmv:
-		if (tmp)
-			OBD_FREE(tmp, lum_size);
-		return rc;
-	}
-	case LL_IOC_REMOVE_ENTRY: {
-		char		*filename = NULL;
-		int		 namelen = 0;
-		int		 rc;
-
-		/* Here is a little hack to avoid sending REINT_RMENTRY to
-		 * unsupported server, which might crash the server(LU-2730),
-		 * Because both LVB_TYPE and REINT_RMENTRY will be supported
-		 * on 2.4, we use OBD_CONNECT_LVB_TYPE to detect whether the
-		 * server will support REINT_RMENTRY XXX*/
-		if (!(exp_connect_flags(sbi->ll_md_exp) & OBD_CONNECT_LVB_TYPE))
-			return -ENOTSUPP;
-
-		filename = ll_getname((const char *)arg);
-		if (IS_ERR(filename))
-			return PTR_ERR(filename);
-
-		namelen = strlen(filename);
-		if (namelen < 1) {
-			rc = -EINVAL;
-			goto out_rmdir;
-		}
-
-		rc = ll_rmdir_entry(inode, filename, namelen);
-out_rmdir:
-		if (filename)
-			ll_putname(filename);
+		kfree(tmp);
 		return rc;
 	}
 	case LL_IOC_LOV_SWAP_LAYOUTS:
@@ -1576,7 +1548,7 @@ out_req:
 		if (rc)
 			return rc;
 
-		OBD_ALLOC_LARGE(lmm, lmmsize);
+		lmm = libcfs_kvzalloc(lmmsize, GFP_NOFS);
 		if (lmm == NULL)
 			return -ENOMEM;
 		if (copy_from_user(lmm, lum, lmmsize)) {
@@ -1629,7 +1601,7 @@ out_req:
 free_lsm:
 		obd_free_memmd(sbi->ll_dt_exp, &lsm);
 free_lmm:
-		OBD_FREE_LARGE(lmm, lmmsize);
+		kvfree(lmm);
 		return rc;
 	}
 	case OBD_IOC_LLOG_CATINFO: {
@@ -1657,7 +1629,7 @@ free_lmm:
 		if (rc < 0)
 			CDEBUG(D_INFO, "obd_quotacheck failed: rc %d\n", rc);
 
-		OBD_FREE_PTR(oqctl);
+		kfree(oqctl);
 		return error ?: rc;
 	}
 	case OBD_IOC_POLL_QUOTACHECK: {
@@ -1691,7 +1663,7 @@ free_lmm:
 			goto out_poll;
 		}
 out_poll:
-		OBD_FREE_PTR(check);
+		kfree(check);
 		return rc;
 	}
 	case LL_IOC_QUOTACTL: {
@@ -1712,7 +1684,7 @@ out_poll:
 			rc = -EFAULT;
 
 out_quotactl:
-		OBD_FREE_PTR(qctl);
+		kfree(qctl);
 		return rc;
 	}
 	case OBD_IOC_GETDTNAME:
@@ -1775,19 +1747,13 @@ out_quotactl:
 		struct hsm_user_request	*hur;
 		ssize_t			 totalsize;
 
-		hur = kzalloc(sizeof(*hur), GFP_NOFS);
-		if (!hur)
-			return -ENOMEM;
-
-		/* We don't know the true size yet; copy the fixed-size part */
-		if (copy_from_user(hur, (void *)arg, sizeof(*hur))) {
-			OBD_FREE_PTR(hur);
-			return -EFAULT;
-		}
+		hur = memdup_user((void *)arg, sizeof(*hur));
+		if (IS_ERR(hur))
+			return PTR_ERR(hur);
 
 		/* Compute the whole struct size */
 		totalsize = hur_len(hur);
-		OBD_FREE_PTR(hur);
+		kfree(hur);
 		if (totalsize < 0)
 			return -E2BIG;
 
@@ -1795,13 +1761,13 @@ out_quotactl:
 		if (totalsize >= MDS_MAXREQSIZE / 3)
 			return -E2BIG;
 
-		OBD_ALLOC_LARGE(hur, totalsize);
+		hur = libcfs_kvzalloc(totalsize, GFP_NOFS);
 		if (hur == NULL)
 			return -ENOMEM;
 
 		/* Copy the whole struct */
 		if (copy_from_user(hur, (void *)arg, totalsize)) {
-			OBD_FREE_LARGE(hur, totalsize);
+			kvfree(hur);
 			return -EFAULT;
 		}
 
@@ -1828,7 +1794,7 @@ out_quotactl:
 					   hur, NULL);
 		}
 
-		OBD_FREE_LARGE(hur, totalsize);
+		kvfree(hur);
 
 		return rc;
 	}
@@ -1861,38 +1827,30 @@ out_quotactl:
 		struct hsm_copy	*copy;
 		int		 rc;
 
-		copy = kzalloc(sizeof(*copy), GFP_NOFS);
-		if (!copy)
-			return -ENOMEM;
-		if (copy_from_user(copy, (char *)arg, sizeof(*copy))) {
-			OBD_FREE_PTR(copy);
-			return -EFAULT;
-		}
+		copy = memdup_user((char *)arg, sizeof(*copy));
+		if (IS_ERR(copy))
+			return PTR_ERR(copy);
 
 		rc = ll_ioc_copy_start(inode->i_sb, copy);
 		if (copy_to_user((char *)arg, copy, sizeof(*copy)))
 			rc = -EFAULT;
 
-		OBD_FREE_PTR(copy);
+		kfree(copy);
 		return rc;
 	}
 	case LL_IOC_HSM_COPY_END: {
 		struct hsm_copy	*copy;
 		int		 rc;
 
-		copy = kzalloc(sizeof(*copy), GFP_NOFS);
-		if (!copy)
-			return -ENOMEM;
-		if (copy_from_user(copy, (char *)arg, sizeof(*copy))) {
-			OBD_FREE_PTR(copy);
-			return -EFAULT;
-		}
+		copy = memdup_user((char *)arg, sizeof(*copy));
+		if (IS_ERR(copy))
+			return PTR_ERR(copy);
 
 		rc = ll_ioc_copy_end(inode->i_sb, copy);
 		if (copy_to_user((char *)arg, copy, sizeof(*copy)))
 			rc = -EFAULT;
 
-		OBD_FREE_PTR(copy);
+		kfree(copy);
 		return rc;
 	}
 	default:

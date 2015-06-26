@@ -32,8 +32,6 @@
 #define UDC_DEBUG_DUMP
 #endif
 
-/* #define USE_INT_COUNT_OVER */
-
 /*----------------- Default define */
 #define	USE_DMA	1
 #define USE_SUSPEND_WAIT	1
@@ -117,14 +115,6 @@
 #define BIT30		0x40000000
 #define BIT31		0x80000000
 
-#if 0
-/*------- (0x0000) USB Control Register */
-#define USBTESTMODE			(BIT18+BIT17+BIT16)
-#define TEST_J				BIT16
-#define TEST_K				BIT17
-#define TEST_SE0_NAK			(BIT17+BIT16)
-#define TEST_PACKET			BIT18
-#endif
 #define TEST_FORCE_ENABLE		(BIT18+BIT16)
 
 #define INT_SEL				BIT10

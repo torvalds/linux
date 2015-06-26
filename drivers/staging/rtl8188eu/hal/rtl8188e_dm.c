@@ -151,7 +151,6 @@ void rtl8188e_InitHalDm(struct adapter *Adapter)
 
 void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 {
-	bool fw_cur_in_ps = false;
 	bool fw_ps_awake = true;
 	u8 hw_init_completed = false;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
@@ -163,7 +162,6 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 	if (!hw_init_completed)
 		goto skip_dm;
 
-	fw_cur_in_ps = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
 	rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&fw_ps_awake));
 
 	/*  Fw is under p2p powersaving mode, driver should stop dynamic mechanism. */

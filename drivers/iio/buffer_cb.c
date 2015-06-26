@@ -33,6 +33,8 @@ static void iio_buffer_cb_release(struct iio_buffer *buffer)
 static const struct iio_buffer_access_funcs iio_cb_access = {
 	.store_to = &iio_buffer_cb_store_to,
 	.release = &iio_buffer_cb_release,
+
+	.modes = INDIO_BUFFER_SOFTWARE | INDIO_BUFFER_TRIGGERED,
 };
 
 struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,

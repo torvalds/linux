@@ -55,7 +55,7 @@ int FillH2CCmd(struct rtw_adapter *padapter, u8 ElementID, u32 CmdLen,
 	u8 h2c_box_num;
 	u32 msgbox_addr;
 	u32 msgbox_ex_addr;
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
+	struct hal_data_8723a *pHalData;
 	u32 h2c_cmd = 0;
 	u16 h2c_cmd_ex = 0;
 	int ret = _FAIL;

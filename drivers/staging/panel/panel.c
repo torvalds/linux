@@ -775,12 +775,10 @@ static void pin_to_bits(int pin, unsigned char *d_val, unsigned char *c_val)
 /* sleeps that many milliseconds with a reschedule */
 static void long_sleep(int ms)
 {
-	if (in_interrupt()) {
+	if (in_interrupt())
 		mdelay(ms);
-	} else {
-		__set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout((ms * HZ + 999) / 1000);
-	}
+	else
+		schedule_timeout_interruptible(msecs_to_jiffies(ms));
 }
 
 /* send a serial byte to the LCD panel. The caller is responsible for locking
@@ -2253,22 +2251,28 @@ static void panel_detach(struct parport *port)
 		       __func__, port->number, parport);
 		return;
 	}
+	if (scan_timer.function != NULL)
+		del_timer_sync(&scan_timer);
 
-	unregister_reboot_notifier(&panel_notifier);
+	if (pprt != NULL) {
+		if (keypad.enabled) {
+			misc_deregister(&keypad_dev);
+			keypad_initialized = 0;
+		}
 
-	if (keypad.enabled && keypad_initialized) {
-		misc_deregister(&keypad_dev);
-		keypad_initialized = 0;
+		if (lcd.enabled) {
+			panel_lcd_print("\x0cLCD driver " PANEL_VERSION
+					"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
+			misc_deregister(&lcd_dev);
+			lcd.initialized = false;
+		}
+
+		/* TODO: free all input signals */
+		parport_release(pprt);
+		parport_unregister_device(pprt);
+		pprt = NULL;
+		unregister_reboot_notifier(&panel_notifier);
 	}
-
-	if (lcd.enabled && lcd.initialized) {
-		misc_deregister(&lcd_dev);
-		lcd.initialized = false;
-	}
-
-	parport_release(pprt);
-	parport_unregister_device(pprt);
-	pprt = NULL;
 }
 
 static struct parport_driver panel_driver = {
@@ -2402,28 +2406,6 @@ static int __init panel_init_module(void)
 
 static void __exit panel_cleanup_module(void)
 {
-
-	if (scan_timer.function != NULL)
-		del_timer_sync(&scan_timer);
-
-	if (pprt != NULL) {
-		if (keypad.enabled) {
-			misc_deregister(&keypad_dev);
-			keypad_initialized = 0;
-		}
-
-		if (lcd.enabled) {
-			panel_lcd_print("\x0cLCD driver " PANEL_VERSION
-					"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
-			misc_deregister(&lcd_dev);
-			lcd.initialized = false;
-		}
-
-		/* TODO: free all input signals */
-		parport_release(pprt);
-		parport_unregister_device(pprt);
-		pprt = NULL;
-	}
 	parport_unregister_driver(&panel_driver);
 }
 

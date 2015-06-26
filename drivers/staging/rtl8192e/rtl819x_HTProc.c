@@ -217,8 +217,7 @@ static void HTIOTPeerDetermine(struct rtllib_device *ieee)
 	else
 		pHTInfo->IOTPeer = HT_IOT_PEER_UNKNOWN;
 
-	RTLLIB_DEBUG(RTLLIB_DL_IOT, "Joseph debug!! IOTPEER: %x\n",
-		     pHTInfo->IOTPeer);
+	netdev_dbg(ieee->dev, "IOTPEER: %x\n", pHTInfo->IOTPeer);
 }
 
 static u8 HTIOTActIsDisableMCS14(struct rtllib_device *ieee, u8 *PeerMacAddr)
@@ -237,7 +236,8 @@ static bool HTIOTActIsDisableMCSTwoSpatialStream(struct rtllib_device *ieee)
 	return false;
 }
 
-static u8 HTIOTActIsDisableEDCATurbo(struct rtllib_device *ieee, u8 *PeerMacAddr)
+static u8 HTIOTActIsDisableEDCATurbo(struct rtllib_device *ieee,
+				     u8 *PeerMacAddr)
 {
 	return false;
 }
@@ -291,8 +291,8 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	struct ht_capab_ele *pCapELE = NULL;
 
 	if ((posHTCap == NULL) || (pHT == NULL)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "posHTCap or pHTInfo can't be null in HTConstructCapabilityElement()\n");
+		netdev_warn(ieee->dev,
+			    "%s(): posHTCap and pHTInfo are null\n", __func__);
 		return;
 	}
 	memset(posHTCap, 0, *len);
@@ -328,9 +328,9 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	pCapELE->LSigTxopProtect = 0;
 
 
-	RTLLIB_DEBUG(RTLLIB_DL_HT,
-		     "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n",
-		     pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
+	netdev_dbg(ieee->dev,
+		   "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n",
+		   pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
 
 	if (IsEncrypt) {
 		pCapELE->MPDUDensity	= 7;
@@ -373,8 +373,9 @@ void HTConstructInfoElement(struct rtllib_device *ieee, u8 *posHTInfo,
 	struct ht_info_ele *pHTInfoEle = (struct ht_info_ele *)posHTInfo;
 
 	if ((posHTInfo == NULL) || (pHTInfoEle == NULL)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "posHTInfo or pHTInfoEle can't be null in HTConstructInfoElement()\n");
+		netdev_warn(ieee->dev,
+			    "%s(): posHTInfo and pHTInfoEle are null\n",
+			    __func__);
 		return;
 	}
 
@@ -413,8 +414,7 @@ void HTConstructRT2RTAggElement(struct rtllib_device *ieee, u8 *posRT2RTAgg,
 				u8 *len)
 {
 	if (posRT2RTAgg == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "posRT2RTAgg can't be null in HTConstructRT2RTAggElement()\n");
+		netdev_warn(ieee->dev, "%s(): posRT2RTAgg is null\n", __func__);
 		return;
 	}
 	memset(posRT2RTAgg, 0, *len);
@@ -437,8 +437,7 @@ static u8 HT_PickMCSRate(struct rtllib_device *ieee, u8 *pOperateMCS)
 	u8 i;
 
 	if (pOperateMCS == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "pOperateMCS can't be null in HT_PickMCSRate()\n");
+		netdev_warn(ieee->dev, "%s(): pOperateMCS is null\n", __func__);
 		return false;
 	}
 
@@ -472,8 +471,9 @@ u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
 	u8		availableMcsRate[16];
 
 	if (pMCSRateSet == NULL || pMCSFilter == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "pMCSRateSet or pMCSFilter can't be null in HTGetHighestMCSRate()\n");
+		netdev_warn(ieee->dev,
+			    "%s(): pMCSRateSet and pMCSFilter are null\n",
+			    __func__);
 		return false;
 	}
 	for (i = 0; i < 16; i++)
@@ -538,11 +538,10 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	static u8 EWC11NHTInfo[] = {0x00, 0x90, 0x4c, 0x34};
 
 	if (pHTInfo->bCurrentHTSupport == false) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "<=== HTOnAssocRsp(): HT_DISABLE\n");
+		netdev_warn(ieee->dev, "%s(): HT_DISABLE\n", __func__);
 		return;
 	}
-	RTLLIB_DEBUG(RTLLIB_DL_HT, "===> HTOnAssocRsp_wq(): HT_ENABLE\n");
+	netdev_dbg(ieee->dev, "%s(): HT_ENABLE\n", __func__);
 
 	if (!memcmp(pHTInfo->PeerHTCapBuf, EWC11NHTCap, sizeof(EWC11NHTCap)))
 		pPeerHTCap = (struct ht_capab_ele *)(&pHTInfo->PeerHTCapBuf[4]);
@@ -555,8 +554,11 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	else
 		pPeerHTInfo = (struct ht_info_ele *)(pHTInfo->PeerHTInfoBuf);
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA | RTLLIB_DL_HT, pPeerHTCap,
-			  sizeof(struct ht_capab_ele));
+
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("HTOnAssocRsp(): ", DUMP_PREFIX_NONE,
+			     pPeerHTCap, sizeof(struct ht_capab_ele));
+#endif
 	HTSetConnectBwMode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth),
 			  (enum ht_extchnl_offset)(pPeerHTInfo->ExtChlOffset));
 	pHTInfo->bCurTxBW40MHz = ((pPeerHTInfo->RecommemdedTxWidth == 1) ?
@@ -647,7 +649,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
-	RTLLIB_DEBUG(RTLLIB_DL_HT, "===========>%s()\n", __func__);
+	netdev_vdbg(ieee->dev, "%s()\n", __func__);
 	pHTInfo->bCurrentHTSupport = false;
 
 	pHTInfo->bCurBW40MHz = false;
@@ -674,7 +676,6 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 		sizeof(pHTInfo->PeerHTInfoBuf));
 
 	pHTInfo->bSwBwInProgress = false;
-	pHTInfo->ChnlOp = CHNLOP_NONE;
 
 	pHTInfo->ePeerHTSpecVer = HT_SPEC_VER_IEEE;
 
@@ -717,7 +718,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8	bIOTAction = 0;
 
-	RTLLIB_DEBUG(RTLLIB_DL_HT, "==============>%s()\n", __func__);
+	netdev_vdbg(ieee->dev, "%s()\n", __func__);
 	/* unmark bEnableHT flag here is the same reason why unmarked in
 	 * function rtllib_softmac_new_net. WB 2008.09.10
 	 */
@@ -841,8 +842,7 @@ u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame)
 {
 	if (ieee->pHTInfo->bCurrentHTSupport) {
 		if ((IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1) {
-			RTLLIB_DEBUG(RTLLIB_DL_HT,
-				     "HT CONTROL FILED EXIST!!\n");
+			netdev_dbg(ieee->dev, "HT CONTROL FILED EXIST!!\n");
 			return true;
 		}
 	}
@@ -853,7 +853,8 @@ static void HTSetConnectBwModeCallback(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
-	RTLLIB_DEBUG(RTLLIB_DL_HT, "======>%s()\n", __func__);
+	netdev_vdbg(ieee->dev, "%s()\n", __func__);
+
 	if (pHTInfo->bCurBW40MHz) {
 		if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_UPPER)
 			ieee->set_chan(ieee->dev,

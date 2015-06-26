@@ -36,18 +36,6 @@ void CamResetAllEntry(struct net_device *dev)
 	write_nic_dword(dev, RWCAM, ulcommand);
 }
 
-void write_cam(struct net_device *dev, u8 addr, u32 data)
-{
-	write_nic_dword(dev, WCAMI, data);
-	write_nic_dword(dev, RWCAM, BIT31|BIT16|(addr&0xff));
-}
-
-u32 read_cam(struct net_device *dev, u8 addr)
-{
-	write_nic_dword(dev, RWCAM, 0x80000000|(addr&0xff));
-	return read_nic_dword(dev, 0xa8);
-}
-
 void EnableHWSecurityConfig8192(struct net_device *dev)
 {
 	u8 SECR_value = 0x0;
@@ -81,7 +69,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 }
 
 void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
-	       u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh)
+	       const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -100,7 +88,7 @@ void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 }
 
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
-	    u8 *MacAddr, u8 DefaultKey, u32 *KeyContent)
+	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent)
 {
 	u32 TargetCommand = 0;
 	u32 TargetContent = 0;
@@ -113,8 +101,8 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	if (priv->rtllib->PowerSaveControl.bInactivePs) {
 		if (rtState == eRfOff) {
 			if (priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) {
-				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",
-					__func__);
+				netdev_warn(dev, "%s(): RF is OFF.\n",
+					    __func__);
 				return;
 			}
 			down(&priv->rtllib->ips_sem);
@@ -124,7 +112,7 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	}
 	priv->rtllib->is_set_key = true;
 	if (EntryNo >= TOTAL_CAM_ENTRY)
-		RT_TRACE(COMP_ERR, "cam entry exceeds in setKey()\n");
+		netdev_info(dev, "%s(): Invalid CAM entry\n", __func__);
 
 	RT_TRACE(COMP_SEC,
 		 "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d,KeyType:%d, MacAddr %pM\n",
@@ -243,9 +231,9 @@ void CamRestoreAllEntry(struct net_device *dev)
 				       (u32 *)(&priv->rtllib->swcamtable[0].key_buf[0])
 				     );
 			} else {
-				RT_TRACE(COMP_ERR,
-					 "===>%s():ERR!! ADHOC TKIP ,but 0 entry is have no data\n",
-					 __func__);
+				netdev_warn(dev,
+					    "%s(): ADHOC TKIP: missing key entry.\n",
+					    __func__);
 				return;
 			}
 		}
@@ -267,9 +255,9 @@ void CamRestoreAllEntry(struct net_device *dev)
 					CAM_CONST_ADDR[0], 0,
 					(u32 *)(&priv->rtllib->swcamtable[0].key_buf[0]));
 			} else {
-				RT_TRACE(COMP_ERR,
-					 "===>%s():ERR!! ADHOC CCMP ,but 0 entry is have no data\n",
-					 __func__);
+				netdev_warn(dev,
+					    "%s(): ADHOC CCMP: missing key entry.\n",
+					    __func__);
 				return;
 			}
 		}

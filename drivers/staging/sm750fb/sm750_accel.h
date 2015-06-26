@@ -113,7 +113,7 @@
 #define DE_CONTROL_TRANSPARENCY_ENABLE                  1
 #define DE_CONTROL_ROP                                  7:0
 
-// Pseudo fields.
+/* Pseudo fields. */
 
 #define DE_CONTROL_SHORT_STROKE_DIR                     27:24
 #define DE_CONTROL_SHORT_STROKE_DIR_225                 0
@@ -234,17 +234,17 @@
 #define BOTTOM_TO_TOP 1
 #define RIGHT_TO_LEFT 1
 
-void hw_set2dformat(struct lynx_accel * accel,int fmt);
+void hw_set2dformat(struct lynx_accel *accel, int fmt);
 
-void hw_de_init(struct lynx_accel * accel);
+void hw_de_init(struct lynx_accel *accel);
 
-int hw_fillrect(struct lynx_accel * accel,
-				u32 base,u32 pitch,u32 Bpp,
-				u32 x,u32 y,u32 width,u32 height,
-				u32 color,u32 rop);
+int hw_fillrect(struct lynx_accel *accel,
+				u32 base, u32 pitch, u32 Bpp,
+				u32 x, u32 y, u32 width, u32 height,
+				u32 color, u32 rop);
 
 int hw_copyarea(
-struct lynx_accel * accel,
+struct lynx_accel *accel,
 unsigned int sBase,  /* Address of source: offset in frame buffer */
 unsigned int sPitch, /* Pitch value of source surface in BYTE */
 unsigned int sx,

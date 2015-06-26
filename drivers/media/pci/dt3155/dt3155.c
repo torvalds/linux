@@ -15,7 +15,6 @@
  ***************************************************************************/
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/stringify.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>

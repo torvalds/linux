@@ -101,7 +101,8 @@ static int bonding_dio_insn_bits(struct comedi_device *dev,
 			b_chans = bdev->nchans - base_chan;
 			if (b_chans > n_left)
 				b_chans = n_left;
-			b_mask = (1U << b_chans) - 1;
+			b_mask = (b_chans < 32) ? ((1 << b_chans) - 1)
+						: 0xffffffff;
 			b_write_mask = (write_mask >> n_done) & b_mask;
 			b_data_bits = (data_bits >> n_done) & b_mask;
 			/* Read/Write the new digital lines. */
