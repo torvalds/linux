@@ -125,7 +125,7 @@ static u8 crc32_reverseBit(u8 data)
 static void crc32_init(void)
 {
 	sint i, j;
-	u32 c = 0x12340000;
+	u32 c;
 	u8 *p = (u8 *)&c, *p1;
 	u8 k;
 
