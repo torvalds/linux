@@ -420,7 +420,7 @@ static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 	return fwnode && fwnode->type == FWNODE_ACPI;
 }
 
-static inline struct acpi_device *acpi_node(struct fwnode_handle *fwnode)
+static inline struct acpi_device *to_acpi_node(struct fwnode_handle *fwnode)
 {
 	return is_acpi_node(fwnode) ?
 		container_of(fwnode, struct acpi_device, fwnode) : NULL;

@@ -128,7 +128,7 @@ static inline bool is_of_node(struct fwnode_handle *fwnode)
 	return fwnode && fwnode->type == FWNODE_OF;
 }
 
-static inline struct device_node *of_node(struct fwnode_handle *fwnode)
+static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
 {
 	return fwnode ? container_of(fwnode, struct device_node, fwnode) : NULL;
 }
@@ -387,7 +387,7 @@ static inline bool is_of_node(struct fwnode_handle *fwnode)
 	return false;
 }
 
-static inline struct device_node *of_node(struct fwnode_handle *fwnode)
+static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
 {
 	return NULL;
 }
