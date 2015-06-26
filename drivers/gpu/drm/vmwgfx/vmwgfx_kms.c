@@ -487,7 +487,8 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 					   struct vmw_surface *surface,
 					   struct vmw_framebuffer **out,
 					   const struct drm_mode_fb_cmd
-					   *mode_cmd)
+					   *mode_cmd,
+					   bool is_dmabuf_proxy)
 
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -562,6 +563,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	vfbs->surface = surface;
 	vfbs->base.user_handle = mode_cmd->handle;
 	vfbs->master = drm_master_get(file_priv->master);
+	vfbs->is_dmabuf_proxy = is_dmabuf_proxy;
 
 	mutex_lock(&vmaster->fb_surf_mutex);
 	list_add_tail(&vfbs->head, &vmaster->fb_surf);
@@ -699,6 +701,82 @@ static int vmw_framebuffer_dmabuf_unpin(struct vmw_framebuffer *vfb)
 	return vmw_dmabuf_unpin(dev_priv, vfbd->buffer, false);
 }
 
+/**
+ * vmw_create_dmabuf_proxy - create a proxy surface for the DMA buf
+ *
+ * @dev: DRM device
+ * @mode_cmd: parameters for the new surface
+ * @dmabuf_mob: MOB backing the DMA buf
+ * @srf_out: newly created surface
+ *
+ * When the content FB is a DMA buf, we create a surface as a proxy to the
+ * same buffer.  This way we can do a surface copy rather than a surface DMA.
+ * This is a more efficient approach
+ *
+ * RETURNS:
+ * 0 on success, error code otherwise
+ */
+static int vmw_create_dmabuf_proxy(struct drm_device *dev,
+				   struct drm_mode_fb_cmd *mode_cmd,
+				   struct vmw_dma_buffer *dmabuf_mob,
+				   struct vmw_surface **srf_out)
+{
+	uint32_t format;
+	struct drm_vmw_size content_base_size;
+	int ret;
+
+
+	switch (mode_cmd->depth) {
+	case 32:
+	case 24:
+		format = SVGA3D_X8R8G8B8;
+		break;
+
+	case 16:
+	case 15:
+		format = SVGA3D_R5G6B5;
+		break;
+
+	case 8:
+		format = SVGA3D_P8;
+		break;
+
+	default:
+		DRM_ERROR("Invalid framebuffer format %d\n", mode_cmd->depth);
+		return -EINVAL;
+	}
+
+	content_base_size.width  = mode_cmd->width;
+	content_base_size.height = mode_cmd->height;
+	content_base_size.depth  = 1;
+
+	ret = vmw_surface_gb_priv_define(dev,
+			0, /* kernel visible only */
+			0, /* flags */
+			format,
+			true, /* can be a scanout buffer */
+			1, /* num of mip levels */
+			0,
+			content_base_size,
+			srf_out);
+	if (ret) {
+		DRM_ERROR("Failed to allocate proxy content buffer\n");
+		return ret;
+	}
+
+	/* Use the same MOB backing for surface */
+	vmw_dmabuf_reference(dmabuf_mob);
+
+	(*srf_out)->res.backup = dmabuf_mob;
+
+	/* FIXME:  Waiting for fbdev rework to do a proper reserve/pin */
+	ret = vmw_resource_validate(&(*srf_out)->res);
+
+	return ret;
+}
+
+
+
 static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 					  struct vmw_dma_buffer *dmabuf,
 					  struct vmw_framebuffer **out,
@@ -801,6 +879,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_dma_buffer *bo = NULL;
 	struct ttm_base_object *user_obj;
 	struct drm_mode_fb_cmd mode_cmd;
+	bool is_dmabuf_proxy = false;
 	int ret;
 
 	mode_cmd.width = mode_cmd2->width;
@@ -849,13 +928,29 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	if (ret)
 		goto err_out;
 
-	/* Create the new framebuffer depending one what we got back */
-	if (bo)
+	/*
+	 * We cannot use the SurfaceDMA command in an non-accelerated VM,
+	 * therefore, wrap the DMA buf in a surface so we can use the
+	 * SurfaceCopy command.
+	 */
+	if (bo && !(dev_priv->capabilities & SVGA_CAP_3D) &&
+	    dev_priv->active_display_unit == vmw_du_screen_target) {
+		ret = vmw_create_dmabuf_proxy(dev_priv->dev, &mode_cmd, bo,
+			&surface);
+		if (ret)
+			goto err_out;
+
+		is_dmabuf_proxy = true;
+	}
+
+	/* Create the new framebuffer depending one what we have */
+	if (surface)
+		ret = vmw_kms_new_framebuffer_surface(dev_priv, file_priv,
+						      surface, &vfb, &mode_cmd,
+						      is_dmabuf_proxy);
+	else if (bo)
 		ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, bo, &vfb,
 						     &mode_cmd);
-	else if (surface)
-		ret = vmw_kms_new_framebuffer_surface(dev_priv, file_priv,
-						      surface, &vfb, &mode_cmd);
 	else
 		BUG();
 

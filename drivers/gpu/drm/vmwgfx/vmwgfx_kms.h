@@ -72,6 +72,7 @@ struct vmw_framebuffer_surface {
 	struct vmw_dma_buffer *buffer;
 	struct list_head head;
 	struct drm_master *master;
+	bool is_dmabuf_proxy;  /* true if this is proxy surface for DMA buf */
 };
 
 

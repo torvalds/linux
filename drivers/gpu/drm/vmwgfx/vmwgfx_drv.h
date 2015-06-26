@@ -342,7 +342,8 @@ enum vmw_display_unit_type {
 };
 
 
-#define VMW_QUIRK_SCREENTARGET (1U << 0)
+#define VMW_QUIRK_DST_SID_OK (1U << 0)
+#define VMW_QUIRK_SRC_SID_OK (1U << 1)
 
 struct vmw_sw_context{
 	struct drm_open_hash res_ht;

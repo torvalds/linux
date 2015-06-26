@@ -31,8 +31,7 @@
  * If we set up the screen target otable, screen objects stop working.
  */
 
-#define VMW_OTABLE_SETUP_SUB ((VMWGFX_ENABLE_SCREEN_TARGET_OTABLE &&	\
-			       (dev_priv->capabilities & SVGA_CAP_3D)) ? 0 : 1)
+#define VMW_OTABLE_SETUP_SUB ((VMWGFX_ENABLE_SCREEN_TARGET_OTABLE ? 0 : 1))
 
 #ifdef CONFIG_64BIT
 #define VMW_PPN_SIZE 8

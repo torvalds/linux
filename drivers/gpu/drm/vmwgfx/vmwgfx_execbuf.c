@@ -674,13 +674,16 @@ static int vmw_cmd_surface_copy_check(struct vmw_private *dev_priv,
 	int ret;
 
 	cmd = container_of(header, struct vmw_sid_cmd, header);
-	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
-				&cmd->body.src.sid, NULL);
-	if (unlikely(ret != 0))
-		return ret;
 
-	if (sw_context->quirks & VMW_QUIRK_SCREENTARGET)
+	if (!(sw_context->quirks & VMW_QUIRK_SRC_SID_OK)) {
+		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+					user_surface_converter,
+					&cmd->body.src.sid, NULL);
+		if (ret != 0)
+			return ret;
+	}
+
+	if (sw_context->quirks & VMW_QUIRK_DST_SID_OK)
 		return 0;
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
@@ -1264,7 +1267,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 	if (unlikely(suffix->maximumOffset > bo_size))
 		suffix->maximumOffset = bo_size;
 
-	if (sw_context->quirks & VMW_QUIRK_SCREENTARGET)
+	if (sw_context->quirks & VMW_QUIRK_DST_SID_OK)
 		goto out_no_surface;
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
@@ -1504,6 +1507,9 @@ static int vmw_cmd_update_gb_image(struct vmw_private *dev_priv,
 	} *cmd;
 
 	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
+
+	if (sw_context->quirks & VMW_QUIRK_SRC_SID_OK)
+		return 0;
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
 				 user_surface_converter,
