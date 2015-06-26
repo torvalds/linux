@@ -387,12 +387,17 @@ static void gb_sdio_mrq_work(struct work_struct *work)
 	host = container_of(work, struct gb_sdio_host, mrqwork);
 
 	mutex_lock(&host->lock);
+	mrq = host->mrq;
+	if (!mrq) {
+		mutex_unlock(&host->lock);
+		dev_err(mmc_dev(host->mmc), "mmc request is NULL");
+		return;
+	}
+
 	if (host->removed) {
 		mrq->cmd->error = -ESHUTDOWN;
 		goto done;
 	}
-
-	mrq = host->mrq;
 
 	if (mrq->sbc) {
 		ret = gb_sdio_command(host, mrq->sbc);
@@ -417,7 +422,7 @@ static void gb_sdio_mrq_work(struct work_struct *work)
 	}
 
 done:
-	mrq = NULL;
+	host->mrq = NULL;
 	mutex_unlock(&host->lock);
 	mmc_request_done(host->mmc, mrq);
 }
