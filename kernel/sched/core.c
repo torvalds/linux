@@ -2387,7 +2387,7 @@ void wake_up_new_task(struct task_struct *p)
 #endif
 
 	rq = __task_rq_lock(p);
-	activate_task(rq, p, 0);
+	activate_task(rq, p, ENQUEUE_WAKEUP_NEW);
 	p->on_rq = TASK_ON_RQ_QUEUED;
 	trace_sched_wakeup_new(p);
 	check_preempt_curr(rq, p, WF_FORK);
