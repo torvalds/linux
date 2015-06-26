@@ -297,6 +297,7 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 					struct drm_encoder *slave_encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_encoder *mdp5_slave_enc = to_mdp5_encoder(slave_encoder);
 	struct mdp5_kms *mdp5_kms;
 	int intf_num;
 	u32 data = 0;
@@ -319,12 +320,13 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 
 	/* Make sure clocks are on when connectors calling this function. */
 	mdp5_enable(mdp5_kms);
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPARE_0(0),
-		MDP5_MDP_SPARE_0_SPLIT_DPL_SINGLE_FLUSH_EN);
 	/* Dumb Panel, Sync mode */
 	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_UPPER(0), 0);
 	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_LOWER(0), data);
 	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_EN(0), 1);
+
+	mdp5_ctl_pair(mdp5_encoder->ctl, mdp5_slave_enc->ctl, true);
+
 	mdp5_disable(mdp5_kms);
 
 	return 0;
