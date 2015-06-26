@@ -129,8 +129,8 @@ static u16 fm10k_fifo_head_drop(struct fm10k_mbx_fifo *fifo)
  *  fm10k_fifo_drop_all - Drop all messages in FIFO
  *  @fifo: pointer to FIFO
  *
- *  This function resets the head pointer to drop all messages in the FIFO,
- *  and ensure the FIFO is empty.
+ *  This function resets the head pointer to drop all messages in the FIFO and
+ *  ensure the FIFO is empty.
  **/
 static void fm10k_fifo_drop_all(struct fm10k_mbx_fifo *fifo)
 {
