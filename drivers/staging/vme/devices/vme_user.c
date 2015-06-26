@@ -101,12 +101,12 @@ struct image_desc {
 	struct vme_resource *resource;	/* VME resource */
 	int mmap_count;		/* Number of current mmap's */
 };
+
 static struct image_desc image[VME_DEVS];
 
 static struct cdev *vme_user_cdev;		/* Character device */
 static struct class *vme_user_sysfs_class;	/* Sysfs class */
 static struct vme_dev *vme_user_bridge;		/* Pointer to user device */
-
 
 static const int type[VME_DEVS] = {	MASTER_MINOR,	MASTER_MINOR,
 					MASTER_MINOR,	MASTER_MINOR,
@@ -119,7 +119,6 @@ struct vme_user_vma_priv {
 	unsigned int minor;
 	atomic_t refcnt;
 };
-
 
 /*
  * We are going ot alloc a page during init per window for small transfers.
@@ -835,7 +834,6 @@ static void __exit vme_user_exit(void)
 {
 	vme_unregister_driver(&vme_user_driver);
 }
-
 
 MODULE_PARM_DESC(bus, "Enumeration of VMEbus to which the driver is connected");
 module_param_array(bus, int, &bus_num, 0);
