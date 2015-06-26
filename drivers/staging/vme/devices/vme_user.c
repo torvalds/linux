@@ -128,7 +128,7 @@ struct vme_user_vma_priv {
  * transfer the data directly into the user space buffers.
  */
 static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
-	loff_t *ppos)
+				loff_t *ppos)
 {
 	ssize_t retval;
 	ssize_t copied = 0;
@@ -167,7 +167,7 @@ static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
  * transfer the data directly from the user space buffers out to VME.
  */
 static ssize_t resource_from_user(unsigned int minor, const char __user *buf,
-	size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	ssize_t retval;
 	ssize_t copied = 0;
@@ -195,7 +195,7 @@ static ssize_t resource_from_user(unsigned int minor, const char __user *buf,
 }
 
 static ssize_t buffer_to_user(unsigned int minor, char __user *buf,
-	size_t count, loff_t *ppos)
+			      size_t count, loff_t *ppos)
 {
 	void *image_ptr;
 	ssize_t retval;
@@ -214,7 +214,7 @@ static ssize_t buffer_to_user(unsigned int minor, char __user *buf,
 }
 
 static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
-	size_t count, loff_t *ppos)
+				size_t count, loff_t *ppos)
 {
 	void *image_ptr;
 	size_t retval;
@@ -233,7 +233,7 @@ static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
 }
 
 static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
-			loff_t *ppos)
+			     loff_t *ppos)
 {
 	unsigned int minor = MINOR(file_inode(file)->i_rdev);
 	ssize_t retval;
@@ -279,7 +279,7 @@ static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 }
 
 static ssize_t vme_user_write(struct file *file, const char __user *buf,
-			size_t count, loff_t *ppos)
+			      size_t count, loff_t *ppos)
 {
 	unsigned int minor = MINOR(file_inode(file)->i_rdev);
 	ssize_t retval;
@@ -354,7 +354,7 @@ static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
  * already been defined.
  */
 static int vme_user_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+			  unsigned int cmd, unsigned long arg)
 {
 	struct vme_master master;
 	struct vme_slave slave;
@@ -390,12 +390,13 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 			 *	to userspace as they are
 			 */
 			retval = vme_master_get(image[minor].resource,
-				&master.enable, &master.vme_addr,
-				&master.size, &master.aspace,
-				&master.cycle, &master.dwidth);
+						&master.enable,
+						&master.vme_addr,
+						&master.size, &master.aspace,
+						&master.cycle, &master.dwidth);
 
 			copied = copy_to_user(argp, &master,
-				sizeof(struct vme_master));
+					      sizeof(struct vme_master));
 			if (copied != 0) {
 				pr_warn("Partial copy to userspace\n");
 				return -EFAULT;
@@ -435,12 +436,12 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 			 *	to userspace as they are
 			 */
 			retval = vme_slave_get(image[minor].resource,
-				&slave.enable, &slave.vme_addr,
-				&slave.size, &pci_addr, &slave.aspace,
-				&slave.cycle);
+					       &slave.enable, &slave.vme_addr,
+					       &slave.size, &pci_addr,
+					       &slave.aspace, &slave.cycle);
 
 			copied = copy_to_user(argp, &slave,
-				sizeof(struct vme_slave));
+					      sizeof(struct vme_slave));
 			if (copied != 0) {
 				pr_warn("Partial copy to userspace\n");
 				return -EFAULT;
@@ -606,7 +607,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 
 	/* Assign major and minor numbers for the driver */
 	err = register_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS,
-		driver_name);
+				     driver_name);
 	if (err) {
 		dev_warn(&vdev->dev, "Error getting Major Number %d for driver.\n",
 			 VME_MAJOR);
