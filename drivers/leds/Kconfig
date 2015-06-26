@@ -45,6 +45,7 @@ config LEDS_88PM860X
 config LEDS_AAT1290
 	tristate "LED support for the AAT1290"
 	depends on LEDS_CLASS_FLASH
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
 	depends on GPIOLIB
 	depends on OF
 	depends on PINCTRL
