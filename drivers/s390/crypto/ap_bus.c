@@ -182,41 +182,24 @@ static int ap_configuration_available(void)
 /**
  * ap_test_queue(): Test adjunct processor queue.
  * @qid: The AP queue number
- * @queue_depth: Pointer to queue depth value
- * @device_type: Pointer to device type value
+ * @info: Pointer to queue descriptor
  *
  * Returns AP queue status structure.
  */
 static inline struct ap_queue_status
-ap_test_queue(ap_qid_t qid, int *queue_depth, int *device_type)
+ap_test_queue(ap_qid_t qid, unsigned long *info)
 {
 	register unsigned long reg0 asm ("0") = qid;
 	register struct ap_queue_status reg1 asm ("1");
 	register unsigned long reg2 asm ("2") = 0UL;
 
+	if (test_facility(15))
+		reg0 |= 1UL << 23;		/* set APFT T bit*/
 	asm volatile(".long 0xb2af0000"		/* PQAP(TAPQ) */
 		     : "+d" (reg0), "=d" (reg1), "+d" (reg2) : : "cc");
-	*device_type = (int) (reg2 >> 24);
-	*queue_depth = (int) (reg2 & 0xff);
+	if (info)
+		*info = reg2;
 	return reg1;
-}
-
-/**
- * ap_query_facilities(): PQAP(TAPQ) query facilities.
- * @qid: The AP queue number
- *
- * Returns content of general register 2 after the PQAP(TAPQ)
- * instruction was called.
- */
-static inline unsigned long ap_query_facilities(ap_qid_t qid)
-{
-	register unsigned long reg0 asm ("0") = qid | 0x00800000UL;
-	register unsigned long reg1 asm ("1");
-	register unsigned long reg2 asm ("2") = 0UL;
-
-	asm volatile(".long 0xb2af0000"  /* PQAP(TAPQ) */
-		     : "+d" (reg0), "=d" (reg1), "+d" (reg2) : : "cc");
-	return reg2;
 }
 
 /**
@@ -259,25 +242,6 @@ ap_queue_interruption_control(ap_qid_t qid, void *ind)
 	return reg1_out;
 }
 
-static inline struct ap_queue_status
-__ap_query_functions(ap_qid_t qid, unsigned int *functions)
-{
-	register unsigned long reg0 asm ("0") = 0UL | qid | (1UL << 23);
-	register struct ap_queue_status reg1 asm ("1") = AP_QUEUE_STATUS_INVALID;
-	register unsigned long reg2 asm ("2");
-
-	asm volatile(
-		".long 0xb2af0000\n"		/* PQAP(TAPQ) */
-		"0:\n"
-		EX_TABLE(0b, 0b)
-		: "+d" (reg0), "+d" (reg1), "=d" (reg2)
-		:
-		: "cc");
-
-	*functions = (unsigned int)(reg2 >> 32);
-	return reg1;
-}
-
 static inline int __ap_query_configuration(struct ap_config_info *config)
 {
 	register unsigned long reg0 asm ("0") = 0x04000000UL;
@@ -294,42 +258,6 @@ static inline int __ap_query_configuration(struct ap_config_info *config)
 		: "cc");
 
 	return reg1;
-}
-
-/**
- * ap_query_functions(): Query supported functions.
- * @qid: The AP queue number
- * @functions: Pointer to functions field.
- *
- * Returns
- *   0	     on success.
- *   -ENODEV  if queue not valid.
- *   -EBUSY   if device busy.
- *   -EINVAL  if query function is not supported
- */
-static int ap_query_functions(ap_qid_t qid, unsigned int *functions)
-{
-	struct ap_queue_status status;
-
-	status = __ap_query_functions(qid, functions);
-
-	if (ap_queue_status_invalid_test(&status))
-		return -ENODEV;
-
-	switch (status.response_code) {
-	case AP_RESPONSE_NORMAL:
-		return 0;
-	case AP_RESPONSE_Q_NOT_AVAIL:
-	case AP_RESPONSE_DECONFIGURED:
-	case AP_RESPONSE_CHECKSTOPPED:
-	case AP_RESPONSE_INVALID_ADDRESS:
-		return -ENODEV;
-	case AP_RESPONSE_RESET_IN_PROGRESS:
-	case AP_RESPONSE_BUSY:
-	case AP_RESPONSE_OTHERWISE_CHANGED:
-	default:
-		return -EBUSY;
-	}
 }
 
 /**
@@ -515,17 +443,20 @@ static inline void ap_schedule_poll_timer(void)
  * @qid: The AP queue number
  * @queue_depth: Pointer to queue depth value
  * @device_type: Pointer to device type value
+ * @facilities: Pointer to facility indicator
  */
-static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type)
+static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
+			  unsigned int *facilities)
 {
 	struct ap_queue_status status;
-	int t_depth, t_device_type;
+	unsigned long info;
 
-	status = ap_test_queue(qid, &t_depth, &t_device_type);
+	status = ap_test_queue(qid, &info);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
-		*queue_depth = t_depth + 1;
-		*device_type = t_device_type;
+		*queue_depth = (int)(info & 0xff);
+		*device_type = (int)((info >> 24) & 0xff);
+		*facilities = (unsigned int)(info >> 32);
 		return 0;
 	case AP_RESPONSE_Q_NOT_AVAIL:
 	case AP_RESPONSE_DECONFIGURED:
@@ -1184,6 +1115,7 @@ static BUS_ATTR(poll_timeout, 0644, poll_timeout_show, poll_timeout_store);
 
 static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
 {
+	struct ap_queue_status status;
 	ap_qid_t qid;
 	int i, nd, max_domain_id = -1;
 	unsigned long fbits;
@@ -1194,7 +1126,9 @@ static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
 				if (!ap_test_config_card_id(i))
 					continue;
 				qid = AP_MKQID(i, ap_domain_index);
-				fbits = ap_query_facilities(qid);
+				status = ap_test_queue(qid, &fbits);
+				if (status.response_code != AP_RESPONSE_NORMAL)
+					continue;
 				if (fbits & (1UL << 57)) {
 					/* the N bit is 0, Nd field is filled */
 					nd = (int)((fbits & 0x00FF0000UL)>>16);
@@ -1254,9 +1188,9 @@ static void ap_query_configuration(void)
  */
 static int ap_select_domain(void)
 {
-	int queue_depth, device_type, count, max_count, best_domain;
-	ap_qid_t qid;
-	int rc, i, j;
+	int count, max_count, best_domain;
+	struct ap_queue_status status;
+	int i, j;
 
 	/* IF APXA isn't installed, only 16 domains could be defined */
 	if (!ap_configuration->ap_extended && (ap_domain_index > 15))
@@ -1279,9 +1213,8 @@ static int ap_select_domain(void)
 		for (j = 0; j < AP_DEVICES; j++) {
 			if (!ap_test_config_card_id(j))
 				continue;
-			qid = AP_MKQID(j, i);
-			rc = ap_query_queue(qid, &queue_depth, &device_type);
-			if (rc)
+			status = ap_test_queue(AP_MKQID(j, i), NULL);
+			if (status.response_code != AP_RESPONSE_NORMAL)
 				continue;
 			count++;
 		}
@@ -1438,7 +1371,8 @@ static void ap_scan_bus(struct work_struct *unused)
 				      (void *)(unsigned long)qid,
 				      __ap_scan_bus);
 		if (ap_test_config_card_id(i))
-			rc = ap_query_queue(qid, &queue_depth, &device_type);
+			rc = ap_query_queue(qid, &queue_depth, &device_type,
+					    &device_functions);
 		else
 			rc = -ENODEV;
 		if (dev) {
@@ -1468,6 +1402,9 @@ static void ap_scan_bus(struct work_struct *unused)
 			continue;
 		}
 		ap_dev->queue_depth = queue_depth;
+		ap_dev->raw_hwtype = device_type;
+		ap_dev->device_type = device_type;
+		ap_dev->functions = device_functions;
 		ap_dev->unregistered = 1;
 		spin_lock_init(&ap_dev->lock);
 		INIT_LIST_HEAD(&ap_dev->pendingq);
@@ -1475,24 +1412,12 @@ static void ap_scan_bus(struct work_struct *unused)
 		INIT_LIST_HEAD(&ap_dev->list);
 		setup_timer(&ap_dev->timeout, ap_request_timeout,
 			    (unsigned long) ap_dev);
-		switch (device_type) {
-		case 0:
+		if (ap_dev->device_type == 0)
 			/* device type probing for old cards */
 			if (ap_probe_device_type(ap_dev)) {
 				kfree(ap_dev);
 				continue;
 			}
-			break;
-		default:
-			ap_dev->device_type = device_type;
-		}
-		ap_dev->raw_hwtype = device_type;
-
-		rc = ap_query_functions(qid, &device_functions);
-		if (!rc)
-			ap_dev->functions = device_functions;
-		else
-			ap_dev->functions = 0u;
 
 		ap_dev->device.bus = &ap_bus_type;
 		ap_dev->device.parent = ap_root_device;
@@ -1640,12 +1565,11 @@ static int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
  */
 static inline int ap_poll_queue(struct ap_device *ap_dev, unsigned long *flags)
 {
-	int rc, depth, type;
 	struct ap_queue_status status;
-
+	int rc;
 
 	if (ap_dev->reset == AP_RESET_IN_PROGRESS) {
-		status = ap_test_queue(ap_dev->qid, &depth, &type);
+		status = ap_test_queue(ap_dev->qid, NULL);
 		switch (status.response_code) {
 		case AP_RESPONSE_NORMAL:
 			ap_dev->reset = AP_RESET_IGNORE;
@@ -1676,7 +1600,7 @@ static inline int ap_poll_queue(struct ap_device *ap_dev, unsigned long *flags)
 
 	if ((ap_dev->reset != AP_RESET_IN_PROGRESS) &&
 		(ap_dev->interrupt == AP_INTR_IN_PROGRESS)) {
-		status = ap_test_queue(ap_dev->qid, &depth, &type);
+		status = ap_test_queue(ap_dev->qid, NULL);
 		if (ap_using_interrupts()) {
 			if (status.int_enabled == 1)
 				ap_dev->interrupt = AP_INTR_ENABLED;
