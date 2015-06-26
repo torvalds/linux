@@ -9,6 +9,17 @@
 	compatible = "qcom,msm8974";
 	interrupt-parent = <&intc>;
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		smem_region: smem@fa00000 {
+			reg = <0xfa00000 0x200000>;
+			no-map;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -237,6 +248,15 @@
 			syscon = <&tcsr_mutex_block 0 0x80>;
 
 			#hwlock-cells = <1>;
+		};
+
+		smem@fa00000 {
+			compatible = "qcom,smem";
+
+			memory-region = <&smem_region>;
+			reg = <0xfc428000 0x4000>;
+
+			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		serial@f991e000 {
