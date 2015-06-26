@@ -527,7 +527,7 @@ static int vme_user_master_mmap(unsigned int minor, struct vm_area_struct *vma)
 	}
 
 	vma_priv = kmalloc(sizeof(struct vme_user_vma_priv), GFP_KERNEL);
-	if (vma_priv == NULL) {
+	if (!vma_priv) {
 		mutex_unlock(&image[minor].mutex);
 		return -ENOMEM;
 	}
@@ -588,7 +588,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 	char *name;
 
 	/* Save pointer to the bridge device */
-	if (vme_user_bridge != NULL) {
+	if (vme_user_bridge) {
 		dev_err(&vdev->dev, "Driver can only be loaded for 1 device\n");
 		err = -EINVAL;
 		goto err_dev;
@@ -636,7 +636,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		 */
 		image[i].resource = vme_slave_request(vme_user_bridge,
 			VME_A24, VME_SCT);
-		if (image[i].resource == NULL) {
+		if (!image[i].resource) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate slave resource\n");
 			err = -ENOMEM;
@@ -645,7 +645,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		image[i].size_buf = PCI_BUF_SIZE;
 		image[i].kern_buf = vme_alloc_consistent(image[i].resource,
 			image[i].size_buf, &image[i].pci_buf);
-		if (image[i].kern_buf == NULL) {
+		if (!image[i].kern_buf) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate memory for buffer\n");
 			image[i].pci_buf = 0;
@@ -663,7 +663,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		/* XXX Need to properly request attributes */
 		image[i].resource = vme_master_request(vme_user_bridge,
 			VME_A32, VME_SCT, VME_D32);
-		if (image[i].resource == NULL) {
+		if (!image[i].resource) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate master resource\n");
 			err = -ENOMEM;
@@ -671,7 +671,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
 		image[i].kern_buf = kmalloc(image[i].size_buf, GFP_KERNEL);
-		if (image[i].kern_buf == NULL) {
+		if (!image[i].kern_buf) {
 			err = -ENOMEM;
 			vme_master_free(image[i].resource);
 			goto err_master;
