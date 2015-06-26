@@ -30,7 +30,11 @@
 static DEFINE_MUTEX(param_lock);
 
 /* Use the module's mutex, or if built-in use the built-in mutex */
+#ifdef CONFIG_MODULES
 #define KPARAM_MUTEX(mod)	((mod) ? &(mod)->param_lock : &param_lock)
+#else
+#define KPARAM_MUTEX(mod)	(&param_lock)
+#endif
 
 static inline void check_kparam_locked(struct module *mod)
 {
