@@ -21,11 +21,26 @@ static int filter(const struct dirent *dir)
 		return 1;
 }
 
+static void thread_map__reset(struct thread_map *map, int start, int nr)
+{
+	size_t size = (nr - start) * sizeof(map->map[0]);
+
+	memset(&map->map[start], 0, size);
+}
+
 static struct thread_map *thread_map__realloc(struct thread_map *map, int nr)
 {
 	size_t size = sizeof(*map) + sizeof(map->map[0]) * nr;
+	int start = map ? map->nr : 0;
 
-	return realloc(map, size);
+	map = realloc(map, size);
+	/*
+	 * We only realloc to add more items, let's reset new items.
+	 */
+	if (map)
+		thread_map__reset(map, start, nr);
+
+	return map;
 }
 
 #define thread_map__alloc(__nr) thread_map__realloc(NULL, __nr)
