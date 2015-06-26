@@ -239,6 +239,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 		     struct drm_vmw_rect *vclips,
 		     uint32_t num_clips);
 
+
 /*
  * Legacy display unit functions - vmwgfx_ldu.c
  */
@@ -249,6 +250,10 @@ int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
 				unsigned flags, unsigned color,
 				struct drm_clip_rect *clips,
 				unsigned num_clips, int increment);
+int vmw_kms_update_proxy(struct vmw_resource *res,
+			 const struct drm_clip_rect *clips,
+			 unsigned num_clips,
+			 int increment);
 
 /*
  * Screen Objects display functions - vmwgfx_scrn.c
@@ -282,17 +287,25 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
  */
 int vmw_kms_stdu_init_display(struct vmw_private *dev_priv);
 int vmw_kms_stdu_close_display(struct vmw_private *dev_priv);
-int vmw_kms_stdu_do_surface_dirty(struct vmw_private *dev_priv,
-				  struct drm_file *file_priv,
-				  struct vmw_framebuffer *framebuffer,
-				  struct drm_clip_rect *clips,
-				  unsigned num_clips, int increment);
-int vmw_kms_stdu_present(struct vmw_private *dev_priv,
-			 struct drm_file *file_priv,
-			 struct vmw_framebuffer *vfb,
-			 uint32_t user_handle,
-			 int32_t dest_x, int32_t dest_y,
-			 struct drm_vmw_rect *clips,
-			 uint32_t num_clips);
+int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
+			       struct vmw_framebuffer *framebuffer,
+			       struct drm_clip_rect *clips,
+			       struct drm_vmw_rect *vclips,
+			       struct vmw_resource *srf,
+			       s32 dest_x,
+			       s32 dest_y,
+			       unsigned num_clips, int inc,
+			       struct vmw_fence_obj **out_fence);
+int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
+		     struct drm_file *file_priv,
+		     struct vmw_framebuffer *vfb,
+		     struct drm_vmw_fence_rep __user *user_fence_rep,
+		     struct drm_clip_rect *clips,
+		     struct drm_vmw_rect *vclips,
+		     uint32_t num_clips,
+		     int increment,
+		     bool to_surface,
+		     bool interruptible);
+
 
 #endif

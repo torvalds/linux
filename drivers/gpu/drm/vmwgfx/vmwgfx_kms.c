@@ -427,10 +427,9 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 						   clips, NULL, NULL, 0, 0,
 						   num_clips, inc, NULL);
 	else
-		ret = vmw_kms_stdu_do_surface_dirty(dev_priv, file_priv,
-						    &vfbs->base,
-						    clips, num_clips,
-						    inc);
+		ret = vmw_kms_stdu_surface_dirty(dev_priv, &vfbs->base,
+						 clips, NULL, NULL, 0, 0,
+						 num_clips, inc, NULL);
 
 	vmw_fifo_flush(dev_priv, false);
 	ttm_read_unlock(&dev_priv->reservation_sem);
@@ -467,10 +466,14 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 	case vmw_du_screen_object:
 		return vmw_kms_sou_readback(dev_priv, file_priv, vfb,
 					    user_fence_rep, vclips, num_clips);
+	case vmw_du_screen_target:
+		return vmw_kms_stdu_dma(dev_priv, file_priv, vfb,
+					user_fence_rep, NULL, vclips, num_clips,
+					1, false, true);
 	default:
 		WARN_ONCE(true,
 			  "Readback called with invalid display system.\n");
-	}
+}
 
 	return -ENOSYS;
 }
@@ -632,20 +635,23 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 		increment = 2;
 	}
 
-	if (dev_priv->ldu_priv) {
-		ret = vmw_kms_ldu_do_dmabuf_dirty(dev_priv, &vfbd->base,
-						  flags, color,
-						  clips, num_clips, increment);
-	} else if (dev_priv->active_display_unit == vmw_du_screen_object) {
+	switch (dev_priv->active_display_unit) {
+	case vmw_du_screen_target:
+		ret = vmw_kms_stdu_dma(dev_priv, NULL, &vfbd->base, NULL,
+				       clips, NULL, num_clips, increment,
+				       true, true);
+		break;
+	case vmw_du_screen_object:
 		ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, &vfbd->base,
 						  clips, num_clips, increment,
 						  true,
 						  NULL);
-	} else {
-		ret = vmw_kms_stdu_do_surface_dirty(dev_priv, file_priv,
-						    &vfbd->base,
-						    clips, num_clips,
-						    increment);
+		break;
+	default:
+		ret = -ENOSYS;
+		WARN_ONCE(true,
+			  "Dirty called with invalid display system.\n");
+		break;
 	}
 
 	vmw_fifo_flush(dev_priv, false);
@@ -721,8 +727,8 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 {
 	uint32_t format;
 	struct drm_vmw_size content_base_size;
+	struct vmw_resource *res;
 	int ret;
-
 
 	switch (mode_cmd->depth) {
 	case 32:
@@ -762,15 +768,18 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 		return ret;
 	}
 
-	/* Use the same MOB backing for surface */
-	vmw_dmabuf_reference(dmabuf_mob);
+	res = &(*srf_out)->res;
 
-	(*srf_out)->res.backup = dmabuf_mob;
+	/* Reserve and switch the backing mob. */
+	mutex_lock(&res->dev_priv->cmdbuf_mutex);
+	(void) vmw_resource_reserve(res, false, true);
+	vmw_dmabuf_unreference(&res->backup);
+	res->backup = vmw_dmabuf_reference(dmabuf_mob);
+	res->backup_offset = 0;
+	vmw_resource_unreserve(res, NULL, 0);
+	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 
-	/* FIXME:  Waiting for fbdev rework to do a proper reserve/pin */
-	ret = vmw_resource_validate(&(*srf_out)->res);
-
-	return ret;
+	return 0;
 }
 
 
@@ -987,6 +996,7 @@ int vmw_kms_generic_present(struct vmw_private *dev_priv,
 					    num_clips, 1, NULL);
 }
 
+
 int vmw_kms_present(struct vmw_private *dev_priv,
 		    struct drm_file *file_priv,
 		    struct vmw_framebuffer *vfb,
@@ -998,13 +1008,23 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 {
 	int ret;
 
-	if (dev_priv->active_display_unit == vmw_du_screen_target)
-		ret = vmw_kms_stdu_present(dev_priv, file_priv, vfb, sid,
-					   destX, destY, clips, num_clips);
-	else
-		ret = vmw_kms_generic_present(dev_priv, file_priv, vfb,
-					      surface, sid, destX, destY,
-					      clips, num_clips);
+	switch (dev_priv->active_display_unit) {
+	case vmw_du_screen_target:
+		ret = vmw_kms_stdu_surface_dirty(dev_priv, vfb, NULL, clips,
+						 &surface->res, destX, destY,
+						 num_clips, 1, NULL);
+		break;
+	case vmw_du_screen_object:
+		ret = vmw_kms_generic_present(dev_priv, file_priv, vfb, surface,
+					      sid, destX, destY, clips,
+					      num_clips);
+		break;
+	default:
+		WARN_ONCE(true,
+			  "Present called with invalid display system.\n");
+		ret = -ENOSYS;
+		break;
+	}
 	if (ret)
 		return ret;
 
@@ -1881,4 +1901,73 @@ void vmw_kms_helper_resource_finish(struct vmw_resource *res,
 
 	vmw_resource_unreserve(res, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
+}
+
+/**
+ * vmw_kms_update_proxy - Helper function to update a proxy surface from
+ * its backing MOB.
+ *
+ * @res: Pointer to the surface resource
+ * @clips: Clip rects in framebuffer (surface) space.
+ * @num_clips: Number of clips in @clips.
+ * @increment: Integer with which to increment the clip counter when looping.
+ * Used to skip a predetermined number of clip rects.
+ *
+ * This function makes sure the proxy surface is updated from its backing MOB
+ * using the region given by @clips. The surface resource @res and its backing
+ * MOB needs to be reserved and validated on call.
+ */
+int vmw_kms_update_proxy(struct vmw_resource *res,
+			 const struct drm_clip_rect *clips,
+			 unsigned num_clips,
+			 int increment)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	struct drm_vmw_size *size = &vmw_res_to_srf(res)->base_size;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdUpdateGBImage body;
+	} *cmd;
+	SVGA3dBox *box;
+	size_t copy_size = 0;
+	int i;
+
+	if (!clips)
+		return 0;
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) * num_clips);
+	if (!cmd) {
+		DRM_ERROR("Couldn't reserve fifo space for proxy surface "
+			  "update.\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < num_clips; ++i, clips += increment, ++cmd) {
+		box = &cmd->body.box;
+
+		cmd->header.id = SVGA_3D_CMD_UPDATE_GB_IMAGE;
+		cmd->header.size = sizeof(cmd->body);
+		cmd->body.image.sid = res->id;
+		cmd->body.image.face = 0;
+		cmd->body.image.mipmap = 0;
+
+		if (clips->x1 > size->width || clips->x2 > size->width ||
+		    clips->y1 > size->height || clips->y2 > size->height) {
+			DRM_ERROR("Invalid clips outsize of framebuffer.\n");
+			return -EINVAL;
+		}
+
+		box->x = clips->x1;
+		box->y = clips->y1;
+		box->z = 0;
+		box->w = clips->x2 - clips->x1;
+		box->h = clips->y2 - clips->y1;
+		box->d = 1;
+
+		copy_size += sizeof(*cmd);
+	}
+
+	vmw_fifo_commit(dev_priv, copy_size);
+
+	return 0;
 }
