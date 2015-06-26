@@ -32,7 +32,50 @@
 #include <drm/drm_crtc_helper.h>
 #include "vmwgfx_drv.h"
 
-
+/**
+ * struct vmw_kms_dirty - closure structure for the vmw_kms_helper_dirty
+ * function.
+ *
+ * @fifo_commit: Callback that is called once for each display unit after
+ * all clip rects. This function must commit the fifo space reserved by the
+ * helper. Set up by the caller.
+ * @clip: Callback that is called for each cliprect on each display unit.
+ * Set up by the caller.
+ * @fifo_reserve_size: Fifo size that the helper should try to allocat for
+ * each display unit. Set up by the caller.
+ * @dev_priv: Pointer to the device private. Set up by the helper.
+ * @unit: The current display unit. Set up by the helper before a call to @clip.
+ * @cmd: The allocated fifo space. Set up by the helper before the first @clip
+ * call.
+ * @num_hits: Number of clip rect commands for this display unit.
+ * Cleared by the helper before the first @clip call. Updated by the @clip
+ * callback.
+ * @fb_x: Clip rect left side in framebuffer coordinates.
+ * @fb_y: Clip rect right side in framebuffer coordinates.
+ * @unit_x1: Clip rect left side in crtc coordinates.
+ * @unit_y1: Clip rect top side in crtc coordinates.
+ * @unit_x2: Clip rect right side in crtc coordinates.
+ * @unit_y2: Clip rect bottom side in crtc coordinates.
+ *
+ * The clip rect coordinates are updated by the helper for each @clip call.
+ * Note that this may be derived from if more info needs to be passed between
+ * helper caller and helper callbacks.
+ */
+struct vmw_kms_dirty {
+	void (*fifo_commit)(struct vmw_kms_dirty *);
+	void (*clip)(struct vmw_kms_dirty *);
+	size_t fifo_reserve_size;
+	struct vmw_private *dev_priv;
+	struct vmw_display_unit *unit;
+	void *cmd;
+	u32 num_hits;
+	s32 fb_x;
+	s32 fb_y;
+	s32 unit_x1;
+	s32 unit_y1;
+	s32 unit_x2;
+	s32 unit_y2;
+};
 
 #define VMWGFX_NUM_DISPLAY_UNITS 8
 
@@ -173,7 +216,31 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 int vmw_du_connector_set_property(struct drm_connector *connector,
 				  struct drm_property *property,
 				  uint64_t val);
+int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
+			 struct vmw_framebuffer *framebuffer,
+			 const struct drm_clip_rect *clips,
+			 const struct drm_vmw_rect *vclips,
+			 s32 dest_x, s32 dest_y,
+			 int num_clips,
+			 int increment,
+			 struct vmw_kms_dirty *dirty);
 
+int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
+				  struct vmw_dma_buffer *buf,
+				  bool interruptible,
+				  bool validate_as_mob);
+void vmw_kms_helper_buffer_revert(struct vmw_dma_buffer *buf);
+void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
+				  struct drm_file *file_priv,
+				  struct vmw_dma_buffer *buf,
+				  struct vmw_fence_obj **out_fence,
+				  struct drm_vmw_fence_rep __user *
+				  user_fence_rep);
+int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
+				    bool interruptible);
+void vmw_kms_helper_resource_revert(struct vmw_resource *res);
+void vmw_kms_helper_resource_finish(struct vmw_resource *res,
+				    struct vmw_fence_obj **out_fence);
 
 /*
  * Legacy display unit functions - vmwgfx_ldu.c

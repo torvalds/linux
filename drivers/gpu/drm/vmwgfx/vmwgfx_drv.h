@@ -640,7 +640,8 @@ extern struct vmw_resource *vmw_resource_reference(struct vmw_resource *res);
 extern struct vmw_resource *
 vmw_resource_reference_unless_doomed(struct vmw_resource *res);
 extern int vmw_resource_validate(struct vmw_resource *res);
-extern int vmw_resource_reserve(struct vmw_resource *res, bool no_backup);
+extern int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
+				bool no_backup);
 extern bool vmw_resource_needs_backup(const struct vmw_resource *res);
 extern int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 				  struct ttm_object_file *tfile,
@@ -860,6 +861,11 @@ extern void vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 					*user_fence_rep,
 					struct vmw_fence_obj *fence,
 					uint32_t fence_handle);
+extern int vmw_validate_single_buffer(struct vmw_private *dev_priv,
+				      struct ttm_buffer_object *bo,
+				      bool interruptible,
+				      bool validate_as_mob);
+
 
 /**
  * IRQs and wating - vmwgfx_irq.c
@@ -965,7 +971,7 @@ int vmw_dumb_map_offset(struct drm_file *file_priv,
 int vmw_dumb_destroy(struct drm_file *file_priv,
 		     struct drm_device *dev,
 		     uint32_t handle);
-extern int vmw_resource_pin(struct vmw_resource *res);
+extern int vmw_resource_pin(struct vmw_resource *res, bool interruptible);
 extern void vmw_resource_unpin(struct vmw_resource *res);
 
 /**

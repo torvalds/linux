@@ -1821,3 +1821,295 @@ out_free:
 	kfree(rects);
 	return ret;
 }
+
+/**
+ * vmw_kms_helper_dirty - Helper to build commands and perform actions based
+ * on a set of cliprects and a set of display units.
+ *
+ * @dev_priv: Pointer to a device private structure.
+ * @framebuffer: Pointer to the framebuffer on which to perform the actions.
+ * @clips: A set of struct drm_clip_rect. Either this os @vclips must be NULL.
+ * Cliprects are given in framebuffer coordinates.
+ * @vclips: A set of struct drm_vmw_rect cliprects. Either this or @clips must
+ * be NULL. Cliprects are given in source coordinates.
+ * @dest_x: X coordinate offset for the crtc / destination clip rects.
+ * @dest_y: Y coordinate offset for the crtc / destination clip rects.
+ * @num_clips: Number of cliprects in the @clips or @vclips array.
+ * @increment: Integer with which to increment the clip counter when looping.
+ * Used to skip a predetermined number of clip rects.
+ * @dirty: Closure structure. See the description of struct vmw_kms_dirty.
+ */
+int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
+			 struct vmw_framebuffer *framebuffer,
+			 const struct drm_clip_rect *clips,
+			 const struct drm_vmw_rect *vclips,
+			 s32 dest_x, s32 dest_y,
+			 int num_clips,
+			 int increment,
+			 struct vmw_kms_dirty *dirty)
+{
+	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
+	struct drm_crtc *crtc;
+	u32 num_units = 0;
+	u32 i, k;
+	int ret;
+
+	dirty->dev_priv = dev_priv;
+
+	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
+		if (crtc->primary->fb != &framebuffer->base)
+			continue;
+		units[num_units++] = vmw_crtc_to_du(crtc);
+	}
+
+	for (k = 0; k < num_units; k++) {
+		struct vmw_display_unit *unit = units[k];
+		s32 crtc_x = unit->crtc.x;
+		s32 crtc_y = unit->crtc.y;
+		s32 crtc_width = unit->crtc.mode.hdisplay;
+		s32 crtc_height = unit->crtc.mode.vdisplay;
+		const struct drm_clip_rect *clips_ptr = clips;
+		const struct drm_vmw_rect *vclips_ptr = vclips;
+
+		dirty->unit = unit;
+		if (dirty->fifo_reserve_size > 0) {
+			dirty->cmd = vmw_fifo_reserve(dev_priv,
+						      dirty->fifo_reserve_size);
+			if (!dirty->cmd) {
+				DRM_ERROR("Couldn't reserve fifo space "
+					  "for dirty blits.\n");
+				return ret;
+			}
+			memset(dirty->cmd, 0, dirty->fifo_reserve_size);
+		}
+		dirty->num_hits = 0;
+		for (i = 0; i < num_clips; i++, clips_ptr += increment,
+		       vclips_ptr += increment) {
+			s32 clip_left;
+			s32 clip_top;
+
+			/*
+			 * Select clip array type. Note that integer type
+			 * in @clips is unsigned short, whereas in @vclips
+			 * it's 32-bit.
+			 */
+			if (clips) {
+				dirty->fb_x = (s32) clips_ptr->x1;
+				dirty->fb_y = (s32) clips_ptr->y1;
+				dirty->unit_x2 = (s32) clips_ptr->x2 + dest_x -
+					crtc_x;
+				dirty->unit_y2 = (s32) clips_ptr->y2 + dest_y -
+					crtc_y;
+			} else {
+				dirty->fb_x = vclips_ptr->x;
+				dirty->fb_y = vclips_ptr->y;
+				dirty->unit_x2 = dirty->fb_x + vclips_ptr->w +
+					dest_x - crtc_x;
+				dirty->unit_y2 = dirty->fb_y + vclips_ptr->h +
+					dest_y - crtc_y;
+			}
+
+			dirty->unit_x1 = dirty->fb_x + dest_x - crtc_x;
+			dirty->unit_y1 = dirty->fb_y + dest_y - crtc_y;
+
+			/* Skip this clip if it's outside the crtc region */
+			if (dirty->unit_x1 >= crtc_width ||
+			    dirty->unit_y1 >= crtc_height ||
+			    dirty->unit_x2 <= 0 || dirty->unit_y2 <= 0)
+				continue;
+
+			/* Clip right and bottom to crtc limits */
+			dirty->unit_x2 = min_t(s32, dirty->unit_x2,
+					       crtc_width);
+			dirty->unit_y2 = min_t(s32, dirty->unit_y2,
+					       crtc_height);
+
+			/* Clip left and top to crtc limits */
+			clip_left = min_t(s32, dirty->unit_x1, 0);
+			clip_top = min_t(s32, dirty->unit_y1, 0);
+			dirty->unit_x1 -= clip_left;
+			dirty->unit_y1 -= clip_top;
+			dirty->fb_x -= clip_left;
+			dirty->fb_y -= clip_top;
+
+			dirty->clip(dirty);
+		}
+
+		dirty->fifo_commit(dirty);
+	}
+
+	return 0;
+}
+
+/**
+ * vmw_kms_helper_buffer_prepare - Reserve and validate a buffer object before
+ * command submission.
+ *
+ * @dev_priv. Pointer to a device private structure.
+ * @buf: The buffer object
+ * @interruptible: Whether to perform waits as interruptible.
+ * @validate_as_mob: Whether the buffer should be validated as a MOB. If false,
+ * The buffer will be validated as a GMR. Already pinned buffers will not be
+ * validated.
+ *
+ * Returns 0 on success, negative error code on failure, -ERESTARTSYS if
+ * interrupted by a signal.
+ */
+int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
+				  struct vmw_dma_buffer *buf,
+				  bool interruptible,
+				  bool validate_as_mob)
+{
+	struct ttm_buffer_object *bo = &buf->base;
+	int ret;
+
+	ttm_bo_reserve(bo, false, false, interruptible, 0);
+	ret = vmw_validate_single_buffer(dev_priv, bo, interruptible,
+					 validate_as_mob);
+	if (ret)
+		ttm_bo_unreserve(bo);
+
+	return ret;
+}
+
+/**
+ * vmw_kms_helper_buffer_revert - Undo the actions of
+ * vmw_kms_helper_buffer_prepare.
+ *
+ * @res: Pointer to the buffer object.
+ *
+ * Helper to be used if an error forces the caller to undo the actions of
+ * vmw_kms_helper_buffer_prepare.
+ */
+void vmw_kms_helper_buffer_revert(struct vmw_dma_buffer *buf)
+{
+	if (buf)
+		ttm_bo_unreserve(&buf->base);
+}
+
+/**
+ * vmw_kms_helper_buffer_finish - Unreserve and fence a buffer object after
+ * kms command submission.
+ *
+ * @dev_priv: Pointer to a device private structure.
+ * @file_priv: Pointer to a struct drm_file representing the caller's
+ * connection. Must be set to NULL if @user_fence_rep is NULL, and conversely
+ * if non-NULL, @user_fence_rep must be non-NULL.
+ * @buf: The buffer object.
+ * @out_fence:  Optional pointer to a fence pointer. If non-NULL, a
+ * ref-counted fence pointer is returned here.
+ * @user_fence_rep: Optional pointer to a user-space provided struct
+ * drm_vmw_fence_rep. If provided, @file_priv must also be provided and the
+ * function copies fence data to user-space in a fail-safe manner.
+ */
+void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
+				  struct drm_file *file_priv,
+				  struct vmw_dma_buffer *buf,
+				  struct vmw_fence_obj **out_fence,
+				  struct drm_vmw_fence_rep __user *
+				  user_fence_rep)
+{
+	struct vmw_fence_obj *fence;
+	uint32_t handle;
+	int ret;
+
+	ret = vmw_execbuf_fence_commands(file_priv, dev_priv, &fence,
+					 file_priv ? &handle : NULL);
+	if (buf)
+		vmw_fence_single_bo(&buf->base, fence);
+	if (file_priv)
+		vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv),
+					    ret, user_fence_rep, fence,
+					    handle);
+	if (out_fence)
+		*out_fence = fence;
+	else
+		vmw_fence_obj_unreference(&fence);
+
+	vmw_kms_helper_buffer_revert(buf);
+}
+
+
+/**
+ * vmw_kms_helper_resource_revert - Undo the actions of
+ * vmw_kms_helper_resource_prepare.
+ *
+ * @res: Pointer to the resource. Typically a surface.
+ *
+ * Helper to be used if an error forces the caller to undo the actions of
+ * vmw_kms_helper_resource_prepare.
+ */
+void vmw_kms_helper_resource_revert(struct vmw_resource *res)
+{
+	vmw_kms_helper_buffer_revert(res->backup);
+	vmw_resource_unreserve(res, NULL, 0);
+	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
+}
+
+/**
+ * vmw_kms_helper_resource_prepare - Reserve and validate a resource before
+ * command submission.
+ *
+ * @res: Pointer to the resource. Typically a surface.
+ * @interruptible: Whether to perform waits as interruptible.
+ *
+ * Reserves and validates also the backup buffer if a guest-backed resource.
+ * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
+ * interrupted by a signal.
+ */
+int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
+				    bool interruptible)
+{
+	int ret = 0;
+
+	if (interruptible)
+		ret = mutex_lock_interruptible(&res->dev_priv->cmdbuf_mutex);
+	else
+		mutex_lock(&res->dev_priv->cmdbuf_mutex);
+
+	if (unlikely(ret != 0))
+		return -ERESTARTSYS;
+
+	ret = vmw_resource_reserve(res, interruptible, false);
+	if (ret)
+		goto out_unlock;
+
+	if (res->backup) {
+		ret = vmw_kms_helper_buffer_prepare(res->dev_priv, res->backup,
+						    interruptible,
+						    res->dev_priv->has_mob);
+		if (ret)
+			goto out_unreserve;
+	}
+	ret = vmw_resource_validate(res);
+	if (ret)
+		goto out_revert;
+	return 0;
+
+out_revert:
+	vmw_kms_helper_buffer_revert(res->backup);
+out_unreserve:
+	vmw_resource_unreserve(res, NULL, 0);
+out_unlock:
+	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
+	return ret;
+}
+
+/**
+ * vmw_kms_helper_resource_finish - Unreserve and fence a resource after
+ * kms command submission.
+ *
+ * @res: Pointer to the resource. Typically a surface.
+ * @out_fence: Optional pointer to a fence pointer. If non-NULL, a
+ * ref-counted fence pointer is returned here.
+ */
+void vmw_kms_helper_resource_finish(struct vmw_resource *res,
+			     struct vmw_fence_obj **out_fence)
+{
+	if (res->backup || out_fence)
+		vmw_kms_helper_buffer_finish(res->dev_priv, NULL, res->backup,
+					     out_fence, NULL);
+
+	vmw_resource_unreserve(res, NULL, 0);
+	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
+}

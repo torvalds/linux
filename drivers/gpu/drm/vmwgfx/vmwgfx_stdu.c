@@ -91,7 +91,7 @@ static void vmw_stdu_destroy(struct vmw_screen_target_display_unit *stdu);
  */
 static int vmw_stdu_pin_display(struct vmw_screen_target_display_unit *stdu)
 {
-	return vmw_resource_pin(&stdu->display_srf->res);
+	return vmw_resource_pin(&stdu->display_srf->res, false);
 }
 
 

@@ -375,7 +375,7 @@ static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
 	list_for_each_entry(val, &sw_context->resource_list, head) {
 		struct vmw_resource *res = val->res;
 
-		ret = vmw_resource_reserve(res, val->no_buffer_needed);
+		ret = vmw_resource_reserve(res, true, val->no_buffer_needed);
 		if (unlikely(ret != 0))
 			return ret;
 
@@ -2234,9 +2234,10 @@ static void vmw_clear_validations(struct vmw_sw_context *sw_context)
 		(void) drm_ht_remove_item(&sw_context->res_ht, &val->hash);
 }
 
-static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
-				      struct ttm_buffer_object *bo,
-				      bool validate_as_mob)
+int vmw_validate_single_buffer(struct vmw_private *dev_priv,
+			       struct ttm_buffer_object *bo,
+			       bool interruptible,
+			       bool validate_as_mob)
 {
 	struct vmw_dma_buffer *vbo = container_of(bo, struct vmw_dma_buffer,
 						  base);
@@ -2246,7 +2247,8 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 		return 0;
 
 	if (validate_as_mob)
-		return ttm_bo_validate(bo, &vmw_mob_placement, true, false);
+		return ttm_bo_validate(bo, &vmw_mob_placement, interruptible,
+				       false);
 
 	/**
 	 * Put BO in VRAM if there is space, otherwise as a GMR.
@@ -2255,7 +2257,8 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * used as a GMR, this will return -ENOMEM.
 	 */
 
-	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, true, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, interruptible,
+			      false);
 	if (likely(ret == 0 || ret == -ERESTARTSYS))
 		return ret;
 
@@ -2264,8 +2267,7 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * previous contents.
 	 */
 
-	DRM_INFO("Falling through to VRAM.\n");
-	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_placement, interruptible, false);
 	return ret;
 }
 
@@ -2277,6 +2279,7 @@ static int vmw_validate_buffers(struct vmw_private *dev_priv,
 
 	list_for_each_entry(entry, &sw_context->validate_nodes, base.head) {
 		ret = vmw_validate_single_buffer(dev_priv, entry->base.bo,
+						 true,
 						 entry->validate_as_mob);
 		if (unlikely(ret != 0))
 			return ret;
