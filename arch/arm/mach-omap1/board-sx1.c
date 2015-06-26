@@ -343,6 +343,7 @@ MACHINE_START(SX1, "OMAP310 based Siemens SX1")
 	.map_io		= omap15xx_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= omap_sx1_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

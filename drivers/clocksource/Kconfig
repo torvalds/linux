@@ -282,4 +282,9 @@ config H8300_TMR16
 config H8300_TPU
         bool
 
+config CLKSRC_IMX_GPT
+	bool "Clocksource using i.MX GPT" if COMPILE_TEST
+	depends on ARM && CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+
 endmenu

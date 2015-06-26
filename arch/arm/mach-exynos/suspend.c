@@ -223,7 +223,7 @@ static int exynos_pmu_domain_alloc(struct irq_domain *domain,
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &parent_args);
 }
 
-static struct irq_domain_ops exynos_pmu_domain_ops = {
+static const struct irq_domain_ops exynos_pmu_domain_ops = {
 	.xlate	= exynos_pmu_domain_xlate,
 	.alloc	= exynos_pmu_domain_alloc,
 	.free	= irq_domain_free_irqs_common,

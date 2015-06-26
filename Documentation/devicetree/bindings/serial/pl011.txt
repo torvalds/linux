@@ -1,7 +1,7 @@
 * ARM AMBA Primecell PL011 serial UART
 
 Required properties:
-- compatible: must be "arm,primecell", "arm,pl011"
+- compatible: must be "arm,primecell", "arm,pl011", "zte,zx296702-uart"
 - reg: exactly one register range with length 0x1000
 - interrupts: exactly one interrupt specifier
 
