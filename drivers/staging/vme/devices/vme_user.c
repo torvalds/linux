@@ -123,7 +123,6 @@ struct vme_user_vma_priv {
 static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
 				loff_t *ppos)
 {
-	ssize_t retval;
 	ssize_t copied = 0;
 
 	if (count > image[minor].size_buf)
@@ -135,13 +134,8 @@ static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
 	if (copied < 0)
 		return (int)copied;
 
-	retval = __copy_to_user(buf, image[minor].kern_buf,
-				(unsigned long)copied);
-	if (retval != 0) {
-		copied = (copied - retval);
-		pr_info("User copy failed\n");
-		return -EINVAL;
-	}
+	if (__copy_to_user(buf, image[minor].kern_buf, (unsigned long)copied))
+		return -EFAULT;
 
 	return copied;
 }
@@ -149,21 +143,16 @@ static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
 static ssize_t resource_from_user(unsigned int minor, const char __user *buf,
 				  size_t count, loff_t *ppos)
 {
-	ssize_t retval;
 	ssize_t copied = 0;
 
 	if (count > image[minor].size_buf)
 		count = image[minor].size_buf;
 
-	retval = __copy_from_user(image[minor].kern_buf, buf,
-				  (unsigned long)count);
-	if (retval != 0)
-		copied = (copied - retval);
-	else
-		copied = count;
+	if (__copy_from_user(image[minor].kern_buf, buf, (unsigned long)count))
+		return -EFAULT;
 
 	copied = vme_master_write(image[minor].resource, image[minor].kern_buf,
-				  copied, *ppos);
+				  count, *ppos);
 
 	return copied;
 }
@@ -172,38 +161,24 @@ static ssize_t buffer_to_user(unsigned int minor, char __user *buf,
 			      size_t count, loff_t *ppos)
 {
 	void *image_ptr;
-	ssize_t retval;
 
 	image_ptr = image[minor].kern_buf + *ppos;
+	if (__copy_to_user(buf, image_ptr, (unsigned long)count))
+		return -EFAULT;
 
-	retval = __copy_to_user(buf, image_ptr, (unsigned long)count);
-	if (retval != 0) {
-		retval = (count - retval);
-		pr_warn("Partial copy to userspace\n");
-	} else
-		retval = count;
-
-	/* Return number of bytes successfully read */
-	return retval;
+	return count;
 }
 
 static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	void *image_ptr;
-	size_t retval;
 
 	image_ptr = image[minor].kern_buf + *ppos;
+	if (__copy_from_user(image_ptr, buf, (unsigned long)count))
+		return -EFAULT;
 
-	retval = __copy_from_user(image_ptr, buf, (unsigned long)count);
-	if (retval != 0) {
-		retval = (count - retval);
-		pr_warn("Partial copy to userspace\n");
-	} else
-		retval = count;
-
-	/* Return number of bytes successfully read */
-	return retval;
+	return count;
 }
 
 static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
