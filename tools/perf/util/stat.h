@@ -50,9 +50,9 @@ struct perf_counts {
 };
 
 static inline struct perf_counts_values*
-perf_counts(struct perf_counts *counts, int cpu)
+perf_counts(struct perf_counts *counts, int cpu, int thread)
 {
-	return xyarray__entry(counts->cpu, cpu, 0);
+	return xyarray__entry(counts->cpu, cpu, thread);
 }
 
 void update_stats(struct stats *stats, u64 val);
@@ -86,10 +86,10 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 void perf_stat__print_shadow_stats(FILE *out, struct perf_evsel *evsel,
 				   double avg, int cpu, enum aggr_mode aggr);
 
-struct perf_counts *perf_counts__new(int ncpus);
+struct perf_counts *perf_counts__new(int ncpus, int nthreads);
 void perf_counts__delete(struct perf_counts *counts);
 
 void perf_evsel__reset_counts(struct perf_evsel *evsel);
-int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus);
+int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus, int nthreads);
 void perf_evsel__free_counts(struct perf_evsel *evsel);
 #endif
