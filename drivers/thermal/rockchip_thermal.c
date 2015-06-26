@@ -28,6 +28,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/rockchip/common.h>
+#include <linux/scpi_protocol.h>
 #include "../../arch/arm/mach-rockchip/efuse.h"
 
 #if 0
@@ -165,13 +166,6 @@ struct rockchip_thermal_data {
 #define TSADCV2_AUTO_PERIOD_HT_TIME		50  /* msec */
 #define TSADCV3_AUTO_PERIOD_TIME		1500 /* msec */
 #define TSADCV3_AUTO_PERIOD_HT_TIME		1000 /* msec */
-
-#define TSADC_CPU_GATE
-/*#define TSADC_GPU_GATE*/
-
-#define TSADC_CLK_GATE_DELAY_TIME		50/* usec */
-#define TSADC_CLK_CYCLE_TIME			30/* usec */
-#define TSADC_USER_MODE_DELAY_TIME		200/* usec */
 
 #define TSADC_TEST
 #define TSADC_TEST_SAMPLE_TIME			200/* msec */
@@ -727,128 +721,13 @@ static struct rockchip_thermal_data *rockchip_thermal_get_data(void)
 	return s_thermal;
 }
 
-static int rockchip_thermal_user_mode_get_temp(struct rockchip_thermal_data *thermal,
-	int chn, int voltage)
-{
-	unsigned long flags;
-	int ret;
-#ifdef TSADC_CPU_GATE
-	int val_cpu, temp_cpu;
-#endif
-#ifdef TSADC_GPU_GATE
-	int val_gpu, temp_gpu;
-#endif
-
-	local_irq_save(flags);
-	/* GPU_GATING*/
-#ifdef TSADC_GPU_GATE
-	/*ret = regmap_write(thermal->cru, 0x210, 0x08000800);*/
-	ret = regmap_write(thermal->cru, 0x210, 0x09d809d8);
-	if (ret)
-		printk("Couldn't write to cru\n");
-	ret = regmap_write(thermal->cru, 0x214, 0x03000300);
-	if (ret)
-		printk("Couldn't write to cru\n");
-#endif
-
-	/* CPU 24M slow mode*/
-#ifdef TSADC_CPU_GATE
-	ret = regmap_write(thermal->cru, 0xc, 0x03000000);
-	if (ret)
-		printk("Couldn't write to cru\n");
-	ret = regmap_write(thermal->cru, 0x1c, 0x03000000);
-	if (ret)
-		printk("Couldn't write to cru\n");
-#endif
-	udelay(TSADC_CLK_GATE_DELAY_TIME);
-
-#ifdef TSADC_CPU_GATE
-	/*channe 0*/
-	/*power up, channel 0*/
-	writel_relaxed(0x208, thermal->regs + TSADCV2_USER_CON);
-	while(1)
-	{
-		u32 val_cpu_pd;
-
-		val_cpu_pd = readl_relaxed(thermal->regs + TSADCV2_INT_PD);
-		udelay(TSADC_CLK_CYCLE_TIME);
-		if ((val_cpu_pd & 0x100) == 0x100) {
-			udelay(TSADC_USER_MODE_DELAY_TIME);
-			/*clear eoc inter*/
-			writel_relaxed(0x100, thermal->regs + TSADCV2_INT_PD);
-			/*read adc data*/
-			val_cpu = readl_relaxed(thermal->regs + TSADCV2_DATA(0));
-			break;
-		}
-	}
-	/*power down, channel 0*/
-	writel_relaxed(0x200, thermal->regs + TSADCV2_USER_CON);
-#endif
-
-#ifdef TSADC_GPU_GATE
-	udelay(10);
-
-	/*channe 1*/
-	/*power up, channel */
-	writel_relaxed(0x208 | 0x1, thermal->regs + TSADCV2_USER_CON);
-	while(1)
-	{
-		u32 val_gpu_pd;
-
-		val_gpu_pd = readl_relaxed(thermal->regs + TSADCV2_INT_PD);
-		udelay(TSADC_CLK_CYCLE_TIME);
-		if ((val_gpu_pd & 0x100) == 0x100) {
-			udelay(TSADC_USER_MODE_DELAY_TIME);
-			/*clear eoc inter*/
-			writel_relaxed(0x100, thermal->regs + TSADCV2_INT_PD);
-			/*read adc data*/
-			val_gpu = readl_relaxed(thermal->regs + TSADCV2_DATA(1));
-			break;
-		}
-	}
-	/*power down, channel */
-	writel_relaxed(0x200, thermal->regs + TSADCV2_USER_CON);
-#endif
-
-	/* CPU normal mode*/
-#ifdef TSADC_CPU_GATE
-	ret = regmap_write(thermal->cru, 0xc, 0x03000100);
-	if (ret)
-		printk("Couldn't write to cru\n");
-	ret = regmap_write(thermal->cru, 0x1c, 0x03000100);
-	if (ret)
-		printk("Couldn't write to cru\n");
-#endif
-
-	/* GPU_UNGATING*/
-#ifdef TSADC_GPU_GATE
-	ret = regmap_write(thermal->cru, 0x214, 0x03000000);
-	if (ret)
-		printk("Couldn't write to cru\n");
-
-	ret = regmap_write(thermal->cru, 0x210, 0x09d80000);
-	if (ret)
-		printk("Couldn't write to cru\n");
-#endif
-	local_irq_restore(flags);
-
-#ifdef TSADC_CPU_GATE
-	temp_cpu = rk_tsadcv3_code_to_temp((val_cpu * voltage + 500000) / 1000000) / 1000;
-	temp_cpu = temp_cpu - thermal->cpu_temp_adjust;
-	thermal->cpu_temp = temp_cpu;
-	if(thermal->logout)
-		printk("cpu[%d, %d], voltage: %d\n"
-			, val_cpu, temp_cpu, voltage);
-#endif
-
-	return temp_cpu;
-}
-
 int rockchip_tsadc_get_temp(int chn, int voltage)
 {
 	struct rockchip_thermal_data *thermal = rockchip_thermal_get_data();
 	long out_temp;
 	int temp;
+	int tsadc_data;
+	u32 code_temp;
 
 	mutex_lock(&thermal->suspend_lock);
 	if(thermal->b_suspend) {
@@ -863,7 +742,13 @@ int rockchip_tsadc_get_temp(int chn, int voltage)
 		temp = (int)out_temp/1000;
 	}
 	else {
-		temp = rockchip_thermal_user_mode_get_temp(thermal, chn, voltage);
+		tsadc_data = scpi_thermal_get_temperature();
+		code_temp = (tsadc_data * voltage + 500000) / 1000000;
+		temp = rk_tsadcv3_code_to_temp(code_temp) / 1000;
+		temp = temp - thermal->cpu_temp_adjust;
+		if(thermal->logout)
+			printk("cpu temp:[%d], voltage: %d\n"
+				, temp, voltage);
 	}
 	mutex_unlock(&thermal->suspend_lock);
 
