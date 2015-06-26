@@ -67,10 +67,7 @@
 #define CNTR_NOT_SUPPORTED	"<not supported>"
 #define CNTR_NOT_COUNTED	"<not counted>"
 
-static void print_stat(int argc, const char **argv);
-static void print_counter_aggr(struct perf_evsel *counter, char *prefix);
-static void print_counter(struct perf_evsel *counter, char *prefix);
-static void print_aggr(char *prefix);
+static void print_counters(struct timespec *ts, int argc, const char **argv);
 
 /* Default events used for perf stat -T */
 static const char *transaction_attrs = {
@@ -365,53 +362,14 @@ static void read_counters(bool close)
 
 static void process_interval(void)
 {
-	static int num_print_interval;
-	struct perf_evsel *counter;
 	struct timespec ts, rs;
-	char prefix[64];
 
 	read_counters(false);
 
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	diff_timespec(&rs, &ts, &ref_time);
-	sprintf(prefix, "%6lu.%09lu%s", rs.tv_sec, rs.tv_nsec, csv_sep);
 
-	if (num_print_interval == 0 && !csv_output) {
-		switch (aggr_mode) {
-		case AGGR_SOCKET:
-			fprintf(output, "#           time socket cpus             counts %*s events\n", unit_width, "unit");
-			break;
-		case AGGR_CORE:
-			fprintf(output, "#           time core         cpus             counts %*s events\n", unit_width, "unit");
-			break;
-		case AGGR_NONE:
-			fprintf(output, "#           time CPU                counts %*s events\n", unit_width, "unit");
-			break;
-		case AGGR_GLOBAL:
-		default:
-			fprintf(output, "#           time             counts %*s events\n", unit_width, "unit");
-		}
-	}
-
-	if (++num_print_interval == 25)
-		num_print_interval = 0;
-
-	switch (aggr_mode) {
-	case AGGR_CORE:
-	case AGGR_SOCKET:
-		print_aggr(prefix);
-		break;
-	case AGGR_NONE:
-		evlist__for_each(evsel_list, counter)
-			print_counter(counter, prefix);
-		break;
-	case AGGR_GLOBAL:
-	default:
-		evlist__for_each(evsel_list, counter)
-			print_counter_aggr(counter, prefix);
-	}
-
-	fflush(output);
+	print_counters(&rs, 0, NULL);
 }
 
 static void handle_initial_delay(void)
@@ -901,9 +859,35 @@ static void print_counter(struct perf_evsel *counter, char *prefix)
 	}
 }
 
-static void print_stat(int argc, const char **argv)
+static void print_interval(char *prefix, struct timespec *ts)
 {
-	struct perf_evsel *counter;
+	static int num_print_interval;
+
+	sprintf(prefix, "%6lu.%09lu%s", ts->tv_sec, ts->tv_nsec, csv_sep);
+
+	if (num_print_interval == 0 && !csv_output) {
+		switch (aggr_mode) {
+		case AGGR_SOCKET:
+			fprintf(output, "#           time socket cpus             counts %*s events\n", unit_width, "unit");
+			break;
+		case AGGR_CORE:
+			fprintf(output, "#           time core         cpus             counts %*s events\n", unit_width, "unit");
+			break;
+		case AGGR_NONE:
+			fprintf(output, "#           time CPU                counts %*s events\n", unit_width, "unit");
+			break;
+		case AGGR_GLOBAL:
+		default:
+			fprintf(output, "#           time             counts %*s events\n", unit_width, "unit");
+		}
+	}
+
+	if (++num_print_interval == 25)
+		num_print_interval = 0;
+}
+
+static void print_header(int argc, const char **argv)
+{
 	int i;
 
 	fflush(stdout);
@@ -929,36 +913,53 @@ static void print_stat(int argc, const char **argv)
 			fprintf(output, " (%d runs)", run_count);
 		fprintf(output, ":\n\n");
 	}
+}
+
+static void print_footer(void)
+{
+	if (!null_run)
+		fprintf(output, "\n");
+	fprintf(output, " %17.9f seconds time elapsed",
+			avg_stats(&walltime_nsecs_stats)/1e9);
+	if (run_count > 1) {
+		fprintf(output, "                                        ");
+		print_noise_pct(stddev_stats(&walltime_nsecs_stats),
+				avg_stats(&walltime_nsecs_stats));
+	}
+	fprintf(output, "\n\n");
+}
+
+static void print_counters(struct timespec *ts, int argc, const char **argv)
+{
+	struct perf_evsel *counter;
+	char buf[64], *prefix = NULL;
+
+	if (interval)
+		print_interval(prefix = buf, ts);
+	else
+		print_header(argc, argv);
 
 	switch (aggr_mode) {
 	case AGGR_CORE:
 	case AGGR_SOCKET:
-		print_aggr(NULL);
+		print_aggr(prefix);
 		break;
 	case AGGR_GLOBAL:
 		evlist__for_each(evsel_list, counter)
-			print_counter_aggr(counter, NULL);
+			print_counter_aggr(counter, prefix);
 		break;
 	case AGGR_NONE:
 		evlist__for_each(evsel_list, counter)
-			print_counter(counter, NULL);
+			print_counter(counter, prefix);
 		break;
 	default:
 		break;
 	}
 
-	if (!csv_output) {
-		if (!null_run)
-			fprintf(output, "\n");
-		fprintf(output, " %17.9f seconds time elapsed",
-				avg_stats(&walltime_nsecs_stats)/1e9);
-		if (run_count > 1) {
-			fprintf(output, "                                        ");
-			print_noise_pct(stddev_stats(&walltime_nsecs_stats),
-					avg_stats(&walltime_nsecs_stats));
-		}
-		fprintf(output, "\n\n");
-	}
+	if (!interval && !csv_output)
+		print_footer();
+
+	fflush(output);
 }
 
 static volatile int signr = -1;
@@ -1407,13 +1408,13 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 
 		status = run_perf_stat(argc, argv);
 		if (forever && status != -1) {
-			print_stat(argc, argv);
+			print_counters(NULL, argc, argv);
 			perf_stat__reset_stats();
 		}
 	}
 
 	if (!forever && status != -1 && !interval)
-		print_stat(argc, argv);
+		print_counters(NULL, argc, argv);
 
 	perf_evlist__free_stats(evsel_list);
 out:
