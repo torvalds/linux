@@ -65,6 +65,7 @@ enum {
 	Opt_nobarrier,
 	Opt_fastboot,
 	Opt_extent_cache,
+	Opt_noextent_cache,
 	Opt_noinline_data,
 	Opt_err,
 };
@@ -88,6 +89,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_fastboot, "fastboot"},
 	{Opt_extent_cache, "extent_cache"},
+	{Opt_noextent_cache, "noextent_cache"},
 	{Opt_noinline_data, "noinline_data"},
 	{Opt_err, NULL},
 };
@@ -389,6 +391,9 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_extent_cache:
 			set_opt(sbi, EXTENT_CACHE);
 			break;
+		case Opt_noextent_cache:
+			clear_opt(sbi, EXTENT_CACHE);
+			break;
 		case Opt_noinline_data:
 			clear_opt(sbi, INLINE_DATA);
 			break;
@@ -662,6 +667,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",fastboot");
 	if (test_opt(sbi, EXTENT_CACHE))
 		seq_puts(seq, ",extent_cache");
+	else
+		seq_puts(seq, ",noextent_cache");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 
 	return 0;
