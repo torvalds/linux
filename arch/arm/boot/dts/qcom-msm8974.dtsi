@@ -220,11 +220,23 @@
 			reg = <0xfc400000 0x4000>;
 		};
 
+		tcsr_mutex_block: syscon@fd484000 {
+			compatible = "syscon";
+			reg = <0xfd484000 0x2000>;
+		};
+
 		mmcc: clock-controller@fd8c0000 {
 			compatible = "qcom,mmcc-msm8974";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0xfd8c0000 0x6000>;
+		};
+
+		tcsr_mutex: tcsr-mutex {
+			compatible = "qcom,tcsr-mutex";
+			syscon = <&tcsr_mutex_block 0 0x80>;
+
+			#hwlock-cells = <1>;
 		};
 
 		serial@f991e000 {
