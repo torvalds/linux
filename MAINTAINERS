@@ -2229,6 +2229,14 @@ F:	arch/mips/bcm3384/*
 F:	arch/mips/include/asm/mach-bcm3384/*
 F:	arch/mips/kernel/*bmips*
 
+BROADCOM BCM47XX MIPS ARCHITECTURE
+M:	Hauke Mehrtens <hauke@hauke-m.de>
+M:	Rafał Miłecki <zajec5@gmail.com>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/bcm47xx/*
+F:	arch/mips/include/asm/mach-bcm47xx/*
+
 BROADCOM BCM5301X ARM ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
 L:	linux-arm-kernel@lists.infradead.org
@@ -2332,6 +2340,12 @@ L:	bcm-kernel-feedback-list@broadcom.com
 S:	Supported
 F:	drivers/gpio/gpio-bcm-kona.c
 F:	Documentation/devicetree/bindings/gpio/gpio-bcm-kona.txt
+
+BROADCOM NVRAM DRIVER
+M:	Rafał Miłecki <zajec5@gmail.com>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	drivers/firmware/broadcom/*
 
 BROADCOM STB NAND FLASH DRIVER
 M:	Brian Norris <computersforpeace@gmail.com>

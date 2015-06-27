@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 
 #include <asm/div64.h>
 
@@ -28,24 +29,27 @@
 #define AR724X_BASE_FREQ	5000000
 #define AR913X_BASE_FREQ	5000000
 
-struct clk {
-	unsigned long rate;
+static struct clk *clks[3];
+static struct clk_onecell_data clk_data = {
+	.clks = clks,
+	.clk_num = ARRAY_SIZE(clks),
 };
 
-static void __init ath79_add_sys_clkdev(const char *id, unsigned long rate)
+static struct clk *__init ath79_add_sys_clkdev(
+	const char *id, unsigned long rate)
 {
 	struct clk *clk;
 	int err;
 
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	clk = clk_register_fixed_rate(NULL, id, NULL, CLK_IS_ROOT, rate);
 	if (!clk)
 		panic("failed to allocate %s clock structure", id);
-
-	clk->rate = rate;
 
 	err = clk_register_clkdev(clk, id, NULL);
 	if (err)
 		panic("unable to register %s clock device", id);
+
+	return clk;
 }
 
 static void __init ar71xx_clocks_init(void)
@@ -62,7 +66,7 @@ static void __init ar71xx_clocks_init(void)
 
 	pll = ath79_pll_rr(AR71XX_PLL_REG_CPU_CONFIG);
 
-	div = ((pll >> AR71XX_PLL_DIV_SHIFT) & AR71XX_PLL_DIV_MASK) + 1;
+	div = ((pll >> AR71XX_PLL_FB_SHIFT) & AR71XX_PLL_FB_MASK) + 1;
 	freq = div * ref_rate;
 
 	div = ((pll >> AR71XX_CPU_DIV_SHIFT) & AR71XX_CPU_DIV_MASK) + 1;
@@ -75,9 +79,9 @@ static void __init ar71xx_clocks_init(void)
 	ahb_rate = cpu_rate / div;
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	ath79_add_sys_clkdev("cpu", cpu_rate);
-	ath79_add_sys_clkdev("ddr", ddr_rate);
-	ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ahb", NULL);
 	clk_add_alias("uart", NULL, "ahb", NULL);
@@ -96,7 +100,7 @@ static void __init ar724x_clocks_init(void)
 	ref_rate = AR724X_BASE_FREQ;
 	pll = ath79_pll_rr(AR724X_PLL_REG_CPU_CONFIG);
 
-	div = ((pll >> AR724X_PLL_DIV_SHIFT) & AR724X_PLL_DIV_MASK);
+	div = ((pll >> AR724X_PLL_FB_SHIFT) & AR724X_PLL_FB_MASK);
 	freq = div * ref_rate;
 
 	div = ((pll >> AR724X_PLL_REF_DIV_SHIFT) & AR724X_PLL_REF_DIV_MASK);
@@ -111,9 +115,9 @@ static void __init ar724x_clocks_init(void)
 	ahb_rate = cpu_rate / div;
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	ath79_add_sys_clkdev("cpu", cpu_rate);
-	ath79_add_sys_clkdev("ddr", ddr_rate);
-	ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ahb", NULL);
 	clk_add_alias("uart", NULL, "ahb", NULL);
@@ -132,7 +136,7 @@ static void __init ar913x_clocks_init(void)
 	ref_rate = AR913X_BASE_FREQ;
 	pll = ath79_pll_rr(AR913X_PLL_REG_CPU_CONFIG);
 
-	div = ((pll >> AR913X_PLL_DIV_SHIFT) & AR913X_PLL_DIV_MASK);
+	div = ((pll >> AR913X_PLL_FB_SHIFT) & AR913X_PLL_FB_MASK);
 	freq = div * ref_rate;
 
 	cpu_rate = freq;
@@ -144,9 +148,9 @@ static void __init ar913x_clocks_init(void)
 	ahb_rate = cpu_rate / div;
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	ath79_add_sys_clkdev("cpu", cpu_rate);
-	ath79_add_sys_clkdev("ddr", ddr_rate);
-	ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ahb", NULL);
 	clk_add_alias("uart", NULL, "ahb", NULL);
@@ -206,9 +210,9 @@ static void __init ar933x_clocks_init(void)
 	}
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	ath79_add_sys_clkdev("cpu", cpu_rate);
-	ath79_add_sys_clkdev("ddr", ddr_rate);
-	ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ahb", NULL);
 	clk_add_alias("uart", NULL, "ref", NULL);
@@ -340,9 +344,9 @@ static void __init ar934x_clocks_init(void)
 		ahb_rate = cpu_pll / (postdiv + 1);
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	ath79_add_sys_clkdev("cpu", cpu_rate);
-	ath79_add_sys_clkdev("ddr", ddr_rate);
-	ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ref", NULL);
 	clk_add_alias("uart", NULL, "ref", NULL);
@@ -427,9 +431,9 @@ static void __init qca955x_clocks_init(void)
 		ahb_rate = cpu_pll / (postdiv + 1);
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	ath79_add_sys_clkdev("cpu", cpu_rate);
-	ath79_add_sys_clkdev("ddr", ddr_rate);
-	ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ref", NULL);
 	clk_add_alias("uart", NULL, "ref", NULL);
@@ -451,6 +455,8 @@ void __init ath79_clocks_init(void)
 		qca955x_clocks_init();
 	else
 		BUG();
+
+	of_clk_init(NULL);
 }
 
 unsigned long __init
@@ -469,22 +475,16 @@ ath79_get_sys_clk_rate(const char *id)
 	return rate;
 }
 
-/*
- * Linux clock API
- */
-int clk_enable(struct clk *clk)
+#ifdef CONFIG_OF
+static void __init ath79_clocks_init_dt(struct device_node *np)
 {
-	return 0;
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 }
-EXPORT_SYMBOL(clk_enable);
 
-void clk_disable(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_disable);
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	return clk->rate;
-}
-EXPORT_SYMBOL(clk_get_rate);
+CLK_OF_DECLARE(ar7100, "qca,ar7100-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar7240, "qca,ar7240-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9130, "qca,ar9130-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9330, "qca,ar9330-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9340, "qca,ar9340-pll", ath79_clocks_init_dt);
+CLK_OF_DECLARE(ar9550, "qca,qca9550-pll", ath79_clocks_init_dt);
+#endif

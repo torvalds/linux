@@ -21,14 +21,13 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/ingenic.h>
 #include <linux/bitops.h>
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
 #include <asm/mach-jz4740/base.h>
-
-#include "irq.h"
 
 #define JZ4740_GPIO_BASE_A (32*0)
 #define JZ4740_GPIO_BASE_B (32*1)
@@ -442,8 +441,8 @@ static void jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
 	ct->chip.irq_mask = irq_gc_mask_disable_reg;
 	ct->chip.irq_unmask = jz_gpio_irq_unmask;
 	ct->chip.irq_ack = irq_gc_ack_set_bit;
-	ct->chip.irq_suspend = jz4740_irq_suspend;
-	ct->chip.irq_resume = jz4740_irq_resume;
+	ct->chip.irq_suspend = ingenic_intc_irq_suspend;
+	ct->chip.irq_resume = ingenic_intc_irq_resume;
 	ct->chip.irq_startup = jz_gpio_irq_startup;
 	ct->chip.irq_shutdown = jz_gpio_irq_shutdown;
 	ct->chip.irq_set_type = jz_gpio_irq_set_type;

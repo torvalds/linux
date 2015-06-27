@@ -24,6 +24,8 @@
 
 	aliases {
 		uart0 = &uart0;
+		uart1 = &uart1;
+		uart2 = &uart2;
 	};
 
 	cpu_intc: cpu_intc {
@@ -114,6 +116,30 @@
 			native-endian;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <61>;
+			clocks = <&uart_clk>;
+			status = "disabled";
+		};
+
+		uart1: serial@406840 {
+			compatible = "ns16550a";
+			reg = <0x406840 0x20>;
+			reg-io-width = <0x4>;
+			reg-shift = <0x2>;
+			native-endian;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <62>;
+			clocks = <&uart_clk>;
+			status = "disabled";
+		};
+
+		uart2: serial@406880 {
+			compatible = "ns16550a";
+			reg = <0x406880 0x20>;
+			reg-io-width = <0x4>;
+			reg-shift = <0x2>;
+			native-endian;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <63>;
 			clocks = <&uart_clk>;
 			status = "disabled";
 		};
