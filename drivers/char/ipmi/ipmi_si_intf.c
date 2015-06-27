@@ -2775,9 +2775,7 @@ static int ipmi_remove(struct platform_device *dev)
 {
 	struct smi_info *info = dev_get_drvdata(&dev->dev);
 
-	if (info)
-		cleanup_one_si(info);
-
+	cleanup_one_si(info);
 	return 0;
 }
 
