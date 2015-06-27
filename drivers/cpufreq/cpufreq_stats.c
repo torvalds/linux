@@ -151,7 +151,8 @@ void acct_update_power(struct task_struct *task, cputime_t cputime) {
 		return;
 
 	curr = powerstats->curr[stats->last_index];
-	task->cpu_power += curr * cputime_to_usecs(cputime);
+	if (task->cpu_power != ULLONG_MAX)
+		task->cpu_power += curr * cputime_to_usecs(cputime);
 }
 EXPORT_SYMBOL_GPL(acct_update_power);
 
