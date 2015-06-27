@@ -2001,4 +2001,10 @@ int amdgpu_debugfs_init(struct drm_minor *minor)
 void amdgpu_debugfs_cleanup(struct drm_minor *minor)
 {
 }
+#else
+static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
+{
+	return 0;
+}
+static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev) { }
 #endif
