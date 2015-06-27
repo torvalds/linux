@@ -447,12 +447,9 @@ static void omap_8250_set_termios(struct uart_port *port,
 		priv->efr |= UART_EFR_CTS;
 	} else	if (up->port.flags & UPF_SOFT_FLOW) {
 		/*
-		 * IXON Flag:
-		 * Enable XON/XOFF flow control on input.
-		 * Receiver compares XON1, XOFF1.
+		 * OMAP rx s/w flow control is borked; the transmitter remains
+		 * stuck off even if rx flow control is subsequently disabled
 		 */
-		if (termios->c_iflag & IXON)
-			priv->efr |= OMAP_UART_SW_RX;
 
 		/*
 		 * IXOFF Flag:
@@ -463,15 +460,6 @@ static void omap_8250_set_termios(struct uart_port *port,
 			up->port.status |= UPSTAT_AUTOXOFF;
 			priv->efr |= OMAP_UART_SW_TX;
 		}
-
-		/*
-		 * IXANY Flag:
-		 * Enable any character to restart output.
-		 * Operation resumes after receiving any
-		 * character after recognition of the XOFF character
-		 */
-		if (termios->c_iflag & IXANY)
-			up->mcr |= UART_MCR_XONANY;
 	}
 	omap8250_restore_regs(up);
 
