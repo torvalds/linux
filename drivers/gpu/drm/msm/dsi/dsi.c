@@ -74,19 +74,15 @@ static void dsi_destroy(struct msm_dsi *msm_dsi)
 
 static struct msm_dsi *dsi_init(struct platform_device *pdev)
 {
-	struct msm_dsi *msm_dsi = NULL;
+	struct msm_dsi *msm_dsi;
 	int ret;
 
-	if (!pdev) {
-		ret = -ENXIO;
-		goto fail;
-	}
+	if (!pdev)
+		return ERR_PTR(-ENXIO);
 
 	msm_dsi = devm_kzalloc(&pdev->dev, sizeof(*msm_dsi), GFP_KERNEL);
-	if (!msm_dsi) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!msm_dsi)
+		return ERR_PTR(-ENOMEM);
 	DBG("dsi probed=%p", msm_dsi);
 
 	msm_dsi->pdev = pdev;
@@ -95,21 +91,21 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 	/* Init dsi host */
 	ret = msm_dsi_host_init(msm_dsi);
 	if (ret)
-		goto fail;
+		goto destroy_dsi;
 
 	/* GET dsi PHY */
 	ret = dsi_get_phy(msm_dsi);
 	if (ret)
-		goto fail;
+		goto destroy_dsi;
 
 	/* Register to dsi manager */
 	ret = msm_dsi_manager_register(msm_dsi);
 	if (ret)
-		goto fail;
+		goto destroy_dsi;
 
 	return msm_dsi;
 
-fail:
+destroy_dsi:
 	dsi_destroy(msm_dsi);
 	return ERR_PTR(ret);
 }
