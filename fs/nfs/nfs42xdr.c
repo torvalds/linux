@@ -241,23 +241,7 @@ out_overflow:
 static int decode_layoutstats(struct xdr_stream *xdr,
 			      struct nfs42_layoutstat_res *res)
 {
-	int status;
-	__be32 *p;
-
-	status = decode_op_hdr(xdr, OP_LAYOUTSTATS);
-	if (status)
-		return status;
-
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		goto out_overflow;
-
-	res->rpc_status = be32_to_cpup(p++);
-	return 0;
-
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
+	return decode_op_hdr(xdr, OP_LAYOUTSTATS);
 }
 
 /*
