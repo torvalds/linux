@@ -37,7 +37,7 @@ cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
 cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
 
 ifndef CONFIG_ARC_HAS_LL64
-cflags-y				+= -mno-ll64
+cflags-$(CONFIG_ISA_ARCV2)		+= -mno-ll64
 endif
 
 cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables
