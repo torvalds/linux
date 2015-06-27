@@ -110,9 +110,7 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 	return msm_dsi;
 
 fail:
-	if (msm_dsi)
-		dsi_destroy(msm_dsi);
-
+	dsi_destroy(msm_dsi);
 	return ERR_PTR(ret);
 }
 
