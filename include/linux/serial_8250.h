@@ -152,6 +152,11 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir);
 unsigned char serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr);
 void serial8250_tx_chars(struct uart_8250_port *up);
 unsigned int serial8250_modem_status(struct uart_8250_port *up);
+void serial8250_init_port(struct uart_8250_port *up);
+void serial8250_set_defaults(struct uart_8250_port *up);
+void serial8250_console_write(struct uart_8250_port *up, const char *s,
+			      unsigned int count);
+int serial8250_console_setup(struct uart_port *port, char *options, bool probe);
 
 extern void serial8250_set_isa_configurator(void (*v)
 					(int port, struct uart_port *up,
