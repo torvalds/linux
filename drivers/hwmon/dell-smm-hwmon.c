@@ -777,7 +777,7 @@ static int __init i8k_init_hwmon(void)
 	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_FAN2;
 
-	i8k_hwmon_dev = hwmon_device_register_with_groups(NULL, "dell-smm",
+	i8k_hwmon_dev = hwmon_device_register_with_groups(NULL, "dell_smm",
 							  NULL, i8k_groups);
 	if (IS_ERR(i8k_hwmon_dev)) {
 		err = PTR_ERR(i8k_hwmon_dev);
