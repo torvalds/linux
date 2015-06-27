@@ -3299,6 +3299,7 @@ static void rcu_exp_gp_seq_start(struct rcu_state *rsp)
 static void rcu_exp_gp_seq_end(struct rcu_state *rsp)
 {
 	rcu_seq_end(&rsp->expedited_sequence);
+	smp_mb(); /* Ensure that consecutive grace periods serialize. */
 }
 static unsigned long rcu_exp_gp_seq_snap(struct rcu_state *rsp)
 {
@@ -3431,7 +3432,6 @@ void synchronize_sched_expedited(void)
 
 	rcu_exp_gp_seq_end(rsp);
 	mutex_unlock(&rnp->exp_funnel_mutex);
-	smp_mb(); /* ensure subsequent action seen after grace period. */
 
 	put_online_cpus();
 }

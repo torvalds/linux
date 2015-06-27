@@ -735,7 +735,6 @@ void synchronize_rcu_expedited(void)
 	/* Clean up and exit. */
 	rcu_exp_gp_seq_end(rsp);
 	mutex_unlock(&rnp_unlock->exp_funnel_mutex);
-	smp_mb(); /* ensure subsequent action seen after grace period. */
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
