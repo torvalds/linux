@@ -124,7 +124,7 @@ ath5k_led_brightness_set(struct led_classdev *led_dev,
 
 static int
 ath5k_register_led(struct ath5k_hw *ah, struct ath5k_led *led,
-		   const char *name, char *trigger)
+		   const char *name, const char *trigger)
 {
 	int err;
 

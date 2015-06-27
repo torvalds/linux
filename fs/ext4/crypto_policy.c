@@ -51,6 +51,10 @@ static int ext4_create_encryption_context_from_policy(
 	struct ext4_encryption_context ctx;
 	int res = 0;
 
+	res = ext4_convert_inline_data(inode);
+	if (res)
+		return res;
+
 	ctx.format = EXT4_ENCRYPTION_CONTEXT_FORMAT_V1;
 	memcpy(ctx.master_key_descriptor, policy->master_key_descriptor,
 	       EXT4_KEY_DESCRIPTOR_SIZE);
@@ -89,6 +93,8 @@ int ext4_process_policy(const struct ext4_encryption_policy *policy,
 		return -EINVAL;
 
 	if (!ext4_inode_has_encryption_context(inode)) {
+		if (!S_ISDIR(inode->i_mode))
+			return -EINVAL;
 		if (!ext4_empty_dir(inode))
 			return -ENOTEMPTY;
 		return ext4_create_encryption_context_from_policy(inode,
@@ -126,7 +132,7 @@ int ext4_get_policy(struct inode *inode, struct ext4_encryption_policy *policy)
 int ext4_is_child_context_consistent_with_parent(struct inode *parent,
 						 struct inode *child)
 {
-	struct ext4_encryption_context parent_ctx, child_ctx;
+	struct ext4_crypt_info *parent_ci, *child_ci;
 	int res;
 
 	if ((parent == NULL) || (child == NULL)) {
@@ -136,26 +142,28 @@ int ext4_is_child_context_consistent_with_parent(struct inode *parent,
 	/* no restrictions if the parent directory is not encrypted */
 	if (!ext4_encrypted_inode(parent))
 		return 1;
-	res = ext4_xattr_get(parent, EXT4_XATTR_INDEX_ENCRYPTION,
-			     EXT4_XATTR_NAME_ENCRYPTION_CONTEXT,
-			     &parent_ctx, sizeof(parent_ctx));
-	if (res != sizeof(parent_ctx))
-		return 0;
 	/* if the child directory is not encrypted, this is always a problem */
 	if (!ext4_encrypted_inode(child))
 		return 0;
-	res = ext4_xattr_get(child, EXT4_XATTR_INDEX_ENCRYPTION,
-			     EXT4_XATTR_NAME_ENCRYPTION_CONTEXT,
-			     &child_ctx, sizeof(child_ctx));
-	if (res != sizeof(child_ctx))
+	res = ext4_get_encryption_info(parent);
+	if (res)
 		return 0;
-	return (memcmp(parent_ctx.master_key_descriptor,
-		       child_ctx.master_key_descriptor,
+	res = ext4_get_encryption_info(child);
+	if (res)
+		return 0;
+	parent_ci = EXT4_I(parent)->i_crypt_info;
+	child_ci = EXT4_I(child)->i_crypt_info;
+	if (!parent_ci && !child_ci)
+		return 1;
+	if (!parent_ci || !child_ci)
+		return 0;
+
+	return (memcmp(parent_ci->ci_master_key,
+		       child_ci->ci_master_key,
 		       EXT4_KEY_DESCRIPTOR_SIZE) == 0 &&
-		(parent_ctx.contents_encryption_mode ==
-		 child_ctx.contents_encryption_mode) &&
-		(parent_ctx.filenames_encryption_mode ==
-		 child_ctx.filenames_encryption_mode));
+		(parent_ci->ci_data_mode == child_ci->ci_data_mode) &&
+		(parent_ci->ci_filename_mode == child_ci->ci_filename_mode) &&
+		(parent_ci->ci_flags == child_ci->ci_flags));
 }
 
 /**
@@ -168,31 +176,40 @@ int ext4_is_child_context_consistent_with_parent(struct inode *parent,
 int ext4_inherit_context(struct inode *parent, struct inode *child)
 {
 	struct ext4_encryption_context ctx;
-	int res = ext4_xattr_get(parent, EXT4_XATTR_INDEX_ENCRYPTION,
-				 EXT4_XATTR_NAME_ENCRYPTION_CONTEXT,
-				 &ctx, sizeof(ctx));
+	struct ext4_crypt_info *ci;
+	int res;
 
-	if (res != sizeof(ctx)) {
-		if (DUMMY_ENCRYPTION_ENABLED(EXT4_SB(parent->i_sb))) {
-			ctx.format = EXT4_ENCRYPTION_CONTEXT_FORMAT_V1;
-			ctx.contents_encryption_mode =
-				EXT4_ENCRYPTION_MODE_AES_256_XTS;
-			ctx.filenames_encryption_mode =
-				EXT4_ENCRYPTION_MODE_AES_256_CTS;
-			ctx.flags = 0;
-			memset(ctx.master_key_descriptor, 0x42,
-			       EXT4_KEY_DESCRIPTOR_SIZE);
-			res = 0;
-		} else {
-			goto out;
-		}
+	res = ext4_get_encryption_info(parent);
+	if (res < 0)
+		return res;
+	ci = EXT4_I(parent)->i_crypt_info;
+	if (ci == NULL)
+		return -ENOKEY;
+
+	ctx.format = EXT4_ENCRYPTION_CONTEXT_FORMAT_V1;
+	if (DUMMY_ENCRYPTION_ENABLED(EXT4_SB(parent->i_sb))) {
+		ctx.contents_encryption_mode = EXT4_ENCRYPTION_MODE_AES_256_XTS;
+		ctx.filenames_encryption_mode =
+			EXT4_ENCRYPTION_MODE_AES_256_CTS;
+		ctx.flags = 0;
+		memset(ctx.master_key_descriptor, 0x42,
+		       EXT4_KEY_DESCRIPTOR_SIZE);
+		res = 0;
+	} else {
+		ctx.contents_encryption_mode = ci->ci_data_mode;
+		ctx.filenames_encryption_mode = ci->ci_filename_mode;
+		ctx.flags = ci->ci_flags;
+		memcpy(ctx.master_key_descriptor, ci->ci_master_key,
+		       EXT4_KEY_DESCRIPTOR_SIZE);
 	}
 	get_random_bytes(ctx.nonce, EXT4_KEY_DERIVATION_NONCE_SIZE);
 	res = ext4_xattr_set(child, EXT4_XATTR_INDEX_ENCRYPTION,
 			     EXT4_XATTR_NAME_ENCRYPTION_CONTEXT, &ctx,
 			     sizeof(ctx), 0);
-out:
-	if (!res)
+	if (!res) {
 		ext4_set_inode_flag(child, EXT4_INODE_ENCRYPT);
+		ext4_clear_inode_state(child, EXT4_STATE_MAY_INLINE_DATA);
+		res = ext4_get_encryption_info(child);
+	}
 	return res;
 }

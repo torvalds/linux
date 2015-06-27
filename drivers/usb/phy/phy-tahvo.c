@@ -60,10 +60,11 @@ struct tahvo_usb {
 	struct extcon_dev	extcon;
 };
 
-static const char *tahvo_cable[] = {
-	"USB-HOST",
-	"USB",
-	NULL,
+static const unsigned int tahvo_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+
+	EXTCON_NONE,
 };
 
 static ssize_t vbus_state_show(struct device *device,

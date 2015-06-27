@@ -21,12 +21,6 @@ struct armada_output_type {
 
 struct drm_encoder *armada_drm_connector_encoder(struct drm_connector *conn);
 
-void armada_drm_encoder_prepare(struct drm_encoder *encoder);
-void armada_drm_encoder_commit(struct drm_encoder *encoder);
-
-bool armada_drm_encoder_mode_fixup(struct drm_encoder *encoder,
-	const struct drm_display_mode *mode, struct drm_display_mode *adj);
-
 int armada_drm_slave_encoder_mode_valid(struct drm_connector *conn,
 	struct drm_display_mode *mode);
 

@@ -250,7 +250,23 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 	({ union { typeof(x) __val; char __c[1]; } __u; __read_once_size(&(x), __u.__c, sizeof(x)); __u.__val; })
 
 #define WRITE_ONCE(x, val) \
-	({ typeof(x) __val = (val); __write_once_size(&(x), &__val, sizeof(__val)); __val; })
+	({ union { typeof(x) __val; char __c[1]; } __u = { .__val = (val) }; __write_once_size(&(x), __u.__c, sizeof(x)); __u.__val; })
+
+/**
+ * READ_ONCE_CTRL - Read a value heading a control dependency
+ * @x: The value to be read, heading the control dependency
+ *
+ * Control dependencies are tricky.  See Documentation/memory-barriers.txt
+ * for important information on how to use them.  Note that in many cases,
+ * use of smp_load_acquire() will be much simpler.  Control dependencies
+ * should be avoided except on the hottest of hotpaths.
+ */
+#define READ_ONCE_CTRL(x) \
+({ \
+	typeof(x) __val = READ_ONCE(x); \
+	smp_read_barrier_depends(); /* Enforce control dependency. */ \
+	__val; \
+})
 
 #endif /* __KERNEL__ */
 
@@ -450,7 +466,7 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * with an explicit memory barrier or atomic instruction that provides the
  * required ordering.
  *
- * If possible use READ_ONCE/ASSIGN_ONCE instead.
+ * If possible use READ_ONCE()/WRITE_ONCE() instead.
  */
 #define __ACCESS_ONCE(x) ({ \
 	 __maybe_unused typeof(x) __var = (__force typeof(x)) 0; \

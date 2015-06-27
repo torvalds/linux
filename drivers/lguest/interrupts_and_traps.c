@@ -20,7 +20,7 @@
 #include "lg.h"
 
 /* Allow Guests to use a non-128 (ie. non-Linux) syscall trap. */
-static unsigned int syscall_vector = SYSCALL_VECTOR;
+static unsigned int syscall_vector = IA32_SYSCALL_VECTOR;
 module_param(syscall_vector, uint, 0444);
 
 /* The address of the interrupt handler is split into two bits: */
@@ -333,8 +333,8 @@ void set_interrupt(struct lg_cpu *cpu, unsigned int irq)
  */
 static bool could_be_syscall(unsigned int num)
 {
-	/* Normal Linux SYSCALL_VECTOR or reserved vector? */
-	return num == SYSCALL_VECTOR || num == syscall_vector;
+	/* Normal Linux IA32_SYSCALL_VECTOR or reserved vector? */
+	return num == IA32_SYSCALL_VECTOR || num == syscall_vector;
 }
 
 /* The syscall vector it wants must be unused by Host. */
@@ -351,7 +351,7 @@ bool check_syscall_vector(struct lguest *lg)
 int init_interrupts(void)
 {
 	/* If they want some strange system call vector, reserve it now */
-	if (syscall_vector != SYSCALL_VECTOR) {
+	if (syscall_vector != IA32_SYSCALL_VECTOR) {
 		if (test_bit(syscall_vector, used_vectors) ||
 		    vector_used_by_percpu_irq(syscall_vector)) {
 			printk(KERN_ERR "lg: couldn't reserve syscall %u\n",
@@ -366,7 +366,7 @@ int init_interrupts(void)
 
 void free_interrupts(void)
 {
-	if (syscall_vector != SYSCALL_VECTOR)
+	if (syscall_vector != IA32_SYSCALL_VECTOR)
 		clear_bit(syscall_vector, used_vectors);
 }
 

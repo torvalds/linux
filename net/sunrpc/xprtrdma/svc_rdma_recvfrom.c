@@ -85,7 +85,7 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
 
 	/* RDMA_NOMSG: RDMA READ data should land just after RDMA RECV data */
 	rmsgp = (struct rpcrdma_msg *)rqstp->rq_arg.head[0].iov_base;
-	if (be32_to_cpu(rmsgp->rm_type) == RDMA_NOMSG)
+	if (rmsgp->rm_type == rdma_nomsg)
 		rqstp->rq_arg.pages = &rqstp->rq_pages[0];
 	else
 		rqstp->rq_arg.pages = &rqstp->rq_pages[1];
@@ -117,8 +117,8 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
 
 static int rdma_read_max_sge(struct svcxprt_rdma *xprt, int sge_count)
 {
-	if (rdma_node_get_transport(xprt->sc_cm_id->device->node_type) ==
-	     RDMA_TRANSPORT_IWARP)
+	if (!rdma_cap_read_multi_sge(xprt->sc_cm_id->device,
+				     xprt->sc_cm_id->port_num))
 		return 1;
 	else
 		return min_t(int, sge_count, xprt->sc_max_sge);

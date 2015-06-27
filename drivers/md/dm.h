@@ -14,6 +14,7 @@
 #include <linux/device-mapper.h>
 #include <linux/list.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/hdreg.h>
 #include <linux/completion.h>
 #include <linux/kobject.h>

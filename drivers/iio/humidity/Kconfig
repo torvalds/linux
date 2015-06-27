@@ -5,7 +5,7 @@ menu "Humidity sensors"
 
 config DHT11
 	tristate "DHT11 (and compatible sensors) driver"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This driver supports reading data via a single interrupt
 	  generating GPIO line. Currently tested are DHT11 and DHT22.

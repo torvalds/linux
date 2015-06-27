@@ -77,7 +77,6 @@ extern const struct v4l2_rect vivid_max_rect;
 extern unsigned vivid_debug;
 
 struct vivid_fmt {
-	const char *name;
 	u32	fourcc;          /* v4l2 format id */
 	bool	is_yuv;
 	bool	can_do_overlay;
@@ -140,7 +139,7 @@ struct vivid_dev {
 	struct v4l2_ctrl_handler	ctrl_hdl_user_aud;
 	struct v4l2_ctrl_handler	ctrl_hdl_streaming;
 	struct v4l2_ctrl_handler	ctrl_hdl_sdtv_cap;
-	struct v4l2_ctrl_handler	ctrl_hdl_loop_out;
+	struct v4l2_ctrl_handler	ctrl_hdl_loop_cap;
 	struct video_device		vid_cap_dev;
 	struct v4l2_ctrl_handler	ctrl_hdl_vid_cap;
 	struct video_device		vid_out_dev;
@@ -333,6 +332,7 @@ struct vivid_dev {
 	u32				colorspace_out;
 	u32				ycbcr_enc_out;
 	u32				quantization_out;
+	u32				xfer_func_out;
 	u32				service_set_out;
 	unsigned			bytesperline_out[TPG_MAX_PLANES];
 	unsigned			tv_field_out;
@@ -447,6 +447,8 @@ struct vivid_dev {
 	/* SDR capture */
 	struct vb2_queue		vb_sdr_cap_q;
 	struct list_head		sdr_cap_active;
+	u32				sdr_pixelformat; /* v4l2 format id */
+	unsigned			sdr_buffersize;
 	unsigned			sdr_adc_freq;
 	unsigned			sdr_fm_freq;
 	int				sdr_fixp_src_phase;

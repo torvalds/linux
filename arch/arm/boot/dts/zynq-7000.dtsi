@@ -193,7 +193,7 @@
 		};
 
 		gem0: ethernet@e000b000 {
-			compatible = "cdns,zynq-gem";
+			compatible = "cdns,zynq-gem", "cdns,gem";
 			reg = <0xe000b000 0x1000>;
 			status = "disabled";
 			interrupts = <0 22 4>;
@@ -204,7 +204,7 @@
 		};
 
 		gem1: ethernet@e000c000 {
-			compatible = "cdns,zynq-gem";
+			compatible = "cdns,zynq-gem", "cdns,gem";
 			reg = <0xe000c000 0x1000>;
 			status = "disabled";
 			interrupts = <0 45 4>;

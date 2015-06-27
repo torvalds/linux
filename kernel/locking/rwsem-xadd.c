@@ -409,8 +409,21 @@ done:
 	return taken;
 }
 
+/*
+ * Return true if the rwsem has active spinner
+ */
+static inline bool rwsem_has_spinner(struct rw_semaphore *sem)
+{
+	return osq_is_locked(&sem->osq);
+}
+
 #else
 static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
+{
+	return false;
+}
+
+static inline bool rwsem_has_spinner(struct rw_semaphore *sem)
 {
 	return false;
 }
@@ -496,7 +509,38 @@ struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem)
 {
 	unsigned long flags;
 
+	/*
+	 * If a spinner is present, it is not necessary to do the wakeup.
+	 * Try to do wakeup only if the trylock succeeds to minimize
+	 * spinlock contention which may introduce too much delay in the
+	 * unlock operation.
+	 *
+	 *    spinning writer		up_write/up_read caller
+	 *    ---------------		-----------------------
+	 * [S]   osq_unlock()		[L]   osq
+	 *	 MB			      RMB
+	 * [RmW] rwsem_try_write_lock() [RmW] spin_trylock(wait_lock)
+	 *
+	 * Here, it is important to make sure that there won't be a missed
+	 * wakeup while the rwsem is free and the only spinning writer goes
+	 * to sleep without taking the rwsem. Even when the spinning writer
+	 * is just going to break out of the waiting loop, it will still do
+	 * a trylock in rwsem_down_write_failed() before sleeping. IOW, if
+	 * rwsem_has_spinner() is true, it will guarantee at least one
+	 * trylock attempt on the rwsem later on.
+	 */
+	if (rwsem_has_spinner(sem)) {
+		/*
+		 * The smp_rmb() here is to make sure that the spinner
+		 * state is consulted before reading the wait_lock.
+		 */
+		smp_rmb();
+		if (!raw_spin_trylock_irqsave(&sem->wait_lock, flags))
+			return sem;
+		goto locked;
+	}
 	raw_spin_lock_irqsave(&sem->wait_lock, flags);
+locked:
 
 	/* do nothing if list empty */
 	if (!list_empty(&sem->wait_list))

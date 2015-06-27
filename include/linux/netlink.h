@@ -28,6 +28,8 @@ struct netlink_skb_parms {
 	__u32			dst_group;
 	__u32			flags;
 	struct sock		*sk;
+	bool			nsid_is_set;
+	int			nsid;
 };
 
 #define NETLINK_CB(skb)		(*(struct netlink_skb_parms*)&((skb)->cb))

@@ -642,21 +642,18 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 */
 int rtw_set_country(struct adapter *adapter, const char *country_code)
 {
+	int i;
 	int channel_plan = RT_CHANNEL_DOMAIN_WORLD_WIDE_5G;
 
 	DBG_88E("%s country_code:%s\n", __func__, country_code);
+	for (i = 0; i < ARRAY_SIZE(channel_table); i++) {
+		if (0 == strcmp(channel_table[i].name, country_code)) {
+			channel_plan = channel_table[i].channel_plan;
+			break;
+		}
+	}
 
-	/* TODO: should have a table to match country code and RT_CHANNEL_DOMAIN */
-	/* TODO: should consider 2-character and 3-character country code */
-	if (0 == strcmp(country_code, "US"))
-		channel_plan = RT_CHANNEL_DOMAIN_FCC;
-	else if (0 == strcmp(country_code, "EU"))
-		channel_plan = RT_CHANNEL_DOMAIN_ETSI;
-	else if (0 == strcmp(country_code, "JP"))
-		channel_plan = RT_CHANNEL_DOMAIN_MKK;
-	else if (0 == strcmp(country_code, "CN"))
-		channel_plan = RT_CHANNEL_DOMAIN_CHINA;
-	else
+	if (i == ARRAY_SIZE(channel_table))
 		DBG_88E("%s unknown country_code:%s\n", __func__, country_code);
 
 	return rtw_set_chplan_cmd(adapter, channel_plan, 1);

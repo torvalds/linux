@@ -368,8 +368,8 @@ static inline void sst_restore_shim64(struct intel_sst_drv *ctx,
 	 * initialize by FW or driver when firmware is loaded
 	 */
 	spin_lock_irqsave(&ctx->ipc_spin_lock, irq_flags);
-	sst_shim_write64(shim, SST_IMRX, shim_regs->imrx),
-	sst_shim_write64(shim, SST_CSR, shim_regs->csr),
+	sst_shim_write64(shim, SST_IMRX, shim_regs->imrx);
+	sst_shim_write64(shim, SST_CSR, shim_regs->csr);
 	spin_unlock_irqrestore(&ctx->ipc_spin_lock, irq_flags);
 }
 

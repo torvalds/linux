@@ -1,0 +1,15 @@
+#
+# Unisys visornic configuration
+#
+
+config UNISYS_VISORNIC
+	tristate "Unisys visornic driver"
+	depends on UNISYSSPAR && UNISYS_VISORBUS && NET
+	---help---
+	The Unisys Visornic driver provides support for s-Par network
+	devices exposed on the s-Par visorbus. When a message is sent
+	to visorbus to create a network device, the probe function of
+	visornic is called to create the netdev device. Networking on
+	s-Par switches will not work if this driver is not selected.
+	If you say Y here, you will enable the Unisys visornic driver.
+

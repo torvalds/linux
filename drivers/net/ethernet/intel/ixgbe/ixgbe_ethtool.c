@@ -207,6 +207,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	switch (adapter->hw.phy.type) {
 	case ixgbe_phy_tn:
 	case ixgbe_phy_aq:
+	case ixgbe_phy_x550em_ext_t:
 	case ixgbe_phy_cu_unknown:
 		ecmd->supported |= SUPPORTED_TP;
 		ecmd->advertising |= ADVERTISED_TP;
@@ -470,16 +471,16 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[7] = IXGBE_READ_REG(hw, IXGBE_TCPTIMER);
 
 	/* NVM Register */
-	regs_buff[8] = IXGBE_READ_REG(hw, IXGBE_EEC);
+	regs_buff[8] = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 	regs_buff[9] = IXGBE_READ_REG(hw, IXGBE_EERD);
-	regs_buff[10] = IXGBE_READ_REG(hw, IXGBE_FLA);
+	regs_buff[10] = IXGBE_READ_REG(hw, IXGBE_FLA(hw));
 	regs_buff[11] = IXGBE_READ_REG(hw, IXGBE_EEMNGCTL);
 	regs_buff[12] = IXGBE_READ_REG(hw, IXGBE_EEMNGDATA);
 	regs_buff[13] = IXGBE_READ_REG(hw, IXGBE_FLMNGCTL);
 	regs_buff[14] = IXGBE_READ_REG(hw, IXGBE_FLMNGDATA);
 	regs_buff[15] = IXGBE_READ_REG(hw, IXGBE_FLMNGCNT);
 	regs_buff[16] = IXGBE_READ_REG(hw, IXGBE_FLOP);
-	regs_buff[17] = IXGBE_READ_REG(hw, IXGBE_GRC);
+	regs_buff[17] = IXGBE_READ_REG(hw, IXGBE_GRC(hw));
 
 	/* Interrupt */
 	/* don't read EICR because it can clear interrupt causes, instead
@@ -2594,18 +2595,35 @@ static int ixgbe_add_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_fdir_filter *input;
 	union ixgbe_atr_input mask;
+	u8 queue;
 	int err;
 
 	if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
 		return -EOPNOTSUPP;
 
-	/*
-	 * Don't allow programming if the action is a queue greater than
-	 * the number of online Rx queues.
+	/* ring_cookie is a masked into a set of queues and ixgbe pools or
+	 * we use the drop index.
 	 */
-	if ((fsp->ring_cookie != RX_CLS_FLOW_DISC) &&
-	    (fsp->ring_cookie >= adapter->num_rx_queues))
-		return -EINVAL;
+	if (fsp->ring_cookie == RX_CLS_FLOW_DISC) {
+		queue = IXGBE_FDIR_DROP_QUEUE;
+	} else {
+		u32 ring = ethtool_get_flow_spec_ring(fsp->ring_cookie);
+		u8 vf = ethtool_get_flow_spec_ring_vf(fsp->ring_cookie);
+
+		if (!vf && (ring >= adapter->num_rx_queues))
+			return -EINVAL;
+		else if (vf &&
+			 ((vf > adapter->num_vfs) ||
+			   ring >= adapter->num_rx_queues_per_pool))
+			return -EINVAL;
+
+		/* Map the ring onto the absolute queue index */
+		if (!vf)
+			queue = adapter->rx_ring[ring]->reg_idx;
+		else
+			queue = ((vf - 1) *
+				adapter->num_rx_queues_per_pool) + ring;
+	}
 
 	/* Don't allow indexes to exist outside of available space */
 	if (fsp->location >= ((1024 << adapter->fdir_pballoc) - 2)) {
@@ -2683,10 +2701,7 @@ static int ixgbe_add_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 
 	/* program filters to filter memory */
 	err = ixgbe_fdir_write_perfect_filter_82599(hw,
-				&input->filter, input->sw_idx,
-				(input->action == IXGBE_FDIR_DROP_QUEUE) ?
-				IXGBE_FDIR_DROP_QUEUE :
-				adapter->rx_ring[input->action]->reg_idx);
+				&input->filter, input->sw_idx, queue);
 	if (err)
 		goto err_out_w_lock;
 
@@ -3053,7 +3068,7 @@ static int ixgbe_get_module_info(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 status;
+	s32 status;
 	u8 sff8472_rev, addr_mode;
 	bool page_swap = false;
 
@@ -3061,14 +3076,14 @@ static int ixgbe_get_module_info(struct net_device *dev,
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_SFF_8472_COMP,
 					     &sff8472_rev);
-	if (status != 0)
+	if (status)
 		return -EIO;
 
 	/* addressing mode is not supported */
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_SFF_8472_SWAP,
 					     &addr_mode);
-	if (status != 0)
+	if (status)
 		return -EIO;
 
 	if (addr_mode & IXGBE_SFF_ADDRESSING_MODE) {
@@ -3095,7 +3110,7 @@ static int ixgbe_get_module_eeprom(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 status = IXGBE_ERR_PHY_ADDR_INVALID;
+	s32 status = IXGBE_ERR_PHY_ADDR_INVALID;
 	u8 databyte = 0xFF;
 	int i = 0;
 
@@ -3112,7 +3127,7 @@ static int ixgbe_get_module_eeprom(struct net_device *dev,
 		else
 			status = hw->phy.ops.read_i2c_sff8472(hw, i, &databyte);
 
-		if (status != 0)
+		if (status)
 			return -EIO;
 
 		data[i - ee->offset] = databyte;

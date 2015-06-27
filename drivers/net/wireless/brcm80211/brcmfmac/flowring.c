@@ -249,8 +249,8 @@ void brcmf_flowring_delete(struct brcmf_flowring *flow, u8 flowid)
 }
 
 
-void brcmf_flowring_enqueue(struct brcmf_flowring *flow, u8 flowid,
-			    struct sk_buff *skb)
+u32 brcmf_flowring_enqueue(struct brcmf_flowring *flow, u8 flowid,
+			   struct sk_buff *skb)
 {
 	struct brcmf_flowring_ring *ring;
 
@@ -271,6 +271,7 @@ void brcmf_flowring_enqueue(struct brcmf_flowring *flow, u8 flowid,
 		if (skb_queue_len(&ring->skblist) < BRCMF_FLOWRING_LOW)
 			brcmf_flowring_block(flow, flowid, false);
 	}
+	return skb_queue_len(&ring->skblist);
 }
 
 

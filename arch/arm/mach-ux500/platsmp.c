@@ -16,6 +16,8 @@
 #include <linux/device.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
@@ -25,6 +27,9 @@
 
 #include "db8500-regs.h"
 #include "id.h"
+
+static void __iomem *scu_base;
+static void __iomem *backupram;
 
 /* This is called from headsmp.S to wakeup the secondary core */
 extern void u8500_secondary_startup(void);
@@ -39,16 +44,6 @@ static void write_pen_release(int val)
 	pen_release = val;
 	smp_wmb();
 	sync_cache_w(&pen_release);
-}
-
-static void __iomem *scu_base_addr(void)
-{
-	if (cpu_is_u8500_family() || cpu_is_ux540_family())
-		return __io_address(U8500_SCU_BASE);
-	else
-		ux500_unknown_soc();
-
-	return NULL;
 }
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -104,13 +99,6 @@ static int ux500_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init wakeup_secondary(void)
 {
-	void __iomem *backupram;
-
-	if (cpu_is_u8500_family() || cpu_is_ux540_family())
-		backupram = __io_address(U8500_BACKUPRAM0_BASE);
-	else
-		ux500_unknown_soc();
-
 	/*
 	 * write the address of secondary startup into the backup ram register
 	 * at offset 0x1FF4, then write the magic number 0xA1FEED01 to the
@@ -135,10 +123,16 @@ static void __init wakeup_secondary(void)
  */
 static void __init ux500_smp_init_cpus(void)
 {
-	void __iomem *scu_base = scu_base_addr();
 	unsigned int i, ncores;
+	struct device_node *np;
 
-	ncores = scu_base ? scu_get_core_count(scu_base) : 1;
+	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	scu_base = of_iomap(np, 0);
+	of_node_put(np);
+	if (!scu_base)
+		return;
+	backupram = ioremap(U8500_BACKUPRAM0_BASE, SZ_8K);
+	ncores = scu_get_core_count(scu_base);
 
 	/* sanity check */
 	if (ncores > nr_cpu_ids) {
@@ -153,8 +147,7 @@ static void __init ux500_smp_init_cpus(void)
 
 static void __init ux500_smp_prepare_cpus(unsigned int max_cpus)
 {
-
-	scu_enable(scu_base_addr());
+	scu_enable(scu_base);
 	wakeup_secondary();
 }
 

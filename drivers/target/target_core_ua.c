@@ -25,8 +25,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_proto.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>

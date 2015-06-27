@@ -100,6 +100,9 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 
 	dma_set_max_seg_size(subdrv_dev, 0xffffffffu);
 
+	if (subdrv_dev->archdata.mapping)
+		arm_iommu_detach_device(subdrv_dev);
+
 	ret = arm_iommu_attach_device(subdrv_dev, dev->archdata.mapping);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("failed iommu attach.\n");
@@ -114,8 +117,8 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	 * If iommu attach succeeded, the sub driver would have dma_ops
 	 * for iommu and also all sub drivers have same dma_ops.
 	 */
-	if (!dev->archdata.dma_ops)
-		dev->archdata.dma_ops = subdrv_dev->archdata.dma_ops;
+	if (get_dma_ops(dev) == get_dma_ops(NULL))
+		set_dma_ops(dev, get_dma_ops(subdrv_dev));
 
 	return 0;
 }
@@ -140,4 +143,18 @@ void drm_iommu_detach_device(struct drm_device *drm_dev,
 
 	iommu_detach_device(mapping->domain, subdrv_dev);
 	drm_release_iommu_mapping(drm_dev);
+}
+
+int drm_iommu_attach_device_if_possible(struct exynos_drm_crtc *exynos_crtc,
+			struct drm_device *drm_dev, struct device *subdrv_dev)
+{
+	int ret = 0;
+
+	if (is_drm_iommu_supported(drm_dev)) {
+		if (exynos_crtc->ops->clear_channels)
+			exynos_crtc->ops->clear_channels(exynos_crtc);
+		return drm_iommu_attach_device(drm_dev, subdrv_dev);
+	}
+
+	return ret;
 }

@@ -51,7 +51,7 @@ int dviInit(
                               vsyncEnable, deskewEnable, deskewSetting, continuousSyncEnable,
                               pllFilterEnable, pllFilterValue);
 	}
-	return -1;//error
+	return -1; /* error */
 }
 
 
@@ -66,7 +66,6 @@ unsigned short dviGetVendorID(void)
 {
     dvi_ctrl_device_t *pCurrentDviCtrl;
 
-    //pCurrentDviCtrl = getDviCtrl();
     pCurrentDviCtrl = g_dcftSupportedDviController;
     if (pCurrentDviCtrl != (dvi_ctrl_device_t *)0)
         return pCurrentDviCtrl->pfnGetVendorId();
@@ -86,7 +85,6 @@ unsigned short dviGetDeviceID(void)
 {
     dvi_ctrl_device_t *pCurrentDviCtrl;
 
-//    pCurrentDviCtrl = getDviCtrl();
 	pCurrentDviCtrl = g_dcftSupportedDviController;
     if (pCurrentDviCtrl != (dvi_ctrl_device_t *)0)
         return pCurrentDviCtrl->pfnGetDeviceId();

@@ -54,10 +54,10 @@
 #define DEVICEID_PN		0xf000	/* bits 15..12: Part Number */
 #define DEVICEID_MFGID		0x0fff	/* bits 11..00: Manufacturer ID */
 
-#define CHIPID			1	/* Chip ID */
-#define CHIPID_REV		0xfc00	/* bits 15..10: Chip Version */
-#define CHIPID_DEV		0x0200	/* bits 09..09: Device */
-#define CHIPID_FIRMWARE		0x01ff	/* bits 08..00: Firmware Version */
+#define SI_CHIPID		1	/* Chip ID */
+#define SI_CHIPID_REV		0xfc00	/* bits 15..10: Chip Version */
+#define SI_CHIPID_DEV		0x0200	/* bits 09..09: Device */
+#define SI_CHIPID_FIRMWARE	0x01ff	/* bits 08..00: Firmware Version */
 
 #define POWERCFG		2	/* Power Configuration */
 #define POWERCFG_DSMUTE		0x8000	/* bits 15..15: Softmute Disable */

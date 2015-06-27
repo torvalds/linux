@@ -113,7 +113,7 @@ static int exofs_symlink(struct inode *dir, struct dentry *dentry,
 	oi = exofs_i(inode);
 	if (l > sizeof(oi->i_data)) {
 		/* slow symlink */
-		inode->i_op = &exofs_symlink_inode_operations;
+		inode->i_op = &page_symlink_inode_operations;
 		inode->i_mapping->a_ops = &exofs_aops;
 		memset(oi->i_data, 0, sizeof(oi->i_data));
 
@@ -122,7 +122,8 @@ static int exofs_symlink(struct inode *dir, struct dentry *dentry,
 			goto out_fail;
 	} else {
 		/* fast symlink */
-		inode->i_op = &exofs_fast_symlink_inode_operations;
+		inode->i_op = &simple_symlink_inode_operations;
+		inode->i_link = (char *)oi->i_data;
 		memcpy(oi->i_data, symname, l);
 		inode->i_size = l-1;
 	}

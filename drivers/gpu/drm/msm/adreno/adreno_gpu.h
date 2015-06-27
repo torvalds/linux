@@ -167,7 +167,7 @@ struct adreno_gpu {
 struct adreno_platform_config {
 	struct adreno_rev rev;
 	uint32_t fast_rate, slow_rate, bus_freq;
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *bus_scale_table;
 #endif
 };
@@ -195,6 +195,12 @@ static inline bool adreno_is_a3xx(struct adreno_gpu *gpu)
 static inline bool adreno_is_a305(struct adreno_gpu *gpu)
 {
 	return gpu->revn == 305;
+}
+
+static inline bool adreno_is_a306(struct adreno_gpu *gpu)
+{
+	/* yes, 307, because a305c is 306 */
+	return gpu->revn == 307;
 }
 
 static inline bool adreno_is_a320(struct adreno_gpu *gpu)
@@ -233,6 +239,7 @@ void adreno_idle(struct msm_gpu *gpu);
 #ifdef CONFIG_DEBUG_FS
 void adreno_show(struct msm_gpu *gpu, struct seq_file *m);
 #endif
+void adreno_dump_info(struct msm_gpu *gpu);
 void adreno_dump(struct msm_gpu *gpu);
 void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords);
 

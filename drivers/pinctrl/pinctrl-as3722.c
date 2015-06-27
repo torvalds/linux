@@ -586,9 +586,9 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 	as3722_pinctrl_desc.npins = ARRAY_SIZE(as3722_pins_desc);
 	as_pci->pctl = pinctrl_register(&as3722_pinctrl_desc,
 					&pdev->dev, as_pci);
-	if (!as_pci->pctl) {
+	if (IS_ERR(as_pci->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(as_pci->pctl);
 	}
 
 	as_pci->gpio_chip = as3722_gpio_chip;

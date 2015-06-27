@@ -2900,7 +2900,6 @@ static int intel8x0_in_clock_list(struct intel8x0 *chip)
 	return 1;
 }
 
-#ifdef CONFIG_PROC_FS
 static void snd_intel8x0_proc_read(struct snd_info_entry * entry,
 				   struct snd_info_buffer *buffer)
 {
@@ -2942,9 +2941,6 @@ static void snd_intel8x0_proc_init(struct intel8x0 *chip)
 	if (! snd_card_proc_new(chip->card, "intel8x0", &entry))
 		snd_info_set_text_ops(entry, chip, snd_intel8x0_proc_read);
 }
-#else
-#define snd_intel8x0_proc_init(x)
-#endif
 
 static int snd_intel8x0_dev_free(struct snd_device *device)
 {

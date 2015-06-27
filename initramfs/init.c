@@ -1,9 +1,8 @@
-#include <stdio.h>
-
+#include <unistd.h>
 
 int main(int argc, char *argv[])
 {
-	printf("Hello world\n");
-	while (1) ;
-	return 0;
+	write(1, "Hello\n", 6);
+	while (1)
+		;
 }

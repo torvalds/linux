@@ -115,7 +115,7 @@ static int sensor_set_power(struct camif_dev *camif, int on)
 	struct cam_sensor *sensor = &camif->sensor;
 	int err = 0;
 
-	if (!on == camif->sensor.power_count)
+	if (camif->sensor.power_count == !on)
 		err = v4l2_subdev_call(sensor->sd, core, s_power, on);
 	if (!err)
 		sensor->power_count += on ? 1 : -1;
@@ -131,7 +131,7 @@ static int sensor_set_streaming(struct camif_dev *camif, int on)
 	struct cam_sensor *sensor = &camif->sensor;
 	int err = 0;
 
-	if (!on == camif->sensor.stream_count)
+	if (camif->sensor.stream_count == !on)
 		err = v4l2_subdev_call(sensor->sd, video, s_stream, on);
 	if (!err)
 		sensor->stream_count += on ? 1 : -1;
@@ -449,19 +449,22 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
 	struct camif_vp *vp = vb2_get_drv_priv(vq);
 	struct camif_dev *camif = vp->camif;
 	struct camif_frame *frame = &vp->out_frame;
-	const struct camif_fmt *fmt = vp->out_fmt;
+	const struct camif_fmt *fmt;
 	unsigned int size;
 
 	if (pfmt) {
 		pix = &pfmt->fmt.pix;
 		fmt = s3c_camif_find_format(vp, &pix->pixelformat, -1);
+		if (fmt == NULL)
+			return -EINVAL;
 		size = (pix->width * pix->height * fmt->depth) / 8;
 	} else {
+		fmt = vp->out_fmt;
+		if (fmt == NULL)
+			return -EINVAL;
 		size = (frame->f_width * frame->f_height * fmt->depth) / 8;
 	}
 
-	if (fmt == NULL)
-		return -EINVAL;
 	*num_planes = 1;
 
 	if (pix)

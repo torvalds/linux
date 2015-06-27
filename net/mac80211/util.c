@@ -564,7 +564,7 @@ ieee80211_get_vif_queues(struct ieee80211_local *local,
 {
 	unsigned int queues;
 
-	if (sdata && local->hw.flags & IEEE80211_HW_QUEUE_CONTROL) {
+	if (sdata && ieee80211_hw_check(&local->hw, QUEUE_CONTROL)) {
 		int ac;
 
 		queues = 0;
@@ -592,7 +592,7 @@ void __ieee80211_flush_queues(struct ieee80211_local *local,
 	 * If no queue was set, or if the HW doesn't support
 	 * IEEE80211_HW_QUEUE_CONTROL - flush all queues
 	 */
-	if (!queues || !(local->hw.flags & IEEE80211_HW_QUEUE_CONTROL))
+	if (!queues || !ieee80211_hw_check(&local->hw, QUEUE_CONTROL))
 		queues = ieee80211_get_vif_queues(local, sdata);
 
 	ieee80211_stop_queues_by_reason(&local->hw, queues,
@@ -2046,7 +2046,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * about the sessions, but we and the AP still think they
 	 * are active. This is really a workaround though.
 	 */
-	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
 		mutex_lock(&local->sta_mtx);
 
 		list_for_each_entry(sta, &local->sta_list, list) {

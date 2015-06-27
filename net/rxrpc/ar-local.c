@@ -73,8 +73,8 @@ static int rxrpc_create_local(struct rxrpc_local *local)
 	_enter("%p{%d}", local, local->srx.transport_type);
 
 	/* create a socket to represent the local endpoint */
-	ret = sock_create_kern(PF_INET, local->srx.transport_type, IPPROTO_UDP,
-			       &local->socket);
+	ret = sock_create_kern(&init_net, PF_INET, local->srx.transport_type,
+			       IPPROTO_UDP, &local->socket);
 	if (ret < 0) {
 		_leave(" = %d [socket]", ret);
 		return ret;

@@ -679,9 +679,9 @@ struct drm_dp_aux_msg {
  * An AUX channel can also be used to transport I2C messages to a sink. A
  * typical application of that is to access an EDID that's present in the
  * sink device. The .transfer() function can also be used to execute such
- * transactions. The drm_dp_aux_register_i2c_bus() function registers an
- * I2C adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
- * should call drm_dp_aux_unregister_i2c_bus() to remove the I2C adapter.
+ * transactions. The drm_dp_aux_register() function registers an I2C
+ * adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
+ * should call drm_dp_aux_unregister() to remove the I2C adapter.
  * The I2C adapter uses long transfers by default; if a partial response is
  * received, the adapter will drop down to the size given by the partial
  * response for this transaction only.

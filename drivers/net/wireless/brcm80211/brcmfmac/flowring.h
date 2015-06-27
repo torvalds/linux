@@ -64,8 +64,8 @@ u32 brcmf_flowring_create(struct brcmf_flowring *flow, u8 da[ETH_ALEN],
 void brcmf_flowring_delete(struct brcmf_flowring *flow, u8 flowid);
 void brcmf_flowring_open(struct brcmf_flowring *flow, u8 flowid);
 u8 brcmf_flowring_tid(struct brcmf_flowring *flow, u8 flowid);
-void brcmf_flowring_enqueue(struct brcmf_flowring *flow, u8 flowid,
-			    struct sk_buff *skb);
+u32 brcmf_flowring_enqueue(struct brcmf_flowring *flow, u8 flowid,
+			   struct sk_buff *skb);
 struct sk_buff *brcmf_flowring_dequeue(struct brcmf_flowring *flow, u8 flowid);
 void brcmf_flowring_reinsert(struct brcmf_flowring *flow, u8 flowid,
 			     struct sk_buff *skb);

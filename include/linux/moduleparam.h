@@ -310,6 +310,15 @@ static inline void __kernel_param_unlock(void)
 #define core_param(name, var, type, perm)				\
 	param_check_##type(name, &(var));				\
 	__module_param_call("", name, &param_ops_##type, &var, perm, -1, 0)
+
+/**
+ * core_param_unsafe - same as core_param but taints kernel
+ */
+#define core_param_unsafe(name, var, type, perm)		\
+	param_check_##type(name, &(var));				\
+	__module_param_call("", name, &param_ops_##type, &var, perm,	\
+			    -1, KERNEL_PARAM_FL_UNSAFE)
+
 #endif /* !MODULE */
 
 /**
@@ -357,8 +366,9 @@ extern char *parse_args(const char *name,
 		      unsigned num,
 		      s16 level_min,
 		      s16 level_max,
+		      void *arg,
 		      int (*unknown)(char *param, char *val,
-			      const char *doing));
+				     const char *doing, void *arg));
 
 /* Called by module remove. */
 #ifdef CONFIG_SYSFS

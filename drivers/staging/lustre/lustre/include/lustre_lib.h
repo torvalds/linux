@@ -549,19 +549,13 @@ do {									   \
 		__blocked = cfs_block_sigsinv(0);			      \
 									       \
 	for (;;) {							     \
-		unsigned       __wstate;				       \
-									       \
-		__wstate = info->lwi_on_signal != NULL &&		      \
-			   (__timeout == 0 || __allow_intr) ?		  \
-			TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;	       \
-									       \
-		set_current_state(TASK_INTERRUPTIBLE);		 \
-									       \
 		if (condition)						 \
 			break;						 \
 									       \
+		set_current_state(TASK_INTERRUPTIBLE);			       \
+									       \
 		if (__timeout == 0) {					  \
-			schedule();						\
+			schedule();					       \
 		} else {						       \
 			long interval = info->lwi_interval?	  \
 					     min_t(long,	     \
@@ -581,6 +575,8 @@ do {									   \
 				    (void)cfs_block_sigsinv(LUSTRE_FATAL_SIGS);\
 			}						      \
 		}							      \
+									       \
+		set_current_state(TASK_RUNNING);			       \
 									       \
 		if (condition)						 \
 			break;						 \
@@ -605,7 +601,6 @@ do {									   \
 									       \
 	cfs_restore_sigs(__blocked);					   \
 									       \
-	set_current_state(TASK_RUNNING);			       \
 	remove_wait_queue(&wq, &__wait);					   \
 } while (0)
 

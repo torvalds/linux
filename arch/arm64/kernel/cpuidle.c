@@ -18,15 +18,10 @@
 int arm_cpuidle_init(unsigned int cpu)
 {
 	int ret = -EOPNOTSUPP;
-	struct device_node *cpu_node = of_cpu_device_node_get(cpu);
-
-	if (!cpu_node)
-		return -ENODEV;
 
 	if (cpu_ops[cpu] && cpu_ops[cpu]->cpu_init_idle)
-		ret = cpu_ops[cpu]->cpu_init_idle(cpu_node, cpu);
+		ret = cpu_ops[cpu]->cpu_init_idle(cpu);
 
-	of_node_put(cpu_node);
 	return ret;
 }
 
@@ -37,7 +32,7 @@ int arm_cpuidle_init(unsigned int cpu)
  * Return: 0 on success, -EOPNOTSUPP if CPU suspend hook not initialized, CPU
  * operations back-end error code otherwise.
  */
-int cpu_suspend(unsigned long arg)
+int arm_cpuidle_suspend(int index)
 {
 	int cpu = smp_processor_id();
 
@@ -47,5 +42,5 @@ int cpu_suspend(unsigned long arg)
 	 */
 	if (!cpu_ops[cpu] || !cpu_ops[cpu]->cpu_suspend)
 		return -EOPNOTSUPP;
-	return cpu_ops[cpu]->cpu_suspend(arg);
+	return cpu_ops[cpu]->cpu_suspend(index);
 }

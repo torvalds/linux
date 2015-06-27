@@ -6,7 +6,7 @@
 
 #include <linux/tracepoint.h>
 #include <linux/trace_seq.h>
-#include <scsi/scsi.h>
+#include <scsi/scsi_proto.h>
 #include <scsi/scsi_tcq.h>
 #include <target/target_core_base.h>
 

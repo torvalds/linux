@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
@@ -36,35 +37,19 @@
 
 #define DSI_6G_REG_SHIFT	4
 
-#define DSI_REGULATOR_MAX	8
-struct dsi_reg_entry {
-	char name[32];
-	int min_voltage;
-	int max_voltage;
-	int enable_load;
-	int disable_load;
-};
-
-struct dsi_reg_config {
-	int num;
-	struct dsi_reg_entry regs[DSI_REGULATOR_MAX];
-};
-
 struct dsi_config {
 	u32 major;
 	u32 minor;
 	u32 io_offset;
-	enum msm_dsi_phy_type phy_type;
 	struct dsi_reg_config reg_cfg;
 };
 
 static const struct dsi_config dsi_cfgs[] = {
-	{MSM_DSI_VER_MAJOR_V2, 0, 0, MSM_DSI_PHY_UNKNOWN},
+	{MSM_DSI_VER_MAJOR_V2, 0, 0, {0,} },
 	{ /* 8974 v1 */
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_0,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -79,7 +64,6 @@ static const struct dsi_config dsi_cfgs[] = {
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_1,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -94,7 +78,6 @@ static const struct dsi_config dsi_cfgs[] = {
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_1_1,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -109,7 +92,6 @@ static const struct dsi_config dsi_cfgs[] = {
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_2,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -124,7 +106,6 @@ static const struct dsi_config dsi_cfgs[] = {
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_3_1,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -197,7 +178,7 @@ struct msm_dsi_host {
 	int id;
 
 	void __iomem *ctrl_base;
-	struct regulator_bulk_data supplies[DSI_REGULATOR_MAX];
+	struct regulator_bulk_data supplies[DSI_DEV_REGULATOR_MAX];
 	struct clk *mdp_core_clk;
 	struct clk *ahb_clk;
 	struct clk *axi_clk;
@@ -205,6 +186,9 @@ struct msm_dsi_host {
 	struct clk *byte_clk;
 	struct clk *esc_clk;
 	struct clk *pixel_clk;
+	struct clk *byte_clk_src;
+	struct clk *pixel_clk_src;
+
 	u32 byte_clk_rate;
 
 	struct gpio_desc *disp_en_gpio;
@@ -273,7 +257,7 @@ static const struct dsi_config *dsi_get_config(struct msm_dsi_host *msm_host)
 	u32 major = 0, minor = 0;
 
 	gdsc_reg = regulator_get(&msm_host->pdev->dev, "gdsc");
-	if (IS_ERR_OR_NULL(gdsc_reg)) {
+	if (IS_ERR(gdsc_reg)) {
 		pr_err("%s: cannot get gdsc\n", __func__);
 		goto fail;
 	}
@@ -460,6 +444,22 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		pr_err("%s: can't find dsi_esc_clk. ret=%d\n",
 			__func__, ret);
 		msm_host->esc_clk = NULL;
+		goto exit;
+	}
+
+	msm_host->byte_clk_src = devm_clk_get(dev, "byte_clk_src");
+	if (IS_ERR(msm_host->byte_clk_src)) {
+		ret = PTR_ERR(msm_host->byte_clk_src);
+		pr_err("%s: can't find byte_clk_src. ret=%d\n", __func__, ret);
+		msm_host->byte_clk_src = NULL;
+		goto exit;
+	}
+
+	msm_host->pixel_clk_src = devm_clk_get(dev, "pixel_clk_src");
+	if (IS_ERR(msm_host->pixel_clk_src)) {
+		ret = PTR_ERR(msm_host->pixel_clk_src);
+		pr_err("%s: can't find pixel_clk_src. ret=%d\n", __func__, ret);
+		msm_host->pixel_clk_src = NULL;
 		goto exit;
 	}
 
@@ -787,6 +787,11 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 		dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
 			DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(LANE_SWAP_0123));
 	}
+
+	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+		dsi_write(msm_host, REG_DSI_LANE_CTRL,
+			DSI_LANE_CTRL_CLKLN_HS_FORCE_REQUEST);
+
 	data |= DSI_CTRL_ENABLE;
 
 	dsi_write(msm_host, REG_DSI_CTRL, data);
@@ -1345,36 +1350,19 @@ static irqreturn_t dsi_host_irq(int irq, void *ptr)
 static int dsi_host_init_panel_gpios(struct msm_dsi_host *msm_host,
 			struct device *panel_device)
 {
-	int ret;
-
-	msm_host->disp_en_gpio = devm_gpiod_get(panel_device,
-						"disp-enable");
+	msm_host->disp_en_gpio = devm_gpiod_get_optional(panel_device,
+							 "disp-enable",
+							 GPIOD_OUT_LOW);
 	if (IS_ERR(msm_host->disp_en_gpio)) {
 		DBG("cannot get disp-enable-gpios %ld",
 				PTR_ERR(msm_host->disp_en_gpio));
-		msm_host->disp_en_gpio = NULL;
-	}
-	if (msm_host->disp_en_gpio) {
-		ret = gpiod_direction_output(msm_host->disp_en_gpio, 0);
-		if (ret) {
-			pr_err("cannot set dir to disp-en-gpios %d\n", ret);
-			return ret;
-		}
+		return PTR_ERR(msm_host->disp_en_gpio);
 	}
 
-	msm_host->te_gpio = devm_gpiod_get(panel_device, "disp-te");
+	msm_host->te_gpio = devm_gpiod_get(panel_device, "disp-te", GPIOD_IN);
 	if (IS_ERR(msm_host->te_gpio)) {
 		DBG("cannot get disp-te-gpios %ld", PTR_ERR(msm_host->te_gpio));
-		msm_host->te_gpio = NULL;
-	}
-
-	if (msm_host->te_gpio) {
-		ret = gpiod_direction_input(msm_host->te_gpio);
-		if (ret) {
-			pr_err("%s: cannot set dir to disp-te-gpios, %d\n",
-				__func__, ret);
-			return ret;
-		}
+		return PTR_ERR(msm_host->te_gpio);
 	}
 
 	return 0;
@@ -1508,13 +1496,6 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	msm_host->workqueue = alloc_ordered_workqueue("dsi_drm_work", 0);
 	INIT_WORK(&msm_host->err_work, dsi_err_worker);
 
-	msm_dsi->phy = msm_dsi_phy_init(pdev, msm_host->cfg->phy_type,
-					msm_host->id);
-	if (!msm_dsi->phy) {
-		ret = -EINVAL;
-		pr_err("%s: phy init failed\n", __func__);
-		goto fail;
-	}
 	msm_dsi->host = &msm_host->base;
 	msm_dsi->id = msm_host->id;
 
@@ -1822,6 +1803,39 @@ void msm_dsi_host_cmd_xfer_commit(struct mipi_dsi_host *host, u32 iova, u32 len)
 
 	/* Make sure trigger happens */
 	wmb();
+}
+
+int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
+	struct msm_dsi_pll *src_pll)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	struct clk *byte_clk_provider, *pixel_clk_provider;
+	int ret;
+
+	ret = msm_dsi_pll_get_clk_provider(src_pll,
+				&byte_clk_provider, &pixel_clk_provider);
+	if (ret) {
+		pr_info("%s: can't get provider from pll, don't set parent\n",
+			__func__);
+		return 0;
+	}
+
+	ret = clk_set_parent(msm_host->byte_clk_src, byte_clk_provider);
+	if (ret) {
+		pr_err("%s: can't set parent to byte_clk_src. ret=%d\n",
+			__func__, ret);
+		goto exit;
+	}
+
+	ret = clk_set_parent(msm_host->pixel_clk_src, pixel_clk_provider);
+	if (ret) {
+		pr_err("%s: can't set parent to pixel_clk_src. ret=%d\n",
+			__func__, ret);
+		goto exit;
+	}
+
+exit:
+	return ret;
 }
 
 int msm_dsi_host_enable(struct mipi_dsi_host *host)

@@ -13,14 +13,14 @@
 		#size-cells = <1>;
 		ranges;
 
-		framebuffer0: framebuffer@18000000 {
+		/*framebuffer0: framebuffer@18000000 {
 			compatible = "simple-framebuffer";
 			reg = <0x18000000 (400*240*3)>;
 			width = <240>;
 			height = <400>;
 			stride = <(240*3)>;
 			format = "r8g8b8";
-		};
+		};*/
 	};
 
 	aliases {

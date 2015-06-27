@@ -623,7 +623,7 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 	if (!mvm->trans->ltr_enabled)
 		return 0;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_HDC_PHASE_0))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_HDC_PHASE_0))
 		return iwl_mvm_config_ltr_v1(mvm);
 
 	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
@@ -662,9 +662,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		 * device that are triggered by the INIT firwmare (MFUART).
 		 */
 		_iwl_trans_stop_device(mvm->trans, false);
-		_iwl_trans_start_hw(mvm->trans, false);
+		ret = _iwl_trans_start_hw(mvm->trans, false);
 		if (ret)
-			return ret;
+			goto error;
 	}
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -754,7 +754,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		ret = iwl_mvm_config_scan(mvm);
 		if (ret)
 			goto error;
@@ -829,21 +829,6 @@ int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
 			  (flags & CT_KILL_CARD_DISABLED) ?
 			  "Reached" : "Not reached");
 
-	return 0;
-}
-
-int iwl_mvm_rx_radio_ver(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			 struct iwl_device_cmd *cmd)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_radio_version_notif *radio_version = (void *)pkt->data;
-
-	/* TODO: what to do with that? */
-	IWL_DEBUG_INFO(mvm,
-		       "Radio version: flavor: 0x%08x, step 0x%08x, dash 0x%08x\n",
-		       le32_to_cpu(radio_version->radio_flavor),
-		       le32_to_cpu(radio_version->radio_step),
-		       le32_to_cpu(radio_version->radio_dash));
 	return 0;
 }
 

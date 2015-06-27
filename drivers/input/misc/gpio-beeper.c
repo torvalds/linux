@@ -66,13 +66,12 @@ static int gpio_beeper_probe(struct platform_device *pdev)
 {
 	struct gpio_beeper *beep;
 	struct input_dev *input;
-	int err;
 
 	beep = devm_kzalloc(&pdev->dev, sizeof(*beep), GFP_KERNEL);
 	if (!beep)
 		return -ENOMEM;
 
-	beep->desc = devm_gpiod_get(&pdev->dev, NULL);
+	beep->desc = devm_gpiod_get(&pdev->dev, NULL, GPIOD_OUT_LOW);
 	if (IS_ERR(beep->desc))
 		return PTR_ERR(beep->desc);
 
@@ -91,10 +90,6 @@ static int gpio_beeper_probe(struct platform_device *pdev)
 	input->event		= gpio_beeper_event;
 
 	input_set_capability(input, EV_SND, SND_BELL);
-
-	err = gpiod_direction_output(beep->desc, 0);
-	if (err)
-		return err;
 
 	input_set_drvdata(input, beep);
 

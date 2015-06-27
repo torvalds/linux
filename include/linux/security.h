@@ -43,7 +43,6 @@ struct file;
 struct vfsmount;
 struct path;
 struct qstr;
-struct nameidata;
 struct iattr;
 struct fown_struct;
 struct file_operations;
@@ -477,7 +476,8 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @inode_follow_link:
  *	Check permission to follow a symbolic link when looking up a pathname.
  *	@dentry contains the dentry structure for the link.
- *	@nd contains the nameidata structure for the parent directory.
+ *	@inode contains the inode, which itself is not stable in RCU-walk
+ *	@rcu indicates whether we are in RCU-walk mode.
  *	Return 0 if permission is granted.
  * @inode_permission:
  *	Check permission before accessing an inode.  This hook is called by the
@@ -1553,7 +1553,8 @@ struct security_operations {
 	int (*inode_rename) (struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry);
 	int (*inode_readlink) (struct dentry *dentry);
-	int (*inode_follow_link) (struct dentry *dentry, struct nameidata *nd);
+	int (*inode_follow_link) (struct dentry *dentry, struct inode *inode,
+				  bool rcu);
 	int (*inode_permission) (struct inode *inode, int mask);
 	int (*inode_setattr)	(struct dentry *dentry, struct iattr *attr);
 	int (*inode_getattr) (const struct path *path);
@@ -1839,7 +1840,8 @@ int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 			  struct inode *new_dir, struct dentry *new_dentry,
 			  unsigned int flags);
 int security_inode_readlink(struct dentry *dentry);
-int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
+int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
+			       bool rcu);
 int security_inode_permission(struct inode *inode, int mask);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
 int security_inode_getattr(const struct path *path);
@@ -2242,7 +2244,8 @@ static inline int security_inode_readlink(struct dentry *dentry)
 }
 
 static inline int security_inode_follow_link(struct dentry *dentry,
-					      struct nameidata *nd)
+					     struct inode *inode,
+					     bool rcu)
 {
 	return 0;
 }

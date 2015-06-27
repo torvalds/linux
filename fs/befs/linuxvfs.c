@@ -42,8 +42,7 @@ static struct inode *befs_iget(struct super_block *, unsigned long);
 static struct inode *befs_alloc_inode(struct super_block *sb);
 static void befs_destroy_inode(struct inode *inode);
 static void befs_destroy_inodecache(void);
-static void *befs_follow_link(struct dentry *, struct nameidata *);
-static void *befs_fast_follow_link(struct dentry *, struct nameidata *);
+static const char *befs_follow_link(struct dentry *, void **);
 static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
@@ -78,11 +77,6 @@ static const struct inode_operations befs_dir_inode_operations = {
 static const struct address_space_operations befs_aops = {
 	.readpage	= befs_readpage,
 	.bmap		= befs_bmap,
-};
-
-static const struct inode_operations befs_fast_symlink_inode_operations = {
-	.readlink	= generic_readlink,
-	.follow_link	= befs_fast_follow_link,
 };
 
 static const struct inode_operations befs_symlink_inode_operations = {
@@ -403,10 +397,12 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 		inode->i_op = &befs_dir_inode_operations;
 		inode->i_fop = &befs_dir_operations;
 	} else if (S_ISLNK(inode->i_mode)) {
-		if (befs_ino->i_flags & BEFS_LONG_SYMLINK)
+		if (befs_ino->i_flags & BEFS_LONG_SYMLINK) {
 			inode->i_op = &befs_symlink_inode_operations;
-		else
-			inode->i_op = &befs_fast_symlink_inode_operations;
+		} else {
+			inode->i_link = befs_ino->i_data.symlink;
+			inode->i_op = &simple_symlink_inode_operations;
+		}
 	} else {
 		befs_error(sb, "Inode %lu is not a regular file, "
 			   "directory or symlink. THAT IS WRONG! BeFS has no "
@@ -467,8 +463,8 @@ befs_destroy_inodecache(void)
  * The data stream become link name. Unless the LONG_SYMLINK
  * flag is set.
  */
-static void *
-befs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *
+befs_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct befs_inode_info *befs_ino = BEFS_I(d_inode(dentry));
@@ -478,33 +474,20 @@ befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 	if (len == 0) {
 		befs_error(sb, "Long symlink with illegal length");
-		link = ERR_PTR(-EIO);
-	} else {
-		befs_debug(sb, "Follow long symlink");
-
-		link = kmalloc(len, GFP_NOFS);
-		if (!link) {
-			link = ERR_PTR(-ENOMEM);
-		} else if (befs_read_lsymlink(sb, data, link, len) != len) {
-			kfree(link);
-			befs_error(sb, "Failed to read entire long symlink");
-			link = ERR_PTR(-EIO);
-		} else {
-			link[len - 1] = '\0';
-		}
+		return ERR_PTR(-EIO);
 	}
-	nd_set_link(nd, link);
-	return NULL;
-}
+	befs_debug(sb, "Follow long symlink");
 
-
-static void *
-befs_fast_follow_link(struct dentry *dentry, struct nameidata *nd)
-{
-	struct befs_inode_info *befs_ino = BEFS_I(d_inode(dentry));
-
-	nd_set_link(nd, befs_ino->i_data.symlink);
-	return NULL;
+	link = kmalloc(len, GFP_NOFS);
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+	if (befs_read_lsymlink(sb, data, link, len) != len) {
+		kfree(link);
+		befs_error(sb, "Failed to read entire long symlink");
+		return ERR_PTR(-EIO);
+	}
+	link[len - 1] = '\0';
+	return *cookie = link;
 }
 
 /*

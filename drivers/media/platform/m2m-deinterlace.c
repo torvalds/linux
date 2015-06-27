@@ -1060,7 +1060,6 @@ static int deinterlace_probe(struct platform_device *pdev)
 
 	return 0;
 
-	v4l2_m2m_release(pcdev->m2m_dev);
 err_m2m:
 	video_unregister_device(&pcdev->vfd);
 err_ctx:

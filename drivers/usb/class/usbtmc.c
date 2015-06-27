@@ -109,6 +109,7 @@ struct usbtmc_ID_rigol_quirk {
 
 static const struct usbtmc_ID_rigol_quirk usbtmc_id_quirk[] = {
 	{ 0x1ab1, 0x0588 },
+	{ 0x1ab1, 0x04b0 },
 	{ 0, 0 }
 };
 

@@ -1,6 +1,6 @@
 Maxim MAX77686 multi-function device
 
-MAX77686 is a Mulitifunction device with PMIC, RTC and Charger on chip. It is
+MAX77686 is a Multifunction device with PMIC, RTC and Charger on chip. It is
 interfaced to host controller using i2c interface. PMIC and Charger submodules
 are addressed using same i2c slave address whereas RTC submodule uses
 different i2c slave address,presently for which we are statically creating i2c

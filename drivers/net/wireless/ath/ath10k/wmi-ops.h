@@ -45,6 +45,10 @@ struct wmi_ops {
 			struct wmi_rdy_ev_arg *arg);
 	int (*pull_fw_stats)(struct ath10k *ar, struct sk_buff *skb,
 			     struct ath10k_fw_stats *stats);
+	int (*pull_roam_ev)(struct ath10k *ar, struct sk_buff *skb,
+			    struct wmi_roam_ev_arg *arg);
+	int (*pull_wow_event)(struct ath10k *ar, struct sk_buff *skb,
+			      struct wmi_wow_ev_arg *arg);
 
 	struct sk_buff *(*gen_pdev_suspend)(struct ath10k *ar, u32 suspend_opt);
 	struct sk_buff *(*gen_pdev_resume)(struct ath10k *ar);
@@ -81,7 +85,8 @@ struct wmi_ops {
 	struct sk_buff *(*gen_vdev_wmm_conf)(struct ath10k *ar, u32 vdev_id,
 					     const struct wmi_wmm_params_all_arg *arg);
 	struct sk_buff *(*gen_peer_create)(struct ath10k *ar, u32 vdev_id,
-					   const u8 peer_addr[ETH_ALEN]);
+					   const u8 peer_addr[ETH_ALEN],
+					   enum wmi_peer_type peer_type);
 	struct sk_buff *(*gen_peer_delete)(struct ath10k *ar, u32 vdev_id,
 					   const u8 peer_addr[ETH_ALEN]);
 	struct sk_buff *(*gen_peer_flush)(struct ath10k *ar, u32 vdev_id,
@@ -148,6 +153,27 @@ struct wmi_ops {
 					      u32 num_ac);
 	struct sk_buff *(*gen_sta_keepalive)(struct ath10k *ar,
 					     const struct wmi_sta_keepalive_arg *arg);
+	struct sk_buff *(*gen_wow_enable)(struct ath10k *ar);
+	struct sk_buff *(*gen_wow_add_wakeup_event)(struct ath10k *ar, u32 vdev_id,
+						    enum wmi_wow_wakeup_event event,
+						    u32 enable);
+	struct sk_buff *(*gen_wow_host_wakeup_ind)(struct ath10k *ar);
+	struct sk_buff *(*gen_wow_add_pattern)(struct ath10k *ar, u32 vdev_id,
+					       u32 pattern_id,
+					       const u8 *pattern,
+					       const u8 *mask,
+					       int pattern_len,
+					       int pattern_offset);
+	struct sk_buff *(*gen_wow_del_pattern)(struct ath10k *ar, u32 vdev_id,
+					       u32 pattern_id);
+	struct sk_buff *(*gen_update_fw_tdls_state)(struct ath10k *ar,
+						    u32 vdev_id,
+						    enum wmi_tdls_state state);
+	struct sk_buff *(*gen_tdls_peer_update)(struct ath10k *ar,
+						const struct wmi_tdls_peer_update_cmd_arg *arg,
+						const struct wmi_tdls_peer_capab_arg *cap,
+						const struct wmi_channel_arg *chan);
+	struct sk_buff *(*gen_adaptive_qcs)(struct ath10k *ar, bool enable);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -271,6 +297,26 @@ ath10k_wmi_pull_fw_stats(struct ath10k *ar, struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	return ar->wmi.ops->pull_fw_stats(ar, skb, stats);
+}
+
+static inline int
+ath10k_wmi_pull_roam_ev(struct ath10k *ar, struct sk_buff *skb,
+			struct wmi_roam_ev_arg *arg)
+{
+	if (!ar->wmi.ops->pull_roam_ev)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->pull_roam_ev(ar, skb, arg);
+}
+
+static inline int
+ath10k_wmi_pull_wow_event(struct ath10k *ar, struct sk_buff *skb,
+			  struct wmi_wow_ev_arg *arg)
+{
+	if (!ar->wmi.ops->pull_wow_event)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->pull_wow_event(ar, skb, arg);
 }
 
 static inline int
@@ -624,14 +670,15 @@ ath10k_wmi_vdev_wmm_conf(struct ath10k *ar, u32 vdev_id,
 
 static inline int
 ath10k_wmi_peer_create(struct ath10k *ar, u32 vdev_id,
-		       const u8 peer_addr[ETH_ALEN])
+		       const u8 peer_addr[ETH_ALEN],
+		       enum wmi_peer_type peer_type)
 {
 	struct sk_buff *skb;
 
 	if (!ar->wmi.ops->gen_peer_create)
 		return -EOPNOTSUPP;
 
-	skb = ar->wmi.ops->gen_peer_create(ar, vdev_id, peer_addr);
+	skb = ar->wmi.ops->gen_peer_create(ar, vdev_id, peer_addr, peer_type);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
@@ -1058,6 +1105,147 @@ ath10k_wmi_sta_keepalive(struct ath10k *ar,
 
 	cmd_id = ar->wmi.cmd->sta_keepalive_cmd;
 	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
+ath10k_wmi_wow_enable(struct ath10k *ar)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_wow_enable)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_wow_enable(ar);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->wow_enable_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
+ath10k_wmi_wow_add_wakeup_event(struct ath10k *ar, u32 vdev_id,
+				enum wmi_wow_wakeup_event event,
+				u32 enable)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_wow_add_wakeup_event)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_wow_add_wakeup_event(ar, vdev_id, event, enable);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->wow_enable_disable_wake_event_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
+ath10k_wmi_wow_host_wakeup_ind(struct ath10k *ar)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_wow_host_wakeup_ind)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_wow_host_wakeup_ind(ar);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->wow_hostwakeup_from_sleep_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
+ath10k_wmi_wow_add_pattern(struct ath10k *ar, u32 vdev_id, u32 pattern_id,
+			   const u8 *pattern, const u8 *mask,
+			   int pattern_len, int pattern_offset)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_wow_add_pattern)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_wow_add_pattern(ar, vdev_id, pattern_id,
+					       pattern, mask, pattern_len,
+					       pattern_offset);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->wow_add_wake_pattern_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
+ath10k_wmi_wow_del_pattern(struct ath10k *ar, u32 vdev_id, u32 pattern_id)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_wow_del_pattern)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_wow_del_pattern(ar, vdev_id, pattern_id);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->wow_del_wake_pattern_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
+ath10k_wmi_update_fw_tdls_state(struct ath10k *ar, u32 vdev_id,
+				enum wmi_tdls_state state)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_update_fw_tdls_state)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_update_fw_tdls_state(ar, vdev_id, state);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->tdls_set_state_cmdid);
+}
+
+static inline int
+ath10k_wmi_tdls_peer_update(struct ath10k *ar,
+			    const struct wmi_tdls_peer_update_cmd_arg *arg,
+			    const struct wmi_tdls_peer_capab_arg *cap,
+			    const struct wmi_channel_arg *chan)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_tdls_peer_update)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_tdls_peer_update(ar, arg, cap, chan);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->tdls_peer_update_cmdid);
+}
+
+static inline int
+ath10k_wmi_adaptive_qcs(struct ath10k *ar, bool enable)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_adaptive_qcs)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_adaptive_qcs(ar, enable);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->adaptive_qcs_cmdid);
 }
 
 #endif

@@ -20,58 +20,15 @@
 #include <linux/bitmap.h>
 #include <linux/slab.h>
 
-#ifdef CONFIG_PM
-static int sh_pm_runtime_suspend(struct device *dev)
-{
-	int ret;
-
-	ret = pm_generic_runtime_suspend(dev);
-	if (ret) {
-		dev_err(dev, "failed to suspend device\n");
-		return ret;
-	}
-
-	ret = pm_clk_suspend(dev);
-	if (ret) {
-		dev_err(dev, "failed to suspend clock\n");
-		pm_generic_runtime_resume(dev);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int sh_pm_runtime_resume(struct device *dev)
-{
-	int ret;
-
-	ret = pm_clk_resume(dev);
-	if (ret) {
-		dev_err(dev, "failed to resume clock\n");
-		return ret;
-	}
-
-	return pm_generic_runtime_resume(dev);
-}
-
 static struct dev_pm_domain default_pm_domain = {
 	.ops = {
-		.runtime_suspend = sh_pm_runtime_suspend,
-		.runtime_resume = sh_pm_runtime_resume,
+		USE_PM_CLK_RUNTIME_OPS
 		USE_PLATFORM_PM_SLEEP_OPS
 	},
 };
 
-#define DEFAULT_PM_DOMAIN_PTR	(&default_pm_domain)
-
-#else
-
-#define DEFAULT_PM_DOMAIN_PTR	NULL
-
-#endif /* CONFIG_PM */
-
 static struct pm_clk_notifier_block platform_bus_notifier = {
-	.pm_domain = DEFAULT_PM_DOMAIN_PTR,
+	.pm_domain = &default_pm_domain,
 	.con_ids = { NULL, },
 };
 

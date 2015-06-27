@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 #include <linux/memcontrol.h>
 
 static const struct trace_print_flags pageflag_names[] = {

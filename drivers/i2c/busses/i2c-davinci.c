@@ -41,8 +41,8 @@
 
 #define DAVINCI_I2C_TIMEOUT	(1*HZ)
 #define DAVINCI_I2C_MAX_TRIES	2
-#define I2C_DAVINCI_INTR_ALL    (DAVINCI_I2C_IMR_AAS | \
-				 DAVINCI_I2C_IMR_SCD | \
+#define DAVINCI_I2C_OWN_ADDRESS	0x08
+#define I2C_DAVINCI_INTR_ALL    (DAVINCI_I2C_IMR_SCD | \
 				 DAVINCI_I2C_IMR_ARDY | \
 				 DAVINCI_I2C_IMR_NACK | \
 				 DAVINCI_I2C_IMR_AL)
@@ -204,9 +204,30 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 		psc++;	/* better to run under spec than over */
 	d = (psc >= 2) ? 5 : 7 - psc;
 
-	clk = ((input_clock / (psc + 1)) / (pdata->bus_freq * 1000)) - (d << 1);
-	clkh = clk >> 1;
-	clkl = clk - clkh;
+	clk = ((input_clock / (psc + 1)) / (pdata->bus_freq * 1000));
+	/* Avoid driving the bus too fast because of rounding errors above */
+	if (input_clock / (psc + 1) / clk > pdata->bus_freq * 1000)
+		clk++;
+	/*
+	 * According to I2C-BUS Spec 2.1, in FAST-MODE LOW period should be at
+	 * least 1.3uS, which is not the case with 50% duty cycle. Driving HIGH
+	 * to LOW ratio as 1 to 2 is more safe.
+	 */
+	if (pdata->bus_freq > 100)
+		clkl = (clk << 1) / 3;
+	else
+		clkl = (clk >> 1);
+	/*
+	 * It's not always possible to have 1 to 2 ratio when d=7, so fall back
+	 * to minimal possible clkh in this case.
+	 */
+	if (clk >= clkl + d) {
+		clkh = clk - clkl - d;
+		clkl -= d;
+	} else {
+		clkh = 0;
+		clkl = clk - (d << 1);
+	}
 
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_PSC_REG, psc);
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_CLKH_REG, clkh);
@@ -233,7 +254,7 @@ static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 	/* Respond at reserved "SMBus Host" slave address" (and zero);
 	 * we seem to have no option to not respond...
 	 */
-	davinci_i2c_write_reg(dev, DAVINCI_I2C_OAR_REG, 0x08);
+	davinci_i2c_write_reg(dev, DAVINCI_I2C_OAR_REG, DAVINCI_I2C_OWN_ADDRESS);
 
 	dev_dbg(dev->dev, "PSC  = %d\n",
 		davinci_i2c_read_reg(dev, DAVINCI_I2C_PSC_REG));
@@ -350,29 +371,25 @@ static struct i2c_bus_recovery_info davinci_i2c_scl_recovery_info = {
 /*
  * Waiting for bus not busy
  */
-static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev,
-					 char allow_sleep)
+static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev)
 {
-	unsigned long timeout;
-	static u16 to_cnt;
+	unsigned long timeout = jiffies + dev->adapter.timeout;
 
-	timeout = jiffies + dev->adapter.timeout;
-	while (davinci_i2c_read_reg(dev, DAVINCI_I2C_STR_REG)
-	       & DAVINCI_I2C_STR_BB) {
-		if (to_cnt <= DAVINCI_I2C_MAX_TRIES) {
-			if (time_after(jiffies, timeout)) {
-				dev_warn(dev->dev,
-				"timeout waiting for bus ready\n");
-				to_cnt++;
-				return -ETIMEDOUT;
-			} else {
-				to_cnt = 0;
-				i2c_recover_bus(&dev->adapter);
-			}
-		}
-		if (allow_sleep)
-			schedule_timeout(1);
-	}
+	do {
+		if (!(davinci_i2c_read_reg(dev, DAVINCI_I2C_STR_REG) & DAVINCI_I2C_STR_BB))
+			return 0;
+		schedule_timeout_uninterruptible(1);
+	} while (time_before_eq(jiffies, timeout));
+
+	dev_warn(dev->dev, "timeout waiting for bus ready\n");
+	i2c_recover_bus(&dev->adapter);
+
+	/*
+	 * if bus is still "busy" here, it's most probably a HW problem like
+	 * short-circuit
+	 */
+	if (davinci_i2c_read_reg(dev, DAVINCI_I2C_STR_REG) & DAVINCI_I2C_STR_BB)
+		return -EIO;
 
 	return 0;
 }
@@ -389,6 +406,11 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	u32 flag;
 	u16 w;
 	unsigned long time_left;
+
+	if (msg->addr == DAVINCI_I2C_OWN_ADDRESS) {
+		dev_warn(dev->dev, "transfer to own address aborted\n");
+		return -EADDRNOTAVAIL;
+	}
 
 	/* Introduce a delay, required for some boards (e.g Davinci EVM) */
 	if (pdata->bus_delay)
@@ -505,7 +527,7 @@ i2c_davinci_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
 
-	ret = i2c_davinci_wait_bus_not_busy(dev, 1);
+	ret = i2c_davinci_wait_bus_not_busy(dev);
 	if (ret < 0) {
 		dev_warn(dev->dev, "timeout waiting for bus ready\n");
 		return ret;

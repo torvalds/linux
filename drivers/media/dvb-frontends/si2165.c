@@ -698,7 +698,7 @@ static int si2165_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int si2165_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ret;
 	u8 fec_lock = 0;

@@ -19,6 +19,8 @@
  ******************************************************************************/
 #define _RTW_AP_C_
 
+#include <linux/ieee80211.h>
+
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <wifi.h>
@@ -81,12 +83,14 @@ static void update_BCNTIM(struct adapter *padapter)
 		u8 *pbackup_remainder_ie = NULL;
 		uint offset, tmp_len, tim_ielen, tim_ie_offset, remainder_ielen;
 
-		p = rtw_get_ie(pie + _FIXED_IE_LENGTH_, _TIM_IE_, &tim_ielen, pnetwork_mlmeext->IELength - _FIXED_IE_LENGTH_);
+		p = rtw_get_ie(pie + _FIXED_IE_LENGTH_, _TIM_IE_, &tim_ielen,
+				pnetwork_mlmeext->IELength - _FIXED_IE_LENGTH_);
 		if (p != NULL && tim_ielen > 0) {
 			tim_ielen += 2;
 			premainder_ie = p+tim_ielen;
 			tim_ie_offset = (int)(p - pie);
-			remainder_ielen = pnetwork_mlmeext->IELength - tim_ie_offset - tim_ielen;
+			remainder_ielen = pnetwork_mlmeext->IELength -
+						tim_ie_offset - tim_ielen;
 			/* append TIM IE from dst_ie offset */
 			dst_ie = p;
 		} else {
@@ -97,7 +101,10 @@ static void update_BCNTIM(struct adapter *padapter)
 			offset += pnetwork_mlmeext->Ssid.SsidLength + 2;
 
 			/*  get supported rates len */
-			p = rtw_get_ie(pie + _BEACON_IE_OFFSET_, _SUPPORTEDRATES_IE_, &tmp_len, (pnetwork_mlmeext->IELength - _BEACON_IE_OFFSET_));
+			p = rtw_get_ie(pie + _BEACON_IE_OFFSET_,
+					_SUPPORTEDRATES_IE_, &tmp_len,
+					(pnetwork_mlmeext->IELength -
+						_BEACON_IE_OFFSET_));
 			if (p !=  NULL)
 				offset += tmp_len+2;
 
@@ -106,7 +113,8 @@ static void update_BCNTIM(struct adapter *padapter)
 
 			premainder_ie = pie + offset;
 
-			remainder_ielen = pnetwork_mlmeext->IELength - offset - tim_ielen;
+			remainder_ielen = pnetwork_mlmeext->IELength -
+						offset - tim_ielen;
 
 			/* append TIM IE from offset */
 			dst_ie = pie + offset;
@@ -115,11 +123,13 @@ static void update_BCNTIM(struct adapter *padapter)
 		if (remainder_ielen > 0) {
 			pbackup_remainder_ie = rtw_malloc(remainder_ielen);
 			if (pbackup_remainder_ie && premainder_ie)
-				memcpy(pbackup_remainder_ie, premainder_ie, remainder_ielen);
+				memcpy(pbackup_remainder_ie,
+						premainder_ie, remainder_ielen);
 		}
 		*dst_ie++ = _TIM_IE_;
 
-		if ((pstapriv->tim_bitmap&0xff00) && (pstapriv->tim_bitmap&0x00fc))
+		if ((pstapriv->tim_bitmap&0xff00) &&
+				(pstapriv->tim_bitmap&0x00fc))
 			tim_ielen = 5;
 		else
 			tim_ielen = 4;
@@ -154,7 +164,8 @@ static void update_BCNTIM(struct adapter *padapter)
 	set_tx_beacon_cmd(padapter);
 }
 
-void rtw_add_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork, u8 index, u8 *data, u8 len)
+void rtw_add_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork,
+			u8 index, u8 *data, u8 len)
 {
 	struct ndis_802_11_var_ie *pIE;
 	u8 bmatch = false;
@@ -168,7 +179,8 @@ void rtw_add_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork, u8
 
 		if (pIE->ElementID > index) {
 			break;
-		} else if (pIE->ElementID == index) { /*  already exist the same IE */
+		/*  already exist the same IE */
+		} else if (pIE->ElementID == index) {
 			p = (u8 *)pIE;
 			ielen = pIE->Length;
 			bmatch = true;
@@ -197,7 +209,8 @@ void rtw_add_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork, u8
 	if (remainder_ielen > 0) {
 		pbackup_remainder_ie = rtw_malloc(remainder_ielen);
 		if (pbackup_remainder_ie && premainder_ie)
-			memcpy(pbackup_remainder_ie, premainder_ie, remainder_ielen);
+			memcpy(pbackup_remainder_ie,
+					premainder_ie, remainder_ielen);
 	}
 
 	*dst_ie++ = index;
@@ -217,7 +230,8 @@ void rtw_add_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork, u8
 	pnetwork->IELength = offset + remainder_ielen;
 }
 
-void rtw_remove_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork, u8 index)
+void rtw_remove_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork,
+				u8 index)
 {
 	u8 *p, *dst_ie = NULL, *premainder_ie = NULL;
 	u8 *pbackup_remainder_ie = NULL;
@@ -241,7 +255,8 @@ void rtw_remove_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork,
 	if (remainder_ielen > 0) {
 		pbackup_remainder_ie = rtw_malloc(remainder_ielen);
 		if (pbackup_remainder_ie && premainder_ie)
-			memcpy(pbackup_remainder_ie, premainder_ie, remainder_ielen);
+			memcpy(pbackup_remainder_ie,
+					premainder_ie, remainder_ielen);
 	}
 
 	/* copy remainder IE */
@@ -259,8 +274,10 @@ static u8 chk_sta_is_alive(struct sta_info *psta)
 {
 	u8 ret = false;
 
-	if ((psta->sta_stats.last_rx_data_pkts + psta->sta_stats.last_rx_ctrl_pkts) ==
-	    (psta->sta_stats.rx_data_pkts + psta->sta_stats.rx_ctrl_pkts))
+	if ((psta->sta_stats.last_rx_data_pkts +
+			psta->sta_stats.last_rx_ctrl_pkts) ==
+			(psta->sta_stats.rx_data_pkts +
+			psta->sta_stats.rx_ctrl_pkts))
 		;
 	else
 		ret = true;
@@ -342,13 +359,18 @@ void	expire_timeout_chk(struct adapter *padapter)
 
 			if (psta->state & WIFI_SLEEP_STATE) {
 				if (!(psta->state & WIFI_STA_ALIVE_CHK_STATE)) {
-					/* to check if alive by another methods if station is at ps mode. */
+					/* to check if alive by another methods
+					 * if station is at ps mode.
+					 */
 					psta->expire_to = pstapriv->expire_to;
 					psta->state |= WIFI_STA_ALIVE_CHK_STATE;
 
-					/* to update bcn with tim_bitmap for this station */
+					/* to update bcn with tim_bitmap
+					 * for this station
+					 */
 					pstapriv->tim_bitmap |= BIT(psta->aid);
-					update_beacon(padapter, _TIM_IE_, NULL, false);
+					update_beacon(padapter, _TIM_IE_,
+							NULL, false);
 
 					if (!pmlmeext->active_keep_alive_check)
 						continue;
@@ -827,7 +849,7 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 
 		/* issue beacon frame */
 		if (send_beacon(padapter) == _FAIL)
-			DBG_88E("issue_beacon, fail!\n");
+			DBG_88E("send_beacon, fail!\n");
 	}
 
 	/* update bc/mc sta_info */

@@ -439,7 +439,7 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 {
 	struct blk_trace *old_bt, *bt = NULL;
 	struct dentry *dir = NULL;
-	int ret, i;
+	int ret;
 
 	if (!buts->buf_size || !buts->buf_nr)
 		return -EINVAL;
@@ -451,9 +451,7 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	 * some device names have larger paths - convert the slashes
 	 * to underscores for this to work as expected
 	 */
-	for (i = 0; i < strlen(buts->name); i++)
-		if (buts->name[i] == '/')
-			buts->name[i] = '_';
+	strreplace(buts->name, '/', '_');
 
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
 	if (!bt)
@@ -1450,14 +1448,14 @@ static struct trace_event trace_blk_event = {
 
 static int __init init_blk_tracer(void)
 {
-	if (!register_ftrace_event(&trace_blk_event)) {
+	if (!register_trace_event(&trace_blk_event)) {
 		pr_warning("Warning: could not register block events\n");
 		return 1;
 	}
 
 	if (register_tracer(&blk_tracer) != 0) {
 		pr_warning("Warning: could not register the block tracer\n");
-		unregister_ftrace_event(&trace_blk_event);
+		unregister_trace_event(&trace_blk_event);
 		return 1;
 	}
 

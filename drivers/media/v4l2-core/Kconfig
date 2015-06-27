@@ -89,7 +89,7 @@ config VIDEOBUF2_VMALLOC
 
 config VIDEOBUF2_DMA_SG
 	tristate
-	#depends on HAS_DMA
+	depends on HAS_DMA
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
 

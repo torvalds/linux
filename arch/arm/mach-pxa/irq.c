@@ -138,7 +138,7 @@ static int pxa_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops pxa_irq_ops = {
+static const struct irq_domain_ops pxa_irq_ops = {
 	.map    = pxa_irq_map,
 	.xlate  = irq_domain_xlate_onecell,
 };

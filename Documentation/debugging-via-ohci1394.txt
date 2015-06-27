@@ -181,4 +181,4 @@ Notes
 Documentation and specifications: http://halobates.de/firewire/
 
 FireWire is a trademark of Apple Inc. - for more information please refer to:
-http://en.wikipedia.org/wiki/FireWire
+https://en.wikipedia.org/wiki/FireWire

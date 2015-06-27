@@ -452,7 +452,7 @@ static int cx22702_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx22702_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int cx22702_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cx22702_state *state = fe->demodulator_priv;
 	u8 reg0A;

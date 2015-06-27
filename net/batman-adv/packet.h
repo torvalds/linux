@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -17,6 +17,9 @@
 
 #ifndef _NET_BATMAN_ADV_PACKET_H_
 #define _NET_BATMAN_ADV_PACKET_H_
+
+#include <asm/byteorder.h>
+#include <linux/types.h>
 
 /**
  * enum batadv_packettype - types for batman-adv encapsulated packets

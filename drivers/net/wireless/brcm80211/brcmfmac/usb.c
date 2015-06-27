@@ -1270,8 +1270,13 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	bus->chiprev = bus_pub->chiprev;
 
 	/* request firmware here */
-	brcmf_fw_get_firmwares(dev, 0, brcmf_usb_get_fwname(devinfo), NULL,
-			       brcmf_usb_probe_phase2);
+	ret = brcmf_fw_get_firmwares(dev, 0, brcmf_usb_get_fwname(devinfo),
+				     NULL, brcmf_usb_probe_phase2);
+	if (ret) {
+		brcmf_err("firmware request failed: %d\n", ret);
+		goto fail;
+	}
+
 	return 0;
 
 fail:

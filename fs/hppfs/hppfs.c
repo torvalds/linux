@@ -642,20 +642,19 @@ static int hppfs_readlink(struct dentry *dentry, char __user *buffer,
 						    buflen);
 }
 
-static void *hppfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *hppfs_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct dentry *proc_dentry = HPPFS_I(d_inode(dentry))->proc_dentry;
 
-	return d_inode(proc_dentry)->i_op->follow_link(proc_dentry, nd);
+	return d_inode(proc_dentry)->i_op->follow_link(proc_dentry, cookie);
 }
 
-static void hppfs_put_link(struct dentry *dentry, struct nameidata *nd,
-			   void *cookie)
+static void hppfs_put_link(struct inode *inode, void *cookie)
 {
-	struct dentry *proc_dentry = HPPFS_I(d_inode(dentry))->proc_dentry;
+	struct inode *proc_inode = d_inode(HPPFS_I(inode)->proc_dentry);
 
-	if (d_inode(proc_dentry)->i_op->put_link)
-		d_inode(proc_dentry)->i_op->put_link(proc_dentry, nd, cookie);
+	if (proc_inode->i_op->put_link)
+		proc_inode->i_op->put_link(proc_inode, cookie);
 }
 
 static const struct inode_operations hppfs_dir_iops = {

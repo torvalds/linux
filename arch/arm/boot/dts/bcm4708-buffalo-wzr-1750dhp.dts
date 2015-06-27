@@ -10,6 +10,7 @@
 /dts-v1/;
 
 #include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {
 	compatible = "buffalo,wzr-1750dhp", "brcm,bcm4708";
@@ -46,6 +47,12 @@
 
 	leds {
 		compatible = "gpio-leds";
+
+		usb {
+			label = "bcm53xx:blue:usb";
+			gpios = <&hc595 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
 
 		power0 {
 			label = "bcm53xx:red:power";

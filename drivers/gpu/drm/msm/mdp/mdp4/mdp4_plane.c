@@ -33,6 +33,21 @@ struct mdp4_plane {
 };
 #define to_mdp4_plane(x) container_of(x, struct mdp4_plane, base)
 
+/* MDP format helper functions */
+static inline
+enum mdp4_frame_format mdp4_get_frame_format(struct drm_framebuffer *fb)
+{
+	bool is_tile = false;
+
+	if (fb->modifier[1] == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE)
+		is_tile = true;
+
+	if (fb->pixel_format == DRM_FORMAT_NV12 && is_tile)
+		return FRAME_TILE_YCBCR_420;
+
+	return FRAME_LINEAR;
+}
+
 static void mdp4_plane_set_scanout(struct drm_plane *plane,
 		struct drm_framebuffer *fb);
 static int mdp4_plane_mode_set(struct drm_plane *plane,
@@ -205,6 +220,7 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 	uint32_t op_mode = 0;
 	uint32_t phasex_step = MDP4_VG_PHASE_STEP_DEFAULT;
 	uint32_t phasey_step = MDP4_VG_PHASE_STEP_DEFAULT;
+	enum mdp4_frame_format frame_type = mdp4_get_frame_format(fb);
 
 	if (!(crtc && fb)) {
 		DBG("%s: disabled!", mdp4_plane->name);
@@ -304,6 +320,7 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 			MDP4_PIPE_SRC_FORMAT_UNPACK_COUNT(format->unpack_count - 1) |
 			MDP4_PIPE_SRC_FORMAT_FETCH_PLANES(format->fetch_type) |
 			MDP4_PIPE_SRC_FORMAT_CHROMA_SAMP(format->chroma_sample) |
+			MDP4_PIPE_SRC_FORMAT_FRAME_FORMAT(frame_type) |
 			COND(format->unpack_tight, MDP4_PIPE_SRC_FORMAT_UNPACK_TIGHT));
 
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRC_UNPACK(pipe),
@@ -323,6 +340,11 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_OP_MODE(pipe), op_mode);
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_PHASEX_STEP(pipe), phasex_step);
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_PHASEY_STEP(pipe), phasey_step);
+
+	if (frame_type != FRAME_LINEAR)
+		mdp4_write(mdp4_kms, REG_MDP4_PIPE_SSTILE_FRAME_SIZE(pipe),
+				MDP4_PIPE_SSTILE_FRAME_SIZE_WIDTH(src_w) |
+				MDP4_PIPE_SSTILE_FRAME_SIZE_HEIGHT(src_h));
 
 	return 0;
 }

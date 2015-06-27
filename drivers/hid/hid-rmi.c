@@ -29,9 +29,9 @@
 #define RMI_SET_RMI_MODE_REPORT_ID	0x0f /* Feature Report */
 
 /* flags */
-#define RMI_READ_REQUEST_PENDING	BIT(0)
-#define RMI_READ_DATA_PENDING		BIT(1)
-#define RMI_STARTED			BIT(2)
+#define RMI_READ_REQUEST_PENDING	0
+#define RMI_READ_DATA_PENDING		1
+#define RMI_STARTED			2
 
 /* device flags */
 #define RMI_DEVICE			BIT(0)
@@ -1013,6 +1013,7 @@ static int rmi_populate_f30(struct hid_device *hdev)
 
 static int rmi_populate(struct hid_device *hdev)
 {
+	struct rmi_data *data = hid_get_drvdata(hdev);
 	int ret;
 
 	ret = rmi_scan_pdt(hdev);
@@ -1033,9 +1034,11 @@ static int rmi_populate(struct hid_device *hdev)
 		return ret;
 	}
 
-	ret = rmi_populate_f30(hdev);
-	if (ret)
-		hid_warn(hdev, "Error while initializing F30 (%d).\n", ret);
+	if (!(data->device_flags & RMI_DEVICE_HAS_PHYS_BUTTONS)) {
+		ret = rmi_populate_f30(hdev);
+		if (ret)
+			hid_warn(hdev, "Error while initializing F30 (%d).\n", ret);
+	}
 
 	return 0;
 }

@@ -129,7 +129,15 @@ this command.</entry>
 encoding will continue until the end of the current <wordasword>Group
 Of Pictures</wordasword>, otherwise encoding will stop immediately.
 When the encoder is already stopped, this command does
-nothing.</entry>
+nothing. mem2mem encoders will send a <constant>V4L2_EVENT_EOS</constant> event
+when the last frame has been decoded and all frames are ready to be dequeued and
+will set the <constant>V4L2_BUF_FLAG_LAST</constant> buffer flag on the last
+buffer of the capture queue to indicate there will be no new buffers produced to
+dequeue. This buffer may be empty, indicated by the driver setting the
+<structfield>bytesused</structfield> field to 0. Once the
+<constant>V4L2_BUF_FLAG_LAST</constant> flag was set, the
+<link linkend="vidioc-qbuf">VIDIOC_DQBUF</link> ioctl will not block anymore,
+but return an &EPIPE;.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_ENC_CMD_PAUSE</constant></entry>

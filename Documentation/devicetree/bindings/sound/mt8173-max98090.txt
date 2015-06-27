@@ -1,0 +1,13 @@
+MT8173 with MAX98090 CODEC
+
+Required properties:
+- compatible : "mediatek,mt8173-max98090"
+- mediatek,audio-codec: the phandle of the MAX98090 audio codec
+
+Example:
+
+	sound {
+		compatible = "mediatek,mt8173-max98090";
+		mediatek,audio-codec = <&max98090>;
+	};
+

@@ -292,7 +292,6 @@ static int tb10x_gpio_remove(struct platform_device *pdev)
 					BIT(tb10x_gpio->gc.ngpio) - 1, 0, 0);
 		kfree(tb10x_gpio->domain->gc);
 		irq_domain_remove(tb10x_gpio->domain);
-		free_irq(tb10x_gpio->irq, tb10x_gpio);
 	}
 	gpiochip_remove(&tb10x_gpio->gc);
 

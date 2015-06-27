@@ -290,7 +290,7 @@ static int cx24123_i2c_readreg(struct cx24123_state *state, u8 i2c_addr, u8 reg)
 	cx24123_i2c_writereg(state, state->config->demod_address, reg, val)
 
 static int cx24123_set_inversion(struct cx24123_state *state,
-	fe_spectral_inversion_t inversion)
+				 enum fe_spectral_inversion inversion)
 {
 	u8 nom_reg = cx24123_readreg(state, 0x0e);
 	u8 auto_reg = cx24123_readreg(state, 0x10);
@@ -318,7 +318,7 @@ static int cx24123_set_inversion(struct cx24123_state *state,
 }
 
 static int cx24123_get_inversion(struct cx24123_state *state,
-	fe_spectral_inversion_t *inversion)
+				 enum fe_spectral_inversion *inversion)
 {
 	u8 val;
 
@@ -335,7 +335,7 @@ static int cx24123_get_inversion(struct cx24123_state *state,
 	return 0;
 }
 
-static int cx24123_set_fec(struct cx24123_state *state, fe_code_rate_t fec)
+static int cx24123_set_fec(struct cx24123_state *state, enum fe_code_rate fec)
 {
 	u8 nom_reg = cx24123_readreg(state, 0x0e) & ~0x07;
 
@@ -397,7 +397,7 @@ static int cx24123_set_fec(struct cx24123_state *state, fe_code_rate_t fec)
 	return 0;
 }
 
-static int cx24123_get_fec(struct cx24123_state *state, fe_code_rate_t *fec)
+static int cx24123_get_fec(struct cx24123_state *state, enum fe_code_rate *fec)
 {
 	int ret;
 
@@ -720,7 +720,7 @@ static int cx24123_initfe(struct dvb_frontend *fe)
 }
 
 static int cx24123_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t voltage)
+			       enum fe_sec_voltage voltage)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 	u8 val;
@@ -795,7 +795,7 @@ static int cx24123_send_diseqc_msg(struct dvb_frontend *fe,
 }
 
 static int cx24123_diseqc_send_burst(struct dvb_frontend *fe,
-	fe_sec_mini_cmd_t burst)
+				     enum fe_sec_mini_cmd burst)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 	int val, tone;
@@ -831,7 +831,7 @@ static int cx24123_diseqc_send_burst(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int cx24123_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int cx24123_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 	int sync = cx24123_readreg(state, 0x14);
@@ -966,7 +966,7 @@ static int cx24123_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx24123_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
+static int cx24123_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 	u8 val;
@@ -995,7 +995,7 @@ static int cx24123_tune(struct dvb_frontend *fe,
 			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
-			fe_status_t *status)
+			enum fe_status *status)
 {
 	int retval = 0;
 
