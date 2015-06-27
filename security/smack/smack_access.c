@@ -425,7 +425,7 @@ void smk_insert_entry(struct smack_known *skp)
  * @string: a text string that might be a Smack label
  *
  * Returns a pointer to the entry in the label list that
- * matches the passed string.
+ * matches the passed string or NULL if not found.
  */
 struct smack_known *smk_find_entry(const char *string)
 {
@@ -448,7 +448,7 @@ struct smack_known *smk_find_entry(const char *string)
  * @string: a text string that might contain a Smack label
  * @len: the maximum size, or zero if it is NULL terminated.
  *
- * Returns a pointer to the clean label, or NULL
+ * Returns a pointer to the clean label or an error code.
  */
 char *smk_parse_smack(const char *string, int len)
 {
@@ -464,7 +464,7 @@ char *smk_parse_smack(const char *string, int len)
 	 * including /smack/cipso and /smack/cipso2
 	 */
 	if (string[0] == '-')
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	for (i = 0; i < len; i++)
 		if (string[i] > '~' || string[i] <= ' ' || string[i] == '/' ||
@@ -472,11 +472,13 @@ char *smk_parse_smack(const char *string, int len)
 			break;
 
 	if (i == 0 || i >= SMK_LONGLABEL)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	smack = kzalloc(i + 1, GFP_KERNEL);
-	if (smack != NULL)
-		strncpy(smack, string, i);
+	if (smack == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	strncpy(smack, string, i);
 
 	return smack;
 }
@@ -523,7 +525,8 @@ int smk_netlbl_mls(int level, char *catset, struct netlbl_lsm_secattr *sap,
  * @len: the maximum size, or zero if it is NULL terminated.
  *
  * Returns a pointer to the entry in the label list that
- * matches the passed string, adding it if necessary.
+ * matches the passed string, adding it if necessary,
+ * or an error code.
  */
 struct smack_known *smk_import_entry(const char *string, int len)
 {
@@ -533,8 +536,8 @@ struct smack_known *smk_import_entry(const char *string, int len)
 	int rc;
 
 	smack = smk_parse_smack(string, len);
-	if (smack == NULL)
-		return NULL;
+	if (IS_ERR(smack))
+		return ERR_CAST(smack);
 
 	mutex_lock(&smack_known_lock);
 
@@ -543,8 +546,10 @@ struct smack_known *smk_import_entry(const char *string, int len)
 		goto freeout;
 
 	skp = kzalloc(sizeof(*skp), GFP_KERNEL);
-	if (skp == NULL)
+	if (skp == NULL) {
+		skp = ERR_PTR(-ENOMEM);
 		goto freeout;
+	}
 
 	skp->smk_known = smack;
 	skp->smk_secid = smack_next_secid++;
@@ -577,7 +582,7 @@ struct smack_known *smk_import_entry(const char *string, int len)
 	 * smk_netlbl_mls failed.
 	 */
 	kfree(skp);
-	skp = NULL;
+	skp = ERR_PTR(rc);
 freeout:
 	kfree(smack);
 unlockout:
@@ -611,4 +616,45 @@ struct smack_known *smack_from_secid(const u32 secid)
 	 */
 	rcu_read_unlock();
 	return &smack_known_invalid;
+}
+
+/*
+ * Unless a process is running with one of these labels
+ * even having CAP_MAC_OVERRIDE isn't enough to grant
+ * privilege to violate MAC policy. If no labels are
+ * designated (the empty list case) capabilities apply to
+ * everyone.
+ */
+LIST_HEAD(smack_onlycap_list);
+DEFINE_MUTEX(smack_onlycap_lock);
+
+/*
+ * Is the task privileged and allowed to be privileged
+ * by the onlycap rule.
+ *
+ * Returns 1 if the task is allowed to be privileged, 0 if it's not.
+ */
+int smack_privileged(int cap)
+{
+	struct smack_known *skp = smk_of_current();
+	struct smack_onlycap *sop;
+
+	if (!capable(cap))
+		return 0;
+
+	rcu_read_lock();
+	if (list_empty(&smack_onlycap_list)) {
+		rcu_read_unlock();
+		return 1;
+	}
+
+	list_for_each_entry_rcu(sop, &smack_onlycap_list, list) {
+		if (sop->smk_label == skp) {
+			rcu_read_unlock();
+			return 1;
+		}
+	}
+	rcu_read_unlock();
+
+	return 0;
 }
