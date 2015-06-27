@@ -120,7 +120,7 @@ static const u8 ci_regs_lpm[] = {
 	[OP_ENDPTCTRL]		= 0xECU,
 };
 
-static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
+static void hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 {
 	int i;
 
@@ -136,7 +136,6 @@ static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 			 ? ci_regs_lpm[OP_ENDPTCTRL]
 			 : ci_regs_nolpm[OP_ENDPTCTRL]);
 
-	return 0;
 }
 
 static enum ci_revision ci_get_revision(struct ci_hdrc *ci)
