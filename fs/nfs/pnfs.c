@@ -2266,6 +2266,9 @@ pnfs_report_layoutstat(struct inode *inode)
 	if (!pnfs_enabled_sb(server) || !ld->prepare_layoutstats)
 		goto out;
 
+	if (!nfs_server_capable(inode, NFS_CAP_LAYOUTSTATS))
+		goto out;
+
 	if (test_and_set_bit(NFS_INO_LAYOUTSTATS, &nfsi->flags))
 		goto out;
 

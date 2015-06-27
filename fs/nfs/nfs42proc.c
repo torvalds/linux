@@ -189,9 +189,15 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return;
 
-	/* well, we don't care about errors at all! */
-	if (task->tk_status)
+	switch (task->tk_status) {
+	case 0:
+		break;
+	case -ENOTSUPP:
+	case -EOPNOTSUPP:
+		NFS_SERVER(data->inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
+	default:
 		dprintk("%s server returns %d\n", __func__, task->tk_status);
+	}
 }
 
 static void
