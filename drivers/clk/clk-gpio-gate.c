@@ -10,7 +10,7 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
