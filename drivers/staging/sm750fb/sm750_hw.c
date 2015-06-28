@@ -43,8 +43,8 @@ int hw_sm750_map(struct lynx_share *share, struct pci_dev *pdev)
 	 * in lynxfb_remove, or memory will not be mapped again
 	 * successfully
 	 * */
-
-	if ((ret = pci_request_region(pdev, 1, "sm750fb"))) {
+	ret = pci_request_region(pdev, 1, "sm750fb");
+	if (ret) {
 		pr_err("Can not request PCI regions.\n");
 		goto exit;
 	}
@@ -77,7 +77,8 @@ int hw_sm750_map(struct lynx_share *share, struct pci_dev *pdev)
 
 	/* reserve the vidmem space of smi adaptor */
 #if 0
-	if ((ret = pci_request_region(pdev, 0, _moduleName_))) {
+	ret = pci_request_region(pdev, 0, _moduleName_);
+	if (ret) {
 		pr_err("Can not request PCI regions.\n");
 		goto exit;
 	}
