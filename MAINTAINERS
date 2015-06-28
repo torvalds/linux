@@ -10389,11 +10389,15 @@ S:	Maintained
 F:	Documentation/filesystems/ubifs.txt
 F:	fs/ubifs/
 
-UCLINUX (AND M68KNOMMU)
+UCLINUX (M68KNOMMU AND COLDFIRE)
 M:	Greg Ungerer <gerg@uclinux.org>
 W:	http://www.uclinux.org/
+L:	linux-m68k@lists.linux-m68k.org
 L:	uclinux-dev@uclinux.org  (subscribers-only)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gerg/m68knommu.git
 S:	Maintained
+F:	arch/m68k/coldfire/
+F:	arch/m68k/68*/
 F:	arch/m68k/*/*_no.*
 F:	arch/m68k/include/asm/*_no.*
 
