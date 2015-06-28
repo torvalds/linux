@@ -112,17 +112,10 @@ cris_console_setup(struct console *co, char *options)
 	return 0;
 }
 
-static struct tty_driver *cris_console_device(struct console *co, int *index)
-{
-	struct uart_driver *p = co->data;
-	*index = co->index;
-	return p->tty_driver;
-}
-
 static struct console cris_console = {
 	.name = "ttyS",
 	.write = cris_console_write,
-	.device = cris_console_device,
+	.device = uart_console_device,
 	.setup = cris_console_setup,
 	.flags = CON_PRINTBUFFER,
 	.index = -1,
