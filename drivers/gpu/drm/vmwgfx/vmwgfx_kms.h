@@ -114,7 +114,6 @@ struct vmw_framebuffer_surface {
 	struct vmw_surface *surface;
 	struct vmw_dma_buffer *buffer;
 	struct list_head head;
-	struct drm_master *master;
 	bool is_dmabuf_proxy;  /* true if this is proxy surface for DMA buf */
 };
 
@@ -238,7 +237,12 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 		     struct drm_vmw_fence_rep __user *user_fence_rep,
 		     struct drm_vmw_rect *vclips,
 		     uint32_t num_clips);
-
+struct vmw_framebuffer *
+vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
+			struct vmw_dma_buffer *dmabuf,
+			struct vmw_surface *surface,
+			bool only_2d,
+			const struct drm_mode_fb_cmd *mode_cmd);
 
 /*
  * Legacy display unit functions - vmwgfx_ldu.c

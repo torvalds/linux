@@ -1142,8 +1142,6 @@ static void vmw_lastclose(struct drm_device *dev)
 static void vmw_master_init(struct vmw_master *vmaster)
 {
 	ttm_lock_init(&vmaster->lock);
-	INIT_LIST_HEAD(&vmaster->fb_surf);
-	mutex_init(&vmaster->fb_surf_mutex);
 }
 
 static int vmw_master_create(struct drm_device *dev,

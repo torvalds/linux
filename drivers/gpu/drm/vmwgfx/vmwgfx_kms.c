@@ -369,14 +369,7 @@ static void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 {
 	struct vmw_framebuffer_surface *vfbs =
 		vmw_framebuffer_to_vfbs(framebuffer);
-	struct vmw_master *vmaster = vmw_master(vfbs->master);
 
-
-	mutex_lock(&vmaster->fb_surf_mutex);
-	list_del(&vfbs->head);
-	mutex_unlock(&vmaster->fb_surf_mutex);
-
-	drm_master_put(&vfbs->master);
 	drm_framebuffer_cleanup(framebuffer);
 	vmw_surface_unreference(&vfbs->surface);
 	ttm_base_object_unref(&vfbs->base.user_obj);
@@ -395,9 +388,6 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 		vmw_framebuffer_to_vfbs(framebuffer);
 	struct drm_clip_rect norect;
 	int ret, inc = 1;
-
-	if (unlikely(vfbs->master != file_priv->master))
-		return -EINVAL;
 
 	/* Legacy Display Unit does not support 3D */
 	if (dev_priv->active_display_unit == vmw_du_legacy)
@@ -485,7 +475,6 @@ static struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
 };
 
 static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
-					   struct drm_file *file_priv,
 					   struct vmw_surface *surface,
 					   struct vmw_framebuffer **out,
 					   const struct drm_mode_fb_cmd
@@ -496,7 +485,6 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_framebuffer_surface *vfbs;
 	enum SVGA3dSurfaceFormat format;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
 
 	/* 3D is only supported on HWv8 and newer hosts */
@@ -564,12 +552,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	vfbs->base.base.height = mode_cmd->height;
 	vfbs->surface = surface;
 	vfbs->base.user_handle = mode_cmd->handle;
-	vfbs->master = drm_master_get(file_priv->master);
 	vfbs->is_dmabuf_proxy = is_dmabuf_proxy;
-
-	mutex_lock(&vmaster->fb_surf_mutex);
-	list_add_tail(&vfbs->head, &vmaster->fb_surf);
-	mutex_unlock(&vmaster->fb_surf_mutex);
 
 	*out = &vfbs->base;
 
@@ -670,39 +653,51 @@ static struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
 /**
  * Pin the dmabuffer to the start of vram.
  */
-static int vmw_framebuffer_dmabuf_pin(struct vmw_framebuffer *vfb)
+static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
 {
 	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
-	struct vmw_framebuffer_dmabuf *vfbd =
-		vmw_framebuffer_to_vfbd(&vfb->base);
+	struct vmw_dma_buffer *buf;
 	int ret;
 
-	/* This code should only be used with Legacy Display Unit */
-	BUG_ON(dev_priv->active_display_unit != vmw_du_legacy);
+	buf = vfb->dmabuf ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
+		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.backup;
 
-	vmw_overlay_pause_all(dev_priv);
-
-	ret = vmw_dmabuf_pin_in_start_of_vram(dev_priv, vfbd->buffer, false);
-
-	vmw_overlay_resume_all(dev_priv);
-
-	WARN_ON(ret != 0);
-
-	return 0;
-}
-
-static int vmw_framebuffer_dmabuf_unpin(struct vmw_framebuffer *vfb)
-{
-	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
-	struct vmw_framebuffer_dmabuf *vfbd =
-		vmw_framebuffer_to_vfbd(&vfb->base);
-
-	if (!vfbd->buffer) {
-		WARN_ON(!vfbd->buffer);
+	if (!buf)
 		return 0;
+
+	switch (dev_priv->active_display_unit) {
+	case vmw_du_legacy:
+		vmw_overlay_pause_all(dev_priv);
+		ret = vmw_dmabuf_pin_in_start_of_vram(dev_priv, buf, false);
+		vmw_overlay_resume_all(dev_priv);
+		break;
+	case vmw_du_screen_object:
+	case vmw_du_screen_target:
+		if (vfb->dmabuf)
+			return vmw_dmabuf_pin_in_vram_or_gmr(dev_priv, buf,
+							     false);
+
+		return vmw_dmabuf_pin_in_placement(dev_priv, buf,
+						   &vmw_mob_placement, false);
+	default:
+		return -EINVAL;
 	}
 
-	return vmw_dmabuf_unpin(dev_priv, vfbd->buffer, false);
+	return ret;
+}
+
+static int vmw_framebuffer_unpin(struct vmw_framebuffer *vfb)
+{
+	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
+	struct vmw_dma_buffer *buf;
+
+	buf = vfb->dmabuf ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
+		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.backup;
+
+	if (WARN_ON(!buf))
+		return 0;
+
+	return vmw_dmabuf_unpin(dev_priv, buf, false);
 }
 
 /**
@@ -721,7 +716,7 @@ static int vmw_framebuffer_dmabuf_unpin(struct vmw_framebuffer *vfb)
  * 0 on success, error code otherwise
  */
 static int vmw_create_dmabuf_proxy(struct drm_device *dev,
-				   struct drm_mode_fb_cmd *mode_cmd,
+				   const struct drm_mode_fb_cmd *mode_cmd,
 				   struct vmw_dma_buffer *dmabuf_mob,
 				   struct vmw_surface **srf_out)
 {
@@ -847,10 +842,6 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 	vfbd->base.base.depth = mode_cmd->depth;
 	vfbd->base.base.width = mode_cmd->width;
 	vfbd->base.base.height = mode_cmd->height;
-	if (dev_priv->active_display_unit == vmw_du_legacy) {
-		vfbd->base.pin = vmw_framebuffer_dmabuf_pin;
-		vfbd->base.unpin = vmw_framebuffer_dmabuf_unpin;
-	}
 	vfbd->base.dmabuf = true;
 	vfbd->buffer = dmabuf;
 	vfbd->base.user_handle = mode_cmd->handle;
@@ -871,6 +862,64 @@ out_err1:
 	return ret;
 }
 
+/**
+ * vmw_kms_new_framebuffer - Create a new framebuffer.
+ *
+ * @dev_priv: Pointer to device private struct.
+ * @dmabuf: Pointer to dma buffer to wrap the kms framebuffer around.
+ * Either @dmabuf or @surface must be NULL.
+ * @surface: Pointer to a surface to wrap the kms framebuffer around.
+ * Either @dmabuf or @surface must be NULL.
+ * @only_2d: No presents will occur to this dma buffer based framebuffer. This
+ * Helps the code to do some important optimizations.
+ * @mode_cmd: Frame-buffer metadata.
+ */
+struct vmw_framebuffer *
+vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
+			struct vmw_dma_buffer *dmabuf,
+			struct vmw_surface *surface,
+			bool only_2d,
+			const struct drm_mode_fb_cmd *mode_cmd)
+{
+	struct vmw_framebuffer *vfb;
+	bool is_dmabuf_proxy = false;
+	int ret;
+
+	/*
+	 * We cannot use the SurfaceDMA command in an non-accelerated VM,
+	 * therefore, wrap the DMA buf in a surface so we can use the
+	 * SurfaceCopy command.
+	 */
+	if (dmabuf && only_2d &&
+	    dev_priv->active_display_unit == vmw_du_screen_target) {
+		ret = vmw_create_dmabuf_proxy(dev_priv->dev, mode_cmd,
+					      dmabuf, &surface);
+		if (ret)
+			return ERR_PTR(ret);
+
+		is_dmabuf_proxy = true;
+	}
+
+	/* Create the new framebuffer depending one what we have */
+	if (surface)
+		ret = vmw_kms_new_framebuffer_surface(dev_priv, surface, &vfb,
+						      mode_cmd,
+						      is_dmabuf_proxy);
+	else if (dmabuf)
+		ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, dmabuf, &vfb,
+						     mode_cmd);
+	else
+		BUG();
+
+	if (ret)
+		return ERR_PTR(ret);
+
+	vfb->pin = vmw_framebuffer_pin;
+	vfb->unpin = vmw_framebuffer_unpin;
+
+	return vfb;
+}
+
 /*
  * Generic Kernel modesetting functions
  */
@@ -886,7 +935,6 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_dma_buffer *bo = NULL;
 	struct ttm_base_object *user_obj;
 	struct drm_mode_fb_cmd mode_cmd;
-	bool is_dmabuf_proxy = false;
 	int ret;
 
 	mode_cmd.width = mode_cmd2->width;
@@ -935,31 +983,13 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	if (ret)
 		goto err_out;
 
-	/*
-	 * We cannot use the SurfaceDMA command in an non-accelerated VM,
-	 * therefore, wrap the DMA buf in a surface so we can use the
-	 * SurfaceCopy command.
-	 */
-	if (bo && !(dev_priv->capabilities & SVGA_CAP_3D) &&
-	    dev_priv->active_display_unit == vmw_du_screen_target) {
-		ret = vmw_create_dmabuf_proxy(dev_priv->dev, &mode_cmd, bo,
-			&surface);
-		if (ret)
-			goto err_out;
-
-		is_dmabuf_proxy = true;
-	}
-
-	/* Create the new framebuffer depending one what we have */
-	if (surface)
-		ret = vmw_kms_new_framebuffer_surface(dev_priv, file_priv,
-						      surface, &vfb, &mode_cmd,
-						      is_dmabuf_proxy);
-	else if (bo)
-		ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, bo, &vfb,
-						     &mode_cmd);
-	else
-		BUG();
+	vfb = vmw_kms_new_framebuffer(dev_priv, bo, surface,
+				      !(dev_priv->capabilities & SVGA_CAP_3D),
+				      &mode_cmd);
+	if (IS_ERR(vfb)) {
+		ret = PTR_ERR(vfb);
+		goto err_out;
+ 	}
 
 err_out:
 	/* vmw_user_lookup_handle takes one ref so does new_fb */

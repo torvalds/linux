@@ -372,8 +372,6 @@ struct vmw_overlay;
 
 struct vmw_master {
 	struct ttm_lock lock;
-	struct mutex fb_surf_mutex;
-	struct list_head fb_surf;
 };
 
 struct vmw_vga_topology_state {
