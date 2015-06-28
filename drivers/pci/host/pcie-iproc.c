@@ -191,19 +191,16 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	if (!pcie || !pcie->dev || !pcie->base)
 		return -EINVAL;
 
-	if (pcie->phy) {
-		ret = phy_init(pcie->phy);
-		if (ret) {
-			dev_err(pcie->dev, "unable to initialize PCIe PHY\n");
-			return ret;
-		}
+	ret = phy_init(pcie->phy);
+	if (ret) {
+		dev_err(pcie->dev, "unable to initialize PCIe PHY\n");
+		return ret;
+	}
 
-		ret = phy_power_on(pcie->phy);
-		if (ret) {
-			dev_err(pcie->dev, "unable to power on PCIe PHY\n");
-			goto err_exit_phy;
-		}
-
+	ret = phy_power_on(pcie->phy);
+	if (ret) {
+		dev_err(pcie->dev, "unable to power on PCIe PHY\n");
+		goto err_exit_phy;
 	}
 
 	iproc_pcie_reset(pcie);
@@ -239,12 +236,9 @@ err_rm_root_bus:
 	pci_remove_root_bus(bus);
 
 err_power_off_phy:
-	if (pcie->phy)
-		phy_power_off(pcie->phy);
+	phy_power_off(pcie->phy);
 err_exit_phy:
-	if (pcie->phy)
-		phy_exit(pcie->phy);
-
+	phy_exit(pcie->phy);
 	return ret;
 }
 EXPORT_SYMBOL(iproc_pcie_setup);
@@ -254,10 +248,8 @@ int iproc_pcie_remove(struct iproc_pcie *pcie)
 	pci_stop_root_bus(pcie->root_bus);
 	pci_remove_root_bus(pcie->root_bus);
 
-	if (pcie->phy) {
-		phy_power_off(pcie->phy);
-		phy_exit(pcie->phy);
-	}
+	phy_power_off(pcie->phy);
+	phy_exit(pcie->phy);
 
 	return 0;
 }
