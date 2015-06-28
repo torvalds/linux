@@ -268,7 +268,7 @@ static int stm32f4_rcc_lookup_clk_idx(u8 primary, u8 secondary)
 	memcpy(table, stm32f42xx_gate_map, sizeof(table));
 
 	/* only bits set in table can be used as indices */
-	if (WARN_ON(secondary > 8 * sizeof(table) ||
+	if (WARN_ON(secondary >= BITS_PER_BYTE * sizeof(table) ||
 		    0 == (table[BIT_ULL_WORD(secondary)] &
 			  BIT_ULL_MASK(secondary))))
 		return -EINVAL;
