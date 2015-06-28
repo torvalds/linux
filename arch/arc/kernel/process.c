@@ -47,13 +47,7 @@ void arch_cpu_idle(void)
 	if (is_isa_arcompact()) {
 		__asm__("sleep 0x3");
 	} else {
-		/* default irq priority (<=) which can interrupt the doze */
-		const int arg = 0x10 | ARCV2_IRQ_DEF_PRIO;
-
-		__asm__ __volatile__(
-		"sleep %0	\n"
-		:
-		:"r"(arg));
+		__asm__("sleep 0x10");
 	}
 }
 
