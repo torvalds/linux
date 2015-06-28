@@ -90,8 +90,9 @@ struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
 		err = gpio_request_one(gpio, gpio_flags, name);
 
 	if (err) {
-		pr_err("%s: %s: Error requesting clock control gpio %u\n",
-		       __func__, name, gpio);
+		if (err != -EPROBE_DEFER)
+			pr_err("%s: %s: Error requesting clock control gpio %u\n",
+					__func__, name, gpio);
 		return ERR_PTR(err);
 	}
 
