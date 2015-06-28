@@ -404,7 +404,7 @@ void tipc_link_reset_fragments(struct tipc_link *l_ptr)
 	l_ptr->reasm_buf = NULL;
 }
 
-static void tipc_link_purge_backlog(struct tipc_link *l)
+void tipc_link_purge_backlog(struct tipc_link *l)
 {
 	__skb_queue_purge(&l->backlogq);
 	l->backlog[TIPC_LOW_IMPORTANCE].len = 0;
