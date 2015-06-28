@@ -806,6 +806,53 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 			    cfile->fid.volatile_fid, cfile->pid, &eof, false);
 }
 
+#ifdef CONFIG_CIFS_SMB311
+static int
+smb2_duplicate_extents(const unsigned int xid,
+			struct cifsFileInfo *srcfile,
+			struct cifsFileInfo *trgtfile, u64 src_off,
+			u64 len, u64 dest_off)
+{
+	int rc;
+	unsigned int ret_data_len;
+	char *retbuf = NULL;
+	struct duplicate_extents_to_file dup_ext_buf;
+	struct cifs_tcon *tcon = tlink_tcon(trgtfile->tlink);
+
+	/* server fileays advertise duplicate extent support with this flag */
+	if ((le32_to_cpu(tcon->fsAttrInfo.Attributes) &
+	     FILE_SUPPORTS_BLOCK_REFCOUNTING) == 0)
+		return -EOPNOTSUPP;
+
+	dup_ext_buf.VolatileFileHandle = srcfile->fid.volatile_fid;
+	dup_ext_buf.PersistentFileHandle = srcfile->fid.persistent_fid;
+	dup_ext_buf.SourceFileOffset = cpu_to_le64(src_off);
+	dup_ext_buf.TargetFileOffset = cpu_to_le64(dest_off);
+	dup_ext_buf.ByteCount = cpu_to_le64(len);
+	cifs_dbg(FYI, "duplicate extents: src off %lld dst off %lld len %lld",
+		src_off, dest_off, len);
+
+	rc = smb2_set_file_size(xid, tcon, trgtfile, dest_off + len, false);
+	if (rc)
+		goto duplicate_extents_out;
+
+	rc = SMB2_ioctl(xid, tcon, trgtfile->fid.persistent_fid,
+			trgtfile->fid.volatile_fid,
+			FSCTL_DUPLICATE_EXTENTS_TO_FILE,
+			true /* is_fsctl */, (char *)&dup_ext_buf,
+			sizeof(struct duplicate_extents_to_file),
+			(char **)&retbuf,
+			&ret_data_len);
+
+	if (ret_data_len > 0)
+		cifs_dbg(FYI, "non-zero response length in duplicate extents");
+
+duplicate_extents_out:
+	return rc;
+}
+#endif /* CONFIG_CIFS_SMB311 */
+
+
 static int
 smb2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifsFileInfo *cfile)
@@ -1714,6 +1761,7 @@ struct smb_version_operations smb311_operations = {
 	.create_lease_buf = smb3_create_lease_buf,
 	.parse_lease_buf = smb3_parse_lease_buf,
 	.clone_range = smb2_clone_range,
+	.duplicate_extents = smb2_duplicate_extents,
 /*	.validate_negotiate = smb3_validate_negotiate, */ /* not used in 3.11 */
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
