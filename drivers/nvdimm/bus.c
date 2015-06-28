@@ -699,8 +699,10 @@ int __init nvdimm_bus_init(void)
 	nvdimm_major = rc;
 
 	nd_class = class_create(THIS_MODULE, "nd");
-	if (IS_ERR(nd_class))
+	if (IS_ERR(nd_class)) {
+		rc = PTR_ERR(nd_class);
 		goto err_class;
+	}
 
 	return 0;
 
