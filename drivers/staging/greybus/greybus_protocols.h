@@ -606,9 +606,16 @@ struct gb_uart_send_data_request {
 	__u8	data[0];
 };
 
+/* recv-data-request flags */
+#define GB_UART_RECV_FLAG_FRAMING		0x01	/* Framing error */
+#define GB_UART_RECV_FLAG_PARITY		0x02	/* Parity error */
+#define GB_UART_RECV_FLAG_OVERRUN		0x04	/* Overrun error */
+#define GB_UART_RECV_FLAG_BREAK			0x08	/* Break */
+
 /* Represents data from Module -> AP */
 struct gb_uart_recv_data_request {
 	__le16	size;
+	__u8	flags;
 	__u8	data[0];
 };
 
@@ -644,12 +651,7 @@ struct gb_uart_set_break_request {
 /* input control lines and line errors */
 #define GB_UART_CTRL_DCD			0x01
 #define GB_UART_CTRL_DSR			0x02
-#define GB_UART_CTRL_BRK			0x04
-#define GB_UART_CTRL_RI				0x08
-
-#define GB_UART_CTRL_FRAMING			0x10
-#define GB_UART_CTRL_PARITY			0x20
-#define GB_UART_CTRL_OVERRUN			0x40
+#define GB_UART_CTRL_RI				0x04
 
 struct gb_uart_serial_state_request {
 	__le16	control;
