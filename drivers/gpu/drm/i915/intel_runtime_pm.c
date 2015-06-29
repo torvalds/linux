@@ -835,12 +835,8 @@ static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 	return enabled;
 }
 
-static void vlv_display_power_well_enable(struct drm_i915_private *dev_priv,
-					  struct i915_power_well *power_well)
+static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 {
-	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DISP2D);
-
-	vlv_set_power_well(dev_priv, power_well, true);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_enable_display_irqs(dev_priv);
@@ -858,18 +854,33 @@ static void vlv_display_power_well_enable(struct drm_i915_private *dev_priv,
 	i915_redisable_vga_power_on(dev_priv->dev);
 }
 
+static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
+{
+	spin_lock_irq(&dev_priv->irq_lock);
+	valleyview_disable_display_irqs(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	vlv_power_sequencer_reset(dev_priv);
+}
+
+static void vlv_display_power_well_enable(struct drm_i915_private *dev_priv,
+					  struct i915_power_well *power_well)
+{
+	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DISP2D);
+
+	vlv_set_power_well(dev_priv, power_well, true);
+
+	vlv_display_power_well_init(dev_priv);
+}
+
 static void vlv_display_power_well_disable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
 	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DISP2D);
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	valleyview_disable_display_irqs(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	vlv_display_power_well_deinit(dev_priv);
 
 	vlv_set_power_well(dev_priv, power_well, false);
-
-	vlv_power_sequencer_reset(dev_priv);
 }
 
 static void vlv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
@@ -1054,20 +1065,7 @@ static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
 
 	chv_set_pipe_power_well(dev_priv, power_well, true);
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	valleyview_enable_display_irqs(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	/*
-	 * During driver initialization/resume we can avoid restoring the
-	 * part of the HW/SW state that will be inited anyway explicitly.
-	 */
-	if (dev_priv->power_domains.initializing)
-		return;
-
-	intel_hpd_init(dev_priv);
-
-	i915_redisable_vga_power_on(dev_priv->dev);
+	vlv_display_power_well_init(dev_priv);
 }
 
 static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
@@ -1075,13 +1073,9 @@ static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 {
 	WARN_ON_ONCE(power_well->data != PIPE_A);
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	valleyview_disable_display_irqs(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	vlv_display_power_well_deinit(dev_priv);
 
 	chv_set_pipe_power_well(dev_priv, power_well, false);
-
-	vlv_power_sequencer_reset(dev_priv);
 }
 
 /**
