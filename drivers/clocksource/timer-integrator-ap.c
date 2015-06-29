@@ -26,7 +26,8 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/sched_clock.h>
-#include <asm/hardware/arm_timer.h>
+
+#include "timer-sp.h"
 
 static void __iomem * sched_clk_base;
 

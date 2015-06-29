@@ -30,7 +30,7 @@ static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 	return to_mdp5_kms(to_mdp_kms(priv->kms));
 }
 
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 #include <mach/board.h>
 #include <linux/msm-bus.h>
 #include <linux/msm-bus-board.h>
@@ -216,16 +216,12 @@ static void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 static void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_cmd_encoder *mdp5_cmd_enc = to_mdp5_cmd_encoder(encoder);
-	struct mdp5_kms *mdp5_kms = get_kms(encoder);
 	struct mdp5_ctl *ctl = mdp5_crtc_get_ctl(encoder->crtc);
 	struct mdp5_interface *intf = &mdp5_cmd_enc->intf;
-	int lm = mdp5_crtc_get_lm(encoder->crtc);
 
 	if (WARN_ON(!mdp5_cmd_enc->enabled))
 		return;
 
-	/* Wait for the last frame done */
-	mdp_irq_wait(&mdp5_kms->base, lm2ppdone(lm));
 	pingpong_tearcheck_disable(encoder);
 
 	mdp5_ctl_set_encoder_state(ctl, false);
@@ -281,22 +277,22 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 	 * start signal for the slave encoder
 	 */
 	if (intf_num == 1)
-		data |= MDP5_SPLIT_DPL_UPPER_INTF2_SW_TRG_MUX;
+		data |= MDP5_MDP_SPLIT_DPL_UPPER_INTF2_SW_TRG_MUX;
 	else if (intf_num == 2)
-		data |= MDP5_SPLIT_DPL_UPPER_INTF1_SW_TRG_MUX;
+		data |= MDP5_MDP_SPLIT_DPL_UPPER_INTF1_SW_TRG_MUX;
 	else
 		return -EINVAL;
 
 	/* Smart Panel, Sync mode */
-	data |= MDP5_SPLIT_DPL_UPPER_SMART_PANEL;
+	data |= MDP5_MDP_SPLIT_DPL_UPPER_SMART_PANEL;
 
 	/* Make sure clocks are on when connectors calling this function. */
 	mdp5_enable(mdp5_kms);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, data);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_UPPER(0), data);
 
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER,
-			MDP5_SPLIT_DPL_LOWER_SMART_PANEL);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_LOWER(0),
+			MDP5_MDP_SPLIT_DPL_LOWER_SMART_PANEL);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_EN(0), 1);
 	mdp5_disable(mdp5_kms);
 
 	return 0;

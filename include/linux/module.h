@@ -257,6 +257,8 @@ struct module {
 	bool sig_ok;
 #endif
 
+	bool async_probe_requested;
+
 	/* symbols that will be GPL-only in the near future. */
 	const struct kernel_symbol *gpl_future_syms;
 	const unsigned long *gpl_future_crcs;
@@ -336,7 +338,7 @@ struct module {
 	const char **trace_bprintk_fmt_start;
 #endif
 #ifdef CONFIG_EVENT_TRACING
-	struct ftrace_event_call **trace_events;
+	struct trace_event_call **trace_events;
 	unsigned int num_trace_events;
 	struct trace_enum_map **trace_enums;
 	unsigned int num_trace_enums;
@@ -508,6 +510,11 @@ int unregister_module_notifier(struct notifier_block *nb);
 
 extern void print_modules(void);
 
+static inline bool module_requested_async_probing(struct module *module)
+{
+	return module && module->async_probe_requested;
+}
+
 #else /* !CONFIG_MODULES... */
 
 /* Given an address, look for it in the exception tables. */
@@ -618,6 +625,12 @@ static inline int unregister_module_notifier(struct notifier_block *nb)
 static inline void print_modules(void)
 {
 }
+
+static inline bool module_requested_async_probing(struct module *module)
+{
+	return false;
+}
+
 #endif /* CONFIG_MODULES */
 
 #ifdef CONFIG_SYSFS

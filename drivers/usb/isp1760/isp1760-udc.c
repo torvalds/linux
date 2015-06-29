@@ -812,6 +812,8 @@ static struct usb_request *isp1760_ep_alloc_request(struct usb_ep *ep,
 	struct isp1760_request *req;
 
 	req = kzalloc(sizeof(*req), gfp_flags);
+	if (!req)
+		return NULL;
 
 	return &req->req;
 }

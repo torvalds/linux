@@ -286,7 +286,8 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 	change = (b->flags & TTYB_NORMAL) && (~flags & TTYB_NORMAL);
 	if (change || left < size) {
 		/* This is the slow path - looking for new buffers to use */
-		if ((n = tty_buffer_alloc(port, size)) != NULL) {
+		n = tty_buffer_alloc(port, size);
+		if (n != NULL) {
 			n->flags = flags;
 			buf->tail = n;
 			b->commit = b->used;

@@ -49,6 +49,14 @@ config OMAP_GPMC
 	  interfacing to a variety of asynchronous as well as synchronous
 	  memory drives like NOR, NAND, OneNAND, SRAM.
 
+config OMAP_GPMC_DEBUG
+	bool
+	depends on OMAP_GPMC
+	help
+	  Enables verbose debugging mostly to decode the bootloader provided
+	  timings. Enable this during development to configure devices
+	  connected to the GPMC bus.
+
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"
 	default y

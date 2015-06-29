@@ -1,29 +1,13 @@
-/*********************************************************************
- * Author: Cavium Networks
- *
- * Contact: support@caviumnetworks.com
- * This file is part of the OCTEON SDK
+/*
+ * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
  * published by the Free Software Foundation.
- *
- * This file is distributed in the hope that it will be useful, but
- * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- * or visit http://www.gnu.org/licenses/.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium Networks for more information
-*********************************************************************/
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -411,7 +395,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 dont_put_skbuff_in_hw:
 
 	/* Check if we can use the hardware checksumming */
-	if (USE_HW_TCPUDP_CHECKSUM && (skb->protocol == htons(ETH_P_IP)) &&
+	if ((skb->protocol == htons(ETH_P_IP)) &&
 	    (ip_hdr(skb)->version == 4) && (ip_hdr(skb)->ihl == 5) &&
 	    ((ip_hdr(skb)->frag_off == 0) || (ip_hdr(skb)->frag_off == htons(1 << 14)))
 	    && ((ip_hdr(skb)->protocol == IPPROTO_TCP)
@@ -576,7 +560,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(packet_buffer == NULL)) {
 		printk_ratelimited("%s: Failed to allocate a packet buffer\n",
 				   dev->name);
-		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
+		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, 1);
 		priv->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
 		return 0;

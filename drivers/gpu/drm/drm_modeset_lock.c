@@ -80,8 +80,10 @@ int __drm_modeset_lock_all(struct drm_device *dev,
 		return -ENOMEM;
 
 	if (trylock) {
-		if (!mutex_trylock(&config->mutex))
-			return -EBUSY;
+		if (!mutex_trylock(&config->mutex)) {
+			ret = -EBUSY;
+			goto out;
+		}
 	} else {
 		mutex_lock(&config->mutex);
 	}
@@ -114,6 +116,8 @@ fail:
 		goto retry;
 	}
 
+out:
+	kfree(ctx);
 	return ret;
 }
 EXPORT_SYMBOL(__drm_modeset_lock_all);

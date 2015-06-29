@@ -28,7 +28,6 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
-#include "intel_drv.h"
 #include "i915_drv.h"
 
 /**
@@ -270,6 +269,9 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("Disable audio codec on port %c, pipe %c\n",
 		      port_name(port), pipe_name(pipe));
 
+	if (WARN_ON(port == PORT_A))
+		return;
+
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		aud_config = IBX_AUD_CFG(pipe);
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
@@ -291,12 +293,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder)
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
 	I915_WRITE(aud_config, tmp);
 
-	if (WARN_ON(!port)) {
-		eldv = IBX_ELD_VALID(PORT_B) | IBX_ELD_VALID(PORT_C) |
-			IBX_ELD_VALID(PORT_D);
-	} else {
-		eldv = IBX_ELD_VALID(port);
-	}
+	eldv = IBX_ELD_VALID(port);
 
 	/* Invalidate ELD */
 	tmp = I915_READ(aud_cntrl_st2);
@@ -326,6 +323,9 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	DRM_DEBUG_KMS("Enable audio codec on port %c, pipe %c, %u bytes ELD\n",
 		      port_name(port), pipe_name(pipe), drm_eld_size(eld));
 
+	if (WARN_ON(port == PORT_A))
+		return;
+
 	/*
 	 * FIXME: We're supposed to wait for vblank here, but we have vblanks
 	 * disabled during the mode set. The proper fix would be to push the
@@ -350,12 +350,7 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
 	}
 
-	if (WARN_ON(!port)) {
-		eldv = IBX_ELD_VALID(PORT_B) | IBX_ELD_VALID(PORT_C) |
-			IBX_ELD_VALID(PORT_D);
-	} else {
-		eldv = IBX_ELD_VALID(port);
-	}
+	eldv = IBX_ELD_VALID(port);
 
 	/* Invalidate ELD */
 	tmp = I915_READ(aud_cntrl_st2);
@@ -511,7 +506,8 @@ static int i915_audio_component_get_cdclk_freq(struct device *dev)
 		return -ENODEV;
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
-	ret = intel_ddi_get_cdclk_freq(dev_priv);
+	ret = dev_priv->display.get_display_clock_speed(dev_priv->dev);
+
 	intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
 
 	return ret;

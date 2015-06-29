@@ -462,6 +462,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	/* v: May be registered for frame buffer console restore */
 	NULL,				/* v */
 	&sysrq_showstate_blocked_op,	/* w */
+	/* x: May be registered on mips for TLB dump */
 	/* x: May be registered on ppc/powerpc for xmon */
 	/* x: May be registered on sparc64 for global PMU dump */
 	NULL,				/* x */

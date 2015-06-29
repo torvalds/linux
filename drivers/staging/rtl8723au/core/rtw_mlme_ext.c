@@ -51,8 +51,7 @@ static void issue_probereq(struct rtw_adapter *padapter,
 static int issue_probereq_ex(struct rtw_adapter *padapter,
 			     struct cfg80211_ssid *pssid,
 			     u8 *da, int try_cnt, int wait_ms);
-static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
-			   u8 is_valid_p2p_probereq);
+static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da);
 static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 		       unsigned short status);
 static int issue_deauth_ex(struct rtw_adapter *padapter, u8 *da,
@@ -760,7 +759,7 @@ OnProbeReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) &&
 	    pmlmepriv->cur_network.join_res)
-		issue_probersp(padapter, mgmt->sa, false);
+		issue_probersp(padapter, mgmt->sa);
 
 out:
 	return _SUCCESS;
@@ -1718,7 +1717,6 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	/*  now the station is qualified to join our BSS... */
 	if (pstat && pstat->state & WIFI_FW_ASSOC_SUCCESS &&
 	    status == WLAN_STATUS_SUCCESS) {
-#ifdef CONFIG_8723AU_AP_MODE
 		/* 1 bss_cap_update & sta_info_update23a */
 		bss_cap_update_on_sta_join23a(padapter, pstat);
 		sta_info_update23a(padapter, pstat);
@@ -1737,21 +1735,17 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 		/* 3-(1) report sta add event */
 		report_add_sta_event23a(padapter, pstat->hwaddr, pstat->aid);
-#endif
 	}
 
 	return _SUCCESS;
 
 asoc_class2_error:
 
-#ifdef CONFIG_8723AU_AP_MODE
 	issue_deauth23a(padapter, mgmt->sa, status);
-#endif
 	return _FAIL;
 
 OnAssocReq23aFail:
 
-#ifdef CONFIG_8723AU_AP_MODE
 	pstat->aid = 0;
 	if (ieee80211_is_assoc_req(mgmt->frame_control))
 		issue_assocrsp(padapter, status, pstat,
@@ -1759,7 +1753,6 @@ OnAssocReq23aFail:
 	else
 		issue_assocrsp(padapter, status, pstat,
 			       IEEE80211_STYPE_REASSOC_RESP);
-#endif
 
 #endif /* CONFIG_8723AU_AP_MODE */
 
@@ -2503,8 +2496,7 @@ _issue_bcn:
 		dump_mgntframe23a(padapter, pmgntframe);
 }
 
-static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
-			   u8 is_valid_p2p_probereq)
+static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da)
 {
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
@@ -3803,8 +3795,6 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 
 	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr) + 1;
 
-	status = cpu_to_le16(status);
-
 	switch (action) {
 	case WLAN_ACTION_ADDBA_REQ:
 		pattrib->pktlen += sizeof(mgmt->u.action.u.addba_req);
@@ -3908,8 +3898,8 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 		put_unaligned_le16(BA_para_set,
 				   &mgmt->u.action.u.addba_resp.capab);
 
-		put_unaligned_le16(pmlmeinfo->ADDBA_req.BA_timeout_value,
-				   &mgmt->u.action.u.addba_resp.timeout);
+		mgmt->u.action.u.addba_resp.timeout
+			= pmlmeinfo->ADDBA_req.BA_timeout_value;
 
 		pattrib->pktlen += 8;
 		break;

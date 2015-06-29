@@ -13,6 +13,7 @@
 #include <linux/wait.h>
 #include <linux/irqreturn.h>
 #include <linux/semaphore.h>
+#include <linux/device.h>
 #include <asm/ptrace.h>
 #include <uapi/linux/parport.h>
 
@@ -145,6 +146,8 @@ struct pardevice {
 	unsigned int flags;
 	struct pardevice *next;
 	struct pardevice *prev;
+	struct device dev;
+	bool devmodel;
 	struct parport_state *state;     /* saved status over preemption */
 	wait_queue_head_t wait_q;
 	unsigned long int time;
@@ -155,6 +158,8 @@ struct pardevice {
 	struct pardevice *waitnext;
 	void * sysctl_table;
 };
+
+#define to_pardevice(n) container_of(n, struct pardevice, dev)
 
 /* IEEE1284 information */
 
@@ -195,7 +200,7 @@ struct parport {
 				 * This may unfortulately be null if the
 				 * port has a legacy driver.
 				 */
-
+	struct device bus_dev;	/* to link with the bus */
 	struct parport *physport;
 				/* If this is a non-default mux
 				   parport, i.e. we're a clone of a real
@@ -245,14 +250,25 @@ struct parport {
 	struct parport *slaves[3];
 };
 
+#define to_parport_dev(n) container_of(n, struct parport, bus_dev)
+
 #define DEFAULT_SPIN_TIME 500 /* us */
 
 struct parport_driver {
 	const char *name;
 	void (*attach) (struct parport *);
 	void (*detach) (struct parport *);
+	void (*match_port)(struct parport *);
+	int (*probe)(struct pardevice *);
+	struct device_driver driver;
+	bool devmodel;
 	struct list_head list;
 };
+
+#define to_parport_driver(n) container_of(n, struct parport_driver, driver)
+
+int parport_bus_init(void);
+void parport_bus_exit(void);
 
 /* parport_register_port registers a new parallel port at the given
    address (if one does not already exist) and returns a pointer to it.
@@ -272,10 +288,20 @@ void parport_announce_port (struct parport *port);
 extern void parport_remove_port(struct parport *port);
 
 /* Register a new high-level driver. */
-extern int parport_register_driver (struct parport_driver *);
+
+int __must_check __parport_register_driver(struct parport_driver *,
+					   struct module *,
+					   const char *mod_name);
+/*
+ * parport_register_driver must be a macro so that KBUILD_MODNAME can
+ * be expanded
+ */
+#define parport_register_driver(driver)             \
+	__parport_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
 
 /* Unregister a high-level driver. */
 extern void parport_unregister_driver (struct parport_driver *);
+void parport_unregister_driver(struct parport_driver *);
 
 /* If parport_register_driver doesn't fit your needs, perhaps
  * parport_find_xxx does. */
@@ -288,6 +314,15 @@ extern irqreturn_t parport_irq_handler(int irq, void *dev_id);
 /* Reference counting for ports. */
 extern struct parport *parport_get_port (struct parport *);
 extern void parport_put_port (struct parport *);
+void parport_del_port(struct parport *);
+
+struct pardev_cb {
+	int (*preempt)(void *);
+	void (*wakeup)(void *);
+	void *private;
+	void (*irq_func)(void *);
+	unsigned int flags;
+};
 
 /* parport_register_device declares that a device is connected to a
    port, and tells the kernel all it needs to know.
@@ -300,6 +335,10 @@ struct pardevice *parport_register_device(struct parport *port,
 			  int (*pf)(void *), void (*kf)(void *),
 			  void (*irq_func)(void *), 
 			  int flags, void *handle);
+
+struct pardevice *
+parport_register_dev_model(struct parport *port, const char *name,
+			   const struct pardev_cb *par_dev_cb, int cnt);
 
 /* parport_unregister unlinks a device from the chain. */
 extern void parport_unregister_device(struct pardevice *dev);

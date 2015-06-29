@@ -141,7 +141,7 @@ static bool driver_deferred_probe_enable = false;
  * more than one device is probing at the same time, it is possible for one
  * probe to complete successfully while another is about to defer. If the second
  * depends on the first, then it will get put on the pending list after the
- * trigger event has already occured and will be stuck there.
+ * trigger event has already occurred and will be stuck there.
  *
  * The atomic 'deferred_trigger_count' is used to determine if a successful
  * trigger has occurred in the midst of probing a driver. If the trigger count
@@ -417,14 +417,150 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 	return ret;
 }
 
-static int __device_attach(struct device_driver *drv, void *data)
+bool driver_allows_async_probing(struct device_driver *drv)
 {
-	struct device *dev = data;
+	switch (drv->probe_type) {
+	case PROBE_PREFER_ASYNCHRONOUS:
+		return true;
+
+	case PROBE_FORCE_SYNCHRONOUS:
+		return false;
+
+	default:
+		if (module_requested_async_probing(drv->owner))
+			return true;
+
+		return false;
+	}
+}
+
+struct device_attach_data {
+	struct device *dev;
+
+	/*
+	 * Indicates whether we are are considering asynchronous probing or
+	 * not. Only initial binding after device or driver registration
+	 * (including deferral processing) may be done asynchronously, the
+	 * rest is always synchronous, as we expect it is being done by
+	 * request from userspace.
+	 */
+	bool check_async;
+
+	/*
+	 * Indicates if we are binding synchronous or asynchronous drivers.
+	 * When asynchronous probing is enabled we'll execute 2 passes
+	 * over drivers: first pass doing synchronous probing and second
+	 * doing asynchronous probing (if synchronous did not succeed -
+	 * most likely because there was no driver requiring synchronous
+	 * probing - and we found asynchronous driver during first pass).
+	 * The 2 passes are done because we can't shoot asynchronous
+	 * probe for given device and driver from bus_for_each_drv() since
+	 * driver pointer is not guaranteed to stay valid once
+	 * bus_for_each_drv() iterates to the next driver on the bus.
+	 */
+	bool want_async;
+
+	/*
+	 * We'll set have_async to 'true' if, while scanning for matching
+	 * driver, we'll encounter one that requests asynchronous probing.
+	 */
+	bool have_async;
+};
+
+static int __device_attach_driver(struct device_driver *drv, void *_data)
+{
+	struct device_attach_data *data = _data;
+	struct device *dev = data->dev;
+	bool async_allowed;
+
+	/*
+	 * Check if device has already been claimed. This may
+	 * happen with driver loading, device discovery/registration,
+	 * and deferred probe processing happens all at once with
+	 * multiple threads.
+	 */
+	if (dev->driver)
+		return -EBUSY;
 
 	if (!driver_match_device(drv, dev))
 		return 0;
 
+	async_allowed = driver_allows_async_probing(drv);
+
+	if (async_allowed)
+		data->have_async = true;
+
+	if (data->check_async && async_allowed != data->want_async)
+		return 0;
+
 	return driver_probe_device(drv, dev);
+}
+
+static void __device_attach_async_helper(void *_dev, async_cookie_t cookie)
+{
+	struct device *dev = _dev;
+	struct device_attach_data data = {
+		.dev		= dev,
+		.check_async	= true,
+		.want_async	= true,
+	};
+
+	device_lock(dev);
+
+	bus_for_each_drv(dev->bus, NULL, &data, __device_attach_driver);
+	dev_dbg(dev, "async probe completed\n");
+
+	pm_request_idle(dev);
+
+	device_unlock(dev);
+
+	put_device(dev);
+}
+
+static int __device_attach(struct device *dev, bool allow_async)
+{
+	int ret = 0;
+
+	device_lock(dev);
+	if (dev->driver) {
+		if (klist_node_attached(&dev->p->knode_driver)) {
+			ret = 1;
+			goto out_unlock;
+		}
+		ret = device_bind_driver(dev);
+		if (ret == 0)
+			ret = 1;
+		else {
+			dev->driver = NULL;
+			ret = 0;
+		}
+	} else {
+		struct device_attach_data data = {
+			.dev = dev,
+			.check_async = allow_async,
+			.want_async = false,
+		};
+
+		ret = bus_for_each_drv(dev->bus, NULL, &data,
+					__device_attach_driver);
+		if (!ret && allow_async && data.have_async) {
+			/*
+			 * If we could not find appropriate driver
+			 * synchronously and we are allowed to do
+			 * async probes and there are drivers that
+			 * want to probe asynchronously, we'll
+			 * try them.
+			 */
+			dev_dbg(dev, "scheduling asynchronous probe\n");
+			get_device(dev);
+			async_schedule(__device_attach_async_helper, dev);
+		} else {
+			pm_request_idle(dev);
+		}
+	}
+out_unlock:
+	device_unlock(dev);
+	return ret;
 }
 
 /**
@@ -443,30 +579,14 @@ static int __device_attach(struct device_driver *drv, void *data)
  */
 int device_attach(struct device *dev)
 {
-	int ret = 0;
-
-	device_lock(dev);
-	if (dev->driver) {
-		if (klist_node_attached(&dev->p->knode_driver)) {
-			ret = 1;
-			goto out_unlock;
-		}
-		ret = device_bind_driver(dev);
-		if (ret == 0)
-			ret = 1;
-		else {
-			dev->driver = NULL;
-			ret = 0;
-		}
-	} else {
-		ret = bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
-		pm_request_idle(dev);
-	}
-out_unlock:
-	device_unlock(dev);
-	return ret;
+	return __device_attach(dev, false);
 }
 EXPORT_SYMBOL_GPL(device_attach);
+
+void device_initial_probe(struct device *dev)
+{
+	__device_attach(dev, true);
+}
 
 static int __driver_attach(struct device *dev, void *data)
 {
@@ -522,6 +642,9 @@ static void __device_release_driver(struct device *dev)
 
 	drv = dev->driver;
 	if (drv) {
+		if (driver_allows_async_probing(drv))
+			async_synchronize_full();
+
 		pm_runtime_get_sync(dev);
 
 		driver_sysfs_remove(dev);

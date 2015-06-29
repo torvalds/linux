@@ -781,7 +781,7 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 		    child->device_type != DEVICE_TYPE_LFP)
 			continue;
 
-		if (intel_gmbus_is_port_valid(child->i2c_pin))
+		if (intel_gmbus_is_valid_pin(dev_priv, child->i2c_pin))
 			*i2c_pin = child->i2c_pin;
 
 		/* However, we cannot trust the BIOS writers to populate
@@ -942,7 +942,7 @@ void intel_lvds_init(struct drm_device *dev)
 	if (dmi_check_system(intel_no_lvds))
 		return;
 
-	pin = GMBUS_PORT_PANEL;
+	pin = GMBUS_PIN_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {
 		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
 		return;

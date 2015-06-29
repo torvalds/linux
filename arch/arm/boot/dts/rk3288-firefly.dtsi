@@ -246,6 +246,14 @@
 		pinctrl-0 = <&pmic_vsel>, <&pwr_hold>;
 		system-power-controller;
 
+		vp1-supply = <&vcc_sys>;
+		vp2-supply = <&vcc_sys>;
+		vp3-supply = <&vcc_sys>;
+		vp4-supply = <&vcc_sys>;
+		inl1-supply = <&vcc_sys>;
+		inl2-supply = <&vcc_sys>;
+		inl3-supply = <&vcc_20>;
+
 		regulators {
 			vcc_ddr: REG1 {
 				regulator-name = "vcc_ddr";
@@ -454,6 +462,12 @@
 &spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_clk>, <&spi0_cs0>, <&spi0_tx>, <&spi0_rx>, <&spi0_cs1>;
+	status = "okay";
+};
+
+&tsadc {
+	rockchip,hw-tshut-mode = <0>;
+	rockchip,hw-tshut-polarity = <0>;
 	status = "okay";
 };
 

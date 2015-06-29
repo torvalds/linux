@@ -1504,7 +1504,7 @@ static int ab8500_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id ab8500_usb_devtype[] = {
+static const struct platform_device_id ab8500_usb_devtype[] = {
 	{ .name = "ab8500-usb", },
 	{ .name = "ab8540-usb", },
 	{ .name = "ab9540-usb", },

@@ -65,8 +65,8 @@ EXPORT_SYMBOL_GPL(mei_irq_compl_handler);
 static inline int mei_cl_hbm_equal(struct mei_cl *cl,
 			struct mei_msg_hdr *mei_hdr)
 {
-	return cl->host_client_id == mei_hdr->host_addr &&
-		cl->me_client_id == mei_hdr->me_addr;
+	return  mei_cl_host_addr(cl) == mei_hdr->host_addr &&
+		mei_cl_me_id(cl) == mei_hdr->me_addr;
 }
 
 /**
@@ -180,55 +180,13 @@ static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return -EMSGSIZE;
 
 	ret = mei_hbm_cl_disconnect_rsp(dev, cl);
-
-	cl->state = MEI_FILE_DISCONNECTED;
-	cl->status = 0;
+	mei_cl_set_disconnected(cl);
 	mei_io_cb_free(cb);
+	mei_me_cl_put(cl->me_cl);
+	cl->me_cl = NULL;
 
 	return ret;
 }
-
-
-
-/**
- * mei_cl_irq_disconnect - processes close related operation from
- *	interrupt thread context - send disconnect request
- *
- * @cl: client
- * @cb: callback block.
- * @cmpl_list: complete list.
- *
- * Return: 0, OK; otherwise, error.
- */
-static int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			    struct mei_cl_cb *cmpl_list)
-{
-	struct mei_device *dev = cl->dev;
-	u32 msg_slots;
-	int slots;
-
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
-	slots = mei_hbuf_empty_slots(dev);
-
-	if (slots < msg_slots)
-		return -EMSGSIZE;
-
-	if (mei_hbm_cl_disconnect_req(dev, cl)) {
-		cl->status = 0;
-		cb->buf_idx = 0;
-		list_move_tail(&cb->list, &cmpl_list->list);
-		return -EIO;
-	}
-
-	cl->state = MEI_FILE_DISCONNECTING;
-	cl->status = 0;
-	cb->buf_idx = 0;
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
-	cl->timer_count = MEI_CONNECT_TIMEOUT;
-
-	return 0;
-}
-
 
 /**
  * mei_cl_irq_read - processes client read related operation from the
@@ -266,49 +224,6 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	return 0;
 }
-
-
-/**
- * mei_cl_irq_connect - send connect request in irq_thread context
- *
- * @cl: client
- * @cb: callback block.
- * @cmpl_list: complete list.
- *
- * Return: 0, OK; otherwise, error.
- */
-static int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			      struct mei_cl_cb *cmpl_list)
-{
-	struct mei_device *dev = cl->dev;
-	u32 msg_slots;
-	int slots;
-	int ret;
-
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
-	slots = mei_hbuf_empty_slots(dev);
-
-	if (mei_cl_is_other_connecting(cl))
-		return 0;
-
-	if (slots < msg_slots)
-		return -EMSGSIZE;
-
-	cl->state = MEI_FILE_CONNECTING;
-
-	ret = mei_hbm_cl_connect_req(dev, cl);
-	if (ret) {
-		cl->status = ret;
-		cb->buf_idx = 0;
-		list_del_init(&cb->list);
-		return ret;
-	}
-
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
-	cl->timer_count = MEI_CONNECT_TIMEOUT;
-	return 0;
-}
-
 
 /**
  * mei_irq_read_handler - bottom half read routine after ISR to

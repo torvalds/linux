@@ -155,7 +155,7 @@ static int ehci_port_change(struct ehci_hcd *ehci)
 	return 0;
 }
 
-static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
+void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 		bool suspending, bool do_wakeup)
 {
 	int		port;
@@ -220,6 +220,7 @@ static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 
 	spin_unlock_irq(&ehci->lock);
 }
+EXPORT_SYMBOL_GPL(ehci_adjust_port_wakeup_flags);
 
 static int ehci_bus_suspend (struct usb_hcd *hcd)
 {

@@ -218,13 +218,13 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
  */
 static int _omap_device_enable_hwmods(struct omap_device *od)
 {
+	int ret = 0;
 	int i;
 
 	for (i = 0; i < od->hwmods_cnt; i++)
-		omap_hwmod_enable(od->hwmods[i]);
+		ret |= omap_hwmod_enable(od->hwmods[i]);
 
-	/* XXX pass along return value here? */
-	return 0;
+	return ret;
 }
 
 /**
@@ -235,13 +235,13 @@ static int _omap_device_enable_hwmods(struct omap_device *od)
  */
 static int _omap_device_idle_hwmods(struct omap_device *od)
 {
+	int ret = 0;
 	int i;
 
 	for (i = 0; i < od->hwmods_cnt; i++)
-		omap_hwmod_idle(od->hwmods[i]);
+		ret |= omap_hwmod_idle(od->hwmods[i]);
 
-	/* XXX pass along return value here? */
-	return 0;
+	return ret;
 }
 
 /* Public functions for use by core code */
@@ -589,18 +589,20 @@ static int _od_runtime_suspend(struct device *dev)
 	int ret;
 
 	ret = pm_generic_runtime_suspend(dev);
+	if (ret)
+		return ret;
 
-	if (!ret)
-		omap_device_idle(pdev);
-
-	return ret;
+	return omap_device_idle(pdev);
 }
 
 static int _od_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	int ret;
 
-	omap_device_enable(pdev);
+	ret = omap_device_enable(pdev);
+	if (ret)
+		return ret;
 
 	return pm_generic_runtime_resume(dev);
 }
@@ -734,7 +736,8 @@ int omap_device_enable(struct platform_device *pdev)
 
 	ret = _omap_device_enable_hwmods(od);
 
-	od->_state = OMAP_DEVICE_STATE_ENABLED;
+	if (ret == 0)
+		od->_state = OMAP_DEVICE_STATE_ENABLED;
 
 	return ret;
 }
@@ -764,7 +767,8 @@ int omap_device_idle(struct platform_device *pdev)
 
 	ret = _omap_device_idle_hwmods(od);
 
-	od->_state = OMAP_DEVICE_STATE_IDLE;
+	if (ret == 0)
+		od->_state = OMAP_DEVICE_STATE_IDLE;
 
 	return ret;
 }

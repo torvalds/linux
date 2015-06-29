@@ -60,7 +60,7 @@ static struct llog_handle *llog_alloc_handle(void)
 {
 	struct llog_handle *loghandle;
 
-	OBD_ALLOC_PTR(loghandle);
+	loghandle = kzalloc(sizeof(*loghandle), GFP_NOFS);
 	if (loghandle == NULL)
 		return NULL;
 
@@ -88,9 +88,9 @@ static void llog_free_handle(struct llog_handle *loghandle)
 	else if (loghandle->lgh_hdr->llh_flags & LLOG_F_IS_CAT)
 		LASSERT(list_empty(&loghandle->u.chd.chd_head));
 	LASSERT(sizeof(*(loghandle->lgh_hdr)) == LLOG_CHUNK_SIZE);
-	OBD_FREE(loghandle->lgh_hdr, LLOG_CHUNK_SIZE);
+	kfree(loghandle->lgh_hdr);
 out:
-	OBD_FREE_PTR(loghandle);
+	kfree(loghandle);
 }
 
 void llog_handle_get(struct llog_handle *loghandle)
@@ -207,7 +207,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 
 	LASSERT(handle->lgh_hdr == NULL);
 
-	OBD_ALLOC_PTR(llh);
+	llh = kzalloc(sizeof(*llh), GFP_NOFS);
 	if (llh == NULL)
 		return -ENOMEM;
 	handle->lgh_hdr = llh;
@@ -261,7 +261,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 	}
 out:
 	if (rc) {
-		OBD_FREE_PTR(llh);
+		kfree(llh);
 		handle->lgh_hdr = NULL;
 	}
 	return rc;
@@ -283,7 +283,7 @@ static int llog_process_thread(void *arg)
 
 	LASSERT(llh);
 
-	OBD_ALLOC(buf, LLOG_CHUNK_SIZE);
+	buf = kzalloc(LLOG_CHUNK_SIZE, GFP_NOFS);
 	if (!buf) {
 		lpi->lpi_rc = -ENOMEM;
 		return 0;
@@ -400,7 +400,7 @@ out:
 	if (cd != NULL)
 		cd->lpcd_last_idx = last_called_index;
 
-	OBD_FREE(buf, LLOG_CHUNK_SIZE);
+	kfree(buf);
 	lpi->lpi_rc = rc;
 	return 0;
 }
@@ -434,7 +434,7 @@ int llog_process_or_fork(const struct lu_env *env,
 	struct llog_process_info *lpi;
 	int		      rc;
 
-	OBD_ALLOC_PTR(lpi);
+	lpi = kzalloc(sizeof(*lpi), GFP_NOFS);
 	if (lpi == NULL) {
 		CERROR("cannot alloc pointer\n");
 		return -ENOMEM;
@@ -454,7 +454,7 @@ int llog_process_or_fork(const struct lu_env *env,
 		if (IS_ERR_VALUE(rc)) {
 			CERROR("%s: cannot start thread: rc = %d\n",
 			       loghandle->lgh_ctxt->loc_obd->obd_name, rc);
-			OBD_FREE_PTR(lpi);
+			kfree(lpi);
 			return rc;
 		}
 		wait_for_completion(&lpi->lpi_completion);
@@ -463,7 +463,7 @@ int llog_process_or_fork(const struct lu_env *env,
 		llog_process_thread(lpi);
 	}
 	rc = lpi->lpi_rc;
-	OBD_FREE_PTR(lpi);
+	kfree(lpi);
 	return rc;
 }
 EXPORT_SYMBOL(llog_process_or_fork);
@@ -484,7 +484,7 @@ int llog_reverse_process(const struct lu_env *env,
 	void *buf;
 	int rc = 0, first_index = 1, index, idx;
 
-	OBD_ALLOC(buf, LLOG_CHUNK_SIZE);
+	buf = kzalloc(LLOG_CHUNK_SIZE, GFP_NOFS);
 	if (!buf)
 		return -ENOMEM;
 
@@ -563,8 +563,7 @@ int llog_reverse_process(const struct lu_env *env,
 	}
 
 out:
-	if (buf)
-		OBD_FREE(buf, LLOG_CHUNK_SIZE);
+	kfree(buf);
 	return rc;
 }
 EXPORT_SYMBOL(llog_reverse_process);

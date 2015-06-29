@@ -104,4 +104,8 @@
 #define ARIZONA_MICD_TIME_256MS                      11
 #define ARIZONA_MICD_TIME_512MS                      12
 
+#define ARIZONA_ACCDET_MODE_MIC 0
+#define ARIZONA_ACCDET_MODE_HPL 1
+#define ARIZONA_ACCDET_MODE_HPR 2
+
 #endif

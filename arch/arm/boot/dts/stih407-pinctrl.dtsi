@@ -104,6 +104,7 @@
 				#interrupt-cells = <2>;
 				reg = <0x5000 0x100>;
 				st,bank-name = "PIO5";
+				st,retime-pin-mask = <0x3f>;
 			};
 
 			rc {
@@ -519,6 +520,7 @@
 				#interrupt-cells = <2>;
 				reg = <0x5000 0x100>;
 				st,bank-name = "PIO35";
+				st,retime-pin-mask = <0x7f>;
 			};
 
 			i2c4 {

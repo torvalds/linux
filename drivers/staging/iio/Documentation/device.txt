@@ -52,7 +52,7 @@ Then fill in the following:
 	* info->write_event_value:
 		Write the value associated with on sensor event detectors. E.g.
 		a threshold above which an interrupt occurs.  Note that the
-		meaning of the value to be set is event type dependant.
+		meaning of the value to be set is event type dependent.
 
 - indio_dev->modes:
 	Specify whether direct access and / or ring buffer access is supported.

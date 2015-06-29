@@ -17,9 +17,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
-
 #include <linux/dma-buf.h>
+
+#include "omap_drv.h"
 
 static struct sg_table *omap_gem_map_dma_buf(
 		struct dma_buf_attachment *attachment,

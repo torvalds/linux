@@ -169,8 +169,7 @@ struct renesas_usbhs_driver_param {
 #define USBHS_USB_DMAC_XFER_SIZE	32	/* hardcode the xfer size */
 };
 
-#define USBHS_TYPE_R8A7790 1
-#define USBHS_TYPE_R8A7791 2
+#define USBHS_TYPE_RCAR_GEN2	1
 
 /*
  * option:

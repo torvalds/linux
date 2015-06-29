@@ -76,7 +76,7 @@ static void ar2315_misc_irq_handler(unsigned irq, struct irq_desc *desc)
 	unsigned nr, misc_irq = 0;
 
 	if (pending) {
-		struct irq_domain *domain = irq_get_handler_data(irq);
+		struct irq_domain *domain = irq_desc_get_handler_data(desc);
 
 		nr = __ffs(pending);
 		misc_irq = irq_find_mapping(domain, nr);

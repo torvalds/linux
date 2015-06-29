@@ -377,13 +377,10 @@ int tegra_pmc_cpu_remove_clamping(int cpuid)
 }
 #endif /* CONFIG_SMP */
 
-/**
- * tegra_pmc_restart() - reboot the system
- * @mode: which mode to reboot in
- * @cmd: reboot command
- */
-void tegra_pmc_restart(enum reboot_mode mode, const char *cmd)
+static int tegra_pmc_restart_notify(struct notifier_block *this,
+				    unsigned long action, void *data)
 {
+	const char *cmd = data;
 	u32 value;
 
 	value = tegra_pmc_readl(PMC_SCRATCH0);
@@ -405,7 +402,14 @@ void tegra_pmc_restart(enum reboot_mode mode, const char *cmd)
 	value = tegra_pmc_readl(0);
 	value |= 0x10;
 	tegra_pmc_writel(value, 0);
+
+	return NOTIFY_DONE;
 }
+
+static struct notifier_block tegra_pmc_restart_handler = {
+	.notifier_call = tegra_pmc_restart_notify,
+	.priority = 128,
+};
 
 static int powergate_show(struct seq_file *s, void *data)
 {
@@ -835,6 +839,13 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		err = tegra_powergate_debugfs_init();
 		if (err < 0)
 			return err;
+	}
+
+	err = register_restart_handler(&tegra_pmc_restart_handler);
+	if (err) {
+		dev_err(&pdev->dev, "unable to register restart handler, %d\n",
+			err);
+		return err;
 	}
 
 	return 0;

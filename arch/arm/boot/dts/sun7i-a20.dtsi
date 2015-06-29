@@ -18,11 +18,6 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
  * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
@@ -68,7 +63,8 @@
 		ranges;
 
 		framebuffer@0 {
-			compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
 			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
 				 <&ahb_gates 44>;
@@ -104,14 +100,14 @@
 			clocks = <&cpu>;
 			clock-latency = <244144>; /* 8 32k periods */
 			operating-points = <
-				/* kHz    uV */
-				960000  1400000
-				912000  1400000
-				864000  1300000
-				720000  1200000
-				528000  1100000
-				312000  1000000
-				144000  900000
+				/* kHz	  uV */
+				960000	1400000
+				912000	1400000
+				864000	1300000
+				720000	1200000
+				528000	1100000
+				312000	1000000
+				144000	900000
 				>;
 			#cooling-cells = <2>;
 			cooling-min-level = <0>;
@@ -224,7 +220,8 @@
 			compatible = "allwinner,sun4i-a10-pll6-clk";
 			reg = <0x01c20028 0x4>;
 			clocks = <&osc24M>;
-			clock-output-names = "pll6_sata", "pll6_other", "pll6";
+			clock-output-names = "pll6_sata", "pll6_other", "pll6",
+					     "pll6_div_4";
 		};
 
 		pll8: clk@01c20040 {
@@ -253,10 +250,16 @@
 
 		ahb: ahb@01c20054 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-ahb-clk";
+			compatible = "allwinner,sun5i-a13-ahb-clk";
 			reg = <0x01c20054 0x4>;
-			clocks = <&axi>;
+			clocks = <&axi>, <&pll6 3>, <&pll6 1>;
 			clock-output-names = "ahb";
+			/*
+			 * Use PLL6 as parent, instead of CPU/AXI
+			 * which has rate changes due to cpufreq
+			 */
+			assigned-clocks = <&ahb>;
+			assigned-clock-parents = <&pll6 3>;
 		};
 
 		ahb_gates: clk@01c20060 {
@@ -441,11 +444,12 @@
 
 		usb_clk: clk@01c200cc {
 			#clock-cells = <1>;
-		        #reset-cells = <1>;
+			#reset-cells = <1>;
 			compatible = "allwinner,sun4i-a10-usb-clk";
 			reg = <0x01c200cc 0x4>;
 			clocks = <&pll6 1>;
-			clock-output-names = "usb_ohci0", "usb_ohci1", "usb_phy";
+			clock-output-names = "usb_ohci0", "usb_ohci1",
+					     "usb_phy";
 		};
 
 		spi3_clk: clk@01c200d4 {
@@ -465,10 +469,13 @@
 		};
 
 		/*
-		 * The following two are dummy clocks, placeholders used in the gmac_tx
-		 * clock. The gmac driver will choose one parent depending on the PHY
-		 * interface mode, using clk_set_rate auto-reparenting.
-		 * The actual TX clock rate is not controlled by the gmac_tx clock.
+		 * The following two are dummy clocks, placeholders
+		 * used in the gmac_tx clock. The gmac driver will
+		 * choose one parent depending on the PHY interface
+		 * mode, using clk_set_rate auto-reparenting.
+		 *
+		 * The actual TX clock rate is not controlled by the
+		 * gmac_tx clock.
 		 */
 		mii_phy_tx_clk: clk@2 {
 			#clock-cells = <0>;
@@ -527,6 +534,42 @@
 		#size-cells = <1>;
 		ranges;
 
+		sram-controller@01c00000 {
+			compatible = "allwinner,sun4i-a10-sram-controller";
+			reg = <0x01c00000 0x30>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			sram_a: sram@00000000 {
+				compatible = "mmio-sram";
+				reg = <0x00000000 0xc000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x00000000 0xc000>;
+
+				emac_sram: sram-section@8000 {
+					compatible = "allwinner,sun4i-a10-sram-a3-a4";
+					reg = <0x8000 0x4000>;
+					status = "disabled";
+				};
+			};
+
+			sram_d: sram@00010000 {
+				compatible = "mmio-sram";
+				reg = <0x00010000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x00010000 0x1000>;
+
+				otg_sram: sram-section@0000 {
+					compatible = "allwinner,sun4i-a10-sram-d";
+					reg = <0x0000 0x1000>;
+					status = "disabled";
+				};
+			};
+		};
+
 		nmi_intc: interrupt-controller@01c00030 {
 			compatible = "allwinner,sun7i-a20-sc-nmi";
 			interrupt-controller;
@@ -576,6 +619,7 @@
 			reg = <0x01c0b000 0x1000>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb_gates 17>;
+			allwinner,sram = <&emac_sram 1>;
 			status = "disabled";
 		};
 
@@ -600,6 +644,8 @@
 				      "sample";
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc1: mmc@01c10000 {
@@ -615,6 +661,8 @@
 				      "sample";
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc2: mmc@01c11000 {
@@ -630,6 +678,8 @@
 				      "sample";
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc3: mmc@01c12000 {
@@ -645,6 +695,8 @@
 				      "sample";
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		usbphy: phy@01c13400 {
@@ -795,6 +847,13 @@
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
+			uart4_pins_b: uart4@1 {
+				allwinner,pins = "PH4", "PH5";
+				allwinner,function = "uart4";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
 			uart5_pins_a: uart5@0 {
 				allwinner,pins = "PI10", "PI11";
 				allwinner,function = "uart5";
@@ -896,35 +955,71 @@
 			};
 
 			spi0_pins_a: spi0@0 {
-				allwinner,pins = "PI10", "PI11", "PI12", "PI13", "PI14";
+				allwinner,pins = "PI11", "PI12", "PI13";
+				allwinner,function = "spi0";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			spi0_cs0_pins_a: spi0_cs0@0 {
+				allwinner,pins = "PI10";
+				allwinner,function = "spi0";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			spi0_cs1_pins_a: spi0_cs1@0 {
+				allwinner,pins = "PI14";
 				allwinner,function = "spi0";
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			spi1_pins_a: spi1@0 {
-				allwinner,pins = "PI16", "PI17", "PI18", "PI19";
+				allwinner,pins = "PI17", "PI18", "PI19";
+				allwinner,function = "spi1";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			spi1_cs0_pins_a: spi1_cs0@0 {
+				allwinner,pins = "PI16";
 				allwinner,function = "spi1";
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			spi2_pins_a: spi2@0 {
-				allwinner,pins = "PC19", "PC20", "PC21", "PC22";
+				allwinner,pins = "PC20", "PC21", "PC22";
 				allwinner,function = "spi2";
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			spi2_pins_b: spi2@1 {
-				allwinner,pins = "PB14", "PB15", "PB16", "PB17";
+				allwinner,pins = "PB15", "PB16", "PB17";
+				allwinner,function = "spi2";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			spi2_cs0_pins_a: spi2_cs0@0 {
+				allwinner,pins = "PC19";
+				allwinner,function = "spi2";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			spi2_cs0_pins_b: spi2_cs0@1 {
+				allwinner,pins = "PB14";
 				allwinner,function = "spi2";
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc0_pins_a: mmc0@0 {
-				allwinner,pins = "PF0","PF1","PF2","PF3","PF4","PF5";
+				allwinner,pins = "PF0", "PF1", "PF2",
+						 "PF3", "PF4", "PF5";
 				allwinner,function = "mmc0";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
@@ -938,28 +1033,44 @@
 			};
 
 			mmc2_pins_a: mmc2@0 {
-				allwinner,pins = "PC6","PC7","PC8","PC9","PC10","PC11";
+				allwinner,pins = "PC6", "PC7", "PC8",
+						 "PC9", "PC10", "PC11";
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			mmc3_pins_a: mmc3@0 {
-				allwinner,pins = "PI4","PI5","PI6","PI7","PI8","PI9";
+				allwinner,pins = "PI4", "PI5", "PI6",
+						 "PI7", "PI8", "PI9";
 				allwinner,function = "mmc3";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
-			ir0_pins_a: ir0@0 {
-				    allwinner,pins = "PB3","PB4";
+			ir0_rx_pins_a: ir0@0 {
+				    allwinner,pins = "PB4";
 				    allwinner,function = "ir0";
 				    allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				    allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
-			ir1_pins_a: ir1@0 {
-				    allwinner,pins = "PB22","PB23";
+			ir0_tx_pins_a: ir0@1 {
+				    allwinner,pins = "PB3";
+				    allwinner,function = "ir0";
+				    allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				    allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			ir1_rx_pins_a: ir1@0 {
+				    allwinner,pins = "PB23";
+				    allwinner,function = "ir1";
+				    allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				    allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			ir1_tx_pins_a: ir1@1 {
+				    allwinner,pins = "PB22";
 				    allwinner,function = "ir1";
 				    allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				    allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
@@ -1042,7 +1153,7 @@
 		};
 
 		rtp: rtp@01c25000 {
-			compatible = "allwinner,sun4i-a10-ts";
+			compatible = "allwinner,sun5i-a13-ts";
 			reg = <0x01c25000 0x100>;
 			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 			#thermal-sensor-cells = <0>;
@@ -1129,7 +1240,8 @@
 		};
 
 		i2c0: i2c@01c2ac00 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 0>;
@@ -1139,7 +1251,8 @@
 		};
 
 		i2c1: i2c@01c2b000 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2b000 0x400>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 1>;
@@ -1149,7 +1262,8 @@
 		};
 
 		i2c2: i2c@01c2b400 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2b400 0x400>;
 			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 2>;
@@ -1159,7 +1273,8 @@
 		};
 
 		i2c3: i2c@01c2b800 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2b800 0x400>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 3>;
@@ -1169,7 +1284,8 @@
 		};
 
 		i2c4: i2c@01c2c000 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2c000 0x400>;
 			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 15>;

@@ -54,7 +54,7 @@
 #include <linux/delay.h>
 #include <linux/stop_machine.h>
 #include <linux/random.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 #include <linux/suspend.h>
 
 #include "tree.h"

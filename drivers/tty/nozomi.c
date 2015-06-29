@@ -140,8 +140,8 @@ static int debug;
 #define R_FCR		0x0000	/* Flow Control Register */
 #define R_IER		0x0004	/* Interrupt Enable Register */
 
-#define CONFIG_MAGIC	0xEFEFFEFE
-#define TOGGLE_VALID	0x0000
+#define NOZOMI_CONFIG_MAGIC	0xEFEFFEFE
+#define TOGGLE_VALID		0x0000
 
 /* Definition of interrupt tokens */
 #define MDM_DL1		0x0001
@@ -660,9 +660,9 @@ static int nozomi_read_config_table(struct nozomi *dc)
 	read_mem32((u32 *) &dc->config_table, dc->base_addr + 0,
 						sizeof(struct config_table));
 
-	if (dc->config_table.signature != CONFIG_MAGIC) {
+	if (dc->config_table.signature != NOZOMI_CONFIG_MAGIC) {
 		dev_err(&dc->pdev->dev, "ConfigTable Bad! 0x%08X != 0x%08X\n",
-			dc->config_table.signature, CONFIG_MAGIC);
+			dc->config_table.signature, NOZOMI_CONFIG_MAGIC);
 		return 0;
 	}
 

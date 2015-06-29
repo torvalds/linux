@@ -67,14 +67,17 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 
 		/* Get clk rate through clk driver if present */
-		info->clk = clk_get(&ofdev->dev, NULL);
+		info->clk = devm_clk_get(&ofdev->dev, NULL);
 		if (IS_ERR(info->clk)) {
 			dev_warn(&ofdev->dev,
 				"clk or clock-frequency not defined\n");
 			return PTR_ERR(info->clk);
 		}
 
-		clk_prepare_enable(info->clk);
+		ret = clk_prepare_enable(info->clk);
+		if (ret < 0)
+			return ret;
+
 		clk = clk_get_rate(info->clk);
 	}
 	/* If current-speed was set, then try not to change it. */
@@ -188,7 +191,6 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	{
 		struct uart_8250_port port8250;
 		memset(&port8250, 0, sizeof(port8250));
-		port.type = port_type;
 		port8250.port = port;
 
 		if (port.fifosize)

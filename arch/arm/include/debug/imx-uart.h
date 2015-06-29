@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -90,6 +90,16 @@
 #define IMX6SX_UART_BASE_ADDR(n) IMX6SX_UART##n##_BASE_ADDR
 #define IMX6SX_UART_BASE(n)	IMX6SX_UART_BASE_ADDR(n)
 
+#define IMX7D_UART1_BASE_ADDR	0x30860000
+#define IMX7D_UART2_BASE_ADDR	0x30890000
+#define IMX7D_UART3_BASE_ADDR	0x30880000
+#define IMX7D_UART4_BASE_ADDR	0x30a60000
+#define IMX7D_UART5_BASE_ADDR	0x30a70000
+#define IMX7D_UART6_BASE_ADDR	0x30a80000
+#define IMX7D_UART7_BASE_ADDR	0x30a90000
+#define IMX7D_UART_BASE_ADDR(n) IMX7D_UART##n##_BASE_ADDR
+#define IMX7D_UART_BASE(n)	IMX7D_UART_BASE_ADDR(n)
+
 #define IMX_DEBUG_UART_BASE(soc) soc##_UART_BASE(CONFIG_DEBUG_IMX_UART_PORT)
 
 #ifdef CONFIG_DEBUG_IMX1_UART
@@ -114,6 +124,9 @@
 #define UART_PADDR	IMX_DEBUG_UART_BASE(IMX6SL)
 #elif defined(CONFIG_DEBUG_IMX6SX_UART)
 #define UART_PADDR	IMX_DEBUG_UART_BASE(IMX6SX)
+#elif defined(CONFIG_DEBUG_IMX7D_UART)
+#define UART_PADDR	IMX_DEBUG_UART_BASE(IMX7D)
+
 #endif
 
 #endif /* __DEBUG_IMX_UART_H */

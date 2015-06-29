@@ -335,18 +335,29 @@ unsigned int
 uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		   struct ktermios *old, unsigned int min, unsigned int max)
 {
-	unsigned int try, baud, altbaud = 38400;
+	unsigned int try;
+	unsigned int baud;
+	unsigned int altbaud;
 	int hung_up = 0;
 	upf_t flags = port->flags & UPF_SPD_MASK;
 
-	if (flags == UPF_SPD_HI)
+	switch (flags) {
+	case UPF_SPD_HI:
 		altbaud = 57600;
-	else if (flags == UPF_SPD_VHI)
+		break;
+	case UPF_SPD_VHI:
 		altbaud = 115200;
-	else if (flags == UPF_SPD_SHI)
+		break;
+	case UPF_SPD_SHI:
 		altbaud = 230400;
-	else if (flags == UPF_SPD_WARP)
+		break;
+	case UPF_SPD_WARP:
 		altbaud = 460800;
+		break;
+	default:
+		altbaud = 38400;
+		break;
+	}
 
 	for (try = 0; try < 2; try++) {
 		baud = tty_termios_baud_rate(termios);
@@ -894,12 +905,10 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 			 * need to rate-limit; it's CAP_SYS_ADMIN only.
 			 */
 			if (uport->flags & UPF_SPD_MASK) {
-				char buf[64];
-
 				dev_notice(uport->dev,
 				       "%s sets custom speed on %s. This is deprecated.\n",
 				      current->comm,
-				      tty_name(port->tty, buf));
+				      tty_name(port->tty));
 			}
 			uart_change_speed(tty, state, NULL);
 		}
@@ -1816,8 +1825,8 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
  *	@options: ptr for <options> field; NULL if not present (out)
  *
  *	Decodes earlycon kernel command line parameters of the form
- *	   earlycon=<name>,io|mmio|mmio32,<addr>,<options>
- *	   console=<name>,io|mmio|mmio32,<addr>,<options>
+ *	   earlycon=<name>,io|mmio|mmio32|mmio32be,<addr>,<options>
+ *	   console=<name>,io|mmio|mmio32|mmio32be,<addr>,<options>
  *
  *	The optional form
  *	   earlycon=<name>,0x<addr>,<options>
@@ -1835,6 +1844,9 @@ int uart_parse_earlycon(char *p, unsigned char *iotype, unsigned long *addr,
 	} else if (strncmp(p, "mmio32,", 7) == 0) {
 		*iotype = UPIO_MEM32;
 		p += 7;
+	} else if (strncmp(p, "mmio32be,", 9) == 0) {
+		*iotype = UPIO_MEM32BE;
+		p += 9;
 	} else if (strncmp(p, "io,", 3) == 0) {
 		*iotype = UPIO_PORT;
 		p += 3;

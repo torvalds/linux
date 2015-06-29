@@ -149,6 +149,8 @@ void __init plat_mem_setup(void)
 	/* intended to somewhat resemble ARM; see Documentation/arm/Booting */
 	if (fw_arg0 == 0 && fw_arg1 == 0xffffffff)
 		dtb = phys_to_virt(fw_arg2);
+	else if (fw_arg0 == -2) /* UHI interface */
+		dtb = (void *)fw_arg1;
 	else if (__dtb_start != __dtb_end)
 		dtb = (void *)__dtb_start;
 	else

@@ -188,7 +188,7 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 	struct  __queue *pframe_queue = NULL;
 	struct	xmit_frame *pxmitframe = NULL;
 	int i, inx[4];
-	int j, tmp, acirp_cnt[4];
+	int j, acirp_cnt[4];
 
 	/*entry indx: 0->vo, 1->vi, 2->be, 3->bk.*/
 	inx[0] = 0; acirp_cnt[0] = pxmitpriv->voq_cnt;
@@ -198,12 +198,8 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 	for (i = 0; i < 4; i++) {
 		for (j = i + 1; j < 4; j++) {
 			if (acirp_cnt[j] < acirp_cnt[i]) {
-				tmp = acirp_cnt[i];
-				acirp_cnt[i] = acirp_cnt[j];
-				acirp_cnt[j] = tmp;
-				tmp = inx[i];
-				inx[i] = inx[j];
-				inx[j] = tmp;
+				swap(acirp_cnt[i], acirp_cnt[j]);
+				swap(inx[i], inx[j]);
 			}
 		}
 	}
@@ -340,7 +336,7 @@ u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 u8 r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
 			struct xmit_frame *pxmitframe)
 {
-	/* linux complete context doesnt need to protect */
+	/* linux complete context doesn't need to protect */
 	pxmitframe->pxmitbuf = pxmitbuf;
 	pxmitbuf->priv_data = pxmitframe;
 	pxmitframe->pxmit_urb[0] = pxmitbuf->pxmit_urb[0];

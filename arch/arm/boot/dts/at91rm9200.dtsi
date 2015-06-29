@@ -92,7 +92,7 @@
 			};
 
 			ramc0: ramc@ffffff00 {
-				compatible = "atmel,at91rm9200-sdramc";
+				compatible = "atmel,at91rm9200-sdramc", "syscon";
 				reg = <0xffffff00 0x100>;
 			};
 
@@ -940,8 +940,8 @@
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00300000 0x100000>;
 			interrupts = <23 IRQ_TYPE_LEVEL_HIGH 2>;
-			clocks = <&usb>, <&ohci_clk>, <&ohci_clk>, <&uhpck>;
-			clock-names = "usb_clk", "ohci_clk", "hclk", "uhpck";
+			clocks = <&ohci_clk>, <&ohci_clk>, <&uhpck>;
+			clock-names = "ohci_clk", "hclk", "uhpck";
 			status = "disabled";
 		};
 	};

@@ -273,6 +273,7 @@ struct nfsd4_read {
 	u32		rd_length;          /* request */
 	int		rd_vlen;
 	struct file     *rd_filp;
+	bool		rd_tmp_file;
 	
 	struct svc_rqst *rd_rqstp;          /* response */
 	struct svc_fh * rd_fhp;             /* response */

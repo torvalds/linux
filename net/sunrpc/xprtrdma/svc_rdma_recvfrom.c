@@ -85,7 +85,7 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
 
 	/* RDMA_NOMSG: RDMA READ data should land just after RDMA RECV data */
 	rmsgp = (struct rpcrdma_msg *)rqstp->rq_arg.head[0].iov_base;
-	if (be32_to_cpu(rmsgp->rm_type) == RDMA_NOMSG)
+	if (rmsgp->rm_type == rdma_nomsg)
 		rqstp->rq_arg.pages = &rqstp->rq_pages[0];
 	else
 		rqstp->rq_arg.pages = &rqstp->rq_pages[1];

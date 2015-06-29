@@ -112,7 +112,7 @@ static inline void xor_block(u8 *b, u8 *a, size_t len)
 
 
 static void ccmp_init_blocks(struct crypto_tfm *tfm,
-			     struct ieee80211_hdr_4addr *hdr,
+			     struct rtl_80211_hdr_4addr *hdr,
 			     u8 *pn, size_t dlen, u8 *b0, u8 *auth,
 			     u8 *s0)
 {
@@ -196,7 +196,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	struct ieee80211_ccmp_data *key = priv;
 	int data_len, i;
 	u8 *pos;
-	struct ieee80211_hdr_4addr *hdr;
+	struct rtl_80211_hdr_4addr *hdr;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 
 	if (skb_headroom(skb) < CCMP_HDR_LEN ||
@@ -228,7 +228,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[0];
 
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
 	if (!tcb_desc->bHwSec)
 	{
 		int blocks, last, len;
@@ -270,7 +270,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_ccmp_data *key = priv;
 	u8 keyidx, *pos;
-	struct ieee80211_hdr_4addr *hdr;
+	struct rtl_80211_hdr_4addr *hdr;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 pn[6];
 
@@ -279,7 +279,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 	}
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {

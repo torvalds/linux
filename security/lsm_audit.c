@@ -282,7 +282,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 			pid_t pid = task_pid_nr(tsk);
 			if (pid) {
 				char comm[sizeof(tsk->comm)];
-				audit_log_format(ab, " pid=%d comm=", pid);
+				audit_log_format(ab, " opid=%d ocomm=", pid);
 				audit_log_untrustedstring(ab,
 				    memcpy(comm, tsk->comm, sizeof(comm)));
 			}

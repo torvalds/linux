@@ -1,3 +1,4 @@
+dtb-$(CONFIG_MIPS_MALTA)	+= malta.dtb
 dtb-$(CONFIG_MIPS_SEAD3)	+= sead3.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))

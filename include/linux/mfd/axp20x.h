@@ -368,4 +368,9 @@ struct axp20x_chrg_pdata {
 	int def_cv;
 };
 
+struct axp288_extcon_pdata {
+	/* GPIO pin control to switch D+/D- lines b/w PMIC and SOC */
+	struct gpio_desc *gpio_mux_cntl;
+};
+
 #endif /* __LINUX_MFD_AXP20X_H */

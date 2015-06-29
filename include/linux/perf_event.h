@@ -300,6 +300,11 @@ struct pmu {
 	 * Free pmu-private AUX data structures
 	 */
 	void (*free_aux)		(void *aux); /* optional */
+
+	/*
+	 * Filter events for PMU-specific reasons.
+	 */
+	int (*filter_match)		(struct perf_event *event); /* optional */
 };
 
 /**
@@ -479,7 +484,7 @@ struct perf_event {
 	void				*overflow_handler_context;
 
 #ifdef CONFIG_EVENT_TRACING
-	struct ftrace_event_call	*tp_event;
+	struct trace_event_call		*tp_event;
 	struct event_filter		*filter;
 #ifdef CONFIG_FUNCTION_TRACER
 	struct ftrace_ops               ftrace_ops;

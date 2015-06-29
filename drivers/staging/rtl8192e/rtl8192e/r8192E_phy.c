@@ -504,13 +504,15 @@ bool rtl8192_phy_checkBBAndRF(struct net_device *dev,
 	WriteAddr[HW90_BLOCK_RF] = 0x3;
 	RT_TRACE(COMP_PHY, "=======>%s(), CheckBlock:%d\n", __func__,
 		 CheckBlock);
+
+	if (CheckBlock == HW90_BLOCK_MAC) {
+		netdev_warn(dev, "%s(): No checks available for MAC block.\n",
+			    __func__);
+		return ret;
+	}
+
 	for (i = 0; i < CheckTimes; i++) {
 		switch (CheckBlock) {
-		case HW90_BLOCK_MAC:
-			RT_TRACE(COMP_ERR,
-				 "PHY_CheckBBRFOK(): Never Write 0x100 here!");
-			break;
-
 		case HW90_BLOCK_PHY0:
 		case HW90_BLOCK_PHY1:
 			write_nic_dword(dev, WriteAddr[CheckBlock],
@@ -537,9 +539,7 @@ bool rtl8192_phy_checkBBAndRF(struct net_device *dev,
 
 
 		if (dwRegRead != WriteData[i]) {
-			RT_TRACE(COMP_ERR,
-				 "====>error=====dwRegRead: %x, WriteData: %x\n",
-				 dwRegRead, WriteData[i]);
+			netdev_warn(dev, "%s(): Check failed.\n", __func__);
 			ret = false;
 			break;
 		}
@@ -628,8 +628,8 @@ void rtl8192_phy_getTxPower(struct net_device *dev)
 	priv->DefaultInitialGain[3] = read_nic_byte(dev, rOFDM0_XDAGCCore1);
 	RT_TRACE(COMP_INIT,
 		 "Default initial gain (c50=0x%x, c58=0x%x, c60=0x%x, c68=0x%x)\n",
-		priv->DefaultInitialGain[0], priv->DefaultInitialGain[1],
-		priv->DefaultInitialGain[2], priv->DefaultInitialGain[3]);
+		 priv->DefaultInitialGain[0], priv->DefaultInitialGain[1],
+		 priv->DefaultInitialGain[2], priv->DefaultInitialGain[3]);
 
 	priv->framesync = read_nic_byte(dev, rOFDM0_RxDetector3);
 	priv->framesyncC34 = read_nic_dword(dev, rOFDM0_RxDetector2);
@@ -685,8 +685,7 @@ void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
 	case RF_8258:
 		break;
 	default:
-		RT_TRACE(COMP_ERR, "unknown rf chip in function %s()\n",
-			 __func__);
+		netdev_err(dev, "Invalid RF Chip ID.\n");
 		break;
 	}
 }
@@ -709,7 +708,7 @@ bool rtl8192_phy_RFConfig(struct net_device *dev)
 		break;
 
 	default:
-		RT_TRACE(COMP_ERR, "error chip id\n");
+		netdev_err(dev, "Invalid RF Chip ID.\n");
 		break;
 	}
 	return rtStatus;
@@ -802,13 +801,13 @@ static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 	case RF_8258:
 		break;
 	default:
-		RT_TRACE(COMP_ERR,
-			 "unknown rf chip ID in rtl8192_SetTxPowerLevel()\n");
+		netdev_warn(dev, "%s(): Invalid RF Chip ID\n", __func__);
 		break;
 	}
 }
 
-static u8 rtl8192_phy_SetSwChnlCmdArray(struct sw_chnl_cmd *CmdTable,
+static u8 rtl8192_phy_SetSwChnlCmdArray(struct net_device *dev,
+					struct sw_chnl_cmd *CmdTable,
 					u32 CmdTableIdx, u32 CmdTableSz,
 					enum sw_chnl_cmd_id CmdID,
 					u32 Para1, u32 Para2, u32 msDelay)
@@ -816,14 +815,11 @@ static u8 rtl8192_phy_SetSwChnlCmdArray(struct sw_chnl_cmd *CmdTable,
 	struct sw_chnl_cmd *pCmd;
 
 	if (CmdTable == NULL) {
-		RT_TRACE(COMP_ERR,
-			 "phy_SetSwChnlCmdArray(): CmdTable cannot be NULL.\n");
+		netdev_err(dev, "%s(): CmdTable cannot be NULL.\n", __func__);
 		return false;
 	}
 	if (CmdTableIdx >= CmdTableSz) {
-		RT_TRACE(COMP_ERR,
-			 "phy_SetSwChnlCmdArray(): Access invalid index, please check size of the table, CmdTableIdx:%d, CmdTableSz:%d\n",
-			 CmdTableIdx, CmdTableSz);
+		netdev_err(dev, "%s(): Invalid index requested.\n", __func__);
 		return false;
 	}
 
@@ -851,24 +847,23 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 		  __func__, *stage, *step, channel);
 
 	if (!rtllib_legal_channel(priv->rtllib, channel)) {
-		RT_TRACE(COMP_ERR, "=============>set to illegal channel:%d\n",
-			 channel);
+		netdev_err(dev, "Invalid channel requested: %d\n", channel);
 		return true;
 	}
 
 	{
 		PreCommonCmdCnt = 0;
-		rtl8192_phy_SetSwChnlCmdArray(ieee->PreCommonCmd,
+		rtl8192_phy_SetSwChnlCmdArray(dev, ieee->PreCommonCmd,
 					PreCommonCmdCnt++,
 					MAX_PRECMD_CNT, CmdID_SetTxPowerLevel,
 					0, 0, 0);
-		rtl8192_phy_SetSwChnlCmdArray(ieee->PreCommonCmd,
+		rtl8192_phy_SetSwChnlCmdArray(dev, ieee->PreCommonCmd,
 					PreCommonCmdCnt++,
 					MAX_PRECMD_CNT, CmdID_End, 0, 0, 0);
 
 		PostCommonCmdCnt = 0;
 
-		rtl8192_phy_SetSwChnlCmdArray(ieee->PostCommonCmd,
+		rtl8192_phy_SetSwChnlCmdArray(dev, ieee->PostCommonCmd,
 					PostCommonCmdCnt++,
 					MAX_POSTCMD_CNT, CmdID_End, 0, 0, 0);
 
@@ -876,32 +871,32 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 		switch (priv->rf_chip) {
 		case RF_8225:
 			if (!(channel >= 1 && channel <= 14)) {
-				RT_TRACE(COMP_ERR,
-					 "illegal channel for Zebra 8225: %d\n",
-					 channel);
+				netdev_err(dev,
+					   "Invalid channel requested for 8225: %d\n",
+					   channel);
 				return false;
 			}
-			rtl8192_phy_SetSwChnlCmdArray(ieee->RfDependCmd,
+			rtl8192_phy_SetSwChnlCmdArray(dev, ieee->RfDependCmd,
 				RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
 				CmdID_RF_WriteReg, rZebra1_Channel,
 				RF_CHANNEL_TABLE_ZEBRA[channel], 10);
-			rtl8192_phy_SetSwChnlCmdArray(ieee->RfDependCmd,
+			rtl8192_phy_SetSwChnlCmdArray(dev, ieee->RfDependCmd,
 				RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
 				CmdID_End, 0, 0, 0);
 			break;
 
 		case RF_8256:
 			if (!(channel >= 1 && channel <= 14)) {
-				RT_TRACE(COMP_ERR,
-					 "illegal channel for Zebra 8256: %d\n",
-					 channel);
+				netdev_err(dev,
+					   "Invalid channel requested for 8256: %d\n",
+					   channel);
 				return false;
 			}
-			rtl8192_phy_SetSwChnlCmdArray(ieee->RfDependCmd,
+			rtl8192_phy_SetSwChnlCmdArray(dev, ieee->RfDependCmd,
 				 RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
 				CmdID_RF_WriteReg, rZebra1_Channel, channel,
 				 10);
-			rtl8192_phy_SetSwChnlCmdArray(ieee->RfDependCmd,
+			rtl8192_phy_SetSwChnlCmdArray(dev, ieee->RfDependCmd,
 
 						      RfDependCmdCnt++,
 						      MAX_RFDEPENDCMD_CNT,
@@ -912,8 +907,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 			break;
 
 		default:
-			RT_TRACE(COMP_ERR, "Unknown RFChipID: %d\n",
-				 priv->rf_chip);
+			netdev_warn(dev, "Unknown RF Chip ID\n");
 			return false;
 		}
 
@@ -1002,7 +996,7 @@ void rtl8192_SwChnl_WorkItem(struct net_device *dev)
 	RT_TRACE(COMP_TRACE, "=====>--%s(), set chan:%d, priv:%p\n", __func__,
 		 priv->chan, priv);
 
-	rtl8192_phy_FinishSwChnlNow(dev , priv->chan);
+	rtl8192_phy_FinishSwChnlNow(dev, priv->chan);
 
 	RT_TRACE(COMP_TRACE, "<== SwChnlCallback819xUsbWorkItem()\n");
 }
@@ -1013,7 +1007,7 @@ u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 
 	RT_TRACE(COMP_PHY, "=====>%s()\n", __func__);
 	if (!priv->up) {
-		RT_TRACE(COMP_ERR, "%s(): ERR !! driver is not up\n", __func__);
+		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
 		return false;
 	}
 	if (priv->SwChnlInProgress)
@@ -1024,20 +1018,26 @@ u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 	case WIRELESS_MODE_A:
 	case WIRELESS_MODE_N_5G:
 		if (channel <= 14) {
-			RT_TRACE(COMP_ERR, "WIRELESS_MODE_A but channel<=14");
+			netdev_warn(dev,
+				    "Channel %d not available in 802.11a.\n",
+				    channel);
 			return false;
 		}
 		break;
 	case WIRELESS_MODE_B:
 		if (channel > 14) {
-			RT_TRACE(COMP_ERR, "WIRELESS_MODE_B but channel>14");
+			netdev_warn(dev,
+				    "Channel %d not available in 802.11b.\n",
+				    channel);
 			return false;
 		}
 		break;
 	case WIRELESS_MODE_G:
 	case WIRELESS_MODE_N_24G:
 		if (channel > 14) {
-			RT_TRACE(COMP_ERR, "WIRELESS_MODE_G but channel>14");
+			netdev_warn(dev,
+				    "Channel %d not available in 802.11g.\n",
+				    channel);
 			return false;
 		}
 		break;
@@ -1180,7 +1180,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		return;
 	}
 	if (!priv->up) {
-		RT_TRACE(COMP_ERR, "%s(): ERR!! driver is not up\n", __func__);
+		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
 		return;
 	}
 	regBwOpMode = read_nic_byte(dev, BW_OPMODE);
@@ -1197,9 +1197,8 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		break;
 
 	default:
-		RT_TRACE(COMP_ERR,
-			 "SetChannelBandwidth819xUsb(): unknown Bandwidth: %#X\n",
-			 priv->CurrentChannelBW);
+		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
+			   priv->CurrentChannelBW);
 		break;
 	}
 
@@ -1239,9 +1238,8 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00100000, 0);
 		break;
 	default:
-		RT_TRACE(COMP_ERR,
-			 "SetChannelBandwidth819xUsb(): unknown Bandwidth: %#X\n",
-			 priv->CurrentChannelBW);
+		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
+			   priv->CurrentChannelBW);
 		break;
 
 	}
@@ -1261,7 +1259,8 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		break;
 
 	default:
-		RT_TRACE(COMP_ERR, "Unknown RFChipID: %d\n", priv->rf_chip);
+		netdev_info(dev, "%s(): Unknown RFChipID: %d\n", __func__,
+			    priv->rf_chip);
 		break;
 	}
 
@@ -1452,9 +1451,9 @@ static bool SetRFPowerState8190(struct net_device *dev,
 				} while (!rtstatus && (InitilizeCount > 0));
 
 				if (!rtstatus) {
-					RT_TRACE(COMP_ERR,
-						 "%s():Initialize Adapter fail,return\n",
-						 __func__);
+					netdev_err(dev,
+						   "%s(): Failed to initialize Adapter.\n",
+						   __func__);
 					priv->SetRFPowerStateInProgress = false;
 					return false;
 				}
@@ -1555,16 +1554,16 @@ static bool SetRFPowerState8190(struct net_device *dev,
 
 		default:
 			bResult = false;
-			RT_TRACE(COMP_ERR,
-				 "SetRFPowerState8190(): unknown state to set: 0x%X!!!\n",
-				 eRFPowerState);
+			netdev_warn(dev,
+				    "%s(): Unknown state requested: 0x%X.\n",
+				    __func__, eRFPowerState);
 			break;
 		}
 
 		break;
 
 	default:
-		RT_TRACE(COMP_ERR, "SetRFPowerState8190(): Unknown RF type\n");
+		netdev_warn(dev, "%s(): Unknown RF type\n", __func__);
 		break;
 	}
 
@@ -1576,8 +1575,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 			break;
 
 		default:
-			RT_TRACE(COMP_ERR,
-				 "SetRFPowerState8190(): Unknown RF type\n");
+			netdev_warn(dev, "%s(): Unknown RF type\n", __func__);
 			break;
 		}
 	}
