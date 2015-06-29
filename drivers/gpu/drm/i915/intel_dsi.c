@@ -418,7 +418,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	/* update the hw state for DPLL */
 	intel_crtc->config->dpll_hw_state.dpll = DPLL_INTEGRATED_CLOCK_VLV |
-		DPLL_REFA_CLK_ENABLE_VLV;
+		DPLL_REFA_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
 
 	tmp = I915_READ(DSPCLK_GATE_D);
 	tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
