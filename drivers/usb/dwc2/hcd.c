@@ -360,9 +360,8 @@ void dwc2_hcd_stop(struct dwc2_hsotg *hsotg)
 /* Caller must hold driver lock */
 static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 				struct dwc2_hcd_urb *urb, struct dwc2_qh *qh,
-				gfp_t mem_flags)
+				struct dwc2_qtd *qtd)
 {
-	struct dwc2_qtd *qtd;
 	u32 intr_mask;
 	int retval;
 	int dev_speed;
@@ -386,9 +385,8 @@ static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 			return -ENODEV;
 	}
 
-	qtd = kzalloc(sizeof(*qtd), mem_flags);
 	if (!qtd)
-		return -ENOMEM;
+		return -EINVAL;
 
 	dwc2_hcd_qtd_init(qtd, urb);
 	retval = dwc2_hcd_qtd_add(hsotg, qtd, qh);
@@ -396,7 +394,6 @@ static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 		dev_err(hsotg->dev,
 			"DWC OTG HCD URB Enqueue failed adding QTD. Error status %d\n",
 			retval);
-		kfree(qtd);
 		return retval;
 	}
 
@@ -2446,6 +2443,7 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	unsigned long flags;
 	struct dwc2_qh *qh;
 	bool qh_allocated = false;
+	struct dwc2_qtd *qtd;
 
 	if (dbg_urb(urb)) {
 		dev_vdbg(hsotg->dev, "DWC OTG HCD URB Enqueue\n");
@@ -2536,14 +2534,20 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		qh_allocated = true;
 	}
 
+	qtd = kzalloc(sizeof(*qtd), mem_flags);
+	if (!qtd) {
+		retval = -ENOMEM;
+		goto fail1;
+	}
+
 	spin_lock_irqsave(&hsotg->lock, flags);
 	retval = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (retval)
-		goto fail1;
-
-	retval = dwc2_hcd_urb_enqueue(hsotg, dwc2_urb, qh, mem_flags);
-	if (retval)
 		goto fail2;
+
+	retval = dwc2_hcd_urb_enqueue(hsotg, dwc2_urb, qh, qtd);
+	if (retval)
+		goto fail3;
 
 	if (alloc_bandwidth) {
 		dwc2_allocate_bus_bandwidth(hcd,
@@ -2555,12 +2559,14 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	return 0;
 
-fail2:
+fail3:
 	dwc2_urb->priv = NULL;
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
-fail1:
+fail2:
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	urb->hcpriv = NULL;
+	kfree(qtd);
+fail1:
 	if (qh_allocated) {
 		struct dwc2_qtd *qtd2, *qtd2_tmp;
 
