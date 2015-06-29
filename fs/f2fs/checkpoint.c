@@ -704,7 +704,8 @@ void update_dirty_page(struct inode *inode, struct page *page)
 	struct inode_entry *new;
 	int ret = 0;
 
-	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode))
+	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode) &&
+			!S_ISLNK(inode->i_mode))
 		return;
 
 	if (!S_ISDIR(inode->i_mode)) {

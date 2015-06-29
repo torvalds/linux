@@ -1039,7 +1039,8 @@ static inline void dec_page_count(struct f2fs_sb_info *sbi, int count_type)
 
 static inline void inode_dec_dirty_pages(struct inode *inode)
 {
-	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode))
+	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode) &&
+			!S_ISLNK(inode->i_mode))
 		return;
 
 	atomic_dec(&F2FS_I(inode)->dirty_pages);
