@@ -37,7 +37,7 @@ struct pm_clock_entry {
  * @dev: The device for the given clock
  * @ce: PM clock entry corresponding to the clock.
  */
-static inline int __pm_clk_enable(struct device *dev, struct pm_clock_entry *ce)
+static inline void __pm_clk_enable(struct device *dev, struct pm_clock_entry *ce)
 {
 	int ret;
 
@@ -49,8 +49,6 @@ static inline int __pm_clk_enable(struct device *dev, struct pm_clock_entry *ce)
 			dev_err(dev, "%s: failed to enable clk %p, error %d\n",
 				__func__, ce->clk, ret);
 	}
-
-	return ret;
 }
 
 /**
