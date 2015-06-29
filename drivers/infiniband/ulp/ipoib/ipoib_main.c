@@ -1684,7 +1684,7 @@ static void ipoib_add_one(struct ib_device *device)
 	struct list_head *dev_list;
 	struct net_device *dev;
 	struct ipoib_dev_priv *priv;
-	int s, e, p;
+	int p;
 	int count = 0;
 
 	dev_list = kmalloc(sizeof *dev_list, GFP_KERNEL);
@@ -1693,15 +1693,7 @@ static void ipoib_add_one(struct ib_device *device)
 
 	INIT_LIST_HEAD(dev_list);
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		s = 0;
-		e = 0;
-	} else {
-		s = 1;
-		e = device->phys_port_cnt;
-	}
-
-	for (p = s; p <= e; ++p) {
+	for (p = rdma_start_port(device); p <= rdma_end_port(device); ++p) {
 		if (!rdma_protocol_ib(device, p))
 			continue;
 		dev = ipoib_add_port("ib%d", device, p);
