@@ -1547,6 +1547,13 @@ static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, fmode_t fmod
 	struct nfs4_state *newstate;
 	int ret;
 
+	if ((opendata->o_arg.claim == NFS4_OPEN_CLAIM_DELEGATE_CUR ||
+	     opendata->o_arg.claim == NFS4_OPEN_CLAIM_DELEG_CUR_FH) &&
+	    (opendata->o_arg.u.delegation_type & fmode) != fmode)
+		/* This mode can't have been delegated, so we must have
+		 * a valid open_stateid to cover it - not need to reclaim.
+		 */
+		return 0;
 	opendata->o_arg.open_flags = 0;
 	opendata->o_arg.fmode = fmode;
 	opendata->o_arg.share_access = nfs4_map_atomic_open_share(
