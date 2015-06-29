@@ -682,7 +682,7 @@ out:
 static int sx9500_buffer_preenable(struct iio_dev *indio_dev)
 {
 	struct sx9500_data *data = iio_priv(indio_dev);
-	int ret, i;
+	int ret = 0, i;
 
 	mutex_lock(&data->mutex);
 
@@ -706,7 +706,7 @@ static int sx9500_buffer_preenable(struct iio_dev *indio_dev)
 static int sx9500_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct sx9500_data *data = iio_priv(indio_dev);
-	int ret, i;
+	int ret = 0, i;
 
 	iio_triggered_buffer_predisable(indio_dev);
 
