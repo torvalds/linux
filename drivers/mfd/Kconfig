@@ -736,9 +736,10 @@ config MFD_RTSX_PCI
 	select MFD_CORE
 	help
 	  This supports for Realtek PCI-Express card reader including rts5209,
-	  rts5229, rtl8411, etc. Realtek card reader supports access to many
-	  types of memory cards, such as Memory Stick, Memory Stick Pro,
-	  Secure Digital and MultiMediaCard.
+	  rts5227, rts522A, rts5229, rts5249, rts524A, rts525A, rtl8411, etc.
+	  Realtek card reader supports access to many types of memory cards,
+	  such as Memory Stick, Memory Stick Pro, Secure Digital and
+	  MultiMediaCard.
 
 config MFD_RT5033
 	tristate "Richtek RT5033 Power Management IC"
