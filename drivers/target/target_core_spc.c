@@ -458,6 +458,9 @@ spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 			buf[4] = 0x4;
 	}
 
+	/* logical unit supports type 1 and type 3 protection */
+	buf[4] |= (0x3 << 3);
+
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
 
