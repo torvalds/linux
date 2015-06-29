@@ -1042,53 +1042,46 @@ out:
 static void chv_pipe_power_well_sync_hw(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well)
 {
+	WARN_ON_ONCE(power_well->data != PIPE_A);
+
 	chv_set_pipe_power_well(dev_priv, power_well, power_well->count > 0);
 }
 
 static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->data != PIPE_A &&
-		     power_well->data != PIPE_B &&
-		     power_well->data != PIPE_C);
+	WARN_ON_ONCE(power_well->data != PIPE_A);
 
 	chv_set_pipe_power_well(dev_priv, power_well, true);
 
-	if (power_well->data == PIPE_A) {
-		spin_lock_irq(&dev_priv->irq_lock);
-		valleyview_enable_display_irqs(dev_priv);
-		spin_unlock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&dev_priv->irq_lock);
+	valleyview_enable_display_irqs(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
-		/*
-		 * During driver initialization/resume we can avoid restoring the
-		 * part of the HW/SW state that will be inited anyway explicitly.
-		 */
-		if (dev_priv->power_domains.initializing)
-			return;
+	/*
+	 * During driver initialization/resume we can avoid restoring the
+	 * part of the HW/SW state that will be inited anyway explicitly.
+	 */
+	if (dev_priv->power_domains.initializing)
+		return;
 
-		intel_hpd_init(dev_priv);
+	intel_hpd_init(dev_priv);
 
-		i915_redisable_vga_power_on(dev_priv->dev);
-	}
+	i915_redisable_vga_power_on(dev_priv->dev);
 }
 
 static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->data != PIPE_A &&
-		     power_well->data != PIPE_B &&
-		     power_well->data != PIPE_C);
+	WARN_ON_ONCE(power_well->data != PIPE_A);
 
-	if (power_well->data == PIPE_A) {
-		spin_lock_irq(&dev_priv->irq_lock);
-		valleyview_disable_display_irqs(dev_priv);
-		spin_unlock_irq(&dev_priv->irq_lock);
-	}
+	spin_lock_irq(&dev_priv->irq_lock);
+	valleyview_disable_display_irqs(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	chv_set_pipe_power_well(dev_priv, power_well, false);
 
-	if (power_well->data == PIPE_A)
-		vlv_power_sequencer_reset(dev_priv);
+	vlv_power_sequencer_reset(dev_priv);
 }
 
 /**
