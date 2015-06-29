@@ -468,7 +468,7 @@ static int wdt87xx_validate_firmware(struct wdt87xx_data *wdt,
 	size = get_unaligned_le32(fw->data + FW_SIZE_OFFSET);
 	if (size != fw->size) {
 		dev_err(&wdt->client->dev,
-			"fw size mismatch: expected %d, actual %zd\n",
+			"fw size mismatch: expected %d, actual %zu\n",
 			size, fw->size);
 		return -EINVAL;
 	}
