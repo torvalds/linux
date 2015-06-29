@@ -2606,7 +2606,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 	}
 	if (dev->attached && dev->use_count == 0) {
 		if (!try_module_get(dev->driver->module)) {
-			rc = -ENOSYS;
+			rc = -ENXIO;
 			goto out;
 		}
 		if (dev->open) {
