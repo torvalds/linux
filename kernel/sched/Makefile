@@ -16,7 +16,7 @@ CFLAGS_core.o := $(PROFILING) -fno-omit-frame-pointer
 endif
 
 obj-y += core.o loadavg.o clock.o cputime.o
-obj-y += idle_task.o fair.o rt.o deadline.o stop_task.o
+obj-y += idle_task.o fair.o rt.o deadline.o stop_task.o energy.o
 obj-y += wait.o swait.o completion.o idle.o
 obj-$(CONFIG_SMP) += cpupri.o cpudeadline.o
 obj-$(CONFIG_SCHED_AUTOGROUP) += auto_group.o
