@@ -57,8 +57,8 @@ struct gb_tty {
 	struct mutex mutex;
 	u8 version_major;
 	u8 version_minor;
-	unsigned int ctrlin;	/* input control lines */
-	unsigned int ctrlout;	/* output control lines */
+	u8 ctrlin;	/* input control lines */
+	u8 ctrlout;	/* output control lines */
 	struct gb_tty_line_coding line_coding;
 };
 
@@ -123,7 +123,7 @@ static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 		break;
 	case GB_UART_TYPE_SERIAL_STATE:
 		serial_state = request->payload;
-		gb_tty->ctrlin = le16_to_cpu(serial_state->control);
+		gb_tty->ctrlin = serial_state->control;
 		break;
 	default:
 		dev_err(&connection->dev,
@@ -165,11 +165,11 @@ static int send_line_coding(struct gb_tty *tty)
 				 &request, sizeof(request), NULL, 0);
 }
 
-static int send_control(struct gb_tty *gb_tty, u16 control)
+static int send_control(struct gb_tty *gb_tty, u8 control)
 {
 	struct gb_uart_set_control_line_state_request request;
 
-	request.control = cpu_to_le16(control);
+	request.control = control;
 	return gb_operation_sync(gb_tty->connection,
 				 GB_UART_TYPE_SET_CONTROL_LINE_STATE,
 				 &request, sizeof(request), NULL, 0);
@@ -314,7 +314,7 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 	struct gb_tty *gb_tty = tty->driver_data;
 	struct ktermios *termios = &tty->termios;
 	struct gb_tty_line_coding newline;
-	int newctrl = gb_tty->ctrlout;
+	u8 newctrl = gb_tty->ctrlout;
 
 	newline.rate = cpu_to_le32(tty_get_baud_rate(tty));
 	newline.format = termios->c_cflag & CSTOPB ?
@@ -376,7 +376,7 @@ static int gb_tty_tiocmset(struct tty_struct *tty, unsigned int set,
 			   unsigned int clear)
 {
 	struct gb_tty *gb_tty = tty->driver_data;
-	unsigned int newctrl = gb_tty->ctrlout;
+	u8 newctrl = gb_tty->ctrlout;
 
 	set = (set & TIOCM_DTR ? GB_UART_CTRL_DTR : 0) |
 	      (set & TIOCM_RTS ? GB_UART_CTRL_RTS : 0);

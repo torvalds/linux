@@ -641,7 +641,7 @@ struct gb_uart_set_line_coding_request {
 #define GB_UART_CTRL_RTS			0x02
 
 struct gb_uart_set_control_line_state_request {
-	__le16	control;
+	__u8	control;
 };
 
 struct gb_uart_set_break_request {
@@ -654,7 +654,7 @@ struct gb_uart_set_break_request {
 #define GB_UART_CTRL_RI				0x04
 
 struct gb_uart_serial_state_request {
-	__le16	control;
+	__u8	control;
 };
 
 /* SDIO */
