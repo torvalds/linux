@@ -632,10 +632,13 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 						  true,
 						  NULL);
 		break;
+	case vmw_du_legacy:
+		ret = vmw_kms_ldu_do_dmabuf_dirty(dev_priv, &vfbd->base, 0, 0,
+						  clips, num_clips, increment);
+		break;
 	default:
-		ret = -ENOSYS;
-		WARN_ONCE(true,
-			  "Dirty called with invalid display system.\n");
+		ret = -EINVAL;
+		WARN_ONCE(true, "Dirty called with invalid display system.\n");
 		break;
 	}
 
