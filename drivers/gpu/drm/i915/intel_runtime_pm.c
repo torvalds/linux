@@ -853,6 +853,25 @@ static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 
 static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 {
+	enum pipe pipe;
+
+	/*
+	 * Enable the CRI clock source so we can get at the
+	 * display and the reference clock for VGA
+	 * hotplug / manual detection. Supposedly DSI also
+	 * needs the ref clock up and running.
+	 *
+	 * CHV DPLL B/C have some issues if VGA mode is enabled.
+	 */
+	for_each_pipe(dev_priv->dev, pipe) {
+		u32 val = I915_READ(DPLL(pipe));
+
+		val |= DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
+		if (pipe != PIPE_A)
+			val |= DPLL_INTEGRATED_CRI_CLK_VLV;
+
+		I915_WRITE(DPLL(pipe), val);
+	}
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_enable_display_irqs(dev_priv);
@@ -904,13 +923,7 @@ static void vlv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 {
 	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC);
 
-	/*
-	 * Enable the CRI clock source so we can get at the
-	 * display and the reference clock for VGA
-	 * hotplug / manual detection.
-	 */
-	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) | DPLL_VGA_MODE_DIS |
-		   DPLL_REF_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
+	/* since ref/cri clock was enabled */
 	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
 
 	vlv_set_power_well(dev_priv, power_well, true);
@@ -953,22 +966,12 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC &&
 		     power_well->data != PUNIT_POWER_WELL_DPIO_CMN_D);
 
-	/*
-	 * Enable the CRI clock source so we can get at the
-	 * display and the reference clock for VGA
-	 * hotplug / manual detection.
-	 */
-	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC)
 		phy = DPIO_PHY0;
-		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) | DPLL_VGA_MODE_DIS |
-			   DPLL_REF_CLK_ENABLE_VLV);
-		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) | DPLL_VGA_MODE_DIS |
-			   DPLL_REF_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
-	} else {
+	else
 		phy = DPIO_PHY1;
-		I915_WRITE(DPLL(PIPE_C), I915_READ(DPLL(PIPE_C)) | DPLL_VGA_MODE_DIS |
-			   DPLL_REF_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
-	}
+
+	/* since ref/cri clock was enabled */
 	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
 	vlv_set_power_well(dev_priv, power_well, true);
 
