@@ -325,7 +325,11 @@ static void armada_drm_crtc_dpms(struct drm_crtc *crtc, int dpms)
 
 	if (dcrtc->dpms != dpms) {
 		dcrtc->dpms = dpms;
+		if (!IS_ERR(dcrtc->clk) && !dpms_blanked(dpms))
+			WARN_ON(clk_prepare_enable(dcrtc->clk));
 		armada_drm_crtc_update(dcrtc);
+		if (!IS_ERR(dcrtc->clk) && dpms_blanked(dpms))
+			clk_disable_unprepare(dcrtc->clk);
 		if (dpms_blanked(dpms))
 			armada_drm_vblank_off(dcrtc);
 		else
@@ -562,6 +566,13 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 		dcrtc->dumb_ctrl = val;
 		writel_relaxed(val, dcrtc->base + LCD_SPU_DUMB_CTRL);
 	}
+
+	/*
+	 * If we are blanked, we would have disabled the clock.  Re-enable
+	 * it so that compute_clock() does the right thing.
+	 */
+	if (!IS_ERR(dcrtc->clk) && dpms_blanked(dcrtc->dpms))
+		WARN_ON(clk_prepare_enable(dcrtc->clk));
 
 	/* Now compute the divider for real */
 	dcrtc->variant->compute_clock(dcrtc, adj, &sclk);
