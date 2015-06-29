@@ -112,6 +112,7 @@ static int opal_prd_open(struct inode *inode, struct file *file)
 static int opal_prd_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	size_t addr, size;
+	pgprot_t page_prot;
 	int rc;
 
 	pr_devel("opal_prd_mmap(0x%016lx, 0x%016lx, 0x%lx, 0x%lx)\n",
@@ -125,13 +126,11 @@ static int opal_prd_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!opal_prd_range_is_valid(addr, size))
 		return -EINVAL;
 
-	vma->vm_page_prot = __pgprot(pgprot_val(phys_mem_access_prot(file,
-						vma->vm_pgoff,
-						 size, vma->vm_page_prot))
-					| _PAGE_SPECIAL);
+	page_prot = phys_mem_access_prot(file, vma->vm_pgoff,
+					 size, vma->vm_page_prot);
 
 	rc = remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff, size,
-			vma->vm_page_prot);
+				page_prot);
 
 	return rc;
 }
