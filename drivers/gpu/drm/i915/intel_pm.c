@@ -6219,7 +6219,8 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 	} else if (INTEL_INFO(dev)->gen >= 9) {
 		gen9_enable_rc6(dev);
 		gen9_enable_rps(dev);
-		__gen6_update_ring_freq(dev);
+		if (IS_SKYLAKE(dev))
+			__gen6_update_ring_freq(dev);
 	} else if (IS_BROADWELL(dev)) {
 		gen8_enable_rps(dev);
 		__gen6_update_ring_freq(dev);
