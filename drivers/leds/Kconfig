@@ -504,6 +504,7 @@ config LEDS_TLC591XX
 config LEDS_MAX77693
 	tristate "LED support for MAX77693 Flash"
 	depends on LEDS_CLASS_FLASH
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
 	depends on MFD_MAX77693
 	depends on OF
 	help
