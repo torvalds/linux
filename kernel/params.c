@@ -150,14 +150,12 @@ static char *next_arg(char *args, char **param, char **val)
 		quoted = 1;
 	}
 
-	for (i = 0; args[i]; i++) {
-		if (isspace(args[i]) && !in_quote)
-			break;
-		if (equals == 0) {
-			if (args[i] == '=')
+	for (i = 0; args[i] && !(isspace(args[i]) && !in_quote); i++) {
+		if (args[i] == '=') {
+			if (!equals)
 				equals = i;
 		}
-		if (args[i] == '"')
+		else if (args[i] == '"')
 			in_quote = !in_quote;
 	}
 
@@ -171,18 +169,18 @@ static char *next_arg(char *args, char **param, char **val)
 		/* Don't include quotes in value. */
 		if (**val == '"') {
 			(*val)++;
-			if (args[i-1] == '"')
-				args[i-1] = '\0';
+			quoted = 1;
 		}
 	}
 	if (quoted && args[i-1] == '"')
 		args[i-1] = '\0';
 
+	next = args + i;
+
 	if (args[i]) {
 		args[i] = '\0';
-		next = args + i + 1;
-	} else
-		next = args + i;
+		++next;
+	}
 
 	/* Chew up trailing spaces. */
 	return skip_spaces(next);
@@ -213,7 +211,7 @@ char *parse_args(const char *doing,
 
 		args = next_arg(args, &param, &val);
 		/* Stop at -- */
-		if (!val && strcmp(param, "--") == 0)
+		if (!val && strncmp(param, "--", 3) == 0)
 			return args;
 		irq_was_disabled = irqs_disabled();
 		ret = parse_one(param, val, doing, params, num,
@@ -274,7 +272,9 @@ STANDARD_PARAM_DEF(ullong, unsigned long long, "%llu", kstrtoull);
 
 int param_set_charp(const char *val, const struct kernel_param *kp)
 {
-	if (strlen(val) > 1024) {
+	const size_t val_len = strlen(val);
+
+	if (val_len > 1024) {
 		pr_err("%s: string parameter too long\n", kp->name);
 		return -ENOSPC;
 	}
@@ -284,10 +284,10 @@ int param_set_charp(const char *val, const struct kernel_param *kp)
 	/* This is a hack.  We can't kmalloc in early boot, and we
 	 * don't need to; this mangled commandline is preserved. */
 	if (slab_is_available()) {
-		*(char **)kp->arg = kmalloc_parameter(strlen(val)+1);
+		*(char **)kp->arg = kmalloc_parameter(val_len+1);
 		if (!*(char **)kp->arg)
 			return -ENOMEM;
-		strcpy(*(char **)kp->arg, val);
+		strncpy(*(char **)kp->arg, val, val_len + 1);
 	} else
 		*(const char **)kp->arg = val;
 
@@ -450,12 +450,13 @@ static int param_array_set(const char *val, const struct kernel_param *kp)
 
 static int param_array_get(char *buffer, const struct kernel_param *kp)
 {
-	int i, off, ret;
+	int i, off, ret, max;
 	const struct kparam_array *arr = kp->arr;
 	struct kernel_param p;
 
 	p = *kp;
-	for (i = off = 0; i < (arr->num ? *arr->num : arr->max); i++) {
+	max = (arr->num ? *arr->num : arr->max);
+	for (i = off = 0; i < max; i++) {
 		if (i)
 			buffer[off++] = ',';
 		p.arg = arr->elem + arr->elemsize * i;
@@ -471,12 +472,15 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 
 static void param_array_free(void *arg)
 {
-	unsigned int i;
+	unsigned int i, max;
 	const struct kparam_array *arr = arg;
 
 	if (arr->ops->free)
-		for (i = 0; i < (arr->num ? *arr->num : arr->max); i++)
+	{
+		max = (arr->num ? *arr->num : arr->max);
+		for (i = 0; i < max; i++)
 			arr->ops->free(arr->elem + arr->elemsize * i);
+	}
 }
 
 struct kernel_param_ops param_array_ops = {
@@ -489,13 +493,14 @@ EXPORT_SYMBOL(param_array_ops);
 int param_set_copystring(const char *val, const struct kernel_param *kp)
 {
 	const struct kparam_string *kps = kp->str;
+	const size_t val_len = strlen(val);
 
-	if (strlen(val)+1 > kps->maxlen) {
+	if (val_len + 1 > kps->maxlen) {
 		pr_err("%s: string doesn't fit in %u chars.\n",
 		       kp->name, kps->maxlen-1);
 		return -ENOSPC;
 	}
-	strcpy(kps->string, val);
+	strncpy(kps->string, val, val_len + 1);
 	return 0;
 }
 EXPORT_SYMBOL(param_set_copystring);
@@ -720,12 +725,12 @@ int module_param_sysfs_setup(struct module *mod,
  */
 void module_param_sysfs_remove(struct module *mod)
 {
-	if (mod->mkobj.mp) {
-		sysfs_remove_group(&mod->mkobj.kobj, &mod->mkobj.mp->grp);
-		/* We are positive that no one is using any param
-		 * attrs at this point.  Deallocate immediately. */
-		free_module_param_attrs(&mod->mkobj);
-	}
+	if (!mod->mkobj.mp)
+		return ;
+	sysfs_remove_group(&mod->mkobj.kobj, &mod->mkobj.mp->grp);
+	/* We are positive that no one is using any param
+	 * attrs at this point.  Deallocate immediately. */
+	free_module_param_attrs(&mod->mkobj);
 }
 #endif
 
@@ -822,7 +827,7 @@ static void __init param_sysfs_builtin(void)
 		dot = strchr(kp->name, '.');
 		if (!dot) {
 			/* This happens for core_param() */
-			strcpy(modname, "kernel");
+			strncpy(modname, "kernel", sizeof("kernel"));
 			name_len = 0;
 		} else {
 			name_len = dot - kp->name + 1;
@@ -889,7 +894,6 @@ static ssize_t module_attr_store(struct kobject *kobj,
 {
 	struct module_attribute *attribute;
 	struct module_kobject *mk;
-	int ret;
 
 	attribute = to_module_attr(attr);
 	mk = to_module_kobject(kobj);
@@ -897,9 +901,7 @@ static ssize_t module_attr_store(struct kobject *kobj,
 	if (!attribute->store)
 		return -EIO;
 
-	ret = attribute->store(attribute, mk, buf, len);
-
-	return ret;
+	return (attribute->store(attribute, mk, buf, len));
 }
 
 static const struct sysfs_ops module_sysfs_ops = {
