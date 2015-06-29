@@ -1,0 +1,24 @@
+ZTE ZX296702 GPIO controller
+
+Required properties:
+- compatible : "zte,zx296702-gpio"
+- #gpio-cells : Should be two. The first cell is the pin number and the
+  second cell is used to specify optional parameters:
+  - bit 0 specifies polarity (0 for normal, 1 for inverted)
+- gpio-controller : Marks the device node as a GPIO controller.
+- interrupts : Interrupt mapping for GPIO IRQ.
+- gpio-ranges : Interaction with the PINCTRL subsystem.
+
+gpio1: gpio@b008040 {
+	compatible = "zte,zx296702-gpio";
+	reg = <0xb008040 0x40>;
+	gpio-controller;
+	#gpio-cells = <2>;
+	gpio-ranges = < &pmx0 0 54 2 &pmx0 2 59 14>;
+	interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-parent = <&intc>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+	clock-names = "gpio_pclk";
+	clocks = <&lsp0clk ZX296702_GPIO_CLK>;
+};
