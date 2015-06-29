@@ -26,8 +26,6 @@
 #define DM_VERITY_ENV_LENGTH		42
 #define DM_VERITY_ENV_VAR_NAME		"DM_VERITY_ERR_BLOCK_NR"
 
-#define DM_VERITY_IO_VEC_INLINE		16
-#define DM_VERITY_MEMPOOL_SIZE		4
 #define DM_VERITY_DEFAULT_PREFETCH_SIZE	262144
 
 #define DM_VERITY_MAX_LEVELS		63
@@ -75,8 +73,6 @@ struct dm_verity {
 	int hash_failed;	/* set to 1 if hash of any block failed */
 	enum verity_mode mode;	/* mode for handling verification errors */
 	unsigned corrupted_errs;/* Number of errors for corrupted blocks */
-
-	mempool_t *vec_mempool;	/* mempool of bio vector */
 
 	struct workqueue_struct *verify_wq;
 
@@ -691,9 +687,6 @@ static void verity_dtr(struct dm_target *ti)
 	if (v->verify_wq)
 		destroy_workqueue(v->verify_wq);
 
-	if (v->vec_mempool)
-		mempool_destroy(v->vec_mempool);
-
 	if (v->bufio)
 		dm_bufio_client_destroy(v->bufio);
 
@@ -961,14 +954,6 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	ti->per_bio_data_size = roundup(sizeof(struct dm_verity_io) + v->shash_descsize + v->digest_size * 2, __alignof__(struct dm_verity_io));
-
-	v->vec_mempool = mempool_create_kmalloc_pool(DM_VERITY_MEMPOOL_SIZE,
-					BIO_MAX_PAGES * sizeof(struct bio_vec));
-	if (!v->vec_mempool) {
-		ti->error = "Cannot allocate vector mempool";
-		r = -ENOMEM;
-		goto bad;
-	}
 
 	/* WQ_UNBOUND greatly improves performance when running on ramdisk */
 	v->verify_wq = alloc_workqueue("kverityd", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM | WQ_UNBOUND, num_online_cpus());
