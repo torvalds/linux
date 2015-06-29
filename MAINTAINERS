@@ -6102,6 +6102,39 @@ M:	Sasha Levin <sasha.levin@oracle.com>
 S:	Maintained
 F:	tools/lib/lockdep/
 
+LIBNVDIMM: NON-VOLATILE MEMORY DEVICE SUBSYSTEM
+M:	Dan Williams <dan.j.williams@intel.com>
+L:	linux-nvdimm@lists.01.org
+Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
+S:	Supported
+F:	drivers/nvdimm/*
+F:	include/linux/nd.h
+F:	include/linux/libnvdimm.h
+F:	include/uapi/linux/ndctl.h
+
+LIBNVDIMM BLK: MMIO-APERTURE DRIVER
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+L:	linux-nvdimm@lists.01.org
+Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
+S:	Supported
+F:	drivers/nvdimm/blk.c
+F:	drivers/nvdimm/region_devs.c
+F:	drivers/acpi/nfit*
+
+LIBNVDIMM BTT: BLOCK TRANSLATION TABLE
+M:	Vishal Verma <vishal.l.verma@intel.com>
+L:	linux-nvdimm@lists.01.org
+Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
+S:	Supported
+F:	drivers/nvdimm/btt*
+
+LIBNVDIMM PMEM: PERSISTENT MEMORY DRIVER
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+L:	linux-nvdimm@lists.01.org
+Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
+S:	Supported
+F:	drivers/nvdimm/pmem.c
+
 LINUX FOR IBM pSERIES (RS/6000)
 M:	Paul Mackerras <paulus@au.ibm.com>
 W:	http://www.ibm.com/linux/ltc/projects/ppc
@@ -8362,12 +8395,6 @@ M:	Jens Axboe <axboe@kernel.dk>
 S:	Maintained
 F:	Documentation/blockdev/ramdisk.txt
 F:	drivers/block/brd.c
-
-PERSISTENT MEMORY DRIVER
-M:	Ross Zwisler <ross.zwisler@linux.intel.com>
-L:	linux-nvdimm@lists.01.org
-S:	Supported
-F:	drivers/block/pmem.c
 
 RANDOM NUMBER DRIVER
 M:	"Theodore Ts'o" <tytso@mit.edu>
