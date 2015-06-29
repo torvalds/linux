@@ -465,6 +465,7 @@ void audio_set_i2s_mode(u32 mode)
         0x303,                 /* 8x24 */
         0x303,                  /* 2x32 */
     };
+    I2S_MODE = (unsigned) mode;
 
     if (mode < sizeof(mask)/ sizeof(unsigned short)) {
        /* four two channels stream */

@@ -59,7 +59,7 @@ void  aml_spdif_play(void)
    	 _aiu_958_channel_status_t chstat;	 
 	struct snd_pcm_substream substream;
 	struct snd_pcm_runtime runtime;
-	substream.runtime = &	runtime;
+	substream.runtime = &	runtime;
 	runtime.rate	 = 48000;
 	runtime.format = SNDRV_PCM_FORMAT_S16_LE;
 	runtime.channels  = 2;
@@ -94,7 +94,7 @@ void  aml_spdif_play(void)
 #endif
 }
 static void  aml_spdif_play_stop(void)
-{
+{
 	audio_hw_958_enable(0);
 }
 
@@ -276,7 +276,7 @@ static void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		start = buf->addr;
 		size = snd_pcm_lib_buffer_bytes(substream);
 		audio_set_958outbuf(start, size, runtime->channels, 0);
-		//audio_set_i2s_mode(AIU_I2S_MODE_PCM16);
+		audio_set_i2s_mode(iec958_mode);
 		//audio_set_aiubuf(start, size);		
 	}else{
 

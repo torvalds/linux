@@ -281,8 +281,8 @@ static int aml_asoc_hw_params(struct snd_pcm_substream *substream,
         printk(KERN_ERR "%s: set cpu dai fmt failed!\n", __func__);
         return ret;
     }
-    if(!strncmp(codec_info.name_bus,"dummy_codec",strlen("dummy_codec"))||
-        !(strncmp(codec_info.name_bus,"pcm5102",strlen("pcm5102")))){
+    if(!strncmp(codec_info.name_bus,"dummy_codec.0",strlen("dummy_codec.0"))||
+        !(strncmp(codec_info.name_bus,"pcm5102.0",strlen("pcm5102.0")))){
         goto cpu_dai;
     }
 #if 1
@@ -600,10 +600,10 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	
     printk(KERN_DEBUG "enter %s \n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
-    ret = snd_soc_add_card_controls(codec->card, aml_m8_controls,
-                ARRAY_SIZE(aml_m8_controls));
-    if (ret)
-       return ret;
+//    ret = snd_soc_add_card_controls(codec->card, aml_m8_controls,
+//                ARRAY_SIZE(aml_m8_controls));
+//    if (ret)
+//       return ret;
     /* Add specific widgets */
     snd_soc_dapm_new_controls(dapm, aml_asoc_dapm_widgets,
                   ARRAY_SIZE(aml_asoc_dapm_widgets));
@@ -683,13 +683,12 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 
 static struct snd_soc_dai_link aml_codec_dai_link[] = {
     {
-        .name = "SND_M8",
-        .stream_name = "AML PCM",
+        .name = "SND_DUMMY",
+        .stream_name = "DUMMY PCM",
         .cpu_dai_name = "aml-i2s-dai.0",
-        .init = aml_asoc_init,
         .platform_name = "aml-i2s.0",
-        .codec_name = "pcm5102.0",
         .ops = &aml_asoc_ops,
+        .no_pcm = 1,
     },
 #ifdef CONFIG_SND_SOC_PCM2BT
     {
@@ -702,7 +701,6 @@ static struct snd_soc_dai_link aml_codec_dai_link[] = {
         //.ops = &voice_soc_ops,
     },
 #endif
-
     {
         .name = "AML-SPDIF",
         .stream_name = "SPDIF PCM",
@@ -713,7 +711,16 @@ static struct snd_soc_dai_link aml_codec_dai_link[] = {
         .codec_name = "spdif-dit.0",
         .ops = NULL,      
     }, 
-
+    {
+        .name = "SND_M8",
+        .stream_name = "AML PCM",
+        .cpu_dai_name = "aml-i2s-dai.0",
+        .init = aml_asoc_init,
+        .platform_name = "aml-i2s.0",
+        .codec_name = "pcm5102.0",
+        .codec_dai_name = "pcm5102",
+        .ops = &aml_asoc_ops,
+    },
 };
 
 static struct snd_soc_card aml_snd_soc_card = {
@@ -793,7 +800,7 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
         goto err;
     }
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
-    aml_codec_dai_link[0].no_pcm = disable_audiodac;
+    aml_codec_dai_link[2].no_pcm = disable_audiodac;
 #endif
     card->dev = &pdev->dev;
     platform_set_drvdata(pdev, card);
