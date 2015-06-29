@@ -1697,15 +1697,6 @@ static const struct snd_soc_dapm_widget rt5645_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("IF1_ADC4", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	/* IF1 2 Mux */
-	SND_SOC_DAPM_MUX("RT5645 IF1 ADC1 Swap Mux", SND_SOC_NOPM,
-		0, 0, &rt5645_if1_adc1_in_mux),
-	SND_SOC_DAPM_MUX("RT5645 IF1 ADC2 Swap Mux", SND_SOC_NOPM,
-		0, 0, &rt5645_if1_adc2_in_mux),
-	SND_SOC_DAPM_MUX("RT5645 IF1 ADC3 Swap Mux", SND_SOC_NOPM,
-		0, 0, &rt5645_if1_adc3_in_mux),
-	SND_SOC_DAPM_MUX("RT5645 IF1 ADC Mux", SND_SOC_NOPM,
-		0, 0, &rt5645_if1_adc_in_mux),
-
 	SND_SOC_DAPM_MUX("IF2 ADC Mux", SND_SOC_NOPM,
 		0, 0, &rt5645_if2_adc_in_mux),
 
@@ -1716,14 +1707,6 @@ static const struct snd_soc_dapm_widget rt5645_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("IF1 DAC1", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1 DAC2", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1 DAC3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MUX("RT5645 IF1 DAC1 L Mux", SND_SOC_NOPM, 0, 0,
-		&rt5645_if1_dac0_tdm_sel_mux),
-	SND_SOC_DAPM_MUX("RT5645 IF1 DAC1 R Mux", SND_SOC_NOPM, 0, 0,
-		&rt5645_if1_dac1_tdm_sel_mux),
-	SND_SOC_DAPM_MUX("RT5645 IF1 DAC2 L Mux", SND_SOC_NOPM, 0, 0,
-		&rt5645_if1_dac2_tdm_sel_mux),
-	SND_SOC_DAPM_MUX("RT5645 IF1 DAC2 R Mux", SND_SOC_NOPM, 0, 0,
-		&rt5645_if1_dac3_tdm_sel_mux),
 	SND_SOC_DAPM_PGA("IF1 ADC", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1 ADC L", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1 ADC R", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -1854,6 +1837,25 @@ static const struct snd_soc_dapm_widget rt5645_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("PDM1R"),
 	SND_SOC_DAPM_OUTPUT("SPOL"),
 	SND_SOC_DAPM_OUTPUT("SPOR"),
+};
+
+static const struct snd_soc_dapm_widget rt5645_specific_dapm_widgets[] = {
+	SND_SOC_DAPM_MUX("RT5645 IF1 DAC1 L Mux", SND_SOC_NOPM, 0, 0,
+		&rt5645_if1_dac0_tdm_sel_mux),
+	SND_SOC_DAPM_MUX("RT5645 IF1 DAC1 R Mux", SND_SOC_NOPM, 0, 0,
+		&rt5645_if1_dac1_tdm_sel_mux),
+	SND_SOC_DAPM_MUX("RT5645 IF1 DAC2 L Mux", SND_SOC_NOPM, 0, 0,
+		&rt5645_if1_dac2_tdm_sel_mux),
+	SND_SOC_DAPM_MUX("RT5645 IF1 DAC2 R Mux", SND_SOC_NOPM, 0, 0,
+		&rt5645_if1_dac3_tdm_sel_mux),
+	SND_SOC_DAPM_MUX("RT5645 IF1 ADC Mux", SND_SOC_NOPM,
+		0, 0, &rt5645_if1_adc_in_mux),
+	SND_SOC_DAPM_MUX("RT5645 IF1 ADC1 Swap Mux", SND_SOC_NOPM,
+		0, 0, &rt5645_if1_adc1_in_mux),
+	SND_SOC_DAPM_MUX("RT5645 IF1 ADC2 Swap Mux", SND_SOC_NOPM,
+		0, 0, &rt5645_if1_adc2_in_mux),
+	SND_SOC_DAPM_MUX("RT5645 IF1 ADC3 Swap Mux", SND_SOC_NOPM,
+		0, 0, &rt5645_if1_adc3_in_mux),
 };
 
 static const struct snd_soc_dapm_widget rt5650_specific_dapm_widgets[] = {
@@ -3049,6 +3051,9 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 
 	switch (rt5645->codec_type) {
 	case CODEC_TYPE_RT5645:
+		snd_soc_dapm_new_controls(&codec->dapm,
+			rt5645_specific_dapm_widgets,
+			ARRAY_SIZE(rt5645_specific_dapm_widgets));
 		snd_soc_dapm_add_routes(&codec->dapm,
 			rt5645_specific_dapm_routes,
 			ARRAY_SIZE(rt5645_specific_dapm_routes));
