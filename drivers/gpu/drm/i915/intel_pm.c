@@ -5104,7 +5104,7 @@ void gen6_update_ring_freq(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (INTEL_INFO(dev)->gen < 6 || IS_VALLEYVIEW(dev))
+	if (!HAS_CORE_RING_FREQ(dev))
 		return;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
