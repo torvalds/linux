@@ -70,35 +70,56 @@ static atomic_t reference_count = ATOMIC_INIT(0);
 /* Define get_version() routine */
 define_get_version(gb_tty, UART);
 
+static int gb_uart_receive_data(struct gb_tty *gb_tty,
+				struct gb_connection *connection,
+				struct gb_uart_recv_data_request *receive_data)
+{
+	struct tty_port *port = &gb_tty->port;
+	u16 recv_data_size;
+	int count;
+	unsigned long tty_flags = TTY_NORMAL;
+
+	count = gb_tty->buffer_payload_max - sizeof(*receive_data);
+	recv_data_size = le16_to_cpu(receive_data->size);
+	if (!recv_data_size || recv_data_size > count)
+		return -EINVAL;
+
+	if (receive_data->flags) {
+		if (receive_data->flags & GB_UART_RECV_FLAG_BREAK)
+			tty_flags = TTY_BREAK;
+		else if (receive_data->flags & GB_UART_RECV_FLAG_PARITY)
+			tty_flags = TTY_PARITY;
+		else if (receive_data->flags & GB_UART_RECV_FLAG_FRAMING)
+			tty_flags = TTY_FRAME;
+
+		/* overrun is special, not associated with a char */
+		if (receive_data->flags & GB_UART_RECV_FLAG_OVERRUN)
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
+	}
+	count = tty_insert_flip_string_fixed_flag(port, receive_data->data,
+						  tty_flags, recv_data_size);
+	if (count != recv_data_size) {
+		dev_err(&connection->dev,
+			"UART: RX 0x%08x bytes only wrote 0x%08x\n",
+			recv_data_size, count);
+	}
+	if (count)
+		tty_flip_buffer_push(port);
+	return 0;
+}
+
 static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_tty *gb_tty = connection->private;
 	struct gb_message *request = op->request;
-	struct gb_uart_recv_data_request *receive_data;
 	struct gb_uart_serial_state_request *serial_state;
-	struct tty_port *port = &gb_tty->port;
-	u16 recv_data_size;
-	int count;
 	int ret = 0;
 
 	switch (type) {
 	case GB_UART_TYPE_RECEIVE_DATA:
-		receive_data = request->payload;
-		count = gb_tty->buffer_payload_max - sizeof(*receive_data);
-		recv_data_size = le16_to_cpu(receive_data->size);
-		if (!recv_data_size || recv_data_size > count)
-			return -EINVAL;
-
-		count = tty_insert_flip_string(port, receive_data->data,
-					       recv_data_size);
-		if (count != recv_data_size) {
-			dev_err(&connection->dev,
-				"UART: RX 0x%08x bytes only wrote 0x%08x\n",
-				recv_data_size, count);
-		}
-		if (count)
-			tty_flip_buffer_push(port);
+		ret = gb_uart_receive_data(gb_tty, connection,
+					   request->payload);
 		break;
 	case GB_UART_TYPE_SERIAL_STATE:
 		serial_state = request->payload;
