@@ -347,6 +347,7 @@ struct snd_soc_tplg_dapm_widget {
 	__le32 reg;		/* negative reg = no direct dapm */
 	__le32 shift;		/* bits to shift */
 	__le32 mask;		/* non-shifted mask */
+	__le32 subseq;		/* sort within widget type */
 	__u32 invert;		/* invert the power bit */
 	__u32 ignore_suspend;	/* kept enabled over suspend */
 	__u16 event_flags;

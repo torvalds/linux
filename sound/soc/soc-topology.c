@@ -1351,6 +1351,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	template.reg = w->reg;
 	template.shift = w->shift;
 	template.mask = w->mask;
+	template.subseq = w->subseq;
 	template.on_val = w->invert ? 0 : 1;
 	template.off_val = w->invert ? 1 : 0;
 	template.ignore_suspend = w->ignore_suspend;
