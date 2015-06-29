@@ -5021,6 +5021,7 @@ static void __gen6_update_ring_freq(struct drm_device *dev)
 	int min_freq = 15;
 	unsigned int gpu_freq;
 	unsigned int max_ia_freq, min_ring_freq;
+	unsigned int max_gpu_freq, min_gpu_freq;
 	int scaling_factor = 180;
 	struct cpufreq_policy *policy;
 
@@ -5045,17 +5046,31 @@ static void __gen6_update_ring_freq(struct drm_device *dev)
 	/* convert DDR frequency from units of 266.6MHz to bandwidth */
 	min_ring_freq = mult_frac(min_ring_freq, 8, 3);
 
+	if (IS_SKYLAKE(dev)) {
+		/* Convert GT frequency to 50 HZ units */
+		min_gpu_freq = dev_priv->rps.min_freq / GEN9_FREQ_SCALER;
+		max_gpu_freq = dev_priv->rps.max_freq / GEN9_FREQ_SCALER;
+	} else {
+		min_gpu_freq = dev_priv->rps.min_freq;
+		max_gpu_freq = dev_priv->rps.max_freq;
+	}
+
 	/*
 	 * For each potential GPU frequency, load a ring frequency we'd like
 	 * to use for memory access.  We do this by specifying the IA frequency
 	 * the PCU should use as a reference to determine the ring frequency.
 	 */
-	for (gpu_freq = dev_priv->rps.max_freq; gpu_freq >= dev_priv->rps.min_freq;
-	     gpu_freq--) {
-		int diff = dev_priv->rps.max_freq - gpu_freq;
+	for (gpu_freq = max_gpu_freq; gpu_freq >= min_gpu_freq; gpu_freq--) {
+		int diff = max_gpu_freq - gpu_freq;
 		unsigned int ia_freq = 0, ring_freq = 0;
 
-		if (INTEL_INFO(dev)->gen >= 8) {
+		if (IS_SKYLAKE(dev)) {
+			/*
+			 * ring_freq = 2 * GT. ring_freq is in 100MHz units
+			 * No floor required for ring frequency on SKL.
+			 */
+			ring_freq = gpu_freq;
+		} else if (INTEL_INFO(dev)->gen >= 8) {
 			/* max(2 * GT, DDR). NB: GT is 50MHz units */
 			ring_freq = max(min_ring_freq, gpu_freq);
 		} else if (IS_HASWELL(dev)) {
