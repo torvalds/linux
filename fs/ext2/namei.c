@@ -96,8 +96,11 @@ struct dentry *ext2_get_parent(struct dentry *child)
 static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode, bool excl)
 {
 	struct inode *inode;
+	int err;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	inode = ext2_new_inode(dir, mode, &dentry->d_name);
 	if (IS_ERR(inode))
@@ -143,7 +146,9 @@ static int ext2_mknod (struct inode * dir, struct dentry *dentry, umode_t mode, 
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	inode = ext2_new_inode (dir, mode, &dentry->d_name);
 	err = PTR_ERR(inode);
@@ -169,7 +174,9 @@ static int ext2_symlink (struct inode * dir, struct dentry * dentry,
 	if (l > sb->s_blocksize)
 		goto out;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		goto out;
 
 	inode = ext2_new_inode (dir, S_IFLNK | S_IRWXUGO, &dentry->d_name);
 	err = PTR_ERR(inode);
@@ -212,7 +219,9 @@ static int ext2_link (struct dentry * old_dentry, struct inode * dir,
 	struct inode *inode = d_inode(old_dentry);
 	int err;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	inode->i_ctime = CURRENT_TIME_SEC;
 	inode_inc_link_count(inode);
@@ -233,7 +242,9 @@ static int ext2_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
 	struct inode * inode;
 	int err;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	inode_inc_link_count(dir);
 
@@ -279,13 +290,17 @@ static int ext2_unlink(struct inode * dir, struct dentry *dentry)
 	struct inode * inode = d_inode(dentry);
 	struct ext2_dir_entry_2 * de;
 	struct page * page;
-	int err = -ENOENT;
+	int err;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		goto out;
 
 	de = ext2_find_entry (dir, &dentry->d_name, &page);
-	if (!de)
+	if (!de) {
+		err = -ENOENT;
 		goto out;
+	}
 
 	err = ext2_delete_entry (de, page);
 	if (err)
@@ -323,14 +338,21 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 	struct ext2_dir_entry_2 * dir_de = NULL;
 	struct page * old_page;
 	struct ext2_dir_entry_2 * old_de;
-	int err = -ENOENT;
+	int err;
 
-	dquot_initialize(old_dir);
-	dquot_initialize(new_dir);
+	err = dquot_initialize(old_dir);
+	if (err)
+		goto out;
+
+	err = dquot_initialize(new_dir);
+	if (err)
+		goto out;
 
 	old_de = ext2_find_entry (old_dir, &old_dentry->d_name, &old_page);
-	if (!old_de)
+	if (!old_de) {
+		err = -ENOENT;
 		goto out;
+	}
 
 	if (S_ISDIR(old_inode->i_mode)) {
 		err = -EIO;
