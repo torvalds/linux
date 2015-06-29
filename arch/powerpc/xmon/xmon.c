@@ -1987,7 +1987,6 @@ memex(void)
 			case '^':
 				adrs -= size;
 				break;
-				break;
 			case '/':
 				if (nslash > 0)
 					adrs -= 1 << nslash;
