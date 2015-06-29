@@ -148,29 +148,6 @@ static int armada_drm_unload(struct drm_device *dev)
 	return 0;
 }
 
-void armada_drm_vbl_event_add(struct armada_crtc *dcrtc,
-	struct armada_vbl_event *evt)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dcrtc->irq_lock, flags);
-	if (list_empty(&evt->node)) {
-		list_add_tail(&evt->node, &dcrtc->vbl_list);
-
-		drm_vblank_get(dcrtc->crtc.dev, dcrtc->num);
-	}
-	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-}
-
-void armada_drm_vbl_event_remove(struct armada_crtc *dcrtc,
-	struct armada_vbl_event *evt)
-{
-	if (!list_empty(&evt->node)) {
-		list_del_init(&evt->node);
-		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
-	}
-}
-
 /* These are called under the vbl_lock. */
 static int armada_drm_enable_vblank(struct drm_device *dev, int crtc)
 {

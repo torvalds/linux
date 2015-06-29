@@ -173,6 +173,44 @@ static unsigned armada_drm_crtc_calc_fb(struct drm_framebuffer *fb,
 	return i;
 }
 
+void armada_drm_vbl_event_add(struct armada_crtc *dcrtc,
+	struct armada_vbl_event *evt)
+{
+	unsigned long flags;
+	bool not_on_list;
+
+	WARN_ON(drm_vblank_get(dcrtc->crtc.dev, dcrtc->num));
+
+	spin_lock_irqsave(&dcrtc->irq_lock, flags);
+	not_on_list = list_empty(&evt->node);
+	if (not_on_list)
+		list_add_tail(&evt->node, &dcrtc->vbl_list);
+	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
+
+	if (!not_on_list)
+		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+}
+
+void armada_drm_vbl_event_remove(struct armada_crtc *dcrtc,
+	struct armada_vbl_event *evt)
+{
+	if (!list_empty(&evt->node)) {
+		list_del_init(&evt->node);
+		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+	}
+}
+
+static void armada_drm_vbl_event_run(struct armada_crtc *dcrtc)
+{
+	struct armada_vbl_event *e, *n;
+
+	list_for_each_entry_safe(e, n, &dcrtc->vbl_list, node) {
+		list_del_init(&e->node);
+		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+		e->fn(dcrtc, e->data);
+	}
+}
+
 static int armada_drm_crtc_queue_frame_work(struct armada_crtc *dcrtc,
 	struct armada_frame_work *work)
 {
@@ -356,7 +394,6 @@ static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 
 static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 {
-	struct armada_vbl_event *e, *n;
 	void __iomem *base = dcrtc->base;
 
 	if (stat & DMA_FF_UNDERFLOW)
@@ -368,12 +405,7 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 		drm_handle_vblank(dcrtc->crtc.dev, dcrtc->num);
 
 	spin_lock(&dcrtc->irq_lock);
-
-	list_for_each_entry_safe(e, n, &dcrtc->vbl_list, node) {
-		list_del_init(&e->node);
-		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
-		e->fn(dcrtc, e->data);
-	}
+	armada_drm_vbl_event_run(dcrtc);
 
 	if (stat & GRA_FRAME_IRQ && dcrtc->interlaced) {
 		int i = stat & GRA_FRAME_IRQ0 ? 0 : 1;

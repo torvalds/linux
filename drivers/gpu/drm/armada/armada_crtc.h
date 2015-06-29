@@ -75,6 +75,23 @@ struct armada_crtc {
 };
 #define drm_to_armada_crtc(c) container_of(c, struct armada_crtc, crtc)
 
+struct armada_vbl_event {
+	struct list_head	node;
+	void			*data;
+	void			(*fn)(struct armada_crtc *, void *);
+};
+
+void armada_drm_vbl_event_add(struct armada_crtc *,
+	struct armada_vbl_event *);
+void armada_drm_vbl_event_remove(struct armada_crtc *,
+	struct armada_vbl_event *);
+#define armada_drm_vbl_event_init(_e, _f, _d) do {	\
+	struct armada_vbl_event *__e = _e;		\
+	INIT_LIST_HEAD(&__e->node);			\
+	__e->data = _d;					\
+	__e->fn = _f;					\
+} while (0)
+
 void armada_drm_crtc_gamma_set(struct drm_crtc *, u16, u16, u16, int);
 void armada_drm_crtc_gamma_get(struct drm_crtc *, u16 *, u16 *, u16 *, int);
 void armada_drm_crtc_disable_irq(struct armada_crtc *, u32);
