@@ -543,7 +543,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 			return -EROFS;
 		}
 		if (!ntfs_stamp_usnjrnl(vol)) {
-			ntfs_error(sb, "Failed to stamp transation log "
+			ntfs_error(sb, "Failed to stamp transaction log "
 					"($UsnJrnl)%s", es);
 			NVolSetErrors(vol);
 			return -EROFS;
