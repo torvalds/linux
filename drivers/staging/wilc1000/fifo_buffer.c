@@ -31,11 +31,10 @@ u32 FIFO_DeInit(tHANDLE hFifo)
 	u32 u32Error = 0;
 	tstrFifoHandler *pstrFifoHandler = (tstrFifoHandler *) hFifo;
 	if (pstrFifoHandler) {
-		if (pstrFifoHandler->pu8Buffer)	{
+		if (pstrFifoHandler->pu8Buffer)
 			WILC_FREE (pstrFifoHandler->pu8Buffer);
-		} else {
+		else
 			u32Error = 1;
-		}
 
 		WILC_FREE (pstrFifoHandler);
 	} else {
@@ -52,11 +51,11 @@ u32 FIFO_ReadBytes(tHANDLE hFifo, u8 *pu8Buffer, u32 u32BytesToRead, u32 *pu32By
 		if (pstrFifoHandler->u32TotalBytes) {
 			down(&pstrFifoHandler->SemBuffer);
 
-			if (u32BytesToRead > pstrFifoHandler->u32TotalBytes) {
+			if (u32BytesToRead > pstrFifoHandler->u32TotalBytes)
 				*pu32BytesRead = pstrFifoHandler->u32TotalBytes;
-			} else {
+			else
 				*pu32BytesRead = u32BytesToRead;
-			}
+
 			if ((pstrFifoHandler->u32ReadOffset + u32BytesToRead) <= pstrFifoHandler->u32BufferLength) {
 				WILC_memcpy(pu8Buffer, pstrFifoHandler->pu8Buffer + pstrFifoHandler->u32ReadOffset,
 					    *pu32BytesRead);
