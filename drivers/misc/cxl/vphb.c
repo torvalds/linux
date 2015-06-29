@@ -112,9 +112,10 @@ static int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
 	unsigned long addr;
 
 	phb = pci_bus_to_host(bus);
-	afu = (struct cxl_afu *)phb->private_data;
 	if (phb == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
+	afu = (struct cxl_afu *)phb->private_data;
+
 	if (cxl_pcie_cfg_record(bus->number, devfn) > afu->crs_num)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	if (offset >= (unsigned long)phb->cfg_data)
