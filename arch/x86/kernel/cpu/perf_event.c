@@ -1551,7 +1551,7 @@ static void __init filter_events(struct attribute **attrs)
 }
 
 /* Merge two pointer arrays */
-static __init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
+__init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
 {
 	struct attribute **new;
 	int j, i;
