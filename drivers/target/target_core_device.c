@@ -754,7 +754,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_link_magic = SE_DEV_LINK_MAGIC;
 	dev->se_hba = hba;
 	dev->transport = hba->backend->ops;
-	dev->prot_length = sizeof(struct se_dif_v1_tuple);
+	dev->prot_length = sizeof(struct t10_pi_tuple);
 	dev->hba_index = hba->hba_index;
 
 	INIT_LIST_HEAD(&dev->dev_list);

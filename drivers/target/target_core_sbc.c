@@ -1191,7 +1191,7 @@ void
 sbc_dif_generate(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_dif_v1_tuple *sdt;
+	struct t10_pi_tuple *sdt;
 	struct scatterlist *dsg = cmd->t_data_sg, *psg;
 	sector_t sector = cmd->t_task_lba;
 	void *daddr, *paddr;
@@ -1203,7 +1203,7 @@ sbc_dif_generate(struct se_cmd *cmd)
 		daddr = kmap_atomic(sg_page(dsg)) + dsg->offset;
 
 		for (j = 0; j < psg->length;
-				j += sizeof(struct se_dif_v1_tuple)) {
+				j += sizeof(*sdt)) {
 			__u16 crc;
 			unsigned int avail;
 
@@ -1256,7 +1256,7 @@ sbc_dif_generate(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-sbc_dif_v1_verify(struct se_cmd *cmd, struct se_dif_v1_tuple *sdt,
+sbc_dif_v1_verify(struct se_cmd *cmd, struct t10_pi_tuple *sdt,
 		  __u16 crc, sector_t sector, unsigned int ei_lba)
 {
 	__be16 csum;
@@ -1346,7 +1346,7 @@ sbc_dif_verify(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 	       unsigned int ei_lba, struct scatterlist *psg, int psg_off)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_dif_v1_tuple *sdt;
+	struct t10_pi_tuple *sdt;
 	struct scatterlist *dsg = cmd->t_data_sg;
 	sector_t sector = start;
 	void *daddr, *paddr;
@@ -1361,7 +1361,7 @@ sbc_dif_verify(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 
 		for (i = psg_off; i < psg->length &&
 				sector < start + sectors;
-				i += sizeof(struct se_dif_v1_tuple)) {
+				i += sizeof(*sdt)) {
 			__u16 crc;
 			unsigned int avail;
 

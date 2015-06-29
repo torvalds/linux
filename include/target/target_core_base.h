@@ -6,6 +6,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
 #include <linux/percpu_ida.h>
+#include <linux/t10-pi.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
@@ -424,12 +425,6 @@ enum target_core_dif_check {
 	TARGET_DIF_CHECK_GUARD  = 0x1 << 0,
 	TARGET_DIF_CHECK_APPTAG = 0x1 << 1,
 	TARGET_DIF_CHECK_REFTAG = 0x1 << 2,
-};
-
-struct se_dif_v1_tuple {
-	__be16			guard_tag;
-	__be16			app_tag;
-	__be32			ref_tag;
 };
 
 /* for sam_task_attr */
