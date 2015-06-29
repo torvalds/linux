@@ -28,7 +28,7 @@ struct fpu {
 	};
 };
 
-void save_fpu_regs(struct fpu *fpu);
+void save_fpu_regs(void);
 
 #define is_vx_fpu(fpu) (!!((fpu)->flags & FPU_USE_VX))
 #define is_vx_task(tsk) (!!((tsk)->thread.fpu.flags & FPU_USE_VX))

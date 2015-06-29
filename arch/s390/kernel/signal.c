@@ -105,7 +105,7 @@ struct rt_sigframe
 static void store_sigregs(void)
 {
 	save_access_regs(current->thread.acrs);
-	save_fpu_regs(&current->thread.fpu);
+	save_fpu_regs();
 }
 
 /* Load registers after signal return */
@@ -222,7 +222,7 @@ SYSCALL_DEFINE0(sigreturn)
 	if (__copy_from_user(&set.sig, &frame->sc.oldmask, _SIGMASK_COPY_SIZE))
 		goto badframe;
 	set_current_blocked(&set);
-	save_fpu_regs(&current->thread.fpu);
+	save_fpu_regs();
 	if (restore_sigregs(regs, &frame->sregs))
 		goto badframe;
 	if (restore_sigregs_ext(regs, &frame->sregs_ext))
@@ -246,7 +246,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	set_current_blocked(&set);
 	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
-	save_fpu_regs(&current->thread.fpu);
+	save_fpu_regs();
 	if (restore_sigregs(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 	if (restore_sigregs_ext(regs, &frame->uc.uc_mcontext_ext))

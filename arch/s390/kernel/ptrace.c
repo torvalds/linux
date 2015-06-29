@@ -943,7 +943,7 @@ static int s390_fpregs_get(struct task_struct *target,
 	_s390_fp_regs fp_regs;
 
 	if (target == current)
-		save_fpu_regs(&target->thread.fpu);
+		save_fpu_regs();
 
 	fp_regs.fpc = target->thread.fpu.fpc;
 	fpregs_store(&fp_regs, &target->thread.fpu);
@@ -961,7 +961,7 @@ static int s390_fpregs_set(struct task_struct *target,
 	freg_t fprs[__NUM_FPRS];
 
 	if (target == current)
-		save_fpu_regs(&target->thread.fpu);
+		save_fpu_regs();
 
 	/* If setting FPC, must validate it first. */
 	if (count > 0 && pos < offsetof(s390_fp_regs, fprs)) {
@@ -1049,7 +1049,7 @@ static int s390_vxrs_low_get(struct task_struct *target,
 		return -ENODEV;
 	if (is_vx_task(target)) {
 		if (target == current)
-			save_fpu_regs(&target->thread.fpu);
+			save_fpu_regs();
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
 			vxrs[i] = *((__u64 *)(target->thread.fpu.vxrs + i) + 1);
 	} else
@@ -1072,7 +1072,7 @@ static int s390_vxrs_low_set(struct task_struct *target,
 		if (rc)
 			return rc;
 	} else if (target == current)
-		save_fpu_regs(&target->thread.fpu);
+		save_fpu_regs();
 
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, vxrs, 0, -1);
 	if (rc == 0)
@@ -1093,7 +1093,7 @@ static int s390_vxrs_high_get(struct task_struct *target,
 		return -ENODEV;
 	if (is_vx_task(target)) {
 		if (target == current)
-			save_fpu_regs(&target->thread.fpu);
+			save_fpu_regs();
 		memcpy(vxrs, target->thread.fpu.vxrs + __NUM_VXRS_LOW,
 		       sizeof(vxrs));
 	} else
@@ -1115,7 +1115,7 @@ static int s390_vxrs_high_set(struct task_struct *target,
 		if (rc)
 			return rc;
 	} else if (target == current)
-		save_fpu_regs(&target->thread.fpu);
+		save_fpu_regs();
 
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				target->thread.fpu.vxrs + __NUM_VXRS_LOW, 0, -1);

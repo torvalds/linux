@@ -104,7 +104,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	 * The CIF_FPU flag is set in any case to lazy clear or restore a saved
 	 * state when switching to a different task or returning to user space.
 	 */
-	save_fpu_regs(&current->thread.fpu);
+	save_fpu_regs();
 	dst->thread.fpu.fpc = current->thread.fpu.fpc;
 	if (is_vx_task(current))
 		convert_vx_to_fp(dst->thread.fpu.fprs,
@@ -196,7 +196,7 @@ asmlinkage void execve_tail(void)
  */
 int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 {
-	save_fpu_regs(&current->thread.fpu);
+	save_fpu_regs();
 	fpregs->fpc = current->thread.fpu.fpc;
 	fpregs->pad = 0;
 	if (is_vx_task(current))
