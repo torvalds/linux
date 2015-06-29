@@ -468,6 +468,7 @@ static irqreturn_t smi_irq_handler(int irq, void *dev_id)
 	struct smi_dev *dev = dev_id;
 	struct smi_port *port0 = &dev->ts_port[0];
 	struct smi_port *port1 = &dev->ts_port[1];
+	struct smi_rc *ir = &dev->ir;
 	int handled = 0;
 
 	u32 intr_status = smi_read(MSI_INT_STATUS);
@@ -479,6 +480,9 @@ static irqreturn_t smi_irq_handler(int irq, void *dev_id)
 	/* ts1 interrupt.*/
 	if (dev->info->ts_1)
 		handled += smi_port_irq(port1, intr_status);
+
+	/* ir interrupt.*/
+	handled += smi_ir_irq(ir, intr_status);
 
 	return IRQ_RETVAL(handled);
 }
@@ -993,6 +997,10 @@ static int smi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto err_del_port0_attach;
 	}
 
+	ret = smi_ir_init(dev);
+	if (ret < 0)
+		goto err_del_port1_attach;
+
 #ifdef CONFIG_PCI_MSI /* to do msi interrupt.???*/
 	if (pci_msi_enabled())
 		ret = pci_enable_msi(dev->pci_dev);
@@ -1003,10 +1011,13 @@ static int smi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = request_irq(dev->pci_dev->irq, smi_irq_handler,
 			   IRQF_SHARED, "SMI_PCIE", dev);
 	if (ret < 0)
-		goto err_del_port1_attach;
+		goto err_del_ir;
 
+	smi_ir_start(&dev->ir);
 	return 0;
 
+err_del_ir:
+	smi_ir_exit(dev);
 err_del_port1_attach:
 	if (dev->info->ts_1)
 		smi_port_detach(&dev->ts_port[1]);
@@ -1039,6 +1050,7 @@ static void smi_remove(struct pci_dev *pdev)
 	if (dev->info->ts_0)
 		smi_port_detach(&dev->ts_port[0]);
 
+	smi_ir_exit(dev);
 	smi_i2c_exit(dev);
 	iounmap(dev->lmmio);
 	pci_set_drvdata(pdev, NULL);

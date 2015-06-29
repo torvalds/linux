@@ -234,6 +234,17 @@ struct smi_cfg_info {
 	int fe_1;
 };
 
+struct smi_rc {
+	struct smi_dev *dev;
+	struct rc_dev *rc_dev;
+	char input_phys[64];
+	char input_name[64];
+	struct work_struct work;
+	u8 irData[256];
+
+	int users;
+};
+
 struct smi_port {
 	struct smi_dev *dev;
 	int idx;
@@ -284,6 +295,9 @@ struct smi_dev {
 	/* i2c */
 	struct i2c_adapter i2c_bus[2];
 	struct i2c_algo_bit_data i2c_bit[2];
+
+	/* ir */
+	struct smi_rc ir;
 };
 
 #define smi_read(reg)             readl(dev->lmmio + ((reg)>>2))
@@ -295,5 +309,10 @@ struct smi_dev {
 
 #define smi_set(reg, bit)          smi_andor((reg), (bit), (bit))
 #define smi_clear(reg, bit)        smi_andor((reg), (bit), 0)
+
+int smi_ir_irq(struct smi_rc *ir, u32 int_status);
+void smi_ir_start(struct smi_rc *ir);
+void smi_ir_exit(struct smi_dev *dev);
+int smi_ir_init(struct smi_dev *dev);
 
 #endif /* #ifndef _SMI_PCIE_H_ */
