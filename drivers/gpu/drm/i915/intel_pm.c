@@ -4703,18 +4703,11 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 		dev_priv->rps.min_freq = (rp_state_cap >> 16) & 0xff;
 	}
 
-	if (IS_SKYLAKE(dev)) {
-		/* Store the frequency values in 16.66 MHZ units, which is
-		   the natural hardware unit for SKL */
-		dev_priv->rps.rp0_freq *= GEN9_FREQ_SCALER;
-		dev_priv->rps.rp1_freq *= GEN9_FREQ_SCALER;
-		dev_priv->rps.min_freq *= GEN9_FREQ_SCALER;
-	}
 	/* hw_max = RP0 until we check for overclocking */
 	dev_priv->rps.max_freq		= dev_priv->rps.rp0_freq;
 
 	dev_priv->rps.efficient_freq = dev_priv->rps.rp1_freq;
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev) || IS_SKYLAKE(dev)) {
 		ret = sandybridge_pcode_read(dev_priv,
 					HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL,
 					&ddcc_status);
@@ -4724,6 +4717,16 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 					((ddcc_status >> 8) & 0xff),
 					dev_priv->rps.min_freq,
 					dev_priv->rps.max_freq);
+	}
+
+	if (IS_SKYLAKE(dev)) {
+		/* Store the frequency values in 16.66 MHZ units, which is
+		   the natural hardware unit for SKL */
+		dev_priv->rps.rp0_freq *= GEN9_FREQ_SCALER;
+		dev_priv->rps.rp1_freq *= GEN9_FREQ_SCALER;
+		dev_priv->rps.min_freq *= GEN9_FREQ_SCALER;
+		dev_priv->rps.max_freq *= GEN9_FREQ_SCALER;
+		dev_priv->rps.efficient_freq *= GEN9_FREQ_SCALER;
 	}
 
 	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
