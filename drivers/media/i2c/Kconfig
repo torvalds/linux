@@ -463,6 +463,7 @@ config VIDEO_ADV7511
 	tristate "Analog Devices ADV7511 encoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
+	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7511 video encoder.
 
@@ -470,6 +471,13 @@ config VIDEO_ADV7511
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7511.
+
+config VIDEO_ADV7511_CEC
+	bool "Enable Analog Devices ADV7511 CEC support"
+	depends on VIDEO_ADV7511 && MEDIA_CEC
+	---help---
+	  When selected the adv7511 will support the optional
+	  HDMI CEC feature.
 
 config VIDEO_AD9389B
 	tristate "Analog Devices AD9389B encoder"
