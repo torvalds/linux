@@ -1003,6 +1003,12 @@ config GPIO_MC33880
 	  SPI driver for Freescale MC33880 high-side/low-side switch.
 	  This provides GPIO interface supporting inputs and outputs.
 
+config GPIO_ZX
+	bool "ZTE ZX GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the GPIO device on ZTE ZX SoCs.
+
 endmenu
 
 menu "USB GPIO expanders"

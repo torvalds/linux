@@ -116,3 +116,4 @@ obj-$(CONFIG_GPIO_XLP)		+= gpio-xlp.o
 obj-$(CONFIG_GPIO_XTENSA)	+= gpio-xtensa.o
 obj-$(CONFIG_GPIO_ZEVIO)	+= gpio-zevio.o
 obj-$(CONFIG_GPIO_ZYNQ)		+= gpio-zynq.o
+obj-$(CONFIG_GPIO_ZX)		+= gpio-zx.o
