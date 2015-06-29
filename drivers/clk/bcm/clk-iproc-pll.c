@@ -655,10 +655,6 @@ void __init iproc_pll_clk_setup(struct device_node *node,
 		memset(&init, 0, sizeof(init));
 		parent_name = node->name;
 
-		clk_name = kzalloc(IPROC_CLK_NAME_LEN, GFP_KERNEL);
-		if (WARN_ON(!clk_name))
-			goto err_clk_register;
-
 		ret = of_property_read_string_index(node, "clock-output-names",
 						    i, &clk_name);
 		if (WARN_ON(ret))
@@ -690,10 +686,8 @@ void __init iproc_pll_clk_setup(struct device_node *node,
 	return;
 
 err_clk_register:
-	for (i = 0; i < num_clks; i++) {
-		kfree(pll->clks[i].name);
+	for (i = 0; i < num_clks; i++)
 		clk_unregister(pll->clk_data.clks[i]);
-	}
 
 err_pll_register:
 	if (pll->asiu_base)

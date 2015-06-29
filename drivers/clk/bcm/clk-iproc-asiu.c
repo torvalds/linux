@@ -222,10 +222,6 @@ void __init iproc_asiu_setup(struct device_node *node,
 		struct iproc_asiu_clk *asiu_clk;
 		const char *clk_name;
 
-		clk_name = kzalloc(IPROC_CLK_NAME_LEN, GFP_KERNEL);
-		if (WARN_ON(!clk_name))
-			goto err_clk_register;
-
 		ret = of_property_read_string_index(node, "clock-output-names",
 						    i, &clk_name);
 		if (WARN_ON(ret))
@@ -259,7 +255,7 @@ void __init iproc_asiu_setup(struct device_node *node,
 
 err_clk_register:
 	for (i = 0; i < num_clks; i++)
-		kfree(asiu->clks[i].name);
+		clk_unregister(asiu->clk_data.clks[i]);
 	iounmap(asiu->gate_base);
 
 err_iomap_gate:
