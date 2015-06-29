@@ -359,7 +359,7 @@ void dwc2_hcd_stop(struct dwc2_hsotg *hsotg)
 
 /* Caller must hold driver lock */
 static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
-				struct dwc2_hcd_urb *urb, void **ep_handle,
+				struct dwc2_hcd_urb *urb, struct dwc2_qh *qh,
 				gfp_t mem_flags)
 {
 	struct dwc2_qtd *qtd;
@@ -391,8 +391,7 @@ static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 		return -ENOMEM;
 
 	dwc2_hcd_qtd_init(qtd, urb);
-	retval = dwc2_hcd_qtd_add(hsotg, qtd, (struct dwc2_qh **)ep_handle,
-				  mem_flags);
+	retval = dwc2_hcd_qtd_add(hsotg, qtd, qh);
 	if (retval) {
 		dev_err(hsotg->dev,
 			"DWC OTG HCD URB Enqueue failed adding QTD. Error status %d\n",
@@ -2445,6 +2444,8 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	u32 tflags = 0;
 	void *buf;
 	unsigned long flags;
+	struct dwc2_qh *qh;
+	bool qh_allocated = false;
 
 	if (dbg_urb(urb)) {
 		dev_vdbg(hsotg->dev, "DWC OTG HCD URB Enqueue\n");
@@ -2523,13 +2524,24 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 						 urb->iso_frame_desc[i].length);
 
 	urb->hcpriv = dwc2_urb;
+	qh = (struct dwc2_qh *) ep->hcpriv;
+	/* Create QH for the endpoint if it doesn't exist */
+	if (!qh) {
+		qh = dwc2_hcd_qh_create(hsotg, dwc2_urb, mem_flags);
+		if (!qh) {
+			retval = -ENOMEM;
+			goto fail0;
+		}
+		ep->hcpriv = qh;
+		qh_allocated = true;
+	}
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 	retval = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (retval)
 		goto fail1;
 
-	retval = dwc2_hcd_urb_enqueue(hsotg, dwc2_urb, &ep->hcpriv, mem_flags);
+	retval = dwc2_hcd_urb_enqueue(hsotg, dwc2_urb, qh, mem_flags);
 	if (retval)
 		goto fail2;
 
@@ -2549,6 +2561,17 @@ fail2:
 fail1:
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	urb->hcpriv = NULL;
+	if (qh_allocated) {
+		struct dwc2_qtd *qtd2, *qtd2_tmp;
+
+		ep->hcpriv = NULL;
+		dwc2_hcd_qh_unlink(hsotg, qh);
+		/* Free each QTD in the QH's QTD list */
+		list_for_each_entry_safe(qtd2, qtd2_tmp, &qh->qtd_list,
+							 qtd_list_entry)
+			dwc2_hcd_qtd_unlink_and_free(hsotg, qtd2, qh);
+		dwc2_hcd_qh_free(hsotg, qh);
+	}
 fail0:
 	kfree(dwc2_urb);
 
