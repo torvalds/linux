@@ -662,20 +662,53 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	struct radix_tree_root *root = &sbi->extent_tree_root;
 	unsigned int found;
 	unsigned int node_cnt = 0, tree_cnt = 0;
+	int remained;
 
 	if (!test_opt(sbi, EXTENT_CACHE))
 		return 0;
 
+	if (!down_write_trylock(&sbi->extent_tree_lock))
+		goto out;
+
+	/* 1. remove unreferenced extent tree */
+	while ((found = radix_tree_gang_lookup(root,
+				(void **)treevec, ino, EXT_TREE_VEC_SIZE))) {
+		unsigned i;
+
+		ino = treevec[found - 1]->ino + 1;
+		for (i = 0; i < found; i++) {
+			struct extent_tree *et = treevec[i];
+
+			if (!atomic_read(&et->refcount)) {
+				write_lock(&et->lock);
+				node_cnt += __free_extent_tree(sbi, et, true);
+				write_unlock(&et->lock);
+
+				radix_tree_delete(root, et->ino);
+				kmem_cache_free(extent_tree_slab, et);
+				sbi->total_ext_tree--;
+				tree_cnt++;
+
+				if (node_cnt + tree_cnt >= nr_shrink)
+					goto unlock_out;
+			}
+		}
+	}
+	up_write(&sbi->extent_tree_lock);
+
+	/* 2. remove LRU extent entries */
+	if (!down_write_trylock(&sbi->extent_tree_lock))
+		goto out;
+
+	remained = nr_shrink - (node_cnt + tree_cnt);
+
 	spin_lock(&sbi->extent_lock);
 	list_for_each_entry_safe(en, tmp, &sbi->extent_list, list) {
-		if (!nr_shrink--)
+		if (!remained--)
 			break;
 		list_del_init(&en->list);
 	}
 	spin_unlock(&sbi->extent_lock);
-
-	if (!down_write_trylock(&sbi->extent_tree_lock))
-		goto out;
 
 	while ((found = radix_tree_gang_lookup(root,
 				(void **)treevec, ino, EXT_TREE_VEC_SIZE))) {
@@ -688,14 +721,12 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 			write_lock(&et->lock);
 			node_cnt += __free_extent_tree(sbi, et, false);
 			write_unlock(&et->lock);
-			if (!atomic_read(&et->refcount) && !et->count) {
-				radix_tree_delete(root, et->ino);
-				kmem_cache_free(extent_tree_slab, et);
-				sbi->total_ext_tree--;
-				tree_cnt++;
-			}
+
+			if (node_cnt + tree_cnt >= nr_shrink)
+				break;
 		}
 	}
+unlock_out:
 	up_write(&sbi->extent_tree_lock);
 out:
 	trace_f2fs_shrink_extent_tree(sbi, node_cnt, tree_cnt);
