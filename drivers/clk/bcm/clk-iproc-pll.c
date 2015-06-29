@@ -366,7 +366,7 @@ static unsigned long iproc_pll_recalc_rate(struct clk_hw *hw,
 	val = readl(pll->pll_base + ctrl->ndiv_int.offset);
 	ndiv_int = (val >> ctrl->ndiv_int.shift) &
 		bit_mask(ctrl->ndiv_int.width);
-	ndiv = ndiv_int << ctrl->ndiv_int.shift;
+	ndiv = (u64)ndiv_int << ctrl->ndiv_int.shift;
 
 	if (ctrl->flags & IPROC_CLK_PLL_HAS_NDIV_FRAC) {
 		val = readl(pll->pll_base + ctrl->ndiv_frac.offset);
@@ -374,7 +374,8 @@ static unsigned long iproc_pll_recalc_rate(struct clk_hw *hw,
 			bit_mask(ctrl->ndiv_frac.width);
 
 		if (ndiv_frac != 0)
-			ndiv = (ndiv_int << ctrl->ndiv_int.shift) | ndiv_frac;
+			ndiv = ((u64)ndiv_int << ctrl->ndiv_int.shift) |
+				ndiv_frac;
 	}
 
 	val = readl(pll->pll_base + ctrl->pdiv.offset);
