@@ -847,13 +847,24 @@ static int add_iommu_group(struct device *dev, void *data)
 {
 	struct iommu_callback_data *cb = data;
 	const struct iommu_ops *ops = cb->ops;
+	int ret;
 
 	if (!ops->add_device)
 		return 0;
 
 	WARN_ON(dev->iommu_group);
 
-	return ops->add_device(dev);
+	ret = ops->add_device(dev);
+
+	/*
+	 * We ignore -ENODEV errors for now, as they just mean that the
+	 * device is not translated by an IOMMU. We still care about
+	 * other errors and fail to initialize when they happen.
+	 */
+	if (ret == -ENODEV)
+		ret = 0;
+
+	return ret;
 }
 
 static int remove_iommu_group(struct device *dev, void *data)
