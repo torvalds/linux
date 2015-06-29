@@ -134,6 +134,8 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 		}
 
 		sb->s_flags |= MS_ACTIVE;
+		/* User space would break if executables appear on proc */
+		sb->s_iflags |= SB_I_NOEXEC;
 	}
 
 	return dget(sb->s_root);
