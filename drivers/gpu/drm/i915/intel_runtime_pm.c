@@ -883,7 +883,7 @@ static void vlv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	 * hotplug / manual detection.
 	 */
 	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) | DPLL_VGA_MODE_DIS |
-		   DPLL_REFA_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
+		   DPLL_REF_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
 	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
 
 	vlv_set_power_well(dev_priv, power_well, true);
@@ -934,13 +934,13 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
 		phy = DPIO_PHY0;
 		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) | DPLL_VGA_MODE_DIS |
-			   DPLL_REFA_CLK_ENABLE_VLV);
+			   DPLL_REF_CLK_ENABLE_VLV);
 		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) | DPLL_VGA_MODE_DIS |
-			   DPLL_REFA_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
+			   DPLL_REF_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
 	} else {
 		phy = DPIO_PHY1;
 		I915_WRITE(DPLL(PIPE_C), I915_READ(DPLL(PIPE_C)) | DPLL_VGA_MODE_DIS |
-			   DPLL_REFA_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
+			   DPLL_REF_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
 	}
 	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
 	vlv_set_power_well(dev_priv, power_well, true);

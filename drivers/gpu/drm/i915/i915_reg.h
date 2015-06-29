@@ -2150,7 +2150,7 @@ enum skl_disp_power_wells {
 #define   DPLL_DVO_2X_MODE		(1 << 30)
 #define   DPLL_EXT_BUFFER_ENABLE_VLV	(1 << 30)
 #define   DPLL_SYNCLOCK_ENABLE		(1 << 29)
-#define   DPLL_REFA_CLK_ENABLE_VLV	(1 << 29)
+#define   DPLL_REF_CLK_ENABLE_VLV	(1 << 29)
 #define   DPLL_VGA_MODE_DIS		(1 << 28)
 #define   DPLLB_MODE_DAC_SERIAL		(1 << 26) /* i915 */
 #define   DPLLB_MODE_LVDS		(2 << 26) /* i915 */
@@ -2164,8 +2164,8 @@ enum skl_disp_power_wells {
 #define   DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW	0x00ff8000 /* Pineview */
 #define   DPLL_LOCK_VLV			(1<<15)
 #define   DPLL_INTEGRATED_CRI_CLK_VLV	(1<<14)
-#define   DPLL_INTEGRATED_CLOCK_VLV	(1<<13)
-#define   DPLL_SSC_REF_CLOCK_CHV	(1<<13)
+#define   DPLL_INTEGRATED_REF_CLK_VLV	(1<<13)
+#define   DPLL_SSC_REF_CLK_CHV		(1<<13)
 #define   DPLL_PORTC_READY_MASK		(0xf << 4)
 #define   DPLL_PORTB_READY_MASK		(0xf)
 

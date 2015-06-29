@@ -413,12 +413,12 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	/* Disable DPOunit clock gating, can stall pipe
 	 * and we need DPLL REFA always enabled */
 	tmp = I915_READ(DPLL(pipe));
-	tmp |= DPLL_REFA_CLK_ENABLE_VLV;
+	tmp |= DPLL_REF_CLK_ENABLE_VLV;
 	I915_WRITE(DPLL(pipe), tmp);
 
 	/* update the hw state for DPLL */
-	intel_crtc->config->dpll_hw_state.dpll = DPLL_INTEGRATED_CLOCK_VLV |
-		DPLL_REFA_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
+	intel_crtc->config->dpll_hw_state.dpll = DPLL_INTEGRATED_REF_CLK_VLV |
+		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
 
 	tmp = I915_READ(DSPCLK_GATE_D);
 	tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
