@@ -63,7 +63,7 @@ struct driver_private {
  *	binding of drivers which were unable to get all the resources needed by
  *	the device; typically because it depends on another driver getting
  *	probed first.
- * @device - pointer back to the struct class that this structure is
+ * @device - pointer back to the struct device that this structure is
  * associated with.
  *
  * Nothing outside of the driver core should ever touch these fields.
