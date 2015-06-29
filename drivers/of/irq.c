@@ -252,8 +252,6 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		 * Successfully parsed an interrrupt-map translation; copy new
 		 * interrupt specifier into the out_irq structure
 		 */
-		out_irq->np = newpar;
-
 		match_array = imap - newaddrsize - newintsize;
 		for (i = 0; i < newintsize; i++)
 			out_irq->args[i] = be32_to_cpup(imap - newintsize + i);
@@ -262,6 +260,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 
 	skiplevel:
 		/* Iterate again with new parent */
+		out_irq->np = newpar;
 		pr_debug(" -> new parent: %s\n", of_node_full_name(newpar));
 		of_node_put(ipar);
 		ipar = newpar;
