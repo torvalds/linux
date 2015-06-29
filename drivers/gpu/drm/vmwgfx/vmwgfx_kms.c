@@ -372,7 +372,8 @@ static void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 
 	drm_framebuffer_cleanup(framebuffer);
 	vmw_surface_unreference(&vfbs->surface);
-	ttm_base_object_unref(&vfbs->base.user_obj);
+	if (vfbs->base.user_obj)
+		ttm_base_object_unref(&vfbs->base.user_obj);
 
 	kfree(vfbs);
 }
@@ -582,7 +583,8 @@ static void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
 
 	drm_framebuffer_cleanup(framebuffer);
 	vmw_dmabuf_unreference(&vfbd->buffer);
-	ttm_base_object_unref(&vfbd->base.user_obj);
+	if (vfbd->base.user_obj)
+		ttm_base_object_unref(&vfbd->base.user_obj);
 
 	kfree(vfbd);
 }
@@ -1462,7 +1464,7 @@ static struct drm_display_mode vmw_kms_connector_builtin[] = {
  * @mode - Pointer to a struct drm_display_mode with hdisplay and vdisplay
  * members filled in.
  */
-static void vmw_guess_mode_timing(struct drm_display_mode *mode)
+void vmw_guess_mode_timing(struct drm_display_mode *mode)
 {
 	mode->hsync_start = mode->hdisplay + 50;
 	mode->hsync_end = mode->hsync_start + 50;
@@ -1998,6 +2000,61 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
 	}
 
 	vmw_fifo_commit(dev_priv, copy_size);
+
+	return 0;
+}
+
+int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
+			    unsigned unit,
+			    u32 max_width,
+			    u32 max_height,
+			    struct drm_connector **p_con,
+			    struct drm_crtc **p_crtc,
+			    struct drm_display_mode **p_mode)
+{
+	struct drm_connector *con;
+	struct vmw_display_unit *du;
+	struct drm_display_mode *mode;
+	int i = 0;
+
+	list_for_each_entry(con, &dev_priv->dev->mode_config.connector_list,
+			    head) {
+		if (i == unit)
+			break;
+
+		++i;
+	}
+
+	if (i != unit) {
+		DRM_ERROR("Could not find initial display unit.\n");
+		return -EINVAL;
+	}
+
+	if (list_empty(&con->modes))
+		(void) vmw_du_connector_fill_modes(con, max_width, max_height);
+
+	if (list_empty(&con->modes)) {
+		DRM_ERROR("Could not find initial display mode.\n");
+		return -EINVAL;
+	}
+
+	du = vmw_connector_to_du(con);
+	*p_con = con;
+	*p_crtc = &du->crtc;
+
+	list_for_each_entry(mode, &con->modes, head) {
+		if (mode->type & DRM_MODE_TYPE_PREFERRED)
+			break;
+	}
+
+	if (mode->type & DRM_MODE_TYPE_PREFERRED)
+		*p_mode = mode;
+	else {
+		WARN_ONCE(true, "Could not find initial preferred mode.\n");
+		*p_mode = list_first_entry(&con->modes,
+					   struct drm_display_mode,
+					   head);
+	}
 
 	return 0;
 }

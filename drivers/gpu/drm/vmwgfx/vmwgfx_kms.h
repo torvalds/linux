@@ -243,6 +243,14 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 			struct vmw_surface *surface,
 			bool only_2d,
 			const struct drm_mode_fb_cmd *mode_cmd);
+int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
+			    unsigned unit,
+			    u32 max_width,
+			    u32 max_height,
+			    struct drm_connector **p_con,
+			    struct drm_crtc **p_crtc,
+			    struct drm_display_mode **p_mode);
+void vmw_guess_mode_timing(struct drm_display_mode *mode);
 
 /*
  * Legacy display unit functions - vmwgfx_ldu.c
