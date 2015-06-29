@@ -2549,7 +2549,7 @@ struct drm_i915_cmd_table {
 				    INTEL_INFO(dev)->gen >= 8)
 
 #define HAS_CORE_RING_FREQ(dev)	(INTEL_INFO(dev)->gen >= 6 && \
-				 !IS_VALLEYVIEW(dev))
+				 !IS_VALLEYVIEW(dev) && !IS_BROXTON(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
