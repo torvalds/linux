@@ -1782,6 +1782,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 	int gpu_freq, ia_freq;
+	unsigned int max_gpu_freq, min_gpu_freq;
 
 	if (!(IS_GEN6(dev) || IS_GEN7(dev))) {
 		seq_puts(m, "unsupported on this chipset\n");
@@ -1796,17 +1797,27 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	if (ret)
 		goto out;
 
+	if (IS_SKYLAKE(dev)) {
+		/* Convert GT frequency to 50 HZ units */
+		min_gpu_freq =
+			dev_priv->rps.min_freq_softlimit / GEN9_FREQ_SCALER;
+		max_gpu_freq =
+			dev_priv->rps.max_freq_softlimit / GEN9_FREQ_SCALER;
+	} else {
+		min_gpu_freq = dev_priv->rps.min_freq_softlimit;
+		max_gpu_freq = dev_priv->rps.max_freq_softlimit;
+	}
+
 	seq_puts(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
 
-	for (gpu_freq = dev_priv->rps.min_freq_softlimit;
-	     gpu_freq <= dev_priv->rps.max_freq_softlimit;
-	     gpu_freq++) {
+	for (gpu_freq = min_gpu_freq; gpu_freq <= max_gpu_freq; gpu_freq++) {
 		ia_freq = gpu_freq;
 		sandybridge_pcode_read(dev_priv,
 				       GEN6_PCODE_READ_MIN_FREQ_TABLE,
 				       &ia_freq);
 		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
-			   intel_gpu_freq(dev_priv, gpu_freq),
+			   intel_gpu_freq(dev_priv, (gpu_freq *
+				(IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1))),
 			   ((ia_freq >> 0) & 0xff) * 100,
 			   ((ia_freq >> 8) & 0xff) * 100);
 	}
