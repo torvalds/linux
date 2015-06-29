@@ -313,6 +313,9 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VA_OP_MAP			1
 #define AMDGPU_VA_OP_UNMAP			2
 
+/* Delay the page table update till the next CS */
+#define AMDGPU_VM_DELAY_UPDATE		(1 << 0)
+
 /* Mapping flags */
 /* readable mapping */
 #define AMDGPU_VM_PAGE_READABLE		(1 << 1)
