@@ -663,7 +663,7 @@ static long si5351_msynth_round_rate(struct clk_hw *hw, unsigned long rate,
 		divby4 = 1;
 
 	/* multisync can set pll */
-	if (__clk_get_flags(hwdata->hw.clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		/*
 		 * find largest integer divider for max
 		 * vco frequency and given target rate
@@ -1013,7 +1013,7 @@ static long si5351_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
 		rate = SI5351_CLKOUT_MIN_FREQ;
 
 	/* request frequency if multisync master */
-	if (__clk_get_flags(hwdata->hw.clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		/* use r divider for frequencies below 1MHz */
 		rdiv = SI5351_OUTPUT_CLK_DIV_1;
 		while (rate < SI5351_MULTISYNTH_MIN_FREQ &&

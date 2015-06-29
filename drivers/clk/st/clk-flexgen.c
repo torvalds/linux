@@ -109,7 +109,7 @@ static long flexgen_round_rate(struct clk_hw *hw, unsigned long rate,
 	/* Round div according to exact prate and wished rate */
 	div = clk_best_div(*prate, rate);
 
-	if (__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		*prate = rate * div;
 		return rate;
 	}

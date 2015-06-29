@@ -41,7 +41,7 @@ static long clk_factor_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_fixed_factor *fix = to_clk_fixed_factor(hw);
 
-	if (__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		unsigned long best_parent;
 
 		best_parent = (rate / fix->mult) * fix->div;

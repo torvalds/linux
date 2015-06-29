@@ -339,11 +339,11 @@ struct clk __init *ti_clk_register_clk(struct ti_clk *setup)
 	if (!IS_ERR(clk)) {
 		setup->clk = clk;
 		if (setup->clkdm_name) {
-			if (__clk_get_flags(clk) & CLK_IS_BASIC) {
+			clk_hw = __clk_get_hw(clk);
+			if (clk_hw_get_flags(clk_hw) & CLK_IS_BASIC) {
 				pr_warn("can't setup clkdm for basic clk %s\n",
 					setup->name);
 			} else {
-				clk_hw = __clk_get_hw(clk);
 				to_clk_hw_omap(clk_hw)->clkdm_name =
 					setup->clkdm_name;
 				omap2_init_clk_clkdm(clk_hw);

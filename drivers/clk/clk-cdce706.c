@@ -310,7 +310,7 @@ static long cdce706_divider_round_rate(struct clk_hw *hw, unsigned long rate,
 	if (!mul)
 		div = CDCE706_DIVIDER_DIVIDER_MAX;
 
-	if (__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		unsigned long best_diff = rate;
 		unsigned long best_div = 0;
 		struct clk *gp_clk = cdce->clkin_clk[cdce->clkin[0].parent];

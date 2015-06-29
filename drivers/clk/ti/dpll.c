@@ -163,7 +163,7 @@ static void __init _register_dpll(struct clk_hw *hw,
 	clk = clk_register(NULL, &clk_hw->hw);
 
 	if (!IS_ERR(clk)) {
-		omap2_init_clk_hw_omap_clocks(clk);
+		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 		kfree(clk_hw->hw.init->parent_names);
 		kfree(clk_hw->hw.init);
@@ -320,7 +320,7 @@ static void _register_dpll_x2(struct device_node *node,
 	if (IS_ERR(clk)) {
 		kfree(clk_hw);
 	} else {
-		omap2_init_clk_hw_omap_clocks(clk);
+		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 	}
 }

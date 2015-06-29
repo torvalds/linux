@@ -290,7 +290,7 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 
 	maxdiv = _get_maxdiv(table, width, flags);
 
-	if (!(__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT)) {
+	if (!(clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)) {
 		parent_rate = *best_parent_rate;
 		bestdiv = _div_round(table, parent_rate, rate, flags);
 		bestdiv = bestdiv == 0 ? 1 : bestdiv;

@@ -92,7 +92,7 @@ static int clk_factors_determine_rate(struct clk_hw *hw,
 		parent = clk_get_parent_by_index(clk, i);
 		if (!parent)
 			continue;
-		if (__clk_get_flags(clk) & CLK_SET_RATE_PARENT)
+		if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)
 			parent_rate = __clk_round_rate(parent, req->rate);
 		else
 			parent_rate = __clk_get_rate(parent);

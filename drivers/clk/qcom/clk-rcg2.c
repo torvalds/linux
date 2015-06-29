@@ -192,7 +192,7 @@ static int _freq_tbl_determine_rate(struct clk_hw *hw,
 	if (index < 0)
 		return index;
 
-	clk_flags = __clk_get_flags(hw->clk);
+	clk_flags = clk_hw_get_flags(hw);
 	p = clk_get_parent_by_index(hw->clk, index);
 	if (clk_flags & CLK_SET_RATE_PARENT) {
 		if (f->pre_div) {
