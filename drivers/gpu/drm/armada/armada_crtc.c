@@ -348,17 +348,11 @@ static void armada_drm_crtc_prepare(struct drm_crtc *crtc)
 	/*
 	 * If we have an overlay plane associated with this CRTC, disable
 	 * it before the modeset to avoid its coordinates being outside
-	 * the new mode parameters.  DRM doesn't provide help with this.
+	 * the new mode parameters.
 	 */
 	plane = dcrtc->plane;
-	if (plane) {
-		struct drm_framebuffer *fb = plane->fb;
-
-		plane->funcs->disable_plane(plane);
-		plane->fb = NULL;
-		plane->crtc = NULL;
-		drm_framebuffer_unreference(fb);
-	}
+	if (plane)
+		drm_plane_force_disable(plane);
 }
 
 /* The mode_config.mutex will be held for this call */
