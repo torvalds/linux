@@ -35,13 +35,16 @@ struct cpu_stop_done {
 
 /* the actual stopper, one per every possible cpu, enabled on online cpus */
 struct cpu_stopper {
+	struct task_struct	*thread;
+
 	spinlock_t		lock;
 	bool			enabled;	/* is this stopper enabled? */
 	struct list_head	works;		/* list of pending works */
+
+	struct cpu_stop_work	stop_work;	/* for stop_cpus */
 };
 
 static DEFINE_PER_CPU(struct cpu_stopper, cpu_stopper);
-static DEFINE_PER_CPU(struct task_struct *, cpu_stopper_task);
 static bool stop_machine_initialized = false;
 
 /*
@@ -74,7 +77,6 @@ static void cpu_stop_signal_done(struct cpu_stop_done *done, bool executed)
 static void cpu_stop_queue_work(unsigned int cpu, struct cpu_stop_work *work)
 {
 	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
-	struct task_struct *p = per_cpu(cpu_stopper_task, cpu);
 
 	unsigned long flags;
 
@@ -82,7 +84,7 @@ static void cpu_stop_queue_work(unsigned int cpu, struct cpu_stop_work *work)
 
 	if (stopper->enabled) {
 		list_add_tail(&work->list, &stopper->works);
-		wake_up_process(p);
+		wake_up_process(stopper->thread);
 	} else
 		cpu_stop_signal_done(work->done, false);
 
@@ -293,7 +295,6 @@ void stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
 
 /* static data for stop_cpus */
 static DEFINE_MUTEX(stop_cpus_mutex);
-static DEFINE_PER_CPU(struct cpu_stop_work, stop_cpus_work);
 
 static void queue_stop_cpus_work(const struct cpumask *cpumask,
 				 cpu_stop_fn_t fn, void *arg,
@@ -304,7 +305,7 @@ static void queue_stop_cpus_work(const struct cpumask *cpumask,
 
 	/* initialize works and done */
 	for_each_cpu(cpu, cpumask) {
-		work = &per_cpu(stop_cpus_work, cpu);
+		work = &per_cpu(cpu_stopper.stop_work, cpu);
 		work->fn = fn;
 		work->arg = arg;
 		work->done = done;
@@ -317,7 +318,7 @@ static void queue_stop_cpus_work(const struct cpumask *cpumask,
 	 */
 	lg_global_lock(&stop_cpus_lock);
 	for_each_cpu(cpu, cpumask)
-		cpu_stop_queue_work(cpu, &per_cpu(stop_cpus_work, cpu));
+		cpu_stop_queue_work(cpu, &per_cpu(cpu_stopper.stop_work, cpu));
 	lg_global_unlock(&stop_cpus_lock);
 }
 
@@ -458,7 +459,7 @@ extern void sched_set_stop_task(int cpu, struct task_struct *stop);
 
 static void cpu_stop_create(unsigned int cpu)
 {
-	sched_set_stop_task(cpu, per_cpu(cpu_stopper_task, cpu));
+	sched_set_stop_task(cpu, per_cpu(cpu_stopper.thread, cpu));
 }
 
 static void cpu_stop_park(unsigned int cpu)
@@ -485,7 +486,7 @@ static void cpu_stop_unpark(unsigned int cpu)
 }
 
 static struct smp_hotplug_thread cpu_stop_threads = {
-	.store			= &cpu_stopper_task,
+	.store			= &cpu_stopper.thread,
 	.thread_should_run	= cpu_stop_should_run,
 	.thread_fn		= cpu_stopper_thread,
 	.thread_comm		= "migration/%u",
