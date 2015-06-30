@@ -158,6 +158,13 @@
 #define MPT3_DIAG_BUFFER_IS_RELEASED	(0x02)
 #define MPT3_DIAG_BUFFER_IS_DIAG_RESET	(0x04)
 
+/*
+ * Combined Reply Queue constants,
+ * There are twelve Supplemental Reply Post Host Index Registers
+ * and each register is at offset 0x10 bytes from the previous one.
+ */
+#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT 12
+#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET (0x10)
 
 /* OEM Identifiers */
 #define MFG10_OEM_ID_INVALID                   (0x00000000)
@@ -728,7 +735,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  *				is assigned only ones
  * @reply_queue_count: number of reply queue's
  * @reply_queue_list: link list contaning the reply queue info
- * @reply_post_host_index: head index in the pool where FW completes IO
+ * @msix96_vector: 96 MSI-X vector support
+ * @replyPostRegisterIndex: index of next position in Reply Desc Post Queue
  * @delayed_tr_list: target reset link list
  * @delayed_tr_volume_list: volume target reset link list
  * @@temp_sensors_count: flag to carry the number of temperature sensors
@@ -936,6 +944,10 @@ struct MPT3SAS_ADAPTER {
 	struct dma_pool *reply_post_free_dma_pool;
 	u8		reply_queue_count;
 	struct list_head reply_queue_list;
+
+	u8		msix96_vector;
+	/* reply post register index */
+	resource_size_t	**replyPostRegisterIndex;
 
 	struct list_head delayed_tr_list;
 	struct list_head delayed_tr_volume_list;
