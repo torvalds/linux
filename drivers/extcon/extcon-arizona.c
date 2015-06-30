@@ -48,6 +48,9 @@
 #define HPDET_DEBOUNCE 500
 #define DEFAULT_MICD_TIMEOUT 2000
 
+#define MICD_DBTIME_TWO_READINGS 2
+#define MICD_DBTIME_FOUR_READINGS 4
+
 #define MICD_LVL_1_TO_7 (ARIZONA_MICD_LVL_1 | ARIZONA_MICD_LVL_2 | \
 			 ARIZONA_MICD_LVL_3 | ARIZONA_MICD_LVL_4 | \
 			 ARIZONA_MICD_LVL_5 | ARIZONA_MICD_LVL_6 | \
@@ -1318,11 +1321,19 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 				   arizona->pdata.micd_rate
 				   << ARIZONA_MICD_RATE_SHIFT);
 
-	if (arizona->pdata.micd_dbtime)
+	switch (arizona->pdata.micd_dbtime) {
+	case MICD_DBTIME_FOUR_READINGS:
 		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 				   ARIZONA_MICD_DBTIME_MASK,
-				   arizona->pdata.micd_dbtime
-				   << ARIZONA_MICD_DBTIME_SHIFT);
+				   ARIZONA_MICD_DBTIME);
+		break;
+	case MICD_DBTIME_TWO_READINGS:
+		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
+				   ARIZONA_MICD_DBTIME_MASK, 0);
+		break;
+	default:
+		break;
+	}
 
 	BUILD_BUG_ON(ARRAY_SIZE(arizona_micd_levels) != 0x40);
 
