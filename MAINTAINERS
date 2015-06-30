@@ -7018,7 +7018,6 @@ L:	nbd-general@lists.sourceforge.net
 T:	git git://git.pengutronix.de/git/mpa/linux-nbd.git
 F:	Documentation/blockdev/nbd.txt
 F:	drivers/block/nbd.c
-F:	include/linux/nbd.h
 F:	include/uapi/linux/nbd.h
 
 NETWORK DROP MONITOR
