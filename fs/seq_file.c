@@ -48,6 +48,8 @@ static void *seq_buf_alloc(unsigned long size)
  *	ERR_PTR(error).  In the end of sequence they return %NULL. ->show()
  *	returns 0 in case of success and negative number in case of error.
  *	Returning SEQ_SKIP means "discard this element and move on".
+ *	Note: seq_open() will allocate a struct seq_file and store its
+ *	pointer in @file->private_data. This pointer should not be modified.
  */
 int seq_open(struct file *file, const struct seq_operations *op)
 {
