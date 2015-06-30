@@ -2644,6 +2644,11 @@ _scsih_block_io_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 {
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	struct scsi_device *sdev;
+	struct _sas_device *sas_device;
+
+	sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
+	if (!sas_device)
+		return;
 
 	shost_for_each_device(sdev, ioc->shost) {
 		sas_device_priv_data = sdev->hostdata;
@@ -2652,6 +2657,8 @@ _scsih_block_io_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 		if (sas_device_priv_data->sas_target->handle != handle)
 			continue;
 		if (sas_device_priv_data->block)
+			continue;
+		if (sas_device->pend_sas_rphy_add)
 			continue;
 		sas_device_priv_data->block = 1;
 		scsi_internal_device_block(sdev);
