@@ -80,7 +80,8 @@ class LxListChk(gdb.Command):
     """Verify a list consistency"""
 
     def __init__(self):
-        super(LxListChk, self).__init__("lx-list-check", gdb.COMMAND_DATA)
+        super(LxListChk, self).__init__("lx-list-check", gdb.COMMAND_DATA,
+                                        gdb.COMPLETE_EXPRESSION)
 
     def invoke(self, arg, from_tty):
         argv = gdb.string_to_argv(arg)
