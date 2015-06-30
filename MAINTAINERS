@@ -7647,7 +7647,6 @@ F:	arch/*/include/asm/paravirt.h
 PARIDE DRIVERS FOR PARALLEL PORT IDE DEVICES
 M:	Tim Waugh <tim@cyberelk.net>
 L:	linux-parport@lists.infradead.org (subscribers-only)
-W:	http://www.torque.net/linux-pp.html
 S:	Maintained
 F:	Documentation/blockdev/paride.txt
 F:	drivers/block/paride/
