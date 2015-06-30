@@ -650,9 +650,8 @@ EXPORT_SYMBOL(sg_miter_stop);
  * Returns the number of copied bytes.
  *
  **/
-static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
-			     void *buf, size_t buflen, off_t skip,
-			     bool to_buffer)
+size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
+		      size_t buflen, off_t skip, bool to_buffer)
 {
 	unsigned int offset = 0;
 	struct sg_mapping_iter miter;
@@ -689,6 +688,7 @@ static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
 	local_irq_restore(flags);
 	return offset;
 }
+EXPORT_SYMBOL(sg_copy_buffer);
 
 /**
  * sg_copy_from_buffer - Copy from a linear buffer to an SG list
