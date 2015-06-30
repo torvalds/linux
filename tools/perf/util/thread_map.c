@@ -8,9 +8,11 @@
 #include <unistd.h>
 #include "strlist.h"
 #include <string.h>
+#include <api/fs/fs.h>
 #include "asm/bug.h"
 #include "thread_map.h"
 #include "util.h"
+#include "debug.h"
 
 /* Skip "." and ".." directories */
 static int filter(const struct dirent *dir)
@@ -21,11 +23,26 @@ static int filter(const struct dirent *dir)
 		return 1;
 }
 
+static void thread_map__reset(struct thread_map *map, int start, int nr)
+{
+	size_t size = (nr - start) * sizeof(map->map[0]);
+
+	memset(&map->map[start], 0, size);
+}
+
 static struct thread_map *thread_map__realloc(struct thread_map *map, int nr)
 {
 	size_t size = sizeof(*map) + sizeof(map->map[0]) * nr;
+	int start = map ? map->nr : 0;
 
-	return realloc(map, size);
+	map = realloc(map, size);
+	/*
+	 * We only realloc to add more items, let's reset new items.
+	 */
+	if (map)
+		thread_map__reset(map, start, nr);
+
+	return map;
 }
 
 #define thread_map__alloc(__nr) thread_map__realloc(NULL, __nr)
@@ -304,8 +321,12 @@ struct thread_map *thread_map__new_str(const char *pid, const char *tid,
 static void thread_map__delete(struct thread_map *threads)
 {
 	if (threads) {
+		int i;
+
 		WARN_ONCE(atomic_read(&threads->refcnt) != 0,
 			  "thread map refcnt unbalanced\n");
+		for (i = 0; i < threads->nr; i++)
+			free(thread_map__comm(threads, i));
 		free(threads);
 	}
 }
@@ -332,4 +353,57 @@ size_t thread_map__fprintf(struct thread_map *threads, FILE *fp)
 		printed += fprintf(fp, "%s%d", i ? ", " : "", thread_map__pid(threads, i));
 
 	return printed + fprintf(fp, "\n");
+}
+
+static int get_comm(char **comm, pid_t pid)
+{
+	char *path;
+	size_t size;
+	int err;
+
+	if (asprintf(&path, "%s/%d/comm", procfs__mountpoint(), pid) == -1)
+		return -ENOMEM;
+
+	err = filename__read_str(path, comm, &size);
+	if (!err) {
+		/*
+		 * We're reading 16 bytes, while filename__read_str
+		 * allocates data per BUFSIZ bytes, so we can safely
+		 * mark the end of the string.
+		 */
+		(*comm)[size] = 0;
+		rtrim(*comm);
+	}
+
+	free(path);
+	return err;
+}
+
+static void comm_init(struct thread_map *map, int i)
+{
+	pid_t pid = thread_map__pid(map, i);
+	char *comm = NULL;
+
+	/* dummy pid comm initialization */
+	if (pid == -1) {
+		map->map[i].comm = strdup("dummy");
+		return;
+	}
+
+	/*
+	 * The comm name is like extra bonus ;-),
+	 * so just warn if we fail for any reason.
+	 */
+	if (get_comm(&comm, pid))
+		pr_warning("Couldn't resolve comm name for pid %d\n", pid);
+
+	map->map[i].comm = comm;
+}
+
+void thread_map__read_comms(struct thread_map *threads)
+{
+	int i;
+
+	for (i = 0; i < threads->nr; ++i)
+		comm_init(threads, i);
 }

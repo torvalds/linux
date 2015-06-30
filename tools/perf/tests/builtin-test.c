@@ -171,6 +171,10 @@ static struct test {
 		.func = test__kmod_path__parse,
 	},
 	{
+		.desc = "Test thread map",
+		.func = test__thread_map,
+	},
+	{
 		.func = NULL,
 	},
 };

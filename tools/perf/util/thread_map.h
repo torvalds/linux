@@ -7,6 +7,7 @@
 
 struct thread_map_data {
 	pid_t    pid;
+	char	*comm;
 };
 
 struct thread_map {
@@ -44,4 +45,11 @@ thread_map__set_pid(struct thread_map *map, int thread, pid_t pid)
 {
 	map->map[thread].pid = pid;
 }
+
+static inline char *thread_map__comm(struct thread_map *map, int thread)
+{
+	return map->map[thread].comm;
+}
+
+void thread_map__read_comms(struct thread_map *threads);
 #endif	/* __PERF_THREAD_MAP_H */

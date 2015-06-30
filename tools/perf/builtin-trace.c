@@ -1617,6 +1617,34 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	return syscall__set_arg_fmts(sc);
 }
 
+static int trace__validate_ev_qualifier(struct trace *trace)
+{
+	int err = 0;
+	struct str_node *pos;
+
+	strlist__for_each(pos, trace->ev_qualifier) {
+		const char *sc = pos->s;
+
+		if (audit_name_to_syscall(sc, trace->audit.machine) < 0) {
+			if (err == 0) {
+				fputs("Error:\tInvalid syscall ", trace->output);
+				err = -EINVAL;
+			} else {
+				fputs(", ", trace->output);
+			}
+
+			fputs(sc, trace->output);
+		}
+	}
+
+	if (err < 0) {
+		fputs("\nHint:\ttry 'perf list syscalls:sys_enter_*'"
+		      "\nHint:\tand: 'man syscalls'\n", trace->output);
+	}
+
+	return err;
+}
+
 /*
  * args is to be interpreted as a series of longs but we need to handle
  * 8-byte unaligned accesses. args points to raw_data within the event
@@ -2862,6 +2890,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			err = -ENOMEM;
 			goto out_close;
 		}
+
+		err = trace__validate_ev_qualifier(&trace);
+		if (err)
+			goto out_close;
 	}
 
 	err = target__validate(&trace.opts.target);
