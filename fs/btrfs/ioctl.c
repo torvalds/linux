@@ -2943,7 +2943,8 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 		goto out_unlock;
 	}
 
-	ret = btrfs_cmp_data(src, loff, dst, dst_loff, len);
+	/* pass original length for comparison so we stay within i_size */
+	ret = btrfs_cmp_data(src, loff, dst, dst_loff, olen);
 	if (ret == 0)
 		ret = btrfs_clone(src, dst, loff, olen, len, dst_loff);
 
