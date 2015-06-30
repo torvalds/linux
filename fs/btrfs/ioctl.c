@@ -2852,8 +2852,7 @@ static void btrfs_double_inode_lock(struct inode *inode1, struct inode *inode2)
 		swap(inode1, inode2);
 
 	mutex_lock_nested(&inode1->i_mutex, I_MUTEX_PARENT);
-	if (inode1 != inode2)
-		mutex_lock_nested(&inode2->i_mutex, I_MUTEX_CHILD);
+	mutex_lock_nested(&inode2->i_mutex, I_MUTEX_CHILD);
 }
 
 static void btrfs_double_extent_unlock(struct inode *inode1, u64 loff1,
@@ -2871,8 +2870,7 @@ static void btrfs_double_extent_lock(struct inode *inode1, u64 loff1,
 		swap(loff1, loff2);
 	}
 	lock_extent_range(inode1, loff1, len);
-	if (inode1 != inode2)
-		lock_extent_range(inode2, loff2, len);
+	lock_extent_range(inode2, loff2, len);
 }
 
 struct cmp_pages {
@@ -3797,13 +3795,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		goto out_fput;
 
 	if (!same_inode) {
-		if (inode < src) {
-			mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
-			mutex_lock_nested(&src->i_mutex, I_MUTEX_CHILD);
-		} else {
-			mutex_lock_nested(&src->i_mutex, I_MUTEX_PARENT);
-			mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
-		}
+		btrfs_double_inode_lock(src, inode);
 	} else {
 		mutex_lock(&src->i_mutex);
 	}
@@ -3853,8 +3845,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 		lock_extent_range(src, lock_start, lock_len);
 	} else {
-		lock_extent_range(src, off, len);
-		lock_extent_range(inode, destoff, len);
+		btrfs_double_extent_lock(src, off, inode, destoff, len);
 	}
 
 	ret = btrfs_clone(src, inode, off, olen, len, destoff, 0);
@@ -3865,9 +3856,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 		unlock_extent(&BTRFS_I(src)->io_tree, lock_start, lock_end);
 	} else {
-		unlock_extent(&BTRFS_I(src)->io_tree, off, off + len - 1);
-		unlock_extent(&BTRFS_I(inode)->io_tree, destoff,
-			      destoff + len - 1);
+		btrfs_double_extent_unlock(src, off, inode, destoff, len);
 	}
 	/*
 	 * Truncate page cache pages so that future reads will see the cloned
@@ -3876,17 +3865,10 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	truncate_inode_pages_range(&inode->i_data, destoff,
 				   PAGE_CACHE_ALIGN(destoff + len) - 1);
 out_unlock:
-	if (!same_inode) {
-		if (inode < src) {
-			mutex_unlock(&src->i_mutex);
-			mutex_unlock(&inode->i_mutex);
-		} else {
-			mutex_unlock(&inode->i_mutex);
-			mutex_unlock(&src->i_mutex);
-		}
-	} else {
+	if (!same_inode)
+		btrfs_double_inode_unlock(src, inode);
+	else
 		mutex_unlock(&src->i_mutex);
-	}
 out_fput:
 	fdput(src_file);
 out_drop_write:
