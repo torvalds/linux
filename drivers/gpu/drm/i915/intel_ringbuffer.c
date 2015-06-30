@@ -2121,11 +2121,11 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 	unsigned space;
 	int ret;
 
-	/* The whole point of reserving space is to not wait! */
-	WARN_ON(ringbuf->reserved_in_use);
-
 	if (intel_ring_space(ringbuf) >= n)
 		return 0;
+
+	/* The whole point of reserving space is to not wait! */
+	WARN_ON(ringbuf->reserved_in_use);
 
 	list_for_each_entry(request, &ring->request_list, list) {
 		space = __intel_ring_space(request->postfix, ringbuf->tail,
@@ -2145,20 +2145,10 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 	return 0;
 }
 
-static int intel_wrap_ring_buffer(struct intel_engine_cs *ring)
+static void __wrap_ring_buffer(struct intel_ringbuffer *ringbuf)
 {
 	uint32_t __iomem *virt;
-	struct intel_ringbuffer *ringbuf = ring->buffer;
 	int rem = ringbuf->size - ringbuf->tail;
-
-	/* Can't wrap if space has already been reserved! */
-	WARN_ON(ringbuf->reserved_in_use);
-
-	if (ringbuf->space < rem) {
-		int ret = ring_wait_for_space(ring, rem);
-		if (ret)
-			return ret;
-	}
 
 	virt = ringbuf->virtual_start + ringbuf->tail;
 	rem /= 4;
@@ -2167,8 +2157,6 @@ static int intel_wrap_ring_buffer(struct intel_engine_cs *ring)
 
 	ringbuf->tail = 0;
 	intel_ring_update_space(ringbuf);
-
-	return 0;
 }
 
 int intel_ring_idle(struct intel_engine_cs *ring)
@@ -2238,9 +2226,21 @@ void intel_ring_reserved_space_use(struct intel_ringbuffer *ringbuf)
 void intel_ring_reserved_space_end(struct intel_ringbuffer *ringbuf)
 {
 	WARN_ON(!ringbuf->reserved_in_use);
-	WARN(ringbuf->tail > ringbuf->reserved_tail + ringbuf->reserved_size,
-	     "request reserved size too small: %d vs %d!\n",
-	     ringbuf->tail - ringbuf->reserved_tail, ringbuf->reserved_size);
+	if (ringbuf->tail > ringbuf->reserved_tail) {
+		WARN(ringbuf->tail > ringbuf->reserved_tail + ringbuf->reserved_size,
+		     "request reserved size too small: %d vs %d!\n",
+		     ringbuf->tail - ringbuf->reserved_tail, ringbuf->reserved_size);
+	} else {
+		/*
+		 * The ring was wrapped while the reserved space was in use.
+		 * That means that some unknown amount of the ring tail was
+		 * no-op filled and skipped. Thus simply adding the ring size
+		 * to the tail and doing the above space check will not work.
+		 * Rather than attempt to track how much tail was skipped,
+		 * it is much simpler to say that also skipping the sanity
+		 * check every once in a while is not a big issue.
+		 */
+	}
 
 	ringbuf->reserved_size   = 0;
 	ringbuf->reserved_in_use = false;
@@ -2249,33 +2249,45 @@ void intel_ring_reserved_space_end(struct intel_ringbuffer *ringbuf)
 static int __intel_ring_prepare(struct intel_engine_cs *ring, int bytes)
 {
 	struct intel_ringbuffer *ringbuf = ring->buffer;
-	int ret;
+	int remain_usable = ringbuf->effective_size - ringbuf->tail;
+	int remain_actual = ringbuf->size - ringbuf->tail;
+	int ret, total_bytes, wait_bytes = 0;
+	bool need_wrap = false;
 
-	/*
-	 * Add on the reserved size to the request to make sure that after
-	 * the intended commands have been emitted, there is guaranteed to
-	 * still be enough free space to send them to the hardware.
-	 */
-	if (!ringbuf->reserved_in_use)
-		bytes += ringbuf->reserved_size;
+	if (ringbuf->reserved_in_use)
+		total_bytes = bytes;
+	else
+		total_bytes = bytes + ringbuf->reserved_size;
 
-	if (unlikely(ringbuf->tail + bytes > ringbuf->effective_size)) {
-		ret = intel_wrap_ring_buffer(ring);
-		if (unlikely(ret))
-			return ret;
-
-		if(ringbuf->reserved_size) {
-			uint32_t size = ringbuf->reserved_size;
-
-			intel_ring_reserved_space_cancel(ringbuf);
-			intel_ring_reserved_space_reserve(ringbuf, size);
+	if (unlikely(bytes > remain_usable)) {
+		/*
+		 * Not enough space for the basic request. So need to flush
+		 * out the remainder and then wait for base + reserved.
+		 */
+		wait_bytes = remain_actual + total_bytes;
+		need_wrap = true;
+	} else {
+		if (unlikely(total_bytes > remain_usable)) {
+			/*
+			 * The base request will fit but the reserved space
+			 * falls off the end. So only need to to wait for the
+			 * reserved size after flushing out the remainder.
+			 */
+			wait_bytes = remain_actual + ringbuf->reserved_size;
+			need_wrap = true;
+		} else if (total_bytes > ringbuf->space) {
+			/* No wrapping required, just waiting. */
+			wait_bytes = total_bytes;
 		}
 	}
 
-	if (unlikely(ringbuf->space < bytes)) {
-		ret = ring_wait_for_space(ring, bytes);
+	if (wait_bytes) {
+		ret = ring_wait_for_space(ring, wait_bytes);
 		if (unlikely(ret))
 			return ret;
+
+		if (need_wrap)
+			__wrap_ring_buffer(ringbuf);
 	}
 
 	return 0;

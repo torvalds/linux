@@ -661,11 +661,11 @@ static int logical_ring_wait_for_space(struct drm_i915_gem_request *req,
 	unsigned space;
 	int ret;
 
-	/* The whole point of reserving space is to not wait! */
-	WARN_ON(ringbuf->reserved_in_use);
-
 	if (intel_ring_space(ringbuf) >= bytes)
 		return 0;
+
+	/* The whole point of reserving space is to not wait! */
+	WARN_ON(ringbuf->reserved_in_use);
 
 	list_for_each_entry(target, &ring->request_list, list) {
 		/*
@@ -716,21 +716,10 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 	execlists_context_queue(request);
 }
 
-static int logical_ring_wrap_buffer(struct drm_i915_gem_request *req)
+static void __wrap_ring_buffer(struct intel_ringbuffer *ringbuf)
 {
-	struct intel_ringbuffer *ringbuf = req->ringbuf;
 	uint32_t __iomem *virt;
 	int rem = ringbuf->size - ringbuf->tail;
-
-	/* Can't wrap if space has already been reserved! */
-	WARN_ON(ringbuf->reserved_in_use);
-
-	if (ringbuf->space < rem) {
-		int ret = logical_ring_wait_for_space(req, rem);
-
-		if (ret)
-			return ret;
-	}
 
 	virt = ringbuf->virtual_start + ringbuf->tail;
 	rem /= 4;
@@ -739,40 +728,50 @@ static int logical_ring_wrap_buffer(struct drm_i915_gem_request *req)
 
 	ringbuf->tail = 0;
 	intel_ring_update_space(ringbuf);
-
-	return 0;
 }
 
 static int logical_ring_prepare(struct drm_i915_gem_request *req, int bytes)
 {
 	struct intel_ringbuffer *ringbuf = req->ringbuf;
-	int ret;
+	int remain_usable = ringbuf->effective_size - ringbuf->tail;
+	int remain_actual = ringbuf->size - ringbuf->tail;
+	int ret, total_bytes, wait_bytes = 0;
+	bool need_wrap = false;
 
-	/*
-	 * Add on the reserved size to the request to make sure that after
-	 * the intended commands have been emitted, there is guaranteed to
-	 * still be enough free space to send them to the hardware.
-	 */
-	if (!ringbuf->reserved_in_use)
-		bytes += ringbuf->reserved_size;
+	if (ringbuf->reserved_in_use)
+		total_bytes = bytes;
+	else
+		total_bytes = bytes + ringbuf->reserved_size;
 
-	if (unlikely(ringbuf->tail + bytes > ringbuf->effective_size)) {
-		ret = logical_ring_wrap_buffer(req);
-		if (unlikely(ret))
-			return ret;
-
-		if(ringbuf->reserved_size) {
-			uint32_t size = ringbuf->reserved_size;
-
-			intel_ring_reserved_space_cancel(ringbuf);
-			intel_ring_reserved_space_reserve(ringbuf, size);
+	if (unlikely(bytes > remain_usable)) {
+		/*
+		 * Not enough space for the basic request. So need to flush
+		 * out the remainder and then wait for base + reserved.
+		 */
+		wait_bytes = remain_actual + total_bytes;
+		need_wrap = true;
+	} else {
+		if (unlikely(total_bytes > remain_usable)) {
+			/*
+			 * The base request will fit but the reserved space
+			 * falls off the end. So only need to to wait for the
+			 * reserved size after flushing out the remainder.
+			 */
+			wait_bytes = remain_actual + ringbuf->reserved_size;
+			need_wrap = true;
+		} else if (total_bytes > ringbuf->space) {
+			/* No wrapping required, just waiting. */
+			wait_bytes = total_bytes;
 		}
 	}
 
-	if (unlikely(ringbuf->space < bytes)) {
-		ret = logical_ring_wait_for_space(req, bytes);
+	if (wait_bytes) {
+		ret = logical_ring_wait_for_space(req, wait_bytes);
 		if (unlikely(ret))
 			return ret;
+
+		if (need_wrap)
+			__wrap_ring_buffer(ringbuf);
 	}
 
 	return 0;

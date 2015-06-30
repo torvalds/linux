@@ -473,7 +473,6 @@ static inline u32 intel_ring_get_tail(struct intel_ringbuffer *ringbuf)
  * will always have sufficient room to do its stuff. The request creation
  * code calls this automatically.
  */
-int intel_ring_reserve_space(struct drm_i915_gem_request *request);
 void intel_ring_reserved_space_reserve(struct intel_ringbuffer *ringbuf, int size);
 /* Cancel the reservation, e.g. because the request is being discarded. */
 void intel_ring_reserved_space_cancel(struct intel_ringbuffer *ringbuf);
@@ -481,5 +480,8 @@ void intel_ring_reserved_space_cancel(struct intel_ringbuffer *ringbuf);
 void intel_ring_reserved_space_use(struct intel_ringbuffer *ringbuf);
 /* Finish with the reserved space - for use by i915_add_request() only. */
 void intel_ring_reserved_space_end(struct intel_ringbuffer *ringbuf);
+
+/* Legacy ringbuffer specific portion of reservation code: */
+int intel_ring_reserve_space(struct drm_i915_gem_request *request);
 
 #endif /* _INTEL_RINGBUFFER_H_ */
