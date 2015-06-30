@@ -384,6 +384,35 @@ static void fill_page_dma_32(struct drm_device *dev, struct i915_page_dma *p,
 	fill_page_dma(dev, p, v);
 }
 
+static struct i915_page_scratch *alloc_scratch_page(struct drm_device *dev)
+{
+	struct i915_page_scratch *sp;
+	int ret;
+
+	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
+	if (sp == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	ret = __setup_page_dma(dev, px_base(sp), GFP_DMA32 | __GFP_ZERO);
+	if (ret) {
+		kfree(sp);
+		return ERR_PTR(ret);
+	}
+
+	set_pages_uc(px_page(sp), 1);
+
+	return sp;
+}
+
+static void free_scratch_page(struct drm_device *dev,
+			      struct i915_page_scratch *sp)
+{
+	set_pages_wb(px_page(sp), 1);
+
+	cleanup_px(dev, sp);
+	kfree(sp);
+}
+
 static struct i915_page_table *alloc_pt(struct drm_device *dev)
 {
 	struct i915_page_table *pt;
@@ -491,42 +520,6 @@ static void gen8_initialize_pd(struct i915_address_space *vm,
 	scratch_pde = gen8_pde_encode(px_dma(vm->scratch_pt), I915_CACHE_LLC);
 
 	fill_px(vm->dev, pd, scratch_pde);
-}
-
-static int alloc_scratch_page(struct i915_address_space *vm)
-{
-	struct i915_page_scratch *sp;
-	int ret;
-
-	WARN_ON(vm->scratch_page);
-
-	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
-	if (sp == NULL)
-		return -ENOMEM;
-
-	ret = __setup_page_dma(vm->dev, px_base(sp), GFP_DMA32 | __GFP_ZERO);
-	if (ret) {
-		kfree(sp);
-		return ret;
-	}
-
-	set_pages_uc(px_page(sp), 1);
-
-	vm->scratch_page = sp;
-
-	return 0;
-}
-
-static void free_scratch_page(struct i915_address_space *vm)
-{
-	struct i915_page_scratch *sp = vm->scratch_page;
-
-	set_pages_wb(px_page(sp), 1);
-
-	cleanup_px(vm->dev, sp);
-	kfree(sp);
-
-	vm->scratch_page = NULL;
 }
 
 /* Broadwell Page Directory Pointer Descriptors */
@@ -2244,8 +2237,8 @@ static int ggtt_probe_common(struct drm_device *dev,
 			     size_t gtt_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_page_scratch *scratch_page;
 	phys_addr_t gtt_phys_addr;
-	int ret;
 
 	/* For Modern GENs the PTEs and register space are split in the BAR */
 	gtt_phys_addr = pci_resource_start(dev->pdev, 0) +
@@ -2267,14 +2260,17 @@ static int ggtt_probe_common(struct drm_device *dev,
 		return -ENOMEM;
 	}
 
-	ret = alloc_scratch_page(&dev_priv->gtt.base);
-	if (ret) {
+	scratch_page = alloc_scratch_page(dev);
+	if (IS_ERR(scratch_page)) {
 		DRM_ERROR("Scratch setup failed\n");
 		/* iounmap will also get called at remove, but meh */
 		iounmap(dev_priv->gtt.gsm);
+		return PTR_ERR(scratch_page);
 	}
 
-	return ret;
+	dev_priv->gtt.base.scratch_page = scratch_page;
+
+	return 0;
 }
 
 /* The GGTT and PPGTT need a private PPAT setup in order to handle cacheability
@@ -2446,7 +2442,7 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 	struct i915_gtt *gtt = container_of(vm, struct i915_gtt, base);
 
 	iounmap(gtt->gsm);
-	free_scratch_page(vm);
+	free_scratch_page(vm->dev, vm->scratch_page);
 }
 
 static int i915_gmch_probe(struct drm_device *dev,
