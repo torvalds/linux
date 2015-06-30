@@ -2740,6 +2740,10 @@ S: C/ Mieses 20, 9-B
 S: Valladolid 47009
 S: Spain
 
+N: Jens Osterkamp
+E: jens@de.ibm.com
+D: Maintainer of Spidernet network driver for Cell
+
 N: Gadi Oxman
 E: gadio@netvision.net.il
 D: Original author and maintainer of IDE/ATAPI floppy/tape drivers
