@@ -20,9 +20,11 @@ list_head = utils.CachedType("struct list_head")
 
 def list_check(head):
     nb = 0
+    if (head.type == list_head.get_type().pointer()):
+        head = head.dereference()
+    elif (head.type != list_head.get_type()):
+        raise gdb.GdbError('argument must be of type (struct list_head [*])')
     c = head
-    if (c.type != list_head.get_type()):
-        raise gdb.GdbError('The argument should be of type (struct list_head)')
     try:
         gdb.write("Starting with: {}\n".format(c))
     except gdb.MemoryError:
