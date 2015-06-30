@@ -678,6 +678,42 @@ static void gen8_free_page_tables(struct drm_device *dev,
 	}
 }
 
+static int gen8_init_scratch(struct i915_address_space *vm)
+{
+	struct drm_device *dev = vm->dev;
+
+	vm->scratch_page = alloc_scratch_page(dev);
+	if (IS_ERR(vm->scratch_page))
+		return PTR_ERR(vm->scratch_page);
+
+	vm->scratch_pt = alloc_pt(dev);
+	if (IS_ERR(vm->scratch_pt)) {
+		free_scratch_page(dev, vm->scratch_page);
+		return PTR_ERR(vm->scratch_pt);
+	}
+
+	vm->scratch_pd = alloc_pd(dev);
+	if (IS_ERR(vm->scratch_pd)) {
+		free_pt(dev, vm->scratch_pt);
+		free_scratch_page(dev, vm->scratch_page);
+		return PTR_ERR(vm->scratch_pd);
+	}
+
+	gen8_initialize_pt(vm, vm->scratch_pt);
+	gen8_initialize_pd(vm, vm->scratch_pd);
+
+	return 0;
+}
+
+static void gen8_free_scratch(struct i915_address_space *vm)
+{
+	struct drm_device *dev = vm->dev;
+
+	free_pd(dev, vm->scratch_pd);
+	free_pt(dev, vm->scratch_pt);
+	free_scratch_page(dev, vm->scratch_page);
+}
+
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_hw_ppgtt *ppgtt =
@@ -693,8 +729,7 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 		free_pd(ppgtt->base.dev, ppgtt->pdp.page_directory[i]);
 	}
 
-	free_pd(vm->dev, vm->scratch_pd);
-	free_pt(vm->dev, vm->scratch_pt);
+	gen8_free_scratch(vm);
 }
 
 /**
@@ -981,16 +1016,11 @@ err_out:
  */
 static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 {
-	ppgtt->base.scratch_pt = alloc_pt(ppgtt->base.dev);
-	if (IS_ERR(ppgtt->base.scratch_pt))
-		return PTR_ERR(ppgtt->base.scratch_pt);
+	int ret;
 
-	ppgtt->base.scratch_pd = alloc_pd(ppgtt->base.dev);
-	if (IS_ERR(ppgtt->base.scratch_pd))
-		return PTR_ERR(ppgtt->base.scratch_pd);
-
-	gen8_initialize_pt(&ppgtt->base, ppgtt->base.scratch_pt);
-	gen8_initialize_pd(&ppgtt->base, ppgtt->base.scratch_pd);
+	ret = gen8_init_scratch(&ppgtt->base);
+	if (ret)
+		return ret;
 
 	ppgtt->base.start = 0;
 	ppgtt->base.total = 1ULL << 32;
@@ -1406,6 +1436,33 @@ unwind_out:
 	return ret;
 }
 
+static int gen6_init_scratch(struct i915_address_space *vm)
+{
+	struct drm_device *dev = vm->dev;
+
+	vm->scratch_page = alloc_scratch_page(dev);
+	if (IS_ERR(vm->scratch_page))
+		return PTR_ERR(vm->scratch_page);
+
+	vm->scratch_pt = alloc_pt(dev);
+	if (IS_ERR(vm->scratch_pt)) {
+		free_scratch_page(dev, vm->scratch_page);
+		return PTR_ERR(vm->scratch_pt);
+	}
+
+	gen6_initialize_pt(vm, vm->scratch_pt);
+
+	return 0;
+}
+
+static void gen6_free_scratch(struct i915_address_space *vm)
+{
+	struct drm_device *dev = vm->dev;
+
+	free_pt(dev, vm->scratch_pt);
+	free_scratch_page(dev, vm->scratch_page);
+}
+
 static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_hw_ppgtt *ppgtt =
@@ -1420,11 +1477,12 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 			free_pt(ppgtt->base.dev, pt);
 	}
 
-	free_pt(vm->dev, vm->scratch_pt);
+	gen6_free_scratch(vm);
 }
 
 static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
 {
+	struct i915_address_space *vm = &ppgtt->base;
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool retried = false;
@@ -1435,11 +1493,10 @@ static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
 	 * size. We allocate at the top of the GTT to avoid fragmentation.
 	 */
 	BUG_ON(!drm_mm_initialized(&dev_priv->gtt.base.mm));
-	ppgtt->base.scratch_pt = alloc_pt(ppgtt->base.dev);
-	if (IS_ERR(ppgtt->base.scratch_pt))
-		return PTR_ERR(ppgtt->base.scratch_pt);
 
-	gen6_initialize_pt(&ppgtt->base, ppgtt->base.scratch_pt);
+	ret = gen6_init_scratch(vm);
+	if (ret)
+		return ret;
 
 alloc:
 	ret = drm_mm_insert_node_in_range_generic(&dev_priv->gtt.base.mm,
@@ -1470,7 +1527,7 @@ alloc:
 	return 0;
 
 err_out:
-	free_pt(ppgtt->base.dev, ppgtt->base.scratch_pt);
+	gen6_free_scratch(vm);
 	return ret;
 }
 
@@ -1544,10 +1601,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	ppgtt->base.dev = dev;
-	ppgtt->base.scratch_page = dev_priv->gtt.base.scratch_page;
 
 	if (INTEL_INFO(dev)->gen < 8)
 		return gen6_ppgtt_init(ppgtt);
