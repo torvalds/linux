@@ -754,11 +754,9 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x0000021A, 0x01A6 },    /* R538   - Mic Bias Ctrl 3 */
 	{ 0x00000293, 0x0000 },    /* R659   - Accessory Detect Mode 1 */
 	{ 0x0000029B, 0x0028 },    /* R667   - Headphone Detect 1 */
-	{ 0x0000029C, 0x0000 },    /* R668   - Headphone Detect 2 */
 	{ 0x000002A2, 0x0000 },    /* R674   - Micd clamp control */
 	{ 0x000002A3, 0x1102 },    /* R675   - Mic Detect 1 */
 	{ 0x000002A4, 0x009F },    /* R676   - Mic Detect 2 */
-	{ 0x000002A5, 0x0000 },    /* R677   - Mic Detect 3 */
 	{ 0x000002A6, 0x3737 },    /* R678   - Mic Detect Level 1 */
 	{ 0x000002A7, 0x372C },    /* R679   - Mic Detect Level 2 */
 	{ 0x000002A8, 0x1422 },    /* R680   - Mic Detect Level 3 */
@@ -848,8 +846,6 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000440, 0x8FFF },    /* R1088  - DRE Enable */
 	{ 0x00000450, 0x0000 },    /* R1104  - DAC AEC Control 1 */
 	{ 0x00000458, 0x0000 },    /* R1112  - Noise Gate Control */
-	{ 0x00000480, 0x0040 },    /* R1152  - Class W ANC Threshold 1 */
-	{ 0x00000481, 0x0040 },    /* R1153  - Class W ANC Threshold 2 */
 	{ 0x00000490, 0x0069 },    /* R1168  - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 },    /* R1169  - PDM SPK1 CTRL 2 */
 	{ 0x00000492, 0x0069 },    /* R1170  - PDM SPK2 CTRL 1 */
@@ -1508,7 +1504,6 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000D54, 0xFFFF },    /* R3412  - AOD IRQ Mask IRQ2 */
 	{ 0x00000D56, 0x0000 },    /* R3414  - Jack detect debounce */
 	{ 0x00000E00, 0x0000 },    /* R3584  - FX_Ctrl1 */
-	{ 0x00000E01, 0x0000 },    /* R3585  - FX_Ctrl2 */
 	{ 0x00000E10, 0x6318 },    /* R3600  - EQ1_1 */
 	{ 0x00000E11, 0x6300 },    /* R3601  - EQ1_2 */
 	{ 0x00000E12, 0x0FC8 },    /* R3602  - EQ1_3 */
@@ -1625,14 +1620,9 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000F00, 0x0000 },    /* R3840  - Clock Control */
 	{ 0x00000F01, 0x0000 },    /* R3841  - ANC_SRC */
 	{ 0x00001100, 0x0010 },    /* R4352  - DSP1 Control 1 */
-	{ 0x00001101, 0x0000 },    /* R4353  - DSP1 Clocking 1 */
 	{ 0x00001200, 0x0010 },    /* R4608  - DSP2 Control 1 */
-	{ 0x00001201, 0x0000 },    /* R4609  - DSP2 Clocking 1 */
 	{ 0x00001300, 0x0010 },    /* R4864  - DSP3 Control 1 */
-	{ 0x00001301, 0x0000 },    /* R4865  - DSP3 Clocking 1 */
 	{ 0x00001400, 0x0010 },    /* R5120  - DSP4 Control 1 */
-	{ 0x00001401, 0x0000 },    /* R5121  - DSP4 Clocking 1 */
-	{ 0x00001404, 0x0000 },    /* R5124  - DSP4 Status 1 */
 };
 
 static bool wm5110_is_rev_b_adsp_memory(unsigned int reg)
