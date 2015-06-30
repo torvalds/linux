@@ -5285,11 +5285,10 @@ INTEL ASoC BDW/HSW DRIVERS
 M:	Jie Yang <yang.jie@linux.intel.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
-F:	sound/soc/intel/sst-haswell*
-F:	sound/soc/intel/sst-dsp*
-F:	sound/soc/intel/sst-firmware.c
-F:	sound/soc/intel/broadwell.c
-F:	sound/soc/intel/haswell.c
+F:	sound/soc/intel/common/sst-dsp*
+F:	sound/soc/intel/common/sst-firmware.c
+F:	sound/soc/intel/boards/broadwell.c
+F:	sound/soc/intel/haswell/
 
 INTEL C600 SERIES SAS CONTROLLER DRIVER
 M:	Intel SCU Linux support <intel-linux-scu@intel.com>
