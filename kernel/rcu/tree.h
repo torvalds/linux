@@ -364,11 +364,12 @@ struct rcu_data {
 	unsigned long n_rp_nocb_defer_wakeup;
 	unsigned long n_rp_need_nothing;
 
-	/* 6) _rcu_barrier() and OOM callbacks. */
+	/* 6) _rcu_barrier(), OOM callbacks, and expediting. */
 	struct rcu_head barrier_head;
 #ifdef CONFIG_RCU_FAST_NO_HZ
 	struct rcu_head oom_head;
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
+	struct mutex exp_funnel_mutex;
 
 	/* 7) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
@@ -494,6 +495,7 @@ struct rcu_state {
 	atomic_long_t expedited_tryfail;	/* # acquisition failures. */
 	atomic_long_t expedited_workdone1;	/* # done by others #1. */
 	atomic_long_t expedited_workdone2;	/* # done by others #2. */
+	atomic_long_t expedited_workdone3;	/* # done by others #3. */
 	atomic_long_t expedited_normal;		/* # fallbacks to normal. */
 	atomic_t expedited_need_qs;		/* # CPUs left to check in. */
 	wait_queue_head_t expedited_wq;		/* Wait for check-ins. */

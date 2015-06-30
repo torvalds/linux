@@ -3312,11 +3312,14 @@ static bool rcu_exp_gp_seq_done(struct rcu_state *rsp, unsigned long s)
 
 /* Common code for synchronize_{rcu,sched}_expedited() work-done checking. */
 static bool sync_exp_work_done(struct rcu_state *rsp, struct rcu_node *rnp,
+			       struct rcu_data *rdp,
 			       atomic_long_t *stat, unsigned long s)
 {
 	if (rcu_exp_gp_seq_done(rsp, s)) {
 		if (rnp)
 			mutex_unlock(&rnp->exp_funnel_mutex);
+		else if (rdp)
+			mutex_unlock(&rdp->exp_funnel_mutex);
 		/* Ensure test happens before caller kfree(). */
 		smp_mb__before_atomic(); /* ^^^ */
 		atomic_long_inc(stat);
@@ -3332,6 +3335,7 @@ static bool sync_exp_work_done(struct rcu_state *rsp, struct rcu_node *rnp,
  */
 static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 {
+	struct rcu_data *rdp;
 	struct rcu_node *rnp0;
 	struct rcu_node *rnp1 = NULL;
 
@@ -3343,16 +3347,24 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	 * can be inexact, as it is just promoting locality and is not
 	 * strictly needed for correctness.
 	 */
-	rnp0 = per_cpu_ptr(rsp->rda, raw_smp_processor_id())->mynode;
+	rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
+	if (sync_exp_work_done(rsp, NULL, NULL, &rsp->expedited_workdone1, s))
+		return NULL;
+	mutex_lock(&rdp->exp_funnel_mutex);
+	rnp0 = rdp->mynode;
 	for (; rnp0 != NULL; rnp0 = rnp0->parent) {
-		if (sync_exp_work_done(rsp, rnp1, &rsp->expedited_workdone1, s))
+		if (sync_exp_work_done(rsp, rnp1, rdp,
+				       &rsp->expedited_workdone2, s))
 			return NULL;
 		mutex_lock(&rnp0->exp_funnel_mutex);
 		if (rnp1)
 			mutex_unlock(&rnp1->exp_funnel_mutex);
+		else
+			mutex_unlock(&rdp->exp_funnel_mutex);
 		rnp1 = rnp0;
 	}
-	if (sync_exp_work_done(rsp, rnp1, &rsp->expedited_workdone2, s))
+	if (sync_exp_work_done(rsp, rnp1, rdp,
+			       &rsp->expedited_workdone3, s))
 		return NULL;
 	return rnp1;
 }
@@ -3733,6 +3745,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 	WARN_ON_ONCE(atomic_read(&rdp->dynticks->dynticks) != 1);
 	rdp->cpu = cpu;
 	rdp->rsp = rsp;
+	mutex_init(&rdp->exp_funnel_mutex);
 	rcu_boot_init_nocb_percpu_data(rdp);
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
