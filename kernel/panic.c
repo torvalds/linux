@@ -142,7 +142,8 @@ void panic(const char *fmt, ...)
 	 * Note: since some panic_notifiers can make crashed kernel
 	 * more unstable, it can increase risks of the kdump failure too.
 	 */
-	crash_kexec(NULL);
+	if (crash_kexec_post_notifiers)
+		crash_kexec(NULL);
 
 	bust_spinlocks(0);
 
