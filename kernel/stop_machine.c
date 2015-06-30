@@ -141,7 +141,7 @@ enum multi_stop_state {
 };
 
 struct multi_stop_data {
-	int			(*fn)(void *);
+	cpu_stop_fn_t		fn;
 	void			*data;
 	/* Like num_online_cpus(), but hotplug cpu uses us, so we need this. */
 	unsigned int		num_threads;
@@ -513,7 +513,7 @@ early_initcall(cpu_stop_init);
 
 #ifdef CONFIG_STOP_MACHINE
 
-static int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
+static int __stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
 {
 	struct multi_stop_data msdata = {
 		.fn = fn,
@@ -546,7 +546,7 @@ static int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *c
 	return stop_cpus(cpu_online_mask, multi_cpu_stop, &msdata);
 }
 
-int stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
+int stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
 {
 	int ret;
 
@@ -580,7 +580,7 @@ EXPORT_SYMBOL_GPL(stop_machine);
  * 0 if all executions of @fn returned 0, any non zero return value if any
  * returned non zero.
  */
-int stop_machine_from_inactive_cpu(int (*fn)(void *), void *data,
+int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 				  const struct cpumask *cpus)
 {
 	struct multi_stop_data msdata = { .fn = fn, .data = data,

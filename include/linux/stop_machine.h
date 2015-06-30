@@ -112,13 +112,13 @@ static inline int try_stop_cpus(const struct cpumask *cpumask,
  *
  * This can be thought of as a very heavy write lock, equivalent to
  * grabbing every spinlock in the kernel. */
-int stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus);
+int stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus);
 
-int stop_machine_from_inactive_cpu(int (*fn)(void *), void *data,
+int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 				   const struct cpumask *cpus);
 #else	 /* CONFIG_STOP_MACHINE && CONFIG_SMP */
 
-static inline int stop_machine(int (*fn)(void *), void *data,
+static inline int stop_machine(cpu_stop_fn_t fn, void *data,
 				 const struct cpumask *cpus)
 {
 	unsigned long flags;
@@ -129,7 +129,7 @@ static inline int stop_machine(int (*fn)(void *), void *data,
 	return ret;
 }
 
-static inline int stop_machine_from_inactive_cpu(int (*fn)(void *), void *data,
+static inline int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 						 const struct cpumask *cpus)
 {
 	return stop_machine(fn, data, cpus);
