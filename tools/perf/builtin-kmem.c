@@ -1916,7 +1916,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		if (!perf_evlist__find_tracepoint_by_name(session->evlist,
 							  "kmem:kmalloc")) {
 			pr_err(errmsg, "slab", "slab");
-			return -1;
+			goto out_delete;
 		}
 	}
 
@@ -1927,7 +1927,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 							     "kmem:mm_page_alloc");
 		if (evsel == NULL) {
 			pr_err(errmsg, "page", "page");
-			return -1;
+			goto out_delete;
 		}
 
 		kmem_page_size = pevent_get_page_size(evsel->tp_format->pevent);
