@@ -442,7 +442,7 @@ static int wdt87xx_get_sysparam(struct i2c_client *client,
 	param->fw_id = get_unaligned_le16(&buf[1]);
 
 	dev_info(&client->dev,
-		 "fw_id: 0x%x, plat_id: 0x%x\nxml_id1: %04x, xml_id2: %04x\n",
+		 "fw_id: 0x%x, plat_id: 0x%x, xml_id1: %04x, xml_id2: %04x\n",
 		 param->fw_id, param->plat_id,
 		 param->xmls_id1, param->xmls_id2);
 
