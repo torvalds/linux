@@ -3369,14 +3369,63 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	return rnp1;
 }
 
+/* Invoked on each online non-idle CPU for expedited quiescent state. */
 static int synchronize_sched_expedited_cpu_stop(void *data)
 {
-	struct rcu_state *rsp = data;
+	struct rcu_data *rdp = data;
+	struct rcu_state *rsp = rdp->rsp;
 
 	/* We are here: If we are last, do the wakeup. */
+	rdp->exp_done = true;
 	if (atomic_dec_and_test(&rsp->expedited_need_qs))
 		wake_up(&rsp->expedited_wq);
 	return 0;
+}
+
+static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
+{
+	int cpu;
+	unsigned long jiffies_stall;
+	unsigned long jiffies_start;
+	struct rcu_data *rdp;
+	int ret;
+
+	jiffies_stall = rcu_jiffies_till_stall_check();
+	jiffies_start = jiffies;
+
+	for (;;) {
+		ret = wait_event_interruptible_timeout(
+				rsp->expedited_wq,
+				!atomic_read(&rsp->expedited_need_qs),
+				jiffies_stall);
+		if (ret > 0)
+			return;
+		if (ret < 0) {
+			/* Hit a signal, disable CPU stall warnings. */
+			wait_event(rsp->expedited_wq,
+				   !atomic_read(&rsp->expedited_need_qs));
+			return;
+		}
+		pr_err("INFO: %s detected expedited stalls on CPUs: {",
+		       rsp->name);
+		for_each_online_cpu(cpu) {
+			rdp = per_cpu_ptr(rsp->rda, cpu);
+
+			if (rdp->exp_done)
+				continue;
+			pr_cont(" %d", cpu);
+		}
+		pr_cont(" } %lu jiffies s: %lu\n",
+			jiffies - jiffies_start, rsp->expedited_sequence);
+		for_each_online_cpu(cpu) {
+			rdp = per_cpu_ptr(rsp->rda, cpu);
+
+			if (rdp->exp_done)
+				continue;
+			dump_cpu_task(cpu);
+		}
+		jiffies_stall = 3 * rcu_jiffies_till_stall_check() + 3;
+	}
 }
 
 /**
@@ -3428,19 +3477,20 @@ void synchronize_sched_expedited(void)
 		struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 		struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
 
+		rdp->exp_done = false;
+
 		/* Skip our CPU and any idle CPUs. */
 		if (raw_smp_processor_id() == cpu ||
 		    !(atomic_add_return(0, &rdtp->dynticks) & 0x1))
 			continue;
 		atomic_inc(&rsp->expedited_need_qs);
 		stop_one_cpu_nowait(cpu, synchronize_sched_expedited_cpu_stop,
-				    rsp, &rdp->exp_stop_work);
+				    rdp, &rdp->exp_stop_work);
 	}
 
 	/* Remove extra count and, if necessary, wait for CPUs to stop. */
 	if (!atomic_dec_and_test(&rsp->expedited_need_qs))
-		wait_event(rsp->expedited_wq,
-			   !atomic_read(&rsp->expedited_need_qs));
+		synchronize_sched_expedited_wait(rsp);
 
 	rcu_exp_gp_seq_end(rsp);
 	mutex_unlock(&rnp->exp_funnel_mutex);
