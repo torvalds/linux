@@ -774,7 +774,6 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
 	init_page_count(page);
 	page_mapcount_reset(page);
 	page_cpupid_reset_last(page);
-	SetPageReserved(page);
 
 	/*
 	 * Mark the block movable so that blocks are reserved for
@@ -807,6 +806,22 @@ static void __meminit __init_single_pfn(unsigned long pfn, unsigned long zone,
 					int nid)
 {
 	return __init_single_page(pfn_to_page(pfn), pfn, zone, nid);
+}
+
+/*
+ * Initialised pages do not have PageReserved set. This function is
+ * called for each range allocated by the bootmem allocator and
+ * marks the pages PageReserved. The remaining valid pages are later
+ * sent to the buddy page allocator.
+ */
+void reserve_bootmem_region(unsigned long start, unsigned long end)
+{
+	unsigned long start_pfn = PFN_DOWN(start);
+	unsigned long end_pfn = PFN_UP(end);
+
+	for (; start_pfn < end_pfn; start_pfn++)
+		if (pfn_valid(start_pfn))
+			SetPageReserved(pfn_to_page(start_pfn));
 }
 
 static bool free_pages_prepare(struct page *page, unsigned int order)
