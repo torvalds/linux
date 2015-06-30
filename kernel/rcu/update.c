@@ -589,7 +589,7 @@ EXPORT_SYMBOL_GPL(call_rcu_tasks);
 void synchronize_rcu_tasks(void)
 {
 	/* Complain if the scheduler has not started.  */
-	RCU_LOCKDEP_WARN(rcu_scheduler_active,
+	RCU_LOCKDEP_WARN(!rcu_scheduler_active,
 			 "synchronize_rcu_tasks called too soon");
 
 	/* Wait for the grace period. */
