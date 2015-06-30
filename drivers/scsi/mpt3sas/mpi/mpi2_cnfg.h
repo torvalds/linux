@@ -6,7 +6,7 @@
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *   mpi2_cnfg.h Version:  02.00.26
+ *   mpi2_cnfg.h Version:  02.00.27
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -165,6 +165,16 @@
  *                     match the specification.
  * 08-19-13  02.00.26  Added reserved words to MPI2_CONFIG_PAGE_IO_UNIT_7 for
  *			future use.
+ * 12-05-13  02.00.27  Added MPI2_MANPAGE7_FLAG_BASE_ENCLOSURE_LEVEL for
+ *		       MPI2_CONFIG_PAGE_MAN_7.
+ *		       Added EnclosureLevel and ConnectorName fields to
+ *		       MPI2_CONFIG_PAGE_SAS_DEV_0.
+ *		       Added MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID for
+ *		       MPI2_CONFIG_PAGE_SAS_DEV_0.
+ *		       Added EnclosureLevel field to
+ *		       MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
+ *		       Added MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID for
+ *		       MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
  * --------------------------------------------------------------------------
  */
 
@@ -724,6 +734,7 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_7 {
 #define MPI2_MANUFACTURING7_PAGEVERSION                 (0x01)
 
 /*defines for the Flags field */
+#define MPI2_MANPAGE7_FLAG_BASE_ENCLOSURE_LEVEL         (0x00000008)
 #define MPI2_MANPAGE7_FLAG_EVENTREPLAY_SLOT_ORDER       (0x00000002)
 #define MPI2_MANPAGE7_FLAG_USE_SLOT_INFO                (0x00000001)
 
@@ -2633,9 +2644,9 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_DEV_0 {
 	U8
 		ControlGroup;           /*0x2E */
 	U8
-		Reserved1;              /*0x2F */
+		EnclosureLevel;		/*0x2F */
 	U32
-		Reserved2;              /*0x30 */
+		ConnectorName[4];	/*0x30 */
 	U32
 		Reserved3;              /*0x34 */
 } MPI2_CONFIG_PAGE_SAS_DEV_0,
@@ -2643,7 +2654,7 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_DEV_0 {
 	Mpi2SasDevicePage0_t,
 	*pMpi2SasDevicePage0_t;
 
-#define MPI2_SASDEVICE0_PAGEVERSION         (0x08)
+#define MPI2_SASDEVICE0_PAGEVERSION         (0x09)
 
 /*values for SAS Device Page 0 AccessStatus field */
 #define MPI2_SAS_DEVICE0_ASTATUS_NO_ERRORS                  (0x00)
@@ -2683,6 +2694,7 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_DEV_0 {
 #define MPI2_SAS_DEVICE0_FLAGS_SATA_NCQ_SUPPORTED           (0x0020)
 #define MPI2_SAS_DEVICE0_FLAGS_SATA_FUA_SUPPORTED           (0x0010)
 #define MPI2_SAS_DEVICE0_FLAGS_PORT_SELECTOR_ATTACH         (0x0008)
+#define MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID             (0x0002)
 #define MPI2_SAS_DEVICE0_FLAGS_DEVICE_PRESENT               (0x0001)
 
 
@@ -3019,8 +3031,10 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0 {
 		NumSlots;                   /*0x18 */
 	U16
 		StartSlot;                  /*0x1A */
-	U16
+	U8
 		Reserved2;                  /*0x1C */
+	U8
+		EnclosureLevel;		    /*0x1D */
 	U16
 		SEPDevHandle;               /*0x1E */
 	U32
@@ -3031,9 +3045,10 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0 {
 	*PTR_MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0,
 	Mpi2SasEnclosurePage0_t, *pMpi2SasEnclosurePage0_t;
 
-#define MPI2_SASENCLOSURE0_PAGEVERSION      (0x03)
+#define MPI2_SASENCLOSURE0_PAGEVERSION      (0x04)
 
 /*values for SAS Enclosure Page 0 Flags field */
+#define MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID      (0x0010)
 #define MPI2_SAS_ENCLS0_FLAGS_MNG_MASK              (0x000F)
 #define MPI2_SAS_ENCLS0_FLAGS_MNG_UNKNOWN           (0x0000)
 #define MPI2_SAS_ENCLS0_FLAGS_MNG_IOC_SES           (0x0001)
