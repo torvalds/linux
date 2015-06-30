@@ -729,8 +729,8 @@ EXPORT_SYMBOL(sg_copy_to_buffer);
  * @sgl:		 The SG list
  * @nents:		 Number of SG entries
  * @buf:		 Where to copy from
- * @skip:		 Number of bytes to skip before copying
  * @buflen:		 The number of bytes to copy
+ * @skip:		 Number of bytes to skip before copying
  *
  * Returns the number of copied bytes.
  *
@@ -747,8 +747,8 @@ EXPORT_SYMBOL(sg_pcopy_from_buffer);
  * @sgl:		 The SG list
  * @nents:		 Number of SG entries
  * @buf:		 Where to copy to
- * @skip:		 Number of bytes to skip before copying
  * @buflen:		 The number of bytes to copy
+ * @skip:		 Number of bytes to skip before copying
  *
  * Returns the number of copied bytes.
  *
