@@ -675,7 +675,8 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 			pstrDisconnectNotifInfo->u16reason = 1;
 		}
 		cfg80211_disconnected(dev, pstrDisconnectNotifInfo->u16reason, pstrDisconnectNotifInfo->ie,
-				      pstrDisconnectNotifInfo->ie_len, GFP_KERNEL);
+				      pstrDisconnectNotifInfo->ie_len, false,
+				      GFP_KERNEL);
 
 	}
 
