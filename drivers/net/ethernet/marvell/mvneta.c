@@ -3185,6 +3185,7 @@ static int mvneta_remove(struct platform_device *pdev)
 
 static const struct of_device_id mvneta_match[] = {
 	{ .compatible = "marvell,armada-370-neta" },
+	{ .compatible = "marvell,armada-xp-neta" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mvneta_match);
