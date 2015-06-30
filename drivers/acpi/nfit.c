@@ -1223,8 +1223,8 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	if (!nfit_mem || !nfit_mem->dcr || !nfit_mem->bdw) {
 		dev_dbg(dev, "%s: missing%s%s%s\n", __func__,
 				nfit_mem ? "" : " nfit_mem",
-				nfit_mem->dcr ? "" : " dcr",
-				nfit_mem->bdw ? "" : " bdw");
+				(nfit_mem && nfit_mem->dcr) ? "" : " dcr",
+				(nfit_mem && nfit_mem->bdw) ? "" : " bdw");
 		return -ENXIO;
 	}
 
