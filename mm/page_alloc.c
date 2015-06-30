@@ -1091,6 +1091,7 @@ void __defermem_init deferred_init_memmap(int nid)
 
 	for_each_mem_pfn_range(i, nid, &walk_start, &walk_end, NULL) {
 		unsigned long pfn, end_pfn;
+		struct page *page = NULL;
 
 		end_pfn = min(walk_end, zone_end_pfn(zone));
 		pfn = first_init_pfn;
@@ -1100,13 +1101,32 @@ void __defermem_init deferred_init_memmap(int nid)
 			pfn = zone->zone_start_pfn;
 
 		for (; pfn < end_pfn; pfn++) {
-			struct page *page;
-
-			if (!pfn_valid(pfn))
+			if (!pfn_valid_within(pfn))
 				continue;
 
-			if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state))
+			/*
+			 * Ensure pfn_valid is checked every
+			 * MAX_ORDER_NR_PAGES for memory holes
+			 */
+			if ((pfn & (MAX_ORDER_NR_PAGES - 1)) == 0) {
+				if (!pfn_valid(pfn)) {
+					page = NULL;
+					continue;
+				}
+			}
+
+			if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
+				page = NULL;
 				continue;
+			}
+
+			/* Minimise pfn page lookups and scheduler checks */
+			if (page && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0) {
+				page++;
+			} else {
+				page = pfn_to_page(pfn);
+				cond_resched();
+			}
 
 			if (page->flags) {
 				VM_BUG_ON(page_zone(page) != zone);
@@ -1116,7 +1136,6 @@ void __defermem_init deferred_init_memmap(int nid)
 			__init_single_page(page, pfn, zid, nid);
 			__free_pages_boot_core(page, pfn, 0);
 			nr_pages++;
-			cond_resched();
 		}
 		first_init_pfn = max(end_pfn, first_init_pfn);
 	}
