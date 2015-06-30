@@ -1151,7 +1151,7 @@ static void pch_post_disable_hdmi(struct intel_encoder *encoder)
 	intel_disable_hdmi(encoder);
 }
 
-static int hdmi_portclock_limit(struct intel_hdmi *hdmi, bool respect_dvi_limit)
+static int hdmi_port_clock_limit(struct intel_hdmi *hdmi, bool respect_dvi_limit)
 {
 	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
 
@@ -1164,24 +1164,48 @@ static int hdmi_portclock_limit(struct intel_hdmi *hdmi, bool respect_dvi_limit)
 }
 
 static enum drm_mode_status
+hdmi_port_clock_valid(struct intel_hdmi *hdmi,
+		      int clock, bool respect_dvi_limit)
+{
+	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
+
+	if (clock < 25000)
+		return MODE_CLOCK_LOW;
+	if (clock > hdmi_port_clock_limit(hdmi, respect_dvi_limit))
+		return MODE_CLOCK_HIGH;
+
+	/* CHV/BXT DPLL can't generate 216-240 MHz */
+	if ((IS_CHERRYVIEW(dev) || IS_BROXTON(dev)) &&
+	    clock > 216000 && clock < 240000)
+		return MODE_CLOCK_RANGE;
+
+	return MODE_OK;
+}
+
+static enum drm_mode_status
 intel_hdmi_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
 {
-	int clock = mode->clock;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
-		clock *= 2;
-
-	if (clock > hdmi_portclock_limit(intel_attached_hdmi(connector),
-					 true))
-		return MODE_CLOCK_HIGH;
-	if (clock < 25000)
-		return MODE_CLOCK_LOW;
+	struct intel_hdmi *hdmi = intel_attached_hdmi(connector);
+	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
+	enum drm_mode_status status;
+	int clock;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
-	return MODE_OK;
+	clock = mode->clock;
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		clock *= 2;
+
+	/* check if we can do 8bpc */
+	status = hdmi_port_clock_valid(hdmi, clock, true);
+
+	/* if we can't do 8bpc we may still be able to do 12bpc */
+	if (!HAS_GMCH_DISPLAY(dev) && status != MODE_OK)
+		status = hdmi_port_clock_valid(hdmi, clock * 3 / 2, true);
+
+	return status;
 }
 
 static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
@@ -1222,8 +1246,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	int clock_12bpc = pipe_config->base.adjusted_mode.crtc_clock * 3 / 2;
-	int portclock_limit = hdmi_portclock_limit(intel_hdmi, false);
+	int clock_8bpc = pipe_config->base.adjusted_mode.crtc_clock;
+	int clock_12bpc = clock_8bpc * 3 / 2;
 	int desired_bpp;
 
 	pipe_config->has_hdmi_sink = intel_hdmi->has_hdmi_sink;
@@ -1242,6 +1266,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK) {
 		pipe_config->pixel_multiplier = 2;
+		clock_8bpc *= 2;
 		clock_12bpc *= 2;
 	}
 
@@ -1261,7 +1286,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 * within limits.
 	 */
 	if (pipe_config->pipe_bpp > 8*3 && pipe_config->has_hdmi_sink &&
-	    clock_12bpc <= portclock_limit &&
+	    hdmi_port_clock_valid(intel_hdmi, clock_12bpc, false) == MODE_OK &&
 	    hdmi_12bpc_possible(pipe_config) &&
 	    0 /* FIXME 12bpc support totally broken */) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
@@ -1272,6 +1297,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	} else {
 		DRM_DEBUG_KMS("picking bpc to 8 for HDMI output\n");
 		desired_bpp = 8*3;
+
+		pipe_config->port_clock = clock_8bpc;
 	}
 
 	if (!pipe_config->bw_constrained) {
@@ -1279,8 +1306,9 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 		pipe_config->pipe_bpp = desired_bpp;
 	}
 
-	if (adjusted_mode->crtc_clock > portclock_limit) {
-		DRM_DEBUG_KMS("too high HDMI clock, rejecting mode\n");
+	if (hdmi_port_clock_valid(intel_hdmi, pipe_config->port_clock,
+				  false) != MODE_OK) {
+		DRM_DEBUG_KMS("unsupported HDMI clock, rejecting mode\n");
 		return false;
 	}
 
