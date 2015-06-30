@@ -947,6 +947,7 @@
 				ti,hwmods = "dss_rfbi";
 				clocks = <&disp_clk>;
 				clock-names = "fck";
+				status = "disabled";
 			};
 		};
 
