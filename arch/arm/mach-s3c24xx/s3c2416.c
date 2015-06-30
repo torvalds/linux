@@ -114,6 +114,34 @@ void __init s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	s3c_nand_setname("s3c2412-nand");
 }
 
+/* s3c2416_idle
+ *
+ * use the standard idle call by ensuring the idle mode
+ * in power config, then issuing the idle co-processor
+ * instruction
+ */
+
+static void s3c2416_idle(void)
+{
+	unsigned long tmp;
+
+	/* ensure our idle mode is to go to idle */
+	tmp = __raw_readl(S3C2443_PWRCFG);
+	tmp |= (0x1<<17);
+	__raw_writel(tmp, S3C2443_PWRCFG);
+
+	/* you can probe the idle status through the TP11(GPB2) */
+#ifdef IDLE_PROBE
+	tmp = __raw_readl(S3C2410_GPBDAT);
+	tmp |= (0x1<<2);
+	__raw_writel(tmp, S3C2410_GPBDAT);
+	tmp &= ~(0x1<<2);
+	__raw_writel(tmp, S3C2410_GPBDAT);
+#endif
+
+	cpu_do_idle();
+}
+
 /* s3c2416_map_io
  *
  * register the standard cpu IO areas, and any passed in from the
@@ -131,6 +159,8 @@ void __init s3c2416_map_io(void)
 	s3c64xx_spi_setname("s3c2443-spi");
 
 	iotable_init(s3c2416_iodesc, ARRAY_SIZE(s3c2416_iodesc));
+
+	arm_pm_idle = s3c2416_idle;
 }
 
 /* need to register the subsystem before we actually register the device, and
