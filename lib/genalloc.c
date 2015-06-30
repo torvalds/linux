@@ -620,7 +620,7 @@ EXPORT_SYMBOL_GPL(gen_pool_get);
 
 #ifdef CONFIG_OF
 /**
- * of_get_named_gen_pool - find a pool by phandle property
+ * of_gen_pool_get - find a pool by phandle property
  * @np: device node
  * @propname: property name containing phandle(s)
  * @index: index into the phandle array
@@ -629,7 +629,7 @@ EXPORT_SYMBOL_GPL(gen_pool_get);
  * address of the device tree node pointed at by the phandle property,
  * or NULL if not found.
  */
-struct gen_pool *of_get_named_gen_pool(struct device_node *np,
+struct gen_pool *of_gen_pool_get(struct device_node *np,
 	const char *propname, int index)
 {
 	struct platform_device *pdev;
@@ -644,5 +644,5 @@ struct gen_pool *of_get_named_gen_pool(struct device_node *np,
 		return NULL;
 	return gen_pool_get(&pdev->dev);
 }
-EXPORT_SYMBOL_GPL(of_get_named_gen_pool);
+EXPORT_SYMBOL_GPL(of_gen_pool_get);
 #endif /* CONFIG_OF */
