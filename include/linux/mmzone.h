@@ -1216,10 +1216,24 @@ void sparse_init(void);
 #define sparse_index_init(_sec, _nid)  do {} while (0)
 #endif /* CONFIG_SPARSEMEM */
 
+/*
+ * During memory init memblocks map pfns to nids. The search is expensive and
+ * this caches recent lookups. The implementation of __early_pfn_to_nid
+ * may treat start/end as pfns or sections.
+ */
+struct mminit_pfnnid_cache {
+	unsigned long last_start;
+	unsigned long last_end;
+	int last_nid;
+};
+
 #ifdef CONFIG_NODES_SPAN_OTHER_NODES
 bool early_pfn_in_nid(unsigned long pfn, int nid);
+bool meminit_pfn_in_nid(unsigned long pfn, int node,
+			struct mminit_pfnnid_cache *state);
 #else
-#define early_pfn_in_nid(pfn, nid)	(1)
+#define early_pfn_in_nid(pfn, nid)		(1)
+#define meminit_pfn_in_nid(pfn, nid, state)	(1)
 #endif
 
 #ifndef early_pfn_valid
