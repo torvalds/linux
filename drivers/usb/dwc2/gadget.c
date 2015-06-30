@@ -2880,7 +2880,7 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 		epctl = readl(hs->regs + epreg);
 
 		if (value) {
-			epctl |= DXEPCTL_STALL + DXEPCTL_SNAK;
+			epctl |= DXEPCTL_STALL | DXEPCTL_SNAK;
 			if (epctl & DXEPCTL_EPENA)
 				epctl |= DXEPCTL_EPDIS;
 		} else {
