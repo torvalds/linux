@@ -11,6 +11,7 @@
 #include <linux/export.h>
 #include <linux/memory.h>
 #include <linux/notifier.h>
+#include <linux/sched.h>
 #include "internal.h"
 
 #ifdef CONFIG_DEBUG_MEMORY_INIT

@@ -252,6 +252,14 @@ static inline bool __defermem_init early_page_uninitialised(unsigned long pfn)
 	return false;
 }
 
+static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
+{
+	if (pfn >= NODE_DATA(nid)->first_deferred_pfn)
+		return true;
+
+	return false;
+}
+
 /*
  * Returns false when the remaining initialisation should be deferred until
  * later in the boot cycle when it can be parallelised.
@@ -280,6 +288,11 @@ static inline void reset_deferred_meminit(pg_data_t *pgdat)
 }
 
 static inline bool early_page_uninitialised(unsigned long pfn)
+{
+	return false;
+}
+
+static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
 {
 	return false;
 }
@@ -866,20 +879,51 @@ static void __meminit __init_single_pfn(unsigned long pfn, unsigned long zone,
 	return __init_single_page(pfn_to_page(pfn), pfn, zone, nid);
 }
 
+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+static void init_reserved_page(unsigned long pfn)
+{
+	pg_data_t *pgdat;
+	int nid, zid;
+
+	if (!early_page_uninitialised(pfn))
+		return;
+
+	nid = early_pfn_to_nid(pfn);
+	pgdat = NODE_DATA(nid);
+
+	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+		struct zone *zone = &pgdat->node_zones[zid];
+
+		if (pfn >= zone->zone_start_pfn && pfn < zone_end_pfn(zone))
+			break;
+	}
+	__init_single_pfn(pfn, zid, nid);
+}
+#else
+static inline void init_reserved_page(unsigned long pfn)
+{
+}
+#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+
 /*
  * Initialised pages do not have PageReserved set. This function is
  * called for each range allocated by the bootmem allocator and
  * marks the pages PageReserved. The remaining valid pages are later
  * sent to the buddy page allocator.
  */
-void reserve_bootmem_region(unsigned long start, unsigned long end)
+void __meminit reserve_bootmem_region(unsigned long start, unsigned long end)
 {
 	unsigned long start_pfn = PFN_DOWN(start);
 	unsigned long end_pfn = PFN_UP(end);
 
-	for (; start_pfn < end_pfn; start_pfn++)
-		if (pfn_valid(start_pfn))
-			SetPageReserved(pfn_to_page(start_pfn));
+	for (; start_pfn < end_pfn; start_pfn++) {
+		if (pfn_valid(start_pfn)) {
+			struct page *page = pfn_to_page(start_pfn);
+
+			init_reserved_page(start_pfn);
+			SetPageReserved(page);
+		}
+	}
 }
 
 static bool free_pages_prepare(struct page *page, unsigned int order)
@@ -1016,6 +1060,74 @@ void __defer_init __free_pages_bootmem(struct page *page, unsigned long pfn,
 		return;
 	return __free_pages_boot_core(page, pfn, order);
 }
+
+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+/* Initialise remaining memory on a node */
+void __defermem_init deferred_init_memmap(int nid)
+{
+	struct mminit_pfnnid_cache nid_init_state = { };
+	unsigned long start = jiffies;
+	unsigned long nr_pages = 0;
+	unsigned long walk_start, walk_end;
+	int i, zid;
+	struct zone *zone;
+	pg_data_t *pgdat = NODE_DATA(nid);
+	unsigned long first_init_pfn = pgdat->first_deferred_pfn;
+
+	if (first_init_pfn == ULONG_MAX)
+		return;
+
+	/* Sanity check boundaries */
+	BUG_ON(pgdat->first_deferred_pfn < pgdat->node_start_pfn);
+	BUG_ON(pgdat->first_deferred_pfn > pgdat_end_pfn(pgdat));
+	pgdat->first_deferred_pfn = ULONG_MAX;
+
+	/* Only the highest zone is deferred so find it */
+	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+		zone = pgdat->node_zones + zid;
+		if (first_init_pfn < zone_end_pfn(zone))
+			break;
+	}
+
+	for_each_mem_pfn_range(i, nid, &walk_start, &walk_end, NULL) {
+		unsigned long pfn, end_pfn;
+
+		end_pfn = min(walk_end, zone_end_pfn(zone));
+		pfn = first_init_pfn;
+		if (pfn < walk_start)
+			pfn = walk_start;
+		if (pfn < zone->zone_start_pfn)
+			pfn = zone->zone_start_pfn;
+
+		for (; pfn < end_pfn; pfn++) {
+			struct page *page;
+
+			if (!pfn_valid(pfn))
+				continue;
+
+			if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state))
+				continue;
+
+			if (page->flags) {
+				VM_BUG_ON(page_zone(page) != zone);
+				continue;
+			}
+
+			__init_single_page(page, pfn, zid, nid);
+			__free_pages_boot_core(page, pfn, 0);
+			nr_pages++;
+			cond_resched();
+		}
+		first_init_pfn = max(end_pfn, first_init_pfn);
+	}
+
+	/* Sanity check that the next zone really is unpopulated */
+	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
+
+	pr_info("kswapd %d initialised %lu pages in %ums\n", nid, nr_pages,
+					jiffies_to_msecs(jiffies - start));
+}
+#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
 
 #ifdef CONFIG_CMA
 /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
@@ -4329,6 +4441,9 @@ static void setup_zone_migrate_reserve(struct zone *zone)
 	zone->nr_migrate_reserve_block = reserve;
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
+		if (!early_page_nid_uninitialised(pfn, zone_to_nid(zone)))
+			return;
+
 		if (!pfn_valid(pfn))
 			continue;
 		page = pfn_to_page(pfn);
