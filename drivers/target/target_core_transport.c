@@ -279,10 +279,7 @@ int transport_alloc_session_tags(struct se_session *se_sess,
 	if (rc < 0) {
 		pr_err("Unable to init se_sess->sess_tag_pool,"
 			" tag_num: %u\n", tag_num);
-		if (is_vmalloc_addr(se_sess->sess_cmd_map))
-			vfree(se_sess->sess_cmd_map);
-		else
-			kfree(se_sess->sess_cmd_map);
+		kvfree(se_sess->sess_cmd_map);
 		se_sess->sess_cmd_map = NULL;
 		return -ENOMEM;
 	}
@@ -489,10 +486,7 @@ void transport_free_session(struct se_session *se_sess)
 {
 	if (se_sess->sess_cmd_map) {
 		percpu_ida_destroy(&se_sess->sess_tag_pool);
-		if (is_vmalloc_addr(se_sess->sess_cmd_map))
-			vfree(se_sess->sess_cmd_map);
-		else
-			kfree(se_sess->sess_cmd_map);
+		kvfree(se_sess->sess_cmd_map);
 	}
 	kmem_cache_free(se_sess_cache, se_sess);
 }
