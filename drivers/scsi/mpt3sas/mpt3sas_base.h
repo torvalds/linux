@@ -324,6 +324,8 @@ struct _sas_device {
 	u8	fast_path;
 	u8	pfa_led_on;
 	u8	pend_sas_rphy_add;
+	u8	enclosure_level;
+	u8	connector_name[4];
 };
 
 /**
