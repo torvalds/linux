@@ -2415,14 +2415,39 @@ _base_display_cisco_branding(struct MPT3SAS_ADAPTER *ioc)
 	switch (ioc->pdev->device) {
 	case MPI25_MFGPAGE_DEVID_SAS3008:
 		switch (ioc->pdev->subsystem_device) {
-		case MPT3SAS_CISCO_12G_HBA_SSDID:
+		case MPT3SAS_CISCO_12G_8E_HBA_SSDID:
 			pr_info(MPT3SAS_FMT "%s\n", ioc->name,
-				MPT3SAS_CISCO_12G_HBA_BRANDING);
+				MPT3SAS_CISCO_12G_8E_HBA_BRANDING);
+			break;
+		case MPT3SAS_CISCO_12G_8I_HBA_SSDID:
+			pr_info(MPT3SAS_FMT "%s\n", ioc->name,
+				MPT3SAS_CISCO_12G_8I_HBA_BRANDING);
+			break;
+		case MPT3SAS_CISCO_12G_AVILA_HBA_SSDID:
+			pr_info(MPT3SAS_FMT "%s\n", ioc->name,
+				MPT3SAS_CISCO_12G_AVILA_HBA_BRANDING);
 			break;
 		default:
 			pr_info(MPT3SAS_FMT
 			  "Cisco 12Gbps SAS HBA: Subsystem ID: 0x%X\n",
 			  ioc->name, ioc->pdev->subsystem_device);
+			break;
+		}
+		break;
+	case MPI25_MFGPAGE_DEVID_SAS3108_1:
+		switch (ioc->pdev->subsystem_device) {
+		case MPT3SAS_CISCO_12G_AVILA_HBA_SSDID:
+			pr_info(MPT3SAS_FMT "%s\n", ioc->name,
+			MPT3SAS_CISCO_12G_AVILA_HBA_BRANDING);
+			break;
+		case MPT3SAS_CISCO_12G_COLUSA_MEZZANINE_HBA_SSDID:
+			pr_info(MPT3SAS_FMT "%s\n", ioc->name,
+			MPT3SAS_CISCO_12G_COLUSA_MEZZANINE_HBA_BRANDING);
+			break;
+		default:
+			pr_info(MPT3SAS_FMT
+			 "Cisco 12Gbps SAS HBA: Subsystem ID: 0x%X\n",
+			 ioc->name, ioc->pdev->subsystem_device);
 			break;
 		}
 		break;

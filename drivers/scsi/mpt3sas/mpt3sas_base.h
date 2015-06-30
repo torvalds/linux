@@ -165,13 +165,21 @@
 /*
  * Cisco HBA branding
  */
-#define MPT3SAS_CISCO_12G_HBA_BRANDING       \
-	"Cisco 9300-8E 12G SAS HBA"
-
+#define MPT3SAS_CISCO_12G_8E_HBA_BRANDING		\
+		"Cisco 9300-8E 12G SAS HBA"
+#define MPT3SAS_CISCO_12G_8I_HBA_BRANDING		\
+		"Cisco 9300-8i 12G SAS HBA"
+#define MPT3SAS_CISCO_12G_AVILA_HBA_BRANDING	\
+		"Cisco 12G Modular SAS Pass through Controller"
+#define MPT3SAS_CISCO_12G_COLUSA_MEZZANINE_HBA_BRANDING		\
+		"UCS C3X60 12G SAS Pass through Controller"
 /*
  * Cisco HBA SSSDIDs
  */
- #define MPT3SAS_CISCO_12G_HBA_SSDID  0x14C
+#define MPT3SAS_CISCO_12G_8E_HBA_SSDID  0x14C
+#define MPT3SAS_CISCO_12G_8I_HBA_SSDID  0x154
+#define MPT3SAS_CISCO_12G_AVILA_HBA_SSDID  0x155
+#define MPT3SAS_CISCO_12G_COLUSA_MEZZANINE_HBA_SSDID  0x156
 
 /*
  * status bits for ioc->diag_buffer_status
