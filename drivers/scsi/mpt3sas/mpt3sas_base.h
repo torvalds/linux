@@ -163,6 +163,17 @@
 #define MPT3SAS_DELL_12G_HBA_SSDID	0x1F46
 
 /*
+ * Cisco HBA branding
+ */
+#define MPT3SAS_CISCO_12G_HBA_BRANDING       \
+	"Cisco 9300-8E 12G SAS HBA"
+
+/*
+ * Cisco HBA SSSDIDs
+ */
+ #define MPT3SAS_CISCO_12G_HBA_SSDID  0x14C
+
+/*
  * status bits for ioc->diag_buffer_status
  */
 #define MPT3_DIAG_BUFFER_IS_REGISTERED	(0x01)
