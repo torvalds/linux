@@ -18,6 +18,7 @@ from linux import utils
 
 task_type = utils.CachedType("struct task_struct")
 
+
 def task_lists():
     global task_type
     task_ptr_type = task_type.get_type().pointer()
@@ -37,6 +38,7 @@ def task_lists():
                                    task_ptr_type, "tasks")
         if t == init_task:
             return
+
 
 def get_task_by_pid(pid):
     for task in task_lists():
