@@ -178,5 +178,8 @@ int __init imx6ul_cpuidle_init(void)
 	imx6ul_wfi_in_iram_fn = (void *)fncpy(wfi_iram_base + sizeof(*cpuidle_pm_info),
 		&imx6ul_low_power_idle, wfi_code_size);
 #endif
+
+	imx6q_set_int_mem_clk_lpm(true);
+
 	return cpuidle_register(&imx6ul_cpuidle_driver, NULL);
 }
