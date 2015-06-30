@@ -67,6 +67,22 @@ return that task_struct variable which PID matches."""
 LxTaskByPidFunc()
 
 
+class LxPs(gdb.Command):
+    """Dump Linux tasks."""
+
+    def __init__(self):
+        super(LxPs, self).__init__("lx-ps", gdb.COMMAND_DATA)
+
+    def invoke(self, arg, from_tty):
+        for task in task_lists():
+            gdb.write("{address} {pid} {comm}\n".format(
+                address=task,
+                pid=task["pid"],
+                comm=task["comm"].string()))
+
+LxPs()
+
+
 thread_info_type = utils.CachedType("struct thread_info")
 
 ia64_task_size = None
