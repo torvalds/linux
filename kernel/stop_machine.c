@@ -462,13 +462,15 @@ static void cpu_stop_create(unsigned int cpu)
 static void cpu_stop_park(unsigned int cpu)
 {
 	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
-	struct cpu_stop_work *work;
+	struct cpu_stop_work *work, *tmp;
 	unsigned long flags;
 
 	/* drain remaining works */
 	spin_lock_irqsave(&stopper->lock, flags);
-	list_for_each_entry(work, &stopper->works, list)
+	list_for_each_entry_safe(work, tmp, &stopper->works, list) {
+		list_del_init(&work->list);
 		cpu_stop_signal_done(work->done, false);
+	}
 	stopper->enabled = false;
 	spin_unlock_irqrestore(&stopper->lock, flags);
 }
