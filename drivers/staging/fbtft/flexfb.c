@@ -26,7 +26,6 @@
 
 #define DRVNAME	    "flexfb"
 
-
 static char *chip;
 module_param(chip, charp, 0);
 MODULE_PARM_DESC(chip, "LCD controller");
@@ -63,7 +62,6 @@ MODULE_PARM_DESC(nobacklight, "Turn off backlight functionality.");
 static bool latched;
 module_param(latched, bool, 0);
 MODULE_PARM_DESC(latched, "Use with latched 16-bit databus");
-
 
 static int *initp;
 static int initp_num;
@@ -127,7 +125,6 @@ static int ssd1351_init[] = { -1, 0xfd, 0x12, -1, 0xfd, 0xb1, -1, 0xae, -1, 0xb3
 			      -1, 0x15, 0x00, 0x7f, -1, 0x75, 0x00, 0x7f, -1, 0xa1, 0x00, -1, 0xa2, 0x00, -1, 0xb5, 0x00,
 			      -1, 0xab, 0x01, -1, 0xb1, 0x32, -1, 0xb4, 0xa0, 0xb5, 0x55, -1, 0xbb, 0x17, -1, 0xbe, 0x05,
 			      -1, 0xc1, 0xc8, 0x80, 0xc8, -1, 0xc7, 0x0f, -1, 0xb6, 0x01, -1, 0xa6, -1, 0xaf, -3 };
-
 
 /* ili9320, ili9325 */
 static void flexfb_set_addr_win_1(struct fbtft_par *par,
@@ -284,7 +281,6 @@ static int flexfb_probe_common(struct spi_device *sdev,
 				initp_num = ARRAY_SIZE(st7735r_init);
 			}
 
-
 		} else if (!strcmp(chip, "hx8340bn")) {
 			if (!width)
 				width = 176;
@@ -295,7 +291,6 @@ static int flexfb_probe_common(struct spi_device *sdev,
 				initp = hx8340bn_init;
 				initp_num = ARRAY_SIZE(hx8340bn_init);
 			}
-
 
 		} else if (!strcmp(chip, "ili9225")) {
 			if (!width)
@@ -309,8 +304,6 @@ static int flexfb_probe_common(struct spi_device *sdev,
 				initp_num = ARRAY_SIZE(ili9225_init);
 			}
 
-
-
 		} else if (!strcmp(chip, "ili9320")) {
 			if (!width)
 				width = 240;
@@ -322,7 +315,6 @@ static int flexfb_probe_common(struct spi_device *sdev,
 				initp = ili9320_init;
 				initp_num = ARRAY_SIZE(ili9320_init);
 			}
-
 
 		} else if (!strcmp(chip, "ili9325")) {
 			if (!width)
@@ -348,7 +340,6 @@ static int flexfb_probe_common(struct spi_device *sdev,
 				initp_num = ARRAY_SIZE(ili9341_init);
 			}
 
-
 		} else if (!strcmp(chip, "ssd1289")) {
 			if (!width)
 				width = 240;
@@ -360,8 +351,6 @@ static int flexfb_probe_common(struct spi_device *sdev,
 				initp = ssd1289_init;
 				initp_num = ARRAY_SIZE(ssd1289_init);
 			}
-
-
 
 		} else if (!strcmp(chip, "ssd1351")) {
 			if (!width)
