@@ -535,8 +535,6 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 					__func__, dimm_name, cmd_name, i);
 			return -ENXIO;
 		}
-		if (!access_ok(VERIFY_READ, p + in_len, in_size))
-			return -EFAULT;
 		if (in_len < sizeof(in_env))
 			copy = min_t(u32, sizeof(in_env) - in_len, in_size);
 		else
@@ -557,8 +555,6 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 					__func__, dimm_name, cmd_name, i);
 			return -EFAULT;
 		}
-		if (!access_ok(VERIFY_WRITE, p + in_len + out_len, out_size))
-			return -EFAULT;
 		if (out_len < sizeof(out_env))
 			copy = min_t(u32, sizeof(out_env) - out_len, out_size);
 		else
@@ -570,9 +566,6 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	}
 
 	buf_len = out_len + in_len;
-	if (!access_ok(VERIFY_WRITE, p, sizeof(buf_len)))
-		return -EFAULT;
-
 	if (buf_len > ND_IOCTL_MAX_BUFLEN) {
 		dev_dbg(dev, "%s:%s cmd: %s buf_len: %zu > %d\n", __func__,
 				dimm_name, cmd_name, buf_len,
