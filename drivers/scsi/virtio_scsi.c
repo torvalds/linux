@@ -944,7 +944,7 @@ static int virtscsi_probe(struct virtio_device *vdev)
 {
 	struct Scsi_Host *shost;
 	struct virtio_scsi *vscsi;
-	int err, host_prot;
+	int err;
 	u32 sg_elems, num_targets;
 	u32 cmd_per_lun;
 	u32 num_queues;
@@ -1003,6 +1003,8 @@ static int virtscsi_probe(struct virtio_device *vdev)
 	shost->nr_hw_queues = num_queues;
 
 	if (virtio_has_feature(vdev, VIRTIO_SCSI_F_T10_PI)) {
+		int host_prot;
+
 		host_prot = SHOST_DIF_TYPE1_PROTECTION | SHOST_DIF_TYPE2_PROTECTION |
 			    SHOST_DIF_TYPE3_PROTECTION | SHOST_DIX_TYPE1_PROTECTION |
 			    SHOST_DIX_TYPE2_PROTECTION | SHOST_DIX_TYPE3_PROTECTION;
