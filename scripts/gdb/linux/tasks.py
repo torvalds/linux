@@ -20,7 +20,6 @@ task_type = utils.CachedType("struct task_struct")
 
 
 def task_lists():
-    global task_type
     task_ptr_type = task_type.get_type().pointer()
     init_task = gdb.parse_and_eval("init_task").address
     t = g = init_task
@@ -89,7 +88,6 @@ ia64_task_size = None
 
 
 def get_thread_info(task):
-    global thread_info_type
     thread_info_ptr_type = thread_info_type.get_type().pointer()
     if utils.is_target_arch("ia64"):
         global ia64_task_size
