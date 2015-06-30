@@ -645,7 +645,6 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	rs = spi_master_get_devdata(master);
-	memset(rs, 0, sizeof(struct rockchip_spi));
 
 	/* Get basic io resource and map it */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
