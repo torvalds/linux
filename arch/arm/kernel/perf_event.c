@@ -15,7 +15,7 @@
 #include <linux/cpumask.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -824,7 +824,7 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 
 		/* Now look up the logical CPU number */
 		for_each_possible_cpu(cpu)
-			if (arch_find_n_match_cpu_physical_id(dn, cpu, NULL))
+			if (dn == of_cpu_device_node_get(cpu))
 				break;
 
 		if (cpu >= nr_cpu_ids) {
