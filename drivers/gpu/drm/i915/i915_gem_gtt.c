@@ -384,24 +384,6 @@ static void fill_page_dma_32(struct drm_device *dev, struct i915_page_dma *p,
 	fill_page_dma(dev, p, v);
 }
 
-static void free_pt(struct drm_device *dev, struct i915_page_table *pt)
-{
-	cleanup_px(dev, pt);
-	kfree(pt->used_ptes);
-	kfree(pt);
-}
-
-static void gen8_initialize_pt(struct i915_address_space *vm,
-			       struct i915_page_table *pt)
-{
-	gen8_pte_t scratch_pte;
-
-	scratch_pte = gen8_pte_encode(px_dma(vm->scratch_page),
-				      I915_CACHE_LLC, true);
-
-	fill_px(vm->dev, pt, scratch_pte);
-}
-
 static struct i915_page_table *alloc_pt(struct drm_device *dev)
 {
 	struct i915_page_table *pt;
@@ -433,13 +415,35 @@ fail_bitmap:
 	return ERR_PTR(ret);
 }
 
-static void free_pd(struct drm_device *dev, struct i915_page_directory *pd)
+static void free_pt(struct drm_device *dev, struct i915_page_table *pt)
 {
-	if (px_page(pd)) {
-		cleanup_px(dev, pd);
-		kfree(pd->used_pdes);
-		kfree(pd);
-	}
+	cleanup_px(dev, pt);
+	kfree(pt->used_ptes);
+	kfree(pt);
+}
+
+static void gen8_initialize_pt(struct i915_address_space *vm,
+			       struct i915_page_table *pt)
+{
+	gen8_pte_t scratch_pte;
+
+	scratch_pte = gen8_pte_encode(px_dma(vm->scratch_page),
+				      I915_CACHE_LLC, true);
+
+	fill_px(vm->dev, pt, scratch_pte);
+}
+
+static void gen6_initialize_pt(struct i915_address_space *vm,
+			       struct i915_page_table *pt)
+{
+	gen6_pte_t scratch_pte;
+
+	WARN_ON(px_dma(vm->scratch_page) == 0);
+
+	scratch_pte = vm->pte_encode(px_dma(vm->scratch_page),
+				     I915_CACHE_LLC, true, 0);
+
+	fill32_px(vm->dev, pt, scratch_pte);
 }
 
 static struct i915_page_directory *alloc_pd(struct drm_device *dev)
@@ -468,6 +472,61 @@ fail_bitmap:
 	kfree(pd);
 
 	return ERR_PTR(ret);
+}
+
+static void free_pd(struct drm_device *dev, struct i915_page_directory *pd)
+{
+	if (px_page(pd)) {
+		cleanup_px(dev, pd);
+		kfree(pd->used_pdes);
+		kfree(pd);
+	}
+}
+
+static void gen8_initialize_pd(struct i915_address_space *vm,
+			       struct i915_page_directory *pd)
+{
+	gen8_pde_t scratch_pde;
+
+	scratch_pde = gen8_pde_encode(px_dma(vm->scratch_pt), I915_CACHE_LLC);
+
+	fill_px(vm->dev, pd, scratch_pde);
+}
+
+static int alloc_scratch_page(struct i915_address_space *vm)
+{
+	struct i915_page_scratch *sp;
+	int ret;
+
+	WARN_ON(vm->scratch_page);
+
+	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
+	if (sp == NULL)
+		return -ENOMEM;
+
+	ret = __setup_page_dma(vm->dev, px_base(sp), GFP_DMA32 | __GFP_ZERO);
+	if (ret) {
+		kfree(sp);
+		return ret;
+	}
+
+	set_pages_uc(px_page(sp), 1);
+
+	vm->scratch_page = sp;
+
+	return 0;
+}
+
+static void free_scratch_page(struct i915_address_space *vm)
+{
+	struct i915_page_scratch *sp = vm->scratch_page;
+
+	set_pages_wb(px_page(sp), 1);
+
+	cleanup_px(vm->dev, sp);
+	kfree(sp);
+
+	vm->scratch_page = NULL;
 }
 
 /* Broadwell Page Directory Pointer Descriptors */
@@ -607,16 +666,6 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 
 	if (pt_vaddr)
 		kunmap_px(ppgtt, pt_vaddr);
-}
-
-static void gen8_initialize_pd(struct i915_address_space *vm,
-			       struct i915_page_directory *pd)
-{
-	gen8_pde_t scratch_pde;
-
-	scratch_pde = gen8_pde_encode(px_dma(vm->scratch_pt), I915_CACHE_LLC);
-
-	fill_px(vm->dev, pd, scratch_pde);
 }
 
 static void gen8_free_page_tables(struct drm_device *dev,
@@ -1272,19 +1321,6 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	}
 	if (pt_vaddr)
 		kunmap_px(ppgtt, pt_vaddr);
-}
-
-static void gen6_initialize_pt(struct i915_address_space *vm,
-			       struct i915_page_table *pt)
-{
-	gen6_pte_t scratch_pte;
-
-	WARN_ON(px_dma(vm->scratch_page) == 0);
-
-	scratch_pte = vm->pte_encode(px_dma(vm->scratch_page),
-				     I915_CACHE_LLC, true, 0);
-
-	fill32_px(vm->dev, pt, scratch_pte);
 }
 
 static int gen6_alloc_va_range(struct i915_address_space *vm,
@@ -2124,42 +2160,6 @@ void i915_global_gtt_cleanup(struct drm_device *dev)
 	}
 
 	vm->cleanup(vm);
-}
-
-static int alloc_scratch_page(struct i915_address_space *vm)
-{
-	struct i915_page_scratch *sp;
-	int ret;
-
-	WARN_ON(vm->scratch_page);
-
-	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
-	if (sp == NULL)
-		return -ENOMEM;
-
-	ret = __setup_page_dma(vm->dev, px_base(sp), GFP_DMA32 | __GFP_ZERO);
-	if (ret) {
-		kfree(sp);
-		return ret;
-	}
-
-	set_pages_uc(px_page(sp), 1);
-
-	vm->scratch_page = sp;
-
-	return 0;
-}
-
-static void free_scratch_page(struct i915_address_space *vm)
-{
-	struct i915_page_scratch *sp = vm->scratch_page;
-
-	set_pages_wb(px_page(sp), 1);
-
-	cleanup_px(vm->dev, sp);
-	kfree(sp);
-
-	vm->scratch_page = NULL;
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
