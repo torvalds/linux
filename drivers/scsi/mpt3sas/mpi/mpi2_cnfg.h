@@ -6,7 +6,7 @@
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *   mpi2_cnfg.h Version:  02.00.27
+ *   mpi2_cnfg.h Version:  02.00.28
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -175,6 +175,8 @@
  *		       MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
  *		       Added MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID for
  *		       MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
+ * 01-08-14  02.00.28  Added more defines for the BiosOptions field of
+ *		       MPI2_CONFIG_PAGE_BIOS_1.
  * --------------------------------------------------------------------------
  */
 
@@ -1334,9 +1336,17 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1 {
 	*PTR_MPI2_CONFIG_PAGE_BIOS_1,
 	Mpi2BiosPage1_t, *pMpi2BiosPage1_t;
 
-#define MPI2_BIOSPAGE1_PAGEVERSION                      (0x05)
+#define MPI2_BIOSPAGE1_PAGEVERSION                      (0x06)
 
 /*values for BIOS Page 1 BiosOptions field */
+#define MPI2_BIOSPAGE1_OPTIONS_X86_DISABLE_BIOS		(0x00000400)
+
+#define MPI2_BIOSPAGE1_OPTIONS_MASK_REGISTRATION_UEFI_BSD	(0x00000300)
+#define MPI2_BIOSPAGE1_OPTIONS_USE_BIT0_REGISTRATION_UEFI_BSD	(0x00000000)
+#define MPI2_BIOSPAGE1_OPTIONS_FULL_REGISTRATION_UEFI_BSD	(0x00000100)
+#define MPI2_BIOSPAGE1_OPTIONS_ADAPTER_REGISTRATION_UEFI_BSD	(0x00000200)
+#define MPI2_BIOSPAGE1_OPTIONS_DISABLE_REGISTRATION_UEFI_BSD	(0x00000300)
+
 #define MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID                  (0x000000F0)
 #define MPI2_BIOSPAGE1_OPTIONS_LSI_OEM_ID                   (0x00000000)
 
