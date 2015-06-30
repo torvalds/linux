@@ -513,7 +513,7 @@ early_initcall(cpu_stop_init);
 
 #ifdef CONFIG_STOP_MACHINE
 
-int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
+static int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
 {
 	struct multi_stop_data msdata = {
 		.fn = fn,
