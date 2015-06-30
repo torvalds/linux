@@ -491,6 +491,9 @@ static bool sh_pfc_pinconf_validate(struct sh_pfc *pfc, unsigned int _pin,
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		return pin->configs & SH_PFC_PIN_CFG_PULL_DOWN;
 
+	case PIN_CONFIG_POWER_SOURCE:
+		return pin->configs & SH_PFC_PIN_CFG_IO_VOLTAGE;
+
 	default:
 		return false;
 	}
@@ -503,7 +506,6 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 	struct sh_pfc *pfc = pmx->pfc;
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	unsigned long flags;
-	unsigned int bias;
 
 	if (!sh_pfc_pinconf_validate(pfc, _pin, param))
 		return -ENOTSUPP;
@@ -511,7 +513,9 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_PULL_DOWN: {
+		unsigned int bias;
+
 		if (!pfc->info->ops || !pfc->info->ops->get_bias)
 			return -ENOTSUPP;
 
@@ -524,6 +528,24 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 
 		*config = 0;
 		break;
+	}
+
+	case PIN_CONFIG_POWER_SOURCE: {
+		int ret;
+
+		if (!pfc->info->ops || !pfc->info->ops->get_io_voltage)
+			return -ENOTSUPP;
+
+		spin_lock_irqsave(&pfc->lock, flags);
+		ret = pfc->info->ops->get_io_voltage(pfc, _pin);
+		spin_unlock_irqrestore(&pfc->lock, flags);
+
+		if (ret < 0)
+			return ret;
+
+		*config = ret;
+		break;
+	}
 
 	default:
 		return -ENOTSUPP;
@@ -559,6 +581,24 @@ static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
 			spin_unlock_irqrestore(&pfc->lock, flags);
 
 			break;
+
+		case PIN_CONFIG_POWER_SOURCE: {
+			unsigned int arg =
+				pinconf_to_config_argument(configs[i]);
+			int ret;
+
+			if (!pfc->info->ops || !pfc->info->ops->set_io_voltage)
+				return -ENOTSUPP;
+
+			spin_lock_irqsave(&pfc->lock, flags);
+			ret = pfc->info->ops->set_io_voltage(pfc, _pin, arg);
+			spin_unlock_irqrestore(&pfc->lock, flags);
+
+			if (ret)
+				return ret;
+
+			break;
+		}
 
 		default:
 			return -ENOTSUPP;
