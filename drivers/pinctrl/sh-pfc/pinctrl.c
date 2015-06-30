@@ -40,6 +40,10 @@ struct sh_pfc_pinctrl {
 
 	struct pinctrl_pin_desc *pins;
 	struct sh_pfc_pin_config *configs;
+
+	const char *func_prop_name;
+	const char *groups_prop_name;
+	const char *pins_prop_name;
 };
 
 static int sh_pfc_get_groups_count(struct pinctrl_dev *pctldev)
@@ -96,10 +100,13 @@ static int sh_pfc_map_add_config(struct pinctrl_map *map,
 	return 0;
 }
 
-static int sh_pfc_dt_subnode_to_map(struct device *dev, struct device_node *np,
+static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
+				    struct device_node *np,
 				    struct pinctrl_map **map,
 				    unsigned int *num_maps, unsigned int *index)
 {
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+	struct device *dev = pmx->pfc->dev;
 	struct pinctrl_map *maps = *map;
 	unsigned int nmaps = *num_maps;
 	unsigned int idx = *index;
@@ -113,10 +120,27 @@ static int sh_pfc_dt_subnode_to_map(struct device *dev, struct device_node *np,
 	const char *pin;
 	int ret;
 
+	/* Support both the old Renesas-specific properties and the new standard
+	 * properties. Mixing old and new properties isn't allowed, neither
+	 * inside a subnode nor across subnodes.
+	 */
+	if (!pmx->func_prop_name) {
+		if (of_find_property(np, "groups", NULL) ||
+		    of_find_property(np, "pins", NULL)) {
+			pmx->func_prop_name = "function";
+			pmx->groups_prop_name = "groups";
+			pmx->pins_prop_name = "pins";
+		} else {
+			pmx->func_prop_name = "renesas,function";
+			pmx->groups_prop_name = "renesas,groups";
+			pmx->pins_prop_name = "renesas,pins";
+		}
+	}
+
 	/* Parse the function and configuration properties. At least a function
 	 * or one configuration must be specified.
 	 */
-	ret = of_property_read_string(np, "renesas,function", &function);
+	ret = of_property_read_string(np, pmx->func_prop_name, &function);
 	if (ret < 0 && ret != -EINVAL) {
 		dev_err(dev, "Invalid function in DT\n");
 		return ret;
@@ -129,11 +153,12 @@ static int sh_pfc_dt_subnode_to_map(struct device *dev, struct device_node *np,
 	if (!function && num_configs == 0) {
 		dev_err(dev,
 			"DT node must contain at least a function or config\n");
+		ret = -ENODEV;
 		goto done;
 	}
 
 	/* Count the number of pins and groups and reallocate mappings. */
-	ret = of_property_count_strings(np, "renesas,pins");
+	ret = of_property_count_strings(np, pmx->pins_prop_name);
 	if (ret == -EINVAL) {
 		num_pins = 0;
 	} else if (ret < 0) {
@@ -143,7 +168,7 @@ static int sh_pfc_dt_subnode_to_map(struct device *dev, struct device_node *np,
 		num_pins = ret;
 	}
 
-	ret = of_property_count_strings(np, "renesas,groups");
+	ret = of_property_count_strings(np, pmx->groups_prop_name);
 	if (ret == -EINVAL) {
 		num_groups = 0;
 	} else if (ret < 0) {
@@ -174,7 +199,7 @@ static int sh_pfc_dt_subnode_to_map(struct device *dev, struct device_node *np,
 	*num_maps = nmaps;
 
 	/* Iterate over pins and groups and create the mappings. */
-	of_property_for_each_string(np, "renesas,groups", prop, group) {
+	of_property_for_each_string(np, pmx->groups_prop_name, prop, group) {
 		if (function) {
 			maps[idx].type = PIN_MAP_TYPE_MUX_GROUP;
 			maps[idx].data.mux.group = group;
@@ -198,7 +223,7 @@ static int sh_pfc_dt_subnode_to_map(struct device *dev, struct device_node *np,
 		goto done;
 	}
 
-	of_property_for_each_string(np, "renesas,pins", prop, pin) {
+	of_property_for_each_string(np, pmx->pins_prop_name, prop, pin) {
 		ret = sh_pfc_map_add_config(&maps[idx], pin,
 					    PIN_MAP_TYPE_CONFIGS_PIN,
 					    configs, num_configs);
@@ -246,7 +271,7 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	index = 0;
 
 	for_each_child_of_node(np, child) {
-		ret = sh_pfc_dt_subnode_to_map(dev, child, map, num_maps,
+		ret = sh_pfc_dt_subnode_to_map(pctldev, child, map, num_maps,
 					       &index);
 		if (ret < 0)
 			goto done;
@@ -254,7 +279,8 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	/* If no mapping has been found in child nodes try the config node. */
 	if (*num_maps == 0) {
-		ret = sh_pfc_dt_subnode_to_map(dev, np, map, num_maps, &index);
+		ret = sh_pfc_dt_subnode_to_map(pctldev, np, map, num_maps,
+					       &index);
 		if (ret < 0)
 			goto done;
 	}
