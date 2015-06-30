@@ -1175,7 +1175,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	if (clock > hdmi_portclock_limit(intel_attached_hdmi(connector),
 					 true))
 		return MODE_CLOCK_HIGH;
-	if (clock < 20000)
+	if (clock < 25000)
 		return MODE_CLOCK_LOW;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
