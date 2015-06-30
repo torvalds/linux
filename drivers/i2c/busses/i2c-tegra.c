@@ -142,6 +142,7 @@ struct tegra_i2c_hw_feature {
 	bool has_config_load_reg;
 	int clk_divisor_hs_mode;
 	int clk_divisor_std_fast_mode;
+	u16 clk_divisor_fast_plus_mode;
 };
 
 /**
@@ -181,6 +182,7 @@ struct tegra_i2c_dev {
 	size_t msg_buf_remaining;
 	int msg_read;
 	u32 bus_clk_rate;
+	u16 clk_divisor_non_hs_mode;
 	bool is_suspended;
 };
 
@@ -441,7 +443,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 
 	/* Make sure clock divisor programmed correctly */
 	clk_divisor = i2c_dev->hw->clk_divisor_hs_mode;
-	clk_divisor |= i2c_dev->hw->clk_divisor_std_fast_mode <<
+	clk_divisor |= i2c_dev->clk_divisor_non_hs_mode <<
 					I2C_CLK_DIVISOR_STD_FAST_MODE_SHIFT;
 	i2c_writel(i2c_dev, clk_divisor, I2C_CLK_DIVISOR);
 
@@ -703,6 +705,7 @@ static const struct tegra_i2c_hw_feature tegra20_i2c_hw = {
 	.has_single_clk_source = false,
 	.clk_divisor_hs_mode = 3,
 	.clk_divisor_std_fast_mode = 0,
+	.clk_divisor_fast_plus_mode = 0,
 	.has_config_load_reg = false,
 };
 
@@ -712,6 +715,7 @@ static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
 	.has_single_clk_source = false,
 	.clk_divisor_hs_mode = 3,
 	.clk_divisor_std_fast_mode = 0,
+	.clk_divisor_fast_plus_mode = 0,
 	.has_config_load_reg = false,
 };
 
@@ -721,6 +725,7 @@ static const struct tegra_i2c_hw_feature tegra114_i2c_hw = {
 	.has_single_clk_source = true,
 	.clk_divisor_hs_mode = 1,
 	.clk_divisor_std_fast_mode = 0x19,
+	.clk_divisor_fast_plus_mode = 0x10,
 	.has_config_load_reg = false,
 };
 
@@ -730,6 +735,7 @@ static const struct tegra_i2c_hw_feature tegra124_i2c_hw = {
 	.has_single_clk_source = true,
 	.clk_divisor_hs_mode = 1,
 	.clk_divisor_std_fast_mode = 0x19,
+	.clk_divisor_fast_plus_mode = 0x10,
 	.has_config_load_reg = true,
 };
 
@@ -828,7 +834,14 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 		}
 	}
 
-	clk_multiplier *= (i2c_dev->hw->clk_divisor_std_fast_mode + 1);
+	i2c_dev->clk_divisor_non_hs_mode =
+			i2c_dev->hw->clk_divisor_std_fast_mode;
+	if (i2c_dev->hw->clk_divisor_fast_plus_mode &&
+		(i2c_dev->bus_clk_rate == 1000000))
+		i2c_dev->clk_divisor_non_hs_mode =
+			i2c_dev->hw->clk_divisor_fast_plus_mode;
+
+	clk_multiplier *= (i2c_dev->clk_divisor_non_hs_mode + 1);
 	ret = clk_set_rate(i2c_dev->div_clk,
 			   i2c_dev->bus_clk_rate * clk_multiplier);
 	if (ret) {
