@@ -188,14 +188,15 @@ static void ilk_fbc_enable(struct drm_crtc *crtc)
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
+	int threshold = dev_priv->fbc.threshold;
 
 	dev_priv->fbc.enabled = true;
 
 	dpfc_ctl = DPFC_CTL_PLANE(intel_crtc->plane);
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
-		dev_priv->fbc.threshold++;
+		threshold++;
 
-	switch (dev_priv->fbc.threshold) {
+	switch (threshold) {
 	case 4:
 	case 3:
 		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
@@ -259,6 +260,7 @@ static void gen7_fbc_enable(struct drm_crtc *crtc)
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
+	int threshold = dev_priv->fbc.threshold;
 
 	dev_priv->fbc.enabled = true;
 
@@ -267,9 +269,9 @@ static void gen7_fbc_enable(struct drm_crtc *crtc)
 		dpfc_ctl |= IVB_DPFC_CTL_PLANE(intel_crtc->plane);
 
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
-		dev_priv->fbc.threshold++;
+		threshold++;
 
-	switch (dev_priv->fbc.threshold) {
+	switch (threshold) {
 	case 4:
 	case 3:
 		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
