@@ -329,20 +329,20 @@ static int sx9500_read_proximity(struct sx9500_data *data,
 	else
 		ret = sx9500_wait_for_sample(data);
 
-	if (ret < 0)
-		return ret;
-
 	mutex_lock(&data->mutex);
+
+	if (ret < 0)
+		goto out_dec_data_rdy;
 
 	ret = sx9500_read_prox_data(data, chan, val);
 	if (ret < 0)
-		goto out;
-
-	ret = sx9500_dec_chan_users(data, chan->channel);
-	if (ret < 0)
-		goto out;
+		goto out_dec_data_rdy;
 
 	ret = sx9500_dec_data_rdy_users(data);
+	if (ret < 0)
+		goto out_dec_chan;
+
+	ret = sx9500_dec_chan_users(data, chan->channel);
 	if (ret < 0)
 		goto out;
 
@@ -350,6 +350,8 @@ static int sx9500_read_proximity(struct sx9500_data *data,
 
 	goto out;
 
+out_dec_data_rdy:
+	sx9500_dec_data_rdy_users(data);
 out_dec_chan:
 	sx9500_dec_chan_users(data, chan->channel);
 out:
