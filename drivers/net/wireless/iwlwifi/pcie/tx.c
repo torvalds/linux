@@ -1420,7 +1420,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	/* set up the header */
 
 	out_cmd->hdr.cmd = cmd->id;
-	out_cmd->hdr.flags = 0;
+	out_cmd->hdr.reserved = 0;
 	out_cmd->hdr.sequence =
 		cpu_to_le16(QUEUE_TO_SEQ(trans_pcie->cmd_queue) |
 					 INDEX_TO_SEQ(q->write_ptr));

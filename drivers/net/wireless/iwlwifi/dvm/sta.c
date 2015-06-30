@@ -65,12 +65,6 @@ static void iwl_process_add_sta_resp(struct iwl_priv *priv,
 {
 	struct iwl_add_sta_resp *add_sta_resp = (void *)pkt->data;
 
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
-			pkt->hdr.flags);
-		return;
-	}
-
 	IWL_DEBUG_INFO(priv, "Processing response for adding station\n");
 
 	spin_lock_bh(&priv->sta_lock);
@@ -136,8 +130,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	add_sta_resp = (void *)pkt->data;
 
 	/* debug messages are printed in the handler */
-	if (!(pkt->hdr.flags & IWL_CMD_FAILED_MSK) &&
-	    add_sta_resp->status == ADD_STA_SUCCESS_MSK) {
+	if (add_sta_resp->status == ADD_STA_SUCCESS_MSK) {
 		spin_lock_bh(&priv->sta_lock);
 		ret = iwl_sta_ucode_activate(priv, sta_id);
 		spin_unlock_bh(&priv->sta_lock);
@@ -431,6 +424,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt;
 	int ret;
 	struct iwl_rem_sta_cmd rm_sta_cmd;
+	struct iwl_rem_sta_resp *rem_sta_resp;
 
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_REMOVE_STA,
@@ -450,29 +444,23 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 		return ret;
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(priv, "Bad return from REPLY_REMOVE_STA (0x%08X)\n",
-			  pkt->hdr.flags);
+	rem_sta_resp = (void *)pkt->data;
+
+	switch (rem_sta_resp->status) {
+	case REM_STA_SUCCESS_MSK:
+		if (!temporary) {
+			spin_lock_bh(&priv->sta_lock);
+			iwl_sta_ucode_deactivate(priv, sta_id);
+			spin_unlock_bh(&priv->sta_lock);
+		}
+		IWL_DEBUG_ASSOC(priv, "REPLY_REMOVE_STA PASSED\n");
+		break;
+	default:
 		ret = -EIO;
+		IWL_ERR(priv, "REPLY_REMOVE_STA failed\n");
+		break;
 	}
 
-	if (!ret) {
-		struct iwl_rem_sta_resp *rem_sta_resp = (void *)pkt->data;
-		switch (rem_sta_resp->status) {
-		case REM_STA_SUCCESS_MSK:
-			if (!temporary) {
-				spin_lock_bh(&priv->sta_lock);
-				iwl_sta_ucode_deactivate(priv, sta_id);
-				spin_unlock_bh(&priv->sta_lock);
-			}
-			IWL_DEBUG_ASSOC(priv, "REPLY_REMOVE_STA PASSED\n");
-			break;
-		default:
-			ret = -EIO;
-			IWL_ERR(priv, "REPLY_REMOVE_STA failed\n");
-			break;
-		}
-	}
 	iwl_free_resp(&cmd);
 
 	return ret;

@@ -139,12 +139,6 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 		return ret;
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(mvm, "Bad return from NVM_ACCES_COMMAND (0x%08X)\n",
-			pkt->hdr.flags);
-		ret = -EIO;
-		goto exit;
-	}
 
 	/* Extract NVM response */
 	nvm_resp = (void *)pkt->data;
@@ -652,12 +646,6 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		return ERR_PTR(ret);
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(mvm, "Bad return from MCC_UPDATE_COMMAND (0x%08X)\n",
-			pkt->hdr.flags);
-		ret = -EIO;
-		goto exit;
-	}
 
 	/* Extract MCC response */
 	mcc_resp = (void *)pkt->data;

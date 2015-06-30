@@ -444,12 +444,6 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 		return;
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(mvm, "Bad return from SHARED_MEM_CFG (0x%08X)\n",
-			pkt->hdr.flags);
-		goto exit;
-	}
-
 	mem_cfg = (void *)pkt->data;
 
 	mvm->shared_mem_cfg.shared_mem_addr =
@@ -473,7 +467,6 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 		le32_to_cpu(mem_cfg->page_buff_size);
 	IWL_DEBUG_INFO(mvm, "SHARED MEM CFG: got memory offsets/sizes\n");
 
-exit:
 	iwl_free_resp(&cmd);
 }
 

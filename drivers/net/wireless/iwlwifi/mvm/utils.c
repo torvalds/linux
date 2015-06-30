@@ -166,11 +166,6 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 		goto out_free_resp;
 	}
 
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		ret = -EIO;
-		goto out_free_resp;
-	}
-
 	resp_len = iwl_rx_packet_payload_len(pkt);
 	if (WARN_ON_ONCE(resp_len != sizeof(*resp))) {
 		ret = -EIO;

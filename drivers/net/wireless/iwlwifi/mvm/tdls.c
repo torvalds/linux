@@ -169,18 +169,11 @@ static void iwl_mvm_tdls_config(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return;
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(mvm, "Bad return from TDLS_CONFIG_COMMAND (0x%08X)\n",
-			pkt->hdr.flags);
-		goto exit;
-	}
 
-	if (WARN_ON_ONCE(iwl_rx_packet_payload_len(pkt) != sizeof(*resp)))
-		goto exit;
+	WARN_ON_ONCE(iwl_rx_packet_payload_len(pkt) != sizeof(*resp));
 
 	/* we don't really care about the response at this point */
 
-exit:
 	iwl_free_resp(&cmd);
 }
 
