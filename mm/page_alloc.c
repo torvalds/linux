@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/interrupt.h>
+#include <linux/rwsem.h>
 #include <linux/pagemap.h>
 #include <linux/jiffies.h>
 #include <linux/bootmem.h>
@@ -61,6 +62,7 @@
 #include <linux/hugetlb.h>
 #include <linux/sched/rt.h>
 #include <linux/page_owner.h>
+#include <linux/kthread.h>
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -242,7 +244,7 @@ static inline void reset_deferred_meminit(pg_data_t *pgdat)
 }
 
 /* Returns true if the struct page for the pfn is uninitialised */
-static inline bool __defermem_init early_page_uninitialised(unsigned long pfn)
+static inline bool __meminit early_page_uninitialised(unsigned long pfn)
 {
 	int nid = early_pfn_to_nid(pfn);
 
@@ -958,7 +960,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	local_irq_restore(flags);
 }
 
-static void __defer_init __free_pages_boot_core(struct page *page,
+static void __init __free_pages_boot_core(struct page *page,
 					unsigned long pfn, unsigned int order)
 {
 	unsigned int nr_pages = 1 << order;
@@ -1031,7 +1033,7 @@ static inline bool __meminit meminit_pfn_in_nid(unsigned long pfn, int node,
 #endif
 
 
-void __defer_init __free_pages_bootmem(struct page *page, unsigned long pfn,
+void __init __free_pages_bootmem(struct page *page, unsigned long pfn,
 							unsigned int order)
 {
 	if (early_page_uninitialised(pfn))
@@ -1040,7 +1042,7 @@ void __defer_init __free_pages_bootmem(struct page *page, unsigned long pfn,
 }
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-static void __defermem_init deferred_free_range(struct page *page,
+static void __init deferred_free_range(struct page *page,
 					unsigned long pfn, int nr_pages)
 {
 	int i;
@@ -1060,20 +1062,30 @@ static void __defermem_init deferred_free_range(struct page *page,
 		__free_pages_boot_core(page, pfn, 0);
 }
 
+static __initdata DECLARE_RWSEM(pgdat_init_rwsem);
+
 /* Initialise remaining memory on a node */
-void __defermem_init deferred_init_memmap(int nid)
+static int __init deferred_init_memmap(void *data)
 {
+	pg_data_t *pgdat = data;
+	int nid = pgdat->node_id;
 	struct mminit_pfnnid_cache nid_init_state = { };
 	unsigned long start = jiffies;
 	unsigned long nr_pages = 0;
 	unsigned long walk_start, walk_end;
 	int i, zid;
 	struct zone *zone;
-	pg_data_t *pgdat = NODE_DATA(nid);
 	unsigned long first_init_pfn = pgdat->first_deferred_pfn;
+	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
 
-	if (first_init_pfn == ULONG_MAX)
-		return;
+	if (first_init_pfn == ULONG_MAX) {
+		up_read(&pgdat_init_rwsem);
+		return 0;
+	}
+
+	/* Bind memory initialisation thread to a local node if possible */
+	if (!cpumask_empty(cpumask))
+		set_cpus_allowed_ptr(current, cpumask);
 
 	/* Sanity check boundaries */
 	BUG_ON(pgdat->first_deferred_pfn < pgdat->node_start_pfn);
@@ -1165,8 +1177,24 @@ free_range:
 	/* Sanity check that the next zone really is unpopulated */
 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
 
-	pr_info("kswapd %d initialised %lu pages in %ums\n", nid, nr_pages,
+	pr_info("node %d initialised, %lu pages in %ums\n", nid, nr_pages,
 					jiffies_to_msecs(jiffies - start));
+	up_read(&pgdat_init_rwsem);
+	return 0;
+}
+
+void __init page_alloc_init_late(void)
+{
+	int nid;
+
+	for_each_node_state(nid, N_MEMORY) {
+		down_read(&pgdat_init_rwsem);
+		kthread_run(deferred_init_memmap, NODE_DATA(nid), "pgdatinit%d", nid);
+	}
+
+	/* Block until all are initialised */
+	down_write(&pgdat_init_rwsem);
+	up_write(&pgdat_init_rwsem);
 }
 #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
 
