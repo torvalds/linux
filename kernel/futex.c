@@ -2268,8 +2268,11 @@ static long futex_wait_restart(struct restart_block *restart)
 /*
  * Userspace tried a 0 -> TID atomic transition of the futex value
  * and failed. The kernel side here does the whole locking operation:
- * if there are waiters then it will block, it does PI, etc. (Due to
- * races the kernel might see a 0 value of the futex too.)
+ * if there are waiters then it will block as a consequence of relying
+ * on rt-mutexes, it does PI, etc. (Due to races the kernel might see
+ * a 0 value of the futex too.).
+ *
+ * Also serves as futex trylock_pi()'ing, and due semantics.
  */
 static int futex_lock_pi(u32 __user *uaddr, unsigned int flags,
 			 ktime_t *time, int trylock)
@@ -2300,6 +2303,10 @@ retry_private:
 
 	ret = futex_lock_pi_atomic(uaddr, hb, &q.key, &q.pi_state, current, 0);
 	if (unlikely(ret)) {
+		/*
+		 * Atomic work succeeded and we got the lock,
+		 * or failed. Either way, we do _not_ block.
+		 */
 		switch (ret) {
 		case 1:
 			/* We got the lock. */
