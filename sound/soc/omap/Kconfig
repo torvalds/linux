@@ -24,7 +24,7 @@ config SND_OMAP_SOC_HDMI_AUDIO
 	  component also under DSS HDMI device. Dummy codec is used as
 	  as codec component. The hdmi audio driver implements also
 	  the card and registers it under its own platform device.
-	  The device for the dirver is registered by OMAPDSS hdmi
+	  The device for the driver is registered by OMAPDSS hdmi
 	  driver.
 
 config SND_OMAP_SOC_N810
