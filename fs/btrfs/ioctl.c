@@ -87,7 +87,8 @@ struct btrfs_ioctl_received_subvol_args_32 {
 
 
 static int btrfs_clone(struct inode *src, struct inode *inode,
-		       u64 off, u64 olen, u64 olen_aligned, u64 destoff);
+		       u64 off, u64 olen, u64 olen_aligned, u64 destoff,
+		       int no_time_update);
 
 /* Mask out flags that are inappropriate for the given type of inode. */
 static inline __u32 btrfs_mask_flags(umode_t mode, __u32 flags)
@@ -3066,7 +3067,7 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	/* pass original length for comparison so we stay within i_size */
 	ret = btrfs_cmp_data(src, loff, dst, dst_loff, olen, &cmp);
 	if (ret == 0)
-		ret = btrfs_clone(src, dst, loff, olen, len, dst_loff);
+		ret = btrfs_clone(src, dst, loff, olen, len, dst_loff, 1);
 
 	if (same_inode)
 		unlock_extent(&BTRFS_I(src)->io_tree, same_lock_start,
@@ -3231,13 +3232,15 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 				     struct inode *inode,
 				     u64 endoff,
 				     const u64 destoff,
-				     const u64 olen)
+				     const u64 olen,
+				     int no_time_update)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
 	inode_inc_iversion(inode);
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	if (!no_time_update)
+		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	/*
 	 * We round up to the block size at eof when determining which
 	 * extents to clone above, but shouldn't round up the file size.
@@ -3322,13 +3325,13 @@ static void clone_update_extent_map(struct inode *inode,
  * @inode: Inode to clone to
  * @off: Offset within source to start clone from
  * @olen: Original length, passed by user, of range to clone
- * @olen_aligned: Block-aligned value of olen, extent_same uses
- *               identical values here
+ * @olen_aligned: Block-aligned value of olen
  * @destoff: Offset within @inode to start clone
+ * @no_time_update: Whether to update mtime/ctime on the target inode
  */
 static int btrfs_clone(struct inode *src, struct inode *inode,
 		       const u64 off, const u64 olen, const u64 olen_aligned,
-		       const u64 destoff)
+		       const u64 destoff, int no_time_update)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_path *path = NULL;
@@ -3652,7 +3655,8 @@ process_slot:
 					      root->sectorsize);
 			ret = clone_finish_inode_update(trans, inode,
 							last_dest_end,
-							destoff, olen);
+							destoff, olen,
+							no_time_update);
 			if (ret)
 				goto out;
 			if (new_key.offset + datal >= destoff + len)
@@ -3690,7 +3694,7 @@ process_slot:
 		clone_update_extent_map(inode, trans, NULL, last_dest_end,
 					destoff + len - last_dest_end);
 		ret = clone_finish_inode_update(trans, inode, destoff + len,
-						destoff, olen);
+						destoff, olen, no_time_update);
 	}
 
 out:
@@ -3827,7 +3831,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		lock_extent_range(inode, destoff, len);
 	}
 
-	ret = btrfs_clone(src, inode, off, olen, len, destoff);
+	ret = btrfs_clone(src, inode, off, olen, len, destoff, 0);
 
 	if (same_inode) {
 		u64 lock_start = min_t(u64, off, destoff);
