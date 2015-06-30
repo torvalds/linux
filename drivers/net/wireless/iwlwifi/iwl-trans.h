@@ -148,6 +148,11 @@ static inline u32 iwl_cmd_id(u8 opcode, u8 groupid, u8 version)
 	return opcode + (groupid << 8) + (version << 16);
 }
 
+/* due to the conversion, this group is special; new groups
+ * should be defined in the appropriate fw-api header files
+ */
+#define IWL_ALWAYS_LONG_GROUP	1
+
 /**
  * struct iwl_cmd_header
  *

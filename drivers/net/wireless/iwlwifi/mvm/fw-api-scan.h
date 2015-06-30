@@ -550,18 +550,6 @@ struct iwl_periodic_scan_complete {
 
 /* UMAC Scan API */
 
-/**
- * struct iwl_mvm_umac_cmd_hdr - Command header for UMAC commands
- * @size:	size of the command (not including header)
- * @reserved0:	for future use and alignment
- * @ver:	API version number
- */
-struct iwl_mvm_umac_cmd_hdr {
-	__le16 size;
-	u8 reserved0;
-	u8 ver;
-} __packed;
-
 /* The maximum of either of these cannot exceed 8, because we use an
  * 8-bit mask (see IWL_MVM_SCAN_MASK in mvm.h).
  */
@@ -621,7 +609,6 @@ enum iwl_channel_flags {
 
 /**
  * struct iwl_scan_config
- * @hdr: umac command header
  * @flags:			enum scan_config_flags
  * @tx_chains:			valid_tx antenna - ANT_* definitions
  * @rx_chains:			valid_rx antenna - ANT_* definitions
@@ -639,7 +626,6 @@ enum iwl_channel_flags {
  * @channel_array:		default supported channels
  */
 struct iwl_scan_config {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 flags;
 	__le32 tx_chains;
 	__le32 rx_chains;
@@ -734,7 +720,6 @@ struct iwl_scan_req_umac_tail {
 
 /**
  * struct iwl_scan_req_umac
- * @hdr: umac command header
  * @flags: &enum iwl_umac_scan_flags
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
@@ -753,7 +738,6 @@ struct iwl_scan_req_umac_tail {
  *	&struct iwl_scan_req_umac_tail
  */
 struct iwl_scan_req_umac {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 flags;
 	__le32 uid;
 	__le32 ooc_priority;
@@ -775,12 +759,10 @@ struct iwl_scan_req_umac {
 
 /**
  * struct iwl_umac_scan_abort
- * @hdr: umac command header
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @flags: reserved
  */
 struct iwl_umac_scan_abort {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 uid;
 	__le32 flags;
 } __packed; /* SCAN_ABORT_CMD_UMAC_API_S_VER_1 */

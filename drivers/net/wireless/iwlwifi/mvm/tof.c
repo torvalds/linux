@@ -74,33 +74,21 @@ void iwl_mvm_tof_init(struct iwl_mvm *mvm)
 
 	memset(tof_data, 0, sizeof(*tof_data));
 
-	tof_data->tof_cfg.hdr.size =
-		cpu_to_le16(sizeof(struct iwl_tof_config_cmd) -
-			    sizeof(struct iwl_mvm_umac_cmd_hdr));
 	tof_data->tof_cfg.sub_grp_cmd_id = cpu_to_le32(TOF_CONFIG_CMD);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	if (IWL_MVM_TOF_IS_RESPONDER) {
-		tof_data->responder_cfg.hdr.size =
-			cpu_to_le16(sizeof(struct iwl_tof_responder_config_cmd) -
-				    sizeof(struct iwl_mvm_umac_cmd_hdr));
 		tof_data->responder_cfg.sub_grp_cmd_id =
 			cpu_to_le32(TOF_RESPONDER_CONFIG_CMD);
 		tof_data->responder_cfg.sta_id = IWL_MVM_STATION_COUNT;
 	}
 #endif
 
-	tof_data->range_req.hdr.size =
-		cpu_to_le16(sizeof(struct iwl_tof_range_req_cmd) -
-			    sizeof(struct iwl_mvm_umac_cmd_hdr));
 	tof_data->range_req.sub_grp_cmd_id = cpu_to_le32(TOF_RANGE_REQ_CMD);
 	tof_data->range_req.req_timeout = 1;
 	tof_data->range_req.initiator = 1;
 	tof_data->range_req.report_policy = 3;
 
-	tof_data->range_req_ext.hdr.size =
-		cpu_to_le16(sizeof(struct iwl_tof_range_req_ext_cmd) -
-			    sizeof(struct iwl_mvm_umac_cmd_hdr));
 	tof_data->range_req_ext.sub_grp_cmd_id =
 		cpu_to_le32(TOF_RANGE_REQ_EXT_CMD);
 
@@ -147,15 +135,15 @@ int iwl_mvm_tof_config_cmd(struct iwl_mvm *mvm)
 	}
 
 	mvm->tof_data.active_range_request = IWL_MVM_TOF_RANGE_REQ_MAX_ID;
-	return iwl_mvm_send_cmd_pdu(mvm, TOF_CMD, 0, sizeof(*cmd), cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_CMD,
+						    IWL_ALWAYS_LONG_GROUP, 0),
+				    0, sizeof(*cmd), cmd);
 }
 
 int iwl_mvm_tof_range_abort_cmd(struct iwl_mvm *mvm, u8 id)
 {
 	struct iwl_tof_range_abort_cmd cmd = {
 		.sub_grp_cmd_id = cpu_to_le32(TOF_RANGE_ABORT_CMD),
-		.hdr.size = cpu_to_le16(sizeof(struct iwl_tof_range_abort_cmd) -
-					sizeof(struct iwl_mvm_umac_cmd_hdr)),
 		.request_id = id,
 	};
 
@@ -173,7 +161,9 @@ int iwl_mvm_tof_range_abort_cmd(struct iwl_mvm *mvm, u8 id)
 	/* after abort is sent there's no active request anymore */
 	mvm->tof_data.active_range_request = IWL_MVM_TOF_RANGE_REQ_MAX_ID;
 
-	return iwl_mvm_send_cmd_pdu(mvm, TOF_CMD, 0, sizeof(cmd), &cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_CMD,
+						    IWL_ALWAYS_LONG_GROUP, 0),
+				    0, sizeof(cmd), &cmd);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -194,7 +184,9 @@ int iwl_mvm_tof_responder_cmd(struct iwl_mvm *mvm,
 	}
 
 	cmd->sta_id = mvmvif->bcast_sta.sta_id;
-	return iwl_mvm_send_cmd_pdu(mvm, TOF_CMD, 0, sizeof(*cmd), cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_CMD,
+						    IWL_ALWAYS_LONG_GROUP, 0),
+				    0, sizeof(*cmd), cmd);
 }
 #endif
 
@@ -245,8 +237,9 @@ int iwl_mvm_tof_range_request_ext_cmd(struct iwl_mvm *mvm,
 		return -EIO;
 	}
 
-	return iwl_mvm_send_cmd_pdu(mvm, TOF_CMD, 0,
-				    sizeof(mvm->tof_data.range_req_ext),
+	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_CMD,
+						    IWL_ALWAYS_LONG_GROUP, 0),
+				    0, sizeof(mvm->tof_data.range_req_ext),
 				    &mvm->tof_data.range_req_ext);
 }
 

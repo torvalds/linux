@@ -88,7 +88,6 @@ enum iwl_mvm_tof_sub_grp_ids {
  * @is_buf_required: 1 channel estimation buffer required, 0 - otherwise
  */
 struct iwl_tof_config_cmd {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 sub_grp_cmd_id;
 	u8 tof_disabled;
 	u8 one_sided_disabled;
@@ -136,7 +135,6 @@ struct iwl_tof_config_cmd {
  * @bssid: Current AP BSSID
  */
 struct iwl_tof_responder_config_cmd {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 sub_grp_cmd_id;
 	__le16 burst_period;
 	u8 min_delta_ftm;
@@ -171,7 +169,6 @@ struct iwl_tof_responder_config_cmd {
  *			value to be sent to the AP
  */
 struct iwl_tof_range_req_ext_cmd {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 sub_grp_cmd_id;
 	__le16 tsf_timer_offset_msec;
 	__le16 reserved;
@@ -273,7 +270,6 @@ enum iwl_tof_response_mode {
  *		  Bits set to 1 shall be randomized by the UMAC
  */
 struct iwl_tof_range_req_cmd {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 sub_grp_cmd_id;
 	u8 request_id;
 	u8 initiator;
@@ -382,7 +378,6 @@ struct iwl_tof_neighbor_report {
  * @request_id: corresponds to a range request
  */
 struct iwl_tof_range_abort_cmd {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 sub_grp_cmd_id;
 	u8 request_id;
 	u8 reserved[3];

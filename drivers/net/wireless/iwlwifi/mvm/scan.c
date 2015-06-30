@@ -884,9 +884,9 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	int num_channels =
 		mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels +
 		mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
-	int ret, i, j = 0, cmd_size, data_size;
+	int ret, i, j = 0, cmd_size;
 	struct iwl_host_cmd cmd = {
-		.id = SCAN_CFG_CMD,
+		.id = iwl_cmd_id(SCAN_CFG_CMD, IWL_ALWAYS_LONG_GROUP, 0),
 	};
 
 	if (WARN_ON(num_channels > mvm->fw->ucode_capa.n_scan_channels))
@@ -898,8 +898,6 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	if (!scan_config)
 		return -ENOMEM;
 
-	data_size = cmd_size - sizeof(struct iwl_mvm_umac_cmd_hdr);
-	scan_config->hdr.size = cpu_to_le16(data_size);
 	scan_config->flags = cpu_to_le32(SCAN_CONFIG_FLAG_ACTIVATE |
 					 SCAN_CONFIG_FLAG_ALLOW_CHUB_REQS |
 					 SCAN_CONFIG_FLAG_SET_TX_CHAINS |
@@ -1045,8 +1043,6 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return uid;
 
 	memset(cmd, 0, ksize(cmd));
-	cmd->hdr.size = cpu_to_le16(iwl_mvm_scan_size(mvm) -
-				    sizeof(struct iwl_mvm_umac_cmd_hdr));
 
 	iwl_mvm_scan_umac_dwell(mvm, cmd, params);
 
@@ -1183,7 +1179,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
-		hcmd.id = SCAN_REQ_UMAC;
+		hcmd.id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
 		ret = iwl_mvm_scan_umac(mvm, vif, &params,
 					IWL_MVM_SCAN_REGULAR);
 	} else {
@@ -1291,7 +1287,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
-		hcmd.id = SCAN_REQ_UMAC;
+		hcmd.id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
 		ret = iwl_mvm_scan_umac(mvm, vif, &params, IWL_MVM_SCAN_SCHED);
 	} else {
 		hcmd.id = SCAN_OFFLOAD_REQUEST_CMD;
@@ -1369,10 +1365,7 @@ void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 
 static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 {
-	struct iwl_umac_scan_abort cmd = {
-		.hdr.size = cpu_to_le16(sizeof(struct iwl_umac_scan_abort) -
-					sizeof(struct iwl_mvm_umac_cmd_hdr)),
-	};
+	struct iwl_umac_scan_abort cmd = {};
 	int uid, ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1389,7 +1382,10 @@ static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 
 	IWL_DEBUG_SCAN(mvm, "Sending scan abort, uid %u\n", uid);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_UMAC, 0, sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   iwl_cmd_id(SCAN_ABORT_UMAC,
+					      IWL_ALWAYS_LONG_GROUP, 0),
+				   0, sizeof(cmd), &cmd);
 	if (!ret)
 		mvm->scan_uid_status[uid] = type << IWL_MVM_SCAN_STOPPING_SHIFT;
 
