@@ -234,7 +234,7 @@ static int flexfb_verify_gpios_db(struct fbtft_par *par)
 		return -EINVAL;
 	}
 	if (latched)
-		num_db = buswidth/2;
+		num_db = buswidth / 2;
 	for (i = 0; i < num_db; i++) {
 		if (par->gpio.db[i] < 0) {
 			dev_err(par->info->device,
