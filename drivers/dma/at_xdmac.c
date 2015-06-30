@@ -648,16 +648,17 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->lld.mbr_sa = mem;
 			desc->lld.mbr_da = atchan->sconfig.dst_addr;
 		}
-		desc->lld.mbr_cfg = atchan->cfg;
-		dwidth = at_xdmac_get_dwidth(desc->lld.mbr_cfg);
+		dwidth = at_xdmac_get_dwidth(atchan->cfg);
 		fixed_dwidth = IS_ALIGNED(len, 1 << dwidth)
-			       ? at_xdmac_get_dwidth(desc->lld.mbr_cfg)
+			       ? dwidth
 			       : AT_XDMAC_CC_DWIDTH_BYTE;
 		desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV2			/* next descriptor view */
 			| AT_XDMAC_MBR_UBC_NDEN					/* next descriptor dst parameter update */
 			| AT_XDMAC_MBR_UBC_NSEN					/* next descriptor src parameter update */
 			| (i == sg_len - 1 ? 0 : AT_XDMAC_MBR_UBC_NDE)		/* descriptor fetch */
 			| (len >> fixed_dwidth);				/* microblock length */
+		desc->lld.mbr_cfg = (atchan->cfg & ~AT_XDMAC_CC_DWIDTH_MASK) |
+				    AT_XDMAC_CC_DWIDTH(fixed_dwidth);
 		dev_dbg(chan2dev(chan),
 			 "%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x\n",
 			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc);
