@@ -5484,6 +5484,7 @@ static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
 	atomic_inc(&lsp->ls_count);
 	/* Ensure we don't close file until we're done freeing locks! */
 	p->ctx = get_nfs_open_context(ctx);
+	get_file(fl->fl_file);
 	memcpy(&p->fl, fl, sizeof(p->fl));
 	p->server = NFS_SERVER(inode);
 	return p;
@@ -5495,6 +5496,7 @@ static void nfs4_locku_release_calldata(void *data)
 	nfs_free_seqid(calldata->arg.seqid);
 	nfs4_put_lock_state(calldata->lsp);
 	put_nfs_open_context(calldata->ctx);
+	fput(calldata->fl.fl_file);
 	kfree(calldata);
 }
 
