@@ -1564,7 +1564,6 @@ void rockchip_hdmiv2_dev_init_ops(struct hdmi_ops *ops);
 void rockchip_hdmiv2_dev_initial(struct hdmi_dev *hdmi_dev);
 void rockchip_hdmiv2_cec_init(struct hdmi *hdmi);
 void rockchip_hdmiv2_cec_isr(struct hdmi_dev *hdmi_dev, char cec_int);
-void rockchip_hdmiv2_dump_phy_regs(struct hdmi_dev *hdmi_dev);
 void rockchip_hdmiv2_hdcp_init(struct hdmi *hdmi);
 void rockchip_hdmiv2_hdcp2_enable(int enable);
 void rockchip_hdmiv2_hdcp_isr(struct hdmi_dev *hdmi_dev, int hdcp_int);

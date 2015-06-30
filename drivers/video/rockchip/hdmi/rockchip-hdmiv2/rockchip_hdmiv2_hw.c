@@ -401,15 +401,6 @@ int rockchip_hdmiv2_read_phy(struct hdmi_dev *hdmi_dev,
 	return -1;
 }
 
-void rockchip_hdmiv2_dump_phy_regs(struct hdmi_dev *hdmi_dev)
-{
-	int i;
-
-	for (i = 0; i < 0x28; i++)
-		pr_info("phy reg %02x val %04x\n",
-			i, rockchip_hdmiv2_read_phy(hdmi_dev, i));
-}
-
 static int rockchip_hdmiv2_config_phy(struct hdmi_dev *hdmi_dev)
 {
 	int stat = 0, i = 0;
@@ -666,15 +657,13 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 	hdmi_writel(hdmi_dev, FC_CTRLDUR, 12);
 	hdmi_writel(hdmi_dev, FC_EXCTRLDUR, 32);
 
+	/* spacing < 256^2 * config / tmdsClock, spacing <= 50ms
+	 * worst case: tmdsClock == 25MHz => config <= 19
+	 */
 	hdmi_writel(hdmi_dev, FC_EXCTRLSPAC,
 		    (hdmi_dev->tmdsclk/1000) * 50 / (256 * 512));
 
 #if 0
-	/* spacing < 256^2 * config / tmdsClock, spacing <= 50ms
-	 * worst case: tmdsClock == 25MHz => config <= 19
-	 */
-	hdmi_writel(hdmi_dev, FC_EXCTRLSPAC, 1);
-
 	/*Set PreambleFilter*/
 	for (i = 0; i < 3; i++) {
 		value = (i + 1) * 11;
@@ -1110,16 +1099,6 @@ static int hdmi_dev_read_edid(struct hdmi *hdmi, int block, unsigned char *buff)
 exit:
 	/* Disable I2C interrupt */
 	rockchip_hdmiv2_i2cm_mask_int(hdmi_dev, 1);
-
-	#ifdef DEBUG
-	if (!ret) {
-		for (index = 0; index < 128; index++) {
-			printk("0x%02x ,", buff[index]);
-			if ((index + 1) % 16 == 0)
-				printk("\n");
-		}
-	}
-	#endif
 	return ret;
 }
 
