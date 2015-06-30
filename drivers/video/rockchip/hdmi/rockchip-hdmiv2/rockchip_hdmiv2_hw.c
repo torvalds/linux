@@ -324,8 +324,8 @@ static void rockchip_hdmiv2_powerdown(struct hdmi_dev *hdmi_dev)
 	hdmi_writel(hdmi_dev, MC_CLKDIS, 0x7f);
 }
 
-static int rockchip_hdmiv2_write_phy(struct hdmi_dev *hdmi_dev,
-				     int reg_addr, int val)
+int rockchip_hdmiv2_write_phy(struct hdmi_dev *hdmi_dev,
+			      int reg_addr, int val)
 {
 	int trytime = 2, i = 0, op_status = 0;
 
@@ -360,8 +360,8 @@ static int rockchip_hdmiv2_write_phy(struct hdmi_dev *hdmi_dev,
 	return -1;
 }
 
-static int __maybe_unused rockchip_hdmiv2_read_phy(struct hdmi_dev *hdmi_dev,
-						   int reg_addr)
+int rockchip_hdmiv2_read_phy(struct hdmi_dev *hdmi_dev,
+			     int reg_addr)
 {
 	int trytime = 2, i = 0, op_status = 0;
 	int val = 0;
@@ -472,7 +472,7 @@ static int rockchip_hdmiv2_config_phy(struct hdmi_dev *hdmi_dev)
 					  phy_mpll->gmp_cntrl));
 	}
 	rockchip_hdmiv2_write_phy(hdmi_dev, PHYTX_TERM_RESIS,
-					  v_TX_TERM(R50_OHMS));
+				  v_TX_TERM(R50_OHMS));
 	rockchip_hdmiv2_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL,
 				  v_OVERRIDE(1) | v_SLOPEBOOST(0) |
 				  v_TX_SYMON(1) | v_TX_TRAON(0) |

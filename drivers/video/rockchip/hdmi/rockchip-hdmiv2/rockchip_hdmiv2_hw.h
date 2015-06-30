@@ -1568,4 +1568,8 @@ void rockchip_hdmiv2_dump_phy_regs(struct hdmi_dev *hdmi_dev);
 void rockchip_hdmiv2_hdcp_init(struct hdmi *hdmi);
 void rockchip_hdmiv2_hdcp2_enable(int enable);
 void rockchip_hdmiv2_hdcp_isr(struct hdmi_dev *hdmi_dev, int hdcp_int);
+int rockchip_hdmiv2_write_phy(struct hdmi_dev *hdmi_dev,
+			      int reg_addr, int val);
+int rockchip_hdmiv2_read_phy(struct hdmi_dev *hdmi_dev,
+			     int reg_addr);
 #endif
