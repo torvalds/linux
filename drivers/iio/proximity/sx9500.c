@@ -80,6 +80,7 @@
 #define SX9500_COMPSTAT_MASK		GENMASK(3, 0)
 
 #define SX9500_NUM_CHANNELS		4
+#define SX9500_CHAN_MASK		GENMASK(SX9500_NUM_CHANNELS - 1, 0)
 
 struct sx9500_data {
 	struct mutex mutex;
@@ -802,8 +803,7 @@ static int sx9500_init_compensation(struct iio_dev *indio_dev)
 	unsigned int val;
 
 	ret = regmap_update_bits(data->regmap, SX9500_REG_PROX_CTRL0,
-				 GENMASK(SX9500_NUM_CHANNELS, 0),
-				 GENMASK(SX9500_NUM_CHANNELS, 0));
+				 SX9500_CHAN_MASK, SX9500_CHAN_MASK);
 	if (ret < 0)
 		return ret;
 
@@ -823,7 +823,7 @@ static int sx9500_init_compensation(struct iio_dev *indio_dev)
 
 out:
 	regmap_update_bits(data->regmap, SX9500_REG_PROX_CTRL0,
-			   GENMASK(SX9500_NUM_CHANNELS, 0), 0);
+			   SX9500_CHAN_MASK, 0);
 	return ret;
 }
 
