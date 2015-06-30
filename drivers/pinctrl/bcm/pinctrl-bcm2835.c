@@ -473,6 +473,8 @@ static void bcm2835_gpio_irq_disable(struct irq_data *data)
 
 	spin_lock_irqsave(&pc->irq_lock[bank], flags);
 	bcm2835_gpio_irq_config(pc, gpio, false);
+	/* Clear events that were latched prior to clearing event sources */
+	bcm2835_gpio_set_bit(pc, GPEDS0, gpio);
 	clear_bit(offset, &pc->enabled_irq_map[bank]);
 	spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
 }
