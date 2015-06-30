@@ -225,12 +225,10 @@ static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 
 	switch (status) {
 	case OMAP_DWC3_ID_GROUND:
-		dev_dbg(omap->dev, "ID GND\n");
-
 		if (omap->vbus_reg) {
 			ret = regulator_enable(omap->vbus_reg);
 			if (ret) {
-				dev_dbg(omap->dev, "regulator enable failed\n");
+				dev_err(omap->dev, "regulator enable failed\n");
 				return;
 			}
 		}
@@ -245,8 +243,6 @@ static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 		break;
 
 	case OMAP_DWC3_VBUS_VALID:
-		dev_dbg(omap->dev, "VBUS Connect\n");
-
 		val = dwc3_omap_read_utmi_ctrl(omap);
 		val &= ~USBOTGSS_UTMI_OTG_CTRL_SESSEND;
 		val |= USBOTGSS_UTMI_OTG_CTRL_IDDIG
@@ -261,8 +257,6 @@ static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 			regulator_disable(omap->vbus_reg);
 
 	case OMAP_DWC3_VBUS_OFF:
-		dev_dbg(omap->dev, "VBUS Disconnect\n");
-
 		val = dwc3_omap_read_utmi_ctrl(omap);
 		val &= ~(USBOTGSS_UTMI_OTG_CTRL_SESSVALID
 				| USBOTGSS_UTMI_OTG_CTRL_VBUSVALID
@@ -273,7 +267,7 @@ static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 		break;
 
 	default:
-		dev_dbg(omap->dev, "invalid state\n");
+		dev_WARN(omap->dev, "invalid state\n");
 	}
 }
 
@@ -284,37 +278,8 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 
 	reg = dwc3_omap_read_irqmisc_status(omap);
 
-	if (reg & USBOTGSS_IRQMISC_DMADISABLECLR) {
-		dev_dbg(omap->dev, "DMA Disable was Cleared\n");
+	if (reg & USBOTGSS_IRQMISC_DMADISABLECLR)
 		omap->dma_status = false;
-	}
-
-	if (reg & USBOTGSS_IRQMISC_OEVT)
-		dev_dbg(omap->dev, "OTG Event\n");
-
-	if (reg & USBOTGSS_IRQMISC_DRVVBUS_RISE)
-		dev_dbg(omap->dev, "DRVVBUS Rise\n");
-
-	if (reg & USBOTGSS_IRQMISC_CHRGVBUS_RISE)
-		dev_dbg(omap->dev, "CHRGVBUS Rise\n");
-
-	if (reg & USBOTGSS_IRQMISC_DISCHRGVBUS_RISE)
-		dev_dbg(omap->dev, "DISCHRGVBUS Rise\n");
-
-	if (reg & USBOTGSS_IRQMISC_IDPULLUP_RISE)
-		dev_dbg(omap->dev, "IDPULLUP Rise\n");
-
-	if (reg & USBOTGSS_IRQMISC_DRVVBUS_FALL)
-		dev_dbg(omap->dev, "DRVVBUS Fall\n");
-
-	if (reg & USBOTGSS_IRQMISC_CHRGVBUS_FALL)
-		dev_dbg(omap->dev, "CHRGVBUS Fall\n");
-
-	if (reg & USBOTGSS_IRQMISC_DISCHRGVBUS_FALL)
-		dev_dbg(omap->dev, "DISCHRGVBUS Fall\n");
-
-	if (reg & USBOTGSS_IRQMISC_IDPULLUP_FALL)
-		dev_dbg(omap->dev, "IDPULLUP Fall\n");
 
 	dwc3_omap_write_irqmisc_status(omap, reg);
 
@@ -434,7 +399,7 @@ static void dwc3_omap_set_utmi_mode(struct dwc3_omap *omap)
 		reg &= ~USBOTGSS_UTMI_OTG_CTRL_SW_MODE;
 		break;
 	default:
-		dev_dbg(omap->dev, "UNKNOWN utmi mode %d\n", utmi_mode);
+		dev_WARN(omap->dev, "UNKNOWN utmi mode %d\n", utmi_mode);
 	}
 
 	dwc3_omap_write_utmi_ctrl(omap, reg);
