@@ -426,7 +426,6 @@ static void storvsc_host_scan(struct work_struct *work)
 	struct storvsc_scan_work *wrk;
 	struct Scsi_Host *host;
 	struct scsi_device *sdev;
-	unsigned long flags;
 
 	wrk = container_of(work, struct storvsc_scan_work, work);
 	host = wrk->host;
@@ -443,14 +442,8 @@ static void storvsc_host_scan(struct work_struct *work)
 	 * may have been removed this way.
 	 */
 	mutex_lock(&host->scan_mutex);
-	spin_lock_irqsave(host->host_lock, flags);
-	list_for_each_entry(sdev, &host->__devices, siblings) {
-		spin_unlock_irqrestore(host->host_lock, flags);
+	shost_for_each_device(sdev, host)
 		scsi_test_unit_ready(sdev, 1, 1, NULL);
-		spin_lock_irqsave(host->host_lock, flags);
-		continue;
-	}
-	spin_unlock_irqrestore(host->host_lock, flags);
 	mutex_unlock(&host->scan_mutex);
 	/*
 	 * Now scan the host to discover LUNs that may have been added.
