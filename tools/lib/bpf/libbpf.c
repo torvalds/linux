@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <asm/unistd.h>
+#include <linux/kernel.h>
 #include <linux/bpf.h>
 #include <libelf.h>
 #include <gelf.h>
@@ -78,6 +79,8 @@ void libbpf_set_print(libbpf_print_fn_t warn,
 #endif
 
 struct bpf_object {
+	char license[64];
+	u32 kern_version;
 	/*
 	 * Information when doing elf related work. Only valid if fd
 	 * is valid.
@@ -220,6 +223,33 @@ mismatch:
 	return -EINVAL;
 }
 
+static int
+bpf_object__init_license(struct bpf_object *obj,
+			 void *data, size_t size)
+{
+	memcpy(obj->license, data,
+	       min(size, sizeof(obj->license) - 1));
+	pr_debug("license of %s is %s\n", obj->path, obj->license);
+	return 0;
+}
+
+static int
+bpf_object__init_kversion(struct bpf_object *obj,
+			  void *data, size_t size)
+{
+	u32 kver;
+
+	if (size != sizeof(kver)) {
+		pr_warning("invalid kver section in %s\n", obj->path);
+		return -EINVAL;
+	}
+	memcpy(&kver, data, sizeof(kver));
+	obj->kern_version = kver;
+	pr_debug("kernel version of %s is %x\n", obj->path,
+		 obj->kern_version);
+	return 0;
+}
+
 static int bpf_object__elf_collect(struct bpf_object *obj)
 {
 	Elf *elf = obj->efile.elf;
@@ -266,9 +296,30 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			 name, (unsigned long)data->d_size,
 			 (int)sh.sh_link, (unsigned long)sh.sh_flags,
 			 (int)sh.sh_type);
+
+		if (strcmp(name, "license") == 0)
+			err = bpf_object__init_license(obj,
+						       data->d_buf,
+						       data->d_size);
+		else if (strcmp(name, "version") == 0)
+			err = bpf_object__init_kversion(obj,
+							data->d_buf,
+							data->d_size);
+		if (err)
+			goto out;
 	}
 out:
 	return err;
+}
+
+static int bpf_object__validate(struct bpf_object *obj)
+{
+	if (obj->kern_version == 0) {
+		pr_warning("%s doesn't provide kernel version\n",
+			   obj->path);
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static struct bpf_object *
@@ -290,6 +341,8 @@ __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz)
 	if (bpf_object__check_endianness(obj))
 		goto out;
 	if (bpf_object__elf_collect(obj))
+		goto out;
+	if (bpf_object__validate(obj))
 		goto out;
 
 	bpf_object__elf_finish(obj);
