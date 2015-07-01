@@ -327,7 +327,6 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
 	list_add_tail(&req->list, &fc->pending);
-	req->state = FUSE_REQ_PENDING;
 	wake_up(&fc->waitq);
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 }
@@ -1274,7 +1273,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	}
 
 	req = list_entry(fc->pending.next, struct fuse_req, list);
-	req->state = FUSE_REQ_READING;
+	req->state = FUSE_REQ_IO;
 	list_move(&req->list, &fc->io);
 
 	in = &req->in;
@@ -1905,7 +1904,7 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 		return nbytes;
 	}
 
-	req->state = FUSE_REQ_WRITING;
+	req->state = FUSE_REQ_IO;
 	list_move(&req->list, &fc->io);
 	req->out.h = oh;
 	set_bit(FR_LOCKED, &req->flags);
