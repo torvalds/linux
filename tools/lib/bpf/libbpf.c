@@ -630,6 +630,56 @@ bpf_object__create_maps(struct bpf_object *obj)
 	return 0;
 }
 
+static int
+bpf_program__relocate(struct bpf_program *prog, int *map_fds)
+{
+	int i;
+
+	if (!prog || !prog->reloc_desc)
+		return 0;
+
+	for (i = 0; i < prog->nr_reloc; i++) {
+		int insn_idx, map_idx;
+		struct bpf_insn *insns = prog->insns;
+
+		insn_idx = prog->reloc_desc[i].insn_idx;
+		map_idx = prog->reloc_desc[i].map_idx;
+
+		if (insn_idx >= (int)prog->insns_cnt) {
+			pr_warning("relocation out of range: '%s'\n",
+				   prog->section_name);
+			return -ERANGE;
+		}
+		insns[insn_idx].src_reg = BPF_PSEUDO_MAP_FD;
+		insns[insn_idx].imm = map_fds[map_idx];
+	}
+
+	zfree(&prog->reloc_desc);
+	prog->nr_reloc = 0;
+	return 0;
+}
+
+
+static int
+bpf_object__relocate(struct bpf_object *obj)
+{
+	struct bpf_program *prog;
+	size_t i;
+	int err;
+
+	for (i = 0; i < obj->nr_programs; i++) {
+		prog = &obj->programs[i];
+
+		err = bpf_program__relocate(prog, obj->map_fds);
+		if (err) {
+			pr_warning("failed to relocate '%s'\n",
+				   prog->section_name);
+			return err;
+		}
+	}
+	return 0;
+}
+
 static int bpf_object__collect_reloc(struct bpf_object *obj)
 {
 	int i, err;
@@ -760,6 +810,8 @@ int bpf_object__load(struct bpf_object *obj)
 
 	obj->loaded = true;
 	if (bpf_object__create_maps(obj))
+		goto out;
+	if (bpf_object__relocate(obj))
 		goto out;
 
 	return 0;
