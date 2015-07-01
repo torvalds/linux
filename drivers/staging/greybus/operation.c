@@ -673,12 +673,8 @@ static int gb_operation_response_send(struct gb_operation *operation,
 		return 0;
 
 	if (!operation->response) {
-		if (!gb_operation_response_alloc(operation, 0)) {
-			dev_err(&connection->dev,
-				"error allocating response\n");
-			/* XXX Respond with pre-allocated -ENOMEM? */
+		if (!gb_operation_response_alloc(operation, 0))
 			return -ENOMEM;
-		}
 	}
 
 	/* Reference will be dropped when message has been sent. */
