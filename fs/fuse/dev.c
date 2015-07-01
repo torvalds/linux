@@ -383,14 +383,12 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 __releases(fc->lock)
 {
 	struct fuse_iqueue *fiq = &fc->iq;
-	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
 
 	if (test_and_set_bit(FR_FINISHED, &req->flags)) {
 		spin_unlock(&fc->lock);
 		return;
 	}
 
-	req->end = NULL;
 	spin_lock(&fiq->waitq.lock);
 	list_del_init(&req->intr_entry);
 	spin_unlock(&fiq->waitq.lock);
@@ -416,8 +414,8 @@ __releases(fc->lock)
 	}
 	spin_unlock(&fc->lock);
 	wake_up(&req->waitq);
-	if (end)
-		end(fc, req);
+	if (req->end)
+		req->end(fc, req);
 	fuse_put_request(fc, req);
 }
 
