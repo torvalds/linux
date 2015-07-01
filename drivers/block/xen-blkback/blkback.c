@@ -84,6 +84,13 @@ MODULE_PARM_DESC(max_persistent_grants,
                  "Maximum number of grants to map persistently");
 
 /*
+ * Maximum order of pages to be used for the shared ring between front and
+ * backend, 4KB page granularity is used.
+ */
+unsigned int xen_blkif_max_ring_order = XENBUS_MAX_RING_PAGE_ORDER;
+module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, S_IRUGO);
+MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the shared ring");
+/*
  * The LRU mechanism to clean the lists of persistent grants needs to
  * be executed periodically. The time interval between consecutive executions
  * of the purge mechanism is set in ms.
@@ -1437,6 +1444,12 @@ static int __init xen_blkif_init(void)
 
 	if (!xen_domain())
 		return -ENODEV;
+
+	if (xen_blkif_max_ring_order > XENBUS_MAX_RING_PAGE_ORDER) {
+		pr_info("Invalid max_ring_order (%d), will use default max: %d.\n",
+			xen_blkif_max_ring_order, XENBUS_MAX_RING_PAGE_ORDER);
+		xen_blkif_max_ring_order = XENBUS_MAX_RING_PAGE_ORDER;
+	}
 
 	rc = xen_blkif_interface_init();
 	if (rc)
