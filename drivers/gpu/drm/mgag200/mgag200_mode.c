@@ -158,7 +158,7 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 static int mga_g200wb_set_plls(struct mga_device *mdev, long clock)
 {
 	unsigned int vcomax, vcomin, pllreffreq;
-	unsigned int delta, tmpdelta, permitteddelta;
+	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n;
 	unsigned int computed;
@@ -172,7 +172,6 @@ static int mga_g200wb_set_plls(struct mga_device *mdev, long clock)
 	pllreffreq = 48000;
 
 	delta = 0xffffffff;
-	permitteddelta = clock * 5 / 1000;
 
 	for (testp = 1; testp < 9; testp++) {
 		if (clock * testp > vcomax)
@@ -298,7 +297,7 @@ static int mga_g200wb_set_plls(struct mga_device *mdev, long clock)
 static int mga_g200ev_set_plls(struct mga_device *mdev, long clock)
 {
 	unsigned int vcomax, vcomin, pllreffreq;
-	unsigned int delta, tmpdelta, permitteddelta;
+	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n;
 	unsigned int computed;
@@ -310,7 +309,6 @@ static int mga_g200ev_set_plls(struct mga_device *mdev, long clock)
 	pllreffreq = 50000;
 
 	delta = 0xffffffff;
-	permitteddelta = clock * 5 / 1000;
 
 	for (testp = 16; testp > 0; testp--) {
 		if (clock * testp > vcomax)
@@ -392,7 +390,7 @@ static int mga_g200ev_set_plls(struct mga_device *mdev, long clock)
 static int mga_g200eh_set_plls(struct mga_device *mdev, long clock)
 {
 	unsigned int vcomax, vcomin, pllreffreq;
-	unsigned int delta, tmpdelta, permitteddelta;
+	unsigned int delta, tmpdelta;
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n;
 	unsigned int computed;
@@ -406,7 +404,6 @@ static int mga_g200eh_set_plls(struct mga_device *mdev, long clock)
 	pllreffreq = 33333;
 
 	delta = 0xffffffff;
-	permitteddelta = clock * 5 / 1000;
 
 	for (testp = 16; testp > 0; testp >>= 1) {
 		if (clock * testp > vcomax)
