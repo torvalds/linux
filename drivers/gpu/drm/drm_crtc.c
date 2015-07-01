@@ -4298,7 +4298,6 @@ void drm_property_unreference_blob(struct drm_property_blob *blob)
 		mutex_unlock(&dev->mode_config.blob_lock);
 	else
 		might_lock(&dev->mode_config.blob_lock);
-
 }
 EXPORT_SYMBOL(drm_property_unreference_blob);
 
