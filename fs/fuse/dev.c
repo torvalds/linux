@@ -2127,7 +2127,6 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		LIST_HEAD(to_end2);
 
 		fc->connected = 0;
-		fiq->connected = 0;
 		fc->blocked = 0;
 		fuse_set_initialized(fc);
 		list_for_each_entry_safe(req, next, &fc->io, list) {
@@ -2140,7 +2139,14 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		}
 		fc->max_background = UINT_MAX;
 		flush_bg_queue(fc);
+
+		fiq->connected = 0;
 		list_splice_init(&fiq->pending, &to_end2);
+		while (forget_pending(fiq))
+			kfree(dequeue_forget(fiq, 1, NULL));
+		wake_up_all(&fiq->waitq);
+		kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
+
 		list_splice_init(&fc->processing, &to_end2);
 		while (!list_empty(&to_end1)) {
 			req = list_first_entry(&to_end1, struct fuse_req, list);
@@ -2149,12 +2155,8 @@ void fuse_abort_conn(struct fuse_conn *fc)
 			spin_lock(&fc->lock);
 		}
 		end_requests(fc, &to_end2);
-		while (forget_pending(fiq))
-			kfree(dequeue_forget(fiq, 1, NULL));
 		end_polls(fc);
-		wake_up_all(&fiq->waitq);
 		wake_up_all(&fc->blocked_waitq);
-		kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 	}
 	spin_unlock(&fc->lock);
 }
