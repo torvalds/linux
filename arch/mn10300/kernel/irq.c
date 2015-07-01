@@ -320,11 +320,11 @@ void migrate_irqs(void)
 		if (irqd_is_per_cpu(data))
 			continue;
 
-		if (cpumask_test_cpu(self, &data->affinity) &&
+		if (cpumask_test_cpu(self, data->affinity) &&
 		    !cpumask_intersects(&irq_affinity[irq], cpu_online_mask)) {
 			int cpu_id;
 			cpu_id = cpumask_first(cpu_online_mask);
-			cpumask_set_cpu(cpu_id, &data->affinity);
+			cpumask_set_cpu(cpu_id, data->affinity);
 		}
 		/* We need to operate irq_affinity_online atomically. */
 		arch_local_cli_save(flags);
@@ -335,7 +335,7 @@ void migrate_irqs(void)
 			GxICR(irq) = x & GxICR_LEVEL;
 			tmp = GxICR(irq);
 
-			new = cpumask_any_and(&data->affinity,
+			new = cpumask_any_and(data->affinity,
 					      cpu_online_mask);
 			irq_affinity_online[irq] = new;
 

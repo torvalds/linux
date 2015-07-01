@@ -865,8 +865,8 @@ static int adi_gpio_pint_probe(struct platform_device *pdev)
 	pint->pint_map_port = adi_pint_map_port;
 	platform_set_drvdata(pdev, pint);
 
-	irq_set_chained_handler(pint->irq, adi_gpio_handle_pint_irq);
-	irq_set_handler_data(pint->irq, pint);
+	irq_set_chained_handler_and_data(pint->irq, adi_gpio_handle_pint_irq,
+					 pint);
 
 	list_add_tail(&pint->node, &adi_pint_list);
 

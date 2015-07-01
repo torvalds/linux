@@ -366,8 +366,9 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 			/* redirect this interrupts to the first one */
 			irq_set_chip(irq2, &dummy_irq_chip);
-			irq_set_chained_handler(irq2, intc_redirect_irq);
-			irq_set_handler_data(irq2, (void *)irq);
+			irq_set_chained_handler_and_data(irq2,
+							 intc_redirect_irq,
+							 (void *)irq);
 		}
 	}
 

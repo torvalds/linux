@@ -384,8 +384,8 @@ static void ar2315_pci_irq_init(struct ar2315_pci_ctrl *apc)
 
 	apc->irq_ext = irq_create_mapping(apc->domain, AR2315_PCI_IRQ_EXT);
 
-	irq_set_chained_handler(apc->irq, ar2315_pci_irq_handler);
-	irq_set_handler_data(apc->irq, apc);
+	irq_set_chained_handler_and_data(apc->irq, ar2315_pci_irq_handler,
+					 apc);
 
 	/* Clear any pending Abort or external Interrupts
 	 * and enable interrupt processing */

@@ -657,8 +657,9 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 	}
 	for (i = 0; i < kona_gpio->num_bank; i++) {
 		bank = &kona_gpio->banks[i];
-		irq_set_chained_handler(bank->irq, bcm_kona_gpio_irq_handler);
-		irq_set_handler_data(bank->irq, bank);
+		irq_set_chained_handler_and_data(bank->irq,
+						 bcm_kona_gpio_irq_handler,
+						 bank);
 	}
 
 	spin_lock_init(&kona_gpio->lock);
