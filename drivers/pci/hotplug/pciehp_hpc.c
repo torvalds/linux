@@ -543,7 +543,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	struct pci_dev *dev;
 	struct slot *slot = ctrl->slot;
 	u16 detected, intr_loc;
-	u8 open, present;
+	u8 present;
 	bool link;
 
 	/*
@@ -561,7 +561,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		}
 
 		detected &= (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
-			     PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
+			     PCI_EXP_SLTSTA_PDC |
 			     PCI_EXP_SLTSTA_CC | PCI_EXP_SLTSTA_DLLSC);
 		detected &= ~intr_loc;
 		intr_loc |= detected;
@@ -593,15 +593,6 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 
 	if (!(intr_loc & ~PCI_EXP_SLTSTA_CC))
 		return IRQ_HANDLED;
-
-	/* Check MRL Sensor Changed */
-	if (intr_loc & PCI_EXP_SLTSTA_MRLSC) {
-		pciehp_get_latch_status(slot, &open);
-		ctrl_info(ctrl, "Latch %s on Slot(%s)\n",
-			  open ? "open" : "close", slot_name(slot));
-		pciehp_queue_interrupt_event(slot, open ? INT_SWITCH_OPEN :
-					     INT_SWITCH_CLOSE);
-	}
 
 	/* Check Attention Button Pressed */
 	if (intr_loc & PCI_EXP_SLTSTA_ABP) {
@@ -662,13 +653,11 @@ void pcie_enable_notification(struct controller *ctrl)
 		cmd |= PCI_EXP_SLTCTL_ABPE;
 	else
 		cmd |= PCI_EXP_SLTCTL_PDCE;
-	if (MRL_SENS(ctrl))
-		cmd |= PCI_EXP_SLTCTL_MRLSCE;
 	if (!pciehp_poll_mode)
 		cmd |= PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE;
 
 	mask = (PCI_EXP_SLTCTL_PDCE | PCI_EXP_SLTCTL_ABPE |
-		PCI_EXP_SLTCTL_MRLSCE | PCI_EXP_SLTCTL_PFDE |
+		PCI_EXP_SLTCTL_PFDE |
 		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
 		PCI_EXP_SLTCTL_DLLSCE);
 

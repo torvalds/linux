@@ -103,12 +103,10 @@ struct controller {
 
 #define INT_PRESENCE_ON			1
 #define INT_PRESENCE_OFF		2
-#define INT_SWITCH_CLOSE		3
-#define INT_SWITCH_OPEN			4
-#define INT_POWER_FAULT			5
-#define INT_BUTTON_PRESS		6
-#define INT_LINK_UP			7
-#define INT_LINK_DOWN			8
+#define INT_POWER_FAULT			3
+#define INT_BUTTON_PRESS		4
+#define INT_LINK_UP			5
+#define INT_LINK_DOWN			6
 
 #define STATIC_STATE			0
 #define BLINKINGON_STATE		1
