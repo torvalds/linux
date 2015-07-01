@@ -588,7 +588,6 @@ void fuse_conn_init(struct fuse_conn *fc)
 	fc->congestion_threshold = FUSE_DEFAULT_CONGESTION_THRESHOLD;
 	fc->khctr = 0;
 	fc->polled_files = RB_ROOT;
-	fc->reqctr = 0;
 	fc->blocked = 0;
 	fc->initialized = 0;
 	fc->attr_version = 1;

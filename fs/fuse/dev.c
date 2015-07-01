@@ -319,12 +319,7 @@ static unsigned len_args(unsigned numargs, struct fuse_arg *args)
 
 static u64 fuse_get_unique(struct fuse_conn *fc)
 {
-	fc->reqctr++;
-	/* zero is special */
-	if (fc->reqctr == 0)
-		fc->reqctr = 1;
-
-	return fc->reqctr;
+	return ++fc->reqctr;
 }
 
 static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
