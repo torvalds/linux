@@ -1149,12 +1149,12 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
 	if (!buf)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 	if (ret) {
 		free_extent_buffer(buf);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 	return buf;
 
@@ -1509,20 +1509,19 @@ static struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
 	generation = btrfs_root_generation(&root->root_item);
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     generation);
-	if (!root->node) {
-		ret = -ENOMEM;
+	if (IS_ERR(root->node)) {
+		ret = PTR_ERR(root->node);
 		goto find_fail;
 	} else if (!btrfs_buffer_uptodate(root->node, generation, 0)) {
 		ret = -EIO;
-		goto read_fail;
+		free_extent_buffer(root->node);
+		goto find_fail;
 	}
 	root->commit_root = btrfs_root_node(root);
 out:
 	btrfs_free_path(path);
 	return root;
 
-read_fail:
-	free_extent_buffer(root->node);
 find_fail:
 	kfree(root);
 alloc_fail:
@@ -2320,8 +2319,12 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 
 	log_tree_root->node = read_tree_block(tree_root, bytenr,
 			fs_info->generation + 1);
-	if (!log_tree_root->node ||
-	    !extent_buffer_uptodate(log_tree_root->node)) {
+	if (IS_ERR(log_tree_root->node)) {
+		printk(KERN_ERR "BTRFS: failed to read log tree\n");
+		ret = PTR_ERR(log_tree_root->node);
+		kfree(log_tree_root);
+		return ret;
+	} else if (!extent_buffer_uptodate(log_tree_root->node)) {
 		printk(KERN_ERR "BTRFS: failed to read log tree\n");
 		free_extent_buffer(log_tree_root->node);
 		kfree(log_tree_root);
@@ -2494,7 +2497,6 @@ int open_ctree(struct super_block *sb,
 	seqlock_init(&fs_info->profiles_lock);
 	init_rwsem(&fs_info->delayed_iput_sem);
 
-	init_completion(&fs_info->kobj_unregister);
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
 	INIT_LIST_HEAD(&fs_info->space_info);
 	INIT_LIST_HEAD(&fs_info->tree_mod_seq_list);
@@ -2797,8 +2799,8 @@ int open_ctree(struct super_block *sb,
 	chunk_root->node = read_tree_block(chunk_root,
 					   btrfs_super_chunk_root(disk_super),
 					   generation);
-	if (!chunk_root->node ||
-	    !test_bit(EXTENT_BUFFER_UPTODATE, &chunk_root->node->bflags)) {
+	if (IS_ERR(chunk_root->node) ||
+	    !extent_buffer_uptodate(chunk_root->node)) {
 		printk(KERN_ERR "BTRFS: failed to read chunk root on %s\n",
 		       sb->s_id);
 		goto fail_tree_roots;
@@ -2834,8 +2836,8 @@ retry_root_backup:
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super),
 					  generation);
-	if (!tree_root->node ||
-	    !test_bit(EXTENT_BUFFER_UPTODATE, &tree_root->node->bflags)) {
+	if (IS_ERR(tree_root->node) ||
+	    !extent_buffer_uptodate(tree_root->node)) {
 		printk(KERN_WARNING "BTRFS: failed to read tree root on %s\n",
 		       sb->s_id);
 
@@ -2874,10 +2876,22 @@ retry_root_backup:
 
 	btrfs_close_extra_devices(fs_devices, 1);
 
+	ret = btrfs_sysfs_add_fsid(fs_devices, NULL);
+	if (ret) {
+		pr_err("BTRFS: failed to init sysfs fsid interface: %d\n", ret);
+		goto fail_block_groups;
+	}
+
+	ret = btrfs_sysfs_add_device(fs_devices);
+	if (ret) {
+		pr_err("BTRFS: failed to init sysfs device interface: %d\n", ret);
+		goto fail_fsdev_sysfs;
+	}
+
 	ret = btrfs_sysfs_add_one(fs_info);
 	if (ret) {
 		pr_err("BTRFS: failed to init sysfs interface: %d\n", ret);
-		goto fail_block_groups;
+		goto fail_fsdev_sysfs;
 	}
 
 	ret = btrfs_init_space_info(fs_info);
@@ -3054,6 +3068,9 @@ fail_cleaner:
 
 fail_sysfs:
 	btrfs_sysfs_remove_one(fs_info);
+
+fail_fsdev_sysfs:
+	btrfs_sysfs_remove_fsid(fs_info->fs_devices);
 
 fail_block_groups:
 	btrfs_put_block_group_cache(fs_info);
@@ -3725,6 +3742,7 @@ void close_ctree(struct btrfs_root *root)
 	}
 
 	btrfs_sysfs_remove_one(fs_info);
+	btrfs_sysfs_remove_fsid(fs_info->fs_devices);
 
 	btrfs_free_fs_roots(fs_info);
 
@@ -4053,6 +4071,7 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 
 	while ((node = rb_first(&delayed_refs->href_root)) != NULL) {
 		struct btrfs_delayed_ref_head *head;
+		struct btrfs_delayed_ref_node *tmp;
 		bool pin_bytes = false;
 
 		head = rb_entry(node, struct btrfs_delayed_ref_head,
@@ -4068,11 +4087,10 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 			continue;
 		}
 		spin_lock(&head->lock);
-		while ((node = rb_first(&head->ref_root)) != NULL) {
-			ref = rb_entry(node, struct btrfs_delayed_ref_node,
-				       rb_node);
+		list_for_each_entry_safe_reverse(ref, tmp, &head->ref_list,
+						 list) {
 			ref->in_tree = 0;
-			rb_erase(&ref->rb_node, &head->ref_root);
+			list_del(&ref->list);
 			atomic_dec(&delayed_refs->num_entries);
 			btrfs_put_delayed_ref(ref);
 		}
