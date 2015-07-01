@@ -1215,6 +1215,7 @@ enum skl_disp_power_wells {
 #define  PORT_PLL_LOCK_THRESHOLD_MASK	(0x7 << PORT_PLL_LOCK_THRESHOLD_SHIFT)
 /* PORT_PLL_10_A */
 #define  PORT_PLL_DCO_AMP_OVR_EN_H	(1<<27)
+#define  PORT_PLL_DCO_AMP_DEFAULT	15
 #define  PORT_PLL_DCO_AMP_MASK		0x3c00
 #define  PORT_PLL_DCO_AMP(x)		(x<<10)
 #define _PORT_PLL_BASE(port)		_PORT3(port, _PORT_PLL_0_A,	\

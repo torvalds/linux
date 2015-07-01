@@ -1644,7 +1644,7 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 	struct bxt_clk_div clk_div = {0};
 	int vco = 0;
 	uint32_t prop_coef, int_coef, gain_ctl, targ_cnt;
-	uint32_t dcoampovr_en_h, dco_amp, lanestagger;
+	uint32_t lanestagger;
 
 	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 		intel_clock_t best_clock;
@@ -1683,9 +1683,7 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 		vco = clock * 10 / 2 * clk_div.p1 * clk_div.p2;
 	}
 
-	dco_amp = 15;
-	dcoampovr_en_h = 0;
-	if (vco >= 6200000 && vco <= 6480000) {
+	if (vco >= 6200000 && vco <= 6700000) {
 		prop_coef = 4;
 		int_coef = 9;
 		gain_ctl = 3;
@@ -1696,8 +1694,6 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 		int_coef = 11;
 		gain_ctl = 3;
 		targ_cnt = 9;
-		if (vco >= 4800000 && vco < 5400000)
-			dcoampovr_en_h = 1;
 	} else if (vco == 5400000) {
 		prop_coef = 3;
 		int_coef = 8;
@@ -1741,10 +1737,9 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 
 	crtc_state->dpll_hw_state.pll9 = 5 << PORT_PLL_LOCK_THRESHOLD_SHIFT;
 
-	if (dcoampovr_en_h)
-		crtc_state->dpll_hw_state.pll10 = PORT_PLL_DCO_AMP_OVR_EN_H;
-
-	crtc_state->dpll_hw_state.pll10 |= PORT_PLL_DCO_AMP(dco_amp);
+	crtc_state->dpll_hw_state.pll10 =
+		PORT_PLL_DCO_AMP(PORT_PLL_DCO_AMP_DEFAULT)
+		| PORT_PLL_DCO_AMP_OVR_EN_H;
 
 	crtc_state->dpll_hw_state.ebb4 = PORT_PLL_10BIT_CLK_ENABLE;
 
