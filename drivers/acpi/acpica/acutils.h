@@ -205,64 +205,6 @@ acpi_status acpi_ut_hardware_initialize(void);
 
 void acpi_ut_subsystem_shutdown(void);
 
-/*
- * utclib - Local implementations of C library functions
- */
-#ifndef ACPI_USE_SYSTEM_CLIBRARY
-
-acpi_size strlen(const char *string);
-
-char *strchr(const char *string, int ch);
-
-char *strcpy(char *dst_string, const char *src_string);
-
-char *strncpy(char *dst_string, const char *src_string, acpi_size count);
-
-int strncmp(const char *string1, const char *string2, acpi_size count);
-
-int strcmp(const char *string1, const char *string2);
-
-char *strcat(char *dst_string, const char *src_string);
-
-char *strncat(char *dst_string, const char *src_string, acpi_size count);
-
-u32 strtoul(const char *string, char **terminator, u32 base);
-
-char *strstr(char *string1, char *string2);
-
-int memcmp(void *buffer1, void *buffer2, acpi_size count);
-
-void *memcpy(void *dest, const void *src, acpi_size count);
-
-void *memset(void *dest, int value, acpi_size count);
-
-int toupper(int c);
-
-int tolower(int c);
-
-extern const u8 _acpi_ctype[];
-
-#define _ACPI_XA     0x00	/* extra alphabetic - not supported */
-#define _ACPI_XS     0x40	/* extra space */
-#define _ACPI_BB     0x00	/* BEL, BS, etc. - not supported */
-#define _ACPI_CN     0x20	/* CR, FF, HT, NL, VT */
-#define _ACPI_DI     0x04	/* '0'-'9' */
-#define _ACPI_LO     0x02	/* 'a'-'z' */
-#define _ACPI_PU     0x10	/* punctuation */
-#define _ACPI_SP     0x08	/* space, tab, CR, LF, VT, FF */
-#define _ACPI_UP     0x01	/* 'A'-'Z' */
-#define _ACPI_XD     0x80	/* '0'-'9', 'A'-'F', 'a'-'f' */
-
-#define isdigit(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_DI))
-#define isspace(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_SP))
-#define isxdigit(c) (_acpi_ctype[(unsigned char)(c)] & (_ACPI_XD))
-#define isupper(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_UP))
-#define islower(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
-#define isprint(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_XS | _ACPI_PU))
-#define isalpha(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
-
-#endif				/* !ACPI_USE_SYSTEM_CLIBRARY */
-
 #define ACPI_IS_ASCII(c)  ((c) < 0x80)
 
 /*
