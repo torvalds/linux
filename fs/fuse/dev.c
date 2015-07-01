@@ -656,16 +656,16 @@ void fuse_force_forget(struct file *file, u64 nodeid)
  * anything that could cause a page-fault.  If the request was already
  * aborted bail out.
  */
-static int lock_request(struct fuse_conn *fc, struct fuse_req *req)
+static int lock_request(struct fuse_req *req)
 {
 	int err = 0;
 	if (req) {
-		spin_lock(&fc->lock);
+		spin_lock(&req->waitq.lock);
 		if (test_bit(FR_ABORTED, &req->flags))
 			err = -ENOENT;
 		else
 			set_bit(FR_LOCKED, &req->flags);
-		spin_unlock(&fc->lock);
+		spin_unlock(&req->waitq.lock);
 	}
 	return err;
 }
@@ -674,22 +674,21 @@ static int lock_request(struct fuse_conn *fc, struct fuse_req *req)
  * Unlock request.  If it was aborted while locked, caller is responsible
  * for unlocking and ending the request.
  */
-static int unlock_request(struct fuse_conn *fc, struct fuse_req *req)
+static int unlock_request(struct fuse_req *req)
 {
 	int err = 0;
 	if (req) {
-		spin_lock(&fc->lock);
+		spin_lock(&req->waitq.lock);
 		if (test_bit(FR_ABORTED, &req->flags))
 			err = -ENOENT;
 		else
 			clear_bit(FR_LOCKED, &req->flags);
-		spin_unlock(&fc->lock);
+		spin_unlock(&req->waitq.lock);
 	}
 	return err;
 }
 
 struct fuse_copy_state {
-	struct fuse_conn *fc;
 	int write;
 	struct fuse_req *req;
 	struct iov_iter *iter;
@@ -703,13 +702,10 @@ struct fuse_copy_state {
 	unsigned move_pages:1;
 };
 
-static void fuse_copy_init(struct fuse_copy_state *cs,
-			   struct fuse_conn *fc,
-			   int write,
+static void fuse_copy_init(struct fuse_copy_state *cs, int write,
 			   struct iov_iter *iter)
 {
 	memset(cs, 0, sizeof(*cs));
-	cs->fc = fc;
 	cs->write = write;
 	cs->iter = iter;
 }
@@ -742,7 +738,7 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 	struct page *page;
 	int err;
 
-	err = unlock_request(cs->fc, cs->req);
+	err = unlock_request(cs->req);
 	if (err)
 		return err;
 
@@ -794,7 +790,7 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 		iov_iter_advance(cs->iter, err);
 	}
 
-	return lock_request(cs->fc, cs->req);
+	return lock_request(cs->req);
 }
 
 /* Do as much copy to/from userspace buffer as we can */
@@ -845,7 +841,7 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	struct page *newpage;
 	struct pipe_buffer *buf = cs->pipebufs;
 
-	err = unlock_request(cs->fc, cs->req);
+	err = unlock_request(cs->req);
 	if (err)
 		return err;
 
@@ -902,12 +898,12 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 		lru_cache_add_file(newpage);
 
 	err = 0;
-	spin_lock(&cs->fc->lock);
+	spin_lock(&cs->req->waitq.lock);
 	if (test_bit(FR_ABORTED, &cs->req->flags))
 		err = -ENOENT;
 	else
 		*pagep = newpage;
-	spin_unlock(&cs->fc->lock);
+	spin_unlock(&cs->req->waitq.lock);
 
 	if (err) {
 		unlock_page(newpage);
@@ -927,7 +923,7 @@ out_fallback:
 	cs->pg = buf->page;
 	cs->offset = buf->offset;
 
-	err = lock_request(cs->fc, cs->req);
+	err = lock_request(cs->req);
 	if (err)
 		return err;
 
@@ -943,7 +939,7 @@ static int fuse_ref_page(struct fuse_copy_state *cs, struct page *page,
 	if (cs->nr_segs == cs->pipe->buffers)
 		return -EIO;
 
-	err = unlock_request(cs->fc, cs->req);
+	err = unlock_request(cs->req);
 	if (err)
 		return err;
 
@@ -1358,7 +1354,7 @@ static ssize_t fuse_dev_read(struct kiocb *iocb, struct iov_iter *to)
 	if (!iter_is_iovec(to))
 		return -EINVAL;
 
-	fuse_copy_init(&cs, fc, 1, to);
+	fuse_copy_init(&cs, 1, to);
 
 	return fuse_dev_do_read(fc, file, &cs, iov_iter_count(to));
 }
@@ -1380,7 +1376,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (!bufs)
 		return -ENOMEM;
 
-	fuse_copy_init(&cs, fc, 1, NULL);
+	fuse_copy_init(&cs, 1, NULL);
 	cs.pipebufs = bufs;
 	cs.pipe = pipe;
 	ret = fuse_dev_do_read(fc, in, &cs, len);
@@ -1958,7 +1954,7 @@ static ssize_t fuse_dev_write(struct kiocb *iocb, struct iov_iter *from)
 	if (!iter_is_iovec(from))
 		return -EINVAL;
 
-	fuse_copy_init(&cs, fc, 0, from);
+	fuse_copy_init(&cs, 0, from);
 
 	return fuse_dev_do_write(fc, &cs, iov_iter_count(from));
 }
@@ -2023,7 +2019,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 	}
 	pipe_unlock(pipe);
 
-	fuse_copy_init(&cs, fc, 0, NULL);
+	fuse_copy_init(&cs, 0, NULL);
 	cs.pipebufs = bufs;
 	cs.nr_segs = nbuf;
 	cs.pipe = pipe;
@@ -2098,9 +2094,11 @@ __acquires(fc->lock)
 
 	list_for_each_entry_safe(req, next, &fc->io, list) {
 		req->out.h.error = -ECONNABORTED;
+		spin_lock(&req->waitq.lock);
 		set_bit(FR_ABORTED, &req->flags);
 		if (!test_bit(FR_LOCKED, &req->flags))
 			list_move(&req->list, &to_end);
+		spin_unlock(&req->waitq.lock);
 	}
 	while (!list_empty(&to_end)) {
 		req = list_first_entry(&to_end, struct fuse_req, list);

@@ -289,6 +289,10 @@ enum fuse_req_flag {
 
 /**
  * A request to the client
+ *
+ * .waitq.lock protects the following fields:
+ *   - FR_ABORTED
+ *   - FR_LOCKED (may also be modified under fc->lock, tested under both)
  */
 struct fuse_req {
 	/** This can be on either pending processing or io lists in
