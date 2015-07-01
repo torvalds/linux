@@ -2139,6 +2139,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 				list_move(&req->list, &to_end1);
 			spin_unlock(&req->waitq.lock);
 		}
+		list_splice_init(&fpq->processing, &to_end2);
 		fc->max_background = UINT_MAX;
 		flush_bg_queue(fc);
 
@@ -2151,7 +2152,6 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		spin_unlock(&fiq->waitq.lock);
 		kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 
-		list_splice_init(&fpq->processing, &to_end2);
 		while (!list_empty(&to_end1)) {
 			req = list_first_entry(&to_end1, struct fuse_req, list);
 			__fuse_get_request(req);
