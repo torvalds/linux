@@ -163,7 +163,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82439TX,	quirk_
  *	VIA Apollo KT133 needs PCI latency patch
  *	Made according to a windows driver based patch by George E. Breese
  *	see PCI Latency Adjust on http://www.viahardware.com/download/viatweak.shtm
- *	and http://www.georgebreese.com/net/software/#PCI
  *	Also see http://www.au-ja.org/review-kt133a-1-en.phtml for
  *	the info on which Mr Breese based his work.
  *
