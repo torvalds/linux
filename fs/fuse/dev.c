@@ -381,6 +381,7 @@ __releases(fc->lock)
 	req->end = NULL;
 	list_del_init(&req->list);
 	list_del_init(&req->intr_entry);
+	smp_wmb();
 	req->state = FUSE_REQ_FINISHED;
 	if (test_bit(FR_BACKGROUND, &req->flags)) {
 		clear_bit(FR_BACKGROUND, &req->flags);
@@ -407,19 +408,6 @@ __releases(fc->lock)
 	fuse_put_request(fc, req);
 }
 
-static void wait_answer_interruptible(struct fuse_conn *fc,
-				      struct fuse_req *req)
-__releases(fc->lock)
-__acquires(fc->lock)
-{
-	if (signal_pending(current))
-		return;
-
-	spin_unlock(&fc->lock);
-	wait_event_interruptible(req->waitq, req->state == FUSE_REQ_FINISHED);
-	spin_lock(&fc->lock);
-}
-
 static void queue_interrupt(struct fuse_conn *fc, struct fuse_req *req)
 {
 	list_add_tail(&req->intr_entry, &fc->interrupts);
@@ -428,19 +416,21 @@ static void queue_interrupt(struct fuse_conn *fc, struct fuse_req *req)
 }
 
 static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
-__releases(fc->lock)
-__acquires(fc->lock)
 {
+	int err;
+
 	if (!fc->no_interrupt) {
 		/* Any signal may interrupt this */
-		wait_answer_interruptible(fc, req);
-
-		if (req->state == FUSE_REQ_FINISHED)
+		err = wait_event_interruptible(req->waitq,
+					req->state == FUSE_REQ_FINISHED);
+		if (!err)
 			return;
 
+		spin_lock(&fc->lock);
 		set_bit(FR_INTERRUPTED, &req->flags);
 		if (req->state == FUSE_REQ_SENT)
 			queue_interrupt(fc, req);
+		spin_unlock(&fc->lock);
 	}
 
 	if (!test_bit(FR_FORCE, &req->flags)) {
@@ -448,46 +438,51 @@ __acquires(fc->lock)
 
 		/* Only fatal signals may interrupt this */
 		block_sigs(&oldset);
-		wait_answer_interruptible(fc, req);
+		err = wait_event_interruptible(req->waitq,
+					req->state == FUSE_REQ_FINISHED);
 		restore_sigs(&oldset);
 
-		if (req->state == FUSE_REQ_FINISHED)
+		if (!err)
 			return;
 
+		spin_lock(&fc->lock);
 		/* Request is not yet in userspace, bail out */
 		if (req->state == FUSE_REQ_PENDING) {
 			list_del(&req->list);
+			spin_unlock(&fc->lock);
 			__fuse_put_request(req);
 			req->out.h.error = -EINTR;
 			return;
 		}
+		spin_unlock(&fc->lock);
 	}
 
 	/*
 	 * Either request is already in userspace, or it was forced.
 	 * Wait it out.
 	 */
-	spin_unlock(&fc->lock);
 	wait_event(req->waitq, req->state == FUSE_REQ_FINISHED);
-	spin_lock(&fc->lock);
 }
 
 static void __fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 {
 	BUG_ON(test_bit(FR_BACKGROUND, &req->flags));
 	spin_lock(&fc->lock);
-	if (!fc->connected)
+	if (!fc->connected) {
+		spin_unlock(&fc->lock);
 		req->out.h.error = -ENOTCONN;
-	else {
+	} else {
 		req->in.h.unique = fuse_get_unique(fc);
 		queue_request(fc, req);
 		/* acquire extra reference, since request is still needed
 		   after request_end() */
 		__fuse_get_request(req);
+		spin_unlock(&fc->lock);
 
 		request_wait_answer(fc, req);
+		/* Pairs with smp_wmb() in request_end() */
+		smp_rmb();
 	}
-	spin_unlock(&fc->lock);
 }
 
 void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
