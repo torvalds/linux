@@ -948,7 +948,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	struct resource *res;
 	void __iomem *base_addr;
 	u32 offset;
-	int ret;
+	int ret = 0;
 
 	pdev = pdata->pdev;
 	dev = &pdev->dev;

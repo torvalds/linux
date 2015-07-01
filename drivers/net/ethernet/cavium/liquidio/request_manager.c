@@ -175,8 +175,7 @@ int octeon_delete_instr_queue(struct octeon_device *oct, u32 iq_no)
 		desc_size =
 		    CFG_GET_IQ_INSTR_TYPE(CHIP_FIELD(oct, cn6xxx, conf));
 
-	if (iq->request_list)
-		vfree(iq->request_list);
+	vfree(iq->request_list);
 
 	if (iq->base_addr) {
 		q_size = iq->max_count * desc_size;

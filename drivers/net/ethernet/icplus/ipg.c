@@ -1028,7 +1028,7 @@ static struct net_device_stats *ipg_nic_get_stats(struct net_device *dev)
 
 	/* detailed rx_errors */
 	sp->stats.rx_length_errors += ipg_r16(IPG_INRANGELENGTHERRORS) +
-		ipg_r16(IPG_FRAMETOOLONGERRRORS);
+		ipg_r16(IPG_FRAMETOOLONGERRORS);
 	sp->stats.rx_crc_errors += ipg_r16(IPG_FRAMECHECKSEQERRORS);
 
 	/* Unutilized IPG statistic registers. */

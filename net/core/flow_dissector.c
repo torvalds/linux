@@ -129,7 +129,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	struct flow_dissector_key_ports *key_ports;
 	struct flow_dissector_key_tags *key_tags;
 	struct flow_dissector_key_keyid *key_keyid;
-	u8 ip_proto;
+	u8 ip_proto = 0;
 
 	if (!data) {
 		data = skb->data;

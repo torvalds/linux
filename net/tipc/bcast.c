@@ -108,6 +108,11 @@ void tipc_bclink_remove_node(struct net *net, u32 addr)
 
 	tipc_bclink_lock(net);
 	tipc_nmap_remove(&tn->bclink->bcast_nodes, addr);
+
+	/* Last node? => reset backlog queue */
+	if (!tn->bclink->bcast_nodes.count)
+		tipc_link_purge_backlog(&tn->bclink->link);
+
 	tipc_bclink_unlock(net);
 }
 
