@@ -20,6 +20,7 @@ static ssize_t field##_show(struct device *dev,				\
 }									\
 static DEVICE_ATTR_RO(field)
 
+gb_interface_attr(device_id, d);
 gb_interface_attr(vendor, x);
 gb_interface_attr(product, x);
 gb_interface_attr(unique_id, llX);
@@ -27,6 +28,7 @@ gb_interface_attr(vendor_string, s);
 gb_interface_attr(product_string, s);
 
 static struct attribute *interface_attrs[] = {
+	&dev_attr_device_id.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_product.attr,
 	&dev_attr_unique_id.attr,
@@ -71,10 +73,9 @@ struct device_type greybus_interface_type = {
  * managing control CPort. Also initialize the bundle, which will request SVC to
  * set route and will initialize the control protocol for this connection.
  */
-static int gb_create_control_connection(struct gb_interface *intf, u8 device_id)
+static int gb_create_control_connection(struct gb_interface *intf)
 {
 	struct gb_bundle *bundle;
-	int ret;
 
 	bundle = gb_bundle_create(intf, GB_CONTROL_BUNDLE_ID,
 				  GREYBUS_CLASS_CONTROL);
@@ -84,14 +85,6 @@ static int gb_create_control_connection(struct gb_interface *intf, u8 device_id)
 	if (!gb_connection_create(bundle, GB_CONTROL_CPORT_ID,
 				  GREYBUS_PROTOCOL_CONTROL))
 		return -EINVAL;
-
-	ret = gb_bundle_init(bundle, device_id);
-	if (ret) {
-		dev_err(&intf->dev,
-			"error %d initializing bundles for interface %hu\n",
-			ret, intf->interface_id);
-		return ret;
-	}
 
 	return 0;
 }
@@ -135,6 +128,9 @@ struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 	intf->interface_id = interface_id;
 	INIT_LIST_HEAD(&intf->bundles);
 	INIT_LIST_HEAD(&intf->manifest_descs);
+
+	/* Invalid device id to start with */
+	intf->device_id = GB_DEVICE_ID_BAD;
 
 	intf->dev.parent = &module->dev;
 	intf->dev.bus = &greybus_bus_type;
@@ -204,8 +200,10 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 	int ret, size;
 	void *manifest;
 
+	intf->device_id = device_id;
+
 	/* Establish control CPort connection */
-	ret = gb_create_control_connection(intf, device_id);
+	ret = gb_create_control_connection(intf);
 	if (ret) {
 		dev_err(&intf->dev, "Failed to create control CPort connection (%d)\n", ret);
 		return ret;
@@ -242,12 +240,6 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 		ret = -EINVAL;
 		goto free_manifest;
 	}
-
-	ret = gb_bundles_init(intf, device_id);
-	if (ret)
-		dev_err(&intf->dev,
-			"Error %d initializing bundles for interface %hu\n",
-			ret, intf->interface_id);
 
 	/*
 	 * XXX

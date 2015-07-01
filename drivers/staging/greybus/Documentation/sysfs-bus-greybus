@@ -105,6 +105,13 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Vendor ID string of a Greybus interface block.
 
+What:		/sys/bus/greybus/device/.../device_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The device ID of a Greybus interface block.
+
 What:		/sys/bus/greybus/device/.../state
 Date:		October 2015
 KernelVersion:	4.XX
@@ -125,13 +132,6 @@ KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The protocol ID of a Greybus connection.
-
-What:		/sys/bus/greybus/device/.../device_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The device ID of a Greybus bundle.
 
 What:		/sys/bus/greybus/device/.../state
 Date:		October 2015

@@ -102,7 +102,7 @@ struct device_type greybus_connection_type = {
 
 void gb_connection_bind_protocol(struct gb_connection *connection)
 {
-	struct gb_bundle *bundle;
+	struct gb_interface *intf;
 	struct gb_protocol *protocol;
 
 	/* If we already have a protocol bound here, just return */
@@ -117,11 +117,11 @@ void gb_connection_bind_protocol(struct gb_connection *connection)
 	connection->protocol = protocol;
 
 	/*
-	 * If we have a valid device_id for the bundle, then we have an active
-	 * device, so bring up the connection at the same time.
+	 * If we have a valid device_id for the interface block, then we have an
+	 * active device, so bring up the connection at the same time.
 	 * */
-	bundle = connection->bundle;
-	if (bundle->device_id != GB_DEVICE_ID_BAD)
+	intf = connection->bundle->intf;
+	if (intf->device_id != GB_DEVICE_ID_BAD)
 		gb_connection_init(connection);
 }
 

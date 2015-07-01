@@ -13,15 +13,6 @@ static void gb_bundle_connections_exit(struct gb_bundle *bundle);
 static int gb_bundle_connections_init(struct gb_bundle *bundle);
 
 
-static ssize_t device_id_show(struct device *dev, struct device_attribute *attr,
-			      char *buf)
-{
-	struct gb_bundle *bundle = to_gb_bundle(dev);
-
-	return sprintf(buf, "%d\n", bundle->device_id);
-}
-static DEVICE_ATTR_RO(device_id);
-
 static ssize_t class_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -61,7 +52,6 @@ static DEVICE_ATTR_RW(state);
 
 
 static struct attribute *bundle_attrs[] = {
-	&dev_attr_device_id.attr,
 	&dev_attr_class.attr,
 	&dev_attr_state.attr,
 	NULL,
@@ -184,9 +174,6 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 	bundle->class = class;
 	INIT_LIST_HEAD(&bundle->connections);
 
-	/* Invalid device id to start with */
-	bundle->device_id = GB_DEVICE_ID_BAD;
-
 	/* Build up the bundle device structures and register it with the
 	 * driver core */
 	bundle->dev.parent = &intf->dev;
@@ -225,7 +212,7 @@ void gb_bundle_destroy(struct gb_bundle *bundle)
 	device_unregister(&bundle->dev);
 }
 
-int gb_bundle_init(struct gb_bundle *bundle, u8 device_id)
+int gb_bundle_init(struct gb_bundle *bundle)
 {
 	struct gb_interface *intf = bundle->intf;
 	int ret;
@@ -233,8 +220,6 @@ int gb_bundle_init(struct gb_bundle *bundle, u8 device_id)
 	/* Don't reinitialize control cport's bundle */
 	if (intf->control && bundle->id == GB_CONTROL_BUNDLE_ID)
 		return 0;
-
-	bundle->device_id = device_id;
 
 	ret = gb_bundle_connections_init(bundle);
 	if (ret) {
@@ -247,13 +232,13 @@ int gb_bundle_init(struct gb_bundle *bundle, u8 device_id)
 	return 0;
 }
 
-int gb_bundles_init(struct gb_interface *intf, u8 device_id)
+int gb_bundles_init(struct gb_interface *intf)
 {
 	struct gb_bundle *bundle;
 	int ret = 0;
 
 	list_for_each_entry(bundle, &intf->bundles, links) {
-		ret = gb_bundle_init(bundle, device_id);
+		ret = gb_bundle_init(bundle);
 		if (ret) {
 			dev_err(intf->hd->parent,
 				"Failed to initialize bundle %hhu\n",
