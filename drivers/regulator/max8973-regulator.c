@@ -421,6 +421,8 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 	struct device_node *np = dev->of_node;
 	int ret;
 	u32 pval;
+	bool etr_enable;
+	bool etr_sensitivity_high;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -451,6 +453,23 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 
 	if (of_property_read_bool(np, "maxim,enable-bias-control"))
 		pdata->control_flags  |= MAX8973_CONTROL_BIAS_ENABLE;
+
+	etr_enable = of_property_read_bool(np, "maxim,enable-etr");
+	etr_sensitivity_high = of_property_read_bool(np,
+				"maxim,enable-high-etr-sensitivity");
+	if (etr_sensitivity_high)
+		etr_enable = true;
+
+	if (etr_enable) {
+		if (etr_sensitivity_high)
+			pdata->control_flags |=
+				MAX8973_CONTROL_CLKADV_TRIP_75mV_PER_US;
+		else
+			pdata->control_flags |=
+				MAX8973_CONTROL_CLKADV_TRIP_150mV_PER_US;
+	} else {
+		pdata->control_flags |= MAX8973_CONTROL_CLKADV_TRIP_DISABLED;
+	}
 
 	return pdata;
 }
