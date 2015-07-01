@@ -409,22 +409,13 @@ EXPORT_SYMBOL_GPL(gb_operation_response_alloc);
  */
 static struct gb_operation *
 gb_operation_create_common(struct gb_connection *connection, u8 type,
-				size_t request_size, size_t response_size)
+				size_t request_size, size_t response_size,
+				gfp_t gfp_flags)
 {
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_operation *operation;
 	unsigned long flags;
-	gfp_t gfp_flags;
 
-	/*
-	 * An incoming request will pass an invalid operation type,
-	 * because the header will get overwritten anyway.  These
-	 * occur in interrupt context, so we must use GFP_ATOMIC.
-	 */
-	if (type == GB_OPERATION_TYPE_INVALID)
-		gfp_flags = GFP_ATOMIC;
-	else
-		gfp_flags = GFP_KERNEL;
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
 		return NULL;
@@ -472,7 +463,8 @@ err_cache:
  */
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					u8 type, size_t request_size,
-					size_t response_size)
+					size_t response_size,
+					gfp_t gfp)
 {
 	if (WARN_ON_ONCE(type == GB_OPERATION_TYPE_INVALID))
 		return NULL;
@@ -480,7 +472,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 		type &= ~GB_MESSAGE_TYPE_RESPONSE;
 
 	return gb_operation_create_common(connection, type,
-					request_size, response_size);
+					request_size, response_size, gfp);
 }
 EXPORT_SYMBOL_GPL(gb_operation_create);
 
@@ -504,7 +496,7 @@ gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 
 	operation = gb_operation_create_common(connection,
 					GB_OPERATION_TYPE_INVALID,
-					request_size, 0);
+					request_size, 0, GFP_ATOMIC);
 	if (operation) {
 		operation->id = id;
 		operation->type = type;
@@ -888,7 +880,8 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 		return -EINVAL;
 
 	operation = gb_operation_create(connection, type,
-					request_size, response_size);
+					request_size, response_size,
+					GFP_KERNEL);
 	if (!operation)
 		return -ENOMEM;
 

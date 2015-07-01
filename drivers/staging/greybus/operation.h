@@ -134,7 +134,8 @@ int gb_operation_result(struct gb_operation *operation);
 size_t gb_operation_get_payload_size_max(struct gb_connection *connection);
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					u8 type, size_t request_size,
-					size_t response_size);
+					size_t response_size,
+					gfp_t gfp);
 void gb_operation_get(struct gb_operation *operation);
 void gb_operation_put(struct gb_operation *operation);
 static inline void gb_operation_destroy(struct gb_operation *operation)

@@ -131,7 +131,8 @@ static int urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	operation = gb_operation_create(dev->connection,
 					GB_USB_TYPE_URB_ENQUEUE,
 					sizeof(*request) +
-					urb->transfer_buffer_length, 0);
+					urb->transfer_buffer_length, 0,
+					GFP_KERNEL);
 	if (!operation)
 		return -ENODEV;
 

@@ -128,7 +128,8 @@ static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 	int ret, size = sizeof(*request) + len - 1;
 
 	operation = gb_operation_create(ghid->connection,
-					GB_HID_TYPE_SET_REPORT, size, 0);
+					GB_HID_TYPE_SET_REPORT, size, 0,
+					GFP_KERNEL);
 	if (!operation)
 		return -ENOMEM;
 

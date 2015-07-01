@@ -90,7 +90,7 @@ gb_spi_operation_create(struct gb_connection *connection,
 
 	/* Response consists only of incoming data */
 	operation = gb_operation_create(connection, GB_SPI_TYPE_TRANSFER,
-					request_size, rx_size);
+					request_size, rx_size, GFP_KERNEL);
 	if (!operation)
 		return NULL;
 

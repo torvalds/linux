@@ -146,7 +146,7 @@ gb_i2c_operation_create(struct gb_connection *connection,
 
 	/* Response consists only of incoming data */
 	operation = gb_operation_create(connection, GB_I2C_TYPE_TRANSFER,
-				request_size, data_in_size);
+				request_size, data_in_size, GFP_KERNEL);
 	if (!operation)
 		return NULL;
 
