@@ -128,8 +128,7 @@ struct dwc3_omap {
 
 	u32			dma_status:1;
 
-	struct extcon_specific_cable_nb extcon_vbus_dev;
-	struct extcon_specific_cable_nb extcon_id_dev;
+	struct extcon_dev	*edev;
 	struct notifier_block	vbus_nb;
 	struct notifier_block	id_nb;
 
@@ -419,23 +418,23 @@ static int dwc3_omap_extcon_register(struct dwc3_omap *omap)
 		}
 
 		omap->vbus_nb.notifier_call = dwc3_omap_vbus_notifier;
-		ret = extcon_register_interest(&omap->extcon_vbus_dev,
-					       edev->name, "USB",
-					       &omap->vbus_nb);
+		ret = extcon_register_notifier(edev, EXTCON_USB,
+						&omap->vbus_nb);
 		if (ret < 0)
 			dev_vdbg(omap->dev, "failed to register notifier for USB\n");
 
 		omap->id_nb.notifier_call = dwc3_omap_id_notifier;
-		ret = extcon_register_interest(&omap->extcon_id_dev,
-					       edev->name, "USB-HOST",
-					       &omap->id_nb);
+		ret = extcon_register_notifier(edev, EXTCON_USB_HOST,
+						&omap->id_nb);
 		if (ret < 0)
 			dev_vdbg(omap->dev, "failed to register notifier for USB-HOST\n");
 
-		if (extcon_get_cable_state(edev, "USB") == true)
+		if (extcon_get_cable_state_(edev, EXTCON_USB) == true)
 			dwc3_omap_set_mailbox(omap, OMAP_DWC3_VBUS_VALID);
-		if (extcon_get_cable_state(edev, "USB-HOST") == true)
+		if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) == true)
 			dwc3_omap_set_mailbox(omap, OMAP_DWC3_ID_GROUND);
+
+		omap->edev = edev;
 	}
 
 	return 0;
@@ -530,11 +529,8 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	return 0;
 
 err3:
-	if (omap->extcon_vbus_dev.edev)
-		extcon_unregister_interest(&omap->extcon_vbus_dev);
-	if (omap->extcon_id_dev.edev)
-		extcon_unregister_interest(&omap->extcon_id_dev);
-
+	extcon_unregister_notifier(omap->edev, EXTCON_USB, &omap->vbus_nb);
+	extcon_unregister_notifier(omap->edev, EXTCON_USB_HOST, &omap->id_nb);
 err2:
 	dwc3_omap_disable_irqs(omap);
 
@@ -551,10 +547,8 @@ static int dwc3_omap_remove(struct platform_device *pdev)
 {
 	struct dwc3_omap	*omap = platform_get_drvdata(pdev);
 
-	if (omap->extcon_vbus_dev.edev)
-		extcon_unregister_interest(&omap->extcon_vbus_dev);
-	if (omap->extcon_id_dev.edev)
-		extcon_unregister_interest(&omap->extcon_id_dev);
+	extcon_unregister_notifier(omap->edev, EXTCON_USB, &omap->vbus_nb);
+	extcon_unregister_notifier(omap->edev, EXTCON_USB_HOST, &omap->id_nb);
 	dwc3_omap_disable_irqs(omap);
 	of_platform_depopulate(omap->dev);
 	pm_runtime_put_sync(&pdev->dev);
