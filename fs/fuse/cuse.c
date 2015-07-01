@@ -502,7 +502,6 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&cc->list);
 	cc->fc.release = cuse_fc_release;
 
-	cc->fc.connected = 1;
 	cc->fc.initialized = 1;
 	rc = cuse_send_init(cc);
 	if (rc) {

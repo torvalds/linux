@@ -574,6 +574,7 @@ static void fuse_iqueue_init(struct fuse_iqueue *fiq)
 	INIT_LIST_HEAD(&fiq->pending);
 	INIT_LIST_HEAD(&fiq->interrupts);
 	fiq->forget_list_tail = &fiq->forget_list_head;
+	fiq->connected = 1;
 }
 
 void fuse_conn_init(struct fuse_conn *fc)
@@ -596,6 +597,7 @@ void fuse_conn_init(struct fuse_conn *fc)
 	fc->polled_files = RB_ROOT;
 	fc->blocked = 0;
 	fc->initialized = 0;
+	fc->connected = 1;
 	fc->attr_version = 1;
 	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 }
@@ -1084,7 +1086,6 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
 	list_add_tail(&fc->entry, &fuse_conn_list);
 	sb->s_root = root_dentry;
-	fc->connected = 1;
 	file->private_data = fuse_conn_get(fc);
 	mutex_unlock(&fuse_mutex);
 	/*
