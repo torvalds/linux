@@ -1291,7 +1291,9 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 		request_end(fc, req);
 		goto restart;
 	}
+	spin_lock(&fpq->lock);
 	list_add(&req->list, &fpq->io);
+	spin_unlock(&fpq->lock);
 	spin_unlock(&fc->lock);
 	cs->req = req;
 	err = fuse_copy_one(cs, &in->h, sizeof(in->h));
@@ -1300,6 +1302,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 				     (struct fuse_arg *) in->args, 0);
 	fuse_copy_finish(cs);
 	spin_lock(&fc->lock);
+	spin_lock(&fpq->lock);
 	clear_bit(FR_LOCKED, &req->flags);
 	if (!fpq->connected) {
 		err = -ENODEV;
@@ -1314,6 +1317,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 		goto out_end;
 	}
 	list_move_tail(&req->list, &fpq->processing);
+	spin_unlock(&fpq->lock);
 	set_bit(FR_SENT, &req->flags);
 	/* matches barrier in request_wait_answer() */
 	smp_mb__after_atomic();
@@ -1325,6 +1329,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 
 out_end:
 	list_del_init(&req->list);
+	spin_unlock(&fpq->lock);
 	request_end(fc, req);
 	return err;
 
@@ -1893,16 +1898,19 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 		goto err_finish;
 
 	spin_lock(&fc->lock);
+	spin_lock(&fpq->lock);
 	err = -ENOENT;
 	if (!fpq->connected)
-		goto err_unlock;
+		goto err_unlock_pq;
 
 	req = request_find(fpq, oh.unique);
 	if (!req)
-		goto err_unlock;
+		goto err_unlock_pq;
 
 	/* Is it an interrupt reply? */
 	if (req->intr_unique == oh.unique) {
+		spin_unlock(&fpq->lock);
+
 		err = -EINVAL;
 		if (nbytes != sizeof(struct fuse_out_header))
 			goto err_unlock;
@@ -1921,6 +1929,7 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	list_move(&req->list, &fpq->io);
 	req->out.h = oh;
 	set_bit(FR_LOCKED, &req->flags);
+	spin_unlock(&fpq->lock);
 	cs->req = req;
 	if (!req->out.page_replace)
 		cs->move_pages = 0;
@@ -1930,16 +1939,20 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	fuse_copy_finish(cs);
 
 	spin_lock(&fc->lock);
+	spin_lock(&fpq->lock);
 	clear_bit(FR_LOCKED, &req->flags);
 	if (!fpq->connected)
 		err = -ENOENT;
 	else if (err)
 		req->out.h.error = -EIO;
 	list_del_init(&req->list);
+	spin_unlock(&fpq->lock);
 	request_end(fc, req);
 
 	return err ? err : nbytes;
 
+ err_unlock_pq:
+	spin_unlock(&fpq->lock);
  err_unlock:
 	spin_unlock(&fc->lock);
  err_finish:
@@ -2130,6 +2143,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		fc->connected = 0;
 		fc->blocked = 0;
 		fuse_set_initialized(fc);
+		spin_lock(&fpq->lock);
 		fpq->connected = 0;
 		list_for_each_entry_safe(req, next, &fpq->io, list) {
 			req->out.h.error = -ECONNABORTED;
@@ -2140,6 +2154,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 			spin_unlock(&req->waitq.lock);
 		}
 		list_splice_init(&fpq->processing, &to_end2);
+		spin_unlock(&fpq->lock);
 		fc->max_background = UINT_MAX;
 		flush_bg_queue(fc);
 
