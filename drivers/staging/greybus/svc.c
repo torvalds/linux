@@ -233,8 +233,8 @@ static void gb_svc_connection_exit(struct gb_connection *connection)
 static struct gb_protocol svc_protocol = {
 	.name			= "svc",
 	.id			= GREYBUS_PROTOCOL_SVC,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_SVC_VERSION_MAJOR,
+	.minor			= GB_SVC_VERSION_MINOR,
 	.connection_init	= gb_svc_connection_init,
 	.connection_exit	= gb_svc_connection_exit,
 	.request_recv		= gb_svc_request_recv,
