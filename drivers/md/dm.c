@@ -1466,7 +1466,7 @@ static void __map_bio(struct dm_target_io *tio)
 		md = tio->io->md;
 		dec_pending(tio->io, r);
 		free_tio(md, tio);
-	} else if (r) {
+	} else if (r != DM_MAPIO_SUBMITTED) {
 		DMWARN("unimplemented target map return value: %d", r);
 		BUG();
 	}
