@@ -98,6 +98,10 @@ struct bpf_program {
 	int nr_reloc;
 
 	int fd;
+
+	struct bpf_object *obj;
+	void *priv;
+	bpf_program_clear_priv_t clear_priv;
 };
 
 struct bpf_object {
@@ -149,6 +153,12 @@ static void bpf_program__exit(struct bpf_program *prog)
 {
 	if (!prog)
 		return;
+
+	if (prog->clear_priv)
+		prog->clear_priv(prog, prog->priv);
+
+	prog->priv = NULL;
+	prog->clear_priv = NULL;
 
 	bpf_program__unload(prog);
 	zfree(&prog->section_name);
@@ -225,6 +235,7 @@ bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
 	pr_debug("found program %s\n", prog.section_name);
 	obj->programs = progs;
 	obj->nr_programs = nr_progs + 1;
+	prog.obj = obj;
 	progs[nr_progs] = prog;
 	return 0;
 }
@@ -930,4 +941,65 @@ void bpf_object__close(struct bpf_object *obj)
 	zfree(&obj->programs);
 
 	free(obj);
+}
+
+struct bpf_program *
+bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
+{
+	size_t idx;
+
+	if (!obj->programs)
+		return NULL;
+	/* First handler */
+	if (prev == NULL)
+		return &obj->programs[0];
+
+	if (prev->obj != obj) {
+		pr_warning("error: program handler doesn't match object\n");
+		return NULL;
+	}
+
+	idx = (prev - obj->programs) + 1;
+	if (idx >= obj->nr_programs)
+		return NULL;
+	return &obj->programs[idx];
+}
+
+int bpf_program__set_private(struct bpf_program *prog,
+			     void *priv,
+			     bpf_program_clear_priv_t clear_priv)
+{
+	if (prog->priv && prog->clear_priv)
+		prog->clear_priv(prog, prog->priv);
+
+	prog->priv = priv;
+	prog->clear_priv = clear_priv;
+	return 0;
+}
+
+int bpf_program__get_private(struct bpf_program *prog, void **ppriv)
+{
+	*ppriv = prog->priv;
+	return 0;
+}
+
+const char *bpf_program__title(struct bpf_program *prog, bool dup)
+{
+	const char *title;
+
+	title = prog->section_name;
+	if (dup) {
+		title = strdup(title);
+		if (!title) {
+			pr_warning("failed to strdup program title\n");
+			return NULL;
+		}
+	}
+
+	return title;
+}
+
+int bpf_program__fd(struct bpf_program *prog)
+{
+	return prog->fd;
 }

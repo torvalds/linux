@@ -9,6 +9,7 @@
 #define __BPF_LIBBPF_H
 
 #include <stdio.h>
+#include <stdbool.h>
 
 /*
  * In include/linux/compiler-gcc.h, __printf is defined. However
@@ -33,6 +34,29 @@ void bpf_object__close(struct bpf_object *object);
 /* Load/unload object into/from kernel */
 int bpf_object__load(struct bpf_object *obj);
 int bpf_object__unload(struct bpf_object *obj);
+
+/* Accessors of bpf_program. */
+struct bpf_program;
+struct bpf_program *bpf_program__next(struct bpf_program *prog,
+				      struct bpf_object *obj);
+
+#define bpf_object__for_each_program(pos, obj)		\
+	for ((pos) = bpf_program__next(NULL, (obj));	\
+	     (pos) != NULL;				\
+	     (pos) = bpf_program__next((pos), (obj)))
+
+typedef void (*bpf_program_clear_priv_t)(struct bpf_program *,
+					 void *);
+
+int bpf_program__set_private(struct bpf_program *prog, void *priv,
+			     bpf_program_clear_priv_t clear_priv);
+
+int bpf_program__get_private(struct bpf_program *prog,
+			     void **ppriv);
+
+const char *bpf_program__title(struct bpf_program *prog, bool dup);
+
+int bpf_program__fd(struct bpf_program *prog);
 
 /*
  * We don't need __attribute__((packed)) now since it is
