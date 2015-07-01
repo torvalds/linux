@@ -40,13 +40,13 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
 
 int pmd_huge(pmd_t pmd)
 {
-	return !(pmd_val(pmd) & PMD_TABLE_BIT);
+	return pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT);
 }
 
 int pud_huge(pud_t pud)
 {
 #ifndef __PAGETABLE_PMD_FOLDED
-	return !(pud_val(pud) & PUD_TABLE_BIT);
+	return pud_val(pud) && !(pud_val(pud) & PUD_TABLE_BIT);
 #else
 	return 0;
 #endif
