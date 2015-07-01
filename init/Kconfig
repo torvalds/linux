@@ -820,7 +820,7 @@ config IKCONFIG_PROC
 
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
-	range 12 21
+	range 12 25
 	default 17
 	depends on PRINTK
 	help
