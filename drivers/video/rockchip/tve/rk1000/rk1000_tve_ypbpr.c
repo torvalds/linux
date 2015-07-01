@@ -24,7 +24,7 @@ int rk1000_tv_ypbpr480_init(void)
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
 		ret = rk1000_tv_write_block(i, tv_encoder_regs + i, 1);
 		if (ret < 0) {
-			prr_err("rk1000_tv_write_block err!\n");
+			pr_err("rk1000_tv_write_block err!\n");
 			return ret;
 		}
 	}
@@ -33,7 +33,7 @@ int rk1000_tv_ypbpr480_init(void)
 						 tv_encoder_control_regs+i,
 						 1);
 		if (ret < 0) {
-			prr_err("rk1000_control_write_block err!\n");
+			pr_err("rk1000_control_write_block err!\n");
 			return ret;
 		}
 	}
@@ -51,7 +51,7 @@ int rk1000_tv_ypbpr576_init(void)
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
 		ret = rk1000_tv_write_block(i, tv_encoder_regs+i, 1);
 		if (ret < 0) {
-			prr_err("rk1000_tv_write_block err!\n");
+			pr_err("rk1000_tv_write_block err!\n");
 			return ret;
 		}
 	}
@@ -60,7 +60,7 @@ int rk1000_tv_ypbpr576_init(void)
 						 tv_encoder_control_regs + i,
 						 1);
 		if (ret < 0) {
-			prr_err("rk1000_control_write_block err!\n");
+			pr_err("rk1000_control_write_block err!\n");
 			return ret;
 		}
 	}
@@ -78,7 +78,7 @@ int rk1000_tv_ypbpr720_50_init(void)
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
 		ret = rk1000_tv_write_block(i, tv_encoder_regs+i, 1);
 		if (ret < 0) {
-			prr_err("rk1000_tv_write_block err!\n");
+			pr_err("rk1000_tv_write_block err!\n");
 			return ret;
 		}
 	}
@@ -88,7 +88,7 @@ int rk1000_tv_ypbpr720_50_init(void)
 						 tv_encoder_control_regs+i,
 						 1);
 		if (ret < 0) {
-			prr_err("rk1000_control_write_block err!\n");
+			pr_err("rk1000_control_write_block err!\n");
 			return ret;
 		}
 	}
@@ -106,7 +106,7 @@ int rk1000_tv_ypbpr720_60_init(void)
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
 		ret = rk1000_tv_write_block(i, tv_encoder_regs + i, 1);
 		if (ret < 0) {
-			prr_err("rk1000_tv_write_block err!\n");
+			pr_err("rk1000_tv_write_block err!\n");
 			return ret;
 		}
 	}
@@ -115,7 +115,7 @@ int rk1000_tv_ypbpr720_60_init(void)
 						 tv_encoder_control_regs + i,
 						 1);
 		if (ret < 0) {
-			prr_err("rk1000_control_write_block err!\n");
+			pr_err("rk1000_control_write_block err!\n");
 			return ret;
 		}
 	}
