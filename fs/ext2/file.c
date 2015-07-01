@@ -28,12 +28,12 @@
 #ifdef CONFIG_FS_DAX
 static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_fault(vma, vmf, ext2_get_block);
+	return dax_fault(vma, vmf, ext2_get_block, NULL);
 }
 
 static int ext2_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_mkwrite(vma, vmf, ext2_get_block);
+	return dax_mkwrite(vma, vmf, ext2_get_block, NULL);
 }
 
 static const struct vm_operations_struct ext2_dax_vm_ops = {
