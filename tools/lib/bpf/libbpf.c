@@ -84,6 +84,8 @@ struct bpf_object {
 	 */
 	struct {
 		int fd;
+		void *obj_buf;
+		size_t obj_buf_sz;
 		Elf *elf;
 		GElf_Ehdr ehdr;
 	} efile;
@@ -91,7 +93,9 @@ struct bpf_object {
 };
 #define obj_elf_valid(o)	((o)->efile.elf)
 
-static struct bpf_object *bpf_object__new(const char *path)
+static struct bpf_object *bpf_object__new(const char *path,
+					  void *obj_buf,
+					  size_t obj_buf_sz)
 {
 	struct bpf_object *obj;
 
@@ -103,6 +107,16 @@ static struct bpf_object *bpf_object__new(const char *path)
 
 	strcpy(obj->path, path);
 	obj->efile.fd = -1;
+
+	/*
+	 * Caller of this function should also calls
+	 * bpf_object__elf_finish() after data collection to return
+	 * obj_buf to user. If not, we should duplicate the buffer to
+	 * avoid user freeing them before elf finish.
+	 */
+	obj->efile.obj_buf = obj_buf;
+	obj->efile.obj_buf_sz = obj_buf_sz;
+
 	return obj;
 }
 
@@ -116,6 +130,8 @@ static void bpf_object__elf_finish(struct bpf_object *obj)
 		obj->efile.elf = NULL;
 	}
 	zclose(obj->efile.fd);
+	obj->efile.obj_buf = NULL;
+	obj->efile.obj_buf_sz = 0;
 }
 
 static int bpf_object__elf_init(struct bpf_object *obj)
@@ -128,16 +144,26 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 		return -EEXIST;
 	}
 
-	obj->efile.fd = open(obj->path, O_RDONLY);
-	if (obj->efile.fd < 0) {
-		pr_warning("failed to open %s: %s\n", obj->path,
-				strerror(errno));
-		return -errno;
+	if (obj->efile.obj_buf_sz > 0) {
+		/*
+		 * obj_buf should have been validated by
+		 * bpf_object__open_buffer().
+		 */
+		obj->efile.elf = elf_memory(obj->efile.obj_buf,
+					    obj->efile.obj_buf_sz);
+	} else {
+		obj->efile.fd = open(obj->path, O_RDONLY);
+		if (obj->efile.fd < 0) {
+			pr_warning("failed to open %s: %s\n", obj->path,
+					strerror(errno));
+			return -errno;
+		}
+
+		obj->efile.elf = elf_begin(obj->efile.fd,
+				LIBBPF_ELF_C_READ_MMAP,
+				NULL);
 	}
 
-	obj->efile.elf = elf_begin(obj->efile.fd,
-				 LIBBPF_ELF_C_READ_MMAP,
-				 NULL);
 	if (!obj->efile.elf) {
 		pr_warning("failed to open %s as ELF file\n",
 				obj->path);
@@ -167,7 +193,7 @@ errout:
 }
 
 static struct bpf_object *
-__bpf_object__open(const char *path)
+__bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz)
 {
 	struct bpf_object *obj;
 
@@ -176,7 +202,7 @@ __bpf_object__open(const char *path)
 		return NULL;
 	}
 
-	obj = bpf_object__new(path);
+	obj = bpf_object__new(path, obj_buf, obj_buf_sz);
 	if (!obj)
 		return NULL;
 
@@ -198,7 +224,19 @@ struct bpf_object *bpf_object__open(const char *path)
 
 	pr_debug("loading %s\n", path);
 
-	return __bpf_object__open(path);
+	return __bpf_object__open(path, NULL, 0);
+}
+
+struct bpf_object *bpf_object__open_buffer(void *obj_buf,
+					   size_t obj_buf_sz)
+{
+	/* param validation */
+	if (!obj_buf || obj_buf_sz <= 0)
+		return NULL;
+
+	pr_debug("loading object from buffer\n");
+
+	return __bpf_object__open("[buffer]", obj_buf, obj_buf_sz);
 }
 
 void bpf_object__close(struct bpf_object *obj)

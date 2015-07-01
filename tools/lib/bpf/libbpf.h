@@ -26,6 +26,8 @@ void libbpf_set_print(libbpf_print_fn_t warn,
 struct bpf_object;
 
 struct bpf_object *bpf_object__open(const char *path);
+struct bpf_object *bpf_object__open_buffer(void *obj_buf,
+					   size_t obj_buf_sz);
 void bpf_object__close(struct bpf_object *object);
 
 #endif
