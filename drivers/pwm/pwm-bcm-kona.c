@@ -134,7 +134,7 @@ static int kona_pwmc_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/* If the PWM channel is enabled, write the settings to the HW */
-	if (test_bit(PWMF_ENABLED, &pwm->flags)) {
+	if (pwm_is_enabled(pwm)) {
 		value = readl(kp->base + PRESCALE_OFFSET);
 		value &= ~PRESCALE_MASK(chan);
 		value |= prescale << PRESCALE_SHIFT(chan);
@@ -287,7 +287,7 @@ static int kona_pwmc_remove(struct platform_device *pdev)
 	unsigned int chan;
 
 	for (chan = 0; chan < kp->chip.npwm; chan++)
-		if (test_bit(PWMF_ENABLED, &kp->chip.pwms[chan].flags))
+		if (pwm_is_enabled(&kp->chip.pwms[chan]))
 			clk_disable_unprepare(kp->clk);
 
 	return pwmchip_remove(&kp->chip);

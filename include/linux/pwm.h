@@ -92,6 +92,11 @@ struct pwm_device {
 	enum pwm_polarity	polarity;
 };
 
+static inline bool pwm_is_enabled(const struct pwm_device *pwm)
+{
+	return test_bit(PWMF_ENABLED, &pwm->flags);
+}
+
 static inline void pwm_set_period(struct pwm_device *pwm, unsigned int period)
 {
 	if (pwm)

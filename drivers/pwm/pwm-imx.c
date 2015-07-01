@@ -114,7 +114,7 @@ static int imx_pwm_config_v2(struct pwm_chip *chip,
 	unsigned long long c;
 	unsigned long period_cycles, duty_cycles, prescale;
 	unsigned int period_ms;
-	bool enable = test_bit(PWMF_ENABLED, &pwm->flags);
+	bool enable = pwm_is_enabled(pwm);
 	int wait_count = 0, fifoav;
 	u32 cr, sr;
 

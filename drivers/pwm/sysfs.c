@@ -97,7 +97,7 @@ static ssize_t pwm_enable_show(struct device *child,
 			       char *buf)
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
-	int enabled = test_bit(PWMF_ENABLED, &pwm->flags);
+	int enabled = pwm_is_enabled(pwm);
 
 	return sprintf(buf, "%d\n", enabled);
 }

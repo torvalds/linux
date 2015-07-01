@@ -455,7 +455,7 @@ int pwm_set_polarity(struct pwm_device *pwm, enum pwm_polarity polarity)
 	if (!pwm->chip->ops->set_polarity)
 		return -ENOSYS;
 
-	if (test_bit(PWMF_ENABLED, &pwm->flags))
+	if (pwm_is_enabled(pwm))
 		return -EBUSY;
 
 	err = pwm->chip->ops->set_polarity(pwm->chip, pwm, polarity);
@@ -853,7 +853,7 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 		if (test_bit(PWMF_REQUESTED, &pwm->flags))
 			seq_puts(s, " requested");
 
-		if (test_bit(PWMF_ENABLED, &pwm->flags))
+		if (pwm_is_enabled(pwm))
 			seq_puts(s, " enabled");
 
 		seq_puts(s, "\n");
