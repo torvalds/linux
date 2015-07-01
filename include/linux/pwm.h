@@ -124,6 +124,11 @@ static inline unsigned int pwm_get_duty_cycle(const struct pwm_device *pwm)
  */
 int pwm_set_polarity(struct pwm_device *pwm, enum pwm_polarity polarity);
 
+static inline enum pwm_polarity pwm_get_polarity(const struct pwm_device *pwm)
+{
+	return pwm ? pwm->polarity : PWM_POLARITY_NORMAL;
+}
+
 /**
  * struct pwm_ops - PWM controller operations
  * @request: optional hook for requesting a PWM
