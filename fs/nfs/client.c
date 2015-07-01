@@ -825,7 +825,6 @@ error:
  * Load up the server record from information gained in an fsinfo record
  */
 static void nfs_server_set_fsinfo(struct nfs_server *server,
-				  struct nfs_fh *mntfh,
 				  struct nfs_fsinfo *fsinfo)
 {
 	unsigned long max_rpc_payload;
@@ -901,7 +900,7 @@ int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, struct nfs
 	if (error < 0)
 		goto out_error;
 
-	nfs_server_set_fsinfo(server, mntfh, &fsinfo);
+	nfs_server_set_fsinfo(server, &fsinfo);
 
 	/* Get some general file system info */
 	if (server->namelen == 0) {
