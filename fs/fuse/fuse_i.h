@@ -402,6 +402,9 @@ struct fuse_iqueue {
 };
 
 struct fuse_pqueue {
+	/** Connection established */
+	unsigned connected;
+
 	/** The list of requests being processed */
 	struct list_head processing;
 
