@@ -2072,8 +2072,6 @@ static unsigned fuse_dev_poll(struct file *file, poll_table *wait)
  * This function releases and reacquires fc->lock
  */
 static void end_requests(struct fuse_conn *fc, struct list_head *head)
-__releases(fc->lock)
-__acquires(fc->lock)
 {
 	while (!list_empty(head)) {
 		struct fuse_req *req;
@@ -2082,9 +2080,7 @@ __acquires(fc->lock)
 		clear_bit(FR_PENDING, &req->flags);
 		clear_bit(FR_SENT, &req->flags);
 		list_del_init(&req->list);
-		spin_unlock(&fc->lock);
 		request_end(fc, req);
-		spin_lock(&fc->lock);
 	}
 }
 
@@ -2160,20 +2156,20 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		wake_up_all_locked(&fiq->waitq);
 		spin_unlock(&fiq->waitq.lock);
 		kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
+		end_polls(fc);
+		wake_up_all(&fc->blocked_waitq);
+		spin_unlock(&fc->lock);
 
 		while (!list_empty(&to_end1)) {
 			req = list_first_entry(&to_end1, struct fuse_req, list);
 			__fuse_get_request(req);
 			list_del_init(&req->list);
-			spin_unlock(&fc->lock);
 			request_end(fc, req);
-			spin_lock(&fc->lock);
 		}
 		end_requests(fc, &to_end2);
-		end_polls(fc);
-		wake_up_all(&fc->blocked_waitq);
+	} else {
+		spin_unlock(&fc->lock);
 	}
-	spin_unlock(&fc->lock);
 }
 EXPORT_SYMBOL_GPL(fuse_abort_conn);
 
