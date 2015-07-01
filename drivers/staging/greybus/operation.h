@@ -123,8 +123,8 @@ struct gb_operation {
 	int			errno;		/* Operation result */
 
 	struct work_struct	work;
-	gb_operation_callback	callback;	/* If asynchronous */
-	struct completion	completion;	/* Used if no callback */
+	gb_operation_callback	callback;
+	struct completion	completion;
 
 	struct kref		kref;
 	struct list_head	links;		/* connection->operations */
