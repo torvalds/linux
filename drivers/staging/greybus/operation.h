@@ -73,19 +73,20 @@ struct gb_operation_msg_hdr {
 #define GB_OPERATION_MESSAGE_SIZE_MAX	U16_MAX
 
 /*
- * Protocol code should only examine the payload and payload_size
- * fields.  All other fields are intended to be private to the
- * operations core code.
+ * Protocol code should only examine the payload and payload_size fields, and
+ * host-controller drivers may use the hcpriv field. All other fields are
+ * intended to be private to the operations core code.
  */
 struct gb_message {
 	struct gb_operation		*operation;
-	void				*cookie;
 	struct gb_operation_msg_hdr	*header;
 
 	void				*payload;
 	size_t				payload_size;
 
 	void				*buffer;
+
+	void				*hcpriv;
 };
 
 /*

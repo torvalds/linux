@@ -68,6 +68,8 @@ static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
  * @cport_out_urb: array of urbs for the CPort out messages
  * @cport_out_urb_busy: array of flags to see if the @cport_out_urb is busy or
  *			not.
+ * @cport_out_urb_cancelled: array of flags indicating whether the
+ *			corresponding @cport_out_urb is being cancelled
  * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
  */
 struct es1_ap_dev {
@@ -87,6 +89,7 @@ struct es1_ap_dev {
 	u8 *cport_in_buffer[NUM_CPORT_IN_URB];
 	struct urb *cport_out_urb[NUM_CPORT_OUT_URB];
 	bool cport_out_urb_busy[NUM_CPORT_OUT_URB];
+	bool cport_out_urb_cancelled[NUM_CPORT_OUT_URB];
 	spinlock_t cport_out_urb_lock;
 };
 
@@ -131,7 +134,8 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 
 	/* Look in our pool of allocated urbs first, as that's the "fastest" */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		if (es1->cport_out_urb_busy[i] == false) {
+		if (es1->cport_out_urb_busy[i] == false &&
+				es1->cport_out_urb_cancelled[i] == false) {
 			es1->cport_out_urb_busy[i] = true;
 			urb = es1->cport_out_urb[i];
 			break;
@@ -199,11 +203,10 @@ static u16 gb_message_cport_unpack(struct gb_operation_msg_hdr *header)
 }
 
 /*
- * Returns an opaque cookie value if successful, or a pointer coded
- * error otherwise.  If the caller wishes to cancel the in-flight
- * buffer, it must supply the returned cookie to the cancel routine.
+ * Returns zero if the message was successfully queued, or a negative errno
+ * otherwise.
  */
-static void *message_send(struct greybus_host_device *hd, u16 cport_id,
+static int message_send(struct greybus_host_device *hd, u16 cport_id,
 			struct gb_message *message, gfp_t gfp_mask)
 {
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
@@ -211,6 +214,7 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 	size_t buffer_size;
 	int retval;
 	struct urb *urb;
+	unsigned long flags;
 
 	/*
 	 * The data actually transferred will include an indication
@@ -219,13 +223,17 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 	 */
 	if (!cport_id_valid(cport_id)) {
 		pr_err("invalid destination cport 0x%02x\n", cport_id);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* Find a free urb */
 	urb = next_free_urb(es1, gfp_mask);
 	if (!urb)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
+
+	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+	message->hcpriv = urb;
+	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
 
 	/* Pack the cport id into the message header */
 	gb_message_cport_pack(message->header, cport_id);
@@ -239,30 +247,56 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);
+
+		spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+		message->hcpriv = NULL;
+		spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+
 		free_urb(es1, urb);
 		gb_message_cport_clear(message->header);
-		return ERR_PTR(retval);
+
+		return retval;
 	}
 
-	return urb;
+	return 0;
 }
 
 /*
- * The cookie value supplied is the value that message_send()
- * returned to its caller.  It identifies the message that should be
- * canceled.  This function must also handle (which is to say,
- * ignore) a null cookie value.
+ * Can not be called in atomic context.
  */
-static void message_cancel(void *cookie)
+static void message_cancel(struct gb_message *message)
 {
+	struct greybus_host_device *hd = message->operation->connection->hd;
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
+	struct urb *urb;
+	int i;
 
-	/*
-	 * We really should be defensive and track all outstanding
-	 * (sent) messages rather than trusting the cookie provided
-	 * is valid.  For the time being, this will do.
-	 */
-	if (cookie)
-		usb_kill_urb(cookie);
+	might_sleep();
+
+	spin_lock_irq(&es1->cport_out_urb_lock);
+	urb = message->hcpriv;
+
+	/* Prevent dynamically allocated urb from being deallocated. */
+	usb_get_urb(urb);
+
+	/* Prevent pre-allocated urb from being reused. */
+	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
+		if (urb == es1->cport_out_urb[i]) {
+			es1->cport_out_urb_cancelled[i] = true;
+			break;
+		}
+	}
+	spin_unlock_irq(&es1->cport_out_urb_lock);
+
+	usb_kill_urb(urb);
+
+	if (i < NUM_CPORT_OUT_URB) {
+		spin_lock_irq(&es1->cport_out_urb_lock);
+		es1->cport_out_urb_cancelled[i] = false;
+		spin_unlock_irq(&es1->cport_out_urb_lock);
+	}
+
+	usb_free_urb(urb);
 }
 
 static struct greybus_host_driver es1_driver = {
@@ -418,6 +452,7 @@ static void cport_out_callback(struct urb *urb)
 	struct greybus_host_device *hd = message->operation->connection->hd;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	int status = check_urb_status(urb);
+	unsigned long flags;
 
 	gb_message_cport_clear(message->header);
 
@@ -426,6 +461,10 @@ static void cport_out_callback(struct urb *urb)
 	 * complete, and report the status.
 	 */
 	greybus_message_sent(hd, message, status);
+
+	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+	message->hcpriv = NULL;
+	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
 
 	free_urb(es1, urb);
 }

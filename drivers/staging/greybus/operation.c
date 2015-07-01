@@ -23,9 +23,6 @@ static struct kmem_cache *gb_message_cache;
 /* Workqueue to handle Greybus operation completions. */
 static struct workqueue_struct *gb_operation_workqueue;
 
-/* Protects the cookie representing whether a message is in flight */
-static DEFINE_MUTEX(gb_message_mutex);
-
 /*
  * Protects access to connection operations lists, as well as
  * updates to operation->errno.
@@ -135,21 +132,11 @@ gb_operation_find(struct gb_connection *connection, u16 operation_id)
 static int gb_message_send(struct gb_message *message)
 {
 	struct gb_connection *connection = message->operation->connection;
-	int ret = 0;
-	void *cookie;
 
-	mutex_lock(&gb_message_mutex);
-	cookie = connection->hd->driver->message_send(connection->hd,
+	return connection->hd->driver->message_send(connection->hd,
 					connection->hd_cport_id,
 					message,
 					GFP_KERNEL);
-	if (IS_ERR(cookie))
-		ret = PTR_ERR(cookie);
-	else
-		message->cookie = cookie;
-	mutex_unlock(&gb_message_mutex);
-
-	return ret;
 }
 
 /*
@@ -157,14 +144,9 @@ static int gb_message_send(struct gb_message *message)
  */
 static void gb_message_cancel(struct gb_message *message)
 {
-	mutex_lock(&gb_message_mutex);
-	if (message->cookie) {
-		struct greybus_host_device *hd;
+	struct greybus_host_device *hd = message->operation->connection->hd;
 
-		hd = message->operation->connection->hd;
-		hd->driver->message_cancel(message->cookie);
-	}
-	mutex_unlock(&gb_message_mutex);
+	hd->driver->message_cancel(message);
 }
 
 static void gb_operation_request_handle(struct gb_operation *operation)
@@ -718,9 +700,6 @@ void greybus_message_sent(struct greybus_host_device *hd,
 					struct gb_message *message, int status)
 {
 	struct gb_operation *operation;
-
-	/* Get the message and record that it is no longer in flight */
-	message->cookie = NULL;
 
 	/*
 	 * If the message was a response, we just need to drop our
