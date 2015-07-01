@@ -169,6 +169,15 @@ static int fxls8471_set_delay(struct fxls8471_data *pdata, int delay)
 	return 0;
 }
 
+static int fxls8471_change_range(struct fxls8471_data *pdata, int range)
+{
+	int ret;
+
+	ret = fxls8471_bus_write(pdata, FXLS8471_XYZ_DATA_CFG, range);
+
+	return ret;
+}
+
 static int fxls8471_read_data(struct fxls8471_data *pdata,
 			      struct fxls8471_data_axis *data)
 {
@@ -319,7 +328,10 @@ static ssize_t fxls8471_enable_store(struct device *dev,
 	ret = fxls8471_change_mode(pdata, (enable > 0 ? ACTIVED : STANDBY));
 	if (!ret) {
 		atomic_set(&pdata->active, enable);
-		printk(KERN_INFO "mma enable setting active\n");
+		if (enable)
+			printk(KERN_INFO "mma enable setting actived\n");
+		else
+			printk(KERN_INFO "mma enable setting standby\n");
 	}
 	return count;
 }
@@ -386,8 +398,40 @@ static ssize_t fxls8471_data_show(struct device *dev,
 	return sprintf(buf, "%d,%d,%d\n", data.x, data.y, data.z);
 }
 
-static DEVICE_ATTR(enable, S_IWUSR | S_IRUGO, fxls8471_enable_show, fxls8471_enable_store);
+static ssize_t fxls8471_range_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct fxls8471_data *pdata = &fxls8471_dev;
+	int range = 0;
 
+	range = atomic_read(&pdata->range);
+	return sprintf(buf, "%d\n", range);
+}
+
+static ssize_t fxls8471_range_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct fxls8471_data *pdata = &fxls8471_dev;
+	int ret;
+	unsigned long range;
+
+	if (kstrtoul(buf, 10, &range) < 0)
+		return -EINVAL;
+
+	if (range == atomic_read(&pdata->range))
+		return count;
+
+	if (atomic_read(&pdata->active))
+		printk(KERN_INFO "Pls set the sensor standby and then actived\n");
+	ret = fxls8471_change_range(pdata, range);
+	if (!ret)
+		atomic_set(&pdata->range, range);
+
+	return count;
+}
+
+static DEVICE_ATTR(enable, S_IWUSR | S_IRUGO, fxls8471_enable_show, fxls8471_enable_store);
 static DEVICE_ATTR(poll_delay, S_IWUSR | S_IRUGO, fxls8471_poll_delay_show,
 		   fxls8471_poll_delay_store);
 
@@ -396,11 +440,14 @@ static DEVICE_ATTR(position, S_IWUSR | S_IRUGO, fxls8471_position_show,
 
 static DEVICE_ATTR(data, S_IWUSR | S_IRUGO, fxls8471_data_show, NULL);
 
+static DEVICE_ATTR(range, S_IWUSR | S_IRUGO, fxls8471_range_show, fxls8471_range_store);
+
 static struct attribute *fxls8471_attributes[] = {
 	&dev_attr_enable.attr,
 	&dev_attr_poll_delay.attr,
 	&dev_attr_position.attr,
 	&dev_attr_data.attr,
+	&dev_attr_range.attr,
 	NULL
 };
 

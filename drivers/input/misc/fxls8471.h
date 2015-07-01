@@ -80,6 +80,7 @@ struct fxls8471_data {
 	atomic_t active;
 	atomic_t delay;
 	atomic_t position;
+	atomic_t range;
 	u8 chip_id;
 };
 
