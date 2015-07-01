@@ -893,6 +893,19 @@
 		status = "disabled";
 	};
 
+	remotectl: pwm@ff680000 {
+		compatible = "rockchip,remotectl-pwm";
+		reg = <0xff680000 0x10>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm0_pin>;
+		clocks = <&clk_gates11 11>;
+		clock-names = "pclk_pwm";
+		remote_pwm_id = <0>;
+		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	dvfs {
 
 		vd_arm: vd_arm {
@@ -1264,7 +1277,6 @@
                 rockchip,pmic-resume_gpios = <
 			RKPM_PINGPIO_BITS_FUN(PWM1,RKPM_GPIO_PULL_DN)
 			>;
-        
 	};
 
 	isp: isp@ff910000{
