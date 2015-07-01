@@ -1,1 +1,1 @@
-libbpf-y := libbpf.o
+libbpf-y := libbpf.o bpf.o
