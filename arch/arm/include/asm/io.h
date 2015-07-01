@@ -348,11 +348,47 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
 #endif	/* readl */
 
 /*
- * ioremap and friends.
+ * ioremap() and friends.
  *
- * ioremap takes a PCI memory address, as specified in
- * Documentation/io-mapping.txt.
+ * ioremap() takes a resource address, and size.  Due to the ARM memory
+ * types, it is important to use the correct ioremap() function as each
+ * mapping has specific properties.
  *
+ * Function		Memory type	Cacheability	Cache hint
+ * ioremap()		Device		n/a		n/a
+ * ioremap_nocache()	Device		n/a		n/a
+ * ioremap_cache()	Normal		Writeback	Read allocate
+ * ioremap_wc()		Normal		Non-cacheable	n/a
+ * ioremap_wt()		Normal		Non-cacheable	n/a
+ *
+ * All device mappings have the following properties:
+ * - no access speculation
+ * - no repetition (eg, on return from an exception)
+ * - number, order and size of accesses are maintained
+ * - unaligned accesses are "unpredictable"
+ * - writes may be delayed before they hit the endpoint device
+ *
+ * ioremap_nocache() is the same as ioremap() as there are too many device
+ * drivers using this for device registers, and documentation which tells
+ * people to use it for such for this to be any different.  This is not a
+ * safe fallback for memory-like mappings, or memory regions where the
+ * compiler may generate unaligned accesses - eg, via inlining its own
+ * memcpy.
+ *
+ * All normal memory mappings have the following properties:
+ * - reads can be repeated with no side effects
+ * - repeated reads return the last value written
+ * - reads can fetch additional locations without side effects
+ * - writes can be repeated (in certain cases) with no side effects
+ * - writes can be merged before accessing the target
+ * - unaligned accesses can be supported
+ * - ordering is not guaranteed without explicit dependencies or barrier
+ *   instructions
+ * - writes may be delayed before they hit the endpoint memory
+ *
+ * The cache hint is only a performance hint: CPUs may alias these hints.
+ * Eg, a CPU not implementing read allocate but implementing write allocate
+ * will provide a write allocate mapping instead.
  */
 #define ioremap(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE)
 #define ioremap_nocache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE)
