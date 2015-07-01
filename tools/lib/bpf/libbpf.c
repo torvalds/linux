@@ -220,6 +220,57 @@ mismatch:
 	return -EINVAL;
 }
 
+static int bpf_object__elf_collect(struct bpf_object *obj)
+{
+	Elf *elf = obj->efile.elf;
+	GElf_Ehdr *ep = &obj->efile.ehdr;
+	Elf_Scn *scn = NULL;
+	int idx = 0, err = 0;
+
+	/* Elf is corrupted/truncated, avoid calling elf_strptr. */
+	if (!elf_rawdata(elf_getscn(elf, ep->e_shstrndx), NULL)) {
+		pr_warning("failed to get e_shstrndx from %s\n",
+			   obj->path);
+		return -EINVAL;
+	}
+
+	while ((scn = elf_nextscn(elf, scn)) != NULL) {
+		char *name;
+		GElf_Shdr sh;
+		Elf_Data *data;
+
+		idx++;
+		if (gelf_getshdr(scn, &sh) != &sh) {
+			pr_warning("failed to get section header from %s\n",
+				   obj->path);
+			err = -EINVAL;
+			goto out;
+		}
+
+		name = elf_strptr(elf, ep->e_shstrndx, sh.sh_name);
+		if (!name) {
+			pr_warning("failed to get section name from %s\n",
+				   obj->path);
+			err = -EINVAL;
+			goto out;
+		}
+
+		data = elf_getdata(scn, 0);
+		if (!data) {
+			pr_warning("failed to get section data from %s(%s)\n",
+				   name, obj->path);
+			err = -EINVAL;
+			goto out;
+		}
+		pr_debug("section %s, size %ld, link %d, flags %lx, type=%d\n",
+			 name, (unsigned long)data->d_size,
+			 (int)sh.sh_link, (unsigned long)sh.sh_flags,
+			 (int)sh.sh_type);
+	}
+out:
+	return err;
+}
+
 static struct bpf_object *
 __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz)
 {
@@ -237,6 +288,8 @@ __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz)
 	if (bpf_object__elf_init(obj))
 		goto out;
 	if (bpf_object__check_endianness(obj))
+		goto out;
+	if (bpf_object__elf_collect(obj))
 		goto out;
 
 	bpf_object__elf_finish(obj);
