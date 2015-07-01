@@ -394,7 +394,7 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
 #define ioremap_nocache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE)
 #define ioremap_cache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE_CACHED)
 #define ioremap_wc(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE_WC)
-#define ioremap_wt(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE)
+#define ioremap_wt(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE_WC)
 #define iounmap				__arm_iounmap
 
 /*
