@@ -24,10 +24,8 @@
 #include <net/route.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_TEE.h>
-
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
-#	define WITH_CONNTRACK 1
-#	include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack.h>
 #endif
 
 struct xt_tee_priv {
@@ -99,7 +97,7 @@ tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	if (skb == NULL)
 		return XT_CONTINUE;
 
-#ifdef WITH_CONNTRACK
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	/* Avoid counting cloned packets towards the original connection. */
 	nf_conntrack_put(skb->nfct);
 	skb->nfct     = &nf_ct_untracked_get()->ct_general;
@@ -175,7 +173,7 @@ tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	if (skb == NULL)
 		return XT_CONTINUE;
 
-#ifdef WITH_CONNTRACK
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	nf_conntrack_put(skb->nfct);
 	skb->nfct     = &nf_ct_untracked_get()->ct_general;
 	skb->nfctinfo = IP_CT_NEW;
