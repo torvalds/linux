@@ -542,7 +542,7 @@ event_trigger_unlock_commit_regs(struct trace_event_file *file,
 		event_triggers_post_call(file, tt);
 }
 
-#ifdef CONFIG_BPF_SYSCALL
+#ifdef CONFIG_BPF_EVENTS
 unsigned int trace_call_bpf(struct bpf_prog *prog, void *ctx);
 #else
 static inline unsigned int trace_call_bpf(struct bpf_prog *prog, void *ctx)
