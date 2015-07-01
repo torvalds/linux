@@ -267,6 +267,27 @@ struct fuse_io_priv {
 };
 
 /**
+ * Request flags
+ *
+ * FR_ISREPLY:		set if the request has reply
+ * FR_FORCE:		force sending of the request even if interrupted
+ * FR_BACKGROUND:	request is sent in the background
+ * FR_WAITING:		request is counted as "waiting"
+ * FR_ABORTED:		the request was aborted
+ * FR_INTERRUPTED:	the request has been interrupted
+ * FR_LOCKED:		data is being copied to/from the request
+ */
+enum fuse_req_flag {
+	FR_ISREPLY,
+	FR_FORCE,
+	FR_BACKGROUND,
+	FR_WAITING,
+	FR_ABORTED,
+	FR_INTERRUPTED,
+	FR_LOCKED,
+};
+
+/**
  * A request to the client
  */
 struct fuse_req {
@@ -283,32 +304,8 @@ struct fuse_req {
 	/** Unique ID for the interrupt request */
 	u64 intr_unique;
 
-	/*
-	 * The following bitfields are either set once before the
-	 * request is queued or setting/clearing them is protected by
-	 * fuse_conn->lock
-	 */
-
-	/** True if the request has reply */
-	unsigned isreply:1;
-
-	/** Force sending of the request even if interrupted */
-	unsigned force:1;
-
-	/** The request was aborted */
-	unsigned aborted:1;
-
-	/** Request is sent in the background */
-	unsigned background:1;
-
-	/** The request has been interrupted */
-	unsigned interrupted:1;
-
-	/** Data is being copied to/from the request */
-	unsigned locked:1;
-
-	/** Request is counted as "waiting" */
-	unsigned waiting:1;
+	/* Request flags, updated with test/set/clear_bit() */
+	unsigned long flags;
 
 	/** State of the request */
 	enum fuse_req_state state;

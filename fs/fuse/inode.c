@@ -362,8 +362,8 @@ static void fuse_send_destroy(struct fuse_conn *fc)
 	if (req && fc->conn_init) {
 		fc->destroy_req = NULL;
 		req->in.h.opcode = FUSE_DESTROY;
-		req->force = 1;
-		req->background = 0;
+		__set_bit(FR_FORCE, &req->flags);
+		__clear_bit(FR_BACKGROUND, &req->flags);
 		fuse_request_send(fc, req);
 		fuse_put_request(fc, req);
 	}
@@ -1060,7 +1060,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	init_req = fuse_request_alloc(0);
 	if (!init_req)
 		goto err_put_root;
-	init_req->background = 1;
+	__set_bit(FR_BACKGROUND, &init_req->flags);
 
 	if (is_bdev) {
 		fc->destroy_req = fuse_request_alloc(0);
