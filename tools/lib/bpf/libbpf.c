@@ -94,6 +94,7 @@ struct bpf_object {
 		size_t obj_buf_sz;
 		Elf *elf;
 		GElf_Ehdr ehdr;
+		Elf_Data *symbols;
 	} efile;
 	char path[];
 };
@@ -135,6 +136,7 @@ static void bpf_object__elf_finish(struct bpf_object *obj)
 		elf_end(obj->efile.elf);
 		obj->efile.elf = NULL;
 	}
+	obj->efile.symbols = NULL;
 	zclose(obj->efile.fd);
 	obj->efile.obj_buf = NULL;
 	obj->efile.obj_buf_sz = 0;
@@ -333,6 +335,14 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		else if (strcmp(name, "maps") == 0)
 			err = bpf_object__init_maps(obj, data->d_buf,
 						    data->d_size);
+		else if (sh.sh_type == SHT_SYMTAB) {
+			if (obj->efile.symbols) {
+				pr_warning("bpf: multiple SYMTAB in %s\n",
+					   obj->path);
+				err = -EEXIST;
+			} else
+				obj->efile.symbols = data;
+		}
 		if (err)
 			goto out;
 	}
