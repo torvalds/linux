@@ -660,8 +660,10 @@ static int add_region_before(u64 start, u64 end, u8 space_id,
 		return -ENOMEM;
 
 	error = request_range(start, end, space_id, flags, desc);
-	if (error)
+	if (error) {
+		kfree(reg);
 		return error;
+	}
 
 	reg->start = start;
 	reg->end = end;

@@ -53,7 +53,7 @@ static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 	return adev ? adev->handle : NULL;
 }
 
-#define ACPI_COMPANION(dev)		acpi_node((dev)->fwnode)
+#define ACPI_COMPANION(dev)		to_acpi_node((dev)->fwnode)
 #define ACPI_COMPANION_SET(dev, adev)	set_primary_fwnode(dev, (adev) ? \
 	acpi_fwnode_handle(adev) : NULL)
 #define ACPI_HANDLE(dev)		acpi_device_handle(ACPI_COMPANION(dev))
@@ -454,7 +454,7 @@ static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 	return false;
 }
 
-static inline struct acpi_device *acpi_node(struct fwnode_handle *fwnode)
+static inline struct acpi_device *to_acpi_node(struct fwnode_handle *fwnode)
 {
 	return NULL;
 }

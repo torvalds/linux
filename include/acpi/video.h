@@ -43,7 +43,7 @@ static inline enum acpi_backlight_type acpi_video_get_backlight_type(void)
 {
 	return acpi_backlight_vendor;
 }
-static void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
+static inline void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
 {
 }
 #endif

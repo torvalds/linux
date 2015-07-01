@@ -191,7 +191,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 			goto err;
 		}
 
-		np = of_node(child);
+		np = to_of_node(child);
 
 		if (fwnode_property_present(child, "label")) {
 			fwnode_property_read_string(child, "label", &led.name);
