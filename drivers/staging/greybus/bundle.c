@@ -10,8 +10,6 @@
 #include "greybus.h"
 
 static void gb_bundle_connections_exit(struct gb_bundle *bundle);
-static int gb_bundle_connections_init(struct gb_bundle *bundle);
-
 
 static ssize_t class_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
@@ -212,44 +210,6 @@ void gb_bundle_destroy(struct gb_bundle *bundle)
 	device_unregister(&bundle->dev);
 }
 
-int gb_bundle_init(struct gb_bundle *bundle)
-{
-	struct gb_interface *intf = bundle->intf;
-	int ret;
-
-	/* Don't reinitialize control cport's bundle */
-	if (intf->control && bundle->id == GB_CONTROL_BUNDLE_ID)
-		return 0;
-
-	ret = gb_bundle_connections_init(bundle);
-	if (ret) {
-		dev_err(intf->hd->parent, "interface bundle init error %d\n",
-			ret);
-		/* XXX clear route */
-		return ret;
-	}
-
-	return 0;
-}
-
-int gb_bundles_init(struct gb_interface *intf)
-{
-	struct gb_bundle *bundle;
-	int ret = 0;
-
-	list_for_each_entry(bundle, &intf->bundles, links) {
-		ret = gb_bundle_init(bundle);
-		if (ret) {
-			dev_err(intf->hd->parent,
-				"Failed to initialize bundle %hhu\n",
-				bundle->id);
-			break;
-		}
-	}
-
-	return ret;
-}
-
 struct gb_bundle *gb_bundle_find(struct gb_interface *intf, u8 bundle_id)
 {
 	struct gb_bundle *bundle;
@@ -263,20 +223,6 @@ found:
 	spin_unlock_irq(&gb_bundles_lock);
 
 	return bundle;
-}
-
-static int gb_bundle_connections_init(struct gb_bundle *bundle)
-{
-	struct gb_connection *connection;
-	int ret = 0;
-
-	list_for_each_entry(connection, &bundle->connections, bundle_links) {
-		ret = gb_connection_init(connection);
-		if (ret)
-			break;
-	}
-
-	return ret;
 }
 
 static void gb_bundle_connections_exit(struct gb_bundle *bundle)
