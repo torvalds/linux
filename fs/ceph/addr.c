@@ -719,6 +719,8 @@ static int ceph_writepages_start(struct address_space *mapping,
 
 	if (ACCESS_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
 		pr_warn("writepage_start %p on forced umount\n", inode);
+		truncate_pagecache(inode, 0);
+		mapping_set_error(mapping, -EIO);
 		return -EIO; /* we're in a forced umount, don't write! */
 	}
 	if (fsc->mount_options->wsize && fsc->mount_options->wsize < wsize)
