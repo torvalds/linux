@@ -487,7 +487,7 @@ block_t start_bidx_of_node(unsigned int node_ofs, struct f2fs_inode_info *fi)
 	return bidx * ADDRS_PER_BLOCK + ADDRS_PER_INODE(fi);
 }
 
-static int check_dnode(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
+static bool is_alive(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 		struct node_info *dni, block_t blkaddr, unsigned int *nofs)
 {
 	struct page *node_page;
@@ -500,13 +500,13 @@ static int check_dnode(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 
 	node_page = get_node_page(sbi, nid);
 	if (IS_ERR(node_page))
-		return 0;
+		return false;
 
 	get_node_info(sbi, nid, dni);
 
 	if (sum->version != dni->version) {
 		f2fs_put_page(node_page, 1);
-		return 0;
+		return false;
 	}
 
 	*nofs = ofs_of_node(node_page);
@@ -514,8 +514,8 @@ static int check_dnode(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	f2fs_put_page(node_page, 1);
 
 	if (source_blkaddr != blkaddr)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static void move_encrypted_block(struct inode *inode, block_t bidx)
@@ -670,7 +670,7 @@ next_step:
 		}
 
 		/* Get an inode by ino with checking validity */
-		if (check_dnode(sbi, entry, &dni, start_addr + off, &nofs) == 0)
+		if (!is_alive(sbi, entry, &dni, start_addr + off, &nofs))
 			continue;
 
 		if (phase == 1) {
