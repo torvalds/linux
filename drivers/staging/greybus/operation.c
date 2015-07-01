@@ -662,6 +662,12 @@ static int gb_operation_response_send(struct gb_operation *operation,
 	struct gb_connection *connection = operation->connection;
 	int ret;
 
+	if (!operation->response &&
+			!gb_operation_is_unidirectional(operation)) {
+		if (!gb_operation_response_alloc(operation, 0))
+			return -ENOMEM;
+	}
+
 	/* Record the result */
 	if (!gb_operation_result_set(operation, errno)) {
 		dev_err(&connection->dev, "request result already set\n");
@@ -671,11 +677,6 @@ static int gb_operation_response_send(struct gb_operation *operation,
 	/* Sender of request does not care about response. */
 	if (gb_operation_is_unidirectional(operation))
 		return 0;
-
-	if (!operation->response) {
-		if (!gb_operation_response_alloc(operation, 0))
-			return -ENOMEM;
-	}
 
 	/* Reference will be dropped when message has been sent. */
 	gb_operation_get(operation);
