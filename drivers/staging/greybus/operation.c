@@ -413,7 +413,7 @@ EXPORT_SYMBOL_GPL(gb_operation_response_alloc);
 static struct gb_operation *
 gb_operation_create_common(struct gb_connection *connection, u8 type,
 				size_t request_size, size_t response_size,
-				gfp_t gfp_flags)
+				unsigned long op_flags, gfp_t gfp_flags)
 {
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_operation *operation;
@@ -431,11 +431,13 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	operation->request->operation = operation;
 
 	/* Allocate the response buffer for outgoing operations */
-	if (type != GB_OPERATION_TYPE_INVALID) {
+	if (!(op_flags & GB_OPERATION_FLAG_INCOMING)) {
 		if (!gb_operation_response_alloc(operation, response_size))
 			goto err_request;
-		operation->type = type;
 	}
+
+	operation->flags = op_flags;
+	operation->type = type;
 	operation->errno = -EBADR;  /* Initial value--means "never set" */
 
 	INIT_WORK(&operation->work, gb_operation_work);
@@ -475,7 +477,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 		type &= ~GB_MESSAGE_TYPE_RESPONSE;
 
 	return gb_operation_create_common(connection, type,
-					request_size, response_size, gfp);
+					request_size, response_size, 0, gfp);
 }
 EXPORT_SYMBOL_GPL(gb_operation_create);
 
@@ -493,16 +495,15 @@ gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 {
 	struct gb_operation *operation;
 	size_t request_size;
+	unsigned long flags = GB_OPERATION_FLAG_INCOMING;
 
 	/* Caller has made sure we at least have a message header. */
 	request_size = size - sizeof(struct gb_operation_msg_hdr);
 
-	operation = gb_operation_create_common(connection,
-					GB_OPERATION_TYPE_INVALID,
-					request_size, 0, GFP_ATOMIC);
+	operation = gb_operation_create_common(connection, type,
+					request_size, 0, flags, GFP_ATOMIC);
 	if (operation) {
 		operation->id = id;
-		operation->type = type;
 		memcpy(operation->request->header, data, size);
 	}
 
