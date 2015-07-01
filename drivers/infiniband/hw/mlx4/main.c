@@ -253,14 +253,15 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->hca_core_clock = dev->dev->caps.hca_core_clock * 1000UL;
 	props->timestamp_mask = 0xFFFFFFFFFFFFULL;
 
-	err = mlx4_get_internal_clock_params(dev->dev, &clock_params);
-	if (err)
-		goto out;
+	if (!mlx4_is_slave(dev->dev))
+		err = mlx4_get_internal_clock_params(dev->dev, &clock_params);
 
 	if (uhw->outlen >= resp.response_length + sizeof(resp.hca_core_clock_offset)) {
-		resp.hca_core_clock_offset = clock_params.offset % PAGE_SIZE;
 		resp.response_length += sizeof(resp.hca_core_clock_offset);
-		resp.comp_mask |= QUERY_DEVICE_RESP_MASK_TIMESTAMP;
+		if (!err && !mlx4_is_slave(dev->dev)) {
+			resp.comp_mask |= QUERY_DEVICE_RESP_MASK_TIMESTAMP;
+			resp.hca_core_clock_offset = clock_params.offset % PAGE_SIZE;
+		}
 	}
 
 	if (uhw->outlen) {
