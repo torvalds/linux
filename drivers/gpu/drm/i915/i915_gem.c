@@ -149,14 +149,18 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_get_aperture *args = data;
-	struct drm_i915_gem_object *obj;
+	struct i915_gtt *ggtt = &dev_priv->gtt;
+	struct i915_vma *vma;
 	size_t pinned;
 
 	pinned = 0;
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
-		if (i915_gem_obj_is_pinned(obj))
-			pinned += i915_gem_obj_ggtt_size(obj);
+	list_for_each_entry(vma, &ggtt->base.active_list, mm_list)
+		if (vma->pin_count)
+			pinned += vma->node.size;
+	list_for_each_entry(vma, &ggtt->base.inactive_list, mm_list)
+		if (vma->pin_count)
+			pinned += vma->node.size;
 	mutex_unlock(&dev->struct_mutex);
 
 	args->aper_size = dev_priv->gtt.base.total;
@@ -5468,4 +5472,3 @@ bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj)
 
 	return false;
 }
-

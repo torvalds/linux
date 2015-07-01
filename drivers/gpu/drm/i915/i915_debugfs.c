@@ -117,6 +117,20 @@ static inline const char *get_global_flag(struct drm_i915_gem_object *obj)
 	return i915_gem_obj_to_ggtt(obj) ? "g" : " ";
 }
 
+static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
+{
+	u64 size = 0;
+	struct i915_vma *vma;
+
+	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		if (i915_is_ggtt(vma->vm) &&
+		    drm_mm_node_allocated(&vma->node))
+			size += vma->node.size;
+	}
+
+	return size;
+}
+
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
@@ -269,7 +283,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		list_add(&obj->obj_exec_link, &stolen);
 
 		total_obj_size += obj->base.size;
-		total_gtt_size += i915_gem_obj_ggtt_size(obj);
+		total_gtt_size += i915_gem_obj_total_ggtt_size(obj);
 		count++;
 	}
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
@@ -299,7 +313,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 
 #define count_objects(list, member) do { \
 	list_for_each_entry(obj, list, member) { \
-		size += i915_gem_obj_ggtt_size(obj); \
+		size += i915_gem_obj_total_ggtt_size(obj); \
 		++count; \
 		if (obj->map_and_fenceable) { \
 			mappable_size += i915_gem_obj_ggtt_size(obj); \
@@ -405,7 +419,7 @@ static void print_batch_pool_stats(struct seq_file *m,
 
 #define count_vmas(list, member) do { \
 	list_for_each_entry(vma, list, member) { \
-		size += i915_gem_obj_ggtt_size(vma->obj); \
+		size += i915_gem_obj_total_ggtt_size(vma->obj); \
 		++count; \
 		if (vma->obj->map_and_fenceable) { \
 			mappable_size += i915_gem_obj_ggtt_size(vma->obj); \
@@ -535,7 +549,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 		describe_obj(m, obj);
 		seq_putc(m, '\n');
 		total_obj_size += obj->base.size;
-		total_gtt_size += i915_gem_obj_ggtt_size(obj);
+		total_gtt_size += i915_gem_obj_total_ggtt_size(obj);
 		count++;
 	}
 
