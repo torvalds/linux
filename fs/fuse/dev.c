@@ -423,8 +423,10 @@ __releases(fc->lock)
 static void queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
 	spin_lock(&fiq->waitq.lock);
-	list_add_tail(&req->intr_entry, &fiq->interrupts);
-	wake_up_locked(&fiq->waitq);
+	if (list_empty(&req->intr_entry)) {
+		list_add_tail(&req->intr_entry, &fiq->interrupts);
+		wake_up_locked(&fiq->waitq);
+	}
 	spin_unlock(&fiq->waitq.lock);
 	kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 }
@@ -443,6 +445,8 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 
 		spin_lock(&fc->lock);
 		set_bit(FR_INTERRUPTED, &req->flags);
+		/* matches barrier in fuse_dev_do_read() */
+		smp_mb__after_atomic();
 		if (test_bit(FR_SENT, &req->flags))
 			queue_interrupt(fiq, req);
 		spin_unlock(&fc->lock);
@@ -1358,8 +1362,10 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	if (!test_bit(FR_ISREPLY, &req->flags)) {
 		request_end(fc, req);
 	} else {
-		set_bit(FR_SENT, &req->flags);
 		list_move_tail(&req->list, &fc->processing);
+		set_bit(FR_SENT, &req->flags);
+		/* matches barrier in request_wait_answer() */
+		smp_mb__after_atomic();
 		if (test_bit(FR_INTERRUPTED, &req->flags))
 			queue_interrupt(fiq, req);
 		spin_unlock(&fc->lock);
