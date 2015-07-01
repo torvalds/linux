@@ -1240,6 +1240,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 {
 	int err;
 	struct fuse_iqueue *fiq = &fc->iq;
+	struct fuse_pqueue *fpq = &fc->pq;
 	struct fuse_req *req;
 	struct fuse_in *in;
 	unsigned reqsize;
@@ -1280,7 +1281,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	spin_unlock(&fiq->waitq.lock);
 
 	spin_lock(&fc->lock);
-	list_add(&req->list, &fc->io);
+	list_add(&req->list, &fpq->io);
 
 	in = &req->in;
 	reqsize = in->h.len;
@@ -1314,7 +1315,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	if (!test_bit(FR_ISREPLY, &req->flags)) {
 		request_end(fc, req);
 	} else {
-		list_move_tail(&req->list, &fc->processing);
+		list_move_tail(&req->list, &fpq->processing);
 		set_bit(FR_SENT, &req->flags);
 		/* matches barrier in request_wait_answer() */
 		smp_mb__after_atomic();
@@ -1815,11 +1816,11 @@ static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 }
 
 /* Look up request on processing list by unique ID */
-static struct fuse_req *request_find(struct fuse_conn *fc, u64 unique)
+static struct fuse_req *request_find(struct fuse_pqueue *fpq, u64 unique)
 {
 	struct fuse_req *req;
 
-	list_for_each_entry(req, &fc->processing, list) {
+	list_for_each_entry(req, &fpq->processing, list) {
 		if (req->in.h.unique == unique || req->intr_unique == unique)
 			return req;
 	}
@@ -1860,6 +1861,7 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 				 struct fuse_copy_state *cs, size_t nbytes)
 {
 	int err;
+	struct fuse_pqueue *fpq = &fc->pq;
 	struct fuse_req *req;
 	struct fuse_out_header oh;
 
@@ -1892,7 +1894,7 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	if (!fc->connected)
 		goto err_unlock;
 
-	req = request_find(fc, oh.unique);
+	req = request_find(fpq, oh.unique);
 	if (!req)
 		goto err_unlock;
 
@@ -1913,7 +1915,7 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	}
 
 	clear_bit(FR_SENT, &req->flags);
-	list_move(&req->list, &fc->io);
+	list_move(&req->list, &fpq->io);
 	req->out.h = oh;
 	set_bit(FR_LOCKED, &req->flags);
 	cs->req = req;
@@ -2112,6 +2114,7 @@ static void end_polls(struct fuse_conn *fc)
 void fuse_abort_conn(struct fuse_conn *fc)
 {
 	struct fuse_iqueue *fiq = &fc->iq;
+	struct fuse_pqueue *fpq = &fc->pq;
 
 	spin_lock(&fc->lock);
 	if (fc->connected) {
@@ -2122,7 +2125,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		fc->connected = 0;
 		fc->blocked = 0;
 		fuse_set_initialized(fc);
-		list_for_each_entry_safe(req, next, &fc->io, list) {
+		list_for_each_entry_safe(req, next, &fpq->io, list) {
 			req->out.h.error = -ECONNABORTED;
 			spin_lock(&req->waitq.lock);
 			set_bit(FR_ABORTED, &req->flags);
@@ -2142,7 +2145,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		spin_unlock(&fiq->waitq.lock);
 		kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 
-		list_splice_init(&fc->processing, &to_end2);
+		list_splice_init(&fpq->processing, &to_end2);
 		while (!list_empty(&to_end1)) {
 			req = list_first_entry(&to_end1, struct fuse_req, list);
 			__fuse_get_request(req);
@@ -2161,7 +2164,7 @@ int fuse_dev_release(struct inode *inode, struct file *file)
 {
 	struct fuse_conn *fc = fuse_get_conn(file);
 	if (fc) {
-		WARN_ON(!list_empty(&fc->io));
+		WARN_ON(!list_empty(&fc->pq.io));
 		WARN_ON(fc->iq.fasync != NULL);
 		fuse_abort_conn(fc);
 		fuse_conn_put(fc);
