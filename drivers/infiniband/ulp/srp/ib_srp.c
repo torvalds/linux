@@ -99,7 +99,7 @@ module_param(register_always, bool, 0444);
 MODULE_PARM_DESC(register_always,
 		 "Use memory registration even for contiguous memory regions");
 
-static struct kernel_param_ops srp_tmo_ops;
+static const struct kernel_param_ops srp_tmo_ops;
 
 static int srp_reconnect_delay = 10;
 module_param_cb(reconnect_delay, &srp_tmo_ops, &srp_reconnect_delay,
@@ -184,7 +184,7 @@ out:
 	return res;
 }
 
-static struct kernel_param_ops srp_tmo_ops = {
+static const struct kernel_param_ops srp_tmo_ops = {
 	.get = srp_tmo_get,
 	.set = srp_tmo_set,
 };

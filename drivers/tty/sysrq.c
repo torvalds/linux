@@ -988,7 +988,7 @@ static int sysrq_reset_seq_param_set(const char *buffer,
 	return 0;
 }
 
-static struct kernel_param_ops param_ops_sysrq_reset_seq = {
+static const struct kernel_param_ops param_ops_sysrq_reset_seq = {
 	.get	= param_get_ushort,
 	.set	= sysrq_reset_seq_param_set,
 };

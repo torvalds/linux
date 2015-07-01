@@ -448,42 +448,42 @@ static int param_set_battery_voltage(const char *key,
 
 #define param_get_battery_voltage param_get_int
 
-static struct kernel_param_ops param_ops_ac_online = {
+static const struct kernel_param_ops param_ops_ac_online = {
 	.set = param_set_ac_online,
 	.get = param_get_ac_online,
 };
 
-static struct kernel_param_ops param_ops_usb_online = {
+static const struct kernel_param_ops param_ops_usb_online = {
 	.set = param_set_usb_online,
 	.get = param_get_usb_online,
 };
 
-static struct kernel_param_ops param_ops_battery_status = {
+static const struct kernel_param_ops param_ops_battery_status = {
 	.set = param_set_battery_status,
 	.get = param_get_battery_status,
 };
 
-static struct kernel_param_ops param_ops_battery_present = {
+static const struct kernel_param_ops param_ops_battery_present = {
 	.set = param_set_battery_present,
 	.get = param_get_battery_present,
 };
 
-static struct kernel_param_ops param_ops_battery_technology = {
+static const struct kernel_param_ops param_ops_battery_technology = {
 	.set = param_set_battery_technology,
 	.get = param_get_battery_technology,
 };
 
-static struct kernel_param_ops param_ops_battery_health = {
+static const struct kernel_param_ops param_ops_battery_health = {
 	.set = param_set_battery_health,
 	.get = param_get_battery_health,
 };
 
-static struct kernel_param_ops param_ops_battery_capacity = {
+static const struct kernel_param_ops param_ops_battery_capacity = {
 	.set = param_set_battery_capacity,
 	.get = param_get_battery_capacity,
 };
 
-static struct kernel_param_ops param_ops_battery_voltage = {
+static const struct kernel_param_ops param_ops_battery_voltage = {
 	.set = param_set_battery_voltage,
 	.get = param_get_battery_voltage,
 };
