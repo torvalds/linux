@@ -2197,6 +2197,44 @@ static int fuse_dev_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &fc->iq.fasync);
 }
 
+static int fuse_device_clone(struct fuse_conn *fc, struct file *new)
+{
+	if (new->private_data)
+		return -EINVAL;
+
+	new->private_data = fuse_conn_get(fc);
+
+	return 0;
+}
+
+static long fuse_dev_ioctl(struct file *file, unsigned int cmd,
+			   unsigned long arg)
+{
+	int err = -ENOTTY;
+
+	if (cmd == FUSE_DEV_IOC_CLONE) {
+		int oldfd;
+
+		err = -EFAULT;
+		if (!get_user(oldfd, (__u32 __user *) arg)) {
+			struct file *old = fget(oldfd);
+
+			err = -EINVAL;
+			if (old) {
+				struct fuse_conn *fc = fuse_get_conn(old);
+
+				if (fc) {
+					mutex_lock(&fuse_mutex);
+					err = fuse_device_clone(fc, file);
+					mutex_unlock(&fuse_mutex);
+				}
+				fput(old);
+			}
+		}
+	}
+	return err;
+}
+
 const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
 	.open		= fuse_dev_open,
@@ -2208,6 +2246,8 @@ const struct file_operations fuse_dev_operations = {
 	.poll		= fuse_dev_poll,
 	.release	= fuse_dev_release,
 	.fasync		= fuse_dev_fasync,
+	.unlocked_ioctl = fuse_dev_ioctl,
+	.compat_ioctl   = fuse_dev_ioctl,
 };
 EXPORT_SYMBOL_GPL(fuse_dev_operations);
 
