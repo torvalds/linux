@@ -30,6 +30,10 @@ struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 					   size_t obj_buf_sz);
 void bpf_object__close(struct bpf_object *object);
 
+/* Load/unload object into/from kernel */
+int bpf_object__load(struct bpf_object *obj);
+int bpf_object__unload(struct bpf_object *obj);
+
 /*
  * We don't need __attribute__((packed)) now since it is
  * unnecessary for 'bpf_map_def' because they are all aligned.

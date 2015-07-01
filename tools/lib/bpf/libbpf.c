@@ -21,6 +21,7 @@
 #include <gelf.h>
 
 #include "libbpf.h"
+#include "bpf.h"
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
@@ -105,6 +106,13 @@ struct bpf_object {
 
 	struct bpf_program *programs;
 	size_t nr_programs;
+	int *map_fds;
+	/*
+	 * This field is required because maps_buf will be freed and
+	 * maps_buf_sz will be set to 0 after loaded.
+	 */
+	size_t nr_map_fds;
+	bool loaded;
 
 	/*
 	 * Information when doing elf related work. Only valid if fd
@@ -233,6 +241,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj->efile.obj_buf = obj_buf;
 	obj->efile.obj_buf_sz = obj_buf_sz;
 
+	obj->loaded = false;
 	return obj;
 }
 
@@ -565,6 +574,62 @@ bpf_program__collect_reloc(struct bpf_program *prog,
 	return 0;
 }
 
+static int
+bpf_object__create_maps(struct bpf_object *obj)
+{
+	unsigned int i;
+	size_t nr_maps;
+	int *pfd;
+
+	nr_maps = obj->maps_buf_sz / sizeof(struct bpf_map_def);
+	if (!obj->maps_buf || !nr_maps) {
+		pr_debug("don't need create maps for %s\n",
+			 obj->path);
+		return 0;
+	}
+
+	obj->map_fds = malloc(sizeof(int) * nr_maps);
+	if (!obj->map_fds) {
+		pr_warning("realloc perf_bpf_map_fds failed\n");
+		return -ENOMEM;
+	}
+	obj->nr_map_fds = nr_maps;
+
+	/* fill all fd with -1 */
+	memset(obj->map_fds, -1, sizeof(int) * nr_maps);
+
+	pfd = obj->map_fds;
+	for (i = 0; i < nr_maps; i++) {
+		struct bpf_map_def def;
+
+		def = *(struct bpf_map_def *)(obj->maps_buf +
+				i * sizeof(struct bpf_map_def));
+
+		*pfd = bpf_create_map(def.type,
+				      def.key_size,
+				      def.value_size,
+				      def.max_entries);
+		if (*pfd < 0) {
+			size_t j;
+			int err = *pfd;
+
+			pr_warning("failed to create map: %s\n",
+				   strerror(errno));
+			for (j = 0; j < i; j++)
+				zclose(obj->map_fds[j]);
+			obj->nr_map_fds = 0;
+			zfree(&obj->map_fds);
+			return err;
+		}
+		pr_debug("create map: fd=%d\n", *pfd);
+		pfd++;
+	}
+
+	zfree(&obj->maps_buf);
+	obj->maps_buf_sz = 0;
+	return 0;
+}
+
 static int bpf_object__collect_reloc(struct bpf_object *obj)
 {
 	int i, err;
@@ -668,6 +733,42 @@ struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 	return __bpf_object__open("[buffer]", obj_buf, obj_buf_sz);
 }
 
+int bpf_object__unload(struct bpf_object *obj)
+{
+	size_t i;
+
+	if (!obj)
+		return -EINVAL;
+
+	for (i = 0; i < obj->nr_map_fds; i++)
+		zclose(obj->map_fds[i]);
+	zfree(&obj->map_fds);
+	obj->nr_map_fds = 0;
+
+	return 0;
+}
+
+int bpf_object__load(struct bpf_object *obj)
+{
+	if (!obj)
+		return -EINVAL;
+
+	if (obj->loaded) {
+		pr_warning("object should not be loaded twice\n");
+		return -EINVAL;
+	}
+
+	obj->loaded = true;
+	if (bpf_object__create_maps(obj))
+		goto out;
+
+	return 0;
+out:
+	bpf_object__unload(obj);
+	pr_warning("failed to load object '%s'\n", obj->path);
+	return -EINVAL;
+}
+
 void bpf_object__close(struct bpf_object *obj)
 {
 	size_t i;
@@ -676,6 +777,7 @@ void bpf_object__close(struct bpf_object *obj)
 		return;
 
 	bpf_object__elf_finish(obj);
+	bpf_object__unload(obj);
 
 	zfree(&obj->maps_buf);
 
