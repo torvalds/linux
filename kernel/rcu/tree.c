@@ -1904,6 +1904,26 @@ static int rcu_gp_init(struct rcu_state *rsp)
 }
 
 /*
+ * Helper function for wait_event_interruptible_timeout() wakeup
+ * at force-quiescent-state time.
+ */
+static bool rcu_gp_fqs_check_wake(struct rcu_state *rsp, int *gfp)
+{
+	struct rcu_node *rnp = rcu_get_root(rsp);
+
+	/* Someone like call_rcu() requested a force-quiescent-state scan. */
+	*gfp = READ_ONCE(rsp->gp_flags);
+	if (*gfp & RCU_GP_FLAG_FQS)
+		return true;
+
+	/* The current grace period has completed. */
+	if (!READ_ONCE(rnp->qsmask) && !rcu_preempt_blocked_readers_cgp(rnp))
+		return true;
+
+	return false;
+}
+
+/*
  * Do one round of quiescent-state forcing.
  */
 static int rcu_gp_fqs(struct rcu_state *rsp, int fqs_state_in)
@@ -2067,11 +2087,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
 					       TPS("fqswait"));
 			rsp->gp_state = RCU_GP_WAIT_FQS;
 			ret = wait_event_interruptible_timeout(rsp->gp_wq,
-					((gf = READ_ONCE(rsp->gp_flags)) &
-					 RCU_GP_FLAG_FQS) ||
-					(!READ_ONCE(rnp->qsmask) &&
-					 !rcu_preempt_blocked_readers_cgp(rnp)),
-					j);
+					rcu_gp_fqs_check_wake(rsp, &gf), j);
 			rsp->gp_state = RCU_GP_DONE_FQS;
 			/* Locking provides needed memory barriers. */
 			/* If grace period done, leave loop. */
