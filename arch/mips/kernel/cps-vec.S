@@ -60,7 +60,7 @@ LEAF(mips_cps_core_entry)
 	 nop
 
 	/* This is an NMI */
-	la	k0, nmi_handler
+	PTR_LA	k0, nmi_handler
 	jr	k0
 	 nop
 
@@ -156,7 +156,7 @@ dcache_done:
 	ehb
 
 	/* Jump to kseg0 */
-	la	t0, 1f
+	PTR_LA	t0, 1f
 	jr	t0
 	 nop
 
@@ -217,7 +217,7 @@ LEAF(excep_intex)
 
 .org 0x480
 LEAF(excep_ejtag)
-	la	k0, ejtag_debug_handler
+	PTR_LA	k0, ejtag_debug_handler
 	jr	k0
 	 nop
 	END(excep_ejtag)
@@ -237,7 +237,7 @@ LEAF(mips_cps_core_init)
 
 	/* ...and for the moment only 1 VPE */
 	dvpe
-	la	t1, 1f
+	PTR_LA	t1, 1f
 	jr.hb	t1
 	 nop
 
@@ -298,14 +298,14 @@ LEAF(mips_cps_core_init)
 
 LEAF(mips_cps_boot_vpes)
 	/* Retrieve CM base address */
-	la	t0, mips_cm_base
+	PTR_LA	t0, mips_cm_base
 	lw	t0, 0(t0)
 
 	/* Calculate a pointer to this cores struct core_boot_config */
 	lw	t0, GCR_CL_ID_OFS(t0)
 	li	t1, COREBOOTCFG_SIZE
 	mul	t0, t0, t1
-	la	t1, mips_cps_core_bootcfg
+	PTR_LA	t1, mips_cps_core_bootcfg
 	lw	t1, 0(t1)
 	addu	t0, t0, t1
 
@@ -351,7 +351,7 @@ LEAF(mips_cps_boot_vpes)
 
 1:	/* Enter VPE configuration state */
 	dvpe
-	la	t1, 1f
+	PTR_LA	t1, 1f
 	jr.hb	t1
 	 nop
 1:	mfc0	t1, CP0_MVPCONTROL
@@ -445,7 +445,7 @@ LEAF(mips_cps_boot_vpes)
 	/* This VPE should be offline, halt the TC */
 	li	t0, TCHALT_H
 	mtc0	t0, CP0_TCHALT
-	la	t0, 1f
+	PTR_LA	t0, 1f
 1:	jr.hb	t0
 	 nop
 
@@ -466,10 +466,10 @@ LEAF(mips_cps_boot_vpes)
 	.set	noat
 	lw	$1, TI_CPU(gp)
 	sll	$1, $1, LONGLOG
-	la	\dest, __per_cpu_offset
+	PTR_LA	\dest, __per_cpu_offset
 	addu	$1, $1, \dest
 	lw	$1, 0($1)
-	la	\dest, cps_cpu_state
+	PTR_LA	\dest, cps_cpu_state
 	addu	\dest, \dest, $1
 	.set	pop
 	.endm
