@@ -742,7 +742,7 @@ static int xenbus_resume_cb(struct notifier_block *nb,
 	int err = 0;
 
 	if (xen_hvm_domain()) {
-		uint64_t v;
+		uint64_t v = 0;
 
 		err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
 		if (!err && v)
