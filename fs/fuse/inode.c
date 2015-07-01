@@ -598,6 +598,7 @@ void fuse_conn_init(struct fuse_conn *fc)
 	fuse_pqueue_init(&fc->pq);
 	INIT_LIST_HEAD(&fc->bg_queue);
 	INIT_LIST_HEAD(&fc->entry);
+	INIT_LIST_HEAD(&fc->devices);
 	atomic_set(&fc->num_waiting, 0);
 	fc->max_background = FUSE_DEFAULT_MAX_BACKGROUND;
 	fc->congestion_threshold = FUSE_DEFAULT_CONGESTION_THRESHOLD;
@@ -945,6 +946,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 
 static void fuse_free_conn(struct fuse_conn *fc)
 {
+	WARN_ON(!list_empty(&fc->devices));
 	kfree_rcu(fc, rcu);
 }
 
@@ -990,8 +992,41 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 	return 0;
 }
 
+struct fuse_dev *fuse_dev_alloc(struct fuse_conn *fc)
+{
+	struct fuse_dev *fud;
+
+	fud = kzalloc(sizeof(struct fuse_dev), GFP_KERNEL);
+	if (fud) {
+		fud->fc = fuse_conn_get(fc);
+
+		spin_lock(&fc->lock);
+		list_add_tail(&fud->entry, &fc->devices);
+		spin_unlock(&fc->lock);
+	}
+
+	return fud;
+}
+EXPORT_SYMBOL_GPL(fuse_dev_alloc);
+
+void fuse_dev_free(struct fuse_dev *fud)
+{
+	struct fuse_conn *fc = fud->fc;
+
+	if (fc) {
+		spin_lock(&fc->lock);
+		list_del(&fud->entry);
+		spin_unlock(&fc->lock);
+
+		fuse_conn_put(fc);
+	}
+	kfree(fud);
+}
+EXPORT_SYMBOL_GPL(fuse_dev_free);
+
 static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 {
+	struct fuse_dev *fud;
 	struct fuse_conn *fc;
 	struct inode *root;
 	struct fuse_mount_data d;
@@ -1043,11 +1078,15 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fuse_conn_init(fc);
 	fc->release = fuse_free_conn;
 
+	fud = fuse_dev_alloc(fc);
+	if (!fud)
+		goto err_put_conn;
+
 	fc->dev = sb->s_dev;
 	fc->sb = sb;
 	err = fuse_bdi_init(fc, sb);
 	if (err)
-		goto err_put_conn;
+		goto err_dev_free;
 
 	sb->s_bdi = &fc->bdi;
 
@@ -1068,7 +1107,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	root = fuse_get_root_inode(sb, d.rootmode);
 	root_dentry = d_make_root(root);
 	if (!root_dentry)
-		goto err_put_conn;
+		goto err_dev_free;
 	/* only now - we want root dentry with NULL ->d_op */
 	sb->s_d_op = &fuse_dentry_operations;
 
@@ -1094,7 +1133,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
 	list_add_tail(&fc->entry, &fuse_conn_list);
 	sb->s_root = root_dentry;
-	file->private_data = fuse_conn_get(fc);
+	file->private_data = fud;
 	mutex_unlock(&fuse_mutex);
 	/*
 	 * atomic_dec_and_test() in fput() provides the necessary
@@ -1113,6 +1152,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fuse_request_free(init_req);
  err_put_root:
 	dput(root_dentry);
+ err_dev_free:
+	fuse_dev_free(fud);
  err_put_conn:
 	fuse_bdi_destroy(fc);
 	fuse_conn_put(fc);
