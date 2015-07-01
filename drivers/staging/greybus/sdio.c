@@ -720,4 +720,4 @@ static struct gb_protocol sdio_protocol = {
 	.request_recv		= gb_sdio_event_recv,
 };
 
-gb_gpbridge_protocol_driver(sdio_protocol);
+gb_builtin_protocol_driver(sdio_protocol);

@@ -347,4 +347,4 @@ static struct gb_protocol spi_protocol = {
 	.request_recv		= NULL,
 };
 
-gb_gpbridge_protocol_driver(spi_protocol);
+gb_builtin_protocol_driver(spi_protocol);

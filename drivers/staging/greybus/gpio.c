@@ -725,4 +725,4 @@ static struct gb_protocol gpio_protocol = {
 	.request_recv		= gb_gpio_request_recv,
 };
 
-gb_gpbridge_protocol_driver(gpio_protocol);
+gb_builtin_protocol_driver(gpio_protocol);

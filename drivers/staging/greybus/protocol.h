@@ -103,7 +103,7 @@ static void __exit protocol_exit(void)			\
 module_exit(protocol_exit)
 
 /* __protocol: string matching name of struct gb_protocol */
-#define gb_gpbridge_protocol_driver(__protocol)		\
+#define gb_builtin_protocol_driver(__protocol)		\
 int __init gb_##__protocol##_init(void)			\
 {							\
 	return gb_protocol_register(&__protocol);	\

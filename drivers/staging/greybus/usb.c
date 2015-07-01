@@ -362,4 +362,4 @@ static struct gb_protocol usb_protocol = {
 	.request_recv		= NULL,	/* FIXME we have requests!!! */
 };
 
-gb_gpbridge_protocol_driver(usb_protocol);
+gb_builtin_protocol_driver(usb_protocol);

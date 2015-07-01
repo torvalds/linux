@@ -773,4 +773,4 @@ static struct gb_protocol uart_protocol = {
 	.request_recv		= gb_uart_request_recv,
 };
 
-gb_gpbridge_protocol_driver(uart_protocol);
+gb_builtin_protocol_driver(uart_protocol);

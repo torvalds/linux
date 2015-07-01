@@ -246,4 +246,4 @@ static struct gb_protocol pwm_protocol = {
 	.request_recv		= NULL, /* no incoming requests */
 };
 
-gb_gpbridge_protocol_driver(pwm_protocol);
+gb_builtin_protocol_driver(pwm_protocol);

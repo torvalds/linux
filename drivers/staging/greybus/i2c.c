@@ -356,4 +356,4 @@ static struct gb_protocol i2c_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-gb_gpbridge_protocol_driver(i2c_protocol);
+gb_builtin_protocol_driver(i2c_protocol);
