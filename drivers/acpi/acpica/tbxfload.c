@@ -224,9 +224,9 @@ acpi_install_table(acpi_physical_address address, u8 physical)
 	ACPI_FUNCTION_TRACE(acpi_install_table);
 
 	if (physical) {
-		flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
-	} else {
 		flags = ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL;
+	} else {
+		flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
 	}
 
 	status = acpi_tb_install_standard_table(address, flags,
