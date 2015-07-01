@@ -157,11 +157,13 @@ static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 
 #endif
 
-static int dsi_calc_mnp(int target_dsi_clk, struct dsi_mnp *dsi_mnp)
+static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
+			struct dsi_mnp *dsi_mnp, int target_dsi_clk)
 {
 	unsigned int calc_m = 0, calc_p = 0;
-	unsigned int m, n = 1, p;
-	int ref_clk = 25000;
+	unsigned int m_min, m_max, p_min = 2, p_max = 6;
+	unsigned int m, n, p;
+	int ref_clk;
 	int delta = target_dsi_clk;
 	u32 m_seed;
 
@@ -171,8 +173,20 @@ static int dsi_calc_mnp(int target_dsi_clk, struct dsi_mnp *dsi_mnp)
 		return -ECHRNG;
 	}
 
-	for (m = 62; m <= 92 && delta; m++) {
-		for (p = 2; p <= 6 && delta; p++) {
+	if (IS_CHERRYVIEW(dev_priv)) {
+		ref_clk = 100000;
+		n = 4;
+		m_min = 70;
+		m_max = 96;
+	} else {
+		ref_clk = 25000;
+		n = 1;
+		m_min = 62;
+		m_max = 92;
+	}
+
+	for (m = m_min; m <= m_max && delta; m++) {
+		for (p = p_min; p <= p_max && delta; p++) {
 			/*
 			 * Find the optimal m and p divisors with minimal delta
 			 * +/- the required clock
@@ -212,7 +226,7 @@ static void vlv_configure_dsi_pll(struct intel_encoder *encoder)
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
 				    intel_dsi->lane_count);
 
-	ret = dsi_calc_mnp(dsi_clk, &dsi_mnp);
+	ret = dsi_calc_mnp(dev_priv, &dsi_mnp, dsi_clk);
 	if (ret) {
 		DRM_DEBUG_KMS("dsi_calc_mnp failed\n");
 		return;
