@@ -38,6 +38,27 @@
 #define DSI_HFP_PACKET_EXTRA_SIZE	6
 #define DSI_EOTP_PACKET_SIZE		4
 
+static int dsi_pixel_format_bpp(int pixel_format)
+{
+	int bpp;
+
+	switch (pixel_format) {
+	default:
+	case VID_MODE_FORMAT_RGB888:
+	case VID_MODE_FORMAT_RGB666_LOOSE:
+		bpp = 24;
+		break;
+	case VID_MODE_FORMAT_RGB666:
+		bpp = 18;
+		break;
+	case VID_MODE_FORMAT_RGB565:
+		bpp = 16;
+		break;
+	}
+
+	return bpp;
+}
+
 struct dsi_mnp {
 	u32 dsi_pll_ctrl;
 	u32 dsi_pll_div;
@@ -65,19 +86,7 @@ static u32 dsi_rr_formula(const struct drm_display_mode *mode,
 	u32 dsi_bit_clock_hz;
 	u32 dsi_clk;
 
-	switch (pixel_format) {
-	default:
-	case VID_MODE_FORMAT_RGB888:
-	case VID_MODE_FORMAT_RGB666_LOOSE:
-		bpp = 24;
-		break;
-	case VID_MODE_FORMAT_RGB666:
-		bpp = 18;
-		break;
-	case VID_MODE_FORMAT_RGB565:
-		bpp = 16;
-		break;
-	}
+	bpp = dsi_pixel_format_bpp(pixel_format);
 
 	hactive = mode->hdisplay;
 	vactive = mode->vdisplay;
@@ -137,21 +146,7 @@ static u32 dsi_rr_formula(const struct drm_display_mode *mode,
 static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 {
 	u32 dsi_clk_khz;
-	u32 bpp;
-
-	switch (pixel_format) {
-	default:
-	case VID_MODE_FORMAT_RGB888:
-	case VID_MODE_FORMAT_RGB666_LOOSE:
-		bpp = 24;
-		break;
-	case VID_MODE_FORMAT_RGB666:
-		bpp = 18;
-		break;
-	case VID_MODE_FORMAT_RGB565:
-		bpp = 16;
-		break;
-	}
+	u32 bpp = dsi_pixel_format_bpp(pixel_format);
 
 	/* DSI data rate = pixel clock * bits per pixel / lane count
 	   pixel clock is converted from KHz to Hz */
@@ -286,21 +281,7 @@ void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 
 static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
 {
-	int bpp;
-
-	switch (pixel_format) {
-	default:
-	case VID_MODE_FORMAT_RGB888:
-	case VID_MODE_FORMAT_RGB666_LOOSE:
-		bpp = 24;
-		break;
-	case VID_MODE_FORMAT_RGB666:
-		bpp = 18;
-		break;
-	case VID_MODE_FORMAT_RGB565:
-		bpp = 16;
-		break;
-	}
+	int bpp = dsi_pixel_format_bpp(pixel_format);
 
 	WARN(bpp != pipe_bpp,
 	     "bpp match assertion failure (expected %d, current %d)\n",
