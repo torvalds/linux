@@ -3520,12 +3520,11 @@ int reset_sd_card(struct rtsx_chip *chip)
 			if (chip->sd_io) {
 				rtsx_trace(chip);
 				return STATUS_FAIL;
-			} else {
-				retval = reset_mmc(chip);
-				if (retval != STATUS_SUCCESS) {
-					rtsx_trace(chip);
-					return STATUS_FAIL;
-				}
+			}
+			retval = reset_mmc(chip);
+			if (retval != STATUS_SUCCESS) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 		}
 	}
