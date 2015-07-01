@@ -1561,15 +1561,16 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	}
 
 	if (!IS_ERR(ext_vbus)) {
+		motg->vbus.extcon = ext_vbus;
 		motg->vbus.nb.notifier_call = msm_otg_vbus_notifier;
-		ret = extcon_register_interest(&motg->vbus.conn, ext_vbus->name,
-					       "USB", &motg->vbus.nb);
+		ret = extcon_register_notifier(ext_vbus, EXTCON_USB,
+						&motg->vbus.nb);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "register VBUS notifier failed\n");
 			return ret;
 		}
 
-		ret = extcon_get_cable_state(ext_vbus, "USB");
+		ret = extcon_get_cable_state_(ext_vbus, EXTCON_USB);
 		if (ret)
 			set_bit(B_SESS_VLD, &motg->inputs);
 		else
@@ -1577,15 +1578,16 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	}
 
 	if (!IS_ERR(ext_id)) {
+		motg->id.extcon = ext_id;
 		motg->id.nb.notifier_call = msm_otg_id_notifier;
-		ret = extcon_register_interest(&motg->id.conn, ext_id->name,
-					       "USB-HOST", &motg->id.nb);
+		ret = extcon_register_notifier(ext_id, EXTCON_USB_HOST,
+						&motg->id.nb);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "register ID notifier failed\n");
 			return ret;
 		}
 
-		ret = extcon_get_cable_state(ext_id, "USB-HOST");
+		ret = extcon_get_cable_state_(ext_id, EXTCON_USB_HOST);
 		if (ret)
 			clear_bit(ID, &motg->inputs);
 		else
@@ -1805,10 +1807,8 @@ static int msm_otg_remove(struct platform_device *pdev)
 	if (phy->otg->host || phy->otg->gadget)
 		return -EBUSY;
 
-	if (motg->id.conn.edev)
-		extcon_unregister_interest(&motg->id.conn);
-	if (motg->vbus.conn.edev)
-		extcon_unregister_interest(&motg->vbus.conn);
+	extcon_unregister_notifier(motg->id.extcon, EXTCON_USB_HOST, &motg->id.nb);
+	extcon_unregister_notifier(motg->vbus.extcon, EXTCON_USB, &motg->vbus.nb);
 
 	msm_otg_debugfs_cleanup();
 	cancel_delayed_work_sync(&motg->chg_work);

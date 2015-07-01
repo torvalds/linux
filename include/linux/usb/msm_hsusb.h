@@ -128,7 +128,7 @@ struct msm_otg_platform_data {
  */
 struct msm_usb_cable {
 	struct notifier_block		nb;
-	struct extcon_specific_cable_nb conn;
+	struct extcon_dev		*extcon;
 };
 
 /**
