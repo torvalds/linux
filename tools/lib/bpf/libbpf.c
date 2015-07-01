@@ -192,6 +192,34 @@ errout:
 	return err;
 }
 
+static int
+bpf_object__check_endianness(struct bpf_object *obj)
+{
+	static unsigned int const endian = 1;
+
+	switch (obj->efile.ehdr.e_ident[EI_DATA]) {
+	case ELFDATA2LSB:
+		/* We are big endian, BPF obj is little endian. */
+		if (*(unsigned char const *)&endian != 1)
+			goto mismatch;
+		break;
+
+	case ELFDATA2MSB:
+		/* We are little endian, BPF obj is big endian. */
+		if (*(unsigned char const *)&endian != 0)
+			goto mismatch;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+
+mismatch:
+	pr_warning("Error: endianness mismatch.\n");
+	return -EINVAL;
+}
+
 static struct bpf_object *
 __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz)
 {
@@ -207,6 +235,8 @@ __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz)
 		return NULL;
 
 	if (bpf_object__elf_init(obj))
+		goto out;
+	if (bpf_object__check_endianness(obj))
 		goto out;
 
 	bpf_object__elf_finish(obj);
