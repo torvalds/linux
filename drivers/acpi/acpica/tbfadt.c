@@ -350,9 +350,18 @@ void acpi_tb_parse_fadt(u32 table_index)
 	/* If Hardware Reduced flag is set, there is no FACS */
 
 	if (!acpi_gbl_reduced_hardware) {
-		acpi_tb_install_fixed_table((acpi_physical_address)
-					    acpi_gbl_FADT.Xfacs, ACPI_SIG_FACS,
-					    ACPI_TABLE_INDEX_FACS);
+		if (acpi_gbl_FADT.facs) {
+			acpi_tb_install_fixed_table((acpi_physical_address)
+						    acpi_gbl_FADT.facs,
+						    ACPI_SIG_FACS,
+						    ACPI_TABLE_INDEX_FACS);
+		}
+		if (acpi_gbl_FADT.Xfacs) {
+			acpi_tb_install_fixed_table((acpi_physical_address)
+						    acpi_gbl_FADT.Xfacs,
+						    ACPI_SIG_FACS,
+						    ACPI_TABLE_INDEX_X_FACS);
+		}
 	}
 }
 
@@ -491,13 +500,9 @@ static void acpi_tb_convert_fadt(void)
 	acpi_gbl_FADT.header.length = sizeof(struct acpi_table_fadt);
 
 	/*
-	 * Expand the 32-bit FACS and DSDT addresses to 64-bit as necessary.
+	 * Expand the 32-bit DSDT addresses to 64-bit as necessary.
 	 * Later ACPICA code will always use the X 64-bit field.
 	 */
-	acpi_gbl_FADT.Xfacs = acpi_tb_select_address("FACS",
-						     acpi_gbl_FADT.facs,
-						     acpi_gbl_FADT.Xfacs);
-
 	acpi_gbl_FADT.Xdsdt = acpi_tb_select_address("DSDT",
 						     acpi_gbl_FADT.dsdt,
 						     acpi_gbl_FADT.Xdsdt);
