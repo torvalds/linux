@@ -13,12 +13,14 @@ static DEFINE_SPINLOCK(gb_connections_lock);
 
 /* This is only used at initialization time; no locking is required. */
 static struct gb_connection *
-gb_connection_intf_find(struct greybus_host_device *hd, u16 cport_id)
+gb_connection_intf_find(struct gb_interface *intf, u16 cport_id)
 {
+	struct greybus_host_device *hd = intf->hd;
 	struct gb_connection *connection;
 
 	list_for_each_entry(connection, &hd->connections, hd_links)
-		if (connection->intf_cport_id == cport_id)
+		if (connection->bundle->intf == intf &&
+				connection->intf_cport_id == cport_id)
 			return connection;
 	return NULL;
 }
@@ -149,7 +151,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 	 * initialize connections serially so we don't need to worry
 	 * about holding the connection lock.
 	 */
-	if (gb_connection_intf_find(hd, cport_id)) {
+	if (gb_connection_intf_find(bundle->intf, cport_id)) {
 		pr_err("duplicate interface cport id 0x%04hx\n", cport_id);
 		return NULL;
 	}
