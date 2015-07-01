@@ -2101,9 +2101,6 @@ static void end_polls(struct fuse_conn *fc)
  * asynchronous request and the tricky deadlock (see
  * Documentation/filesystems/fuse.txt).
  *
- * Request progression from one list to the next is prevented by fc->connected
- * being false.
- *
  * Aborting requests under I/O goes as follows: 1: Separate out unlocked
  * requests, they should be finished off immediately.  Locked requests will be
  * finished after unlock; see unlock_request(). 2: Finish off the unlocked
@@ -2116,7 +2113,8 @@ void fuse_abort_conn(struct fuse_conn *fc)
 	spin_lock(&fc->lock);
 	if (fc->connected) {
 		struct fuse_req *req, *next;
-		LIST_HEAD(to_end);
+		LIST_HEAD(to_end1);
+		LIST_HEAD(to_end2);
 
 		fc->connected = 0;
 		fc->blocked = 0;
@@ -2126,19 +2124,20 @@ void fuse_abort_conn(struct fuse_conn *fc)
 			spin_lock(&req->waitq.lock);
 			set_bit(FR_ABORTED, &req->flags);
 			if (!test_bit(FR_LOCKED, &req->flags))
-				list_move(&req->list, &to_end);
+				list_move(&req->list, &to_end1);
 			spin_unlock(&req->waitq.lock);
 		}
-		while (!list_empty(&to_end)) {
-			req = list_first_entry(&to_end, struct fuse_req, list);
+		fc->max_background = UINT_MAX;
+		flush_bg_queue(fc);
+		list_splice_init(&fc->pending, &to_end2);
+		list_splice_init(&fc->processing, &to_end2);
+		while (!list_empty(&to_end1)) {
+			req = list_first_entry(&to_end1, struct fuse_req, list);
 			__fuse_get_request(req);
 			request_end(fc, req);
 			spin_lock(&fc->lock);
 		}
-		fc->max_background = UINT_MAX;
-		flush_bg_queue(fc);
-		end_requests(fc, &fc->pending);
-		end_requests(fc, &fc->processing);
+		end_requests(fc, &to_end2);
 		while (forget_pending(fc))
 			kfree(dequeue_forget(fc, 1, NULL));
 		end_polls(fc);
