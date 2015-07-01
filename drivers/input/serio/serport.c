@@ -167,7 +167,6 @@ static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file, u
 {
 	struct serport *serport = (struct serport*) tty->disc_data;
 	struct serio *serio;
-	char name[64];
 
 	if (test_and_set_bit(SERPORT_BUSY, &serport->flags))
 		return -EBUSY;
@@ -177,7 +176,7 @@ static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file, u
 		return -ENOMEM;
 
 	strlcpy(serio->name, "Serial port", sizeof(serio->name));
-	snprintf(serio->phys, sizeof(serio->phys), "%s/serio0", tty_name(tty, name));
+	snprintf(serio->phys, sizeof(serio->phys), "%s/serio0", tty_name(tty));
 	serio->id = serport->id;
 	serio->id.type = SERIO_RS232;
 	serio->write = serport_serio_write;
@@ -187,7 +186,7 @@ static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file, u
 	serio->dev.parent = tty->dev;
 
 	serio_register_port(serport->serio);
-	printk(KERN_INFO "serio: Serial port %s\n", tty_name(tty, name));
+	printk(KERN_INFO "serio: Serial port %s\n", tty_name(tty));
 
 	wait_event_interruptible(serport->wait, test_bit(SERPORT_DEAD, &serport->flags));
 	serio_unregister_port(serport->serio);
