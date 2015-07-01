@@ -107,7 +107,7 @@ not_nmi:
 	mul	t1, t1, t0
 	mul	t1, t1, t2
 
-	li	a0, KSEG0
+	li	a0, CKSEG0
 	add	a1, a0, t1
 1:	cache	Index_Store_Tag_I, 0(a0)
 	add	a0, a0, t0
@@ -134,7 +134,7 @@ icache_done:
 	mul	t1, t1, t0
 	mul	t1, t1, t2
 
-	li	a0, KSEG0
+	li	a0, CKSEG0
 	addu	a1, a0, t1
 	subu	a1, a1, t0
 1:	cache	Index_Store_Tag_D, 0(a0)
