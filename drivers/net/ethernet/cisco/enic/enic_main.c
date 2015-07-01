@@ -1170,7 +1170,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 						 wq_work_done,
 						 0 /* dont unmask intr */,
 						 0 /* dont reset intr timer */);
-		return rq_work_done;
+		return budget;
 	}
 
 	if (budget > 0)
@@ -1191,6 +1191,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 			0 /* don't reset intr timer */);
 
 	err = vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
+	enic_poll_unlock_napi(&enic->rq[cq_rq], napi);
 
 	/* Buffer allocation failed. Stay in polling
 	 * mode so we can try to fill the ring again.
@@ -1208,7 +1209,6 @@ static int enic_poll(struct napi_struct *napi, int budget)
 		napi_complete(napi);
 		vnic_intr_unmask(&enic->intr[intr]);
 	}
-	enic_poll_unlock_napi(&enic->rq[cq_rq], napi);
 
 	return rq_work_done;
 }
