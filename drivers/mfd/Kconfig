@@ -186,6 +186,18 @@ config MFD_DA9055
 	  This driver can be built as a module. If built as a module it will be
 	  called "da9055"
 
+config MFD_DA9062
+	tristate "Dialog Semiconductor DA9062 PMIC Support"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C=y
+	help
+	  Say yes here for support for the Dialog Semiconductor DA9062 PMIC.
+	  This includes the I2C driver and core APIs.
+	  Additional drivers must be enabled in order to use the functionality
+	  of the device.
+
 config MFD_DA9063
 	bool "Dialog Semiconductor DA9063 PMIC Support"
 	select MFD_CORE
