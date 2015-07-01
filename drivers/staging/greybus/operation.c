@@ -129,7 +129,7 @@ gb_operation_find(struct gb_connection *connection, u16 operation_id)
 	return found ? operation : NULL;
 }
 
-static int gb_message_send(struct gb_message *message)
+static int gb_message_send(struct gb_message *message, gfp_t gfp)
 {
 	struct gb_connection *connection = message->operation->connection;
 
@@ -563,7 +563,8 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
  * dropping the initial reference to the operation.
  */
 int gb_operation_request_send(struct gb_operation *operation,
-				gb_operation_callback callback)
+				gb_operation_callback callback,
+				gfp_t gfp)
 {
 	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
@@ -601,7 +602,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	/* All set, send the request */
 	gb_operation_result_set(operation, -EINPROGRESS);
 
-	ret = gb_message_send(operation->request);
+	ret = gb_message_send(operation->request, gfp);
 	if (ret)
 		gb_operation_put(operation);
 
@@ -620,7 +621,8 @@ int gb_operation_request_send_sync(struct gb_operation *operation)
 	int ret;
 	unsigned long timeout;
 
-	ret = gb_operation_request_send(operation, gb_operation_sync_callback);
+	ret = gb_operation_request_send(operation, gb_operation_sync_callback,
+					GFP_KERNEL);
 	if (ret)
 		return ret;
 
@@ -677,7 +679,7 @@ int gb_operation_response_send(struct gb_operation *operation, int errno)
 	/* Fill in the response header and send it */
 	operation->response->header->result = gb_operation_errno_map(errno);
 
-	ret = gb_message_send(operation->response);
+	ret = gb_message_send(operation->response, GFP_KERNEL);
 	if (ret)
 		gb_operation_put(operation);
 

@@ -147,7 +147,8 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 					size_t response_size);
 
 int gb_operation_request_send(struct gb_operation *operation,
-				gb_operation_callback callback);
+				gb_operation_callback callback,
+				gfp_t gfp);
 int gb_operation_request_send_sync(struct gb_operation *operation);
 int gb_operation_response_send(struct gb_operation *operation, int errno);
 
