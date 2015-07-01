@@ -229,6 +229,11 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_auto_repair, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_ssdt_table_install, FALSE);
 
 /*
+ * Optionally enable runtime namespace override.
+ */
+ACPI_INIT_GLOBAL(u8, acpi_gbl_runtime_namespace_override, TRUE);
+
+/*
  * We keep track of the latest version of Windows that has been requested by
  * the BIOS. ACPI 5.0.
  */
