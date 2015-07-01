@@ -592,10 +592,10 @@ void fuse_conn_init(struct fuse_conn *fc)
 	spin_lock_init(&fc->lock);
 	init_rwsem(&fc->killsb);
 	atomic_set(&fc->count, 1);
+	atomic_set(&fc->dev_count, 1);
 	init_waitqueue_head(&fc->blocked_waitq);
 	init_waitqueue_head(&fc->reserved_req_waitq);
 	fuse_iqueue_init(&fc->iq);
-	fuse_pqueue_init(&fc->pq);
 	INIT_LIST_HEAD(&fc->bg_queue);
 	INIT_LIST_HEAD(&fc->entry);
 	INIT_LIST_HEAD(&fc->devices);
@@ -999,6 +999,7 @@ struct fuse_dev *fuse_dev_alloc(struct fuse_conn *fc)
 	fud = kzalloc(sizeof(struct fuse_dev), GFP_KERNEL);
 	if (fud) {
 		fud->fc = fuse_conn_get(fc);
+		fuse_pqueue_init(&fud->pq);
 
 		spin_lock(&fc->lock);
 		list_add_tail(&fud->entry, &fc->devices);
