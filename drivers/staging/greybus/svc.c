@@ -124,7 +124,7 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	 * XXX continue processing the request.  There's no need
 	 * XXX for the SVC to wait.  In fact, it might be best to
 	 * XXX have the SVC get acknowledgement before we proceed.
-	 * */
+	 */
 	intf_id = hotplug->intf_id;
 	unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
 	unipro_prod_id = le32_to_cpu(hotplug->data.unipro_prod_id);
