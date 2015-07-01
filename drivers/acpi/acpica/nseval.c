@@ -440,7 +440,7 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 
 	/* Initialize the evaluation information block */
 
-	ACPI_MEMSET(info, 0, sizeof(struct acpi_evaluate_info));
+	memset(info, 0, sizeof(struct acpi_evaluate_info));
 	info->prefix_node = parent_node;
 
 	/*

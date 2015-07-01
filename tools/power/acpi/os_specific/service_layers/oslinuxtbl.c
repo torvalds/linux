@@ -222,7 +222,7 @@ acpi_os_get_table_by_address(acpi_physical_address address,
 		goto exit;
 	}
 
-	ACPI_MEMCPY(local_table, mapped_table, table_length);
+	memcpy(local_table, mapped_table, table_length);
 
 exit:
 	osl_unmap_table(mapped_table);
@@ -531,7 +531,7 @@ static acpi_status osl_load_rsdp(void)
 	gbl_rsdp_address =
 	    rsdp_base + (ACPI_CAST8(mapped_table) - rsdp_address);
 
-	ACPI_MEMCPY(&gbl_rsdp, mapped_table, sizeof(struct acpi_table_rsdp));
+	memcpy(&gbl_rsdp, mapped_table, sizeof(struct acpi_table_rsdp));
 	acpi_os_unmap_memory(rsdp_address, rsdp_size);
 
 	return (AE_OK);
@@ -964,7 +964,7 @@ osl_get_bios_table(char *signature,
 		goto exit;
 	}
 
-	ACPI_MEMCPY(local_table, mapped_table, table_length);
+	memcpy(local_table, mapped_table, table_length);
 	*address = table_address;
 	*table = local_table;
 

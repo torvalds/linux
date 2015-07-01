@@ -87,8 +87,8 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
 	 * not just the header.
 	 */
 	is_identical = (u8)((table_desc->length != table_length ||
-			     ACPI_MEMCMP(table_desc->pointer, table,
-					 table_length)) ? FALSE : TRUE);
+			     memcmp(table_desc->pointer, table, table_length)) ?
+			    FALSE : TRUE);
 
 	/* Release the acquired table */
 
@@ -289,8 +289,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 		if ((new_table_desc.signature.ascii[0] != 0x00) &&
 		    (!ACPI_COMPARE_NAME
 		     (&new_table_desc.signature, ACPI_SIG_SSDT))
-		    && (ACPI_STRNCMP(new_table_desc.signature.ascii, "OEM", 3)))
-		{
+		    && (strncmp(new_table_desc.signature.ascii, "OEM", 3))) {
 			ACPI_BIOS_ERROR((AE_INFO,
 					 "Table has invalid signature [%4.4s] (0x%8.8X), "
 					 "must be SSDT or OEMx",

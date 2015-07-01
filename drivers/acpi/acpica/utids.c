@@ -111,7 +111,7 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 	if (obj_desc->common.type == ACPI_TYPE_INTEGER) {
 		acpi_ex_eisa_id_to_string(hid->string, obj_desc->integer.value);
 	} else {
-		ACPI_STRCPY(hid->string, obj_desc->string.pointer);
+		strcpy(hid->string, obj_desc->string.pointer);
 	}
 
 	hid->length = length;
@@ -180,7 +180,7 @@ acpi_ut_execute_SUB(struct acpi_namespace_node *device_node,
 
 	/* Simply copy existing string */
 
-	ACPI_STRCPY(sub->string, obj_desc->string.pointer);
+	strcpy(sub->string, obj_desc->string.pointer);
 	sub->length = length;
 	*return_id = sub;
 
@@ -256,7 +256,7 @@ acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 	if (obj_desc->common.type == ACPI_TYPE_INTEGER) {
 		acpi_ex_integer_to_string(uid->string, obj_desc->integer.value);
 	} else {
-		ACPI_STRCPY(uid->string, obj_desc->string.pointer);
+		strcpy(uid->string, obj_desc->string.pointer);
 	}
 
 	uid->length = length;
@@ -393,8 +393,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 
 			/* Copy the String CID from the returned object */
 
-			ACPI_STRCPY(next_id_string,
-				    cid_objects[i]->string.pointer);
+			strcpy(next_id_string, cid_objects[i]->string.pointer);
 			length = cid_objects[i]->string.length + 1;
 		}
 

@@ -150,8 +150,8 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * Save the original DSDT header for detection of table corruption
 	 * and/or replacement of the DSDT from outside the OS.
 	 */
-	ACPI_MEMCPY(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT,
-		    sizeof(struct acpi_table_header));
+	memcpy(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT,
+	       sizeof(struct acpi_table_header));
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 

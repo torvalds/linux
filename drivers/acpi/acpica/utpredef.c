@@ -148,7 +148,7 @@ void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes)
 	u32 j;
 
 	if (!expected_btypes) {
-		ACPI_STRCPY(buffer, "NONE");
+		strcpy(buffer, "NONE");
 		return;
 	}
 
@@ -161,7 +161,7 @@ void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes)
 		/* If one of the expected types, concatenate the name of this type */
 
 		if (expected_btypes & this_rtype) {
-			ACPI_STRCAT(buffer, &ut_rtype_names[i][j]);
+			strcat(buffer, &ut_rtype_names[i][j]);
 			j = 0;	/* Use name separator from now on */
 		}
 

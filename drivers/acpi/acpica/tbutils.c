@@ -188,7 +188,7 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
 		return (NULL);
 	}
 
-	ACPI_MEMCPY(new_table, table_desc->pointer, table_desc->length);
+	memcpy(new_table, table_desc->pointer, table_desc->length);
 	acpi_tb_uninstall_table(table_desc);
 
 	acpi_tb_init_table_descriptor(&acpi_gbl_root_table_list.
