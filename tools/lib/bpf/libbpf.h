@@ -35,6 +35,13 @@ void bpf_object__close(struct bpf_object *object);
 int bpf_object__load(struct bpf_object *obj);
 int bpf_object__unload(struct bpf_object *obj);
 
+struct bpf_object *bpf_object__next(struct bpf_object *prev);
+#define bpf_object__for_each_safe(pos, tmp)			\
+	for ((pos) = bpf_object__next(NULL),		\
+		(tmp) = bpf_object__next(pos);		\
+	     (pos) != NULL;				\
+	     (pos) = (tmp), (tmp) = bpf_object__next(tmp))
+
 /* Accessors of bpf_program. */
 struct bpf_program;
 struct bpf_program *bpf_program__next(struct bpf_program *prog,

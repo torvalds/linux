@@ -17,6 +17,7 @@
 #include <asm/unistd.h>
 #include <linux/kernel.h>
 #include <linux/bpf.h>
+#include <linux/list.h>
 #include <libelf.h>
 #include <gelf.h>
 
@@ -104,6 +105,8 @@ struct bpf_program {
 	bpf_program_clear_priv_t clear_priv;
 };
 
+static LIST_HEAD(bpf_objects_list);
+
 struct bpf_object {
 	char license[64];
 	u32 kern_version;
@@ -137,6 +140,12 @@ struct bpf_object {
 		} *reloc;
 		int nr_reloc;
 	} efile;
+	/*
+	 * All loaded bpf_object is linked in a list, which is
+	 * hidden to caller. bpf_objects__<func> handlers deal with
+	 * all objects.
+	 */
+	struct list_head list;
 	char path[];
 };
 #define obj_elf_valid(o)	((o)->efile.elf)
@@ -265,6 +274,9 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj->efile.obj_buf_sz = obj_buf_sz;
 
 	obj->loaded = false;
+
+	INIT_LIST_HEAD(&obj->list);
+	list_add(&obj->list, &bpf_objects_list);
 	return obj;
 }
 
@@ -940,7 +952,27 @@ void bpf_object__close(struct bpf_object *obj)
 	}
 	zfree(&obj->programs);
 
+	list_del(&obj->list);
 	free(obj);
+}
+
+struct bpf_object *
+bpf_object__next(struct bpf_object *prev)
+{
+	struct bpf_object *next;
+
+	if (!prev)
+		next = list_first_entry(&bpf_objects_list,
+					struct bpf_object,
+					list);
+	else
+		next = list_next_entry(prev, list);
+
+	/* Empty list is noticed here so don't need checking on entry. */
+	if (&next->list == &bpf_objects_list)
+		return NULL;
+
+	return next;
 }
 
 struct bpf_program *
