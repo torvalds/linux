@@ -1289,7 +1289,8 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 
 	req = list_entry(fiq->pending.next, struct fuse_req, list);
 	clear_bit(FR_PENDING, &req->flags);
-	list_move(&req->list, &fc->io);
+	list_del_init(&req->list);
+	list_add(&req->list, &fc->io);
 
 	in = &req->in;
 	reqsize = in->h.len;
