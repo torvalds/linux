@@ -68,7 +68,8 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size);
 
 acpi_status acpi_tb_initialize_facs(void)
 {
-	acpi_status status;
+	struct acpi_table_facs *facs32;
+	struct acpi_table_facs *facs64;
 
 	/* If Hardware Reduced flag is set, there is no FACS */
 
@@ -77,11 +78,22 @@ acpi_status acpi_tb_initialize_facs(void)
 		return (AE_OK);
 	}
 
-	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
-					 ACPI_CAST_INDIRECT_PTR(struct
-								acpi_table_header,
-								&acpi_gbl_FACS));
-	return (status);
+	(void)acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
+				      ACPI_CAST_INDIRECT_PTR(struct
+							     acpi_table_header,
+							     &facs32));
+	(void)acpi_get_table_by_index(ACPI_TABLE_INDEX_X_FACS,
+				      ACPI_CAST_INDIRECT_PTR(struct
+							     acpi_table_header,
+							     &facs64));
+
+	if (acpi_gbl_use32_bit_facs_addresses) {
+		acpi_gbl_FACS = facs32 ? facs32 : facs64;
+	} else {
+		acpi_gbl_FACS = facs64 ? facs64 : facs32;
+	}
+
+	return (AE_OK);
 }
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
@@ -101,7 +113,7 @@ acpi_status acpi_tb_initialize_facs(void)
 u8 acpi_tb_tables_loaded(void)
 {
 
-	if (acpi_gbl_root_table_list.current_table_count >= 3) {
+	if (acpi_gbl_root_table_list.current_table_count >= 4) {
 		return (TRUE);
 	}
 
@@ -357,11 +369,11 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	table_entry = ACPI_ADD_PTR(u8, table, sizeof(struct acpi_table_header));
 
 	/*
-	 * First two entries in the table array are reserved for the DSDT
-	 * and FACS, which are not actually present in the RSDT/XSDT - they
-	 * come from the FADT
+	 * First three entries in the table array are reserved for the DSDT
+	 * and 32bit/64bit FACS, which are not actually present in the
+	 * RSDT/XSDT - they come from the FADT
 	 */
-	acpi_gbl_root_table_list.current_table_count = 2;
+	acpi_gbl_root_table_list.current_table_count = 3;
 
 	/* Initialize the root table array from the RSDT/XSDT */
 
