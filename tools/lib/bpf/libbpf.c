@@ -81,6 +81,9 @@ void libbpf_set_print(libbpf_print_fn_t warn,
 struct bpf_object {
 	char license[64];
 	u32 kern_version;
+	void *maps_buf;
+	size_t maps_buf_sz;
+
 	/*
 	 * Information when doing elf related work. Only valid if fd
 	 * is valid.
@@ -250,6 +253,28 @@ bpf_object__init_kversion(struct bpf_object *obj,
 	return 0;
 }
 
+static int
+bpf_object__init_maps(struct bpf_object *obj, void *data,
+		      size_t size)
+{
+	if (size == 0) {
+		pr_debug("%s doesn't need map definition\n",
+			 obj->path);
+		return 0;
+	}
+
+	obj->maps_buf = malloc(size);
+	if (!obj->maps_buf) {
+		pr_warning("malloc maps failed: %s\n", obj->path);
+		return -ENOMEM;
+	}
+
+	obj->maps_buf_sz = size;
+	memcpy(obj->maps_buf, data, size);
+	pr_debug("maps in %s: %ld bytes\n", obj->path, (long)size);
+	return 0;
+}
+
 static int bpf_object__elf_collect(struct bpf_object *obj)
 {
 	Elf *elf = obj->efile.elf;
@@ -305,6 +330,9 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			err = bpf_object__init_kversion(obj,
 							data->d_buf,
 							data->d_size);
+		else if (strcmp(name, "maps") == 0)
+			err = bpf_object__init_maps(obj, data->d_buf,
+						    data->d_size);
 		if (err)
 			goto out;
 	}
@@ -382,5 +410,6 @@ void bpf_object__close(struct bpf_object *obj)
 
 	bpf_object__elf_finish(obj);
 
+	zfree(&obj->maps_buf);
 	free(obj);
 }
