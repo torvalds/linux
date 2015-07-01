@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -88,6 +89,12 @@ struct bpf_program {
 	char *section_name;
 	struct bpf_insn *insns;
 	size_t insns_cnt;
+
+	struct {
+		int insn_idx;
+		int map_idx;
+	} *reloc_desc;
+	int nr_reloc;
 };
 
 struct bpf_object {
@@ -127,6 +134,9 @@ static void bpf_program__exit(struct bpf_program *prog)
 
 	zfree(&prog->section_name);
 	zfree(&prog->insns);
+	zfree(&prog->reloc_desc);
+
+	prog->nr_reloc = 0;
 	prog->insns_cnt = 0;
 	prog->idx = -1;
 }
@@ -481,6 +491,118 @@ out:
 	return err;
 }
 
+static struct bpf_program *
+bpf_object__find_prog_by_idx(struct bpf_object *obj, int idx)
+{
+	struct bpf_program *prog;
+	size_t i;
+
+	for (i = 0; i < obj->nr_programs; i++) {
+		prog = &obj->programs[i];
+		if (prog->idx == idx)
+			return prog;
+	}
+	return NULL;
+}
+
+static int
+bpf_program__collect_reloc(struct bpf_program *prog,
+			   size_t nr_maps, GElf_Shdr *shdr,
+			   Elf_Data *data, Elf_Data *symbols)
+{
+	int i, nrels;
+
+	pr_debug("collecting relocating info for: '%s'\n",
+		 prog->section_name);
+	nrels = shdr->sh_size / shdr->sh_entsize;
+
+	prog->reloc_desc = malloc(sizeof(*prog->reloc_desc) * nrels);
+	if (!prog->reloc_desc) {
+		pr_warning("failed to alloc memory in relocation\n");
+		return -ENOMEM;
+	}
+	prog->nr_reloc = nrels;
+
+	for (i = 0; i < nrels; i++) {
+		GElf_Sym sym;
+		GElf_Rel rel;
+		unsigned int insn_idx;
+		struct bpf_insn *insns = prog->insns;
+		size_t map_idx;
+
+		if (!gelf_getrel(data, i, &rel)) {
+			pr_warning("relocation: failed to get %d reloc\n", i);
+			return -EINVAL;
+		}
+
+		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
+		pr_debug("relocation: insn_idx=%u\n", insn_idx);
+
+		if (!gelf_getsym(symbols,
+				 GELF_R_SYM(rel.r_info),
+				 &sym)) {
+			pr_warning("relocation: symbol %"PRIx64" not found\n",
+				   GELF_R_SYM(rel.r_info));
+			return -EINVAL;
+		}
+
+		if (insns[insn_idx].code != (BPF_LD | BPF_IMM | BPF_DW)) {
+			pr_warning("bpf: relocation: invalid relo for insns[%d].code 0x%x\n",
+				   insn_idx, insns[insn_idx].code);
+			return -EINVAL;
+		}
+
+		map_idx = sym.st_value / sizeof(struct bpf_map_def);
+		if (map_idx >= nr_maps) {
+			pr_warning("bpf relocation: map_idx %d large than %d\n",
+				   (int)map_idx, (int)nr_maps - 1);
+			return -EINVAL;
+		}
+
+		prog->reloc_desc[i].insn_idx = insn_idx;
+		prog->reloc_desc[i].map_idx = map_idx;
+	}
+	return 0;
+}
+
+static int bpf_object__collect_reloc(struct bpf_object *obj)
+{
+	int i, err;
+
+	if (!obj_elf_valid(obj)) {
+		pr_warning("Internal error: elf object is closed\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < obj->efile.nr_reloc; i++) {
+		GElf_Shdr *shdr = &obj->efile.reloc[i].shdr;
+		Elf_Data *data = obj->efile.reloc[i].data;
+		int idx = shdr->sh_info;
+		struct bpf_program *prog;
+		size_t nr_maps = obj->maps_buf_sz /
+				 sizeof(struct bpf_map_def);
+
+		if (shdr->sh_type != SHT_REL) {
+			pr_warning("internal error at %d\n", __LINE__);
+			return -EINVAL;
+		}
+
+		prog = bpf_object__find_prog_by_idx(obj, idx);
+		if (!prog) {
+			pr_warning("relocation failed: no %d section\n",
+				   idx);
+			return -ENOENT;
+		}
+
+		err = bpf_program__collect_reloc(prog, nr_maps,
+						 shdr, data,
+						 obj->efile.symbols);
+		if (err)
+			return -EINVAL;
+	}
+	return 0;
+}
+
 static int bpf_object__validate(struct bpf_object *obj)
 {
 	if (obj->kern_version == 0) {
@@ -510,6 +632,8 @@ __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz)
 	if (bpf_object__check_endianness(obj))
 		goto out;
 	if (bpf_object__elf_collect(obj))
+		goto out;
+	if (bpf_object__collect_reloc(obj))
 		goto out;
 	if (bpf_object__validate(obj))
 		goto out;
