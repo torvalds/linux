@@ -22,6 +22,7 @@
 #include <linux/file.h>
 #include <linux/highmem.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/kthread.h>
 #include <linux/cgroup.h>
 #include <linux/module.h>
@@ -544,7 +545,7 @@ void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
 		fput(dev->log_file);
 	dev->log_file = NULL;
 	/* No one will access memory at this point */
-	kfree(dev->memory);
+	kvfree(dev->memory);
 	dev->memory = NULL;
 	WARN_ON(!list_empty(&dev->work_list));
 	if (dev->worker) {
@@ -674,6 +675,18 @@ static int vhost_memory_reg_sort_cmp(const void *p1, const void *p2)
 	return 0;
 }
 
+static void *vhost_kvzalloc(unsigned long size)
+{
+	void *n = kzalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+
+	if (!n) {
+		n = vzalloc(size);
+		if (!n)
+			return ERR_PTR(-ENOMEM);
+	}
+	return n;
+}
+
 static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 {
 	struct vhost_memory mem, *newmem, *oldmem;
@@ -686,7 +699,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		return -EOPNOTSUPP;
 	if (mem.nregions > VHOST_MEMORY_MAX_NREGIONS)
 		return -E2BIG;
-	newmem = kmalloc(size + mem.nregions * sizeof *m->regions, GFP_KERNEL);
+	newmem = vhost_kvzalloc(size + mem.nregions * sizeof(*m->regions));
 	if (!newmem)
 		return -ENOMEM;
 
@@ -700,7 +713,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		vhost_memory_reg_sort_cmp, NULL);
 
 	if (!memory_access_ok(d, newmem, 0)) {
-		kfree(newmem);
+		kvfree(newmem);
 		return -EFAULT;
 	}
 	oldmem = d->memory;
@@ -712,7 +725,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		d->vqs[i]->memory = newmem;
 		mutex_unlock(&d->vqs[i]->mutex);
 	}
-	kfree(oldmem);
+	kvfree(oldmem);
 	return 0;
 }
 
