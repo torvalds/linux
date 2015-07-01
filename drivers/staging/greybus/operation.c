@@ -846,8 +846,8 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 		gb_message_cancel(operation->request);
 		if (operation->response)
 			gb_message_cancel(operation->response);
+		gb_operation_put(operation);
 	}
-	gb_operation_put(operation);
 }
 EXPORT_SYMBOL_GPL(gb_operation_cancel);
 
