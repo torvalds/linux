@@ -2180,6 +2180,8 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		return -EINVAL;
 	if (reg % map->reg_stride)
 		return -EINVAL;
+	if (val_count == 0)
+		return -EINVAL;
 
 	map->lock(map->lock_arg);
 
