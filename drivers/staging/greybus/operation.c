@@ -845,9 +845,10 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 {
 	if (gb_operation_result_set(operation, errno)) {
 		gb_message_cancel(operation->request);
-		if (operation->response)
-			gb_message_cancel(operation->response);
 		gb_operation_put(operation);
+	} else if (gb_operation_is_incoming(operation)) {
+		if (!gb_operation_is_unidirectional(operation))
+			gb_message_cancel(operation->response);
 	}
 }
 EXPORT_SYMBOL_GPL(gb_operation_cancel);
