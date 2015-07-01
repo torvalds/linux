@@ -1490,6 +1490,20 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
+	if (args->flags & I915_EXEC_RESOURCE_STREAMER) {
+		if (!HAS_RESOURCE_STREAMER(dev)) {
+			DRM_DEBUG("RS is only allowed for Haswell, Gen8 and above\n");
+			return -EINVAL;
+		}
+		if (ring->id != RCS) {
+			DRM_DEBUG("RS is not available on %s\n",
+				 ring->name);
+			return -EINVAL;
+		}
+
+		dispatch_flags |= I915_DISPATCH_RS;
+	}
+
 	intel_runtime_pm_get(dev_priv);
 
 	ret = i915_mutex_lock_interruptible(dev);

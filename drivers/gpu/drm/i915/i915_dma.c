@@ -167,6 +167,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = i915.enable_hangcheck &&
 			intel_has_gpu_reset(dev);
 		break;
+	case I915_PARAM_HAS_RESOURCE_STREAMER:
+		value = HAS_RESOURCE_STREAMER(dev);
+		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
