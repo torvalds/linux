@@ -173,7 +173,11 @@ static acpi_status acpi_tb_load_namespace(void)
 		     &&
 		     !ACPI_COMPARE_NAME(&
 					(acpi_gbl_root_table_list.tables[i].
-					 signature), ACPI_SIG_PSDT))
+					 signature), ACPI_SIG_PSDT)
+		     &&
+		     !ACPI_COMPARE_NAME(&
+					(acpi_gbl_root_table_list.tables[i].
+					 signature), ACPI_SIG_OSDT))
 		    ||
 		    ACPI_FAILURE(acpi_tb_validate_table
 				 (&acpi_gbl_root_table_list.tables[i]))) {
