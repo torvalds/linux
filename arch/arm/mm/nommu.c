@@ -351,30 +351,43 @@ void __iomem *__arm_ioremap_pfn(unsigned long pfn, unsigned long offset,
 }
 EXPORT_SYMBOL(__arm_ioremap_pfn);
 
-void __iomem *__arm_ioremap_pfn_caller(unsigned long pfn, unsigned long offset,
-			   size_t size, unsigned int mtype, void *caller)
-{
-	return __arm_ioremap_pfn(pfn, offset, size, mtype);
-}
-
-void __iomem *__arm_ioremap(phys_addr_t phys_addr, size_t size,
-			    unsigned int mtype)
-{
-	return (void __iomem *)phys_addr;
-}
-EXPORT_SYMBOL(__arm_ioremap);
-
-void __iomem * (*arch_ioremap_caller)(phys_addr_t, size_t, unsigned int, void *);
-
 void __iomem *__arm_ioremap_caller(phys_addr_t phys_addr, size_t size,
 				   unsigned int mtype, void *caller)
 {
-	return __arm_ioremap(phys_addr, size, mtype);
+	return (void __iomem *)phys_addr;
 }
+
+void __iomem * (*arch_ioremap_caller)(phys_addr_t, size_t, unsigned int, void *);
+
+void __iomem *ioremap(resource_size_t res_cookie, size_t size)
+{
+	return __arm_ioremap_caller(res_cookie, size, MT_DEVICE,
+				    __builtin_return_address(0));
+}
+EXPORT_SYMBOL(ioremap);
+
+void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size)
+{
+	return __arm_ioremap_caller(res_cookie, size, MT_DEVICE_CACHED,
+				    __builtin_return_address(0));
+}
+EXPORT_SYMBOL(ioremap_cache);
+
+void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size)
+{
+	return __arm_ioremap_caller(res_cookie, size, MT_DEVICE_WC,
+				    __builtin_return_address(0));
+}
+EXPORT_SYMBOL(ioremap_wc);
+
+void __iounmap(volatile void __iomem *addr)
+{
+}
+EXPORT_SYMBOL(__iounmap);
 
 void (*arch_iounmap)(volatile void __iomem *);
 
-void __arm_iounmap(volatile void __iomem *addr)
+void iounmap(volatile void __iomem *addr)
 {
 }
-EXPORT_SYMBOL(__arm_iounmap);
+EXPORT_SYMBOL(iounmap);

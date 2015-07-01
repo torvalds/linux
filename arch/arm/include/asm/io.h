@@ -140,16 +140,11 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
  * The _caller variety takes a __builtin_return_address(0) value for
  * /proc/vmalloc to use - and should only be used in non-inline functions.
  */
-extern void __iomem *__arm_ioremap_pfn_caller(unsigned long, unsigned long,
-	size_t, unsigned int, void *);
 extern void __iomem *__arm_ioremap_caller(phys_addr_t, size_t, unsigned int,
 	void *);
-
 extern void __iomem *__arm_ioremap_pfn(unsigned long, unsigned long, size_t, unsigned int);
-extern void __iomem *__arm_ioremap(phys_addr_t, size_t, unsigned int);
 extern void __iomem *__arm_ioremap_exec(phys_addr_t, size_t, bool cached);
 extern void __iounmap(volatile void __iomem *addr);
-extern void __arm_iounmap(volatile void __iomem *addr);
 
 extern void __iomem * (*arch_ioremap_caller)(phys_addr_t, size_t,
 	unsigned int, void *);
@@ -390,12 +385,19 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  * Eg, a CPU not implementing read allocate but implementing write allocate
  * will provide a write allocate mapping instead.
  */
-#define ioremap(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE)
-#define ioremap_nocache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE)
-#define ioremap_cache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE_CACHED)
-#define ioremap_wc(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE_WC)
-#define ioremap_wt(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE_WC)
-#define iounmap				__arm_iounmap
+void __iomem *ioremap(resource_size_t res_cookie, size_t size);
+#define ioremap ioremap
+#define ioremap_nocache ioremap
+
+void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
+#define ioremap_cache ioremap_cache
+
+void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
+#define ioremap_wc ioremap_wc
+#define ioremap_wt ioremap_wc
+
+void iounmap(volatile void __iomem *iomem_cookie);
+#define iounmap iounmap
 
 /*
  * io{read,write}{16,32}be() macros
