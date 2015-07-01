@@ -138,13 +138,4 @@ static struct gb_protocol control_protocol = {
 	.connection_exit	= gb_control_connection_exit,
 	.request_recv		= gb_control_request_recv,
 };
-
-int gb_control_protocol_init(void)
-{
-	return gb_protocol_register(&control_protocol);
-}
-
-void gb_control_protocol_exit(void)
-{
-	gb_protocol_deregister(&control_protocol);
-}
+gb_builtin_protocol_driver(control_protocol);
