@@ -1072,27 +1072,6 @@ static int request_pending(struct fuse_iqueue *fiq)
 		forget_pending(fiq);
 }
 
-/* Wait until a request is available on the pending list */
-static void request_wait(struct fuse_iqueue *fiq)
-__releases(fiq->waitq.lock)
-__acquires(fiq->waitq.lock)
-{
-	DECLARE_WAITQUEUE(wait, current);
-
-	add_wait_queue_exclusive(&fiq->waitq, &wait);
-	while (fiq->connected && !request_pending(fiq)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current))
-			break;
-
-		spin_unlock(&fiq->waitq.lock);
-		schedule();
-		spin_lock(&fiq->waitq.lock);
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&fiq->waitq, &wait);
-}
-
 /*
  * Transfer an interrupt request to userspace
  *
@@ -1272,12 +1251,13 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	    !request_pending(fiq))
 		goto err_unlock;
 
-	request_wait(fiq);
+	err = wait_event_interruptible_exclusive_locked(fiq->waitq,
+				!fiq->connected || request_pending(fiq));
+	if (err)
+		goto err_unlock;
+
 	err = -ENODEV;
 	if (!fiq->connected)
-		goto err_unlock;
-	err = -ERESTARTSYS;
-	if (!request_pending(fiq))
 		goto err_unlock;
 
 	if (!list_empty(&fiq->interrupts)) {
