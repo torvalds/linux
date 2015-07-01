@@ -325,8 +325,26 @@ acpi_ns_search_and_enter(u32 target_name,
 		 * If we found it AND the request specifies that a find is an error,
 		 * return the error
 		 */
-		if ((status == AE_OK) && (flags & ACPI_NS_ERROR_IF_FOUND)) {
-			status = AE_ALREADY_EXISTS;
+		if (status == AE_OK) {
+
+			/* The node was found in the namespace */
+
+			/*
+			 * If the namespace override feature is enabled for this node,
+			 * delete any existing node. This can only happen during the
+			 * boot stage, thus it is safe to remove the node here.
+			 */
+			if (flags & ACPI_NS_OVERRIDE_IF_FOUND) {
+				acpi_ns_delete_children(*return_node);
+				acpi_ns_remove_node(*return_node);
+				*return_node = ACPI_ENTRY_NOT_FOUND;
+			}
+
+			/* Return an error if we don't expect to find the object */
+
+			else if (flags & ACPI_NS_ERROR_IF_FOUND) {
+				status = AE_ALREADY_EXISTS;
+			}
 		}
 #ifdef ACPI_ASL_COMPILER
 		if (*return_node && (*return_node)->type == ACPI_TYPE_ANY) {

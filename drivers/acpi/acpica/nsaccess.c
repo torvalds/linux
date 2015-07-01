@@ -304,7 +304,9 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	local_flags = flags & ~(ACPI_NS_ERROR_IF_FOUND | ACPI_NS_SEARCH_PARENT);
+	local_flags = flags &
+	    ~(ACPI_NS_ERROR_IF_FOUND | ACPI_NS_OVERRIDE_IF_FOUND |
+	      ACPI_NS_SEARCH_PARENT);
 	*return_node = ACPI_ENTRY_NOT_FOUND;
 	acpi_gbl_ns_lookup_count++;
 
@@ -546,6 +548,12 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 			if (flags & ACPI_NS_ERROR_IF_FOUND) {
 				local_flags |= ACPI_NS_ERROR_IF_FOUND;
+			}
+
+			/* Set override flag according to caller */
+
+			if (flags & ACPI_NS_OVERRIDE_IF_FOUND) {
+				local_flags |= ACPI_NS_OVERRIDE_IF_FOUND;
 			}
 		}
 
