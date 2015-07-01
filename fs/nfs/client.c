@@ -1192,8 +1192,6 @@ void nfs_clients_init(struct net *net)
 }
 
 #ifdef CONFIG_PROC_FS
-static struct proc_dir_entry *proc_fs_nfs;
-
 static int nfs_server_list_open(struct inode *inode, struct file *file);
 static void *nfs_server_list_start(struct seq_file *p, loff_t *pos);
 static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos);
@@ -1435,27 +1433,20 @@ void nfs_fs_proc_net_exit(struct net *net)
  */
 int __init nfs_fs_proc_init(void)
 {
-	struct proc_dir_entry *p;
-
-	proc_fs_nfs = proc_mkdir("fs/nfsfs", NULL);
-	if (!proc_fs_nfs)
+	if (!proc_mkdir("fs/nfsfs", NULL))
 		goto error_0;
 
 	/* a file of servers with which we're dealing */
-	p = proc_symlink("servers", proc_fs_nfs, "../../net/nfsfs/servers");
-	if (!p)
+	if (!proc_symlink("fs/nfsfs/servers", NULL, "../../net/nfsfs/servers"))
 		goto error_1;
 
 	/* a file of volumes that we have mounted */
-	p = proc_symlink("volumes", proc_fs_nfs, "../../net/nfsfs/volumes");
-	if (!p)
-		goto error_2;
-	return 0;
+	if (!proc_symlink("fs/nfsfs/volumes", NULL, "../../net/nfsfs/volumes"))
+		goto error_1;
 
-error_2:
-	remove_proc_entry("servers", proc_fs_nfs);
+	return 0;
 error_1:
-	remove_proc_entry("fs/nfsfs", NULL);
+	remove_proc_subtree("fs/nfsfs", NULL);
 error_0:
 	return -ENOMEM;
 }
@@ -1465,9 +1456,7 @@ error_0:
  */
 void nfs_fs_proc_exit(void)
 {
-	remove_proc_entry("volumes", proc_fs_nfs);
-	remove_proc_entry("servers", proc_fs_nfs);
-	remove_proc_entry("fs/nfsfs", NULL);
+	remove_proc_subtree("fs/nfsfs", NULL);
 }
 
 #endif /* CONFIG_PROC_FS */
