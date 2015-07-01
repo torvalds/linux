@@ -175,9 +175,6 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 	} else if (of_machine_is_compatible("samsung,exynos4412")) {
 		exynos_info->type = EXYNOS_SOC_4412;
 		ret = exynos4x12_cpufreq_init(exynos_info);
-	} else if (of_machine_is_compatible("samsung,exynos5250")) {
-		exynos_info->type = EXYNOS_SOC_5250;
-		ret = exynos5250_cpufreq_init(exynos_info);
 	} else {
 		pr_err("%s: Unknown SoC type\n", __func__);
 		return -ENODEV;
