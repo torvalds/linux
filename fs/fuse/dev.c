@@ -1237,7 +1237,7 @@ __releases(fiq->waitq.lock)
 static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 				struct fuse_copy_state *cs, size_t nbytes)
 {
-	int err;
+	ssize_t err;
 	struct fuse_iqueue *fiq = &fc->iq;
 	struct fuse_pqueue *fpq = &fc->pq;
 	struct fuse_req *req;
@@ -1280,8 +1280,6 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	spin_unlock(&fiq->waitq.lock);
 
 	spin_lock(&fc->lock);
-	list_add(&req->list, &fpq->io);
-
 	in = &req->in;
 	reqsize = in->h.len;
 	/* If request is too large, reply with an error and restart the read */
@@ -1290,10 +1288,10 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 		/* SETXATTR is special, since it may contain too large data */
 		if (in->h.opcode == FUSE_SETXATTR)
 			req->out.h.error = -E2BIG;
-		list_del_init(&req->list);
 		request_end(fc, req);
 		goto restart;
 	}
+	list_add(&req->list, &fpq->io);
 	spin_unlock(&fc->lock);
 	cs->req = req;
 	err = fuse_copy_one(cs, &in->h, sizeof(in->h));
@@ -1304,29 +1302,31 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	spin_lock(&fc->lock);
 	clear_bit(FR_LOCKED, &req->flags);
 	if (!fpq->connected) {
-		list_del_init(&req->list);
-		request_end(fc, req);
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_end;
 	}
 	if (err) {
 		req->out.h.error = -EIO;
-		list_del_init(&req->list);
-		request_end(fc, req);
-		return err;
+		goto out_end;
 	}
 	if (!test_bit(FR_ISREPLY, &req->flags)) {
-		list_del_init(&req->list);
-		request_end(fc, req);
-	} else {
-		list_move_tail(&req->list, &fpq->processing);
-		set_bit(FR_SENT, &req->flags);
-		/* matches barrier in request_wait_answer() */
-		smp_mb__after_atomic();
-		if (test_bit(FR_INTERRUPTED, &req->flags))
-			queue_interrupt(fiq, req);
-		spin_unlock(&fc->lock);
+		err = reqsize;
+		goto out_end;
 	}
+	list_move_tail(&req->list, &fpq->processing);
+	set_bit(FR_SENT, &req->flags);
+	/* matches barrier in request_wait_answer() */
+	smp_mb__after_atomic();
+	if (test_bit(FR_INTERRUPTED, &req->flags))
+		queue_interrupt(fiq, req);
+	spin_unlock(&fc->lock);
+
 	return reqsize;
+
+out_end:
+	list_del_init(&req->list);
+	request_end(fc, req);
+	return err;
 
  err_unlock:
 	spin_unlock(&fiq->waitq.lock);
