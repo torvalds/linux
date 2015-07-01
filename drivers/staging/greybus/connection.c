@@ -196,12 +196,6 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 		return NULL;
 	}
 
-	/* XXX Will have to establish connections to get version */
-	gb_connection_bind_protocol(connection);
-	if (!connection->protocol)
-		dev_warn(&bundle->dev,
-			 "protocol 0x%02hhx handler not found\n", protocol_id);
-
 	spin_lock_irq(&gb_connections_lock);
 	list_add(&connection->hd_links, &hd->connections);
 	list_add(&connection->bundle_links, &bundle->connections);
@@ -209,6 +203,12 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 
 	atomic_set(&connection->op_cycle, 0);
 	INIT_LIST_HEAD(&connection->operations);
+
+	/* XXX Will have to establish connections to get version */
+	gb_connection_bind_protocol(connection);
+	if (!connection->protocol)
+		dev_warn(&bundle->dev,
+			 "protocol 0x%02hhx handler not found\n", protocol_id);
 
 	return connection;
 }
