@@ -500,6 +500,9 @@ gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 	/* Caller has made sure we at least have a message header. */
 	request_size = size - sizeof(struct gb_operation_msg_hdr);
 
+	if (!id)
+		flags |= GB_OPERATION_FLAG_UNIDIRECTIONAL;
+
 	operation = gb_operation_create_common(connection, type,
 					request_size, 0, flags, GFP_ATOMIC);
 	if (operation) {
@@ -666,7 +669,7 @@ static int gb_operation_response_send(struct gb_operation *operation,
 	}
 
 	/* Sender of request does not care about response. */
-	if (!operation->id)
+	if (gb_operation_is_unidirectional(operation))
 		return 0;
 
 	if (!operation->response) {

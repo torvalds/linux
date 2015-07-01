@@ -90,6 +90,7 @@ struct gb_message {
 };
 
 #define GB_OPERATION_FLAG_INCOMING		BIT(0)
+#define GB_OPERATION_FLAG_UNIDIRECTIONAL	BIT(1)
 
 /*
  * A Greybus operation is a remote procedure call performed over a
@@ -133,6 +134,12 @@ static inline bool
 gb_operation_is_incoming(struct gb_operation *operation)
 {
 	return operation->flags & GB_OPERATION_FLAG_INCOMING;
+}
+
+static inline bool
+gb_operation_is_unidirectional(struct gb_operation *operation)
+{
+	return operation->flags & GB_OPERATION_FLAG_UNIDIRECTIONAL;
 }
 
 void gb_connection_recv(struct gb_connection *connection,
