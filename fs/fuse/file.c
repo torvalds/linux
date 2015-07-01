@@ -1743,7 +1743,7 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 		}
 	}
 
-	if (old_req->num_pages == 1 && old_req->state == FUSE_REQ_PENDING) {
+	if (old_req->num_pages == 1 && test_bit(FR_PENDING, &old_req->flags)) {
 		struct backing_dev_info *bdi = inode_to_bdi(page->mapping->host);
 
 		copy_highpage(old_req->pages[0], page);
