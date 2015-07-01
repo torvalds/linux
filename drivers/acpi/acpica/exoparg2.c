@@ -380,6 +380,8 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 			return_desc->reference.target_type =
 			    ACPI_TYPE_BUFFER_FIELD;
+			return_desc->reference.index_pointer =
+			    &(operand[0]->buffer.pointer[index]);
 			break;
 
 		case ACPI_TYPE_BUFFER:
@@ -391,6 +393,8 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 			return_desc->reference.target_type =
 			    ACPI_TYPE_BUFFER_FIELD;
+			return_desc->reference.index_pointer =
+			    &(operand[0]->buffer.pointer[index]);
 			break;
 
 		case ACPI_TYPE_PACKAGE:
