@@ -46,7 +46,7 @@ static ssize_t pwm_period_show(struct device *child,
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
 
-	return sprintf(buf, "%u\n", pwm->period);
+	return sprintf(buf, "%u\n", pwm_get_period(pwm));
 }
 
 static ssize_t pwm_period_store(struct device *child,
@@ -61,7 +61,7 @@ static ssize_t pwm_period_store(struct device *child,
 	if (ret)
 		return ret;
 
-	ret = pwm_config(pwm, pwm->duty_cycle, val);
+	ret = pwm_config(pwm, pwm_get_duty_cycle(pwm), val);
 
 	return ret ? : size;
 }
@@ -72,7 +72,7 @@ static ssize_t pwm_duty_cycle_show(struct device *child,
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
 
-	return sprintf(buf, "%u\n", pwm->duty_cycle);
+	return sprintf(buf, "%u\n", pwm_get_duty_cycle(pwm));
 }
 
 static ssize_t pwm_duty_cycle_store(struct device *child,
@@ -87,7 +87,7 @@ static ssize_t pwm_duty_cycle_store(struct device *child,
 	if (ret)
 		return ret;
 
-	ret = pwm_config(pwm, val, pwm->period);
+	ret = pwm_config(pwm, val, pwm_get_period(pwm));
 
 	return ret ? : size;
 }
@@ -134,7 +134,8 @@ static ssize_t pwm_polarity_show(struct device *child,
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
 
-	return sprintf(buf, "%s\n", pwm->polarity ? "inversed" : "normal");
+	return sprintf(buf, "%s\n",
+		       pwm_get_polarity(pwm) ? "inversed" : "normal");
 }
 
 static ssize_t pwm_polarity_store(struct device *child,

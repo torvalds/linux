@@ -129,7 +129,8 @@ static int imx_pwm_config_v2(struct pwm_chip *chip,
 		sr = readl(imx->mmio_base + MX3_PWMSR);
 		fifoav = sr & MX3_PWMSR_FIFOAV_MASK;
 		if (fifoav == MX3_PWMSR_FIFOAV_4WORDS) {
-			period_ms = DIV_ROUND_UP(pwm->period, NSEC_PER_MSEC);
+			period_ms = DIV_ROUND_UP(pwm_get_period(pwm),
+						 NSEC_PER_MSEC);
 			msleep(period_ms);
 
 			sr = readl(imx->mmio_base + MX3_PWMSR);

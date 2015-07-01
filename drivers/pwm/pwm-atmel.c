@@ -114,7 +114,7 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	u32 val;
 	int ret;
 
-	if (pwm_is_enabled(pwm) && (period_ns != pwm->period)) {
+	if (pwm_is_enabled(pwm) && (period_ns != pwm_get_period(pwm))) {
 		dev_err(chip->dev, "cannot change PWM period while enabled\n");
 		return -EBUSY;
 	}

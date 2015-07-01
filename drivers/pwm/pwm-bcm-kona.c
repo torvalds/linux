@@ -194,7 +194,8 @@ static int kona_pwmc_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		return ret;
 	}
 
-	ret = kona_pwmc_config(chip, pwm, pwm->duty_cycle, pwm->period);
+	ret = kona_pwmc_config(chip, pwm, pwm_get_duty_cycle(pwm),
+			       pwm_get_period(pwm));
 	if (ret < 0) {
 		clk_disable_unprepare(kp->clk);
 		return ret;
