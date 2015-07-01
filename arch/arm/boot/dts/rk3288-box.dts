@@ -95,11 +95,12 @@
 	};
 
 	rockchip-hdmi-i2s {
+		status = "disabled";
 		compatible = "rockchip-hdmi-i2s";
 		dais {
 			dai0 {
 				audio-codec = <&codec_hdmi_i2s>;
-				i2s-controller = <&i2s>;
+				audio-controller = <&i2s>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -110,31 +111,26 @@
 		};
 	};
 
-	rockchip-hdmi-spdif {
-		compatible = "rockchip-hdmi-spdif";
+	rockchip-spdif-card {
+		compatible = "rockchip-spdif-card";
 		dais {
 			dai0 {
 				audio-codec = <&codec_hdmi_spdif>;
-				i2s-controller = <&spdif>;
+				audio-controller = <&spdif>;
 			};
 		};
 	};
+
 	rockchip-rk1000 {
 		compatible = "rockchip-rk1000";
 		dais {
 			dai0 {
 				audio-codec = <&rk1000_codec>;
-				i2s-controller = <&i2s>;
+				audio-controller = <&i2s>;
 				format = "i2s";
-				//continuous-clock;
-				//bitclock-inversion;
-				//frame-inversion;
-				//bitclock-master;
-				//frame-master;
 			};
 		};
 	};
-
 
 	usb_control {
 		compatible = "rockchip,rk3288-usb-control";
@@ -352,11 +348,7 @@
 	};
 	*/
 };
-/*
-&hsadc {
-	status = "disabled";
-};
-*/
+
 &uart_bt {
         status = "okay";
         dma-names = "!tx", "!rx";
@@ -453,17 +445,18 @@
 		compatible = "rockchip,rk1000_control";
 		reg = <0x40>;
 		gpio-reset = <&gpio7 GPIO_C5 GPIO_ACTIVE_LOW>;
-		clocks = <&clk_i2s>, <&clk_i2s_out>;
-		clock-names = "i2s_clk","i2s_mclk";
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&i2s_mclk>;
+		#clocks = <&clk_i2s>, <&clk_i2s_out>;
+		#clock-names = "i2s_clk","i2s_mclk";
+		#pinctrl-names = "default";
+		#pinctrl-0 = <&i2s_mclk>;
+		status = "okay";
 	};
 	rk1000_tve@42 {
 		compatible = "rockchip,rk1000_tve";
 		reg = <0x42>;
-//		gpio-switch = <&gpio3 GPIO_D4 GPIO_ACTIVE_LOW>;
 		rockchip,source = <0>; //0: LCDC0; 1: LCDC1
 		rockchip,prop = <PRMRY>;//<EXTEND>
+		status = "okay";
 	};
 	rk1000_codec: rk1000_codec@60 {
 		compatible = "rockchip,rk1000_codec";
@@ -471,6 +464,7 @@
 		spk_ctl_io = <&gpio7 GPIO_A5 GPIO_ACTIVE_LOW>;
 		boot_depop = <1>;
 		pa_enable_time = <5000>;
+		status = "okay";
 	};
 };
 
@@ -478,23 +472,21 @@
 	status = "disabled";
 };
 
-/*$_rbox_$_modify_$_begin_huangzhibao for rk1000*/
-//&i2s{
-//    pinctrl-names = "default", "sleep";
-//		pinctrl-0 = <&i2s_sclk &i2s_lrckrx &i2s_lrcktx &i2s_sdi &i2s_sdo0 &i2s_sdo1 &i2s_sdo2 &i2s_sdo3>;
-//		pinctrl-1 = <&i2s_gpio>;
-//};
-/*$_rbox_$_modify_$_end*/
-
 &fb {
-	rockchip,disp-mode = <DUAL>;
+	rockchip,disp-mode = <NO_DUAL>;
+	rockchip,uboot-logo-on = <0>;
+	rockchip,disp-policy = <DISPLAY_POLICY_BOX_TEMP>;
+};
+
+&disp_timings {
+	native-mode = <&timing1>;
 };
 
 &rk_screen {
 	 display-timings = <&disp_timings>;
 };
 
-/*lcdc0 as PRMRY(HDMI),lcdc1 as EXTEND(RK1000)*/
+/*lcdc0 as PRMRY(HDMI)*/
 &lcdc0 {
 	status = "okay";
 	rockchip,iommu-enabled = <1>;
@@ -509,9 +501,8 @@
 
 &hdmi {
 	status = "okay";
-	rockchips,hdmi_audio_source = <0>;
-	hdmi_cec = <0>;
-	hdcp_enable = <1>;
+	rockchip,cec_enable = <0>;
+	rockchip,hdcp_enable = <0>;
 };
 
 &ion_cma {
@@ -592,9 +583,9 @@
 	support-pvtm = <1>;
 	pvtm-operating-points = <
 		/* KHz    uV	pvtm margin*/
-		126000   900000	25000
-		216000   900000	25000
-		312000   900000	25000
+//		126000   900000	25000
+//		216000   900000	25000
+//		312000   900000	25000
 		408000   900000	25000
 		600000   950000	50000
 		696000   950000	50000
@@ -618,7 +609,7 @@
 		300000 950000
 		420000 1100000
 		500000 1150000
-	//	600000 1250000
+//		600000 1250000
 		>;
 	status="okay";
 };
@@ -640,7 +631,7 @@
 		SYS_STATUS_VIDEO_4K     456000
 		SYS_STATUS_PERFORMANCE  533000
 		//SYS_STATUS_BOOST	324000
-		//SYS_STATUS_ISP		400000
+		//SYS_STATUS_ISP	400000
 		>;
 	auto-freq-table = <
 		240000
