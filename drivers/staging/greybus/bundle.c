@@ -236,12 +236,6 @@ int gb_bundle_init(struct gb_bundle *bundle, u8 device_id)
 
 	bundle->device_id = device_id;
 
-	ret = svc_set_route_send(bundle, intf->hd);
-	if (ret) {
-		dev_err(intf->hd->parent, "failed to set route (%d)\n", ret);
-		return ret;
-	}
-
 	ret = gb_bundle_connections_init(bundle);
 	if (ret) {
 		dev_err(intf->hd->parent, "interface bundle init error %d\n",
