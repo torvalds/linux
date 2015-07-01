@@ -110,6 +110,11 @@ struct bpf_object {
 		Elf *elf;
 		GElf_Ehdr ehdr;
 		Elf_Data *symbols;
+		struct {
+			GElf_Shdr shdr;
+			Elf_Data *data;
+		} *reloc;
+		int nr_reloc;
 	} efile;
 	char path[];
 };
@@ -231,6 +236,9 @@ static void bpf_object__elf_finish(struct bpf_object *obj)
 		obj->efile.elf = NULL;
 	}
 	obj->efile.symbols = NULL;
+
+	zfree(&obj->efile.reloc);
+	obj->efile.nr_reloc = 0;
 	zclose(obj->efile.fd);
 	obj->efile.obj_buf = NULL;
 	obj->efile.obj_buf_sz = 0;
@@ -446,6 +454,24 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				strerror_r(-err, errmsg, sizeof(errmsg));
 				pr_warning("failed to alloc program %s (%s): %s",
 					   name, obj->path, errmsg);
+			}
+		} else if (sh.sh_type == SHT_REL) {
+			void *reloc = obj->efile.reloc;
+			int nr_reloc = obj->efile.nr_reloc + 1;
+
+			reloc = realloc(reloc,
+					sizeof(*obj->efile.reloc) * nr_reloc);
+			if (!reloc) {
+				pr_warning("realloc failed\n");
+				err = -ENOMEM;
+			} else {
+				int n = nr_reloc - 1;
+
+				obj->efile.reloc = reloc;
+				obj->efile.nr_reloc = nr_reloc;
+
+				obj->efile.reloc[n].shdr = sh;
+				obj->efile.reloc[n].data = data;
 			}
 		}
 		if (err)
