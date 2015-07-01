@@ -168,6 +168,10 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 	if (!fc->connected)
 		goto out;
 
+	err = -ECONNREFUSED;
+	if (fc->conn_error)
+		goto out;
+
 	req = fuse_request_alloc(npages);
 	err = -ENOMEM;
 	if (!req) {
@@ -498,8 +502,6 @@ static void __fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 	spin_lock(&fc->lock);
 	if (!fc->connected)
 		req->out.h.error = -ENOTCONN;
-	else if (fc->conn_error)
-		req->out.h.error = -ECONNREFUSED;
 	else {
 		req->in.h.unique = fuse_get_unique(fc);
 		queue_request(fc, req);
