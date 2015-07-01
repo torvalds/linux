@@ -382,8 +382,8 @@ __releases(fc->lock)
 {
 	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
 	req->end = NULL;
-	list_del(&req->list);
-	list_del(&req->intr_entry);
+	list_del_init(&req->list);
+	list_del_init(&req->intr_entry);
 	req->state = FUSE_REQ_FINISHED;
 	if (req->background) {
 		req->background = 0;
@@ -439,8 +439,6 @@ __acquires(fc->lock)
 		/* Any signal may interrupt this */
 		wait_answer_interruptible(fc, req);
 
-		if (req->aborted)
-			goto aborted;
 		if (req->state == FUSE_REQ_FINISHED)
 			return;
 
@@ -457,8 +455,6 @@ __acquires(fc->lock)
 		wait_answer_interruptible(fc, req);
 		restore_sigs(&oldset);
 
-		if (req->aborted)
-			goto aborted;
 		if (req->state == FUSE_REQ_FINISHED)
 			return;
 
@@ -478,22 +474,6 @@ __acquires(fc->lock)
 	spin_unlock(&fc->lock);
 	wait_event(req->waitq, req->state == FUSE_REQ_FINISHED);
 	spin_lock(&fc->lock);
-
-	if (!req->aborted)
-		return;
-
- aborted:
-	BUG_ON(req->state != FUSE_REQ_FINISHED);
-	if (req->locked) {
-		/* This is uninterruptible sleep, because data is
-		   being copied to/from the buffers of req.  During
-		   locked state, there mustn't be any filesystem
-		   operation (e.g. page fault), since that could lead
-		   to deadlock */
-		spin_unlock(&fc->lock);
-		wait_event(req->waitq, !req->locked);
-		spin_lock(&fc->lock);
-	}
 }
 
 static void __fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
@@ -690,19 +670,21 @@ static int lock_request(struct fuse_conn *fc, struct fuse_req *req)
 }
 
 /*
- * Unlock request.  If it was aborted during being locked, the
- * requester thread is currently waiting for it to be unlocked, so
- * wake it up.
+ * Unlock request.  If it was aborted while locked, caller is responsible
+ * for unlocking and ending the request.
  */
-static void unlock_request(struct fuse_conn *fc, struct fuse_req *req)
+static int unlock_request(struct fuse_conn *fc, struct fuse_req *req)
 {
+	int err = 0;
 	if (req) {
 		spin_lock(&fc->lock);
-		req->locked = 0;
 		if (req->aborted)
-			wake_up(&req->waitq);
+			err = -ENOENT;
+		else
+			req->locked = 0;
 		spin_unlock(&fc->lock);
 	}
+	return err;
 }
 
 struct fuse_copy_state {
@@ -759,7 +741,10 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 	struct page *page;
 	int err;
 
-	unlock_request(cs->fc, cs->req);
+	err = unlock_request(cs->fc, cs->req);
+	if (err)
+		return err;
+
 	fuse_copy_finish(cs);
 	if (cs->pipebufs) {
 		struct pipe_buffer *buf = cs->pipebufs;
@@ -859,7 +844,10 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	struct page *newpage;
 	struct pipe_buffer *buf = cs->pipebufs;
 
-	unlock_request(cs->fc, cs->req);
+	err = unlock_request(cs->fc, cs->req);
+	if (err)
+		return err;
+
 	fuse_copy_finish(cs);
 
 	err = buf->ops->confirm(cs->pipe, buf);
@@ -949,11 +937,15 @@ static int fuse_ref_page(struct fuse_copy_state *cs, struct page *page,
 			 unsigned offset, unsigned count)
 {
 	struct pipe_buffer *buf;
+	int err;
 
 	if (cs->nr_segs == cs->pipe->buffers)
 		return -EIO;
 
-	unlock_request(cs->fc, cs->req);
+	err = unlock_request(cs->fc, cs->req);
+	if (err)
+		return err;
+
 	fuse_copy_finish(cs);
 
 	buf = cs->pipebufs;
@@ -1318,7 +1310,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	fuse_copy_finish(cs);
 	spin_lock(&fc->lock);
 	req->locked = 0;
-	if (req->aborted) {
+	if (!fc->connected) {
 		request_end(fc, req);
 		return -ENODEV;
 	}
@@ -1910,13 +1902,6 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	if (!req)
 		goto err_unlock;
 
-	if (req->aborted) {
-		spin_unlock(&fc->lock);
-		fuse_copy_finish(cs);
-		spin_lock(&fc->lock);
-		request_end(fc, req);
-		return -ENOENT;
-	}
 	/* Is it an interrupt reply? */
 	if (req->intr_unique == oh.unique) {
 		err = -EINVAL;
@@ -1947,10 +1932,9 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 
 	spin_lock(&fc->lock);
 	req->locked = 0;
-	if (!err) {
-		if (req->aborted)
-			err = -ENOENT;
-	} else if (!req->aborted)
+	if (!fc->connected)
+		err = -ENOENT;
+	else if (err)
 		req->out.h.error = -EIO;
 	request_end(fc, req);
 
@@ -2097,37 +2081,31 @@ __acquires(fc->lock)
 /*
  * Abort requests under I/O
  *
- * The requests are set to aborted and finished, and the request
- * waiter is woken up.  This will make request_wait_answer() wait
- * until the request is unlocked and then return.
+ * Separate out unlocked requests, they should be finished off immediately.
+ * Locked requests will be finished after unlock; see unlock_request().
  *
- * If the request is asynchronous, then the end function needs to be
- * called after waiting for the request to be unlocked (if it was
- * locked).
+ * Next finish off the unlocked requests.  It is possible that some request will
+ * finish before we can.  This is OK, the request will in that case be removed
+ * from the list before we touch it.
  */
 static void end_io_requests(struct fuse_conn *fc)
 __releases(fc->lock)
 __acquires(fc->lock)
 {
-	while (!list_empty(&fc->io)) {
-		struct fuse_req *req =
-			list_entry(fc->io.next, struct fuse_req, list);
-		void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
+	struct fuse_req *req, *next;
+	LIST_HEAD(to_end);
 
-		req->aborted = 1;
+	list_for_each_entry_safe(req, next, &fc->io, list) {
 		req->out.h.error = -ECONNABORTED;
-		req->state = FUSE_REQ_FINISHED;
-		list_del_init(&req->list);
-		wake_up(&req->waitq);
-		if (end) {
-			req->end = NULL;
-			__fuse_get_request(req);
-			spin_unlock(&fc->lock);
-			wait_event(req->waitq, !req->locked);
-			end(fc, req);
-			fuse_put_request(fc, req);
-			spin_lock(&fc->lock);
-		}
+		req->aborted = 1;
+		if (!req->locked)
+			list_move(&req->list, &to_end);
+	}
+	while (!list_empty(&to_end)) {
+		req = list_first_entry(&to_end, struct fuse_req, list);
+		__fuse_get_request(req);
+		request_end(fc, req);
+		spin_lock(&fc->lock);
 	}
 }
 
@@ -2169,13 +2147,8 @@ static void end_polls(struct fuse_conn *fc)
  * is the combination of an asynchronous request and the tricky
  * deadlock (see Documentation/filesystems/fuse.txt).
  *
- * During the aborting, progression of requests from the pending and
- * processing lists onto the io list, and progression of new requests
- * onto the pending list is prevented by req->connected being false.
- *
- * Progression of requests under I/O to the processing list is
- * prevented by the req->aborted flag being true for these requests.
- * For this reason requests on the io list must be aborted first.
+ * Request progression from one list to the next is prevented by
+ * fc->connected being false.
  */
 void fuse_abort_conn(struct fuse_conn *fc)
 {
