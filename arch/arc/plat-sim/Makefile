@@ -6,7 +6,4 @@
 # published by the Free Software Foundation.
 #
 
-KBUILD_CFLAGS	+= -Iarch/arc/plat-arcfpga/include
-
 obj-y := platform.o
-obj-$(CONFIG_ISS_SMP_EXTN)		+= smp.o
