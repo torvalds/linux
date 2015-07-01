@@ -78,11 +78,26 @@ void libbpf_set_print(libbpf_print_fn_t warn,
 # define LIBBPF_ELF_C_READ_MMAP ELF_C_READ
 #endif
 
+/*
+ * bpf_prog should be a better name but it has been used in
+ * linux/filter.h.
+ */
+struct bpf_program {
+	/* Index in elf obj file, for relocation use. */
+	int idx;
+	char *section_name;
+	struct bpf_insn *insns;
+	size_t insns_cnt;
+};
+
 struct bpf_object {
 	char license[64];
 	u32 kern_version;
 	void *maps_buf;
 	size_t maps_buf_sz;
+
+	struct bpf_program *programs;
+	size_t nr_programs;
 
 	/*
 	 * Information when doing elf related work. Only valid if fd
@@ -99,6 +114,85 @@ struct bpf_object {
 	char path[];
 };
 #define obj_elf_valid(o)	((o)->efile.elf)
+
+static void bpf_program__exit(struct bpf_program *prog)
+{
+	if (!prog)
+		return;
+
+	zfree(&prog->section_name);
+	zfree(&prog->insns);
+	prog->insns_cnt = 0;
+	prog->idx = -1;
+}
+
+static int
+bpf_program__init(void *data, size_t size, char *name, int idx,
+		    struct bpf_program *prog)
+{
+	if (size < sizeof(struct bpf_insn)) {
+		pr_warning("corrupted section '%s'\n", name);
+		return -EINVAL;
+	}
+
+	bzero(prog, sizeof(*prog));
+
+	prog->section_name = strdup(name);
+	if (!prog->section_name) {
+		pr_warning("failed to alloc name for prog %s\n",
+			   name);
+		goto errout;
+	}
+
+	prog->insns = malloc(size);
+	if (!prog->insns) {
+		pr_warning("failed to alloc insns for %s\n", name);
+		goto errout;
+	}
+	prog->insns_cnt = size / sizeof(struct bpf_insn);
+	memcpy(prog->insns, data,
+	       prog->insns_cnt * sizeof(struct bpf_insn));
+	prog->idx = idx;
+
+	return 0;
+errout:
+	bpf_program__exit(prog);
+	return -ENOMEM;
+}
+
+static int
+bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
+			char *name, int idx)
+{
+	struct bpf_program prog, *progs;
+	int nr_progs, err;
+
+	err = bpf_program__init(data, size, name, idx, &prog);
+	if (err)
+		return err;
+
+	progs = obj->programs;
+	nr_progs = obj->nr_programs;
+
+	progs = realloc(progs, sizeof(progs[0]) * (nr_progs + 1));
+	if (!progs) {
+		/*
+		 * In this case the original obj->programs
+		 * is still valid, so don't need special treat for
+		 * bpf_close_object().
+		 */
+		pr_warning("failed to alloc a new program '%s'\n",
+			   name);
+		bpf_program__exit(&prog);
+		return -ENOMEM;
+	}
+
+	pr_debug("found program %s\n", prog.section_name);
+	obj->programs = progs;
+	obj->nr_programs = nr_progs + 1;
+	progs[nr_progs] = prog;
+	return 0;
+}
 
 static struct bpf_object *bpf_object__new(const char *path,
 					  void *obj_buf,
@@ -342,6 +436,17 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				err = -EEXIST;
 			} else
 				obj->efile.symbols = data;
+		} else if ((sh.sh_type == SHT_PROGBITS) &&
+			   (sh.sh_flags & SHF_EXECINSTR) &&
+			   (data->d_size > 0)) {
+			err = bpf_object__add_program(obj, data->d_buf,
+						      data->d_size, name, idx);
+			if (err) {
+				char errmsg[128];
+				strerror_r(-err, errmsg, sizeof(errmsg));
+				pr_warning("failed to alloc program %s (%s): %s",
+					   name, obj->path, errmsg);
+			}
 		}
 		if (err)
 			goto out;
@@ -415,11 +520,20 @@ struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 
 void bpf_object__close(struct bpf_object *obj)
 {
+	size_t i;
+
 	if (!obj)
 		return;
 
 	bpf_object__elf_finish(obj);
 
 	zfree(&obj->maps_buf);
+
+	if (obj->programs && obj->nr_programs) {
+		for (i = 0; i < obj->nr_programs; i++)
+			bpf_program__exit(&obj->programs[i]);
+	}
+	zfree(&obj->programs);
+
 	free(obj);
 }
