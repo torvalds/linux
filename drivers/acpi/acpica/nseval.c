@@ -59,15 +59,14 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
  *
  * FUNCTION:    acpi_ns_evaluate
  *
- * PARAMETERS:  info            - Evaluation info block, contains:
+ * PARAMETERS:  info            - Evaluation info block, contains these fields
+ *                                and more:
  *                  prefix_node     - Prefix or Method/Object Node to execute
  *                  relative_path   - Name of method to execute, If NULL, the
  *                                    Node is the object to execute
  *                  parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
  *                                    NULL if no parameters are being passed.
- *                  return_object   - Where to put method's return value (if
- *                                    any). If NULL, no value is returned.
  *                  parameter_type  - Type of Parameter list
  *                  return_object   - Where to put method's return value (if
  *                                    any). If NULL, no value is returned.
