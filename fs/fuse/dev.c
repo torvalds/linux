@@ -2075,51 +2075,6 @@ __acquires(fc->lock)
 	}
 }
 
-/*
- * Abort requests under I/O
- *
- * Separate out unlocked requests, they should be finished off immediately.
- * Locked requests will be finished after unlock; see unlock_request().
- *
- * Next finish off the unlocked requests.  It is possible that some request will
- * finish before we can.  This is OK, the request will in that case be removed
- * from the list before we touch it.
- */
-static void end_io_requests(struct fuse_conn *fc)
-__releases(fc->lock)
-__acquires(fc->lock)
-{
-	struct fuse_req *req, *next;
-	LIST_HEAD(to_end);
-
-	list_for_each_entry_safe(req, next, &fc->io, list) {
-		req->out.h.error = -ECONNABORTED;
-		spin_lock(&req->waitq.lock);
-		set_bit(FR_ABORTED, &req->flags);
-		if (!test_bit(FR_LOCKED, &req->flags))
-			list_move(&req->list, &to_end);
-		spin_unlock(&req->waitq.lock);
-	}
-	while (!list_empty(&to_end)) {
-		req = list_first_entry(&to_end, struct fuse_req, list);
-		__fuse_get_request(req);
-		request_end(fc, req);
-		spin_lock(&fc->lock);
-	}
-}
-
-static void end_queued_requests(struct fuse_conn *fc)
-__releases(fc->lock)
-__acquires(fc->lock)
-{
-	fc->max_background = UINT_MAX;
-	flush_bg_queue(fc);
-	end_requests(fc, &fc->pending);
-	end_requests(fc, &fc->processing);
-	while (forget_pending(fc))
-		kfree(dequeue_forget(fc, 1, NULL));
-}
-
 static void end_polls(struct fuse_conn *fc)
 {
 	struct rb_node *p;
@@ -2138,26 +2093,54 @@ static void end_polls(struct fuse_conn *fc)
 /*
  * Abort all requests.
  *
- * Emergency exit in case of a malicious or accidental deadlock, or
- * just a hung filesystem.
+ * Emergency exit in case of a malicious or accidental deadlock, or just a hung
+ * filesystem.
  *
- * The same effect is usually achievable through killing the
- * filesystem daemon and all users of the filesystem.  The exception
- * is the combination of an asynchronous request and the tricky
- * deadlock (see Documentation/filesystems/fuse.txt).
+ * The same effect is usually achievable through killing the filesystem daemon
+ * and all users of the filesystem.  The exception is the combination of an
+ * asynchronous request and the tricky deadlock (see
+ * Documentation/filesystems/fuse.txt).
  *
- * Request progression from one list to the next is prevented by
- * fc->connected being false.
+ * Request progression from one list to the next is prevented by fc->connected
+ * being false.
+ *
+ * Aborting requests under I/O goes as follows: 1: Separate out unlocked
+ * requests, they should be finished off immediately.  Locked requests will be
+ * finished after unlock; see unlock_request(). 2: Finish off the unlocked
+ * requests.  It is possible that some request will finish before we can.  This
+ * is OK, the request will in that case be removed from the list before we touch
+ * it.
  */
 void fuse_abort_conn(struct fuse_conn *fc)
 {
 	spin_lock(&fc->lock);
 	if (fc->connected) {
+		struct fuse_req *req, *next;
+		LIST_HEAD(to_end);
+
 		fc->connected = 0;
 		fc->blocked = 0;
 		fuse_set_initialized(fc);
-		end_io_requests(fc);
-		end_queued_requests(fc);
+		list_for_each_entry_safe(req, next, &fc->io, list) {
+			req->out.h.error = -ECONNABORTED;
+			spin_lock(&req->waitq.lock);
+			set_bit(FR_ABORTED, &req->flags);
+			if (!test_bit(FR_LOCKED, &req->flags))
+				list_move(&req->list, &to_end);
+			spin_unlock(&req->waitq.lock);
+		}
+		while (!list_empty(&to_end)) {
+			req = list_first_entry(&to_end, struct fuse_req, list);
+			__fuse_get_request(req);
+			request_end(fc, req);
+			spin_lock(&fc->lock);
+		}
+		fc->max_background = UINT_MAX;
+		flush_bg_queue(fc);
+		end_requests(fc, &fc->pending);
+		end_requests(fc, &fc->processing);
+		while (forget_pending(fc))
+			kfree(dequeue_forget(fc, 1, NULL));
 		end_polls(fc);
 		wake_up_all(&fc->waitq);
 		wake_up_all(&fc->blocked_waitq);
