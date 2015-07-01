@@ -2199,14 +2199,9 @@ int fuse_dev_release(struct inode *inode, struct file *file)
 {
 	struct fuse_conn *fc = fuse_get_conn(file);
 	if (fc) {
-		spin_lock(&fc->lock);
-		fc->connected = 0;
-		fc->blocked = 0;
-		fuse_set_initialized(fc);
-		end_queued_requests(fc);
-		end_polls(fc);
-		wake_up_all(&fc->blocked_waitq);
-		spin_unlock(&fc->lock);
+		WARN_ON(!list_empty(&fc->io));
+		WARN_ON(fc->fasync != NULL);
+		fuse_abort_conn(fc);
 		fuse_conn_put(fc);
 	}
 
