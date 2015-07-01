@@ -384,14 +384,18 @@ __releases(fc->lock)
 {
 	struct fuse_iqueue *fiq = &fc->iq;
 	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
+
+	if (test_and_set_bit(FR_FINISHED, &req->flags)) {
+		spin_unlock(&fc->lock);
+		return;
+	}
+
 	req->end = NULL;
 	spin_lock(&fiq->waitq.lock);
 	list_del_init(&req->intr_entry);
 	spin_unlock(&fiq->waitq.lock);
 	WARN_ON(test_bit(FR_PENDING, &req->flags));
 	WARN_ON(test_bit(FR_SENT, &req->flags));
-	smp_wmb();
-	set_bit(FR_FINISHED, &req->flags);
 	if (test_bit(FR_BACKGROUND, &req->flags)) {
 		clear_bit(FR_BACKGROUND, &req->flags);
 		if (fc->num_background == fc->max_background)
