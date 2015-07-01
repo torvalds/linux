@@ -318,32 +318,34 @@ static unsigned len_args(unsigned numargs, struct fuse_arg *args)
 	return nbytes;
 }
 
-static u64 fuse_get_unique(struct fuse_conn *fc)
+static u64 fuse_get_unique(struct fuse_iqueue *fiq)
 {
-	return ++fc->reqctr;
+	return ++fiq->reqctr;
 }
 
-static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
+static void queue_request(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
-	list_add_tail(&req->list, &fc->pending);
-	wake_up(&fc->waitq);
-	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
+	list_add_tail(&req->list, &fiq->pending);
+	wake_up(&fiq->waitq);
+	kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 }
 
 void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
 		       u64 nodeid, u64 nlookup)
 {
+	struct fuse_iqueue *fiq = &fc->iq;
+
 	forget->forget_one.nodeid = nodeid;
 	forget->forget_one.nlookup = nlookup;
 
 	spin_lock(&fc->lock);
 	if (fc->connected) {
-		fc->forget_list_tail->next = forget;
-		fc->forget_list_tail = forget;
-		wake_up(&fc->waitq);
-		kill_fasync(&fc->fasync, SIGIO, POLL_IN);
+		fiq->forget_list_tail->next = forget;
+		fiq->forget_list_tail = forget;
+		wake_up(&fiq->waitq);
+		kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 	} else {
 		kfree(forget);
 	}
@@ -355,12 +357,13 @@ static void flush_bg_queue(struct fuse_conn *fc)
 	while (fc->active_background < fc->max_background &&
 	       !list_empty(&fc->bg_queue)) {
 		struct fuse_req *req;
+		struct fuse_iqueue *fiq = &fc->iq;
 
 		req = list_entry(fc->bg_queue.next, struct fuse_req, list);
 		list_del(&req->list);
 		fc->active_background++;
-		req->in.h.unique = fuse_get_unique(fc);
-		queue_request(fc, req);
+		req->in.h.unique = fuse_get_unique(fiq);
+		queue_request(fiq, req);
 	}
 }
 
@@ -410,11 +413,11 @@ __releases(fc->lock)
 	fuse_put_request(fc, req);
 }
 
-static void queue_interrupt(struct fuse_conn *fc, struct fuse_req *req)
+static void queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
-	list_add_tail(&req->intr_entry, &fc->interrupts);
-	wake_up(&fc->waitq);
-	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
+	list_add_tail(&req->intr_entry, &fiq->interrupts);
+	wake_up(&fiq->waitq);
+	kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 }
 
 static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
@@ -431,7 +434,7 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 		spin_lock(&fc->lock);
 		set_bit(FR_INTERRUPTED, &req->flags);
 		if (test_bit(FR_SENT, &req->flags))
-			queue_interrupt(fc, req);
+			queue_interrupt(&fc->iq, req);
 		spin_unlock(&fc->lock);
 	}
 
@@ -474,8 +477,10 @@ static void __fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 		spin_unlock(&fc->lock);
 		req->out.h.error = -ENOTCONN;
 	} else {
-		req->in.h.unique = fuse_get_unique(fc);
-		queue_request(fc, req);
+		struct fuse_iqueue *fiq = &fc->iq;
+
+		req->in.h.unique = fuse_get_unique(fiq);
+		queue_request(fiq, req);
 		/* acquire extra reference, since request is still needed
 		   after request_end() */
 		__fuse_get_request(req);
@@ -609,12 +614,13 @@ static int fuse_request_send_notify_reply(struct fuse_conn *fc,
 					  struct fuse_req *req, u64 unique)
 {
 	int err = -ENODEV;
+	struct fuse_iqueue *fiq = &fc->iq;
 
 	__clear_bit(FR_ISREPLY, &req->flags);
 	req->in.h.unique = unique;
 	spin_lock(&fc->lock);
 	if (fc->connected) {
-		queue_request(fc, req);
+		queue_request(fiq, req);
 		err = 0;
 	}
 	spin_unlock(&fc->lock);
@@ -1045,15 +1051,15 @@ static int fuse_copy_args(struct fuse_copy_state *cs, unsigned numargs,
 	return err;
 }
 
-static int forget_pending(struct fuse_conn *fc)
+static int forget_pending(struct fuse_iqueue *fiq)
 {
-	return fc->forget_list_head.next != NULL;
+	return fiq->forget_list_head.next != NULL;
 }
 
-static int request_pending(struct fuse_conn *fc)
+static int request_pending(struct fuse_iqueue *fiq)
 {
-	return !list_empty(&fc->pending) || !list_empty(&fc->interrupts) ||
-		forget_pending(fc);
+	return !list_empty(&fiq->pending) || !list_empty(&fiq->interrupts) ||
+		forget_pending(fiq);
 }
 
 /* Wait until a request is available on the pending list */
@@ -1061,10 +1067,11 @@ static void request_wait(struct fuse_conn *fc)
 __releases(fc->lock)
 __acquires(fc->lock)
 {
+	struct fuse_iqueue *fiq = &fc->iq;
 	DECLARE_WAITQUEUE(wait, current);
 
-	add_wait_queue_exclusive(&fc->waitq, &wait);
-	while (fc->connected && !request_pending(fc)) {
+	add_wait_queue_exclusive(&fiq->waitq, &wait);
+	while (fc->connected && !request_pending(fiq)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (signal_pending(current))
 			break;
@@ -1074,7 +1081,7 @@ __acquires(fc->lock)
 		spin_lock(&fc->lock);
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&fc->waitq, &wait);
+	remove_wait_queue(&fiq->waitq, &wait);
 }
 
 /*
@@ -1095,7 +1102,7 @@ __releases(fc->lock)
 	int err;
 
 	list_del_init(&req->intr_entry);
-	req->intr_unique = fuse_get_unique(fc);
+	req->intr_unique = fuse_get_unique(&fc->iq);
 	memset(&ih, 0, sizeof(ih));
 	memset(&arg, 0, sizeof(arg));
 	ih.len = reqsize;
@@ -1115,21 +1122,21 @@ __releases(fc->lock)
 	return err ? err : reqsize;
 }
 
-static struct fuse_forget_link *dequeue_forget(struct fuse_conn *fc,
+static struct fuse_forget_link *dequeue_forget(struct fuse_iqueue *fiq,
 					       unsigned max,
 					       unsigned *countp)
 {
-	struct fuse_forget_link *head = fc->forget_list_head.next;
+	struct fuse_forget_link *head = fiq->forget_list_head.next;
 	struct fuse_forget_link **newhead = &head;
 	unsigned count;
 
 	for (count = 0; *newhead != NULL && count < max; count++)
 		newhead = &(*newhead)->next;
 
-	fc->forget_list_head.next = *newhead;
+	fiq->forget_list_head.next = *newhead;
 	*newhead = NULL;
-	if (fc->forget_list_head.next == NULL)
-		fc->forget_list_tail = &fc->forget_list_head;
+	if (fiq->forget_list_head.next == NULL)
+		fiq->forget_list_tail = &fiq->forget_list_head;
 
 	if (countp != NULL)
 		*countp = count;
@@ -1143,14 +1150,15 @@ static int fuse_read_single_forget(struct fuse_conn *fc,
 __releases(fc->lock)
 {
 	int err;
-	struct fuse_forget_link *forget = dequeue_forget(fc, 1, NULL);
+	struct fuse_iqueue *fiq = &fc->iq;
+	struct fuse_forget_link *forget = dequeue_forget(fiq, 1, NULL);
 	struct fuse_forget_in arg = {
 		.nlookup = forget->forget_one.nlookup,
 	};
 	struct fuse_in_header ih = {
 		.opcode = FUSE_FORGET,
 		.nodeid = forget->forget_one.nodeid,
-		.unique = fuse_get_unique(fc),
+		.unique = fuse_get_unique(fiq),
 		.len = sizeof(ih) + sizeof(arg),
 	};
 
@@ -1178,10 +1186,11 @@ __releases(fc->lock)
 	unsigned max_forgets;
 	unsigned count;
 	struct fuse_forget_link *head;
+	struct fuse_iqueue *fiq = &fc->iq;
 	struct fuse_batch_forget_in arg = { .count = 0 };
 	struct fuse_in_header ih = {
 		.opcode = FUSE_BATCH_FORGET,
-		.unique = fuse_get_unique(fc),
+		.unique = fuse_get_unique(fiq),
 		.len = sizeof(ih) + sizeof(arg),
 	};
 
@@ -1191,7 +1200,7 @@ __releases(fc->lock)
 	}
 
 	max_forgets = (nbytes - ih.len) / sizeof(struct fuse_forget_one);
-	head = dequeue_forget(fc, max_forgets, &count);
+	head = dequeue_forget(fiq, max_forgets, &count);
 	spin_unlock(&fc->lock);
 
 	arg.count = count;
@@ -1223,7 +1232,9 @@ static int fuse_read_forget(struct fuse_conn *fc, struct fuse_copy_state *cs,
 			    size_t nbytes)
 __releases(fc->lock)
 {
-	if (fc->minor < 16 || fc->forget_list_head.next->next == NULL)
+	struct fuse_iqueue *fiq = &fc->iq;
+
+	if (fc->minor < 16 || fiq->forget_list_head.next->next == NULL)
 		return fuse_read_single_forget(fc, cs, nbytes);
 	else
 		return fuse_read_batch_forget(fc, cs, nbytes);
@@ -1242,6 +1253,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 				struct fuse_copy_state *cs, size_t nbytes)
 {
 	int err;
+	struct fuse_iqueue *fiq = &fc->iq;
 	struct fuse_req *req;
 	struct fuse_in *in;
 	unsigned reqsize;
@@ -1250,7 +1262,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	spin_lock(&fc->lock);
 	err = -EAGAIN;
 	if ((file->f_flags & O_NONBLOCK) && fc->connected &&
-	    !request_pending(fc))
+	    !request_pending(fiq))
 		goto err_unlock;
 
 	request_wait(fc);
@@ -1258,24 +1270,24 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	if (!fc->connected)
 		goto err_unlock;
 	err = -ERESTARTSYS;
-	if (!request_pending(fc))
+	if (!request_pending(fiq))
 		goto err_unlock;
 
-	if (!list_empty(&fc->interrupts)) {
-		req = list_entry(fc->interrupts.next, struct fuse_req,
+	if (!list_empty(&fiq->interrupts)) {
+		req = list_entry(fiq->interrupts.next, struct fuse_req,
 				 intr_entry);
 		return fuse_read_interrupt(fc, cs, nbytes, req);
 	}
 
-	if (forget_pending(fc)) {
-		if (list_empty(&fc->pending) || fc->forget_batch-- > 0)
+	if (forget_pending(fiq)) {
+		if (list_empty(&fiq->pending) || fiq->forget_batch-- > 0)
 			return fuse_read_forget(fc, cs, nbytes);
 
-		if (fc->forget_batch <= -8)
-			fc->forget_batch = 16;
+		if (fiq->forget_batch <= -8)
+			fiq->forget_batch = 16;
 	}
 
-	req = list_entry(fc->pending.next, struct fuse_req, list);
+	req = list_entry(fiq->pending.next, struct fuse_req, list);
 	clear_bit(FR_PENDING, &req->flags);
 	list_move(&req->list, &fc->io);
 
@@ -1314,7 +1326,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 		set_bit(FR_SENT, &req->flags);
 		list_move_tail(&req->list, &fc->processing);
 		if (test_bit(FR_INTERRUPTED, &req->flags))
-			queue_interrupt(fc, req);
+			queue_interrupt(fiq, req);
 		spin_unlock(&fc->lock);
 	}
 	return reqsize;
@@ -1900,7 +1912,7 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 		if (oh.error == -ENOSYS)
 			fc->no_interrupt = 1;
 		else if (oh.error == -EAGAIN)
-			queue_interrupt(fc, req);
+			queue_interrupt(&fc->iq, req);
 
 		spin_unlock(&fc->lock);
 		fuse_copy_finish(cs);
@@ -2033,16 +2045,18 @@ out:
 static unsigned fuse_dev_poll(struct file *file, poll_table *wait)
 {
 	unsigned mask = POLLOUT | POLLWRNORM;
+	struct fuse_iqueue *fiq;
 	struct fuse_conn *fc = fuse_get_conn(file);
 	if (!fc)
 		return POLLERR;
 
-	poll_wait(file, &fc->waitq, wait);
+	fiq = &fc->iq;
+	poll_wait(file, &fiq->waitq, wait);
 
 	spin_lock(&fc->lock);
 	if (!fc->connected)
 		mask = POLLERR;
-	else if (request_pending(fc))
+	else if (request_pending(fiq))
 		mask |= POLLIN | POLLRDNORM;
 	spin_unlock(&fc->lock);
 
@@ -2104,6 +2118,8 @@ static void end_polls(struct fuse_conn *fc)
  */
 void fuse_abort_conn(struct fuse_conn *fc)
 {
+	struct fuse_iqueue *fiq = &fc->iq;
+
 	spin_lock(&fc->lock);
 	if (fc->connected) {
 		struct fuse_req *req, *next;
@@ -2123,7 +2139,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		}
 		fc->max_background = UINT_MAX;
 		flush_bg_queue(fc);
-		list_splice_init(&fc->pending, &to_end2);
+		list_splice_init(&fiq->pending, &to_end2);
 		list_splice_init(&fc->processing, &to_end2);
 		while (!list_empty(&to_end1)) {
 			req = list_first_entry(&to_end1, struct fuse_req, list);
@@ -2132,12 +2148,12 @@ void fuse_abort_conn(struct fuse_conn *fc)
 			spin_lock(&fc->lock);
 		}
 		end_requests(fc, &to_end2);
-		while (forget_pending(fc))
-			kfree(dequeue_forget(fc, 1, NULL));
+		while (forget_pending(fiq))
+			kfree(dequeue_forget(fiq, 1, NULL));
 		end_polls(fc);
-		wake_up_all(&fc->waitq);
+		wake_up_all(&fiq->waitq);
 		wake_up_all(&fc->blocked_waitq);
-		kill_fasync(&fc->fasync, SIGIO, POLL_IN);
+		kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 	}
 	spin_unlock(&fc->lock);
 }
@@ -2148,7 +2164,7 @@ int fuse_dev_release(struct inode *inode, struct file *file)
 	struct fuse_conn *fc = fuse_get_conn(file);
 	if (fc) {
 		WARN_ON(!list_empty(&fc->io));
-		WARN_ON(fc->fasync != NULL);
+		WARN_ON(fc->iq.fasync != NULL);
 		fuse_abort_conn(fc);
 		fuse_conn_put(fc);
 	}
@@ -2164,7 +2180,7 @@ static int fuse_dev_fasync(int fd, struct file *file, int on)
 		return -EPERM;
 
 	/* No locking - fasync_helper does its own locking */
-	return fasync_helper(fd, file, on, &fc->fasync);
+	return fasync_helper(fd, file, on, &fc->iq.fasync);
 }
 
 const struct file_operations fuse_dev_operations = {

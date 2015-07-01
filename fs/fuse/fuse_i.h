@@ -374,6 +374,30 @@ struct fuse_req {
 	struct file *stolen_file;
 };
 
+struct fuse_iqueue {
+	/** Readers of the connection are waiting on this */
+	wait_queue_head_t waitq;
+
+	/** The next unique request id */
+	u64 reqctr;
+
+	/** The list of pending requests */
+	struct list_head pending;
+
+	/** Pending interrupts */
+	struct list_head interrupts;
+
+	/** Queue of pending forgets */
+	struct fuse_forget_link forget_list_head;
+	struct fuse_forget_link *forget_list_tail;
+
+	/** Batching of FORGET requests (positive indicates FORGET batch) */
+	int forget_batch;
+
+	/** O_ASYNC requests */
+	struct fasync_struct *fasync;
+};
+
 /**
  * A Fuse connection.
  *
@@ -405,11 +429,8 @@ struct fuse_conn {
 	/** Maximum write size */
 	unsigned max_write;
 
-	/** Readers of the connection are waiting on this */
-	wait_queue_head_t waitq;
-
-	/** The list of pending requests */
-	struct list_head pending;
+	/** Input queue */
+	struct fuse_iqueue iq;
 
 	/** The list of requests being processed */
 	struct list_head processing;
@@ -438,16 +459,6 @@ struct fuse_conn {
 	/** The list of background requests set aside for later queuing */
 	struct list_head bg_queue;
 
-	/** Pending interrupts */
-	struct list_head interrupts;
-
-	/** Queue of pending forgets */
-	struct fuse_forget_link forget_list_head;
-	struct fuse_forget_link *forget_list_tail;
-
-	/** Batching of FORGET requests (positive indicates FORGET batch) */
-	int forget_batch;
-
 	/** Flag indicating that INIT reply has been received. Allocating
 	 * any fuse request will be suspended until the flag is set */
 	int initialized;
@@ -462,9 +473,6 @@ struct fuse_conn {
 
 	/** waitq for reserved requests */
 	wait_queue_head_t reserved_req_waitq;
-
-	/** The next unique request id */
-	u64 reqctr;
 
 	/** Connection established, cleared on umount, connection
 	    abort and device release */
@@ -587,9 +595,6 @@ struct fuse_conn {
 
 	/** number of dentries used in the above array */
 	int ctl_ndents;
-
-	/** O_ASYNC requests */
-	struct fasync_struct *fasync;
 
 	/** Key for lock owner ID scrambling */
 	u32 scramble_key[4];
