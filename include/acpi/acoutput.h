@@ -294,8 +294,12 @@
 
 /* DEBUG_PRINT functions */
 
-#define ACPI_DEBUG_PRINT(plist)         ACPI_ACTUAL_DEBUG plist
-#define ACPI_DEBUG_PRINT_RAW(plist)     ACPI_ACTUAL_DEBUG_RAW plist
+#ifndef COMPILER_VA_MACRO
+
+#define ACPI_DEBUG_PRINT(plist)         acpi_debug_print plist
+#define ACPI_DEBUG_PRINT_RAW(plist)     acpi_debug_print_raw plist
+
+#else
 
 /* Helper macros for DEBUG_PRINT */
 
@@ -314,6 +318,11 @@
 #define ACPI_ACTUAL_DEBUG_RAW(level, line, filename, modulename, component, ...) \
 	ACPI_DO_DEBUG_PRINT (acpi_debug_print_raw, level, line, \
 		filename, modulename, component, __VA_ARGS__)
+
+#define ACPI_DEBUG_PRINT(plist)         ACPI_ACTUAL_DEBUG plist
+#define ACPI_DEBUG_PRINT_RAW(plist)     ACPI_ACTUAL_DEBUG_RAW plist
+
+#endif
 
 /*
  * Function entry tracing
