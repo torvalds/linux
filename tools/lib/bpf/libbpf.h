@@ -8,4 +8,16 @@
 #ifndef __BPF_LIBBPF_H
 #define __BPF_LIBBPF_H
 
+/*
+ * In include/linux/compiler-gcc.h, __printf is defined. However
+ * it should be better if libbpf.h doesn't depend on Linux header file.
+ * So instead of __printf, here we use gcc attribute directly.
+ */
+typedef int (*libbpf_print_fn_t)(const char *, ...)
+	__attribute__((format(printf, 1, 2)));
+
+void libbpf_set_print(libbpf_print_fn_t warn,
+		      libbpf_print_fn_t info,
+		      libbpf_print_fn_t debug);
+
 #endif
