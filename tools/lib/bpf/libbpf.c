@@ -96,6 +96,8 @@ struct bpf_program {
 		int map_idx;
 	} *reloc_desc;
 	int nr_reloc;
+
+	int fd;
 };
 
 struct bpf_object {
@@ -135,11 +137,20 @@ struct bpf_object {
 };
 #define obj_elf_valid(o)	((o)->efile.elf)
 
+static void bpf_program__unload(struct bpf_program *prog)
+{
+	if (!prog)
+		return;
+
+	zclose(prog->fd);
+}
+
 static void bpf_program__exit(struct bpf_program *prog)
 {
 	if (!prog)
 		return;
 
+	bpf_program__unload(prog);
 	zfree(&prog->section_name);
 	zfree(&prog->insns);
 	zfree(&prog->reloc_desc);
@@ -176,6 +187,7 @@ bpf_program__init(void *data, size_t size, char *name, int idx,
 	memcpy(prog->insns, data,
 	       prog->insns_cnt * sizeof(struct bpf_insn));
 	prog->idx = idx;
+	prog->fd = -1;
 
 	return 0;
 errout:
@@ -718,6 +730,79 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 	return 0;
 }
 
+static int
+load_program(struct bpf_insn *insns, int insns_cnt,
+	     char *license, u32 kern_version, int *pfd)
+{
+	int ret;
+	char *log_buf;
+
+	if (!insns || !insns_cnt)
+		return -EINVAL;
+
+	log_buf = malloc(BPF_LOG_BUF_SIZE);
+	if (!log_buf)
+		pr_warning("Alloc log buffer for bpf loader error, continue without log\n");
+
+	ret = bpf_load_program(BPF_PROG_TYPE_KPROBE, insns,
+			       insns_cnt, license, kern_version,
+			       log_buf, BPF_LOG_BUF_SIZE);
+
+	if (ret >= 0) {
+		*pfd = ret;
+		ret = 0;
+		goto out;
+	}
+
+	ret = -EINVAL;
+	pr_warning("load bpf program failed: %s\n", strerror(errno));
+
+	if (log_buf) {
+		pr_warning("-- BEGIN DUMP LOG ---\n");
+		pr_warning("\n%s\n", log_buf);
+		pr_warning("-- END LOG --\n");
+	}
+
+out:
+	free(log_buf);
+	return ret;
+}
+
+static int
+bpf_program__load(struct bpf_program *prog,
+		  char *license, u32 kern_version)
+{
+	int err, fd;
+
+	err = load_program(prog->insns, prog->insns_cnt,
+			   license, kern_version, &fd);
+	if (!err)
+		prog->fd = fd;
+
+	if (err)
+		pr_warning("failed to load program '%s'\n",
+			   prog->section_name);
+	zfree(&prog->insns);
+	prog->insns_cnt = 0;
+	return err;
+}
+
+static int
+bpf_object__load_progs(struct bpf_object *obj)
+{
+	size_t i;
+	int err;
+
+	for (i = 0; i < obj->nr_programs; i++) {
+		err = bpf_program__load(&obj->programs[i],
+					obj->license,
+					obj->kern_version);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 static int bpf_object__validate(struct bpf_object *obj)
 {
 	if (obj->kern_version == 0) {
@@ -795,6 +880,9 @@ int bpf_object__unload(struct bpf_object *obj)
 	zfree(&obj->map_fds);
 	obj->nr_map_fds = 0;
 
+	for (i = 0; i < obj->nr_programs; i++)
+		bpf_program__unload(&obj->programs[i]);
+
 	return 0;
 }
 
@@ -812,6 +900,8 @@ int bpf_object__load(struct bpf_object *obj)
 	if (bpf_object__create_maps(obj))
 		goto out;
 	if (bpf_object__relocate(obj))
+		goto out;
+	if (bpf_object__load_progs(obj))
 		goto out;
 
 	return 0;
