@@ -16,11 +16,7 @@
 #include <asm/sysinfo.h>
 #include <asm/cpcmd.h>
 #include <asm/topology.h>
-
-/* Sigh, math-emu. Don't ask. */
-#include <asm/sfp-util.h>
-#include <math-emu/soft-fp.h>
-#include <math-emu/single.h>
+#include <asm/fpu/api.h>
 
 int topology_max_mnest;
 
@@ -414,10 +410,8 @@ subsys_initcall(create_proc_service_level);
 void s390_adjust_jiffies(void)
 {
 	struct sysinfo_1_2_2 *info;
-	const unsigned int fmil = 0x4b189680;	/* 1e7 as 32-bit float. */
-	FP_DECL_S(SA); FP_DECL_S(SB); FP_DECL_S(SR);
-	FP_DECL_EX;
-	unsigned int capability;
+	unsigned long capability;
+	struct kernel_fpu fpu;
 
 	info = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!info)
@@ -433,15 +427,25 @@ void s390_adjust_jiffies(void)
 		 * higher cpu capacity. Bogomips are the other way round.
 		 * To get to a halfway suitable number we divide 1e7
 		 * by the cpu capability number. Yes, that means a floating
-		 * point division .. math-emu here we come :-)
+		 * point division ..
 		 */
-		FP_UNPACK_SP(SA, &fmil);
-		if ((info->capability >> 23) == 0)
-			FP_FROM_INT_S(SB, (long) info->capability, 64, long);
-		else
-			FP_UNPACK_SP(SB, &info->capability);
-		FP_DIV_S(SR, SA, SB);
-		FP_TO_INT_S(capability, SR, 32, 0);
+		kernel_fpu_begin(&fpu, KERNEL_FPR);
+		asm volatile(
+			"	sfpc	%3\n"
+			"	l	%0,%1\n"
+			"	tmlh	%0,0xff80\n"
+			"	jnz	0f\n"
+			"	cefbr	%%f2,%0\n"
+			"	j	1f\n"
+			"0:	le	%%f2,%1\n"
+			"1:	cefbr	%%f0,%2\n"
+			"	debr	%%f0,%%f2\n"
+			"	cgebr	%0,5,%%f0\n"
+			: "=&d" (capability)
+			: "Q" (info->capability), "d" (10000000), "d" (0)
+			: "cc"
+			);
+		kernel_fpu_end(&fpu);
 	} else
 		/*
 		 * Really old machine without stsi block for basic
