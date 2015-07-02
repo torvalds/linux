@@ -30,8 +30,12 @@
 
 #include "vhost.h"
 
+static ushort max_mem_regions = 64;
+module_param(max_mem_regions, ushort, 0444);
+MODULE_PARM_DESC(max_mem_regions,
+	"Maximum number of memory regions in memory map. (default: 64)");
+
 enum {
-	VHOST_MEMORY_MAX_NREGIONS = 64,
 	VHOST_MEMORY_F_LOG = 0x1,
 };
 
@@ -697,7 +701,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		return -EFAULT;
 	if (mem.padding)
 		return -EOPNOTSUPP;
-	if (mem.nregions > VHOST_MEMORY_MAX_NREGIONS)
+	if (mem.nregions > max_mem_regions)
 		return -E2BIG;
 	newmem = vhost_kvzalloc(size + mem.nregions * sizeof(*m->regions));
 	if (!newmem)
