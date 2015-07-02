@@ -293,7 +293,8 @@ static int wl1271_probe(struct sdio_func *func,
 	/* Use block mode for transferring over one block size of data */
 	func->card->quirks |= MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
 
-	if (wlcore_probe_of(&func->dev, &irq, &pdev_data))
+	ret = wlcore_probe_of(&func->dev, &irq, &pdev_data);
+	if (ret)
 		goto out_free_glue;
 
 	/* if sdio can keep power while host is suspended, enable wow */
