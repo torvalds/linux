@@ -24,9 +24,9 @@
 		serial3 = &uart3;
 	};
 
-	vmmcsd_fixed: fixedregulator-sd {
+	evm_v3_3d: fixedregulator-v3_3d {
 		compatible = "regulator-fixed";
-		regulator-name = "vmmcsd_fixed";
+		regulator-name = "evm_v3_3d";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
@@ -567,7 +567,7 @@
 
 &mmc1 {
 	status = "okay";
-	vmmc-supply = <&vmmcsd_fixed>;
+	vmmc-supply = <&evm_v3_3d>;
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
