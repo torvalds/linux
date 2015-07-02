@@ -252,16 +252,6 @@ static const struct vop_win_phy win23_data = {
 	.dst_alpha_ctl = VOP_REG(WIN2_DST_ALPHA_CTRL, 0xff, 0),
 };
 
-static const struct vop_win_phy cursor_data = {
-	.data_formats = formats_234,
-	.nformats = ARRAY_SIZE(formats_234),
-	.enable = VOP_REG(HWC_CTRL0, 0x1, 0),
-	.format = VOP_REG(HWC_CTRL0, 0x7, 1),
-	.rb_swap = VOP_REG(HWC_CTRL0, 0x1, 12),
-	.dsp_st = VOP_REG(HWC_DSP_ST, 0x1fff1fff, 0),
-	.yrgb_mst = VOP_REG(HWC_MST, 0xffffffff, 0),
-};
-
 static const struct vop_ctrl ctrl_data = {
 	.standby = VOP_REG(SYS_CTRL, 0x1, 22),
 	.gate_en = VOP_REG(SYS_CTRL, 0x1, 23),
@@ -301,7 +291,6 @@ static const struct vop_win_data rk3288_vop_win_data[] = {
 	{ .base = 0x40, .phy = &win01_data, .type = DRM_PLANE_TYPE_OVERLAY },
 	{ .base = 0x00, .phy = &win23_data, .type = DRM_PLANE_TYPE_OVERLAY },
 	{ .base = 0x50, .phy = &win23_data, .type = DRM_PLANE_TYPE_CURSOR },
-	{ .base = 0x00, .phy = &cursor_data, .type = DRM_PLANE_TYPE_OVERLAY },
 };
 
 static const struct vop_data rk3288_vop = {
