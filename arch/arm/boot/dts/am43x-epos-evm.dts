@@ -14,6 +14,7 @@
 #include <dt-bindings/pinctrl/am43xx.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/sound/tlv320aic31xx-micbias.h>
 
 / {
 	model = "TI AM43x EPOS EVM";
@@ -464,6 +465,22 @@
 
 		touchscreen-size-x = <1024>;
 		touchscreen-size-y = <600>;
+	};
+
+	tlv320aic3111: tlv320aic3111@18 {
+		compatible = "ti,tlv320aic3111";
+		reg = <0x18>;
+		status = "okay";
+
+		ai31xx-micbias-vg = <MICBIAS_2_0V>;
+
+		/* Regulators */
+		HPVDD-supply = <&dcdc4>; /* v3_3AUD -> V3_3D -> DCDC4 */
+		SPRVDD-supply = <&vbat>; /* vbat */
+		SPLVDD-supply = <&vbat>; /* vbat */
+		AVDD-supply = <&dcdc4>; /* v3_3AUD -> V3_3D -> DCDC4 */
+		IOVDD-supply = <&dcdc4>; /* V3_3D -> DCDC4 */
+		DVDD-supply = <&ldo1>; /* V1_8AUD -> V1_8D -> LDO1 */
 	};
 };
 
