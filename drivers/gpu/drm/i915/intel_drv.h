@@ -1258,6 +1258,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		     unsigned int frontbuffer_bits);
 const char *intel_no_fbc_reason_str(enum no_fbc_reason reason);
+void intel_fbc_cleanup_cfb(struct drm_device *dev);
 
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port);

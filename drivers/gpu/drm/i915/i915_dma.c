@@ -1123,6 +1123,7 @@ int i915_driver_unload(struct drm_device *dev)
 	i915_gem_cleanup_ringbuffer(dev);
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
+	intel_fbc_cleanup_cfb(dev);
 	i915_gem_cleanup_stolen(dev);
 
 	intel_csr_ucode_fini(dev);

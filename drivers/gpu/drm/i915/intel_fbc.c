@@ -515,6 +515,129 @@ static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 	return crtc;
 }
 
+static int find_compression_threshold(struct drm_device *dev,
+				      struct drm_mm_node *node,
+				      int size,
+				      int fb_cpp)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int compression_threshold = 1;
+	int ret;
+
+	/* HACK: This code depends on what we will do in *_enable_fbc. If that
+	 * code changes, this code needs to change as well.
+	 *
+	 * The enable_fbc code will attempt to use one of our 2 compression
+	 * thresholds, therefore, in that case, we only have 1 resort.
+	 */
+
+	/* Try to over-allocate to reduce reallocations and fragmentation. */
+	ret = i915_gem_stolen_insert_node(dev_priv, node, size <<= 1, 4096);
+	if (ret == 0)
+		return compression_threshold;
+
+again:
+	/* HW's ability to limit the CFB is 1:4 */
+	if (compression_threshold > 4 ||
+	    (fb_cpp == 2 && compression_threshold == 2))
+		return 0;
+
+	ret = i915_gem_stolen_insert_node(dev_priv, node, size >>= 1, 4096);
+	if (ret && INTEL_INFO(dev)->gen <= 4) {
+		return 0;
+	} else if (ret) {
+		compression_threshold <<= 1;
+		goto again;
+	} else {
+		return compression_threshold;
+	}
+}
+
+static int intel_fbc_alloc_cfb(struct drm_device *dev, int size, int fb_cpp)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_mm_node *uninitialized_var(compressed_llb);
+	int ret;
+
+	ret = find_compression_threshold(dev, &dev_priv->fbc.compressed_fb,
+					 size, fb_cpp);
+	if (!ret)
+		goto err_llb;
+	else if (ret > 1) {
+		DRM_INFO("Reducing the compressed framebuffer size. This may lead to less power savings than a non-reduced-size. Try to increase stolen memory size if available in BIOS.\n");
+
+	}
+
+	dev_priv->fbc.threshold = ret;
+
+	if (INTEL_INFO(dev_priv)->gen >= 5)
+		I915_WRITE(ILK_DPFC_CB_BASE, dev_priv->fbc.compressed_fb.start);
+	else if (IS_GM45(dev)) {
+		I915_WRITE(DPFC_CB_BASE, dev_priv->fbc.compressed_fb.start);
+	} else {
+		compressed_llb = kzalloc(sizeof(*compressed_llb), GFP_KERNEL);
+		if (!compressed_llb)
+			goto err_fb;
+
+		ret = i915_gem_stolen_insert_node(dev_priv, compressed_llb,
+						  4096, 4096);
+		if (ret)
+			goto err_fb;
+
+		dev_priv->fbc.compressed_llb = compressed_llb;
+
+		I915_WRITE(FBC_CFB_BASE,
+			   dev_priv->mm.stolen_base + dev_priv->fbc.compressed_fb.start);
+		I915_WRITE(FBC_LL_BASE,
+			   dev_priv->mm.stolen_base + compressed_llb->start);
+	}
+
+	dev_priv->fbc.uncompressed_size = size;
+
+	DRM_DEBUG_KMS("reserved %d bytes of contiguous stolen space for FBC\n",
+		      size);
+
+	return 0;
+
+err_fb:
+	kfree(compressed_llb);
+	i915_gem_stolen_remove_node(dev_priv, &dev_priv->fbc.compressed_fb);
+err_llb:
+	pr_info_once("drm: not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
+	return -ENOSPC;
+}
+
+void intel_fbc_cleanup_cfb(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->fbc.uncompressed_size == 0)
+		return;
+
+	i915_gem_stolen_remove_node(dev_priv, &dev_priv->fbc.compressed_fb);
+
+	if (dev_priv->fbc.compressed_llb) {
+		i915_gem_stolen_remove_node(dev_priv,
+					    dev_priv->fbc.compressed_llb);
+		kfree(dev_priv->fbc.compressed_llb);
+	}
+
+	dev_priv->fbc.uncompressed_size = 0;
+}
+
+static int intel_fbc_setup_cfb(struct drm_device *dev, int size, int fb_cpp)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (size <= dev_priv->fbc.uncompressed_size)
+		return 0;
+
+	/* Release any current block */
+	intel_fbc_cleanup_cfb(dev);
+
+	return intel_fbc_alloc_cfb(dev, size, fb_cpp);
+}
+
 /**
  * intel_fbc_update - enable/disable FBC as needed
  * @dev: the drm_device
@@ -624,8 +747,8 @@ void intel_fbc_update(struct drm_device *dev)
 	if (in_dbg_master())
 		goto out_disable;
 
-	if (i915_gem_stolen_setup_compression(dev, obj->base.size,
-					      drm_format_plane_cpp(fb->pixel_format, 0))) {
+	if (intel_fbc_setup_cfb(dev, obj->base.size,
+				drm_format_plane_cpp(fb->pixel_format, 0))) {
 		set_no_fbc_reason(dev_priv, FBC_STOLEN_TOO_SMALL);
 		goto out_disable;
 	}
@@ -678,7 +801,7 @@ out_disable:
 		DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
 		intel_fbc_disable(dev);
 	}
-	i915_gem_stolen_cleanup_compression(dev);
+	intel_fbc_cleanup_cfb(dev);
 }
 
 void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
