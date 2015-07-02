@@ -218,14 +218,14 @@ int ci_hdrc_otg_init(struct ci_hdrc *ci)
  */
 void ci_hdrc_otg_destroy(struct ci_hdrc *ci)
 {
+	/* Disable all OTG irq and clear status */
+	hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
+						OTGSC_INT_STATUS_BITS);
 	if (ci->wq) {
 		flush_workqueue(ci->wq);
 		destroy_workqueue(ci->wq);
 		ci->wq = NULL;
 	}
-	/* Disable all OTG irq and clear status */
-	hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
-						OTGSC_INT_STATUS_BITS);
 	if (ci_otg_is_fsm_mode(ci))
 		ci_hdrc_otg_fsm_remove(ci);
 }
