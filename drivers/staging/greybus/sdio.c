@@ -234,22 +234,25 @@ static int _gb_sdio_send(struct gb_sdio_host *host, struct mmc_data *data,
 	request->data_blocks = cpu_to_le16(nblocks);
 	request->data_blksz = cpu_to_le16(data->blksz);
 
-	copied = sg_pcopy_to_buffer(sg, sg_len, &request->data[0] + skip, len,
-				    skip);
+	copied = sg_pcopy_to_buffer(sg, sg_len, &request->data[0], len, skip);
 
 	if (copied != len)
 		return -EINVAL;
 
 	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_TRANSFER,
-				request, len, &response, sizeof(response));
+				request, len + sizeof(*request),
+				&response, sizeof(response));
 	if (ret < 0)
 		return ret;
 
 	send_blocks = le16_to_cpu(response.data_blocks);
 	send_blksz = le16_to_cpu(response.data_blksz);
 
-	if (len != send_blksz * send_blocks)
+	if (len != send_blksz * send_blocks) {
+		dev_err(mmc_dev(host->mmc), "send: size received: %zu != %d\n",
+			len, send_blksz * send_blocks);
 		return -EINVAL;
+	}
 
 	return ret;
 }
@@ -275,18 +278,22 @@ static int _gb_sdio_recv(struct gb_sdio_host *host, struct mmc_data *data,
 	response = host->xfer_buffer;
 
 	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_TRANSFER,
-				&request, sizeof(request), response, len);
+				&request, sizeof(request), response, len +
+				sizeof(*response));
 	if (ret < 0)
 		return ret;
 
 	recv_blocks = le16_to_cpu(response->data_blocks);
 	recv_blksz = le16_to_cpu(response->data_blksz);
 
-	if (len != recv_blksz * recv_blocks)
+	if (len != recv_blksz * recv_blocks) {
+		dev_err(mmc_dev(host->mmc), "recv: size received: %d != %zu\n",
+			recv_blksz * recv_blocks, len);
 		return -EINVAL;
+	}
 
-	copied = sg_pcopy_from_buffer(sg, sg_len, &response->data[0] + skip,
-				      len, skip);
+	copied = sg_pcopy_from_buffer(sg, sg_len, &response->data[0], len,
+				      skip);
 	if (copied != len)
 		return -EINVAL;
 
@@ -318,7 +325,7 @@ static int gb_sdio_transfer(struct gb_sdio_host *host, struct mmc_data *data)
 		}
 		spin_unlock(&host->xfer);
 		len = min(left, host->data_max);
-		nblocks = do_div(len, data->blksz);
+		nblocks = len / data->blksz;
 		len = nblocks * data->blksz;
 
 		if (data->flags & MMC_DATA_READ) {
