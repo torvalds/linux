@@ -47,6 +47,14 @@ define_get_version(gb_sdio_host, SDIO);
 #define GB_SDIO_RSP_R1B		(GB_SDIO_RSP_PRESENT | GB_SDIO_RSP_CRC | \
 				 GB_SDIO_RSP_OPCODE | GB_SDIO_RSP_BUSY)
 
+static inline bool single_op(struct mmc_command *cmd)
+{
+	uint32_t opcode = cmd->opcode;
+
+	return opcode == MMC_WRITE_BLOCK ||
+	       opcode == MMC_READ_SINGLE_BLOCK;
+}
+
 static void _gb_sdio_set_host_caps(struct gb_sdio_host *host, u32 r)
 {
 	u32 caps = 0;
@@ -292,6 +300,11 @@ static int gb_sdio_transfer(struct gb_sdio_host *host, struct mmc_data *data)
 	int ret = 0;
 	u16 nblocks;
 
+	if (single_op(data->mrq->cmd) && data->blocks > 1) {
+		ret = -ETIMEDOUT;
+		goto out;
+	}
+
 	left = data->blksz * data->blocks;
 
 	while (left) {
@@ -351,6 +364,7 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 		break;
 	case MMC_RSP_R3:
 		cmd_flags = GB_SDIO_RSP_R3_R4;
+		break;
 	default:
 		dev_err(mmc_dev(host->mmc), "cmd flag invalid %04x\n",
 			mmc_resp_type(cmd));
