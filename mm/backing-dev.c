@@ -425,7 +425,6 @@ retry:
 		new_congested = NULL;
 		rb_link_node(&congested->rb_node, parent, node);
 		rb_insert_color(&congested->rb_node, &bdi->cgwb_congested_tree);
-		atomic_inc(&bdi->usage_cnt);
 		goto found;
 	}
 
@@ -456,7 +455,6 @@ found:
  */
 void wb_congested_put(struct bdi_writeback_congested *congested)
 {
-	struct backing_dev_info *bdi = congested->bdi;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -465,12 +463,15 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
 		return;
 	}
 
-	rb_erase(&congested->rb_node, &congested->bdi->cgwb_congested_tree);
+	/* bdi might already have been destroyed leaving @congested unlinked */
+	if (congested->bdi) {
+		rb_erase(&congested->rb_node,
+			 &congested->bdi->cgwb_congested_tree);
+		congested->bdi = NULL;
+	}
+
 	spin_unlock_irqrestore(&cgwb_lock, flags);
 	kfree(congested);
-
-	if (atomic_dec_and_test(&bdi->usage_cnt))
-		wake_up_all(&cgwb_release_wait);
 }
 
 static void cgwb_release_workfn(struct work_struct *work)
@@ -675,13 +676,22 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
 static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
 {
 	struct radix_tree_iter iter;
+	struct bdi_writeback_congested *congested, *congested_n;
 	void **slot;
 
 	WARN_ON(test_bit(WB_registered, &bdi->wb.state));
 
 	spin_lock_irq(&cgwb_lock);
+
 	radix_tree_for_each_slot(slot, &bdi->cgwb_tree, &iter, 0)
 		cgwb_kill(*slot);
+
+	rbtree_postorder_for_each_entry_safe(congested, congested_n,
+					&bdi->cgwb_congested_tree, rb_node) {
+		rb_erase(&congested->rb_node, &bdi->cgwb_congested_tree);
+		congested->bdi = NULL;	/* mark @congested unlinked */
+	}
+
 	spin_unlock_irq(&cgwb_lock);
 
 	/*
