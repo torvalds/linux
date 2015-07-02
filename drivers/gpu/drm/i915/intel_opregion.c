@@ -669,7 +669,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	struct acpi_device *acpi_dev, *acpi_cdev, *acpi_video_bus = NULL;
 	unsigned long long device_id;
 	acpi_status status;
-	u32 temp;
+	u32 temp, max_outputs;
 	int i = 0;
 
 	handle = ACPI_HANDLE(&dev->pdev->dev);
@@ -692,9 +692,20 @@ static void intel_didl_outputs(struct drm_device *dev)
 		return;
 	}
 
+	/*
+	 * In theory, did2, the extended didl, gets added at opregion version
+	 * 3.0. In practice, however, we're supposed to set it for earlier
+	 * versions as well, since a BIOS that doesn't understand did2 should
+	 * not look at it anyway. Use a variable so we can tweak this if a need
+	 * arises later.
+	 */
+	max_outputs = ARRAY_SIZE(opregion->acpi->didl) +
+		ARRAY_SIZE(opregion->acpi->did2);
+
 	list_for_each_entry(acpi_cdev, &acpi_video_bus->children, node) {
-		if (i >= 8) {
-			DRM_DEBUG_KMS("More than 8 outputs detected via ACPI\n");
+		if (i >= max_outputs) {
+			DRM_DEBUG_KMS("More than %u outputs detected via ACPI\n",
+				      max_outputs);
 			return;
 		}
 		status = acpi_evaluate_integer(acpi_cdev->handle, "_ADR",
@@ -707,8 +718,10 @@ static void intel_didl_outputs(struct drm_device *dev)
 	}
 
 end:
-	/* If fewer than 8 outputs, the list must be null terminated */
-	if (i < 8)
+	DRM_DEBUG_KMS("%d outputs detected\n", i);
+
+	/* If fewer than max outputs, the list must be null terminated */
+	if (i < max_outputs)
 		set_did(opregion, i, 0);
 	return;
 
@@ -716,8 +729,9 @@ blind_set:
 	i = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		int output_type = ACPI_OTHER_OUTPUT;
-		if (i >= 8) {
-			DRM_DEBUG_KMS("More than 8 outputs in connector list\n");
+		if (i >= max_outputs) {
+			DRM_DEBUG_KMS("More than %u outputs in connector list\n",
+				      max_outputs);
 			return;
 		}
 		switch (connector->connector_type) {
