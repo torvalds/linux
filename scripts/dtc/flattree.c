@@ -261,7 +261,7 @@ static void flatten_tree(struct node *tree, struct emitter *emit,
 {
 	struct property *prop;
 	struct node *child;
-	int seen_name_prop = 0;
+	bool seen_name_prop = false;
 
 	if (tree->deleted)
 		return;
@@ -279,7 +279,7 @@ static void flatten_tree(struct node *tree, struct emitter *emit,
 		int nameoff;
 
 		if (streq(prop->name, "name"))
-			seen_name_prop = 1;
+			seen_name_prop = true;
 
 		nameoff = stringtable_insert(strbuf, prop->name);
 
