@@ -7093,7 +7093,7 @@ static void status_unused(struct seq_file *seq)
 	seq_printf(seq, "\n");
 }
 
-static void status_resync(struct seq_file *seq, struct mddev *mddev)
+static int status_resync(struct seq_file *seq, struct mddev *mddev)
 {
 	sector_t max_sectors, resync, res;
 	unsigned long dt, db;
@@ -7101,17 +7101,31 @@ static void status_resync(struct seq_file *seq, struct mddev *mddev)
 	int scale;
 	unsigned int per_milli;
 
-	if (mddev->curr_resync <= 3)
-		resync = 0;
-	else
-		resync = mddev->curr_resync
-			- atomic_read(&mddev->recovery_active);
-
 	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ||
 	    test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 		max_sectors = mddev->resync_max_sectors;
 	else
 		max_sectors = mddev->dev_sectors;
+
+	resync = mddev->curr_resync;
+	if (resync <= 3) {
+		if (test_bit(MD_RECOVERY_DONE, &mddev->recovery))
+			/* Still cleaning up */
+			resync = max_sectors;
+	} else
+		resync -= atomic_read(&mddev->recovery_active);
+
+	if (resync == 0) {
+		if (mddev->recovery_cp < MaxSector) {
+			seq_printf(seq, "\tresync=PENDING");
+			return 1;
+		}
+		return 0;
+	}
+	if (resync < 3) {
+		seq_printf(seq, "\tresync=DELAYED");
+		return 1;
+	}
 
 	WARN_ON(max_sectors == 0);
 	/* Pick 'scale' such that (resync>>scale)*1000 will fit
@@ -7177,6 +7191,7 @@ static void status_resync(struct seq_file *seq, struct mddev *mddev)
 		   ((unsigned long)rt % 60)/6);
 
 	seq_printf(seq, " speed=%ldK/sec", db/2/dt);
+	return 1;
 }
 
 static void *md_seq_start(struct seq_file *seq, loff_t *pos)
@@ -7322,13 +7337,8 @@ static int md_seq_show(struct seq_file *seq, void *v)
 			mddev->pers->status(seq, mddev);
 			seq_printf(seq, "\n      ");
 			if (mddev->pers->sync_request) {
-				if (mddev->curr_resync > 2) {
-					status_resync(seq, mddev);
+				if (status_resync(seq, mddev))
 					seq_printf(seq, "\n      ");
-				} else if (mddev->curr_resync >= 1)
-					seq_printf(seq, "\tresync=DELAYED\n      ");
-				else if (mddev->recovery_cp < MaxSector)
-					seq_printf(seq, "\tresync=PENDING\n      ");
 			}
 		} else
 			seq_printf(seq, "\n       ");
@@ -7979,11 +7989,11 @@ void md_do_sync(struct md_thread *thread)
 		mddev->resync_max = MaxSector;
 	} else if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
 		mddev->resync_min = mddev->curr_resync_completed;
+	set_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	mddev->curr_resync = 0;
 	spin_unlock(&mddev->lock);
 
 	wake_up(&resync_wait);
-	set_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
 	return;
 }
