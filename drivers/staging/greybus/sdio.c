@@ -285,9 +285,8 @@ static int _gb_sdio_recv(struct gb_sdio_host *host, struct mmc_data *data,
 	return 0;
 }
 
-static int gb_sdio_transfer(struct gb_sdio_host *host, struct mmc_request *mrq)
+static int gb_sdio_transfer(struct gb_sdio_host *host, struct mmc_data *data)
 {
-	struct mmc_data *data = mrq->data;
 	size_t left, len;
 	off_t skip = 0;
 	int ret = 0;
@@ -438,7 +437,7 @@ static void gb_sdio_mrq_work(struct work_struct *work)
 		goto done;
 
 	if (mrq->data) {
-		ret = gb_sdio_transfer(host, host->mrq);
+		ret = gb_sdio_transfer(host, host->mrq->data);
 		if (ret < 0)
 			goto done;
 	}
