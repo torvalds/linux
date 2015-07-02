@@ -1015,6 +1015,8 @@ static void tegra_crtc_reset(struct drm_crtc *crtc)
 		crtc->state = &state->base;
 		crtc->state->crtc = crtc;
 	}
+
+	drm_crtc_vblank_reset(crtc);
 }
 
 static struct drm_crtc_state *
