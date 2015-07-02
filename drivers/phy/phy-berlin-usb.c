@@ -106,8 +106,8 @@
 static const u32 phy_berlin_pll_dividers[] = {
 	/* Berlin 2 */
 	CLK_REF_DIV(0xc) | FEEDBACK_CLK_DIV(0x54),
-	/* Berlin 2CD */
-	CLK_REF_DIV(0x6) | FEEDBACK_CLK_DIV(0x55),
+	/* Berlin 2CD/Q */
+	CLK_REF_DIV(0xc) | FEEDBACK_CLK_DIV(0x54),
 };
 
 struct phy_berlin_usb_priv {
