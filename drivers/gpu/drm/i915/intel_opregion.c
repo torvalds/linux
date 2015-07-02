@@ -862,6 +862,11 @@ int intel_opregion_setup(struct drm_device *dev)
 	char buf[sizeof(OPREGION_SIGNATURE)];
 	int err = 0;
 
+	BUILD_BUG_ON(sizeof(struct opregion_header) != 0x100);
+	BUILD_BUG_ON(sizeof(struct opregion_acpi) != 0x100);
+	BUILD_BUG_ON(sizeof(struct opregion_swsci) != 0x100);
+	BUILD_BUG_ON(sizeof(struct opregion_asle) != 0x100);
+
 	pci_read_config_dword(dev->pdev, PCI_ASLS, &asls);
 	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);
 	if (asls == 0) {
