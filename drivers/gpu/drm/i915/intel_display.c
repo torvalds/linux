@@ -15603,12 +15603,10 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	 */
 	drm_kms_helper_poll_fini(dev);
 
-	mutex_lock(&dev->struct_mutex);
-
 	intel_unregister_dsm_handler();
 
+	mutex_lock(&dev->struct_mutex);
 	intel_fbc_disable(dev);
-
 	mutex_unlock(&dev->struct_mutex);
 
 	/* flush any delayed tasks or pending work */
