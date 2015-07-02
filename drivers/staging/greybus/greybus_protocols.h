@@ -769,10 +769,11 @@ struct gb_sdio_command_request {
 	__u8	cmd;
 	__u8	cmd_flags;
 #define GB_SDIO_RSP_NONE		0x00
-#define GB_SDIO_RSP_R1_R5_R6_R7		0x01
-#define GB_SDIO_RSP_R1B			0x02
-#define GB_SDIO_RSP_R2			0x03
-#define GB_SDIO_RSP_R3_R4		0x04
+#define GB_SDIO_RSP_PRESENT		0x01
+#define GB_SDIO_RSP_136			0x02
+#define GB_SDIO_RSP_CRC			0x04
+#define GB_SDIO_RSP_BUSY		0x08
+#define GB_SDIO_RSP_OPCODE		0x10
 
 	__u8	cmd_type;
 #define GB_SDIO_CMD_AC		0x00

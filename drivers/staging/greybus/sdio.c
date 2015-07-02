@@ -38,6 +38,14 @@ static struct workqueue_struct *gb_sdio_mrq_workqueue;
 /* Define get_version() routine */
 define_get_version(gb_sdio_host, SDIO);
 
+#define GB_SDIO_RSP_R1_R5_R6_R7	(GB_SDIO_RSP_PRESENT | GB_SDIO_RSP_CRC | \
+				 GB_SDIO_RSP_OPCODE)
+#define GB_SDIO_RSP_R3_R4	(GB_SDIO_RSP_PRESENT)
+#define GB_SDIO_RSP_R2		(GB_SDIO_RSP_PRESENT | GB_SDIO_RSP_CRC | \
+				 GB_SDIO_RSP_136)
+#define GB_SDIO_RSP_R1B		(GB_SDIO_RSP_PRESENT | GB_SDIO_RSP_CRC | \
+				 GB_SDIO_RSP_OPCODE | GB_SDIO_RSP_BUSY)
+
 static void _gb_sdio_set_host_caps(struct gb_sdio_host *host, u32 r)
 {
 	u32 caps = 0;
