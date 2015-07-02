@@ -1292,10 +1292,6 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu->irq_sync = irq_sync;
 	ipu->irq_err = irq_err;
 
-	ret = ipu_irq_init(ipu);
-	if (ret)
-		goto out_failed_irq;
-
 	ret = device_reset(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to reset: %d\n", ret);
@@ -1304,6 +1300,10 @@ static int ipu_probe(struct platform_device *pdev)
 	ret = ipu_memory_reset(ipu);
 	if (ret)
 		goto out_failed_reset;
+
+	ret = ipu_irq_init(ipu);
+	if (ret)
+		goto out_failed_irq;
 
 	/* Set MCU_T to divide MCU access window into 2 */
 	ipu_cm_write(ipu, 0x00400000L | (IPU_MCU_T_DEFAULT << 18),
@@ -1327,9 +1327,9 @@ static int ipu_probe(struct platform_device *pdev)
 failed_add_clients:
 	ipu_submodules_exit(ipu);
 failed_submodules_init:
-out_failed_reset:
 	ipu_irq_exit(ipu);
 out_failed_irq:
+out_failed_reset:
 	clk_disable_unprepare(ipu->clk);
 	return ret;
 }
