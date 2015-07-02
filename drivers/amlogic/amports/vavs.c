@@ -231,6 +231,7 @@ static void set_frame_info(vframe_t *vf, unsigned* duration)
         vf->ratio_control = (ar<<DISP_RATIO_ASPECT_RATIO_BIT);
         //vf->ratio_control |= DISP_RATIO_FORCECONFIG | DISP_RATIO_KEEPRATIO;
 
+    vf->flag = 0;
 }
 
 #ifdef HANDLE_AVS_IRQ
@@ -806,6 +807,8 @@ static s32 vavs_init(void)
     vf_reg_provider(&vavs_vf_prov);
  #endif 
 
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vavs_amstream_dec_info.rate);
+
         stat |= STAT_VF_HOOK;
 
         recycle_timer.data = (ulong) & recycle_timer;
@@ -827,22 +830,24 @@ static s32 vavs_init(void)
 
 static int amvdec_avs_probe(struct platform_device *pdev)
 {
-        struct resource *mem;
+        struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
 
-        if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0)))
+        if (pdata == NULL)
         {
                 printk("amvdec_avs memory resource undefined.\n");
                 return -EFAULT;
         }
 
-        buf_start = mem->start;
-        buf_size = mem->end - mem->start + 1;
+        buf_start = pdata->mem_start;
+        buf_size = pdata->mem_end - pdata->mem_start + 1;
+
         if(buf_start>ORI_BUFFER_START_ADDR)
             buf_offset = buf_start - ORI_BUFFER_START_ADDR;
         else
             buf_offset = buf_start;
 
-        memcpy(&vavs_amstream_dec_info, (void *)mem[1].start, sizeof(vavs_amstream_dec_info));
+	if (pdata->sys_info)
+            vavs_amstream_dec_info = *pdata->sys_info;
 
         printk("%s (%d,%d) %d\n", __func__, vavs_amstream_dec_info.width, vavs_amstream_dec_info.height, vavs_amstream_dec_info.rate);
         if (vavs_init() < 0)
@@ -877,6 +882,8 @@ static int amvdec_avs_remove(struct platform_device *pdev)
 
         if (stat & STAT_VF_HOOK)
         {
+                vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
                 vf_unreg_provider(&vavs_vf_prov);
                 stat &= ~STAT_VF_HOOK;
         }

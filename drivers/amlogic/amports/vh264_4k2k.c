@@ -268,6 +268,7 @@ static void set_frame_info(vframe_t *vf)
 #endif
     vf->duration = frame_dur;
     vf->duration_pulldown = 0;
+    vf->flag = 0;
 
     ar = min(frame_ar, (u32)DISP_RATIO_ASPECT_RATIO_MAX);
     vf->ratio_control = (ar << DISP_RATIO_ASPECT_RATIO_BIT);
@@ -1279,6 +1280,8 @@ static s32 vh264_4k2k_init(void)
     vf_reg_provider(&vh264_4k2k_vf_prov);
     vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_START,NULL);
 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vh264_4k2k_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong) & recycle_timer;
@@ -1337,6 +1340,8 @@ static int vh264_4k2k_stop(void)
     }
 
     if (stat & STAT_VF_HOOK) {
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
         vf_unreg_provider(&vh264_4k2k_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }
@@ -1381,27 +1386,30 @@ extern void AbortEncodeWithVdec2(int abort);
 
 static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
+
     printk("amvdec_h264_4k2k probe start.\n");
+
     mutex_lock(&vh264_4k2k_mutex);
     
     fatal_error = 0;
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+    if (pdata == NULL) {
         printk("\namvdec_h264_4k2k memory resource undefined.\n");
         mutex_unlock(&vh264_4k2k_mutex);
         return -EFAULT;
     }
 
-    work_space_adr = mem->start;
-    decoder_buffer_start = mem->start + DECODER_WORK_SPACE_SIZE;
-    decoder_buffer_end = mem->end + 1;
+    work_space_adr = pdata->mem_start;
+    decoder_buffer_start = pdata->mem_start + DECODER_WORK_SPACE_SIZE;
+    decoder_buffer_end = pdata->mem_end + 1;
+
+    if (pdata->sys_info) {
+        vh264_4k2k_amstream_dec_info = *pdata->sys_info;
+    }
+    cma_dev = pdata->cma_dev;
 
     printk("H.264 4k2k decoder mem resource 0x%x -- 0x%x\n", decoder_buffer_start, decoder_buffer_end);
-
-    memcpy(&vh264_4k2k_amstream_dec_info, (void *)mem[1].start, sizeof(vh264_4k2k_amstream_dec_info));
-
-    cma_dev = (struct device *)mem[2].start;
 
     if (!H264_4K2K_SINGLE_CORE) {
 #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8)&&(HAS_HDEC)

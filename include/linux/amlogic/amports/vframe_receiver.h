@@ -28,18 +28,20 @@
 /* Amlogic headers */
 #include <linux/amlogic/amports/vframe.h>
 
-#define VFRAME_EVENT_PROVIDER_UNREG             1
-#define VFRAME_EVENT_PROVIDER_LIGHT_UNREG       2
-#define VFRAME_EVENT_PROVIDER_START             3
-#define VFRAME_EVENT_PROVIDER_VFRAME_READY      4
-#define VFRAME_EVENT_PROVIDER_QUREY_STATE        5 
-#define VFRAME_EVENT_PROVIDER_RESET             6
-#define VFRAME_EVENT_PROVIDER_FORCE_BLACKOUT		7
-#define VFRAME_EVENT_PROVIDER_REG               8
-#define VFRAME_EVENT_PROVIDER_LIGHT_UNREG_RETURN_VFRAME   9
-#define VFRAME_EVENT_PROVIDER_DPBUF_CONFIG              10
-#define VFRAME_EVENT_PROVIDER_QUREY_VDIN2NR         11
+#define VFRAME_EVENT_PROVIDER_UNREG                            1
+#define VFRAME_EVENT_PROVIDER_LIGHT_UNREG                      2
+#define VFRAME_EVENT_PROVIDER_START                            3
+#define VFRAME_EVENT_PROVIDER_VFRAME_READY                     4
+#define VFRAME_EVENT_PROVIDER_QUREY_STATE                      5
+#define VFRAME_EVENT_PROVIDER_RESET                            6
+#define VFRAME_EVENT_PROVIDER_FORCE_BLACKOUT		       7
+#define VFRAME_EVENT_PROVIDER_REG                              8
+#define VFRAME_EVENT_PROVIDER_LIGHT_UNREG_RETURN_VFRAME        9
+#define VFRAME_EVENT_PROVIDER_DPBUF_CONFIG                     10
+#define VFRAME_EVENT_PROVIDER_QUREY_VDIN2NR                    11
 #define VFRAME_EVENT_PROVIDER_SET_3D_VFRAME_INTERLEAVE         12
+#define VFRAME_EVENT_PROVIDER_FR_HINT                          13
+#define VFRAME_EVENT_PROVIDER_FR_END_HINT                      14
 
 typedef enum {
   RECEIVER_STATE_NULL = -1,

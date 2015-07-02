@@ -4549,6 +4549,7 @@ static void process_vscale_skip(di_buf_t* di_buf, vframe_t* disp_vf)
             disp_vf->height = di_buf_i->vframe->height;
             disp_vf->duration = di_buf_i->vframe->duration;
             disp_vf->pts = di_buf_i->vframe->pts;
+            disp_vf->flag = di_buf_i->vframe->flag;
             disp_vf->canvas0Addr = di_post_buf0_canvas_idx[di_post_stru.canvas_id];
             disp_vf->canvas1Addr = di_post_buf0_canvas_idx[di_post_stru.canvas_id];
             canvas_config(di_post_buf0_canvas_idx[di_post_stru.canvas_id], di_buf_i->nr_adr, width*2, canvas_height, 0, 0);
@@ -6629,7 +6630,12 @@ light_unreg:
         di_pre_stru.vframe_interleave_flag = flag;
     }
 #endif
-
+    else if(type == VFRAME_EVENT_PROVIDER_FR_HINT){
+        vf_notify_receiver(VFM_NAME,VFRAME_EVENT_PROVIDER_FR_HINT,data);
+    }
+    else if(type == VFRAME_EVENT_PROVIDER_FR_END_HINT){
+        vf_notify_receiver(VFM_NAME,VFRAME_EVENT_PROVIDER_FR_END_HINT,data);
+    }
     return 0;
 }
 
@@ -6938,7 +6944,8 @@ static int di_probe(struct platform_device *pdev)
     struct resource *mem;
     int buf_num_avail;
     pr_dbg("di_probe\n");
-
+    const void*name;
+    int offset,size;
     vout_register_client(&display_mode_notifier_nb_v);
 
     memset(&di_post_stru, 0, sizeof(di_post_stru));
@@ -7023,11 +7030,37 @@ static int di_probe(struct platform_device *pdev)
     mem = &memobj;
     r = find_reserve_block(pdev->dev.of_node->name,0);
     if(r < 0){
-        pr_error("\ndeinterlace memory resource undefined.\n");
-        return -EFAULT;
+        name = of_get_property(pdev->dev.of_node,"share-memory-name",NULL);
+        if(!name){
+            pr_error("\ndeinterlace memory resource undefined.\n");
+            return -EFAULT;
+        }else{
+            r= find_reserve_block_by_name(name);
+            if(r<0){
+                pr_error("\ndeinterlace memory resource undefined2.\n");
+                return -EFAULT;
+            }
+            name= of_get_property(pdev->dev.of_node,"share-memory-offset",NULL);
+            if(name)
+                offset= of_read_ulong(name,1);
+            else{
+                pr_error("\ndeinterlace memory resource undefined3.\n");
+                return -EFAULT;
+            }
+            name= of_get_property(pdev->dev.of_node,"share-memory-size",NULL);
+            if(name)
+                size= of_read_ulong(name,1);
+            else{
+	        pr_error("\ndeinterlace memory resource undefined4.\n");
+	        return -EFAULT;
+        }			
+	mem->start = (phys_addr_t)get_reserve_block_addr(r)+ offset;
+	mem->end = mem->start+ size-1;
+	}
+    }else{
+        mem->start = (phys_addr_t)get_reserve_block_addr(r);
+        mem->end = mem->start+ (phys_addr_t)get_reserve_block_size(r)-1;
     }
-    mem->start = (phys_addr_t)get_reserve_block_addr(r);
-    mem->end = mem->start+ (phys_addr_t)get_reserve_block_size(r)-1;
 
     for(i=0; i<USED_LOCAL_BUF_MAX; i++){
     	used_local_buf_index[i] = -1;

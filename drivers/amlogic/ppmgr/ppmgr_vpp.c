@@ -411,23 +411,27 @@ static int ppmgr_receiver_event_fun(int type, void *data, void *private_data)
                 return RECEIVER_INACTIVE;
             }
             break;
-            case VFRAME_EVENT_PROVIDER_START:
+        case VFRAME_EVENT_PROVIDER_START:
 #ifdef DDD
         printk("register now \n");
 #endif
             vf_ppmgr_reg_provider();
             break;
-            case VFRAME_EVENT_PROVIDER_UNREG:
+        case VFRAME_EVENT_PROVIDER_UNREG:
 #ifdef DDD
         printk("unregister now \n");
 #endif
             vf_ppmgr_unreg_provider();
             break;
-            case VFRAME_EVENT_PROVIDER_LIGHT_UNREG:
+        case VFRAME_EVENT_PROVIDER_LIGHT_UNREG:
             break;
-            case VFRAME_EVENT_PROVIDER_RESET       :
-            	vf_ppmgr_reset(0);
-            	break;
+        case VFRAME_EVENT_PROVIDER_RESET       :
+            vf_ppmgr_reset(0);
+            break;
+        case VFRAME_EVENT_PROVIDER_FR_HINT:
+        case VFRAME_EVENT_PROVIDER_FR_END_HINT:
+            vf_notify_receiver(PROVIDER_NAME,type,data);
+            break;
         default:
             break;
     }
@@ -1325,7 +1329,7 @@ static void process_vf_rotate(vframe_t *vf, ge2d_context_t *context, config_para
     new_vf->type = VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD;
     new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(pp_vf->index);
     new_vf->orientation = vf->orientation;
-
+    new_vf->flag = vf->flag;
 
     if(vf->type&VIDTYPE_VIU_422){
         if(interlace_mode == VIDTYPE_INTERLACE_TOP)
@@ -1774,6 +1778,7 @@ static void process_vf_change(vframe_t *vf, ge2d_context_t *context, config_para
     temp_vf.duration_pulldown = vf->duration_pulldown;
     temp_vf.pts = vf->pts;
     temp_vf.pts_us64 = vf->pts_us64;
+    temp_vf.flag = vf->flag;
     temp_vf.type = VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD;
     temp_vf.canvas0Addr = temp_vf.canvas1Addr = ass_index;
     cur_angle = (ppmgr_device.videoangle + vf->orientation)%4;

@@ -107,7 +107,10 @@ extern u32 trickmode_i;
 
 static DEFINE_SPINLOCK(lock);
 
-static int vh264mvc_stop(void);
+#define MODE_ERROR 0
+#define MODE_FULL  1
+
+static int vh264mvc_stop(int mode);
 static s32 vh264mvc_init(void);
 
 /***************************
@@ -380,6 +383,7 @@ static vframe_t *vh264mvc_vf_get(void* op_arg)
 
         vf->width = frame_width;
         vf->height = frame_height;
+        vf->flag = 0;
     }
     return vf;
 
@@ -1091,6 +1095,8 @@ static s32 vh264mvc_init(void)
     vf_reg_provider(&vh264mvc_vf_prov);
     vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_START,NULL);
 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vh264mvc_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong) & recycle_timer;
@@ -1111,7 +1117,7 @@ static s32 vh264mvc_init(void)
     return 0;
 }
 
-static int vh264mvc_stop(void)
+static int vh264mvc_stop(int mode)
 {
     if (stat & STAT_VDEC_RUN) {
         amvdec_stop();
@@ -1134,6 +1140,11 @@ static int vh264mvc_stop(void)
 
     if (stat & STAT_VF_HOOK) {
         ulong flags;
+
+        if (mode == MODE_FULL) {
+            vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+        }
+
         spin_lock_irqsave(&lock, flags);
         spin_unlock_irqrestore(&lock, flags);
         vf_unreg_provider(&vh264mvc_vf_prov);
@@ -1149,31 +1160,33 @@ static int vh264mvc_stop(void)
 static void error_do_work(struct work_struct *work)
 {
     if (atomic_read(&vh264mvc_active)) {
-        vh264mvc_stop();
+        vh264mvc_stop(MODE_ERROR);
         vh264mvc_init();
     }
 }
 
 static int amvdec_h264mvc_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
     int buf_size;
 
     printk("amvdec_h264mvc probe start.\n");
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+    if (pdata == NULL) {
         printk("\namvdec_h264mvc memory resource undefined.\n");
         return -EFAULT;
     }
 
-    buf_size = mem->end - mem->start + 1;
-    //buf_offset = mem->start - DEF_BUF_START_ADDR;
-    work_space_adr = mem->start;
+    buf_size = pdata->mem_end - pdata->mem_start + 1;
+    work_space_adr = pdata->mem_start;
     DECODE_BUFFER_START = work_space_adr + work_space_size;
-    DECODE_BUFFER_END = mem->start + buf_size;
+    DECODE_BUFFER_END = pdata->mem_start + buf_size;
+
+    if (pdata->sys_info) {
+        vh264mvc_amstream_dec_info = *pdata->sys_info;
+    }
 
     printk("work_space_adr %x, DECODE_BUFFER_START %x, DECODE_BUFFER_END %x\n", work_space_adr, DECODE_BUFFER_START, DECODE_BUFFER_END);
-    memcpy(&vh264mvc_amstream_dec_info, (void *)mem[1].start, sizeof(vh264mvc_amstream_dec_info));
 
     if (vh264mvc_init() < 0) {
         printk("\namvdec_h264mvc init failed.\n");
@@ -1193,7 +1206,7 @@ static int amvdec_h264mvc_probe(struct platform_device *pdev)
 static int amvdec_h264mvc_remove(struct platform_device *pdev)
 {
     printk("amvdec_h264mvc_remove\n");
-    vh264mvc_stop();
+    vh264mvc_stop(MODE_FULL);
 
     atomic_set(&vh264mvc_active, 0);
 

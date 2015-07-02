@@ -319,6 +319,7 @@ static irqreturn_t vreal_isr(int irq, void *dev_id)
         vf->width = info >> 16;
         vf->height = (info >> 4) & 0xfff;
         vf->bufWidth = 1920;
+        vf->flag = 0;
         vf->ratio_control = 0;
         set_aspect_ratio(vf, info & 0x0f);
         vf->duration_pulldown = 0;
@@ -777,6 +778,8 @@ s32 vreal_init(void)
     vf_reg_provider(&vreal_vf_prov);
 #endif 
 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vreal_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong) & recycle_timer;
@@ -812,18 +815,20 @@ extern void AbortEncodeWithVdec2(int abort);
 
 static int amvdec_real_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+    if (pdata == NULL) {
         printk("amvdec_real memory resource undefined.\n");
         return -EFAULT;
     }
 
-    buf_start = mem->start;
-    buf_size = mem->end - mem->start + 1;
+    buf_start = pdata->mem_start;
+    buf_size = pdata->mem_end - pdata->mem_start + 1;
     buf_offset = buf_start - RM_DEF_BUFFER_ADDR;
 
-    memcpy(&vreal_amstream_dec_info, (void *)mem[1].start, sizeof(vreal_amstream_dec_info));
+    if (pdata->sys_info) {
+        vreal_amstream_dec_info = *pdata->sys_info;
+    }
 
 #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8)&&(HAS_HDEC)
     if(IS_MESON_M8_CPU){
@@ -873,6 +878,8 @@ static int amvdec_real_remove(struct platform_device *pdev)
     }
 
     if (stat & STAT_VF_HOOK) {
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
         vf_unreg_provider(&vreal_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }

@@ -49,30 +49,16 @@ static DEFINE_SPINLOCK(lock);
 
 #define SUPPORT_VCODEC_NUM  1
 static int inited_vcodec_num = 0;
+static int poweron_clock_level = 0;
 static unsigned int debug_trace_num = 16*20;
 static struct platform_device *vdec_device = NULL;
+static struct platform_device *vdec_core_device = NULL;
 struct am_reg {
     char *name;
     int offset;
 };
 
-static struct resource amvdec_mem_resource[]  = {
-    [0] = {
-        .start = 0,
-        .end   = 0,
-        .flags = 0,
-    },
-    [1] = {
-        .start = 0,
-        .end   = 0,
-        .flags = 0,
-    },
-    [2] = {
-        .start = 0,
-        .end   = 0,
-        .flags = 0,
-    },
-};
+static struct vdec_dev_reg_s vdec_dev_reg;
 
 static const char *vdec_device_name[] = {
     "amvdec_mpeg12",
@@ -89,25 +75,21 @@ static const char *vdec_device_name[] = {
     "amvdec_h265"
 };
 
-void vdec_set_decinfo(void *p)
+void vdec_set_decinfo(struct dec_sysinfo *p)
 {
-    amvdec_mem_resource[1].start = (resource_size_t)p;
+    vdec_dev_reg.sys_info = p;
 }
 
-int vdec_set_resource(struct resource *s, struct device *p)
+int vdec_set_resource(unsigned long start, unsigned long end, struct device *p)
 {
     if (inited_vcodec_num != 0) {
         printk("ERROR:We can't support the change resource at code running\n");
         return -1;
     }
 
-    if(s){
-        amvdec_mem_resource[0].start = s->start;
-        amvdec_mem_resource[0].end = s->end;
-        amvdec_mem_resource[0].flags = s->flags;
-    }
-
-    amvdec_mem_resource[2].start = (resource_size_t)p;
+    vdec_dev_reg.mem_start = start;
+    vdec_dev_reg.mem_end   = end;
+    vdec_dev_reg.cma_dev   = p;
 
     return 0;
 }
@@ -123,44 +105,19 @@ s32 vdec_init(vformat_t vf)
 
     inited_vcodec_num++;
 
-    if (amvdec_mem_resource[0].flags != IORESOURCE_MEM) {
-        printk("no memory resouce for codec,Maybe have not set it\n");
-        inited_vcodec_num--;
-        return -ENOMEM;
-    }
+    vdec_device = platform_device_register_data(&vdec_core_device->dev, vdec_device_name[vf], -1,
+                                            &vdec_dev_reg, sizeof(vdec_dev_reg));
 
-    //printk("vdec_device allocate %s\n", vdec_device_name[vf]);
-    vdec_device = platform_device_alloc(vdec_device_name[vf], -1);
-
-    if (!vdec_device) {
-        printk("vdec: Device allocation failed\n");
-        r = -ENOMEM;
-        goto error;
-    }
-
-    r = platform_device_add_resources(vdec_device, amvdec_mem_resource,
-                                      ARRAY_SIZE(amvdec_mem_resource));
-
-    if (r) {
-        printk("vdec: Device resource addition failed (%d)\n", r);
-        goto error;
-    }
-
-    //printk("Adding platform device for video decoder\n");
-    r = platform_device_add(vdec_device);
-
-    if (r) {
-        printk("vdec: Device addition failed (%d)\n", r);
+    if (IS_ERR(vdec_device)) {
+        r = PTR_ERR(vdec_device);
+        printk("vdec: Decoder device register failed (%d)\n", r);
         goto error;
     }
 
     return 0;
 
 error:
-    if (vdec_device) {
-        platform_device_put(vdec_device);
-        vdec_device = NULL;
-    }
+    vdec_device = NULL;
 
     inited_vcodec_num--;
 
@@ -196,7 +153,13 @@ void vdec_poweron(vdec_type_t core)
         WRITE_VREG(DOS_SW_RESET0, 0xfffffffc);
         WRITE_VREG(DOS_SW_RESET0, 0);
         // enable vdec1 clock
-        vdec_clock_enable();
+        /*add power on vdec clock level setting,only for m8 chip,
+         m8baby and m8m2 can dynamic adjust vdec clock,power on with default clock level*/
+        if(poweron_clock_level == 1 && IS_MESON_M8_CPU) { 
+            vdec_clock_hi_enable();            
+        } else {
+            vdec_clock_enable();
+        }
         // power up vdec memories
         WRITE_VREG(DOS_MEM_PD_VDEC, 0);
         // remove vdec1 isolation
@@ -639,6 +602,23 @@ static ssize_t clock_level_show(struct class *class, struct class_attribute *att
 
     return (pbuf - buf);
 }
+static ssize_t store_poweron_clock_level(struct class *class, struct class_attribute *attr, const char *buf, size_t size)
+
+{
+    unsigned val;
+    ssize_t ret;
+
+    ret = sscanf(buf, "%d", &val);     
+    if(ret != 1 ) {
+        return -EINVAL;
+    }  
+    poweron_clock_level = val;
+    return size;
+}
+static ssize_t show_poweron_clock_level(struct class *class, struct class_attribute *attr, char *buf)
+{
+    return sprintf(buf, "%d\n", poweron_clock_level);;
+}
 #endif
 
 static struct class_attribute vdec_class_attrs[] = {
@@ -646,6 +626,7 @@ static struct class_attribute vdec_class_attrs[] = {
 	__ATTR_RO(dump_trace),
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
     __ATTR_RO(clock_level),
+    __ATTR(poweron_clock_level, S_IRUGO | S_IWUSR | S_IWGRP, show_poweron_clock_level, store_poweron_clock_level),    
 #endif
     __ATTR_NULL
 };
@@ -655,29 +636,64 @@ static struct class vdec_class = {
         .class_attrs = vdec_class_attrs,
     };
 
-static int  vdec_probe(struct platform_device *pdev)
+static int vdec_probe(struct platform_device *pdev)
 {
     s32 r;
-    static struct resource res;
+    const void * name;
+    int offset, size;
+    unsigned long start, end;
 
     r = class_register(&vdec_class);
     if (r) {
         printk("vdec class create fail.\n");
         return r;
     }
+
+    vdec_core_device = pdev;
+
     r = find_reserve_block(pdev->dev.of_node->name,0);
+
     if(r < 0){
-        printk("can not find %s%d reserve block\n",vdec_class.name,0);
-	    r = -EFAULT;
-	    goto error;
+        name = of_get_property(pdev->dev.of_node,"share-memory-name",NULL);
+	if(!name){
+            printk("can not find %s%d reserve block1\n",vdec_class.name,0);
+            r = -EFAULT;
+            goto error;
+
+	}else{
+            r= find_reserve_block_by_name(name);
+            if(r<0){
+                printk("can not find %s%d reserve block2\n",vdec_class.name,0);
+                r = -EFAULT;
+                goto error;
+            }
+            name= of_get_property(pdev->dev.of_node,"share-memory-offset",NULL);
+            if(name)
+                offset= of_read_ulong(name,1);
+            else{
+                printk("can not find %s%d reserve block3\n",vdec_class.name,0);
+                r = -EFAULT;
+                goto error;
+            }
+            name= of_get_property(pdev->dev.of_node,"share-memory-size",NULL);
+            if(name)
+                size= of_read_ulong(name,1);
+            else{
+                printk("can not find %s%d reserve block4\n",vdec_class.name,0);
+                r = -EFAULT;
+                goto error;
+            }			
+            start = (phys_addr_t)get_reserve_block_addr(r)+ offset;
+            end = start+ size-1;
+        }
+    }else{
+        start = (phys_addr_t)get_reserve_block_addr(r);
+        end = start+ (phys_addr_t)get_reserve_block_size(r)-1;
     }
-    res.start = (phys_addr_t)get_reserve_block_addr(r);
-    res.end = res.start+ (phys_addr_t)get_reserve_block_size(r)-1;
 
-    printk("init vdec memsource %d->%d\n",res.start,res.end);
-    res.flags = IORESOURCE_MEM;
+    printk("init vdec memsource %lx->%lx\n", start, end);
 
-    vdec_set_resource(&res, &pdev->dev);
+    vdec_set_resource(start, end, &pdev->dev);
 
 #if MESON_CPU_TYPE < MESON_CPU_TYPE_MESON6TVD
     /* default to 250MHz */

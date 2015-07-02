@@ -352,6 +352,14 @@ static int d2d3_receiver_event_fun(int type, void* data, void* arg)
                 pre_count++;
 
         }
+        else if(VFRAME_EVENT_PROVIDER_FR_HINT == type)
+        {
+               vf_notify_receiver(d2d3_devp->vfm_name,VFRAME_EVENT_PROVIDER_FR_HINT,data);
+        }
+        else if(VFRAME_EVENT_PROVIDER_FR_END_HINT == type)
+        {
+               vf_notify_receiver(d2d3_devp->vfm_name,VFRAME_EVENT_PROVIDER_FR_END_HINT,data);
+        }
         return ret;
 }
 

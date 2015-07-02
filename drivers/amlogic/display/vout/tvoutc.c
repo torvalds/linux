@@ -294,7 +294,7 @@ static int uboot_display_already(tvmode_t mode)
     */
 }
 
-#if ((defined CONFIG_ARCH_MESON8) || (defined CONFIG_ARCH_MESON8B))
+#if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8)
 static unsigned int vdac_cfg_valid = 0, vdac_cfg_value = 0;
 static unsigned int cvbs_get_trimming_version(unsigned int flag)
 {
@@ -437,7 +437,7 @@ int tvoutc_setmode(tvmode_t mode)
         }
     }
 
-#if ((defined CONFIG_ARCH_MESON8) || (defined CONFIG_ARCH_MESON8B))
+#if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8)
 	// for hdmi mode, disable HPLL as soon as possible
 	if( (mode==TVMODE_480I) || (mode==TVMODE_480P) ||
 		(mode==TVMODE_576I) || (mode==TVMODE_576P) ||
@@ -453,6 +453,7 @@ int tvoutc_setmode(tvmode_t mode)
 
     cvbs_cntl_output(0);
 #endif
+
     while (MREG_END_MARKER != s->reg)
         setreg(s++);
     printk("%s[%d]\n", __func__, __LINE__);
@@ -461,10 +462,10 @@ int tvoutc_setmode(tvmode_t mode)
 	cvbs_performance_enhancement(mode);
 #endif
 
-    if(mode >= TVMODE_VGA && mode <= TVMODE_SXGA){
-        aml_write_reg32(P_PERIPHS_PIN_MUX_0,aml_read_reg32(P_PERIPHS_PIN_MUX_0)|(3<<20));
+    if(mode >= TVMODE_VGA && mode <= TVMODE_FHDVGA){ //set VGA pinmux
+        aml_write_reg32(P_PERIPHS_PIN_MUX_0, (aml_read_reg32(P_PERIPHS_PIN_MUX_0)|(3<<20)));
     }else{
-	aml_write_reg32(P_PERIPHS_PIN_MUX_0,aml_read_reg32(P_PERIPHS_PIN_MUX_0)&(~(3<<20)));
+	aml_write_reg32(P_PERIPHS_PIN_MUX_0, (aml_read_reg32(P_PERIPHS_PIN_MUX_0)&(~(3<<20))));
     }
 
 #if ((defined CONFIG_ARCH_MESON8) || (defined CONFIG_ARCH_MESON8B))
@@ -494,21 +495,48 @@ int tvoutc_setmode(tvmode_t mode)
         aml_set_reg32_bits(P_VPU_VIU_VENC_MUX_CTRL, 1, 8, 4); //reg0x271a,Enable VIU of ENC_I domain to VDIN;
 			  break;
 		case TVMODE_480P:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_480P_59HZ:
+#endif
 		case TVMODE_480P_RPT:
 		case TVMODE_576P:
 		case TVMODE_576P_RPT:
         case TVMODE_800X480P_60HZ:
 		case TVMODE_720P:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_720P_59HZ:
+#endif
 		case TVMODE_720P_50HZ:
 		case TVMODE_1080I: //??
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_1080I_59HZ:
+#endif
 		case TVMODE_1080I_50HZ: //??
 		case TVMODE_1080P:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_1080P_59HZ:
+#endif
 		case TVMODE_1080P_50HZ:
 		case TVMODE_1080P_24HZ:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_1080P_23HZ:
+#endif
         case TVMODE_4K2K_30HZ:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_4K2K_29HZ:
+#endif
         case TVMODE_4K2K_25HZ:
         case TVMODE_4K2K_24HZ:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_4K2K_23HZ:
+#endif
         case TVMODE_4K2K_SMPTE:
+		case TVMODE_VGA:
+		case TVMODE_SVGA:
+		case TVMODE_XGA:
+		case TVMODE_SXGA:
+		case TVMODE_WSXGA:
+		case TVMODE_FHDVGA:
         aml_set_reg32_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 0, 2); //reg0x271a, select ENCP to VIU1
         aml_set_reg32_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 4, 4); //reg0x271a, Select encP clock to VDIN
         aml_set_reg32_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 8, 4); //reg0x271a,Enable VIU of ENC_P domain to VDIN;
@@ -549,7 +577,7 @@ printk(" clk_util_clk_msr 29 = %d\n", clk_util_clk_msr(29));
 	}
 #endif
 
-#if ((defined CONFIG_ARCH_MESON8) || (defined CONFIG_ARCH_MESON8B))
+#if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8)
     if( (mode==TVMODE_480CVBS) || (mode==TVMODE_576CVBS) )
     {
         msleep(1000);

@@ -2897,6 +2897,7 @@ static void set_frame_info(vframe_t *vf)
     vf->height = frame_height;
     vf->duration = frame_dur;
     vf->duration_pulldown = 0;
+    vf->flag = 0;
 
     ar = min(frame_ar, (u32)DISP_RATIO_ASPECT_RATIO_MAX);
     vf->ratio_control = (ar << DISP_RATIO_ASPECT_RATIO_BIT);
@@ -3794,6 +3795,8 @@ static s32 vh265_init(void)
     vf_reg_provider(&vh265_vf_prov);
     vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_START,NULL);
 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)frame_dur);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong) & recycle_timer;
@@ -3861,6 +3864,8 @@ static int vh265_stop(void)
     }
 
     if (stat & STAT_VF_HOOK) {
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
         vf_unreg_provider(&vh265_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }
@@ -3886,35 +3891,35 @@ static int vh265_stop(void)
 
 static int amvdec_h265_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
     int i;
 
     mutex_lock(&vh265_mutex);
     
     fatal_error = 0;
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+    if (pdata == NULL) {
         printk("\namvdec_h265 memory resource undefined.\n");
         mutex_unlock(&vh265_mutex);
         return -EFAULT;
     }
 
-    mc_buf_spec.buf_end = mem->end + 1;
+    mc_buf_spec.buf_end = pdata->mem_end + 1;
     for(i=0;i<WORK_BUF_SPEC_NUM;i++){
-        amvh265_workbuff_spec[i].start_adr = mem->start;
+        amvh265_workbuff_spec[i].start_adr = pdata->mem_start;
     }
 
-    if(debug) printk("===H.265 decoder mem resource 0x%x -- 0x%x\n", mem->start, mem->end + 1);
+    if(debug) printk("===H.265 decoder mem resource 0x%lx -- 0x%lx\n", pdata->mem_start, pdata->mem_end + 1);
 
-    if (mem[1].start != 0) {
-        memcpy(&vh265_amstream_dec_info, (void *)mem[1].start, sizeof(vh265_amstream_dec_info));
+    if (pdata->sys_info) {
+        vh265_amstream_dec_info = *pdata->sys_info;
     } else {
         vh265_amstream_dec_info.width = 0;
         vh265_amstream_dec_info.height = 0;
         vh265_amstream_dec_info.rate = 30;
     }
 
-    cma_dev = (struct device *)mem[2].start;
+    cma_dev = pdata->cma_dev;
 
     if (vh265_init() < 0) {
         printk("\namvdec_h265 init failed.\n");

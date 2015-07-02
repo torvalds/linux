@@ -150,6 +150,8 @@ static u32 vmpeg4_rotation;
 static u32 total_frame;
 static u32 last_vop_time_inc, last_duration;
 static u32 last_anch_pts, vop_time_inc_since_last_anch, frame_num_since_last_anch;
+static u64 last_anch_pts_us64;
+
 #ifdef CONFIG_AM_VDEC_MPEG4_LOG
 u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
 #endif
@@ -252,6 +254,7 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
     u32 picture_type;
     u32 buffer_index;
     u32 pts, pts_valid = 0, offset = 0;
+    u64 pts_us64 = 0;
     u32 rate, vop_time_inc, repeat_cnt, duration = 3200;
 
     reg = READ_VREG(MREG_BUFFEROUT);
@@ -329,9 +332,10 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
                  may have av sync problem.can changed small later.
 		 263 may need small?
            */
-            if (pts_lookup_offset(PTS_TYPE_VIDEO, offset, &pts, 3000) == 0) {
+            if (pts_lookup_offset_us64(PTS_TYPE_VIDEO, offset, &pts, 3000, &pts_us64) == 0) {
                 pts_valid = 1;
                 last_anch_pts = pts;
+                last_anch_pts_us64 = pts_us64;
 #ifdef CONFIG_AM_VDEC_MPEG4_LOG
                 pts_hit++;
 #endif
@@ -347,10 +351,12 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 
         if (pts_valid) {
             last_anch_pts = pts;
+            last_anch_pts_us64 = pts_us64;
             frame_num_since_last_anch = 0;
             vop_time_inc_since_last_anch = 0;
         } else {
             pts = last_anch_pts;
+            pts_us64 = last_anch_pts_us64;
 
             if ((rate != 0) && ((rate >> 16) == 0) && vmpeg4_amstream_dec_info.rate==0) {
                 /* variable PTS rate */
@@ -364,20 +370,24 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
                 }
 
                 pts += vop_time_inc_since_last_anch * PTS_UNIT / rate;
+                pts_us64 += (vop_time_inc_since_last_anch * PTS_UNIT / rate) * 100 / 9;
 
                 if (vop_time_inc_since_last_anch > (1 << 14)) {
                     /* avoid overflow */
                     last_anch_pts = pts;
+                    last_anch_pts_us64 = pts_us64;
                     vop_time_inc_since_last_anch = 0;
                 }
             } else {
                 /* fixed VOP rate */
                 frame_num_since_last_anch++;
                 pts += DUR2PTS(frame_num_since_last_anch * vmpeg4_amstream_dec_info.rate);
+                pts_us64 += DUR2PTS(frame_num_since_last_anch * vmpeg4_amstream_dec_info.rate) * 100 / 9;
 
                 if (frame_num_since_last_anch > (1 << 15)) {
                     /* avoid overflow */
                     last_anch_pts = pts;
+                    last_anch_pts_us64 = pts_us64;
                     frame_num_since_last_anch = 0;
                 }
             }
@@ -393,8 +403,10 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
             vf->width = vmpeg4_amstream_dec_info.width;
             vf->height = vmpeg4_amstream_dec_info.height;
             vf->bufWidth = 1920;
+            vf->flag = 0;
             vf->orientation = vmpeg4_rotation;
             vf->pts = pts;
+            vf->pts_us64 = pts_us64;
             vf->duration = duration >> 1;
             vf->duration_pulldown = 0;
             vf->type = (reg & BOTTOM_FIELD_FIRST_FLAG) ? VIDTYPE_INTERLACE_BOTTOM : VIDTYPE_INTERLACE_TOP;
@@ -420,9 +432,11 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
             vf->width = vmpeg4_amstream_dec_info.width;
             vf->height = vmpeg4_amstream_dec_info.height;
             vf->bufWidth = 1920;
+            vf->flag = 0;
             vf->orientation = vmpeg4_rotation;
 
             vf->pts = 0;
+            vf->pts_us64 = 0;
             vf->duration = duration >> 1;
 
             vf->duration_pulldown = 0;
@@ -454,8 +468,10 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
             vf->width = vmpeg4_amstream_dec_info.width;
             vf->height = vmpeg4_amstream_dec_info.height;
             vf->bufWidth = 1920;
+            vf->flag = 0;
             vf->orientation = vmpeg4_rotation;
             vf->pts = pts;
+            vf->pts_us64 = pts_us64;
             vf->duration = duration;
             vf->duration_pulldown = repeat_cnt * duration;
 #ifdef NV21
@@ -738,7 +754,7 @@ static void vmpeg4_local_init(void)
 
     vmpeg4_ratio = vmpeg4_amstream_dec_info.ratio;
 	
-	vmpeg4_ratio64 = vmpeg4_amstream_dec_info.ratio64;
+    vmpeg4_ratio64 = vmpeg4_amstream_dec_info.ratio64;
 
     vmpeg4_rotation = (((u32)vmpeg4_amstream_dec_info.param) >> 16) & 0xffff;
 
@@ -747,6 +763,8 @@ static void vmpeg4_local_init(void)
     total_frame = 0;
 
     last_anch_pts = 0;
+
+    last_anch_pts_us64 = 0;
 
     last_vop_time_inc = last_duration = 0;
 
@@ -846,6 +864,8 @@ static s32 vmpeg4_init(void)
     vf_provider_init(&vmpeg_vf_prov, PROVIDER_NAME, &vmpeg_vf_provider, NULL);
     vf_reg_provider(&vmpeg_vf_prov);
 #endif 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vmpeg4_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong) & recycle_timer;
@@ -867,18 +887,21 @@ static s32 vmpeg4_init(void)
 
 static int amvdec_mpeg4_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+    if (pdata == NULL) {
         amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg4 memory resource undefined.\n");
         return -EFAULT;
     }
 
-    buf_start = mem->start;
-    buf_size = mem->end - mem->start + 1;
+    buf_start = pdata->mem_start;
+    buf_size = pdata->mem_end - pdata->mem_start + 1;
     buf_offset = buf_start - ORI_BUFFER_START_ADDR;
 
-    memcpy(&vmpeg4_amstream_dec_info, (void *)mem[1].start, sizeof(vmpeg4_amstream_dec_info));
+    if (pdata->sys_info) {
+        vmpeg4_amstream_dec_info = *pdata->sys_info;
+    }
+
     if (vmpeg4_init() < 0) {
         amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg4 init failed.\n");
 
@@ -906,6 +929,8 @@ static int amvdec_mpeg4_remove(struct platform_device *pdev)
     }
 
     if (stat & STAT_VF_HOOK) {
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
         vf_unreg_provider(&vmpeg_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }

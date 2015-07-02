@@ -158,6 +158,8 @@ static DEFINE_SPINLOCK(lock);
 
 static u32 frame_rpt_state;
 
+static struct dec_sysinfo vmpeg12_amstream_dec_info;
+
 /* for error handling */
 static s32 frame_force_skip_flag = 0;
 static s32 error_frame_skip_level = 0;
@@ -189,6 +191,7 @@ static void set_frame_info(vframe_t *vf)
 
     vf->width  = frame_width = READ_VREG(MREG_PIC_WIDTH);
     vf->height = frame_height = READ_VREG(MREG_PIC_HEIGHT);
+    vf->flag = 0;
 
     if (frame_dur > 0) {
         vf->duration = frame_dur;
@@ -246,6 +249,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 {
     u32 reg, info, seqinfo, offset, pts, pts_valid = 0;
     vframe_t *vf;
+    u64 pts_us64 = 0;;
 
     WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
 
@@ -266,7 +270,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
         }
 
         if ((((info & PICINFO_TYPE_MASK) == PICINFO_TYPE_I) || ((info & PICINFO_TYPE_MASK) == PICINFO_TYPE_P))
-             && (pts_lookup_offset(PTS_TYPE_VIDEO, offset, &pts, 0) == 0)) {
+             && (pts_lookup_offset_us64(PTS_TYPE_VIDEO, offset, &pts, 0, &pts_us64) == 0)) {
             pts_valid = 1;
         }
 
@@ -345,6 +349,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
             vf->canvas0Addr = vf->canvas1Addr = index2canvas(index);
             vf->orientation = 0 ;
             vf->pts = (pts_valid) ? pts : 0;
+            vf->pts_us64 = (pts_valid) ? pts_us64 : 0;
 
             vfbuf_use[index] = 1;
 
@@ -400,6 +405,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
             vf->orientation = 0 ;
             vf->canvas0Addr = vf->canvas1Addr = index2canvas(index);
             vf->pts = (pts_valid) ? pts : 0;
+            vf->pts_us64 = (pts_valid) ? pts_us64 : 0;
 
             if ((error_skip(info, vf)) ||
                 ((first_i_frame_ready == 0) && ((PICINFO_TYPE_MASK & info) != PICINFO_TYPE_I))) {
@@ -429,6 +435,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
             vf->orientation = 0 ;
             vf->canvas0Addr = vf->canvas1Addr = index2canvas(index);
             vf->pts = 0;
+            vf->pts_us64 = 0;
 
             if ((error_skip(info, vf)) ||
                 ((first_i_frame_ready == 0) && ((PICINFO_TYPE_MASK & info) != PICINFO_TYPE_I))) {
@@ -824,6 +831,8 @@ static s32 vmpeg12_init(void)
     vf_reg_provider(&vmpeg_vf_prov);
  #endif 
 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vmpeg12_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong)&recycle_timer;
@@ -845,17 +854,22 @@ static s32 vmpeg12_init(void)
 
 static int amvdec_mpeg12_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
 
     amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 probe start.\n");
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
-        amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg12 memory resource undefined.\n");
+    if (pdata == NULL) {
+        amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg12 platform data undefined.\n");
         return -EFAULT;
     }
 
-    buf_start = mem->start;
-    buf_size  = mem->end - mem->start + 1;
+
+    if (pdata->sys_info) {
+        vmpeg12_amstream_dec_info = *pdata->sys_info;
+    }
+
+    buf_start = pdata->mem_start;
+    buf_size  = pdata->mem_end - pdata->mem_start + 1;
 
     if (vmpeg12_init() < 0) {
         amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg12 init failed.\n");
@@ -886,6 +900,8 @@ static int amvdec_mpeg12_remove(struct platform_device *pdev)
     }
 
     if (stat & STAT_VF_HOOK) {
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
         vf_unreg_provider(&vmpeg_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }
