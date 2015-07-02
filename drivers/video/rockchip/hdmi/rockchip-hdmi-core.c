@@ -1,4 +1,5 @@
 #include <linux/delay.h>
+#include <sound/pcm_params.h>
 #include "rockchip-hdmi.h"
 #include "rockchip-hdmi-cec.h"
 
@@ -597,6 +598,54 @@ int hdmi_config_audio(struct hdmi_audio	*audio)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_RK_HDMI
+int snd_config_hdmi_audio(struct snd_pcm_hw_params *params)
+{
+	struct hdmi_audio audio_cfg;
+	u32	rate;
+
+	switch (params_rate(params)) {
+	case 32000:
+		rate = HDMI_AUDIO_FS_32000;
+		break;
+	case 44100:
+		rate = HDMI_AUDIO_FS_44100;
+		break;
+	case 48000:
+		rate = HDMI_AUDIO_FS_48000;
+		break;
+	case 88200:
+		rate = HDMI_AUDIO_FS_88200;
+		break;
+	case 96000:
+		rate = HDMI_AUDIO_FS_96000;
+		break;
+	case 176400:
+		rate = HDMI_AUDIO_FS_176400;
+		break;
+	case 192000:
+		rate = HDMI_AUDIO_FS_192000;
+		break;
+	default:
+		pr_err("rate %d unsupport.", params_rate(params));
+		rate = HDMI_AUDIO_FS_44100;
+	}
+
+	audio_cfg.rate = rate;
+
+	if (HW_PARAMS_FLAG_NLPCM == params->flags)
+		audio_cfg.type = HDMI_AUDIO_NLPCM;
+	else
+		audio_cfg.type = HDMI_AUDIO_LPCM;
+
+	audio_cfg.channel = params_channels(params);
+	audio_cfg.word_length = HDMI_AUDIO_WORD_LENGTH_16bit;
+
+	return hdmi_config_audio(&audio_cfg);
+}
+EXPORT_SYMBOL(snd_config_hdmi_audio);
+#endif
 
 void hdmi_audio_mute(int mute)
 {
