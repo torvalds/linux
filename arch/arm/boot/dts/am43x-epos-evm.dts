@@ -106,6 +106,38 @@
 		brightness-levels = <0 51 53 56 62 75 101 152 255>;
 		default-brightness-level = <8>;
 	};
+
+	sound0: sound@0 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "AM43-EPOS-EVM";
+		simple-audio-card,widgets =
+			"Microphone", "Microphone Jack",
+			"Headphone", "Headphone Jack",
+			"Speaker", "Speaker";
+		simple-audio-card,routing =
+			"MIC1LP", "Microphone Jack",
+			"MIC1RP", "Microphone Jack",
+			"MIC1LP", "MICBIAS",
+			"MIC1RP", "MICBIAS",
+			"Headphone Jack", "HPL",
+			"Headphone Jack", "HPR",
+			"Speaker", "SPL",
+			"Speaker", "SPR";
+		simple-audio-card,format = "dsp_b";
+		simple-audio-card,bitclock-master = <&sound0_master>;
+		simple-audio-card,frame-master = <&sound0_master>;
+		simple-audio-card,bitclock-inversion;
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp1>;
+			system-clock-frequency = <12000000>;
+		};
+
+		sound0_master: simple-audio-card,codec {
+			sound-dai = <&tlv320aic3111>;
+			system-clock-frequency = <12000000>;
+		};
+	};
 };
 
 &am43xx_pinmux {
@@ -468,6 +500,7 @@
 	};
 
 	tlv320aic3111: tlv320aic3111@18 {
+		#sound-dai-cells = <0>;
 		compatible = "ti,tlv320aic3111";
 		reg = <0x18>;
 		status = "okay";
@@ -743,6 +776,7 @@
 };
 
 &mcasp1 {
+	#sound-dai-cells = <0>;
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mcasp1_pins>;
 	pinctrl-1 = <&mcasp1_sleep_pins>;
