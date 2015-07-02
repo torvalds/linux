@@ -25,8 +25,6 @@
  *
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/acpi.h>
 #include <acpi/video.h>
 
@@ -658,14 +656,13 @@ static void intel_didl_outputs(struct drm_device *dev)
 	}
 
 	if (!acpi_video_bus) {
-		pr_warn("No ACPI video bus found\n");
+		DRM_ERROR("No ACPI video bus found\n");
 		return;
 	}
 
 	list_for_each_entry(acpi_cdev, &acpi_video_bus->children, node) {
 		if (i >= 8) {
-			dev_dbg(&dev->pdev->dev,
-				"More than 8 outputs detected via ACPI\n");
+			DRM_DEBUG_KMS("More than 8 outputs detected via ACPI\n");
 			return;
 		}
 		status =
@@ -691,8 +688,7 @@ blind_set:
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		int output_type = ACPI_OTHER_OUTPUT;
 		if (i >= 8) {
-			dev_dbg(&dev->pdev->dev,
-				"More than 8 outputs in connector list\n");
+			DRM_DEBUG_KMS("More than 8 outputs in connector list\n");
 			return;
 		}
 		switch (connector->connector_type) {
