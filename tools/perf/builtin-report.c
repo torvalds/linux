@@ -839,8 +839,10 @@ repeat:
 	if (report.header || report.header_only) {
 		perf_session__fprintf_info(session, stdout,
 					   report.show_full_info);
-		if (report.header_only)
-			return 0;
+		if (report.header_only) {
+			ret = 0;
+			goto error;
+		}
 	} else if (use_browser == 0) {
 		fputs("# To display the perf.data header info, please use --header/--header-only options.\n#\n",
 		      stdout);
