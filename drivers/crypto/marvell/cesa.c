@@ -321,9 +321,8 @@ static int mv_cesa_get_sram(struct platform_device *pdev, int idx)
 	const char *res_name = "sram";
 	struct resource *res;
 
-	engine->pool = of_get_named_gen_pool(cesa->dev->of_node,
-					     "marvell,crypto-srams",
-					     idx);
+	engine->pool = of_gen_pool_get(cesa->dev->of_node,
+				       "marvell,crypto-srams", idx);
 	if (engine->pool) {
 		engine->sram = gen_pool_dma_alloc(engine->pool,
 						  cesa->sram_size,

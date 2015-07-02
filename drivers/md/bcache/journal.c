@@ -157,7 +157,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 
 	for_each_cache(ca, c, iter) {
 		struct journal_device *ja = &ca->journal;
-		unsigned long bitmap[SB_JOURNAL_BUCKETS / BITS_PER_LONG];
+		DECLARE_BITMAP(bitmap, SB_JOURNAL_BUCKETS);
 		unsigned i, l, r, m;
 		uint64_t seq;
 
