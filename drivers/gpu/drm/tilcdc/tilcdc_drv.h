@@ -66,7 +66,7 @@ struct tilcdc_drm_private {
 	uint32_t max_width;
 
 	/* register contents saved across suspend/resume: */
-	u32 saved_register[12];
+	u32 *saved_register;
 	bool ctx_valid;
 
 #ifdef CONFIG_CPU_FREQ

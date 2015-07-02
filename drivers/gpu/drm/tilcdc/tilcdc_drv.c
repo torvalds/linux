@@ -141,10 +141,13 @@ static int tilcdc_unload(struct drm_device *dev)
 
 	pm_runtime_disable(dev->dev);
 
+	kfree(priv->saved_register);
 	kfree(priv);
 
 	return 0;
 }
+
+static size_t tilcdc_num_regs(void);
 
 static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 {
@@ -157,7 +160,12 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	int ret;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
+	if (priv)
+		priv->saved_register = kcalloc(tilcdc_num_regs(),
+					       sizeof(*priv->saved_register),
+					       GFP_KERNEL);
+	if (!priv || !priv->saved_register) {
+		kfree(priv);
 		dev_err(dev->dev, "failed to allocate private data\n");
 		return -ENOMEM;
 	}
@@ -339,6 +347,7 @@ fail_free_wq:
 
 fail_free_priv:
 	dev->dev_private = NULL;
+	kfree(priv->saved_register);
 	kfree(priv);
 	return ret;
 }
@@ -456,6 +465,16 @@ static const struct {
 		REG(2, true,  LCDC_INT_ENABLE_SET_REG),
 #undef REG
 };
+
+static size_t tilcdc_num_regs(void)
+{
+	return ARRAY_SIZE(registers);
+}
+#else
+static size_t tilcdc_num_regs(void)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_DEBUG_FS
