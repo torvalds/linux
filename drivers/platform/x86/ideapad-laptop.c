@@ -465,8 +465,9 @@ static const struct ideapad_rfk_data ideapad_rfk_data[] = {
 static int ideapad_rfk_set(void *data, bool blocked)
 {
 	struct ideapad_rfk_priv *priv = data;
+	int opcode = ideapad_rfk_data[priv->dev].opcode;
 
-	return write_ec_cmd(priv->priv->adev->handle, priv->dev, !blocked);
+	return write_ec_cmd(priv->priv->adev->handle, opcode, !blocked);
 }
 
 static struct rfkill_ops ideapad_rfk_ops = {
@@ -835,6 +836,13 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo G40-30"),
+		},
+	},
+	{
+		.ident = "Lenovo G50-30",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo G50-30"),
 		},
 	},
 	{

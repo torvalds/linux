@@ -3216,6 +3216,11 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/dell-laptop.c
 
+DELL LAPTOP RBTN DRIVER
+M:	Pali Rohár <pali.rohar@gmail.com>
+S:	Maintained
+F:	drivers/platform/x86/dell-rbtn.*
+
 DELL LAPTOP FREEFALL DRIVER
 M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
@@ -6786,9 +6791,8 @@ S:	Maintained
 F:	drivers/platform/x86/msi-laptop.c
 
 MSI WMI SUPPORT
-M:	Anisse Astier <anisse@astier.eu>
 L:	platform-driver-x86@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	drivers/platform/x86/msi-wmi.c
 
 MSI001 MEDIA DRIVER

@@ -33,6 +33,7 @@
 #include <linux/seq_file.h>
 #include <acpi/video.h>
 #include "../../firmware/dcdbas.h"
+#include "dell-rbtn.h"
 
 #define BRIGHTNESS_TOKEN 0x7d
 #define KBD_LED_OFF_TOKEN 0x01E1
@@ -643,6 +644,20 @@ static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
 	return false;
 }
 
+static int (*dell_rbtn_notifier_register_func)(struct notifier_block *);
+static int (*dell_rbtn_notifier_unregister_func)(struct notifier_block *);
+
+static int dell_laptop_rbtn_notifier_call(struct notifier_block *nb,
+					  unsigned long action, void *data)
+{
+	schedule_delayed_work(&dell_rfkill_work, 0);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block dell_laptop_rbtn_notifier = {
+	.notifier_call = dell_laptop_rbtn_notifier_call,
+};
+
 static int __init dell_setup_rfkill(void)
 {
 	int status, ret, whitelisted;
@@ -719,10 +734,62 @@ static int __init dell_setup_rfkill(void)
 			goto err_wwan;
 	}
 
-	ret = i8042_install_filter(dell_laptop_i8042_filter);
-	if (ret) {
-		pr_warn("Unable to install key filter\n");
+	/*
+	 * Dell Airplane Mode Switch driver (dell-rbtn) supports ACPI devices
+	 * which can receive events from HW slider switch.
+	 *
+	 * Dell SMBIOS on whitelisted models supports controlling radio devices
+	 * but does not support receiving HW button switch events. We can use
+	 * i8042 filter hook function to receive keyboard data and handle
+	 * keycode for HW button.
+	 *
+	 * So if it is possible we will use Dell Airplane Mode Switch ACPI
+	 * driver for receiving HW events and Dell SMBIOS for setting rfkill
+	 * states. If ACPI driver or device is not available we will fallback to
+	 * i8042 filter hook function.
+	 *
+	 * To prevent duplicate rfkill devices which control and do same thing,
+	 * dell-rbtn driver will automatically remove its own rfkill devices
+	 * once function dell_rbtn_notifier_register() is called.
+	 */
+
+	dell_rbtn_notifier_register_func =
+		symbol_request(dell_rbtn_notifier_register);
+	if (dell_rbtn_notifier_register_func) {
+		dell_rbtn_notifier_unregister_func =
+			symbol_request(dell_rbtn_notifier_unregister);
+		if (!dell_rbtn_notifier_unregister_func) {
+			symbol_put(dell_rbtn_notifier_register);
+			dell_rbtn_notifier_register_func = NULL;
+		}
+	}
+
+	if (dell_rbtn_notifier_register_func) {
+		ret = dell_rbtn_notifier_register_func(
+			&dell_laptop_rbtn_notifier);
+		symbol_put(dell_rbtn_notifier_register);
+		dell_rbtn_notifier_register_func = NULL;
+		if (ret != 0) {
+			symbol_put(dell_rbtn_notifier_unregister);
+			dell_rbtn_notifier_unregister_func = NULL;
+		}
+	} else {
+		pr_info("Symbols from dell-rbtn acpi driver are not available\n");
+		ret = -ENODEV;
+	}
+
+	if (ret == 0) {
+		pr_info("Using dell-rbtn acpi driver for receiving events\n");
+	} else if (ret != -ENODEV) {
+		pr_warn("Unable to register dell rbtn notifier\n");
 		goto err_filter;
+	} else {
+		ret = i8042_install_filter(dell_laptop_i8042_filter);
+		if (ret) {
+			pr_warn("Unable to install key filter\n");
+			goto err_filter;
+		}
+		pr_info("Using i8042 filter function for receiving events\n");
 	}
 
 	return 0;
@@ -745,6 +812,14 @@ err_wifi:
 
 static void dell_cleanup_rfkill(void)
 {
+	if (dell_rbtn_notifier_unregister_func) {
+		dell_rbtn_notifier_unregister_func(&dell_laptop_rbtn_notifier);
+		symbol_put(dell_rbtn_notifier_unregister);
+		dell_rbtn_notifier_unregister_func = NULL;
+	} else {
+		i8042_remove_filter(dell_laptop_i8042_filter);
+	}
+	cancel_delayed_work_sync(&dell_rfkill_work);
 	if (wifi_rfkill) {
 		rfkill_unregister(wifi_rfkill);
 		rfkill_destroy(wifi_rfkill);
@@ -1957,8 +2032,6 @@ static int __init dell_init(void)
 	return 0;
 
 fail_backlight:
-	i8042_remove_filter(dell_laptop_i8042_filter);
-	cancel_delayed_work_sync(&dell_rfkill_work);
 	dell_cleanup_rfkill();
 fail_rfkill:
 	free_page((unsigned long)bufferpage);
@@ -1979,8 +2052,6 @@ static void __exit dell_exit(void)
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_exit();
 	kbd_led_exit();
-	i8042_remove_filter(dell_laptop_i8042_filter);
-	cancel_delayed_work_sync(&dell_rfkill_work);
 	backlight_device_unregister(dell_backlight_device);
 	dell_cleanup_rfkill();
 	if (platform_device) {
@@ -1991,7 +2062,14 @@ static void __exit dell_exit(void)
 	free_page((unsigned long)buffer);
 }
 
-module_init(dell_init);
+/* dell-rbtn.c driver export functions which will not work correctly (and could
+ * cause kernel crash) if they are called before dell-rbtn.c init code. This is
+ * not problem when dell-rbtn.c is compiled as external module. When both files
+ * (dell-rbtn.c and dell-laptop.c) are compiled statically into kernel, then we
+ * need to ensure that dell_init() will be called after initializing dell-rbtn.
+ * This can be achieved by late_initcall() instead module_init().
+ */
+late_initcall(dell_init);
 module_exit(dell_exit);
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
