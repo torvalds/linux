@@ -208,6 +208,7 @@ void __init kasan_init(void)
 
 	memcpy(early_level4_pgt, init_level4_pgt, sizeof(early_level4_pgt));
 	load_cr3(early_level4_pgt);
+	__flush_tlb_all();
 
 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
 
@@ -234,5 +235,6 @@ void __init kasan_init(void)
 	memset(kasan_zero_page, 0, PAGE_SIZE);
 
 	load_cr3(init_level4_pgt);
+	__flush_tlb_all();
 	init_task.kasan_depth = 0;
 }
