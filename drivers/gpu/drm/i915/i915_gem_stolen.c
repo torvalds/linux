@@ -42,6 +42,23 @@
  * for is a boon.
  */
 
+int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
+				struct drm_mm_node *node, u64 size,
+				unsigned alignment)
+{
+	if (!drm_mm_initialized(&dev_priv->mm.stolen))
+		return -ENODEV;
+
+	return drm_mm_insert_node(&dev_priv->mm.stolen, node, size, alignment,
+				  DRM_MM_SEARCH_DEFAULT);
+}
+
+void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
+				 struct drm_mm_node *node)
+{
+	drm_mm_remove_node(node);
+}
+
 static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -168,8 +185,7 @@ static int find_compression_threshold(struct drm_device *dev,
 	 */
 
 	/* Try to over-allocate to reduce reallocations and fragmentation. */
-	ret = drm_mm_insert_node(&dev_priv->mm.stolen, node,
-				 size <<= 1, 4096, DRM_MM_SEARCH_DEFAULT);
+	ret = i915_gem_stolen_insert_node(dev_priv, node, size <<= 1, 4096);
 	if (ret == 0)
 		return compression_threshold;
 
@@ -179,9 +195,7 @@ again:
 	    (fb_cpp == 2 && compression_threshold == 2))
 		return 0;
 
-	ret = drm_mm_insert_node(&dev_priv->mm.stolen, node,
-				 size >>= 1, 4096,
-				 DRM_MM_SEARCH_DEFAULT);
+	ret = i915_gem_stolen_insert_node(dev_priv, node, size >>= 1, 4096);
 	if (ret && INTEL_INFO(dev)->gen <= 4) {
 		return 0;
 	} else if (ret) {
@@ -218,8 +232,8 @@ static int i915_setup_compression(struct drm_device *dev, int size, int fb_cpp)
 		if (!compressed_llb)
 			goto err_fb;
 
-		ret = drm_mm_insert_node(&dev_priv->mm.stolen, compressed_llb,
-					 4096, 4096, DRM_MM_SEARCH_DEFAULT);
+		ret = i915_gem_stolen_insert_node(dev_priv, compressed_llb,
+						  4096, 4096);
 		if (ret)
 			goto err_fb;
 
@@ -240,7 +254,7 @@ static int i915_setup_compression(struct drm_device *dev, int size, int fb_cpp)
 
 err_fb:
 	kfree(compressed_llb);
-	drm_mm_remove_node(&dev_priv->fbc.compressed_fb);
+	i915_gem_stolen_remove_node(dev_priv, &dev_priv->fbc.compressed_fb);
 err_llb:
 	pr_info_once("drm: not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
 	return -ENOSPC;
@@ -269,10 +283,11 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 	if (dev_priv->fbc.uncompressed_size == 0)
 		return;
 
-	drm_mm_remove_node(&dev_priv->fbc.compressed_fb);
+	i915_gem_stolen_remove_node(dev_priv, &dev_priv->fbc.compressed_fb);
 
 	if (dev_priv->fbc.compressed_llb) {
-		drm_mm_remove_node(dev_priv->fbc.compressed_llb);
+		i915_gem_stolen_remove_node(dev_priv,
+					    dev_priv->fbc.compressed_llb);
 		kfree(dev_priv->fbc.compressed_llb);
 	}
 
@@ -386,8 +401,10 @@ static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj)
 static void
 i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 {
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+
 	if (obj->stolen) {
-		drm_mm_remove_node(obj->stolen);
+		i915_gem_stolen_remove_node(dev_priv, obj->stolen);
 		kfree(obj->stolen);
 		obj->stolen = NULL;
 	}
@@ -449,8 +466,7 @@ i915_gem_object_create_stolen(struct drm_device *dev, u32 size)
 	if (!stolen)
 		return NULL;
 
-	ret = drm_mm_insert_node(&dev_priv->mm.stolen, stolen, size,
-				 4096, DRM_MM_SEARCH_DEFAULT);
+	ret = i915_gem_stolen_insert_node(dev_priv, stolen, size, 4096);
 	if (ret) {
 		kfree(stolen);
 		return NULL;
@@ -460,7 +476,7 @@ i915_gem_object_create_stolen(struct drm_device *dev, u32 size)
 	if (obj)
 		return obj;
 
-	drm_mm_remove_node(stolen);
+	i915_gem_stolen_remove_node(dev_priv, stolen);
 	kfree(stolen);
 	return NULL;
 }
@@ -505,7 +521,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	obj = _i915_gem_object_create_stolen(dev, stolen);
 	if (obj == NULL) {
 		DRM_DEBUG_KMS("failed to allocate stolen object\n");
-		drm_mm_remove_node(stolen);
+		i915_gem_stolen_remove_node(dev_priv, stolen);
 		kfree(stolen);
 		return NULL;
 	}
@@ -546,7 +562,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 err_vma:
 	i915_gem_vma_destroy(vma);
 err_out:
-	drm_mm_remove_node(stolen);
+	i915_gem_stolen_remove_node(dev_priv, stolen);
 	kfree(stolen);
 	drm_gem_object_unreference(&obj->base);
 	return NULL;
