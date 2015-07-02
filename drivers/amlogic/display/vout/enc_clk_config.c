@@ -277,40 +277,59 @@ static void set_hpll_clk_out(unsigned clk)
     aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00012286);
     aml_write_reg32(P_HHI_VID2_PLL_CNTL2, 0x430a800);       // internal LDO share with HPLL & VIID PLL
     switch(clk){
-    case 2970:	/* VMODE_720P, VMODE_1080I, VMODE_1080P, VMODE_720P_50HZ,
-		   VMODE_1080I_50HZ, VMODE_1080P_50HZ, VMODE_1080P_24HZ */
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84000);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a46c023);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x4123b100);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00012385);
+        case 2970:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+        case 2975:              // FOR 1080P/i 720p mode with clock*0.999
+#endif
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a46c023);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x4123b100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00012385);
 
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6000043d);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4000043d);
-	    WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
-	    h_delay();
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00016385);   // optimise HPLL VCO 2.97GHz performance
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84e00);
-	    break;
-    case 2160:	/* VMODE_480I, VMODE_480P, VMODE_576I,
-		   VMODE_576P, VMODE_1600X900P_60HZ */
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c80000);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x0a563823);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0123b100);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12385);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6001042d);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042d);
-	    WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
-	    break;
-    case 1296:	/* VMODE_480CVBS, VMODE_576CVBS */
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c88000);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0xca49b022);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0023b100);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00012385);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x600c0436);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x400c0436);
-	    aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00016385);
-	    WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
-	    break;
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6000043d);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4000043d);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+            h_delay();
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00016385);   // optimise HPLL VCO 2.97GHz performance
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+            if( clk == 2975 )
+                aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84d04); // lower div_frac to get clk*0.999
+            else
+                aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84e00);
+#else
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84e00);
+#endif
+            break;
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+        case 2161:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84f48);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a46c023);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0123b100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12385);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6001042c);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042c);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+            break;
+#endif                     
+    case 2160:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a46c023);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0123b100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12385);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6001042d);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042d);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+            break;
+	case 1296:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c88000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0xca49b022);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0023b100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00012385);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x600c0436);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x400c0436);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00016385);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+            break;
     case 1422:	/* VMODE_800P */
 	    aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c000);
 	    aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x4023d100);
@@ -437,62 +456,6 @@ static void set_hpll_clk_out(unsigned clk)
     default:
 	    printk("error hpll clk: %d\n", clk);
 	    break;
-        case 2970:
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-        case 2975:              // FOR 1080P/i 720p mode with clock*0.999
-#endif
-            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84000);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a46c023);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x4123b100);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00012385);
-
-            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6000043d);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4000043d);
-            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
-            h_delay();
-            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00016385);   // optimise HPLL VCO 2.97GHz performance
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-            if( clk == 2975 )
-                aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84d04); // lower div_frac to get clk*0.999
-            else
-                aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84e00);
-#else
-            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84e00);
-#endif
-            break;
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-        case 2161:
-            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84f48);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a46c023);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0123b100);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12385);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6001042c);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042c);
-            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
-            break;
-#endif                 
-        case 2160:
-            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84000);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a46c023);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0123b100);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12385);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6001042d);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042d);
-            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
-            break;
-        case 1296:
-            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c88000);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0xca49b022);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0023b100);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00012385);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x600c0436);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x400c0436);
-            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00016385);
-            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
-            break;
-        default:
-            printk("error hpll clk: %d\n", clk);
-            break;
     }
     if(clk < 2970)
 	    aml_write_reg32(P_HHI_VID_PLL_CNTL5, (aml_read_reg32(P_HHI_VID_PLL_CNTL5) & (~(0xf << 12))) | (0x6 << 12));
