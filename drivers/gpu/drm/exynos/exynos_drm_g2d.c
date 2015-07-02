@@ -1319,9 +1319,6 @@ static int g2d_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 		return ret;
 	}
 
-	if (!is_drm_iommu_supported(drm_dev))
-		return 0;
-
 	ret = drm_iommu_attach_device(drm_dev, dev);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable iommu.\n");
@@ -1334,9 +1331,6 @@ static int g2d_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 
 static void g2d_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 {
-	if (!is_drm_iommu_supported(drm_dev))
-		return;
-
 	drm_iommu_detach_device(drm_dev, dev);
 }
 

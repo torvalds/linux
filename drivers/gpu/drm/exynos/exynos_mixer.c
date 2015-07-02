@@ -891,8 +891,7 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 
 static void mixer_ctx_remove(struct mixer_context *mixer_ctx)
 {
-	if (is_drm_iommu_supported(mixer_ctx->drm_dev))
-		drm_iommu_detach_device(mixer_ctx->drm_dev, mixer_ctx->dev);
+	drm_iommu_detach_device(mixer_ctx->drm_dev, mixer_ctx->dev);
 }
 
 static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)

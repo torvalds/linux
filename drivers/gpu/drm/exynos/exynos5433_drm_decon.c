@@ -514,8 +514,7 @@ static void decon_unbind(struct device *dev, struct device *master, void *data)
 	decon_disable(ctx->crtc);
 
 	/* detach this sub driver from iommu mapping if supported. */
-	if (is_drm_iommu_supported(ctx->drm_dev))
-		drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
+	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
 }
 
 static const struct component_ops decon_component_ops = {

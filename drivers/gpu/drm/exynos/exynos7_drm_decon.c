@@ -136,8 +136,7 @@ static int decon_ctx_initialize(struct decon_context *ctx,
 static void decon_ctx_remove(struct decon_context *ctx)
 {
 	/* detach this sub driver from iommu mapping if supported. */
-	if (is_drm_iommu_supported(ctx->drm_dev))
-		drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
+	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
 }
 
 static u32 decon_calc_clkdiv(struct decon_context *ctx,

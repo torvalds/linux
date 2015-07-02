@@ -1622,12 +1622,10 @@ static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 		INIT_LIST_HEAD(&ippdrv->cmd_list);
 		mutex_init(&ippdrv->cmd_lock);
 
-		if (is_drm_iommu_supported(drm_dev)) {
-			ret = drm_iommu_attach_device(drm_dev, ippdrv->dev);
-			if (ret) {
-				DRM_ERROR("failed to activate iommu\n");
-				goto err;
-			}
+		ret = drm_iommu_attach_device(drm_dev, ippdrv->dev);
+		if (ret) {
+			DRM_ERROR("failed to activate iommu\n");
+			goto err;
 		}
 	}
 
@@ -1637,8 +1635,7 @@ err:
 	/* get ipp driver entry */
 	list_for_each_entry_continue_reverse(ippdrv, &exynos_drm_ippdrv_list,
 						drv_list) {
-		if (is_drm_iommu_supported(drm_dev))
-			drm_iommu_detach_device(drm_dev, ippdrv->dev);
+		drm_iommu_detach_device(drm_dev, ippdrv->dev);
 
 		ipp_remove_id(&ctx->ipp_idr, &ctx->ipp_lock,
 				ippdrv->prop_list.ipp_id);
@@ -1654,8 +1651,7 @@ static void ipp_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 
 	/* get ipp driver entry */
 	list_for_each_entry_safe(ippdrv, t, &exynos_drm_ippdrv_list, drv_list) {
-		if (is_drm_iommu_supported(drm_dev))
-			drm_iommu_detach_device(drm_dev, ippdrv->dev);
+		drm_iommu_detach_device(drm_dev, ippdrv->dev);
 
 		ipp_remove_id(&ctx->ipp_idr, &ctx->ipp_lock,
 				ippdrv->prop_list.ipp_id);

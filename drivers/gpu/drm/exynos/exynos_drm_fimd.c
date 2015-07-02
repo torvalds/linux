@@ -348,13 +348,6 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 	pm_runtime_put(ctx->dev);
 }
 
-static void fimd_iommu_detach_devices(struct fimd_context *ctx)
-{
-	/* detach this sub driver from iommu mapping if supported. */
-	if (is_drm_iommu_supported(ctx->drm_dev))
-		drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
-}
-
 static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 		const struct drm_display_mode *mode)
 {
@@ -978,7 +971,7 @@ static void fimd_unbind(struct device *dev, struct device *master,
 
 	fimd_disable(ctx->crtc);
 
-	fimd_iommu_detach_devices(ctx);
+	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
 
 	if (ctx->display)
 		exynos_dpi_remove(ctx->display);
