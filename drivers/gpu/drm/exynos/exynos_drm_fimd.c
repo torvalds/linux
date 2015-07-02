@@ -887,7 +887,6 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.win_disable = fimd_win_disable,
 	.te_handler = fimd_te_handler,
 	.clock_enable = fimd_dp_clock_enable,
-	.clear_channels = fimd_clear_channels,
 };
 
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
@@ -957,7 +956,9 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
 
-	ret = drm_iommu_attach_device_if_possible(ctx->crtc, drm_dev, dev);
+	fimd_clear_channels(ctx->crtc);
+
+	ret = drm_iommu_attach_device(drm_dev, dev);
 	if (ret)
 		priv->pipe--;
 

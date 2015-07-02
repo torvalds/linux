@@ -177,7 +177,6 @@ struct exynos_drm_crtc_ops {
 	void (*win_disable)(struct exynos_drm_crtc *crtc, unsigned int zpos);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
-	void (*clear_channels)(struct exynos_drm_crtc *crtc);
 };
 
 /*

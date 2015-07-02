@@ -463,7 +463,6 @@ static struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.win_commit		= decon_win_commit,
 	.win_disable		= decon_win_disable,
 	.te_handler		= decon_te_irq_handler,
-	.clear_channels		= decon_clear_channels,
 };
 
 static int decon_bind(struct device *dev, struct device *master, void *data)
@@ -497,7 +496,9 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		goto err;
 	}
 
-	ret = drm_iommu_attach_device_if_possible(ctx->crtc, drm_dev, dev);
+	decon_clear_channels(ctx->crtc);
+
+	ret = drm_iommu_attach_device(drm_dev, dev);
 	if (ret)
 		goto err;
 

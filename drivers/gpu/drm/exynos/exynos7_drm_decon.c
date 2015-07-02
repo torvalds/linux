@@ -126,7 +126,9 @@ static int decon_ctx_initialize(struct decon_context *ctx,
 	ctx->drm_dev = drm_dev;
 	ctx->pipe = priv->pipe++;
 
-	ret = drm_iommu_attach_device_if_possible(ctx->crtc, drm_dev, ctx->dev);
+	decon_clear_channels(ctx->crtc);
+
+	ret = drm_iommu_attach_device(drm_dev, ctx->dev);
 	if (ret)
 		priv->pipe--;
 
@@ -622,7 +624,6 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.wait_for_vblank = decon_wait_for_vblank,
 	.win_commit = decon_win_commit,
 	.win_disable = decon_win_disable,
-	.clear_channels = decon_clear_channels,
 };
 
 

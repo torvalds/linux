@@ -34,10 +34,6 @@ static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
 	return dev->archdata.mapping ? true : false;
 }
 
-int drm_iommu_attach_device_if_possible(
-		struct exynos_drm_crtc *exynos_crtc, struct drm_device *drm_dev,
-		struct device *subdrv_dev);
-
 #else
 
 static inline int drm_create_iommu_mapping(struct drm_device *drm_dev)
@@ -63,13 +59,6 @@ static inline void drm_iommu_detach_device(struct drm_device *drm_dev,
 static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
 {
 	return false;
-}
-
-static inline int drm_iommu_attach_device_if_possible(
-		struct exynos_drm_crtc *exynos_crtc, struct drm_device *drm_dev,
-		struct device *subdrv_dev)
-{
-	return 0;
 }
 
 #endif

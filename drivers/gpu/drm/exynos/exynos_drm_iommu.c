@@ -142,14 +142,3 @@ void drm_iommu_detach_device(struct drm_device *drm_dev,
 	iommu_detach_device(mapping->domain, subdrv_dev);
 	drm_release_iommu_mapping(drm_dev);
 }
-
-int drm_iommu_attach_device_if_possible(struct exynos_drm_crtc *exynos_crtc,
-			struct drm_device *drm_dev, struct device *subdrv_dev)
-{
-	if (is_drm_iommu_supported(drm_dev)) {
-		if (exynos_crtc->ops->clear_channels)
-			exynos_crtc->ops->clear_channels(exynos_crtc);
-	}
-
-	return drm_iommu_attach_device(drm_dev, subdrv_dev);
-}

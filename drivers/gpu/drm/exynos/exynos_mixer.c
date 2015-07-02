@@ -884,8 +884,7 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 		}
 	}
 
-	ret = drm_iommu_attach_device_if_possible(mixer_ctx->crtc, drm_dev,
-								mixer_ctx->dev);
+	ret = drm_iommu_attach_device(drm_dev, mixer_ctx->dev);
 	if (ret)
 		priv->pipe--;
 
