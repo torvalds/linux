@@ -260,7 +260,7 @@ static int __init qcom_cpuidle_init(struct device_node *cpu_node, int cpu)
 		/* We have atleast one power down mode */
 		cpumask_clear(&mask);
 		cpumask_set_cpu(cpu, &mask);
-		qcom_scm_set_warm_boot_addr(cpu_resume, &mask);
+		qcom_scm_set_warm_boot_addr(cpu_resume_arm, &mask);
 	}
 
 	per_cpu(qcom_idle_ops, cpu) = fns;
