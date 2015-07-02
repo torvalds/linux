@@ -347,8 +347,7 @@ idu_of_init(struct device_node *intc, struct device_node *parent)
 		if (!i)
 			idu_first_irq = irq;
 
-		irq_set_handler_data(irq, domain);
-		irq_set_chained_handler(irq, idu_cascade_isr);
+		irq_set_chained_handler_and_data(irq, idu_cascade_isr, domain);
 	}
 
 	__mcip_cmd(CMD_IDU_ENABLE, 0);
