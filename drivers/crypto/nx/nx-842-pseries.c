@@ -556,7 +556,7 @@ static int nx842_OF_set_defaults(struct nx842_devdata *devdata)
  *
  * Returns:
  *  0 - Device is available
- *  -EINVAL - Device is not available
+ *  -ENODEV - Device is not available
  */
 static int nx842_OF_upd_status(struct nx842_devdata *devdata,
 					struct property *prop) {
@@ -569,6 +569,7 @@ static int nx842_OF_upd_status(struct nx842_devdata *devdata,
 		dev_info(devdata->dev, "%s: status '%s' is not 'okay'\n",
 				__func__, status);
 		devdata->status = UNAVAILABLE;
+		ret = -ENODEV;
 	}
 
 	return ret;
