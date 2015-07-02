@@ -128,7 +128,7 @@ static struct platform_driver sun4i_a10_mod0_clk_driver = {
 	},
 	.probe = sun4i_a10_mod0_clk_probe,
 };
-module_platform_driver(sun4i_a10_mod0_clk_driver);
+builtin_platform_driver(sun4i_a10_mod0_clk_driver);
 
 static const struct factors_data sun9i_a80_mod0_data __initconst = {
 	.enable = 31,
