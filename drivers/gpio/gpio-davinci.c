@@ -545,7 +545,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 		chips[0].chip.to_irq = gpio_to_irq_unbanked;
 		chips[0].gpio_irq = bank_irq;
 		chips[0].gpio_unbanked = pdata->gpio_unbanked;
-		binten = BIT(0);
+		binten = GENMASK(pdata->gpio_unbanked / 16, 0);
 
 		/* AINTC handles mask/unmask; GPIO handles triggering */
 		irq = bank_irq;
