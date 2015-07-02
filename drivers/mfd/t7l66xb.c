@@ -318,7 +318,7 @@ static int t7l66xb_probe(struct platform_device *dev)
 	struct resource *iomem, *rscr;
 	int ret;
 
-	if (pdata == NULL)
+	if (!pdata)
 		return -EINVAL;
 
 	iomem = platform_get_resource(dev, IORESOURCE_MEM, 0);
@@ -371,7 +371,7 @@ static int t7l66xb_probe(struct platform_device *dev)
 
 	clk_prepare_enable(t7l66xb->clk48m);
 
-	if (pdata && pdata->enable)
+	if (pdata->enable)
 		pdata->enable(dev);
 
 	/* Mask all interrupts */
