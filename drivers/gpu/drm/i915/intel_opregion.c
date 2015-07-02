@@ -628,6 +628,38 @@ static struct notifier_block intel_opregion_notifier = {
  * (version 3)
  */
 
+static u32 get_did(struct intel_opregion *opregion, int i)
+{
+	u32 did;
+
+	if (i < ARRAY_SIZE(opregion->acpi->didl)) {
+		did = ioread32(&opregion->acpi->didl[i]);
+	} else {
+		i -= ARRAY_SIZE(opregion->acpi->didl);
+
+		if (WARN_ON(i >= ARRAY_SIZE(opregion->acpi->did2)))
+			return 0;
+
+		did = ioread32(&opregion->acpi->did2[i]);
+	}
+
+	return did;
+}
+
+static void set_did(struct intel_opregion *opregion, int i, u32 val)
+{
+	if (i < ARRAY_SIZE(opregion->acpi->didl)) {
+		iowrite32(val, &opregion->acpi->didl[i]);
+	} else {
+		i -= ARRAY_SIZE(opregion->acpi->didl);
+
+		if (WARN_ON(i >= ARRAY_SIZE(opregion->acpi->did2)))
+			return;
+
+		iowrite32(val, &opregion->acpi->did2[i]);
+	}
+}
+
 static void intel_didl_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -665,22 +697,19 @@ static void intel_didl_outputs(struct drm_device *dev)
 			DRM_DEBUG_KMS("More than 8 outputs detected via ACPI\n");
 			return;
 		}
-		status =
-			acpi_evaluate_integer(acpi_cdev->handle, "_ADR",
-						NULL, &device_id);
+		status = acpi_evaluate_integer(acpi_cdev->handle, "_ADR",
+					       NULL, &device_id);
 		if (ACPI_SUCCESS(status)) {
 			if (!device_id)
 				goto blind_set;
-			iowrite32((u32)(device_id & 0x0f0f),
-				  &opregion->acpi->didl[i]);
-			i++;
+			set_did(opregion, i++, (u32)(device_id & 0x0f0f));
 		}
 	}
 
 end:
 	/* If fewer than 8 outputs, the list must be null terminated */
 	if (i < 8)
-		iowrite32(0, &opregion->acpi->didl[i]);
+		set_did(opregion, i, 0);
 	return;
 
 blind_set:
@@ -713,9 +742,8 @@ blind_set:
 			output_type = ACPI_LVDS_OUTPUT;
 			break;
 		}
-		temp = ioread32(&opregion->acpi->didl[i]);
-		iowrite32(temp | (1<<31) | output_type | i,
-			  &opregion->acpi->didl[i]);
+		temp = get_did(opregion, i);
+		set_did(opregion, i, temp | (1 << 31) | output_type | i);
 		i++;
 	}
 	goto end;
@@ -735,7 +763,7 @@ static void intel_setup_cadls(struct drm_device *dev)
 	 * display switching hotkeys. Just like DIDL, CADL is NULL-terminated if
 	 * there are less than eight devices. */
 	do {
-		disp_id = ioread32(&opregion->acpi->didl[i]);
+		disp_id = get_did(opregion, i);
 		iowrite32(disp_id, &opregion->acpi->cadl[i]);
 	} while (++i < 8 && disp_id != 0);
 }
