@@ -927,10 +927,12 @@ int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mod
 
 	if (crtc->funcs->atomic_duplicate_state)
 		crtc_state = crtc->funcs->atomic_duplicate_state(crtc);
-	else if (crtc->state)
+	else {
+		if (!crtc->state)
+			drm_atomic_helper_crtc_reset(crtc);
+
 		crtc_state = drm_atomic_helper_crtc_duplicate_state(crtc);
-	else
-		crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+	}
 
 	if (!crtc_state)
 		return -ENOMEM;
