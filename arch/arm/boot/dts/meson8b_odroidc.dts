@@ -615,10 +615,10 @@
         pwr-ctrl = <&pwr_ctrl>;
 
         vend_data: vend_data{
-            vendor_name = "Amlogic";           /* Max Chars: 8     */
+            vendor_name = "Hardkernel";           /* Max Chars: 8     */
             vendor_id = <0x000000>;                 /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
-            product_desc = "M8 MBox SKTv1";        /* Max Chars: 16    */
-            cec_osd_string = "MBox";        /* Max Chars: 14    */
+            product_desc = "ODROID-C1";        /* Max Chars: 16    */
+            cec_osd_string = "ODROID-C1";        /* Max Chars: 14    */
             cec_config = <0x00000f>;
             ao_cec = <0x000001>;
         };
