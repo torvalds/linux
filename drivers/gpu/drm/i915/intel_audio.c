@@ -41,7 +41,8 @@
  *
  * The disable sequences must be performed before disabling the transcoder or
  * port. The enable sequences may only be performed after enabling the
- * transcoder and port, and after completed link training.
+ * transcoder and port, and after completed link training. Therefore the audio
+ * enable/disable sequences are part of the modeset sequence.
  *
  * The codec and controller sequences could be done either parallel or serial,
  * but generally the ELDV/PD change in the codec sequence indicates to the audio
