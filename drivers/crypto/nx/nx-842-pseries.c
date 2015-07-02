@@ -566,8 +566,14 @@ static int nx842_OF_upd_status(struct nx842_devdata *devdata,
 	if (!strncmp(status, "okay", (size_t)prop->length)) {
 		devdata->status = AVAILABLE;
 	} else {
-		dev_info(devdata->dev, "%s: status '%s' is not 'okay'\n",
+		/*
+		 * Caller will log that the device is disabled, so only
+		 * output if there is an unexpected status.
+		 */
+		if (strncmp(status, "disabled", (size_t)prop->length)) {
+			dev_info(devdata->dev, "%s: status '%s' is not 'okay'\n",
 				__func__, status);
+		}
 		devdata->status = UNAVAILABLE;
 		ret = -ENODEV;
 	}
