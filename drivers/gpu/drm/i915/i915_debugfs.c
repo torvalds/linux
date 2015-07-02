@@ -1660,9 +1660,7 @@ static int i915_fbc_fc_get(void *data, u64 *val)
 	if (INTEL_INFO(dev)->gen < 7 || !HAS_FBC(dev))
 		return -ENODEV;
 
-	drm_modeset_lock_all(dev);
 	*val = dev_priv->fbc.false_color;
-	drm_modeset_unlock_all(dev);
 
 	return 0;
 }
@@ -1676,7 +1674,6 @@ static int i915_fbc_fc_set(void *data, u64 val)
 	if (INTEL_INFO(dev)->gen < 7 || !HAS_FBC(dev))
 		return -ENODEV;
 
-	drm_modeset_lock_all(dev);
 	mutex_lock(&dev_priv->fbc.lock);
 
 	reg = I915_READ(ILK_DPFC_CONTROL);
@@ -1687,7 +1684,6 @@ static int i915_fbc_fc_set(void *data, u64 val)
 		   (reg & ~FBC_CTL_FALSE_COLOR));
 
 	mutex_unlock(&dev_priv->fbc.lock);
-	drm_modeset_unlock_all(dev);
 	return 0;
 }
 

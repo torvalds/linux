@@ -335,7 +335,6 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 	struct drm_device *dev = work->crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	mutex_lock(&dev->struct_mutex);
 	mutex_lock(&dev_priv->fbc.lock);
 	if (work == dev_priv->fbc.fbc_work) {
 		/* Double check that we haven't switched fb without cancelling
@@ -352,7 +351,6 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 		dev_priv->fbc.fbc_work = NULL;
 	}
 	mutex_unlock(&dev_priv->fbc.lock);
-	mutex_unlock(&dev->struct_mutex);
 
 	kfree(work);
 }

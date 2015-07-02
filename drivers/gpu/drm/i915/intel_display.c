@@ -4747,11 +4747,8 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 	if (crtc->atomic.update_wm_post)
 		intel_update_watermarks(&crtc->base);
 
-	if (atomic->update_fbc) {
-		mutex_lock(&dev->struct_mutex);
+	if (atomic->update_fbc)
 		intel_fbc_update(dev);
-		mutex_unlock(&dev->struct_mutex);
-	}
 
 	if (atomic->post_enable_primary)
 		intel_post_enable_primary(&crtc->base);
@@ -4783,11 +4780,8 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	if (atomic->wait_for_flips)
 		intel_crtc_wait_for_pending_flips(&crtc->base);
 
-	if (atomic->disable_fbc) {
-		mutex_lock(&dev->struct_mutex);
+	if (atomic->disable_fbc)
 		intel_fbc_disable_crtc(crtc);
-		mutex_unlock(&dev->struct_mutex);
-	}
 
 	if (crtc->atomic.disable_ips)
 		hsw_disable_ips(crtc);
@@ -11473,9 +11467,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	i915_gem_track_fb(intel_fb_obj(work->old_fb), obj,
 			  to_intel_plane(primary)->frontbuffer_bit);
+	mutex_unlock(&dev->struct_mutex);
 
 	intel_fbc_disable(dev);
-	mutex_unlock(&dev->struct_mutex);
 	intel_frontbuffer_flip_prepare(dev,
 				       to_intel_plane(primary)->frontbuffer_bit);
 
@@ -15605,9 +15599,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_unregister_dsm_handler();
 
-	mutex_lock(&dev->struct_mutex);
 	intel_fbc_disable(dev);
-	mutex_unlock(&dev->struct_mutex);
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
