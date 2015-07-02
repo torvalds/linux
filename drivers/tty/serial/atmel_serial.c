@@ -56,6 +56,15 @@
 /* Revisit: We should calculate this based on the actual port settings */
 #define PDC_RX_TIMEOUT		(3 * 10)		/* 3 bytes */
 
+/* The minium number of data FIFOs should be able to contain */
+#define ATMEL_MIN_FIFO_SIZE	8
+/*
+ * These two offsets are substracted from the RX FIFO size to define the RTS
+ * high and low thresholds
+ */
+#define ATMEL_RTS_HIGH_OFFSET	16
+#define ATMEL_RTS_LOW_OFFSET	20
+
 #if defined(CONFIG_SERIAL_ATMEL_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
@@ -141,6 +150,9 @@ struct atmel_uart_port {
 	struct mctrl_gpios	*gpios;
 	int			gpio_irq[UART_GPIO_MAX];
 	unsigned int		tx_done_mask;
+	u32			fifo_size;
+	u32			rts_high;
+	u32			rts_low;
 	bool			ms_irq_enabled;
 	bool			is_usart;	/* usart or uart */
 	struct timer_list	uart_timer;	/* uart timer */
@@ -189,6 +201,16 @@ static inline u32 atmel_uart_readl(struct uart_port *port, u32 reg)
 static inline void atmel_uart_writel(struct uart_port *port, u32 reg, u32 value)
 {
 	__raw_writel(value, port->membase + reg);
+}
+
+static inline u8 atmel_uart_readb(struct uart_port *port, u32 reg)
+{
+	return __raw_readb(port->membase + reg);
+}
+
+static inline void atmel_uart_writeb(struct uart_port *port, u32 reg, u8 value)
+{
+	__raw_writeb(value, port->membase + reg);
 }
 
 #ifdef CONFIG_SERIAL_ATMEL_PDC
@@ -635,7 +657,7 @@ static void atmel_rx_chars(struct uart_port *port)
 
 	status = atmel_uart_readl(port, ATMEL_US_CSR);
 	while (status & ATMEL_US_RXRDY) {
-		ch = atmel_uart_readl(port, ATMEL_US_RHR);
+		ch = atmel_uart_readb(port, ATMEL_US_RHR);
 
 		/*
 		 * note that the error handling code is
@@ -686,7 +708,7 @@ static void atmel_tx_chars(struct uart_port *port)
 
 	if (port->x_char &&
 	    (atmel_uart_readl(port, ATMEL_US_CSR) & atmel_port->tx_done_mask)) {
-		atmel_uart_writel(port, ATMEL_US_THR, port->x_char);
+		atmel_uart_writeb(port, ATMEL_US_THR, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
 	}
@@ -695,7 +717,7 @@ static void atmel_tx_chars(struct uart_port *port)
 
 	while (atmel_uart_readl(port, ATMEL_US_CSR) &
 	       atmel_port->tx_done_mask) {
-		atmel_uart_writel(port, ATMEL_US_THR, xmit->buf[xmit->tail]);
+		atmel_uart_writeb(port, ATMEL_US_THR, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 		if (uart_circ_empty(xmit))
@@ -1796,6 +1818,29 @@ static int atmel_startup(struct uart_port *port)
 			atmel_set_ops(port);
 	}
 
+	/*
+	 * Enable FIFO when available
+	 */
+	if (atmel_port->fifo_size) {
+		unsigned int txrdym = ATMEL_US_ONE_DATA;
+		unsigned int rxrdym = ATMEL_US_ONE_DATA;
+		unsigned int fmr;
+
+		atmel_uart_writel(port, ATMEL_US_CR,
+				  ATMEL_US_FIFOEN |
+				  ATMEL_US_RXFCLR |
+				  ATMEL_US_TXFLCLR);
+
+		fmr = ATMEL_US_TXRDYM(txrdym) | ATMEL_US_RXRDYM(rxrdym);
+		if (atmel_port->rts_high &&
+		    atmel_port->rts_low)
+			fmr |=	ATMEL_US_FRTSC |
+				ATMEL_US_RXFTHRES(atmel_port->rts_high) |
+				ATMEL_US_RXFTHRES2(atmel_port->rts_low);
+
+		atmel_uart_writel(port, ATMEL_US_FMR, fmr);
+	}
+
 	/* Save current CSR for comparison in atmel_tasklet_func() */
 	atmel_port->irq_status_prev = atmel_get_lines_status(port);
 	atmel_port->irq_status = atmel_port->irq_status_prev;
@@ -2213,7 +2258,7 @@ static int atmel_poll_get_char(struct uart_port *port)
 	while (!(atmel_uart_readl(port, ATMEL_US_CSR) & ATMEL_US_RXRDY))
 		cpu_relax();
 
-	return atmel_uart_readl(port, ATMEL_US_RHR);
+	return atmel_uart_readb(port, ATMEL_US_RHR);
 }
 
 static void atmel_poll_put_char(struct uart_port *port, unsigned char ch)
@@ -2221,7 +2266,7 @@ static void atmel_poll_put_char(struct uart_port *port, unsigned char ch)
 	while (!(atmel_uart_readl(port, ATMEL_US_CSR) & ATMEL_US_TXRDY))
 		cpu_relax();
 
-	atmel_uart_writel(port, ATMEL_US_THR, ch);
+	atmel_uart_writeb(port, ATMEL_US_THR, ch);
 }
 #endif
 
@@ -2328,7 +2373,7 @@ static void atmel_console_putchar(struct uart_port *port, int ch)
 {
 	while (!(atmel_uart_readl(port, ATMEL_US_CSR) & ATMEL_US_TXRDY))
 		cpu_relax();
-	atmel_uart_writel(port, ATMEL_US_THR, ch);
+	atmel_uart_writeb(port, ATMEL_US_THR, ch);
 }
 
 /*
@@ -2603,6 +2648,48 @@ static int atmel_init_gpios(struct atmel_uart_port *p, struct device *dev)
 	return 0;
 }
 
+static void atmel_serial_probe_fifos(struct atmel_uart_port *port,
+				     struct platform_device *pdev)
+{
+	port->fifo_size = 0;
+	port->rts_low = 0;
+	port->rts_high = 0;
+
+	if (of_property_read_u32(pdev->dev.of_node,
+				 "atmel,fifo-size",
+				 &port->fifo_size))
+		return;
+
+	if (!port->fifo_size)
+		return;
+
+	if (port->fifo_size < ATMEL_MIN_FIFO_SIZE) {
+		port->fifo_size = 0;
+		dev_err(&pdev->dev, "Invalid FIFO size\n");
+		return;
+	}
+
+	/*
+	 * 0 <= rts_low <= rts_high <= fifo_size
+	 * Once their CTS line asserted by the remote peer, some x86 UARTs tend
+	 * to flush their internal TX FIFO, commonly up to 16 data, before
+	 * actually stopping to send new data. So we try to set the RTS High
+	 * Threshold to a reasonably high value respecting this 16 data
+	 * empirical rule when possible.
+	 */
+	port->rts_high = max_t(int, port->fifo_size >> 1,
+			       port->fifo_size - ATMEL_RTS_HIGH_OFFSET);
+	port->rts_low  = max_t(int, port->fifo_size >> 2,
+			       port->fifo_size - ATMEL_RTS_LOW_OFFSET);
+
+	dev_info(&pdev->dev, "Using FIFO (%u data)\n",
+		 port->fifo_size);
+	dev_dbg(&pdev->dev, "RTS High Threshold : %2u data\n",
+		port->rts_high);
+	dev_dbg(&pdev->dev, "RTS Low Threshold  : %2u data\n",
+		port->rts_low);
+}
+
 static int atmel_serial_probe(struct platform_device *pdev)
 {
 	struct atmel_uart_port *port;
@@ -2639,6 +2726,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	port = &atmel_ports[ret];
 	port->backup_imr = 0;
 	port->uart.line = ret;
+	atmel_serial_probe_fifos(port, pdev);
 
 	spin_lock_init(&port->lock_suspended);
 

@@ -35,6 +35,11 @@
 #define	ATMEL_US_DTRDIS		BIT(17)	/* Data Terminal Ready Disable */
 #define	ATMEL_US_RTSEN		BIT(18)	/* Request To Send Enable */
 #define	ATMEL_US_RTSDIS		BIT(19)	/* Request To Send Disable */
+#define	ATMEL_US_TXFCLR		BIT(24)	/* Transmit FIFO Clear */
+#define	ATMEL_US_RXFCLR		BIT(25)	/* Receive FIFO Clear */
+#define	ATMEL_US_TXFLCLR	BIT(26)	/* Transmit FIFO Lock Clear */
+#define	ATMEL_US_FIFOEN		BIT(30)	/* FIFO enable */
+#define	ATMEL_US_FIFODIS	BIT(31)	/* FIFO disable */
 
 #define ATMEL_US_MR		0x04	/* Mode Register */
 #define	ATMEL_US_USMODE		GENMASK(3, 0)	/* Mode of the USART */
@@ -123,6 +128,37 @@
 #define ATMEL_US_FIDI		0x40	/* FI DI Ratio Register */
 #define ATMEL_US_NER		0x44	/* Number of Errors Register */
 #define ATMEL_US_IF		0x4c	/* IrDA Filter Register */
+
+#define ATMEL_US_CMPR		0x90	/* Comparaison Register */
+#define ATMEL_US_FMR		0xa0	/* FIFO Mode Register */
+#define	ATMEL_US_TXRDYM(data)	(((data) & 0x3) << 0)	/* TX Ready Mode */
+#define	ATMEL_US_RXRDYM(data)	(((data) & 0x3) << 4)	/* RX Ready Mode */
+#define		ATMEL_US_ONE_DATA	0x0
+#define		ATMEL_US_TWO_DATA	0x1
+#define		ATMEL_US_FOUR_DATA	0x2
+#define	ATMEL_US_FRTSC		BIT(7)	/* FIFO RTS pin Control */
+#define	ATMEL_US_TXFTHRES(thr)	(((thr) & 0x3f) << 8)	/* TX FIFO Threshold */
+#define	ATMEL_US_RXFTHRES(thr)	(((thr) & 0x3f) << 16)	/* RX FIFO Threshold */
+#define	ATMEL_US_RXFTHRES2(thr)	(((thr) & 0x3f) << 24)	/* RX FIFO Threshold2 */
+
+#define ATMEL_US_FLR		0xa4	/* FIFO Level Register */
+#define	ATMEL_US_TXFL(reg)	(((reg) >> 0) & 0x3f)	/* TX FIFO Level */
+#define	ATMEL_US_RXFL(reg)	(((reg) >> 16) & 0x3f)	/* RX FIFO Level */
+
+#define ATMEL_US_FIER		0xa8	/* FIFO Interrupt Enable Register */
+#define ATMEL_US_FIDR		0xac	/* FIFO Interrupt Disable Register */
+#define ATMEL_US_FIMR		0xb0	/* FIFO Interrupt Mask Register */
+#define ATMEL_US_FESR		0xb4	/* FIFO Event Status Register */
+#define	ATMEL_US_TXFEF		BIT(0)	/* Transmit FIFO Empty Flag */
+#define	ATMEL_US_TXFFF		BIT(1)	/* Transmit FIFO Full Flag */
+#define	ATMEL_US_TXFTHF		BIT(2)	/* Transmit FIFO Threshold Flag */
+#define	ATMEL_US_RXFEF		BIT(3)	/* Receive FIFO Empty Flag */
+#define	ATMEL_US_RXFFF		BIT(4)	/* Receive FIFO Full Flag */
+#define	ATMEL_US_RXFTHF		BIT(5)	/* Receive FIFO Threshold Flag */
+#define	ATMEL_US_TXFPTEF	BIT(6)	/* Transmit FIFO Pointer Error Flag */
+#define	ATMEL_US_RXFPTEF	BIT(7)	/* Receive FIFO Pointer Error Flag */
+#define	ATMEL_US_TXFLOCK	BIT(8)	/* Transmit FIFO Lock (FESR only) */
+#define	ATMEL_US_RXFTHF2	BIT(9)	/* Receive FIFO Threshold Flag 2 */
 
 #define ATMEL_US_NAME		0xf0	/* Ip Name */
 #define ATMEL_US_VERSION	0xfc	/* Ip Version */
