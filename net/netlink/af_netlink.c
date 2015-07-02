@@ -158,7 +158,7 @@ static int __netlink_remove_tap(struct netlink_tap *nt)
 out:
 	spin_unlock(&netlink_tap_lock);
 
-	if (found && nt->module)
+	if (found)
 		module_put(nt->module);
 
 	return found ? 0 : -ENODEV;
