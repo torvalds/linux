@@ -1140,6 +1140,9 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_clock)
 static void
 hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config, int link_bw)
 {
+	memset(&pipe_config->dpll_hw_state, 0,
+	       sizeof(pipe_config->dpll_hw_state));
+
 	switch (link_bw) {
 	case DP_LINK_BW_1_62:
 		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_810;
