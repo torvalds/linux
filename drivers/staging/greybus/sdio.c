@@ -28,6 +28,7 @@ struct gb_sdio_host {
 	spinlock_t		xfer;	/* lock to cancel ongoing transfer */
 	bool			xfer_stop;
 	struct work_struct	mrqwork;
+	u8			queued_events;
 	bool			removed;
 	bool			card_present;
 	bool			read_only;
@@ -121,13 +122,58 @@ static int gb_sdio_get_caps(struct gb_sdio_host *host)
 	return 0;
 }
 
+static void _gb_queue_event(struct gb_sdio_host *host, u8 event)
+{
+	if (event & GB_SDIO_CARD_INSERTED)
+		host->queued_events &= ~GB_SDIO_CARD_REMOVED;
+	else if (event & GB_SDIO_CARD_REMOVED)
+		host->queued_events &= ~GB_SDIO_CARD_INSERTED;
+
+	host->queued_events |= event;
+}
+
+static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
+{
+	u8 state_changed = 0;
+
+	if (event & GB_SDIO_CARD_INSERTED) {
+		if (!mmc_card_is_removable(host->mmc))
+			return 0;
+		if (host->card_present)
+			return 0;
+		host->card_present = true;
+		state_changed = 1;
+	}
+
+	if (event & GB_SDIO_CARD_REMOVED) {
+		if (!mmc_card_is_removable(host->mmc))
+			return 0;
+		if (!(host->card_present))
+			return 0;
+		host->card_present = false;
+		state_changed = 1;
+	}
+
+	if (event & GB_SDIO_WP) {
+		host->read_only = true;
+	}
+
+	if (state_changed) {
+		dev_info(mmc_dev(host->mmc), "card %s now event\n",
+			 (host->card_present ?  "inserted" : "removed"));
+		mmc_detect_change(host->mmc, 0);
+	}
+
+	return 0;
+}
+
 static int gb_sdio_event_recv(u8 type, struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_sdio_host *host = connection->private;
 	struct gb_message *request;
 	struct gb_sdio_event_request *payload;
-	u8 state_changed = 0;
+	int ret =  0;
 	u8 event;
 
 	if (type != GB_SDIO_TYPE_EVENT) {
@@ -146,38 +192,12 @@ static int gb_sdio_event_recv(u8 type, struct gb_operation *op)
 	payload = request->payload;
 	event = payload->event;
 
-	switch (event) {
-	case GB_SDIO_CARD_INSERTED:
-		if (!mmc_card_is_removable(host->mmc))
-			return 0;
-		if (host->card_present)
-			return 0;
-		host->card_present = true;
-		state_changed = 1;
-		break;
-	case GB_SDIO_CARD_REMOVED:
-		if (!mmc_card_is_removable(host->mmc))
-			return 0;
-		if (!(host->card_present))
-			return 0;
-		host->card_present = false;
-		state_changed = 1;
-		break;
-	case GB_SDIO_WP:
-		host->read_only = true;
-		break;
-	default:
-		dev_err(mmc_dev(host->mmc), "wrong event received %d\n", event);
-		return -EINVAL;
-	}
+	if (host->removed)
+		_gb_queue_event(host, event);
+	else
+		ret = _gb_sdio_process_events(host, event);
 
-	if (state_changed) {
-		dev_info(mmc_dev(host->mmc), "card %s now event\n",
-			 (host->card_present ?  "inserted" : "removed"));
-		mmc_detect_change(host->mmc, 0);
-	}
-
-	return 0;
+	return ret;
 }
 
 static int gb_sdio_set_ios(struct gb_sdio_host *host,
@@ -649,6 +669,7 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
+	host->removed = true;
 
 	host->connection = connection;
 	connection->private = host;
@@ -683,6 +704,9 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 	ret = mmc_add_host(mmc);
 	if (ret < 0)
 		goto free_work;
+	host->removed = false;
+	ret = _gb_sdio_process_events(host, host->queued_events);
+	host->queued_events = 0;
 
 	return ret;
 
