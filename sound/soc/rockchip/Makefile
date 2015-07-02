@@ -3,7 +3,7 @@ snd-soc-rockchip-objs := rk_pcm.o card_info.o
 ifdef CONFIG_ARCH_RK29
 snd-soc-rockchip-i2s-objs := rk29_i2s.o
 else
-snd-soc-rockchip-i2s-objs := rk30_i2s.o
+snd-soc-rockchip-i2s-objs := rk_i2s.o
 endif
 snd-soc-rockchip-spdif-objs := rk_spdif.o
 
