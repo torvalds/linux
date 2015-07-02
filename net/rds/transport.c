@@ -73,7 +73,7 @@ EXPORT_SYMBOL_GPL(rds_trans_unregister);
 
 void rds_trans_put(struct rds_transport *trans)
 {
-	if (trans && trans->t_owner)
+	if (trans)
 		module_put(trans->t_owner);
 }
 
