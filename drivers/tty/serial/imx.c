@@ -1098,10 +1098,23 @@ static void imx_disable_dma(struct imx_port *sport)
 /* half the RX buffer size */
 #define CTSTL 16
 
+static inline void imx_reset(struct imx_port *sport)
+{
+	int i = 100;
+	unsigned long temp;
+
+	temp = readl(sport->port.membase + UCR2);
+	temp &= ~UCR2_SRST;
+	writel(temp, sport->port.membase + UCR2);
+
+	while (!(readl(sport->port.membase + UCR2) & UCR2_SRST) && (--i > 0))
+		udelay(1);
+}
+
 static int imx_startup(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
-	int retval, i;
+	int retval;
 	unsigned long flags, temp;
 
 	retval = clk_prepare_enable(sport->clk_per);
@@ -1133,14 +1146,7 @@ static int imx_startup(struct uart_port *port)
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 	/* Reset fifo's and state machines */
-	i = 100;
-
-	temp = readl(sport->port.membase + UCR2);
-	temp &= ~UCR2_SRST;
-	writel(temp, sport->port.membase + UCR2);
-
-	while (!(readl(sport->port.membase + UCR2) & UCR2_SRST) && (--i > 0))
-		udelay(1);
+	imx_reset(sport);
 
 	/*
 	 * Finally, clear and enable interrupts
@@ -1974,6 +1980,14 @@ static int serial_imx_probe(struct platform_device *pdev)
 	writel_relaxed(reg, sport->port.membase + UCR1);
 
 	clk_disable_unprepare(sport->clk_ipg);
+
+	/*
+	 * Perform a complete reset of the UART device. Needed if we don't
+	 * come straight out of reset.
+	 */
+	writel(0, sport->port.membase + UCR2);
+	writel(0, sport->port.membase + UCR1);
+	imx_reset(sport);
 
 	/*
 	 * Allocate the IRQ(s) i.MX1 has three interrupts whereas later
