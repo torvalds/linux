@@ -53,7 +53,7 @@ static DECLARE_COMPLETION(sclp_request_queue_flushed);
 /* Number of console pages to allocate, used by sclp_con.c and sclp_vt220.c */
 int sclp_console_pages = SCLP_CONSOLE_PAGES;
 /* Flag to indicate if buffer pages are dropped on buffer full condition */
-int sclp_console_drop = 0;
+int sclp_console_drop = 1;
 /* Number of times the console dropped buffer pages */
 unsigned long sclp_console_full;
 
@@ -79,8 +79,8 @@ static int __init sclp_setup_console_drop(char *str)
 	int drop, rc;
 
 	rc = kstrtoint(str, 0, &drop);
-	if (!rc && drop)
-		sclp_console_drop = 1;
+	if (!rc)
+		sclp_console_drop = drop;
 	return 1;
 }
 
