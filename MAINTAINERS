@@ -2763,7 +2763,7 @@ F:	Documentation/devicetree/bindings/media/coda.txt
 F:	drivers/media/platform/coda/
 
 COMMON CLK FRAMEWORK
-M:	Mike Turquette <mturquette@linaro.org>
+M:	Michael Turquette <mturquette@baylibre.com>
 M:	Stephen Boyd <sboyd@codeaurora.org>
 L:	linux-clk@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/clk/linux.git

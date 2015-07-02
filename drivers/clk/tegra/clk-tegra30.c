@@ -679,7 +679,7 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .dev_id = "tegra30-dam.1", .dt_id = TEGRA30_CLK_DAM1 },
 	{ .dev_id = "tegra30-dam.2", .dt_id = TEGRA30_CLK_DAM2 },
 	{ .con_id = "hda", .dev_id = "tegra30-hda", .dt_id = TEGRA30_CLK_HDA },
-	{ .con_id = "hda2codec", .dev_id = "tegra30-hda", .dt_id = TEGRA30_CLK_HDA2CODEC_2X },
+	{ .con_id = "hda2codec_2x", .dev_id = "tegra30-hda", .dt_id = TEGRA30_CLK_HDA2CODEC_2X },
 	{ .dev_id = "spi_tegra.0", .dt_id = TEGRA30_CLK_SBC1 },
 	{ .dev_id = "spi_tegra.1", .dt_id = TEGRA30_CLK_SBC2 },
 	{ .dev_id = "spi_tegra.2", .dt_id = TEGRA30_CLK_SBC3 },
