@@ -1272,8 +1272,8 @@ struct trace {
 		int		max;
 		struct syscall  *table;
 		struct {
-			struct perf_evsel *enter,
-					  *exit;
+			struct perf_evsel *sys_enter,
+					  *sys_exit;
 		}		events;
 	} syscalls;
 	struct record_opts	opts;
@@ -1284,6 +1284,10 @@ struct trace {
 	FILE			*output;
 	unsigned long		nr_events;
 	struct strlist		*ev_qualifier;
+	struct {
+		size_t		nr;
+		int		*entries;
+	}			ev_qualifier_ids;
 	const char 		*last_vfs_getname;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
@@ -1587,13 +1591,27 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 
 static int trace__validate_ev_qualifier(struct trace *trace)
 {
-	int err = 0;
+	int err = 0, i;
 	struct str_node *pos;
+
+	trace->ev_qualifier_ids.nr = strlist__nr_entries(trace->ev_qualifier);
+	trace->ev_qualifier_ids.entries = malloc(trace->ev_qualifier_ids.nr *
+						 sizeof(trace->ev_qualifier_ids.entries[0]));
+
+	if (trace->ev_qualifier_ids.entries == NULL) {
+		fputs("Error:\tNot enough memory for allocating events qualifier ids\n",
+		       trace->output);
+		err = -EINVAL;
+		goto out;
+	}
+
+	i = 0;
 
 	strlist__for_each(pos, trace->ev_qualifier) {
 		const char *sc = pos->s;
+		int id = audit_name_to_syscall(sc, trace->audit.machine);
 
-		if (audit_name_to_syscall(sc, trace->audit.machine) < 0) {
+		if (id < 0) {
 			if (err == 0) {
 				fputs("Error:\tInvalid syscall ", trace->output);
 				err = -EINVAL;
@@ -1603,13 +1621,17 @@ static int trace__validate_ev_qualifier(struct trace *trace)
 
 			fputs(sc, trace->output);
 		}
+
+		trace->ev_qualifier_ids.entries[i++] = id;
 	}
 
 	if (err < 0) {
 		fputs("\nHint:\ttry 'perf list syscalls:sys_enter_*'"
 		      "\nHint:\tand: 'man syscalls'\n", trace->output);
+		zfree(&trace->ev_qualifier_ids.entries);
+		trace->ev_qualifier_ids.nr = 0;
 	}
-
+out:
 	return err;
 }
 
@@ -2274,8 +2296,8 @@ static int trace__add_syscall_newtp(struct trace *trace)
 	perf_evlist__add(evlist, sys_enter);
 	perf_evlist__add(evlist, sys_exit);
 
-	trace->syscalls.events.enter = sys_enter;
-	trace->syscalls.events.exit  = sys_exit;
+	trace->syscalls.events.sys_enter = sys_enter;
+	trace->syscalls.events.sys_exit  = sys_exit;
 
 	ret = 0;
 out:
