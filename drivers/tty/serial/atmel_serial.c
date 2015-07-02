@@ -144,6 +144,7 @@ struct atmel_uart_port {
 	unsigned int		irq_status;
 	unsigned int		irq_status_prev;
 	unsigned int		status_change;
+	unsigned int		tx_len;
 
 	struct circ_buf		rx_ring;
 
@@ -745,10 +746,10 @@ static void atmel_complete_tx_dma(void *arg)
 
 	if (chan)
 		dmaengine_terminate_all(chan);
-	xmit->tail += sg_dma_len(&atmel_port->sg_tx);
+	xmit->tail += atmel_port->tx_len;
 	xmit->tail &= UART_XMIT_SIZE - 1;
 
-	port->icount.tx += sg_dma_len(&atmel_port->sg_tx);
+	port->icount.tx += atmel_port->tx_len;
 
 	spin_lock_irq(&atmel_port->lock_tx);
 	async_tx_ack(atmel_port->desc_tx);
@@ -796,7 +797,9 @@ static void atmel_tx_dma(struct uart_port *port)
 	struct circ_buf *xmit = &port->state->xmit;
 	struct dma_chan *chan = atmel_port->chan_tx;
 	struct dma_async_tx_descriptor *desc;
-	struct scatterlist *sg = &atmel_port->sg_tx;
+	struct scatterlist sgl[2], *sg, *sg_tx = &atmel_port->sg_tx;
+	unsigned int tx_len, part1_len, part2_len, sg_len;
+	dma_addr_t phys_addr;
 
 	/* Make sure we have an idle channel */
 	if (atmel_port->desc_tx != NULL)
@@ -812,18 +815,46 @@ static void atmel_tx_dma(struct uart_port *port)
 		 * Take the port lock to get a
 		 * consistent xmit buffer state.
 		 */
-		sg->offset = xmit->tail & (UART_XMIT_SIZE - 1);
-		sg_dma_address(sg) = (sg_dma_address(sg) &
-					~(UART_XMIT_SIZE - 1))
-					+ sg->offset;
-		sg_dma_len(sg) = CIRC_CNT_TO_END(xmit->head,
-						xmit->tail,
-						UART_XMIT_SIZE);
-		BUG_ON(!sg_dma_len(sg));
+		tx_len = CIRC_CNT_TO_END(xmit->head,
+					 xmit->tail,
+					 UART_XMIT_SIZE);
+
+		if (atmel_port->fifo_size) {
+			/* multi data mode */
+			part1_len = (tx_len & ~0x3); /* DWORD access */
+			part2_len = (tx_len & 0x3); /* BYTE access */
+		} else {
+			/* single data (legacy) mode */
+			part1_len = 0;
+			part2_len = tx_len; /* BYTE access only */
+		}
+
+		sg_init_table(sgl, 2);
+		sg_len = 0;
+		phys_addr = sg_dma_address(sg_tx) + xmit->tail;
+		if (part1_len) {
+			sg = &sgl[sg_len++];
+			sg_dma_address(sg) = phys_addr;
+			sg_dma_len(sg) = part1_len;
+
+			phys_addr += part1_len;
+		}
+
+		if (part2_len) {
+			sg = &sgl[sg_len++];
+			sg_dma_address(sg) = phys_addr;
+			sg_dma_len(sg) = part2_len;
+		}
+
+		/*
+		 * save tx_len so atmel_complete_tx_dma() will increase
+		 * xmit->tail correctly
+		 */
+		atmel_port->tx_len = tx_len;
 
 		desc = dmaengine_prep_slave_sg(chan,
-					       sg,
-					       1,
+					       sgl,
+					       sg_len,
 					       DMA_MEM_TO_DEV,
 					       DMA_PREP_INTERRUPT |
 					       DMA_CTRL_ACK);
@@ -832,7 +863,7 @@ static void atmel_tx_dma(struct uart_port *port)
 			return;
 		}
 
-		dma_sync_sg_for_device(port->dev, sg, 1, DMA_TO_DEVICE);
+		dma_sync_sg_for_device(port->dev, sg_tx, 1, DMA_TO_DEVICE);
 
 		atmel_port->desc_tx = desc;
 		desc->callback = atmel_complete_tx_dma;
@@ -892,7 +923,9 @@ static int atmel_prepare_tx_dma(struct uart_port *port)
 	/* Configure the slave DMA */
 	memset(&config, 0, sizeof(config));
 	config.direction = DMA_MEM_TO_DEV;
-	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	config.dst_addr_width = (atmel_port->fifo_size) ?
+				DMA_SLAVE_BUSWIDTH_4_BYTES :
+				DMA_SLAVE_BUSWIDTH_1_BYTE;
 	config.dst_addr = port->mapbase + ATMEL_US_THR;
 	config.dst_maxburst = 1;
 
@@ -1830,6 +1863,9 @@ static int atmel_startup(struct uart_port *port)
 				  ATMEL_US_FIFOEN |
 				  ATMEL_US_RXFCLR |
 				  ATMEL_US_TXFLCLR);
+
+		if (atmel_use_dma_tx(port))
+			txrdym = ATMEL_US_FOUR_DATA;
 
 		fmr = ATMEL_US_TXRDYM(txrdym) | ATMEL_US_RXRDYM(rxrdym);
 		if (atmel_port->rts_high &&
