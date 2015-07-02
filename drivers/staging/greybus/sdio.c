@@ -443,8 +443,8 @@ static void gb_sdio_mrq_work(struct work_struct *work)
 			goto done;
 	}
 
-	if (mrq->data->stop) {
-		ret = gb_sdio_command(host, mrq->data->stop);
+	if (mrq->stop) {
+		ret = gb_sdio_command(host, mrq->stop);
 		if (ret < 0)
 			goto done;
 	}
