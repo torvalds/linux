@@ -954,6 +954,10 @@ void ci_hdrc_otg_fsm_remove(struct ci_hdrc *ci)
 {
 	enum otg_fsm_timer i;
 
+	mutex_lock(&ci->fsm.lock);
+	ci->fsm.otg->state = OTG_STATE_UNDEFINED;
+	mutex_unlock(&ci->fsm.lock);
+
 	for (i = 0; i < NUM_OTG_FSM_TIMERS; i++)
 		otg_del_timer(&ci->fsm, i);
 
@@ -965,7 +969,6 @@ void ci_hdrc_otg_fsm_remove(struct ci_hdrc *ci)
 
 	sysfs_remove_group(&ci->dev->kobj, &inputs_attr_group);
 	del_timer_sync(&ci->hnp_polling_timer);
-	ci->fsm.otg->state = OTG_STATE_UNDEFINED;
 }
 
 /* Restart OTG fsm if resume from power lost */
