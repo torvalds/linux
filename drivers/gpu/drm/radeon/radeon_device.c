@@ -1080,6 +1080,22 @@ static bool radeon_check_pot_argument(int arg)
 }
 
 /**
+ * Determine a sensible default GART size according to ASIC family.
+ *
+ * @family ASIC family name
+ */
+static int radeon_gart_size_auto(enum radeon_family family)
+{
+	/* default to a larger gart size on newer asics */
+	if (family >= CHIP_TAHITI)
+		return 2048;
+	else if (family >= CHIP_RV770)
+		return 1024;
+	else
+		return 512;
+}
+
+/**
  * radeon_check_arguments - validate module params
  *
  * @rdev: radeon_device pointer
@@ -1097,27 +1113,17 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 	}
 
 	if (radeon_gart_size == -1) {
-		/* default to a larger gart size on newer asics */
-		if (rdev->family >= CHIP_RV770)
-			radeon_gart_size = 1024;
-		else
-			radeon_gart_size = 512;
+		radeon_gart_size = radeon_gart_size_auto(rdev->family);
 	}
 	/* gtt size must be power of two and greater or equal to 32M */
 	if (radeon_gart_size < 32) {
 		dev_warn(rdev->dev, "gart size (%d) too small\n",
 				radeon_gart_size);
-		if (rdev->family >= CHIP_RV770)
-			radeon_gart_size = 1024;
-		else
-			radeon_gart_size = 512;
+		radeon_gart_size = radeon_gart_size_auto(rdev->family);
 	} else if (!radeon_check_pot_argument(radeon_gart_size)) {
 		dev_warn(rdev->dev, "gart size (%d) must be a power of 2\n",
 				radeon_gart_size);
-		if (rdev->family >= CHIP_RV770)
-			radeon_gart_size = 1024;
-		else
-			radeon_gart_size = 512;
+		radeon_gart_size = radeon_gart_size_auto(rdev->family);
 	}
 	rdev->mc.gtt_size = (uint64_t)radeon_gart_size << 20;
 
