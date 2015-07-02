@@ -46,17 +46,25 @@ int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
 				struct drm_mm_node *node, u64 size,
 				unsigned alignment)
 {
+	int ret;
+
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return -ENODEV;
 
-	return drm_mm_insert_node(&dev_priv->mm.stolen, node, size, alignment,
-				  DRM_MM_SEARCH_DEFAULT);
+	mutex_lock(&dev_priv->mm.stolen_lock);
+	ret = drm_mm_insert_node(&dev_priv->mm.stolen, node, size, alignment,
+				 DRM_MM_SEARCH_DEFAULT);
+	mutex_unlock(&dev_priv->mm.stolen_lock);
+
+	return ret;
 }
 
 void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 				 struct drm_mm_node *node)
 {
+	mutex_lock(&dev_priv->mm.stolen_lock);
 	drm_mm_remove_node(node);
+	mutex_unlock(&dev_priv->mm.stolen_lock);
 }
 
 static unsigned long i915_stolen_to_physical(struct drm_device *dev)
@@ -183,6 +191,8 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 tmp;
 	int bios_reserved = 0;
+
+	mutex_init(&dev_priv->mm.stolen_lock);
 
 #ifdef CONFIG_INTEL_IOMMU
 	if (intel_iommu_gfx_mapped && INTEL_INFO(dev)->gen < 8) {
@@ -384,7 +394,9 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 	stolen->start = stolen_offset;
 	stolen->size = size;
+	mutex_lock(&dev_priv->mm.stolen_lock);
 	ret = drm_mm_reserve_node(&dev_priv->mm.stolen, stolen);
+	mutex_unlock(&dev_priv->mm.stolen_lock);
 	if (ret) {
 		DRM_DEBUG_KMS("failed to allocate stolen space\n");
 		kfree(stolen);
