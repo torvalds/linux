@@ -58,6 +58,7 @@ void acpi_cmos_rtc_init(void);
 #else
 static inline void acpi_cmos_rtc_init(void) {}
 #endif
+int acpi_rev_override_setup(char *str);
 
 extern bool acpi_force_hot_remove;
 
