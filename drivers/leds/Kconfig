@@ -455,12 +455,16 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD || MACH_ARMADA_370
 	default y
 	help
-	  This option enable support for the dual-GPIO LED found on the
-	  Network Space v2 board (and parents). This include Internet Space v2,
-	  Network Space (Max) v2 and d2 Network v2 boards.
+	  This option enables support for the dual-GPIO LEDs found on the
+	  following LaCie/Seagate boards:
+
+		Network Space v2 (and parents: Max, Mini)
+		Internet Space v2
+		d2 Network v2
+		n090401 (Seagate NAS 4-Bay)
 
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
