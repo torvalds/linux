@@ -33,7 +33,6 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 			       struct amdgpu_fence **fence);
 void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp);
-int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx, int lo, int hi);
 int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx);
 bool amdgpu_vce_ring_emit_semaphore(struct amdgpu_ring *ring,
 				    struct amdgpu_semaphore *semaphore,
