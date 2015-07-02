@@ -1997,10 +1997,12 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		if (priv->bss_mode == NL80211_IFTYPE_ADHOC)
 			cmd_ptr->params.bss_mode.con_type =
 				CONNECTION_TYPE_ADHOC;
-		else if (priv->bss_mode == NL80211_IFTYPE_STATION)
+		else if (priv->bss_mode == NL80211_IFTYPE_STATION ||
+			 priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT)
 			cmd_ptr->params.bss_mode.con_type =
 				CONNECTION_TYPE_INFRA;
-		else if (priv->bss_mode == NL80211_IFTYPE_AP)
+		else if (priv->bss_mode == NL80211_IFTYPE_AP ||
+			 priv->bss_mode == NL80211_IFTYPE_P2P_GO)
 			cmd_ptr->params.bss_mode.con_type = CONNECTION_TYPE_AP;
 		cmd_ptr->size = cpu_to_le16(sizeof(struct
 				host_cmd_ds_set_bss_mode) + S_DS_GEN);

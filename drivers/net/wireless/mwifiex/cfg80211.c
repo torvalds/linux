@@ -831,8 +831,11 @@ mwifiex_init_new_priv_params(struct mwifiex_private *priv,
 		priv->bss_type = MWIFIEX_BSS_TYPE_STA;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
-	case NL80211_IFTYPE_P2P_GO:
 		priv->bss_role =  MWIFIEX_BSS_ROLE_STA;
+		priv->bss_type = MWIFIEX_BSS_TYPE_P2P;
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		priv->bss_role =  MWIFIEX_BSS_ROLE_UAP;
 		priv->bss_type = MWIFIEX_BSS_TYPE_P2P;
 		break;
 	case NL80211_IFTYPE_AP:
