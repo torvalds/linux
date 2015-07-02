@@ -85,7 +85,7 @@ static int __init zero_pmd_populate(pud_t *pud, unsigned long addr,
 	while (IS_ALIGNED(addr, PMD_SIZE) && addr + PMD_SIZE <= end) {
 		WARN_ON(!pmd_none(*pmd));
 		set_pmd(pmd, __pmd(__pa_nodebug(kasan_zero_pte)
-					| __PAGE_KERNEL_RO));
+					| _KERNPG_TABLE));
 		addr += PMD_SIZE;
 		pmd = pmd_offset(pud, addr);
 	}
@@ -111,7 +111,7 @@ static int __init zero_pud_populate(pgd_t *pgd, unsigned long addr,
 	while (IS_ALIGNED(addr, PUD_SIZE) && addr + PUD_SIZE <= end) {
 		WARN_ON(!pud_none(*pud));
 		set_pud(pud, __pud(__pa_nodebug(kasan_zero_pmd)
-					| __PAGE_KERNEL_RO));
+					| _KERNPG_TABLE));
 		addr += PUD_SIZE;
 		pud = pud_offset(pgd, addr);
 	}
@@ -136,7 +136,7 @@ static int __init zero_pgd_populate(unsigned long addr, unsigned long end)
 	while (IS_ALIGNED(addr, PGDIR_SIZE) && addr + PGDIR_SIZE <= end) {
 		WARN_ON(!pgd_none(*pgd));
 		set_pgd(pgd, __pgd(__pa_nodebug(kasan_zero_pud)
-					| __PAGE_KERNEL_RO));
+					| _KERNPG_TABLE));
 		addr += PGDIR_SIZE;
 		pgd = pgd_offset_k(addr);
 	}
