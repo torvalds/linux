@@ -51,6 +51,7 @@ int vc4_kms_load(struct drm_device *dev)
 	dev->mode_config.max_height = 2048;
 	dev->mode_config.funcs = &vc4_mode_funcs;
 	dev->mode_config.preferred_depth = 24;
+	dev->vblank_disable_allowed = true;
 
 	drm_mode_config_reset(dev);
 
