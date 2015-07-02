@@ -247,42 +247,6 @@ out_delete:
 	({ struct syscall_tp *fields = evsel->priv; \
 	   fields->name.pointer(&fields->name, sample); })
 
-static int perf_evlist__add_syscall_newtp(struct perf_evlist *evlist,
-					  void *sys_enter_handler,
-					  void *sys_exit_handler)
-{
-	int ret = -1;
-	struct perf_evsel *sys_enter, *sys_exit;
-
-	sys_enter = perf_evsel__syscall_newtp("sys_enter", sys_enter_handler);
-	if (sys_enter == NULL)
-		goto out;
-
-	if (perf_evsel__init_sc_tp_ptr_field(sys_enter, args))
-		goto out_delete_sys_enter;
-
-	sys_exit = perf_evsel__syscall_newtp("sys_exit", sys_exit_handler);
-	if (sys_exit == NULL)
-		goto out_delete_sys_enter;
-
-	if (perf_evsel__init_sc_tp_uint_field(sys_exit, ret))
-		goto out_delete_sys_exit;
-
-	perf_evlist__add(evlist, sys_enter);
-	perf_evlist__add(evlist, sys_exit);
-
-	ret = 0;
-out:
-	return ret;
-
-out_delete_sys_exit:
-	perf_evsel__delete_priv(sys_exit);
-out_delete_sys_enter:
-	perf_evsel__delete_priv(sys_enter);
-	goto out;
-}
-
-
 struct syscall_arg {
 	unsigned long val;
 	struct thread *thread;
@@ -1307,6 +1271,10 @@ struct trace {
 	struct {
 		int		max;
 		struct syscall  *table;
+		struct {
+			struct perf_evsel *enter,
+					  *exit;
+		}		events;
 	} syscalls;
 	struct record_opts	opts;
 	struct perf_evlist	*evlist;
@@ -2283,6 +2251,44 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 	}
 }
 
+static int trace__add_syscall_newtp(struct trace *trace)
+{
+	int ret = -1;
+	struct perf_evlist *evlist = trace->evlist;
+	struct perf_evsel *sys_enter, *sys_exit;
+
+	sys_enter = perf_evsel__syscall_newtp("sys_enter", trace__sys_enter);
+	if (sys_enter == NULL)
+		goto out;
+
+	if (perf_evsel__init_sc_tp_ptr_field(sys_enter, args))
+		goto out_delete_sys_enter;
+
+	sys_exit = perf_evsel__syscall_newtp("sys_exit", trace__sys_exit);
+	if (sys_exit == NULL)
+		goto out_delete_sys_enter;
+
+	if (perf_evsel__init_sc_tp_uint_field(sys_exit, ret))
+		goto out_delete_sys_exit;
+
+	perf_evlist__add(evlist, sys_enter);
+	perf_evlist__add(evlist, sys_exit);
+
+	trace->syscalls.events.enter = sys_enter;
+	trace->syscalls.events.exit  = sys_exit;
+
+	ret = 0;
+out:
+	return ret;
+
+out_delete_sys_exit:
+	perf_evsel__delete_priv(sys_exit);
+out_delete_sys_enter:
+	perf_evsel__delete_priv(sys_enter);
+	goto out;
+}
+
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
@@ -2293,9 +2299,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	trace->live = true;
 
-	if (trace->trace_syscalls &&
-	    perf_evlist__add_syscall_newtp(evlist, trace__sys_enter,
-					   trace__sys_exit))
+	if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
 		goto out_error_raw_syscalls;
 
 	if (trace->trace_syscalls)
