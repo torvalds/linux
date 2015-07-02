@@ -85,7 +85,7 @@ static void _gb_sdio_set_host_caps(struct gb_sdio_host *host, u32 r)
 #endif
 		(r & GB_SDIO_CAP_HS200_1_8V ? MMC_CAP2_HS200_1_8V_SDR : 0);
 
-	host->mmc->caps = caps;
+	host->mmc->caps = caps | MMC_CAP_NEEDS_POLL;
 	host->mmc->caps2 = caps2;
 
 	if (caps & MMC_CAP_NONREMOVABLE)
