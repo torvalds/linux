@@ -223,7 +223,7 @@ static int lp55xx_request_firmware(struct lp55xx_chip *chip)
 	const char *name = chip->cl->name;
 	struct device *dev = &chip->cl->dev;
 
-	return request_firmware_nowait(THIS_MODULE, true, name, dev,
+	return request_firmware_nowait(THIS_MODULE, false, name, dev,
 				GFP_KERNEL, chip, lp55xx_firmware_loaded);
 }
 
