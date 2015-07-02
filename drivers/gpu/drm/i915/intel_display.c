@@ -11475,9 +11475,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			  to_intel_plane(primary)->frontbuffer_bit);
 
 	intel_fbc_disable(dev);
+	mutex_unlock(&dev->struct_mutex);
 	intel_frontbuffer_flip_prepare(dev,
 				       to_intel_plane(primary)->frontbuffer_bit);
-	mutex_unlock(&dev->struct_mutex);
 
 	trace_i915_flip_request(intel_crtc->plane, obj);
 
