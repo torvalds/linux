@@ -635,7 +635,7 @@ static int gb_mmc_get_ro(struct mmc_host *mmc)
 	if (host->removed)
 		return -ESHUTDOWN;
 	mutex_unlock(&host->lock);
-	return host->card_present;
+	return host->read_only;
 }
 
 static int gb_mmc_get_cd(struct mmc_host *mmc)
@@ -646,7 +646,7 @@ static int gb_mmc_get_cd(struct mmc_host *mmc)
 	if (host->removed)
 		return -ESHUTDOWN;
 	mutex_unlock(&host->lock);
-	return host->read_only;
+	return host->card_present;
 }
 
 static const struct mmc_host_ops gb_sdio_ops = {
