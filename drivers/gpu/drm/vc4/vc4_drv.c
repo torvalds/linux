@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include "drm_fb_cma_helper.h"
 
 #include "vc4_drv.h"
 #include "vc4_regs.h"
@@ -49,6 +50,14 @@ static void vc4_drm_preclose(struct drm_device *dev, struct drm_file *file)
 		vc4_cancel_page_flip(crtc, file);
 }
 
+static void vc4_lastclose(struct drm_device *dev)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+	if (vc4->fbdev)
+		drm_fbdev_cma_restore_mode(vc4->fbdev);
+}
+
 static const struct file_operations vc4_drm_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -71,6 +80,7 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_ATOMIC |
 			    DRIVER_GEM |
 			    DRIVER_PRIME),
+	.lastclose = vc4_lastclose,
 	.preclose = vc4_drm_preclose,
 
 	.enable_vblank = vc4_enable_vblank,
@@ -199,6 +209,10 @@ static void vc4_drm_unbind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = platform_get_drvdata(pdev);
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+
+	if (vc4->fbdev)
+		drm_fbdev_cma_fini(vc4->fbdev);
 
 	drm_mode_config_cleanup(drm);
 
