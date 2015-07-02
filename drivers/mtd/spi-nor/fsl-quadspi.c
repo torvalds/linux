@@ -557,7 +557,7 @@ static int fsl_qspi_nor_write(struct fsl_qspi *q, struct spi_nor *nor,
 
 	/* clear the TX FIFO. */
 	tmp = readl(q->iobase + QUADSPI_MCR);
-	writel(tmp | QUADSPI_MCR_CLR_RXF_MASK, q->iobase + QUADSPI_MCR);
+	writel(tmp | QUADSPI_MCR_CLR_TXF_MASK, q->iobase + QUADSPI_MCR);
 
 	/* fill the TX data to the FIFO */
 	for (j = 0, i = ((count + 3) / 4); j < i; j++) {
