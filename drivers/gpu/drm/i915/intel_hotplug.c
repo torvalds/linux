@@ -29,6 +29,45 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 
+/**
+ * DOC: Hotplug
+ *
+ * Simply put, hotplug occurs when a display is connected to or disconnected
+ * from the system. However, there may be adapters and docking stations and
+ * Display Port short pulses and MST devices involved, complicating matters.
+ *
+ * Hotplug in i915 is handled in many different levels of abstraction.
+ *
+ * The platform dependent interrupt handling code in i915_irq.c enables,
+ * disables, and does preliminary handling of the interrupts. The interrupt
+ * handlers gather the hotplug detect (HPD) information from relevant registers
+ * into a platform independent mask of hotplug pins that have fired.
+ *
+ * The platform independent interrupt handler intel_hpd_irq_handler() in
+ * intel_hotplug.c does hotplug irq storm detection and mitigation, and passes
+ * further processing to appropriate bottom halves (Display Port specific and
+ * regular hotplug).
+ *
+ * The Display Port work function i915_digport_work_func() calls into
+ * intel_dp_hpd_pulse() via hooks, which handles DP short pulses and DP MST long
+ * pulses, with failures and non-MST long pulses triggering regular hotplug
+ * processing on the connector.
+ *
+ * The regular hotplug work function i915_hotplug_work_func() calls connector
+ * detect hooks, and, if connector status changes, triggers sending of hotplug
+ * uevent to userspace via drm_kms_helper_hotplug_event().
+ *
+ * Finally, the userspace is responsible for triggering a modeset upon receiving
+ * the hotplug uevent, disabling or enabling the crtc as needed.
+ *
+ * The hotplug interrupt storm detection and mitigation code keeps track of the
+ * number of interrupts per hotplug pin per a period of time, and if the number
+ * of interrupts exceeds a certain threshold, the interrupt is disabled for a
+ * while before being re-enabled. The intention is to mitigate issues raising
+ * from broken hardware triggering massive amounts of interrupts and grinding
+ * the system to a halt.
+ */
+
 enum port intel_hpd_pin_to_port(enum hpd_pin pin)
 {
 	switch (pin) {
