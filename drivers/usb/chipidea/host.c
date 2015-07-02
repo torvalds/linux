@@ -270,7 +270,10 @@ done:
 
 static irqreturn_t host_irq(struct ci_hdrc *ci)
 {
-	return usb_hcd_irq(ci->irq, ci->hcd);
+	if (ci->hcd)
+		return usb_hcd_irq(ci->irq, ci->hcd);
+	else
+		return IRQ_NONE;
 }
 
 static int host_start(struct ci_hdrc *ci)
@@ -463,8 +466,11 @@ static void ci_hdrc_host_resume(struct ci_hdrc *ci, bool power_lost)
 
 void ci_hdrc_host_destroy(struct ci_hdrc *ci)
 {
-	if (ci->role == CI_ROLE_HOST && ci->hcd)
+	if (ci->role == CI_ROLE_HOST && ci->hcd) {
+		disable_irq_nosync(ci->irq);
 		host_stop(ci);
+		enable_irq(ci->irq);
+	}
 }
 
 static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
