@@ -91,14 +91,6 @@
 
 #define __exit          __section(.exit.text) __exitused __cold notrace
 
-/* temporary, until all users are removed */
-#define __cpuinit
-#define __cpuinitdata
-#define __cpuinitconst
-#define __cpuexit
-#define __cpuexitdata
-#define __cpuexitconst
-
 /* Used for MEMORY_HOTPLUG */
 #define __meminit        __section(.meminit.text) __cold notrace
 #define __meminitdata    __section(.meminit.data)
@@ -115,9 +107,6 @@
 #define __INITDATA	.section	".init.data","aw",%progbits
 #define __INITRODATA	.section	".init.rodata","a",%progbits
 #define __FINITDATA	.previous
-
-/* temporary, until all users are removed */
-#define __CPUINIT
 
 #define __MEMINIT        .section	".meminit.text", "ax"
 #define __MEMINITDATA    .section	".meminit.data", "aw"
