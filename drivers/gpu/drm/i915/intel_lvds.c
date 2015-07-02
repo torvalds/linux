@@ -239,8 +239,6 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
-	struct intel_connector *intel_connector =
-		&lvds_encoder->attached_connector->base;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 ctl_reg, stat_reg;
 
@@ -252,14 +250,37 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 		stat_reg = PP_STATUS;
 	}
 
-	intel_panel_disable_backlight(intel_connector);
-
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
 	if (wait_for((I915_READ(stat_reg) & PP_ON) == 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power off\n");
 
 	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) & ~LVDS_PORT_EN);
 	POSTING_READ(lvds_encoder->reg);
+}
+
+static void gmch_disable_lvds(struct intel_encoder *encoder)
+{
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	struct intel_connector *intel_connector =
+		&lvds_encoder->attached_connector->base;
+
+	intel_panel_disable_backlight(intel_connector);
+
+	intel_disable_lvds(encoder);
+}
+
+static void pch_disable_lvds(struct intel_encoder *encoder)
+{
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	struct intel_connector *intel_connector =
+		&lvds_encoder->attached_connector->base;
+
+	intel_panel_disable_backlight(intel_connector);
+}
+
+static void pch_post_disable_lvds(struct intel_encoder *encoder)
+{
+	intel_disable_lvds(encoder);
 }
 
 static enum drm_mode_status
@@ -992,7 +1013,12 @@ void intel_lvds_init(struct drm_device *dev)
 	intel_encoder->enable = intel_enable_lvds;
 	intel_encoder->pre_enable = intel_pre_enable_lvds;
 	intel_encoder->compute_config = intel_lvds_compute_config;
-	intel_encoder->disable = intel_disable_lvds;
+	if (HAS_PCH_SPLIT(dev_priv)) {
+		intel_encoder->disable = pch_disable_lvds;
+		intel_encoder->post_disable = pch_post_disable_lvds;
+	} else {
+		intel_encoder->disable = gmch_disable_lvds;
+	}
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_encoder->get_config = intel_lvds_get_config;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
