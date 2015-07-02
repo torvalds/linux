@@ -1883,8 +1883,11 @@ bool ath_drain_all_txq(struct ath_softc *sc)
 			npend |= BIT(i);
 	}
 
-	if (npend)
-		ath_err(common, "Failed to stop TX DMA, queues=0x%03x!\n", npend);
+	if (npend) {
+		RESET_STAT_INC(sc, RESET_TX_DMA_ERROR);
+		ath_dbg(common, RESET,
+			"Failed to stop TX DMA, queues=0x%03x!\n", npend);
+	}
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 		if (!ATH_TXQ_SETUP(sc, i))
