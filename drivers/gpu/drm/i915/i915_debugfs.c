@@ -1633,6 +1633,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	}
 
 	intel_runtime_pm_get(dev_priv);
+	mutex_lock(&dev_priv->fbc.lock);
 
 	if (intel_fbc_enabled(dev))
 		seq_puts(m, "FBC enabled\n");
@@ -1645,6 +1646,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 			   yesno(I915_READ(FBC_STATUS2) &
 				 FBC_COMPRESSION_MASK));
 
+	mutex_unlock(&dev_priv->fbc.lock);
 	intel_runtime_pm_put(dev_priv);
 
 	return 0;
@@ -1675,6 +1677,7 @@ static int i915_fbc_fc_set(void *data, u64 val)
 		return -ENODEV;
 
 	drm_modeset_lock_all(dev);
+	mutex_lock(&dev_priv->fbc.lock);
 
 	reg = I915_READ(ILK_DPFC_CONTROL);
 	dev_priv->fbc.false_color = val;
@@ -1683,6 +1686,7 @@ static int i915_fbc_fc_set(void *data, u64 val)
 		   (reg | FBC_CTL_FALSE_COLOR) :
 		   (reg & ~FBC_CTL_FALSE_COLOR));
 
+	mutex_unlock(&dev_priv->fbc.lock);
 	drm_modeset_unlock_all(dev);
 	return 0;
 }

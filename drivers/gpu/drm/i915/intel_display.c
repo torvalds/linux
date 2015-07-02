@@ -4783,11 +4783,9 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	if (atomic->wait_for_flips)
 		intel_crtc_wait_for_pending_flips(&crtc->base);
 
-	if (atomic->disable_fbc &&
-	    dev_priv->fbc.crtc == crtc) {
+	if (atomic->disable_fbc) {
 		mutex_lock(&dev->struct_mutex);
-		if (dev_priv->fbc.crtc == crtc)
-			intel_fbc_disable(dev);
+		intel_fbc_disable_crtc(crtc);
 		mutex_unlock(&dev->struct_mutex);
 	}
 

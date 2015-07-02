@@ -899,6 +899,9 @@ enum fb_op_origin {
 };
 
 struct i915_fbc {
+	/* This is always the inner lock when overlapping with struct_mutex and
+	 * it's the outer lock when overlapping with stolen_lock. */
+	struct mutex lock;
 	unsigned long uncompressed_size;
 	unsigned threshold;
 	unsigned int fb_id;
