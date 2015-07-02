@@ -81,6 +81,9 @@ static DECLARE_BITMAP(default_enabled_hcalls, MAX_HCALL_OPCODE/4 + 1);
 #define MPP_BUFFER_ORDER	3
 #endif
 
+static int dynamic_mt_modes = 6;
+module_param(dynamic_mt_modes, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(dynamic_mt_modes, "Set of allowed dynamic micro-threading modes: 0 (= none), 2, 4, or 6 (= 2 or 4)");
 static int target_smt_mode;
 module_param(target_smt_mode, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(target_smt_mode, "Target threads per core (0 = max)");
@@ -1770,6 +1773,7 @@ static int kvmppc_grab_hwthread(int cpu)
 
 	/* Ensure the thread won't go into the kernel if it wakes */
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
+	tpaca->kvm_hstate.kvm_vcore = NULL;
 	tpaca->kvm_hstate.napping = 0;
 	smp_wmb();
 	tpaca->kvm_hstate.hwthread_req = 1;
@@ -1801,28 +1805,32 @@ static void kvmppc_release_hwthread(int cpu)
 	tpaca = &paca[cpu];
 	tpaca->kvm_hstate.hwthread_req = 0;
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
+	tpaca->kvm_hstate.kvm_vcore = NULL;
+	tpaca->kvm_hstate.kvm_split_mode = NULL;
 }
 
-static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
+static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 {
 	int cpu;
 	struct paca_struct *tpaca;
-	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	struct kvmppc_vcore *mvc = vc->master_vcore;
 
-	if (vcpu->arch.timer_running) {
-		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
-		vcpu->arch.timer_running = 0;
+	cpu = vc->pcpu;
+	if (vcpu) {
+		if (vcpu->arch.timer_running) {
+			hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
+			vcpu->arch.timer_running = 0;
+		}
+		cpu += vcpu->arch.ptid;
+		vcpu->cpu = mvc->pcpu;
+		vcpu->arch.thread_cpu = cpu;
 	}
-	cpu = vc->pcpu + vcpu->arch.ptid;
 	tpaca = &paca[cpu];
-	tpaca->kvm_hstate.kvm_vcore = mvc;
+	tpaca->kvm_hstate.kvm_vcpu = vcpu;
 	tpaca->kvm_hstate.ptid = cpu - mvc->pcpu;
-	vcpu->cpu = mvc->pcpu;
-	vcpu->arch.thread_cpu = cpu;
 	/* Order stores to hstate.kvm_vcpu etc. before store to kvm_vcore */
 	smp_wmb();
-	tpaca->kvm_hstate.kvm_vcpu = vcpu;
+	tpaca->kvm_hstate.kvm_vcore = mvc;
 	if (cpu != smp_processor_id())
 		kvmppc_ipi_thread(cpu);
 }
@@ -1835,12 +1843,12 @@ static void kvmppc_wait_for_nap(void)
 	for (loops = 0; loops < 1000000; ++loops) {
 		/*
 		 * Check if all threads are finished.
-		 * We set the vcpu pointer when starting a thread
+		 * We set the vcore pointer when starting a thread
 		 * and the thread clears it when finished, so we look
-		 * for any threads that still have a non-NULL vcpu ptr.
+		 * for any threads that still have a non-NULL vcore ptr.
 		 */
 		for (i = 1; i < threads_per_subcore; ++i)
-			if (paca[cpu + i].kvm_hstate.kvm_vcpu)
+			if (paca[cpu + i].kvm_hstate.kvm_vcore)
 				break;
 		if (i == threads_per_subcore) {
 			HMT_medium();
@@ -1850,7 +1858,7 @@ static void kvmppc_wait_for_nap(void)
 	}
 	HMT_medium();
 	for (i = 1; i < threads_per_subcore; ++i)
-		if (paca[cpu + i].kvm_hstate.kvm_vcpu)
+		if (paca[cpu + i].kvm_hstate.kvm_vcore)
 			pr_err("KVM: CPU %d seems to be stuck\n", cpu + i);
 }
 
@@ -1965,17 +1973,55 @@ static void kvmppc_vcore_end_preempt(struct kvmppc_vcore *vc)
 	vc->vcore_state = VCORE_INACTIVE;
 }
 
+/*
+ * This stores information about the virtual cores currently
+ * assigned to a physical core.
+ */
 struct core_info {
+	int		n_subcores;
+	int		max_subcore_threads;
 	int		total_threads;
-	struct list_head vcs;
+	int		subcore_threads[MAX_SUBCORES];
+	struct kvm	*subcore_vm[MAX_SUBCORES];
+	struct list_head vcs[MAX_SUBCORES];
 };
+
+/*
+ * This mapping means subcores 0 and 1 can use threads 0-3 and 4-7
+ * respectively in 2-way micro-threading (split-core) mode.
+ */
+static int subcore_thread_map[MAX_SUBCORES] = { 0, 4, 2, 6 };
 
 static void init_core_info(struct core_info *cip, struct kvmppc_vcore *vc)
 {
+	int sub;
+
 	memset(cip, 0, sizeof(*cip));
+	cip->n_subcores = 1;
+	cip->max_subcore_threads = vc->num_threads;
 	cip->total_threads = vc->num_threads;
-	INIT_LIST_HEAD(&cip->vcs);
-	list_add_tail(&vc->preempt_list, &cip->vcs);
+	cip->subcore_threads[0] = vc->num_threads;
+	cip->subcore_vm[0] = vc->kvm;
+	for (sub = 0; sub < MAX_SUBCORES; ++sub)
+		INIT_LIST_HEAD(&cip->vcs[sub]);
+	list_add_tail(&vc->preempt_list, &cip->vcs[0]);
+}
+
+static bool subcore_config_ok(int n_subcores, int n_threads)
+{
+	/* Can only dynamically split if unsplit to begin with */
+	if (n_subcores > 1 && threads_per_subcore < MAX_SMT_THREADS)
+		return false;
+	if (n_subcores > MAX_SUBCORES)
+		return false;
+	if (n_subcores > 1) {
+		if (!(dynamic_mt_modes & 2))
+			n_subcores = 4;
+		if (n_subcores > 2 && !(dynamic_mt_modes & 4))
+			return false;
+	}
+
+	return n_subcores * roundup_pow_of_two(n_threads) <= MAX_SMT_THREADS;
 }
 
 static void init_master_vcore(struct kvmppc_vcore *vc)
@@ -1988,15 +2034,113 @@ static void init_master_vcore(struct kvmppc_vcore *vc)
 }
 
 /*
- * Work out whether it is possible to piggyback the execute of
- * vcore *pvc onto the execution of the other vcores described in *cip.
+ * See if the existing subcores can be split into 3 (or fewer) subcores
+ * of at most two threads each, so we can fit in another vcore.  This
+ * assumes there are at most two subcores and at most 6 threads in total.
  */
-static bool can_piggyback(struct kvmppc_vcore *pvc, struct core_info *cip,
-			  int target_threads)
+static bool can_split_piggybacked_subcores(struct core_info *cip)
+{
+	int sub, new_sub;
+	int large_sub = -1;
+	int thr;
+	int n_subcores = cip->n_subcores;
+	struct kvmppc_vcore *vc, *vcnext;
+	struct kvmppc_vcore *master_vc = NULL;
+
+	for (sub = 0; sub < cip->n_subcores; ++sub) {
+		if (cip->subcore_threads[sub] <= 2)
+			continue;
+		if (large_sub >= 0)
+			return false;
+		large_sub = sub;
+		vc = list_first_entry(&cip->vcs[sub], struct kvmppc_vcore,
+				      preempt_list);
+		if (vc->num_threads > 2)
+			return false;
+		n_subcores += (cip->subcore_threads[sub] - 1) >> 1;
+	}
+	if (n_subcores > 3 || large_sub < 0)
+		return false;
+
+	/*
+	 * Seems feasible, so go through and move vcores to new subcores.
+	 * Note that when we have two or more vcores in one subcore,
+	 * all those vcores must have only one thread each.
+	 */
+	new_sub = cip->n_subcores;
+	thr = 0;
+	sub = large_sub;
+	list_for_each_entry_safe(vc, vcnext, &cip->vcs[sub], preempt_list) {
+		if (thr >= 2) {
+			list_del(&vc->preempt_list);
+			list_add_tail(&vc->preempt_list, &cip->vcs[new_sub]);
+			/* vc->num_threads must be 1 */
+			if (++cip->subcore_threads[new_sub] == 1) {
+				cip->subcore_vm[new_sub] = vc->kvm;
+				init_master_vcore(vc);
+				master_vc = vc;
+				++cip->n_subcores;
+			} else {
+				vc->master_vcore = master_vc;
+				++new_sub;
+			}
+		}
+		thr += vc->num_threads;
+	}
+	cip->subcore_threads[large_sub] = 2;
+	cip->max_subcore_threads = 2;
+
+	return true;
+}
+
+static bool can_dynamic_split(struct kvmppc_vcore *vc, struct core_info *cip)
+{
+	int n_threads = vc->num_threads;
+	int sub;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
+		return false;
+
+	if (n_threads < cip->max_subcore_threads)
+		n_threads = cip->max_subcore_threads;
+	if (subcore_config_ok(cip->n_subcores + 1, n_threads)) {
+		cip->max_subcore_threads = n_threads;
+	} else if (cip->n_subcores <= 2 && cip->total_threads <= 6 &&
+		   vc->num_threads <= 2) {
+		/*
+		 * We may be able to fit another subcore in by
+		 * splitting an existing subcore with 3 or 4
+		 * threads into two 2-thread subcores, or one
+		 * with 5 or 6 threads into three subcores.
+		 * We can only do this if those subcores have
+		 * piggybacked virtual cores.
+		 */
+		if (!can_split_piggybacked_subcores(cip))
+			return false;
+	} else {
+		return false;
+	}
+
+	sub = cip->n_subcores;
+	++cip->n_subcores;
+	cip->total_threads += vc->num_threads;
+	cip->subcore_threads[sub] = vc->num_threads;
+	cip->subcore_vm[sub] = vc->kvm;
+	init_master_vcore(vc);
+	list_del(&vc->preempt_list);
+	list_add_tail(&vc->preempt_list, &cip->vcs[sub]);
+
+	return true;
+}
+
+static bool can_piggyback_subcore(struct kvmppc_vcore *pvc,
+				  struct core_info *cip, int sub)
 {
 	struct kvmppc_vcore *vc;
+	int n_thr;
 
-	vc = list_first_entry(&cip->vcs, struct kvmppc_vcore, preempt_list);
+	vc = list_first_entry(&cip->vcs[sub], struct kvmppc_vcore,
+			      preempt_list);
 
 	/* require same VM and same per-core reg values */
 	if (pvc->kvm != vc->kvm ||
@@ -2010,15 +2154,42 @@ static bool can_piggyback(struct kvmppc_vcore *pvc, struct core_info *cip,
 	    (vc->num_threads > 1 || pvc->num_threads > 1))
 		return false;
 
-	if (cip->total_threads + pvc->num_threads > target_threads)
-		return false;
+	n_thr = cip->subcore_threads[sub] + pvc->num_threads;
+	if (n_thr > cip->max_subcore_threads) {
+		if (!subcore_config_ok(cip->n_subcores, n_thr))
+			return false;
+		cip->max_subcore_threads = n_thr;
+	}
 
 	cip->total_threads += pvc->num_threads;
+	cip->subcore_threads[sub] = n_thr;
 	pvc->master_vcore = vc;
 	list_del(&pvc->preempt_list);
-	list_add_tail(&pvc->preempt_list, &cip->vcs);
+	list_add_tail(&pvc->preempt_list, &cip->vcs[sub]);
 
 	return true;
+}
+
+/*
+ * Work out whether it is possible to piggyback the execution of
+ * vcore *pvc onto the execution of the other vcores described in *cip.
+ */
+static bool can_piggyback(struct kvmppc_vcore *pvc, struct core_info *cip,
+			  int target_threads)
+{
+	int sub;
+
+	if (cip->total_threads + pvc->num_threads > target_threads)
+		return false;
+	for (sub = 0; sub < cip->n_subcores; ++sub)
+		if (cip->subcore_threads[sub] &&
+		    can_piggyback_subcore(pvc, cip, sub))
+			return true;
+
+	if (can_dynamic_split(pvc, cip))
+		return true;
+
+	return false;
 }
 
 static void prepare_threads(struct kvmppc_vcore *vc)
@@ -2135,6 +2306,11 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	int srcu_idx;
 	struct core_info core_info;
 	struct kvmppc_vcore *pvc, *vcnext;
+	struct kvm_split_mode split_info, *sip;
+	int split, subcore_size, active;
+	int sub;
+	bool thr0_done;
+	unsigned long cmd_bit, stat_bit;
 	int pcpu, thr;
 	int target_threads;
 
@@ -2182,29 +2358,100 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	if (vc->num_threads < target_threads)
 		collect_piggybacks(&core_info, target_threads);
 
-	thr = 0;
-	list_for_each_entry(pvc, &core_info.vcs, preempt_list) {
-		pvc->pcpu = pcpu + thr;
-		list_for_each_entry(vcpu, &pvc->runnable_threads,
-				    arch.run_list) {
-			kvmppc_start_thread(vcpu);
-			kvmppc_create_dtl_entry(vcpu, pvc);
-			trace_kvm_guest_enter(vcpu);
+	/* Decide on micro-threading (split-core) mode */
+	subcore_size = threads_per_subcore;
+	cmd_bit = stat_bit = 0;
+	split = core_info.n_subcores;
+	sip = NULL;
+	if (split > 1) {
+		/* threads_per_subcore must be MAX_SMT_THREADS (8) here */
+		if (split == 2 && (dynamic_mt_modes & 2)) {
+			cmd_bit = HID0_POWER8_1TO2LPAR;
+			stat_bit = HID0_POWER8_2LPARMODE;
+		} else {
+			split = 4;
+			cmd_bit = HID0_POWER8_1TO4LPAR;
+			stat_bit = HID0_POWER8_4LPARMODE;
 		}
-		thr += pvc->num_threads;
+		subcore_size = MAX_SMT_THREADS / split;
+		sip = &split_info;
+		memset(&split_info, 0, sizeof(split_info));
+		split_info.rpr = mfspr(SPRN_RPR);
+		split_info.pmmar = mfspr(SPRN_PMMAR);
+		split_info.ldbar = mfspr(SPRN_LDBAR);
+		split_info.subcore_size = subcore_size;
+		for (sub = 0; sub < core_info.n_subcores; ++sub)
+			split_info.master_vcs[sub] =
+				list_first_entry(&core_info.vcs[sub],
+					struct kvmppc_vcore, preempt_list);
+		/* order writes to split_info before kvm_split_mode pointer */
+		smp_wmb();
+	}
+	pcpu = smp_processor_id();
+	for (thr = 0; thr < threads_per_subcore; ++thr)
+		paca[pcpu + thr].kvm_hstate.kvm_split_mode = sip;
+
+	/* Initiate micro-threading (split-core) if required */
+	if (cmd_bit) {
+		unsigned long hid0 = mfspr(SPRN_HID0);
+
+		hid0 |= cmd_bit | HID0_POWER8_DYNLPARDIS;
+		mb();
+		mtspr(SPRN_HID0, hid0);
+		isync();
+		for (;;) {
+			hid0 = mfspr(SPRN_HID0);
+			if (hid0 & stat_bit)
+				break;
+			cpu_relax();
+		}
+		split_info.do_nap = 1;	/* ask secondaries to nap when done */
 	}
 
-	/* Set this explicitly in case thread 0 doesn't have a vcpu */
-	get_paca()->kvm_hstate.kvm_vcore = vc;
-	get_paca()->kvm_hstate.ptid = 0;
+	/* Start all the threads */
+	active = 0;
+	for (sub = 0; sub < core_info.n_subcores; ++sub) {
+		thr = subcore_thread_map[sub];
+		thr0_done = false;
+		active |= 1 << thr;
+		list_for_each_entry(pvc, &core_info.vcs[sub], preempt_list) {
+			pvc->pcpu = pcpu + thr;
+			list_for_each_entry(vcpu, &pvc->runnable_threads,
+					    arch.run_list) {
+				kvmppc_start_thread(vcpu, pvc);
+				kvmppc_create_dtl_entry(vcpu, pvc);
+				trace_kvm_guest_enter(vcpu);
+				if (!vcpu->arch.ptid)
+					thr0_done = true;
+				active |= 1 << (thr + vcpu->arch.ptid);
+			}
+			/*
+			 * We need to start the first thread of each subcore
+			 * even if it doesn't have a vcpu.
+			 */
+			if (pvc->master_vcore == pvc && !thr0_done)
+				kvmppc_start_thread(NULL, pvc);
+			thr += pvc->num_threads;
+		}
+	}
+	/*
+	 * When doing micro-threading, poke the inactive threads as well.
+	 * This gets them to the nap instruction after kvm_do_nap,
+	 * which reduces the time taken to unsplit later.
+	 */
+	if (split > 1)
+		for (thr = 1; thr < threads_per_subcore; ++thr)
+			if (!(active & (1 << thr)))
+				kvmppc_ipi_thread(pcpu + thr);
 
 	vc->vcore_state = VCORE_RUNNING;
 	preempt_disable();
 
 	trace_kvmppc_run_core(vc, 0);
 
-	list_for_each_entry(pvc, &core_info.vcs, preempt_list)
-		spin_unlock(&pvc->lock);
+	for (sub = 0; sub < core_info.n_subcores; ++sub)
+		list_for_each_entry(pvc, &core_info.vcs[sub], preempt_list)
+			spin_unlock(&pvc->lock);
 
 	kvm_guest_enter();
 
@@ -2226,16 +2473,44 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	/* wait for secondary threads to finish writing their state to memory */
 	kvmppc_wait_for_nap();
-	for (i = 0; i < threads_per_subcore; ++i)
-		kvmppc_release_hwthread(vc->pcpu + i);
+
+	/* Return to whole-core mode if we split the core earlier */
+	if (split > 1) {
+		unsigned long hid0 = mfspr(SPRN_HID0);
+		unsigned long loops = 0;
+
+		hid0 &= ~HID0_POWER8_DYNLPARDIS;
+		stat_bit = HID0_POWER8_2LPARMODE | HID0_POWER8_4LPARMODE;
+		mb();
+		mtspr(SPRN_HID0, hid0);
+		isync();
+		for (;;) {
+			hid0 = mfspr(SPRN_HID0);
+			if (!(hid0 & stat_bit))
+				break;
+			cpu_relax();
+			++loops;
+		}
+		split_info.do_nap = 0;
+	}
+
+	/* Let secondaries go back to the offline loop */
+	for (i = 0; i < threads_per_subcore; ++i) {
+		kvmppc_release_hwthread(pcpu + i);
+		if (sip && sip->napped[i])
+			kvmppc_ipi_thread(pcpu + i);
+	}
+
 	spin_unlock(&vc->lock);
 
 	/* make sure updates to secondary vcpu structs are visible now */
 	smp_mb();
 	kvm_guest_exit();
 
-	list_for_each_entry_safe(pvc, vcnext, &core_info.vcs, preempt_list)
-		post_guest_process(pvc, pvc == vc);
+	for (sub = 0; sub < core_info.n_subcores; ++sub)
+		list_for_each_entry_safe(pvc, vcnext, &core_info.vcs[sub],
+					 preempt_list)
+			post_guest_process(pvc, pvc == vc);
 
 	spin_lock(&vc->lock);
 	preempt_enable();
@@ -2341,7 +2616,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 				if (mvc->vcore_state == VCORE_RUNNING &&
 				    !VCORE_IS_EXITING(mvc)) {
 					kvmppc_create_dtl_entry(vcpu, vc);
-					kvmppc_start_thread(vcpu);
+					kvmppc_start_thread(vcpu, vc);
 					trace_kvm_guest_enter(vcpu);
 				}
 				spin_unlock(&mvc->lock);
@@ -2349,7 +2624,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		} else if (vc->vcore_state == VCORE_RUNNING &&
 			   !VCORE_IS_EXITING(vc)) {
 			kvmppc_create_dtl_entry(vcpu, vc);
-			kvmppc_start_thread(vcpu);
+			kvmppc_start_thread(vcpu, vc);
 			trace_kvm_guest_enter(vcpu);
 		} else if (vc->vcore_state == VCORE_SLEEPING) {
 			wake_up(&vc->wq);

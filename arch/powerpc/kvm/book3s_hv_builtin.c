@@ -239,7 +239,8 @@ void kvmhv_commence_exit(int trap)
 {
 	struct kvmppc_vcore *vc = local_paca->kvm_hstate.kvm_vcore;
 	int ptid = local_paca->kvm_hstate.ptid;
-	int me, ee;
+	struct kvm_split_mode *sip = local_paca->kvm_hstate.kvm_split_mode;
+	int me, ee, i;
 
 	/* Set our bit in the threads-exiting-guest map in the 0xff00
 	   bits of vcore->entry_exit_map */
@@ -259,4 +260,26 @@ void kvmhv_commence_exit(int trap)
 	 */
 	if (trap != BOOK3S_INTERRUPT_HV_DECREMENTER)
 		kvmhv_interrupt_vcore(vc, ee & ~(1 << ptid));
+
+	/*
+	 * If we are doing dynamic micro-threading, interrupt the other
+	 * subcores to pull them out of their guests too.
+	 */
+	if (!sip)
+		return;
+
+	for (i = 0; i < MAX_SUBCORES; ++i) {
+		vc = sip->master_vcs[i];
+		if (!vc)
+			break;
+		do {
+			ee = vc->entry_exit_map;
+			/* Already asked to exit? */
+			if ((ee >> 8) != 0)
+				break;
+		} while (cmpxchg(&vc->entry_exit_map, ee,
+				 ee | VCORE_EXIT_REQ) != ee);
+		if ((ee >> 8) == 0)
+			kvmhv_interrupt_vcore(vc, ee);
+	}
 }

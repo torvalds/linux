@@ -302,6 +302,9 @@ struct kvmppc_vcore {
 #define VCORE_EXIT_MAP(vc)	((vc)->entry_exit_map >> 8)
 #define VCORE_IS_EXITING(vc)	(VCORE_EXIT_MAP(vc) != 0)
 
+/* This bit is used when a vcore exit is triggered from outside the vcore */
+#define VCORE_EXIT_REQ		0x10000
+
 /*
  * Values for vcore_state.
  * Note that these are arranged such that lower values
