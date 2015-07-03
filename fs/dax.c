@@ -155,7 +155,7 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
 		}
 
 		if (iov_iter_rw(iter) == WRITE)
-			len = copy_from_iter(addr, max - pos, iter);
+			len = copy_from_iter_nocache(addr, max - pos, iter);
 		else if (!hole)
 			len = copy_to_iter(addr, max - pos, iter);
 		else
