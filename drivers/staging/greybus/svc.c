@@ -9,12 +9,6 @@
 
 #include "greybus.h"
 
-struct gb_svc {
-	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
-};
-
 /* Define get_version() routine */
 define_get_version(gb_svc, SVC);
 
@@ -217,6 +211,9 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 	if (ret)
 		kfree(svc);
 
+	/* Set interface's svc connection */
+	connection->bundle->intf->svc = svc;
+
 	return ret;
 }
 
@@ -224,8 +221,10 @@ static void gb_svc_connection_exit(struct gb_connection *connection)
 {
 	struct gb_svc *svc = connection->private;
 
-	if (!svc)
+	if (WARN_ON(connection->bundle->intf->svc != svc))
 		return;
+
+	connection->bundle->intf->svc = NULL;
 
 	kfree(svc);
 }

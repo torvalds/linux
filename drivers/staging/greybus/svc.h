@@ -10,7 +10,12 @@
 #ifndef __SVC_H
 #define __SVC_H
 
-struct gb_svc;
+struct gb_svc {
+	struct gb_connection	*connection;
+	u8			version_major;
+	u8			version_minor;
+};
+
 
 int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id);
 int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id);

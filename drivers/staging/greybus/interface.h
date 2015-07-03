@@ -14,6 +14,7 @@
 struct gb_interface {
 	struct device dev;
 	struct gb_control *control;
+	struct gb_svc *svc;
 
 	struct list_head bundles;
 	struct list_head links;	/* greybus_host_device->interfaces */
