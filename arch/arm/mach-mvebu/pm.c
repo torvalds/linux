@@ -192,6 +192,7 @@ static int mvebu_pm_enter(suspend_state_t state)
 		cpu_do_idle();
 		break;
 	case PM_SUSPEND_MEM:
+		pr_warn("Entering suspend to RAM. Only special wake-up sources will resume the system\n");
 		return mvebu_enter_suspend();
 	default:
 		return -EINVAL;
