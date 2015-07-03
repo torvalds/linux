@@ -329,19 +329,24 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	spin_unlock(&dev_priv->uncore.lock);
 }
 
-static int execlists_update_context(struct drm_i915_gem_object *ctx_obj,
-				    struct drm_i915_gem_object *ring_obj,
-				    struct i915_hw_ppgtt *ppgtt,
-				    u32 tail)
+static int execlists_update_context(struct drm_i915_gem_request *rq)
 {
+	struct intel_engine_cs *ring = rq->ring;
+	struct i915_hw_ppgtt *ppgtt = rq->ctx->ppgtt;
+	struct drm_i915_gem_object *ctx_obj = rq->ctx->engine[ring->id].state;
+	struct drm_i915_gem_object *rb_obj = rq->ringbuf->obj;
 	struct page *page;
 	uint32_t *reg_state;
+
+	BUG_ON(!ctx_obj);
+	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj));
+	WARN_ON(!i915_gem_obj_is_pinned(rb_obj));
 
 	page = i915_gem_object_get_page(ctx_obj, 1);
 	reg_state = kmap_atomic(page);
 
-	reg_state[CTX_RING_TAIL+1] = tail;
-	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(ring_obj);
+	reg_state[CTX_RING_TAIL+1] = rq->tail;
+	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(rb_obj);
 
 	/* True PPGTT with dynamic page allocation: update PDP registers and
 	 * point the unallocated PDPs to the scratch page
@@ -365,22 +370,11 @@ static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
 	struct drm_i915_gem_object *ctx_obj0 = rq0->ctx->engine[ring->id].state;
 	struct drm_i915_gem_object *ctx_obj1 = NULL;
 
-	BUG_ON(!ctx_obj0);
-	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj0));
-	WARN_ON(!i915_gem_obj_is_pinned(rq0->ringbuf->obj));
-
-	execlists_update_context(ctx_obj1, rq0->ringbuf->obj,
-				 rq0->ctx->ppgtt, rq0->tail);
+	execlists_update_context(rq0);
 
 	if (rq1) {
+		execlists_update_context(rq1);
 		ctx_obj1 = rq1->ctx->engine[ring->id].state;
-
-		BUG_ON(!ctx_obj1);
-		WARN_ON(!i915_gem_obj_is_pinned(ctx_obj1));
-		WARN_ON(!i915_gem_obj_is_pinned(rq1->ringbuf->obj));
-
-		execlists_update_context(ctx_obj1, rq1->ringbuf->obj,
-					 rq1->ctx->ppgtt, rq1->tail);
 	}
 
 	execlists_elsp_write(ring, ctx_obj0, ctx_obj1);
