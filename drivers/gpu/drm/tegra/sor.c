@@ -861,10 +861,10 @@ static void tegra_sor_debugfs_exit(struct tegra_sor *sor)
 	sor->minor = NULL;
 
 	kfree(sor->debugfs_files);
-	sor->debugfs = NULL;
+	sor->debugfs_files = NULL;
 
 	debugfs_remove_recursive(sor->debugfs);
-	sor->debugfs_files = NULL;
+	sor->debugfs = NULL;
 }
 
 static void tegra_sor_connector_dpms(struct drm_connector *connector, int mode)
