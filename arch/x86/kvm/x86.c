@@ -7315,11 +7315,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 
 	vcpu = kvm_x86_ops->vcpu_create(kvm, id);
 
-	/*
-	 * Activate fpu unconditionally in case the guest needs eager FPU.  It will be
-	 * deactivated soon if it doesn't.
-	 */
-	kvm_x86_ops->fpu_activate(vcpu);
 	return vcpu;
 }
 
