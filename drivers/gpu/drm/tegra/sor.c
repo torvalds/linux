@@ -841,6 +841,8 @@ static int tegra_sor_debugfs_init(struct tegra_sor *sor,
 		goto free;
 	}
 
+	sor->minor = minor;
+
 	return err;
 
 free:
