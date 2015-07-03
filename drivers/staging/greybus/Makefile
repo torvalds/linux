@@ -9,6 +9,7 @@ greybus-y :=	core.o		\
 		connection.o	\
 		protocol.o	\
 		control.o	\
+		svc.o		\
 		operation.o
 
 gb-phy-y :=	gpbridge.o	\
@@ -26,7 +27,6 @@ gb-phy-y :=	gpbridge.o	\
 		audio-gb-cmds.o
 
 # Prefix all modules with gb-
-gb-svc-y := svc.o
 gb-vibrator-y := vibrator.o
 gb-battery-y := battery.o
 gb-loopback-y := loopback.o
@@ -35,7 +35,6 @@ gb-es1-y := es1.o
 gb-es2-y := es2.o
 
 obj-m += greybus.o
-obj-m += gb-svc.o
 obj-m += gb-phy.o
 obj-m += gb-vibrator.o
 obj-m += gb-battery.o

@@ -239,5 +239,4 @@ static struct gb_protocol svc_protocol = {
 	.connection_exit	= gb_svc_connection_exit,
 	.request_recv		= gb_svc_request_recv,
 };
-
-gb_protocol_driver(&svc_protocol);
+gb_builtin_protocol_driver(svc_protocol);

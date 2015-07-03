@@ -280,8 +280,16 @@ static int __init gb_init(void)
 		goto error_control;
 	}
 
+	retval = gb_svc_protocol_init();
+	if (retval) {
+		pr_err("gb_svc_protocol_init failed\n");
+		goto error_svc;
+	}
+
 	return 0;	/* Success */
 
+error_svc:
+	gb_control_protocol_exit();
 error_control:
 	gb_endo_exit();
 error_endo:
@@ -299,6 +307,7 @@ module_init(gb_init);
 
 static void __exit gb_exit(void)
 {
+	gb_svc_protocol_exit();
 	gb_control_protocol_exit();
 	gb_endo_exit();
 	gb_operation_exit();
