@@ -134,11 +134,19 @@ static int __init mvebu_armada_pm_init(void)
 	if (!gpio_ctrl)
 		return -ENOMEM;
 
-	mvebu_pm_init(mvebu_armada_pm_enter);
+	mvebu_pm_suspend_init(mvebu_armada_pm_enter);
 
 out:
 	of_node_put(np);
 	return ret;
 }
 
-late_initcall(mvebu_armada_pm_init);
+/*
+ * Registering the mvebu_board_pm_enter callback must be done before
+ * the platform_suspend_ops will be registered. In the same time we
+ * also need to have the gpio devices registered. That's why we use a
+ * device_initcall_sync which is called after all the device_initcall
+ * (used by the gpio device) but before the late_initcall (used to
+ * register the platform_suspend_ops)
+ */
+device_initcall_sync(mvebu_armada_pm_init);

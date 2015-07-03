@@ -163,12 +163,9 @@ static int mvebu_pm_store_bootinfo(void)
 	return 0;
 }
 
-static int mvebu_pm_enter(suspend_state_t state)
+static int mvebu_enter_suspend(void)
 {
 	int ret;
-
-	if (state != PM_SUSPEND_MEM)
-		return -EINVAL;
 
 	ret = mvebu_pm_store_bootinfo();
 	if (ret)
@@ -185,16 +182,57 @@ static int mvebu_pm_enter(suspend_state_t state)
 	set_cpu_coherent();
 
 	cpu_pm_exit();
+	return 0;
+}
+
+static int mvebu_pm_enter(suspend_state_t state)
+{
+	switch (state) {
+	case PM_SUSPEND_STANDBY:
+		cpu_do_idle();
+		break;
+	case PM_SUSPEND_MEM:
+		return mvebu_enter_suspend();
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int mvebu_pm_valid(suspend_state_t state)
+{
+	if (state == PM_SUSPEND_STANDBY)
+		return 1;
+
+	if (state == PM_SUSPEND_MEM && mvebu_board_pm_enter != NULL)
+		return 1;
 
 	return 0;
 }
 
 static const struct platform_suspend_ops mvebu_pm_ops = {
 	.enter = mvebu_pm_enter,
-	.valid = suspend_valid_only_mem,
+	.valid = mvebu_pm_valid,
 };
 
-int __init mvebu_pm_init(void (*board_pm_enter)(void __iomem *sdram_reg, u32 srcmd))
+static int __init mvebu_pm_init(void)
+{
+	if (!of_machine_is_compatible("marvell,armadaxp") &&
+	    !of_machine_is_compatible("marvell,armada370") &&
+	    !of_machine_is_compatible("marvell,armada380") &&
+	    !of_machine_is_compatible("marvell,armada390"))
+		return -ENODEV;
+
+	suspend_set_ops(&mvebu_pm_ops);
+
+	return 0;
+}
+
+
+late_initcall(mvebu_pm_init);
+
+int __init mvebu_pm_suspend_init(void (*board_pm_enter)(void __iomem *sdram_reg,
+							u32 srcmd))
 {
 	struct device_node *np;
 	struct resource res;
@@ -225,8 +263,6 @@ int __init mvebu_pm_init(void (*board_pm_enter)(void __iomem *sdram_reg, u32 src
 	of_node_put(np);
 
 	mvebu_board_pm_enter = board_pm_enter;
-
-	suspend_set_ops(&mvebu_pm_ops);
 
 	return 0;
 }
