@@ -358,29 +358,29 @@ static int execlists_update_context(struct drm_i915_gem_object *ctx_obj,
 	return 0;
 }
 
-static void execlists_submit_contexts(struct intel_engine_cs *ring,
-				      struct intel_context *to0, u32 tail0,
-				      struct intel_context *to1, u32 tail1)
+static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
+				      struct drm_i915_gem_request *rq1)
 {
-	struct drm_i915_gem_object *ctx_obj0 = to0->engine[ring->id].state;
-	struct intel_ringbuffer *ringbuf0 = to0->engine[ring->id].ringbuf;
+	struct intel_engine_cs *ring = rq0->ring;
+	struct drm_i915_gem_object *ctx_obj0 = rq0->ctx->engine[ring->id].state;
 	struct drm_i915_gem_object *ctx_obj1 = NULL;
-	struct intel_ringbuffer *ringbuf1 = NULL;
 
 	BUG_ON(!ctx_obj0);
 	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj0));
-	WARN_ON(!i915_gem_obj_is_pinned(ringbuf0->obj));
+	WARN_ON(!i915_gem_obj_is_pinned(rq0->ringbuf->obj));
 
-	execlists_update_context(ctx_obj0, ringbuf0->obj, to0->ppgtt, tail0);
+	execlists_update_context(ctx_obj1, rq0->ringbuf->obj,
+				 rq0->ctx->ppgtt, rq0->tail);
 
-	if (to1) {
-		ringbuf1 = to1->engine[ring->id].ringbuf;
-		ctx_obj1 = to1->engine[ring->id].state;
+	if (rq1) {
+		ctx_obj1 = rq1->ctx->engine[ring->id].state;
+
 		BUG_ON(!ctx_obj1);
 		WARN_ON(!i915_gem_obj_is_pinned(ctx_obj1));
-		WARN_ON(!i915_gem_obj_is_pinned(ringbuf1->obj));
+		WARN_ON(!i915_gem_obj_is_pinned(rq1->ringbuf->obj));
 
-		execlists_update_context(ctx_obj1, ringbuf1->obj, to1->ppgtt, tail1);
+		execlists_update_context(ctx_obj1, rq1->ringbuf->obj,
+					 rq1->ctx->ppgtt, rq1->tail);
 	}
 
 	execlists_elsp_write(ring, ctx_obj0, ctx_obj1);
@@ -443,9 +443,7 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 
 	WARN_ON(req1 && req1->elsp_submitted);
 
-	execlists_submit_contexts(ring, req0->ctx, req0->tail,
-				  req1 ? req1->ctx : NULL,
-				  req1 ? req1->tail : 0);
+	execlists_submit_requests(req0, req1);
 
 	req0->elsp_submitted++;
 	if (req1)
