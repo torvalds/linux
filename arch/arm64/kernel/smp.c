@@ -396,13 +396,13 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 {
 	u64 hwid = processor->arm_mpidr;
 
-	if (hwid & ~MPIDR_HWID_BITMASK || hwid == INVALID_HWID) {
-		pr_err("skipping CPU entry with invalid MPIDR 0x%llx\n", hwid);
+	if (!(processor->flags & ACPI_MADT_ENABLED)) {
+		pr_debug("skipping disabled CPU entry with 0x%llx MPIDR\n", hwid);
 		return;
 	}
 
-	if (!(processor->flags & ACPI_MADT_ENABLED)) {
-		pr_err("skipping disabled CPU entry with 0x%llx MPIDR\n", hwid);
+	if (hwid & ~MPIDR_HWID_BITMASK || hwid == INVALID_HWID) {
+		pr_err("skipping CPU entry with invalid MPIDR 0x%llx\n", hwid);
 		return;
 	}
 
