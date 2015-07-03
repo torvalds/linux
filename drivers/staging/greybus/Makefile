@@ -66,7 +66,7 @@ $(foreach opt,$(CONFIG_OPTIONS_DISABLE),$(if $(filter m y, $(CONFIG_$(opt))), \
 endif
 
 # add -Wall to try to catch everything we can.
-ccFlags-y := -Wall
+ccflags-y := -Wall
 
 all: module
 
