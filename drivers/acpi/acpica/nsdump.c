@@ -101,7 +101,7 @@ void acpi_ns_print_pathname(u32 num_segments, char *pathname)
 
 	while (num_segments) {
 		for (i = 0; i < 4; i++) {
-			ACPI_IS_PRINT(pathname[i]) ?
+			isprint((int)pathname[i]) ?
 			    acpi_os_printf("%c", pathname[i]) :
 			    acpi_os_printf("?");
 		}

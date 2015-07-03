@@ -293,6 +293,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
 			Format: To spoof as Windows 98: ="Microsoft Windows"
 
+	acpi_rev_override [ACPI] Override the _REV object to return 5 (instead
+			of 2 which is mandated by ACPI 6) as the supported ACPI
+			specification revision (when using this switch, it may
+			be necessary to carry out a cold reboot _twice_ in a
+			row to make it take effect on the platform firmware).
+
 	acpi_osi=	[HW,ACPI] Modify list of supported OS interface strings
 			acpi_osi="string1"	# add string1
 			acpi_osi="!string2"	# remove string2

@@ -80,6 +80,26 @@ config ACPI_PROCFS_POWER
 
 	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
 
+config ACPI_REV_OVERRIDE_POSSIBLE
+	bool "Allow supported ACPI revision to be overriden"
+	depends on X86
+	default y
+	help
+	  The platform firmware on some systems expects Linux to return "5" as
+	  the supported ACPI revision which makes it expose system configuration
+	  information in a special way.
+
+	  For example, based on what ACPI exports as the supported revision,
+	  Dell XPS 13 (2015) configures its audio device to either work in HDA
+	  mode or in I2S mode, where the former is supposed to be used on Linux
+	  until the latter is fully supported (in the kernel as well as in user
+	  space).
+
+	  This option enables a DMI-based quirk for the above Dell machine (so
+	  that HDA audio is exposed by the platform firmware to the kernel) and
+	  makes it possible to force the kernel to return "5" as the supported
+	  ACPI revision via the "acpi_rev_override" command line switch.
+
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
 	default n

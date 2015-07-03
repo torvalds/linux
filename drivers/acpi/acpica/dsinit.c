@@ -207,7 +207,7 @@ acpi_ds_initialize_objects(u32 table_index,
 
 	/* Set all init info to zero */
 
-	ACPI_MEMSET(&info, 0, sizeof(struct acpi_init_walk_info));
+	memset(&info, 0, sizeof(struct acpi_init_walk_info));
 
 	info.owner_id = owner_id;
 	info.table_index = table_index;

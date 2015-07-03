@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20150515
+#define ACPI_CA_VERSION                 0x20150619
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -195,9 +195,18 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
  * address. Although ACPICA adheres to the ACPI specification which
  * requires the use of the corresponding 64-bit address if it is non-zero,
  * some machines have been found to have a corrupted non-zero 64-bit
- * address. Default is TRUE, favor the 32-bit addresses.
+ * address. Default is FALSE, do not favor the 32-bit addresses.
  */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_use32_bit_fadt_addresses, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_use32_bit_fadt_addresses, FALSE);
+
+/*
+ * Optionally use 32-bit FACS table addresses.
+ * It is reported that some platforms fail to resume from system suspending
+ * if 64-bit FACS table address is selected:
+ * https://bugzilla.kernel.org/show_bug.cgi?id=74021
+ * Default is TRUE, favor the 32-bit addresses.
+ */
+ACPI_INIT_GLOBAL(u8, acpi_gbl_use32_bit_facs_addresses, TRUE);
 
 /*
  * Optionally truncate I/O addresses to 16 bits. Provides compatibility
@@ -218,6 +227,11 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_auto_repair, FALSE);
  * This can be useful for debugging ACPI problems on some machines.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_ssdt_table_install, FALSE);
+
+/*
+ * Optionally enable runtime namespace override.
+ */
+ACPI_INIT_GLOBAL(u8, acpi_gbl_runtime_namespace_override, TRUE);
 
 /*
  * We keep track of the latest version of Windows that has been requested by
@@ -814,8 +828,12 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status acpi_leave_sleep_state(u8 sleep_state))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_set_firmware_waking_vector(u32
-								physical_address))
+				acpi_set_firmware_waking_vectors
+				(acpi_physical_address physical_address,
+				 acpi_physical_address physical_address64))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_set_firmware_waking_vector(u32
+								 physical_address))
 #if ACPI_MACHINE_WIDTH == 64
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_set_firmware_waking_vector64(u64
