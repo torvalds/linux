@@ -239,13 +239,6 @@ static void notrace start_secondary(void *unused)
 	check_tsc_sync_target();
 
 	/*
-	 * Enable the espfix hack for this CPU
-	 */
-#ifdef CONFIG_X86_ESPFIX64
-	init_espfix_ap(smp_processor_id());
-#endif
-
-	/*
 	 * We need to hold vector_lock so there the set of online cpus
 	 * does not change while we are assigning vectors to cpus.  Holding
 	 * this lock ensures we don't half assign or remove an irq from a cpu.
@@ -853,6 +846,13 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
 	stack_start  = idle->thread.sp;
+
+	/*
+	 * Enable the espfix hack for this CPU
+	*/
+#ifdef CONFIG_X86_ESPFIX64
+	init_espfix_ap(cpu);
+#endif
 
 	/* So we see what's up */
 	announce_cpu(cpu, apicid);

@@ -141,12 +141,12 @@ void init_espfix_ap(int cpu)
 	pud_t pud, *pud_p;
 	pmd_t pmd, *pmd_p;
 	pte_t pte, *pte_p;
-	int n;
+	int n, node;
 	void *stack_page;
 	pteval_t ptemask;
 
 	/* We only have to do this once... */
-	if (likely(this_cpu_read(espfix_stack)))
+	if (likely(per_cpu(espfix_stack, cpu)))
 		return;		/* Already initialized */
 
 	addr = espfix_base_addr(cpu);
@@ -164,12 +164,15 @@ void init_espfix_ap(int cpu)
 	if (stack_page)
 		goto unlock_done;
 
+	node = cpu_to_node(cpu);
 	ptemask = __supported_pte_mask;
 
 	pud_p = &espfix_pud_page[pud_index(addr)];
 	pud = *pud_p;
 	if (!pud_present(pud)) {
-		pmd_p = (pmd_t *)__get_free_page(PGALLOC_GFP);
+		struct page *page = alloc_pages_node(node, PGALLOC_GFP, 0);
+
+		pmd_p = (pmd_t *)page_address(page);
 		pud = __pud(__pa(pmd_p) | (PGTABLE_PROT & ptemask));
 		paravirt_alloc_pmd(&init_mm, __pa(pmd_p) >> PAGE_SHIFT);
 		for (n = 0; n < ESPFIX_PUD_CLONES; n++)
@@ -179,7 +182,9 @@ void init_espfix_ap(int cpu)
 	pmd_p = pmd_offset(&pud, addr);
 	pmd = *pmd_p;
 	if (!pmd_present(pmd)) {
-		pte_p = (pte_t *)__get_free_page(PGALLOC_GFP);
+		struct page *page = alloc_pages_node(node, PGALLOC_GFP, 0);
+
+		pte_p = (pte_t *)page_address(page);
 		pmd = __pmd(__pa(pte_p) | (PGTABLE_PROT & ptemask));
 		paravirt_alloc_pte(&init_mm, __pa(pte_p) >> PAGE_SHIFT);
 		for (n = 0; n < ESPFIX_PMD_CLONES; n++)
@@ -187,7 +192,7 @@ void init_espfix_ap(int cpu)
 	}
 
 	pte_p = pte_offset_kernel(&pmd, addr);
-	stack_page = (void *)__get_free_page(GFP_KERNEL);
+	stack_page = page_address(alloc_pages_node(node, GFP_KERNEL, 0));
 	pte = __pte(__pa(stack_page) | (__PAGE_KERNEL_RO & ptemask));
 	for (n = 0; n < ESPFIX_PTE_CLONES; n++)
 		set_pte(&pte_p[n*PTE_STRIDE], pte);
@@ -198,7 +203,7 @@ void init_espfix_ap(int cpu)
 unlock_done:
 	mutex_unlock(&espfix_init_mutex);
 done:
-	this_cpu_write(espfix_stack, addr);
-	this_cpu_write(espfix_waddr, (unsigned long)stack_page
-		       + (addr & ~PAGE_MASK));
+	per_cpu(espfix_stack, cpu) = addr;
+	per_cpu(espfix_waddr, cpu) = (unsigned long)stack_page
+				      + (addr & ~PAGE_MASK);
 }
