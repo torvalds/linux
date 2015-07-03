@@ -445,6 +445,12 @@ long bdev_direct_access(struct block_device *bdev, sector_t sector,
 	long avail;
 	const struct block_device_operations *ops = bdev->bd_disk->fops;
 
+	/*
+	 * The device driver is allowed to sleep, in order to make the
+	 * memory directly accessible.
+	 */
+	might_sleep();
+
 	if (size < 0)
 		return size;
 	if (!ops->direct_access)
