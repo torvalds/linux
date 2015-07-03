@@ -339,6 +339,14 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 	}
 }
 
+static int amdgpu_vce_free_job(
+	struct amdgpu_cs_parser *sched_job)
+{
+	amdgpu_ib_free(sched_job->adev, sched_job->ibs);
+	kfree(sched_job->ibs);
+	return 0;
+}
+
 /**
  * amdgpu_vce_get_create_msg - generate a VCE create msg
  *
@@ -353,56 +361,63 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 			      struct amdgpu_fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
-	struct amdgpu_ib ib;
+	struct amdgpu_ib *ib = NULL;
+	struct amdgpu_device *adev = ring->adev;
 	uint64_t dummy;
 	int i, r;
 
-	r = amdgpu_ib_get(ring, NULL, ib_size_dw * 4, &ib);
+	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
+	if (!ib)
+		return -ENOMEM;
+	r = amdgpu_ib_get(ring, NULL, ib_size_dw * 4, ib);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
+		kfree(ib);
 		return r;
 	}
 
-	dummy = ib.gpu_addr + 1024;
+	dummy = ib->gpu_addr + 1024;
 
 	/* stitch together an VCE create msg */
-	ib.length_dw = 0;
-	ib.ptr[ib.length_dw++] = 0x0000000c; /* len */
-	ib.ptr[ib.length_dw++] = 0x00000001; /* session cmd */
-	ib.ptr[ib.length_dw++] = handle;
+	ib->length_dw = 0;
+	ib->ptr[ib->length_dw++] = 0x0000000c; /* len */
+	ib->ptr[ib->length_dw++] = 0x00000001; /* session cmd */
+	ib->ptr[ib->length_dw++] = handle;
 
-	ib.ptr[ib.length_dw++] = 0x00000030; /* len */
-	ib.ptr[ib.length_dw++] = 0x01000001; /* create cmd */
-	ib.ptr[ib.length_dw++] = 0x00000000;
-	ib.ptr[ib.length_dw++] = 0x00000042;
-	ib.ptr[ib.length_dw++] = 0x0000000a;
-	ib.ptr[ib.length_dw++] = 0x00000001;
-	ib.ptr[ib.length_dw++] = 0x00000080;
-	ib.ptr[ib.length_dw++] = 0x00000060;
-	ib.ptr[ib.length_dw++] = 0x00000100;
-	ib.ptr[ib.length_dw++] = 0x00000100;
-	ib.ptr[ib.length_dw++] = 0x0000000c;
-	ib.ptr[ib.length_dw++] = 0x00000000;
+	ib->ptr[ib->length_dw++] = 0x00000030; /* len */
+	ib->ptr[ib->length_dw++] = 0x01000001; /* create cmd */
+	ib->ptr[ib->length_dw++] = 0x00000000;
+	ib->ptr[ib->length_dw++] = 0x00000042;
+	ib->ptr[ib->length_dw++] = 0x0000000a;
+	ib->ptr[ib->length_dw++] = 0x00000001;
+	ib->ptr[ib->length_dw++] = 0x00000080;
+	ib->ptr[ib->length_dw++] = 0x00000060;
+	ib->ptr[ib->length_dw++] = 0x00000100;
+	ib->ptr[ib->length_dw++] = 0x00000100;
+	ib->ptr[ib->length_dw++] = 0x0000000c;
+	ib->ptr[ib->length_dw++] = 0x00000000;
 
-	ib.ptr[ib.length_dw++] = 0x00000014; /* len */
-	ib.ptr[ib.length_dw++] = 0x05000005; /* feedback buffer */
-	ib.ptr[ib.length_dw++] = upper_32_bits(dummy);
-	ib.ptr[ib.length_dw++] = dummy;
-	ib.ptr[ib.length_dw++] = 0x00000001;
+	ib->ptr[ib->length_dw++] = 0x00000014; /* len */
+	ib->ptr[ib->length_dw++] = 0x05000005; /* feedback buffer */
+	ib->ptr[ib->length_dw++] = upper_32_bits(dummy);
+	ib->ptr[ib->length_dw++] = dummy;
+	ib->ptr[ib->length_dw++] = 0x00000001;
 
-	for (i = ib.length_dw; i < ib_size_dw; ++i)
-		ib.ptr[i] = 0x0;
+	for (i = ib->length_dw; i < ib_size_dw; ++i)
+		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring->adev, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to schedule ib (%d).\n", r);
-	}
-
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
+						 &amdgpu_vce_free_job,
+						 AMDGPU_FENCE_OWNER_UNDEFINED);
+	if (r)
+		goto err;
 	if (fence)
-		*fence = amdgpu_fence_ref(ib.fence);
-
-	amdgpu_ib_free(ring->adev, &ib);
-
+		*fence = amdgpu_fence_ref(ib->fence);
+	if (amdgpu_enable_scheduler)
+		return 0;
+err:
+	amdgpu_ib_free(adev, ib);
+	kfree(ib);
 	return r;
 }
 
@@ -420,46 +435,53 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 			       struct amdgpu_fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
-	struct amdgpu_ib ib;
+	struct amdgpu_ib *ib = NULL;
+	struct amdgpu_device *adev = ring->adev;
 	uint64_t dummy;
 	int i, r;
 
-	r = amdgpu_ib_get(ring, NULL, ib_size_dw * 4, &ib);
+	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
+	if (!ib)
+		return -ENOMEM;
+
+	r = amdgpu_ib_get(ring, NULL, ib_size_dw * 4, ib);
 	if (r) {
+		kfree(ib);
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
 		return r;
 	}
 
-	dummy = ib.gpu_addr + 1024;
+	dummy = ib->gpu_addr + 1024;
 
 	/* stitch together an VCE destroy msg */
-	ib.length_dw = 0;
-	ib.ptr[ib.length_dw++] = 0x0000000c; /* len */
-	ib.ptr[ib.length_dw++] = 0x00000001; /* session cmd */
-	ib.ptr[ib.length_dw++] = handle;
+	ib->length_dw = 0;
+	ib->ptr[ib->length_dw++] = 0x0000000c; /* len */
+	ib->ptr[ib->length_dw++] = 0x00000001; /* session cmd */
+	ib->ptr[ib->length_dw++] = handle;
 
-	ib.ptr[ib.length_dw++] = 0x00000014; /* len */
-	ib.ptr[ib.length_dw++] = 0x05000005; /* feedback buffer */
-	ib.ptr[ib.length_dw++] = upper_32_bits(dummy);
-	ib.ptr[ib.length_dw++] = dummy;
-	ib.ptr[ib.length_dw++] = 0x00000001;
+	ib->ptr[ib->length_dw++] = 0x00000014; /* len */
+	ib->ptr[ib->length_dw++] = 0x05000005; /* feedback buffer */
+	ib->ptr[ib->length_dw++] = upper_32_bits(dummy);
+	ib->ptr[ib->length_dw++] = dummy;
+	ib->ptr[ib->length_dw++] = 0x00000001;
 
-	ib.ptr[ib.length_dw++] = 0x00000008; /* len */
-	ib.ptr[ib.length_dw++] = 0x02000001; /* destroy cmd */
+	ib->ptr[ib->length_dw++] = 0x00000008; /* len */
+	ib->ptr[ib->length_dw++] = 0x02000001; /* destroy cmd */
 
-	for (i = ib.length_dw; i < ib_size_dw; ++i)
-		ib.ptr[i] = 0x0;
-
-	r = amdgpu_ib_schedule(ring->adev, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to schedule ib (%d).\n", r);
-	}
-
+	for (i = ib->length_dw; i < ib_size_dw; ++i)
+		ib->ptr[i] = 0x0;
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
+						 &amdgpu_vce_free_job,
+						 AMDGPU_FENCE_OWNER_UNDEFINED);
+	if (r)
+		goto err;
 	if (fence)
-		*fence = amdgpu_fence_ref(ib.fence);
-
-	amdgpu_ib_free(ring->adev, &ib);
-
+		*fence = amdgpu_fence_ref(ib->fence);
+	if (amdgpu_enable_scheduler)
+		return 0;
+err:
+	amdgpu_ib_free(adev, ib);
+	kfree(ib);
 	return r;
 }
 
