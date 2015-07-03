@@ -815,8 +815,8 @@ static int perf_evsel__run_ioctl(struct perf_evsel *evsel, int ncpus, int nthrea
 	return 0;
 }
 
-int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
-			   const char *filter)
+int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
+			     const char *filter)
 {
 	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
 				     PERF_EVENT_IOC_SET_FILTER,
