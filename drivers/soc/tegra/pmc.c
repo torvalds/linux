@@ -803,7 +803,6 @@ void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
 
 out:
 	of_node_put(np);
-	return;
 }
 
 static int tegra_pmc_probe(struct platform_device *pdev)
