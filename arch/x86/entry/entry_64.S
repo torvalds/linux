@@ -502,21 +502,13 @@ END(irq_entries_start)
 /* 0(%rsp): ~(interrupt number) */
 	.macro interrupt func
 	cld
-	/*
-	 * Since nothing in interrupt handling code touches r12...r15 members
-	 * of "struct pt_regs", and since interrupts can nest, we can save
-	 * four stack slots and simultaneously provide
-	 * an unwind-friendly stack layout by saving "truncated" pt_regs
-	 * exactly up to rbp slot, without these members.
-	 */
-	ALLOC_PT_GPREGS_ON_STACK -RBP
-	SAVE_C_REGS -RBP
-	/* this goes to 0(%rsp) for unwinder, not for saving the value: */
-	SAVE_EXTRA_REGS_RBP -RBP
+	ALLOC_PT_GPREGS_ON_STACK
+	SAVE_C_REGS
+	SAVE_EXTRA_REGS
 
-	leaq	-RBP(%rsp), %rdi		/* arg1 for \func (pointer to pt_regs) */
+	movq	%rsp,%rdi	/* arg1 for \func (pointer to pt_regs) */
 
-	testb	$3, CS-RBP(%rsp)
+	testb	$3, CS(%rsp)
 	jz	1f
 	SWAPGS
 1:
@@ -553,9 +545,7 @@ ret_from_intr:
 	decl	PER_CPU_VAR(irq_count)
 
 	/* Restore saved previous stack */
-	popq	%rsi
-	/* return code expects complete pt_regs - adjust rsp accordingly: */
-	leaq	-RBP(%rsi), %rsp
+	popq	%rsp
 
 	testb	$3, CS(%rsp)
 	jz	retint_kernel
@@ -580,7 +570,7 @@ retint_swapgs:					/* return to user-space */
 	TRACE_IRQS_IRETQ
 
 	SWAPGS
-	jmp	restore_c_regs_and_iret
+	jmp	restore_regs_and_iret
 
 /* Returning to kernel space */
 retint_kernel:
@@ -604,6 +594,8 @@ retint_kernel:
  * At this label, code paths which return to kernel and to user,
  * which come from interrupts/exception and from syscalls, merge.
  */
+restore_regs_and_iret:
+	RESTORE_EXTRA_REGS
 restore_c_regs_and_iret:
 	RESTORE_C_REGS
 	REMOVE_PT_GPREGS_FROM_STACK 8
@@ -674,12 +666,10 @@ retint_signal:
 	jz	retint_swapgs
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	SAVE_EXTRA_REGS
 	movq	$-1, ORIG_RAX(%rsp)
 	xorl	%esi, %esi			/* oldset */
 	movq	%rsp, %rdi			/* &pt_regs */
 	call	do_notify_resume
-	RESTORE_EXTRA_REGS
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	GET_THREAD_INFO(%rcx)
@@ -1160,7 +1150,6 @@ END(error_entry)
  */
 ENTRY(error_exit)
 	movl	%ebx, %eax
-	RESTORE_EXTRA_REGS
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl	%eax, %eax
