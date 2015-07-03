@@ -2620,10 +2620,8 @@ void i915_gem_request_free(struct kref *req_ref)
 
 	if (ctx) {
 		if (i915.enable_execlists) {
-			struct intel_engine_cs *ring = req->ring;
-
-			if (ctx != ring->default_context)
-				intel_lr_context_unpin(ring, ctx);
+			if (ctx != req->ring->default_context)
+				intel_lr_context_unpin(req);
 		}
 
 		i915_gem_context_unreference(ctx);
@@ -2765,7 +2763,7 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 		list_del(&submit_req->execlist_link);
 
 		if (submit_req->ctx != ring->default_context)
-			intel_lr_context_unpin(ring, submit_req->ctx);
+			intel_lr_context_unpin(submit_req);
 
 		i915_gem_request_unreference(submit_req);
 	}

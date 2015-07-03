@@ -70,8 +70,7 @@ static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
 void intel_lr_context_free(struct intel_context *ctx);
 int intel_lr_context_deferred_create(struct intel_context *ctx,
 				     struct intel_engine_cs *ring);
-void intel_lr_context_unpin(struct intel_engine_cs *ring,
-		struct intel_context *ctx);
+void intel_lr_context_unpin(struct drm_i915_gem_request *req);
 void intel_lr_context_reset(struct drm_device *dev,
 			struct intel_context *ctx);
 
