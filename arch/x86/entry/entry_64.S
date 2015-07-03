@@ -506,8 +506,6 @@ END(irq_entries_start)
 	SAVE_C_REGS
 	SAVE_EXTRA_REGS
 
-	movq	%rsp,%rdi	/* arg1 for \func (pointer to pt_regs) */
-
 	testb	$3, CS(%rsp)
 	jz	1f
 	SWAPGS
@@ -519,14 +517,14 @@ END(irq_entries_start)
 	 * a little cheaper to use a separate counter in the PDA (short of
 	 * moving irq_enter into assembly, which would be too much work)
 	 */
-	movq	%rsp, %rsi
+	movq	%rsp, %rdi
 	incl	PER_CPU_VAR(irq_count)
 	cmovzq	PER_CPU_VAR(irq_stack_ptr), %rsp
-	pushq	%rsi
+	pushq	%rdi
 	/* We entered an interrupt context - irqs are off: */
 	TRACE_IRQS_OFF
 
-	call	\func
+	call	\func	/* rdi points to pt_regs */
 	.endm
 
 	/*
