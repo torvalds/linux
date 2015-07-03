@@ -775,7 +775,7 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 		for (j = 0; j < be32_to_cpu(fm_eba->reserved_pebs); j++) {
 			int pnum = be32_to_cpu(fm_eba->pnum[j]);
 
-			if ((int)be32_to_cpu(fm_eba->pnum[j]) < 0)
+			if (pnum < 0)
 				continue;
 
 			aeb = NULL;
