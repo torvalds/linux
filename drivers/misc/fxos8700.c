@@ -188,6 +188,8 @@
 #define FXOS8700_POLL_MAX	800
 #define FXOS8700_POLL_MIN	100
 
+enum { MODE_2G = 0, MODE_4G, MODE_8G,
+};
 
 struct fxos8700_data_axis {
 	short x;
@@ -207,6 +209,7 @@ struct fxos8700_data {
 	atomic_t mag_active_poll;
 	atomic_t mag_active;
 	atomic_t position;
+	atomic_t range;
 };
 
 static struct fxos8700_data *g_fxos8700_data;
@@ -264,6 +267,14 @@ static int fxos8700_change_mode(struct i2c_client *client, int type, int active)
 	return 0;
 }
 
+static int fxos8700_change_range(struct i2c_client *client, int range)
+{
+	int ret;
+
+	ret = i2c_smbus_write_byte_data(client, FXOS8700_XYZ_DATA_CFG, range);
+
+	return ret;
+}
 static int fxos8700_set_odr(struct i2c_client *client, int type, int delay)
 {
 	return 0;
@@ -287,10 +298,15 @@ static int fxos8700_device_init(struct i2c_client *client)
 	result = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, 0x03 << 3);
 	if (result < 0)
 		goto out;
+	result = i2c_smbus_write_byte_data(client, FXOS8700_XYZ_DATA_CFG,
+					   MODE_2G);
+	if (result < 0)
+		goto out;
 
 	atomic_set(&pdata->acc_active, FXOS8700_STANDBY);
 	atomic_set(&pdata->mag_active, FXOS8700_STANDBY);
 	atomic_set(&pdata->position, FXOS8700_POSITION_DEFAULT);
+	atomic_set(&pdata->range, MODE_2G);
 	return 0;
 out:
 	dev_err(&client->dev, "Error when init fxos8700 device:(%d)", result);
@@ -652,14 +668,49 @@ static ssize_t fxos8700_position_store(struct device *dev,
 	return count;
 }
 
+static ssize_t fxos8700_range_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct fxos8700_data *pdata = g_fxos8700_data;
+	unsigned long range = atomic_read(&pdata->range);
+
+	return sprintf(buf, "%ld\n", range);
+}
+
+static ssize_t fxos8700_range_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	unsigned long range;
+	struct fxos8700_data *pdata = g_fxos8700_data;
+	struct i2c_client *client = pdata->client;
+	int ret;
+
+	if (kstrtoul(buf, 10, &range) < 0)
+		return -EINVAL;
+
+	if (range == atomic_read(&pdata->range))
+		return count;
+
+	if (atomic_read(&pdata->acc_active) | atomic_read(&pdata->mag_active))
+		printk(KERN_INFO "Pls set the sensor standby and then actived\n");
+	ret = fxos8700_change_range(client, range);
+	if (!ret)
+		atomic_set(&pdata->range, range);
+
+	return count;
+}
+
 static DEVICE_ATTR(enable, S_IWUSR | S_IRUGO, fxos8700_enable_show, fxos8700_enable_store);
 static DEVICE_ATTR(poll_delay, S_IWUSR | S_IRUGO, fxos8700_poll_delay_show, fxos8700_poll_delay_store);
 static DEVICE_ATTR(position, S_IWUSR | S_IRUGO, fxos8700_position_show, fxos8700_position_store);
+static DEVICE_ATTR(range, S_IWUSR | S_IRUGO, fxos8700_range_show, fxos8700_range_store);
 
 static struct attribute *fxos8700_attributes[] = {
 	&dev_attr_enable.attr,
 	&dev_attr_poll_delay.attr,
 	&dev_attr_position.attr,
+	&dev_attr_range.attr,
 	NULL
 };
 
