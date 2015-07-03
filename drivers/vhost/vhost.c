@@ -36,6 +36,77 @@ enum {
 #define vhost_used_event(vq) ((__virtio16 __user *)&vq->avail->ring[vq->num])
 #define vhost_avail_event(vq) ((__virtio16 __user *)&vq->used->ring[vq->num])
 
+#ifdef CONFIG_VHOST_CROSS_ENDIAN_LEGACY
+static void vhost_vq_reset_user_be(struct vhost_virtqueue *vq)
+{
+	vq->user_be = !virtio_legacy_is_little_endian();
+}
+
+static long vhost_set_vring_endian(struct vhost_virtqueue *vq, int __user *argp)
+{
+	struct vhost_vring_state s;
+
+	if (vq->private_data)
+		return -EBUSY;
+
+	if (copy_from_user(&s, argp, sizeof(s)))
+		return -EFAULT;
+
+	if (s.num != VHOST_VRING_LITTLE_ENDIAN &&
+	    s.num != VHOST_VRING_BIG_ENDIAN)
+		return -EINVAL;
+
+	vq->user_be = s.num;
+
+	return 0;
+}
+
+static long vhost_get_vring_endian(struct vhost_virtqueue *vq, u32 idx,
+				   int __user *argp)
+{
+	struct vhost_vring_state s = {
+		.index = idx,
+		.num = vq->user_be
+	};
+
+	if (copy_to_user(argp, &s, sizeof(s)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static void vhost_init_is_le(struct vhost_virtqueue *vq)
+{
+	/* Note for legacy virtio: user_be is initialized at reset time
+	 * according to the host endianness. If userspace does not set an
+	 * explicit endianness, the default behavior is native endian, as
+	 * expected by legacy virtio.
+	 */
+	vq->is_le = vhost_has_feature(vq, VIRTIO_F_VERSION_1) || !vq->user_be;
+}
+#else
+static void vhost_vq_reset_user_be(struct vhost_virtqueue *vq)
+{
+}
+
+static long vhost_set_vring_endian(struct vhost_virtqueue *vq, int __user *argp)
+{
+	return -ENOIOCTLCMD;
+}
+
+static long vhost_get_vring_endian(struct vhost_virtqueue *vq, u32 idx,
+				   int __user *argp)
+{
+	return -ENOIOCTLCMD;
+}
+
+static void vhost_init_is_le(struct vhost_virtqueue *vq)
+{
+	if (vhost_has_feature(vq, VIRTIO_F_VERSION_1))
+		vq->is_le = true;
+}
+#endif /* CONFIG_VHOST_CROSS_ENDIAN_LEGACY */
+
 static void vhost_poll_func(struct file *file, wait_queue_head_t *wqh,
 			    poll_table *pt)
 {
@@ -199,6 +270,8 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->call = NULL;
 	vq->log_ctx = NULL;
 	vq->memory = NULL;
+	vq->is_le = virtio_legacy_is_little_endian();
+	vhost_vq_reset_user_be(vq);
 }
 
 static int vhost_worker(void *data)
@@ -806,6 +879,12 @@ long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 		} else
 			filep = eventfp;
 		break;
+	case VHOST_SET_VRING_ENDIAN:
+		r = vhost_set_vring_endian(vq, argp);
+		break;
+	case VHOST_GET_VRING_ENDIAN:
+		r = vhost_get_vring_endian(vq, idx, argp);
+		break;
 	default:
 		r = -ENOIOCTLCMD;
 	}
@@ -1044,8 +1123,12 @@ int vhost_init_used(struct vhost_virtqueue *vq)
 {
 	__virtio16 last_used_idx;
 	int r;
-	if (!vq->private_data)
+	if (!vq->private_data) {
+		vq->is_le = virtio_legacy_is_little_endian();
 		return 0;
+	}
+
+	vhost_init_is_le(vq);
 
 	r = vhost_update_used_flags(vq);
 	if (r)
