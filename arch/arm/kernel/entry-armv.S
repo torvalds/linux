@@ -408,7 +408,7 @@ ENDPROC(__fiq_abt)
 	zero_fp
 
 	.if	\trace
-#ifdef CONFIG_IRQSOFF_TRACER
+#ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
 #endif
 	ct_user_exit save = 0
