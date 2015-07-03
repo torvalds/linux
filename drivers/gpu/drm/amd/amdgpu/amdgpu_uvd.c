@@ -809,6 +809,14 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 	return 0;
 }
 
+static int amdgpu_uvd_free_job(
+	struct amdgpu_cs_parser *sched_job)
+{
+	amdgpu_ib_free(sched_job->adev, sched_job->ibs);
+	kfree(sched_job->ibs);
+	return 0;
+}
+
 static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 			       struct amdgpu_bo *bo,
 			       struct amdgpu_fence **fence)
@@ -816,7 +824,8 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct list_head head;
-	struct amdgpu_ib ib;
+	struct amdgpu_ib *ib = NULL;
+	struct amdgpu_device *adev = ring->adev;
 	uint64_t addr;
 	int i, r;
 
@@ -838,34 +847,48 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
 	if (r)
 		goto err;
-
-	r = amdgpu_ib_get(ring, NULL, 64, &ib);
-	if (r)
+	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
+	if (!ib) {
+		r = -ENOMEM;
 		goto err;
+	}
+	r = amdgpu_ib_get(ring, NULL, 64, ib);
+	if (r)
+		goto err1;
 
 	addr = amdgpu_bo_gpu_offset(bo);
-	ib.ptr[0] = PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0);
-	ib.ptr[1] = addr;
-	ib.ptr[2] = PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0);
-	ib.ptr[3] = addr >> 32;
-	ib.ptr[4] = PACKET0(mmUVD_GPCOM_VCPU_CMD, 0);
-	ib.ptr[5] = 0;
+	ib->ptr[0] = PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0);
+	ib->ptr[1] = addr;
+	ib->ptr[2] = PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0);
+	ib->ptr[3] = addr >> 32;
+	ib->ptr[4] = PACKET0(mmUVD_GPCOM_VCPU_CMD, 0);
+	ib->ptr[5] = 0;
 	for (i = 6; i < 16; ++i)
-		ib.ptr[i] = PACKET2(0);
-	ib.length_dw = 16;
+		ib->ptr[i] = PACKET2(0);
+	ib->length_dw = 16;
 
-	r = amdgpu_ib_schedule(ring->adev, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED);
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
+						 &amdgpu_uvd_free_job,
+						 AMDGPU_FENCE_OWNER_UNDEFINED);
 	if (r)
-		goto err;
-	ttm_eu_fence_buffer_objects(&ticket, &head, &ib.fence->base);
+		goto err2;
+
+	ttm_eu_fence_buffer_objects(&ticket, &head, &ib->fence->base);
 
 	if (fence)
-		*fence = amdgpu_fence_ref(ib.fence);
-
-	amdgpu_ib_free(ring->adev, &ib);
+		*fence = amdgpu_fence_ref(ib->fence);
 	amdgpu_bo_unref(&bo);
-	return 0;
 
+	if (amdgpu_enable_scheduler)
+		return 0;
+
+	amdgpu_ib_free(ring->adev, ib);
+	kfree(ib);
+	return 0;
+err2:
+	amdgpu_ib_free(ring->adev, ib);
+err1:
+	kfree(ib);
 err:
 	ttm_eu_backoff_reservation(&ticket, &head);
 	return r;
