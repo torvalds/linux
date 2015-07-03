@@ -39,6 +39,8 @@ static bool kvm_hv_msr_partition_wide(u32 msr)
 	case HV_X64_MSR_HYPERCALL:
 	case HV_X64_MSR_REFERENCE_TSC:
 	case HV_X64_MSR_TIME_REF_COUNT:
+	case HV_X64_MSR_CRASH_CTL:
+	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
 		r = true;
 		break;
 	}
@@ -46,7 +48,63 @@ static bool kvm_hv_msr_partition_wide(u32 msr)
 	return r;
 }
 
-static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+static int kvm_hv_msr_get_crash_data(struct kvm_vcpu *vcpu,
+				     u32 index, u64 *pdata)
+{
+	struct kvm_hv *hv = &vcpu->kvm->arch.hyperv;
+
+	if (WARN_ON_ONCE(index >= ARRAY_SIZE(hv->hv_crash_param)))
+		return -EINVAL;
+
+	*pdata = hv->hv_crash_param[index];
+	return 0;
+}
+
+static int kvm_hv_msr_get_crash_ctl(struct kvm_vcpu *vcpu, u64 *pdata)
+{
+	struct kvm_hv *hv = &vcpu->kvm->arch.hyperv;
+
+	*pdata = hv->hv_crash_ctl;
+	return 0;
+}
+
+static int kvm_hv_msr_set_crash_ctl(struct kvm_vcpu *vcpu, u64 data, bool host)
+{
+	struct kvm_hv *hv = &vcpu->kvm->arch.hyperv;
+
+	if (host)
+		hv->hv_crash_ctl = data & HV_X64_MSR_CRASH_CTL_NOTIFY;
+
+	if (!host && (data & HV_X64_MSR_CRASH_CTL_NOTIFY)) {
+
+		vcpu_debug(vcpu, "hv crash (0x%llx 0x%llx 0x%llx 0x%llx 0x%llx)\n",
+			  hv->hv_crash_param[0],
+			  hv->hv_crash_param[1],
+			  hv->hv_crash_param[2],
+			  hv->hv_crash_param[3],
+			  hv->hv_crash_param[4]);
+
+		/* Send notification about crash to user space */
+		kvm_make_request(KVM_REQ_HV_CRASH, vcpu);
+	}
+
+	return 0;
+}
+
+static int kvm_hv_msr_set_crash_data(struct kvm_vcpu *vcpu,
+				     u32 index, u64 data)
+{
+	struct kvm_hv *hv = &vcpu->kvm->arch.hyperv;
+
+	if (WARN_ON_ONCE(index >= ARRAY_SIZE(hv->hv_crash_param)))
+		return -EINVAL;
+
+	hv->hv_crash_param[index] = data;
+	return 0;
+}
+
+static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
+			     bool host)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_hv *hv = &kvm->arch.hyperv;
@@ -99,6 +157,12 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		mark_page_dirty(kvm, gfn);
 		break;
 	}
+	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
+		return kvm_hv_msr_set_crash_data(vcpu,
+						 msr - HV_X64_MSR_CRASH_P0,
+						 data);
+	case HV_X64_MSR_CRASH_CTL:
+		return kvm_hv_msr_set_crash_ctl(vcpu, data, host);
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V uhandled wrmsr: 0x%x data 0x%llx\n",
 			    msr, data);
@@ -171,6 +235,12 @@ static int kvm_hv_get_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case HV_X64_MSR_REFERENCE_TSC:
 		data = hv->hv_tsc_page;
 		break;
+	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
+		return kvm_hv_msr_get_crash_data(vcpu,
+						 msr - HV_X64_MSR_CRASH_P0,
+						 pdata);
+	case HV_X64_MSR_CRASH_CTL:
+		return kvm_hv_msr_get_crash_ctl(vcpu, pdata);
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
 		return 1;
@@ -215,13 +285,13 @@ static int kvm_hv_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	return 0;
 }
 
-int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 {
 	if (kvm_hv_msr_partition_wide(msr)) {
 		int r;
 
 		mutex_lock(&vcpu->kvm->lock);
-		r = kvm_hv_set_msr_pw(vcpu, msr, data);
+		r = kvm_hv_set_msr_pw(vcpu, msr, data, host);
 		mutex_unlock(&vcpu->kvm->lock);
 		return r;
 	} else

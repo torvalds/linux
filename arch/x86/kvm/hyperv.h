@@ -24,7 +24,7 @@
 #ifndef __ARCH_X86_KVM_HYPERV_H__
 #define __ARCH_X86_KVM_HYPERV_H__
 
-int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data);
+int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host);
 int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
 bool kvm_hv_hypercall_enabled(struct kvm *kvm);
 int kvm_hv_hypercall(struct kvm_vcpu *vcpu);
