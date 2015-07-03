@@ -1177,8 +1177,7 @@ int parse_filter(const struct option *opt, const char *str,
 		return -1;
 	}
 
-	last->filter = strdup(str);
-	if (last->filter == NULL) {
+	if (perf_evsel__set_filter(last, str) < 0) {
 		fprintf(stderr, "not enough memory to hold filter string\n");
 		return -1;
 	}

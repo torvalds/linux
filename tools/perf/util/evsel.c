@@ -823,6 +823,19 @@ int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 				     (void *)filter);
 }
 
+int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter)
+{
+	char *new_filter = strdup(filter);
+
+	if (new_filter != NULL) {
+		free(evsel->filter);
+		evsel->filter = new_filter;
+		return 0;
+	}
+
+	return -1;
+}
+
 int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
