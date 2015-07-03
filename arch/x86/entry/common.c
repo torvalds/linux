@@ -207,6 +207,7 @@ long syscall_trace_enter(struct pt_regs *regs)
 		return syscall_trace_enter_phase2(regs, arch, phase1_result);
 }
 
+/* Deprecated. */
 void syscall_trace_leave(struct pt_regs *regs)
 {
 	bool step;
@@ -237,8 +238,117 @@ void syscall_trace_leave(struct pt_regs *regs)
 	user_enter();
 }
 
+static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
+{
+	unsigned long top_of_stack =
+		(unsigned long)(regs + 1) + TOP_OF_KERNEL_STACK_PADDING;
+	return (struct thread_info *)(top_of_stack - THREAD_SIZE);
+}
+
+/* Called with IRQs disabled. */
+__visible void prepare_exit_to_usermode(struct pt_regs *regs)
+{
+	if (WARN_ON(!irqs_disabled()))
+		local_irq_disable();
+
+	/*
+	 * In order to return to user mode, we need to have IRQs off with
+	 * none of _TIF_SIGPENDING, _TIF_NOTIFY_RESUME, _TIF_USER_RETURN_NOTIFY,
+	 * _TIF_UPROBE, or _TIF_NEED_RESCHED set.  Several of these flags
+	 * can be set at any time on preemptable kernels if we have IRQs on,
+	 * so we need to loop.  Disabling preemption wouldn't help: doing the
+	 * work to clear some of the flags can sleep.
+	 */
+	while (true) {
+		u32 cached_flags =
+			READ_ONCE(pt_regs_to_thread_info(regs)->flags);
+
+		if (!(cached_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME |
+				      _TIF_UPROBE | _TIF_NEED_RESCHED)))
+			break;
+
+		/* We have work to do. */
+		local_irq_enable();
+
+		if (cached_flags & _TIF_NEED_RESCHED)
+			schedule();
+
+		if (cached_flags & _TIF_UPROBE)
+			uprobe_notify_resume(regs);
+
+		/* deal with pending signal delivery */
+		if (cached_flags & _TIF_SIGPENDING)
+			do_signal(regs);
+
+		if (cached_flags & _TIF_NOTIFY_RESUME) {
+			clear_thread_flag(TIF_NOTIFY_RESUME);
+			tracehook_notify_resume(regs);
+		}
+
+		if (cached_flags & _TIF_USER_RETURN_NOTIFY)
+			fire_user_return_notifiers();
+
+		/* Disable IRQs and retry */
+		local_irq_disable();
+	}
+
+	user_enter();
+}
+
 /*
- * notification of userspace execution resumption
+ * Called with IRQs on and fully valid regs.  Returns with IRQs off in a
+ * state such that we can immediately switch to user mode.
+ */
+__visible void syscall_return_slowpath(struct pt_regs *regs)
+{
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	u32 cached_flags = READ_ONCE(ti->flags);
+	bool step;
+
+	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+
+	if (WARN(irqs_disabled(), "syscall %ld left IRQs disabled",
+		 regs->orig_ax))
+		local_irq_enable();
+
+	/*
+	 * First do one-time work.  If these work items are enabled, we
+	 * want to run them exactly once per syscall exit with IRQs on.
+	 */
+	if (cached_flags & (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT |
+			    _TIF_SINGLESTEP | _TIF_SYSCALL_TRACEPOINT)) {
+		audit_syscall_exit(regs);
+
+		if (cached_flags & _TIF_SYSCALL_TRACEPOINT)
+			trace_sys_exit(regs, regs->ax);
+
+		/*
+		 * If TIF_SYSCALL_EMU is set, we only get here because of
+		 * TIF_SINGLESTEP (i.e. this is PTRACE_SYSEMU_SINGLESTEP).
+		 * We already reported this syscall instruction in
+		 * syscall_trace_enter().
+		 */
+		step = unlikely(
+			(cached_flags & (_TIF_SINGLESTEP | _TIF_SYSCALL_EMU))
+			== _TIF_SINGLESTEP);
+		if (step || cached_flags & _TIF_SYSCALL_TRACE)
+			tracehook_report_syscall_exit(regs, step);
+	}
+
+#ifdef CONFIG_COMPAT
+	/*
+	 * Compat syscalls set TS_COMPAT.  Make sure we clear it before
+	 * returning to user mode.
+	 */
+	ti->status &= ~TS_COMPAT;
+#endif
+
+	local_irq_disable();
+	prepare_exit_to_usermode(regs);
+}
+
+/*
+ * Deprecated notification of userspace execution resumption
  * - triggered by the TIF_WORK_MASK flags
  */
 __visible void
