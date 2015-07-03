@@ -1294,7 +1294,6 @@ static void fuse_fs_cleanup(void)
 }
 
 static struct kobject *fuse_kobj;
-static struct kobject *connections_kobj;
 
 static int fuse_sysfs_init(void)
 {
@@ -1306,11 +1305,9 @@ static int fuse_sysfs_init(void)
 		goto out_err;
 	}
 
-	connections_kobj = kobject_create_and_add("connections", fuse_kobj);
-	if (!connections_kobj) {
-		err = -ENOMEM;
+	err = sysfs_create_mount_point(fuse_kobj, "connections");
+	if (err)
 		goto out_fuse_unregister;
-	}
 
 	return 0;
 
@@ -1322,7 +1319,7 @@ static int fuse_sysfs_init(void)
 
 static void fuse_sysfs_cleanup(void)
 {
-	kobject_put(connections_kobj);
+	sysfs_remove_mount_point(fuse_kobj, "connections");
 	kobject_put(fuse_kobj);
 }
 
