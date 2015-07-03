@@ -3277,6 +3277,7 @@ should put the acknowledged interrupt vector into the 'epr' field.
 		struct {
 #define KVM_SYSTEM_EVENT_SHUTDOWN       1
 #define KVM_SYSTEM_EVENT_RESET          2
+#define KVM_SYSTEM_EVENT_CRASH          3
 			__u32 type;
 			__u64 flags;
 		} system_event;
@@ -3296,6 +3297,10 @@ Valid values for 'type' are:
   KVM_SYSTEM_EVENT_RESET -- the guest has requested a reset of the VM.
    As with SHUTDOWN, userspace can choose to ignore the request, or
    to schedule the reset to occur in the future and may call KVM_RUN again.
+  KVM_SYSTEM_EVENT_CRASH -- the guest crash occurred and the guest
+   has requested a crash condition maintenance. Userspace can choose
+   to ignore the request, or to gather VM memory core dump and/or
+   reset/shutdown of the VM.
 
 		/* Fix the size of the union. */
 		char padding[256];

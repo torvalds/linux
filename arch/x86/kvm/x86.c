@@ -6263,6 +6263,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			vcpu_scan_ioapic(vcpu);
 		if (kvm_check_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu))
 			kvm_vcpu_reload_apic_access_page(vcpu);
+		if (kvm_check_request(KVM_REQ_HV_CRASH, vcpu)) {
+			vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
+			vcpu->run->system_event.type = KVM_SYSTEM_EVENT_CRASH;
+			r = 0;
+			goto out;
+		}
 	}
 
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
