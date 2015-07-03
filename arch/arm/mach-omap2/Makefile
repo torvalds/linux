@@ -274,8 +274,5 @@ obj-y					+= $(nand-m) $(nand-y)
 
 smsc911x-$(CONFIG_SMSC911X)		:= gpmc-smsc911x.o
 obj-y					+= $(smsc911x-m) $(smsc911x-y)
-ifneq ($(CONFIG_HWSPINLOCK_OMAP),)
-obj-y					+= hwspinlock.o
-endif
 
 obj-y					+= common-board-devices.o twl-common.o dss-common.o
