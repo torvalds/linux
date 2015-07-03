@@ -1145,7 +1145,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	if (opts->id && !midi->id) {
 		status = -ENOMEM;
 		mutex_unlock(&opts->lock);
-		goto kstrdup_fail;
+		goto setup_fail;
 	}
 	midi->in_ports = opts->in_ports;
 	midi->out_ports = opts->out_ports;
@@ -1164,8 +1164,6 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 
 	return &midi->func;
 
-kstrdup_fail:
-	f_midi_unregister_card(midi);
 setup_fail:
 	for (--i; i >= 0; i--)
 		kfree(midi->in_port[i]);
