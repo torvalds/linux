@@ -261,10 +261,11 @@ u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj)
 	return lrca >> 12;
 }
 
-static uint64_t execlists_ctx_descriptor(struct intel_engine_cs *ring,
-					 struct drm_i915_gem_object *ctx_obj)
+static uint64_t execlists_ctx_descriptor(struct drm_i915_gem_request *rq)
 {
+	struct intel_engine_cs *ring = rq->ring;
 	struct drm_device *dev = ring->dev;
+	struct drm_i915_gem_object *ctx_obj = rq->ctx->engine[ring->id].state;
 	uint64_t desc;
 	uint64_t lrca = i915_gem_obj_ggtt_offset(ctx_obj);
 
@@ -299,21 +300,18 @@ static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
 	struct intel_engine_cs *ring = rq0->ring;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *ctx_obj0 = rq0->ctx->engine[ring->id].state;
-	struct drm_i915_gem_object *ctx_obj1 = rq1 ?
-		rq1->ctx->engine[ring->id].state : NULL;
 	uint64_t temp = 0;
 	uint32_t desc[4];
 
 	/* XXX: You must always write both descriptors in the order below. */
-	if (ctx_obj1)
-		temp = execlists_ctx_descriptor(ring, ctx_obj1);
+	if (rq1)
+		temp = execlists_ctx_descriptor(rq1);
 	else
 		temp = 0;
 	desc[1] = (u32)(temp >> 32);
 	desc[0] = (u32)temp;
 
-	temp = execlists_ctx_descriptor(ring, ctx_obj0);
+	temp = execlists_ctx_descriptor(rq0);
 	desc[3] = (u32)(temp >> 32);
 	desc[2] = (u32)temp;
 
