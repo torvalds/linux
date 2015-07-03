@@ -229,6 +229,11 @@ entry_SYSCALL_64_fastpath:
 	 */
 	USERGS_SYSRET64
 
+GLOBAL(int_ret_from_sys_call_irqs_off)
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_NONE)
+	jmp int_ret_from_sys_call
+
 	/* Do syscall entry tracing */
 tracesys:
 	movq	%rsp, %rdi
@@ -272,69 +277,11 @@ tracesys_phase2:
  * Has correct iret frame.
  */
 GLOBAL(int_ret_from_sys_call)
-	DISABLE_INTERRUPTS(CLBR_NONE)
-int_ret_from_sys_call_irqs_off: /* jumps come here from the irqs-off SYSRET path */
-	TRACE_IRQS_OFF
-	movl	$_TIF_ALLWORK_MASK, %edi
-	/* edi:	mask to check */
-GLOBAL(int_with_check)
-	LOCKDEP_SYS_EXIT_IRQ
-	GET_THREAD_INFO(%rcx)
-	movl	TI_flags(%rcx), %edx
-	andl	%edi, %edx
-	jnz	int_careful
-	andl	$~TS_COMPAT, TI_status(%rcx)
-	jmp	syscall_return
-
-	/*
-	 * Either reschedule or signal or syscall exit tracking needed.
-	 * First do a reschedule test.
-	 * edx:	work, edi: workmask
-	 */
-int_careful:
-	bt	$TIF_NEED_RESCHED, %edx
-	jnc	int_very_careful
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	pushq	%rdi
-	SCHEDULE_USER
-	popq	%rdi
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	jmp	int_with_check
-
-	/* handle signals and tracing -- both require a full pt_regs */
-int_very_careful:
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
 	SAVE_EXTRA_REGS
-	/* Check for syscall exit trace */
-	testl	$_TIF_WORK_SYSCALL_EXIT, %edx
-	jz	int_signal
-	pushq	%rdi
-	leaq	8(%rsp), %rdi			/* &ptregs -> arg1 */
-	call	syscall_trace_leave
-	popq	%rdi
-	andl	$~(_TIF_WORK_SYSCALL_EXIT|_TIF_SYSCALL_EMU), %edi
-	jmp	int_restore_rest
-
-int_signal:
-	testl	$_TIF_DO_NOTIFY_MASK, %edx
-	jz	1f
-	movq	%rsp, %rdi			/* &ptregs -> arg1 */
-	xorl	%esi, %esi			/* oldset -> arg2 */
-	call	do_notify_resume
-1:	movl	$_TIF_WORK_MASK, %edi
-int_restore_rest:
+	movq	%rsp, %rdi
+	call	syscall_return_slowpath	/* returns with IRQs disabled */
 	RESTORE_EXTRA_REGS
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	jmp	int_with_check
-
-syscall_return:
-	/* The IRETQ could re-enable interrupts: */
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	TRACE_IRQS_IRETQ
+	TRACE_IRQS_IRETQ		/* we're about to change IF */
 
 	/*
 	 * Try to use SYSRET instead of IRET if we're returning to

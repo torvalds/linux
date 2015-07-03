@@ -210,10 +210,10 @@ sysexit_from_sys_call:
 	.endm
 
 	.macro auditsys_exit exit
-	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz	ia32_ret_from_sys_call
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
+	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jnz	ia32_ret_from_sys_call
 	movl	%eax, %esi		/* second arg, syscall return value */
 	cmpl	$-MAX_ERRNO, %eax	/* is it an error ? */
 	jbe	1f
@@ -232,7 +232,7 @@ sysexit_from_sys_call:
 	movq	%rax, R10(%rsp)
 	movq	%rax, R9(%rsp)
 	movq	%rax, R8(%rsp)
-	jmp	int_with_check
+	jmp	int_ret_from_sys_call_irqs_off
 	.endm
 
 sysenter_auditsys:
