@@ -62,6 +62,27 @@ void kvm_pmu_set_counter_value(struct kvm_vcpu *vcpu, u64 select_idx, u64 val)
 	vcpu_sys_reg(vcpu, reg) += (s64)val - kvm_pmu_get_counter_value(vcpu, select_idx);
 }
 
+/**
+ * kvm_pmu_stop_counter - stop PMU counter
+ * @pmc: The PMU counter pointer
+ *
+ * If this counter has been configured to monitor some event, release it here.
+ */
+static void kvm_pmu_stop_counter(struct kvm_vcpu *vcpu, struct kvm_pmc *pmc)
+{
+	u64 counter, reg;
+
+	if (pmc->perf_event) {
+		counter = kvm_pmu_get_counter_value(vcpu, pmc->idx);
+		reg = (pmc->idx == ARMV8_PMU_CYCLE_IDX)
+		       ? PMCCNTR_EL0 : PMEVCNTR0_EL0 + pmc->idx;
+		vcpu_sys_reg(vcpu, reg) = counter;
+		perf_event_disable(pmc->perf_event);
+		perf_event_release_kernel(pmc->perf_event);
+		pmc->perf_event = NULL;
+	}
+}
+
 u64 kvm_pmu_valid_counter_mask(struct kvm_vcpu *vcpu)
 {
 	u64 val = vcpu_sys_reg(vcpu, PMCR_EL0) >> ARMV8_PMU_PMCR_N_SHIFT;
@@ -126,4 +147,57 @@ void kvm_pmu_disable_counter(struct kvm_vcpu *vcpu, u64 val)
 		if (pmc->perf_event)
 			perf_event_disable(pmc->perf_event);
 	}
+}
+
+static bool kvm_pmu_counter_is_enabled(struct kvm_vcpu *vcpu, u64 select_idx)
+{
+	return (vcpu_sys_reg(vcpu, PMCR_EL0) & ARMV8_PMU_PMCR_E) &&
+	       (vcpu_sys_reg(vcpu, PMCNTENSET_EL0) & BIT(select_idx));
+}
+
+/**
+ * kvm_pmu_set_counter_event_type - set selected counter to monitor some event
+ * @vcpu: The vcpu pointer
+ * @data: The data guest writes to PMXEVTYPER_EL0
+ * @select_idx: The number of selected counter
+ *
+ * When OS accesses PMXEVTYPER_EL0, that means it wants to set a PMC to count an
+ * event with given hardware event number. Here we call perf_event API to
+ * emulate this action and create a kernel perf event for it.
+ */
+void kvm_pmu_set_counter_event_type(struct kvm_vcpu *vcpu, u64 data,
+				    u64 select_idx)
+{
+	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmc *pmc = &pmu->pmc[select_idx];
+	struct perf_event *event;
+	struct perf_event_attr attr;
+	u64 eventsel, counter;
+
+	kvm_pmu_stop_counter(vcpu, pmc);
+	eventsel = data & ARMV8_PMU_EVTYPE_EVENT;
+
+	memset(&attr, 0, sizeof(struct perf_event_attr));
+	attr.type = PERF_TYPE_RAW;
+	attr.size = sizeof(attr);
+	attr.pinned = 1;
+	attr.disabled = !kvm_pmu_counter_is_enabled(vcpu, select_idx);
+	attr.exclude_user = data & ARMV8_PMU_EXCLUDE_EL0 ? 1 : 0;
+	attr.exclude_kernel = data & ARMV8_PMU_EXCLUDE_EL1 ? 1 : 0;
+	attr.exclude_hv = 1; /* Don't count EL2 events */
+	attr.exclude_host = 1; /* Don't count host events */
+	attr.config = eventsel;
+
+	counter = kvm_pmu_get_counter_value(vcpu, select_idx);
+	/* The initial sample period (overflow count) of an event. */
+	attr.sample_period = (-counter) & pmc->bitmask;
+
+	event = perf_event_create_kernel_counter(&attr, -1, current, NULL, pmc);
+	if (IS_ERR(event)) {
+		pr_err_once("kvm: pmu event creation failed %ld\n",
+			    PTR_ERR(event));
+		return;
+	}
+
+	pmc->perf_event = event;
 }
