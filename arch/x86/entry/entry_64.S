@@ -33,7 +33,6 @@
 #include <asm/paravirt.h>
 #include <asm/percpu.h>
 #include <asm/asm.h>
-#include <asm/context_tracking.h>
 #include <asm/smap.h>
 #include <asm/pgtable_types.h>
 #include <linux/err.h>
