@@ -4732,7 +4732,7 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 		return 0;
 
 	if (edid)
-		size = EDID_LENGTH + (1 + edid->extensions);
+		size = EDID_LENGTH * (1 + edid->extensions);
 
 	ret = drm_property_replace_global_blob(dev,
 					       &connector->edid_blob_ptr,
