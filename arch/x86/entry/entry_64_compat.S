@@ -428,8 +428,39 @@ cstar_tracesys:
 END(entry_SYSCALL_compat)
 
 ia32_badarg:
-	ASM_CLAC
-	movq	$-EFAULT, RAX(%rsp)
+	/*
+	 * So far, we've entered kernel mode, set AC, turned on IRQs, and
+	 * saved C regs except r8-r11.  We haven't done any of the other
+	 * standard entry work, though.  We want to bail, but we shouldn't
+	 * treat this as a syscall entry since we don't even know what the
+	 * args are.  Instead, treat this as a non-syscall entry, finish
+	 * the entry work, and immediately exit after setting AX = -EFAULT.
+	 *
+	 * We're really just being polite here.  Killing the task outright
+	 * would be a reasonable action, too.  Given that the only valid
+	 * way to have gotten here is through the vDSO, and we already know
+	 * that the stack pointer is bad, the task isn't going to survive
+	 * for long no matter what we do.
+	 */
+
+	ASM_CLAC			/* undo STAC */
+	movq	$-EFAULT, RAX(%rsp)	/* return -EFAULT if possible */
+
+	/* Fill in the rest of pt_regs */
+	xorl	%eax, %eax
+	movq	%rax, R11(%rsp)
+	movq	%rax, R10(%rsp)
+	movq	%rax, R9(%rsp)
+	movq	%rax, R8(%rsp)
+	SAVE_EXTRA_REGS
+
+	/* Turn IRQs back off. */
+	DISABLE_INTERRUPTS(CLBR_NONE)
+	TRACE_IRQS_OFF
+
+	/* And exit again. */
+	jmp retint_user
+
 ia32_ret_from_sys_call:
 	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)

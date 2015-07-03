@@ -613,7 +613,7 @@ ret_from_intr:
 	testb	$3, CS(%rsp)
 	jz	retint_kernel
 	/* Interrupt came from user space */
-retint_user:
+GLOBAL(retint_user)
 	GET_THREAD_INFO(%rcx)
 
 	/* %rcx: thread info. Interrupts are off. */
