@@ -1379,6 +1379,12 @@ config MFD_WM8997
 	help
 	  Support for Wolfson Microelectronics WM8997 low power audio SoC
 
+config MFD_WM8998
+	bool "Wolfson Microelectronics WM8998"
+	depends on MFD_ARIZONA
+	help
+	  Support for Wolfson Microelectronics WM8998 low power audio SoC
+
 config MFD_WM8400
 	bool "Wolfson Microelectronics WM8400"
 	select MFD_CORE

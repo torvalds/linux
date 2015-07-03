@@ -234,6 +234,15 @@ int arizona_irq_init(struct arizona *arizona)
 		arizona->ctrlif_error = false;
 		break;
 #endif
+#ifdef CONFIG_MFD_WM8998
+	case WM8998:
+	case WM1814:
+		aod = &wm8998_aod;
+		irq = &wm8998_irq;
+
+		arizona->ctrlif_error = false;
+		break;
+#endif
 	default:
 		BUG_ON("Unknown Arizona class device" == NULL);
 		return -EINVAL;

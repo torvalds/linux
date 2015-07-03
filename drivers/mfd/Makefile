@@ -48,6 +48,9 @@ endif
 ifeq ($(CONFIG_MFD_WM8997),y)
 obj-$(CONFIG_MFD_ARIZONA)	+= wm8997-tables.o
 endif
+ifeq ($(CONFIG_MFD_WM8998),y)
+obj-$(CONFIG_MFD_ARIZONA)	+= wm8998-tables.o
+endif
 obj-$(CONFIG_MFD_WM8400)	+= wm8400-core.o
 wm831x-objs			:= wm831x-core.o wm831x-irq.o wm831x-otp.o
 wm831x-objs			+= wm831x-auxadc.o

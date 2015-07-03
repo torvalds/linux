@@ -162,6 +162,8 @@ struct arizona_pdata {
 	/**
 	 * Mode of input structures
 	 * One of the ARIZONA_INMODE_xxx values
+	 * wm5102/wm5110/wm8280/wm8997: [0]=IN1 [1]=IN2 [2]=IN3 [3]=IN4
+	 * wm8998: [0]=IN1A [1]=IN2A [2]=IN1B [3]=IN2B
 	 */
 	int inmode[ARIZONA_MAX_INPUT];
 
