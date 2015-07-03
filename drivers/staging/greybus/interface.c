@@ -189,7 +189,7 @@ static void gb_interface_destroy(struct gb_interface *intf)
 }
 
 /**
- * gb_interface_add
+ * gb_interface_init
  *
  * Create connection for control CPort and then request/parse manifest.
  * Finally initialize all the bundles to set routes via SVC and initialize all
