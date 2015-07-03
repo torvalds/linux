@@ -136,7 +136,7 @@ static bool stk1160_set_alternate(struct stk1160 *dev)
 			dev->alt = i;
 	}
 
-	stk1160_info("setting alternate %d\n", dev->alt);
+	stk1160_dbg("setting alternate %d\n", dev->alt);
 
 	if (dev->alt != prev_alt) {
 		stk1160_dbg("minimum isoc packet size: %u (alt=%d)\n",
@@ -226,7 +226,7 @@ static void stk1160_stop_hw(struct stk1160 *dev)
 
 	/* set alternate 0 */
 	dev->alt = 0;
-	stk1160_info("setting alternate %d\n", dev->alt);
+	stk1160_dbg("setting alternate %d\n", dev->alt);
 	usb_set_interface(dev->udev, 0, 0);
 
 	/* Stop stk1160 */
@@ -540,8 +540,8 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *v4l_fmt,
 
 	sizes[0] = size;
 
-	stk1160_info("%s: buffer count %d, each %ld bytes\n",
-			__func__, *nbuffers, size);
+	stk1160_dbg("%s: buffer count %d, each %ld bytes\n",
+		    __func__, *nbuffers, size);
 
 	return 0;
 }
@@ -625,8 +625,8 @@ void stk1160_clear_queue(struct stk1160 *dev)
 			struct stk1160_buffer, list);
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
-		stk1160_info("buffer [%p/%d] aborted\n",
-				buf, buf->vb.v4l2_buf.index);
+		stk1160_dbg("buffer [%p/%d] aborted\n",
+			    buf, buf->vb.v4l2_buf.index);
 	}
 
 	/* It's important to release the current buffer */
@@ -635,8 +635,8 @@ void stk1160_clear_queue(struct stk1160 *dev)
 		dev->isoc_ctl.buf = NULL;
 
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
-		stk1160_info("buffer [%p/%d] aborted\n",
-				buf, buf->vb.v4l2_buf.index);
+		stk1160_dbg("buffer [%p/%d] aborted\n",
+			    buf, buf->vb.v4l2_buf.index);
 	}
 	spin_unlock_irqrestore(&dev->buf_lock, flags);
 }
