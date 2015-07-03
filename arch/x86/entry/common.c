@@ -28,6 +28,15 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
+#ifdef CONFIG_CONTEXT_TRACKING
+/* Called on entry from user mode with IRQs off. */
+__visible void enter_from_user_mode(void)
+{
+	CT_WARN_ON(ct_state() != CONTEXT_USER);
+	user_exit();
+}
+#endif
+
 static void do_audit_syscall_entry(struct pt_regs *regs, u32 arch)
 {
 #ifdef CONFIG_X86_64
@@ -65,14 +74,16 @@ unsigned long syscall_trace_enter_phase1(struct pt_regs *regs, u32 arch)
 	work = ACCESS_ONCE(current_thread_info()->flags) &
 		_TIF_WORK_SYSCALL_ENTRY;
 
+#ifdef CONFIG_CONTEXT_TRACKING
 	/*
 	 * If TIF_NOHZ is set, we are required to call user_exit() before
 	 * doing anything that could touch RCU.
 	 */
 	if (work & _TIF_NOHZ) {
-		user_exit();
+		enter_from_user_mode();
 		work &= ~_TIF_NOHZ;
 	}
+#endif
 
 #ifdef CONFIG_SECCOMP
 	/*
