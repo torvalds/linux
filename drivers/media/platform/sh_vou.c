@@ -796,13 +796,13 @@ static int sh_vou_enum_output(struct file *file, void *fh,
 	return 0;
 }
 
-int sh_vou_g_output(struct file *file, void *fh, unsigned int *i)
+static int sh_vou_g_output(struct file *file, void *fh, unsigned int *i)
 {
 	*i = 0;
 	return 0;
 }
 
-int sh_vou_s_output(struct file *file, void *fh, unsigned int i)
+static int sh_vou_s_output(struct file *file, void *fh, unsigned int i)
 {
 	return i ? -EINVAL : 0;
 }
