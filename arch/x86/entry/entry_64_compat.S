@@ -458,6 +458,11 @@ ia32_badarg:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 
+	/* Now finish entering normal kernel mode. */
+#ifdef CONFIG_CONTEXT_TRACKING
+	call enter_from_user_mode
+#endif
+
 	/* And exit again. */
 	jmp retint_user
 

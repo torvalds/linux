@@ -508,7 +508,16 @@ END(irq_entries_start)
 
 	testb	$3, CS(%rsp)
 	jz	1f
+
+	/*
+	 * IRQ from user mode.  Switch to kernel gsbase and inform context
+	 * tracking that we're in kernel mode.
+	 */
 	SWAPGS
+#ifdef CONFIG_CONTEXT_TRACKING
+	call enter_from_user_mode
+#endif
+
 1:
 	/*
 	 * Save previous stack pointer, optionally switch to interrupt stack.
@@ -547,26 +556,13 @@ ret_from_intr:
 
 	testb	$3, CS(%rsp)
 	jz	retint_kernel
+
 	/* Interrupt came from user space */
-GLOBAL(retint_user)
-	GET_THREAD_INFO(%rcx)
-
-	/* %rcx: thread info. Interrupts are off. */
-retint_with_reschedule:
-	movl	$_TIF_WORK_MASK, %edi
-retint_check:
 	LOCKDEP_SYS_EXIT_IRQ
-	movl	TI_flags(%rcx), %edx
-	andl	%edi, %edx
-	jnz	retint_careful
-
-retint_swapgs:					/* return to user-space */
-	/*
-	 * The iretq could re-enable interrupts:
-	 */
-	DISABLE_INTERRUPTS(CLBR_ANY)
+GLOBAL(retint_user)
+	mov	%rsp,%rdi
+	call	prepare_exit_to_usermode
 	TRACE_IRQS_IRETQ
-
 	SWAPGS
 	jmp	restore_regs_and_iret
 
@@ -644,35 +640,6 @@ native_irq_return_ldt:
 	popq	%rax
 	jmp	native_irq_return_iret
 #endif
-
-	/* edi: workmask, edx: work */
-retint_careful:
-	bt	$TIF_NEED_RESCHED, %edx
-	jnc	retint_signal
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	pushq	%rdi
-	SCHEDULE_USER
-	popq	%rdi
-	GET_THREAD_INFO(%rcx)
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	jmp	retint_check
-
-retint_signal:
-	testl	$_TIF_DO_NOTIFY_MASK, %edx
-	jz	retint_swapgs
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	movq	$-1, ORIG_RAX(%rsp)
-	xorl	%esi, %esi			/* oldset */
-	movq	%rsp, %rdi			/* &pt_regs */
-	call	do_notify_resume
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	GET_THREAD_INFO(%rcx)
-	jmp	retint_with_reschedule
-
 END(common_interrupt)
 
 /*
@@ -1088,7 +1055,12 @@ ENTRY(error_entry)
 	SWAPGS
 
 .Lerror_entry_from_usermode_after_swapgs:
+#ifdef CONFIG_CONTEXT_TRACKING
+	call enter_from_user_mode
+#endif
+
 .Lerror_entry_done:
+
 	TRACE_IRQS_OFF
 	ret
 
