@@ -388,9 +388,6 @@ static void intel_fbc_enable(struct drm_crtc *crtc)
 
 	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
 
-	if (!dev_priv->display.enable_fbc)
-		return;
-
 	intel_fbc_cancel_work(dev_priv);
 
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
@@ -430,9 +427,6 @@ static void __intel_fbc_disable(struct drm_device *dev)
 
 	intel_fbc_cancel_work(dev_priv);
 
-	if (!dev_priv->display.disable_fbc)
-		return;
-
 	dev_priv->display.disable_fbc(dev);
 	dev_priv->fbc.crtc = NULL;
 }
@@ -446,6 +440,9 @@ static void __intel_fbc_disable(struct drm_device *dev)
 void intel_fbc_disable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!dev_priv->display.enable_fbc)
+		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
 	__intel_fbc_disable(dev);
@@ -462,6 +459,9 @@ void intel_fbc_disable_crtc(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!dev_priv->display.enable_fbc)
+		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
 	if (dev_priv->fbc.crtc == crtc)
@@ -661,6 +661,9 @@ void intel_fbc_cleanup_cfb(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (!dev_priv->display.enable_fbc)
+		return;
+
 	mutex_lock(&dev_priv->fbc.lock);
 	__intel_fbc_cleanup_cfb(dev);
 	mutex_unlock(&dev_priv->fbc.lock);
@@ -707,9 +710,6 @@ static void __intel_fbc_update(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 	const struct drm_display_mode *adjusted_mode;
 	unsigned int max_width, max_height;
-
-	if (!HAS_FBC(dev))
-		return;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
 
@@ -857,6 +857,9 @@ void intel_fbc_update(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (!dev_priv->display.enable_fbc)
+		return;
+
 	mutex_lock(&dev_priv->fbc.lock);
 	__intel_fbc_update(dev);
 	mutex_unlock(&dev_priv->fbc.lock);
@@ -868,6 +871,9 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 {
 	struct drm_device *dev = dev_priv->dev;
 	unsigned int fbc_bits;
+
+	if (!dev_priv->display.enable_fbc)
+		return;
 
 	if (origin == ORIGIN_GTT)
 		return;
@@ -894,6 +900,9 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		     unsigned int frontbuffer_bits)
 {
 	struct drm_device *dev = dev_priv->dev;
+
+	if (!dev_priv->display.enable_fbc)
+		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
 
