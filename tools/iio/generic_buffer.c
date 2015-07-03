@@ -61,6 +61,23 @@ int size_from_channelarray(struct iio_channel_info *channels, int num_channels)
 	return bytes;
 }
 
+void print1byte(uint8_t input, struct iio_channel_info *info)
+{
+	/*
+	 * Shift before conversion to avoid sign extension
+	 * of left aligned data
+	 */
+	input >>= info->shift;
+	input &= info->mask;
+	if (info->is_signed) {
+		int8_t val = (int8_t)(input << (8 - info->bits_used)) >>
+			     (8 - info->bits_used);
+		printf("%05f ", ((float)val + info->offset) * info->scale);
+	} else {
+		printf("%05f ", ((float)input + info->offset) * info->scale);
+	}
+}
+
 void print2byte(uint16_t input, struct iio_channel_info *info)
 {
 	/* First swap if incorrect endian */
@@ -152,6 +169,10 @@ void process_scan(char *data,
 	for (k = 0; k < num_channels; k++)
 		switch (channels[k].bytes) {
 			/* only a few cases implemented so far */
+		case 1:
+			print1byte(*(uint8_t *)(data + channels[k].location),
+				   &channels[k]);
+			break;
 		case 2:
 			print2byte(*(uint16_t *)(data + channels[k].location),
 				   &channels[k]);
