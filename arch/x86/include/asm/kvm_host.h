@@ -358,6 +358,11 @@ struct kvm_mtrr {
 	struct list_head head;
 };
 
+/* Hyper-V per vcpu emulation context */
+struct kvm_vcpu_hv {
+	u64 hv_vapic;
+};
+
 struct kvm_vcpu_arch {
 	/*
 	 * rip and regs accesses must go through
@@ -514,8 +519,7 @@ struct kvm_vcpu_arch {
 	/* used for guest single stepping over the given code position */
 	unsigned long singlestep_rip;
 
-	/* fields used by HYPER-V emulation */
-	u64 hv_vapic;
+	struct kvm_vcpu_hv hyperv;
 
 	cpumask_var_t wbinvd_dirty_mask;
 
@@ -586,6 +590,13 @@ struct kvm_apic_map {
 	struct kvm_lapic *logical_map[16][16];
 };
 
+/* Hyper-V emulation context */
+struct kvm_hv {
+	u64 hv_guest_os_id;
+	u64 hv_hypercall;
+	u64 hv_tsc_page;
+};
+
 struct kvm_arch {
 	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
@@ -645,10 +656,7 @@ struct kvm_arch {
 	/* reads protected by irq_srcu, writes by irq_lock */
 	struct hlist_head mask_notifier_list;
 
-	/* fields used by HYPER-V emulation */
-	u64 hv_guest_os_id;
-	u64 hv_hypercall;
-	u64 hv_tsc_page;
+	struct kvm_hv hyperv;
 
 	#ifdef CONFIG_KVM_MMU_AUDIT
 	int audit_point;
