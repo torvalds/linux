@@ -379,6 +379,22 @@ config S3C2416_SETUP_SDHCI_GPIO
 
 comment "S3C2416 Boards"
 
+<<<<<<< HEAD
+config MACH_MINI2451
+	bool "MINI2451"
+	select S3C_DEV_FB
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
+	select S3C2416_SETUP_SDHCI
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+	select AVERAGE
+	help
+	  Say Y here if you are using an FriendlyARM MINI2451
+
 config MACH_SMDK2416
 	bool "SMDK2416"
 	select S3C2416_SETUP_SDHCI

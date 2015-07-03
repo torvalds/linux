@@ -61,6 +61,7 @@
 
 #include <plat/fb.h>
 #include <mach/s3cfb.h>
+#include <mach/board-wlan.h>
 
 #include "common.h"
 #if defined(CONFIG_S3C24XX_SMDK)
@@ -319,6 +320,17 @@ static void __init mini2451_hsmmc_gpio_setup(void)
 	s3c_gpio_cfgrange_nopull(S3C2410_GPJ(13), 3, S3C_GPIO_SFN(2));
 }
 
+static void __init mini2451_wifi_init(void)
+{
+#if defined(CONFIG_BRCMFMAC_SDIO)
+	WARN_ON(gpio_request(GPIO_WLAN_EN, "WIFI_EN"));
+
+	gpio_direction_output(GPIO_WLAN_EN, 1);
+	udelay(50);
+	gpio_free(GPIO_WLAN_EN);
+#endif
+}
+
 static struct ts_onewire_platform_data mini2451_1wire_pdata = {
 	.timer_irq	= IRQ_TIMER2,
 	.pwm_id		= 2,
@@ -335,12 +347,12 @@ static struct platform_device mini2451_1wire = {
 
 static struct platform_device *mini2451_devices[] __initdata = {
 	&s3c_device_fb,
-	&s3c_device_wdt,
-	&s3c_device_i2c0,
-	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
+	&s3c_device_i2c0,
+	&s3c_device_wdt,
 	&s3c_device_usb_hsudc,
 	&s3c_device_ohci,
+	&s3c_device_hsmmc0,
 	&s3c2443_device_dma,
 	&samsung_device_pwm,
 	&mini2451_1wire,
@@ -372,6 +384,7 @@ static void __init mini2451_machine_init(void)
 	s3c_sdhci1_set_platdata(&mini2451_hsmmc1_pdata);
 
 	mini2451_hsmmc_gpio_setup();
+	mini2451_wifi_init();
 
 	s3c_ohci_set_platdata(&mini2451_hcd_info);
 	s3c24xx_hsudc_set_platdata(&mini2451_hsudc_platdata);
