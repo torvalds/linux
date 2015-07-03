@@ -1175,11 +1175,9 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 {
 	struct perf_evsel *evsel;
 	int err = 0;
-	const int ncpus = cpu_map__nr(evlist->cpus),
-		  nthreads = thread_map__nr(evlist->threads);
 
 	evlist__for_each(evlist, evsel) {
-		err = perf_evsel__apply_filter(evsel, ncpus, nthreads, filter);
+		err = perf_evsel__set_filter(evsel, filter);
 		if (err)
 			break;
 	}

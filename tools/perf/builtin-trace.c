@@ -2314,6 +2314,7 @@ out_delete_sys_enter:
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
+	struct perf_evsel *evsel;
 	int err = -1, i;
 	unsigned long before;
 	const bool forks = argc > 0;
@@ -2382,10 +2383,12 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	else if (thread_map__pid(evlist->threads, 0) == -1)
 		err = perf_evlist__set_filter_pid(evlist, getpid());
 
-	if (err < 0) {
-		printf("err=%d,%s\n", -err, strerror(-err));
-		exit(1);
-	}
+	if (err < 0)
+		goto out_error_mem;
+
+	err = perf_evlist__apply_filters(evlist, &evsel);
+	if (err < 0)
+		goto out_error_apply_filters;
 
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0)
@@ -2487,6 +2490,13 @@ out_error_open:
 
 out_error:
 	fprintf(trace->output, "%s\n", errbuf);
+	goto out_delete_evlist;
+
+out_error_apply_filters:
+	fprintf(trace->output,
+		"Failed to set filter \"%s\" on event %s with %d (%s)\n",
+		evsel->filter, perf_evsel__name(evsel), errno,
+		strerror_r(errno, errbuf, sizeof(errbuf)));
 	goto out_delete_evlist;
 }
 out_error_mem:
