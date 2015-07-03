@@ -1143,12 +1143,17 @@ ENTRY(error_entry)
 	SAVE_EXTRA_REGS 8
 	xorl	%ebx, %ebx
 	testb	$3, CS+8(%rsp)
-	jz	error_kernelspace
+	jz	.Lerror_kernelspace
 
-	/* We entered from user mode */
+.Lerror_entry_from_usermode_swapgs:
+	/*
+	 * We entered from user mode or we're pretending to have entered
+	 * from user mode due to an IRET fault.
+	 */
 	SWAPGS
 
-error_entry_done:
+.Lerror_entry_from_usermode_after_swapgs:
+.Lerror_entry_done:
 	TRACE_IRQS_OFF
 	ret
 
@@ -1158,31 +1163,30 @@ error_entry_done:
 	 * truncated RIP for IRET exceptions returning to compat mode. Check
 	 * for these here too.
 	 */
-error_kernelspace:
+.Lerror_kernelspace:
 	incl	%ebx
 	leaq	native_irq_return_iret(%rip), %rcx
 	cmpq	%rcx, RIP+8(%rsp)
-	je	error_bad_iret
+	je	.Lerror_bad_iret
 	movl	%ecx, %eax			/* zero extend */
 	cmpq	%rax, RIP+8(%rsp)
-	je	bstep_iret
+	je	.Lbstep_iret
 	cmpq	$gs_change, RIP+8(%rsp)
-	jne	error_entry_done
+	jne	.Lerror_entry_done
 
 	/*
 	 * hack: gs_change can fail with user gsbase.  If this happens, fix up
 	 * gsbase and proceed.  We'll fix up the exception and land in
 	 * gs_change's error handler with kernel gsbase.
 	 */
-	SWAPGS
-	jmp	error_entry_done
+	jmp	.Lerror_entry_from_usermode_swapgs
 
-bstep_iret:
+.Lbstep_iret:
 	/* Fix truncated RIP */
 	movq	%rcx, RIP+8(%rsp)
 	/* fall through */
 
-error_bad_iret:
+.Lerror_bad_iret:
 	/*
 	 * We came from an IRET to user mode, so we have user gsbase.
 	 * Switch to kernel gsbase:
@@ -1198,7 +1202,7 @@ error_bad_iret:
 	call	fixup_bad_iret
 	mov	%rax, %rsp
 	decl	%ebx
-	jmp	error_entry_done
+	jmp	.Lerror_entry_from_usermode_after_swapgs
 END(error_entry)
 
 
