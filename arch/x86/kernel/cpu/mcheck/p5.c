@@ -19,10 +19,9 @@ int mce_p5_enabled __read_mostly;
 /* Machine check handler for Pentium class Intel CPUs: */
 static void pentium_machine_check(struct pt_regs *regs, long error_code)
 {
-	enum ctx_state prev_state;
 	u32 loaddr, hi, lotype;
 
-	prev_state = ist_enter(regs);
+	ist_enter(regs);
 
 	rdmsr(MSR_IA32_P5_MC_ADDR, loaddr, hi);
 	rdmsr(MSR_IA32_P5_MC_TYPE, lotype, hi);
@@ -39,7 +38,7 @@ static void pentium_machine_check(struct pt_regs *regs, long error_code)
 
 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
-	ist_exit(regs, prev_state);
+	ist_exit(regs);
 }
 
 /* Set up machine check reporting for processors with Intel style MCE: */
