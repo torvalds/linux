@@ -140,7 +140,8 @@ sysexit_from_sys_call:
 	 */
 	andl	$~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	movl	RIP(%rsp), %ecx		/* User %eip */
-	RESTORE_RSI_RDI
+	movl	RSI(%rsp), %esi
+	movl	RDI(%rsp), %edi
 	xorl	%edx, %edx		/* Do not leak kernel information */
 	xorq	%r8, %r8
 	xorq	%r9, %r9
@@ -366,7 +367,9 @@ cstar_dispatch:
 
 sysretl_from_sys_call:
 	andl	$~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
-	RESTORE_RSI_RDI_RDX
+	movl	RDX(%rsp), %edx
+	movl	RSI(%rsp), %esi
+	movl	RDI(%rsp), %edi
 	movl	RIP(%rsp), %ecx
 	movl	EFLAGS(%rsp), %r11d
 	xorq	%r10, %r10
