@@ -458,6 +458,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 					INTEL_OUTPUT_HDMI);
 		return;
 	} else if (IS_SKYLAKE(dev)) {
+		ddi_translations_fdi = NULL;
 		ddi_translations_dp =
 				skl_get_buf_trans_dp(dev, &n_dp_entries);
 		ddi_translations_edp =
