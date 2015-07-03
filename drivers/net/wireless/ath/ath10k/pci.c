@@ -765,7 +765,7 @@ static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 	case ATH10K_HW_QCA6174:
 		val = (ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
 					  CORE_CTRL_ADDRESS) &
-		       0x7fff) << 21;
+		       0x7ff) << 21;
 		break;
 	case ATH10K_HW_QCA99X0:
 		val = ath10k_pci_read32(ar, PCIE_BAR_REG_ADDRESS);
