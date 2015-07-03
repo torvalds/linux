@@ -242,7 +242,7 @@ static void notrace start_secondary(void *unused)
 	 * Enable the espfix hack for this CPU
 	 */
 #ifdef CONFIG_X86_ESPFIX64
-	init_espfix_ap();
+	init_espfix_ap(smp_processor_id());
 #endif
 
 	/*

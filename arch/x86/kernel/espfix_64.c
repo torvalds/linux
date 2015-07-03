@@ -131,12 +131,12 @@ void __init init_espfix_bsp(void)
 	init_espfix_random();
 
 	/* The rest is the same as for any other processor */
-	init_espfix_ap();
+	init_espfix_ap(0);
 }
 
-void init_espfix_ap(void)
+void init_espfix_ap(int cpu)
 {
-	unsigned int cpu, page;
+	unsigned int page;
 	unsigned long addr;
 	pud_t pud, *pud_p;
 	pmd_t pmd, *pmd_p;
@@ -149,7 +149,6 @@ void init_espfix_ap(void)
 	if (likely(this_cpu_read(espfix_stack)))
 		return;		/* Already initialized */
 
-	cpu = smp_processor_id();
 	addr = espfix_base_addr(cpu);
 	page = cpu/ESPFIX_STACKS_PER_PAGE;
 
