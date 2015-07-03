@@ -611,11 +611,27 @@ int msm_dsi_manager_phy_enable(int id,
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi_phy *phy = msm_dsi->phy;
 	int src_pll_id = IS_DUAL_DSI() ? DSI_CLOCK_MASTER : id;
+	struct msm_dsi_pll *pll = msm_dsi_phy_get_pll(msm_dsi->phy);
 	int ret;
 
 	ret = msm_dsi_phy_enable(phy, src_pll_id, bit_rate, esc_rate);
 	if (ret)
 		return ret;
+
+	/*
+	 * Reset DSI PHY silently changes its PLL registers to reset status,
+	 * which will confuse clock driver and result in wrong output rate of
+	 * link clocks. Restore PLL status if its PLL is being used as clock
+	 * source.
+	 */
+	if (!IS_DUAL_DSI() || (id == DSI_CLOCK_MASTER)) {
+		ret = msm_dsi_pll_restore_state(pll);
+		if (ret) {
+			pr_err("%s: failed to restore pll state\n", __func__);
+			msm_dsi_phy_disable(phy);
+			return ret;
+		}
+	}
 
 	msm_dsi->phy_enabled = true;
 	msm_dsi_phy_get_clk_pre_post(phy, clk_pre, clk_post);
@@ -629,6 +645,11 @@ void msm_dsi_manager_phy_disable(int id)
 	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
 	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
 	struct msm_dsi_phy *phy = msm_dsi->phy;
+	struct msm_dsi_pll *pll = msm_dsi_phy_get_pll(msm_dsi->phy);
+
+	/* Save PLL status if it is a clock source */
+	if (!IS_DUAL_DSI() || (id == DSI_CLOCK_MASTER))
+		msm_dsi_pll_save_state(pll);
 
 	/* disable DSI phy
 	 * In dual-dsi configuration, the phy should be disabled for the

@@ -27,6 +27,7 @@ struct msm_dsi_pll {
 
 	struct clk_hw	clk_hw;
 	bool		pll_on;
+	bool		state_saved;
 
 	unsigned long	min_rate;
 	unsigned long	max_rate;
