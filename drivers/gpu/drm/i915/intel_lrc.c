@@ -1092,6 +1092,56 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 		batch[index++] = (cmd);					\
 	} while (0)
 
+
+/*
+ * In this WA we need to set GEN8_L3SQCREG4[21:21] and reset it after
+ * PIPE_CONTROL instruction. This is required for the flush to happen correctly
+ * but there is a slight complication as this is applied in WA batch where the
+ * values are only initialized once so we cannot take register value at the
+ * beginning and reuse it further; hence we save its value to memory, upload a
+ * constant value with bit21 set and then we restore it back with the saved value.
+ * To simplify the WA, a constant value is formed by using the default value
+ * of this register. This shouldn't be a problem because we are only modifying
+ * it for a short period and this batch in non-premptible. We can ofcourse
+ * use additional instructions that read the actual value of the register
+ * at that time and set our bit of interest but it makes the WA complicated.
+ *
+ * This WA is also required for Gen9 so extracting as a function avoids
+ * code duplication.
+ */
+static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *ring,
+						uint32_t *const batch,
+						uint32_t index)
+{
+	uint32_t l3sqc4_flush = (0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES);
+
+	wa_ctx_emit(batch, (MI_STORE_REGISTER_MEM_GEN8(1) |
+			    MI_SRM_LRM_GLOBAL_GTT));
+	wa_ctx_emit(batch, GEN8_L3SQCREG4);
+	wa_ctx_emit(batch, ring->scratch.gtt_offset + 256);
+	wa_ctx_emit(batch, 0);
+
+	wa_ctx_emit(batch, MI_LOAD_REGISTER_IMM(1));
+	wa_ctx_emit(batch, GEN8_L3SQCREG4);
+	wa_ctx_emit(batch, l3sqc4_flush);
+
+	wa_ctx_emit(batch, GFX_OP_PIPE_CONTROL(6));
+	wa_ctx_emit(batch, (PIPE_CONTROL_CS_STALL |
+			    PIPE_CONTROL_DC_FLUSH_ENABLE));
+	wa_ctx_emit(batch, 0);
+	wa_ctx_emit(batch, 0);
+	wa_ctx_emit(batch, 0);
+	wa_ctx_emit(batch, 0);
+
+	wa_ctx_emit(batch, (MI_LOAD_REGISTER_MEM_GEN8(1) |
+			    MI_SRM_LRM_GLOBAL_GTT));
+	wa_ctx_emit(batch, GEN8_L3SQCREG4);
+	wa_ctx_emit(batch, ring->scratch.gtt_offset + 256);
+	wa_ctx_emit(batch, 0);
+
+	return index;
+}
+
 static inline uint32_t wa_ctx_start(struct i915_wa_ctx_bb *wa_ctx,
 				    uint32_t offset,
 				    uint32_t start_alignment)
@@ -1152,25 +1202,9 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *ring,
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:bdw */
 	if (IS_BROADWELL(ring->dev)) {
-		struct drm_i915_private *dev_priv = to_i915(ring->dev);
-		uint32_t l3sqc4_flush = (I915_READ(GEN8_L3SQCREG4) |
-					 GEN8_LQSC_FLUSH_COHERENT_LINES);
-
-		wa_ctx_emit(batch, MI_LOAD_REGISTER_IMM(1));
-		wa_ctx_emit(batch, GEN8_L3SQCREG4);
-		wa_ctx_emit(batch, l3sqc4_flush);
-
-		wa_ctx_emit(batch, GFX_OP_PIPE_CONTROL(6));
-		wa_ctx_emit(batch, (PIPE_CONTROL_CS_STALL |
-				    PIPE_CONTROL_DC_FLUSH_ENABLE));
-		wa_ctx_emit(batch, 0);
-		wa_ctx_emit(batch, 0);
-		wa_ctx_emit(batch, 0);
-		wa_ctx_emit(batch, 0);
-
-		wa_ctx_emit(batch, MI_LOAD_REGISTER_IMM(1));
-		wa_ctx_emit(batch, GEN8_L3SQCREG4);
-		wa_ctx_emit(batch, l3sqc4_flush & ~GEN8_LQSC_FLUSH_COHERENT_LINES);
+		index = gen8_emit_flush_coherentl3_wa(ring, batch, index);
+		if (index < 0)
+			return index;
 	}
 
 	/* WaClearSlmSpaceAtContextSwitch:bdw,chv */
