@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/sort.h>
 #include <linux/rbtree.h>
 
@@ -260,7 +261,7 @@ struct pool {
 	process_mapping_fn process_prepared_mapping;
 	process_mapping_fn process_prepared_discard;
 
-	struct dm_bio_prison_cell *cell_sort_array[CELL_SORT_ARRAY_SIZE];
+	struct dm_bio_prison_cell **cell_sort_array;
 };
 
 static enum pool_mode get_pool_mode(struct pool *pool);
@@ -2499,6 +2500,7 @@ static void __pool_destroy(struct pool *pool)
 {
 	__pool_table_remove(pool);
 
+	vfree(pool->cell_sort_array);
 	if (dm_pool_metadata_close(pool->pmd) < 0)
 		DMWARN("%s: dm_pool_metadata_close() failed.", __func__);
 
@@ -2611,6 +2613,13 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 		goto bad_mapping_pool;
 	}
 
+	pool->cell_sort_array = vmalloc(sizeof(*pool->cell_sort_array) * CELL_SORT_ARRAY_SIZE);
+	if (!pool->cell_sort_array) {
+		*error = "Error allocating cell sort array";
+		err_p = ERR_PTR(-ENOMEM);
+		goto bad_sort_array;
+	}
+
 	pool->ref_count = 1;
 	pool->last_commit_jiffies = jiffies;
 	pool->pool_md = pool_md;
@@ -2619,6 +2628,8 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 
 	return pool;
 
+bad_sort_array:
+	mempool_destroy(pool->mapping_pool);
 bad_mapping_pool:
 	dm_deferred_set_destroy(pool->all_io_ds);
 bad_all_io_ds:
