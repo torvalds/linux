@@ -292,12 +292,16 @@ static uint64_t execlists_ctx_descriptor(struct intel_engine_cs *ring,
 	return desc;
 }
 
-static void execlists_elsp_write(struct intel_engine_cs *ring,
-				 struct drm_i915_gem_object *ctx_obj0,
-				 struct drm_i915_gem_object *ctx_obj1)
+static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
+				 struct drm_i915_gem_request *rq1)
 {
+
+	struct intel_engine_cs *ring = rq0->ring;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *ctx_obj0 = rq0->ctx->engine[ring->id].state;
+	struct drm_i915_gem_object *ctx_obj1 = rq1 ?
+		rq1->ctx->engine[ring->id].state : NULL;
 	uint64_t temp = 0;
 	uint32_t desc[4];
 
@@ -365,18 +369,12 @@ static int execlists_update_context(struct drm_i915_gem_request *rq)
 static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
 				      struct drm_i915_gem_request *rq1)
 {
-	struct intel_engine_cs *ring = rq0->ring;
-	struct drm_i915_gem_object *ctx_obj0 = rq0->ctx->engine[ring->id].state;
-	struct drm_i915_gem_object *ctx_obj1 = NULL;
-
 	execlists_update_context(rq0);
 
-	if (rq1) {
+	if (rq1)
 		execlists_update_context(rq1);
-		ctx_obj1 = rq1->ctx->engine[ring->id].state;
-	}
 
-	execlists_elsp_write(ring, ctx_obj0, ctx_obj1);
+	execlists_elsp_write(rq0, rq1);
 }
 
 static void execlists_context_unqueue(struct intel_engine_cs *ring)
