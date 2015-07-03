@@ -76,7 +76,7 @@ static void mvebu_armada_pm_enter(void __iomem *sdram_reg, u32 srcmd)
 		  [ackcmd] "r" (ackcmd), [gpio_ctrl] "r" (gpio_ctrl) : "r1");
 }
 
-static int mvebu_armada_pm_init(void)
+static int __init mvebu_armada_pm_init(void)
 {
 	struct device_node *np;
 	struct device_node *gpio_ctrl_np;

@@ -194,7 +194,7 @@ static const struct platform_suspend_ops mvebu_pm_ops = {
 	.valid = suspend_valid_only_mem,
 };
 
-int mvebu_pm_init(void (*board_pm_enter)(void __iomem *sdram_reg, u32 srcmd))
+int __init mvebu_pm_init(void (*board_pm_enter)(void __iomem *sdram_reg, u32 srcmd))
 {
 	struct device_node *np;
 	struct resource res;
