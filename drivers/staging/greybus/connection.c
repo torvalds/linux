@@ -209,7 +209,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 	/* XXX Will have to establish connections to get version */
 	gb_connection_bind_protocol(connection);
 	if (!connection->protocol)
-		dev_warn(&bundle->dev,
+		dev_warn(&connection->dev,
 			 "protocol 0x%02hhx handler not found\n", protocol_id);
 
 	return connection;
