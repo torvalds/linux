@@ -287,7 +287,7 @@ void wb_wakeup_delayed(struct bdi_writeback *wb)
 #define INIT_BW		(100 << (20 - PAGE_SHIFT))
 
 static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi,
-		   gfp_t gfp)
+		   int blkcg_id, gfp_t gfp)
 {
 	int i, err;
 
@@ -311,21 +311,29 @@ static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi,
 	INIT_LIST_HEAD(&wb->work_list);
 	INIT_DELAYED_WORK(&wb->dwork, wb_workfn);
 
+	wb->congested = wb_congested_get_create(bdi, blkcg_id, gfp);
+	if (!wb->congested)
+		return -ENOMEM;
+
 	err = fprop_local_init_percpu(&wb->completions, gfp);
 	if (err)
-		return err;
+		goto out_put_cong;
 
 	for (i = 0; i < NR_WB_STAT_ITEMS; i++) {
 		err = percpu_counter_init(&wb->stat[i], 0, gfp);
-		if (err) {
-			while (--i)
-				percpu_counter_destroy(&wb->stat[i]);
-			fprop_local_destroy_percpu(&wb->completions);
-			return err;
-		}
+		if (err)
+			goto out_destroy_stat;
 	}
 
 	return 0;
+
+out_destroy_stat:
+	while (--i)
+		percpu_counter_destroy(&wb->stat[i]);
+	fprop_local_destroy_percpu(&wb->completions);
+out_put_cong:
+	wb_congested_put(wb->congested);
+	return err;
 }
 
 /*
@@ -361,6 +369,7 @@ static void wb_exit(struct bdi_writeback *wb)
 		percpu_counter_destroy(&wb->stat[i]);
 
 	fprop_local_destroy_percpu(&wb->completions);
+	wb_congested_put(wb->congested);
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -392,9 +401,6 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
 	struct bdi_writeback_congested *new_congested = NULL, *congested;
 	struct rb_node **node, *parent;
 	unsigned long flags;
-
-	if (blkcg_id == 1)
-		return &bdi->wb_congested;
 retry:
 	spin_lock_irqsave(&cgwb_lock, flags);
 
@@ -419,7 +425,6 @@ retry:
 		new_congested = NULL;
 		rb_link_node(&congested->rb_node, parent, node);
 		rb_insert_color(&congested->rb_node, &bdi->cgwb_congested_tree);
-		atomic_inc(&bdi->usage_cnt);
 		goto found;
 	}
 
@@ -450,11 +455,7 @@ found:
  */
 void wb_congested_put(struct bdi_writeback_congested *congested)
 {
-	struct backing_dev_info *bdi = congested->bdi;
 	unsigned long flags;
-
-	if (congested->blkcg_id == 1)
-		return;
 
 	local_irq_save(flags);
 	if (!atomic_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
@@ -462,12 +463,15 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
 		return;
 	}
 
-	rb_erase(&congested->rb_node, &congested->bdi->cgwb_congested_tree);
+	/* bdi might already have been destroyed leaving @congested unlinked */
+	if (congested->bdi) {
+		rb_erase(&congested->rb_node,
+			 &congested->bdi->cgwb_congested_tree);
+		congested->bdi = NULL;
+	}
+
 	spin_unlock_irqrestore(&cgwb_lock, flags);
 	kfree(congested);
-
-	if (atomic_dec_and_test(&bdi->usage_cnt))
-		wake_up_all(&cgwb_release_wait);
 }
 
 static void cgwb_release_workfn(struct work_struct *work)
@@ -480,7 +484,6 @@ static void cgwb_release_workfn(struct work_struct *work)
 
 	css_put(wb->memcg_css);
 	css_put(wb->blkcg_css);
-	wb_congested_put(wb->congested);
 
 	fprop_local_destroy_percpu(&wb->memcg_completions);
 	percpu_ref_exit(&wb->refcnt);
@@ -541,7 +544,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	if (!wb)
 		return -ENOMEM;
 
-	ret = wb_init(wb, bdi, gfp);
+	ret = wb_init(wb, bdi, blkcg_css->id, gfp);
 	if (ret)
 		goto err_free;
 
@@ -552,12 +555,6 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	ret = fprop_local_init_percpu(&wb->memcg_completions, gfp);
 	if (ret)
 		goto err_ref_exit;
-
-	wb->congested = wb_congested_get_create(bdi, blkcg_css->id, gfp);
-	if (!wb->congested) {
-		ret = -ENOMEM;
-		goto err_fprop_exit;
-	}
 
 	wb->memcg_css = memcg_css;
 	wb->blkcg_css = blkcg_css;
@@ -588,12 +585,10 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	if (ret) {
 		if (ret == -EEXIST)
 			ret = 0;
-		goto err_put_congested;
+		goto err_fprop_exit;
 	}
 	goto out_put;
 
-err_put_congested:
-	wb_congested_put(wb->congested);
 err_fprop_exit:
 	fprop_local_destroy_percpu(&wb->memcg_completions);
 err_ref_exit:
@@ -662,26 +657,41 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 	return wb;
 }
 
-static void cgwb_bdi_init(struct backing_dev_info *bdi)
+static int cgwb_bdi_init(struct backing_dev_info *bdi)
 {
-	bdi->wb.memcg_css = mem_cgroup_root_css;
-	bdi->wb.blkcg_css = blkcg_root_css;
-	bdi->wb_congested.blkcg_id = 1;
+	int ret;
+
 	INIT_RADIX_TREE(&bdi->cgwb_tree, GFP_ATOMIC);
 	bdi->cgwb_congested_tree = RB_ROOT;
 	atomic_set(&bdi->usage_cnt, 1);
+
+	ret = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
+	if (!ret) {
+		bdi->wb.memcg_css = mem_cgroup_root_css;
+		bdi->wb.blkcg_css = blkcg_root_css;
+	}
+	return ret;
 }
 
 static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
 {
 	struct radix_tree_iter iter;
+	struct bdi_writeback_congested *congested, *congested_n;
 	void **slot;
 
 	WARN_ON(test_bit(WB_registered, &bdi->wb.state));
 
 	spin_lock_irq(&cgwb_lock);
+
 	radix_tree_for_each_slot(slot, &bdi->cgwb_tree, &iter, 0)
 		cgwb_kill(*slot);
+
+	rbtree_postorder_for_each_entry_safe(congested, congested_n,
+					&bdi->cgwb_congested_tree, rb_node) {
+		rb_erase(&congested->rb_node, &bdi->cgwb_congested_tree);
+		congested->bdi = NULL;	/* mark @congested unlinked */
+	}
+
 	spin_unlock_irq(&cgwb_lock);
 
 	/*
@@ -732,15 +742,28 @@ void wb_blkcg_offline(struct blkcg *blkcg)
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
-static void cgwb_bdi_init(struct backing_dev_info *bdi) { }
+static int cgwb_bdi_init(struct backing_dev_info *bdi)
+{
+	int err;
+
+	bdi->wb_congested = kzalloc(sizeof(*bdi->wb_congested), GFP_KERNEL);
+	if (!bdi->wb_congested)
+		return -ENOMEM;
+
+	err = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
+	if (err) {
+		kfree(bdi->wb_congested);
+		return err;
+	}
+	return 0;
+}
+
 static void cgwb_bdi_destroy(struct backing_dev_info *bdi) { }
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
 
 int bdi_init(struct backing_dev_info *bdi)
 {
-	int err;
-
 	bdi->dev = NULL;
 
 	bdi->min_ratio = 0;
@@ -749,15 +772,7 @@ int bdi_init(struct backing_dev_info *bdi)
 	INIT_LIST_HEAD(&bdi->bdi_list);
 	init_waitqueue_head(&bdi->wb_waitq);
 
-	err = wb_init(&bdi->wb, bdi, GFP_KERNEL);
-	if (err)
-		return err;
-
-	bdi->wb_congested.state = 0;
-	bdi->wb.congested = &bdi->wb_congested;
-
-	cgwb_bdi_init(bdi);
-	return 0;
+	return cgwb_bdi_init(bdi);
 }
 EXPORT_SYMBOL(bdi_init);
 
