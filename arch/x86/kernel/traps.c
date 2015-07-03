@@ -292,6 +292,8 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
 
+	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
 		conditional_sti(regs);
@@ -376,6 +378,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	siginfo_t *info;
 
 	prev_state = exception_enter();
+	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
 		goto exit;
@@ -457,6 +460,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
+	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 	conditional_sti(regs);
 
 	if (v8086_mode(regs)) {
@@ -514,6 +518,7 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 		return;
 
 	prev_state = ist_enter(regs);
+	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
 				SIGTRAP) == NOTIFY_STOP)
@@ -750,6 +755,7 @@ dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
+	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 	math_error(regs, error_code, X86_TRAP_MF);
 	exception_exit(prev_state);
 }
@@ -760,6 +766,7 @@ do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
+	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 	math_error(regs, error_code, X86_TRAP_XF);
 	exception_exit(prev_state);
 }
@@ -776,6 +783,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
+	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 	BUG_ON(use_eager_fpu());
 
 #ifdef CONFIG_MATH_EMULATION
@@ -805,6 +813,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
+	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 	local_irq_enable();
 
 	info.si_signo = SIGILL;
