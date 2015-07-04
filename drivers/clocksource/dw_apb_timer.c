@@ -248,7 +248,8 @@ dw_apb_clockevent_init(int cpu, const char *name, unsigned rating,
 						       &dw_ced->ced);
 	dw_ced->ced.min_delta_ns = clockevent_delta2ns(5000, &dw_ced->ced);
 	dw_ced->ced.cpumask = cpumask_of(cpu);
-	dw_ced->ced.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
+	dw_ced->ced.features = CLOCK_EVT_FEAT_PERIODIC |
+				CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_DYNIRQ;
 	dw_ced->ced.set_state_shutdown = apbt_shutdown;
 	dw_ced->ced.set_state_periodic = apbt_set_periodic;
 	dw_ced->ced.set_state_oneshot = apbt_set_oneshot;
