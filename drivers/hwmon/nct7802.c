@@ -102,6 +102,24 @@ static ssize_t store_temp_type(struct device *dev,
 	return err ? : count;
 }
 
+static ssize_t show_pwm_mode(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	unsigned int regval;
+	int ret;
+
+	if (sattr->index > 1)
+		return sprintf(buf, "1\n");
+
+	ret = regmap_read(data->regmap, 0x5E, &regval);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%u\n", !(regval & (1 << sattr->index)));
+}
+
 static ssize_t show_pwm(struct device *dev, struct device_attribute *devattr,
 			char *buf)
 {
@@ -765,6 +783,11 @@ static SENSOR_DEVICE_ATTR_2(fan3_alarm, S_IRUGO, show_alarm, NULL, 0x1a, 2);
 static SENSOR_DEVICE_ATTR_2(fan3_beep, S_IRUGO | S_IWUSR, show_beep, store_beep,
 			    0x5b, 2);
 
+/* 7.2.89 Fan Control Output Type */
+static SENSOR_DEVICE_ATTR(pwm1_mode, S_IRUGO, show_pwm_mode, NULL, 0);
+static SENSOR_DEVICE_ATTR(pwm2_mode, S_IRUGO, show_pwm_mode, NULL, 1);
+static SENSOR_DEVICE_ATTR(pwm3_mode, S_IRUGO, show_pwm_mode, NULL, 2);
+
 /* 7.2.91... Fan Control Output Value */
 static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_pwm, store_pwm, 0x60);
 static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO | S_IWUSR, show_pwm, store_pwm, 0x61);
@@ -809,8 +832,11 @@ static struct attribute_group nct7802_fan_group = {
 };
 
 static struct attribute *nct7802_pwm_attrs[] = {
+	&sensor_dev_attr_pwm1_mode.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
+	&sensor_dev_attr_pwm2_mode.dev_attr.attr,
 	&sensor_dev_attr_pwm2.dev_attr.attr,
+	&sensor_dev_attr_pwm3_mode.dev_attr.attr,
 	&sensor_dev_attr_pwm3.dev_attr.attr,
 	NULL
 };
