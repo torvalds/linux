@@ -620,6 +620,7 @@ int ext4_ind_migrate(struct inode *inode)
 	struct ext4_inode_info		*ei = EXT4_I(inode);
 	struct ext4_extent		*ex;
 	unsigned int			i, len;
+	ext4_lblk_t			end;
 	ext4_fsblk_t			blk;
 	handle_t			*handle;
 	int				ret;
@@ -632,6 +633,14 @@ int ext4_ind_migrate(struct inode *inode)
 	if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
 				       EXT4_FEATURE_RO_COMPAT_BIGALLOC))
 		return -EOPNOTSUPP;
+
+	/*
+	 * In order to get correct extent info, force all delayed allocation
+	 * blocks to be allocated, otherwise delayed allocation blocks may not
+	 * be reflected and bypass the checks on extent header.
+	 */
+	if (test_opt(inode->i_sb, DELALLOC))
+		ext4_alloc_da_blocks(inode);
 
 	handle = ext4_journal_start(inode, EXT4_HT_MIGRATE, 1);
 	if (IS_ERR(handle))
@@ -654,7 +663,8 @@ int ext4_ind_migrate(struct inode *inode)
 	else {
 		len = le16_to_cpu(ex->ee_len);
 		blk = ext4_ext_pblock(ex);
-		if (len > EXT4_NDIR_BLOCKS) {
+		end = le32_to_cpu(ex->ee_block) + len - 1;
+		if (end >= EXT4_NDIR_BLOCKS) {
 			ret = -EOPNOTSUPP;
 			goto errout;
 		}
