@@ -1648,6 +1648,7 @@ p9_client_write(struct p9_fid *fid, u64 offset, struct iov_iter *from, int *err)
 		if (*err) {
 			trace_9p_protocol_dump(clnt, req->rc);
 			p9_free_req(clnt, req);
+			break;
 		}
 
 		p9_debug(P9_DEBUG_9P, "<<< RWRITE count %d\n", count);
