@@ -24,7 +24,6 @@
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
-#include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 #include <target/iscsi/iscsi_transport.h>
 
@@ -860,57 +859,19 @@ static struct configfs_attribute *lio_target_initiator_attrs[] = {
 	NULL,
 };
 
-static struct se_node_acl *lio_tpg_alloc_fabric_acl(
-	struct se_portal_group *se_tpg)
+static int lio_target_init_nodeacl(struct se_node_acl *se_nacl,
+		const char *name)
 {
-	struct iscsi_node_acl *acl;
-
-	acl = kzalloc(sizeof(struct iscsi_node_acl), GFP_KERNEL);
-	if (!acl) {
-		pr_err("Unable to allocate memory for struct iscsi_node_acl\n");
-		return NULL;
-	}
-
-	return &acl->se_node_acl;
-}
-
-static struct se_node_acl *lio_target_make_nodeacl(
-	struct se_portal_group *se_tpg,
-	struct config_group *group,
-	const char *name)
-{
-	struct config_group *stats_cg;
-	struct iscsi_node_acl *acl;
-	struct se_node_acl *se_nacl_new, *se_nacl;
-	struct iscsi_portal_group *tpg = container_of(se_tpg,
-			struct iscsi_portal_group, tpg_se_tpg);
-	u32 cmdsn_depth;
-
-	se_nacl_new = lio_tpg_alloc_fabric_acl(se_tpg);
-	if (!se_nacl_new)
-		return ERR_PTR(-ENOMEM);
-
-	cmdsn_depth = tpg->tpg_attrib.default_cmdsn_depth;
-	/*
-	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
-	 * when converting a NdoeACL from demo mode -> explict
-	 */
-	se_nacl = core_tpg_add_initiator_node_acl(se_tpg, se_nacl_new,
-				name, cmdsn_depth);
-	if (IS_ERR(se_nacl))
-		return se_nacl;
-
-	acl = container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
-	stats_cg = &se_nacl->acl_fabric_stat_group;
+	struct iscsi_node_acl *acl =
+		container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
+	struct config_group *stats_cg = &se_nacl->acl_fabric_stat_group;
 
 	stats_cg->default_groups = kmalloc(sizeof(struct config_group *) * 2,
 				GFP_KERNEL);
 	if (!stats_cg->default_groups) {
 		pr_err("Unable to allocate memory for"
 				" stats_cg->default_groups\n");
-		core_tpg_del_initiator_node_acl(se_tpg, se_nacl, 1);
-		kfree(acl);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	stats_cg->default_groups[0] = &acl->node_stat_grps.iscsi_sess_stats_group;
@@ -918,13 +879,11 @@ static struct se_node_acl *lio_target_make_nodeacl(
 	config_group_init_type_name(&acl->node_stat_grps.iscsi_sess_stats_group,
 			"iscsi_sess_stats", &iscsi_stat_sess_cit);
 
-	return se_nacl;
+	return 0;
 }
 
-static void lio_target_drop_nodeacl(
-	struct se_node_acl *se_nacl)
+static void lio_target_cleanup_nodeacl( struct se_node_acl *se_nacl)
 {
-	struct se_portal_group *se_tpg = se_nacl->se_tpg;
 	struct iscsi_node_acl *acl = container_of(se_nacl,
 			struct iscsi_node_acl, se_node_acl);
 	struct config_item *df_item;
@@ -938,9 +897,6 @@ static void lio_target_drop_nodeacl(
 		config_item_put(df_item);
 	}
 	kfree(stats_cg->default_groups);
-
-	core_tpg_del_initiator_node_acl(se_tpg, se_nacl, 1);
-	kfree(acl);
 }
 
 /* End items for lio_target_acl_cit */
@@ -1463,8 +1419,7 @@ static struct se_portal_group *lio_target_tiqn_addtpg(
 	if (!tpg)
 		return NULL;
 
-	ret = core_tpg_register(&iscsi_ops, wwn, &tpg->tpg_se_tpg,
-				tpg, TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(wwn, &tpg->tpg_se_tpg, SCSI_PROTOCOL_ISCSI);
 	if (ret < 0)
 		return NULL;
 
@@ -1735,14 +1690,6 @@ static char *iscsi_get_fabric_name(void)
 	return "iSCSI";
 }
 
-static u32 iscsi_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
-
-	/* only used for printks or comparism with ->ref_task_tag */
-	return (__force u32)cmd->init_task_tag;
-}
-
 static int iscsi_get_cmd_state(struct se_cmd *se_cmd)
 {
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
@@ -1832,78 +1779,58 @@ static void lio_aborted_task(struct se_cmd *se_cmd)
 	cmd->conn->conn_transport->iscsit_aborted_task(cmd->conn, cmd);
 }
 
+static inline struct iscsi_portal_group *iscsi_tpg(struct se_portal_group *se_tpg)
+{
+	return container_of(se_tpg, struct iscsi_portal_group, tpg_se_tpg);
+}
+
 static char *lio_tpg_get_endpoint_wwn(struct se_portal_group *se_tpg)
 {
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return &tpg->tpg_tiqn->tiqn[0];
+	return iscsi_tpg(se_tpg)->tpg_tiqn->tiqn;
 }
 
 static u16 lio_tpg_get_tag(struct se_portal_group *se_tpg)
 {
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->tpgt;
+	return iscsi_tpg(se_tpg)->tpgt;
 }
 
 static u32 lio_tpg_get_default_depth(struct se_portal_group *se_tpg)
 {
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->tpg_attrib.default_cmdsn_depth;
+	return iscsi_tpg(se_tpg)->tpg_attrib.default_cmdsn_depth;
 }
 
 static int lio_tpg_check_demo_mode(struct se_portal_group *se_tpg)
 {
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->tpg_attrib.generate_node_acls;
+	return iscsi_tpg(se_tpg)->tpg_attrib.generate_node_acls;
 }
 
 static int lio_tpg_check_demo_mode_cache(struct se_portal_group *se_tpg)
 {
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->tpg_attrib.cache_dynamic_acls;
+	return iscsi_tpg(se_tpg)->tpg_attrib.cache_dynamic_acls;
 }
 
 static int lio_tpg_check_demo_mode_write_protect(
 	struct se_portal_group *se_tpg)
 {
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->tpg_attrib.demo_mode_write_protect;
+	return iscsi_tpg(se_tpg)->tpg_attrib.demo_mode_write_protect;
 }
 
 static int lio_tpg_check_prod_mode_write_protect(
 	struct se_portal_group *se_tpg)
 {
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->tpg_attrib.prod_mode_write_protect;
+	return iscsi_tpg(se_tpg)->tpg_attrib.prod_mode_write_protect;
 }
 
 static int lio_tpg_check_prot_fabric_only(
 	struct se_portal_group *se_tpg)
 {
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
 	/*
 	 * Only report fabric_prot_type if t10_pi has also been enabled
 	 * for incoming ib_isert sessions.
 	 */
-	if (!tpg->tpg_attrib.t10_pi)
+	if (!iscsi_tpg(se_tpg)->tpg_attrib.t10_pi)
 		return 0;
-
-	return tpg->tpg_attrib.fabric_prot_type;
-}
-
-static void lio_tpg_release_fabric_acl(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_acl)
-{
-	struct iscsi_node_acl *acl = container_of(se_acl,
-				struct iscsi_node_acl, se_node_acl);
-	kfree(acl);
+	return iscsi_tpg(se_tpg)->tpg_attrib.fabric_prot_type;
 }
 
 /*
@@ -1948,9 +1875,7 @@ static void lio_tpg_close_session(struct se_session *se_sess)
 
 static u32 lio_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->tpg_tiqn->tiqn_index;
+	return iscsi_tpg(se_tpg)->tpg_tiqn->tiqn_index;
 }
 
 static void lio_set_default_node_attributes(struct se_node_acl *se_acl)
@@ -1967,7 +1892,7 @@ static void lio_set_default_node_attributes(struct se_node_acl *se_acl)
 
 static int lio_check_stop_free(struct se_cmd *se_cmd)
 {
-	return target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+	return target_put_sess_cmd(se_cmd);
 }
 
 static void lio_release_cmd(struct se_cmd *se_cmd)
@@ -1981,14 +1906,11 @@ static void lio_release_cmd(struct se_cmd *se_cmd)
 const struct target_core_fabric_ops iscsi_ops = {
 	.module				= THIS_MODULE,
 	.name				= "iscsi",
+	.node_acl_size			= sizeof(struct iscsi_node_acl),
 	.get_fabric_name		= iscsi_get_fabric_name,
-	.get_fabric_proto_ident		= iscsi_get_fabric_proto_ident,
 	.tpg_get_wwn			= lio_tpg_get_endpoint_wwn,
 	.tpg_get_tag			= lio_tpg_get_tag,
 	.tpg_get_default_depth		= lio_tpg_get_default_depth,
-	.tpg_get_pr_transport_id	= iscsi_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= iscsi_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= iscsi_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= lio_tpg_check_demo_mode,
 	.tpg_check_demo_mode_cache	= lio_tpg_check_demo_mode_cache,
 	.tpg_check_demo_mode_write_protect =
@@ -1996,8 +1918,6 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.tpg_check_prod_mode_write_protect =
 			lio_tpg_check_prod_mode_write_protect,
 	.tpg_check_prot_fabric_only	= &lio_tpg_check_prot_fabric_only,
-	.tpg_alloc_fabric_acl		= lio_tpg_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= lio_tpg_release_fabric_acl,
 	.tpg_get_inst_index		= lio_tpg_get_inst_index,
 	.check_stop_free		= lio_check_stop_free,
 	.release_cmd			= lio_release_cmd,
@@ -2008,7 +1928,6 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.write_pending			= lio_write_pending,
 	.write_pending_status		= lio_write_pending_status,
 	.set_default_node_attributes	= lio_set_default_node_attributes,
-	.get_task_tag			= iscsi_get_task_tag,
 	.get_cmd_state			= iscsi_get_cmd_state,
 	.queue_data_in			= lio_queue_data_in,
 	.queue_status			= lio_queue_status,
@@ -2020,8 +1939,8 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.fabric_drop_tpg		= lio_target_tiqn_deltpg,
 	.fabric_make_np			= lio_target_call_addnptotpg,
 	.fabric_drop_np			= lio_target_call_delnpfromtpg,
-	.fabric_make_nodeacl		= lio_target_make_nodeacl,
-	.fabric_drop_nodeacl		= lio_target_drop_nodeacl,
+	.fabric_init_nodeacl		= lio_target_init_nodeacl,
+	.fabric_cleanup_nodeacl		= lio_target_cleanup_nodeacl,
 
 	.tfc_discovery_attrs		= lio_target_discovery_auth_attrs,
 	.tfc_wwn_attrs			= lio_target_wwn_attrs,
