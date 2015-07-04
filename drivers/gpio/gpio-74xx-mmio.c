@@ -129,7 +129,7 @@ static int mmio_74xx_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(dat))
 		return PTR_ERR(dat);
 
-	priv->flags = (unsigned)of_id->data;
+	priv->flags = (uintptr_t) of_id->data;
 
 	err = bgpio_init(&priv->bgc, &pdev->dev,
 			 DIV_ROUND_UP(MMIO_74XX_BIT_CNT(priv->flags), 8),
