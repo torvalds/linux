@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/bitops.h>
 #include "pmbus.h"
 
 enum chips { adm1075, adm1275, adm1276 };
@@ -30,28 +31,28 @@ enum chips { adm1075, adm1275, adm1276 };
 #define ADM1275_PEAK_VOUT		0xd2
 #define ADM1275_PMON_CONFIG		0xd4
 
-#define ADM1275_VIN_VOUT_SELECT		(1 << 6)
-#define ADM1275_VRANGE			(1 << 5)
-#define ADM1075_IRANGE_50		(1 << 4)
-#define ADM1075_IRANGE_25		(1 << 3)
-#define ADM1075_IRANGE_MASK		((1 << 3) | (1 << 4))
+#define ADM1275_VIN_VOUT_SELECT		BIT(6)
+#define ADM1275_VRANGE			BIT(5)
+#define ADM1075_IRANGE_50		BIT(4)
+#define ADM1075_IRANGE_25		BIT(3)
+#define ADM1075_IRANGE_MASK		(BIT(3) | BIT(4))
 
 #define ADM1275_IOUT_WARN2_LIMIT	0xd7
 #define ADM1275_DEVICE_CONFIG		0xd8
 
-#define ADM1275_IOUT_WARN2_SELECT	(1 << 4)
+#define ADM1275_IOUT_WARN2_SELECT	BIT(4)
 
 #define ADM1276_PEAK_PIN		0xda
 
-#define ADM1275_MFR_STATUS_IOUT_WARN2	(1 << 0)
+#define ADM1275_MFR_STATUS_IOUT_WARN2	BIT(0)
 
 #define ADM1075_READ_VAUX		0xdd
 #define ADM1075_VAUX_OV_WARN_LIMIT	0xde
 #define ADM1075_VAUX_UV_WARN_LIMIT	0xdf
 #define ADM1075_VAUX_STATUS		0xf6
 
-#define ADM1075_VAUX_OV_WARN		(1<<7)
-#define ADM1075_VAUX_UV_WARN		(1<<6)
+#define ADM1075_VAUX_OV_WARN		BIT(7)
+#define ADM1075_VAUX_UV_WARN		BIT(6)
 
 struct adm1275_data {
 	int id;
