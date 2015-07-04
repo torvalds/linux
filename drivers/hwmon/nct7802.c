@@ -102,6 +102,36 @@ static ssize_t store_temp_type(struct device *dev,
 	return err ? : count;
 }
 
+static ssize_t show_pwm(struct device *dev, struct device_attribute *devattr,
+			char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(data->regmap, attr->index, &val);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t store_pwm(struct device *dev, struct device_attribute *devattr,
+			 const char *buf, size_t count)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	int err;
+	u8 val;
+
+	err = kstrtou8(buf, 0, &val);
+	if (err < 0)
+		return err;
+
+	err = regmap_write(data->regmap, attr->index, val);
+	return err ? : count;
+}
 
 static int nct7802_read_temp(struct nct7802_data *data,
 			     u8 reg_temp, u8 reg_temp_low, int *temp)
@@ -735,6 +765,11 @@ static SENSOR_DEVICE_ATTR_2(fan3_alarm, S_IRUGO, show_alarm, NULL, 0x1a, 2);
 static SENSOR_DEVICE_ATTR_2(fan3_beep, S_IRUGO | S_IWUSR, show_beep, store_beep,
 			    0x5b, 2);
 
+/* 7.2.91... Fan Control Output Value */
+static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_pwm, store_pwm, 0x60);
+static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO | S_IWUSR, show_pwm, store_pwm, 0x61);
+static SENSOR_DEVICE_ATTR(pwm3, S_IRUGO | S_IWUSR, show_pwm, store_pwm, 0x62);
+
 static struct attribute *nct7802_fan_attrs[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_min.dev_attr.attr,
@@ -773,10 +808,22 @@ static struct attribute_group nct7802_fan_group = {
 	.is_visible = nct7802_fan_is_visible,
 };
 
+static struct attribute *nct7802_pwm_attrs[] = {
+	&sensor_dev_attr_pwm1.dev_attr.attr,
+	&sensor_dev_attr_pwm2.dev_attr.attr,
+	&sensor_dev_attr_pwm3.dev_attr.attr,
+	NULL
+};
+
+static struct attribute_group nct7802_pwm_group = {
+	.attrs = nct7802_pwm_attrs,
+};
+
 static const struct attribute_group *nct7802_groups[] = {
 	&nct7802_temp_group,
 	&nct7802_in_group,
 	&nct7802_fan_group,
+	&nct7802_pwm_group,
 	NULL
 };
 
