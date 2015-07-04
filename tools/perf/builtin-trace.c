@@ -1187,7 +1187,6 @@ struct syscall {
 	int		    nr_args;
 	struct format_field *args;
 	const char	    *name;
-	bool		    filtered;
 	bool		    is_exit;
 	struct syscall_fmt  *fmt;
 	size_t		    (**arg_scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
@@ -1550,19 +1549,6 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	sc = trace->syscalls.table + id;
 	sc->name = name;
 
-	if (trace->ev_qualifier) {
-		bool in = strlist__find(trace->ev_qualifier, name) != NULL;
-
-		if (!(in ^ trace->not_ev_qualifier)) {
-			sc->filtered = true;
-			/*
-			 * No need to do read tracepoint information since this will be
-			 * filtered out.
-			 */
-			return 0;
-		}
-	}
-
 	sc->fmt  = syscall_fmt__find(sc->name);
 
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
@@ -1823,9 +1809,6 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (sc == NULL)
 		return -1;
 
-	if (sc->filtered)
-		return 0;
-
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
@@ -1880,9 +1863,6 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	if (sc == NULL)
 		return -1;
-
-	if (sc->filtered)
-		return 0;
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
@@ -2310,6 +2290,26 @@ out_delete_sys_enter:
 	goto out;
 }
 
+static int trace__set_ev_qualifier_filter(struct trace *trace)
+{
+	int err = -1;
+	char *filter = asprintf_expr_inout_ints("id", !trace->not_ev_qualifier,
+						trace->ev_qualifier_ids.nr,
+						trace->ev_qualifier_ids.entries);
+
+	if (filter == NULL)
+		goto out_enomem;
+
+	if (!perf_evsel__append_filter(trace->syscalls.events.sys_enter, "&&", filter))
+		err = perf_evsel__append_filter(trace->syscalls.events.sys_exit, "&&", filter);
+
+	free(filter);
+out:
+	return err;
+out_enomem:
+	errno = ENOMEM;
+	goto out;
+}
 
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
@@ -2385,6 +2385,14 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	if (err < 0)
 		goto out_error_mem;
+
+	if (trace->ev_qualifier_ids.nr > 0) {
+		err = trace__set_ev_qualifier_filter(trace);
+		if (err < 0)
+			goto out_errno;
+	}
+
+	pr_debug("%s\n", trace->syscalls.events.sys_exit->filter);
 
 	err = perf_evlist__apply_filters(evlist, &evsel);
 	if (err < 0)
@@ -2501,6 +2509,10 @@ out_error_apply_filters:
 }
 out_error_mem:
 	fprintf(trace->output, "Not enough memory to run!\n");
+	goto out_delete_evlist;
+
+out_errno:
+	fprintf(trace->output, "errno=%d,%s\n", errno, strerror(errno));
 	goto out_delete_evlist;
 }
 
