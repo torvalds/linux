@@ -3,24 +3,28 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <linux/atomic.h>
 
 #include "perf.h"
 #include "util/debug.h"
 
 struct cpu_map {
+	atomic_t refcnt;
 	int nr;
 	int map[];
 };
 
 struct cpu_map *cpu_map__new(const char *cpu_list);
 struct cpu_map *cpu_map__dummy_new(void);
-void cpu_map__delete(struct cpu_map *map);
 struct cpu_map *cpu_map__read(FILE *file);
 size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp);
 int cpu_map__get_socket(struct cpu_map *map, int idx);
 int cpu_map__get_core(struct cpu_map *map, int idx);
 int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp);
 int cpu_map__build_core_map(struct cpu_map *cpus, struct cpu_map **corep);
+
+struct cpu_map *cpu_map__get(struct cpu_map *map);
+void cpu_map__put(struct cpu_map *map);
 
 static inline int cpu_map__socket(struct cpu_map *sock, int s)
 {
