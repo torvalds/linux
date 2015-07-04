@@ -217,8 +217,8 @@ config NET_POLL_CONTROLLER
 	def_bool NETPOLL
 
 config NTB_NETDEV
-	tristate "Virtual Ethernet over NTB"
-	depends on NTB
+	tristate "Virtual Ethernet over NTB Transport"
+	depends on NTB_TRANSPORT
 
 config RIONET
 	tristate "RapidIO Ethernet over messaging driver support"
