@@ -1257,16 +1257,17 @@ static void start_apic_timer(struct kvm_lapic *apic)
 
 static void apic_manage_nmi_watchdog(struct kvm_lapic *apic, u32 lvt0_val)
 {
-	int nmi_wd_enabled = apic_lvt_nmi_mode(kvm_apic_get_reg(apic, APIC_LVT0));
+	bool lvt0_in_nmi_mode = apic_lvt_nmi_mode(lvt0_val);
 
-	if (apic_lvt_nmi_mode(lvt0_val)) {
-		if (!nmi_wd_enabled) {
+	if (apic->lvt0_in_nmi_mode != lvt0_in_nmi_mode) {
+		apic->lvt0_in_nmi_mode = lvt0_in_nmi_mode;
+		if (lvt0_in_nmi_mode) {
 			apic_debug("Receive NMI setting on APIC_LVT0 "
 				   "for cpu %d\n", apic->vcpu->vcpu_id);
-			apic->vcpu->kvm->arch.vapics_in_nmi_mode++;
-		}
-	} else if (nmi_wd_enabled)
-		apic->vcpu->kvm->arch.vapics_in_nmi_mode--;
+			atomic_inc(&apic->vcpu->kvm->arch.vapics_in_nmi_mode);
+		} else
+			atomic_dec(&apic->vcpu->kvm->arch.vapics_in_nmi_mode);
+	}
 }
 
 static int apic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
@@ -1597,6 +1598,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 	if (!(vcpu->kvm->arch.disabled_quirks & KVM_QUIRK_LINT0_REENABLED))
 		apic_set_reg(apic, APIC_LVT0,
 			     SET_APIC_DELIVERY_MODE(0, APIC_MODE_EXTINT));
+	apic_manage_nmi_watchdog(apic, kvm_apic_get_reg(apic, APIC_LVT0));
 
 	apic_set_reg(apic, APIC_DFR, 0xffffffffU);
 	apic_set_spiv(apic, 0xff);
@@ -1822,6 +1824,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 	apic_update_ppr(apic);
 	hrtimer_cancel(&apic->lapic_timer.timer);
 	apic_update_lvtt(apic);
+	apic_manage_nmi_watchdog(apic, kvm_apic_get_reg(apic, APIC_LVT0));
 	update_divide_count(apic);
 	start_apic_timer(apic);
 	apic->irr_pending = true;
