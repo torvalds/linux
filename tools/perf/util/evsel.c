@@ -836,6 +836,23 @@ int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter)
 	return -1;
 }
 
+int perf_evsel__append_filter(struct perf_evsel *evsel,
+			      const char *op, const char *filter)
+{
+	char *new_filter;
+
+	if (evsel->filter == NULL)
+		return perf_evsel__set_filter(evsel, filter);
+
+	if (asprintf(&new_filter,"(%s) %s (%s)", evsel->filter, op, filter) > 0) {
+		free(evsel->filter);
+		evsel->filter = new_filter;
+		return 0;
+	}
+
+	return -1;
+}
+
 int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
