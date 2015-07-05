@@ -406,7 +406,7 @@ static int dtl1_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 	default:
 		return -EILSEQ;
-	};
+	}
 
 	nsh.zero = 0;
 	nsh.len = skb->len;
