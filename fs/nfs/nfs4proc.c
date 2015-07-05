@@ -616,8 +616,7 @@ int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
 		clp = session->clp;
 		do_renew_lease(clp, res->sr_timestamp);
 		/* Check sequence flags */
-		if (res->sr_status_flags != 0)
-			nfs4_schedule_lease_recovery(clp);
+		nfs41_handle_sequence_flag_errors(clp, res->sr_status_flags);
 		nfs41_update_target_slotid(slot->table, slot, res);
 		break;
 	case 1:
