@@ -277,6 +277,13 @@ void __init rockchip_clk_register_branches(
 				list->div_shift
 			);
 			break;
+		case branch_inverter:
+			clk = rockchip_clk_register_inverter(
+				list->name, list->parent_names,
+				list->num_parents,
+				reg_base + list->muxdiv_offset,
+				list->div_shift, list->div_flags, &clk_lock);
+			break;
 		}
 
 		/* none of the cases above matched */

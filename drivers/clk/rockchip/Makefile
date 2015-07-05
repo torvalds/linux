@@ -6,6 +6,7 @@ obj-y	+= clk-rockchip.o
 obj-y	+= clk.o
 obj-y	+= clk-pll.o
 obj-y	+= clk-cpu.o
+obj-y	+= clk-inverter.o
 obj-y	+= clk-mmc-phase.o
 obj-$(CONFIG_RESET_CONTROLLER)	+= softrst.o
 
