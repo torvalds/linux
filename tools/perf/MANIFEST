@@ -51,7 +51,6 @@ include/asm-generic/bitops/fls64.h
 include/asm-generic/bitops/__fls.h
 include/asm-generic/bitops/fls.h
 include/linux/perf_event.h
-include/linux/rbtree.h
 include/linux/list.h
 include/linux/hash.h
 include/linux/stringify.h
