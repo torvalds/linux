@@ -175,6 +175,8 @@ static int intel_setup(struct hci_uart *hu)
 
 	BT_DBG("%s", hdev->name);
 
+	hu->hdev->set_bdaddr = btintel_set_bdaddr;
+
 	calltime = ktime_get();
 
 	set_bit(STATE_BOOTLOADER, &intel->flags);
