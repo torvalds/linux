@@ -467,7 +467,10 @@ static void do_renew_lease(struct nfs_client *clp, unsigned long timestamp)
 
 static void renew_lease(const struct nfs_server *server, unsigned long timestamp)
 {
-	do_renew_lease(server->nfs_client, timestamp);
+	struct nfs_client *clp = server->nfs_client;
+
+	if (!nfs4_has_session(clp))
+		do_renew_lease(clp, timestamp);
 }
 
 struct nfs4_call_sync_data {
@@ -7572,13 +7575,8 @@ static int nfs4_proc_sequence(struct nfs_client *clp, struct rpc_cred *cred)
 		goto out;
 	}
 	ret = rpc_wait_for_completion_task(task);
-	if (!ret) {
-		struct nfs4_sequence_res *res = task->tk_msg.rpc_resp;
-
-		if (task->tk_status == 0)
-			nfs41_handle_sequence_flag_errors(clp, res->sr_status_flags);
+	if (!ret)
 		ret = task->tk_status;
-	}
 	rpc_put_task(task);
 out:
 	dprintk("<-- %s status=%d\n", __func__, ret);
