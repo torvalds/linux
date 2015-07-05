@@ -1329,6 +1329,10 @@ static const struct pmbus_limit_attr pin_limit_attrs[] = {
 		.update = true,
 		.attr = "average",
 	}, {
+		.reg = PMBUS_VIRT_READ_PIN_MIN,
+		.update = true,
+		.attr = "input_lowest",
+	}, {
 		.reg = PMBUS_VIRT_READ_PIN_MAX,
 		.update = true,
 		.attr = "input_highest",
@@ -1358,6 +1362,10 @@ static const struct pmbus_limit_attr pout_limit_attrs[] = {
 		.reg = PMBUS_VIRT_READ_POUT_AVG,
 		.update = true,
 		.attr = "average",
+	}, {
+		.reg = PMBUS_VIRT_READ_POUT_MIN,
+		.update = true,
+		.attr = "input_lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_POUT_MAX,
 		.update = true,
