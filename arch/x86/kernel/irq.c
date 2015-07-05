@@ -497,6 +497,11 @@ void fixup_irqs(void)
 	 */
 	mdelay(1);
 
+	/*
+	 * We can walk the vector array of this cpu without holding
+	 * vector_lock because the cpu is already marked !online, so
+	 * nothing else will touch it.
+	 */
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		unsigned int irr;
 
@@ -508,9 +513,9 @@ void fixup_irqs(void)
 			irq = __this_cpu_read(vector_irq[vector]);
 
 			desc = irq_to_desc(irq);
+			raw_spin_lock(&desc->lock);
 			data = irq_desc_get_irq_data(desc);
 			chip = irq_data_get_irq_chip(data);
-			raw_spin_lock(&desc->lock);
 			if (chip->irq_retrigger) {
 				chip->irq_retrigger(data);
 				__this_cpu_write(vector_irq[vector], VECTOR_RETRIGGERED);
