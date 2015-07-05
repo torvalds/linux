@@ -2207,8 +2207,10 @@ static void nfs41_handle_some_state_revoked(struct nfs_client *clp)
 
 static void nfs41_handle_recallable_state_revoked(struct nfs_client *clp)
 {
-	/* This will need to handle layouts too */
-	nfs_expire_all_delegations(clp);
+	/* FIXME: For now, we destroy all layouts. */
+	pnfs_destroy_all_layouts(clp);
+	/* FIXME: For now, we test all delegations+open state+locks. */
+	nfs41_handle_some_state_revoked(clp);
 	dprintk("%s: Recallable state revoked on server %s!\n", __func__,
 			clp->cl_hostname);
 }
