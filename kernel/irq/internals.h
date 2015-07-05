@@ -76,12 +76,8 @@ extern void unmask_threaded_irq(struct irq_desc *desc);
 
 #ifdef CONFIG_SPARSE_IRQ
 static inline void irq_mark_irq(unsigned int irq) { }
-extern void irq_lock_sparse(void);
-extern void irq_unlock_sparse(void);
 #else
 extern void irq_mark_irq(unsigned int irq);
-static inline void irq_lock_sparse(void) { }
-static inline void irq_unlock_sparse(void) { }
 #endif
 
 extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
