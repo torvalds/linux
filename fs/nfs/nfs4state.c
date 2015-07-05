@@ -2191,9 +2191,17 @@ static void nfs41_handle_server_reboot(struct nfs_client *clp)
 	}
 }
 
-static void nfs41_handle_state_revoked(struct nfs_client *clp)
+static void nfs41_handle_all_state_revoked(struct nfs_client *clp)
 {
 	nfs4_reset_all_state(clp);
+	dprintk("%s: state revoked on server %s\n", __func__, clp->cl_hostname);
+}
+
+static void nfs41_handle_some_state_revoked(struct nfs_client *clp)
+{
+	nfs4_state_mark_reclaim_helper(clp, nfs4_state_mark_reclaim_nograce);
+	nfs4_schedule_state_manager(clp);
+
 	dprintk("%s: state revoked on server %s\n", __func__, clp->cl_hostname);
 }
 
@@ -2231,10 +2239,11 @@ void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags)
 
 	if (flags & SEQ4_STATUS_RESTART_RECLAIM_NEEDED)
 		nfs41_handle_server_reboot(clp);
-	if (flags & (SEQ4_STATUS_EXPIRED_ALL_STATE_REVOKED |
-			    SEQ4_STATUS_EXPIRED_SOME_STATE_REVOKED |
+	if (flags & (SEQ4_STATUS_EXPIRED_ALL_STATE_REVOKED))
+		nfs41_handle_all_state_revoked(clp);
+	if (flags & (SEQ4_STATUS_EXPIRED_SOME_STATE_REVOKED |
 			    SEQ4_STATUS_ADMIN_STATE_REVOKED))
-		nfs41_handle_state_revoked(clp);
+		nfs41_handle_some_state_revoked(clp);
 	if (flags & SEQ4_STATUS_LEASE_MOVED)
 		nfs4_schedule_lease_moved_recovery(clp);
 	if (flags & SEQ4_STATUS_RECALLABLE_STATE_REVOKED)
