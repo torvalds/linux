@@ -57,6 +57,22 @@
 #define RK3288_EMMC_CON0		0x218
 #define RK3288_EMMC_CON1		0x21c
 
+#define RK3368_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3368_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3368_CLKGATE_CON(x)		((x) * 0x4 + 0x200)
+#define RK3368_GLB_SRST_FST		0x280
+#define RK3368_GLB_SRST_SND		0x284
+#define RK3368_SOFTRST_CON(x)		((x) * 0x4 + 0x300)
+#define RK3368_MISC_CON			0x380
+#define RK3368_SDMMC_CON0		0x400
+#define RK3368_SDMMC_CON1		0x404
+#define RK3368_SDIO0_CON0		0x408
+#define RK3368_SDIO0_CON1		0x40c
+#define RK3368_SDIO1_CON0		0x410
+#define RK3368_SDIO1_CON1		0x414
+#define RK3368_EMMC_CON0		0x418
+#define RK3368_EMMC_CON1		0x41c
+
 enum rockchip_pll_type {
 	pll_rk3066,
 };
