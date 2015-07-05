@@ -1768,7 +1768,7 @@ EXPORT_SYMBOL_GPL(nfs_mkdir);
 
 static void nfs_dentry_handle_enoent(struct dentry *dentry)
 {
-	if (d_really_is_positive(dentry) && !d_unhashed(dentry))
+	if (simple_positive(dentry))
 		d_delete(dentry);
 }
 

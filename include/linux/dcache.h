@@ -160,6 +160,7 @@ struct dentry_operations {
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
 	int (*d_manage)(struct dentry *, bool);
+	struct inode *(*d_select_inode)(struct dentry *, unsigned);
 } ____cacheline_aligned;
 
 /*
@@ -225,6 +226,7 @@ struct dentry_operations {
 
 #define DCACHE_MAY_FREE			0x00800000
 #define DCACHE_FALLTHRU			0x01000000 /* Fall through to lower layer */
+#define DCACHE_OP_SELECT_INODE		0x02000000 /* Unioned entry: dcache op selects inode */
 
 extern seqlock_t rename_lock;
 
@@ -503,6 +505,11 @@ static inline bool d_really_is_negative(const struct dentry *dentry)
 static inline bool d_really_is_positive(const struct dentry *dentry)
 {
 	return dentry->d_inode != NULL;
+}
+
+static inline int simple_positive(struct dentry *dentry)
+{
+	return d_really_is_positive(dentry) && !d_unhashed(dentry);
 }
 
 extern void d_set_fallthru(struct dentry *dentry);

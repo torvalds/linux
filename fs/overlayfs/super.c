@@ -316,6 +316,7 @@ static int ovl_dentry_weak_revalidate(struct dentry *dentry, unsigned int flags)
 
 static const struct dentry_operations ovl_dentry_operations = {
 	.d_release = ovl_dentry_release,
+	.d_select_inode = ovl_d_select_inode,
 };
 
 static const struct dentry_operations ovl_reval_dentry_operations = {
