@@ -43,7 +43,7 @@ struct da732x_priv {
 /*
  * da732x register cache - default settings
  */
-static struct reg_default da732x_reg_cache[] = {
+static const struct reg_default da732x_reg_cache[] = {
 	{ DA732X_REG_REF1		, 0x02 },
 	{ DA732X_REG_BIAS_EN		, 0x80 },
 	{ DA732X_REG_BIAS1		, 0x00 },

@@ -35,7 +35,7 @@
 /*
  * ALC5632 register cache
  */
-static struct reg_default  alc5632_reg_defaults[] = {
+static const struct reg_default alc5632_reg_defaults[] = {
 	{   2, 0x8080 },	/* R2   - Speaker Output Volume */
 	{   4, 0x8080 },	/* R4   - Headphone Output Volume */
 	{   6, 0x8080 },	/* R6   - AUXOUT Volume */
