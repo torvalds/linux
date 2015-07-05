@@ -1878,30 +1878,6 @@ static int btusb_send_frame_intel(struct hci_dev *hdev, struct sk_buff *skb)
 	return -EILSEQ;
 }
 
-static int btusb_intel_secure_send(struct hci_dev *hdev, u8 fragment_type,
-				   u32 plen, const void *param)
-{
-	while (plen > 0) {
-		struct sk_buff *skb;
-		u8 cmd_param[253], fragment_len = (plen > 252) ? 252 : plen;
-
-		cmd_param[0] = fragment_type;
-		memcpy(cmd_param + 1, param, fragment_len);
-
-		skb = __hci_cmd_sync(hdev, 0xfc09, fragment_len + 1,
-				     cmd_param, HCI_INIT_TIMEOUT);
-		if (IS_ERR(skb))
-			return PTR_ERR(skb);
-
-		kfree_skb(skb);
-
-		plen -= fragment_len;
-		param += fragment_len;
-	}
-
-	return 0;
-}
-
 static void btusb_intel_version_info(struct hci_dev *hdev,
 				     struct intel_version *ver)
 {
@@ -2104,7 +2080,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	/* Start the firmware download transaction with the Init fragment
 	 * represented by the 128 bytes of CSS header.
 	 */
-	err = btusb_intel_secure_send(hdev, 0x00, 128, fw->data);
+	err = btintel_secure_send(hdev, 0x00, 128, fw->data);
 	if (err < 0) {
 		BT_ERR("%s: Failed to send firmware header (%d)",
 		       hdev->name, err);
@@ -2114,7 +2090,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	/* Send the 256 bytes of public key information from the firmware
 	 * as the PKey fragment.
 	 */
-	err = btusb_intel_secure_send(hdev, 0x03, 256, fw->data + 128);
+	err = btintel_secure_send(hdev, 0x03, 256, fw->data + 128);
 	if (err < 0) {
 		BT_ERR("%s: Failed to send firmware public key (%d)",
 		       hdev->name, err);
@@ -2124,7 +2100,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	/* Send the 256 bytes of signature information from the firmware
 	 * as the Sign fragment.
 	 */
-	err = btusb_intel_secure_send(hdev, 0x02, 256, fw->data + 388);
+	err = btintel_secure_send(hdev, 0x02, 256, fw->data + 388);
 	if (err < 0) {
 		BT_ERR("%s: Failed to send firmware signature (%d)",
 		       hdev->name, err);
@@ -2148,8 +2124,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 		 * firmware data buffer as a single Data fragement.
 		 */
 		if (!(frag_len % 4)) {
-			err = btusb_intel_secure_send(hdev, 0x01, frag_len,
-						      fw_ptr);
+			err = btintel_secure_send(hdev, 0x01, frag_len, fw_ptr);
 			if (err < 0) {
 				BT_ERR("%s: Failed to send firmware data (%d)",
 				       hdev->name, err);
