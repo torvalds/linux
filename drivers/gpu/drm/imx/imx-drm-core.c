@@ -63,8 +63,7 @@ static void imx_drm_driver_lastclose(struct drm_device *drm)
 #if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
 	struct imx_drm_device *imxdrm = drm->dev_private;
 
-	if (imxdrm->fbhelper)
-		drm_fbdev_cma_restore_mode(imxdrm->fbhelper);
+	drm_fbdev_cma_restore_mode(imxdrm->fbhelper);
 #endif
 }
 
