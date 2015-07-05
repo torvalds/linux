@@ -31,8 +31,8 @@ config SENSORS_ADM1275
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for Analog
-	  Devices ADM1075, ADM1275, ADM1276, ADM1293, and ADM1294 Hot-Swap
-	  Controller and Digital Power Monitors.
+	  Devices ADM1075, ADM1275, ADM1276, ADM1278, ADM1293, and ADM1294
+	  Hot-Swap Controller and Digital Power Monitors.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called adm1275.
