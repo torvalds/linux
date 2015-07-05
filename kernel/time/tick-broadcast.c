@@ -316,6 +316,13 @@ static void tick_handle_periodic_broadcast(struct clock_event_device *dev)
 	bool bc_local;
 
 	raw_spin_lock(&tick_broadcast_lock);
+
+	/* Handle spurious interrupts gracefully */
+	if (clockevent_state_shutdown(tick_broadcast_device.evtdev)) {
+		raw_spin_unlock(&tick_broadcast_lock);
+		return;
+	}
+
 	bc_local = tick_do_periodic_broadcast();
 
 	if (clockevent_state_oneshot(dev)) {
