@@ -1672,10 +1672,9 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 		locked = true;
 	}
 	ret = write_cache_pages(mapping, wbc, __f2fs_writepage, mapping);
+	f2fs_submit_merged_bio(sbi, DATA, WRITE);
 	if (locked)
 		mutex_unlock(&sbi->writepages);
-
-	f2fs_submit_merged_bio(sbi, DATA, WRITE);
 
 	remove_dirty_dir_inode(inode);
 
