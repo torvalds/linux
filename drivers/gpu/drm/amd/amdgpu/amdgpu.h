@@ -2065,6 +2065,9 @@ struct amdgpu_device {
 
 	/* amdkfd interface */
 	struct kfd_dev          *kfd;
+
+	/* kernel conext for IB submission */
+	struct amdgpu_ctx *kernel_ctx;
 };
 
 bool amdgpu_device_is_px(struct drm_device *dev);
