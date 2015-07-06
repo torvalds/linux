@@ -28,14 +28,16 @@
 #ifdef CONFIG_GACT_PROB
 static int gact_net_rand(struct tcf_gact *gact)
 {
-	if (!gact->tcfg_pval || prandom_u32() % gact->tcfg_pval)
+	smp_rmb(); /* coupled with smp_wmb() in tcf_gact_init() */
+	if (prandom_u32() % gact->tcfg_pval)
 		return gact->tcf_action;
 	return gact->tcfg_paction;
 }
 
 static int gact_determ(struct tcf_gact *gact)
 {
-	if (!gact->tcfg_pval || gact->tcf_bstats.packets % gact->tcfg_pval)
+	smp_rmb(); /* coupled with smp_wmb() in tcf_gact_init() */
+	if (gact->tcf_bstats.packets % gact->tcfg_pval)
 		return gact->tcf_action;
 	return gact->tcfg_paction;
 }
@@ -105,7 +107,11 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 #ifdef CONFIG_GACT_PROB
 	if (p_parm) {
 		gact->tcfg_paction = p_parm->paction;
-		gact->tcfg_pval    = p_parm->pval;
+		gact->tcfg_pval    = max_t(u16, 1, p_parm->pval);
+		/* Make sure tcfg_pval is written before tcfg_ptype
+		 * coupled with smp_rmb() in gact_net_rand() & gact_determ()
+		 */
+		smp_wmb();
 		gact->tcfg_ptype   = p_parm->ptype;
 	}
 #endif
