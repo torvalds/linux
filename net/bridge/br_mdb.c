@@ -323,6 +323,7 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
 	struct net_bridge_mdb_htable *mdb;
+	unsigned long now = jiffies;
 	int err;
 
 	mdb = mlock_dereference(br->mdb, br);
@@ -347,6 +348,8 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	if (unlikely(!p))
 		return -ENOMEM;
 	rcu_assign_pointer(*pp, p);
+	if (state == MDB_TEMPORARY)
+		mod_timer(&p->timer, now + br->multicast_membership_interval);
 
 	br_mdb_notify(br->dev, port, group, RTM_NEWMDB);
 	return 0;
