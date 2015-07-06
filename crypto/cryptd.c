@@ -688,16 +688,18 @@ static void cryptd_aead_crypt(struct aead_request *req,
 			int (*crypt)(struct aead_request *req))
 {
 	struct cryptd_aead_request_ctx *rctx;
+	crypto_completion_t compl;
+
 	rctx = aead_request_ctx(req);
+	compl = rctx->complete;
 
 	if (unlikely(err == -EINPROGRESS))
 		goto out;
 	aead_request_set_tfm(req, child);
 	err = crypt( req );
-	req->base.complete = rctx->complete;
 out:
 	local_bh_disable();
-	rctx->complete(&req->base, err);
+	compl(&req->base, err);
 	local_bh_enable();
 }
 
@@ -756,7 +758,9 @@ static int cryptd_aead_init_tfm(struct crypto_aead *tfm)
 		return PTR_ERR(cipher);
 
 	ctx->child = cipher;
-	crypto_aead_set_reqsize(tfm, sizeof(struct cryptd_aead_request_ctx));
+	crypto_aead_set_reqsize(
+		tfm, max((unsigned)sizeof(struct cryptd_aead_request_ctx),
+			 crypto_aead_reqsize(cipher)));
 	return 0;
 }
 
@@ -775,7 +779,7 @@ static int cryptd_create_aead(struct crypto_template *tmpl,
 	struct aead_alg *alg;
 	const char *name;
 	u32 type = 0;
-	u32 mask = 0;
+	u32 mask = CRYPTO_ALG_ASYNC;
 	int err;
 
 	cryptd_check_internal(tb, &type, &mask);
