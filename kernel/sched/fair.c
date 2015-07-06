@@ -2349,7 +2349,7 @@ static inline long calc_tg_weight(struct task_group *tg, struct cfs_rq *cfs_rq)
 	/*
 	 * Use this CPU's actual weight instead of the last load_contribution
 	 * to gain a more accurate current total weight. See
-	 * update_cfs_rq_load_contribution().
+	 * __update_cfs_rq_tg_load_contrib().
 	 */
 	tg_weight = atomic_long_read(&tg->load_avg);
 	tg_weight -= cfs_rq->tg_load_contrib;
