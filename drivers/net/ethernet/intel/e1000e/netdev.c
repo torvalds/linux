@@ -6493,7 +6493,7 @@ static int __e1000_resume(struct pci_dev *pdev)
 	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
 		aspm_disable_flag |= PCIE_LINK_STATE_L1;
 	if (aspm_disable_flag)
-		e1000e_disable_aspm_locked(pdev, aspm_disable_flag);
+		e1000e_disable_aspm(pdev, aspm_disable_flag);
 
 	pci_set_master(pdev);
 
@@ -6771,7 +6771,7 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
 		aspm_disable_flag |= PCIE_LINK_STATE_L1;
 	if (aspm_disable_flag)
-		e1000e_disable_aspm(pdev, aspm_disable_flag);
+		e1000e_disable_aspm_locked(pdev, aspm_disable_flag);
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
