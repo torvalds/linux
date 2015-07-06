@@ -1486,8 +1486,10 @@ EXPORT_SYMBOL(ldlm_pools_init);
 
 void ldlm_pools_fini(void)
 {
-	unregister_shrinker(&ldlm_pools_srv_shrinker);
-	unregister_shrinker(&ldlm_pools_cli_shrinker);
+	if (ldlm_pools_thread) {
+		unregister_shrinker(&ldlm_pools_srv_shrinker);
+		unregister_shrinker(&ldlm_pools_cli_shrinker);
+	}
 	ldlm_pools_thread_stop();
 }
 EXPORT_SYMBOL(ldlm_pools_fini);
