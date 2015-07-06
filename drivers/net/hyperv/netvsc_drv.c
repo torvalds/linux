@@ -743,8 +743,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	if (nvdev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
 		limit = NETVSC_MTU - ETH_HLEN;
 
-	/* Hyper-V hosts don't support MTU < ETH_DATA_LEN (1500) */
-	if (mtu < ETH_DATA_LEN || mtu > limit)
+	if (mtu < NETVSC_MTU_MIN || mtu > limit)
 		return -EINVAL;
 
 	nvdev->start_remove = true;

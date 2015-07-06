@@ -589,6 +589,7 @@ struct nvsp_message {
 
 
 #define NETVSC_MTU 65536
+#define NETVSC_MTU_MIN 68
 
 #define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*16)	/* 16MB */
 #define NETVSC_RECEIVE_BUFFER_SIZE_LEGACY	(1024*1024*15)  /* 15MB */
