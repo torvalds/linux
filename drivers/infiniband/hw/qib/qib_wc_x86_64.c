@@ -118,7 +118,8 @@ int qib_enable_wc(struct qib_devdata *dd)
 	if (!ret) {
 		dd->wc_cookie = arch_phys_wc_add(pioaddr, piolen);
 		if (dd->wc_cookie < 0)
-			ret = -EINVAL;
+			/* use error from routine */
+			ret = dd->wc_cookie;
 	}
 
 	return ret;

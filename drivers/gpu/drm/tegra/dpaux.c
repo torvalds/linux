@@ -56,15 +56,14 @@ static inline struct tegra_dpaux *work_to_dpaux(struct work_struct *work)
 	return container_of(work, struct tegra_dpaux, work);
 }
 
-static inline unsigned long tegra_dpaux_readl(struct tegra_dpaux *dpaux,
-					      unsigned long offset)
+static inline u32 tegra_dpaux_readl(struct tegra_dpaux *dpaux,
+				    unsigned long offset)
 {
 	return readl(dpaux->regs + (offset << 2));
 }
 
 static inline void tegra_dpaux_writel(struct tegra_dpaux *dpaux,
-				      unsigned long value,
-				      unsigned long offset)
+				      u32 value, unsigned long offset)
 {
 	writel(value, dpaux->regs + (offset << 2));
 }
@@ -72,34 +71,32 @@ static inline void tegra_dpaux_writel(struct tegra_dpaux *dpaux,
 static void tegra_dpaux_write_fifo(struct tegra_dpaux *dpaux, const u8 *buffer,
 				   size_t size)
 {
-	unsigned long offset = DPAUX_DP_AUXDATA_WRITE(0);
 	size_t i, j;
 
-	for (i = 0; i < size; i += 4) {
-		size_t num = min_t(size_t, size - i, 4);
-		unsigned long value = 0;
+	for (i = 0; i < DIV_ROUND_UP(size, 4); i++) {
+		size_t num = min_t(size_t, size - i * 4, 4);
+		u32 value = 0;
 
 		for (j = 0; j < num; j++)
-			value |= buffer[i + j] << (j * 8);
+			value |= buffer[i * 4 + j] << (j * 8);
 
-		tegra_dpaux_writel(dpaux, value, offset++);
+		tegra_dpaux_writel(dpaux, value, DPAUX_DP_AUXDATA_WRITE(i));
 	}
 }
 
 static void tegra_dpaux_read_fifo(struct tegra_dpaux *dpaux, u8 *buffer,
 				  size_t size)
 {
-	unsigned long offset = DPAUX_DP_AUXDATA_READ(0);
 	size_t i, j;
 
-	for (i = 0; i < size; i += 4) {
-		size_t num = min_t(size_t, size - i, 4);
-		unsigned long value;
+	for (i = 0; i < DIV_ROUND_UP(size, 4); i++) {
+		size_t num = min_t(size_t, size - i * 4, 4);
+		u32 value;
 
-		value = tegra_dpaux_readl(dpaux, offset++);
+		value = tegra_dpaux_readl(dpaux, DPAUX_DP_AUXDATA_READ(i));
 
 		for (j = 0; j < num; j++)
-			buffer[i + j] = value >> (j * 8);
+			buffer[i * 4 + j] = value >> (j * 8);
 	}
 }
 
@@ -250,7 +247,7 @@ static irqreturn_t tegra_dpaux_irq(int irq, void *data)
 {
 	struct tegra_dpaux *dpaux = data;
 	irqreturn_t ret = IRQ_HANDLED;
-	unsigned long value;
+	u32 value;
 
 	/* clear interrupts */
 	value = tegra_dpaux_readl(dpaux, DPAUX_INTR_AUX);
@@ -273,7 +270,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 {
 	struct tegra_dpaux *dpaux;
 	struct resource *regs;
-	unsigned long value;
+	u32 value;
 	int err;
 
 	dpaux = devm_kzalloc(&pdev->dev, sizeof(*dpaux), GFP_KERNEL);
@@ -465,7 +462,7 @@ int tegra_dpaux_detach(struct tegra_dpaux *dpaux)
 
 enum drm_connector_status tegra_dpaux_detect(struct tegra_dpaux *dpaux)
 {
-	unsigned long value;
+	u32 value;
 
 	value = tegra_dpaux_readl(dpaux, DPAUX_DP_AUXSTAT);
 
@@ -477,7 +474,7 @@ enum drm_connector_status tegra_dpaux_detect(struct tegra_dpaux *dpaux)
 
 int tegra_dpaux_enable(struct tegra_dpaux *dpaux)
 {
-	unsigned long value;
+	u32 value;
 
 	value = DPAUX_HYBRID_PADCTL_AUX_CMH(2) |
 		DPAUX_HYBRID_PADCTL_AUX_DRVZ(4) |
@@ -495,7 +492,7 @@ int tegra_dpaux_enable(struct tegra_dpaux *dpaux)
 
 int tegra_dpaux_disable(struct tegra_dpaux *dpaux)
 {
-	unsigned long value;
+	u32 value;
 
 	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
 	value |= DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;

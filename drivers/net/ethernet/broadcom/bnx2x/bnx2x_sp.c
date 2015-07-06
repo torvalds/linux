@@ -424,7 +424,7 @@ static void __bnx2x_vlan_mac_h_exec_pending(struct bnx2x *bp,
 	o->head_exe_request = false;
 	o->saved_ramrod_flags = 0;
 	rc = bnx2x_exe_queue_step(bp, &o->exe_queue, &ramrod_flags);
-	if (rc != 0) {
+	if ((rc != 0) && (rc != 1)) {
 		BNX2X_ERR("execution of pending commands failed with rc %d\n",
 			  rc);
 #ifdef BNX2X_STOP_ON_ERROR

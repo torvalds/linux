@@ -541,7 +541,7 @@ static void mpls_ifdown(struct net_device *dev)
 
 	RCU_INIT_POINTER(dev->mpls_ptr, NULL);
 
-	kfree(mdev);
+	kfree_rcu(mdev, rcu);
 }
 
 static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
@@ -563,6 +563,17 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 
 	case NETDEV_UNREGISTER:
 		mpls_ifdown(dev);
+		break;
+	case NETDEV_CHANGENAME:
+		mdev = mpls_dev_get(dev);
+		if (mdev) {
+			int err;
+
+			mpls_dev_sysctl_unregister(mdev);
+			err = mpls_dev_sysctl_register(dev, mdev);
+			if (err)
+				return notifier_from_errno(err);
+		}
 		break;
 	}
 	return NOTIFY_OK;
@@ -647,7 +658,7 @@ int nla_get_labels(const struct nlattr *nla,
 			return -EINVAL;
 
 		switch (dec.label) {
-		case LABEL_IMPLICIT_NULL:
+		case MPLS_LABEL_IMPLNULL:
 			/* RFC3032: This is a label that an LSR may
 			 * assign and distribute, but which never
 			 * actually appears in the encapsulation.
@@ -935,7 +946,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	}
 
 	/* In case the predefined labels need to be populated */
-	if (limit > LABEL_IPV4_EXPLICIT_NULL) {
+	if (limit > MPLS_LABEL_IPV4NULL) {
 		struct net_device *lo = net->loopback_dev;
 		rt0 = mpls_rt_alloc(lo->addr_len);
 		if (!rt0)
@@ -945,7 +956,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 		rt0->rt_via_table = NEIGH_LINK_TABLE;
 		memcpy(rt0->rt_via, lo->dev_addr, lo->addr_len);
 	}
-	if (limit > LABEL_IPV6_EXPLICIT_NULL) {
+	if (limit > MPLS_LABEL_IPV6NULL) {
 		struct net_device *lo = net->loopback_dev;
 		rt2 = mpls_rt_alloc(lo->addr_len);
 		if (!rt2)
@@ -973,15 +984,15 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	memcpy(labels, old, cp_size);
 
 	/* If needed set the predefined labels */
-	if ((old_limit <= LABEL_IPV6_EXPLICIT_NULL) &&
-	    (limit > LABEL_IPV6_EXPLICIT_NULL)) {
-		RCU_INIT_POINTER(labels[LABEL_IPV6_EXPLICIT_NULL], rt2);
+	if ((old_limit <= MPLS_LABEL_IPV6NULL) &&
+	    (limit > MPLS_LABEL_IPV6NULL)) {
+		RCU_INIT_POINTER(labels[MPLS_LABEL_IPV6NULL], rt2);
 		rt2 = NULL;
 	}
 
-	if ((old_limit <= LABEL_IPV4_EXPLICIT_NULL) &&
-	    (limit > LABEL_IPV4_EXPLICIT_NULL)) {
-		RCU_INIT_POINTER(labels[LABEL_IPV4_EXPLICIT_NULL], rt0);
+	if ((old_limit <= MPLS_LABEL_IPV4NULL) &&
+	    (limit > MPLS_LABEL_IPV4NULL)) {
+		RCU_INIT_POINTER(labels[MPLS_LABEL_IPV4NULL], rt0);
 		rt0 = NULL;
 	}
 

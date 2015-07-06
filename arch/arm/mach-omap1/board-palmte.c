@@ -235,6 +235,7 @@ MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")
 	.map_io		= omap15xx_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= omap_palmte_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

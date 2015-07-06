@@ -110,6 +110,10 @@
 /* Rd = Rn >> shift; signed */
 #define A64_ASR(sf, Rd, Rn, shift) A64_SBFM(sf, Rd, Rn, shift, (sf) ? 63 : 31)
 
+/* Zero extend */
+#define A64_UXTH(sf, Rd, Rn) A64_UBFM(sf, Rd, Rn, 0, 15)
+#define A64_UXTW(sf, Rd, Rn) A64_UBFM(sf, Rd, Rn, 0, 31)
+
 /* Move wide (immediate) */
 #define A64_MOVEW(sf, Rd, imm16, shift, type) \
 	aarch64_insn_gen_movewide(Rd, imm16, shift, \

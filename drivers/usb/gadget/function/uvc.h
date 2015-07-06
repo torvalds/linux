@@ -56,7 +56,6 @@ struct uvc_event
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
 #include <linux/videodev2.h>
-#include <linux/version.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-device.h>
 

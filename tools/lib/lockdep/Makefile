@@ -14,9 +14,10 @@ define allow-override
     $(eval $(1) = $(2)))
 endef
 
-# Allow setting CC and AR, or setting CROSS_COMPILE as a prefix.
+# Allow setting CC and AR and LD, or setting CROSS_COMPILE as a prefix.
 $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,AR,$(CROSS_COMPILE)ar)
+$(call allow-override,LD,$(CROSS_COMPILE)ld)
 
 INSTALL = install
 

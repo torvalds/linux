@@ -850,6 +850,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		return -ENOMEM;
 	snd_hda_gen_spec_init(&spec->gen);
 	codec->spec = spec;
+	codec->patch_ops = cx_auto_patch_ops;
 
 	cx_auto_parse_beep(codec);
 	cx_auto_parse_eapd(codec);
@@ -907,8 +908,6 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
 		goto error;
-
-	codec->patch_ops = cx_auto_patch_ops;
 
 	/* Some laptops with Conexant chips show stalls in S3 resume,
 	 * which falls into the single-cmd mode.
@@ -968,6 +967,14 @@ static const struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f150b9, .name = "CX20665",
 	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f1, .name = "CX20721",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f2, .name = "CX20722",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f3, .name = "CX20723",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f4, .name = "CX20724",
+	  .patch = patch_conexant_auto },
 	{ .id = 0x14f1510f, .name = "CX20751/2",
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f15110, .name = "CX20751/2",
@@ -1002,6 +1009,10 @@ MODULE_ALIAS("snd-hda-codec-id:14f150ab");
 MODULE_ALIAS("snd-hda-codec-id:14f150ac");
 MODULE_ALIAS("snd-hda-codec-id:14f150b8");
 MODULE_ALIAS("snd-hda-codec-id:14f150b9");
+MODULE_ALIAS("snd-hda-codec-id:14f150f1");
+MODULE_ALIAS("snd-hda-codec-id:14f150f2");
+MODULE_ALIAS("snd-hda-codec-id:14f150f3");
+MODULE_ALIAS("snd-hda-codec-id:14f150f4");
 MODULE_ALIAS("snd-hda-codec-id:14f1510f");
 MODULE_ALIAS("snd-hda-codec-id:14f15110");
 MODULE_ALIAS("snd-hda-codec-id:14f15111");

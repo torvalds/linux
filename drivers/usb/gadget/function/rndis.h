@@ -177,7 +177,7 @@ typedef struct rndis_resp_t
 
 typedef struct rndis_params
 {
-	u8			confignr;
+	int			confignr;
 	u8			used;
 	u16			saved_filter;
 	enum rndis_state	state;
@@ -197,24 +197,25 @@ typedef struct rndis_params
 } rndis_params;
 
 /* RNDIS Message parser and other useless functions */
-int  rndis_msg_parser (u8 configNr, u8 *buf);
-int  rndis_register(void (*resp_avail)(void *v), void *v);
-void rndis_deregister (int configNr);
-int  rndis_set_param_dev (u8 configNr, struct net_device *dev,
+int  rndis_msg_parser(struct rndis_params *params, u8 *buf);
+struct rndis_params *rndis_register(void (*resp_avail)(void *v), void *v);
+void rndis_deregister(struct rndis_params *params);
+int  rndis_set_param_dev(struct rndis_params *params, struct net_device *dev,
 			 u16 *cdc_filter);
-int  rndis_set_param_vendor (u8 configNr, u32 vendorID,
+int  rndis_set_param_vendor(struct rndis_params *params, u32 vendorID,
 			    const char *vendorDescr);
-int  rndis_set_param_medium (u8 configNr, u32 medium, u32 speed);
-void rndis_add_hdr (struct sk_buff *skb);
+int  rndis_set_param_medium(struct rndis_params *params, u32 medium,
+			     u32 speed);
+void rndis_add_hdr(struct sk_buff *skb);
 int rndis_rm_hdr(struct gether *port, struct sk_buff *skb,
 			struct sk_buff_head *list);
-u8   *rndis_get_next_response (int configNr, u32 *length);
-void rndis_free_response (int configNr, u8 *buf);
+u8   *rndis_get_next_response(struct rndis_params *params, u32 *length);
+void rndis_free_response(struct rndis_params *params, u8 *buf);
 
-void rndis_uninit (int configNr);
-int  rndis_signal_connect (int configNr);
-int  rndis_signal_disconnect (int configNr);
-int  rndis_state (int configNr);
-extern void rndis_set_host_mac (int configNr, const u8 *addr);
+void rndis_uninit(struct rndis_params *params);
+int  rndis_signal_connect(struct rndis_params *params);
+int  rndis_signal_disconnect(struct rndis_params *params);
+int  rndis_state(struct rndis_params *params);
+extern void rndis_set_host_mac(struct rndis_params *params, const u8 *addr);
 
 #endif  /* _LINUX_RNDIS_H */

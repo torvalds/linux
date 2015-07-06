@@ -181,6 +181,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 int mpic_u3msi_init(struct mpic *mpic)
 {
 	int rc;
+	struct pci_controller *phb;
 
 	rc = mpic_msi_init_allocator(mpic);
 	if (rc) {
@@ -193,9 +194,11 @@ int mpic_u3msi_init(struct mpic *mpic)
 	BUG_ON(msi_mpic);
 	msi_mpic = mpic;
 
-	WARN_ON(ppc_md.setup_msi_irqs);
-	ppc_md.setup_msi_irqs = u3msi_setup_msi_irqs;
-	ppc_md.teardown_msi_irqs = u3msi_teardown_msi_irqs;
+	list_for_each_entry(phb, &hose_list, list_node) {
+		WARN_ON(phb->controller_ops.setup_msi_irqs);
+		phb->controller_ops.setup_msi_irqs = u3msi_setup_msi_irqs;
+		phb->controller_ops.teardown_msi_irqs = u3msi_teardown_msi_irqs;
+	}
 
 	return 0;
 }

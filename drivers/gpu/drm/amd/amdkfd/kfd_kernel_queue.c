@@ -215,8 +215,9 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	queue_address = (unsigned int *)kq->pq_kernel_addr;
 	queue_size_dwords = kq->queue->properties.queue_size / sizeof(uint32_t);
 
-	pr_debug("amdkfd: In func %s\nrptr: %d\nwptr: %d\nqueue_address 0x%p\n",
-			__func__, rptr, wptr, queue_address);
+	pr_debug("rptr: %d\n", rptr);
+	pr_debug("wptr: %d\n", wptr);
+	pr_debug("queue_address 0x%p\n", queue_address);
 
 	available_size = (rptr - 1 - wptr + queue_size_dwords) %
 							queue_size_dwords;

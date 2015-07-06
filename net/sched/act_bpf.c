@@ -37,6 +37,7 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 {
 	struct tcf_bpf *prog = act->priv;
 	int action, filter_res;
+	bool at_ingress = G_TC_AT(skb->tc_verd) & AT_INGRESS;
 
 	if (unlikely(!skb_mac_header_was_set(skb)))
 		return TC_ACT_UNSPEC;
@@ -48,7 +49,13 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 
 	/* Needed here for accessing maps. */
 	rcu_read_lock();
-	filter_res = BPF_PROG_RUN(prog->filter, skb);
+	if (at_ingress) {
+		__skb_push(skb, skb->mac_len);
+		filter_res = BPF_PROG_RUN(prog->filter, skb);
+		__skb_pull(skb, skb->mac_len);
+	} else {
+		filter_res = BPF_PROG_RUN(prog->filter, skb);
+	}
 	rcu_read_unlock();
 
 	/* A BPF program may overwrite the default action opcode.

@@ -6,20 +6,38 @@ config SND_SOC_QCOM
 
 config SND_SOC_LPASS_CPU
 	tristate
-	depends on SND_SOC_QCOM
 	select REGMAP_MMIO
 
 config SND_SOC_LPASS_PLATFORM
 	tristate
-	depends on SND_SOC_QCOM
 	select REGMAP_MMIO
+
+config SND_SOC_LPASS_IPQ806X
+	tristate
+	depends on SND_SOC_QCOM
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
+
+config SND_SOC_LPASS_APQ8016
+	tristate
+	depends on SND_SOC_QCOM
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
 
 config SND_SOC_STORM
 	tristate "ASoC I2S support for Storm boards"
-	depends on (ARCH_QCOM && SND_SOC_QCOM) || COMPILE_TEST
-	select SND_SOC_LPASS_CPU
-	select SND_SOC_LPASS_PLATFORM
+	depends on SND_SOC_QCOM && (ARCH_QCOM || COMPILE_TEST)
+	select SND_SOC_LPASS_IPQ806X
 	select SND_SOC_MAX98357A
 	help
           Say Y or M if you want add support for SoC audio on the
           Qualcomm Technologies IPQ806X-based Storm board.
+
+config SND_SOC_APQ8016_SBC
+	tristate "SoC Audio support for APQ8016 SBC platforms"
+	depends on SND_SOC_QCOM && (ARCH_QCOM || COMPILE_TEST)
+	select SND_SOC_LPASS_APQ8016
+	help
+          Support for Qualcomm Technologies LPASS audio block in
+          APQ8016 SOC-based systems.
+          Say Y if you want to use audio devices on MI2S.

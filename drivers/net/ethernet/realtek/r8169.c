@@ -6884,7 +6884,7 @@ static void r8169_csum_workaround(struct rtl8169_private *tp,
 			rtl8169_start_xmit(nskb, tp->dev);
 		} while (segs);
 
-		dev_kfree_skb(skb);
+		dev_consume_skb_any(skb);
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (skb_checksum_help(skb) < 0)
 			goto drop;
@@ -6896,7 +6896,7 @@ static void r8169_csum_workaround(struct rtl8169_private *tp,
 drop:
 		stats = &tp->dev->stats;
 		stats->tx_dropped++;
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 	}
 }
 

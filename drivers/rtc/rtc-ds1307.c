@@ -742,17 +742,17 @@ static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	regs[6] &= ~MCP794XX_BIT_ALMX_IF;
 	/* Set alarm match: second, minute, hour, day, date, month. */
 	regs[6] |= MCP794XX_MSK_ALMX_MATCH;
-
-	if (t->enabled)
-		regs[0] |= MCP794XX_BIT_ALM0_EN;
-	else
-		regs[0] &= ~MCP794XX_BIT_ALM0_EN;
+	/* Disable interrupt. We will not enable until completely programmed */
+	regs[0] &= ~MCP794XX_BIT_ALM0_EN;
 
 	ret = ds1307->write_block_data(client, MCP794XX_REG_CONTROL, 10, regs);
 	if (ret < 0)
 		return ret;
 
-	return 0;
+	if (!t->enabled)
+		return 0;
+	regs[0] |= MCP794XX_BIT_ALM0_EN;
+	return i2c_smbus_write_byte_data(client, MCP794XX_REG_CONTROL, regs[0]);
 }
 
 static int mcp794xx_alarm_irq_enable(struct device *dev, unsigned int enabled)

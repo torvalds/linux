@@ -101,6 +101,19 @@ void dm_cell_visit_release(struct dm_bio_prison *prison,
 			   void (*visit_fn)(void *, struct dm_bio_prison_cell *),
 			   void *context, struct dm_bio_prison_cell *cell);
 
+/*
+ * Rather than always releasing the prisoners in a cell, the client may
+ * want to promote one of them to be the new holder.  There is a race here
+ * though between releasing an empty cell, and other threads adding new
+ * inmates.  So this function makes the decision with its lock held.
+ *
+ * This function can have two outcomes:
+ * i) An inmate is promoted to be the holder of the cell (return value of 0).
+ * ii) The cell has no inmate for promotion and is released (return value of 1).
+ */
+int dm_cell_promote_or_release(struct dm_bio_prison *prison,
+			       struct dm_bio_prison_cell *cell);
+
 /*----------------------------------------------------------------*/
 
 /*

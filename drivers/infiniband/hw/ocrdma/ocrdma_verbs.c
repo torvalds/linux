@@ -61,9 +61,13 @@ int ocrdma_query_gid(struct ib_device *ibdev, u8 port,
 	return 0;
 }
 
-int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
+int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
+			struct ib_udata *uhw)
 {
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	memset(attr, 0, sizeof *attr);
 	memcpy(&attr->fw_ver, &dev->attr.fw_ver[0],
@@ -365,7 +369,7 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	if (udata && uctx) {
+	if (udata && uctx && dev->attr.max_dpp_pds) {
 		pd->dpp_enabled =
 			ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R;
 		pd->num_dpp_qp =
@@ -375,7 +379,12 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 
 	if (dev->pd_mgr->pd_prealloc_valid) {
 		status = ocrdma_get_pd_num(dev, pd);
-		return (status == 0) ? pd : ERR_PTR(status);
+		if (status == 0) {
+			return pd;
+		} else {
+			kfree(pd);
+			return ERR_PTR(status);
+		}
 	}
 
 retry:
@@ -679,7 +688,6 @@ err:
 		ocrdma_release_ucontext_pd(uctx);
 	} else {
 		status = _ocrdma_dealloc_pd(dev, pd);
-		kfree(pd);
 	}
 exit:
 	return ERR_PTR(status);
@@ -1000,16 +1008,21 @@ err:
 	return status;
 }
 
-struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev, int entries, int vector,
+struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
+			       const struct ib_cq_init_attr *attr,
 			       struct ib_ucontext *ib_ctx,
 			       struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	struct ocrdma_cq *cq;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
 	struct ocrdma_ucontext *uctx = NULL;
 	u16 pd_id = 0;
 	int status;
 	struct ocrdma_create_cq_ureq ureq;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	if (udata) {
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
@@ -1721,18 +1734,20 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp)
 	struct ocrdma_qp *qp;
 	struct ocrdma_dev *dev;
 	struct ib_qp_attr attrs;
-	int attr_mask = IB_QP_STATE;
+	int attr_mask;
 	unsigned long flags;
 
 	qp = get_ocrdma_qp(ibqp);
 	dev = get_ocrdma_dev(ibqp->device);
 
-	attrs.qp_state = IB_QPS_ERR;
 	pd = qp->pd;
 
 	/* change the QP state to ERROR */
-	_ocrdma_modify_qp(ibqp, &attrs, attr_mask);
-
+	if (qp->state != OCRDMA_QPS_RST) {
+		attrs.qp_state = IB_QPS_ERR;
+		attr_mask = IB_QP_STATE;
+		_ocrdma_modify_qp(ibqp, &attrs, attr_mask);
+	}
 	/* ensure that CQEs for newly created QP (whose id may be same with
 	 * one which just getting destroyed are same), dont get
 	 * discarded until the old CQEs are discarded.

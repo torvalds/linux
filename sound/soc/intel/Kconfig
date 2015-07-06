@@ -79,7 +79,6 @@ config SND_SOC_INTEL_BROADWELL_MACH
 	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && DW_DMAC && \
 		   I2C_DESIGNWARE_PLATFORM
 	select SND_SOC_INTEL_HASWELL
-	select SND_COMPRESS_OFFLOAD
 	select SND_SOC_RT286
 	help
 	  This adds support for the Wilcatpoint Audio DSP on Intel(R) Broadwell
@@ -112,12 +111,24 @@ config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
           If unsure select "N".
 
 config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
-	tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with RT5645 codec"
-	depends on X86_INTEL_LPSS
+	tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with RT5645/5650 codec"
+	depends on X86_INTEL_LPSS && I2C
 	select SND_SOC_RT5645
 	select SND_SST_MFLD_PLATFORM
 	select SND_SST_IPC_ACPI
 	help
 	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
-	  platforms with RT5645 audio codec.
+	  platforms with RT5645/5650 audio codec.
 	  If unsure select "N".
+
+config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
+	tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with MAX98090 & TI codec"
+	depends on X86_INTEL_LPSS && I2C
+	select SND_SOC_MAX98090
+	select SND_SOC_TS3A227E
+	select SND_SST_MFLD_PLATFORM
+	select SND_SST_IPC_ACPI
+	help
+      This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
+      platforms with MAX98090 audio codec it also can support TI jack chip as aux device.
+      If unsure select "N".

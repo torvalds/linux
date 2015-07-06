@@ -57,10 +57,8 @@ int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
 		write_nic_byte(dev, MacBlkCtrl, 0xa);
 	}
 out_pci_suspend:
-	netdev_info(dev, "r8192E support WOL call??????????????????????\n");
-	if (priv->rtllib->bSupportRemoteWakeUp)
-		RT_TRACE(COMP_POWER,
-			 "r8192E support WOL call!!!!!!!!!!!!!!!!!!.\n");
+	netdev_info(dev, "WOL is %s\n", priv->rtllib->bSupportRemoteWakeUp ?
+			    "Supported" : "Not supported");
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, state),

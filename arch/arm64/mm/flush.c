@@ -102,7 +102,6 @@ EXPORT_SYMBOL(flush_dcache_page);
 /*
  * Additional functions defined in assembly.
  */
-EXPORT_SYMBOL(flush_cache_all);
 EXPORT_SYMBOL(flush_icache_range);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

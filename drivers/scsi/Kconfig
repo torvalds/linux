@@ -52,7 +52,7 @@ config SCSI_MQ_DEFAULT
 	  This option enables the new blk-mq based I/O path for SCSI
 	  devices by default.  With the option the scsi_mod.use_blk_mq
 	  module/boot option defaults to Y, without it to N, but it can
-	  still be overriden either way.
+	  still be overridden either way.
 
 	  If unsure say N.
 
@@ -503,7 +503,7 @@ config SCSI_DPT_I2O
 
 config SCSI_ADVANSYS
 	tristate "AdvanSys SCSI support"
-	depends on SCSI && VIRT_TO_BUS && !ARM
+	depends on SCSI
 	depends on ISA || EISA || PCI
 	help
 	  This is a driver for all SCSI host adapters manufactured by
@@ -633,6 +633,23 @@ config FCOE_FNIC
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/scsi/scsi.txt>.
 	  The module will be called fnic.
+
+config SCSI_SNIC
+	tristate "Cisco SNIC Driver"
+	depends on PCI && SCSI
+	help
+	  This is support for the Cisco PCI-Express SCSI HBA.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/scsi/scsi.txt>.
+	  The module will be called snic.
+
+config SCSI_SNIC_DEBUG_FS
+	bool "Cisco SNIC Driver Debugfs Support"
+	depends on SCSI_SNIC && DEBUG_FS
+	help
+	  This enables to list debugging information from SNIC Driver
+	  available via debugfs file system
 
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
@@ -1743,7 +1760,6 @@ config SCSI_BFA_FC
 config SCSI_VIRTIO
 	tristate "virtio-scsi support"
 	depends on VIRTIO
-	select BLK_DEV_INTEGRITY
 	help
           This is the virtual HBA driver for virtio.  If the kernel will
           be used in a virtual machine, say Y or M.

@@ -1277,7 +1277,12 @@ int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 int clear_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		      unsigned bits, gfp_t mask)
 {
-	return clear_extent_bit(tree, start, end, bits, 0, 0, NULL, mask);
+	int wake = 0;
+
+	if (bits & EXTENT_LOCKED)
+		wake = 1;
+
+	return clear_extent_bit(tree, start, end, bits, wake, 0, NULL, mask);
 }
 
 int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
@@ -2767,8 +2772,6 @@ static int __must_check submit_one_bio(int rw, struct bio *bio,
 	else
 		btrfsic_submit_bio(rw, bio);
 
-	if (bio_flagged(bio, BIO_EOPNOTSUPP))
-		ret = -EOPNOTSUPP;
 	bio_put(bio);
 	return ret;
 }
@@ -4492,6 +4495,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		}
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;
+		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+			flags |= FIEMAP_EXTENT_UNWRITTEN;
 
 		free_extent_map(em);
 		em = NULL;
@@ -4772,6 +4777,25 @@ struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 			       start >> PAGE_CACHE_SHIFT);
 	if (eb && atomic_inc_not_zero(&eb->refs)) {
 		rcu_read_unlock();
+		/*
+		 * Lock our eb's refs_lock to avoid races with
+		 * free_extent_buffer. When we get our eb it might be flagged
+		 * with EXTENT_BUFFER_STALE and another task running
+		 * free_extent_buffer might have seen that flag set,
+		 * eb->refs == 2, that the buffer isn't under IO (dirty and
+		 * writeback flags not set) and it's still in the tree (flag
+		 * EXTENT_BUFFER_TREE_REF set), therefore being in the process
+		 * of decrementing the extent buffer's reference count twice.
+		 * So here we could race and increment the eb's reference count,
+		 * clear its stale flag, mark it as dirty and drop our reference
+		 * before the other task finishes executing free_extent_buffer,
+		 * which would later result in an attempt to free an extent
+		 * buffer that is dirty.
+		 */
+		if (test_bit(EXTENT_BUFFER_STALE, &eb->bflags)) {
+			spin_lock(&eb->refs_lock);
+			spin_unlock(&eb->refs_lock);
+		}
 		mark_extent_buffer_accessed(eb, NULL);
 		return eb;
 	}

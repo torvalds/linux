@@ -137,6 +137,8 @@ int main(int argc, char *argv[])
 	int version = FCOPY_CURRENT_VERSION;
 	char *buffer[4096 * 2];
 	struct hv_fcopy_hdr *in_msg;
+	int in_handshake = 1;
+	__u32 kernel_modver;
 
 	static struct option long_options[] = {
 		{"help",	no_argument,	   0,  'h' },
@@ -191,6 +193,19 @@ int main(int argc, char *argv[])
 			syslog(LOG_ERR, "pread failed: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
+
+		if (in_handshake) {
+			if (len != sizeof(kernel_modver)) {
+				syslog(LOG_ERR, "invalid version negotiation");
+				exit(EXIT_FAILURE);
+			}
+			kernel_modver = *(__u32 *)buffer;
+			in_handshake = 0;
+			syslog(LOG_INFO, "HV_FCOPY: kernel module version: %d",
+			       kernel_modver);
+			continue;
+		}
+
 		in_msg = (struct hv_fcopy_hdr *)buffer;
 
 		switch (in_msg->operation) {

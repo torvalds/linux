@@ -32,6 +32,9 @@
 
 #include "hyperv_vmbus.h"
 
+static void init_vp_index(struct vmbus_channel *channel,
+			  const uuid_le *type_guid);
+
 /**
  * vmbus_prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
  * @icmsghdrp: Pointer to msg header structure
@@ -205,6 +208,7 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 		primary_channel = channel->primary_channel;
 		spin_lock_irqsave(&primary_channel->lock, flags);
 		list_del(&channel->sc_list);
+		primary_channel->num_sc--;
 		spin_unlock_irqrestore(&primary_channel->lock, flags);
 	}
 	free_channel(channel);
@@ -212,11 +216,16 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 
 void vmbus_free_channels(void)
 {
-	struct vmbus_channel *channel;
+	struct vmbus_channel *channel, *tmp;
 
-	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+	list_for_each_entry_safe(channel, tmp, &vmbus_connection.chn_list,
+		listentry) {
+		/* if we don't set rescind to true, vmbus_close_internal()
+		 * won't invoke hv_process_channel_removal().
+		 */
+		channel->rescind = true;
+
 		vmbus_device_unregister(channel->device_obj);
-		free_channel(channel);
 	}
 }
 
@@ -228,7 +237,6 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 {
 	struct vmbus_channel *channel;
 	bool fnew = true;
-	bool enq = false;
 	unsigned long flags;
 
 	/* Make sure this is a new offer */
@@ -244,25 +252,12 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		}
 	}
 
-	if (fnew) {
+	if (fnew)
 		list_add_tail(&newchannel->listentry,
 			      &vmbus_connection.chn_list);
-		enq = true;
-	}
 
 	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
-	if (enq) {
-		if (newchannel->target_cpu != get_cpu()) {
-			put_cpu();
-			smp_call_function_single(newchannel->target_cpu,
-						 percpu_channel_enq,
-						 newchannel, true);
-		} else {
-			percpu_channel_enq(newchannel);
-			put_cpu();
-		}
-	}
 	if (!fnew) {
 		/*
 		 * Check to see if this is a sub-channel.
@@ -274,27 +269,22 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 			newchannel->primary_channel = channel;
 			spin_lock_irqsave(&channel->lock, flags);
 			list_add_tail(&newchannel->sc_list, &channel->sc_list);
-			spin_unlock_irqrestore(&channel->lock, flags);
-
-			if (newchannel->target_cpu != get_cpu()) {
-				put_cpu();
-				smp_call_function_single(newchannel->target_cpu,
-							 percpu_channel_enq,
-							 newchannel, true);
-			} else {
-				percpu_channel_enq(newchannel);
-				put_cpu();
-			}
-
-			newchannel->state = CHANNEL_OPEN_STATE;
 			channel->num_sc++;
-			if (channel->sc_creation_callback != NULL)
-				channel->sc_creation_callback(newchannel);
+			spin_unlock_irqrestore(&channel->lock, flags);
+		} else
+			goto err_free_chan;
+	}
 
-			return;
-		}
+	init_vp_index(newchannel, &newchannel->offermsg.offer.if_type);
 
-		goto err_free_chan;
+	if (newchannel->target_cpu != get_cpu()) {
+		put_cpu();
+		smp_call_function_single(newchannel->target_cpu,
+					 percpu_channel_enq,
+					 newchannel, true);
+	} else {
+		percpu_channel_enq(newchannel);
+		put_cpu();
 	}
 
 	/*
@@ -303,6 +293,12 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	 * can cleanup properly
 	 */
 	newchannel->state = CHANNEL_OPEN_STATE;
+
+	if (!fnew) {
+		if (channel->sc_creation_callback != NULL)
+			channel->sc_creation_callback(newchannel);
+		return;
+	}
 
 	/*
 	 * Start the process of binding this offer to the driver
@@ -374,23 +370,27 @@ static const struct hv_vmbus_device_id hp_devs[] = {
 /*
  * We use this state to statically distribute the channel interrupt load.
  */
-static u32  next_vp;
+static int next_numa_node_id;
 
 /*
  * Starting with Win8, we can statically distribute the incoming
- * channel interrupt load by binding a channel to VCPU. We
- * implement here a simple round robin scheme for distributing
- * the interrupt load.
- * We will bind channels that are not performance critical to cpu 0 and
- * performance critical channels (IDE, SCSI and Network) will be uniformly
- * distributed across all available CPUs.
+ * channel interrupt load by binding a channel to VCPU.
+ * We do this in a hierarchical fashion:
+ * First distribute the primary channels across available NUMA nodes
+ * and then distribute the subchannels amongst the CPUs in the NUMA
+ * node assigned to the primary channel.
+ *
+ * For pre-win8 hosts or non-performance critical channels we assign the
+ * first CPU in the first NUMA node.
  */
 static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_guid)
 {
 	u32 cur_cpu;
 	int i;
 	bool perf_chn = false;
-	u32 max_cpus = num_online_cpus();
+	struct vmbus_channel *primary = channel->primary_channel;
+	int next_node;
+	struct cpumask available_mask;
 
 	for (i = IDE; i < MAX_PERF_CHN; i++) {
 		if (!memcmp(type_guid->b, hp_devs[i].guid,
@@ -407,13 +407,74 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		 * Also if the channel is not a performance critical
 		 * channel, bind it to cpu 0.
 		 */
+		channel->numa_node = 0;
+		cpumask_set_cpu(0, &channel->alloced_cpus_in_node);
 		channel->target_cpu = 0;
-		channel->target_vp = 0;
+		channel->target_vp = hv_context.vp_index[0];
 		return;
 	}
-	cur_cpu = (++next_vp % max_cpus);
+
+	/*
+	 * We distribute primary channels evenly across all the available
+	 * NUMA nodes and within the assigned NUMA node we will assign the
+	 * first available CPU to the primary channel.
+	 * The sub-channels will be assigned to the CPUs available in the
+	 * NUMA node evenly.
+	 */
+	if (!primary) {
+		while (true) {
+			next_node = next_numa_node_id++;
+			if (next_node == nr_node_ids)
+				next_node = next_numa_node_id = 0;
+			if (cpumask_empty(cpumask_of_node(next_node)))
+				continue;
+			break;
+		}
+		channel->numa_node = next_node;
+		primary = channel;
+	}
+
+	if (cpumask_weight(&primary->alloced_cpus_in_node) ==
+	    cpumask_weight(cpumask_of_node(primary->numa_node))) {
+		/*
+		 * We have cycled through all the CPUs in the node;
+		 * reset the alloced map.
+		 */
+		cpumask_clear(&primary->alloced_cpus_in_node);
+	}
+
+	cpumask_xor(&available_mask, &primary->alloced_cpus_in_node,
+		    cpumask_of_node(primary->numa_node));
+
+	cur_cpu = cpumask_next(-1, &available_mask);
+	cpumask_set_cpu(cur_cpu, &primary->alloced_cpus_in_node);
+
 	channel->target_cpu = cur_cpu;
 	channel->target_vp = hv_context.vp_index[cur_cpu];
+}
+
+/*
+ * vmbus_unload_response - Handler for the unload response.
+ */
+static void vmbus_unload_response(struct vmbus_channel_message_header *hdr)
+{
+	/*
+	 * This is a global event; just wakeup the waiting thread.
+	 * Once we successfully unload, we can cleanup the monitor state.
+	 */
+	complete(&vmbus_connection.unload_event);
+}
+
+void vmbus_initiate_unload(void)
+{
+	struct vmbus_channel_message_header hdr;
+
+	init_completion(&vmbus_connection.unload_event);
+	memset(&hdr, 0, sizeof(struct vmbus_channel_message_header));
+	hdr.msgtype = CHANNELMSG_UNLOAD;
+	vmbus_post_msg(&hdr, sizeof(struct vmbus_channel_message_header));
+
+	wait_for_completion(&vmbus_connection.unload_event);
 }
 
 /*
@@ -460,8 +521,6 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 		newchannel->sig_event->connectionid.u.id =
 				offer->connection_id;
 	}
-
-	init_vp_index(newchannel, &offer->offer.if_type);
 
 	memcpy(&newchannel->offermsg, offer,
 	       sizeof(struct vmbus_channel_offer_channel));
@@ -712,6 +771,7 @@ struct vmbus_channel_message_table_entry
 	{CHANNELMSG_INITIATE_CONTACT,		0, NULL},
 	{CHANNELMSG_VERSION_RESPONSE,		1, vmbus_onversion_response},
 	{CHANNELMSG_UNLOAD,			0, NULL},
+	{CHANNELMSG_UNLOAD_RESPONSE,		1, vmbus_unload_response},
 };
 
 /*

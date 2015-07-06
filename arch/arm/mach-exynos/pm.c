@@ -22,6 +22,7 @@
 #include <asm/firmware.h>
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
+#include <asm/cacheflush.h>
 
 #include <mach/map.h>
 
@@ -209,6 +210,8 @@ static int exynos_cpu0_enter_aftr(void)
 		 * sequence, let's wait for one of these to happen
 		 */
 		while (exynos_cpu_power_state(1)) {
+			unsigned long boot_addr;
+
 			/*
 			 * The other cpu may skip idle and boot back
 			 * up again
@@ -221,7 +224,11 @@ static int exynos_cpu0_enter_aftr(void)
 			 * boot back up again, getting stuck in the
 			 * boot rom code
 			 */
-			if (__raw_readl(cpu_boot_reg_base()) == 0)
+			ret = exynos_get_boot_addr(1, &boot_addr);
+			if (ret)
+				goto fail;
+			ret = -1;
+			if (boot_addr == 0)
 				goto abort;
 
 			cpu_relax();
@@ -233,11 +240,14 @@ static int exynos_cpu0_enter_aftr(void)
 
 abort:
 	if (cpu_online(1)) {
+		unsigned long boot_addr = virt_to_phys(exynos_cpu_resume);
+
 		/*
 		 * Set the boot vector to something non-zero
 		 */
-		__raw_writel(virt_to_phys(exynos_cpu_resume),
-			     cpu_boot_reg_base());
+		ret = exynos_set_boot_addr(1, boot_addr);
+		if (ret)
+			goto fail;
 		dsb();
 
 		/*
@@ -247,22 +257,42 @@ abort:
 		while (exynos_cpu_power_state(1) != S5P_CORE_LOCAL_PWR_EN)
 			cpu_relax();
 
+		if (soc_is_exynos3250()) {
+			while (!pmu_raw_readl(S5P_PMU_SPARE2) &&
+			       !atomic_read(&cpu1_wakeup))
+				cpu_relax();
+
+			if (!atomic_read(&cpu1_wakeup))
+				exynos_core_restart(1);
+		}
+
 		while (!atomic_read(&cpu1_wakeup)) {
+			smp_rmb();
+
 			/*
 			 * Poke cpu1 out of the boot rom
 			 */
-			__raw_writel(virt_to_phys(exynos_cpu_resume),
-				     cpu_boot_reg_base());
 
-			arch_send_wakeup_ipi_mask(cpumask_of(1));
+			ret = exynos_set_boot_addr(1, boot_addr);
+			if (ret)
+				goto fail;
+
+			call_firmware_op(cpu_boot, 1);
+
+			if (soc_is_exynos3250())
+				dsb_sev();
+			else
+				arch_send_wakeup_ipi_mask(cpumask_of(1));
 		}
 	}
-
+fail:
 	return ret;
 }
 
 static int exynos_wfi_finisher(unsigned long flags)
 {
+	if (soc_is_exynos3250())
+		flush_cache_all();
 	cpu_do_idle();
 
 	return -1;
@@ -283,6 +313,9 @@ static int exynos_cpu1_powerdown(void)
 	 */
 	exynos_cpu_power_down(1);
 
+	if (soc_is_exynos3250())
+		pmu_raw_writel(0, S5P_PMU_SPARE2);
+
 	ret = cpu_suspend(0, exynos_wfi_finisher);
 
 	cpu_pm_exit();
@@ -299,7 +332,9 @@ cpu1_aborted:
 
 static void exynos_pre_enter_aftr(void)
 {
-	__raw_writel(virt_to_phys(exynos_cpu_resume), cpu_boot_reg_base());
+	unsigned long boot_addr = virt_to_phys(exynos_cpu_resume);
+
+	(void)exynos_set_boot_addr(1, boot_addr);
 }
 
 static void exynos_post_enter_aftr(void)

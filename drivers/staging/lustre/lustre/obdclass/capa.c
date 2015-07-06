@@ -87,7 +87,7 @@ struct hlist_head *init_capa_hash(void)
 	struct hlist_head *hash;
 	int nr_hash, i;
 
-	OBD_ALLOC(hash, PAGE_CACHE_SIZE);
+	hash = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
 	if (!hash)
 		return NULL;
 
@@ -129,7 +129,7 @@ void cleanup_capa_hash(struct hlist_head *hash)
 	}
 	spin_unlock(&capa_lock);
 
-	OBD_FREE(hash, PAGE_CACHE_SIZE);
+	kfree(hash);
 }
 EXPORT_SYMBOL(cleanup_capa_hash);
 

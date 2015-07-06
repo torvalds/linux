@@ -132,6 +132,15 @@ static struct ulist_node *ulist_rbtree_search(struct ulist *ulist, u64 val)
 	return NULL;
 }
 
+static void ulist_rbtree_erase(struct ulist *ulist, struct ulist_node *node)
+{
+	rb_erase(&node->rb_node, &ulist->root);
+	list_del(&node->list);
+	kfree(node);
+	BUG_ON(ulist->nnodes == 0);
+	ulist->nnodes--;
+}
+
 static int ulist_rbtree_insert(struct ulist *ulist, struct ulist_node *ins)
 {
 	struct rb_node **p = &ulist->root.rb_node;
@@ -197,9 +206,6 @@ int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 
 	node->val = val;
 	node->aux = aux;
-#ifdef CONFIG_BTRFS_DEBUG
-	node->seqnum = ulist->nnodes;
-#endif
 
 	ret = ulist_rbtree_insert(ulist, node);
 	ASSERT(!ret);
@@ -207,6 +213,33 @@ int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 	ulist->nnodes++;
 
 	return 1;
+}
+
+/*
+ * ulist_del - delete one node from ulist
+ * @ulist:	ulist to remove node from
+ * @val:	value to delete
+ * @aux:	aux to delete
+ *
+ * The deletion will only be done when *BOTH* val and aux matches.
+ * Return 0 for successful delete.
+ * Return > 0 for not found.
+ */
+int ulist_del(struct ulist *ulist, u64 val, u64 aux)
+{
+	struct ulist_node *node;
+
+	node = ulist_rbtree_search(ulist, val);
+	/* Not found */
+	if (!node)
+		return 1;
+
+	if (node->aux != aux)
+		return 1;
+
+	/* Found and delete */
+	ulist_rbtree_erase(ulist, node);
+	return 0;
 }
 
 /**
@@ -237,15 +270,7 @@ struct ulist_node *ulist_next(struct ulist *ulist, struct ulist_iterator *uiter)
 		uiter->cur_list = uiter->cur_list->next;
 	} else {
 		uiter->cur_list = ulist->nodes.next;
-#ifdef CONFIG_BTRFS_DEBUG
-		uiter->i = 0;
-#endif
 	}
 	node = list_entry(uiter->cur_list, struct ulist_node, list);
-#ifdef CONFIG_BTRFS_DEBUG
-	ASSERT(node->seqnum == uiter->i);
-	ASSERT(uiter->i >= 0 && uiter->i < ulist->nnodes);
-	uiter->i++;
-#endif
 	return node;
 }

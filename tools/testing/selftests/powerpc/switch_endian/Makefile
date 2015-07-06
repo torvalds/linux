@@ -1,9 +1,8 @@
-CC := $(CROSS_COMPILE)gcc
-PROGS := switch_endian_test
+TEST_PROGS := switch_endian_test
 
 ASFLAGS += -O2 -Wall -g -nostdlib -m64
 
-all: $(PROGS)
+all: $(TEST_PROGS)
 
 switch_endian_test: check-reversed.S
 
@@ -13,12 +12,7 @@ check-reversed.o: check.o
 check-reversed.S: check-reversed.o
 	hexdump -v -e '/1 ".byte 0x%02X\n"' $< > $@
 
-run_tests: all
-	@-for PROG in $(PROGS); do \
-		./$$PROG; \
-	done;
+include ../../lib.mk
 
 clean:
-	rm -f $(PROGS) *.o check-reversed.S
-
-.PHONY: all run_tests clean
+	rm -f $(TEST_PROGS) *.o check-reversed.S

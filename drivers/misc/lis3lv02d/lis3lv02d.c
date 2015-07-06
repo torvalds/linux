@@ -115,7 +115,7 @@ static int param_set_axis(const char *val, const struct kernel_param *kp)
 	return ret;
 }
 
-static struct kernel_param_ops param_ops_axis = {
+static const struct kernel_param_ops param_ops_axis = {
 	.set = param_set_axis,
 	.get = param_get_int,
 };

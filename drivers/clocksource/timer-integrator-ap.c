@@ -26,7 +26,8 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/sched_clock.h>
-#include <asm/hardware/arm_timer.h>
+
+#include "timer-sp.h"
 
 static void __iomem * sched_clk_base;
 
@@ -166,7 +167,7 @@ static void __init integrator_ap_timer_init_of(struct device_node *node)
 	struct device_node *sec_node;
 
 	base = of_io_request_and_map(node, 0, "integrator-timer");
-	if (!base)
+	if (IS_ERR(base))
 		return;
 
 	clk = of_clk_get(node, 0);

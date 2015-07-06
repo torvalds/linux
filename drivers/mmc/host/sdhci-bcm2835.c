@@ -172,9 +172,19 @@ static int bcm2835_sdhci_probe(struct platform_device *pdev)
 		ret = PTR_ERR(pltfm_host->clk);
 		goto err;
 	}
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable host clk\n");
+		goto err;
+	}
 
-	return sdhci_add_host(host);
+	ret = sdhci_add_host(host);
+	if (ret)
+		goto err_clk;
 
+	return 0;
+err_clk:
+	clk_disable_unprepare(pltfm_host->clk);
 err:
 	sdhci_pltfm_free(pdev);
 	return ret;

@@ -29,7 +29,7 @@
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
 
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 #ifdef DEBUG_LOW
 #define DBG_LOW(fmt...) udbg_printf(fmt)

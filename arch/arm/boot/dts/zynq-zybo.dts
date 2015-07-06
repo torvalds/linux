@@ -18,13 +18,19 @@
 	model = "Zynq ZYBO Development Board";
 	compatible = "digilent,zynq-zybo", "xlnx,zynq-7000";
 
+	aliases {
+		ethernet0 = &gem0;
+		serial0 = &uart1;
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x20000000>;
 	};
 
 	chosen {
-		bootargs = "console=ttyPS0,115200 earlyprintk";
+		bootargs = "earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 };

@@ -239,7 +239,7 @@ static int mxs_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 	return !(dir & mask);
 }
 
-static struct platform_device_id mxs_gpio_ids[] = {
+static const struct platform_device_id mxs_gpio_ids[] = {
 	{
 		.name = "imx23-gpio",
 		.driver_data = IMX23_GPIO,
@@ -320,8 +320,8 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	mxs_gpio_init_gc(port, irq_base);
 
 	/* setup one handler for each entry */
-	irq_set_chained_handler(port->irq, mxs_gpio_irq_handler);
-	irq_set_handler_data(port->irq, port);
+	irq_set_chained_handler_and_data(port->irq, mxs_gpio_irq_handler,
+					 port);
 
 	err = bgpio_init(&port->bgc, &pdev->dev, 4,
 			 port->base + PINCTRL_DIN(port),

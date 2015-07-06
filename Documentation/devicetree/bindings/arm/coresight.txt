@@ -17,15 +17,19 @@ its hardware characteristcs.
 		- "arm,coresight-tmc", "arm,primecell";
 		- "arm,coresight-funnel", "arm,primecell";
 		- "arm,coresight-etm3x", "arm,primecell";
+		- "qcom,coresight-replicator1x", "arm,primecell";
 
 	* reg: physical base address and length of the register
 	  set(s) of the component.
 
-	* clocks: the clock associated to this component.
+	* clocks: the clocks associated to this component.
 
-	* clock-names: the name of the clock as referenced by the code.
-	  Since we are using the AMBA framework, the name should be
-	  "apb_pclk".
+	* clock-names: the name of the clocks referenced by the code.
+	  Since we are using the AMBA framework, the name of the clock
+	  providing the interconnect should be "apb_pclk", and some
+	  coresight blocks also have an additional clock "atclk", which
+	  clocks the core of that coresight component. The latter clock
+	  is optional.
 
 	* port or ports: The representation of the component's port
 	  layout using the generic DT graph presentation found in

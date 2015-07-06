@@ -279,8 +279,8 @@ lustre_get_emerg_rs(struct ptlrpc_service_part *svcpt)
 
 	/* See if we have anything in a pool, and wait if nothing */
 	while (list_empty(&svcpt->scp_rep_idle)) {
-		struct l_wait_info	lwi;
-		int			rc;
+		struct l_wait_info lwi;
+		int rc;
 
 		spin_unlock(&svcpt->scp_rep_lock);
 		/* If we cannot get anything for some long time, we better
@@ -321,7 +321,7 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 			 __u32 *lens, char **bufs, int flags)
 {
 	struct ptlrpc_reply_state *rs;
-	int			msg_len, rc;
+	int msg_len, rc;
 
 	LASSERT(req->rq_reply_state == NULL);
 
@@ -440,8 +440,8 @@ EXPORT_SYMBOL(lustre_msg_buf);
 int lustre_shrink_msg_v2(struct lustre_msg_v2 *msg, int segment,
 			 unsigned int newlen, int move_data)
 {
-	char   *tail = NULL, *newpos;
-	int     tail_len = 0, n;
+	char *tail = NULL, *newpos;
+	int tail_len = 0, n;
 
 	LASSERT(msg);
 	LASSERT(msg->lm_bufcount > segment);
@@ -1577,8 +1577,8 @@ int do_set_info_async(struct obd_import *imp,
 		      struct ptlrpc_request_set *set)
 {
 	struct ptlrpc_request *req;
-	char		  *tmp;
-	int		    rc;
+	char *tmp;
+	int rc;
 
 	req = ptlrpc_request_alloc(imp, &RQF_OBD_SET_INFO);
 	if (req == NULL)
@@ -1688,7 +1688,7 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 	CLASSERT(offsetof(typeof(*ocd), paddingF) != 0);
 }
 
-void lustre_swab_obdo(struct obdo  *o)
+void lustre_swab_obdo(struct obdo *o)
 {
 	__swab64s(&o->o_valid);
 	lustre_swab_ost_id(&o->o_oi);
@@ -2179,7 +2179,7 @@ EXPORT_SYMBOL(lustre_swab_lov_user_md_objects);
 
 void lustre_swab_ldlm_res_id(struct ldlm_res_id *id)
 {
-	int  i;
+	int i;
 
 	for (i = 0; i < RES_NAME_SIZE; i++)
 		__swab64s(&id->name[i]);

@@ -25,6 +25,10 @@
 #define WAIT_FOR_DISCONNECT_TIMEOUT_MS 2000
 #define WAIT_FOR_DISCONNECT_INTERVAL_MS 10
 
+bool debug_fw; /* = false; */
+module_param(debug_fw, bool, S_IRUGO);
+MODULE_PARM_DESC(debug_fw, " do not perform card reset. For FW debug");
+
 bool no_fw_recovery;
 module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_recovery, " disable automatic FW error recovery");
@@ -58,7 +62,7 @@ static int mtu_max_set(const char *val, const struct kernel_param *kp)
 	return ret;
 }
 
-static struct kernel_param_ops mtu_max_ops = {
+static const struct kernel_param_ops mtu_max_ops = {
 	.set = mtu_max_set,
 	.get = param_get_uint,
 };
@@ -87,7 +91,7 @@ static int ring_order_set(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops ring_order_ops = {
+static const struct kernel_param_ops ring_order_ops = {
 	.set = ring_order_set,
 	.get = param_get_uint,
 };
@@ -96,6 +100,8 @@ module_param_cb(rx_ring_order, &ring_order_ops, &rx_ring_order, S_IRUGO);
 MODULE_PARM_DESC(rx_ring_order, " Rx ring order; size = 1 << order");
 module_param_cb(tx_ring_order, &ring_order_ops, &tx_ring_order, S_IRUGO);
 MODULE_PARM_DESC(tx_ring_order, " Tx ring order; size = 1 << order");
+module_param_cb(bcast_ring_order, &ring_order_ops, &bcast_ring_order, S_IRUGO);
+MODULE_PARM_DESC(bcast_ring_order, " Bcast ring order; size = 1 << order");
 
 #define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
@@ -146,7 +152,6 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	wil_dbg_misc(wil, "%s(CID %d, status %d)\n", __func__, cid,
 		     sta->status);
 
-	sta->data_port_open = false;
 	if (sta->status != wil_sta_unused) {
 		if (!from_event)
 			wmi_disconnect_sta(wil, sta->addr, reason_code);
@@ -224,7 +229,7 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 		if (test_bit(wil_status_fwconnected, wil->status)) {
 			clear_bit(wil_status_fwconnected, wil->status);
 			cfg80211_disconnected(ndev, reason_code,
-					      NULL, 0, GFP_KERNEL);
+					      NULL, 0, false, GFP_KERNEL);
 		} else if (test_bit(wil_status_fwconnecting, wil->status)) {
 			cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
@@ -373,9 +378,10 @@ int wil_bcast_init(struct wil6210_priv *wil)
 	if (ri < 0)
 		return ri;
 
+	wil->bcast_vring = ri;
 	rc = wil_vring_init_bcast(wil, ri, 1 << bcast_ring_order);
-	if (rc == 0)
-		wil->bcast_vring = ri;
+	if (rc)
+		wil->bcast_vring = -1;
 
 	return rc;
 }
@@ -547,7 +553,7 @@ static inline void wil_release_cpu(struct wil6210_priv *wil)
 static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
-	u32 x;
+	u32 x, x1 = 0;
 
 	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->hw_name);
 
@@ -602,12 +608,16 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	do {
 		msleep(RST_DELAY);
 		x = R(RGF_USER_BL + offsetof(struct RGF_BL, ready));
+		if (x1 != x) {
+			wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n", x1, x);
+			x1 = x;
+		}
 		if (delay++ > RST_COUNT) {
 			wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
 				x);
 			return -ETIME;
 		}
-	} while (!(x & BIT_BL_READY));
+	} while (x != BIT_BL_READY);
 
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
@@ -685,6 +695,17 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 	WARN_ON(test_bit(wil_status_napi_en, wil->status));
+
+	if (debug_fw) {
+		static const u8 mac[ETH_ALEN] = {
+			0x00, 0xde, 0xad, 0x12, 0x34, 0x56,
+		};
+		struct net_device *ndev = wil_to_ndev(wil);
+
+		ether_addr_copy(ndev->perm_addr, mac);
+		ether_addr_copy(ndev->dev_addr, ndev->perm_addr);
+		return 0;
+	}
 
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);

@@ -256,7 +256,7 @@ static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
 	} while (handled);
 }
 
-static struct irq_domain_ops vic_irqdomain_ops = {
+static const struct irq_domain_ops vic_irqdomain_ops = {
 	.map = vic_irqdomain_map,
 	.xlate = irq_domain_xlate_onetwocell,
 };

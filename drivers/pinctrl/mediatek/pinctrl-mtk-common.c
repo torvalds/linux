@@ -107,28 +107,38 @@ static void mtk_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	regmap_write(mtk_get_regmap(pctl, offset), reg_addr, bit);
 }
 
-static void mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
-		int value, enum pin_config_param param)
+static int mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
+		int value, enum pin_config_param arg)
 {
 	unsigned int reg_addr, offset;
 	unsigned int bit;
-	int ret;
+
+	/**
+	 * Due to some soc are not support ies/smt config, add this special
+	 * control to handle it.
+	 */
+	if (!pctl->devdata->spec_ies_smt_set &&
+		pctl->devdata->ies_offset == MTK_PINCTRL_NOT_SUPPORT &&
+			arg == PIN_CONFIG_INPUT_ENABLE)
+		return -EINVAL;
+
+	if (!pctl->devdata->spec_ies_smt_set &&
+		pctl->devdata->smt_offset == MTK_PINCTRL_NOT_SUPPORT &&
+			arg == PIN_CONFIG_INPUT_SCHMITT_ENABLE)
+		return -EINVAL;
 
 	/*
 	 * Due to some pins are irregular, their input enable and smt
-	 * control register are discontinuous, but they are mapping together.
-	 * So we need this special handle.
+	 * control register are discontinuous, so we need this special handle.
 	 */
 	if (pctl->devdata->spec_ies_smt_set) {
-		ret = pctl->devdata->spec_ies_smt_set(mtk_get_regmap(pctl, pin),
-			pin, pctl->devdata->port_align, value);
-		if (!ret)
-			return;
+		return pctl->devdata->spec_ies_smt_set(mtk_get_regmap(pctl, pin),
+			pin, pctl->devdata->port_align, value, arg);
 	}
 
 	bit = BIT(pin & 0xf);
 
-	if (param == PIN_CONFIG_INPUT_ENABLE)
+	if (arg == PIN_CONFIG_INPUT_ENABLE)
 		offset = pctl->devdata->ies_offset;
 	else
 		offset = pctl->devdata->smt_offset;
@@ -139,6 +149,33 @@ static void mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
 		reg_addr = CLR_ADDR(mtk_get_port(pctl, pin) + offset, pctl);
 
 	regmap_write(mtk_get_regmap(pctl, pin), reg_addr, bit);
+	return 0;
+}
+
+int mtk_pconf_spec_set_ies_smt_range(struct regmap *regmap,
+		const struct mtk_pin_ies_smt_set *ies_smt_infos, unsigned int info_num,
+		unsigned int pin, unsigned char align, int value)
+{
+	unsigned int i, reg_addr, bit;
+
+	for (i = 0; i < info_num; i++) {
+		if (pin >= ies_smt_infos[i].start &&
+				pin <= ies_smt_infos[i].end) {
+			break;
+		}
+	}
+
+	if (i == info_num)
+		return -EINVAL;
+
+	if (value)
+		reg_addr = ies_smt_infos[i].offset + align;
+	else
+		reg_addr = ies_smt_infos[i].offset + (align << 1);
+
+	bit = BIT(ies_smt_infos[i].bit);
+	regmap_write(regmap, reg_addr, bit);
+	return 0;
 }
 
 static const struct mtk_pin_drv_grp *mtk_find_pin_drv_grp_by_pin(
@@ -184,6 +221,66 @@ static int mtk_pconf_set_driving(struct mtk_pinctrl *pctl,
 	}
 
 	return -EINVAL;
+}
+
+int mtk_pctrl_spec_pull_set_samereg(struct regmap *regmap,
+		const struct mtk_pin_spec_pupd_set_samereg *pupd_infos,
+		unsigned int info_num, unsigned int pin,
+		unsigned char align, bool isup, unsigned int r1r0)
+{
+	unsigned int i;
+	unsigned int reg_pupd, reg_set, reg_rst;
+	unsigned int bit_pupd, bit_r0, bit_r1;
+	const struct mtk_pin_spec_pupd_set_samereg *spec_pupd_pin;
+	bool find = false;
+
+	for (i = 0; i < info_num; i++) {
+		if (pin == pupd_infos[i].pin) {
+			find = true;
+			break;
+		}
+	}
+
+	if (!find)
+		return -EINVAL;
+
+	spec_pupd_pin = pupd_infos + i;
+	reg_set = spec_pupd_pin->offset + align;
+	reg_rst = spec_pupd_pin->offset + (align << 1);
+
+	if (isup)
+		reg_pupd = reg_rst;
+	else
+		reg_pupd = reg_set;
+
+	bit_pupd = BIT(spec_pupd_pin->pupd_bit);
+	regmap_write(regmap, reg_pupd, bit_pupd);
+
+	bit_r0 = BIT(spec_pupd_pin->r0_bit);
+	bit_r1 = BIT(spec_pupd_pin->r1_bit);
+
+	switch (r1r0) {
+	case MTK_PUPD_SET_R1R0_00:
+		regmap_write(regmap, reg_rst, bit_r0);
+		regmap_write(regmap, reg_rst, bit_r1);
+		break;
+	case MTK_PUPD_SET_R1R0_01:
+		regmap_write(regmap, reg_set, bit_r0);
+		regmap_write(regmap, reg_rst, bit_r1);
+		break;
+	case MTK_PUPD_SET_R1R0_10:
+		regmap_write(regmap, reg_rst, bit_r0);
+		regmap_write(regmap, reg_set, bit_r1);
+		break;
+	case MTK_PUPD_SET_R1R0_11:
+		regmap_write(regmap, reg_set, bit_r0);
+		regmap_write(regmap, reg_set, bit_r1);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int mtk_pconf_set_pull_select(struct mtk_pinctrl *pctl,
@@ -235,36 +332,37 @@ static int mtk_pconf_parse_conf(struct pinctrl_dev *pctldev,
 		unsigned int pin, enum pin_config_param param,
 		enum pin_config_param arg)
 {
+	int ret = 0;
 	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		mtk_pconf_set_pull_select(pctl, pin, false, false, arg);
+		ret = mtk_pconf_set_pull_select(pctl, pin, false, false, arg);
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
-		mtk_pconf_set_pull_select(pctl, pin, true, true, arg);
+		ret = mtk_pconf_set_pull_select(pctl, pin, true, true, arg);
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		mtk_pconf_set_pull_select(pctl, pin, true, false, arg);
+		ret = mtk_pconf_set_pull_select(pctl, pin, true, false, arg);
 		break;
 	case PIN_CONFIG_INPUT_ENABLE:
-		mtk_pconf_set_ies_smt(pctl, pin, arg, param);
+		ret = mtk_pconf_set_ies_smt(pctl, pin, arg, param);
 		break;
 	case PIN_CONFIG_OUTPUT:
 		mtk_gpio_set(pctl->chip, pin, arg);
-		mtk_pmx_gpio_set_direction(pctldev, NULL, pin, false);
+		ret = mtk_pmx_gpio_set_direction(pctldev, NULL, pin, false);
 		break;
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
-		mtk_pconf_set_ies_smt(pctl, pin, arg, param);
+		ret = mtk_pconf_set_ies_smt(pctl, pin, arg, param);
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		mtk_pconf_set_driving(pctl, pin, arg);
+		ret = mtk_pconf_set_driving(pctl, pin, arg);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int mtk_pconf_group_get(struct pinctrl_dev *pctldev,
@@ -283,12 +381,14 @@ static int mtk_pconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 {
 	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct mtk_pinctrl_group *g = &pctl->groups[group];
-	int i;
+	int i, ret;
 
 	for (i = 0; i < num_configs; i++) {
-		mtk_pconf_parse_conf(pctldev, g->pin,
+		ret = mtk_pconf_parse_conf(pctldev, g->pin,
 			pinconf_to_config_param(configs[i]),
 			pinconf_to_config_argument(configs[i]));
+		if (ret < 0)
+			return ret;
 
 		g->config = configs[i];
 	}
@@ -1109,7 +1209,8 @@ static struct pinctrl_desc mtk_pctrl_desc = {
 };
 
 int mtk_pctrl_init(struct platform_device *pdev,
-		const struct mtk_pinctrl_devdata *data)
+		const struct mtk_pinctrl_devdata *data,
+		struct regmap *regmap)
 {
 	struct pinctrl_pin_desc *pins;
 	struct mtk_pinctrl *pctl;
@@ -1135,6 +1236,11 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		pctl->regmap1 = syscon_node_to_regmap(node);
 		if (IS_ERR(pctl->regmap1))
 			return PTR_ERR(pctl->regmap1);
+	} else if (regmap) {
+		pctl->regmap1  = regmap;
+	} else {
+		dev_err(&pdev->dev, "Pinctrl node has not register regmap.\n");
+		return -EINVAL;
 	}
 
 	/* Only 8135 has two base addr, other SoCs have only one. */
@@ -1165,9 +1271,9 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	mtk_pctrl_desc.npins = pctl->devdata->npins;
 	pctl->dev = &pdev->dev;
 	pctl->pctl_dev = pinctrl_register(&mtk_pctrl_desc, &pdev->dev, pctl);
-	if (!pctl->pctl_dev) {
+	if (IS_ERR(pctl->pctl_dev)) {
 		dev_err(&pdev->dev, "couldn't register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(pctl->pctl_dev);
 	}
 
 	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);
@@ -1176,11 +1282,11 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		goto pctrl_error;
 	}
 
-	pctl->chip = &mtk_gpio_chip;
+	*pctl->chip = mtk_gpio_chip;
 	pctl->chip->ngpio = pctl->devdata->npins;
 	pctl->chip->label = dev_name(&pdev->dev);
 	pctl->chip->dev = &pdev->dev;
-	pctl->chip->base = 0;
+	pctl->chip->base = -1;
 
 	ret = gpiochip_add(pctl->chip);
 	if (ret) {
@@ -1195,6 +1301,9 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		ret = -EINVAL;
 		goto chip_error;
 	}
+
+	if (!of_property_read_bool(np, "interrupt-controller"))
+		return 0;
 
 	/* Get EINT register base from dts. */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1242,8 +1351,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		set_irq_flags(virq, IRQF_VALID);
 	};
 
-	irq_set_chained_handler(irq, mtk_eint_irq_handler);
-	irq_set_handler_data(irq, pctl);
+	irq_set_chained_handler_and_data(irq, mtk_eint_irq_handler, pctl);
 	set_irq_flags(irq, IRQF_VALID);
 	return 0;
 

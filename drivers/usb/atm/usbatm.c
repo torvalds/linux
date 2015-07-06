@@ -382,7 +382,8 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 		     "%s: got packet (length: %u, pdu_length: %u, vcc: 0x%p)",
 		     __func__, length, pdu_length, vcc);
 
-		if (!(skb = dev_alloc_skb(length))) {
+		skb = dev_alloc_skb(length);
+		if (!skb) {
 			if (printk_ratelimit())
 				atm_err(instance, "%s: no memory for skb (length: %u)!\n",
 					__func__, length);
@@ -816,7 +817,8 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 		goto fail;
 	}
 
-	if (!(new = kzalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL))) {
+	new = kzalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL);
+	if (!new) {
 		atm_err(instance, "%s: no memory for vcc_data!\n", __func__);
 		ret = -ENOMEM;
 		goto fail;

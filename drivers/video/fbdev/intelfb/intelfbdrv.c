@@ -124,10 +124,6 @@
 
 #include <asm/io.h>
 
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
-
 #include "intelfb.h"
 #include "intelfbhw.h"
 #include "../edid.h"
@@ -411,33 +407,6 @@ module_init(intelfb_init);
 module_exit(intelfb_exit);
 
 /***************************************************************
- *                     mtrr support functions                  *
- ***************************************************************/
-
-#ifdef CONFIG_MTRR
-static inline void set_mtrr(struct intelfb_info *dinfo)
-{
-	dinfo->mtrr_reg = mtrr_add(dinfo->aperture.physical,
-				   dinfo->aperture.size, MTRR_TYPE_WRCOMB, 1);
-	if (dinfo->mtrr_reg < 0) {
-		ERR_MSG("unable to set MTRR\n");
-		return;
-	}
-	dinfo->has_mtrr = 1;
-}
-static inline void unset_mtrr(struct intelfb_info *dinfo)
-{
-	if (dinfo->has_mtrr)
-		mtrr_del(dinfo->mtrr_reg, dinfo->aperture.physical,
-			 dinfo->aperture.size);
-}
-#else
-#define set_mtrr(x) WRN_MSG("MTRR is disabled in the kernel\n")
-
-#define unset_mtrr(x) do { } while (0)
-#endif /* CONFIG_MTRR */
-
-/***************************************************************
  *                        driver init / cleanup                *
  ***************************************************************/
 
@@ -456,7 +425,7 @@ static void cleanup(struct intelfb_info *dinfo)
 	if (dinfo->registered)
 		unregister_framebuffer(dinfo->info);
 
-	unset_mtrr(dinfo);
+	arch_phys_wc_del(dinfo->wc_cookie);
 
 	if (dinfo->fbmem_gart && dinfo->gtt_fb_mem) {
 		agp_unbind_memory(dinfo->gtt_fb_mem);
@@ -675,7 +644,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	/* Allocate memories (which aren't stolen) */
 	/* Map the fb and MMIO regions */
 	/* ioremap only up to the end of used aperture */
-	dinfo->aperture.virtual = (u8 __iomem *)ioremap_nocache
+	dinfo->aperture.virtual = (u8 __iomem *)ioremap_wc
 		(dinfo->aperture.physical, ((offset + dinfo->fb.offset) << 12)
 		 + dinfo->fb.size);
 	if (!dinfo->aperture.virtual) {
@@ -772,7 +741,8 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	agp_backend_release(bridge);
 
 	if (mtrr)
-		set_mtrr(dinfo);
+		dinfo->wc_cookie = arch_phys_wc_add(dinfo->aperture.physical,
+						    dinfo->aperture.size);
 
 	DBG_MSG("fb: 0x%x(+ 0x%x)/0x%x (0x%p)\n",
 		dinfo->fb.physical, dinfo->fb.offset, dinfo->fb.size,

@@ -1,8 +1,10 @@
 dts-dirs	+= brcm
 dts-dirs	+= cavium-octeon
+dts-dirs	+= ingenic
 dts-dirs	+= lantiq
 dts-dirs	+= mti
 dts-dirs	+= netlogic
+dts-dirs	+= qca
 dts-dirs	+= ralink
 
 obj-y		:= $(addsuffix /, $(dts-dirs))

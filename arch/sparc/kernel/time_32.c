@@ -23,7 +23,6 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
-#include <linux/rtc.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/timex.h>
 #include <linux/clocksource.h>
@@ -65,8 +64,6 @@ DEFINE_PER_CPU(struct clock_event_device, sparc32_clockevent);
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
-static int set_rtc_mmss(unsigned long);
-
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	extern char __copy_user_begin[], __copy_user_end[];
@@ -86,11 +83,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 
 volatile u32 __iomem *master_l10_counter;
-
-int update_persistent_clock(struct timespec now)
-{
-	return set_rtc_mmss(now.tv_sec);
-}
 
 irqreturn_t notrace timer_interrupt(int dummy, void *dev_id)
 {
@@ -362,16 +354,3 @@ void __init time_init(void)
 		sbus_time_init();
 }
 
-
-static int set_rtc_mmss(unsigned long secs)
-{
-	struct rtc_device *rtc = rtc_class_open("rtc0");
-	int err = -1;
-
-	if (rtc) {
-		err = rtc_set_mmss(rtc, secs);
-		rtc_class_close(rtc);
-	}
-
-	return err;
-}

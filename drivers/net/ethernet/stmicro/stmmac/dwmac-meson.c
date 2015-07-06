@@ -15,6 +15,7 @@
 #include <linux/ethtool.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/stmmac.h>
 
@@ -63,7 +64,28 @@ static void *meson6_dwmac_setup(struct platform_device *pdev)
 	return dwmac;
 }
 
-const struct stmmac_of_data meson6_dwmac_data = {
+static const struct stmmac_of_data meson6_dwmac_data = {
 	.setup		= meson6_dwmac_setup,
 	.fix_mac_speed	= meson6_dwmac_fix_mac_speed,
 };
+
+static const struct of_device_id meson6_dwmac_match[] = {
+	{ .compatible = "amlogic,meson6-dwmac", .data = &meson6_dwmac_data},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, meson6_dwmac_match);
+
+static struct platform_driver meson6_dwmac_driver = {
+	.probe  = stmmac_pltfr_probe,
+	.remove = stmmac_pltfr_remove,
+	.driver = {
+		.name           = "meson6-dwmac",
+		.pm		= &stmmac_pltfr_pm_ops,
+		.of_match_table = meson6_dwmac_match,
+	},
+};
+module_platform_driver(meson6_dwmac_driver);
+
+MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_DESCRIPTION("Amlogic Meson DWMAC glue layer");
+MODULE_LICENSE("GPL v2");

@@ -86,9 +86,6 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
 
 /*
  * Atomic compare and exchange.
- *
- * Do not define __HAVE_ARCH_CMPXCHG because we want to use it to check whether
- * a cmpxchg primitive faster than repeated local irq save/restore exists.
  */
 #include <asm-generic/cmpxchg-local.h>
 

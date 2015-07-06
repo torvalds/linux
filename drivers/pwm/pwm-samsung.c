@@ -456,6 +456,7 @@ static const struct of_device_id samsung_pwm_matches[] = {
 	{ .compatible = "samsung,exynos4210-pwm", .data = &s5p64x0_variant },
 	{},
 };
+MODULE_DEVICE_TABLE(of, samsung_pwm_matches);
 
 static int pwm_samsung_parse_dt(struct samsung_pwm_chip *chip)
 {

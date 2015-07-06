@@ -49,7 +49,7 @@
 ENTRY(mcpm_entry_point)
 
  ARM_BE8(setend        be)
- THUMB(	adr	r12, BSYM(1f)	)
+ THUMB(	badr	r12, 1f		)
  THUMB(	bx	r12		)
  THUMB(	.thumb			)
 1:

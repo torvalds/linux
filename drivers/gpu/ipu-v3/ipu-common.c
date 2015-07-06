@@ -1119,10 +1119,9 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 		ct->regs.mask = IPU_INT_CTRL(i / 32);
 	}
 
-	irq_set_chained_handler(ipu->irq_sync, ipu_irq_handler);
-	irq_set_handler_data(ipu->irq_sync, ipu);
-	irq_set_chained_handler(ipu->irq_err, ipu_err_irq_handler);
-	irq_set_handler_data(ipu->irq_err, ipu);
+	irq_set_chained_handler_and_data(ipu->irq_sync, ipu_irq_handler, ipu);
+	irq_set_chained_handler_and_data(ipu->irq_err, ipu_err_irq_handler,
+					 ipu);
 
 	return 0;
 }
@@ -1131,10 +1130,8 @@ static void ipu_irq_exit(struct ipu_soc *ipu)
 {
 	int i, irq;
 
-	irq_set_chained_handler(ipu->irq_err, NULL);
-	irq_set_handler_data(ipu->irq_err, NULL);
-	irq_set_chained_handler(ipu->irq_sync, NULL);
-	irq_set_handler_data(ipu->irq_sync, NULL);
+	irq_set_chained_handler_and_data(ipu->irq_err, NULL, NULL);
+	irq_set_chained_handler_and_data(ipu->irq_sync, NULL, NULL);
 
 	/* TODO: remove irq_domain_generic_chips */
 

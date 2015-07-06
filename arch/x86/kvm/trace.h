@@ -952,6 +952,28 @@ TRACE_EVENT(kvm_wait_lapic_expire,
 		  __entry->delta < 0 ? "early" : "late")
 );
 
+TRACE_EVENT(kvm_enter_smm,
+	TP_PROTO(unsigned int vcpu_id, u64 smbase, bool entering),
+	TP_ARGS(vcpu_id, smbase, entering),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	vcpu_id		)
+		__field(	u64,		smbase		)
+		__field(	bool,		entering	)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id	= vcpu_id;
+		__entry->smbase		= smbase;
+		__entry->entering	= entering;
+	),
+
+	TP_printk("vcpu %u: %s SMM, smbase 0x%llx",
+		  __entry->vcpu_id,
+		  __entry->entering ? "entering" : "leaving",
+		  __entry->smbase)
+);
+
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH

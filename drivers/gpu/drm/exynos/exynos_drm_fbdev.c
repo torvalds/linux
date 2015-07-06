@@ -275,9 +275,6 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	}
 
-	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(dev);
-
 	ret = drm_fb_helper_initial_config(helper, PREFERRED_BPP);
 	if (ret < 0) {
 		DRM_ERROR("failed to set up hw configuration.\n");

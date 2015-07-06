@@ -73,7 +73,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
 		    uint64_t nip, uint64_t addr)
 {
 	uint64_t srr1;
-	int index = __this_cpu_inc_return(mce_nest_count);
+	int index = __this_cpu_inc_return(mce_nest_count) - 1;
 	struct machine_check_event *mce = this_cpu_ptr(&mce_event[index]);
 
 	/*
@@ -184,7 +184,7 @@ void machine_check_queue_event(void)
 	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
 		return;
 
-	index = __this_cpu_inc_return(mce_queue_count);
+	index = __this_cpu_inc_return(mce_queue_count) - 1;
 	/* If queue is full, just return for now. */
 	if (index >= MAX_MC_EVT) {
 		__this_cpu_dec(mce_queue_count);

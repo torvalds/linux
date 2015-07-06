@@ -32,3 +32,18 @@ config VHOST
 	---help---
 	  This option is selected by any driver which needs to access
 	  the core of vhost.
+
+config VHOST_CROSS_ENDIAN_LEGACY
+	bool "Cross-endian support for vhost"
+	default n
+	---help---
+	  This option allows vhost to support guests with a different byte
+	  ordering from host while using legacy virtio.
+
+	  Userspace programs can control the feature using the
+	  VHOST_SET_VRING_ENDIAN and VHOST_GET_VRING_ENDIAN ioctls.
+
+	  This is only useful on a few platforms (ppc64 and arm64). Since it
+	  adds some overhead, it is disabled by default.
+
+	  If unsure, say "N".

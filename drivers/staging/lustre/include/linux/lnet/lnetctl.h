@@ -14,12 +14,11 @@
  *   along with Portals; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * header for libptlctl.a
+ * header for lnet ioctl
  */
-#ifndef _PTLCTL_H_
-#define _PTLCTL_H_
+#ifndef _LNETCTL_H_
+#define _LNETCTL_H_
 
-#include "../libcfs/libcfs.h"
 #include "types.h"
 
 #define LNET_DEV_ID 0

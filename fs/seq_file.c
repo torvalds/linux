@@ -48,18 +48,21 @@ static void *seq_buf_alloc(unsigned long size)
  *	ERR_PTR(error).  In the end of sequence they return %NULL. ->show()
  *	returns 0 in case of success and negative number in case of error.
  *	Returning SEQ_SKIP means "discard this element and move on".
+ *	Note: seq_open() will allocate a struct seq_file and store its
+ *	pointer in @file->private_data. This pointer should not be modified.
  */
 int seq_open(struct file *file, const struct seq_operations *op)
 {
-	struct seq_file *p = file->private_data;
+	struct seq_file *p;
 
-	if (!p) {
-		p = kmalloc(sizeof(*p), GFP_KERNEL);
-		if (!p)
-			return -ENOMEM;
-		file->private_data = p;
-	}
-	memset(p, 0, sizeof(*p));
+	WARN_ON(file->private_data);
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	file->private_data = p;
+
 	mutex_init(&p->lock);
 	p->op = op;
 #ifdef CONFIG_USER_NS
@@ -487,6 +490,20 @@ int seq_path(struct seq_file *m, const struct path *path, const char *esc)
 }
 EXPORT_SYMBOL(seq_path);
 
+/**
+ * seq_file_path - seq_file interface to print a pathname of a file
+ * @m: the seq_file handle
+ * @file: the struct file to print
+ * @esc: set of characters to escape in the output
+ *
+ * return the absolute path to the file.
+ */
+int seq_file_path(struct seq_file *m, struct file *file, const char *esc)
+{
+	return seq_path(m, &file->f_path, esc);
+}
+EXPORT_SYMBOL(seq_file_path);
+
 /*
  * Same as seq_path, but relative to supplied root.
  */
@@ -538,6 +555,7 @@ int seq_dentry(struct seq_file *m, struct dentry *dentry, const char *esc)
 
 	return res;
 }
+EXPORT_SYMBOL(seq_dentry);
 
 static void *single_start(struct seq_file *p, loff_t *pos)
 {

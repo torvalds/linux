@@ -362,12 +362,16 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, u8 bb_type)
  * Return Value: none
  */
 bool CARDbUpdateTSF(struct vnt_private *pDevice, unsigned char byRxRate,
-		    u64 qwBSSTimestamp, u64 qwLocalTSF)
+		    u64 qwBSSTimestamp)
 {
+	u64 local_tsf;
 	u64 qwTSFOffset = 0;
 
-	if (qwBSSTimestamp != qwLocalTSF) {
-		qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp, qwLocalTSF);
+	CARDbGetCurrentTSF(pDevice, &local_tsf);
+
+	if (qwBSSTimestamp != local_tsf) {
+		qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp,
+						local_tsf);
 		/* adjust TSF, HW's TSF add TSF Offset reg */
 		VNSvOutPortD(pDevice->PortOffset + MAC_REG_TSFOFST, (u32)qwTSFOffset);
 		VNSvOutPortD(pDevice->PortOffset + MAC_REG_TSFOFST + 4, (u32)(qwTSFOffset >> 32));

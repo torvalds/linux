@@ -241,18 +241,18 @@ Set multiple GPIO outputs with a single function call
 -----------------------------------------------------
 The following functions set the output values of an array of GPIOs:
 
-	void gpiod_set_array(unsigned int array_size,
-			     struct gpio_desc **desc_array,
-			     int *value_array)
-	void gpiod_set_raw_array(unsigned int array_size,
-				 struct gpio_desc **desc_array,
-				 int *value_array)
-	void gpiod_set_array_cansleep(unsigned int array_size,
-				      struct gpio_desc **desc_array,
-				      int *value_array)
-	void gpiod_set_raw_array_cansleep(unsigned int array_size,
-					  struct gpio_desc **desc_array,
-					  int *value_array)
+	void gpiod_set_array_value(unsigned int array_size,
+				   struct gpio_desc **desc_array,
+				   int *value_array)
+	void gpiod_set_raw_array_value(unsigned int array_size,
+				       struct gpio_desc **desc_array,
+				       int *value_array)
+	void gpiod_set_array_value_cansleep(unsigned int array_size,
+					    struct gpio_desc **desc_array,
+					    int *value_array)
+	void gpiod_set_raw_array_value_cansleep(unsigned int array_size,
+						struct gpio_desc **desc_array,
+						int *value_array)
 
 The array can be an arbitrary set of GPIOs. The functions will try to set
 GPIOs belonging to the same bank or chip simultaneously if supported by the
@@ -271,8 +271,8 @@ matches the desired group of GPIOs, those GPIOs can be set by simply using
 the struct gpio_descs returned by gpiod_get_array():
 
 	struct gpio_descs *my_gpio_descs = gpiod_get_array(...);
-	gpiod_set_array(my_gpio_descs->ndescs, my_gpio_descs->desc,
-			my_gpio_values);
+	gpiod_set_array_value(my_gpio_descs->ndescs, my_gpio_descs->desc,
+			      my_gpio_values);
 
 It is also possible to set a completely arbitrary array of descriptors. The
 descriptors may be obtained using any combination of gpiod_get() and
@@ -290,7 +290,7 @@ corresponding to a given GPIO using the following call:
 
 	int gpiod_to_irq(const struct gpio_desc *desc)
 
-It will return an IRQ number, or an negative errno code if the mapping can't be
+It will return an IRQ number, or a negative errno code if the mapping can't be
 done (most likely because that particular GPIO cannot be used as IRQ). It is an
 unchecked error to use a GPIO that wasn't set up as an input using
 gpiod_direction_input(), or to use an IRQ number that didn't originally come

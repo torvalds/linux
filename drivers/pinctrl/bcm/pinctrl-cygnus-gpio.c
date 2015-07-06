@@ -38,7 +38,7 @@
 #define CYGNUS_GPIO_DATA_IN_OFFSET   0x00
 #define CYGNUS_GPIO_DATA_OUT_OFFSET  0x04
 #define CYGNUS_GPIO_OUT_EN_OFFSET    0x08
-#define CYGNUS_GPIO_IN_TYPE_OFFSET   0x0c
+#define CYGNUS_GPIO_INT_TYPE_OFFSET  0x0c
 #define CYGNUS_GPIO_INT_DE_OFFSET    0x10
 #define CYGNUS_GPIO_INT_EDGE_OFFSET  0x14
 #define CYGNUS_GPIO_INT_MSK_OFFSET   0x18
@@ -264,7 +264,7 @@ static int cygnus_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	}
 
 	spin_lock_irqsave(&chip->lock, flags);
-	cygnus_set_bit(chip, CYGNUS_GPIO_IN_TYPE_OFFSET, gpio,
+	cygnus_set_bit(chip, CYGNUS_GPIO_INT_TYPE_OFFSET, gpio,
 		       level_triggered);
 	cygnus_set_bit(chip, CYGNUS_GPIO_INT_DE_OFFSET, gpio, dual_edge);
 	cygnus_set_bit(chip, CYGNUS_GPIO_INT_EDGE_OFFSET, gpio,
@@ -643,7 +643,9 @@ static const struct cygnus_gpio_pin_range cygnus_gpio_pintable[] = {
 	CYGNUS_PINRANGE(87, 104, 12),
 	CYGNUS_PINRANGE(99, 102, 2),
 	CYGNUS_PINRANGE(101, 90, 4),
-	CYGNUS_PINRANGE(105, 116, 10),
+	CYGNUS_PINRANGE(105, 116, 6),
+	CYGNUS_PINRANGE(111, 100, 2),
+	CYGNUS_PINRANGE(113, 122, 4),
 	CYGNUS_PINRANGE(123, 11, 1),
 	CYGNUS_PINRANGE(124, 38, 4),
 	CYGNUS_PINRANGE(128, 43, 1),
@@ -748,9 +750,9 @@ static int cygnus_gpio_register_pinconf(struct cygnus_gpio *chip)
 	pctldesc->confops = &cygnus_pconf_ops;
 
 	chip->pctl = pinctrl_register(pctldesc, chip->dev, chip);
-	if (!chip->pctl) {
+	if (IS_ERR(chip->pctl)) {
 		dev_err(chip->dev, "unable to register pinctrl device\n");
-		return -EINVAL;
+		return PTR_ERR(chip->pctl);
 	}
 
 	return 0;

@@ -267,8 +267,10 @@ static int i40evf_set_ringparam(struct net_device *netdev,
 	adapter->tx_desc_count = new_tx_count;
 	adapter->rx_desc_count = new_rx_count;
 
-	if (netif_running(netdev))
-		i40evf_reinit_locked(adapter);
+	if (netif_running(netdev)) {
+		adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
+		schedule_work(&adapter->reset_task);
+	}
 
 	return 0;
 }

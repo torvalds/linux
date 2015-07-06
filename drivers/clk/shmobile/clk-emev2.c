@@ -34,7 +34,7 @@
 static DEFINE_SPINLOCK(lock);
 
 /* not pretty, but hey */
-void __iomem *smu_base;
+static void __iomem *smu_base;
 
 static void __init emev2_smu_write(unsigned long value, int offs)
 {

@@ -231,6 +231,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 {
 	int ret = 0;
 	struct btrfs_path *path = btrfs_alloc_path();
+	bool locked = false;
 
 	if (!path) {
 		ret = -ENOMEM;
@@ -238,6 +239,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	}
 
 	if (block_group) {
+		locked = true;
 		mutex_lock(&trans->transaction->cache_write_mutex);
 		if (!list_empty(&block_group->io_list)) {
 			list_del_init(&block_group->io_list);
@@ -269,18 +271,14 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	 */
 	ret = btrfs_truncate_inode_items(trans, root, inode,
 					 0, BTRFS_EXTENT_DATA_KEY);
-	if (ret) {
-		mutex_unlock(&trans->transaction->cache_write_mutex);
-		btrfs_abort_transaction(trans, root, ret);
-		return ret;
-	}
+	if (ret)
+		goto fail;
 
 	ret = btrfs_update_inode(trans, root, inode);
 
-	if (block_group)
-		mutex_unlock(&trans->transaction->cache_write_mutex);
-
 fail:
+	if (locked)
+		mutex_unlock(&trans->transaction->cache_write_mutex);
 	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
 
@@ -3466,6 +3464,7 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
 	int ret;
 	struct btrfs_io_ctl io_ctl;
+	bool release_metadata = true;
 
 	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
 		return 0;
@@ -3473,11 +3472,20 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 	memset(&io_ctl, 0, sizeof(io_ctl));
 	ret = __btrfs_write_out_cache(root, inode, ctl, NULL, &io_ctl,
 				      trans, path, 0);
-	if (!ret)
+	if (!ret) {
+		/*
+		 * At this point writepages() didn't error out, so our metadata
+		 * reservation is released when the writeback finishes, at
+		 * inode.c:btrfs_finish_ordered_io(), regardless of it finishing
+		 * with or without an error.
+		 */
+		release_metadata = false;
 		ret = btrfs_wait_cache_io(root, trans, NULL, &io_ctl, path, 0);
+	}
 
 	if (ret) {
-		btrfs_delalloc_release_metadata(inode, inode->i_size);
+		if (release_metadata)
+			btrfs_delalloc_release_metadata(inode, inode->i_size);
 #ifdef DEBUG
 		btrfs_err(root->fs_info,
 			"failed to write free ino cache for root %llu",

@@ -90,8 +90,8 @@ void ucf64_exchandler(u32 inst, u32 fpexc, struct pt_regs *regs)
 			tmp &= ~(FPSCR_CON);
 		exc &= ~(FPSCR_CMPINSTR_BIT | FPSCR_CON);
 	} else {
-		pr_debug(KERN_ERR "UniCore-F64 Error: unhandled exceptions\n");
-		pr_debug(KERN_ERR "UniCore-F64 FPSCR 0x%08x INST 0x%08x\n",
+		pr_debug("UniCore-F64 Error: unhandled exceptions\n");
+		pr_debug("UniCore-F64 FPSCR 0x%08x INST 0x%08x\n",
 				cff(FPSCR), inst);
 
 		ucf64_raise_sigfpe(0, regs);

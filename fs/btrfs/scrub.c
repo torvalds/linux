@@ -2662,18 +2662,30 @@ static void scrub_free_parity(struct scrub_parity *sparity)
 	kfree(sparity);
 }
 
+static void scrub_parity_bio_endio_worker(struct btrfs_work *work)
+{
+	struct scrub_parity *sparity = container_of(work, struct scrub_parity,
+						    work);
+	struct scrub_ctx *sctx = sparity->sctx;
+
+	scrub_free_parity(sparity);
+	scrub_pending_bio_dec(sctx);
+}
+
 static void scrub_parity_bio_endio(struct bio *bio, int error)
 {
 	struct scrub_parity *sparity = (struct scrub_parity *)bio->bi_private;
-	struct scrub_ctx *sctx = sparity->sctx;
 
 	if (error)
 		bitmap_or(sparity->ebitmap, sparity->ebitmap, sparity->dbitmap,
 			  sparity->nsectors);
 
-	scrub_free_parity(sparity);
-	scrub_pending_bio_dec(sctx);
 	bio_put(bio);
+
+	btrfs_init_work(&sparity->work, btrfs_scrubparity_helper,
+			scrub_parity_bio_endio_worker, NULL, NULL);
+	btrfs_queue_work(sparity->sctx->dev_root->fs_info->scrub_parity_workers,
+			 &sparity->work);
 }
 
 static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
@@ -3589,6 +3601,13 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 			ret = -ENOMEM;
 			goto out;
 		}
+		fs_info->scrub_parity_workers =
+			btrfs_alloc_workqueue("btrfs-scrubparity", flags,
+					      max_active, 2);
+		if (!fs_info->scrub_parity_workers) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 	++fs_info->scrub_workers_refcnt;
 out:
@@ -3601,6 +3620,7 @@ static noinline_for_stack void scrub_workers_put(struct btrfs_fs_info *fs_info)
 		btrfs_destroy_workqueue(fs_info->scrub_workers);
 		btrfs_destroy_workqueue(fs_info->scrub_wr_completion_workers);
 		btrfs_destroy_workqueue(fs_info->scrub_nocow_workers);
+		btrfs_destroy_workqueue(fs_info->scrub_parity_workers);
 	}
 	WARN_ON(fs_info->scrub_workers_refcnt < 0);
 }

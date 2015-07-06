@@ -80,6 +80,12 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 	mdp5_disable(mdp5_kms);
 }
 
+static void mdp5_wait_for_crtc_commit_done(struct msm_kms *kms,
+						struct drm_crtc *crtc)
+{
+	mdp5_crtc_wait_for_commit_done(crtc);
+}
+
 static long mdp5_round_pixclk(struct msm_kms *kms, unsigned long rate,
 		struct drm_encoder *encoder)
 {
@@ -141,6 +147,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.disable_vblank  = mdp5_disable_vblank,
 		.prepare_commit  = mdp5_prepare_commit,
 		.complete_commit = mdp5_complete_commit,
+		.wait_for_crtc_commit_done = mdp5_wait_for_crtc_commit_done,
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
@@ -206,8 +213,8 @@ static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 
 static int get_dsi_id_from_intf(const struct mdp5_cfg_hw *hw_cfg, int intf_num)
 {
-	const int intf_cnt = hw_cfg->intf.count;
-	const u32 *intfs = hw_cfg->intfs;
+	const enum mdp5_intf_type *intfs = hw_cfg->intf.connect;
+	const int intf_cnt = ARRAY_SIZE(hw_cfg->intf.connect);
 	int id = 0, i;
 
 	for (i = 0; i < intf_cnt; i++) {
@@ -228,7 +235,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 	struct msm_drm_private *priv = dev->dev_private;
 	const struct mdp5_cfg_hw *hw_cfg =
 					mdp5_cfg_get_hw_config(mdp5_kms->cfg);
-	enum mdp5_intf_type intf_type = hw_cfg->intfs[intf_num];
+	enum mdp5_intf_type intf_type = hw_cfg->intf.connect[intf_num];
 	struct drm_encoder *encoder;
 	int ret = 0;
 
@@ -365,7 +372,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	/* Construct encoders and modeset initialize connector devices
 	 * for each external display interface.
 	 */
-	for (i = 0; i < ARRAY_SIZE(hw_cfg->intfs); i++) {
+	for (i = 0; i < ARRAY_SIZE(hw_cfg->intf.connect); i++) {
 		ret = modeset_init_intf(mdp5_kms, i);
 		if (ret)
 			goto fail;
@@ -514,8 +521,8 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	 */
 	mdp5_enable(mdp5_kms);
 	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
-		if (!config->hw->intf.base[i] ||
-				mdp5_cfg_intf_is_virtual(config->hw->intfs[i]))
+		if (mdp5_cfg_intf_is_virtual(config->hw->intf.connect[i]) ||
+				!config->hw->intf.base[i])
 			continue;
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
 	}

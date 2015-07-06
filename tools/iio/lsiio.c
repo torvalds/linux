@@ -56,7 +56,7 @@ static int dump_channels(const char *dev_dir_name)
 			printf("   %-10s\n", ent->d_name);
 		}
 
-	return 0;
+	return (closedir(dp) == -1) ? -errno : 0;
 }
 
 static int dump_one_device(const char *dev_dir_name)
@@ -69,7 +69,10 @@ static int dump_one_device(const char *dev_dir_name)
 			"%i", &dev_idx);
 	if (retval != 1)
 		return -EINVAL;
-	read_sysfs_string("name", dev_dir_name, name);
+	retval = read_sysfs_string("name", dev_dir_name, name);
+	if (retval)
+		return retval;
+
 	printf("Device %03d: %s\n", dev_idx, name);
 
 	if (verblevel >= VERBLEVEL_SENSORS)
@@ -87,28 +90,42 @@ static int dump_one_trigger(const char *dev_dir_name)
 			"%i", &dev_idx);
 	if (retval != 1)
 		return -EINVAL;
-	read_sysfs_string("name", dev_dir_name, name);
+	retval = read_sysfs_string("name", dev_dir_name, name);
+	if (retval)
+		return retval;
+
 	printf("Trigger %03d: %s\n", dev_idx, name);
 	return 0;
 }
 
-static void dump_devices(void)
+static int dump_devices(void)
 {
 	const struct dirent *ent;
+	int ret;
 	DIR *dp;
 
 	dp = opendir(iio_dir);
 	if (dp == NULL) {
 		printf("No industrial I/O devices available\n");
-		return;
+		return -ENODEV;
 	}
 
 	while (ent = readdir(dp), ent != NULL) {
 		if (check_prefix(ent->d_name, type_device)) {
 			char *dev_dir_name;
 
-			asprintf(&dev_dir_name, "%s%s", iio_dir, ent->d_name);
-			dump_one_device(dev_dir_name);
+			if (asprintf(&dev_dir_name, "%s%s", iio_dir,
+				     ent->d_name) < 0) {
+				ret = -ENOMEM;
+				goto error_close_dir;
+			}
+
+			ret = dump_one_device(dev_dir_name);
+			if (ret) {
+				free(dev_dir_name);
+				goto error_close_dir;
+			}
+
 			free(dev_dir_name);
 			if (verblevel >= VERBLEVEL_SENSORS)
 				printf("\n");
@@ -119,19 +136,35 @@ static void dump_devices(void)
 		if (check_prefix(ent->d_name, type_trigger)) {
 			char *dev_dir_name;
 
-			asprintf(&dev_dir_name, "%s%s", iio_dir, ent->d_name);
-			dump_one_trigger(dev_dir_name);
+			if (asprintf(&dev_dir_name, "%s%s", iio_dir,
+				     ent->d_name) < 0) {
+				ret = -ENOMEM;
+				goto error_close_dir;
+			}
+
+			ret = dump_one_trigger(dev_dir_name);
+			if (ret) {
+				free(dev_dir_name);
+				goto error_close_dir;
+			}
+
 			free(dev_dir_name);
 		}
 	}
-	closedir(dp);
+	return (closedir(dp) == -1) ? -errno : 0;
+
+error_close_dir:
+	if (closedir(dp) == -1)
+		perror("dump_devices(): Failed to close directory");
+
+	return ret;
 }
 
 int main(int argc, char **argv)
 {
 	int c, err = 0;
 
-	while ((c = getopt(argc, argv, "d:D:v")) != EOF) {
+	while ((c = getopt(argc, argv, "v")) != EOF) {
 		switch (c) {
 		case 'v':
 			verblevel++;
@@ -146,13 +179,9 @@ int main(int argc, char **argv)
 	if (err || argc > optind) {
 		fprintf(stderr, "Usage: lsiio [options]...\n"
 			"List industrial I/O devices\n"
-			"  -v, --verbose\n"
-			"      Increase verbosity (may be given multiple times)\n"
-			);
+			"  -v  Increase verbosity (may be given multiple times)\n");
 		exit(1);
 	}
 
-	dump_devices();
-
-	return 0;
+	return dump_devices();
 }

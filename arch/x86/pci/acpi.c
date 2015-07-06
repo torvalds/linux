@@ -81,6 +81,17 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
 		},
 	},
+	/* https://bugs.launchpad.net/ubuntu/+source/alsa-driver/+bug/931368 */
+	/* https://bugs.launchpad.net/ubuntu/+source/alsa-driver/+bug/1033299 */
+	{
+		.callback = set_use_crs,
+		.ident = "Foxconn K8M890-8237A",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Foxconn"),
+			DMI_MATCH(DMI_BOARD_NAME, "K8M890-8237A"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
+		},
+	},
 
 	/* Now for the blacklist.. */
 
@@ -121,8 +132,10 @@ void __init pci_acpi_crs_quirks(void)
 {
 	int year;
 
-	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year < 2008)
-		pci_use_crs = false;
+	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year < 2008) {
+		if (iomem_resource.end <= 0xffffffff)
+			pci_use_crs = false;
+	}
 
 	dmi_check_system(pci_crs_quirks);
 
@@ -482,9 +495,16 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
-	struct pci_sysdata *sd = bridge->bus->sysdata;
-
-	ACPI_COMPANION_SET(&bridge->dev, sd->companion);
+	/*
+	 * We pass NULL as parent to pci_create_root_bus(), so if it is not NULL
+	 * here, pci_create_root_bus() has been called by someone else and
+	 * sysdata is likely to be different from what we expect.  Let it go in
+	 * that case.
+	 */
+	if (!bridge->dev.parent) {
+		struct pci_sysdata *sd = bridge->bus->sysdata;
+		ACPI_COMPANION_SET(&bridge->dev, sd->companion);
+	}
 	return 0;
 }
 

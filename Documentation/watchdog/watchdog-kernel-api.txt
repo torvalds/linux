@@ -36,6 +36,10 @@ The watchdog_unregister_device routine deregisters a registered watchdog timer
 device. The parameter of this routine is the pointer to the registered
 watchdog_device structure.
 
+The watchdog subsystem includes an registration deferral mechanism,
+which allows you to register an watchdog as early as you wish during
+the boot process.
+
 The watchdog device structure looks like this:
 
 struct watchdog_device {
@@ -52,6 +56,7 @@ struct watchdog_device {
 	void *driver_data;
 	struct mutex lock;
 	unsigned long status;
+	struct list_head deferred;
 };
 
 It contains following fields:
@@ -80,6 +85,8 @@ It contains following fields:
   information about the status of the device (Like: is the watchdog timer
   running/active, is the nowayout bit set, is the device opened via
   the /dev/watchdog interface or not, ...).
+* deferred: entry in wtd_deferred_reg_list which is used to
+  register early initialized watchdogs.
 
 The list of watchdog operations is defined as:
 

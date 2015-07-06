@@ -1148,7 +1148,7 @@
 			usb2: gadget@fff78000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "atmel,at91sam9rl-udc";
+				compatible = "atmel,at91sam9g45-udc";
 				reg = <0x00600000 0x80000
 				       0xfff78000 0x400>;
 				interrupts = <27 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -1291,8 +1291,8 @@
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00700000 0x100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;
-			clocks = <&usb>, <&uhphs_clk>, <&uhphs_clk>, <&uhpck>;
-			clock-names = "usb_clk", "ohci_clk", "hclk", "uhpck";
+			clocks = <&uhphs_clk>, <&uhphs_clk>, <&uhpck>;
+			clock-names = "ohci_clk", "hclk", "uhpck";
 			status = "disabled";
 		};
 
@@ -1300,8 +1300,8 @@
 			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 			reg = <0x00800000 0x100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;
-			clocks = <&utmi>, <&uhphs_clk>, <&uhphs_clk>, <&uhpck>;
-			clock-names = "usb_clk", "ehci_clk", "hclk", "uhpck";
+			clocks = <&utmi>, <&uhphs_clk>;
+			clock-names = "usb_clk", "ehci_clk";
 			status = "disabled";
 		};
 	};

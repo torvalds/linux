@@ -105,7 +105,8 @@ struct bpf_verifier_ops {
 	 */
 	bool (*is_valid_access)(int off, int size, enum bpf_access_type type);
 
-	u32 (*convert_ctx_access)(int dst_reg, int src_reg, int ctx_off,
+	u32 (*convert_ctx_access)(enum bpf_access_type type, int dst_reg,
+				  int src_reg, int ctx_off,
 				  struct bpf_insn *insn);
 };
 
@@ -123,8 +124,33 @@ struct bpf_prog_aux {
 	const struct bpf_verifier_ops *ops;
 	struct bpf_map **used_maps;
 	struct bpf_prog *prog;
-	struct work_struct work;
+	union {
+		struct work_struct work;
+		struct rcu_head	rcu;
+	};
 };
+
+struct bpf_array {
+	struct bpf_map map;
+	u32 elem_size;
+	/* 'ownership' of prog_array is claimed by the first program that
+	 * is going to use this map or by the first program which FD is stored
+	 * in the map to make sure that all callers and callees have the same
+	 * prog_type and JITed flag
+	 */
+	enum bpf_prog_type owner_prog_type;
+	bool owner_jited;
+	union {
+		char value[0] __aligned(8);
+		struct bpf_prog *prog[0] __aligned(8);
+	};
+};
+#define MAX_TAIL_CALL_CNT 32
+
+u64 bpf_tail_call(u64 ctx, u64 r2, u64 index, u64 r4, u64 r5);
+void bpf_prog_array_map_clear(struct bpf_map *map);
+bool bpf_prog_array_compatible(struct bpf_array *array, const struct bpf_prog *fp);
+const struct bpf_func_proto *bpf_get_trace_printk_proto(void);
 
 #ifdef CONFIG_BPF_SYSCALL
 void bpf_register_prog_type(struct bpf_prog_type_list *tl);
@@ -132,6 +158,7 @@ void bpf_register_map_type(struct bpf_map_type_list *tl);
 
 struct bpf_prog *bpf_prog_get(u32 ufd);
 void bpf_prog_put(struct bpf_prog *prog);
+void bpf_prog_put_rcu(struct bpf_prog *prog);
 
 struct bpf_map *bpf_map_get(struct fd f);
 void bpf_map_put(struct bpf_map *map);
@@ -160,5 +187,10 @@ extern const struct bpf_func_proto bpf_map_delete_elem_proto;
 
 extern const struct bpf_func_proto bpf_get_prandom_u32_proto;
 extern const struct bpf_func_proto bpf_get_smp_processor_id_proto;
+extern const struct bpf_func_proto bpf_tail_call_proto;
+extern const struct bpf_func_proto bpf_ktime_get_ns_proto;
+extern const struct bpf_func_proto bpf_get_current_pid_tgid_proto;
+extern const struct bpf_func_proto bpf_get_current_uid_gid_proto;
+extern const struct bpf_func_proto bpf_get_current_comm_proto;
 
 #endif /* _LINUX_BPF_H */

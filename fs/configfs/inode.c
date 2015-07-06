@@ -236,7 +236,7 @@ void configfs_drop_dentry(struct configfs_dirent * sd, struct dentry * parent)
 
 	if (dentry) {
 		spin_lock(&dentry->d_lock);
-		if (!d_unhashed(dentry) && d_really_is_positive(dentry)) {
+		if (simple_positive(dentry)) {
 			dget_dlock(dentry);
 			__d_drop(dentry);
 			spin_unlock(&dentry->d_lock);

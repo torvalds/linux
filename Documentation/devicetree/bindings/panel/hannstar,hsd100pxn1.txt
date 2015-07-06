@@ -1,0 +1,7 @@
+HannStar Display Corp. HSD100PXN1 10.1" XGA LVDS panel
+
+Required properties:
+- compatible: should be "hannstar,hsd100pxn1"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

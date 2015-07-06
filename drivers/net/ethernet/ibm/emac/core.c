@@ -2084,12 +2084,8 @@ static void emac_ethtool_get_pauseparam(struct net_device *ndev,
 
 static int emac_get_regs_len(struct emac_instance *dev)
 {
-	if (emac_has_feature(dev, EMAC_FTR_EMAC4))
 		return sizeof(struct emac_ethtool_regs_subhdr) +
-			EMAC4_ETHTOOL_REGS_SIZE(dev);
-	else
-		return sizeof(struct emac_ethtool_regs_subhdr) +
-			EMAC_ETHTOOL_REGS_SIZE(dev);
+			sizeof(struct emac_regs);
 }
 
 static int emac_ethtool_get_regs_len(struct net_device *ndev)
@@ -2114,15 +2110,15 @@ static void *emac_dump_regs(struct emac_instance *dev, void *buf)
 	struct emac_ethtool_regs_subhdr *hdr = buf;
 
 	hdr->index = dev->cell_index;
-	if (emac_has_feature(dev, EMAC_FTR_EMAC4)) {
+	if (emac_has_feature(dev, EMAC_FTR_EMAC4SYNC)) {
+		hdr->version = EMAC4SYNC_ETHTOOL_REGS_VER;
+	} else if (emac_has_feature(dev, EMAC_FTR_EMAC4)) {
 		hdr->version = EMAC4_ETHTOOL_REGS_VER;
-		memcpy_fromio(hdr + 1, dev->emacp, EMAC4_ETHTOOL_REGS_SIZE(dev));
-		return (void *)(hdr + 1) + EMAC4_ETHTOOL_REGS_SIZE(dev);
 	} else {
 		hdr->version = EMAC_ETHTOOL_REGS_VER;
-		memcpy_fromio(hdr + 1, dev->emacp, EMAC_ETHTOOL_REGS_SIZE(dev));
-		return (void *)(hdr + 1) + EMAC_ETHTOOL_REGS_SIZE(dev);
 	}
+	memcpy_fromio(hdr + 1, dev->emacp, sizeof(struct emac_regs));
+	return (void *)(hdr + 1) + sizeof(struct emac_regs);
 }
 
 static void emac_ethtool_get_regs(struct net_device *ndev,
@@ -3003,7 +2999,7 @@ static struct platform_driver emac_driver = {
 static void __init emac_make_bootlist(void)
 {
 	struct device_node *np = NULL;
-	int j, max, i = 0, k;
+	int j, max, i = 0;
 	int cell_indices[EMAC_BOOT_LIST_SIZE];
 
 	/* Collect EMACs */
@@ -3030,12 +3026,8 @@ static void __init emac_make_bootlist(void)
 	for (i = 0; max > 1 && (i < (max - 1)); i++)
 		for (j = i; j < max; j++) {
 			if (cell_indices[i] > cell_indices[j]) {
-				np = emac_boot_list[i];
-				emac_boot_list[i] = emac_boot_list[j];
-				emac_boot_list[j] = np;
-				k = cell_indices[i];
-				cell_indices[i] = cell_indices[j];
-				cell_indices[j] = k;
+				swap(emac_boot_list[i], emac_boot_list[j]);
+				swap(cell_indices[i], cell_indices[j]);
 			}
 		}
 }

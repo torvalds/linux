@@ -8,21 +8,4 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef _IRQCHIP_H
-#define _IRQCHIP_H
-
-#include <linux/of.h>
-
-/*
- * This macro must be used by the different irqchip drivers to declare
- * the association between their DT compatible string and their
- * initialization function.
- *
- * @name: name that must be unique accross all IRQCHIP_DECLARE of the
- * same file.
- * @compstr: compatible string of the irqchip driver
- * @fn: initialization function
- */
-#define IRQCHIP_DECLARE(name, compat, fn) OF_DECLARE_2(irqchip, name, compat, fn)
-
-#endif
+#include <linux/irqchip.h>

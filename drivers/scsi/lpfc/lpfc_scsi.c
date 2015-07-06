@@ -1130,25 +1130,6 @@ lpfc_release_scsi_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 }
 
 /**
- * lpfc_fcpcmd_to_iocb - copy the fcp_cmd data into the IOCB
- * @data: A pointer to the immediate command data portion of the IOCB.
- * @fcp_cmnd: The FCP Command that is provided by the SCSI layer.
- *
- * The routine copies the entire FCP command from @fcp_cmnd to @data while
- * byte swapping the data to big endian format for transmission on the wire.
- **/
-static void
-lpfc_fcpcmd_to_iocb(uint8_t *data, struct fcp_cmnd *fcp_cmnd)
-{
-	int i, j;
-
-	for (i = 0, j = 0; i < sizeof(struct fcp_cmnd);
-	     i += sizeof(uint32_t), j++) {
-		((uint32_t *)data)[j] = cpu_to_be32(((uint32_t *)fcp_cmnd)[j]);
-	}
-}
-
-/**
  * lpfc_scsi_prep_dma_buf_s3 - DMA mapping for scsi buffer to SLI3 IF spec
  * @phba: The Hba for which this call is being executed.
  * @lpfc_cmd: The scsi buffer which is going to be mapped.
@@ -1283,7 +1264,6 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	 * we need to set word 4 of IOCB here
 	 */
 	iocb_cmd->un.fcpi.fcpi_parm = scsi_bufflen(scsi_cmnd);
-	lpfc_fcpcmd_to_iocb(iocb_cmd->unsli3.fcp_ext.icd, fcp_cmnd);
 	return 0;
 }
 
@@ -3277,7 +3257,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		 */
 
 		nseg = scsi_dma_map(scsi_cmnd);
-		if (unlikely(!nseg))
+		if (unlikely(nseg <= 0))
 			return 1;
 		sgl += 1;
 		/* clear the last flag in the fcp_rsp map entry */
@@ -3866,6 +3846,49 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 }
 
 /**
+ * lpfc_sli4_scmd_to_wqidx_distr - scsi command to SLI4 WQ index distribution
+ * @phba: Pointer to HBA context object.
+ *
+ * This routine performs a roundrobin SCSI command to SLI4 FCP WQ index
+ * distribution.  This is called by __lpfc_sli_issue_iocb_s4() with the hbalock
+ * held.
+ * If scsi-mq is enabled, get the default block layer mapping of software queues
+ * to hardware queues. This information is saved in request tag.
+ *
+ * Return: index into SLI4 fast-path FCP queue index.
+ **/
+int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
+				  struct lpfc_scsi_buf *lpfc_cmd)
+{
+	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
+	struct lpfc_vector_map_info *cpup;
+	int chann, cpu;
+	uint32_t tag;
+	uint16_t hwq;
+
+	if (shost_use_blk_mq(cmnd->device->host)) {
+		tag = blk_mq_unique_tag(cmnd->request);
+		hwq = blk_mq_unique_tag_to_hwq(tag);
+
+		return hwq;
+	}
+
+	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU
+	    && phba->cfg_fcp_io_channel > 1) {
+		cpu = smp_processor_id();
+		if (cpu < phba->sli4_hba.num_present_cpu) {
+			cpup = phba->sli4_hba.cpu_map;
+			cpup += cpu;
+			return cpup->channel_id;
+		}
+	}
+	chann = atomic_add_return(1, &phba->fcp_qidx);
+	chann = (chann % phba->cfg_fcp_io_channel);
+	return chann;
+}
+
+
+/**
  * lpfc_scsi_cmd_iocb_cmpl - Scsi cmnd IOCB completion routine
  * @phba: The Hba for which this call is being executed.
  * @pIocbIn: The command IOCBQ for the scsi cmnd.
@@ -4147,6 +4170,24 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 }
 
 /**
+ * lpfc_fcpcmd_to_iocb - copy the fcp_cmd data into the IOCB
+ * @data: A pointer to the immediate command data portion of the IOCB.
+ * @fcp_cmnd: The FCP Command that is provided by the SCSI layer.
+ *
+ * The routine copies the entire FCP command from @fcp_cmnd to @data while
+ * byte swapping the data to big endian format for transmission on the wire.
+ **/
+static void
+lpfc_fcpcmd_to_iocb(uint8_t *data, struct fcp_cmnd *fcp_cmnd)
+{
+	int i, j;
+	for (i = 0, j = 0; i < sizeof(struct fcp_cmnd);
+	     i += sizeof(uint32_t), j++) {
+		((uint32_t *)data)[j] = cpu_to_be32(((uint32_t *)fcp_cmnd)[j]);
+	}
+}
+
+/**
  * lpfc_scsi_prep_cmnd - Wrapper func for convert scsi cmnd to FCP info unit
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: The scsi command which needs to send.
@@ -4225,6 +4266,9 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		fcp_cmnd->fcpCntl3 = 0;
 		phba->fc4ControlRequests++;
 	}
+	if (phba->sli_rev == 3 &&
+	    !(phba->sli3_options & LPFC_SLI3_BG_ENABLED))
+		lpfc_fcpcmd_to_iocb(iocb_cmd->unsli3.fcp_ext.icd, fcp_cmnd);
 	/*
 	 * Finish initializing those IOCB fields that are independent
 	 * of the scsi_cmnd request_buffer
@@ -4536,7 +4580,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	if (lpfc_cmd == NULL) {
 		lpfc_rampdown_queue_depth(phba);
 
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_MISC,
 				 "0707 driver's buffer pool is empty, "
 				 "IO busied\n");
 		goto out_host_busy;
@@ -4967,13 +5011,16 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 					  iocbq, iocbqrsp, lpfc_cmd->timeout);
 	if ((status != IOCB_SUCCESS) ||
 	    (iocbqrsp->iocb.ulpStatus != IOSTAT_SUCCESS)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			 "0727 TMF %s to TGT %d LUN %llu failed (%d, %d) "
-			 "iocb_flag x%x\n",
-			 lpfc_taskmgmt_name(task_mgmt_cmd),
-			 tgt_id, lun_id, iocbqrsp->iocb.ulpStatus,
-			 iocbqrsp->iocb.un.ulpWord[4],
-			 iocbq->iocb_flag);
+		if (status != IOCB_SUCCESS ||
+		    iocbqrsp->iocb.ulpStatus != IOSTAT_FCP_RSP_ERROR)
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+					 "0727 TMF %s to TGT %d LUN %llu "
+					 "failed (%d, %d) iocb_flag x%x\n",
+					 lpfc_taskmgmt_name(task_mgmt_cmd),
+					 tgt_id, lun_id,
+					 iocbqrsp->iocb.ulpStatus,
+					 iocbqrsp->iocb.un.ulpWord[4],
+					 iocbq->iocb_flag);
 		/* if ulpStatus != IOCB_SUCCESS, then status == IOCB_SUCCESS */
 		if (status == IOCB_SUCCESS) {
 			if (iocbqrsp->iocb.ulpStatus == IOSTAT_FCP_RSP_ERROR)
@@ -4987,7 +5034,6 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 		} else {
 			ret = FAILED;
 		}
-		lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
 	} else
 		ret = SUCCESS;
 

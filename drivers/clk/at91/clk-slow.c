@@ -373,7 +373,7 @@ void __init of_at91sam9x5_clk_slow_setup(struct device_node *np,
 	const char *name = np->name;
 	int i;
 
-	num_parents = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	num_parents = of_clk_get_parent_count(np);
 	if (num_parents <= 0 || num_parents > 2)
 		return;
 
@@ -451,7 +451,7 @@ void __init of_at91sam9260_clk_slow_setup(struct device_node *np,
 	const char *name = np->name;
 	int i;
 
-	num_parents = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	num_parents = of_clk_get_parent_count(np);
 	if (num_parents != 2)
 		return;
 

@@ -103,7 +103,7 @@ void r8712_cpwm_int_hdl(struct _adapter *padapter,
 
 	if (pwrpriv->cpwm_tog == ((preportpwrstate->state) & 0x80))
 		return;
-	del_timer_sync(&padapter->pwrctrlpriv.rpwm_check_timer);
+	del_timer(&padapter->pwrctrlpriv.rpwm_check_timer);
 	_enter_pwrlock(&pwrpriv->lock);
 	pwrpriv->cpwm = (preportpwrstate->state) & 0xf;
 	if (pwrpriv->cpwm >= PS_STATE_S2) {

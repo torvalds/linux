@@ -151,7 +151,7 @@ static unsigned long srcu_readers_seq_idx(struct srcu_struct *sp, int idx)
 	unsigned long t;
 
 	for_each_possible_cpu(cpu) {
-		t = ACCESS_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->seq[idx]);
+		t = READ_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->seq[idx]);
 		sum += t;
 	}
 	return sum;
@@ -168,7 +168,7 @@ static unsigned long srcu_readers_active_idx(struct srcu_struct *sp, int idx)
 	unsigned long t;
 
 	for_each_possible_cpu(cpu) {
-		t = ACCESS_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[idx]);
+		t = READ_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[idx]);
 		sum += t;
 	}
 	return sum;
@@ -265,8 +265,8 @@ static int srcu_readers_active(struct srcu_struct *sp)
 	unsigned long sum = 0;
 
 	for_each_possible_cpu(cpu) {
-		sum += ACCESS_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[0]);
-		sum += ACCESS_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[1]);
+		sum += READ_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[0]);
+		sum += READ_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[1]);
 	}
 	return sum;
 }
@@ -296,7 +296,7 @@ int __srcu_read_lock(struct srcu_struct *sp)
 {
 	int idx;
 
-	idx = ACCESS_ONCE(sp->completed) & 0x1;
+	idx = READ_ONCE(sp->completed) & 0x1;
 	preempt_disable();
 	__this_cpu_inc(sp->per_cpu_ref->c[idx]);
 	smp_mb(); /* B */  /* Avoid leaking the critical section. */

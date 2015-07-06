@@ -47,6 +47,7 @@
  * @fifo_offset: platform specific function to get fifo offset
  * @read_fifo:	platform specific function to read fifo
  * @write_fifo:	platform specific function to write fifo
+ * @busctl_offset: platform specific function to get busctl offset
  */
 struct musb_io {
 	u32	quirks;
@@ -55,6 +56,7 @@ struct musb_io {
 	u32	(*fifo_offset)(u8 epnum);
 	void	(*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
 	void	(*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
+	u32	(*busctl_offset)(u8 epnum, u16 offset);
 };
 
 /* Do not add new entries here, add them the struct musb_io instead */

@@ -465,6 +465,10 @@ static void pppoe_unbind_sock_work(struct work_struct *work)
 	struct sock *sk = sk_pppox(po);
 
 	lock_sock(sk);
+	if (po->pppoe_dev) {
+		dev_put(po->pppoe_dev);
+		po->pppoe_dev = NULL;
+	}
 	pppox_unbind_sock(sk);
 	release_sock(sk);
 	sock_put(sk);
@@ -546,11 +550,11 @@ static struct proto pppoe_sk_proto __read_mostly = {
  * Initialize a new struct sock.
  *
  **********************************************************************/
-static int pppoe_create(struct net *net, struct socket *sock)
+static int pppoe_create(struct net *net, struct socket *sock, int kern)
 {
 	struct sock *sk;
 
-	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppoe_sk_proto);
+	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppoe_sk_proto, kern);
 	if (!sk)
 		return -ENOMEM;
 

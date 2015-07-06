@@ -20,6 +20,7 @@
 #define LSM330D_ACCEL_DEV_NAME		"lsm330d_accel"
 #define LSM330DL_ACCEL_DEV_NAME		"lsm330dl_accel"
 #define LSM330DLC_ACCEL_DEV_NAME	"lsm330dlc_accel"
+#define LIS331DL_ACCEL_DEV_NAME		"lis331dl_accel"
 #define LIS331DLH_ACCEL_DEV_NAME	"lis331dlh"
 #define LSM303DL_ACCEL_DEV_NAME		"lsm303dl_accel"
 #define LSM303DLH_ACCEL_DEV_NAME	"lsm303dlh_accel"

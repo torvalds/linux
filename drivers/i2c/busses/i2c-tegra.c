@@ -656,8 +656,8 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 static u32 tegra_i2c_func(struct i2c_adapter *adap)
 {
 	struct tegra_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
-	u32 ret = I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
-				I2C_FUNC_PROTOCOL_MANGLING;
+	u32 ret = I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) |
+		  I2C_FUNC_10BIT_ADDR |	I2C_FUNC_PROTOCOL_MANGLING;
 
 	if (i2c_dev->hw->has_continue_xfer_support)
 		ret |= I2C_FUNC_NOSTART;
@@ -667,6 +667,12 @@ static u32 tegra_i2c_func(struct i2c_adapter *adap)
 static const struct i2c_algorithm tegra_i2c_algo = {
 	.master_xfer	= tegra_i2c_xfer,
 	.functionality	= tegra_i2c_func,
+};
+
+/* payload size is only 12 bit */
+static struct i2c_adapter_quirks tegra_i2c_quirks = {
+	.max_read_len = 4096,
+	.max_write_len = 4096,
 };
 
 static const struct tegra_i2c_hw_feature tegra20_i2c_hw = {
@@ -739,6 +745,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->base = base;
 	i2c_dev->div_clk = div_clk;
 	i2c_dev->adapter.algo = &tegra_i2c_algo;
+	i2c_dev->adapter.quirks = &tegra_i2c_quirks;
 	i2c_dev->irq = irq;
 	i2c_dev->cont_id = pdev->id;
 	i2c_dev->dev = &pdev->dev;

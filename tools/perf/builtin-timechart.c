@@ -61,13 +61,13 @@ struct timechart {
 				tasks_only,
 				with_backtrace,
 				topology;
+	bool			force;
 	/* IO related settings */
-	u64			io_events;
 	bool			io_only,
 				skip_eagain;
+	u64			io_events;
 	u64			min_time,
 				merge_dist;
-	bool			force;
 };
 
 struct per_pidcomm;
@@ -523,7 +523,7 @@ static const char *cat_backtrace(union perf_event *event,
 				 * Discard all.
 				 */
 				zfree(&p);
-				goto exit;
+				goto exit_put;
 			}
 			continue;
 		}
@@ -538,7 +538,8 @@ static const char *cat_backtrace(union perf_event *event,
 		else
 			fprintf(f, "..... %016" PRIx64 "\n", ip);
 	}
-
+exit_put:
+	addr_location__put(&al);
 exit:
 	fclose(f);
 

@@ -76,7 +76,7 @@ static void ar2315_misc_irq_handler(unsigned irq, struct irq_desc *desc)
 	unsigned nr, misc_irq = 0;
 
 	if (pending) {
-		struct irq_domain *domain = irq_get_handler_data(irq);
+		struct irq_domain *domain = irq_desc_get_handler_data(desc);
 
 		nr = __ffs(pending);
 		misc_irq = irq_find_mapping(domain, nr);
@@ -161,8 +161,8 @@ void __init ar2315_arch_init_irq(void)
 	irq = irq_create_mapping(domain, AR2315_MISC_IRQ_AHB);
 	setup_irq(irq, &ar2315_ahb_err_interrupt);
 
-	irq_set_chained_handler(AR2315_IRQ_MISC, ar2315_misc_irq_handler);
-	irq_set_handler_data(AR2315_IRQ_MISC, domain);
+	irq_set_chained_handler_and_data(AR2315_IRQ_MISC,
+					 ar2315_misc_irq_handler, domain);
 
 	ar2315_misc_irq_domain = domain;
 }

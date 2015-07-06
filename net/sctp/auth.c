@@ -381,13 +381,14 @@ nomem:
 }
 
 
-/* Public interface to creat the association shared key.
+/* Public interface to create the association shared key.
  * See code above for the algorithm.
  */
 int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 {
 	struct sctp_auth_bytes	*secret;
 	struct sctp_shared_key *ep_key;
+	struct sctp_chunk *chunk;
 
 	/* If we don't support AUTH, or peer is not capable
 	 * we don't need to do anything.
@@ -409,6 +410,14 @@ int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 
 	sctp_auth_key_put(asoc->asoc_shared_key);
 	asoc->asoc_shared_key = secret;
+
+	/* Update send queue in case any chunk already in there now
+	 * needs authenticating
+	 */
+	list_for_each_entry(chunk, &asoc->outqueue.out_chunk_list, list) {
+		if (sctp_auth_send_cid(chunk->chunk_hdr->type, asoc))
+			chunk->auth = 1;
+	}
 
 	return 0;
 }

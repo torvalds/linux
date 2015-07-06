@@ -239,7 +239,7 @@ static struct imx_uart_data imx_uart_devdata[] = {
 	},
 };
 
-static struct platform_device_id imx_uart_devtype[] = {
+static const struct platform_device_id imx_uart_devtype[] = {
 	{
 		.name = "imx1-uart",
 		.driver_data = (kernel_ulong_t) &imx_uart_devdata[IMX1_UART],
@@ -853,7 +853,7 @@ static void imx_break_ctl(struct uart_port *port, int break_state)
 #define TXTL 2 /* reset default */
 #define RXTL 1 /* reset default */
 
-static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
+static void imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 {
 	unsigned int val;
 
@@ -861,7 +861,6 @@ static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 	val = readl(sport->port.membase + UFCR) & (UFCR_RFDIV | UFCR_DCEDTE);
 	val |= TXTL << UFCR_TXTL_SHF | RXTL;
 	writel(val, sport->port.membase + UFCR);
-	return 0;
 }
 
 #define RX_BUF_SIZE	(PAGE_SIZE)
@@ -911,6 +910,14 @@ static void dma_rx_callback(void *data)
 
 	status = dmaengine_tx_status(chan, (dma_cookie_t)0, &state);
 	count = RX_BUF_SIZE - state.residue;
+
+	if (readl(sport->port.membase + USR2) & USR2_IDLE) {
+		/* In condition [3] the SDMA counted up too early */
+		count--;
+
+		writel(USR2_IDLE, sport->port.membase + USR2);
+	}
+
 	dev_dbg(sport->port.dev, "We get %d bytes.\n", count);
 
 	if (count) {
@@ -1114,6 +1121,12 @@ static int imx_startup(struct uart_port *port)
 
 	writel(temp & ~UCR4_DREN, sport->port.membase + UCR4);
 
+	/* Can we enable the DMA support? */
+	if (is_imx6q_uart(sport) && !uart_console(port) &&
+	    !sport->dma_is_inited)
+		imx_uart_dma_init(sport);
+
+	spin_lock_irqsave(&sport->port.lock, flags);
 	/* Reset fifo's and state machines */
 	i = 100;
 
@@ -1123,13 +1136,6 @@ static int imx_startup(struct uart_port *port)
 
 	while (!(readl(sport->port.membase + UCR2) & UCR2_SRST) && (--i > 0))
 		udelay(1);
-
-	/* Can we enable the DMA support? */
-	if (is_imx6q_uart(sport) && !uart_console(port) &&
-	    !sport->dma_is_inited)
-		imx_uart_dma_init(sport);
-
-	spin_lock_irqsave(&sport->port.lock, flags);
 
 	/*
 	 * Finally, clear and enable interrupts

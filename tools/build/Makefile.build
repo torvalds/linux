@@ -25,7 +25,7 @@ build-dir := $(srctree)/tools/build
 include $(build-dir)/Build.include
 
 # do not force detected configuration
--include .config-detected
+-include $(OUTPUT).config-detected
 
 # Init all relevant variables used in build files so
 # 1) they have correct type
@@ -37,7 +37,7 @@ subdir-obj-y :=
 
 # Build definitions
 build-file := $(dir)/Build
-include $(build-file)
+-include $(build-file)
 
 quiet_cmd_flex  = FLEX     $@
 quiet_cmd_bison = BISON    $@
@@ -94,12 +94,12 @@ obj-y        := $(patsubst %/, %/$(obj)-in.o, $(obj-y))
 subdir-obj-y := $(filter %/$(obj)-in.o, $(obj-y))
 
 # '$(OUTPUT)/dir' prefix to all objects
-prefix       := $(subst ./,,$(OUTPUT)$(dir)/)
-obj-y        := $(addprefix $(prefix),$(obj-y))
-subdir-obj-y := $(addprefix $(prefix),$(subdir-obj-y))
+objprefix    := $(subst ./,,$(OUTPUT)$(dir)/)
+obj-y        := $(addprefix $(objprefix),$(obj-y))
+subdir-obj-y := $(addprefix $(objprefix),$(subdir-obj-y))
 
 # Final '$(obj)-in.o' object
-in-target := $(prefix)$(obj)-in.o
+in-target := $(objprefix)$(obj)-in.o
 
 PHONY += $(subdir-y)
 

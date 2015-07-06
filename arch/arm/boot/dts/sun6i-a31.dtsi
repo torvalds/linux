@@ -18,11 +18,6 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
  * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
@@ -50,6 +45,7 @@
 #include "skeleton.dtsi"
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/thermal/thermal.h>
 
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
@@ -66,7 +62,8 @@
 		ranges;
 
 		framebuffer@0 {
-			compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
 			clocks = <&pll6 0>;
 			status = "disabled";
@@ -96,10 +93,22 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <0>;
+			clocks = <&cpu>;
+			clock-latency = <244144>; /* 8 32k periods */
+			operating-points = <
+				/* kHz	  uV */
+				1008000	1200000
+				864000	1200000
+				720000	1100000
+				480000	1000000
+				>;
+			#cooling-cells = <2>;
+			cooling-min-level = <0>;
+			cooling-max-level = <3>;
 		};
 
 		cpu@1 {
@@ -118,6 +127,38 @@
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <3>;
+		};
+	};
+
+	thermal-zones {
+		cpu_thermal {
+			/* milliseconds */
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&rtp>;
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert0>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+
+			trips {
+				cpu_alert0: cpu_alert0 {
+					/* milliCelsius */
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit: cpu_crit {
+					/* milliCelsius */
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 
@@ -196,6 +237,14 @@
 			reg = <0x01c20054 0x4>;
 			clocks = <&osc32k>, <&osc24M>, <&axi>, <&pll6 0>;
 			clock-output-names = "ahb1";
+
+			/*
+			 * Clock AHB1 from PLL6, instead of CPU/AXI which
+			 * has rate changes due to cpufreq. Also the DMA
+			 * controller requires AHB1 clocked from PLL6.
+			 */
+			assigned-clocks = <&ahb1>;
+			assigned-clock-parents = <&pll6 0>;
 		};
 
 		ahb1_gates: clk@01c20060 {
@@ -251,9 +300,10 @@
 			reg = <0x01c2006c 0x4>;
 			clocks = <&apb2>;
 			clock-output-names = "apb2_i2c0", "apb2_i2c1",
-					"apb2_i2c2", "apb2_i2c3", "apb2_uart0",
-					"apb2_uart1", "apb2_uart2", "apb2_uart3",
-					"apb2_uart4", "apb2_uart5";
+					     "apb2_i2c2", "apb2_i2c3",
+					     "apb2_uart0", "apb2_uart1",
+					     "apb2_uart2", "apb2_uart3",
+					     "apb2_uart4", "apb2_uart5";
 		};
 
 		mmc0_clk: clk@01c20088 {
@@ -330,7 +380,7 @@
 
 		usb_clk: clk@01c200cc {
 			#clock-cells = <1>;
-		        #reset-cells = <1>;
+			#reset-cells = <1>;
 			compatible = "allwinner,sun6i-a31-usb-clk";
 			reg = <0x01c200cc 0x4>;
 			clocks = <&osc24M>;
@@ -340,10 +390,13 @@
 		};
 
 		/*
-		 * The following two are dummy clocks, placeholders used in the gmac_tx
-		 * clock. The gmac driver will choose one parent depending on the PHY
-		 * interface mode, using clk_set_rate auto-reparenting.
-		 * The actual TX clock rate is not controlled by the gmac_tx clock.
+		 * The following two are dummy clocks, placeholders
+		 * used in the gmac_tx clock. The gmac driver will
+		 * choose one parent depending on the PHY interface
+		 * mode, using clk_set_rate auto-reparenting.
+		 *
+		 * The actual TX clock rate is not controlled by the
+		 * gmac_tx clock.
 		 */
 		mii_phy_tx_clk: clk@1 {
 			#clock-cells = <0>;
@@ -381,10 +434,6 @@
 			clocks = <&ahb1_gates 6>;
 			resets = <&ahb1_rst 6>;
 			#dma-cells = <1>;
-
-			/* DMA controller requires AHB1 clocked from PLL6 */
-			assigned-clocks = <&ahb1>;
-			assigned-clock-parents = <&pll6 0>;
 		};
 
 		mmc0: mmc@01c0f000 {
@@ -402,6 +451,8 @@
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc1: mmc@01c10000 {
@@ -419,6 +470,8 @@
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc2: mmc@01c11000 {
@@ -436,6 +489,8 @@
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc3: mmc@01c12000 {
@@ -453,6 +508,8 @@
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		usbphy: phy@01c19400 {
@@ -575,8 +632,17 @@
 			};
 
 			mmc0_pins_a: mmc0@0 {
-				allwinner,pins = "PF0","PF1","PF2","PF3","PF4","PF5";
+				allwinner,pins = "PF0", "PF1", "PF2",
+						 "PF3", "PF4", "PF5";
 				allwinner,function = "mmc0";
+				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			mmc1_pins_a: mmc1@0 {
+				allwinner,pins = "PG0", "PG1", "PG2", "PG3",
+						 "PG4", "PG5";
+				allwinner,function = "mmc1";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
@@ -805,7 +871,8 @@
 		};
 
 		timer@01c60000 {
-			compatible = "allwinner,sun6i-a31-hstimer", "allwinner,sun7i-a20-hstimer";
+			compatible = "allwinner,sun6i-a31-hstimer",
+				     "allwinner,sun7i-a20-hstimer";
 			reg = <0x01c60000 0x1000>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
@@ -896,7 +963,8 @@
 			ar100: ar100_clk {
 				compatible = "allwinner,sun6i-a31-ar100-clk";
 				#clock-cells = <0>;
-				clocks = <&osc32k>, <&osc24M>, <&pll6 0>, <&pll6 0>;
+				clocks = <&osc32k>, <&osc24M>, <&pll6 0>,
+					 <&pll6 0>;
 				clock-output-names = "ar100";
 			};
 
@@ -973,6 +1041,27 @@
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
+
+			p2wi_pins: p2wi {
+				allwinner,pins = "PL0", "PL1";
+				allwinner,function = "s_p2wi";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+		};
+
+		p2wi: i2c@01f03400 {
+			compatible = "allwinner,sun6i-a31-p2wi";
+			reg = <0x01f03400 0x400>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&apb0_gates 3>;
+			clock-frequency = <100000>;
+			resets = <&apb0_rst 3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&p2wi_pins>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 };

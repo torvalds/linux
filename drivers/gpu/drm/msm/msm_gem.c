@@ -448,8 +448,7 @@ void msm_gem_move_to_inactive(struct drm_gem_object *obj)
 	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
 }
 
-int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
-		struct timespec *timeout)
+int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 {
 	struct drm_device *dev = obj->dev;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -483,7 +482,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %p %d\n",
+	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %p %zu\n",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
 			msm_obj->read_fence, msm_obj->write_fence,
 			obj->name, obj->refcount.refcount.counter,
@@ -540,6 +539,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 		if (msm_obj->pages)
 			drm_free_large(msm_obj->pages);
 
+		drm_prime_gem_destroy(obj, msm_obj->sgt);
 	} else {
 		vunmap(msm_obj->vaddr);
 		put_pages(obj);

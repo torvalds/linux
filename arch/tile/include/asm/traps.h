@@ -52,6 +52,14 @@ void do_timer_interrupt(struct pt_regs *, int fault_num);
 /* kernel/messaging.c */
 void hv_message_intr(struct pt_regs *, int intnum);
 
+#define	TILE_NMI_DUMP_STACK	1	/* Dump stack for sysrq+'l' */
+
+/* kernel/process.c */
+void do_nmi_dump_stack(struct pt_regs *regs);
+
+/* kernel/traps.c */
+void do_nmi(struct pt_regs *, int fault_num, unsigned long reason);
+
 /* kernel/irq.c */
 void tile_dev_intr(struct pt_regs *, int intnum);
 

@@ -10,6 +10,7 @@
 */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -168,10 +169,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 
 	exynos_info->dev = &pdev->dev;
 
-	if (of_machine_is_compatible("samsung,exynos4210")) {
-		exynos_info->type = EXYNOS_SOC_4210;
-		ret = exynos4210_cpufreq_init(exynos_info);
-	} else if (of_machine_is_compatible("samsung,exynos4212")) {
+	if (of_machine_is_compatible("samsung,exynos4212")) {
 		exynos_info->type = EXYNOS_SOC_4212;
 		ret = exynos4x12_cpufreq_init(exynos_info);
 	} else if (of_machine_is_compatible("samsung,exynos4412")) {

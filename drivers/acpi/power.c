@@ -684,7 +684,8 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 		}
 	}
 
-	*state = ACPI_STATE_D3_COLD;
+	*state = device->power.states[ACPI_STATE_D3_COLD].flags.valid ?
+		ACPI_STATE_D3_COLD : ACPI_STATE_D3_HOT;
 	return 0;
 }
 
@@ -709,8 +710,6 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	if ((device->power.state < ACPI_STATE_D0)
 	    || (device->power.state > ACPI_STATE_D3_COLD))
 		return -ENODEV;
-
-	/* TBD: Resources must be ordered. */
 
 	/*
 	 * First we reference all power resources required in the target list
@@ -759,6 +758,25 @@ static DEVICE_ATTR(resource_in_use, 0444, acpi_power_in_use_show, NULL);
 static void acpi_power_sysfs_remove(struct acpi_device *device)
 {
 	device_remove_file(&device->dev, &dev_attr_resource_in_use);
+}
+
+static void acpi_power_add_resource_to_list(struct acpi_power_resource *resource)
+{
+	mutex_lock(&power_resource_list_lock);
+
+	if (!list_empty(&acpi_power_resource_list)) {
+		struct acpi_power_resource *r;
+
+		list_for_each_entry(r, &acpi_power_resource_list, list_node)
+			if (r->order > resource->order) {
+				list_add_tail(&resource->list_node, &r->list_node);
+				goto out;
+			}
+	}
+	list_add_tail(&resource->list_node, &acpi_power_resource_list);
+
+ out:
+	mutex_unlock(&power_resource_list_lock);
 }
 
 int acpi_add_power_resource(acpi_handle handle)
@@ -811,9 +829,7 @@ int acpi_add_power_resource(acpi_handle handle)
 	if (!device_create_file(&device->dev, &dev_attr_resource_in_use))
 		device->remove = acpi_power_sysfs_remove;
 
-	mutex_lock(&power_resource_list_lock);
-	list_add(&resource->list_node, &acpi_power_resource_list);
-	mutex_unlock(&power_resource_list_lock);
+	acpi_power_add_resource_to_list(resource);
 	acpi_device_add_finalize(device);
 	return 0;
 
@@ -844,7 +860,22 @@ void acpi_resume_power_resources(void)
 		    && resource->ref_count) {
 			dev_info(&resource->device.dev, "Turning ON\n");
 			__acpi_power_on(resource);
-		} else if (state == ACPI_POWER_RESOURCE_STATE_ON
+		}
+
+		mutex_unlock(&resource->resource_lock);
+	}
+	list_for_each_entry_reverse(resource, &acpi_power_resource_list, list_node) {
+		int result, state;
+
+		mutex_lock(&resource->resource_lock);
+
+		result = acpi_power_get_state(resource->device.handle, &state);
+		if (result) {
+			mutex_unlock(&resource->resource_lock);
+			continue;
+		}
+
+		if (state == ACPI_POWER_RESOURCE_STATE_ON
 		    && !resource->ref_count) {
 			dev_info(&resource->device.dev, "Turning OFF\n");
 			__acpi_power_off(resource);

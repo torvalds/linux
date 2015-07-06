@@ -99,6 +99,7 @@ static int xfrm_replay_overflow(struct xfrm_state *x, struct sk_buff *skb)
 
 	if (x->type->flags & XFRM_TYPE_REPLAY_PROT) {
 		XFRM_SKB_CB(skb)->seq.output.low = ++x->replay.oseq;
+		XFRM_SKB_CB(skb)->seq.output.hi = 0;
 		if (unlikely(x->replay.oseq == 0)) {
 			x->replay.oseq--;
 			xfrm_audit_state_replay_overflow(x, skb);
@@ -177,6 +178,7 @@ static int xfrm_replay_overflow_bmp(struct xfrm_state *x, struct sk_buff *skb)
 
 	if (x->type->flags & XFRM_TYPE_REPLAY_PROT) {
 		XFRM_SKB_CB(skb)->seq.output.low = ++replay_esn->oseq;
+		XFRM_SKB_CB(skb)->seq.output.hi = 0;
 		if (unlikely(replay_esn->oseq == 0)) {
 			replay_esn->oseq--;
 			xfrm_audit_state_replay_overflow(x, skb);

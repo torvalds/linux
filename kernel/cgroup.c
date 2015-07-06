@@ -46,6 +46,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
+#include <linux/percpu-rwsem.h>
 #include <linux/string.h>
 #include <linux/sort.h>
 #include <linux/kmod.h>
@@ -103,6 +104,8 @@ static DEFINE_SPINLOCK(cgroup_idr_lock);
  */
 static DEFINE_SPINLOCK(release_agent_path_lock);
 
+struct percpu_rw_semaphore cgroup_threadgroup_rwsem;
+
 #define cgroup_assert_mutex_or_rcu_locked()				\
 	rcu_lockdep_assert(rcu_read_lock_held() ||			\
 			   lockdep_is_held(&cgroup_mutex),		\
@@ -156,7 +159,7 @@ static bool cgrp_dfl_root_visible;
 static bool cgroup_legacy_files_on_dfl;
 
 /* some controllers are not supported in the default hierarchy */
-static unsigned int cgrp_dfl_root_inhibit_ss_mask;
+static unsigned long cgrp_dfl_root_inhibit_ss_mask;
 
 /* The list of hierarchy roots */
 
@@ -175,18 +178,19 @@ static DEFINE_IDR(cgroup_hierarchy_idr);
  */
 static u64 css_serial_nr_next = 1;
 
-/* This flag indicates whether tasks in the fork and exit paths should
- * check for fork/exit handlers to call. This avoids us having to do
- * extra work in the fork/exit path if none of the subsystems need to
- * be called.
+/*
+ * These bitmask flags indicate whether tasks in the fork and exit paths have
+ * fork/exit handlers to call. This avoids us having to do extra work in the
+ * fork/exit path to check which subsystems have fork/exit callbacks.
  */
-static int need_forkexit_callback __read_mostly;
+static unsigned long have_fork_callback __read_mostly;
+static unsigned long have_exit_callback __read_mostly;
 
 static struct cftype cgroup_dfl_base_files[];
 static struct cftype cgroup_legacy_base_files[];
 
 static int rebind_subsystems(struct cgroup_root *dst_root,
-			     unsigned int ss_mask);
+			     unsigned long ss_mask);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
 static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss,
 		      bool visible);
@@ -261,7 +265,7 @@ static struct cgroup_subsys_state *cgroup_css(struct cgroup *cgrp,
  * @cgrp: the cgroup of interest
  * @ss: the subsystem of interest (%NULL returns @cgrp->self)
  *
- * Similar to cgroup_css() but returns the effctive css, which is defined
+ * Similar to cgroup_css() but returns the effective css, which is defined
  * as the matching css of the nearest ancestor including self which has @ss
  * enabled.  If @ss is associated with the hierarchy @cgrp is on, this
  * function is guaranteed to return non-NULL css.
@@ -408,6 +412,24 @@ static int notify_on_release(const struct cgroup *cgrp)
 #define for_each_subsys(ss, ssid)					\
 	for ((ssid) = 0; (ssid) < CGROUP_SUBSYS_COUNT &&		\
 	     (((ss) = cgroup_subsys[ssid]) || true); (ssid)++)
+
+/**
+ * for_each_subsys_which - filter for_each_subsys with a bitmask
+ * @ss: the iteration cursor
+ * @ssid: the index of @ss, CGROUP_SUBSYS_COUNT after reaching the end
+ * @ss_maskp: a pointer to the bitmask
+ *
+ * The block will only run for cases where the ssid-th bit (1 << ssid) of
+ * mask is set to 1.
+ */
+#define for_each_subsys_which(ss, ssid, ss_maskp)			\
+	if (!CGROUP_SUBSYS_COUNT) /* to avoid spurious gcc warning */	\
+		(ssid) = 0;						\
+	else								\
+		for_each_set_bit(ssid, ss_maskp, CGROUP_SUBSYS_COUNT)	\
+			if (((ss) = cgroup_subsys[ssid]) && false)	\
+				break;					\
+			else
 
 /* iterate across the hierarchies */
 #define for_each_root(root)						\
@@ -882,7 +904,7 @@ static void cgroup_exit_root_id(struct cgroup_root *root)
 static void cgroup_free_root(struct cgroup_root *root)
 {
 	if (root) {
-		/* hierarhcy ID shoulid already have been released */
+		/* hierarchy ID should already have been released */
 		WARN_ON_ONCE(root->hierarchy_id);
 
 		idr_destroy(&root->cgroup_idr);
@@ -998,7 +1020,7 @@ static struct cgroup *task_cgroup_from_root(struct task_struct *task,
  * update of a tasks cgroup pointer by cgroup_attach_task()
  */
 
-static int cgroup_populate_dir(struct cgroup *cgrp, unsigned int subsys_mask);
+static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask);
 static struct kernfs_syscall_ops cgroup_kf_syscall_ops;
 static const struct file_operations proc_cgroupstats_operations;
 
@@ -1068,11 +1090,11 @@ static void cgroup_put(struct cgroup *cgrp)
  * @subtree_control is to be applied to @cgrp.  The returned mask is always
  * a superset of @subtree_control and follows the usual hierarchy rules.
  */
-static unsigned int cgroup_calc_child_subsys_mask(struct cgroup *cgrp,
-						  unsigned int subtree_control)
+static unsigned long cgroup_calc_child_subsys_mask(struct cgroup *cgrp,
+						  unsigned long subtree_control)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
-	unsigned int cur_ss_mask = subtree_control;
+	unsigned long cur_ss_mask = subtree_control;
 	struct cgroup_subsys *ss;
 	int ssid;
 
@@ -1082,11 +1104,10 @@ static unsigned int cgroup_calc_child_subsys_mask(struct cgroup *cgrp,
 		return cur_ss_mask;
 
 	while (true) {
-		unsigned int new_ss_mask = cur_ss_mask;
+		unsigned long new_ss_mask = cur_ss_mask;
 
-		for_each_subsys(ss, ssid)
-			if (cur_ss_mask & (1 << ssid))
-				new_ss_mask |= ss->depends_on;
+		for_each_subsys_which(ss, ssid, &cur_ss_mask)
+			new_ss_mask |= ss->depends_on;
 
 		/*
 		 * Mask out subsystems which aren't available.  This can
@@ -1200,7 +1221,7 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
  * @cgrp: target cgroup
  * @subsys_mask: mask of the subsystem ids whose files should be removed
  */
-static void cgroup_clear_dir(struct cgroup *cgrp, unsigned int subsys_mask)
+static void cgroup_clear_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 {
 	struct cgroup_subsys *ss;
 	int i;
@@ -1215,18 +1236,16 @@ static void cgroup_clear_dir(struct cgroup *cgrp, unsigned int subsys_mask)
 	}
 }
 
-static int rebind_subsystems(struct cgroup_root *dst_root, unsigned int ss_mask)
+static int rebind_subsystems(struct cgroup_root *dst_root,
+			     unsigned long ss_mask)
 {
 	struct cgroup_subsys *ss;
-	unsigned int tmp_ss_mask;
+	unsigned long tmp_ss_mask;
 	int ssid, i, ret;
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	for_each_subsys(ss, ssid) {
-		if (!(ss_mask & (1 << ssid)))
-			continue;
-
+	for_each_subsys_which(ss, ssid, &ss_mask) {
 		/* if @ss has non-root csses attached to it, can't move */
 		if (css_next_child(NULL, cgroup_css(&ss->root->cgrp, ss)))
 			return -EBUSY;
@@ -1253,7 +1272,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root, unsigned int ss_mask)
 		 * Just warn about it and continue.
 		 */
 		if (cgrp_dfl_root_visible) {
-			pr_warn("failed to create files (%d) while rebinding 0x%x to default root\n",
+			pr_warn("failed to create files (%d) while rebinding 0x%lx to default root\n",
 				ret, ss_mask);
 			pr_warn("you may retry by moving them to a different hierarchy and unbinding\n");
 		}
@@ -1263,17 +1282,13 @@ static int rebind_subsystems(struct cgroup_root *dst_root, unsigned int ss_mask)
 	 * Nothing can fail from this point on.  Remove files for the
 	 * removed subsystems and rebind each subsystem.
 	 */
-	for_each_subsys(ss, ssid)
-		if (ss_mask & (1 << ssid))
-			cgroup_clear_dir(&ss->root->cgrp, 1 << ssid);
+	for_each_subsys_which(ss, ssid, &ss_mask)
+		cgroup_clear_dir(&ss->root->cgrp, 1 << ssid);
 
-	for_each_subsys(ss, ssid) {
+	for_each_subsys_which(ss, ssid, &ss_mask) {
 		struct cgroup_root *src_root;
 		struct cgroup_subsys_state *css;
 		struct css_set *cset;
-
-		if (!(ss_mask & (1 << ssid)))
-			continue;
 
 		src_root = ss->root;
 		css = cgroup_css(&src_root->cgrp, ss);
@@ -1338,7 +1353,7 @@ static int cgroup_show_options(struct seq_file *seq,
 }
 
 struct cgroup_sb_opts {
-	unsigned int subsys_mask;
+	unsigned long subsys_mask;
 	unsigned int flags;
 	char *release_agent;
 	bool cpuset_clone_children;
@@ -1351,7 +1366,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 {
 	char *token, *o = data;
 	bool all_ss = false, one_ss = false;
-	unsigned int mask = -1U;
+	unsigned long mask = -1UL;
 	struct cgroup_subsys *ss;
 	int nr_opts = 0;
 	int i;
@@ -1495,7 +1510,7 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 	int ret = 0;
 	struct cgroup_root *root = cgroup_root_from_kf(kf_root);
 	struct cgroup_sb_opts opts;
-	unsigned int added_mask, removed_mask;
+	unsigned long added_mask, removed_mask;
 
 	if (root == &cgrp_dfl_root) {
 		pr_err("remount is not allowed\n");
@@ -1641,7 +1656,7 @@ static void init_cgroup_root(struct cgroup_root *root,
 		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &root->cgrp.flags);
 }
 
-static int cgroup_setup_root(struct cgroup_root *root, unsigned int ss_mask)
+static int cgroup_setup_root(struct cgroup_root *root, unsigned long ss_mask)
 {
 	LIST_HEAD(tmp_links);
 	struct cgroup *root_cgrp = &root->cgrp;
@@ -1924,8 +1939,6 @@ static struct file_system_type cgroup_fs_type = {
 	.kill_sb = cgroup_kill_sb,
 };
 
-static struct kobject *cgroup_kobj;
-
 /**
  * task_cgroup_path - cgroup path of a task in the first cgroup hierarchy
  * @task: target task
@@ -2052,9 +2065,9 @@ static void cgroup_task_migrate(struct cgroup *old_cgrp,
 	lockdep_assert_held(&css_set_rwsem);
 
 	/*
-	 * We are synchronized through threadgroup_lock() against PF_EXITING
-	 * setting such that we can't race against cgroup_exit() changing the
-	 * css_set to init_css_set and dropping the old one.
+	 * We are synchronized through cgroup_threadgroup_rwsem against
+	 * PF_EXITING setting such that we can't race against cgroup_exit()
+	 * changing the css_set to init_css_set and dropping the old one.
 	 */
 	WARN_ON_ONCE(tsk->flags & PF_EXITING);
 	old_cset = task_css_set(tsk);
@@ -2111,10 +2124,11 @@ static void cgroup_migrate_finish(struct list_head *preloaded_csets)
  * @src_cset and add it to @preloaded_csets, which should later be cleaned
  * up by cgroup_migrate_finish().
  *
- * This function may be called without holding threadgroup_lock even if the
- * target is a process.  Threads may be created and destroyed but as long
- * as cgroup_mutex is not dropped, no new css_set can be put into play and
- * the preloaded css_sets are guaranteed to cover all migrations.
+ * This function may be called without holding cgroup_threadgroup_rwsem
+ * even if the target is a process.  Threads may be created and destroyed
+ * but as long as cgroup_mutex is not dropped, no new css_set can be put
+ * into play and the preloaded css_sets are guaranteed to cover all
+ * migrations.
  */
 static void cgroup_migrate_add_src(struct css_set *src_cset,
 				   struct cgroup *dst_cgrp,
@@ -2217,7 +2231,7 @@ err:
  * @threadgroup: whether @leader points to the whole process or a single task
  *
  * Migrate a process or task denoted by @leader to @cgrp.  If migrating a
- * process, the caller must be holding threadgroup_lock of @leader.  The
+ * process, the caller must be holding cgroup_threadgroup_rwsem.  The
  * caller is also responsible for invoking cgroup_migrate_add_src() and
  * cgroup_migrate_prepare_dst() on the targets before invoking this
  * function and following up with cgroup_migrate_finish().
@@ -2345,7 +2359,7 @@ out_release_tset:
  * @leader: the task or the leader of the threadgroup to be attached
  * @threadgroup: attach the whole threadgroup?
  *
- * Call holding cgroup_mutex and threadgroup_lock of @leader.
+ * Call holding cgroup_mutex and cgroup_threadgroup_rwsem.
  */
 static int cgroup_attach_task(struct cgroup *dst_cgrp,
 			      struct task_struct *leader, bool threadgroup)
@@ -2376,6 +2390,47 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
 	return ret;
 }
 
+static int cgroup_procs_write_permission(struct task_struct *task,
+					 struct cgroup *dst_cgrp,
+					 struct kernfs_open_file *of)
+{
+	const struct cred *cred = current_cred();
+	const struct cred *tcred = get_task_cred(task);
+	int ret = 0;
+
+	/*
+	 * even if we're attaching all tasks in the thread group, we only
+	 * need to check permissions on one of them.
+	 */
+	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
+	    !uid_eq(cred->euid, tcred->uid) &&
+	    !uid_eq(cred->euid, tcred->suid))
+		ret = -EACCES;
+
+	if (!ret && cgroup_on_dfl(dst_cgrp)) {
+		struct super_block *sb = of->file->f_path.dentry->d_sb;
+		struct cgroup *cgrp;
+		struct inode *inode;
+
+		down_read(&css_set_rwsem);
+		cgrp = task_cgroup_from_root(task, &cgrp_dfl_root);
+		up_read(&css_set_rwsem);
+
+		while (!cgroup_is_descendant(dst_cgrp, cgrp))
+			cgrp = cgroup_parent(cgrp);
+
+		ret = -ENOMEM;
+		inode = kernfs_get_inode(sb, cgrp->procs_kn);
+		if (inode) {
+			ret = inode_permission(inode, MAY_WRITE);
+			iput(inode);
+		}
+	}
+
+	put_cred(tcred);
+	return ret;
+}
+
 /*
  * Find the task_struct of the task to attach by vpid and pass it along to the
  * function to attach either it or all tasks in its threadgroup. Will lock
@@ -2385,7 +2440,6 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 				    size_t nbytes, loff_t off, bool threadgroup)
 {
 	struct task_struct *tsk;
-	const struct cred *cred = current_cred(), *tcred;
 	struct cgroup *cgrp;
 	pid_t pid;
 	int ret;
@@ -2397,29 +2451,17 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	if (!cgrp)
 		return -ENODEV;
 
-retry_find_task:
+	percpu_down_write(&cgroup_threadgroup_rwsem);
 	rcu_read_lock();
 	if (pid) {
 		tsk = find_task_by_vpid(pid);
 		if (!tsk) {
-			rcu_read_unlock();
 			ret = -ESRCH;
-			goto out_unlock_cgroup;
+			goto out_unlock_rcu;
 		}
-		/*
-		 * even if we're attaching all tasks in the thread group, we
-		 * only need to check permissions on one of them.
-		 */
-		tcred = __task_cred(tsk);
-		if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
-		    !uid_eq(cred->euid, tcred->uid) &&
-		    !uid_eq(cred->euid, tcred->suid)) {
-			rcu_read_unlock();
-			ret = -EACCES;
-			goto out_unlock_cgroup;
-		}
-	} else
+	} else {
 		tsk = current;
+	}
 
 	if (threadgroup)
 		tsk = tsk->group_leader;
@@ -2431,35 +2473,23 @@ retry_find_task:
 	 */
 	if (tsk == kthreadd_task || (tsk->flags & PF_NO_SETAFFINITY)) {
 		ret = -EINVAL;
-		rcu_read_unlock();
-		goto out_unlock_cgroup;
+		goto out_unlock_rcu;
 	}
 
 	get_task_struct(tsk);
 	rcu_read_unlock();
 
-	threadgroup_lock(tsk);
-	if (threadgroup) {
-		if (!thread_group_leader(tsk)) {
-			/*
-			 * a race with de_thread from another thread's exec()
-			 * may strip us of our leadership, if this happens,
-			 * there is no choice but to throw this task away and
-			 * try again; this is
-			 * "double-double-toil-and-trouble-check locking".
-			 */
-			threadgroup_unlock(tsk);
-			put_task_struct(tsk);
-			goto retry_find_task;
-		}
-	}
-
-	ret = cgroup_attach_task(cgrp, tsk, threadgroup);
-
-	threadgroup_unlock(tsk);
+	ret = cgroup_procs_write_permission(tsk, cgrp, of);
+	if (!ret)
+		ret = cgroup_attach_task(cgrp, tsk, threadgroup);
 
 	put_task_struct(tsk);
-out_unlock_cgroup:
+	goto out_unlock_threadgroup;
+
+out_unlock_rcu:
+	rcu_read_unlock();
+out_unlock_threadgroup:
+	percpu_up_write(&cgroup_threadgroup_rwsem);
 	cgroup_kn_unlock(of->kn);
 	return ret ?: nbytes;
 }
@@ -2542,19 +2572,17 @@ static int cgroup_sane_behavior_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static void cgroup_print_ss_mask(struct seq_file *seq, unsigned int ss_mask)
+static void cgroup_print_ss_mask(struct seq_file *seq, unsigned long ss_mask)
 {
 	struct cgroup_subsys *ss;
 	bool printed = false;
 	int ssid;
 
-	for_each_subsys(ss, ssid) {
-		if (ss_mask & (1 << ssid)) {
-			if (printed)
-				seq_putc(seq, ' ');
-			seq_printf(seq, "%s", ss->name);
-			printed = true;
-		}
+	for_each_subsys_which(ss, ssid, &ss_mask) {
+		if (printed)
+			seq_putc(seq, ' ');
+		seq_printf(seq, "%s", ss->name);
+		printed = true;
 	}
 	if (printed)
 		seq_putc(seq, '\n');
@@ -2605,6 +2633,8 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 	int ret;
 
 	lockdep_assert_held(&cgroup_mutex);
+
+	percpu_down_write(&cgroup_threadgroup_rwsem);
 
 	/* look up all csses currently attached to @cgrp's subtree */
 	down_read(&css_set_rwsem);
@@ -2661,17 +2691,8 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 				goto out_finish;
 			last_task = task;
 
-			threadgroup_lock(task);
-			/* raced against de_thread() from another thread? */
-			if (!thread_group_leader(task)) {
-				threadgroup_unlock(task);
-				put_task_struct(task);
-				continue;
-			}
-
 			ret = cgroup_migrate(src_cset->dfl_cgrp, task, true);
 
-			threadgroup_unlock(task);
 			put_task_struct(task);
 
 			if (WARN(ret, "cgroup: failed to update controllers for the default hierarchy (%d), further operations may crash or hang\n", ret))
@@ -2681,6 +2702,7 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 
 out_finish:
 	cgroup_migrate_finish(&preloaded_csets);
+	percpu_up_write(&cgroup_threadgroup_rwsem);
 	return ret;
 }
 
@@ -2689,8 +2711,8 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 					    char *buf, size_t nbytes,
 					    loff_t off)
 {
-	unsigned int enable = 0, disable = 0;
-	unsigned int css_enable, css_disable, old_sc, new_sc, old_ss, new_ss;
+	unsigned long enable = 0, disable = 0;
+	unsigned long css_enable, css_disable, old_sc, new_sc, old_ss, new_ss;
 	struct cgroup *cgrp, *child;
 	struct cgroup_subsys *ss;
 	char *tok;
@@ -2702,11 +2724,12 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	 */
 	buf = strstrip(buf);
 	while ((tok = strsep(&buf, " "))) {
+		unsigned long tmp_ss_mask = ~cgrp_dfl_root_inhibit_ss_mask;
+
 		if (tok[0] == '\0')
 			continue;
-		for_each_subsys(ss, ssid) {
-			if (ss->disabled || strcmp(tok + 1, ss->name) ||
-			    ((1 << ss->id) & cgrp_dfl_root_inhibit_ss_mask))
+		for_each_subsys_which(ss, ssid, &tmp_ss_mask) {
+			if (ss->disabled || strcmp(tok + 1, ss->name))
 				continue;
 
 			if (*tok == '+') {
@@ -2793,10 +2816,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	 * still around.  In such cases, wait till it's gone using
 	 * offline_waitq.
 	 */
-	for_each_subsys(ss, ssid) {
-		if (!(css_enable & (1 << ssid)))
-			continue;
-
+	for_each_subsys_which(ss, ssid, &css_enable) {
 		cgroup_for_each_live_child(child, cgrp) {
 			DEFINE_WAIT(wait);
 
@@ -3087,7 +3107,9 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 		return ret;
 	}
 
-	if (cft->seq_show == cgroup_populated_show)
+	if (cft->write == cgroup_procs_write)
+		cgrp->procs_kn = kn;
+	else if (cft->seq_show == cgroup_populated_show)
 		cgrp->populated_kn = kn;
 	return 0;
 }
@@ -4322,7 +4344,7 @@ static struct cftype cgroup_legacy_base_files[] = {
  *
  * On failure, no file is added.
  */
-static int cgroup_populate_dir(struct cgroup *cgrp, unsigned int subsys_mask)
+static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 {
 	struct cgroup_subsys *ss;
 	int i, ret = 0;
@@ -4931,7 +4953,8 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 	 * init_css_set is in the subsystem's root cgroup. */
 	init_css_set.subsys[ss->id] = css;
 
-	need_forkexit_callback |= ss->fork || ss->exit;
+	have_fork_callback |= (bool)ss->fork << ss->id;
+	have_exit_callback |= (bool)ss->exit << ss->id;
 
 	/* At system boot, before all subsystems have been
 	 * registered, no tasks have been forked, so we don't
@@ -4989,6 +5012,7 @@ int __init cgroup_init(void)
 	unsigned long key;
 	int ssid, err;
 
+	BUG_ON(percpu_init_rwsem(&cgroup_threadgroup_rwsem));
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_dfl_base_files));
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_legacy_base_files));
 
@@ -5044,13 +5068,13 @@ int __init cgroup_init(void)
 			ss->bind(init_css_set.subsys[ssid]);
 	}
 
-	cgroup_kobj = kobject_create_and_add("cgroup", fs_kobj);
-	if (!cgroup_kobj)
-		return -ENOMEM;
+	err = sysfs_create_mount_point(fs_kobj, "cgroup");
+	if (err)
+		return err;
 
 	err = register_filesystem(&cgroup_fs_type);
 	if (err < 0) {
-		kobject_put(cgroup_kobj);
+		sysfs_remove_mount_point(fs_kobj, "cgroup");
 		return err;
 	}
 
@@ -5241,11 +5265,8 @@ void cgroup_post_fork(struct task_struct *child)
 	 * css_set; otherwise, @child might change state between ->fork()
 	 * and addition to css_set.
 	 */
-	if (need_forkexit_callback) {
-		for_each_subsys(ss, i)
-			if (ss->fork)
-				ss->fork(child);
-	}
+	for_each_subsys_which(ss, i, &have_fork_callback)
+		ss->fork(child);
 }
 
 /**
@@ -5289,16 +5310,12 @@ void cgroup_exit(struct task_struct *tsk)
 	cset = task_css_set(tsk);
 	RCU_INIT_POINTER(tsk->cgroups, &init_css_set);
 
-	if (need_forkexit_callback) {
-		/* see cgroup_post_fork() for details */
-		for_each_subsys(ss, i) {
-			if (ss->exit) {
-				struct cgroup_subsys_state *old_css = cset->subsys[i];
-				struct cgroup_subsys_state *css = task_css(tsk, i);
+	/* see cgroup_post_fork() for details */
+	for_each_subsys_which(ss, i, &have_exit_callback) {
+		struct cgroup_subsys_state *old_css = cset->subsys[i];
+		struct cgroup_subsys_state *css = task_css(tsk, i);
 
-				ss->exit(css, old_css, tsk);
-			}
-		}
+		ss->exit(css, old_css, tsk);
 	}
 
 	if (put_cset)

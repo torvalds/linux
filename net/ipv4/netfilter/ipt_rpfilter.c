@@ -40,7 +40,7 @@ static bool rpfilter_lookup_reverse(struct flowi4 *fl4,
 	struct net *net = dev_net(dev);
 	int ret __maybe_unused;
 
-	if (fib_lookup(net, fl4, &res))
+	if (fib_lookup(net, fl4, &res, FIB_LOOKUP_IGNORE_LINKSTATE))
 		return false;
 
 	if (res.type != RTN_UNICAST) {

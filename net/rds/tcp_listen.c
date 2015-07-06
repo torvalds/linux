@@ -45,12 +45,45 @@ static void rds_tcp_accept_worker(struct work_struct *work);
 static DECLARE_WORK(rds_tcp_listen_work, rds_tcp_accept_worker);
 static struct socket *rds_tcp_listen_sock;
 
+static int rds_tcp_keepalive(struct socket *sock)
+{
+	/* values below based on xs_udp_default_timeout */
+	int keepidle = 5; /* send a probe 'keepidle' secs after last data */
+	int keepcnt = 5; /* number of unack'ed probes before declaring dead */
+	int keepalive = 1;
+	int ret = 0;
+
+	ret = kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+				(char *)&keepalive, sizeof(keepalive));
+	if (ret < 0)
+		goto bail;
+
+	ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT,
+				(char *)&keepcnt, sizeof(keepcnt));
+	if (ret < 0)
+		goto bail;
+
+	ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE,
+				(char *)&keepidle, sizeof(keepidle));
+	if (ret < 0)
+		goto bail;
+
+	/* KEEPINTVL is the interval between successive probes. We follow
+	 * the model in xs_tcp_finish_connecting() and re-use keepidle.
+	 */
+	ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL,
+				(char *)&keepidle, sizeof(keepidle));
+bail:
+	return ret;
+}
+
 static int rds_tcp_accept_one(struct socket *sock)
 {
 	struct socket *new_sock = NULL;
 	struct rds_connection *conn;
 	int ret;
 	struct inet_sock *inet;
+	struct rds_tcp_connection *rs_tcp;
 
 	ret = sock_create_lite(sock->sk->sk_family, sock->sk->sk_type,
 			       sock->sk->sk_protocol, &new_sock);
@@ -60,6 +93,10 @@ static int rds_tcp_accept_one(struct socket *sock)
 	new_sock->type = sock->type;
 	new_sock->ops = sock->ops;
 	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK);
+	if (ret < 0)
+		goto out;
+
+	ret = rds_tcp_keepalive(new_sock);
 	if (ret < 0)
 		goto out;
 
@@ -77,6 +114,15 @@ static int rds_tcp_accept_one(struct socket *sock)
 		ret = PTR_ERR(conn);
 		goto out;
 	}
+	/* An incoming SYN request came in, and TCP just accepted it.
+	 * We always create a new conn for listen side of TCP, and do not
+	 * add it to the c_hash_list.
+	 *
+	 * If the client reboots, this conn will need to be cleaned up.
+	 * rds_tcp_state_change() will do that cleanup
+	 */
+	rs_tcp = (struct rds_tcp_connection *)conn->c_transport_data;
+	WARN_ON(!rs_tcp || rs_tcp->t_sock);
 
 	/*
 	 * see the comment above rds_queue_delayed_reconnect()

@@ -303,6 +303,7 @@ struct nes_cm_listener {
 	int                        backlog;
 	enum nes_cm_listener_state listener_state;
 	u32                        reused_node;
+	u8			   tos;
 };
 
 /* per connection node and node state information */
@@ -352,6 +353,7 @@ struct nes_cm_node {
 	struct list_head	reset_entry;
 	struct nes_qp		*nesqp;
 	atomic_t 		passive_state;
+	u8			tos;
 };
 
 /* structure for client or CM to fill when making CM api calls. */

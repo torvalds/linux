@@ -116,7 +116,7 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 
 	/* mds_fid2dentry ignores f_type */
 	rc = md_getattr(sbi->ll_md_exp, op_data, &req);
-	OBD_FREE_PTR(op_data);
+	kfree(op_data);
 	if (rc) {
 		CERROR("can't get object attrs, fid "DFID", rc %d\n",
 		       PFID(fid), rc);

@@ -654,6 +654,21 @@
 		reset-names = "fuse";
 	};
 
+	hda@70030000 {
+		compatible = "nvidia,tegra30-hda";
+		reg = <0x70030000 0x10000>;
+		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA30_CLK_HDA>,
+		         <&tegra_car TEGRA30_CLK_HDA2HDMI>,
+			 <&tegra_car TEGRA30_CLK_HDA2CODEC_2X>;
+		clock-names = "hda", "hda2hdmi", "hda2codec_2x";
+		resets = <&tegra_car 125>, /* hda */
+			 <&tegra_car 128>, /* hda2hdmi */
+			 <&tegra_car 111>; /* hda2codec_2x */
+		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
+		status = "disabled";
+	};
+
 	ahub@70080000 {
 		compatible = "nvidia,tegra30-ahub";
 		reg = <0x70080000 0x200

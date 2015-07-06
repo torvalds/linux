@@ -304,7 +304,7 @@ extern const struct address_space_operations hpfs_symlink_aops;
 
 static inline struct hpfs_inode_info *hpfs_i(struct inode *inode)
 {
-	return list_entry(inode, struct hpfs_inode_info, vfs_inode);
+	return container_of(inode, struct hpfs_inode_info, vfs_inode);
 }
 
 static inline struct hpfs_sb_info *hpfs_sb(struct super_block *sb)

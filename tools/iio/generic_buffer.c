@@ -59,33 +59,80 @@ int size_from_channelarray(struct iio_channel_info *channels, int num_channels)
 	return bytes;
 }
 
-void print2byte(int input, struct iio_channel_info *info)
+void print2byte(uint16_t input, struct iio_channel_info *info)
 {
 	/* First swap if incorrect endian */
 	if (info->be)
-		input = be16toh((uint16_t)input);
+		input = be16toh(input);
 	else
-		input = le16toh((uint16_t)input);
+		input = le16toh(input);
 
 	/*
 	 * Shift before conversion to avoid sign extension
 	 * of left aligned data
 	 */
 	input >>= info->shift;
+	input &= info->mask;
 	if (info->is_signed) {
-		int16_t val = input;
-
-		val &= (1 << info->bits_used) - 1;
-		val = (int16_t)(val << (16 - info->bits_used)) >>
-			(16 - info->bits_used);
-		printf("%05f ", ((float)val + info->offset)*info->scale);
+		int16_t val = (int16_t)(input << (16 - info->bits_used)) >>
+			      (16 - info->bits_used);
+		printf("%05f ", ((float)val + info->offset) * info->scale);
 	} else {
-		uint16_t val = input;
-
-		val &= (1 << info->bits_used) - 1;
-		printf("%05f ", ((float)val + info->offset)*info->scale);
+		printf("%05f ", ((float)input + info->offset) * info->scale);
 	}
 }
+
+void print4byte(uint32_t input, struct iio_channel_info *info)
+{
+	/* First swap if incorrect endian */
+	if (info->be)
+		input = be32toh(input);
+	else
+		input = le32toh(input);
+
+	/*
+	 * Shift before conversion to avoid sign extension
+	 * of left aligned data
+	 */
+	input >>= info->shift;
+	input &= info->mask;
+	if (info->is_signed) {
+		int32_t val = (int32_t)(input << (32 - info->bits_used)) >>
+			      (32 - info->bits_used);
+		printf("%05f ", ((float)val + info->offset) * info->scale);
+	} else {
+		printf("%05f ", ((float)input + info->offset) * info->scale);
+	}
+}
+
+void print8byte(uint64_t input, struct iio_channel_info *info)
+{
+	/* First swap if incorrect endian */
+	if (info->be)
+		input = be64toh(input);
+	else
+		input = le64toh(input);
+
+	/*
+	 * Shift before conversion to avoid sign extension
+	 * of left aligned data
+	 */
+	input >>= info->shift;
+	input &= info->mask;
+	if (info->is_signed) {
+		int64_t val = (int64_t)(input << (64 - info->bits_used)) >>
+			      (64 - info->bits_used);
+		/* special case for timestamp */
+		if (info->scale == 1.0f && info->offset == 0.0f)
+			printf("%" PRId64 " ", val);
+		else
+			printf("%05f ",
+			       ((float)val + info->offset) * info->scale);
+	} else {
+		printf("%05f ", ((float)input + info->offset) * info->scale);
+	}
+}
+
 /**
  * process_scan() - print out the values in SI units
  * @data:		pointer to the start of the scan
@@ -108,37 +155,30 @@ void process_scan(char *data,
 				   &channels[k]);
 			break;
 		case 4:
-			if (!channels[k].is_signed) {
-				uint32_t val = *(uint32_t *)
-					(data + channels[k].location);
-				printf("%05f ", ((float)val +
-						 channels[k].offset)*
-				       channels[k].scale);
-
-			}
+			print4byte(*(uint32_t *)(data + channels[k].location),
+				   &channels[k]);
 			break;
 		case 8:
-			if (channels[k].is_signed) {
-				int64_t val = *(int64_t *)
-					(data +
-					 channels[k].location);
-				if ((val >> channels[k].bits_used) & 1)
-					val = (val & channels[k].mask) |
-						~channels[k].mask;
-				/* special case for timestamp */
-				if (channels[k].scale == 1.0f &&
-				    channels[k].offset == 0.0f)
-					printf("%" PRId64 " ", val);
-				else
-					printf("%05f ", ((float)val +
-							 channels[k].offset)*
-					       channels[k].scale);
-			}
+			print8byte(*(uint64_t *)(data + channels[k].location),
+				   &channels[k]);
 			break;
 		default:
 			break;
 		}
 	printf("\n");
+}
+
+void print_usage(void)
+{
+	printf("Usage: generic_buffer [options]...\n"
+	       "Capture, convert and output data from IIO device buffer\n"
+	       "  -c <n>     Do n conversions\n"
+	       "  -e         Disable wait for event (new data)\n"
+	       "  -g         Use trigger-less mode\n"
+	       "  -l <n>     Set buffer length to n samples\n"
+	       "  -n <name>  Set device name (mandatory)\n"
+	       "  -t <name>  Set trigger name\n"
+	       "  -w <n>     Set delay between reads in us (event-less mode)\n");
 }
 
 int main(int argc, char **argv)
@@ -166,8 +206,26 @@ int main(int argc, char **argv)
 
 	struct iio_channel_info *channels;
 
-	while ((c = getopt(argc, argv, "l:w:c:et:n:g")) != -1) {
+	while ((c = getopt(argc, argv, "c:egl:n:t:w:")) != -1) {
 		switch (c) {
+		case 'c':
+			errno = 0;
+			num_loops = strtoul(optarg, &dummy, 10);
+			if (errno)
+				return -errno;
+			break;
+		case 'e':
+			noevents = 1;
+			break;
+		case 'g':
+			notrigger = 1;
+			break;
+		case 'l':
+			errno = 0;
+			buf_len = strtoul(optarg, &dummy, 10);
+			if (errno)
+				return -errno;
+			break;
 		case 'n':
 			device_name = optarg;
 			break;
@@ -175,39 +233,35 @@ int main(int argc, char **argv)
 			trigger_name = optarg;
 			datardytrigger = 0;
 			break;
-		case 'e':
-			noevents = 1;
-			break;
-		case 'c':
-			num_loops = strtoul(optarg, &dummy, 10);
-			break;
 		case 'w':
+			errno = 0;
 			timedelay = strtoul(optarg, &dummy, 10);
-			break;
-		case 'l':
-			buf_len = strtoul(optarg, &dummy, 10);
-			break;
-		case 'g':
-			notrigger = 1;
+			if (errno)
+				return -errno;
 			break;
 		case '?':
+			print_usage();
 			return -1;
 		}
 	}
 
-	if (device_name == NULL)
+	if (device_name == NULL) {
+		printf("Device name not set\n");
+		print_usage();
 		return -1;
+	}
 
 	/* Find the device requested */
 	dev_num = find_type_by_name(device_name, "iio:device");
 	if (dev_num < 0) {
 		printf("Failed to find the %s\n", device_name);
-		ret = -ENODEV;
-		goto error_ret;
+		return dev_num;
 	}
 	printf("iio device number being used is %d\n", dev_num);
 
-	asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
+	ret = asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
+	if (ret < 0)
+		return -ENOMEM;
 
 	if (!notrigger) {
 		if (trigger_name == NULL) {
@@ -220,7 +274,7 @@ int main(int argc, char **argv)
 				       "%s-dev%d", device_name, dev_num);
 			if (ret < 0) {
 				ret = -ENOMEM;
-				goto error_ret;
+				goto error_free_dev_dir_name;
 			}
 		}
 
@@ -228,7 +282,7 @@ int main(int argc, char **argv)
 		trig_num = find_type_by_name(trigger_name, "trigger");
 		if (trig_num < 0) {
 			printf("Failed to find the trigger %s\n", trigger_name);
-			ret = -ENODEV;
+			ret = trig_num;
 			goto error_free_triggername;
 		}
 		printf("iio trigger number being used is %d\n", trig_num);
@@ -255,7 +309,7 @@ int main(int argc, char **argv)
 		       "%siio:device%d/buffer", iio_dir, dev_num);
 	if (ret < 0) {
 		ret = -ENOMEM;
-		goto error_free_triggername;
+		goto error_free_channels;
 	}
 
 	if (!notrigger) {
@@ -296,8 +350,8 @@ int main(int argc, char **argv)
 	/* Attempt to open non blocking the access dev */
 	fp = open(buffer_access, O_RDONLY | O_NONBLOCK);
 	if (fp == -1) { /* If it isn't there make the node */
-		printf("Failed to open %s\n", buffer_access);
 		ret = -errno;
+		printf("Failed to open %s\n", buffer_access);
 		goto error_free_buffer_access;
 	}
 
@@ -309,7 +363,14 @@ int main(int argc, char **argv)
 				.events = POLLIN,
 			};
 
-			poll(&pfd, 1, -1);
+			ret = poll(&pfd, 1, -1);
+			if (ret < 0) {
+				ret = -errno;
+				goto error_close_buffer_access;
+			} else if (ret == 0) {
+				continue;
+			}
+
 			toread = buf_len;
 
 		} else {
@@ -321,7 +382,7 @@ int main(int argc, char **argv)
 				 data,
 				 toread*scan_size);
 		if (read_size < 0) {
-			if (errno == -EAGAIN) {
+			if (errno == EAGAIN) {
 				printf("nothing available\n");
 				continue;
 			} else
@@ -340,20 +401,31 @@ int main(int argc, char **argv)
 
 	if (!notrigger)
 		/* Disconnect the trigger - just write a dummy name. */
-		write_sysfs_string("trigger/current_trigger",
-				   dev_dir_name, "NULL");
+		ret = write_sysfs_string("trigger/current_trigger",
+					 dev_dir_name, "NULL");
+		if (ret < 0)
+			printf("Failed to write to %s\n", dev_dir_name);
 
 error_close_buffer_access:
-	close(fp);
-error_free_data:
-	free(data);
+	if (close(fp) == -1)
+		perror("Failed to close buffer");
 error_free_buffer_access:
 	free(buffer_access);
+error_free_data:
+	free(data);
 error_free_buf_dir_name:
 	free(buf_dir_name);
+error_free_channels:
+	for (i = num_channels - 1; i >= 0; i--) {
+		free(channels[i].name);
+		free(channels[i].generic_name);
+	}
+	free(channels);
 error_free_triggername:
 	if (datardytrigger)
 		free(trigger_name);
-error_ret:
+error_free_dev_dir_name:
+	free(dev_dir_name);
+
 	return ret;
 }

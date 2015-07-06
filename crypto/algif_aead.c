@@ -13,6 +13,7 @@
  * any later version.
  */
 
+#include <crypto/aead.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/if_alg.h>
 #include <linux/init.h>
@@ -33,7 +34,7 @@ struct aead_ctx {
 	/*
 	 * RSGL_MAX_ENTRIES is an artificial limit where user space at maximum
 	 * can cause the kernel to allocate RSGL_MAX_ENTRIES * ALG_MAX_PAGES
-	 * bytes
+	 * pages
 	 */
 #define RSGL_MAX_ENTRIES ALG_MAX_PAGES
 	struct af_alg_sgl rsgl[RSGL_MAX_ENTRIES];
@@ -71,7 +72,7 @@ static inline bool aead_sufficient_data(struct aead_ctx *ctx)
 {
 	unsigned as = crypto_aead_authsize(crypto_aead_reqtfm(&ctx->aead_req));
 
-	return (ctx->used >= (ctx->aead_assoclen + (ctx->enc ? 0 : as)));
+	return ctx->used >= ctx->aead_assoclen + as;
 }
 
 static void aead_put_sgl(struct sock *sk)
@@ -352,12 +353,8 @@ static int aead_recvmsg(struct socket *sock, struct msghdr *msg, size_t ignored,
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
 	struct aead_ctx *ctx = ask->private;
-	unsigned bs = crypto_aead_blocksize(crypto_aead_reqtfm(&ctx->aead_req));
 	unsigned as = crypto_aead_authsize(crypto_aead_reqtfm(&ctx->aead_req));
 	struct aead_sg_list *sgl = &ctx->tsgl;
-	struct scatterlist *sg = NULL;
-	struct scatterlist assoc[ALG_MAX_PAGES];
-	size_t assoclen = 0;
 	unsigned int i = 0;
 	int err = -EINVAL;
 	unsigned long used = 0;
@@ -406,23 +403,13 @@ static int aead_recvmsg(struct socket *sock, struct msghdr *msg, size_t ignored,
 	if (!aead_sufficient_data(ctx))
 		goto unlock;
 
+	outlen = used;
+
 	/*
 	 * The cipher operation input data is reduced by the associated data
 	 * length as this data is processed separately later on.
 	 */
-	used -= ctx->aead_assoclen;
-
-	if (ctx->enc) {
-		/* round up output buffer to multiple of block size */
-		outlen = ((used + bs - 1) / bs * bs);
-		/* add the size needed for the auth tag to be created */
-		outlen += as;
-	} else {
-		/* output data size is input without the authentication tag */
-		outlen = used - as;
-		/* round up output buffer to multiple of block size */
-		outlen = ((outlen + bs - 1) / bs * bs);
-	}
+	used -= ctx->aead_assoclen + (ctx->enc ? as : 0);
 
 	/* convert iovecs of output buffers into scatterlists */
 	while (iov_iter_count(&msg->msg_iter)) {
@@ -435,11 +422,10 @@ static int aead_recvmsg(struct socket *sock, struct msghdr *msg, size_t ignored,
 		if (err < 0)
 			goto unlock;
 		usedpages += err;
-		/* chain the new scatterlist with initial list */
+		/* chain the new scatterlist with previous one */
 		if (cnt)
-			scatterwalk_crypto_chain(ctx->rsgl[0].sg,
-					ctx->rsgl[cnt].sg, 1,
-					sg_nents(ctx->rsgl[cnt-1].sg));
+			af_alg_link_sg(&ctx->rsgl[cnt-1], &ctx->rsgl[cnt]);
+
 		/* we do not need more iovecs as we have sufficient memory */
 		if (outlen <= usedpages)
 			break;
@@ -452,47 +438,11 @@ static int aead_recvmsg(struct socket *sock, struct msghdr *msg, size_t ignored,
 	if (usedpages < outlen)
 		goto unlock;
 
-	sg_init_table(assoc, ALG_MAX_PAGES);
-	assoclen = ctx->aead_assoclen;
-	/*
-	 * Split scatterlist into two: first part becomes AD, second part
-	 * is plaintext / ciphertext. The first part is assigned to assoc
-	 * scatterlist. When this loop finishes, sg points to the start of the
-	 * plaintext / ciphertext.
-	 */
-	for (i = 0; i < ctx->tsgl.cur; i++) {
-		sg = sgl->sg + i;
-		if (sg->length <= assoclen) {
-			/* AD is larger than one page */
-			sg_set_page(assoc + i, sg_page(sg),
-				    sg->length, sg->offset);
-			assoclen -= sg->length;
-			if (i >= ctx->tsgl.cur)
-				goto unlock;
-		} else if (!assoclen) {
-			/* current page is to start of plaintext / ciphertext */
-			if (i)
-				/* AD terminates at page boundary */
-				sg_mark_end(assoc + i - 1);
-			else
-				/* AD size is zero */
-				sg_mark_end(assoc);
-			break;
-		} else {
-			/* AD does not terminate at page boundary */
-			sg_set_page(assoc + i, sg_page(sg),
-				    assoclen, sg->offset);
-			sg_mark_end(assoc + i);
-			/* plaintext / ciphertext starts after AD */
-			sg->length -= assoclen;
-			sg->offset += assoclen;
-			break;
-		}
-	}
+	sg_mark_end(sgl->sg + sgl->cur - 1);
 
-	aead_request_set_assoc(&ctx->aead_req, assoc, ctx->aead_assoclen);
-	aead_request_set_crypt(&ctx->aead_req, sg, ctx->rsgl[0].sg, used,
-			       ctx->iv);
+	aead_request_set_crypt(&ctx->aead_req, sgl->sg, ctx->rsgl[0].sg,
+			       used, ctx->iv);
+	aead_request_set_ad(&ctx->aead_req, ctx->aead_assoclen);
 
 	err = af_alg_wait_for_completion(ctx->enc ?
 					 crypto_aead_encrypt(&ctx->aead_req) :
@@ -564,7 +514,8 @@ static struct proto_ops algif_aead_ops = {
 
 static void *aead_bind(const char *name, u32 type, u32 mask)
 {
-	return crypto_alloc_aead(name, type, mask);
+	return crypto_alloc_aead(name, type | CRYPTO_ALG_AEAD_NEW,
+				 mask | CRYPTO_ALG_AEAD_NEW);
 }
 
 static void aead_release(void *private)

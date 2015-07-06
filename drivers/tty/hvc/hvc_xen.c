@@ -289,7 +289,7 @@ static int xen_initial_domain_console_init(void)
 			return -ENOMEM;
 	}
 
-	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0);
+	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0, false);
 	info->vtermno = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
@@ -302,7 +302,7 @@ static int xen_initial_domain_console_init(void)
 static void xen_console_update_evtchn(struct xencons_info *info)
 {
 	if (xen_hvm_domain()) {
-		uint64_t v;
+		uint64_t v = 0;
 		int err;
 
 		err = hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN, &v);

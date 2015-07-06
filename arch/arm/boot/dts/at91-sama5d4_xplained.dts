@@ -50,7 +50,8 @@
 	compatible = "atmel,sama5d4-xplained", "atmel,sama5d4", "atmel,sama5";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 ignore_loglevel earlyprintk";
+		bootargs = "ignore_loglevel earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -106,6 +107,8 @@
 			mmc1: mmc@fc000000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc1_clk_cmd_dat0 &pinctrl_mmc1_dat1_3 &pinctrl_mmc1_cd>;
+				vmmc-supply = <&vcc_mmc1_reg>;
+				vqmmc-supply = <&vcc_3v3_reg>;
 				status = "okay";
 				slot@0 {
 					reg = <0>;
@@ -119,6 +122,11 @@
 			};
 
 			usart4: serial@fc010000 {
+				status = "okay";
+			};
+
+			spi1: spi@fc018000 {
+				cs-gpios = <&pioB 21 0>;
 				status = "okay";
 			};
 
@@ -237,5 +245,23 @@
 			gpios = <&pioE 15 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	vcc_3v3_reg: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC 3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc_mmc1_reg: fixedregulator@1 {
+		compatible = "regulator-fixed";
+		gpio = <&pioE 4 GPIO_ACTIVE_LOW>;
+		regulator-name = "VDD MCI1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_reg>;
 	};
 };

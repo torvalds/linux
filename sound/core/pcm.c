@@ -1027,7 +1027,8 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream)
 static ssize_t show_pcm_class(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct snd_pcm *pcm;
+	struct snd_pcm_str *pstr = container_of(dev, struct snd_pcm_str, dev);
+	struct snd_pcm *pcm = pstr->pcm;
 	const char *str;
 	static const char *strs[SNDRV_PCM_CLASS_LAST + 1] = {
 		[SNDRV_PCM_CLASS_GENERIC] = "generic",
@@ -1036,8 +1037,7 @@ static ssize_t show_pcm_class(struct device *dev,
 		[SNDRV_PCM_CLASS_DIGITIZER] = "digitizer",
 	};
 
-	if (! (pcm = dev_get_drvdata(dev)) ||
-	    pcm->dev_class > SNDRV_PCM_CLASS_LAST)
+	if (pcm->dev_class > SNDRV_PCM_CLASS_LAST)
 		str = "none";
 	else
 		str = strs[pcm->dev_class];
@@ -1181,7 +1181,7 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 }
 EXPORT_SYMBOL(snd_pcm_notify);
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 /*
  *  Info interface
  */
@@ -1227,10 +1227,10 @@ static void snd_pcm_proc_done(void)
 	snd_info_free_entry(snd_pcm_proc_entry);
 }
 
-#else /* !CONFIG_PROC_FS */
+#else /* !CONFIG_SND_PROC_FS */
 #define snd_pcm_proc_init()
 #define snd_pcm_proc_done()
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 
 
 /*

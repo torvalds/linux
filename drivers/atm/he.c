@@ -116,8 +116,8 @@ static bool disable64;
 static short nvpibits = -1;
 static short nvcibits = -1;
 static short rx_skb_reserve = 16;
-static bool irq_coalesce = 1;
-static bool sdh = 0;
+static bool irq_coalesce = true;
+static bool sdh;
 
 /* Read from EEPROM = 0000 0011b */
 static unsigned int readtab[] = {

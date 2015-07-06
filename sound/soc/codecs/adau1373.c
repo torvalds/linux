@@ -1444,7 +1444,6 @@ static int adau1373_set_bias_level(struct snd_soc_codec *codec,
 			ADAU1373_PWDN_CTRL3_PWR_EN, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

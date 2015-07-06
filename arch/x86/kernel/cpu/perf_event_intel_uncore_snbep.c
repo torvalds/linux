@@ -164,8 +164,8 @@
 				((1ULL << (n)) - 1)))
 
 /* Haswell-EP Ubox */
-#define HSWEP_U_MSR_PMON_CTR0			0x705
-#define HSWEP_U_MSR_PMON_CTL0			0x709
+#define HSWEP_U_MSR_PMON_CTR0			0x709
+#define HSWEP_U_MSR_PMON_CTL0			0x705
 #define HSWEP_U_MSR_PMON_FILTER			0x707
 
 #define HSWEP_U_MSR_PMON_UCLK_FIXED_CTL		0x703
@@ -1914,7 +1914,7 @@ static struct intel_uncore_type hswep_uncore_cbox = {
 	.name			= "cbox",
 	.num_counters		= 4,
 	.num_boxes		= 18,
-	.perf_ctr_bits		= 44,
+	.perf_ctr_bits		= 48,
 	.event_ctl		= HSWEP_C0_MSR_PMON_CTL0,
 	.perf_ctr		= HSWEP_C0_MSR_PMON_CTR0,
 	.event_mask		= SNBEP_CBO_MSR_PMON_RAW_EVENT_MASK,

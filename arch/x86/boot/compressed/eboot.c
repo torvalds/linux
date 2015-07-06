@@ -1224,6 +1224,10 @@ static efi_status_t setup_e820(struct boot_params *params,
 			e820_type = E820_NVS;
 			break;
 
+		case EFI_PERSISTENT_MEMORY:
+			e820_type = E820_PMEM;
+			break;
+
 		default:
 			continue;
 		}

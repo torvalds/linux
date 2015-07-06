@@ -54,6 +54,9 @@ config ACPI_GENERIC_GSI
 config ACPI_SYSTEM_POWER_STATES_SUPPORT
 	bool
 
+config ACPI_CCA_REQUIRED
+	bool
+
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION
@@ -62,7 +65,7 @@ config ACPI_SLEEP
 
 config ACPI_PROCFS_POWER
 	bool "Deprecated power /proc/acpi directories"
-	depends on PROC_FS
+	depends on X86 && PROC_FS
 	help
 	  For backwards compatibility, this option allows
           deprecated power /proc/acpi/ directories to exist, even when
@@ -76,6 +79,26 @@ config ACPI_PROCFS_POWER
 	  deleted in the future.
 
 	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
+
+config ACPI_REV_OVERRIDE_POSSIBLE
+	bool "Allow supported ACPI revision to be overriden"
+	depends on X86
+	default y
+	help
+	  The platform firmware on some systems expects Linux to return "5" as
+	  the supported ACPI revision which makes it expose system configuration
+	  information in a special way.
+
+	  For example, based on what ACPI exports as the supported revision,
+	  Dell XPS 13 (2015) configures its audio device to either work in HDA
+	  mode or in I2S mode, where the former is supposed to be used on Linux
+	  until the latter is fully supported (in the kernel as well as in user
+	  space).
+
+	  This option enables a DMI-based quirk for the above Dell machine (so
+	  that HDA audio is exposed by the platform firmware to the kernel) and
+	  makes it possible to force the kernel to return "5" as the supported
+	  ACPI revision via the "acpi_rev_override" command line switch.
 
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
@@ -382,6 +405,32 @@ config ACPI_REDUCED_HARDWARE_ONLY
 	  running in ACPI reduced hardware mode ONLY.
 
 	  If you are unsure what to do, do not enable this option.
+
+config ACPI_NFIT
+	tristate "ACPI NVDIMM Firmware Interface Table (NFIT)"
+	depends on PHYS_ADDR_T_64BIT
+	depends on BLK_DEV
+	select LIBNVDIMM
+	help
+	  Infrastructure to probe ACPI 6 compliant platforms for
+	  NVDIMMs (NFIT) and register a libnvdimm device tree.  In
+	  addition to storage devices this also enables libnvdimm to pass
+	  ACPI._DSM messages for platform/dimm configuration.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called nfit.
+
+config ACPI_NFIT_DEBUG
+	bool "NFIT DSM debug"
+	depends on ACPI_NFIT
+	depends on DYNAMIC_DEBUG
+	default n
+	help
+	  Enabling this option causes the nfit driver to dump the
+	  input and output buffers of _DSM operations on the ACPI0012
+	  device and its children.  This can be very verbose, so leave
+	  it disabled unless you are debugging a hardware / firmware
+	  issue.
 
 source "drivers/acpi/apei/Kconfig"
 

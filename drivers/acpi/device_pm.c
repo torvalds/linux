@@ -98,17 +98,16 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 
 		/*
 		 * The power resources settings may indicate a power state
-		 * shallower than the actual power state of the device.
+		 * shallower than the actual power state of the device, because
+		 * the same power resources may be referenced by other devices.
 		 *
-		 * Moreover, on systems predating ACPI 4.0, if the device
-		 * doesn't depend on any power resources and _PSC returns 3,
-		 * that means "power off".  We need to maintain compatibility
-		 * with those systems.
+		 * For systems predating ACPI 4.0 we assume that D3hot is the
+		 * deepest state that can be supported.
 		 */
 		if (psc > result && psc < ACPI_STATE_D3_COLD)
 			result = psc;
 		else if (result == ACPI_STATE_UNKNOWN)
-			result = psc > ACPI_STATE_D2 ? ACPI_STATE_D3_COLD : psc;
+			result = psc > ACPI_STATE_D2 ? ACPI_STATE_D3_HOT : psc;
 	}
 
 	/*
@@ -153,8 +152,8 @@ static int acpi_dev_pm_explicit_set(struct acpi_device *adev, int state)
  */
 int acpi_device_set_power(struct acpi_device *device, int state)
 {
+	int target_state = state;
 	int result = 0;
-	bool cut_power = false;
 
 	if (!device || !device->flags.power_manageable
 	    || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
@@ -169,11 +168,21 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		return 0;
 	}
 
-	if (!device->power.states[state].flags.valid) {
+	if (state == ACPI_STATE_D3_COLD) {
+		/*
+		 * For transitions to D3cold we need to execute _PS3 and then
+		 * possibly drop references to the power resources in use.
+		 */
+		state = ACPI_STATE_D3_HOT;
+		/* If _PR3 is not available, use D3hot as the target state. */
+		if (!device->power.states[ACPI_STATE_D3_COLD].flags.valid)
+			target_state = state;
+	} else if (!device->power.states[state].flags.valid) {
 		dev_warn(&device->dev, "Power state %s not supported\n",
 			 acpi_power_state_string(state));
 		return -ENODEV;
 	}
+
 	if (!device->power.flags.ignore_parent &&
 	    device->parent && (state < device->parent->power.state)) {
 		dev_warn(&device->dev,
@@ -183,39 +192,38 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		return -ENODEV;
 	}
 
-	/* For D3cold we should first transition into D3hot. */
-	if (state == ACPI_STATE_D3_COLD
-	    && device->power.states[ACPI_STATE_D3_COLD].flags.os_accessible) {
-		state = ACPI_STATE_D3_HOT;
-		cut_power = true;
-	}
-
-	if (state < device->power.state && state != ACPI_STATE_D0
-	    && device->power.state >= ACPI_STATE_D3_HOT) {
-		dev_warn(&device->dev,
-			 "Cannot transition to non-D0 state from D3\n");
-		return -ENODEV;
-	}
-
 	/*
 	 * Transition Power
 	 * ----------------
-	 * In accordance with the ACPI specification first apply power (via
-	 * power resources) and then evaluate _PSx.
+	 * In accordance with ACPI 6, _PSx is executed before manipulating power
+	 * resources, unless the target state is D0, in which case _PS0 is
+	 * supposed to be executed after turning the power resources on.
 	 */
-	if (device->power.flags.power_resources) {
-		result = acpi_power_transition(device, state);
+	if (state > ACPI_STATE_D0) {
+		/*
+		 * According to ACPI 6, devices cannot go from lower-power
+		 * (deeper) states to higher-power (shallower) states.
+		 */
+		if (state < device->power.state) {
+			dev_warn(&device->dev, "Cannot transition from %s to %s\n",
+				 acpi_power_state_string(device->power.state),
+				 acpi_power_state_string(state));
+			return -ENODEV;
+		}
+
+		result = acpi_dev_pm_explicit_set(device, state);
 		if (result)
 			goto end;
-	}
-	result = acpi_dev_pm_explicit_set(device, state);
-	if (result)
-		goto end;
 
-	if (cut_power) {
-		device->power.state = state;
-		state = ACPI_STATE_D3_COLD;
-		result = acpi_power_transition(device, state);
+		if (device->power.flags.power_resources)
+			result = acpi_power_transition(device, target_state);
+	} else {
+		if (device->power.flags.power_resources) {
+			result = acpi_power_transition(device, ACPI_STATE_D0);
+			if (result)
+				goto end;
+		}
+		result = acpi_dev_pm_explicit_set(device, ACPI_STATE_D0);
 	}
 
  end:
@@ -264,13 +272,24 @@ int acpi_bus_init_power(struct acpi_device *device)
 		return result;
 
 	if (state < ACPI_STATE_D3_COLD && device->power.flags.power_resources) {
+		/* Reference count the power resources. */
 		result = acpi_power_on_resources(device, state);
 		if (result)
 			return result;
 
-		result = acpi_dev_pm_explicit_set(device, state);
-		if (result)
-			return result;
+		if (state == ACPI_STATE_D0) {
+			/*
+			 * If _PSC is not present and the state inferred from
+			 * power resources appears to be D0, it still may be
+			 * necessary to execute _PS0 at this point, because
+			 * another device using the same power resources may
+			 * have been put into D0 previously and that's why we
+			 * see D0 here.
+			 */
+			result = acpi_dev_pm_explicit_set(device, state);
+			if (result)
+				return result;
+		}
 	} else if (state == ACPI_STATE_UNKNOWN) {
 		/*
 		 * No power resources and missing _PSC?  Cross fingers and make
@@ -603,12 +622,12 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 	if (d_max_in < ACPI_STATE_D0 || d_max_in > ACPI_STATE_D3_COLD)
 		return -EINVAL;
 
-	if (d_max_in > ACPI_STATE_D3_HOT) {
+	if (d_max_in > ACPI_STATE_D2) {
 		enum pm_qos_flags_status stat;
 
 		stat = dev_pm_qos_flags(dev, PM_QOS_FLAG_NO_POWER_OFF);
 		if (stat == PM_QOS_FLAGS_ALL)
-			d_max_in = ACPI_STATE_D3_HOT;
+			d_max_in = ACPI_STATE_D2;
 	}
 
 	adev = ACPI_COMPANION(dev);
@@ -953,6 +972,7 @@ EXPORT_SYMBOL_GPL(acpi_subsys_prepare);
  */
 void acpi_subsys_complete(struct device *dev)
 {
+	pm_generic_complete(dev);
 	/*
 	 * If the device had been runtime-suspended before the system went into
 	 * the sleep state it is going out of and it has never been resumed till

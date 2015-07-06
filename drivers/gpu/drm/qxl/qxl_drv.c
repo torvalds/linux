@@ -198,7 +198,7 @@ static int qxl_pm_restore(struct device *dev)
 
 static u32 qxl_noop_get_vblank_counter(struct drm_device *dev, int crtc)
 {
-	return dev->vblank[crtc].count.counter;
+	return 0;
 }
 
 static int qxl_noop_enable_vblank(struct drm_device *dev, int crtc)

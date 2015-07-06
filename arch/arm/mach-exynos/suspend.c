@@ -87,8 +87,8 @@ static unsigned int exynos_pmu_spare3;
 static u32 exynos_irqwake_intmask = 0xffffffff;
 
 static const struct exynos_wkup_irq exynos3250_wkup_irq[] = {
-	{ 105, BIT(1) }, /* RTC alarm */
-	{ 106, BIT(2) }, /* RTC tick */
+	{ 73, BIT(1) }, /* RTC alarm */
+	{ 74, BIT(2) }, /* RTC tick */
 	{ /* sentinel */ },
 };
 
@@ -223,7 +223,7 @@ static int exynos_pmu_domain_alloc(struct irq_domain *domain,
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &parent_args);
 }
 
-static struct irq_domain_ops exynos_pmu_domain_ops = {
+static const struct irq_domain_ops exynos_pmu_domain_ops = {
 	.xlate	= exynos_pmu_domain_xlate,
 	.alloc	= exynos_pmu_domain_alloc,
 	.free	= irq_domain_free_irqs_common,
@@ -311,13 +311,7 @@ static int exynos5420_cpu_suspend(unsigned long arg)
 
 	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM)) {
 		mcpm_set_entry_vector(cpu, cluster, exynos_cpu_resume);
-
-		/*
-		 * Residency value passed to mcpm_cpu_suspend back-end
-		 * has to be given clear semantics. Set to 0 as a
-		 * temporary value.
-		 */
-		mcpm_cpu_suspend(0);
+		mcpm_cpu_suspend();
 	}
 
 	pr_info("Failed to suspend the system\n");
@@ -342,6 +336,8 @@ static void exynos_pm_enter_sleep_mode(void)
 
 static void exynos_pm_prepare(void)
 {
+	exynos_set_delayed_reset_assertion(false);
+
 	/* Set wake-up mask registers */
 	exynos_pm_set_wakeup_mask();
 
@@ -482,6 +478,7 @@ early_wakeup:
 
 	/* Clear SLEEP mode set in INFORM1 */
 	pmu_raw_writel(0x0, S5P_INFORM1);
+	exynos_set_delayed_reset_assertion(true);
 }
 
 static void exynos3250_pm_resume(void)
@@ -723,8 +720,10 @@ void __init exynos_pm_init(void)
 		return;
 	}
 
-	if (WARN_ON(!of_find_property(np, "interrupt-controller", NULL)))
+	if (WARN_ON(!of_find_property(np, "interrupt-controller", NULL))) {
 		pr_warn("Outdated DT detected, suspend/resume will NOT work\n");
+		return;
+	}
 
 	pm_data = (const struct exynos_pm_data *) match->data;
 
