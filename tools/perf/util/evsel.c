@@ -707,7 +707,8 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	 */
 	if (opts->sample_time &&
 	    (!perf_missing_features.sample_id_all &&
-	    (!opts->no_inherit || target__has_cpu(&opts->target) || per_cpu)))
+	    (!opts->no_inherit || target__has_cpu(&opts->target) || per_cpu ||
+	     opts->sample_time_set)))
 		perf_evsel__set_sample_bit(evsel, TIME);
 
 	if (opts->raw_samples && !evsel->no_aux_samples) {
