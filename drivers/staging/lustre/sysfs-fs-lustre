@@ -52,6 +52,18 @@ Description:
 		AT (adaptive timeouts).
 		Unit: seconds, default: 100
 
+What:		/sys/fs/lustre/max_dirty_mb
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls total number of dirty cache (in megabytes) allowed
+		across all mounted lustre filesystems.
+		Since writeout of dirty pages in Lustre is somewhat expensive,
+		when you allow to many dirty pages, this might lead to
+		performance degradations as kernel tries to desperately
+		find some pages to free/writeout.
+		Default 1/2 RAM. Min value 4, max value 9/10 of RAM.
+
 What:		/sys/fs/lustre/llite/<fsname>-<uuid>/blocksize
 Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>

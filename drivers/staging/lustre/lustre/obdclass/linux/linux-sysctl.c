@@ -100,48 +100,42 @@ static struct static_lustre_uintvalue_attr lustre_sattr_##name =	\
 
 LUSTRE_STATIC_UINT_ATTR(timeout, &obd_timeout);
 
-#ifdef CONFIG_SYSCTL
-static int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
-			       void __user *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t max_dirty_mb_show(struct kobject *kobj, struct attribute *attr,
+				 char *buf)
 {
-	int rc = 0;
-
-	if (!table->data || !table->maxlen || !*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write) {
-		rc = lprocfs_write_frac_helper(buffer, *lenp,
-					       (unsigned int *)table->data,
-					       1 << (20 - PAGE_CACHE_SHIFT));
-		/* Don't allow them to let dirty pages exceed 90% of system
-		 * memory and set a hard minimum of 4MB. */
-		if (obd_max_dirty_pages > ((totalram_pages / 10) * 9)) {
-			CERROR("Refusing to set max dirty pages to %u, which is more than 90%% of available RAM; setting to %lu\n",
-			       obd_max_dirty_pages,
-			       ((totalram_pages / 10) * 9));
-			obd_max_dirty_pages = (totalram_pages / 10) * 9;
-		} else if (obd_max_dirty_pages < 4 << (20 - PAGE_CACHE_SHIFT)) {
-			obd_max_dirty_pages = 4 << (20 - PAGE_CACHE_SHIFT);
-		}
-	} else {
-		char buf[21];
-		int len;
-
-		len = lprocfs_read_frac_helper(buf, sizeof(buf),
-					       *(unsigned int *)table->data,
-					       1 << (20 - PAGE_CACHE_SHIFT));
-		if (len > *lenp)
-			len = *lenp;
-		buf[len] = '\0';
-		if (copy_to_user(buffer, buf, len))
-			return -EFAULT;
-		*lenp = len;
-	}
-	*ppos += *lenp;
-	return rc;
+	return sprintf(buf, "%ul\n",
+			obd_max_dirty_pages / (1 << (20 - PAGE_CACHE_SHIFT)));
 }
 
+static ssize_t max_dirty_mb_store(struct kobject *kobj, struct attribute *attr,
+				  const char *buffer, size_t count)
+{
+	int rc;
+	unsigned long val;
+
+	rc = kstrtoul(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	val *= 1 << (20 - PAGE_CACHE_SHIFT); /* convert to pages */
+
+	if (val > ((totalram_pages / 10) * 9)) {
+		/* Somebody wants to assign too much memory to dirty pages */
+		return -EINVAL;
+	}
+
+	if (val < 4 << (20 - PAGE_CACHE_SHIFT)) {
+		/* Less than 4 Mb for dirty cache is also bad */
+		return -EINVAL;
+	}
+
+	obd_max_dirty_pages = val;
+
+	return count;
+}
+LUSTRE_RW_ATTR(max_dirty_mb);
+
+#ifdef CONFIG_SYSCTL
 static struct ctl_table obd_table[] = {
 	{
 		.procname = "debug_peer_on_timeout",
@@ -163,13 +157,6 @@ static struct ctl_table obd_table[] = {
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_dointvec
-	},
-	{
-		.procname = "max_dirty_mb",
-		.data     = &obd_max_dirty_pages,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_max_dirty_pages_in_mb
 	},
 	{
 		.procname = "at_min",
@@ -223,6 +210,7 @@ static struct ctl_table parent_table[] = {
 
 static struct attribute *lustre_attrs[] = {
 	&lustre_sattr_timeout.u.attr,
+	&lustre_attr_max_dirty_mb.attr,
 	NULL,
 };
 
