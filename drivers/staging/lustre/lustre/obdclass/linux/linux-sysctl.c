@@ -138,44 +138,14 @@ LUSTRE_RW_ATTR(max_dirty_mb);
 LUSTRE_STATIC_UINT_ATTR(debug_peer_on_timeout, &obd_debug_peer_on_timeout);
 LUSTRE_STATIC_UINT_ATTR(dump_on_timeout, &obd_dump_on_timeout);
 LUSTRE_STATIC_UINT_ATTR(dump_on_eviction, &obd_dump_on_eviction);
+LUSTRE_STATIC_UINT_ATTR(at_min, &at_min);
+LUSTRE_STATIC_UINT_ATTR(at_max, &at_max);
+LUSTRE_STATIC_UINT_ATTR(at_extra, &at_extra);
+LUSTRE_STATIC_UINT_ATTR(at_early_margin, &at_early_margin);
+LUSTRE_STATIC_UINT_ATTR(at_history, &at_history);
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table obd_table[] = {
-	{
-		.procname = "at_min",
-		.data     = &at_min,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
-	{
-		.procname = "at_max",
-		.data     = &at_max,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
-	{
-		.procname = "at_extra",
-		.data     = &at_extra,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
-	{
-		.procname = "at_early_margin",
-		.data     = &at_early_margin,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
-	{
-		.procname = "at_history",
-		.data     = &at_history,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
 	{}
 };
 
@@ -197,6 +167,11 @@ static struct attribute *lustre_attrs[] = {
 	&lustre_sattr_debug_peer_on_timeout.u.attr,
 	&lustre_sattr_dump_on_timeout.u.attr,
 	&lustre_sattr_dump_on_eviction.u.attr,
+	&lustre_sattr_at_min.u.attr,
+	&lustre_sattr_at_max.u.attr,
+	&lustre_sattr_at_extra.u.attr,
+	&lustre_sattr_at_early_margin.u.attr,
+	&lustre_sattr_at_history.u.attr,
 	NULL,
 };
 
