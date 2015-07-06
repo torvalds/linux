@@ -175,7 +175,9 @@ static __init void early_serial_init(char *s)
 	}
 
 	if (*s) {
-		if (kstrtoul(s, 0, &baud) < 0 || baud == 0)
+		baud = simple_strtoull(s, &e, 0);
+
+		if (baud == 0 || s == e)
 			baud = DEFAULT_BAUD;
 	}
 
