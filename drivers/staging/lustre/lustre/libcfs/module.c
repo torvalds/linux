@@ -50,6 +50,7 @@
 #include <linux/list.h>
 
 #include <linux/sysctl.h>
+#include <linux/debugfs.h>
 
 # define DEBUG_SUBSYSTEM S_LNET
 
@@ -69,10 +70,10 @@ extern struct miscdevice libcfs_dev;
 extern struct cfs_wi_sched *cfs_sched_rehash;
 extern void libcfs_init_nidstrings(void);
 
-static int insert_proc(void);
-static void remove_proc(void);
+static void insert_debugfs(void);
+static void remove_debugfs(void);
 
-static struct ctl_table_header *lnet_table_header;
+static struct dentry *lnet_debugfs_root;
 extern char lnet_upcall[1024];
 /**
  * The path of debug log dump upcall script.
@@ -428,17 +429,10 @@ static int init_libcfs_module(void)
 		goto cleanup_wi;
 	}
 
-
-	rc = insert_proc();
-	if (rc) {
-		CERROR("insert_proc: error %d\n", rc);
-		goto cleanup_crypto;
-	}
+	insert_debugfs();
 
 	CDEBUG (D_OTHER, "portals setup OK\n");
 	return 0;
- cleanup_crypto:
-	cfs_crypto_unregister();
  cleanup_wi:
 	cfs_wi_shutdown();
  cleanup_deregister:
@@ -454,7 +448,7 @@ static void exit_libcfs_module(void)
 {
 	int rc;
 
-	remove_proc();
+	remove_debugfs();
 
 	CDEBUG(D_MALLOC, "before Portals cleanup: kmem %d\n",
 	       atomic_read(&libcfs_kmemory));
@@ -935,31 +929,63 @@ static struct ctl_table lnet_table[] = {
 	}
 };
 
-static struct ctl_table top_table[] = {
-	{
-		.procname = "lnet",
-		.mode     = 0555,
-		.data     = NULL,
-		.maxlen   = 0,
-		.child    = lnet_table,
-	},
-	{
-	}
-};
-
-static int insert_proc(void)
+static ssize_t lnet_debugfs_read(struct file *filp, char __user *buf,
+				 size_t count, loff_t *ppos)
 {
-	if (lnet_table_header == NULL)
-		lnet_table_header = register_sysctl_table(top_table);
-	return 0;
+	struct ctl_table *table = filp->private_data;
+	int error;
+
+	error = table->proc_handler(table, 0, (void __user *)buf, &count, ppos);
+	if (!error)
+		error = count;
+
+	return error;
 }
 
-static void remove_proc(void)
+static ssize_t lnet_debugfs_write(struct file *filp, const char __user *buf,
+				  size_t count, loff_t *ppos)
 {
-	if (lnet_table_header != NULL)
-		unregister_sysctl_table(lnet_table_header);
+	struct ctl_table *table = filp->private_data;
+	int error;
 
-	lnet_table_header = NULL;
+	error = table->proc_handler(table, 1, (void __user *)buf, &count, ppos);
+	if (!error)
+		error = count;
+
+	return error;
+}
+
+static const struct file_operations lnet_debugfs_file_operations = {
+	.open		= simple_open,
+	.read		= lnet_debugfs_read,
+	.write		= lnet_debugfs_write,
+	.llseek		= default_llseek,
+};
+
+static void insert_debugfs(void)
+{
+	struct ctl_table *table;
+	struct dentry *entry;
+
+	if (lnet_debugfs_root == NULL)
+		lnet_debugfs_root = debugfs_create_dir("lnet", NULL);
+
+	/* Even if we cannot create, just ignore it altogether) */
+	if (IS_ERR_OR_NULL(lnet_debugfs_root))
+		return;
+
+	for (table = lnet_table; table->procname; table++)
+		entry = debugfs_create_file(table->procname, table->mode,
+					    lnet_debugfs_root, table,
+					    &lnet_debugfs_file_operations);
+}
+
+static void remove_debugfs(void)
+{
+	if (lnet_debugfs_root != NULL)
+		debugfs_remove_recursive(lnet_debugfs_root);
+
+	lnet_debugfs_root = NULL;
 }
 
 MODULE_VERSION("1.0.0");
