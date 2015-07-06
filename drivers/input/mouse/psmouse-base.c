@@ -47,7 +47,7 @@ MODULE_LICENSE("GPL");
 static unsigned int psmouse_max_proto = PSMOUSE_AUTO;
 static int psmouse_set_maxproto(const char *val, const struct kernel_param *);
 static int psmouse_get_maxproto(char *buffer, const struct kernel_param *kp);
-static struct kernel_param_ops param_ops_proto_abbrev = {
+static const struct kernel_param_ops param_ops_proto_abbrev = {
 	.set = psmouse_set_maxproto,
 	.get = psmouse_get_maxproto,
 };
@@ -63,7 +63,7 @@ static unsigned int psmouse_rate = 100;
 module_param_named(rate, psmouse_rate, uint, 0644);
 MODULE_PARM_DESC(rate, "Report rate, in reports per second.");
 
-static bool psmouse_smartscroll = 1;
+static bool psmouse_smartscroll = true;
 module_param_named(smartscroll, psmouse_smartscroll, bool, 0644);
 MODULE_PARM_DESC(smartscroll, "Logitech Smartscroll autorepeat, 1 = enabled (default), 0 = disabled.");
 

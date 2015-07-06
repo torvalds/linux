@@ -174,13 +174,13 @@ struct mips_ejtag_fdc_tty {
 static inline void mips_ejtag_fdc_write(struct mips_ejtag_fdc_tty *priv,
 					unsigned int offs, unsigned int data)
 {
-	iowrite32(data, priv->reg + offs);
+	__raw_writel(data, priv->reg + offs);
 }
 
 static inline unsigned int mips_ejtag_fdc_read(struct mips_ejtag_fdc_tty *priv,
 					       unsigned int offs)
 {
-	return ioread32(priv->reg + offs);
+	return __raw_readl(priv->reg + offs);
 }
 
 /* Encoding of byte stream in FDC words */
@@ -347,9 +347,9 @@ static void mips_ejtag_fdc_console_write(struct console *c, const char *s,
 		s += inc[word.bytes - 1];
 
 		/* Busy wait until there's space in fifo */
-		while (ioread32(regs + REG_FDSTAT) & REG_FDSTAT_TXF)
+		while (__raw_readl(regs + REG_FDSTAT) & REG_FDSTAT_TXF)
 			;
-		iowrite32(word.word, regs + REG_FDTX(c->index));
+		__raw_writel(word.word, regs + REG_FDTX(c->index));
 	}
 out:
 	local_irq_restore(flags);
@@ -1227,7 +1227,7 @@ static int kgdbfdc_read_char(void)
 
 		/* Read next word from KGDB channel */
 		do {
-			stat = ioread32(regs + REG_FDSTAT);
+			stat = __raw_readl(regs + REG_FDSTAT);
 
 			/* No data waiting? */
 			if (stat & REG_FDSTAT_RXE)
@@ -1236,7 +1236,7 @@ static int kgdbfdc_read_char(void)
 			/* Read next word */
 			channel = (stat & REG_FDSTAT_RXCHAN) >>
 					REG_FDSTAT_RXCHAN_SHIFT;
-			data = ioread32(regs + REG_FDRX);
+			data = __raw_readl(regs + REG_FDRX);
 		} while (channel != CONFIG_MIPS_EJTAG_FDC_KGDB_CHAN);
 
 		/* Decode into rbuf */
@@ -1266,9 +1266,10 @@ static void kgdbfdc_push_one(void)
 		return;
 
 	/* Busy wait until there's space in fifo */
-	while (ioread32(regs + REG_FDSTAT) & REG_FDSTAT_TXF)
+	while (__raw_readl(regs + REG_FDSTAT) & REG_FDSTAT_TXF)
 		;
-	iowrite32(word.word, regs + REG_FDTX(CONFIG_MIPS_EJTAG_FDC_KGDB_CHAN));
+	__raw_writel(word.word,
+		     regs + REG_FDTX(CONFIG_MIPS_EJTAG_FDC_KGDB_CHAN));
 }
 
 /* flush the whole write buffer to the TX FIFO */

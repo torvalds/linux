@@ -121,6 +121,7 @@ struct mmc_data {
 	struct mmc_request	*mrq;		/* associated request */
 
 	unsigned int		sg_len;		/* size of scatter list */
+	int			sg_count;	/* mapped sg entries */
 	struct scatterlist	*sg;		/* I/O scatter list */
 	s32			host_cookie;	/* host private data */
 };

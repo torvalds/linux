@@ -54,6 +54,8 @@
 #define MACB_MAX_TX_LEN		((unsigned int)((1 << MACB_TX_FRMLEN_SIZE) - 1))
 #define GEM_MAX_TX_LEN		((unsigned int)((1 << GEM_TX_FRMLEN_SIZE) - 1))
 
+#define GEM_MTU_MIN_SIZE	68
+
 /*
  * Graceful stop timeouts in us. We should allow up to
  * 1 frame time (10 Mbits/s, full-duplex, ignoring collisions)
@@ -349,6 +351,9 @@ static int macb_mii_probe(struct net_device *dev)
 		phydev->supported &= PHY_GBIT_FEATURES;
 	else
 		phydev->supported &= PHY_BASIC_FEATURES;
+
+	if (bp->caps & MACB_CAPS_NO_GIGABIT_HALF)
+		phydev->supported &= ~SUPPORTED_1000baseT_Half;
 
 	phydev->advertising = phydev->supported;
 
@@ -707,6 +712,9 @@ static void gem_rx_refill(struct macb *bp)
 
 			/* properly align Ethernet header */
 			skb_reserve(skb, NET_IP_ALIGN);
+		} else {
+			bp->rx_ring[entry].addr &= ~MACB_BIT(RX_USED);
+			bp->rx_ring[entry].ctrl = 0;
 		}
 	}
 
@@ -779,7 +787,7 @@ static int gem_rx(struct macb *bp, int budget)
 		}
 		/* now everything is ready for receiving packet */
 		bp->rx_skbuff[entry] = NULL;
-		len = MACB_BFEXT(RX_FRMLEN, ctrl);
+		len = ctrl & bp->rx_frm_len_mask;
 
 		netdev_vdbg(bp->dev, "gem_rx %u (len %u)\n", entry, len);
 
@@ -825,7 +833,7 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 	struct macb_dma_desc *desc;
 
 	desc = macb_rx_desc(bp, last_frag);
-	len = MACB_BFEXT(RX_FRMLEN, desc->ctrl);
+	len = desc->ctrl & bp->rx_frm_len_mask;
 
 	netdev_vdbg(bp->dev, "macb_rx_frame frags %u - %u (len %u)\n",
 		macb_rx_ring_wrap(first_frag),
@@ -978,7 +986,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 	struct macb_queue *queue = dev_id;
 	struct macb *bp = queue->bp;
 	struct net_device *dev = bp->dev;
-	u32 status;
+	u32 status, ctrl;
 
 	status = queue_readl(queue, ISR);
 
@@ -1033,6 +1041,21 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		 * Link change detection isn't possible with RMII, so we'll
 		 * add that if/when we get our hands on a full-blown MII PHY.
 		 */
+
+		/* There is a hardware issue under heavy load where DMA can
+		 * stop, this causes endless "used buffer descriptor read"
+		 * interrupts but it can be cleared by re-enabling RX. See
+		 * the at91 manual, section 41.3.1 or the Zynq manual
+		 * section 16.7.4 for details.
+		 */
+		if (status & MACB_BIT(RXUBR)) {
+			ctrl = macb_readl(bp, NCR);
+			macb_writel(bp, NCR, ctrl & ~MACB_BIT(RE));
+			macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
+
+			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
+				macb_writel(bp, ISR, MACB_BIT(RXUBR));
+		}
 
 		if (status & MACB_BIT(ISR_ROVR)) {
 			/* We missed at least one packet */
@@ -1473,9 +1496,9 @@ static void macb_init_rings(struct macb *bp)
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		bp->queues[0].tx_ring[i].addr = 0;
 		bp->queues[0].tx_ring[i].ctrl = MACB_BIT(TX_USED);
-		bp->queues[0].tx_head = 0;
-		bp->queues[0].tx_tail = 0;
 	}
+	bp->queues[0].tx_head = 0;
+	bp->queues[0].tx_tail = 0;
 	bp->queues[0].tx_ring[TX_RING_SIZE - 1].ctrl |= MACB_BIT(TX_WRAP);
 
 	bp->rx_tail = 0;
@@ -1630,7 +1653,10 @@ static void macb_init_hw(struct macb *bp)
 	config |= MACB_BF(RBOF, NET_IP_ALIGN);	/* Make eth data aligned */
 	config |= MACB_BIT(PAE);		/* PAuse Enable */
 	config |= MACB_BIT(DRFCS);		/* Discard Rx FCS */
-	config |= MACB_BIT(BIG);		/* Receive oversized frames */
+	if (bp->caps & MACB_CAPS_JUMBO)
+		config |= MACB_BIT(JFRAME);	/* Enable jumbo frames */
+	else
+		config |= MACB_BIT(BIG);	/* Receive oversized frames */
 	if (bp->dev->flags & IFF_PROMISC)
 		config |= MACB_BIT(CAF);	/* Copy All Frames */
 	else if (macb_is_gem(bp) && bp->dev->features & NETIF_F_RXCSUM)
@@ -1639,8 +1665,13 @@ static void macb_init_hw(struct macb *bp)
 		config |= MACB_BIT(NBC);	/* No BroadCast */
 	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
+	if ((bp->caps & MACB_CAPS_JUMBO) && bp->jumbo_max_len)
+		gem_writel(bp, JML, bp->jumbo_max_len);
 	bp->speed = SPEED_10;
 	bp->duplex = DUPLEX_HALF;
+	bp->rx_frm_len_mask = MACB_RX_FRMLEN_MASK;
+	if (bp->caps & MACB_CAPS_JUMBO)
+		bp->rx_frm_len_mask = MACB_RX_JFRMLEN_MASK;
 
 	macb_configure_dma(bp);
 
@@ -1840,6 +1871,26 @@ static int macb_close(struct net_device *dev)
 	spin_unlock_irqrestore(&bp->lock, flags);
 
 	macb_free_consistent(bp);
+
+	return 0;
+}
+
+static int macb_change_mtu(struct net_device *dev, int new_mtu)
+{
+	struct macb *bp = netdev_priv(dev);
+	u32 max_mtu;
+
+	if (netif_running(dev))
+		return -EBUSY;
+
+	max_mtu = ETH_DATA_LEN;
+	if (bp->caps & MACB_CAPS_JUMBO)
+		max_mtu = gem_readl(bp, JML) - ETH_HLEN - ETH_FCS_LEN;
+
+	if ((new_mtu > max_mtu) || (new_mtu < GEM_MTU_MIN_SIZE))
+		return -EINVAL;
+
+	dev->mtu = new_mtu;
 
 	return 0;
 }
@@ -2120,7 +2171,7 @@ static const struct net_device_ops macb_netdev_ops = {
 	.ndo_get_stats		= macb_get_stats,
 	.ndo_do_ioctl		= macb_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_change_mtu		= macb_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= macb_poll_controller,
@@ -2662,6 +2713,13 @@ static const struct macb_config pc302gem_config = {
 	.init = macb_init,
 };
 
+static const struct macb_config sama5d2_config = {
+	.caps = 0,
+	.dma_burst_length = 16,
+	.clk_init = macb_clk_init,
+	.init = macb_init,
+};
+
 static const struct macb_config sama5d3_config = {
 	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
 	.dma_burst_length = 16,
@@ -2681,16 +2739,37 @@ static const struct macb_config emac_config = {
 	.init = at91ether_init,
 };
 
+
+static const struct macb_config zynqmp_config = {
+	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE |
+		MACB_CAPS_JUMBO,
+	.dma_burst_length = 16,
+	.clk_init = macb_clk_init,
+	.init = macb_init,
+	.jumbo_max_len = 10240,
+};
+
+static const struct macb_config zynq_config = {
+	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE |
+		MACB_CAPS_NO_GIGABIT_HALF,
+	.dma_burst_length = 16,
+	.clk_init = macb_clk_init,
+	.init = macb_init,
+};
+
 static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "cdns,at32ap7000-macb" },
 	{ .compatible = "cdns,at91sam9260-macb", .data = &at91sam9260_config },
 	{ .compatible = "cdns,macb" },
 	{ .compatible = "cdns,pc302-gem", .data = &pc302gem_config },
 	{ .compatible = "cdns,gem", .data = &pc302gem_config },
+	{ .compatible = "atmel,sama5d2-gem", .data = &sama5d2_config },
 	{ .compatible = "atmel,sama5d3-gem", .data = &sama5d3_config },
 	{ .compatible = "atmel,sama5d4-gem", .data = &sama5d4_config },
 	{ .compatible = "cdns,at91rm9200-emac", .data = &emac_config },
 	{ .compatible = "cdns,emac", .data = &emac_config },
+	{ .compatible = "cdns,zynqmp-gem", .data = &zynqmp_config},
+	{ .compatible = "cdns,zynq-gem", .data = &zynq_config },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, macb_dt_ids);
@@ -2759,6 +2838,10 @@ static int macb_probe(struct platform_device *pdev)
 	bp->pclk = pclk;
 	bp->hclk = hclk;
 	bp->tx_clk = tx_clk;
+	if (macb_config->jumbo_max_len) {
+		bp->jumbo_max_len = macb_config->jumbo_max_len;
+	}
+
 	spin_lock_init(&bp->lock);
 
 	/* setup capabilities */

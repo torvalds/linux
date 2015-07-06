@@ -34,7 +34,7 @@
 #define rmb()  __asm__ __volatile__ ("sync" : : : "memory")
 #define wmb()  __asm__ __volatile__ ("sync" : : : "memory")
 
-#define set_mb(var, value)	do { var = value; mb(); } while (0)
+#define smp_store_mb(var, value)	do { WRITE_ONCE(var, value); mb(); } while (0)
 
 #ifdef __SUBARCH_HAS_LWSYNC
 #    define SMPWMB      LWSYNC
@@ -89,5 +89,6 @@ do {									\
 
 #define smp_mb__before_atomic()     smp_mb()
 #define smp_mb__after_atomic()      smp_mb()
+#define smp_mb__before_spinlock()   smp_mb()
 
 #endif /* _ASM_POWERPC_BARRIER_H */

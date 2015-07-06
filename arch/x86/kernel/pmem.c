@@ -1,53 +1,82 @@
 /*
  * Copyright (c) 2015, Christoph Hellwig.
+ * Copyright (c) 2015, Intel Corporation.
  */
-#include <linux/memblock.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
+#include <linux/libnvdimm.h>
+#include <linux/module.h>
 #include <asm/e820.h>
-#include <asm/page_types.h>
-#include <asm/setup.h>
 
-static __init void register_pmem_device(struct resource *res)
+static void e820_pmem_release(struct device *dev)
 {
-	struct platform_device *pdev;
-	int error;
+	struct nvdimm_bus *nvdimm_bus = dev->platform_data;
 
-	pdev = platform_device_alloc("pmem", PLATFORM_DEVID_AUTO);
-	if (!pdev)
-		return;
-
-	error = platform_device_add_resources(pdev, res, 1);
-	if (error)
-		goto out_put_pdev;
-
-	error = platform_device_add(pdev);
-	if (error)
-		goto out_put_pdev;
-	return;
-
-out_put_pdev:
-	dev_warn(&pdev->dev, "failed to add 'pmem' (persistent memory) device!\n");
-	platform_device_put(pdev);
+	if (nvdimm_bus)
+		nvdimm_bus_unregister(nvdimm_bus);
 }
 
-static __init int register_pmem_devices(void)
+static struct platform_device e820_pmem = {
+	.name = "e820_pmem",
+	.id = -1,
+	.dev = {
+		.release = e820_pmem_release,
+	},
+};
+
+static const struct attribute_group *e820_pmem_attribute_groups[] = {
+	&nvdimm_bus_attribute_group,
+	NULL,
+};
+
+static const struct attribute_group *e820_pmem_region_attribute_groups[] = {
+	&nd_region_attribute_group,
+	&nd_device_attribute_group,
+	NULL,
+};
+
+static __init int register_e820_pmem(void)
 {
-	int i;
+	static struct nvdimm_bus_descriptor nd_desc;
+	struct device *dev = &e820_pmem.dev;
+	struct nvdimm_bus *nvdimm_bus;
+	int rc, i;
+
+	rc = platform_device_register(&e820_pmem);
+	if (rc)
+		return rc;
+
+	nd_desc.attr_groups = e820_pmem_attribute_groups;
+	nd_desc.provider_name = "e820";
+	nvdimm_bus = nvdimm_bus_register(dev, &nd_desc);
+	if (!nvdimm_bus)
+		goto err;
+	dev->platform_data = nvdimm_bus;
 
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
+		struct resource res = {
+			.flags	= IORESOURCE_MEM,
+			.start	= ei->addr,
+			.end	= ei->addr + ei->size - 1,
+		};
+		struct nd_region_desc ndr_desc;
 
-		if (ei->type == E820_PRAM) {
-			struct resource res = {
-				.flags	= IORESOURCE_MEM,
-				.start	= ei->addr,
-				.end	= ei->addr + ei->size - 1,
-			};
-			register_pmem_device(&res);
-		}
+		if (ei->type != E820_PRAM)
+			continue;
+
+		memset(&ndr_desc, 0, sizeof(ndr_desc));
+		ndr_desc.res = &res;
+		ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
+		ndr_desc.numa_node = NUMA_NO_NODE;
+		if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
+			goto err;
 	}
 
 	return 0;
+
+ err:
+	dev_err(dev, "failed to register legacy persistent memory ranges\n");
+	platform_device_unregister(&e820_pmem);
+	return -ENXIO;
 }
-device_initcall(register_pmem_devices);
+device_initcall(register_e820_pmem);

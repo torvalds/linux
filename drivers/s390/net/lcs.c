@@ -2150,7 +2150,7 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 	rc = lcs_detect(card);
 	if (rc) {
 		LCS_DBF_TEXT(2, setup, "dtctfail");
-		dev_err(&card->dev->dev,
+		dev_err(&ccwgdev->dev,
 			"Detecting a network adapter for LCS devices"
 			" failed with rc=%d (0x%x)\n", rc, rc);
 		lcs_stopcard(card);

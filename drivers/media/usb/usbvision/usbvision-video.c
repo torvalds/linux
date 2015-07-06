@@ -1061,13 +1061,24 @@ static ssize_t usbvision_read(struct file *file, char __user *buf,
 	       __func__,
 	       (unsigned long)count, frame->bytes_read);
 
-	/* For now, forget the frame if it has not been read in one shot. */
-/*	if (frame->bytes_read >= frame->scanlength) {*/ /* All data has been read */
+#if 1
+	/*
+	 * FIXME:
+	 * For now, forget the frame if it has not been read in one shot.
+	 */
+	frame->bytes_read = 0;
+
+	/* Mark it as available to be used again. */
+	frame->grabstate = frame_state_unused;
+#else
+	if (frame->bytes_read >= frame->scanlength) {
+		/* All data has been read */
 		frame->bytes_read = 0;
 
 		/* Mark it as available to be used again. */
 		frame->grabstate = frame_state_unused;
-/*	} */
+	}
+#endif
 
 	return count;
 }

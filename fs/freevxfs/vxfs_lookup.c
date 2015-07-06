@@ -61,13 +61,6 @@ const struct file_operations vxfs_dir_operations = {
 	.iterate =		vxfs_readdir,
 };
 
- 
-static inline u_long
-dir_pages(struct inode *inode)
-{
-	return (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-}
- 
 static inline u_long
 dir_blocks(struct inode *ip)
 {

@@ -6,11 +6,12 @@
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/blktrace_api.h>
 #include <linux/blk-mq.h>
+#include <linux/blk-cgroup.h>
 
 #include "blk.h"
-#include "blk-cgroup.h"
 #include "blk-mq.h"
 
 struct queue_sysfs_entry {
@@ -521,8 +522,6 @@ static void blk_release_queue(struct kobject *kobj)
 		blk_mq_release(q);
 
 	blk_trace_shutdown(q);
-
-	bdi_destroy(&q->backing_dev_info);
 
 	ida_simple_remove(&blk_queue_ida, q->id);
 	call_rcu(&q->rcu_head, blk_free_queue_rcu);

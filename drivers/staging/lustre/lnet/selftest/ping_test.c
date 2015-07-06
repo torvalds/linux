@@ -73,7 +73,7 @@ static void
 ping_client_fini(sfw_test_instance_t *tsi)
 {
 	sfw_session_t *sn = tsi->tsi_batch->bat_session;
-	int	    errors;
+	int errors;
 
 	LASSERT(sn != NULL);
 	LASSERT(tsi->tsi_is_client);
@@ -89,11 +89,11 @@ static int
 ping_client_prep_rpc(sfw_test_unit_t *tsu,
 		     lnet_process_id_t dest, srpc_client_rpc_t **rpc)
 {
-	srpc_ping_reqst_t   *req;
+	srpc_ping_reqst_t *req;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
-	sfw_session_t       *sn  = tsi->tsi_batch->bat_session;
-	struct timeval       tv;
-	int		     rc;
+	sfw_session_t *sn = tsi->tsi_batch->bat_session;
+	struct timeval tv;
+	int rc;
 
 	LASSERT(sn != NULL);
 	LASSERT((sn->sn_features & ~LST_FEATS_MASK) == 0);
@@ -121,10 +121,10 @@ static void
 ping_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 {
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
-	sfw_session_t       *sn = tsi->tsi_batch->bat_session;
-	srpc_ping_reqst_t   *reqst = &rpc->crpc_reqstmsg.msg_body.ping_reqst;
-	srpc_ping_reply_t   *reply = &rpc->crpc_replymsg.msg_body.ping_reply;
-	struct timeval       tv;
+	sfw_session_t *sn = tsi->tsi_batch->bat_session;
+	srpc_ping_reqst_t *reqst = &rpc->crpc_reqstmsg.msg_body.ping_reqst;
+	srpc_ping_reply_t *reply = &rpc->crpc_replymsg.msg_body.ping_reply;
+	struct timeval tv;
 
 	LASSERT(sn != NULL);
 
@@ -171,9 +171,9 @@ ping_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 static int
 ping_server_handle(struct srpc_server_rpc *rpc)
 {
-	struct srpc_service	*sv  = rpc->srpc_scd->scd_svc;
-	srpc_msg_t	*reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
-	srpc_msg_t	  *replymsg = &rpc->srpc_replymsg;
+	struct srpc_service *sv  = rpc->srpc_scd->scd_svc;
+	srpc_msg_t *reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
+	srpc_msg_t *replymsg = &rpc->srpc_replymsg;
 	srpc_ping_reqst_t *req = &reqstmsg->msg_body.ping_reqst;
 	srpc_ping_reply_t *rep = &rpc->srpc_replymsg.msg_body.ping_reply;
 

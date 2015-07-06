@@ -1,0 +1,10 @@
+menuconfig WL_MEDIATEK
+	bool "Mediatek Wireless LAN support"
+	---help---
+	  Enable community drivers for MediaTek WiFi devices.
+	  Those drivers make use of the Linux mac80211 stack.
+
+
+if WL_MEDIATEK
+source "drivers/net/wireless/mediatek/mt7601u/Kconfig"
+endif # WL_MEDIATEK

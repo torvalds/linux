@@ -1,7 +1,7 @@
 /*
  * cxgb4i.c: Chelsio T4 iSCSI driver.
  *
- * Copyright (c) 2010 Chelsio Communications, Inc.
+ * Copyright (c) 2010-2015 Chelsio Communications, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,11 +36,12 @@ static unsigned int dbg_level;
 
 #define	DRV_MODULE_NAME		"cxgb4i"
 #define DRV_MODULE_DESC		"Chelsio T4/T5 iSCSI Driver"
-#define	DRV_MODULE_VERSION	"0.9.4"
+#define	DRV_MODULE_VERSION	"0.9.5-ko"
+#define DRV_MODULE_RELDATE	"Apr. 2015"
 
 static char version[] =
 	DRV_MODULE_DESC " " DRV_MODULE_NAME
-	" v" DRV_MODULE_VERSION "\n";
+	" v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("Chelsio Communications, Inc.");
 MODULE_DESCRIPTION(DRV_MODULE_DESC);
@@ -50,11 +51,13 @@ MODULE_LICENSE("GPL");
 module_param(dbg_level, uint, 0644);
 MODULE_PARM_DESC(dbg_level, "Debug flag (default=0)");
 
-static int cxgb4i_rcv_win = 256 * 1024;
+#define CXGB4I_DEFAULT_10G_RCV_WIN (256 * 1024)
+static int cxgb4i_rcv_win = -1;
 module_param(cxgb4i_rcv_win, int, 0644);
 MODULE_PARM_DESC(cxgb4i_rcv_win, "TCP reveive window in bytes");
 
-static int cxgb4i_snd_win = 128 * 1024;
+#define CXGB4I_DEFAULT_10G_SND_WIN (128 * 1024)
+static int cxgb4i_snd_win = -1;
 module_param(cxgb4i_snd_win, int, 0644);
 MODULE_PARM_DESC(cxgb4i_snd_win, "TCP send window in bytes");
 
@@ -196,10 +199,10 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 		TX_CHAN_V(csk->tx_chan) |
 		SMAC_SEL_V(csk->smac_idx) |
 		ULP_MODE_V(ULP_MODE_ISCSI) |
-		RCV_BUFSIZ_V(cxgb4i_rcv_win >> 10);
+		RCV_BUFSIZ_V(csk->rcv_win >> 10);
+
 	opt2 = RX_CHANNEL_V(0) |
 		RSS_QUEUE_VALID_F |
-		(RX_FC_DISABLE_F) |
 		RSS_QUEUE_V(csk->rss_qid);
 
 	if (is_t4(lldi->adapter_type)) {
@@ -228,6 +231,7 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 	} else {
 		struct cpl_t5_act_open_req *req =
 				(struct cpl_t5_act_open_req *)skb->head;
+		u32 isn = (prandom_u32() & ~7UL) - 1;
 
 		INIT_TP_WR(req, 0);
 		OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
@@ -241,7 +245,10 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 				cxgb4_select_ntuple(
 					csk->cdev->ports[csk->port_id],
 					csk->l2t)));
-		opt2 |= 1 << 31;
+		req->rsvd = cpu_to_be32(isn);
+		opt2 |= T5_ISS_VALID;
+		opt2 |= T5_OPT_2_VALID_F;
+
 		req->opt2 = cpu_to_be32(opt2);
 
 		log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
@@ -279,7 +286,7 @@ static void send_act_open_req6(struct cxgbi_sock *csk, struct sk_buff *skb,
 		TX_CHAN_V(csk->tx_chan) |
 		SMAC_SEL_V(csk->smac_idx) |
 		ULP_MODE_V(ULP_MODE_ISCSI) |
-		RCV_BUFSIZ_V(cxgb4i_rcv_win >> 10);
+		RCV_BUFSIZ_V(csk->rcv_win >> 10);
 
 	opt2 = RX_CHANNEL_V(0) |
 		RSS_QUEUE_VALID_F |
@@ -544,7 +551,7 @@ static inline int send_tx_flowc_wr(struct cxgbi_sock *csk)
 	flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_RCVNXT;
 	flowc->mnemval[5].val = htonl(csk->rcv_nxt);
 	flowc->mnemval[6].mnemonic = FW_FLOWC_MNEM_SNDBUF;
-	flowc->mnemval[6].val = htonl(cxgb4i_snd_win);
+	flowc->mnemval[6].val = htonl(csk->snd_win);
 	flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 	flowc->mnemval[7].val = htonl(csk->advmss);
 	flowc->mnemval[8].mnemonic = 0;
@@ -557,7 +564,7 @@ static inline int send_tx_flowc_wr(struct cxgbi_sock *csk)
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"csk 0x%p, tid 0x%x, %u,%u,%u,%u,%u,%u,%u.\n",
 		csk, csk->tid, 0, csk->tx_chan, csk->rss_qid,
-		csk->snd_nxt, csk->rcv_nxt, cxgb4i_snd_win,
+		csk->snd_nxt, csk->rcv_nxt, csk->snd_win,
 		csk->advmss);
 
 	cxgb4_ofld_send(csk->cdev->ports[csk->port_id], skb);
@@ -750,8 +757,8 @@ static void do_act_establish(struct cxgbi_device *cdev, struct sk_buff *skb)
 	 * Causes the first RX_DATA_ACK to supply any Rx credits we couldn't
 	 * pass through opt0.
 	 */
-	if (cxgb4i_rcv_win > (RCV_BUFSIZ_MASK << 10))
-		csk->rcv_wup -= cxgb4i_rcv_win - (RCV_BUFSIZ_MASK << 10);
+	if (csk->rcv_win > (RCV_BUFSIZ_MASK << 10))
+		csk->rcv_wup -= csk->rcv_win - (RCV_BUFSIZ_MASK << 10);
 
 	csk->advmss = lldi->mtus[TCPOPT_MSS_G(tcp_opt)] - 40;
 	if (TCPOPT_TSTAMP_G(tcp_opt))
@@ -1367,6 +1374,8 @@ static int init_act_open(struct cxgbi_sock *csk)
 	unsigned int step;
 	unsigned int size, size6;
 	int t4 = is_t4(lldi->adapter_type);
+	unsigned int linkspeed;
+	unsigned int rcv_winf, snd_winf;
 
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx,%u.\n",
@@ -1440,6 +1449,21 @@ static int init_act_open(struct cxgbi_sock *csk)
 	csk->txq_idx = cxgb4_port_idx(ndev) * step;
 	step = lldi->nrxq / lldi->nchan;
 	csk->rss_qid = lldi->rxq_ids[cxgb4_port_idx(ndev) * step];
+	linkspeed = ((struct port_info *)netdev_priv(ndev))->link_cfg.speed;
+	csk->snd_win = cxgb4i_snd_win;
+	csk->rcv_win = cxgb4i_rcv_win;
+	if (cxgb4i_rcv_win <= 0) {
+		csk->rcv_win = CXGB4I_DEFAULT_10G_RCV_WIN;
+		rcv_winf = linkspeed / SPEED_10000;
+		if (rcv_winf)
+			csk->rcv_win *= rcv_winf;
+	}
+	if (cxgb4i_snd_win <= 0) {
+		csk->snd_win = CXGB4I_DEFAULT_10G_SND_WIN;
+		snd_winf = linkspeed / SPEED_10000;
+		if (snd_winf)
+			csk->snd_win *= snd_winf;
+	}
 	csk->wr_cred = lldi->wr_cred -
 		       DIV_ROUND_UP(sizeof(struct cpl_abort_req), 16);
 	csk->wr_max_cred = csk->wr_cred;
@@ -1758,8 +1782,6 @@ static void *t4_uld_add(const struct cxgb4_lld_info *lldi)
 	cdev->nports = lldi->nports;
 	cdev->mtus = lldi->mtus;
 	cdev->nmtus = NMTUS;
-	cdev->snd_win = cxgb4i_snd_win;
-	cdev->rcv_win = cxgb4i_rcv_win;
 	cdev->rx_credit_thres = cxgb4i_rx_credit_thres;
 	cdev->skb_tx_rsvd = CXGB4I_TX_HEADER_LEN;
 	cdev->skb_rx_extra = sizeof(struct cpl_iscsi_hdr);

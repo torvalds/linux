@@ -71,11 +71,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
-
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
-
 #include <video/vga.h>
 #include <video/neomagic.h>
 
@@ -1710,6 +1705,7 @@ static int neo_map_video(struct fb_info *info, struct pci_dev *dev,
 			 int video_len)
 {
 	//unsigned long addr;
+	struct neofb_par *par = info->par;
 
 	DBG("neo_map_video");
 
@@ -1723,7 +1719,7 @@ static int neo_map_video(struct fb_info *info, struct pci_dev *dev,
 	}
 
 	info->screen_base =
-	    ioremap(info->fix.smem_start, info->fix.smem_len);
+	    ioremap_wc(info->fix.smem_start, info->fix.smem_len);
 	if (!info->screen_base) {
 		printk("neofb: unable to map screen memory\n");
 		release_mem_region(info->fix.smem_start,
@@ -1733,11 +1729,8 @@ static int neo_map_video(struct fb_info *info, struct pci_dev *dev,
 		printk(KERN_INFO "neofb: mapped framebuffer at %p\n",
 		       info->screen_base);
 
-#ifdef CONFIG_MTRR
-	((struct neofb_par *)(info->par))->mtrr =
-		mtrr_add(info->fix.smem_start, pci_resource_len(dev, 0),
-				MTRR_TYPE_WRCOMB, 1);
-#endif
+	par->wc_cookie = arch_phys_wc_add(info->fix.smem_start,
+					  pci_resource_len(dev, 0));
 
 	/* Clear framebuffer, it's all white in memory after boot */
 	memset_io(info->screen_base, 0, info->fix.smem_len);
@@ -1754,16 +1747,11 @@ static int neo_map_video(struct fb_info *info, struct pci_dev *dev,
 
 static void neo_unmap_video(struct fb_info *info)
 {
+	struct neofb_par *par = info->par;
+
 	DBG("neo_unmap_video");
 
-#ifdef CONFIG_MTRR
-	{
-		struct neofb_par *par = info->par;
-
-		mtrr_del(par->mtrr, info->fix.smem_start,
-			 info->fix.smem_len);
-	}
-#endif
+	arch_phys_wc_del(par->wc_cookie);
 	iounmap(info->screen_base);
 	info->screen_base = NULL;
 

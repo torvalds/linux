@@ -19,6 +19,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -1409,7 +1410,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	struct vop *vop;
 	struct resource *res;
 	size_t alloc_size;
-	int ret;
+	int ret, irq;
 
 	of_id = of_match_device(vop_driver_dt_match, dev);
 	vop_data = of_id->data;
@@ -1445,11 +1446,12 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	vop->irq = platform_get_irq(pdev, 0);
-	if (vop->irq < 0) {
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		dev_err(dev, "cannot find irq for vop\n");
-		return vop->irq;
+		return irq;
 	}
+	vop->irq = (unsigned int)irq;
 
 	spin_lock_init(&vop->reg_lock);
 	spin_lock_init(&vop->irq_lock);

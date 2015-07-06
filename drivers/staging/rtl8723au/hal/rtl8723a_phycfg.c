@@ -660,7 +660,7 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 
 	/*  */
 	/*  1. Read PHY_REG.TXT BB INIT!! */
-	/*  We will seperate as 88C / 92C according to chip version */
+	/*  We will separate as 88C / 92C according to chip version */
 	/*  */
 	ODM_ReadAndConfig_PHY_REG_1T_8723A(&pHalData->odmpriv);
 

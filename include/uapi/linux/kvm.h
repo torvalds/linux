@@ -202,7 +202,7 @@ struct kvm_run {
 	__u32 exit_reason;
 	__u8 ready_for_interrupt_injection;
 	__u8 if_flag;
-	__u8 padding2[2];
+	__u16 flags;
 
 	/* in (pre_kvm_run), out (post_kvm_run) */
 	__u64 cr8;
@@ -814,6 +814,9 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_S390_INJECT_IRQ 113
 #define KVM_CAP_S390_IRQ_STATE 114
 #define KVM_CAP_PPC_HWRNG 115
+#define KVM_CAP_DISABLE_QUIRKS 116
+#define KVM_CAP_X86_SMM 117
+#define KVM_CAP_MULTI_ADDRESS_SPACE 118
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -894,7 +897,7 @@ struct kvm_xen_hvm_config {
  *
  * KVM_IRQFD_FLAG_RESAMPLE indicates resamplefd is valid and specifies
  * the irqfd to operate in resampling mode for level triggered interrupt
- * emlation.  See Documentation/virtual/kvm/api.txt.
+ * emulation.  See Documentation/virtual/kvm/api.txt.
  */
 #define KVM_IRQFD_FLAG_RESAMPLE (1 << 1)
 
@@ -1199,6 +1202,8 @@ struct kvm_s390_ucas_mapping {
 /* Available with KVM_CAP_S390_IRQ_STATE */
 #define KVM_S390_SET_IRQ_STATE	  _IOW(KVMIO, 0xb5, struct kvm_s390_irq_state)
 #define KVM_S390_GET_IRQ_STATE	  _IOW(KVMIO, 0xb6, struct kvm_s390_irq_state)
+/* Available with KVM_CAP_X86_SMM */
+#define KVM_SMI                   _IO(KVMIO,   0xb7)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 #define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)

@@ -5308,7 +5308,8 @@ static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr)
 
 /**
  * s2io_ethtool_sset - Sets different link parameters.
- * @sp : private member of the device structure, which is a pointer to the  * s2io_nic structure.
+ * @sp : private member of the device structure, which is a pointer to the
+ * s2io_nic structure.
  * @info: pointer to the structure with parameters given by ethtool to set
  * link information.
  * Description:
@@ -5793,7 +5794,8 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 
 /**
  *  s2io_ethtool_geeprom  - reads the value stored in the Eeprom.
- *  @sp : private member of the device structure, which is a pointer to the *       s2io_nic structure.
+ *  @sp : private member of the device structure, which is a pointer to the
+ *  s2io_nic structure.
  *  @eeprom : pointer to the user level structure provided by ethtool,
  *  containing all relevant information.
  *  @data_buf : user defined value to be written into Eeprom.

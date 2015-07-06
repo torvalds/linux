@@ -21,6 +21,7 @@
 #include "xattr.h"
 #include <linux/init.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
 #include <linux/quotaops.h>
@@ -588,8 +589,7 @@ static struct kmem_cache *reiserfs_inode_cachep;
 static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 {
 	struct reiserfs_inode_info *ei;
-	ei = (struct reiserfs_inode_info *)
-	    kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
+	ei = kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	atomic_set(&ei->openers, 0);

@@ -1145,6 +1145,8 @@ static int ncp_rename(struct inode *old_dir, struct dentry *old_dentry,
 		case 0x00:
 			ncp_dbg(1, "renamed %pd -> %pd\n",
 				old_dentry, new_dentry);
+			ncp_d_prune(old_dentry);
+			ncp_d_prune(new_dentry);
 			break;
 		case 0x9E:
 			error = -ENAMETOOLONG;

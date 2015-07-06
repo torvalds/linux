@@ -30,6 +30,7 @@ config ARM_GIC_V3_ITS
 config ARM_NVIC
 	bool
 	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_CHIP
 
 config ARM_VIC
@@ -81,6 +82,11 @@ config DW_APB_ICTL
 	select IRQ_DOMAIN
 
 config IMGPDC_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config IRQ_MIPS_CPU
 	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
@@ -158,3 +164,16 @@ config KEYSTONE_IRQ
 config MIPS_GIC
 	bool
 	select MIPS_CM
+
+config INGENIC_IRQ
+	bool
+	depends on MACH_INGENIC
+	default y
+
+config RENESAS_H8300H_INTC
+        bool
+	select IRQ_DOMAIN
+
+config RENESAS_H8S_INTC
+        bool
+	select IRQ_DOMAIN

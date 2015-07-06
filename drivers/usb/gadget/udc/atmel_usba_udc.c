@@ -704,8 +704,8 @@ static int queue_dma(struct usba_udc *udc, struct usba_ep *ep,
 	unsigned long flags;
 	int ret;
 
-	DBG(DBG_DMA, "%s: req l/%u d/%08x %c%c%c\n",
-		ep->ep.name, req->req.length, req->req.dma,
+	DBG(DBG_DMA, "%s: req l/%u d/%pad %c%c%c\n",
+		ep->ep.name, req->req.length, &req->req.dma,
 		req->req.zero ? 'Z' : 'z',
 		req->req.short_not_ok ? 'S' : 's',
 		req->req.no_interrupt ? 'I' : 'i');
@@ -2186,7 +2186,7 @@ static int usba_udc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit usba_udc_remove(struct platform_device *pdev)
+static int usba_udc_remove(struct platform_device *pdev)
 {
 	struct usba_udc *udc;
 	int i;
@@ -2203,7 +2203,7 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int usba_udc_suspend(struct device *dev)
 {
 	struct usba_udc *udc = dev_get_drvdata(dev);
@@ -2258,7 +2258,7 @@ static int usba_udc_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(usba_udc_pm_ops, usba_udc_suspend, usba_udc_resume);
 
 static struct platform_driver udc_driver = {
-	.remove		= __exit_p(usba_udc_remove),
+	.remove		= usba_udc_remove,
 	.driver		= {
 		.name		= "atmel_usba_udc",
 		.pm		= &usba_udc_pm_ops,

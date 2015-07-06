@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "asm/bug.h"
 
 static struct cpu_map *cpu_map__default_new(void)
 {
@@ -22,6 +23,7 @@ static struct cpu_map *cpu_map__default_new(void)
 			cpus->map[i] = i;
 
 		cpus->nr = nr_cpus;
+		atomic_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -35,6 +37,7 @@ static struct cpu_map *cpu_map__trim_new(int nr_cpus, int *tmp_cpus)
 	if (cpus != NULL) {
 		cpus->nr = nr_cpus;
 		memcpy(cpus->map, tmp_cpus, payload_size);
+		atomic_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -194,14 +197,32 @@ struct cpu_map *cpu_map__dummy_new(void)
 	if (cpus != NULL) {
 		cpus->nr = 1;
 		cpus->map[0] = -1;
+		atomic_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
 }
 
-void cpu_map__delete(struct cpu_map *map)
+static void cpu_map__delete(struct cpu_map *map)
 {
-	free(map);
+	if (map) {
+		WARN_ONCE(atomic_read(&map->refcnt) != 0,
+			  "cpu_map refcnt unbalanced\n");
+		free(map);
+	}
+}
+
+struct cpu_map *cpu_map__get(struct cpu_map *map)
+{
+	if (map)
+		atomic_inc(&map->refcnt);
+	return map;
+}
+
+void cpu_map__put(struct cpu_map *map)
+{
+	if (map && atomic_dec_and_test(&map->refcnt))
+		cpu_map__delete(map);
 }
 
 int cpu_map__get_socket(struct cpu_map *map, int idx)
@@ -263,6 +284,7 @@ static int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
 	/* ensure we process id in increasing order */
 	qsort(c->map, c->nr, sizeof(int), cmp_ids);
 
+	atomic_set(&cpus->refcnt, 1);
 	*res = c;
 	return 0;
 }

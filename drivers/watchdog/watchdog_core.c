@@ -43,6 +43,45 @@
 static DEFINE_IDA(watchdog_ida);
 static struct class *watchdog_class;
 
+/*
+ * Deferred Registration infrastructure.
+ *
+ * Sometimes watchdog drivers needs to be loaded as soon as possible,
+ * for example when it's impossible to disable it. To do so,
+ * raising the initcall level of the watchdog driver is a solution.
+ * But in such case, the miscdev is maybe not ready (subsys_initcall), and
+ * watchdog_core need miscdev to register the watchdog as a char device.
+ *
+ * The deferred registration infrastructure offer a way for the watchdog
+ * subsystem to register a watchdog properly, even before miscdev is ready.
+ */
+
+static DEFINE_MUTEX(wtd_deferred_reg_mutex);
+static LIST_HEAD(wtd_deferred_reg_list);
+static bool wtd_deferred_reg_done;
+
+static int watchdog_deferred_registration_add(struct watchdog_device *wdd)
+{
+	list_add_tail(&wdd->deferred,
+		      &wtd_deferred_reg_list);
+	return 0;
+}
+
+static void watchdog_deferred_registration_del(struct watchdog_device *wdd)
+{
+	struct list_head *p, *n;
+	struct watchdog_device *wdd_tmp;
+
+	list_for_each_safe(p, n, &wtd_deferred_reg_list) {
+		wdd_tmp = list_entry(p, struct watchdog_device,
+				     deferred);
+		if (wdd_tmp == wdd) {
+			list_del(&wdd_tmp->deferred);
+			break;
+		}
+	}
+}
+
 static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
 {
 	/*
@@ -98,17 +137,7 @@ int watchdog_init_timeout(struct watchdog_device *wdd,
 }
 EXPORT_SYMBOL_GPL(watchdog_init_timeout);
 
-/**
- * watchdog_register_device() - register a watchdog device
- * @wdd: watchdog device
- *
- * Register a watchdog device with the kernel so that the
- * watchdog timer can be accessed from userspace.
- *
- * A zero is returned on success and a negative errno code for
- * failure.
- */
-int watchdog_register_device(struct watchdog_device *wdd)
+static int __watchdog_register_device(struct watchdog_device *wdd)
 {
 	int ret, id, devno;
 
@@ -164,16 +193,33 @@ int watchdog_register_device(struct watchdog_device *wdd)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(watchdog_register_device);
 
 /**
- * watchdog_unregister_device() - unregister a watchdog device
- * @wdd: watchdog device to unregister
+ * watchdog_register_device() - register a watchdog device
+ * @wdd: watchdog device
  *
- * Unregister a watchdog device that was previously successfully
- * registered with watchdog_register_device().
+ * Register a watchdog device with the kernel so that the
+ * watchdog timer can be accessed from userspace.
+ *
+ * A zero is returned on success and a negative errno code for
+ * failure.
  */
-void watchdog_unregister_device(struct watchdog_device *wdd)
+
+int watchdog_register_device(struct watchdog_device *wdd)
+{
+	int ret;
+
+	mutex_lock(&wtd_deferred_reg_mutex);
+	if (wtd_deferred_reg_done)
+		ret = __watchdog_register_device(wdd);
+	else
+		ret = watchdog_deferred_registration_add(wdd);
+	mutex_unlock(&wtd_deferred_reg_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(watchdog_register_device);
+
+static void __watchdog_unregister_device(struct watchdog_device *wdd)
 {
 	int ret;
 	int devno;
@@ -189,7 +235,42 @@ void watchdog_unregister_device(struct watchdog_device *wdd)
 	ida_simple_remove(&watchdog_ida, wdd->id);
 	wdd->dev = NULL;
 }
+
+/**
+ * watchdog_unregister_device() - unregister a watchdog device
+ * @wdd: watchdog device to unregister
+ *
+ * Unregister a watchdog device that was previously successfully
+ * registered with watchdog_register_device().
+ */
+
+void watchdog_unregister_device(struct watchdog_device *wdd)
+{
+	mutex_lock(&wtd_deferred_reg_mutex);
+	if (wtd_deferred_reg_done)
+		__watchdog_unregister_device(wdd);
+	else
+		watchdog_deferred_registration_del(wdd);
+	mutex_unlock(&wtd_deferred_reg_mutex);
+}
+
 EXPORT_SYMBOL_GPL(watchdog_unregister_device);
+
+static int __init watchdog_deferred_registration(void)
+{
+	mutex_lock(&wtd_deferred_reg_mutex);
+	wtd_deferred_reg_done = true;
+	while (!list_empty(&wtd_deferred_reg_list)) {
+		struct watchdog_device *wdd;
+
+		wdd = list_first_entry(&wtd_deferred_reg_list,
+				       struct watchdog_device, deferred);
+		list_del(&wdd->deferred);
+		__watchdog_register_device(wdd);
+	}
+	mutex_unlock(&wtd_deferred_reg_mutex);
+	return 0;
+}
 
 static int __init watchdog_init(void)
 {
@@ -207,6 +288,7 @@ static int __init watchdog_init(void)
 		return err;
 	}
 
+	watchdog_deferred_registration();
 	return 0;
 }
 
@@ -217,7 +299,7 @@ static void __exit watchdog_exit(void)
 	ida_destroy(&watchdog_ida);
 }
 
-subsys_initcall(watchdog_init);
+subsys_initcall_sync(watchdog_init);
 module_exit(watchdog_exit);
 
 MODULE_AUTHOR("Alan Cox <alan@lxorguk.ukuu.org.uk>");

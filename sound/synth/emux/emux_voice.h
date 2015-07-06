@@ -82,9 +82,13 @@ void snd_emux_init_seq_oss(struct snd_emux *emu);
 void snd_emux_detach_seq_oss(struct snd_emux *emu);
 
 /* emux_proc.c */
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 void snd_emux_proc_init(struct snd_emux *emu, struct snd_card *card, int device);
 void snd_emux_proc_free(struct snd_emux *emu);
+#else
+static inline void snd_emux_proc_init(struct snd_emux *emu,
+				      struct snd_card *card, int device) {}
+static inline void snd_emux_proc_free(struct snd_emux *emu) {}
 #endif
 
 #define STATE_IS_PLAYING(s) ((s) & SNDRV_EMUX_ST_ON)

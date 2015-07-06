@@ -68,7 +68,6 @@
 
 #include "device_cfg.h"
 #include "card.h"
-#include "mib.h"
 #include "srom.h"
 #include "desc.h"
 #include "key.h"
@@ -239,7 +238,6 @@ struct vnt_private {
 	CHIP_TYPE                   chip_id;
 
 	void __iomem                *PortOffset;
-	unsigned long dwIsr;
 	u32                         memaddr;
 	u32                         ioaddr;
 	u32                         io_size;
@@ -285,11 +283,6 @@ struct vnt_private {
 
 	unsigned char abyCurrentNetAddr[ETH_ALEN]; __aligned(2)
 	bool bLinkPass;          /* link status: OK or fail */
-
-	/* Adapter statistics */
-	SStatCounter                scStatistic;
-	/* 802.11 counter */
-	SDot11Counters              s802_11Counter;
 
 	unsigned int	uCurrRSSI;
 	unsigned char byCurrSQ;
@@ -410,6 +403,10 @@ struct vnt_private {
 	unsigned char abyEEPROM[EEP_MAX_CONTEXT_SIZE]; /* unsigned long alignment */
 
 	unsigned short wBeaconInterval;
+
+	struct work_struct interrupt_work;
+
+	struct ieee80211_low_level_stats low_stats;
 };
 
 static inline PDEVICE_RD_INFO alloc_rd_info(void)

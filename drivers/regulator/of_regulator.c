@@ -58,6 +58,10 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!of_property_read_u32(np, "regulator-max-microamp", &pval))
 		constraints->max_uA = pval;
 
+	if (!of_property_read_u32(np, "regulator-input-current-limit-microamp",
+				  &pval))
+		constraints->ilim_uA = pval;
+
 	/* Current change possible? */
 	if (constraints->min_uA != constraints->max_uA)
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_CURRENT;
@@ -66,6 +70,8 @@ static void of_get_regulation_constraints(struct device_node *np,
 	constraints->always_on = of_property_read_bool(np, "regulator-always-on");
 	if (!constraints->always_on) /* status change should be possible. */
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_STATUS;
+
+	constraints->pull_down = of_property_read_bool(np, "regulator-pull-down");
 
 	if (of_property_read_bool(np, "regulator-allow-bypass"))
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_BYPASS;
@@ -82,6 +88,9 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!ret)
 		constraints->enable_time = pval;
 
+	constraints->soft_start = of_property_read_bool(np,
+					"regulator-soft-start");
+
 	if (!of_property_read_u32(np, "regulator-initial-mode", &pval)) {
 		if (desc && desc->of_map_mode) {
 			ret = desc->of_map_mode(pval);
@@ -94,6 +103,9 @@ static void of_get_regulation_constraints(struct device_node *np,
 				np->name, pval);
 		}
 	}
+
+	if (!of_property_read_u32(np, "regulator-system-load", &pval))
+		constraints->system_load = pval;
 
 	for (i = 0; i < ARRAY_SIZE(regulator_states); i++) {
 		switch (i) {
@@ -108,7 +120,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 		case PM_SUSPEND_STANDBY:
 		default:
 			continue;
-		};
+		}
 
 		suspend_np = of_get_child_by_name(np, regulator_states[i]);
 		if (!suspend_np || !suspend_state)
@@ -292,7 +304,7 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		return NULL;
 	}
 
-	for_each_child_of_node(search, child) {
+	for_each_available_child_of_node(search, child) {
 		name = of_get_property(child, "regulator-compatible", NULL);
 		if (!name)
 			name = child->name;

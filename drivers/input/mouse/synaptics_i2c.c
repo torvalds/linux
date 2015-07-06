@@ -185,7 +185,7 @@
 #define NO_DATA_SLEEP_MSECS	(MSEC_PER_SEC / 4)
 
 /* Control touchpad's No Deceleration option */
-static bool no_decel = 1;
+static bool no_decel = true;
 module_param(no_decel, bool, 0644);
 MODULE_PARM_DESC(no_decel, "No Deceleration. Default = 1 (on)");
 
@@ -340,9 +340,9 @@ static bool synaptics_i2c_get_input(struct synaptics_i2c *touch)
 	s32 data;
 	s8 x_delta, y_delta;
 
-	/* Deal with spontanious resets and errors */
+	/* Deal with spontaneous resets and errors */
 	if (synaptics_i2c_check_error(touch->client))
-		return 0;
+		return false;
 
 	/* Get Gesture Bit */
 	data = synaptics_i2c_reg_get(touch->client, DATA_REG0);

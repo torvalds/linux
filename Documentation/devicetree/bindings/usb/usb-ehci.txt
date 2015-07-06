@@ -13,6 +13,8 @@ Optional properties:
  - big-endian-desc : boolean, set this for hcds with big-endian descriptors
  - big-endian : boolean, for hcds with big-endian-regs + big-endian-desc
  - needs-reset-on-resume : boolean, set this to force EHCI reset after resume
+ - has-transaction-translator : boolean, set this if EHCI have a Transaction
+				Translator built into the root hub.
  - clocks : a list of phandle + clock specifier pairs
  - phys : phandle + phy specifier pair
  - phy-names : "usb"

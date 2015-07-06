@@ -87,7 +87,7 @@ static struct vnt_usb_send_context
 			return NULL;
 
 		context = priv->tx_context[ii];
-		if (context->in_use == false) {
+		if (!context->in_use) {
 			context->in_use = true;
 			memset(context->data, 0,
 					MAX_TOTAL_SIZE_WITH_ALL_HEADERS);
@@ -805,10 +805,18 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		vnt_schedule_command(priv, WLAN_CMD_SETPOWER);
 	}
 
-	if (current_rate > RATE_11M)
-		pkt_type = priv->packet_type;
-	else
+	if (current_rate > RATE_11M) {
+		if (info->band == IEEE80211_BAND_5GHZ) {
+			pkt_type = PK_TYPE_11A;
+		} else {
+			if (tx_rate->flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
+				pkt_type = PK_TYPE_11GB;
+			else
+				pkt_type = PK_TYPE_11GA;
+		}
+	} else {
 		pkt_type = PK_TYPE_11B;
+	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 

@@ -70,7 +70,7 @@ int hcd_buffer_create(struct usb_hcd *hcd)
 		size = pool_max[i];
 		if (!size)
 			continue;
-		snprintf(name, sizeof name, "buffer-%d", size);
+		snprintf(name, sizeof(name), "buffer-%d", size);
 		hcd->pool[i] = dma_pool_create(name, hcd->self.controller,
 				size, size, 0);
 		if (!hcd->pool[i]) {
@@ -95,6 +95,7 @@ void hcd_buffer_destroy(struct usb_hcd *hcd)
 
 	for (i = 0; i < HCD_BUFFER_POOLS; i++) {
 		struct dma_pool *pool = hcd->pool[i];
+
 		if (pool) {
 			dma_pool_destroy(pool);
 			hcd->pool[i] = NULL;

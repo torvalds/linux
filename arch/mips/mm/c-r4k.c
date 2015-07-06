@@ -295,7 +295,7 @@ static void r4k_blast_icache_page_setup(void)
 
 static void (*r4k_blast_icache_user_page)(unsigned long addr);
 
-static void __cpuinit r4k_blast_icache_user_page_setup(void)
+static void r4k_blast_icache_user_page_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -1372,7 +1372,7 @@ static int probe_scache(void)
 	scache_size = addr;
 	c->scache.linesz = 16 << ((config & R4K_CONF_SB) >> 22);
 	c->scache.ways = 1;
-	c->dcache.waybit = 0;		/* does not matter */
+	c->scache.waybit = 0;		/* does not matter */
 
 	return 1;
 }

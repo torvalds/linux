@@ -465,12 +465,14 @@ Generic Serial driver
   device, and does not support any kind of device flow control. All that
   is required of your device is that it has at least one bulk in endpoint,
   or one bulk out endpoint. 
-  
-  To enable the generic driver to recognize your device, build the driver
-  as a module and load it by the following invocation:
+
+  To enable the generic driver to recognize your device, provide
+	echo <vid> <pid> >/sys/bus/usb-serial/drivers/generic/new_id
+  where the <vid> and <pid> is replaced with the hex representation of your
+  device's vendor id and product id.
+  If the driver is compiled as a module you can also provide one id when
+  loading the module
 	insmod usbserial vendor=0x#### product=0x####
-  where the #### is replaced with the hex representation of your device's
-  vendor id and product id.
 
   This driver has been successfully used to connect to the NetChip USB
   development board, providing a way to develop USB firmware without

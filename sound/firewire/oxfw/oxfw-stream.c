@@ -232,9 +232,15 @@ int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
 		goto end;
 	}
 
-	/* OXFW starts to transmit packets with non-zero dbc. */
+	/*
+	 * OXFW starts to transmit packets with non-zero dbc.
+	 * OXFW postpone transferring packets till handling any asynchronous
+	 * packets. As a result, next isochronous packet includes more data
+	 * blocks than IEC 61883-6 defines.
+	 */
 	if (stream == &oxfw->tx_stream)
-		oxfw->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
+		oxfw->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK |
+					 CIP_JUMBO_PAYLOAD;
 end:
 	return err;
 }

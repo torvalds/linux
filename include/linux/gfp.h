@@ -30,6 +30,7 @@ struct vm_area_struct;
 #define ___GFP_HARDWALL		0x20000u
 #define ___GFP_THISNODE		0x40000u
 #define ___GFP_RECLAIMABLE	0x80000u
+#define ___GFP_NOACCOUNT	0x100000u
 #define ___GFP_NOTRACK		0x200000u
 #define ___GFP_NO_KSWAPD	0x400000u
 #define ___GFP_OTHER_NODE	0x800000u
@@ -87,6 +88,7 @@ struct vm_area_struct;
 #define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
 #define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
 #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
+#define __GFP_NOACCOUNT	((__force gfp_t)___GFP_NOACCOUNT) /* Don't account to kmemcg */
 #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
 
 #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
@@ -366,6 +368,11 @@ extern void free_pages(unsigned long addr, unsigned int order);
 extern void free_hot_cold_page(struct page *page, bool cold);
 extern void free_hot_cold_page_list(struct list_head *list, bool cold);
 
+struct page_frag_cache;
+extern void *__alloc_page_frag(struct page_frag_cache *nc,
+			       unsigned int fragsz, gfp_t gfp_mask);
+extern void __free_page_frag(void *addr);
+
 extern void __free_kmem_pages(struct page *page, unsigned int order);
 extern void free_kmem_pages(unsigned long addr, unsigned int order);
 
@@ -376,6 +383,14 @@ void page_alloc_init(void);
 void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
 void drain_all_pages(struct zone *zone);
 void drain_local_pages(struct zone *zone);
+
+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+void page_alloc_init_late(void);
+#else
+static inline void page_alloc_init_late(void)
+{
+}
+#endif
 
 /*
  * gfp_allowed_mask is set to GFP_BOOT_MASK during early boot to restrict what

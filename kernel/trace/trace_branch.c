@@ -29,7 +29,7 @@ static struct trace_array *branch_tracer;
 static void
 probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 {
-	struct ftrace_event_call *call = &event_branch;
+	struct trace_event_call *call = &event_branch;
 	struct trace_array *tr = branch_tracer;
 	struct trace_array_cpu *data;
 	struct ring_buffer_event *event;
@@ -191,7 +191,7 @@ __init static int init_branch_tracer(void)
 {
 	int ret;
 
-	ret = register_ftrace_event(&trace_branch_event);
+	ret = register_trace_event(&trace_branch_event);
 	if (!ret) {
 		printk(KERN_WARNING "Warning: could not register "
 				    "branch events\n");

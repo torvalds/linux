@@ -193,7 +193,7 @@ static struct irq_chip mpc52xx_gpt_irq_chip = {
 
 void mpc52xx_gpt_irq_cascade(unsigned int virq, struct irq_desc *desc)
 {
-	struct mpc52xx_gpt_priv *gpt = irq_get_handler_data(virq);
+	struct mpc52xx_gpt_priv *gpt = irq_desc_get_handler_data(desc);
 	int sub_virq;
 	u32 status;
 

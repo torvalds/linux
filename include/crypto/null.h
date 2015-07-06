@@ -8,4 +8,7 @@
 #define NULL_DIGEST_SIZE	0
 #define NULL_IV_SIZE		0
 
+struct crypto_blkcipher *crypto_get_default_null_skcipher(void);
+void crypto_put_default_null_skcipher(void);
+
 #endif

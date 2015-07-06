@@ -34,7 +34,7 @@ struct da9063_irq_data {
 	u8 mask;
 };
 
-static struct regmap_irq da9063_irqs[] = {
+static const struct regmap_irq da9063_irqs[] = {
 	/* DA9063 event A register */
 	[DA9063_IRQ_ONKEY] = {
 		.reg_offset = DA9063_REG_EVENT_A_OFFSET,
@@ -153,7 +153,7 @@ static struct regmap_irq da9063_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip da9063_irq_chip = {
+static const struct regmap_irq_chip da9063_irq_chip = {
 	.name = "da9063-irq",
 	.irqs = da9063_irqs,
 	.num_irqs = DA9063_NUM_IRQ,

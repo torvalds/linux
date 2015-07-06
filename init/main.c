@@ -235,7 +235,8 @@ static int __init loglevel(char *str)
 early_param("loglevel", loglevel);
 
 /* Change NUL term back to "=", to make "param" the whole string. */
-static int __init repair_env_string(char *param, char *val, const char *unused)
+static int __init repair_env_string(char *param, char *val,
+				    const char *unused, void *arg)
 {
 	if (val) {
 		/* param=val or param="val"? */
@@ -252,14 +253,15 @@ static int __init repair_env_string(char *param, char *val, const char *unused)
 }
 
 /* Anything after -- gets handed straight to init. */
-static int __init set_init_arg(char *param, char *val, const char *unused)
+static int __init set_init_arg(char *param, char *val,
+			       const char *unused, void *arg)
 {
 	unsigned int i;
 
 	if (panic_later)
 		return 0;
 
-	repair_env_string(param, val, unused);
+	repair_env_string(param, val, unused, NULL);
 
 	for (i = 0; argv_init[i]; i++) {
 		if (i == MAX_INIT_ARGS) {
@@ -276,9 +278,10 @@ static int __init set_init_arg(char *param, char *val, const char *unused)
  * Unknown boot options get handed to init, unless they look like
  * unused parameters (modprobe will find them in /proc/cmdline).
  */
-static int __init unknown_bootoption(char *param, char *val, const char *unused)
+static int __init unknown_bootoption(char *param, char *val,
+				     const char *unused, void *arg)
 {
-	repair_env_string(param, val, unused);
+	repair_env_string(param, val, unused, NULL);
 
 	/* Handle obsolete-style parameters */
 	if (obsolete_checksetup(param))
@@ -410,7 +413,8 @@ static noinline void __init_refok rest_init(void)
 }
 
 /* Check for early params. */
-static int __init do_early_param(char *param, char *val, const char *unused)
+static int __init do_early_param(char *param, char *val,
+				 const char *unused, void *arg)
 {
 	const struct obs_kernel_param *p;
 
@@ -429,7 +433,8 @@ static int __init do_early_param(char *param, char *val, const char *unused)
 
 void __init parse_early_options(char *cmdline)
 {
-	parse_args("early options", cmdline, NULL, 0, 0, 0, do_early_param);
+	parse_args("early options", cmdline, NULL, 0, 0, 0, NULL,
+		   do_early_param);
 }
 
 /* Arch code calls this early on, or if not, just before other parsing. */
@@ -535,10 +540,10 @@ asmlinkage __visible void __init start_kernel(void)
 	after_dashes = parse_args("Booting kernel",
 				  static_command_line, __start___param,
 				  __stop___param - __start___param,
-				  -1, -1, &unknown_bootoption);
+				  -1, -1, NULL, &unknown_bootoption);
 	if (!IS_ERR_OR_NULL(after_dashes))
 		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
-			   set_init_arg);
+			   NULL, set_init_arg);
 
 	jump_label_init();
 
@@ -664,6 +669,7 @@ asmlinkage __visible void __init start_kernel(void)
 
 	check_bugs();
 
+	acpi_subsystem_init();
 	sfi_init_late();
 
 	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
@@ -847,7 +853,7 @@ static void __init do_initcall_level(int level)
 		   initcall_command_line, __start___param,
 		   __stop___param - __start___param,
 		   level, level,
-		   &repair_env_string);
+		   NULL, &repair_env_string);
 
 	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
 		do_one_initcall(*fn);
@@ -997,6 +1003,8 @@ static noinline void __init kernel_init_freeable(void)
 
 	smp_init();
 	sched_init_smp();
+
+	page_alloc_init_late();
 
 	do_basic_setup();
 

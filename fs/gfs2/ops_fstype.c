@@ -756,6 +756,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		}
 	}
 
+	sdp->sd_log_idle = 1;
 	set_bit(SDF_JOURNAL_CHECKED, &sdp->sd_flags);
 	gfs2_glock_dq_uninit(&ji_gh);
 	jindex = 0;

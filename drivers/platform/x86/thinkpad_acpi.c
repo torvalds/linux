@@ -83,6 +83,7 @@
 #include <sound/control.h>
 #include <sound/initval.h>
 #include <asm/uaccess.h>
+#include <acpi/video.h>
 
 /* ThinkPad CMOS commands */
 #define TP_CMOS_VOLUME_DOWN	0
@@ -2115,7 +2116,7 @@ static int hotkey_mask_get(void)
 	return 0;
 }
 
-void static hotkey_mask_warn_incomplete_mask(void)
+static void hotkey_mask_warn_incomplete_mask(void)
 {
 	/* log only what the user can fix... */
 	const u32 wantedmask = hotkey_driver_mask &
@@ -2897,7 +2898,7 @@ static ssize_t hotkey_wakeup_reason_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_wakeup_reason);
 }
 
-static DEVICE_ATTR_RO(hotkey_wakeup_reason);
+static DEVICE_ATTR(wakeup_reason, S_IRUGO, hotkey_wakeup_reason_show, NULL);
 
 static void hotkey_wakeup_reason_notify_change(void)
 {
@@ -2913,7 +2914,8 @@ static ssize_t hotkey_wakeup_hotunplug_complete_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_autosleep_ack);
 }
 
-static DEVICE_ATTR_RO(hotkey_wakeup_hotunplug_complete);
+static DEVICE_ATTR(wakeup_hotunplug_complete, S_IRUGO,
+		   hotkey_wakeup_hotunplug_complete_show, NULL);
 
 static void hotkey_wakeup_hotunplug_complete_notify_change(void)
 {
@@ -2978,8 +2980,8 @@ static struct attribute *hotkey_attributes[] __initdata = {
 	&dev_attr_hotkey_enable.attr,
 	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_bios_mask.attr,
-	&dev_attr_hotkey_wakeup_reason.attr,
-	&dev_attr_hotkey_wakeup_hotunplug_complete.attr,
+	&dev_attr_wakeup_reason.attr,
+	&dev_attr_wakeup_hotunplug_complete.attr,
 	&dev_attr_hotkey_mask.attr,
 	&dev_attr_hotkey_all_mask.attr,
 	&dev_attr_hotkey_recommended_mask.attr,
@@ -3486,7 +3488,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	/* Do not issue duplicate brightness change events to
 	 * userspace. tpacpi_detect_brightness_capabilities() must have
 	 * been called before this point  */
-	if (acpi_video_backlight_support()) {
+	if (acpi_video_get_backlight_type() != acpi_backlight_vendor) {
 		pr_info("This ThinkPad has standard ACPI backlight "
 			"brightness control, supported by the ACPI "
 			"video driver\n");
@@ -4393,12 +4395,13 @@ static ssize_t wan_enable_store(struct device *dev,
 			attr, buf, count);
 }
 
-static DEVICE_ATTR_RW(wan_enable);
+static DEVICE_ATTR(wwan_enable, S_IWUSR | S_IRUGO,
+		   wan_enable_show, wan_enable_store);
 
 /* --------------------------------------------------------------------- */
 
 static struct attribute *wan_attributes[] = {
-	&dev_attr_wan_enable.attr,
+	&dev_attr_wwan_enable.attr,
 	NULL
 };
 
@@ -6489,7 +6492,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 		return 1;
 	}
 
-	if (acpi_video_backlight_support()) {
+	if (acpi_video_get_backlight_type() != acpi_backlight_vendor) {
 		if (brightness_enable > 1) {
 			pr_info("Standard ACPI backlight interface "
 				"available, not loading native one\n");
@@ -8138,7 +8141,8 @@ static ssize_t fan_pwm1_enable_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR_RW(fan_pwm1_enable);
+static DEVICE_ATTR(pwm1_enable, S_IWUSR | S_IRUGO,
+		   fan_pwm1_enable_show, fan_pwm1_enable_store);
 
 /* sysfs fan pwm1 ------------------------------------------------------ */
 static ssize_t fan_pwm1_show(struct device *dev,
@@ -8198,7 +8202,7 @@ static ssize_t fan_pwm1_store(struct device *dev,
 	return (rc) ? rc : count;
 }
 
-static DEVICE_ATTR_RW(fan_pwm1);
+static DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, fan_pwm1_show, fan_pwm1_store);
 
 /* sysfs fan fan1_input ------------------------------------------------ */
 static ssize_t fan_fan1_input_show(struct device *dev,
@@ -8215,7 +8219,7 @@ static ssize_t fan_fan1_input_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", speed);
 }
 
-static DEVICE_ATTR_RO(fan_fan1_input);
+static DEVICE_ATTR(fan1_input, S_IRUGO, fan_fan1_input_show, NULL);
 
 /* sysfs fan fan2_input ------------------------------------------------ */
 static ssize_t fan_fan2_input_show(struct device *dev,
@@ -8232,7 +8236,7 @@ static ssize_t fan_fan2_input_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", speed);
 }
 
-static DEVICE_ATTR_RO(fan_fan2_input);
+static DEVICE_ATTR(fan2_input, S_IRUGO, fan_fan2_input_show, NULL);
 
 /* sysfs fan fan_watchdog (hwmon driver) ------------------------------- */
 static ssize_t fan_fan_watchdog_show(struct device_driver *drv,
@@ -8265,8 +8269,8 @@ static DRIVER_ATTR(fan_watchdog, S_IWUSR | S_IRUGO,
 
 /* --------------------------------------------------------------------- */
 static struct attribute *fan_attributes[] = {
-	&dev_attr_fan_pwm1_enable.attr, &dev_attr_fan_pwm1.attr,
-	&dev_attr_fan_fan1_input.attr,
+	&dev_attr_pwm1_enable.attr, &dev_attr_pwm1.attr,
+	&dev_attr_fan1_input.attr,
 	NULL, /* for fan2_input */
 	NULL
 };
@@ -8400,7 +8404,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		if (tp_features.second_fan) {
 			/* attach second fan tachometer */
 			fan_attributes[ARRAY_SIZE(fan_attributes)-2] =
-					&dev_attr_fan_fan2_input.attr;
+					&dev_attr_fan2_input.attr;
 		}
 		rc = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
 					 &fan_attr_group);
@@ -8848,7 +8852,7 @@ static ssize_t thinkpad_acpi_pdev_name_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n", TPACPI_NAME);
 }
 
-static DEVICE_ATTR_RO(thinkpad_acpi_pdev_name);
+static DEVICE_ATTR(name, S_IRUGO, thinkpad_acpi_pdev_name_show, NULL);
 
 /* --------------------------------------------------------------------- */
 
@@ -9390,8 +9394,7 @@ static void thinkpad_acpi_module_exit(void)
 		hwmon_device_unregister(tpacpi_hwmon);
 
 	if (tp_features.sensors_pdev_attrs_registered)
-		device_remove_file(&tpacpi_sensors_pdev->dev,
-				   &dev_attr_thinkpad_acpi_pdev_name);
+		device_remove_file(&tpacpi_sensors_pdev->dev, &dev_attr_name);
 	if (tpacpi_sensors_pdev)
 		platform_device_unregister(tpacpi_sensors_pdev);
 	if (tpacpi_pdev)
@@ -9512,8 +9515,7 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
-	ret = device_create_file(&tpacpi_sensors_pdev->dev,
-				 &dev_attr_thinkpad_acpi_pdev_name);
+	ret = device_create_file(&tpacpi_sensors_pdev->dev, &dev_attr_name);
 	if (ret) {
 		pr_err("unable to create sysfs hwmon device attributes\n");
 		thinkpad_acpi_module_exit();

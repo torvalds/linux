@@ -76,6 +76,8 @@
 #include "uas-detect.h"
 #endif
 
+#define DRV_NAME "usb-storage"
+
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
 MODULE_DESCRIPTION("USB Mass Storage driver for Linux");
@@ -479,7 +481,8 @@ void usb_stor_adjust_quirks(struct usb_device *udev, unsigned long *fflags)
 			US_FL_SINGLE_LUN | US_FL_NO_WP_DETECT |
 			US_FL_NO_READ_DISC_INFO | US_FL_NO_READ_CAPACITY_16 |
 			US_FL_INITIAL_READ10 | US_FL_WRITE_CACHE |
-			US_FL_NO_ATA_1X | US_FL_NO_REPORT_OPCODES);
+			US_FL_NO_ATA_1X | US_FL_NO_REPORT_OPCODES |
+			US_FL_MAX_SECTORS_240);
 
 	p = quirks;
 	while (*p) {
@@ -519,6 +522,9 @@ void usb_stor_adjust_quirks(struct usb_device *udev, unsigned long *fflags)
 			break;
 		case 'f':
 			f |= US_FL_NO_REPORT_OPCODES;
+			break;
+		case 'g':
+			f |= US_FL_MAX_SECTORS_240;
 			break;
 		case 'h':
 			f |= US_FL_CAPACITY_HEURISTICS;
@@ -920,7 +926,8 @@ static unsigned int usb_stor_sg_tablesize(struct usb_interface *intf)
 int usb_stor_probe1(struct us_data **pus,
 		struct usb_interface *intf,
 		const struct usb_device_id *id,
-		struct us_unusual_dev *unusual_dev)
+		struct us_unusual_dev *unusual_dev,
+		struct scsi_host_template *sht)
 {
 	struct Scsi_Host *host;
 	struct us_data *us;
@@ -932,7 +939,7 @@ int usb_stor_probe1(struct us_data **pus,
 	 * Ask the SCSI layer to allocate a host structure, with extra
 	 * space at the end for our private us_data structure.
 	 */
-	host = scsi_host_alloc(&usb_stor_host_template, sizeof(*us));
+	host = scsi_host_alloc(sht, sizeof(*us));
 	if (!host) {
 		dev_warn(&intf->dev, "Unable to allocate the scsi host\n");
 		return -ENOMEM;
@@ -1069,6 +1076,8 @@ void usb_stor_disconnect(struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(usb_stor_disconnect);
 
+static struct scsi_host_template usb_stor_host_template;
+
 /* The main probe routine for standard devices */
 static int storage_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
@@ -1080,7 +1089,7 @@ static int storage_probe(struct usb_interface *intf,
 
 	/* If uas is enabled and this device can do uas then ignore it. */
 #if IS_ENABLED(CONFIG_USB_UAS)
-	if (uas_use_uas_driver(intf, id))
+	if (uas_use_uas_driver(intf, id, NULL))
 		return -ENXIO;
 #endif
 
@@ -1109,7 +1118,8 @@ static int storage_probe(struct usb_interface *intf,
 			id->idVendor, id->idProduct);
 	}
 
-	result = usb_stor_probe1(&us, intf, id, unusual_dev);
+	result = usb_stor_probe1(&us, intf, id, unusual_dev,
+				 &usb_stor_host_template);
 	if (result)
 		return result;
 
@@ -1120,7 +1130,7 @@ static int storage_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver usb_storage_driver = {
-	.name =		"usb-storage",
+	.name =		DRV_NAME,
 	.probe =	storage_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -1133,4 +1143,4 @@ static struct usb_driver usb_storage_driver = {
 	.soft_unbind =	1,
 };
 
-module_usb_driver(usb_storage_driver);
+module_usb_stor_driver(usb_storage_driver, usb_stor_host_template, DRV_NAME);

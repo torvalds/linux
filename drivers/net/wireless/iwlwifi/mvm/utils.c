@@ -584,7 +584,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 	struct iwl_error_event_table table;
 	u32 base;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_NEW_VERSION)) {
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_NEW_VERSION)) {
 		iwl_mvm_dump_nic_error_log_old(mvm);
 		return;
 	}

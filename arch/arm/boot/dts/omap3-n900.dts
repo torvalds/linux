@@ -498,6 +498,8 @@
 		DRVDD-supply = <&vmmc2>;
 		IOVDD-supply = <&vio>;
 		DVDD-supply = <&vio>;
+
+		ai3x-micbias-vg = <1>;
 	};
 
 	tlv320aic3x_aux: tlv320aic3x@19 {
@@ -509,6 +511,8 @@
 		DRVDD-supply = <&vmmc2>;
 		IOVDD-supply = <&vio>;
 		DVDD-supply = <&vio>;
+
+		ai3x-micbias-vg = <2>;
 	};
 
 	tsl2563: tsl2563@29 {
@@ -828,8 +832,8 @@
 		touchscreen-fuzz-x = <4>;
 		touchscreen-fuzz-y = <7>;
 		touchscreen-fuzz-pressure = <2>;
-		touchscreen-max-x = <4096>;
-		touchscreen-max-y = <4096>;
+		touchscreen-size-x = <4096>;
+		touchscreen-size-y = <4096>;
 		touchscreen-max-pressure = <2048>;
 
 		ti,x-plate-ohms = <280>;

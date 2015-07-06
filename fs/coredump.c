@@ -70,7 +70,8 @@ static int expand_corename(struct core_name *cn, int size)
 	return 0;
 }
 
-static int cn_vprintf(struct core_name *cn, const char *fmt, va_list arg)
+static __printf(2, 0) int cn_vprintf(struct core_name *cn, const char *fmt,
+				     va_list arg)
 {
 	int free, need;
 	va_list arg_copy;
@@ -93,7 +94,7 @@ again:
 	return -ENOMEM;
 }
 
-static int cn_printf(struct core_name *cn, const char *fmt, ...)
+static __printf(2, 3) int cn_printf(struct core_name *cn, const char *fmt, ...)
 {
 	va_list arg;
 	int ret;
@@ -105,7 +106,8 @@ static int cn_printf(struct core_name *cn, const char *fmt, ...)
 	return ret;
 }
 
-static int cn_esc_printf(struct core_name *cn, const char *fmt, ...)
+static __printf(2, 3)
+int cn_esc_printf(struct core_name *cn, const char *fmt, ...)
 {
 	int cur = cn->used;
 	va_list arg;
@@ -138,7 +140,7 @@ static int cn_print_exe_file(struct core_name *cn)
 		goto put_exe_file;
 	}
 
-	path = d_path(&exe_file->f_path, pathbuf, PATH_MAX);
+	path = file_path(exe_file, pathbuf, PATH_MAX);
 	if (IS_ERR(path)) {
 		ret = PTR_ERR(path);
 		goto free_buf;
@@ -209,11 +211,15 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 				break;
 			/* uid */
 			case 'u':
-				err = cn_printf(cn, "%d", cred->uid);
+				err = cn_printf(cn, "%u",
+						from_kuid(&init_user_ns,
+							  cred->uid));
 				break;
 			/* gid */
 			case 'g':
-				err = cn_printf(cn, "%d", cred->gid);
+				err = cn_printf(cn, "%u",
+						from_kgid(&init_user_ns,
+							  cred->gid));
 				break;
 			case 'd':
 				err = cn_printf(cn, "%d",
@@ -221,7 +227,8 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 				break;
 			/* signal that caused the coredump */
 			case 's':
-				err = cn_printf(cn, "%ld", cprm->siginfo->si_signo);
+				err = cn_printf(cn, "%d",
+						cprm->siginfo->si_signo);
 				break;
 			/* UNIX time of coredump */
 			case 't': {

@@ -77,7 +77,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long cause,
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto bad_area_nosemaphore;
 
 	if (user_mode(regs))

@@ -177,11 +177,16 @@ static struct md_rdev *next_active_rdev(struct md_rdev *rdev, struct mddev *mdde
 	 * nr_pending is 0 and In_sync is clear, the entries we return will
 	 * still be in the same position on the list when we re-enter
 	 * list_for_each_entry_continue_rcu.
+	 *
+	 * Note that if entered with 'rdev == NULL' to start at the
+	 * beginning, we temporarily assign 'rdev' to an address which
+	 * isn't really an rdev, but which can be used by
+	 * list_for_each_entry_continue_rcu() to find the first entry.
 	 */
 	rcu_read_lock();
 	if (rdev == NULL)
 		/* start at the beginning */
-		rdev = list_entry_rcu(&mddev->disks, struct md_rdev, same_set);
+		rdev = list_entry(&mddev->disks, struct md_rdev, same_set);
 	else {
 		/* release the previous rdev and start from there. */
 		rdev_dec_pending(rdev, mddev);
@@ -834,7 +839,7 @@ static void bitmap_file_kick(struct bitmap *bitmap)
 		if (bitmap->storage.file) {
 			path = kmalloc(PAGE_SIZE, GFP_KERNEL);
 			if (path)
-				ptr = d_path(&bitmap->storage.file->f_path,
+				ptr = file_path(bitmap->storage.file,
 					     path, PAGE_SIZE);
 
 			printk(KERN_ALERT
@@ -1922,7 +1927,7 @@ void bitmap_status(struct seq_file *seq, struct bitmap *bitmap)
 		   chunk_kb ? "KB" : "B");
 	if (bitmap->storage.file) {
 		seq_printf(seq, ", file: ");
-		seq_path(seq, &bitmap->storage.file->f_path, " \t\n");
+		seq_file_path(seq, bitmap->storage.file, " \t\n");
 	}
 
 	seq_printf(seq, "\n");

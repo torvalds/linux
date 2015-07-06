@@ -74,12 +74,11 @@ static inline void cpu_set_fpu_fcsr_mask(struct cpuinfo_mips *c)
 {
 	unsigned long sr, mask, fcsr, fcsr0, fcsr1;
 
+	fcsr = c->fpu_csr31;
 	mask = FPU_CSR_ALL_X | FPU_CSR_ALL_E | FPU_CSR_ALL_S | FPU_CSR_RM;
 
 	sr = read_c0_status();
 	__enable_fpu(FPU_AS_IS);
-
-	fcsr = read_32bit_cp1_register(CP1_STATUS);
 
 	fcsr0 = fcsr & mask;
 	write_32bit_cp1_register(CP1_STATUS, fcsr0);
@@ -946,7 +945,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
 			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
 			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
-			     MIPS_CPU_LLSC;
+			     MIPS_CPU_LLSC | MIPS_CPU_BP_GHIST;
 		c->tlbsize = 64;
 		break;
 	case PRID_IMP_R14000:
@@ -961,7 +960,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
 			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
 			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
-			     MIPS_CPU_LLSC;
+			     MIPS_CPU_LLSC | MIPS_CPU_BP_GHIST;
 		c->tlbsize = 64;
 		break;
 	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
@@ -1444,7 +1443,9 @@ void cpu_probe(void)
 	case PRID_COMP_CAVIUM:
 		cpu_probe_cavium(c, cpu);
 		break;
-	case PRID_COMP_INGENIC:
+	case PRID_COMP_INGENIC_D0:
+	case PRID_COMP_INGENIC_D1:
+	case PRID_COMP_INGENIC_E1:
 		cpu_probe_ingenic(c, cpu);
 		break;
 	case PRID_COMP_NETLOGIC:
@@ -1478,6 +1479,10 @@ void cpu_probe(void)
 		cpu_set_fpu_opts(c);
 	else
 		cpu_set_nofpu_opts(c);
+
+	if (cpu_has_bp_ghist)
+		write_c0_r10k_diag(read_c0_r10k_diag() |
+				   R10K_DIAG_E_GHIST);
 
 	if (cpu_has_mips_r2_r6) {
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;

@@ -509,10 +509,11 @@ static int xcan_rx(struct net_device *ndev)
 			cf->can_id |= CAN_RTR_FLAG;
 	}
 
-	if (!(id_xcan & XCAN_IDR_SRR_MASK)) {
-		data[0] = priv->read_reg(priv, XCAN_RXFIFO_DW1_OFFSET);
-		data[1] = priv->read_reg(priv, XCAN_RXFIFO_DW2_OFFSET);
+	/* DW1/DW2 must always be read to remove message from RXFIFO */
+	data[0] = priv->read_reg(priv, XCAN_RXFIFO_DW1_OFFSET);
+	data[1] = priv->read_reg(priv, XCAN_RXFIFO_DW2_OFFSET);
 
+	if (!(cf->can_id & CAN_RTR_FLAG)) {
 		/* Change Xilinx CAN data format to socketCAN data format */
 		if (cf->can_dlc > 0)
 			*(__be32 *)(cf->data) = cpu_to_be32(data[0]);

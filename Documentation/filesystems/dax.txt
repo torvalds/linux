@@ -18,8 +18,10 @@ Usage
 -----
 
 If you have a block device which supports DAX, you can make a filesystem
-on it as usual.  When mounting it, use the -o dax option manually
-or add 'dax' to the options in /etc/fstab.
+on it as usual.  The DAX code currently only supports files with a block
+size equal to your kernel's PAGE_SIZE, so you may need to specify a block
+size when creating the filesystem.  When mounting it, use the "-o dax"
+option on the command line or add 'dax' to the options in /etc/fstab.
 
 
 Implementation Tips for Block Driver Writers

@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 2
+#define DRV_VERSION_BUILD 4
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -772,9 +772,8 @@ static void i40e_update_prio_xoff_rx(struct i40e_pf *pf)
 
 	dcb_cfg = &hw->local_dcbx_config;
 
-	/* See if DCB enabled with PFC TC */
-	if (!(pf->flags & I40E_FLAG_DCB_ENABLED) ||
-	    !(dcb_cfg->pfc.pfcenable)) {
+	/* Collect Link XOFF stats when PFC is disabled */
+	if (!dcb_cfg->pfc.pfcenable) {
 		i40e_update_link_xoff_rx(pf);
 		return;
 	}
@@ -1097,12 +1096,18 @@ static void i40e_update_pf_stats(struct i40e_pf *pf)
 			   &osd->rx_jabber, &nsd->rx_jabber);
 
 	/* FDIR stats */
-	i40e_stat_update32(hw, I40E_GLQF_PCNT(pf->fd_atr_cnt_idx),
+	i40e_stat_update32(hw,
+			   I40E_GLQF_PCNT(I40E_FD_ATR_STAT_IDX(pf->hw.pf_id)),
 			   pf->stat_offsets_loaded,
 			   &osd->fd_atr_match, &nsd->fd_atr_match);
-	i40e_stat_update32(hw, I40E_GLQF_PCNT(pf->fd_sb_cnt_idx),
+	i40e_stat_update32(hw,
+			   I40E_GLQF_PCNT(I40E_FD_SB_STAT_IDX(pf->hw.pf_id)),
 			   pf->stat_offsets_loaded,
 			   &osd->fd_sb_match, &nsd->fd_sb_match);
+	i40e_stat_update32(hw,
+		      I40E_GLQF_PCNT(I40E_FD_ATR_TUNNEL_STAT_IDX(pf->hw.pf_id)),
+		      pf->stat_offsets_loaded,
+		      &osd->fd_atr_tunnel_match, &nsd->fd_atr_tunnel_match);
 
 	val = rd32(hw, I40E_PRTPM_EEE_STAT);
 	nsd->tx_lpi_status =
@@ -4739,7 +4744,8 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 		pf->fd_add_err = pf->fd_atr_cnt = 0;
 		if (pf->fd_tcp_rule > 0) {
 			pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
-			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 exist\n");
+			if (I40E_DEBUG_FD & pf->hw.debug_mask)
+				dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 exist\n");
 			pf->fd_tcp_rule = 0;
 		}
 		i40e_fdir_filter_restore(vsi);
@@ -5428,7 +5434,8 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
 		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {
 			pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
-			dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
+			if (I40E_DEBUG_FD & pf->hw.debug_mask)
+				dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
 		}
 	}
 	/* Wait for some more space to be available to turn on ATR */
@@ -5436,7 +5443,8 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED)) {
 			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
-			dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table now\n");
+			if (I40E_DEBUG_FD & pf->hw.debug_mask)
+				dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table now\n");
 		}
 	}
 }
@@ -5469,7 +5477,8 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 
 		if (!(time_after(jiffies, min_flush_time)) &&
 		    (fd_room < I40E_FDIR_BUFFER_HEAD_ROOM_FOR_ATR)) {
-			dev_info(&pf->pdev->dev, "ATR disabled, not enough FD filter space.\n");
+			if (I40E_DEBUG_FD & pf->hw.debug_mask)
+				dev_info(&pf->pdev->dev, "ATR disabled, not enough FD filter space.\n");
 			disable_atr = true;
 		}
 
@@ -5496,7 +5505,8 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 			if (!disable_atr)
 				pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
 			clear_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
-			dev_info(&pf->pdev->dev, "FD Filter table flushed and FD-SB replayed.\n");
+			if (I40E_DEBUG_FD & pf->hw.debug_mask)
+				dev_info(&pf->pdev->dev, "FD Filter table flushed and FD-SB replayed.\n");
 		}
 	}
 }
@@ -6097,6 +6107,10 @@ static int i40e_reconstitute_veb(struct i40e_veb *veb)
 	if (ret)
 		goto end_reconstitute;
 
+	if (pf->flags & I40E_FLAG_VEB_MODE_ENABLED)
+		veb->bridge_mode = BRIDGE_MODE_VEB;
+	else
+		veb->bridge_mode = BRIDGE_MODE_VEPA;
 	i40e_config_bridge_mode(veb);
 
 	/* create the remaining VSIs attached to this VEB */
@@ -7676,12 +7690,8 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	    (pf->hw.func_caps.fd_filters_best_effort > 0)) {
 		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
 		pf->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
-		/* Setup a counter for fd_atr per PF */
-		pf->fd_atr_cnt_idx = I40E_FD_ATR_STAT_IDX(pf->hw.pf_id);
 		if (!(pf->flags & I40E_FLAG_MFP_ENABLED)) {
 			pf->flags |= I40E_FLAG_FD_SB_ENABLED;
-			/* Setup a counter for fd_sb per PF */
-			pf->fd_sb_cnt_idx = I40E_FD_SB_STAT_IDX(pf->hw.pf_id);
 		} else {
 			dev_info(&pf->pdev->dev,
 				 "Flow Director Sideband mode Disabled in MFP mode\n");
@@ -7771,7 +7781,8 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 		pf->fd_add_err = pf->fd_atr_cnt = pf->fd_tcp_rule = 0;
 		pf->fdir_pf_active_filters = 0;
 		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
-		dev_info(&pf->pdev->dev, "ATR re-enabled.\n");
+		if (I40E_DEBUG_FD & pf->hw.debug_mask)
+			dev_info(&pf->pdev->dev, "ATR re-enabled.\n");
 		/* if ATR was auto disabled it can be re-enabled. */
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
@@ -8031,7 +8042,12 @@ static int i40e_ndo_bridge_setlink(struct net_device *dev,
 		} else if (mode != veb->bridge_mode) {
 			/* Existing HW bridge but different mode needs reset */
 			veb->bridge_mode = mode;
-			i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
+			/* TODO: If no VFs or VMDq VSIs, disallow VEB mode */
+			if (mode == BRIDGE_MODE_VEB)
+				pf->flags |= I40E_FLAG_VEB_MODE_ENABLED;
+			else
+				pf->flags &= ~I40E_FLAG_VEB_MODE_ENABLED;
+			i40e_do_reset(pf, BIT_ULL(__I40E_PF_RESET_REQUESTED));
 			break;
 		}
 	}
@@ -8053,10 +8069,10 @@ static int i40e_ndo_bridge_setlink(struct net_device *dev,
 #ifdef HAVE_BRIDGE_FILTER
 static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				   struct net_device *dev,
-				   u32 __always_unused filter_mask)
+				   u32 filter_mask, int nlflags)
 #else
 static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-				   struct net_device *dev)
+				   struct net_device *dev, int nlflags)
 #endif /* HAVE_BRIDGE_FILTER */
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);
@@ -8078,7 +8094,8 @@ static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	if (!veb)
 		return 0;
 
-	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, veb->bridge_mode);
+	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, veb->bridge_mode,
+				       nlflags, 0, 0, filter_mask, NULL);
 }
 #endif /* HAVE_BRIDGE_ATTRIBS */
 
@@ -8342,11 +8359,12 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		ctxt.uplink_seid = vsi->uplink_seid;
 		ctxt.connection_type = I40E_AQ_VSI_CONN_TYPE_NORMAL;
 		ctxt.flags = I40E_AQ_VSI_TYPE_PF;
-		if (i40e_is_vsi_uplink_mode_veb(vsi)) {
+		if ((pf->flags & I40E_FLAG_VEB_MODE_ENABLED) &&
+		    (i40e_is_vsi_uplink_mode_veb(vsi))) {
 			ctxt.info.valid_sections |=
-				cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+			     cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
 			ctxt.info.switch_id =
-				cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+			   cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
 		}
 		i40e_vsi_setup_queue_map(vsi, &ctxt, enabled_tc, true);
 		break;
@@ -8744,6 +8762,14 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 					 "%s: New VSI creation error, uplink seid of LAN VSI expected.\n",
 					 __func__);
 				return NULL;
+			}
+			/* We come up by default in VEPA mode if SRIOV is not
+			 * already enabled, in which case we can't force VEPA
+			 * mode.
+			 */
+			if (!(pf->flags & I40E_FLAG_VEB_MODE_ENABLED)) {
+				veb->bridge_mode = BRIDGE_MODE_VEPA;
+				pf->flags &= ~I40E_FLAG_VEB_MODE_ENABLED;
 			}
 			i40e_config_bridge_mode(veb);
 		}
@@ -9855,6 +9881,15 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_switch_setup;
 	}
 
+#ifdef CONFIG_PCI_IOV
+	/* prep for VF support */
+	if ((pf->flags & I40E_FLAG_SRIOV_ENABLED) &&
+	    (pf->flags & I40E_FLAG_MSIX_ENABLED) &&
+	    !test_bit(__I40E_BAD_EEPROM, &pf->state)) {
+		if (pci_num_vf(pdev))
+			pf->flags |= I40E_FLAG_VEB_MODE_ENABLED;
+	}
+#endif
 	err = i40e_setup_pf_switch(pf, false);
 	if (err) {
 		dev_info(&pdev->dev, "setup_pf_switch failed: %d\n", err);

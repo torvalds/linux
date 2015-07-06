@@ -86,6 +86,9 @@ struct dm_rq_target_io {
 	struct kthread_work work;
 	int error;
 	union map_info info;
+	struct dm_stats_aux stats_aux;
+	unsigned long duration_jiffies;
+	unsigned n_sectors;
 };
 
 /*
@@ -1046,6 +1049,17 @@ static struct dm_rq_target_io *tio_from_request(struct request *rq)
 	return (rq->q->mq_ops ? blk_mq_rq_to_pdu(rq) : rq->special);
 }
 
+static void rq_end_stats(struct mapped_device *md, struct request *orig)
+{
+	if (unlikely(dm_stats_used(&md->stats))) {
+		struct dm_rq_target_io *tio = tio_from_request(orig);
+		tio->duration_jiffies = jiffies - tio->duration_jiffies;
+		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
+				    tio->n_sectors, true, tio->duration_jiffies,
+				    &tio->stats_aux);
+	}
+}
+
 /*
  * Don't touch any member of the md after calling this function because
  * the md may be freed in dm_put() at the end of this function.
@@ -1089,11 +1103,17 @@ static void free_rq_clone(struct request *clone)
 
 	blk_rq_unprep_clone(clone);
 
-	if (clone->q->mq_ops)
+	if (md->type == DM_TYPE_MQ_REQUEST_BASED)
+		/* stacked on blk-mq queue(s) */
 		tio->ti->type->release_clone_rq(clone);
 	else if (!md->queue->mq_ops)
 		/* request_fn queue stacked on request_fn queue(s) */
 		free_clone_request(md, clone);
+	/*
+	 * NOTE: for the blk-mq queue stacked on request_fn queue(s) case:
+	 * no need to call free_clone_request() because we leverage blk-mq by
+	 * allocating the clone at the end of the blk-mq pdu (see: clone_rq)
+	 */
 
 	if (!md->queue->mq_ops)
 		free_rq_tio(tio);
@@ -1125,6 +1145,7 @@ static void dm_end_request(struct request *clone, int error)
 	}
 
 	free_rq_clone(clone);
+	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
 		blk_end_request_all(rq, error);
 	else
@@ -1156,16 +1177,18 @@ static void old_requeue_request(struct request *rq)
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_requeue_request(q, rq);
+	blk_run_queue_async(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
-static void dm_requeue_unmapped_original_request(struct mapped_device *md,
-						 struct request *rq)
+static void dm_requeue_original_request(struct mapped_device *md,
+					struct request *rq)
 {
 	int rw = rq_data_dir(rq);
 
 	dm_unprep_request(rq);
 
+	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
 		old_requeue_request(rq);
 	else {
@@ -1174,13 +1197,6 @@ static void dm_requeue_unmapped_original_request(struct mapped_device *md,
 	}
 
 	rq_completed(md, rw, false);
-}
-
-static void dm_requeue_unmapped_request(struct request *clone)
-{
-	struct dm_rq_target_io *tio = clone->end_io_data;
-
-	dm_requeue_unmapped_original_request(tio->md, tio->orig);
 }
 
 static void old_stop_queue(struct request_queue *q)
@@ -1246,7 +1262,7 @@ static void dm_done(struct request *clone, int error, bool mapped)
 		return;
 	else if (r == DM_ENDIO_REQUEUE)
 		/* The target wants to requeue the I/O */
-		dm_requeue_unmapped_request(clone);
+		dm_requeue_original_request(tio->md, tio->orig);
 	else {
 		DMWARN("unimplemented target endio return value: %d", r);
 		BUG();
@@ -1264,6 +1280,7 @@ static void dm_softirq_done(struct request *rq)
 	int rw;
 
 	if (!clone) {
+		rq_end_stats(tio->md, rq);
 		rw = rq_data_dir(rq);
 		if (!rq->q->mq_ops) {
 			blk_end_request_all(rq, tio->error);
@@ -1716,8 +1733,7 @@ static int dm_merge_bvec(struct request_queue *q,
 	struct mapped_device *md = q->queuedata;
 	struct dm_table *map = dm_get_live_table_fast(md);
 	struct dm_target *ti;
-	sector_t max_sectors;
-	int max_size = 0;
+	sector_t max_sectors, max_size = 0;
 
 	if (unlikely(!map))
 		goto out;
@@ -1732,8 +1748,16 @@ static int dm_merge_bvec(struct request_queue *q,
 	max_sectors = min(max_io_len(bvm->bi_sector, ti),
 			  (sector_t) queue_max_sectors(q));
 	max_size = (max_sectors << SECTOR_SHIFT) - bvm->bi_size;
-	if (unlikely(max_size < 0)) /* this shouldn't _ever_ happen */
-		max_size = 0;
+
+	/*
+	 * FIXME: this stop-gap fix _must_ be cleaned up (by passing a sector_t
+	 * to the targets' merge function since it holds sectors not bytes).
+	 * Just doing this as an interim fix for stable@ because the more
+	 * comprehensive cleanup of switching to sector_t will impact every
+	 * DM target that implements a ->merge hook.
+	 */
+	if (max_size > INT_MAX)
+		max_size = INT_MAX;
 
 	/*
 	 * merge_bvec_fn() returns number of bytes
@@ -1741,7 +1765,7 @@ static int dm_merge_bvec(struct request_queue *q,
 	 * max is precomputed maximal io size
 	 */
 	if (max_size && ti->type->merge)
-		max_size = ti->type->merge(ti, bvm, biovec, max_size);
+		max_size = ti->type->merge(ti, bvm, biovec, (int) max_size);
 	/*
 	 * If the target doesn't support merge method and some of the devices
 	 * provided their merge_bvec method (we know this by looking for the
@@ -1963,8 +1987,8 @@ static int map_request(struct dm_rq_target_io *tio, struct request *rq,
 			dm_kill_unmapped_request(rq, r);
 			return r;
 		}
-		if (IS_ERR(clone))
-			return DM_MAPIO_REQUEUE;
+		if (r != DM_MAPIO_REMAPPED)
+			return r;
 		if (setup_clone(clone, rq, tio, GFP_ATOMIC)) {
 			/* -ENOMEM */
 			ti->type->release_clone_rq(clone);
@@ -1984,7 +2008,7 @@ static int map_request(struct dm_rq_target_io *tio, struct request *rq,
 		break;
 	case DM_MAPIO_REQUEUE:
 		/* The target wants to requeue the I/O */
-		dm_requeue_unmapped_request(clone);
+		dm_requeue_original_request(md, tio->orig);
 		break;
 	default:
 		if (r > 0) {
@@ -2007,7 +2031,7 @@ static void map_tio_request(struct kthread_work *work)
 	struct mapped_device *md = tio->md;
 
 	if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE)
-		dm_requeue_unmapped_original_request(md, rq);
+		dm_requeue_original_request(md, rq);
 }
 
 static void dm_start_request(struct mapped_device *md, struct request *orig)
@@ -2022,6 +2046,14 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
 		md->last_rq_pos = rq_end_sector(orig);
 		md->last_rq_rw = rq_data_dir(orig);
 		md->last_rq_start_time = ktime_get();
+	}
+
+	if (unlikely(dm_stats_used(&md->stats))) {
+		struct dm_rq_target_io *tio = tio_from_request(orig);
+		tio->duration_jiffies = jiffies;
+		tio->n_sectors = blk_rq_sectors(orig);
+		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
+				    tio->n_sectors, false, 0, &tio->stats_aux);
 	}
 
 	/*
@@ -2154,7 +2186,7 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 			 * the query about congestion status of request_queue
 			 */
 			if (dm_request_based(md))
-				r = md->queue->backing_dev_info.state &
+				r = md->queue->backing_dev_info.wb.state &
 				    bdi_bits;
 			else
 				r = dm_table_any_congested(map, bdi_bits);
@@ -2247,6 +2279,40 @@ static void dm_init_old_md_queue(struct mapped_device *md)
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 }
 
+static void cleanup_mapped_device(struct mapped_device *md)
+{
+	cleanup_srcu_struct(&md->io_barrier);
+
+	if (md->wq)
+		destroy_workqueue(md->wq);
+	if (md->kworker_task)
+		kthread_stop(md->kworker_task);
+	if (md->io_pool)
+		mempool_destroy(md->io_pool);
+	if (md->rq_pool)
+		mempool_destroy(md->rq_pool);
+	if (md->bs)
+		bioset_free(md->bs);
+
+	if (md->disk) {
+		spin_lock(&_minor_lock);
+		md->disk->private_data = NULL;
+		spin_unlock(&_minor_lock);
+		if (blk_get_integrity(md->disk))
+			blk_integrity_unregister(md->disk);
+		del_gendisk(md->disk);
+		put_disk(md->disk);
+	}
+
+	if (md->queue)
+		blk_cleanup_queue(md->queue);
+
+	if (md->bdev) {
+		bdput(md->bdev);
+		md->bdev = NULL;
+	}
+}
+
 /*
  * Allocate and initialise a blank device with a given minor.
  */
@@ -2292,13 +2358,13 @@ static struct mapped_device *alloc_dev(int minor)
 
 	md->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!md->queue)
-		goto bad_queue;
+		goto bad;
 
 	dm_init_md_queue(md);
 
 	md->disk = alloc_disk(1);
 	if (!md->disk)
-		goto bad_disk;
+		goto bad;
 
 	atomic_set(&md->pending[0], 0);
 	atomic_set(&md->pending[1], 0);
@@ -2319,11 +2385,11 @@ static struct mapped_device *alloc_dev(int minor)
 
 	md->wq = alloc_workqueue("kdmflush", WQ_MEM_RECLAIM, 0);
 	if (!md->wq)
-		goto bad_thread;
+		goto bad;
 
 	md->bdev = bdget_disk(md->disk, 0);
 	if (!md->bdev)
-		goto bad_bdev;
+		goto bad;
 
 	bio_init(&md->flush_bio);
 	md->flush_bio.bi_bdev = md->bdev;
@@ -2340,15 +2406,8 @@ static struct mapped_device *alloc_dev(int minor)
 
 	return md;
 
-bad_bdev:
-	destroy_workqueue(md->wq);
-bad_thread:
-	del_gendisk(md->disk);
-	put_disk(md->disk);
-bad_disk:
-	blk_cleanup_queue(md->queue);
-bad_queue:
-	cleanup_srcu_struct(&md->io_barrier);
+bad:
+	cleanup_mapped_device(md);
 bad_io_barrier:
 	free_minor(minor);
 bad_minor:
@@ -2365,32 +2424,13 @@ static void free_dev(struct mapped_device *md)
 	int minor = MINOR(disk_devt(md->disk));
 
 	unlock_fs(md);
-	destroy_workqueue(md->wq);
 
-	if (md->kworker_task)
-		kthread_stop(md->kworker_task);
-	if (md->io_pool)
-		mempool_destroy(md->io_pool);
-	if (md->rq_pool)
-		mempool_destroy(md->rq_pool);
-	if (md->bs)
-		bioset_free(md->bs);
-
-	cleanup_srcu_struct(&md->io_barrier);
-	free_table_devices(&md->table_devices);
-	dm_stats_cleanup(&md->stats);
-
-	spin_lock(&_minor_lock);
-	md->disk->private_data = NULL;
-	spin_unlock(&_minor_lock);
-	if (blk_get_integrity(md->disk))
-		blk_integrity_unregister(md->disk);
-	del_gendisk(md->disk);
-	put_disk(md->disk);
-	blk_cleanup_queue(md->queue);
+	cleanup_mapped_device(md);
 	if (md->use_blk_mq)
 		blk_mq_free_tag_set(&md->tag_set);
-	bdput(md->bdev);
+
+	free_table_devices(&md->table_devices);
+	dm_stats_cleanup(&md->stats);
 	free_minor(minor);
 
 	module_put(THIS_MODULE);
@@ -2662,9 +2702,6 @@ static int dm_init_request_based_queue(struct mapped_device *md)
 {
 	struct request_queue *q = NULL;
 
-	if (md->queue->elevator)
-		return 0;
-
 	/* Fully initialize the queue */
 	q = blk_init_allocated_queue(md->queue, dm_request_fn, NULL);
 	if (!q)
@@ -2748,13 +2785,16 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (dm_table_get_type(map) == DM_TYPE_REQUEST_BASED) {
 		/* clone request is allocated at the end of the pdu */
 		tio->clone = (void *)blk_mq_rq_to_pdu(rq) + sizeof(struct dm_rq_target_io);
-		if (!clone_rq(rq, md, tio, GFP_ATOMIC))
-			return BLK_MQ_RQ_QUEUE_BUSY;
+		(void) clone_rq(rq, md, tio, GFP_ATOMIC);
 		queue_kthread_work(&md->kworker, &tio->work);
 	} else {
 		/* Direct call is fine since .queue_rq allows allocations */
-		if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE)
-			dm_requeue_unmapped_original_request(md, rq);
+		if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE) {
+			/* Undo dm_start_request() before requeuing */
+			rq_end_stats(md, rq);
+			rq_completed(md, rq_data_dir(rq), false);
+			return BLK_MQ_RQ_QUEUE_BUSY;
+		}
 	}
 
 	return BLK_MQ_RQ_QUEUE_OK;

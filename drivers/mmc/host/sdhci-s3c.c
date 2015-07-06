@@ -736,7 +736,7 @@ static struct sdhci_s3c_drv_data exynos4_sdhci_drv_data = {
 #define EXYNOS4_SDHCI_DRV_DATA ((kernel_ulong_t)NULL)
 #endif
 
-static struct platform_device_id sdhci_s3c_driver_ids[] = {
+static const struct platform_device_id sdhci_s3c_driver_ids[] = {
 	{
 		.name		= "s3c-sdhci",
 		.driver_data	= (kernel_ulong_t)NULL,

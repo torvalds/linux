@@ -32,12 +32,12 @@
 #include <linux/delay.h>
 #include <linux/ratelimit.h>
 #include <linux/pm_runtime.h>
+#include <linux/blk-cgroup.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
 
 #include "blk.h"
-#include "blk-cgroup.h"
 #include "blk-mq.h"
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
@@ -62,6 +62,31 @@ struct kmem_cache *blk_requestq_cachep;
  * Controlling structure to kblockd
  */
 static struct workqueue_struct *kblockd_workqueue;
+
+static void blk_clear_congested(struct request_list *rl, int sync)
+{
+#ifdef CONFIG_CGROUP_WRITEBACK
+	clear_wb_congested(rl->blkg->wb_congested, sync);
+#else
+	/*
+	 * If !CGROUP_WRITEBACK, all blkg's map to bdi->wb and we shouldn't
+	 * flip its congestion state for events on other blkcgs.
+	 */
+	if (rl == &rl->q->root_rl)
+		clear_wb_congested(rl->q->backing_dev_info.wb.congested, sync);
+#endif
+}
+
+static void blk_set_congested(struct request_list *rl, int sync)
+{
+#ifdef CONFIG_CGROUP_WRITEBACK
+	set_wb_congested(rl->blkg->wb_congested, sync);
+#else
+	/* see blk_clear_congested() */
+	if (rl == &rl->q->root_rl)
+		set_wb_congested(rl->q->backing_dev_info.wb.congested, sync);
+#endif
+}
 
 void blk_queue_congestion_threshold(struct request_queue *q)
 {
@@ -285,6 +310,7 @@ inline void __blk_run_queue_uncond(struct request_queue *q)
 	q->request_fn(q);
 	q->request_fn_active--;
 }
+EXPORT_SYMBOL_GPL(__blk_run_queue_uncond);
 
 /**
  * __blk_run_queue - run a single device queue
@@ -552,6 +578,8 @@ void blk_cleanup_queue(struct request_queue *q)
 		q->queue_lock = &q->__queue_lock;
 	spin_unlock_irq(lock);
 
+	bdi_destroy(&q->backing_dev_info);
+
 	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
 }
@@ -619,8 +647,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 
 	q->backing_dev_info.ra_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
-	q->backing_dev_info.state = 0;
-	q->backing_dev_info.capabilities = 0;
+	q->backing_dev_info.capabilities = BDI_CAP_CGROUP_WRITEBACK;
 	q->backing_dev_info.name = "block";
 	q->node = node_id;
 
@@ -732,6 +759,8 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 }
 EXPORT_SYMBOL(blk_init_queue_node);
 
+static void blk_queue_bio(struct request_queue *q, struct bio *bio);
+
 struct request_queue *
 blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 			 spinlock_t *lock)
@@ -841,13 +870,8 @@ static void __freed_request(struct request_list *rl, int sync)
 {
 	struct request_queue *q = rl->q;
 
-	/*
-	 * bdi isn't aware of blkcg yet.  As all async IOs end up root
-	 * blkcg anyway, just use root blkcg state.
-	 */
-	if (rl == &q->root_rl &&
-	    rl->count[sync] < queue_congestion_off_threshold(q))
-		blk_clear_queue_congested(q, sync);
+	if (rl->count[sync] < queue_congestion_off_threshold(q))
+		blk_clear_congested(rl, sync);
 
 	if (rl->count[sync] + 1 <= q->nr_requests) {
 		if (waitqueue_active(&rl->wait[sync]))
@@ -880,25 +904,25 @@ static void freed_request(struct request_list *rl, unsigned int flags)
 int blk_update_nr_requests(struct request_queue *q, unsigned int nr)
 {
 	struct request_list *rl;
+	int on_thresh, off_thresh;
 
 	spin_lock_irq(q->queue_lock);
 	q->nr_requests = nr;
 	blk_queue_congestion_threshold(q);
-
-	/* congestion isn't cgroup aware and follows root blkcg for now */
-	rl = &q->root_rl;
-
-	if (rl->count[BLK_RW_SYNC] >= queue_congestion_on_threshold(q))
-		blk_set_queue_congested(q, BLK_RW_SYNC);
-	else if (rl->count[BLK_RW_SYNC] < queue_congestion_off_threshold(q))
-		blk_clear_queue_congested(q, BLK_RW_SYNC);
-
-	if (rl->count[BLK_RW_ASYNC] >= queue_congestion_on_threshold(q))
-		blk_set_queue_congested(q, BLK_RW_ASYNC);
-	else if (rl->count[BLK_RW_ASYNC] < queue_congestion_off_threshold(q))
-		blk_clear_queue_congested(q, BLK_RW_ASYNC);
+	on_thresh = queue_congestion_on_threshold(q);
+	off_thresh = queue_congestion_off_threshold(q);
 
 	blk_queue_for_each_rl(rl, q) {
+		if (rl->count[BLK_RW_SYNC] >= on_thresh)
+			blk_set_congested(rl, BLK_RW_SYNC);
+		else if (rl->count[BLK_RW_SYNC] < off_thresh)
+			blk_clear_congested(rl, BLK_RW_SYNC);
+
+		if (rl->count[BLK_RW_ASYNC] >= on_thresh)
+			blk_set_congested(rl, BLK_RW_ASYNC);
+		else if (rl->count[BLK_RW_ASYNC] < off_thresh)
+			blk_clear_congested(rl, BLK_RW_ASYNC);
+
 		if (rl->count[BLK_RW_SYNC] >= q->nr_requests) {
 			blk_set_rl_full(rl, BLK_RW_SYNC);
 		} else {
@@ -1008,12 +1032,7 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
 				}
 			}
 		}
-		/*
-		 * bdi isn't aware of blkcg yet.  As all async IOs end up
-		 * root blkcg anyway, just use root blkcg state.
-		 */
-		if (rl == &q->root_rl)
-			blk_set_queue_congested(q, is_sync);
+		blk_set_congested(rl, is_sync);
 	}
 
 	/*
@@ -1521,7 +1540,8 @@ bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
  * Caller must ensure !blk_queue_nomerges(q) beforehand.
  */
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
-			    unsigned int *request_count)
+			    unsigned int *request_count,
+			    struct request **same_queue_rq)
 {
 	struct blk_plug *plug;
 	struct request *rq;
@@ -1541,8 +1561,16 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	list_for_each_entry_reverse(rq, plug_list, queuelist) {
 		int el_ret;
 
-		if (rq->q == q)
+		if (rq->q == q) {
 			(*request_count)++;
+			/*
+			 * Only blk-mq multiple hardware queues case checks the
+			 * rq in the same queue, there should be only one such
+			 * rq in a queue
+			 **/
+			if (same_queue_rq)
+				*same_queue_rq = rq;
+		}
 
 		if (rq->q != q || !blk_rq_merge_ok(rq, bio))
 			continue;
@@ -1576,7 +1604,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	blk_rq_bio_prep(req->q, req, bio);
 }
 
-void blk_queue_bio(struct request_queue *q, struct bio *bio)
+static void blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
 	const bool sync = !!(bio->bi_rw & REQ_SYNC);
 	struct blk_plug *plug;
@@ -1607,7 +1635,7 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 * any locks.
 	 */
 	if (!blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &request_count))
+	    blk_attempt_plug_merge(q, bio, &request_count, NULL))
 		return;
 
 	spin_lock_irq(q->queue_lock);
@@ -1684,7 +1712,6 @@ out_unlock:
 		spin_unlock_irq(q->queue_lock);
 	}
 }
-EXPORT_SYMBOL_GPL(blk_queue_bio);	/* for device mapper only */
 
 /*
  * If bio->bi_dev is a partition, remap the location
@@ -1715,8 +1742,6 @@ static void handle_bad_sector(struct bio *bio)
 			bio->bi_rw,
 			(unsigned long long)bio_end_sector(bio),
 			(long long)(i_size_read(bio->bi_bdev->bd_inode) >> 9));
-
-	set_bit(BIO_EOF, &bio->bi_flags);
 }
 
 #ifdef CONFIG_FAIL_MAKE_REQUEST
@@ -3031,21 +3056,20 @@ void blk_start_plug(struct blk_plug *plug)
 {
 	struct task_struct *tsk = current;
 
+	/*
+	 * If this is a nested plug, don't actually assign it.
+	 */
+	if (tsk->plug)
+		return;
+
 	INIT_LIST_HEAD(&plug->list);
 	INIT_LIST_HEAD(&plug->mq_list);
 	INIT_LIST_HEAD(&plug->cb_list);
-
 	/*
-	 * If this is a nested plug, don't actually assign it. It will be
-	 * flushed on its own.
+	 * Store ordering should not be needed here, since a potential
+	 * preempt will imply a full memory barrier
 	 */
-	if (!tsk->plug) {
-		/*
-		 * Store ordering should not be needed here, since a potential
-		 * preempt will imply a full memory barrier
-		 */
-		tsk->plug = plug;
-	}
+	tsk->plug = plug;
 }
 EXPORT_SYMBOL(blk_start_plug);
 
@@ -3192,10 +3216,11 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 
 void blk_finish_plug(struct blk_plug *plug)
 {
+	if (plug != current->plug)
+		return;
 	blk_flush_plug_list(plug, false);
 
-	if (plug == current->plug)
-		current->plug = NULL;
+	current->plug = NULL;
 }
 EXPORT_SYMBOL(blk_finish_plug);
 

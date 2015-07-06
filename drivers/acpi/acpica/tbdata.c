@@ -73,7 +73,7 @@ acpi_tb_init_table_descriptor(struct acpi_table_desc *table_desc,
 	 * Initialize the table descriptor. Set the pointer to NULL, since the
 	 * table is not fully mapped at this time.
 	 */
-	ACPI_MEMSET(table_desc, 0, sizeof(struct acpi_table_desc));
+	memset(table_desc, 0, sizeof(struct acpi_table_desc));
 	table_desc->address = address;
 	table_desc->length = table->length;
 	table_desc->flags = flags;
@@ -465,9 +465,9 @@ acpi_status acpi_tb_resize_root_table_list(void)
 	/* Copy and free the previous table array */
 
 	if (acpi_gbl_root_table_list.tables) {
-		ACPI_MEMCPY(tables, acpi_gbl_root_table_list.tables,
-			    (acpi_size) table_count *
-			    sizeof(struct acpi_table_desc));
+		memcpy(tables, acpi_gbl_root_table_list.tables,
+		       (acpi_size) table_count *
+		       sizeof(struct acpi_table_desc));
 
 		if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
 			ACPI_FREE(acpi_gbl_root_table_list.tables);

@@ -907,8 +907,14 @@ static void vfio_pci_request(void *device_data, unsigned int count)
 	mutex_lock(&vdev->igate);
 
 	if (vdev->req_trigger) {
-		dev_dbg(&vdev->pdev->dev, "Requesting device from user\n");
+		if (!(count % 10))
+			dev_notice_ratelimited(&vdev->pdev->dev,
+				"Relaying device request to user (#%u)\n",
+				count);
 		eventfd_signal(vdev->req_trigger, 1);
+	} else if (count == 0) {
+		dev_warn(&vdev->pdev->dev,
+			"No device request channel registered, blocked until released by user\n");
 	}
 
 	mutex_unlock(&vdev->igate);
@@ -1050,19 +1056,21 @@ struct vfio_devices {
 static int vfio_pci_get_devs(struct pci_dev *pdev, void *data)
 {
 	struct vfio_devices *devs = data;
-	struct pci_driver *pci_drv = ACCESS_ONCE(pdev->driver);
-
-	if (pci_drv != &vfio_pci_driver)
-		return -EBUSY;
+	struct vfio_device *device;
 
 	if (devs->cur_index == devs->max_index)
 		return -ENOSPC;
 
-	devs->devices[devs->cur_index] = vfio_device_get_from_dev(&pdev->dev);
-	if (!devs->devices[devs->cur_index])
+	device = vfio_device_get_from_dev(&pdev->dev);
+	if (!device)
 		return -EINVAL;
 
-	devs->cur_index++;
+	if (pci_dev_driver(pdev) != &vfio_pci_driver) {
+		vfio_device_put(device);
+		return -EBUSY;
+	}
+
+	devs->devices[devs->cur_index++] = device;
 	return 0;
 }
 

@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/crypto.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <crypto/b128ops.h>
 
 typedef void (*common_glue_func_t)(void *ctx, u8 *dst, const u8 *src);

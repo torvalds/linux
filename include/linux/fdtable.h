@@ -47,6 +47,9 @@ struct files_struct {
    * read mostly part
    */
 	atomic_t count;
+	bool resize_in_progress;
+	wait_queue_head_t resize_wait;
+
 	struct fdtable __rcu *fdt;
 	struct fdtable fdtab;
   /*

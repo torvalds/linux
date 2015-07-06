@@ -204,9 +204,8 @@ again:
 
 static void rapl_start_hrtimer(struct rapl_pmu *pmu)
 {
-	__hrtimer_start_range_ns(&pmu->hrtimer,
-			pmu->timer_interval, 0,
-			HRTIMER_MODE_REL_PINNED, 0);
+       hrtimer_start(&pmu->hrtimer, pmu->timer_interval,
+		     HRTIMER_MODE_REL_PINNED);
 }
 
 static void rapl_stop_hrtimer(struct rapl_pmu *pmu)
@@ -722,6 +721,7 @@ static int __init rapl_pmu_init(void)
 		break;
 	case 60: /* Haswell */
 	case 69: /* Haswell-Celeron */
+	case 61: /* Broadwell */
 		rapl_cntr_mask = RAPL_IDX_HSW;
 		rapl_pmu_events_group.attrs = rapl_events_hsw_attr;
 		break;

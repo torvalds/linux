@@ -151,7 +151,7 @@ config HAVE_SMP
 	  the CPU core definition and currently needs to be selected manually.
 
 	  Multiprocessor support in implemented with external cache and
-	  interrupt controlers.
+	  interrupt controllers.
 
 	  The MX interrupt distributer adds Interprocessor Interrupts
 	  and causes the IRQ numbers to be increased by 4 for devices

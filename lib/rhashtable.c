@@ -14,6 +14,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/log2.h>
@@ -25,6 +26,7 @@
 #include <linux/random.h>
 #include <linux/rhashtable.h>
 #include <linux/err.h>
+#include <linux/export.h>
 
 #define HASH_DEFAULT_SIZE	64UL
 #define HASH_MIN_SIZE		4U
@@ -405,13 +407,18 @@ int rhashtable_insert_rehash(struct rhashtable *ht)
 
 	if (rht_grow_above_75(ht, tbl))
 		size *= 2;
-	/* More than two rehashes (not resizes) detected. */
-	else if (WARN_ON(old_tbl != tbl && old_tbl->size == size))
+	/* Do not schedule more than one rehash */
+	else if (old_tbl != tbl)
 		return -EBUSY;
 
 	new_tbl = bucket_table_alloc(ht, size, GFP_ATOMIC);
-	if (new_tbl == NULL)
+	if (new_tbl == NULL) {
+		/* Schedule async resize/rehash to try allocation
+		 * non-atomic context.
+		 */
+		schedule_work(&ht->run_work);
 		return -ENOMEM;
+	}
 
 	err = rhashtable_rehash_attach(ht, tbl, new_tbl);
 	if (err) {
@@ -439,6 +446,10 @@ int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 
 	err = -EEXIST;
 	if (key && rhashtable_lookup_fast(ht, key, ht->p))
+		goto exit;
+
+	err = -E2BIG;
+	if (unlikely(rht_grow_above_max(ht, tbl)))
 		goto exit;
 
 	err = -EAGAIN;
@@ -574,7 +585,6 @@ void *rhashtable_walk_next(struct rhashtable_iter *iter)
 	struct bucket_table *tbl = iter->walker->tbl;
 	struct rhashtable *ht = iter->ht;
 	struct rhash_head *p = iter->p;
-	void *obj = NULL;
 
 	if (p) {
 		p = rht_dereference_bucket_rcu(p->next, tbl, iter->slot);
@@ -594,8 +604,7 @@ next:
 		if (!rht_is_a_nulls(p)) {
 			iter->skip++;
 			iter->p = p;
-			obj = rht_obj(ht, p);
-			goto out;
+			return rht_obj(ht, p);
 		}
 
 		iter->skip = 0;
@@ -613,9 +622,7 @@ next:
 
 	iter->p = NULL;
 
-out:
-
-	return obj;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(rhashtable_walk_next);
 
@@ -732,6 +739,12 @@ int rhashtable_init(struct rhashtable *ht,
 
 	if (params->max_size)
 		ht->p.max_size = rounddown_pow_of_two(params->max_size);
+
+	if (params->insecure_max_entries)
+		ht->p.insecure_max_entries =
+			rounddown_pow_of_two(params->insecure_max_entries);
+	else
+		ht->p.insecure_max_entries = ht->p.max_size * 2;
 
 	ht->p.min_size = max(ht->p.min_size, HASH_MIN_SIZE);
 

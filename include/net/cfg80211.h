@@ -111,7 +111,7 @@ enum ieee80211_band {
  *	This may be due to the driver or due to regulatory bandwidth
  *	restrictions.
  * @IEEE80211_CHAN_INDOOR_ONLY: see %NL80211_FREQUENCY_ATTR_INDOOR_ONLY
- * @IEEE80211_CHAN_GO_CONCURRENT: see %NL80211_FREQUENCY_ATTR_GO_CONCURRENT
+ * @IEEE80211_CHAN_IR_CONCURRENT: see %NL80211_FREQUENCY_ATTR_IR_CONCURRENT
  * @IEEE80211_CHAN_NO_20MHZ: 20 MHz bandwidth is not permitted
  *	on this channel.
  * @IEEE80211_CHAN_NO_10MHZ: 10 MHz bandwidth is not permitted
@@ -129,7 +129,7 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_80MHZ		= 1<<7,
 	IEEE80211_CHAN_NO_160MHZ	= 1<<8,
 	IEEE80211_CHAN_INDOOR_ONLY	= 1<<9,
-	IEEE80211_CHAN_GO_CONCURRENT	= 1<<10,
+	IEEE80211_CHAN_IR_CONCURRENT	= 1<<10,
 	IEEE80211_CHAN_NO_20MHZ		= 1<<11,
 	IEEE80211_CHAN_NO_10MHZ		= 1<<12,
 };
@@ -4575,13 +4575,15 @@ void cfg80211_roamed_bss(struct net_device *dev, struct cfg80211_bss *bss,
  * @ie: information elements of the deauth/disassoc frame (may be %NULL)
  * @ie_len: length of IEs
  * @reason: reason code for the disconnection, set it to 0 if unknown
+ * @locally_generated: disconnection was requested locally
  * @gfp: allocation flags
  *
  * After it calls this function, the driver should enter an idle state
  * and not try to connect to any AP any more.
  */
 void cfg80211_disconnected(struct net_device *dev, u16 reason,
-			   const u8 *ie, size_t ie_len, gfp_t gfp);
+			   const u8 *ie, size_t ie_len,
+			   bool locally_generated, gfp_t gfp);
 
 /**
  * cfg80211_ready_on_channel - notification of remain_on_channel start

@@ -247,6 +247,7 @@ struct nfsd4_open {
 	struct nfs4_openowner *op_openowner; /* used during processing */
 	struct nfs4_file *op_file;          /* used during processing */
 	struct nfs4_ol_stateid *op_stp;	    /* used during processing */
+	struct nfs4_clnt_odstate *op_odstate; /* used during processing */
 	struct nfs4_acl *op_acl;
 	struct xdr_netobj op_label;
 };
@@ -272,6 +273,7 @@ struct nfsd4_read {
 	u32		rd_length;          /* request */
 	int		rd_vlen;
 	struct file     *rd_filp;
+	bool		rd_tmp_file;
 	
 	struct svc_rqst *rd_rqstp;          /* response */
 	struct svc_fh * rd_fhp;             /* response */

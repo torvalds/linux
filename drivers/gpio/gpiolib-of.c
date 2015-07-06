@@ -242,7 +242,7 @@ int of_gpio_simple_xlate(struct gpio_chip *gc,
 {
 	/*
 	 * We're discouraging gpio_cells < 2, since that way you'll have to
-	 * write your own xlate function (that will have to retrive the GPIO
+	 * write your own xlate function (that will have to retrieve the GPIO
 	 * number and the flags from a single gpio cell -- this is possible,
 	 * but not recommended).
 	 */

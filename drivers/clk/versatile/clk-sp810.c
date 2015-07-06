@@ -135,7 +135,7 @@ static struct clk *clk_sp810_timerclken_of_get(struct of_phandle_args *clkspec,
 	return sp810->timerclken[clkspec->args[0]].clk;
 }
 
-void __init clk_sp810_of_setup(struct device_node *node)
+static void __init clk_sp810_of_setup(struct device_node *node)
 {
 	struct clk_sp810 *sp810 = kzalloc(sizeof(*sp810), GFP_KERNEL);
 	const char *parent_names[2];
@@ -156,7 +156,7 @@ void __init clk_sp810_of_setup(struct device_node *node)
 			"timclk");
 	parent_names[1] = of_clk_get_parent_name(node, sp810->timclk_index);
 
-	if (parent_names[0] <= 0 || parent_names[1] <= 0) {
+	if (!parent_names[0] || !parent_names[1]) {
 		pr_warn("Failed to obtain parent clocks for SP810!\n");
 		return;
 	}

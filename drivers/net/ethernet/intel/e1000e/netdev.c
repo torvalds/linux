@@ -1,5 +1,5 @@
 /* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2014 Intel Corporation.
+ * Copyright(c) 1999 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -48,7 +48,7 @@
 
 #define DRV_EXTRAVERSION "-k"
 
-#define DRV_VERSION "2.3.2" DRV_EXTRAVERSION
+#define DRV_VERSION "3.2.5" DRV_EXTRAVERSION
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
@@ -3525,22 +3525,30 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca)
 	switch (hw->mac.type) {
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
-	case e1000_pch_spt:
-		/* On I217, I218 and I219, the clock frequency is 25MHz
-		 * or 96MHz as indicated by the System Clock Frequency
-		 * Indication
-		 */
-		if (((hw->mac.type != e1000_pch_lpt) &&
-		     (hw->mac.type != e1000_pch_spt)) ||
-		    (er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_SYSCFI)) {
+		if (er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_SYSCFI) {
 			/* Stable 96MHz frequency */
 			incperiod = INCPERIOD_96MHz;
 			incvalue = INCVALUE_96MHz;
 			shift = INCVALUE_SHIFT_96MHz;
 			adapter->cc.shift = shift + INCPERIOD_SHIFT_96MHz;
+		} else {
+			/* Stable 25MHz frequency */
+			incperiod = INCPERIOD_25MHz;
+			incvalue = INCVALUE_25MHz;
+			shift = INCVALUE_SHIFT_25MHz;
+			adapter->cc.shift = shift;
+		}
+		break;
+	case e1000_pch_spt:
+		if (er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_SYSCFI) {
+			/* Stable 24MHz frequency */
+			incperiod = INCPERIOD_24MHz;
+			incvalue = INCVALUE_24MHz;
+			shift = INCVALUE_SHIFT_24MHz;
+			adapter->cc.shift = shift;
 			break;
 		}
-		/* fall-through */
+		return -EINVAL;
 	case e1000_82574:
 	case e1000_82583:
 		/* Stable 25MHz frequency */
@@ -3788,6 +3796,108 @@ static void e1000_power_down_phy(struct e1000_adapter *adapter)
 }
 
 /**
+ * e1000_flush_tx_ring - remove all descriptors from the tx_ring
+ *
+ * We want to clear all pending descriptors from the TX ring.
+ * zeroing happens when the HW reads the regs. We  assign the ring itself as
+ * the data of the next descriptor. We don't care about the data we are about
+ * to reset the HW.
+ */
+static void e1000_flush_tx_ring(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct e1000_ring *tx_ring = adapter->tx_ring;
+	struct e1000_tx_desc *tx_desc = NULL;
+	u32 tdt, tctl, txd_lower = E1000_TXD_CMD_IFCS;
+	u16 size = 512;
+
+	tctl = er32(TCTL);
+	ew32(TCTL, tctl | E1000_TCTL_EN);
+	tdt = er32(TDT(0));
+	BUG_ON(tdt != tx_ring->next_to_use);
+	tx_desc =  E1000_TX_DESC(*tx_ring, tx_ring->next_to_use);
+	tx_desc->buffer_addr = tx_ring->dma;
+
+	tx_desc->lower.data = cpu_to_le32(txd_lower | size);
+	tx_desc->upper.data = 0;
+	/* flush descriptors to memory before notifying the HW */
+	wmb();
+	tx_ring->next_to_use++;
+	if (tx_ring->next_to_use == tx_ring->count)
+		tx_ring->next_to_use = 0;
+	ew32(TDT(0), tx_ring->next_to_use);
+	mmiowb();
+	usleep_range(200, 250);
+}
+
+/**
+ * e1000_flush_rx_ring - remove all descriptors from the rx_ring
+ *
+ * Mark all descriptors in the RX ring as consumed and disable the rx ring
+ */
+static void e1000_flush_rx_ring(struct e1000_adapter *adapter)
+{
+	u32 rctl, rxdctl;
+	struct e1000_hw *hw = &adapter->hw;
+
+	rctl = er32(RCTL);
+	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+	e1e_flush();
+	usleep_range(100, 150);
+
+	rxdctl = er32(RXDCTL(0));
+	/* zero the lower 14 bits (prefetch and host thresholds) */
+	rxdctl &= 0xffffc000;
+
+	/* update thresholds: prefetch threshold to 31, host threshold to 1
+	 * and make sure the granularity is "descriptors" and not "cache lines"
+	 */
+	rxdctl |= (0x1F | (1 << 8) | E1000_RXDCTL_THRESH_UNIT_DESC);
+
+	ew32(RXDCTL(0), rxdctl);
+	/* momentarily enable the RX ring for the changes to take effect */
+	ew32(RCTL, rctl | E1000_RCTL_EN);
+	e1e_flush();
+	usleep_range(100, 150);
+	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+}
+
+/**
+ * e1000_flush_desc_rings - remove all descriptors from the descriptor rings
+ *
+ * In i219, the descriptor rings must be emptied before resetting the HW
+ * or before changing the device state to D3 during runtime (runtime PM).
+ *
+ * Failure to do this will cause the HW to enter a unit hang state which can
+ * only be released by PCI reset on the device
+ *
+ */
+
+static void e1000_flush_desc_rings(struct e1000_adapter *adapter)
+{
+	u16 hang_state;
+	u32 fext_nvm11, tdlen;
+	struct e1000_hw *hw = &adapter->hw;
+
+	/* First, disable MULR fix in FEXTNVM11 */
+	fext_nvm11 = er32(FEXTNVM11);
+	fext_nvm11 |= E1000_FEXTNVM11_DISABLE_MULR_FIX;
+	ew32(FEXTNVM11, fext_nvm11);
+	/* do nothing if we're not in faulty state, or if the queue is empty */
+	tdlen = er32(TDLEN(0));
+	pci_read_config_word(adapter->pdev, PCICFG_DESC_RING_STATUS,
+			     &hang_state);
+	if (!(hang_state & FLUSH_DESC_REQUIRED) || !tdlen)
+		return;
+	e1000_flush_tx_ring(adapter);
+	/* recheck, maybe the fault is caused by the rx ring */
+	pci_read_config_word(adapter->pdev, PCICFG_DESC_RING_STATUS,
+			     &hang_state);
+	if (hang_state & FLUSH_DESC_REQUIRED)
+		e1000_flush_rx_ring(adapter);
+}
+
+/**
  * e1000e_reset - bring the hardware into a known good state
  *
  * This function boots the hardware and enables some settings that
@@ -3807,7 +3917,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	/* reset Packet Buffer Allocation to default */
 	ew32(PBA, pba);
 
-	if (adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) {
+	if (adapter->max_frame_size > (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)) {
 		/* To maintain wire speed transmits, the Tx FIFO should be
 		 * large enough to accommodate two full transmit packets,
 		 * rounded up to the next 1KB and expressed in KB.  Likewise,
@@ -3943,6 +4053,8 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		}
 	}
 
+	if (hw->mac.type == e1000_pch_spt)
+		e1000_flush_desc_rings(adapter);
 	/* Allow time for pending master requests to run */
 	mac->ops.reset_hw(hw);
 
@@ -4016,6 +4128,20 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		phy_data &= ~IGP02E1000_PM_SPD;
 		e1e_wphy(hw, IGP02E1000_PHY_POWER_MGMT, phy_data);
 	}
+	if (hw->mac.type == e1000_pch_spt && adapter->int_mode == 0) {
+		u32 reg;
+
+		/* Fextnvm7 @ 0xe4[2] = 1 */
+		reg = er32(FEXTNVM7);
+		reg |= E1000_FEXTNVM7_SIDE_CLK_UNGATE;
+		ew32(FEXTNVM7, reg);
+		/* Fextnvm9 @ 0x5bb4[13:12] = 11 */
+		reg = er32(FEXTNVM9);
+		reg |= E1000_FEXTNVM9_IOSFSB_CLKGATE_DIS |
+		       E1000_FEXTNVM9_IOSFSB_CLKREQ_DIS;
+		ew32(FEXTNVM9, reg);
+	}
+
 }
 
 int e1000e_up(struct e1000_adapter *adapter)
@@ -4115,8 +4241,6 @@ void e1000e_down(struct e1000_adapter *adapter, bool reset)
 	spin_unlock(&adapter->stats64_lock);
 
 	e1000e_flush_descriptors(adapter);
-	e1000_clean_tx_ring(adapter->tx_ring);
-	e1000_clean_rx_ring(adapter->rx_ring);
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
@@ -4127,8 +4251,14 @@ void e1000e_down(struct e1000_adapter *adapter, bool reset)
 	    e1000_lv_jumbo_workaround_ich8lan(hw, false))
 		e_dbg("failed to disable jumbo frame workaround mode\n");
 
-	if (reset && !pci_channel_offline(adapter->pdev))
-		e1000e_reset(adapter);
+	if (!pci_channel_offline(adapter->pdev)) {
+		if (reset)
+			e1000e_reset(adapter);
+		else if (hw->mac.type == e1000_pch_spt)
+			e1000_flush_desc_rings(adapter);
+	}
+	e1000_clean_tx_ring(adapter->tx_ring);
+	e1000_clean_rx_ring(adapter->rx_ring);
 }
 
 void e1000e_reinit_locked(struct e1000_adapter *adapter)
@@ -4151,9 +4281,16 @@ static cycle_t e1000e_cyclecounter_read(const struct cyclecounter *cc)
 						     cc);
 	struct e1000_hw *hw = &adapter->hw;
 	cycle_t systim, systim_next;
+	/* SYSTIMH latching upon SYSTIML read does not work well. To fix that
+	 * we don't want to allow overflow of SYSTIML and a change to SYSTIMH
+	 * to occur between reads, so if we read a vale close to overflow, we
+	 * wait for overflow to occur and read both registers when its safe.
+	 */
+	u32 systim_overflow_latch_fix = 0x3FFFFFFF;
 
-	/* latch SYSTIMH on read of SYSTIML */
-	systim = (cycle_t)er32(SYSTIML);
+	do {
+		systim = (cycle_t)er32(SYSTIML);
+	} while (systim > systim_overflow_latch_fix);
 	systim |= (cycle_t)er32(SYSTIMH) << 32;
 
 	if ((hw->mac.type == e1000_82574) || (hw->mac.type == e1000_82583)) {
@@ -4196,9 +4333,9 @@ static int e1000_sw_init(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	adapter->rx_buffer_len = ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN;
+	adapter->rx_buffer_len = VLAN_ETH_FRAME_LEN + ETH_FCS_LEN;
 	adapter->rx_ps_bsize0 = 128;
-	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	adapter->max_frame_size = netdev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 	adapter->tx_ring_count = E1000_DEFAULT_TXD;
 	adapter->rx_ring_count = E1000_DEFAULT_RXD;
@@ -5781,17 +5918,17 @@ struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
 static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	int max_frame = new_mtu + VLAN_HLEN + ETH_HLEN + ETH_FCS_LEN;
+	int max_frame = new_mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 
 	/* Jumbo frame support */
-	if ((max_frame > ETH_FRAME_LEN + ETH_FCS_LEN) &&
+	if ((max_frame > (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)) &&
 	    !(adapter->flags & FLAG_HAS_JUMBO_FRAMES)) {
 		e_err("Jumbo Frames not supported.\n");
 		return -EINVAL;
 	}
 
 	/* Supported frame sizes */
-	if ((new_mtu < ETH_ZLEN + ETH_FCS_LEN + VLAN_HLEN) ||
+	if ((new_mtu < (VLAN_ETH_ZLEN + ETH_FCS_LEN)) ||
 	    (max_frame > adapter->max_hw_frame_size)) {
 		e_err("Unsupported MTU setting\n");
 		return -EINVAL;
@@ -5831,10 +5968,8 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		adapter->rx_buffer_len = 4096;
 
 	/* adjust allocation if LPE protects us, and we aren't using SBP */
-	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN) ||
-	    (max_frame == ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN))
-		adapter->rx_buffer_len = ETH_FRAME_LEN + VLAN_HLEN
-		    + ETH_FCS_LEN;
+	if (max_frame <= (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN))
+		adapter->rx_buffer_len = VLAN_ETH_FRAME_LEN + ETH_FCS_LEN;
 
 	if (netif_running(netdev))
 		e1000e_up(adapter);
@@ -6219,13 +6354,14 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 }
 
 /**
- * e1000e_disable_aspm - Disable ASPM states
+ * __e1000e_disable_aspm - Disable ASPM states
  * @pdev: pointer to PCI device struct
  * @state: bit-mask of ASPM states to disable
+ * @locked: indication if this context holds pci_bus_sem locked.
  *
  * Some devices *must* have certain ASPM states disabled per hardware errata.
  **/
-static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
+static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state, int locked)
 {
 	struct pci_dev *parent = pdev->bus->self;
 	u16 aspm_dis_mask = 0;
@@ -6264,7 +6400,10 @@ static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 		 "L1" : "");
 
 #ifdef CONFIG_PCIEASPM
-	pci_disable_link_state_locked(pdev, state);
+	if (locked)
+		pci_disable_link_state_locked(pdev, state);
+	else
+		pci_disable_link_state(pdev, state);
 
 	/* Double-check ASPM control.  If not disabled by the above, the
 	 * BIOS is preventing that from happening (or CONFIG_PCIEASPM is
@@ -6287,6 +6426,32 @@ static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 					   aspm_dis_mask);
 }
 
+/**
+ * e1000e_disable_aspm - Disable ASPM states.
+ * @pdev: pointer to PCI device struct
+ * @state: bit-mask of ASPM states to disable
+ *
+ * This function acquires the pci_bus_sem!
+ * Some devices *must* have certain ASPM states disabled per hardware errata.
+ **/
+static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
+{
+	__e1000e_disable_aspm(pdev, state, 0);
+}
+
+/**
+ * e1000e_disable_aspm_locked   Disable ASPM states.
+ * @pdev: pointer to PCI device struct
+ * @state: bit-mask of ASPM states to disable
+ *
+ * This function must be called with pci_bus_sem acquired!
+ * Some devices *must* have certain ASPM states disabled per hardware errata.
+ **/
+static void e1000e_disable_aspm_locked(struct pci_dev *pdev, u16 state)
+{
+	__e1000e_disable_aspm(pdev, state, 1);
+}
+
 #ifdef CONFIG_PM
 static int __e1000_resume(struct pci_dev *pdev)
 {
@@ -6300,7 +6465,7 @@ static int __e1000_resume(struct pci_dev *pdev)
 	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
 		aspm_disable_flag |= PCIE_LINK_STATE_L1;
 	if (aspm_disable_flag)
-		e1000e_disable_aspm(pdev, aspm_disable_flag);
+		e1000e_disable_aspm_locked(pdev, aspm_disable_flag);
 
 	pci_set_master(pdev);
 
@@ -6678,6 +6843,19 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 	}
 }
 
+static netdev_features_t e1000_fix_features(struct net_device *netdev,
+					    netdev_features_t features)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+
+	/* Jumbo frame workaround on 82579 and newer requires CRC be stripped */
+	if ((hw->mac.type >= e1000_pch2lan) && (netdev->mtu > ETH_DATA_LEN))
+		features &= ~NETIF_F_RXFCS;
+
+	return features;
+}
+
 static int e1000_set_features(struct net_device *netdev,
 			      netdev_features_t features)
 {
@@ -6734,6 +6912,7 @@ static const struct net_device_ops e1000e_netdev_ops = {
 	.ndo_poll_controller	= e1000_netpoll,
 #endif
 	.ndo_set_features = e1000_set_features,
+	.ndo_fix_features = e1000_fix_features,
 };
 
 /**
@@ -7289,7 +7468,7 @@ static int __init e1000_init_module(void)
 
 	pr_info("Intel(R) PRO/1000 Network Driver - %s\n",
 		e1000e_driver_version);
-	pr_info("Copyright(c) 1999 - 2014 Intel Corporation.\n");
+	pr_info("Copyright(c) 1999 - 2015 Intel Corporation.\n");
 	ret = pci_register_driver(&e1000_driver);
 
 	return ret;

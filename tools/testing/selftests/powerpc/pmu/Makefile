@@ -26,7 +26,7 @@ override define EMIT_TESTS
 	$(MAKE) -s -C ebb emit_tests
 endef
 
-DEFAULT_INSTALL := $(INSTALL_RULE)
+DEFAULT_INSTALL_RULE := $(INSTALL_RULE)
 override define INSTALL_RULE
 	$(DEFAULT_INSTALL_RULE)
 	$(MAKE) -C ebb install

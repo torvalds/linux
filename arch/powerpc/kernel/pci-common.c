@@ -89,6 +89,7 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 #endif
 	return phb;
 }
+EXPORT_SYMBOL_GPL(pcibios_alloc_controller);
 
 void pcibios_free_controller(struct pci_controller *phb)
 {
@@ -1447,6 +1448,7 @@ void pcibios_claim_one_bus(struct pci_bus *bus)
 	list_for_each_entry(child_bus, &bus->children, node)
 		pcibios_claim_one_bus(child_bus);
 }
+EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
 
 
 /* pcibios_finish_adding_to_bus
@@ -1486,6 +1488,14 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 			return -EINVAL;
 
 	return pci_enable_resources(dev, mask);
+}
+
+void pcibios_disable_device(struct pci_dev *dev)
+{
+	struct pci_controller *phb = pci_bus_to_host(dev->bus);
+
+	if (phb->controller_ops.disable_device)
+		phb->controller_ops.disable_device(dev);
 }
 
 resource_size_t pcibios_io_space_offset(struct pci_controller *hose)
@@ -1680,6 +1690,7 @@ void pcibios_scan_phb(struct pci_controller *hose)
 			pcie_bus_configure_settings(child);
 	}
 }
+EXPORT_SYMBOL_GPL(pcibios_scan_phb);
 
 static void fixup_hide_host_resource_fsl(struct pci_dev *dev)
 {

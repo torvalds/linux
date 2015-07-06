@@ -300,7 +300,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_v6_daddr = sk->sk_v6_daddr;
 			tw->tw_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 			tw->tw_tclass = np->tclass;
-			tw->tw_flowlabel = np->flow_label >> 12;
+			tw->tw_flowlabel = be32_to_cpu(np->flow_label & IPV6_FLOWLABEL_MASK);
 			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
@@ -420,7 +420,10 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
 		rcu_read_unlock();
 	}
 
-	if (!ca_got_dst && !try_module_get(icsk->icsk_ca_ops->owner))
+	/* If no valid choice made yet, assign current system default ca. */
+	if (!ca_got_dst &&
+	    (!icsk->icsk_ca_setsockopt ||
+	     !try_module_get(icsk->icsk_ca_ops->owner)))
 		tcp_assign_congestion_control(sk);
 
 	tcp_set_ca_state(sk, TCP_CA_Open);
@@ -448,6 +451,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 
 		newtp->rcv_wup = newtp->copied_seq =
 		newtp->rcv_nxt = treq->rcv_isn + 1;
+		newtp->segs_in = 0;
 
 		newtp->snd_sml = newtp->snd_una =
 		newtp->snd_nxt = newtp->snd_up = treq->snt_isn + 1;
@@ -535,6 +539,9 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		tcp_ecn_openreq_child(newtp, req);
 		newtp->fastopen_rsk = NULL;
 		newtp->syn_data_acked = 0;
+
+		newtp->saved_syn = req->saved_syn;
+		req->saved_syn = NULL;
 
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 	}
@@ -755,10 +762,11 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (!child)
 		goto listen_overflow;
 
-	inet_csk_reqsk_queue_unlink(sk, req);
-	inet_csk_reqsk_queue_removed(sk, req);
-
+	inet_csk_reqsk_queue_drop(sk, req);
 	inet_csk_reqsk_queue_add(sk, req, child);
+	/* Warning: caller must not call reqsk_put(req);
+	 * child stole last reference on it.
+	 */
 	return child;
 
 listen_overflow:

@@ -89,7 +89,7 @@ EXPORT_SYMBOL(of_n_size_cells);
 #ifdef CONFIG_NUMA
 int __weak of_node_to_nid(struct device_node *np)
 {
-	return numa_node_id();
+	return NUMA_NO_NODE;
 }
 #endif
 
@@ -189,7 +189,7 @@ int __of_attach_node_sysfs(struct device_node *np)
 	return 0;
 }
 
-static int __init of_init(void)
+void __init of_core_init(void)
 {
 	struct device_node *np;
 
@@ -198,7 +198,8 @@ static int __init of_init(void)
 	of_kset = kset_create_and_add("devicetree", NULL, firmware_kobj);
 	if (!of_kset) {
 		mutex_unlock(&of_mutex);
-		return -ENOMEM;
+		pr_err("devicetree: failed to register existing nodes\n");
+		return;
 	}
 	for_each_of_allnodes(np)
 		__of_attach_node_sysfs(np);
@@ -207,10 +208,7 @@ static int __init of_init(void)
 	/* Symlink in /proc as required by userspace ABI */
 	if (of_root)
 		proc_symlink("device-tree", NULL, "/sys/firmware/devicetree/base");
-
-	return 0;
 }
-core_initcall(of_init);
 
 static struct property *__of_find_property(const struct device_node *np,
 					   const char *name, int *lenp)
@@ -2231,6 +2229,40 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 	}
 }
 EXPORT_SYMBOL(of_graph_get_next_endpoint);
+
+/**
+ * of_graph_get_endpoint_by_regs() - get endpoint node of specific identifiers
+ * @parent: pointer to the parent device node
+ * @port_reg: identifier (value of reg property) of the parent port node
+ * @reg: identifier (value of reg property) of the endpoint node
+ *
+ * Return: An 'endpoint' node pointer which is identified by reg and at the same
+ * is the child of a port node identified by port_reg. reg and port_reg are
+ * ignored when they are -1.
+ */
+struct device_node *of_graph_get_endpoint_by_regs(
+	const struct device_node *parent, int port_reg, int reg)
+{
+	struct of_endpoint endpoint;
+	struct device_node *node, *prev_node = NULL;
+
+	while (1) {
+		node = of_graph_get_next_endpoint(parent, prev_node);
+		of_node_put(prev_node);
+		if (!node)
+			break;
+
+		of_graph_parse_endpoint(node, &endpoint);
+		if (((port_reg == -1) || (endpoint.port == port_reg)) &&
+			((reg == -1) || (endpoint.id == reg)))
+			return node;
+
+		prev_node = node;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(of_graph_get_endpoint_by_regs);
 
 /**
  * of_graph_get_remote_port_parent() - get remote port's parent node

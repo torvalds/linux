@@ -342,9 +342,12 @@ static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
 	d_page->vaddr = dma_alloc_coherent(pool->dev, pool->size,
 					   &d_page->dma,
 					   pool->gfp_flags);
-	if (d_page->vaddr)
-		d_page->p = virt_to_page(d_page->vaddr);
-	else {
+	if (d_page->vaddr) {
+		if (is_vmalloc_addr(d_page->vaddr))
+			d_page->p = vmalloc_to_page(d_page->vaddr);
+		else
+			d_page->p = virt_to_page(d_page->vaddr);
+	} else {
 		kfree(d_page);
 		d_page = NULL;
 	}

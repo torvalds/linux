@@ -24,6 +24,7 @@
 #include <linux/ip.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
+#include <linux/irq.h>
 
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
@@ -578,7 +579,7 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 
 static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 	[PART_TOP_PRCM_ELP_SOC] = {
-		.mem  = { .start = 0x00A02000, .size  = 0x00010000 },
+		.mem  = { .start = 0x00A00000, .size  = 0x00012000 },
 		.reg  = { .start = 0x00807000, .size  = 0x00005000 },
 		.mem2 = { .start = 0x00800000, .size  = 0x0000B000 },
 		.mem3 = { .start = 0x00000000, .size  = 0x00000000 },
@@ -862,6 +863,7 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 {
 	u32 tmp;
 	int ret;
+	u16 irq_invert;
 
 	BUILD_BUG_ON(sizeof(struct wl18xx_mac_and_phy_params) >
 		WL18XX_PHY_INIT_MEM_SIZE);
@@ -911,6 +913,28 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 	/* re-enable FDSP clock */
 	ret = wlcore_write32(wl, WL18XX_PHY_FPGA_SPARE_1,
 			     MEM_FDSP_CLK_120_ENABLE);
+	if (ret < 0)
+		goto out;
+
+	ret = irq_get_trigger_type(wl->irq);
+	if ((ret == IRQ_TYPE_LEVEL_LOW) || (ret == IRQ_TYPE_EDGE_FALLING)) {
+		wl1271_info("using inverted interrupt logic: %d", ret);
+		ret = wlcore_set_partition(wl,
+					   &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+		if (ret < 0)
+			goto out;
+
+		ret = wl18xx_top_reg_read(wl, TOP_FN0_CCCR_REG_32, &irq_invert);
+		if (ret < 0)
+			goto out;
+
+		irq_invert |= BIT(1);
+		ret = wl18xx_top_reg_write(wl, TOP_FN0_CCCR_REG_32, irq_invert);
+		if (ret < 0)
+			goto out;
+
+		ret = wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
+	}
 
 out:
 	return ret;
@@ -1351,9 +1375,10 @@ out:
 }
 
 #define WL18XX_CONF_FILE_NAME "ti-connectivity/wl18xx-conf.bin"
-static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
+
+static int wl18xx_load_conf_file(struct device *dev, struct wlcore_conf *conf,
+				 struct wl18xx_priv_conf *priv_conf)
 {
-	struct wl18xx_priv *priv = wl->priv;
 	struct wlcore_conf_file *conf_file;
 	const struct firmware *fw;
 	int ret;
@@ -1362,14 +1387,14 @@ static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
 	if (ret < 0) {
 		wl1271_error("could not get configuration binary %s: %d",
 			     WL18XX_CONF_FILE_NAME, ret);
-		goto out_fallback;
+		return ret;
 	}
 
 	if (fw->size != WL18XX_CONF_SIZE) {
 		wl1271_error("configuration binary file size is wrong, expected %zu got %zu",
 			     WL18XX_CONF_SIZE, fw->size);
 		ret = -EINVAL;
-		goto out;
+		goto out_release;
 	}
 
 	conf_file = (struct wlcore_conf_file *) fw->data;
@@ -1379,7 +1404,7 @@ static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
 			     "expected 0x%0x got 0x%0x", WL18XX_CONF_MAGIC,
 			     conf_file->header.magic);
 		ret = -EINVAL;
-		goto out;
+		goto out_release;
 	}
 
 	if (conf_file->header.version != cpu_to_le32(WL18XX_CONF_VERSION)) {
@@ -1387,28 +1412,32 @@ static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
 			     "expected 0x%08x got 0x%08x",
 			     WL18XX_CONF_VERSION, conf_file->header.version);
 		ret = -EINVAL;
-		goto out;
+		goto out_release;
 	}
 
-	memcpy(&wl->conf, &conf_file->core, sizeof(wl18xx_conf));
-	memcpy(&priv->conf, &conf_file->priv, sizeof(priv->conf));
+	memcpy(conf, &conf_file->core, sizeof(*conf));
+	memcpy(priv_conf, &conf_file->priv, sizeof(*priv_conf));
 
-	goto out;
-
-out_fallback:
-	wl1271_warning("falling back to default config");
-
-	/* apply driver default configuration */
-	memcpy(&wl->conf, &wl18xx_conf, sizeof(wl18xx_conf));
-	/* apply default private configuration */
-	memcpy(&priv->conf, &wl18xx_default_priv_conf, sizeof(priv->conf));
-
-	/* For now we just fallback */
-	return 0;
-
-out:
+out_release:
 	release_firmware(fw);
 	return ret;
+}
+
+static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
+{
+	struct wl18xx_priv *priv = wl->priv;
+
+	if (wl18xx_load_conf_file(dev, &wl->conf, &priv->conf) < 0) {
+		wl1271_warning("falling back to default config");
+
+		/* apply driver default configuration */
+		memcpy(&wl->conf, &wl18xx_conf, sizeof(wl->conf));
+		/* apply default private configuration */
+		memcpy(&priv->conf, &wl18xx_default_priv_conf,
+		       sizeof(priv->conf));
+	}
+
+	return 0;
 }
 
 static int wl18xx_plt_init(struct wl1271 *wl)

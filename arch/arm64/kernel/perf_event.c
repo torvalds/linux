@@ -488,7 +488,7 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 			}
 
 			err = request_irq(irq, armpmu->handle_irq,
-					IRQF_NOBALANCING,
+					IRQF_NOBALANCING | IRQF_NO_THREAD,
 					"arm-pmu", armpmu);
 			if (err) {
 				pr_err("unable to request IRQ%d for ARM PMU counters\n",
@@ -1310,10 +1310,15 @@ static const struct of_device_id armpmu_of_device_ids[] = {
 
 static int armpmu_device_probe(struct platform_device *pdev)
 {
-	int i, *irqs;
+	int i, irq, *irqs;
 
 	if (!cpu_pmu)
 		return -ENODEV;
+
+	/* Don't bother with PPIs; they're already affine */
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0 && irq_is_percpu(irq))
+		goto out;
 
 	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
 	if (!irqs)
@@ -1327,7 +1332,7 @@ static int armpmu_device_probe(struct platform_device *pdev)
 				      i);
 		if (!dn) {
 			pr_warn("Failed to parse %s/interrupt-affinity[%d]\n",
-				of_node_full_name(dn), i);
+				of_node_full_name(pdev->dev.of_node), i);
 			break;
 		}
 
@@ -1335,12 +1340,13 @@ static int armpmu_device_probe(struct platform_device *pdev)
 			if (arch_find_n_match_cpu_physical_id(dn, cpu, NULL))
 				break;
 
-		of_node_put(dn);
 		if (cpu >= nr_cpu_ids) {
 			pr_warn("Failed to find logical CPU for %s\n",
 				dn->name);
+			of_node_put(dn);
 			break;
 		}
+		of_node_put(dn);
 
 		irqs[i] = cpu;
 	}
@@ -1350,6 +1356,7 @@ static int armpmu_device_probe(struct platform_device *pdev)
 	else
 		kfree(irqs);
 
+out:
 	cpu_pmu->plat_device = pdev;
 	return 0;
 }

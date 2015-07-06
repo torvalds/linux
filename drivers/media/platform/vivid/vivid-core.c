@@ -392,6 +392,17 @@ static int vidioc_s_parm(struct file *file, void *fh,
 	return vivid_vid_out_g_parm(file, fh, parm);
 }
 
+static int vidioc_log_status(struct file *file, void *fh)
+{
+	struct vivid_dev *dev = video_drvdata(file);
+	struct video_device *vdev = video_devdata(file);
+
+	v4l2_ctrl_log_status(file, fh);
+	if (vdev->vfl_dir == VFL_DIR_RX && vdev->vfl_type == VFL_TYPE_GRABBER)
+		tpg_log_status(&dev->tpg);
+	return 0;
+}
+
 static ssize_t vivid_radio_read(struct file *file, char __user *buf,
 			 size_t size, loff_t *offset)
 {
@@ -548,8 +559,8 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 
 	.vidioc_enum_fmt_sdr_cap	= vidioc_enum_fmt_sdr_cap,
 	.vidioc_g_fmt_sdr_cap		= vidioc_g_fmt_sdr_cap,
-	.vidioc_try_fmt_sdr_cap		= vidioc_g_fmt_sdr_cap,
-	.vidioc_s_fmt_sdr_cap		= vidioc_g_fmt_sdr_cap,
+	.vidioc_try_fmt_sdr_cap		= vidioc_try_fmt_sdr_cap,
+	.vidioc_s_fmt_sdr_cap		= vidioc_s_fmt_sdr_cap,
 
 	.vidioc_overlay			= vidioc_overlay,
 	.vidioc_enum_framesizes		= vidioc_enum_framesizes,
@@ -610,7 +621,7 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_g_edid			= vidioc_g_edid,
 	.vidioc_s_edid			= vidioc_s_edid,
 
-	.vidioc_log_status		= v4l2_ctrl_log_status,
+	.vidioc_log_status		= vidioc_log_status,
 	.vidioc_subscribe_event		= vidioc_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
@@ -966,6 +977,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	dev->radio_tx_subchans = V4L2_TUNER_SUB_STEREO | V4L2_TUNER_SUB_RDS;
 	dev->sdr_adc_freq = 300000;
 	dev->sdr_fm_freq = 50000000;
+	dev->sdr_pixelformat = V4L2_SDR_FMT_CU8;
+	dev->sdr_buffersize = SDR_CAP_SAMPLES_PER_BUF * 2;
+
 	dev->edid_max_blocks = dev->edid_blocks = 2;
 	memcpy(dev->edid, vivid_hdmi_edid, sizeof(vivid_hdmi_edid));
 	ktime_get_ts(&dev->radio_rds_init_ts);

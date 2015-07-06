@@ -31,7 +31,7 @@
 
 enum{
 		VOLTAGE_V25						= 0x03,
-		LDOE25_SHIFT						= 28 ,
+		LDOE25_SHIFT						= 28,
 	};
 
 /*

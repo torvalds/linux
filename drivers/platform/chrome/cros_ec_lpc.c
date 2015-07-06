@@ -46,6 +46,77 @@ static int ec_response_timed_out(void)
 	return 1;
 }
 
+static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
+				struct cros_ec_command *msg)
+{
+	struct ec_host_request *request;
+	struct ec_host_response response;
+	u8 sum = 0;
+	int i;
+	int ret = 0;
+	u8 *dout;
+
+	ret = cros_ec_prepare_tx(ec, msg);
+
+	/* Write buffer */
+	for (i = 0; i < ret; i++)
+		outb(ec->dout[i], EC_LPC_ADDR_HOST_PACKET + i);
+
+	request = (struct ec_host_request *)ec->dout;
+
+	/* Here we go */
+	outb(EC_COMMAND_PROTOCOL_3, EC_LPC_ADDR_HOST_CMD);
+
+	if (ec_response_timed_out()) {
+		dev_warn(ec->dev, "EC responsed timed out\n");
+		ret = -EIO;
+		goto done;
+	}
+
+	/* Check result */
+	msg->result = inb(EC_LPC_ADDR_HOST_DATA);
+	ret = cros_ec_check_result(ec, msg);
+	if (ret)
+		goto done;
+
+	/* Read back response */
+	dout = (u8 *)&response;
+	for (i = 0; i < sizeof(response); i++) {
+		dout[i] = inb(EC_LPC_ADDR_HOST_PACKET + i);
+		sum += dout[i];
+	}
+
+	msg->result = response.result;
+
+	if (response.data_len > msg->insize) {
+		dev_err(ec->dev,
+			"packet too long (%d bytes, expected %d)",
+			response.data_len, msg->insize);
+		ret = -EMSGSIZE;
+		goto done;
+	}
+
+	/* Read response and process checksum */
+	for (i = 0; i < response.data_len; i++) {
+		msg->data[i] =
+			inb(EC_LPC_ADDR_HOST_PACKET + sizeof(response) + i);
+		sum += msg->data[i];
+	}
+
+	if (sum) {
+		dev_err(ec->dev,
+			"bad packet checksum %02x\n",
+			response.checksum);
+		ret = -EBADMSG;
+		goto done;
+	}
+
+	/* Return actual amount of data received */
+	ret = response.data_len;
+done:
+	return ret;
+}
+
 static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 				struct cros_ec_command *msg)
 {
@@ -73,8 +144,8 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 
 	/* Copy data and update checksum */
 	for (i = 0; i < msg->outsize; i++) {
-		outb(msg->outdata[i], EC_LPC_ADDR_HOST_PARAM + i);
-		csum += msg->outdata[i];
+		outb(msg->data[i], EC_LPC_ADDR_HOST_PARAM + i);
+		csum += msg->data[i];
 	}
 
 	/* Finalize checksum and write args */
@@ -129,8 +200,8 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 
 	/* Read response and update checksum */
 	for (i = 0; i < args.data_size; i++) {
-		msg->indata[i] = inb(EC_LPC_ADDR_HOST_PARAM + i);
-		csum += msg->indata[i];
+		msg->data[i] = inb(EC_LPC_ADDR_HOST_PARAM + i);
+		csum += msg->data[i];
 	}
 
 	/* Verify checksum */
@@ -212,11 +283,13 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ec_dev);
 	ec_dev->dev = dev;
-	ec_dev->ec_name = pdev->name;
 	ec_dev->phys_name = dev_name(dev);
-	ec_dev->parent = dev;
 	ec_dev->cmd_xfer = cros_ec_cmd_xfer_lpc;
+	ec_dev->pkt_xfer = cros_ec_pkt_xfer_lpc;
 	ec_dev->cmd_readmem = cros_ec_lpc_readmem;
+	ec_dev->din_size = sizeof(struct ec_host_response) +
+			   sizeof(struct ec_response_get_protocol_info);
+	ec_dev->dout_size = sizeof(struct ec_host_request);
 
 	ret = cros_ec_register(ec_dev);
 	if (ret) {

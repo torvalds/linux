@@ -267,7 +267,7 @@ static int crb_acpi_add(struct acpi_device *device)
 
 	memcpy_fromio(&pa, &priv->cca->cmd_pa, 8);
 	pa = le64_to_cpu(pa);
-	priv->cmd = devm_ioremap_nocache(dev, le64_to_cpu(pa),
+	priv->cmd = devm_ioremap_nocache(dev, pa,
 					 ioread32(&priv->cca->cmd_size));
 	if (!priv->cmd) {
 		dev_err(dev, "ioremap of the command buffer failed\n");
@@ -276,7 +276,7 @@ static int crb_acpi_add(struct acpi_device *device)
 
 	memcpy_fromio(&pa, &priv->cca->rsp_pa, 8);
 	pa = le64_to_cpu(pa);
-	priv->rsp = devm_ioremap_nocache(dev, le64_to_cpu(pa),
+	priv->rsp = devm_ioremap_nocache(dev, pa,
 					 ioread32(&priv->cca->rsp_size));
 	if (!priv->rsp) {
 		dev_err(dev, "ioremap of the response buffer failed\n");

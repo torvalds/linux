@@ -59,7 +59,7 @@ struct stv0367cab_state {
 	int locked;			/* channel found		*/
 	u32 freq_khz;			/* found frequency (in kHz)	*/
 	u32 symbol_rate;		/* found symbol rate (in Bds)	*/
-	fe_spectral_inversion_t	spect_inv; /* Spectrum Inversion	*/
+	enum fe_spectral_inversion spect_inv; /* Spectrum Inversion	*/
 };
 
 struct stv0367ter_state {
@@ -67,10 +67,10 @@ struct stv0367ter_state {
 	enum stv0367_ter_signal_type state;
 	enum stv0367_ter_if_iq_mode if_iq_mode;
 	enum stv0367_ter_mode mode;/* mode 2K or 8K */
-	fe_guard_interval_t guard;
+	enum fe_guard_interval guard;
 	enum stv0367_ter_hierarchy hierarchy;
 	u32 frequency;
-	fe_spectral_inversion_t  sense; /*  current search spectrum */
+	enum fe_spectral_inversion sense; /*  current search spectrum */
 	u8  force; /* force mode/guard */
 	u8  bw; /* channel width 6, 7 or 8 in MHz */
 	u8  pBW; /* channel width used during previous lock */
@@ -2074,7 +2074,8 @@ static int stv0367ter_status(struct dvb_frontend *fe)
 	return locked;
 }
 #endif
-static int stv0367ter_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int stv0367ter_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 
@@ -2716,7 +2717,8 @@ static u32 stv0367cab_GetSymbolRate(struct stv0367_state *state, u32 mclk_hz)
 	return regsym;
 }
 
-static int stv0367cab_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int stv0367cab_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 

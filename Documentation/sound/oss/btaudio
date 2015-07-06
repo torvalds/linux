@@ -29,7 +29,7 @@ Driver Status
 
 Still somewhat experimental.  The driver should work stable, i.e. it
 should'nt crash your box.  It might not work as expected, have bugs,
-not being fully OSS API compilant, ...
+not being fully OSS API compliant, ...
 
 Latest versions are available from http://bytesex.org/bttv/, the
 driver is in the bttv tarball.  Kernel patches might be available too,

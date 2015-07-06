@@ -1601,7 +1601,7 @@ int l2cap_register_user(struct l2cap_conn *conn, struct l2cap_user *user)
 
 	hci_dev_lock(hdev);
 
-	if (user->list.next || user->list.prev) {
+	if (!list_empty(&user->list)) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1631,12 +1631,10 @@ void l2cap_unregister_user(struct l2cap_conn *conn, struct l2cap_user *user)
 
 	hci_dev_lock(hdev);
 
-	if (!user->list.next || !user->list.prev)
+	if (list_empty(&user->list))
 		goto out_unlock;
 
-	list_del(&user->list);
-	user->list.next = NULL;
-	user->list.prev = NULL;
+	list_del_init(&user->list);
 	user->remove(conn, user);
 
 out_unlock:
@@ -1650,9 +1648,7 @@ static void l2cap_unregister_all_users(struct l2cap_conn *conn)
 
 	while (!list_empty(&conn->users)) {
 		user = list_first_entry(&conn->users, struct l2cap_user, list);
-		list_del(&user->list);
-		user->list.next = NULL;
-		user->list.prev = NULL;
+		list_del_init(&user->list);
 		user->remove(conn, user);
 	}
 }
@@ -7442,7 +7438,7 @@ static void l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 	mutex_unlock(&conn->chan_lock);
 }
 
-int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
+void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct l2cap_hdr *hdr;
@@ -7485,7 +7481,7 @@ int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 		if (len == skb->len) {
 			/* Complete frame received */
 			l2cap_recv_frame(conn, skb);
-			return 0;
+			return;
 		}
 
 		BT_DBG("Start: total len %d, frag len %d", len, skb->len);
@@ -7544,7 +7540,6 @@ int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 
 drop:
 	kfree_skb(skb);
-	return 0;
 }
 
 static struct hci_cb l2cap_cb = {

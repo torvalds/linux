@@ -244,6 +244,12 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 	return mlx4_en_alloc_frags(priv, rx_desc, frags, ring->page_alloc, gfp);
 }
 
+static inline bool mlx4_en_is_ring_empty(struct mlx4_en_rx_ring *ring)
+{
+	BUG_ON((u32)(ring->prod - ring->cons) > ring->actual_size);
+	return ring->prod == ring->cons;
+}
+
 static inline void mlx4_en_update_rx_prod_db(struct mlx4_en_rx_ring *ring)
 {
 	*ring->wqres.db.db = cpu_to_be32(ring->prod & 0xffff);
@@ -315,8 +321,7 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 	       ring->cons, ring->prod);
 
 	/* Unmap and free Rx buffers */
-	BUG_ON((u32) (ring->prod - ring->cons) > ring->actual_size);
-	while (ring->cons != ring->prod) {
+	while (!mlx4_en_is_ring_empty(ring)) {
 		index = ring->cons & ring->size_mask;
 		en_dbg(DRV, priv, "Processing descriptor:%d\n", index);
 		mlx4_en_free_rx_desc(priv, ring, index);
@@ -332,15 +337,10 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
 	struct mlx4_dev *dev = mdev->dev;
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		if (!dev->caps.comp_pool)
-			num_of_eqs = max_t(int, MIN_RX_RINGS,
-					   min_t(int,
-						 dev->caps.num_comp_vectors,
-						 DEF_RX_RINGS));
-		else
-			num_of_eqs = min_t(int, MAX_MSIX_P_PORT,
-					   dev->caps.comp_pool/
-					   dev->caps.num_ports) - 1;
+		num_of_eqs = max_t(int, MIN_RX_RINGS,
+				   min_t(int,
+					 mlx4_get_eqs_per_port(mdev->dev, i),
+					 DEF_RX_RINGS));
 
 		num_rx_rings = mlx4_low_memory_profile() ? MIN_RX_RINGS :
 			min_t(int, num_of_eqs,
@@ -489,6 +489,23 @@ err_allocator:
 		ring_ind--;
 	}
 	return err;
+}
+
+/* We recover from out of memory by scheduling our napi poll
+ * function (mlx4_en_process_cq), which tries to allocate
+ * all missing RX buffers (call to mlx4_en_refill_rx_buffers).
+ */
+void mlx4_en_recover_from_oom(struct mlx4_en_priv *priv)
+{
+	int ring;
+
+	if (!priv->port_up)
+		return;
+
+	for (ring = 0; ring < priv->rx_ring_num; ring++) {
+		if (mlx4_en_is_ring_empty(priv->rx_ring[ring]))
+			napi_reschedule(&priv->rx_cq[ring]->napi);
+	}
 }
 
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
@@ -701,7 +718,7 @@ static int get_fixed_ipv6_csum(__wsum hw_checksum, struct sk_buff *skb,
 }
 #endif
 static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
-		      int hwtstamp_rx_filter)
+		      netdev_features_t dev_features)
 {
 	__wsum hw_checksum = 0;
 
@@ -709,14 +726,8 @@ static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
 
 	hw_checksum = csum_unfold((__force __sum16)cqe->checksum);
 
-	if (((struct ethhdr *)va)->h_proto == htons(ETH_P_8021Q) &&
-	    hwtstamp_rx_filter != HWTSTAMP_FILTER_NONE) {
-		/* next protocol non IPv4 or IPv6 */
-		if (((struct vlan_hdr *)hdr)->h_vlan_encapsulated_proto
-		    != htons(ETH_P_IP) &&
-		    ((struct vlan_hdr *)hdr)->h_vlan_encapsulated_proto
-		    != htons(ETH_P_IPV6))
-			return -1;
+	if (cqe->vlan_my_qpn & cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK) &&
+	    !(dev_features & NETIF_F_HW_VLAN_CTAG_RX)) {
 		hw_checksum = get_fixed_vlan_csum(hw_checksum, hdr);
 		hdr += sizeof(struct vlan_hdr);
 	}
@@ -879,7 +890,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 			if (ip_summed == CHECKSUM_COMPLETE) {
 				void *va = skb_frag_address(skb_shinfo(gro_skb)->frags);
-				if (check_csum(cqe, gro_skb, va, ring->hwtstamp_rx_filter)) {
+				if (check_csum(cqe, gro_skb, va,
+					       dev->features)) {
 					ip_summed = CHECKSUM_NONE;
 					ring->csum_none++;
 					ring->csum_complete--;
@@ -934,7 +946,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		}
 
 		if (ip_summed == CHECKSUM_COMPLETE) {
-			if (check_csum(cqe, skb, skb->data, ring->hwtstamp_rx_filter)) {
+			if (check_csum(cqe, skb, skb->data, dev->features)) {
 				ip_summed = CHECKSUM_NONE;
 				ring->csum_complete--;
 				ring->csum_none++;

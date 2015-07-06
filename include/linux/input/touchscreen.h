@@ -12,9 +12,10 @@
 #include <linux/input.h>
 
 #ifdef CONFIG_OF
-void touchscreen_parse_of_params(struct input_dev *dev);
+void touchscreen_parse_of_params(struct input_dev *dev, bool multitouch);
 #else
-static inline void touchscreen_parse_of_params(struct input_dev *dev)
+static inline void touchscreen_parse_of_params(struct input_dev *dev,
+					       bool multitouch)
 {
 }
 #endif

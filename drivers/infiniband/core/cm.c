@@ -267,7 +267,8 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 	m = ib_create_send_mad(mad_agent, cm_id_priv->id.remote_cm_qpn,
 			       cm_id_priv->av.pkey_index,
 			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
-			       GFP_ATOMIC);
+			       GFP_ATOMIC,
+			       IB_MGMT_BASE_VERSION);
 	if (IS_ERR(m)) {
 		ib_destroy_ah(ah);
 		return PTR_ERR(m);
@@ -297,7 +298,8 @@ static int cm_alloc_response_msg(struct cm_port *port,
 
 	m = ib_create_send_mad(port->mad_agent, 1, mad_recv_wc->wc->pkey_index,
 			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
-			       GFP_ATOMIC);
+			       GFP_ATOMIC,
+			       IB_MGMT_BASE_VERSION);
 	if (IS_ERR(m)) {
 		ib_destroy_ah(ah);
 		return PTR_ERR(m);
@@ -437,39 +439,38 @@ static struct cm_id_private * cm_acquire_id(__be32 local_id, __be32 remote_id)
 	return cm_id_priv;
 }
 
-static void cm_mask_copy(u8 *dst, u8 *src, u8 *mask)
+static void cm_mask_copy(u32 *dst, const u32 *src, const u32 *mask)
 {
 	int i;
 
-	for (i = 0; i < IB_CM_COMPARE_SIZE / sizeof(unsigned long); i++)
-		((unsigned long *) dst)[i] = ((unsigned long *) src)[i] &
-					     ((unsigned long *) mask)[i];
+	for (i = 0; i < IB_CM_COMPARE_SIZE; i++)
+		dst[i] = src[i] & mask[i];
 }
 
 static int cm_compare_data(struct ib_cm_compare_data *src_data,
 			   struct ib_cm_compare_data *dst_data)
 {
-	u8 src[IB_CM_COMPARE_SIZE];
-	u8 dst[IB_CM_COMPARE_SIZE];
+	u32 src[IB_CM_COMPARE_SIZE];
+	u32 dst[IB_CM_COMPARE_SIZE];
 
 	if (!src_data || !dst_data)
 		return 0;
 
 	cm_mask_copy(src, src_data->data, dst_data->mask);
 	cm_mask_copy(dst, dst_data->data, src_data->mask);
-	return memcmp(src, dst, IB_CM_COMPARE_SIZE);
+	return memcmp(src, dst, sizeof(src));
 }
 
-static int cm_compare_private_data(u8 *private_data,
+static int cm_compare_private_data(u32 *private_data,
 				   struct ib_cm_compare_data *dst_data)
 {
-	u8 src[IB_CM_COMPARE_SIZE];
+	u32 src[IB_CM_COMPARE_SIZE];
 
 	if (!dst_data)
 		return 0;
 
 	cm_mask_copy(src, private_data, dst_data->mask);
-	return memcmp(src, dst_data->data, IB_CM_COMPARE_SIZE);
+	return memcmp(src, dst_data->data, sizeof(src));
 }
 
 /*
@@ -538,7 +539,7 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 
 static struct cm_id_private * cm_find_listen(struct ib_device *device,
 					     __be64 service_id,
-					     u8 *private_data)
+					     u32 *private_data)
 {
 	struct rb_node *node = cm.listen_service_table.rb_node;
 	struct cm_id_private *cm_id_priv;
@@ -862,6 +863,7 @@ retest:
 		cm_reject_sidr_req(cm_id_priv, IB_SIDR_REJECT);
 		break;
 	case IB_CM_REQ_SENT:
+	case IB_CM_MRA_REQ_RCVD:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		spin_unlock_irq(&cm_id_priv->lock);
 		ib_send_cm_rej(cm_id, IB_CM_REJ_TIMEOUT,
@@ -880,7 +882,6 @@ retest:
 				       NULL, 0, NULL, 0);
 		}
 		break;
-	case IB_CM_MRA_REQ_RCVD:
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
@@ -953,7 +954,7 @@ int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
 		cm_mask_copy(cm_id_priv->compare_data->data,
 			     compare_data->data, compare_data->mask);
 		memcpy(cm_id_priv->compare_data->mask, compare_data->mask,
-		       IB_CM_COMPARE_SIZE);
+		       sizeof(compare_data->mask));
 	}
 
 	cm_id->state = IB_CM_LISTEN;
@@ -3760,10 +3761,8 @@ static void cm_add_one(struct ib_device *ib_device)
 	};
 	unsigned long flags;
 	int ret;
+	int count = 0;
 	u8 i;
-
-	if (rdma_node_get_transport(ib_device->node_type) != RDMA_TRANSPORT_IB)
-		return;
 
 	cm_dev = kzalloc(sizeof(*cm_dev) + sizeof(*port) *
 			 ib_device->phys_port_cnt, GFP_KERNEL);
@@ -3783,6 +3782,9 @@ static void cm_add_one(struct ib_device *ib_device)
 
 	set_bit(IB_MGMT_METHOD_SEND, reg_req.method_mask);
 	for (i = 1; i <= ib_device->phys_port_cnt; i++) {
+		if (!rdma_cap_ib_cm(ib_device, i))
+			continue;
+
 		port = kzalloc(sizeof *port, GFP_KERNEL);
 		if (!port)
 			goto error1;
@@ -3809,7 +3811,13 @@ static void cm_add_one(struct ib_device *ib_device)
 		ret = ib_modify_port(ib_device, i, 0, &port_modify);
 		if (ret)
 			goto error3;
+
+		count++;
 	}
+
+	if (!count)
+		goto free;
+
 	ib_set_client_data(ib_device, &cm_client, cm_dev);
 
 	write_lock_irqsave(&cm.device_lock, flags);
@@ -3825,11 +3833,15 @@ error1:
 	port_modify.set_port_cap_mask = 0;
 	port_modify.clr_port_cap_mask = IB_PORT_CM_SUP;
 	while (--i) {
+		if (!rdma_cap_ib_cm(ib_device, i))
+			continue;
+
 		port = cm_dev->port[i-1];
 		ib_modify_port(ib_device, port->port_num, 0, &port_modify);
 		ib_unregister_mad_agent(port->mad_agent);
 		cm_remove_port_fs(port);
 	}
+free:
 	device_unregister(cm_dev->device);
 	kfree(cm_dev);
 }
@@ -3853,6 +3865,9 @@ static void cm_remove_one(struct ib_device *ib_device)
 	write_unlock_irqrestore(&cm.device_lock, flags);
 
 	for (i = 1; i <= ib_device->phys_port_cnt; i++) {
+		if (!rdma_cap_ib_cm(ib_device, i))
+			continue;
+
 		port = cm_dev->port[i-1];
 		ib_modify_port(ib_device, port->port_num, 0, &port_modify);
 		ib_unregister_mad_agent(port->mad_agent);

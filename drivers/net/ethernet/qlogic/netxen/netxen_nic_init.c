@@ -135,7 +135,7 @@ void netxen_release_tx_buffers(struct netxen_adapter *adapter)
 	int i, j;
 	struct nx_host_tx_ring *tx_ring = adapter->tx_ring;
 
-	spin_lock(&adapter->tx_clean_lock);
+	spin_lock_bh(&adapter->tx_clean_lock);
 	cmd_buf = tx_ring->cmd_buf_arr;
 	for (i = 0; i < tx_ring->num_desc; i++) {
 		buffrag = cmd_buf->frag_array;
@@ -159,7 +159,7 @@ void netxen_release_tx_buffers(struct netxen_adapter *adapter)
 		}
 		cmd_buf++;
 	}
-	spin_unlock(&adapter->tx_clean_lock);
+	spin_unlock_bh(&adapter->tx_clean_lock);
 }
 
 void netxen_free_sw_resources(struct netxen_adapter *adapter)
@@ -1764,7 +1764,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	int done = 0;
 	struct nx_host_tx_ring *tx_ring = adapter->tx_ring;
 
-	if (!spin_trylock(&adapter->tx_clean_lock))
+	if (!spin_trylock_bh(&adapter->tx_clean_lock))
 		return 1;
 
 	sw_consumer = tx_ring->sw_consumer;
@@ -1819,7 +1819,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	 */
 	hw_consumer = le32_to_cpu(*(tx_ring->hw_consumer));
 	done = (sw_consumer == hw_consumer);
-	spin_unlock(&adapter->tx_clean_lock);
+	spin_unlock_bh(&adapter->tx_clean_lock);
 
 	return done;
 }

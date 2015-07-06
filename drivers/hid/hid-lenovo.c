@@ -43,6 +43,35 @@ struct lenovo_drvdata_cptkbd {
 
 #define map_key_clear(c) hid_map_usage_clear(hi, usage, bit, max, EV_KEY, (c))
 
+static const __u8 lenovo_pro_dock_need_fixup_collection[] = {
+	0x05, 0x88,		/* Usage Page (Vendor Usage Page 0x88)	*/
+	0x09, 0x01,		/* Usage (Vendor Usage 0x01)		*/
+	0xa1, 0x01,		/* Collection (Application)		*/
+	0x85, 0x04,		/*  Report ID (4)			*/
+	0x19, 0x00,		/*  Usage Minimum (0)			*/
+	0x2a, 0xff, 0xff,	/*  Usage Maximum (65535)		*/
+};
+
+static __u8 *lenovo_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
+{
+	switch (hdev->product) {
+	case USB_DEVICE_ID_LENOVO_TPPRODOCK:
+		/* the fixups that need to be done:
+		 *   - get a reasonable usage max for the vendor collection
+		 *     0x8801 from the report ID 4
+		 */
+		if (*rsize >= 153 &&
+		    memcmp(&rdesc[140], lenovo_pro_dock_need_fixup_collection,
+			  sizeof(lenovo_pro_dock_need_fixup_collection)) == 0) {
+			rdesc[151] = 0x01;
+			rdesc[152] = 0x00;
+		}
+		break;
+	}
+	return rdesc;
+}
+
 static int lenovo_input_mapping_tpkbd(struct hid_device *hdev,
 		struct hid_input *hi, struct hid_field *field,
 		struct hid_usage *usage, unsigned long **bit, int *max)
@@ -599,7 +628,8 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 				    GFP_KERNEL);
 	if (data_pointer == NULL) {
 		hid_err(hdev, "Could not allocate memory for driver data\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	// set same default values as windows driver
@@ -610,7 +640,8 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 	name_micmute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
 	if (name_mute == NULL || name_micmute == NULL) {
 		hid_err(hdev, "Could not allocate memory for led data\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 	snprintf(name_mute, name_sz, "%s:amber:mute", dev_name(dev));
 	snprintf(name_micmute, name_sz, "%s:amber:micmute", dev_name(dev));
@@ -634,6 +665,9 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 	lenovo_features_set_tpkbd(hdev);
 
 	return 0;
+err:
+	sysfs_remove_group(&hdev->dev.kobj, &lenovo_attr_group_tpkbd);
+	return ret;
 }
 
 static int lenovo_probe_cptkbd(struct hid_device *hdev)
@@ -762,10 +796,29 @@ static void lenovo_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
+static void lenovo_input_configured(struct hid_device *hdev,
+		struct hid_input *hi)
+{
+	switch (hdev->product) {
+		case USB_DEVICE_ID_LENOVO_TPKBD:
+		case USB_DEVICE_ID_LENOVO_CUSBKBD:
+		case USB_DEVICE_ID_LENOVO_CBTKBD:
+			if (test_bit(EV_REL, hi->input->evbit)) {
+				/* set only for trackpoint device */
+				__set_bit(INPUT_PROP_POINTER, hi->input->propbit);
+				__set_bit(INPUT_PROP_POINTING_STICK,
+						hi->input->propbit);
+			}
+			break;
+	}
+}
+
+
 static const struct hid_device_id lenovo_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_TPKBD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_CUSBKBD) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_CBTKBD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_TPPRODOCK) },
 	{ }
 };
 
@@ -774,10 +827,12 @@ MODULE_DEVICE_TABLE(hid, lenovo_devices);
 static struct hid_driver lenovo_driver = {
 	.name = "lenovo",
 	.id_table = lenovo_devices,
+	.input_configured = lenovo_input_configured,
 	.input_mapping = lenovo_input_mapping,
 	.probe = lenovo_probe,
 	.remove = lenovo_remove,
 	.raw_event = lenovo_raw_event,
+	.report_fixup = lenovo_report_fixup,
 };
 module_hid_driver(lenovo_driver);
 

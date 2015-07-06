@@ -39,7 +39,6 @@ struct unix_skb_parms {
 };
 
 #define UNIXCB(skb) 	(*(struct unix_skb_parms *)&((skb)->cb))
-#define UNIXSID(skb)	(&UNIXCB((skb)).secid)
 
 #define unix_state_lock(s)	spin_lock(&unix_sk(s)->lock)
 #define unix_state_unlock(s)	spin_unlock(&unix_sk(s)->lock)

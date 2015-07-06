@@ -131,6 +131,7 @@
 #include <linux/ipsec.h>
 #include <net/cls_cgroup.h>
 #include <net/netprio_cgroup.h>
+#include <linux/sock_diag.h>
 
 #include <linux/filter.h>
 
@@ -354,15 +355,12 @@ void sk_clear_memalloc(struct sock *sk)
 
 	/*
 	 * SOCK_MEMALLOC is allowed to ignore rmem limits to ensure forward
-	 * progress of swapping. However, if SOCK_MEMALLOC is cleared while
-	 * it has rmem allocations there is a risk that the user of the
-	 * socket cannot make forward progress due to exceeding the rmem
-	 * limits. By rights, sk_clear_memalloc() should only be called
-	 * on sockets being torn down but warn and reset the accounting if
-	 * that assumption breaks.
+	 * progress of swapping. SOCK_MEMALLOC may be cleared while
+	 * it has rmem allocations due to the last swapfile being deactivated
+	 * but there is a risk that the socket is unusable due to exceeding
+	 * the rmem limits. Reclaim the reserves and obey rmem limits again.
 	 */
-	if (WARN_ON(sk->sk_forward_alloc))
-		sk_mem_reclaim(sk);
+	sk_mem_reclaim(sk);
 }
 EXPORT_SYMBOL_GPL(sk_clear_memalloc);
 
@@ -1396,9 +1394,10 @@ EXPORT_SYMBOL_GPL(sock_update_netprioidx);
  *	@family: protocol family
  *	@priority: for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
  *	@prot: struct proto associated with this new sock instance
+ *	@kern: is this to be a kernel socket?
  */
 struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
-		      struct proto *prot)
+		      struct proto *prot, int kern)
 {
 	struct sock *sk;
 
@@ -1411,7 +1410,10 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		 */
 		sk->sk_prot = sk->sk_prot_creator = prot;
 		sock_lock_init(sk);
-		sock_net_set(sk, get_net(net));
+		sk->sk_net_refcnt = kern ? 0 : 1;
+		if (likely(sk->sk_net_refcnt))
+			get_net(net);
+		sock_net_set(sk, net);
 		atomic_set(&sk->sk_wmem_alloc, 1);
 
 		sock_update_classid(sk);
@@ -1422,7 +1424,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 }
 EXPORT_SYMBOL(sk_alloc);
 
-static void __sk_free(struct sock *sk)
+void sk_destruct(struct sock *sk)
 {
 	struct sk_filter *filter;
 
@@ -1445,8 +1447,17 @@ static void __sk_free(struct sock *sk)
 	if (sk->sk_peer_cred)
 		put_cred(sk->sk_peer_cred);
 	put_pid(sk->sk_peer_pid);
-	put_net(sock_net(sk));
+	if (likely(sk->sk_net_refcnt))
+		put_net(sock_net(sk));
 	sk_prot_free(sk->sk_prot_creator, sk);
+}
+
+static void __sk_free(struct sock *sk)
+{
+	if (unlikely(sock_diag_has_destroy_listeners(sk) && sk->sk_net_refcnt))
+		sock_diag_broadcast_destroy(sk);
+	else
+		sk_destruct(sk);
 }
 
 void sk_free(struct sock *sk)
@@ -1460,25 +1471,6 @@ void sk_free(struct sock *sk)
 		__sk_free(sk);
 }
 EXPORT_SYMBOL(sk_free);
-
-/*
- * Last sock_put should drop reference to sk->sk_net. It has already
- * been dropped in sk_change_net. Taking reference to stopping namespace
- * is not an option.
- * Take reference to a socket to remove it from hash _alive_ and after that
- * destroy it in the context of init_net.
- */
-void sk_release_kernel(struct sock *sk)
-{
-	if (sk == NULL || sk->sk_socket == NULL)
-		return;
-
-	sock_hold(sk);
-	sock_net_set(sk, get_net(&init_net));
-	sock_release(sk->sk_socket);
-	sock_put(sk);
-}
-EXPORT_SYMBOL(sk_release_kernel);
 
 static void sk_update_clone(const struct sock *sk, struct sock *newsk)
 {
@@ -1595,6 +1587,8 @@ EXPORT_SYMBOL_GPL(sk_clone_lock);
 
 void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 {
+	u32 max_segs = 1;
+
 	__sk_dst_set(sk, dst);
 	sk->sk_route_caps = dst->dev->features;
 	if (sk->sk_route_caps & NETIF_F_GSO)
@@ -1606,9 +1600,10 @@ void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 		} else {
 			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;
 			sk->sk_gso_max_size = dst->dev->gso_max_size;
-			sk->sk_gso_max_segs = dst->dev->gso_max_segs;
+			max_segs = max_t(u32, dst->dev->gso_max_segs, 1);
 		}
 	}
+	sk->sk_gso_max_segs = max_segs;
 }
 EXPORT_SYMBOL_GPL(sk_setup_caps);
 
@@ -1883,7 +1878,7 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
 
 	pfrag->offset = 0;
 	if (SKB_FRAG_PAGE_ORDER) {
-		pfrag->page = alloc_pages(gfp | __GFP_COMP |
+		pfrag->page = alloc_pages((gfp & ~__GFP_WAIT) | __GFP_COMP |
 					  __GFP_NOWARN | __GFP_NORETRY,
 					  SKB_FRAG_PAGE_ORDER);
 		if (likely(pfrag->page)) {
@@ -2083,12 +2078,13 @@ EXPORT_SYMBOL(__sk_mem_schedule);
 /**
  *	__sk_reclaim - reclaim memory_allocated
  *	@sk: socket
+ *	@amount: number of bytes (rounded down to a SK_MEM_QUANTUM multiple)
  */
-void __sk_mem_reclaim(struct sock *sk)
+void __sk_mem_reclaim(struct sock *sk, int amount)
 {
-	sk_memory_allocated_sub(sk,
-				sk->sk_forward_alloc >> SK_MEM_QUANTUM_SHIFT);
-	sk->sk_forward_alloc &= SK_MEM_QUANTUM - 1;
+	amount >>= SK_MEM_QUANTUM_SHIFT;
+	sk_memory_allocated_sub(sk, amount);
+	sk->sk_forward_alloc -= amount << SK_MEM_QUANTUM_SHIFT;
 
 	if (sk_under_memory_pressure(sk) &&
 	    (sk_memory_allocated(sk) < sk_prot_mem_limits(sk, 0)))
@@ -2273,7 +2269,6 @@ static void sock_def_write_space(struct sock *sk)
 
 static void sock_def_destruct(struct sock *sk)
 {
-	kfree(sk->sk_protinfo);
 }
 
 void sk_send_sigurg(struct sock *sk)

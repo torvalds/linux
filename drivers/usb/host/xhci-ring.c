@@ -1934,7 +1934,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 			td->urb->actual_length =
 				td->urb->transfer_buffer_length -
 				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
-		else
+		else if (!td->urb_length_set)
 			td->urb->actual_length = 0;
 
 		return finish_td(xhci, td, event_trb, event, ep, status, false);
@@ -2026,8 +2026,13 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		break;
 	case COMP_DEV_ERR:
 	case COMP_STALL:
+		frame->status = -EPROTO;
+		skip_td = true;
+		break;
 	case COMP_TX_ERR:
 		frame->status = -EPROTO;
+		if (event_trb != td->last_trb)
+			return 0;
 		skip_td = true;
 		break;
 	case COMP_STOP:
@@ -2640,7 +2645,7 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 		xhci_halt(xhci);
 hw_died:
 		spin_unlock(&xhci->lock);
-		return -ESHUTDOWN;
+		return IRQ_HANDLED;
 	}
 
 	/*
@@ -3776,8 +3781,11 @@ static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 {
 	int reserved_trbs = xhci->cmd_ring_reserved_trbs;
 	int ret;
-	if (xhci->xhc_state & XHCI_STATE_DYING)
+
+	if (xhci->xhc_state) {
+		xhci_dbg(xhci, "xHCI dying or halted, can't queue_command\n");
 		return -ESHUTDOWN;
+	}
 
 	if (!command_must_succeed)
 		reserved_trbs++;

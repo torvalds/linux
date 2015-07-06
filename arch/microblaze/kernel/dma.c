@@ -154,6 +154,7 @@ dma_direct_sync_sg_for_device(struct device *dev,
 			__dma_sync(sg->dma_address, sg->length, direction);
 }
 
+static
 int dma_direct_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
 			     void *cpu_addr, dma_addr_t handle, size_t size,
 			     struct dma_attrs *attrs)

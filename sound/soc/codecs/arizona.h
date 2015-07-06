@@ -60,6 +60,9 @@
 #define ARIZONA_MAX_DAI  6
 #define ARIZONA_MAX_ADSP 4
 
+#define ARIZONA_DVFS_SR1_RQ	0x001
+#define ARIZONA_DVFS_ADSP1_RQ	0x100
+
 struct arizona;
 struct wm_adsp;
 
@@ -84,6 +87,10 @@ struct arizona_priv {
 
 	unsigned int spk_ena:2;
 	unsigned int spk_ena_pending:1;
+
+	unsigned int dvfs_reqs;
+	struct mutex dvfs_lock;
+	bool dvfs_cached;
 };
 
 #define ARIZONA_NUM_MIXER_INPUTS 103
@@ -107,8 +114,8 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 			     arizona_mixer_tlv)
 
 #define ARIZONA_MUX_ENUM_DECL(name, reg) \
-	SOC_VALUE_ENUM_SINGLE_DECL(name, reg, 0, 0xff,			\
-				   arizona_mixer_texts, arizona_mixer_values)
+	SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL( \
+		name, reg, 0, 0xff, arizona_mixer_texts, arizona_mixer_values)
 
 #define ARIZONA_MUX_CTL_DECL(name) \
 	const struct snd_kcontrol_new name##_mux =	\
@@ -210,6 +217,8 @@ extern const struct soc_enum arizona_ng_hold;
 extern const struct soc_enum arizona_in_hpf_cut_enum;
 extern const struct soc_enum arizona_in_dmic_osr[];
 
+extern const struct snd_kcontrol_new arizona_adsp2_rate_controls[];
+
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
@@ -244,6 +253,12 @@ struct arizona_fll {
 	char lock_name[ARIZONA_FLL_NAME_LEN];
 	char clock_ok_name[ARIZONA_FLL_NAME_LEN];
 };
+
+extern int arizona_dvfs_up(struct snd_soc_codec *codec, unsigned int flags);
+extern int arizona_dvfs_down(struct snd_soc_codec *codec, unsigned int flags);
+extern int arizona_dvfs_sysclk_ev(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *kcontrol, int event);
+extern void arizona_init_dvfs(struct arizona_priv *priv);
 
 extern int arizona_init_fll(struct arizona *arizona, int id, int base,
 			    int lock_irq, int ok_irq, struct arizona_fll *fll);

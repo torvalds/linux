@@ -1065,7 +1065,6 @@ static SIMPLE_DEV_PM_OPS(intel8x0m_pm, intel8x0m_suspend, intel8x0m_resume);
 #define INTEL8X0M_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PROC_FS
 static void snd_intel8x0m_proc_read(struct snd_info_entry * entry,
 				   struct snd_info_buffer *buffer)
 {
@@ -1093,10 +1092,6 @@ static void snd_intel8x0m_proc_init(struct intel8x0m *chip)
 	if (! snd_card_proc_new(chip->card, "intel8x0m", &entry))
 		snd_info_set_text_ops(entry, chip, snd_intel8x0m_proc_read);
 }
-#else /* !CONFIG_PROC_FS */
-#define snd_intel8x0m_proc_init(chip)
-#endif /* CONFIG_PROC_FS */
-
 
 static int snd_intel8x0m_dev_free(struct snd_device *device)
 {

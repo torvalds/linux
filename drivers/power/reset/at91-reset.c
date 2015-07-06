@@ -212,9 +212,9 @@ static int at91_reset_platform_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, idx + 1 );
 		at91_ramc_base[idx] = devm_ioremap(&pdev->dev, res->start,
 						   resource_size(res));
-		if (IS_ERR(at91_ramc_base[idx])) {
+		if (!at91_ramc_base[idx]) {
 			dev_err(&pdev->dev, "Could not map ram controller address\n");
-			return PTR_ERR(at91_ramc_base[idx]);
+			return -ENOMEM;
 		}
 	}
 
@@ -243,7 +243,7 @@ static int at91_reset_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id at91_reset_plat_match[] = {
+static const struct platform_device_id at91_reset_plat_match[] = {
 	{ "at91-sam9260-reset", (unsigned long)at91sam9260_restart },
 	{ "at91-sam9g45-reset", (unsigned long)at91sam9g45_restart },
 	{ /* sentinel */ }

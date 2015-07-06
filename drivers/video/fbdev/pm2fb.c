@@ -38,10 +38,6 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
-
 #include <video/permedia2.h>
 #include <video/cvisionppc.h>
 
@@ -81,10 +77,7 @@ static char *mode_option;
 static bool lowhsync;
 static bool lowvsync;
 static bool noaccel;
-/* mtrr option */
-#ifdef CONFIG_MTRR
 static bool nomtrr;
-#endif
 
 /*
  * The hardware state of the graphics card that isn't part of the
@@ -100,7 +93,7 @@ struct pm2fb_par
 	u32		mem_control;	/* MemControl reg at probe */
 	u32		boot_address;	/* BootAddress reg at probe */
 	u32		palette[16];
-	int		mtrr_handle;
+	int		wc_cookie;
 };
 
 /*
@@ -1637,21 +1630,16 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_exit_mmio;
 	}
 	info->screen_base =
-		ioremap_nocache(pm2fb_fix.smem_start, pm2fb_fix.smem_len);
+		ioremap_wc(pm2fb_fix.smem_start, pm2fb_fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_WARNING "pm2fb: Can't ioremap smem area.\n");
 		release_mem_region(pm2fb_fix.smem_start, pm2fb_fix.smem_len);
 		goto err_exit_mmio;
 	}
 
-#ifdef CONFIG_MTRR
-	default_par->mtrr_handle = -1;
 	if (!nomtrr)
-		default_par->mtrr_handle =
-			mtrr_add(pm2fb_fix.smem_start,
-				 pm2fb_fix.smem_len,
-				 MTRR_TYPE_WRCOMB, 1);
-#endif
+		default_par->wc_cookie = arch_phys_wc_add(pm2fb_fix.smem_start,
+							  pm2fb_fix.smem_len);
 
 	info->fbops		= &pm2fb_ops;
 	info->fix		= pm2fb_fix;
@@ -1733,12 +1721,7 @@ static void pm2fb_remove(struct pci_dev *pdev)
 	struct pm2fb_par *par = info->par;
 
 	unregister_framebuffer(info);
-
-#ifdef CONFIG_MTRR
-	if (par->mtrr_handle >= 0)
-		mtrr_del(par->mtrr_handle, info->fix.smem_start,
-			 info->fix.smem_len);
-#endif /* CONFIG_MTRR */
+	arch_phys_wc_del(par->wc_cookie);
 	iounmap(info->screen_base);
 	release_mem_region(fix->smem_start, fix->smem_len);
 	iounmap(par->v_regs);
@@ -1791,10 +1774,8 @@ static int __init pm2fb_setup(char *options)
 			lowvsync = 1;
 		else if (!strncmp(this_opt, "hwcursor=", 9))
 			hwcursor = simple_strtoul(this_opt + 9, NULL, 0);
-#ifdef CONFIG_MTRR
 		else if (!strncmp(this_opt, "nomtrr", 6))
 			nomtrr = 1;
-#endif
 		else if (!strncmp(this_opt, "noaccel", 7))
 			noaccel = 1;
 		else
@@ -1847,10 +1828,8 @@ MODULE_PARM_DESC(noaccel, "Disable acceleration");
 module_param(hwcursor, int, 0644);
 MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
 			"(1=enable, 0=disable, default=1)");
-#ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "Disable MTRR support (0 or 1=disabled) (default=0)");
-#endif
 
 MODULE_AUTHOR("Jim Hague <jim.hague@acm.org>");
 MODULE_DESCRIPTION("Permedia2 framebuffer device driver");

@@ -13,6 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/mempool.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/highmem.h>
@@ -128,9 +129,6 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool, int err)
 	struct bio_vec *bvec, *org_vec;
 	int i;
 
-	if (test_bit(BIO_EOPNOTSUPP, &bio->bi_flags))
-		set_bit(BIO_EOPNOTSUPP, &bio_orig->bi_flags);
-
 	/*
 	 * free up bounce indirect pages used
 	 */
@@ -221,8 +219,8 @@ bounce:
 		if (page_to_pfn(page) <= queue_bounce_pfn(q) && !force)
 			continue;
 
-		inc_zone_page_state(to->bv_page, NR_BOUNCE);
 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
+		inc_zone_page_state(to->bv_page, NR_BOUNCE);
 
 		if (rw == WRITE) {
 			char *vto, *vfrom;

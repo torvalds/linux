@@ -2816,7 +2816,7 @@ int snd_cs46xx_gameport(struct snd_cs46xx *chip) { return -ENOSYS; }
 static inline void snd_cs46xx_remove_gameport(struct snd_cs46xx *chip) { }
 #endif /* CONFIG_GAMEPORT */
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 /*
  *  proc interface
  */
@@ -2865,7 +2865,7 @@ static int snd_cs46xx_proc_done(struct snd_cs46xx *chip)
 #endif
 	return 0;
 }
-#else /* !CONFIG_PROC_FS */
+#else /* !CONFIG_SND_PROC_FS */
 #define snd_cs46xx_proc_init(card, chip)
 #define snd_cs46xx_proc_done(chip)
 #endif

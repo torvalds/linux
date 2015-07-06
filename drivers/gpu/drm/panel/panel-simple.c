@@ -731,6 +731,30 @@ static const struct panel_desc hannstar_hsd070pww1 = {
 	},
 };
 
+static const struct display_timing hannstar_hsd100pxn1_timing = {
+	.pixelclock = { 55000000, 65000000, 75000000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 40, 40, 40 },
+	.hback_porch = { 220, 220, 220 },
+	.hsync_len = { 20, 60, 100 },
+	.vactive = { 768, 768, 768 },
+	.vfront_porch = { 7, 7, 7 },
+	.vback_porch = { 21, 21, 21 },
+	.vsync_len = { 10, 10, 10 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc hannstar_hsd100pxn1 = {
+	.timings = &hannstar_hsd100pxn1_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 203,
+		.height = 152,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+};
+
 static const struct drm_display_mode hitachi_tx23d38vm0caa_mode = {
 	.clock = 33333,
 	.hdisplay = 800,
@@ -870,6 +894,30 @@ static const struct panel_desc innolux_zj070na_01p = {
 		.width = 1024,
 		.height = 600,
 	},
+};
+
+static const struct drm_display_mode lg_lb070wv8_mode = {
+	.clock = 33246,
+	.hdisplay = 800,
+	.hsync_start = 800 + 88,
+	.hsync_end = 800 + 88 + 80,
+	.htotal = 800 + 88 + 80 + 88,
+	.vdisplay = 480,
+	.vsync_start = 480 + 10,
+	.vsync_end = 480 + 10 + 25,
+	.vtotal = 480 + 10 + 25 + 10,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc lg_lb070wv8 = {
+	.modes = &lg_lb070wv8_mode,
+	.num_modes = 1,
+	.bpc = 16,
+	.size = {
+		.width = 151,
+		.height = 91,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 };
 
 static const struct drm_display_mode lg_lp129qe_mode = {
@@ -1038,6 +1086,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "hannstar,hsd070pww1",
 		.data = &hannstar_hsd070pww1,
 	}, {
+		.compatible = "hannstar,hsd100pxn1",
+		.data = &hannstar_hsd100pxn1,
+	}, {
 		.compatible = "hit,tx23d38vm0caa",
 		.data = &hitachi_tx23d38vm0caa
 	}, {
@@ -1055,6 +1106,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "innolux,zj070na-01p",
 		.data = &innolux_zj070na_01p,
+	}, {
+		.compatible = "lg,lb070wv8",
+		.data = &lg_lb070wv8,
 	}, {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,

@@ -69,7 +69,7 @@
 		mainpll: mainpll {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <2000000000>;
+			clock-frequency = <1000000000>;
 		};
 		/* 25 MHz reference crystal */
 		refclk: oscillator {
@@ -238,7 +238,8 @@
 			};
 
 			spi0: spi@10600 {
-				compatible = "marvell,orion-spi";
+				compatible = "marvell,armada-375-spi",
+						"marvell,orion-spi";
 				reg = <0x10600 0x50>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -249,7 +250,8 @@
 			};
 
 			spi1: spi@10680 {
-				compatible = "marvell,orion-spi";
+				compatible = "marvell,armada-375-spi",
+						"marvell,orion-spi";
 				reg = <0x10680 0x50>;
 				#address-cells = <1>;
 				#size-cells = <0>;

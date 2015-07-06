@@ -193,7 +193,7 @@ struct imxdma_filter_data {
 	int			 request;
 };
 
-static struct platform_device_id imx_dma_devtype[] = {
+static const struct platform_device_id imx_dma_devtype[] = {
 	{
 		.name = "imx1-dma",
 		.driver_data = IMX1_DMA,

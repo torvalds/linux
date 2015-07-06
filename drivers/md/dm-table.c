@@ -820,6 +820,12 @@ void dm_consume_args(struct dm_arg_set *as, unsigned num_args)
 }
 EXPORT_SYMBOL(dm_consume_args);
 
+static bool __table_type_request_based(unsigned table_type)
+{
+	return (table_type == DM_TYPE_REQUEST_BASED ||
+		table_type == DM_TYPE_MQ_REQUEST_BASED);
+}
+
 static int dm_table_set_type(struct dm_table *t)
 {
 	unsigned i;
@@ -852,8 +858,7 @@ static int dm_table_set_type(struct dm_table *t)
 		 * Determine the type from the live device.
 		 * Default to bio-based if device is new.
 		 */
-		if (live_md_type == DM_TYPE_REQUEST_BASED ||
-		    live_md_type == DM_TYPE_MQ_REQUEST_BASED)
+		if (__table_type_request_based(live_md_type))
 			request_based = 1;
 		else
 			bio_based = 1;
@@ -903,7 +908,7 @@ static int dm_table_set_type(struct dm_table *t)
 			}
 		t->type = DM_TYPE_MQ_REQUEST_BASED;
 
-	} else if (hybrid && list_empty(devices) && live_md_type != DM_TYPE_NONE) {
+	} else if (list_empty(devices) && __table_type_request_based(live_md_type)) {
 		/* inherit live MD type */
 		t->type = live_md_type;
 
@@ -925,10 +930,7 @@ struct target_type *dm_table_get_immutable_target_type(struct dm_table *t)
 
 bool dm_table_request_based(struct dm_table *t)
 {
-	unsigned table_type = dm_table_get_type(t);
-
-	return (table_type == DM_TYPE_REQUEST_BASED ||
-		table_type == DM_TYPE_MQ_REQUEST_BASED);
+	return __table_type_request_based(dm_table_get_type(t));
 }
 
 bool dm_table_mq_request_based(struct dm_table *t)

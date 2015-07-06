@@ -258,7 +258,7 @@ static int jz4740_codec_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* The only way to clear the suspend flag is to reset the codec */
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			jz4740_codec_wakeup(regmap);
 
 		mask = JZ4740_CODEC_1_VREF_DISABLE |
@@ -280,8 +280,6 @@ static int jz4740_codec_set_bias_level(struct snd_soc_codec *codec,
 	default:
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

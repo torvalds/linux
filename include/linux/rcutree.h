@@ -31,9 +31,7 @@
 #define __LINUX_RCUTREE_H
 
 void rcu_note_context_switch(void);
-#ifndef CONFIG_RCU_NOCB_CPU_ALL
-int rcu_needs_cpu(unsigned long *delta_jiffies);
-#endif /* #ifndef CONFIG_RCU_NOCB_CPU_ALL */
+int rcu_needs_cpu(u64 basem, u64 *nextevt);
 void rcu_cpu_stall_reset(void);
 
 /*
@@ -92,6 +90,11 @@ void show_rcu_gp_kthreads(void);
 void rcu_force_quiescent_state(void);
 void rcu_bh_force_quiescent_state(void);
 void rcu_sched_force_quiescent_state(void);
+
+void rcu_idle_enter(void);
+void rcu_idle_exit(void);
+void rcu_irq_enter(void);
+void rcu_irq_exit(void);
 
 void exit_rcu(void);
 

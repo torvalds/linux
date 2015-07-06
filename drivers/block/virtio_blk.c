@@ -124,7 +124,7 @@ static inline void virtblk_request_done(struct request *req)
 		req->resid_len = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.residual);
 		req->sense_len = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.sense_len);
 		req->errors = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.errors);
-	} else if (req->cmd_type == REQ_TYPE_SPECIAL) {
+	} else if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
 		req->errors = (error != 0);
 	}
 
@@ -188,7 +188,7 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 			vbr->out_hdr.sector = 0;
 			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(vbr->req));
 			break;
-		case REQ_TYPE_SPECIAL:
+		case REQ_TYPE_DRV_PRIV:
 			vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, VIRTIO_BLK_T_GET_ID);
 			vbr->out_hdr.sector = 0;
 			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(vbr->req));
@@ -251,7 +251,7 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 		return PTR_ERR(req);
 	}
 
-	req->cmd_type = REQ_TYPE_SPECIAL;
+	req->cmd_type = REQ_TYPE_DRV_PRIV;
 	err = blk_execute_rq(vblk->disk->queue, vblk->disk, req, false);
 	blk_put_request(req);
 

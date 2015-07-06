@@ -458,7 +458,7 @@ check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
  * pg_authenticate method for nfsv4 callback threads.
  *
  * The authflavor has been negotiated, so an incorrect flavor is a server
- * bug. Drop packets with incorrect authflavor.
+ * bug. Deny packets with incorrect authflavor.
  *
  * All other checking done after NFS decoding where the nfs_client can be
  * found in nfs4_callback_compound
@@ -468,12 +468,12 @@ static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 	switch (rqstp->rq_authop->flavour) {
 	case RPC_AUTH_NULL:
 		if (rqstp->rq_proc != CB_NULL)
-			return SVC_DROP;
+			return SVC_DENIED;
 		break;
 	case RPC_AUTH_GSS:
 		/* No RPC_AUTH_GSS support yet in NFSv4.1 */
 		 if (svc_is_backchannel(rqstp))
-			return SVC_DROP;
+			return SVC_DENIED;
 	}
 	return SVC_OK;
 }

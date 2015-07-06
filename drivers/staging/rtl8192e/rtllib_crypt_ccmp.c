@@ -69,7 +69,7 @@ static void *rtllib_ccmp_init(int key_idx)
 
 	priv->tfm = (void *)crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tfm)) {
-		pr_debug("rtllib_crypt_ccmp: could not allocate crypto API aes\n");
+		pr_debug("Could not allocate crypto API aes\n");
 		priv->tfm = NULL;
 		goto fail;
 	}

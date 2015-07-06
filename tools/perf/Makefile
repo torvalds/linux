@@ -24,7 +24,7 @@ unexport MAKEFLAGS
 # (To override it, run 'make JOBS=1' and similar.)
 #
 ifeq ($(JOBS),)
-  JOBS := $(shell egrep -c '^processor|^CPU' /proc/cpuinfo 2>/dev/null)
+  JOBS := $(shell (getconf _NPROCESSORS_ONLN || egrep -c '^processor|^CPU[0-9]' /proc/cpuinfo) 2>/dev/null)
   ifeq ($(JOBS),0)
     JOBS := 1
   endif
@@ -83,8 +83,8 @@ build-test:
 #
 # All other targets get passed through:
 #
-%:
+%: FORCE
 	$(print_msg)
 	$(make)
 
-.PHONY: tags TAGS
+.PHONY: tags TAGS FORCE Makefile

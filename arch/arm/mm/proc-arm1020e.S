@@ -22,8 +22,6 @@
  *
  * These are the low level assembler for performing cache and TLB
  * functions on the arm1020e.
- *
- *  CONFIG_CPU_ARM1020_CPU_IDLE -> nohlt
  */
 #include <linux/linkage.h>
 #include <linux/init.h>

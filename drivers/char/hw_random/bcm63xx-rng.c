@@ -57,7 +57,7 @@ static void bcm63xx_rng_cleanup(struct hwrng *rng)
 	val &= ~RNG_EN;
 	__raw_writel(val, priv->regs + RNG_CTRL);
 
-	clk_didsable_unprepare(prov->clk);
+	clk_disable_unprepare(priv->clk);
 }
 
 static int bcm63xx_rng_data_present(struct hwrng *rng, int wait)
@@ -97,14 +97,14 @@ static int bcm63xx_rng_probe(struct platform_device *pdev)
 	priv->rng.name = pdev->name;
 	priv->rng.init = bcm63xx_rng_init;
 	priv->rng.cleanup = bcm63xx_rng_cleanup;
-	prov->rng.data_present = bcm63xx_rng_data_present;
+	priv->rng.data_present = bcm63xx_rng_data_present;
 	priv->rng.data_read = bcm63xx_rng_data_read;
 
 	priv->clk = devm_clk_get(&pdev->dev, "ipsec");
 	if (IS_ERR(priv->clk)) {
-		error = PTR_ERR(priv->clk);
-		dev_err(&pdev->dev, "no clock for device: %d\n", error);
-		return error;
+		ret = PTR_ERR(priv->clk);
+		dev_err(&pdev->dev, "no clock for device: %d\n", ret);
+		return ret;
 	}
 
 	if (!devm_request_mem_region(&pdev->dev, r->start,
@@ -120,11 +120,11 @@ static int bcm63xx_rng_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	error = devm_hwrng_register(&pdev->dev, &priv->rng);
-	if (error) {
+	ret = devm_hwrng_register(&pdev->dev, &priv->rng);
+	if (ret) {
 		dev_err(&pdev->dev, "failed to register rng device: %d\n",
-			error);
-		return error;
+			ret);
+		return ret;
 	}
 
 	dev_info(&pdev->dev, "registered RNG driver\n");

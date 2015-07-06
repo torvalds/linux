@@ -786,11 +786,11 @@ static void cx18_init_struct2(struct cx18 *cx)
 {
 	int i;
 
-	for (i = 0; i < CX18_CARD_MAX_VIDEO_INPUTS; i++)
+	for (i = 0; i < CX18_CARD_MAX_VIDEO_INPUTS - 1; i++)
 		if (cx->card->video_inputs[i].video_type == 0)
 			break;
 	cx->nof_inputs = i;
-	for (i = 0; i < CX18_CARD_MAX_AUDIO_INPUTS; i++)
+	for (i = 0; i < CX18_CARD_MAX_AUDIO_INPUTS - 1; i++)
 		if (cx->card->audio_inputs[i].audio_type == 0)
 			break;
 	cx->nof_audio_inputs = i;

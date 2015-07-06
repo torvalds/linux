@@ -44,6 +44,23 @@
 #include "comedi_internal.h"
 
 /**
+ * comedi_subdevice "runflags"
+ * @COMEDI_SRF_RT:		DEPRECATED: command is running real-time
+ * @COMEDI_SRF_ERROR:		indicates an COMEDI_CB_ERROR event has occurred
+ *				since the last command was started
+ * @COMEDI_SRF_RUNNING:		command is running
+ * @COMEDI_SRF_FREE_SPRIV:	free s->private on detach
+ *
+ * @COMEDI_SRF_BUSY_MASK:	runflags that indicate the subdevice is "busy"
+ */
+#define COMEDI_SRF_RT		BIT(1)
+#define COMEDI_SRF_ERROR	BIT(2)
+#define COMEDI_SRF_RUNNING	BIT(27)
+#define COMEDI_SRF_FREE_SPRIV	BIT(31)
+
+#define COMEDI_SRF_BUSY_MASK	(COMEDI_SRF_ERROR | COMEDI_SRF_RUNNING)
+
+/**
  * struct comedi_file - per-file private data for comedi device
  * @dev: comedi_device struct
  * @read_subdev: current "read" subdevice
@@ -679,8 +696,28 @@ static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
 	return !(runflags & COMEDI_SRF_BUSY_MASK);
 }
 
+bool comedi_can_auto_free_spriv(struct comedi_subdevice *s)
+{
+	unsigned runflags = __comedi_get_subdevice_runflags(s);
+
+	return runflags & COMEDI_SRF_FREE_SPRIV;
+}
+
 /**
- * comedi_alloc_spriv() - Allocate memory for the subdevice private data.
+ * comedi_set_spriv_auto_free - mark subdevice private data as freeable
+ * @s: comedi_subdevice struct
+ *
+ * Mark the subdevice as having a pointer to private data that can be
+ * automatically freed by the comedi core during the detach.
+ */
+void comedi_set_spriv_auto_free(struct comedi_subdevice *s)
+{
+	__comedi_set_subdevice_runflags(s, COMEDI_SRF_FREE_SPRIV);
+}
+EXPORT_SYMBOL_GPL(comedi_set_spriv_auto_free);
+
+/**
+ * comedi_alloc_spriv - Allocate memory for the subdevice private data.
  * @s: comedi_subdevice struct
  * @size: size of the memory to allocate
  *
@@ -691,7 +728,7 @@ void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size)
 {
 	s->private = kzalloc(size, GFP_KERNEL);
 	if (s->private)
-		s->runflags |= COMEDI_SRF_FREE_SPRIV;
+		comedi_set_spriv_auto_free(s);
 	return s->private;
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_spriv);
@@ -1048,11 +1085,6 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
 			if (put_user(x, it.rangelist + i))
 				return -EFAULT;
 		}
-#if 0
-		if (copy_to_user(it.rangelist, s->range_type_list,
-				 s->n_chan * sizeof(unsigned int)))
-			return -EFAULT;
-#endif
 	}
 
 	return 0;
@@ -1725,7 +1757,7 @@ cleanup:
 
 /*
  * COMEDI_CMDTEST ioctl
- * asynchronous aquisition command testing
+ * asynchronous acquisition command testing
  *
  * arg:
  *	pointer to comedi_cmd structure

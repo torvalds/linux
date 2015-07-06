@@ -2964,6 +2964,7 @@ static struct pci_driver amd64_pci_driver = {
 	.probe		= probe_one_instance,
 	.remove		= remove_one_instance,
 	.id_table	= amd64_pci_table,
+	.driver.probe_type = PROBE_FORCE_SYNCHRONOUS,
 };
 
 static void setup_pci_device(void)

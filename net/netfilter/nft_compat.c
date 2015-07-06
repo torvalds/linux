@@ -161,6 +161,7 @@ nft_target_set_tgchk_param(struct xt_tgchk_param *par,
 		par->hook_mask = 0;
 	}
 	par->family	= ctx->afi->family;
+	par->nft_compat = true;
 }
 
 static void target_compat_from_user(struct xt_target *t, void *in, void *out)
@@ -377,6 +378,7 @@ nft_match_set_mtchk_param(struct xt_mtchk_param *par, const struct nft_ctx *ctx,
 		par->hook_mask = 0;
 	}
 	par->family	= ctx->afi->family;
+	par->nft_compat = true;
 }
 
 static void match_compat_from_user(struct xt_match *m, void *in, void *out)

@@ -174,7 +174,8 @@ config SND_SOC_SMDK_WM8994_PCM
 
 config SND_SOC_SPEYSIDE
 	tristate "Audio support for Wolfson Speyside"
-	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410 && I2C && SPI_MASTER
+	depends on SND_SOC_SAMSUNG && I2C && SPI_MASTER
+	depends on MACH_WLF_CRAGG_6410 || COMPILE_TEST
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8996
 	select SND_SOC_WM9081
@@ -183,13 +184,15 @@ config SND_SOC_SPEYSIDE
 
 config SND_SOC_TOBERMORY
 	tristate "Audio support for Wolfson Tobermory"
-	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410 && INPUT && I2C
+	depends on SND_SOC_SAMSUNG && INPUT && I2C
+	depends on MACH_WLF_CRAGG_6410 || COMPILE_TEST
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8962
 
 config SND_SOC_BELLS
 	tristate "Audio support for Wolfson Bells"
-	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410 && MFD_ARIZONA && I2C && SPI_MASTER
+	depends on SND_SOC_SAMSUNG && MFD_ARIZONA && I2C && SPI_MASTER
+	depends on MACH_WLF_CRAGG_6410 || COMPILE_TEST
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM5102
 	select SND_SOC_WM5110
@@ -199,14 +202,16 @@ config SND_SOC_BELLS
 
 config SND_SOC_LOWLAND
 	tristate "Audio support for Wolfson Lowland"
-	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410 && I2C
+	depends on SND_SOC_SAMSUNG && I2C
+	depends on MACH_WLF_CRAGG_6410 || COMPILE_TEST
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM5100
 	select SND_SOC_WM9081
 
 config SND_SOC_LITTLEMILL
 	tristate "Audio support for Wolfson Littlemill"
-	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410 && I2C
+	depends on SND_SOC_SAMSUNG && I2C
+	depends on MACH_WLF_CRAGG_6410 || COMPILE_TEST
 	select SND_SAMSUNG_I2S
 	select MFD_WM8994
 	select SND_SOC_WM8994

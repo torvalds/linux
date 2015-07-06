@@ -152,6 +152,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_pipe = NULL;
 	inode->i_bdev = NULL;
 	inode->i_cdev = NULL;
+	inode->i_link = NULL;
 	inode->i_rdev = 0;
 	inode->dirtied_when = 0;
 
@@ -223,6 +224,7 @@ EXPORT_SYMBOL(free_inode_nonrcu);
 void __destroy_inode(struct inode *inode)
 {
 	BUG_ON(inode_has_buffers(inode));
+	inode_detach_wb(inode);
 	security_inode_free(inode);
 	fsnotify_inode_delete(inode);
 	locks_free_lock_context(inode->i_flctx);
@@ -839,7 +841,11 @@ unsigned int get_next_ino(void)
 	}
 #endif
 
-	*p = ++res;
+	res++;
+	/* get_next_ino should not provide a 0 inode number */
+	if (unlikely(!res))
+		res++;
+	*p = res;
 	put_cpu_var(last_ino);
 	return res;
 }
@@ -1584,36 +1590,47 @@ static int update_time(struct inode *inode, struct timespec *time, int flags)
  *	This function automatically handles read only file systems and media,
  *	as well as the "noatime" flag and inode specific "noatime" markers.
  */
+bool atime_needs_update(const struct path *path, struct inode *inode)
+{
+	struct vfsmount *mnt = path->mnt;
+	struct timespec now;
+
+	if (inode->i_flags & S_NOATIME)
+		return false;
+	if (IS_NOATIME(inode))
+		return false;
+	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
+		return false;
+
+	if (mnt->mnt_flags & MNT_NOATIME)
+		return false;
+	if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
+		return false;
+
+	now = current_fs_time(inode->i_sb);
+
+	if (!relatime_need_update(mnt, inode, now))
+		return false;
+
+	if (timespec_equal(&inode->i_atime, &now))
+		return false;
+
+	return true;
+}
+
 void touch_atime(const struct path *path)
 {
 	struct vfsmount *mnt = path->mnt;
 	struct inode *inode = d_inode(path->dentry);
 	struct timespec now;
 
-	if (inode->i_flags & S_NOATIME)
-		return;
-	if (IS_NOATIME(inode))
-		return;
-	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
-		return;
-
-	if (mnt->mnt_flags & MNT_NOATIME)
-		return;
-	if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
-		return;
-
-	now = current_fs_time(inode->i_sb);
-
-	if (!relatime_need_update(mnt, inode, now))
-		return;
-
-	if (timespec_equal(&inode->i_atime, &now))
+	if (!atime_needs_update(path, inode))
 		return;
 
 	if (!sb_start_write_trylock(inode->i_sb))
 		return;
 
-	if (__mnt_want_write(mnt))
+	if (__mnt_want_write(mnt) != 0)
 		goto skip_update;
 	/*
 	 * File systems can error out when updating inodes if they need to
@@ -1624,6 +1641,7 @@ void touch_atime(const struct path *path)
 	 * We may also fail on filesystems that have the ability to make parts
 	 * of the fs read only, e.g. subvolumes in Btrfs.
 	 */
+	now = current_fs_time(inode->i_sb);
 	update_time(inode, &now, S_ATIME);
 	__mnt_drop_write(mnt);
 skip_update:
@@ -1660,7 +1678,31 @@ int should_remove_suid(struct dentry *dentry)
 }
 EXPORT_SYMBOL(should_remove_suid);
 
-static int __remove_suid(struct dentry *dentry, int kill)
+/*
+ * Return mask of changes for notify_change() that need to be done as a
+ * response to write or truncate. Return 0 if nothing has to be changed.
+ * Negative value on error (change should be denied).
+ */
+int dentry_needs_remove_privs(struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+	int mask = 0;
+	int ret;
+
+	if (IS_NOSEC(inode))
+		return 0;
+
+	mask = should_remove_suid(dentry);
+	ret = security_inode_need_killpriv(dentry);
+	if (ret < 0)
+		return ret;
+	if (ret)
+		mask |= ATTR_KILL_PRIV;
+	return mask;
+}
+EXPORT_SYMBOL(dentry_needs_remove_privs);
+
+static int __remove_privs(struct dentry *dentry, int kill)
 {
 	struct iattr newattrs;
 
@@ -1672,33 +1714,32 @@ static int __remove_suid(struct dentry *dentry, int kill)
 	return notify_change(dentry, &newattrs, NULL);
 }
 
-int file_remove_suid(struct file *file)
+/*
+ * Remove special file priviledges (suid, capabilities) when file is written
+ * to or truncated.
+ */
+int file_remove_privs(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = d_inode(dentry);
-	int killsuid;
-	int killpriv;
+	int kill;
 	int error = 0;
 
 	/* Fast path for nothing security related */
 	if (IS_NOSEC(inode))
 		return 0;
 
-	killsuid = should_remove_suid(dentry);
-	killpriv = security_inode_need_killpriv(dentry);
-
-	if (killpriv < 0)
-		return killpriv;
-	if (killpriv)
-		error = security_inode_killpriv(dentry);
-	if (!error && killsuid)
-		error = __remove_suid(dentry, killsuid);
-	if (!error && (inode->i_sb->s_flags & MS_NOSEC))
-		inode->i_flags |= S_NOSEC;
+	kill = file_needs_remove_privs(file);
+	if (kill < 0)
+		return kill;
+	if (kill)
+		error = __remove_privs(dentry, kill);
+	if (!error)
+		inode_has_no_xattr(inode);
 
 	return error;
 }
-EXPORT_SYMBOL(file_remove_suid);
+EXPORT_SYMBOL(file_remove_privs);
 
 /**
  *	file_update_time	-	update mtime and ctime time
@@ -1953,9 +1994,8 @@ EXPORT_SYMBOL(inode_dio_wait);
  * inode is being instantiated).  The reason for the cmpxchg() loop
  * --- which wouldn't be necessary if all code paths which modify
  * i_flags actually followed this rule, is that there is at least one
- * code path which doesn't today --- for example,
- * __generic_file_aio_write() calls file_remove_suid() without holding
- * i_mutex --- so we use cmpxchg() out of an abundance of caution.
+ * code path which doesn't today so we use cmpxchg() out of an abundance
+ * of caution.
  *
  * In the long run, i_mutex is overkill, and we should probably look
  * at using the i_lock spinlock to protect i_flags, and then make sure

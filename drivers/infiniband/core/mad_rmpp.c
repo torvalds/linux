@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005 Intel Inc. All rights reserved.
  * Copyright (c) 2005-2006 Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2014 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -67,6 +68,7 @@ struct mad_rmpp_recv {
 	u8 mgmt_class;
 	u8 class_version;
 	u8 method;
+	u8 base_version;
 };
 
 static inline void deref_rmpp_recv(struct mad_rmpp_recv *rmpp_recv)
@@ -139,7 +141,8 @@ static void ack_recv(struct mad_rmpp_recv *rmpp_recv,
 	hdr_len = ib_get_mad_data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
 	msg = ib_create_send_mad(&rmpp_recv->agent->agent, recv_wc->wc->src_qp,
 				 recv_wc->wc->pkey_index, 1, hdr_len,
-				 0, GFP_KERNEL);
+				 0, GFP_KERNEL,
+				 IB_MGMT_BASE_VERSION);
 	if (IS_ERR(msg))
 		return;
 
@@ -165,7 +168,8 @@ static struct ib_mad_send_buf *alloc_response_msg(struct ib_mad_agent *agent,
 	hdr_len = ib_get_mad_data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
 	msg = ib_create_send_mad(agent, recv_wc->wc->src_qp,
 				 recv_wc->wc->pkey_index, 1,
-				 hdr_len, 0, GFP_KERNEL);
+				 hdr_len, 0, GFP_KERNEL,
+				 IB_MGMT_BASE_VERSION);
 	if (IS_ERR(msg))
 		ib_destroy_ah(ah);
 	else {
@@ -316,6 +320,7 @@ create_rmpp_recv(struct ib_mad_agent_private *agent,
 	rmpp_recv->mgmt_class = mad_hdr->mgmt_class;
 	rmpp_recv->class_version = mad_hdr->class_version;
 	rmpp_recv->method  = mad_hdr->method;
+	rmpp_recv->base_version  = mad_hdr->base_version;
 	return rmpp_recv;
 
 error:	kfree(rmpp_recv);
@@ -431,14 +436,23 @@ static inline int get_mad_len(struct mad_rmpp_recv *rmpp_recv)
 {
 	struct ib_rmpp_mad *rmpp_mad;
 	int hdr_size, data_size, pad;
+	bool opa = rdma_cap_opa_mad(rmpp_recv->agent->qp_info->port_priv->device,
+				    rmpp_recv->agent->qp_info->port_priv->port_num);
 
 	rmpp_mad = (struct ib_rmpp_mad *)rmpp_recv->cur_seg_buf->mad;
 
 	hdr_size = ib_get_mad_data_offset(rmpp_mad->mad_hdr.mgmt_class);
-	data_size = sizeof(struct ib_rmpp_mad) - hdr_size;
-	pad = IB_MGMT_RMPP_DATA - be32_to_cpu(rmpp_mad->rmpp_hdr.paylen_newwin);
-	if (pad > IB_MGMT_RMPP_DATA || pad < 0)
-		pad = 0;
+	if (opa && rmpp_recv->base_version == OPA_MGMT_BASE_VERSION) {
+		data_size = sizeof(struct opa_rmpp_mad) - hdr_size;
+		pad = OPA_MGMT_RMPP_DATA - be32_to_cpu(rmpp_mad->rmpp_hdr.paylen_newwin);
+		if (pad > OPA_MGMT_RMPP_DATA || pad < 0)
+			pad = 0;
+	} else {
+		data_size = sizeof(struct ib_rmpp_mad) - hdr_size;
+		pad = IB_MGMT_RMPP_DATA - be32_to_cpu(rmpp_mad->rmpp_hdr.paylen_newwin);
+		if (pad > IB_MGMT_RMPP_DATA || pad < 0)
+			pad = 0;
+	}
 
 	return hdr_size + rmpp_recv->seg_num * data_size - pad;
 }
@@ -570,13 +584,14 @@ static int send_next_seg(struct ib_mad_send_wr_private *mad_send_wr)
 
 	if (mad_send_wr->seg_num == 1) {
 		rmpp_mad->rmpp_hdr.rmpp_rtime_flags |= IB_MGMT_RMPP_FLAG_FIRST;
-		paylen = mad_send_wr->send_buf.seg_count * IB_MGMT_RMPP_DATA -
-			 mad_send_wr->pad;
+		paylen = (mad_send_wr->send_buf.seg_count *
+			  mad_send_wr->send_buf.seg_rmpp_size) -
+			  mad_send_wr->pad;
 	}
 
 	if (mad_send_wr->seg_num == mad_send_wr->send_buf.seg_count) {
 		rmpp_mad->rmpp_hdr.rmpp_rtime_flags |= IB_MGMT_RMPP_FLAG_LAST;
-		paylen = IB_MGMT_RMPP_DATA - mad_send_wr->pad;
+		paylen = mad_send_wr->send_buf.seg_rmpp_size - mad_send_wr->pad;
 	}
 	rmpp_mad->rmpp_hdr.paylen_newwin = cpu_to_be32(paylen);
 

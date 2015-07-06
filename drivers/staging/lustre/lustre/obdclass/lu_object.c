@@ -1532,7 +1532,7 @@ static void keys_fini(struct lu_context *ctx)
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i)
 		key_fini(ctx, i);
 
-	OBD_FREE(ctx->lc_value, ARRAY_SIZE(lu_keys) * sizeof(ctx->lc_value[0]));
+	kfree(ctx->lc_value);
 	ctx->lc_value = NULL;
 }
 
@@ -1581,8 +1581,8 @@ static int keys_fill(struct lu_context *ctx)
 
 static int keys_init(struct lu_context *ctx)
 {
-	OBD_ALLOC(ctx->lc_value,
-		  ARRAY_SIZE(lu_keys) * sizeof(ctx->lc_value[0]));
+	ctx->lc_value = kcalloc(ARRAY_SIZE(lu_keys), sizeof(ctx->lc_value[0]),
+				GFP_NOFS);
 	if (likely(ctx->lc_value != NULL))
 		return keys_fill(ctx);
 
@@ -1989,14 +1989,10 @@ void lu_global_fini(void)
 
 static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx)
 {
-#if defined (CONFIG_PROC_FS)
 	struct lprocfs_counter ret;
 
 	lprocfs_stats_collect(stats, idx, &ret);
 	return (__u32)ret.lc_count;
-#else
-	return 0;
-#endif
 }
 
 /**
@@ -2125,7 +2121,7 @@ void lu_buf_free(struct lu_buf *buf)
 	LASSERT(buf);
 	if (buf->lb_buf) {
 		LASSERT(buf->lb_len > 0);
-		OBD_FREE_LARGE(buf->lb_buf, buf->lb_len);
+		kvfree(buf->lb_buf);
 		buf->lb_buf = NULL;
 		buf->lb_len = 0;
 	}
@@ -2137,7 +2133,7 @@ void lu_buf_alloc(struct lu_buf *buf, int size)
 	LASSERT(buf);
 	LASSERT(buf->lb_buf == NULL);
 	LASSERT(buf->lb_len == 0);
-	OBD_ALLOC_LARGE(buf->lb_buf, size);
+	buf->lb_buf = libcfs_kvzalloc(size, GFP_NOFS);
 	if (likely(buf->lb_buf))
 		buf->lb_len = size;
 }
@@ -2175,14 +2171,14 @@ int lu_buf_check_and_grow(struct lu_buf *buf, int len)
 	if (len <= buf->lb_len)
 		return 0;
 
-	OBD_ALLOC_LARGE(ptr, len);
+	ptr = libcfs_kvzalloc(len, GFP_NOFS);
 	if (ptr == NULL)
 		return -ENOMEM;
 
 	/* Free the old buf */
 	if (buf->lb_buf != NULL) {
 		memcpy(ptr, buf->lb_buf, buf->lb_len);
-		OBD_FREE_LARGE(buf->lb_buf, buf->lb_len);
+		kvfree(buf->lb_buf);
 	}
 
 	buf->lb_buf = ptr;

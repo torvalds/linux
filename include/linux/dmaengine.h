@@ -65,6 +65,7 @@ enum dma_transaction_type {
 	DMA_PQ,
 	DMA_XOR_VAL,
 	DMA_PQ_VAL,
+	DMA_MEMSET,
 	DMA_INTERRUPT,
 	DMA_SG,
 	DMA_PRIVATE,
@@ -122,10 +123,18 @@ enum dma_transfer_direction {
  *	 chunk and before first src/dst address for next chunk.
  *	 Ignored for dst(assumed 0), if dst_inc is true and dst_sgl is false.
  *	 Ignored for src(assumed 0), if src_inc is true and src_sgl is false.
+ * @dst_icg: Number of bytes to jump after last dst address of this
+ *	 chunk and before the first dst address for next chunk.
+ *	 Ignored if dst_inc is true and dst_sgl is false.
+ * @src_icg: Number of bytes to jump after last src address of this
+ *	 chunk and before the first src address for next chunk.
+ *	 Ignored if src_inc is true and src_sgl is false.
  */
 struct data_chunk {
 	size_t size;
 	size_t icg;
+	size_t dst_icg;
+	size_t src_icg;
 };
 
 /**
@@ -222,6 +231,16 @@ struct dma_chan_percpu {
 };
 
 /**
+ * struct dma_router - DMA router structure
+ * @dev: pointer to the DMA router device
+ * @route_free: function to be called when the route can be disconnected
+ */
+struct dma_router {
+	struct device *dev;
+	void (*route_free)(struct device *dev, void *route_data);
+};
+
+/**
  * struct dma_chan - devices supply DMA channels, clients use them
  * @device: ptr to the dma device who supplies this channel, always !%NULL
  * @cookie: last cookie value returned to client
@@ -232,6 +251,8 @@ struct dma_chan_percpu {
  * @local: per-cpu pointer to a struct dma_chan_percpu
  * @client_count: how many clients are using this channel
  * @table_count: number of appearances in the mem-to-mem allocation table
+ * @router: pointer to the DMA router structure
+ * @route_data: channel specific data for the router
  * @private: private data for certain client-channel associations
  */
 struct dma_chan {
@@ -247,6 +268,11 @@ struct dma_chan {
 	struct dma_chan_percpu __percpu *local;
 	int client_count;
 	int table_count;
+
+	/* DMA router */
+	struct dma_router *router;
+	void *route_data;
+
 	void *private;
 };
 
@@ -570,6 +596,7 @@ struct dma_tx_state {
  * @copy_align: alignment shift for memcpy operations
  * @xor_align: alignment shift for xor operations
  * @pq_align: alignment shift for pq operations
+ * @fill_align: alignment shift for memset operations
  * @dev_id: unique device ID
  * @dev: struct device reference for dma mapping api
  * @src_addr_widths: bit mask of src addr widths the device supports
@@ -588,6 +615,7 @@ struct dma_tx_state {
  * @device_prep_dma_xor_val: prepares a xor validation operation
  * @device_prep_dma_pq: prepares a pq operation
  * @device_prep_dma_pq_val: prepares a pqzero_sum operation
+ * @device_prep_dma_memset: prepares a memset operation
  * @device_prep_dma_interrupt: prepares an end of chain interrupt operation
  * @device_prep_slave_sg: prepares a slave dma operation
  * @device_prep_dma_cyclic: prepare a cyclic dma operation suitable for audio.
@@ -620,6 +648,7 @@ struct dma_device {
 	u8 copy_align;
 	u8 xor_align;
 	u8 pq_align;
+	u8 fill_align;
 	#define DMA_HAS_PQ_CONTINUE (1 << 15)
 
 	int dev_id;
@@ -650,6 +679,9 @@ struct dma_device {
 		struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 		unsigned int src_cnt, const unsigned char *scf, size_t len,
 		enum sum_check_flags *pqres, unsigned long flags);
+	struct dma_async_tx_descriptor *(*device_prep_dma_memset)(
+		struct dma_chan *chan, dma_addr_t dest, int value, size_t len,
+		unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_interrupt)(
 		struct dma_chan *chan, unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_sg)(
@@ -745,6 +777,17 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_interleaved_dma(
 	return chan->device->device_prep_interleaved_dma(chan, xt, flags);
 }
 
+static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memset(
+		struct dma_chan *chan, dma_addr_t dest, int value, size_t len,
+		unsigned long flags)
+{
+	if (!chan || !chan->device)
+		return NULL;
+
+	return chan->device->device_prep_dma_memset(chan, dest, value,
+						    len, flags);
+}
+
 static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_sg(
 		struct dma_chan *chan,
 		struct scatterlist *dst_sg, unsigned int dst_nents,
@@ -820,6 +863,12 @@ static inline bool is_dma_pq_aligned(struct dma_device *dev, size_t off1,
 	return dmaengine_check_align(dev->pq_align, off1, off2, len);
 }
 
+static inline bool is_dma_fill_aligned(struct dma_device *dev, size_t off1,
+				       size_t off2, size_t len)
+{
+	return dmaengine_check_align(dev->fill_align, off1, off2, len);
+}
+
 static inline void
 dma_set_maxpq(struct dma_device *dma, int maxpq, int has_pq_continue)
 {
@@ -872,6 +921,33 @@ static inline int dma_maxpq(struct dma_device *dma, enum dma_ctrl_flags flags)
 	else if (dmaf_continue(flags))
 		return dma_dev_to_maxpq(dma) - 3;
 	BUG();
+}
+
+static inline size_t dmaengine_get_icg(bool inc, bool sgl, size_t icg,
+				      size_t dir_icg)
+{
+	if (inc) {
+		if (dir_icg)
+			return dir_icg;
+		else if (sgl)
+			return icg;
+	}
+
+	return 0;
+}
+
+static inline size_t dmaengine_get_dst_icg(struct dma_interleaved_template *xt,
+					   struct data_chunk *chunk)
+{
+	return dmaengine_get_icg(xt->dst_inc, xt->dst_sgl,
+				 chunk->icg, chunk->dst_icg);
+}
+
+static inline size_t dmaengine_get_src_icg(struct dma_interleaved_template *xt,
+					   struct data_chunk *chunk)
+{
+	return dmaengine_get_icg(xt->src_inc, xt->src_sgl,
+				 chunk->icg, chunk->src_icg);
 }
 
 /* --- public DMA engine API --- */

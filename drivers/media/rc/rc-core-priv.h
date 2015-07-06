@@ -25,6 +25,8 @@ struct ir_raw_handler {
 
 	u64 protocols; /* which are handled by this handler */
 	int (*decode)(struct rc_dev *dev, struct ir_raw_event event);
+	int (*encode)(u64 protocols, const struct rc_scancode_filter *scancode,
+		      struct ir_raw_event *events, unsigned int max);
 
 	/* These two should only be used by the lirc decoder */
 	int (*raw_register)(struct rc_dev *dev);
@@ -150,10 +152,44 @@ static inline bool is_timing_event(struct ir_raw_event ev)
 #define TO_US(duration)			DIV_ROUND_CLOSEST((duration), 1000)
 #define TO_STR(is_pulse)		((is_pulse) ? "pulse" : "space")
 
+/* functions for IR encoders */
+
+static inline void init_ir_raw_event_duration(struct ir_raw_event *ev,
+					      unsigned int pulse,
+					      u32 duration)
+{
+	init_ir_raw_event(ev);
+	ev->duration = duration;
+	ev->pulse = pulse;
+}
+
+/**
+ * struct ir_raw_timings_manchester - Manchester coding timings
+ * @leader:		duration of leader pulse (if any) 0 if continuing
+ *			existing signal (see @pulse_space_start)
+ * @pulse_space_start:	1 for starting with pulse (0 for starting with space)
+ * @clock:		duration of each pulse/space in ns
+ * @invert:		if set clock logic is inverted
+ *			(0 = space + pulse, 1 = pulse + space)
+ * @trailer_space:	duration of trailer space in ns
+ */
+struct ir_raw_timings_manchester {
+	unsigned int leader;
+	unsigned int pulse_space_start:1;
+	unsigned int clock;
+	unsigned int invert:1;
+	unsigned int trailer_space;
+};
+
+int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
+			  const struct ir_raw_timings_manchester *timings,
+			  unsigned int n, unsigned int data);
+
 /*
  * Routines from rc-raw.c to be used internally and by decoders
  */
 u64 ir_raw_get_allowed_protocols(void);
+u64 ir_raw_get_encode_protocols(void);
 int ir_raw_event_register(struct rc_dev *dev);
 void ir_raw_event_unregister(struct rc_dev *dev);
 int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);

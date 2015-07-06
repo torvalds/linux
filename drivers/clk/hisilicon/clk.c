@@ -232,3 +232,32 @@ void __init hisi_clk_register_gate_sep(struct hisi_gate_clock *clks,
 		data->clk_data.clks[clks[i].id] = clk;
 	}
 }
+
+void __init hi6220_clk_register_divider(struct hi6220_divider_clock *clks,
+					int nums, struct hisi_clock_data *data)
+{
+	struct clk *clk;
+	void __iomem *base = data->base;
+	int i;
+
+	for (i = 0; i < nums; i++) {
+		clk = hi6220_register_clkdiv(NULL, clks[i].name,
+						clks[i].parent_name,
+						clks[i].flags,
+						base + clks[i].offset,
+						clks[i].shift,
+						clks[i].width,
+						clks[i].mask_bit,
+						&hisi_clk_lock);
+		if (IS_ERR(clk)) {
+			pr_err("%s: failed to register clock %s\n",
+			       __func__, clks[i].name);
+			continue;
+		}
+
+		if (clks[i].alias)
+			clk_register_clkdev(clk, clks[i].alias, NULL);
+
+		data->clk_data.clks[clks[i].id] = clk;
+	}
+}

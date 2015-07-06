@@ -33,7 +33,6 @@
 
 struct kvm_irq_routing_table {
 	int chip[KVM_NR_IRQCHIPS][KVM_IRQCHIP_NUM_PINS];
-	struct kvm_kernel_irq_routing_entry *rt_entries;
 	u32 nr_rt_entries;
 	/*
 	 * Array indexed by gsi. Each entry contains list of irq chips
@@ -118,11 +117,32 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 	return ret;
 }
 
+static void free_irq_routing_table(struct kvm_irq_routing_table *rt)
+{
+	int i;
+
+	if (!rt)
+		return;
+
+	for (i = 0; i < rt->nr_rt_entries; ++i) {
+		struct kvm_kernel_irq_routing_entry *e;
+		struct hlist_node *n;
+
+		hlist_for_each_entry_safe(e, n, &rt->map[i], link) {
+			hlist_del(&e->link);
+			kfree(e);
+		}
+	}
+
+	kfree(rt);
+}
+
 void kvm_free_irq_routing(struct kvm *kvm)
 {
 	/* Called only during vm destruction. Nobody can use the pointer
 	   at this stage */
-	kfree(kvm->irq_routing);
+	struct kvm_irq_routing_table *rt = rcu_access_pointer(kvm->irq_routing);
+	free_irq_routing_table(rt);
 }
 
 static int setup_routing_entry(struct kvm_irq_routing_table *rt,
@@ -173,14 +193,11 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	nr_rt_entries += 1;
 
-	new = kzalloc(sizeof(*new) + (nr_rt_entries * sizeof(struct hlist_head))
-		      + (nr * sizeof(struct kvm_kernel_irq_routing_entry)),
+	new = kzalloc(sizeof(*new) + (nr_rt_entries * sizeof(struct hlist_head)),
 		      GFP_KERNEL);
 
 	if (!new)
 		return -ENOMEM;
-
-	new->rt_entries = (void *)&new->map[nr_rt_entries];
 
 	new->nr_rt_entries = nr_rt_entries;
 	for (i = 0; i < KVM_NR_IRQCHIPS; i++)
@@ -188,10 +205,17 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			new->chip[i][j] = -1;
 
 	for (i = 0; i < nr; ++i) {
+		struct kvm_kernel_irq_routing_entry *e;
+
+		r = -ENOMEM;
+		e = kzalloc(sizeof(*e), GFP_KERNEL);
+		if (!e)
+			goto out;
+
 		r = -EINVAL;
 		if (ue->flags)
 			goto out;
-		r = setup_routing_entry(new, &new->rt_entries[i], ue);
+		r = setup_routing_entry(new, e, ue);
 		if (r)
 			goto out;
 		++ue;
@@ -209,6 +233,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 	r = 0;
 
 out:
-	kfree(new);
+	free_irq_routing_table(new);
+
 	return r;
 }

@@ -71,7 +71,6 @@ static inline char *config_item_name(struct config_item * item)
 	return item->ci_name;
 }
 
-extern void config_item_init(struct config_item *);
 extern void config_item_init_type_name(struct config_item *item,
 				       const char *name,
 				       struct config_item_type *type);

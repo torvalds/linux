@@ -2024,7 +2024,6 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 {
 	char b[BDEVNAME_SIZE];
 	struct kobject *ko;
-	char *s;
 	int err;
 
 	/* prevent duplicates */
@@ -2070,8 +2069,7 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 		return -EBUSY;
 	}
 	bdevname(rdev->bdev,b);
-	while ( (s=strchr(b, '/')) != NULL)
-		*s = '!';
+	strreplace(b, '/', '!');
 
 	rdev->mddev = mddev;
 	printk(KERN_INFO "md: bind<%s>\n", b);
@@ -2630,13 +2628,14 @@ errors_show(struct md_rdev *rdev, char *page)
 static ssize_t
 errors_store(struct md_rdev *rdev, const char *buf, size_t len)
 {
-	char *e;
-	unsigned long n = simple_strtoul(buf, &e, 10);
-	if (*buf && (*e == 0 || *e == '\n')) {
-		atomic_set(&rdev->corrected_errors, n);
-		return len;
-	}
-	return -EINVAL;
+	unsigned int n;
+	int rv;
+
+	rv = kstrtouint(buf, 10, &n);
+	if (rv < 0)
+		return rv;
+	atomic_set(&rdev->corrected_errors, n);
+	return len;
 }
 static struct rdev_sysfs_entry rdev_errors =
 __ATTR(errors, S_IRUGO|S_IWUSR, errors_show, errors_store);
@@ -2653,13 +2652,16 @@ slot_show(struct md_rdev *rdev, char *page)
 static ssize_t
 slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 {
-	char *e;
+	int slot;
 	int err;
-	int slot = simple_strtoul(buf, &e, 10);
+
 	if (strncmp(buf, "none", 4)==0)
 		slot = -1;
-	else if (e==buf || (*e && *e!= '\n'))
-		return -EINVAL;
+	else {
+		err = kstrtouint(buf, 10, (unsigned int *)&slot);
+		if (err < 0)
+			return err;
+	}
 	if (rdev->mddev->pers && slot == -1) {
 		/* Setting 'slot' on an active array requires also
 		 * updating the 'rd%d' link, and communicating
@@ -3544,12 +3546,12 @@ layout_show(struct mddev *mddev, char *page)
 static ssize_t
 layout_store(struct mddev *mddev, const char *buf, size_t len)
 {
-	char *e;
-	unsigned long n = simple_strtoul(buf, &e, 10);
+	unsigned int n;
 	int err;
 
-	if (!*buf || (*e && *e != '\n'))
-		return -EINVAL;
+	err = kstrtouint(buf, 10, &n);
+	if (err < 0)
+		return err;
 	err = mddev_lock(mddev);
 	if (err)
 		return err;
@@ -3593,12 +3595,12 @@ static int update_raid_disks(struct mddev *mddev, int raid_disks);
 static ssize_t
 raid_disks_store(struct mddev *mddev, const char *buf, size_t len)
 {
-	char *e;
+	unsigned int n;
 	int err;
-	unsigned long n = simple_strtoul(buf, &e, 10);
 
-	if (!*buf || (*e && *e != '\n'))
-		return -EINVAL;
+	err = kstrtouint(buf, 10, &n);
+	if (err < 0)
+		return err;
 
 	err = mddev_lock(mddev);
 	if (err)
@@ -3645,12 +3647,12 @@ chunk_size_show(struct mddev *mddev, char *page)
 static ssize_t
 chunk_size_store(struct mddev *mddev, const char *buf, size_t len)
 {
+	unsigned long n;
 	int err;
-	char *e;
-	unsigned long n = simple_strtoul(buf, &e, 10);
 
-	if (!*buf || (*e && *e != '\n'))
-		return -EINVAL;
+	err = kstrtoul(buf, 10, &n);
+	if (err < 0)
+		return err;
 
 	err = mddev_lock(mddev);
 	if (err)
@@ -3688,19 +3690,24 @@ resync_start_show(struct mddev *mddev, char *page)
 static ssize_t
 resync_start_store(struct mddev *mddev, const char *buf, size_t len)
 {
+	unsigned long long n;
 	int err;
-	char *e;
-	unsigned long long n = simple_strtoull(buf, &e, 10);
+
+	if (cmd_match(buf, "none"))
+		n = MaxSector;
+	else {
+		err = kstrtoull(buf, 10, &n);
+		if (err < 0)
+			return err;
+		if (n != (sector_t)n)
+			return -EINVAL;
+	}
 
 	err = mddev_lock(mddev);
 	if (err)
 		return err;
 	if (mddev->pers && !test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
 		err = -EBUSY;
-	else if (cmd_match(buf, "none"))
-		n = MaxSector;
-	else if (!*buf || (*e && *e != '\n'))
-		err = -EINVAL;
 
 	if (!err) {
 		mddev->recovery_cp = n;
@@ -3834,7 +3841,7 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 				err = -EBUSY;
 		}
 		spin_unlock(&mddev->lock);
-		return err;
+		return err ?: len;
 	}
 	err = mddev_lock(mddev);
 	if (err)
@@ -3936,14 +3943,14 @@ max_corrected_read_errors_show(struct mddev *mddev, char *page) {
 static ssize_t
 max_corrected_read_errors_store(struct mddev *mddev, const char *buf, size_t len)
 {
-	char *e;
-	unsigned long n = simple_strtoul(buf, &e, 10);
+	unsigned int n;
+	int rv;
 
-	if (*buf && (*e == 0 || *e == '\n')) {
-		atomic_set(&mddev->max_corr_read_errors, n);
-		return len;
-	}
-	return -EINVAL;
+	rv = kstrtouint(buf, 10, &n);
+	if (rv < 0)
+		return rv;
+	atomic_set(&mddev->max_corr_read_errors, n);
+	return len;
 }
 
 static struct md_sysfs_entry max_corr_read_errors =
@@ -4005,8 +4012,10 @@ new_dev_store(struct mddev *mddev, const char *buf, size_t len)
 	else
 		rdev = md_import_device(dev, -1, -1);
 
-	if (IS_ERR(rdev))
+	if (IS_ERR(rdev)) {
+		mddev_unlock(mddev);
 		return PTR_ERR(rdev);
+	}
 	err = bind_rdev_to_array(rdev, mddev);
  out:
 	if (err)
@@ -4211,34 +4220,36 @@ action_store(struct mddev *mddev, const char *page, size_t len)
 	if (!mddev->pers || !mddev->pers->sync_request)
 		return -EINVAL;
 
-	if (cmd_match(page, "frozen"))
-		set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-	else
-		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 
 	if (cmd_match(page, "idle") || cmd_match(page, "frozen")) {
-		flush_workqueue(md_misc_wq);
-		if (mddev->sync_thread) {
-			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
-			if (mddev_lock(mddev) == 0) {
+		if (cmd_match(page, "frozen"))
+			set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+		else
+			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+		if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) &&
+		    mddev_lock(mddev) == 0) {
+			flush_workqueue(md_misc_wq);
+			if (mddev->sync_thread) {
+				set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 				md_reap_sync_thread(mddev);
-				mddev_unlock(mddev);
 			}
+			mddev_unlock(mddev);
 		}
 	} else if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
 		   test_bit(MD_RECOVERY_NEEDED, &mddev->recovery))
 		return -EBUSY;
 	else if (cmd_match(page, "resync"))
-		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 	else if (cmd_match(page, "recover")) {
+		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
-		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	} else if (cmd_match(page, "reshape")) {
 		int err;
 		if (mddev->pers->start_reshape == NULL)
 			return -EINVAL;
 		err = mddev_lock(mddev);
 		if (!err) {
+			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 			err = mddev->pers->start_reshape(mddev);
 			mddev_unlock(mddev);
 		}
@@ -4250,6 +4261,7 @@ action_store(struct mddev *mddev, const char *page, size_t len)
 			set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
 		else if (!cmd_match(page, "repair"))
 			return -EINVAL;
+		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 	}
@@ -4297,15 +4309,18 @@ sync_min_show(struct mddev *mddev, char *page)
 static ssize_t
 sync_min_store(struct mddev *mddev, const char *buf, size_t len)
 {
-	int min;
-	char *e;
+	unsigned int min;
+	int rv;
+
 	if (strncmp(buf, "system", 6)==0) {
-		mddev->sync_speed_min = 0;
-		return len;
+		min = 0;
+	} else {
+		rv = kstrtouint(buf, 10, &min);
+		if (rv < 0)
+			return rv;
+		if (min == 0)
+			return -EINVAL;
 	}
-	min = simple_strtoul(buf, &e, 10);
-	if (buf == e || (*e && *e != '\n') || min <= 0)
-		return -EINVAL;
 	mddev->sync_speed_min = min;
 	return len;
 }
@@ -4323,15 +4338,18 @@ sync_max_show(struct mddev *mddev, char *page)
 static ssize_t
 sync_max_store(struct mddev *mddev, const char *buf, size_t len)
 {
-	int max;
-	char *e;
+	unsigned int max;
+	int rv;
+
 	if (strncmp(buf, "system", 6)==0) {
-		mddev->sync_speed_max = 0;
-		return len;
+		max = 0;
+	} else {
+		rv = kstrtouint(buf, 10, &max);
+		if (rv < 0)
+			return rv;
+		if (max == 0)
+			return -EINVAL;
 	}
-	max = simple_strtoul(buf, &e, 10);
-	if (buf == e || (*e && *e != '\n') || max <= 0)
-		return -EINVAL;
 	mddev->sync_speed_max = max;
 	return len;
 }
@@ -4514,12 +4532,13 @@ suspend_lo_show(struct mddev *mddev, char *page)
 static ssize_t
 suspend_lo_store(struct mddev *mddev, const char *buf, size_t len)
 {
-	char *e;
-	unsigned long long new = simple_strtoull(buf, &e, 10);
-	unsigned long long old;
+	unsigned long long old, new;
 	int err;
 
-	if (buf == e || (*e && *e != '\n'))
+	err = kstrtoull(buf, 10, &new);
+	if (err < 0)
+		return err;
+	if (new != (sector_t)new)
 		return -EINVAL;
 
 	err = mddev_lock(mddev);
@@ -4556,12 +4575,13 @@ suspend_hi_show(struct mddev *mddev, char *page)
 static ssize_t
 suspend_hi_store(struct mddev *mddev, const char *buf, size_t len)
 {
-	char *e;
-	unsigned long long new = simple_strtoull(buf, &e, 10);
-	unsigned long long old;
+	unsigned long long old, new;
 	int err;
 
-	if (buf == e || (*e && *e != '\n'))
+	err = kstrtoull(buf, 10, &new);
+	if (err < 0)
+		return err;
+	if (new != (sector_t)new)
 		return -EINVAL;
 
 	err = mddev_lock(mddev);
@@ -4603,11 +4623,13 @@ static ssize_t
 reshape_position_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	struct md_rdev *rdev;
-	char *e;
+	unsigned long long new;
 	int err;
-	unsigned long long new = simple_strtoull(buf, &e, 10);
 
-	if (buf == e || (*e && *e != '\n'))
+	err = kstrtoull(buf, 10, &new);
+	if (err < 0)
+		return err;
+	if (new != (sector_t)new)
 		return -EINVAL;
 	err = mddev_lock(mddev);
 	if (err)
@@ -4818,12 +4840,12 @@ static void md_free(struct kobject *ko)
 	if (mddev->sysfs_state)
 		sysfs_put(mddev->sysfs_state);
 
+	if (mddev->queue)
+		blk_cleanup_queue(mddev->queue);
 	if (mddev->gendisk) {
 		del_gendisk(mddev->gendisk);
 		put_disk(mddev->gendisk);
 	}
-	if (mddev->queue)
-		blk_cleanup_queue(mddev->queue);
 
 	kfree(mddev);
 }
@@ -5156,6 +5178,7 @@ int md_run(struct mddev *mddev)
 		mddev_detach(mddev);
 		if (mddev->private)
 			pers->free(mddev, mddev->private);
+		mddev->private = NULL;
 		module_put(pers->owner);
 		bitmap_destroy(mddev);
 		return err;
@@ -5291,6 +5314,7 @@ static void md_clean(struct mddev *mddev)
 	mddev->changed = 0;
 	mddev->degraded = 0;
 	mddev->safemode = 0;
+	mddev->private = NULL;
 	mddev->merge_check_needed = 0;
 	mddev->bitmap_info.offset = 0;
 	mddev->bitmap_info.default_offset = 0;
@@ -5363,6 +5387,7 @@ static void __md_stop(struct mddev *mddev)
 	mddev->pers = NULL;
 	spin_unlock(&mddev->lock);
 	pers->free(mddev, mddev->private);
+	mddev->private = NULL;
 	if (pers->sync_request && mddev->to_remove == NULL)
 		mddev->to_remove = &md_redundancy_group;
 	module_put(pers->owner);
@@ -5741,7 +5766,7 @@ static int get_bitmap_file(struct mddev *mddev, void __user * arg)
 	/* bitmap disabled, zero the first byte and copy out */
 	if (!mddev->bitmap_info.file)
 		file->pathname[0] = '\0';
-	else if ((ptr = d_path(&mddev->bitmap_info.file->f_path,
+	else if ((ptr = file_path(mddev->bitmap_info.file,
 			       file->pathname, sizeof(file->pathname))),
 		 IS_ERR(ptr))
 		err = PTR_ERR(ptr);
@@ -6372,7 +6397,7 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 	    mddev->ctime         != info->ctime         ||
 	    mddev->level         != info->level         ||
 /*	    mddev->layout        != info->layout        || */
-	    !mddev->persistent	 != info->not_persistent||
+	    mddev->persistent	 != !info->not_persistent ||
 	    mddev->chunk_sectors != info->chunk_size >> 9 ||
 	    /* ignore bottom 8 bits of state, and allow SB_BITMAP_PRESENT to change */
 	    ((state^info->state) & 0xfffffe00)
@@ -8103,6 +8128,15 @@ void md_check_recovery(struct mddev *mddev)
 		int spares = 0;
 
 		if (mddev->ro) {
+			struct md_rdev *rdev;
+			if (!mddev->external && mddev->in_sync)
+				/* 'Blocked' flag not needed as failed devices
+				 * will be recorded if array switched to read/write.
+				 * Leaving it set will prevent the device
+				 * from being removed.
+				 */
+				rdev_for_each(rdev, mddev)
+					clear_bit(Blocked, &rdev->flags);
 			/* On a read-only array we can:
 			 * - remove failed devices
 			 * - add already-in_sync devices if the array itself
@@ -8259,6 +8293,7 @@ void md_reap_sync_thread(struct mddev *mddev)
 	if (mddev_is_clustered(mddev))
 		md_cluster_ops->metadata_update_finish(mddev);
 	clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
+	clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 	clear_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
 	clear_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
@@ -9009,13 +9044,7 @@ static int get_ro(char *buffer, struct kernel_param *kp)
 }
 static int set_ro(const char *val, struct kernel_param *kp)
 {
-	char *e;
-	int num = simple_strtoul(val, &e, 10);
-	if (*val && (*e == '\0' || *e == '\n')) {
-		start_readonly = num;
-		return 0;
-	}
-	return -EINVAL;
+	return kstrtouint(val, 10, (unsigned int *)&start_readonly);
 }
 
 module_param_call(start_ro, set_ro, get_ro, NULL, S_IRUSR|S_IWUSR);

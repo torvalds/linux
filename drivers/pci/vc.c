@@ -108,8 +108,7 @@ static void pci_vc_enable(struct pci_dev *dev, int pos, int res)
 	struct pci_dev *link = NULL;
 
 	/* Enable VCs from the downstream device */
-	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
-	    pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM)
+	if (!dev->has_secondary_link)
 		return;
 
 	ctrl_pos = pos + PCI_VC_RES_CTRL + (res * PCI_CAP_VC_PER_VC_SIZEOF);

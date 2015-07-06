@@ -52,7 +52,7 @@ static void free_dentry_data(struct rcu_head *head)
 	struct ll_dentry_data *lld;
 
 	lld = container_of(head, struct ll_dentry_data, lld_rcu_head);
-	OBD_FREE_PTR(lld);
+	kfree(lld);
 }
 
 /* should NOT be called with the dcache lock, see fs/dcache.c */
@@ -67,7 +67,7 @@ static void ll_release(struct dentry *de)
 
 	if (lld->lld_it) {
 		ll_intent_release(lld->lld_it);
-		OBD_FREE(lld->lld_it, sizeof(*lld->lld_it));
+		kfree(lld->lld_it);
 	}
 
 	de->d_fsdata = NULL;
@@ -194,7 +194,7 @@ int ll_d_init(struct dentry *de)
 				de->d_fsdata = lld;
 				__d_lustre_invalidate(de);
 			} else {
-				OBD_FREE_PTR(lld);
+				kfree(lld);
 			}
 			spin_unlock(&de->d_lock);
 		} else {

@@ -67,8 +67,7 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page, gfp_t flags)
 
 		*ret_page = phys_to_page(phys);
 		ptr = (void *)val;
-		if (flags & __GFP_ZERO)
-			memset(ptr, 0, size);
+		memset(ptr, 0, size);
 	}
 
 	return ptr;
@@ -105,7 +104,6 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 		struct page *page;
 		void *addr;
 
-		size = PAGE_ALIGN(size);
 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
 							get_order(size));
 		if (!page)
@@ -113,8 +111,7 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 
 		*dma_handle = phys_to_dma(dev, page_to_phys(page));
 		addr = page_address(page);
-		if (flags & __GFP_ZERO)
-			memset(addr, 0, size);
+		memset(addr, 0, size);
 		return addr;
 	} else {
 		return swiotlb_alloc_coherent(dev, size, dma_handle, flags);
@@ -194,6 +191,8 @@ static void __dma_free(struct device *dev, size_t size,
 		       struct dma_attrs *attrs)
 {
 	void *swiotlb_addr = phys_to_virt(dma_to_phys(dev, dma_handle));
+
+	size = PAGE_ALIGN(size);
 
 	if (!is_device_dma_coherent(dev)) {
 		if (__free_from_pool(vaddr, size))
@@ -414,6 +413,98 @@ out:
 		atomic_pool_size / 1024);
 	return -ENOMEM;
 }
+
+/********************************************
+ * The following APIs are for dummy DMA ops *
+ ********************************************/
+
+static void *__dummy_alloc(struct device *dev, size_t size,
+			   dma_addr_t *dma_handle, gfp_t flags,
+			   struct dma_attrs *attrs)
+{
+	return NULL;
+}
+
+static void __dummy_free(struct device *dev, size_t size,
+			 void *vaddr, dma_addr_t dma_handle,
+			 struct dma_attrs *attrs)
+{
+}
+
+static int __dummy_mmap(struct device *dev,
+			struct vm_area_struct *vma,
+			void *cpu_addr, dma_addr_t dma_addr, size_t size,
+			struct dma_attrs *attrs)
+{
+	return -ENXIO;
+}
+
+static dma_addr_t __dummy_map_page(struct device *dev, struct page *page,
+				   unsigned long offset, size_t size,
+				   enum dma_data_direction dir,
+				   struct dma_attrs *attrs)
+{
+	return DMA_ERROR_CODE;
+}
+
+static void __dummy_unmap_page(struct device *dev, dma_addr_t dev_addr,
+			       size_t size, enum dma_data_direction dir,
+			       struct dma_attrs *attrs)
+{
+}
+
+static int __dummy_map_sg(struct device *dev, struct scatterlist *sgl,
+			  int nelems, enum dma_data_direction dir,
+			  struct dma_attrs *attrs)
+{
+	return 0;
+}
+
+static void __dummy_unmap_sg(struct device *dev,
+			     struct scatterlist *sgl, int nelems,
+			     enum dma_data_direction dir,
+			     struct dma_attrs *attrs)
+{
+}
+
+static void __dummy_sync_single(struct device *dev,
+				dma_addr_t dev_addr, size_t size,
+				enum dma_data_direction dir)
+{
+}
+
+static void __dummy_sync_sg(struct device *dev,
+			    struct scatterlist *sgl, int nelems,
+			    enum dma_data_direction dir)
+{
+}
+
+static int __dummy_mapping_error(struct device *hwdev, dma_addr_t dma_addr)
+{
+	return 1;
+}
+
+static int __dummy_dma_supported(struct device *hwdev, u64 mask)
+{
+	return 0;
+}
+
+struct dma_map_ops dummy_dma_ops = {
+	.alloc                  = __dummy_alloc,
+	.free                   = __dummy_free,
+	.mmap                   = __dummy_mmap,
+	.map_page               = __dummy_map_page,
+	.unmap_page             = __dummy_unmap_page,
+	.map_sg                 = __dummy_map_sg,
+	.unmap_sg               = __dummy_unmap_sg,
+	.sync_single_for_cpu    = __dummy_sync_single,
+	.sync_single_for_device = __dummy_sync_single,
+	.sync_sg_for_cpu        = __dummy_sync_sg,
+	.sync_sg_for_device     = __dummy_sync_sg,
+	.mapping_error          = __dummy_mapping_error,
+	.dma_supported          = __dummy_dma_supported,
+};
+EXPORT_SYMBOL(dummy_dma_ops);
 
 static int __init arm64_dma_init(void)
 {

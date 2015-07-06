@@ -44,6 +44,30 @@
  *  parentheses and have some accompanying text comment.
  */
 
+/*
+ * Notes on lockless lookups:
+ *
+ * All stores to the tree structure (rb_left and rb_right) must be done using
+ * WRITE_ONCE(). And we must not inadvertently cause (temporary) loops in the
+ * tree structure as seen in program order.
+ *
+ * These two requirements will allow lockless iteration of the tree -- not
+ * correct iteration mind you, tree rotations are not atomic so a lookup might
+ * miss entire subtrees.
+ *
+ * But they do guarantee that any such traversal will only see valid elements
+ * and that it will indeed complete -- does not get stuck in a loop.
+ *
+ * It also guarantees that if the lookup returns an element it is the 'correct'
+ * one. But not returning an element does _NOT_ mean it's not present.
+ *
+ * NOTE:
+ *
+ * Stores to __rb_parent_color are not important for simple lookups so those
+ * are left undone as of now. Nor did I check for loops involving parent
+ * pointers.
+ */
+
 static inline void rb_set_black(struct rb_node *rb)
 {
 	rb->__rb_parent_color |= RB_BLACK;
@@ -129,8 +153,9 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 				 * This still leaves us in violation of 4), the
 				 * continuation into Case 3 will fix that.
 				 */
-				parent->rb_right = tmp = node->rb_left;
-				node->rb_left = parent;
+				tmp = node->rb_left;
+				WRITE_ONCE(parent->rb_right, tmp);
+				WRITE_ONCE(node->rb_left, parent);
 				if (tmp)
 					rb_set_parent_color(tmp, parent,
 							    RB_BLACK);
@@ -149,8 +174,8 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 			 *     /                 \
 			 *    n                   U
 			 */
-			gparent->rb_left = tmp;  /* == parent->rb_right */
-			parent->rb_right = gparent;
+			WRITE_ONCE(gparent->rb_left, tmp); /* == parent->rb_right */
+			WRITE_ONCE(parent->rb_right, gparent);
 			if (tmp)
 				rb_set_parent_color(tmp, gparent, RB_BLACK);
 			__rb_rotate_set_parents(gparent, parent, root, RB_RED);
@@ -171,8 +196,9 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 			tmp = parent->rb_left;
 			if (node == tmp) {
 				/* Case 2 - right rotate at parent */
-				parent->rb_left = tmp = node->rb_right;
-				node->rb_right = parent;
+				tmp = node->rb_right;
+				WRITE_ONCE(parent->rb_left, tmp);
+				WRITE_ONCE(node->rb_right, parent);
 				if (tmp)
 					rb_set_parent_color(tmp, parent,
 							    RB_BLACK);
@@ -183,8 +209,8 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 			}
 
 			/* Case 3 - left rotate at gparent */
-			gparent->rb_right = tmp;  /* == parent->rb_left */
-			parent->rb_left = gparent;
+			WRITE_ONCE(gparent->rb_right, tmp); /* == parent->rb_left */
+			WRITE_ONCE(parent->rb_left, gparent);
 			if (tmp)
 				rb_set_parent_color(tmp, gparent, RB_BLACK);
 			__rb_rotate_set_parents(gparent, parent, root, RB_RED);
@@ -224,8 +250,9 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 				 *      / \         / \
 				 *     Sl  Sr      N   Sl
 				 */
-				parent->rb_right = tmp1 = sibling->rb_left;
-				sibling->rb_left = parent;
+				tmp1 = sibling->rb_left;
+				WRITE_ONCE(parent->rb_right, tmp1);
+				WRITE_ONCE(sibling->rb_left, parent);
 				rb_set_parent_color(tmp1, parent, RB_BLACK);
 				__rb_rotate_set_parents(parent, sibling, root,
 							RB_RED);
@@ -275,9 +302,10 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 				 *                       \
 				 *                        Sr
 				 */
-				sibling->rb_left = tmp1 = tmp2->rb_right;
-				tmp2->rb_right = sibling;
-				parent->rb_right = tmp2;
+				tmp1 = tmp2->rb_right;
+				WRITE_ONCE(sibling->rb_left, tmp1);
+				WRITE_ONCE(tmp2->rb_right, sibling);
+				WRITE_ONCE(parent->rb_right, tmp2);
 				if (tmp1)
 					rb_set_parent_color(tmp1, sibling,
 							    RB_BLACK);
@@ -297,8 +325,9 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 			 *        / \         / \
 			 *      (sl) sr      N  (sl)
 			 */
-			parent->rb_right = tmp2 = sibling->rb_left;
-			sibling->rb_left = parent;
+			tmp2 = sibling->rb_left;
+			WRITE_ONCE(parent->rb_right, tmp2);
+			WRITE_ONCE(sibling->rb_left, parent);
 			rb_set_parent_color(tmp1, sibling, RB_BLACK);
 			if (tmp2)
 				rb_set_parent(tmp2, parent);
@@ -310,8 +339,9 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 			sibling = parent->rb_left;
 			if (rb_is_red(sibling)) {
 				/* Case 1 - right rotate at parent */
-				parent->rb_left = tmp1 = sibling->rb_right;
-				sibling->rb_right = parent;
+				tmp1 = sibling->rb_right;
+				WRITE_ONCE(parent->rb_left, tmp1);
+				WRITE_ONCE(sibling->rb_right, parent);
 				rb_set_parent_color(tmp1, parent, RB_BLACK);
 				__rb_rotate_set_parents(parent, sibling, root,
 							RB_RED);
@@ -336,9 +366,10 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 					break;
 				}
 				/* Case 3 - right rotate at sibling */
-				sibling->rb_right = tmp1 = tmp2->rb_left;
-				tmp2->rb_left = sibling;
-				parent->rb_left = tmp2;
+				tmp1 = tmp2->rb_left;
+				WRITE_ONCE(sibling->rb_right, tmp1);
+				WRITE_ONCE(tmp2->rb_left, sibling);
+				WRITE_ONCE(parent->rb_left, tmp2);
 				if (tmp1)
 					rb_set_parent_color(tmp1, sibling,
 							    RB_BLACK);
@@ -347,8 +378,9 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 				sibling = tmp2;
 			}
 			/* Case 4 - left rotate at parent + color flips */
-			parent->rb_left = tmp2 = sibling->rb_right;
-			sibling->rb_right = parent;
+			tmp2 = sibling->rb_right;
+			WRITE_ONCE(parent->rb_left, tmp2);
+			WRITE_ONCE(sibling->rb_right, parent);
 			rb_set_parent_color(tmp1, sibling, RB_BLACK);
 			if (tmp2)
 				rb_set_parent(tmp2, parent);

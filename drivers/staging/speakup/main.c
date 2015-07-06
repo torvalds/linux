@@ -1597,7 +1597,7 @@ static int count_highlight_color(struct vc_data *vc)
 static int get_highlight_color(struct vc_data *vc)
 {
 	int i, j;
-	unsigned int cptr[8], tmp;
+	unsigned int cptr[8];
 	int vc_num = vc->vc_num;
 
 	for (i = 0; i < 8; i++)
@@ -1606,11 +1606,8 @@ static int get_highlight_color(struct vc_data *vc)
 	for (i = 0; i < 7; i++)
 		for (j = i + 1; j < 8; j++)
 			if (speakup_console[vc_num]->ht.bgcount[cptr[i]] >
-			    speakup_console[vc_num]->ht.bgcount[cptr[j]]) {
-				tmp = cptr[i];
-				cptr[i] = cptr[j];
-				cptr[j] = tmp;
-			}
+			    speakup_console[vc_num]->ht.bgcount[cptr[j]])
+				swap(cptr[i], cptr[j]);
 
 	for (i = 0; i < 8; i++)
 		if (speakup_console[vc_num]->ht.bgcount[cptr[i]] != 0)

@@ -60,6 +60,28 @@ void lg_local_unlock_cpu(struct lglock *lg, int cpu)
 }
 EXPORT_SYMBOL(lg_local_unlock_cpu);
 
+void lg_double_lock(struct lglock *lg, int cpu1, int cpu2)
+{
+	BUG_ON(cpu1 == cpu2);
+
+	/* lock in cpu order, just like lg_global_lock */
+	if (cpu2 < cpu1)
+		swap(cpu1, cpu2);
+
+	preempt_disable();
+	lock_acquire_shared(&lg->lock_dep_map, 0, 0, NULL, _RET_IP_);
+	arch_spin_lock(per_cpu_ptr(lg->lock, cpu1));
+	arch_spin_lock(per_cpu_ptr(lg->lock, cpu2));
+}
+
+void lg_double_unlock(struct lglock *lg, int cpu1, int cpu2)
+{
+	lock_release(&lg->lock_dep_map, 1, _RET_IP_);
+	arch_spin_unlock(per_cpu_ptr(lg->lock, cpu1));
+	arch_spin_unlock(per_cpu_ptr(lg->lock, cpu2));
+	preempt_enable();
+}
+
 void lg_global_lock(struct lglock *lg)
 {
 	int i;

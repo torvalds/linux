@@ -189,6 +189,7 @@ struct mxc_nand_host {
 	int			clk_act;
 	int			irq;
 	int			eccsize;
+	int			used_oobsize;
 	int			active_cs;
 
 	struct completion	op_completion;
@@ -280,10 +281,42 @@ static void memcpy32_fromio(void *trg, const void __iomem  *src, size_t size)
 		*t++ = __raw_readl(s++);
 }
 
+static void memcpy16_fromio(void *trg, const void __iomem  *src, size_t size)
+{
+	int i;
+	u16 *t = trg;
+	const __iomem u16 *s = src;
+
+	/* We assume that src (IO) is always 32bit aligned */
+	if (PTR_ALIGN(trg, 4) == trg && IS_ALIGNED(size, 4)) {
+		memcpy32_fromio(trg, src, size);
+		return;
+	}
+
+	for (i = 0; i < (size >> 1); i++)
+		*t++ = __raw_readw(s++);
+}
+
 static inline void memcpy32_toio(void __iomem *trg, const void *src, int size)
 {
 	/* __iowrite32_copy use 32bit size values so divide by 4 */
 	__iowrite32_copy(trg, src, size / 4);
+}
+
+static void memcpy16_toio(void __iomem *trg, const void *src, int size)
+{
+	int i;
+	__iomem u16 *t = trg;
+	const u16 *s = src;
+
+	/* We assume that trg (IO) is always 32bit aligned */
+	if (PTR_ALIGN(src, 4) == src && IS_ALIGNED(size, 4)) {
+		memcpy32_toio(trg, src, size);
+		return;
+	}
+
+	for (i = 0; i < (size >> 1); i++)
+		__raw_writew(*s++, t++);
 }
 
 static int check_int_v3(struct mxc_nand_host *host)
@@ -807,32 +840,48 @@ static void mxc_nand_select_chip_v2(struct mtd_info *mtd, int chip)
 }
 
 /*
- * Function to transfer data to/from spare area.
+ * The controller splits a page into data chunks of 512 bytes + partial oob.
+ * There are writesize / 512 such chunks, the size of the partial oob parts is
+ * oobsize / #chunks rounded down to a multiple of 2. The last oob chunk then
+ * contains additionally the byte lost by rounding (if any).
+ * This function handles the needed shuffling between host->data_buf (which
+ * holds a page in natural order, i.e. writesize bytes data + oobsize bytes
+ * spare) and the NFC buffer.
  */
 static void copy_spare(struct mtd_info *mtd, bool bfrom)
 {
 	struct nand_chip *this = mtd->priv;
 	struct mxc_nand_host *host = this->priv;
-	u16 i, j;
-	u16 n = mtd->writesize >> 9;
+	u16 i, oob_chunk_size;
+	u16 num_chunks = mtd->writesize / 512;
+
 	u8 *d = host->data_buf + mtd->writesize;
 	u8 __iomem *s = host->spare0;
-	u16 t = host->devtype_data->spare_len;
+	u16 sparebuf_size = host->devtype_data->spare_len;
 
-	j = (mtd->oobsize / n >> 1) << 1;
+	/* size of oob chunk for all but possibly the last one */
+	oob_chunk_size = (host->used_oobsize / num_chunks) & ~1;
 
 	if (bfrom) {
-		for (i = 0; i < n - 1; i++)
-			memcpy32_fromio(d + i * j, s + i * t, j);
+		for (i = 0; i < num_chunks - 1; i++)
+			memcpy16_fromio(d + i * oob_chunk_size,
+					s + i * sparebuf_size,
+					oob_chunk_size);
 
-		/* the last section */
-		memcpy32_fromio(d + i * j, s + i * t, mtd->oobsize - i * j);
+		/* the last chunk */
+		memcpy16_fromio(d + i * oob_chunk_size,
+				s + i * sparebuf_size,
+				host->used_oobsize - i * oob_chunk_size);
 	} else {
-		for (i = 0; i < n - 1; i++)
-			memcpy32_toio(&s[i * t], &d[i * j], j);
+		for (i = 0; i < num_chunks - 1; i++)
+			memcpy16_toio(&s[i * sparebuf_size],
+				      &d[i * oob_chunk_size],
+				      oob_chunk_size);
 
-		/* the last section */
-		memcpy32_toio(&s[i * t], &d[i * j], mtd->oobsize - i * j);
+		/* the last chunk */
+		memcpy16_toio(&s[oob_chunk_size * sparebuf_size],
+			      &d[i * oob_chunk_size],
+			      host->used_oobsize - i * oob_chunk_size);
 	}
 }
 
@@ -909,6 +958,23 @@ static int get_eccsize(struct mtd_info *mtd)
 		return 4;
 	else
 		return 8;
+}
+
+static void ecc_8bit_layout_4k(struct nand_ecclayout *layout)
+{
+	int i, j;
+
+	layout->eccbytes = 8*18;
+	for (i = 0; i < 8; i++)
+		for (j = 0; j < 18; j++)
+			layout->eccpos[i*18 + j] = i*26 + j + 7;
+
+	layout->oobfree[0].offset = 2;
+	layout->oobfree[0].length = 4;
+	for (i = 1; i < 8; i++) {
+		layout->oobfree[i].offset = i*26;
+		layout->oobfree[i].length = 7;
+	}
 }
 
 static void preset_v1(struct mtd_info *mtd)
@@ -1350,7 +1416,7 @@ static inline int is_imx53_nfc(struct mxc_nand_host *host)
 	return host->devtype_data == &imx53_nand_devtype_data;
 }
 
-static struct platform_device_id mxcnd_devtype[] = {
+static const struct platform_device_id mxcnd_devtype[] = {
 	{
 		.name = "imx21-nand",
 		.driver_data = (kernel_ulong_t) &imx21_nand_devtype_data,
@@ -1587,8 +1653,20 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	if (mtd->writesize == 2048)
 		this->ecc.layout = host->devtype_data->ecclayout_2k;
-	else if (mtd->writesize == 4096)
+	else if (mtd->writesize == 4096) {
 		this->ecc.layout = host->devtype_data->ecclayout_4k;
+		if (get_eccsize(mtd) == 8)
+			ecc_8bit_layout_4k(this->ecc.layout);
+	}
+
+	/*
+	 * Experimentation shows that i.MX NFC can only handle up to 218 oob
+	 * bytes. Limit used_oobsize to 218 so as to not confuse copy_spare()
+	 * into copying invalid data to/from the spare IO buffer, as this
+	 * might cause ECC data corruption when doing sub-page write to a
+	 * partially written page.
+	 */
+	host->used_oobsize = min(mtd->oobsize, 218U);
 
 	if (this->ecc.mode == NAND_ECC_HW) {
 		if (is_imx21_nfc(host) || is_imx27_nfc(host))

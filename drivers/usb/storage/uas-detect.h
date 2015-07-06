@@ -51,7 +51,8 @@ static int uas_find_endpoints(struct usb_host_interface *alt,
 }
 
 static int uas_use_uas_driver(struct usb_interface *intf,
-			      const struct usb_device_id *id)
+			      const struct usb_device_id *id,
+			      unsigned long *flags_ret)
 {
 	struct usb_host_endpoint *eps[4] = { };
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -73,7 +74,7 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	 * this writing the following versions exist:
 	 * ASM1051 - no uas support version
 	 * ASM1051 - with broken (*) uas support
-	 * ASM1053 - with working uas support
+	 * ASM1053 - with working uas support, but problems with large xfers
 	 * ASM1153 - with working uas support
 	 *
 	 * Devices with these chips re-use a number of device-ids over the
@@ -103,6 +104,9 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 		} else if (usb_ss_max_streams(&eps[1]->ss_ep_comp) == 32) {
 			/* Possibly an ASM1051, disable uas */
 			flags |= US_FL_IGNORE_UAS;
+		} else {
+			/* ASM1053, these have issues with large transfers */
+			flags |= US_FL_MAX_SECTORS_240;
 		}
 	}
 
@@ -131,6 +135,9 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 			"Please try an other USB controller if you wish to use UAS.\n");
 		return 0;
 	}
+
+	if (flags_ret)
+		*flags_ret = flags;
 
 	return 1;
 }

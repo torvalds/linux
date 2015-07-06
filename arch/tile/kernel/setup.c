@@ -71,7 +71,7 @@ static unsigned long __initdata node_percpu[MAX_NUMNODES];
  * per-CPU stack and boot info.
  */
 DEFINE_PER_CPU(unsigned long, boot_sp) =
-	(unsigned long)init_stack + THREAD_SIZE;
+	(unsigned long)init_stack + THREAD_SIZE - STACK_TOP_DELTA;
 
 #ifdef CONFIG_SMP
 DEFINE_PER_CPU(unsigned long, boot_pc) = (unsigned long)start_kernel;
@@ -774,7 +774,7 @@ static void __init zone_sizes_init(void)
 		 * though, there'll be no lowmem, so we just alloc_bootmem
 		 * the memmap.  There will be no percpu memory either.
 		 */
-		if (i != 0 && cpumask_test_cpu(i, &isolnodes)) {
+		if (i != 0 && node_isset(i, isolnodes)) {
 			node_memmap_pfn[i] =
 				alloc_bootmem_pfn(0, memmap_size, 0);
 			BUG_ON(node_percpu[i] != 0);

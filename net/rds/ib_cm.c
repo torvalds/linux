@@ -39,36 +39,6 @@
 #include "rds.h"
 #include "ib.h"
 
-static char *rds_ib_event_type_strings[] = {
-#define RDS_IB_EVENT_STRING(foo) \
-		[IB_EVENT_##foo] = __stringify(IB_EVENT_##foo)
-	RDS_IB_EVENT_STRING(CQ_ERR),
-	RDS_IB_EVENT_STRING(QP_FATAL),
-	RDS_IB_EVENT_STRING(QP_REQ_ERR),
-	RDS_IB_EVENT_STRING(QP_ACCESS_ERR),
-	RDS_IB_EVENT_STRING(COMM_EST),
-	RDS_IB_EVENT_STRING(SQ_DRAINED),
-	RDS_IB_EVENT_STRING(PATH_MIG),
-	RDS_IB_EVENT_STRING(PATH_MIG_ERR),
-	RDS_IB_EVENT_STRING(DEVICE_FATAL),
-	RDS_IB_EVENT_STRING(PORT_ACTIVE),
-	RDS_IB_EVENT_STRING(PORT_ERR),
-	RDS_IB_EVENT_STRING(LID_CHANGE),
-	RDS_IB_EVENT_STRING(PKEY_CHANGE),
-	RDS_IB_EVENT_STRING(SM_CHANGE),
-	RDS_IB_EVENT_STRING(SRQ_ERR),
-	RDS_IB_EVENT_STRING(SRQ_LIMIT_REACHED),
-	RDS_IB_EVENT_STRING(QP_LAST_WQE_REACHED),
-	RDS_IB_EVENT_STRING(CLIENT_REREGISTER),
-#undef RDS_IB_EVENT_STRING
-};
-
-static char *rds_ib_event_str(enum ib_event_type type)
-{
-	return rds_str_array(rds_ib_event_type_strings,
-			     ARRAY_SIZE(rds_ib_event_type_strings), type);
-};
-
 /*
  * Set the selected protocol version
  */
@@ -183,8 +153,17 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 
 	/* If the peer gave us the last packet it saw, process this as if
 	 * we had received a regular ACK. */
-	if (dp && dp->dp_ack_seq)
-		rds_send_drop_acked(conn, be64_to_cpu(dp->dp_ack_seq), NULL);
+	if (dp) {
+		/* dp structure start is not guaranteed to be 8 bytes aligned.
+		 * Since dp_ack_seq is 64-bit extended load operations can be
+		 * used so go through get_unaligned to avoid unaligned errors.
+		 */
+		__be64 dp_ack_seq = get_unaligned(&dp->dp_ack_seq);
+
+		if (dp_ack_seq)
+			rds_send_drop_acked(conn, be64_to_cpu(dp_ack_seq),
+					    NULL);
+	}
 
 	rds_connect_complete(conn);
 }
@@ -234,7 +213,7 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 static void rds_ib_cq_event_handler(struct ib_event *event, void *data)
 {
 	rdsdebug("event %u (%s) data %p\n",
-		 event->event, rds_ib_event_str(event->event), data);
+		 event->event, ib_event_msg(event->event), data);
 }
 
 static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
@@ -243,7 +222,7 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
 	rdsdebug("conn %p ic %p event %u (%s)\n", conn, ic, event->event,
-		 rds_ib_event_str(event->event));
+		 ib_event_msg(event->event));
 
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
@@ -252,7 +231,7 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 	default:
 		rdsdebug("Fatal QP Event %u (%s) "
 			"- connection %pI4->%pI4, reconnecting\n",
-			event->event, rds_ib_event_str(event->event),
+			event->event, ib_event_msg(event->event),
 			&conn->c_laddr, &conn->c_faddr);
 		rds_conn_drop(conn);
 		break;
@@ -268,6 +247,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct ib_device *dev = ic->i_cm_id->device;
 	struct ib_qp_init_attr attr;
+	struct ib_cq_init_attr cq_attr = {};
 	struct rds_ib_device *rds_ibdev;
 	int ret;
 
@@ -291,9 +271,10 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	ic->i_pd = rds_ibdev->pd;
 	ic->i_mr = rds_ibdev->mr;
 
+	cq_attr.cqe = ic->i_send_ring.w_nr + 1;
 	ic->i_send_cq = ib_create_cq(dev, rds_ib_send_cq_comp_handler,
 				     rds_ib_cq_event_handler, conn,
-				     ic->i_send_ring.w_nr + 1, 0);
+				     &cq_attr);
 	if (IS_ERR(ic->i_send_cq)) {
 		ret = PTR_ERR(ic->i_send_cq);
 		ic->i_send_cq = NULL;
@@ -301,9 +282,10 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		goto out;
 	}
 
+	cq_attr.cqe = ic->i_recv_ring.w_nr;
 	ic->i_recv_cq = ib_create_cq(dev, rds_ib_recv_cq_comp_handler,
 				     rds_ib_cq_event_handler, conn,
-				     ic->i_recv_ring.w_nr, 0);
+				     &cq_attr);
 	if (IS_ERR(ic->i_recv_cq)) {
 		ret = PTR_ERR(ic->i_recv_cq);
 		ic->i_recv_cq = NULL;

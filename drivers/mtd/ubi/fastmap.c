@@ -88,13 +88,13 @@ size_t ubi_calc_fm_size(struct ubi_device *ubi)
 {
 	size_t size;
 
-	size = sizeof(struct ubi_fm_sb) + \
-		sizeof(struct ubi_fm_hdr) + \
-		sizeof(struct ubi_fm_scan_pool) + \
-		sizeof(struct ubi_fm_scan_pool) + \
-		(ubi->peb_count * sizeof(struct ubi_fm_ec)) + \
-		(sizeof(struct ubi_fm_eba) + \
-		(ubi->peb_count * sizeof(__be32))) + \
+	size = sizeof(struct ubi_fm_sb) +
+		sizeof(struct ubi_fm_hdr) +
+		sizeof(struct ubi_fm_scan_pool) +
+		sizeof(struct ubi_fm_scan_pool) +
+		(ubi->peb_count * sizeof(struct ubi_fm_ec)) +
+		(sizeof(struct ubi_fm_eba) +
+		(ubi->peb_count * sizeof(__be32))) +
 		sizeof(struct ubi_fm_volhdr) * UBI_MAX_VOLUMES;
 	return roundup(size, ubi->leb_size);
 }
@@ -192,8 +192,10 @@ static struct ubi_ainf_volume *add_vol(struct ubi_attach_info *ai, int vol_id,
 
 		if (vol_id > av->vol_id)
 			p = &(*p)->rb_left;
-		else
+		else if (vol_id < av->vol_id)
 			p = &(*p)->rb_right;
+		else
+			return ERR_PTR(-EINVAL);
 	}
 
 	av = kmalloc(sizeof(struct ubi_ainf_volume), GFP_KERNEL);
@@ -314,7 +316,7 @@ static int update_vol(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			list_add_tail(&victim->u.list, &ai->erase);
 
 			if (av->highest_lnum == be32_to_cpu(new_vh->lnum))
-				av->last_data_size = \
+				av->last_data_size =
 					be32_to_cpu(new_vh->data_size);
 
 			dbg_bld("vol %i: AEB %i's PEB %i is the newer",
@@ -601,7 +603,7 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 	struct ubi_ainf_peb *aeb, *tmp_aeb, *_tmp_aeb;
 	struct ubi_fm_sb *fmsb;
 	struct ubi_fm_hdr *fmhdr;
-	struct ubi_fm_scan_pool *fmpl1, *fmpl2;
+	struct ubi_fm_scan_pool *fmpl, *fmpl_wl;
 	struct ubi_fm_ec *fmec;
 	struct ubi_fm_volhdr *fmvhdr;
 	struct ubi_fm_eba *fm_eba;
@@ -631,30 +633,30 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 		goto fail_bad;
 	}
 
-	fmpl1 = (struct ubi_fm_scan_pool *)(fm_raw + fm_pos);
-	fm_pos += sizeof(*fmpl1);
+	fmpl = (struct ubi_fm_scan_pool *)(fm_raw + fm_pos);
+	fm_pos += sizeof(*fmpl);
 	if (fm_pos >= fm_size)
 		goto fail_bad;
-	if (be32_to_cpu(fmpl1->magic) != UBI_FM_POOL_MAGIC) {
+	if (be32_to_cpu(fmpl->magic) != UBI_FM_POOL_MAGIC) {
 		ubi_err(ubi, "bad fastmap pool magic: 0x%x, expected: 0x%x",
-			be32_to_cpu(fmpl1->magic), UBI_FM_POOL_MAGIC);
+			be32_to_cpu(fmpl->magic), UBI_FM_POOL_MAGIC);
 		goto fail_bad;
 	}
 
-	fmpl2 = (struct ubi_fm_scan_pool *)(fm_raw + fm_pos);
-	fm_pos += sizeof(*fmpl2);
+	fmpl_wl = (struct ubi_fm_scan_pool *)(fm_raw + fm_pos);
+	fm_pos += sizeof(*fmpl_wl);
 	if (fm_pos >= fm_size)
 		goto fail_bad;
-	if (be32_to_cpu(fmpl2->magic) != UBI_FM_POOL_MAGIC) {
-		ubi_err(ubi, "bad fastmap pool magic: 0x%x, expected: 0x%x",
-			be32_to_cpu(fmpl2->magic), UBI_FM_POOL_MAGIC);
+	if (be32_to_cpu(fmpl_wl->magic) != UBI_FM_POOL_MAGIC) {
+		ubi_err(ubi, "bad fastmap WL pool magic: 0x%x, expected: 0x%x",
+			be32_to_cpu(fmpl_wl->magic), UBI_FM_POOL_MAGIC);
 		goto fail_bad;
 	}
 
-	pool_size = be16_to_cpu(fmpl1->size);
-	wl_pool_size = be16_to_cpu(fmpl2->size);
-	fm->max_pool_size = be16_to_cpu(fmpl1->max_size);
-	fm->max_wl_pool_size = be16_to_cpu(fmpl2->max_size);
+	pool_size = be16_to_cpu(fmpl->size);
+	wl_pool_size = be16_to_cpu(fmpl_wl->size);
+	fm->max_pool_size = be16_to_cpu(fmpl->max_size);
+	fm->max_wl_pool_size = be16_to_cpu(fmpl_wl->max_size);
 
 	if (pool_size > UBI_FM_MAX_POOL_SIZE || pool_size < 0) {
 		ubi_err(ubi, "bad pool size: %i", pool_size);
@@ -748,6 +750,11 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 
 		if (!av)
 			goto fail_bad;
+		if (PTR_ERR(av) == -EINVAL) {
+			ubi_err(ubi, "volume (ID %i) already exists",
+				fmvhdr->vol_id);
+			goto fail_bad;
+		}
 
 		ai->vols_found++;
 		if (ai->highest_vol_id < be32_to_cpu(fmvhdr->vol_id))
@@ -796,11 +803,11 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 		}
 	}
 
-	ret = scan_pool(ubi, ai, fmpl1->pebs, pool_size, &max_sqnum, &free);
+	ret = scan_pool(ubi, ai, fmpl->pebs, pool_size, &max_sqnum, &free);
 	if (ret)
 		goto fail;
 
-	ret = scan_pool(ubi, ai, fmpl2->pebs, wl_pool_size, &max_sqnum, &free);
+	ret = scan_pool(ubi, ai, fmpl_wl->pebs, wl_pool_size, &max_sqnum, &free);
 	if (ret)
 		goto fail;
 
@@ -1083,7 +1090,7 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 	void *fm_raw;
 	struct ubi_fm_sb *fmsb;
 	struct ubi_fm_hdr *fmh;
-	struct ubi_fm_scan_pool *fmpl1, *fmpl2;
+	struct ubi_fm_scan_pool *fmpl, *fmpl_wl;
 	struct ubi_fm_ec *fec;
 	struct ubi_fm_volhdr *fvh;
 	struct ubi_fm_eba *feba;
@@ -1141,25 +1148,25 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 	erase_peb_count = 0;
 	vol_count = 0;
 
-	fmpl1 = (struct ubi_fm_scan_pool *)(fm_raw + fm_pos);
-	fm_pos += sizeof(*fmpl1);
-	fmpl1->magic = cpu_to_be32(UBI_FM_POOL_MAGIC);
-	fmpl1->size = cpu_to_be16(ubi->fm_pool.size);
-	fmpl1->max_size = cpu_to_be16(ubi->fm_pool.max_size);
+	fmpl = (struct ubi_fm_scan_pool *)(fm_raw + fm_pos);
+	fm_pos += sizeof(*fmpl);
+	fmpl->magic = cpu_to_be32(UBI_FM_POOL_MAGIC);
+	fmpl->size = cpu_to_be16(ubi->fm_pool.size);
+	fmpl->max_size = cpu_to_be16(ubi->fm_pool.max_size);
 
 	for (i = 0; i < ubi->fm_pool.size; i++) {
-		fmpl1->pebs[i] = cpu_to_be32(ubi->fm_pool.pebs[i]);
+		fmpl->pebs[i] = cpu_to_be32(ubi->fm_pool.pebs[i]);
 		set_seen(ubi, ubi->fm_pool.pebs[i], seen_pebs);
 	}
 
-	fmpl2 = (struct ubi_fm_scan_pool *)(fm_raw + fm_pos);
-	fm_pos += sizeof(*fmpl2);
-	fmpl2->magic = cpu_to_be32(UBI_FM_POOL_MAGIC);
-	fmpl2->size = cpu_to_be16(ubi->fm_wl_pool.size);
-	fmpl2->max_size = cpu_to_be16(ubi->fm_wl_pool.max_size);
+	fmpl_wl = (struct ubi_fm_scan_pool *)(fm_raw + fm_pos);
+	fm_pos += sizeof(*fmpl_wl);
+	fmpl_wl->magic = cpu_to_be32(UBI_FM_POOL_MAGIC);
+	fmpl_wl->size = cpu_to_be16(ubi->fm_wl_pool.size);
+	fmpl_wl->max_size = cpu_to_be16(ubi->fm_wl_pool.max_size);
 
 	for (i = 0; i < ubi->fm_wl_pool.size; i++) {
-		fmpl2->pebs[i] = cpu_to_be32(ubi->fm_wl_pool.pebs[i]);
+		fmpl_wl->pebs[i] = cpu_to_be32(ubi->fm_wl_pool.pebs[i]);
 		set_seen(ubi, ubi->fm_wl_pool.pebs[i], seen_pebs);
 	}
 

@@ -90,10 +90,10 @@
  * pl_server_lock_volume - Current server lock volume (calculated);
  *
  * As it may be seen from list above, we have few possible tunables which may
- * affect behavior much. They all may be modified via proc. However, they also
+ * affect behavior much. They all may be modified via sysfs. However, they also
  * give a possibility for constructing few pre-defined behavior policies. If
  * none of predefines is suitable for a working pattern being used, new one may
- * be "constructed" via proc tunables.
+ * be "constructed" via sysfs tunables.
  */
 
 #define DEBUG_SUBSYSTEM S_LDLM
@@ -654,7 +654,6 @@ int ldlm_pool_setup(struct ldlm_pool *pl, int limit)
 }
 EXPORT_SYMBOL(ldlm_pool_setup);
 
-#if defined(CONFIG_PROC_FS)
 static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 {
 	int granted, grant_rate, cancel_rate, grant_step;
@@ -696,9 +695,12 @@ static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 }
 LPROC_SEQ_FOPS_RO(lprocfs_pool_state);
 
-static int lprocfs_grant_speed_seq_show(struct seq_file *m, void *unused)
+static ssize_t grant_speed_show(struct kobject *kobj, struct attribute *attr,
+				char *buf)
 {
-	struct ldlm_pool *pl = m->private;
+	struct ldlm_pool *pl = container_of(kobj, struct ldlm_pool,
+					    pl_kobj);
+
 	int	       grant_speed;
 
 	spin_lock(&pl->pl_lock);
@@ -706,63 +708,109 @@ static int lprocfs_grant_speed_seq_show(struct seq_file *m, void *unused)
 	grant_speed = atomic_read(&pl->pl_grant_rate) -
 			atomic_read(&pl->pl_cancel_rate);
 	spin_unlock(&pl->pl_lock);
-	return lprocfs_rd_uint(m, &grant_speed);
+	return sprintf(buf, "%d\n", grant_speed);
 }
+LUSTRE_RO_ATTR(grant_speed);
 
-LDLM_POOL_PROC_READER_SEQ_SHOW(grant_plan, int);
-LPROC_SEQ_FOPS_RO(lprocfs_grant_plan);
+LDLM_POOL_SYSFS_READER_SHOW(grant_plan, int);
+LUSTRE_RO_ATTR(grant_plan);
 
-LDLM_POOL_PROC_READER_SEQ_SHOW(recalc_period, int);
-LDLM_POOL_PROC_WRITER(recalc_period, int);
-static ssize_t lprocfs_recalc_period_seq_write(struct file *file,
-					       const char __user *buf,
-					       size_t len, loff_t *off)
-{
-	struct seq_file *seq = file->private_data;
+LDLM_POOL_SYSFS_READER_SHOW(recalc_period, int);
+LDLM_POOL_SYSFS_WRITER_STORE(recalc_period, int);
+LUSTRE_RW_ATTR(recalc_period);
 
-	return lprocfs_wr_recalc_period(file, buf, len, seq->private);
-}
-LPROC_SEQ_FOPS(lprocfs_recalc_period);
+LDLM_POOL_SYSFS_READER_NOLOCK_SHOW(server_lock_volume, u64);
+LUSTRE_RO_ATTR(server_lock_volume);
 
-LPROC_SEQ_FOPS_RO_TYPE(ldlm_pool, u64);
-LPROC_SEQ_FOPS_RO_TYPE(ldlm_pool, atomic);
-LPROC_SEQ_FOPS_RW_TYPE(ldlm_pool_rw, atomic);
+LDLM_POOL_SYSFS_READER_NOLOCK_SHOW(limit, atomic);
+LDLM_POOL_SYSFS_WRITER_NOLOCK_STORE(limit, atomic);
+LUSTRE_RW_ATTR(limit);
 
-LPROC_SEQ_FOPS_RO(lprocfs_grant_speed);
+LDLM_POOL_SYSFS_READER_NOLOCK_SHOW(granted, atomic);
+LUSTRE_RO_ATTR(granted);
+
+LDLM_POOL_SYSFS_READER_NOLOCK_SHOW(cancel_rate, atomic);
+LUSTRE_RO_ATTR(cancel_rate);
+
+LDLM_POOL_SYSFS_READER_NOLOCK_SHOW(grant_rate, atomic);
+LUSTRE_RO_ATTR(grant_rate);
+
+LDLM_POOL_SYSFS_READER_NOLOCK_SHOW(lock_volume_factor, atomic);
+LDLM_POOL_SYSFS_WRITER_NOLOCK_STORE(lock_volume_factor, atomic);
+LUSTRE_RW_ATTR(lock_volume_factor);
 
 #define LDLM_POOL_ADD_VAR(name, var, ops)			\
 	do {							\
 		snprintf(var_name, MAX_STRING_SIZE, #name);	\
 		pool_vars[0].data = var;			\
 		pool_vars[0].fops = ops;			\
-		lprocfs_add_vars(pl->pl_proc_dir, pool_vars, NULL);\
+		ldebugfs_add_vars(pl->pl_debugfs_entry, pool_vars, NULL);\
 	} while (0)
 
-static int ldlm_pool_proc_init(struct ldlm_pool *pl)
+/* These are for pools in /sys/fs/lustre/ldlm/namespaces/.../pool */
+static struct attribute *ldlm_pl_attrs[] = {
+	&lustre_attr_grant_speed.attr,
+	&lustre_attr_grant_plan.attr,
+	&lustre_attr_recalc_period.attr,
+	&lustre_attr_server_lock_volume.attr,
+	&lustre_attr_limit.attr,
+	&lustre_attr_granted.attr,
+	&lustre_attr_cancel_rate.attr,
+	&lustre_attr_grant_rate.attr,
+	&lustre_attr_lock_volume_factor.attr,
+	NULL,
+};
+
+static void ldlm_pl_release(struct kobject *kobj)
+{
+	struct ldlm_pool *pl = container_of(kobj, struct ldlm_pool,
+					    pl_kobj);
+	complete(&pl->pl_kobj_unregister);
+}
+
+static struct kobj_type ldlm_pl_ktype = {
+	.default_attrs	= ldlm_pl_attrs,
+	.sysfs_ops	= &lustre_sysfs_ops,
+	.release	= ldlm_pl_release,
+};
+
+static int ldlm_pool_sysfs_init(struct ldlm_pool *pl)
 {
 	struct ldlm_namespace *ns = ldlm_pl2ns(pl);
-	struct proc_dir_entry *parent_ns_proc;
+	int err;
+
+	init_completion(&pl->pl_kobj_unregister);
+	err = kobject_init_and_add(&pl->pl_kobj, &ldlm_pl_ktype, &ns->ns_kobj,
+				   "pool");
+
+	return err;
+}
+
+static int ldlm_pool_debugfs_init(struct ldlm_pool *pl)
+{
+	struct ldlm_namespace *ns = ldlm_pl2ns(pl);
+	struct dentry *debugfs_ns_parent;
 	struct lprocfs_vars pool_vars[2];
 	char *var_name = NULL;
 	int rc = 0;
 
-	OBD_ALLOC(var_name, MAX_STRING_SIZE + 1);
+	var_name = kzalloc(MAX_STRING_SIZE + 1, GFP_NOFS);
 	if (!var_name)
 		return -ENOMEM;
 
-	parent_ns_proc = ns->ns_proc_dir_entry;
-	if (parent_ns_proc == NULL) {
-		CERROR("%s: proc entry is not initialized\n",
+	debugfs_ns_parent = ns->ns_debugfs_entry;
+	if (IS_ERR_OR_NULL(debugfs_ns_parent)) {
+		CERROR("%s: debugfs entry is not initialized\n",
 		       ldlm_ns_name(ns));
 		rc = -EINVAL;
 		goto out_free_name;
 	}
-	pl->pl_proc_dir = lprocfs_register("pool", parent_ns_proc,
-					   NULL, NULL);
-	if (IS_ERR(pl->pl_proc_dir)) {
-		CERROR("LProcFS failed in ldlm-pool-init\n");
-		rc = PTR_ERR(pl->pl_proc_dir);
-		pl->pl_proc_dir = NULL;
+	pl->pl_debugfs_entry = ldebugfs_register("pool", debugfs_ns_parent,
+						 NULL, NULL);
+	if (IS_ERR(pl->pl_debugfs_entry)) {
+		CERROR("LdebugFS failed in ldlm-pool-init\n");
+		rc = PTR_ERR(pl->pl_debugfs_entry);
+		pl->pl_debugfs_entry = NULL;
 		goto out_free_name;
 	}
 
@@ -770,20 +818,7 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 	memset(pool_vars, 0, sizeof(pool_vars));
 	pool_vars[0].name = var_name;
 
-	LDLM_POOL_ADD_VAR("server_lock_volume", &pl->pl_server_lock_volume,
-			  &ldlm_pool_u64_fops);
-	LDLM_POOL_ADD_VAR("limit", &pl->pl_limit, &ldlm_pool_rw_atomic_fops);
-	LDLM_POOL_ADD_VAR("granted", &pl->pl_granted, &ldlm_pool_atomic_fops);
-	LDLM_POOL_ADD_VAR("grant_speed", pl, &lprocfs_grant_speed_fops);
-	LDLM_POOL_ADD_VAR("cancel_rate", &pl->pl_cancel_rate,
-			  &ldlm_pool_atomic_fops);
-	LDLM_POOL_ADD_VAR("grant_rate", &pl->pl_grant_rate,
-			  &ldlm_pool_atomic_fops);
-	LDLM_POOL_ADD_VAR("grant_plan", pl, &lprocfs_grant_plan_fops);
-	LDLM_POOL_ADD_VAR("recalc_period", pl, &lprocfs_recalc_period_fops);
-	LDLM_POOL_ADD_VAR("lock_volume_factor", &pl->pl_lock_volume_factor,
-			  &ldlm_pool_rw_atomic_fops);
-	LDLM_POOL_ADD_VAR("state", pl, &lprocfs_pool_state_fops);
+	LDLM_POOL_ADD_VAR(state, pl, &lprocfs_pool_state_fops);
 
 	pl->pl_stats = lprocfs_alloc_stats(LDLM_POOL_LAST_STAT -
 					   LDLM_POOL_FIRST_STAT, 0);
@@ -825,32 +860,31 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 	lprocfs_counter_init(pl->pl_stats, LDLM_POOL_TIMING_STAT,
 			     LPROCFS_CNTR_AVGMINMAX | LPROCFS_CNTR_STDDEV,
 			     "recalc_timing", "sec");
-	rc = lprocfs_register_stats(pl->pl_proc_dir, "stats", pl->pl_stats);
+	rc = ldebugfs_register_stats(pl->pl_debugfs_entry, "stats",
+				     pl->pl_stats);
 
 out_free_name:
-	OBD_FREE(var_name, MAX_STRING_SIZE + 1);
+	kfree(var_name);
 	return rc;
 }
 
-static void ldlm_pool_proc_fini(struct ldlm_pool *pl)
+static void ldlm_pool_sysfs_fini(struct ldlm_pool *pl)
+{
+	kobject_put(&pl->pl_kobj);
+	wait_for_completion(&pl->pl_kobj_unregister);
+}
+
+static void ldlm_pool_debugfs_fini(struct ldlm_pool *pl)
 {
 	if (pl->pl_stats != NULL) {
 		lprocfs_free_stats(&pl->pl_stats);
 		pl->pl_stats = NULL;
 	}
-	if (pl->pl_proc_dir != NULL) {
-		lprocfs_remove(&pl->pl_proc_dir);
-		pl->pl_proc_dir = NULL;
+	if (pl->pl_debugfs_entry != NULL) {
+		ldebugfs_remove(&pl->pl_debugfs_entry);
+		pl->pl_debugfs_entry = NULL;
 	}
 }
-#else /* !CONFIG_PROC_FS */
-static int ldlm_pool_proc_init(struct ldlm_pool *pl)
-{
-	return 0;
-}
-
-static void ldlm_pool_proc_fini(struct ldlm_pool *pl) {}
-#endif /* CONFIG_PROC_FS */
 
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 		   int idx, ldlm_side_t client)
@@ -881,7 +915,11 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 		pl->pl_recalc_period = LDLM_POOL_CLI_DEF_RECALC_PERIOD;
 	}
 	pl->pl_client_lock_volume = 0;
-	rc = ldlm_pool_proc_init(pl);
+	rc = ldlm_pool_debugfs_init(pl);
+	if (rc)
+		return rc;
+
+	rc = ldlm_pool_sysfs_init(pl);
 	if (rc)
 		return rc;
 
@@ -893,7 +931,8 @@ EXPORT_SYMBOL(ldlm_pool_init);
 
 void ldlm_pool_fini(struct ldlm_pool *pl)
 {
-	ldlm_pool_proc_fini(pl);
+	ldlm_pool_sysfs_fini(pl);
+	ldlm_pool_debugfs_fini(pl);
 
 	/*
 	 * Pool should not be used after this point. We can't free it here as
@@ -1362,8 +1401,7 @@ static int ldlm_pools_thread_main(void *arg)
 
 		if (thread_test_and_clear_flags(thread, SVC_STOPPING))
 			break;
-		else
-			thread_test_and_clear_flags(thread, SVC_EVENT);
+		thread_test_and_clear_flags(thread, SVC_EVENT);
 	}
 
 	thread_set_flags(thread, SVC_STOPPED);
@@ -1383,7 +1421,7 @@ static int ldlm_pools_thread_start(void)
 	if (ldlm_pools_thread != NULL)
 		return -EALREADY;
 
-	OBD_ALLOC_PTR(ldlm_pools_thread);
+	ldlm_pools_thread = kzalloc(sizeof(*ldlm_pools_thread), GFP_NOFS);
 	if (ldlm_pools_thread == NULL)
 		return -ENOMEM;
 
@@ -1394,7 +1432,7 @@ static int ldlm_pools_thread_start(void)
 			   "ldlm_poold");
 	if (IS_ERR(task)) {
 		CERROR("Can't start pool thread, error %ld\n", PTR_ERR(task));
-		OBD_FREE(ldlm_pools_thread, sizeof(*ldlm_pools_thread));
+		kfree(ldlm_pools_thread);
 		ldlm_pools_thread = NULL;
 		return PTR_ERR(task);
 	}
@@ -1417,7 +1455,7 @@ static void ldlm_pools_thread_stop(void)
 	 * in pools thread.
 	 */
 	wait_for_completion(&ldlm_pools_comp);
-	OBD_FREE_PTR(ldlm_pools_thread);
+	kfree(ldlm_pools_thread);
 	ldlm_pools_thread = NULL;
 }
 

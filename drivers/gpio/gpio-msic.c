@@ -309,8 +309,7 @@ static int platform_msic_gpio_probe(struct platform_device *pdev)
 					 &msic_irqchip,
 					 handle_simple_irq);
 	}
-	irq_set_chained_handler(mg->irq, msic_gpio_irq_handler);
-	irq_set_handler_data(mg->irq, mg);
+	irq_set_chained_handler_and_data(mg->irq, msic_gpio_irq_handler, mg);
 
 	return 0;
 err:

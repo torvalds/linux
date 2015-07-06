@@ -673,6 +673,7 @@ static struct dma_chan *usb_dmac_of_xlate(struct of_phandle_args *dma_spec,
  * Power management
  */
 
+#ifdef CONFIG_PM
 static int usb_dmac_runtime_suspend(struct device *dev)
 {
 	struct usb_dmac *dmac = dev_get_drvdata(dev);
@@ -690,6 +691,7 @@ static int usb_dmac_runtime_resume(struct device *dev)
 
 	return usb_dmac_init(dmac);
 }
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops usb_dmac_pm = {
 	SET_RUNTIME_PM_OPS(usb_dmac_runtime_suspend, usb_dmac_runtime_resume,

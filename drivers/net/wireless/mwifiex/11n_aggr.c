@@ -187,7 +187,6 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	skb_aggr = mwifiex_alloc_dma_align_buf(adapter->tx_buf_size,
 					       GFP_ATOMIC | GFP_DMA);
 	if (!skb_aggr) {
-		dev_err(adapter->dev, "%s: alloc skb_aggr\n", __func__);
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
 		return -1;
@@ -297,13 +296,13 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		tx_info_aggr->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
-		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");
+		mwifiex_dbg(adapter, ERROR, "data: -EBUSY is returned\n");
 		break;
 	case -1:
 		if (adapter->iface_type != MWIFIEX_PCIE)
 			adapter->data_sent = false;
-		dev_err(adapter->dev, "%s: host_to_card failed: %#x\n",
-			__func__, ret);
+		mwifiex_dbg(adapter, ERROR, "%s: host_to_card failed: %#x\n",
+			    __func__, ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb_aggr, 1, ret);
 		return 0;

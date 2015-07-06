@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/kmod.h>
+#include <linux/device.h>
 
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
@@ -100,13 +101,91 @@ static struct parport_operations dead_ops = {
 	.owner		= NULL,
 };
 
+static struct device_type parport_device_type = {
+	.name = "parport",
+};
+
+static int is_parport(struct device *dev)
+{
+	return dev->type == &parport_device_type;
+}
+
+static int parport_probe(struct device *dev)
+{
+	struct parport_driver *drv;
+
+	if (is_parport(dev))
+		return -ENODEV;
+
+	drv = to_parport_driver(dev->driver);
+	if (!drv->probe) {
+		/* if driver has not defined a custom probe */
+		struct pardevice *par_dev = to_pardevice(dev);
+
+		if (strcmp(par_dev->name, drv->name))
+			return -ENODEV;
+		return 0;
+	}
+	/* if driver defined its own probe */
+	return drv->probe(to_pardevice(dev));
+}
+
+static struct bus_type parport_bus_type = {
+	.name = "parport",
+	.probe = parport_probe,
+};
+
+int parport_bus_init(void)
+{
+	return bus_register(&parport_bus_type);
+}
+
+void parport_bus_exit(void)
+{
+	bus_unregister(&parport_bus_type);
+}
+
+/*
+ * iterates through all the drivers registered with the bus and sends the port
+ * details to the match_port callback of the driver, so that the driver can
+ * know about the new port that just regsitered with the bus and decide if it
+ * wants to use this new port.
+ */
+static int driver_check(struct device_driver *dev_drv, void *_port)
+{
+	struct parport *port = _port;
+	struct parport_driver *drv = to_parport_driver(dev_drv);
+
+	if (drv->match_port)
+		drv->match_port(port);
+	return 0;
+}
+
 /* Call attach(port) for each registered driver. */
 static void attach_driver_chain(struct parport *port)
 {
 	/* caller has exclusive registration_lock */
 	struct parport_driver *drv;
+
 	list_for_each_entry(drv, &drivers, list)
 		drv->attach(port);
+
+	/*
+	 * call the driver_check function of the drivers registered in
+	 * new device model
+	 */
+
+	bus_for_each_drv(&parport_bus_type, NULL, port, driver_check);
+}
+
+static int driver_detach(struct device_driver *_drv, void *_port)
+{
+	struct parport *port = _port;
+	struct parport_driver *drv = to_parport_driver(_drv);
+
+	if (drv->detach)
+		drv->detach(port);
+	return 0;
 }
 
 /* Call detach(port) for each registered driver. */
@@ -116,6 +195,13 @@ static void detach_driver_chain(struct parport *port)
 	/* caller has exclusive registration_lock */
 	list_for_each_entry(drv, &drivers, list)
 		drv->detach (port);
+
+	/*
+	 * call the detach function of the drivers registered in
+	 * new device model
+	 */
+
+	bus_for_each_drv(&parport_bus_type, NULL, port, driver_detach);
 }
 
 /* Ask kmod for some lowlevel drivers. */
@@ -126,17 +212,39 @@ static void get_lowlevel_driver (void)
 	request_module ("parport_lowlevel");
 }
 
+/*
+ * iterates through all the devices connected to the bus and sends the device
+ * details to the match_port callback of the driver, so that the driver can
+ * know what are all the ports that are connected to the bus and choose the
+ * port to which it wants to register its device.
+ */
+static int port_check(struct device *dev, void *dev_drv)
+{
+	struct parport_driver *drv = dev_drv;
+
+	/* only send ports, do not send other devices connected to bus */
+	if (is_parport(dev))
+		drv->match_port(to_parport_dev(dev));
+	return 0;
+}
+
 /**
  *	parport_register_driver - register a parallel port device driver
  *	@drv: structure describing the driver
+ *	@owner: owner module of drv
+ *	@mod_name: module name string
  *
  *	This can be called by a parallel port device driver in order
  *	to receive notifications about ports being found in the
  *	system, as well as ports no longer available.
  *
+ *	If devmodel is true then the new device model is used
+ *	for registration.
+ *
  *	The @drv structure is allocated by the caller and must not be
  *	deallocated until after calling parport_unregister_driver().
  *
+ *	If using the non device model:
  *	The driver's attach() function may block.  The port that
  *	attach() is given will be valid for the duration of the
  *	callback, but if the driver wants to take a copy of the
@@ -148,21 +256,57 @@ static void get_lowlevel_driver (void)
  *	callback, but if the driver wants to take a copy of the
  *	pointer it must call parport_get_port() to do so.
  *
- *	Returns 0 on success.  Currently it always succeeds.
+ *
+ *	Returns 0 on success. The non device model will always succeeds.
+ *	but the new device model can fail and will return the error code.
  **/
 
-int parport_register_driver (struct parport_driver *drv)
+int __parport_register_driver(struct parport_driver *drv, struct module *owner,
+			      const char *mod_name)
 {
-	struct parport *port;
-
 	if (list_empty(&portlist))
 		get_lowlevel_driver ();
 
-	mutex_lock(&registration_lock);
-	list_for_each_entry(port, &portlist, list)
-		drv->attach(port);
-	list_add(&drv->list, &drivers);
-	mutex_unlock(&registration_lock);
+	if (drv->devmodel) {
+		/* using device model */
+		int ret;
+
+		/* initialize common driver fields */
+		drv->driver.name = drv->name;
+		drv->driver.bus = &parport_bus_type;
+		drv->driver.owner = owner;
+		drv->driver.mod_name = mod_name;
+		ret = driver_register(&drv->driver);
+		if (ret)
+			return ret;
+
+		mutex_lock(&registration_lock);
+		if (drv->match_port)
+			bus_for_each_dev(&parport_bus_type, NULL, drv,
+					 port_check);
+		mutex_unlock(&registration_lock);
+	} else {
+		struct parport *port;
+
+		drv->devmodel = false;
+
+		mutex_lock(&registration_lock);
+		list_for_each_entry(port, &portlist, list)
+			drv->attach(port);
+		list_add(&drv->list, &drivers);
+		mutex_unlock(&registration_lock);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(__parport_register_driver);
+
+static int port_detach(struct device *dev, void *_drv)
+{
+	struct parport_driver *drv = _drv;
+
+	if (is_parport(dev) && drv->detach)
+		drv->detach(to_parport_dev(dev));
 
 	return 0;
 }
@@ -189,15 +333,22 @@ void parport_unregister_driver (struct parport_driver *drv)
 	struct parport *port;
 
 	mutex_lock(&registration_lock);
-	list_del_init(&drv->list);
-	list_for_each_entry(port, &portlist, list)
-		drv->detach(port);
+	if (drv->devmodel) {
+		bus_for_each_dev(&parport_bus_type, NULL, drv, port_detach);
+		driver_unregister(&drv->driver);
+	} else {
+		list_del_init(&drv->list);
+		list_for_each_entry(port, &portlist, list)
+			drv->detach(port);
+	}
 	mutex_unlock(&registration_lock);
 }
 
-static void free_port (struct parport *port)
+static void free_port(struct device *dev)
 {
 	int d;
+	struct parport *port = to_parport_dev(dev);
+
 	spin_lock(&full_list_lock);
 	list_del(&port->full_list);
 	spin_unlock(&full_list_lock);
@@ -223,25 +374,29 @@ static void free_port (struct parport *port)
 
 struct parport *parport_get_port (struct parport *port)
 {
-	atomic_inc (&port->ref_count);
-	return port;
+	struct device *dev = get_device(&port->bus_dev);
+
+	return to_parport_dev(dev);
 }
+
+void parport_del_port(struct parport *port)
+{
+	device_unregister(&port->bus_dev);
+}
+EXPORT_SYMBOL(parport_del_port);
 
 /**
  *	parport_put_port - decrement a port's reference count
  *	@port: the port
  *
  *	This should be called once for each call to parport_get_port(),
- *	once the port is no longer needed.
+ *	once the port is no longer needed. When the reference count reaches
+ *	zero (port is no longer used), free_port is called.
  **/
 
 void parport_put_port (struct parport *port)
 {
-	if (atomic_dec_and_test (&port->ref_count))
-		/* Can destroy it now. */
-		free_port (port);
-
-	return;
+	put_device(&port->bus_dev);
 }
 
 /**
@@ -281,6 +436,7 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	int num;
 	int device;
 	char *name;
+	int ret;
 
 	tmp = kzalloc(sizeof(struct parport), GFP_KERNEL);
 	if (!tmp) {
@@ -333,12 +489,22 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	 */
 	sprintf(name, "parport%d", tmp->portnum = tmp->number);
 	tmp->name = name;
+	tmp->bus_dev.bus = &parport_bus_type;
+	tmp->bus_dev.release = free_port;
+	dev_set_name(&tmp->bus_dev, name);
+	tmp->bus_dev.type = &parport_device_type;
 
 	for (device = 0; device < 5; device++)
 		/* assume the worst */
 		tmp->probe_info[device].class = PARPORT_CLASS_LEGACY;
 
 	tmp->waithead = tmp->waittail = NULL;
+
+	ret = device_register(&tmp->bus_dev);
+	if (ret) {
+		put_device(&tmp->bus_dev);
+		return NULL;
+	}
 
 	return tmp;
 }
@@ -542,6 +708,20 @@ parport_register_device(struct parport *port, const char *name,
 		}
 	}
 
+	if (flags & PARPORT_DEV_EXCL) {
+		if (port->physport->devices) {
+			/*
+			 * If a device is already registered and this new
+			 * device wants exclusive access, then no need to
+			 * continue as we can not grant exclusive access to
+			 * this device.
+			 */
+			pr_err("%s: cannot grant exclusive access for device %s\n",
+			       port->name, name);
+			return NULL;
+		}
+	}
+
 	/* We up our own module reference count, and that of the port
            on which a device is to be registered, to ensure that
            neither of us gets unloaded while we sleep in (e.g.)
@@ -575,6 +755,7 @@ parport_register_device(struct parport *port, const char *name,
 	tmp->irq_func = irq_func;
 	tmp->waiting = 0;
 	tmp->timeout = 5 * HZ;
+	tmp->devmodel = false;
 
 	/* Chain this onto the list */
 	tmp->prev = NULL;
@@ -629,6 +810,150 @@ parport_register_device(struct parport *port, const char *name,
 
 	return NULL;
 }
+
+static void free_pardevice(struct device *dev)
+{
+	struct pardevice *par_dev = to_pardevice(dev);
+
+	kfree(par_dev->name);
+	kfree(par_dev);
+}
+
+struct pardevice *
+parport_register_dev_model(struct parport *port, const char *name,
+			   const struct pardev_cb *par_dev_cb, int id)
+{
+	struct pardevice *par_dev;
+	int ret;
+	char *devname;
+
+	if (port->physport->flags & PARPORT_FLAG_EXCL) {
+		/* An exclusive device is registered. */
+		pr_err("%s: no more devices allowed\n", port->name);
+		return NULL;
+	}
+
+	if (par_dev_cb->flags & PARPORT_DEV_LURK) {
+		if (!par_dev_cb->preempt || !par_dev_cb->wakeup) {
+			pr_info("%s: refused to register lurking device (%s) without callbacks\n",
+				port->name, name);
+			return NULL;
+		}
+	}
+
+	if (par_dev_cb->flags & PARPORT_DEV_EXCL) {
+		if (port->physport->devices) {
+			/*
+			 * If a device is already registered and this new
+			 * device wants exclusive access, then no need to
+			 * continue as we can not grant exclusive access to
+			 * this device.
+			 */
+			pr_err("%s: cannot grant exclusive access for device %s\n",
+			       port->name, name);
+			return NULL;
+		}
+	}
+
+	if (!try_module_get(port->ops->owner))
+		return NULL;
+
+	parport_get_port(port);
+
+	par_dev = kzalloc(sizeof(*par_dev), GFP_KERNEL);
+	if (!par_dev)
+		goto err_put_port;
+
+	par_dev->state = kzalloc(sizeof(*par_dev->state), GFP_KERNEL);
+	if (!par_dev->state)
+		goto err_put_par_dev;
+
+	devname = kstrdup(name, GFP_KERNEL);
+	if (!devname)
+		goto err_free_par_dev;
+
+	par_dev->name = devname;
+	par_dev->port = port;
+	par_dev->daisy = -1;
+	par_dev->preempt = par_dev_cb->preempt;
+	par_dev->wakeup = par_dev_cb->wakeup;
+	par_dev->private = par_dev_cb->private;
+	par_dev->flags = par_dev_cb->flags;
+	par_dev->irq_func = par_dev_cb->irq_func;
+	par_dev->waiting = 0;
+	par_dev->timeout = 5 * HZ;
+
+	par_dev->dev.parent = &port->bus_dev;
+	par_dev->dev.bus = &parport_bus_type;
+	ret = dev_set_name(&par_dev->dev, "%s.%d", devname, id);
+	if (ret)
+		goto err_free_devname;
+	par_dev->dev.release = free_pardevice;
+	par_dev->devmodel = true;
+	ret = device_register(&par_dev->dev);
+	if (ret)
+		goto err_put_dev;
+
+	/* Chain this onto the list */
+	par_dev->prev = NULL;
+	/*
+	 * This function must not run from an irq handler so we don' t need
+	 * to clear irq on the local CPU. -arca
+	 */
+	spin_lock(&port->physport->pardevice_lock);
+
+	if (par_dev_cb->flags & PARPORT_DEV_EXCL) {
+		if (port->physport->devices) {
+			spin_unlock(&port->physport->pardevice_lock);
+			pr_debug("%s: cannot grant exclusive access for device %s\n",
+				 port->name, name);
+			goto err_put_dev;
+		}
+		port->flags |= PARPORT_FLAG_EXCL;
+	}
+
+	par_dev->next = port->physport->devices;
+	wmb();	/*
+		 * Make sure that tmp->next is written before it's
+		 * added to the list; see comments marked 'no locking
+		 * required'
+		 */
+	if (port->physport->devices)
+		port->physport->devices->prev = par_dev;
+	port->physport->devices = par_dev;
+	spin_unlock(&port->physport->pardevice_lock);
+
+	init_waitqueue_head(&par_dev->wait_q);
+	par_dev->timeslice = parport_default_timeslice;
+	par_dev->waitnext = NULL;
+	par_dev->waitprev = NULL;
+
+	/*
+	 * This has to be run as last thing since init_state may need other
+	 * pardevice fields. -arca
+	 */
+	port->ops->init_state(par_dev, par_dev->state);
+	port->proc_device = par_dev;
+	parport_device_proc_register(par_dev);
+
+	return par_dev;
+
+err_put_dev:
+	put_device(&par_dev->dev);
+err_free_devname:
+	kfree(devname);
+err_free_par_dev:
+	kfree(par_dev->state);
+err_put_par_dev:
+	if (!par_dev->devmodel)
+		kfree(par_dev);
+err_put_port:
+	parport_put_port(port);
+	module_put(port->ops->owner);
+
+	return NULL;
+}
+EXPORT_SYMBOL(parport_register_dev_model);
 
 /**
  *	parport_unregister_device - deregister a device on a parallel port
@@ -691,7 +1016,10 @@ void parport_unregister_device(struct pardevice *dev)
 	spin_unlock_irq(&port->waitlist_lock);
 
 	kfree(dev->state);
-	kfree(dev);
+	if (dev->devmodel)
+		device_unregister(&dev->dev);
+	else
+		kfree(dev);
 
 	module_put(port->ops->owner);
 	parport_put_port (port);
@@ -1019,7 +1347,6 @@ EXPORT_SYMBOL(parport_release);
 EXPORT_SYMBOL(parport_register_port);
 EXPORT_SYMBOL(parport_announce_port);
 EXPORT_SYMBOL(parport_remove_port);
-EXPORT_SYMBOL(parport_register_driver);
 EXPORT_SYMBOL(parport_unregister_driver);
 EXPORT_SYMBOL(parport_register_device);
 EXPORT_SYMBOL(parport_unregister_device);

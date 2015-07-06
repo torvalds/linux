@@ -64,6 +64,7 @@ struct request_sock {
 	struct timer_list		rsk_timer;
 	const struct request_sock_ops	*rsk_ops;
 	struct sock			*sk;
+	u32				*saved_syn;
 	u32				secid;
 	u32				peer_secid;
 };
@@ -77,7 +78,7 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener)
 		req->rsk_ops = ops;
 		sock_hold(sk_listener);
 		req->rsk_listener = sk_listener;
-
+		req->saved_syn = NULL;
 		/* Following is temporary. It is coupled with debugging
 		 * helpers in reqsk_put() & reqsk_free()
 		 */
@@ -104,6 +105,7 @@ static inline void reqsk_free(struct request_sock *req)
 	req->rsk_ops->destructor(req);
 	if (req->rsk_listener)
 		sock_put(req->rsk_listener);
+	kfree(req->saved_syn);
 	kmem_cache_free(req->rsk_ops->slab, req);
 }
 
@@ -210,24 +212,6 @@ static inline struct request_sock *
 static inline int reqsk_queue_empty(struct request_sock_queue *queue)
 {
 	return queue->rskq_accept_head == NULL;
-}
-
-static inline void reqsk_queue_unlink(struct request_sock_queue *queue,
-				      struct request_sock *req)
-{
-	struct listen_sock *lopt = queue->listen_opt;
-	struct request_sock **prev;
-
-	spin_lock(&queue->syn_wait_lock);
-
-	prev = &lopt->syn_table[req->rsk_hash];
-	while (*prev != req)
-		prev = &(*prev)->dl_next;
-	*prev = req->dl_next;
-
-	spin_unlock(&queue->syn_wait_lock);
-	if (del_timer(&req->rsk_timer))
-		reqsk_put(req);
 }
 
 static inline void reqsk_queue_add(struct request_sock_queue *queue,

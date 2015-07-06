@@ -50,9 +50,6 @@
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psopinfo")
 
-extern const u8 acpi_gbl_short_op_index[];
-extern const u8 acpi_gbl_long_op_index[];
-
 static const u8 acpi_gbl_argument_count[] =
     { 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 6 };
 

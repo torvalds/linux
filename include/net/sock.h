@@ -184,6 +184,7 @@ struct sock_common {
 	unsigned char		skc_reuse:4;
 	unsigned char		skc_reuseport:1;
 	unsigned char		skc_ipv6only:1;
+	unsigned char		skc_net_refcnt:1;
 	int			skc_bound_dev_if;
 	union {
 		struct hlist_node	skc_bind_node;
@@ -276,7 +277,6 @@ struct cg_proto;
   *	@sk_incoming_cpu: record cpu processing incoming packets
   *	@sk_txhash: computed flow hash for use on transmit
   *	@sk_filter: socket filtering instructions
-  *	@sk_protinfo: private area, net family specific, when not using slab
   *	@sk_timer: sock cleanup timer
   *	@sk_stamp: time stamp of last packet received
   *	@sk_tsflags: SO_TIMESTAMPING socket options
@@ -323,6 +323,7 @@ struct sock {
 #define sk_reuse		__sk_common.skc_reuse
 #define sk_reuseport		__sk_common.skc_reuseport
 #define sk_ipv6only		__sk_common.skc_ipv6only
+#define sk_net_refcnt		__sk_common.skc_net_refcnt
 #define sk_bound_dev_if		__sk_common.skc_bound_dev_if
 #define sk_bind_node		__sk_common.skc_bind_node
 #define sk_prot			__sk_common.skc_prot
@@ -414,7 +415,6 @@ struct sock {
 	const struct cred	*sk_peer_cred;
 	long			sk_rcvtimeo;
 	long			sk_sndtimeo;
-	void			*sk_protinfo;
 	struct timer_list	sk_timer;
 	ktime_t			sk_stamp;
 	u16			sk_tsflags;
@@ -924,7 +924,6 @@ static inline void sk_prot_clear_nulls(struct sock *sk, int size)
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
- * transport -> network interface is defined by struct inet_proto
  */
 struct proto {
 	void			(*close)(struct sock *sk,
@@ -1366,7 +1365,7 @@ static inline struct inode *SOCK_INODE(struct socket *socket)
  * Functions for memory accounting
  */
 int __sk_mem_schedule(struct sock *sk, int size, int kind);
-void __sk_mem_reclaim(struct sock *sk);
+void __sk_mem_reclaim(struct sock *sk, int amount);
 
 #define SK_MEM_QUANTUM ((int)PAGE_SIZE)
 #define SK_MEM_QUANTUM_SHIFT ilog2(SK_MEM_QUANTUM)
@@ -1407,7 +1406,7 @@ static inline void sk_mem_reclaim(struct sock *sk)
 	if (!sk_has_account(sk))
 		return;
 	if (sk->sk_forward_alloc >= SK_MEM_QUANTUM)
-		__sk_mem_reclaim(sk);
+		__sk_mem_reclaim(sk, sk->sk_forward_alloc);
 }
 
 static inline void sk_mem_reclaim_partial(struct sock *sk)
@@ -1415,7 +1414,7 @@ static inline void sk_mem_reclaim_partial(struct sock *sk)
 	if (!sk_has_account(sk))
 		return;
 	if (sk->sk_forward_alloc > SK_MEM_QUANTUM)
-		__sk_mem_reclaim(sk);
+		__sk_mem_reclaim(sk, sk->sk_forward_alloc - 1);
 }
 
 static inline void sk_mem_charge(struct sock *sk, int size)
@@ -1514,9 +1513,9 @@ static inline void unlock_sock_fast(struct sock *sk, bool slow)
 
 
 struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
-		      struct proto *prot);
+		      struct proto *prot, int kern);
 void sk_free(struct sock *sk);
-void sk_release_kernel(struct sock *sk);
+void sk_destruct(struct sock *sk);
 struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority);
 
 struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force,
@@ -2024,7 +2023,8 @@ static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 	}
 }
 
-struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp);
+struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
+				    bool force_schedule);
 
 /**
  * sk_page_frag - return an appropriate page_frag
@@ -2190,22 +2190,6 @@ static inline
 void sock_net_set(struct sock *sk, struct net *net)
 {
 	write_pnet(&sk->sk_net, net);
-}
-
-/*
- * Kernel sockets, f.e. rtnl or icmp_socket, are a part of a namespace.
- * They should not hold a reference to a namespace in order to allow
- * to stop it.
- * Sockets after sk_change_net should be released using sk_release_kernel
- */
-static inline void sk_change_net(struct sock *sk, struct net *net)
-{
-	struct net *current_net = sock_net(sk);
-
-	if (!net_eq(current_net, net)) {
-		put_net(current_net);
-		sock_net_set(sk, net);
-	}
 }
 
 static inline struct sock *skb_steal_sock(struct sk_buff *skb)

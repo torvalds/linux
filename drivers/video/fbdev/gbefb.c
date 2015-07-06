@@ -22,9 +22,6 @@
 #include <linux/module.h>
 #include <linux/io.h>
 
-#ifdef CONFIG_X86
-#include <asm/mtrr.h>
-#endif
 #ifdef CONFIG_MIPS
 #include <asm/addrspace.h>
 #endif
@@ -38,6 +35,7 @@ static struct sgi_gbe *gbe;
 struct gbefb_par {
 	struct fb_var_screeninfo var;
 	struct gbe_timing_info timing;
+	int wc_cookie;
 	int valid;
 };
 
@@ -1175,8 +1173,8 @@ static int gbefb_probe(struct platform_device *p_dev)
 
 	if (gbe_mem_phys) {
 		/* memory was allocated at boot time */
-		gbe_mem = devm_ioremap_nocache(&p_dev->dev, gbe_mem_phys,
-					       gbe_mem_size);
+		gbe_mem = devm_ioremap_wc(&p_dev->dev, gbe_mem_phys,
+					  gbe_mem_size);
 		if (!gbe_mem) {
 			printk(KERN_ERR "gbefb: couldn't map framebuffer\n");
 			ret = -ENOMEM;
@@ -1187,8 +1185,8 @@ static int gbefb_probe(struct platform_device *p_dev)
 	} else {
 		/* try to allocate memory with the classical allocator
 		 * this has high chance to fail on low memory machines */
-		gbe_mem = dma_alloc_coherent(NULL, gbe_mem_size, &gbe_dma_addr,
-					     GFP_KERNEL);
+		gbe_mem = dma_alloc_writecombine(NULL, gbe_mem_size,
+						 &gbe_dma_addr, GFP_KERNEL);
 		if (!gbe_mem) {
 			printk(KERN_ERR "gbefb: couldn't allocate framebuffer memory\n");
 			ret = -ENOMEM;
@@ -1198,9 +1196,8 @@ static int gbefb_probe(struct platform_device *p_dev)
 		gbe_mem_phys = (unsigned long) gbe_dma_addr;
 	}
 
-#ifdef CONFIG_X86
-	mtrr_add(gbe_mem_phys, gbe_mem_size, MTRR_TYPE_WRCOMB, 1);
-#endif
+	par = info->par;
+	par->wc_cookie = arch_phys_wc_add(gbe_mem_phys, gbe_mem_size);
 
 	/* map framebuffer memory into tiles table */
 	for (i = 0; i < (gbe_mem_size >> TILE_SHIFT); i++)
@@ -1215,7 +1212,6 @@ static int gbefb_probe(struct platform_device *p_dev)
 	/* reset GBE */
 	gbe_reset();
 
-	par = info->par;
 	/* turn on default video mode */
 	if (fb_find_mode(&par->var, info, mode_option, NULL, 0,
 			 default_mode, 8) == 0)
@@ -1240,8 +1236,9 @@ static int gbefb_probe(struct platform_device *p_dev)
 	return 0;
 
 out_gbe_unmap:
+	arch_phys_wc_del(par->wc_cookie);
 	if (gbe_dma_addr)
-		dma_free_coherent(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
+		dma_free_writecombine(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
 out_tiles_free:
 	dma_free_coherent(NULL, GBE_TLB_SIZE * sizeof(uint16_t),
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
@@ -1256,11 +1253,13 @@ out_release_framebuffer:
 static int gbefb_remove(struct platform_device* p_dev)
 {
 	struct fb_info *info = platform_get_drvdata(p_dev);
+	struct gbefb_par *par = info->par;
 
 	unregister_framebuffer(info);
 	gbe_turn_off();
+	arch_phys_wc_del(par->wc_cookie);
 	if (gbe_dma_addr)
-		dma_free_coherent(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
+		dma_free_writecombine(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
 	dma_free_coherent(NULL, GBE_TLB_SIZE * sizeof(uint16_t),
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
 	release_mem_region(GBE_BASE, sizeof(struct sgi_gbe));

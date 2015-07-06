@@ -28,6 +28,9 @@
 #include "usb.h"
 #include "transport.h"
 #include "debug.h"
+#include "scsiglue.h"
+
+#define DRV_NAME "ums-karma"
 
 MODULE_DESCRIPTION("Driver for Rio Karma");
 MODULE_AUTHOR("Bob Copeland <me@bobcopeland.com>, Keith Bennett <keith@mcs.st-and.ac.uk>");
@@ -200,6 +203,8 @@ out:
 	return ret;
 }
 
+static struct scsi_host_template karma_host_template;
+
 static int karma_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -207,7 +212,8 @@ static int karma_probe(struct usb_interface *intf,
 	int result;
 
 	result = usb_stor_probe1(&us, intf, id,
-			(id - karma_usb_ids) + karma_unusual_dev_list);
+			(id - karma_usb_ids) + karma_unusual_dev_list,
+			&karma_host_template);
 	if (result)
 		return result;
 
@@ -220,7 +226,7 @@ static int karma_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver karma_driver = {
-	.name =		"ums-karma",
+	.name =		DRV_NAME,
 	.probe =	karma_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -233,4 +239,4 @@ static struct usb_driver karma_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(karma_driver);
+module_usb_stor_driver(karma_driver, karma_host_template, DRV_NAME);

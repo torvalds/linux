@@ -50,26 +50,26 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 	if (!hdr)
 		goto out;
 
-	mutex_lock(&phy->pib_lock);
+	rtnl_lock();
 	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
 	    nla_put_u8(msg, IEEE802154_ATTR_PAGE, phy->current_page) ||
 	    nla_put_u8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel))
 		goto nla_put_failure;
 	for (i = 0; i < 32; i++) {
-		if (phy->channels_supported[i])
-			buf[pages++] = phy->channels_supported[i] | (i << 27);
+		if (phy->supported.channels[i])
+			buf[pages++] = phy->supported.channels[i] | (i << 27);
 	}
 	if (pages &&
 	    nla_put(msg, IEEE802154_ATTR_CHANNEL_PAGE_LIST,
 		    pages * sizeof(uint32_t), buf))
 		goto nla_put_failure;
-	mutex_unlock(&phy->pib_lock);
+	rtnl_unlock();
 	kfree(buf);
 	genlmsg_end(msg, hdr);
 	return 0;
 
 nla_put_failure:
-	mutex_unlock(&phy->pib_lock);
+	rtnl_unlock();
 	genlmsg_cancel(msg, hdr);
 out:
 	kfree(buf);
@@ -175,6 +175,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	int rc = -ENOBUFS;
 	struct net_device *dev;
 	int type = __IEEE802154_DEV_INVALID;
+	unsigned char name_assign_type;
 
 	pr_debug("%s\n", __func__);
 
@@ -190,8 +191,10 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 		if (devname[nla_len(info->attrs[IEEE802154_ATTR_DEV_NAME]) - 1]
 				!= '\0')
 			return -EINVAL; /* phy name should be null-terminated */
+		name_assign_type = NET_NAME_USER;
 	} else  {
 		devname = "wpan%d";
+		name_assign_type = NET_NAME_ENUM;
 	}
 
 	if (strlen(devname) >= IFNAMSIZ)
@@ -221,7 +224,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	dev = rdev_add_virtual_intf_deprecated(wpan_phy_to_rdev(phy), devname,
-					       type);
+					       name_assign_type, type);
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);
 		goto nla_put_failure;

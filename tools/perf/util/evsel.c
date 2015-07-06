@@ -26,6 +26,7 @@
 #include "perf_regs.h"
 #include "debug.h"
 #include "trace-event.h"
+#include "stat.h"
 
 static struct {
 	bool sample_id_all;
@@ -851,19 +852,6 @@ int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
 	return 0;
 }
 
-void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus)
-{
-	memset(evsel->counts, 0, (sizeof(*evsel->counts) +
-				 (ncpus * sizeof(struct perf_counts_values))));
-}
-
-int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
-{
-	evsel->counts = zalloc((sizeof(*evsel->counts) +
-				(ncpus * sizeof(struct perf_counts_values))));
-	return evsel->counts != NULL ? 0 : -ENOMEM;
-}
-
 static void perf_evsel__free_fd(struct perf_evsel *evsel)
 {
 	xyarray__delete(evsel->fd);
@@ -891,17 +879,14 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 		}
 }
 
-void perf_evsel__free_counts(struct perf_evsel *evsel)
-{
-	zfree(&evsel->counts);
-}
-
 void perf_evsel__exit(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
 	perf_evsel__free_fd(evsel);
 	perf_evsel__free_id(evsel);
 	close_cgroup(evsel->cgrp);
+	cpu_map__put(evsel->cpus);
+	thread_map__put(evsel->threads);
 	zfree(&evsel->group_name);
 	zfree(&evsel->name);
 	perf_evsel__object.fini(evsel);
@@ -913,7 +898,7 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 	free(evsel);
 }
 
-void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
+void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu, int thread,
 				struct perf_counts_values *count)
 {
 	struct perf_counts_values tmp;
@@ -925,8 +910,8 @@ void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
 		tmp = evsel->prev_raw_counts->aggr;
 		evsel->prev_raw_counts->aggr = *count;
 	} else {
-		tmp = evsel->prev_raw_counts->cpu[cpu];
-		evsel->prev_raw_counts->cpu[cpu] = *count;
+		tmp = *perf_counts(evsel->prev_raw_counts, cpu, thread);
+		*perf_counts(evsel->prev_raw_counts, cpu, thread) = *count;
 	}
 
 	count->val = count->val - tmp.val;
@@ -954,20 +939,18 @@ void perf_counts_values__scale(struct perf_counts_values *count,
 		*pscaled = scaled;
 }
 
-int perf_evsel__read_cb(struct perf_evsel *evsel, int cpu, int thread,
-			perf_evsel__read_cb_t cb)
+int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
+		     struct perf_counts_values *count)
 {
-	struct perf_counts_values count;
-
-	memset(&count, 0, sizeof(count));
+	memset(count, 0, sizeof(*count));
 
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
 
-	if (readn(FD(evsel, cpu, thread), &count, sizeof(count)) < 0)
+	if (readn(FD(evsel, cpu, thread), count, sizeof(*count)) < 0)
 		return -errno;
 
-	return cb(evsel, cpu, thread, &count);
+	return 0;
 }
 
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
@@ -979,15 +962,15 @@ int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
 
-	if (evsel->counts == NULL && perf_evsel__alloc_counts(evsel, cpu + 1) < 0)
+	if (evsel->counts == NULL && perf_evsel__alloc_counts(evsel, cpu + 1, thread + 1) < 0)
 		return -ENOMEM;
 
 	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) < 0)
 		return -errno;
 
-	perf_evsel__compute_deltas(evsel, cpu, &count);
+	perf_evsel__compute_deltas(evsel, cpu, thread, &count);
 	perf_counts_values__scale(&count, scale, NULL);
-	evsel->counts->cpu[cpu] = count;
+	*perf_counts(evsel->counts, cpu, thread) = count;
 	return 0;
 }
 
@@ -1058,7 +1041,7 @@ static void __p_read_format(char *buf, size_t size, u64 value)
 
 #define BUF_SIZE		1024
 
-#define p_hex(val)		snprintf(buf, BUF_SIZE, "%"PRIx64, (uint64_t)(val))
+#define p_hex(val)		snprintf(buf, BUF_SIZE, "%#"PRIx64, (uint64_t)(val))
 #define p_unsigned(val)		snprintf(buf, BUF_SIZE, "%"PRIu64, (uint64_t)(val))
 #define p_signed(val)		snprintf(buf, BUF_SIZE, "%"PRId64, (int64_t)(val))
 #define p_sample_type(val)	__p_sample_type(buf, BUF_SIZE, val)
@@ -1121,6 +1104,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(sample_stack_user, p_unsigned);
 	PRINT_ATTRf(clockid, p_signed);
 	PRINT_ATTRf(sample_regs_intr, p_hex);
+	PRINT_ATTRf(aux_watermark, p_unsigned);
 
 	return ret;
 }
@@ -1183,7 +1167,7 @@ retry_sample_id:
 			int group_fd;
 
 			if (!evsel->cgrp && !evsel->system_wide)
-				pid = threads->map[thread];
+				pid = thread_map__pid(threads, thread);
 
 			group_fd = get_group_fd(evsel, cpu, thread);
 retry_open:
@@ -2148,7 +2132,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	case EMFILE:
 		return scnprintf(msg, size, "%s",
 			 "Too many events are opened.\n"
-			 "Try again after reducing the number of events.");
+			 "Probably the maximum number of open file descriptors has been reached.\n"
+			 "Hint: Try again after reducing the number of events.\n"
+			 "Hint: Try increasing the limit with 'ulimit -n <limit>'");
 	case ENODEV:
 		if (target->cpu_list)
 			return scnprintf(msg, size, "%s",

@@ -10,7 +10,19 @@ also be used to protect arrays.  Three situations are as follows:
 
 3.  Resizeable Arrays
 
-Each of these situations are discussed below.
+Each of these three situations involves an RCU-protected pointer to an
+array that is separately indexed.  It might be tempting to consider use
+of RCU to instead protect the index into an array, however, this use
+case is -not- supported.  The problem with RCU-protected indexes into
+arrays is that compilers can play way too many optimization games with
+integers, which means that the rules governing handling of these indexes
+are far more trouble than they are worth.  If RCU-protected indexes into
+arrays prove to be particularly valuable (which they have not thus far),
+explicit cooperation from the compiler will be required to permit them
+to be safely used.
+
+That aside, each of the three RCU-protected pointer situations are
+described in the following sections.
 
 
 Situation 1: Hash Tables
@@ -36,9 +48,9 @@ Quick Quiz:  Why is it so important that updates be rare when
 Situation 3: Resizeable Arrays
 
 Use of RCU for resizeable arrays is demonstrated by the grow_ary()
-function used by the System V IPC code.  The array is used to map from
-semaphore, message-queue, and shared-memory IDs to the data structure
-that represents the corresponding IPC construct.  The grow_ary()
+function formerly used by the System V IPC code.  The array is used
+to map from semaphore, message-queue, and shared-memory IDs to the data
+structure that represents the corresponding IPC construct.  The grow_ary()
 function does not acquire any locks; instead its caller must hold the
 ids->sem semaphore.
 

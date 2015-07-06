@@ -35,20 +35,19 @@
 #include <linux/mtd/physmap.h>
 #include <linux/memblock.h>
 
+#include <clocksource/timer-sp804.h>
+
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-
 #include <mach/platform.h>
 #include <mach/irqs.h>
-#include <asm/hardware/timer-sp.h>
 
 #include <plat/sched_clock.h>
 
@@ -381,10 +380,10 @@ void __init realview_timer_init(unsigned int timer_irq)
 	/*
 	 * Initialise to a known state (all timers off)
 	 */
-	writel(0, timer0_va_base + TIMER_CTRL);
-	writel(0, timer1_va_base + TIMER_CTRL);
-	writel(0, timer2_va_base + TIMER_CTRL);
-	writel(0, timer3_va_base + TIMER_CTRL);
+	sp804_timer_disable(timer0_va_base);
+	sp804_timer_disable(timer1_va_base);
+	sp804_timer_disable(timer2_va_base);
+	sp804_timer_disable(timer3_va_base);
 
 	sp804_clocksource_init(timer3_va_base, "timer3");
 	sp804_clockevents_init(timer0_va_base, timer_irq, "timer0");

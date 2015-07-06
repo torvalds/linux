@@ -828,7 +828,14 @@ static int its_alloc_tables(struct its_node *its)
 			u64 typer = readq_relaxed(its->base + GITS_TYPER);
 			u32 ids = GITS_TYPER_DEVBITS(typer);
 
-			order = get_order((1UL << ids) * entry_size);
+			/*
+			 * 'order' was initialized earlier to the default page
+			 * granule of the the ITS.  We can't have an allocation
+			 * smaller than that.  If the requested allocation
+			 * is smaller, round up to the default page granule.
+			 */
+			order = max(get_order((1UL << ids) * entry_size),
+				    order);
 			if (order >= MAX_ORDER) {
 				order = MAX_ORDER - 1;
 				pr_warn("%s: Device Table too large, reduce its page order to %u\n",
