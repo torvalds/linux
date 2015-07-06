@@ -433,8 +433,8 @@ static int gm7122_tve_probe(struct i2c_client *client,
 	if (cvbsformat >= 0) {
 		gm7122_tve->mode =
 			(struct fb_videomode *)&gm7122_cvbs_mode[cvbsformat];
-		gm7122_tve->enable = 1;
-		tve_switch_fb(gm7122_tve->mode, 1);
+		/*gm7122_tve->enable = 1;
+		tve_switch_fb(gm7122_tve->mode, 1);*/
 	} else {
 		gm7122_tve->mode = (struct fb_videomode *)&gm7122_cvbs_mode[1];
 	}
