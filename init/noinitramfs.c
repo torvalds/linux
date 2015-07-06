@@ -21,11 +21,16 @@
 #include <linux/stat.h>
 #include <linux/kdev_t.h>
 #include <linux/syscalls.h>
+#include <linux/kconfig.h>
+#include <linux/initramfs.h>
 
 /*
  * Create a simple rootfs that is similar to the default initramfs
  */
-static int __init default_rootfs(void)
+#if !IS_BUILTIN(CONFIG_BLK_DEV_INITRD)
+static
+#endif
+int __init default_rootfs(void)
 {
 	int err;
 
@@ -49,4 +54,6 @@ out:
 	printk(KERN_WARNING "Failed to create a rootfs\n");
 	return err;
 }
+#if !IS_BUILTIN(CONFIG_BLK_DEV_INITRD)
 rootfs_initcall(default_rootfs);
+#endif
