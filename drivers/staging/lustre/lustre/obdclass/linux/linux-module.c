@@ -423,7 +423,7 @@ static struct attribute_group lustre_attr_group = {
 
 int class_procfs_init(void)
 {
-	int rc = 0;
+	int rc = -ENOMEM;
 	struct dentry *file;
 
 	lustre_kobj = kobject_create_and_add("lustre", fs_kobj);
