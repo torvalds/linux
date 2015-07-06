@@ -3734,8 +3734,8 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 	uint32_t DP = intel_dp->DP;
 	uint32_t training_pattern = DP_TRAINING_PATTERN_2;
 
-	/* Training Pattern 3 for HBR2 ot 1.2 devices that support it*/
-	if (intel_dp->link_bw == DP_LINK_BW_5_4 || intel_dp->use_tps3)
+	/* Training Pattern 3 for HBR2 or 1.2 devices that support it*/
+	if (crtc->config->port_clock == 540000 || intel_dp->use_tps3)
 		training_pattern = DP_TRAINING_PATTERN_3;
 
 	/* channel equalization */
