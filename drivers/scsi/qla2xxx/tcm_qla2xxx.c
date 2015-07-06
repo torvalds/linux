@@ -405,7 +405,7 @@ static int tcm_qla2xxx_write_pending_status(struct se_cmd *se_cmd)
 	    se_cmd->t_state == TRANSPORT_COMPLETE_QF_WP) {
 		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 		wait_for_completion_timeout(&se_cmd->t_transport_stop_comp,
-						3000);
+					    3 * HZ);
 		return 0;
 	}
 	spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
