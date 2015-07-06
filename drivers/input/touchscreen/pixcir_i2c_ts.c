@@ -36,6 +36,7 @@ struct pixcir_i2c_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input;
 	struct gpio_desc *gpio_attb;
+	struct gpio_desc *gpio_reset;
 	const struct pixcir_ts_platform_data *pdata;
 	bool running;
 	int max_fingers;	/* Max fingers supported in this instance */
@@ -187,6 +188,17 @@ static irqreturn_t pixcir_ts_isr(int irq, void *dev_id)
 	}
 
 	return IRQ_HANDLED;
+}
+
+static void pixcir_reset(struct pixcir_i2c_ts_data *tsdata)
+{
+	if (!IS_ERR_OR_NULL(tsdata->gpio_reset)) {
+		gpiod_set_value_cansleep(tsdata->gpio_reset, 1);
+		ndelay(100);	/* datasheet section 1.2.3 says 80ns min. */
+		gpiod_set_value_cansleep(tsdata->gpio_reset, 0);
+		/* wait for controller ready. 100ms guess. */
+		msleep(100);
+	}
 }
 
 static int pixcir_set_power_mode(struct pixcir_i2c_ts_data *ts,
@@ -529,6 +541,14 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
+	tsdata->gpio_reset = devm_gpiod_get_optional(dev, "reset",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(tsdata->gpio_reset)) {
+		error = PTR_ERR(tsdata->gpio_reset);
+		dev_err(dev, "Failed to request RESET gpio: %d\n", error);
+		return error;
+	}
+
 	error = devm_request_threaded_irq(dev, client->irq, NULL, pixcir_ts_isr,
 					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					  client->name, tsdata);
@@ -536,6 +556,8 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 		dev_err(dev, "failed to request irq %d\n", client->irq);
 		return error;
 	}
+
+	pixcir_reset(tsdata);
 
 	/* Always be in IDLE mode to save power, device supports auto wake */
 	error = pixcir_set_power_mode(tsdata, PIXCIR_POWER_IDLE);
