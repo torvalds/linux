@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2014-2015 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -40,6 +40,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 		unsigned int crtc_w, unsigned int crtc_h,
 		uint32_t src_x, uint32_t src_y,
 		uint32_t src_w, uint32_t src_h);
+
 static void set_scanout_locked(struct drm_plane *plane,
 		struct drm_framebuffer *fb);
 
@@ -441,16 +442,21 @@ static int calc_phase_step(uint32_t src, uint32_t dst, uint32_t *out_phase)
 	return 0;
 }
 
-static int calc_scalex_steps(uint32_t pixel_format, uint32_t src, uint32_t dest,
+static int calc_scalex_steps(struct drm_plane *plane,
+		uint32_t pixel_format, uint32_t src, uint32_t dest,
 		uint32_t phasex_steps[2])
 {
+	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	struct device *dev = mdp5_kms->dev->dev;
 	uint32_t phasex_step;
 	unsigned int hsub;
 	int ret;
 
 	ret = calc_phase_step(src, dest, &phasex_step);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "X scaling (%d->%d) failed: %d\n", src, dest, ret);
 		return ret;
+	}
 
 	hsub = drm_format_horz_chroma_subsampling(pixel_format);
 
@@ -460,16 +466,21 @@ static int calc_scalex_steps(uint32_t pixel_format, uint32_t src, uint32_t dest,
 	return 0;
 }
 
-static int calc_scaley_steps(uint32_t pixel_format, uint32_t src, uint32_t dest,
+static int calc_scaley_steps(struct drm_plane *plane,
+		uint32_t pixel_format, uint32_t src, uint32_t dest,
 		uint32_t phasey_steps[2])
 {
+	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	struct device *dev = mdp5_kms->dev->dev;
 	uint32_t phasey_step;
 	unsigned int vsub;
 	int ret;
 
 	ret = calc_phase_step(src, dest, &phasey_step);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "Y scaling (%d->%d) failed: %d\n", src, dest, ret);
 		return ret;
+	}
 
 	vsub = drm_format_vert_chroma_subsampling(pixel_format);
 
@@ -479,28 +490,38 @@ static int calc_scaley_steps(uint32_t pixel_format, uint32_t src, uint32_t dest,
 	return 0;
 }
 
-static uint32_t get_scalex_config(uint32_t src, uint32_t dest)
+static uint32_t get_scale_config(enum mdp_chroma_samp_type chroma_sample,
+		uint32_t src, uint32_t dest, bool hor)
 {
-	uint32_t filter;
+	uint32_t y_filter =   (src <= dest) ? SCALE_FILTER_CA  : SCALE_FILTER_PCMN;
+	uint32_t y_a_filter = (src <= dest) ? SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
+	uint32_t uv_filter = ((src / 2) <= dest) ? /* 2x upsample */
+			SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
+	uint32_t value = 0;
 
-	filter = (src <= dest) ? SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
+	if (chroma_sample == CHROMA_420 || chroma_sample == CHROMA_H2V1) {
+		if (hor)
+			value = MDP5_PIPE_SCALE_CONFIG_SCALEX_EN |
+				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0(y_filter) |
+				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3(y_a_filter) |
+				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2(uv_filter);
+		else
+			value = MDP5_PIPE_SCALE_CONFIG_SCALEY_EN |
+				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0(y_filter) |
+				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3(y_a_filter) |
+				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2(uv_filter);
+	} else if (src != dest) {
+		if (hor)
+			value = MDP5_PIPE_SCALE_CONFIG_SCALEX_EN |
+				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0(y_a_filter) |
+				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3(y_a_filter);
+		else
+			value = MDP5_PIPE_SCALE_CONFIG_SCALEY_EN |
+				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0(y_a_filter) |
+				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3(y_a_filter);
+	}
 
-	return MDP5_PIPE_SCALE_CONFIG_SCALEX_EN |
-		MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0(filter) |
-		MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2(filter)  |
-		MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3(filter);
-}
-
-static uint32_t get_scaley_config(uint32_t src, uint32_t dest)
-{
-	uint32_t filter;
-
-	filter = (src <= dest) ? SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
-
-	return MDP5_PIPE_SCALE_CONFIG_SCALEY_EN |
-		MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0(filter) |
-		MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2(filter)  |
-		MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3(filter);
+	return value;
 }
 
 static int mdp5_plane_mode_set(struct drm_plane *plane,
@@ -512,7 +533,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
-	struct device *dev = mdp5_kms->dev->dev;
 	enum mdp5_pipe pipe = mdp5_plane->pipe;
 	const struct mdp_format *format;
 	uint32_t nplanes, config = 0;
@@ -556,29 +576,20 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	 */
 	mdp5_smp_configure(mdp5_kms->smp, pipe);
 
+	ret = calc_scalex_steps(plane, pix_format, src_w, crtc_w, phasex_step);
+	if (ret)
+		return ret;
+
+	ret = calc_scaley_steps(plane, pix_format, src_h, crtc_h, phasey_step);
+	if (ret)
+		return ret;
+
+	/* TODO calc hdecm, vdecm */
+
 	/* SCALE is used to both scale and up-sample chroma components */
-
-	if ((src_w != crtc_w) || MDP_FORMAT_IS_YUV(format)) {
-		/* TODO calc hdecm */
-		ret = calc_scalex_steps(pix_format, src_w, crtc_w, phasex_step);
-		if (ret) {
-			dev_err(dev, "X scaling (%d -> %d) failed: %d\n",
-					src_w, crtc_w, ret);
-			return ret;
-		}
-		config |= get_scalex_config(src_w, crtc_w);
-	}
-
-	if ((src_h != crtc_h) || MDP_FORMAT_IS_YUV(format)) {
-		/* TODO calc vdecm */
-		ret = calc_scaley_steps(pix_format, src_h, crtc_h, phasey_step);
-		if (ret) {
-			dev_err(dev, "Y scaling (%d -> %d) failed: %d\n",
-					src_h, crtc_h, ret);
-			return ret;
-		}
-		config |= get_scaley_config(src_h, crtc_h);
-	}
+	config |= get_scale_config(format->chroma_sample, src_w, crtc_w, true);
+	config |= get_scale_config(format->chroma_sample, src_h, crtc_h, false);
+	DBG("scale config = %x", config);
 
 	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
 

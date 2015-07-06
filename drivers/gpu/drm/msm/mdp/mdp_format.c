@@ -116,10 +116,29 @@ static const struct mdp_format formats[] = {
 
 	/* --- RGB formats above / YUV formats below this line --- */
 
+	/* 2 plane YUV */
 	FMT(NV12,     0, 8, 8, 8,  1, 2, 0, 0,  false,  true,  2, 2,
 			MDP_PLANE_PSEUDO_PLANAR, CHROMA_420, true),
 	FMT(NV21,     0, 8, 8, 8,  2, 1, 0, 0,  false,  true,  2, 2,
 			MDP_PLANE_PSEUDO_PLANAR, CHROMA_420, true),
+	FMT(NV16,     0, 8, 8, 8,  1, 2, 0, 0,  false,  true,  2, 2,
+			MDP_PLANE_PSEUDO_PLANAR, CHROMA_H2V1, true),
+	FMT(NV61,     0, 8, 8, 8,  2, 1, 0, 0,  false,  true,  2, 2,
+			MDP_PLANE_PSEUDO_PLANAR, CHROMA_H2V1, true),
+	/* 1 plane YUV */
+	FMT(VYUY,     0, 8, 8, 8,  2, 0, 1, 0,  false,  true,  2, 4,
+			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
+	FMT(UYVY,     0, 8, 8, 8,  1, 0, 2, 0,  false,  true,  2, 4,
+			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
+	FMT(YUYV,     0, 8, 8, 8,  0, 1, 0, 2,  false,  true,  2, 4,
+			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
+	FMT(YVYU,     0, 8, 8, 8,  0, 2, 0, 1,  false,  true,  2, 4,
+			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
+	/* 3 plane YUV */
+	FMT(YUV420,   0, 8, 8, 8,  2, 1, 0, 0,  false,  true,  1, 1,
+			MDP_PLANE_PLANAR, CHROMA_420, true),
+	FMT(YVU420,   0, 8, 8, 8,  1, 2, 0, 0,  false,  true,  1, 1,
+			MDP_PLANE_PLANAR, CHROMA_420, true),
 };
 
 /*
