@@ -848,8 +848,8 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder)
 	u32 hdmi_val;
 
 	hdmi_val = SDVO_ENCODING_HDMI;
-	if (!HAS_PCH_SPLIT(dev))
-		hdmi_val |= intel_hdmi->color_range;
+	if (!HAS_PCH_SPLIT(dev) && crtc->config->limited_color_range)
+		hdmi_val |= HDMI_COLOR_RANGE_16_235;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		hdmi_val |= SDVO_VSYNC_ACTIVE_HIGH;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
@@ -1260,11 +1260,12 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	if (intel_hdmi->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
-		if (pipe_config->has_hdmi_sink &&
-		    drm_match_cea_mode(adjusted_mode) > 1)
-			intel_hdmi->color_range = HDMI_COLOR_RANGE_16_235;
-		else
-			intel_hdmi->color_range = 0;
+		pipe_config->limited_color_range =
+			pipe_config->has_hdmi_sink &&
+			drm_match_cea_mode(adjusted_mode) > 1;
+	} else {
+		pipe_config->limited_color_range =
+			intel_hdmi->limited_color_range;
 	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK) {
@@ -1272,9 +1273,6 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 		clock_8bpc *= 2;
 		clock_12bpc *= 2;
 	}
-
-	if (intel_hdmi->color_range)
-		pipe_config->limited_color_range = true;
 
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev))
 		pipe_config->has_pch_encoder = true;
@@ -1470,7 +1468,7 @@ intel_hdmi_set_property(struct drm_connector *connector,
 
 	if (property == dev_priv->broadcast_rgb_property) {
 		bool old_auto = intel_hdmi->color_range_auto;
-		uint32_t old_range = intel_hdmi->color_range;
+		bool old_range = intel_hdmi->limited_color_range;
 
 		switch (val) {
 		case INTEL_BROADCAST_RGB_AUTO:
@@ -1478,18 +1476,18 @@ intel_hdmi_set_property(struct drm_connector *connector,
 			break;
 		case INTEL_BROADCAST_RGB_FULL:
 			intel_hdmi->color_range_auto = false;
-			intel_hdmi->color_range = 0;
+			intel_hdmi->limited_color_range = false;
 			break;
 		case INTEL_BROADCAST_RGB_LIMITED:
 			intel_hdmi->color_range_auto = false;
-			intel_hdmi->color_range = HDMI_COLOR_RANGE_16_235;
+			intel_hdmi->limited_color_range = true;
 			break;
 		default:
 			return -EINVAL;
 		}
 
 		if (old_auto == intel_hdmi->color_range_auto &&
-		    old_range == intel_hdmi->color_range)
+		    old_range == intel_hdmi->limited_color_range)
 			return 0;
 
 		goto done;

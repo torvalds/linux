@@ -1492,14 +1492,12 @@ found:
 		 * CEA-861-E - 5.1 Default Encoding Parameters
 		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
 		 */
-		if (bpp != 18 && drm_match_cea_mode(adjusted_mode) > 1)
-			intel_dp->color_range = DP_COLOR_RANGE_16_235;
-		else
-			intel_dp->color_range = 0;
+		pipe_config->limited_color_range =
+			bpp != 18 && drm_match_cea_mode(adjusted_mode) > 1;
+	} else {
+		pipe_config->limited_color_range =
+			intel_dp->limited_color_range;
 	}
-
-	if (intel_dp->color_range)
-		pipe_config->limited_color_range = true;
 
 	intel_dp->lane_count = lane_count;
 
@@ -1642,8 +1640,9 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 			trans_dp &= ~TRANS_DP_ENH_FRAMING;
 		I915_WRITE(TRANS_DP_CTL(crtc->pipe), trans_dp);
 	} else {
-		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev))
-			intel_dp->DP |= intel_dp->color_range;
+		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev) &&
+		    crtc->config->limited_color_range)
+			intel_dp->DP |= DP_COLOR_RANGE_16_235;
 
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 			intel_dp->DP |= DP_SYNC_HS_HIGH;
@@ -4751,7 +4750,7 @@ intel_dp_set_property(struct drm_connector *connector,
 
 	if (property == dev_priv->broadcast_rgb_property) {
 		bool old_auto = intel_dp->color_range_auto;
-		uint32_t old_range = intel_dp->color_range;
+		bool old_range = intel_dp->limited_color_range;
 
 		switch (val) {
 		case INTEL_BROADCAST_RGB_AUTO:
@@ -4759,18 +4758,18 @@ intel_dp_set_property(struct drm_connector *connector,
 			break;
 		case INTEL_BROADCAST_RGB_FULL:
 			intel_dp->color_range_auto = false;
-			intel_dp->color_range = 0;
+			intel_dp->limited_color_range = false;
 			break;
 		case INTEL_BROADCAST_RGB_LIMITED:
 			intel_dp->color_range_auto = false;
-			intel_dp->color_range = DP_COLOR_RANGE_16_235;
+			intel_dp->limited_color_range = true;
 			break;
 		default:
 			return -EINVAL;
 		}
 
 		if (old_auto == intel_dp->color_range_auto &&
-		    old_range == intel_dp->color_range)
+		    old_range == intel_dp->limited_color_range)
 			return 0;
 
 		goto done;
