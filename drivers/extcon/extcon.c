@@ -275,19 +275,24 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 	spin_lock_irqsave(&edev->lock, flags);
 
 	if (edev->state != ((edev->state & ~mask) | (state & mask))) {
+		u32 old_state;
+
 		if (check_mutually_exclusive(edev, (edev->state & ~mask) |
 						   (state & mask))) {
 			spin_unlock_irqrestore(&edev->lock, flags);
 			return -EPERM;
 		}
 
-		for (index = 0; index < edev->max_supported; index++) {
-			if (is_extcon_changed(edev->state, state, index, &attached))
-				raw_notifier_call_chain(&edev->nh[index], attached, edev);
-		}
-
+		old_state = edev->state;
 		edev->state &= ~mask;
 		edev->state |= state & mask;
+
+		for (index = 0; index < edev->max_supported; index++) {
+			if (is_extcon_changed(old_state, edev->state, index,
+					      &attached))
+				raw_notifier_call_chain(&edev->nh[index],
+							attached, edev);
+		}
 
 		/* This could be in interrupt handler */
 		prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
