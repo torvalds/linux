@@ -70,6 +70,17 @@ static inline void tcf_hashinfo_destroy(struct tcf_hashinfo *hf)
 	kfree(hf->htab);
 }
 
+/* Update lastuse only if needed, to avoid dirtying a cache line.
+ * We use a temp variable to avoid fetching jiffies twice.
+ */
+static inline void tcf_lastuse_update(struct tcf_t *tm)
+{
+	unsigned long now = jiffies;
+
+	if (tm->lastuse != now)
+		tm->lastuse = now;
+}
+
 #ifdef CONFIG_NET_CLS_ACT
 
 #define ACT_P_CREATED 1

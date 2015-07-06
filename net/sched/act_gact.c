@@ -90,7 +90,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 
 	if (!tcf_hash_check(parm->index, a, bind)) {
 		ret = tcf_hash_create(parm->index, est, a, sizeof(*gact),
-				      bind, false);
+				      bind, true);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
@@ -104,7 +104,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 
 	gact = to_gact(a);
 
-	spin_lock_bh(&gact->tcf_lock);
+	ASSERT_RTNL();
 	gact->tcf_action = parm->action;
 #ifdef CONFIG_GACT_PROB
 	if (p_parm) {
@@ -117,7 +117,6 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 		gact->tcfg_ptype   = p_parm->ptype;
 	}
 #endif
-	spin_unlock_bh(&gact->tcf_lock);
 	if (ret == ACT_P_CREATED)
 		tcf_hash_insert(a);
 	return ret;
@@ -127,9 +126,8 @@ static int tcf_gact(struct sk_buff *skb, const struct tc_action *a,
 		    struct tcf_result *res)
 {
 	struct tcf_gact *gact = a->priv;
-	int action = gact->tcf_action;
+	int action = READ_ONCE(gact->tcf_action);
 
-	spin_lock(&gact->tcf_lock);
 #ifdef CONFIG_GACT_PROB
 	{
 	u32 ptype = READ_ONCE(gact->tcfg_ptype);
@@ -138,12 +136,11 @@ static int tcf_gact(struct sk_buff *skb, const struct tc_action *a,
 		action = gact_rand[ptype](gact);
 	}
 #endif
-	gact->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	gact->tcf_bstats.packets++;
+	bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats), skb);
 	if (action == TC_ACT_SHOT)
-		gact->tcf_qstats.drops++;
-	gact->tcf_tm.lastuse = jiffies;
-	spin_unlock(&gact->tcf_lock);
+		qstats_drop_inc(this_cpu_ptr(gact->common.cpu_qstats));
+
+	tcf_lastuse_update(&gact->tcf_tm);
 
 	return action;
 }
