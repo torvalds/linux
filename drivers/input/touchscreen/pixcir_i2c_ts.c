@@ -24,11 +24,11 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
-#include <linux/input/pixcir_ts.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_device.h>
+#include <linux/platform_data/pixcir_i2c_ts.h>
 
 #define PIXCIR_MAX_SLOTS       5 /* Max fingers supported by driver */
 
