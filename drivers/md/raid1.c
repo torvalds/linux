@@ -3113,6 +3113,7 @@ static int raid1_reshape(struct mddev *mddev)
 
 	unfreeze_array(conf);
 
+	set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
 

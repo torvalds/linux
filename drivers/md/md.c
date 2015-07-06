@@ -4210,6 +4210,8 @@ action_show(struct mddev *mddev, char *page)
 				type = "repair";
 		} else if (test_bit(MD_RECOVERY_RECOVER, &recovery))
 			type = "recover";
+		else if (mddev->reshape_position != MaxSector)
+			type = "reshape";
 	}
 	return sprintf(page, "%s\n", type);
 }
