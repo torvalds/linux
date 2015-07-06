@@ -2907,6 +2907,8 @@ static u64 mlx4_enable_sriov(struct mlx4_dev *dev, struct pci_dev *pdev,
 {
 	u64 dev_flags = dev->flags;
 	int err = 0;
+	int fw_enabled_sriov_vfs = min(pci_sriov_get_totalvfs(pdev),
+					MLX4_MAX_NUM_VF);
 
 	if (reset_flow) {
 		dev->dev_vfs = kcalloc(total_vfs, sizeof(*dev->dev_vfs),
@@ -2932,6 +2934,12 @@ static u64 mlx4_enable_sriov(struct mlx4_dev *dev, struct pci_dev *pdev,
 	}
 
 	if (!(dev->flags &  MLX4_FLAG_SRIOV)) {
+		if (total_vfs > fw_enabled_sriov_vfs) {
+			mlx4_err(dev, "requested vfs (%d) > available vfs (%d). Continuing without SR_IOV\n",
+				 total_vfs, fw_enabled_sriov_vfs);
+			err = -ENOMEM;
+			goto disable_sriov;
+		}
 		mlx4_warn(dev, "Enabling SR-IOV with %d VFs\n", total_vfs);
 		err = pci_enable_sriov(pdev, total_vfs);
 	}
@@ -3413,20 +3421,20 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
 			goto err_disable_pdev;
 		}
 	}
-	if (total_vfs >= MLX4_MAX_NUM_VF) {
+	if (total_vfs > MLX4_MAX_NUM_VF) {
 		dev_err(&pdev->dev,
-			"Requested more VF's (%d) than allowed (%d)\n",
-			total_vfs, MLX4_MAX_NUM_VF - 1);
+			"Requested more VF's (%d) than allowed by hw (%d)\n",
+			total_vfs, MLX4_MAX_NUM_VF);
 		err = -EINVAL;
 		goto err_disable_pdev;
 	}
 
 	for (i = 0; i < MLX4_MAX_PORTS; i++) {
-		if (nvfs[i] + nvfs[2] >= MLX4_MAX_NUM_VF_P_PORT) {
+		if (nvfs[i] + nvfs[2] > MLX4_MAX_NUM_VF_P_PORT) {
 			dev_err(&pdev->dev,
-				"Requested more VF's (%d) for port (%d) than allowed (%d)\n",
+				"Requested more VF's (%d) for port (%d) than allowed by driver (%d)\n",
 				nvfs[i] + nvfs[2], i + 1,
-				MLX4_MAX_NUM_VF_P_PORT - 1);
+				MLX4_MAX_NUM_VF_P_PORT);
 			err = -EINVAL;
 			goto err_disable_pdev;
 		}
