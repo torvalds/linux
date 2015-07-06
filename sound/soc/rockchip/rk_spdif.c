@@ -72,6 +72,17 @@
 #define CHNS_SAMPLE_WORD_LEN_16 (0x2)
 #define CHNS_SAMPLE_WORD_LEN_24	(0xb)
 
+/* sample frequency bit 24~27 */
+#define CHNS_SAMPLE_FREQ_22P05K	(0X4)
+#define CHNS_SAMPLE_FREQ_44P1K	(0X0)
+#define CHNS_SAMPLE_FREQ_88P2K	(0X8)
+#define CHNS_SAMPLE_FREQ_176P4K	(0Xc)
+#define CHNS_SAMPLE_FREQ_24K	(0X6)
+#define CHNS_SAMPLE_FREQ_48K	(0X2)
+#define CHNS_SAMPLE_FREQ_96K	(0Xa)
+#define CHNS_SAMPLE_FREQ_192K	(0Xe)
+#define CHNS_SAMPLE_FREQ_32K	(0X3)
+#define CHNS_SAMPLE_FREQ_768K	(0X9)
 
 /* Registers */
 #define CFGR			0x00
@@ -215,7 +226,9 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	struct rockchip_spdif_info *spdif = to_info(dai);
 	void __iomem *regs = spdif->regs;
 	unsigned long flags;
-	int cfgr, dmac, intcr, chnsta[CHNSTA_BYTES], chnregval;
+	unsigned int val;
+	int cfgr, dmac, intcr, chnregval;
+	char chnsta[CHNSTA_BYTES];
 
 	dev_dbg(spdif->dev, "%s\n", __func__);
 
@@ -276,11 +289,40 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 
 	/* channel status bit */
 	memset(chnsta, 0x0, CHNSTA_BYTES);
+	switch (params_rate(params)) {
+	case 44100:
+		val = CHNS_SAMPLE_FREQ_44P1K;
+		break;
+	case 48000:
+		val = CHNS_SAMPLE_FREQ_48K;
+		break;
+	case 88200:
+		val = CHNS_SAMPLE_FREQ_88P2K;
+		break;
+	case 96000:
+		val = CHNS_SAMPLE_FREQ_96K;
+		break;
+	case 176400:
+		val = CHNS_SAMPLE_FREQ_176P4K;
+		break;
+	case 192000:
+		val = CHNS_SAMPLE_FREQ_192K;
+		break;
+	default:
+		val = CHNS_SAMPLE_FREQ_44P1K;
+		break;
+	}
+
 	chnsta[0] |= BIT_1_LPCM;
-	chnsta[4] |= CHNS_SAMPLE_WORD_LEN_16;
+	chnsta[3] |= val;
+	chnsta[4] |= ((~val)<<4 | CHNS_SAMPLE_WORD_LEN_16);
 
 	chnregval = (chnsta[4] << 16) | (chnsta[4]);
 	writel(chnregval, regs + SPDIF_CHNSR02_ADDR);
+
+	chnregval = (chnsta[3] << 24) | (chnsta[3] << 8);
+	writel(chnregval, regs + SPDIF_CHNSR01_ADDR);
+
 	chnregval = (chnsta[1] << 24) | (chnsta[0] << 16) |
 				(chnsta[1] << 8) | (chnsta[0]);
 	writel(chnregval, regs + SPDIF_CHNSR00_ADDR);
