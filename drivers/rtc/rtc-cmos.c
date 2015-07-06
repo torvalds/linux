@@ -51,6 +51,7 @@ struct cmos_rtc {
 	struct device		*dev;
 	int			irq;
 	struct resource		*iomem;
+	time64_t		alarm_expires;
 
 	void			(*wake_on)(struct device *);
 	void			(*wake_off)(struct device *);
@@ -376,6 +377,8 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 		cmos_irq_enable(cmos, RTC_AIE);
 
 	spin_unlock_irq(&rtc_lock);
+
+	cmos->alarm_expires = rtc_tm_to_time64(&t->time);
 
 	return 0;
 }
@@ -860,6 +863,51 @@ static void __exit cmos_do_remove(struct device *dev)
 	cmos->dev = NULL;
 }
 
+static int cmos_aie_poweroff(struct device *dev)
+{
+	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
+	struct rtc_time now;
+	time64_t t_now;
+	int retval = 0;
+	unsigned char rtc_control;
+
+	if (!cmos->alarm_expires)
+		return -EINVAL;
+
+	spin_lock_irq(&rtc_lock);
+	rtc_control = CMOS_READ(RTC_CONTROL);
+	spin_unlock_irq(&rtc_lock);
+
+	/* We only care about the situation where AIE is disabled. */
+	if (rtc_control & RTC_AIE)
+		return -EBUSY;
+
+	cmos_read_time(dev, &now);
+	t_now = rtc_tm_to_time64(&now);
+
+	/*
+	 * When enabling "RTC wake-up" in BIOS setup, the machine reboots
+	 * automatically right after shutdown on some buggy boxes.
+	 * This automatic rebooting issue won't happen when the alarm
+	 * time is larger than now+1 seconds.
+	 *
+	 * If the alarm time is equal to now+1 seconds, the issue can be
+	 * prevented by cancelling the alarm.
+	 */
+	if (cmos->alarm_expires == t_now + 1) {
+		struct rtc_wkalrm alarm;
+
+		/* Cancel the AIE timer by configuring the past time. */
+		rtc_time64_to_tm(t_now - 1, &alarm.time);
+		alarm.enabled = 0;
+		retval = cmos_set_alarm(dev, &alarm);
+	} else if (cmos->alarm_expires > t_now + 1) {
+		retval = -EBUSY;
+	}
+
+	return retval;
+}
+
 #ifdef CONFIG_PM
 
 static int cmos_suspend(struct device *dev)
@@ -1094,8 +1142,12 @@ static void cmos_pnp_shutdown(struct pnp_dev *pnp)
 	struct device *dev = &pnp->dev;
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 
-	if (system_state == SYSTEM_POWER_OFF && !cmos_poweroff(dev))
-		return;
+	if (system_state == SYSTEM_POWER_OFF) {
+		int retval = cmos_poweroff(dev);
+
+		if (cmos_aie_poweroff(dev) < 0 && !retval)
+			return;
+	}
 
 	cmos_do_shutdown(cmos->irq);
 }
@@ -1200,8 +1252,12 @@ static void cmos_platform_shutdown(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 
-	if (system_state == SYSTEM_POWER_OFF && !cmos_poweroff(dev))
-		return;
+	if (system_state == SYSTEM_POWER_OFF) {
+		int retval = cmos_poweroff(dev);
+
+		if (cmos_aie_poweroff(dev) < 0 && !retval)
+			return;
+	}
 
 	cmos_do_shutdown(cmos->irq);
 }
