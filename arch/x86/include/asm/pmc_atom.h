@@ -126,4 +126,8 @@
 #define	SLEEP_TYPE_MASK		0xFFFFECFF
 #define	SLEEP_TYPE_S5		0x1C00
 #define	SLEEP_ENABLE		0x2000
+
+extern int pmc_atom_read(int offset, u32 *value);
+extern int pmc_atom_write(int offset, u32 value);
+
 #endif /* PMC_ATOM_H */

@@ -31,6 +31,7 @@ struct pmc_dev {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbgfs_dir;
 #endif /* CONFIG_DEBUG_FS */
+	bool init;
 };
 
 static struct pmc_dev pmc_device;
@@ -110,6 +111,30 @@ static inline void pmc_reg_write(struct pmc_dev *pmc, int reg_offset, u32 val)
 {
 	writel(val, pmc->regmap + reg_offset);
 }
+
+int pmc_atom_read(int offset, u32 *value)
+{
+	struct pmc_dev *pmc = &pmc_device;
+
+	if (!pmc->init)
+		return -ENODEV;
+
+	*value = pmc_reg_read(pmc, offset);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pmc_atom_read);
+
+int pmc_atom_write(int offset, u32 value)
+{
+	struct pmc_dev *pmc = &pmc_device;
+
+	if (!pmc->init)
+		return -ENODEV;
+
+	pmc_reg_write(pmc, offset, value);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pmc_atom_write);
 
 static void pmc_power_off(void)
 {
@@ -250,7 +275,7 @@ static void pmc_dbgfs_unregister(struct pmc_dev *pmc)
 	debugfs_remove_recursive(pmc->dbgfs_dir);
 }
 
-static int pmc_dbgfs_register(struct pmc_dev *pmc, struct pci_dev *pdev)
+static int pmc_dbgfs_register(struct pmc_dev *pmc)
 {
 	struct dentry *dir, *f;
 
@@ -262,24 +287,18 @@ static int pmc_dbgfs_register(struct pmc_dev *pmc, struct pci_dev *pdev)
 
 	f = debugfs_create_file("dev_state", S_IFREG | S_IRUGO,
 				dir, pmc, &pmc_dev_state_ops);
-	if (!f) {
-		dev_err(&pdev->dev, "dev_state register failed\n");
+	if (!f)
 		goto err;
-	}
 
 	f = debugfs_create_file("pss_state", S_IFREG | S_IRUGO,
 				dir, pmc, &pmc_pss_state_ops);
-	if (!f) {
-		dev_err(&pdev->dev, "pss_state register failed\n");
+	if (!f)
 		goto err;
-	}
 
 	f = debugfs_create_file("sleep_state", S_IFREG | S_IRUGO,
 				dir, pmc, &pmc_sleep_tmr_ops);
-	if (!f) {
-		dev_err(&pdev->dev, "sleep_state register failed\n");
+	if (!f)
 		goto err;
-	}
 
 	return 0;
 err:
@@ -287,7 +306,7 @@ err:
 	return -ENODEV;
 }
 #else
-static int pmc_dbgfs_register(struct pmc_dev *pmc, struct pci_dev *pdev)
+static int pmc_dbgfs_register(struct pmc_dev *pmc)
 {
 	return 0;
 }
@@ -318,11 +337,11 @@ static int pmc_setup_dev(struct pci_dev *pdev)
 	/* PMC hardware registers setup */
 	pmc_hw_reg_setup(pmc);
 
-	ret = pmc_dbgfs_register(pmc, pdev);
-	if (ret) {
-		iounmap(pmc->regmap);
-	}
+	ret = pmc_dbgfs_register(pmc);
+	if (ret)
+		dev_warn(&pdev->dev, "debugfs register failed\n");
 
+	pmc->init = true;
 	return ret;
 }
 
