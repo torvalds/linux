@@ -106,7 +106,7 @@ const static int ldo_contr_base_addr[] = {
 //#define rk808_LDO_CONTR_REG(x) (ldo_contr_base_addr[x])
 
 const static int buck_voltage_map[] = {
-	  700,  712,  725,  737,  750, 762,  775,  787,  800, 
+	  712,  725,  737,  750, 762,  775,  787,  800,
 	  812,  825,  837,  850,862,  875,  887,  900,  912,
 	  925,  937,  950, 962,  975,  987, 1000, 1012, 1025, 
 	  1037, 1050,1062, 1075, 1087, 1100, 1112, 1125, 1137, 
@@ -391,7 +391,7 @@ static int rk808_dcdc_list_voltage(struct regulator_dev *dev, unsigned selector)
 	switch (buck) {
 	case 0:
 	case 1:
-		volt = 700000 + selector * 12500;
+		volt = 712500 + selector * 12500;
 		break;
 	case 3:
 		volt = 1800000 + selector * 100000;
@@ -470,10 +470,10 @@ static int rk808_dcdc_select_min_voltage(struct regulator_dev *dev,
 	u16 vsel =0;
 	
 	if (buck == 0 || buck ==  1){
-		if (min_uV < 700000)
+		if (min_uV < 712500)
 		vsel = 0;
 		else if (min_uV <= 1500000)
-		vsel = ((min_uV - 700000) / 12500) ;
+		vsel = ((min_uV - 712500) / 12500) ;
 		else
 		return -EINVAL;
 	}
@@ -1137,7 +1137,7 @@ static void rk808_shutdown(void)
 	for(i=0;i<2;i++){
 	reg = rk808_reg_read(rk808,rk808_BUCK_SET_VOL_REG(i));
 	reg &= BUCK_VOL_MASK;
-	val = 700000 + reg * 12500;
+	val = 712500 + reg * 12500;
 	printk("%s,line=%d dc[%d]= %d\n", __func__,__LINE__,(i+1),val);
 	}
 	/*****************************************************/
