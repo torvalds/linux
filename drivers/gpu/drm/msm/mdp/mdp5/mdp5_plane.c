@@ -544,7 +544,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 
 	/* Request some memory from the SMP: */
 	ret = mdp5_smp_request(mdp5_kms->smp,
-			mdp5_plane->pipe, fb->pixel_format, src_w);
+			mdp5_plane->pipe, format, src_w, false);
 	if (ret)
 		return ret;
 

@@ -90,6 +90,8 @@
 struct mdp5_smp {
 	struct drm_device *dev;
 
+	const struct mdp5_smp_block *cfg;
+
 	int blk_cnt;
 	int blk_size;
 
@@ -137,14 +139,12 @@ static int smp_request_block(struct mdp5_smp *smp,
 		u32 cid, int nblks)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
-	const struct mdp5_cfg_hw *hw_cfg;
 	struct mdp5_client_smp_state *ps = &smp->client_state[cid];
 	int i, ret, avail, cur_nblks, cnt = smp->blk_cnt;
 	int reserved;
 	unsigned long flags;
 
-	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
-	reserved = hw_cfg->smp.reserved[cid];
+	reserved = smp->cfg->reserved[cid];
 
 	spin_lock_irqsave(&smp->state_lock, flags);
 
@@ -209,18 +209,35 @@ static void set_fifo_thresholds(struct mdp5_smp *smp,
  * decimated width.  Ie. SMP buffering sits downstream of decimation (which
  * presumably happens during the dma from scanout buffer).
  */
-int mdp5_smp_request(struct mdp5_smp *smp, enum mdp5_pipe pipe, u32 fmt, u32 width)
+int mdp5_smp_request(struct mdp5_smp *smp, enum mdp5_pipe pipe,
+		const struct mdp_format *format, u32 width, bool hdecim)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	struct drm_device *dev = mdp5_kms->dev;
 	int rev = mdp5_cfg_get_hw_rev(mdp5_kms->cfg);
 	int i, hsub, nplanes, nlines, nblks, ret;
+	u32 fmt = format->base.pixel_format;
 
 	nplanes = drm_format_num_planes(fmt);
 	hsub = drm_format_horz_chroma_subsampling(fmt);
 
 	/* different if BWC (compressed framebuffer?) enabled: */
 	nlines = 2;
+
+	/* Newer MDPs have split/packing logic, which fetches sub-sampled
+	 * U and V components (splits them from Y if necessary) and packs
+	 * them together, writes to SMP using a single client.
+	 */
+	if ((rev > 0) && (format->chroma_sample > CHROMA_FULL)) {
+		fmt = DRM_FORMAT_NV24;
+		nplanes = 2;
+
+		/* if decimation is enabled, HW decimates less on the
+		 * sub sampled chroma components
+		 */
+		if (hdecim && (hsub > 1))
+			hsub = 1;
+	}
 
 	for (i = 0, nblks = 0; i < nplanes; i++) {
 		int n, fetch_stride, cpp;
@@ -388,6 +405,7 @@ struct mdp5_smp *mdp5_smp_init(struct drm_device *dev, const struct mdp5_smp_blo
 	}
 
 	smp->dev = dev;
+	smp->cfg = cfg;
 	smp->blk_cnt = cfg->mmb_count;
 	smp->blk_size = cfg->mmb_size;
 
