@@ -127,16 +127,16 @@ static int tcf_gact(struct sk_buff *skb, const struct tc_action *a,
 		    struct tcf_result *res)
 {
 	struct tcf_gact *gact = a->priv;
-	int action = TC_ACT_SHOT;
+	int action = gact->tcf_action;
 
 	spin_lock(&gact->tcf_lock);
 #ifdef CONFIG_GACT_PROB
-	if (gact->tcfg_ptype)
-		action = gact_rand[gact->tcfg_ptype](gact);
-	else
-		action = gact->tcf_action;
-#else
-	action = gact->tcf_action;
+	{
+	u32 ptype = READ_ONCE(gact->tcfg_ptype);
+
+	if (ptype)
+		action = gact_rand[ptype](gact);
+	}
 #endif
 	gact->tcf_bstats.bytes += qdisc_pkt_len(skb);
 	gact->tcf_bstats.packets++;
