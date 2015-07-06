@@ -14504,6 +14504,9 @@ static struct cipher_testvec aes_cbc_enc_tv_template[] = {
 		.result = "\xe3\x53\x77\x9c\x10\x79\xae\xb8"
 			  "\x27\x08\x94\x2d\xbe\x77\x18\x1a",
 		.rlen   = 16,
+		.also_non_np = 1,
+		.np	= 8,
+		.tap	= { 3, 2, 3, 2, 3, 1, 1, 1 },
 	}, {
 		.key    = "\xc2\x86\x69\x6d\x88\x7c\x9a\xa0"
 			  "\x61\x1b\xbb\x3e\x20\x25\xa4\x5a",
@@ -14723,6 +14726,9 @@ static struct cipher_testvec aes_cbc_dec_tv_template[] = {
 		.ilen   = 16,
 		.result = "Single block msg",
 		.rlen   = 16,
+		.also_non_np = 1,
+		.np	= 8,
+		.tap	= { 3, 2, 3, 2, 3, 1, 1, 1 },
 	}, {
 		.key    = "\xc2\x86\x69\x6d\x88\x7c\x9a\xa0"
 			  "\x61\x1b\xbb\x3e\x20\x25\xa4\x5a",
