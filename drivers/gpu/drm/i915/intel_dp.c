@@ -1376,6 +1376,19 @@ int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
 	return rate_to_index(rate, intel_dp->sink_rates);
 }
 
+static void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
+				  uint8_t *link_bw, uint8_t *rate_select)
+{
+	if (intel_dp->num_sink_rates) {
+		*link_bw = 0;
+		*rate_select =
+			intel_dp_rate_select(intel_dp, port_clock);
+	} else {
+		*link_bw = drm_dp_link_rate_to_bw_code(port_clock);
+		*rate_select = 0;
+	}
+}
+
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config)
@@ -1397,6 +1410,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int link_avail, link_clock;
 	int common_rates[DP_MAX_SUPPORTED_RATES] = {};
 	int common_len;
+	uint8_t link_bw, rate_select;
 
 	common_len = intel_dp_common_rates(intel_dp, common_rates);
 
@@ -1501,21 +1515,14 @@ found:
 
 	pipe_config->lane_count = lane_count;
 
-	if (intel_dp->num_sink_rates) {
-		intel_dp->link_bw = 0;
-		intel_dp->rate_select =
-			intel_dp_rate_select(intel_dp, common_rates[clock]);
-	} else {
-		intel_dp->link_bw =
-			drm_dp_link_rate_to_bw_code(common_rates[clock]);
-		intel_dp->rate_select = 0;
-	}
-
 	pipe_config->pipe_bpp = bpp;
 	pipe_config->port_clock = common_rates[clock];
 
-	DRM_DEBUG_KMS("DP link bw %02x lane count %d clock %d bpp %d\n",
-		      intel_dp->link_bw, pipe_config->lane_count,
+	intel_dp_compute_rate(intel_dp, pipe_config->port_clock,
+			      &link_bw, &rate_select);
+
+	DRM_DEBUG_KMS("DP link bw %02x rate select %02x lane count %d clock %d bpp %d\n",
+		      link_bw, rate_select, pipe_config->lane_count,
 		      pipe_config->port_clock, bpp);
 	DRM_DEBUG_KMS("DP link bw required %i available %i\n",
 		      mode_rate, link_avail);
@@ -3624,19 +3631,23 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	int voltage_tries, loop_tries;
 	uint32_t DP = intel_dp->DP;
 	uint8_t link_config[2];
+	uint8_t link_bw, rate_select;
 
 	if (HAS_DDI(dev))
 		intel_ddi_prepare_link_retrain(encoder);
 
+	intel_dp_compute_rate(intel_dp, crtc->config->port_clock,
+			      &link_bw, &rate_select);
+
 	/* Write the link configuration data */
-	link_config[0] = intel_dp->link_bw;
+	link_config[0] = link_bw;
 	link_config[1] = crtc->config->lane_count;
 	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 		link_config[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_BW_SET, link_config, 2);
 	if (intel_dp->num_sink_rates)
 		drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_RATE_SET,
-				&intel_dp->rate_select, 1);
+				  &rate_select, 1);
 
 	link_config[0] = 0;
 	link_config[1] = DP_SET_ANSI_8B10B;
