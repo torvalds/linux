@@ -11,9 +11,9 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
-config OF_TOUCHSCREEN
+config TOUCHSCREEN_PROPERTIES
 	def_tristate INPUT
-	depends on INPUT && OF
+	depends on INPUT
 
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"

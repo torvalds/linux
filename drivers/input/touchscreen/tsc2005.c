@@ -709,7 +709,7 @@ static int tsc2005_probe(struct spi_device *spi)
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, max_p, fudge_p, 0);
 
 	if (np)
-		touchscreen_parse_of_params(input_dev, false);
+		touchscreen_parse_properties(input_dev, false);
 
 	input_dev->open = tsc2005_open;
 	input_dev->close = tsc2005_close;
