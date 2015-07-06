@@ -300,31 +300,29 @@ static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
 	struct intel_engine_cs *ring = rq0->ring;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint64_t temp = 0;
-	uint32_t desc[4];
+	uint64_t desc[2];
 
-	/* XXX: You must always write both descriptors in the order below. */
-	if (rq1)
-		temp = execlists_ctx_descriptor(rq1);
-	else
-		temp = 0;
-	desc[1] = (u32)(temp >> 32);
-	desc[0] = (u32)temp;
+	if (rq1) {
+		desc[1] = execlists_ctx_descriptor(rq1);
+		rq1->elsp_submitted++;
+	} else {
+		desc[1] = 0;
+	}
 
-	temp = execlists_ctx_descriptor(rq0);
-	desc[3] = (u32)(temp >> 32);
-	desc[2] = (u32)temp;
+	desc[0] = execlists_ctx_descriptor(rq0);
+	rq0->elsp_submitted++;
 
+	/* You must always write both descriptors in the order below. */
 	spin_lock(&dev_priv->uncore.lock);
 	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
-	I915_WRITE_FW(RING_ELSP(ring), desc[1]);
-	I915_WRITE_FW(RING_ELSP(ring), desc[0]);
-	I915_WRITE_FW(RING_ELSP(ring), desc[3]);
+	I915_WRITE_FW(RING_ELSP(ring), upper_32_bits(desc[1]));
+	I915_WRITE_FW(RING_ELSP(ring), lower_32_bits(desc[1]));
 
+	I915_WRITE_FW(RING_ELSP(ring), upper_32_bits(desc[0]));
 	/* The context is automatically loaded after the following */
-	I915_WRITE_FW(RING_ELSP(ring), desc[2]);
+	I915_WRITE_FW(RING_ELSP(ring), lower_32_bits(desc[0]));
 
-	/* ELSP is a wo register, so use another nearby reg for posting instead */
+	/* ELSP is a wo register, use another nearby reg for posting */
 	POSTING_READ_FW(RING_EXECLIST_STATUS(ring));
 	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
 	spin_unlock(&dev_priv->uncore.lock);
@@ -433,10 +431,6 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 	WARN_ON(req1 && req1->elsp_submitted);
 
 	execlists_submit_requests(req0, req1);
-
-	req0->elsp_submitted++;
-	if (req1)
-		req1->elsp_submitted++;
 }
 
 static bool execlists_check_remove_request(struct intel_engine_cs *ring,
