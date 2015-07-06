@@ -152,8 +152,7 @@ static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		 */
 		mdelay(1); /* ensure the cpus other than cpu0 to startup */
 
-		writel(virt_to_phys(rockchip_secondary_startup),
-		       sram_base_addr + 8);
+		writel(virt_to_phys(secondary_startup), sram_base_addr + 8);
 		writel(0xDEADBEAF, sram_base_addr + 4);
 		dsb_sev();
 	}
