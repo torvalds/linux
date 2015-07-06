@@ -633,13 +633,13 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 {
 	int ret;
 
+	request->ringbuf = request->ctx->engine[request->ring->id].ringbuf;
+
 	if (request->ctx != request->ring->default_context) {
 		ret = intel_lr_context_pin(request->ring, request->ctx);
 		if (ret)
 			return ret;
 	}
-
-	request->ringbuf = request->ctx->engine[request->ring->id].ringbuf;
 
 	return 0;
 }
