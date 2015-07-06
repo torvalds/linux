@@ -882,7 +882,7 @@
 	};
 
 	rga@ff920000 {
-		compatible = "rockchip,rk3368-rga2";
+		compatible = "rockchip,rga2";
 		reg = <0x0 0xff920000 0x0 0x1000>;
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates16 1>, <&clk_gates16 0>, <&clk_rga>;
