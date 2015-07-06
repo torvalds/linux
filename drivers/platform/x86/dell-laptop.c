@@ -311,10 +311,15 @@ static DEFINE_MUTEX(buffer_mutex);
 
 static int hwswitch_state;
 
+static void clear_buffer(void)
+{
+	memset(buffer, 0, sizeof(struct calling_interface_buffer));
+}
+
 static void get_buffer(void)
 {
 	mutex_lock(&buffer_mutex);
-	memset(buffer, 0, sizeof(struct calling_interface_buffer));
+	clear_buffer();
 }
 
 static void release_buffer(void)
@@ -558,6 +563,8 @@ static int dell_rfkill_set(void *data, bool blocked)
 	    !(buffer->output[1] & BIT(16)))
 		disable = 1;
 
+	clear_buffer();
+
 	buffer->input[0] = (1 | (radio<<8) | (disable << 16));
 	dell_send_request(buffer, 17, 11);
 
@@ -572,6 +579,7 @@ static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
 	if (status & BIT(0)) {
 		/* Has hw-switch, sync sw_state to BIOS */
 		int block = rfkill_blocked(rfkill);
+		clear_buffer();
 		buffer->input[0] = (1 | (radio << 8) | (block << 16));
 		dell_send_request(buffer, 17, 11);
 	} else {
@@ -774,6 +782,7 @@ static int __init dell_setup_rfkill(void)
 	get_buffer();
 	dell_send_request(buffer, 17, 11);
 	status = buffer->output[1];
+	clear_buffer();
 	buffer->input[0] = 0x2;
 	dell_send_request(buffer, 17, 11);
 	hwswitch_state = buffer->output[1];
