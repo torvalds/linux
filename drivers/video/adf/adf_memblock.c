@@ -142,6 +142,7 @@ struct dma_buf *adf_memblock_export(phys_addr_t base, size_t size, int flags)
 {
 	struct adf_memblock_pdata *pdata;
 	struct dma_buf *buf;
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
 	if (PAGE_ALIGN(base) != base || PAGE_ALIGN(size) != size)
 		return ERR_PTR(-EINVAL);
@@ -151,7 +152,12 @@ struct dma_buf *adf_memblock_export(phys_addr_t base, size_t size, int flags)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->base = base;
-	buf = dma_buf_export(pdata, &adf_memblock_ops, size, flags, NULL);
+	exp_info.ops = &adf_memblock_ops;
+	exp_info.size = size;
+	exp_info.flags = flags;
+	exp_info.priv = pdata;
+
+	buf = dma_buf_export(&exp_info);
 	if (IS_ERR(buf))
 		kfree(pdata);
 
