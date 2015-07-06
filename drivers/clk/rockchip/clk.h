@@ -31,22 +31,22 @@
 		((val) << (shift) | (mask) << ((shift) + 16))
 
 /* register positions shared by RK2928, RK3066 and RK3188 */
-#define RK2928_PLL_CON(x)		(x * 0x4)
+#define RK2928_PLL_CON(x)		((x) * 0x4)
 #define RK2928_MODE_CON		0x40
-#define RK2928_CLKSEL_CON(x)	(x * 0x4 + 0x44)
-#define RK2928_CLKGATE_CON(x)	(x * 0x4 + 0xd0)
+#define RK2928_CLKSEL_CON(x)	((x) * 0x4 + 0x44)
+#define RK2928_CLKGATE_CON(x)	((x) * 0x4 + 0xd0)
 #define RK2928_GLB_SRST_FST		0x100
 #define RK2928_GLB_SRST_SND		0x104
-#define RK2928_SOFTRST_CON(x)	(x * 0x4 + 0x110)
+#define RK2928_SOFTRST_CON(x)	((x) * 0x4 + 0x110)
 #define RK2928_MISC_CON		0x134
 
 #define RK3288_PLL_CON(x)		RK2928_PLL_CON(x)
 #define RK3288_MODE_CON			0x50
-#define RK3288_CLKSEL_CON(x)		(x * 0x4 + 0x60)
-#define RK3288_CLKGATE_CON(x)		(x * 0x4 + 0x160)
+#define RK3288_CLKSEL_CON(x)		((x) * 0x4 + 0x60)
+#define RK3288_CLKGATE_CON(x)		((x) * 0x4 + 0x160)
 #define RK3288_GLB_SRST_FST		0x1b0
 #define RK3288_GLB_SRST_SND		0x1b4
-#define RK3288_SOFTRST_CON(x)		(x * 0x4 + 0x1b8)
+#define RK3288_SOFTRST_CON(x)		((x) * 0x4 + 0x1b8)
 #define RK3288_MISC_CON			0x1e8
 #define RK3288_SDMMC_CON0		0x200
 #define RK3288_SDMMC_CON1		0x204
@@ -56,6 +56,22 @@
 #define RK3288_SDIO1_CON1		0x214
 #define RK3288_EMMC_CON0		0x218
 #define RK3288_EMMC_CON1		0x21c
+
+#define RK3368_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3368_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3368_CLKGATE_CON(x)		((x) * 0x4 + 0x200)
+#define RK3368_GLB_SRST_FST		0x280
+#define RK3368_GLB_SRST_SND		0x284
+#define RK3368_SOFTRST_CON(x)		((x) * 0x4 + 0x300)
+#define RK3368_MISC_CON			0x380
+#define RK3368_SDMMC_CON0		0x400
+#define RK3368_SDMMC_CON1		0x404
+#define RK3368_SDIO0_CON0		0x408
+#define RK3368_SDIO0_CON1		0x40c
+#define RK3368_SDIO1_CON0		0x410
+#define RK3368_SDIO1_CON1		0x414
+#define RK3368_EMMC_CON0		0x418
+#define RK3368_EMMC_CON1		0x41c
 
 enum rockchip_pll_type {
 	pll_rk3066,
@@ -67,7 +83,7 @@ enum rockchip_pll_type {
 	.nr = _nr,				\
 	.nf = _nf,				\
 	.no = _no,				\
-	.bwadj = (_nf >> 1),			\
+	.bwadj = ((_nf) >> 1),			\
 }
 
 #define RK3066_PLL_RATE_BWADJ(_rate, _nr, _nf, _no, _bw)	\
@@ -182,6 +198,13 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 				const char *const *parent_names, u8 num_parents,
 				void __iomem *reg, int shift);
 
+#define ROCKCHIP_INVERTER_HIWORD_MASK	BIT(0)
+
+struct clk *rockchip_clk_register_inverter(const char *name,
+				const char *const *parent_names, u8 num_parents,
+				void __iomem *reg, int shift, int flags,
+				spinlock_t *lock);
+
 #define PNAME(x) static const char *const x[] __initconst
 
 enum rockchip_clk_branch_type {
@@ -191,6 +214,7 @@ enum rockchip_clk_branch_type {
 	branch_fraction_divider,
 	branch_gate,
 	branch_mmc,
+	branch_inverter,
 };
 
 struct rockchip_clk_branch {
@@ -308,6 +332,26 @@ struct rockchip_clk_branch {
 		.gate_offset	= -1,				\
 	}
 
+#define COMPOSITE_NOGATE_DIVTBL(_id, cname, pnames, f, mo, ms,	\
+				mw, mf, ds, dw, df, dt)		\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_composite,		\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.mux_flags	= mf,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.div_table	= dt,				\
+		.gate_offset	= -1,				\
+	}
+
 #define COMPOSITE_FRAC(_id, cname, pname, f, mo, df, go, gs, gf)\
 	{							\
 		.id		= _id,				\
@@ -392,6 +436,18 @@ struct rockchip_clk_branch {
 		.num_parents	= 1,				\
 		.muxdiv_offset	= offset,			\
 		.div_shift	= shift,			\
+	}
+
+#define INVERTER(_id, cname, pname, io, is, if)			\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_inverter,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.muxdiv_offset	= io,				\
+		.div_shift	= is,				\
+		.div_flags	= if,				\
 	}
 
 void rockchip_clk_init(struct device_node *np, void __iomem *base,
