@@ -4215,7 +4215,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 	 * at a time, possibly less if that exceeds RESYNC_PAGES,
 	 * or we hit a bad block or something.
 	 * This might mean we pause for normal IO in the middle of
-	 * a chunk, but that is not a problem was mddev->reshape_position
+	 * a chunk, but that is not a problem as mddev->reshape_position
 	 * can record any location.
 	 *
 	 * If we will want to write to a location that isn't
@@ -4239,7 +4239,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 	 *
 	 * In all this the minimum difference in data offsets
 	 * (conf->offset_diff - always positive) allows a bit of slack,
-	 * so next can be after 'safe', but not by more than offset_disk
+	 * so next can be after 'safe', but not by more than offset_diff
 	 *
 	 * We need to prepare all the bios here before we start any IO
 	 * to ensure the size we choose is acceptable to all devices.
