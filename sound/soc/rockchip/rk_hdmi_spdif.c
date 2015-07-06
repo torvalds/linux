@@ -27,6 +27,10 @@
 #include "card_info.h"
 #include "rk_pcm.h"
 
+#if defined(CONFIG_RK_HDMI) && defined(CONFIG_SND_SOC_HDMI_SPDIF)
+extern int snd_config_hdmi_audio(struct snd_pcm_hw_params *params);
+#endif
+
 static int rk_hw_params(struct snd_pcm_substream *substream,
 			struct snd_pcm_hw_params *params)
 {
@@ -52,6 +56,10 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0,
 				     sclk, SND_SOC_CLOCK_IN);
+
+#if defined(CONFIG_RK_HDMI) && defined(CONFIG_SND_SOC_HDMI_SPDIF)
+	snd_config_hdmi_audio(params);
+#endif
 
 	return ret;
 }
