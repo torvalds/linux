@@ -329,7 +329,7 @@ EXPORT_SYMBOL(ldebugfs_add_vars);
 
 void ldebugfs_remove(struct dentry **entryp)
 {
-	debugfs_remove(*entryp);
+	debugfs_remove_recursive(*entryp);
 	*entryp = NULL;
 }
 EXPORT_SYMBOL(ldebugfs_remove);
