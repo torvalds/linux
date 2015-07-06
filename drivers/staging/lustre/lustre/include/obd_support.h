@@ -56,9 +56,7 @@ extern unsigned int obd_dump_on_eviction;
 /* obd_timeout should only be used for recovery, not for
    networking / disk / timings affected by load (use Adaptive Timeouts) */
 extern unsigned int obd_timeout;	  /* seconds */
-extern unsigned int ldlm_timeout;	 /* seconds */
 extern unsigned int obd_timeout_set;
-extern unsigned int ldlm_timeout_set;
 extern unsigned int at_min;
 extern unsigned int at_max;
 extern unsigned int at_history;
@@ -105,8 +103,6 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 
 /* Timeout definitions */
 #define OBD_TIMEOUT_DEFAULT	     100
-#define LDLM_TIMEOUT_DEFAULT	    20
-#define MDS_LDLM_TIMEOUT_DEFAULT	6
 /* Time to wait for all clients to reconnect during recovery (hard limit) */
 #define OBD_RECOVERY_TIME_HARD	  (obd_timeout * 9)
 /* Time to wait for all clients to reconnect during recovery (soft limit) */

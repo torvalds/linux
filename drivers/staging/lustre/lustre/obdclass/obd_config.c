@@ -1123,12 +1123,7 @@ int class_process_config(struct lustre_cfg *lcfg)
 		goto out;
 	}
 	case LCFG_SET_LDLM_TIMEOUT: {
-		CDEBUG(D_IOCTL, "changing lustre ldlm_timeout from %d to %d\n",
-		       ldlm_timeout, lcfg->lcfg_num);
-		ldlm_timeout = max(lcfg->lcfg_num, 1U);
-		if (ldlm_timeout >= obd_timeout)
-			ldlm_timeout = max(obd_timeout / 3, 1U);
-		ldlm_timeout_set = 1;
+		/* ldlm_timeout is not used on the client */
 		err = 0;
 		goto out;
 	}

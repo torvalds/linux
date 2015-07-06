@@ -61,8 +61,6 @@ static int proc_set_timeout(struct ctl_table *table, int write,
 	int rc;
 
 	rc = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (ldlm_timeout >= obd_timeout)
-		ldlm_timeout = max(obd_timeout / 3, 1U);
 	return rc;
 }
 
@@ -135,13 +133,6 @@ static struct ctl_table obd_table[] = {
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_dointvec
-	},
-	{
-		.procname = "ldlm_timeout",
-		.data     = &ldlm_timeout,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_set_timeout
 	},
 	{
 		.procname = "max_dirty_mb",

@@ -76,15 +76,6 @@ inline unsigned long round_timeout(unsigned long timeout)
 	return cfs_time_seconds((int)cfs_duration_sec(cfs_time_sub(timeout, 0)) + 1);
 }
 
-/* timeout for initial callback (AST) reply (bz10399) */
-static inline unsigned int ldlm_get_rq_timeout(void)
-{
-	/* Non-AT value */
-	unsigned int timeout = min(ldlm_timeout, obd_timeout / 3);
-
-	return timeout < 1 ? 1 : timeout;
-}
-
 #define ELT_STOPPED   0
 #define ELT_READY     1
 #define ELT_TERMINATE 2
