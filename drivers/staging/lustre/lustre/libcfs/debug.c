@@ -136,9 +136,6 @@ module_param(libcfs_panic_on_lbug, uint, 0644);
 MODULE_PARM_DESC(libcfs_panic_on_lbug, "Lustre kernel panic on LBUG");
 EXPORT_SYMBOL(libcfs_panic_on_lbug);
 
-atomic_t libcfs_kmemory = ATOMIC_INIT(0);
-EXPORT_SYMBOL(libcfs_kmemory);
-
 static wait_queue_head_t debug_ctlwq;
 
 char libcfs_debug_file_path_arr[PATH_MAX] = LIBCFS_DEBUG_FILE_PATH_DEFAULT;

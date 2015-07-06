@@ -80,33 +80,6 @@ extern char lnet_upcall[1024];
  */
 extern char lnet_debug_log_upcall[1024];
 
-#define CTL_LNET	(0x100)
-
-enum {
-	PSDEV_DEBUG = 1,	  /* control debugging */
-	PSDEV_SUBSYSTEM_DEBUG,    /* control debugging */
-	PSDEV_PRINTK,	     /* force all messages to console */
-	PSDEV_CONSOLE_RATELIMIT,  /* ratelimit console messages */
-	PSDEV_CONSOLE_MAX_DELAY_CS, /* maximum delay over which we skip messages */
-	PSDEV_CONSOLE_MIN_DELAY_CS, /* initial delay over which we skip messages */
-	PSDEV_CONSOLE_BACKOFF,    /* delay increase factor */
-	PSDEV_DEBUG_PATH,	 /* crashdump log location */
-	PSDEV_DEBUG_DUMP_PATH,    /* crashdump tracelog location */
-	PSDEV_CPT_TABLE,	  /* information about cpu partitions */
-	PSDEV_LNET_UPCALL,	/* User mode upcall script  */
-	PSDEV_LNET_MEMUSED,       /* bytes currently PORTAL_ALLOCated */
-	PSDEV_LNET_CATASTROPHE,   /* if we have LBUGged or panic'd */
-	PSDEV_LNET_PANIC_ON_LBUG, /* flag to panic on LBUG */
-	PSDEV_LNET_DUMP_KERNEL,   /* snapshot kernel debug buffer to file */
-	PSDEV_LNET_DAEMON_FILE,   /* spool kernel debug buffer to file */
-	PSDEV_LNET_DEBUG_MB,      /* size of debug buffer */
-	PSDEV_LNET_DEBUG_LOG_UPCALL, /* debug log upcall script */
-	PSDEV_LNET_WATCHDOG_RATELIMIT,  /* ratelimit watchdog messages  */
-	PSDEV_LNET_FORCE_LBUG,    /* hook to force an LBUG */
-	PSDEV_LNET_FAIL_LOC,      /* control test failures instrumentation */
-	PSDEV_LNET_FAIL_VAL,      /* userdata for fail loc */
-};
-
 static void kportal_memhog_free (struct libcfs_device_userstate *ldu)
 {
 	struct page **level0p = &ldu->ldu_memhog_root_page;
@@ -450,9 +423,6 @@ static void exit_libcfs_module(void)
 
 	remove_debugfs();
 
-	CDEBUG(D_MALLOC, "before Portals cleanup: kmem %d\n",
-	       atomic_read(&libcfs_kmemory));
-
 	if (cfs_sched_rehash != NULL) {
 		cfs_wi_sched_destroy(cfs_sched_rehash);
 		cfs_sched_rehash = NULL;
@@ -466,10 +436,6 @@ static void exit_libcfs_module(void)
 		CERROR("misc_deregister error %d\n", rc);
 
 	cfs_cpu_fini();
-
-	if (atomic_read(&libcfs_kmemory) != 0)
-		CERROR("Portals memory leaked: %d bytes\n",
-		       atomic_read(&libcfs_kmemory));
 
 	rc = libcfs_debug_cleanup();
 	if (rc)
@@ -806,13 +772,6 @@ static struct ctl_table lnet_table[] = {
 		.maxlen   = sizeof(lnet_debug_log_upcall),
 		.mode     = 0644,
 		.proc_handler = &proc_dostring,
-	},
-	{
-		.procname = "lnet_memused",
-		.data     = (int *)&libcfs_kmemory.counter,
-		.maxlen   = sizeof(int),
-		.mode     = 0444,
-		.proc_handler = &proc_dointvec,
 	},
 	{
 		.procname = "catastrophe",

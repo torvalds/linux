@@ -501,8 +501,6 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 #define OBD_FAIL_ONCE			   CFS_FAIL_ONCE
 #define OBD_FAILED			      CFS_FAILED
 
-extern atomic_t libcfs_kmemory;
-
 extern void obd_update_maxusage(void);
 
 #define obd_memory_add(size)						  \
@@ -618,8 +616,8 @@ do {									      \
 	if (unlikely((ptr) == NULL)) {					\
 		CERROR("vmalloc of '" #ptr "' (%d bytes) failed\n",	   \
 		       (int)(size));					  \
-		CERROR("%llu total bytes allocated by Lustre, %d by LNET\n", \
-		       obd_memory_sum(), atomic_read(&libcfs_kmemory));   \
+		CERROR("%llu total bytes allocated by Lustre\n",	      \
+		       obd_memory_sum());				      \
 	} else {							      \
 		OBD_ALLOC_POST(ptr, size, "vmalloced");		       \
 	}								     \
@@ -765,12 +763,10 @@ do {									      \
 		       "failed\n", (int)1,				    \
 		       (__u64)(1 << PAGE_CACHE_SHIFT));			 \
 		CERROR("%llu total bytes and %llu total pages "	   \
-		       "(%llu bytes) allocated by Lustre, "		\
-		       "%d total bytes by LNET\n",			    \
+		       "(%llu bytes) allocated by Lustre\n",		      \
 		       obd_memory_sum(),				      \
 		       obd_pages_sum() << PAGE_CACHE_SHIFT,		     \
-		       obd_pages_sum(),				       \
-		       atomic_read(&libcfs_kmemory));		     \
+		       obd_pages_sum());				       \
 	} else {							      \
 		obd_pages_add(0);					     \
 		CDEBUG(D_MALLOC, "alloc_pages '" #ptr "': %d page(s) / "      \

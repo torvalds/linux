@@ -140,11 +140,11 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 		CERROR("%s%salloc of %s (%llu bytes) failed at %s:%d\n",
 		       ptr ? "force " :"", type, name, (__u64)size, file,
 		       line);
-		CERROR("%llu total bytes and %llu total pages (%llu bytes) allocated by Lustre, %d total bytes by LNET\n",
+		CERROR("%llu total bytes and %llu total pages"
+			" (%llu bytes) allocated by Lustre\n",
 		       obd_memory_sum(),
 		       obd_pages_sum() << PAGE_CACHE_SHIFT,
-		       obd_pages_sum(),
-		       atomic_read(&libcfs_kmemory));
+		       obd_pages_sum());
 		return 1;
 	}
 	return 0;
