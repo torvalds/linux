@@ -510,11 +510,6 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 	input->close = pixcir_input_close;
 	input->dev.parent = &client->dev;
 
-	__set_bit(EV_KEY, input->evbit);
-	__set_bit(EV_ABS, input->evbit);
-	__set_bit(BTN_TOUCH, input->keybit);
-	input_set_abs_params(input, ABS_X, 0, pdata->x_max, 0, 0);
-	input_set_abs_params(input, ABS_Y, 0, pdata->y_max, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_X, 0, pdata->x_max, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, pdata->y_max, 0, 0);
 
