@@ -171,7 +171,7 @@ static irqreturn_t pixcir_ts_isr(int irq, void *dev_id)
 		/* report it */
 		pixcir_ts_report(tsdata, &report);
 
-		if (gpiod_get_value(tsdata->gpio_attb)) {
+		if (gpiod_get_value_cansleep(tsdata->gpio_attb)) {
 			if (report.num_touches) {
 				/*
 				 * Last report with no finger up?
