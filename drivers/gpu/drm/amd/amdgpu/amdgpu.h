@@ -699,8 +699,8 @@ struct amdgpu_sync {
 };
 
 void amdgpu_sync_create(struct amdgpu_sync *sync);
-void amdgpu_sync_fence(struct amdgpu_sync *sync,
-		       struct amdgpu_fence *fence);
+int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
+		      struct fence *f);
 int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     struct amdgpu_sync *sync,
 		     struct reservation_object *resv,

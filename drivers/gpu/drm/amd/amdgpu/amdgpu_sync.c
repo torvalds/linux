@@ -53,20 +53,24 @@ void amdgpu_sync_create(struct amdgpu_sync *sync)
 }
 
 /**
- * amdgpu_sync_fence - use the semaphore to sync to a fence
+ * amdgpu_sync_fence - remember to sync to this fence
  *
  * @sync: sync object to add fence to
  * @fence: fence to sync to
  *
- * Sync to the fence using the semaphore objects
  */
-void amdgpu_sync_fence(struct amdgpu_sync *sync,
-		       struct amdgpu_fence *fence)
+int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
+		      struct fence *f)
 {
+	struct amdgpu_fence *fence;
 	struct amdgpu_fence *other;
 
-	if (!fence)
-		return;
+	if (!f)
+		return 0;
+
+	fence = to_amdgpu_fence(f);
+	if (!fence || fence->ring->adev != adev)
+		return fence_wait(f, true);
 
 	other = sync->sync_to[fence->ring->idx];
 	sync->sync_to[fence->ring->idx] = amdgpu_fence_ref(
@@ -79,6 +83,8 @@ void amdgpu_sync_fence(struct amdgpu_sync *sync,
 			amdgpu_fence_later(fence, other));
 		amdgpu_fence_unref(&other);
 	}
+
+	return 0;
 }
 
 /**
@@ -106,11 +112,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 
 	/* always sync to the exclusive fence */
 	f = reservation_object_get_excl(resv);
-	fence = f ? to_amdgpu_fence(f) : NULL;
-	if (fence && fence->ring->adev == adev)
-		amdgpu_sync_fence(sync, fence);
-	else if (f)
-		r = fence_wait(f, true);
+	r = amdgpu_sync_fence(adev, sync, f);
 
 	flist = reservation_object_get_list(resv);
 	if (!flist || r)
@@ -120,15 +122,14 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 		f = rcu_dereference_protected(flist->shared[i],
 					      reservation_object_held(resv));
 		fence = f ? to_amdgpu_fence(f) : NULL;
-		if (fence && fence->ring->adev == adev) {
-			if (fence->owner != owner ||
-			    fence->owner == AMDGPU_FENCE_OWNER_UNDEFINED)
-				amdgpu_sync_fence(sync, fence);
-		} else if (f) {
-			r = fence_wait(f, true);
-			if (r)
-				break;
-		}
+		if (fence && fence->ring->adev == adev &&
+		    fence->owner == owner &&
+		    fence->owner != AMDGPU_FENCE_OWNER_UNDEFINED)
+				continue;
+
+		r = amdgpu_sync_fence(adev, sync, f);
+		if (r)
+			break;
 	}
 	return r;
 }

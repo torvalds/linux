@@ -732,7 +732,9 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_fence *f = vm->ids[i].last_id_use;
-			amdgpu_sync_fence(&ib.sync, f);
+			r = amdgpu_sync_fence(adev, &ib.sync, &f->base);
+			if (r)
+				return r;
 		}
 	}
 
@@ -861,7 +863,7 @@ int amdgpu_vm_clear_invalids(struct amdgpu_device *adev,
 			     struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 {
 	struct amdgpu_bo_va *bo_va = NULL;
-	int r;
+	int r = 0;
 
 	spin_lock(&vm->status_lock);
 	while (!list_empty(&vm->invalidated)) {
@@ -878,8 +880,9 @@ int amdgpu_vm_clear_invalids(struct amdgpu_device *adev,
 	spin_unlock(&vm->status_lock);
 
 	if (bo_va)
-		amdgpu_sync_fence(sync, bo_va->last_pt_update);
-	return 0;
+		r = amdgpu_sync_fence(adev, sync, &bo_va->last_pt_update->base);
+
+	return r;
 }
 
 /**

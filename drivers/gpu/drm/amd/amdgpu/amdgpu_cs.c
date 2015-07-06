@@ -482,6 +482,8 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 
 	if (p->bo_list) {
 		for (i = 0; i < p->bo_list->num_entries; i++) {
+			struct fence *f;
+
 			/* ignore duplicates */
 			bo = p->bo_list->array[i].robj;
 			if (!bo)
@@ -495,7 +497,10 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 			if (r)
 				return r;
 
-			amdgpu_sync_fence(&p->ibs[0].sync, bo_va->last_pt_update);
+			f = &bo_va->last_pt_update->base;
+			r = amdgpu_sync_fence(adev, &p->ibs[0].sync, f);
+			if (r)
+				return r;
 		}
 	}
 
@@ -715,9 +720,12 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 				return r;
 			}
 
-			amdgpu_sync_fence(&ib->sync, fence);
+			r = amdgpu_sync_fence(adev, &ib->sync, &fence->base);
 			amdgpu_fence_unref(&fence);
 			amdgpu_ctx_put(ctx);
+
+			if (r)
+				return r;
 		}
 	}
 
