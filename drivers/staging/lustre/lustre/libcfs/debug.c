@@ -128,9 +128,6 @@ EXPORT_SYMBOL(portal_enter_debugger);
 unsigned int libcfs_catastrophe;
 EXPORT_SYMBOL(libcfs_catastrophe);
 
-unsigned int libcfs_watchdog_ratelimit = 300;
-EXPORT_SYMBOL(libcfs_watchdog_ratelimit);
-
 unsigned int libcfs_panic_on_lbug = 1;
 module_param(libcfs_panic_on_lbug, uint, 0644);
 MODULE_PARM_DESC(libcfs_panic_on_lbug, "Lustre kernel panic on LBUG");
