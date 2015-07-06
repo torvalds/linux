@@ -1982,7 +1982,6 @@ static const struct pcs_soc_data pinctrl_single_omap_wkup = {
 };
 
 static const struct pcs_soc_data pinctrl_single_dra7 = {
-	.flags = PCS_QUIRK_SHARED_IRQ,
 	.irq_enable_mask = (1 << 24),	/* WAKEUPENABLE */
 	.irq_status_mask = (1 << 25),	/* WAKEUPEVENT */
 };
