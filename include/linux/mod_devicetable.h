@@ -189,6 +189,8 @@ struct css_device_id {
 struct acpi_device_id {
 	__u8 id[ACPI_ID_LEN];
 	kernel_ulong_t driver_data;
+	__u32 cls;
+	__u32 cls_msk;
 };
 
 #define PNP_ID_LEN	8
