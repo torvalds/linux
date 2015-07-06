@@ -6409,7 +6409,8 @@ static int netif_alloc_netdev_queues(struct net_device *dev)
 	struct netdev_queue *tx;
 	size_t sz = count * sizeof(*tx);
 
-	BUG_ON(count < 1 || count > 0xffff);
+	if (count < 1 || count > 0xffff)
+		return -EINVAL;
 
 	tx = kzalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
 	if (!tx) {
