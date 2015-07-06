@@ -379,7 +379,13 @@ config S3C2416_SETUP_SDHCI_GPIO
 
 comment "S3C2416 Boards"
 
-<<<<<<< HEAD
+config WL_WEXT
+	bool
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+	select AVERAGE
+
 config MACH_MINI2451
 	bool "MINI2451"
 	select S3C_DEV_FB
@@ -388,10 +394,8 @@ config MACH_MINI2451
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
 	select S3C2416_SETUP_SDHCI
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
-	select AVERAGE
+	select OID_REGISTRY
+	select WL_WEXT if !(BCMDHD || BCM4336)
 	help
 	  Say Y here if you are using an FriendlyARM MINI2451
 
