@@ -1267,9 +1267,10 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 static bool
 hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 		   struct intel_crtc_state *crtc_state,
-		   struct intel_encoder *intel_encoder,
-		   int clock)
+		   struct intel_encoder *intel_encoder)
 {
+	int clock = crtc_state->port_clock;
+
 	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 		struct intel_shared_dpll *pll;
 		uint32_t val;
@@ -1548,11 +1549,11 @@ skip_remaining_dividers:
 static bool
 skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 		   struct intel_crtc_state *crtc_state,
-		   struct intel_encoder *intel_encoder,
-		   int clock)
+		   struct intel_encoder *intel_encoder)
 {
 	struct intel_shared_dpll *pll;
 	uint32_t ctrl1, cfgcr1, cfgcr2;
+	int clock = crtc_state->port_clock;
 
 	/*
 	 * See comment in intel_dpll_hw_state to understand why we always use 0
@@ -1640,14 +1641,14 @@ static const struct bxt_clk_div bxt_dp_clk_val[] = {
 static bool
 bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 		   struct intel_crtc_state *crtc_state,
-		   struct intel_encoder *intel_encoder,
-		   int clock)
+		   struct intel_encoder *intel_encoder)
 {
 	struct intel_shared_dpll *pll;
 	struct bxt_clk_div clk_div = {0};
 	int vco = 0;
 	uint32_t prop_coef, int_coef, gain_ctl, targ_cnt;
 	uint32_t lanestagger;
+	int clock = crtc_state->port_clock;
 
 	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 		intel_clock_t best_clock;
@@ -1775,17 +1776,16 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc,
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct intel_encoder *intel_encoder =
 		intel_ddi_get_crtc_new_encoder(crtc_state);
-	int clock = crtc_state->port_clock;
 
 	if (IS_SKYLAKE(dev))
 		return skl_ddi_pll_select(intel_crtc, crtc_state,
-					  intel_encoder, clock);
+					  intel_encoder);
 	else if (IS_BROXTON(dev))
 		return bxt_ddi_pll_select(intel_crtc, crtc_state,
-					  intel_encoder, clock);
+					  intel_encoder);
 	else
 		return hsw_ddi_pll_select(intel_crtc, crtc_state,
-					  intel_encoder, clock);
+					  intel_encoder);
 }
 
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
