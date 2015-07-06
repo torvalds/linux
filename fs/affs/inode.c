@@ -346,7 +346,7 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 {
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *inode_bh = NULL;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	u32 block = 0;
 	int retval;
 

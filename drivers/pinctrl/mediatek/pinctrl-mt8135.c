@@ -32,12 +32,12 @@
 #define R1_BASE2				0x250
 
 struct mtk_spec_pull_set {
-	unsigned int pin;
-	unsigned int pupd_offset;
+	unsigned char pin;
 	unsigned char pupd_bit;
-	unsigned int r0_offset;
+	unsigned short pupd_offset;
+	unsigned short r0_offset;
+	unsigned short r1_offset;
 	unsigned char r0_bit;
-	unsigned int r1_offset;
 	unsigned char r1_bit;
 };
 
@@ -305,7 +305,6 @@ static const struct mtk_pinctrl_devdata mt8135_pinctrl_data = {
 	.pullen_offset = 0x0200,
 	.smt_offset = 0x0300,
 	.pullsel_offset = 0x0400,
-	.invser_offset = 0x0600,
 	.dout_offset = 0x0800,
 	.din_offset = 0x0A00,
 	.pinmux_offset = 0x0C00,
@@ -314,7 +313,6 @@ static const struct mtk_pinctrl_devdata mt8135_pinctrl_data = {
 	.port_shf = 4,
 	.port_mask = 0xf,
 	.port_align = 4,
-	.chip_type = MTK_CHIP_TYPE_BASE,
 	.eint_offsets = {
 		.name = "mt8135_eint",
 		.stat      = 0x000,
@@ -344,7 +342,7 @@ static const struct mtk_pinctrl_devdata mt8135_pinctrl_data = {
 
 static int mt8135_pinctrl_probe(struct platform_device *pdev)
 {
-	return mtk_pctrl_init(pdev, &mt8135_pinctrl_data);
+	return mtk_pctrl_init(pdev, &mt8135_pinctrl_data, NULL);
 }
 
 static const struct of_device_id mt8135_pctrl_match[] = {
@@ -359,7 +357,6 @@ static struct platform_driver mtk_pinctrl_driver = {
 	.probe = mt8135_pinctrl_probe,
 	.driver = {
 		.name = "mediatek-mt8135-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = mt8135_pctrl_match,
 	},
 };

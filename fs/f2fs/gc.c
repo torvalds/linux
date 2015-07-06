@@ -518,12 +518,79 @@ static int check_dnode(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	return 1;
 }
 
-static void move_data_page(struct inode *inode, struct page *page, int gc_type)
+static void move_encrypted_block(struct inode *inode, block_t bidx)
 {
 	struct f2fs_io_info fio = {
+		.sbi = F2FS_I_SB(inode),
 		.type = DATA,
-		.rw = WRITE_SYNC,
+		.rw = READ_SYNC,
+		.encrypted_page = NULL,
 	};
+	struct dnode_of_data dn;
+	struct f2fs_summary sum;
+	struct node_info ni;
+	struct page *page;
+	int err;
+
+	/* do not read out */
+	page = grab_cache_page(inode->i_mapping, bidx);
+	if (!page)
+		return;
+
+	set_new_dnode(&dn, inode, NULL, NULL, 0);
+	err = get_dnode_of_data(&dn, bidx, LOOKUP_NODE);
+	if (err)
+		goto out;
+
+	if (unlikely(dn.data_blkaddr == NULL_ADDR))
+		goto put_out;
+
+	get_node_info(fio.sbi, dn.nid, &ni);
+	set_summary(&sum, dn.nid, dn.ofs_in_node, ni.version);
+
+	/* read page */
+	fio.page = page;
+	fio.blk_addr = dn.data_blkaddr;
+
+	fio.encrypted_page = grab_cache_page(META_MAPPING(fio.sbi), fio.blk_addr);
+	if (!fio.encrypted_page)
+		goto put_out;
+
+	f2fs_submit_page_bio(&fio);
+
+	/* allocate block address */
+	f2fs_wait_on_page_writeback(dn.node_page, NODE);
+
+	allocate_data_block(fio.sbi, NULL, fio.blk_addr,
+					&fio.blk_addr, &sum, CURSEG_COLD_DATA);
+	dn.data_blkaddr = fio.blk_addr;
+
+	/* write page */
+	lock_page(fio.encrypted_page);
+	set_page_writeback(fio.encrypted_page);
+	fio.rw = WRITE_SYNC;
+	f2fs_submit_page_mbio(&fio);
+
+	set_data_blkaddr(&dn);
+	f2fs_update_extent_cache(&dn);
+	set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
+	if (page->index == 0)
+		set_inode_flag(F2FS_I(inode), FI_FIRST_BLOCK_WRITTEN);
+
+	f2fs_put_page(fio.encrypted_page, 1);
+put_out:
+	f2fs_put_dnode(&dn);
+out:
+	f2fs_put_page(page, 1);
+}
+
+static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
+{
+	struct page *page;
+
+	page = get_lock_data_page(inode, bidx);
+	if (IS_ERR(page))
+		return;
 
 	if (gc_type == BG_GC) {
 		if (PageWriteback(page))
@@ -531,12 +598,19 @@ static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 		set_page_dirty(page);
 		set_cold_data(page);
 	} else {
+		struct f2fs_io_info fio = {
+			.sbi = F2FS_I_SB(inode),
+			.type = DATA,
+			.rw = WRITE_SYNC,
+			.page = page,
+			.encrypted_page = NULL,
+		};
 		f2fs_wait_on_page_writeback(page, DATA);
 
 		if (clear_page_dirty_for_io(page))
 			inode_dec_dirty_pages(inode);
 		set_cold_data(page);
-		do_write_data_page(page, &fio);
+		do_write_data_page(&fio);
 		clear_cold_data(page);
 	}
 out:
@@ -599,10 +673,16 @@ next_step:
 			if (IS_ERR(inode) || is_bad_inode(inode))
 				continue;
 
-			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode));
+			/* if encrypted inode, let's go phase 3 */
+			if (f2fs_encrypted_inode(inode) &&
+						S_ISREG(inode->i_mode)) {
+				add_gc_inode(gc_list, inode);
+				continue;
+			}
 
-			data_page = find_data_page(inode,
-					start_bidx + ofs_in_node, false);
+			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode));
+			data_page = get_read_data_page(inode,
+					start_bidx + ofs_in_node, READA);
 			if (IS_ERR(data_page)) {
 				iput(inode);
 				continue;
@@ -616,12 +696,12 @@ next_step:
 		/* phase 3 */
 		inode = find_gc_inode(gc_list, dni.ino);
 		if (inode) {
-			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode));
-			data_page = get_lock_data_page(inode,
-						start_bidx + ofs_in_node);
-			if (IS_ERR(data_page))
-				continue;
-			move_data_page(inode, data_page, gc_type);
+			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode))
+								+ ofs_in_node;
+			if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
+				move_encrypted_block(inode, start_bidx);
+			else
+				move_data_page(inode, start_bidx, gc_type);
 			stat_inc_data_blk_count(sbi, 1, gc_type);
 		}
 	}
@@ -670,6 +750,15 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 
 	sum = page_address(sum_page);
 
+	/*
+	 * this is to avoid deadlock:
+	 * - lock_page(sum_page)         - f2fs_replace_block
+	 *  - check_valid_map()            - mutex_lock(sentry_lock)
+	 *   - mutex_lock(sentry_lock)     - change_curseg()
+	 *                                  - lock_page(sum_page)
+	 */
+	unlock_page(sum_page);
+
 	switch (GET_SUM_TYPE((&sum->footer))) {
 	case SUM_TYPE_NODE:
 		gc_node_segment(sbi, sum->entries, segno, gc_type);
@@ -683,7 +772,7 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 	stat_inc_seg_count(sbi, GET_SUM_TYPE((&sum->footer)), gc_type);
 	stat_inc_call_count(sbi->stat_info);
 
-	f2fs_put_page(sum_page, 1);
+	f2fs_put_page(sum_page, 0);
 }
 
 int f2fs_gc(struct f2fs_sb_info *sbi)

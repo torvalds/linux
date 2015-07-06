@@ -489,6 +489,7 @@ static void cuse_fc_release(struct fuse_conn *fc)
  */
 static int cuse_channel_open(struct inode *inode, struct file *file)
 {
+	struct fuse_dev *fud;
 	struct cuse_conn *cc;
 	int rc;
 
@@ -499,17 +500,22 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 
 	fuse_conn_init(&cc->fc);
 
+	fud = fuse_dev_alloc(&cc->fc);
+	if (!fud) {
+		kfree(cc);
+		return -ENOMEM;
+	}
+
 	INIT_LIST_HEAD(&cc->list);
 	cc->fc.release = cuse_fc_release;
 
-	cc->fc.connected = 1;
 	cc->fc.initialized = 1;
 	rc = cuse_send_init(cc);
 	if (rc) {
-		fuse_conn_put(&cc->fc);
+		fuse_dev_free(fud);
 		return rc;
 	}
-	file->private_data = &cc->fc;	/* channel owns base reference to cc */
+	file->private_data = fud;
 
 	return 0;
 }
@@ -527,7 +533,8 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
  */
 static int cuse_channel_release(struct inode *inode, struct file *file)
 {
-	struct cuse_conn *cc = fc_to_cc(file->private_data);
+	struct fuse_dev *fud = file->private_data;
+	struct cuse_conn *cc = fc_to_cc(fud->fc);
 	int rc;
 
 	/* remove from the conntbl, no more access from this point on */

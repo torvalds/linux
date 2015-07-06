@@ -813,8 +813,7 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 	case IW_PMKSA_ADD:
 		if (!memcmp(strIssueBssid, strZeroMacAddress, ETH_ALEN))
 			return intReturn;
-		else
-			intReturn = true;
+		intReturn = true;
 		blInserted = false;
 		/* overwrite PMKID */
 		for (j = 0; j < NUM_PMKID_CACHE; j++) {

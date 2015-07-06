@@ -43,7 +43,8 @@ struct isl6421 {
 	u8			i2c_addr;
 };
 
-static int isl6421_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int isl6421_set_voltage(struct dvb_frontend *fe,
+			       enum fe_sec_voltage voltage)
 {
 	struct isl6421 *isl6421 = (struct isl6421 *) fe->sec_priv;
 	struct i2c_msg msg = {	.addr = isl6421->i2c_addr, .flags = 0,
@@ -89,7 +90,8 @@ static int isl6421_enable_high_lnb_voltage(struct dvb_frontend *fe, long arg)
 	return (i2c_transfer(isl6421->i2c, &msg, 1) == 1) ? 0 : -EIO;
 }
 
-static int isl6421_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int isl6421_set_tone(struct dvb_frontend *fe,
+			    enum fe_sec_tone_mode tone)
 {
 	struct isl6421 *isl6421 = (struct isl6421 *) fe->sec_priv;
 	struct i2c_msg msg = { .addr = isl6421->i2c_addr, .flags = 0,

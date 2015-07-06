@@ -50,19 +50,20 @@ dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 
 EXPORT_SYMBOL(dma_map_single);
 
-int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+int dma_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	       enum dma_data_direction direction)
 {
 	unsigned long dampr2;
 	void *vaddr;
 	int i;
+	struct scatterlist *sg;
 
 	BUG_ON(direction == DMA_NONE);
 
 	dampr2 = __get_DAMPR(2);
 
-	for (i = 0; i < nents; i++) {
-		vaddr = kmap_atomic_primary(sg_page(&sg[i]));
+	for_each_sg(sglist, sg, nents, i) {
+		vaddr = kmap_atomic_primary(sg_page(sg));
 
 		frv_dcache_writeback((unsigned long) vaddr,
 				     (unsigned long) vaddr + PAGE_SIZE);

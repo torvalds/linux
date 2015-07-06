@@ -52,10 +52,7 @@ struct closure;
 
 #define free_heap(heap)							\
 do {									\
-	if (is_vmalloc_addr((heap)->data))				\
-		vfree((heap)->data);					\
-	else								\
-		kfree((heap)->data);					\
+	kvfree((heap)->data);						\
 	(heap)->data = NULL;						\
 } while (0)
 
@@ -163,10 +160,7 @@ do {									\
 
 #define free_fifo(fifo)							\
 do {									\
-	if (is_vmalloc_addr((fifo)->data))				\
-		vfree((fifo)->data);					\
-	else								\
-		kfree((fifo)->data);					\
+	kvfree((fifo)->data);						\
 	(fifo)->data = NULL;						\
 } while (0)
 

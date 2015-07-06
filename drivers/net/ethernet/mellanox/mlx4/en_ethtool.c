@@ -119,6 +119,12 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_failed",
 	"rx_csum_good", "rx_csum_none", "rx_csum_complete", "tx_chksum_offload",
 
+	/* pf statistics */
+	"pf_rx_packets",
+	"pf_rx_bytes",
+	"pf_tx_packets",
+	"pf_tx_bytes",
+
 	/* priority flow control statistics rx */
 	"rx_pause_prio_0", "rx_pause_duration_prio_0",
 	"rx_pause_transition_prio_0",
@@ -368,6 +374,11 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 		if (bitmap_iterator_test(&it))
 			data[index++] = ((unsigned long *)&priv->port_stats)[i];
 
+	for (i = 0; i < NUM_PF_STATS; i++, bitmap_iterator_inc(&it))
+		if (bitmap_iterator_test(&it))
+			data[index++] =
+				((unsigned long *)&priv->pf_stats)[i];
+
 	for (i = 0; i < NUM_FLOW_PRIORITY_STATS_RX;
 	     i++, bitmap_iterator_inc(&it))
 		if (bitmap_iterator_test(&it))
@@ -443,6 +454,12 @@ static void mlx4_en_get_strings(struct net_device *dev,
 				       main_strings[strings]);
 
 		for (i = 0; i < NUM_PORT_STATS; i++, strings++,
+		     bitmap_iterator_inc(&it))
+			if (bitmap_iterator_test(&it))
+				strcpy(data + (index++) * ETH_GSTRING_LEN,
+				       main_strings[strings]);
+
+		for (i = 0; i < NUM_PF_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
 				strcpy(data + (index++) * ETH_GSTRING_LEN,

@@ -1,9 +1,0 @@
-#
-# Unisys timskmod configuration
-#
-
-config UNISYS_VISORUTIL
-	tristate "Unisys visorutil driver"
-	---help---
-	If you say Y here, you will enable the Unisys visorutil driver.
-

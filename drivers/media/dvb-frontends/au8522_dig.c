@@ -552,7 +552,7 @@ static struct {
 };
 
 static int au8522_enable_modulation(struct dvb_frontend *fe,
-				    fe_modulation_t m)
+				    enum fe_modulation m)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	int i;
@@ -644,7 +644,7 @@ static int au8522_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int au8522_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	u8 reg;

@@ -29,12 +29,6 @@ config BCMA_HOST_PCI
 	select BCMA_DRIVER_PCI
 	default y
 
-config BCMA_DRIVER_PCI_HOSTMODE
-	bool "Driver for PCI core working in hostmode"
-	depends on BCMA && MIPS && BCMA_HOST_PCI
-	help
-	  PCI core hostmode operation (external PCI bus).
-
 config BCMA_HOST_SOC
 	bool "Support for BCMA in a SoC"
 	depends on BCMA
@@ -60,6 +54,12 @@ config BCMA_DRIVER_PCI
 	  hardware management.
 	  This driver is also prerequisite for a hostmode PCIe core
 	  support.
+
+config BCMA_DRIVER_PCI_HOSTMODE
+	bool "Driver for PCI core working in hostmode"
+	depends on BCMA && MIPS && BCMA_DRIVER_PCI
+	help
+	  PCI core hostmode operation (external PCI bus).
 
 config BCMA_DRIVER_MIPS
 	bool "BCMA Broadcom MIPS core driver"

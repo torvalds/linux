@@ -66,24 +66,39 @@ struct ext4_encryption_context {
 #define EXT4_KEY_DESC_PREFIX "ext4:"
 #define EXT4_KEY_DESC_PREFIX_SIZE 5
 
+/* This is passed in from userspace into the kernel keyring */
 struct ext4_encryption_key {
-	uint32_t mode;
-	char raw[EXT4_MAX_KEY_SIZE];
-	uint32_t size;
+        __u32 mode;
+        char raw[EXT4_MAX_KEY_SIZE];
+        __u32 size;
+} __attribute__((__packed__));
+
+struct ext4_crypt_info {
+	char		ci_data_mode;
+	char		ci_filename_mode;
+	char		ci_flags;
+	struct crypto_ablkcipher *ci_ctfm;
+	struct key	*ci_keyring_key;
+	char		ci_master_key[EXT4_KEY_DESCRIPTOR_SIZE];
 };
 
 #define EXT4_CTX_REQUIRES_FREE_ENCRYPT_FL             0x00000001
-#define EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL     0x00000002
+#define EXT4_WRITE_PATH_FL			      0x00000002
 
 struct ext4_crypto_ctx {
-	struct crypto_tfm *tfm;         /* Crypto API context */
-	struct page *bounce_page;       /* Ciphertext page on write path */
-	struct page *control_page;      /* Original page on write path */
-	struct bio *bio;                /* The bio for this context */
-	struct work_struct work;        /* Work queue for read complete path */
-	struct list_head free_list;     /* Free list */
-	int flags;                      /* Flags */
-	int mode;                       /* Encryption mode for tfm */
+	union {
+		struct {
+			struct page *bounce_page;       /* Ciphertext page */
+			struct page *control_page;      /* Original page  */
+		} w;
+		struct {
+			struct bio *bio;
+			struct work_struct work;
+		} r;
+		struct list_head free_list;     /* Free list */
+	};
+	char flags;                      /* Flags */
+	char mode;                       /* Encryption mode for tfm */
 };
 
 struct ext4_completion_result {
@@ -119,18 +134,6 @@ static inline int ext4_encryption_key_size(int mode)
 struct ext4_str {
 	unsigned char *name;
 	u32 len;
-};
-
-struct ext4_fname_crypto_ctx {
-	u32 lim;
-	char tmp_buf[EXT4_CRYPTO_BLOCK_SIZE];
-	struct crypto_ablkcipher *ctfm;
-	struct crypto_hash *htfm;
-	struct page *workpage;
-	struct ext4_encryption_key key;
-	unsigned flags : 8;
-	unsigned has_valid_key : 1;
-	unsigned ctfm_key_is_ready : 1;
 };
 
 /**

@@ -65,6 +65,7 @@ struct virtio_ccw_device {
 	bool is_thinint;
 	bool going_away;
 	bool device_lost;
+	unsigned int config_ready;
 	void *airq_info;
 };
 
@@ -833,8 +834,11 @@ static void virtio_ccw_get_config(struct virtio_device *vdev,
 	if (ret)
 		goto out_free;
 
-	memcpy(vcdev->config, config_area, sizeof(vcdev->config));
-	memcpy(buf, &vcdev->config[offset], len);
+	memcpy(vcdev->config, config_area, offset + len);
+	if (buf)
+		memcpy(buf, &vcdev->config[offset], len);
+	if (vcdev->config_ready < offset + len)
+		vcdev->config_ready = offset + len;
 
 out_free:
 	kfree(config_area);
@@ -857,6 +861,9 @@ static void virtio_ccw_set_config(struct virtio_device *vdev,
 	if (!config_area)
 		goto out_free;
 
+	/* Make sure we don't overwrite fields. */
+	if (vcdev->config_ready < offset)
+		virtio_ccw_get_config(vdev, 0, NULL, offset);
 	memcpy(&vcdev->config[offset], buf, len);
 	/* Write the config area to the host. */
 	memcpy(config_area, vcdev->config, sizeof(vcdev->config));

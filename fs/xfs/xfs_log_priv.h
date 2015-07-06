@@ -409,7 +409,7 @@ struct xlog {
 
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
-	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
+	void			*l_iclog_bak[XLOG_MAX_ICLOGS];
 #endif
 
 };

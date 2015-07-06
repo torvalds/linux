@@ -29,6 +29,7 @@ Required properties:
     - "renesas,scifa" for generic SCIFA compatible UART.
     - "renesas,scifb" for generic SCIFB compatible UART.
     - "renesas,hscif" for generic HSCIF compatible UART.
+    - "renesas,sci" for generic SCI compatible UART.
 
     When compatible with the generic version, nodes must list the
     SoC-specific version corresponding to the platform first followed by the
@@ -44,6 +45,11 @@ Required properties:
 Note: Each enabled SCIx UART should have an alias correctly numbered in the
 "aliases" node.
 
+Optional properties:
+  - dmas: Must contain a list of two references to DMA specifiers, one for
+	  transmission, and one for reception.
+  - dma-names: Must contain a list of two DMA names, "tx" and "rx".
+
 Example:
 	aliases {
 		serial0 = &scifa0;
@@ -56,4 +62,6 @@ Example:
 		interrupts = <0 144 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7790_CLK_SCIFA0>;
 		clock-names = "sci_ick";
+		dmas = <&dmac0 0x21>, <&dmac0 0x22>;
+		dma-names = "tx", "rx";
 	};

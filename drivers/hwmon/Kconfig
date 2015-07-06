@@ -371,6 +371,17 @@ config SENSORS_DS1621
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1621.
 
+config SENSORS_DELL_SMM
+	tristate "Dell laptop SMM BIOS hwmon driver"
+	depends on X86
+	help
+	  This hwmon driver adds support for reporting temperature of different
+	  sensors and controls the fans on Dell laptops via System Management
+	  Mode provided by Dell BIOS.
+
+	  When option I8K is also enabled this driver provides legacy /proc/i8k
+	  userspace interface for i8kutils package.
+
 config SENSORS_DA9052_ADC
 	tristate "Dialog DA9052/DA9053 ADC"
 	depends on PMIC_DA9052
@@ -509,7 +520,7 @@ config SENSORS_G762
 
 config SENSORS_GPIO_FAN
 	tristate "GPIO fan"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for fans connected to GPIO lines.
@@ -1106,8 +1117,8 @@ config SENSORS_NTC_THERMISTOR
 	  send notifications about the temperature.
 
 	  Currently, this driver supports
-	  NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, and NCP15WL333
-	  from Murata and B57330V2103 from EPCOS.
+	  NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, NCP15WL333,
+	  and NCP03WF104 from Murata and B57330V2103 from EPCOS.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ntc-thermistor.
@@ -1186,7 +1197,7 @@ config SENSORS_PWM_FAN
 
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  If you say yes here you get support for the Sensiron SHT10, SHT11,
 	  SHT15, SHT71, SHT75 humidity and temperature sensors.
@@ -1451,6 +1462,16 @@ config SENSORS_INA2XX
 	  Default value for Rshunt is 10 mOhms.
 	  This driver can also be built as a module.  If so, the module
 	  will be called ina2xx.
+
+config SENSORS_TC74
+	tristate "Microchip TC74"
+	depends on I2C
+	help
+	  If you say yes here you get support for Microchip TC74 single
+	  input temperature sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tc74.
 
 config SENSORS_THMC50
 	tristate "Texas Instruments THMC50 / Analog Devices ADM1022"

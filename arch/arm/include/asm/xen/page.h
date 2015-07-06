@@ -12,7 +12,6 @@
 #include <xen/interface/grant_table.h>
 
 #define phys_to_machine_mapping_valid(pfn) (1)
-#define mfn_to_virt(m)			(__va(mfn_to_pfn(m) << PAGE_SHIFT))
 
 #define pte_mfn	    pte_pfn
 #define mfn_pte	    pfn_pte

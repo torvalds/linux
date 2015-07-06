@@ -104,7 +104,7 @@ xfs_readlink_bmap(
 			cur_chunk += sizeof(struct xfs_dsymlink_hdr);
 		}
 
-		memcpy(link + offset, bp->b_addr, byte_cnt);
+		memcpy(link + offset, cur_chunk, byte_cnt);
 
 		pathlen -= byte_cnt;
 		offset += byte_cnt;
@@ -178,7 +178,6 @@ xfs_symlink(
 	struct xfs_bmap_free	free_list;
 	xfs_fsblock_t		first_block;
 	bool                    unlock_dp_on_error = false;
-	uint			cancel_flags;
 	int			committed;
 	xfs_fileoff_t		first_fsb;
 	xfs_filblks_t		fs_blocks;
@@ -224,7 +223,6 @@ xfs_symlink(
 		return error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SYMLINK);
-	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 	/*
 	 * The symlink will fit into the inode data fork?
 	 * There can't be any attributes so we get the whole variable part.
@@ -239,10 +237,8 @@ xfs_symlink(
 		resblks = 0;
 		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_symlink, 0, 0);
 	}
-	if (error) {
-		cancel_flags = 0;
+	if (error)
 		goto out_trans_cancel;
-	}
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 	unlock_dp_on_error = true;
@@ -394,7 +390,7 @@ xfs_symlink(
 	if (error)
 		goto out_bmap_cancel;
 
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp);
 	if (error)
 		goto out_release_inode;
 
@@ -407,9 +403,8 @@ xfs_symlink(
 
 out_bmap_cancel:
 	xfs_bmap_cancel(&free_list);
-	cancel_flags |= XFS_TRANS_ABORT;
 out_trans_cancel:
-	xfs_trans_cancel(tp, cancel_flags);
+	xfs_trans_cancel(tp);
 out_release_inode:
 	/*
 	 * Wait until after the current transaction is aborted to finish the
@@ -464,7 +459,7 @@ xfs_inactive_symlink_rmt(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -533,7 +528,7 @@ xfs_inactive_symlink_rmt(
 	/*
 	 * Commit the transaction containing extent freeing and EFDs.
 	 */
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp);
 	if (error) {
 		ASSERT(XFS_FORCED_SHUTDOWN(mp));
 		goto error_unlock;
@@ -552,7 +547,7 @@ xfs_inactive_symlink_rmt(
 error_bmap_cancel:
 	xfs_bmap_cancel(&free_list);
 error_trans_cancel:
-	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
+	xfs_trans_cancel(tp);
 error_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;

@@ -83,8 +83,8 @@ build-test:
 #
 # All other targets get passed through:
 #
-%:
+%: FORCE
 	$(print_msg)
 	$(make)
 
-.PHONY: tags TAGS
+.PHONY: tags TAGS FORCE Makefile

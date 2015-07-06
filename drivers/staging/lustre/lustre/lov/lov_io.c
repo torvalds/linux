@@ -70,7 +70,7 @@ static void lov_io_sub_fini(const struct lu_env *env, struct lov_io *lio,
 		if (sub->sub_stripe == lio->lis_single_subio_index)
 			lio->lis_single_subio_index = -1;
 		else if (!sub->sub_borrowed)
-			OBD_FREE_PTR(sub->sub_io);
+			kfree(sub->sub_io);
 		sub->sub_io = NULL;
 	}
 	if (sub->sub_env != NULL && !IS_ERR(sub->sub_env)) {
@@ -179,7 +179,8 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 				sub->sub_io = &lio->lis_single_subio;
 				lio->lis_single_subio_index = stripe;
 			} else {
-				OBD_ALLOC_PTR(sub->sub_io);
+				sub->sub_io = kzalloc(sizeof(*sub->sub_io),
+						      GFP_NOFS);
 				if (sub->sub_io == NULL)
 					result = -ENOMEM;
 			}
@@ -285,8 +286,10 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 	 * Need to be optimized, we can't afford to allocate a piece of memory
 	 * when writing a page. -jay
 	 */
-	OBD_ALLOC_LARGE(lio->lis_subs,
-			lsm->lsm_stripe_count * sizeof(lio->lis_subs[0]));
+	lio->lis_subs =
+		libcfs_kvzalloc(lsm->lsm_stripe_count *
+				sizeof(lio->lis_subs[0]),
+				GFP_NOFS);
 	if (lio->lis_subs != NULL) {
 		lio->lis_nr_subios = lio->lis_stripe_count;
 		lio->lis_single_subio_index = -1;
@@ -359,8 +362,7 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 	if (lio->lis_subs != NULL) {
 		for (i = 0; i < lio->lis_nr_subios; i++)
 			lov_io_sub_fini(env, lio, &lio->lis_subs[i]);
-		OBD_FREE_LARGE(lio->lis_subs,
-			 lio->lis_nr_subios * sizeof(lio->lis_subs[0]));
+		kvfree(lio->lis_subs);
 		lio->lis_nr_subios = 0;
 	}
 
@@ -603,8 +605,10 @@ static int lov_io_submit(const struct lu_env *env,
 
 	LASSERT(lio->lis_subs != NULL);
 	if (alloc) {
-		OBD_ALLOC_LARGE(stripes_qin,
-				sizeof(*stripes_qin) * lio->lis_nr_subios);
+		stripes_qin =
+			libcfs_kvzalloc(sizeof(*stripes_qin) *
+					lio->lis_nr_subios,
+					GFP_NOFS);
 		if (stripes_qin == NULL)
 			return -ENOMEM;
 
@@ -657,8 +661,7 @@ static int lov_io_submit(const struct lu_env *env,
 	}
 
 	if (alloc) {
-		OBD_FREE_LARGE(stripes_qin,
-			 sizeof(*stripes_qin) * lio->lis_nr_subios);
+		kvfree(stripes_qin);
 	} else {
 		int i;
 

@@ -45,8 +45,6 @@
 /* Out-of-range value for node signature */
 #define INVALID_NODE_SIG	0x10000
 
-#define NODE_HTABLE_SIZE	512
-
 /* Flags used to take different actions according to flag type
  * TIPC_WAIT_PEER_LINKS_DOWN: wait to see that peer's links are down
  * TIPC_WAIT_OWN_LINKS_DOWN: wait until peer node is declared down

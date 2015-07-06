@@ -441,8 +441,8 @@ static int miphy365x_init(struct phy *phy)
 	return ret;
 }
 
-int miphy365x_get_addr(struct device *dev, struct miphy365x_phy *miphy_phy,
-		       int index)
+static int miphy365x_get_addr(struct device *dev,
+		struct miphy365x_phy *miphy_phy, int index)
 {
 	struct device_node *phynode = miphy_phy->phy->dev.of_node;
 	const char *name;
@@ -475,11 +475,6 @@ static struct phy *miphy365x_xlate(struct device *dev,
 	struct miphy365x_phy *miphy_phy = NULL;
 	struct device_node *phynode = args->np;
 	int ret, index;
-
-	if (!of_device_is_available(phynode)) {
-		dev_warn(dev, "Requested PHY is disabled\n");
-		return ERR_PTR(-ENODEV);
-	}
 
 	if (args->args_count != 1) {
 		dev_err(dev, "Invalid number of cells in 'phy' property\n");

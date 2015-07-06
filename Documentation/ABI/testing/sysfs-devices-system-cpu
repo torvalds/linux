@@ -162,7 +162,7 @@ Description:	Discover CPUs in the same CPU frequency coordination domain
 What:		/sys/devices/system/cpu/cpu*/cache/index3/cache_disable_{0,1}
 Date:		August 2008
 KernelVersion:	2.6.27
-Contact:	discuss@x86-64.org
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Disable L3 cache indices
 
 		These files exist in every CPU's cache/index3 directory. Each
@@ -243,7 +243,7 @@ Description:	Parameters for the CPU cache attributes
 		coherency_line_size: the minimum amount of data in bytes that gets
 				     transferred from memory to cache
 
-		level: the cache hierarcy in the multi-level cache configuration
+		level: the cache hierarchy in the multi-level cache configuration
 
 		number_of_sets: total number of sets in the cache, a set is a
 				collection of cache lines with the same cache index

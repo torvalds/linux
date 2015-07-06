@@ -322,8 +322,6 @@ struct iwl_lq_sta {
 	struct iwl_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
 	u8 tx_agg_tid_en;
 
-	/* used to be in sta_info */
-	int last_txrate_idx;
 	/* last tx rate_n_flags */
 	u32 last_rate_n_flags;
 	/* packets destined for this STA are aggregated */

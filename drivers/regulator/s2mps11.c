@@ -515,7 +515,7 @@ static int s2mps14_regulator_enable(struct regulator_dev *rdev)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 			rdev->desc->enable_mask, val);
@@ -538,7 +538,7 @@ static int s2mps14_regulator_set_suspend_disable(struct regulator_dev *rdev)
 		default:
 			state = S2MPS14_ENABLE_SUSPEND;
 			break;
-		};
+		}
 		break;
 	case S2MPU02:
 		switch (rdev_id) {
@@ -552,11 +552,11 @@ static int s2mps14_regulator_set_suspend_disable(struct regulator_dev *rdev)
 		default:
 			state = S2MPU02_ENABLE_SUSPEND;
 			break;
-		};
+		}
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	ret = regmap_read(rdev->regmap, rdev->desc->enable_reg, &val);
 	if (ret < 0)
@@ -977,7 +977,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Invalid device type: %u\n",
 				    s2mps11->dev_type);
 		return -EINVAL;
-	};
+	}
 
 	s2mps11->ext_control_gpio = devm_kmalloc(&pdev->dev,
 			sizeof(*s2mps11->ext_control_gpio) * s2mps11->rdev_num,

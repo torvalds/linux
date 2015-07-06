@@ -348,7 +348,7 @@ static void s3c24xx_serial_start_next_tx(struct s3c24xx_uart_port *ourport)
 		s3c24xx_serial_start_tx_dma(ourport, count);
 }
 
-void s3c24xx_serial_start_tx(struct uart_port *port)
+static void s3c24xx_serial_start_tx(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	struct circ_buf *xmit = &port->state->xmit;
@@ -2337,7 +2337,7 @@ static struct s3c24xx_serial_drv_data exynos5433_serial_drv_data = {
 #define EXYNOS5433_SERIAL_DRV_DATA (kernel_ulong_t)NULL
 #endif
 
-static struct platform_device_id s3c24xx_serial_driver_ids[] = {
+static const struct platform_device_id s3c24xx_serial_driver_ids[] = {
 	{
 		.name		= "s3c2410-uart",
 		.driver_data	= S3C2410_SERIAL_DRV_DATA,

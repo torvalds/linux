@@ -27,9 +27,9 @@ static int imx6q_enter_wait(struct cpuidle_device *dev,
 		 */
 		if (!spin_trylock(&master_lock))
 			goto idle;
-		imx6q_set_lpm(WAIT_UNCLOCKED);
+		imx6_set_lpm(WAIT_UNCLOCKED);
 		cpu_do_idle();
-		imx6q_set_lpm(WAIT_CLOCKED);
+		imx6_set_lpm(WAIT_CLOCKED);
 		spin_unlock(&master_lock);
 		goto done;
 	}

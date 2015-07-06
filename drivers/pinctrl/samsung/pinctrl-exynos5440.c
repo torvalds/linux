@@ -822,9 +822,9 @@ static int exynos5440_pinctrl_register(struct platform_device *pdev,
 		return ret;
 
 	pctl_dev = pinctrl_register(ctrldesc, &pdev->dev, priv);
-	if (!pctl_dev) {
+	if (IS_ERR(pctl_dev)) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(pctl_dev);
 	}
 
 	grange.name = "exynos5440-pctrl-gpio-range";

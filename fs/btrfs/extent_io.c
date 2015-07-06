@@ -1277,7 +1277,12 @@ int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 int clear_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		      unsigned bits, gfp_t mask)
 {
-	return clear_extent_bit(tree, start, end, bits, 0, 0, NULL, mask);
+	int wake = 0;
+
+	if (bits & EXTENT_LOCKED)
+		wake = 1;
+
+	return clear_extent_bit(tree, start, end, bits, wake, 0, NULL, mask);
 }
 
 int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
@@ -2767,8 +2772,6 @@ static int __must_check submit_one_bio(int rw, struct bio *bio,
 	else
 		btrfsic_submit_bio(rw, bio);
 
-	if (bio_flagged(bio, BIO_EOPNOTSUPP))
-		ret = -EOPNOTSUPP;
 	bio_put(bio);
 	return ret;
 }
@@ -4492,6 +4495,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		}
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;
+		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+			flags |= FIEMAP_EXTENT_UNWRITTEN;
 
 		free_extent_map(em);
 		em = NULL;

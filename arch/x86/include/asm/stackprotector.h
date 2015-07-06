@@ -39,7 +39,9 @@
 #include <asm/processor.h>
 #include <asm/percpu.h>
 #include <asm/desc.h>
+
 #include <linux/random.h>
+#include <linux/sched.h>
 
 /*
  * 24 byte read-only segment initializer for stack canary.  Linker

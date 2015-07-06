@@ -198,7 +198,7 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 	 * cancel reordering_ctrl_timer */
 	for (i = 0; i < 16; i++) {
 		preorder_ctrl = &psta->recvreorder_ctrl[i];
-		del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
+		del_timer(&preorder_ctrl->reordering_ctrl_timer);
 	}
 	spin_lock(&(pfree_sta_queue->lock));
 	/* insert into free_sta_queue; 20061114 */
@@ -270,12 +270,10 @@ void r8712_init_bcmc_stainfo(struct _adapter *padapter)
 
 struct sta_info *r8712_get_bcmc_stainfo(struct _adapter *padapter)
 {
-	struct sta_info *psta;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	psta = r8712_get_stainfo(pstapriv, bc_addr);
-	return psta;
+	return r8712_get_stainfo(pstapriv, bc_addr);
 }
 
 

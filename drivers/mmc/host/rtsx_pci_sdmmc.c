@@ -1474,7 +1474,7 @@ static int rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id rtsx_pci_sdmmc_ids[] = {
+static const struct platform_device_id rtsx_pci_sdmmc_ids[] = {
 	{
 		.name = DRV_NAME_RTSX_PCI_SDMMC,
 	}, {

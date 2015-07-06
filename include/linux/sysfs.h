@@ -210,6 +210,10 @@ int __must_check sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
 int __must_check sysfs_move_dir_ns(struct kobject *kobj,
 				   struct kobject *new_parent_kobj,
 				   const void *new_ns);
+int __must_check sysfs_create_mount_point(struct kobject *parent_kobj,
+					  const char *name);
+void sysfs_remove_mount_point(struct kobject *parent_kobj,
+			      const char *name);
 
 int __must_check sysfs_create_file_ns(struct kobject *kobj,
 				      const struct attribute *attr,
@@ -296,6 +300,17 @@ static inline int sysfs_move_dir_ns(struct kobject *kobj,
 				    const void *new_ns)
 {
 	return 0;
+}
+
+static inline int sysfs_create_mount_point(struct kobject *parent_kobj,
+					   const char *name)
+{
+	return 0;
+}
+
+static inline void sysfs_remove_mount_point(struct kobject *parent_kobj,
+					    const char *name)
+{
 }
 
 static inline int sysfs_create_file_ns(struct kobject *kobj,

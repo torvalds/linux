@@ -15,12 +15,14 @@
 #include "cpumap.h"
 #include "perf_regs.h"
 #include "asm/bug.h"
+#include "auxtrace.h"
+#include "thread-stack.h"
 
-static int machines__deliver_event(struct machines *machines,
-				   struct perf_evlist *evlist,
-				   union perf_event *event,
-				   struct perf_sample *sample,
-				   struct perf_tool *tool, u64 file_offset);
+static int perf_session__deliver_event(struct perf_session *session,
+				       union perf_event *event,
+				       struct perf_sample *sample,
+				       struct perf_tool *tool,
+				       u64 file_offset);
 
 static int perf_session__open(struct perf_session *session)
 {
@@ -105,8 +107,8 @@ static int ordered_events__deliver_event(struct ordered_events *oe,
 		return ret;
 	}
 
-	return machines__deliver_event(&session->machines, session->evlist, event->event,
-				       &sample, session->tool, event->file_offset);
+	return perf_session__deliver_event(session, event->event, &sample,
+					   session->tool, event->file_offset);
 }
 
 struct perf_session *perf_session__new(struct perf_data_file *file,
@@ -119,6 +121,7 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 
 	session->repipe = repipe;
 	session->tool   = tool;
+	INIT_LIST_HEAD(&session->auxtrace_index);
 	machines__init(&session->machines);
 	ordered_events__init(&session->ordered_events, ordered_events__deliver_event);
 
@@ -185,6 +188,8 @@ static void perf_session_env__delete(struct perf_session_env *env)
 
 void perf_session__delete(struct perf_session *session)
 {
+	auxtrace__free(session);
+	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
 	perf_session_env__delete(&session->header.env);
@@ -262,6 +267,49 @@ static int process_id_index_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+static int process_event_auxtrace_info_stub(struct perf_tool *tool __maybe_unused,
+				union perf_event *event __maybe_unused,
+				struct perf_session *session __maybe_unused)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
+static int skipn(int fd, off_t n)
+{
+	char buf[4096];
+	ssize_t ret;
+
+	while (n > 0) {
+		ret = read(fd, buf, min(n, (off_t)sizeof(buf)));
+		if (ret <= 0)
+			return ret;
+		n -= ret;
+	}
+
+	return 0;
+}
+
+static s64 process_event_auxtrace_stub(struct perf_tool *tool __maybe_unused,
+				       union perf_event *event,
+				       struct perf_session *session
+				       __maybe_unused)
+{
+	dump_printf(": unhandled!\n");
+	if (perf_data_file__is_pipe(session->file))
+		skipn(perf_data_file__fd(session->file), event->auxtrace.size);
+	return event->auxtrace.size;
+}
+
+static
+int process_event_auxtrace_error_stub(struct perf_tool *tool __maybe_unused,
+				      union perf_event *event __maybe_unused,
+				      struct perf_session *session __maybe_unused)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 void perf_tool__fill_defaults(struct perf_tool *tool)
 {
 	if (tool->sample == NULL)
@@ -278,6 +326,12 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->exit = process_event_stub;
 	if (tool->lost == NULL)
 		tool->lost = perf_event__process_lost;
+	if (tool->lost_samples == NULL)
+		tool->lost_samples = perf_event__process_lost_samples;
+	if (tool->aux == NULL)
+		tool->aux = perf_event__process_aux;
+	if (tool->itrace_start == NULL)
+		tool->itrace_start = perf_event__process_itrace_start;
 	if (tool->read == NULL)
 		tool->read = process_event_sample_stub;
 	if (tool->throttle == NULL)
@@ -298,6 +352,12 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 	}
 	if (tool->id_index == NULL)
 		tool->id_index = process_id_index_stub;
+	if (tool->auxtrace_info == NULL)
+		tool->auxtrace_info = process_event_auxtrace_info_stub;
+	if (tool->auxtrace == NULL)
+		tool->auxtrace = process_event_auxtrace_stub;
+	if (tool->auxtrace_error == NULL)
+		tool->auxtrace_error = process_event_auxtrace_error_stub;
 }
 
 static void swap_sample_id_all(union perf_event *event, void *data)
@@ -390,6 +450,26 @@ static void perf_event__read_swap(union perf_event *event, bool sample_id_all)
 		swap_sample_id_all(event, &event->read + 1);
 }
 
+static void perf_event__aux_swap(union perf_event *event, bool sample_id_all)
+{
+	event->aux.aux_offset = bswap_64(event->aux.aux_offset);
+	event->aux.aux_size   = bswap_64(event->aux.aux_size);
+	event->aux.flags      = bswap_64(event->aux.flags);
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->aux + 1);
+}
+
+static void perf_event__itrace_start_swap(union perf_event *event,
+					  bool sample_id_all)
+{
+	event->itrace_start.pid	 = bswap_32(event->itrace_start.pid);
+	event->itrace_start.tid	 = bswap_32(event->itrace_start.tid);
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->itrace_start + 1);
+}
+
 static void perf_event__throttle_swap(union perf_event *event,
 				      bool sample_id_all)
 {
@@ -438,19 +518,42 @@ void perf_event__attr_swap(struct perf_event_attr *attr)
 {
 	attr->type		= bswap_32(attr->type);
 	attr->size		= bswap_32(attr->size);
-	attr->config		= bswap_64(attr->config);
-	attr->sample_period	= bswap_64(attr->sample_period);
-	attr->sample_type	= bswap_64(attr->sample_type);
-	attr->read_format	= bswap_64(attr->read_format);
-	attr->wakeup_events	= bswap_32(attr->wakeup_events);
-	attr->bp_type		= bswap_32(attr->bp_type);
-	attr->bp_addr		= bswap_64(attr->bp_addr);
-	attr->bp_len		= bswap_64(attr->bp_len);
-	attr->branch_sample_type = bswap_64(attr->branch_sample_type);
-	attr->sample_regs_user	 = bswap_64(attr->sample_regs_user);
-	attr->sample_stack_user  = bswap_32(attr->sample_stack_user);
 
-	swap_bitfield((u8 *) (&attr->read_format + 1), sizeof(u64));
+#define bswap_safe(f, n) 					\
+	(attr->size > (offsetof(struct perf_event_attr, f) + 	\
+		       sizeof(attr->f) * (n)))
+#define bswap_field(f, sz) 			\
+do { 						\
+	if (bswap_safe(f, 0))			\
+		attr->f = bswap_##sz(attr->f);	\
+} while(0)
+#define bswap_field_32(f) bswap_field(f, 32)
+#define bswap_field_64(f) bswap_field(f, 64)
+
+	bswap_field_64(config);
+	bswap_field_64(sample_period);
+	bswap_field_64(sample_type);
+	bswap_field_64(read_format);
+	bswap_field_32(wakeup_events);
+	bswap_field_32(bp_type);
+	bswap_field_64(bp_addr);
+	bswap_field_64(bp_len);
+	bswap_field_64(branch_sample_type);
+	bswap_field_64(sample_regs_user);
+	bswap_field_32(sample_stack_user);
+	bswap_field_32(aux_watermark);
+
+	/*
+	 * After read_format are bitfields. Check read_format because
+	 * we are unable to use offsetof on bitfield.
+	 */
+	if (bswap_safe(read_format, 1))
+		swap_bitfield((u8 *) (&attr->read_format + 1),
+			      sizeof(u64));
+#undef bswap_field_64
+#undef bswap_field_32
+#undef bswap_field
+#undef bswap_safe
 }
 
 static void perf_event__hdr_attr_swap(union perf_event *event,
@@ -478,6 +581,40 @@ static void perf_event__tracing_data_swap(union perf_event *event,
 	event->tracing_data.size = bswap_32(event->tracing_data.size);
 }
 
+static void perf_event__auxtrace_info_swap(union perf_event *event,
+					   bool sample_id_all __maybe_unused)
+{
+	size_t size;
+
+	event->auxtrace_info.type = bswap_32(event->auxtrace_info.type);
+
+	size = event->header.size;
+	size -= (void *)&event->auxtrace_info.priv - (void *)event;
+	mem_bswap_64(event->auxtrace_info.priv, size);
+}
+
+static void perf_event__auxtrace_swap(union perf_event *event,
+				      bool sample_id_all __maybe_unused)
+{
+	event->auxtrace.size      = bswap_64(event->auxtrace.size);
+	event->auxtrace.offset    = bswap_64(event->auxtrace.offset);
+	event->auxtrace.reference = bswap_64(event->auxtrace.reference);
+	event->auxtrace.idx       = bswap_32(event->auxtrace.idx);
+	event->auxtrace.tid       = bswap_32(event->auxtrace.tid);
+	event->auxtrace.cpu       = bswap_32(event->auxtrace.cpu);
+}
+
+static void perf_event__auxtrace_error_swap(union perf_event *event,
+					    bool sample_id_all __maybe_unused)
+{
+	event->auxtrace_error.type = bswap_32(event->auxtrace_error.type);
+	event->auxtrace_error.code = bswap_32(event->auxtrace_error.code);
+	event->auxtrace_error.cpu  = bswap_32(event->auxtrace_error.cpu);
+	event->auxtrace_error.pid  = bswap_32(event->auxtrace_error.pid);
+	event->auxtrace_error.tid  = bswap_32(event->auxtrace_error.tid);
+	event->auxtrace_error.ip   = bswap_64(event->auxtrace_error.ip);
+}
+
 typedef void (*perf_event__swap_op)(union perf_event *event,
 				    bool sample_id_all);
 
@@ -492,11 +629,17 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_THROTTLE]		  = perf_event__throttle_swap,
 	[PERF_RECORD_UNTHROTTLE]	  = perf_event__throttle_swap,
 	[PERF_RECORD_SAMPLE]		  = perf_event__all64_swap,
+	[PERF_RECORD_AUX]		  = perf_event__aux_swap,
+	[PERF_RECORD_ITRACE_START]	  = perf_event__itrace_start_swap,
+	[PERF_RECORD_LOST_SAMPLES]	  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
 	[PERF_RECORD_HEADER_BUILD_ID]	  = NULL,
 	[PERF_RECORD_ID_INDEX]		  = perf_event__all64_swap,
+	[PERF_RECORD_AUXTRACE_INFO]	  = perf_event__auxtrace_info_swap,
+	[PERF_RECORD_AUXTRACE]		  = perf_event__auxtrace_swap,
+	[PERF_RECORD_AUXTRACE_ERROR]	  = perf_event__auxtrace_error_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
@@ -543,6 +686,8 @@ static int process_finished_round(struct perf_tool *tool __maybe_unused,
 				  union perf_event *event __maybe_unused,
 				  struct ordered_events *oe)
 {
+	if (dump_trace)
+		fprintf(stdout, "\n");
 	return ordered_events__flush(oe, OE_FLUSH__ROUND);
 }
 
@@ -921,6 +1066,8 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);
 	case PERF_RECORD_MMAP2:
+		if (event->header.misc & PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT)
+			++evlist->stats.nr_proc_map_timeout;
 		return tool->mmap2(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
 		return tool->comm(tool, event, sample, machine);
@@ -932,16 +1079,42 @@ static int machines__deliver_event(struct machines *machines,
 		if (tool->lost == perf_event__process_lost)
 			evlist->stats.total_lost += event->lost.lost;
 		return tool->lost(tool, event, sample, machine);
+	case PERF_RECORD_LOST_SAMPLES:
+		if (tool->lost_samples == perf_event__process_lost_samples)
+			evlist->stats.total_lost_samples += event->lost_samples.lost;
+		return tool->lost_samples(tool, event, sample, machine);
 	case PERF_RECORD_READ:
 		return tool->read(tool, event, sample, evsel, machine);
 	case PERF_RECORD_THROTTLE:
 		return tool->throttle(tool, event, sample, machine);
 	case PERF_RECORD_UNTHROTTLE:
 		return tool->unthrottle(tool, event, sample, machine);
+	case PERF_RECORD_AUX:
+		return tool->aux(tool, event, sample, machine);
+	case PERF_RECORD_ITRACE_START:
+		return tool->itrace_start(tool, event, sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;
 	}
+}
+
+static int perf_session__deliver_event(struct perf_session *session,
+				       union perf_event *event,
+				       struct perf_sample *sample,
+				       struct perf_tool *tool,
+				       u64 file_offset)
+{
+	int ret;
+
+	ret = auxtrace__process_event(session, event, sample, tool);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		return 0;
+
+	return machines__deliver_event(&session->machines, session->evlist,
+				       event, sample, tool, file_offset);
 }
 
 static s64 perf_session__process_user_event(struct perf_session *session,
@@ -980,6 +1153,15 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		return tool->finished_round(tool, event, oe);
 	case PERF_RECORD_ID_INDEX:
 		return tool->id_index(tool, event, session);
+	case PERF_RECORD_AUXTRACE_INFO:
+		return tool->auxtrace_info(tool, event, session);
+	case PERF_RECORD_AUXTRACE:
+		/* setup for reading amidst mmap */
+		lseek(fd, file_offset + event->header.size, SEEK_SET);
+		return tool->auxtrace(tool, event, session);
+	case PERF_RECORD_AUXTRACE_ERROR:
+		perf_session__auxtrace_error_inc(session, event);
+		return tool->auxtrace_error(tool, event, session);
 	default:
 		return -EINVAL;
 	}
@@ -1034,7 +1216,7 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 		return -1;
 
 	if (lseek(fd, file_offset, SEEK_SET) == (off_t)-1 ||
-	    readn(fd, &buf, hdr_sz) != (ssize_t)hdr_sz)
+	    readn(fd, buf, hdr_sz) != (ssize_t)hdr_sz)
 		return -1;
 
 	event = (union perf_event *)buf;
@@ -1042,12 +1224,12 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 	if (session->header.needs_swap)
 		perf_event_header__bswap(&event->header);
 
-	if (event->header.size < hdr_sz)
+	if (event->header.size < hdr_sz || event->header.size > buf_sz)
 		return -1;
 
 	rest = event->header.size - hdr_sz;
 
-	if (readn(fd, &buf, rest) != (ssize_t)rest)
+	if (readn(fd, buf, rest) != (ssize_t)rest)
 		return -1;
 
 	if (session->header.needs_swap)
@@ -1096,8 +1278,8 @@ static s64 perf_session__process_event(struct perf_session *session,
 			return ret;
 	}
 
-	return machines__deliver_event(&session->machines, evlist, event,
-				       &sample, tool, file_offset);
+	return perf_session__deliver_event(session, event, &sample, tool,
+					   file_offset);
 }
 
 void perf_event_header__bswap(struct perf_event_header *hdr)
@@ -1138,6 +1320,18 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 			    stats->nr_events[PERF_RECORD_LOST]);
 	}
 
+	if (session->tool->lost_samples == perf_event__process_lost_samples) {
+		double drop_rate;
+
+		drop_rate = (double)stats->total_lost_samples /
+			    (double) (stats->nr_events[PERF_RECORD_SAMPLE] + stats->total_lost_samples);
+		if (drop_rate > 0.05) {
+			ui__warning("Processed %" PRIu64 " samples and lost %3.2f%% samples!\n\n",
+				    stats->nr_events[PERF_RECORD_SAMPLE] + stats->total_lost_samples,
+				    drop_rate * 100.0);
+		}
+	}
+
 	if (stats->nr_unknown_events != 0) {
 		ui__warning("Found %u unknown events!\n\n"
 			    "Is this an older tool processing a perf.data "
@@ -1168,6 +1362,32 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 
 	if (oe->nr_unordered_events != 0)
 		ui__warning("%u out of order events recorded.\n", oe->nr_unordered_events);
+
+	events_stats__auxtrace_error_warn(stats);
+
+	if (stats->nr_proc_map_timeout != 0) {
+		ui__warning("%d map information files for pre-existing threads were\n"
+			    "not processed, if there are samples for addresses they\n"
+			    "will not be resolved, you may find out which are these\n"
+			    "threads by running with -v and redirecting the output\n"
+			    "to a file.\n"
+			    "The time limit to process proc map is too short?\n"
+			    "Increase it by --proc-map-timeout\n",
+			    stats->nr_proc_map_timeout);
+	}
+}
+
+static int perf_session__flush_thread_stack(struct thread *thread,
+					    void *p __maybe_unused)
+{
+	return thread_stack__flush(thread);
+}
+
+static int perf_session__flush_thread_stacks(struct perf_session *session)
+{
+	return machines__for_each_thread(&session->machines,
+					 perf_session__flush_thread_stack,
+					 NULL);
 }
 
 volatile int session_done;
@@ -1256,10 +1476,17 @@ more:
 done:
 	/* do the final flush for ordered samples */
 	err = ordered_events__flush(oe, OE_FLUSH__FINAL);
+	if (err)
+		goto out_err;
+	err = auxtrace__flush_events(session, tool);
+	if (err)
+		goto out_err;
+	err = perf_session__flush_thread_stacks(session);
 out_err:
 	free(buf);
 	perf_session__warn_about_errors(session);
 	ordered_events__free(&session->ordered_events);
+	auxtrace__free_events(session);
 	return err;
 }
 
@@ -1402,10 +1629,17 @@ more:
 out:
 	/* do the final flush for ordered samples */
 	err = ordered_events__flush(oe, OE_FLUSH__FINAL);
+	if (err)
+		goto out_err;
+	err = auxtrace__flush_events(session, tool);
+	if (err)
+		goto out_err;
+	err = perf_session__flush_thread_stacks(session);
 out_err:
 	ui_progress__finish();
 	perf_session__warn_about_errors(session);
 	ordered_events__free(&session->ordered_events);
+	auxtrace__free_events(session);
 	session->one_mmap = false;
 	return err;
 }
@@ -1488,7 +1722,13 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 {
-	size_t ret = fprintf(fp, "Aggregated stats:\n");
+	size_t ret;
+	const char *msg = "";
+
+	if (perf_header__has_feat(&session->header, HEADER_AUXTRACE))
+		msg = " (excludes AUX area (e.g. instruction trace) decoded / synthesized events)";
+
+	ret = fprintf(fp, "\nAggregated stats:%s\n", msg);
 
 	ret += events_stats__fprintf(&session->evlist->stats, fp);
 	return ret;
@@ -1655,7 +1895,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	err = 0;
 
 out_delete_map:
-	cpu_map__delete(map);
+	cpu_map__put(map);
 	return err;
 }
 

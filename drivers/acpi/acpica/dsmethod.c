@@ -116,6 +116,7 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	walk_state =
 	    acpi_ds_create_walk_state(node->owner_id, NULL, NULL, NULL);
 	if (!walk_state) {
+		acpi_ps_free_op(op);
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
@@ -125,6 +126,7 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 				  obj_desc->method.aml_length, NULL, 0);
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
+		acpi_ps_free_op(op);
 		return_ACPI_STATUS(status);
 	}
 
@@ -133,9 +135,6 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	/* Parse the method, scan for creation of named objects */
 
 	status = acpi_ps_parse_aml(walk_state);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
 
 	acpi_ps_delete_parse_tree(op);
 	return_ACPI_STATUS(status);

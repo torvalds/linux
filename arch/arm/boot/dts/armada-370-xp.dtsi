@@ -149,7 +149,6 @@
 			};
 
 			spi0: spi@10600 {
-				compatible = "marvell,armada-370-spi", "marvell,orion-spi";
 				reg = <0x10600 0x28>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -160,7 +159,6 @@
 			};
 
 			spi1: spi@10680 {
-				compatible = "marvell,armada-370-spi", "marvell,orion-spi";
 				reg = <0x10680 0x28>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -270,7 +268,6 @@
 			};
 
 			eth0: ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
 				reg = <0x70000 0x4000>;
 				interrupts = <8>;
 				clocks = <&gateclk 4>;
@@ -286,7 +283,6 @@
 			};
 
 			eth1: ethernet@74000 {
-				compatible = "marvell,armada-370-neta";
 				reg = <0x74000 0x4000>;
 				interrupts = <10>;
 				clocks = <&gateclk 3>;

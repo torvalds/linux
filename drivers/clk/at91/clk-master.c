@@ -224,7 +224,7 @@ of_at91_clk_master_setup(struct device_node *np, struct at91_pmc *pmc,
 	const char *name = np->name;
 	struct clk_master_characteristics *characteristics;
 
-	num_parents = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	num_parents = of_clk_get_parent_count(np);
 	if (num_parents <= 0 || num_parents > MASTER_SOURCE_MAX)
 		return;
 

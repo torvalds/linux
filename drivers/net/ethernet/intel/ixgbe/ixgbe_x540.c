@@ -202,7 +202,7 @@ s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 		eeprom->semaphore_delay = 10;
 		eeprom->type = ixgbe_flash;
 
-		eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
 				    IXGBE_EEC_SIZE_SHIFT);
 		eeprom->word_size = 1 << (eeprom_size +
@@ -504,8 +504,8 @@ static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw)
 		return status;
 	}
 
-	flup = IXGBE_READ_REG(hw, IXGBE_EEC) | IXGBE_EEC_FLUP;
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, flup);
+	flup = IXGBE_READ_REG(hw, IXGBE_EEC(hw)) | IXGBE_EEC_FLUP;
+	IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), flup);
 
 	status = ixgbe_poll_flash_update_done_X540(hw);
 	if (status == 0)
@@ -514,11 +514,11 @@ static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw)
 		hw_dbg(hw, "Flash update time out\n");
 
 	if (hw->revision_id == 0) {
-		flup = IXGBE_READ_REG(hw, IXGBE_EEC);
+		flup = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 
 		if (flup & IXGBE_EEC_SEC1VAL) {
 			flup |= IXGBE_EEC_FLUP;
-			IXGBE_WRITE_REG(hw, IXGBE_EEC, flup);
+			IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), flup);
 		}
 
 		status = ixgbe_poll_flash_update_done_X540(hw);
@@ -544,7 +544,7 @@ static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw)
 	u32 reg;
 
 	for (i = 0; i < IXGBE_FLUDONE_ATTEMPTS; i++) {
-		reg = IXGBE_READ_REG(hw, IXGBE_EEC);
+		reg = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 		if (reg & IXGBE_EEC_FLUDONE)
 			return 0;
 		udelay(5);
@@ -580,10 +580,10 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 		if (ixgbe_get_swfw_sync_semaphore(hw))
 			return IXGBE_ERR_SWFW_SYNC;
 
-		swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+		swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC(hw));
 		if (!(swfw_sync & (fwmask | swmask | hwmask))) {
 			swfw_sync |= swmask;
-			IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swfw_sync);
+			IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC(hw), swfw_sync);
 			ixgbe_release_swfw_sync_semaphore(hw);
 			break;
 		} else {
@@ -605,13 +605,13 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 	 * corresponding FW/HW bits in the SW_FW_SYNC register.
 	 */
 	if (i >= timeout) {
-		swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+		swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC(hw));
 		if (swfw_sync & (fwmask | hwmask)) {
 			if (ixgbe_get_swfw_sync_semaphore(hw))
 				return IXGBE_ERR_SWFW_SYNC;
 
 			swfw_sync |= swmask;
-			IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swfw_sync);
+			IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC(hw), swfw_sync);
 			ixgbe_release_swfw_sync_semaphore(hw);
 		}
 	}
@@ -635,9 +635,9 @@ void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 
 	ixgbe_get_swfw_sync_semaphore(hw);
 
-	swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+	swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC(hw));
 	swfw_sync &= ~swmask;
-	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swfw_sync);
+	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC(hw), swfw_sync);
 
 	ixgbe_release_swfw_sync_semaphore(hw);
 	usleep_range(5000, 10000);
@@ -660,7 +660,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 		/* If the SMBI bit is 0 when we read it, then the bit will be
 		 * set and we have the semaphore
 		 */
-		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM(hw));
 		if (!(swsm & IXGBE_SWSM_SMBI))
 			break;
 		usleep_range(50, 100);
@@ -674,7 +674,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 
 	/* Now get the semaphore between SW/FW through the REGSMP bit */
 	for (i = 0; i < timeout; i++) {
-		swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+		swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC(hw));
 		if (!(swsm & IXGBE_SWFW_REGSMP))
 			return 0;
 
@@ -696,13 +696,13 @@ static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw)
 
 	/* Release both semaphores by writing 0 to the bits REGSMP and SMBI */
 
-	swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
-	swsm &= ~IXGBE_SWSM_SMBI;
-	IXGBE_WRITE_REG(hw, IXGBE_SWSM, swsm);
-
-	swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+	swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC(hw));
 	swsm &= ~IXGBE_SWFW_REGSMP;
-	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swsm);
+	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC(hw), swsm);
+
+	swsm = IXGBE_READ_REG(hw, IXGBE_SWSM(hw));
+	swsm &= ~IXGBE_SWSM_SMBI;
+	IXGBE_WRITE_REG(hw, IXGBE_SWSM(hw), swsm);
 
 	IXGBE_WRITE_FLUSH(hw);
 }
@@ -850,7 +850,12 @@ static struct ixgbe_phy_operations phy_ops_X540 = {
 	.read_i2c_eeprom        = &ixgbe_read_i2c_eeprom_generic,
 	.write_i2c_eeprom       = &ixgbe_write_i2c_eeprom_generic,
 	.check_overtemp         = &ixgbe_tn_check_overtemp,
+	.set_phy_power          = &ixgbe_set_copper_phy_power,
 	.get_firmware_version   = &ixgbe_get_phy_firmware_version_generic,
+};
+
+static const u32 ixgbe_mvals_X540[IXGBE_MVALS_IDX_LIMIT] = {
+	IXGBE_MVALS_INIT(X540)
 };
 
 struct ixgbe_info ixgbe_X540_info = {
@@ -860,4 +865,5 @@ struct ixgbe_info ixgbe_X540_info = {
 	.eeprom_ops             = &eeprom_ops_X540,
 	.phy_ops                = &phy_ops_X540,
 	.mbx_ops                = &mbx_ops_generic,
+	.mvals			= ixgbe_mvals_X540,
 };

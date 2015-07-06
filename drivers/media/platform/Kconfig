@@ -87,8 +87,8 @@ config VIDEO_OMAP3
 	tristate "OMAP 3 Camera support"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP3
 	depends on HAS_DMA
+	depends on OMAP_IOMMU
 	select ARM_DMA_USE_IOMMU
-	select OMAP_IOMMU
 	select VIDEOBUF2_DMA_CONTIG
 	select MFD_SYSCON
 	---help---
@@ -211,6 +211,16 @@ config VIDEO_SAMSUNG_EXYNOS_GSC
 	select V4L2_MEM2MEM_DEV
 	help
 	  This is a v4l2 driver for Samsung EXYNOS5 SoC G-Scaler.
+
+config VIDEO_STI_BDISP
+	tristate "STMicroelectronics BDISP 2D blitter driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on ARCH_STI || COMPILE_TEST
+	depends on HAVE_DMA_ATTRS
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	  This v4l2 mem2mem driver is a 2D blitter for STMicroelectronics SoC.
 
 config VIDEO_SH_VEU
 	tristate "SuperH VEU mem2mem video processing driver"

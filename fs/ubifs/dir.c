@@ -889,6 +889,7 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 
 	memcpy(ui->data, symname, len);
 	((char *)ui->data)[len] = '\0';
+	inode->i_link = ui->data;
 	/*
 	 * The terminating zero byte is not written to the flash media and it
 	 * is put just to make later in-memory string processing simpler. Thus,

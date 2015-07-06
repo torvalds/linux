@@ -9,6 +9,8 @@
 #include <sound/core.h>
 #include <sound/hdaudio.h>
 
+#define AC_AMP_FAKE_MUTE	0x10	/* fake mute bit set to amp verbs */
+
 int snd_hdac_regmap_init(struct hdac_device *codec);
 void snd_hdac_regmap_exit(struct hdac_device *codec);
 int snd_hdac_regmap_add_vendor_verb(struct hdac_device *codec,

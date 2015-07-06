@@ -321,6 +321,7 @@ static int resizer_configure_output_win(struct vpfe_resizer_device *resizer)
 
 	outformat = &resizer->resizer_a.formats[RESIZER_PAD_SOURCE];
 
+	memset(&output_specs, 0x0, sizeof(struct vpfe_rsz_output_spec));
 	output_specs.vst_y = param->user_config.vst;
 	if (outformat->code == MEDIA_BUS_FMT_YDYUYDYV8_1X16)
 		output_specs.vst_c = param->user_config.vst;

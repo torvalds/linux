@@ -150,7 +150,7 @@ AddressSanitizer dedicates 1/8 of kernel memory to its shadow memory
 (e.g. 16TB to cover 128TB on x86_64) and uses direct mapping with a scale and
 offset to translate a memory address to its corresponding shadow address.
 
-Here is the function witch translate an address to its corresponding shadow
+Here is the function which translates an address to its corresponding shadow
 address:
 
 static inline void *kasan_mem_to_shadow(const void *addr)

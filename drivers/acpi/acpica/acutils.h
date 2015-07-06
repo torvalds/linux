@@ -205,66 +205,6 @@ acpi_status acpi_ut_hardware_initialize(void);
 
 void acpi_ut_subsystem_shutdown(void);
 
-/*
- * utclib - Local implementations of C library functions
- */
-#ifndef ACPI_USE_SYSTEM_CLIBRARY
-
-acpi_size acpi_ut_strlen(const char *string);
-
-char *acpi_ut_strchr(const char *string, int ch);
-
-char *acpi_ut_strcpy(char *dst_string, const char *src_string);
-
-char *acpi_ut_strncpy(char *dst_string,
-		      const char *src_string, acpi_size count);
-
-int acpi_ut_memcmp(const char *buffer1, const char *buffer2, acpi_size count);
-
-int acpi_ut_strncmp(const char *string1, const char *string2, acpi_size count);
-
-int acpi_ut_strcmp(const char *string1, const char *string2);
-
-char *acpi_ut_strcat(char *dst_string, const char *src_string);
-
-char *acpi_ut_strncat(char *dst_string,
-		      const char *src_string, acpi_size count);
-
-u32 acpi_ut_strtoul(const char *string, char **terminator, u32 base);
-
-char *acpi_ut_strstr(char *string1, char *string2);
-
-void *acpi_ut_memcpy(void *dest, const void *src, acpi_size count);
-
-void *acpi_ut_memset(void *dest, u8 value, acpi_size count);
-
-int acpi_ut_to_upper(int c);
-
-int acpi_ut_to_lower(int c);
-
-extern const u8 _acpi_ctype[];
-
-#define _ACPI_XA     0x00	/* extra alphabetic - not supported */
-#define _ACPI_XS     0x40	/* extra space */
-#define _ACPI_BB     0x00	/* BEL, BS, etc. - not supported */
-#define _ACPI_CN     0x20	/* CR, FF, HT, NL, VT */
-#define _ACPI_DI     0x04	/* '0'-'9' */
-#define _ACPI_LO     0x02	/* 'a'-'z' */
-#define _ACPI_PU     0x10	/* punctuation */
-#define _ACPI_SP     0x08	/* space */
-#define _ACPI_UP     0x01	/* 'A'-'Z' */
-#define _ACPI_XD     0x80	/* '0'-'9', 'A'-'F', 'a'-'f' */
-
-#define ACPI_IS_DIGIT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_DI))
-#define ACPI_IS_SPACE(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_SP))
-#define ACPI_IS_XDIGIT(c) (_acpi_ctype[(unsigned char)(c)] & (_ACPI_XD))
-#define ACPI_IS_UPPER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_UP))
-#define ACPI_IS_LOWER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
-#define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_XS | _ACPI_PU))
-#define ACPI_IS_ALPHA(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
-
-#endif				/* !ACPI_USE_SYSTEM_CLIBRARY */
-
 #define ACPI_IS_ASCII(c)  ((c) < 0x80)
 
 /*
@@ -429,6 +369,10 @@ acpi_ut_execute_SUB(struct acpi_namespace_node *device_node,
 acpi_status
 acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 		    struct acpi_pnp_device_id_list ** return_cid_list);
+
+acpi_status
+acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
+		    struct acpi_pnp_device_id **return_id);
 
 /*
  * utlock - reader/writer locks

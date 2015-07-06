@@ -131,7 +131,7 @@ static int keystone_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops keystone_irq_ops = {
+static const struct irq_domain_ops keystone_irq_ops = {
 	.map	= keystone_irq_map,
 	.xlate	= irq_domain_xlate_onecell,
 };
@@ -184,8 +184,7 @@ static int keystone_irq_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, kirq);
 
-	irq_set_chained_handler(kirq->irq, keystone_irq_handler);
-	irq_set_handler_data(kirq->irq, kirq);
+	irq_set_chained_handler_and_data(kirq->irq, keystone_irq_handler, kirq);
 
 	/* clear all source bits */
 	keystone_irq_writel(kirq, ~0x0);

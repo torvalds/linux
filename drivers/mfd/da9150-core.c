@@ -164,7 +164,7 @@ void da9150_bulk_write(struct da9150 *da9150, u16 reg, int count, const u8 *buf)
 }
 EXPORT_SYMBOL_GPL(da9150_bulk_write);
 
-static struct regmap_irq da9150_irqs[] = {
+static const struct regmap_irq da9150_irqs[] = {
 	[DA9150_IRQ_VBUS] = {
 		.reg_offset = 0,
 		.mask = DA9150_E_VBUS_MASK,
@@ -251,7 +251,7 @@ static struct regmap_irq da9150_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip da9150_regmap_irq_chip = {
+static const struct regmap_irq_chip da9150_regmap_irq_chip = {
 	.name = "da9150_irq",
 	.status_base = DA9150_EVENT_E,
 	.mask_base = DA9150_IRQ_MASK_E,

@@ -149,6 +149,7 @@ static void __init e820_print_type(u32 type)
 	case E820_UNUSABLE:
 		printk(KERN_CONT "unusable");
 		break;
+	case E820_PMEM:
 	case E820_PRAM:
 		printk(KERN_CONT "persistent (type %u)", type);
 		break;
@@ -918,8 +919,29 @@ static inline const char *e820_type_to_string(int e820_type)
 	case E820_ACPI:	return "ACPI Tables";
 	case E820_NVS:	return "ACPI Non-volatile Storage";
 	case E820_UNUSABLE:	return "Unusable memory";
-	case E820_PRAM: return "Persistent RAM";
+	case E820_PRAM: return "Persistent Memory (legacy)";
+	case E820_PMEM: return "Persistent Memory";
 	default:	return "reserved";
+	}
+}
+
+static bool do_mark_busy(u32 type, struct resource *res)
+{
+	/* this is the legacy bios/dos rom-shadow + mmio region */
+	if (res->start < (1ULL<<20))
+		return true;
+
+	/*
+	 * Treat persistent memory like device memory, i.e. reserve it
+	 * for exclusive use of a driver
+	 */
+	switch (type) {
+	case E820_RESERVED:
+	case E820_PRAM:
+	case E820_PMEM:
+		return false;
+	default:
+		return true;
 	}
 }
 
@@ -952,9 +974,7 @@ void __init e820_reserve_resources(void)
 		 * pci device BAR resource and insert them later in
 		 * pcibios_resource_survey()
 		 */
-		if (((e820.map[i].type != E820_RESERVED) &&
-		     (e820.map[i].type != E820_PRAM)) ||
-		     res->start < (1ULL<<20)) {
+		if (do_mark_busy(e820.map[i].type, res)) {
 			res->flags |= IORESOURCE_BUSY;
 			insert_resource(&iomem_resource, res);
 		}
@@ -1123,7 +1143,8 @@ void __init memblock_find_dma_reserve(void)
 		nr_pages += end_pfn - start_pfn;
 	}
 
-	for_each_free_mem_range(u, NUMA_NO_NODE, &start, &end, NULL) {
+	for_each_free_mem_range(u, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
+				NULL) {
 		start_pfn = min_t(unsigned long, PFN_UP(start), MAX_DMA_PFN);
 		end_pfn = min_t(unsigned long, PFN_DOWN(end), MAX_DMA_PFN);
 		if (start_pfn < end_pfn)

@@ -59,6 +59,7 @@ static u32 tegra20_fuse_readl(const unsigned int offset)
 	int ret;
 	u32 val = 0;
 	struct dma_async_tx_descriptor *dma_desc;
+	unsigned long time_left;
 
 	mutex_lock(&apb_dma_lock);
 
@@ -82,9 +83,10 @@ static u32 tegra20_fuse_readl(const unsigned int offset)
 
 	dmaengine_submit(dma_desc);
 	dma_async_issue_pending(apb_dma_chan);
-	ret = wait_for_completion_timeout(&apb_dma_wait, msecs_to_jiffies(50));
+	time_left = wait_for_completion_timeout(&apb_dma_wait,
+						msecs_to_jiffies(50));
 
-	if (WARN(ret == 0, "apb read dma timed out"))
+	if (WARN(time_left == 0, "apb read dma timed out"))
 		dmaengine_terminate_all(apb_dma_chan);
 	else
 		val = *apb_buffer;

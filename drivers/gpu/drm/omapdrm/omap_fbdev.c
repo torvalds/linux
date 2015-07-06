@@ -17,10 +17,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_fb_helper.h"
+#include "omap_drv.h"
 
 MODULE_PARM_DESC(ywrap, "Enable ywrap scrolling (omap44xx and later, default 'y')");
 static bool ywrap_enabled = true;

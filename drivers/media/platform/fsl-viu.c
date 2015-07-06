@@ -1664,7 +1664,7 @@ static int viu_resume(struct platform_device *op)
 /*
  * Initialization and module stuff
  */
-static struct of_device_id mpc512x_viu_of_match[] = {
+static const struct of_device_id mpc512x_viu_of_match[] = {
 	{
 		.compatible = "fsl,mpc5121-viu",
 	},

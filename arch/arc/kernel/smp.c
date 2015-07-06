@@ -31,7 +31,7 @@ arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 #endif
 
-struct plat_smp_ops  plat_smp_ops;
+struct plat_smp_ops  __weak plat_smp_ops;
 
 /* XXX: per cpu ? Only needed once in early seconday boot */
 struct task_struct *secondary_idle_tsk;
@@ -182,7 +182,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 /*
  * not supported here
  */
-int __init setup_profiling_timer(unsigned int multiplier)
+int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
 }
@@ -278,8 +278,10 @@ static void ipi_cpu_stop(void)
 	machine_halt();
 }
 
-static inline void __do_IPI(unsigned long msg)
+static inline int __do_IPI(unsigned long msg)
 {
+	int rc = 0;
+
 	switch (msg) {
 	case IPI_RESCHEDULE:
 		scheduler_ipi();
@@ -294,8 +296,10 @@ static inline void __do_IPI(unsigned long msg)
 		break;
 
 	default:
-		pr_warn("IPI with unexpected msg %ld\n", msg);
+		rc = 1;
 	}
+
+	return rc;
 }
 
 /*
@@ -305,6 +309,7 @@ static inline void __do_IPI(unsigned long msg)
 irqreturn_t do_IPI(int irq, void *dev_id)
 {
 	unsigned long pending;
+	unsigned long __maybe_unused copy;
 
 	pr_debug("IPI [%ld] received on cpu %d\n",
 		 *this_cpu_ptr(&ipi_data), smp_processor_id());
@@ -316,11 +321,18 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 	 * "dequeue" the msg corresponding to this IPI (and possibly other
 	 * piggybacked msg from elided IPIs: see ipi_send_msg_one() above)
 	 */
-	pending = xchg(this_cpu_ptr(&ipi_data), 0);
+	copy = pending = xchg(this_cpu_ptr(&ipi_data), 0);
 
 	do {
 		unsigned long msg = __ffs(pending);
-		__do_IPI(msg);
+		int rc;
+
+		rc = __do_IPI(msg);
+#ifdef CONFIG_ARC_IPI_DBG
+		/* IPI received but no valid @msg */
+		if (rc)
+			pr_info("IPI with bogus msg %ld in %ld\n", msg, copy);
+#endif
 		pending &= ~(1U << msg);
 	} while (pending);
 

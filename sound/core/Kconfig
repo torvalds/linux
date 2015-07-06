@@ -6,6 +6,12 @@ config SND_PCM
 	tristate
 	select SND_TIMER
 
+config SND_PCM_ELD
+	bool
+
+config SND_PCM_IEC958
+	bool
+
 config SND_DMAENGINE_PCM
 	tristate
 
@@ -176,9 +182,18 @@ config SND_SUPPORT_OLD_API
 	  Say Y here to support the obsolete ALSA PCM API (ver.0.9.0 rc3
 	  or older).
 
+config SND_PROC_FS
+        bool "Sound Proc FS Support" if EXPERT
+        depends on PROC_FS
+        default y
+        help
+          Say 'N' to disable Sound proc FS, which may reduce code size about
+          9KB on x86_64 platform.
+          If unsure say Y.
+
 config SND_VERBOSE_PROCFS
 	bool "Verbose procfs contents"
-	depends on PROC_FS
+	depends on SND_PROC_FS
 	default y
 	help
 	  Say Y here to include code for verbose procfs contents (provides
@@ -219,9 +234,6 @@ config SND_PCM_XRUN_DEBUG
 	  the process or driver which causes the scheduling gaps.
 
 config SND_VMASTER
-	bool
-
-config SND_KCTL_JACK
 	bool
 
 config SND_DMA_SGBUF

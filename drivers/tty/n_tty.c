@@ -162,6 +162,17 @@ static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 	return put_user(x, ptr);
 }
 
+static inline int tty_copy_to_user(struct tty_struct *tty,
+					void __user *to,
+					const void *from,
+					unsigned long n)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+
+	tty_audit_add_data(tty, to, n, ldata->icanon);
+	return copy_to_user(to, from, n);
+}
+
 /**
  *	n_tty_kick_worker - start input worker (if required)
  *	@tty: terminal
@@ -1179,13 +1190,12 @@ static void n_tty_receive_break(struct tty_struct *tty)
 static void n_tty_receive_overrun(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	char buf[64];
 
 	ldata->num_overrun++;
 	if (time_after(jiffies, ldata->overrun_time + HZ) ||
 			time_after(ldata->overrun_time, jiffies)) {
 		printk(KERN_WARNING "%s: %d input overrun(s)\n",
-			tty_name(tty, buf),
+			tty_name(tty),
 			ldata->num_overrun);
 		ldata->overrun_time = jiffies;
 		ldata->num_overrun = 0;
@@ -1460,8 +1470,6 @@ static void n_tty_receive_char_closing(struct tty_struct *tty, unsigned char c)
 static void
 n_tty_receive_char_flagged(struct tty_struct *tty, unsigned char c, char flag)
 {
-	char buf[64];
-
 	switch (flag) {
 	case TTY_BREAK:
 		n_tty_receive_break(tty);
@@ -1475,7 +1483,7 @@ n_tty_receive_char_flagged(struct tty_struct *tty, unsigned char c, char flag)
 		break;
 	default:
 		printk(KERN_ERR "%s: unknown flag %d\n",
-		       tty_name(tty, buf), flag);
+		       tty_name(tty), flag);
 		break;
 	}
 }
@@ -2070,8 +2078,8 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 
 	size = N_TTY_BUF_SIZE - tail;
 	n = eol - tail;
-	if (n > 4096)
-		n += 4096;
+	if (n > N_TTY_BUF_SIZE)
+		n += N_TTY_BUF_SIZE;
 	n += found;
 	c = n;
 
@@ -2084,12 +2092,12 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 		    __func__, eol, found, n, c, size, more);
 
 	if (n > size) {
-		ret = copy_to_user(*b, read_buf_addr(ldata, tail), size);
+		ret = tty_copy_to_user(tty, *b, read_buf_addr(ldata, tail), size);
 		if (ret)
 			return -EFAULT;
-		ret = copy_to_user(*b + size, ldata->read_buf, n - size);
+		ret = tty_copy_to_user(tty, *b + size, ldata->read_buf, n - size);
 	} else
-		ret = copy_to_user(*b, read_buf_addr(ldata, tail), n);
+		ret = tty_copy_to_user(tty, *b, read_buf_addr(ldata, tail), n);
 
 	if (ret)
 		return -EFAULT;

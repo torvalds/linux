@@ -217,7 +217,7 @@
 			m25p80@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "st,m25p80";
+				compatible = "st,m25p80", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <20000000>;
 				mode = <0>;

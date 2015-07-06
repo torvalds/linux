@@ -113,10 +113,12 @@ struct ehca_qp *ehca_cq_get_qp(struct ehca_cq *cq, int real_qp_num)
 	return ret;
 }
 
-struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
+struct ib_cq *ehca_create_cq(struct ib_device *device,
+			     const struct ib_cq_init_attr *attr,
 			     struct ib_ucontext *context,
 			     struct ib_udata *udata)
 {
+	int cqe = attr->cqe;
 	static const u32 additional_cqe = 20;
 	struct ib_cq *cq;
 	struct ehca_cq *my_cq;
@@ -130,6 +132,9 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 	u64 rpage, cqx_fec, h_ret;
 	int ipz_rc, i;
 	unsigned long flags;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	if (cqe >= 0xFFFFFFFF - 64 - additional_cqe)
 		return ERR_PTR(-EINVAL);

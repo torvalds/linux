@@ -107,7 +107,8 @@ static int altera_gpio_irq_set_type(struct irq_data *d,
 	return -EINVAL;
 }
 
-static unsigned int altera_gpio_irq_startup(struct irq_data *d) {
+static unsigned int altera_gpio_irq_startup(struct irq_data *d)
+{
 	altera_gpio_irq_unmask(d);
 
 	return 0;

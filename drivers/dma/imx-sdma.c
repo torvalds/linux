@@ -420,7 +420,7 @@ static struct sdma_driver_data sdma_imx6q = {
 	.script_addrs = &sdma_script_imx6q,
 };
 
-static struct platform_device_id sdma_devtypes[] = {
+static const struct platform_device_id sdma_devtypes[] = {
 	{
 		.name = "imx25-sdma",
 		.driver_data = (unsigned long)&sdma_imx25,

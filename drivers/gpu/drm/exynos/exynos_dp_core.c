@@ -28,11 +28,10 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_panel.h>
-#include <drm/bridge/ptn3460.h>
 
 #include "exynos_dp_core.h"
-#include "exynos_drm_fimd.h"
 
 #define ctx_from_connector(c)	container_of(c, struct exynos_dp_device, \
 					connector)
@@ -196,7 +195,7 @@ static int exynos_dp_read_edid(struct exynos_dp_device *dp)
 		}
 	}
 
-	dev_err(dp->dev, "EDID Read success!\n");
+	dev_dbg(dp->dev, "EDID Read success!\n");
 	return 0;
 }
 
@@ -954,10 +953,13 @@ static void exynos_dp_connector_destroy(struct drm_connector *connector)
 }
 
 static struct drm_connector_funcs exynos_dp_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = exynos_dp_detect,
 	.destroy = exynos_dp_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int exynos_dp_get_modes(struct drm_connector *connector)
@@ -1066,6 +1068,8 @@ static void exynos_dp_phy_exit(struct exynos_dp_device *dp)
 
 static void exynos_dp_poweron(struct exynos_dp_device *dp)
 {
+	struct exynos_drm_crtc *crtc = dp_to_crtc(dp);
+
 	if (dp->dpms_mode == DRM_MODE_DPMS_ON)
 		return;
 
@@ -1076,7 +1080,8 @@ static void exynos_dp_poweron(struct exynos_dp_device *dp)
 		}
 	}
 
-	fimd_dp_clock_enable(dp_to_crtc(dp), true);
+	if (crtc->ops->clock_enable)
+		crtc->ops->clock_enable(dp_to_crtc(dp), true);
 
 	clk_prepare_enable(dp->clock);
 	exynos_dp_phy_init(dp);
@@ -1087,6 +1092,8 @@ static void exynos_dp_poweron(struct exynos_dp_device *dp)
 
 static void exynos_dp_poweroff(struct exynos_dp_device *dp)
 {
+	struct exynos_drm_crtc *crtc = dp_to_crtc(dp);
+
 	if (dp->dpms_mode != DRM_MODE_DPMS_ON)
 		return;
 
@@ -1102,7 +1109,8 @@ static void exynos_dp_poweroff(struct exynos_dp_device *dp)
 	exynos_dp_phy_exit(dp);
 	clk_disable_unprepare(dp->clock);
 
-	fimd_dp_clock_enable(dp_to_crtc(dp), false);
+	if (crtc->ops->clock_enable)
+		crtc->ops->clock_enable(dp_to_crtc(dp), false);
 
 	if (dp->panel) {
 		if (drm_panel_unprepare(dp->panel))
@@ -1324,7 +1332,6 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *panel_node, *bridge_node, *endpoint;
 	struct exynos_dp_device *dp;
-	int ret;
 
 	dp = devm_kzalloc(&pdev->dev, sizeof(struct exynos_dp_device),
 				GFP_KERNEL);
@@ -1334,11 +1341,6 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	dp->display.type = EXYNOS_DISPLAY_TYPE_LCD;
 	dp->display.ops = &exynos_dp_display_ops;
 	platform_set_drvdata(pdev, dp);
-
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
-					dp->display.type);
-	if (ret)
-		return ret;
 
 	panel_node = of_parse_phandle(dev->of_node, "panel", 0);
 	if (panel_node) {
@@ -1360,18 +1362,12 @@ static int exynos_dp_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 	}
 
-	ret = component_add(&pdev->dev, &exynos_dp_ops);
-	if (ret)
-		exynos_drm_component_del(&pdev->dev,
-						EXYNOS_DEVICE_TYPE_CONNECTOR);
-
-	return ret;
+	return component_add(&pdev->dev, &exynos_dp_ops);
 }
 
 static int exynos_dp_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &exynos_dp_ops);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 
 	return 0;
 }

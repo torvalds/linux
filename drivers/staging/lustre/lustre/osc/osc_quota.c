@@ -232,7 +232,7 @@ int osc_quota_setup(struct obd_device *obd)
 
 int osc_quota_cleanup(struct obd_device *obd)
 {
-	struct client_obd     *cli = &obd->u.cli;
+	struct client_obd *cli = &obd->u.cli;
 	int type;
 
 	for (type = 0; type < MAXQUOTAS; type++)
@@ -245,8 +245,8 @@ int osc_quotactl(struct obd_device *unused, struct obd_export *exp,
 		 struct obd_quotactl *oqctl)
 {
 	struct ptlrpc_request *req;
-	struct obd_quotactl   *oqc;
-	int		    rc;
+	struct obd_quotactl *oqc;
+	int rc;
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_OST_QUOTACTL, LUSTRE_OST_VERSION,
@@ -285,10 +285,10 @@ int osc_quotactl(struct obd_device *unused, struct obd_export *exp,
 int osc_quotacheck(struct obd_device *unused, struct obd_export *exp,
 		   struct obd_quotactl *oqctl)
 {
-	struct client_obd       *cli = &exp->exp_obd->u.cli;
-	struct ptlrpc_request   *req;
-	struct obd_quotactl     *body;
-	int		      rc;
+	struct client_obd *cli = &exp->exp_obd->u.cli;
+	struct ptlrpc_request *req;
+	struct obd_quotactl *body;
+	int rc;
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_OST_QUOTACHECK, LUSTRE_OST_VERSION,

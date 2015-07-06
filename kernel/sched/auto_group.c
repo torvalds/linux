@@ -1,5 +1,3 @@
-#ifdef CONFIG_SCHED_AUTOGROUP
-
 #include "sched.h"
 
 #include <linux/proc_fs.h>
@@ -141,7 +139,7 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 
 	p->signal->autogroup = autogroup_kref_get(ag);
 
-	if (!ACCESS_ONCE(sysctl_sched_autogroup_enabled))
+	if (!READ_ONCE(sysctl_sched_autogroup_enabled))
 		goto out;
 
 	for_each_thread(p, t)
@@ -249,5 +247,3 @@ int autogroup_path(struct task_group *tg, char *buf, int buflen)
 	return snprintf(buf, buflen, "%s-%ld", "/autogroup", tg->autogroup->id);
 }
 #endif /* CONFIG_SCHED_DEBUG */
-
-#endif /* CONFIG_SCHED_AUTOGROUP */

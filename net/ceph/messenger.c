@@ -278,7 +278,6 @@ static void _ceph_msgr_exit(void)
 	ceph_msgr_slab_exit();
 
 	BUG_ON(zero_page == NULL);
-	kunmap(zero_page);
 	page_cache_release(zero_page);
 	zero_page = NULL;
 }
@@ -480,8 +479,8 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 	int ret;
 
 	BUG_ON(con->sock);
-	ret = sock_create_kern(con->peer_addr.in_addr.ss_family, SOCK_STREAM,
-			       IPPROTO_TCP, &sock);
+	ret = sock_create_kern(&init_net, con->peer_addr.in_addr.ss_family,
+			       SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret)
 		return ret;
 	sock->sk->sk_allocation = GFP_NOFS;
@@ -1545,7 +1544,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 		page = ceph_msg_data_next(&msg->cursor, &page_offset, &length,
 							&last_piece);
 		ret = ceph_tcp_sendpage(con->sock, page, page_offset,
-				      length, last_piece);
+					length, !last_piece);
 		if (ret <= 0) {
 			if (do_datacrc)
 				msg->footer.data_crc = cpu_to_le32(crc);

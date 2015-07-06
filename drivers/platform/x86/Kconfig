@@ -71,9 +71,10 @@ config ASUS_LAPTOP
 	depends on ACPI
 	select LEDS_CLASS
 	select NEW_LEDS
-	select BACKLIGHT_CLASS_DEVICE
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
 	select INPUT_POLLDEV
 	---help---
@@ -95,6 +96,7 @@ config DELL_LAPTOP
 	depends on X86
 	depends on DCDBAS
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
 	depends on SERIO_I8042
 	select POWER_SUPPLY
@@ -109,6 +111,7 @@ config DELL_WMI
 	tristate "Dell WMI extras"
 	depends on ACPI_WMI
 	depends on INPUT
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
 	---help---
 	  Say Y here if you want to support WMI-based hotkeys on Dell laptops.
@@ -138,12 +141,29 @@ config DELL_SMO8800
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-smo8800.
 
+config DELL_RBTN
+	tristate "Dell Airplane Mode Switch driver"
+	depends on ACPI
+	depends on INPUT
+	depends on RFKILL
+	---help---
+	  Say Y here if you want to support Dell Airplane Mode Switch ACPI
+	  device on Dell laptops. Sometimes it has names: DELLABCE or DELRBTN.
+	  This driver register rfkill device or input hotkey device depending
+	  on hardware type (hw switch slider or keyboard toggle button). For
+	  rfkill devices it receive HW switch events and set correct hard
+	  rfkill state.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-rbtn.
+
 
 config FUJITSU_LAPTOP
 	tristate "Fujitsu Laptop Extras"
 	depends on ACPI
 	depends on INPUT
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on LEDS_CLASS || LEDS_CLASS=n
 	---help---
 	  This is a driver for laptops built by Fujitsu:
@@ -247,6 +267,7 @@ config MSI_LAPTOP
 	tristate "MSI Laptop Extras"
 	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL
 	depends on INPUT && SERIO_I8042
 	select INPUT_SPARSEKMAP
@@ -280,6 +301,7 @@ config COMPAL_LAPTOP
 	tristate "Compal (and others) Laptop Extras"
 	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL
 	depends on HWMON
 	depends on POWER_SUPPLY
@@ -296,7 +318,8 @@ config COMPAL_LAPTOP
 config SONY_LAPTOP
 	tristate "Sony Laptop Extras"
 	depends on ACPI
-	select BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	depends on RFKILL
 	  ---help---
@@ -321,6 +344,7 @@ config IDEAPAD_LAPTOP
 	depends on RFKILL && INPUT
 	depends on SERIO_I8042
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
 	help
 	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
@@ -331,8 +355,8 @@ config THINKPAD_ACPI
 	depends on ACPI
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
-	select BACKLIGHT_LCD_SUPPORT
-	select BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on BACKLIGHT_CLASS_DEVICE
 	select HWMON
 	select NVRAM
 	select NEW_LEDS
@@ -500,8 +524,9 @@ config EEEPC_LAPTOP
 	depends on ACPI
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on HOTPLUG_PCI
-	select BACKLIGHT_CLASS_DEVICE
+	depends on BACKLIGHT_CLASS_DEVICE
 	select HWMON
 	select LEDS_CLASS
 	select NEW_LEDS
@@ -587,6 +612,7 @@ config MSI_WMI
 	depends on ACPI_WMI
 	depends on INPUT
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
 	help
 	 Say Y here if you want to support WMI-based hotkeys on MSI laptops.
@@ -612,7 +638,6 @@ config ACPI_TOSHIBA
 	select NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
-	depends on RFKILL || RFKILL = n
 	depends on SERIO_I8042 || SERIO_I8042 = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_POLLDEV
@@ -643,6 +668,7 @@ config ACPI_TOSHIBA
 config TOSHIBA_BT_RFKILL
 	tristate "Toshiba Bluetooth RFKill switch support"
 	depends on ACPI
+	depends on RFKILL || RFKILL = n
 	---help---
 	  This driver adds support for Bluetooth events for the RFKill
 	  switch on modern Toshiba laptops with full ACPI support and
@@ -660,7 +686,7 @@ config TOSHIBA_HAPS
 	depends on ACPI
 	---help---
 	  This driver adds support for the built-in accelerometer
-	  found on recent Toshiba laptops equiped with HID TOS620A
+	  found on recent Toshiba laptops equipped with HID TOS620A
 	  device.
 
 	  This driver receives ACPI notify events 0x80 when the sensor
@@ -669,7 +695,7 @@ config TOSHIBA_HAPS
 	  been stabilized.
 
 	  Also provides sysfs entries to get/set the desired protection
-	  level and reseting the HDD protection interface.
+	  level and resetting the HDD protection interface.
 
 	  If you have a recent Toshiba laptop with a built-in accelerometer
 	  device, say Y.
@@ -824,6 +850,7 @@ config MXM_WMI
 config INTEL_OAKTRAIL
 	tristate "Intel Oaktrail Platform Extras"
 	depends on ACPI
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL && BACKLIGHT_CLASS_DEVICE && ACPI
 	---help---
 	  Intel Oaktrail platform need this driver to provide interfaces to
@@ -884,5 +911,12 @@ config PVPANIC
 	  This driver provides support for the pvpanic device.  pvpanic is
 	  a paravirtualized device provided by QEMU; it lets a virtual machine
 	  (guest) communicate panic events to the host.
+
+config INTEL_PMC_IPC
+	tristate "Intel PMC IPC Driver"
+	---help---
+	This driver provides support for PMC control on some Intel platforms.
+	The PMC is an ARC processor which defines IPC commands for communication
+	with other entities in the CPU.
 
 endif # X86_PLATFORM_DEVICES

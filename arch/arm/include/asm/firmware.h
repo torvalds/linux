@@ -34,6 +34,10 @@ struct firmware_ops {
 	 */
 	int (*set_cpu_boot_addr)(int cpu, unsigned long boot_addr);
 	/*
+	 * Gets boot address of specified physical CPU
+	 */
+	int (*get_cpu_boot_addr)(int cpu, unsigned long *boot_addr);
+	/*
 	 * Boots specified physical CPU
 	 */
 	int (*cpu_boot)(int cpu);

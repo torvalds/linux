@@ -8,6 +8,7 @@
  * for more details.
  */
 
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
@@ -18,7 +19,9 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#define ALTERA_TIMER_STATUS_REG		0
+#define ALTR_TIMER_COMPATIBLE		"altr,timer-1.0"
+
+#define ALTERA_TIMER_STATUS_REG	0
 #define ALTERA_TIMER_CONTROL_REG	4
 #define ALTERA_TIMER_PERIODL_REG	8
 #define ALTERA_TIMER_PERIODH_REG	12
@@ -106,6 +109,7 @@ cycles_t get_cycles(void)
 {
 	return nios2_timer_read(&nios2_cs.cs);
 }
+EXPORT_SYMBOL(get_cycles);
 
 static void nios2_timer_start(struct nios2_timer *timer)
 {
@@ -302,7 +306,16 @@ void read_persistent_clock(struct timespec *ts)
 
 void __init time_init(void)
 {
+	struct device_node *np;
+	int count = 0;
+
+	for_each_compatible_node(np, NULL,  ALTR_TIMER_COMPATIBLE)
+		count++;
+
+	if (count < 2)
+		panic("%d timer is found, it needs 2 timers in system\n", count);
+
 	clocksource_of_init();
 }
 
-CLOCKSOURCE_OF_DECLARE(nios2_timer, "altr,timer-1.0", nios2_time_init);
+CLOCKSOURCE_OF_DECLARE(nios2_timer, ALTR_TIMER_COMPATIBLE, nios2_time_init);

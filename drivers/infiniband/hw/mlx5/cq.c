@@ -590,8 +590,7 @@ static int alloc_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf,
 {
 	int err;
 
-	err = mlx5_buf_alloc(dev->mdev, nent * cqe_size,
-			     PAGE_SIZE * 2, &buf->buf);
+	err = mlx5_buf_alloc(dev->mdev, nent * cqe_size, &buf->buf);
 	if (err)
 		return err;
 
@@ -736,10 +735,13 @@ static void destroy_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq)
 	mlx5_db_free(dev->mdev, &cq->db);
 }
 
-struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev, int entries,
-				int vector, struct ib_ucontext *context,
+struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
+				const struct ib_cq_init_attr *attr,
+				struct ib_ucontext *context,
 				struct ib_udata *udata)
 {
+	int entries = attr->cqe;
+	int vector = attr->comp_vector;
 	struct mlx5_create_cq_mbox_in *cqb = NULL;
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_ib_cq *cq;
@@ -750,11 +752,14 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev, int entries,
 	int eqn;
 	int err;
 
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
+
 	if (entries < 0)
 		return ERR_PTR(-EINVAL);
 
 	entries = roundup_pow_of_two(entries + 1);
-	if (entries > dev->mdev->caps.gen.max_cqes)
+	if (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)))
 		return ERR_PTR(-EINVAL);
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
@@ -921,7 +926,7 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	int err;
 	u32 fsel;
 
-	if (!(dev->mdev->caps.gen.flags & MLX5_DEV_CAP_FLAG_CQ_MODER))
+	if (!MLX5_CAP_GEN(dev->mdev, cq_moderation))
 		return -ENOSYS;
 
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
@@ -1076,7 +1081,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	int uninitialized_var(cqe_size);
 	unsigned long flags;
 
-	if (!(dev->mdev->caps.gen.flags & MLX5_DEV_CAP_FLAG_RESIZE_CQ)) {
+	if (!MLX5_CAP_GEN(dev->mdev, cq_resize)) {
 		pr_info("Firmware does not support resize CQ\n");
 		return -ENOSYS;
 	}
@@ -1085,7 +1090,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		return -EINVAL;
 
 	entries = roundup_pow_of_two(entries + 1);
-	if (entries > dev->mdev->caps.gen.max_cqes + 1)
+	if (entries >  (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)) + 1)
 		return -EINVAL;
 
 	if (entries == ibcq->cqe + 1)

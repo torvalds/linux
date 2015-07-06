@@ -1,5 +1,5 @@
 /* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2014 Intel Corporation.
+ * Copyright(c) 1999 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -98,8 +98,15 @@
 #define E1000_FEXTNVM6_K1_OFF_ENABLE	0x80000000
 /* bit for disabling packet buffer read */
 #define E1000_FEXTNVM7_DISABLE_PB_READ	0x00040000
-
+#define E1000_FEXTNVM7_SIDE_CLK_UNGATE	0x00000004
 #define E1000_FEXTNVM7_DISABLE_SMB_PERST	0x00000020
+#define E1000_FEXTNVM9_IOSFSB_CLKGATE_DIS	0x00000800
+#define E1000_FEXTNVM9_IOSFSB_CLKREQ_DIS	0x00001000
+#define E1000_FEXTNVM11_DISABLE_PB_READ		0x00000200
+#define E1000_FEXTNVM11_DISABLE_MULR_FIX	0x00002000
+
+/* bit24: RXDCTL thresholds granularity: 0 - cache lines, 1 - descriptors */
+#define E1000_RXDCTL_THRESH_UNIT_DESC 0x01000000
 
 #define K1_ENTRY_LATENCY	0
 #define K1_MIN_TIME		1

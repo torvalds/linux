@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/max77686-private.h>
 #include <linux/clk-provider.h>

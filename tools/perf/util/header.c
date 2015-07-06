@@ -869,6 +869,20 @@ static int write_branch_stack(int fd __maybe_unused,
 	return 0;
 }
 
+static int write_auxtrace(int fd, struct perf_header *h,
+			  struct perf_evlist *evlist __maybe_unused)
+{
+	struct perf_session *session;
+	int err;
+
+	session = container_of(h, struct perf_session, header);
+
+	err = auxtrace_index__write(fd, &session->auxtrace_index);
+	if (err < 0)
+		pr_err("Failed to write auxtrace index\n");
+	return err;
+}
+
 static void print_hostname(struct perf_header *ph, int fd __maybe_unused,
 			   FILE *fp)
 {
@@ -1049,8 +1063,7 @@ out:
 	free(buf);
 	return events;
 error:
-	if (events)
-		free_event_desc(events);
+	free_event_desc(events);
 	events = NULL;
 	goto out;
 }
@@ -1151,6 +1164,12 @@ static void print_branch_stack(struct perf_header *ph __maybe_unused,
 	fprintf(fp, "# contains samples with branch stack\n");
 }
 
+static void print_auxtrace(struct perf_header *ph __maybe_unused,
+			   int fd __maybe_unused, FILE *fp)
+{
+	fprintf(fp, "# contains AUX area data (e.g. instruction trace)\n");
+}
+
 static void print_pmu_mappings(struct perf_header *ph, int fd __maybe_unused,
 			       FILE *fp)
 {
@@ -1218,9 +1237,8 @@ static int __event_process_build_id(struct build_id_event *bev,
 				    struct perf_session *session)
 {
 	int err = -1;
-	struct dsos *dsos;
 	struct machine *machine;
-	u16 misc;
+	u16 cpumode;
 	struct dso *dso;
 	enum dso_kernel_type dso_type;
 
@@ -1228,39 +1246,37 @@ static int __event_process_build_id(struct build_id_event *bev,
 	if (!machine)
 		goto out;
 
-	misc = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	cpumode = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	switch (misc) {
+	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
 		dso_type = DSO_TYPE_KERNEL;
-		dsos = &machine->kernel_dsos;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
 		dso_type = DSO_TYPE_GUEST_KERNEL;
-		dsos = &machine->kernel_dsos;
 		break;
 	case PERF_RECORD_MISC_USER:
 	case PERF_RECORD_MISC_GUEST_USER:
 		dso_type = DSO_TYPE_USER;
-		dsos = &machine->user_dsos;
 		break;
 	default:
 		goto out;
 	}
 
-	dso = __dsos__findnew(dsos, filename);
+	dso = machine__findnew_dso(machine, filename);
 	if (dso != NULL) {
 		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
 		dso__set_build_id(dso, &bev->build_id);
 
-		if (!is_kernel_module(filename))
+		if (!is_kernel_module(filename, cpumode))
 			dso->kernel = dso_type;
 
 		build_id__sprintf(dso->build_id, sizeof(dso->build_id),
 				  sbuild_id);
 		pr_debug("build id event received for %s: %s\n",
 			 dso->long_name, sbuild_id);
+		dso__put(dso);
 	}
 
 	err = 0;
@@ -1821,6 +1837,22 @@ out_free:
 	return ret;
 }
 
+static int process_auxtrace(struct perf_file_section *section,
+			    struct perf_header *ph, int fd,
+			    void *data __maybe_unused)
+{
+	struct perf_session *session;
+	int err;
+
+	session = container_of(ph, struct perf_session, header);
+
+	err = auxtrace_index__process(fd, section->size, session,
+				      ph->needs_swap);
+	if (err < 0)
+		pr_err("Failed to process auxtrace index\n");
+	return err;
+}
+
 struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
@@ -1861,6 +1893,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPA(HEADER_BRANCH_STACK,	branch_stack),
 	FEAT_OPP(HEADER_PMU_MAPPINGS,	pmu_mappings),
 	FEAT_OPP(HEADER_GROUP_DESC,	group_desc),
+	FEAT_OPP(HEADER_AUXTRACE,	auxtrace),
 };
 
 struct header_print_data {

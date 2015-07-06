@@ -57,7 +57,8 @@
 #include "llite_internal.h"
 
 struct kmem_cache *ll_file_data_slab;
-struct proc_dir_entry *proc_lustre_fs_root;
+struct dentry *llite_root;
+struct kset *llite_kset;
 
 static LIST_HEAD(ll_super_blocks);
 static DEFINE_SPINLOCK(ll_sb_lock);
@@ -66,7 +67,7 @@ static DEFINE_SPINLOCK(ll_sb_lock);
 #define log2(n) ffz(~(n))
 #endif
 
-static struct ll_sb_info *ll_init_sbi(void)
+static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = NULL;
 	unsigned long pages;
@@ -134,6 +135,8 @@ static struct ll_sb_info *ll_init_sbi(void)
 	atomic_set(&sbi->ll_agl_total, 0);
 	sbi->ll_flags |= LL_SBI_AGL_ENABLED;
 
+	sbi->ll_sb = sb;
+
 	return sbi;
 }
 
@@ -145,7 +148,7 @@ static void ll_free_sbi(struct super_block *sb)
 		spin_lock(&ll_sb_lock);
 		list_del(&sbi->ll_list);
 		spin_unlock(&ll_sb_lock);
-		OBD_FREE(sbi, sizeof(*sbi));
+		kfree(sbi);
 	}
 }
 
@@ -177,15 +180,14 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	osfs = kzalloc(sizeof(*osfs), GFP_NOFS);
 	if (!osfs) {
-		OBD_FREE_PTR(data);
+		kfree(data);
 		return -ENOMEM;
 	}
 
-	if (proc_lustre_fs_root) {
-		err = lprocfs_register_mountpoint(proc_lustre_fs_root, sb,
-						  dt, md);
+	if (llite_root != NULL) {
+		err = ldebugfs_register_mountpoint(llite_root, sb, dt, md);
 		if (err < 0)
-			CERROR("could not register mount in /proc/fs/lustre\n");
+			CERROR("could not register mount in <debugfs>/lustre/llite\n");
 	}
 
 	/* indicate the features supported by this client */
@@ -226,14 +228,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		data->ocd_connect_flags |= OBD_CONNECT_RDONLY;
 	if (sbi->ll_flags & LL_SBI_USER_XATTR)
 		data->ocd_connect_flags |= OBD_CONNECT_XATTR;
-
-#ifdef HAVE_MS_FLOCK_LOCK
-	/* force vfs to use lustre handler for flock() calls - bug 10743 */
-	sb->s_flags |= MS_FLOCK_LOCK;
-#endif
-#ifdef MS_HAS_NEW_AOPS
-	sb->s_flags |= MS_HAS_NEW_AOPS;
-#endif
 
 	if (sbi->ll_flags & LL_SBI_FLOCK)
 		sbi->ll_fop = &ll_file_operations_flock;
@@ -292,11 +286,15 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		char *buf;
 
 		buf = kzalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
+		if (!buf) {
+			err = -ENOMEM;
+			goto out_md_fid;
+		}
 		obd_connect_flags2str(buf, PAGE_CACHE_SIZE,
 				      valid ^ CLIENT_CONNECT_MDT_REQD, ",");
 		LCONSOLE_ERROR_MSG(0x170, "Server %s does not support feature(s) needed for correct operation of this client (%s). Please upgrade server or downgrade client.\n",
 				   sbi->ll_md_exp->exp_obd->obd_name, buf);
-		OBD_FREE(buf, PAGE_CACHE_SIZE);
+		kfree(buf);
 		err = -EPROTO;
 		goto out_md_fid;
 	}
@@ -316,7 +314,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	sb->s_magic = LL_SUPER_MAGIC;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sbi->ll_namelen = osfs->os_namelen;
-	sbi->ll_max_rw_chunk = LL_DEFAULT_MAX_RW_CHUNK;
 
 	if ((sbi->ll_flags & LL_SBI_USER_XATTR) &&
 	    !(data->ocd_connect_flags & OBD_CONNECT_XATTR)) {
@@ -408,7 +405,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (!OBD_FAIL_CHECK(OBD_FAIL_OSC_CONNECT_CKSUM)) {
 		/* OBD_CONNECT_CKSUM should always be set, even if checksums are
 		 * disabled by default, because it can still be enabled on the
-		 * fly via /proc. As a consequence, we still need to come to an
+		 * fly via /sys. As a consequence, we still need to come to an
 		 * agreement on the supported algorithms at connect time */
 		data->ocd_connect_flags |= OBD_CONNECT_CKSUM;
 
@@ -501,7 +498,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	err = md_getattr(sbi->ll_md_exp, op_data, &request);
 	if (oc)
 		capa_put(oc);
-	OBD_FREE_PTR(op_data);
+	kfree(op_data);
 	if (err) {
 		CERROR("%s: md_getattr failed for root: rc = %d\n",
 		       sbi->ll_md_exp->exp_obd->obd_name, err);
@@ -582,10 +579,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		get_uuid2fsid(uuid->uuid, strlen(uuid->uuid), &sbi->ll_fsid);
 	}
 
-	if (data != NULL)
-		OBD_FREE_PTR(data);
-	if (osfs != NULL)
-		OBD_FREE_PTR(osfs);
+	kfree(data);
+	kfree(osfs);
 
 	return err;
 out_root:
@@ -603,11 +598,9 @@ out_md:
 	obd_disconnect(sbi->ll_md_exp);
 	sbi->ll_md_exp = NULL;
 out:
-	if (data != NULL)
-		OBD_FREE_PTR(data);
-	if (osfs != NULL)
-		OBD_FREE_PTR(osfs);
-	lprocfs_unregister_mountpoint(sbi);
+	kfree(data);
+	kfree(osfs);
+	ldebugfs_unregister_mountpoint(sbi);
 	return err;
 }
 
@@ -688,7 +681,7 @@ static void client_common_put_super(struct super_block *sb)
 	 * see LU-2543. */
 	obd_zombie_barrier();
 
-	lprocfs_unregister_mountpoint(sbi);
+	ldebugfs_unregister_mountpoint(sbi);
 
 	obd_fid_fini(sbi->ll_md_exp->exp_obd);
 	obd_disconnect(sbi->ll_md_exp);
@@ -916,8 +909,6 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	char  *dt = NULL, *md = NULL;
 	char  *profilenm = get_profile_name(sb);
 	struct config_llog_instance *cfg;
-	/* %p for void* in printf needs 16+2 characters: 0xffffffffffffffff */
-	const int instlen = sizeof(cfg->cfg_instance) * 2 + 2;
 	int    err;
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p\n", sb);
@@ -929,10 +920,10 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	try_module_get(THIS_MODULE);
 
 	/* client additional sb info */
-	lsi->lsi_llsbi = sbi = ll_init_sbi();
+	lsi->lsi_llsbi = sbi = ll_init_sbi(sb);
 	if (!sbi) {
 		module_put(THIS_MODULE);
-		OBD_FREE_PTR(cfg);
+		kfree(cfg);
 		return -ENOMEM;
 	}
 
@@ -993,16 +984,14 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	err = client_common_fill_super(sb, md, dt, mnt);
 
 out_free:
-	if (md)
-		OBD_FREE(md, strlen(lprof->lp_md) + instlen + 2);
-	if (dt)
-		OBD_FREE(dt, strlen(lprof->lp_dt) + instlen + 2);
+	kfree(md);
+	kfree(dt);
 	if (err)
 		ll_put_super(sb);
 	else if (sbi->ll_flags & LL_SBI_VERBOSE)
 		LCONSOLE_WARN("Mounted %s\n", profilenm);
 
-	OBD_FREE_PTR(cfg);
+	kfree(cfg);
 	return err;
 } /* ll_fill_super */
 
@@ -1126,8 +1115,7 @@ void ll_clear_inode(struct inode *inode)
 		ll_md_real_close(inode, FMODE_READ);
 
 	if (S_ISLNK(inode->i_mode) && lli->lli_symlink_name) {
-		OBD_FREE(lli->lli_symlink_name,
-			 strlen(lli->lli_symlink_name) + 1);
+		kfree(lli->lli_symlink_name);
 		lli->lli_symlink_name = NULL;
 	}
 
@@ -1957,7 +1945,7 @@ void ll_umount_begin(struct super_block *sb)
 		obd_iocontrol(IOC_OSC_SET_ACTIVE, sbi->ll_dt_exp,
 			      sizeof(*ioc_data), ioc_data, NULL);
 
-		OBD_FREE_PTR(ioc_data);
+		kfree(ioc_data);
 	}
 
 	/* Really, we'd like to wait until there are no requests outstanding,
@@ -2236,7 +2224,7 @@ void ll_finish_md_op_data(struct md_op_data *op_data)
 {
 	capa_put(op_data->op_capa1);
 	capa_put(op_data->op_capa2);
-	OBD_FREE_PTR(op_data);
+	kfree(op_data);
 }
 
 int ll_show_options(struct seq_file *seq, struct dentry *dentry)

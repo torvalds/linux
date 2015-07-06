@@ -430,11 +430,9 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	}
 
 	/* allocate the divider */
-	div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
-	if (!div) {
-		pr_err("%s: could not allocate divider clk\n", __func__);
+	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	if (!div)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &clk_divider_ops;

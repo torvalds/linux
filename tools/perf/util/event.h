@@ -52,6 +52,11 @@ struct lost_event {
 	u64 lost;
 };
 
+struct lost_samples_event {
+	struct perf_event_header header;
+	u64 lost;
+};
+
 /*
  * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID
  */
@@ -157,6 +162,8 @@ enum {
 	PERF_IP_FLAG_IN_TX		= 1ULL << 10,
 };
 
+#define PERF_IP_FLAG_CHARS "bcrosyiABEx"
+
 #define PERF_BRANCH_MASK		(\
 	PERF_IP_FLAG_BRANCH		|\
 	PERF_IP_FLAG_CALL		|\
@@ -215,7 +222,15 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_HEADER_BUILD_ID		= 67,
 	PERF_RECORD_FINISHED_ROUND		= 68,
 	PERF_RECORD_ID_INDEX			= 69,
+	PERF_RECORD_AUXTRACE_INFO		= 70,
+	PERF_RECORD_AUXTRACE			= 71,
+	PERF_RECORD_AUXTRACE_ERROR		= 72,
 	PERF_RECORD_HEADER_MAX
+};
+
+enum auxtrace_error_type {
+	PERF_AUXTRACE_ERROR_ITRACE  = 1,
+	PERF_AUXTRACE_ERROR_MAX
 };
 
 /*
@@ -224,6 +239,12 @@ enum perf_user_event_type { /* above any possible kernel type */
  * such "chunks" of lost events is stored in .nr_events[PERF_EVENT_LOST] while
  * total_lost tells exactly how many events the kernel in fact lost, i.e. it is
  * the sum of all struct lost_event.lost fields reported.
+ *
+ * The kernel discards mixed up samples and sends the number in a
+ * PERF_RECORD_LOST_SAMPLES event. The number of lost-samples events is stored
+ * in .nr_events[PERF_RECORD_LOST_SAMPLES] while total_lost_samples tells
+ * exactly how many samples the kernel in fact dropped, i.e. it is the sum of
+ * all struct lost_samples_event.lost fields reported.
  *
  * The total_period is needed because by default auto-freq is used, so
  * multipling nr_events[PERF_EVENT_SAMPLE] by a frequency isn't possible to get
@@ -234,6 +255,7 @@ struct events_stats {
 	u64 total_period;
 	u64 total_non_filtered_period;
 	u64 total_lost;
+	u64 total_lost_samples;
 	u64 total_invalid_chains;
 	u32 nr_events[PERF_RECORD_HEADER_MAX];
 	u32 nr_non_filtered_samples;
@@ -242,6 +264,8 @@ struct events_stats {
 	u32 nr_invalid_chains;
 	u32 nr_unknown_id;
 	u32 nr_unprocessable_samples;
+	u32 nr_auxtrace_errors[PERF_AUXTRACE_ERROR_MAX];
+	u32 nr_proc_map_timeout;
 };
 
 struct attr_event {
@@ -280,6 +304,50 @@ struct id_index_event {
 	struct id_index_entry entries[0];
 };
 
+struct auxtrace_info_event {
+	struct perf_event_header header;
+	u32 type;
+	u32 reserved__; /* For alignment */
+	u64 priv[];
+};
+
+struct auxtrace_event {
+	struct perf_event_header header;
+	u64 size;
+	u64 offset;
+	u64 reference;
+	u32 idx;
+	u32 tid;
+	u32 cpu;
+	u32 reserved__; /* For alignment */
+};
+
+#define MAX_AUXTRACE_ERROR_MSG 64
+
+struct auxtrace_error_event {
+	struct perf_event_header header;
+	u32 type;
+	u32 code;
+	u32 cpu;
+	u32 pid;
+	u32 tid;
+	u32 reserved__; /* For alignment */
+	u64 ip;
+	char msg[MAX_AUXTRACE_ERROR_MSG];
+};
+
+struct aux_event {
+	struct perf_event_header header;
+	u64	aux_offset;
+	u64	aux_size;
+	u64	flags;
+};
+
+struct itrace_start_event {
+	struct perf_event_header header;
+	u32 pid, tid;
+};
+
 union perf_event {
 	struct perf_event_header	header;
 	struct mmap_event		mmap;
@@ -287,6 +355,7 @@ union perf_event {
 	struct comm_event		comm;
 	struct fork_event		fork;
 	struct lost_event		lost;
+	struct lost_samples_event	lost_samples;
 	struct read_event		read;
 	struct throttle_event		throttle;
 	struct sample_event		sample;
@@ -295,6 +364,11 @@ union perf_event {
 	struct tracing_data_event	tracing_data;
 	struct build_id_event		build_id;
 	struct id_index_event		id_index;
+	struct auxtrace_info_event	auxtrace_info;
+	struct auxtrace_event		auxtrace;
+	struct auxtrace_error_event	auxtrace_error;
+	struct aux_event		aux;
+	struct itrace_start_event	itrace_start;
 };
 
 void perf_event__print_totals(void);
@@ -310,10 +384,12 @@ typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct thread_map *threads,
 				      perf_event__handler_t process,
-				      struct machine *machine, bool mmap_data);
+				      struct machine *machine, bool mmap_data,
+				      unsigned int proc_map_timeout);
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
-				   struct machine *machine, bool mmap_data);
+				   struct machine *machine, bool mmap_data,
+				   unsigned int proc_map_timeout);
 int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine);
@@ -330,6 +406,18 @@ int perf_event__process_lost(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
+int perf_event__process_lost_samples(struct perf_tool *tool,
+				     union perf_event *event,
+				     struct perf_sample *sample,
+				     struct machine *machine);
+int perf_event__process_aux(struct perf_tool *tool,
+			    union perf_event *event,
+			    struct perf_sample *sample,
+			    struct machine *machine);
+int perf_event__process_itrace_start(struct perf_tool *tool,
+				     union perf_event *event,
+				     struct perf_sample *sample,
+				     struct machine *machine);
 int perf_event__process_mmap(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
@@ -358,6 +446,8 @@ int perf_event__preprocess_sample(const union perf_event *event,
 				  struct addr_location *al,
 				  struct perf_sample *sample);
 
+void addr_location__put(struct addr_location *al);
+
 struct thread;
 
 bool is_bts_event(struct perf_event_attr *attr);
@@ -381,12 +471,15 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       pid_t pid, pid_t tgid,
 				       perf_event__handler_t process,
 				       struct machine *machine,
-				       bool mmap_data);
+				       bool mmap_data,
+				       unsigned int proc_map_timeout);
 
 size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_mmap2(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_task(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_aux(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf(union perf_event *event, FILE *fp);
 
 u64 kallsyms__get_function_start(const char *kallsyms_filename,

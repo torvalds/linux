@@ -1584,14 +1584,11 @@ zoran_init_hardware (struct zoran *zr)
 	jpeg_codec_sleep(zr, 1);
 	jpeg_codec_sleep(zr, 0);
 
-	/* set individual interrupt enables (without GIRQ1)
-	 * but don't global enable until zoran_open() */
-
-	//btwrite(IRQ_MASK & ~ZR36057_ISR_GIRQ1, ZR36057_ICR);  // SW
-	// It looks like using only JPEGRepIRQEn is not always reliable,
-	// may be when JPEG codec crashes it won't generate IRQ? So,
-	 /*CP*/			//        btwrite(IRQ_MASK, ZR36057_ICR); // Enable Vsync interrupts too. SM    WHY ? LP
-	    zr36057_init_vfe(zr);
+	/*
+	 * set individual interrupt enables (without GIRQ1)
+	 * but don't global enable until zoran_open()
+	 */
+	zr36057_init_vfe(zr);
 
 	zr36057_enable_jpg(zr, BUZ_MODE_IDLE);
 

@@ -4,9 +4,11 @@ include ../lib.mk
 
 .PHONY: all all_32 all_64 warn_32bit_failure clean
 
-TARGETS_C_BOTHBITS := sigreturn single_step_syscall
+TARGETS_C_BOTHBITS := sigreturn single_step_syscall sysret_ss_attrs
+TARGETS_C_32BIT_ONLY := entry_from_vm86
 
-BINARIES_32 := $(TARGETS_C_BOTHBITS:%=%_32)
+TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
+BINARIES_32 := $(TARGETS_C_32BIT_ALL:%=%_32)
 BINARIES_64 := $(TARGETS_C_BOTHBITS:%=%_64)
 
 CFLAGS := -O2 -g -std=gnu99 -pthread -Wall
@@ -32,7 +34,7 @@ all_64: $(BINARIES_64)
 clean:
 	$(RM) $(BINARIES_32) $(BINARIES_64)
 
-$(TARGETS_C_BOTHBITS:%=%_32): %_32: %.c
+$(TARGETS_C_32BIT_ALL:%=%_32): %_32: %.c
 	$(CC) -m32 -o $@ $(CFLAGS) $(EXTRA_CFLAGS) $^ -lrt -ldl
 
 $(TARGETS_C_BOTHBITS:%=%_64): %_64: %.c
@@ -55,3 +57,6 @@ warn_32bit_failure:
 	echo "  yum install glibc-devel.*i686";				\
 	exit 0;
 endif
+
+# Some tests have additional dependencies.
+sysret_ss_attrs_64: thunks.S

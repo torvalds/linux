@@ -91,7 +91,7 @@ config TWL6030_USB
 
 config USB_GPIO_VBUS
 	tristate "GPIO based peripheral-only VBUS sensing 'transceiver'"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select USB_PHY
 	help
 	  Provides simple GPIO VBUS sensing for controllers with an
@@ -141,6 +141,7 @@ config USB_MSM_OTG
 	tristate "Qualcomm on-chip USB OTG controller support"
 	depends on (USB || USB_GADGET) && (ARCH_QCOM || COMPILE_TEST)
 	depends on RESET_CONTROLLER
+	depends on EXTCON
 	select USB_PHY
 	help
 	  Enable this to support the USB OTG transceiver on Qualcomm chips. It
@@ -185,19 +186,6 @@ config USB_RCAR_PHY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called phy-rcar-usb.
-
-config USB_RCAR_GEN2_PHY
-	tristate "Renesas R-Car Gen2 USB PHY support"
-	depends on ARCH_R8A7790 || ARCH_R8A7791 || COMPILE_TEST
-	select USB_PHY
-	help
-	  Say Y here to add support for the Renesas R-Car Gen2 USB PHY driver.
-	  It is typically used to control internal USB PHY for USBHS,
-	  and to configure shared USB channels 0 and 2.
-	  This driver supports R8A7790 and R8A7791.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called phy-rcar-gen2-usb.
 
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"

@@ -135,23 +135,30 @@ static void bond_info_show_master(struct seq_file *seq)
 					  bond->params.ad_select);
 		seq_printf(seq, "Aggregator selection policy (ad_select): %s\n",
 			   optval->string);
+		if (capable(CAP_NET_ADMIN)) {
+			seq_printf(seq, "System priority: %d\n",
+				   BOND_AD_INFO(bond).system.sys_priority);
+			seq_printf(seq, "System MAC address: %pM\n",
+				   &BOND_AD_INFO(bond).system.sys_mac_addr);
 
-		if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
-			seq_printf(seq, "bond %s has no active aggregator\n",
-				   bond->dev->name);
-		} else {
-			seq_printf(seq, "Active Aggregator Info:\n");
+			if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
+				seq_printf(seq,
+					   "bond %s has no active aggregator\n",
+					   bond->dev->name);
+			} else {
+				seq_printf(seq, "Active Aggregator Info:\n");
 
-			seq_printf(seq, "\tAggregator ID: %d\n",
-				   ad_info.aggregator_id);
-			seq_printf(seq, "\tNumber of ports: %d\n",
-				   ad_info.ports);
-			seq_printf(seq, "\tActor Key: %d\n",
-				   ad_info.actor_key);
-			seq_printf(seq, "\tPartner Key: %d\n",
-				   ad_info.partner_key);
-			seq_printf(seq, "\tPartner Mac Address: %pM\n",
-				   ad_info.partner_system);
+				seq_printf(seq, "\tAggregator ID: %d\n",
+					   ad_info.aggregator_id);
+				seq_printf(seq, "\tNumber of ports: %d\n",
+					   ad_info.ports);
+				seq_printf(seq, "\tActor Key: %d\n",
+					   ad_info.actor_key);
+				seq_printf(seq, "\tPartner Key: %d\n",
+					   ad_info.partner_key);
+				seq_printf(seq, "\tPartner Mac Address: %pM\n",
+					   ad_info.partner_system);
+			}
 		}
 	}
 }
@@ -195,29 +202,35 @@ static void bond_info_show_slave(struct seq_file *seq,
 			seq_printf(seq, "Partner Churned Count: %d\n",
 				   port->churn_partner_count);
 
-			seq_puts(seq, "details actor lacp pdu:\n");
-			seq_printf(seq, "    system priority: %d\n",
-				   port->actor_system_priority);
-			seq_printf(seq, "    port key: %d\n",
-				   port->actor_oper_port_key);
-			seq_printf(seq, "    port priority: %d\n",
-				   port->actor_port_priority);
-			seq_printf(seq, "    port number: %d\n",
-				   port->actor_port_number);
-			seq_printf(seq, "    port state: %d\n",
-				   port->actor_oper_port_state);
+			if (capable(CAP_NET_ADMIN)) {
+				seq_puts(seq, "details actor lacp pdu:\n");
+				seq_printf(seq, "    system priority: %d\n",
+					   port->actor_system_priority);
+				seq_printf(seq, "    system mac address: %pM\n",
+					   &port->actor_system);
+				seq_printf(seq, "    port key: %d\n",
+					   port->actor_oper_port_key);
+				seq_printf(seq, "    port priority: %d\n",
+					   port->actor_port_priority);
+				seq_printf(seq, "    port number: %d\n",
+					   port->actor_port_number);
+				seq_printf(seq, "    port state: %d\n",
+					   port->actor_oper_port_state);
 
-			seq_puts(seq, "details partner lacp pdu:\n");
-			seq_printf(seq, "    system priority: %d\n",
-				   port->partner_oper.system_priority);
-			seq_printf(seq, "    oper key: %d\n",
-				   port->partner_oper.key);
-			seq_printf(seq, "    port priority: %d\n",
-				   port->partner_oper.port_priority);
-			seq_printf(seq, "    port number: %d\n",
-				   port->partner_oper.port_number);
-			seq_printf(seq, "    port state: %d\n",
-				   port->partner_oper.port_state);
+				seq_puts(seq, "details partner lacp pdu:\n");
+				seq_printf(seq, "    system priority: %d\n",
+					   port->partner_oper.system_priority);
+				seq_printf(seq, "    system mac address: %pM\n",
+					   &port->partner_oper.system);
+				seq_printf(seq, "    oper key: %d\n",
+					   port->partner_oper.key);
+				seq_printf(seq, "    port priority: %d\n",
+					   port->partner_oper.port_priority);
+				seq_printf(seq, "    port number: %d\n",
+					   port->partner_oper.port_number);
+				seq_printf(seq, "    port state: %d\n",
+					   port->partner_oper.port_state);
+			}
 		} else {
 			seq_puts(seq, "Aggregator ID: N/A\n");
 		}

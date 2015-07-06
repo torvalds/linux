@@ -74,7 +74,7 @@ struct sensor_hub_pending {
  * @usage:		Usage id for this hub device instance.
  * @start_collection_index: Starting index for a phy type collection
  * @end_collection_index: Last index for a phy type collection
- * @mutex:		synchronizing mutex.
+ * @mutex_ptr:		synchronizing mutex pointer.
  * @pending:		Holds information of pending sync read request.
  */
 struct hid_sensor_hub_device {
@@ -84,7 +84,7 @@ struct hid_sensor_hub_device {
 	u32 usage;
 	int start_collection_index;
 	int end_collection_index;
-	struct mutex mutex;
+	struct mutex *mutex_ptr;
 	struct sensor_hub_pending pending;
 };
 

@@ -164,4 +164,6 @@ struct property_set {
 
 void device_add_property_set(struct device *dev, struct property_set *pset);
 
+bool device_dma_is_coherent(struct device *dev);
+
 #endif /* _LINUX_PROPERTY_H_ */

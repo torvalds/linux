@@ -106,7 +106,7 @@ TRIG_WAKE_EOS
 #define   IRQ_LVL_BITS(x)		(((x) & 0xf) << 4)	/*  sets irq level */
 #define   FIFO_INTR_EN_BIT		0x100	/*  enable fifo interrupts */
 #define   FIFO_INTR_FHF_BIT		0x200	/*  interrupt fifo half full */
-#define   DMA_INTR_EN_BIT 		0x800	/*  enable interrupt on dma terminal count */
+#define   DMA_INTR_EN_BIT		0x800	/*  enable interrupt on dma terminal count */
 #define   DMA_DEM_EN_BIT	0x1000	/*  enables demand mode dma */
 #define I8253_BASE_REG		0x14
 
@@ -264,7 +264,7 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    unsigned int flags)
 {
-	const struct a2150_board *thisboard = dev->board_ptr;
+	const struct a2150_board *board = dev->board_ptr;
 	struct a2150_private *devpriv = dev->private;
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -273,10 +273,10 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	/*  initialize greatest lower and least upper bounds */
 	lub_divisor_shift = 3;
 	lub_index = 0;
-	lub = thisboard->clock[lub_index] * (1 << lub_divisor_shift);
+	lub = board->clock[lub_index] * (1 << lub_divisor_shift);
 	glb_divisor_shift = 0;
-	glb_index = thisboard->num_clocks - 1;
-	glb = thisboard->clock[glb_index] * (1 << glb_divisor_shift);
+	glb_index = board->num_clocks - 1;
+	glb = board->clock[glb_index] * (1 << glb_divisor_shift);
 
 	/*  make sure period is in available range */
 	if (*period < glb)
@@ -287,9 +287,9 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	/*  we can multiply period by 1, 2, 4, or 8, using (1 << i) */
 	for (i = 0; i < 4; i++) {
 		/*  there are a maximum of 4 master clocks */
-		for (j = 0; j < thisboard->num_clocks; j++) {
+		for (j = 0; j < board->num_clocks; j++) {
 			/*  temp is the period in nanosec we are evaluating */
-			temp = thisboard->clock[j] * (1 << i);
+			temp = board->clock[j] * (1 << i);
 			/*  if it is the best match yet */
 			if (temp < lub && temp >= *period) {
 				lub_divisor_shift = i;
@@ -413,7 +413,7 @@ static int a2150_ai_check_chanlist(struct comedi_device *dev,
 static int a2150_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct a2150_board *thisboard = dev->board_ptr;
+	const struct a2150_board *board = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
@@ -444,7 +444,7 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
-						    thisboard->ai_speed);
+						    board->ai_speed);
 	}
 
 	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
@@ -687,17 +687,19 @@ static void a2150_free_dma(struct comedi_device *dev)
 		comedi_isadma_free(devpriv->dma);
 }
 
-/* probes board type, returns offset */
-static int a2150_probe(struct comedi_device *dev)
+static const struct a2150_board *a2150_probe(struct comedi_device *dev)
 {
-	int status = inw(dev->iobase + STATUS_REG);
+	int id = ID_BITS(inw(dev->iobase + STATUS_REG));
 
-	return ID_BITS(status);
+	if (id >= ARRAY_SIZE(a2150_boards))
+		return NULL;
+
+	return &a2150_boards[id];
 }
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct a2150_board *thisboard;
+	const struct a2150_board *board;
 	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
 	static const int timeout = 2000;
@@ -712,13 +714,11 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	i = a2150_probe(dev);
-	if (i >= ARRAY_SIZE(a2150_boards))
+	board = a2150_probe(dev);
+	if (!board)
 		return -ENODEV;
-
-	dev->board_ptr = a2150_boards + i;
-	thisboard = dev->board_ptr;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	/* an IRQ and DMA are required to support async commands */
 	a2150_alloc_irq_and_dma(dev, it);

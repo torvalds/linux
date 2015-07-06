@@ -7,9 +7,7 @@ config NET_VENDOR_REALTEK
 	default y
 	depends on PCI || (PARPORT && X86)
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -24,8 +22,7 @@ config ATP
 	select CRC32
 	---help---
 	  This is a network (Ethernet) device which attaches to your parallel
-	  port. Read <file:drivers/net/ethernet/realtek/atp.c> as well as the
-	  Ethernet-HOWTO, available from <http://www.tldp.org/docs.html#howto>,
+	  port. Read the file <file:drivers/net/ethernet/realtek/atp.c>
 	  if you want to use this.  If you intend to use this driver, you
 	  should have said N to the "Parallel printer support", because the two
 	  drivers don't like each other.
@@ -40,9 +37,7 @@ config 8139CP
 	select MII
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
-	  the RTL8139C+ chips. If you have one of those, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  the RTL8139C+ chips. If you have one of those, say Y here.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8139cp.  This is recommended.
@@ -54,8 +49,7 @@ config 8139TOO
 	select MII
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
-	  the RTL 8129/8130/8139 chips. If you have one of those, say Y and
-	  read the Ethernet-HOWTO <http://www.tldp.org/docs.html#howto>.
+	  the RTL 8129/8130/8139 chips. If you have one of those, say Y here.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8139too.  This is recommended.

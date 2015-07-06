@@ -21,6 +21,7 @@
 #include <drm/drm_fb_helper.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
 

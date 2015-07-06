@@ -31,6 +31,7 @@ struct i915_audio_component {
 		struct module *owner;
 		void (*get_power)(struct device *);
 		void (*put_power)(struct device *);
+		void (*codec_wake_override)(struct device *, bool enable);
 		int (*get_cdclk_freq)(struct device *);
 	} *ops;
 };

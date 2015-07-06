@@ -350,7 +350,7 @@ static int hid_prox_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id hid_prox_ids[] = {
+static const struct platform_device_id hid_prox_ids[] = {
 	{
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-200011",

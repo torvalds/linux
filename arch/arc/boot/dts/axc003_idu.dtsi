@@ -1,0 +1,126 @@
+/*
+ * Copyright (C) 2014, 2015 Synopsys, Inc. (www.synopsys.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Device tree for AXC003 CPU card: HS38x2 (Dual Core) with IDU intc
+ */
+
+/ {
+	compatible = "snps,arc";
+	clock-frequency = <75000000>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpu_card {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		ranges = <0x00000000 0xf0000000 0x10000000>;
+
+		cpu_intc: archs-intc@cpu {
+			compatible = "snps,archs-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		idu_intc: idu-interrupt-controller {
+			compatible = "snps,archs-idu-intc";
+			interrupt-controller;
+			interrupt-parent = <&cpu_intc>;
+
+			/*
+			 * <hwirq  distribution>
+			 * distribution: 0=RR; 1=cpu0, 2=cpu1, 4=cpu2, 8=cpu3
+			 */
+			#interrupt-cells = <2>;
+
+			/*
+			 * upstream irqs to core intc - downstream these are
+			 * "COMMON" irq 0,1..
+			 */
+			interrupts = <24 25>;
+		};
+
+		/*
+		 * this GPIO block ORs all interrupts on CPU card (creg,..)
+		 * to uplink only 1 IRQ to ARC core intc
+		 */
+		dw-apb-gpio@0x2000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = < 0x2000 0x80 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ictl_intc: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <30>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&idu_intc>;
+
+				/*
+				 * cmn irq 1 -> cpu irq 25
+				 * Distribute to cpu0 only
+				 */
+				interrupts = <1 1>;
+			};
+		};
+
+		debug_uart: dw-apb-uart@0x5000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x5000 0x100>;
+			clock-frequency = <33333000>;
+			interrupt-parent = <&ictl_intc>;
+			interrupts = <2 4>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		arcpct0: pct {
+			compatible = "snps,archs-pct";
+			#interrupt-cells = <1>;
+			interrupt-parent = <&cpu_intc>;
+			interrupts = <20>;
+		};
+	};
+
+	/*
+	 * This INTC is actually connected to DW APB GPIO
+	 * which acts as a wire between MB INTC and CPU INTC.
+	 * GPIO INTC is configured in platform init code
+	 * and here we mimic direct connection from MB INTC to
+	 * CPU INTC, thus we set "interrupts = <0 1>" instead of
+	 * "interrupts = <12>"
+	 *
+	 * This intc actually resides on MB, but we move it here to
+	 * avoid duplicating the MB dtsi file given that IRQ from
+	 * this intc to cpu intc are different for axs101 and axs103
+	 */
+	mb_intc: dw-apb-ictl@0xe0012000 {
+		#interrupt-cells = <1>;
+		compatible = "snps,dw-apb-ictl";
+		reg = < 0xe0012000 0x200 >;
+		interrupt-controller;
+		interrupt-parent = <&idu_intc>;
+		interrupts = <0 1>;	/* cmn irq 0 -> cpu irq 24
+					   distribute to cpu0 only */
+	};
+
+	memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x80000000 0x40000000>;
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;	/* 512MiB */
+	};
+};

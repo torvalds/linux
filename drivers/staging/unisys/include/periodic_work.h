@@ -18,7 +18,9 @@
 #ifndef __PERIODIC_WORK_H__
 #define __PERIODIC_WORK_H__
 
-#include "timskmod.h"
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+
 
 /* PERIODIC_WORK an opaque structure to users.
  * Fields are declared only in the implementation .c files.
@@ -31,8 +33,8 @@ struct periodic_work *visor_periodic_work_create(ulong jiffy_interval,
 					void *workfuncarg,
 					const char *devnam);
 void visor_periodic_work_destroy(struct periodic_work *pw);
-BOOL visor_periodic_work_nextperiod(struct periodic_work *pw);
-BOOL visor_periodic_work_start(struct periodic_work *pw);
-BOOL visor_periodic_work_stop(struct periodic_work *pw);
+bool visor_periodic_work_nextperiod(struct periodic_work *pw);
+bool visor_periodic_work_start(struct periodic_work *pw);
+bool visor_periodic_work_stop(struct periodic_work *pw);
 
 #endif

@@ -85,8 +85,10 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
+	if (!res) {
+		ret = -EINVAL;
+		goto cell_disable;
+	}
 
 	pdata->flags |= TMIO_MMC_HAVE_HIGH_REG;
 
@@ -101,7 +103,8 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 	if (ret)
 		goto host_free;
 
-	ret = request_irq(irq, tmio_mmc_irq, IRQF_TRIGGER_FALLING,
+	ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_irq,
+				IRQF_TRIGGER_FALLING,
 				dev_name(&pdev->dev), host);
 	if (ret)
 		goto host_remove;
@@ -129,7 +132,6 @@ static int tmio_mmc_remove(struct platform_device *pdev)
 
 	if (mmc) {
 		struct tmio_mmc_host *host = mmc_priv(mmc);
-		free_irq(platform_get_irq(pdev, 0), host);
 		tmio_mmc_host_remove(host);
 		if (cell->disable)
 			cell->disable(pdev);

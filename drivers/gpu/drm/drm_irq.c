@@ -74,6 +74,36 @@ module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
 module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
 module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
+static void store_vblank(struct drm_device *dev, int crtc,
+			 unsigned vblank_count_inc,
+			 struct timeval *t_vblank)
+{
+	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
+	u32 tslot;
+
+	assert_spin_locked(&dev->vblank_time_lock);
+
+	if (t_vblank) {
+		/* All writers hold the spinlock, but readers are serialized by
+		 * the latching of vblank->count below.
+		 */
+		tslot = vblank->count + vblank_count_inc;
+		vblanktimestamp(dev, crtc, tslot) = *t_vblank;
+	}
+
+	/*
+	 * vblank timestamp updates are protected on the write side with
+	 * vblank_time_lock, but on the read side done locklessly using a
+	 * sequence-lock on the vblank counter. Ensure correct ordering using
+	 * memory barrriers. We need the barrier both before and also after the
+	 * counter update to synchronize with the next timestamp write.
+	 * The read-side barriers for this are in drm_vblank_count_and_time.
+	 */
+	smp_wmb();
+	vblank->count += vblank_count_inc;
+	smp_wmb();
+}
+
 /**
  * drm_update_vblank_count - update the master vblank counter
  * @dev: DRM device
@@ -93,14 +123,14 @@ module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
-	u32 cur_vblank, diff, tslot;
+	u32 cur_vblank, diff;
 	bool rc;
 	struct timeval t_vblank;
 
 	/*
 	 * Interrupts were disabled prior to this call, so deal with counter
 	 * wrap if needed.
-	 * NOTE!  It's possible we lost a full dev->max_vblank_count events
+	 * NOTE!  It's possible we lost a full dev->max_vblank_count + 1 events
 	 * here if the register is small or we had vblank interrupts off for
 	 * a long time.
 	 *
@@ -117,7 +147,7 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 	/* Deal with counter wrap */
 	diff = cur_vblank - vblank->last;
 	if (cur_vblank < vblank->last) {
-		diff += dev->max_vblank_count;
+		diff += dev->max_vblank_count + 1;
 
 		DRM_DEBUG("last_vblank[%d]=0x%x, cur_vblank=0x%x => diff=0x%x\n",
 			  crtc, vblank->last, cur_vblank, diff);
@@ -129,17 +159,15 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 	if (diff == 0)
 		return;
 
-	/* Reinitialize corresponding vblank timestamp if high-precision query
-	 * available. Skip this step if query unsupported or failed. Will
-	 * reinitialize delayed at next vblank interrupt in that case and
-	 * assign 0 for now, to mark the vblanktimestamp as invalid.
+	/*
+	 * Only reinitialize corresponding vblank timestamp if high-precision query
+	 * available and didn't fail. Otherwise reinitialize delayed at next vblank
+	 * interrupt and assign 0 for now, to mark the vblanktimestamp as invalid.
 	 */
-	tslot = atomic_read(&vblank->count) + diff;
-	vblanktimestamp(dev, crtc, tslot) = rc ? t_vblank : (struct timeval) {0, 0};
+	if (!rc)
+		t_vblank = (struct timeval) {0, 0};
 
-	smp_mb__before_atomic();
-	atomic_add(diff, &vblank->count);
-	smp_mb__after_atomic();
+	store_vblank(dev, crtc, diff, &t_vblank);
 }
 
 /*
@@ -217,7 +245,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	/* Compute time difference to stored timestamp of last vblank
 	 * as updated by last invocation of drm_handle_vblank() in vblank irq.
 	 */
-	vblcount = atomic_read(&vblank->count);
+	vblcount = vblank->count;
 	diff_ns = timeval_to_ns(&tvblank) -
 		  timeval_to_ns(&vblanktimestamp(dev, crtc, vblcount));
 
@@ -233,17 +261,8 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	 * available. In that case we can't account for this and just
 	 * hope for the best.
 	 */
-	if (vblrc && (abs64(diff_ns) > 1000000)) {
-		/* Store new timestamp in ringbuffer. */
-		vblanktimestamp(dev, crtc, vblcount + 1) = tvblank;
-
-		/* Increment cooked vblank count. This also atomically commits
-		 * the timestamp computed above.
-		 */
-		smp_mb__before_atomic();
-		atomic_inc(&vblank->count);
-		smp_mb__after_atomic();
-	}
+	if (vblrc && (abs64(diff_ns) > 1000000))
+		store_vblank(dev, crtc, 1, &tvblank);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 }
@@ -335,6 +354,13 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 		DRM_INFO("Driver supports precise vblank timestamp query.\n");
 	else
 		DRM_INFO("No driver support for vblank timestamp query.\n");
+
+	/* Must have precise timestamping for reliable vblank instant disable */
+	if (dev->vblank_disable_immediate && !dev->driver->get_vblank_timestamp) {
+		dev->vblank_disable_immediate = false;
+		DRM_INFO("Setting vblank_disable_immediate to false because "
+			 "get_vblank_timestamp == NULL\n");
+	}
 
 	dev->vblank_disable_allowed = false;
 
@@ -851,7 +877,7 @@ u32 drm_vblank_count(struct drm_device *dev, int crtc)
 
 	if (WARN_ON(crtc >= dev->num_crtcs))
 		return 0;
-	return atomic_read(&vblank->count);
+	return vblank->count;
 }
 EXPORT_SYMBOL(drm_vblank_count);
 
@@ -896,16 +922,17 @@ u32 drm_vblank_count_and_time(struct drm_device *dev, int crtc,
 	if (WARN_ON(crtc >= dev->num_crtcs))
 		return 0;
 
-	/* Read timestamp from slot of _vblank_time ringbuffer
-	 * that corresponds to current vblank count. Retry if
-	 * count has incremented during readout. This works like
-	 * a seqlock.
+	/*
+	 * Vblank timestamps are read lockless. To ensure consistency the vblank
+	 * counter is rechecked and ordering is ensured using memory barriers.
+	 * This works like a seqlock. The write-side barriers are in store_vblank.
 	 */
 	do {
-		cur_vblank = atomic_read(&vblank->count);
+		cur_vblank = vblank->count;
+		smp_rmb();
 		*vblanktime = vblanktimestamp(dev, crtc, cur_vblank);
 		smp_rmb();
-	} while (cur_vblank != atomic_read(&vblank->count));
+	} while (cur_vblank != vblank->count);
 
 	return cur_vblank;
 }
@@ -1028,6 +1055,9 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
 	unsigned long irqflags;
 	int ret = 0;
+
+	if (!dev->num_crtcs)
+		return -EINVAL;
 
 	if (WARN_ON(crtc >= dev->num_crtcs))
 		return -EINVAL;
@@ -1714,7 +1744,7 @@ bool drm_handle_vblank(struct drm_device *dev, int crtc)
 	 */
 
 	/* Get current timestamp and count. */
-	vblcount = atomic_read(&vblank->count);
+	vblcount = vblank->count;
 	drm_get_last_vbltimestamp(dev, crtc, &tvblank, DRM_CALLED_FROM_VBLIRQ);
 
 	/* Compute time difference to timestamp of last vblank */
@@ -1730,20 +1760,11 @@ bool drm_handle_vblank(struct drm_device *dev, int crtc)
 	 * e.g., due to spurious vblank interrupts. We need to
 	 * ignore those for accounting.
 	 */
-	if (abs64(diff_ns) > DRM_REDUNDANT_VBLIRQ_THRESH_NS) {
-		/* Store new timestamp in ringbuffer. */
-		vblanktimestamp(dev, crtc, vblcount + 1) = tvblank;
-
-		/* Increment cooked vblank count. This also atomically commits
-		 * the timestamp computed above.
-		 */
-		smp_mb__before_atomic();
-		atomic_inc(&vblank->count);
-		smp_mb__after_atomic();
-	} else {
+	if (abs64(diff_ns) > DRM_REDUNDANT_VBLIRQ_THRESH_NS)
+		store_vblank(dev, crtc, 1, &tvblank);
+	else
 		DRM_DEBUG("crtc %d: Redundant vblirq ignored. diff_ns = %d\n",
 			  crtc, (int) diff_ns);
-	}
 
 	spin_unlock(&dev->vblank_time_lock);
 

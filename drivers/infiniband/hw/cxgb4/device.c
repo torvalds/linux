@@ -795,13 +795,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		goto err1;
 	}
 
-	/*
-	 * qpshift is the number of bits to shift the qpid left in order
-	 * to get the correct address of the doorbell for that qp.
-	 */
-	rdev->qpshift = PAGE_SHIFT - ilog2(rdev->lldi.udb_density);
 	rdev->qpmask = rdev->lldi.udb_density - 1;
-	rdev->cqshift = PAGE_SHIFT - ilog2(rdev->lldi.ucq_density);
 	rdev->cqmask = rdev->lldi.ucq_density - 1;
 	PDBG("%s dev %s stag start 0x%0x size 0x%0x num stags %d "
 	     "pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x "
@@ -815,14 +809,12 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	     rdev->lldi.vr->qp.size,
 	     rdev->lldi.vr->cq.start,
 	     rdev->lldi.vr->cq.size);
-	PDBG("udb len 0x%x udb base %p db_reg %p gts_reg %p qpshift %lu "
-	     "qpmask 0x%x cqshift %lu cqmask 0x%x\n",
+	PDBG("udb len 0x%x udb base %p db_reg %p gts_reg %p "
+	     "qpmask 0x%x cqmask 0x%x\n",
 	     (unsigned)pci_resource_len(rdev->lldi.pdev, 2),
 	     (void *)pci_resource_start(rdev->lldi.pdev, 2),
-	     rdev->lldi.db_reg,
-	     rdev->lldi.gts_reg,
-	     rdev->qpshift, rdev->qpmask,
-	     rdev->cqshift, rdev->cqmask);
+	     rdev->lldi.db_reg, rdev->lldi.gts_reg,
+	     rdev->qpmask, rdev->cqmask);
 
 	if (c4iw_num_stags(rdev) == 0) {
 		err = -EINVAL;

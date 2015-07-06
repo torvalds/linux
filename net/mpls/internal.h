@@ -16,6 +16,7 @@ struct mpls_dev {
 	int			input_enabled;
 
 	struct ctl_table_header *sysctl;
+	struct rcu_head		rcu;
 };
 
 struct sk_buff;

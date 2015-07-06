@@ -297,11 +297,11 @@ void trace_array_put(struct trace_array *this_tr)
 	mutex_unlock(&trace_types_lock);
 }
 
-int filter_check_discard(struct ftrace_event_file *file, void *rec,
+int filter_check_discard(struct trace_event_file *file, void *rec,
 			 struct ring_buffer *buffer,
 			 struct ring_buffer_event *event)
 {
-	if (unlikely(file->flags & FTRACE_EVENT_FL_FILTERED) &&
+	if (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
 	    !filter_match_preds(file->filter, rec)) {
 		ring_buffer_discard_commit(buffer, event);
 		return 1;
@@ -311,7 +311,7 @@ int filter_check_discard(struct ftrace_event_file *file, void *rec,
 }
 EXPORT_SYMBOL_GPL(filter_check_discard);
 
-int call_filter_check_discard(struct ftrace_event_call *call, void *rec,
+int call_filter_check_discard(struct trace_event_call *call, void *rec,
 			      struct ring_buffer *buffer,
 			      struct ring_buffer_event *event)
 {
@@ -876,6 +876,7 @@ static struct {
 	{ trace_clock_jiffies,		"uptime",	0 },
 	{ trace_clock,			"perf",		1 },
 	{ ktime_get_mono_fast_ns,	"mono",		1 },
+	{ ktime_get_raw_fast_ns,	"mono_raw",	1 },
 	ARCH_TRACE_CLOCKS
 };
 
@@ -1693,13 +1694,13 @@ static struct ring_buffer *temp_buffer;
 
 struct ring_buffer_event *
 trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
-			  struct ftrace_event_file *ftrace_file,
+			  struct trace_event_file *trace_file,
 			  int type, unsigned long len,
 			  unsigned long flags, int pc)
 {
 	struct ring_buffer_event *entry;
 
-	*current_rb = ftrace_file->tr->trace_buffer.buffer;
+	*current_rb = trace_file->tr->trace_buffer.buffer;
 	entry = trace_buffer_lock_reserve(*current_rb,
 					 type, len, flags, pc);
 	/*
@@ -1708,7 +1709,7 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 	 * to store the trace event for the tigger to use. It's recusive
 	 * safe and will not be recorded anywhere.
 	 */
-	if (!entry && ftrace_file->flags & FTRACE_EVENT_FL_TRIGGER_COND) {
+	if (!entry && trace_file->flags & EVENT_FILE_FL_TRIGGER_COND) {
 		*current_rb = temp_buffer;
 		entry = trace_buffer_lock_reserve(*current_rb,
 						  type, len, flags, pc);
@@ -1760,7 +1761,7 @@ trace_function(struct trace_array *tr,
 	       unsigned long ip, unsigned long parent_ip, unsigned long flags,
 	       int pc)
 {
-	struct ftrace_event_call *call = &event_function;
+	struct trace_event_call *call = &event_function;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
@@ -1795,7 +1796,7 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 				 unsigned long flags,
 				 int skip, int pc, struct pt_regs *regs)
 {
-	struct ftrace_event_call *call = &event_kernel_stack;
+	struct trace_event_call *call = &event_kernel_stack;
 	struct ring_buffer_event *event;
 	struct stack_entry *entry;
 	struct stack_trace trace;
@@ -1923,7 +1924,7 @@ static DEFINE_PER_CPU(int, user_stack_count);
 void
 ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 {
-	struct ftrace_event_call *call = &event_user_stack;
+	struct trace_event_call *call = &event_user_stack;
 	struct ring_buffer_event *event;
 	struct userstack_entry *entry;
 	struct stack_trace trace;
@@ -2129,7 +2130,7 @@ static void trace_printk_start_stop_comm(int enabled)
  */
 int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 {
-	struct ftrace_event_call *call = &event_bprint;
+	struct trace_event_call *call = &event_bprint;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
 	struct trace_array *tr = &global_trace;
@@ -2187,7 +2188,7 @@ static int
 __trace_array_vprintk(struct ring_buffer *buffer,
 		      unsigned long ip, const char *fmt, va_list args)
 {
-	struct ftrace_event_call *call = &event_print;
+	struct trace_event_call *call = &event_print;
 	struct ring_buffer_event *event;
 	int len = 0, size, pc;
 	struct print_entry *entry;

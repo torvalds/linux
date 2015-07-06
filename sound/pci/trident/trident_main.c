@@ -3551,8 +3551,8 @@ int snd_trident_create(struct snd_card *card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 30 bits */
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(30)) < 0 ||
-	    pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(30)) < 0) {
+	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(30)) < 0 ||
+	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(30)) < 0) {
 		dev_err(card->dev,
 			"architecture does not support 30bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
