@@ -135,29 +135,12 @@ static ssize_t max_dirty_mb_store(struct kobject *kobj, struct attribute *attr,
 }
 LUSTRE_RW_ATTR(max_dirty_mb);
 
+LUSTRE_STATIC_UINT_ATTR(debug_peer_on_timeout, &obd_debug_peer_on_timeout);
+LUSTRE_STATIC_UINT_ATTR(dump_on_timeout, &obd_dump_on_timeout);
+LUSTRE_STATIC_UINT_ATTR(dump_on_eviction, &obd_dump_on_eviction);
+
 #ifdef CONFIG_SYSCTL
 static struct ctl_table obd_table[] = {
-	{
-		.procname = "debug_peer_on_timeout",
-		.data     = &obd_debug_peer_on_timeout,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec
-	},
-	{
-		.procname = "dump_on_timeout",
-		.data     = &obd_dump_on_timeout,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec
-	},
-	{
-		.procname = "dump_on_eviction",
-		.data     = &obd_dump_on_eviction,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec
-	},
 	{
 		.procname = "at_min",
 		.data     = &at_min,
@@ -211,6 +194,9 @@ static struct ctl_table parent_table[] = {
 static struct attribute *lustre_attrs[] = {
 	&lustre_sattr_timeout.u.attr,
 	&lustre_attr_max_dirty_mb.attr,
+	&lustre_sattr_debug_peer_on_timeout.u.attr,
+	&lustre_sattr_dump_on_timeout.u.attr,
+	&lustre_sattr_dump_on_eviction.u.attr,
 	NULL,
 };
 

@@ -64,6 +64,32 @@ Description:
 		find some pages to free/writeout.
 		Default 1/2 RAM. Min value 4, max value 9/10 of RAM.
 
+What:		/sys/fs/lustre/debug_peer_on_timeout
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Control if lnet debug information should be printed when
+		an RPC timeout occurs.
+		0 disabled (default)
+		1 enabled
+
+What:		/sys/fs/lustre/dump_on_timeout
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls if Lustre debug log should be dumped when an RPC
+		timeout occurs. This is useful if yout debug buffer typically
+		rolls over by the time you notice RPC timeouts.
+
+What:		/sys/fs/lustre/dump_on_eviction
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls if Lustre debug log should be dumped when an this
+		client is evicted from one of the servers.
+		This is useful if yout debug buffer typically rolls over
+		 by the time you notice the eviction event.
+
 What:		/sys/fs/lustre/llite/<fsname>-<uuid>/blocksize
 Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
