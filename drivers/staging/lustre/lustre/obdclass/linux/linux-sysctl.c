@@ -66,102 +66,6 @@ static int proc_set_timeout(struct ctl_table *table, int write,
 	return rc;
 }
 
-static int proc_memory_alloc(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	char buf[22];
-	int len;
-
-	if (!*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write)
-		return -EINVAL;
-
-	len = snprintf(buf, sizeof(buf), "%llu\n", obd_memory_sum());
-	if (len > *lenp)
-		len = *lenp;
-	buf[len] = '\0';
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-	*lenp = len;
-	*ppos += *lenp;
-	return 0;
-}
-
-static int proc_pages_alloc(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	char buf[22];
-	int len;
-
-	if (!*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write)
-		return -EINVAL;
-
-	len = snprintf(buf, sizeof(buf), "%llu\n", obd_pages_sum());
-	if (len > *lenp)
-		len = *lenp;
-	buf[len] = '\0';
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-	*lenp = len;
-	*ppos += *lenp;
-	return 0;
-}
-
-static int proc_mem_max(struct ctl_table *table, int write, void __user *buffer,
-		 size_t *lenp, loff_t *ppos)
-{
-	char buf[22];
-	int len;
-
-	if (!*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write)
-		return -EINVAL;
-
-	len = snprintf(buf, sizeof(buf), "%llu\n", obd_memory_max());
-	if (len > *lenp)
-		len = *lenp;
-	buf[len] = '\0';
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-	*lenp = len;
-	*ppos += *lenp;
-	return 0;
-}
-
-static int proc_pages_max(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	char buf[22];
-	int len;
-
-	if (!*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write)
-		return -EINVAL;
-
-	len = snprintf(buf, sizeof(buf), "%llu\n", obd_pages_max());
-	if (len > *lenp)
-		len = *lenp;
-	buf[len] = '\0';
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-	*lenp = len;
-	*ppos += *lenp;
-	return 0;
-}
-
 static int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
 			       void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -231,34 +135,6 @@ static struct ctl_table obd_table[] = {
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_dointvec
-	},
-	{
-		.procname = "memused",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0444,
-		.proc_handler = &proc_memory_alloc
-	},
-	{
-		.procname = "pagesused",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0444,
-		.proc_handler = &proc_pages_alloc
-	},
-	{
-		.procname = "memused_max",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0444,
-		.proc_handler = &proc_mem_max
-	},
-	{
-		.procname = "pagesused_max",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0444,
-		.proc_handler = &proc_pages_max
 	},
 	{
 		.procname = "ldlm_timeout",
