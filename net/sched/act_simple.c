@@ -103,7 +103,8 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	defdata = nla_data(tb[TCA_DEF_DATA]);
 
 	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*d), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*d),
+				      bind, false);
 		if (ret)
 			return ret;
 

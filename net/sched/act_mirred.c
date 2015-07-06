@@ -93,7 +93,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	if (!tcf_hash_check(parm->index, a, bind)) {
 		if (dev == NULL)
 			return -EINVAL;
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*m), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*m),
+				      bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;

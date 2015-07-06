@@ -85,7 +85,8 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 #endif
 
 	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*gact), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*gact),
+				      bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
