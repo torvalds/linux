@@ -117,7 +117,7 @@ specific been defined.  This table describes the structure.
 Extended Modes
 
 This is a double word bit array (64 bits) that defines special functionality
-which has an impact on the softwarew drivers.  Each bit has its own impact
+which has an impact on the software drivers.  Each bit has its own impact
 and has special instructions for the s/w associated with it.  This structure is
 described in this table:
 
