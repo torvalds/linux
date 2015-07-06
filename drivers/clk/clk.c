@@ -3112,8 +3112,17 @@ void __init of_clk_init(const struct of_device_id *matches)
 
 	/* First prepare the list of the clocks providers */
 	for_each_matching_node_and_match(np, matches, &match) {
-		struct clock_provider *parent =
-			kzalloc(sizeof(struct clock_provider),	GFP_KERNEL);
+		struct clock_provider *parent;
+
+		parent = kzalloc(sizeof(*parent), GFP_KERNEL);
+		if (!parent) {
+			list_for_each_entry_safe(clk_provider, next,
+						 &clk_provider_list, node) {
+				list_del(&clk_provider->node);
+				kfree(clk_provider);
+			}
+			return;
+		}
 
 		parent->clk_init_cb = match->data;
 		parent->np = np;
