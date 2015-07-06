@@ -5347,6 +5347,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 	sector_t stripe_addr;
 	int reshape_sectors;
 	struct list_head stripes;
+	sector_t retn;
 
 	if (sector_nr == 0) {
 		/* If restarting in the middle, skip the initial sectors */
@@ -5362,7 +5363,8 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 			mddev->curr_resync_completed = sector_nr;
 			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 			*skipped = 1;
-			return sector_nr;
+			retn = sector_nr;
+			goto finish;
 		}
 	}
 
@@ -5535,6 +5537,8 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 	 * then we need to write out the superblock.
 	 */
 	sector_nr += reshape_sectors;
+	retn = reshape_sectors;
+finish:
 	if ((sector_nr - mddev->curr_resync_completed) * 2
 	    >= mddev->resync_max - mddev->curr_resync_completed) {
 		/* Cannot proceed until we've updated the superblock... */
@@ -5560,7 +5564,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 	}
 ret:
-	return reshape_sectors;
+	return retn;
 }
 
 static inline sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipped)
