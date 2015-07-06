@@ -247,42 +247,6 @@ out_delete:
 	({ struct syscall_tp *fields = evsel->priv; \
 	   fields->name.pointer(&fields->name, sample); })
 
-static int perf_evlist__add_syscall_newtp(struct perf_evlist *evlist,
-					  void *sys_enter_handler,
-					  void *sys_exit_handler)
-{
-	int ret = -1;
-	struct perf_evsel *sys_enter, *sys_exit;
-
-	sys_enter = perf_evsel__syscall_newtp("sys_enter", sys_enter_handler);
-	if (sys_enter == NULL)
-		goto out;
-
-	if (perf_evsel__init_sc_tp_ptr_field(sys_enter, args))
-		goto out_delete_sys_enter;
-
-	sys_exit = perf_evsel__syscall_newtp("sys_exit", sys_exit_handler);
-	if (sys_exit == NULL)
-		goto out_delete_sys_enter;
-
-	if (perf_evsel__init_sc_tp_uint_field(sys_exit, ret))
-		goto out_delete_sys_exit;
-
-	perf_evlist__add(evlist, sys_enter);
-	perf_evlist__add(evlist, sys_exit);
-
-	ret = 0;
-out:
-	return ret;
-
-out_delete_sys_exit:
-	perf_evsel__delete_priv(sys_exit);
-out_delete_sys_enter:
-	perf_evsel__delete_priv(sys_enter);
-	goto out;
-}
-
-
 struct syscall_arg {
 	unsigned long val;
 	struct thread *thread;
@@ -1223,7 +1187,6 @@ struct syscall {
 	int		    nr_args;
 	struct format_field *args;
 	const char	    *name;
-	bool		    filtered;
 	bool		    is_exit;
 	struct syscall_fmt  *fmt;
 	size_t		    (**arg_scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
@@ -1307,6 +1270,10 @@ struct trace {
 	struct {
 		int		max;
 		struct syscall  *table;
+		struct {
+			struct perf_evsel *sys_enter,
+					  *sys_exit;
+		}		events;
 	} syscalls;
 	struct record_opts	opts;
 	struct perf_evlist	*evlist;
@@ -1316,6 +1283,10 @@ struct trace {
 	FILE			*output;
 	unsigned long		nr_events;
 	struct strlist		*ev_qualifier;
+	struct {
+		size_t		nr;
+		int		*entries;
+	}			ev_qualifier_ids;
 	const char 		*last_vfs_getname;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
@@ -1578,19 +1549,6 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	sc = trace->syscalls.table + id;
 	sc->name = name;
 
-	if (trace->ev_qualifier) {
-		bool in = strlist__find(trace->ev_qualifier, name) != NULL;
-
-		if (!(in ^ trace->not_ev_qualifier)) {
-			sc->filtered = true;
-			/*
-			 * No need to do read tracepoint information since this will be
-			 * filtered out.
-			 */
-			return 0;
-		}
-	}
-
 	sc->fmt  = syscall_fmt__find(sc->name);
 
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
@@ -1619,13 +1577,27 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 
 static int trace__validate_ev_qualifier(struct trace *trace)
 {
-	int err = 0;
+	int err = 0, i;
 	struct str_node *pos;
+
+	trace->ev_qualifier_ids.nr = strlist__nr_entries(trace->ev_qualifier);
+	trace->ev_qualifier_ids.entries = malloc(trace->ev_qualifier_ids.nr *
+						 sizeof(trace->ev_qualifier_ids.entries[0]));
+
+	if (trace->ev_qualifier_ids.entries == NULL) {
+		fputs("Error:\tNot enough memory for allocating events qualifier ids\n",
+		       trace->output);
+		err = -EINVAL;
+		goto out;
+	}
+
+	i = 0;
 
 	strlist__for_each(pos, trace->ev_qualifier) {
 		const char *sc = pos->s;
+		int id = audit_name_to_syscall(sc, trace->audit.machine);
 
-		if (audit_name_to_syscall(sc, trace->audit.machine) < 0) {
+		if (id < 0) {
 			if (err == 0) {
 				fputs("Error:\tInvalid syscall ", trace->output);
 				err = -EINVAL;
@@ -1635,13 +1607,17 @@ static int trace__validate_ev_qualifier(struct trace *trace)
 
 			fputs(sc, trace->output);
 		}
+
+		trace->ev_qualifier_ids.entries[i++] = id;
 	}
 
 	if (err < 0) {
 		fputs("\nHint:\ttry 'perf list syscalls:sys_enter_*'"
 		      "\nHint:\tand: 'man syscalls'\n", trace->output);
+		zfree(&trace->ev_qualifier_ids.entries);
+		trace->ev_qualifier_ids.nr = 0;
 	}
-
+out:
 	return err;
 }
 
@@ -1833,9 +1809,6 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (sc == NULL)
 		return -1;
 
-	if (sc->filtered)
-		return 0;
-
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
@@ -1890,9 +1863,6 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	if (sc == NULL)
 		return -1;
-
-	if (sc->filtered)
-		return 0;
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
@@ -2283,9 +2253,68 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 	}
 }
 
+static int trace__add_syscall_newtp(struct trace *trace)
+{
+	int ret = -1;
+	struct perf_evlist *evlist = trace->evlist;
+	struct perf_evsel *sys_enter, *sys_exit;
+
+	sys_enter = perf_evsel__syscall_newtp("sys_enter", trace__sys_enter);
+	if (sys_enter == NULL)
+		goto out;
+
+	if (perf_evsel__init_sc_tp_ptr_field(sys_enter, args))
+		goto out_delete_sys_enter;
+
+	sys_exit = perf_evsel__syscall_newtp("sys_exit", trace__sys_exit);
+	if (sys_exit == NULL)
+		goto out_delete_sys_enter;
+
+	if (perf_evsel__init_sc_tp_uint_field(sys_exit, ret))
+		goto out_delete_sys_exit;
+
+	perf_evlist__add(evlist, sys_enter);
+	perf_evlist__add(evlist, sys_exit);
+
+	trace->syscalls.events.sys_enter = sys_enter;
+	trace->syscalls.events.sys_exit  = sys_exit;
+
+	ret = 0;
+out:
+	return ret;
+
+out_delete_sys_exit:
+	perf_evsel__delete_priv(sys_exit);
+out_delete_sys_enter:
+	perf_evsel__delete_priv(sys_enter);
+	goto out;
+}
+
+static int trace__set_ev_qualifier_filter(struct trace *trace)
+{
+	int err = -1;
+	char *filter = asprintf_expr_inout_ints("id", !trace->not_ev_qualifier,
+						trace->ev_qualifier_ids.nr,
+						trace->ev_qualifier_ids.entries);
+
+	if (filter == NULL)
+		goto out_enomem;
+
+	if (!perf_evsel__append_filter(trace->syscalls.events.sys_enter, "&&", filter))
+		err = perf_evsel__append_filter(trace->syscalls.events.sys_exit, "&&", filter);
+
+	free(filter);
+out:
+	return err;
+out_enomem:
+	errno = ENOMEM;
+	goto out;
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
+	struct perf_evsel *evsel;
 	int err = -1, i;
 	unsigned long before;
 	const bool forks = argc > 0;
@@ -2293,9 +2322,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	trace->live = true;
 
-	if (trace->trace_syscalls &&
-	    perf_evlist__add_syscall_newtp(evlist, trace__sys_enter,
-					   trace__sys_exit))
+	if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
 		goto out_error_raw_syscalls;
 
 	if (trace->trace_syscalls)
@@ -2356,10 +2383,20 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	else if (thread_map__pid(evlist->threads, 0) == -1)
 		err = perf_evlist__set_filter_pid(evlist, getpid());
 
-	if (err < 0) {
-		printf("err=%d,%s\n", -err, strerror(-err));
-		exit(1);
+	if (err < 0)
+		goto out_error_mem;
+
+	if (trace->ev_qualifier_ids.nr > 0) {
+		err = trace__set_ev_qualifier_filter(trace);
+		if (err < 0)
+			goto out_errno;
 	}
+
+	pr_debug("%s\n", trace->syscalls.events.sys_exit->filter);
+
+	err = perf_evlist__apply_filters(evlist, &evsel);
+	if (err < 0)
+		goto out_error_apply_filters;
 
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0)
@@ -2462,9 +2499,20 @@ out_error_open:
 out_error:
 	fprintf(trace->output, "%s\n", errbuf);
 	goto out_delete_evlist;
+
+out_error_apply_filters:
+	fprintf(trace->output,
+		"Failed to set filter \"%s\" on event %s with %d (%s)\n",
+		evsel->filter, perf_evsel__name(evsel), errno,
+		strerror_r(errno, errbuf, sizeof(errbuf)));
+	goto out_delete_evlist;
 }
 out_error_mem:
 	fprintf(trace->output, "Not enough memory to run!\n");
+	goto out_delete_evlist;
+
+out_errno:
+	fprintf(trace->output, "errno=%d,%s\n", errno, strerror(errno));
 	goto out_delete_evlist;
 }
 

@@ -339,4 +339,16 @@ int gzip_decompress_to_file(const char *input, int output_fd);
 int lzma_decompress_to_file(const char *input, int output_fd);
 #endif
 
+char *asprintf_expr_inout_ints(const char *var, bool in, size_t nints, int *ints);
+
+static inline char *asprintf_expr_in_ints(const char *var, size_t nints, int *ints)
+{
+	return asprintf_expr_inout_ints(var, true, nints, ints);
+}
+
+static inline char *asprintf_expr_not_in_ints(const char *var, size_t nints, int *ints)
+{
+	return asprintf_expr_inout_ints(var, false, nints, ints);
+}
+
 #endif /* GIT_COMPAT_UTIL_H */

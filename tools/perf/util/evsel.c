@@ -707,7 +707,8 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	 */
 	if (opts->sample_time &&
 	    (!perf_missing_features.sample_id_all &&
-	    (!opts->no_inherit || target__has_cpu(&opts->target) || per_cpu)))
+	    (!opts->no_inherit || target__has_cpu(&opts->target) || per_cpu ||
+	     opts->sample_time_set)))
 		perf_evsel__set_sample_bit(evsel, TIME);
 
 	if (opts->raw_samples && !evsel->no_aux_samples) {
@@ -815,12 +816,42 @@ static int perf_evsel__run_ioctl(struct perf_evsel *evsel, int ncpus, int nthrea
 	return 0;
 }
 
-int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
-			   const char *filter)
+int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
+			     const char *filter)
 {
 	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
 				     PERF_EVENT_IOC_SET_FILTER,
 				     (void *)filter);
+}
+
+int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter)
+{
+	char *new_filter = strdup(filter);
+
+	if (new_filter != NULL) {
+		free(evsel->filter);
+		evsel->filter = new_filter;
+		return 0;
+	}
+
+	return -1;
+}
+
+int perf_evsel__append_filter(struct perf_evsel *evsel,
+			      const char *op, const char *filter)
+{
+	char *new_filter;
+
+	if (evsel->filter == NULL)
+		return perf_evsel__set_filter(evsel, filter);
+
+	if (asprintf(&new_filter,"(%s) %s (%s)", evsel->filter, op, filter) > 0) {
+		free(evsel->filter);
+		evsel->filter = new_filter;
+		return 0;
+	}
+
+	return -1;
 }
 
 int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads)
