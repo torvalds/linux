@@ -534,8 +534,8 @@ typedef enum {
 /*****************************************************************************/
 
 
-tstrWILC_WFIDrv *terminated_handle = NULL;
-tstrWILC_WFIDrv *gWFiDrvHandle = NULL;
+tstrWILC_WFIDrv *terminated_handle;
+tstrWILC_WFIDrv *gWFiDrvHandle;
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 bool g_obtainingIP = false;
 #endif
