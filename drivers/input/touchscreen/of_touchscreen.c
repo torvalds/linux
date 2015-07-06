@@ -39,13 +39,9 @@ static void touchscreen_set_params(struct input_dev *dev,
 	struct input_absinfo *absinfo;
 
 	if (!test_bit(axis, dev->absbit)) {
-		/*
-		 * Emit a warning only if the axis is not a multitouch
-		 * axis, which might not be set by the driver.
-		 */
-		if (!input_is_mt_axis(axis))
-			dev_warn(&dev->dev,
-				 "DT specifies parameters but the axis is not set up\n");
+		dev_warn(&dev->dev,
+			 "DT specifies parameters but the axis %lu is not set up\n",
+			 axis);
 		return;
 	}
 
