@@ -82,8 +82,37 @@ module_param(libcfs_console_min_delay, uint, 0644);
 MODULE_PARM_DESC(libcfs_console_min_delay, "Lustre kernel debug console min delay (jiffies)");
 EXPORT_SYMBOL(libcfs_console_min_delay);
 
+static int param_set_uint_minmax(const char *val,
+				 const struct kernel_param *kp,
+				 unsigned int min, unsigned int max)
+{
+	unsigned int num;
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+	ret = kstrtouint(val, 0, &num);
+	if (ret == -EINVAL || num < min || num > max)
+		return -EINVAL;
+	*((unsigned int *)kp->arg) = num;
+	return 0;
+}
+
+static int param_set_uintpos(const char *val, const struct kernel_param *kp)
+{
+	return param_set_uint_minmax(val, kp, 1, -1);
+}
+
+static struct kernel_param_ops param_ops_uintpos = {
+	.set = param_set_uintpos,
+	.get = param_get_uint,
+};
+
+#define param_check_uintpos(name, p) \
+		__param_check(name, p, unsigned int)
+
 unsigned int libcfs_console_backoff = CDEBUG_DEFAULT_BACKOFF;
-module_param(libcfs_console_backoff, uint, 0644);
+module_param(libcfs_console_backoff, uintpos, 0644);
 MODULE_PARM_DESC(libcfs_console_backoff, "Lustre kernel debug console backoff factor");
 EXPORT_SYMBOL(libcfs_console_backoff);
 

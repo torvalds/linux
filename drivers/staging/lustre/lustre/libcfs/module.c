@@ -678,34 +678,6 @@ static int proc_console_min_delay_cs(struct ctl_table *table, int write,
 	return rc;
 }
 
-static int proc_console_backoff(struct ctl_table *table, int write,
-				void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	int rc, backoff;
-	struct ctl_table dummy = *table;
-
-	dummy.data = &backoff;
-	dummy.proc_handler = &proc_dointvec;
-
-	if (!write) { /* read */
-		backoff = libcfs_console_backoff;
-		rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
-		return rc;
-	}
-
-	/* write */
-	backoff = 0;
-	rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
-	if (rc < 0)
-		return rc;
-	if (backoff <= 0)
-		return -EINVAL;
-
-	libcfs_console_backoff = backoff;
-
-	return rc;
-}
-
 static int libcfs_force_lbug(struct ctl_table *table, int write,
 			     void __user *buffer,
 			     size_t *lenp, loff_t *ppos)
@@ -815,13 +787,6 @@ static struct ctl_table lnet_table[] = {
 		.proc_handler = &proc_console_min_delay_cs
 	},
 	{
-		.procname = "console_backoff",
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_console_backoff
-	},
-
-	{
 		.procname = "cpu_partition_table",
 		.maxlen   = 128,
 		.mode     = 0444,
@@ -907,6 +872,23 @@ static struct ctl_table lnet_table[] = {
 	}
 };
 
+struct lnet_debugfs_symlink_def {
+	char *name;
+	char *target;
+};
+
+struct lnet_debugfs_symlink_def lnet_debugfs_symlinks[] = {
+	{ "console_ratelimit",
+	  "/sys/module/libcfs/parameters/libcfs_console_ratelimit"},
+	{ "debug_path",
+	  "/sys/module/libcfs/parameters/libcfs_debug_file_path"},
+	{ "panic_on_lbug",
+	  "/sys/module/libcfs/parameters/libcfs_panic_on_lbug"},
+	{ "libcfs_console_backoff",
+	  "/sys/module/libcfs/parameters/libcfs_console_backoff"},
+	{},
+};
+
 static ssize_t lnet_debugfs_read(struct file *filp, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
@@ -944,6 +926,7 @@ static void insert_debugfs(void)
 {
 	struct ctl_table *table;
 	struct dentry *entry;
+	struct lnet_debugfs_symlink_def *symlinks;
 
 	if (lnet_debugfs_root == NULL)
 		lnet_debugfs_root = debugfs_create_dir("lnet", NULL);
@@ -956,6 +939,12 @@ static void insert_debugfs(void)
 		entry = debugfs_create_file(table->procname, table->mode,
 					    lnet_debugfs_root, table,
 					    &lnet_debugfs_file_operations);
+
+	for (symlinks = lnet_debugfs_symlinks; symlinks->name; symlinks++)
+		entry = debugfs_create_symlink(symlinks->name,
+					       lnet_debugfs_root,
+					       symlinks->target);
+
 }
 
 static void remove_debugfs(void)
