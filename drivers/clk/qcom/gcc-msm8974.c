@@ -44,7 +44,7 @@ static const struct parent_map gcc_xo_gpll0_map[] = {
 	{ P_GPLL0, 1 }
 };
 
-static const char *gcc_xo_gpll0[] = {
+static const char * const gcc_xo_gpll0[] = {
 	"xo",
 	"gpll0_vote",
 };
@@ -55,7 +55,7 @@ static const struct parent_map gcc_xo_gpll0_gpll4_map[] = {
 	{ P_GPLL4, 5 }
 };
 
-static const char *gcc_xo_gpll0_gpll4[] = {
+static const char * const gcc_xo_gpll0_gpll4[] = {
 	"xo",
 	"gpll0_vote",
 	"gpll4_vote",

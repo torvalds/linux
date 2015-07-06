@@ -50,7 +50,7 @@ static const struct parent_map mmcc_pxo_pll8_pll2_map[] = {
 	{ P_PLL2, 1 }
 };
 
-static const char *mmcc_pxo_pll8_pll2[] = {
+static const char * const mmcc_pxo_pll8_pll2[] = {
 	"pxo",
 	"pll8_vote",
 	"pll2",
@@ -63,7 +63,7 @@ static const struct parent_map mmcc_pxo_pll8_pll2_pll3_map[] = {
 	{ P_PLL3, 3 }
 };
 
-static const char *mmcc_pxo_pll8_pll2_pll15[] = {
+static const char * const mmcc_pxo_pll8_pll2_pll15[] = {
 	"pxo",
 	"pll8_vote",
 	"pll2",
@@ -77,7 +77,7 @@ static const struct parent_map mmcc_pxo_pll8_pll2_pll15_map[] = {
 	{ P_PLL15, 3 }
 };
 
-static const char *mmcc_pxo_pll8_pll2_pll3[] = {
+static const char * const mmcc_pxo_pll8_pll2_pll3[] = {
 	"pxo",
 	"pll8_vote",
 	"pll2",
@@ -579,7 +579,7 @@ static const struct clk_ops clk_ops_pix_rdi = {
 	.determine_rate = __clk_mux_determine_rate,
 };
 
-static const char *pix_rdi_parents[] = {
+static const char * const pix_rdi_parents[] = {
 	"csi0_clk",
 	"csi1_clk",
 	"csi2_clk",
@@ -709,7 +709,7 @@ static struct clk_rcg csiphytimer_src = {
 	},
 };
 
-static const char *csixphy_timer_src[] = { "csiphytimer_src" };
+static const char * const csixphy_timer_src[] = { "csiphytimer_src" };
 
 static struct clk_branch csiphy0_timer_clk = {
 	.halt_reg = 0x01e8,
@@ -1385,7 +1385,7 @@ static const struct parent_map mmcc_pxo_hdmi_map[] = {
 	{ P_HDMI_PLL, 3 }
 };
 
-static const char *mmcc_pxo_hdmi[] = {
+static const char * const mmcc_pxo_hdmi[] = {
 	"pxo",
 	"hdmi_pll",
 };
@@ -1428,7 +1428,7 @@ static struct clk_rcg tv_src = {
 	},
 };
 
-static const char *tv_src_name[] = { "tv_src" };
+static const char * const tv_src_name[] = { "tv_src" };
 
 static struct clk_branch tv_enc_clk = {
 	.halt_reg = 0x01d4,

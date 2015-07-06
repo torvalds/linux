@@ -51,7 +51,7 @@ static const struct parent_map gcc_xo_gpll0_map[] = {
 	{ P_GPLL0, 1 },
 };
 
-static const char *gcc_xo_gpll0[] = {
+static const char * const gcc_xo_gpll0[] = {
 	"xo",
 	"gpll0_vote",
 };
@@ -62,7 +62,7 @@ static const struct parent_map gcc_xo_gpll0_bimc_map[] = {
 	{ P_BIMC, 2 },
 };
 
-static const char *gcc_xo_gpll0_bimc[] = {
+static const char * const gcc_xo_gpll0_bimc[] = {
 	"xo",
 	"gpll0_vote",
 	"bimc_pll_vote",
@@ -75,7 +75,7 @@ static const struct parent_map gcc_xo_gpll0a_gpll1_gpll2a_map[] = {
 	{ P_GPLL2_AUX, 2 },
 };
 
-static const char *gcc_xo_gpll0a_gpll1_gpll2a[] = {
+static const char * const gcc_xo_gpll0a_gpll1_gpll2a[] = {
 	"xo",
 	"gpll0_vote",
 	"gpll1_vote",
@@ -88,7 +88,7 @@ static const struct parent_map gcc_xo_gpll0_gpll2_map[] = {
 	{ P_GPLL2, 2 },
 };
 
-static const char *gcc_xo_gpll0_gpll2[] = {
+static const char * const gcc_xo_gpll0_gpll2[] = {
 	"xo",
 	"gpll0_vote",
 	"gpll2_vote",
@@ -99,7 +99,7 @@ static const struct parent_map gcc_xo_gpll0a_map[] = {
 	{ P_GPLL0_AUX, 2 },
 };
 
-static const char *gcc_xo_gpll0a[] = {
+static const char * const gcc_xo_gpll0a[] = {
 	"xo",
 	"gpll0_vote",
 };
@@ -111,7 +111,7 @@ static const struct parent_map gcc_xo_gpll0_gpll1a_sleep_map[] = {
 	{ P_SLEEP_CLK, 6 },
 };
 
-static const char *gcc_xo_gpll0_gpll1a_sleep[] = {
+static const char * const gcc_xo_gpll0_gpll1a_sleep[] = {
 	"xo",
 	"gpll0_vote",
 	"gpll1_vote",
@@ -124,7 +124,7 @@ static const struct parent_map gcc_xo_gpll0_gpll1a_map[] = {
 	{ P_GPLL1_AUX, 2 },
 };
 
-static const char *gcc_xo_gpll0_gpll1a[] = {
+static const char * const gcc_xo_gpll0_gpll1a[] = {
 	"xo",
 	"gpll0_vote",
 	"gpll1_vote",
@@ -135,7 +135,7 @@ static const struct parent_map gcc_xo_dsibyte_map[] = {
 	{ P_DSI0_PHYPLL_BYTE, 2 },
 };
 
-static const char *gcc_xo_dsibyte[] = {
+static const char * const gcc_xo_dsibyte[] = {
 	"xo",
 	"dsi0pllbyte",
 };
@@ -146,7 +146,7 @@ static const struct parent_map gcc_xo_gpll0a_dsibyte_map[] = {
 	{ P_DSI0_PHYPLL_BYTE, 1 },
 };
 
-static const char *gcc_xo_gpll0a_dsibyte[] = {
+static const char * const gcc_xo_gpll0a_dsibyte[] = {
 	"xo",
 	"gpll0_vote",
 	"dsi0pllbyte",
@@ -158,7 +158,7 @@ static const struct parent_map gcc_xo_gpll0_dsiphy_map[] = {
 	{ P_DSI0_PHYPLL_DSI, 2 },
 };
 
-static const char *gcc_xo_gpll0_dsiphy[] = {
+static const char * const gcc_xo_gpll0_dsiphy[] = {
 	"xo",
 	"gpll0_vote",
 	"dsi0pll",
@@ -170,7 +170,7 @@ static const struct parent_map gcc_xo_gpll0a_dsiphy_map[] = {
 	{ P_DSI0_PHYPLL_DSI, 1 },
 };
 
-static const char *gcc_xo_gpll0a_dsiphy[] = {
+static const char * const gcc_xo_gpll0a_dsiphy[] = {
 	"xo",
 	"gpll0_vote",
 	"dsi0pll",
@@ -183,7 +183,7 @@ static const struct parent_map gcc_xo_gpll0a_gpll1_gpll2_map[] = {
 	{ P_GPLL2, 2 },
 };
 
-static const char *gcc_xo_gpll0a_gpll1_gpll2[] = {
+static const char * const gcc_xo_gpll0a_gpll1_gpll2[] = {
 	"xo",
 	"gpll0_vote",
 	"gpll1_vote",
