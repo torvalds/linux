@@ -20,10 +20,10 @@
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/perf/arm_pmu.h>
 #include <linux/regulator/machine.h>
 #include <linux/random.h>
 
-#include <asm/pmu.h>
 #include <asm/mach/map.h>
 
 #include "setup.h"

@@ -30,7 +30,7 @@ struct arm_pmu_platdata {
 				  irq_handler_t pmu_handler);
 };
 
-#ifdef CONFIG_HW_PERF_EVENTS
+#ifdef CONFIG_ARM_PMU
 
 /*
  * The ARMv7 CPU PMU supports up to 32 event counters.
@@ -149,6 +149,6 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 			 const struct of_device_id *of_table,
 			 const struct pmu_probe_info *probe_table);
 
-#endif /* CONFIG_HW_PERF_EVENTS */
+#endif /* CONFIG_ARM_PMU */
 
 #endif /* __ARM_PMU_H__ */
