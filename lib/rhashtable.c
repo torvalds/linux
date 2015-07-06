@@ -612,6 +612,8 @@ next:
 		iter->skip = 0;
 	}
 
+	iter->p = NULL;
+
 	/* Ensure we see any new tables. */
 	smp_rmb();
 
@@ -621,8 +623,6 @@ next:
 		iter->skip = 0;
 		return ERR_PTR(-EAGAIN);
 	}
-
-	iter->p = NULL;
 
 out:
 
