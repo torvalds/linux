@@ -423,6 +423,8 @@ struct intel_crtc_state {
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
 
+	uint8_t lane_count;
+
 	/* Panel fitter controls for gen2-gen4 + VLV */
 	struct {
 		u32 control;
@@ -712,7 +714,6 @@ struct intel_dp {
 	bool color_range_auto;
 	uint8_t link_bw;
 	uint8_t rate_select;
-	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
 	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];

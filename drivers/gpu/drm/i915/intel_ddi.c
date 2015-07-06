@@ -728,11 +728,11 @@ void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_digital_port *intel_dig_port =
 		enc_to_dig_port(&encoder->base);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 
 	intel_dp->DP = intel_dig_port->saved_port_bits |
 		DDI_BUF_CTL_ENABLE | DDI_BUF_TRANS_SELECT(0);
-	intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
-
+	intel_dp->DP |= DDI_PORT_WIDTH(crtc->config->lane_count);
 }
 
 static struct intel_encoder *
@@ -1918,7 +1918,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 		} else
 			temp |= TRANS_DDI_MODE_SELECT_DP_SST;
 
-		temp |= DDI_PORT_WIDTH(intel_dp->lane_count);
+		temp |= DDI_PORT_WIDTH(intel_crtc->config->lane_count);
 	} else if (type == INTEL_OUTPUT_DP_MST) {
 		struct intel_dp *intel_dp = &enc_to_mst(encoder)->primary->dp;
 
@@ -1927,7 +1927,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 		} else
 			temp |= TRANS_DDI_MODE_SELECT_DP_SST;
 
-		temp |= DDI_PORT_WIDTH(intel_dp->lane_count);
+		temp |= DDI_PORT_WIDTH(intel_crtc->config->lane_count);
 	} else {
 		WARN(1, "Invalid encoder type %d for pipe %c\n",
 		     intel_encoder->type, pipe_name(pipe));
@@ -3094,6 +3094,8 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	case TRANS_DDI_MODE_SELECT_DP_SST:
 	case TRANS_DDI_MODE_SELECT_DP_MST:
 		pipe_config->has_dp_encoder = true;
+		pipe_config->lane_count =
+			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
 		intel_dp_get_m_n(intel_crtc, pipe_config);
 		break;
 	default:

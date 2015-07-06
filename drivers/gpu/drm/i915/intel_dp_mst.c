@@ -65,7 +65,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 		intel_dp->rate_select = 0;
 	}
 
-	intel_dp->lane_count = lane_count;
+	pipe_config->lane_count = lane_count;
 
 	pipe_config->pipe_bpp = 24;
 	pipe_config->port_clock = rate;
@@ -276,6 +276,10 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 		break;
 	}
 	pipe_config->base.adjusted_mode.flags |= flags;
+
+	pipe_config->lane_count =
+		((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
+
 	intel_dp_get_m_n(crtc, pipe_config);
 
 	intel_ddi_clock_get(&intel_dig_port->base, pipe_config);

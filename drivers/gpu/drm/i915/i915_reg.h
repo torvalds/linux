@@ -4108,6 +4108,7 @@ enum skl_disp_power_wells {
 /* How many wires to use. I guess 3 was too hard */
 #define   DP_PORT_WIDTH(width)		(((width) - 1) << 19)
 #define   DP_PORT_WIDTH_MASK		(7 << 19)
+#define   DP_PORT_WIDTH_SHIFT		19
 
 /* Mystic DPCD version 1.1 special mode */
 #define   DP_ENHANCED_FRAMING		(1 << 18)
@@ -7148,6 +7149,8 @@ enum skl_disp_power_wells {
 #define  DDI_BUF_IS_IDLE			(1<<7)
 #define  DDI_A_4_LANES				(1<<4)
 #define  DDI_PORT_WIDTH(width)			(((width) - 1) << 1)
+#define  DDI_PORT_WIDTH_MASK			(7 << 1)
+#define  DDI_PORT_WIDTH_SHIFT			1
 #define  DDI_INIT_DISPLAY_DETECTED		(1<<0)
 
 /* DDI Buffer Translations */
