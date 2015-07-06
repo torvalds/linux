@@ -2325,7 +2325,20 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
 		host->cmd->error = -EILSEQ;
 
 	if (host->cmd->error) {
-		tasklet_schedule(&host->finish_tasklet);
+		if (!host->cmd->data || host->data_early) {
+			tasklet_schedule(&host->finish_tasklet);
+		} else {
+			/*
+			 * data may be still in transferring, wait for data
+			 * interrupts to handle errors to avoid reset
+			 * during data transfer which may cause unpridicable
+			 * issues due to controller internal state wrong.
+			 *
+			 * Need clear host->cmd to avoid wrongly set data_early
+			 * in the later sdhci_data_irq.
+			 */
+			host->cmd = NULL;
+		}
 		return;
 	}
 
