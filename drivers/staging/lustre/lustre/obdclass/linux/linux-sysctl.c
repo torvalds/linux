@@ -50,10 +50,6 @@
 #include "../../include/obd_support.h"
 #include "../../include/lprocfs_status.h"
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table_header *obd_table_header;
-#endif
-
 struct static_lustre_uintvalue_attr {
 	struct {
 		struct attribute attr;
@@ -144,23 +140,6 @@ LUSTRE_STATIC_UINT_ATTR(at_extra, &at_extra);
 LUSTRE_STATIC_UINT_ATTR(at_early_margin, &at_early_margin);
 LUSTRE_STATIC_UINT_ATTR(at_history, &at_history);
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table obd_table[] = {
-	{}
-};
-
-static struct ctl_table parent_table[] = {
-	{
-		.procname = "lustre",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0555,
-		.child    = obd_table
-	},
-	{}
-};
-#endif
-
 static struct attribute *lustre_attrs[] = {
 	&lustre_sattr_timeout.u.attr,
 	&lustre_attr_max_dirty_mb.attr,
@@ -181,18 +160,9 @@ static struct attribute_group lustre_attr_group = {
 
 int obd_sysctl_init(void)
 {
-#ifdef CONFIG_SYSCTL
-	if (!obd_table_header)
-		obd_table_header = register_sysctl_table(parent_table);
-#endif
 	return sysfs_create_group(lustre_kobj, &lustre_attr_group);
 }
 
 void obd_sysctl_clean(void)
 {
-#ifdef CONFIG_SYSCTL
-	if (obd_table_header)
-		unregister_sysctl_table(obd_table_header);
-	obd_table_header = NULL;
-#endif
 }

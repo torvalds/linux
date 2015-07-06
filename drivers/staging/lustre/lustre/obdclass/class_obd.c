@@ -659,7 +659,6 @@ static void cleanup_obdclass(void)
 	lu_global_fini();
 
 	obd_cleanup_caches();
-	obd_sysctl_clean();
 
 	class_procfs_clean();
 
