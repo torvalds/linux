@@ -445,5 +445,4 @@ static int pmc_init(void)
 {
 	return platform_driver_register(&pmc_driver);
 }
-
-module_init(pmc_init);
+device_initcall(pmc_init);

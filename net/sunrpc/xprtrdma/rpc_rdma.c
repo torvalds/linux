@@ -284,9 +284,6 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	return (unsigned char *)iptr - (unsigned char *)headerp;
 
 out:
-	if (r_xprt->rx_ia.ri_memreg_strategy == RPCRDMA_FRMR)
-		return n;
-
 	for (pos = 0; nchunks--;)
 		pos += r_xprt->rx_ia.ri_ops->ro_unmap(r_xprt,
 						      &req->rl_segments[pos]);
@@ -732,8 +729,8 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpcrdma_msg *headerp;
 	struct rpcrdma_req *req;
 	struct rpc_rqst *rqst;
-	struct rpc_xprt *xprt = rep->rr_xprt;
-	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
+	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	__be32 *iptr;
 	int rdmalen, status;
 	unsigned long cwnd;
@@ -770,7 +767,6 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 			rep->rr_len);
 repost:
 		r_xprt->rx_stats.bad_reply_count++;
-		rep->rr_func = rpcrdma_reply_handler;
 		if (rpcrdma_ep_post_recv(&r_xprt->rx_ia, &r_xprt->rx_ep, rep))
 			rpcrdma_recv_buffer_put(rep);
 

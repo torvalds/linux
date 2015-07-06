@@ -6,9 +6,12 @@
  * version 2, as published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) "%s: " fmt, __func__
+
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
 
 #include "clk.h"
@@ -50,6 +53,18 @@
 #define PLL_CTRL4			0x10
 #define PLL_FRAC_CTRL4_BYPASS		BIT(28)
 
+#define MIN_PFD				9600000UL
+#define MIN_VCO_LA			400000000UL
+#define MAX_VCO_LA			1600000000UL
+#define MIN_VCO_FRAC_INT		600000000UL
+#define MAX_VCO_FRAC_INT		1600000000UL
+#define MIN_VCO_FRAC_FRAC		600000000UL
+#define MAX_VCO_FRAC_FRAC		2400000000UL
+#define MIN_OUTPUT_LA			8000000UL
+#define MAX_OUTPUT_LA			1600000000UL
+#define MIN_OUTPUT_FRAC			12000000UL
+#define MAX_OUTPUT_FRAC			1600000000UL
+
 struct pistachio_clk_pll {
 	struct clk_hw hw;
 	void __iomem *base;
@@ -65,6 +80,12 @@ static inline u32 pll_readl(struct pistachio_clk_pll *pll, u32 reg)
 static inline void pll_writel(struct pistachio_clk_pll *pll, u32 val, u32 reg)
 {
 	writel(val, pll->base + reg);
+}
+
+static inline void pll_lock(struct pistachio_clk_pll *pll)
+{
+	while (!(pll_readl(pll, PLL_STATUS) & PLL_STATUS_LOCK))
+		cpu_relax();
 }
 
 static inline u32 do_div_round_closest(u64 dividend, u32 divisor)
@@ -124,6 +145,8 @@ static int pll_gf40lp_frac_enable(struct clk_hw *hw)
 	val &= ~PLL_FRAC_CTRL4_BYPASS;
 	pll_writel(pll, val, PLL_CTRL4);
 
+	pll_lock(pll);
+
 	return 0;
 }
 
@@ -149,16 +172,29 @@ static int pll_gf40lp_frac_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct pistachio_clk_pll *pll = to_pistachio_pll(hw);
 	struct pistachio_pll_rate_table *params;
-	bool was_enabled;
-	u32 val;
+	int enabled = pll_gf40lp_frac_is_enabled(hw);
+	u32 val, vco, old_postdiv1, old_postdiv2;
+	const char *name = __clk_get_name(hw->clk);
 
-	params = pll_get_params(pll, parent_rate, rate);
-	if (!params)
+	if (rate < MIN_OUTPUT_FRAC || rate > MAX_OUTPUT_FRAC)
 		return -EINVAL;
 
-	was_enabled = pll_gf40lp_frac_is_enabled(hw);
-	if (!was_enabled)
-		pll_gf40lp_frac_enable(hw);
+	params = pll_get_params(pll, parent_rate, rate);
+	if (!params || !params->refdiv)
+		return -EINVAL;
+
+	vco = params->fref * params->fbdiv / params->refdiv;
+	if (vco < MIN_VCO_FRAC_FRAC || vco > MAX_VCO_FRAC_FRAC)
+		pr_warn("%s: VCO %u is out of range %lu..%lu\n", name, vco,
+			MIN_VCO_FRAC_FRAC, MAX_VCO_FRAC_FRAC);
+
+	val = params->fref / params->refdiv;
+	if (val < MIN_PFD)
+		pr_warn("%s: PFD %u is too low (min %lu)\n",
+			name, val, MIN_PFD);
+	if (val > vco / 16)
+		pr_warn("%s: PFD %u is too high (max %u)\n",
+			name, val, vco / 16);
 
 	val = pll_readl(pll, PLL_CTRL1);
 	val &= ~((PLL_CTRL1_REFDIV_MASK << PLL_CTRL1_REFDIV_SHIFT) |
@@ -168,6 +204,19 @@ static int pll_gf40lp_frac_set_rate(struct clk_hw *hw, unsigned long rate,
 	pll_writel(pll, val, PLL_CTRL1);
 
 	val = pll_readl(pll, PLL_CTRL2);
+
+	old_postdiv1 = (val >> PLL_FRAC_CTRL2_POSTDIV1_SHIFT) &
+		       PLL_FRAC_CTRL2_POSTDIV1_MASK;
+	old_postdiv2 = (val >> PLL_FRAC_CTRL2_POSTDIV2_SHIFT) &
+		       PLL_FRAC_CTRL2_POSTDIV2_MASK;
+	if (enabled &&
+	    (params->postdiv1 != old_postdiv1 ||
+	     params->postdiv2 != old_postdiv2))
+		pr_warn("%s: changing postdiv while PLL is enabled\n", name);
+
+	if (params->postdiv2 > params->postdiv1)
+		pr_warn("%s: postdiv2 should not exceed postdiv1\n", name);
+
 	val &= ~((PLL_FRAC_CTRL2_FRAC_MASK << PLL_FRAC_CTRL2_FRAC_SHIFT) |
 		 (PLL_FRAC_CTRL2_POSTDIV1_MASK <<
 		  PLL_FRAC_CTRL2_POSTDIV1_SHIFT) |
@@ -178,11 +227,8 @@ static int pll_gf40lp_frac_set_rate(struct clk_hw *hw, unsigned long rate,
 		(params->postdiv2 << PLL_FRAC_CTRL2_POSTDIV2_SHIFT);
 	pll_writel(pll, val, PLL_CTRL2);
 
-	while (!(pll_readl(pll, PLL_STATUS) & PLL_STATUS_LOCK))
-		cpu_relax();
-
-	if (!was_enabled)
-		pll_gf40lp_frac_disable(hw);
+	if (enabled)
+		pll_lock(pll);
 
 	return 0;
 }
@@ -241,6 +287,8 @@ static int pll_gf40lp_laint_enable(struct clk_hw *hw)
 	val &= ~PLL_INT_CTRL2_BYPASS;
 	pll_writel(pll, val, PLL_CTRL2);
 
+	pll_lock(pll);
+
 	return 0;
 }
 
@@ -266,18 +314,44 @@ static int pll_gf40lp_laint_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct pistachio_clk_pll *pll = to_pistachio_pll(hw);
 	struct pistachio_pll_rate_table *params;
-	bool was_enabled;
-	u32 val;
+	int enabled = pll_gf40lp_laint_is_enabled(hw);
+	u32 val, vco, old_postdiv1, old_postdiv2;
+	const char *name = __clk_get_name(hw->clk);
 
-	params = pll_get_params(pll, parent_rate, rate);
-	if (!params)
+	if (rate < MIN_OUTPUT_LA || rate > MAX_OUTPUT_LA)
 		return -EINVAL;
 
-	was_enabled = pll_gf40lp_laint_is_enabled(hw);
-	if (!was_enabled)
-		pll_gf40lp_laint_enable(hw);
+	params = pll_get_params(pll, parent_rate, rate);
+	if (!params || !params->refdiv)
+		return -EINVAL;
+
+	vco = params->fref * params->fbdiv / params->refdiv;
+	if (vco < MIN_VCO_LA || vco > MAX_VCO_LA)
+		pr_warn("%s: VCO %u is out of range %lu..%lu\n", name, vco,
+			MIN_VCO_LA, MAX_VCO_LA);
+
+	val = params->fref / params->refdiv;
+	if (val < MIN_PFD)
+		pr_warn("%s: PFD %u is too low (min %lu)\n",
+			name, val, MIN_PFD);
+	if (val > vco / 16)
+		pr_warn("%s: PFD %u is too high (max %u)\n",
+			name, val, vco / 16);
 
 	val = pll_readl(pll, PLL_CTRL1);
+
+	old_postdiv1 = (val >> PLL_INT_CTRL1_POSTDIV1_SHIFT) &
+		       PLL_INT_CTRL1_POSTDIV1_MASK;
+	old_postdiv2 = (val >> PLL_INT_CTRL1_POSTDIV2_SHIFT) &
+		       PLL_INT_CTRL1_POSTDIV2_MASK;
+	if (enabled &&
+	    (params->postdiv1 != old_postdiv1 ||
+	     params->postdiv2 != old_postdiv2))
+		pr_warn("%s: changing postdiv while PLL is enabled\n", name);
+
+	if (params->postdiv2 > params->postdiv1)
+		pr_warn("%s: postdiv2 should not exceed postdiv1\n", name);
+
 	val &= ~((PLL_CTRL1_REFDIV_MASK << PLL_CTRL1_REFDIV_SHIFT) |
 		 (PLL_CTRL1_FBDIV_MASK << PLL_CTRL1_FBDIV_SHIFT) |
 		 (PLL_INT_CTRL1_POSTDIV1_MASK << PLL_INT_CTRL1_POSTDIV1_SHIFT) |
@@ -288,11 +362,8 @@ static int pll_gf40lp_laint_set_rate(struct clk_hw *hw, unsigned long rate,
 		(params->postdiv2 << PLL_INT_CTRL1_POSTDIV2_SHIFT);
 	pll_writel(pll, val, PLL_CTRL1);
 
-	while (!(pll_readl(pll, PLL_STATUS) & PLL_STATUS_LOCK))
-		cpu_relax();
-
-	if (!was_enabled)
-		pll_gf40lp_laint_disable(hw);
+	if (enabled)
+		pll_lock(pll);
 
 	return 0;
 }

@@ -11,9 +11,9 @@ ifneq ($(obj-perf),)
 obj-perf := $(abspath $(obj-perf))/
 endif
 
-$(shell echo -n > .config-detected)
-detected     = $(shell echo "$(1)=y"       >> .config-detected)
-detected_var = $(shell echo "$(1)=$($(1))" >> .config-detected)
+$(shell echo -n > $(OUTPUT).config-detected)
+detected     = $(shell echo "$(1)=y"       >> $(OUTPUT).config-detected)
+detected_var = $(shell echo "$(1)=$($(1))" >> $(OUTPUT).config-detected)
 
 CFLAGS := $(EXTRA_CFLAGS) $(EXTRA_WARNINGS)
 

@@ -114,6 +114,7 @@ isee	ISEE 2007 S.L.
 isil	Intersil
 karo	Ka-Ro electronics GmbH
 keymile	Keymile GmbH
+kinetic Kinetic Technologies
 lacie	LaCie
 lantiq	Lantiq Semiconductor
 lenovo	Lenovo Group Ltd.
@@ -226,4 +227,5 @@ xillybus	Xillybus Ltd.
 xlnx	Xilinx
 zyxel	ZyXEL Communications Corp.
 zarlink	Zarlink Semiconductor
+zii	Zodiac Inflight Innovations
 zte	ZTE Corp.

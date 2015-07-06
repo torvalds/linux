@@ -311,6 +311,14 @@
 					dmacap,memset;
 				};
 			};
+
+			ethernet@70000 {
+				compatible = "marvell,armada-370-neta";
+			};
+
+			ethernet@74000 {
+				compatible = "marvell,armada-370-neta";
+			};
 		};
 	};
 };

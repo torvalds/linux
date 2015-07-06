@@ -44,9 +44,9 @@
 #include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/interface/memory.h>
+#include <xen/page.h>
 
 #include <asm/xen/hypercall.h>
-#include <asm/xen/page.h>
 
 /* Provide an option to disable split event channels at load time as
  * event channels are limited resource. Split event channels are

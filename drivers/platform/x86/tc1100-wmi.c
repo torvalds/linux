@@ -82,7 +82,7 @@ static int get_state(u32 *out, u8 instance)
 		tmp = 0;
 	}
 
-	if (result.length > 0 && result.pointer)
+	if (result.length > 0)
 		kfree(result.pointer);
 
 	switch (instance) {

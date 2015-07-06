@@ -2164,7 +2164,7 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 	set_task_cpu(p, cpu);
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 
-#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
+#ifdef CONFIG_SCHED_INFO
 	if (likely(sched_info_on()))
 		memset(&p->sched_info, 0, sizeof(p->sched_info));
 #endif
@@ -2320,13 +2320,27 @@ void wake_up_new_task(struct task_struct *p)
 
 static struct static_key preempt_notifier_key = STATIC_KEY_INIT_FALSE;
 
+void preempt_notifier_inc(void)
+{
+	static_key_slow_inc(&preempt_notifier_key);
+}
+EXPORT_SYMBOL_GPL(preempt_notifier_inc);
+
+void preempt_notifier_dec(void)
+{
+	static_key_slow_dec(&preempt_notifier_key);
+}
+EXPORT_SYMBOL_GPL(preempt_notifier_dec);
+
 /**
  * preempt_notifier_register - tell me when current is being preempted & rescheduled
  * @notifier: notifier struct to register
  */
 void preempt_notifier_register(struct preempt_notifier *notifier)
 {
-	static_key_slow_inc(&preempt_notifier_key);
+	if (!static_key_false(&preempt_notifier_key))
+		WARN(1, "registering preempt_notifier while notifiers disabled\n");
+
 	hlist_add_head(&notifier->link, &current->preempt_notifiers);
 }
 EXPORT_SYMBOL_GPL(preempt_notifier_register);
@@ -2340,7 +2354,6 @@ EXPORT_SYMBOL_GPL(preempt_notifier_register);
 void preempt_notifier_unregister(struct preempt_notifier *notifier)
 {
 	hlist_del(&notifier->link);
-	static_key_slow_dec(&preempt_notifier_key);
 }
 EXPORT_SYMBOL_GPL(preempt_notifier_unregister);
 

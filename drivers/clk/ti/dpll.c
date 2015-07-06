@@ -177,7 +177,7 @@ cleanup:
 }
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
-void __iomem *_get_reg(u8 module, u16 offset)
+static void __iomem *_get_reg(u8 module, u16 offset)
 {
 	u32 reg;
 	struct clk_omap_reg *reg_setup;

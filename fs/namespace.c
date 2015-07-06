@@ -1226,7 +1226,7 @@ EXPORT_SYMBOL(replace_mount_options);
 /* iterator; we want it to have access to namespace_sem, thus here... */
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
-	struct proc_mounts *p = proc_mounts(m);
+	struct proc_mounts *p = m->private;
 
 	down_read(&namespace_sem);
 	if (p->cached_event == p->ns->event) {
@@ -1247,7 +1247,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct proc_mounts *p = proc_mounts(m);
+	struct proc_mounts *p = m->private;
 
 	p->cached_mount = seq_list_next(v, &p->ns->list, pos);
 	p->cached_index = *pos;
@@ -1261,7 +1261,7 @@ static void m_stop(struct seq_file *m, void *v)
 
 static int m_show(struct seq_file *m, void *v)
 {
-	struct proc_mounts *p = proc_mounts(m);
+	struct proc_mounts *p = m->private;
 	struct mount *r = list_entry(v, struct mount, mnt_list);
 	return p->show(m, &r->mnt);
 }
@@ -2343,6 +2343,8 @@ unlock:
 	return err;
 }
 
+static bool fs_fully_visible(struct file_system_type *fs_type, int *new_mnt_flags);
+
 /*
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
@@ -2373,6 +2375,10 @@ static int do_new_mount(struct path *path, const char *fstype, int flags,
 		if (!(type->fs_flags & FS_USERNS_DEV_MOUNT)) {
 			flags |= MS_NODEV;
 			mnt_flags |= MNT_NODEV | MNT_LOCK_NODEV;
+		}
+		if (type->fs_flags & FS_USERNS_VISIBLE) {
+			if (!fs_fully_visible(type, &mnt_flags))
+				return -EPERM;
 		}
 	}
 
@@ -3175,9 +3181,10 @@ bool current_chrooted(void)
 	return chrooted;
 }
 
-bool fs_fully_visible(struct file_system_type *type)
+static bool fs_fully_visible(struct file_system_type *type, int *new_mnt_flags)
 {
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+	int new_flags = *new_mnt_flags;
 	struct mount *mnt;
 	bool visible = false;
 
@@ -3196,16 +3203,36 @@ bool fs_fully_visible(struct file_system_type *type)
 		if (mnt->mnt.mnt_root != mnt->mnt.mnt_sb->s_root)
 			continue;
 
-		/* This mount is not fully visible if there are any child mounts
-		 * that cover anything except for empty directories.
+		/* Verify the mount flags are equal to or more permissive
+		 * than the proposed new mount.
+		 */
+		if ((mnt->mnt.mnt_flags & MNT_LOCK_READONLY) &&
+		    !(new_flags & MNT_READONLY))
+			continue;
+		if ((mnt->mnt.mnt_flags & MNT_LOCK_NODEV) &&
+		    !(new_flags & MNT_NODEV))
+			continue;
+		if ((mnt->mnt.mnt_flags & MNT_LOCK_ATIME) &&
+		    ((mnt->mnt.mnt_flags & MNT_ATIME_MASK) != (new_flags & MNT_ATIME_MASK)))
+			continue;
+
+		/* This mount is not fully visible if there are any
+		 * locked child mounts that cover anything except for
+		 * empty directories.
 		 */
 		list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
 			struct inode *inode = child->mnt_mountpoint->d_inode;
-			if (!S_ISDIR(inode->i_mode))
-				goto next;
-			if (inode->i_nlink > 2)
+			/* Only worry about locked mounts */
+			if (!(mnt->mnt.mnt_flags & MNT_LOCKED))
+				continue;
+			/* Is the directory permanetly empty? */
+			if (!is_empty_dir_inode(inode))
 				goto next;
 		}
+		/* Preserve the locked attributes */
+		*new_mnt_flags |= mnt->mnt.mnt_flags & (MNT_LOCK_READONLY | \
+							MNT_LOCK_NODEV    | \
+							MNT_LOCK_ATIME);
 		visible = true;
 		goto found;
 	next:	;

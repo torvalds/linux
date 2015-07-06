@@ -174,6 +174,27 @@ xfs_mount_validate_sb(
 			return -EFSCORRUPTED;
 	}
 
+	/*
+	 * Full inode chunks must be aligned to inode chunk size when
+	 * sparse inodes are enabled to support the sparse chunk
+	 * allocation algorithm and prevent overlapping inode records.
+	 */
+	if (xfs_sb_version_hassparseinodes(sbp)) {
+		uint32_t	align;
+
+		xfs_alert(mp,
+	"EXPERIMENTAL sparse inode feature enabled. Use at your own risk!");
+
+		align = XFS_INODES_PER_CHUNK * sbp->sb_inodesize
+				>> sbp->sb_blocklog;
+		if (sbp->sb_inoalignmt != align) {
+			xfs_warn(mp,
+"Inode block alignment (%u) must match chunk size (%u) for sparse inodes.",
+				 sbp->sb_inoalignmt, align);
+			return -EINVAL;
+		}
+	}
+
 	if (unlikely(
 	    sbp->sb_logstart == 0 && mp->m_logdev_targp == mp->m_ddev_targp)) {
 		xfs_warn(mp,
@@ -374,7 +395,7 @@ __xfs_sb_from_disk(
 				be32_to_cpu(from->sb_features_log_incompat);
 	/* crc is only used on disk, not in memory; just init to 0 here. */
 	to->sb_crc = 0;
-	to->sb_pad = 0;
+	to->sb_spino_align = be32_to_cpu(from->sb_spino_align);
 	to->sb_pquotino = be64_to_cpu(from->sb_pquotino);
 	to->sb_lsn = be64_to_cpu(from->sb_lsn);
 	/* Convert on-disk flags to in-memory flags? */
@@ -516,7 +537,7 @@ xfs_sb_to_disk(
 				cpu_to_be32(from->sb_features_incompat);
 		to->sb_features_log_incompat =
 				cpu_to_be32(from->sb_features_log_incompat);
-		to->sb_pad = 0;
+		to->sb_spino_align = cpu_to_be32(from->sb_spino_align);
 		to->sb_lsn = cpu_to_be64(from->sb_lsn);
 	}
 }
@@ -689,6 +710,11 @@ xfs_sb_mount_common(
 	mp->m_ialloc_inos = (int)MAX((__uint16_t)XFS_INODES_PER_CHUNK,
 					sbp->sb_inopblock);
 	mp->m_ialloc_blks = mp->m_ialloc_inos >> sbp->sb_inopblog;
+
+	if (sbp->sb_spino_align)
+		mp->m_ialloc_min_blks = sbp->sb_spino_align;
+	else
+		mp->m_ialloc_min_blks = mp->m_ialloc_blks;
 }
 
 /*
@@ -792,12 +818,12 @@ xfs_sync_sb(
 	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_CHANGE, KM_SLEEP);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
 	xfs_log_sb(tp);
 	if (wait)
 		xfs_trans_set_sync(tp);
-	return xfs_trans_commit(tp, 0);
+	return xfs_trans_commit(tp);
 }

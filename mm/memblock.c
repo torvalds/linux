@@ -820,6 +820,38 @@ int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
 
 
 /**
+ * __next_reserved_mem_region - next function for for_each_reserved_region()
+ * @idx: pointer to u64 loop variable
+ * @out_start: ptr to phys_addr_t for start address of the region, can be %NULL
+ * @out_end: ptr to phys_addr_t for end address of the region, can be %NULL
+ *
+ * Iterate over all reserved memory regions.
+ */
+void __init_memblock __next_reserved_mem_region(u64 *idx,
+					   phys_addr_t *out_start,
+					   phys_addr_t *out_end)
+{
+	struct memblock_type *rsv = &memblock.reserved;
+
+	if (*idx >= 0 && *idx < rsv->cnt) {
+		struct memblock_region *r = &rsv->regions[*idx];
+		phys_addr_t base = r->base;
+		phys_addr_t size = r->size;
+
+		if (out_start)
+			*out_start = base;
+		if (out_end)
+			*out_end = base + size - 1;
+
+		*idx += 1;
+		return;
+	}
+
+	/* signal end of iteration */
+	*idx = ULLONG_MAX;
+}
+
+/**
  * __next__mem_range - next function for for_each_free_mem_range() etc.
  * @idx: pointer to u64 loop variable
  * @nid: node selector, %NUMA_NO_NODE for all nodes
@@ -1387,7 +1419,7 @@ void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
 	end = PFN_DOWN(base + size);
 
 	for (; cursor < end; cursor++) {
-		__free_pages_bootmem(pfn_to_page(cursor), 0);
+		__free_pages_bootmem(pfn_to_page(cursor), cursor, 0);
 		totalram_pages++;
 	}
 }

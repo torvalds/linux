@@ -268,6 +268,17 @@ static void cik_sdma_gfx_stop(struct radeon_device *rdev)
 	}
 	rdev->ring[R600_RING_TYPE_DMA_INDEX].ready = false;
 	rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX].ready = false;
+
+	/* FIXME use something else than big hammer but after few days can not
+	 * seem to find good combination so reset SDMA blocks as it seems we
+	 * do not shut them down properly. This fix hibernation and does not
+	 * affect suspend to ram.
+	 */
+	WREG32(SRBM_SOFT_RESET, SOFT_RESET_SDMA | SOFT_RESET_SDMA1);
+	(void)RREG32(SRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(SRBM_SOFT_RESET, 0);
+	(void)RREG32(SRBM_SOFT_RESET);
 }
 
 /**

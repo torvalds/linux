@@ -48,15 +48,70 @@ struct macvtap_queue {
 #define MACVTAP_FEATURES (IFF_VNET_HDR | IFF_MULTI_QUEUE)
 
 #define MACVTAP_VNET_LE 0x80000000
+#define MACVTAP_VNET_BE 0x40000000
+
+#ifdef CONFIG_TUN_VNET_CROSS_LE
+static inline bool macvtap_legacy_is_little_endian(struct macvtap_queue *q)
+{
+	return q->flags & MACVTAP_VNET_BE ? false :
+		virtio_legacy_is_little_endian();
+}
+
+static long macvtap_get_vnet_be(struct macvtap_queue *q, int __user *sp)
+{
+	int s = !!(q->flags & MACVTAP_VNET_BE);
+
+	if (put_user(s, sp))
+		return -EFAULT;
+
+	return 0;
+}
+
+static long macvtap_set_vnet_be(struct macvtap_queue *q, int __user *sp)
+{
+	int s;
+
+	if (get_user(s, sp))
+		return -EFAULT;
+
+	if (s)
+		q->flags |= MACVTAP_VNET_BE;
+	else
+		q->flags &= ~MACVTAP_VNET_BE;
+
+	return 0;
+}
+#else
+static inline bool macvtap_legacy_is_little_endian(struct macvtap_queue *q)
+{
+	return virtio_legacy_is_little_endian();
+}
+
+static long macvtap_get_vnet_be(struct macvtap_queue *q, int __user *argp)
+{
+	return -EINVAL;
+}
+
+static long macvtap_set_vnet_be(struct macvtap_queue *q, int __user *argp)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_TUN_VNET_CROSS_LE */
+
+static inline bool macvtap_is_little_endian(struct macvtap_queue *q)
+{
+	return q->flags & MACVTAP_VNET_LE ||
+		macvtap_legacy_is_little_endian(q);
+}
 
 static inline u16 macvtap16_to_cpu(struct macvtap_queue *q, __virtio16 val)
 {
-	return __virtio16_to_cpu(q->flags & MACVTAP_VNET_LE, val);
+	return __virtio16_to_cpu(macvtap_is_little_endian(q), val);
 }
 
 static inline __virtio16 cpu_to_macvtap16(struct macvtap_queue *q, u16 val)
 {
-	return __cpu_to_virtio16(q->flags & MACVTAP_VNET_LE, val);
+	return __cpu_to_virtio16(macvtap_is_little_endian(q), val);
 }
 
 static struct proto macvtap_proto = {
@@ -1084,6 +1139,12 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		else
 			q->flags &= ~MACVTAP_VNET_LE;
 		return 0;
+
+	case TUNGETVNETBE:
+		return macvtap_get_vnet_be(q, sp);
+
+	case TUNSETVNETBE:
+		return macvtap_set_vnet_be(q, sp);
 
 	case TUNSETOFFLOAD:
 		/* let the user check for future flags */

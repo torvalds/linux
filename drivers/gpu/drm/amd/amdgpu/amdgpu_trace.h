@@ -30,19 +30,21 @@ TRACE_EVENT(amdgpu_cs,
 	    TP_PROTO(struct amdgpu_cs_parser *p, int i),
 	    TP_ARGS(p, i),
 	    TP_STRUCT__entry(
+			     __field(struct amdgpu_bo_list *, bo_list)
 			     __field(u32, ring)
 			     __field(u32, dw)
 			     __field(u32, fences)
 			     ),
 
 	    TP_fast_assign(
+			   __entry->bo_list = p->bo_list;
 			   __entry->ring = p->ibs[i].ring->idx;
 			   __entry->dw = p->ibs[i].length_dw;
 			   __entry->fences = amdgpu_fence_count_emitted(
 				p->ibs[i].ring);
 			   ),
-	    TP_printk("ring=%u, dw=%u, fences=%u",
-		      __entry->ring, __entry->dw,
+	    TP_printk("bo_list=%p, ring=%u, dw=%u, fences=%u",
+		      __entry->bo_list, __entry->ring, __entry->dw,
 		      __entry->fences)
 );
 
@@ -59,6 +61,54 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 			   __entry->ring = ring;
 			   ),
 	    TP_printk("vmid=%u, ring=%u", __entry->vmid, __entry->ring)
+);
+
+TRACE_EVENT(amdgpu_vm_bo_map,
+	    TP_PROTO(struct amdgpu_bo_va *bo_va,
+		     struct amdgpu_bo_va_mapping *mapping),
+	    TP_ARGS(bo_va, mapping),
+	    TP_STRUCT__entry(
+			     __field(struct amdgpu_bo *, bo)
+			     __field(long, start)
+			     __field(long, last)
+			     __field(u64, offset)
+			     __field(u32, flags)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->bo = bo_va->bo;
+			   __entry->start = mapping->it.start;
+			   __entry->last = mapping->it.last;
+			   __entry->offset = mapping->offset;
+			   __entry->flags = mapping->flags;
+			   ),
+	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%08x",
+		      __entry->bo, __entry->start, __entry->last,
+		      __entry->offset, __entry->flags)
+);
+
+TRACE_EVENT(amdgpu_vm_bo_unmap,
+	    TP_PROTO(struct amdgpu_bo_va *bo_va,
+		     struct amdgpu_bo_va_mapping *mapping),
+	    TP_ARGS(bo_va, mapping),
+	    TP_STRUCT__entry(
+			     __field(struct amdgpu_bo *, bo)
+			     __field(long, start)
+			     __field(long, last)
+			     __field(u64, offset)
+			     __field(u32, flags)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->bo = bo_va->bo;
+			   __entry->start = mapping->it.start;
+			   __entry->last = mapping->it.last;
+			   __entry->offset = mapping->offset;
+			   __entry->flags = mapping->flags;
+			   ),
+	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%08x",
+		      __entry->bo, __entry->start, __entry->last,
+		      __entry->offset, __entry->flags)
 );
 
 TRACE_EVENT(amdgpu_vm_bo_update,
@@ -119,6 +169,21 @@ TRACE_EVENT(amdgpu_vm_flush,
 			   ),
 	    TP_printk("pd_addr=%010Lx, ring=%u, id=%u",
 		      __entry->pd_addr, __entry->ring, __entry->id)
+);
+
+TRACE_EVENT(amdgpu_bo_list_set,
+	    TP_PROTO(struct amdgpu_bo_list *list, struct amdgpu_bo *bo),
+	    TP_ARGS(list, bo),
+	    TP_STRUCT__entry(
+			     __field(struct amdgpu_bo_list *, list)
+			     __field(struct amdgpu_bo *, bo)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->list = list;
+			   __entry->bo = bo;
+			   ),
+	    TP_printk("list=%p, bo=%p", __entry->list, __entry->bo)
 );
 
 DECLARE_EVENT_CLASS(amdgpu_fence_request,

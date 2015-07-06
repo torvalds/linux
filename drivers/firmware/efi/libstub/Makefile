@@ -24,8 +24,6 @@ KASAN_SANITIZE			:= n
 lib-y				:= efi-stub-helper.o
 lib-$(CONFIG_EFI_ARMSTUB)	+= arm-stub.o fdt.o
 
-CFLAGS_fdt.o			+= -I$(srctree)/scripts/dtc/libfdt/
-
 #
 # arm64 puts the stub in the kernel proper, which will unnecessarily retain all
 # code indefinitely unless it is annotated as __init/__initdata/__initconst etc.

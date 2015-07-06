@@ -1300,4 +1300,26 @@ static void __exit __driver##_exit(void) \
 } \
 module_exit(__driver##_exit);
 
+/**
+ * builtin_driver() - Helper macro for drivers that don't do anything
+ * special in init and have no exit. This eliminates some boilerplate.
+ * Each driver may only use this macro once, and calling it replaces
+ * device_initcall (or in some cases, the legacy __initcall).  This is
+ * meant to be a direct parallel of module_driver() above but without
+ * the __exit stuff that is not used for builtin cases.
+ *
+ * @__driver: driver name
+ * @__register: register function for this driver type
+ * @...: Additional arguments to be passed to __register
+ *
+ * Use this macro to construct bus specific macros for registering
+ * drivers, and do not use it on its own.
+ */
+#define builtin_driver(__driver, __register, ...) \
+static int __init __driver##_init(void) \
+{ \
+	return __register(&(__driver) , ##__VA_ARGS__); \
+} \
+device_initcall(__driver##_init);
+
 #endif /* _DEVICE_H_ */

@@ -250,7 +250,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 ({								\
 	/* Branch instruction needs 6 bytes */			\
 	int rel = (addrs[i + off + 1] - (addrs[i + 1] - 6)) / 2;\
-	_EMIT6(op1 | reg(b1, b2) << 16 | rel, op2 | mask);	\
+	_EMIT6(op1 | reg(b1, b2) << 16 | (rel & 0xffff), op2 | mask);	\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 })

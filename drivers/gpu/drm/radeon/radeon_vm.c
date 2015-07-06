@@ -1129,12 +1129,12 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
 		interval_tree_remove(&bo_va->it, &vm->va);
 
 	spin_lock(&vm->status_lock);
-	if (list_empty(&bo_va->vm_status)) {
+	list_del(&bo_va->vm_status);
+	if (bo_va->it.start || bo_va->it.last) {
 		bo_va->bo = radeon_bo_ref(bo_va->bo);
 		list_add(&bo_va->vm_status, &vm->freed);
 	} else {
 		radeon_fence_unref(&bo_va->last_pt_update);
-		list_del(&bo_va->vm_status);
 		kfree(bo_va);
 	}
 	spin_unlock(&vm->status_lock);

@@ -434,8 +434,9 @@ static int lio_set_phys_id(struct net_device *netdev,
 			if (ret)
 				return ret;
 
-			octnet_mdio45_access(lio, 1, LIO68XX_LED_BEACON_ADDR,
-					     &lio->phy_beacon_val);
+			ret = octnet_mdio45_access(lio, 1,
+						   LIO68XX_LED_BEACON_ADDR,
+						   &lio->phy_beacon_val);
 			if (ret)
 				return ret;
 

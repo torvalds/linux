@@ -43,6 +43,9 @@ static void mvebu_armada_xp_gp_pm_enter(void __iomem *sdram_reg, u32 srcmd)
 	for (i = 0; i < ARMADA_XP_GP_PIC_NR_GPIOS; i++)
 		ackcmd |= BIT(pic_raw_gpios[i]);
 
+	srcmd = cpu_to_le32(srcmd);
+	ackcmd = cpu_to_le32(ackcmd);
+
 	/*
 	 * Wait a while, the PIC needs quite a bit of time between the
 	 * two GPIO commands.

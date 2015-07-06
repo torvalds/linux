@@ -2026,10 +2026,10 @@ S:	Maintained
 F:	drivers/net/hamradio/baycom*
 
 BCACHE (BLOCK LAYER CACHE)
-M:	Kent Overstreet <kmo@daterainc.com>
+M:	Kent Overstreet <kent.overstreet@gmail.com>
 L:	linux-bcache@vger.kernel.org
 W:	http://bcache.evilpiepirate.org
-S:	Maintained:
+S:	Maintained
 F:	drivers/md/bcache/
 
 BDISP ST MEDIA DRIVER
@@ -2280,7 +2280,7 @@ S:	Maintained
 F:	arch/mips/bmips/*
 F:	arch/mips/include/asm/mach-bmips/*
 F:	arch/mips/kernel/*bmips*
-F:	arch/mips/boot/dts/bcm*.dts*
+F:	arch/mips/boot/dts/brcm/bcm*.dts*
 F:	drivers/irqchip/irq-bcm7*
 F:	drivers/irqchip/irq-brcmstb*
 
@@ -2339,7 +2339,7 @@ M:	Ray Jui <rjui@broadcom.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 S:	Supported
 F:	drivers/gpio/gpio-bcm-kona.c
-F:	Documentation/devicetree/bindings/gpio/gpio-bcm-kona.txt
+F:	Documentation/devicetree/bindings/gpio/brcm,kona-gpio.txt
 
 BROADCOM NVRAM DRIVER
 M:	Rafał Miłecki <zajec5@gmail.com>
@@ -2763,7 +2763,7 @@ F:	Documentation/devicetree/bindings/media/coda.txt
 F:	drivers/media/platform/coda/
 
 COMMON CLK FRAMEWORK
-M:	Mike Turquette <mturquette@linaro.org>
+M:	Michael Turquette <mturquette@baylibre.com>
 M:	Stephen Boyd <sboyd@codeaurora.org>
 L:	linux-clk@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/clk/linux.git
@@ -3215,6 +3215,11 @@ M:	Pali Rohár <pali.rohar@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/dell-laptop.c
+
+DELL LAPTOP RBTN DRIVER
+M:	Pali Rohár <pali.rohar@gmail.com>
+S:	Maintained
+F:	drivers/platform/x86/dell-rbtn.*
 
 DELL LAPTOP FREEFALL DRIVER
 M:	Pali Rohár <pali.rohar@gmail.com>
@@ -4425,9 +4430,11 @@ FUSE: FILESYSTEM IN USERSPACE
 M:	Miklos Szeredi <miklos@szeredi.hu>
 L:	fuse-devel@lists.sourceforge.net
 W:	http://fuse.sourceforge.net/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/fuse.git
 S:	Maintained
 F:	fs/fuse/
 F:	include/uapi/linux/fuse.h
+F:	Documentation/filesystems/fuse.txt
 
 FUTURE DOMAIN TMC-16x0 SCSI DRIVER (16-bit)
 M:	Rik Faith <faith@cs.unc.edu>
@@ -5285,11 +5292,10 @@ INTEL ASoC BDW/HSW DRIVERS
 M:	Jie Yang <yang.jie@linux.intel.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
-F:	sound/soc/intel/sst-haswell*
-F:	sound/soc/intel/sst-dsp*
-F:	sound/soc/intel/sst-firmware.c
-F:	sound/soc/intel/broadwell.c
-F:	sound/soc/intel/haswell.c
+F:	sound/soc/intel/common/sst-dsp*
+F:	sound/soc/intel/common/sst-firmware.c
+F:	sound/soc/intel/boards/broadwell.c
+F:	sound/soc/intel/haswell/
 
 INTEL C600 SERIES SAS CONTROLLER DRIVER
 M:	Intel SCU Linux support <intel-linux-scu@intel.com>
@@ -5463,6 +5469,13 @@ F:	include/uapi/linux/mei.h
 F:	include/linux/mei_cl_bus.h
 F:	drivers/misc/mei/*
 F:	Documentation/misc-devices/mei/*
+
+INTEL PMC IPC DRIVER
+M:	Zha Qipeng<qipeng.zha@intel.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/intel_pmc_ipc.c
+F:	arch/x86/include/asm/intel_pmc_ipc.h
 
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
@@ -6101,6 +6114,39 @@ LIBLOCKDEP
 M:	Sasha Levin <sasha.levin@oracle.com>
 S:	Maintained
 F:	tools/lib/lockdep/
+
+LIBNVDIMM: NON-VOLATILE MEMORY DEVICE SUBSYSTEM
+M:	Dan Williams <dan.j.williams@intel.com>
+L:	linux-nvdimm@lists.01.org
+Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
+S:	Supported
+F:	drivers/nvdimm/*
+F:	include/linux/nd.h
+F:	include/linux/libnvdimm.h
+F:	include/uapi/linux/ndctl.h
+
+LIBNVDIMM BLK: MMIO-APERTURE DRIVER
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+L:	linux-nvdimm@lists.01.org
+Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
+S:	Supported
+F:	drivers/nvdimm/blk.c
+F:	drivers/nvdimm/region_devs.c
+F:	drivers/acpi/nfit*
+
+LIBNVDIMM BTT: BLOCK TRANSLATION TABLE
+M:	Vishal Verma <vishal.l.verma@intel.com>
+L:	linux-nvdimm@lists.01.org
+Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
+S:	Supported
+F:	drivers/nvdimm/btt*
+
+LIBNVDIMM PMEM: PERSISTENT MEMORY DRIVER
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+L:	linux-nvdimm@lists.01.org
+Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
+S:	Supported
+F:	drivers/nvdimm/pmem.c
 
 LINUX FOR IBM pSERIES (RS/6000)
 M:	Paul Mackerras <paulus@au.ibm.com>
@@ -6754,9 +6800,8 @@ S:	Maintained
 F:	drivers/platform/x86/msi-laptop.c
 
 MSI WMI SUPPORT
-M:	Anisse Astier <anisse@astier.eu>
 L:	platform-driver-x86@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	drivers/platform/x86/msi-wmi.c
 
 MSI001 MEDIA DRIVER
@@ -6986,7 +7031,6 @@ L:	nbd-general@lists.sourceforge.net
 T:	git git://git.pengutronix.de/git/mpa/linux-nbd.git
 F:	Documentation/blockdev/nbd.txt
 F:	drivers/block/nbd.c
-F:	include/linux/nbd.h
 F:	include/uapi/linux/nbd.h
 
 NETWORK DROP MONITOR
@@ -7175,15 +7219,25 @@ F:	drivers/power/bq27x00_battery.c
 F:	drivers/power/isp1704_charger.c
 F:	drivers/power/rx51_battery.c
 
-NTB DRIVER
+NTB DRIVER CORE
 M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
+M:	Allen Hubbe <Allen.Hubbe@emc.com>
 S:	Supported
 W:	https://github.com/jonmason/ntb/wiki
 T:	git git://github.com/jonmason/ntb.git
 F:	drivers/ntb/
 F:	drivers/net/ntb_netdev.c
 F:	include/linux/ntb.h
+F:	include/linux/ntb_transport.h
+
+NTB INTEL DRIVER
+M:	Jon Mason <jdmason@kudzu.us>
+M:	Dave Jiang <dave.jiang@intel.com>
+S:	Supported
+W:	https://github.com/jonmason/ntb/wiki
+T:	git git://github.com/jonmason/ntb.git
+F:	drivers/ntb/hw/intel/
 
 NTFS FILESYSTEM
 M:	Anton Altaparmakov <anton@tuxera.com>
@@ -7327,7 +7381,6 @@ M:	Ohad Ben-Cohen <ohad@wizery.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/hwspinlock/omap_hwspinlock.c
-F:	arch/arm/mach-omap2/hwspinlock.c
 
 OMAP MMC SUPPORT
 M:	Jarkko Lavinen <jarkko.lavinen@nokia.com>
@@ -7614,7 +7667,6 @@ F:	arch/*/include/asm/paravirt.h
 PARIDE DRIVERS FOR PARALLEL PORT IDE DEVICES
 M:	Tim Waugh <tim@cyberelk.net>
 L:	linux-parport@lists.infradead.org (subscribers-only)
-W:	http://www.torque.net/linux-pp.html
 S:	Maintained
 F:	Documentation/blockdev/paride.txt
 F:	drivers/block/paride/
@@ -8174,6 +8226,7 @@ T:	git git://github.com/hzhuang1/linux.git
 T:	git git://github.com/rjarzmik/linux.git
 S:	Maintained
 F:	arch/arm/mach-pxa/
+F:	drivers/dma/pxa*
 F:	drivers/pcmcia/pxa2xx*
 F:	drivers/spi/spi-pxa2xx*
 F:	drivers/usb/gadget/udc/pxa2*
@@ -8361,12 +8414,6 @@ M:	Jens Axboe <axboe@kernel.dk>
 S:	Maintained
 F:	Documentation/blockdev/ramdisk.txt
 F:	drivers/block/brd.c
-
-PERSISTENT MEMORY DRIVER
-M:	Ross Zwisler <ross.zwisler@linux.intel.com>
-L:	linux-nvdimm@lists.01.org
-S:	Supported
-F:	drivers/block/pmem.c
 
 RANDOM NUMBER DRIVER
 M:	"Theodore Ts'o" <tytso@mit.edu>
@@ -8986,6 +9033,7 @@ S:	Supported
 F:	kernel/seccomp.c
 F:	include/uapi/linux/seccomp.h
 F:	include/linux/seccomp.h
+F:	tools/testing/selftests/seccomp/*
 K:	\bsecure_computing
 K:	\bTIF_SECCOMP\b
 
@@ -9062,9 +9110,9 @@ S:	Supported
 F:	drivers/net/ethernet/emulex/benet/
 
 EMULEX ONECONNECT ROCE DRIVER
-M:	Selvin Xavier <selvin.xavier@emulex.com>
-M:	Devesh Sharma <devesh.sharma@emulex.com>
-M:	Mitesh Ahuja <mitesh.ahuja@emulex.com>
+M:	Selvin Xavier <selvin.xavier@avagotech.com>
+M:	Devesh Sharma <devesh.sharma@avagotech.com>
+M:	Mitesh Ahuja <mitesh.ahuja@avagotech.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported
@@ -9564,7 +9612,6 @@ F:	include/uapi/linux/spi/
 
 SPIDERNET NETWORK DRIVER for CELL
 M:	Ishizaki Kou <kou.ishizaki@toshiba.co.jp>
-M:	Jens Osterkamp <jens@de.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/spider_net.txt
@@ -9802,6 +9849,13 @@ S:	Supported
 F:	arch/arc/
 F:	Documentation/devicetree/bindings/arc/
 F:	drivers/tty/serial/arc_uart.c
+
+SYNOPSYS ARC SDP platform support
+M:	Alexey Brodkin <abrodkin@synopsys.com>
+S:	Supported
+F:	arch/arc/plat-axs10x
+F:	arch/arc/boot/dts/ax*
+F:	Documentation/devicetree/bindings/arc/axs10*
 
 SYSTEM CONFIGURATION (SYSCON)
 M:	Lee Jones <lee.jones@linaro.org>
@@ -11317,6 +11371,13 @@ L:	linux-wireless@vger.kernel.org
 L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 F:	drivers/net/wireless/zd1211rw/
+
+ZPOOL COMPRESSED PAGE STORAGE API
+M:	Dan Streetman <ddstreet@ieee.org>
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	mm/zpool.c
+F:	include/linux/zpool.h
 
 ZR36067 VIDEO FOR LINUX DRIVER
 L:	mjpeg-users@lists.sourceforge.net

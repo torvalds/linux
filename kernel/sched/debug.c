@@ -142,7 +142,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		0LL, 0L);
 #endif
 #ifdef CONFIG_NUMA_BALANCING
-	SEQ_printf(m, " %d", task_node(p));
+	SEQ_printf(m, " %d %d", task_node(p), task_numa_group_id(p));
 #endif
 #ifdef CONFIG_CGROUP_SCHED
 	SEQ_printf(m, " %s", task_group_path(task_group(p)));
@@ -517,11 +517,21 @@ __initcall(init_sched_debug_procfs);
 	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
 
 
+#ifdef CONFIG_NUMA_BALANCING
+void print_numa_stats(struct seq_file *m, int node, unsigned long tsf,
+		unsigned long tpf, unsigned long gsf, unsigned long gpf)
+{
+	SEQ_printf(m, "numa_faults node=%d ", node);
+	SEQ_printf(m, "task_private=%lu task_shared=%lu ", tsf, tpf);
+	SEQ_printf(m, "group_private=%lu group_shared=%lu\n", gsf, gpf);
+}
+#endif
+
+
 static void sched_show_numa(struct task_struct *p, struct seq_file *m)
 {
 #ifdef CONFIG_NUMA_BALANCING
 	struct mempolicy *pol;
-	int node, i;
 
 	if (p->mm)
 		P(mm->numa_scan_seq);
@@ -533,26 +543,12 @@ static void sched_show_numa(struct task_struct *p, struct seq_file *m)
 	mpol_get(pol);
 	task_unlock(p);
 
-	SEQ_printf(m, "numa_migrations, %ld\n", xchg(&p->numa_pages_migrated, 0));
-
-	for_each_online_node(node) {
-		for (i = 0; i < 2; i++) {
-			unsigned long nr_faults = -1;
-			int cpu_current, home_node;
-
-			if (p->numa_faults)
-				nr_faults = p->numa_faults[2*node + i];
-
-			cpu_current = !i ? (task_node(p) == node) :
-				(pol && node_isset(node, pol->v.nodes));
-
-			home_node = (p->numa_preferred_nid == node);
-
-			SEQ_printf(m, "numa_faults_memory, %d, %d, %d, %d, %ld\n",
-				i, node, cpu_current, home_node, nr_faults);
-		}
-	}
-
+	P(numa_pages_migrated);
+	P(numa_preferred_nid);
+	P(total_numa_faults);
+	SEQ_printf(m, "current_node=%d, numa_group_id=%d\n",
+			task_node(p), task_numa_group_id(p));
+	show_numa_stats(p, m);
 	mpol_put(pol);
 #endif
 }

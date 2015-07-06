@@ -335,6 +335,7 @@ struct acpi_object_reference {
 	void *object;		/* name_op=>HANDLE to obj, index_op=>union acpi_operand_object */
 	struct acpi_namespace_node *node;	/* ref_of or Namepath */
 	union acpi_operand_object **where;	/* Target of Index */
+	u8 *index_pointer;	/* Used for Buffers and Strings */
 	u32 value;		/* Used for Local/Arg/Index/ddb_handle */
 };
 

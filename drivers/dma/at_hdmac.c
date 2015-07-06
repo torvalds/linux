@@ -247,6 +247,10 @@ static void atc_dostart(struct at_dma_chan *atchan, struct at_desc *first)
 	channel_writel(atchan, CTRLA, 0);
 	channel_writel(atchan, CTRLB, 0);
 	channel_writel(atchan, DSCR, first->txd.phys);
+	channel_writel(atchan, SPIP, ATC_SPIP_HOLE(first->src_hole) |
+		       ATC_SPIP_BOUNDARY(first->boundary));
+	channel_writel(atchan, DPIP, ATC_DPIP_HOLE(first->dst_hole) |
+		       ATC_DPIP_BOUNDARY(first->boundary));
 	dma_writel(atdma, CHER, atchan->mask);
 
 	vdbg_dump_regs(atchan);
@@ -632,6 +636,104 @@ static dma_cookie_t atc_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	return cookie;
+}
+
+/**
+ * atc_prep_dma_interleaved - prepare memory to memory interleaved operation
+ * @chan: the channel to prepare operation on
+ * @xt: Interleaved transfer template
+ * @flags: tx descriptor status flags
+ */
+static struct dma_async_tx_descriptor *
+atc_prep_dma_interleaved(struct dma_chan *chan,
+			 struct dma_interleaved_template *xt,
+			 unsigned long flags)
+{
+	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+	struct data_chunk	*first = xt->sgl;
+	struct at_desc		*desc = NULL;
+	size_t			xfer_count;
+	unsigned int		dwidth;
+	u32			ctrla;
+	u32			ctrlb;
+	size_t			len = 0;
+	int			i;
+
+	dev_info(chan2dev(chan),
+		 "%s: src=0x%08x, dest=0x%08x, numf=%d, frame_size=%d, flags=0x%lx\n",
+		__func__, xt->src_start, xt->dst_start, xt->numf,
+		xt->frame_size, flags);
+
+	if (unlikely(!xt || xt->numf != 1 || !xt->frame_size))
+		return NULL;
+
+	/*
+	 * The controller can only "skip" X bytes every Y bytes, so we
+	 * need to make sure we are given a template that fit that
+	 * description, ie a template with chunks that always have the
+	 * same size, with the same ICGs.
+	 */
+	for (i = 0; i < xt->frame_size; i++) {
+		struct data_chunk *chunk = xt->sgl + i;
+
+		if ((chunk->size != xt->sgl->size) ||
+		    (dmaengine_get_dst_icg(xt, chunk) != dmaengine_get_dst_icg(xt, first)) ||
+		    (dmaengine_get_src_icg(xt, chunk) != dmaengine_get_src_icg(xt, first))) {
+			dev_err(chan2dev(chan),
+				"%s: the controller can transfer only identical chunks\n",
+				__func__);
+			return NULL;
+		}
+
+		len += chunk->size;
+	}
+
+	dwidth = atc_get_xfer_width(xt->src_start,
+				    xt->dst_start, len);
+
+	xfer_count = len >> dwidth;
+	if (xfer_count > ATC_BTSIZE_MAX) {
+		dev_err(chan2dev(chan), "%s: buffer is too big\n", __func__);
+		return NULL;
+	}
+
+	ctrla = ATC_SRC_WIDTH(dwidth) |
+		ATC_DST_WIDTH(dwidth);
+
+	ctrlb =   ATC_DEFAULT_CTRLB | ATC_IEN
+		| ATC_SRC_ADDR_MODE_INCR
+		| ATC_DST_ADDR_MODE_INCR
+		| ATC_SRC_PIP
+		| ATC_DST_PIP
+		| ATC_FC_MEM2MEM;
+
+	/* create the transfer */
+	desc = atc_desc_get(atchan);
+	if (!desc) {
+		dev_err(chan2dev(chan),
+			"%s: couldn't allocate our descriptor\n", __func__);
+		return NULL;
+	}
+
+	desc->lli.saddr = xt->src_start;
+	desc->lli.daddr = xt->dst_start;
+	desc->lli.ctrla = ctrla | xfer_count;
+	desc->lli.ctrlb = ctrlb;
+
+	desc->boundary = first->size >> dwidth;
+	desc->dst_hole = (dmaengine_get_dst_icg(xt, first) >> dwidth) + 1;
+	desc->src_hole = (dmaengine_get_src_icg(xt, first) >> dwidth) + 1;
+
+	desc->txd.cookie = -EBUSY;
+	desc->total_len = desc->len = len;
+	desc->tx_width = dwidth;
+
+	/* set end-of-link to the last link descriptor of list*/
+	set_desc_eol(desc);
+
+	desc->txd.flags = flags; /* client is in control of this ack */
+
+	return &desc->txd;
 }
 
 /**
@@ -1609,6 +1711,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	/* setup platform data for each SoC */
 	dma_cap_set(DMA_MEMCPY, at91sam9rl_config.cap_mask);
 	dma_cap_set(DMA_SG, at91sam9rl_config.cap_mask);
+	dma_cap_set(DMA_INTERLEAVE, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_MEMCPY, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_SLAVE, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_SG, at91sam9g45_config.cap_mask);
@@ -1713,6 +1816,9 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	atdma->dma_common.dev = &pdev->dev;
 
 	/* set prep routines based on capability */
+	if (dma_has_cap(DMA_INTERLEAVE, atdma->dma_common.cap_mask))
+		atdma->dma_common.device_prep_interleaved_dma = atc_prep_dma_interleaved;
+
 	if (dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask))
 		atdma->dma_common.device_prep_dma_memcpy = atc_prep_dma_memcpy;
 

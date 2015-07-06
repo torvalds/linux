@@ -20,3 +20,4 @@ util/stat.c
 util/strlist.c
 util/trace-event.c
 ../../lib/rbtree.c
+util/string.c

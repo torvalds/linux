@@ -588,7 +588,7 @@ static ssize_t loop_attr_backing_file_show(struct loop_device *lo, char *buf)
 
 	spin_lock_irq(&lo->lo_lock);
 	if (lo->lo_backing_file)
-		p = d_path(&lo->lo_backing_file->f_path, buf, PAGE_SIZE - 1);
+		p = file_path(lo->lo_backing_file, buf, PAGE_SIZE - 1);
 	spin_unlock_irq(&lo->lo_lock);
 
 	if (IS_ERR_OR_NULL(p))

@@ -119,7 +119,7 @@ exit:
 	return ret;
 }
 
-static struct kernel_param_ops duration_ops = {
+static const struct kernel_param_ops duration_ops = {
 	.set = duration_set,
 	.get = param_get_int,
 };
@@ -167,7 +167,7 @@ exit_win:
 	return ret;
 }
 
-static struct kernel_param_ops window_size_ops = {
+static const struct kernel_param_ops window_size_ops = {
 	.set = window_size_set,
 	.get = param_get_int,
 };

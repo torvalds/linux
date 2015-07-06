@@ -1222,6 +1222,10 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 				flags |= IORESOURCE_DISABLED;
 				break;
 
+			case EFI_PERSISTENT_MEMORY:
+				name = "Persistent Memory";
+				break;
+
 			case EFI_RESERVED_TYPE:
 			case EFI_RUNTIME_SERVICES_CODE:
 			case EFI_RUNTIME_SERVICES_DATA:

@@ -841,9 +841,14 @@ config SCHED_DEBUG
 	  that can help debug the scheduler. The runtime overhead of this
 	  option is minimal.
 
+config SCHED_INFO
+	bool
+	default n
+
 config SCHEDSTATS
 	bool "Collect scheduler statistics"
 	depends on DEBUG_KERNEL && PROC_FS
+	select SCHED_INFO
 	help
 	  If you say Y here, additional code will be inserted into the
 	  scheduler and related routines to collect statistics about

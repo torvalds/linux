@@ -88,10 +88,7 @@ void adf_ae_fw_release(struct adf_accel_dev *accel_dev)
 
 	qat_uclo_del_uof_obj(loader_data->fw_loader);
 	qat_hal_deinit(loader_data->fw_loader);
-
-	if (loader_data->uof_fw)
-		release_firmware(loader_data->uof_fw);
-
+	release_firmware(loader_data->uof_fw);
 	loader_data->uof_fw = NULL;
 	loader_data->fw_loader = NULL;
 }

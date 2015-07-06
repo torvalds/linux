@@ -1351,8 +1351,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		set_irq_flags(virq, IRQF_VALID);
 	};
 
-	irq_set_chained_handler(irq, mtk_eint_irq_handler);
-	irq_set_handler_data(irq, pctl);
+	irq_set_chained_handler_and_data(irq, mtk_eint_irq_handler, pctl);
 	set_irq_flags(irq, IRQF_VALID);
 	return 0;
 

@@ -2155,9 +2155,9 @@ static int coda_probe(struct platform_device *pdev)
 	}
 
 	/* Get IRAM pool from device tree or platform data */
-	pool = of_get_named_gen_pool(np, "iram", 0);
+	pool = of_gen_pool_get(np, "iram", 0);
 	if (!pool && pdata)
-		pool = dev_get_gen_pool(pdata->iram_dev);
+		pool = gen_pool_get(pdata->iram_dev);
 	if (!pool) {
 		dev_err(&pdev->dev, "iram pool not available\n");
 		return -ENOMEM;

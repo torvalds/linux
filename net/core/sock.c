@@ -1454,7 +1454,7 @@ void sk_destruct(struct sock *sk)
 
 static void __sk_free(struct sock *sk)
 {
-	if (unlikely(sock_diag_has_destroy_listeners(sk)))
+	if (unlikely(sock_diag_has_destroy_listeners(sk) && sk->sk_net_refcnt))
 		sock_diag_broadcast_destroy(sk);
 	else
 		sk_destruct(sk);
@@ -2269,7 +2269,6 @@ static void sock_def_write_space(struct sock *sk)
 
 static void sock_def_destruct(struct sock *sk)
 {
-	kfree(sk->sk_protinfo);
 }
 
 void sk_send_sigurg(struct sock *sk)

@@ -221,10 +221,9 @@ static void ks_pcie_setup_interrupts(struct keystone_pcie *ks_pcie)
 	/* MSI IRQ */
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		for (i = 0; i < ks_pcie->num_msi_host_irqs; i++) {
-			irq_set_chained_handler(ks_pcie->msi_host_irqs[i],
-						ks_pcie_msi_irq_handler);
-			irq_set_handler_data(ks_pcie->msi_host_irqs[i],
-					     ks_pcie);
+			irq_set_chained_handler_and_data(ks_pcie->msi_host_irqs[i],
+							 ks_pcie_msi_irq_handler,
+							 ks_pcie);
 		}
 	}
 }

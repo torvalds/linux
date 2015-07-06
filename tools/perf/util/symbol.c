@@ -1132,8 +1132,11 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	INIT_LIST_HEAD(&md.maps);
 
 	fd = open(kcore_filename, O_RDONLY);
-	if (fd < 0)
+	if (fd < 0) {
+		pr_err("%s requires CAP_SYS_RAWIO capability to access.\n",
+			kcore_filename);
 		return -EINVAL;
+	}
 
 	/* Read new maps into temporary lists */
 	err = file__read_maps(fd, md.type == MAP__FUNCTION, kcore_mapfn, &md,

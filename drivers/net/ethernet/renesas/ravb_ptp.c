@@ -116,8 +116,10 @@ static int ravb_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	priv->ptp.current_addend = addend;
 
 	gccr = ravb_read(ndev, GCCR);
-	if (gccr & GCCR_LTI)
+	if (gccr & GCCR_LTI) {
+		spin_unlock_irqrestore(&priv->lock, flags);
 		return -EBUSY;
+	}
 	ravb_write(ndev, addend & GTI_TIV, GTI);
 	ravb_write(ndev, gccr | GCCR_LTI, GCCR);
 

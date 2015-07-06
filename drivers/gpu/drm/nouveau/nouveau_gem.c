@@ -555,10 +555,7 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 static inline void
 u_free(void *addr)
 {
-	if (!is_vmalloc_addr(addr))
-		kfree(addr);
-	else
-		vfree(addr);
+	kvfree(addr);
 }
 
 static inline void *

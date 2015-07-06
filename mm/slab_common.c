@@ -855,6 +855,12 @@ void __init setup_kmalloc_cache_index_table(void)
 	}
 }
 
+static void __init new_kmalloc_cache(int idx, unsigned long flags)
+{
+	kmalloc_caches[idx] = create_kmalloc_cache(kmalloc_info[idx].name,
+					kmalloc_info[idx].size, flags);
+}
+
 /*
  * Create the kmalloc array. Some of the regular kmalloc arrays
  * may already have been created because they were needed to
@@ -864,25 +870,19 @@ void __init create_kmalloc_caches(unsigned long flags)
 {
 	int i;
 
-	for (i = KMALLOC_LOOP_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
-		if (!kmalloc_caches[i]) {
-			kmalloc_caches[i] = create_kmalloc_cache(
-						kmalloc_info[i].name,
-						kmalloc_info[i].size,
-						flags);
-		}
+	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
+		if (!kmalloc_caches[i])
+			new_kmalloc_cache(i, flags);
 
 		/*
-		 * "i == 2" is the "kmalloc-192" case which is the last special
-		 * case for initialization and it's the point to jump to
-		 * allocate the minimize size of the object. In slab allocator,
-		 * the KMALLOC_SHIFT_LOW = 5. So, it needs to skip 2^3 and 2^4
-		 * and go straight to allocate 2^5. If the ARCH_DMA_MINALIGN is
-		 * defined, it may be larger than 2^5 and here is also the
-		 * trick to skip the empty gap.
+		 * Caches that are not of the two-to-the-power-of size.
+		 * These have to be created immediately after the
+		 * earlier power of two caches
 		 */
-		if (i == 2)
-			i = (KMALLOC_SHIFT_LOW - 1);
+		if (KMALLOC_MIN_SIZE <= 32 && !kmalloc_caches[1] && i == 6)
+			new_kmalloc_cache(1, flags);
+		if (KMALLOC_MIN_SIZE <= 64 && !kmalloc_caches[2] && i == 7)
+			new_kmalloc_cache(2, flags);
 	}
 
 	/* Kmalloc array is now usable */

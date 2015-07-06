@@ -93,10 +93,9 @@ void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode)
 	op->common.descriptor_type = ACPI_DESC_TYPE_PARSER;
 	op->common.aml_opcode = opcode;
 
-	ACPI_DISASM_ONLY_MEMBERS(ACPI_STRNCPY(op->common.aml_op_name,
-					      (acpi_ps_get_opcode_info
-					       (opcode))->name,
-					      sizeof(op->common.aml_op_name)));
+	ACPI_DISASM_ONLY_MEMBERS(strncpy(op->common.aml_op_name,
+					 (acpi_ps_get_opcode_info(opcode))->
+					 name, sizeof(op->common.aml_op_name)));
 }
 
 /*******************************************************************************

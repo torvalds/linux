@@ -530,6 +530,19 @@ acpi_os_get_physical_address(void *virt, acpi_physical_address * phys)
 }
 #endif
 
+#ifdef CONFIG_ACPI_REV_OVERRIDE_POSSIBLE
+static bool acpi_rev_override;
+
+int __init acpi_rev_override_setup(char *str)
+{
+	acpi_rev_override = true;
+	return 1;
+}
+__setup("acpi_rev_override", acpi_rev_override_setup);
+#else
+#define acpi_rev_override	false
+#endif
+
 #define ACPI_MAX_OVERRIDE_LEN 100
 
 static char acpi_os_name[ACPI_MAX_OVERRIDE_LEN];
@@ -546,6 +559,11 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
 		printk(KERN_INFO PREFIX "Overriding _OS definition to '%s'\n",
 		       acpi_os_name);
 		*new_val = acpi_os_name;
+	}
+
+	if (!memcmp(init_val->name, "_REV", 4) && acpi_rev_override) {
+		printk(KERN_INFO PREFIX "Overriding _REV return value to 5\n");
+		*new_val = (char *)5;
 	}
 
 	return AE_OK;

@@ -44,11 +44,6 @@ static struct inode *debugfs_get_inode(struct super_block *sb)
 	return inode;
 }
 
-static inline int debugfs_positive(struct dentry *dentry)
-{
-	return d_really_is_positive(dentry) && !d_unhashed(dentry);
-}
-
 struct debugfs_mount_opts {
 	kuid_t uid;
 	kgid_t gid;
@@ -522,7 +517,7 @@ static int __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 {
 	int ret = 0;
 
-	if (debugfs_positive(dentry)) {
+	if (simple_positive(dentry)) {
 		dget(dentry);
 		if (d_is_dir(dentry))
 			ret = simple_rmdir(d_inode(parent), dentry);
@@ -602,7 +597,7 @@ void debugfs_remove_recursive(struct dentry *dentry)
 	 */
 	spin_lock(&parent->d_lock);
 	list_for_each_entry(child, &parent->d_subdirs, d_child) {
-		if (!debugfs_positive(child))
+		if (!simple_positive(child))
 			continue;
 
 		/* perhaps simple_empty(child) makes more sense */
@@ -623,7 +618,7 @@ void debugfs_remove_recursive(struct dentry *dentry)
 		 * from d_subdirs. When releasing the parent->d_lock we can
 		 * no longer trust that the next pointer is valid.
 		 * Restart the loop. We'll skip this one with the
-		 * debugfs_positive() check.
+		 * simple_positive() check.
 		 */
 		goto loop;
 	}
@@ -716,20 +711,17 @@ bool debugfs_initialized(void)
 }
 EXPORT_SYMBOL_GPL(debugfs_initialized);
 
-
-static struct kobject *debug_kobj;
-
 static int __init debugfs_init(void)
 {
 	int retval;
 
-	debug_kobj = kobject_create_and_add("debug", kernel_kobj);
-	if (!debug_kobj)
-		return -EINVAL;
+	retval = sysfs_create_mount_point(kernel_kobj, "debug");
+	if (retval)
+		return retval;
 
 	retval = register_filesystem(&debug_fs_type);
 	if (retval)
-		kobject_put(debug_kobj);
+		sysfs_remove_mount_point(kernel_kobj, "debug");
 	else
 		debugfs_registered = true;
 

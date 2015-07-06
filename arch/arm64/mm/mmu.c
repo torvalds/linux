@@ -117,7 +117,7 @@ void split_pud(pud_t *old_pud, pmd_t *pmd)
 	int i = 0;
 
 	do {
-		set_pmd(pmd, __pmd(addr | prot));
+		set_pmd(pmd, __pmd(addr | pgprot_val(prot)));
 		addr += PMD_SIZE;
 	} while (pmd++, i++, i < PTRS_PER_PMD);
 }

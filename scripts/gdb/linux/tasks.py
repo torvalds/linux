@@ -18,8 +18,8 @@ from linux import utils
 
 task_type = utils.CachedType("struct task_struct")
 
+
 def task_lists():
-    global task_type
     task_ptr_type = task_type.get_type().pointer()
     init_task = gdb.parse_and_eval("init_task").address
     t = g = init_task
@@ -37,6 +37,7 @@ def task_lists():
                                    task_ptr_type, "tasks")
         if t == init_task:
             return
+
 
 def get_task_by_pid(pid):
     for task in task_lists():
@@ -65,13 +66,28 @@ return that task_struct variable which PID matches."""
 LxTaskByPidFunc()
 
 
+class LxPs(gdb.Command):
+    """Dump Linux tasks."""
+
+    def __init__(self):
+        super(LxPs, self).__init__("lx-ps", gdb.COMMAND_DATA)
+
+    def invoke(self, arg, from_tty):
+        for task in task_lists():
+            gdb.write("{address} {pid} {comm}\n".format(
+                address=task,
+                pid=task["pid"],
+                comm=task["comm"].string()))
+
+LxPs()
+
+
 thread_info_type = utils.CachedType("struct thread_info")
 
 ia64_task_size = None
 
 
 def get_thread_info(task):
-    global thread_info_type
     thread_info_ptr_type = thread_info_type.get_type().pointer()
     if utils.is_target_arch("ia64"):
         global ia64_task_size

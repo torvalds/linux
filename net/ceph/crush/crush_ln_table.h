@@ -10,20 +10,20 @@
  *
  */
 
-#if defined(__linux__)
-#include <linux/types.h>
-#elif defined(__FreeBSD__)
-#include <sys/types.h>
-#endif
-
 #ifndef CEPH_CRUSH_LN_H
 #define CEPH_CRUSH_LN_H
 
+#ifdef __KERNEL__
+# include <linux/types.h>
+#else
+# include "crush_compat.h"
+#endif
 
-// RH_LH_tbl[2*k] = 2^48/(1.0+k/128.0)
-// RH_LH_tbl[2*k+1] = 2^48*log2(1.0+k/128.0)
-
-static int64_t __RH_LH_tbl[128*2+2] = {
+/*
+ * RH_LH_tbl[2*k] = 2^48/(1.0+k/128.0)
+ * RH_LH_tbl[2*k+1] = 2^48*log2(1.0+k/128.0)
+ */
+static __s64 __RH_LH_tbl[128*2+2] = {
   0x0001000000000000ll, 0x0000000000000000ll, 0x0000fe03f80fe040ll, 0x000002dfca16dde1ll,
   0x0000fc0fc0fc0fc1ll, 0x000005b9e5a170b4ll, 0x0000fa232cf25214ll, 0x0000088e68ea899all,
   0x0000f83e0f83e0f9ll, 0x00000b5d69bac77ell, 0x0000f6603d980f67ll, 0x00000e26fd5c8555ll,
@@ -89,11 +89,12 @@ static int64_t __RH_LH_tbl[128*2+2] = {
   0x0000820820820821ll, 0x0000fa2f045e7832ll, 0x000081848da8faf1ll, 0x0000fba577877d7dll,
   0x0000810204081021ll, 0x0000fd1a708bbe11ll, 0x0000808080808081ll, 0x0000fe8df263f957ll,
   0x0000800000000000ll, 0x0000ffff00000000ll,
-  };
+};
 
-
-    // LL_tbl[k] = 2^48*log2(1.0+k/2^15);
-static int64_t __LL_tbl[256] = {
+/*
+ * LL_tbl[k] = 2^48*log2(1.0+k/2^15)
+ */
+static __s64 __LL_tbl[256] = {
   0x0000000000000000ull, 0x00000002e2a60a00ull, 0x000000070cb64ec5ull, 0x00000009ef50ce67ull,
   0x0000000cd1e588fdull, 0x0000000fb4747e9cull, 0x0000001296fdaf5eull, 0x0000001579811b58ull,
   0x000000185bfec2a1ull, 0x0000001b3e76a552ull, 0x0000001e20e8c380ull, 0x0000002103551d43ull,
@@ -159,8 +160,5 @@ static int64_t __LL_tbl[256] = {
   0x000002c8e1e891f6ull, 0x000002cbbf023fc2ull, 0x000002ce9c163e6eull, 0x000002d179248e13ull,
   0x000002d4562d2ec6ull, 0x000002d73330209dull, 0x000002da102d63b0ull, 0x000002dced24f814ull,
 };
-
-
-
 
 #endif

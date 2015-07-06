@@ -1191,7 +1191,7 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list) {
 		struct qla_tgt_cmd *cmd =
 			container_of(se_cmd, struct qla_tgt_cmd, se_cmd);
-		if (cmd->tag == abts->exchange_addr_to_abort) {
+		if (se_cmd->tag == abts->exchange_addr_to_abort) {
 			lun = cmd->unpacked_lun;
 			found_lun = true;
 			break;
@@ -1728,9 +1728,8 @@ static int qlt_pre_xmit_response(struct qla_tgt_cmd *cmd,
 
 	if (unlikely(cmd->aborted)) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf014,
-		    "qla_target(%d): terminating exchange "
-		    "for aborted cmd=%p (se_cmd=%p, tag=%d)", vha->vp_idx, cmd,
-		    se_cmd, cmd->tag);
+		       "qla_target(%d): terminating exchange for aborted cmd=%p (se_cmd=%p, tag=%lld)",
+		       vha->vp_idx, cmd, se_cmd, se_cmd->tag);
 
 		cmd->state = QLA_TGT_STATE_ABORTED;
 		cmd->cmd_flags |= BIT_6;
@@ -1765,18 +1764,17 @@ static int qlt_pre_xmit_response(struct qla_tgt_cmd *cmd,
 	if (se_cmd->se_cmd_flags & SCF_UNDERFLOW_BIT) {
 		prm->residual = se_cmd->residual_count;
 		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x305c,
-		    "Residual underflow: %d (tag %d, "
-		    "op %x, bufflen %d, rq_result %x)\n", prm->residual,
-		    cmd->tag, se_cmd->t_task_cdb ? se_cmd->t_task_cdb[0] : 0,
-		    cmd->bufflen, prm->rq_result);
+		    "Residual underflow: %d (tag %lld, op %x, bufflen %d, rq_result %x)\n",
+		       prm->residual, se_cmd->tag,
+		       se_cmd->t_task_cdb ? se_cmd->t_task_cdb[0] : 0,
+		       cmd->bufflen, prm->rq_result);
 		prm->rq_result |= SS_RESIDUAL_UNDER;
 	} else if (se_cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
 		prm->residual = se_cmd->residual_count;
 		ql_dbg(ql_dbg_io, vha, 0x305d,
-		    "Residual overflow: %d (tag %d, "
-		    "op %x, bufflen %d, rq_result %x)\n", prm->residual,
-		    cmd->tag, se_cmd->t_task_cdb ? se_cmd->t_task_cdb[0] : 0,
-		    cmd->bufflen, prm->rq_result);
+		    "Residual overflow: %d (tag %lld, op %x, bufflen %d, rq_result %x)\n",
+		       prm->residual, se_cmd->tag, se_cmd->t_task_cdb ?
+		       se_cmd->t_task_cdb[0] : 0, cmd->bufflen, prm->rq_result);
 		prm->rq_result |= SS_RESIDUAL_OVER;
 	}
 
@@ -1849,7 +1847,7 @@ static void qlt_check_srr_debug(struct qla_tgt_cmd *cmd, int *xmit_type)
 	    == 50) {
 		*xmit_type &= ~QLA_TGT_XMIT_STATUS;
 		ql_dbg(ql_dbg_tgt_mgt, cmd->vha, 0xf015,
-		    "Dropping cmd %p (tag %d) status", cmd, cmd->tag);
+		    "Dropping cmd %p (tag %d) status", cmd, se_cmd->tag);
 	}
 #endif
 	/*
@@ -1873,7 +1871,7 @@ static void qlt_check_srr_debug(struct qla_tgt_cmd *cmd, int *xmit_type)
 		ql_dbg(ql_dbg_tgt_mgt, cmd->vha, 0xf016,
 		    "Cutting cmd %p (tag %d) buffer"
 		    " tail to len %d, sg_cnt %d (cmd->bufflen %d,"
-		    " cmd->sg_cnt %d)", cmd, cmd->tag, tot_len, leave,
+		    " cmd->sg_cnt %d)", cmd, se_cmd->tag, tot_len, leave,
 		    cmd->bufflen, cmd->sg_cnt);
 
 		cmd->bufflen = tot_len;
@@ -1885,13 +1883,13 @@ static void qlt_check_srr_debug(struct qla_tgt_cmd *cmd, int *xmit_type)
 
 		ql_dbg(ql_dbg_tgt_mgt, cmd->vha, 0xf017,
 		    "Cutting cmd %p (tag %d) buffer head "
-		    "to offset %d (cmd->bufflen %d)", cmd, cmd->tag, offset,
+		    "to offset %d (cmd->bufflen %d)", cmd, se_cmd->tag, offset,
 		    cmd->bufflen);
 		if (offset == 0)
 			*xmit_type &= ~QLA_TGT_XMIT_DATA;
 		else if (qlt_set_data_offset(cmd, offset)) {
 			ql_dbg(ql_dbg_tgt_mgt, cmd->vha, 0xf018,
-			    "qlt_set_data_offset() failed (tag %d)", cmd->tag);
+			    "qlt_set_data_offset() failed (tag %d)", se_cmd->tag);
 		}
 	}
 }
@@ -3194,7 +3192,7 @@ skip_term:
 		return;
 	} else if (cmd->state == QLA_TGT_STATE_ABORTED) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf01e,
-		    "Aborted command %p (tag %d) finished\n", cmd, cmd->tag);
+		  "Aborted command %p (tag %lld) finished\n", cmd, se_cmd->tag);
 	} else {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05c,
 		    "qla_target(%d): A command in state (%d) should "
@@ -3266,7 +3264,7 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 		goto out_term;
 
 	cdb = &atio->u.isp24.fcp_cmnd.cdb[0];
-	cmd->tag = atio->u.isp24.exchange_addr;
+	cmd->se_cmd.tag = atio->u.isp24.exchange_addr;
 	cmd->unpacked_lun = scsilun_to_int(
 	    (struct scsi_lun *)&atio->u.isp24.fcp_cmnd.lun);
 
@@ -3893,9 +3891,8 @@ static void qlt_handle_srr(struct scsi_qla_host *vha,
 			resp = 1;
 		} else {
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf064,
-			    "qla_target(%d): SRR for in data for cmd "
-			    "without them (tag %d, SCSI status %d), "
-			    "reject", vha->vp_idx, cmd->tag,
+			       "qla_target(%d): SRR for in data for cmd without them (tag %lld, SCSI status %d), reject",
+			       vha->vp_idx, se_cmd->tag,
 			    cmd->se_cmd.scsi_status);
 			goto out_reject;
 		}
@@ -3929,10 +3926,8 @@ static void qlt_handle_srr(struct scsi_qla_host *vha,
 			}
 		} else {
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf066,
-			    "qla_target(%d): SRR for out data for cmd "
-			    "without them (tag %d, SCSI status %d), "
-			    "reject", vha->vp_idx, cmd->tag,
-			    cmd->se_cmd.scsi_status);
+			    "qla_target(%d): SRR for out data for cmd without them (tag %lld, SCSI status %d), reject",
+			       vha->vp_idx, se_cmd->tag, cmd->se_cmd.scsi_status);
 			goto out_reject;
 		}
 		break;
@@ -4053,10 +4048,9 @@ restart:
 		cmd->sg = se_cmd->t_data_sg;
 
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf02c,
-		    "SRR cmd %p (se_cmd %p, tag %d, op %x), "
-		    "sg_cnt=%d, offset=%d", cmd, &cmd->se_cmd, cmd->tag,
-		    se_cmd->t_task_cdb ? se_cmd->t_task_cdb[0] : 0,
-		    cmd->sg_cnt, cmd->offset);
+		       "SRR cmd %p (se_cmd %p, tag %lld, op %x), sg_cnt=%d, offset=%d",
+		       cmd, &cmd->se_cmd, se_cmd->tag, se_cmd->t_task_cdb ?
+		       se_cmd->t_task_cdb[0] : 0, cmd->sg_cnt, cmd->offset);
 
 		qlt_handle_srr(vha, sctio, imm);
 

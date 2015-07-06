@@ -110,7 +110,7 @@ $(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
 	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
 
 CC = $(CROSS_COMPILE)gcc
-LD = $(CROSS_COMPILE)ld
+LD ?= $(CROSS_COMPILE)ld
 AR = $(CROSS_COMPILE)ar
 PKG_CONFIG = $(CROSS_COMPILE)pkg-config
 
@@ -545,7 +545,7 @@ config-clean:
 clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	$(Q)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
-	$(Q)$(RM) .config-detected
+	$(Q)$(RM) $(OUTPUT).config-detected
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)FEATURE-DUMP $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex*
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean

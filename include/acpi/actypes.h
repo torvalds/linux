@@ -542,14 +542,14 @@ typedef u64 acpi_integer;
 #define ACPI_COMPARE_NAME(a,b)          (*ACPI_CAST_PTR (u32, (a)) == *ACPI_CAST_PTR (u32, (b)))
 #define ACPI_MOVE_NAME(dest,src)        (*ACPI_CAST_PTR (u32, (dest)) = *ACPI_CAST_PTR (u32, (src)))
 #else
-#define ACPI_COMPARE_NAME(a,b)          (!ACPI_STRNCMP (ACPI_CAST_PTR (char, (a)), ACPI_CAST_PTR (char, (b)), ACPI_NAME_SIZE))
-#define ACPI_MOVE_NAME(dest,src)        (ACPI_STRNCPY (ACPI_CAST_PTR (char, (dest)), ACPI_CAST_PTR (char, (src)), ACPI_NAME_SIZE))
+#define ACPI_COMPARE_NAME(a,b)          (!strncmp (ACPI_CAST_PTR (char, (a)), ACPI_CAST_PTR (char, (b)), ACPI_NAME_SIZE))
+#define ACPI_MOVE_NAME(dest,src)        (strncpy (ACPI_CAST_PTR (char, (dest)), ACPI_CAST_PTR (char, (src)), ACPI_NAME_SIZE))
 #endif
 
 /* Support for the special RSDP signature (8 characters) */
 
-#define ACPI_VALIDATE_RSDP_SIG(a)       (!ACPI_STRNCMP (ACPI_CAST_PTR (char, (a)), ACPI_SIG_RSDP, 8))
-#define ACPI_MAKE_RSDP_SIG(dest)        (ACPI_MEMCPY (ACPI_CAST_PTR (char, (dest)), ACPI_SIG_RSDP, 8))
+#define ACPI_VALIDATE_RSDP_SIG(a)       (!strncmp (ACPI_CAST_PTR (char, (a)), ACPI_SIG_RSDP, 8))
+#define ACPI_MAKE_RSDP_SIG(dest)        (memcpy (ACPI_CAST_PTR (char, (dest)), ACPI_SIG_RSDP, 8))
 
 /*******************************************************************************
  *
@@ -568,6 +568,7 @@ typedef u64 acpi_integer;
 #define ACPI_NO_ACPI_ENABLE             0x10
 #define ACPI_NO_DEVICE_INIT             0x20
 #define ACPI_NO_OBJECT_INIT             0x40
+#define ACPI_NO_FACS_INIT               0x80
 
 /*
  * Initialization state
@@ -1140,6 +1141,10 @@ u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
 
 #define ACPI_UUID_LENGTH                16
 
+/* Length of 3-byte PCI class code values when converted back to a string */
+
+#define ACPI_PCICLS_STRING_SIZE         7	/* Includes null terminator */
+
 /* Structures used for device/processor HID, UID, CID, and SUB */
 
 struct acpi_pnp_device_id {
@@ -1162,7 +1167,7 @@ struct acpi_device_info {
 	u32 name;		/* ACPI object Name */
 	acpi_object_type type;	/* ACPI object Type */
 	u8 param_count;		/* If a method, required parameter count */
-	u8 valid;		/* Indicates which optional fields are valid */
+	u16 valid;		/* Indicates which optional fields are valid */
 	u8 flags;		/* Miscellaneous info */
 	u8 highest_dstates[4];	/* _sx_d values: 0xFF indicates not valid */
 	u8 lowest_dstates[5];	/* _sx_w values: 0xFF indicates not valid */
@@ -1171,6 +1176,7 @@ struct acpi_device_info {
 	struct acpi_pnp_device_id hardware_id;	/* _HID value */
 	struct acpi_pnp_device_id unique_id;	/* _UID value */
 	struct acpi_pnp_device_id subsystem_id;	/* _SUB value */
+	struct acpi_pnp_device_id class_code;	/* _CLS value */
 	struct acpi_pnp_device_id_list compatible_id_list;	/* _CID list <must be last> */
 };
 
@@ -1180,14 +1186,15 @@ struct acpi_device_info {
 
 /* Flags for Valid field above (acpi_get_object_info) */
 
-#define ACPI_VALID_STA                  0x01
-#define ACPI_VALID_ADR                  0x02
-#define ACPI_VALID_HID                  0x04
-#define ACPI_VALID_UID                  0x08
-#define ACPI_VALID_SUB                  0x10
-#define ACPI_VALID_CID                  0x20
-#define ACPI_VALID_SXDS                 0x40
-#define ACPI_VALID_SXWS                 0x80
+#define ACPI_VALID_STA                  0x0001
+#define ACPI_VALID_ADR                  0x0002
+#define ACPI_VALID_HID                  0x0004
+#define ACPI_VALID_UID                  0x0008
+#define ACPI_VALID_SUB                  0x0010
+#define ACPI_VALID_CID                  0x0020
+#define ACPI_VALID_CLS                  0x0040
+#define ACPI_VALID_SXDS                 0x0100
+#define ACPI_VALID_SXWS                 0x0200
 
 /* Flags for _STA return value (current_status above) */
 

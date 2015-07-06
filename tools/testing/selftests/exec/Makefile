@@ -1,6 +1,6 @@
 CFLAGS = -Wall
 BINARIES = execveat
-DEPS = execveat.symlink execveat.denatured script subdir
+DEPS = execveat.symlink execveat.denatured script
 all: $(BINARIES) $(DEPS)
 
 subdir:
