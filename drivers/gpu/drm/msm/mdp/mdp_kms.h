@@ -90,9 +90,10 @@ struct mdp_format {
 	uint8_t cpp, unpack_count;
 	enum mdp_fetch_type fetch_type;
 	enum mdp_chroma_samp_type chroma_sample;
+	bool is_yuv;
 };
 #define to_mdp_format(x) container_of(x, struct mdp_format, base)
-#define MDP_FORMAT_IS_YUV(mdp_format) ((mdp_format)->chroma_sample > CHROMA_FULL)
+#define MDP_FORMAT_IS_YUV(mdp_format) ((mdp_format)->is_yuv)
 
 uint32_t mdp_get_formats(uint32_t *formats, uint32_t max_formats, bool rgb_only);
 const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format);
