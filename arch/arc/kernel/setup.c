@@ -150,9 +150,10 @@ static const struct cpuinfo_data arc_cpu_tbl[] = {
 	{ {0x00, NULL		} }
 };
 
-#define IS_AVAIL1(v, str)	((v) ? str : "")
-#define IS_USED(cfg)		(IS_ENABLED(cfg) ? "" : "(not used) ")
-#define IS_AVAIL2(v, str, cfg)  IS_AVAIL1(v, str), IS_AVAIL1(v, IS_USED(cfg))
+#define IS_AVAIL1(v, s)		((v) ? s : "")
+#define IS_USED_RUN(v)		((v) ? "" : "(not used) ")
+#define IS_USED_CFG(cfg)	IS_USED_RUN(IS_ENABLED(cfg))
+#define IS_AVAIL2(v, s, cfg)	IS_AVAIL1(v, s), IS_AVAIL1(v, IS_USED_CFG(cfg))
 
 static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 {
@@ -226,7 +227,7 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 			n += scnprintf(buf + n, len - n, "mpy[opt %d] ", opt);
 		}
 		n += scnprintf(buf + n, len - n, "%s",
-			       IS_USED(CONFIG_ARC_HAS_HW_MPY));
+			       IS_USED_CFG(CONFIG_ARC_HAS_HW_MPY));
 	}
 
 	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",
