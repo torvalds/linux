@@ -2282,13 +2282,14 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	pipe_config->has_audio = tmp & DP_AUDIO_OUTPUT_ENABLE && port != PORT_A;
 
 	if (HAS_PCH_CPT(dev) && port != PORT_A) {
-		tmp = I915_READ(TRANS_DP_CTL(crtc->pipe));
-		if (tmp & TRANS_DP_HSYNC_ACTIVE_HIGH)
+		u32 trans_dp = I915_READ(TRANS_DP_CTL(crtc->pipe));
+
+		if (trans_dp & TRANS_DP_HSYNC_ACTIVE_HIGH)
 			flags |= DRM_MODE_FLAG_PHSYNC;
 		else
 			flags |= DRM_MODE_FLAG_NHSYNC;
 
-		if (tmp & TRANS_DP_VSYNC_ACTIVE_HIGH)
+		if (trans_dp & TRANS_DP_VSYNC_ACTIVE_HIGH)
 			flags |= DRM_MODE_FLAG_PVSYNC;
 		else
 			flags |= DRM_MODE_FLAG_NVSYNC;
