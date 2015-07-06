@@ -2065,6 +2065,18 @@ UNUSUAL_DEV( 0x1908, 0x3335, 0x0200, 0x0200,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_READ_DISC_INFO ),
 
+/* Reported by Oliver Neukum <oneukum@suse.com>
+ * This device morphes spontaneously into another device if the access
+ * pattern of Windows isn't followed. Thus writable media would be dirty
+ * if the initial instance is used. So the device is limited to its
+ * virtual CD.
+ * And yes, the concept that BCD goes up to 9 is not heeded */
+UNUSUAL_DEV( 0x19d2, 0x1225, 0x0000, 0xffff,
+		"ZTE,Incorporated",
+		"ZTE WCDMA Technologies MSM",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
+
 /* Reported by Sven Geggus <sven-usbst@geggus.net>
  * This encrypted pen drive returns bogus data for the initial READ(10).
  */
