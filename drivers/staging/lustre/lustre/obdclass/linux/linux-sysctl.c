@@ -54,16 +54,53 @@
 static struct ctl_table_header *obd_table_header;
 #endif
 
-#ifdef CONFIG_SYSCTL
-static int proc_set_timeout(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	int rc;
+struct static_lustre_uintvalue_attr {
+	struct {
+		struct attribute attr;
+		ssize_t (*show)(struct kobject *kobj, struct attribute *attr,
+				char *buf);
+		ssize_t (*store)(struct kobject *kobj, struct attribute *attr,
+				 const char *buf, size_t len);
+	} u;
+	int *value;
+};
 
-	rc = proc_dointvec(table, write, buffer, lenp, ppos);
-	return rc;
+static ssize_t static_uintvalue_show(struct kobject *kobj,
+				    struct attribute *attr,
+				    char *buf)
+{
+	struct static_lustre_uintvalue_attr *lattr = (void *)attr;
+
+	return sprintf(buf, "%d\n", *lattr->value);
 }
 
+static ssize_t static_uintvalue_store(struct kobject *kobj,
+				     struct attribute *attr,
+				     const char *buffer, size_t count)
+{
+	struct static_lustre_uintvalue_attr *lattr  = (void *)attr;
+	int rc;
+	unsigned int val;
+
+	rc = kstrtouint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	*lattr->value = val;
+
+	return count;
+}
+
+#define LUSTRE_STATIC_UINT_ATTR(name, value) \
+static struct static_lustre_uintvalue_attr lustre_sattr_##name =	\
+					{__ATTR(name, 0644,		\
+						static_uintvalue_show,	\
+						static_uintvalue_store),\
+					  value }
+
+LUSTRE_STATIC_UINT_ATTR(timeout, &obd_timeout);
+
+#ifdef CONFIG_SYSCTL
 static int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
 			       void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -106,13 +143,6 @@ static int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
 }
 
 static struct ctl_table obd_table[] = {
-	{
-		.procname = "timeout",
-		.data     = &obd_timeout,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_set_timeout
-	},
 	{
 		.procname = "debug_peer_on_timeout",
 		.data     = &obd_debug_peer_on_timeout,
@@ -191,12 +221,22 @@ static struct ctl_table parent_table[] = {
 };
 #endif
 
-void obd_sysctl_init(void)
+static struct attribute *lustre_attrs[] = {
+	&lustre_sattr_timeout.u.attr,
+	NULL,
+};
+
+static struct attribute_group lustre_attr_group = {
+	.attrs = lustre_attrs,
+};
+
+int obd_sysctl_init(void)
 {
 #ifdef CONFIG_SYSCTL
 	if (!obd_table_header)
 		obd_table_header = register_sysctl_table(parent_table);
 #endif
+	return sysfs_create_group(lustre_kobj, &lustre_attr_group);
 }
 
 void obd_sysctl_clean(void)

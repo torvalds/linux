@@ -40,6 +40,18 @@ Description:
 			       e.g. dd.1253
 		nodelocal - use jobid_name value from above.
 
+What:		/sys/fs/lustre/timeout
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls "lustre timeout" variable, also known as obd_timeout
+		in some old manual. In the past obd_timeout was of paramount
+		importance as the timeout value used everywhere and where
+		other timeouts were derived from. These days it's much less
+		important as network timeouts are mostly determined by
+		AT (adaptive timeouts).
+		Unit: seconds, default: 100
+
 What:		/sys/fs/lustre/llite/<fsname>-<uuid>/blocksize
 Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>

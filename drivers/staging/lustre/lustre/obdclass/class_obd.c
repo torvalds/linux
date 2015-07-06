@@ -567,9 +567,11 @@ static int __init init_obdclass(void)
 	if (err)
 		return err;
 
-	obd_sysctl_init();
-
 	err = class_procfs_init();
+	if (err)
+		return err;
+
+	err = obd_sysctl_init();
 	if (err)
 		return err;
 

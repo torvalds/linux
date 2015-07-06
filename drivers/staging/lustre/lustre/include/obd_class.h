@@ -1869,8 +1869,8 @@ extern int (*ptlrpc_put_connection_superhack)(struct ptlrpc_connection *c);
 /* obd_mount.c */
 
 /* sysctl.c */
-extern void obd_sysctl_init (void);
-extern void obd_sysctl_clean (void);
+extern int obd_sysctl_init(void);
+extern void obd_sysctl_clean(void);
 
 /* uuid.c  */
 typedef __u8 class_uuid_t[16];
