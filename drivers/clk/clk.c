@@ -3054,8 +3054,6 @@ struct clock_provider {
 	struct list_head node;
 };
 
-static LIST_HEAD(clk_provider_list);
-
 /*
  * This function looks for a parent clock. If there is one, then it
  * checks that the provider for this parent clock was initialized, in
@@ -3106,6 +3104,7 @@ void __init of_clk_init(const struct of_device_id *matches)
 	struct clock_provider *clk_provider, *next;
 	bool is_init_done;
 	bool force = false;
+	LIST_HEAD(clk_provider_list);
 
 	if (!matches)
 		matches = &__clk_of_table;
