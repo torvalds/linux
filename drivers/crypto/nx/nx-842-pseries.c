@@ -1091,8 +1091,6 @@ static int __init nx842_pseries_init(void)
 	struct nx842_devdata *new_devdata;
 	int ret;
 
-	pr_info("Registering IBM Power 842 compression driver\n");
-
 	if (!of_find_compatible_node(NULL, NULL, "ibm,compression"))
 		return -ENODEV;
 
@@ -1129,7 +1127,6 @@ static void __exit nx842_pseries_exit(void)
 	struct nx842_devdata *old_devdata;
 	unsigned long flags;
 
-	pr_info("Exiting IBM Power 842 compression driver\n");
 	nx842_platform_driver_unset(&nx842_pseries_driver);
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,

@@ -594,15 +594,11 @@ static __init int nx842_powernv_init(void)
 	BUILD_BUG_ON(DDE_BUFFER_ALIGN % DDE_BUFFER_SIZE_MULT);
 	BUILD_BUG_ON(DDE_BUFFER_SIZE_MULT % DDE_BUFFER_LAST_MULT);
 
-	pr_info("loading\n");
-
 	for_each_compatible_node(dn, NULL, "ibm,power-nx")
 		nx842_powernv_probe(dn);
 
-	if (!nx842_ct) {
-		pr_err("no coprocessors found\n");
+	if (!nx842_ct)
 		return -ENODEV;
-	}
 
 	if (!nx842_platform_driver_set(&nx842_powernv_driver)) {
 		struct nx842_coproc *coproc, *n;
@@ -614,8 +610,6 @@ static __init int nx842_powernv_init(void)
 
 		return -EEXIST;
 	}
-
-	pr_info("loaded\n");
 
 	return 0;
 }
@@ -631,7 +625,5 @@ static void __exit nx842_powernv_exit(void)
 		list_del(&coproc->list);
 		kfree(coproc);
 	}
-
-	pr_info("unloaded\n");
 }
 module_exit(nx842_powernv_exit);
