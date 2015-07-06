@@ -1306,7 +1306,12 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 
 		switch (list->widgets[i]->id) {
 		case snd_soc_dapm_dai_in:
+			if (stream != SNDRV_PCM_STREAM_PLAYBACK)
+				continue;
+			break;
 		case snd_soc_dapm_dai_out:
+			if (stream != SNDRV_PCM_STREAM_CAPTURE)
+				continue;
 			break;
 		default:
 			continue;
