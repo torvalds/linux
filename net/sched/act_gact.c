@@ -36,8 +36,10 @@ static int gact_net_rand(struct tcf_gact *gact)
 
 static int gact_determ(struct tcf_gact *gact)
 {
+	u32 pack = atomic_inc_return(&gact->packets);
+
 	smp_rmb(); /* coupled with smp_wmb() in tcf_gact_init() */
-	if (gact->tcf_bstats.packets % gact->tcfg_pval)
+	if (pack % gact->tcfg_pval)
 		return gact->tcf_action;
 	return gact->tcfg_paction;
 }
