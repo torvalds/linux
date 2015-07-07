@@ -349,8 +349,11 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	static const enum mdp5_pipe crtcs[] = {
 			SSPP_RGB0, SSPP_RGB1, SSPP_RGB2, SSPP_RGB3,
 	};
-	static const enum mdp5_pipe pub_planes[] = {
+	static const enum mdp5_pipe vig_planes[] = {
 			SSPP_VIG0, SSPP_VIG1, SSPP_VIG2, SSPP_VIG3,
+	};
+	static const enum mdp5_pipe dma_planes[] = {
+			SSPP_DMA0, SSPP_DMA1,
 	};
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
@@ -390,16 +393,30 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		priv->crtcs[priv->num_crtcs++] = crtc;
 	}
 
-	/* Construct public planes: */
+	/* Construct video planes: */
 	for (i = 0; i < hw_cfg->pipe_vig.count; i++) {
 		struct drm_plane *plane;
 
-		plane = mdp5_plane_init(dev, pub_planes[i], false,
+		plane = mdp5_plane_init(dev, vig_planes[i], false,
 			hw_cfg->pipe_vig.base[i], hw_cfg->pipe_vig.caps);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
 			dev_err(dev->dev, "failed to construct %s plane: %d\n",
-					pipe2name(pub_planes[i]), ret);
+					pipe2name(vig_planes[i]), ret);
+			goto fail;
+		}
+	}
+
+	/* DMA planes */
+	for (i = 0; i < hw_cfg->pipe_dma.count; i++) {
+		struct drm_plane *plane;
+
+		plane = mdp5_plane_init(dev, dma_planes[i], false,
+				hw_cfg->pipe_dma.base[i], hw_cfg->pipe_dma.caps);
+		if (IS_ERR(plane)) {
+			ret = PTR_ERR(plane);
+			dev_err(dev->dev, "failed to construct %s plane: %d\n",
+					pipe2name(dma_planes[i]), ret);
 			goto fail;
 		}
 	}
