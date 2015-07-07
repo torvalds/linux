@@ -225,5 +225,12 @@ int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	if (err < 0)
 		return err;
 
+	if (link->caps.alternate_scrambler_reset) {
+		err = drm_dp_dpcd_writeb(aux, DP_EDP_CONFIGURATION_SET,
+					 DP_ALTERNATE_SCRAMBLER_RESET_ENABLE);
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
