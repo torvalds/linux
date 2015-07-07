@@ -3933,8 +3933,8 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 			efx->net_dev->dev_addr);
 	MCDI_SET_DWORD(inbuf, VADAPTOR_SET_MAC_IN_UPSTREAM_PORT_ID,
 		       nic_data->vport_id);
-	rc = efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_SET_MAC, inbuf,
-			  sizeof(inbuf), NULL, 0, NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_VADAPTOR_SET_MAC, inbuf,
+				sizeof(inbuf), NULL, 0, NULL);
 
 	efx_ef10_filter_table_probe(efx);
 	up_write(&efx->filter_sem);
@@ -3986,6 +3986,9 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 		 * MCFW do not support VFs.
 		 */
 		rc = efx_ef10_vport_set_mac_address(efx);
+	} else {
+		efx_mcdi_display_error(efx, MC_CMD_VADAPTOR_SET_MAC,
+				       sizeof(inbuf), NULL, 0, rc);
 	}
 
 	return rc;
