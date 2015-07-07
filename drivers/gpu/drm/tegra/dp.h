@@ -23,6 +23,13 @@ struct drm_dp_link_caps {
 	bool enhanced_framing;
 
 	/**
+	 * tps3_supported:
+	 *
+	 * training pattern sequence 3 supported for equalization
+	 */
+	bool tps3_supported;
+
+	/**
 	 * @fast_training:
 	 *
 	 * AUX CH handshake not required for link training
