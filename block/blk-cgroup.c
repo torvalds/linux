@@ -822,8 +822,13 @@ static void blkcg_css_free(struct cgroup_subsys_state *css)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
 
-	if (blkcg != &blkcg_root)
+	if (blkcg != &blkcg_root) {
+		int i;
+
+		for (i = 0; i < BLKCG_MAX_POLS; i++)
+			kfree(blkcg->pd[i]);
 		kfree(blkcg);
+	}
 }
 
 static struct cgroup_subsys_state *
@@ -1162,8 +1167,6 @@ void blkcg_deactivate_policy(struct request_queue *q,
 
 		kfree(blkg->pd[pol->plid]);
 		blkg->pd[pol->plid] = NULL;
-		kfree(blkg->blkcg->pd[pol->plid]);
-		blkg->blkcg->pd[pol->plid] = NULL;
 
 		spin_unlock(&blkg->blkcg->lock);
 	}
