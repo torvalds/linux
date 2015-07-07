@@ -51,10 +51,10 @@ static int md5_init(struct shash_desc *desc)
 {
 	struct md5_state *mctx = shash_desc_ctx(desc);
 
-	mctx->hash[0] = 0x67452301;
-	mctx->hash[1] = 0xefcdab89;
-	mctx->hash[2] = 0x98badcfe;
-	mctx->hash[3] = 0x10325476;
+	mctx->hash[0] = MD5_H0;
+	mctx->hash[1] = MD5_H1;
+	mctx->hash[2] = MD5_H2;
+	mctx->hash[3] = MD5_H3;
 	mctx->byte_count = 0;
 
 	return 0;

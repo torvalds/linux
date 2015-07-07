@@ -46,52 +46,6 @@
 #define MAIR(attr, mt)	((attr) << ((mt) * 8))
 
 /*
- *	cpu_cache_off()
- *
- *	Turn the CPU D-cache off.
- */
-ENTRY(cpu_cache_off)
-	mrs	x0, sctlr_el1
-	bic	x0, x0, #1 << 2			// clear SCTLR.C
-	msr	sctlr_el1, x0
-	isb
-	ret
-ENDPROC(cpu_cache_off)
-
-/*
- *	cpu_reset(loc)
- *
- *	Perform a soft reset of the system.  Put the CPU into the same state
- *	as it would be if it had been reset, and branch to what would be the
- *	reset vector. It must be executed with the flat identity mapping.
- *
- *	- loc   - location to jump to for soft reset
- */
-	.align	5
-ENTRY(cpu_reset)
-	mrs	x1, sctlr_el1
-	bic	x1, x1, #1
-	msr	sctlr_el1, x1			// disable the MMU
-	isb
-	ret	x0
-ENDPROC(cpu_reset)
-
-ENTRY(cpu_soft_restart)
-	/* Save address of cpu_reset() and reset address */
-	mov	x19, x0
-	mov	x20, x1
-
-	/* Turn D-cache off */
-	bl	cpu_cache_off
-
-	/* Push out all dirty data, and ensure cache is empty */
-	bl	flush_cache_all
-
-	mov	x0, x20
-	ret	x19
-ENDPROC(cpu_soft_restart)
-
-/*
  *	cpu_do_idle()
  *
  *	Idle the processor (wait for interrupt).

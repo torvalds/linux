@@ -553,8 +553,8 @@ static noinline int create_subvol(struct inode *dir,
 	key.offset = (u64)-1;
 	new_root = btrfs_read_fs_root_no_name(root->fs_info, &key);
 	if (IS_ERR(new_root)) {
-		btrfs_abort_transaction(trans, root, PTR_ERR(new_root));
 		ret = PTR_ERR(new_root);
+		btrfs_abort_transaction(trans, root, ret);
 		goto fail;
 	}
 
@@ -1318,7 +1318,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		i = range->start >> PAGE_CACHE_SHIFT;
 	}
 	if (!max_to_defrag)
-		max_to_defrag = last_index + 1;
+		max_to_defrag = last_index - i + 1;
 
 	/*
 	 * make writeback starts from i, so the defrag range can be
@@ -1368,7 +1368,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			ra_index = max(i, ra_index);
 			btrfs_force_ra(inode->i_mapping, ra, file, ra_index,
 				       cluster);
-			ra_index += max_cluster;
+			ra_index += cluster;
 		}
 
 		mutex_lock(&inode->i_mutex);
@@ -2271,10 +2271,7 @@ static noinline int btrfs_ioctl_ino_lookup(struct file *file,
 {
 	 struct btrfs_ioctl_ino_lookup_args *args;
 	 struct inode *inode;
-	 int ret;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
+	int ret = 0;
 
 	args = memdup_user(argp, sizeof(*args));
 	if (IS_ERR(args))
@@ -2282,13 +2279,28 @@ static noinline int btrfs_ioctl_ino_lookup(struct file *file,
 
 	inode = file_inode(file);
 
+	/*
+	 * Unprivileged query to obtain the containing subvolume root id. The
+	 * path is reset so it's consistent with btrfs_search_path_in_tree.
+	 */
 	if (args->treeid == 0)
 		args->treeid = BTRFS_I(inode)->root->root_key.objectid;
+
+	if (args->objectid == BTRFS_FIRST_FREE_OBJECTID) {
+		args->name[0] = 0;
+		goto out;
+	}
+
+	if (!capable(CAP_SYS_ADMIN)) {
+		ret = -EPERM;
+		goto out;
+	}
 
 	ret = btrfs_search_path_in_tree(BTRFS_I(inode)->root->fs_info,
 					args->treeid, args->objectid,
 					args->name);
 
+out:
 	if (ret == 0 && copy_to_user(argp, args, sizeof(*args)))
 		ret = -EFAULT;
 
@@ -2413,8 +2425,6 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		goto out_unlock_inode;
 	}
 
-	d_invalidate(dentry);
-
 	down_write(&root->fs_info->subvol_sem);
 
 	err = may_destroy_subvol(dest);
@@ -2508,7 +2518,7 @@ out_up_write:
 out_unlock_inode:
 	mutex_unlock(&inode->i_mutex);
 	if (!err) {
-		shrink_dcache_sb(root->fs_info->sb);
+		d_invalidate(dentry);
 		btrfs_invalidate_inodes(dest);
 		d_delete(dentry);
 		ASSERT(dest->send_in_progress == 0);
@@ -2879,12 +2889,19 @@ static int btrfs_cmp_data(struct inode *src, u64 loff, struct inode *dst,
 	return ret;
 }
 
-static int extent_same_check_offsets(struct inode *inode, u64 off, u64 len)
+static int extent_same_check_offsets(struct inode *inode, u64 off, u64 *plen,
+				     u64 olen)
 {
+	u64 len = *plen;
 	u64 bs = BTRFS_I(inode)->root->fs_info->sb->s_blocksize;
 
-	if (off + len > inode->i_size || off + len < off)
+	if (off + olen > inode->i_size || off + olen < off)
 		return -EINVAL;
+
+	/* if we extend to eof, continue to block boundary */
+	if (off + len == inode->i_size)
+		*plen = len = ALIGN(inode->i_size, bs) - off;
+
 	/* Check that we are block aligned - btrfs_clone() requires this */
 	if (!IS_ALIGNED(off, bs) || !IS_ALIGNED(off + len, bs))
 		return -EINVAL;
@@ -2892,10 +2909,11 @@ static int extent_same_check_offsets(struct inode *inode, u64 off, u64 len)
 	return 0;
 }
 
-static int btrfs_extent_same(struct inode *src, u64 loff, u64 len,
+static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 			     struct inode *dst, u64 dst_loff)
 {
 	int ret;
+	u64 len = olen;
 
 	/*
 	 * btrfs_clone() can't handle extents in the same file
@@ -2910,11 +2928,11 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 len,
 
 	btrfs_double_lock(src, loff, dst, dst_loff, len);
 
-	ret = extent_same_check_offsets(src, loff, len);
+	ret = extent_same_check_offsets(src, loff, &len, olen);
 	if (ret)
 		goto out_unlock;
 
-	ret = extent_same_check_offsets(dst, dst_loff, len);
+	ret = extent_same_check_offsets(dst, dst_loff, &len, olen);
 	if (ret)
 		goto out_unlock;
 
@@ -2927,7 +2945,7 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 len,
 
 	ret = btrfs_cmp_data(src, loff, dst, dst_loff, len);
 	if (ret == 0)
-		ret = btrfs_clone(src, dst, loff, len, len, dst_loff);
+		ret = btrfs_clone(src, dst, loff, olen, len, dst_loff);
 
 out_unlock:
 	btrfs_double_unlock(src, loff, dst, dst_loff, len);

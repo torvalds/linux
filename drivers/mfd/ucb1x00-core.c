@@ -566,8 +566,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	}
 
 	irq_set_irq_type(ucb->irq, IRQ_TYPE_EDGE_RISING);
-	irq_set_handler_data(ucb->irq, ucb);
-	irq_set_chained_handler(ucb->irq, ucb1x00_irq);
+	irq_set_chained_handler_and_data(ucb->irq, ucb1x00_irq, ucb);
 
 	if (pdata && pdata->gpio_base) {
 		ucb->gpio.label = dev_name(&ucb->dev);

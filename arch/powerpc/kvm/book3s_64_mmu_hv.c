@@ -650,7 +650,7 @@ static void kvmppc_rmap_reset(struct kvm *kvm)
 	int srcu_idx;
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	slots = kvm->memslots;
+	slots = kvm_memslots(kvm);
 	kvm_for_each_memslot(memslot, slots) {
 		/*
 		 * This assumes it is acceptable to lose reference and

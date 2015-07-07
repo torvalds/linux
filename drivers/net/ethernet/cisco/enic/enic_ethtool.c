@@ -348,7 +348,7 @@ static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
 	n = htbl_fltr_search(enic, (u16)fsp->location);
 	if (!n)
 		return -EINVAL;
-	switch (n->keys.ip_proto) {
+	switch (n->keys.basic.ip_proto) {
 	case IPPROTO_TCP:
 		fsp->flow_type = TCP_V4_FLOW;
 		break;
@@ -360,16 +360,16 @@ static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
 		break;
 	}
 
-	fsp->h_u.tcp_ip4_spec.ip4src = n->keys.src;
+	fsp->h_u.tcp_ip4_spec.ip4src = flow_get_u32_src(&n->keys);
 	fsp->m_u.tcp_ip4_spec.ip4src = (__u32)~0;
 
-	fsp->h_u.tcp_ip4_spec.ip4dst = n->keys.dst;
+	fsp->h_u.tcp_ip4_spec.ip4dst = flow_get_u32_dst(&n->keys);
 	fsp->m_u.tcp_ip4_spec.ip4dst = (__u32)~0;
 
-	fsp->h_u.tcp_ip4_spec.psrc = n->keys.port16[0];
+	fsp->h_u.tcp_ip4_spec.psrc = n->keys.ports.src;
 	fsp->m_u.tcp_ip4_spec.psrc = (__u16)~0;
 
-	fsp->h_u.tcp_ip4_spec.pdst = n->keys.port16[1];
+	fsp->h_u.tcp_ip4_spec.pdst = n->keys.ports.dst;
 	fsp->m_u.tcp_ip4_spec.pdst = (__u16)~0;
 
 	fsp->ring_cookie = n->rq_id;

@@ -1,17 +1,12 @@
-/**
- * \file drm_auth.c
- * IOCTLs for authentication
- *
- * \author Rickard E. (Rik) Faith <faith@valinux.com>
- * \author Gareth Hughes <gareth@valinux.com>
- */
-
 /*
  * Created: Tue Feb  2 08:37:54 1999 by faith@valinux.com
  *
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
+ *
+ * Author Rickard E. (Rik) Faith <faith@valinux.com>
+ * Author Gareth Hughes <gareth@valinux.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,154 +31,47 @@
 #include <drm/drmP.h>
 #include "drm_internal.h"
 
-struct drm_magic_entry {
-	struct list_head head;
-	struct drm_hash_item hash_item;
-	struct drm_file *priv;
-};
-
 /**
- * Find the file with the given magic number.
+ * drm_getmagic - Get unique magic of a client
+ * @dev: DRM device to operate on
+ * @data: ioctl data containing the drm_auth object
+ * @file_priv: DRM file that performs the operation
  *
- * \param dev DRM device.
- * \param magic magic number.
+ * This looks up the unique magic of the passed client and returns it. If the
+ * client did not have a magic assigned, yet, a new one is registered. The magic
+ * is stored in the passed drm_auth object.
  *
- * Searches in drm_device::magiclist within all files with the same hash key
- * the one with matching magic number, while holding the drm_device::struct_mutex
- * lock.
- */
-static struct drm_file *drm_find_file(struct drm_master *master, drm_magic_t magic)
-{
-	struct drm_file *retval = NULL;
-	struct drm_magic_entry *pt;
-	struct drm_hash_item *hash;
-	struct drm_device *dev = master->minor->dev;
-
-	mutex_lock(&dev->struct_mutex);
-	if (!drm_ht_find_item(&master->magiclist, (unsigned long)magic, &hash)) {
-		pt = drm_hash_entry(hash, struct drm_magic_entry, hash_item);
-		retval = pt->priv;
-	}
-	mutex_unlock(&dev->struct_mutex);
-	return retval;
-}
-
-/**
- * Adds a magic number.
- *
- * \param dev DRM device.
- * \param priv file private data.
- * \param magic magic number.
- *
- * Creates a drm_magic_entry structure and appends to the linked list
- * associated the magic number hash key in drm_device::magiclist, while holding
- * the drm_device::struct_mutex lock.
- */
-static int drm_add_magic(struct drm_master *master, struct drm_file *priv,
-			 drm_magic_t magic)
-{
-	struct drm_magic_entry *entry;
-	struct drm_device *dev = master->minor->dev;
-	DRM_DEBUG("%d\n", magic);
-
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
-	entry->priv = priv;
-	entry->hash_item.key = (unsigned long)magic;
-	mutex_lock(&dev->struct_mutex);
-	drm_ht_insert_item(&master->magiclist, &entry->hash_item);
-	list_add_tail(&entry->head, &master->magicfree);
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
-/**
- * Remove a magic number.
- *
- * \param dev DRM device.
- * \param magic magic number.
- *
- * Searches and unlinks the entry in drm_device::magiclist with the magic
- * number hash key, while holding the drm_device::struct_mutex lock.
- */
-int drm_remove_magic(struct drm_master *master, drm_magic_t magic)
-{
-	struct drm_magic_entry *pt;
-	struct drm_hash_item *hash;
-	struct drm_device *dev = master->minor->dev;
-
-	DRM_DEBUG("%d\n", magic);
-
-	mutex_lock(&dev->struct_mutex);
-	if (drm_ht_find_item(&master->magiclist, (unsigned long)magic, &hash)) {
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
-	}
-	pt = drm_hash_entry(hash, struct drm_magic_entry, hash_item);
-	drm_ht_remove_item(&master->magiclist, hash);
-	list_del(&pt->head);
-	mutex_unlock(&dev->struct_mutex);
-
-	kfree(pt);
-
-	return 0;
-}
-
-/**
- * Get a unique magic number (ioctl).
- *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg pointer to a resulting drm_auth structure.
- * \return zero on success, or a negative number on failure.
- *
- * If there is a magic number in drm_file::magic then use it, otherwise
- * searches an unique non-zero magic number and add it associating it with \p
- * file_priv.
- * This ioctl needs protection by the drm_global_mutex, which protects
- * struct drm_file::magic and struct drm_magic_entry::priv.
+ * Returns: 0 on success, negative error code on failure.
  */
 int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	static drm_magic_t sequence = 0;
-	static DEFINE_SPINLOCK(lock);
 	struct drm_auth *auth = data;
+	int ret = 0;
 
-	/* Find unique magic */
-	if (file_priv->magic) {
-		auth->magic = file_priv->magic;
-	} else {
-		do {
-			spin_lock(&lock);
-			if (!sequence)
-				++sequence;	/* reserve 0 */
-			auth->magic = sequence++;
-			spin_unlock(&lock);
-		} while (drm_find_file(file_priv->master, auth->magic));
-		file_priv->magic = auth->magic;
-		drm_add_magic(file_priv->master, file_priv, auth->magic);
+	mutex_lock(&dev->struct_mutex);
+	if (!file_priv->magic) {
+		ret = idr_alloc(&file_priv->master->magic_map, file_priv,
+				1, 0, GFP_KERNEL);
+		if (ret >= 0)
+			file_priv->magic = ret;
 	}
+	auth->magic = file_priv->magic;
+	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("%u\n", auth->magic);
 
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 /**
- * Authenticate with a magic.
+ * drm_authmagic - Authenticate client with a magic
+ * @dev: DRM device to operate on
+ * @data: ioctl data containing the drm_auth object
+ * @file_priv: DRM file that performs the operation
  *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg pointer to a drm_auth structure.
- * \return zero if authentication successed, or a negative number otherwise.
+ * This looks up a DRM client by the passed magic and authenticates it.
  *
- * Checks if \p file_priv is associated with the magic number passed in \arg.
- * This ioctl needs protection by the drm_global_mutex, which protects
- * struct drm_file::magic and struct drm_magic_entry::priv.
+ * Returns: 0 on success, negative error code on failure.
  */
 int drm_authmagic(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
@@ -192,10 +80,14 @@ int drm_authmagic(struct drm_device *dev, void *data,
 	struct drm_file *file;
 
 	DRM_DEBUG("%u\n", auth->magic);
-	if ((file = drm_find_file(file_priv->master, auth->magic))) {
+
+	mutex_lock(&dev->struct_mutex);
+	file = idr_find(&file_priv->master->magic_map, auth->magic);
+	if (file) {
 		file->authenticated = 1;
-		drm_remove_magic(file_priv->master, auth->magic);
-		return 0;
+		idr_replace(&file_priv->master->magic_map, NULL, auth->magic);
 	}
-	return -EINVAL;
+	mutex_unlock(&dev->struct_mutex);
+
+	return file ? 0 : -EINVAL;
 }

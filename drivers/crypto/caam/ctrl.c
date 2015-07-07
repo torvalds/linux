@@ -301,7 +301,7 @@ static int caam_remove(struct platform_device *pdev)
 #endif
 
 	/* Unmap controller region */
-	iounmap(&ctrl);
+	iounmap(ctrl);
 
 	return ret;
 }
@@ -496,7 +496,7 @@ static int caam_probe(struct platform_device *pdev)
 					sizeof(struct platform_device *) * rspec,
 					GFP_KERNEL);
 	if (ctrlpriv->jrpdev == NULL) {
-		iounmap(&ctrl);
+		iounmap(ctrl);
 		return -ENOMEM;
 	}
 

@@ -9,3 +9,6 @@
   8 -> Hauppauge WinTV-HVR2250                             [0070:88A1]
   9 -> Hauppauge WinTV-HVR2200                             [0070:8940]
  10 -> Hauppauge WinTV-HVR2200                             [0070:8953]
+ 11 -> Hauppauge WinTV-HVR2255(proto)
+ 12 -> Hauppauge WinTV-HVR2255                             [0070:f111]
+ 13 -> Hauppauge WinTV-HVR2205                             [0070:f123,0070:f120]

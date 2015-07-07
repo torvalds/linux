@@ -263,27 +263,21 @@ out:
 static void macvtap_del_queues(struct net_device *dev)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
-	struct macvtap_queue *q, *tmp, *qlist[MAX_MACVTAP_QUEUES];
-	int i, j = 0;
+	struct macvtap_queue *q, *tmp;
 
 	ASSERT_RTNL();
 	list_for_each_entry_safe(q, tmp, &vlan->queue_list, next) {
 		list_del_init(&q->next);
-		qlist[j++] = q;
 		RCU_INIT_POINTER(q->vlan, NULL);
 		if (q->enabled)
 			vlan->numvtaps--;
 		vlan->numqueues--;
+		sock_put(&q->sk);
 	}
-	for (i = 0; i < vlan->numvtaps; i++)
-		RCU_INIT_POINTER(vlan->taps[i], NULL);
 	BUG_ON(vlan->numvtaps);
 	BUG_ON(vlan->numqueues);
 	/* guarantee that any future macvtap_set_queue will fail */
 	vlan->numvtaps = MAX_MACVTAP_QUEUES;
-
-	for (--j; j >= 0; j--)
-		sock_put(&qlist[j]->sk);
 }
 
 static rx_handler_result_t macvtap_handle_frame(struct sk_buff **pskb)
@@ -476,7 +470,7 @@ static int macvtap_open(struct inode *inode, struct file *file)
 
 	err = -ENOMEM;
 	q = (struct macvtap_queue *)sk_alloc(net, AF_UNSPEC, GFP_KERNEL,
-					     &macvtap_proto);
+					     &macvtap_proto, 0);
 	if (!q)
 		goto out;
 
@@ -1006,6 +1000,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 	unsigned int __user *up = argp;
 	unsigned short u;
 	int __user *sp = argp;
+	struct sockaddr sa;
 	int s;
 	int ret;
 
@@ -1098,6 +1093,37 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 
 		rtnl_lock();
 		ret = set_offload(q, arg);
+		rtnl_unlock();
+		return ret;
+
+	case SIOCGIFHWADDR:
+		rtnl_lock();
+		vlan = macvtap_get_vlan(q);
+		if (!vlan) {
+			rtnl_unlock();
+			return -ENOLINK;
+		}
+		ret = 0;
+		u = vlan->dev->type;
+		if (copy_to_user(&ifr->ifr_name, vlan->dev->name, IFNAMSIZ) ||
+		    copy_to_user(&ifr->ifr_hwaddr.sa_data, vlan->dev->dev_addr, ETH_ALEN) ||
+		    put_user(u, &ifr->ifr_hwaddr.sa_family))
+			ret = -EFAULT;
+		macvtap_put_vlan(vlan);
+		rtnl_unlock();
+		return ret;
+
+	case SIOCSIFHWADDR:
+		if (copy_from_user(&sa, &ifr->ifr_hwaddr, sizeof(sa)))
+			return -EFAULT;
+		rtnl_lock();
+		vlan = macvtap_get_vlan(q);
+		if (!vlan) {
+			rtnl_unlock();
+			return -ENOLINK;
+		}
+		ret = dev_set_mac_address(vlan->dev, &sa);
+		macvtap_put_vlan(vlan);
 		rtnl_unlock();
 		return ret;
 

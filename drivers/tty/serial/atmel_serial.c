@@ -165,6 +165,7 @@ struct atmel_uart_port {
 	struct tasklet_struct	tasklet;
 	unsigned int		irq_status;
 	unsigned int		irq_status_prev;
+	unsigned int		status_change;
 
 	struct circ_buf		rx_ring;
 
@@ -315,8 +316,7 @@ static int atmel_config_rs485(struct uart_port *port,
 	if (rs485conf->flags & SER_RS485_ENABLED) {
 		dev_dbg(port->dev, "Setting UART to RS485\n");
 		atmel_port->tx_done_mask = ATMEL_US_TXEMPTY;
-		if ((rs485conf->delay_rts_after_send) > 0)
-			UART_PUT_TTGR(port, rs485conf->delay_rts_after_send);
+		UART_PUT_TTGR(port, rs485conf->delay_rts_after_send);
 		mode |= ATMEL_US_USMODE_RS485;
 	} else {
 		dev_dbg(port->dev, "Setting UART to RS232\n");
@@ -354,8 +354,7 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 
 	/* override mode to RS485 if needed, otherwise keep the current mode */
 	if (port->rs485.flags & SER_RS485_ENABLED) {
-		if ((port->rs485.delay_rts_after_send) > 0)
-			UART_PUT_TTGR(port, port->rs485.delay_rts_after_send);
+		UART_PUT_TTGR(port, port->rs485.delay_rts_after_send);
 		mode &= ~ATMEL_US_USMODE;
 		mode |= ATMEL_US_USMODE_RS485;
 	}
@@ -1177,6 +1176,9 @@ atmel_handle_status(struct uart_port *port, unsigned int pending,
 	if (pending & (ATMEL_US_RIIC | ATMEL_US_DSRIC | ATMEL_US_DCDIC
 				| ATMEL_US_CTSIC)) {
 		atmel_port->irq_status = status;
+		atmel_port->status_change = atmel_port->irq_status ^
+					    atmel_port->irq_status_prev;
+		atmel_port->irq_status_prev = status;
 		tasklet_schedule(&atmel_port->tasklet);
 	}
 }
@@ -1523,16 +1525,13 @@ static void atmel_tasklet_func(unsigned long data)
 {
 	struct uart_port *port = (struct uart_port *)data;
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	unsigned int status;
-	unsigned int status_change;
+	unsigned int status = atmel_port->irq_status;
+	unsigned int status_change = atmel_port->status_change;
 
 	/* The interrupt handler does not take the lock */
 	spin_lock(&port->lock);
 
 	atmel_port->schedule_tx(port);
-
-	status = atmel_port->irq_status;
-	status_change = status ^ atmel_port->irq_status_prev;
 
 	if (status_change & (ATMEL_US_RI | ATMEL_US_DSR
 				| ATMEL_US_DCD | ATMEL_US_CTS)) {
@@ -1548,7 +1547,7 @@ static void atmel_tasklet_func(unsigned long data)
 
 		wake_up_interruptible(&port->state->port.delta_msr_wait);
 
-		atmel_port->irq_status_prev = status;
+		atmel_port->status_change = 0;
 	}
 
 	atmel_port->schedule_rx(port);
@@ -2061,8 +2060,7 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* mode */
 	if (port->rs485.flags & SER_RS485_ENABLED) {
-		if ((port->rs485.delay_rts_after_send) > 0)
-			UART_PUT_TTGR(port, port->rs485.delay_rts_after_send);
+		UART_PUT_TTGR(port, port->rs485.delay_rts_after_send);
 		mode |= ATMEL_US_USMODE_RS485;
 	} else if (termios->c_cflag & CRTSCTS) {
 		/* RS232 with hardware handshake (RTS/CTS) */

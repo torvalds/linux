@@ -1,7 +1,7 @@
 /*
  * libcxgbi.h: Chelsio common library for T3/T4 iSCSI driver.
  *
- * Copyright (c) 2010 Chelsio Communications, Inc.
+ * Copyright (c) 2010-2015 Chelsio Communications, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -234,6 +234,8 @@ struct cxgbi_sock {
 	u32 snd_nxt;
 	u32 snd_una;
 	u32 write_seq;
+	u32 snd_win;
+	u32 rcv_win;
 };
 
 /*
@@ -540,8 +542,6 @@ struct cxgbi_device {
 	struct iscsi_transport *itp;
 
 	unsigned int pfvf;
-	unsigned int snd_win;
-	unsigned int rcv_win;
 	unsigned int rx_credit_thres;
 	unsigned int skb_tx_rsvd;
 	unsigned int skb_rx_extra;	/* for msg coalesced mode */

@@ -569,7 +569,7 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 			i_size_write(inode, newsize);
 			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 		}
-		if (newsize < oldsize) {
+		if (newsize <= oldsize) {
 			loff_t holebegin = round_up(newsize, PAGE_SIZE);
 			unmap_mapping_range(inode->i_mapping, holebegin, 0, 1);
 			shmem_truncate_range(inode, newsize, (loff_t)-1);
@@ -2451,6 +2451,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 			return -ENOMEM;
 		}
 		inode->i_op = &shmem_short_symlink_operations;
+		inode->i_link = info->symlink;
 	} else {
 		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
 		if (error) {
@@ -2474,30 +2475,23 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	return 0;
 }
 
-static void *shmem_follow_short_symlink(struct dentry *dentry, struct nameidata *nd)
-{
-	nd_set_link(nd, SHMEM_I(d_inode(dentry))->symlink);
-	return NULL;
-}
-
-static void *shmem_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *shmem_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct page *page = NULL;
 	int error = shmem_getpage(d_inode(dentry), 0, &page, SGP_READ, NULL);
-	nd_set_link(nd, error ? ERR_PTR(error) : kmap(page));
-	if (page)
-		unlock_page(page);
-	return page;
+	if (error)
+		return ERR_PTR(error);
+	unlock_page(page);
+	*cookie = page;
+	return kmap(page);
 }
 
-static void shmem_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
+static void shmem_put_link(struct inode *unused, void *cookie)
 {
-	if (!IS_ERR(nd_get_link(nd))) {
-		struct page *page = cookie;
-		kunmap(page);
-		mark_page_accessed(page);
-		page_cache_release(page);
-	}
+	struct page *page = cookie;
+	kunmap(page);
+	mark_page_accessed(page);
+	page_cache_release(page);
 }
 
 #ifdef CONFIG_TMPFS_XATTR
@@ -2642,7 +2636,7 @@ static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 static const struct inode_operations shmem_short_symlink_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= shmem_follow_short_symlink,
+	.follow_link	= simple_follow_link,
 #ifdef CONFIG_TMPFS_XATTR
 	.setxattr	= shmem_setxattr,
 	.getxattr	= shmem_getxattr,

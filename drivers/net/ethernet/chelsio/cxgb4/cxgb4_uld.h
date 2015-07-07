@@ -264,6 +264,7 @@ struct cxgb4_lld_info {
 	unsigned int max_ordird_qp;          /* Max ORD/IRD depth per RDMA QP */
 	unsigned int max_ird_adapter;        /* Max IRD memory per adapter */
 	bool ulptx_memwrite_dsgl;            /* use of T5 DSGL allowed */
+	int nodeid;			     /* device numa node id */
 };
 
 struct cxgb4_uld_info {
@@ -297,8 +298,6 @@ struct sk_buff *cxgb4_pktgl_to_skb(const struct pkt_gl *gl,
 				   unsigned int skb_len, unsigned int pull_len);
 int cxgb4_sync_txq_pidx(struct net_device *dev, u16 qid, u16 pidx, u16 size);
 int cxgb4_flush_eq_cache(struct net_device *dev);
-void cxgb4_disable_db_coalescing(struct net_device *dev);
-void cxgb4_enable_db_coalescing(struct net_device *dev);
 int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte);
 u64 cxgb4_read_sge_timestamp(struct net_device *dev);
 
@@ -306,6 +305,7 @@ enum cxgb4_bar2_qtype { CXGB4_BAR2_QTYPE_EGRESS, CXGB4_BAR2_QTYPE_INGRESS };
 int cxgb4_bar2_sge_qregs(struct net_device *dev,
 			 unsigned int qid,
 			 enum cxgb4_bar2_qtype qtype,
+			 int user,
 			 u64 *pbar2_qoffset,
 			 unsigned int *pbar2_qid);
 

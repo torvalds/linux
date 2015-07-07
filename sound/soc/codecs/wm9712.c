@@ -610,7 +610,6 @@ static int wm9712_set_bias_level(struct snd_soc_codec *codec,
 		ac97_write(codec, AC97_POWERDOWN, 0xffff);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -646,7 +645,7 @@ static int wm9712_soc_resume(struct snd_soc_codec *codec)
 	if (ret < 0)
 		return ret;
 
-	wm9712_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	if (ret == 0) {
 		/* Sync reg_cache with the hardware after cold reset */

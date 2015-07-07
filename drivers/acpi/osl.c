@@ -175,11 +175,7 @@ static void __init acpi_request_region (struct acpi_generic_address *gas,
 	if (!addr || !length)
 		return;
 
-	/* Resources are never freed */
-	if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
-		request_region(addr, length, desc);
-	else if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
-		request_mem_region(addr, length, desc);
+	acpi_reserve_region(addr, length, gas->space_id, 0, desc);
 }
 
 static void __init acpi_reserve_resources(void)
@@ -540,7 +536,7 @@ static char acpi_os_name[ACPI_MAX_OVERRIDE_LEN];
 
 acpi_status
 acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
-			    acpi_string * new_val)
+			    char **new_val)
 {
 	if (!init_val || !new_val)
 		return AE_BAD_PARAMETER;
@@ -1683,6 +1679,12 @@ int acpi_resources_are_enforced(void)
 	return acpi_enforce_resources == ENFORCE_RESOURCES_STRICT;
 }
 EXPORT_SYMBOL(acpi_resources_are_enforced);
+
+bool acpi_osi_is_win8(void)
+{
+	return acpi_gbl_osi_data >= ACPI_OSI_WIN_8;
+}
+EXPORT_SYMBOL(acpi_osi_is_win8);
 
 /*
  * Deallocate the memory for a spinlock.

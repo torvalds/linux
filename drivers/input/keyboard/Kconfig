@@ -367,6 +367,7 @@ config KEYBOARD_MAPLE
 
 config KEYBOARD_MAX7359
 	tristate "Maxim MAX7359 Key Switch Controller"
+	select INPUT_MATRIXKMAP
 	depends on I2C
 	help
 	  If you say yes here you get support for the Maxim MAX7359 Key
@@ -677,7 +678,7 @@ config KEYBOARD_W90P910
 config KEYBOARD_CROS_EC
 	tristate "ChromeOS EC keyboard"
 	select INPUT_MATRIXKMAP
-	depends on MFD_CROS_EC
+	depends on CROS_EC_PROTO
 	help
 	  Say Y here to enable the matrix keyboard used by ChromeOS devices
 	  and implemented on the ChromeOS EC. You must enable one bus option

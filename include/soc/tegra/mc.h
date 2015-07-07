@@ -20,6 +20,12 @@ struct tegra_smmu_enable {
 	unsigned int bit;
 };
 
+struct tegra_mc_timing {
+	unsigned long rate;
+
+	u32 *emem_data;
+};
+
 /* latency allowance */
 struct tegra_mc_la {
 	unsigned int reg;
@@ -40,6 +46,7 @@ struct tegra_mc_client {
 };
 
 struct tegra_smmu_swgroup {
+	const char *name;
 	unsigned int swgroup;
 	unsigned int reg;
 };
@@ -71,6 +78,7 @@ struct tegra_smmu;
 struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 				    const struct tegra_smmu_soc *soc,
 				    struct tegra_mc *mc);
+void tegra_smmu_remove(struct tegra_smmu *smmu);
 #else
 static inline struct tegra_smmu *
 tegra_smmu_probe(struct device *dev, const struct tegra_smmu_soc *soc,
@@ -78,13 +86,17 @@ tegra_smmu_probe(struct device *dev, const struct tegra_smmu_soc *soc,
 {
 	return NULL;
 }
+
+static inline void tegra_smmu_remove(struct tegra_smmu *smmu)
+{
+}
 #endif
 
 struct tegra_mc_soc {
 	const struct tegra_mc_client *clients;
 	unsigned int num_clients;
 
-	const unsigned int *emem_regs;
+	const unsigned long *emem_regs;
 	unsigned int num_emem_regs;
 
 	unsigned int num_address_bits;
@@ -102,6 +114,12 @@ struct tegra_mc {
 
 	const struct tegra_mc_soc *soc;
 	unsigned long tick;
+
+	struct tegra_mc_timing *timings;
+	unsigned int num_timings;
 };
+
+void tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate);
+unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc);
 
 #endif /* __SOC_TEGRA_MC_H__ */

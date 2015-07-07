@@ -25,7 +25,7 @@ struct _fpx_sw_bytes {
 	__u32 extended_size;	/* total size of the layout referred by
 				 * fpstate pointer in the sigcontext.
 				 */
-	__u64 xstate_bv;
+	__u64 xfeatures;
 				/* feature bit mask (including fp/sse/extended
 				 * state) that is present in the memory
 				 * layout.
@@ -209,8 +209,8 @@ struct sigcontext {
 
 #endif /* !__i386__ */
 
-struct _xsave_hdr {
-	__u64 xstate_bv;
+struct _header {
+	__u64 xfeatures;
 	__u64 reserved1[2];
 	__u64 reserved2[5];
 };
@@ -228,7 +228,7 @@ struct _ymmh_state {
  */
 struct _xstate {
 	struct _fpstate fpstate;
-	struct _xsave_hdr xstate_hdr;
+	struct _header xstate_hdr;
 	struct _ymmh_state ymmh;
 	/* new processor state extensions go here */
 };

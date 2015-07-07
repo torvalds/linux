@@ -88,7 +88,8 @@ u32 mdp_ctl_flush_mask_cursor(int cursor_id);
 u32 mdp_ctl_flush_mask_encoder(struct mdp5_interface *intf);
 
 /* @flush_mask: see CTL flush masks definitions below */
-int mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask);
+u32 mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask);
+u32 mdp5_ctl_get_commit_status(struct mdp5_ctl *ctl);
 
 void mdp5_ctl_release(struct mdp5_ctl *ctl);
 

@@ -23,7 +23,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	ieee80211_del_virtual_monitor(local);
 
-	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
 		mutex_lock(&local->sta_mtx);
 		list_for_each_entry(sta, &local->sta_list, list) {
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
@@ -82,7 +82,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		if (err < 0) {
 			local->quiescing = false;
 			local->wowlan = false;
-			if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+			if (ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
 				mutex_lock(&local->sta_mtx);
 				list_for_each_entry(sta,
 						    &local->sta_list, list) {

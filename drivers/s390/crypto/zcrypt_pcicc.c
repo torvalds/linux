@@ -98,11 +98,11 @@ static struct ap_driver zcrypt_pcicc_driver = {
  * - VUD block
  */
 static struct CPRB static_cprb = {
-	.cprb_len	= __constant_cpu_to_le16(0x0070),
+	.cprb_len	= cpu_to_le16(0x0070),
 	.cprb_ver_id	=  0x41,
 	.func_id	= {0x54,0x32},
 	.checkpoint_flag=  0x01,
-	.svr_namel	= __constant_cpu_to_le16(0x0008),
+	.svr_namel	= cpu_to_le16(0x0008),
 	.svr_name	= {'I','C','S','F',' ',' ',' ',' '}
 };
 
@@ -164,7 +164,7 @@ static int ICAMEX_msg_to_type6MEX_msg(struct zcrypt_device *zdev,
 	};
 	static struct function_and_rules_block static_pke_function_and_rules ={
 		.function_code	= {'P','K'},
-		.ulen		= __constant_cpu_to_le16(10),
+		.ulen		= cpu_to_le16(10),
 		.only_rule	= {'P','K','C','S','-','1','.','2'}
 	};
 	struct {
@@ -251,7 +251,7 @@ static int ICACRT_msg_to_type6CRT_msg(struct zcrypt_device *zdev,
 	};
 	static struct function_and_rules_block static_pkd_function_and_rules ={
 		.function_code	= {'P','D'},
-		.ulen		= __constant_cpu_to_le16(10),
+		.ulen		= cpu_to_le16(10),
 		.only_rule	= {'P','K','C','S','-','1','.','2'}
 	};
 	struct {

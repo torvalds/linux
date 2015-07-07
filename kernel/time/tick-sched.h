@@ -57,7 +57,7 @@ struct tick_sched {
 	ktime_t				iowait_sleeptime;
 	ktime_t				sleep_length;
 	unsigned long			last_jiffies;
-	unsigned long			next_jiffies;
+	u64				next_timer;
 	ktime_t				idle_expires;
 	int				do_timer_last;
 };

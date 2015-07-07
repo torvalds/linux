@@ -2308,7 +2308,8 @@ retry:
 		}
 	} else {
 		inode->i_op = &ext3_fast_symlink_inode_operations;
-		memcpy((char*)&EXT3_I(inode)->i_data,symname,l);
+		inode->i_link = (char*)&EXT3_I(inode)->i_data;
+		memcpy(inode->i_link, symname, l);
 		inode->i_size = l-1;
 	}
 	EXT3_I(inode)->i_disksize = inode->i_size;

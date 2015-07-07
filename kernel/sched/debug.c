@@ -132,12 +132,14 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		p->prio);
 #ifdef CONFIG_SCHEDSTATS
 	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
-		SPLIT_NS(p->se.vruntime),
+		SPLIT_NS(p->se.statistics.wait_sum),
 		SPLIT_NS(p->se.sum_exec_runtime),
 		SPLIT_NS(p->se.statistics.sum_sleep_runtime));
 #else
-	SEQ_printf(m, "%15Ld %15Ld %15Ld.%06ld %15Ld.%06ld %15Ld.%06ld",
-		0LL, 0LL, 0LL, 0L, 0LL, 0L, 0LL, 0L);
+	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
+		0LL, 0L,
+		SPLIT_NS(p->se.sum_exec_runtime),
+		0LL, 0L);
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 	SEQ_printf(m, " %d", task_node(p));
@@ -156,7 +158,7 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 	SEQ_printf(m,
 	"\nrunnable tasks:\n"
 	"            task   PID         tree-key  switches  prio"
-	"     exec-runtime         sum-exec        sum-sleep\n"
+	"     wait-time             sum-exec        sum-sleep\n"
 	"------------------------------------------------------"
 	"----------------------------------------------------\n");
 
@@ -230,8 +232,6 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 #endif
 #endif
 #ifdef CONFIG_CFS_BANDWIDTH
-	SEQ_printf(m, "  .%-30s: %d\n", "tg->cfs_bandwidth.timer_active",
-			cfs_rq->tg->cfs_bandwidth.timer_active);
 	SEQ_printf(m, "  .%-30s: %d\n", "throttled",
 			cfs_rq->throttled);
 	SEQ_printf(m, "  .%-30s: %d\n", "throttle_count",
@@ -582,6 +582,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	nr_switches = p->nvcsw + p->nivcsw;
 
 #ifdef CONFIG_SCHEDSTATS
+	PN(se.statistics.sum_sleep_runtime);
 	PN(se.statistics.wait_start);
 	PN(se.statistics.sleep_start);
 	PN(se.statistics.block_start);

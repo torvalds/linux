@@ -1169,23 +1169,22 @@ static void rtl92c_dm_check_txpower_tracking_thermal_meter(
 						struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	static u8 tm_trigger;
 
 	if (!rtlpriv->dm.txpower_tracking)
 		return;
 
-	if (!tm_trigger) {
+	if (!rtlpriv->dm.tm_trigger) {
 		rtl_set_rfreg(hw, RF90_PATH_A, RF_T_METER, RFREG_OFFSET_MASK,
 			      0x60);
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "Trigger 92S Thermal Meter!!\n");
-		tm_trigger = 1;
+		rtlpriv->dm.tm_trigger = 1;
 		return;
 	} else {
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "Schedule TxPowerTracking direct call!!\n");
 		rtl92c_dm_txpower_tracking_directcall(hw);
-		tm_trigger = 0;
+		rtlpriv->dm.tm_trigger = 0;
 	}
 }
 

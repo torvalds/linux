@@ -835,16 +835,16 @@ static int ahash_update_ctx(struct ahash_request *req)
 			src_map_to_sec4_sg(jrdev, req->src, src_nents,
 					   edesc->sec4_sg + sec4_sg_src_index,
 					   chained);
-			if (*next_buflen) {
+			if (*next_buflen)
 				scatterwalk_map_and_copy(next_buf, req->src,
 							 to_hash - *buflen,
 							 *next_buflen, 0);
-				state->current_buf = !state->current_buf;
-			}
 		} else {
 			(edesc->sec4_sg + sec4_sg_src_index - 1)->len |=
 							SEC4_SG_LEN_FIN;
 		}
+
+		state->current_buf = !state->current_buf;
 
 		sh_len = desc_len(sh_desc);
 		desc = edesc->hw_desc;
@@ -1268,8 +1268,9 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 			scatterwalk_map_and_copy(next_buf, req->src,
 						 to_hash - *buflen,
 						 *next_buflen, 0);
-			state->current_buf = !state->current_buf;
 		}
+
+		state->current_buf = !state->current_buf;
 
 		sh_len = desc_len(sh_desc);
 		desc = edesc->hw_desc;

@@ -32,7 +32,7 @@ ifeq ($(ARCH),x86)
     LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
     $(call detected,CONFIG_X86_64)
   else
-    LIBUNWIND_LIBS = -lunwind -lunwind-x86
+    LIBUNWIND_LIBS = -lunwind-x86 -llzma -lunwind
   endif
   NO_PERF_REGS := 0
 endif
@@ -130,6 +130,8 @@ endif
 
 ifeq ($(DEBUG),0)
   CFLAGS += -O6
+else
+  CFLAGS += $(call cc-option,-Og,-O0)
 endif
 
 ifdef PARSER_DEBUG
@@ -267,6 +269,10 @@ else
     endif # Dwarf support
   endif # libelf support
 endif # NO_LIBELF
+
+ifdef NO_DWARF
+  NO_LIBDW_DWARF_UNWIND := 1
+endif
 
 ifndef NO_LIBELF
   CFLAGS += -DHAVE_LIBELF_SUPPORT
@@ -608,6 +614,11 @@ ifdef LIBBABELTRACE
   else
     msg := $(warning No libbabeltrace found, disables 'perf data' CTF format support, please install libbabeltrace-dev[el]/libbabeltrace-ctf-dev);
   endif
+endif
+
+ifndef NO_AUXTRACE
+  $(call detected,CONFIG_AUXTRACE)
+  CFLAGS += -DHAVE_AUXTRACE_SUPPORT
 endif
 
 # Among the variables below, these:

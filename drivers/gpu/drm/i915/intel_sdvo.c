@@ -242,7 +242,15 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 
 	if (intel_sdvo->sdvo_reg == PCH_SDVOB) {
 		I915_WRITE(intel_sdvo->sdvo_reg, val);
-		I915_READ(intel_sdvo->sdvo_reg);
+		POSTING_READ(intel_sdvo->sdvo_reg);
+		/*
+		 * HW workaround, need to write this twice for issue
+		 * that may result in first write getting masked.
+		 */
+		if (HAS_PCH_IBX(dev)) {
+			I915_WRITE(intel_sdvo->sdvo_reg, val);
+			POSTING_READ(intel_sdvo->sdvo_reg);
+		}
 		return;
 	}
 
@@ -259,9 +267,9 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 	for (i = 0; i < 2; i++)
 	{
 		I915_WRITE(GEN3_SDVOB, bval);
-		I915_READ(GEN3_SDVOB);
+		POSTING_READ(GEN3_SDVOB);
 		I915_WRITE(GEN3_SDVOC, cval);
-		I915_READ(GEN3_SDVOC);
+		POSTING_READ(GEN3_SDVOC);
 	}
 }
 
@@ -1429,6 +1437,7 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	u32 temp;
 
 	intel_sdvo_set_active_outputs(intel_sdvo, 0);
@@ -1437,33 +1446,32 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 						   DRM_MODE_DPMS_OFF);
 
 	temp = I915_READ(intel_sdvo->sdvo_reg);
-	if ((temp & SDVO_ENABLE) != 0) {
-		/* HW workaround for IBX, we need to move the port to
-		 * transcoder A before disabling it. */
-		if (HAS_PCH_IBX(encoder->base.dev)) {
-			struct drm_crtc *crtc = encoder->base.crtc;
-			int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
 
-			if (temp & SDVO_PIPE_B_SELECT) {
-				temp &= ~SDVO_PIPE_B_SELECT;
-				I915_WRITE(intel_sdvo->sdvo_reg, temp);
-				POSTING_READ(intel_sdvo->sdvo_reg);
+	temp &= ~SDVO_ENABLE;
+	intel_sdvo_write_sdvox(intel_sdvo, temp);
 
-				/* Again we need to write this twice. */
-				I915_WRITE(intel_sdvo->sdvo_reg, temp);
-				POSTING_READ(intel_sdvo->sdvo_reg);
+	/*
+	 * HW workaround for IBX, we need to move the port
+	 * to transcoder A after disabling it to allow the
+	 * matching DP port to be enabled on transcoder A.
+	 */
+	if (HAS_PCH_IBX(dev_priv) && crtc->pipe == PIPE_B) {
+		temp &= ~SDVO_PIPE_B_SELECT;
+		temp |= SDVO_ENABLE;
+		intel_sdvo_write_sdvox(intel_sdvo, temp);
 
-				/* Transcoder selection bits only update
-				 * effectively on vblank. */
-				if (crtc)
-					intel_wait_for_vblank(encoder->base.dev, pipe);
-				else
-					msleep(50);
-			}
-		}
-
-		intel_sdvo_write_sdvox(intel_sdvo, temp & ~SDVO_ENABLE);
+		temp &= ~SDVO_ENABLE;
+		intel_sdvo_write_sdvox(intel_sdvo, temp);
 	}
+}
+
+static void pch_disable_sdvo(struct intel_encoder *encoder)
+{
+}
+
+static void pch_post_disable_sdvo(struct intel_encoder *encoder)
+{
+	intel_disable_sdvo(encoder);
 }
 
 static void intel_enable_sdvo(struct intel_encoder *encoder)
@@ -1478,14 +1486,9 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	bool success;
 
 	temp = I915_READ(intel_sdvo->sdvo_reg);
-	if ((temp & SDVO_ENABLE) == 0) {
-		/* HW workaround for IBX, we need to move the port
-		 * to transcoder A before disabling it, so restore it here. */
-		if (HAS_PCH_IBX(dev))
-			temp |= SDVO_PIPE_SEL(intel_crtc->pipe);
+	temp |= SDVO_ENABLE;
+	intel_sdvo_write_sdvox(intel_sdvo, temp);
 
-		intel_sdvo_write_sdvox(intel_sdvo, temp | SDVO_ENABLE);
-	}
 	for (i = 0; i < 2; i++)
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 
@@ -2291,10 +2294,11 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 	else
 		mapping = &dev_priv->sdvo_mappings[1];
 
-	if (mapping->initialized && intel_gmbus_is_port_valid(mapping->i2c_pin))
+	if (mapping->initialized &&
+	    intel_gmbus_is_valid_pin(dev_priv, mapping->i2c_pin))
 		pin = mapping->i2c_pin;
 	else
-		pin = GMBUS_PORT_DPB;
+		pin = GMBUS_PIN_DPB;
 
 	sdvo->i2c = intel_gmbus_get_adapter(dev_priv, pin);
 
@@ -2987,7 +2991,12 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	}
 
 	intel_encoder->compute_config = intel_sdvo_compute_config;
-	intel_encoder->disable = intel_disable_sdvo;
+	if (HAS_PCH_SPLIT(dev)) {
+		intel_encoder->disable = pch_disable_sdvo;
+		intel_encoder->post_disable = pch_post_disable_sdvo;
+	} else {
+		intel_encoder->disable = intel_disable_sdvo;
+	}
 	intel_encoder->pre_enable = intel_sdvo_pre_enable;
 	intel_encoder->enable = intel_enable_sdvo;
 	intel_encoder->get_hw_state = intel_sdvo_get_hw_state;

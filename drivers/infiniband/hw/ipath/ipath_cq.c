@@ -188,7 +188,7 @@ static void send_complete(unsigned long data)
 /**
  * ipath_create_cq - create a completion queue
  * @ibdev: the device this completion queue is attached to
- * @entries: the minimum size of the completion queue
+ * @attr: creation attributes
  * @context: unused by the InfiniPath driver
  * @udata: unused by the InfiniPath driver
  *
@@ -197,15 +197,20 @@ static void send_complete(unsigned long data)
  *
  * Called by ib_create_cq() in the generic verbs code.
  */
-struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries, int comp_vector,
+struct ib_cq *ipath_create_cq(struct ib_device *ibdev,
+			      const struct ib_cq_init_attr *attr,
 			      struct ib_ucontext *context,
 			      struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	struct ipath_ibdev *dev = to_idev(ibdev);
 	struct ipath_cq *cq;
 	struct ipath_cq_wc *wc;
 	struct ib_cq *ret;
 	u32 sz;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	if (entries < 1 || entries > ib_ipath_max_cqes) {
 		ret = ERR_PTR(-EINVAL);

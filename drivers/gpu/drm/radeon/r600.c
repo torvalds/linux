@@ -108,6 +108,53 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev);
 extern int evergreen_rlc_resume(struct radeon_device *rdev);
 extern void rv770_set_clk_bypass_mode(struct radeon_device *rdev);
 
+/*
+ * Indirect registers accessor
+ */
+u32 r600_rcu_rreg(struct radeon_device *rdev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&rdev->rcu_idx_lock, flags);
+	WREG32(R600_RCU_INDEX, ((reg) & 0x1fff));
+	r = RREG32(R600_RCU_DATA);
+	spin_unlock_irqrestore(&rdev->rcu_idx_lock, flags);
+	return r;
+}
+
+void r600_rcu_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->rcu_idx_lock, flags);
+	WREG32(R600_RCU_INDEX, ((reg) & 0x1fff));
+	WREG32(R600_RCU_DATA, (v));
+	spin_unlock_irqrestore(&rdev->rcu_idx_lock, flags);
+}
+
+u32 r600_uvd_ctx_rreg(struct radeon_device *rdev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&rdev->uvd_idx_lock, flags);
+	WREG32(R600_UVD_CTX_INDEX, ((reg) & 0x1ff));
+	r = RREG32(R600_UVD_CTX_DATA);
+	spin_unlock_irqrestore(&rdev->uvd_idx_lock, flags);
+	return r;
+}
+
+void r600_uvd_ctx_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->uvd_idx_lock, flags);
+	WREG32(R600_UVD_CTX_INDEX, ((reg) & 0x1ff));
+	WREG32(R600_UVD_CTX_DATA, (v));
+	spin_unlock_irqrestore(&rdev->uvd_idx_lock, flags);
+}
+
 /**
  * r600_get_allowed_info_register - fetch the register for the info ioctl
  *

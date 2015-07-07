@@ -648,6 +648,7 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	struct rdma_conn_param conn_param;
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device_attr devattr;
+	struct ib_cq_init_attr cq_attr = {};
 
 	/* Parse the transport specific mount options */
 	err = parse_opts(args, &opts);
@@ -705,9 +706,10 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 		goto error;
 
 	/* Create the Completion Queue */
+	cq_attr.cqe = opts.sq_depth + opts.rq_depth + 1;
 	rdma->cq = ib_create_cq(rdma->cm_id->device, cq_comp_handler,
 				cq_event_handler, client,
-				opts.sq_depth + opts.rq_depth + 1, 0);
+				&cq_attr);
 	if (IS_ERR(rdma->cq))
 		goto error;
 	ib_req_notify_cq(rdma->cq, IB_CQ_NEXT_COMP);

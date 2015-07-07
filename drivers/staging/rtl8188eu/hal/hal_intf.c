@@ -202,6 +202,7 @@ s32 rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
 s32 rtw_hal_mgnt_xmit(struct adapter *adapt, struct xmit_frame *pmgntframe)
 {
 	s32 ret = _FAIL;
+
 	if (adapt->HalFunc.mgnt_xmit)
 		ret = adapt->HalFunc.mgnt_xmit(adapt, pmgntframe);
 	return ret;
@@ -236,6 +237,7 @@ void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 #ifdef CONFIG_88EU_AP_MODE
 		struct sta_info *psta = NULL;
 		struct sta_priv *pstapriv = &adapt->stapriv;
+
 		if ((mac_id-1) > 0)
 			psta = pstapriv->sta_aid[(mac_id-1) - 1];
 		if (psta)

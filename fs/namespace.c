@@ -590,24 +590,35 @@ static void delayed_free_vfsmnt(struct rcu_head *head)
 }
 
 /* call under rcu_read_lock */
-bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
+int __legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 {
 	struct mount *mnt;
 	if (read_seqretry(&mount_lock, seq))
-		return false;
+		return 1;
 	if (bastard == NULL)
-		return true;
+		return 0;
 	mnt = real_mount(bastard);
 	mnt_add_count(mnt, 1);
 	if (likely(!read_seqretry(&mount_lock, seq)))
-		return true;
+		return 0;
 	if (bastard->mnt_flags & MNT_SYNC_UMOUNT) {
 		mnt_add_count(mnt, -1);
-		return false;
+		return 1;
 	}
-	rcu_read_unlock();
-	mntput(bastard);
-	rcu_read_lock();
+	return -1;
+}
+
+/* call under rcu_read_lock */
+bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
+{
+	int res = __legitimize_mnt(bastard, seq);
+	if (likely(!res))
+		return true;
+	if (unlikely(res < 0)) {
+		rcu_read_unlock();
+		mntput(bastard);
+		rcu_read_lock();
+	}
 	return false;
 }
 

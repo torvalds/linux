@@ -27,9 +27,9 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/vmalloc.h>
 #include <linux/file.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 
 #include <target/target_core_base.h>

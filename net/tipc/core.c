@@ -68,7 +68,7 @@ static int __net_init tipc_init_net(struct net *net)
 	if (err)
 		goto out_nametbl;
 
-	err = tipc_subscr_start(net);
+	err = tipc_topsrv_start(net);
 	if (err)
 		goto out_subscr;
 	return 0;
@@ -83,7 +83,7 @@ out_sk_rht:
 
 static void __net_exit tipc_exit_net(struct net *net)
 {
-	tipc_subscr_stop(net);
+	tipc_topsrv_stop(net);
 	tipc_net_stop(net);
 	tipc_nametbl_stop(net);
 	tipc_sk_rht_destroy(net);

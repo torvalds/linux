@@ -152,6 +152,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_pipe = NULL;
 	inode->i_bdev = NULL;
 	inode->i_cdev = NULL;
+	inode->i_link = NULL;
 	inode->i_rdev = 0;
 	inode->dirtied_when = 0;
 
@@ -223,6 +224,7 @@ EXPORT_SYMBOL(free_inode_nonrcu);
 void __destroy_inode(struct inode *inode)
 {
 	BUG_ON(inode_has_buffers(inode));
+	inode_detach_wb(inode);
 	security_inode_free(inode);
 	fsnotify_inode_delete(inode);
 	locks_free_lock_context(inode->i_flctx);
@@ -1584,36 +1586,47 @@ static int update_time(struct inode *inode, struct timespec *time, int flags)
  *	This function automatically handles read only file systems and media,
  *	as well as the "noatime" flag and inode specific "noatime" markers.
  */
+bool atime_needs_update(const struct path *path, struct inode *inode)
+{
+	struct vfsmount *mnt = path->mnt;
+	struct timespec now;
+
+	if (inode->i_flags & S_NOATIME)
+		return false;
+	if (IS_NOATIME(inode))
+		return false;
+	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
+		return false;
+
+	if (mnt->mnt_flags & MNT_NOATIME)
+		return false;
+	if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
+		return false;
+
+	now = current_fs_time(inode->i_sb);
+
+	if (!relatime_need_update(mnt, inode, now))
+		return false;
+
+	if (timespec_equal(&inode->i_atime, &now))
+		return false;
+
+	return true;
+}
+
 void touch_atime(const struct path *path)
 {
 	struct vfsmount *mnt = path->mnt;
 	struct inode *inode = d_inode(path->dentry);
 	struct timespec now;
 
-	if (inode->i_flags & S_NOATIME)
-		return;
-	if (IS_NOATIME(inode))
-		return;
-	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
-		return;
-
-	if (mnt->mnt_flags & MNT_NOATIME)
-		return;
-	if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
-		return;
-
-	now = current_fs_time(inode->i_sb);
-
-	if (!relatime_need_update(mnt, inode, now))
-		return;
-
-	if (timespec_equal(&inode->i_atime, &now))
+	if (!atime_needs_update(path, inode))
 		return;
 
 	if (!sb_start_write_trylock(inode->i_sb))
 		return;
 
-	if (__mnt_want_write(mnt))
+	if (__mnt_want_write(mnt) != 0)
 		goto skip_update;
 	/*
 	 * File systems can error out when updating inodes if they need to
@@ -1624,6 +1637,7 @@ void touch_atime(const struct path *path)
 	 * We may also fail on filesystems that have the ability to make parts
 	 * of the fs read only, e.g. subvolumes in Btrfs.
 	 */
+	now = current_fs_time(inode->i_sb);
 	update_time(inode, &now, S_ATIME);
 	__mnt_drop_write(mnt);
 skip_update:

@@ -48,13 +48,11 @@
 	dsb	st
 
 	// Save all interesting registers
-	mrs_s	x4, ICH_HCR_EL2
 	mrs_s	x5, ICH_VMCR_EL2
 	mrs_s	x6, ICH_MISR_EL2
 	mrs_s	x7, ICH_EISR_EL2
 	mrs_s	x8, ICH_ELSR_EL2
 
-	str	w4, [x3, #VGIC_V3_CPU_HCR]
 	str	w5, [x3, #VGIC_V3_CPU_VMCR]
 	str	w6, [x3, #VGIC_V3_CPU_MISR]
 	str	w7, [x3, #VGIC_V3_CPU_EISR]

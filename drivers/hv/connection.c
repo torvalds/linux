@@ -58,6 +58,9 @@ static __u32 vmbus_get_next_version(__u32 current_version)
 	case (VERSION_WIN8_1):
 		return VERSION_WIN8;
 
+	case (VERSION_WIN10):
+		return VERSION_WIN8_1;
+
 	case (VERSION_WS2008):
 	default:
 		return VERSION_INVAL;
@@ -80,7 +83,7 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	msg->interrupt_page = virt_to_phys(vmbus_connection.int_page);
 	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages[0]);
 	msg->monitor_page2 = virt_to_phys(vmbus_connection.monitor_pages[1]);
-	if (version == VERSION_WIN8_1) {
+	if (version >= VERSION_WIN8_1) {
 		msg->target_vcpu = hv_context.vp_index[get_cpu()];
 		put_cpu();
 	}
@@ -227,6 +230,11 @@ cleanup:
 
 void vmbus_disconnect(void)
 {
+	/*
+	 * First send the unload request to the host.
+	 */
+	vmbus_initiate_unload();
+
 	if (vmbus_connection.work_queue) {
 		drain_workqueue(vmbus_connection.work_queue);
 		destroy_workqueue(vmbus_connection.work_queue);
@@ -371,8 +379,7 @@ void vmbus_on_event(unsigned long data)
 	int cpu = smp_processor_id();
 	union hv_synic_event_flags *event;
 
-	if ((vmbus_proto_version == VERSION_WS2008) ||
-		(vmbus_proto_version == VERSION_WIN7)) {
+	if (vmbus_proto_version < VERSION_WIN8) {
 		maxdword = MAX_NUM_CHANNELS_SUPPORTED >> 5;
 		recv_int_page = vmbus_connection.recv_int_page;
 	} else {

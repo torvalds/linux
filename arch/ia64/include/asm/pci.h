@@ -6,9 +6,9 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/scatterlist.h>
 
 #include <asm/io.h>
-#include <asm/scatterlist.h>
 #include <asm/hw_irq.h>
 
 struct pci_vector_struct {
@@ -52,25 +52,6 @@ extern unsigned long ia64_max_iommu_merge_mask;
 
 #include <asm-generic/pci-dma-compat.h>
 
-#ifdef CONFIG_PCI
-static inline void pci_dma_burst_advice(struct pci_dev *pdev,
-					enum pci_dma_burst_strategy *strat,
-					unsigned long *strategy_parameter)
-{
-	unsigned long cacheline_size;
-	u8 byte;
-
-	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &byte);
-	if (byte == 0)
-		cacheline_size = 1024;
-	else
-		cacheline_size = (int) byte * 4;
-
-	*strat = PCI_DMA_BURST_MULTIPLE;
-	*strategy_parameter = cacheline_size;
-}
-#endif
-
 #define HAVE_PCI_MMAP
 extern int pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
 				enum pci_mmap_state mmap_state, int write_combine);
@@ -106,19 +87,6 @@ extern struct pci_ops pci_root_ops;
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	return (pci_domain_nr(bus) != 0);
-}
-
-static inline struct resource *
-pcibios_select_root(struct pci_dev *pdev, struct resource *res)
-{
-	struct resource *root = NULL;
-
-	if (res->flags & IORESOURCE_IO)
-		root = &ioport_resource;
-	if (res->flags & IORESOURCE_MEM)
-		root = &iomem_resource;
-
-	return root;
 }
 
 #define HAVE_ARCH_PCI_GET_LEGACY_IDE_IRQ

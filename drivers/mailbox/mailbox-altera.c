@@ -285,7 +285,7 @@ static void altera_mbox_shutdown(struct mbox_chan *chan)
 	}
 }
 
-static struct mbox_chan_ops altera_mbox_ops = {
+static const struct mbox_chan_ops altera_mbox_ops = {
 	.send_data = altera_mbox_send_data,
 	.startup = altera_mbox_startup,
 	.shutdown = altera_mbox_shutdown,

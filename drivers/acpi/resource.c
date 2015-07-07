@@ -26,6 +26,7 @@
 #include <linux/device.h>
 #include <linux/export.h>
 #include <linux/ioport.h>
+#include <linux/list.h>
 #include <linux/slab.h>
 
 #ifdef CONFIG_X86
@@ -621,3 +622,162 @@ int acpi_dev_filter_resource_type(struct acpi_resource *ares,
 	return (type & types) ? 0 : 1;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_filter_resource_type);
+
+struct reserved_region {
+	struct list_head node;
+	u64 start;
+	u64 end;
+};
+
+static LIST_HEAD(reserved_io_regions);
+static LIST_HEAD(reserved_mem_regions);
+
+static int request_range(u64 start, u64 end, u8 space_id, unsigned long flags,
+			 char *desc)
+{
+	unsigned int length = end - start + 1;
+	struct resource *res;
+
+	res = space_id == ACPI_ADR_SPACE_SYSTEM_IO ?
+		request_region(start, length, desc) :
+		request_mem_region(start, length, desc);
+	if (!res)
+		return -EIO;
+
+	res->flags &= ~flags;
+	return 0;
+}
+
+static int add_region_before(u64 start, u64 end, u8 space_id,
+			     unsigned long flags, char *desc,
+			     struct list_head *head)
+{
+	struct reserved_region *reg;
+	int error;
+
+	reg = kmalloc(sizeof(*reg), GFP_KERNEL);
+	if (!reg)
+		return -ENOMEM;
+
+	error = request_range(start, end, space_id, flags, desc);
+	if (error)
+		return error;
+
+	reg->start = start;
+	reg->end = end;
+	list_add_tail(&reg->node, head);
+	return 0;
+}
+
+/**
+ * acpi_reserve_region - Reserve an I/O or memory region as a system resource.
+ * @start: Starting address of the region.
+ * @length: Length of the region.
+ * @space_id: Identifier of address space to reserve the region from.
+ * @flags: Resource flags to clear for the region after requesting it.
+ * @desc: Region description (for messages).
+ *
+ * Reserve an I/O or memory region as a system resource to prevent others from
+ * using it.  If the new region overlaps with one of the regions (in the given
+ * address space) already reserved by this routine, only the non-overlapping
+ * parts of it will be reserved.
+ *
+ * Returned is either 0 (success) or a negative error code indicating a resource
+ * reservation problem.  It is the code of the first encountered error, but the
+ * routine doesn't abort until it has attempted to request all of the parts of
+ * the new region that don't overlap with other regions reserved previously.
+ *
+ * The resources requested by this routine are never released.
+ */
+int acpi_reserve_region(u64 start, unsigned int length, u8 space_id,
+			unsigned long flags, char *desc)
+{
+	struct list_head *regions;
+	struct reserved_region *reg;
+	u64 end = start + length - 1;
+	int ret = 0, error = 0;
+
+	if (space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+		regions = &reserved_io_regions;
+	else if (space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		regions = &reserved_mem_regions;
+	else
+		return -EINVAL;
+
+	if (list_empty(regions))
+		return add_region_before(start, end, space_id, flags, desc, regions);
+
+	list_for_each_entry(reg, regions, node)
+		if (reg->start == end + 1) {
+			/* The new region can be prepended to this one. */
+			ret = request_range(start, end, space_id, flags, desc);
+			if (!ret)
+				reg->start = start;
+
+			return ret;
+		} else if (reg->start > end) {
+			/* No overlap.  Add the new region here and get out. */
+			return add_region_before(start, end, space_id, flags,
+						 desc, &reg->node);
+		} else if (reg->end == start - 1) {
+			goto combine;
+		} else if (reg->end >= start) {
+			goto overlap;
+		}
+
+	/* The new region goes after the last existing one. */
+	return add_region_before(start, end, space_id, flags, desc, regions);
+
+ overlap:
+	/*
+	 * The new region overlaps an existing one.
+	 *
+	 * The head part of the new region immediately preceding the existing
+	 * overlapping one can be combined with it right away.
+	 */
+	if (reg->start > start) {
+		error = request_range(start, reg->start - 1, space_id, flags, desc);
+		if (error)
+			ret = error;
+		else
+			reg->start = start;
+	}
+
+ combine:
+	/*
+	 * The new region is adjacent to an existing one.  If it extends beyond
+	 * that region all the way to the next one, it is possible to combine
+	 * all three of them.
+	 */
+	while (reg->end < end) {
+		struct reserved_region *next = NULL;
+		u64 a = reg->end + 1, b = end;
+
+		if (!list_is_last(&reg->node, regions)) {
+			next = list_next_entry(reg, node);
+			if (next->start <= end)
+				b = next->start - 1;
+		}
+		error = request_range(a, b, space_id, flags, desc);
+		if (!error) {
+			if (next && next->start == b + 1) {
+				reg->end = next->end;
+				list_del(&next->node);
+				kfree(next);
+			} else {
+				reg->end = end;
+				break;
+			}
+		} else if (next) {
+			if (!ret)
+				ret = error;
+
+			reg = next;
+		} else {
+			break;
+		}
+	}
+
+	return ret ? ret : error;
+}
+EXPORT_SYMBOL_GPL(acpi_reserve_region);

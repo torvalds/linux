@@ -18,7 +18,7 @@
 */
 #include <linux/export.h>
 #include <linux/moduleloader.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 #include <linux/init.h>
 #include <linux/kallsyms.h>
 #include <linux/file.h>
@@ -3107,7 +3107,7 @@ static noinline int do_init_module(struct module *mod)
 	 *
 	 * http://thread.gmane.org/gmane.linux.kernel/1420814
 	 */
-	if (current->flags & PF_USED_ASYNC)
+	if (!mod->async_probe_requested && (current->flags & PF_USED_ASYNC))
 		async_synchronize_full();
 
 	mutex_lock(&module_mutex);
@@ -3237,10 +3237,19 @@ out:
 	return err;
 }
 
-static int unknown_module_param_cb(char *param, char *val, const char *modname)
+static int unknown_module_param_cb(char *param, char *val, const char *modname,
+				   void *arg)
 {
+	struct module *mod = arg;
+	int ret;
+
+	if (strcmp(param, "async_probe") == 0) {
+		mod->async_probe_requested = true;
+		return 0;
+	}
+
 	/* Check for magic 'dyndbg' arg */
-	int ret = ddebug_dyndbg_module_param_cb(param, val, modname);
+	ret = ddebug_dyndbg_module_param_cb(param, val, modname);
 	if (ret != 0)
 		pr_warn("%s: unknown parameter '%s' ignored\n", modname, param);
 	return 0;
@@ -3342,7 +3351,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	/* Module is ready to execute: parsing args may do that. */
 	after_dashes = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
-				  -32768, 32767, unknown_module_param_cb);
+				  -32768, 32767, NULL,
+				  unknown_module_param_cb);
 	if (IS_ERR(after_dashes)) {
 		err = PTR_ERR(after_dashes);
 		goto bug_cleanup;

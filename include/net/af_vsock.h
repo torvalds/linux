@@ -74,7 +74,7 @@ void vsock_pending_work(struct work_struct *work);
 struct sock *__vsock_create(struct net *net,
 			    struct socket *sock,
 			    struct sock *parent,
-			    gfp_t priority, unsigned short type);
+			    gfp_t priority, unsigned short type, int kern);
 
 /**** TRANSPORT ****/
 

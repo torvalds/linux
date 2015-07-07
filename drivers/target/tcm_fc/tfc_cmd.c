@@ -30,10 +30,6 @@
 #include <linux/hash.h>
 #include <linux/percpu_ida.h>
 #include <asm/unaligned.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>

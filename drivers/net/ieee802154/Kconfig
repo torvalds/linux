@@ -53,3 +53,13 @@ config IEEE802154_CC2520
 
 	  This driver can also be built as a module. To do so, say M here.
 	  the module will be called 'cc2520'.
+
+config IEEE802154_ATUSB
+	tristate "ATUSB transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154 && USB
+	---help---
+	  Say Y here to enable the ATUSB IEEE 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so say M here.
+	  The module will be called 'atusb'.

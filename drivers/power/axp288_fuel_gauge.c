@@ -1117,7 +1117,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static struct platform_device_id axp288_fg_id_table[] = {
+static const struct platform_device_id axp288_fg_id_table[] = {
 	{ .name = DEV_NAME },
 	{},
 };

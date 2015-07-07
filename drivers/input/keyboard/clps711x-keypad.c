@@ -120,14 +120,9 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
 	for (i = 0; i < priv->row_count; i++) {
 		struct clps711x_gpio_data *data = &priv->gpio_data[i];
 
-		data->desc = devm_gpiod_get_index(dev, "row", i);
-		if (!data->desc)
-			return -EINVAL;
-
+		data->desc = devm_gpiod_get_index(dev, "row", i, GPIOD_IN);
 		if (IS_ERR(data->desc))
 			return PTR_ERR(data->desc);
-
-		gpiod_direction_input(data->desc);
 	}
 
 	err = of_property_read_u32(np, "poll-interval", &poll_interval);

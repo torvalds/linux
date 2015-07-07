@@ -536,6 +536,9 @@ typedef struct {
 	/* for 4K PTE fragment support */
 	void *pte_frag;
 #endif
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	struct list_head iommu_group_mem_list;
+#endif
 } mm_context_t;
 
 

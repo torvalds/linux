@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  */
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 #include <linux/ring_buffer.h>
 #include <linux/trace_clock.h>
 #include <linux/trace_seq.h>
@@ -115,62 +115,10 @@ int ring_buffer_print_entry_header(struct trace_seq *s)
  *
  */
 
-/*
- * A fast way to enable or disable all ring buffers is to
- * call tracing_on or tracing_off. Turning off the ring buffers
- * prevents all ring buffers from being recorded to.
- * Turning this switch on, makes it OK to write to the
- * ring buffer, if the ring buffer is enabled itself.
- *
- * There's three layers that must be on in order to write
- * to the ring buffer.
- *
- * 1) This global flag must be set.
- * 2) The ring buffer must be enabled for recording.
- * 3) The per cpu buffer must be enabled for recording.
- *
- * In case of an anomaly, this global flag has a bit set that
- * will permantly disable all ring buffers.
- */
-
-/*
- * Global flag to disable all recording to ring buffers
- *  This has two bits: ON, DISABLED
- *
- *  ON   DISABLED
- * ---- ----------
- *   0      0        : ring buffers are off
- *   1      0        : ring buffers are on
- *   X      1        : ring buffers are permanently disabled
- */
-
-enum {
-	RB_BUFFERS_ON_BIT	= 0,
-	RB_BUFFERS_DISABLED_BIT	= 1,
-};
-
-enum {
-	RB_BUFFERS_ON		= 1 << RB_BUFFERS_ON_BIT,
-	RB_BUFFERS_DISABLED	= 1 << RB_BUFFERS_DISABLED_BIT,
-};
-
-static unsigned long ring_buffer_flags __read_mostly = RB_BUFFERS_ON;
-
 /* Used for individual buffers (after the counter) */
 #define RB_BUFFER_OFF		(1 << 20)
 
 #define BUF_PAGE_HDR_SIZE offsetof(struct buffer_data_page, data)
-
-/**
- * tracing_off_permanent - permanently disable ring buffers
- *
- * This function, once called, will disable all ring buffers
- * permanently.
- */
-void tracing_off_permanent(void)
-{
-	set_bit(RB_BUFFERS_DISABLED_BIT, &ring_buffer_flags);
-}
 
 #define RB_EVNT_HDR_SIZE (offsetof(struct ring_buffer_event, array))
 #define RB_ALIGNMENT		4U
@@ -452,6 +400,23 @@ struct rb_irq_work {
 };
 
 /*
+ * Used for which event context the event is in.
+ *  NMI     = 0
+ *  IRQ     = 1
+ *  SOFTIRQ = 2
+ *  NORMAL  = 3
+ *
+ * See trace_recursive_lock() comment below for more details.
+ */
+enum {
+	RB_CTX_NMI,
+	RB_CTX_IRQ,
+	RB_CTX_SOFTIRQ,
+	RB_CTX_NORMAL,
+	RB_CTX_MAX
+};
+
+/*
  * head_page == tail_page && head == tail then buffer is empty.
  */
 struct ring_buffer_per_cpu {
@@ -462,6 +427,7 @@ struct ring_buffer_per_cpu {
 	arch_spinlock_t			lock;
 	struct lock_class_key		lock_key;
 	unsigned int			nr_pages;
+	unsigned int			current_context;
 	struct list_head		*pages;
 	struct buffer_page		*head_page;	/* read from head */
 	struct buffer_page		*tail_page;	/* write to tail */
@@ -2224,7 +2190,7 @@ static unsigned rb_calculate_event_length(unsigned length)
 
 	/* zero length can cause confusions */
 	if (!length)
-		length = 1;
+		length++;
 
 	if (length > RB_MAX_SMALL_DATA || RB_FORCE_8BYTE_ALIGNMENT)
 		length += sizeof(event.array[0]);
@@ -2636,8 +2602,6 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	return NULL;
 }
 
-#ifdef CONFIG_TRACING
-
 /*
  * The lock and unlock are done within a preempt disable section.
  * The current_context per_cpu variable can only be modified
@@ -2675,43 +2639,37 @@ rb_reserve_next_event(struct ring_buffer *buffer,
  * just so happens that it is the same bit corresponding to
  * the current context.
  */
-static DEFINE_PER_CPU(unsigned int, current_context);
 
-static __always_inline int trace_recursive_lock(void)
+static __always_inline int
+trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
 {
-	unsigned int val = __this_cpu_read(current_context);
+	unsigned int val = cpu_buffer->current_context;
 	int bit;
 
 	if (in_interrupt()) {
 		if (in_nmi())
-			bit = 0;
+			bit = RB_CTX_NMI;
 		else if (in_irq())
-			bit = 1;
+			bit = RB_CTX_IRQ;
 		else
-			bit = 2;
+			bit = RB_CTX_SOFTIRQ;
 	} else
-		bit = 3;
+		bit = RB_CTX_NORMAL;
 
 	if (unlikely(val & (1 << bit)))
 		return 1;
 
 	val |= (1 << bit);
-	__this_cpu_write(current_context, val);
+	cpu_buffer->current_context = val;
 
 	return 0;
 }
 
-static __always_inline void trace_recursive_unlock(void)
+static __always_inline void
+trace_recursive_unlock(struct ring_buffer_per_cpu *cpu_buffer)
 {
-	__this_cpu_and(current_context, __this_cpu_read(current_context) - 1);
+	cpu_buffer->current_context &= cpu_buffer->current_context - 1;
 }
-
-#else
-
-#define trace_recursive_lock()		(0)
-#define trace_recursive_unlock()	do { } while (0)
-
-#endif
 
 /**
  * ring_buffer_lock_reserve - reserve a part of the buffer
@@ -2735,41 +2693,37 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	struct ring_buffer_event *event;
 	int cpu;
 
-	if (ring_buffer_flags != RB_BUFFERS_ON)
-		return NULL;
-
 	/* If we are tracing schedule, we don't want to recurse */
 	preempt_disable_notrace();
 
-	if (atomic_read(&buffer->record_disabled))
-		goto out_nocheck;
-
-	if (trace_recursive_lock())
-		goto out_nocheck;
+	if (unlikely(atomic_read(&buffer->record_disabled)))
+		goto out;
 
 	cpu = raw_smp_processor_id();
 
-	if (!cpumask_test_cpu(cpu, buffer->cpumask))
+	if (unlikely(!cpumask_test_cpu(cpu, buffer->cpumask)))
 		goto out;
 
 	cpu_buffer = buffer->buffers[cpu];
 
-	if (atomic_read(&cpu_buffer->record_disabled))
+	if (unlikely(atomic_read(&cpu_buffer->record_disabled)))
 		goto out;
 
-	if (length > BUF_MAX_DATA_SIZE)
+	if (unlikely(length > BUF_MAX_DATA_SIZE))
+		goto out;
+
+	if (unlikely(trace_recursive_lock(cpu_buffer)))
 		goto out;
 
 	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
-		goto out;
+		goto out_unlock;
 
 	return event;
 
+ out_unlock:
+	trace_recursive_unlock(cpu_buffer);
  out:
-	trace_recursive_unlock();
-
- out_nocheck:
 	preempt_enable_notrace();
 	return NULL;
 }
@@ -2859,7 +2813,7 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 
 	rb_wakeups(buffer, cpu_buffer);
 
-	trace_recursive_unlock();
+	trace_recursive_unlock(cpu_buffer);
 
 	preempt_enable_notrace();
 
@@ -2970,7 +2924,7 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
  out:
 	rb_end_commit(cpu_buffer);
 
-	trace_recursive_unlock();
+	trace_recursive_unlock(cpu_buffer);
 
 	preempt_enable_notrace();
 
@@ -3000,9 +2954,6 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	int ret = -EBUSY;
 	int cpu;
 
-	if (ring_buffer_flags != RB_BUFFERS_ON)
-		return -EBUSY;
-
 	preempt_disable_notrace();
 
 	if (atomic_read(&buffer->record_disabled))
@@ -3021,9 +2972,12 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	if (length > BUF_MAX_DATA_SIZE)
 		goto out;
 
+	if (unlikely(trace_recursive_lock(cpu_buffer)))
+		goto out;
+
 	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
-		goto out;
+		goto out_unlock;
 
 	body = rb_event_data(event);
 
@@ -3034,6 +2988,10 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	rb_wakeups(buffer, cpu_buffer);
 
 	ret = 0;
+
+ out_unlock:
+	trace_recursive_unlock(cpu_buffer);
+
  out:
 	preempt_enable_notrace();
 
@@ -3860,19 +3818,36 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_iter_peek);
 
-static inline int rb_ok_to_lock(void)
+static inline bool rb_reader_lock(struct ring_buffer_per_cpu *cpu_buffer)
 {
+	if (likely(!in_nmi())) {
+		raw_spin_lock(&cpu_buffer->reader_lock);
+		return true;
+	}
+
 	/*
 	 * If an NMI die dumps out the content of the ring buffer
-	 * do not grab locks. We also permanently disable the ring
-	 * buffer too. A one time deal is all you get from reading
-	 * the ring buffer from an NMI.
+	 * trylock must be used to prevent a deadlock if the NMI
+	 * preempted a task that holds the ring buffer locks. If
+	 * we get the lock then all is fine, if not, then continue
+	 * to do the read, but this can corrupt the ring buffer,
+	 * so it must be permanently disabled from future writes.
+	 * Reading from NMI is a oneshot deal.
 	 */
-	if (likely(!in_nmi()))
-		return 1;
+	if (raw_spin_trylock(&cpu_buffer->reader_lock))
+		return true;
 
-	tracing_off_permanent();
-	return 0;
+	/* Continue without locking, but disable the ring buffer */
+	atomic_inc(&cpu_buffer->record_disabled);
+	return false;
+}
+
+static inline void
+rb_reader_unlock(struct ring_buffer_per_cpu *cpu_buffer, bool locked)
+{
+	if (likely(locked))
+		raw_spin_unlock(&cpu_buffer->reader_lock);
+	return;
 }
 
 /**
@@ -3892,21 +3867,18 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts,
 	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
 	struct ring_buffer_event *event;
 	unsigned long flags;
-	int dolock;
+	bool dolock;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return NULL;
 
-	dolock = rb_ok_to_lock();
  again:
 	local_irq_save(flags);
-	if (dolock)
-		raw_spin_lock(&cpu_buffer->reader_lock);
+	dolock = rb_reader_lock(cpu_buffer);
 	event = rb_buffer_peek(cpu_buffer, ts, lost_events);
 	if (event && event->type_len == RINGBUF_TYPE_PADDING)
 		rb_advance_reader(cpu_buffer);
-	if (dolock)
-		raw_spin_unlock(&cpu_buffer->reader_lock);
+	rb_reader_unlock(cpu_buffer, dolock);
 	local_irq_restore(flags);
 
 	if (event && event->type_len == RINGBUF_TYPE_PADDING)
@@ -3959,9 +3931,7 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts,
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event = NULL;
 	unsigned long flags;
-	int dolock;
-
-	dolock = rb_ok_to_lock();
+	bool dolock;
 
  again:
 	/* might be called in atomic */
@@ -3972,8 +3942,7 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts,
 
 	cpu_buffer = buffer->buffers[cpu];
 	local_irq_save(flags);
-	if (dolock)
-		raw_spin_lock(&cpu_buffer->reader_lock);
+	dolock = rb_reader_lock(cpu_buffer);
 
 	event = rb_buffer_peek(cpu_buffer, ts, lost_events);
 	if (event) {
@@ -3981,8 +3950,7 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts,
 		rb_advance_reader(cpu_buffer);
 	}
 
-	if (dolock)
-		raw_spin_unlock(&cpu_buffer->reader_lock);
+	rb_reader_unlock(cpu_buffer, dolock);
 	local_irq_restore(flags);
 
  out:
@@ -4263,21 +4231,17 @@ int ring_buffer_empty(struct ring_buffer *buffer)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	unsigned long flags;
-	int dolock;
+	bool dolock;
 	int cpu;
 	int ret;
-
-	dolock = rb_ok_to_lock();
 
 	/* yes this is racy, but if you don't like the race, lock the buffer */
 	for_each_buffer_cpu(buffer, cpu) {
 		cpu_buffer = buffer->buffers[cpu];
 		local_irq_save(flags);
-		if (dolock)
-			raw_spin_lock(&cpu_buffer->reader_lock);
+		dolock = rb_reader_lock(cpu_buffer);
 		ret = rb_per_cpu_empty(cpu_buffer);
-		if (dolock)
-			raw_spin_unlock(&cpu_buffer->reader_lock);
+		rb_reader_unlock(cpu_buffer, dolock);
 		local_irq_restore(flags);
 
 		if (!ret)
@@ -4297,21 +4261,17 @@ int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	unsigned long flags;
-	int dolock;
+	bool dolock;
 	int ret;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return 1;
 
-	dolock = rb_ok_to_lock();
-
 	cpu_buffer = buffer->buffers[cpu];
 	local_irq_save(flags);
-	if (dolock)
-		raw_spin_lock(&cpu_buffer->reader_lock);
+	dolock = rb_reader_lock(cpu_buffer);
 	ret = rb_per_cpu_empty(cpu_buffer);
-	if (dolock)
-		raw_spin_unlock(&cpu_buffer->reader_lock);
+	rb_reader_unlock(cpu_buffer, dolock);
 	local_irq_restore(flags);
 
 	return ret;
@@ -4348,9 +4308,6 @@ int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 		goto out;
 
 	ret = -EAGAIN;
-
-	if (ring_buffer_flags != RB_BUFFERS_ON)
-		goto out;
 
 	if (atomic_read(&buffer_a->record_disabled))
 		goto out;

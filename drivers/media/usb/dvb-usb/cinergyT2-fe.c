@@ -142,7 +142,7 @@ struct cinergyt2_fe_state {
 };
 
 static int cinergyt2_fe_read_status(struct dvb_frontend *fe,
-					fe_status_t *status)
+				    enum fe_status *status)
 {
 	struct cinergyt2_fe_state *state = fe->demodulator_priv;
 	struct dvbt_get_status_msg result;

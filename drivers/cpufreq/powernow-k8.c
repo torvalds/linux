@@ -57,13 +57,6 @@ static DEFINE_PER_CPU(struct powernow_k8_data *, powernow_data);
 
 static struct cpufreq_driver cpufreq_amd64_driver;
 
-#ifndef CONFIG_SMP
-static inline const struct cpumask *cpu_core_mask(int cpu)
-{
-	return cpumask_of(0);
-}
-#endif
-
 /* Return a frequency in MHz, given an input fid */
 static u32 find_freq_from_fid(u32 fid)
 {
@@ -620,7 +613,7 @@ static int fill_powernow_table(struct powernow_k8_data *data,
 
 	pr_debug("cfid 0x%x, cvid 0x%x\n", data->currfid, data->currvid);
 	data->powernow_table = powernow_table;
-	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
+	if (cpumask_first(topology_core_cpumask(data->cpu)) == data->cpu)
 		print_basics(data);
 
 	for (j = 0; j < data->numps; j++)
@@ -784,7 +777,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 		CPUFREQ_TABLE_END;
 	data->powernow_table = powernow_table;
 
-	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
+	if (cpumask_first(topology_core_cpumask(data->cpu)) == data->cpu)
 		print_basics(data);
 
 	/* notify BIOS that we exist */
@@ -1090,7 +1083,7 @@ static int powernowk8_cpu_init(struct cpufreq_policy *pol)
 	if (rc != 0)
 		goto err_out_exit_acpi;
 
-	cpumask_copy(pol->cpus, cpu_core_mask(pol->cpu));
+	cpumask_copy(pol->cpus, topology_core_cpumask(pol->cpu));
 	data->available_cores = pol->cpus;
 
 	/* min/max the cpu is capable of */

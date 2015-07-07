@@ -47,12 +47,11 @@ static void config_item_release(struct kref *kref);
  *	config_item_init - initialize item.
  *	@item:	item in question.
  */
-void config_item_init(struct config_item *item)
+static void config_item_init(struct config_item *item)
 {
 	kref_init(&item->ci_kref);
 	INIT_LIST_HEAD(&item->ci_entry);
 }
-EXPORT_SYMBOL(config_item_init);
 
 /**
  *	config_item_set_name - Set the name of an item

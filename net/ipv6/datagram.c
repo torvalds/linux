@@ -325,6 +325,16 @@ void ipv6_local_rxpmtu(struct sock *sk, struct flowi6 *fl6, u32 mtu)
 	kfree_skb(skb);
 }
 
+/* For some errors we have valid addr_offset even with zero payload and
+ * zero port. Also, addr_offset should be supported if port is set.
+ */
+static inline bool ipv6_datagram_support_addr(struct sock_exterr_skb *serr)
+{
+	return serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6 ||
+	       serr->ee.ee_origin == SO_EE_ORIGIN_ICMP ||
+	       serr->ee.ee_origin == SO_EE_ORIGIN_LOCAL || serr->port;
+}
+
 /* IPv6 supports cmsg on all origins aside from SO_EE_ORIGIN_LOCAL.
  *
  * At one point, excluding local errors was a quick test to identify icmp/icmp6
@@ -389,7 +399,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 
 	serr = SKB_EXT_ERR(skb);
 
-	if (sin && serr->port) {
+	if (sin && ipv6_datagram_support_addr(serr)) {
 		const unsigned char *nh = skb_network_header(skb);
 		sin->sin6_family = AF_INET6;
 		sin->sin6_flowinfo = 0;

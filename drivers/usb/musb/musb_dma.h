@@ -68,16 +68,41 @@ struct musb_hw_ep;
 #define	is_dma_capable()	(1)
 #endif
 
-#if defined(CONFIG_USB_TI_CPPI_DMA) || defined(CONFIG_USB_TI_CPPI41_DMA)
-#define	is_cppi_enabled()	1
+#ifdef CONFIG_USB_UX500_DMA
+#define musb_dma_ux500(musb)		(musb->io.quirks & MUSB_DMA_UX500)
 #else
-#define	is_cppi_enabled()	0
+#define musb_dma_ux500(musb)		0
+#endif
+
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+#define musb_dma_cppi41(musb)		(musb->io.quirks & MUSB_DMA_CPPI41)
+#else
+#define musb_dma_cppi41(musb)		0
+#endif
+
+#ifdef CONFIG_USB_TI_CPPI_DMA
+#define musb_dma_cppi(musb)		(musb->io.quirks & MUSB_DMA_CPPI)
+#else
+#define musb_dma_cppi(musb)		0
 #endif
 
 #ifdef CONFIG_USB_TUSB_OMAP_DMA
-#define tusb_dma_omap()			1
+#define tusb_dma_omap(musb)		(musb->io.quirks & MUSB_DMA_TUSB_OMAP)
 #else
-#define tusb_dma_omap()			0
+#define tusb_dma_omap(musb)		0
+#endif
+
+#ifdef CONFIG_USB_INVENTRA_DMA
+#define musb_dma_inventra(musb)		(musb->io.quirks & MUSB_DMA_INVENTRA)
+#else
+#define musb_dma_inventra(musb)		0
+#endif
+
+#if defined(CONFIG_USB_TI_CPPI_DMA) || defined(CONFIG_USB_TI_CPPI41_DMA)
+#define	is_cppi_enabled(musb)		\
+	(musb_dma_cppi(musb) || musb_dma_cppi41(musb))
+#else
+#define	is_cppi_enabled(musb)	0
 #endif
 
 /* Anomaly 05000456 - USB Receive Interrupt Is Not Generated in DMA Mode 1
@@ -177,19 +202,41 @@ struct dma_controller {
 extern void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit);
 
 #ifdef CONFIG_MUSB_PIO_ONLY
-static inline struct dma_controller *dma_controller_create(struct musb *m,
-		void __iomem *io)
+static inline struct dma_controller *
+musb_dma_controller_create(struct musb *m, void __iomem *io)
 {
 	return NULL;
 }
 
-static inline void dma_controller_destroy(struct dma_controller *d) { }
+static inline void musb_dma_controller_destroy(struct dma_controller *d) { }
 
 #else
 
-extern struct dma_controller *dma_controller_create(struct musb *, void __iomem *);
+extern struct dma_controller *
+(*musb_dma_controller_create)(struct musb *, void __iomem *);
 
-extern void dma_controller_destroy(struct dma_controller *);
+extern void (*musb_dma_controller_destroy)(struct dma_controller *);
 #endif
+
+/* Platform specific DMA functions */
+extern struct dma_controller *
+musbhs_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void musbhs_dma_controller_destroy(struct dma_controller *c);
+
+extern struct dma_controller *
+tusb_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void tusb_dma_controller_destroy(struct dma_controller *c);
+
+extern struct dma_controller *
+cppi_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void cppi_dma_controller_destroy(struct dma_controller *c);
+
+extern struct dma_controller *
+cppi41_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void cppi41_dma_controller_destroy(struct dma_controller *c);
+
+extern struct dma_controller *
+ux500_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void ux500_dma_controller_destroy(struct dma_controller *c);
 
 #endif	/* __MUSB_DMA_H__ */

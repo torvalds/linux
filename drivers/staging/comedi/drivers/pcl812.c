@@ -507,11 +507,11 @@ static const struct pcl812_board boardtypes[] = {
 
 struct pcl812_private {
 	struct comedi_isadma *dma;
-	unsigned char range_correction;	/*  =1 we must add 1 to range number */
+	unsigned char range_correction;	/* =1 we must add 1 to range number */
 	unsigned int last_ai_chanspec;
-	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
-	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
-	unsigned int max_812_ai_mode0_rangewait;	/*  setling time for gain */
+	unsigned char mode_reg_int; /* stored INT number for some cards */
+	unsigned int ai_poll_ptr; /* how many samples transfer poll */
+	unsigned int max_812_ai_mode0_rangewait; /* settling time for gain */
 	unsigned int use_diff:1;
 	unsigned int use_mpc508:1;
 	unsigned int use_ext_trg:1;
@@ -1155,7 +1155,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* we need an IRQ to do DMA on channel 3 or 1 */
 	if (dev->irq && board->has_dma)
-		 pcl812_alloc_dma(dev, it->options[2]);
+		pcl812_alloc_dma(dev, it->options[2]);
 
 	/* differential analog inputs? */
 	switch (board->board_type) {

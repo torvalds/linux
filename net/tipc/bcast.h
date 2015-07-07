@@ -131,6 +131,7 @@ uint  tipc_bclink_get_mtu(void);
 int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list);
 void tipc_bclink_wakeup_users(struct net *net);
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg);
+int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[]);
 void tipc_bclink_input(struct net *net);
 
 #endif

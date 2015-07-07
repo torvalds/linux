@@ -1100,6 +1100,10 @@ struct net_device_ops {
 						     struct ifla_vf_info *ivf);
 	int			(*ndo_set_vf_link_state)(struct net_device *dev,
 							 int vf, int link_state);
+	int			(*ndo_get_vf_stats)(struct net_device *dev,
+						    int vf,
+						    struct ifla_vf_stats
+						    *vf_stats);
 	int			(*ndo_set_vf_port)(struct net_device *dev,
 						   int vf,
 						   struct nlattr *port[]);
@@ -1564,7 +1568,7 @@ struct net_device {
 	const struct net_device_ops *netdev_ops;
 	const struct ethtool_ops *ethtool_ops;
 #ifdef CONFIG_NET_SWITCHDEV
-	const struct swdev_ops *swdev_ops;
+	const struct switchdev_ops *switchdev_ops;
 #endif
 
 	const struct header_ops *header_ops;
@@ -1652,7 +1656,14 @@ struct net_device {
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
 
+#ifdef CONFIG_NET_CLS_ACT
+	struct tcf_proto __rcu  *ingress_cl_list;
+#endif
 	struct netdev_queue __rcu *ingress_queue;
+#ifdef CONFIG_NETFILTER_INGRESS
+	struct list_head	nf_hooks_ingress;
+#endif
+
 	unsigned char		broadcast[MAX_ADDR_LEN];
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap		*rx_cpu_rmap;
@@ -1990,6 +2001,7 @@ struct offload_callbacks {
 
 struct packet_offload {
 	__be16			 type;	/* This is really htons(ether_type). */
+	u16			 priority;
 	struct offload_callbacks callbacks;
 	struct list_head	 list;
 };
@@ -2552,10 +2564,6 @@ static inline void netif_tx_wake_all_queues(struct net_device *dev)
 
 static inline void netif_tx_stop_queue(struct netdev_queue *dev_queue)
 {
-	if (WARN_ON(!dev_queue)) {
-		pr_info("netif_stop_queue() cannot be called before register_netdev()\n");
-		return;
-	}
 	set_bit(__QUEUE_STATE_DRV_XOFF, &dev_queue->state);
 }
 
@@ -2571,15 +2579,7 @@ static inline void netif_stop_queue(struct net_device *dev)
 	netif_tx_stop_queue(netdev_get_tx_queue(dev, 0));
 }
 
-static inline void netif_tx_stop_all_queues(struct net_device *dev)
-{
-	unsigned int i;
-
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		netif_tx_stop_queue(txq);
-	}
-}
+void netif_tx_stop_all_queues(struct net_device *dev);
 
 static inline bool netif_tx_queue_stopped(const struct netdev_queue *dev_queue)
 {
@@ -2839,6 +2839,9 @@ static inline int netif_set_xps_queue(struct net_device *dev,
 	return 0;
 }
 #endif
+
+u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
+		  unsigned int num_tx_queues);
 
 /*
  * Returns a Tx hash for the given packet when dev->real_num_tx_queues is used

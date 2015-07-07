@@ -1258,10 +1258,13 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 	 * register reset so we should ignore that one (the very first
 	 * interrupt received).
 	 */
-	if (alert_userspace && !bdi->first_time) {
-		power_supply_changed(bdi->charger);
-		power_supply_changed(bdi->battery);
-		bdi->first_time = false;
+	if (alert_userspace) {
+		if (!bdi->first_time) {
+			power_supply_changed(bdi->charger);
+			power_supply_changed(bdi->battery);
+		} else {
+			bdi->first_time = false;
+		}
 	}
 
 out:

@@ -100,31 +100,34 @@ static struct regulator_ops max14577_charger_ops = {
 	.set_current_limit	= max14577_reg_set_current_limit,
 };
 
+#define MAX14577_SAFEOUT_REG	{ \
+	.name		= "SAFEOUT", \
+	.of_match	= of_match_ptr("SAFEOUT"), \
+	.regulators_node = of_match_ptr("regulators"), \
+	.id		= MAX14577_SAFEOUT, \
+	.ops		= &max14577_safeout_ops, \
+	.type		= REGULATOR_VOLTAGE, \
+	.owner		= THIS_MODULE, \
+	.n_voltages	= 1, \
+	.min_uV		= MAX14577_REGULATOR_SAFEOUT_VOLTAGE, \
+	.enable_reg	= MAX14577_REG_CONTROL2, \
+	.enable_mask	= CTRL2_SFOUTORD_MASK, \
+}
+#define MAX14577_CHARGER_REG	{ \
+	.name		= "CHARGER", \
+	.of_match	= of_match_ptr("CHARGER"), \
+	.regulators_node = of_match_ptr("regulators"), \
+	.id		= MAX14577_CHARGER, \
+	.ops		= &max14577_charger_ops, \
+	.type		= REGULATOR_CURRENT, \
+	.owner		= THIS_MODULE, \
+	.enable_reg	= MAX14577_CHG_REG_CHG_CTRL2, \
+	.enable_mask	= CHGCTRL2_MBCHOSTEN_MASK, \
+}
+
 static const struct regulator_desc max14577_supported_regulators[] = {
-	[MAX14577_SAFEOUT] = {
-		.name		= "SAFEOUT",
-		.of_match	= of_match_ptr("SAFEOUT"),
-		.regulators_node = of_match_ptr("regulators"),
-		.id		= MAX14577_SAFEOUT,
-		.ops		= &max14577_safeout_ops,
-		.type		= REGULATOR_VOLTAGE,
-		.owner		= THIS_MODULE,
-		.n_voltages	= 1,
-		.min_uV		= MAX14577_REGULATOR_SAFEOUT_VOLTAGE,
-		.enable_reg	= MAX14577_REG_CONTROL2,
-		.enable_mask	= CTRL2_SFOUTORD_MASK,
-	},
-	[MAX14577_CHARGER] = {
-		.name		= "CHARGER",
-		.of_match	= of_match_ptr("CHARGER"),
-		.regulators_node = of_match_ptr("regulators"),
-		.id		= MAX14577_CHARGER,
-		.ops		= &max14577_charger_ops,
-		.type		= REGULATOR_CURRENT,
-		.owner		= THIS_MODULE,
-		.enable_reg	= MAX14577_CHG_REG_CHG_CTRL2,
-		.enable_mask	= CHGCTRL2_MBCHOSTEN_MASK,
-	},
+	[MAX14577_SAFEOUT] = MAX14577_SAFEOUT_REG,
+	[MAX14577_CHARGER] = MAX14577_CHARGER_REG,
 };
 
 static struct regulator_ops max77836_ldo_ops = {
@@ -138,63 +141,28 @@ static struct regulator_ops max77836_ldo_ops = {
 	/* TODO: add .set_suspend_mode */
 };
 
+#define MAX77836_LDO_REG(num)	{ \
+	.name		= "LDO" # num, \
+	.of_match	= of_match_ptr("LDO" # num), \
+	.regulators_node = of_match_ptr("regulators"), \
+	.id		= MAX77836_LDO ## num, \
+	.ops		= &max77836_ldo_ops, \
+	.type		= REGULATOR_VOLTAGE, \
+	.owner		= THIS_MODULE, \
+	.n_voltages	= MAX77836_REGULATOR_LDO_VOLTAGE_STEPS_NUM, \
+	.min_uV		= MAX77836_REGULATOR_LDO_VOLTAGE_MIN, \
+	.uV_step	= MAX77836_REGULATOR_LDO_VOLTAGE_STEP, \
+	.enable_reg	= MAX77836_LDO_REG_CNFG1_LDO ## num, \
+	.enable_mask	= MAX77836_CNFG1_LDO_PWRMD_MASK, \
+	.vsel_reg	= MAX77836_LDO_REG_CNFG1_LDO ## num, \
+	.vsel_mask	= MAX77836_CNFG1_LDO_TV_MASK, \
+}
+
 static const struct regulator_desc max77836_supported_regulators[] = {
-	[MAX14577_SAFEOUT] = {
-		.name		= "SAFEOUT",
-		.of_match	= of_match_ptr("SAFEOUT"),
-		.regulators_node = of_match_ptr("regulators"),
-		.id		= MAX14577_SAFEOUT,
-		.ops		= &max14577_safeout_ops,
-		.type		= REGULATOR_VOLTAGE,
-		.owner		= THIS_MODULE,
-		.n_voltages	= 1,
-		.min_uV		= MAX14577_REGULATOR_SAFEOUT_VOLTAGE,
-		.enable_reg	= MAX14577_REG_CONTROL2,
-		.enable_mask	= CTRL2_SFOUTORD_MASK,
-	},
-	[MAX14577_CHARGER] = {
-		.name		= "CHARGER",
-		.of_match	= of_match_ptr("CHARGER"),
-		.regulators_node = of_match_ptr("regulators"),
-		.id		= MAX14577_CHARGER,
-		.ops		= &max14577_charger_ops,
-		.type		= REGULATOR_CURRENT,
-		.owner		= THIS_MODULE,
-		.enable_reg	= MAX14577_CHG_REG_CHG_CTRL2,
-		.enable_mask	= CHGCTRL2_MBCHOSTEN_MASK,
-	},
-	[MAX77836_LDO1] = {
-		.name		= "LDO1",
-		.of_match	= of_match_ptr("LDO1"),
-		.regulators_node = of_match_ptr("regulators"),
-		.id		= MAX77836_LDO1,
-		.ops		= &max77836_ldo_ops,
-		.type		= REGULATOR_VOLTAGE,
-		.owner		= THIS_MODULE,
-		.n_voltages	= MAX77836_REGULATOR_LDO_VOLTAGE_STEPS_NUM,
-		.min_uV		= MAX77836_REGULATOR_LDO_VOLTAGE_MIN,
-		.uV_step	= MAX77836_REGULATOR_LDO_VOLTAGE_STEP,
-		.enable_reg	= MAX77836_LDO_REG_CNFG1_LDO1,
-		.enable_mask	= MAX77836_CNFG1_LDO_PWRMD_MASK,
-		.vsel_reg	= MAX77836_LDO_REG_CNFG1_LDO1,
-		.vsel_mask	= MAX77836_CNFG1_LDO_TV_MASK,
-	},
-	[MAX77836_LDO2] = {
-		.name		= "LDO2",
-		.of_match	= of_match_ptr("LDO2"),
-		.regulators_node = of_match_ptr("regulators"),
-		.id		= MAX77836_LDO2,
-		.ops		= &max77836_ldo_ops,
-		.type		= REGULATOR_VOLTAGE,
-		.owner		= THIS_MODULE,
-		.n_voltages	= MAX77836_REGULATOR_LDO_VOLTAGE_STEPS_NUM,
-		.min_uV		= MAX77836_REGULATOR_LDO_VOLTAGE_MIN,
-		.uV_step	= MAX77836_REGULATOR_LDO_VOLTAGE_STEP,
-		.enable_reg	= MAX77836_LDO_REG_CNFG1_LDO2,
-		.enable_mask	= MAX77836_CNFG1_LDO_PWRMD_MASK,
-		.vsel_reg	= MAX77836_LDO_REG_CNFG1_LDO2,
-		.vsel_mask	= MAX77836_CNFG1_LDO_TV_MASK,
-	},
+	[MAX14577_SAFEOUT] = MAX14577_SAFEOUT_REG,
+	[MAX14577_CHARGER] = MAX14577_CHARGER_REG,
+	[MAX77836_LDO1] = MAX77836_LDO_REG(1),
+	[MAX77836_LDO2] = MAX77836_LDO_REG(2),
 };
 
 #ifdef CONFIG_OF

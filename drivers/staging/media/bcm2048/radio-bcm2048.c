@@ -217,7 +217,7 @@
 #define BCM2048_FREQ_ERROR_FLOOR	-20
 #define BCM2048_FREQ_ERROR_ROOF		20
 
-/* -60 dB is reported as full signal strenght */
+/* -60 dB is reported as full signal strength */
 #define BCM2048_RSSI_LEVEL_BASE		-60
 #define BCM2048_RSSI_LEVEL_ROOF		-100
 #define BCM2048_RSSI_LEVEL_ROOF_NEG	100
@@ -2468,7 +2468,7 @@ static int bcm2048_vidioc_g_tuner(struct file *file, void *priv,
 		} else {
 			/*
 			 * RSSI level -60 dB is defined to report full
-			 * signal strenght
+			 * signal strength
 			 */
 			rssi = bcm2048_get_fm_rssi(bdev);
 			if (rssi >= BCM2048_RSSI_LEVEL_BASE) {
@@ -2593,7 +2593,7 @@ static int bcm2048_i2c_driver_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct bcm2048_device *bdev;
-	int err, skip_release = 0;
+	int err;
 
 	bdev = kzalloc(sizeof(*bdev), GFP_KERNEL);
 	if (!bdev) {
@@ -2646,7 +2646,6 @@ free_sysfs:
 	bcm2048_sysfs_unregister_properties(bdev, ARRAY_SIZE(attrs));
 free_registration:
 	video_unregister_device(&bdev->videodev);
-	skip_release = 1;
 free_irq:
 	if (client->irq)
 		free_irq(client->irq, bdev);

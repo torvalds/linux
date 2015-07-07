@@ -29,18 +29,25 @@ struct cpuidle_driver powernv_idle_driver = {
 
 static int max_idle_state;
 static struct cpuidle_state *cpuidle_state_table;
+static u64 snooze_timeout;
+static bool snooze_timeout_en;
 
 static int snooze_loop(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			int index)
 {
+	u64 snooze_exit_time;
+
 	local_irq_enable();
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
+	snooze_exit_time = get_tb() + snooze_timeout;
 	ppc64_runlatch_off();
 	while (!need_resched()) {
 		HMT_low();
 		HMT_very_low();
+		if (snooze_timeout_en && get_tb() > snooze_exit_time)
+			break;
 	}
 
 	HMT_medium();
@@ -252,6 +259,11 @@ static int powernv_idle_probe(void)
 		cpuidle_state_table = powernv_states;
 		/* Device tree can indicate more idle states */
 		max_idle_state = powernv_add_idle_states();
+		if (max_idle_state > 1) {
+			snooze_timeout_en = true;
+			snooze_timeout = powernv_states[1].target_residency *
+					 tb_ticks_per_usec;
+		}
  	} else
  		return -ENODEV;
 

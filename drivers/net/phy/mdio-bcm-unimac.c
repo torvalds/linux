@@ -81,7 +81,13 @@ static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 		return -ETIMEDOUT;
 
 	cmd = __raw_readl(priv->base + MDIO_CMD);
-	if (cmd & MDIO_READ_FAIL)
+
+	/* Some broken devices are known not to release the line during
+	 * turn-around, e.g: Broadcom BCM53125 external switches, so check for
+	 * that condition here and ignore the MDIO controller read failure
+	 * indication.
+	 */
+	if (!(bus->phy_ignore_ta_mask & 1 << phy_id) && (cmd & MDIO_READ_FAIL))
 		return -EIO;
 
 	return cmd & 0xffff;

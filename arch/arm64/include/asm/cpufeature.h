@@ -24,8 +24,9 @@
 #define ARM64_WORKAROUND_CLEAN_CACHE		0
 #define ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE	1
 #define ARM64_WORKAROUND_845719			2
+#define ARM64_HAS_SYSREG_GIC_CPUIF		3
 
-#define ARM64_NCAPS				3
+#define ARM64_NCAPS				4
 
 #ifndef __ASSEMBLY__
 
@@ -37,6 +38,11 @@ struct arm64_cpu_capabilities {
 		struct {	/* To be used for erratum handling only */
 			u32 midr_model;
 			u32 midr_range_min, midr_range_max;
+		};
+
+		struct {	/* Feature register checking */
+			u64 register_mask;
+			u64 register_value;
 		};
 	};
 };

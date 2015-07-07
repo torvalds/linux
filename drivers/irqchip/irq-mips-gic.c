@@ -746,7 +746,7 @@ static int gic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
 	return 0;
 }
 
-static struct irq_domain_ops gic_irq_domain_ops = {
+static const struct irq_domain_ops gic_irq_domain_ops = {
 	.map = gic_irq_domain_map,
 	.xlate = gic_irq_domain_xlate,
 };

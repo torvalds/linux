@@ -1904,7 +1904,7 @@ EXPORT_SYMBOL(audit_log_task_info);
 
 /**
  * audit_log_link_denied - report a link restriction denial
- * @operation: specific link opreation
+ * @operation: specific link operation
  * @link: the path that triggered the restriction
  */
 void audit_log_link_denied(const char *operation, struct path *link)

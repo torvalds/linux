@@ -146,7 +146,6 @@ struct tun_file {
 	struct socket socket;
 	struct socket_wq wq;
 	struct tun_struct __rcu *tun;
-	struct net *net;
 	struct fasync_struct *fasync;
 	/* only used for fasnyc */
 	unsigned int flags;
@@ -493,10 +492,7 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 			    tun->dev->reg_state == NETREG_REGISTERED)
 				unregister_netdevice(tun->dev);
 		}
-
-		BUG_ON(!test_bit(SOCK_EXTERNALLY_ALLOCATED,
-				 &tfile->socket.flags));
-		sk_release_kernel(&tfile->sk);
+		sock_put(&tfile->sk);
 	}
 }
 
@@ -1492,18 +1488,10 @@ out:
 	return ret;
 }
 
-static int tun_release(struct socket *sock)
-{
-	if (sock->sk)
-		sock_put(sock->sk);
-	return 0;
-}
-
 /* Ops structure to mimic raw sockets with tun */
 static const struct proto_ops tun_socket_ops = {
 	.sendmsg = tun_sendmsg,
 	.recvmsg = tun_recvmsg,
-	.release = tun_release,
 };
 
 static struct proto tun_proto = {
@@ -1865,7 +1853,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	if (cmd == TUNSETIFF && !tun) {
 		ifr.ifr_name[IFNAMSIZ-1] = '\0';
 
-		ret = tun_set_iff(tfile->net, file, &ifr);
+		ret = tun_set_iff(sock_net(&tfile->sk), file, &ifr);
 
 		if (ret)
 			goto unlock;
@@ -2154,16 +2142,16 @@ out:
 
 static int tun_chr_open(struct inode *inode, struct file * file)
 {
+	struct net *net = current->nsproxy->net_ns;
 	struct tun_file *tfile;
 
 	DBG1(KERN_INFO, "tunX: tun_chr_open\n");
 
-	tfile = (struct tun_file *)sk_alloc(&init_net, AF_UNSPEC, GFP_KERNEL,
-					    &tun_proto);
+	tfile = (struct tun_file *)sk_alloc(net, AF_UNSPEC, GFP_KERNEL,
+					    &tun_proto, 0);
 	if (!tfile)
 		return -ENOMEM;
 	RCU_INIT_POINTER(tfile->tun, NULL);
-	tfile->net = get_net(current->nsproxy->net_ns);
 	tfile->flags = 0;
 	tfile->ifindex = 0;
 
@@ -2174,13 +2162,11 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	tfile->socket.ops = &tun_socket_ops;
 
 	sock_init_data(&tfile->socket, &tfile->sk);
-	sk_change_net(&tfile->sk, tfile->net);
 
 	tfile->sk.sk_write_space = tun_sock_write_space;
 	tfile->sk.sk_sndbuf = INT_MAX;
 
 	file->private_data = tfile;
-	set_bit(SOCK_EXTERNALLY_ALLOCATED, &tfile->socket.flags);
 	INIT_LIST_HEAD(&tfile->next);
 
 	sock_set_flag(&tfile->sk, SOCK_ZEROCOPY);
@@ -2191,10 +2177,8 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 static int tun_chr_close(struct inode *inode, struct file *file)
 {
 	struct tun_file *tfile = file->private_data;
-	struct net *net = tfile->net;
 
 	tun_detach(tfile, true);
-	put_net(net);
 
 	return 0;
 }

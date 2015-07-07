@@ -653,11 +653,15 @@ static int r852_register_nand_device(struct r852_device *dev)
 	if (sm_register_device(dev->mtd, dev->sm))
 		goto error2;
 
-	if (device_create_file(&dev->mtd->dev, &dev_attr_media_type))
+	if (device_create_file(&dev->mtd->dev, &dev_attr_media_type)) {
 		message("can't create media type sysfs attribute");
+		goto error3;
+	}
 
 	dev->card_registred = 1;
 	return 0;
+error3:
+	nand_release(dev->mtd);
 error2:
 	kfree(dev->mtd);
 error1:

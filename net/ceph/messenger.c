@@ -480,8 +480,8 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 	int ret;
 
 	BUG_ON(con->sock);
-	ret = sock_create_kern(con->peer_addr.in_addr.ss_family, SOCK_STREAM,
-			       IPPROTO_TCP, &sock);
+	ret = sock_create_kern(&init_net, con->peer_addr.in_addr.ss_family,
+			       SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret)
 		return ret;
 	sock->sk->sk_allocation = GFP_NOFS;

@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <asm/kvm_emulate.h>
 #include <linux/stringify.h>
+#include <asm/debugreg.h>
 
 #include "x86.h"
 #include "tss.h"
@@ -523,13 +524,9 @@ static void masked_increment(ulong *reg, ulong mask, int inc)
 static inline void
 register_address_increment(struct x86_emulate_ctxt *ctxt, int reg, int inc)
 {
-	ulong mask;
+	ulong *preg = reg_rmw(ctxt, reg);
 
-	if (ctxt->ad_bytes == sizeof(unsigned long))
-		mask = ~0UL;
-	else
-		mask = ad_mask(ctxt);
-	masked_increment(reg_rmw(ctxt, reg), mask, inc);
+	assign_register(preg, *preg + inc, ctxt->ad_bytes);
 }
 
 static void rsp_increment(struct x86_emulate_ctxt *ctxt, int inc)
@@ -2262,6 +2259,260 @@ static int em_lseg(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
+static int emulator_has_longmode(struct x86_emulate_ctxt *ctxt)
+{
+	u32 eax, ebx, ecx, edx;
+
+	eax = 0x80000001;
+	ecx = 0;
+	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx);
+	return edx & bit(X86_FEATURE_LM);
+}
+
+#define GET_SMSTATE(type, smbase, offset)				  \
+	({								  \
+	 type __val;							  \
+	 int r = ctxt->ops->read_std(ctxt, smbase + offset, &__val,       \
+				     sizeof(__val), NULL);		  \
+	 if (r != X86EMUL_CONTINUE)					  \
+		 return X86EMUL_UNHANDLEABLE;				  \
+	 __val;								  \
+	})
+
+static void rsm_set_desc_flags(struct desc_struct *desc, u32 flags)
+{
+	desc->g    = (flags >> 23) & 1;
+	desc->d    = (flags >> 22) & 1;
+	desc->l    = (flags >> 21) & 1;
+	desc->avl  = (flags >> 20) & 1;
+	desc->p    = (flags >> 15) & 1;
+	desc->dpl  = (flags >> 13) & 3;
+	desc->s    = (flags >> 12) & 1;
+	desc->type = (flags >>  8) & 15;
+}
+
+static int rsm_load_seg_32(struct x86_emulate_ctxt *ctxt, u64 smbase, int n)
+{
+	struct desc_struct desc;
+	int offset;
+	u16 selector;
+
+	selector = GET_SMSTATE(u32, smbase, 0x7fa8 + n * 4);
+
+	if (n < 3)
+		offset = 0x7f84 + n * 12;
+	else
+		offset = 0x7f2c + (n - 3) * 12;
+
+	set_desc_base(&desc,      GET_SMSTATE(u32, smbase, offset + 8));
+	set_desc_limit(&desc,     GET_SMSTATE(u32, smbase, offset + 4));
+	rsm_set_desc_flags(&desc, GET_SMSTATE(u32, smbase, offset));
+	ctxt->ops->set_segment(ctxt, selector, &desc, 0, n);
+	return X86EMUL_CONTINUE;
+}
+
+static int rsm_load_seg_64(struct x86_emulate_ctxt *ctxt, u64 smbase, int n)
+{
+	struct desc_struct desc;
+	int offset;
+	u16 selector;
+	u32 base3;
+
+	offset = 0x7e00 + n * 16;
+
+	selector =                GET_SMSTATE(u16, smbase, offset);
+	rsm_set_desc_flags(&desc, GET_SMSTATE(u16, smbase, offset + 2) << 8);
+	set_desc_limit(&desc,     GET_SMSTATE(u32, smbase, offset + 4));
+	set_desc_base(&desc,      GET_SMSTATE(u32, smbase, offset + 8));
+	base3 =                   GET_SMSTATE(u32, smbase, offset + 12);
+
+	ctxt->ops->set_segment(ctxt, selector, &desc, base3, n);
+	return X86EMUL_CONTINUE;
+}
+
+static int rsm_enter_protected_mode(struct x86_emulate_ctxt *ctxt,
+				     u64 cr0, u64 cr4)
+{
+	int bad;
+
+	/*
+	 * First enable PAE, long mode needs it before CR0.PG = 1 is set.
+	 * Then enable protected mode.	However, PCID cannot be enabled
+	 * if EFER.LMA=0, so set it separately.
+	 */
+	bad = ctxt->ops->set_cr(ctxt, 4, cr4 & ~X86_CR4_PCIDE);
+	if (bad)
+		return X86EMUL_UNHANDLEABLE;
+
+	bad = ctxt->ops->set_cr(ctxt, 0, cr0);
+	if (bad)
+		return X86EMUL_UNHANDLEABLE;
+
+	if (cr4 & X86_CR4_PCIDE) {
+		bad = ctxt->ops->set_cr(ctxt, 4, cr4);
+		if (bad)
+			return X86EMUL_UNHANDLEABLE;
+	}
+
+	return X86EMUL_CONTINUE;
+}
+
+static int rsm_load_state_32(struct x86_emulate_ctxt *ctxt, u64 smbase)
+{
+	struct desc_struct desc;
+	struct desc_ptr dt;
+	u16 selector;
+	u32 val, cr0, cr4;
+	int i;
+
+	cr0 =                      GET_SMSTATE(u32, smbase, 0x7ffc);
+	ctxt->ops->set_cr(ctxt, 3, GET_SMSTATE(u32, smbase, 0x7ff8));
+	ctxt->eflags =             GET_SMSTATE(u32, smbase, 0x7ff4) | X86_EFLAGS_FIXED;
+	ctxt->_eip =               GET_SMSTATE(u32, smbase, 0x7ff0);
+
+	for (i = 0; i < 8; i++)
+		*reg_write(ctxt, i) = GET_SMSTATE(u32, smbase, 0x7fd0 + i * 4);
+
+	val = GET_SMSTATE(u32, smbase, 0x7fcc);
+	ctxt->ops->set_dr(ctxt, 6, (val & DR6_VOLATILE) | DR6_FIXED_1);
+	val = GET_SMSTATE(u32, smbase, 0x7fc8);
+	ctxt->ops->set_dr(ctxt, 7, (val & DR7_VOLATILE) | DR7_FIXED_1);
+
+	selector =                 GET_SMSTATE(u32, smbase, 0x7fc4);
+	set_desc_base(&desc,       GET_SMSTATE(u32, smbase, 0x7f64));
+	set_desc_limit(&desc,      GET_SMSTATE(u32, smbase, 0x7f60));
+	rsm_set_desc_flags(&desc,  GET_SMSTATE(u32, smbase, 0x7f5c));
+	ctxt->ops->set_segment(ctxt, selector, &desc, 0, VCPU_SREG_TR);
+
+	selector =                 GET_SMSTATE(u32, smbase, 0x7fc0);
+	set_desc_base(&desc,       GET_SMSTATE(u32, smbase, 0x7f80));
+	set_desc_limit(&desc,      GET_SMSTATE(u32, smbase, 0x7f7c));
+	rsm_set_desc_flags(&desc,  GET_SMSTATE(u32, smbase, 0x7f78));
+	ctxt->ops->set_segment(ctxt, selector, &desc, 0, VCPU_SREG_LDTR);
+
+	dt.address =               GET_SMSTATE(u32, smbase, 0x7f74);
+	dt.size =                  GET_SMSTATE(u32, smbase, 0x7f70);
+	ctxt->ops->set_gdt(ctxt, &dt);
+
+	dt.address =               GET_SMSTATE(u32, smbase, 0x7f58);
+	dt.size =                  GET_SMSTATE(u32, smbase, 0x7f54);
+	ctxt->ops->set_idt(ctxt, &dt);
+
+	for (i = 0; i < 6; i++) {
+		int r = rsm_load_seg_32(ctxt, smbase, i);
+		if (r != X86EMUL_CONTINUE)
+			return r;
+	}
+
+	cr4 = GET_SMSTATE(u32, smbase, 0x7f14);
+
+	ctxt->ops->set_smbase(ctxt, GET_SMSTATE(u32, smbase, 0x7ef8));
+
+	return rsm_enter_protected_mode(ctxt, cr0, cr4);
+}
+
+static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt, u64 smbase)
+{
+	struct desc_struct desc;
+	struct desc_ptr dt;
+	u64 val, cr0, cr4;
+	u32 base3;
+	u16 selector;
+	int i;
+
+	for (i = 0; i < 16; i++)
+		*reg_write(ctxt, i) = GET_SMSTATE(u64, smbase, 0x7ff8 - i * 8);
+
+	ctxt->_eip   = GET_SMSTATE(u64, smbase, 0x7f78);
+	ctxt->eflags = GET_SMSTATE(u32, smbase, 0x7f70) | X86_EFLAGS_FIXED;
+
+	val = GET_SMSTATE(u32, smbase, 0x7f68);
+	ctxt->ops->set_dr(ctxt, 6, (val & DR6_VOLATILE) | DR6_FIXED_1);
+	val = GET_SMSTATE(u32, smbase, 0x7f60);
+	ctxt->ops->set_dr(ctxt, 7, (val & DR7_VOLATILE) | DR7_FIXED_1);
+
+	cr0 =                       GET_SMSTATE(u64, smbase, 0x7f58);
+	ctxt->ops->set_cr(ctxt, 3,  GET_SMSTATE(u64, smbase, 0x7f50));
+	cr4 =                       GET_SMSTATE(u64, smbase, 0x7f48);
+	ctxt->ops->set_smbase(ctxt, GET_SMSTATE(u32, smbase, 0x7f00));
+	val =                       GET_SMSTATE(u64, smbase, 0x7ed0);
+	ctxt->ops->set_msr(ctxt, MSR_EFER, val & ~EFER_LMA);
+
+	selector =                  GET_SMSTATE(u32, smbase, 0x7e90);
+	rsm_set_desc_flags(&desc,   GET_SMSTATE(u32, smbase, 0x7e92) << 8);
+	set_desc_limit(&desc,       GET_SMSTATE(u32, smbase, 0x7e94));
+	set_desc_base(&desc,        GET_SMSTATE(u32, smbase, 0x7e98));
+	base3 =                     GET_SMSTATE(u32, smbase, 0x7e9c);
+	ctxt->ops->set_segment(ctxt, selector, &desc, base3, VCPU_SREG_TR);
+
+	dt.size =                   GET_SMSTATE(u32, smbase, 0x7e84);
+	dt.address =                GET_SMSTATE(u64, smbase, 0x7e88);
+	ctxt->ops->set_idt(ctxt, &dt);
+
+	selector =                  GET_SMSTATE(u32, smbase, 0x7e70);
+	rsm_set_desc_flags(&desc,   GET_SMSTATE(u32, smbase, 0x7e72) << 8);
+	set_desc_limit(&desc,       GET_SMSTATE(u32, smbase, 0x7e74));
+	set_desc_base(&desc,        GET_SMSTATE(u32, smbase, 0x7e78));
+	base3 =                     GET_SMSTATE(u32, smbase, 0x7e7c);
+	ctxt->ops->set_segment(ctxt, selector, &desc, base3, VCPU_SREG_LDTR);
+
+	dt.size =                   GET_SMSTATE(u32, smbase, 0x7e64);
+	dt.address =                GET_SMSTATE(u64, smbase, 0x7e68);
+	ctxt->ops->set_gdt(ctxt, &dt);
+
+	for (i = 0; i < 6; i++) {
+		int r = rsm_load_seg_64(ctxt, smbase, i);
+		if (r != X86EMUL_CONTINUE)
+			return r;
+	}
+
+	return rsm_enter_protected_mode(ctxt, cr0, cr4);
+}
+
+static int em_rsm(struct x86_emulate_ctxt *ctxt)
+{
+	unsigned long cr0, cr4, efer;
+	u64 smbase;
+	int ret;
+
+	if ((ctxt->emul_flags & X86EMUL_SMM_MASK) == 0)
+		return emulate_ud(ctxt);
+
+	/*
+	 * Get back to real mode, to prepare a safe state in which to load
+	 * CR0/CR3/CR4/EFER.  Also this will ensure that addresses passed
+	 * to read_std/write_std are not virtual.
+	 *
+	 * CR4.PCIDE must be zero, because it is a 64-bit mode only feature.
+	 */
+	cr0 = ctxt->ops->get_cr(ctxt, 0);
+	if (cr0 & X86_CR0_PE)
+		ctxt->ops->set_cr(ctxt, 0, cr0 & ~(X86_CR0_PG | X86_CR0_PE));
+	cr4 = ctxt->ops->get_cr(ctxt, 4);
+	if (cr4 & X86_CR4_PAE)
+		ctxt->ops->set_cr(ctxt, 4, cr4 & ~X86_CR4_PAE);
+	efer = 0;
+	ctxt->ops->set_msr(ctxt, MSR_EFER, efer);
+
+	smbase = ctxt->ops->get_smbase(ctxt);
+	if (emulator_has_longmode(ctxt))
+		ret = rsm_load_state_64(ctxt, smbase + 0x8000);
+	else
+		ret = rsm_load_state_32(ctxt, smbase + 0x8000);
+
+	if (ret != X86EMUL_CONTINUE) {
+		/* FIXME: should triple fault */
+		return X86EMUL_UNHANDLEABLE;
+	}
+
+	if ((ctxt->emul_flags & X86EMUL_SMM_INSIDE_NMI_MASK) == 0)
+		ctxt->ops->set_nmi_mask(ctxt, false);
+
+	ctxt->emul_flags &= ~X86EMUL_SMM_INSIDE_NMI_MASK;
+	ctxt->emul_flags &= ~X86EMUL_SMM_MASK;
+	return X86EMUL_CONTINUE;
+}
+
 static void
 setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 			struct desc_struct *cs, struct desc_struct *ss)
@@ -2573,6 +2824,30 @@ static bool emulator_io_permited(struct x86_emulate_ctxt *ctxt,
 	return true;
 }
 
+static void string_registers_quirk(struct x86_emulate_ctxt *ctxt)
+{
+	/*
+	 * Intel CPUs mask the counter and pointers in quite strange
+	 * manner when ECX is zero due to REP-string optimizations.
+	 */
+#ifdef CONFIG_X86_64
+	if (ctxt->ad_bytes != 4 || !vendor_intel(ctxt))
+		return;
+
+	*reg_write(ctxt, VCPU_REGS_RCX) = 0;
+
+	switch (ctxt->b) {
+	case 0xa4:	/* movsb */
+	case 0xa5:	/* movsd/w */
+		*reg_rmw(ctxt, VCPU_REGS_RSI) &= (u32)-1;
+		/* fall through */
+	case 0xaa:	/* stosb */
+	case 0xab:	/* stosd/w */
+		*reg_rmw(ctxt, VCPU_REGS_RDI) &= (u32)-1;
+	}
+#endif
+}
+
 static void save_state_to_tss16(struct x86_emulate_ctxt *ctxt,
 				struct tss_segment_16 *tss)
 {
@@ -2849,7 +3124,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	ulong old_tss_base =
 		ops->get_cached_segment_base(ctxt, VCPU_SREG_TR);
 	u32 desc_limit;
-	ulong desc_addr;
+	ulong desc_addr, dr7;
 
 	/* FIXME: old_tss_base == ~0 ? */
 
@@ -2933,6 +3208,9 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 		ctxt->src.val = (unsigned long) error_code;
 		ret = em_push(ctxt);
 	}
+
+	ops->get_dr(ctxt, 7, &dr7);
+	ops->set_dr(ctxt, 7, dr7 & ~(DR_LOCAL_ENABLE_MASK | DR_LOCAL_SLOWDOWN));
 
 	return ret;
 }
@@ -3840,7 +4118,7 @@ static const struct opcode group5[] = {
 	F(DstMem | SrcNone | Lock,		em_inc),
 	F(DstMem | SrcNone | Lock,		em_dec),
 	I(SrcMem | NearBranch,			em_call_near_abs),
-	I(SrcMemFAddr | ImplicitOps | Stack,	em_call_far),
+	I(SrcMemFAddr | ImplicitOps,		em_call_far),
 	I(SrcMem | NearBranch,			em_jmp_abs),
 	I(SrcMemFAddr | ImplicitOps,		em_jmp_far),
 	I(SrcMem | Stack,			em_push), D(Undefined),
@@ -4173,7 +4451,7 @@ static const struct opcode twobyte_table[256] = {
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shld), N, N,
 	/* 0xA8 - 0xAF */
 	I(Stack | Src2GS, em_push_sreg), I(Stack | Src2GS, em_pop_sreg),
-	DI(ImplicitOps, rsm),
+	II(No64 | EmulateOnUD | ImplicitOps, em_rsm, rsm),
 	F(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
 	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),
@@ -4871,7 +5149,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 				fetch_possible_mmx_operand(ctxt, &ctxt->dst);
 		}
 
-		if (unlikely(ctxt->guest_mode) && (ctxt->d & Intercept)) {
+		if (unlikely(ctxt->emul_flags & X86EMUL_GUEST_MASK) && ctxt->intercept) {
 			rc = emulator_check_intercept(ctxt, ctxt->intercept,
 						      X86_ICPT_PRE_EXCEPT);
 			if (rc != X86EMUL_CONTINUE)
@@ -4900,7 +5178,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 				goto done;
 		}
 
-		if (unlikely(ctxt->guest_mode) && (ctxt->d & Intercept)) {
+		if (unlikely(ctxt->emul_flags & X86EMUL_GUEST_MASK) && (ctxt->d & Intercept)) {
 			rc = emulator_check_intercept(ctxt, ctxt->intercept,
 						      X86_ICPT_POST_EXCEPT);
 			if (rc != X86EMUL_CONTINUE)
@@ -4910,6 +5188,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 		if (ctxt->rep_prefix && (ctxt->d & String)) {
 			/* All REP prefixes have the same first termination condition */
 			if (address_mask(ctxt, reg_read(ctxt, VCPU_REGS_RCX)) == 0) {
+				string_registers_quirk(ctxt);
 				ctxt->eip = ctxt->_eip;
 				ctxt->eflags &= ~X86_EFLAGS_RF;
 				goto done;
@@ -4953,7 +5232,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 special_insn:
 
-	if (unlikely(ctxt->guest_mode) && (ctxt->d & Intercept)) {
+	if (unlikely(ctxt->emul_flags & X86EMUL_GUEST_MASK) && (ctxt->d & Intercept)) {
 		rc = emulator_check_intercept(ctxt, ctxt->intercept,
 					      X86_ICPT_POST_MEMACCESS);
 		if (rc != X86EMUL_CONTINUE)

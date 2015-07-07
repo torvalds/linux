@@ -19,12 +19,14 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/idr.h>
+#include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/parser.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
+#include <linux/vmalloc.h>
 #include <linux/uio_driver.h>
 #include <net/genetlink.h>
+#include <scsi/scsi_common.h>
+#include <scsi/scsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_backend.h>

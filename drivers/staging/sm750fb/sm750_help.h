@@ -1,29 +1,21 @@
 #ifndef LYNX_HELP_H__
 #define LYNX_HELP_H__
-/*****************************************************************************\
- *                                FIELD MACROS                               *
-\*****************************************************************************/
 
+/*  FIELD MACROS */
 #define _LSB(f)             (0 ? f)
 #define _MSB(f)             (1 ? f)
 #define _COUNT(f)           (_MSB(f) - _LSB(f) + 1)
 
 #define RAW_MASK(f)         (0xFFFFFFFF >> (32 - _COUNT(f)))
 #define GET_MASK(f)         (RAW_MASK(f) << _LSB(f))
-#define GET_FIELD(d,f)      (((d) >> _LSB(f)) & RAW_MASK(f))
-#define TEST_FIELD(d,f,v)   (GET_FIELD(d,f) == f ## _ ## v)
-#define SET_FIELD(d,f,v)    (((d) & ~GET_MASK(f)) | \
+#define GET_FIELD(d, f)     (((d) >> _LSB(f)) & RAW_MASK(f))
+#define TEST_FIELD(d, f, v) (GET_FIELD(d, f) == f ## _ ## v)
+#define SET_FIELD(d, f, v)  (((d) & ~GET_MASK(f)) | \
                             (((f ## _ ## v) & RAW_MASK(f)) << _LSB(f)))
-#define SET_FIELDV(d,f,v)   (((d) & ~GET_MASK(f)) | \
+#define SET_FIELDV(d, f, v) (((d) & ~GET_MASK(f)) | \
                             (((v) & RAW_MASK(f)) << _LSB(f)))
 
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-// Internal macros                                                            //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
+/* Internal macros */
 #define _F_START(f)             (0 ? f)
 #define _F_END(f)               (1 ? f)
 #define _F_SIZE(f)              (1 + _F_END(f) - _F_START(f))
@@ -31,13 +23,7 @@
 #define _F_NORMALIZE(v, f)      (((v) & _F_MASK(f)) >> _F_START(f))
 #define _F_DENORMALIZE(v, f)    (((v) << _F_START(f)) & _F_MASK(f))
 
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-// Global macros                                                              //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
+/* Global macros */
 #define FIELD_GET(x, reg, field) \
 ( \
     _F_NORMALIZE((x), reg ## _ ## field) \
@@ -60,13 +46,7 @@
     ~ _F_MASK(reg ## _ ## field) \
 )
 
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-// Field Macros                                                               //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
+/* Field Macros */
 #define FIELD_START(field)              (0 ? field)
 #define FIELD_END(field)                (1 ? field)
 #define FIELD_SIZE(field)               (1 + FIELD_END(field) - FIELD_START(field))
@@ -91,7 +71,7 @@
     (unsigned short) ((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | (((b) & 0xF8) >> 3)) \
 )
 
-static inline unsigned int absDiff(unsigned int a,unsigned int b)
+static inline unsigned int absDiff(unsigned int a, unsigned int b)
 {
 	if(a<b)
 		return b-a;
@@ -100,7 +80,7 @@ static inline unsigned int absDiff(unsigned int a,unsigned int b)
 }
 
 /* n / d + 1 / 2 = (2n + d) / 2d */
-#define roundedDiv(num,denom)	((2 * (num) + (denom)) / (2 * (denom)))
+#define roundedDiv(num, denom)	((2 * (num) + (denom)) / (2 * (denom)))
 #define MB(x) ((x)<<20)
 #define KB(x) ((x)<<10)
 #define MHz(x) ((x) * 1000000)

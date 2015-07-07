@@ -198,6 +198,14 @@ enum ufs_hs_gear_tag {
 #define T_TC0TXMAXSDUSIZE	0x4060
 #define T_TC1TXMAXSDUSIZE	0x4061
 
+#ifdef FALSE
+#undef FALSE
+#endif
+
+#ifdef TRUE
+#undef TRUE
+#endif
+
 /* Boolean attribute values */
 enum {
 	FALSE = 0,

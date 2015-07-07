@@ -332,7 +332,7 @@ static __be16 parse_ethertype(struct sk_buff *skb)
 	proto = *(__be16 *) skb->data;
 	__skb_pull(skb, sizeof(__be16));
 
-	if (ntohs(proto) >= ETH_P_802_3_MIN)
+	if (eth_proto_is_802_3(proto))
 		return proto;
 
 	if (skb->len < sizeof(struct llc_snap_hdr))
@@ -349,7 +349,7 @@ static __be16 parse_ethertype(struct sk_buff *skb)
 
 	__skb_pull(skb, sizeof(struct llc_snap_hdr));
 
-	if (ntohs(llc->ethertype) >= ETH_P_802_3_MIN)
+	if (eth_proto_is_802_3(llc->ethertype))
 		return llc->ethertype;
 
 	return htons(ETH_P_802_2);

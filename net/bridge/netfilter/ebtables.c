@@ -6,7 +6,7 @@
  *
  *  ebtables.c,v 2.0, July, 2002
  *
- *  This code is stongly inspired on the iptables code which is
+ *  This code is strongly inspired by the iptables code which is
  *  Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
  *
  *  This program is free software; you can redistribute it and/or
@@ -139,7 +139,7 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 		ethproto = h->h_proto;
 
 	if (e->bitmask & EBT_802_3) {
-		if (FWINV2(ntohs(ethproto) >= ETH_P_802_3_MIN, EBT_IPROTO))
+		if (FWINV2(eth_proto_is_802_3(ethproto), EBT_IPROTO))
 			return 1;
 	} else if (!(e->bitmask & EBT_NOPROTO) &&
 	   FWINV2(e->ethproto != ethproto, EBT_IPROTO))

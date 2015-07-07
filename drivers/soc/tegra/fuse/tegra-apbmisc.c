@@ -28,8 +28,15 @@
 #define APBMISC_SIZE	0x64
 #define FUSE_SKU_INFO	0x10
 
+#define PMC_STRAPPING_OPT_A_RAM_CODE_SHIFT	4
+#define PMC_STRAPPING_OPT_A_RAM_CODE_MASK_LONG	\
+	(0xf << PMC_STRAPPING_OPT_A_RAM_CODE_SHIFT)
+#define PMC_STRAPPING_OPT_A_RAM_CODE_MASK_SHORT	\
+	(0x3 << PMC_STRAPPING_OPT_A_RAM_CODE_SHIFT)
+
 static void __iomem *apbmisc_base;
 static void __iomem *strapping_base;
+static bool long_ram_code;
 
 u32 tegra_read_chipid(void)
 {
@@ -52,6 +59,18 @@ u32 tegra_read_straps(void)
 		return readl_relaxed(strapping_base);
 	else
 		return 0;
+}
+
+u32 tegra_read_ram_code(void)
+{
+	u32 straps = tegra_read_straps();
+
+	if (long_ram_code)
+		straps &= PMC_STRAPPING_OPT_A_RAM_CODE_MASK_LONG;
+	else
+		straps &= PMC_STRAPPING_OPT_A_RAM_CODE_MASK_SHORT;
+
+	return straps >> PMC_STRAPPING_OPT_A_RAM_CODE_SHIFT;
 }
 
 static const struct of_device_id apbmisc_match[] __initconst = {
@@ -112,4 +131,6 @@ void __init tegra_init_apbmisc(void)
 	strapping_base = of_iomap(np, 1);
 	if (!strapping_base)
 		pr_err("ioremap tegra strapping_base failed\n");
+
+	long_ram_code = of_property_read_bool(np, "nvidia,long-ram-code");
 }

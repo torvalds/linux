@@ -1131,7 +1131,7 @@ static int wm8991_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			regcache_sync(wm8991->regmap);
 			/* Enable all output discharge bits */
 			snd_soc_write(codec, WM8991_ANTIPOP1, WM8991_DIS_LLINE |
@@ -1224,7 +1224,6 @@ static int wm8991_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

@@ -77,7 +77,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(opal_get_sensor_data);
 
-static __init int opal_sensor_init(void)
+int __init opal_sensor_init(void)
 {
 	struct platform_device *pdev;
 	struct device_node *sensor;
@@ -93,4 +93,3 @@ static __init int opal_sensor_init(void)
 
 	return PTR_ERR_OR_ZERO(pdev);
 }
-machine_subsys_initcall(powernv, opal_sensor_init);

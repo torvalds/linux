@@ -46,7 +46,7 @@ static void ieee80211_offchannel_ps_enable(struct ieee80211_sub_if_data *sdata)
 	}
 
 	if (!local->offchannel_ps_enabled ||
-	    !(local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK))
+	    !ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK))
 		/*
 		 * If power save was enabled, no need to send a nullfunc
 		 * frame because AP knows that we are sleeping. But if the

@@ -3712,6 +3712,14 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 
 static int qlt_set_data_offset(struct qla_tgt_cmd *cmd, uint32_t offset)
 {
+#if 1
+	/*
+	 * FIXME: Reject non zero SRR relative offset until we can test
+	 * this code properly.
+	 */
+	pr_debug("Rejecting non zero SRR rel_offs: %u\n", offset);
+	return -1;
+#else
 	struct scatterlist *sg, *sgp, *sg_srr, *sg_srr_start = NULL;
 	size_t first_offset = 0, rem_offset = offset, tmp = 0;
 	int i, sg_srr_cnt, bufflen = 0;
@@ -3720,13 +3728,6 @@ static int qlt_set_data_offset(struct qla_tgt_cmd *cmd, uint32_t offset)
 	    "Entering qla_tgt_set_data_offset: cmd: %p, cmd->sg: %p, "
 	    "cmd->sg_cnt: %u, direction: %d\n",
 	    cmd, cmd->sg, cmd->sg_cnt, cmd->dma_data_direction);
-
-	/*
-	 * FIXME: Reject non zero SRR relative offset until we can test
-	 * this code properly.
-	 */
-	pr_debug("Rejecting non zero SRR rel_offs: %u\n", offset);
-	return -1;
 
 	if (!cmd->sg || !cmd->sg_cnt) {
 		ql_dbg(ql_dbg_tgt, cmd->vha, 0xe055,
@@ -3810,6 +3811,7 @@ static int qlt_set_data_offset(struct qla_tgt_cmd *cmd, uint32_t offset)
 		BUG();
 
 	return 0;
+#endif
 }
 
 static inline int qlt_srr_adjust_data(struct qla_tgt_cmd *cmd,

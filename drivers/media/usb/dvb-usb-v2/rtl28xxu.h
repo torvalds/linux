@@ -41,6 +41,8 @@
 #include "fc2580.h"
 #include "tua9001.h"
 #include "r820t.h"
+#include "si2168.h"
+#include "si2157.h"
 
 /*
  * USB commands
@@ -76,6 +78,7 @@ struct rtl28xxu_dev {
 	u8 page; /* integrated demod active register page */
 	struct i2c_adapter *demod_i2c_adapter;
 	bool rc_active;
+	bool new_i2c_write;
 	struct i2c_client *i2c_client_demod;
 	struct i2c_client *i2c_client_tuner;
 	struct i2c_client *i2c_client_slave_demod;
@@ -83,6 +86,7 @@ struct rtl28xxu_dev {
 	#define SLAVE_DEMOD_NONE           0
 	#define SLAVE_DEMOD_MN88472        1
 	#define SLAVE_DEMOD_MN88473        2
+	#define SLAVE_DEMOD_SI2168         3
 	unsigned int slave_demod:2;
 	union {
 		struct rtl2830_platform_data rtl2830_platform_data;
@@ -116,6 +120,7 @@ enum rtl28xxu_tuner {
 	TUNER_RTL2832_FC0013,
 	TUNER_RTL2832_R820T,
 	TUNER_RTL2832_R828D,
+	TUNER_RTL2832_SI2157,
 };
 
 struct rtl28xxu_req {

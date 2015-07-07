@@ -106,9 +106,10 @@ static void ima_rdwr_violation_check(struct file *file,
 	*pathname = ima_d_path(&file->f_path, pathbuf);
 
 	if (send_tomtou)
-		ima_add_violation(file, *pathname, "invalid_pcr", "ToMToU");
+		ima_add_violation(file, *pathname, iint,
+				  "invalid_pcr", "ToMToU");
 	if (send_writers)
-		ima_add_violation(file, *pathname,
+		ima_add_violation(file, *pathname, iint,
 				  "invalid_pcr", "open_writers");
 }
 

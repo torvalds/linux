@@ -81,6 +81,8 @@ MPI mpi_read_from_buffer(const void *buffer, unsigned *ret_nread);
 int mpi_fromstr(MPI val, const char *str);
 u32 mpi_get_keyid(MPI a, u32 *keyid);
 void *mpi_get_buffer(MPI a, unsigned *nbytes, int *sign);
+int mpi_read_buffer(MPI a, uint8_t *buf, unsigned buf_len, unsigned *nbytes,
+		    int *sign);
 void *mpi_get_secure_buffer(MPI a, unsigned *nbytes, int *sign);
 int mpi_set_buffer(MPI a, const void *buffer, unsigned nbytes, int sign);
 
@@ -142,4 +144,17 @@ int mpi_rshift(MPI x, MPI a, unsigned n);
 /*-- mpi-inv.c --*/
 int mpi_invm(MPI x, MPI u, MPI v);
 
+/* inline functions */
+
+/**
+ * mpi_get_size() - returns max size required to store the number
+ *
+ * @a:	A multi precision integer for which we want to allocate a bufer
+ *
+ * Return: size required to store the number
+ */
+static inline unsigned int mpi_get_size(MPI a)
+{
+	return a->nlimbs * BYTES_PER_MPI_LIMB;
+}
 #endif /*G10_MPI_H */

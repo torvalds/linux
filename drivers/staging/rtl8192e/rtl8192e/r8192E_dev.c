@@ -30,7 +30,8 @@
 #include "rtl_dm.h"
 #include "rtl_wx.h"
 
-static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI, EDCAPARA_VO};
+static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI,
+			     EDCAPARA_VO};
 
 void rtl8192e_start_beacon(struct net_device *dev)
 {
@@ -187,22 +188,21 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 		u8		u1bAIFS;
 		u32		u4bAcParam;
 		u8 mode = priv->rtllib->mode;
-		struct rtllib_qos_parameters *qos_parameters =
+		struct rtllib_qos_parameters *qop =
 			 &priv->rtllib->current_network.qos_data.parameters;
 
-		u1bAIFS = qos_parameters->aifs[pAcParam] *
+		u1bAIFS = qop->aifs[pAcParam] *
 			  ((mode&(IEEE_G|IEEE_N_24G)) ? 9 : 20) + aSifsTime;
 
 		dm_init_edca_turbo(dev);
 
-		u4bAcParam = (((le16_to_cpu(
-					qos_parameters->tx_op_limit[pAcParam])) <<
-			     AC_PARAM_TXOP_LIMIT_OFFSET) |
-			     ((le16_to_cpu(qos_parameters->cw_max[pAcParam])) <<
-			     AC_PARAM_ECW_MAX_OFFSET) |
-			     ((le16_to_cpu(qos_parameters->cw_min[pAcParam])) <<
-			     AC_PARAM_ECW_MIN_OFFSET) |
-			     (((u32)u1bAIFS) << AC_PARAM_AIFS_OFFSET));
+		u4bAcParam = (le16_to_cpu(qop->tx_op_limit[pAcParam]) <<
+			      AC_PARAM_TXOP_LIMIT_OFFSET) |
+				((le16_to_cpu(qop->cw_max[pAcParam])) <<
+				 AC_PARAM_ECW_MAX_OFFSET) |
+				((le16_to_cpu(qop->cw_min[pAcParam])) <<
+				 AC_PARAM_ECW_MIN_OFFSET) |
+				(((u32)u1bAIFS) << AC_PARAM_AIFS_OFFSET);
 
 		RT_TRACE(COMP_DBG, "%s():HW_VAR_AC_PARAM eACI:%x:%x\n",
 			 __func__, eACI, u4bAcParam);
@@ -316,19 +316,18 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 static void rtl8192_read_eeprom_info(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-
+	const u8 bMac_Tmp_Addr[ETH_ALEN] = {0x00, 0xe0, 0x4c, 0x00, 0x00, 0x01};
 	u8 tempval;
 	u8 ICVer8192, ICVer8256;
 	u16 i, usValue, IC_Version;
 	u16 EEPROMId;
-	u8 bMac_Tmp_Addr[6] = {0x00, 0xe0, 0x4c, 0x00, 0x00, 0x01};
 
 	RT_TRACE(COMP_INIT, "====> rtl8192_read_eeprom_info\n");
 
 	EEPROMId = eprom_read(dev, 0);
 	if (EEPROMId != RTL8190_EEPROM_ID) {
-		RT_TRACE(COMP_ERR, "EEPROM ID is invalid:%x, %x\n",
-			 EEPROMId, RTL8190_EEPROM_ID);
+		netdev_err(dev, "%s(): Invalid EEPROM ID: %x\n", __func__,
+			   EEPROMId);
 		priv->AutoloadFailFlag = true;
 	} else {
 		priv->AutoloadFailFlag = false;
@@ -383,7 +382,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 			*(u16 *)(&dev->dev_addr[i]) = usValue;
 		}
 	} else {
-		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
+		ether_addr_copy(dev->dev_addr, bMac_Tmp_Addr);
 	}
 
 	RT_TRACE(COMP_INIT, "Permanent Address = %pM\n",
@@ -737,9 +736,8 @@ start:
 	else if (priv->pFirmware->firmware_status == FW_STATUS_5_READY)
 		ulRegRead |= CPU_GEN_FIRMWARE_RESET;
 	else
-		RT_TRACE(COMP_ERR,
-			 "ERROR in %s(): undefined firmware state(%d)\n",
-			 __func__,   priv->pFirmware->firmware_status);
+		netdev_err(dev, "%s(): undefined firmware state: %d.\n",
+			   __func__, priv->pFirmware->firmware_status);
 
 	write_nic_dword(dev, CPU_GEN, ulRegRead);
 
@@ -755,7 +753,7 @@ start:
 	RT_TRACE(COMP_INIT, "BB Config Start!\n");
 	rtStatus = rtl8192_BBConfig(dev);
 	if (!rtStatus) {
-		RT_TRACE(COMP_ERR, "BB Config failed\n");
+		netdev_warn(dev, "%s(): Failed to configure BB\n", __func__);
 		return rtStatus;
 	}
 	RT_TRACE(COMP_INIT, "BB Config Finished!\n");
@@ -769,8 +767,8 @@ start:
 		else if (priv->LoopbackMode == RTL819X_MAC_LOOPBACK)
 			ulRegRead |= CPU_CCK_LOOPBACK;
 		else
-			RT_TRACE(COMP_ERR,
-				 "Serious error: wrong loopback mode setting\n");
+			netdev_err(dev, "%s: Invalid loopback mode setting.\n",
+				   __func__);
 
 		write_nic_dword(dev, CPU_GEN, ulRegRead);
 
@@ -868,7 +866,7 @@ start:
 		RT_TRACE(COMP_INIT, "RF Config Started!\n");
 		rtStatus = rtl8192_phy_RFConfig(dev);
 		if (!rtStatus) {
-			RT_TRACE(COMP_ERR, "RF Config failed\n");
+			netdev_info(dev, "RF Config failed\n");
 			return rtStatus;
 		}
 		RT_TRACE(COMP_INIT, "RF Config Finished!\n");
@@ -918,8 +916,7 @@ start:
 			tmpRegC = rtl8192_QueryBBReg(dev,
 				  rOFDM0_XCTxIQImbalance, bMaskDWord);
 			for (i = 0; i < TxBBGainTableLength; i++) {
-				if (tmpRegA ==
-				    priv->txbbgain_table[i].txbbgain_value) {
+				if (tmpRegA == dm_tx_bb_gain[i]) {
 					priv->rfa_txpowertrackingindex = (u8)i;
 					priv->rfa_txpowertrackingindex_real =
 						 (u8)i;
@@ -933,7 +930,7 @@ start:
 				  rCCK0_TxFilter1, bMaskByte2);
 
 			for (i = 0; i < CCKTxBBGainTableLength; i++) {
-				if (TempCCk == priv->cck_txbbgain_table[i].ccktxbb_valuearray[0]) {
+				if (TempCCk == dm_cck_tx_bb_gain[i][0]) {
 					priv->CCKPresentAttentuation_20Mdefault = (u8)i;
 					break;
 				}
@@ -1139,7 +1136,8 @@ static u8 MRateToHwRate8190Pci(u8 rate)
 	return ret;
 }
 
-static u8 rtl8192_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority)
+static u8 rtl8192_MapHwQueueToFirmwareQueue(struct net_device *dev, u8 QueueID,
+					    u8 priority)
 {
 	u8 QueueSelect = 0x0;
 
@@ -1172,9 +1170,8 @@ static u8 rtl8192_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority)
 		QueueSelect = QSLT_HIGH;
 		break;
 	default:
-		RT_TRACE(COMP_ERR,
-			 "TransmitTCB(): Impossible Queue Selection: %d\n",
-			 QueueID);
+		netdev_warn(dev, "%s(): Impossible Queue Selection: %d\n",
+			    __func__, QueueID);
 		break;
 	}
 	return QueueSelect;
@@ -1198,7 +1195,7 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 						cb_desc);
 
 	if (pci_dma_mapping_error(priv->pdev, mapping))
-		RT_TRACE(COMP_ERR, "DMA Mapping error\n");
+		netdev_err(dev, "%s(): DMA Mapping error\n", __func__);
 	if (cb_desc->bAMPDUEnable) {
 		pTxFwInfo->AllowAggregation = 1;
 		pTxFwInfo->RxMF = cb_desc->ampdu_factor;
@@ -1274,7 +1271,7 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 
 	pdesc->PktId = 0x0;
 
-	pdesc->QueueSelect = rtl8192_MapHwQueueToFirmwareQueue(
+	pdesc->QueueSelect = rtl8192_MapHwQueueToFirmwareQueue(dev,
 						cb_desc->queue_index,
 						cb_desc->priority);
 	pdesc->TxFWInfoSize = sizeof(struct tx_fwinfo_8190pci);
@@ -1298,7 +1295,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 			 PCI_DMA_TODEVICE);
 
 	if (pci_dma_mapping_error(priv->pdev, mapping))
-		RT_TRACE(COMP_ERR, "DMA Mapping error\n");
+		netdev_err(dev, "%s(): DMA Mapping error\n", __func__);
 	memset(entry, 0, 12);
 	entry->LINIP = cb_desc->bLastIniPkt;
 	entry->FirstSeg = 1;
@@ -2202,14 +2199,6 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 	priv->ShortRetryLimit = 0x30;
 	priv->LongRetryLimit = 0x30;
 
-	priv->EarlyRxThreshold = 7;
-	priv->pwrGroupCnt = 0;
-
-	priv->bIgnoreSilentReset = false;
-	priv->enable_gpio0 = 0;
-
-	priv->TransmitConfig = 0;
-
 	priv->ReceiveConfig = RCR_ADD3	|
 		RCR_AMF | RCR_ADF |
 		RCR_AICV |
@@ -2224,9 +2213,6 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 			    IMR_RDU | IMR_RXFOVW | IMR_TXFOVW |
 			    IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
 
-
-	priv->MidHighPwrTHR_L1 = 0x3B;
-	priv->MidHighPwrTHR_L2 = 0x40;
 	priv->PwrDomainProtect = false;
 
 	priv->bfirst_after_down = false;

@@ -245,6 +245,8 @@ static const struct snd_soc_dapm_widget aic34_dapm_widgets[] = {
 static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "HPLOUT"},
 	{"Ext Spk", NULL, "HPROUT"},
+	{"Ext Spk", NULL, "HPLCOM"},
+	{"Ext Spk", NULL, "HPRCOM"},
 	{"Headphone Jack", NULL, "LLOUT"},
 	{"Headphone Jack", NULL, "RLOUT"},
 	{"FM Transmitter", NULL, "LLOUT"},
@@ -288,14 +290,7 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = rtd->card;
 	struct rx51_audio_pdata *pdata = snd_soc_card_get_drvdata(card);
-
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
-
-	/* Set up NC codec pins */
-	snd_soc_dapm_nc_pin(dapm, "MIC3L");
-	snd_soc_dapm_nc_pin(dapm, "MIC3R");
-	snd_soc_dapm_nc_pin(dapm, "LINE1R");
 
 	err = tpa6130a2_add_controls(codec);
 	if (err < 0) {
@@ -383,6 +378,7 @@ static struct snd_soc_card rx51_sound_card = {
 	.num_aux_devs = ARRAY_SIZE(rx51_aux_dev),
 	.codec_conf = rx51_codec_conf,
 	.num_configs = ARRAY_SIZE(rx51_codec_conf),
+	.fully_routed = true,
 
 	.controls = aic34_rx51_controls,
 	.num_controls = ARRAY_SIZE(aic34_rx51_controls),
@@ -455,48 +451,34 @@ static int rx51_soc_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, pdata);
 
 	pdata->tvout_selection_gpio = devm_gpiod_get(card->dev,
-						     "tvout-selection");
+						     "tvout-selection",
+						     GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->tvout_selection_gpio)) {
 		dev_err(card->dev, "could not get tvout selection gpio\n");
 		return PTR_ERR(pdata->tvout_selection_gpio);
 	}
 
-	err = gpiod_direction_output(pdata->tvout_selection_gpio, 0);
-	if (err) {
-		dev_err(card->dev, "could not setup tvout selection gpio\n");
-		return err;
-	}
-
 	pdata->jack_detection_gpio = devm_gpiod_get(card->dev,
-						    "jack-detection");
+						    "jack-detection",
+						    GPIOD_ASIS);
 	if (IS_ERR(pdata->jack_detection_gpio)) {
 		dev_err(card->dev, "could not get jack detection gpio\n");
 		return PTR_ERR(pdata->jack_detection_gpio);
 	}
 
-	pdata->eci_sw_gpio = devm_gpiod_get(card->dev, "eci-switch");
+	pdata->eci_sw_gpio = devm_gpiod_get(card->dev, "eci-switch",
+					    GPIOD_OUT_HIGH);
 	if (IS_ERR(pdata->eci_sw_gpio)) {
 		dev_err(card->dev, "could not get eci switch gpio\n");
 		return PTR_ERR(pdata->eci_sw_gpio);
 	}
 
-	err = gpiod_direction_output(pdata->eci_sw_gpio, 1);
-	if (err) {
-		dev_err(card->dev, "could not setup eci switch gpio\n");
-		return err;
-	}
-
 	pdata->speaker_amp_gpio = devm_gpiod_get(card->dev,
-						 "speaker-amplifier");
+						 "speaker-amplifier",
+						 GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->speaker_amp_gpio)) {
 		dev_err(card->dev, "could not get speaker enable gpio\n");
 		return PTR_ERR(pdata->speaker_amp_gpio);
-	}
-
-	err = gpiod_direction_output(pdata->speaker_amp_gpio, 0);
-	if (err) {
-		dev_err(card->dev, "could not setup speaker enable gpio\n");
-		return err;
 	}
 
 	err = devm_snd_soc_register_card(card->dev, card);

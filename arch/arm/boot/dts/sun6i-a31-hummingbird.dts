@@ -18,11 +18,6 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
  * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
@@ -58,8 +53,17 @@
 	model = "Merrii A31 Hummingbird";
 	compatible = "merrii,a31-hummingbird", "allwinner,sun6i-a31";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
+	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&pio 6 10 GPIO_ACTIVE_LOW>; /* PG10 */
 	};
 };
 
@@ -106,10 +110,16 @@
 	};
 };
 
+&ir {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ir_pins_a>;
+	status = "okay";
+};
+
 &mmc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_hummingbird>;
-	vmmc-supply = <&reg_vcc3v0>;
+	vmmc-supply = <&vcc_3v0>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
 	cd-inverted;
@@ -119,6 +129,16 @@
 &mmc0_pins_a {
 	/* external pull-ups missing for some pins */
 	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins_a>, <&wifi_reset_pin_hummingbird>;
+	vmmc-supply = <&vcc_wifi>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
 };
 
 &ohci0 {
@@ -131,6 +151,80 @@
 		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
+
+	wifi_reset_pin_hummingbird: wifi_reset_pin@0 {
+		allwinner,pins = "PG10";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+};
+
+&p2wi {
+	status = "okay";
+
+	axp221: pmic@68 {
+		compatible = "x-powers,axp221";
+		reg = <0x68>;
+		interrupt-parent = <&nmi_intc>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		dcdc1-supply = <&vcc_3v0>;
+		dcdc5-supply = <&vcc_dram>;
+
+		regulators {
+			x-powers,dcdc-freq = <3000>;
+
+			vcc_3v0: dcdc1 {
+				regulator-always-on;
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-name = "vcc-3v0";
+			};
+
+			vdd_cpu: dcdc2 {
+				regulator-always-on;
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1320000>;
+				regulator-name = "vdd-cpu";
+			};
+
+			vdd_gpu: dcdc3 {
+				regulator-always-on;
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1320000>;
+				regulator-name = "vdd-gpu";
+			};
+
+			vdd_sys_dll: dcdc4 {
+				regulator-always-on;
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-name = "vdd-sys-dll";
+			};
+
+			vcc_dram: dcdc5 {
+				regulator-always-on;
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-name = "vcc-dram";
+			};
+
+			vcc_wifi: aldo1 {
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "vcc_wifi";
+			};
+
+			avcc: aldo3 {
+				regulator-always-on;
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-name = "avcc";
+			};
+		};
 	};
 };
 

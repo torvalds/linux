@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """Find Kconfig symbols that are referenced but not defined."""
 
@@ -58,6 +58,12 @@ def parse_options():
                            "input format bases on Git log's "
                            "\'commmit1..commit2\'.")
 
+    parser.add_option('-i', '--ignore', dest='ignore', action='store',
+                      default="",
+                      help="Ignore files matching this pattern.  Note that "
+                           "the pattern needs to be a Python regex.  To "
+                           "ignore defconfigs, specify -i '.*defconfig'.")
+
     parser.add_option('', '--force', dest='force', action='store_true',
                       default=False,
                       help="Reset current Git tree even when it's dirty.")
@@ -79,6 +85,12 @@ def parse_options():
                      " Please run this script in a clean Git tree or pass "
                      "'--force' if you\nwant to ignore this warning and "
                      "continue.")
+
+    if opts.ignore:
+        try:
+            re.match(opts.ignore, "this/is/just/a/test.c")
+        except:
+            sys.exit("Please specify a valid Python regex.")
 
     return opts
 
@@ -105,11 +117,11 @@ def main():
 
         # get undefined items before the commit
         execute("git reset --hard %s" % commit_a)
-        undefined_a = check_symbols()
+        undefined_a = check_symbols(opts.ignore)
 
         # get undefined items for the commit
         execute("git reset --hard %s" % commit_b)
-        undefined_b = check_symbols()
+        undefined_b = check_symbols(opts.ignore)
 
         # report cases that are present for the commit but not before
         for feature in sorted(undefined_b):
@@ -129,7 +141,7 @@ def main():
 
     # default to check the entire tree
     else:
-        undefined = check_symbols()
+        undefined = check_symbols(opts.ignore)
         for feature in sorted(undefined):
             files = sorted(undefined.get(feature))
             print "%s\t%s" % (feature, ", ".join(files))
@@ -160,9 +172,10 @@ def get_head():
     return stdout.strip('\n')
 
 
-def check_symbols():
+def check_symbols(ignore):
     """Find undefined Kconfig symbols and return a dict with the symbol as key
-    and a list of referencing files as value."""
+    and a list of referencing files as value.  Files matching %ignore are not
+    checked for undefined symbols."""
     source_files = []
     kconfig_files = []
     defined_features = set()
@@ -185,10 +198,17 @@ def check_symbols():
             source_files.append(gitfile)
 
     for sfile in source_files:
+        if ignore and re.match(ignore, sfile):
+            # do not check files matching %ignore
+            continue
         parse_source_file(sfile, referenced_features)
 
     for kfile in kconfig_files:
-        parse_kconfig_file(kfile, defined_features, referenced_features)
+        if ignore and re.match(ignore, kfile):
+            # do not collect references for files matching %ignore
+            parse_kconfig_file(kfile, defined_features, dict())
+        else:
+            parse_kconfig_file(kfile, defined_features, referenced_features)
 
     undefined = {}  # {feature: [files]}
     for feature in sorted(referenced_features):

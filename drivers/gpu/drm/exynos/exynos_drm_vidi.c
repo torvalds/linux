@@ -20,6 +20,7 @@
 
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
@@ -130,78 +131,34 @@ static void vidi_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	plane = &ctx->planes[win];
 
-	plane->enabled = true;
-
 	DRM_DEBUG_KMS("dma_addr = %pad\n", plane->dma_addr);
 
 	if (ctx->vblank_on)
 		schedule_work(&ctx->work);
 }
 
-static void vidi_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
+static void vidi_enable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
-	struct exynos_drm_plane *plane;
-
-	if (win < 0 || win >= WINDOWS_NR)
-		return;
-
-	plane = &ctx->planes[win];
-	plane->enabled = false;
-
-	/* TODO. */
-}
-
-static int vidi_power_on(struct vidi_context *ctx, bool enable)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	if (enable != false && enable != true)
-		return -EINVAL;
-
-	if (enable) {
-		ctx->suspended = false;
-
-		/* if vblank was enabled status, enable it again. */
-		if (test_and_clear_bit(0, &ctx->irq_flags))
-			vidi_enable_vblank(ctx->crtc);
-
-		for (i = 0; i < WINDOWS_NR; i++) {
-			plane = &ctx->planes[i];
-			if (plane->enabled)
-				vidi_win_commit(ctx->crtc, i);
-		}
-	} else {
-		ctx->suspended = true;
-	}
-
-	return 0;
-}
-
-static void vidi_dpms(struct exynos_drm_crtc *crtc, int mode)
-{
-	struct vidi_context *ctx = crtc->ctx;
-
-	DRM_DEBUG_KMS("%d\n", mode);
 
 	mutex_lock(&ctx->lock);
 
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		vidi_power_on(ctx, true);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		vidi_power_on(ctx, false);
-		break;
-	default:
-		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
-		break;
-	}
+	ctx->suspended = false;
+
+	/* if vblank was enabled status, enable it again. */
+	if (test_and_clear_bit(0, &ctx->irq_flags))
+		vidi_enable_vblank(ctx->crtc);
+
+	mutex_unlock(&ctx->lock);
+}
+
+static void vidi_disable(struct exynos_drm_crtc *crtc)
+{
+	struct vidi_context *ctx = crtc->ctx;
+
+	mutex_lock(&ctx->lock);
+
+	ctx->suspended = true;
 
 	mutex_unlock(&ctx->lock);
 }
@@ -218,11 +175,11 @@ static int vidi_ctx_initialize(struct vidi_context *ctx,
 }
 
 static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
-	.dpms = vidi_dpms,
+	.enable = vidi_enable,
+	.disable = vidi_disable,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.win_commit = vidi_win_commit,
-	.win_disable = vidi_win_disable,
 };
 
 static void vidi_fake_vblank_handler(struct work_struct *work)
@@ -384,10 +341,13 @@ static void vidi_connector_destroy(struct drm_connector *connector)
 }
 
 static struct drm_connector_funcs vidi_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = vidi_detect,
 	.destroy = vidi_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int vidi_get_modes(struct drm_connector *connector)
@@ -520,16 +480,6 @@ static int vidi_probe(struct platform_device *pdev)
 	ctx->default_win = 0;
 	ctx->pdev = pdev;
 
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
-					EXYNOS_DISPLAY_TYPE_VIDI);
-	if (ret)
-		return ret;
-
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
-					ctx->display.type);
-	if (ret)
-		goto err_del_crtc_component;
-
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
 
 	mutex_init(&ctx->lock);
@@ -539,7 +489,7 @@ static int vidi_probe(struct platform_device *pdev)
 	ret = device_create_file(&pdev->dev, &dev_attr_connection);
 	if (ret < 0) {
 		DRM_ERROR("failed to create connection sysfs.\n");
-		goto err_del_conn_component;
+		return ret;
 	}
 
 	ret = component_add(&pdev->dev, &vidi_component_ops);
@@ -550,10 +500,6 @@ static int vidi_probe(struct platform_device *pdev)
 
 err_remove_file:
 	device_remove_file(&pdev->dev, &dev_attr_connection);
-err_del_conn_component:
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
-err_del_crtc_component:
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
 
 	return ret;
 }
@@ -570,8 +516,6 @@ static int vidi_remove(struct platform_device *pdev)
 	}
 
 	component_del(&pdev->dev, &vidi_component_ops);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
 
 	return 0;
 }
@@ -584,38 +528,3 @@ struct platform_driver vidi_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-int exynos_drm_probe_vidi(void)
-{
-	struct platform_device *pdev;
-	int ret;
-
-	pdev = platform_device_register_simple("exynos-drm-vidi", -1, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	ret = platform_driver_register(&vidi_driver);
-	if (ret) {
-		platform_device_unregister(pdev);
-		return ret;
-	}
-
-	return ret;
-}
-
-static int exynos_drm_remove_vidi_device(struct device *dev, void *data)
-{
-	platform_device_unregister(to_platform_device(dev));
-
-	return 0;
-}
-
-void exynos_drm_remove_vidi(void)
-{
-	int ret = driver_for_each_device(&vidi_driver.driver, NULL, NULL,
-					 exynos_drm_remove_vidi_device);
-	/* silence compiler warning */
-	(void)ret;
-
-	platform_driver_unregister(&vidi_driver);
-}

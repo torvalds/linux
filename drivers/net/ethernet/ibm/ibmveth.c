@@ -58,7 +58,7 @@ static struct kobj_type ktype_veth_pool;
 
 static const char ibmveth_driver_name[] = "ibmveth";
 static const char ibmveth_driver_string[] = "IBM Power Virtual Ethernet Driver";
-#define ibmveth_driver_version "1.04"
+#define ibmveth_driver_version "1.05"
 
 MODULE_AUTHOR("Santiago Leon <santil@linux.vnet.ibm.com>");
 MODULE_DESCRIPTION("IBM Power Virtual Ethernet Driver");
@@ -100,6 +100,8 @@ struct ibmveth_stat ibmveth_stats[] = {
 	{ "tx_send_failed", IBMVETH_STAT_OFF(tx_send_failed) },
 	{ "fw_enabled_ipv4_csum", IBMVETH_STAT_OFF(fw_ipv4_csum_support) },
 	{ "fw_enabled_ipv6_csum", IBMVETH_STAT_OFF(fw_ipv6_csum_support) },
+	{ "tx_large_packets", IBMVETH_STAT_OFF(tx_large_packets) },
+	{ "rx_large_packets", IBMVETH_STAT_OFF(rx_large_packets) }
 };
 
 /* simple methods of getting data from the current rxq entry */
@@ -852,6 +854,10 @@ static int ibmveth_set_features(struct net_device *dev,
 	struct ibmveth_adapter *adapter = netdev_priv(dev);
 	int rx_csum = !!(features & NETIF_F_RXCSUM);
 	int rc;
+	netdev_features_t changed = features ^ dev->features;
+
+	if (features & NETIF_F_TSO & changed)
+		netdev_info(dev, "TSO feature requires all partitions to have updated driver");
 
 	if (rx_csum == adapter->rx_csum)
 		return 0;
@@ -1035,6 +1041,15 @@ retry_bounce:
 		descs[i+1].fields.address = dma_addr;
 	}
 
+	if (skb_is_gso(skb) && !skb_is_gso_v6(skb)) {
+		/* Put -1 in the IP checksum to tell phyp it
+		 *  is a largesend packet and put the mss in the TCP checksum.
+		 */
+		ip_hdr(skb)->check = 0xffff;
+		tcp_hdr(skb)->check = cpu_to_be16(skb_shinfo(skb)->gso_size);
+		adapter->tx_large_packets++;
+	}
+
 	if (ibmveth_send(adapter, descs)) {
 		adapter->tx_send_failed++;
 		netdev->stats.tx_dropped++;
@@ -1080,6 +1095,7 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 	struct net_device *netdev = adapter->netdev;
 	int frames_processed = 0;
 	unsigned long lpar_rc;
+	struct iphdr *iph;
 
 restart_poll:
 	while (frames_processed < budget) {
@@ -1122,10 +1138,23 @@ restart_poll:
 			skb_put(skb, length);
 			skb->protocol = eth_type_trans(skb, netdev);
 
-			if (csum_good)
+			if (csum_good) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
+				if (be16_to_cpu(skb->protocol) == ETH_P_IP) {
+					iph = (struct iphdr *)skb->data;
 
-			netif_receive_skb(skb);	/* send it up */
+					/* If the IP checksum is not offloaded and if the packet
+					 *  is large send, the checksum must be rebuilt.
+					 */
+					if (iph->check == 0xffff) {
+						iph->check = 0;
+						iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+						adapter->rx_large_packets++;
+					}
+				}
+			}
+
+			napi_gro_receive(napi, skb);	/* send it up */
 
 			netdev->stats.rx_packets++;
 			netdev->stats.rx_bytes += length;
@@ -1422,7 +1451,13 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	netdev->features |= netdev->hw_features;
 
+	/* TSO is disabled by default */
+	netdev->hw_features |= NETIF_F_TSO;
+
 	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
+
+	if (firmware_has_feature(FW_FEATURE_CMO))
+		memcpy(pool_count, pool_count_cmo, sizeof(pool_count));
 
 	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		struct kobject *kobj = &adapter->rx_buff_pool[i].kobj;

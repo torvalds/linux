@@ -7,8 +7,10 @@ Required properties:
   Use "cdns,at32ap7000-macb" for other 10/100 usage or use the generic form: "cdns,macb".
   Use "cdns,pc302-gem" for Picochip picoXcell pc302 and later devices based on
   the Cadence GEM, or the generic form: "cdns,gem".
-  Use "cdns,sama5d3-gem" for the Gigabit IP available on Atmel sama5d3 SoCs.
-  Use "cdns,sama5d4-gem" for the Gigabit IP available on Atmel sama5d4 SoCs.
+  Use "atmel,sama5d2-gem" for the GEM IP (10/100) available on Atmel sama5d2 SoCs.
+  Use "atmel,sama5d3-gem" for the Gigabit IP available on Atmel sama5d3 SoCs.
+  Use "atmel,sama5d4-gem" for the GEM IP (10/100) available on Atmel sama5d4 SoCs.
+  Use "cdns,zynqmp-gem" for Zynq Ultrascale+ MPSoC.
 - reg: Address and length of the register set for the device
 - interrupts: Should contain macb interrupt
 - phy-mode: See ethernet.txt file in the same directory.

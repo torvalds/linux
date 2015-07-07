@@ -5,7 +5,8 @@
   </refmeta>
 
   <refnamediv>
-    <refname>VIDIOC_SUBSCRIBE_EVENT, VIDIOC_UNSUBSCRIBE_EVENT</refname>
+      <refname>VIDIOC_SUBSCRIBE_EVENT</refname>
+      <refname>VIDIOC_UNSUBSCRIBE_EVENT</refname>
     <refpurpose>Subscribe or unsubscribe event</refpurpose>
   </refnamediv>
 

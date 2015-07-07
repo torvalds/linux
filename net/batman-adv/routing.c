@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -15,20 +15,36 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "routing.h"
-#include "send.h"
-#include "soft-interface.h"
-#include "hard-interface.h"
-#include "icmp_socket.h"
-#include "translation-table.h"
-#include "originator.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
+#include <linux/compiler.h>
+#include <linux/errno.h>
+#include <linux/etherdevice.h>
+#include <linux/if_ether.h>
+#include <linux/jiffies.h>
+#include <linux/netdevice.h>
+#include <linux/printk.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/skbuff.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
+
+#include "bitarray.h"
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
-#include "network-coding.h"
 #include "fragmentation.h"
-
-#include <linux/if_vlan.h>
+#include "hard-interface.h"
+#include "icmp_socket.h"
+#include "network-coding.h"
+#include "originator.h"
+#include "packet.h"
+#include "send.h"
+#include "soft-interface.h"
+#include "translation-table.h"
 
 static int batadv_route_unicast_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if);

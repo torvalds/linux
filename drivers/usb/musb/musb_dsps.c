@@ -634,10 +634,14 @@ static void dsps_read_fifo32(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 }
 
 static struct musb_platform_ops dsps_ops = {
-	.quirks		= MUSB_INDEXED_EP,
+	.quirks		= MUSB_DMA_CPPI41 | MUSB_INDEXED_EP,
 	.init		= dsps_musb_init,
 	.exit		= dsps_musb_exit,
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+	.dma_init	= cppi41_dma_controller_create,
+	.dma_exit	= cppi41_dma_controller_destroy,
+#endif
 	.enable		= dsps_musb_enable,
 	.disable	= dsps_musb_disable,
 

@@ -11,12 +11,14 @@ Author: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 Description
 -----------
 
-w1_therm provides basic temperature conversion for ds18*20 devices.
+w1_therm provides basic temperature conversion for ds18*20 devices, and the
+ds28ea00 device.
 supported family codes:
 W1_THERM_DS18S20	0x10
 W1_THERM_DS1822		0x22
 W1_THERM_DS18B20	0x28
 W1_THERM_DS1825		0x3B
+W1_THERM_DS28EA00	0x42
 
 Support is provided through the sysfs w1_slave file.  Each open and
 read sequence will initiate a temperature conversion then provide two
@@ -48,3 +50,10 @@ resistor).  The DS18b20 temperature sensor specification lists a
 maximum current draw of 1.5mA and that a 5k pullup resistor is not
 sufficient.  The strong pullup is designed to provide the additional
 current required.
+
+The DS28EA00 provides an additional two pins for implementing a sequence
+detection algorithm.  This feature allows you to determine the physical
+location of the chip in the 1-wire bus without needing pre-existing
+knowledge of the bus ordering.  Support is provided through the sysfs
+w1_seq file.  The file will contain a single line with an integer value
+representing the device index in the bus starting at 0.

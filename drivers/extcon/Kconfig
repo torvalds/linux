@@ -28,15 +28,22 @@ config EXTCON_ARIZONA
 	  with Wolfson Arizona devices. These are audio CODECs with
 	  advanced audio accessory detection support.
 
+config EXTCON_AXP288
+	tristate "X-Power AXP288 EXTCON support"
+	depends on MFD_AXP20X && USB_PHY
+	help
+	  Say Y here to enable support for USB peripheral detection
+	  and USB MUX switching by X-Power AXP288 PMIC.
+
 config EXTCON_GPIO
 	tristate "GPIO extcon support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here to enable GPIO based extcon support. Note that GPIO
 	  extcon supports single state per extcon instance.
 
 config EXTCON_MAX14577
-	tristate "MAX14577/77836 EXTCON Support"
+	tristate "Maxim MAX14577/77836 EXTCON Support"
 	depends on MFD_MAX14577
 	select IRQ_DOMAIN
 	select REGMAP_I2C
@@ -46,7 +53,7 @@ config EXTCON_MAX14577
 	  detector and switch.
 
 config EXTCON_MAX77693
-	tristate "MAX77693 EXTCON Support"
+	tristate "Maxim MAX77693 EXTCON Support"
 	depends on MFD_MAX77693 && INPUT
 	select IRQ_DOMAIN
 	select REGMAP_I2C
@@ -56,7 +63,7 @@ config EXTCON_MAX77693
 	  detector and switch.
 
 config EXTCON_MAX77843
-	tristate "MAX77843 EXTCON Support"
+	tristate "Maxim MAX77843 EXTCON Support"
 	depends on MFD_MAX77843
 	select IRQ_DOMAIN
 	select REGMAP_I2C
@@ -66,7 +73,7 @@ config EXTCON_MAX77843
 	  detector add switch.
 
 config EXTCON_MAX8997
-	tristate "MAX8997 EXTCON Support"
+	tristate "Maxim MAX8997 EXTCON Support"
 	depends on MFD_MAX8997 && IRQ_DOMAIN
 	help
 	  If you say yes here you get support for the MUIC device of
@@ -81,7 +88,7 @@ config EXTCON_PALMAS
 	  detection by palmas usb.
 
 config EXTCON_RT8973A
-	tristate "RT8973A EXTCON support"
+	tristate "Richtek RT8973A EXTCON support"
 	depends on I2C
 	select IRQ_DOMAIN
 	select REGMAP_I2C
@@ -93,7 +100,7 @@ config EXTCON_RT8973A
 	  from abnormal high input voltage (up to 28V).
 
 config EXTCON_SM5502
-	tristate "SM5502 EXTCON support"
+	tristate "Silicon Mitus SM5502 EXTCON support"
 	depends on I2C
 	select IRQ_DOMAIN
 	select REGMAP_I2C
@@ -105,9 +112,9 @@ config EXTCON_SM5502
 
 config EXTCON_USB_GPIO
 	tristate "USB GPIO extcon support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here to enable GPIO based USB cable detection extcon support.
 	  Used typically if GPIO is used for USB ID pin detection.
 
-endif # MULTISTATE_SWITCH
+endif

@@ -27,13 +27,13 @@
 		};
 	};
 
-	gmac: ethernet@00230000 {
-		fixed_phy;
-		phy_addr = <1>;
-	};
-
 	spi {
 		status = "disabled";
 	};
 
+};
+
+&gmac {
+	fixed_phy;
+	phy_addr = <1>;
 };

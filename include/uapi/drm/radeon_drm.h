@@ -1039,6 +1039,7 @@ struct drm_radeon_cs {
 #define RADEON_INFO_CURRENT_GPU_MCLK	0x23
 #define RADEON_INFO_READ_REG		0x24
 #define RADEON_INFO_VA_UNMAP_WORKING	0x25
+#define RADEON_INFO_GPU_RESET_COUNTER	0x26
 
 struct drm_radeon_info {
 	uint32_t		request;

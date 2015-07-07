@@ -120,6 +120,27 @@ config DRM_RADEON
 
 source "drivers/gpu/drm/radeon/Kconfig"
 
+config DRM_AMDGPU
+	tristate "AMD GPU"
+	depends on DRM && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FW_LOADER
+        select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
+        select DRM_TTM
+	select POWER_SUPPLY
+	select HWMON
+	select BACKLIGHT_CLASS_DEVICE
+	select INTERVAL_TREE
+	help
+	  Choose this option if you have a recent AMD Radeon graphics card.
+
+	  If M is selected, the module will be called amdgpu.
+
+source "drivers/gpu/drm/amd/amdgpu/Kconfig"
+
 source "drivers/gpu/drm/nouveau/Kconfig"
 
 config DRM_I810
@@ -205,6 +226,8 @@ source "drivers/gpu/drm/tilcdc/Kconfig"
 source "drivers/gpu/drm/qxl/Kconfig"
 
 source "drivers/gpu/drm/bochs/Kconfig"
+
+source "drivers/gpu/drm/virtio/Kconfig"
 
 source "drivers/gpu/drm/msm/Kconfig"
 

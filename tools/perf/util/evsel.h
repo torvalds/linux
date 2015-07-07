@@ -73,7 +73,6 @@ struct perf_evsel {
 	char			*name;
 	double			scale;
 	const char		*unit;
-	bool			snapshot;
 	struct event_format	*tp_format;
 	union {
 		void		*priv;
@@ -86,6 +85,7 @@ struct perf_evsel {
 	unsigned int		sample_size;
 	int			id_pos;
 	int			is_pos;
+	bool			snapshot;
 	bool 			supported;
 	bool 			needs_swap;
 	bool			no_aux_samples;
@@ -93,11 +93,11 @@ struct perf_evsel {
 	bool			system_wide;
 	bool			tracking;
 	bool			per_pkg;
-	unsigned long		*per_pkg_mask;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
 	int			sample_read;
+	unsigned long		*per_pkg_mask;
 	struct perf_evsel	*leader;
 	char			*group_name;
 };
@@ -170,9 +170,6 @@ const char *perf_evsel__group_name(struct perf_evsel *evsel);
 int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size);
 
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads);
-int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus);
-void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus);
-void perf_evsel__free_counts(struct perf_evsel *evsel);
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 
 void __perf_evsel__set_sample_bit(struct perf_evsel *evsel,

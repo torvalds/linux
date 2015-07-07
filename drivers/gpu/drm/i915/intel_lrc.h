@@ -36,6 +36,8 @@
 #define RING_CONTEXT_STATUS_PTR(ring)	((ring)->mmio_base+0x3a0)
 
 /* Logical Rings */
+int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request,
+					    struct intel_context *ctx);
 void intel_logical_ring_stop(struct intel_engine_cs *ring);
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring);
 int intel_logical_rings_init(struct drm_device *dev);
@@ -63,9 +65,6 @@ static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
 	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
 	ringbuf->tail += 4;
 }
-int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
-			     struct intel_context *ctx,
-			     int num_dwords);
 
 /* Logical Ring Contexts */
 void intel_lr_context_free(struct intel_context *ctx);

@@ -651,6 +651,7 @@ static int process_sample_event(struct perf_tool *tool,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
+	int err = 0;
 	struct thread *thread;
 	struct perf_kvm_stat *kvm = container_of(tool, struct perf_kvm_stat,
 						 tool);
@@ -666,9 +667,10 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (!handle_kvm_event(kvm, thread, evsel, sample))
-		return -1;
+		err = -1;
 
-	return 0;
+	thread__put(thread);
+	return err;
 }
 
 static int cpu_isa_config(struct perf_kvm_stat *kvm)
@@ -1309,6 +1311,8 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 			"show events other than"
 			" HLT (x86 only) or Wait state (s390 only)"
 			" that take longer than duration usecs"),
+		OPT_UINTEGER(0, "proc-map-timeout", &kvm->opts.proc_map_timeout,
+				"per thread proc mmap processing timeout in ms"),
 		OPT_END()
 	};
 	const char * const live_usage[] = {
@@ -1336,6 +1340,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	kvm->opts.target.uses_mmap = false;
 	kvm->opts.target.uid_str = NULL;
 	kvm->opts.target.uid = UINT_MAX;
+	kvm->opts.proc_map_timeout = 500;
 
 	symbol__init(NULL);
 	disable_buildid_cache();
@@ -1391,7 +1396,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	perf_session__set_id_hdr_size(kvm->session);
 	ordered_events__set_copy_on_queue(&kvm->session->ordered_events, true);
 	machine__synthesize_threads(&kvm->session->machines.host, &kvm->opts.target,
-				    kvm->evlist->threads, false);
+				    kvm->evlist->threads, false, kvm->opts.proc_map_timeout);
 	err = kvm_live_open_events(kvm);
 	if (err)
 		goto out;

@@ -323,14 +323,14 @@ static void output_poll_execute(struct work_struct *work)
 		if (!connector->polled || connector->polled == DRM_CONNECTOR_POLL_HPD)
 			continue;
 
-		repoll = true;
-
 		old_status = connector->status;
 		/* if we are connected and don't want to poll for disconnect
 		   skip it */
 		if (old_status == connector_status_connected &&
 		    !(connector->polled & DRM_CONNECTOR_POLL_DISCONNECT))
 			continue;
+
+		repoll = true;
 
 		connector->status = connector->funcs->detect(connector, false);
 		if (old_status != connector->status) {

@@ -347,7 +347,7 @@ int test__switch_tracking(void)
 	perf_evlist__set_maps(evlist, cpus, threads);
 
 	/* First event */
-	err = parse_events(evlist, "cpu-clock:u");
+	err = parse_events(evlist, "cpu-clock:u", NULL);
 	if (err) {
 		pr_debug("Failed to parse event dummy:u\n");
 		goto out_err;
@@ -356,7 +356,7 @@ int test__switch_tracking(void)
 	cpu_clocks_evsel = perf_evlist__last(evlist);
 
 	/* Second event */
-	err = parse_events(evlist, "cycles:u");
+	err = parse_events(evlist, "cycles:u", NULL);
 	if (err) {
 		pr_debug("Failed to parse event cycles:u\n");
 		goto out_err;
@@ -371,7 +371,7 @@ int test__switch_tracking(void)
 		goto out;
 	}
 
-	err = parse_events(evlist, sched_switch);
+	err = parse_events(evlist, sched_switch, NULL);
 	if (err) {
 		pr_debug("Failed to parse event %s\n", sched_switch);
 		goto out_err;
@@ -401,7 +401,7 @@ int test__switch_tracking(void)
 	perf_evsel__set_sample_bit(cycles_evsel, TIME);
 
 	/* Fourth event */
-	err = parse_events(evlist, "dummy:u");
+	err = parse_events(evlist, "dummy:u", NULL);
 	if (err) {
 		pr_debug("Failed to parse event dummy:u\n");
 		goto out_err;

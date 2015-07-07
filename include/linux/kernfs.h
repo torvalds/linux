@@ -277,6 +277,7 @@ void kernfs_put(struct kernfs_node *kn);
 
 struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry);
 struct kernfs_root *kernfs_root_from_sb(struct super_block *sb);
+struct inode *kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn);
 
 struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 				       unsigned int flags, void *priv);
@@ -350,6 +351,10 @@ static inline struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry)
 { return NULL; }
 
 static inline struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
+{ return NULL; }
+
+static inline struct inode *
+kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn)
 { return NULL; }
 
 static inline struct kernfs_root *

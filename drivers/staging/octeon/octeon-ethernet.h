@@ -1,29 +1,12 @@
-/**********************************************************************
- * Author: Cavium Networks
- *
- * Contact: support@caviumnetworks.com
- * This file is part of the OCTEON SDK
+/*
+ * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
  * published by the Free Software Foundation.
- *
- * This file is distributed in the hope that it will be useful, but
- * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- * or visit http://www.gnu.org/licenses/.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium Networks for more information
-**********************************************************************/
+ */
 
 /*
  * External interface for the Cavium Octeon ethernet driver.
@@ -32,6 +15,8 @@
 #define OCTEON_ETHERNET_H
 
 #include <linux/of.h>
+
+#include <asm/octeon/cvmx-helper-board.h>
 
 /**
  * This is the definition of the Ethernet driver's private
@@ -71,24 +56,24 @@ int cvm_oct_free_work(void *work_queue_entry);
 extern int cvm_oct_rgmii_init(struct net_device *dev);
 extern void cvm_oct_rgmii_uninit(struct net_device *dev);
 extern int cvm_oct_rgmii_open(struct net_device *dev);
-extern int cvm_oct_rgmii_stop(struct net_device *dev);
 
 extern int cvm_oct_sgmii_init(struct net_device *dev);
-extern void cvm_oct_sgmii_uninit(struct net_device *dev);
 extern int cvm_oct_sgmii_open(struct net_device *dev);
-extern int cvm_oct_sgmii_stop(struct net_device *dev);
 
 extern int cvm_oct_spi_init(struct net_device *dev);
 extern void cvm_oct_spi_uninit(struct net_device *dev);
 extern int cvm_oct_xaui_init(struct net_device *dev);
-extern void cvm_oct_xaui_uninit(struct net_device *dev);
 extern int cvm_oct_xaui_open(struct net_device *dev);
-extern int cvm_oct_xaui_stop(struct net_device *dev);
 
 extern int cvm_oct_common_init(struct net_device *dev);
 extern void cvm_oct_common_uninit(struct net_device *dev);
 void cvm_oct_adjust_link(struct net_device *dev);
 int cvm_oct_common_stop(struct net_device *dev);
+int cvm_oct_common_open(struct net_device *dev,
+			void (*link_poll)(struct net_device *), bool poll_now);
+void cvm_oct_note_carrier(struct octeon_ethernet *priv,
+			  cvmx_helper_link_info_t li);
+void cvm_oct_link_poll(struct net_device *dev);
 
 extern int always_use_pow;
 extern int pow_send_group;

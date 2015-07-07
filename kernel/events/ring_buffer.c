@@ -141,7 +141,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 	perf_output_get_handle(handle);
 
 	do {
-		tail = ACCESS_ONCE(rb->user_page->data_tail);
+		tail = READ_ONCE_CTRL(rb->user_page->data_tail);
 		offset = head = local_read(&rb->head);
 		if (!rb->overwrite &&
 		    unlikely(CIRC_SPACE(head, tail, perf_data_size(rb)) < size))

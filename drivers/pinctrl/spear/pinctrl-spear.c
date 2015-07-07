@@ -396,9 +396,9 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 	spear_pinctrl_desc.npins = machdata->npins;
 
 	pmx->pctl = pinctrl_register(&spear_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
 
 	return 0;

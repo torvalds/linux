@@ -104,6 +104,15 @@ static bool asymmetric_match_key_ids(
 	return false;
 }
 
+/* helper function can be called directly with pre-allocated memory */
+inline int __asymmetric_key_hex_to_key_id(const char *id,
+				   struct asymmetric_key_id *match_id,
+				   size_t hexlen)
+{
+	match_id->len = hexlen;
+	return hex2bin(match_id->data, id, hexlen);
+}
+
 /**
  * asymmetric_key_hex_to_key_id - Convert a hex string into a key ID.
  * @id: The ID as a hex string.
@@ -111,21 +120,20 @@ static bool asymmetric_match_key_ids(
 struct asymmetric_key_id *asymmetric_key_hex_to_key_id(const char *id)
 {
 	struct asymmetric_key_id *match_id;
-	size_t hexlen;
+	size_t asciihexlen;
 	int ret;
 
 	if (!*id)
 		return ERR_PTR(-EINVAL);
-	hexlen = strlen(id);
-	if (hexlen & 1)
+	asciihexlen = strlen(id);
+	if (asciihexlen & 1)
 		return ERR_PTR(-EINVAL);
 
-	match_id = kmalloc(sizeof(struct asymmetric_key_id) + hexlen / 2,
+	match_id = kmalloc(sizeof(struct asymmetric_key_id) + asciihexlen / 2,
 			   GFP_KERNEL);
 	if (!match_id)
 		return ERR_PTR(-ENOMEM);
-	match_id->len = hexlen / 2;
-	ret = hex2bin(match_id->data, id, hexlen / 2);
+	ret = __asymmetric_key_hex_to_key_id(id, match_id, asciihexlen / 2);
 	if (ret < 0) {
 		kfree(match_id);
 		return ERR_PTR(-EINVAL);

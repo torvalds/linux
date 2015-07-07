@@ -3571,7 +3571,7 @@ void brcms_c_mac_promisc(struct brcms_c_info *wlc, uint filter_flags)
 
 	wlc->filter_flags = filter_flags;
 
-	if (filter_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS))
+	if (filter_flags & FIF_OTHER_BSS)
 		promisc_bits |= MCTL_PROMISC;
 
 	if (filter_flags & FIF_BCN_PRBRESP_PROMISC)

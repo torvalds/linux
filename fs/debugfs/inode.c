@@ -174,7 +174,7 @@ static void debugfs_evict_inode(struct inode *inode)
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	if (S_ISLNK(inode->i_mode))
-		kfree(inode->i_private);
+		kfree(inode->i_link);
 }
 
 static const struct super_operations debugfs_super_operations = {
@@ -511,8 +511,8 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 		return failed_creating(dentry);
 	}
 	inode->i_mode = S_IFLNK | S_IRWXUGO;
-	inode->i_op = &debugfs_link_operations;
-	inode->i_private = link;
+	inode->i_op = &simple_symlink_inode_operations;
+	inode->i_link = link;
 	d_instantiate(dentry, inode);
 	return end_creating(dentry);
 }

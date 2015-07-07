@@ -130,19 +130,19 @@ struct digi_getcounter {
 #define	BD_RUNNING	0x0
 #define	BD_NOFEP	0x5
 
-#define DIGI_SETCUSTOMBAUD	_IOW('e', 106, int)	/* Set integer baud rate */
-#define DIGI_GETCUSTOMBAUD	_IOR('e', 107, int)	/* Get integer baud rate */
+#define DIGI_SETCUSTOMBAUD _IOW('e', 106, int)	/* Set integer baud rate */
+#define DIGI_GETCUSTOMBAUD _IOR('e', 107, int)	/* Get integer baud rate */
 
 #define DIGI_REALPORT_GETBUFFERS (('e'<<8) | 108)
 #define DIGI_REALPORT_SENDIMMEDIATE (('e'<<8) | 109)
 #define DIGI_REALPORT_GETCOUNTERS (('e'<<8) | 110)
 #define DIGI_REALPORT_GETEVENTS (('e'<<8) | 111)
 
-#define EV_OPU		0x0001		/* !<Output paused by client */
-#define EV_OPS		0x0002		/* !<Output paused by reqular sw flowctrl */
-#define EV_IPU		0x0010		/* !<Input paused unconditionally by user */
-#define EV_IPS		0x0020		/* !<Input paused by high/low water marks */
-#define EV_TXB		0x0040		/* !<Transmit break pending */
+#define EV_OPU 0x0001 /* !<Output paused by client */
+#define EV_OPS 0x0002 /* !<Output paused by reqular sw flowctrl */
+#define EV_IPU 0x0010 /* !<Input paused unconditionally by user */
+#define EV_IPS 0x0020 /* !<Input paused by high/low water marks */
+#define EV_TXB 0x0040 /* !<Transmit break pending */
 
 /*
  * This structure holds data needed for the intelligent <--> nonintelligent

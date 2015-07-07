@@ -186,7 +186,7 @@ static int arizona_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops arizona_domain_ops = {
+static const struct irq_domain_ops arizona_domain_ops = {
 	.map	= arizona_irq_map,
 	.xlate	= irq_domain_xlate_twocell,
 };

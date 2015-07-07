@@ -192,15 +192,20 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 				struct drm_i915_error_buffer *err,
 				int count)
 {
+	int i;
+
 	err_printf(m, "  %s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "    %08x %8u %02x %02x %x %x",
+		err_printf(m, "    %08x %8u %02x %02x [ ",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
-			   err->write_domain,
-			   err->rseqno, err->wseqno);
+			   err->write_domain);
+		for (i = 0; i < I915_NUM_RINGS; i++)
+			err_printf(m, "%02x ", err->rseqno[i]);
+
+		err_printf(m, "] %02x", err->wseqno);
 		err_puts(m, pin_flag(err->pinned));
 		err_puts(m, tiling_flag(err->tiling));
 		err_puts(m, dirty_flag(err->dirty));
@@ -251,10 +256,11 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 		return;
 
 	err_printf(m, "%s command stream:\n", ring_str(ring_idx));
-	err_printf(m, "  HEAD: 0x%08x\n", ring->head);
-	err_printf(m, "  TAIL: 0x%08x\n", ring->tail);
-	err_printf(m, "  CTL: 0x%08x\n", ring->ctl);
-	err_printf(m, "  HWS: 0x%08x\n", ring->hws);
+	err_printf(m, "  START: 0x%08x\n", ring->start);
+	err_printf(m, "  HEAD:  0x%08x\n", ring->head);
+	err_printf(m, "  TAIL:  0x%08x\n", ring->tail);
+	err_printf(m, "  CTL:   0x%08x\n", ring->ctl);
+	err_printf(m, "  HWS:   0x%08x\n", ring->hws);
 	err_printf(m, "  ACTHD: 0x%08x %08x\n", (u32)(ring->acthd>>32), (u32)ring->acthd);
 	err_printf(m, "  IPEIR: 0x%08x\n", ring->ipeir);
 	err_printf(m, "  IPEHR: 0x%08x\n", ring->ipehr);
@@ -553,6 +559,7 @@ static void i915_error_state_free(struct kref *error_ref)
 
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		i915_error_object_free(error->ring[i].batchbuffer);
+		i915_error_object_free(error->ring[i].wa_batchbuffer);
 		i915_error_object_free(error->ring[i].ringbuffer);
 		i915_error_object_free(error->ring[i].hws_page);
 		i915_error_object_free(error->ring[i].ctx);
@@ -679,10 +686,12 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
+	int i;
 
 	err->size = obj->base.size;
 	err->name = obj->base.name;
-	err->rseqno = i915_gem_request_get_seqno(obj->last_read_req);
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		err->rseqno[i] = i915_gem_request_get_seqno(obj->last_read_req[i]);
 	err->wseqno = i915_gem_request_get_seqno(obj->last_write_req);
 	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->base.read_domains;
@@ -695,8 +704,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->dirty = obj->dirty;
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;
 	err->userptr = obj->userptr.mm != NULL;
-	err->ring = obj->last_read_req ?
-			i915_gem_request_get_ring(obj->last_read_req)->id : -1;
+	err->ring = obj->last_write_req ?
+			i915_gem_request_get_ring(obj->last_write_req)->id : -1;
 	err->cache_level = obj->cache_level;
 }
 
@@ -883,6 +892,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	ering->instpm = I915_READ(RING_INSTPM(ring->mmio_base));
 	ering->seqno = ring->get_seqno(ring, false);
 	ering->acthd = intel_ring_get_active_head(ring);
+	ering->start = I915_READ_START(ring);
 	ering->head = I915_READ_HEAD(ring);
 	ering->tail = I915_READ_TAIL(ring);
 	ering->ctl = I915_READ_CTL(ring);

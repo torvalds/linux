@@ -20,6 +20,16 @@ struct pm_clk_notifier_block {
 
 struct clk;
 
+#ifdef CONFIG_PM
+extern int pm_clk_runtime_suspend(struct device *dev);
+extern int pm_clk_runtime_resume(struct device *dev);
+#define USE_PM_CLK_RUNTIME_OPS \
+	.runtime_suspend = pm_clk_runtime_suspend, \
+	.runtime_resume = pm_clk_runtime_resume,
+#else
+#define USE_PM_CLK_RUNTIME_OPS
+#endif
+
 #ifdef CONFIG_PM_CLK
 static inline bool pm_clk_no_clocks(struct device *dev)
 {

@@ -164,7 +164,7 @@ static int rng_setkey(void *private, const u8 *seed, unsigned int seedlen)
 	 * Check whether seedlen is of sufficient size is done in RNG
 	 * implementations.
 	 */
-	return crypto_rng_reset(private, (u8 *)seed, seedlen);
+	return crypto_rng_reset(private, seed, seedlen);
 }
 
 static const struct af_alg_type algif_type_rng = {

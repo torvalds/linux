@@ -127,7 +127,7 @@ struct pinctrl_ops {
  */
 struct pinctrl_desc {
 	const char *name;
-	struct pinctrl_pin_desc const *pins;
+	const struct pinctrl_pin_desc *pins;
 	unsigned int npins;
 	const struct pinctrl_ops *pctlops;
 	const struct pinmux_ops *pmxops;

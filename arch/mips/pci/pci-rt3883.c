@@ -134,7 +134,7 @@ static void rt3883_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 	struct rt3883_pci_controller *rpc;
 	u32 pending;
 
-	rpc = irq_get_handler_data(irq);
+	rpc = irq_desc_get_handler_data(desc);
 
 	pending = rt3883_pci_r32(rpc, RT3883_PCI_REG_PCIINT) &
 		  rt3883_pci_r32(rpc, RT3883_PCI_REG_PCIENA);

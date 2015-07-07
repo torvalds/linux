@@ -66,8 +66,8 @@
 #define smp_read_barrier_depends()	do { } while (0)
 #endif
 
-#ifndef set_mb
-#define set_mb(var, value)  do { (var) = (value); mb(); } while (0)
+#ifndef smp_store_mb
+#define smp_store_mb(var, value)  do { WRITE_ONCE(var, value); mb(); } while (0)
 #endif
 
 #ifndef smp_mb__before_atomic

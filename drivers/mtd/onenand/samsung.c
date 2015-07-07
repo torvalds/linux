@@ -1083,7 +1083,7 @@ static const struct dev_pm_ops s3c_pm_ops = {
 	.resume		= s3c_pm_ops_resume,
 };
 
-static struct platform_device_id s3c_onenand_driver_ids[] = {
+static const struct platform_device_id s3c_onenand_driver_ids[] = {
 	{
 		.name		= "s3c6400-onenand",
 		.driver_data	= TYPE_S3C6400,

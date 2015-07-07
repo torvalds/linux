@@ -27,6 +27,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/nls.h>
+#include <linux/vmalloc.h>
 
 #include "hyperv_net.h"
 
@@ -1013,6 +1014,9 @@ int rndis_filter_device_add(struct hv_device *dev,
 	struct ndis_recv_scale_cap rsscap;
 	u32 rsscap_size = sizeof(struct ndis_recv_scale_cap);
 	u32 mtu, size;
+	u32 num_rss_qs;
+	const struct cpumask *node_cpu_mask;
+	u32 num_possible_rss_qs;
 
 	rndis_device = get_rndis_device();
 	if (!rndis_device)
@@ -1100,9 +1104,18 @@ int rndis_filter_device_add(struct hv_device *dev,
 	if (ret || rsscap.num_recv_que < 2)
 		goto out;
 
+	num_rss_qs = min(device_info->max_num_vrss_chns, rsscap.num_recv_que);
+
 	net_device->max_chn = rsscap.num_recv_que;
-	net_device->num_chn = (num_online_cpus() < rsscap.num_recv_que) ?
-			       num_online_cpus() : rsscap.num_recv_que;
+
+	/*
+	 * We will limit the VRSS channels to the number CPUs in the NUMA node
+	 * the primary channel is currently bound to.
+	 */
+	node_cpu_mask = cpumask_of_node(cpu_to_node(dev->channel->target_cpu));
+	num_possible_rss_qs = cpumask_weight(node_cpu_mask);
+	net_device->num_chn = min(num_possible_rss_qs, num_rss_qs);
+
 	if (net_device->num_chn == 1)
 		goto out;
 

@@ -7,12 +7,10 @@
 /* please use revision id to distinguish sm750le and sm750*/
 #define SPC_SM750 	0
 
-//#define SPC_SM750LE 8
-
 #define MB(x) ((x)<<20)
 #define MHZ(x) ((x) * 1000000)
 /* align should be 2,4,8,16 */
-#define PADDING(align,data) (((data)+(align)-1)&(~((align) -1)))
+#define PADDING(align, data) (((data)+(align)-1)&(~((align) -1)))
 extern int smi_indent;
 
 
@@ -27,15 +25,16 @@ struct lynx_accel{
 
 	int (*de_wait)(void);/* see if hardware ready to work */
 
-	int (*de_fillrect)(struct lynx_accel *,u32,u32,u32,
-							u32,u32,u32,u32,u32,u32);
+	int (*de_fillrect)(struct lynx_accel *, u32, u32, u32, u32,
+						u32, u32, u32, u32, u32);
 
-	int (*de_copyarea)(struct lynx_accel *,u32,u32,u32,u32,
-						u32,u32,u32,u32,
-						u32,u32,u32,u32);
+	int (*de_copyarea)(struct lynx_accel *, u32, u32, u32, u32,
+						u32, u32, u32, u32,
+						u32, u32, u32, u32);
 
-	int (*de_imageblit)(struct lynx_accel *,const char *,u32,u32,u32,
-						u32,u32,u32,u32,u32,u32,u32,u32,u32);
+	int (*de_imageblit)(struct lynx_accel *, const char *, u32, u32, u32, u32,
+							       u32, u32, u32, u32,
+							       u32, u32, u32, u32);
 
 };
 
@@ -46,25 +45,22 @@ struct lynx_share{
 	/* common members */
 	u16 devid;
 	u8 revid;
-	struct pci_dev * pdev;
-	struct fb_info * fbinfo[2];
+	struct pci_dev *pdev;
+	struct fb_info *fbinfo[2];
 	struct lynx_accel accel;
 	int accel_off;
 	int dual;
-#ifdef CONFIG_MTRR
 		int mtrr_off;
 		struct{
 			int vram;
-			int vram_added;
 		}mtrr;
-#endif
 	/* all smi graphic adaptor got below attributes */
 	unsigned long vidmem_start;
 	unsigned long vidreg_start;
 	__u32 vidmem_size;
 	__u32 vidreg_size;
-	void __iomem * pvReg;
-	unsigned char __iomem * pvMem;
+	void __iomem *pvReg;
+	unsigned char __iomem *pvMem;
 	/* locks*/
 	spinlock_t slock;
 	/* function pointers */
@@ -81,26 +77,26 @@ struct lynx_cursor{
 	int maxW;
 	int maxH;
 	/* base virtual address and offset  of cursor image */
-	char __iomem * vstart;
+	char __iomem *vstart;
 	int offset;
 	/* mmio addr of hw cursor */
 	volatile char __iomem * mmio;
 	/* the lynx_share of this adaptor */
-	struct lynx_share * share;
+	struct lynx_share *share;
 	/* proc_routines */
 	void (*enable)(struct lynx_cursor *);
 	void (*disable)(struct lynx_cursor *);
-	void (*setSize)(struct lynx_cursor *,int,int);
-	void (*setPos)(struct lynx_cursor *,int,int);
-	void (*setColor)(struct lynx_cursor *,u32,u32);
-	void (*setData)(struct lynx_cursor *,u16,const u8*,const u8*);
+	void (*setSize)(struct lynx_cursor *, int, int);
+	void (*setPos)(struct lynx_cursor *, int, int);
+	void (*setColor)(struct lynx_cursor *, u32, u32);
+	void (*setData)(struct lynx_cursor *, u16, const u8*, const u8*);
 };
 
 struct lynxfb_crtc{
-	unsigned char __iomem * vCursor;//virtual address of cursor
-	unsigned char __iomem * vScreen;//virtual address of on_screen
-	int oCursor;//cursor address offset in vidmem
-	int oScreen;//onscreen address offset in vidmem
+	unsigned char __iomem *vCursor; /* virtual address of cursor */
+	unsigned char __iomem *vScreen; /* virtual address of on_screen */
+	int oCursor; /* cursor address offset in vidmem */
+	int oScreen; /* onscreen address offset in vidmem */
 	int channel;/* which channel this crtc stands for*/
 	resource_size_t vidmem_size;/* this view's video memory max size */
 
@@ -110,14 +106,14 @@ struct lynxfb_crtc{
 	u16 ypanstep;
 	u16 ywrapstep;
 
-	void * priv;
+	void *priv;
 
 	int(*proc_setMode)(struct lynxfb_crtc*,
 						struct fb_var_screeninfo*,
 						struct fb_fix_screeninfo*);
 
-	int(*proc_checkMode)(struct lynxfb_crtc*,struct fb_var_screeninfo*);
-	int(*proc_setColReg)(struct lynxfb_crtc*,ushort,ushort,ushort,ushort);
+	int(*proc_checkMode)(struct lynxfb_crtc*, struct fb_var_screeninfo*);
+	int(*proc_setColReg)(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
 	void (*clear)(struct lynxfb_crtc*);
         /* pan display */
 	int (*proc_panDisplay)(struct lynxfb_crtc *,
@@ -136,20 +132,20 @@ struct lynxfb_output{
 		paths=3:means output for both panel and crt paths
 	*/
 
-	int * channel;
+	int *channel;
 	/* 	which channel these outputs linked with,for sm750:
 		*channel=0 means primary channel
 		*channel=1 means secondary channel
 		output->channel ==> &crtc->channel
 	*/
-	void * priv;
+	void *priv;
 
 	int(*proc_setMode)(struct lynxfb_output*,
 						struct fb_var_screeninfo*,
 						struct fb_fix_screeninfo*);
 
-	int(*proc_checkMode)(struct lynxfb_output*,struct fb_var_screeninfo*);
-	int(*proc_setBLANK)(struct lynxfb_output*,int);
+	int(*proc_checkMode)(struct lynxfb_output*, struct fb_var_screeninfo*);
+	int(*proc_setBLANK)(struct lynxfb_output*, int);
 	void  (*clear)(struct lynxfb_output*);
 };
 
@@ -159,8 +155,8 @@ struct lynxfb_par{
 	unsigned int pseudo_palette[256];
 	struct lynxfb_crtc crtc;
 	struct lynxfb_output output;
-	struct fb_info * info;
-	struct lynx_share * share;
+	struct fb_info *info;
+	struct lynx_share *share;
 };
 
 #ifndef offsetof
@@ -171,7 +167,7 @@ struct lynxfb_par{
 #define PS_TO_HZ(ps)	\
 			({ 	\
 			unsigned long long hz = 1000*1000*1000*1000ULL;	\
-			do_div(hz,ps);	\
+			do_div(hz, ps);	\
 			(unsigned long)hz;})
 
 static inline unsigned long ps_to_hz(unsigned int psvalue)

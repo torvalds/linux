@@ -326,8 +326,8 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 			goto out_put_request;
 	}
 
-	ret = -EFAULT;
-	if (blk_fill_sghdr_rq(q, rq, hdr, mode))
+	ret = blk_fill_sghdr_rq(q, rq, hdr, mode);
+	if (ret < 0)
 		goto out_free_cdb;
 
 	ret = 0;

@@ -2659,7 +2659,7 @@ static int db8500_irq_map(struct irq_domain *d, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops db8500_irq_ops = {
+static const struct irq_domain_ops db8500_irq_ops = {
 	.map    = db8500_irq_map,
 	.xlate  = irq_domain_xlate_twocell,
 };

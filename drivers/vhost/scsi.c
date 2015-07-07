@@ -35,9 +35,11 @@
 #include <linux/compat.h>
 #include <linux/eventfd.h>
 #include <linux/fs.h>
+#include <linux/vmalloc.h>
 #include <linux/miscdevice.h>
 #include <asm/unaligned.h>
-#include <scsi/scsi.h>
+#include <scsi/scsi_common.h>
+#include <scsi/scsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>

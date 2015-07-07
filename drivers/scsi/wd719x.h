@@ -2,8 +2,6 @@
 #define _WD719X_H_
 
 #define WD719X_SG 255		/* Scatter/gather size */
-#define WD719X_CMD_PER_LUN 1	/* We should be able to do linked commands, but
-				 * this is 1 for now to be safe. */
 
 struct wd719x_sglist {
 	__le32 ptr;

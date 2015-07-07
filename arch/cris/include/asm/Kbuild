@@ -21,7 +21,6 @@ generic-y += mcs_spinlock.h
 generic-y += module.h
 generic-y += percpu.h
 generic-y += preempt.h
-generic-y += scatterlist.h
 generic-y += sections.h
 generic-y += topology.h
 generic-y += trace_clock.h

@@ -480,17 +480,16 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *);
  */
 int rpcrdma_marshal_req(struct rpc_rqst *);
 
+/* RPC/RDMA module init - xprtrdma/transport.c
+ */
+int xprt_rdma_init(void);
+void xprt_rdma_cleanup(void);
+
 /* Temporary NFS request map cache. Created in svc_rdma.c  */
 extern struct kmem_cache *svc_rdma_map_cachep;
 /* WR context cache. Created in svc_rdma.c  */
 extern struct kmem_cache *svc_rdma_ctxt_cachep;
 /* Workqueue created in svc_rdma.c */
 extern struct workqueue_struct *svc_rdma_wq;
-
-#if RPCSVC_MAXPAYLOAD < (RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT)
-#define RPCSVC_MAXPAYLOAD_RDMA RPCSVC_MAXPAYLOAD
-#else
-#define RPCSVC_MAXPAYLOAD_RDMA (RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT)
-#endif
 
 #endif				/* _LINUX_SUNRPC_XPRT_RDMA_H */

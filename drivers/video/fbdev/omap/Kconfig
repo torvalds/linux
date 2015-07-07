@@ -42,7 +42,7 @@ config FB_OMAP_LCD_MIPID
 config FB_OMAP_LCD_H3
 	bool "TPS65010 LCD controller on OMAP-H3"
 	depends on MACH_OMAP_H3
-	depends on TPS65010
+	depends on TPS65010=y
 	default y
 	help
 	  Say Y here if you want to have support for the LCD on the

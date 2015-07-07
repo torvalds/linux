@@ -320,7 +320,7 @@ static int ar2315_pci_host_setup(struct ar2315_pci_ctrl *apc)
 
 static void ar2315_pci_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct ar2315_pci_ctrl *apc = irq_get_handler_data(irq);
+	struct ar2315_pci_ctrl *apc = irq_desc_get_handler_data(desc);
 	u32 pending = ar2315_pci_reg_read(apc, AR2315_PCI_ISR) &
 		      ar2315_pci_reg_read(apc, AR2315_PCI_IMR);
 	unsigned pci_irq = 0;

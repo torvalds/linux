@@ -42,9 +42,9 @@
 #include <linux/i2c/i2c-hid.h>
 
 /* flags */
-#define I2C_HID_STARTED		(1 << 0)
-#define I2C_HID_RESET_PENDING	(1 << 1)
-#define I2C_HID_READ_PENDING	(1 << 2)
+#define I2C_HID_STARTED		0
+#define I2C_HID_RESET_PENDING	1
+#define I2C_HID_READ_PENDING	2
 
 #define I2C_HID_PWR_ON		0x00
 #define I2C_HID_PWR_SLEEP	0x01
@@ -1019,7 +1019,6 @@ static int i2c_hid_probe(struct i2c_client *client,
 	hid->driver_data = client;
 	hid->ll_driver = &i2c_hid_ll_driver;
 	hid->dev.parent = &client->dev;
-	ACPI_COMPANION_SET(&hid->dev, ACPI_COMPANION(&client->dev));
 	hid->bus = BUS_I2C;
 	hid->version = le16_to_cpu(ihid->hdesc.bcdVersion);
 	hid->vendor = le16_to_cpu(ihid->hdesc.wVendorID);
