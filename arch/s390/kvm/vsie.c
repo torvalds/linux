@@ -844,6 +844,11 @@ static void register_shadow_scb(struct kvm_vcpu *vcpu,
 				struct vsie_page *vsie_page)
 {
 	WRITE_ONCE(vcpu->arch.vsie_block, &vsie_page->scb_s);
+	/*
+	 * External calls have to lead to a kick of the vcpu and
+	 * therefore the vsie -> Simulate Wait state.
+	 */
+	atomic_or(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
 }
 
 /*
@@ -851,6 +856,7 @@ static void register_shadow_scb(struct kvm_vcpu *vcpu,
  */
 static void unregister_shadow_scb(struct kvm_vcpu *vcpu)
 {
+	atomic_andnot(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
 	WRITE_ONCE(vcpu->arch.vsie_block, NULL);
 }
 
