@@ -471,6 +471,8 @@ const char *intel_no_fbc_reason_str(enum no_fbc_reason reason)
 		return "disabled per chip default";
 	case FBC_ROTATION:
 		return "rotation unsupported";
+	case FBC_IN_DBG_MASTER:
+		return "Kernel debugger is active";
 	default:
 		MISSING_CASE(reason);
 		return "unknown reason";
@@ -755,8 +757,10 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	}
 
 	/* If the kernel debugger is active, always disable compression */
-	if (in_dbg_master())
+	if (in_dbg_master()) {
+		set_no_fbc_reason(dev_priv, FBC_IN_DBG_MASTER);
 		goto out_disable;
+	}
 
 	if (intel_fbc_setup_cfb(dev_priv, obj->base.size,
 				drm_format_plane_cpp(fb->pixel_format, 0))) {

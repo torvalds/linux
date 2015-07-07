@@ -935,6 +935,7 @@ struct i915_fbc {
 		FBC_MODULE_PARAM,
 		FBC_CHIP_DEFAULT, /* disabled by default on this chip */
 		FBC_ROTATION, /* rotation is not supported */
+		FBC_IN_DBG_MASTER, /* kernel debugger is active */
 	} no_fbc_reason;
 
 	bool (*fbc_enabled)(struct drm_i915_private *dev_priv);
