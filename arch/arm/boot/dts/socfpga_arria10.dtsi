@@ -614,6 +614,19 @@
 			status = "disabled";
 		};
 
+		nand: nand@ffb90000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "denali,denali-nand-dt", "altr,socfpga-denali-nand";
+			reg = <0xffb90000 0x72000>,
+			      <0xffb80000 0x10000>;
+			reg-names = "nand_data", "denali_reg";
+			interrupts = <0 99 4>;
+			dma-mask = <0xffffffff>;
+			clocks = <&nand_clk>;
+			status = "disabled";
+		};
+
 		ocram: sram@ffe00000 {
 			compatible = "mmio-sram";
 			reg = <0xffe00000 0x40000>;
