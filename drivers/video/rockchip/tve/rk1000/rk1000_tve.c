@@ -56,14 +56,14 @@ int rk1000_control_write_block(u8 reg, u8 *buf, u8 len)
 
 static int __init bootloader_rk1000_setup(char *str)
 {
-	static int ret;
-
 	if (str) {
 		pr_info("cvbs init tve.format is %s\n", str);
-		ret = sscanf(str, "%d", &cvbsformat);
+		if (kstrtoint(str, 0, &cvbsformat) < 0)
+			cvbsformat = -1;
 	}
 	return 0;
 }
+
 early_param("tve.format", bootloader_rk1000_setup);
 
 int rk1000_switch_fb(const struct fb_videomode *modedb, int tv_mode)
@@ -214,18 +214,18 @@ static void rk1000_early_suspend(void *h)
 {
 	pr_info("rk1000_early_suspend\n");
 	if (rk1000_tve.ypbpr) {
-		if (!rk1000_tve.ypbpr->suspend)
-			rk1000_tve.ypbpr->suspend = 1;
 		if (rk1000_tve.ypbpr->enable)
 			rk1000_tve.ypbpr->ddev->ops->setenable(
 			rk1000_tve.ypbpr->ddev, 0);
+		if (!rk1000_tve.ypbpr->suspend)
+			rk1000_tve.ypbpr->suspend = 1;
 	}
 	if (rk1000_tve.cvbs) {
-		if (!rk1000_tve.cvbs->suspend)
-			rk1000_tve.cvbs->suspend = 1;
 		if (rk1000_tve.cvbs->enable)
 			rk1000_tve.cvbs->ddev->ops->setenable(
 			rk1000_tve.cvbs->ddev, 0);
+		if (!rk1000_tve.cvbs->suspend)
+			rk1000_tve.cvbs->suspend = 1;
 	}
 }
 
@@ -237,18 +237,16 @@ static void rk1000_early_resume(void *h)
 		if (rk1000_tve.cvbs->suspend)
 			rk1000_tve.cvbs->suspend = 0;
 		if (rk1000_tve.mode < TVOUT_YPBPR_720X480P_60) {
-			if (rk1000_tve.cvbs->enable)
-				rk_display_device_enable(
-				(rk1000_tve.cvbs)->ddev);
+			rk_display_device_enable(
+			(rk1000_tve.cvbs)->ddev);
 		}
 	}
 	if (rk1000_tve.ypbpr) {
 		if (rk1000_tve.ypbpr->suspend)
 			rk1000_tve.ypbpr->suspend = 0;
 		if (rk1000_tve.mode > TVOUT_CVBS_PAL) {
-			if (rk1000_tve.ypbpr->enable)
-				rk_display_device_enable(
-				(rk1000_tve.ypbpr)->ddev);
+			rk_display_device_enable(
+			(rk1000_tve.ypbpr)->ddev);
 		}
 	}
 }
