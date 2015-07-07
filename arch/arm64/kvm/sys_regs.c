@@ -38,6 +38,8 @@
 
 #include "sys_regs.h"
 
+#include "trace.h"
+
 /*
  * All of this file is extremly similar to the ARM coproc.c, but the
  * types are different. My gut feeling is that it should be pretty
@@ -208,6 +210,8 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 		*vcpu_reg(vcpu, p->Rt) = vcpu_sys_reg(vcpu, r->reg);
 	}
 
+	trace_trap_reg(__func__, r->reg, p->is_write, *vcpu_reg(vcpu, p->Rt));
+
 	return true;
 }
 
@@ -258,6 +262,8 @@ static inline bool trap_bvr(struct kvm_vcpu *vcpu,
 	else
 		dbg_to_reg(vcpu, p, dbg_reg);
 
+	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
+
 	return true;
 }
 
@@ -297,6 +303,8 @@ static inline bool trap_bcr(struct kvm_vcpu *vcpu,
 		reg_to_dbg(vcpu, p, dbg_reg);
 	else
 		dbg_to_reg(vcpu, p, dbg_reg);
+
+	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
 
 	return true;
 }
@@ -339,6 +347,9 @@ static inline bool trap_wvr(struct kvm_vcpu *vcpu,
 	else
 		dbg_to_reg(vcpu, p, dbg_reg);
 
+	trace_trap_reg(__func__, rd->reg, p->is_write,
+		vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg]);
+
 	return true;
 }
 
@@ -378,6 +389,8 @@ static inline bool trap_wcr(struct kvm_vcpu *vcpu,
 		reg_to_dbg(vcpu, p, dbg_reg);
 	else
 		dbg_to_reg(vcpu, p, dbg_reg);
+
+	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
 
 	return true;
 }
@@ -741,6 +754,8 @@ static inline bool trap_xvr(struct kvm_vcpu *vcpu,
 	} else {
 		*vcpu_reg(vcpu, p->Rt) = *dbg_reg >> 32;
 	}
+
+	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
 
 	return true;
 }
@@ -1222,6 +1237,8 @@ int kvm_handle_sys_reg(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	struct sys_reg_params params;
 	unsigned long esr = kvm_vcpu_get_hsr(vcpu);
+
+	trace_kvm_handle_sys_reg(esr);
 
 	params.is_aarch32 = false;
 	params.is_32bit = false;

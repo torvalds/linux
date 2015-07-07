@@ -32,6 +32,8 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>
 
+#include "trace.h"
+
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
@@ -350,6 +352,8 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *dbg)
 {
+	trace_kvm_set_guest_debug(vcpu, dbg->control);
+
 	if (dbg->control & ~KVM_GUESTDBG_VALID_MASK)
 		return -EINVAL;
 
