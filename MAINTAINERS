@@ -10577,7 +10577,7 @@ L:	linux-s390@vger.kernel.org
 L:	virtualization@lists.linux-foundation.org
 L:	kvm@vger.kernel.org
 S:	Supported
-F:	drivers/s390/kvm/
+F:	drivers/s390/virtio/
 
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
