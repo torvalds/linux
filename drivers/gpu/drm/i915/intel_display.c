@@ -1026,7 +1026,7 @@ static bool pipe_dsl_stopped(struct drm_device *dev, enum pipe pipe)
 		line_mask = DSL_LINEMASK_GEN3;
 
 	line1 = I915_READ(reg) & line_mask;
-	mdelay(5);
+	msleep(5);
 	line2 = I915_READ(reg) & line_mask;
 
 	return line1 == line2;

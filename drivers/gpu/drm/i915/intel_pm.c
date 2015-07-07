@@ -4255,7 +4255,7 @@ static void ironlake_enable_drps(struct drm_device *dev)
 
 	if (wait_for_atomic((I915_READ(MEMSWCTL) & MEMCTL_CMD_STS) == 0, 10))
 		DRM_ERROR("stuck trying to change perf mode\n");
-	mdelay(1);
+	msleep(1);
 
 	ironlake_set_drps(dev, fstart);
 
@@ -4286,10 +4286,10 @@ static void ironlake_disable_drps(struct drm_device *dev)
 
 	/* Go back to the starting frequency */
 	ironlake_set_drps(dev, dev_priv->ips.fstart);
-	mdelay(1);
+	msleep(1);
 	rgvswctl |= MEMCTL_CMD_STS;
 	I915_WRITE(MEMSWCTL, rgvswctl);
-	mdelay(1);
+	msleep(1);
 
 	spin_unlock_irq(&mchdev_lock);
 }
