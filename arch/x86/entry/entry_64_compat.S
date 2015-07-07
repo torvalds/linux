@@ -22,8 +22,8 @@
 #define __AUDIT_ARCH_LE		0x40000000
 
 #ifndef CONFIG_AUDITSYSCALL
-# define sysexit_audit		ia32_ret_from_sys_call
-# define sysretl_audit		ia32_ret_from_sys_call
+# define sysexit_audit		ia32_ret_from_sys_call_irqs_off
+# define sysretl_audit		ia32_ret_from_sys_call_irqs_off
 #endif
 
 	.section .entry.text, "ax"
@@ -465,6 +465,10 @@ ia32_badarg:
 
 	/* And exit again. */
 	jmp retint_user
+
+ia32_ret_from_sys_call_irqs_off:
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_NONE)
 
 ia32_ret_from_sys_call:
 	xorl	%eax, %eax		/* Do not leak kernel information */
