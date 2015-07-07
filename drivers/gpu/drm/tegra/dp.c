@@ -40,6 +40,8 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
 	link->max_lanes = 0;
 
 	drm_dp_link_caps_reset(&link->caps);
+	link->aux_rd_interval.cr = 0;
+	link->aux_rd_interval.ce = 0;
 	link->edp = 0;
 
 	link->rate = 0;
@@ -60,6 +62,7 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
 int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 {
 	u8 dpcd[DP_RECEIVER_CAP_SIZE], value;
+	unsigned int rd_interval;
 	int err;
 
 	drm_dp_link_reset(link);
@@ -89,6 +92,34 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 		else
 			link->edp = drm_dp_edp_revisions[value];
 	}
+
+	/*
+	 * The DPCD stores the AUX read interval in units of 4 ms. There are
+	 * two special cases:
+	 *
+	 *   1) if the TRAINING_AUX_RD_INTERVAL field is 0, the clock recovery
+	 *      and channel equalization should use 100 us or 400 us AUX read
+	 *      intervals, respectively
+	 *
+	 *   2) for DP v1.4 and above, clock recovery should always use 100 us
+	 *      AUX read intervals
+	 */
+	rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+			   DP_TRAINING_AUX_RD_MASK;
+
+	if (rd_interval > 4) {
+		DRM_DEBUG_KMS("AUX interval %u out of range (max. 4)\n",
+			      rd_interval);
+		rd_interval = 4;
+	}
+
+	rd_interval *= 4 * USEC_PER_MSEC;
+
+	if (rd_interval == 0 || link->revision >= DP_DPCD_REV_14)
+		link->aux_rd_interval.cr = 100;
+
+	if (rd_interval == 0)
+		link->aux_rd_interval.ce = 400;
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;
