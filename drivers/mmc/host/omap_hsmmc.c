@@ -394,12 +394,6 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	return 0;
 }
 
-static void omap_hsmmc_reg_put(struct omap_hsmmc_host *host)
-{
-	if (mmc_pdata(host)->set_power)
-		return;
-}
-
 static inline int omap_hsmmc_have_reg(void)
 {
 	return 1;
@@ -415,10 +409,6 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 static inline int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 {
 	return -EINVAL;
-}
-
-static inline void omap_hsmmc_reg_put(struct omap_hsmmc_host *host)
-{
 }
 
 static inline int omap_hsmmc_have_reg(void)
@@ -2134,7 +2124,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 err_slot_name:
 	mmc_remove_host(mmc);
-	omap_hsmmc_reg_put(host);
 err_irq:
 	device_init_wakeup(&pdev->dev, false);
 	if (host->tx_chan)
@@ -2158,7 +2147,6 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(host->dev);
 	mmc_remove_host(host->mmc);
-	omap_hsmmc_reg_put(host);
 
 	if (host->tx_chan)
 		dma_release_channel(host->tx_chan);
