@@ -265,8 +265,22 @@ static bool tick_do_broadcast(struct cpumask *mask)
 	 * Check, if the current cpu is in the mask
 	 */
 	if (cpumask_test_cpu(cpu, mask)) {
+		struct clock_event_device *bc = tick_broadcast_device.evtdev;
+
 		cpumask_clear_cpu(cpu, mask);
-		local = true;
+		/*
+		 * We only run the local handler, if the broadcast
+		 * device is not hrtimer based. Otherwise we run into
+		 * a hrtimer recursion.
+		 *
+		 * local timer_interrupt()
+		 *   local_handler()
+		 *     expire_hrtimers()
+		 *       bc_handler()
+		 *         local_handler()
+		 *	     expire_hrtimers()
+		 */
+		local = !(bc->features & CLOCK_EVT_FEAT_HRTIMER);
 	}
 
 	if (!cpumask_empty(mask)) {
