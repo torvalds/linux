@@ -56,12 +56,8 @@ static unsigned long at91sam9x5_clk_usb_recalc_rate(struct clk_hw *hw,
 	return DIV_ROUND_CLOSEST(parent_rate, (usbdiv + 1));
 }
 
-static long at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
-					      unsigned long rate,
-					      unsigned long min_rate,
-					      unsigned long max_rate,
-					      unsigned long *best_parent_rate,
-					      struct clk_hw **best_parent_hw)
+static int at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
+					     struct clk_rate_request *req)
 {
 	struct clk *parent = NULL;
 	long best_rate = -EINVAL;
@@ -80,23 +76,23 @@ static long at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
 		for (div = 1; div < SAM9X5_USB_MAX_DIV + 2; div++) {
 			unsigned long tmp_parent_rate;
 
-			tmp_parent_rate = rate * div;
+			tmp_parent_rate = req->rate * div;
 			tmp_parent_rate = __clk_round_rate(parent,
 							   tmp_parent_rate);
 			tmp_rate = DIV_ROUND_CLOSEST(tmp_parent_rate, div);
-			if (tmp_rate < rate)
-				tmp_diff = rate - tmp_rate;
+			if (tmp_rate < req->rate)
+				tmp_diff = req->rate - tmp_rate;
 			else
-				tmp_diff = tmp_rate - rate;
+				tmp_diff = tmp_rate - req->rate;
 
 			if (best_diff < 0 || best_diff > tmp_diff) {
 				best_rate = tmp_rate;
 				best_diff = tmp_diff;
-				*best_parent_rate = tmp_parent_rate;
-				*best_parent_hw = __clk_get_hw(parent);
+				req->best_parent_rate = tmp_parent_rate;
+				req->best_parent_hw = __clk_get_hw(parent);
 			}
 
-			if (!best_diff || tmp_rate < rate)
+			if (!best_diff || tmp_rate < req->rate)
 				break;
 		}
 
@@ -104,7 +100,11 @@ static long at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
 			break;
 	}
 
-	return best_rate;
+	if (best_rate < 0)
+		return best_rate;
+
+	req->rate = best_rate;
+	return 0;
 }
 
 static int at91sam9x5_clk_usb_set_parent(struct clk_hw *hw, u8 index)

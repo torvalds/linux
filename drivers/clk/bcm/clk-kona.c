@@ -1017,10 +1017,8 @@ static long kona_peri_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 				rate ? rate : 1, *parent_rate, NULL);
 }
 
-static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long min_rate,
-		unsigned long max_rate,
-		unsigned long *best_parent_rate, struct clk_hw **best_parent)
+static int kona_peri_clk_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
 	struct clk *clk = hw->clk;
@@ -1029,6 +1027,7 @@ static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long best_delta;
 	unsigned long best_rate;
 	u32 parent_count;
+	long rate;
 	u32 which;
 
 	/*
@@ -1037,14 +1036,21 @@ static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
 	 */
 	WARN_ON_ONCE(bcm_clk->init_data.flags & CLK_SET_RATE_NO_REPARENT);
 	parent_count = (u32)bcm_clk->init_data.num_parents;
-	if (parent_count < 2)
-		return kona_peri_clk_round_rate(hw, rate, best_parent_rate);
+	if (parent_count < 2) {
+		rate = kona_peri_clk_round_rate(hw, req->rate,
+						&req->best_parent_rate);
+		if (rate < 0)
+			return rate;
+
+		req->rate = rate;
+		return 0;
+	}
 
 	/* Unless we can do better, stick with current parent */
 	current_parent = clk_get_parent(clk);
 	parent_rate = __clk_get_rate(current_parent);
-	best_rate = kona_peri_clk_round_rate(hw, rate, &parent_rate);
-	best_delta = abs(best_rate - rate);
+	best_rate = kona_peri_clk_round_rate(hw, req->rate, &parent_rate);
+	best_delta = abs(best_rate - req->rate);
 
 	/* Check whether any other parent clock can produce a better result */
 	for (which = 0; which < parent_count; which++) {
@@ -1058,17 +1064,19 @@ static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
 
 		/* We don't support CLK_SET_RATE_PARENT */
 		parent_rate = __clk_get_rate(parent);
-		other_rate = kona_peri_clk_round_rate(hw, rate, &parent_rate);
-		delta = abs(other_rate - rate);
+		other_rate = kona_peri_clk_round_rate(hw, req->rate,
+						      &parent_rate);
+		delta = abs(other_rate - req->rate);
 		if (delta < best_delta) {
 			best_delta = delta;
 			best_rate = other_rate;
-			*best_parent = __clk_get_hw(parent);
-			*best_parent_rate = parent_rate;
+			req->best_parent_hw = __clk_get_hw(parent);
+			req->best_parent_rate = parent_rate;
 		}
 	}
 
-	return best_rate;
+	req->rate = best_rate;
+	return 0;
 }
 
 static int kona_peri_clk_set_parent(struct clk_hw *hw, u8 index)

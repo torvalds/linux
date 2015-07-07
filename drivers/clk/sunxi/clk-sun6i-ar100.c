@@ -44,17 +44,14 @@ static unsigned long ar100_recalc_rate(struct clk_hw *hw,
 	return (parent_rate >> shift) / (div + 1);
 }
 
-static long ar100_determine_rate(struct clk_hw *hw, unsigned long rate,
-				 unsigned long min_rate,
-				 unsigned long max_rate,
-				 unsigned long *best_parent_rate,
-				 struct clk_hw **best_parent_clk)
+static int ar100_determine_rate(struct clk_hw *hw,
+				struct clk_rate_request *req)
 {
 	int nparents = __clk_get_num_parents(hw->clk);
 	long best_rate = -EINVAL;
 	int i;
 
-	*best_parent_clk = NULL;
+	req->best_parent_hw = NULL;
 
 	for (i = 0; i < nparents; i++) {
 		unsigned long parent_rate;
@@ -65,7 +62,7 @@ static long ar100_determine_rate(struct clk_hw *hw, unsigned long rate,
 
 		parent = clk_get_parent_by_index(hw->clk, i);
 		parent_rate = __clk_get_rate(parent);
-		div = DIV_ROUND_UP(parent_rate, rate);
+		div = DIV_ROUND_UP(parent_rate, req->rate);
 
 		/*
 		 * The AR100 clk contains 2 divisors:
@@ -101,14 +98,16 @@ static long ar100_determine_rate(struct clk_hw *hw, unsigned long rate,
 			continue;
 
 		tmp_rate = (parent_rate >> shift) / div;
-		if (!*best_parent_clk || tmp_rate > best_rate) {
-			*best_parent_clk = __clk_get_hw(parent);
-			*best_parent_rate = parent_rate;
+		if (!req->best_parent_hw || tmp_rate > best_rate) {
+			req->best_parent_hw = __clk_get_hw(parent);
+			req->best_parent_rate = parent_rate;
 			best_rate = tmp_rate;
 		}
 	}
 
-	return best_rate;
+	req->rate = best_rate;
+
+	return 0;
 }
 
 static int ar100_set_parent(struct clk_hw *hw, u8 index)

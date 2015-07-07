@@ -389,10 +389,9 @@ static long alchemy_calc_div(unsigned long rate, unsigned long prate,
 	return div1;
 }
 
-static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk,
-					int scale, int maxdiv)
+static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
+				 struct clk_rate_request *req,
+				 int scale, int maxdiv)
 {
 	struct clk *pc, *bpc, *free;
 	long tdv, tpr, pr, nr, br, bpr, diff, lastdiff;
@@ -422,14 +421,14 @@ static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
 		}
 
 		pr = clk_get_rate(pc);
-		if (pr < rate)
+		if (pr < req->rate)
 			continue;
 
 		/* what can hardware actually provide */
-		tdv = alchemy_calc_div(rate, pr, scale, maxdiv, NULL);
+		tdv = alchemy_calc_div(req->rate, pr, scale, maxdiv, NULL);
 		nr = pr / tdv;
-		diff = rate - nr;
-		if (nr > rate)
+		diff = req->rate - nr;
+		if (nr > req->rate)
 			continue;
 
 		if (diff < lastdiff) {
@@ -448,15 +447,16 @@ static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
 	 */
 	if (lastdiff && free) {
 		for (j = (maxdiv == 4) ? 1 : scale; j <= maxdiv; j += scale) {
-			tpr = rate * j;
+			tpr = req->rate * j;
 			if (tpr < 0)
 				break;
 			pr = clk_round_rate(free, tpr);
 
-			tdv = alchemy_calc_div(rate, pr, scale, maxdiv, NULL);
+			tdv = alchemy_calc_div(req->rate, pr, scale, maxdiv,
+					       NULL);
 			nr = pr / tdv;
-			diff = rate - nr;
-			if (nr > rate)
+			diff = req->rate - nr;
+			if (nr > req->rate)
 				continue;
 			if (diff < lastdiff) {
 				lastdiff = diff;
@@ -469,9 +469,10 @@ static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
 		}
 	}
 
-	*best_parent_rate = bpr;
-	*best_parent_clk = __clk_get_hw(bpc);
-	return br;
+	req->best_parent_rate = bpr;
+	req->best_parent_hw = __clk_get_hw(bpc);
+	req->rate = br;
+	return 0;
 }
 
 static int alchemy_clk_fgv1_en(struct clk_hw *hw)
@@ -562,14 +563,10 @@ static unsigned long alchemy_clk_fgv1_recalc(struct clk_hw *hw,
 	return parent_rate / v;
 }
 
-static long alchemy_clk_fgv1_detr(struct clk_hw *hw, unsigned long rate,
-					unsigned long min_rate,
-					unsigned long max_rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk)
+static int alchemy_clk_fgv1_detr(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
-	return alchemy_clk_fgcs_detr(hw, rate, best_parent_rate,
-				     best_parent_clk, 2, 512);
+	return alchemy_clk_fgcs_detr(hw, req, 2, 512);
 }
 
 /* Au1000, Au1100, Au15x0, Au12x0 */
@@ -696,11 +693,8 @@ static unsigned long alchemy_clk_fgv2_recalc(struct clk_hw *hw,
 	return t;
 }
 
-static long alchemy_clk_fgv2_detr(struct clk_hw *hw, unsigned long rate,
-					unsigned long min_rate,
-					unsigned long max_rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk)
+static int alchemy_clk_fgv2_detr(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
 	struct alchemy_fgcs_clk *c = to_fgcs_clk(hw);
 	int scale, maxdiv;
@@ -713,8 +707,7 @@ static long alchemy_clk_fgv2_detr(struct clk_hw *hw, unsigned long rate,
 		maxdiv = 512;
 	}
 
-	return alchemy_clk_fgcs_detr(hw, rate, best_parent_rate,
-				     best_parent_clk, scale, maxdiv);
+	return alchemy_clk_fgcs_detr(hw, req, scale, maxdiv);
 }
 
 /* Au1300 larger input mux, no separate disable bit, flexible divider */
@@ -917,17 +910,13 @@ static int alchemy_clk_csrc_setr(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static long alchemy_clk_csrc_detr(struct clk_hw *hw, unsigned long rate,
-					unsigned long min_rate,
-					unsigned long max_rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk)
+static int alchemy_clk_csrc_detr(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
 	struct alchemy_fgcs_clk *c = to_fgcs_clk(hw);
 	int scale = c->dt[2] == 3 ? 1 : 2; /* au1300 check */
 
-	return alchemy_clk_fgcs_detr(hw, rate, best_parent_rate,
-				     best_parent_clk, scale, 4);
+	return alchemy_clk_fgcs_detr(hw, req, scale, 4);
 }
 
 static struct clk_ops alchemy_clkops_csrc = {
