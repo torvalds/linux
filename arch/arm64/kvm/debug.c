@@ -19,9 +19,37 @@
 
 #include <linux/kvm_host.h>
 
+#include <asm/debug-monitors.h>
+#include <asm/kvm_asm.h>
 #include <asm/kvm_arm.h>
+#include <asm/kvm_emulate.h>
+
+/* These are the bits of MDSCR_EL1 we may manipulate */
+#define MDSCR_EL1_DEBUG_MASK	(DBG_MDSCR_SS | \
+				DBG_MDSCR_KDE | \
+				DBG_MDSCR_MDE)
 
 static DEFINE_PER_CPU(u32, mdcr_el2);
+
+/**
+ * save/restore_guest_debug_regs
+ *
+ * For some debug operations we need to tweak some guest registers. As
+ * a result we need to save the state of those registers before we
+ * make those modifications.
+ *
+ * Guest access to MDSCR_EL1 is trapped by the hypervisor and handled
+ * after we have restored the preserved value to the main context.
+ */
+static void save_guest_debug_regs(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.guest_debug_preserved.mdscr_el1 = vcpu_sys_reg(vcpu, MDSCR_EL1);
+}
+
+static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
+{
+	vcpu_sys_reg(vcpu, MDSCR_EL1) = vcpu->arch.guest_debug_preserved.mdscr_el1;
+}
 
 /**
  * kvm_arm_init_debug - grab what we need for debug
@@ -37,7 +65,6 @@ void kvm_arm_init_debug(void)
 {
 	__this_cpu_write(mdcr_el2, kvm_call_hyp(__kvm_get_mdcr_el2));
 }
-
 
 /**
  * kvm_arm_setup_debug - set up debug related stuff
@@ -73,12 +100,45 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 	if (trap_debug)
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
 
-	/* Trap breakpoints? */
-	if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+	/* Is Guest debugging in effect? */
+	if (vcpu->guest_debug) {
+		/* Route all software debug exceptions to EL2 */
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDE;
+
+		/* Save guest debug state */
+		save_guest_debug_regs(vcpu);
+
+		/*
+		 * Single Step (ARM ARM D2.12.3 The software step state
+		 * machine)
+		 *
+		 * If we are doing Single Step we need to manipulate
+		 * the guest's MDSCR_EL1.SS and PSTATE.SS. Once the
+		 * step has occurred the hypervisor will trap the
+		 * debug exception and we return to userspace.
+		 *
+		 * If the guest attempts to single step its userspace
+		 * we would have to deal with a trapped exception
+		 * while in the guest kernel. Because this would be
+		 * hard to unwind we suppress the guest's ability to
+		 * do so by masking MDSCR_EL.SS.
+		 *
+		 * This confuses guest debuggers which use
+		 * single-step behind the scenes but everything
+		 * returns to normal once the host is no longer
+		 * debugging the system.
+		 */
+		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
+			*vcpu_cpsr(vcpu) |=  DBG_SPSR_SS;
+			vcpu_sys_reg(vcpu, MDSCR_EL1) |= DBG_MDSCR_SS;
+		} else {
+			vcpu_sys_reg(vcpu, MDSCR_EL1) &= ~DBG_MDSCR_SS;
+		}
+	}
 }
 
 void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 {
-	/* Nothing to do yet */
+	if (vcpu->guest_debug)
+		restore_guest_debug_regs(vcpu);
 }

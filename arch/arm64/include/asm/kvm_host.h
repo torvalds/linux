@@ -123,6 +123,17 @@ struct kvm_vcpu_arch {
 	 * here.
 	 */
 
+	/*
+	 * Guest registers we preserve during guest debugging.
+	 *
+	 * These shadow registers are updated by the kvm_handle_sys_reg
+	 * trap handler if the guest accesses or updates them while we
+	 * are using guest debug.
+	 */
+	struct {
+		u32	mdscr_el1;
+	} guest_debug_preserved;
+
 	/* Don't run the guest */
 	bool pause;
 
