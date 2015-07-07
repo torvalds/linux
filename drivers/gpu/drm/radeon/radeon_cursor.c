@@ -205,8 +205,9 @@ static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y)
 			| (x << 16)
 			| y));
 		/* offset is from DISP(2)_BASE_ADDRESS */
-		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, (radeon_crtc->legacy_cursor_offset +
-								      (yorigin * 256)));
+		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset,
+		       radeon_crtc->cursor_addr - radeon_crtc->legacy_display_base_addr +
+		       yorigin * 256);
 	}
 
 	radeon_crtc->cursor_x = x;
@@ -227,51 +228,32 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	return ret;
 }
 
-static int radeon_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj)
+static void radeon_set_cursor(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
-	struct radeon_bo *robj = gem_to_radeon_bo(obj);
-	uint64_t gpu_addr;
-	int ret;
-
-	ret = radeon_bo_reserve(robj, false);
-	if (unlikely(ret != 0))
-		goto fail;
-	/* Only 27 bit offset for legacy cursor */
-	ret = radeon_bo_pin_restricted(robj, RADEON_GEM_DOMAIN_VRAM,
-				       ASIC_IS_AVIVO(rdev) ? 0 : 1 << 27,
-				       &gpu_addr);
-	radeon_bo_unreserve(robj);
-	if (ret)
-		goto fail;
 
 	if (ASIC_IS_DCE4(rdev)) {
 		WREG32(EVERGREEN_CUR_SURFACE_ADDRESS_HIGH + radeon_crtc->crtc_offset,
-		       upper_32_bits(gpu_addr));
+		       upper_32_bits(radeon_crtc->cursor_addr));
 		WREG32(EVERGREEN_CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
-		       gpu_addr & 0xffffffff);
+		       lower_32_bits(radeon_crtc->cursor_addr));
 	} else if (ASIC_IS_AVIVO(rdev)) {
 		if (rdev->family >= CHIP_RV770) {
 			if (radeon_crtc->crtc_id)
-				WREG32(R700_D2CUR_SURFACE_ADDRESS_HIGH, upper_32_bits(gpu_addr));
+				WREG32(R700_D2CUR_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(radeon_crtc->cursor_addr));
 			else
-				WREG32(R700_D1CUR_SURFACE_ADDRESS_HIGH, upper_32_bits(gpu_addr));
+				WREG32(R700_D1CUR_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(radeon_crtc->cursor_addr));
 		}
 		WREG32(AVIVO_D1CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
-		       gpu_addr & 0xffffffff);
+		       lower_32_bits(radeon_crtc->cursor_addr));
 	} else {
-		radeon_crtc->legacy_cursor_offset = gpu_addr - radeon_crtc->legacy_display_base_addr;
 		/* offset is from DISP(2)_BASE_ADDRESS */
-		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, radeon_crtc->legacy_cursor_offset);
+		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset,
+		       radeon_crtc->cursor_addr - radeon_crtc->legacy_display_base_addr);
 	}
-
-	return 0;
-
-fail:
-	drm_gem_object_unreference_unlocked(obj);
-
-	return ret;
 }
 
 int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
@@ -283,7 +265,9 @@ int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
 			    int32_t hot_y)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct radeon_device *rdev = crtc->dev->dev_private;
 	struct drm_gem_object *obj;
+	struct radeon_bo *robj;
 	int ret;
 
 	if (!handle) {
@@ -305,6 +289,23 @@ int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
 		return -ENOENT;
 	}
 
+	robj = gem_to_radeon_bo(obj);
+	ret = radeon_bo_reserve(robj, false);
+	if (ret != 0) {
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
+	}
+	/* Only 27 bit offset for legacy cursor */
+	ret = radeon_bo_pin_restricted(robj, RADEON_GEM_DOMAIN_VRAM,
+				       ASIC_IS_AVIVO(rdev) ? 0 : 1 << 27,
+				       &radeon_crtc->cursor_addr);
+	radeon_bo_unreserve(robj);
+	if (ret) {
+		DRM_ERROR("Failed to pin new cursor BO (%d)\n", ret);
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
+	}
+
 	radeon_crtc->cursor_width = width;
 	radeon_crtc->cursor_height = height;
 
@@ -323,13 +324,8 @@ int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
 		radeon_crtc->cursor_hot_y = hot_y;
 	}
 
-	ret = radeon_set_cursor(crtc, obj);
-
-	if (ret)
-		DRM_ERROR("radeon_set_cursor returned %d, not changing cursor\n",
-			  ret);
-	else
-		radeon_show_cursor(crtc);
+	radeon_set_cursor(crtc);
+	radeon_show_cursor(crtc);
 
 	radeon_lock_cursor(crtc, false);
 
@@ -341,8 +337,7 @@ unpin:
 			radeon_bo_unpin(robj);
 			radeon_bo_unreserve(robj);
 		}
-		if (radeon_crtc->cursor_bo != obj)
-			drm_gem_object_unreference_unlocked(radeon_crtc->cursor_bo);
+		drm_gem_object_unreference_unlocked(radeon_crtc->cursor_bo);
 	}
 
 	radeon_crtc->cursor_bo = obj;
@@ -360,7 +355,6 @@ unpin:
 void radeon_cursor_reset(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int ret;
 
 	if (radeon_crtc->cursor_bo) {
 		radeon_lock_cursor(crtc, true);
@@ -368,12 +362,8 @@ void radeon_cursor_reset(struct drm_crtc *crtc)
 		radeon_cursor_move_locked(crtc, radeon_crtc->cursor_x,
 					  radeon_crtc->cursor_y);
 
-		ret = radeon_set_cursor(crtc, radeon_crtc->cursor_bo);
-		if (ret)
-			DRM_ERROR("radeon_set_cursor returned %d, not showing "
-				  "cursor\n", ret);
-		else
-			radeon_show_cursor(crtc);
+		radeon_set_cursor(crtc);
+		radeon_show_cursor(crtc);
 
 		radeon_lock_cursor(crtc, false);
 	}
