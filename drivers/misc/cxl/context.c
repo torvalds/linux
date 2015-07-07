@@ -113,11 +113,11 @@ static int cxl_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	if (ctx->afu->current_mode == CXL_MODE_DEDICATED) {
 		area = ctx->afu->psn_phys;
-		if (offset > ctx->afu->adapter->ps_size)
+		if (offset >= ctx->afu->adapter->ps_size)
 			return VM_FAULT_SIGBUS;
 	} else {
 		area = ctx->psn_phys;
-		if (offset > ctx->psn_size)
+		if (offset >= ctx->psn_size)
 			return VM_FAULT_SIGBUS;
 	}
 
