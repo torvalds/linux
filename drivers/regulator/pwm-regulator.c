@@ -218,6 +218,7 @@ static int pwm_regulator_init_continuous(struct platform_device *pdev,
 
 static int pwm_regulator_probe(struct platform_device *pdev)
 {
+	const struct regulator_init_data *init_data;
 	struct pwm_regulator_data *drvdata;
 	struct regulator_dev *regulator;
 	struct regulator_config config = { };
@@ -240,14 +241,15 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	config.init_data = of_get_regulator_init_data(&pdev->dev, np,
-						      &pwm_regulator_desc);
-	if (!config.init_data)
+	init_data = of_get_regulator_init_data(&pdev->dev, np,
+					       &pwm_regulator_desc);
+	if (!init_data)
 		return -ENOMEM;
 
 	config.of_node = np;
 	config.dev = &pdev->dev;
 	config.driver_data = drvdata;
+	config.init_data = init_data;
 
 	drvdata->pwm = devm_pwm_get(&pdev->dev, NULL);
 	if (IS_ERR(drvdata->pwm)) {
