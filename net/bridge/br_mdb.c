@@ -374,6 +374,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	if (!p || p->br != br || p->state == BR_STATE_DISABLED)
 		return -EINVAL;
 
+	memset(&ip, 0, sizeof(ip));
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP))
 		ip.u.ip4 = entry->addr.u.ip4;
@@ -420,6 +421,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	if (!netif_running(br->dev) || br->multicast_disabled)
 		return -EINVAL;
 
+	memset(&ip, 0, sizeof(ip));
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP)) {
 		if (timer_pending(&br->ip4_other_query.timer))
