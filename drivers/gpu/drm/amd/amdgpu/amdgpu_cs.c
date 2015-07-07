@@ -817,12 +817,16 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 
 	r = amdgpu_cs_get_ring(adev, wait->in.ip_type, wait->in.ip_instance,
 			       wait->in.ring, &ring);
-	if (r)
+	if (r) {
+		amdgpu_ctx_put(ctx);
 		return r;
+	}
 
 	r = amdgpu_fence_recreate(ring, filp, wait->in.handle, &fence);
-	if (r)
+	if (r) {
+		amdgpu_ctx_put(ctx);
 		return r;
+	}
 
 	r = fence_wait_timeout(&fence->base, true, timeout);
 	amdgpu_fence_unref(&fence);
