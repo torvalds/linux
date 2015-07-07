@@ -4854,6 +4854,9 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 	struct intel_plane *intel_plane;
 	int pipe = intel_crtc->pipe;
 
+	if (!intel_crtc->active)
+		return;
+
 	intel_crtc_wait_for_pending_flips(crtc);
 
 	intel_pre_disable_primary(crtc);
