@@ -834,7 +834,7 @@ static struct crypto_alg algs_ecb_cbc[] = {
 {
 	.cra_name		= "ecb(aes)",
 	.cra_driver_name	= "ecb-aes-omap",
-	.cra_priority		= 100,
+	.cra_priority		= 300,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC,
@@ -856,7 +856,7 @@ static struct crypto_alg algs_ecb_cbc[] = {
 {
 	.cra_name		= "cbc(aes)",
 	.cra_driver_name	= "cbc-aes-omap",
-	.cra_priority		= 100,
+	.cra_priority		= 300,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC,
@@ -882,7 +882,7 @@ static struct crypto_alg algs_ctr[] = {
 {
 	.cra_name		= "ctr(aes)",
 	.cra_driver_name	= "ctr-aes-omap",
-	.cra_priority		= 100,
+	.cra_priority		= 300,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC,
