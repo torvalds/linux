@@ -1188,6 +1188,13 @@ static const struct amdgpu_ip_block_version fiji_ip_blocks[] =
 		.rev = 0,
 		.funcs = &tonga_ih_ip_funcs,
 	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_SMC,
+		.major = 7,
+		.minor = 1,
+		.rev = 0,
+		.funcs = &fiji_dpm_ip_funcs,
+	},
 };
 
 static const struct amdgpu_ip_block_version cz_ip_blocks[] =

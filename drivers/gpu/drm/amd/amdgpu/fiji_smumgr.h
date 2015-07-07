@@ -21,16 +21,22 @@
  *
  */
 
-#ifndef __VI_DPM_H__
-#define __VI_DPM_H__
+#ifndef FIJI_SMUMGR_H
+#define FIJI_SMUMGR_H
 
-extern const struct amd_ip_funcs cz_dpm_ip_funcs;
-int cz_smu_init(struct amdgpu_device *adev);
-int cz_smu_start(struct amdgpu_device *adev);
-int cz_smu_fini(struct amdgpu_device *adev);
+#include "fiji_ppsmc.h"
 
-extern const struct amd_ip_funcs tonga_dpm_ip_funcs;
-extern const struct amd_ip_funcs fiji_dpm_ip_funcs;
-extern const struct amd_ip_funcs iceland_dpm_ip_funcs;
+int fiji_smu_init(struct amdgpu_device *adev);
+int fiji_smu_fini(struct amdgpu_device *adev);
+int fiji_smu_start(struct amdgpu_device *adev);
+
+struct fiji_smu_private_data
+{
+	uint8_t *header;
+	uint32_t smu_buffer_addr_high;
+	uint32_t smu_buffer_addr_low;
+	uint32_t header_addr_high;
+	uint32_t header_addr_low;
+};
 
 #endif
