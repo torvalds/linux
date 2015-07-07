@@ -352,6 +352,7 @@ static struct platform_device *mini2451_devices[] __initdata = {
 	&s3c_device_wdt,
 	&s3c_device_usb_hsudc,
 	&s3c_device_ohci,
+	&s3c_device_rtc,
 	&s3c_device_hsmmc0,
 	&s3c2443_device_dma,
 	&samsung_device_pwm,

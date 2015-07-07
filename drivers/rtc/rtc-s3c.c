@@ -536,10 +536,11 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	/* Check RTC Time */
 	if (s3c_rtc_gettime(&pdev->dev, &rtc_tm)) {
-		rtc_tm.tm_year	= 100;
+		/* Set the default time to 2015/1/1 12:0:0 */
+		rtc_tm.tm_year	= 115;
 		rtc_tm.tm_mon	= 0;
 		rtc_tm.tm_mday	= 1;
-		rtc_tm.tm_hour	= 0;
+		rtc_tm.tm_hour	= 12;
 		rtc_tm.tm_min	= 0;
 		rtc_tm.tm_sec	= 0;
 
