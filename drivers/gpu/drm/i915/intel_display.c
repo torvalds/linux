@@ -3135,7 +3135,7 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (dev_priv->fbc.disable_fbc)
-		dev_priv->fbc.disable_fbc(dev);
+		dev_priv->fbc.disable_fbc(dev_priv);
 
 	dev_priv->display.update_primary_plane(crtc, fb, x, y);
 
@@ -4734,6 +4734,7 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 {
 	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
 	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_plane *plane;
 
 	if (atomic->wait_vblank)
@@ -4748,7 +4749,7 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 		intel_update_watermarks(&crtc->base);
 
 	if (atomic->update_fbc)
-		intel_fbc_update(dev);
+		intel_fbc_update(dev_priv);
 
 	if (atomic->post_enable_primary)
 		intel_post_enable_primary(&crtc->base);
@@ -10688,13 +10689,14 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 		container_of(__work, struct intel_unpin_work, work);
 	struct intel_crtc *crtc = to_intel_crtc(work->crtc);
 	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_plane *primary = crtc->base.primary;
 
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(work->old_fb, primary->state);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
 
-	intel_fbc_update(dev);
+	intel_fbc_update(dev_priv);
 
 	if (work->flip_queued_req)
 		i915_gem_request_assign(&work->flip_queued_req, NULL);
@@ -11469,7 +11471,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			  to_intel_plane(primary)->frontbuffer_bit);
 	mutex_unlock(&dev->struct_mutex);
 
-	intel_fbc_disable(dev);
+	intel_fbc_disable(dev_priv);
 	intel_frontbuffer_flip_prepare(dev,
 				       to_intel_plane(primary)->frontbuffer_bit);
 
@@ -15045,7 +15047,7 @@ void intel_modeset_init(struct drm_device *dev)
 	intel_setup_outputs(dev);
 
 	/* Just in case the BIOS is doing something questionable. */
-	intel_fbc_disable(dev);
+	intel_fbc_disable(dev_priv);
 
 	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(dev, false);
@@ -15599,7 +15601,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_unregister_dsm_handler();
 
-	intel_fbc_disable(dev);
+	intel_fbc_disable(dev_priv);
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();

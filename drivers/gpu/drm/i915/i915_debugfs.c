@@ -1635,7 +1635,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	intel_runtime_pm_get(dev_priv);
 	mutex_lock(&dev_priv->fbc.lock);
 
-	if (intel_fbc_enabled(dev))
+	if (intel_fbc_enabled(dev_priv))
 		seq_puts(m, "FBC enabled\n");
 	else
 		seq_printf(m, "FBC disabled: %s\n",

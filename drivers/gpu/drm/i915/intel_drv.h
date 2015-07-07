@@ -1248,10 +1248,10 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 #endif
 
 /* intel_fbc.c */
-bool intel_fbc_enabled(struct drm_device *dev);
-void intel_fbc_update(struct drm_device *dev);
+bool intel_fbc_enabled(struct drm_i915_private *dev_priv);
+void intel_fbc_update(struct drm_i915_private *dev_priv);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
-void intel_fbc_disable(struct drm_device *dev);
+void intel_fbc_disable(struct drm_i915_private *dev_priv);
 void intel_fbc_disable_crtc(struct intel_crtc *crtc);
 void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned int frontbuffer_bits,
@@ -1259,7 +1259,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		     unsigned int frontbuffer_bits);
 const char *intel_no_fbc_reason_str(enum no_fbc_reason reason);
-void intel_fbc_cleanup_cfb(struct drm_device *dev);
+void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv);
 
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port);

@@ -937,9 +937,9 @@ struct i915_fbc {
 		FBC_ROTATION, /* rotation is not supported */
 	} no_fbc_reason;
 
-	bool (*fbc_enabled)(struct drm_device *dev);
+	bool (*fbc_enabled)(struct drm_i915_private *dev_priv);
 	void (*enable_fbc)(struct drm_crtc *crtc);
-	void (*disable_fbc)(struct drm_device *dev);
+	void (*disable_fbc)(struct drm_i915_private *dev_priv);
 };
 
 /**
