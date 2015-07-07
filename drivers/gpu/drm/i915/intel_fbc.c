@@ -64,12 +64,11 @@ static void i8xx_fbc_disable(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_KMS("disabled FBC\n");
 }
 
-static void i8xx_fbc_enable(struct drm_crtc *crtc)
+static void i8xx_fbc_enable(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
-	struct drm_framebuffer *fb = crtc->primary->fb;
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_framebuffer *fb = crtc->base.primary->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int cfb_pitch;
 	int i;
 	u32 fbc_ctl;
@@ -96,9 +95,9 @@ static void i8xx_fbc_enable(struct drm_crtc *crtc)
 
 		/* Set it up... */
 		fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | FBC_CTL_CPU_FENCE;
-		fbc_ctl2 |= FBC_CTL_PLANE(intel_crtc->plane);
+		fbc_ctl2 |= FBC_CTL_PLANE(crtc->plane);
 		I915_WRITE(FBC_CONTROL2, fbc_ctl2);
-		I915_WRITE(FBC_FENCE_OFF, crtc->y);
+		I915_WRITE(FBC_FENCE_OFF, crtc->base.y);
 	}
 
 	/* enable it... */
@@ -112,7 +111,7 @@ static void i8xx_fbc_enable(struct drm_crtc *crtc)
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
 	DRM_DEBUG_KMS("enabled FBC, pitch %d, yoff %d, plane %c\n",
-		      cfb_pitch, crtc->y, plane_name(intel_crtc->plane));
+		      cfb_pitch, crtc->base.y, plane_name(crtc->plane));
 }
 
 static bool i8xx_fbc_enabled(struct drm_i915_private *dev_priv)
@@ -120,29 +119,28 @@ static bool i8xx_fbc_enabled(struct drm_i915_private *dev_priv)
 	return I915_READ(FBC_CONTROL) & FBC_CTL_EN;
 }
 
-static void g4x_fbc_enable(struct drm_crtc *crtc)
+static void g4x_fbc_enable(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
-	struct drm_framebuffer *fb = crtc->primary->fb;
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_framebuffer *fb = crtc->base.primary->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
 
 	dev_priv->fbc.enabled = true;
 
-	dpfc_ctl = DPFC_CTL_PLANE(intel_crtc->plane) | DPFC_SR_EN;
+	dpfc_ctl = DPFC_CTL_PLANE(crtc->plane) | DPFC_SR_EN;
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
 	else
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
 	dpfc_ctl |= DPFC_CTL_FENCE_EN | obj->fence_reg;
 
-	I915_WRITE(DPFC_FENCE_YOFF, crtc->y);
+	I915_WRITE(DPFC_FENCE_YOFF, crtc->base.y);
 
 	/* enable it... */
 	I915_WRITE(DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
-	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(intel_crtc->plane));
+	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(crtc->plane));
 }
 
 static void g4x_fbc_disable(struct drm_i915_private *dev_priv)
@@ -172,18 +170,17 @@ static void intel_fbc_nuke(struct drm_i915_private *dev_priv)
 	POSTING_READ(MSG_FBC_REND_STATE);
 }
 
-static void ilk_fbc_enable(struct drm_crtc *crtc)
+static void ilk_fbc_enable(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
-	struct drm_framebuffer *fb = crtc->primary->fb;
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_framebuffer *fb = crtc->base.primary->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
 	int threshold = dev_priv->fbc.threshold;
 
 	dev_priv->fbc.enabled = true;
 
-	dpfc_ctl = DPFC_CTL_PLANE(intel_crtc->plane);
+	dpfc_ctl = DPFC_CTL_PLANE(crtc->plane);
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
 		threshold++;
 
@@ -203,7 +200,7 @@ static void ilk_fbc_enable(struct drm_crtc *crtc)
 	if (IS_GEN5(dev_priv))
 		dpfc_ctl |= obj->fence_reg;
 
-	I915_WRITE(ILK_DPFC_FENCE_YOFF, crtc->y);
+	I915_WRITE(ILK_DPFC_FENCE_YOFF, crtc->base.y);
 	I915_WRITE(ILK_FBC_RT_BASE, i915_gem_obj_ggtt_offset(obj) | ILK_FBC_RT_VALID);
 	/* enable it... */
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
@@ -211,12 +208,12 @@ static void ilk_fbc_enable(struct drm_crtc *crtc)
 	if (IS_GEN6(dev_priv)) {
 		I915_WRITE(SNB_DPFC_CTL_SA,
 			   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
-		I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->y);
+		I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->base.y);
 	}
 
 	intel_fbc_nuke(dev_priv);
 
-	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(intel_crtc->plane));
+	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(crtc->plane));
 }
 
 static void ilk_fbc_disable(struct drm_i915_private *dev_priv)
@@ -240,12 +237,11 @@ static bool ilk_fbc_enabled(struct drm_i915_private *dev_priv)
 	return I915_READ(ILK_DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
-static void gen7_fbc_enable(struct drm_crtc *crtc)
+static void gen7_fbc_enable(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
-	struct drm_framebuffer *fb = crtc->primary->fb;
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_framebuffer *fb = crtc->base.primary->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
 	int threshold = dev_priv->fbc.threshold;
 
@@ -253,7 +249,7 @@ static void gen7_fbc_enable(struct drm_crtc *crtc)
 
 	dpfc_ctl = 0;
 	if (IS_IVYBRIDGE(dev_priv))
-		dpfc_ctl |= IVB_DPFC_CTL_PLANE(intel_crtc->plane);
+		dpfc_ctl |= IVB_DPFC_CTL_PLANE(crtc->plane);
 
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
 		threshold++;
@@ -285,18 +281,18 @@ static void gen7_fbc_enable(struct drm_crtc *crtc)
 			   ILK_FBCQ_DIS);
 	} else {
 		/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
-		I915_WRITE(CHICKEN_PIPESL_1(intel_crtc->pipe),
-			   I915_READ(CHICKEN_PIPESL_1(intel_crtc->pipe)) |
+		I915_WRITE(CHICKEN_PIPESL_1(crtc->pipe),
+			   I915_READ(CHICKEN_PIPESL_1(crtc->pipe)) |
 			   HSW_FBCQ_DIS);
 	}
 
 	I915_WRITE(SNB_DPFC_CTL_SA,
 		   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
-	I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->y);
+	I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->base.y);
 
 	intel_fbc_nuke(dev_priv);
 
-	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(intel_crtc->plane));
+	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(crtc->plane));
 }
 
 /**
@@ -317,19 +313,20 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 	struct intel_fbc_work *work =
 		container_of(to_delayed_work(__work),
 			     struct intel_fbc_work, work);
-	struct drm_i915_private *dev_priv = work->crtc->dev->dev_private;
+	struct drm_i915_private *dev_priv = work->crtc->base.dev->dev_private;
+	struct drm_framebuffer *crtc_fb = work->crtc->base.primary->fb;
 
 	mutex_lock(&dev_priv->fbc.lock);
 	if (work == dev_priv->fbc.fbc_work) {
 		/* Double check that we haven't switched fb without cancelling
 		 * the prior work.
 		 */
-		if (work->crtc->primary->fb == work->fb) {
+		if (crtc_fb == work->fb) {
 			dev_priv->fbc.enable_fbc(work->crtc);
 
-			dev_priv->fbc.crtc = to_intel_crtc(work->crtc);
-			dev_priv->fbc.fb_id = work->crtc->primary->fb->base.id;
-			dev_priv->fbc.y = work->crtc->y;
+			dev_priv->fbc.crtc = work->crtc;
+			dev_priv->fbc.fb_id = crtc_fb->base.id;
+			dev_priv->fbc.y = work->crtc->base.y;
 		}
 
 		dev_priv->fbc.fbc_work = NULL;
@@ -364,10 +361,10 @@ static void intel_fbc_cancel_work(struct drm_i915_private *dev_priv)
 	dev_priv->fbc.fbc_work = NULL;
 }
 
-static void intel_fbc_enable(struct drm_crtc *crtc)
+static void intel_fbc_enable(struct intel_crtc *crtc)
 {
 	struct intel_fbc_work *work;
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
 
@@ -381,7 +378,7 @@ static void intel_fbc_enable(struct drm_crtc *crtc)
 	}
 
 	work->crtc = crtc;
-	work->fb = crtc->primary->fb;
+	work->fb = crtc->base.primary->fb;
 	INIT_DELAYED_WORK(&work->work, intel_fbc_work_fn);
 
 	dev_priv->fbc.fbc_work = work;
@@ -805,7 +802,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		__intel_fbc_disable(dev_priv);
 	}
 
-	intel_fbc_enable(crtc);
+	intel_fbc_enable(intel_crtc);
 	dev_priv->fbc.no_fbc_reason = FBC_OK;
 	return;
 
@@ -852,7 +849,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 		fbc_bits = INTEL_FRONTBUFFER_PRIMARY(dev_priv->fbc.crtc->pipe);
 	else if (dev_priv->fbc.fbc_work)
 		fbc_bits = INTEL_FRONTBUFFER_PRIMARY(
-			to_intel_crtc(dev_priv->fbc.fbc_work->crtc)->pipe);
+					dev_priv->fbc.fbc_work->crtc->pipe);
 	else
 		fbc_bits = dev_priv->fbc.possible_framebuffer_bits;
 

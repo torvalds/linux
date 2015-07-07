@@ -918,7 +918,7 @@ struct i915_fbc {
 
 	struct intel_fbc_work {
 		struct delayed_work work;
-		struct drm_crtc *crtc;
+		struct intel_crtc *crtc;
 		struct drm_framebuffer *fb;
 	} *fbc_work;
 
@@ -938,7 +938,7 @@ struct i915_fbc {
 	} no_fbc_reason;
 
 	bool (*fbc_enabled)(struct drm_i915_private *dev_priv);
-	void (*enable_fbc)(struct drm_crtc *crtc);
+	void (*enable_fbc)(struct intel_crtc *crtc);
 	void (*disable_fbc)(struct drm_i915_private *dev_priv);
 };
 
