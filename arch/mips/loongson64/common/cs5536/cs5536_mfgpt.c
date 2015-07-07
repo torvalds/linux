@@ -1,7 +1,7 @@
 /*
  * CS5536 General timer functions
  *
- * Copyright (C) 2007 Lemote Inc. & Insititute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
  * Author: Yanhua, yanh@lemote.com
  *
  * Copyright (C) 2009 Lemote Inc.
