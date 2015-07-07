@@ -1741,7 +1741,7 @@ static int snd_audigy_capture_boost_put(struct snd_kcontrol *kcontrol,
 static struct snd_kcontrol_new snd_audigy_capture_boost =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name =		"Analog Capture Boost",
+	.name =		"Mic Extra Boost",
 	.info =		snd_audigy_capture_boost_info,
 	.get =		snd_audigy_capture_boost_get,
 	.put =		snd_audigy_capture_boost_put
