@@ -416,22 +416,10 @@ config HAVE_MBAR
 config HAVE_IPSBAR
 	bool
 
-config CLOCK_SET
-	bool "Enable setting the CPU clock frequency"
-	depends on COLDFIRE
-	default n
-	help
-	  On some CPU's you do not need to know what the core CPU clock
-	  frequency is. On these you can disable clock setting. On some
-	  traditional 68K parts, and on all ColdFire parts you need to set
-	  the appropriate CPU clock frequency. On these devices many of the
-	  onboard peripherals derive their timing from the master CPU clock
-	  frequency.
-
 config CLOCK_FREQ
 	int "Set the core clock frequency"
 	default "66666666"
-	depends on CLOCK_SET
+	depends on COLDFIRE
 	help
 	  Define the CPU clock frequency in use. This is the core clock
 	  frequency, it may or may not be the same as the external clock
