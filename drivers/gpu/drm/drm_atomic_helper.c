@@ -1915,10 +1915,6 @@ retry:
 	if (ret != 0)
 		goto fail;
 
-	/* TODO: ->page_flip is the only driver callback where the core
-	 * doesn't update plane->fb. For now patch it up here. */
-	plane->fb = plane->state->fb;
-
 	/* Driver takes ownership of state on successful async commit. */
 	return 0;
 fail:
