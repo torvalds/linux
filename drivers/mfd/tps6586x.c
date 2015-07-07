@@ -52,7 +52,7 @@
 #define TPS6586X_VERSIONCRC	0xcd
 
 /* Maximum register */
-#define TPS6586X_MAX_REGISTER	(TPS6586X_VERSIONCRC + 1)
+#define TPS6586X_MAX_REGISTER	TPS6586X_VERSIONCRC
 
 struct tps6586x_irq_data {
 	u8	mask_reg;
@@ -467,7 +467,7 @@ static bool is_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config tps6586x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = TPS6586X_MAX_REGISTER - 1,
+	.max_register = TPS6586X_MAX_REGISTER,
 	.volatile_reg = is_volatile_reg,
 	.cache_type = REGCACHE_RBTREE,
 };
