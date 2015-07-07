@@ -418,6 +418,14 @@ config HAVE_IPSBAR
 
 config CLOCK_FREQ
 	int "Set the core clock frequency"
+	default "25000000" if M5206
+	default "54000000" if M5206e
+	default "166666666" if M520x
+	default "140000000" if M5249
+	default "150000000" if M527x || M523x
+	default "90000000" if M5307
+	default "50000000" if M5407
+	default "266000000" if M54xx
 	default "66666666"
 	depends on COLDFIRE
 	help
