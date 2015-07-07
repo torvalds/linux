@@ -290,7 +290,6 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 drop:
 	kfree_skb(skb);
 }
-EXPORT_SYMBOL(ieee802154_rx);
 
 void
 ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)

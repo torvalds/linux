@@ -124,6 +124,7 @@ ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 
+void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb);
 netdev_tx_t
 ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 netdev_tx_t
