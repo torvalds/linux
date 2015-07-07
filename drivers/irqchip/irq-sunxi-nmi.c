@@ -17,8 +17,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
-#include "irqchip.h"
 
 #define SUNXI_NMI_SRC_TYPE_MASK	0x00000003
 

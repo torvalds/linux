@@ -32,8 +32,6 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 
-#include "irqchip.h"
-
 /* Register offsets in the L2 interrupt controller */
 #define CPU_STATUS	0x00
 #define CPU_SET		0x04

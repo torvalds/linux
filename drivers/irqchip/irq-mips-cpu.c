@@ -31,14 +31,13 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/setup.h>
-
-#include "irqchip.h"
 
 static inline void unmask_mips_irq(struct irq_data *d)
 {

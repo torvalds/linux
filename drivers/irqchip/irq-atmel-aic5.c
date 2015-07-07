@@ -19,6 +19,7 @@
 #include <linux/bitmap.h>
 #include <linux/types.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -31,7 +32,6 @@
 #include <asm/mach/irq.h>
 
 #include "irq-atmel-aic-common.h"
-#include "irqchip.h"
 
 /* Number of irq lines managed by AIC */
 #define NR_AIC5_IRQS	128

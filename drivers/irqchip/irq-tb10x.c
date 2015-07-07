@@ -22,13 +22,13 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
-#include "irqchip.h"
 
 #define AB_IRQCTL_INT_ENABLE   0x00
 #define AB_IRQCTL_INT_STATUS   0x04

@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/mips-gic.h>
 #include <linux/of_address.h>
 #include <linux/sched.h>
@@ -21,8 +22,6 @@
 #include <asm/traps.h>
 
 #include <dt-bindings/interrupt-controller/mips-gic.h>
-
-#include "irqchip.h"
 
 unsigned int gic_present;
 

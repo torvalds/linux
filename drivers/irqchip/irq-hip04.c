@@ -41,6 +41,7 @@
 #include <linux/irqdomain.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
 
 #include <asm/irq.h>
@@ -48,7 +49,6 @@
 #include <asm/smp_plat.h>
 
 #include "irq-gic-common.h"
-#include "irqchip.h"
 
 #define HIP04_MAX_IRQS		510
 

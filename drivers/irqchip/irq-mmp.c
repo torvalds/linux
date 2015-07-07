@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -23,8 +24,6 @@
 
 #include <asm/exception.h>
 #include <asm/hardirq.h>
-
-#include "irqchip.h"
 
 #define MAX_ICU_NR		16
 

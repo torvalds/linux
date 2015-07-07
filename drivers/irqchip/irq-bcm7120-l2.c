@@ -26,9 +26,8 @@
 #include <linux/irqdomain.h>
 #include <linux/reboot.h>
 #include <linux/bitops.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
-
-#include "irqchip.h"
 
 /* Register offset in the L2 interrupt controller */
 #define IRQEN		0x00
