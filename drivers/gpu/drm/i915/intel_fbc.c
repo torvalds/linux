@@ -509,10 +509,8 @@ static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 			break;
 	}
 
-	if (!crtc || crtc->primary->fb == NULL) {
-		set_no_fbc_reason(dev_priv, FBC_NO_OUTPUT);
+	if (!crtc || crtc->primary->fb == NULL)
 		return NULL;
-	}
 
 	return crtc;
 }
@@ -720,8 +718,10 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
 	crtc = intel_fbc_find_crtc(dev_priv);
-	if (!crtc)
+	if (!crtc) {
+		set_no_fbc_reason(dev_priv, FBC_NO_OUTPUT);
 		goto out_disable;
+	}
 
 	if (!multiple_pipes_ok(dev_priv)) {
 		set_no_fbc_reason(dev_priv, FBC_MULTIPLE_PIPES);
