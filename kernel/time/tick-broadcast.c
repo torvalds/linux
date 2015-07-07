@@ -685,18 +685,7 @@ static void broadcast_shutdown_local(struct clock_event_device *bc,
 	clockevents_switch_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
 }
 
-/**
- * tick_broadcast_oneshot_control - Enter/exit broadcast oneshot mode
- * @state:	The target state (enter/exit)
- *
- * The system enters/leaves a state, where affected devices might stop
- * Returns 0 on success, -EBUSY if the cpu is used to broadcast wakeups.
- *
- * Called with interrupts disabled, so clockevents_lock is not
- * required here because the local clock event device cannot go away
- * under us.
- */
-int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 {
 	struct clock_event_device *bc, *dev;
 	struct tick_device *td;
@@ -716,9 +705,6 @@ int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 	 */
 	td = this_cpu_ptr(&tick_cpu_device);
 	dev = td->evtdev;
-
-	if (!(dev->features & CLOCK_EVT_FEAT_C3STOP))
-		return 0;
 
 	raw_spin_lock(&tick_broadcast_lock);
 	bc = tick_broadcast_device.evtdev;
@@ -961,6 +947,16 @@ bool tick_broadcast_oneshot_available(void)
 	return bc ? bc->features & CLOCK_EVT_FEAT_ONESHOT : false;
 }
 
+#else
+int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+{
+	struct clock_event_device *bc = tick_broadcast_device.evtdev;
+
+	if (!bc || (bc->features & CLOCK_EVT_FEAT_HRTIMER))
+		return -EBUSY;
+
+	return 0;
+}
 #endif
 
 void __init tick_broadcast_init(void)
