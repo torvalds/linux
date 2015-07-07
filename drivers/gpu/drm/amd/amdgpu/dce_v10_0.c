@@ -126,9 +126,31 @@ static const u32 tonga_mgcg_cgcg_init[] =
 	mmXDMA_MEM_POWER_CNTL, 0x00000101, 0x00000000,
 };
 
+static const u32 golden_settings_fiji_a10[] =
+{
+	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
+	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_MISC, 0x1f311fff, 0x12300000,
+	mmHDMI_CONTROL, 0x31000111, 0x00000011,
+};
+
+static const u32 fiji_mgcg_cgcg_init[] =
+{
+	mmXDMA_CLOCK_GATING_CNTL, 0xffffffff, 0x00000100,
+	mmXDMA_MEM_POWER_CNTL, 0x00000101, 0x00000000,
+};
+
 static void dce_v10_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
+	case CHIP_FIJI:
+		amdgpu_program_register_sequence(adev,
+						 fiji_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_fiji_a10,
+						 (const u32)ARRAY_SIZE(golden_settings_fiji_a10));
+		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 tonga_mgcg_cgcg_init,
@@ -2888,6 +2910,7 @@ static int dce_v10_0_early_init(void *handle)
 	dce_v10_0_set_irq_funcs(adev);
 
 	switch (adev->asic_type) {
+	case CHIP_FIJI:
 	case CHIP_TONGA:
 		adev->mode_info.num_crtc = 6; /* XXX 7??? */
 		adev->mode_info.num_hpd = 6;
