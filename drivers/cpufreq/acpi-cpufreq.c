@@ -72,8 +72,6 @@ struct acpi_cpufreq_data {
 	cpumask_var_t freqdomain_cpus;
 };
 
-static DEFINE_PER_CPU(struct acpi_cpufreq_data *, acfreq_data);
-
 /* acpi_perf_data is a pointer to percpu data. */
 static struct acpi_processor_performance __percpu *acpi_perf_data;
 
@@ -144,7 +142,7 @@ static int _store_boost(int val)
 
 static ssize_t show_freqdomain_cpus(struct cpufreq_policy *policy, char *buf)
 {
-	struct acpi_cpufreq_data *data = per_cpu(acfreq_data, policy->cpu);
+	struct acpi_cpufreq_data *data = policy->driver_data;
 
 	return cpufreq_show_cpus(data->freqdomain_cpus, buf);
 }
@@ -327,7 +325,8 @@ static void drv_write(struct drv_cmd *cmd)
 	put_cpu();
 }
 
-static u32 get_cur_val(const struct cpumask *mask)
+static u32
+get_cur_val(const struct cpumask *mask, struct acpi_cpufreq_data *data)
 {
 	struct acpi_processor_performance *perf;
 	struct drv_cmd cmd;
@@ -335,7 +334,7 @@ static u32 get_cur_val(const struct cpumask *mask)
 	if (unlikely(cpumask_empty(mask)))
 		return 0;
 
-	switch (per_cpu(acfreq_data, cpumask_first(mask))->cpu_feature) {
+	switch (data->cpu_feature) {
 	case SYSTEM_INTEL_MSR_CAPABLE:
 		cmd.type = SYSTEM_INTEL_MSR_CAPABLE;
 		cmd.addr.msr.reg = MSR_IA32_PERF_CTL;
@@ -346,7 +345,7 @@ static u32 get_cur_val(const struct cpumask *mask)
 		break;
 	case SYSTEM_IO_CAPABLE:
 		cmd.type = SYSTEM_IO_CAPABLE;
-		perf = per_cpu(acfreq_data, cpumask_first(mask))->acpi_data;
+		perf = data->acpi_data;
 		cmd.addr.io.port = perf->control_register.address;
 		cmd.addr.io.bit_width = perf->control_register.bit_width;
 		break;
@@ -364,19 +363,24 @@ static u32 get_cur_val(const struct cpumask *mask)
 
 static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 {
-	struct acpi_cpufreq_data *data = per_cpu(acfreq_data, cpu);
+	struct acpi_cpufreq_data *data;
+	struct cpufreq_policy *policy;
 	unsigned int freq;
 	unsigned int cached_freq;
 
 	pr_debug("get_cur_freq_on_cpu (%d)\n", cpu);
 
-	if (unlikely(data == NULL ||
-		     data->acpi_data == NULL || data->freq_table == NULL)) {
+	policy = cpufreq_cpu_get(cpu);
+	if (unlikely(!policy))
 		return 0;
-	}
+
+	data = policy->driver_data;
+	cpufreq_cpu_put(policy);
+	if (unlikely(!data || !data->acpi_data || !data->freq_table))
+		return 0;
 
 	cached_freq = data->freq_table[data->acpi_data->state].frequency;
-	freq = extract_freq(get_cur_val(cpumask_of(cpu)), data);
+	freq = extract_freq(get_cur_val(cpumask_of(cpu), data), data);
 	if (freq != cached_freq) {
 		/*
 		 * The dreaded BIOS frequency change behind our back.
@@ -397,7 +401,7 @@ static unsigned int check_freqs(const struct cpumask *mask, unsigned int freq,
 	unsigned int i;
 
 	for (i = 0; i < 100; i++) {
-		cur_freq = extract_freq(get_cur_val(mask), data);
+		cur_freq = extract_freq(get_cur_val(mask, data), data);
 		if (cur_freq == freq)
 			return 1;
 		udelay(10);
@@ -408,7 +412,7 @@ static unsigned int check_freqs(const struct cpumask *mask, unsigned int freq,
 static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 			       unsigned int index)
 {
-	struct acpi_cpufreq_data *data = per_cpu(acfreq_data, policy->cpu);
+	struct acpi_cpufreq_data *data = policy->driver_data;
 	struct acpi_processor_performance *perf;
 	struct drv_cmd cmd;
 	unsigned int next_perf_state = 0; /* Index into perf table */
@@ -673,7 +677,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	data->acpi_data = per_cpu_ptr(acpi_perf_data, cpu);
-	per_cpu(acfreq_data, cpu) = data;
+	policy->driver_data = data;
 
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC))
 		acpi_cpufreq_driver.flags |= CPUFREQ_CONST_LOOPS;
@@ -843,19 +847,19 @@ err_free_mask:
 	free_cpumask_var(data->freqdomain_cpus);
 err_free:
 	kfree(data);
-	per_cpu(acfreq_data, cpu) = NULL;
+	policy->driver_data = NULL;
 
 	return result;
 }
 
 static int acpi_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
-	struct acpi_cpufreq_data *data = per_cpu(acfreq_data, policy->cpu);
+	struct acpi_cpufreq_data *data = policy->driver_data;
 
 	pr_debug("acpi_cpufreq_cpu_exit\n");
 
 	if (data) {
-		per_cpu(acfreq_data, policy->cpu) = NULL;
+		policy->driver_data = NULL;
 		acpi_processor_unregister_performance(data->acpi_data,
 						      policy->cpu);
 		free_cpumask_var(data->freqdomain_cpus);
@@ -868,7 +872,7 @@ static int acpi_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 
 static int acpi_cpufreq_resume(struct cpufreq_policy *policy)
 {
-	struct acpi_cpufreq_data *data = per_cpu(acfreq_data, policy->cpu);
+	struct acpi_cpufreq_data *data = policy->driver_data;
 
 	pr_debug("acpi_cpufreq_resume\n");
 
