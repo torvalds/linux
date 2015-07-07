@@ -254,10 +254,13 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 	uint32_t max_sleep_time = 0x1f;
 	/* Lately it was identified that depending on panel idle frame count
 	 * calculated at HW can be off by 1. So let's use what came
-	 * from VBT + 1 and at minimum 2 to be on the safe side.
+	 * from VBT + 1.
+	 * There are also other cases where panel demands at least 4
+	 * but VBT is not being set. To cover these 2 cases lets use
+	 * at least 5 when VBT isn't set to be on the safest side.
 	 */
 	uint32_t idle_frames = dev_priv->vbt.psr.idle_frames ?
-			       dev_priv->vbt.psr.idle_frames + 1 : 2;
+			       dev_priv->vbt.psr.idle_frames + 1 : 5;
 	uint32_t val = 0x0;
 	const uint32_t link_entry_time = EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
