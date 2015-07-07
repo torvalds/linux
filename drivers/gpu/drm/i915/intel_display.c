@@ -14312,12 +14312,12 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(GEN3_SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOB\n");
 			found = intel_sdvo_init(dev, GEN3_SDVOB, true);
-			if (!found && SUPPORTS_INTEGRATED_HDMI(dev)) {
+			if (!found && IS_G4X(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
 				intel_hdmi_init(dev, GEN4_HDMIB, PORT_B);
 			}
 
-			if (!found && SUPPORTS_INTEGRATED_DP(dev))
+			if (!found && IS_G4X(dev))
 				intel_dp_init(dev, DP_B, PORT_B);
 		}
 
@@ -14330,15 +14330,15 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (!found && (I915_READ(GEN3_SDVOC) & SDVO_DETECTED)) {
 
-			if (SUPPORTS_INTEGRATED_HDMI(dev)) {
+			if (IS_G4X(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOC\n");
 				intel_hdmi_init(dev, GEN4_HDMIC, PORT_C);
 			}
-			if (SUPPORTS_INTEGRATED_DP(dev))
+			if (IS_G4X(dev))
 				intel_dp_init(dev, DP_C, PORT_C);
 		}
 
-		if (SUPPORTS_INTEGRATED_DP(dev) &&
+		if (IS_G4X(dev) &&
 		    (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev, DP_D, PORT_D);
 	} else if (IS_GEN2(dev))
