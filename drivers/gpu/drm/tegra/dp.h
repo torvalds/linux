@@ -60,6 +60,7 @@ void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
  * @max_rate: maximum clock rate supported on the link
  * @max_lanes: maximum number of lanes supported on the link
  * @caps: capabilities supported on the link (see &drm_dp_link_caps)
+ * @edp: eDP revision (0x11: eDP 1.1, 0x12: eDP 1.2, ...)
  * @rate: currently configured link rate
  * @lanes: currently configured number of lanes
  */
@@ -69,6 +70,7 @@ struct drm_dp_link {
 	unsigned int max_lanes;
 
 	struct drm_dp_link_caps caps;
+	unsigned char edp;
 
 	unsigned int rate;
 	unsigned int lanes;
