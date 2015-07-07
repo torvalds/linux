@@ -1572,10 +1572,20 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 	}
 
-	/* unpin the front buffers */
+	/* unpin the front buffers and cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->primary->fb);
 		struct radeon_bo *robj;
+
+		if (radeon_crtc->cursor_bo) {
+			struct radeon_bo *robj = gem_to_radeon_bo(radeon_crtc->cursor_bo);
+			r = radeon_bo_reserve(robj, false);
+			if (r == 0) {
+				radeon_bo_unpin(robj);
+				radeon_bo_unreserve(robj);
+			}
+		}
 
 		if (rfb == NULL || rfb->obj == NULL) {
 			continue;
@@ -1639,6 +1649,7 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 {
 	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
+	struct drm_crtc *crtc;
 	int r;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
@@ -1677,6 +1688,27 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	radeon_restore_bios_scratch_regs(rdev);
+
+	/* pin cursors */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+		if (radeon_crtc->cursor_bo) {
+			struct radeon_bo *robj = gem_to_radeon_bo(radeon_crtc->cursor_bo);
+			r = radeon_bo_reserve(robj, false);
+			if (r == 0) {
+				/* Only 27 bit offset for legacy cursor */
+				r = radeon_bo_pin_restricted(robj,
+							     RADEON_GEM_DOMAIN_VRAM,
+							     ASIC_IS_AVIVO(rdev) ?
+							     0 : 1 << 27,
+							     &radeon_crtc->cursor_addr);
+				if (r != 0)
+					DRM_ERROR("Failed to pin cursor BO (%d)\n", r);
+				radeon_bo_unreserve(robj);
+			}
+		}
+	}
 
 	/* init dig PHYs, disp eng pll */
 	if (rdev->is_atom_bios) {
