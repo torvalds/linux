@@ -1819,8 +1819,6 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		 * the Philips ADC for 24bit capture */
 		"PCM Playback Switch",
 		"PCM Playback Volume",
-		"Master Mono Playback Switch",
-		"Master Mono Playback Volume",
 		"Master Playback Switch",
 		"Master Playback Volume",
 		"PCM Out Path & Mute",
@@ -1848,6 +1846,8 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		/* "Wave Capture Volume", "PCM Capture Volume", */
 		"Wave Master Playback Volume", "Master Playback Volume",
 		"AMic Playback Volume", "Mic Playback Volume",
+		"Master Mono Playback Switch", "Phone Output Playback Switch",
+		"Master Mono Playback Volume", "Phone Output Playback Volume",
 		NULL
 	};
 	static char *audigy_rename_ctls_i2c_adc[] = {
@@ -1873,8 +1873,6 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		 * the Philips ADC for 24bit capture */
 		"PCM Playback Switch",
 		"PCM Playback Volume",
-		"Master Mono Playback Switch",
-		"Master Mono Playback Volume",
 		"Capture Source",
 		"Capture Switch",
 		"Capture Volume",
@@ -1906,7 +1904,8 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		"Aux Playback Volume", "Aux Capture Volume",
 		"Video Playback Switch", "Video Capture Switch",
 		"Video Playback Volume", "Video Capture Volume",
-
+		"Master Mono Playback Switch", "Phone Output Playback Switch",
+		"Master Mono Playback Volume", "Phone Output Playback Volume",
 		NULL
 	};
 
@@ -1941,6 +1940,9 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			snd_ac97_write_cache(emu->ac97, AC97_MASTER, 0x0000);
 			/* set capture source to mic */
 			snd_ac97_write_cache(emu->ac97, AC97_REC_SEL, 0x0000);
+			/* set mono output (TAD) to mic */
+			snd_ac97_update_bits(emu->ac97, AC97_GENERAL_PURPOSE,
+				0x0200, 0x0200);
 			if (emu->card_capabilities->adc_1361t)
 				c = audigy_remove_ctls_1361t_adc;
 			else 
