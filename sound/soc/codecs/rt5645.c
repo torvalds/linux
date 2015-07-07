@@ -2644,7 +2644,7 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (SND_SOC_BIAS_STANDBY == codec->dapm.bias_level) {
+		if (SND_SOC_BIAS_STANDBY == snd_soc_codec_get_bias_level(codec)) {
 			snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
 				RT5645_PWR_VREF1 | RT5645_PWR_MB |
 				RT5645_PWR_BG | RT5645_PWR_VREF2,
@@ -2762,20 +2762,17 @@ static int rt5650_calibration(struct rt5645_priv *rt5645)
 static void rt5645_enable_push_button_irq(struct snd_soc_codec *codec,
 	bool enable)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
 
 	if (enable) {
-		snd_soc_dapm_mutex_lock(&codec->dapm);
-		snd_soc_dapm_force_enable_pin_unlocked(&codec->dapm,
-							"ADC L power");
-		snd_soc_dapm_force_enable_pin_unlocked(&codec->dapm,
-							"ADC R power");
-		snd_soc_dapm_force_enable_pin_unlocked(&codec->dapm,
-							"LDO2");
-		snd_soc_dapm_force_enable_pin_unlocked(&codec->dapm,
-							"Mic Det Power");
-		snd_soc_dapm_sync_unlocked(&codec->dapm);
-		snd_soc_dapm_mutex_unlock(&codec->dapm);
+		snd_soc_dapm_mutex_lock(dapm);
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "ADC L power");
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "ADC R power");
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "LDO2");
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "Mic Det Power");
+		snd_soc_dapm_sync_unlocked(dapm);
+		snd_soc_dapm_mutex_unlock(dapm);
 
 		snd_soc_update_bits(codec,
 					RT5645_INT_IRQ_ST, 0x8, 0x8);
@@ -2788,23 +2785,20 @@ static void rt5645_enable_push_button_irq(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, RT5650_4BTN_IL_CMD2, 0x8000, 0x0);
 		snd_soc_update_bits(codec, RT5645_INT_IRQ_ST, 0x8, 0x0);
 
-		snd_soc_dapm_mutex_lock(&codec->dapm);
-		snd_soc_dapm_disable_pin_unlocked(&codec->dapm,
-							"ADC L power");
-		snd_soc_dapm_disable_pin_unlocked(&codec->dapm,
-							"ADC R power");
+		snd_soc_dapm_mutex_lock(dapm);
+		snd_soc_dapm_disable_pin_unlocked(dapm, "ADC L power");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "ADC R power");
 		if (rt5645->pdata.jd_mode == 0)
-			snd_soc_dapm_disable_pin_unlocked(&codec->dapm,
-								"LDO2");
-		snd_soc_dapm_disable_pin_unlocked(&codec->dapm,
-							"Mic Det Power");
-		snd_soc_dapm_sync_unlocked(&codec->dapm);
-		snd_soc_dapm_mutex_unlock(&codec->dapm);
+			snd_soc_dapm_disable_pin_unlocked(dapm, "LDO2");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "Mic Det Power");
+		snd_soc_dapm_sync_unlocked(dapm);
+		snd_soc_dapm_mutex_unlock(dapm);
 	}
 }
 
 static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
 
@@ -2813,10 +2807,9 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 
 		if (codec->component.card->instantiated) {
 			/* for jack type detect */
-			snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO2");
-			snd_soc_dapm_force_enable_pin(&codec->dapm,
-				"Mic Det Power");
-			snd_soc_dapm_sync(&codec->dapm);
+			snd_soc_dapm_force_enable_pin(dapm, "LDO2");
+			snd_soc_dapm_force_enable_pin(dapm, "Mic Det Power");
+			snd_soc_dapm_sync(dapm);
 		} else {
 			/* Power up necessary bits for JD if dapm is
 			   not ready yet */
@@ -2849,9 +2842,8 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			}
 		} else {
 			if (codec->component.card->instantiated) {
-				snd_soc_dapm_disable_pin(&codec->dapm,
-					"Mic Det Power");
-				snd_soc_dapm_sync(&codec->dapm);
+				snd_soc_dapm_disable_pin(dapm, "Mic Det Power");
+				snd_soc_dapm_sync(dapm);
 			} else
 				regmap_update_bits(rt5645->regmap,
 					RT5645_PWR_VOL, RT5645_PWR_MIC_DET, 0);
@@ -2865,11 +2857,9 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		else {
 			if (codec->component.card->instantiated) {
 				if (rt5645->pdata.jd_mode == 0)
-					snd_soc_dapm_disable_pin(&codec->dapm,
-						"LDO2");
-				snd_soc_dapm_disable_pin(&codec->dapm,
-					"Mic Det Power");
-				snd_soc_dapm_sync(&codec->dapm);
+					snd_soc_dapm_disable_pin(dapm, "LDO2");
+				snd_soc_dapm_disable_pin(dapm, "Mic Det Power");
+				snd_soc_dapm_sync(dapm);
 			} else {
 				if (rt5645->pdata.jd_mode == 0)
 					regmap_update_bits(rt5645->regmap,
@@ -3045,24 +3035,25 @@ static int rt5645_irq_detection(struct rt5645_priv *rt5645)
 
 static int rt5645_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
 
 	rt5645->codec = codec;
 
 	switch (rt5645->codec_type) {
 	case CODEC_TYPE_RT5645:
-		snd_soc_dapm_new_controls(&codec->dapm,
+		snd_soc_dapm_new_controls(dapm,
 			rt5645_specific_dapm_widgets,
 			ARRAY_SIZE(rt5645_specific_dapm_widgets));
-		snd_soc_dapm_add_routes(&codec->dapm,
+		snd_soc_dapm_add_routes(dapm,
 			rt5645_specific_dapm_routes,
 			ARRAY_SIZE(rt5645_specific_dapm_routes));
 		break;
 	case CODEC_TYPE_RT5650:
-		snd_soc_dapm_new_controls(&codec->dapm,
+		snd_soc_dapm_new_controls(dapm,
 			rt5650_specific_dapm_widgets,
 			ARRAY_SIZE(rt5650_specific_dapm_widgets));
-		snd_soc_dapm_add_routes(&codec->dapm,
+		snd_soc_dapm_add_routes(dapm,
 			rt5650_specific_dapm_routes,
 			ARRAY_SIZE(rt5650_specific_dapm_routes));
 		break;
@@ -3072,9 +3063,9 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 
 	/* for JD function */
 	if (rt5645->pdata.jd_mode) {
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "JD Power");
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO2");
-		snd_soc_dapm_sync(&codec->dapm);
+		snd_soc_dapm_force_enable_pin(dapm, "JD Power");
+		snd_soc_dapm_force_enable_pin(dapm, "LDO2");
+		snd_soc_dapm_sync(dapm);
 	}
 
 	return 0;
