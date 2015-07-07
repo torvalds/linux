@@ -29,30 +29,6 @@ static int efx_ef10_evb_port_assign(struct efx_nic *efx, unsigned int port_id,
 			    NULL, 0, NULL);
 }
 
-static int efx_ef10_vport_add_mac(struct efx_nic *efx,
-				  unsigned int port_id, u8 *mac)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_VPORT_ADD_MAC_ADDRESS_IN_LEN);
-
-	MCDI_SET_DWORD(inbuf, VPORT_ADD_MAC_ADDRESS_IN_VPORT_ID, port_id);
-	ether_addr_copy(MCDI_PTR(inbuf, VPORT_ADD_MAC_ADDRESS_IN_MACADDR), mac);
-
-	return efx_mcdi_rpc(efx, MC_CMD_VPORT_ADD_MAC_ADDRESS, inbuf,
-			    sizeof(inbuf), NULL, 0, NULL);
-}
-
-static int efx_ef10_vport_del_mac(struct efx_nic *efx,
-				  unsigned int port_id, u8 *mac)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_VPORT_DEL_MAC_ADDRESS_IN_LEN);
-
-	MCDI_SET_DWORD(inbuf, VPORT_DEL_MAC_ADDRESS_IN_VPORT_ID, port_id);
-	ether_addr_copy(MCDI_PTR(inbuf, VPORT_DEL_MAC_ADDRESS_IN_MACADDR), mac);
-
-	return efx_mcdi_rpc(efx, MC_CMD_VPORT_DEL_MAC_ADDRESS, inbuf,
-			    sizeof(inbuf), NULL, 0, NULL);
-}
-
 static int efx_ef10_vswitch_alloc(struct efx_nic *efx, unsigned int port_id,
 				  unsigned int vswitch_type)
 {
@@ -133,24 +109,6 @@ static int efx_ef10_vport_free(struct efx_nic *efx, unsigned int port_id)
 	MCDI_SET_DWORD(inbuf, VPORT_FREE_IN_VPORT_ID, port_id);
 
 	return efx_mcdi_rpc(efx, MC_CMD_VPORT_FREE, inbuf, sizeof(inbuf),
-			    NULL, 0, NULL);
-}
-
-static int efx_ef10_vadaptor_alloc(struct efx_nic *efx, unsigned int port_id)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_ALLOC_IN_LEN);
-
-	MCDI_SET_DWORD(inbuf, VADAPTOR_ALLOC_IN_UPSTREAM_PORT_ID, port_id);
-	return efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_ALLOC, inbuf, sizeof(inbuf),
-			    NULL, 0, NULL);
-}
-
-static int efx_ef10_vadaptor_free(struct efx_nic *efx, unsigned int port_id)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_FREE_IN_LEN);
-
-	MCDI_SET_DWORD(inbuf, VADAPTOR_FREE_IN_UPSTREAM_PORT_ID, port_id);
-	return efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_FREE, inbuf, sizeof(inbuf),
 			    NULL, 0, NULL);
 }
 
