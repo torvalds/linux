@@ -159,7 +159,7 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 {
 	struct clock_event_device *bc = tick_broadcast_device.evtdev;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
 
@@ -221,13 +221,14 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 			 * If we kept the cpu in the broadcast mask,
 			 * tell the caller to leave the per cpu device
 			 * in shutdown state. The periodic interrupt
-			 * is delivered by the broadcast device.
+			 * is delivered by the broadcast device, if
+			 * the broadcast device exists and is not
+			 * hrtimer based.
 			 */
-			ret = cpumask_test_cpu(cpu, tick_broadcast_mask);
+			if (bc && !(bc->features & CLOCK_EVT_FEAT_HRTIMER))
+				ret = cpumask_test_cpu(cpu, tick_broadcast_mask);
 			break;
 		default:
-			/* Nothing to do */
-			ret = 0;
 			break;
 		}
 	}
@@ -373,8 +374,16 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 	case TICK_BROADCAST_ON:
 		cpumask_set_cpu(cpu, tick_broadcast_on);
 		if (!cpumask_test_and_set_cpu(cpu, tick_broadcast_mask)) {
-			if (tick_broadcast_device.mode ==
-			    TICKDEV_MODE_PERIODIC)
+			/*
+			 * Only shutdown the cpu local device, if:
+			 *
+			 * - the broadcast device exists
+			 * - the broadcast device is not a hrtimer based one
+			 * - the broadcast device is in periodic mode to
+			 *   avoid a hickup during switch to oneshot mode
+			 */
+			if (bc && !(bc->features & CLOCK_EVT_FEAT_HRTIMER) &&
+			    tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
 				clockevents_shutdown(dev);
 		}
 		break;
