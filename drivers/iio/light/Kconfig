@@ -219,6 +219,17 @@ config OPT3001
 	  If built as a dynamically linked module, it will be called
 	  opt3001.
 
+config PA12203001
+        tristate "TXC PA12203001 light and proximity sensor"
+        depends on I2C
+        select REGMAP_I2C
+        help
+         If you say yes here you get support for the TXC PA12203001
+         ambient light and proximity sensor.
+
+         This driver can also be built as a module.  If so, the module
+         will be called pa12203001.
+
 config STK3310
 	tristate "STK3310 ALS and proximity sensor"
 	depends on I2C
