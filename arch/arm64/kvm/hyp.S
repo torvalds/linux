@@ -770,17 +770,8 @@
 	mov	x2, #(1 << 15)	// Trap CP15 Cr=15
 	msr	hstr_el2, x2
 
-	mrs	x2, mdcr_el2
-	and	x2, x2, #MDCR_EL2_HPMN_MASK
-	orr	x2, x2, #(MDCR_EL2_TPM | MDCR_EL2_TPMCR)
-	orr	x2, x2, #(MDCR_EL2_TDRA | MDCR_EL2_TDOSA)
-
-	// Check for KVM_ARM64_DEBUG_DIRTY, and set debug to trap
-	// if not dirty.
-	ldr	x3, [x0, #VCPU_DEBUG_FLAGS]
-	tbnz	x3, #KVM_ARM64_DEBUG_DIRTY_SHIFT, 1f
-	orr	x2, x2,  #MDCR_EL2_TDA
-1:
+	// Monitor Debug Config - see kvm_arm_setup_debug()
+	ldr	x2, [x0, #VCPU_MDCR_EL2]
 	msr	mdcr_el2, x2
 .endm
 
@@ -1284,5 +1275,11 @@ ENTRY(__kvm_hyp_vector)
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
 	ventry	el1_error_invalid		// Error 32-bit EL1
 ENDPROC(__kvm_hyp_vector)
+
+
+ENTRY(__kvm_get_mdcr_el2)
+	mrs	x0, mdcr_el2
+	ret
+ENDPROC(__kvm_get_mdcr_el2)
 
 	.popsection

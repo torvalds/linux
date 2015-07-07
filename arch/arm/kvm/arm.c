@@ -543,6 +543,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			continue;
 		}
 
+		kvm_arm_setup_debug(vcpu);
+
 		/**************************************************************
 		 * Enter the guest
 		 */
@@ -556,6 +558,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		/*
 		 * Back from guest
 		 *************************************************************/
+
+		kvm_arm_clear_debug(vcpu);
 
 		/*
 		 * We may have taken a host interrupt in HYP mode (ie
@@ -914,6 +918,8 @@ static void cpu_init_hyp_mode(void *dummy)
 	vector_ptr = (unsigned long)__kvm_hyp_vector;
 
 	__cpu_init_hyp_mode(boot_pgd_ptr, pgd_ptr, hyp_stack_ptr, vector_ptr);
+
+	kvm_arm_init_debug();
 }
 
 static int hyp_init_cpu_notify(struct notifier_block *self,

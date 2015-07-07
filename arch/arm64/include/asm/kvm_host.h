@@ -103,6 +103,7 @@ struct kvm_vcpu_arch {
 
 	/* HYP configuration */
 	u64 hcr_el2;
+	u32 mdcr_el2;
 
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
@@ -226,5 +227,9 @@ static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+
+void kvm_arm_init_debug(void);
+void kvm_arm_setup_debug(struct kvm_vcpu *vcpu);
+void kvm_arm_clear_debug(struct kvm_vcpu *vcpu);
 
 #endif /* __ARM64_KVM_HOST_H__ */
