@@ -688,7 +688,6 @@ static void broadcast_shutdown_local(struct clock_event_device *bc,
 int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 {
 	struct clock_event_device *bc, *dev;
-	struct tick_device *td;
 	int cpu, ret = 0;
 	ktime_t now;
 
@@ -699,25 +698,20 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 	if (!tick_broadcast_device.evtdev)
 		return -EBUSY;
 
-	/*
-	 * Periodic mode does not care about the enter/exit of power
-	 * states
-	 */
-	if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
-		return 0;
-
-	/*
-	 * We are called with preemtion disabled from the depth of the
-	 * idle code, so we can't be moved away.
-	 */
-	td = this_cpu_ptr(&tick_cpu_device);
-	dev = td->evtdev;
+	dev = this_cpu_ptr(&tick_cpu_device)->evtdev;
 
 	raw_spin_lock(&tick_broadcast_lock);
 	bc = tick_broadcast_device.evtdev;
 	cpu = smp_processor_id();
 
 	if (state == TICK_BROADCAST_ENTER) {
+		/*
+		 * If the broadcast device is in periodic mode, we
+		 * return.
+		 */
+		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
+			goto out;
+
 		if (!cpumask_test_and_set_cpu(cpu, tick_broadcast_oneshot_mask)) {
 			WARN_ON_ONCE(cpumask_test_cpu(cpu, tick_broadcast_pending_mask));
 			broadcast_shutdown_local(bc, dev);
