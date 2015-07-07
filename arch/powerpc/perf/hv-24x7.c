@@ -320,6 +320,8 @@ static struct attribute *device_str_attr_create_(char *name, char *str)
 	if (!attr)
 		return NULL;
 
+	sysfs_attr_init(&attr->attr.attr);
+
 	attr->var = str;
 	attr->attr.attr.name = name;
 	attr->attr.attr.mode = 0444;
