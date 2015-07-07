@@ -341,7 +341,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 		 * the prior work.
 		 */
 		if (work->crtc->primary->fb == work->fb) {
-			dev_priv->display.enable_fbc(work->crtc);
+			dev_priv->fbc.enable_fbc(work->crtc);
 
 			dev_priv->fbc.crtc = to_intel_crtc(work->crtc);
 			dev_priv->fbc.fb_id = work->crtc->primary->fb->base.id;
@@ -393,7 +393,7 @@ static void intel_fbc_enable(struct drm_crtc *crtc)
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL) {
 		DRM_ERROR("Failed to allocate FBC work structure\n");
-		dev_priv->display.enable_fbc(crtc);
+		dev_priv->fbc.enable_fbc(crtc);
 		return;
 	}
 
@@ -427,7 +427,7 @@ static void __intel_fbc_disable(struct drm_device *dev)
 
 	intel_fbc_cancel_work(dev_priv);
 
-	dev_priv->display.disable_fbc(dev);
+	dev_priv->fbc.disable_fbc(dev);
 	dev_priv->fbc.crtc = NULL;
 }
 
@@ -441,7 +441,7 @@ void intel_fbc_disable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!dev_priv->display.enable_fbc)
+	if (!dev_priv->fbc.enable_fbc)
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -460,7 +460,7 @@ void intel_fbc_disable_crtc(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!dev_priv->display.enable_fbc)
+	if (!dev_priv->fbc.enable_fbc)
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -661,7 +661,7 @@ void intel_fbc_cleanup_cfb(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!dev_priv->display.enable_fbc)
+	if (!dev_priv->fbc.enable_fbc)
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -857,7 +857,7 @@ void intel_fbc_update(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!dev_priv->display.enable_fbc)
+	if (!dev_priv->fbc.enable_fbc)
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -872,7 +872,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	unsigned int fbc_bits;
 
-	if (!dev_priv->display.enable_fbc)
+	if (!dev_priv->fbc.enable_fbc)
 		return;
 
 	if (origin == ORIGIN_GTT)
@@ -901,7 +901,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	if (!dev_priv->display.enable_fbc)
+	if (!dev_priv->fbc.enable_fbc)
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -945,25 +945,25 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (INTEL_INFO(dev_priv)->gen >= 7) {
-		dev_priv->display.fbc_enabled = ilk_fbc_enabled;
-		dev_priv->display.enable_fbc = gen7_fbc_enable;
-		dev_priv->display.disable_fbc = ilk_fbc_disable;
+		dev_priv->fbc.fbc_enabled = ilk_fbc_enabled;
+		dev_priv->fbc.enable_fbc = gen7_fbc_enable;
+		dev_priv->fbc.disable_fbc = ilk_fbc_disable;
 	} else if (INTEL_INFO(dev_priv)->gen >= 5) {
-		dev_priv->display.fbc_enabled = ilk_fbc_enabled;
-		dev_priv->display.enable_fbc = ilk_fbc_enable;
-		dev_priv->display.disable_fbc = ilk_fbc_disable;
+		dev_priv->fbc.fbc_enabled = ilk_fbc_enabled;
+		dev_priv->fbc.enable_fbc = ilk_fbc_enable;
+		dev_priv->fbc.disable_fbc = ilk_fbc_disable;
 	} else if (IS_GM45(dev_priv)) {
-		dev_priv->display.fbc_enabled = g4x_fbc_enabled;
-		dev_priv->display.enable_fbc = g4x_fbc_enable;
-		dev_priv->display.disable_fbc = g4x_fbc_disable;
+		dev_priv->fbc.fbc_enabled = g4x_fbc_enabled;
+		dev_priv->fbc.enable_fbc = g4x_fbc_enable;
+		dev_priv->fbc.disable_fbc = g4x_fbc_disable;
 	} else {
-		dev_priv->display.fbc_enabled = i8xx_fbc_enabled;
-		dev_priv->display.enable_fbc = i8xx_fbc_enable;
-		dev_priv->display.disable_fbc = i8xx_fbc_disable;
+		dev_priv->fbc.fbc_enabled = i8xx_fbc_enabled;
+		dev_priv->fbc.enable_fbc = i8xx_fbc_enable;
+		dev_priv->fbc.disable_fbc = i8xx_fbc_disable;
 
 		/* This value was pulled out of someone's hat */
 		I915_WRITE(FBC_CONTROL, 500 << FBC_CTL_INTERVAL_SHIFT);
 	}
 
-	dev_priv->fbc.enabled = dev_priv->display.fbc_enabled(dev_priv->dev);
+	dev_priv->fbc.enabled = dev_priv->fbc.fbc_enabled(dev_priv->dev);
 }

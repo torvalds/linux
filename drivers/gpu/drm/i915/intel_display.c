@@ -3134,8 +3134,8 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->display.disable_fbc)
-		dev_priv->display.disable_fbc(dev);
+	if (dev_priv->fbc.disable_fbc)
+		dev_priv->fbc.disable_fbc(dev);
 
 	dev_priv->display.update_primary_plane(crtc, fb, x, y);
 

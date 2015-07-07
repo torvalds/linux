@@ -598,9 +598,6 @@ struct intel_limit;
 struct dpll;
 
 struct drm_i915_display_funcs {
-	bool (*fbc_enabled)(struct drm_device *dev);
-	void (*enable_fbc)(struct drm_crtc *crtc);
-	void (*disable_fbc)(struct drm_device *dev);
 	int (*get_display_clock_speed)(struct drm_device *dev);
 	int (*get_fifo_size)(struct drm_device *dev, int plane);
 	/**
@@ -939,6 +936,10 @@ struct i915_fbc {
 		FBC_CHIP_DEFAULT, /* disabled by default on this chip */
 		FBC_ROTATION, /* rotation is not supported */
 	} no_fbc_reason;
+
+	bool (*fbc_enabled)(struct drm_device *dev);
+	void (*enable_fbc)(struct drm_crtc *crtc);
+	void (*disable_fbc)(struct drm_device *dev);
 };
 
 /**
