@@ -63,6 +63,7 @@ struct dht11 {
 	int				irq;
 
 	struct completion		completion;
+	/* The iio sysfs interface doesn't prevent concurrent reads: */
 	struct mutex			lock;
 
 	s64				timestamp;
