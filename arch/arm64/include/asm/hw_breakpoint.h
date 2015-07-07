@@ -16,6 +16,8 @@
 #ifndef __ASM_HW_BREAKPOINT_H
 #define __ASM_HW_BREAKPOINT_H
 
+#include <asm/cputype.h>
+
 #ifdef __KERNEL__
 
 struct arch_hw_breakpoint_ctrl {
@@ -131,6 +133,18 @@ static inline void ptrace_hw_copy_thread(struct task_struct *task)
 #endif
 
 extern struct pmu perf_ops_bp;
+
+/* Determine number of BRP registers available. */
+static inline int get_num_brps(void)
+{
+	return ((read_cpuid(ID_AA64DFR0_EL1) >> 12) & 0xf) + 1;
+}
+
+/* Determine number of WRP registers available. */
+static inline int get_num_wrps(void)
+{
+	return ((read_cpuid(ID_AA64DFR0_EL1) >> 20) & 0xf) + 1;
+}
 
 #endif	/* __KERNEL__ */
 #endif	/* __ASM_BREAKPOINT_H */

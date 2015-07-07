@@ -22,6 +22,7 @@
 #include <linux/errno.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
+#include <linux/hw_breakpoint.h>
 
 #include <kvm/arm_arch_timer.h>
 
@@ -56,6 +57,12 @@ static bool cpu_has_32bit_el1(void)
 	return !!(pfr0 & 0x20);
 }
 
+/**
+ * kvm_arch_dev_ioctl_check_extension
+ *
+ * We currently assume that the number of HW registers is uniform
+ * across all CPUs (see cpuinfo_sanity_check).
+ */
 int kvm_arch_dev_ioctl_check_extension(long ext)
 {
 	int r;
@@ -63,6 +70,15 @@ int kvm_arch_dev_ioctl_check_extension(long ext)
 	switch (ext) {
 	case KVM_CAP_ARM_EL1_32BIT:
 		r = cpu_has_32bit_el1();
+		break;
+	case KVM_CAP_GUEST_DEBUG_HW_BPS:
+		r = get_num_brps();
+		break;
+	case KVM_CAP_GUEST_DEBUG_HW_WPS:
+		r = get_num_wrps();
+		break;
+	case KVM_CAP_SET_GUEST_DEBUG:
+		r = 1;
 		break;
 	default:
 		r = 0;
