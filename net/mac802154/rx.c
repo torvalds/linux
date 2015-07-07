@@ -246,9 +246,8 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	}
 }
 
-void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
+void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 {
-	struct ieee802154_local *local = hw_to_local(hw);
 	u16 crc;
 
 	WARN_ON_ONCE(softirq_count() == 0);

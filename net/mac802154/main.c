@@ -40,7 +40,7 @@ static void ieee802154_tasklet_handler(unsigned long data)
 			 * netstack.
 			 */
 			skb->pkt_type = 0;
-			ieee802154_rx(&local->hw, skb);
+			ieee802154_rx(local, skb);
 			break;
 		default:
 			WARN(1, "mac802154: Packet is of unknown type %d\n",
