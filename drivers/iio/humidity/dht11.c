@@ -263,9 +263,10 @@ static int dht11_probe(struct platform_device *pdev)
 	dht11 = iio_priv(iio);
 	dht11->dev = dev;
 
-	dht11->gpio = ret = of_get_gpio(node, 0);
+	ret = of_get_gpio(node, 0);
 	if (ret < 0)
 		return ret;
+	dht11->gpio = ret;
 	ret = devm_gpio_request_one(dev, dht11->gpio, GPIOF_IN, pdev->name);
 	if (ret)
 		return ret;
