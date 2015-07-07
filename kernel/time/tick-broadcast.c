@@ -725,11 +725,15 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 			 * if the cpu local event is earlier than the
 			 * broadcast event. If the current CPU is in
 			 * the force mask, then we are going to be
-			 * woken by the IPI right away.
+			 * woken by the IPI right away; we return
+			 * busy, so the CPU does not try to go deep
+			 * idle.
 			 */
-			if (!cpumask_test_cpu(cpu, tick_broadcast_force_mask) &&
-			    dev->next_event.tv64 < bc->next_event.tv64)
+			if (cpumask_test_cpu(cpu, tick_broadcast_force_mask)) {
+				ret = -EBUSY;
+			} else if (dev->next_event.tv64 < bc->next_event.tv64) {
 				tick_broadcast_set_event(bc, cpu, dev->next_event);
+			}
 		}
 		/*
 		 * If the current CPU owns the hrtimer broadcast
