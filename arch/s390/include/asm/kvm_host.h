@@ -258,6 +258,9 @@ struct kvm_vcpu_stat {
 	u32 diagnose_10;
 	u32 diagnose_44;
 	u32 diagnose_9c;
+	u32 diagnose_258;
+	u32 diagnose_308;
+	u32 diagnose_500;
 };
 
 #define PGM_OPERATION			0x01

@@ -108,6 +108,9 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "diagnose_10", VCPU_STAT(diagnose_10) },
 	{ "diagnose_44", VCPU_STAT(diagnose_44) },
 	{ "diagnose_9c", VCPU_STAT(diagnose_9c) },
+	{ "diagnose_258", VCPU_STAT(diagnose_258) },
+	{ "diagnose_308", VCPU_STAT(diagnose_308) },
+	{ "diagnose_500", VCPU_STAT(diagnose_500) },
 	{ NULL }
 };
 
