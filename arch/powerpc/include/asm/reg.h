@@ -1193,8 +1193,7 @@
 #ifdef CONFIG_PPC_BOOK3S_64
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
 				     : : "r" (v) : "memory")
-#define mtmsrd(v)	__mtmsrd((v), 0)
-#define mtmsr(v)	mtmsrd(v)
+#define mtmsr(v)	__mtmsrd((v), 0)
 #else
 #define mtmsr(v)	asm volatile("mtmsr %0" : \
 				     : "r" ((unsigned long)(v)) \
