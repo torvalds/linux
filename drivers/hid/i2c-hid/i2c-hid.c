@@ -1092,12 +1092,12 @@ static int i2c_hid_suspend(struct device *dev)
 	struct hid_device *hid = ihid->hid;
 	int ret = 0;
 
+	if (hid->driver && hid->driver->suspend)
+		ret = hid->driver->suspend(hid, PMSG_SUSPEND);
+
 	disable_irq(ihid->irq);
 	if (device_may_wakeup(&client->dev))
 		enable_irq_wake(ihid->irq);
-
-	if (hid->driver && hid->driver->suspend)
-		ret = hid->driver->suspend(hid, PMSG_SUSPEND);
 
 	/* Save some power */
 	i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
