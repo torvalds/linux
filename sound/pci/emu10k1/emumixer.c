@@ -1830,10 +1830,16 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		"Capture Switch",
 		"Capture Volume",
 		"Mic Select",
+		"Headphone Playback Switch",
+		"Headphone Playback Volume",
+		"3D Control - Center",
+		"3D Control - Depth",
+		"3D Control - Switch",
 		"Video Playback Switch",
 		"Video Playback Volume",
 		"Mic Playback Switch",
 		"Mic Playback Volume",
+		"External Amplifier",
 		NULL
 	};
 	static char *audigy_rename_ctls[] = {
@@ -1996,11 +2002,6 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		rename_ctl(card, "Analog Mix Capture Volume", "Line2 Capture Volume");
 		rename_ctl(card, "Aux2 Capture Volume", "Line3 Capture Volume");
 		rename_ctl(card, "Mic Capture Volume", "Unknown1 Capture Volume");
-		remove_ctl(card, "Headphone Playback Switch");
-		remove_ctl(card, "Headphone Playback Volume");
-		remove_ctl(card, "3D Control - Center");
-		remove_ctl(card, "3D Control - Depth");
-		remove_ctl(card, "3D Control - Switch");
 	}
 	if ((kctl = emu->ctl_send_routing = snd_ctl_new1(&snd_emu10k1_send_routing_control, emu)) == NULL)
 		return -ENOMEM;
