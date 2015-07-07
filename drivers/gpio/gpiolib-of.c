@@ -362,7 +362,7 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 
 		if (pinspec.args[2]) {
 			if (group_names) {
-				ret = of_property_read_string_index(np,
+				of_property_read_string_index(np,
 						group_names_propname,
 						index, &name);
 				if (strlen(name)) {
