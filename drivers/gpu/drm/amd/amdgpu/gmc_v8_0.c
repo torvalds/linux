@@ -44,6 +44,7 @@ static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 
 MODULE_FIRMWARE("amdgpu/topaz_mc.bin");
 MODULE_FIRMWARE("amdgpu/tonga_mc.bin");
+MODULE_FIRMWARE("amdgpu/fiji_mc.bin");
 
 static const u32 golden_settings_tonga_a11[] =
 {
@@ -57,6 +58,19 @@ static const u32 golden_settings_tonga_a11[] =
 };
 
 static const u32 tonga_mgcg_cgcg_init[] =
+{
+	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
+};
+
+static const u32 golden_settings_fiji_a10[] =
+{
+	mmVM_PRT_APERTURE0_LOW_ADDR, 0x0fffffff, 0x0fffffff,
+	mmVM_PRT_APERTURE1_LOW_ADDR, 0x0fffffff, 0x0fffffff,
+	mmVM_PRT_APERTURE2_LOW_ADDR, 0x0fffffff, 0x0fffffff,
+	mmVM_PRT_APERTURE3_LOW_ADDR, 0x0fffffff, 0x0fffffff,
+};
+
+static const u32 fiji_mgcg_cgcg_init[] =
 {
 	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
 };
@@ -89,6 +103,14 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_iceland_a11,
 						 (const u32)ARRAY_SIZE(golden_settings_iceland_a11));
+		break;
+	case CHIP_FIJI:
+		amdgpu_program_register_sequence(adev,
+						 fiji_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_fiji_a10,
+						 (const u32)ARRAY_SIZE(golden_settings_fiji_a10));
 		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
@@ -201,6 +223,9 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_TONGA:
 		chip_name = "tonga";
+		break;
+	case CHIP_FIJI:
+		chip_name = "fiji";
 		break;
 	case CHIP_CARRIZO:
 		return 0;

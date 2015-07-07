@@ -1173,7 +1173,14 @@ static const struct amdgpu_ip_block_version fiji_ip_blocks[] =
 		.minor = 0,
 		.rev = 0,
 		.funcs = &vi_common_ip_funcs,
-	}
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_GMC,
+		.major = 8,
+		.minor = 5,
+		.rev = 0,
+		.funcs = &gmc_v8_0_ip_funcs,
+	},
 };
 
 static const struct amdgpu_ip_block_version cz_ip_blocks[] =
