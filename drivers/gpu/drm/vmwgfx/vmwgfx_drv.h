@@ -227,7 +227,7 @@ enum vmw_dma_map_mode {
  * device-specific information.
  *
  * @sgt: Pointer to a struct sg_table with binding information
- * @num_regions: Number of regions with device-address contigous pages
+ * @num_regions: Number of regions with device-address contiguous pages
  */
 struct vmw_sg_table {
 	enum vmw_dma_map_mode mode;

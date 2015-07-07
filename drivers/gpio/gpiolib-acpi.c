@@ -68,7 +68,7 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
  * GPIO controller driver.
  *
  * Typically the returned offset is same as @pin, but if the GPIO
- * controller uses pin controller and the mapping is not contigous the
+ * controller uses pin controller and the mapping is not contiguous the
  * offset might be different.
  */
 static int acpi_gpiochip_pin_to_gpio_offset(struct gpio_chip *chip, int pin)

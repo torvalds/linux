@@ -125,7 +125,7 @@ int vb2_get_contig_userptr(unsigned long vaddr, unsigned long size,
 	}
 
 	/*
-	 * Memory is contigous, lock vma and return to the caller
+	 * Memory is contiguous, lock vma and return to the caller
 	 */
 	*res_vma = vb2_get_vma(vma);
 	if (*res_vma == NULL)

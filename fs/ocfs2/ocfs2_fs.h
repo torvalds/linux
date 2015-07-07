@@ -168,7 +168,7 @@
 /* Refcount tree support */
 #define OCFS2_FEATURE_INCOMPAT_REFCOUNT_TREE	0x1000
 
-/* Discontigous block groups */
+/* Discontiguous block groups */
 #define OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG	0x2000
 
 /*
@@ -939,7 +939,7 @@ struct ocfs2_group_desc
 			/*
 			 * Block groups may be discontiguous when
 			 * OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG is set.
-			 * The extents of a discontigous block group are
+			 * The extents of a discontiguous block group are
 			 * stored in bg_list.  It is a flat list.
 			 * l_tree_depth must always be zero.  A
 			 * discontiguous group is signified by a non-zero
