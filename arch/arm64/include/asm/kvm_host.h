@@ -108,11 +108,25 @@ struct kvm_vcpu_arch {
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
 
-	/* Debug state */
+	/* Guest debug state */
 	u64 debug_flags;
+
+	/*
+	 * We maintain more than a single set of debug registers to support
+	 * debugging the guest from the host and to maintain separate host and
+	 * guest state during world switches. vcpu_debug_state are the debug
+	 * registers of the vcpu as the guest sees them.  host_debug_state are
+	 * the host registers which are saved and restored during world switches.
+	 *
+	 * debug_ptr points to the set of debug registers that should be loaded
+	 * onto the hardware when running the guest.
+	 */
+	struct kvm_guest_debug_arch *debug_ptr;
+	struct kvm_guest_debug_arch vcpu_debug_state;
 
 	/* Pointer to host CPU context */
 	kvm_cpu_context_t *host_cpu_context;
+	struct kvm_guest_debug_arch host_debug_state;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
@@ -242,5 +256,6 @@ static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 void kvm_arm_init_debug(void);
 void kvm_arm_setup_debug(struct kvm_vcpu *vcpu);
 void kvm_arm_clear_debug(struct kvm_vcpu *vcpu);
+void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu);
 
 #endif /* __ARM64_KVM_HOST_H__ */

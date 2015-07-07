@@ -278,6 +278,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	/* Set up the timer */
 	kvm_timer_vcpu_init(vcpu);
 
+	kvm_arm_reset_debug_ptr(vcpu);
+
 	return 0;
 }
 

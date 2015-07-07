@@ -67,6 +67,15 @@ void kvm_arm_init_debug(void)
 }
 
 /**
+ * kvm_arm_reset_debug_ptr - reset the debug ptr to point to the vcpu state
+ */
+
+void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.debug_ptr = &vcpu->arch.vcpu_debug_state;
+}
+
+/**
  * kvm_arm_setup_debug - set up debug related stuff
  *
  * @vcpu:	the vcpu pointer

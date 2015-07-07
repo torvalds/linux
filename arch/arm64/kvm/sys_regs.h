@@ -55,6 +55,12 @@ struct sys_reg_desc {
 
 	/* Value (usually reset value) */
 	u64 val;
+
+	/* Custom get/set_user functions, fallback to generic if NULL */
+	int (*get_user)(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			const struct kvm_one_reg *reg, void __user *uaddr);
+	int (*set_user)(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			const struct kvm_one_reg *reg, void __user *uaddr);
 };
 
 static inline void print_sys_reg_instr(const struct sys_reg_params *p)
