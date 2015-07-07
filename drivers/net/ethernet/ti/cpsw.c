@@ -509,9 +509,11 @@ static const struct cpsw_stats cpsw_gstrings_stats[] = {
 				(func)(slave++, ##arg);			\
 	} while (0)
 #define cpsw_get_slave_ndev(priv, __slave_no__)				\
-	(priv->slaves[__slave_no__].ndev)
+	((__slave_no__ < priv->data.slaves) ?				\
+		priv->slaves[__slave_no__].ndev : NULL)
 #define cpsw_get_slave_priv(priv, __slave_no__)				\
-	((priv->slaves[__slave_no__].ndev) ?				\
+	(((__slave_no__ < priv->data.slaves) &&				\
+		(priv->slaves[__slave_no__].ndev)) ?			\
 		netdev_priv(priv->slaves[__slave_no__].ndev) : NULL)	\
 
 #define cpsw_dual_emac_src_port_detect(status, priv, ndev, skb)		\
