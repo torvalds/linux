@@ -709,8 +709,12 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 		 * If the broadcast device is in periodic mode, we
 		 * return.
 		 */
-		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
+		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC) {
+			/* If it is a hrtimer based broadcast, return busy */
+			if (bc->features & CLOCK_EVT_FEAT_HRTIMER)
+				ret = -EBUSY;
 			goto out;
+		}
 
 		if (!cpumask_test_and_set_cpu(cpu, tick_broadcast_oneshot_mask)) {
 			WARN_ON_ONCE(cpumask_test_cpu(cpu, tick_broadcast_pending_mask));
