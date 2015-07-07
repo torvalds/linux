@@ -175,9 +175,7 @@ struct clk *sunxi_factors_register(struct device_node *node,
 	int i = 0;
 
 	/* if we have a mux, we will have >1 parents */
-	while (i < FACTORS_MAX_PARENTS &&
-	       (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
-		i++;
+	i = of_clk_parent_fill(node, parents, FACTORS_MAX_PARENTS);
 
 	/*
 	 * some factor clocks, such as pll5 and pll6, may have multiple

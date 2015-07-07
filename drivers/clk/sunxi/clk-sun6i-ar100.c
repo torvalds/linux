@@ -182,7 +182,6 @@ static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct clk *clk;
 	int nparents;
-	int i;
 
 	ar100 = devm_kzalloc(&pdev->dev, sizeof(*ar100), GFP_KERNEL);
 	if (!ar100)
@@ -197,8 +196,7 @@ static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 	if (nparents > SUN6I_AR100_MAX_PARENTS)
 		nparents = SUN6I_AR100_MAX_PARENTS;
 
-	for (i = 0; i < nparents; i++)
-		parents[i] = of_clk_get_parent_name(np, i);
+	of_clk_parent_fill(np, parents, nparents);
 
 	of_property_read_string(np, "clock-output-names", &clk_name);
 

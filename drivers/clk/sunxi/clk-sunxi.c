@@ -195,17 +195,14 @@ static void __init sun6i_ahb1_clk_setup(struct device_node *node)
 	const char *clk_name = node->name;
 	const char *parents[SUN6I_AHB1_MAX_PARENTS];
 	void __iomem *reg;
-	int i = 0;
+	int i;
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg))
 		return;
 
 	/* we have a mux, we will have >1 parents */
-	while (i < SUN6I_AHB1_MAX_PARENTS &&
-	       (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
-		i++;
-
+	i = of_clk_parent_fill(node, parents, SUN6I_AHB1_MAX_PARENTS);
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
 	ahb1 = kzalloc(sizeof(struct sun6i_ahb1_clk), GFP_KERNEL);
@@ -786,14 +783,11 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
 	const char *clk_name = node->name;
 	const char *parents[SUNXI_MAX_PARENTS];
 	void __iomem *reg;
-	int i = 0;
+	int i;
 
 	reg = of_iomap(node, 0);
 
-	while (i < SUNXI_MAX_PARENTS &&
-	       (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
-		i++;
-
+	i = of_clk_parent_fill(node, parents, SUNXI_MAX_PARENTS);
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
 	clk = clk_register_mux(NULL, clk_name, parents, i,
