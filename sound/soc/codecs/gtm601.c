@@ -51,7 +51,7 @@ static struct snd_soc_dai_driver gtm601_dai = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_gtm601 = {
+static const struct snd_soc_codec_driver soc_codec_dev_gtm601 = {
 	.dapm_widgets = gtm601_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(gtm601_dapm_widgets),
 	.dapm_routes = gtm601_dapm_routes,
@@ -80,10 +80,9 @@ MODULE_DEVICE_TABLE(of, gtm601_codec_of_match);
 
 static struct platform_driver gtm601_codec_driver = {
 	.driver = {
-			.name = "gtm601",
-			.of_match_table = of_match_ptr(gtm601_codec_of_match),
+		.name = "gtm601",
+		.of_match_table = of_match_ptr(gtm601_codec_of_match),
 	},
-
 	.probe = gtm601_platform_probe,
 	.remove = gtm601_platform_remove,
 };
