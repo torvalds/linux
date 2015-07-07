@@ -543,6 +543,9 @@ struct arm_smmu_device {
 #define ARM_SMMU_FEAT_HYP		(1 << 12)
 	u32				features;
 
+#define ARM_SMMU_OPT_SKIP_PREFETCH	(1 << 0)
+	u32				options;
+
 	struct arm_smmu_cmdq		cmdq;
 	struct arm_smmu_evtq		evtq;
 	struct arm_smmu_priq		priq;
@@ -603,9 +606,33 @@ struct arm_smmu_domain {
 static DEFINE_SPINLOCK(arm_smmu_devices_lock);
 static LIST_HEAD(arm_smmu_devices);
 
+struct arm_smmu_option_prop {
+	u32 opt;
+	const char *prop;
+};
+
+static struct arm_smmu_option_prop arm_smmu_options[] = {
+	{ ARM_SMMU_OPT_SKIP_PREFETCH, "hisilicon,broken-prefetch-cmd" },
+	{ 0, NULL},
+};
+
 static struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct arm_smmu_domain, domain);
+}
+
+static void parse_driver_options(struct arm_smmu_device *smmu)
+{
+	int i = 0;
+
+	do {
+		if (of_property_read_bool(smmu->dev->of_node,
+						arm_smmu_options[i].prop)) {
+			smmu->options |= arm_smmu_options[i].opt;
+			dev_notice(smmu->dev, "option %s\n",
+				arm_smmu_options[i].prop);
+		}
+	} while (arm_smmu_options[++i].opt);
 }
 
 /* Low-level queue manipulation functions */
@@ -1037,7 +1064,8 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 	arm_smmu_sync_ste_for_sid(smmu, sid);
 
 	/* It's likely that we'll want to use the new STE soon */
-	arm_smmu_cmdq_issue_cmd(smmu, &prefetch_cmd);
+	if (!(smmu->options & ARM_SMMU_OPT_SKIP_PREFETCH))
+		arm_smmu_cmdq_issue_cmd(smmu, &prefetch_cmd);
 }
 
 static void arm_smmu_init_bypass_stes(u64 *strtab, unsigned int nent)
@@ -2574,6 +2602,8 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	irq = platform_get_irq_byname(pdev, "gerror");
 	if (irq > 0)
 		smmu->gerr_irq = irq;
+
+	parse_driver_options(smmu);
 
 	/* Probe the h/w */
 	ret = arm_smmu_device_probe(smmu);
