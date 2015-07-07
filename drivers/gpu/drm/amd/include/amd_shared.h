@@ -45,6 +45,7 @@ enum amd_asic_type {
 	CHIP_MULLINS,
 	CHIP_TOPAZ,
 	CHIP_TONGA,
+	CHIP_FIJI,
 	CHIP_CARRIZO,
 	CHIP_LAST,
 };

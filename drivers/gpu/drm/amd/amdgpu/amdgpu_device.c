@@ -55,6 +55,7 @@ static const char *amdgpu_asic_name[] = {
 	"MULLINS",
 	"TOPAZ",
 	"TONGA",
+	"FIJI",
 	"CARRIZO",
 	"LAST",
 };
@@ -1160,6 +1161,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
 	case CHIP_TONGA:
+	case CHIP_FIJI:
 	case CHIP_CARRIZO:
 		if (adev->asic_type == CHIP_CARRIZO)
 			adev->family = AMDGPU_FAMILY_CZ;
