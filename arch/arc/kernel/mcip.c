@@ -175,7 +175,6 @@ void mcip_init_early_smp(void)
 #include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include "../../drivers/irqchip/irqchip.h"
 
 /*
  * Set the DEST for @cmn_irq to @cpu_mask (1 bit per core)
