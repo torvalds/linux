@@ -13276,7 +13276,7 @@ intel_check_primary_plane(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	if (intel_crtc->active) {
+	if (crtc_state->base.active) {
 		struct intel_plane_state *old_state =
 			to_intel_plane_state(plane->state);
 
