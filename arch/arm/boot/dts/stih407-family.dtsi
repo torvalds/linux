@@ -69,6 +69,17 @@
 		interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	pwm_regulator: pwm-regulator {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1 3 8448>;
+		regulator-name = "CPU_1V0_AVS";
+		regulator-min-microvolt = <784000>;
+		regulator-max-microvolt = <1299000>;
+		regulator-always-on;
+		max-duty-cycle = <255>;
+		status = "okay";
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
