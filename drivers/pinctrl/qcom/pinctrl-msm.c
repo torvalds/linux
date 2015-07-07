@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/reboot.h>
+#include <linux/pm.h>
 
 #include "../core.h"
 #include "../pinconf.h"
@@ -855,6 +856,13 @@ static int msm_ps_hold_restart(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_DONE;
 }
 
+static struct msm_pinctrl *poweroff_pctrl;
+
+static void msm_ps_hold_poweroff(void)
+{
+	msm_ps_hold_restart(&poweroff_pctrl->restart_nb, 0, NULL);
+}
+
 static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 {
 	int i;
@@ -867,6 +875,8 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 			if (register_restart_handler(&pctrl->restart_nb))
 				dev_err(pctrl->dev,
 					"failed to setup restart handler.\n");
+			poweroff_pctrl = pctrl;
+			pm_power_off = msm_ps_hold_poweroff;
 			break;
 		}
 }
