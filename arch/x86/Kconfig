@@ -2020,7 +2020,7 @@ config CMDLINE_BOOL
 
 	  To compile command line arguments into the kernel,
 	  set this option to 'Y', then fill in the
-	  the boot arguments in CONFIG_CMDLINE.
+	  boot arguments in CONFIG_CMDLINE.
 
 	  Systems with fully functional boot loaders (i.e. non-embedded)
 	  should leave this option set to 'N'.
