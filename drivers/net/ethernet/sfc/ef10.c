@@ -3829,38 +3829,27 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 		efx_net_open(efx->net_dev);
 	netif_device_attach(efx->net_dev);
 
-#if !defined(CONFIG_SFC_SRIOV)
-	if (rc == -EPERM)
-		netif_err(efx, drv, efx->net_dev,
-			  "Cannot change MAC address; use sfboot to enable mac-spoofing"
-			  " on this interface\n");
-#else
-	if (rc == -EPERM) {
+#ifdef CONFIG_SFC_SRIOV
+	if (efx->pci_dev->is_virtfn && efx->pci_dev->physfn) {
 		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
 
-		/* Switch to PF and change MAC address on vport */
-		if (efx->pci_dev->is_virtfn && pci_dev_pf) {
-			struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
+		if (rc == -EPERM) {
+			struct efx_nic *efx_pf;
 
-			if (!efx_ef10_sriov_set_vf_mac(efx_pf,
+			/* Switch to PF and change MAC address on vport */
+			efx_pf = pci_get_drvdata(pci_dev_pf);
+
+			rc = efx_ef10_sriov_set_vf_mac(efx_pf,
 						       nic_data->vf_index,
-						       efx->net_dev->dev_addr))
-				return 0;
-		}
-		netif_err(efx, drv, efx->net_dev,
-			  "Cannot change MAC address; use sfboot to enable mac-spoofing"
-			  " on this interface\n");
-	} else if (efx->pci_dev->is_virtfn) {
-		/* Successfully changed by VF (with MAC spoofing), so update the
-		 * parent PF if possible.
-		 */
-		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
-
-		if (pci_dev_pf) {
+						       efx->net_dev->dev_addr);
+		} else if (!rc) {
 			struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
 			struct efx_ef10_nic_data *nic_data = efx_pf->nic_data;
 			unsigned int i;
 
+			/* MAC address successfully changed by VF (with MAC
+			 * spoofing) so update the parent PF if possible.
+			 */
 			for (i = 0; i < efx_pf->vf_count; ++i) {
 				struct ef10_vf *vf = nic_data->vf + i;
 
@@ -3871,8 +3860,14 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 				}
 			}
 		}
-	}
+	} else
 #endif
+	if (rc == -EPERM) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Cannot change MAC address; use sfboot to enable"
+			  " mac-spoofing on this interface\n");
+	}
+
 	return rc;
 }
 
