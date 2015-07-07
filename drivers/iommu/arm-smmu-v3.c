@@ -199,9 +199,10 @@
  * Stream table.
  *
  * Linear: Enough to cover 1 << IDR1.SIDSIZE entries
- * 2lvl: 8k L1 entries, 256 lazy entries per table (each table covers a PCI bus)
+ * 2lvl: 128k L1 entries,
+ *       256 lazy entries per table (each table covers a PCI bus)
  */
-#define STRTAB_L1_SZ_SHIFT		16
+#define STRTAB_L1_SZ_SHIFT		20
 #define STRTAB_SPLIT			8
 
 #define STRTAB_L1_DESC_DWORDS		1
