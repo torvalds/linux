@@ -73,6 +73,9 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 	if (trap_debug)
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
 
+	/* Trap breakpoints? */
+	if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDE;
 }
 
 void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
