@@ -17,7 +17,6 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <linux/of_irq.h>
-#include "../../../drivers/irqchip/irqchip.h"
 
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>

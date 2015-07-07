@@ -18,11 +18,10 @@
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 
 #include <asm/i8259.h>
 #include <asm/io.h>
-
-#include "../../drivers/irqchip/irqchip.h"
 
 /*
  * This is the 'legacy' 8259A Programmable Interrupt Controller,
