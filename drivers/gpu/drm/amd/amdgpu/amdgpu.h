@@ -415,6 +415,8 @@ struct amdgpu_user_fence {
 	struct amdgpu_bo 	*bo;
 	/* write-back address offset to bo start */
 	uint32_t                offset;
+	/* resulting sequence number */
+	uint64_t                sequence;
 };
 
 int amdgpu_fence_driver_init(struct amdgpu_device *adev);
@@ -985,9 +987,18 @@ struct amdgpu_vm_manager {
  * context related structures
  */
 
+#define AMDGPU_CTX_MAX_CS_PENDING	16
+
+struct amdgpu_ctx_ring {
+	uint64_t	sequence;
+	struct fence	*fences[AMDGPU_CTX_MAX_CS_PENDING];
+};
+
 struct amdgpu_ctx {
 	struct kref		refcount;
 	unsigned		reset_counter;
+	spinlock_t		ring_lock;
+	struct amdgpu_ctx_ring	rings[AMDGPU_MAX_RINGS];
 };
 
 struct amdgpu_ctx_mgr {
@@ -1006,6 +1017,11 @@ void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv);
 
 struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
+
+uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
+			      struct fence *fence);
+struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
+				   struct amdgpu_ring *ring, uint64_t seq);
 
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *filp);

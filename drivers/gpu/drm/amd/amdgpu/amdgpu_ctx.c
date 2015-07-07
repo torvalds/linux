@@ -28,17 +28,22 @@
 static void amdgpu_ctx_do_release(struct kref *ref)
 {
 	struct amdgpu_ctx *ctx;
+	unsigned i, j;
 
 	ctx = container_of(ref, struct amdgpu_ctx, refcount);
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
+		for (j = 0; j < AMDGPU_CTX_MAX_CS_PENDING; ++j)
+			fence_put(ctx->rings[i].fences[j]);
 	kfree(ctx);
 }
 
 int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 		     uint32_t *id)
 {
-	int r;
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
+	int i, r;
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -55,6 +60,9 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 
 	memset(ctx, 0, sizeof(*ctx));
 	kref_init(&ctx->refcount);
+	spin_lock_init(&ctx->ring_lock);
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
+		ctx->rings[i].sequence = 1;
 	mutex_unlock(&mgr->lock);
 
 	return 0;
@@ -176,4 +184,54 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx)
 
 	kref_put(&ctx->refcount, amdgpu_ctx_do_release);
 	return 0;
+}
+
+uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
+			      struct fence *fence)
+{
+	struct amdgpu_ctx_ring *cring = & ctx->rings[ring->idx];
+	uint64_t seq = cring->sequence;
+	unsigned idx = seq % AMDGPU_CTX_MAX_CS_PENDING;
+	struct fence *other = cring->fences[idx];
+
+	if (other) {
+		signed long r;
+		r = fence_wait_timeout(other, false, MAX_SCHEDULE_TIMEOUT);
+		if (r < 0)
+			DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+	}
+
+	fence_get(fence);
+
+	spin_lock(&ctx->ring_lock);
+	cring->fences[idx] = fence;
+	cring->sequence++;
+	spin_unlock(&ctx->ring_lock);
+
+	fence_put(other);
+
+	return seq;
+}
+
+struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
+				   struct amdgpu_ring *ring, uint64_t seq)
+{
+	struct amdgpu_ctx_ring *cring = & ctx->rings[ring->idx];
+	struct fence *fence;
+
+	spin_lock(&ctx->ring_lock);
+	if (seq >= cring->sequence) {
+		spin_unlock(&ctx->ring_lock);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (seq < cring->sequence - AMDGPU_CTX_MAX_CS_PENDING) {
+		spin_unlock(&ctx->ring_lock);
+		return NULL;
+	}
+
+	fence = fence_get(cring->fences[seq % AMDGPU_CTX_MAX_CS_PENDING]);
+	spin_unlock(&ctx->ring_lock);
+
+	return fence;
 }

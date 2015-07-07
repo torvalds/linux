@@ -698,9 +698,9 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 			sizeof(struct drm_amdgpu_cs_chunk_dep);
 
 		for (j = 0; j < num_deps; ++j) {
-			struct amdgpu_fence *fence;
 			struct amdgpu_ring *ring;
 			struct amdgpu_ctx *ctx;
+			struct fence *fence;
 
 			r = amdgpu_cs_get_ring(adev, deps[j].ip_type,
 					       deps[j].ip_instance,
@@ -712,20 +712,20 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 			if (ctx == NULL)
 				return -EINVAL;
 
-			r = amdgpu_fence_recreate(ring, p->filp,
-						  deps[j].handle,
-						  &fence);
-			if (r) {
+			fence = amdgpu_ctx_get_fence(ctx, ring,
+						     deps[j].handle);
+			if (IS_ERR(fence)) {
+				r = PTR_ERR(fence);
 				amdgpu_ctx_put(ctx);
 				return r;
+
+			} else if (fence) {
+				r = amdgpu_sync_fence(adev, &ib->sync, fence);
+				fence_put(fence);
+				amdgpu_ctx_put(ctx);
+				if (r)
+					return r;
 			}
-
-			r = amdgpu_sync_fence(adev, &ib->sync, &fence->base);
-			amdgpu_fence_unref(&fence);
-			amdgpu_ctx_put(ctx);
-
-			if (r)
-				return r;
 		}
 	}
 
@@ -773,8 +773,11 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		r = amdgpu_cs_ib_fill(adev, &parser);
 	}
 
-	if (!r)
+	if (!r) {
 		r = amdgpu_cs_dependencies(adev, &parser);
+		if (r)
+			DRM_ERROR("Failed in the dependencies handling %d!\n", r);
+	}
 
 	if (r) {
 		amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
@@ -791,7 +794,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		goto out;
 	}
 
-	cs->out.handle = parser.ibs[parser.num_ibs - 1].fence->seq;
+	cs->out.handle = parser.uf.sequence;
 out:
 	amdgpu_cs_parser_fini(&parser, r, true);
 	up_read(&adev->exclusive_lock);
@@ -814,30 +817,31 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 	union drm_amdgpu_wait_cs *wait = data;
 	struct amdgpu_device *adev = dev->dev_private;
 	unsigned long timeout = amdgpu_gem_timeout(wait->in.timeout);
-	struct amdgpu_fence *fence = NULL;
 	struct amdgpu_ring *ring = NULL;
 	struct amdgpu_ctx *ctx;
+	struct fence *fence;
 	long r;
+
+	r = amdgpu_cs_get_ring(adev, wait->in.ip_type, wait->in.ip_instance,
+			       wait->in.ring, &ring);
+	if (r)
+		return r;
 
 	ctx = amdgpu_ctx_get(filp->driver_priv, wait->in.ctx_id);
 	if (ctx == NULL)
 		return -EINVAL;
 
-	r = amdgpu_cs_get_ring(adev, wait->in.ip_type, wait->in.ip_instance,
-			       wait->in.ring, &ring);
-	if (r) {
-		amdgpu_ctx_put(ctx);
-		return r;
-	}
+	fence = amdgpu_ctx_get_fence(ctx, ring, wait->in.handle);
+	if (IS_ERR(fence))
+		r = PTR_ERR(fence);
 
-	r = amdgpu_fence_recreate(ring, filp, wait->in.handle, &fence);
-	if (r) {
-		amdgpu_ctx_put(ctx);
-		return r;
-	}
+	else if (fence) {
+		r = fence_wait_timeout(fence, true, timeout);
+		fence_put(fence);
 
-	r = fence_wait_timeout(&fence->base, true, timeout);
-	amdgpu_fence_unref(&fence);
+	} else
+		r = 1;
+
 	amdgpu_ctx_put(ctx);
 	if (r < 0)
 		return r;
