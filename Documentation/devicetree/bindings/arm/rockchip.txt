@@ -30,3 +30,10 @@ Rockchip platforms device tree bindings
 - Netxeon R89 board:
     Required root node properties:
       - compatible = "netxeon,r89", "rockchip,rk3288";
+
+- Google Jerry (Hisense Chromebook C11 and more):
+    Required root node properties:
+      - compatible = "google,veyron-jerry-rev7", "google,veyron-jerry-rev6",
+		     "google,veyron-jerry-rev5", "google,veyron-jerry-rev4",
+		     "google,veyron-jerry-rev3", "google,veyron-jerry",
+		     "google,veyron", "rockchip,rk3288";
