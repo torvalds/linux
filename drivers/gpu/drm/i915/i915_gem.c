@@ -375,7 +375,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	i915_gem_chipset_flush(dev);
 
 out:
-	intel_fb_obj_flush(obj, false);
+	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 	return ret;
 }
 
@@ -839,7 +839,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 	}
 
 out_flush:
-	intel_fb_obj_flush(obj, false);
+	intel_fb_obj_flush(obj, false, ORIGIN_GTT);
 out_unpin:
 	i915_gem_object_ggtt_unpin(obj);
 out:
@@ -1032,7 +1032,7 @@ out:
 	if (needs_clflush_after)
 		i915_gem_chipset_flush(dev);
 
-	intel_fb_obj_flush(obj, false);
+	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 	return ret;
 }
 
@@ -2375,7 +2375,7 @@ i915_gem_object_retire__write(struct drm_i915_gem_object *obj)
 	RQ_BUG_ON(!(obj->active & intel_ring_flag(obj->last_write_req->ring)));
 
 	i915_gem_request_assign(&obj->last_write_req, NULL);
-	intel_fb_obj_flush(obj, true);
+	intel_fb_obj_flush(obj, true, ORIGIN_CS);
 }
 
 static void
@@ -3905,7 +3905,7 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
 
-	intel_fb_obj_flush(obj, false);
+	intel_fb_obj_flush(obj, false, ORIGIN_GTT);
 
 	trace_i915_gem_object_change_domain(obj,
 					    obj->base.read_domains,
@@ -3927,7 +3927,7 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
 
-	intel_fb_obj_flush(obj, false);
+	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 
 	trace_i915_gem_object_change_domain(obj,
 					    obj->base.read_domains,

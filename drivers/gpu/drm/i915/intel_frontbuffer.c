@@ -105,6 +105,7 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
  * intel_frontbuffer_flush - flush frontbuffer
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
+ * @origin: which operation caused the flush
  *
  * This function gets called every time rendering on the given planes has
  * completed and frontbuffer caching can be started again. Flushes will get
@@ -113,7 +114,8 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
  * Can be called without any locks held.
  */
 void intel_frontbuffer_flush(struct drm_device *dev,
-			     unsigned frontbuffer_bits)
+			     unsigned frontbuffer_bits,
+			     enum fb_op_origin origin)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -140,7 +142,7 @@ void intel_frontbuffer_flush(struct drm_device *dev,
  * then any delayed flushes will be unblocked.
  */
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj,
-			bool retire)
+			bool retire, enum fb_op_origin origin)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -162,7 +164,7 @@ void intel_fb_obj_flush(struct drm_i915_gem_object *obj,
 		mutex_unlock(&dev_priv->fb_tracking.lock);
 	}
 
-	intel_frontbuffer_flush(dev, frontbuffer_bits);
+	intel_frontbuffer_flush(dev, frontbuffer_bits, origin);
 }
 
 /**
@@ -212,7 +214,7 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
 	dev_priv->fb_tracking.flip_bits &= ~frontbuffer_bits;
 	mutex_unlock(&dev_priv->fb_tracking.lock);
 
-	intel_frontbuffer_flush(dev, frontbuffer_bits);
+	intel_frontbuffer_flush(dev, frontbuffer_bits, ORIGIN_FLIP);
 }
 
 /**
@@ -237,5 +239,5 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
 	mutex_unlock(&dev_priv->fb_tracking.lock);
 
-	intel_frontbuffer_flush(dev, frontbuffer_bits);
+	intel_frontbuffer_flush(dev, frontbuffer_bits, ORIGIN_FLIP);
 }

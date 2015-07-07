@@ -978,16 +978,16 @@ void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 void intel_frontbuffer_flip_complete(struct drm_device *dev,
 				     unsigned frontbuffer_bits);
 void intel_frontbuffer_flush(struct drm_device *dev,
-			     unsigned frontbuffer_bits);
+			     unsigned frontbuffer_bits,
+			     enum fb_op_origin origin);
 void intel_frontbuffer_flip(struct drm_device *dev,
 			    unsigned frontbuffer_bits);
-
 unsigned int intel_fb_align_height(struct drm_device *dev,
 				   unsigned int height,
 				   uint32_t pixel_format,
 				   uint64_t fb_format_modifier);
-void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
-
+void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire,
+			enum fb_op_origin origin);
 u32 intel_fb_stride_alignment(struct drm_device *dev, uint64_t fb_modifier,
 			      uint32_t pixel_format);
 
