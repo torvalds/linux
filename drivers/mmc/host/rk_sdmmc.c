@@ -1969,7 +1969,7 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 
 	data = host->data;
 
-	if ((opcode == MMC_SEND_TUNING_BLOCK_HS200) &&
+	if ((opcode == MMC_SEND_TUNING_BLOCK_HS200) ||
 	    (opcode == MMC_SEND_TUNING_BLOCK))
 	    return;
 
