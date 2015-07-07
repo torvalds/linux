@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "hisilicon,hi6220";
@@ -197,6 +198,125 @@
 			reg = <0x0 0xf7510000 0x0 0x1000>, /* IPC_S */
 			      <0x0 0x06dff800 0x0 0x0800>; /* Mailbox buffer */
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		tsensor: tsensor@0,f7030700 {
+			compatible = "hisilicon,tsensor";
+			reg = <0x0 0xf7030700 0x0 0x1000>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_ctrl 22>;
+			clock-names = "thermal_clk";
+			#thermal-sensor-cells = <1>;
+		};
+
+		thermal-zones {
+			local: local {
+				polling-delay-passive = <1000>; /* milliseconds */
+				polling-delay = <5000>; /* milliseconds */
+
+				/* sensor	ID */
+				thermal-sensors = <&tsensor  0>;
+
+				trips {
+					local_alert: local_alert {
+						temperature = <70000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "passive";
+					};
+
+					local_crit: local_crit {
+						temperature = <90000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "critical";
+					};
+				};
+
+				cooling-maps {
+					/* There are currently no cooling maps because there are no cooling devices */
+				};
+			};
+
+			cluster1: cluster1 {
+				polling-delay-passive = <1000>; /* milliseconds */
+				polling-delay = <5000>; /* milliseconds */
+
+				/* sensor	ID */
+				thermal-sensors = <&tsensor  1>;
+
+				trips {
+					cluster1_alert: cluster1_alert {
+						temperature = <70000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "passive";
+					};
+
+					cluster1_crit: cluster1_crit {
+						temperature = <90000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "critical";
+					};
+				};
+
+				cooling-maps {
+					/* There are currently no cooling maps because there are no cooling devices */
+				};
+			};
+
+			cluster0: cluster0 {
+				polling-delay-passive = <1000>; /* milliseconds */
+				polling-delay = <5000>; /* milliseconds */
+
+				/* sensor	ID */
+				thermal-sensors = <&tsensor  2>;
+
+				trips {
+					cluster0_alert: cluster0_alert {
+						temperature = <70000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "passive";
+					};
+
+					cluster0_crit: cluster0_crit {
+						temperature = <90000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "critical";
+					};
+				};
+
+				cooling-maps {
+					map0 {
+						trip = <&cluster0_alert>;
+						cooling-device =
+							<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					};
+				};
+			};
+
+			gpu: gpu {
+				polling-delay-passive = <1000>; /* milliseconds */
+				polling-delay = <5000>; /* milliseconds */
+
+				/* sensor	ID */
+				thermal-sensors = <&tsensor  3>;
+
+				trips {
+					gpu_alert: gpu_alert {
+						temperature = <70000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "passive";
+					};
+
+					gpu_crit: gpu_crit {
+						temperature = <90000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "critical";
+					};
+				};
+
+				cooling-maps {
+					/* There are currently no cooling maps because there are no cooling devices */
+				};
+			};
 		};
 	};
 };
