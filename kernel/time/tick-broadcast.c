@@ -693,6 +693,13 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 	ktime_t now;
 
 	/*
+	 * If there is no broadcast device, tell the caller not to go
+	 * into deep idle.
+	 */
+	if (!tick_broadcast_device.evtdev)
+		return -EBUSY;
+
+	/*
 	 * Periodic mode does not care about the enter/exit of power
 	 * states
 	 */
