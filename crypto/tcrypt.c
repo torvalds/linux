@@ -344,7 +344,12 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 		goto out_nosg;
 	sgout = &sg[9];
 
-	tfm = crypto_alloc_aead(algo, 0, 0);
+	tfm = crypto_alloc_aead(algo, CRYPTO_ALG_AEAD_NEW,
+				CRYPTO_ALG_AEAD_NEW);
+	if (PTR_ERR(tfm) == -ENOENT) {
+		aad_size -= 8;
+		tfm = crypto_alloc_aead(algo, 0, CRYPTO_ALG_AEAD_NEW);
+	}
 
 	if (IS_ERR(tfm)) {
 		pr_err("alg: aead: Failed to load transform for %s: %ld\n", algo,
@@ -1778,14 +1783,14 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 
 	case 211:
 		test_aead_speed("rfc4106(gcm(aes))", ENCRYPT, sec,
-				NULL, 0, 16, 8, aead_speed_template_20);
+				NULL, 0, 16, 16, aead_speed_template_20);
 		test_aead_speed("gcm(aes)", ENCRYPT, sec,
 				NULL, 0, 16, 8, aead_speed_template_20);
 		break;
 
 	case 212:
 		test_aead_speed("rfc4309(ccm(aes))", ENCRYPT, sec,
-				NULL, 0, 16, 8, aead_speed_template_19);
+				NULL, 0, 16, 16, aead_speed_template_19);
 		break;
 
 	case 300:
