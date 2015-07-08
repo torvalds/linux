@@ -229,7 +229,6 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
  *
  * Can be called without any locks held.
  */
-
 void intel_frontbuffer_flip(struct drm_device *dev,
 			    unsigned frontbuffer_bits)
 {
