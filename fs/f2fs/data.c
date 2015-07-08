@@ -585,7 +585,7 @@ static bool f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 	__detach_extent_node(sbi, et, en);
 
 	/* 2. if extent can be split more, split and insert the left part */
-	if (dei.len > 1) {
+	if (dei.len > F2FS_MIN_EXTENT_LEN) {
 		/*  insert left part of split extent into cache */
 		if (fofs - dei.fofs >= F2FS_MIN_EXTENT_LEN) {
 			set_extent_info(&ei, dei.fofs, dei.blk,
