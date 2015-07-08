@@ -205,13 +205,17 @@ EXPORT_SYMBOL_GPL(inet_twsk_alloc);
  * tcp_input.c to verify this.
  */
 
-/* This is for handling early-kills of TIME_WAIT sockets. */
-void inet_twsk_deschedule(struct inet_timewait_sock *tw)
+/* This is for handling early-kills of TIME_WAIT sockets.
+ * Warning : consume reference.
+ * Caller should not access tw anymore.
+ */
+void inet_twsk_deschedule_put(struct inet_timewait_sock *tw)
 {
 	if (del_timer_sync(&tw->tw_timer))
 		inet_twsk_kill(tw);
+	inet_twsk_put(tw);
 }
-EXPORT_SYMBOL(inet_twsk_deschedule);
+EXPORT_SYMBOL(inet_twsk_deschedule_put);
 
 void inet_twsk_schedule(struct inet_timewait_sock *tw, const int timeo)
 {
@@ -281,9 +285,8 @@ restart:
 
 			rcu_read_unlock();
 			local_bh_disable();
-			inet_twsk_deschedule(tw);
+			inet_twsk_deschedule_put(tw);
 			local_bh_enable();
-			inet_twsk_put(tw);
 			goto restart_rcu;
 		}
 		/* If the nulls value we got at the end of this lookup is

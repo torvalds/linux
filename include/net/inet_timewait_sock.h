@@ -111,7 +111,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 			   struct inet_hashinfo *hashinfo);
 
 void inet_twsk_schedule(struct inet_timewait_sock *tw, const int timeo);
-void inet_twsk_deschedule(struct inet_timewait_sock *tw);
+void inet_twsk_deschedule_put(struct inet_timewait_sock *tw);
 
 void inet_twsk_purge(struct inet_hashinfo *hashinfo,
 		     struct inet_timewait_death_row *twdr, int family);
