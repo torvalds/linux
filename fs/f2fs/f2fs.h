@@ -1766,20 +1766,12 @@ void f2fs_submit_page_mbio(struct f2fs_io_info *);
 void set_data_blkaddr(struct dnode_of_data *);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_reserve_block(struct dnode_of_data *, pgoff_t);
-unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *, int);
-void f2fs_init_extent_tree(struct inode *, struct f2fs_extent *);
-unsigned int f2fs_destroy_extent_node(struct inode *);
-void f2fs_destroy_extent_tree(struct inode *);
-void f2fs_update_extent_cache(struct dnode_of_data *);
 struct page *get_read_data_page(struct inode *, pgoff_t, int);
 struct page *find_data_page(struct inode *, pgoff_t);
 struct page *get_lock_data_page(struct inode *, pgoff_t);
 struct page *get_new_data_page(struct inode *, struct page *, pgoff_t, bool);
 int do_write_data_page(struct f2fs_io_info *);
 int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *, u64, u64);
-void init_extent_cache_info(struct f2fs_sb_info *);
-int __init create_extent_cache(void);
-void destroy_extent_cache(void);
 void f2fs_invalidate_page(struct page *, unsigned int, unsigned int);
 int f2fs_release_page(struct page *, gfp_t);
 
@@ -1975,6 +1967,20 @@ unsigned long f2fs_shrink_count(struct shrinker *, struct shrink_control *);
 unsigned long f2fs_shrink_scan(struct shrinker *, struct shrink_control *);
 void f2fs_join_shrinker(struct f2fs_sb_info *);
 void f2fs_leave_shrinker(struct f2fs_sb_info *);
+
+/*
+ * extent_cache.c
+ */
+unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *, int);
+void f2fs_drop_largest_extent(struct inode *, pgoff_t);
+void f2fs_init_extent_tree(struct inode *, struct f2fs_extent *);
+unsigned int f2fs_destroy_extent_node(struct inode *);
+void f2fs_destroy_extent_tree(struct inode *);
+bool f2fs_lookup_extent_cache(struct inode *, pgoff_t, struct extent_info *);
+void f2fs_update_extent_cache(struct dnode_of_data *);
+void init_extent_cache_info(struct f2fs_sb_info *);
+int __init create_extent_cache(void);
+void destroy_extent_cache(void);
 
 /*
  * crypto support
