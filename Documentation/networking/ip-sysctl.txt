@@ -1435,6 +1435,11 @@ mtu - INTEGER
 	Default Maximum Transfer Unit
 	Default: 1280 (IPv6 required minimum)
 
+ip_nonlocal_bind - BOOLEAN
+	If set, allows processes to bind() to non-local IPv6 addresses,
+	which can be quite useful - but may break some applications.
+	Default: 0
+
 router_probe_interval - INTEGER
 	Minimum interval (in seconds) between Router Probing described
 	in RFC4191.
