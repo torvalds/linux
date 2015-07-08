@@ -2670,17 +2670,15 @@ static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
 	dm = kcalloc(ports, sizeof(*dm), GFP_ATOMIC);
 	if (!dm) {
 		pr_err("failed to allocate memory for tunneling qp update\n");
-		goto out;
+		return;
 	}
 
 	for (i = 0; i < ports; i++) {
 		dm[i] = kmalloc(sizeof (struct mlx4_ib_demux_work), GFP_ATOMIC);
 		if (!dm[i]) {
 			pr_err("failed to allocate memory for tunneling qp update work struct\n");
-			for (i = 0; i < dev->caps.num_ports; i++) {
-				if (dm[i])
-					kfree(dm[i]);
-			}
+			while (--i >= 0)
+				kfree(dm[i]);
 			goto out;
 		}
 	}
