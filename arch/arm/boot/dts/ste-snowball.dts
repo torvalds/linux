@@ -230,11 +230,11 @@
 			status = "okay";
 		};
 
+		/* This UART is unused and thus left disabled */
 		uart@80121000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart1_default_mode>;
 			pinctrl-1 = <&uart1_sleep_mode>;
-			status = "okay";
 		};
 
 		uart@80007000 {
@@ -459,7 +459,21 @@
 						pins = "GPIO21_AB3"; /* DAT31DIR */
 						ste,config = <&out_hi>;
 					};
-
+					/* SD card detect GPIO pin, extend default state */
+					snowball_cfg2 {
+						pins = "GPIO218_AH11";
+						ste,config = <&gpio_in_pu>;
+					};
+					/* VMMCI level-shifter enable */
+					snowball_cfg3 {
+						pins = "GPIO217_AH12";
+						ste,config = <&gpio_out_lo>;
+					};
+					/* VMMCI level-shifter voltage select */
+					snowball_cfg4 {
+						pins = "GPIO228_AJ6";
+						ste,config = <&gpio_out_hi>;
+					};
 				};
 			};
 			ssp0 {
