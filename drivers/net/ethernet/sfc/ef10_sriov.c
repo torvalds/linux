@@ -598,21 +598,21 @@ int efx_ef10_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i, u16 vlan,
 				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_NORMAL,
 				  vf->vlan, &vf->vport_id);
 	if (rc)
-		goto reset_nic;
+		goto reset_nic_up_write;
 
 restore_mac:
 	if (!is_zero_ether_addr(vf->mac)) {
 		rc2 = efx_ef10_vport_add_mac(efx, vf->vport_id, vf->mac);
 		if (rc2) {
 			eth_zero_addr(vf->mac);
-			goto reset_nic;
+			goto reset_nic_up_write;
 		}
 	}
 
 restore_evb_port:
 	rc2 = efx_ef10_evb_port_assign(efx, vf->vport_id, vf_i);
 	if (rc2)
-		goto reset_nic;
+		goto reset_nic_up_write;
 	else
 		vf->vport_assigned = 1;
 
@@ -620,14 +620,16 @@ restore_vadaptor:
 	if (vf->efx) {
 		rc2 = efx_ef10_vadaptor_alloc(vf->efx, EVB_PORT_ID_ASSIGNED);
 		if (rc2)
-			goto reset_nic;
+			goto reset_nic_up_write;
 	}
 
 restore_filters:
 	if (vf->efx) {
 		rc2 = vf->efx->type->filter_table_probe(vf->efx);
 		if (rc2)
-			goto reset_nic;
+			goto reset_nic_up_write;
+
+		up_write(&vf->efx->filter_sem);
 
 		up_write(&vf->efx->filter_sem);
 
@@ -639,9 +641,12 @@ restore_filters:
 	}
 	return rc;
 
+reset_nic_up_write:
+	if (vf->efx)
+		up_write(&vf->efx->filter_sem);
+
 reset_nic:
 	if (vf->efx) {
-		up_write(&vf->efx->filter_sem);
 		netif_err(efx, drv, efx->net_dev,
 			  "Failed to restore VF - scheduling reset.\n");
 		efx_schedule_reset(vf->efx, RESET_TYPE_DATAPATH);
