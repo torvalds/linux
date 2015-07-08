@@ -210,10 +210,15 @@ static int intel_pmc_ipc_check_status(void)
 	return ret;
 }
 
-/*
- * intel_pmc_ipc_simple_command
- * @cmd: command
- * @sub: sub type
+/**
+ * intel_pmc_ipc_simple_command() - Simple IPC command
+ * @cmd:	IPC command code.
+ * @sub:	IPC command sub type.
+ *
+ * Send a simple IPC command to PMC when don't need to specify
+ * input/output data and source/dest pointers.
+ *
+ * Return:	an IPC error code or 0 on success.
  */
 int intel_pmc_ipc_simple_command(int cmd, int sub)
 {
@@ -232,16 +237,20 @@ int intel_pmc_ipc_simple_command(int cmd, int sub)
 }
 EXPORT_SYMBOL_GPL(intel_pmc_ipc_simple_command);
 
-/*
- * intel_pmc_ipc_raw_cmd
- * @cmd: command
- * @sub: sub type
- * @in: input data
- * @inlen: input length in bytes
- * @out: output data
- * @outlen: output length in dwords
- * @sptr: data writing to SPTR register
- * @dptr: data writing to DPTR register
+/**
+ * intel_pmc_ipc_raw_cmd() - IPC command with data and pointers
+ * @cmd:	IPC command code.
+ * @sub:	IPC command sub type.
+ * @in:		input data of this IPC command.
+ * @inlen:	input data length in bytes.
+ * @out:	output data of this IPC command.
+ * @outlen:	output data length in dwords.
+ * @sptr:	data writing to SPTR register.
+ * @dptr:	data writing to DPTR register.
+ *
+ * Send an IPC command to PMC with input/output data and source/dest pointers.
+ *
+ * Return:	an IPC error code or 0 on success.
  */
 int intel_pmc_ipc_raw_cmd(u32 cmd, u32 sub, u8 *in, u32 inlen, u32 *out,
 			  u32 outlen, u32 dptr, u32 sptr)
@@ -278,14 +287,18 @@ int intel_pmc_ipc_raw_cmd(u32 cmd, u32 sub, u8 *in, u32 inlen, u32 *out,
 }
 EXPORT_SYMBOL_GPL(intel_pmc_ipc_raw_cmd);
 
-/*
- * intel_pmc_ipc_command
- * @cmd: command
- * @sub: sub type
- * @in: input data
- * @inlen: input length in bytes
- * @out: output data
- * @outlen: output length in dwords
+/**
+ * intel_pmc_ipc_command() -  IPC command with input/output data
+ * @cmd:	IPC command code.
+ * @sub:	IPC command sub type.
+ * @in:		input data of this IPC command.
+ * @inlen:	input data length in bytes.
+ * @out:	output data of this IPC command.
+ * @outlen:	output data length in dwords.
+ *
+ * Send an IPC command to PMC with input/output data.
+ *
+ * Return:	an IPC error code or 0 on success.
  */
 int intel_pmc_ipc_command(u32 cmd, u32 sub, u8 *in, u32 inlen,
 			  u32 *out, u32 outlen)
