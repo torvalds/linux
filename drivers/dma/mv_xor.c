@@ -1190,12 +1190,9 @@ static int mv_xor_probe(struct platform_device *pdev)
 			op_in_desc = (int)of_id->data;
 
 			dma_cap_zero(cap_mask);
-			if (of_property_read_bool(np, "dmacap,memcpy"))
-				dma_cap_set(DMA_MEMCPY, cap_mask);
-			if (of_property_read_bool(np, "dmacap,xor"))
-				dma_cap_set(DMA_XOR, cap_mask);
-			if (of_property_read_bool(np, "dmacap,interrupt"))
-				dma_cap_set(DMA_INTERRUPT, cap_mask);
+			dma_cap_set(DMA_MEMCPY, cap_mask);
+			dma_cap_set(DMA_XOR, cap_mask);
+			dma_cap_set(DMA_INTERRUPT, cap_mask);
 
 			irq = irq_of_parse_and_map(np, 0);
 			if (!irq) {
