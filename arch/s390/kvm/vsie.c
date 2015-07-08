@@ -28,7 +28,9 @@ struct vsie_page {
 	struct kvm_s390_sie_block *scb_o;	/* 0x0200 */
 	/* the shadow gmap in use by the vsie_page */
 	struct gmap *gmap;			/* 0x0208 */
-	__u8 reserved[0x0700 - 0x0210];		/* 0x0210 */
+	/* address of the last reported fault to guest2 */
+	unsigned long fault_addr;		/* 0x0210 */
+	__u8 reserved[0x0700 - 0x0218];		/* 0x0218 */
 	struct kvm_s390_crypto_cb crycb;	/* 0x0700 */
 	__u8 fac[S390_ARCH_FAC_LIST_SIZE_BYTE];	/* 0x0800 */
 } __packed;
@@ -676,8 +678,25 @@ static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		rc = inject_fault(vcpu, rc,
 				  current->thread.gmap_addr,
 				  current->thread.gmap_write_flag);
+		if (rc >= 0)
+			vsie_page->fault_addr = current->thread.gmap_addr;
 	}
 	return rc;
+}
+
+/*
+ * Retry the previous fault that required guest 2 intervention. This avoids
+ * one superfluous SIE re-entry and direct exit.
+ *
+ * Will ignore any errors. The next SIE fault will do proper fault handling.
+ */
+static void handle_last_fault(struct kvm_vcpu *vcpu,
+			      struct vsie_page *vsie_page)
+{
+	if (vsie_page->fault_addr)
+		kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
+				      vsie_page->fault_addr);
+	vsie_page->fault_addr = 0;
 }
 
 static inline void clear_vsie_icpt(struct vsie_page *vsie_page)
@@ -736,6 +755,8 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
 	int rc;
+
+	handle_last_fault(vcpu, vsie_page);
 
 	if (need_resched())
 		schedule();
@@ -928,6 +949,7 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 	vsie_page = page_to_virt(page);
 	memset(&vsie_page->scb_s, 0, sizeof(struct kvm_s390_sie_block));
 	release_gmap_shadow(vsie_page);
+	vsie_page->fault_addr = 0;
 	vsie_page->scb_s.ihcpu = 0xffffU;
 	return vsie_page;
 }
