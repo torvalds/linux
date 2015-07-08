@@ -511,13 +511,30 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	if (!(msgs->flags & I2C_M_RD))
 		goto finish;
 
-	ret = cp2112_read(dev, msgs->buf, msgs->len);
-	if (ret < 0)
-		goto power_normal;
-	if (ret != msgs->len) {
-		hid_warn(hdev, "short read: %d < %d\n", ret, msgs->len);
-		ret = -EIO;
-		goto power_normal;
+	for (count = 0; count < msgs->len;) {
+		ret = cp2112_read(dev, msgs->buf + count, msgs->len - count);
+		if (ret < 0)
+			goto power_normal;
+		if (ret == 0) {
+			hid_err(hdev, "read returned 0\n");
+			ret = -EIO;
+			goto power_normal;
+		}
+		count += ret;
+		if (count > msgs->len) {
+			/*
+			 * The hardware returned too much data.
+			 * This is mostly harmless because cp2112_read()
+			 * has a limit check so didn't overrun our
+			 * buffer.  Nevertheless, we return an error
+			 * because something is seriously wrong and
+			 * it shouldn't go unnoticed.
+			 */
+			hid_err(hdev, "long read: %d > %zd\n",
+				ret, msgs->len - count + ret);
+			ret = -EIO;
+			goto power_normal;
+		}
 	}
 
 finish:
