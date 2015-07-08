@@ -39,10 +39,8 @@ obj-$(CONFIG_ARCH_BCM_5301X)	+= bcm_5301x.o
 
 # BCM63XXx
 ifeq ($(CONFIG_ARCH_BCM_63XX),y)
-CFLAGS_bcm63xx_headsmp.o	+= -march=armv7-a
 obj-y				+= bcm63xx.o
-obj-$(CONFIG_SMP)		+= bcm63xx_smp.o bcm63xx_headsmp.o \
-				   bcm63xx_pmb.o
+obj-$(CONFIG_SMP)		+= bcm63xx_smp.o bcm63xx_pmb.o
 endif
 
 ifeq ($(CONFIG_ARCH_BRCMSTB),y)
