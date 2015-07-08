@@ -1616,6 +1616,7 @@ static void __exit ucma_cleanup(void)
 	device_remove_file(ucma_misc.this_device, &dev_attr_abi_version);
 	misc_deregister(&ucma_misc);
 	idr_destroy(&ctx_idr);
+	idr_destroy(&multicast_idr);
 }
 
 module_init(ucma_init);
