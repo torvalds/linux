@@ -1053,13 +1053,10 @@ static struct dm_rq_target_io *tio_from_request(struct request *rq)
  */
 static void rq_completed(struct mapped_device *md, int rw, bool run_queue)
 {
-	int nr_requests_pending;
-
 	atomic_dec(&md->pending[rw]);
 
 	/* nudge anyone waiting on suspend queue */
-	nr_requests_pending = md_in_flight(md);
-	if (!nr_requests_pending)
+	if (!md_in_flight(md))
 		wake_up(&md->wait);
 
 	/*
@@ -1071,8 +1068,7 @@ static void rq_completed(struct mapped_device *md, int rw, bool run_queue)
 	if (run_queue) {
 		if (md->queue->mq_ops)
 			blk_mq_run_hw_queues(md->queue, true);
-		else if (!nr_requests_pending ||
-			 (nr_requests_pending >= md->queue->nr_congestion_on))
+		else
 			blk_run_queue_async(md->queue);
 	}
 
