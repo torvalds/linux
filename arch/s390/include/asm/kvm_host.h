@@ -145,7 +145,7 @@ struct kvm_s390_sie_block {
 	__u64	cputm;			/* 0x0028 */
 	__u64	ckc;			/* 0x0030 */
 	__u64	epoch;			/* 0x0038 */
-	__u8	reserved40[4];		/* 0x0040 */
+	__u32	svcc;			/* 0x0040 */
 #define LCTL_CR0	0x8000
 #define LCTL_CR6	0x0200
 #define LCTL_CR9	0x0040
@@ -167,6 +167,9 @@ struct kvm_s390_sie_block {
 #define ICPT_INST	0x04
 #define ICPT_PROGI	0x08
 #define ICPT_INSTPROGI	0x0C
+#define ICPT_EXTINT	0x14
+#define ICPT_VALIDITY	0x20
+#define ICPT_STOP	0x28
 #define ICPT_OPEREXC	0x2C
 #define ICPT_PARTEXEC	0x38
 #define ICPT_IOINST	0x40
@@ -281,6 +284,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_stsi;
 	u32 instruction_stfl;
 	u32 instruction_tprot;
+	u32 instruction_sie;
 	u32 instruction_essa;
 	u32 instruction_sthyi;
 	u32 instruction_sigp_sense;
@@ -637,6 +641,14 @@ struct sie_page2 {
 	u8 reserved900[0x1000 - 0x900];			/* 0x0900 */
 } __packed;
 
+struct kvm_s390_vsie {
+	struct mutex mutex;
+	struct radix_tree_root addr_to_page;
+	int page_count;
+	int next;
+	struct page *pages[KVM_MAX_VCPUS];
+};
+
 struct kvm_arch{
 	void *sca;
 	int use_esca;
@@ -661,6 +673,7 @@ struct kvm_arch{
 	struct sie_page2 *sie_page2;
 	struct kvm_s390_cpu_model model;
 	struct kvm_s390_crypto crypto;
+	struct kvm_s390_vsie vsie;
 	u64 epoch;
 	/* subset of available cpu features enabled by user space */
 	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);

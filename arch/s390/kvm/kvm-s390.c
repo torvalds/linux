@@ -99,6 +99,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "instruction_stfl", VCPU_STAT(instruction_stfl) },
 	{ "instruction_tprot", VCPU_STAT(instruction_tprot) },
 	{ "instruction_sthyi", VCPU_STAT(instruction_sthyi) },
+	{ "instruction_sie", VCPU_STAT(instruction_sie) },
 	{ "instruction_sigp_sense", VCPU_STAT(instruction_sigp_sense) },
 	{ "instruction_sigp_sense_running", VCPU_STAT(instruction_sigp_sense_running) },
 	{ "instruction_sigp_external_call", VCPU_STAT(instruction_sigp_external_call) },
@@ -142,6 +143,7 @@ static DECLARE_BITMAP(kvm_s390_available_cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS)
 static struct kvm_s390_vm_cpu_subfunc kvm_s390_available_subfunc;
 
 static struct gmap_notifier gmap_notifier;
+static struct gmap_notifier vsie_gmap_notifier;
 debug_info_t *kvm_s390_dbf;
 
 /* Section: not file related */
@@ -187,6 +189,8 @@ int kvm_arch_hardware_setup(void)
 {
 	gmap_notifier.notifier_call = kvm_gmap_notifier;
 	gmap_register_pte_notifier(&gmap_notifier);
+	vsie_gmap_notifier.notifier_call = kvm_s390_vsie_gmap_notifier;
+	gmap_register_pte_notifier(&vsie_gmap_notifier);
 	atomic_notifier_chain_register(&s390_epoch_delta_notifier,
 				       &kvm_clock_notifier);
 	return 0;
@@ -195,6 +199,7 @@ int kvm_arch_hardware_setup(void)
 void kvm_arch_hardware_unsetup(void)
 {
 	gmap_unregister_pte_notifier(&gmap_notifier);
+	gmap_unregister_pte_notifier(&vsie_gmap_notifier);
 	atomic_notifier_chain_unregister(&s390_epoch_delta_notifier,
 					 &kvm_clock_notifier);
 }
@@ -252,6 +257,14 @@ static void kvm_s390_cpu_feat_init(void)
 
 	if (MACHINE_HAS_ESOP)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);
+	/*
+	 * We need SIE support, ESOP (PROT_READ protection for gmap_shadow),
+	 * 64bit SCAO (SCA passthrough) and IDTE (for gmap_shadow unshadowing).
+	 */
+	if (!sclp.has_sief2 || !MACHINE_HAS_ESOP || !sclp.has_64bscao ||
+	    !test_facility(3))
+		return;
+	allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIEF2);
 }
 
 int kvm_arch_init(void *opaque)
@@ -1406,6 +1419,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
+	kvm_s390_vsie_init(kvm);
 	KVM_EVENT(3, "vm 0x%pK created by pid %u", kvm, current->pid);
 
 	return 0;
@@ -1463,6 +1477,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		gmap_remove(kvm->arch.gmap);
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
+	kvm_s390_vsie_destroy(kvm);
 	KVM_EVENT(3, "vm 0x%pK destroyed", kvm);
 }
 
