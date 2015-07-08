@@ -1685,7 +1685,9 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 	power_domains->initializing = true;
 
 	if (IS_CHERRYVIEW(dev)) {
+		mutex_lock(&power_domains->lock);
 		chv_phy_control_init(dev_priv);
+		mutex_unlock(&power_domains->lock);
 	} else if (IS_VALLEYVIEW(dev)) {
 		mutex_lock(&power_domains->lock);
 		vlv_cmnlane_wa(dev_priv);
