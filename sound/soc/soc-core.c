@@ -1102,8 +1102,18 @@ static int soc_probe_component(struct snd_soc_card *card,
 	struct snd_soc_dai *dai;
 	int ret;
 
-	if (!strcmp(component->name, "snd-soc-dummy") || component->probed)
+	if (!strcmp(component->name, "snd-soc-dummy"))
 		return 0;
+
+	if (component->probed) {
+		if (component->card != card) {
+			dev_err(component->dev,
+				"Trying to bind component to card \"%s\" but is already bound to card \"%s\"\n",
+				card->name, component->card->name);
+			return -ENODEV;
+		}
+		return 0;
+	}
 
 	component->card = card;
 	dapm->card = card;
