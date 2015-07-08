@@ -182,9 +182,6 @@ int mvebu_pm_init(void (*board_pm_enter)(void __iomem *sdram_reg, u32 srcmd))
 	struct device_node *np;
 	struct resource res;
 
-	if (!of_machine_is_compatible("marvell,armadaxp"))
-		return -ENODEV;
-
 	np = of_find_compatible_node(NULL, NULL,
 				     "marvell,armada-xp-sdram-controller");
 	if (!np)
