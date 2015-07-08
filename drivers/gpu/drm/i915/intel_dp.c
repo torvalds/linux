@@ -133,6 +133,11 @@ static void vlv_init_panel_power_sequencer(struct intel_dp *intel_dp);
 static void vlv_steal_power_sequencer(struct drm_device *dev,
 				      enum pipe pipe);
 
+static unsigned int intel_dp_unused_lane_mask(int lane_count)
+{
+	return ~((1 << lane_count) - 1) & 0xf;
+}
+
 static int
 intel_dp_max_link_bw(struct intel_dp  *intel_dp)
 {
@@ -2432,17 +2437,21 @@ static void chv_post_disable_dp(struct intel_encoder *encoder)
 	val |= CHV_PCS_REQ_SOFTRESET_EN;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW1(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
-	val |= CHV_PCS_REQ_SOFTRESET_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
+		val |= CHV_PCS_REQ_SOFTRESET_EN;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
+	}
 
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW0(ch));
 	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW0(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
-	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
+		val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
+	}
 
 	mutex_unlock(&dev_priv->sb_lock);
 }
@@ -2562,7 +2571,6 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
-	unsigned int lane_mask = 0x0;
 
 	if (WARN_ON(dp_reg & DP_PORT_EN))
 		return;
@@ -2580,9 +2588,15 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 
 	pps_unlock(intel_dp);
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev)) {
+		unsigned int lane_mask = 0x0;
+
+		if (IS_CHERRYVIEW(dev))
+			lane_mask = intel_dp_unused_lane_mask(crtc->config->lane_count);
+
 		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp),
 				    lane_mask);
+	}
 
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
@@ -2809,31 +2823,40 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW11(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
-	val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
+		val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
+	}
 
 	/* Deassert soft data lane reset*/
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW1(ch));
 	val |= CHV_PCS_REQ_SOFTRESET_EN;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW1(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
-	val |= CHV_PCS_REQ_SOFTRESET_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
+		val |= CHV_PCS_REQ_SOFTRESET_EN;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
+	}
 
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW0(ch));
 	val |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW0(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
-	val |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
+		val |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
+	}
 
 	/* Program Tx lane latency optimal setting*/
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < intel_crtc->config->lane_count; i++) {
 		/* Set the upar bit */
-		data = (i == 1) ? 0x0 : 0x1;
+		if (intel_crtc->config->lane_count == 1)
+			data = 0x0;
+		else
+			data = (i == 1) ? 0x0 : 0x1;
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW14(ch, i),
 				data << DPIO_UPAR_SHIFT);
 	}
@@ -2854,9 +2877,11 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	val |= DPIO_TX2_STAGGER_MASK(0x1f);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW11(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
-	val |= DPIO_TX2_STAGGER_MASK(0x1f);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
+		val |= DPIO_TX2_STAGGER_MASK(0x1f);
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
+	}
 
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW12(ch),
 		       DPIO_LANESTAGGER_STRAP(stagger) |
@@ -2865,12 +2890,14 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 		       DPIO_TX1_STAGGER_MULT(6) |
 		       DPIO_TX2_STAGGER_MULT(0));
 
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW12(ch),
-		       DPIO_LANESTAGGER_STRAP(stagger) |
-		       DPIO_LANESTAGGER_STRAP_OVRD |
-		       DPIO_TX1_STAGGER_MASK(0x1f) |
-		       DPIO_TX1_STAGGER_MULT(7) |
-		       DPIO_TX2_STAGGER_MULT(5));
+	if (intel_crtc->config->lane_count > 2) {
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW12(ch),
+			       DPIO_LANESTAGGER_STRAP(stagger) |
+			       DPIO_LANESTAGGER_STRAP_OVRD |
+			       DPIO_TX1_STAGGER_MASK(0x1f) |
+			       DPIO_TX1_STAGGER_MULT(7) |
+			       DPIO_TX2_STAGGER_MULT(5));
+	}
 
 	mutex_unlock(&dev_priv->sb_lock);
 
@@ -2886,9 +2913,13 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 		to_intel_crtc(encoder->base.crtc);
 	enum dpio_channel ch = vlv_dport_to_channel(dport);
 	enum pipe pipe = intel_crtc->pipe;
+	unsigned int lane_mask =
+		intel_dp_unused_lane_mask(intel_crtc->config->lane_count);
 	u32 val;
 
 	intel_dp_prepare(encoder);
+
+	chv_phy_powergate_lanes(encoder, true, lane_mask);
 
 	mutex_lock(&dev_priv->sb_lock);
 
@@ -2920,13 +2951,15 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 		val |= CHV_PCS_USEDCLKCHANNEL;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW8(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW8(ch));
-	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
-	if (pipe != PIPE_B)
-		val &= ~CHV_PCS_USEDCLKCHANNEL;
-	else
-		val |= CHV_PCS_USEDCLKCHANNEL;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW8(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW8(ch));
+		val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
+		if (pipe != PIPE_B)
+			val &= ~CHV_PCS_USEDCLKCHANNEL;
+		else
+			val |= CHV_PCS_USEDCLKCHANNEL;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW8(ch), val);
+	}
 
 	/*
 	 * This a a bit weird since generally CL
@@ -2963,6 +2996,8 @@ static void chv_dp_post_pll_disable(struct intel_encoder *encoder)
 	}
 
 	mutex_unlock(&dev_priv->sb_lock);
+
+	chv_phy_powergate_lanes(encoder, false, 0x0);
 }
 
 /*
@@ -3298,24 +3333,28 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
-	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
-	val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
-	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
+		val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
+		val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
+		val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
+	}
 
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW9(ch));
 	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
 	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW9(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW9(ch));
-	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
-	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW9(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW9(ch));
+		val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
+		val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW9(ch), val);
+	}
 
 	/* Program swing deemph */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < intel_crtc->config->lane_count; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW4(ch, i));
 		val &= ~DPIO_SWING_DEEMPH9P5_MASK;
 		val |= deemph_reg_value << DPIO_SWING_DEEMPH9P5_SHIFT;
@@ -3323,7 +3362,7 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 	}
 
 	/* Program swing margin */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < intel_crtc->config->lane_count; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
 
 		val &= ~DPIO_SWING_MARGIN000_MASK;
@@ -3346,7 +3385,7 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 	 * For now, for this unique transition scale selection, set bit
 	 * 27 for ch0 and ch1.
 	 */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < intel_crtc->config->lane_count; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
 		if (chv_need_uniq_trans_scale(train_set))
 			val |= DPIO_TX_UNIQ_TRANS_SCALE_EN;
@@ -3360,9 +3399,11 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
-	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
+	if (intel_crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
+		val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
+	}
 
 	/* LRC Bypass */
 	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW30);

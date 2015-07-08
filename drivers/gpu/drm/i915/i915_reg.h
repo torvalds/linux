@@ -1135,8 +1135,14 @@ enum skl_disp_power_wells {
 
 #define _CHV_CMN_DW19_CH0		0x814c
 #define _CHV_CMN_DW6_CH1		0x8098
+#define   DPIO_DYNPWRDOWNEN_CH1		(1 << 28) /* CL2 DW6 only */
 #define   CHV_CMN_USEDCLKCHANNEL	(1 << 13)
+
 #define CHV_CMN_DW19(ch) _PIPE(ch, _CHV_CMN_DW19_CH0, _CHV_CMN_DW6_CH1)
+
+#define CHV_CMN_DW28			0x8170
+#define   DPIO_CL1POWERDOWNEN		(1 << 23)
+#define   DPIO_DYNPWRDOWNEN_CH0		(1 << 22)
 
 #define CHV_CMN_DW30			0x8178
 #define   DPIO_LRC_BYPASS		(1 << 3)
@@ -2192,10 +2198,12 @@ enum skl_disp_power_wells {
 #define DPIO_PHY_STATUS			(VLV_DISPLAY_BASE + 0x6240)
 #define   DPLL_PORTD_READY_MASK		(0xf)
 #define DISPLAY_PHY_CONTROL (VLV_DISPLAY_BASE + 0x60100)
+#define   PHY_CH_POWER_DOWN_OVRD_EN(phy, ch)	(1 << (2*(phy)+(ch)+27))
 #define   PHY_LDO_DELAY_0NS			0x0
 #define   PHY_LDO_DELAY_200NS			0x1
 #define   PHY_LDO_DELAY_600NS			0x2
 #define   PHY_LDO_SEQ_DELAY(delay, phy)		((delay) << (2*(phy)+23))
+#define   PHY_CH_POWER_DOWN_OVRD(mask, phy, ch)	((mask) << (8*(phy)+4*(ch)+11))
 #define   PHY_CH_SU_PSR				0x1
 #define   PHY_CH_DEEP_PSR			0x7
 #define   PHY_CH_POWER_MODE(mode, phy, ch)	((mode) << (6*(phy)+3*(ch)+2))

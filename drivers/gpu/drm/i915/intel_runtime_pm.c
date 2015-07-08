@@ -962,14 +962,19 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
 	enum dpio_phy phy;
+	enum pipe pipe;
+	uint32_t tmp;
 
 	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC &&
 		     power_well->data != PUNIT_POWER_WELL_DPIO_CMN_D);
 
-	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC)
+	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+		pipe = PIPE_A;
 		phy = DPIO_PHY0;
-	else
+	} else {
+		pipe = PIPE_C;
 		phy = DPIO_PHY1;
+	}
 
 	/* since ref/cri clock was enabled */
 	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
@@ -979,8 +984,26 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	if (wait_for(I915_READ(DISPLAY_PHY_STATUS) & PHY_POWERGOOD(phy), 1))
 		DRM_ERROR("Display PHY %d is not power up\n", phy);
 
+	mutex_lock(&dev_priv->sb_lock);
+
+	/* Enable dynamic power down */
+	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW28);
+	tmp |= DPIO_DYNPWRDOWNEN_CH0 | DPIO_CL1POWERDOWNEN;
+	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW28, tmp);
+
+	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+		tmp = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW6_CH1);
+		tmp |= DPIO_DYNPWRDOWNEN_CH1;
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW6_CH1, tmp);
+	}
+
+	mutex_unlock(&dev_priv->sb_lock);
+
 	dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(phy);
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+
+	DRM_DEBUG_KMS("Enabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
+		      phy, dev_priv->chv_phy_control);
 }
 
 static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
@@ -1004,6 +1027,35 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
 
 	vlv_set_power_well(dev_priv, power_well, false);
+
+	DRM_DEBUG_KMS("Disabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
+		      phy, dev_priv->chv_phy_control);
+}
+
+void chv_phy_powergate_lanes(struct intel_encoder *encoder,
+			     bool override, unsigned int mask)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	enum dpio_phy phy = vlv_dport_to_phy(enc_to_dig_port(&encoder->base));
+	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(&encoder->base));
+
+	mutex_lock(&power_domains->lock);
+
+	dev_priv->chv_phy_control &= ~PHY_CH_POWER_DOWN_OVRD(0xf, phy, ch);
+	dev_priv->chv_phy_control |= PHY_CH_POWER_DOWN_OVRD(mask, phy, ch);
+
+	if (override)
+		dev_priv->chv_phy_control |= PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+	else
+		dev_priv->chv_phy_control &= ~PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+
+	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+
+	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d lanes 0x%x (PHY_CONTROL=0x%08x)\n",
+		      phy, ch, mask, dev_priv->chv_phy_control);
+
+	mutex_unlock(&power_domains->lock);
 }
 
 static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
@@ -1630,19 +1682,72 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 	 * DISPLAY_PHY_CONTROL can get corrupted if read. As a
 	 * workaround never ever read DISPLAY_PHY_CONTROL, and
 	 * instead maintain a shadow copy ourselves. Use the actual
-	 * power well state to reconstruct the expected initial
-	 * value.
+	 * power well state and lane status to reconstruct the
+	 * expected initial value.
 	 */
 	dev_priv->chv_phy_control =
 		PHY_LDO_SEQ_DELAY(PHY_LDO_DELAY_600NS, DPIO_PHY0) |
 		PHY_LDO_SEQ_DELAY(PHY_LDO_DELAY_600NS, DPIO_PHY1) |
-		PHY_CH_POWER_MODE(PHY_CH_SU_PSR, DPIO_PHY0, DPIO_CH0) |
-		PHY_CH_POWER_MODE(PHY_CH_SU_PSR, DPIO_PHY0, DPIO_CH1) |
-		PHY_CH_POWER_MODE(PHY_CH_SU_PSR, DPIO_PHY1, DPIO_CH0);
-	if (cmn_bc->ops->is_enabled(dev_priv, cmn_bc))
+		PHY_CH_POWER_MODE(PHY_CH_DEEP_PSR, DPIO_PHY0, DPIO_CH0) |
+		PHY_CH_POWER_MODE(PHY_CH_DEEP_PSR, DPIO_PHY0, DPIO_CH1) |
+		PHY_CH_POWER_MODE(PHY_CH_DEEP_PSR, DPIO_PHY1, DPIO_CH0);
+
+	/*
+	 * If all lanes are disabled we leave the override disabled
+	 * with all power down bits cleared to match the state we
+	 * would use after disabling the port. Otherwise enable the
+	 * override and set the lane powerdown bits accding to the
+	 * current lane status.
+	 */
+	if (cmn_bc->ops->is_enabled(dev_priv, cmn_bc)) {
+		uint32_t status = I915_READ(DPLL(PIPE_A));
+		unsigned int mask;
+
+		mask = status & DPLL_PORTB_READY_MASK;
+		if (mask == 0xf)
+			mask = 0x0;
+		else
+			dev_priv->chv_phy_control |=
+				PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY0, DPIO_CH0);
+
+		dev_priv->chv_phy_control |=
+			PHY_CH_POWER_DOWN_OVRD(mask, DPIO_PHY0, DPIO_CH0);
+
+		mask = (status & DPLL_PORTC_READY_MASK) >> 4;
+		if (mask == 0xf)
+			mask = 0x0;
+		else
+			dev_priv->chv_phy_control |=
+				PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY0, DPIO_CH1);
+
+		dev_priv->chv_phy_control |=
+			PHY_CH_POWER_DOWN_OVRD(mask, DPIO_PHY0, DPIO_CH1);
+
 		dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(DPIO_PHY0);
-	if (cmn_d->ops->is_enabled(dev_priv, cmn_d))
+	}
+
+	if (cmn_d->ops->is_enabled(dev_priv, cmn_d)) {
+		uint32_t status = I915_READ(DPIO_PHY_STATUS);
+		unsigned int mask;
+
+		mask = status & DPLL_PORTD_READY_MASK;
+
+		if (mask == 0xf)
+			mask = 0x0;
+		else
+			dev_priv->chv_phy_control |=
+				PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY1, DPIO_CH0);
+
+		dev_priv->chv_phy_control |=
+			PHY_CH_POWER_DOWN_OVRD(mask, DPIO_PHY1, DPIO_CH0);
+
 		dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(DPIO_PHY1);
+	}
+
+	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+
+	DRM_DEBUG_KMS("Initial PHY_CONTROL=0x%08x\n",
+		      dev_priv->chv_phy_control);
 }
 
 static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)

@@ -1628,6 +1628,8 @@ static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 
 	intel_hdmi_prepare(encoder);
 
+	chv_phy_powergate_lanes(encoder, true, 0x0);
+
 	mutex_lock(&dev_priv->sb_lock);
 
 	/* program left/right clock distribution */
@@ -1701,6 +1703,8 @@ static void chv_hdmi_post_pll_disable(struct intel_encoder *encoder)
 	}
 
 	mutex_unlock(&dev_priv->sb_lock);
+
+	chv_phy_powergate_lanes(encoder, false, 0x0);
 }
 
 static void vlv_hdmi_post_disable(struct intel_encoder *encoder)
