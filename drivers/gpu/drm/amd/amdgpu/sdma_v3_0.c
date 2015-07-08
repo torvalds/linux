@@ -53,6 +53,8 @@ MODULE_FIRMWARE("amdgpu/tonga_sdma.bin");
 MODULE_FIRMWARE("amdgpu/tonga_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/carrizo_sdma.bin");
 MODULE_FIRMWARE("amdgpu/carrizo_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/fiji_sdma.bin");
+MODULE_FIRMWARE("amdgpu/fiji_sdma1.bin");
 
 static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
 {
@@ -75,6 +77,24 @@ static const u32 golden_settings_tonga_a11[] =
 };
 
 static const u32 tonga_mgcg_cgcg_init[] =
+{
+	mmSDMA0_CLK_CTRL, 0xff000ff0, 0x00000100,
+	mmSDMA1_CLK_CTRL, 0xff000ff0, 0x00000100
+};
+
+static const u32 golden_settings_fiji_a10[] =
+{
+	mmSDMA0_CHICKEN_BITS, 0xfc910007, 0x00810007,
+	mmSDMA0_GFX_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA0_RLC0_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA0_RLC1_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_CHICKEN_BITS, 0xfc910007, 0x00810007,
+	mmSDMA1_GFX_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_RLC0_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_RLC1_IB_CNTL, 0x800f0111, 0x00000100,
+};
+
+static const u32 fiji_mgcg_cgcg_init[] =
 {
 	mmSDMA0_CLK_CTRL, 0xff000ff0, 0x00000100,
 	mmSDMA1_CLK_CTRL, 0xff000ff0, 0x00000100
@@ -122,6 +142,14 @@ static const u32 cz_mgcg_cgcg_init[] =
 static void sdma_v3_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
+	case CHIP_FIJI:
+		amdgpu_program_register_sequence(adev,
+						 fiji_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_fiji_a10,
+						 (const u32)ARRAY_SIZE(golden_settings_fiji_a10));
+		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 tonga_mgcg_cgcg_init,
@@ -166,6 +194,9 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
 		chip_name = "tonga";
+		break;
+	case CHIP_FIJI:
+		chip_name = "fiji";
 		break;
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";

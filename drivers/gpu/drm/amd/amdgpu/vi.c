@@ -1209,6 +1209,13 @@ static const struct amdgpu_ip_block_version fiji_ip_blocks[] =
 		.rev = 0,
 		.funcs = &gfx_v8_0_ip_funcs,
 	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
+		.major = 3,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &sdma_v3_0_ip_funcs,
+	},
 };
 
 static const struct amdgpu_ip_block_version cz_ip_blocks[] =
