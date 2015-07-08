@@ -1288,7 +1288,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 		recover_policy = false;
 		policy = cpufreq_policy_alloc(dev);
 		if (!policy)
-			goto nomem_out;
+			goto out_release_rwsem;
 	}
 
 	cpumask_copy(policy->cpus, cpumask_of(cpu));
@@ -1299,7 +1299,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	ret = cpufreq_driver->init(policy);
 	if (ret) {
 		pr_debug("initialization failed\n");
-		goto err_set_policy_cpu;
+		goto out_free_policy;
 	}
 
 	down_write(&policy->rwsem);
@@ -1327,7 +1327,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 		policy->cur = cpufreq_driver->get(policy->cpu);
 		if (!policy->cur) {
 			pr_err("%s: ->get() failed\n", __func__);
-			goto err_get_freq;
+			goto out_exit_policy;
 		}
 	}
 
@@ -1377,7 +1377,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	if (!recover_policy) {
 		ret = cpufreq_add_dev_interface(policy, dev);
 		if (ret)
-			goto err_out_unregister;
+			goto out_exit_policy;
 		blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 				CPUFREQ_CREATE_POLICY, policy);
 
@@ -1406,15 +1406,14 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 
 	return 0;
 
-err_out_unregister:
-err_get_freq:
+out_exit_policy:
 	up_write(&policy->rwsem);
 
 	if (cpufreq_driver->exit)
 		cpufreq_driver->exit(policy);
-err_set_policy_cpu:
+out_free_policy:
 	cpufreq_policy_free(policy, recover_policy);
-nomem_out:
+out_release_rwsem:
 	up_read(&cpufreq_rwsem);
 
 	return ret;
