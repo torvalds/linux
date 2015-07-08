@@ -212,7 +212,7 @@ static int bq32k_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	if (client && client->dev.of_node)
+	if (client->dev.of_node)
 		trickle_charger_of_init(dev, client->dev.of_node);
 
 	rtc = devm_rtc_device_register(&client->dev, bq32k_driver.driver.name,
