@@ -2700,19 +2700,19 @@ static const struct sense_info sense_info_table[] = {
 		.ascq = 0x00,
 	},
 	[TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED] = {
-		.key = ILLEGAL_REQUEST,
+		.key = ABORTED_COMMAND,
 		.asc = 0x10,
 		.ascq = 0x01, /* LOGICAL BLOCK GUARD CHECK FAILED */
 		.add_sector_info = true,
 	},
 	[TCM_LOGICAL_BLOCK_APP_TAG_CHECK_FAILED] = {
-		.key = ILLEGAL_REQUEST,
+		.key = ABORTED_COMMAND,
 		.asc = 0x10,
 		.ascq = 0x02, /* LOGICAL BLOCK APPLICATION TAG CHECK FAILED */
 		.add_sector_info = true,
 	},
 	[TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED] = {
-		.key = ILLEGAL_REQUEST,
+		.key = ABORTED_COMMAND,
 		.asc = 0x10,
 		.ascq = 0x03, /* LOGICAL BLOCK REFERENCE TAG CHECK FAILED */
 		.add_sector_info = true,
