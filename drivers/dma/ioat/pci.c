@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/dca.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 #include "dma.h"
 #include "dma_v2.h"
 #include "registers.h"
@@ -148,12 +149,45 @@ alloc_ioatdma(struct pci_dev *pdev, void __iomem *iobase)
 	return d;
 }
 
+/*
+ * The dmaengine core assumes that async DMA devices will only be removed
+ * when they not used anymore, or it assumes dma_async_device_unregister()
+ * will only be called by dma driver exit routines. But this assumption is
+ * not true for the IOAT driver, which calls dma_async_device_unregister()
+ * from ioat_remove(). So current IOAT driver doesn't support device
+ * hot-removal because it may cause system crash to hot-remove inuse IOAT
+ * devices.
+ *
+ * This is a hack to disable IOAT devices under ejectable PCI host bridge
+ * so it won't break PCI host bridge hot-removal.
+ */
+static bool ioat_pci_has_ejectable_acpi_ancestor(struct pci_dev *pdev)
+{
+#ifdef CONFIG_ACPI
+	struct pci_bus *bus = pdev->bus;
+	struct acpi_device *adev;
+
+	while (bus->parent)
+		bus = bus->parent;
+	for (adev = ACPI_COMPANION(bus->bridge); adev; adev = adev->parent)
+		if (adev->flags.ejectable)
+			return true;
+#endif
+
+	return false;
+}
+
 static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	void __iomem * const *iomap;
 	struct device *dev = &pdev->dev;
 	struct ioatdma_device *device;
 	int err;
+
+	if (ioat_pci_has_ejectable_acpi_ancestor(pdev)) {
+		dev_dbg(&pdev->dev, "ignore ejectable IOAT device.\n");
+		return -ENODEV;
+	}
 
 	err = pcim_enable_device(pdev);
 	if (err)
