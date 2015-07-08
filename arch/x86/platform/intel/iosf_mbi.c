@@ -314,10 +314,8 @@ static void __exit iosf_mbi_exit(void)
 	iosf_debugfs_remove();
 
 	pci_unregister_driver(&iosf_mbi_pci_driver);
-	if (mbi_pdev) {
-		pci_dev_put(mbi_pdev);
-		mbi_pdev = NULL;
-	}
+	pci_dev_put(mbi_pdev);
+	mbi_pdev = NULL;
 }
 
 module_init(iosf_mbi_init);
