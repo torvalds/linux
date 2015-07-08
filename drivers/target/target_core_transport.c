@@ -39,6 +39,7 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <scsi/scsi_proto.h>
+#include <scsi/scsi_common.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
@@ -2615,19 +2616,6 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(transport_wait_for_tasks);
 
-static
-void transport_err_sector_info(unsigned char *buffer, sector_t bad_sector)
-{
-	/* Place failed LBA in sense data information descriptor 0. */
-	buffer[SPC_ADD_SENSE_LEN_OFFSET] = 0xc;
-	buffer[SPC_DESC_TYPE_OFFSET] = 0; /* Information */
-	buffer[SPC_ADDITIONAL_DESC_LEN_OFFSET] = 0xa;
-	buffer[SPC_VALIDITY_OFFSET] = 0x80;
-
-	/* Descriptor Information: failing sector */
-	put_unaligned_be64(bad_sector, &buffer[12]);
-}
-
 struct sense_info {
 	u8 key;
 	u8 asc;
@@ -2754,7 +2742,6 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 		si = &sense_info_table[(__force int)
 				       TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE];
 
-	buffer[SPC_SENSE_KEY_OFFSET] = si->key;
 	if (reason == TCM_CHECK_CONDITION_UNIT_ATTENTION) {
 		core_scsi3_ua_for_check_condition(cmd, &asc, &ascq);
 		WARN_ON_ONCE(asc == 0);
@@ -2766,10 +2753,10 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 		asc = si->asc;
 		ascq = si->ascq;
 	}
-	buffer[SPC_ASC_KEY_OFFSET] = asc;
-	buffer[SPC_ASCQ_KEY_OFFSET] = ascq;
+
+	scsi_build_sense_buffer(0, buffer, si->key, asc, ascq);
 	if (si->add_sector_info)
-		transport_err_sector_info(cmd->sense_buffer, cmd->bad_sector);
+		scsi_set_sense_information(buffer, cmd->bad_sector);
 }
 
 int
