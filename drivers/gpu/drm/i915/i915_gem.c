@@ -213,7 +213,6 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	sg_dma_len(sg) = obj->base.size;
 
 	obj->pages = st;
-	obj->has_dma_mapping = true;
 	return 0;
 }
 
@@ -265,8 +264,6 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj)
 
 	sg_free_table(obj->pages);
 	kfree(obj->pages);
-
-	obj->has_dma_mapping = false;
 }
 
 static void
