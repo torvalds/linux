@@ -1065,12 +1065,13 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	return 0;
 }
 
-#define wa_ctx_emit(batch, cmd)						\
+#define wa_ctx_emit(batch, index, cmd)					\
 	do {								\
-		if (WARN_ON(index >= (PAGE_SIZE / sizeof(uint32_t)))) {	\
+		int __index = (index)++;				\
+		if (WARN_ON(__index >= (PAGE_SIZE / sizeof(uint32_t)))) { \
 			return -ENOSPC;					\
 		}							\
-		batch[index++] = (cmd);					\
+		batch[__index] = (cmd);					\
 	} while (0)
 
 
@@ -1096,29 +1097,29 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *ring,
 {
 	uint32_t l3sqc4_flush = (0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES);
 
-	wa_ctx_emit(batch, (MI_STORE_REGISTER_MEM_GEN8(1) |
-			    MI_SRM_LRM_GLOBAL_GTT));
-	wa_ctx_emit(batch, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, ring->scratch.gtt_offset + 256);
-	wa_ctx_emit(batch, 0);
+	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8(1) |
+				   MI_SRM_LRM_GLOBAL_GTT));
+	wa_ctx_emit(batch, index, GEN8_L3SQCREG4);
+	wa_ctx_emit(batch, index, ring->scratch.gtt_offset + 256);
+	wa_ctx_emit(batch, index, 0);
 
-	wa_ctx_emit(batch, MI_LOAD_REGISTER_IMM(1));
-	wa_ctx_emit(batch, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, l3sqc4_flush);
+	wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
+	wa_ctx_emit(batch, index, GEN8_L3SQCREG4);
+	wa_ctx_emit(batch, index, l3sqc4_flush);
 
-	wa_ctx_emit(batch, GFX_OP_PIPE_CONTROL(6));
-	wa_ctx_emit(batch, (PIPE_CONTROL_CS_STALL |
-			    PIPE_CONTROL_DC_FLUSH_ENABLE));
-	wa_ctx_emit(batch, 0);
-	wa_ctx_emit(batch, 0);
-	wa_ctx_emit(batch, 0);
-	wa_ctx_emit(batch, 0);
+	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
+	wa_ctx_emit(batch, index, (PIPE_CONTROL_CS_STALL |
+				   PIPE_CONTROL_DC_FLUSH_ENABLE));
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
 
-	wa_ctx_emit(batch, (MI_LOAD_REGISTER_MEM_GEN8(1) |
-			    MI_SRM_LRM_GLOBAL_GTT));
-	wa_ctx_emit(batch, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, ring->scratch.gtt_offset + 256);
-	wa_ctx_emit(batch, 0);
+	wa_ctx_emit(batch, index, (MI_LOAD_REGISTER_MEM_GEN8(1) |
+				   MI_SRM_LRM_GLOBAL_GTT));
+	wa_ctx_emit(batch, index, GEN8_L3SQCREG4);
+	wa_ctx_emit(batch, index, ring->scratch.gtt_offset + 256);
+	wa_ctx_emit(batch, index, 0);
 
 	return index;
 }
@@ -1179,7 +1180,7 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *ring,
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
 	/* WaDisableCtxRestoreArbitration:bdw,chv */
-	wa_ctx_emit(batch, MI_ARB_ON_OFF | MI_ARB_DISABLE);
+	wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:bdw */
 	if (IS_BROADWELL(ring->dev)) {
@@ -1192,19 +1193,19 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *ring,
 	/* Actual scratch location is at 128 bytes offset */
 	scratch_addr = ring->scratch.gtt_offset + 2*CACHELINE_BYTES;
 
-	wa_ctx_emit(batch, GFX_OP_PIPE_CONTROL(6));
-	wa_ctx_emit(batch, (PIPE_CONTROL_FLUSH_L3 |
-			    PIPE_CONTROL_GLOBAL_GTT_IVB |
-			    PIPE_CONTROL_CS_STALL |
-			    PIPE_CONTROL_QW_WRITE));
-	wa_ctx_emit(batch, scratch_addr);
-	wa_ctx_emit(batch, 0);
-	wa_ctx_emit(batch, 0);
-	wa_ctx_emit(batch, 0);
+	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
+	wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
+				   PIPE_CONTROL_GLOBAL_GTT_IVB |
+				   PIPE_CONTROL_CS_STALL |
+				   PIPE_CONTROL_QW_WRITE));
+	wa_ctx_emit(batch, index, scratch_addr);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
 
 	/* Pad to end of cacheline */
 	while (index % CACHELINE_DWORDS)
-		wa_ctx_emit(batch, MI_NOOP);
+		wa_ctx_emit(batch, index, MI_NOOP);
 
 	/*
 	 * MI_BATCH_BUFFER_END is not required in Indirect ctx BB because
@@ -1240,9 +1241,9 @@ static int gen8_init_perctx_bb(struct intel_engine_cs *ring,
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
 	/* WaDisableCtxRestoreArbitration:bdw,chv */
-	wa_ctx_emit(batch, MI_ARB_ON_OFF | MI_ARB_ENABLE);
+	wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 
-	wa_ctx_emit(batch, MI_BATCH_BUFFER_END);
+	wa_ctx_emit(batch, index, MI_BATCH_BUFFER_END);
 
 	return wa_ctx_end(wa_ctx, *offset = index, 1);
 }
