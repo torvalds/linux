@@ -12,13 +12,13 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 #include <linux/irq.h>
-#include <linux/irqchip.h>
 
 #include <asm/i8259.h>
 #include <asm/io.h>

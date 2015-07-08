@@ -1071,10 +1071,6 @@ config HOTPLUG_CPU
 config SYS_SUPPORTS_HOTPLUG_CPU
 	bool
 
-config I8259
-	bool
-	select IRQ_DOMAIN
-
 config MIPS_BONITO64
 	bool
 
