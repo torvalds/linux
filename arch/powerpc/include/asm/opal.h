@@ -203,6 +203,8 @@ int64_t opal_flash_write(uint64_t id, uint64_t offset, uint64_t buf,
 int64_t opal_flash_erase(uint64_t id, uint64_t offset, uint64_t size,
 		uint64_t token);
 
+int64_t opal_nest_ima_control(uint32_t value);
+
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
 				   int depth, void *data);
