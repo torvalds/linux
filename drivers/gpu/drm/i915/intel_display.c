@@ -14385,9 +14385,27 @@ static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 	return drm_gem_handle_create(file, &obj->base, handle);
 }
 
+static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
+					struct drm_file *file,
+					unsigned flags, unsigned color,
+					struct drm_clip_rect *clips,
+					unsigned num_clips)
+{
+	struct drm_device *dev = fb->dev;
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj = intel_fb->obj;
+
+	mutex_lock(&dev->struct_mutex);
+	intel_fb_obj_flush(obj, false, ORIGIN_GTT);
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
 static const struct drm_framebuffer_funcs intel_fb_funcs = {
 	.destroy = intel_user_framebuffer_destroy,
 	.create_handle = intel_user_framebuffer_create_handle,
+	.dirty = intel_user_framebuffer_dirty,
 };
 
 static
