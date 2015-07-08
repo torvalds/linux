@@ -217,11 +217,11 @@ static inline u32 _read_pending_irq_reg(u16 irqen_offs, u16 irqst_offs)
  */
 static void omap44xx_prm_read_pending_irqs(unsigned long *events)
 {
-	events[0] = _read_pending_irq_reg(OMAP4_PRM_IRQENABLE_MPU_OFFSET,
-					  OMAP4_PRM_IRQSTATUS_MPU_OFFSET);
+	int i;
 
-	events[1] = _read_pending_irq_reg(OMAP4_PRM_IRQENABLE_MPU_2_OFFSET,
-					  OMAP4_PRM_IRQSTATUS_MPU_2_OFFSET);
+	for (i = 0; i < omap4_prcm_irq_setup.nr_regs; i++)
+		events[i] = _read_pending_irq_reg(omap4_prcm_irq_setup.mask +
+				i * 4, omap4_prcm_irq_setup.ack + i * 4);
 }
 
 /**
@@ -251,17 +251,17 @@ static void omap44xx_prm_ocp_barrier(void)
  */
 static void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
 {
-	saved_mask[0] =
-		omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
-					OMAP4_PRM_IRQENABLE_MPU_OFFSET);
-	saved_mask[1] =
-		omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
-					OMAP4_PRM_IRQENABLE_MPU_2_OFFSET);
+	int i;
+	u16 reg;
 
-	omap4_prm_write_inst_reg(0, OMAP4430_PRM_OCP_SOCKET_INST,
-				 OMAP4_PRM_IRQENABLE_MPU_OFFSET);
-	omap4_prm_write_inst_reg(0, OMAP4430_PRM_OCP_SOCKET_INST,
-				 OMAP4_PRM_IRQENABLE_MPU_2_OFFSET);
+	for (i = 0; i < omap4_prcm_irq_setup.nr_regs; i++) {
+		reg = omap4_prcm_irq_setup.mask + i * 4;
+
+		saved_mask[i] =
+			omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
+						reg);
+		omap4_prm_write_inst_reg(0, OMAP4430_PRM_OCP_SOCKET_INST, reg);
+	}
 
 	/* OCP barrier */
 	omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
@@ -280,10 +280,12 @@ static void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
  */
 static void omap44xx_prm_restore_irqen(u32 *saved_mask)
 {
-	omap4_prm_write_inst_reg(saved_mask[0], OMAP4430_PRM_OCP_SOCKET_INST,
-				 OMAP4_PRM_IRQENABLE_MPU_OFFSET);
-	omap4_prm_write_inst_reg(saved_mask[1], OMAP4430_PRM_OCP_SOCKET_INST,
-				 OMAP4_PRM_IRQENABLE_MPU_2_OFFSET);
+	int i;
+
+	for (i = 0; i < omap4_prcm_irq_setup.nr_regs; i++)
+		omap4_prm_write_inst_reg(saved_mask[i],
+					 OMAP4430_PRM_OCP_SOCKET_INST,
+					 omap4_prcm_irq_setup.mask + i * 4);
 }
 
 /**
