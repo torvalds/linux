@@ -105,12 +105,10 @@ static phys_addr_t mvebu_internal_reg_base(void)
 	return of_translate_address(np, in_addr);
 }
 
-static void mvebu_pm_store_bootinfo(void)
+static void mvebu_pm_store_armadaxp_bootinfo(u32 *store_addr)
 {
-	u32 *store_addr;
 	phys_addr_t resume_pc;
 
-	store_addr = phys_to_virt(BOOT_INFO_ADDR);
 	resume_pc = virt_to_phys(armada_370_xp_cpu_resume);
 
 	/*
@@ -151,14 +149,33 @@ static void mvebu_pm_store_bootinfo(void)
 	writel(BOOT_MAGIC_LIST_END, store_addr);
 }
 
+static int mvebu_pm_store_bootinfo(void)
+{
+	u32 *store_addr;
+
+	store_addr = phys_to_virt(BOOT_INFO_ADDR);
+
+	if (of_machine_is_compatible("marvell,armadaxp"))
+		mvebu_pm_store_armadaxp_bootinfo(store_addr);
+	else
+		return -ENODEV;
+
+	return 0;
+}
+
 static int mvebu_pm_enter(suspend_state_t state)
 {
+	int ret;
+
 	if (state != PM_SUSPEND_MEM)
 		return -EINVAL;
 
+	ret = mvebu_pm_store_bootinfo();
+	if (ret)
+		return ret;
+
 	cpu_pm_enter();
 
-	mvebu_pm_store_bootinfo();
 	cpu_suspend(0, mvebu_pm_powerdown);
 
 	outer_resume();
