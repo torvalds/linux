@@ -28,6 +28,17 @@ CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
 CFLAGS_sysinfo.o += -w
 
+#
+# Use -march=z900 for sclp.c to be able to print an error message if
+# the kernel is started on a machine which is too old
+#
+CFLAGS_REMOVE_sclp.o = $(CC_FLAGS_FTRACE)
+ifneq ($(CC_FLAGS_MARCH),-march=z900)
+CFLAGS_REMOVE_sclp.o += $(CC_FLAGS_MARCH)
+CFLAGS_sclp.o	+= -march=z900
+endif
+GCOV_PROFILE_sclp.o := n
+
 obj-y	:= traps.o time.o process.o base.o early.o setup.o idle.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
 obj-y	+= debug.o irq.o ipl.o dis.o diag.o sclp.o vdso.o

@@ -233,6 +233,17 @@ static inline void __load_psw_mask (unsigned long mask)
 }
 
 /*
+ * Extract current PSW mask
+ */
+static inline unsigned long __extract_psw(void)
+{
+	unsigned int reg1, reg2;
+
+	asm volatile("epsw %0,%1" : "=d" (reg1), "=a" (reg2));
+	return (((unsigned long) reg1) << 32) | ((unsigned long) reg2);
+}
+
+/*
  * Rewind PSW instruction address by specified number of bytes.
  */
 static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
