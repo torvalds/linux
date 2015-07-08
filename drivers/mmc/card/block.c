@@ -1405,6 +1405,9 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 		brq->data.flags |= MMC_DATA_WRITE;
 	}
 
+	if (req->cmd_flags & REQ_KERNEL)
+		brq->data.flags |= MMC_DATA_DIRECT;
+
 	if (do_rel_wr)
 		mmc_apply_rel_rw(brq, card, req);
 

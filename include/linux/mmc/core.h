@@ -114,6 +114,7 @@ struct mmc_data {
 #define MMC_DATA_WRITE	(1 << 8)
 #define MMC_DATA_READ	(1 << 9)
 #define MMC_DATA_STREAM	(1 << 10)
+#define MMC_DATA_DIRECT (1 << 11)
 
 	unsigned int		bytes_xfered;
 

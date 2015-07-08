@@ -576,6 +576,12 @@ config MMC_DW_ROCKCHIP_SWITCH_VOLTAGE
           This selects support for Rockchip RK32XX Soc specific extensions to voltage
 	  switch squence
 
+config MMC_DW_SKIP_CACHE_OP
+	bool "Skip operations for cache coherency"
+	depends on MMC_DW
+	help
+	  This selects support for skipping operations for cache coherency
+	  to reduce I/O overhead if file system layer do same thing.
 
 config MMC_DW_EXYNOS
 	tristate "Exynos specific extensions for Synopsys DW Memory Card Interface"

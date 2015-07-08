@@ -48,6 +48,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/log2.h>
+#include <asm-generic/dma-mapping-common.h>
 #include "rk_sdmmc.h"
 #include "rk_sdmmc_dbg.h"
 #include <linux/regulator/rockchip_io_vol_domain.h>
@@ -669,12 +670,17 @@ static const struct dw_mci_dma_ops dw_mci_edmac_ops = {
 };
 #endif /* CONFIG_MMC_DW_IDMAC */
 
+static struct dma_attrs dw_mci_direct_attrs;
+
 static int dw_mci_pre_dma_transfer(struct dw_mci *host,
 				   struct mmc_data *data,
 				   bool next)
 {
 	struct scatterlist *sg;
 	unsigned int i, sg_len;
+#ifdef CONFIG_MMC_DW_SKIP_CACHE_OP
+	struct dma_attrs *attrs;
+#endif
 
 	if (!next && data->host_cookie)
 		return data->host_cookie;
@@ -694,11 +700,19 @@ static int dw_mci_pre_dma_transfer(struct dw_mci *host,
 		if (sg->offset & 3 || sg->length & 3)
 			return -EINVAL;
 	}
+#ifdef CONFIG_MMC_DW_SKIP_CACHE_OP
+	attrs = (data->flags & MMC_DATA_DIRECT) ? &dw_mci_direct_attrs : NULL;
+	sg_len = dma_map_sg_attrs(host->dev,
+				 data->sg,
+				 data->sg_len,
+				 dw_mci_get_dma_dir(data), attrs);
+#else
 
 	sg_len = dma_map_sg(host->dev,
 			    data->sg,
 			    data->sg_len,
 			    dw_mci_get_dma_dir(data));
+#endif
 	if (sg_len == 0)
 		return -EINVAL;
 
@@ -4072,6 +4086,9 @@ int dw_mci_probe(struct dw_mci *host)
 	/* Reset all blocks */
 	if (!dw_mci_ctrl_all_reset(host))
 		return -ENODEV;
+
+	init_dma_attrs(&dw_mci_direct_attrs);
+	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &dw_mci_direct_attrs);
 
 	host->dma_ops = host->pdata->dma_ops;
 	dw_mci_init_dma(host);
