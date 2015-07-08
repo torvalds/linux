@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 
 struct crypto_aead;
+struct crypto_instance;
 struct module;
 struct rtattr;
 struct seq_file;
@@ -30,6 +31,7 @@ struct crypto_type {
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
 	int (*report)(struct sk_buff *skb, struct crypto_alg *alg);
 	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask);
+	void (*free)(struct crypto_instance *inst);
 
 	unsigned int type;
 	unsigned int maskclear;
