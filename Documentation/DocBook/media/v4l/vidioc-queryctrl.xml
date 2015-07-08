@@ -616,7 +616,7 @@ pointer to memory containing the payload of the control.</entry>
 	    <entry><constant>V4L2_CTRL_FLAG_EXECUTE_ON_WRITE</constant></entry>
 	    <entry>0x0200</entry>
 	    <entry>The value provided to the control will be propagated to the driver
-even if remains constant. This is required when the control represents an action
+even if it remains constant. This is required when the control represents an action
 on the hardware. For example: clearing an error flag or triggering the flash. All the
 controls of the type <constant>V4L2_CTRL_TYPE_BUTTON</constant> have this flag set.</entry>
 	  </row>
