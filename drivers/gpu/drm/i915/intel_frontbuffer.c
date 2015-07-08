@@ -113,9 +113,9 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
  *
  * Can be called without any locks held.
  */
-void intel_frontbuffer_flush(struct drm_device *dev,
-			     unsigned frontbuffer_bits,
-			     enum fb_op_origin origin)
+static void intel_frontbuffer_flush(struct drm_device *dev,
+				    unsigned frontbuffer_bits,
+				    enum fb_op_origin origin)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 

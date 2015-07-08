@@ -977,9 +977,6 @@ void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 				    unsigned frontbuffer_bits);
 void intel_frontbuffer_flip_complete(struct drm_device *dev,
 				     unsigned frontbuffer_bits);
-void intel_frontbuffer_flush(struct drm_device *dev,
-			     unsigned frontbuffer_bits,
-			     enum fb_op_origin origin);
 void intel_frontbuffer_flip(struct drm_device *dev,
 			    unsigned frontbuffer_bits);
 unsigned int intel_fb_align_height(struct drm_device *dev,
