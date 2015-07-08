@@ -761,6 +761,7 @@ static void gb_tty_exit(void)
 {
 	tty_unregister_driver(gb_tty_driver);
 	put_tty_driver(gb_tty_driver);
+	idr_destroy(&tty_minors);
 }
 
 static struct gb_protocol uart_protocol = {

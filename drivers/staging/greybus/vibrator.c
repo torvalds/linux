@@ -190,6 +190,7 @@ static __exit void protocol_exit(void)
 {
 	gb_protocol_deregister(&vibrator_protocol);
 	class_unregister(&vibrator_class);
+	ida_destroy(&minors);
 }
 module_exit(protocol_exit);
 

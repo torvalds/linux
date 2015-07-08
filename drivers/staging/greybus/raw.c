@@ -364,6 +364,7 @@ static void __exit raw_exit(void)
 	gb_protocol_deregister(&raw_protocol);
 	unregister_chrdev_region(MKDEV(raw_major, 0), NUM_MINORS);
 	class_destroy(raw_class);
+	ida_destroy(&minors);
 }
 module_exit(raw_exit);
 
