@@ -2587,7 +2587,7 @@ $kernelversion = get_kernel_version();
 
 # generate a sequence of code that will splice in highlighting information
 # using the s// operator.
-foreach my $pattern (keys %highlights) {
+foreach my $pattern (sort keys %highlights) {
 #   print STDERR "scanning pattern:$pattern, highlight:($highlights{$pattern})\n";
     $dohighlight .=  "\$contents =~ s:$pattern:$highlights{$pattern}:gs;\n";
 }
