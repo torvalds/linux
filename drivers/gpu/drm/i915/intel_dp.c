@@ -2902,6 +2902,12 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->sb_lock);
 
 	intel_enable_dp(encoder);
+
+	/* Second common lane will stay alive on its own now */
+	if (dport->release_cl2_override) {
+		chv_phy_powergate_ch(dev_priv, DPIO_PHY0, DPIO_CH1, false);
+		dport->release_cl2_override = false;
+	}
 }
 
 static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
@@ -2918,6 +2924,14 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 	u32 val;
 
 	intel_dp_prepare(encoder);
+
+	/*
+	 * Must trick the second common lane into life.
+	 * Otherwise we can't even access the PLL.
+	 */
+	if (ch == DPIO_CH0 && pipe == PIPE_B)
+		dport->release_cl2_override =
+			!chv_phy_powergate_ch(dev_priv, DPIO_PHY0, DPIO_CH1, true);
 
 	chv_phy_powergate_lanes(encoder, true, lane_mask);
 
@@ -2997,6 +3011,15 @@ static void chv_dp_post_pll_disable(struct intel_encoder *encoder)
 
 	mutex_unlock(&dev_priv->sb_lock);
 
+	/*
+	 * Leave the power down bit cleared for at least one
+	 * lane so that chv_powergate_phy_ch() will power
+	 * on something when the channel is otherwise unused.
+	 * When the port is off and the override is removed
+	 * the lanes power down anyway, so otherwise it doesn't
+	 * really matter what the state of power down bits is
+	 * after this.
+	 */
 	chv_phy_powergate_lanes(encoder, false, 0x0);
 }
 

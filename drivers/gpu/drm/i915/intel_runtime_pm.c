@@ -1032,6 +1032,35 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 		      phy, dev_priv->chv_phy_control);
 }
 
+bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
+			  enum dpio_channel ch, bool override)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	bool was_override;
+
+	mutex_lock(&power_domains->lock);
+
+	was_override = dev_priv->chv_phy_control & PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+
+	if (override == was_override)
+		goto out;
+
+	if (override)
+		dev_priv->chv_phy_control |= PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+	else
+		dev_priv->chv_phy_control &= ~PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+
+	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+
+	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d (DPIO_PHY_CONTROL=0x%08x)\n",
+		      phy, ch, dev_priv->chv_phy_control);
+
+out:
+	mutex_unlock(&power_domains->lock);
+
+	return was_override;
+}
+
 void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 			     bool override, unsigned int mask)
 {
