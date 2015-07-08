@@ -2410,9 +2410,8 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 		    tf->category == WLAN_CATEGORY_TDLS &&
 		    (tf->action_code == WLAN_TDLS_CHANNEL_SWITCH_REQUEST ||
 		     tf->action_code == WLAN_TDLS_CHANNEL_SWITCH_RESPONSE)) {
-			rx->skb->pkt_type = IEEE80211_SDATA_QUEUE_TDLS_CHSW;
-			skb_queue_tail(&sdata->skb_queue, rx->skb);
-			ieee80211_queue_work(&rx->local->hw, &sdata->work);
+			skb_queue_tail(&local->skb_queue_tdls_chsw, rx->skb);
+			schedule_work(&local->tdls_chsw_work);
 			if (rx->sta)
 				rx->sta->rx_packets++;
 

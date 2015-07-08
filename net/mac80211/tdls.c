@@ -12,6 +12,7 @@
 #include <linux/ieee80211.h>
 #include <linux/log2.h>
 #include <net/cfg80211.h>
+#include <linux/rtnetlink.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
@@ -1800,11 +1801,14 @@ out:
 	return ret;
 }
 
-void ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
-					   struct sk_buff *skb)
+static void
+ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
+				      struct sk_buff *skb)
 {
 	struct ieee80211_tdls_data *tf = (void *)skb->data;
 	struct wiphy *wiphy = sdata->local->hw.wiphy;
+
+	ASSERT_RTNL();
 
 	/* make sure the driver supports it */
 	if (!(wiphy->features & NL80211_FEATURE_TDLS_CHANNEL_SWITCH))
@@ -1846,4 +1850,30 @@ void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata)
 					    GFP_ATOMIC);
 	}
 	rcu_read_unlock();
+}
+
+void ieee80211_tdls_chsw_work(struct work_struct *wk)
+{
+	struct ieee80211_local *local =
+		container_of(wk, struct ieee80211_local, tdls_chsw_work);
+	struct ieee80211_sub_if_data *sdata;
+	struct sk_buff *skb;
+	struct ieee80211_tdls_data *tf;
+
+	rtnl_lock();
+	while ((skb = skb_dequeue(&local->skb_queue_tdls_chsw))) {
+		tf = (struct ieee80211_tdls_data *)skb->data;
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (!ieee80211_sdata_running(sdata) ||
+			    sdata->vif.type != NL80211_IFTYPE_STATION ||
+			    !ether_addr_equal(tf->da, sdata->vif.addr))
+				continue;
+
+			ieee80211_process_tdls_channel_switch(sdata, skb);
+			break;
+		}
+
+		kfree_skb(skb);
+	}
+	rtnl_unlock();
 }
