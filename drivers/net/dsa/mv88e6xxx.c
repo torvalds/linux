@@ -517,6 +517,18 @@ static bool mv88e6xxx_6185_family(struct dsa_switch *ds)
 	return false;
 }
 
+bool mv88e6xxx_6320_family(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6320:
+	case PORT_SWITCH_ID_6321:
+		return true;
+	}
+	return false;
+}
+
 static bool mv88e6xxx_6351_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -565,7 +577,7 @@ static int _mv88e6xxx_stats_snapshot(struct dsa_switch *ds, int port)
 {
 	int ret;
 
-	if (mv88e6xxx_6352_family(ds))
+	if (mv88e6xxx_6320_family(ds) || mv88e6xxx_6352_family(ds))
 		port = (port + 1) << 5;
 
 	/* Snapshot the hardware statistics counters for this port. */
@@ -1377,7 +1389,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
 	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
 	    mv88e6xxx_6185_family(ds) || mv88e6xxx_6095_family(ds) ||
-	    mv88e6xxx_6065_family(ds)) {
+	    mv88e6xxx_6065_family(ds) || mv88e6xxx_6320_family(ds)) {
 		/* MAC Forcing register: don't force link, speed,
 		 * duplex or flow control state to any particular
 		 * values on physical ports, but force the CPU port
@@ -1423,7 +1435,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
 	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
 	    mv88e6xxx_6095_family(ds) || mv88e6xxx_6065_family(ds) ||
-	    mv88e6xxx_6185_family(ds))
+	    mv88e6xxx_6185_family(ds) || mv88e6xxx_6320_family(ds))
 		reg = PORT_CONTROL_IGMP_MLD_SNOOP |
 		PORT_CONTROL_USE_TAG | PORT_CONTROL_USE_IP |
 		PORT_CONTROL_STATE_FORWARDING;
@@ -1431,7 +1443,8 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 		if (mv88e6xxx_6095_family(ds) || mv88e6xxx_6185_family(ds))
 			reg |= PORT_CONTROL_DSA_TAG;
 		if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
-		    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds)) {
+		    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+		    mv88e6xxx_6320_family(ds)) {
 			if (ds->dst->tag_protocol == DSA_TAG_PROTO_EDSA)
 				reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA;
 			else
@@ -1441,14 +1454,15 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 		if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
 		    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
 		    mv88e6xxx_6095_family(ds) || mv88e6xxx_6065_family(ds) ||
-		    mv88e6xxx_6185_family(ds)) {
+		    mv88e6xxx_6185_family(ds) || mv88e6xxx_6320_family(ds)) {
 			if (ds->dst->tag_protocol == DSA_TAG_PROTO_EDSA)
 				reg |= PORT_CONTROL_EGRESS_ADD_TAG;
 		}
 	}
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
 	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
-	    mv88e6xxx_6095_family(ds) || mv88e6xxx_6065_family(ds)) {
+	    mv88e6xxx_6095_family(ds) || mv88e6xxx_6065_family(ds) ||
+	    mv88e6xxx_6320_family(ds)) {
 		if (ds->dsa_port_mask & (1 << port))
 			reg |= PORT_CONTROL_FRAME_MODE_DSA;
 		if (port == dsa_upstream_port(ds))
@@ -1473,11 +1487,11 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	reg = 0;
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
 	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
-	    mv88e6xxx_6095_family(ds))
+	    mv88e6xxx_6095_family(ds) || mv88e6xxx_6320_family(ds))
 		reg = PORT_CONTROL_2_MAP_DA;
 
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
-	    mv88e6xxx_6165_family(ds))
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6320_family(ds))
 		reg |= PORT_CONTROL_2_JUMBO_10240;
 
 	if (mv88e6xxx_6095_family(ds) || mv88e6xxx_6185_family(ds)) {
@@ -1514,7 +1528,8 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 		goto abort;
 
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
-	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds)) {
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+	    mv88e6xxx_6320_family(ds)) {
 		/* Do not limit the period of time that this port can
 		 * be paused for by the remote end or the period of
 		 * time that this port can pause the remote end.
@@ -1564,7 +1579,8 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
 	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
-	    mv88e6xxx_6185_family(ds) || mv88e6xxx_6095_family(ds)) {
+	    mv88e6xxx_6185_family(ds) || mv88e6xxx_6095_family(ds) ||
+	    mv88e6xxx_6320_family(ds)) {
 		/* Rate Control: disable ingress rate limiting. */
 		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
 					   PORT_RATE_CONTROL, 0x0001);
@@ -1976,7 +1992,8 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds)
 			  (i << GLOBAL2_TRUNK_MAPPING_ID_SHIFT));
 
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
-	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds)) {
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+	    mv88e6xxx_6320_family(ds)) {
 		/* Send all frames with destination addresses matching
 		 * 01:80:c2:00:00:2x to the CPU port.
 		 */
@@ -1995,7 +2012,8 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds)
 
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
 	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
-	    mv88e6xxx_6185_family(ds) || mv88e6xxx_6095_family(ds)) {
+	    mv88e6xxx_6185_family(ds) || mv88e6xxx_6095_family(ds) ||
+	    mv88e6xxx_6320_family(ds)) {
 		/* Disable ingress rate limiting by resetting all
 		 * ingress rate limit registers to their initial
 		 * state.
