@@ -61,7 +61,7 @@ Options with (*) are default options and will not show in the mount options.
 
 	check_int enables the integrity checker module, which examines all
 	block write requests to ensure on-disk consistency, at a large
-	memory and CPU cost.  
+	memory and CPU cost.
 
 	check_int_data includes extent data in the integrity checks, and
 	implies the check_int option.
@@ -113,7 +113,7 @@ Options with (*) are default options and will not show in the mount options.
 	Disable/enable debugging option to be more verbose in some ENOSPC conditions.
 
   fatal_errors=<action>
-	Action to take when encountering a fatal error: 
+	Action to take when encountering a fatal error:
 	  "bug" - BUG() on a fatal error.  This is the default.
 	  "panic" - panic() on a fatal error.
 
@@ -132,10 +132,10 @@ Options with (*) are default options and will not show in the mount options.
 
   max_inline=<bytes>
 	Specify the maximum amount of space, in bytes, that can be inlined in
-	a metadata B-tree leaf.  The value is specified in bytes, optionally 
+	a metadata B-tree leaf.  The value is specified in bytes, optionally
 	with a K, M, or G suffix, case insensitive.  In practice, this value
 	is limited by the root sector size, with some space unavailable due
-	to leaf headers.  For a 4k sectorsize, max inline data is ~3900 bytes.
+	to leaf headers.  For a 4k sector size, max inline data is ~3900 bytes.
 
   metadata_ratio=<value>
 	Specify that 1 metadata chunk should be allocated after every <value>
@@ -170,7 +170,7 @@ Options with (*) are default options and will not show in the mount options.
 
   recovery
 	Enable autorecovery attempts if a bad tree root is found at mount time.
-	Currently this scans a list of several previous tree roots and tries to 
+	Currently this scans a list of several previous tree roots and tries to
 	use the first readable.
 
   rescan_uuid_tree
@@ -194,7 +194,7 @@ Options with (*) are default options and will not show in the mount options.
   ssd_spread
 	Options to control ssd allocation schemes.  By default, BTRFS will
 	enable or disable ssd allocation heuristics depending on whether a
-	rotational or nonrotational disk is in use.  The ssd and nossd options
+	rotational or non-rotational disk is in use.  The ssd and nossd options
 	can override this autodetection.
 
 	The ssd_spread mount option attempts to allocate into big chunks
@@ -216,13 +216,13 @@ Options with (*) are default options and will not show in the mount options.
 	This allows mounting of subvolumes which are not in the root of the mounted
 	filesystem.
 	You can use "btrfs subvolume show " to see the object ID for a subvolume.
-	
+
   thread_pool=<number>
 	The number of worker threads to allocate.  The default number is equal
 	to the number of CPUs + 2, or 8, whichever is smaller.
 
   user_subvol_rm_allowed
-	Allow subvolumes to be deleted by a non-root user. Use with caution. 
+	Allow subvolumes to be deleted by a non-root user. Use with caution.
 
 MAILING LIST
 ============
