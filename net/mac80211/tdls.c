@@ -1737,6 +1737,31 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 		return -EINVAL;
 	}
 
+	if (!elems.sec_chan_offs) {
+		chan_type = NL80211_CHAN_HT20;
+	} else {
+		switch (elems.sec_chan_offs->sec_chan_offs) {
+		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+			chan_type = NL80211_CHAN_HT40PLUS;
+			break;
+		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+			chan_type = NL80211_CHAN_HT40MINUS;
+			break;
+		default:
+			chan_type = NL80211_CHAN_HT20;
+			break;
+		}
+	}
+
+	cfg80211_chandef_create(&chandef, chan, chan_type);
+
+	/* we will be active on the TDLS link */
+	if (!cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &chandef,
+					   sdata->wdev.iftype)) {
+		tdls_dbg(sdata, "TDLS chan switch to forbidden channel\n");
+		return -EINVAL;
+	}
+
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, tf->sa);
 	if (!sta || !test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH)) {
@@ -1757,27 +1782,15 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (!sta->sta.ht_cap.ht_supported) {
-		chan_type = NL80211_CHAN_NO_HT;
-	} else if (!elems.sec_chan_offs) {
-		chan_type = NL80211_CHAN_HT20;
-	} else {
-		switch (elems.sec_chan_offs->sec_chan_offs) {
-		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-			chan_type = NL80211_CHAN_HT40PLUS;
-			break;
-		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-			chan_type = NL80211_CHAN_HT40MINUS;
-			break;
-		default:
-			chan_type = NL80211_CHAN_HT20;
-			break;
-		}
+	/* peer should have known better */
+	if (!sta->sta.ht_cap.ht_supported && elems.sec_chan_offs &&
+	    elems.sec_chan_offs->sec_chan_offs) {
+		tdls_dbg(sdata, "TDLS chan switch - wide chan unsupported\n");
+		ret = -ENOTSUPP;
+		goto out;
 	}
 
-	cfg80211_chandef_create(&chandef, chan, chan_type);
 	params.chandef = &chandef;
-
 	params.switch_time = le16_to_cpu(elems.ch_sw_timing->switch_time);
 	params.switch_timeout = le16_to_cpu(elems.ch_sw_timing->switch_timeout);
 
