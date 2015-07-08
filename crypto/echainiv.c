@@ -145,8 +145,8 @@ static int echainiv_encrypt(struct aead_request *req)
 
 	aead_request_set_callback(subreq, req->base.flags, compl, data);
 	aead_request_set_crypt(subreq, req->dst, req->dst,
-			       req->cryptlen - ivsize, info);
-	aead_request_set_ad(subreq, req->assoclen + ivsize);
+			       req->cryptlen, info);
+	aead_request_set_ad(subreq, req->assoclen);
 
 	crypto_xor(info, ctx->salt, ivsize);
 	scatterwalk_map_and_copy(info, req->dst, req->assoclen, ivsize, 1);
@@ -166,7 +166,7 @@ static int echainiv_decrypt(struct aead_request *req)
 	void *data;
 	unsigned int ivsize = crypto_aead_ivsize(geniv);
 
-	if (req->cryptlen < ivsize + crypto_aead_authsize(geniv))
+	if (req->cryptlen < ivsize)
 		return -EINVAL;
 
 	aead_request_set_tfm(subreq, ctx->geniv.child);
@@ -180,16 +180,12 @@ static int echainiv_decrypt(struct aead_request *req)
 	aead_request_set_ad(subreq, req->assoclen + ivsize);
 
 	scatterwalk_map_and_copy(req->iv, req->src, req->assoclen, ivsize, 0);
-	if (req->src != req->dst)
-		scatterwalk_map_and_copy(req->iv, req->dst,
-					 req->assoclen, ivsize, 1);
 
 	return crypto_aead_decrypt(subreq);
 }
 
-static int echainiv_init(struct crypto_tfm *tfm)
+static int echainiv_init(struct crypto_aead *geniv)
 {
-	struct crypto_aead *geniv = __crypto_aead_cast(tfm);
 	struct echainiv_ctx *ctx = crypto_aead_ctx(geniv);
 	int err;
 
@@ -212,7 +208,7 @@ static int echainiv_init(struct crypto_tfm *tfm)
 	if (IS_ERR(ctx->null))
 		goto out;
 
-	err = aead_geniv_init(tfm);
+	err = aead_geniv_init(crypto_aead_tfm(geniv));
 	if (err)
 		goto drop_null;
 
@@ -227,9 +223,9 @@ drop_null:
 	goto out;
 }
 
-static void echainiv_exit(struct crypto_tfm *tfm)
+static void echainiv_exit(struct crypto_aead *tfm)
 {
-	struct echainiv_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct echainiv_ctx *ctx = crypto_aead_ctx(tfm);
 
 	crypto_free_aead(ctx->geniv.child);
 	crypto_put_default_null_skcipher();
@@ -262,12 +258,14 @@ static int echainiv_aead_create(struct crypto_template *tmpl,
 	inst->alg.encrypt = echainiv_encrypt;
 	inst->alg.decrypt = echainiv_decrypt;
 
-	inst->alg.base.cra_init = echainiv_init;
-	inst->alg.base.cra_exit = echainiv_exit;
+	inst->alg.init = echainiv_init;
+	inst->alg.exit = echainiv_exit;
 
 	inst->alg.base.cra_alignmask |= __alignof__(u32) - 1;
 	inst->alg.base.cra_ctxsize = sizeof(struct echainiv_ctx);
 	inst->alg.base.cra_ctxsize += inst->alg.ivsize;
+
+	inst->free = aead_geniv_free;
 
 done:
 	err = aead_register_instance(tmpl, inst);
