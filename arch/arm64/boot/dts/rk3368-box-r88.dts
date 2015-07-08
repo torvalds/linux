@@ -467,6 +467,59 @@
 		};
 	   };
 	};
+
+	eta355c: eta355c@60 {
+                compatible = "eta3555";
+                reg = <0x60>;
+                status = "okay";
+                regulators {
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+                        eta355c_dc1: regulator@0 {
+                        reg = <0>;
+                        regulator-compatible = "eta_dcdc1";
+                        regulator-name = "vdd_arm";
+                        regulator-min-microvolt = <902500>;
+                        regulator-max-microvolt = <1400000>;
+                        regulator-always-on;
+                regulator-boot-on;
+                        regulator-initial-mode = <0x1>;
+                        regulator-initial-state = <3>;
+                        regulator-state-mem {
+                                regulator-state-mode = <0x2>;
+                                regulator-state-enabled;
+                                regulator-state-uv = <1000000>;
+                        };
+                };
+           };
+        };
+
+
+        eta3558: eta3558@40 {
+                compatible = "eta3555";
+                reg = <0x40>;
+                status = "disabled";
+                regulators {
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+                        eta3558_dc1: regulator@0 {
+                        reg = <0>;
+                        regulator-compatible = "eta_dcdc1";
+                        regulator-name = "vdd_gpu";
+                        regulator-min-microvolt = <902500>;
+                        regulator-max-microvolt = <1400000>;
+                        regulator-always-on;
+                regulator-boot-on;
+                        regulator-initial-mode = <0x2>;
+                        regulator-initial-state = <3>;
+                        regulator-state-mem {
+                                regulator-state-mode = <0x2>;
+                                regulator-state-enabled;
+                                regulator-state-uv = <1000000>;
+                        };
+                };
+           };
+        };
 	
 	act8846: act8846@5a {
 		reg = <0x5a>;
