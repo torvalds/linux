@@ -1,0 +1,27 @@
+Allwinner sun4i A10 musb DRC/OTG controller
+-------------------------------------------
+
+Required properties:
+ - compatible      : "allwinner,sun4i-a10-musb"
+ - reg             : mmio address range of the musb controller
+ - clocks          : clock specifier for the musb controller ahb gate clock
+ - interrupts      : interrupt to which the musb controller is connected
+ - interrupt-names : must be "mc"
+ - phys            : phy specifier for the otg phy
+ - phy-names       : must be "usb"
+ - dr_mode         : Dual-Role mode must be "host" or "otg"
+ - extcon          : extcon specifier for the otg phy
+
+Example:
+
+	usb_otg: usb@01c13000 {
+		compatible = "allwinner,sun4i-a10-musb";
+		reg = <0x01c13000 0x0400>;
+		clocks = <&ahb_gates 0>;
+		interrupts = <38>;
+		interrupt-names = "mc";
+		phys = <&usbphy 0>;
+		phy-names = "usb";
+		extcon = <&usbphy 0>;
+		status = "disabled";
+	};

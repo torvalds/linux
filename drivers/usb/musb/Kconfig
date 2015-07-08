@@ -5,7 +5,7 @@
 
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
-	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
+	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, AW, ...)'
 	depends on (USB || USB_GADGET)
 	help
 	  Say Y here if your system has a dual role high speed USB
@@ -19,6 +19,8 @@ config USB_MUSB_HDRC
 
 	  Analog Devices parts using this IP include Blackfin BF54x,
 	  BF525 and BF527.
+
+	  Allwinner SoCs using this IP include A10, A13, A20, ...
 
 	  If you do not know what this is, please say N.
 
@@ -59,6 +61,15 @@ config USB_MUSB_DUAL_ROLE
 endchoice
 
 comment "Platform Glue Layer"
+
+config USB_MUSB_SUNXI
+	tristate "Allwinner (sunxi)"
+	depends on ARCH_SUNXI
+	depends on NOP_USB_XCEIV
+	depends on PHY_SUN4I_USB
+	depends on EXTCON
+	depends on GENERIC_PHY
+	select SUNXI_SRAM
 
 config USB_MUSB_DAVINCI
 	tristate "DaVinci"
