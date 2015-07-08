@@ -1301,6 +1301,7 @@ static void __exit cleanup_mtd(void)
 		remove_proc_entry("mtd", NULL);
 	class_unregister(&mtd_class);
 	bdi_destroy(&mtd_bdi);
+	idr_destroy(&mtd_idr);
 }
 
 module_init(init_mtd);
