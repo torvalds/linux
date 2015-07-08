@@ -507,22 +507,21 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		tmp->bo = radeon_bo_ref(bo_va->bo);
 
 		interval_tree_remove(&bo_va->it, &vm->va);
+		spin_lock(&vm->status_lock);
 		bo_va->it.start = 0;
 		bo_va->it.last = 0;
-
-		spin_lock(&vm->status_lock);
 		list_del_init(&bo_va->vm_status);
 		list_add(&tmp->vm_status, &vm->freed);
 		spin_unlock(&vm->status_lock);
 	}
 
 	if (soffset || eoffset) {
+		spin_lock(&vm->status_lock);
 		bo_va->it.start = soffset;
 		bo_va->it.last = eoffset - 1;
-		interval_tree_insert(&bo_va->it, &vm->va);
-		spin_lock(&vm->status_lock);
 		list_add(&bo_va->vm_status, &vm->cleared);
 		spin_unlock(&vm->status_lock);
+		interval_tree_insert(&bo_va->it, &vm->va);
 	}
 
 	bo_va->flags = flags;
@@ -1156,7 +1155,8 @@ void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 
 	list_for_each_entry(bo_va, &bo->va, bo_list) {
 		spin_lock(&bo_va->vm->status_lock);
-		if (list_empty(&bo_va->vm_status))
+		if (list_empty(&bo_va->vm_status) &&
+		    (bo_va->it.start || bo_va->it.last))
 			list_add(&bo_va->vm_status, &bo_va->vm->invalidated);
 		spin_unlock(&bo_va->vm->status_lock);
 	}
