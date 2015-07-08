@@ -307,9 +307,22 @@ static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "geniv        : <none>\n");
 }
 
+static void crypto_aead_free_instance(struct crypto_instance *inst)
+{
+	struct aead_instance *aead = aead_instance(inst);
+
+	if (!aead->free) {
+		inst->tmpl->free(inst);
+		return;
+	}
+
+	aead->free(aead);
+}
+
 static const struct crypto_type crypto_new_aead_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_aead_init_tfm,
+	.free = crypto_aead_free_instance,
 #ifdef CONFIG_PROC_FS
 	.show = crypto_aead_show,
 #endif

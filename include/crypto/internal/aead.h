@@ -21,6 +21,7 @@
 struct rtattr;
 
 struct aead_instance {
+	void (*free)(struct aead_instance *inst);
 	union {
 		struct {
 			char head[offsetof(struct aead_alg, base)];
