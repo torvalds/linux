@@ -13,6 +13,17 @@
 static struct perchip_nest_info p8_nest_perchip_info[P8_NEST_MAX_CHIPS];
 static struct nest_pmu *per_nest_pmu_arr[P8_NEST_MAX_PMUS];
 
+PMU_FORMAT_ATTR(event, "config:0-20");
+struct attribute *p8_nest_format_attrs[] = {
+	&format_attr_event.attr,
+	NULL,
+};
+
+struct attribute_group p8_nest_format_group = {
+	.name = "format",
+	.attrs = p8_nest_format_attrs,
+};
+
 static int nest_event_info(struct property *pp, char *start,
 			struct nest_ima_events *p8_events, int flg, u32 val)
 {
@@ -42,6 +53,48 @@ static int nest_event_info(struct property *pp, char *start,
 		sprintf(buf, "event=0x%x", val);
 
 	p8_events->ev_value = buf;
+	return 0;
+}
+
+/*
+ * Populate event name and string in attribute
+ */
+struct attribute *dev_str_attr(const char *name, const char *str)
+{
+	struct perf_pmu_events_attr *attr;
+
+	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+
+	attr->event_str = str;
+	attr->attr.attr.name = name;
+	attr->attr.attr.mode = 0444;
+	attr->attr.show = perf_event_sysfs_show;
+
+	return &attr->attr.attr;
+}
+
+int update_events_in_group(
+	struct nest_ima_events *p8_events, int idx, struct nest_pmu *pmu)
+{
+	struct attribute_group *attr_group;
+	struct attribute **attrs;
+	int i;
+
+	/* Allocate memory for event attribute group */
+	attr_group = kzalloc(((sizeof(struct attribute *) * (idx + 1)) +
+				sizeof(*attr_group)), GFP_KERNEL);
+	if (!attr_group)
+		return -ENOMEM;
+
+	attrs = (struct attribute **)(attr_group + 1);
+	attr_group->name = "events";
+	attr_group->attrs = attrs;
+
+	for (i = 0; i < idx; i++, p8_events++)
+		attrs[i] = dev_str_attr((char *)p8_events->ev_name,
+					(char *)p8_events->ev_value);
+
+	pmu->attr_groups[0] = attr_group;
 	return 0;
 }
 
@@ -91,6 +144,7 @@ static int nest_pmu_create(struct device_node *dev, int pmu_index)
 			/* Save the name to register it later */
 			sprintf(buf, "Nest_%s", (char *)pp->value);
 			pmu_ptr->pmu.name = (char *)buf;
+			pmu_ptr->attr_groups[1] = &p8_nest_format_group;
 			continue;
 		}
 
@@ -121,6 +175,9 @@ static int nest_pmu_create(struct device_node *dev, int pmu_index)
 		/* book keeping */
 		idx++;
 	}
+
+	update_events_in_group(
+		(struct nest_ima_events *)p8_events_arr, idx, pmu_ptr);
 
 	return 0;
 }
