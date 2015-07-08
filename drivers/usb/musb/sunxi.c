@@ -73,6 +73,7 @@
 #define SUNXI_MUSB_FL_PHY_ON			4
 #define SUNXI_MUSB_FL_HAS_SRAM			5
 #define SUNXI_MUSB_FL_HAS_RESET			6
+#define SUNXI_MUSB_FL_NO_CONFIGDATA		7
 
 /* Our read/write methods need access and do not get passed in a musb ref :| */
 static struct musb *sunxi_musb;
@@ -370,6 +371,8 @@ static u32 sunxi_musb_busctl_offset(u8 epnum, u16 offset)
 
 static u8 sunxi_musb_readb(const void __iomem *addr, unsigned offset)
 {
+	struct sunxi_glue *glue;
+
 	if (addr == sunxi_musb->mregs) {
 		/* generic control or fifo control reg access */
 		switch (offset) {
@@ -392,6 +395,12 @@ static u8 sunxi_musb_readb(const void __iomem *addr, unsigned offset)
 		case MUSB_RXFIFOSZ:
 			return readb(addr + SUNXI_MUSB_RXFIFOSZ);
 		case MUSB_CONFIGDATA + 0x10: /* See musb_read_configdata() */
+			glue = dev_get_drvdata(sunxi_musb->controller->parent);
+			/* A33 saves a reg, and we get to hardcode this */
+			if (test_bit(SUNXI_MUSB_FL_NO_CONFIGDATA,
+				     &glue->flags))
+				return 0xde;
+
 			return readb(addr + SUNXI_MUSB_CONFIGDATA);
 		/* Offset for these is fixed by sunxi_musb_busctl_offset() */
 		case SUNXI_MUSB_TXFUNCADDR:
@@ -643,6 +652,11 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "allwinner,sun6i-a31-musb"))
 		set_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags);
 
+	if (of_device_is_compatible(np, "allwinner,sun8i-a33-musb")) {
+		set_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags);
+		set_bit(SUNXI_MUSB_FL_NO_CONFIGDATA, &glue->flags);
+	}
+
 	glue->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(glue->clk)) {
 		dev_err(&pdev->dev, "Error getting clock: %ld\n",
@@ -723,6 +737,7 @@ static int sunxi_musb_remove(struct platform_device *pdev)
 static const struct of_device_id sunxi_musb_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-musb", },
 	{ .compatible = "allwinner,sun6i-a31-musb", },
+	{ .compatible = "allwinner,sun8i-a33-musb", },
 	{}
 };
 
