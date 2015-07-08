@@ -1849,31 +1849,33 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	for (i = 0; i < 4; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
+
 		val &= ~DPIO_SWING_MARGIN000_MASK;
 		val |= 102 << DPIO_SWING_MARGIN000_SHIFT;
+
+		/*
+		 * Supposedly this value shouldn't matter when unique transition
+		 * scale is disabled, but in fact it does matter. Let's just
+		 * always program the same value and hope it's OK.
+		 */
+		val &= ~(0xff << DPIO_UNIQ_TRANS_SCALE_SHIFT);
+		val |= 0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT;
+
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
 	}
 
-	/* Disable unique transition scale */
+	/*
+	 * The document said it needs to set bit 27 for ch0 and bit 26
+	 * for ch1. Might be a typo in the doc.
+	 * For now, for this unique transition scale selection, set bit
+	 * 27 for ch0 and ch1.
+	 */
 	for (i = 0; i < 4; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
 		val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW3(ch, i), val);
 	}
 
-	/* Additional steps for 1200mV-0dB */
-#if 0
-	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW3(ch));
-	if (ch)
-		val |= DPIO_TX_UNIQ_TRANS_SCALE_CH1;
-	else
-		val |= DPIO_TX_UNIQ_TRANS_SCALE_CH0;
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(ch), val);
-
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(ch),
-			vlv_dpio_read(dev_priv, pipe, VLV_TX_DW2(ch)) |
-				(0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT));
-#endif
 	/* Start swing calculation */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
 	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;

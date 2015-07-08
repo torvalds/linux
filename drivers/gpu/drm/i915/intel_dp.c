@@ -3179,6 +3179,12 @@ static uint32_t vlv_signal_levels(struct intel_dp *intel_dp)
 	return 0;
 }
 
+static bool chv_need_uniq_trans_scale(uint8_t train_set)
+{
+	return (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) == DP_TRAIN_PRE_EMPH_LEVEL_0 &&
+		(train_set & DP_TRAIN_VOLTAGE_SWING_MASK) == DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
+}
+
 static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
@@ -3297,41 +3303,34 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 	/* Program swing margin */
 	for (i = 0; i < 4; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
+
 		val &= ~DPIO_SWING_MARGIN000_MASK;
 		val |= margin_reg_value << DPIO_SWING_MARGIN000_SHIFT;
+
+		/*
+		 * Supposedly this value shouldn't matter when unique transition
+		 * scale is disabled, but in fact it does matter. Let's just
+		 * always program the same value and hope it's OK.
+		 */
+		val &= ~(0xff << DPIO_UNIQ_TRANS_SCALE_SHIFT);
+		val |= 0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT;
+
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
 	}
 
-	/* Disable unique transition scale */
+	/*
+	 * The document said it needs to set bit 27 for ch0 and bit 26
+	 * for ch1. Might be a typo in the doc.
+	 * For now, for this unique transition scale selection, set bit
+	 * 27 for ch0 and ch1.
+	 */
 	for (i = 0; i < 4; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
-		val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW3(ch, i), val);
-	}
-
-	if (((train_set & DP_TRAIN_PRE_EMPHASIS_MASK)
-			== DP_TRAIN_PRE_EMPH_LEVEL_0) &&
-		((train_set & DP_TRAIN_VOLTAGE_SWING_MASK)
-			== DP_TRAIN_VOLTAGE_SWING_LEVEL_3)) {
-
-		/*
-		 * The document said it needs to set bit 27 for ch0 and bit 26
-		 * for ch1. Might be a typo in the doc.
-		 * For now, for this unique transition scale selection, set bit
-		 * 27 for ch0 and ch1.
-		 */
-		for (i = 0; i < 4; i++) {
-			val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
+		if (chv_need_uniq_trans_scale(train_set))
 			val |= DPIO_TX_UNIQ_TRANS_SCALE_EN;
-			vlv_dpio_write(dev_priv, pipe, CHV_TX_DW3(ch, i), val);
-		}
-
-		for (i = 0; i < 4; i++) {
-			val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
-			val &= ~(0xff << DPIO_UNIQ_TRANS_SCALE_SHIFT);
-			val |= (0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT);
-			vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
-		}
+		else
+			val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
+		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW3(ch, i), val);
 	}
 
 	/* Start swing calculation */
