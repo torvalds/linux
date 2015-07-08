@@ -2086,6 +2086,17 @@ UNUSUAL_DEV(  0x1b1c, 0x1ab5, 0x0200, 0x0200,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_INITIAL_READ10 ),
 
+/* Reported by Hans de Goede <hdegoede@redhat.com>
+ * These are mini projectors using USB for both power and video data transport
+ * The usb-storage interface is a virtual windows driver CD, which the gm12u320
+ * driver automatically converts into framebuffer & kms dri device nodes.
+ */
+UNUSUAL_DEV( 0x1de1, 0xc102, 0x0000, 0xffff,
+		"Grain-media Technology Corp.",
+		"USB3.0 Device GM12U320",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_IGNORE_DEVICE ),
+
 /* Patch by Richard Schütz <r.schtz@t-online.de>
  * This external hard drive enclosure uses a JMicron chip which
  * needs the US_FL_IGNORE_RESIDUE flag to work properly. */
