@@ -196,34 +196,14 @@ void mdp5_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 int mdp5_irq_domain_init(struct mdp5_kms *mdp5_kms);
 void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
-static inline bool pipe_supports_yuv(enum mdp5_pipe pipe)
-{
-	switch (pipe) {
-	case SSPP_VIG0:
-	case SSPP_VIG1:
-	case SSPP_VIG2:
-	case SSPP_VIG3:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static inline
-uint32_t mdp5_get_formats(enum mdp5_pipe pipe, uint32_t *pixel_formats,
-		uint32_t max_formats)
-{
-	return mdp_get_formats(pixel_formats, max_formats,
-				!pipe_supports_yuv(pipe));
-}
-
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 void mdp5_plane_complete_flip(struct drm_plane *plane);
 void mdp5_plane_complete_commit(struct drm_plane *plane,
 	struct drm_plane_state *state);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
-		enum mdp5_pipe pipe, bool private_plane, uint32_t reg_offset);
+		enum mdp5_pipe pipe, bool private_plane,
+		uint32_t reg_offset, uint32_t caps);
 
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 

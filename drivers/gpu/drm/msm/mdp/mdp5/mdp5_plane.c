@@ -26,6 +26,7 @@ struct mdp5_plane {
 
 	spinlock_t pipe_lock;	/* protect REG_MDP5_PIPE_* registers */
 	uint32_t reg_offset;
+	uint32_t caps;
 
 	uint32_t flush_mask;	/* used to commit pipe registers */
 
@@ -260,9 +261,32 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct drm_plane_state *old_state = plane->state;
+	const struct mdp_format *format;
 
 	DBG("%s: check (%d -> %d)", mdp5_plane->name,
 			plane_enabled(old_state), plane_enabled(state));
+
+	if (plane_enabled(state)) {
+		format = to_mdp_format(msm_framebuffer_format(state->fb));
+		if (MDP_FORMAT_IS_YUV(format) &&
+			!pipe_supports_yuv(mdp5_plane->caps)) {
+			dev_err(plane->dev->dev,
+				"Pipe doesn't support YUV\n");
+
+			return -EINVAL;
+		}
+
+		if (!(mdp5_plane->caps & MDP_PIPE_CAP_SCALE) &&
+			(((state->src_w >> 16) != state->crtc_w) ||
+			((state->src_h >> 16) != state->crtc_h))) {
+			dev_err(plane->dev->dev,
+				"Pipe doesn't support scaling (%dx%d -> %dx%d)\n",
+				state->src_w >> 16, state->src_h >> 16,
+				state->crtc_w, state->crtc_h);
+
+			return -EINVAL;
+		}
+	}
 
 	if (plane_enabled(state) && plane_enabled(old_state)) {
 		/* we cannot change SMP block configuration during scanout: */
@@ -637,24 +661,28 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	/* not using secure mode: */
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_ADDR_SW_STATUS(pipe), 0);
 
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_PHASE_STEP_X(pipe),
-			phasex_step[0]);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_PHASE_STEP_Y(pipe),
-			phasey_step[0]);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CR_PHASE_STEP_X(pipe),
-			phasex_step[1]);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CR_PHASE_STEP_Y(pipe),
-			phasey_step[1]);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_DECIMATION(pipe),
-			MDP5_PIPE_DECIMATION_VERT(vdecm) |
-			MDP5_PIPE_DECIMATION_HORZ(hdecm));
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CONFIG(pipe), config);
+	if (mdp5_plane->caps & MDP_PIPE_CAP_SCALE) {
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_PHASE_STEP_X(pipe),
+				phasex_step[0]);
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_PHASE_STEP_Y(pipe),
+				phasey_step[0]);
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CR_PHASE_STEP_X(pipe),
+				phasex_step[1]);
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CR_PHASE_STEP_Y(pipe),
+				phasey_step[1]);
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_DECIMATION(pipe),
+				MDP5_PIPE_DECIMATION_VERT(vdecm) |
+				MDP5_PIPE_DECIMATION_HORZ(hdecm));
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CONFIG(pipe), config);
+	}
 
-	if (MDP_FORMAT_IS_YUV(format))
-		csc_enable(mdp5_kms, pipe,
-				mdp_get_default_csc_cfg(CSC_YUV2RGB));
-	else
-		csc_disable(mdp5_kms, pipe);
+	if (mdp5_plane->caps & MDP_PIPE_CAP_CSC) {
+		if (MDP_FORMAT_IS_YUV(format))
+			csc_enable(mdp5_kms, pipe,
+					mdp_get_default_csc_cfg(CSC_YUV2RGB));
+		else
+			csc_disable(mdp5_kms, pipe);
+	}
 
 	set_scanout_locked(plane, fb);
 
@@ -705,7 +733,8 @@ void mdp5_plane_complete_commit(struct drm_plane *plane,
 
 /* initialize plane */
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
-		enum mdp5_pipe pipe, bool private_plane, uint32_t reg_offset)
+		enum mdp5_pipe pipe, bool private_plane, uint32_t reg_offset,
+		uint32_t caps)
 {
 	struct drm_plane *plane = NULL;
 	struct mdp5_plane *mdp5_plane;
@@ -722,9 +751,11 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 
 	mdp5_plane->pipe = pipe;
 	mdp5_plane->name = pipe2name(pipe);
+	mdp5_plane->caps = caps;
 
-	mdp5_plane->nformats = mdp5_get_formats(pipe, mdp5_plane->formats,
-			ARRAY_SIZE(mdp5_plane->formats));
+	mdp5_plane->nformats = mdp_get_formats(mdp5_plane->formats,
+		ARRAY_SIZE(mdp5_plane->formats),
+		!pipe_supports_yuv(mdp5_plane->caps));
 
 	mdp5_plane->flush_mask = mdp_ctl_flush_mask_pipe(pipe);
 	mdp5_plane->reg_offset = reg_offset;

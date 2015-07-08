@@ -98,6 +98,19 @@ struct mdp_format {
 uint32_t mdp_get_formats(uint32_t *formats, uint32_t max_formats, bool rgb_only);
 const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format);
 
+/* MDP pipe capabilities */
+#define MDP_PIPE_CAP_HFLIP			BIT(0)
+#define MDP_PIPE_CAP_VFLIP			BIT(1)
+#define MDP_PIPE_CAP_SCALE			BIT(2)
+#define MDP_PIPE_CAP_CSC			BIT(3)
+#define MDP_PIPE_CAP_DECIMATION			BIT(4)
+
+static inline bool pipe_supports_yuv(uint32_t pipe_caps)
+{
+	return (pipe_caps & MDP_PIPE_CAP_SCALE) &&
+		(pipe_caps & MDP_PIPE_CAP_CSC);
+}
+
 enum csc_type {
 	CSC_RGB2RGB = 0,
 	CSC_YUV2RGB,

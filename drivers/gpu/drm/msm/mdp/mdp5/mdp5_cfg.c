@@ -45,14 +45,20 @@ const struct mdp5_cfg_hw msm8x74_config = {
 	.pipe_vig = {
 		.count = 3,
 		.base = { 0x01200, 0x01600, 0x01a00 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_CSC |
+				MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_rgb = {
 		.count = 3,
 		.base = { 0x01e00, 0x02200, 0x02600 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_dma = {
 		.count = 2,
 		.base = { 0x02a00, 0x02e00 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP,
 	},
 	.lm = {
 		.count = 5,
@@ -115,14 +121,20 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.pipe_vig = {
 		.count = 4,
 		.base = { 0x01200, 0x01600, 0x01a00, 0x01e00 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_CSC |
+				MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_rgb = {
 		.count = 4,
 		.base = { 0x02200, 0x02600, 0x02a00, 0x02e00 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_dma = {
 		.count = 2,
 		.base = { 0x03200, 0x03600 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP,
 	},
 	.lm = {
 		.count = 6,
@@ -178,14 +190,20 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	.pipe_vig = {
 		.count = 1,
 		.base = { 0x05000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_CSC |
+				MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_rgb = {
 		.count = 2,
 		.base = { 0x15000, 0x17000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_dma = {
 		.count = 1,
 		.base = { 0x25000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP,
 	},
 	.lm = {
 		.count = 2, /* LM0 and LM3 */
@@ -239,16 +257,20 @@ const struct mdp5_cfg_hw msm8x94_config = {
 	.pipe_vig = {
 		.count = 4,
 		.base = { 0x05000, 0x07000, 0x09000, 0x0b000 },
-		/* TODO: add decimation bit */
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_CSC |
+				MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_rgb = {
 		.count = 4,
 		.base = { 0x15000, 0x17000, 0x19000, 0x1b000 },
-		/* TODO: add decimation bit */
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_dma = {
 		.count = 2,
 		.base = { 0x25000, 0x27000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP,
 	},
 	.lm = {
 		.count = 6,

@@ -372,7 +372,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		struct drm_crtc *crtc;
 
 		plane = mdp5_plane_init(dev, crtcs[i], true,
-				hw_cfg->pipe_rgb.base[i]);
+			hw_cfg->pipe_rgb.base[i], hw_cfg->pipe_rgb.caps);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
 			dev_err(dev->dev, "failed to construct plane for %s (%d)\n",
@@ -395,7 +395,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		struct drm_plane *plane;
 
 		plane = mdp5_plane_init(dev, pub_planes[i], false,
-				hw_cfg->pipe_vig.base[i]);
+			hw_cfg->pipe_vig.base[i], hw_cfg->pipe_vig.caps);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
 			dev_err(dev->dev, "failed to construct %s plane: %d\n",
