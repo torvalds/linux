@@ -136,6 +136,7 @@ void intel_frontbuffer_flush(struct drm_device *dev,
  * intel_fb_obj_flush - flush frontbuffer object
  * @obj: GEM object to flush
  * @retire: set when retiring asynchronous rendering
+ * @origin: which operation caused the flush
  *
  * This function gets called every time rendering on the given object has
  * completed and frontbuffer caching can be started again. If @retire is true
