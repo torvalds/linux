@@ -460,6 +460,17 @@
 				status = "disabled";
 			};
 
+			esdhc0: esdhc@400b1000 {
+				compatible = "fsl,imx53-esdhc";
+				reg = <0x400b1000 0x1000>;
+				interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_IPG_BUS>,
+					<&clks VF610_CLK_PLATFORM_BUS>,
+					<&clks VF610_CLK_ESDHC0>;
+				clock-names = "ipg", "ahb", "per";
+				status = "disabled";
+			};
+
 			esdhc1: esdhc@400b2000 {
 				compatible = "fsl,imx53-esdhc";
 				reg = <0x400b2000 0x1000>;
