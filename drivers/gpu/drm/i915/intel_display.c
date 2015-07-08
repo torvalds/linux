@@ -7374,8 +7374,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 			1 << DPIO_CHV_N_DIV_SHIFT);
 
 	/* M2 fraction division */
-	if (bestm2_frac)
-		vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW2(port), bestm2_frac);
+	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW2(port), bestm2_frac);
 
 	/* M2 fraction division enable */
 	dpio_val = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW3(port));
