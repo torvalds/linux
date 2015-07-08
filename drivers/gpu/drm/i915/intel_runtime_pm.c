@@ -958,6 +958,107 @@ static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, false);
 }
 
+#define POWER_DOMAIN_MASK (BIT(POWER_DOMAIN_NUM) - 1)
+
+static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
+						 int power_well_id)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+	int i;
+
+	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
+		if (power_well->data == power_well_id)
+			return power_well;
+	}
+
+	return NULL;
+}
+
+#define BITS_SET(val, bits) (((val) & (bits)) == (bits))
+
+static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_well *cmn_bc =
+		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_BC);
+	struct i915_power_well *cmn_d =
+		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_D);
+	u32 phy_control = dev_priv->chv_phy_control;
+	u32 phy_status = 0;
+	u32 tmp;
+
+	if (cmn_bc->ops->is_enabled(dev_priv, cmn_bc)) {
+		phy_status |= PHY_POWERGOOD(DPIO_PHY0);
+
+		/* this assumes override is only used to enable lanes */
+		if ((phy_control & PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY0, DPIO_CH0)) == 0)
+			phy_control |= PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH0);
+
+		if ((phy_control & PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY0, DPIO_CH1)) == 0)
+			phy_control |= PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH1);
+
+		/* CL1 is on whenever anything is on in either channel */
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH0) |
+			     PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH1)))
+			phy_status |= PHY_STATUS_CMN_LDO(DPIO_PHY0, DPIO_CH0);
+
+		/*
+		 * The DPLLB check accounts for the pipe B + port A usage
+		 * with CL2 powered up but all the lanes in the second channel
+		 * powered down.
+		 */
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH1)) &&
+		    (I915_READ(DPLL(PIPE_B)) & DPLL_VCO_ENABLE) == 0)
+			phy_status |= PHY_STATUS_CMN_LDO(DPIO_PHY0, DPIO_CH1);
+
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0x3, DPIO_PHY0, DPIO_CH0)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH0, 0);
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xc, DPIO_PHY0, DPIO_CH0)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH0, 1);
+
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0x3, DPIO_PHY0, DPIO_CH1)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH1, 0);
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xc, DPIO_PHY0, DPIO_CH1)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH1, 1);
+	}
+
+	if (cmn_d->ops->is_enabled(dev_priv, cmn_d)) {
+		phy_status |= PHY_POWERGOOD(DPIO_PHY1);
+
+		/* this assumes override is only used to enable lanes */
+		if ((phy_control & PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY1, DPIO_CH0)) == 0)
+			phy_control |= PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY1, DPIO_CH0);
+
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY1, DPIO_CH0)))
+			phy_status |= PHY_STATUS_CMN_LDO(DPIO_PHY1, DPIO_CH0);
+
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0x3, DPIO_PHY1, DPIO_CH0)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 0);
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xc, DPIO_PHY1, DPIO_CH0)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 1);
+	}
+
+	/*
+	 * The PHY may be busy with some initial calibration and whatnot,
+	 * so the power state can take a while to actually change.
+	 */
+	if (wait_for((tmp = I915_READ(DISPLAY_PHY_STATUS)) == phy_status, 10))
+		WARN(phy_status != tmp,
+		     "Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
+		     tmp, phy_status, dev_priv->chv_phy_control);
+}
+
+#undef BITS_SET
+
 static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
@@ -1014,6 +1115,8 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 
 	DRM_DEBUG_KMS("Enabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
 		      phy, dev_priv->chv_phy_control);
+
+	assert_chv_phy_status(dev_priv);
 }
 
 static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
@@ -1040,6 +1143,8 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 
 	DRM_DEBUG_KMS("Disabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
 		      phy, dev_priv->chv_phy_control);
+
+	assert_chv_phy_status(dev_priv);
 }
 
 static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpio_phy phy,
@@ -1117,6 +1222,8 @@ bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d (DPIO_PHY_CONTROL=0x%08x)\n",
 		      phy, ch, dev_priv->chv_phy_control);
 
+	assert_chv_phy_status(dev_priv);
+
 out:
 	mutex_unlock(&power_domains->lock);
 
@@ -1145,6 +1252,8 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d lanes 0x%x (PHY_CONTROL=0x%08x)\n",
 		      phy, ch, mask, dev_priv->chv_phy_control);
+
+	assert_chv_phy_status(dev_priv);
 
 	assert_chv_phy_powergate(dev_priv, phy, ch, override, mask);
 
@@ -1311,8 +1420,6 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 
 	intel_runtime_pm_put(dev_priv);
 }
-
-#define POWER_DOMAIN_MASK (BIT(POWER_DOMAIN_NUM) - 1)
 
 #define HSW_ALWAYS_ON_POWER_DOMAINS (			\
 	BIT(POWER_DOMAIN_PIPE_A) |			\
@@ -1574,21 +1681,6 @@ static struct i915_power_well chv_power_wells[] = {
 		.ops = &chv_dpio_cmn_power_well_ops,
 	},
 };
-
-static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
-						 int power_well_id)
-{
-	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	struct i915_power_well *power_well;
-	int i;
-
-	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
-		if (power_well->data == power_well_id)
-			return power_well;
-	}
-
-	return NULL;
-}
 
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 				    int power_well_id)

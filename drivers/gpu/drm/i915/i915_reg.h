@@ -2223,6 +2223,8 @@ enum skl_disp_power_wells {
 #define   PHY_COM_LANE_RESET_DEASSERT(phy)	(1 << (phy))
 #define DISPLAY_PHY_STATUS (VLV_DISPLAY_BASE + 0x60104)
 #define   PHY_POWERGOOD(phy)	(((phy) == DPIO_PHY0) ? (1<<31) : (1<<30))
+#define   PHY_STATUS_CMN_LDO(phy, ch)                   (1 << (6-(6*(phy)+3*(ch))))
+#define   PHY_STATUS_SPLINE_LDO(phy, ch, spline)        (1 << (8-(6*(phy)+3*(ch)+(spline))))
 
 /*
  * The i830 generation, in LVDS mode, defines P1 as the bit number set within
