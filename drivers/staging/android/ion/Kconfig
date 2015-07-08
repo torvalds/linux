@@ -64,3 +64,11 @@ config ION_SNAPSHOT_BUF_SHIFT
 	  Select ION snapshot buffer size as a power of 2
 
 endif
+
+config ION_POOL_CACHE_POLICY
+	bool "Ion set page pool cache policy"
+	depends on ION
+	default y if X86
+	help
+	  Choose this option if need to explicity set cache policy of the
+	  pages in the page pool.
