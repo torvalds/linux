@@ -11,6 +11,119 @@
 #include "nest-pmu.h"
 
 static struct perchip_nest_info p8_nest_perchip_info[P8_NEST_MAX_CHIPS];
+static struct nest_pmu *per_nest_pmu_arr[P8_NEST_MAX_PMUS];
+
+static int nest_event_info(struct property *pp, char *start,
+			struct nest_ima_events *p8_events, int flg, u32 val)
+{
+	char *buf;
+
+	/* memory for event name */
+	buf = kzalloc(P8_NEST_MAX_PMU_NAME_LEN, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	strncpy(buf, start, strlen(start));
+	p8_events->ev_name = buf;
+
+	/* memory for content */
+	buf = kzalloc(P8_NEST_MAX_PMU_NAME_LEN, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (flg) {
+		/* string content*/
+		if (!pp->value ||
+		   (strnlen(pp->value, pp->length) == pp->length))
+			return -EINVAL;
+
+		strncpy(buf, (const char *)pp->value, pp->length);
+	} else
+		sprintf(buf, "event=0x%x", val);
+
+	p8_events->ev_value = buf;
+	return 0;
+}
+
+static int nest_pmu_create(struct device_node *dev, int pmu_index)
+{
+	struct nest_ima_events **p8_events_arr, *p8_events;
+	struct nest_pmu *pmu_ptr;
+	struct property *pp;
+	char *buf, *start;
+	const __be32 *lval;
+	u32 val;
+	int idx = 0, ret;
+
+	if (!dev)
+		return -EINVAL;
+
+	/* memory for nest pmus */
+	pmu_ptr = kzalloc(sizeof(struct nest_pmu), GFP_KERNEL);
+	if (!pmu_ptr)
+		return -ENOMEM;
+
+	/* Needed for hotplug/migration */
+	per_nest_pmu_arr[pmu_index] = pmu_ptr;
+
+	/* memory for nest pmu events */
+	p8_events_arr = kzalloc((sizeof(struct nest_ima_events) * 64),
+								GFP_KERNEL);
+	if (!p8_events_arr)
+		return -ENOMEM;
+	p8_events = (struct nest_ima_events *)p8_events_arr;
+
+	/*
+	 * Loop through each property
+	 */
+	for_each_property_of_node(dev, pp) {
+		start = pp->name;
+
+		if (!strcmp(pp->name, "name")) {
+			if (!pp->value ||
+			   (strnlen(pp->value, pp->length) == pp->length))
+				return -EINVAL;
+
+			buf = kzalloc(P8_NEST_MAX_PMU_NAME_LEN, GFP_KERNEL);
+			if (!buf)
+				return -ENOMEM;
+
+			/* Save the name to register it later */
+			sprintf(buf, "Nest_%s", (char *)pp->value);
+			pmu_ptr->pmu.name = (char *)buf;
+			continue;
+		}
+
+		/* Skip these, we dont need it */
+		if (!strcmp(pp->name, "phandle") ||
+		    !strcmp(pp->name, "device_type") ||
+		    !strcmp(pp->name, "linux,phandle"))
+			continue;
+
+		if (strncmp(pp->name, "unit.", 5) == 0) {
+			/* Skip first few chars in the name */
+			start += 5;
+			ret = nest_event_info(pp, start, p8_events++, 1, 0);
+		} else if (strncmp(pp->name, "scale.", 6) == 0) {
+			/* Skip first few chars in the name */
+			start += 6;
+			ret = nest_event_info(pp, start, p8_events++, 1, 0);
+		} else {
+			lval = of_get_property(dev, pp->name, NULL);
+			val = (uint32_t)be32_to_cpup(lval);
+
+			ret = nest_event_info(pp, start, p8_events++, 0, val);
+		}
+
+		if (ret)
+			return ret;
+
+		/* book keeping */
+		idx++;
+	}
+
+	return 0;
+}
 
 static int nest_ima_dt_parser(void)
 {
@@ -19,7 +132,7 @@ static int nest_ima_dt_parser(void)
 	const __be64 *chip_ima_size;
 	struct device_node *dev;
 	struct perchip_nest_info *p8ni;
-	int idx;
+	int idx, ret;
 
 	/*
 	 * "nest-ima" folder contains two things,
@@ -48,6 +161,15 @@ static int nest_ima_dt_parser(void)
 		p8ni->pbase = be64_to_cpup(chip_ima_reg);
 		p8ni->size = be64_to_cpup(chip_ima_size);
 		p8ni->vbase = (uint64_t) phys_to_virt(p8ni->pbase);
+	}
+
+	/* Look for supported Nest PMU units */
+	idx = 0;
+	for_each_node_by_type(dev, "nest-ima-unit") {
+		ret = nest_pmu_create(dev, idx);
+		if (ret)
+			return ret;
+		idx++;
 	}
 
 	return 0;
