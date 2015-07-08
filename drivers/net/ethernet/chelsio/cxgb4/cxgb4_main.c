@@ -4757,7 +4757,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	cfg_queues(adapter);
 
-	adapter->l2t = t4_init_l2t();
+	adapter->l2t = t4_init_l2t(adapter->l2t_start, adapter->l2t_end);
 	if (!adapter->l2t) {
 		/* We tolerate a lack of L2T, giving up some functionality */
 		dev_warn(&pdev->dev, "could not allocate L2T, continuing\n");

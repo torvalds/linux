@@ -1345,9 +1345,9 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x5a80, 0x5a9c,
 		0x5b94, 0x5bfc,
 		0x5c10, 0x5ec0,
-		0x5ec8, 0x5ec8,
+		0x5ec8, 0x5ecc,
 		0x6000, 0x6040,
-		0x6058, 0x6154,
+		0x6058, 0x615c,
 		0x7700, 0x7798,
 		0x77c0, 0x7880,
 		0x78cc, 0x78fc,
@@ -1371,20 +1371,22 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x9f00, 0x9f6c,
 		0x9f80, 0xa020,
 		0xd004, 0xd03c,
+		0xd100, 0xd118,
+		0xd200, 0xd31c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xf008,
 		0x11000, 0x11014,
 		0x11048, 0x11110,
 		0x11118, 0x1117c,
-		0x11190, 0x11260,
+		0x11190, 0x11264,
 		0x11300, 0x1130c,
-		0x12000, 0x1205c,
+		0x12000, 0x1206c,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
 		0x1908c, 0x19124,
 		0x19150, 0x191b0,
 		0x191d0, 0x191e8,
-		0x19238, 0x192b8,
+		0x19238, 0x192bc,
 		0x193f8, 0x19474,
 		0x19490, 0x194cc,
 		0x194f0, 0x194f8,
@@ -1466,7 +1468,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x30200, 0x30318,
 		0x30400, 0x3052c,
 		0x30540, 0x3061c,
-		0x30800, 0x3088c,
+		0x30800, 0x30890,
 		0x308c0, 0x30908,
 		0x30910, 0x309b8,
 		0x30a00, 0x30a04,
@@ -1544,7 +1546,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x34200, 0x34318,
 		0x34400, 0x3452c,
 		0x34540, 0x3461c,
-		0x34800, 0x3488c,
+		0x34800, 0x34890,
 		0x348c0, 0x34908,
 		0x34910, 0x349b8,
 		0x34a00, 0x34a04,
@@ -3924,43 +3926,25 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
  */
 void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
 {
-	/* T6 and later has 2 channels */
-	if (adap->params.arch.nchan == NCHAN) {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->mac_in_errs, 12, TP_MIB_MAC_IN_ERR_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tnl_cong_drops, 8,
-				 TP_MIB_TNL_CNG_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tnl_tx_drops, 4,
-				 TP_MIB_TNL_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->ofld_vlan_drops, 4,
-				 TP_MIB_OFD_VLN_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tcp6_in_errs, 4,
-				 TP_MIB_TCP_V6IN_ERR_0_A);
-	} else {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->mac_in_errs, 2, TP_MIB_MAC_IN_ERR_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->hdr_in_errs, 2, TP_MIB_HDR_IN_ERR_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tcp_in_errs, 2, TP_MIB_TCP_IN_ERR_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tnl_cong_drops, 2,
-				 TP_MIB_TNL_CNG_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->ofld_chan_drops, 2,
-				 TP_MIB_OFD_CHN_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tnl_tx_drops, 2, TP_MIB_TNL_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->ofld_vlan_drops, 2,
-				 TP_MIB_OFD_VLN_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tcp6_in_errs, 2, TP_MIB_TCP_V6IN_ERR_0_A);
-	}
+	int nchan = adap->params.arch.nchan;
+
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->mac_in_errs, nchan, TP_MIB_MAC_IN_ERR_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->hdr_in_errs, nchan, TP_MIB_HDR_IN_ERR_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->tcp_in_errs, nchan, TP_MIB_TCP_IN_ERR_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->tnl_cong_drops, nchan, TP_MIB_TNL_CNG_DROP_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->ofld_chan_drops, nchan, TP_MIB_OFD_CHN_DROP_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->tnl_tx_drops, nchan, TP_MIB_TNL_DROP_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->ofld_vlan_drops, nchan, TP_MIB_OFD_VLN_DROP_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->tcp6_in_errs, nchan, TP_MIB_TCP_V6IN_ERR_0_A);
+
 	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
 			 &st->ofld_no_neigh, 2, TP_MIB_OFD_ARP_DROP_A);
 }
@@ -3974,16 +3958,13 @@ void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
  */
 void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
 {
-	/* T6 and later has 2 channels */
-	if (adap->params.arch.nchan == NCHAN) {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
-				 8, TP_MIB_CPL_IN_REQ_0_A);
-	} else {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
-				 2, TP_MIB_CPL_IN_REQ_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->rsp,
-				 2, TP_MIB_CPL_OUT_RSP_0_A);
-	}
+	int nchan = adap->params.arch.nchan;
+
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
+			 nchan, TP_MIB_CPL_IN_REQ_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->rsp,
+			 nchan, TP_MIB_CPL_OUT_RSP_0_A);
+
 }
 
 /**
