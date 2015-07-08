@@ -358,9 +358,10 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 			data->widget =
 				snd_soc_dapm_new_control_unlocked(widget->dapm,
 				&template);
+			kfree(name);
 			if (!data->widget) {
 				ret = -ENOMEM;
-				goto err_name;
+				goto err_data;
 			}
 		}
 		break;
@@ -391,9 +392,10 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 
 			data->widget = snd_soc_dapm_new_control_unlocked(
 						widget->dapm, &template);
+			kfree(name);
 			if (!data->widget) {
 				ret = -ENOMEM;
-				goto err_name;
+				goto err_data;
 			}
 
 			snd_soc_dapm_add_path(widget->dapm, data->widget,
@@ -408,8 +410,6 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 
 	return 0;
 
-err_name:
-	kfree(name);
 err_data:
 	kfree(data);
 	return ret;
@@ -418,8 +418,6 @@ err_data:
 static void dapm_kcontrol_free(struct snd_kcontrol *kctl)
 {
 	struct dapm_kcontrol_data *data = snd_kcontrol_chip(kctl);
-	if (data->widget)
-		kfree(data->widget->name);
 	kfree(data->wlist);
 	kfree(data);
 }
