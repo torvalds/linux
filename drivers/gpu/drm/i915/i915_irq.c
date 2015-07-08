@@ -1266,9 +1266,6 @@ static void pch_get_hpd_pins(u32 *pin_mask, u32 *long_mask,
 	*pin_mask = 0;
 	*long_mask = 0;
 
-	if (!hotplug_trigger)
-		return;
-
 	for_each_hpd_pin(i) {
 		if ((hpd[i] & hotplug_trigger) == 0)
 			continue;
@@ -1658,14 +1655,17 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
-	u32 dig_hotplug_reg;
-	u32 pin_mask, long_mask;
 
-	dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
-	I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+	if (hotplug_trigger) {
+		u32 dig_hotplug_reg, pin_mask, long_mask;
 
-	pch_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger, dig_hotplug_reg, hpd_ibx);
-	intel_hpd_irq_handler(dev, pin_mask, long_mask);
+		dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+		I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+
+		pch_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+				 dig_hotplug_reg, hpd_ibx);
+		intel_hpd_irq_handler(dev, pin_mask, long_mask);
+	}
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK) >>
@@ -1757,14 +1757,16 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
-	u32 dig_hotplug_reg;
-	u32 pin_mask, long_mask;
 
-	dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
-	I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+	if (hotplug_trigger) {
+		u32 dig_hotplug_reg, pin_mask, long_mask;
 
-	pch_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger, dig_hotplug_reg, hpd_cpt);
-	intel_hpd_irq_handler(dev, pin_mask, long_mask);
+		dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+		I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+		pch_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+				 dig_hotplug_reg, hpd_cpt);
+		intel_hpd_irq_handler(dev, pin_mask, long_mask);
+	}
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
