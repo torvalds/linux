@@ -52,6 +52,7 @@
 #endif
 #define FIRMWARE_TONGA		"amdgpu/tonga_uvd.bin"
 #define FIRMWARE_CARRIZO	"amdgpu/carrizo_uvd.bin"
+#define FIRMWARE_FIJI		"amdgpu/fiji_uvd.bin"
 
 /**
  * amdgpu_uvd_cs_ctx - Command submission parser context
@@ -81,6 +82,7 @@ MODULE_FIRMWARE(FIRMWARE_MULLINS);
 #endif
 MODULE_FIRMWARE(FIRMWARE_TONGA);
 MODULE_FIRMWARE(FIRMWARE_CARRIZO);
+MODULE_FIRMWARE(FIRMWARE_FIJI);
 
 static void amdgpu_uvd_note_usage(struct amdgpu_device *adev);
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
@@ -115,6 +117,9 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 #endif
 	case CHIP_TONGA:
 		fw_name = FIRMWARE_TONGA;
+		break;
+	case CHIP_FIJI:
+		fw_name = FIRMWARE_FIJI;
 		break;
 	case CHIP_CARRIZO:
 		fw_name = FIRMWARE_CARRIZO;
