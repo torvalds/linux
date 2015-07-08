@@ -17,6 +17,7 @@
 #include <linux/rbtree.h>
 #include <linux/err.h>
 #include <linux/bug.h>
+#include <linux/lockdep.h>
 
 struct module;
 struct device;
@@ -324,45 +325,146 @@ struct regmap_bus {
 	enum regmap_endian val_format_endian_default;
 };
 
-struct regmap *regmap_init(struct device *dev,
-			   const struct regmap_bus *bus,
-			   void *bus_context,
-			   const struct regmap_config *config);
+/*
+ * __regmap_init functions.
+ *
+ * These functions take a lock key and name parameter, and should not be called
+ * directly. Instead, use the regmap_init macros that generate a key and name
+ * for each call.
+ */
+struct regmap *__regmap_init(struct device *dev,
+			     const struct regmap_bus *bus,
+			     void *bus_context,
+			     const struct regmap_config *config,
+			     struct lock_class_key *lock_key,
+			     const char *lock_name);
+struct regmap *__regmap_init_i2c(struct i2c_client *i2c,
+				 const struct regmap_config *config,
+				 struct lock_class_key *lock_key,
+				 const char *lock_name);
+struct regmap *__regmap_init_spi(struct spi_device *dev,
+				 const struct regmap_config *config,
+				 struct lock_class_key *lock_key,
+				 const char *lock_name);
+struct regmap *__regmap_init_spmi_base(struct spmi_device *dev,
+				       const struct regmap_config *config,
+				       struct lock_class_key *lock_key,
+				       const char *lock_name);
+struct regmap *__regmap_init_spmi_ext(struct spmi_device *dev,
+				      const struct regmap_config *config,
+				      struct lock_class_key *lock_key,
+				      const char *lock_name);
+struct regmap *__regmap_init_mmio_clk(struct device *dev, const char *clk_id,
+				      void __iomem *regs,
+				      const struct regmap_config *config,
+				      struct lock_class_key *lock_key,
+				      const char *lock_name);
+struct regmap *__regmap_init_ac97(struct snd_ac97 *ac97,
+				  const struct regmap_config *config,
+				  struct lock_class_key *lock_key,
+				  const char *lock_name);
+
+struct regmap *__devm_regmap_init(struct device *dev,
+				  const struct regmap_bus *bus,
+				  void *bus_context,
+				  const struct regmap_config *config,
+				  struct lock_class_key *lock_key,
+				  const char *lock_name);
+struct regmap *__devm_regmap_init_i2c(struct i2c_client *i2c,
+				      const struct regmap_config *config,
+				      struct lock_class_key *lock_key,
+				      const char *lock_name);
+struct regmap *__devm_regmap_init_spi(struct spi_device *dev,
+				      const struct regmap_config *config,
+				      struct lock_class_key *lock_key,
+				      const char *lock_name);
+struct regmap *__devm_regmap_init_spmi_base(struct spmi_device *dev,
+					    const struct regmap_config *config,
+					    struct lock_class_key *lock_key,
+					    const char *lock_name);
+struct regmap *__devm_regmap_init_spmi_ext(struct spmi_device *dev,
+					   const struct regmap_config *config,
+					   struct lock_class_key *lock_key,
+					   const char *lock_name);
+struct regmap *__devm_regmap_init_mmio_clk(struct device *dev,
+					   const char *clk_id,
+					   void __iomem *regs,
+					   const struct regmap_config *config,
+					   struct lock_class_key *lock_key,
+					   const char *lock_name);
+struct regmap *__devm_regmap_init_ac97(struct snd_ac97 *ac97,
+				       const struct regmap_config *config,
+				       struct lock_class_key *lock_key,
+				       const char *lock_name);
+
+/*
+ * Wrapper for regmap_init macros to include a unique lockdep key and name
+ * for each call. No-op if CONFIG_LOCKDEP is not set.
+ *
+ * @fn: Real function to call (in the form __[*_]regmap_init[_*])
+ * @name: Config variable name (#config in the calling macro)
+ **/
+#ifdef CONFIG_LOCKDEP
+#define __regmap_lockdep_wrapper(fn, name, ...)				\
+(									\
+	({								\
+		static struct lock_class_key _key;			\
+		fn(__VA_ARGS__, &_key,					\
+			KBUILD_BASENAME ":"				\
+			__stringify(__LINE__) ":"			\
+			"(" name ")->lock");				\
+	})								\
+)
+#else
+#define __regmap_lockdep_wrapper(fn, name, ...) fn(__VA_ARGS__, NULL, NULL)
+#endif
+
+#define regmap_init(dev, bus, bus_context, config)			\
+	__regmap_lockdep_wrapper(__regmap_init, #config,		\
+				dev, bus, bus_context, config)
 int regmap_attach_dev(struct device *dev, struct regmap *map,
-				 const struct regmap_config *config);
-struct regmap *regmap_init_i2c(struct i2c_client *i2c,
-			       const struct regmap_config *config);
-struct regmap *regmap_init_spi(struct spi_device *dev,
-			       const struct regmap_config *config);
-struct regmap *regmap_init_spmi_base(struct spmi_device *dev,
-				     const struct regmap_config *config);
-struct regmap *regmap_init_spmi_ext(struct spmi_device *dev,
-				    const struct regmap_config *config);
-struct regmap *regmap_init_mmio_clk(struct device *dev, const char *clk_id,
-				    void __iomem *regs,
-				    const struct regmap_config *config);
-struct regmap *regmap_init_ac97(struct snd_ac97 *ac97,
-				const struct regmap_config *config);
-
-struct regmap *devm_regmap_init(struct device *dev,
-				const struct regmap_bus *bus,
-				void *bus_context,
-				const struct regmap_config *config);
-struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
-				    const struct regmap_config *config);
-struct regmap *devm_regmap_init_spi(struct spi_device *dev,
-				    const struct regmap_config *config);
-struct regmap *devm_regmap_init_spmi_base(struct spmi_device *dev,
-					  const struct regmap_config *config);
-struct regmap *devm_regmap_init_spmi_ext(struct spmi_device *dev,
-					 const struct regmap_config *config);
-struct regmap *devm_regmap_init_mmio_clk(struct device *dev, const char *clk_id,
-					 void __iomem *regs,
-					 const struct regmap_config *config);
-struct regmap *devm_regmap_init_ac97(struct snd_ac97 *ac97,
-				     const struct regmap_config *config);
-
+		      const struct regmap_config *config);
+#define regmap_init_i2c(i2c, config)					\
+	__regmap_lockdep_wrapper(__regmap_init_i2c, #config,		\
+				i2c, config)
+#define regmap_init_spi(dev, config)					\
+	__regmap_lockdep_wrapper(__regmap_init_spi, #config,		\
+				dev, config)
+#define regmap_init_spmi_base(dev, config)				\
+	__regmap_lockdep_wrapper(__regmap_init_spmi_base, #config,	\
+				dev, config)
+#define regmap_init_spmi_ext(dev, config)				\
+	__regmap_lockdep_wrapper(__regmap_init_spmi_ext, #config,	\
+				dev, config)
+#define regmap_init_mmio_clk(dev, clk_id, regs, config)			\
+	__regmap_lockdep_wrapper(__regmap_init_mmio_clk, #config,	\
+				dev, clk_id, regs, config)
+#define regmap_init_ac97(ac97, config)					\
+	__regmap_lockdep_wrapper(__regmap_init_ac97, #config,		\
+				ac97, config)
 bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
+
+#define devm_regmap_init(dev, bus, bus_context, config)			\
+	__regmap_lockdep_wrapper(__devm_regmap_init, #config,		\
+				dev, bus, bus_context, config)
+#define devm_regmap_init_i2c(i2c, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_i2c, #config,	\
+				i2c, config)
+#define devm_regmap_init_spi(dev, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_spi, #config,	\
+				dev, config)
+#define devm_regmap_init_spmi_base(dev, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_spmi_base, #config,	\
+				dev, config)
+#define devm_regmap_init_spmi_ext(dev, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_spmi_ext, #config,	\
+				dev, config)
+#define devm_regmap_init_mmio_clk(dev, clk_id, regs, config)		\
+	__regmap_lockdep_wrapper(__devm_regmap_init_mmio_clk, #config,	\
+				dev, clk_id, regs, config)
+#define devm_regmap_init_ac97(ac97, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_ac97, #config,	\
+				ac97, config)
 
 /**
  * regmap_init_mmio(): Initialise register map
@@ -374,12 +476,8 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
  * The return value will be an ERR_PTR() on error or a valid pointer to
  * a struct regmap.
  */
-static inline struct regmap *regmap_init_mmio(struct device *dev,
-					void __iomem *regs,
-					const struct regmap_config *config)
-{
-	return regmap_init_mmio_clk(dev, NULL, regs, config);
-}
+#define regmap_init_mmio(dev, regs, config)		\
+	regmap_init_mmio_clk(dev, NULL, regs, config)
 
 /**
  * devm_regmap_init_mmio(): Initialise managed register map
@@ -392,12 +490,8 @@ static inline struct regmap *regmap_init_mmio(struct device *dev,
  * to a struct regmap.  The regmap will be automatically freed by the
  * device management code.
  */
-static inline struct regmap *devm_regmap_init_mmio(struct device *dev,
-					void __iomem *regs,
-					const struct regmap_config *config)
-{
-	return devm_regmap_init_mmio_clk(dev, NULL, regs, config);
-}
+#define devm_regmap_init_mmio(dev, regs, config)		\
+	devm_regmap_init_mmio_clk(dev, NULL, regs, config)
 
 void regmap_exit(struct regmap *map);
 int regmap_reinit_cache(struct regmap *map,

@@ -307,9 +307,11 @@ err_free:
  * The return value will be an ERR_PTR() on error or a valid pointer to
  * a struct regmap.
  */
-struct regmap *regmap_init_mmio_clk(struct device *dev, const char *clk_id,
-				    void __iomem *regs,
-				    const struct regmap_config *config)
+struct regmap *__regmap_init_mmio_clk(struct device *dev, const char *clk_id,
+				      void __iomem *regs,
+				      const struct regmap_config *config,
+				      struct lock_class_key *lock_key,
+				      const char *lock_name)
 {
 	struct regmap_mmio_context *ctx;
 
@@ -317,9 +319,10 @@ struct regmap *regmap_init_mmio_clk(struct device *dev, const char *clk_id,
 	if (IS_ERR(ctx))
 		return ERR_CAST(ctx);
 
-	return regmap_init(dev, &regmap_mmio, ctx, config);
+	return __regmap_init(dev, &regmap_mmio, ctx, config,
+			     lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(regmap_init_mmio_clk);
+EXPORT_SYMBOL_GPL(__regmap_init_mmio_clk);
 
 /**
  * devm_regmap_init_mmio_clk(): Initialise managed register map with clock
@@ -333,9 +336,12 @@ EXPORT_SYMBOL_GPL(regmap_init_mmio_clk);
  * to a struct regmap.  The regmap will be automatically freed by the
  * device management code.
  */
-struct regmap *devm_regmap_init_mmio_clk(struct device *dev, const char *clk_id,
-					 void __iomem *regs,
-					 const struct regmap_config *config)
+struct regmap *__devm_regmap_init_mmio_clk(struct device *dev,
+					   const char *clk_id,
+					   void __iomem *regs,
+					   const struct regmap_config *config,
+					   struct lock_class_key *lock_key,
+					   const char *lock_name)
 {
 	struct regmap_mmio_context *ctx;
 
@@ -343,8 +349,9 @@ struct regmap *devm_regmap_init_mmio_clk(struct device *dev, const char *clk_id,
 	if (IS_ERR(ctx))
 		return ERR_CAST(ctx);
 
-	return devm_regmap_init(dev, &regmap_mmio, ctx, config);
+	return __devm_regmap_init(dev, &regmap_mmio, ctx, config,
+				  lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(devm_regmap_init_mmio_clk);
+EXPORT_SYMBOL_GPL(__devm_regmap_init_mmio_clk);
 
 MODULE_LICENSE("GPL v2");

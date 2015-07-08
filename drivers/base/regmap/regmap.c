@@ -527,10 +527,12 @@ EXPORT_SYMBOL_GPL(regmap_get_val_endian);
  * a struct regmap.  This function should generally not be called
  * directly, it should be called by bus-specific init functions.
  */
-struct regmap *regmap_init(struct device *dev,
-			   const struct regmap_bus *bus,
-			   void *bus_context,
-			   const struct regmap_config *config)
+struct regmap *__regmap_init(struct device *dev,
+			     const struct regmap_bus *bus,
+			     void *bus_context,
+			     const struct regmap_config *config,
+			     struct lock_class_key *lock_key,
+			     const char *lock_name)
 {
 	struct regmap *map;
 	int ret = -EINVAL;
@@ -556,10 +558,14 @@ struct regmap *regmap_init(struct device *dev,
 			spin_lock_init(&map->spinlock);
 			map->lock = regmap_lock_spinlock;
 			map->unlock = regmap_unlock_spinlock;
+			lockdep_set_class_and_name(&map->spinlock,
+						   lock_key, lock_name);
 		} else {
 			mutex_init(&map->mutex);
 			map->lock = regmap_lock_mutex;
 			map->unlock = regmap_unlock_mutex;
+			lockdep_set_class_and_name(&map->mutex,
+						   lock_key, lock_name);
 		}
 		map->lock_arg = map;
 	}
@@ -899,7 +905,7 @@ err_map:
 err:
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(regmap_init);
+EXPORT_SYMBOL_GPL(__regmap_init);
 
 static void devm_regmap_release(struct device *dev, void *res)
 {
@@ -919,10 +925,12 @@ static void devm_regmap_release(struct device *dev, void *res)
  * directly, it should be called by bus-specific init functions.  The
  * map will be automatically freed by the device management code.
  */
-struct regmap *devm_regmap_init(struct device *dev,
-				const struct regmap_bus *bus,
-				void *bus_context,
-				const struct regmap_config *config)
+struct regmap *__devm_regmap_init(struct device *dev,
+				  const struct regmap_bus *bus,
+				  void *bus_context,
+				  const struct regmap_config *config,
+				  struct lock_class_key *lock_key,
+				  const char *lock_name)
 {
 	struct regmap **ptr, *regmap;
 
@@ -930,7 +938,8 @@ struct regmap *devm_regmap_init(struct device *dev,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	regmap = regmap_init(dev, bus, bus_context, config);
+	regmap = __regmap_init(dev, bus, bus_context, config,
+			       lock_key, lock_name);
 	if (!IS_ERR(regmap)) {
 		*ptr = regmap;
 		devres_add(dev, ptr);
@@ -940,7 +949,7 @@ struct regmap *devm_regmap_init(struct device *dev,
 
 	return regmap;
 }
-EXPORT_SYMBOL_GPL(devm_regmap_init);
+EXPORT_SYMBOL_GPL(__devm_regmap_init);
 
 static void regmap_field_init(struct regmap_field *rm_field,
 	struct regmap *regmap, struct reg_field reg_field)
