@@ -116,7 +116,7 @@ struct drv2667_data {
 	u32 frequency;
 };
 
-static struct reg_default drv2667_reg_defs[] = {
+static const struct reg_default drv2667_reg_defs[] = {
 	{ DRV2667_STATUS, 0x02 },
 	{ DRV2667_CTRL_1, 0x28 },
 	{ DRV2667_CTRL_2, 0x40 },

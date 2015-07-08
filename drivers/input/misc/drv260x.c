@@ -204,7 +204,7 @@ struct drv260x_data {
 	int overdrive_voltage;
 };
 
-static struct reg_default drv260x_reg_defs[] = {
+static const struct reg_default drv260x_reg_defs[] = {
 	{ DRV260X_STATUS, 0xe0 },
 	{ DRV260X_MODE, 0x40 },
 	{ DRV260X_RT_PB_IN, 0x00 },
