@@ -87,8 +87,8 @@
 #define DESC_GCM_DEC_LEN		(DESC_GCM_BASE + 12 * CAAM_CMD_SZ)
 
 #define DESC_RFC4106_BASE		(3 * CAAM_CMD_SZ)
-#define DESC_RFC4106_ENC_LEN		(DESC_RFC4106_BASE + 10 * CAAM_CMD_SZ)
-#define DESC_RFC4106_DEC_LEN		(DESC_RFC4106_BASE + 10 * CAAM_CMD_SZ)
+#define DESC_RFC4106_ENC_LEN		(DESC_RFC4106_BASE + 12 * CAAM_CMD_SZ)
+#define DESC_RFC4106_DEC_LEN		(DESC_RFC4106_BASE + 12 * CAAM_CMD_SZ)
 
 #define DESC_RFC4543_BASE		(3 * CAAM_CMD_SZ)
 #define DESC_RFC4543_ENC_LEN		(DESC_RFC4543_BASE + 11 * CAAM_CMD_SZ)
@@ -976,28 +976,31 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	append_operation(desc, ctx->class1_alg_type |
 			 OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT);
 
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
+	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, 8);
 	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/* Skip assoc data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
 
 	/* Read assoc data */
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
 			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_FLUSH1);
 
-	/* cryptlen = seqoutlen - assoclen */
-	append_math_sub(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
+	/* Skip IV */
+	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
 
 	/* Will read cryptlen bytes */
 	append_math_sub(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
 
-	/* Write encrypted data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
-
 	/* Read payload data */
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
 			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1);
+
+	/* Skip assoc data */
+	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
+
+	/* cryptlen = seqoutlen - assoclen */
+	append_math_sub(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
+
+	/* Write encrypted data */
+	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
 
 	/* Write ICV */
 	append_seq_store(desc, ctx->authsize, LDST_CLASS_1_CCB |
@@ -1044,28 +1047,31 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	append_operation(desc, ctx->class1_alg_type |
 			 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
+	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, 8);
 	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/* Skip assoc data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
 
 	/* Read assoc data */
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
 			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_FLUSH1);
 
-	/* Will write cryptlen bytes */
-	append_math_sub(desc, VARSEQOUTLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
+	/* Skip IV */
+	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
 
 	/* Will read cryptlen bytes */
-	append_math_sub(desc, VARSEQINLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-
-	/* Store payload data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
+	append_math_sub(desc, VARSEQINLEN, SEQOUTLEN, REG3, CAAM_CMD_SZ);
 
 	/* Read encrypted data */
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
 			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_FLUSH1);
+
+	/* Skip assoc data */
+	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
+
+	/* Will write cryptlen bytes */
+	append_math_sub(desc, VARSEQOUTLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
+
+	/* Store payload data */
+	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
 
 	/* Read ICV */
 	append_seq_fifo_load(desc, ctx->authsize, FIFOLD_CLASS_CLASS1 |
@@ -2685,6 +2691,14 @@ static int gcm_encrypt(struct aead_request *req)
 	return ret;
 }
 
+static int ipsec_gcm_encrypt(struct aead_request *req)
+{
+	if (req->assoclen < 8)
+		return -EINVAL;
+
+	return gcm_encrypt(req);
+}
+
 static int old_aead_encrypt(struct aead_request *req)
 {
 	struct aead_edesc *edesc;
@@ -2755,6 +2769,14 @@ static int gcm_decrypt(struct aead_request *req)
 	}
 
 	return ret;
+}
+
+static int ipsec_gcm_decrypt(struct aead_request *req)
+{
+	if (req->assoclen < 8)
+		return -EINVAL;
+
+	return gcm_decrypt(req);
 }
 
 static int old_aead_decrypt(struct aead_request *req)
@@ -4058,8 +4080,8 @@ static struct caam_aead_alg driver_aeads[] = {
 			},
 			.setkey = rfc4106_setkey,
 			.setauthsize = rfc4106_setauthsize,
-			.encrypt = gcm_encrypt,
-			.decrypt = gcm_decrypt,
+			.encrypt = ipsec_gcm_encrypt,
+			.decrypt = ipsec_gcm_decrypt,
 			.ivsize = 8,
 			.maxauthsize = AES_BLOCK_SIZE,
 		},
@@ -4076,8 +4098,8 @@ static struct caam_aead_alg driver_aeads[] = {
 			},
 			.setkey = rfc4543_setkey,
 			.setauthsize = rfc4543_setauthsize,
-			.encrypt = gcm_encrypt,
-			.decrypt = gcm_decrypt,
+			.encrypt = ipsec_gcm_encrypt,
+			.decrypt = ipsec_gcm_decrypt,
 			.ivsize = 8,
 			.maxauthsize = AES_BLOCK_SIZE,
 		},
@@ -4260,7 +4282,8 @@ static void caam_aead_alg_init(struct caam_aead_alg *t_alg)
 	alg->base.cra_module = THIS_MODULE;
 	alg->base.cra_priority = CAAM_CRA_PRIORITY;
 	alg->base.cra_ctxsize = sizeof(struct caam_ctx);
-	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY;
+	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY |
+			      CRYPTO_ALG_AEAD_NEW;
 
 	alg->init = caam_aead_init;
 	alg->exit = caam_aead_exit;
