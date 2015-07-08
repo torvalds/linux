@@ -2615,17 +2615,6 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(transport_wait_for_tasks);
 
-static int transport_get_sense_codes(
-	struct se_cmd *cmd,
-	u8 *asc,
-	u8 *ascq)
-{
-	*asc = cmd->scsi_asc;
-	*ascq = cmd->scsi_ascq;
-
-	return 0;
-}
-
 static
 void transport_err_sector_info(unsigned char *buffer, sector_t bad_sector)
 {
@@ -2819,9 +2808,8 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		buffer[SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* Not Ready */
 		buffer[SPC_SENSE_KEY_OFFSET] = NOT_READY;
-		transport_get_sense_codes(cmd, &asc, &ascq);
-		buffer[SPC_ASC_KEY_OFFSET] = asc;
-		buffer[SPC_ASCQ_KEY_OFFSET] = ascq;
+		buffer[SPC_ASC_KEY_OFFSET] = cmd->scsi_asc;
+		buffer[SPC_ASCQ_KEY_OFFSET] = cmd->scsi_ascq;
 		break;
 	case TCM_MISCOMPARE_VERIFY:
 		/* CURRENT ERROR */
