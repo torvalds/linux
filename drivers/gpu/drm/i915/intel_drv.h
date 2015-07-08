@@ -788,7 +788,7 @@ struct intel_dp_mst_encoder {
 	void *port; /* store this opaque as its illegal to dereference it */
 };
 
-static inline int
+static inline enum dpio_channel
 vlv_dport_to_channel(struct intel_digital_port *dport)
 {
 	switch (dport->port) {
@@ -802,7 +802,21 @@ vlv_dport_to_channel(struct intel_digital_port *dport)
 	}
 }
 
-static inline int
+static inline enum dpio_phy
+vlv_dport_to_phy(struct intel_digital_port *dport)
+{
+	switch (dport->port) {
+	case PORT_B:
+	case PORT_C:
+		return DPIO_PHY0;
+	case PORT_D:
+		return DPIO_PHY1;
+	default:
+		BUG();
+	}
+}
+
+static inline enum dpio_channel
 vlv_pipe_to_channel(enum pipe pipe)
 {
 	switch (pipe) {
