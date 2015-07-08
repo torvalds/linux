@@ -996,6 +996,15 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 		tmp = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW6_CH1);
 		tmp |= DPIO_DYNPWRDOWNEN_CH1;
 		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW6_CH1, tmp);
+	} else {
+		/*
+		 * Force the non-existing CL2 off. BXT does this
+		 * too, so maybe it saves some power even though
+		 * CL2 doesn't exist?
+		 */
+		tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW30);
+		tmp |= DPIO_CL2_LDOFUSE_PWRENB;
+		vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW30, tmp);
 	}
 
 	mutex_unlock(&dev_priv->sb_lock);

@@ -1149,6 +1149,7 @@ enum skl_disp_power_wells {
 #define   DPIO_SUS_CLK_CONFIG_GATE_CLKREQ	(3 << 0)
 
 #define CHV_CMN_DW30			0x8178
+#define   DPIO_CL2_LDOFUSE_PWRENB	(1 << 6)
 #define   DPIO_LRC_BYPASS		(1 << 3)
 
 #define _TXLANE(ch, lane, offset) ((ch ? 0x2400 : 0) + \
