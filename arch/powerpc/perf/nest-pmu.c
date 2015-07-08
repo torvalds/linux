@@ -24,6 +24,100 @@ struct attribute_group p8_nest_format_group = {
 	.attrs = p8_nest_format_attrs,
 };
 
+static int p8_nest_event_init(struct perf_event *event)
+{
+	int chip_id;
+
+	if (event->attr.type != event->pmu->type)
+		return -ENOENT;
+
+	/* Sampling not supported yet */
+	if (event->hw.sample_period)
+		return -EINVAL;
+
+	/* unsupported modes and filters */
+	if (event->attr.exclude_user   ||
+	    event->attr.exclude_kernel ||
+	    event->attr.exclude_hv     ||
+	    event->attr.exclude_idle   ||
+	    event->attr.exclude_host   ||
+	    event->attr.exclude_guest)
+		return -EINVAL;
+
+	if (event->cpu < 0)
+		return -EINVAL;
+
+	chip_id = topology_physical_package_id(event->cpu);
+	event->hw.event_base = event->attr.config +
+					p8_nest_perchip_info[chip_id].vbase;
+
+	return 0;
+}
+
+static void p8_nest_read_counter(struct perf_event *event)
+{
+	uint64_t *addr;
+	u64 data = 0;
+
+	addr = (u64 *)event->hw.event_base;
+	data = __be64_to_cpu(*addr);
+	local64_set(&event->hw.prev_count, data);
+}
+
+static void p8_nest_perf_event_update(struct perf_event *event)
+{
+	u64 counter_prev, counter_new, final_count;
+	uint64_t *addr;
+
+	addr = (uint64_t *)event->hw.event_base;
+	counter_prev = local64_read(&event->hw.prev_count);
+	counter_new = __be64_to_cpu(*addr);
+	final_count = counter_new - counter_prev;
+
+	local64_set(&event->hw.prev_count, counter_new);
+	local64_add(final_count, &event->count);
+}
+
+static void p8_nest_event_start(struct perf_event *event, int flags)
+{
+	event->hw.state = 0;
+	p8_nest_read_counter(event);
+}
+
+static void p8_nest_event_stop(struct perf_event *event, int flags)
+{
+	if (flags & PERF_EF_UPDATE)
+		p8_nest_perf_event_update(event);
+}
+
+static int p8_nest_event_add(struct perf_event *event, int flags)
+{
+	if (flags & PERF_EF_START)
+		p8_nest_event_start(event, flags);
+
+	return 0;
+}
+
+/*
+ * Populate pmu ops in the structure
+ */
+static int update_pmu_ops(struct nest_pmu *pmu)
+{
+	if (!pmu)
+		return -EINVAL;
+
+	pmu->pmu.task_ctx_nr = perf_invalid_context;
+	pmu->pmu.event_init = p8_nest_event_init;
+	pmu->pmu.add = p8_nest_event_add;
+	pmu->pmu.del = p8_nest_event_stop;
+	pmu->pmu.start = p8_nest_event_start;
+	pmu->pmu.stop = p8_nest_event_stop;
+	pmu->pmu.read = p8_nest_perf_event_update;
+	pmu->pmu.attr_groups = pmu->attr_groups;
+
+	return 0;
+}
+
 static int nest_event_info(struct property *pp, char *start,
 			struct nest_ima_events *p8_events, int flg, u32 val)
 {
@@ -179,6 +273,16 @@ static int nest_pmu_create(struct device_node *dev, int pmu_index)
 	update_events_in_group(
 		(struct nest_ima_events *)p8_events_arr, idx, pmu_ptr);
 
+	update_pmu_ops(pmu_ptr);
+	/* Register the pmu */
+	ret = perf_pmu_register(&pmu_ptr->pmu, pmu_ptr->pmu.name, -1);
+	if (ret) {
+		pr_err("Nest PMU %s Register failed\n", pmu_ptr->pmu.name);
+		return ret;
+	}
+
+	pr_info("%s performance monitor hardware support registered\n",
+			pmu_ptr->pmu.name);
 	return 0;
 }
 
