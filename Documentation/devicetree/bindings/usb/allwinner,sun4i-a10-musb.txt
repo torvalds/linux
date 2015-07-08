@@ -2,9 +2,10 @@ Allwinner sun4i A10 musb DRC/OTG controller
 -------------------------------------------
 
 Required properties:
- - compatible      : "allwinner,sun4i-a10-musb"
+ - compatible      : "allwinner,sun4i-a10-musb" or "allwinner,sun6i-a31-musb"
  - reg             : mmio address range of the musb controller
  - clocks          : clock specifier for the musb controller ahb gate clock
+ - reset           : reset specifier for the ahb reset (A31 and newer only)
  - interrupts      : interrupt to which the musb controller is connected
  - interrupt-names : must be "mc"
  - phys            : phy specifier for the otg phy

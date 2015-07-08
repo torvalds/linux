@@ -26,6 +26,7 @@
 #include <linux/of.h>
 #include <linux/phy/phy-sun4i-usb.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/soc/sunxi/sunxi_sram.h>
 #include <linux/usb/musb.h>
 #include <linux/usb/of.h>
@@ -70,6 +71,8 @@
 #define SUNXI_MUSB_FL_HOSTMODE_PEND		2
 #define SUNXI_MUSB_FL_VBUS_ON			3
 #define SUNXI_MUSB_FL_PHY_ON			4
+#define SUNXI_MUSB_FL_HAS_SRAM			5
+#define SUNXI_MUSB_FL_HAS_RESET			6
 
 /* Our read/write methods need access and do not get passed in a musb ref :| */
 static struct musb *sunxi_musb;
@@ -78,6 +81,7 @@ struct sunxi_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
 	struct clk		*clk;
+	struct reset_control	*rst;
 	struct phy		*phy;
 	struct platform_device	*usb_phy;
 	struct usb_phy		*xceiv;
@@ -229,13 +233,21 @@ static int sunxi_musb_init(struct musb *musb)
 	musb->phy = glue->phy;
 	musb->xceiv = glue->xceiv;
 
-	ret = sunxi_sram_claim(musb->controller->parent);
-	if (ret)
-		return ret;
+	if (test_bit(SUNXI_MUSB_FL_HAS_SRAM, &glue->flags)) {
+		ret = sunxi_sram_claim(musb->controller->parent);
+		if (ret)
+			return ret;
+	}
 
 	ret = clk_prepare_enable(glue->clk);
 	if (ret)
 		goto error_sram_release;
+
+	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags)) {
+		ret = reset_control_deassert(glue->rst);
+		if (ret)
+			goto error_clk_disable;
+	}
 
 	writeb(SUNXI_MUSB_VEND0_PIO_MODE, musb->mregs + SUNXI_MUSB_VEND0);
 
@@ -244,7 +256,7 @@ static int sunxi_musb_init(struct musb *musb)
 		ret = extcon_register_notifier(glue->extcon, EXTCON_USB_HOST,
 					       &glue->host_nb);
 		if (ret)
-			goto error_clk_disable;
+			goto error_reset_assert;
 	}
 
 	ret = phy_init(glue->phy);
@@ -273,10 +285,14 @@ error_unregister_notifier:
 	if (musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
 		extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
 					   &glue->host_nb);
+error_reset_assert:
+	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags))
+		reset_control_assert(glue->rst);
 error_clk_disable:
 	clk_disable_unprepare(glue->clk);
 error_sram_release:
-	sunxi_sram_release(musb->controller->parent);
+	if (test_bit(SUNXI_MUSB_FL_HAS_SRAM, &glue->flags))
+		sunxi_sram_release(musb->controller->parent);
 	return ret;
 }
 
@@ -296,8 +312,12 @@ static int sunxi_musb_exit(struct musb *musb)
 		extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
 					   &glue->host_nb);
 
+	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags))
+		reset_control_assert(glue->rst);
+
 	clk_disable_unprepare(glue->clk);
-	sunxi_sram_release(musb->controller->parent);
+	if (test_bit(SUNXI_MUSB_FL_HAS_SRAM, &glue->flags))
+		sunxi_sram_release(musb->controller->parent);
 
 	return 0;
 }
@@ -617,11 +637,28 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	INIT_WORK(&glue->work, sunxi_musb_work);
 	glue->host_nb.notifier_call = sunxi_musb_host_notifier;
 
+	if (of_device_is_compatible(np, "allwinner,sun4i-a10-musb"))
+		set_bit(SUNXI_MUSB_FL_HAS_SRAM, &glue->flags);
+
+	if (of_device_is_compatible(np, "allwinner,sun6i-a31-musb"))
+		set_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags);
+
 	glue->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(glue->clk)) {
 		dev_err(&pdev->dev, "Error getting clock: %ld\n",
 			PTR_ERR(glue->clk));
 		return PTR_ERR(glue->clk);
+	}
+
+	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags)) {
+		glue->rst = devm_reset_control_get(&pdev->dev, NULL);
+		if (IS_ERR(glue->rst)) {
+			if (PTR_ERR(glue->rst) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			dev_err(&pdev->dev, "Error getting reset %ld\n",
+				PTR_ERR(glue->rst));
+			return PTR_ERR(glue->rst);
+		}
 	}
 
 	glue->phy = devm_phy_get(&pdev->dev, "usb");
@@ -685,6 +722,7 @@ static int sunxi_musb_remove(struct platform_device *pdev)
 
 static const struct of_device_id sunxi_musb_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-musb", },
+	{ .compatible = "allwinner,sun6i-a31-musb", },
 	{}
 };
 
