@@ -281,7 +281,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	if (!tcf_hash_check(parm->index, act, bind)) {
 		ret = tcf_hash_create(parm->index, est, act,
-				      sizeof(*prog), bind);
+				      sizeof(*prog), bind, false);
 		if (ret < 0)
 			goto destroy_fp;
 

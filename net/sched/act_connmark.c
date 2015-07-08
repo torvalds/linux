@@ -108,7 +108,8 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_CONNMARK_PARMS]);
 
 	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*ci), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*ci),
+				      bind, false);
 		if (ret)
 			return ret;
 
