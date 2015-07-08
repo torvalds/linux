@@ -240,17 +240,17 @@ static void iosf_sideband_debug_init(void)
 
 	/* mdr */
 	d = debugfs_create_x32("mdr", 0660, iosf_dbg, &dbg_mdr);
-	if (IS_ERR_OR_NULL(d))
+	if (!d)
 		goto cleanup;
 
 	/* mcrx */
-	debugfs_create_x32("mcrx", 0660, iosf_dbg, &dbg_mcrx);
-	if (IS_ERR_OR_NULL(d))
+	d = debugfs_create_x32("mcrx", 0660, iosf_dbg, &dbg_mcrx);
+	if (!d)
 		goto cleanup;
 
 	/* mcr - initiates mailbox tranaction */
-	debugfs_create_file("mcr", 0660, iosf_dbg, &dbg_mcr, &iosf_mcr_fops);
-	if (IS_ERR_OR_NULL(d))
+	d = debugfs_create_file("mcr", 0660, iosf_dbg, &dbg_mcr, &iosf_mcr_fops);
+	if (!d)
 		goto cleanup;
 
 	return;
