@@ -2943,6 +2943,28 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
+static void chv_dp_post_pll_disable(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum pipe pipe = to_intel_crtc(encoder->base.crtc)->pipe;
+	u32 val;
+
+	mutex_lock(&dev_priv->sb_lock);
+
+	/* disable left/right clock distribution */
+	if (pipe != PIPE_B) {
+		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW5_CH0);
+		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW5_CH0, val);
+	} else {
+		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW1_CH1);
+		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW1_CH1, val);
+	}
+
+	mutex_unlock(&dev_priv->sb_lock);
+}
+
 /*
  * Native read with retry for link status and receiver capability reads for
  * cases where the sink may still be asleep.
@@ -6000,6 +6022,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		intel_encoder->pre_enable = chv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
 		intel_encoder->post_disable = chv_post_disable_dp;
+		intel_encoder->post_pll_disable = chv_dp_post_pll_disable;
 	} else if (IS_VALLEYVIEW(dev)) {
 		intel_encoder->pre_pll_enable = vlv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = vlv_pre_enable_dp;

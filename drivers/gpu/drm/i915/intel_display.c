@@ -1828,17 +1828,6 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	val &= ~DPIO_DCLKP_EN;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), val);
 
-	/* disable left/right clock distribution */
-	if (pipe != PIPE_B) {
-		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW5_CH0);
-		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
-		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW5_CH0, val);
-	} else {
-		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW1_CH1);
-		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
-		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW1_CH1, val);
-	}
-
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
@@ -6192,6 +6181,10 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		else
 			i9xx_disable_pll(intel_crtc);
 	}
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->post_pll_disable)
+			encoder->post_pll_disable(encoder);
 
 	if (!IS_GEN2(dev))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);

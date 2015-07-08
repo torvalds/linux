@@ -142,6 +142,7 @@ struct intel_encoder {
 	void (*mode_set)(struct intel_encoder *intel_encoder);
 	void (*disable)(struct intel_encoder *);
 	void (*post_disable)(struct intel_encoder *);
+	void (*post_pll_disable)(struct intel_encoder *);
 	/* Read out the current hw state of this connector, returning true if
 	 * the encoder is active. If the encoder is enabled it also set the pipe
 	 * it is connected to in the pipe parameter. */
