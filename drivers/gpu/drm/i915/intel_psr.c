@@ -680,6 +680,7 @@ void intel_psr_invalidate(struct drm_device *dev,
  * intel_psr_flush - Flush PSR
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
+ * @origin: which operation caused the flush
  *
  * Since the hardware frontbuffer tracking has gaps we need to integrate
  * with the software frontbuffer tracking. This function gets called every
@@ -689,7 +690,7 @@ void intel_psr_invalidate(struct drm_device *dev,
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits.
  */
 void intel_psr_flush(struct drm_device *dev,
-		     unsigned frontbuffer_bits)
+		     unsigned frontbuffer_bits, enum fb_op_origin origin)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
@@ -707,24 +708,25 @@ void intel_psr_flush(struct drm_device *dev,
 	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
 	dev_priv->psr.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
-	/*
-	 * On Haswell sprite plane updates don't result in a psr invalidating
-	 * signal in the hardware. Which means we need to manually fake this in
-	 * software for all flushes, not just when we've seen a preceding
-	 * invalidation through frontbuffer rendering.
-	 */
-	if (IS_HASWELL(dev) &&
-	    (frontbuffer_bits & INTEL_FRONTBUFFER_SPRITE(pipe)))
-		intel_psr_exit(dev);
-
-	/*
-	 * On Valleyview and Cherryview we don't use hardware tracking so
-	 * any plane updates or cursor moves don't result in a PSR
-	 * invalidating. Which means we need to manually fake this in
-	 * software for all flushes, not just when we've seen a preceding
-	 * invalidation through frontbuffer rendering. */
-	if (frontbuffer_bits && !HAS_DDI(dev))
-		intel_psr_exit(dev);
+	if (HAS_DDI(dev)) {
+		/*
+		 * By definition every flush should mean invalidate + flush,
+		 * however on core platforms let's minimize the
+		 * disable/re-enable so we can avoid the invalidate when flip
+		 * originated the flush.
+		 */
+		if (frontbuffer_bits && origin != ORIGIN_FLIP)
+			intel_psr_exit(dev);
+	} else {
+		/*
+		 * On Valleyview and Cherryview we don't use hardware tracking
+		 * so any plane updates or cursor moves don't result in a PSR
+		 * invalidating. Which means we need to manually fake this in
+		 * software for all flushes.
+		 */
+		if (frontbuffer_bits)
+			intel_psr_exit(dev);
+	}
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		schedule_delayed_work(&dev_priv->psr.work,

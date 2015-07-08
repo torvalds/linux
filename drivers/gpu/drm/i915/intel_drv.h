@@ -1329,7 +1329,8 @@ void intel_psr_disable(struct intel_dp *intel_dp);
 void intel_psr_invalidate(struct drm_device *dev,
 			  unsigned frontbuffer_bits);
 void intel_psr_flush(struct drm_device *dev,
-		     unsigned frontbuffer_bits);
+		     unsigned frontbuffer_bits,
+		     enum fb_op_origin origin);
 void intel_psr_init(struct drm_device *dev);
 void intel_psr_single_frame_update(struct drm_device *dev,
 				   unsigned frontbuffer_bits);

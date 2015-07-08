@@ -128,7 +128,7 @@ void intel_frontbuffer_flush(struct drm_device *dev,
 		return;
 
 	intel_edp_drrs_flush(dev, frontbuffer_bits);
-	intel_psr_flush(dev, frontbuffer_bits);
+	intel_psr_flush(dev, frontbuffer_bits, origin);
 	intel_fbc_flush(dev_priv, frontbuffer_bits);
 }
 
