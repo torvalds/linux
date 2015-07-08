@@ -6001,13 +6001,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	is_dsi = intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DSI);
 
-	if (!is_dsi) {
-		if (IS_CHERRYVIEW(dev))
-			chv_prepare_pll(intel_crtc, intel_crtc->config);
-		else
-			vlv_prepare_pll(intel_crtc, intel_crtc->config);
-	}
-
 	if (intel_crtc->config->has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
@@ -6031,10 +6024,13 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 			encoder->pre_pll_enable(encoder);
 
 	if (!is_dsi) {
-		if (IS_CHERRYVIEW(dev))
+		if (IS_CHERRYVIEW(dev)) {
+			chv_prepare_pll(intel_crtc, intel_crtc->config);
 			chv_enable_pll(intel_crtc, intel_crtc->config);
-		else
+		} else {
+			vlv_prepare_pll(intel_crtc, intel_crtc->config);
 			vlv_enable_pll(intel_crtc, intel_crtc->config);
+		}
 	}
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
