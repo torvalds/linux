@@ -274,10 +274,15 @@ static int pcrypt_create_aead(struct crypto_template *tmpl, struct rtattr **tb,
 			      u32 type, u32 mask)
 {
 	struct pcrypt_instance_ctx *ctx;
+	struct crypto_attr_type *algt;
 	struct aead_instance *inst;
 	struct aead_alg *alg;
 	const char *name;
 	int err;
+
+	algt = crypto_get_attr_type(tb);
+	if (IS_ERR(algt))
+		return PTR_ERR(algt);
 
 	name = crypto_attr_alg_name(tb[1]);
 	if (IS_ERR(name))
@@ -290,7 +295,9 @@ static int pcrypt_create_aead(struct crypto_template *tmpl, struct rtattr **tb,
 	ctx = aead_instance_ctx(inst);
 	crypto_set_aead_spawn(&ctx->spawn, aead_crypto_instance(inst));
 
-	err = crypto_grab_aead(&ctx->spawn, name, 0, 0);
+	err = crypto_grab_aead(&ctx->spawn, name,
+			       algt->type & CRYPTO_ALG_AEAD_NEW,
+			       algt->mask & CRYPTO_ALG_AEAD_NEW);
 	if (err)
 		goto out_free_inst;
 
@@ -298,6 +305,9 @@ static int pcrypt_create_aead(struct crypto_template *tmpl, struct rtattr **tb,
 	err = pcrypt_init_instance(aead_crypto_instance(inst), &alg->base);
 	if (err)
 		goto out_drop_aead;
+
+	inst->alg.base.cra_flags = CRYPTO_ALG_ASYNC;
+	inst->alg.base.cra_flags |= alg->base.cra_flags & CRYPTO_ALG_AEAD_NEW;
 
 	inst->alg.ivsize = crypto_aead_alg_ivsize(alg);
 	inst->alg.maxauthsize = crypto_aead_alg_maxauthsize(alg);
