@@ -1099,6 +1099,12 @@ enum skl_disp_power_wells {
 #define  DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE	1 /* 1: coarse & 0 : fine  */
 #define CHV_PLL_DW9(ch) _PIPE(ch, _CHV_PLL_DW9_CH0, _CHV_PLL_DW9_CH1)
 
+#define _CHV_CMN_DW0_CH0               0x8100
+#define   DPIO_ALLDL_POWERDOWN_SHIFT_CH0	19
+#define   DPIO_ANYDL_POWERDOWN_SHIFT_CH0	18
+#define   DPIO_ALLDL_POWERDOWN			(1 << 1)
+#define   DPIO_ANYDL_POWERDOWN			(1 << 0)
+
 #define _CHV_CMN_DW5_CH0               0x8114
 #define   CHV_BUFRIGHTENA1_DISABLE	(0 << 20)
 #define   CHV_BUFRIGHTENA1_NORMAL	(1 << 20)
@@ -1135,6 +1141,8 @@ enum skl_disp_power_wells {
 
 #define _CHV_CMN_DW19_CH0		0x814c
 #define _CHV_CMN_DW6_CH1		0x8098
+#define   DPIO_ALLDL_POWERDOWN_SHIFT_CH1	30 /* CL2 DW6 only */
+#define   DPIO_ANYDL_POWERDOWN_SHIFT_CH1	29 /* CL2 DW6 only */
 #define   DPIO_DYNPWRDOWNEN_CH1		(1 << 28) /* CL2 DW6 only */
 #define   CHV_CMN_USEDCLKCHANNEL	(1 << 13)
 

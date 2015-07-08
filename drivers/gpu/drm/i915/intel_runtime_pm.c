@@ -1042,6 +1042,58 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 		      phy, dev_priv->chv_phy_control);
 }
 
+static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpio_phy phy,
+				     enum dpio_channel ch, bool override, unsigned int mask)
+{
+	enum pipe pipe = phy == DPIO_PHY0 ? PIPE_A : PIPE_C;
+	u32 reg, val, expected, actual;
+
+	if (ch == DPIO_CH0)
+		reg = _CHV_CMN_DW0_CH0;
+	else
+		reg = _CHV_CMN_DW6_CH1;
+
+	mutex_lock(&dev_priv->sb_lock);
+	val = vlv_dpio_read(dev_priv, pipe, reg);
+	mutex_unlock(&dev_priv->sb_lock);
+
+	/*
+	 * This assumes !override is only used when the port is disabled.
+	 * All lanes should power down even without the override when
+	 * the port is disabled.
+	 */
+	if (!override || mask == 0xf) {
+		expected = DPIO_ALLDL_POWERDOWN | DPIO_ANYDL_POWERDOWN;
+		/*
+		 * If CH1 common lane is not active anymore
+		 * (eg. for pipe B DPLL) the entire channel will
+		 * shut down, which causes the common lane registers
+		 * to read as 0. That means we can't actually check
+		 * the lane power down status bits, but as the entire
+		 * register reads as 0 it's a good indication that the
+		 * channel is indeed entirely powered down.
+		 */
+		if (ch == DPIO_CH1 && val == 0)
+			expected = 0;
+	} else if (mask != 0x0) {
+		expected = DPIO_ANYDL_POWERDOWN;
+	} else {
+		expected = 0;
+	}
+
+	if (ch == DPIO_CH0)
+		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH0;
+	else
+		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH1;
+	actual &= DPIO_ALLDL_POWERDOWN | DPIO_ANYDL_POWERDOWN;
+
+	WARN(actual != expected,
+	     "Unexpected DPIO lane power down: all %d, any %d. Expected: all %d, any %d. (0x%x = 0x%08x)\n",
+	     !!(actual & DPIO_ALLDL_POWERDOWN), !!(actual & DPIO_ANYDL_POWERDOWN),
+	     !!(expected & DPIO_ALLDL_POWERDOWN), !!(expected & DPIO_ANYDL_POWERDOWN),
+	     reg, val);
+}
+
 bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 			  enum dpio_channel ch, bool override)
 {
@@ -1093,6 +1145,8 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d lanes 0x%x (PHY_CONTROL=0x%08x)\n",
 		      phy, ch, mask, dev_priv->chv_phy_control);
+
+	assert_chv_phy_powergate(dev_priv, phy, ch, override, mask);
 
 	mutex_unlock(&power_domains->lock);
 }
