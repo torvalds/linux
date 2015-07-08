@@ -180,7 +180,6 @@ struct crypto_instance *crypto_alloc_instance(const char *name,
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
 			   struct crypto_async_request *request);
-void *__crypto_dequeue_request(struct crypto_queue *queue, unsigned int offset);
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
 int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm);
 
