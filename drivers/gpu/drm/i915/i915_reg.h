@@ -1143,6 +1143,10 @@ enum skl_disp_power_wells {
 #define CHV_CMN_DW28			0x8170
 #define   DPIO_CL1POWERDOWNEN		(1 << 23)
 #define   DPIO_DYNPWRDOWNEN_CH0		(1 << 22)
+#define   DPIO_SUS_CLK_CONFIG_ON		(0 << 0)
+#define   DPIO_SUS_CLK_CONFIG_CLKREQ		(1 << 0)
+#define   DPIO_SUS_CLK_CONFIG_GATE		(2 << 0)
+#define   DPIO_SUS_CLK_CONFIG_GATE_CLKREQ	(3 << 0)
 
 #define CHV_CMN_DW30			0x8178
 #define   DPIO_LRC_BYPASS		(1 << 3)
