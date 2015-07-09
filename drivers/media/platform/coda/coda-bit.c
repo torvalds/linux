@@ -999,6 +999,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		ret = -EFAULT;
 		goto out;
 	}
+	ctx->initialized = 1;
 
 	if (dst_fourcc != V4L2_PIX_FMT_JPEG) {
 		if (dev->devtype->product == CODA_960)
@@ -1329,6 +1330,9 @@ static void coda_seq_end_work(struct work_struct *work)
 	mutex_lock(&ctx->buffer_mutex);
 	mutex_lock(&dev->coda_mutex);
 
+	if (ctx->initialized == 0)
+		goto out;
+
 	v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
 		 "%d: %s: sent command 'SEQ_END' to coda\n", ctx->idx,
 		 __func__);
@@ -1342,6 +1346,9 @@ static void coda_seq_end_work(struct work_struct *work)
 
 	coda_free_framebuffers(ctx);
 
+	ctx->initialized = 0;
+
+out:
 	mutex_unlock(&dev->coda_mutex);
 	mutex_unlock(&ctx->buffer_mutex);
 }
@@ -1499,6 +1506,7 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 		coda_write(dev, 0, CODA_REG_BIT_BIT_STREAM_PARAM);
 		return -ETIMEDOUT;
 	}
+	ctx->initialized = 1;
 
 	/* Update kfifo out pointer from coda bitstream read pointer */
 	coda_kfifo_sync_from_device(ctx);

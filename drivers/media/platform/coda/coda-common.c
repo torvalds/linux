@@ -1313,7 +1313,6 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 			goto err;
 	}
 
-	ctx->initialized = 1;
 	return ret;
 
 err:
@@ -1376,7 +1375,6 @@ static void coda_stop_streaming(struct vb2_queue *q)
 		mutex_unlock(&ctx->bitstream_mutex);
 		kfifo_init(&ctx->bitstream_fifo,
 			ctx->bitstream.vaddr, ctx->bitstream.size);
-		ctx->initialized = 0;
 		ctx->runcounter = 0;
 		ctx->aborting = 0;
 	}
@@ -1767,7 +1765,7 @@ static int coda_release(struct file *file)
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
 	/* In case the instance was not running, we still need to call SEQ_END */
-	if (ctx->initialized && ctx->ops->seq_end_work) {
+	if (ctx->ops->seq_end_work) {
 		queue_work(dev->workqueue, &ctx->seq_end_work);
 		flush_work(&ctx->seq_end_work);
 	}
