@@ -1004,6 +1004,10 @@ int usb_assign_descriptors(struct usb_function *f,
 		struct usb_descriptor_header **ss);
 void usb_free_all_descriptors(struct usb_function *f);
 
+struct usb_descriptor_header *usb_otg_descriptor_alloc(
+				struct usb_gadget *gadget);
+int usb_otg_descriptor_init(struct usb_gadget *gadget,
+		struct usb_descriptor_header *otg_desc);
 /*-------------------------------------------------------------------------*/
 
 /* utility to simplify map/unmap of usb_requests to/from DMA */
