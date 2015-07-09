@@ -69,6 +69,10 @@ enum mixer_version_id {
 	MXR_VER_128_0_0_184,
 };
 
+enum mixer_flag_bits {
+	MXR_BIT_POWERED,
+};
+
 struct mixer_context {
 	struct platform_device *pdev;
 	struct device		*dev;
@@ -76,13 +80,12 @@ struct mixer_context {
 	struct exynos_drm_crtc	*crtc;
 	struct exynos_drm_plane	planes[MIXER_WIN_NR];
 	int			pipe;
+	unsigned long		flags;
 	bool			interlace;
-	bool			powered;
 	bool			vp_enabled;
 	bool			has_sclk;
 	u32			int_en;
 
-	struct mutex		mixer_mutex;
 	struct mixer_resources	mixer_res;
 	enum mixer_version_id	mxr_ver;
 	wait_queue_head_t	wait_vsync_queue;
@@ -899,7 +902,7 @@ static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
-	if (!mixer_ctx->powered) {
+	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags)) {
 		mixer_ctx->int_en |= MXR_INT_EN_VSYNC;
 		return 0;
 	}
@@ -916,7 +919,7 @@ static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
-	if (!mixer_ctx->powered) {
+	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags)) {
 		mixer_ctx->int_en &= MXR_INT_EN_VSYNC;
 		return;
 	}
@@ -932,12 +935,8 @@ static void mixer_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	DRM_DEBUG_KMS("win: %d\n", win);
 
-	mutex_lock(&mixer_ctx->mixer_mutex);
-	if (!mixer_ctx->powered) {
-		mutex_unlock(&mixer_ctx->mixer_mutex);
+	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
-	}
-	mutex_unlock(&mixer_ctx->mixer_mutex);
 
 	if (win > 1 && mixer_ctx->vp_enabled)
 		vp_video_buffer(mixer_ctx, win);
@@ -953,12 +952,8 @@ static void mixer_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	DRM_DEBUG_KMS("win: %d\n", win);
 
-	mutex_lock(&mixer_ctx->mixer_mutex);
-	if (!mixer_ctx->powered) {
-		mutex_unlock(&mixer_ctx->mixer_mutex);
+	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
-	}
-	mutex_unlock(&mixer_ctx->mixer_mutex);
 
 	spin_lock_irqsave(&res->reg_slock, flags);
 	mixer_vsync_set_update(mixer_ctx, false);
@@ -974,12 +969,8 @@ static void mixer_wait_for_vblank(struct exynos_drm_crtc *crtc)
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	int err;
 
-	mutex_lock(&mixer_ctx->mixer_mutex);
-	if (!mixer_ctx->powered) {
-		mutex_unlock(&mixer_ctx->mixer_mutex);
+	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
-	}
-	mutex_unlock(&mixer_ctx->mixer_mutex);
 
 	err = drm_vblank_get(mixer_ctx->drm_dev, mixer_ctx->pipe);
 	if (err < 0) {
@@ -1007,13 +998,8 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 	struct mixer_resources *res = &ctx->mixer_res;
 	int ret;
 
-	mutex_lock(&ctx->mixer_mutex);
-	if (ctx->powered) {
-		mutex_unlock(&ctx->mixer_mutex);
+	if (test_bit(MXR_BIT_POWERED, &ctx->flags))
 		return;
-	}
-
-	mutex_unlock(&ctx->mixer_mutex);
 
 	pm_runtime_get_sync(ctx->dev);
 
@@ -1045,9 +1031,7 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 		}
 	}
 
-	mutex_lock(&ctx->mixer_mutex);
-	ctx->powered = true;
-	mutex_unlock(&ctx->mixer_mutex);
+	set_bit(MXR_BIT_POWERED, &ctx->flags);
 
 	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
 
@@ -1063,12 +1047,8 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 	struct mixer_resources *res = &ctx->mixer_res;
 	int i;
 
-	mutex_lock(&ctx->mixer_mutex);
-	if (!ctx->powered) {
-		mutex_unlock(&ctx->mixer_mutex);
+	if (!test_bit(MXR_BIT_POWERED, &ctx->flags))
 		return;
-	}
-	mutex_unlock(&ctx->mixer_mutex);
 
 	mixer_stop(ctx);
 	mixer_regs_dump(ctx);
@@ -1078,9 +1058,7 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
 
-	mutex_lock(&ctx->mixer_mutex);
-	ctx->powered = false;
-	mutex_unlock(&ctx->mixer_mutex);
+	clear_bit(MXR_BIT_POWERED, &ctx->flags);
 
 	clk_disable_unprepare(res->hdmi);
 	clk_disable_unprepare(res->mixer);
@@ -1241,8 +1219,6 @@ static int mixer_probe(struct platform_device *pdev)
 		DRM_ERROR("failed to alloc mixer context.\n");
 		return -ENOMEM;
 	}
-
-	mutex_init(&ctx->mixer_mutex);
 
 	if (dev->of_node) {
 		const struct of_device_id *match;
