@@ -405,7 +405,7 @@ done:
 	return rval;
 }
 
-inline uint16_t
+static inline uint16_t
 qla24xx_calc_ct_iocbs(uint16_t dsds)
 {
 	uint16_t iocbs;
