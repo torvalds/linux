@@ -52,6 +52,8 @@ struct i915_params i915 __read_mostly = {
 	.mmio_debug = 0,
 	.verbose_state_checks = 1,
 	.edp_vswing = 0,
+	.enable_guc_submission = false,
+	.guc_log_level = -1,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -181,3 +183,10 @@ MODULE_PARM_DESC(edp_vswing,
 		 "Ignore/Override vswing pre-emph table selection from VBT "
 		 "(0=use value from vbt [default], 1=low power swing(200mV),"
 		 "2=default swing(400mV))");
+
+module_param_named_unsafe(enable_guc_submission, i915.enable_guc_submission, bool, 0400);
+MODULE_PARM_DESC(enable_guc_submission, "Enable GuC submission (default:false)");
+
+module_param_named(guc_log_level, i915.guc_log_level, int, 0400);
+MODULE_PARM_DESC(guc_log_level,
+	"GuC firmware logging level (-1:disabled (default), 0-3:enabled)");
