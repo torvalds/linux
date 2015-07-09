@@ -6222,6 +6222,13 @@ ath10k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	arvif->is_started = true;
 
+	ret = ath10k_mac_vif_setup_ps(arvif);
+	if (ret) {
+		ath10k_warn(ar, "failed to update vdev %i ps: %d\n",
+			    arvif->vdev_id, ret);
+		goto err_stop;
+	}
+
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		ret = ath10k_wmi_vdev_up(ar, arvif->vdev_id, 0, vif->addr);
 		if (ret) {
@@ -6239,6 +6246,7 @@ ath10k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 err_stop:
 	ath10k_vdev_stop(arvif);
 	arvif->is_started = false;
+	ath10k_mac_vif_setup_ps(arvif);
 
 err:
 	mutex_unlock(&ar->conf_mutex);
