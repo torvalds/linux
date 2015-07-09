@@ -1159,12 +1159,15 @@ bool pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task)
 	bool layoutreturn = false;
 
 	spin_lock(&ino->i_lock);
-	list_for_each_entry(lseg, &nfsi->layout->plh_segs, pls_list)
-		if (test_bit(NFS_LSEG_ROC, &lseg->pls_flags)) {
-			rpc_sleep_on(&NFS_SERVER(ino)->roc_rpcwaitq, task, NULL);
-			spin_unlock(&ino->i_lock);
-			return true;
-		}
+	list_for_each_entry(lseg, &nfsi->layout->plh_segs, pls_list) {
+		if (!test_bit(NFS_LSEG_ROC, &lseg->pls_flags))
+			continue;
+		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags))
+			continue;
+		rpc_sleep_on(&NFS_SERVER(ino)->roc_rpcwaitq, task, NULL);
+		spin_unlock(&ino->i_lock);
+		return true;
+	}
 	lo = nfsi->layout;
 	current_seqid = be32_to_cpu(lo->plh_stateid.seqid);
 
