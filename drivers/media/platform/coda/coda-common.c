@@ -1378,6 +1378,9 @@ static void coda_stop_streaming(struct vb2_queue *q)
 		ctx->runcounter = 0;
 		ctx->aborting = 0;
 	}
+
+	if (!ctx->streamon_out && !ctx->streamon_cap)
+		ctx->bit_stream_param &= ~CODA_BIT_STREAM_END_FLAG;
 }
 
 static const struct vb2_ops coda_qops = {
