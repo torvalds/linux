@@ -200,7 +200,7 @@ static int stk3310_read_event(struct iio_dev *indio_dev,
 			      int *val, int *val2)
 {
 	u8 reg;
-	u16 buf;
+	__be16 buf;
 	int ret;
 	struct stk3310_data *data = iio_priv(indio_dev);
 
@@ -222,7 +222,7 @@ static int stk3310_read_event(struct iio_dev *indio_dev,
 		dev_err(&data->client->dev, "register read failed\n");
 		return ret;
 	}
-	*val = swab16(buf);
+	*val = be16_to_cpu(buf);
 
 	return IIO_VAL_INT;
 }
@@ -235,7 +235,7 @@ static int stk3310_write_event(struct iio_dev *indio_dev,
 			       int val, int val2)
 {
 	u8 reg;
-	u16 buf;
+	__be16 buf;
 	int ret;
 	unsigned int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
@@ -252,7 +252,7 @@ static int stk3310_write_event(struct iio_dev *indio_dev,
 	else
 		return -EINVAL;
 
-	buf = swab16(val);
+	buf = cpu_to_be16(val);
 	ret = regmap_bulk_write(data->regmap, reg, &buf, 2);
 	if (ret < 0)
 		dev_err(&client->dev, "failed to set PS threshold!\n");
@@ -301,7 +301,7 @@ static int stk3310_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	u8 reg;
-	u16 buf;
+	__be16 buf;
 	int ret;
 	unsigned int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
@@ -322,7 +322,7 @@ static int stk3310_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&data->lock);
 			return ret;
 		}
-		*val = swab16(buf);
+		*val = be16_to_cpu(buf);
 		mutex_unlock(&data->lock);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
