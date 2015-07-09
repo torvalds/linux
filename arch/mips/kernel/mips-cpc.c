@@ -23,7 +23,7 @@ static DEFINE_PER_CPU_ALIGNED(unsigned long, cpc_core_lock_flags);
 
 phys_addr_t __weak mips_cpc_phys_base(void)
 {
-	u32 cpc_base;
+	unsigned long cpc_base;
 
 	if (!mips_cm_present())
 		return 0;
