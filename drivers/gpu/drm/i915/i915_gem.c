@@ -5477,3 +5477,43 @@ bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj)
 
 	return false;
 }
+
+/* Allocate a new GEM object and fill it with the supplied data */
+struct drm_i915_gem_object *
+i915_gem_object_create_from_data(struct drm_device *dev,
+			         const void *data, size_t size)
+{
+	struct drm_i915_gem_object *obj;
+	struct sg_table *sg;
+	size_t bytes;
+	int ret;
+
+	obj = i915_gem_alloc_object(dev, round_up(size, PAGE_SIZE));
+	if (IS_ERR_OR_NULL(obj))
+		return obj;
+
+	ret = i915_gem_object_set_to_cpu_domain(obj, true);
+	if (ret)
+		goto fail;
+
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		goto fail;
+
+	i915_gem_object_pin_pages(obj);
+	sg = obj->pages;
+	bytes = sg_copy_from_buffer(sg->sgl, sg->nents, (void *)data, size);
+	i915_gem_object_unpin_pages(obj);
+
+	if (WARN_ON(bytes != size)) {
+		DRM_ERROR("Incomplete copy, wrote %zu of %zu", bytes, size);
+		ret = -EFAULT;
+		goto fail;
+	}
+
+	return obj;
+
+fail:
+	drm_gem_object_unreference(&obj->base);
+	return ERR_PTR(ret);
+}
