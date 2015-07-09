@@ -423,19 +423,12 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 
 	memset(&ip, 0, sizeof(ip));
 	ip.proto = entry->addr.proto;
-	if (ip.proto == htons(ETH_P_IP)) {
-		if (timer_pending(&br->ip4_other_query.timer))
-			return -EBUSY;
-
+	if (ip.proto == htons(ETH_P_IP))
 		ip.u.ip4 = entry->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
-	} else {
-		if (timer_pending(&br->ip6_other_query.timer))
-			return -EBUSY;
-
+	else
 		ip.u.ip6 = entry->addr.u.ip6;
 #endif
-	}
 
 	spin_lock_bh(&br->multicast_lock);
 	mdb = mlock_dereference(br->mdb, br);
