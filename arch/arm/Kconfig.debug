@@ -411,6 +411,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX6SX.
 
+	config DEBUG_IMX6UL_UART
+		bool "i.MX6UL Debug UART"
+		depends on SOC_IMX6UL
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6UL.
+
 	config DEBUG_IMX7D_UART
 		bool "i.MX7D Debug UART"
 		depends on SOC_IMX7D
@@ -1269,6 +1276,7 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX6Q_UART || \
 						DEBUG_IMX6SL_UART || \
 						DEBUG_IMX6SX_UART || \
+						DEBUG_IMX6UL_UART || \
 						DEBUG_IMX7D_UART
 	default 1
 	depends on ARCH_MXC
@@ -1320,6 +1328,7 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX6Q_UART || \
 				 DEBUG_IMX6SL_UART || \
 				 DEBUG_IMX6SX_UART || \
+				 DEBUG_IMX6UL_UART || \
 				 DEBUG_IMX7D_UART
 	default "debug/ks8695.S" if DEBUG_KS8695_UART
 	default "debug/msm.S" if DEBUG_QCOM_UARTDM
