@@ -1978,7 +1978,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		dst_buf->v4l2_buf.timecode = meta->timecode;
 		dst_buf->v4l2_buf.timestamp = meta->timestamp;
 
-		trace_coda_dec_rot_done(ctx, meta, dst_buf);
+		trace_coda_dec_rot_done(ctx, dst_buf, meta);
 
 		switch (q_data_dst->fourcc) {
 		case V4L2_PIX_FMT_YUV420:
