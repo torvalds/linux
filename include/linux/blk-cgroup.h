@@ -47,6 +47,7 @@ struct blkcg {
 
 	struct blkcg_policy_data	*pd[BLKCG_MAX_POLS];
 
+	struct list_head		all_blkcgs_node;
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct list_head		cgwb_list;
 #endif

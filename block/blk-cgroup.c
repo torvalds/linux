@@ -46,6 +46,8 @@ struct cgroup_subsys_state * const blkcg_root_css = &blkcg_root.css;
 
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
+static LIST_HEAD(all_blkcgs);		/* protected by blkcg_pol_mutex */
+
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
 {
@@ -817,6 +819,10 @@ static void blkcg_css_free(struct cgroup_subsys_state *css)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
 
+	mutex_lock(&blkcg_pol_mutex);
+	list_del(&blkcg->all_blkcgs_node);
+	mutex_unlock(&blkcg_pol_mutex);
+
 	if (blkcg != &blkcg_root) {
 		int i;
 
@@ -833,6 +839,8 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 	struct cgroup_subsys_state *ret;
 	int i;
 
+	mutex_lock(&blkcg_pol_mutex);
+
 	if (!parent_css) {
 		blkcg = &blkcg_root;
 		goto done;
@@ -843,8 +851,6 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 		ret = ERR_PTR(-ENOMEM);
 		goto free_blkcg;
 	}
-
-	mutex_lock(&blkcg_pol_mutex);
 
 	for (i = 0; i < BLKCG_MAX_POLS ; i++) {
 		struct blkcg_policy *pol = blkcg_policy[i];
@@ -862,7 +868,6 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 		BUG_ON(blkcg->pd[i]);
 		cpd = kzalloc(pol->cpd_size, GFP_KERNEL);
 		if (!cpd) {
-			mutex_unlock(&blkcg_pol_mutex);
 			ret = ERR_PTR(-ENOMEM);
 			goto free_pd_blkcg;
 		}
@@ -871,7 +876,6 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 		pol->cpd_init_fn(blkcg);
 	}
 
-	mutex_unlock(&blkcg_pol_mutex);
 done:
 	spin_lock_init(&blkcg->lock);
 	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_ATOMIC);
@@ -879,14 +883,17 @@ done:
 #ifdef CONFIG_CGROUP_WRITEBACK
 	INIT_LIST_HEAD(&blkcg->cgwb_list);
 #endif
+	list_add_tail(&blkcg->all_blkcgs_node, &all_blkcgs);
+
+	mutex_unlock(&blkcg_pol_mutex);
 	return &blkcg->css;
 
 free_pd_blkcg:
 	for (i--; i >= 0; i--)
 		kfree(blkcg->pd[i]);
-
 free_blkcg:
 	kfree(blkcg);
+	mutex_unlock(&blkcg_pol_mutex);
 	return ret;
 }
 
