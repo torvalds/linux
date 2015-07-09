@@ -796,11 +796,12 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	/* We must ignore the payload if a bad status is returned */
 	if (errno)
 		size = sizeof(*message->header);
-	memcpy(message->header, data, size);
 
 	/* The rest will be handled in work queue context */
-	if (gb_operation_result_set(operation, errno))
+	if (gb_operation_result_set(operation, errno)) {
+		memcpy(message->header, data, size);
 		queue_work(gb_operation_workqueue, &operation->work);
+	}
 
 	gb_operation_put(operation);
 }
