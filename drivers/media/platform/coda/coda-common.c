@@ -908,9 +908,9 @@ static int coda_job_ready(void *m2m_priv)
 	}
 
 	if (ctx->inst_type == CODA_INST_DECODER && ctx->use_bit) {
-		struct list_head *meta;
-		bool stream_end;
-		int num_metas;
+		bool stream_end = ctx->bit_stream_param &
+				  CODA_BIT_STREAM_END_FLAG;
+		int num_metas = ctx->num_metas;
 
 		if (ctx->hold && !src_bufs) {
 			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
@@ -918,13 +918,6 @@ static int coda_job_ready(void *m2m_priv)
 				 ctx->idx);
 			return 0;
 		}
-
-		stream_end = ctx->bit_stream_param &
-			     CODA_BIT_STREAM_END_FLAG;
-
-		num_metas = 0;
-		list_for_each(meta, &ctx->buffer_meta_list)
-			num_metas++;
 
 		if (!stream_end && (num_metas + src_bufs) < 2) {
 			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
@@ -951,6 +944,7 @@ static int coda_job_ready(void *m2m_priv)
 
 	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 			"job ready\n");
+
 	return 1;
 }
 
@@ -1267,6 +1261,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 	struct coda_ctx *ctx = vb2_get_drv_priv(q);
 	struct coda_dev *dev = ctx->dev;
 	struct vb2_buffer *buf;
+	unsigned long flags;
 	bool stop;
 
 	stop = ctx->streamon_out && ctx->streamon_cap;
@@ -1301,14 +1296,15 @@ static void coda_stop_streaming(struct vb2_queue *q)
 			queue_work(dev->workqueue, &ctx->seq_end_work);
 			flush_work(&ctx->seq_end_work);
 		}
-		mutex_lock(&ctx->bitstream_mutex);
+		spin_lock_irqsave(&ctx->buffer_meta_lock, flags);
 		while (!list_empty(&ctx->buffer_meta_list)) {
 			meta = list_first_entry(&ctx->buffer_meta_list,
 						struct coda_buffer_meta, list);
 			list_del(&meta->list);
 			kfree(meta);
 		}
-		mutex_unlock(&ctx->bitstream_mutex);
+		ctx->num_metas = 0;
+		spin_unlock_irqrestore(&ctx->buffer_meta_lock, flags);
 		kfifo_init(&ctx->bitstream_fifo,
 			ctx->bitstream.vaddr, ctx->bitstream.size);
 		ctx->runcounter = 0;
@@ -1661,6 +1657,7 @@ static int coda_open(struct file *file)
 	mutex_init(&ctx->bitstream_mutex);
 	mutex_init(&ctx->buffer_mutex);
 	INIT_LIST_HEAD(&ctx->buffer_meta_list);
+	spin_lock_init(&ctx->buffer_meta_lock);
 
 	coda_lock(ctx);
 	list_add(&ctx->list, &dev->instances);

@@ -227,6 +227,8 @@ struct coda_ctx {
 	struct coda_buffer_meta		frame_metas[CODA_MAX_FRAMEBUFFERS];
 	u32				frame_errors[CODA_MAX_FRAMEBUFFERS];
 	struct list_head		buffer_meta_list;
+	spinlock_t			buffer_meta_lock;
+	int				num_metas;
 	struct coda_aux_buf		workbuf;
 	int				num_internal_frames;
 	int				idx;
