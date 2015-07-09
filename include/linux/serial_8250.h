@@ -136,8 +136,6 @@ void serial8250_resume_port(int line);
 
 extern int early_serial_setup(struct uart_port *port);
 
-extern unsigned int serial8250_early_in(struct uart_port *port, int offset);
-extern void serial8250_early_out(struct uart_port *port, int offset, int value);
 extern int early_serial8250_setup(struct earlycon_device *device,
 					 const char *options);
 extern void serial8250_do_set_termios(struct uart_port *port,
