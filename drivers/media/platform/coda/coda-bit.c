@@ -228,6 +228,9 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 	struct coda_buffer_meta *meta;
 	u32 start;
 
+	if (ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG)
+		return;
+
 	while (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) > 0) {
 		/*
 		 * Only queue a single JPEG into the bitstream buffer, except
