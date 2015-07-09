@@ -186,7 +186,6 @@ struct hdmi_context {
 	struct drm_device		*drm_dev;
 	struct drm_connector		connector;
 	struct drm_encoder		*encoder;
-	bool				hpd;
 	bool				powered;
 	bool				dvi_mode;
 	struct mutex			hdmi_mutex;
@@ -1037,10 +1036,10 @@ static enum drm_connector_status hdmi_detect(struct drm_connector *connector,
 {
 	struct hdmi_context *hdata = ctx_from_connector(connector);
 
-	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
+	if (gpio_get_value(hdata->hpd_gpio))
+		return connector_status_connected;
 
-	return hdata->hpd ? connector_status_connected :
-			connector_status_disconnected;
+	return connector_status_disconnected;
 }
 
 static void hdmi_connector_destroy(struct drm_connector *connector)
@@ -2156,10 +2155,6 @@ static void hdmi_hotplug_work_func(struct work_struct *work)
 
 	hdata = container_of(work, struct hdmi_context, hotplug_work.work);
 
-	mutex_lock(&hdata->hdmi_mutex);
-	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
-	mutex_unlock(&hdata->hdmi_mutex);
-
 	if (hdata->drm_dev)
 		drm_helper_hpd_irq_event(hdata->drm_dev);
 }
@@ -2427,8 +2422,6 @@ out_get_phy_port:
 		ret = hdata->irq;
 		goto err_hdmiphy;
 	}
-
-	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
 
 	INIT_DELAYED_WORK(&hdata->hotplug_work, hdmi_hotplug_work_func);
 
