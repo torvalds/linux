@@ -18,6 +18,8 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
+#include <linux/blkdev.h>
 #include <asm/unaligned.h>
 
 #include "hpfs.h"
@@ -200,6 +202,7 @@ void hpfs_free_dnode(struct super_block *, secno);
 struct dnode *hpfs_alloc_dnode(struct super_block *, secno, dnode_secno *, struct quad_buffer_head *);
 struct fnode *hpfs_alloc_fnode(struct super_block *, secno, fnode_secno *, struct buffer_head **);
 struct anode *hpfs_alloc_anode(struct super_block *, secno, anode_secno *, struct buffer_head **);
+int hpfs_trim_fs(struct super_block *, u64, u64, u64, unsigned *);
 
 /* anode.c */
 
@@ -318,6 +321,7 @@ __printf(2, 3)
 void hpfs_error(struct super_block *, const char *, ...);
 int hpfs_stop_cycles(struct super_block *, int, int *, int *, char *);
 unsigned hpfs_get_free_dnodes(struct super_block *);
+long hpfs_ioctl(struct file *file, unsigned cmd, unsigned long arg);
 
 /*
  * local time (HPFS) to GMT (Unix)
