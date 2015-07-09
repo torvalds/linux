@@ -2569,6 +2569,7 @@ M:	Sage Weil <sage@redhat.com>
 L:	ceph-devel@vger.kernel.org
 W:	http://ceph.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
+T:	git git://github.com/ceph/ceph-client.git
 S:	Supported
 F:	net/ceph/
 F:	include/linux/ceph/
@@ -2581,6 +2582,7 @@ M:	Ilya Dryomov <idryomov@gmail.com>
 L:	ceph-devel@vger.kernel.org
 W:	http://ceph.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
+T:	git git://github.com/ceph/ceph-client.git
 S:	Supported
 F:	Documentation/filesystems/ceph.txt
 F:	fs/ceph/
@@ -8379,6 +8381,7 @@ M:	Alex Elder <elder@kernel.org>
 L:	ceph-devel@vger.kernel.org
 W:	http://ceph.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
+T:	git git://github.com/ceph/ceph-client.git
 S:	Supported
 F:	Documentation/ABI/testing/sysfs-bus-rbd
 F:	drivers/block/rbd.c
