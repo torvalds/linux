@@ -469,9 +469,13 @@ static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
 		}
 	}
 
+	if (br < 0)
+		return br;
+
 	req->best_parent_rate = bpr;
 	req->best_parent_hw = __clk_get_hw(bpc);
 	req->rate = br;
+
 	return 0;
 }
 

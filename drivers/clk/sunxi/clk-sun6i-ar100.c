@@ -105,6 +105,9 @@ static int ar100_determine_rate(struct clk_hw *hw,
 		}
 	}
 
+	if (best_rate < 0)
+		return best_rate;
+
 	req->rate = best_rate;
 
 	return 0;

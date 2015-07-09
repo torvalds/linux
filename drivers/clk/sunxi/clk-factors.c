@@ -107,8 +107,10 @@ static int clk_factors_determine_rate(struct clk_hw *hw,
 		}
 	}
 
-	if (best_parent)
-		req->best_parent_hw = __clk_get_hw(best_parent);
+	if (!best_parent)
+		return -EINVAL;
+
+	req->best_parent_hw = __clk_get_hw(best_parent);
 	req->best_parent_rate = best;
 	req->rate = best_child_rate;
 

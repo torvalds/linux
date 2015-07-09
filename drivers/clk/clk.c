@@ -487,6 +487,9 @@ clk_mux_determine_rate_flags(struct clk_hw *hw, struct clk_rate_request *req,
 		}
 	}
 
+	if (!best_parent)
+		return -EINVAL;
+
 out:
 	if (best_parent)
 		req->best_parent_hw = best_parent->hw;

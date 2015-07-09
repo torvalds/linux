@@ -218,7 +218,7 @@ static int mmp_clk_mix_determine_rate(struct clk_hw *hw,
 	parent = NULL;
 	mix_rate_best = 0;
 	parent_rate_best = 0;
-	gap_best = req->rate;
+	gap_best = ULONG_MAX;
 	parent_best = NULL;
 
 	if (mix->table) {
@@ -262,6 +262,9 @@ static int mmp_clk_mix_determine_rate(struct clk_hw *hw,
 	}
 
 found:
+	if (!parent_best)
+		return -EINVAL;
+
 	req->best_parent_rate = parent_rate_best;
 	req->best_parent_hw = __clk_get_hw(parent_best);
 	req->rate = mix_rate_best;
