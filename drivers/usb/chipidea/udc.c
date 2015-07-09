@@ -1855,6 +1855,7 @@ static irqreturn_t udc_irq(struct ci_hdrc *ci)
 static int udc_start(struct ci_hdrc *ci)
 {
 	struct device *dev = ci->dev;
+	struct usb_otg_caps *otg_caps = &ci->platdata->ci_otg_caps;
 	int retval = 0;
 
 	spin_lock_init(&ci->lock);
@@ -1862,8 +1863,12 @@ static int udc_start(struct ci_hdrc *ci)
 	ci->gadget.ops          = &usb_gadget_ops;
 	ci->gadget.speed        = USB_SPEED_UNKNOWN;
 	ci->gadget.max_speed    = USB_SPEED_HIGH;
-	ci->gadget.is_otg       = ci->is_otg ? 1 : 0;
 	ci->gadget.name         = ci->platdata->name;
+	ci->gadget.otg_caps	= otg_caps;
+
+	if (otg_caps->hnp_support || otg_caps->srp_support ||
+					otg_caps->adp_support)
+		ci->gadget.is_otg = 1;
 
 	INIT_LIST_HEAD(&ci->gadget.ep_list);
 

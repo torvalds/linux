@@ -35,6 +35,7 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1
 	void	(*notify_event) (struct ci_hdrc *ci, unsigned event);
 	struct regulator	*reg_vbus;
+	struct usb_otg_caps	ci_otg_caps;
 	bool			tpl_support;
 	/* interrupt threshold setting */
 	u32			itc_setting;
