@@ -1771,12 +1771,11 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	int crtc_count = 0;
 	int fb_count = 0;
 	int encoder_count = 0;
-	int copied = 0, i;
+	int copied = 0;
 	uint32_t __user *fb_id;
 	uint32_t __user *crtc_id;
 	uint32_t __user *connector_id;
 	uint32_t __user *encoder_id;
-	struct drm_mode_group *mode_group;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -1809,27 +1808,14 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	/* mode_config.mutex protects the connector list against e.g. DP MST
 	 * connector hot-adding. CRTC/Plane lists are invariant. */
 	mutex_lock(&dev->mode_config.mutex);
-	if (!drm_is_primary_client(file_priv)) {
-		struct drm_connector *connector;
-		struct drm_encoder *encoder;
-		struct drm_crtc *crtc;
+	drm_for_each_crtc(crtc, dev)
+		crtc_count++;
 
-		mode_group = NULL;
-		drm_for_each_crtc(crtc, dev)
-			crtc_count++;
+	drm_for_each_connector(connector, dev)
+		connector_count++;
 
-		drm_for_each_connector(connector, dev)
-			connector_count++;
-
-		drm_for_each_encoder(encoder, dev)
-			encoder_count++;
-	} else {
-
-		mode_group = &file_priv->master->minor->mode_group;
-		crtc_count = mode_group->num_crtcs;
-		connector_count = mode_group->num_connectors;
-		encoder_count = mode_group->num_encoders;
-	}
+	drm_for_each_encoder(encoder, dev)
+		encoder_count++;
 
 	card_res->max_height = dev->mode_config.max_height;
 	card_res->min_height = dev->mode_config.min_height;
@@ -1840,24 +1826,13 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	if (card_res->count_crtcs >= crtc_count) {
 		copied = 0;
 		crtc_id = (uint32_t __user *)(unsigned long)card_res->crtc_id_ptr;
-		if (!mode_group) {
-			drm_for_each_crtc(crtc, dev) {
-				DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
-				if (put_user(crtc->base.id, crtc_id + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
+		drm_for_each_crtc(crtc, dev) {
+			DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
+			if (put_user(crtc->base.id, crtc_id + copied)) {
+				ret = -EFAULT;
+				goto out;
 			}
-		} else {
-			for (i = 0; i < mode_group->num_crtcs; i++) {
-				if (put_user(mode_group->id_list[i],
-					     crtc_id + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
-			}
+			copied++;
 		}
 	}
 	card_res->count_crtcs = crtc_count;
@@ -1866,27 +1841,15 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	if (card_res->count_encoders >= encoder_count) {
 		copied = 0;
 		encoder_id = (uint32_t __user *)(unsigned long)card_res->encoder_id_ptr;
-		if (!mode_group) {
-			drm_for_each_encoder(encoder, dev) {
-				DRM_DEBUG_KMS("[ENCODER:%d:%s]\n", encoder->base.id,
-						encoder->name);
-				if (put_user(encoder->base.id, encoder_id +
-					     copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
+		drm_for_each_encoder(encoder, dev) {
+			DRM_DEBUG_KMS("[ENCODER:%d:%s]\n", encoder->base.id,
+					encoder->name);
+			if (put_user(encoder->base.id, encoder_id +
+				     copied)) {
+				ret = -EFAULT;
+				goto out;
 			}
-		} else {
-			for (i = mode_group->num_crtcs; i < mode_group->num_crtcs + mode_group->num_encoders; i++) {
-				if (put_user(mode_group->id_list[i],
-					     encoder_id + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
-			}
-
+			copied++;
 		}
 	}
 	card_res->count_encoders = encoder_count;
@@ -1895,29 +1858,16 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	if (card_res->count_connectors >= connector_count) {
 		copied = 0;
 		connector_id = (uint32_t __user *)(unsigned long)card_res->connector_id_ptr;
-		if (!mode_group) {
-			drm_for_each_connector(connector, dev) {
-				DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-					connector->base.id,
-					connector->name);
-				if (put_user(connector->base.id,
-					     connector_id + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
+		drm_for_each_connector(connector, dev) {
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+				connector->base.id,
+				connector->name);
+			if (put_user(connector->base.id,
+				     connector_id + copied)) {
+				ret = -EFAULT;
+				goto out;
 			}
-		} else {
-			int start = mode_group->num_crtcs +
-				mode_group->num_encoders;
-			for (i = start; i < start + mode_group->num_connectors; i++) {
-				if (put_user(mode_group->id_list[i],
-					     connector_id + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
-			}
+			copied++;
 		}
 	}
 	card_res->count_connectors = connector_count;
