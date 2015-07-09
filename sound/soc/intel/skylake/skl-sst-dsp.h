@@ -16,6 +16,8 @@
 #ifndef __SKL_SST_DSP_H__
 #define __SKL_SST_DSP_H__
 
+struct sst_dsp_device;
+
 /* Intel HD Audio General DSP Registers */
 #define SKL_ADSP_GEN_BASE		0x0
 #define SKL_ADSP_REG_ADSPCS		(SKL_ADSP_GEN_BASE + 0x04)
@@ -58,5 +60,60 @@
 
 #define SKL_ADSPIC_IPC			1
 #define SKL_ADSPIS_IPC			1
+
+/* ADSPCS - Audio DSP Control & Status */
+#define SKL_DSP_CORES		1
+#define SKL_DSP_CORE0_MASK	1
+#define SKL_DSP_CORES_MASK	((1 << SKL_DSP_CORES) - 1)
+
+/* Core Reset - asserted high */
+#define SKL_ADSPCS_CRST_SHIFT	0
+#define SKL_ADSPCS_CRST_MASK	(SKL_DSP_CORES_MASK << SKL_ADSPCS_CRST_SHIFT)
+#define SKL_ADSPCS_CRST(x)	((x << SKL_ADSPCS_CRST_SHIFT) & SKL_ADSPCS_CRST_MASK)
+
+/* Core run/stall - when set to '1' core is stalled */
+#define SKL_ADSPCS_CSTALL_SHIFT	8
+#define SKL_ADSPCS_CSTALL_MASK	(SKL_DSP_CORES_MASK <<	\
+					SKL_ADSPCS_CSTALL_SHIFT)
+#define SKL_ADSPCS_CSTALL(x)	((x << SKL_ADSPCS_CSTALL_SHIFT) &	\
+				SKL_ADSPCS_CSTALL_MASK)
+
+/* Set Power Active - when set to '1' turn cores on */
+#define SKL_ADSPCS_SPA_SHIFT	16
+#define SKL_ADSPCS_SPA_MASK	(SKL_DSP_CORES_MASK << SKL_ADSPCS_SPA_SHIFT)
+#define SKL_ADSPCS_SPA(x)	((x << SKL_ADSPCS_SPA_SHIFT) & SKL_ADSPCS_SPA_MASK)
+
+/* Current Power Active - power status of cores, set by hardware */
+#define SKL_ADSPCS_CPA_SHIFT	24
+#define SKL_ADSPCS_CPA_MASK	(SKL_DSP_CORES_MASK << SKL_ADSPCS_CPA_SHIFT)
+#define SKL_ADSPCS_CPA(x)	((x << SKL_ADSPCS_CPA_SHIFT) & SKL_ADSPCS_CPA_MASK)
+
+#define SST_DSP_POWER_D0	0x0  /* full On */
+#define SST_DSP_POWER_D3	0x3  /* Off */
+
+enum skl_dsp_states {
+	SKL_DSP_RUNNING = 1,
+	SKL_DSP_RESET,
+};
+
+struct skl_dsp_fw_ops {
+	int (*load_fw)(struct sst_dsp  *ctx);
+	/* FW module parser/loader */
+	int (*parse_fw)(struct sst_dsp *ctx);
+	int (*set_state_D0)(struct sst_dsp *ctx);
+	int (*set_state_D3)(struct sst_dsp *ctx);
+};
+
+void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state);
+struct sst_dsp *skl_dsp_ctx_init(struct device *dev,
+		struct sst_dsp_device *sst_dev, int irq);
+int skl_dsp_disable_core(struct sst_dsp  *ctx);
+bool is_skl_dsp_running(struct sst_dsp *ctx);
+irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id);
+int skl_dsp_wake(struct sst_dsp *ctx);
+int skl_dsp_sleep(struct sst_dsp *ctx);
+void skl_dsp_free(struct sst_dsp *dsp);
+
+int skl_dsp_boot(struct sst_dsp *ctx);
 
 #endif /*__SKL_SST_DSP_H__*/

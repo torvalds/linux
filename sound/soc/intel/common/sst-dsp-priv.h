@@ -22,6 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
 
+#include "../skylake/skl-sst-dsp.h"
+
 struct sst_mem_block;
 struct sst_module;
 struct sst_fw;
@@ -306,6 +308,8 @@ struct sst_dsp {
 
 	/* SKL data */
 
+	struct skl_dsp_fw_ops fw_ops;
+	int sst_state;
 	u32 intr_status;
 };
 
