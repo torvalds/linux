@@ -89,8 +89,9 @@ static LIST_HEAD(kernel_fb_helper_list);
  * connectors to the fbdev, e.g. if some are reserved for special purposes or
  * not adequate to be used for the fbcon.
  *
- * Since this is part of the initial setup before the fbdev is published, no
- * locking is required.
+ * This function is protected against concurrent connector hotadds/removals
+ * using drm_fb_helper_add_one_connector() and
+ * drm_fb_helper_remove_one_connector().
  */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
@@ -98,6 +99,7 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 	struct drm_connector *connector;
 	int i;
 
+	mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
 		struct drm_fb_helper_connector *fb_helper_connector;
 
@@ -108,6 +110,7 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 		fb_helper_connector->connector = connector;
 		fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
 fail:
 	for (i = 0; i < fb_helper->connector_count; i++) {
@@ -115,6 +118,8 @@ fail:
 		fb_helper->connector_info[i] = NULL;
 	}
 	fb_helper->connector_count = 0;
+	mutex_unlock(&dev->mode_config.mutex);
+
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(drm_fb_helper_single_add_all_connectors);
