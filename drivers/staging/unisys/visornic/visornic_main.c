@@ -1831,6 +1831,7 @@ static int visornic_probe(struct visor_device *dev)
 	}
 
 	devdata->netdev = netdev;
+	dev_set_drvdata(&dev->device, devdata);
 	init_waitqueue_head(&devdata->rsp_queue);
 	spin_lock_init(&devdata->priv_lock);
 	devdata->enabled = 0; /* not yet */
