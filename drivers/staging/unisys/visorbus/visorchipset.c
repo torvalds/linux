@@ -2381,6 +2381,9 @@ static struct acpi_driver unisys_acpi_driver = {
 		.remove = visorchipset_exit,
 		},
 };
+
+MODULE_DEVICE_TABLE(acpi, unisys_device_ids);
+
 static __init uint32_t visorutil_spar_detect(void)
 {
 	unsigned int eax, ebx, ecx, edx;
