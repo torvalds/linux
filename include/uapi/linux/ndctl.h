@@ -87,7 +87,7 @@ struct nd_cmd_ars_status {
 		__u32 handle;
 		__u32 flags;
 		__u64 err_address;
-		__u64 mask;
+		__u64 length;
 	} __packed records[0];
 } __packed;
 
