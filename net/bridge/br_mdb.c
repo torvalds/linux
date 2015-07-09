@@ -230,7 +230,7 @@ errout:
 }
 
 void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
-		   struct br_ip *group, int type)
+		   struct br_ip *group, int type, u8 state)
 {
 	struct br_mdb_entry entry;
 
@@ -241,6 +241,7 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 #if IS_ENABLED(CONFIG_IPV6)
 	entry.addr.u.ip6 = group->u.ip6;
 #endif
+	entry.state = state;
 	__br_mdb_notify(dev, &entry, type);
 }
 
@@ -348,7 +349,7 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 		return -ENOMEM;
 	rcu_assign_pointer(*pp, p);
 
-	br_mdb_notify(br->dev, port, group, RTM_NEWMDB);
+	br_mdb_notify(br->dev, port, group, RTM_NEWMDB, state);
 	return 0;
 }
 
