@@ -45,7 +45,7 @@ struct msi_desc {
 
 /* Helpers to hide struct msi_desc implementation details */
 #define msi_desc_to_dev(desc)		(&(desc)->dev.dev)
-#define dev_to_msi_list(dev)		(&to_pci_dev((dev))->msi_list)
+#define dev_to_msi_list(dev)		(&(dev)->msi_list)
 #define first_msi_entry(dev)		\
 	list_first_entry(dev_to_msi_list((dev)), struct msi_desc, list)
 #define for_each_msi_entry(desc, dev)	\
