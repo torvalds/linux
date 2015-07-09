@@ -42,6 +42,7 @@ int br_dev_queue_push_xmit(struct sock *sk, struct sk_buff *skb)
 	} else {
 		skb_push(skb, ETH_HLEN);
 		br_drop_fake_rtable(skb);
+		skb_sender_cpu_clear(skb);
 		dev_queue_xmit(skb);
 	}
 
