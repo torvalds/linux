@@ -88,15 +88,11 @@ void queued_read_lock_slowpath(struct qrwlock *lock, u32 cnts)
 	arch_spin_lock(&lock->lock);
 
 	/*
-	 * At the head of the wait queue now, wait until the writer state
-	 * goes to 0 and then try to increment the reader count and get
-	 * the lock. It is possible that an incoming writer may steal the
-	 * lock in the interim, so it is necessary to check the writer byte
-	 * to make sure that the write lock isn't taken.
+	 * At the head of the wait queue now, increment the reader count
+	 * and wait until the writer, if it has the lock, has gone away.
+	 * At ths stage, it is not possible for a writer to remain in the
+	 * waiting state (_QW_WAITING). So there won't be any deadlock.
 	 */
-	while (atomic_read(&lock->cnts) & _QW_WMASK)
-		cpu_relax_lowlatency();
-
 	cnts = atomic_add_return(_QR_BIAS, &lock->cnts) - _QR_BIAS;
 	rspin_until_writer_unlock(lock, cnts);
 
