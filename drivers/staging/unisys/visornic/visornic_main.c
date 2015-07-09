@@ -162,6 +162,7 @@ struct visornic_devdata {
 					  */
 	bool server_down;		 /* IOPART is down */
 	bool server_change_state;	 /* Processing SERVER_CHANGESTATE msg */
+	bool going_away;		 /* device is being torn down */
 	struct dentry *eth_debugfs_dir;
 	struct visor_thread_info threadinfo;
 	u64 interrupts_rcvd;
@@ -568,7 +569,17 @@ static int
 visornic_serverdown(struct visornic_devdata *devdata,
 		    visorbus_state_complete_func complete_func)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&devdata->priv_lock, flags);
 	if (!devdata->server_down && !devdata->server_change_state) {
+		if (devdata->going_away) {
+			spin_unlock_irqrestore(&devdata->priv_lock, flags);
+			dev_dbg(&devdata->dev->device,
+				"%s aborting because device removal pending\n",
+				__func__);
+			return -ENODEV;
+		}
 		devdata->server_change_state = true;
 		devdata->server_down_complete_func = complete_func;
 		queue_work(visornic_serverdown_workqueue,
@@ -576,8 +587,10 @@ visornic_serverdown(struct visornic_devdata *devdata,
 	} else if (devdata->server_change_state) {
 		dev_dbg(&devdata->dev->device, "%s changing state\n",
 			__func__);
+		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		return -EINVAL;
 	}
+	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 	return 0;
 }
 
@@ -1236,6 +1249,14 @@ visornic_xmit_timeout(struct net_device *netdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
+	if (devdata->going_away) {
+		spin_unlock_irqrestore(&devdata->priv_lock, flags);
+		dev_dbg(&devdata->dev->device,
+			"%s aborting because device removal pending\n",
+			__func__);
+		return;
+	}
+
 	/* Ensure that a ServerDown message hasn't been received */
 	if (!devdata->enabled ||
 	    (devdata->server_down && !devdata->server_change_state)) {
@@ -1244,9 +1265,8 @@ visornic_xmit_timeout(struct net_device *netdev)
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		return;
 	}
-	spin_unlock_irqrestore(&devdata->priv_lock, flags);
-
 	queue_work(visornic_timeout_reset_workqueue, &devdata->timeout_reset);
+	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 }
 
 /**
@@ -1614,6 +1634,9 @@ static void devdata_release(struct kref *mykref)
 	spin_lock(&lock_all_devices);
 	list_del(&devdata->list_all);
 	spin_unlock(&lock_all_devices);
+	kfree(devdata->rcvbuf);
+	kfree(devdata->cmdrsp_rcv);
+	kfree(devdata->xmit_cmdrsp);
 	kfree(devdata);
 }
 
@@ -2025,13 +2048,51 @@ static void host_side_disappeared(struct visornic_devdata *devdata)
 static void visornic_remove(struct visor_device *dev)
 {
 	struct visornic_devdata *devdata = dev_get_drvdata(&dev->device);
+	struct net_device *netdev;
+	unsigned long flags;
 
 	if (!devdata) {
 		dev_err(&dev->device, "%s no devdata\n", __func__);
 		return;
 	}
+	spin_lock_irqsave(&devdata->priv_lock, flags);
+	if (devdata->going_away) {
+		spin_unlock_irqrestore(&devdata->priv_lock, flags);
+		dev_err(&dev->device, "%s already being removed\n", __func__);
+		return;
+	}
+	devdata->going_away = true;
+	spin_unlock_irqrestore(&devdata->priv_lock, flags);
+	netdev = devdata->netdev;
+	if (!netdev) {
+		dev_err(&dev->device, "%s not net device\n", __func__);
+		return;
+	}
+
+	/* going_away prevents new items being added to the workqueues */
+	flush_workqueue(visornic_serverdown_workqueue);
+	flush_workqueue(visornic_timeout_reset_workqueue);
+
+	debugfs_remove_recursive(devdata->eth_debugfs_dir);
+
+	unregister_netdev(netdev);  /* this will call visornic_close() */
+
+	/* this had to wait until last because visornic_close() /
+	 * visornic_disable_with_timeout() polls waiting for state that is
+	 * only updated by the thread
+	 */
+	if (devdata->threadinfo.id) {
+		visor_thread_stop(&devdata->threadinfo);
+		if (devdata->threadinfo.id) {
+			dev_err(&dev->device, "%s cannot stop worker thread\n",
+				__func__);
+			return;
+		}
+	}
+
 	dev_set_drvdata(&dev->device, NULL);
 	host_side_disappeared(devdata);
+	free_netdev(netdev);
 	kref_put(&devdata->kref, devdata_release);
 }
 
