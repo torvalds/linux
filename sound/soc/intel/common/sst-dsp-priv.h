@@ -303,6 +303,10 @@ struct sst_dsp {
 	/* DMA FW loading */
 	struct sst_dma *dma;
 	bool fw_use_dma;
+
+	/* SKL data */
+
+	u32 intr_status;
 };
 
 /* Size optimised DRAM/IRAM memcpy */
