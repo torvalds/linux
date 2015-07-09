@@ -1902,7 +1902,14 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 			meta = list_first_entry(&ctx->buffer_meta_list,
 					      struct coda_buffer_meta, list);
 			list_del(&meta->list);
-			if (val != (meta->sequence & 0xffff)) {
+			/*
+			 * Clamp counters to 16 bits for comparison, as the HW
+			 * counter rolls over at this point for h.264. This
+			 * may be different for other formats, but using 16 bits
+			 * should be enough to detect most errors and saves us
+			 * from doing different things based on the format.
+			 */
+			if ((val & 0xffff) != (meta->sequence & 0xffff)) {
 				v4l2_err(&dev->v4l2_dev,
 					 "sequence number mismatch (%d(%d) != %d)\n",
 					 val, ctx->sequence_offset,
