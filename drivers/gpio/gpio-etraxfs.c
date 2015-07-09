@@ -117,8 +117,8 @@ static int etraxfs_gpio_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
-	if (!regs)
-		return -ENOMEM;
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	match = of_match_node(etraxfs_gpio_of_table, dev->of_node);
 	if (!match)
