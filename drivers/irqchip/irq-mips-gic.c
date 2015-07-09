@@ -140,6 +140,9 @@ cycle_t gic_read_count(void)
 {
 	unsigned int hi, hi2, lo;
 
+	if (mips_cm_is64)
+		return (cycle_t)gic_read(GIC_REG(SHARED, GIC_SH_COUNTER));
+
 	do {
 		hi = gic_read32(GIC_REG(SHARED, GIC_SH_COUNTER_63_32));
 		lo = gic_read32(GIC_REG(SHARED, GIC_SH_COUNTER_31_00));
@@ -162,10 +165,14 @@ unsigned int gic_get_count_width(void)
 
 void gic_write_compare(cycle_t cnt)
 {
-	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_HI),
-				(int)(cnt >> 32));
-	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_LO),
-				(int)(cnt & 0xffffffff));
+	if (mips_cm_is64) {
+		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE), cnt);
+	} else {
+		gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_HI),
+					(int)(cnt >> 32));
+		gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_LO),
+					(int)(cnt & 0xffffffff));
+	}
 }
 
 void gic_write_cpu_compare(cycle_t cnt, int cpu)
@@ -174,11 +181,16 @@ void gic_write_cpu_compare(cycle_t cnt, int cpu)
 
 	local_irq_save(flags);
 
-	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), cpu);
-	gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE_HI),
-				(int)(cnt >> 32));
-	gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE_LO),
-				(int)(cnt & 0xffffffff));
+	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), cpu);
+
+	if (mips_cm_is64) {
+		gic_write(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE), cnt);
+	} else {
+		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE_HI),
+					(int)(cnt >> 32));
+		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE_LO),
+					(int)(cnt & 0xffffffff));
+	}
 
 	local_irq_restore(flags);
 }
@@ -186,6 +198,9 @@ void gic_write_cpu_compare(cycle_t cnt, int cpu)
 cycle_t gic_read_compare(void)
 {
 	unsigned int hi, lo;
+
+	if (mips_cm_is64)
+		return (cycle_t)gic_read(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE));
 
 	hi = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_HI));
 	lo = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_LO));

@@ -41,6 +41,8 @@
 
 /* Shared Global Counter */
 #define GIC_SH_COUNTER_31_00_OFS	0x0010
+/* 64-bit counter register for CM3 */
+#define GIC_SH_COUNTER_OFS		GIC_SH_COUNTER_31_00_OFS
 #define GIC_SH_COUNTER_63_32_OFS	0x0014
 #define GIC_SH_REVISIONID_OFS		0x0020
 
@@ -104,6 +106,8 @@
 #define GIC_VPE_WD_COUNT0_OFS		0x0094
 #define GIC_VPE_WD_INITIAL0_OFS		0x0098
 #define GIC_VPE_COMPARE_LO_OFS		0x00a0
+/* 64-bit Compare register on CM3 */
+#define GIC_VPE_COMPARE_OFS		GIC_VPE_COMPARE_LO_OFS
 #define GIC_VPE_COMPARE_HI_OFS		0x00a4
 
 #define GIC_VPE_EIC_SHADOW_SET_BASE_OFS	0x0100
