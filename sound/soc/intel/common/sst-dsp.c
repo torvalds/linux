@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #include "sst-dsp.h"
 #include "sst-dsp-priv.h"
@@ -221,6 +222,48 @@ int sst_dsp_shim_update_bits64(struct sst_dsp *sst, u32 offset,
 	return change;
 }
 EXPORT_SYMBOL_GPL(sst_dsp_shim_update_bits64);
+
+int sst_dsp_register_poll(struct sst_dsp *ctx, u32 offset, u32 mask,
+			 u32 target, u32 timeout, char *operation)
+{
+	int time, ret;
+	u32 reg;
+	bool done = false;
+
+	/*
+	 * we will poll for couple of ms using mdelay, if not successful
+	 * then go to longer sleep using usleep_range
+	 */
+
+	/* check if set state successful */
+	for (time = 0; time < 5; time++) {
+		if ((sst_dsp_shim_read_unlocked(ctx, offset) & mask) == target) {
+			done = true;
+			break;
+		}
+		mdelay(1);
+	}
+
+	if (done ==  false) {
+		/* sleeping in 10ms steps so adjust timeout value */
+		timeout /= 10;
+
+		for (time = 0; time < timeout; time++) {
+			if ((sst_dsp_shim_read_unlocked(ctx, offset) & mask) == target)
+				break;
+
+			usleep_range(5000, 10000);
+		}
+	}
+
+	reg = sst_dsp_shim_read_unlocked(ctx, offset);
+	dev_info(ctx->dev, "FW Poll Status: reg=%#x %s %s\n", reg, operation,
+			(time < timeout) ? "successful" : "timedout");
+	ret = time < timeout ? 0 : -ETIME;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sst_dsp_register_poll);
 
 void sst_dsp_dump(struct sst_dsp *sst)
 {
