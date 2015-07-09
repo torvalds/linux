@@ -321,8 +321,16 @@ static int xgene_pcie_map_ranges(struct xgene_pcie_port *port,
 				return ret;
 			break;
 		case IORESOURCE_MEM:
-			xgene_pcie_setup_ob_reg(port, res, OMR1BARL, res->start,
-						res->start - window->offset);
+			if (res->flags & IORESOURCE_PREFETCH)
+				xgene_pcie_setup_ob_reg(port, res, OMR2BARL,
+							res->start,
+							res->start -
+							window->offset);
+			else
+				xgene_pcie_setup_ob_reg(port, res, OMR1BARL,
+							res->start,
+							res->start -
+							window->offset);
 			break;
 		case IORESOURCE_BUS:
 			break;
