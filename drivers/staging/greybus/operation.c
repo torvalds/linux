@@ -528,14 +528,12 @@ EXPORT_SYMBOL_GPL(gb_operation_get);
 static void _gb_operation_destroy(struct kref *kref)
 {
 	struct gb_operation *operation;
-	unsigned long flags;
 
 	operation = container_of(kref, struct gb_operation, kref);
 
 	/* XXX Make sure it's not in flight */
-	spin_lock_irqsave(&gb_operations_lock, flags);
 	list_del(&operation->links);
-	spin_unlock_irqrestore(&gb_operations_lock, flags);
+	spin_unlock(&gb_operations_lock);
 
 	if (operation->response)
 		gb_operation_message_free(operation->response);
@@ -550,8 +548,11 @@ static void _gb_operation_destroy(struct kref *kref)
  */
 void gb_operation_put(struct gb_operation *operation)
 {
-	if (!WARN_ON(!operation))
-		kref_put(&operation->kref, _gb_operation_destroy);
+	if (WARN_ON(!operation))
+		return;
+
+	kref_put_spinlock_irqsave(&operation->kref, _gb_operation_destroy,
+			&gb_operations_lock);
 }
 EXPORT_SYMBOL_GPL(gb_operation_put);
 
