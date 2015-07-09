@@ -1869,7 +1869,7 @@ static int visornic_probe(struct visor_device *dev)
 
 	netdev->netdev_ops = &visornic_dev_ops;
 	netdev->watchdog_timeo = (5 * HZ);
-	netdev->dev.parent = &dev->device;
+	SET_NETDEV_DEV(netdev, &dev->device);
 
 	/* Get MAC adddress from channel and read it into the device. */
 	netdev->addr_len = ETH_ALEN;
