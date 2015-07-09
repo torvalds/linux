@@ -108,7 +108,7 @@ static void ks_dw_pcie_msi_irq_ack(struct irq_data *d)
 	struct pcie_port *pp;
 
 	msi = irq_data_get_msi_desc(d);
-	pp = sys_to_pcie(msi->dev->bus->sysdata);
+	pp = sys_to_pcie(msi_desc_to_pci_sysdata(msi));
 	ks_pcie = to_keystone_pcie(pp);
 	offset = d->irq - irq_linear_revmap(pp->irq_domain, 0);
 	update_reg_offset_bit_pos(offset, &reg_offset, &bit_pos);
@@ -146,7 +146,7 @@ static void ks_dw_pcie_msi_irq_mask(struct irq_data *d)
 	u32 offset;
 
 	msi = irq_data_get_msi_desc(d);
-	pp = sys_to_pcie(msi->dev->bus->sysdata);
+	pp = sys_to_pcie(msi_desc_to_pci_sysdata(msi));
 	ks_pcie = to_keystone_pcie(pp);
 	offset = d->irq - irq_linear_revmap(pp->irq_domain, 0);
 
@@ -167,7 +167,7 @@ static void ks_dw_pcie_msi_irq_unmask(struct irq_data *d)
 	u32 offset;
 
 	msi = irq_data_get_msi_desc(d);
-	pp = sys_to_pcie(msi->dev->bus->sysdata);
+	pp = sys_to_pcie(msi_desc_to_pci_sysdata(msi));
 	ks_pcie = to_keystone_pcie(pp);
 	offset = d->irq - irq_linear_revmap(pp->irq_domain, 0);
 
