@@ -1336,6 +1336,7 @@ struct lcdc_device{
 	u32 pixclock;	
 
 	u32 standby;						/*1:standby,0:wrok*/
+	u32 iommu_status;
 };
 
 struct alpha_config{

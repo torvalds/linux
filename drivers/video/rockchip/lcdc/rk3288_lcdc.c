@@ -371,8 +371,8 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 		dev_err(lcdc_dev->dev, "failed to get lcdc%d clk source\n",
 			lcdc_dev->id);
 	}
-
-	rk_disp_pwr_enable(dev_drv);
+	if (!support_uboot_display())
+		rk_disp_pwr_enable(dev_drv);
 	rk3288_lcdc_clk_enable(lcdc_dev);
 
 	/*backup reg config at uboot*/
@@ -405,8 +405,9 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	val  =  v_AUTO_GATING_EN(0);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask,val);
 	lcdc_cfg_done(lcdc_dev);
-	if (dev_drv->iommu_enabled) /*disable win0 to workaround iommu pagefault*/
-		win0_enable(lcdc_dev, 0);
+	/*disable win0 to workaround iommu pagefault */
+	/*if (dev_drv->iommu_enabled) */
+	/*      win0_enable(lcdc_dev, 0); */
 	lcdc_dev->pre_init = true;
 
 
@@ -1021,10 +1022,7 @@ static int rk3288_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 
 static int rk3288_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 {
-	if (lcdc_dev->driver.iommu_enabled)
-		memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x330);
-	else
-		memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x1fc);
+	memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x1fc);
 	return 0;
 }
 static int rk3288_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
@@ -1037,30 +1035,40 @@ static int rk3288_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
 		return 0;
 	}
-	spin_lock(&lcdc_dev->reg_lock);
-	if (likely(lcdc_dev->clk_on)) {
-		mask = m_MMU_EN;
-		val = v_MMU_EN(1);
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
-		mask = m_AXI_MAX_OUTSTANDING_EN | m_AXI_OUTSTANDING_MAX_NUM;
-		val = v_AXI_OUTSTANDING_MAX_NUM(31) | v_AXI_MAX_OUTSTANDING_EN(1);
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL1, mask, val);
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+	if (dev_drv->iommu_enabled) {
+		if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
+
+		if (likely(lcdc_dev->clk_on)) {
+			spin_lock(&lcdc_dev->reg_lock);
+			mask = m_MMU_EN;
+			val = v_MMU_EN(1);
+			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
+			mask = m_AXI_MAX_OUTSTANDING_EN | m_AXI_OUTSTANDING_MAX_NUM;
+			val = v_AXI_OUTSTANDING_MAX_NUM(31) | v_AXI_MAX_OUTSTANDING_EN(1);
+			lcdc_msk_reg(lcdc_dev, SYS_CTRL1, mask, val);
+			spin_unlock(&lcdc_dev->reg_lock);
 	}
-	spin_unlock(&lcdc_dev->reg_lock);
+			lcdc_dev->iommu_status = 1;
+			rockchip_iovmm_activate(dev_drv->dev);
+		}
+	}
+#endif
 	return 0;
 }
 
-static int rk3288_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
+static int rk3288_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv, int reset_rate)
 {
 #ifdef CONFIG_RK_FPGA
 	return 0;
 #endif
-	int ret,fps;
+	int ret = 0,fps;
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_screen *screen = dev_drv->cur_screen;
 
-	ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);
+        if (reset_rate)
+	        ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);/*set pll */
 	if (ret)
 		dev_err(dev_drv->dev, "set lcdc%d dclk failed\n", lcdc_dev->id);
 	lcdc_dev->pixclock =
@@ -1287,9 +1295,12 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		lcdc_msk_reg(lcdc_dev, DSP_VACT_ST_END, mask, val);
 
 		rk3288_lcdc_post_cfg(dev_drv);
+		mask = m_DSP_LINE_FLAG_NUM;
+		val = v_DSP_LINE_FLAG_NUM(vsync_len + upper_margin + y_res);
+		lcdc_msk_reg(lcdc_dev, INTR_CTRL0, mask, val);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
-	rk3288_lcdc_set_dclk(dev_drv);
+	rk3288_lcdc_set_dclk(dev_drv, 1);
 	if (screen->type != SCREEN_HDMI && dev_drv->trsm_ops &&
 	    dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
@@ -1406,15 +1417,12 @@ static int rk3288_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 					struct lcdc_device, driver);
 	u32 mask,val;
-	struct rk_screen *screen = dev_drv->cur_screen;
 	
 	mask = m_FS_INTR_CLR | m_FS_INTR_EN | m_LINE_FLAG_INTR_CLR |
 			    m_LINE_FLAG_INTR_EN | m_BUS_ERROR_INTR_CLR | 
-			    m_BUS_ERROR_INTR_EN | m_DSP_LINE_FLAG_NUM;
+			    m_BUS_ERROR_INTR_EN;
 	val = v_FS_INTR_CLR(1) | v_FS_INTR_EN(1) | v_LINE_FLAG_INTR_CLR(1) |
-	    v_LINE_FLAG_INTR_EN(1) | v_BUS_ERROR_INTR_CLR(1) | v_BUS_ERROR_INTR_EN(0) |
-	    v_DSP_LINE_FLAG_NUM(screen->mode.vsync_len + screen->mode.upper_margin +
-	    screen->mode.yres);
+	    v_LINE_FLAG_INTR_EN(1) | v_BUS_ERROR_INTR_CLR(1) | v_BUS_ERROR_INTR_EN(0);
 	lcdc_msk_reg(lcdc_dev, INTR_CTRL0, mask, val);	
 #ifdef LCDC_IRQ_EMPTY_DEBUG
 		 mask = m_WIN0_EMPTY_INTR_EN | m_WIN1_EMPTY_INTR_EN | m_WIN2_EMPTY_INTR_EN |
@@ -1456,16 +1464,14 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 					return -1;
 				}
 			}
-			if (dev_drv->mmu_dev)
-				rockchip_iovmm_activate(dev_drv->dev);
 		}
 #endif
 		rk3288_lcdc_reg_restore(lcdc_dev);
-		if (dev_drv->iommu_enabled)
-			rk3288_lcdc_mmu_en(dev_drv);
+		/*if (dev_drv->iommu_enabled)
+		   rk3368_lcdc_mmu_en(dev_drv); */
 		if ((support_uboot_display()&&(lcdc_dev->prop == PRMRY))) {
-			rk3288_lcdc_set_dclk(dev_drv);
-			rk3288_lcdc_enable_irq(dev_drv);
+			rk3288_lcdc_set_dclk(dev_drv, 0);
+			/* rk3288_lcdc_enable_irq(dev_drv); */
 		} else {
 			rk3288_load_screen(dev_drv, 1);
 		}
@@ -3761,6 +3767,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dump_reg 		= rk3288_lcdc_reg_dump,
 	.cfg_done		= rk3288_lcdc_config_done,
 	.set_irq_to_cpu  	= rk3288_lcdc_set_irq_to_cpu,
+	.mmu_en    = rk3288_lcdc_mmu_en,
 	.set_overscan   	= rk3288_lcdc_set_overscan,
 
 };
