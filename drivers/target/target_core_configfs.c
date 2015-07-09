@@ -1590,9 +1590,9 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 	u8 type = 0;
 
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
-		return 0;
+		return count;
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
-		return 0;
+		return count;
 
 	if (dev->export_count) {
 		pr_debug("Unable to process APTPL metadata while"
@@ -1985,7 +1985,7 @@ static ssize_t target_core_store_alua_lu_gp(
 
 	lu_gp_mem = dev->dev_alua_lu_gp_mem;
 	if (!lu_gp_mem)
-		return 0;
+		return count;
 
 	if (count > LU_GROUP_NAME_BUF) {
 		pr_err("ALUA LU Group Alias too large!\n");
