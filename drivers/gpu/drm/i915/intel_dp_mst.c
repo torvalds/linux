@@ -441,7 +441,6 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
 
 	drm_mode_connector_set_path_property(connector, pathprop);
-	drm_reinit_primary_mode_group(dev);
 	drm_modeset_lock_all(dev);
 	intel_connector_add_to_fbdev(intel_connector);
 	drm_modeset_unlock_all(dev);
@@ -465,8 +464,6 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	intel_connector_remove_from_fbdev(intel_connector);
 	drm_connector_cleanup(connector);
 	drm_modeset_unlock_all(dev);
-
-	drm_reinit_primary_mode_group(dev);
 
 	kfree(intel_connector);
 	DRM_DEBUG_KMS("\n");
