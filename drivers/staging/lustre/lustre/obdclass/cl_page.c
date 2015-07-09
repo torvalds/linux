@@ -1425,7 +1425,7 @@ void cl_page_clip(const struct lu_env *env, struct cl_page *pg,
 	CL_PAGE_HEADER(D_TRACE, env, pg, "%d %d\n", from, to);
 	CL_PAGE_INVOID(env, pg, CL_PAGE_OP(cpo_clip),
 		       (const struct lu_env *,
-			const struct cl_page_slice *,int, int),
+			const struct cl_page_slice *, int, int),
 		       from, to);
 }
 EXPORT_SYMBOL(cl_page_clip);
