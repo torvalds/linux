@@ -504,8 +504,7 @@ static int spmi_regulator_select_voltage(struct spmi_regulator *vreg,
 	 * Force uV to be an allowed set point by applying a ceiling function to
 	 * the uV value.
 	 */
-	*voltage_sel = (uV - range->min_uV + range->step_uV - 1)
-			/ range->step_uV;
+	*voltage_sel = DIV_ROUND_UP(uV - range->min_uV, range->step_uV);
 	uV = *voltage_sel * range->step_uV + range->min_uV;
 
 	if (uV > max_uV) {
