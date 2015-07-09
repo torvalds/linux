@@ -136,6 +136,79 @@ static dma_addr_t dma_map_xdr(struct svcxprt_rdma *xprt,
 	return dma_addr;
 }
 
+/* Returns the address of the first read chunk or <nul> if no read chunk
+ * is present
+ */
+struct rpcrdma_read_chunk *
+svc_rdma_get_read_chunk(struct rpcrdma_msg *rmsgp)
+{
+	struct rpcrdma_read_chunk *ch =
+		(struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
+
+	if (ch->rc_discrim == xdr_zero)
+		return NULL;
+	return ch;
+}
+
+/* Returns the address of the first read write array element or <nul>
+ * if no write array list is present
+ */
+static struct rpcrdma_write_array *
+svc_rdma_get_write_array(struct rpcrdma_msg *rmsgp)
+{
+	if (rmsgp->rm_body.rm_chunks[0] != xdr_zero ||
+	    rmsgp->rm_body.rm_chunks[1] == xdr_zero)
+		return NULL;
+	return (struct rpcrdma_write_array *)&rmsgp->rm_body.rm_chunks[1];
+}
+
+/* Returns the address of the first reply array element or <nul> if no
+ * reply array is present
+ */
+static struct rpcrdma_write_array *
+svc_rdma_get_reply_array(struct rpcrdma_msg *rmsgp)
+{
+	struct rpcrdma_read_chunk *rch;
+	struct rpcrdma_write_array *wr_ary;
+	struct rpcrdma_write_array *rp_ary;
+
+	/* XXX: Need to fix when reply chunk may occur with read list
+	 *	and/or write list.
+	 */
+	if (rmsgp->rm_body.rm_chunks[0] != xdr_zero ||
+	    rmsgp->rm_body.rm_chunks[1] != xdr_zero)
+		return NULL;
+
+	rch = svc_rdma_get_read_chunk(rmsgp);
+	if (rch) {
+		while (rch->rc_discrim != xdr_zero)
+			rch++;
+
+		/* The reply chunk follows an empty write array located
+		 * at 'rc_position' here. The reply array is at rc_target.
+		 */
+		rp_ary = (struct rpcrdma_write_array *)&rch->rc_target;
+		goto found_it;
+	}
+
+	wr_ary = svc_rdma_get_write_array(rmsgp);
+	if (wr_ary) {
+		int chunk = be32_to_cpu(wr_ary->wc_nchunks);
+
+		rp_ary = (struct rpcrdma_write_array *)
+			 &wr_ary->wc_array[chunk].wc_target.rs_length;
+		goto found_it;
+	}
+
+	/* No read list, no write list */
+	rp_ary = (struct rpcrdma_write_array *)&rmsgp->rm_body.rm_chunks[2];
+
+ found_it:
+	if (rp_ary->wc_discrim == xdr_zero)
+		return NULL;
+	return rp_ary;
+}
+
 /* Assumptions:
  * - The specified write_len can be represented in sc_max_sge * PAGE_SIZE
  */
