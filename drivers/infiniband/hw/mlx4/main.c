@@ -2692,6 +2692,8 @@ static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
 		spin_lock_irqsave(&ibdev->sriov.going_down_lock, flags);
 		if (!ibdev->sriov.is_going_down)
 			queue_work(ibdev->sriov.demux[i].ud_wq, &dm[i]->work);
+		else
+			kfree(dm[i]);
 		spin_unlock_irqrestore(&ibdev->sriov.going_down_lock, flags);
 	}
 out:
