@@ -963,7 +963,6 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	} else {
 		pool->npages_free += count;
 		list_splice(&ttm_dma->pages_list, &pool->free_list);
-		npages = count;
 		if (pool->npages_free > _manager->options.max_size) {
 			npages = pool->npages_free - _manager->options.max_size;
 			/* free at least NUM_PAGES_TO_ALLOC number of pages
