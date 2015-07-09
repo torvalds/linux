@@ -3157,8 +3157,7 @@ static void load_xsave(struct kvm_vcpu *vcpu, u8 *src)
 			cpuid_count(XSTATE_CPUID, index,
 				    &size, &offset, &ecx, &edx);
 			memcpy(dest, src + offset, size);
-		} else
-			WARN_ON_ONCE(1);
+		}
 
 		valid -= feature;
 	}
