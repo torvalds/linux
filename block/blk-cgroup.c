@@ -1048,10 +1048,8 @@ int blkcg_activate_policy(struct request_queue *q,
 			  const struct blkcg_policy *pol)
 {
 	LIST_HEAD(pds);
-	LIST_HEAD(cpds);
 	struct blkcg_gq *blkg;
 	struct blkg_policy_data *pd, *nd;
-	struct blkcg_policy_data *cpd, *cnd;
 	int cnt = 0, ret;
 
 	if (blkcg_policy_enabled(q, pol))
@@ -1064,10 +1062,7 @@ int blkcg_activate_policy(struct request_queue *q,
 		cnt++;
 	spin_unlock_irq(q->queue_lock);
 
-	/*
-	 * Allocate per-blkg and per-blkcg policy data
-	 * for all existing blkgs.
-	 */
+	/* allocate per-blkg policy data for all existing blkgs */
 	while (cnt--) {
 		pd = kzalloc_node(pol->pd_size, GFP_KERNEL, q->node);
 		if (!pd) {
@@ -1075,15 +1070,6 @@ int blkcg_activate_policy(struct request_queue *q,
 			goto out_free;
 		}
 		list_add_tail(&pd->alloc_node, &pds);
-
-		if (!pol->cpd_size)
-			continue;
-		cpd = kzalloc_node(pol->cpd_size, GFP_KERNEL, q->node);
-		if (!cpd) {
-			ret = -ENOMEM;
-			goto out_free;
-		}
-		list_add_tail(&cpd->alloc_node, &cpds);
 	}
 
 	/*
@@ -1093,32 +1079,17 @@ int blkcg_activate_policy(struct request_queue *q,
 	spin_lock_irq(q->queue_lock);
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
-		if (WARN_ON(list_empty(&pds)) ||
-		    WARN_ON(pol->cpd_size && list_empty(&cpds))) {
+		if (WARN_ON(list_empty(&pds))) {
 			/* umm... this shouldn't happen, just abort */
 			ret = -ENOMEM;
 			goto out_unlock;
 		}
-		cpd = list_first_entry(&cpds, struct blkcg_policy_data,
-				       alloc_node);
-		list_del_init(&cpd->alloc_node);
 		pd = list_first_entry(&pds, struct blkg_policy_data, alloc_node);
 		list_del_init(&pd->alloc_node);
 
 		/* grab blkcg lock too while installing @pd on @blkg */
 		spin_lock(&blkg->blkcg->lock);
 
-		if (!pol->cpd_size)
-			goto no_cpd;
-		if (!blkg->blkcg->pd[pol->plid]) {
-			/* Per-policy per-blkcg data */
-			blkg->blkcg->pd[pol->plid] = cpd;
-			cpd->plid = pol->plid;
-			pol->cpd_init_fn(blkg->blkcg);
-		} else { /* must free it as it has already been extracted */
-			kfree(cpd);
-		}
-no_cpd:
 		blkg->pd[pol->plid] = pd;
 		pd->blkg = blkg;
 		pd->plid = pol->plid;
@@ -1135,8 +1106,6 @@ out_free:
 	blk_queue_bypass_end(q);
 	list_for_each_entry_safe(pd, nd, &pds, alloc_node)
 		kfree(pd);
-	list_for_each_entry_safe(cpd, cnd, &cpds, alloc_node)
-		kfree(cpd);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blkcg_activate_policy);
@@ -1191,6 +1160,7 @@ EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);
  */
 int blkcg_policy_register(struct blkcg_policy *pol)
 {
+	struct blkcg *blkcg;
 	int i, ret;
 
 	if (WARN_ON(pol->pd_size < sizeof(struct blkg_policy_data)))
@@ -1207,9 +1177,27 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	if (i >= BLKCG_MAX_POLS)
 		goto err_unlock;
 
-	/* register and update blkgs */
+	/* register @pol */
 	pol->plid = i;
-	blkcg_policy[i] = pol;
+	blkcg_policy[pol->plid] = pol;
+
+	/* allocate and install cpd's */
+	if (pol->cpd_size) {
+		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
+			struct blkcg_policy_data *cpd;
+
+			cpd = kzalloc(pol->cpd_size, GFP_KERNEL);
+			if (!cpd) {
+				mutex_unlock(&blkcg_pol_mutex);
+				goto err_free_cpds;
+			}
+
+			blkcg->pd[pol->plid] = cpd;
+			cpd->plid = pol->plid;
+			pol->cpd_init_fn(blkcg);
+		}
+	}
+
 	mutex_unlock(&blkcg_pol_mutex);
 
 	/* everything is in place, add intf files for the new policy */
@@ -1219,6 +1207,14 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	mutex_unlock(&blkcg_pol_register_mutex);
 	return 0;
 
+err_free_cpds:
+	if (pol->cpd_size) {
+		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
+			kfree(blkcg->pd[pol->plid]);
+			blkcg->pd[pol->plid] = NULL;
+		}
+	}
+	blkcg_policy[pol->plid] = NULL;
 err_unlock:
 	mutex_unlock(&blkcg_pol_mutex);
 	mutex_unlock(&blkcg_pol_register_mutex);
@@ -1234,6 +1230,8 @@ EXPORT_SYMBOL_GPL(blkcg_policy_register);
  */
 void blkcg_policy_unregister(struct blkcg_policy *pol)
 {
+	struct blkcg *blkcg;
+
 	mutex_lock(&blkcg_pol_register_mutex);
 
 	if (WARN_ON(blkcg_policy[pol->plid] != pol))
@@ -1243,9 +1241,17 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
 	if (pol->cftypes)
 		cgroup_rm_cftypes(pol->cftypes);
 
-	/* unregister and update blkgs */
+	/* remove cpds and unregister */
 	mutex_lock(&blkcg_pol_mutex);
+
+	if (pol->cpd_size) {
+		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
+			kfree(blkcg->pd[pol->plid]);
+			blkcg->pd[pol->plid] = NULL;
+		}
+	}
 	blkcg_policy[pol->plid] = NULL;
+
 	mutex_unlock(&blkcg_pol_mutex);
 out_unlock:
 	mutex_unlock(&blkcg_pol_register_mutex);
