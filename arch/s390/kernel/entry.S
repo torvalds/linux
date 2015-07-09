@@ -199,7 +199,7 @@ ENTRY(sie64a)
 	jo	.Lsie_skip			# exit if fp/vx regs changed
 	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_LPP
 	jz	.Lsie_enter
-	.insn	s,0xb2800000,__SF_EMPTY(%r15)	# set guest id
+	.insn	s,0xb2800000,__LC_CURRENT_PID	# set guest id to pid
 .Lsie_enter:
 	sie	0(%r14)
 	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_LPP
