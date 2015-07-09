@@ -906,8 +906,8 @@ static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)
 	}
 
 	/* enable vsync interrupt */
-	mixer_reg_writemask(res, MXR_INT_EN, MXR_INT_EN_VSYNC,
-			MXR_INT_EN_VSYNC);
+	mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
+	mixer_reg_writemask(res, MXR_INT_EN, ~0, MXR_INT_EN_VSYNC);
 
 	return 0;
 }
@@ -918,6 +918,7 @@ static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
 	/* disable vsync interrupt */
+	mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
 	mixer_reg_writemask(res, MXR_INT_EN, 0, MXR_INT_EN_VSYNC);
 }
 
@@ -1046,6 +1047,8 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 
 	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
 
+	if (ctx->int_en & MXR_INT_EN_VSYNC)
+		mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
 	mixer_win_reset(ctx);
 }
