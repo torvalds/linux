@@ -20,7 +20,7 @@ int mips_cm_is64;
 phys_addr_t __mips_cm_phys_base(void)
 {
 	u32 config3 = read_c0_config3();
-	u32 cmgcr;
+	unsigned long cmgcr;
 
 	/* Check the CMGCRBase register is implemented */
 	if (!(config3 & MIPS_CONF3_CMGCR))
