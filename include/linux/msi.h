@@ -18,30 +18,60 @@ struct pci_dev;
 void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg);
 
+/**
+ * struct msi_desc - Descriptor structure for MSI based interrupts
+ * @list:	List head for management
+ * @irq:	The base interrupt number
+ * @nvec_used:	The number of vectors used
+ * @dev:	Pointer to the device which uses this descriptor
+ * @msg:	The last set MSI message cached for reuse
+ *
+ * @masked:	[PCI MSI/X] Mask bits
+ * @is_msix:	[PCI MSI/X] True if MSI-X
+ * @multiple:	[PCI MSI/X] log2 num of messages allocated
+ * @multi_cap:	[PCI MSI/X] log2 num of messages supported
+ * @maskbit:	[PCI MSI/X] Mask-Pending bit supported?
+ * @is_64:	[PCI MSI/X] Address size: 0=32bit 1=64bit
+ * @entry_nr:	[PCI MSI/X] Entry which is described by this descriptor
+ * @default_irq:[PCI MSI/X] The default pre-assigned non-MSI irq
+ * @mask_pos:	[PCI MSI]   Mask register position
+ * @mask_base:	[PCI MSI-X] Mask register base address
+ */
 struct msi_desc {
-	struct {
-		__u8	is_msix	: 1;
-		__u8	multiple: 3;	/* log2 num of messages allocated */
-		__u8	multi_cap : 3;	/* log2 num of messages supported */
-		__u8	maskbit	: 1;	/* mask-pending bit supported ? */
-		__u8	is_64	: 1;	/* Address size: 0=32bit 1=64bit */
-		__u16	entry_nr;	/* specific enabled entry */
-		unsigned default_irq;	/* default pre-assigned irq */
-	} msi_attrib;
-
-	u32 masked;			/* mask bits */
-	unsigned int irq;
-	unsigned int nvec_used;		/* number of messages */
-	struct list_head list;
+	/* Shared device/bus type independent data */
+	struct list_head		list;
+	unsigned int			irq;
+	unsigned int			nvec_used;
+	struct device			*dev;
+	struct msi_msg			msg;
 
 	union {
-		void __iomem *mask_base;
-		u8 mask_pos;
-	};
-	struct device *dev;
+		/* PCI MSI/X specific data */
+		struct {
+			u32 masked;
+			struct {
+				__u8	is_msix		: 1;
+				__u8	multiple	: 3;
+				__u8	multi_cap	: 3;
+				__u8	maskbit		: 1;
+				__u8	is_64		: 1;
+				__u16	entry_nr;
+				unsigned default_irq;
+			} msi_attrib;
+			union {
+				u8	mask_pos;
+				void __iomem *mask_base;
+			};
+		};
 
-	/* Last set MSI message */
-	struct msi_msg msg;
+		/*
+		 * Non PCI variants add their data structure here. New
+		 * entries need to use a named structure. We want
+		 * proper name spaces for this. The PCI part is
+		 * anonymous for now as it would require an immediate
+		 * tree wide cleanup.
+		 */
+	};
 };
 
 /* Helpers to hide struct msi_desc implementation details */
