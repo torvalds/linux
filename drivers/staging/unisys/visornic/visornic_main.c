@@ -1978,15 +1978,11 @@ static int visornic_probe(struct visor_device *dev)
 		goto cleanup_xmit_cmdrsp;
 	}
 
-	devdata->thread_wait_ms = 2;
-	visor_thread_start(&devdata->threadinfo, process_incoming_rsps,
-			   devdata, "vnic_incoming");
-
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&dev->device,
 			"%s register_netdev failed (%d)\n", __func__, err);
-		goto cleanup_thread_stop;
+		goto cleanup_xmit_cmdrsp;
 	}
 
 	/* create debgug/sysfs directories */
@@ -1997,15 +1993,16 @@ static int visornic_probe(struct visor_device *dev)
 			"%s debugfs_create_dir %s failed\n",
 			__func__, netdev->name);
 		err = -ENOMEM;
-		goto cleanup_thread_stop;
+		goto cleanup_xmit_cmdrsp;
 	}
+
+	devdata->thread_wait_ms = 2;
+	visor_thread_start(&devdata->threadinfo, process_incoming_rsps,
+			   devdata, "vnic_incoming");
 
 	dev_info(&dev->device, "%s success netdev=%s\n",
 		 __func__, netdev->name);
 	return 0;
-
-cleanup_thread_stop:
-	visor_thread_stop(&devdata->threadinfo);
 
 cleanup_xmit_cmdrsp:
 	kfree(devdata->xmit_cmdrsp);
