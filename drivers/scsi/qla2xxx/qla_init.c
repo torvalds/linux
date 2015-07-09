@@ -2085,7 +2085,7 @@ void
 qla24xx_config_rings(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	device_reg_t __iomem *reg = ISP_QUE_REG(ha, 0);
+	device_reg_t *reg = ISP_QUE_REG(ha, 0);
 	struct device_reg_2xxx __iomem *ioreg = &ha->iobase->isp;
 	struct qla_msix_entry *msix;
 	struct init_cb_24xx *icb;

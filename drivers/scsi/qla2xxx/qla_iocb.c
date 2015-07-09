@@ -451,7 +451,7 @@ void
 qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 {
 	struct qla_hw_data *ha = vha->hw;
-	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
+	device_reg_t *reg = ISP_QUE_REG(ha, req->id);
 
 	if (IS_P3P_TYPE(ha)) {
 		qla82xx_start_iocbs(vha);
@@ -1795,7 +1795,7 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
-	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
+	device_reg_t *reg = ISP_QUE_REG(ha, req->id);
 	uint32_t index, handle;
 	request_t *pkt;
 	uint16_t cnt, req_cnt;
