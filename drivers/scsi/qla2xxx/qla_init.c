@@ -1127,7 +1127,7 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	unsigned long flags = 0;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-	uint32_t cnt, d2;
+	uint32_t cnt;
 	uint16_t wd;
 	static int abts_cnt; /* ISP abort retry counts */
 	int rval = QLA_SUCCESS;
@@ -1159,7 +1159,7 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	udelay(100);
 
 	/* Wait for firmware to complete NVRAM accesses. */
-	d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+	RD_REG_WORD(&reg->mailbox0);
 	for (cnt = 10000; RD_REG_WORD(&reg->mailbox0) != 0 &&
 	    rval == QLA_SUCCESS; cnt--) {
 		barrier();
@@ -1178,7 +1178,7 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	    RD_REG_DWORD(&reg->mailbox0));
 
 	/* Wait for soft-reset to complete. */
-	d2 = RD_REG_DWORD(&reg->ctrl_status);
+	RD_REG_DWORD(&reg->ctrl_status);
 	for (cnt = 0; cnt < 6000000; cnt++) {
 		barrier();
 		if ((RD_REG_DWORD(&reg->ctrl_status) &
@@ -1221,7 +1221,7 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_RESET);
 	RD_REG_DWORD(&reg->hccr);
 
-	d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+	RD_REG_WORD(&reg->mailbox0);
 	for (cnt = 6000000; RD_REG_WORD(&reg->mailbox0) != 0 &&
 	    rval == QLA_SUCCESS; cnt--) {
 		barrier();
@@ -3856,12 +3856,10 @@ qla2x00_fabric_dev_login(scsi_qla_host_t *vha, fc_port_t *fcport,
     uint16_t *next_loopid)
 {
 	int	rval;
-	int	retry;
 	uint8_t opts;
 	struct qla_hw_data *ha = vha->hw;
 
 	rval = QLA_SUCCESS;
-	retry = 0;
 
 	if (IS_ALOGIO_CAPABLE(ha)) {
 		if (fcport->flags & FCF_ASYNC_SENT)
