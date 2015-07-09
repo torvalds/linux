@@ -736,12 +736,12 @@ void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
 	u32 value, checksum;
 
 	if (!pmc->soc->has_tsense_reset)
-		goto out;
+		return;
 
 	np = of_find_node_by_name(pmc->dev->of_node, "i2c-thermtrip");
 	if (!np) {
 		dev_warn(dev, "i2c-thermtrip node not found, %s.\n", disabled);
-		goto out;
+		return;
 	}
 
 	if (of_property_read_u32(np, "nvidia,i2c-controller-id", &ctrl_id)) {
