@@ -1579,8 +1579,8 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 }
 
 /* Plane list iterator for legacy (overlay only) planes. */
-#define drm_for_each_legacy_plane(plane, planelist) \
-	list_for_each_entry(plane, planelist, head) \
+#define drm_for_each_legacy_plane(plane, dev) \
+	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head) \
 		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 
 #endif /* __DRM_CRTC_H__ */
