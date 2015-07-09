@@ -10319,6 +10319,13 @@ F:	drivers/char/toshiba.c
 F:	include/linux/toshiba.h
 F:	include/uapi/linux/toshiba.h
 
+TOSHIBA TC358743 DRIVER
+M:	Mats Randgaard <matrandg@cisco.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/tc358743*
+F:	include/media/tc358743.h
+
 TMIO MMC DRIVER
 M:	Ian Molton <ian@mnementh.co.uk>
 L:	linux-mmc@vger.kernel.org
