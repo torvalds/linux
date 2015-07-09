@@ -369,25 +369,33 @@ static unsigned int calculate_ftlb_probability(struct cpuinfo_mips *c)
 
 static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 {
-	unsigned int config6;
+	unsigned int config;
 
 	/* It's implementation dependent how the FTLB can be enabled */
 	switch (c->cputype) {
 	case CPU_PROAPTIV:
 	case CPU_P5600:
 		/* proAptiv & related cores use Config6 to enable the FTLB */
-		config6 = read_c0_config6();
+		config = read_c0_config6();
 		/* Clear the old probability value */
-		config6 &= ~(3 << MIPS_CONF6_FTLBP_SHIFT);
+		config &= ~(3 << MIPS_CONF6_FTLBP_SHIFT);
 		if (enable)
 			/* Enable FTLB */
-			write_c0_config6(config6 |
+			write_c0_config6(config |
 					 (calculate_ftlb_probability(c)
 					  << MIPS_CONF6_FTLBP_SHIFT)
 					 | MIPS_CONF6_FTLBEN);
 		else
 			/* Disable FTLB */
-			write_c0_config6(config6 &  ~MIPS_CONF6_FTLBEN);
+			write_c0_config6(config &  ~MIPS_CONF6_FTLBEN);
+		break;
+	case CPU_I6400:
+		/* I6400 & related cores use Config7 to configure FTLB */
+		config = read_c0_config7();
+		/* Clear the old probability value */
+		config &= ~(3 << MIPS_CONF7_FTLBP_SHIFT);
+		write_c0_config7(config | (calculate_ftlb_probability(c)
+					   << MIPS_CONF7_FTLBP_SHIFT));
 		break;
 	default:
 		return 1;
