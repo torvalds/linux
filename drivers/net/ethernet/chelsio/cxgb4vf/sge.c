@@ -1898,7 +1898,10 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 		rspq->unhandled_irqs++;
 
 	val = CIDXINC_V(work_done) | SEINTARM_V(intr_params);
-	if (is_t4(rspq->adapter->params.chip)) {
+	/* If we don't have access to the new User GTS (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(!rspq->bar2_addr)) {
 		t4_write_reg(rspq->adapter,
 			     T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
 			     val | INGRESSQID_V((u32)rspq->cntxt_id));
@@ -1998,10 +2001,13 @@ static unsigned int process_intrq(struct adapter *adapter)
 	}
 
 	val = CIDXINC_V(work_done) | SEINTARM_V(intrq->intr_params);
-	if (is_t4(adapter->params.chip))
+	/* If we don't have access to the new User GTS (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(!intrq->bar2_addr)) {
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
 			     val | INGRESSQID_V(intrq->cntxt_id));
-	else {
+	} else {
 		writel(val | INGRESSQID_V(intrq->bar2_qid),
 		       intrq->bar2_addr + SGE_UDB_GTS);
 		wmb();
