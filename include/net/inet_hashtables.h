@@ -205,8 +205,8 @@ void inet_put_port(struct sock *sk);
 
 void inet_hashinfo_init(struct inet_hashinfo *h);
 
-int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw);
-int __inet_hash(struct sock *sk, struct inet_timewait_sock *tw);
+void __inet_hash_nolisten(struct sock *sk, struct sock *osk);
+void __inet_hash(struct sock *sk, struct sock *osk);
 void inet_hash(struct sock *sk);
 void inet_unhash(struct sock *sk);
 

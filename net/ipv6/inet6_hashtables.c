@@ -207,7 +207,6 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	struct sock *sk2;
 	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw = NULL;
-	int twrefcnt = 0;
 
 	spin_lock(lock);
 
@@ -234,21 +233,17 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	WARN_ON(!sk_unhashed(sk));
 	__sk_nulls_add_node_rcu(sk, &head->chain);
 	if (tw) {
-		twrefcnt = inet_twsk_unhash(tw);
+		sk_nulls_del_node_init_rcu((struct sock *)tw);
 		NET_INC_STATS_BH(net, LINUX_MIB_TIMEWAITRECYCLED);
 	}
 	spin_unlock(lock);
-	if (twrefcnt)
-		inet_twsk_put(tw);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
 	if (twp) {
 		*twp = tw;
 	} else if (tw) {
 		/* Silly. Should hash-dance instead... */
-		inet_twsk_deschedule(tw);
-
-		inet_twsk_put(tw);
+		inet_twsk_deschedule_put(tw);
 	}
 	return 0;
 
