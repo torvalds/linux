@@ -1606,6 +1606,10 @@ assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
 	list_for_each_entry(encoder, &(dev)->mode_config.encoder_list, head)
 
 #define drm_for_each_fb(fb, dev) \
-	list_for_each_entry(fb, &(dev)->mode_config.fb_list, head)
+	for (WARN_ON(!mutex_is_locked(&(dev)->mode_config.fb_lock)),		\
+	     fb = list_first_entry(&(dev)->mode_config.fb_list,	\
+					  struct drm_framebuffer, head);	\
+	     &fb->head != (&(dev)->mode_config.fb_list);			\
+	     fb = list_next_entry(fb, head))
 
 #endif /* __DRM_CRTC_H__ */
