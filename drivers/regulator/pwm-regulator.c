@@ -30,7 +30,6 @@ struct pwm_regulator_data {
 	int state;
 
 	/* Continuous voltage */
-	u32 max_duty_cycle;
 	int volt_uV;
 };
 
@@ -201,14 +200,6 @@ static int pwm_regulator_init_continuous(struct platform_device *pdev,
 					 struct pwm_regulator_data *drvdata)
 {
 	struct device_node *np = pdev->dev.of_node;
-	int ret;
-
-	ret = of_property_read_u32(np, "max-duty-cycle",
-				   &drvdata->max_duty_cycle);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to read \"pwm-max-value\"\n");
-		return ret;
-	}
 
 	pwm_regulator_desc.ops = &pwm_regulator_voltage_continuous_ops;
 	pwm_regulator_desc.continuous_voltage_range = true;

@@ -29,15 +29,14 @@ Required properties:
 
 - pwms:			PWM specification (See: ../pwm/pwm.txt)
 
-One of these must be provided:
+Only required for Voltage Table Mode:
 - voltage-table: 	Voltage and Duty-Cycle table consisting of 2 cells
 			    First cell is voltage in microvolts (uV)
 			    Second cell is duty-cycle in percent (%)
 
-- max-duty-cycle:	Maximum Duty-Cycle value -- this will normally be
-  			255 (0xff) for an 8 bit PWM device
-
-If both are provided, the current default is voltage-table mode.
+NB: To be clear, if voltage-table is provided, then the device will be used
+in Voltage Table Mode.  If no voltage-table is provided, then the device will
+be used in Continuous Voltage Mode.
 
 Any property defined as part of the core regulator binding can also be used.
 (See: ../regulator/regulator.txt)
@@ -49,8 +48,6 @@ Continuous Voltage Example:
 		regulator-min-microvolt = <1016000>;
 		regulator-max-microvolt = <1114000>;
 		regulator-name = "vdd_logic";
-
-		max-duty-cycle = <255>; /* 8bit PWM */
 	};
 
 Voltage Table Example:
