@@ -1367,9 +1367,7 @@ static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 	struct qla_hw_data *ha = tgt->ha;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 	struct se_session *se_sess;
-	struct se_node_acl *se_nacl;
 	struct tcm_qla2xxx_lport *lport;
-	struct tcm_qla2xxx_nacl *nacl;
 
 	BUG_ON(in_interrupt());
 
@@ -1379,8 +1377,6 @@ static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 		dump_stack();
 		return;
 	}
-	se_nacl = se_sess->se_node_acl;
-	nacl = container_of(se_nacl, struct tcm_qla2xxx_nacl, se_node_acl);
 
 	lport = vha->vha_tgt.target_lport_ptr;
 	if (!lport) {
@@ -1684,7 +1680,6 @@ static int tcm_qla2xxx_lport_register_npiv_cb(struct scsi_qla_host *base_vha,
 			(struct tcm_qla2xxx_lport *)target_lport_ptr;
 	struct tcm_qla2xxx_lport *base_lport =
 			(struct tcm_qla2xxx_lport *)base_vha->vha_tgt.target_lport_ptr;
-	struct tcm_qla2xxx_tpg *base_tpg;
 	struct fc_vport_identifiers vport_id;
 
 	if (!qla_tgt_mode_enabled(base_vha)) {
@@ -1697,7 +1692,6 @@ static int tcm_qla2xxx_lport_register_npiv_cb(struct scsi_qla_host *base_vha,
 		pr_err("qla2xxx base_lport or tpg_1 not available\n");
 		return -EPERM;
 	}
-	base_tpg = base_lport->tpg_1;
 
 	memset(&vport_id, 0, sizeof(vport_id));
 	vport_id.port_name = npiv_wwpn;
