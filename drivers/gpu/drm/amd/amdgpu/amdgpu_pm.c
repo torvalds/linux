@@ -580,7 +580,6 @@ force:
 		amdgpu_dpm_print_power_state(adev, adev->pm.dpm.requested_ps);
 	}
 
-	mutex_lock(&adev->ddev->struct_mutex);
 	mutex_lock(&adev->ring_lock);
 
 	/* update whether vce is active */
@@ -628,7 +627,6 @@ force:
 
 done:
 	mutex_unlock(&adev->ring_lock);
-	mutex_unlock(&adev->ddev->struct_mutex);
 }
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
