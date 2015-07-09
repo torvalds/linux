@@ -546,7 +546,16 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	if (cpu_has_tlb) {
 		if (((config4 & MIPS_CONF4_IE) >> 29) == 2)
 			c->options |= MIPS_CPU_TLBINV;
-		mmuextdef = config4 & MIPS_CONF4_MMUEXTDEF;
+		/*
+		 * This is a bit ugly. R6 has dropped that field from
+		 * config4 and the only valid configuration is VTLB+FTLB so
+		 * set a good value for mmuextdef for that case.
+		 */
+		if (cpu_has_mips_r6)
+			mmuextdef = MIPS_CONF4_MMUEXTDEF_VTLBSIZEEXT;
+		else
+			mmuextdef = config4 & MIPS_CONF4_MMUEXTDEF;
+
 		switch (mmuextdef) {
 		case MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT:
 			c->tlbsize += (config4 & MIPS_CONF4_MMUSIZEEXT) * 0x40;
