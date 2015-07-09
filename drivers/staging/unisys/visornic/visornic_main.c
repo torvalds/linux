@@ -2241,6 +2241,8 @@ cleanup_debugfs:
  */
 static void visornic_cleanup(void)
 {
+	visorbus_unregister_visor_driver(&visornic_driver);
+
 	if (visornic_serverdown_workqueue) {
 		flush_workqueue(visornic_serverdown_workqueue);
 		destroy_workqueue(visornic_serverdown_workqueue);
@@ -2251,7 +2253,6 @@ static void visornic_cleanup(void)
 	}
 	debugfs_remove_recursive(visornic_debugfs_dir);
 
-	visorbus_unregister_visor_driver(&visornic_driver);
 	kfree(dev_num_pool);
 	dev_num_pool = NULL;
 }
