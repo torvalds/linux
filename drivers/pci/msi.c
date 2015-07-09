@@ -413,7 +413,7 @@ static struct msi_desc *alloc_msi_entry(struct pci_dev *dev)
 		return NULL;
 
 	INIT_LIST_HEAD(&desc->list);
-	desc->dev = dev;
+	desc->dev = &dev->dev;
 
 	return desc;
 }
@@ -1139,6 +1139,11 @@ int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 	return nvec;
 }
 EXPORT_SYMBOL(pci_enable_msix_range);
+
+struct pci_dev *msi_desc_to_pci_dev(struct msi_desc *desc)
+{
+	return to_pci_dev(desc->dev);
+}
 
 void *msi_desc_to_pci_sysdata(struct msi_desc *desc)
 {
