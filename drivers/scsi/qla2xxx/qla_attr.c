@@ -1077,8 +1077,7 @@ qla2x00_model_desc_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
-	return scnprintf(buf, PAGE_SIZE, "%s\n",
-	    vha->hw->model_desc ? vha->hw->model_desc : "");
+	return scnprintf(buf, PAGE_SIZE, "%s\n", vha->hw->model_desc);
 }
 
 static ssize_t
