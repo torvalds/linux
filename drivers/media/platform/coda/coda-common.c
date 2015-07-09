@@ -888,14 +888,14 @@ static void coda_pic_run_work(struct work_struct *work)
 static int coda_job_ready(void *m2m_priv)
 {
 	struct coda_ctx *ctx = m2m_priv;
+	int src_bufs = v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx);
 
 	/*
 	 * For both 'P' and 'key' frame cases 1 picture
 	 * and 1 frame are needed. In the decoder case,
 	 * the compressed frame can be in the bitstream.
 	 */
-	if (!v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) &&
-	    ctx->inst_type != CODA_INST_DECODER) {
+	if (!src_bufs && ctx->inst_type != CODA_INST_DECODER) {
 		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 			 "not ready: not enough video buffers.\n");
 		return 0;
@@ -911,9 +911,8 @@ static int coda_job_ready(void *m2m_priv)
 		struct list_head *meta;
 		bool stream_end;
 		int num_metas;
-		int src_bufs;
 
-		if (ctx->hold && !v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx)) {
+		if (ctx->hold && !src_bufs) {
 			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 				 "%d: not ready: on hold for more buffers.\n",
 				 ctx->idx);
@@ -927,8 +926,6 @@ static int coda_job_ready(void *m2m_priv)
 		list_for_each(meta, &ctx->buffer_meta_list)
 			num_metas++;
 
-		src_bufs = v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx);
-
 		if (!stream_end && (num_metas + src_bufs) < 2) {
 			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 				 "%d: not ready: need 2 buffers available (%d, %d)\n",
@@ -937,8 +934,8 @@ static int coda_job_ready(void *m2m_priv)
 		}
 
 
-		if (!v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) &&
-		    !stream_end && (coda_get_bitstream_payload(ctx) < 512)) {
+		if (!src_bufs && !stream_end &&
+		    (coda_get_bitstream_payload(ctx) < 512)) {
 			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 				 "%d: not ready: not enough bitstream data (%d).\n",
 				 ctx->idx, coda_get_bitstream_payload(ctx));
