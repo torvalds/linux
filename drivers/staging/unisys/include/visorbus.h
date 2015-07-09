@@ -113,7 +113,8 @@ struct visor_driver {
 	struct driver_attribute version_attr;
 };
 
-#define to_visor_driver(x) container_of(x, struct visor_driver, driver)
+#define to_visor_driver(x) ((x) ? \
+	(container_of(x, struct visor_driver, driver)) : (NULL))
 
 /** A device type for things "plugged" into the visorbus bus */
 
