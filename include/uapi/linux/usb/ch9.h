@@ -688,6 +688,7 @@ struct usb_otg20_descriptor {
 /* from usb_otg_descriptor.bmAttributes */
 #define USB_OTG_SRP		(1 << 0)
 #define USB_OTG_HNP		(1 << 1)	/* swap host/device roles */
+#define USB_OTG_ADP		(1 << 2)	/* support ADP */
 
 /*-------------------------------------------------------------------------*/
 
