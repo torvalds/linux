@@ -119,7 +119,6 @@ struct visornic_devdata {
 	struct visor_device *dev;
 	char name[99];
 	struct list_head list_all;   /* < link within list_all_devices list */
-	struct kref kref;
 	struct net_device *netdev;
 	struct net_device_stats net_stats;
 	atomic_t interrupt_rcvd;
@@ -1602,14 +1601,11 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 	spin_unlock(&dev_num_pool_lock);
 	if (devnum == MAXDEVICES)
 		devnum = -1;
-	if (devnum < 0) {
-		kfree(devdata);
+	if (devnum < 0)
 		return NULL;
-	}
 	devdata->devnum = devnum;
 	devdata->dev = dev;
 	strncpy(devdata->name, dev_name(&dev->device), sizeof(devdata->name));
-	kref_init(&devdata->kref);
 	spin_lock(&lock_all_devices);
 	list_add_tail(&devdata->list_all, &list_all_devices);
 	spin_unlock(&lock_all_devices);
@@ -1617,17 +1613,14 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 }
 
 /**
- *	devdata_release	- Frees up a devdata
- *	@mykref: kref to the devdata
+ *	devdata_release	- Frees up references in devdata
+ *	@devdata: struct to clean up
  *
- *	Frees up a devdata.
+ *	Frees up references in devdata.
  *	Returns void
  */
-static void devdata_release(struct kref *mykref)
+static void devdata_release(struct visornic_devdata *devdata)
 {
-	struct visornic_devdata *devdata =
-		container_of(mykref, struct visornic_devdata, kref);
-
 	spin_lock(&dev_num_pool_lock);
 	clear_bit(devdata->devnum, dev_num_pool);
 	spin_unlock(&dev_num_pool_lock);
@@ -1637,7 +1630,6 @@ static void devdata_release(struct kref *mykref)
 	kfree(devdata->rcvbuf);
 	kfree(devdata->cmdrsp_rcv);
 	kfree(devdata->xmit_cmdrsp);
-	kfree(devdata);
 }
 
 static const struct net_device_ops visornic_dev_ops = {
@@ -2089,8 +2081,8 @@ static void visornic_remove(struct visor_device *dev)
 
 	dev_set_drvdata(&dev->device, NULL);
 	host_side_disappeared(devdata);
+	devdata_release(devdata);
 	free_netdev(netdev);
-	kref_put(&devdata->kref, devdata_release);
 }
 
 /**
