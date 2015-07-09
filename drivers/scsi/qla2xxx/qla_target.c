@@ -3955,16 +3955,20 @@ static void qlt_reject_free_srr_imm(struct scsi_qla_host *vha,
 	struct qla_hw_data *ha = vha->hw;
 	unsigned long flags = 0;
 
+#ifndef __CHECKER__
 	if (!ha_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
+#endif
 
 	qlt_send_notify_ack(vha, (void *)&imm->imm_ntfy, 0, 0, 0,
 	    NOTIFY_ACK_SRR_FLAGS_REJECT,
 	    NOTIFY_ACK_SRR_REJECT_REASON_UNABLE_TO_PERFORM,
 	    NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_NO_EXPL);
 
+#ifndef __CHECKER__
 	if (!ha_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+#endif
 
 	kfree(imm);
 }

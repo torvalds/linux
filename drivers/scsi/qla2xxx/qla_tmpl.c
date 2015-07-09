@@ -939,8 +939,10 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	ulong flags = 0;
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_lock_irqsave(&vha->hw->hardware_lock, flags);
+#endif
 
 	if (!vha->hw->fw_dump)
 		ql_log(ql_log_warn, vha, 0xd01e, "fwdump buffer missing.\n");
@@ -953,6 +955,8 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 	else
 		qla27xx_execute_fwdt_template(vha);
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+#endif
 }

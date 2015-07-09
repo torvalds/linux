@@ -476,7 +476,9 @@ qla82xx_wr_32(struct qla_hw_data *ha, ulong off_in, u32 data)
 	BUG_ON(rv == -1);
 
 	if (rv == 1) {
+#ifndef __CHECKER__
 		write_lock_irqsave(&ha->hw_lock, flags);
+#endif
 		qla82xx_crb_win_lock(ha);
 		qla82xx_pci_set_crbwindow_2M(ha, off_in, &off);
 	}
@@ -485,7 +487,9 @@ qla82xx_wr_32(struct qla_hw_data *ha, ulong off_in, u32 data)
 
 	if (rv == 1) {
 		qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM7_UNLOCK));
+#ifndef __CHECKER__
 		write_unlock_irqrestore(&ha->hw_lock, flags);
+#endif
 	}
 	return 0;
 }
@@ -503,7 +507,9 @@ qla82xx_rd_32(struct qla_hw_data *ha, ulong off_in)
 	BUG_ON(rv == -1);
 
 	if (rv == 1) {
+#ifndef __CHECKER__
 		write_lock_irqsave(&ha->hw_lock, flags);
+#endif
 		qla82xx_crb_win_lock(ha);
 		qla82xx_pci_set_crbwindow_2M(ha, off_in, &off);
 	}
@@ -511,7 +517,9 @@ qla82xx_rd_32(struct qla_hw_data *ha, ulong off_in)
 
 	if (rv == 1) {
 		qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM7_UNLOCK));
+#ifndef __CHECKER__
 		write_unlock_irqrestore(&ha->hw_lock, flags);
+#endif
 	}
 	return data;
 }
