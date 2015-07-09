@@ -406,18 +406,6 @@ static void free_msi_irqs(struct pci_dev *dev)
 	}
 }
 
-static struct msi_desc *alloc_msi_entry(struct pci_dev *dev)
-{
-	struct msi_desc *desc = kzalloc(sizeof(*desc), GFP_KERNEL);
-	if (!desc)
-		return NULL;
-
-	INIT_LIST_HEAD(&desc->list);
-	desc->dev = &dev->dev;
-
-	return desc;
-}
-
 static void pci_intx_for_msi(struct pci_dev *dev, int enable)
 {
 	if (!(dev->dev_flags & PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG))
@@ -572,7 +560,7 @@ static struct msi_desc *msi_setup_entry(struct pci_dev *dev, int nvec)
 	struct msi_desc *entry;
 
 	/* MSI Entry Initialization */
-	entry = alloc_msi_entry(dev);
+	entry = alloc_msi_entry(&dev->dev);
 	if (!entry)
 		return NULL;
 
@@ -700,7 +688,7 @@ static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
 	int i;
 
 	for (i = 0; i < nvec; i++) {
-		entry = alloc_msi_entry(dev);
+		entry = alloc_msi_entry(&dev->dev);
 		if (!entry) {
 			if (!i)
 				iounmap(base);
