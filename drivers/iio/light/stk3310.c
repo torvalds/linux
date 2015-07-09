@@ -608,13 +608,7 @@ static int stk3310_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "device_register failed\n");
-		stk3310_set_state(data, STK3310_STATE_STANDBY);
-	}
-
-	if (client->irq <= 0)
+	if (client->irq < 0)
 		client->irq = stk3310_gpio_probe(client);
 
 	if (client->irq >= 0) {
@@ -627,6 +621,12 @@ static int stk3310_probe(struct i2c_client *client,
 		if (ret < 0)
 			dev_err(&client->dev, "request irq %d failed\n",
 					client->irq);
+	}
+
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(&client->dev, "device_register failed\n");
+		stk3310_set_state(data, STK3310_STATE_STANDBY);
 	}
 
 	return ret;
