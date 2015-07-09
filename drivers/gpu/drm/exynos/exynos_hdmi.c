@@ -32,8 +32,8 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/io.h>
-#include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/hdmi.h>
 #include <linux/component.h>
@@ -200,14 +200,12 @@ struct hdmi_context {
 	struct hdmi_conf_regs		mode_conf;
 
 	struct hdmi_resources		res;
+	const struct hdmi_driver_data	*drv_data;
 
 	int				hpd_gpio;
 	void __iomem			*regs_hdmiphy;
-	const struct hdmiphy_config		*phy_confs;
-	unsigned int			phy_conf_count;
 
 	struct regmap			*pmureg;
-	enum hdmi_type			type;
 };
 
 static inline struct hdmi_context *display_to_hdmi(struct exynos_drm_display *d)
@@ -926,7 +924,7 @@ static void hdmi_v14_regs_dump(struct hdmi_context *hdata, char *prefix)
 
 static void hdmi_regs_dump(struct hdmi_context *hdata, char *prefix)
 {
-	if (hdata->type == HDMI_TYPE13)
+	if (hdata->drv_data->type == HDMI_TYPE13)
 		hdmi_v13_regs_dump(hdata, prefix);
 	else
 		hdmi_v14_regs_dump(hdata, prefix);
@@ -1087,8 +1085,8 @@ static int hdmi_find_phy_conf(struct hdmi_context *hdata, u32 pixel_clock)
 {
 	int i;
 
-	for (i = 0; i < hdata->phy_conf_count; i++)
-		if (hdata->phy_confs[i].pixel_clock == pixel_clock)
+	for (i = 0; i < hdata->drv_data->phy_conf_count; i++)
+		if (hdata->drv_data->phy_confs[i].pixel_clock == pixel_clock)
 			return i;
 
 	DRM_DEBUG_KMS("Could not find phy config for %d\n", pixel_clock);
@@ -1253,7 +1251,7 @@ static void hdmi_reg_acr(struct hdmi_context *hdata, u8 *acr)
 	hdmi_reg_writeb(hdata, HDMI_ACR_CTS1, acr[2]);
 	hdmi_reg_writeb(hdata, HDMI_ACR_CTS2, acr[1]);
 
-	if (hdata->type == HDMI_TYPE13)
+	if (hdata->drv_data->type == HDMI_TYPE13)
 		hdmi_reg_writeb(hdata, HDMI_V13_ACR_CON, 4);
 	else
 		hdmi_reg_writeb(hdata, HDMI_ACR_CON, 4);
@@ -1387,7 +1385,7 @@ static void hdmi_conf_init(struct hdmi_context *hdata)
 				HDMI_VID_PREAMBLE_DIS | HDMI_GUARD_BAND_DIS);
 	}
 
-	if (hdata->type == HDMI_TYPE13) {
+	if (hdata->drv_data->type == HDMI_TYPE13) {
 		/* choose bluescreen (fecal) color */
 		hdmi_reg_writeb(hdata, HDMI_V13_BLUE_SCREEN_0, 0x12);
 		hdmi_reg_writeb(hdata, HDMI_V13_BLUE_SCREEN_1, 0x34);
@@ -1666,7 +1664,7 @@ static void hdmi_v14_mode_apply(struct hdmi_context *hdata)
 
 static void hdmi_mode_apply(struct hdmi_context *hdata)
 {
-	if (hdata->type == HDMI_TYPE13)
+	if (hdata->drv_data->type == HDMI_TYPE13)
 		hdmi_v13_mode_apply(hdata);
 	else
 		hdmi_v14_mode_apply(hdata);
@@ -1684,7 +1682,7 @@ static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 	hdmiphy_reg_writeb(hdata, HDMIPHY_MODE_SET_DONE,
 				HDMI_PHY_ENABLE_MODE_SET);
 
-	if (hdata->type == HDMI_TYPE13)
+	if (hdata->drv_data->type == HDMI_TYPE13)
 		reg = HDMI_V13_PHY_RSTOUT;
 	else
 		reg = HDMI_PHY_RSTOUT;
@@ -1698,7 +1696,7 @@ static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 
 static void hdmiphy_poweron(struct hdmi_context *hdata)
 {
-	if (hdata->type != HDMI_TYPE14)
+	if (hdata->drv_data->type != HDMI_TYPE14)
 		return;
 
 	DRM_DEBUG_KMS("\n");
@@ -1718,7 +1716,7 @@ static void hdmiphy_poweron(struct hdmi_context *hdata)
 
 static void hdmiphy_poweroff(struct hdmi_context *hdata)
 {
-	if (hdata->type != HDMI_TYPE14)
+	if (hdata->drv_data->type != HDMI_TYPE14)
 		return;
 
 	DRM_DEBUG_KMS("\n");
@@ -1750,7 +1748,8 @@ static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 		return;
 	}
 
-	ret = hdmiphy_reg_write_buf(hdata, 0, hdata->phy_confs[i].conf, 32);
+	ret = hdmiphy_reg_write_buf(hdata, 0,
+			hdata->drv_data->phy_confs[i].conf, 32);
 	if (ret) {
 		DRM_ERROR("failed to configure hdmiphy\n");
 		return;
@@ -2015,7 +2014,7 @@ static void hdmi_mode_set(struct exynos_drm_display *display,
 	/* preserve mode information for later use. */
 	drm_mode_copy(&hdata->current_mode, mode);
 
-	if (hdata->type == HDMI_TYPE13)
+	if (hdata->drv_data->type == HDMI_TYPE13)
 		hdmi_v13_mode_set(hdata, mode);
 	else
 		hdmi_v14_mode_set(hdata, mode);
@@ -2294,33 +2293,25 @@ static struct device_node *hdmi_legacy_phy_dt_binding(struct device *dev)
 static int hdmi_probe(struct platform_device *pdev)
 {
 	struct device_node *ddc_node, *phy_node;
-	struct hdmi_driver_data *drv_data;
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct hdmi_context *hdata;
 	struct resource *res;
 	int ret;
 
-	if (!dev->of_node)
-		return -ENODEV;
-
 	hdata = devm_kzalloc(dev, sizeof(struct hdmi_context), GFP_KERNEL);
 	if (!hdata)
 		return -ENOMEM;
 
+	match = of_match_device(hdmi_match_types, dev);
+	if (!match)
+		return -ENODEV;
+
+	hdata->drv_data = match->data;
 	hdata->display.type = EXYNOS_DISPLAY_TYPE_HDMI;
 	hdata->display.ops = &hdmi_display_ops;
 
 	platform_set_drvdata(pdev, hdata);
-
-	match = of_match_node(hdmi_match_types, dev->of_node);
-	if (!match)
-		return -ENODEV;
-
-	drv_data = (struct hdmi_driver_data *)match->data;
-	hdata->type = drv_data->type;
-	hdata->phy_confs = drv_data->phy_confs;
-	hdata->phy_conf_count = drv_data->phy_conf_count;
 
 	hdata->dev = dev;
 	hdata->hpd_gpio = of_get_named_gpio(dev->of_node, "hpd-gpio", 0);
@@ -2379,7 +2370,7 @@ out_get_ddc_adpt:
 	}
 
 out_get_phy_port:
-	if (drv_data->is_apb_phy) {
+	if (hdata->drv_data->is_apb_phy) {
 		hdata->regs_hdmiphy = of_iomap(phy_node, 0);
 		if (!hdata->regs_hdmiphy) {
 			DRM_ERROR("failed to ioremap hdmi phy\n");
