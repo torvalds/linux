@@ -3,7 +3,7 @@ Bindings for the Generic PWM Regulator
 
 Currently supports 2 modes of operation:
 
-voltage-table:		When in this mode, a voltage table (See below) of
+Voltage Table:		When in this mode, a voltage table (See below) of
 			predefined voltage <=> duty-cycle values must be
 			provided via DT. Limitations are that the regulator can
 			only operate at the voltages supplied in the table.
@@ -13,7 +13,7 @@ voltage-table:		When in this mode, a voltage table (See below) of
 			the user if the assumptions made in continuous-voltage
 			mode do not reign true.
 
-continuous-voltage:	This mode uses the regulator's maximum and minimum
+Continuous Voltage:	This mode uses the regulator's maximum and minimum
 			supplied voltages specified in the
 			regulator-{min,max}-microvolt properties to calculate
 			appropriate duty-cycle values.  This allows for a much
