@@ -45,14 +45,12 @@ static int dev_pm_attach_wake_irq(struct device *dev, int irq,
 		return -EEXIST;
 	}
 
-	dev->power.wakeirq = wirq;
-	spin_unlock_irqrestore(&dev->power.lock, flags);
-
 	err = device_wakeup_attach_irq(dev, wirq);
-	if (err)
-		return err;
+	if (!err)
+		dev->power.wakeirq = wirq;
 
-	return 0;
+	spin_unlock_irqrestore(&dev->power.lock, flags);
+	return err;
 }
 
 /**
@@ -105,10 +103,10 @@ void dev_pm_clear_wake_irq(struct device *dev)
 		return;
 
 	spin_lock_irqsave(&dev->power.lock, flags);
+	device_wakeup_detach_irq(dev);
 	dev->power.wakeirq = NULL;
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 
-	device_wakeup_detach_irq(dev);
 	if (wirq->dedicated_irq)
 		free_irq(wirq->irq, wirq);
 	kfree(wirq);
