@@ -92,13 +92,13 @@ static int pwm_regulator_list_voltage(struct regulator_dev *rdev,
 /**
  * Continuous voltage call-backs
  */
-static int pwm_voltage_to_duty_cycle(struct regulator_dev *rdev, int req_uV)
+static int pwm_voltage_to_duty_cycle_percentage(struct regulator_dev *rdev, int req_uV)
 {
 	int min_uV = rdev->constraints->min_uV;
 	int max_uV = rdev->constraints->max_uV;
 	int diff = max_uV - min_uV;
 
-	return 100 - ((((req_uV * 100) - (min_uV * 100)) / diff));
+	return 100 - (((req_uV * 100) - (min_uV * 100)) / diff);
 }
 
 static int pwm_regulator_get_voltage(struct regulator_dev *rdev)
@@ -114,14 +114,13 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 {
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
 	unsigned int ramp_delay = rdev->constraints->ramp_delay;
+	unsigned int period = pwm_get_period(drvdata->pwm);
 	int duty_cycle;
 	int ret;
 
-	duty_cycle = pwm_voltage_to_duty_cycle(rdev, min_uV);
+	duty_cycle = pwm_voltage_to_duty_cycle_percentage(rdev, min_uV);
 
-	ret = pwm_config(drvdata->pwm,
-			 (drvdata->pwm->period / 100) * duty_cycle,
-			 drvdata->pwm->period);
+	ret = pwm_config(drvdata->pwm, (period / 100) * duty_cycle, period);
 	if (ret) {
 		dev_err(&rdev->dev, "Failed to configure PWM\n");
 		return ret;
