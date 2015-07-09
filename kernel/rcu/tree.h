@@ -443,7 +443,9 @@ do {									\
  */
 struct rcu_state {
 	struct rcu_node node[NUM_RCU_NODES];	/* Hierarchy. */
-	struct rcu_node *level[RCU_NUM_LVLS];	/* Hierarchy levels. */
+	struct rcu_node *level[RCU_NUM_LVLS + 1];
+						/* Hierarchy levels (+1 to */
+						/*  shut bogus gcc warning) */
 	u8 flavor_mask;				/* bit in flavor mask. */
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
 	void (*call)(struct rcu_head *head,	/* call_rcu() flavor. */
