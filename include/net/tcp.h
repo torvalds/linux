@@ -991,7 +991,7 @@ static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 
 static inline bool tcp_in_slow_start(const struct tcp_sock *tp)
 {
-	return tp->snd_cwnd <= tp->snd_ssthresh;
+	return tp->snd_cwnd < tp->snd_ssthresh;
 }
 
 static inline bool tcp_in_initial_slowstart(const struct tcp_sock *tp)
