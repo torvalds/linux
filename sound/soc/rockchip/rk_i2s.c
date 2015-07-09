@@ -478,7 +478,7 @@ static const struct snd_soc_component_driver rockchip_i2s_component = {
 };
 
 #ifdef CONFIG_PM
-static int i2s_runtime_suspend(struct device *dev)
+static int rockchip_i2s_runtime_suspend(struct device *dev)
 {
 	struct rk_i2s_dev *i2s = dev_get_drvdata(dev);
 
@@ -486,7 +486,7 @@ static int i2s_runtime_suspend(struct device *dev)
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
-static int i2s_runtime_resume(struct device *dev)
+static int rockchip_i2s_runtime_resume(struct device *dev)
 {
 	struct rk_i2s_dev *i2s = dev_get_drvdata(dev);
 
@@ -689,7 +689,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
-		ret = i2s_runtime_resume(&pdev->dev);
+		ret = rockchip_i2s_runtime_resume(&pdev->dev);
 		if (ret)
 			goto err_pm_disable;
 	}
@@ -718,7 +718,7 @@ err_unregister_component:
 	snd_soc_unregister_component(&pdev->dev);
 err_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
-		i2s_runtime_suspend(&pdev->dev);
+		rockchip_i2s_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 err:
@@ -731,7 +731,7 @@ static int rockchip_i2s_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
-		i2s_runtime_suspend(&pdev->dev);
+		rockchip_i2s_runtime_suspend(&pdev->dev);
 
 	if (!IS_ERR(i2s->mclk))
 		clk_disable_unprepare(i2s->mclk);
@@ -752,9 +752,36 @@ static const struct of_device_id rockchip_i2s_match[] = {
 MODULE_DEVICE_TABLE(of, rockchip_i2s_match);
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+static int rockchip_i2s_suspend(struct device *dev)
+{
+	struct rk_i2s_dev *i2s = dev_get_drvdata(dev);
+
+	dev_dbg(i2s->dev, "%s\n", __func__);
+	return 0;
+}
+
+static int rockchip_i2s_resume(struct device *dev)
+{
+	struct rk_i2s_dev *i2s = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		return ret;
+	ret = regmap_reinit_cache(i2s->regmap, &rockchip_i2s_regmap_config);
+
+	pm_runtime_put(dev);
+
+	dev_dbg(i2s->dev, "%s\n", __func__);
+	return ret;
+}
+#endif
+
 static const struct dev_pm_ops rockchip_i2s_pm_ops = {
-	SET_RUNTIME_PM_OPS(i2s_runtime_suspend, i2s_runtime_resume,
+	SET_RUNTIME_PM_OPS(rockchip_i2s_runtime_suspend, rockchip_i2s_runtime_resume,
 			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(rockchip_i2s_suspend, rockchip_i2s_resume)
 };
 
 static struct platform_driver rockchip_i2s_driver = {
