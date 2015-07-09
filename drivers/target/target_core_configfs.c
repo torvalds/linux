@@ -747,7 +747,7 @@ static ssize_t store_pi_prot_type(struct se_dev_attrib *da,
 	if (!dev->transport->init_prot || !dev->transport->free_prot) {
 		/* 0 is only allowed value for non-supporting backends */
 		if (flag == 0)
-			return 0;
+			return count;
 
 		pr_err("DIF protection not supported by backend: %s\n",
 		       dev->transport->name);
