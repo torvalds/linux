@@ -50,8 +50,6 @@ struct svga_fifo_cmd_fence {
 #define SVGA_SYNC_GENERIC         1
 #define SVGA_SYNC_FIFOFULL        2
 
-#include "svga_types.h"
-
-#include "svga3d_reg.h"
+#include "device_include/svga3d_reg.h"
 
 #endif

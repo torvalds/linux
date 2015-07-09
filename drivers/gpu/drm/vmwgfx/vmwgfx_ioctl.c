@@ -28,6 +28,7 @@
 #include "vmwgfx_drv.h"
 #include <drm/vmwgfx_drm.h>
 #include "vmwgfx_kms.h"
+#include "device_include/svga3d_caps.h"
 
 struct svga_3d_compat_cap {
 	SVGA3dCapsRecordHeader header;

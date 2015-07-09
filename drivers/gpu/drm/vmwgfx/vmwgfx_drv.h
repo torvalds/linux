@@ -328,7 +328,7 @@ struct vmw_ctx_binding_state {
 	struct list_head list;
 	struct vmw_ctx_binding render_targets[SVGA3D_RT_MAX];
 	struct vmw_ctx_binding texture_units[SVGA3D_NUM_TEXTURE_UNITS];
-	struct vmw_ctx_binding shaders[SVGA3D_SHADERTYPE_MAX];
+	struct vmw_ctx_binding shaders[SVGA3D_SHADERTYPE_PREDX_MAX];
 };
 
 

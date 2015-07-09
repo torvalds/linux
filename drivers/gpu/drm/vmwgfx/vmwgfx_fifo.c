@@ -119,7 +119,8 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	dev_priv->config_done_state = vmw_read(dev_priv, SVGA_REG_CONFIG_DONE);
 	dev_priv->traces_state = vmw_read(dev_priv, SVGA_REG_TRACES);
 
-	vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE_ENABLE_HIDE);
+	vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE_ENABLE |
+		  SVGA_REG_ENABLE_HIDE);
 	vmw_write(dev_priv, SVGA_REG_TRACES, 0);
 
 	min = 4;

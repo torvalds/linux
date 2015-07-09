@@ -26,7 +26,7 @@
  ******************************************************************************/
 
 #include "vmwgfx_kms.h"
-#include "svga3d_surfacedefs.h"
+#include "device_include/svga3d_surfacedefs.h"
 #include <drm/drm_plane_helper.h>
 
 #define vmw_crtc_to_stdu(x) \

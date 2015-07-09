@@ -696,7 +696,7 @@ int vmw_context_binding_add(struct vmw_ctx_binding_state *cbs,
 		break;
 	case vmw_ctx_binding_shader:
 		if (unlikely((unsigned)bi->i1.shader_type >=
-			     SVGA3D_SHADERTYPE_MAX)) {
+			     SVGA3D_SHADERTYPE_PREDX_MAX)) {
 			DRM_ERROR("Illegal shader type %u.\n",
 				  (unsigned) bi->i1.shader_type);
 			return -EINVAL;

@@ -28,7 +28,7 @@
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
 #include <ttm/ttm_placement.h>
-#include "svga3d_surfacedefs.h"
+#include "device_include/svga3d_surfacedefs.h"
 
 /**
  * struct vmw_user_surface - User-space visible surface resource
