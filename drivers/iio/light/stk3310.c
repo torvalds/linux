@@ -385,7 +385,7 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 			ret = regmap_field_write(data->reg_ps_it, index);
 		if (ret < 0)
 			dev_err(&data->client->dev,
-					"sensor configuration failed\n");
+				"sensor configuration failed\n");
 		mutex_unlock(&data->lock);
 		return ret;
 
@@ -402,7 +402,7 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 			ret = regmap_field_write(data->reg_ps_gain, index);
 		if (ret < 0)
 			dev_err(&data->client->dev,
-					"sensor configuration failed\n");
+				"sensor configuration failed\n");
 		mutex_unlock(&data->lock);
 		return ret;
 	}
@@ -645,7 +645,7 @@ static int stk3310_probe(struct i2c_client *client,
 						STK3310_EVENT, indio_dev);
 		if (ret < 0) {
 			dev_err(&client->dev, "request irq %d failed\n",
-					client->irq);
+				client->irq);
 			goto err_standby;
 		}
 	}
