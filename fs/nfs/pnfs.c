@@ -422,6 +422,10 @@ pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 		pnfs_layoutreturn_before_put_lseg(lseg, lo, inode);
 
 	if (atomic_dec_and_lock(&lseg->pls_refcount, &inode->i_lock)) {
+		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags)) {
+			spin_unlock(&inode->i_lock);
+			return;
+		}
 		pnfs_get_layout_hdr(lo);
 		pnfs_layout_remove_lseg(lo, lseg);
 		spin_unlock(&inode->i_lock);
@@ -462,6 +466,8 @@ pnfs_put_lseg_locked(struct pnfs_layout_segment *lseg)
 		test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
 	if (atomic_dec_and_test(&lseg->pls_refcount)) {
 		struct pnfs_layout_hdr *lo = lseg->pls_layout;
+		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags))
+			return;
 		pnfs_get_layout_hdr(lo);
 		pnfs_layout_remove_lseg(lo, lseg);
 		pnfs_free_lseg_async(lseg);
