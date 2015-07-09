@@ -2473,8 +2473,8 @@ void ath_tx_cabq(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	bf = list_first_entry(&bf_q, struct ath_buf, list);
 	hdr = (struct ieee80211_hdr *) bf->bf_mpdu->data;
 
-	if (hdr->frame_control & IEEE80211_FCTL_MOREDATA) {
-		hdr->frame_control &= ~IEEE80211_FCTL_MOREDATA;
+	if (hdr->frame_control & cpu_to_le16(IEEE80211_FCTL_MOREDATA)) {
+		hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 		dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
 			sizeof(*hdr), DMA_TO_DEVICE);
 	}
