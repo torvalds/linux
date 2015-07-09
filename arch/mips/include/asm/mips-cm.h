@@ -48,6 +48,15 @@ extern phys_addr_t __mips_cm_phys_base(void);
 extern int mips_cm_is64;
 
 /**
+ * mips_cm_error_report - Report CM cache errors
+ */
+#ifdef CONFIG_MIPS_CM
+extern void mips_cm_error_report(void);
+#else
+static inline void mips_cm_error_report(void) {}
+#endif
+
+/**
  * mips_cm_probe - probe for a Coherence Manager
  *
  * Attempt to detect the presence of a Coherence Manager. Returns 0 if a CM
