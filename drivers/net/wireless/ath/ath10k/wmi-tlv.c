@@ -377,12 +377,34 @@ static int ath10k_wmi_tlv_event_tx_pause(struct ath10k *ar,
 		   "wmi tlv tx pause pause_id %u action %u vdev_map 0x%08x peer_id %u tid_map 0x%08x\n",
 		   pause_id, action, vdev_map, peer_id, tid_map);
 
-	for (vdev_id = 0; vdev_map; vdev_id++) {
-		if (!(vdev_map & BIT(vdev_id)))
-			continue;
+	switch (pause_id) {
+	case WMI_TLV_TX_PAUSE_ID_MCC:
+	case WMI_TLV_TX_PAUSE_ID_P2P_CLI_NOA:
+	case WMI_TLV_TX_PAUSE_ID_P2P_GO_PS:
+	case WMI_TLV_TX_PAUSE_ID_AP_PS:
+	case WMI_TLV_TX_PAUSE_ID_IBSS_PS:
+		for (vdev_id = 0; vdev_map; vdev_id++) {
+			if (!(vdev_map & BIT(vdev_id)))
+				continue;
 
-		vdev_map &= ~BIT(vdev_id);
-		ath10k_mac_handle_tx_pause(ar, vdev_id, pause_id, action);
+			vdev_map &= ~BIT(vdev_id);
+			ath10k_mac_handle_tx_pause_vdev(ar, vdev_id, pause_id,
+							action);
+		}
+		break;
+	case WMI_TLV_TX_PAUSE_ID_AP_PEER_PS:
+	case WMI_TLV_TX_PAUSE_ID_AP_PEER_UAPSD:
+	case WMI_TLV_TX_PAUSE_ID_STA_ADD_BA:
+	case WMI_TLV_TX_PAUSE_ID_HOST:
+		ath10k_dbg(ar, ATH10K_DBG_MAC,
+			   "mac ignoring unsupported tx pause id %d\n",
+			   pause_id);
+		break;
+	default:
+		ath10k_dbg(ar, ATH10K_DBG_MAC,
+			   "mac ignoring unknown tx pause vdev %d\n",
+			   pause_id);
+		break;
 	}
 
 	kfree(tb);
