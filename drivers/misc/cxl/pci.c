@@ -551,6 +551,7 @@ static void cxl_release_afu(struct device *dev)
 
 	pr_devel("cxl_release_afu\n");
 
+	idr_destroy(&afu->contexts_idr);
 	kfree(afu);
 }
 
