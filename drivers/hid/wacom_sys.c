@@ -1149,12 +1149,9 @@ static void wacom_free_inputs(struct wacom *wacom)
 {
 	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
 
-	if (wacom_wac->pen_input)
-		input_free_device(wacom_wac->pen_input);
-	if (wacom_wac->touch_input)
-		input_free_device(wacom_wac->touch_input);
-	if (wacom_wac->pad_input)
-		input_free_device(wacom_wac->pad_input);
+	input_free_device(wacom_wac->pen_input);
+	input_free_device(wacom_wac->touch_input);
+	input_free_device(wacom_wac->pad_input);
 	wacom_wac->pen_input = NULL;
 	wacom_wac->touch_input = NULL;
 	wacom_wac->pad_input = NULL;
