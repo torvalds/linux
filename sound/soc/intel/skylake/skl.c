@@ -380,6 +380,8 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 		return -ENXIO;
 	}
 
+	snd_hdac_ext_bus_parse_capabilities(ebus);
+
 	if (skl_acquire_irq(ebus, 0) < 0)
 		return -EBUSY;
 
@@ -452,6 +454,15 @@ static int skl_probe(struct pci_dev *pci,
 		goto out_free;
 
 	pci_set_drvdata(skl->pci, ebus);
+
+	/* check if dsp is there */
+	if (ebus->ppcap) {
+		/* TODO register with dsp IPC */
+		dev_dbg(bus->dev, "Register dsp\n");
+	}
+
+	if (ebus->mlcap)
+		snd_hdac_ext_bus_get_ml_capabilities(ebus);
 
 	/* create device for soc dmic */
 	err = skl_dmic_device_register(skl);
