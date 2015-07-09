@@ -144,6 +144,7 @@ BUILD_CM_RW(reg3_base,		MIPS_CM_GCB_OFS + 0xc0)
 BUILD_CM_RW(reg3_mask,		MIPS_CM_GCB_OFS + 0xc8)
 BUILD_CM_R_(gic_status,		MIPS_CM_GCB_OFS + 0xd0)
 BUILD_CM_R_(cpc_status,		MIPS_CM_GCB_OFS + 0xf0)
+BUILD_CM_RW(l2_config,		MIPS_CM_GCB_OFS + 0x130)
 
 /* Core Local & Core Other register accessor functions */
 BUILD_CM_Cx_RW(reset_release,	0x00)
@@ -255,6 +256,16 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 /* GCR_CPC_STATUS register fields */
 #define CM_GCR_CPC_STATUS_EX_SHF		0
 #define CM_GCR_CPC_STATUS_EX_MSK		(_ULCAST_(0x1) << 0)
+
+/* GCR_L2_CONFIG register fields */
+#define CM_GCR_L2_CONFIG_BYPASS_SHF		20
+#define CM_GCR_L2_CONFIG_BYPASS_MSK		(_ULCAST_(0x1) << 20)
+#define CM_GCR_L2_CONFIG_SET_SIZE_SHF		12
+#define CM_GCR_L2_CONFIG_SET_SIZE_MSK		(_ULCAST_(0xf) << 12)
+#define CM_GCR_L2_CONFIG_LINE_SIZE_SHF		8
+#define CM_GCR_L2_CONFIG_LINE_SIZE_MSK		(_ULCAST_(0xf) << 8)
+#define CM_GCR_L2_CONFIG_ASSOC_SHF		0
+#define CM_GCR_L2_CONFIG_ASSOC_MSK		(_ULCAST_(0xff) << 0)
 
 /* GCR_Cx_COHERENCE register fields */
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_SHF	0
