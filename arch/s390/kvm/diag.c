@@ -75,6 +75,8 @@ static int __diag_page_ref_service(struct kvm_vcpu *vcpu)
 	u16 rx = (vcpu->arch.sie_block->ipa & 0xf0) >> 4;
 	u16 ry = (vcpu->arch.sie_block->ipa & 0x0f);
 
+	VCPU_EVENT(vcpu, 3, "diag page reference parameter block at 0x%llx",
+		   vcpu->run->s.regs.gprs[rx]);
 	vcpu->stat.diagnose_258++;
 	if (vcpu->run->s.regs.gprs[rx] & 7)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -175,7 +177,7 @@ static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 	unsigned int reg = vcpu->arch.sie_block->ipa & 0xf;
 	unsigned long subcode = vcpu->run->s.regs.gprs[reg] & 0xffff;
 
-	VCPU_EVENT(vcpu, 5, "diag ipl functions, subcode %lx", subcode);
+	VCPU_EVENT(vcpu, 3, "diag ipl functions, subcode %lx", subcode);
 	vcpu->stat.diagnose_308++;
 	switch (subcode) {
 	case 3:
