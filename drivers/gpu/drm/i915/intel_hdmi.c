@@ -1615,6 +1615,50 @@ static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
+static void chv_data_lane_soft_reset(struct intel_encoder *encoder,
+				     bool reset)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(&encoder->base));
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	enum pipe pipe = crtc->pipe;
+	uint32_t val;
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW0(ch));
+	if (reset)
+		val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
+	else
+		val |= DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW0(ch), val);
+
+	if (crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
+		if (reset)
+			val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
+		else
+			val |= DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
+	}
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW1(ch));
+	val |= CHV_PCS_REQ_SOFTRESET_EN;
+	if (reset)
+		val &= ~DPIO_PCS_CLK_SOFT_RESET;
+	else
+		val |= DPIO_PCS_CLK_SOFT_RESET;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW1(ch), val);
+
+	if (crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
+		val |= CHV_PCS_REQ_SOFTRESET_EN;
+		if (reset)
+			val &= ~DPIO_PCS_CLK_SOFT_RESET;
+		else
+			val |= DPIO_PCS_CLK_SOFT_RESET;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
+	}
+}
+
 static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
@@ -1639,6 +1683,9 @@ static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 	chv_phy_powergate_lanes(encoder, true, 0x0);
 
 	mutex_lock(&dev_priv->sb_lock);
+
+	/* Assert data lane reset */
+	chv_data_lane_soft_reset(encoder, true);
 
 	/* program left/right clock distribution */
 	if (pipe != PIPE_B) {
@@ -1742,33 +1789,13 @@ static void vlv_hdmi_post_disable(struct intel_encoder *encoder)
 
 static void chv_hdmi_post_disable(struct intel_encoder *encoder)
 {
-	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(encoder->base.crtc);
-	enum dpio_channel ch = vlv_dport_to_channel(dport);
-	enum pipe pipe = intel_crtc->pipe;
-	u32 val;
 
 	mutex_lock(&dev_priv->sb_lock);
 
-	/* Propagate soft reset to data lane reset */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW1(ch));
-	val |= CHV_PCS_REQ_SOFTRESET_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW1(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
-	val |= CHV_PCS_REQ_SOFTRESET_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW0(ch));
-	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW0(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
-	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
+	/* Assert data lane reset */
+	chv_data_lane_soft_reset(encoder, true);
 
 	mutex_unlock(&dev_priv->sb_lock);
 }
@@ -1798,23 +1825,6 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
 	val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
-
-	/* Deassert soft data lane reset*/
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW1(ch));
-	val |= CHV_PCS_REQ_SOFTRESET_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW1(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
-	val |= CHV_PCS_REQ_SOFTRESET_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW0(ch));
-	val |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW0(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
-	val |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
 
 	/* Program Tx latency optimal setting */
 	for (i = 0; i < 4; i++) {
@@ -1857,6 +1867,9 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 		       DPIO_TX1_STAGGER_MASK(0x1f) |
 		       DPIO_TX1_STAGGER_MULT(7) |
 		       DPIO_TX2_STAGGER_MULT(5));
+
+	/* Deassert data lane reset */
+	chv_data_lane_soft_reset(encoder, false);
 
 	/* Clear calc init */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));

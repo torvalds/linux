@@ -2426,42 +2426,62 @@ static void vlv_post_disable_dp(struct intel_encoder *encoder)
 	intel_dp_link_down(intel_dp);
 }
 
+static void chv_data_lane_soft_reset(struct intel_encoder *encoder,
+				     bool reset)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(&encoder->base));
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	enum pipe pipe = crtc->pipe;
+	uint32_t val;
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW0(ch));
+	if (reset)
+		val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
+	else
+		val |= DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW0(ch), val);
+
+	if (crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
+		if (reset)
+			val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
+		else
+			val |= DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
+	}
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW1(ch));
+	val |= CHV_PCS_REQ_SOFTRESET_EN;
+	if (reset)
+		val &= ~DPIO_PCS_CLK_SOFT_RESET;
+	else
+		val |= DPIO_PCS_CLK_SOFT_RESET;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW1(ch), val);
+
+	if (crtc->config->lane_count > 2) {
+		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
+		val |= CHV_PCS_REQ_SOFTRESET_EN;
+		if (reset)
+			val &= ~DPIO_PCS_CLK_SOFT_RESET;
+		else
+			val |= DPIO_PCS_CLK_SOFT_RESET;
+		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
+	}
+}
+
 static void chv_post_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(encoder->base.crtc);
-	enum dpio_channel ch = vlv_dport_to_channel(dport);
-	enum pipe pipe = intel_crtc->pipe;
-	u32 val;
 
 	intel_dp_link_down(intel_dp);
 
 	mutex_lock(&dev_priv->sb_lock);
 
-	/* Propagate soft reset to data lane reset */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW1(ch));
-	val |= CHV_PCS_REQ_SOFTRESET_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW1(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
-		val |= CHV_PCS_REQ_SOFTRESET_EN;
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
-	}
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW0(ch));
-	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW0(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
-		val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
-	}
+	/* Assert data lane reset */
+	chv_data_lane_soft_reset(encoder, true);
 
 	mutex_unlock(&dev_priv->sb_lock);
 }
@@ -2839,27 +2859,6 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
 	}
 
-	/* Deassert soft data lane reset*/
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW1(ch));
-	val |= CHV_PCS_REQ_SOFTRESET_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW1(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
-		val |= CHV_PCS_REQ_SOFTRESET_EN;
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW1(ch), val);
-	}
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW0(ch));
-	val |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW0(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
-		val |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW0(ch), val);
-	}
-
 	/* Program Tx lane latency optimal setting*/
 	for (i = 0; i < intel_crtc->config->lane_count; i++) {
 		/* Set the upar bit */
@@ -2909,6 +2908,9 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 			       DPIO_TX2_STAGGER_MULT(5));
 	}
 
+	/* Deassert data lane reset */
+	chv_data_lane_soft_reset(encoder, false);
+
 	mutex_unlock(&dev_priv->sb_lock);
 
 	intel_enable_dp(encoder);
@@ -2946,6 +2948,9 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 	chv_phy_powergate_lanes(encoder, true, lane_mask);
 
 	mutex_lock(&dev_priv->sb_lock);
+
+	/* Assert data lane reset */
+	chv_data_lane_soft_reset(encoder, true);
 
 	/* program left/right clock distribution */
 	if (pipe != PIPE_B) {
