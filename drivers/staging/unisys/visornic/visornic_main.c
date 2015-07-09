@@ -2127,18 +2127,6 @@ static int visornic_init(void)
 	struct dentry *ret;
 	int err = -ENOMEM;
 
-	/* create workqueue for serverdown completion */
-	visornic_serverdown_workqueue =
-		create_singlethread_workqueue("visornic_serverdown");
-	if (!visornic_serverdown_workqueue)
-		return -ENOMEM;
-
-	/* create workqueue for tx timeout reset */
-	visornic_timeout_reset_workqueue =
-		create_singlethread_workqueue("visornic_timeout_reset");
-	if (!visornic_timeout_reset_workqueue)
-		return -ENOMEM;
-
 	visornic_debugfs_dir = debugfs_create_dir("visornic", NULL);
 	if (!visornic_debugfs_dir)
 		return err;
