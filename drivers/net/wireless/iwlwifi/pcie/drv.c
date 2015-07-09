@@ -631,17 +631,10 @@ static int iwl_pci_resume(struct device *device)
 		return 0;
 
 	/*
-	 * On suspend, ict is disabled, and the interrupt mask
-	 * gets cleared. Reconfigure them both in case of d0i3
-	 * image. Otherwise, only enable rfkill interrupt (in
-	 * order to keep track of the rfkill status)
+	 * Enable rfkill interrupt (in order to keep track of
+	 * the rfkill status)
 	 */
-	if (trans->wowlan_d0i3) {
-		iwl_pcie_reset_ict(trans);
-		iwl_enable_interrupts(trans);
-	} else {
-		iwl_enable_rfkill_int(trans);
-	}
+	iwl_enable_rfkill_int(trans);
 
 	hw_rfkill = iwl_is_rfkill_set(trans);
 

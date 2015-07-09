@@ -1187,6 +1187,9 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		mutex_lock(&mvm->d0i3_suspend_mutex);
 		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
 		mutex_unlock(&mvm->d0i3_suspend_mutex);
+
+		iwl_trans_d3_suspend(mvm->trans, false);
+
 		return 0;
 	}
 
@@ -1949,6 +1952,9 @@ static int iwl_mvm_resume_d3(struct iwl_mvm *mvm)
 static int iwl_mvm_resume_d0i3(struct iwl_mvm *mvm)
 {
 	bool exit_now;
+	enum iwl_d3_status d3_status;
+
+	iwl_trans_d3_resume(mvm->trans, &d3_status, false);
 
 	/*
 	 * make sure to clear D0I3_DEFER_WAKEUP before
