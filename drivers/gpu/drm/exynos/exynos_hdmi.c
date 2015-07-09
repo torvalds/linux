@@ -48,7 +48,6 @@
 #include "exynos_mixer.h"
 
 #include <linux/gpio.h>
-#include <media/s5p_hdmi.h>
 
 #define ctx_from_connector(c)	container_of(c, struct hdmi_context, connector)
 
@@ -2259,30 +2258,6 @@ fail:
 	return ret;
 }
 
-static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
-					(struct device *dev)
-{
-	struct device_node *np = dev->of_node;
-	struct s5p_hdmi_platform_data *pd;
-	u32 value;
-
-	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		goto err_data;
-
-	if (!of_find_property(np, "hpd-gpio", &value)) {
-		DRM_ERROR("no hpd gpio property found\n");
-		goto err_data;
-	}
-
-	pd->hpd_gpio = of_get_named_gpio(np, "hpd-gpio", 0);
-
-	return pd;
-
-err_data:
-	return NULL;
-}
-
 static struct of_device_id hdmi_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmi",
@@ -2343,7 +2318,6 @@ static struct device_node *hdmi_legacy_phy_dt_binding(struct device *dev)
 static int hdmi_probe(struct platform_device *pdev)
 {
 	struct device_node *ddc_node, *phy_node;
-	struct s5p_hdmi_platform_data *pdata;
 	struct hdmi_driver_data *drv_data;
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
@@ -2353,10 +2327,6 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	if (!dev->of_node)
 		return -ENODEV;
-
-	pdata = drm_hdmi_dt_parse_pdata(dev);
-	if (!pdata)
-		return -EINVAL;
 
 	hdata = devm_kzalloc(dev, sizeof(struct hdmi_context), GFP_KERNEL);
 	if (!hdata)
@@ -2378,8 +2348,12 @@ static int hdmi_probe(struct platform_device *pdev)
 	hdata->phy_confs = drv_data->phy_confs;
 	hdata->phy_conf_count = drv_data->phy_conf_count;
 
-	hdata->hpd_gpio = pdata->hpd_gpio;
 	hdata->dev = dev;
+	hdata->hpd_gpio = of_get_named_gpio(dev->of_node, "hpd-gpio", 0);
+	if (hdata->hpd_gpio < 0) {
+		DRM_ERROR("cannot get hpd gpio property\n");
+		return hdata->hpd_gpio;
+	}
 
 	ret = hdmi_resources_init(hdata);
 	if (ret) {
