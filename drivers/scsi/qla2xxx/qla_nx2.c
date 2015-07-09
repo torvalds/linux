@@ -1129,9 +1129,9 @@ qla8044_ms_mem_write_128b(struct scsi_qla_host *vha,
 	}
 
 	for (i = 0; i < count; i++, addr += 16) {
-		if (!((QLA8044_ADDR_IN_RANGE(addr, QLA8044_ADDR_QDR_NET,
+		if (!((addr_in_range(addr, QLA8044_ADDR_QDR_NET,
 		    QLA8044_ADDR_QDR_NET_MAX)) ||
-		    (QLA8044_ADDR_IN_RANGE(addr, QLA8044_ADDR_DDR_NET,
+		    (addr_in_range(addr, QLA8044_ADDR_DDR_NET,
 			QLA8044_ADDR_DDR_NET_MAX)))) {
 			ret_val = QLA_FUNCTION_FAILED;
 			goto exit_ms_mem_write_unlock;
