@@ -57,6 +57,31 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 }
 #endif
 
+#ifndef __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+int ptep_clear_flush_young(struct vm_area_struct *vma,
+			   unsigned long address, pte_t *ptep)
+{
+	int young;
+	young = ptep_test_and_clear_young(vma, address, ptep);
+	if (young)
+		flush_tlb_page(vma, address);
+	return young;
+}
+#endif
+
+#ifndef __HAVE_ARCH_PTEP_CLEAR_FLUSH
+pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long address,
+		       pte_t *ptep)
+{
+	struct mm_struct *mm = (vma)->vm_mm;
+	pte_t pte;
+	pte = ptep_get_and_clear(mm, address, ptep);
+	if (pte_accessible(mm, pte))
+		flush_tlb_page(vma, address);
+	return pte;
+}
+#endif
+
 #ifndef __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
 int pmdp_set_access_flags(struct vm_area_struct *vma,
 			  unsigned long address, pmd_t *pmdp,
@@ -77,18 +102,6 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
 }
 #endif
 
-#ifndef __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
-int ptep_clear_flush_young(struct vm_area_struct *vma,
-			   unsigned long address, pte_t *ptep)
-{
-	int young;
-	young = ptep_test_and_clear_young(vma, address, ptep);
-	if (young)
-		flush_tlb_page(vma, address);
-	return young;
-}
-#endif
-
 #ifndef __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
 int pmdp_clear_flush_young(struct vm_area_struct *vma,
 			   unsigned long address, pmd_t *pmdp)
@@ -103,19 +116,6 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
 	if (young)
 		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	return young;
-}
-#endif
-
-#ifndef __HAVE_ARCH_PTEP_CLEAR_FLUSH
-pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long address,
-		       pte_t *ptep)
-{
-	struct mm_struct *mm = (vma)->vm_mm;
-	pte_t pte;
-	pte = ptep_get_and_clear(mm, address, ptep);
-	if (pte_accessible(mm, pte))
-		flush_tlb_page(vma, address);
-	return pte;
 }
 #endif
 
