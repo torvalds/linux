@@ -1592,7 +1592,15 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 static inline void
 assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
 {
-	WARN_ON(!mutex_is_locked(&mode_config->mutex));
+	/*
+	 * The connector hotadd/remove code currently grabs both locks when
+	 * updating lists. Hence readers need only hold either of them to be
+	 * safe and the check amounts to
+	 *
+	 * WARN_ON(not_holding(A) && not_holding(B)).
+	 */
+	WARN_ON(!mutex_is_locked(&mode_config->mutex) &&
+		!drm_modeset_is_locked(&mode_config->connection_mutex));
 }
 
 #define drm_for_each_connector(connector, dev) \
