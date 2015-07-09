@@ -281,6 +281,40 @@ unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
 
 /**
+ * dev_pm_opp_is_turbo() - Returns if opp is turbo OPP or not
+ * @opp: opp for which turbo mode is being verified
+ *
+ * Turbo OPPs are not for normal use, and can be enabled (under certain
+ * conditions) for short duration of times to finish high throughput work
+ * quickly. Running on them for longer times may overheat the chip.
+ *
+ * Return: true if opp is turbo opp, else false.
+ *
+ * Locking: This function must be called under rcu_read_lock(). opp is a rcu
+ * protected pointer. This means that opp which could have been fetched by
+ * opp_find_freq_{exact,ceil,floor} functions is valid as long as we are
+ * under RCU lock. The pointer returned by the opp_find_freq family must be
+ * used in the same section as the usage of this function with the pointer
+ * prior to unlocking with rcu_read_unlock() to maintain the integrity of the
+ * pointer.
+ */
+bool dev_pm_opp_is_turbo(struct dev_pm_opp *opp)
+{
+	struct dev_pm_opp *tmp_opp;
+
+	opp_rcu_lockdep_assert();
+
+	tmp_opp = rcu_dereference(opp);
+	if (IS_ERR_OR_NULL(tmp_opp) || !tmp_opp->available) {
+		pr_err("%s: Invalid parameters\n", __func__);
+		return false;
+	}
+
+	return tmp_opp->turbo;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_is_turbo);
+
+/**
  * dev_pm_opp_get_max_clock_latency() - Get max clock latency in nanoseconds
  * @dev:	device for which we do this operation
  *
