@@ -63,8 +63,7 @@ static int intel_fbdev_set_par(struct fb_info *info)
 		 * now until we solve this for real.
 		 */
 		mutex_lock(&fb_helper->dev->struct_mutex);
-		ret = i915_gem_object_set_to_gtt_domain(ifbdev->fb->obj,
-							true);
+		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
 		mutex_unlock(&fb_helper->dev->struct_mutex);
 	}
 
