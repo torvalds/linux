@@ -137,39 +137,39 @@ qla27xx_insertbuf(void *mem, ulong size, void *buf, ulong *len)
 }
 
 static inline void
-qla27xx_read8(void *window, void *buf, ulong *len)
+qla27xx_read8(void __iomem *window, void *buf, ulong *len)
 {
 	uint8_t value = ~0;
 
 	if (buf) {
-		value = RD_REG_BYTE((__iomem void *)window);
+		value = RD_REG_BYTE(window);
 	}
 	qla27xx_insert32(value, buf, len);
 }
 
 static inline void
-qla27xx_read16(void *window, void *buf, ulong *len)
+qla27xx_read16(void __iomem *window, void *buf, ulong *len)
 {
 	uint16_t value = ~0;
 
 	if (buf) {
-		value = RD_REG_WORD((__iomem void *)window);
+		value = RD_REG_WORD(window);
 	}
 	qla27xx_insert32(value, buf, len);
 }
 
 static inline void
-qla27xx_read32(void *window, void *buf, ulong *len)
+qla27xx_read32(void __iomem *window, void *buf, ulong *len)
 {
 	uint32_t value = ~0;
 
 	if (buf) {
-		value = RD_REG_DWORD((__iomem void *)window);
+		value = RD_REG_DWORD(window);
 	}
 	qla27xx_insert32(value, buf, len);
 }
 
-static inline void (*qla27xx_read_vector(uint width))(void *, void *, ulong *)
+static inline void (*qla27xx_read_vector(uint width))(void __iomem*, void *, ulong *)
 {
 	return
 	    (width == 1) ? qla27xx_read8 :
@@ -181,7 +181,7 @@ static inline void
 qla27xx_read_reg(__iomem struct device_reg_24xx *reg,
 	uint offset, void *buf, ulong *len)
 {
-	void *window = (void *)reg + offset;
+	void __iomem *window = (void __iomem *)reg + offset;
 
 	qla27xx_read32(window, buf, len);
 }
@@ -202,8 +202,8 @@ qla27xx_read_window(__iomem struct device_reg_24xx *reg,
 	uint32_t addr, uint offset, uint count, uint width, void *buf,
 	ulong *len)
 {
-	void *window = (void *)reg + offset;
-	void (*readn)(void *, void *, ulong *) = qla27xx_read_vector(width);
+	void __iomem *window = (void __iomem *)reg + offset;
+	void (*readn)(void __iomem*, void *, ulong *) = qla27xx_read_vector(width);
 
 	qla27xx_write_reg(reg, IOBASE_ADDR, addr, buf);
 	while (count--) {

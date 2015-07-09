@@ -3418,9 +3418,9 @@ struct qla_hw_data {
 	mempool_t       *ctx_mempool;
 #define FCP_CMND_DMA_POOL_SIZE 512
 
-	unsigned long	nx_pcibase;		/* Base I/O address */
-	uint8_t		*nxdb_rd_ptr;		/* Doorbell read pointer */
-	unsigned long	nxdb_wr_ptr;		/* Door bell write pointer */
+	void __iomem	*nx_pcibase;		/* Base I/O address */
+	void __iomem	*nxdb_rd_ptr;		/* Doorbell read pointer */
+	void __iomem	*nxdb_wr_ptr;		/* Door bell write pointer */
 
 	uint32_t	crb_win;
 	uint32_t	curr_window;

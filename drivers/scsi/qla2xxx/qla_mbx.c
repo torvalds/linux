@@ -1239,7 +1239,7 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 	    "Entered %s.\n", __func__);
 
 	if (IS_P3P_TYPE(ha) && ql2xdbwr)
-		qla82xx_wr_32(ha, ha->nxdb_wr_ptr,
+		qla82xx_wr_32(ha, (uintptr_t __force)ha->nxdb_wr_ptr,
 			(0x04 | (ha->portnum << 5) | (0 << 8) | (0 << 16)));
 
 	if (ha->flags.npiv_supported)

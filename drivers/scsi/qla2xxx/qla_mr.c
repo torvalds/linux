@@ -862,7 +862,7 @@ qlafx00_config_queues(struct scsi_qla_host *vha)
 	dma_addr_t bar2_hdl = pci_resource_start(ha->pdev, 2);
 
 	req->length = ha->req_que_len;
-	req->ring = (void *)ha->iobase + ha->req_que_off;
+	req->ring = (void __force *)ha->iobase + ha->req_que_off;
 	req->dma = bar2_hdl + ha->req_que_off;
 	if ((!req->ring) || (req->length == 0)) {
 		ql_log_pci(ql_log_info, ha->pdev, 0x012f,
@@ -877,7 +877,7 @@ qlafx00_config_queues(struct scsi_qla_host *vha)
 	    ha->req_que_off, (u64)req->dma);
 
 	rsp->length = ha->rsp_que_len;
-	rsp->ring = (void *)ha->iobase + ha->rsp_que_off;
+	rsp->ring = (void __force *)ha->iobase + ha->rsp_que_off;
 	rsp->dma = bar2_hdl + ha->rsp_que_off;
 	if ((!rsp->ring) || (rsp->length == 0)) {
 		ql_log_pci(ql_log_info, ha->pdev, 0x0131,
@@ -1425,7 +1425,7 @@ qlafx00_init_response_q_entries(struct rsp_que *rsp)
 	pkt = rsp->ring_ptr;
 	for (cnt = 0; cnt < rsp->length; cnt++) {
 		pkt->signature = RESPONSE_PROCESSED;
-		WRT_REG_DWORD((void __iomem *)&pkt->signature,
+		WRT_REG_DWORD((void __force __iomem *)&pkt->signature,
 		    RESPONSE_PROCESSED);
 		pkt++;
 	}

@@ -2507,16 +2507,12 @@ sufficient_dsds:
 	/* write, read and verify logic */
 	dbval = dbval | (req->id << 8) | (req->ring_index << 16);
 	if (ql2xdbwr)
-		qla82xx_wr_32(ha, ha->nxdb_wr_ptr, dbval);
+		qla82xx_wr_32(ha, (uintptr_t __force)ha->nxdb_wr_ptr, dbval);
 	else {
-		WRT_REG_DWORD(
-			(unsigned long __iomem *)ha->nxdb_wr_ptr,
-			dbval);
+		WRT_REG_DWORD(ha->nxdb_wr_ptr, dbval);
 		wmb();
-		while (RD_REG_DWORD((void __iomem *)ha->nxdb_rd_ptr) != dbval) {
-			WRT_REG_DWORD(
-				(unsigned long __iomem *)ha->nxdb_wr_ptr,
-				dbval);
+		while (RD_REG_DWORD(ha->nxdb_rd_ptr) != dbval) {
+			WRT_REG_DWORD(ha->nxdb_wr_ptr, dbval);
 			wmb();
 		}
 	}
