@@ -313,3 +313,13 @@ void gb_connection_exit(struct gb_connection *connection)
 				 cport_id, ret);
 	}
 }
+
+void gb_hd_connections_exit(struct greybus_host_device *hd)
+{
+	struct gb_connection *connection;
+
+	list_for_each_entry(connection, &hd->connections, hd_links) {
+		gb_connection_exit(connection);
+		gb_connection_destroy(connection);
+	}
+}

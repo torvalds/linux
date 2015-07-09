@@ -235,6 +235,13 @@ void greybus_remove_hd(struct greybus_host_device *hd)
 	 */
 	gb_interfaces_remove(hd);
 	gb_endo_remove(hd->endo);
+
+	/*
+	 * Make sure there are no leftovers that can potentially corrupt sysfs.
+	 */
+	if (WARN_ON(!list_empty(&hd->connections)))
+		gb_hd_connections_exit(hd);
+
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }
 EXPORT_SYMBOL_GPL(greybus_remove_hd);
