@@ -71,9 +71,8 @@ static struct obd_device *obd_device_alloc(void)
 	struct obd_device *obd;
 
 	OBD_SLAB_ALLOC_PTR_GFP(obd, obd_device_cachep, GFP_NOFS);
-	if (obd != NULL) {
+	if (obd != NULL)
 		obd->obd_magic = OBD_DEVICE_MAGIC;
-	}
 	return obd;
 }
 
@@ -294,7 +293,7 @@ struct obd_device *class_newdev(const char *type_name, const char *name)
 	}
 
 	type = class_get_type(type_name);
-	if (type == NULL){
+	if (type == NULL) {
 		CERROR("OBD: unknown type: %s\n", type_name);
 		return ERR_PTR(-ENODEV);
 	}
@@ -999,7 +998,8 @@ void class_import_put(struct obd_import *imp)
 }
 EXPORT_SYMBOL(class_import_put);
 
-static void init_imp_at(struct imp_at *at) {
+static void init_imp_at(struct imp_at *at)
+{
 	int i;
 	at_init(&at->iat_net_latency, 0, 0);
 	for (i = 0; i < IMP_AT_MAX_PORTALS; i++) {
@@ -1642,7 +1642,8 @@ static int obd_zombie_impexp_check(void *arg)
 /**
  * Add export to the obd_zombie thread and notify it.
  */
-static void obd_zombie_export_add(struct obd_export *exp) {
+static void obd_zombie_export_add(struct obd_export *exp)
+{
 	spin_lock(&exp->exp_obd->obd_dev_lock);
 	LASSERT(!list_empty(&exp->exp_obd_chain));
 	list_del_init(&exp->exp_obd_chain);
@@ -1658,7 +1659,8 @@ static void obd_zombie_export_add(struct obd_export *exp) {
 /**
  * Add import to the obd_zombie thread and notify it.
  */
-static void obd_zombie_import_add(struct obd_import *imp) {
+static void obd_zombie_import_add(struct obd_import *imp)
+{
 	LASSERT(imp->imp_sec == NULL);
 	LASSERT(imp->imp_rq_pool == NULL);
 	spin_lock(&obd_zombie_impexp_lock);
