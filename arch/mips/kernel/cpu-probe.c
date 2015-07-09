@@ -385,7 +385,6 @@ static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 		else
 			/* Disable FTLB */
 			write_c0_config6(config6 &  ~MIPS_CONF6_FTLBEN);
-		back_to_back_c0_hazard();
 		break;
 	}
 }
