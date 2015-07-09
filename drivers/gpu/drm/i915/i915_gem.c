@@ -2401,6 +2401,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	}
 
 	request->emitted_jiffies = jiffies;
+	ring->last_submitted_seqno = request->seqno;
 	list_add_tail(&request->list, &ring->request_list);
 	request->file_priv = NULL;
 

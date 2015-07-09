@@ -2650,18 +2650,11 @@ static void gen8_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static struct drm_i915_gem_request *
-ring_last_request(struct intel_engine_cs *ring)
-{
-	return list_entry(ring->request_list.prev,
-			  struct drm_i915_gem_request, list);
-}
-
 static bool
-ring_idle(struct intel_engine_cs *ring)
+ring_idle(struct intel_engine_cs *ring, u32 seqno)
 {
 	return (list_empty(&ring->request_list) ||
-		i915_gem_request_completed(ring_last_request(ring), false));
+		i915_seqno_passed(seqno, ring->last_submitted_seqno));
 }
 
 static bool
@@ -2883,7 +2876,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		acthd = intel_ring_get_active_head(ring);
 
 		if (ring->hangcheck.seqno == seqno) {
-			if (ring_idle(ring)) {
+			if (ring_idle(ring, seqno)) {
 				ring->hangcheck.action = HANGCHECK_IDLE;
 
 				if (waitqueue_active(&ring->irq_queue)) {
