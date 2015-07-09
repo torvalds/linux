@@ -151,6 +151,7 @@ struct visornic_devdata {
 					  * sent to the IOPART end
 					  */
 	struct work_struct serverdown_completion;
+	visorbus_state_complete_func server_down_complete_func;
 	struct work_struct timeout_reset;
 	struct uiscmdrsp *cmdrsp_rcv;	 /* cmdrsp_rcv is used for
 					  * posting/unposting rcv buffers
@@ -545,8 +546,12 @@ visornic_serverdown_complete(struct work_struct *work)
 	atomic_set(&devdata->num_rcvbuf_in_iovm, 0);
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 
+	if (devdata->server_down_complete_func)
+		(*devdata->server_down_complete_func)(devdata->dev, 0);
+
 	devdata->server_down = true;
 	devdata->server_change_state = false;
+	devdata->server_down_complete_func = NULL;
 }
 
 /**
@@ -558,10 +563,12 @@ visornic_serverdown_complete(struct work_struct *work)
  *	Returns 0 if we scheduled the work, -EINVAL on error.
  */
 static int
-visornic_serverdown(struct visornic_devdata *devdata)
+visornic_serverdown(struct visornic_devdata *devdata,
+		    visorbus_state_complete_func complete_func)
 {
 	if (!devdata->server_down && !devdata->server_change_state) {
 		devdata->server_change_state = true;
+		devdata->server_down_complete_func = complete_func;
 		queue_work(visornic_serverdown_workqueue,
 			   &devdata->serverdown_completion);
 	} else if (devdata->server_change_state) {
@@ -895,7 +902,7 @@ visornic_timeout_reset(struct work_struct *work)
 	return;
 
 call_serverdown:
-	visornic_serverdown(devdata);
+	visornic_serverdown(devdata, NULL);
 }
 
 /**
@@ -1980,8 +1987,7 @@ static int visornic_pause(struct visor_device *dev,
 {
 	struct visornic_devdata *devdata = dev_get_drvdata(&dev->device);
 
-	visornic_serverdown(devdata);
-	complete_func(dev, 0);
+	visornic_serverdown(devdata, complete_func);
 	return 0;
 }
 
