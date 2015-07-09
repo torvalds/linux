@@ -180,7 +180,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 
 	drm_warn_on_modeset_not_all_locked(dev);
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	drm_for_each_encoder(encoder, dev) {
 		if (!drm_helper_encoder_in_use(encoder)) {
 			drm_encoder_disable(encoder);
 			/* disconnect encoder from any connector */
@@ -188,7 +188,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 		}
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(crtc, dev) {
 		const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		if (!crtc->enabled) {
@@ -230,7 +230,7 @@ drm_crtc_prepare_encoders(struct drm_device *dev)
 	const struct drm_encoder_helper_funcs *encoder_funcs;
 	struct drm_encoder *encoder;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	drm_for_each_encoder(encoder, dev) {
 		encoder_funcs = encoder->helper_private;
 		/* Disable unused encoders */
 		if (encoder->crtc == NULL)
@@ -305,7 +305,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	 * adjust it according to limitations or connector properties, and also
 	 * a chance to reject the mode entirely.
 	 */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	drm_for_each_encoder(encoder, dev) {
 
 		if (encoder->crtc != crtc)
 			continue;
@@ -334,7 +334,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	crtc->hwmode = *adjusted_mode;
 
 	/* Prepare the encoders and CRTCs before setting the mode. */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	drm_for_each_encoder(encoder, dev) {
 
 		if (encoder->crtc != crtc)
 			continue;
@@ -359,7 +359,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	if (!ret)
 	    goto done;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	drm_for_each_encoder(encoder, dev) {
 
 		if (encoder->crtc != crtc)
 			continue;
@@ -376,7 +376,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	crtc_funcs->commit(crtc);
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	drm_for_each_encoder(encoder, dev) {
 
 		if (encoder->crtc != crtc)
 			continue;
@@ -418,11 +418,11 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 	struct drm_encoder *encoder;
 
 	/* Decouple all encoders and their attached connectors from this crtc */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	drm_for_each_encoder(encoder, dev) {
 		if (encoder->crtc != crtc)
 			continue;
 
-		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_for_each_connector(connector, dev) {
 			if (connector->encoder != encoder)
 				continue;
 
@@ -519,12 +519,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	 * restored, not the drivers personal bookkeeping.
 	 */
 	count = 0;
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	drm_for_each_encoder(encoder, dev) {
 		save_encoders[count++] = *encoder;
 	}
 
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_for_each_connector(connector, dev) {
 		save_connectors[count++] = *connector;
 	}
 
@@ -562,7 +562,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 
 	/* a) traverse passed in connector list and get encoders for them */
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_for_each_connector(connector, dev) {
 		const struct drm_connector_helper_funcs *connector_funcs =
 			connector->helper_private;
 		new_encoder = connector->encoder;
@@ -602,7 +602,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	}
 
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_for_each_connector(connector, dev) {
 		if (!connector->encoder)
 			continue;
 
@@ -685,12 +685,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 fail:
 	/* Restore all previous data. */
 	count = 0;
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	drm_for_each_encoder(encoder, dev) {
 		*encoder = save_encoders[count++];
 	}
 
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_for_each_connector(connector, dev) {
 		*connector = save_connectors[count++];
 	}
 
@@ -862,7 +862,7 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 	bool ret;
 
 	drm_modeset_lock_all(dev);
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(crtc, dev) {
 
 		if (!crtc->enabled)
 			continue;
@@ -876,7 +876,7 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 
 		/* Turn off outputs that were already powered off */
 		if (drm_helper_choose_crtc_dpms(crtc)) {
-			list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+			drm_for_each_encoder(encoder, dev) {
 
 				if(encoder->crtc != crtc)
 					continue;

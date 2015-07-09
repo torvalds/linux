@@ -1583,4 +1583,19 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head) \
 		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 
+#define drm_for_each_plane(plane, dev) \
+	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head)
+
+#define drm_for_each_crtc(crtc, dev) \
+	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
+
+#define drm_for_each_connector(connector, dev) \
+	list_for_each_entry(connector, &(dev)->mode_config.connector_list, head)
+
+#define drm_for_each_encoder(encoder, dev) \
+	list_for_each_entry(encoder, &(dev)->mode_config.encoder_list, head)
+
+#define drm_for_each_fb(fb, dev) \
+	list_for_each_entry(fb, &(dev)->mode_config.fb_list, head)
+
 #endif /* __DRM_CRTC_H__ */
