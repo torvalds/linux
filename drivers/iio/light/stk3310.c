@@ -35,8 +35,8 @@
 #define STK3310_REG_ID				0x3E
 #define STK3310_MAX_REG				0x80
 
-#define STK3310_STATE_EN_PS			0x01
-#define STK3310_STATE_EN_ALS			0x02
+#define STK3310_STATE_EN_PS			BIT(0)
+#define STK3310_STATE_EN_ALS			BIT(1)
 #define STK3310_STATE_STANDBY			0x00
 
 #define STK3310_CHIP_ID_VAL			0x13
@@ -436,8 +436,8 @@ static int stk3310_set_state(struct stk3310_data *data, u8 state)
 		dev_err(&client->dev, "failed to change sensor state\n");
 	} else if (state != STK3310_STATE_STANDBY) {
 		/* Don't reset the 'enabled' flags if we're going in standby */
-		data->ps_enabled  = !!(state & 0x01);
-		data->als_enabled = !!(state & 0x02);
+		data->ps_enabled  = !!(state & STK3310_STATE_EN_PS);
+		data->als_enabled = !!(state & STK3310_STATE_EN_ALS);
 	}
 	mutex_unlock(&data->lock);
 
@@ -683,7 +683,7 @@ static int stk3310_suspend(struct device *dev)
 
 static int stk3310_resume(struct device *dev)
 {
-	int state = 0;
+	u8 state = 0;
 	struct stk3310_data *data;
 
 	data = iio_priv(i2c_get_clientdata(to_i2c_client(dev)));
