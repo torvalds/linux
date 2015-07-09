@@ -384,7 +384,7 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 	/* mvcol buffer for mpeg4 */
 	if ((dev->devtype->product != CODA_DX6) &&
 	    (ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4))
-		coda_parabuf_write(ctx, 97, ctx->internal_frames[i].paddr +
+		coda_parabuf_write(ctx, 97, ctx->internal_frames[0].paddr +
 					    ysize + ysize/4 + ysize/4);
 
 	return 0;
