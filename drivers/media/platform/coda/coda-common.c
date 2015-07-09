@@ -1244,9 +1244,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		if (q_data_src->fourcc == V4L2_PIX_FMT_H264 ||
-		    (q_data_src->fourcc == V4L2_PIX_FMT_JPEG &&
-		     ctx->dev->devtype->product == CODA_7541)) {
+		if (ctx->inst_type == CODA_INST_DECODER && ctx->use_bit) {
 			/* copy the buffers that were queued before streamon */
 			mutex_lock(&ctx->bitstream_mutex);
 			coda_fill_bitstream(ctx, false);
