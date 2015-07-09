@@ -71,6 +71,7 @@ enum mixer_version_id {
 
 enum mixer_flag_bits {
 	MXR_BIT_POWERED,
+	MXR_BIT_VSYNC,
 };
 
 struct mixer_context {
@@ -84,7 +85,6 @@ struct mixer_context {
 	bool			interlace;
 	bool			vp_enabled;
 	bool			has_sclk;
-	u32			int_en;
 
 	struct mixer_resources	mixer_res;
 	enum mixer_version_id	mxr_ver;
@@ -902,10 +902,9 @@ static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
-	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags)) {
-		mixer_ctx->int_en |= MXR_INT_EN_VSYNC;
+	__set_bit(MXR_BIT_VSYNC, &mixer_ctx->flags);
+	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return 0;
-	}
 
 	/* enable vsync interrupt */
 	mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
@@ -919,10 +918,10 @@ static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
-	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags)) {
-		mixer_ctx->int_en &= MXR_INT_EN_VSYNC;
+	__clear_bit(MXR_BIT_VSYNC, &mixer_ctx->flags);
+
+	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
-	}
 
 	/* disable vsync interrupt */
 	mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
@@ -1035,9 +1034,10 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 
 	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
 
-	if (ctx->int_en & MXR_INT_EN_VSYNC)
+	if (test_bit(MXR_BIT_VSYNC, &ctx->flags)) {
 		mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
-	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
+		mixer_reg_writemask(res, MXR_INT_EN, ~0, MXR_INT_EN_VSYNC);
+	}
 	mixer_win_reset(ctx);
 }
 
@@ -1055,8 +1055,6 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 
 	for (i = 0; i < MIXER_WIN_NR; i++)
 		mixer_win_disable(crtc, i);
-
-	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
 
 	clear_bit(MXR_BIT_POWERED, &ctx->flags);
 
