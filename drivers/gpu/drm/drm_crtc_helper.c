@@ -151,7 +151,7 @@ bool drm_helper_crtc_in_use(struct drm_crtc *crtc)
 	if (!oops_in_progress)
 		WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+	drm_for_each_encoder(encoder, dev)
 		if (encoder->crtc == crtc && drm_helper_encoder_in_use(encoder))
 			return true;
 	return false;

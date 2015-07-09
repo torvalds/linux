@@ -736,7 +736,7 @@ unsigned int drm_crtc_index(struct drm_crtc *crtc)
 	unsigned int index = 0;
 	struct drm_crtc *tmp;
 
-	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(tmp, crtc->dev) {
 		if (tmp == crtc)
 			return index;
 
@@ -1280,7 +1280,7 @@ unsigned int drm_plane_index(struct drm_plane *plane)
 	unsigned int index = 0;
 	struct drm_plane *tmp;
 
-	list_for_each_entry(tmp, &plane->dev->mode_config.plane_list, head) {
+	drm_for_each_plane(tmp, plane->dev) {
 		if (tmp == plane)
 			return index;
 
@@ -1719,10 +1719,10 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+	drm_for_each_crtc(crtc, dev)
 		group->id_list[group->num_crtcs++] = crtc->base.id;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+	drm_for_each_encoder(encoder, dev)
 		group->id_list[group->num_crtcs + group->num_encoders++] =
 		encoder->base.id;
 
@@ -1811,15 +1811,17 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	mutex_lock(&dev->mode_config.mutex);
 	if (!drm_is_primary_client(file_priv)) {
 		struct drm_connector *connector;
+		struct drm_encoder *encoder;
+		struct drm_crtc *crtc;
 
 		mode_group = NULL;
-		list_for_each(lh, &dev->mode_config.crtc_list)
+		drm_for_each_crtc(crtc, dev)
 			crtc_count++;
 
 		drm_for_each_connector(connector, dev)
 			connector_count++;
 
-		list_for_each(lh, &dev->mode_config.encoder_list)
+		drm_for_each_encoder(encoder, dev)
 			encoder_count++;
 	} else {
 
@@ -2287,7 +2289,7 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 		plane_ptr = (uint32_t __user *)(unsigned long)plane_resp->plane_id_ptr;
 
 		/* Plane lists are invariant, no locking needed. */
-		list_for_each_entry(plane, &config->plane_list, head) {
+		drm_for_each_plane(plane, dev) {
 			/*
 			 * Unless userspace set the 'universal planes'
 			 * capability bit, only advertise overlays.
@@ -2592,7 +2594,7 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 	 * connectors from it), hence we need to refcount the fbs across all
 	 * crtcs. Atomic modeset will have saner semantics ...
 	 */
-	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head)
+	drm_for_each_crtc(tmp, crtc->dev)
 		tmp->primary->old_fb = tmp->primary->fb;
 
 	fb = set->fb;
@@ -2603,7 +2605,7 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 		crtc->primary->fb = fb;
 	}
 
-	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(tmp, crtc->dev) {
 		if (tmp->primary->fb)
 			drm_framebuffer_reference(tmp->primary->fb);
 		if (tmp->primary->old_fb)
@@ -5377,15 +5379,15 @@ void drm_mode_config_reset(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 
-	list_for_each_entry(plane, &dev->mode_config.plane_list, head)
+	drm_for_each_plane(plane, dev)
 		if (plane->funcs->reset)
 			plane->funcs->reset(plane);
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+	drm_for_each_crtc(crtc, dev)
 		if (crtc->funcs->reset)
 			crtc->funcs->reset(crtc);
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+	drm_for_each_encoder(encoder, dev)
 		if (encoder->funcs->reset)
 			encoder->funcs->reset(encoder);
 
