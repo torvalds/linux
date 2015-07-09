@@ -2047,6 +2047,7 @@ device_create_response(struct visor_device *dev_info, int response)
 			 response);
 
 	kfree(dev_info->pending_msg_hdr);
+	dev_info->pending_msg_hdr = NULL;
 }
 
 static void
