@@ -60,6 +60,13 @@ static inline struct pci_dev *msi_desc_to_pci_dev(struct msi_desc *desc)
 {
 	return desc->dev;
 }
+
+void *msi_desc_to_pci_sysdata(struct msi_desc *desc);
+#else /* CONFIG_PCI_MSI */
+static inline void *msi_desc_to_pci_sysdata(struct msi_desc *desc)
+{
+	return NULL;
+}
 #endif /* CONFIG_PCI_MSI */
 
 void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
