@@ -197,6 +197,22 @@ int sst_dsp_shim_update_bits64_unlocked(struct sst_dsp *sst, u32 offset,
 }
 EXPORT_SYMBOL_GPL(sst_dsp_shim_update_bits64_unlocked);
 
+/* This is for registers bits with attribute RWC */
+void sst_dsp_shim_update_bits_forced_unlocked(struct sst_dsp *sst, u32 offset,
+				u32 mask, u32 value)
+{
+	unsigned int old, new;
+	u32 ret;
+
+	ret = sst_dsp_shim_read_unlocked(sst, offset);
+
+	old = ret;
+	new = (old & (~mask)) | (value & mask);
+
+	sst_dsp_shim_write_unlocked(sst, offset, new);
+}
+EXPORT_SYMBOL_GPL(sst_dsp_shim_update_bits_forced_unlocked);
+
 int sst_dsp_shim_update_bits(struct sst_dsp *sst, u32 offset,
 				u32 mask, u32 value)
 {
@@ -222,6 +238,18 @@ int sst_dsp_shim_update_bits64(struct sst_dsp *sst, u32 offset,
 	return change;
 }
 EXPORT_SYMBOL_GPL(sst_dsp_shim_update_bits64);
+
+/* This is for registers bits with attribute RWC */
+void sst_dsp_shim_update_bits_forced(struct sst_dsp *sst, u32 offset,
+				u32 mask, u32 value)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sst->spinlock, flags);
+	sst_dsp_shim_update_bits_forced_unlocked(sst, offset, mask, value);
+	spin_unlock_irqrestore(&sst->spinlock, flags);
+}
+EXPORT_SYMBOL_GPL(sst_dsp_shim_update_bits_forced);
 
 int sst_dsp_register_poll(struct sst_dsp *ctx, u32 offset, u32 mask,
 			 u32 target, u32 timeout, char *operation)
