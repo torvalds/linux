@@ -114,6 +114,10 @@ int gb_operation_result(struct gb_operation *operation)
 }
 EXPORT_SYMBOL_GPL(gb_operation_result);
 
+/*
+ * Looks up an operation on a connection and returns a refcounted pointer if
+ * found, or NULL otherwise.
+ */
 static struct gb_operation *
 gb_operation_find(struct gb_connection *connection, u16 operation_id)
 {
@@ -124,6 +128,7 @@ gb_operation_find(struct gb_connection *connection, u16 operation_id)
 	spin_lock_irqsave(&gb_operations_lock, flags);
 	list_for_each_entry(operation, &connection->operations, links)
 		if (operation->id == operation_id) {
+			gb_operation_get(operation);
 			found = true;
 			break;
 		}
@@ -795,6 +800,8 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	/* The rest will be handled in work queue context */
 	if (gb_operation_result_set(operation, errno))
 		queue_work(gb_operation_workqueue, &operation->work);
+
+	gb_operation_put(operation);
 }
 
 /*
