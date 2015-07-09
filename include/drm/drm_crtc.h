@@ -1589,8 +1589,18 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 #define drm_for_each_crtc(crtc, dev) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
 
+static inline void
+assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
+{
+	WARN_ON(!mutex_is_locked(&mode_config->mutex));
+}
+
 #define drm_for_each_connector(connector, dev) \
-	list_for_each_entry(connector, &(dev)->mode_config.connector_list, head)
+	for (assert_drm_connector_list_read_locked(&(dev)->mode_config),	\
+	     connector = list_first_entry(&(dev)->mode_config.connector_list,	\
+					  struct drm_connector, head);		\
+	     &connector->head != (&(dev)->mode_config.connector_list);		\
+	     connector = list_next_entry(connector, head))
 
 #define drm_for_each_encoder(encoder, dev) \
 	list_for_each_entry(encoder, &(dev)->mode_config.encoder_list, head)
