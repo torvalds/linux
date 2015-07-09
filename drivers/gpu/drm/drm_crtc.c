@@ -988,7 +988,7 @@ unsigned int drm_connector_index(struct drm_connector *connector)
 
 	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
 
-	list_for_each_entry(tmp, &connector->dev->mode_config.connector_list, head) {
+	drm_for_each_connector(tmp, connector->dev) {
 		if (tmp == connector)
 			return index;
 
@@ -1054,7 +1054,7 @@ void drm_connector_unplug_all(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 
-	/* taking the mode config mutex ends up in a clash with sysfs */
+	/* FIXME: taking the mode config mutex ends up in a clash with sysfs */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		drm_connector_unregister(connector);
 
@@ -1726,7 +1726,7 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 		group->id_list[group->num_crtcs + group->num_encoders++] =
 		encoder->base.id;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	drm_for_each_connector(connector, dev)
 		group->id_list[group->num_crtcs + group->num_encoders +
 			       group->num_connectors++] = connector->base.id;
 
@@ -1810,12 +1810,13 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	 * connector hot-adding. CRTC/Plane lists are invariant. */
 	mutex_lock(&dev->mode_config.mutex);
 	if (!drm_is_primary_client(file_priv)) {
+		struct drm_connector *connector;
 
 		mode_group = NULL;
 		list_for_each(lh, &dev->mode_config.crtc_list)
 			crtc_count++;
 
-		list_for_each(lh, &dev->mode_config.connector_list)
+		drm_for_each_connector(connector, dev)
 			connector_count++;
 
 		list_for_each(lh, &dev->mode_config.encoder_list)
