@@ -188,7 +188,7 @@ __setup("nohtw", htw_disable);
 static int mips_ftlb_disabled;
 static int mips_has_ftlb_configured;
 
-static void set_ftlb_enable(struct cpuinfo_mips *c, int enable);
+static int set_ftlb_enable(struct cpuinfo_mips *c, int enable);
 
 static int __init ftlb_disable(char *s)
 {
@@ -202,7 +202,10 @@ static int __init ftlb_disable(char *s)
 		return 1;
 
 	/* Disable it in the boot cpu */
-	set_ftlb_enable(&cpu_data[0], 0);
+	if (set_ftlb_enable(&cpu_data[0], 0)) {
+		pr_warn("Can't turn FTLB off\n");
+		return 1;
+	}
 
 	back_to_back_c0_hazard();
 
@@ -364,7 +367,7 @@ static unsigned int calculate_ftlb_probability(struct cpuinfo_mips *c)
 		return 3;
 }
 
-static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
+static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 {
 	unsigned int config6;
 
@@ -386,7 +389,11 @@ static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 			/* Disable FTLB */
 			write_c0_config6(config6 &  ~MIPS_CONF6_FTLBEN);
 		break;
+	default:
+		return 1;
 	}
+
+	return 0;
 }
 
 static inline unsigned int decode_config0(struct cpuinfo_mips *c)
