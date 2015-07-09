@@ -321,8 +321,7 @@ static void widget_tree_free(struct hdac_device *codec)
 			free_widget_node(*p, &widget_node_group);
 		kfree(tree->nodes);
 	}
-	if (tree->root)
-		kobject_put(tree->root);
+	kobject_put(tree->root);
 	kfree(tree);
 	codec->widgets = NULL;
 }
