@@ -917,6 +917,11 @@ static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
+	if (!mixer_ctx->powered) {
+		mixer_ctx->int_en &= MXR_INT_EN_VSYNC;
+		return;
+	}
+
 	/* disable vsync interrupt */
 	mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
 	mixer_reg_writemask(res, MXR_INT_EN, 0, MXR_INT_EN_VSYNC);
