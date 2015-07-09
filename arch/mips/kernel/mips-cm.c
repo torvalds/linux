@@ -81,6 +81,13 @@ int mips_cm_probe(void)
 	phys_addr_t addr;
 	u32 base_reg;
 
+	/*
+	 * No need to probe again if we have already been
+	 * here before.
+	 */
+	if (mips_cm_base)
+		return 0;
+
 	addr = mips_cm_phys_base();
 	BUG_ON((addr & CM_GCR_BASE_GCRBASE_MSK) != addr);
 	if (!addr)
