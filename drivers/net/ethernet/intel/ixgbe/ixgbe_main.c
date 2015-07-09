@@ -7848,9 +7848,10 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	bool pools;
 
 	/* Hardware supports up to 8 traffic classes */
-	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs ||
-	    (hw->mac.type == ixgbe_mac_82598EB &&
-	     tc < MAX_TRAFFIC_CLASS))
+	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs)
+		return -EINVAL;
+
+	if (hw->mac.type == ixgbe_mac_82598EB && tc && tc < MAX_TRAFFIC_CLASS)
 		return -EINVAL;
 
 	pools = (find_first_zero_bit(&adapter->fwd_bitmask, 32) > 1);
