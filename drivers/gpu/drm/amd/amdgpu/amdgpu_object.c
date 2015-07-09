@@ -466,7 +466,6 @@ void amdgpu_bo_force_delete(struct amdgpu_device *adev)
 	}
 	dev_err(adev->dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &adev->gem.objects, list) {
-		mutex_lock(&adev->ddev->struct_mutex);
 		dev_err(adev->dev, "%p %p %lu %lu force free\n",
 			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
 			*((unsigned long *)&bo->gem_base.refcount));
@@ -474,8 +473,7 @@ void amdgpu_bo_force_delete(struct amdgpu_device *adev)
 		list_del_init(&bo->list);
 		mutex_unlock(&bo->adev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_unreference(&bo->gem_base);
-		mutex_unlock(&adev->ddev->struct_mutex);
+		drm_gem_object_unreference_unlocked(&bo->gem_base);
 	}
 }
 
