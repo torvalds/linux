@@ -22,9 +22,11 @@
                 wifi_chip_type = "ap6210";		
 
 		sdio_vref = <1800>; //1800mv or 3300mv
- 		power_pmu_regulator = "rk818_ldo8_reg";
+ 		power_pmu_regulator = "vccio_wl";
 		power_pmu_enable_level = <1>; //1->HIGH, 0->LOW
- 		vref_pmu_regulator = "rk818_ldo8_reg";
+
+                //vref_ctrl_enable;
+                vref_pmu_regulator = "vccio_wl";
 		vref_pmu_enable_level = <1>; //1->HIGH, 0->LOW
 
 		WIFI,poweren_gpio = <&gpio3 GPIO_A4 GPIO_ACTIVE_HIGH>;
