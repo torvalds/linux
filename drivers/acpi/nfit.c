@@ -868,6 +868,7 @@ static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
 	struct acpi_device *adev;
 	int i;
 
+	nd_desc->dsm_mask = acpi_desc->bus_dsm_force_en;
 	adev = to_acpi_dev(acpi_desc);
 	if (!adev)
 		return;
