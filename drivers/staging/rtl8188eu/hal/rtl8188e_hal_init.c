@@ -138,8 +138,6 @@ static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
 
 	value32 = usb_read32(padapter, REG_SYS_CFG);
 	ChipVersion.ChipType = ((value32 & RTL_ID) ? TEST_CHIP : NORMAL_CHIP);
-
-	ChipVersion.RFType = RF_TYPE_1T1R;
 	ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
 	ChipVersion.CUTVersion = (value32 & CHIP_VER_RTL_MASK)>>CHIP_VER_RTL_SHIFT; /*  IC version (CUT) */
 
@@ -148,17 +146,8 @@ static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
 	dump_chip_info(ChipVersion);
 
 	pHalData->VersionID = ChipVersion;
-
-	if (IS_1T2R(ChipVersion)) {
-		pHalData->rf_type = RF_1T2R;
-		pHalData->NumTotalRFPath = 2;
-	} else if (IS_2T2R(ChipVersion)) {
-		pHalData->rf_type = RF_2T2R;
-		pHalData->NumTotalRFPath = 2;
-	} else{
-		pHalData->rf_type = RF_1T1R;
-		pHalData->NumTotalRFPath = 1;
-	}
+	pHalData->rf_type = RF_1T1R;
+	pHalData->NumTotalRFPath = 1;
 
 	MSG_88E("RF_Type is %x!!\n", pHalData->rf_type);
 
