@@ -3529,15 +3529,15 @@ err:
 
 static int be_setup_wol(struct be_adapter *adapter, bool enable)
 {
+	struct device *dev = &adapter->pdev->dev;
 	struct be_dma_mem cmd;
-	int status = 0;
 	u8 mac[ETH_ALEN];
+	int status;
 
 	eth_zero_addr(mac);
 
 	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
-	cmd.va = dma_zalloc_coherent(&adapter->pdev->dev, cmd.size, &cmd.dma,
-				     GFP_KERNEL);
+	cmd.va = dma_zalloc_coherent(dev, cmd.size, &cmd.dma, GFP_KERNEL);
 	if (!cmd.va)
 		return -ENOMEM;
 
@@ -3546,24 +3546,18 @@ static int be_setup_wol(struct be_adapter *adapter, bool enable)
 						PCICFG_PM_CONTROL_OFFSET,
 						PCICFG_PM_CONTROL_MASK);
 		if (status) {
-			dev_err(&adapter->pdev->dev,
-				"Could not enable Wake-on-lan\n");
-			dma_free_coherent(&adapter->pdev->dev, cmd.size, cmd.va,
-					  cmd.dma);
-			return status;
+			dev_err(dev, "Could not enable Wake-on-lan\n");
+			goto err;
 		}
-		status = be_cmd_enable_magic_wol(adapter,
-						 adapter->netdev->dev_addr,
-						 &cmd);
-		pci_enable_wake(adapter->pdev, PCI_D3hot, 1);
-		pci_enable_wake(adapter->pdev, PCI_D3cold, 1);
 	} else {
-		status = be_cmd_enable_magic_wol(adapter, mac, &cmd);
-		pci_enable_wake(adapter->pdev, PCI_D3hot, 0);
-		pci_enable_wake(adapter->pdev, PCI_D3cold, 0);
+		ether_addr_copy(mac, adapter->netdev->dev_addr);
 	}
 
-	dma_free_coherent(&adapter->pdev->dev, cmd.size, cmd.va, cmd.dma);
+	status = be_cmd_enable_magic_wol(adapter, mac, &cmd);
+	pci_enable_wake(adapter->pdev, PCI_D3hot, enable);
+	pci_enable_wake(adapter->pdev, PCI_D3cold, enable);
+err:
+	dma_free_coherent(dev, cmd.size, cmd.va, cmd.dma);
 	return status;
 }
 
