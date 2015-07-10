@@ -3092,7 +3092,7 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
 		ext4_free_io_end(io_end);
 out:
-		inode_dio_done(inode);
+		inode_dio_end(inode);
 		if (is_async)
 			aio_complete(iocb, ret, 0);
 		return;
@@ -3150,7 +3150,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	overwrite = *((int *)iocb->private);
 
 	if (overwrite) {
-		atomic_inc(&inode->i_dio_count);
+		inode_dio_begin(inode);
 		down_read(&EXT4_I(inode)->i_data_sem);
 		mutex_unlock(&inode->i_mutex);
 	}
@@ -3243,7 +3243,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 retake_lock:
 	/* take i_mutex locking again if we do a ovewrite dio */
 	if (overwrite) {
-		inode_dio_done(inode);
+		inode_dio_end(inode);
 		up_read(&EXT4_I(inode)->i_data_sem);
 		mutex_lock(&inode->i_mutex);
 	}
