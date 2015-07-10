@@ -196,6 +196,19 @@ ENTRY(__cpu_setup)
 	 */
 	mrs	x9, ID_AA64MMFR0_EL1
 	bfi	x10, x9, #32, #3
+#ifdef CONFIG_ARM64_HW_AFDBM
+	/*
+	 * Hardware update of the Access and Dirty bits.
+	 */
+	mrs	x9, ID_AA64MMFR1_EL1
+	and	x9, x9, #0xf
+	cbz	x9, 2f
+	cmp	x9, #2
+	b.lt	1f
+	orr	x10, x10, #TCR_HD		// hardware Dirty flag update
+1:	orr	x10, x10, #TCR_HA		// hardware Access flag update
+2:
+#endif	/* CONFIG_ARM64_HW_AFDBM */
 	msr	tcr_el1, x10
 	ret					// return to head.S
 ENDPROC(__cpu_setup)
