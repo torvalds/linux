@@ -500,7 +500,6 @@ MODULE_DEVICE_TABLE(i2c, ds3232_id);
 static struct i2c_driver ds3232_driver = {
 	.driver = {
 		.name = "rtc-ds3232",
-		.owner = THIS_MODULE,
 		.pm	= &ds3232_pm_ops,
 	},
 	.probe = ds3232_probe,

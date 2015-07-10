@@ -231,7 +231,6 @@ MODULE_DEVICE_TABLE(of, pcf2127_of_match);
 static struct i2c_driver pcf2127_driver = {
 	.driver		= {
 		.name	= "rtc-pcf2127",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pcf2127_of_match),
 	},
 	.probe		= pcf2127_probe,

@@ -1020,7 +1020,6 @@ MODULE_DEVICE_TABLE(i2c, abb5zes3_id);
 static struct i2c_driver abb5zes3_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &abb5zes3_rtc_pm_ops,
 		.of_match_table = of_match_ptr(abb5zes3_dt_match),
 	},

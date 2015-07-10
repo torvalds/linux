@@ -1252,7 +1252,6 @@ static int ds1307_remove(struct i2c_client *client)
 static struct i2c_driver ds1307_driver = {
 	.driver = {
 		.name	= "rtc-ds1307",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1307_probe,
 	.remove		= ds1307_remove,

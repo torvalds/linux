@@ -234,7 +234,6 @@ MODULE_DEVICE_TABLE(i2c, bq32k_id);
 static struct i2c_driver bq32k_driver = {
 	.driver = {
 		.name	= "bq32k",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= bq32k_probe,
 	.id_table	= bq32k_id,

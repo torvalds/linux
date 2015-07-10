@@ -628,7 +628,6 @@ static int rx8025_remove(struct i2c_client *client)
 static struct i2c_driver rx8025_driver = {
 	.driver = {
 		.name = "rtc-rx8025",
-		.owner = THIS_MODULE,
 	},
 	.probe		= rx8025_probe,
 	.remove		= rx8025_remove,

@@ -708,7 +708,6 @@ static SIMPLE_DEV_PM_OPS(ds1374_pm, ds1374_suspend, ds1374_resume);
 static struct i2c_driver ds1374_driver = {
 	.driver = {
 		.name = "rtc-ds1374",
-		.owner = THIS_MODULE,
 		.pm = &ds1374_pm,
 	},
 	.probe = ds1374_probe,
