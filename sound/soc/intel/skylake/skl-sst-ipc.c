@@ -362,6 +362,12 @@ static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		break;
 	}
 
+	if (reply != IPC_GLB_REPLY_SUCCESS) {
+		dev_err(ipc->dev, "ipc FW reply: reply=%d", reply);
+		dev_err(ipc->dev, "FW Error Code: %u\n",
+			ipc->dsp->fw_ops.get_fw_errcode(ipc->dsp));
+	}
+
 	list_del(&msg->list);
 	sst_ipc_tx_msg_reply_complete(ipc, msg);
 }
