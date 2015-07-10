@@ -163,6 +163,15 @@ static inline void tick_nohz_full_kick_all(void) { }
 static inline void __tick_nohz_task_switch(struct task_struct *tsk) { }
 #endif
 
+static inline const struct cpumask *housekeeping_cpumask(void)
+{
+#ifdef CONFIG_NO_HZ_FULL
+	if (tick_nohz_full_enabled())
+		return housekeeping_mask;
+#endif
+	return cpu_possible_mask;
+}
+
 static inline bool is_housekeeping_cpu(int cpu)
 {
 #ifdef CONFIG_NO_HZ_FULL
