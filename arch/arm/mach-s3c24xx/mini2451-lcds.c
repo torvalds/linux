@@ -300,7 +300,7 @@ static struct s3cfb_lcd wvga_p43 = {
 		.v_sw =  2,
 	},
 	.polarity = {
-		.rise_vclk = 0,
+		.rise_vclk = 1,
 		.inv_hsync = 1,
 		.inv_vsync = 1,
 		.inv_vden = 0,
