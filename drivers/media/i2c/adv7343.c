@@ -522,7 +522,6 @@ MODULE_DEVICE_TABLE(of, adv7343_of_match);
 static struct i2c_driver adv7343_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(adv7343_of_match),
-		.owner	= THIS_MODULE,
 		.name	= "adv7343",
 	},
 	.probe		= adv7343_probe,

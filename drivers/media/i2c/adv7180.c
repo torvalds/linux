@@ -1336,7 +1336,6 @@ MODULE_DEVICE_TABLE(of, adv7180_of_id);
 
 static struct i2c_driver adv7180_driver = {
 	.driver = {
-		   .owner = THIS_MODULE,
 		   .name = KBUILD_MODNAME,
 		   .pm = ADV7180_PM_OPS,
 		   .of_match_table = of_match_ptr(adv7180_of_id),

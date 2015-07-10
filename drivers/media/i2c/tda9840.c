@@ -199,7 +199,6 @@ MODULE_DEVICE_TABLE(i2c, tda9840_id);
 
 static struct i2c_driver tda9840_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tda9840",
 	},
 	.probe		= tda9840_probe,

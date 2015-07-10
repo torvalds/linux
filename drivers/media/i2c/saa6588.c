@@ -518,7 +518,6 @@ MODULE_DEVICE_TABLE(i2c, saa6588_id);
 
 static struct i2c_driver saa6588_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "saa6588",
 	},
 	.probe		= saa6588_probe,

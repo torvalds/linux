@@ -265,7 +265,6 @@ MODULE_DEVICE_TABLE(i2c, wm8739_id);
 
 static struct i2c_driver wm8739_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "wm8739",
 	},
 	.probe		= wm8739_probe,

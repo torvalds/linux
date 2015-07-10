@@ -1215,7 +1215,6 @@ MODULE_DEVICE_TABLE(i2c, tvp5150_id);
 
 static struct i2c_driver tvp5150_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tvp5150",
 	},
 	.probe		= tvp5150_probe,

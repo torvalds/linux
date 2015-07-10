@@ -409,7 +409,6 @@ MODULE_DEVICE_TABLE(i2c, tda7432_id);
 
 static struct i2c_driver tda7432_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tda7432",
 	},
 	.probe		= tda7432_probe,

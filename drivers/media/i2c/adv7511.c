@@ -1576,7 +1576,6 @@ MODULE_DEVICE_TABLE(i2c, adv7511_id);
 
 static struct i2c_driver adv7511_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "adv7511",
 	},
 	.probe = adv7511_probe,

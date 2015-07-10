@@ -3262,7 +3262,6 @@ static int adv76xx_remove(struct i2c_client *client)
 
 static struct i2c_driver adv76xx_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "adv7604",
 		.of_match_table = of_match_ptr(adv76xx_of_id),
 	},

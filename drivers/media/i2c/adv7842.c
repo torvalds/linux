@@ -3363,7 +3363,6 @@ MODULE_DEVICE_TABLE(i2c, adv7842_id);
 
 static struct i2c_driver adv7842_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "adv7842",
 	},
 	.probe = adv7842_probe,
