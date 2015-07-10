@@ -150,11 +150,6 @@ static inline bool nf_hook_list_active(struct list_head *nf_hook_list,
 }
 #endif
 
-static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
-{
-	return nf_hook_list_active(&nf_hooks[pf][hook], pf, hook);
-}
-
 int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state);
 
 /**
@@ -172,10 +167,12 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 int (*okfn)(struct sock *, struct sk_buff *),
 				 int thresh)
 {
-	if (nf_hooks_active(pf, hook)) {
+	struct list_head *nf_hook_list = &nf_hooks[pf][hook];
+
+	if (nf_hook_list_active(nf_hook_list, pf, hook)) {
 		struct nf_hook_state state;
 
-		nf_hook_state_init(&state, &nf_hooks[pf][hook], hook, thresh,
+		nf_hook_state_init(&state, nf_hook_list, hook, thresh,
 				   pf, indev, outdev, sk, okfn);
 		return nf_hook_slow(skb, &state);
 	}
