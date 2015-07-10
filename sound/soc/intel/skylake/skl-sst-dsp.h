@@ -16,6 +16,8 @@
 #ifndef __SKL_SST_DSP_H__
 #define __SKL_SST_DSP_H__
 
+#include <sound/memalloc.h>
+
 struct sst_dsp_device;
 
 /* Intel HD Audio General DSP Registers */
@@ -102,6 +104,13 @@ struct skl_dsp_fw_ops {
 	int (*parse_fw)(struct sst_dsp *ctx);
 	int (*set_state_D0)(struct sst_dsp *ctx);
 	int (*set_state_D3)(struct sst_dsp *ctx);
+};
+
+struct skl_dsp_loader_ops {
+	int (*alloc_dma_buf)(struct device *dev,
+		struct snd_dma_buffer *dmab, size_t size);
+	int (*free_dma_buf)(struct device *dev,
+		struct snd_dma_buffer *dmab);
 };
 
 void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state);
