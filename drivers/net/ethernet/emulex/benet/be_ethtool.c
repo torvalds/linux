@@ -847,10 +847,21 @@ err:
 static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
 			    u64 *status)
 {
-	be_cmd_set_loopback(adapter, adapter->hba_port_num, loopback_type, 1);
+	int ret;
+
+	ret = be_cmd_set_loopback(adapter, adapter->hba_port_num,
+				  loopback_type, 1);
+	if (ret)
+		return ret;
+
 	*status = be_cmd_loopback_test(adapter, adapter->hba_port_num,
 				       loopback_type, 1500, 2, 0xabc);
-	be_cmd_set_loopback(adapter, adapter->hba_port_num, BE_NO_LOOPBACK, 1);
+
+	ret = be_cmd_set_loopback(adapter, adapter->hba_port_num,
+				  BE_NO_LOOPBACK, 1);
+	if (ret)
+		return ret;
+
 	return *status;
 }
 

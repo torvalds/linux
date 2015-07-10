@@ -172,6 +172,12 @@ static void be_async_cmd_process(struct be_adapter *adapter,
 		return;
 	}
 
+	if (opcode == OPCODE_LOWLEVEL_SET_LOOPBACK_MODE &&
+	    subsystem == CMD_SUBSYSTEM_LOWLEVEL) {
+		complete(&adapter->et_cmd_compl);
+		return;
+	}
+
 	if ((opcode == OPCODE_COMMON_WRITE_FLASHROM ||
 	     opcode == OPCODE_COMMON_WRITE_OBJECT) &&
 	    subsystem == CMD_SUBSYSTEM_COMMON) {
@@ -2600,7 +2606,7 @@ int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 	wrb = wrb_from_mccq(adapter);
 	if (!wrb) {
 		status = -EBUSY;
-		goto err;
+		goto err_unlock;
 	}
 
 	req = embedded_payload(wrb);
@@ -2614,8 +2620,19 @@ int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 	req->loopback_type = loopback_type;
 	req->loopback_state = enable;
 
-	status = be_mcc_notify_wait(adapter);
-err:
+	status = be_mcc_notify(adapter);
+	if (status)
+		goto err_unlock;
+
+	spin_unlock_bh(&adapter->mcc_lock);
+
+	if (!wait_for_completion_timeout(&adapter->et_cmd_compl,
+					 msecs_to_jiffies(SET_LB_MODE_TIMEOUT)))
+		status = -ETIMEDOUT;
+
+	return status;
+
+err_unlock:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }

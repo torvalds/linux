@@ -1495,6 +1495,8 @@ struct be_cmd_resp_acpi_wol_magic_config_v1 {
 #define BE_PME_D3COLD_CAP		0x80
 
 /********************** LoopBack test *********************/
+#define SET_LB_MODE_TIMEOUT		12000
+
 struct be_cmd_req_loopback_test {
 	struct be_cmd_req_hdr hdr;
 	u32 loopback_type;
