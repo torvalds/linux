@@ -851,33 +851,56 @@ static int bdisp_g_selection(struct file *file, void *fh,
 	struct bdisp_frame *frame;
 	struct bdisp_ctx *ctx = fh_to_ctx(fh);
 
-	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		/* Composing  / capture is not supported */
-		dev_dbg(ctx->bdisp_dev->dev, "Not supported for capture\n");
-		return -EINVAL;
-	}
-
 	frame = ctx_get_frame(ctx, s->type);
 	if (IS_ERR(frame)) {
 		dev_err(ctx->bdisp_dev->dev, "Invalid frame (%p)\n", frame);
 		return PTR_ERR(frame);
 	}
 
-	switch (s->target) {
-	case V4L2_SEL_TGT_CROP:
-		/* cropped frame */
-		s->r = frame->crop;
+	switch (s->type) {
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+		switch (s->target) {
+		case V4L2_SEL_TGT_CROP:
+			/* cropped frame */
+			s->r = frame->crop;
+			break;
+		case V4L2_SEL_TGT_CROP_DEFAULT:
+		case V4L2_SEL_TGT_CROP_BOUNDS:
+			/* complete frame */
+			s->r.left = 0;
+			s->r.top = 0;
+			s->r.width = frame->width;
+			s->r.height = frame->height;
+			break;
+		default:
+			dev_err(ctx->bdisp_dev->dev, "Invalid target\n");
+			return -EINVAL;
+		}
 		break;
-	case V4L2_SEL_TGT_CROP_DEFAULT:
-	case V4L2_SEL_TGT_CROP_BOUNDS:
-		/* complete frame */
-		s->r.left = 0;
-		s->r.top = 0;
-		s->r.width = frame->width;
-		s->r.height = frame->height;
+
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		switch (s->target) {
+		case V4L2_SEL_TGT_COMPOSE:
+		case V4L2_SEL_TGT_COMPOSE_PADDED:
+			/* composed (cropped) frame */
+			s->r = frame->crop;
+			break;
+		case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+		case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+			/* complete frame */
+			s->r.left = 0;
+			s->r.top = 0;
+			s->r.width = frame->width;
+			s->r.height = frame->height;
+			break;
+		default:
+			dev_err(ctx->bdisp_dev->dev, "Invalid target\n");
+			return -EINVAL;
+		}
 		break;
+
 	default:
-		dev_dbg(ctx->bdisp_dev->dev, "Invalid target\n");
+		dev_err(ctx->bdisp_dev->dev, "Invalid type\n");
 		return -EINVAL;
 	}
 
@@ -906,15 +929,18 @@ static int bdisp_s_selection(struct file *file, void *fh,
 	struct bdisp_frame *frame;
 	struct bdisp_ctx *ctx = fh_to_ctx(fh);
 	struct v4l2_rect *in, out;
+	bool valid = false;
 
-	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		/* Composing  / capture is not supported */
-		dev_dbg(ctx->bdisp_dev->dev, "Not supported for capture\n");
-		return -EINVAL;
-	}
+	if ((s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) &&
+	    (s->target == V4L2_SEL_TGT_CROP))
+		valid = true;
 
-	if (s->target != V4L2_SEL_TGT_CROP) {
-		dev_dbg(ctx->bdisp_dev->dev, "Invalid target\n");
+	if ((s->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	    (s->target == V4L2_SEL_TGT_COMPOSE))
+		valid = true;
+
+	if (!valid) {
+		dev_err(ctx->bdisp_dev->dev, "Invalid type / target\n");
 		return -EINVAL;
 	}
 
