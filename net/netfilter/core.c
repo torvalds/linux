@@ -74,7 +74,6 @@ int nf_register_hook(struct nf_hook_ops *reg)
 		if (reg->hooknum == NF_NETDEV_INGRESS) {
 			BUG_ON(reg->dev == NULL);
 			nf_hook_list = &reg->dev->nf_hooks_ingress;
-			net_inc_ingress_queue();
 			break;
 		}
 #endif
@@ -90,6 +89,10 @@ int nf_register_hook(struct nf_hook_ops *reg)
 	}
 	list_add_rcu(&reg->list, elem->list.prev);
 	mutex_unlock(&nf_hook_mutex);
+#ifdef CONFIG_NETFILTER_INGRESS
+	if (reg->pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+		net_inc_ingress_queue();
+#endif
 #ifdef HAVE_JUMP_LABEL
 	static_key_slow_inc(&nf_hooks_needed[reg->pf][reg->hooknum]);
 #endif
@@ -102,18 +105,10 @@ void nf_unregister_hook(struct nf_hook_ops *reg)
 	mutex_lock(&nf_hook_mutex);
 	list_del_rcu(&reg->list);
 	mutex_unlock(&nf_hook_mutex);
-	switch (reg->pf) {
-	case NFPROTO_NETDEV:
 #ifdef CONFIG_NETFILTER_INGRESS
-		if (reg->hooknum == NF_NETDEV_INGRESS) {
-			net_dec_ingress_queue();
-			break;
-		}
-		break;
+	if (reg->pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+		net_dec_ingress_queue();
 #endif
-	default:
-		break;
-	}
 #ifdef HAVE_JUMP_LABEL
 	static_key_slow_dec(&nf_hooks_needed[reg->pf][reg->hooknum]);
 #endif
