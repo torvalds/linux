@@ -452,6 +452,29 @@ static inline struct sdhci_s3c_drv_data *sdhci_s3c_get_driver_data(
 			platform_get_device_id(pdev)->driver_data;
 }
 
+static void sdhci_s3c_notify_change(struct platform_device *dev, int state)
+{
+	struct sdhci_host *host = platform_get_drvdata(dev);
+	unsigned long flags;
+
+	if (host) {
+		spin_lock_irqsave(&host->lock, flags);
+		if (state) {
+			dev_dbg(&dev->dev, "card inserted.\n");
+			pr_info("%s: card inserted.\n",
+					mmc_hostname(host->mmc));
+			host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+		} else {
+			dev_dbg(&dev->dev, "card removed.\n");
+			pr_info("%s: card removed.\n",
+					mmc_hostname(host->mmc));
+			host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+		}
+		spin_unlock_irqrestore(&host->lock, flags);
+		mmc_detect_change(host->mmc, msecs_to_jiffies(200));
+	}
+}
+
 static int sdhci_s3c_probe(struct platform_device *pdev)
 {
 	struct s3c_sdhci_platdata *pdata;
@@ -623,6 +646,9 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	if (pdata->host_caps2)
 		host->mmc->caps2 |= pdata->host_caps2;
 
+	if (pdata->pm_flags)
+		host->mmc->pm_flags |= pdata->pm_flags;
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -636,6 +662,13 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "sdhci_add_host() failed\n");
 		goto err_req_regs;
+	}
+
+	/* The following two methods of card detection might call
+	   sdhci_s3c_notify_change() immediately, so they can be called
+	   only after sdhci_add_host(). Setup errors are ignored. */
+	if (pdata->cd_type == S3C_SDHCI_CD_EXTERNAL && pdata->ext_cd_init) {
+		pdata->ext_cd_init(&sdhci_s3c_notify_change);
 	}
 
 #ifdef CONFIG_PM
@@ -658,8 +691,12 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 
 static int sdhci_s3c_remove(struct platform_device *pdev)
 {
+	struct s3c_sdhci_platdata *pdata = pdev->dev.platform_data;
 	struct sdhci_host *host =  platform_get_drvdata(pdev);
 	struct sdhci_s3c *sc = sdhci_priv(host);
+
+	if (pdata->cd_type == S3C_SDHCI_CD_EXTERNAL && pdata->ext_cd_cleanup)
+		pdata->ext_cd_cleanup(&sdhci_s3c_notify_change);
 
 	if (sc->ext_cd_irq)
 		free_irq(sc->ext_cd_irq, sc);

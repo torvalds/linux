@@ -1031,6 +1031,11 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	timeout = jiffies;
 	if (!cmd->data && cmd->busy_timeout > 9000)
 		timeout += DIV_ROUND_UP(cmd->busy_timeout, 1000) * HZ + HZ;
+#if defined(CONFIG_BCMDHD)
+	/* HACK: use short timeout */
+	else if (cmd->opcode == SD_IO_RW_EXTENDED)
+		timeout += msecs_to_jiffies(500);
+#endif
 	else
 		timeout += 10 * HZ;
 	mod_timer(&host->timer, timeout);

@@ -52,6 +52,7 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/mmc/host.h>
 #include <plat/sdhci.h>
 #include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
@@ -290,10 +291,68 @@ static void __init mini2451_fb_init_pdata(struct s3c_fb_platdata *pd) {
 	pd->vidcon1 = val;
 }
 
+#if defined(CONFIG_BCMDHD)
+/* Broadcom WI-FI support */
+static DEFINE_MUTEX(notify_lock);
+
+#define DEFINE_MMC_CARD_NOTIFIER(num) \
+static void (*hsmmc##num##_notify_func)(struct platform_device *, int state); \
+static int ext_cd_init_hsmmc##num(void (*notify_func)( \
+			struct platform_device *, int state)) \
+{ \
+	mutex_lock(&notify_lock); \
+	WARN_ON(hsmmc##num##_notify_func); \
+	hsmmc##num##_notify_func = notify_func; \
+	mutex_unlock(&notify_lock); \
+	return 0; \
+} \
+static int ext_cd_cleanup_hsmmc##num(void (*notify_func)( \
+			struct platform_device *, int state)) \
+{ \
+	mutex_lock(&notify_lock); \
+	WARN_ON(hsmmc##num##_notify_func != notify_func); \
+	hsmmc##num##_notify_func = NULL; \
+	mutex_unlock(&notify_lock); \
+	return 0; \
+}
+
+#ifdef CONFIG_S3C_DEV_HSMMC
+	DEFINE_MMC_CARD_NOTIFIER(0)
+#endif
+
+/*
+ * call this when you need sd stack to recognize insertion or removal of card
+ * that can't be told by SDHCI regs
+ */
+void mmc_force_presence_change_onoff(struct platform_device *pdev, int val)
+{
+	void (*notify_func)(struct platform_device *, int state) = NULL;
+	mutex_lock(&notify_lock);
+#ifdef CONFIG_S3C_DEV_HSMMC
+	if (pdev == &s3c_device_hsmmc0)
+		notify_func = hsmmc0_notify_func;
+#endif
+
+	if (notify_func)
+		notify_func(pdev, val);
+	else
+		pr_warn("%s: called for device with no notifier\n", __func__);
+	mutex_unlock(&notify_lock);
+}
+EXPORT_SYMBOL_GPL(mmc_force_presence_change_onoff);
+#endif
+
 /* HSMMC */
 static struct s3c_sdhci_platdata mini2451_hsmmc0_pdata __initdata = {
 	.max_width		= 4,
+#if defined(CONFIG_BCMDHD)
+	.cd_type        = S3C_SDHCI_CD_EXTERNAL,
+	.pm_flags       = MMC_PM_KEEP_POWER | MMC_PM_IGNORE_PM_NOTIFY,
+	.ext_cd_init    = ext_cd_init_hsmmc0,
+	.ext_cd_cleanup = ext_cd_cleanup_hsmmc0,
+#else
 	.cd_type		= S3C_SDHCI_CD_NONE,
+#endif
 };
 
 static int mini2451_hsmmc1_get_ro(void *host) {

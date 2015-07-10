@@ -40,6 +40,7 @@ struct s3c_sdhci_platdata {
 	unsigned int	host_caps;
 	unsigned int	host_caps2;
 	unsigned int	pm_caps;
+	unsigned int	pm_flags;
 	enum cd_types	cd_type;
 
 	int		ext_cd_gpio;
