@@ -1525,21 +1525,29 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 static int hdmi_dev_control_output(struct hdmi *hdmi, int enable)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
+	struct hdmi_video vpara;
 
 	HDMIDBG("[%s] %d\n", __func__, enable);
-
 	if (enable == HDMI_AV_UNMUTE) {
 		hdmi_writel(hdmi_dev, FC_DBGFORCE, 0x00);
-		hdmi_msk_reg(hdmi_dev, FC_GCP,
-			     m_FC_SET_AVMUTE | m_FC_CLR_AVMUTE,
-			     v_FC_SET_AVMUTE(0) | v_FC_CLR_AVMUTE(1));
+		if (hdmi->edid.sink_hdmi == OUTPUT_HDMI)
+			hdmi_msk_reg(hdmi_dev, FC_GCP,
+				     m_FC_SET_AVMUTE | m_FC_CLR_AVMUTE,
+				     v_FC_SET_AVMUTE(0) | v_FC_CLR_AVMUTE(1));
 	} else {
 		if (enable & HDMI_VIDEO_MUTE) {
 			hdmi_msk_reg(hdmi_dev, FC_DBGFORCE,
 				     m_FC_FORCEVIDEO, v_FC_FORCEVIDEO(1));
-			hdmi_msk_reg(hdmi_dev, FC_GCP,
-				     m_FC_SET_AVMUTE | m_FC_CLR_AVMUTE,
-				     v_FC_SET_AVMUTE(1) | v_FC_CLR_AVMUTE(0));
+			if (hdmi->edid.sink_hdmi == OUTPUT_HDMI) {
+				hdmi_msk_reg(hdmi_dev, FC_GCP,
+					     m_FC_SET_AVMUTE |
+					     m_FC_CLR_AVMUTE,
+					     v_FC_SET_AVMUTE(1) |
+					     v_FC_CLR_AVMUTE(0));
+				vpara.vic = hdmi->vic;
+				vpara.color_output = HDMI_COLOR_RGB_0_255;
+				hdmi_dev_config_avi(hdmi_dev, &vpara);
+			}
 		}
 /*		if (enable & HDMI_AUDIO_MUTE) {
 			hdmi_msk_reg(hdmi_dev, FC_AUDSCONF,
