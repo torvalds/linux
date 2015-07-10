@@ -434,6 +434,7 @@ struct i40e_ieee_app_priority_table {
 
 struct i40e_dcbx_config {
 	u32 numapps;
+	u32 tlv_status; /* CEE mode TLV status */
 	struct i40e_ieee_ets_config etscfg;
 	struct i40e_ieee_ets_recommend etsrec;
 	struct i40e_ieee_pfc_config pfc;

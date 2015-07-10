@@ -440,6 +440,7 @@ struct i40e_dcbx_config {
 #define I40E_DCBX_MODE_CEE	0x1
 #define I40E_DCBX_MODE_IEEE	0x2
 	u32 numapps;
+	u32 tlv_status; /* CEE mode TLV status */
 	struct i40e_dcb_ets_config etscfg;
 	struct i40e_dcb_ets_config etsrec;
 	struct i40e_dcb_pfc_config pfc;
