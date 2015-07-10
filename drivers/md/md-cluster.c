@@ -671,6 +671,8 @@ static int join(struct mddev *mddev, int nodes)
 	if (!cinfo)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&cinfo->suspend_list);
+	spin_lock_init(&cinfo->suspend_lock);
 	init_completion(&cinfo->completion);
 
 	mutex_init(&cinfo->sb_mutex);
@@ -735,9 +737,6 @@ static int join(struct mddev *mddev, int nodes)
 		ret = -EINVAL;
 		goto err;
 	}
-
-	INIT_LIST_HEAD(&cinfo->suspend_list);
-	spin_lock_init(&cinfo->suspend_lock);
 
 	ret = gather_all_resync_info(mddev, nodes);
 	if (ret)
