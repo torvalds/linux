@@ -550,6 +550,12 @@ static inline int regulator_count_voltages(struct regulator *regulator)
 {
 	return 0;
 }
+
+static inline int regulator_list_voltage(struct regulator *regulator, unsigned selector)
+{
+	return -EINVAL;
+}
+
 #endif
 
 static inline int regulator_set_voltage_tol(struct regulator *regulator,
