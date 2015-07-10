@@ -40,6 +40,10 @@ enum nfit_uuids {
 	NFIT_UUID_MAX,
 };
 
+enum {
+	ND_BLK_DCR_LATCH = 2,
+};
+
 struct nfit_spa {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
@@ -131,6 +135,7 @@ struct nfit_blk {
 	u64 stat_offset;
 	u64 cmd_offset;
 	void __iomem *nvdimm_flush;
+	u32 dimm_flags;
 };
 
 enum spa_map_type {

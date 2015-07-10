@@ -1059,7 +1059,9 @@ static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,
 
 	writeq(cmd, mmio->base + offset);
 	wmb_blk(nfit_blk);
-	/* FIXME: conditionally perform read-back if mandated by firmware */
+
+	if (nfit_blk->dimm_flags & ND_BLK_DCR_LATCH)
+		readq(mmio->base + offset);
 }
 
 static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
@@ -1266,6 +1268,28 @@ static int nfit_blk_init_interleave(struct nfit_blk_mmio *mmio,
 	return 0;
 }
 
+static int acpi_nfit_blk_get_flags(struct nvdimm_bus_descriptor *nd_desc,
+		struct nvdimm *nvdimm, struct nfit_blk *nfit_blk)
+{
+	struct nd_cmd_dimm_flags flags;
+	int rc;
+
+	memset(&flags, 0, sizeof(flags));
+	rc = nd_desc->ndctl(nd_desc, nvdimm, ND_CMD_DIMM_FLAGS, &flags,
+			sizeof(flags));
+
+	if (rc >= 0 && flags.status == 0)
+		nfit_blk->dimm_flags = flags.flags;
+	else if (rc == -ENOTTY) {
+		/* fall back to a conservative default */
+		nfit_blk->dimm_flags = ND_BLK_DCR_LATCH;
+		rc = 0;
+	} else
+		rc = -ENXIO;
+
+	return rc;
+}
+
 static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 		struct device *dev)
 {
@@ -1336,6 +1360,13 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 			nfit_mem->memdev_dcr->interleave_ways);
 	if (rc) {
 		dev_dbg(dev, "%s: %s failed to init dcr interleave\n",
+				__func__, nvdimm_name(nvdimm));
+		return rc;
+	}
+
+	rc = acpi_nfit_blk_get_flags(nd_desc, nvdimm, nfit_blk);
+	if (rc < 0) {
+		dev_dbg(dev, "%s: %s failed get DIMM flags\n",
 				__func__, nvdimm_name(nvdimm));
 		return rc;
 	}
