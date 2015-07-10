@@ -2630,21 +2630,13 @@ static int aty_init(struct fb_info *info)
 
 #ifdef CONFIG_MTRR
 	par->mtrr_aper = -1;
-	par->mtrr_reg = -1;
 	if (!nomtrr) {
-		/* Cover the whole resource. */
+		/*
+		 * Only the ioremap_wc()'d area will get WC here
+		 * since ioremap_uc() was used on the entire PCI BAR.
+		 */
 		par->mtrr_aper = mtrr_add(par->res_start, par->res_size,
 					  MTRR_TYPE_WRCOMB, 1);
-		if (par->mtrr_aper >= 0 && !par->aux_start) {
-			/* Make a hole for mmio. */
-			par->mtrr_reg = mtrr_add(par->res_start + 0x800000 -
-						 GUI_RESERVE, GUI_RESERVE,
-						 MTRR_TYPE_UNCACHABLE, 1);
-			if (par->mtrr_reg < 0) {
-				mtrr_del(par->mtrr_aper, 0, 0);
-				par->mtrr_aper = -1;
-			}
-		}
 	}
 #endif
 
@@ -2776,10 +2768,6 @@ aty_init_exit:
 	par->pll_ops->set_pll(info, &par->saved_pll);
 
 #ifdef CONFIG_MTRR
-	if (par->mtrr_reg >= 0) {
-		mtrr_del(par->mtrr_reg, 0, 0);
-		par->mtrr_reg = -1;
-	}
 	if (par->mtrr_aper >= 0) {
 		mtrr_del(par->mtrr_aper, 0, 0);
 		par->mtrr_aper = -1;
@@ -3466,7 +3454,11 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 	}
 
 	info->fix.mmio_start = raddr;
-	par->ati_regbase = ioremap(info->fix.mmio_start, 0x1000);
+	/*
+	 * By using strong UC we force the MTRR to never have an
+	 * effect on the MMIO region on both non-PAT and PAT systems.
+	 */
+	par->ati_regbase = ioremap_uc(info->fix.mmio_start, 0x1000);
 	if (par->ati_regbase == NULL)
 		return -ENOMEM;
 
@@ -3503,7 +3495,10 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 	 */
 	info->fix.smem_len = 0x800000;
 
-	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
+	aty_fudge_framebuffer_len(info);
+
+	info->screen_base = ioremap_wc(info->fix.smem_start,
+				       info->fix.smem_len);
 	if (info->screen_base == NULL) {
 		ret = -ENOMEM;
 		goto atyfb_setup_generic_fail;
@@ -3575,6 +3570,7 @@ static int atyfb_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 	par = info->par;
+	par->bus_type = PCI;
 	info->fix = atyfb_fix;
 	info->device = &pdev->dev;
 	par->pci_id = pdev->device;
@@ -3744,10 +3740,6 @@ static void atyfb_remove(struct fb_info *info)
 #endif
 
 #ifdef CONFIG_MTRR
-	if (par->mtrr_reg >= 0) {
-		mtrr_del(par->mtrr_reg, 0, 0);
-		par->mtrr_reg = -1;
-	}
 	if (par->mtrr_aper >= 0) {
 		mtrr_del(par->mtrr_aper, 0, 0);
 		par->mtrr_aper = -1;
