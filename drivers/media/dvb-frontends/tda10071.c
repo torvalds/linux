@@ -1251,7 +1251,6 @@ MODULE_DEVICE_TABLE(i2c, tda10071_id_table);
 
 static struct i2c_driver tda10071_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tda10071",
 		.suppress_bind_attrs = true,
 	},

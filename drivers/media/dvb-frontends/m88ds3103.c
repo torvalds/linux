@@ -1495,7 +1495,6 @@ MODULE_DEVICE_TABLE(i2c, m88ds3103_id_table);
 
 static struct i2c_driver m88ds3103_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "m88ds3103",
 		.suppress_bind_attrs = true,
 	},

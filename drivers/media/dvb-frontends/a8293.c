@@ -125,7 +125,6 @@ MODULE_DEVICE_TABLE(i2c, a8293_id_table);
 
 static struct i2c_driver a8293_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "a8293",
 		.suppress_bind_attrs = true,
 	},
