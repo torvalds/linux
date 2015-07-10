@@ -818,7 +818,6 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 static struct platform_driver da9062_regulator_driver = {
 	.driver = {
 		.name = "da9062-regulators",
-		.owner = THIS_MODULE,
 	},
 	.probe = da9062_regulator_probe,
 };
