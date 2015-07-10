@@ -174,7 +174,6 @@ static struct platform_driver hip04_mdio_driver = {
 	.remove = hip04_mdio_remove,
 	.driver = {
 		.name = "hip04-mdio",
-		.owner = THIS_MODULE,
 		.of_match_table = hip04_mdio_match,
 	},
 };
