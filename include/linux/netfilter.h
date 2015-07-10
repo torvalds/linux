@@ -11,6 +11,8 @@
 #include <linux/list.h>
 #include <linux/static_key.h>
 #include <linux/netfilter_defs.h>
+#include <linux/netdevice.h>
+#include <net/net_namespace.h>
 
 #ifdef CONFIG_NETFILTER
 static inline int NF_DROP_GETERR(int verdict)
@@ -118,6 +120,13 @@ struct nf_sockopt_ops {
 };
 
 /* Function to register/unregister hook points. */
+int nf_register_net_hook(struct net *net, const struct nf_hook_ops *ops);
+void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *ops);
+int nf_register_net_hooks(struct net *net, const struct nf_hook_ops *reg,
+			  unsigned int n);
+void nf_unregister_net_hooks(struct net *net, const struct nf_hook_ops *reg,
+			     unsigned int n);
+
 int nf_register_hook(struct nf_hook_ops *reg);
 void nf_unregister_hook(struct nf_hook_ops *reg);
 int nf_register_hooks(struct nf_hook_ops *reg, unsigned int n);
@@ -127,8 +136,6 @@ void nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n);
    need to check permissions yourself! */
 int nf_register_sockopt(struct nf_sockopt_ops *reg);
 void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
-
-extern struct list_head nf_hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 
 #ifdef HAVE_JUMP_LABEL
 extern struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
@@ -167,7 +174,8 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 int (*okfn)(struct sock *, struct sk_buff *),
 				 int thresh)
 {
-	struct list_head *nf_hook_list = &nf_hooks[pf][hook];
+	struct net *net = dev_net(indev ? indev : outdev);
+	struct list_head *nf_hook_list = &net->nf.hooks[pf][hook];
 
 	if (nf_hook_list_active(nf_hook_list, pf, hook)) {
 		struct nf_hook_state state;
