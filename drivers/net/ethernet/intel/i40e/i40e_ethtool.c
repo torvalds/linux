@@ -2546,7 +2546,7 @@ static int i40e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
  * @indir: indirection table
  * @key: hash key
  *
- * Returns -EINVAL if the table specifies an inavlid queue id, otherwise
+ * Returns -EINVAL if the table specifies an invalid queue id, otherwise
  * returns 0 after programming the table.
  **/
 static int i40e_set_rxfh(struct net_device *netdev, const u32 *indir,
