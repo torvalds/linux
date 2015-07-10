@@ -69,7 +69,16 @@ OPTIONS
 	  "perf report" to view group events together.
 
 --filter=<filter>::
-        Event filter.
+        Event filter. This option should follow a event selector (-e) which
+	selects tracepoint event(s). Multiple '--filter' options are combined
+	using '&&'.
+
+--exclude-perf::
+	Don't record events issued by perf itself. This option should follow
+	a event selector (-e) which selects tracepoint event(s). It adds a
+	filter expression 'common_pid != $PERFPID' to filters. If other
+	'--filter' exists, the new filter expression will be combined with
+	them by '&&'.
 
 -a::
 --all-cpus::
