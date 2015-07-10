@@ -730,8 +730,6 @@ ff_layout_pg_get_mirror_count_write(struct nfs_pageio_descriptor *pgio,
 		return FF_LAYOUT_MIRROR_COUNT(pgio->pg_lseg);
 
 	/* no lseg means that pnfs is not in use, so no mirroring here */
-	pnfs_put_lseg(pgio->pg_lseg);
-	pgio->pg_lseg = NULL;
 	nfs_pageio_reset_write_mds(pgio);
 	return 1;
 }
