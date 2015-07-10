@@ -128,7 +128,10 @@ void shdma_cleanup(struct shdma_dev *sdev);
 #if IS_ENABLED(CONFIG_SH_DMAE_BASE)
 bool shdma_chan_filter(struct dma_chan *chan, void *arg);
 #else
-#define shdma_chan_filter NULL
+static inline bool shdma_chan_filter(struct dma_chan *chan, void *arg)
+{
+	return false;
+}
 #endif
 
 #endif
