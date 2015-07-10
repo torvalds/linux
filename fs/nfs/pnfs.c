@@ -2221,13 +2221,12 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	if (ld->prepare_layoutcommit) {
 		status = ld->prepare_layoutcommit(&data->args);
 		if (status) {
+			put_rpccred(data->cred);
 			spin_lock(&inode->i_lock);
 			set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags);
 			if (end_pos > nfsi->layout->plh_lwb)
 				nfsi->layout->plh_lwb = end_pos;
-			spin_unlock(&inode->i_lock);
-			put_rpccred(data->cred);
-			goto clear_layoutcommitting;
+			goto out_unlock;
 		}
 	}
 
