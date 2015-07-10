@@ -959,9 +959,14 @@ static int enable_edo_mode(struct gpmi_nand_data *this, int mode)
 
 	nand->select_chip(mtd, -1);
 
+	pm_runtime_get_sync(this->dev);
+	clk_disable_unprepare(r->clock[0]);
 	/* [3] set the main IO clock, 100MHz for mode 5, 80MHz for mode 4. */
 	rate = (mode == 5) ? 100000000 : 80000000;
 	clk_set_rate(r->clock[0], rate);
+	clk_prepare_enable(r->clock[0]);
+	pm_runtime_mark_last_busy(this->dev);
+        pm_runtime_put_autosuspend(this->dev);	
 
 	/* Let the gpmi_begin() re-compute the timing again. */
 	this->flags &= ~GPMI_TIMING_INIT_OK;
