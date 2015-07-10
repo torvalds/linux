@@ -7959,9 +7959,6 @@ void md_do_sync(struct md_thread *thread)
 	/* tell personality that we are finished */
 	mddev->pers->sync_request(mddev, max_sectors, &skipped);
 
-	if (mddev_is_clustered(mddev))
-		md_cluster_ops->resync_finish(mddev);
-
 	if (!test_bit(MD_RECOVERY_CHECK, &mddev->recovery) &&
 	    mddev->curr_resync > 2) {
 		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
@@ -7995,6 +7992,9 @@ void md_do_sync(struct md_thread *thread)
 		}
 	}
  skip:
+	if (mddev_is_clustered(mddev))
+		md_cluster_ops->resync_finish(mddev);
+
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 
 	spin_lock(&mddev->lock);

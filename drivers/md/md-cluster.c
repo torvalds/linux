@@ -75,6 +75,7 @@ enum msg_type {
 	NEWDISK,
 	REMOVE,
 	RE_ADD,
+	BITMAP_NEEDS_SYNC,
 };
 
 struct cluster_msg {
@@ -454,6 +455,11 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 			__func__, __LINE__, msg->slot);
 		process_readd_disk(mddev, msg);
 		break;
+	case BITMAP_NEEDS_SYNC:
+		pr_info("%s: %d Received BITMAP_NEEDS_SYNC from %d\n",
+			__func__, __LINE__, msg->slot);
+		__recover_slot(mddev, msg->slot);
+		break;
 	default:
 		pr_warn("%s:%d Received unknown message from %d\n",
 			__func__, __LINE__, msg->slot);
@@ -814,8 +820,17 @@ static int resync_start(struct mddev *mddev, sector_t lo, sector_t hi)
 
 static void resync_finish(struct mddev *mddev)
 {
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct cluster_msg cmsg;
+	int slot = cinfo->slot_number - 1;
+
 	pr_info("%s:%d\n", __func__, __LINE__);
 	resync_send(mddev, RESYNCING, 0, 0);
+	if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
+		cmsg.type = cpu_to_le32(BITMAP_NEEDS_SYNC);
+		cmsg.slot = cpu_to_le32(slot);
+		sendmsg(cinfo, &cmsg);
+	}
 }
 
 static int area_resyncing(struct mddev *mddev, int direction,
