@@ -182,6 +182,7 @@ struct br_mdb_entry {
 #define MDB_TEMPORARY 0
 #define MDB_PERMANENT 1
 	__u8 state;
+	__u16 vid;
 	struct {
 		union {
 			__be32	ip4;

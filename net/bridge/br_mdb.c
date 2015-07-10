@@ -85,6 +85,7 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 					memset(&e, 0, sizeof(e));
 					e.ifindex = port->dev->ifindex;
 					e.state = p->state;
+					e.vid = p->addr.vid;
 					if (p->addr.proto == htons(ETH_P_IP))
 						e.addr.u.ip4 = p->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -242,6 +243,7 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 	entry.addr.u.ip6 = group->u.ip6;
 #endif
 	entry.state = state;
+	entry.vid = group->vid;
 	__br_mdb_notify(dev, &entry, type);
 }
 
@@ -263,6 +265,8 @@ static bool is_valid_mdb_entry(struct br_mdb_entry *entry)
 	} else
 		return false;
 	if (entry->state != MDB_PERMANENT && entry->state != MDB_TEMPORARY)
+		return false;
+	if (entry->vid >= VLAN_VID_MASK)
 		return false;
 
 	return true;
@@ -372,6 +376,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	if (!p || p->br != br || p->state == BR_STATE_DISABLED)
 		return -EINVAL;
 
+	ip.vid = entry->vid;
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP))
 		ip.u.ip4 = entry->addr.u.ip4;
@@ -418,6 +423,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	if (!netif_running(br->dev) || br->multicast_disabled)
 		return -EINVAL;
 
+	ip.vid = entry->vid;
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP)) {
 		if (timer_pending(&br->ip4_other_query.timer))
