@@ -197,7 +197,14 @@ static const struct i40e_stats i40e_gstrings_fcoe_stats[] = {
 		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_tx) + \
 		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_2_xoff)) \
 		 / sizeof(u64))
+#define I40E_VEB_TC_STATS_LEN ( \
+		(FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_rx_packets) + \
+		 FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_rx_bytes) + \
+		 FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_tx_packets) + \
+		 FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_tx_bytes)) \
+		 / sizeof(u64))
 #define I40E_VEB_STATS_LEN	ARRAY_SIZE(i40e_gstrings_veb_stats)
+#define I40E_VEB_STATS_TOTAL	(I40E_VEB_STATS_LEN + I40E_VEB_TC_STATS_LEN)
 #define I40E_PF_STATS_LEN(n)	(I40E_GLOBAL_STATS_LEN + \
 				 I40E_PFC_STATS_LEN + \
 				 I40E_VSI_STATS_LEN((n)))
@@ -1257,7 +1264,7 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 			int len = I40E_PF_STATS_LEN(netdev);
 
 			if (pf->lan_veb != I40E_NO_VEB)
-				len += I40E_VEB_STATS_LEN;
+				len += I40E_VEB_STATS_TOTAL;
 			return len;
 		} else {
 			return I40E_VSI_STATS_LEN(netdev);
@@ -1406,6 +1413,20 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 			for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
 				snprintf(p, ETH_GSTRING_LEN, "veb.%s",
 					i40e_gstrings_veb_stats[i].stat_string);
+				p += ETH_GSTRING_LEN;
+			}
+			for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+				snprintf(p, ETH_GSTRING_LEN,
+					 "veb.tc_%u_tx_packets", i);
+				p += ETH_GSTRING_LEN;
+				snprintf(p, ETH_GSTRING_LEN,
+					 "veb.tc_%u_tx_bytes", i);
+				p += ETH_GSTRING_LEN;
+				snprintf(p, ETH_GSTRING_LEN,
+					 "veb.tc_%u_rx_packets", i);
+				p += ETH_GSTRING_LEN;
+				snprintf(p, ETH_GSTRING_LEN,
+					 "veb.tc_%u_rx_bytes", i);
 				p += ETH_GSTRING_LEN;
 			}
 		}
