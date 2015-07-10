@@ -288,6 +288,8 @@
 		fifo-depth = <0x100>;
 		bus-width = <8>;
 		tune_regsbase = <0x218>;
+		cru_regsbase = <0x1d8>;
+		cru_reset_offset = <3>;
 	};
 
 	sdmmc: rksdmmc@ff0c0000 {
@@ -306,6 +308,8 @@
 		fifo-depth = <0x100>;
 		bus-width = <4>;
 		tune_regsbase = <0x200>;
+		cru_regsbase = <0x1d8>;
+		cru_reset_offset = <0>;
 	};
 
 	sdio: rksdmmc@ff0d0000 {
@@ -324,6 +328,8 @@
 		fifo-depth = <0x100>;
 		bus-width = <4>;
 		tune_regsbase = <0x208>;
+		cru_regsbase = <0x1d8>;
+		cru_reset_offset = <1>;
 	};
 
 	sdio1: rksdmmc@ff0e0000 {
@@ -340,6 +346,8 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
+		cru_regsbase = <0x1d8>;
+		cru_reset_offset = <2>;
 		status = "disabled";
 	};
 

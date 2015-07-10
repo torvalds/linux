@@ -539,6 +539,8 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <8>;
+		cru_regsbase = <0x124>;
+		cru_reset_offset = <3>;
         };
 
 
@@ -559,6 +561,8 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
+		cru_regsbase = <0x124>;
+		cru_reset_offset = <1>;
 	};
 
 	sdio: rksdmmc@10218000 {
@@ -577,6 +581,8 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
+		cru_regsbase = <0x124>;
+		cru_reset_offset = <2>;
 	};
 	
 	spi0: spi@20074000 {

@@ -394,10 +394,13 @@
 		clocks = <&clk_emmc>, <&clk_gates21 2>, <&clk_gates20 10>;
 		clock-names = "clk_mmc", "hclk_mmc", "hpclk_mmc";
 		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <8>;
 		tune_regsbase = <0x418>;
+		cru_regsbase = <0x320>;
+		cru_reset_offset = <3>;
 	};
 
 	sdmmc: rksdmmc@ff0c0000 {
@@ -414,10 +417,13 @@
 		clocks = <&clk_sdmmc0>, <&clk_gates21 0>, <&clk_gates20 10>;
 		clock-names = "clk_mmc", "hclk_mmc", "hpclk_mmc";
 		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
 		tune_regsbase = <0x400>;
+		cru_regsbase = <0x320>;
+		cru_reset_offset = <0>;
 	};
 
 	sdio: rksdmmc@ff0d0000 {
@@ -432,10 +438,13 @@
 		clocks = <&clk_sdio0>, <&clk_gates21 1>, <&clk_gates20 10>;
 		clock-names = "clk_mmc", "hclk_mmc", "hpclk_mmc";
 		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
 		tune_regsbase = <0x408>;
+		cru_regsbase = <0x320>;
+		cru_reset_offset = <1>;
 	};
 
 	spi0: spi@ff110000 {
