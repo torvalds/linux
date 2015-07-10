@@ -52,7 +52,6 @@ struct md_cluster_info {
 	dlm_lockspace_t *lockspace;
 	int slot_number;
 	struct completion completion;
-	struct dlm_lock_resource *sb_lock;
 	struct mutex sb_mutex;
 	struct dlm_lock_resource *bitmap_lockres;
 	struct list_head suspend_list;
@@ -692,12 +691,6 @@ static int join(struct mddev *mddev, int nodes)
 		ret = -ERANGE;
 		goto err;
 	}
-	cinfo->sb_lock = lockres_init(mddev, "cmd-super",
-					NULL, 0);
-	if (!cinfo->sb_lock) {
-		ret = -ENOMEM;
-		goto err;
-	}
 	/* Initiate the communication resources */
 	ret = -ENOMEM;
 	cinfo->recv_thread = md_register_thread(recv_daemon, mddev, "cluster_recv");
@@ -749,7 +742,6 @@ err:
 	lockres_free(cinfo->ack_lockres);
 	lockres_free(cinfo->no_new_dev_lockres);
 	lockres_free(cinfo->bitmap_lockres);
-	lockres_free(cinfo->sb_lock);
 	if (cinfo->lockspace)
 		dlm_release_lockspace(cinfo->lockspace, 2);
 	mddev->cluster_info = NULL;
@@ -770,7 +762,6 @@ static int leave(struct mddev *mddev)
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
 	lockres_free(cinfo->no_new_dev_lockres);
-	lockres_free(cinfo->sb_lock);
 	lockres_free(cinfo->bitmap_lockres);
 	dlm_release_lockspace(cinfo->lockspace, 2);
 	return 0;
