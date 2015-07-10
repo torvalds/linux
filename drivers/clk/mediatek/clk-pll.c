@@ -138,16 +138,28 @@ static void mtk_pll_calc_values(struct mtk_clk_pll *pll, u32 *pcw, u32 *postdiv,
 		u32 freq, u32 fin)
 {
 	unsigned long fmin = 1000 * MHZ;
+	const struct mtk_pll_div_table *div_table = pll->data->div_table;
 	u64 _pcw;
 	u32 val;
 
 	if (freq > pll->data->fmax)
 		freq = pll->data->fmax;
 
-	for (val = 0; val < 5; val++) {
+	if (div_table) {
+		if (freq > div_table[0].freq)
+			freq = div_table[0].freq;
+
+		for (val = 0; div_table[val + 1].freq != 0; val++) {
+			if (freq > div_table[val + 1].freq)
+				break;
+		}
 		*postdiv = 1 << val;
-		if ((u64)freq * *postdiv >= fmin)
-			break;
+	} else {
+		for (val = 0; val < 5; val++) {
+			*postdiv = 1 << val;
+			if ((u64)freq * *postdiv >= fmin)
+				break;
+		}
 	}
 
 	/* _pcw = freq * postdiv / fin * 2^pcwfbits */
