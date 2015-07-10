@@ -50,7 +50,7 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 		cnt += sprintf((buf+cnt), "UNKNOWN_CUT(%d)_",
 			       chip_vers.CUTVersion);
 	cnt += sprintf((buf+cnt), "1T1R_");
-	cnt += sprintf((buf+cnt), "RomVer(%d)\n", chip_vers.ROMVer);
+	cnt += sprintf((buf+cnt), "RomVer(0)\n");
 
 	pr_info("%s", buf);
 }
