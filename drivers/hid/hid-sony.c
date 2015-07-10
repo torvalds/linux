@@ -296,7 +296,14 @@ static __u8 navigation_rdesc[] = {
 	0x09, 0x01,         /*          Usage (Pointer),            */
 	0x81, 0x02,         /*          Input (Variable),           */
 	0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),         */
-	0x95, 0x20,         /*          Report Count (26),          */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x09, 0x01,         /*          Usage (Pointer),            */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),         */
+	0x95, 0x1E,         /*          Report Count (24),          */
 	0x81, 0x02,         /*          Input (Variable),           */
 	0x75, 0x08,         /*          Report Size (8),            */
 	0x95, 0x30,         /*          Report Count (48),          */
