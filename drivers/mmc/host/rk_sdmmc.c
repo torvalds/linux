@@ -1970,12 +1970,13 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
 	struct mmc_data	*data;
-	u32 ret, i, regs, cmd_flags;
+	u32 i, regs, cmd_flags;
 	u32 sdio_int;
 	unsigned long timeout = 0;
-	bool ret_timeout = true;
-	u32 opcode;
+	bool ret_timeout = true, is_retry = false;
+	u32 opcode, offset;
 
+	offset = host->cru_reset_offset;
 	opcode = host->mrq->cmd->opcode;
 	host->cur_slot->mrq = NULL;
 	host->mrq = NULL;
@@ -1985,11 +1986,16 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 
 	if ((opcode == MMC_SEND_TUNING_BLOCK_HS200) ||
 	    (opcode == MMC_SEND_TUNING_BLOCK))
-	    return;
+		return;
 
 	printk("[%s] -- Timeout recovery procedure start --\n",
 		mmc_hostname(host->mmc));
 
+	/* unmask irq */
+	mci_writel(host, INTMASK, 0x0);
+
+retry_stop:
+	/* send stop cmd */
 	mci_writel(host, CMDARG, 0);
 	wmb();
 	cmd_flags = SDMMC_CMD_STOP | SDMMC_CMD_RESP_CRC |
@@ -2000,7 +2006,7 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 
 	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
 	wmb();
-	timeout = jiffies + msecs_to_jiffies(500);
+	timeout = jiffies + msecs_to_jiffies(10);
 
 	while(ret_timeout) {
 		ret_timeout = time_before(jiffies, timeout);
@@ -2008,13 +2014,29 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 			break;
 	}
 
-	if (false == ret_timeout)
+	if (false == ret_timeout) {
 		MMC_DBG_ERR_FUNC(host->mmc, "stop recovery failed![%s]",
 				 mmc_hostname(host->mmc));
-
-	if (!dw_mci_ctrl_all_reset(host)) {
-		ret = -ENODEV;
-		return ;
+		if (host->cid == DW_MCI_TYPE_RK3368) {
+			/* pd_peri mmc AHB bus software reset request */
+			regmap_write(host->cru, host->cru_regsbase,
+					(0x1<<offset)<<16 | (0x1 << offset));
+			mdelay(1);
+			regmap_write(host->cru, host->cru_regsbase,
+					(0x1<<offset)<<16 | (0x0 << offset));
+		} else {
+			/* pd_peri mmc AHB bus software reset request */
+			cru_writel(((0x1<<offset)<<16) | (0x1 << offset),
+					host->cru_regsbase);
+			mdelay(1);
+			cru_writel(((0x1<<offset)<<16) | (0x0 << offset),
+					host->cru_regsbase);
+		}
+	} else {
+		if (!dw_mci_ctrl_all_reset(host))
+			return;
+		if (is_retry == true)
+			goto recovery_end;
 	}
 
 #ifdef CONFIG_MMC_DW_IDMAC
@@ -2024,15 +2046,16 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 #endif
 
 	/*
-	* Restore the initial value at FIFOTH register
-	* And Invalidate the prev_blksz with zero
-	*/
+	 * Restore the initial value at FIFOTH register
+	 * And Invalidate the prev_blksz with zero
+	 */
 	mci_writel(host, FIFOTH, host->fifoth_val);
 	host->prev_blksz = 0;
 	mci_writel(host, TMOUT, 0xFFFFFFFF);
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
-	regs = SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER | SDMMC_INT_TXDR
-			| SDMMC_INT_RXDR | SDMMC_INT_VSI | DW_MCI_ERROR_FLAGS;
+	regs = SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER |
+		SDMMC_INT_TXDR | SDMMC_INT_RXDR | SDMMC_INT_VSI |
+		DW_MCI_ERROR_FLAGS;
 	if (!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
 		regs |= SDMMC_INT_CD;
 
@@ -2058,7 +2081,13 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 		}
 	}
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
+	if (ret_timeout == false) {
+		ret_timeout = true;
+		is_retry = true;
+		goto retry_stop;
+	}
 
+recovery_end:
 	printk("[%s] -- Timeout recovery procedure finished --\n",
 		mmc_hostname(host->mmc));
 }
@@ -3948,6 +3977,20 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (of_get_property(np, "assume_removable", NULL))
 		mmc_assume_removable = 0;
+
+	if (!of_property_read_u32(np, "cru_regsbase", &host->cru_regsbase)) {
+		printk("dw cru_regsbase addr 0x%03x.\n", host->cru_regsbase);
+	} else {
+		pr_err("dw cru_regsbase addr is missing!\n");
+		return ERR_PTR(-1);
+	}
+
+	if (!of_property_read_u32(np, "cru_reset_offset", &host->cru_reset_offset)) {
+		printk("dw cru_reset_offset val %d.\n", host->cru_reset_offset);
+	} else {
+		pr_err("dw cru_reset_offset val is missing!\n");
+		return ERR_PTR(-1);
+	}
 
 	return pdata;
 }

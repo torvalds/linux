@@ -407,6 +407,8 @@ static void mmc_get_req_timeout(struct mmc_request *mrq, u32 *timeout)
 			 ((mrq->cmd->arg == MMC_DISCARD_ARG) ||
 			 (mrq->cmd->arg == MMC_TRIM_ARG))) ?
 			 (*timeout = 10000) : (*timeout = 25000);
+		else if (mrq->cmd->opcode == MMC_SWITCH)
+			*timeout = mrq->cmd->cmd_timeout_ms;
 		else
 			*timeout = 500;
 
@@ -457,11 +459,11 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 					 msecs_to_jiffies(timeout))) {
 			cmd = mrq->cmd;
 			cmd->error = -ETIMEDOUT;
-			host->ops->post_tmo(host);
-			context_info->is_done_rcv = true;
 			dev_err(mmc_dev(host),
 				"req failed (CMD%u): error = %d, timeout = %dms\n",
 				cmd->opcode, cmd->error, timeout);
+			host->ops->post_tmo(host);
+			context_info->is_done_rcv = true;
 		}
 
 		spin_lock_irqsave(&context_info->lock, flags);
@@ -510,13 +512,10 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 						 msecs_to_jiffies(timeout))) {
 			cmd = mrq->cmd;
 			cmd->error = -ETIMEDOUT;
-			host->ops->post_tmo(host);
-
 			dev_err(mmc_dev(host),
 				"req failed (CMD%u): error = %d, timeout = %dms\n",
 				cmd->opcode, cmd->error, timeout);
-			if (!cmd->data)
-				break;
+			host->ops->post_tmo(host);
 		}
 
 		cmd = mrq->cmd;

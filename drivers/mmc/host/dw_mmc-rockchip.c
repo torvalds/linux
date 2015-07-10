@@ -83,8 +83,20 @@ static int dw_mci_rockchip_priv_init(struct dw_mci *host)
 					    rockchip_compat[idx].compatible)) {
 			priv->ctrl_type = rockchip_compat[idx].ctrl_type;
 			host->cid = priv->ctrl_type;
-			host->grf = syscon_find(host->dev->of_node,
-						"rockchip,grf");
+			if (priv->ctrl_type == DW_MCI_TYPE_RK3368) {
+				host->grf = syscon_regmap_lookup_by_phandle(
+						host->dev->of_node, "rockchip,grf");
+				if (IS_ERR(host->grf)) {
+					pr_err("No rockchip,grf phandle specified");
+					return PTR_ERR(host->grf);
+				}
+				host->cru = syscon_regmap_lookup_by_phandle(
+					host->dev->of_node, "rockchip,cru");
+				if (IS_ERR(host->cru)) {
+					pr_err("No rockchip,cru phandle specified");
+					return PTR_ERR(host->cru);
+				}
+			}
 		}
 	}
 
