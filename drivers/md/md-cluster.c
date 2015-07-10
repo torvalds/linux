@@ -488,8 +488,8 @@ static void recv_daemon(struct md_thread *thread)
 
 	/*release CR on ack_lockres*/
 	dlm_unlock_sync(ack_lockres);
-	/*up-convert to EX on message_lockres*/
-	dlm_lock_sync(message_lockres, DLM_LOCK_EX);
+	/*up-convert to PR on message_lockres*/
+	dlm_lock_sync(message_lockres, DLM_LOCK_PR);
 	/*get CR on ack_lockres again*/
 	dlm_lock_sync(ack_lockres, DLM_LOCK_CR);
 	/*release CR on message_lockres*/
@@ -522,7 +522,7 @@ static void unlock_comm(struct md_cluster_info *cinfo)
  * The function:
  * 1. Grabs the message lockresource in EX mode
  * 2. Copies the message to the message LVB
- * 3. Downconverts message lockresource to CR
+ * 3. Downconverts message lockresource to CW
  * 4. Upconverts ack lock resource from CR to EX. This forces the BAST on other nodes
  *    and the other nodes read the message. The thread will wait here until all other
  *    nodes have released ack lock resource.
@@ -543,12 +543,12 @@ static int __sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
 
 	memcpy(cinfo->message_lockres->lksb.sb_lvbptr, (void *)cmsg,
 			sizeof(struct cluster_msg));
-	/*down-convert EX to CR on Message*/
-	error = dlm_lock_sync(cinfo->message_lockres, DLM_LOCK_CR);
+	/*down-convert EX to CW on Message*/
+	error = dlm_lock_sync(cinfo->message_lockres, DLM_LOCK_CW);
 	if (error) {
-		pr_err("md-cluster: failed to convert EX to CR on MESSAGE(%d)\n",
+		pr_err("md-cluster: failed to convert EX to CW on MESSAGE(%d)\n",
 				error);
-		goto failed_message;
+		goto failed_ack;
 	}
 
 	/*up-convert CR to EX on Ack*/
