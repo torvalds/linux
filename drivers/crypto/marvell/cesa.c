@@ -533,7 +533,6 @@ static struct platform_driver marvell_cesa = {
 	.probe		= mv_cesa_probe,
 	.remove		= mv_cesa_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "marvell-cesa",
 		.of_match_table = mv_cesa_of_match_table,
 	},
