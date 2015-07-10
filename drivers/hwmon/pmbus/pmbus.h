@@ -390,6 +390,7 @@ extern struct regulator_ops pmbus_regulator_ops;
 		.of_match = of_match_ptr(_name # _id),		\
 		.regulators_node = of_match_ptr("regulators"),	\
 		.ops = &pmbus_regulator_ops,			\
+		.type = REGULATOR_VOLTAGE,			\
 		.owner = THIS_MODULE,				\
 	}
 
