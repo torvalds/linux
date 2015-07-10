@@ -1347,6 +1347,14 @@ static void coda_seq_end_work(struct work_struct *work)
 			 "CODA_COMMAND_SEQ_END failed\n");
 	}
 
+	/*
+	 * FIXME: Sometimes h.264 encoding fails with 8-byte sequences missing
+	 * from the output stream after the h.264 decoder has run. Resetting the
+	 * hardware after the decoder has finished seems to help.
+	 */
+	if (dev->devtype->product == CODA_960)
+		coda_hw_reset(ctx);
+
 	kfifo_init(&ctx->bitstream_fifo,
 		ctx->bitstream.vaddr, ctx->bitstream.size);
 
