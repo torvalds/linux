@@ -4918,7 +4918,7 @@ static bool be_check_ufi_compatibility(struct be_adapter *adapter,
 {
 	if (!fhdr) {
 		dev_err(&adapter->pdev->dev, "Invalid FW UFI file");
-		return -1;
+		return false;
 	}
 
 	/* First letter of the build version is used to identify
