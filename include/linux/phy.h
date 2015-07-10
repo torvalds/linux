@@ -424,6 +424,8 @@ struct phy_device {
 
 	struct net_device *attached_dev;
 
+	u8 mdix;
+
 	void (*adjust_link)(struct net_device *dev);
 };
 #define to_phy_device(d) container_of(d, struct phy_device, dev)
