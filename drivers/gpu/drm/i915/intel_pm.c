@@ -4482,13 +4482,13 @@ static void valleyview_set_rps(struct drm_device *dev, u8 val)
 		      "Odd GPU freq value\n"))
 		val &= ~1;
 
+	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
+
 	if (val != dev_priv->rps.cur_freq) {
 		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
 		if (!IS_CHERRYVIEW(dev_priv))
 			gen6_set_rps_thresholds(dev_priv, val);
 	}
-
-	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	dev_priv->rps.cur_freq = val;
 	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
