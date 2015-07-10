@@ -458,7 +458,6 @@ static int pca963x_remove(struct i2c_client *client)
 static struct i2c_driver pca963x_driver = {
 	.driver = {
 		.name	= "leds-pca963x",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(of_pca963x_match),
 	},
 	.probe	= pca963x_probe,

@@ -830,7 +830,6 @@ static int tca6507_remove(struct i2c_client *client)
 static struct i2c_driver tca6507_driver = {
 	.driver   = {
 		.name    = "leds-tca6507",
-		.owner   = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_tca6507_leds_match),
 	},
 	.probe    = tca6507_probe,
