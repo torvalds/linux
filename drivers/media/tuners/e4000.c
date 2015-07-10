@@ -752,7 +752,6 @@ MODULE_DEVICE_TABLE(i2c, e4000_id_table);
 
 static struct i2c_driver e4000_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "e4000",
 		.suppress_bind_attrs = true,
 	},
