@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2015 Freescale Semiconductor, Inc.
+ * Copyright 2012-2016 Freescale Semiconductor, Inc.
  * Copyright (C) 2012 Marek Vasut <marex@denx.de>
  * on behalf of DENX Software Engineering GmbH
  *
@@ -134,10 +134,15 @@ static inline bool is_imx6sx_con(struct ci_hdrc_imx_data *imx_data)
 	return imx_data->data == &imx6sx_usb_data;
 }
 
+static inline bool is_imx7d_con(struct ci_hdrc_imx_data *imx_data)
+{
+	return imx_data->data == &imx7d_usb_data;
+}
+
 static inline bool imx_has_hsic_con(struct ci_hdrc_imx_data *imx_data)
 {
 	return is_imx6q_con(imx_data) ||  is_imx6sl_con(imx_data)
-		|| is_imx6sx_con(imx_data);
+		|| is_imx6sx_con(imx_data) || is_imx7d_con(imx_data);
 }
 
 /* Common functions shared by usbmisc drivers */
