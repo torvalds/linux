@@ -5807,7 +5807,6 @@ static int be_pci_resume(struct pci_dev *pdev)
 	if (status)
 		return status;
 
-	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
 	status = be_resume(adapter);
@@ -5887,7 +5886,6 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	pci_set_master(pdev);
-	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
 	/* Check if card is ok and fw is ready */
