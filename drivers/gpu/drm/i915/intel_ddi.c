@@ -440,6 +440,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
+	u32 iboost_bit = 0;
 	int i, n_hdmi_entries, n_dp_entries, n_edp_entries, hdmi_default_entry,
 	    size;
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
@@ -466,6 +467,10 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		ddi_translations_hdmi =
 				skl_get_buf_trans_hdmi(dev, &n_hdmi_entries);
 		hdmi_default_entry = 8;
+		/* If we're boosting the current, set bit 31 of trans1 */
+		if (dev_priv->vbt.ddi_port_info[port].hdmi_boost_level ||
+		    dev_priv->vbt.ddi_port_info[port].dp_boost_level)
+			iboost_bit = 1<<31;
 	} else if (IS_BROADWELL(dev)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
@@ -526,7 +531,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 	}
 
 	for (i = 0, reg = DDI_BUF_TRANS(port); i < size; i++) {
-		I915_WRITE(reg, ddi_translations[i].trans1);
+		I915_WRITE(reg, ddi_translations[i].trans1 | iboost_bit);
 		reg += 4;
 		I915_WRITE(reg, ddi_translations[i].trans2);
 		reg += 4;
@@ -541,7 +546,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		hdmi_level = hdmi_default_entry;
 
 	/* Entry 9 is for HDMI: */
-	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans1);
+	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans1 | iboost_bit);
 	reg += 4;
 	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans2);
 	reg += 4;
@@ -2078,18 +2083,35 @@ static void skl_ddi_set_iboost(struct drm_device *dev, u32 level,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct ddi_buf_trans *ddi_translations;
 	uint8_t iboost;
+	uint8_t dp_iboost, hdmi_iboost;
 	int n_entries;
 	u32 reg;
 
+	/* VBT may override standard boost values */
+	dp_iboost = dev_priv->vbt.ddi_port_info[port].dp_boost_level;
+	hdmi_iboost = dev_priv->vbt.ddi_port_info[port].hdmi_boost_level;
+
 	if (type == INTEL_OUTPUT_DISPLAYPORT) {
-		ddi_translations = skl_get_buf_trans_dp(dev, &n_entries);
-		iboost = ddi_translations[port].i_boost;
+		if (dp_iboost) {
+			iboost = dp_iboost;
+		} else {
+			ddi_translations = skl_get_buf_trans_dp(dev, &n_entries);
+			iboost = ddi_translations[port].i_boost;
+		}
 	} else if (type == INTEL_OUTPUT_EDP) {
-		ddi_translations = skl_get_buf_trans_edp(dev, &n_entries);
-		iboost = ddi_translations[port].i_boost;
+		if (dp_iboost) {
+			iboost = dp_iboost;
+		} else {
+			ddi_translations = skl_get_buf_trans_edp(dev, &n_entries);
+			iboost = ddi_translations[port].i_boost;
+		}
 	} else if (type == INTEL_OUTPUT_HDMI) {
-		ddi_translations = skl_get_buf_trans_hdmi(dev, &n_entries);
-		iboost = ddi_translations[port].i_boost;
+		if (hdmi_iboost) {
+			iboost = hdmi_iboost;
+		} else {
+			ddi_translations = skl_get_buf_trans_hdmi(dev, &n_entries);
+			iboost = ddi_translations[port].i_boost;
+		}
 	} else {
 		return;
 	}

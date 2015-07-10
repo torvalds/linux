@@ -1429,6 +1429,9 @@ struct ddi_vbt_port_info {
 	uint8_t supports_dp:1;
 
 	uint8_t alternate_aux_channel;
+
+	uint8_t dp_boost_level;
+	uint8_t hdmi_boost_level;
 };
 
 enum psr_lines_to_wait {

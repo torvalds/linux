@@ -886,6 +886,17 @@ err:
 	memset(dev_priv->vbt.dsi.sequence, 0, sizeof(dev_priv->vbt.dsi.sequence));
 }
 
+static u8 translate_iboost(u8 val)
+{
+	static const u8 mapping[] = { 1, 3, 7 }; /* See VBT spec */
+
+	if (val >= ARRAY_SIZE(mapping)) {
+		DRM_DEBUG_KMS("Unsupported I_boost value found in VBT (%d), display may not work properly\n", val);
+		return 0;
+	}
+	return mapping[val];
+}
+
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 			   const struct bdb_header *bdb)
 {
@@ -1000,6 +1011,16 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 			      port_name(port),
 			      hdmi_level_shift);
 		info->hdmi_level_shift = hdmi_level_shift;
+	}
+
+	/* Parse the I_boost config for SKL and above */
+	if (bdb->version >= 196 && (child->common.flags_1 & IBOOST_ENABLE)) {
+		info->dp_boost_level = translate_iboost(child->common.iboost_level & 0xF);
+		DRM_DEBUG_KMS("VBT (e)DP boost level for port %c: %d\n",
+			      port_name(port), info->dp_boost_level);
+		info->hdmi_boost_level = translate_iboost(child->common.iboost_level >> 4);
+		DRM_DEBUG_KMS("VBT HDMI boost level for port %c: %d\n",
+			      port_name(port), info->hdmi_boost_level);
 	}
 }
 
