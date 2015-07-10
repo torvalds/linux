@@ -341,7 +341,9 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_dp->pps_pipe;
-	bool pll_enabled;
+	bool pll_enabled, release_cl_override = false;
+	enum dpio_phy phy = DPIO_PHY(pipe);
+	enum dpio_channel ch = vlv_pipe_to_channel(pipe);
 	uint32_t DP;
 
 	if (WARN(I915_READ(intel_dp->output_reg) & DP_PORT_EN,
@@ -371,9 +373,13 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	 * The DPLL for the pipe must be enabled for this to work.
 	 * So enable temporarily it if it's not already enabled.
 	 */
-	if (!pll_enabled)
+	if (!pll_enabled) {
+		release_cl_override = IS_CHERRYVIEW(dev) &&
+			!chv_phy_powergate_ch(dev_priv, phy, ch, true);
+
 		vlv_force_pll_on(dev, pipe, IS_CHERRYVIEW(dev) ?
 				 &chv_dpll[0].dpll : &vlv_dpll[0].dpll);
+	}
 
 	/*
 	 * Similar magic as in intel_dp_enable_port().
@@ -390,8 +396,12 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
 	POSTING_READ(intel_dp->output_reg);
 
-	if (!pll_enabled)
+	if (!pll_enabled) {
 		vlv_force_pll_off(dev, pipe);
+
+		if (release_cl_override)
+			chv_phy_powergate_ch(dev_priv, phy, ch, false);
+	}
 }
 
 static enum pipe
