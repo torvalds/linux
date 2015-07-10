@@ -1065,8 +1065,13 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 	perf_pmu__parse_cleanup();
 	if (!ret) {
 		int entries = data.idx - evlist->nr_entries;
+		struct perf_evsel *last;
+
 		perf_evlist__splice_list_tail(evlist, &data.list, entries);
 		evlist->nr_groups += data.nr_groups;
+		last = perf_evlist__last(evlist);
+		last->cmdline_group_boundary = true;
+
 		return 0;
 	}
 
@@ -1171,16 +1176,23 @@ int parse_filter(const struct option *opt, const char *str,
 	if (evlist->nr_entries > 0)
 		last = perf_evlist__last(evlist);
 
-	if (last == NULL || last->attr.type != PERF_TYPE_TRACEPOINT) {
-		fprintf(stderr,
-			"--filter option should follow a -e tracepoint option\n");
-		return -1;
-	}
+	do {
+		if (last == NULL || last->attr.type != PERF_TYPE_TRACEPOINT) {
+			fprintf(stderr,
+				"--filter option should follow a -e tracepoint option\n");
+			return -1;
+		}
 
-	if (perf_evsel__set_filter(last, str) < 0) {
-		fprintf(stderr, "not enough memory to hold filter string\n");
-		return -1;
-	}
+		if (perf_evsel__set_filter(last, str) < 0) {
+			fprintf(stderr,
+				"not enough memory to hold filter string\n");
+			return -1;
+		}
+
+		if (last->node.prev == &evlist->entries)
+			return 0;
+		last = list_entry(last->node.prev, struct perf_evsel, node);
+	} while (!last->cmdline_group_boundary);
 
 	return 0;
 }
