@@ -71,6 +71,12 @@
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;
 		};
+
+		uart_clk: uart_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <36864000>;
+		};
 	};
 
 	soc {
@@ -106,6 +112,33 @@
 			interrupt-controller;
 			reg = <0x20001000 0x1000>,
 			      <0x20000100 0x100>;
+		};
+
+		serial0: serial@54006800 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006800 0x40>;
+			interrupts = <0 33 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
+		};
+
+		serial1: serial@54006900 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006900 0x40>;
+			interrupts = <0 35 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
+		};
+
+		serial2: serial@54006a00 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006a00 0x40>;
+			interrupts = <0 37 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
 		};
 
 		system-bus-controller-misc@59800000 {
