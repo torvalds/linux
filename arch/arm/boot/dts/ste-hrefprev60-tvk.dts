@@ -16,4 +16,11 @@
 / {
 	model = "ST-Ericsson HREF (pre-v60) and TVK1281618 UIB";
 	compatible = "st-ericsson,mop500", "st-ericsson,u8500";
+
+	/* This stablilizes the serial port enumeration */
+	aliases {
+		serial0 = &ux500_serial0;
+		serial1 = &ux500_serial1;
+		serial2 = &ux500_serial2;
+	};
 };
