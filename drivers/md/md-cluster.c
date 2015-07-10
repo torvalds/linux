@@ -647,8 +647,10 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 			lockres_free(bm_lockres);
 			continue;
 		}
-		if (ret)
+		if (ret) {
+			lockres_free(bm_lockres);
 			goto out;
+		}
 		/* TODO: Read the disk bitmap sb and check if it needs recovery */
 		dlm_unlock_sync(bm_lockres);
 		lockres_free(bm_lockres);
