@@ -375,6 +375,9 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 	u32 hipcie, hipct, hipcte;
 	int ipc_irq = 0;
 
+	if (dsp->intr_status & SKL_ADSPIS_CL_DMA)
+		skl_cldma_process_intr(dsp);
+
 	/* Here we handle IPC interrupts only */
 	if (!(dsp->intr_status & SKL_ADSPIS_IPC))
 		return IRQ_NONE;

@@ -267,6 +267,11 @@ irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id)
 		result = IRQ_WAKE_THREAD;
 	}
 
+	if (val & SKL_ADSPIS_CL_DMA) {
+		skl_cldma_int_disable(ctx);
+		result = IRQ_WAKE_THREAD;
+	}
+
 	spin_unlock(&ctx->spinlock);
 
 	return result;
