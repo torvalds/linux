@@ -277,7 +277,6 @@ static struct i2c_driver tmp006_driver = {
 	.driver = {
 		.name	= "tmp006",
 		.pm	= &tmp006_pm_ops,
-		.owner	= THIS_MODULE,
 	},
 	.probe = tmp006_probe,
 	.remove = tmp006_remove,

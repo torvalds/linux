@@ -909,7 +909,6 @@ static struct i2c_driver inv_mpu_driver = {
 	.remove		=	inv_mpu_remove,
 	.id_table	=	inv_mpu_id,
 	.driver = {
-		.owner	=	THIS_MODULE,
 		.name	=	"inv-mpu6050",
 		.pm     =       INV_MPU6050_PMOPS,
 		.acpi_match_table = ACPI_PTR(inv_acpi_match),

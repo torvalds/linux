@@ -117,7 +117,6 @@ MODULE_DEVICE_TABLE(i2c, ms5611_id);
 static struct i2c_driver ms5611_driver = {
 	.driver = {
 		.name = "ms5611",
-		.owner = THIS_MODULE,
 	},
 	.id_table = ms5611_id,
 	.probe = ms5611_i2c_probe,

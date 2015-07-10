@@ -122,7 +122,6 @@ MODULE_DEVICE_TABLE(i2c, st_accel_id_table);
 
 static struct i2c_driver st_accel_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "st-accel-i2c",
 		.of_match_table = of_match_ptr(st_accel_of_match),
 	},
