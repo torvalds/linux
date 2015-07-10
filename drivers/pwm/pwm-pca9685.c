@@ -285,7 +285,6 @@ MODULE_DEVICE_TABLE(of, pca9685_dt_ids);
 static struct i2c_driver pca9685_i2c_driver = {
 	.driver = {
 		.name = "pca9685-pwm",
-		.owner = THIS_MODULE,
 		.of_match_table = pca9685_dt_ids,
 	},
 	.probe = pca9685_pwm_probe,
