@@ -189,6 +189,13 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_REV_MINOR_SHF			0
 #define CM_GCR_REV_MINOR_MSK			(_ULCAST_(0xff) << 0)
 
+#define CM_ENCODE_REV(major, minor) \
+		(((major) << CM_GCR_REV_MAJOR_SHF) | \
+		 ((minor) << CM_GCR_REV_MINOR_SHF))
+
+#define CM_REV_CM2				CM_ENCODE_REV(6, 0)
+#define CM_REV_CM3				CM_ENCODE_REV(8, 0)
+
 /* GCR_ERROR_CAUSE register fields */
 #define CM_GCR_ERROR_CAUSE_ERRTYPE_SHF		27
 #define CM_GCR_ERROR_CAUSE_ERRTYPE_MSK		(_ULCAST_(0x1f) << 27)
@@ -322,6 +329,20 @@ static inline int mips_cm_l2sync(void)
 
 	writel(0, mips_cm_l2sync_base);
 	return 0;
+}
+
+/**
+ * mips_cm_revision() - return CM revision
+ *
+ * Return: The revision of the CM, from GCR_REV, or 0 if no CM is present. The
+ * return value should be checked against the CM_REV_* macros.
+ */
+static inline int mips_cm_revision(void)
+{
+	if (!mips_cm_present())
+		return 0;
+
+	return read_gcr_rev();
 }
 
 #endif /* __MIPS_ASM_MIPS_CM_H__ */
