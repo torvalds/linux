@@ -30,6 +30,7 @@
 #include <linux/mm.h>
 #include <linux/poll.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/wakelock.h>
@@ -495,6 +496,11 @@ typedef struct vpu_service_info {
 	struct clk *clk_cabac;
 	struct clk *pd_video;
 
+#ifdef CONFIG_RESET_CONTROLLER
+	struct reset_control *rst_a;
+	struct reset_control *rst_h;
+	struct reset_control *rst_v;
+#endif
 	struct device *dev;
 
 	u32 irq_status;
@@ -770,26 +776,6 @@ static void vpu_put_clk(struct vpu_service_info *pservice)
 #endif
 }
 
-static const u8 pmu_idle_map[] = {
-	[IDLE_REQ_VIDEO] = 7,
-};
-
-extern void __iomem *rk_cru_base;
-static void cru_writel(u32 val, u32 offset)
-{
-	writel_relaxed(val, rk_cru_base + (offset));
-	dsb(sy);
-}
-
-extern int rk3368_pmu_set_idle_request(enum pmu_idle_req req, bool idle);
-static inline void rk3368_cru_set_soft_reset(u32 idx, bool on)
-{
-	u32 val = on ? 0x10001U << (idx & 0xf) : 0x10000U << (idx & 0xf);
-	cru_writel(val, 0x31c);
-}
-#define SOFT_RST_VCODEC_AXI	(7*16)
-#define SOFT_RST_VCODEC_AHB	(7*16+1)
-
 static void vpu_reset(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
@@ -829,17 +815,19 @@ static void vpu_reset(struct vpu_subdev_data *data)
 	pservice->reg_resev = NULL;
 
 	pr_info("for 3288/3368...");
-	/**rk3368_pmu_set_idle_request(IDLE_REQ_VIDEO, true);*/
-	/*rockchip_pmu_ops.set_idle_request(IDLE_REQ_VIDEO, true);*/
-	/**rockchip_pmu_ops.set_power_domain(PD_VIDEO, false);*/
-	/*rk3368_cru_set_soft_reset(SOFT_RST_VCODEC_AHB, true);
-	rk3368_cru_set_soft_reset(SOFT_RST_VCODEC_AXI, true);
-	mdelay(1);
-	rk3368_cru_set_soft_reset(SOFT_RST_VCODEC_AXI, false);
-	rk3368_cru_set_soft_reset(SOFT_RST_VCODEC_AHB, false);*/
-	/**rockchip_pmu_ops.set_power_domain(PD_VIDEO, true);*/
-	/*rockchip_pmu_ops.set_idle_request(IDLE_REQ_VIDEO, false);*/
-	/**rk3368_pmu_set_idle_request(IDLE_REQ_VIDEO, false);*/
+#ifdef CONFIG_RESET_CONTROLLER
+	if (pservice->rst_a && pservice->rst_h) {
+		if (pservice->rst_v)
+			reset_control_assert(pservice->rst_v);
+		reset_control_assert(pservice->rst_a);
+		reset_control_assert(pservice->rst_h);
+		usleep_range(10, 20);
+		reset_control_deassert(pservice->rst_h);
+		reset_control_deassert(pservice->rst_a);
+		if (pservice->rst_v)
+			reset_control_deassert(pservice->rst_v);
+	}
+#endif
 
 #if defined(CONFIG_VCODEC_MMU)
 	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
@@ -2352,6 +2340,28 @@ static void vcodec_read_property(struct device_node *np,
 		return;
 #endif
 	}
+
+#ifdef CONFIG_RESET_CONTROLLER
+	pservice->rst_a = devm_reset_control_get(pservice->dev, "video_a");
+	pservice->rst_h = devm_reset_control_get(pservice->dev, "video_h");
+	pservice->rst_v = devm_reset_control_get(pservice->dev, "video");
+
+	if (IS_ERR_OR_NULL(pservice->rst_a)) {
+		pr_warn("No reset resource define\n");
+		pservice->rst_a = NULL;
+	}
+
+	if (IS_ERR_OR_NULL(pservice->rst_h)) {
+		pr_warn("No reset resource define\n");
+		pservice->rst_h = NULL;
+	}
+
+	if (IS_ERR_OR_NULL(pservice->rst_v)) {
+		pr_warn("No reset resource define\n");
+		pservice->rst_v = NULL;
+	}
+#endif
+
 	of_property_read_string(np, "name", (const char**)&pservice->name);
 }
 
@@ -2399,6 +2409,8 @@ static int vcodec_probe(struct platform_device *pdev)
 
 	pr_info("probe device %s\n", dev_name(dev));
 
+	pservice->dev = dev;
+
 	vcodec_read_property(np, pservice);
 	vcodec_init_drvdata(pservice);
 
@@ -2408,8 +2420,6 @@ static int vcodec_probe(struct platform_device *pdev)
 		pservice->dev_id = VCODEC_DEVICE_ID_VPU;
 	else
 		pservice->dev_id = VCODEC_DEVICE_ID_COMBO;
-
-	pservice->dev = dev;
 
 	if (0 > vpu_get_clk(pservice))
 		goto err;
