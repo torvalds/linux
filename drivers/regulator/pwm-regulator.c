@@ -163,7 +163,7 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct pwm_voltages *duty_cycle_table;
-	int length;
+	int length = 0;
 	int ret;
 
 	of_find_property(np, "voltage-table", &length);
