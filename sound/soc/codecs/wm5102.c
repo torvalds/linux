@@ -1879,7 +1879,7 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	ret = snd_soc_add_codec_controls(codec,
 					 arizona_adsp2_rate_controls, 1);
 	if (ret)
-		return ret;
+		goto err_adsp2_codec_probe;
 
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
@@ -1889,6 +1889,11 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	priv->core.arizona->dapm = dapm;
 
 	return 0;
+
+err_adsp2_codec_probe:
+	wm_adsp2_codec_remove(&priv->core.adsp[0], codec);
+
+	return ret;
 }
 
 static int wm5102_codec_remove(struct snd_soc_codec *codec)

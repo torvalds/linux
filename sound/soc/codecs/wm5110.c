@@ -1607,18 +1607,24 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
 		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
 		if (ret)
-			return ret;
+			goto err_adsp2_codec_probe;
 	}
 
 	ret = snd_soc_add_codec_controls(codec,
 					 arizona_adsp2_rate_controls,
 					 WM5110_NUM_ADSP);
 	if (ret)
-		return ret;
+		goto err_adsp2_codec_probe;
 
 	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
 
 	return 0;
+
+err_adsp2_codec_probe:
+	for (--i; i >= 0; --i)
+		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
+
+	return ret;
 }
 
 static int wm5110_codec_remove(struct snd_soc_codec *codec)
