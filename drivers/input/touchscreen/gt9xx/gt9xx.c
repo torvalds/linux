@@ -49,6 +49,7 @@
 
 #include <linux/irq.h>
 #include "gt9xx.h"
+#include <linux/regulator/consumer.h>
 
 #if GTP_ICS_SLOT_REPORT
     #include <linux/input/mt.h>
@@ -1908,6 +1909,9 @@ static int goodix_ts_early_suspend(struct tp_device *tp_d)
 {
     struct goodix_ts_data *ts;
     s8 ret = -1;
+    struct regulator *regulator_tp = NULL;
+    int reg = 0;
+
     ts = container_of(tp_d, struct goodix_ts_data, tp);
     GTP_DEBUG_FUNC();
 
@@ -1938,7 +1942,19 @@ static int goodix_ts_early_suspend(struct tp_device *tp_d)
     // to avoid waking up while not sleeping
     //  delay 48 + 10ms to ensure reliability
     msleep(58);
-
+	regulator_tp = regulator_get(NULL,"vcc_tp");
+	if(regulator_tp ==NULL)
+	{
+		printk("!!!!%s:%d:get regulator_tp failed\n",__func__,__LINE__);
+		return 0;
+	}
+	while(regulator_is_enabled(regulator_tp))
+	{
+		reg = regulator_disable(regulator_tp);
+		msleep(10);
+	}
+	regulator_put(regulator_tp);
+	msleep(20);
 	return 0;
 }
 
@@ -1954,10 +1970,26 @@ static int goodix_ts_early_resume(struct tp_device *tp_d)
 {
     struct goodix_ts_data *ts;
     s8 ret = -1;
+    struct regulator *regulator_tp = NULL;
+    int reg = 0;
     ts = container_of(tp_d, struct goodix_ts_data, tp);
     GTP_DEBUG_FUNC();
 
     GTP_INFO("System resume.");
+
+	regulator_tp = regulator_get(NULL, "vcc_tp");
+	if(regulator_tp ==NULL)
+	{
+		printk("!!!!%s:%d:get regulator_tp failed\n",__func__,__LINE__);
+		return 0;
+	}
+	while(!(regulator_is_enabled(regulator_tp)))
+	{
+		reg = regulator_enable(regulator_tp);
+		msleep(10);
+	}
+	regulator_put(regulator_tp);
+	msleep(10);
 
     ret = gtp_wakeup_sleep(ts);
 
