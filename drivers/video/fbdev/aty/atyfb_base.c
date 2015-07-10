@@ -98,9 +98,6 @@
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
 #endif
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
 
 /*
  * Debug flags.
@@ -303,9 +300,7 @@ static struct fb_ops atyfb_ops = {
 };
 
 static bool noaccel;
-#ifdef CONFIG_MTRR
 static bool nomtrr;
-#endif
 static int vram;
 static int pll;
 static int mclk;
@@ -2628,17 +2623,13 @@ static int aty_init(struct fb_info *info)
 		aty_st_le32(BUS_CNTL, aty_ld_le32(BUS_CNTL, par) |
 			    BUS_APER_REG_DIS, par);
 
-#ifdef CONFIG_MTRR
-	par->mtrr_aper = -1;
-	if (!nomtrr) {
+	if (!nomtrr)
 		/*
 		 * Only the ioremap_wc()'d area will get WC here
 		 * since ioremap_uc() was used on the entire PCI BAR.
 		 */
-		par->mtrr_aper = mtrr_add(par->res_start, par->res_size,
-					  MTRR_TYPE_WRCOMB, 1);
-	}
-#endif
+		par->wc_cookie = arch_phys_wc_add(par->res_start,
+						  par->res_size);
 
 	info->fbops = &atyfb_ops;
 	info->pseudo_palette = par->pseudo_palette;
@@ -2766,13 +2757,8 @@ aty_init_exit:
 	/* restore video mode */
 	aty_set_crtc(par, &par->saved_crtc);
 	par->pll_ops->set_pll(info, &par->saved_pll);
+	arch_phys_wc_del(par->wc_cookie);
 
-#ifdef CONFIG_MTRR
-	if (par->mtrr_aper >= 0) {
-		mtrr_del(par->mtrr_aper, 0, 0);
-		par->mtrr_aper = -1;
-	}
-#endif
 	return ret;
 }
 
@@ -3672,7 +3658,8 @@ static int __init atyfb_atari_probe(void)
 		 * Map the video memory (physical address given)
 		 * to somewhere in the kernel address space.
 		 */
-		info->screen_base = ioremap(phys_vmembase[m64_num], phys_size[m64_num]);
+		info->screen_base = ioremap_wc(phys_vmembase[m64_num],
+					       phys_size[m64_num]);
 		info->fix.smem_start = (unsigned long)info->screen_base; /* Fake! */
 		par->ati_regbase = ioremap(phys_guiregbase[m64_num], 0x10000) +
 						0xFC00ul;
@@ -3738,13 +3725,8 @@ static void atyfb_remove(struct fb_info *info)
 	if (M64_HAS(MOBIL_BUS))
 		aty_bl_exit(info->bl_dev);
 #endif
+	arch_phys_wc_del(par->wc_cookie);
 
-#ifdef CONFIG_MTRR
-	if (par->mtrr_aper >= 0) {
-		mtrr_del(par->mtrr_aper, 0, 0);
-		par->mtrr_aper = -1;
-	}
-#endif
 #ifndef __sparc__
 	if (par->ati_regbase)
 		iounmap(par->ati_regbase);
@@ -3860,10 +3842,8 @@ static int __init atyfb_setup(char *options)
 	while ((this_opt = strsep(&options, ",")) != NULL) {
 		if (!strncmp(this_opt, "noaccel", 7)) {
 			noaccel = 1;
-#ifdef CONFIG_MTRR
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;
-#endif
 		} else if (!strncmp(this_opt, "vram:", 5))
 			vram = simple_strtoul(this_opt + 5, NULL, 0);
 		else if (!strncmp(this_opt, "pll:", 4))
@@ -4033,7 +4013,5 @@ module_param(comp_sync, int, 0);
 MODULE_PARM_DESC(comp_sync, "Set composite sync signal to low (0) or high (1)");
 module_param(mode, charp, 0);
 MODULE_PARM_DESC(mode, "Specify resolution as \"<xres>x<yres>[-<bpp>][@<refresh>]\" ");
-#ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "bool: disable use of MTRR registers");
-#endif
