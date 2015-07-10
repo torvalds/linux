@@ -1051,6 +1051,8 @@
 		interrupt-names = "irq_enc", "irq_dec";
 		clocks = <&clk_vdpu>, <&hclk_vdpu>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&reset RK3288_SOFT_RST_VCODEC_H>, <&reset RK3288_SOFT_RST_VCODEC_A>;
+		reset-names = "video_h", "video_a";
 		name = "vpu_service";
 		dev_mode = <0>;
 		//status = "disabled";
@@ -1064,6 +1066,9 @@
 		interrupt-names = "irq_dec";
 		clocks = <&aclk_hevc>, <&hclk_hevc>, <&clk_hevc_core>, <&clk_hevc_cabac>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
+		resets = <&reset RK3288_SOFT_RST_VCODEC_H>, <&reset RK3288_SOFT_RST_VCODEC_A>,
+			<&reset RK3288_SOFT_RST_HEVC>;
+		reset-names = "video_h", "video_a", "video";
 		dev_mode = <1>;
 		name = "hevc_service";
 		//status = "disabled";
