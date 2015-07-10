@@ -547,7 +547,6 @@ static struct i2c_driver isl29028_driver = {
 	.class	= I2C_CLASS_HWMON,
 	.driver  = {
 		.name = "isl29028",
-		.owner = THIS_MODULE,
 		.of_match_table = isl29028_of_match,
 	},
 	.probe	 = isl29028_probe,
