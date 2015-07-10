@@ -2277,8 +2277,6 @@ static void dm_init_old_md_queue(struct mapped_device *md)
 
 static void cleanup_mapped_device(struct mapped_device *md)
 {
-	cleanup_srcu_struct(&md->io_barrier);
-
 	if (md->wq)
 		destroy_workqueue(md->wq);
 	if (md->kworker_task)
@@ -2289,6 +2287,8 @@ static void cleanup_mapped_device(struct mapped_device *md)
 		mempool_destroy(md->rq_pool);
 	if (md->bs)
 		bioset_free(md->bs);
+
+	cleanup_srcu_struct(&md->io_barrier);
 
 	if (md->disk) {
 		spin_lock(&_minor_lock);
