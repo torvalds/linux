@@ -192,3 +192,136 @@ static void skl_cldma_fill_buffer(struct sst_dsp *ctx, unsigned int size,
 	if (trigger)
 		ctx->cl_dev.ops.cl_trigger(ctx, true);
 }
+
+/*
+ * The CL dma doesn't have any way to update the transfer status until a BDL
+ * buffer is fully transferred
+ *
+ * So Copying is divided in two parts.
+ * 1. Interrupt on buffer done where the size to be transferred is more than
+ *    ring buffer size.
+ * 2. Polling on fw register to identify if data left to transferred doesn't
+ *    fill the ring buffer. Caller takes care of polling the required status
+ *    register to identify the transfer status.
+ */
+static int
+skl_cldma_copy_to_buf(struct sst_dsp *ctx, const void *bin, u32 total_size)
+{
+	int ret = 0;
+	bool start = true;
+	unsigned int excess_bytes;
+	u32 size;
+	unsigned int bytes_left = total_size;
+	const void *curr_pos = bin;
+
+	if (total_size <= 0)
+		return -EINVAL;
+
+	dev_dbg(ctx->dev, "%s: Total binary size: %u\n", __func__, bytes_left);
+
+	while (bytes_left) {
+		if (bytes_left > ctx->cl_dev.bufsize) {
+
+			/*
+			 * dma transfers only till the write pointer as
+			 * updated in spib
+			 */
+			if (ctx->cl_dev.curr_spib_pos == 0)
+				ctx->cl_dev.curr_spib_pos = ctx->cl_dev.bufsize;
+
+			size = ctx->cl_dev.bufsize;
+			skl_cldma_fill_buffer(ctx, size, curr_pos, true, start);
+
+			start = false;
+			ret = skl_cldma_wait_interruptible(ctx);
+			if (ret < 0) {
+				skl_cldma_stop(ctx);
+				return ret;
+			}
+
+		} else {
+			skl_cldma_int_disable(ctx);
+
+			if ((ctx->cl_dev.curr_spib_pos + bytes_left)
+							<= ctx->cl_dev.bufsize) {
+				ctx->cl_dev.curr_spib_pos += bytes_left;
+			} else {
+				excess_bytes = bytes_left -
+					(ctx->cl_dev.bufsize -
+					ctx->cl_dev.curr_spib_pos);
+				ctx->cl_dev.curr_spib_pos = excess_bytes;
+			}
+
+			size = bytes_left;
+			skl_cldma_fill_buffer(ctx, size,
+					curr_pos, false, start);
+		}
+		bytes_left -= size;
+		curr_pos = curr_pos + size;
+	}
+
+	return ret;
+}
+
+void skl_cldma_process_intr(struct sst_dsp *ctx)
+{
+	u8 cl_dma_intr_status;
+
+	cl_dma_intr_status =
+		sst_dsp_shim_read_unlocked(ctx, SKL_ADSP_REG_CL_SD_STS);
+
+	if (!(cl_dma_intr_status & SKL_CL_DMA_SD_INT_COMPLETE))
+		ctx->cl_dev.wake_status = SKL_CL_DMA_ERR;
+	else
+		ctx->cl_dev.wake_status = SKL_CL_DMA_BUF_COMPLETE;
+
+	ctx->cl_dev.wait_condition = true;
+	wake_up(&ctx->cl_dev.wait_queue);
+}
+
+int skl_cldma_prepare(struct sst_dsp *ctx)
+{
+	int ret;
+	u32 *bdl;
+
+	ctx->cl_dev.bufsize = SKL_MAX_BUFFER_SIZE;
+
+	/* Allocate cl ops */
+	ctx->cl_dev.ops.cl_setup_bdle = skl_cldma_setup_bdle;
+	ctx->cl_dev.ops.cl_setup_controller = skl_cldma_setup_controller;
+	ctx->cl_dev.ops.cl_setup_spb = skl_cldma_setup_spb;
+	ctx->cl_dev.ops.cl_cleanup_spb = skl_cldma_cleanup_spb;
+	ctx->cl_dev.ops.cl_trigger = skl_cldma_trigger;
+	ctx->cl_dev.ops.cl_cleanup_controller = skl_cldma_cleanup;
+	ctx->cl_dev.ops.cl_copy_to_dmabuf = skl_cldma_copy_to_buf;
+	ctx->cl_dev.ops.cl_stop_dma = skl_cldma_stop;
+
+	/* Allocate buffer*/
+	ret = ctx->dsp_ops.alloc_dma_buf(ctx->dev,
+			&ctx->cl_dev.dmab_data, ctx->cl_dev.bufsize);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Alloc buffer for base fw failed: %x", ret);
+		return ret;
+	}
+	/* Setup Code loader BDL */
+	ret = ctx->dsp_ops.alloc_dma_buf(ctx->dev,
+			&ctx->cl_dev.dmab_bdl, PAGE_SIZE);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Alloc buffer for blde failed: %x", ret);
+		ctx->dsp_ops.free_dma_buf(ctx->dev, &ctx->cl_dev.dmab_data);
+		return ret;
+	}
+	bdl = (u32 *)ctx->cl_dev.dmab_bdl.area;
+
+	/* Allocate BDLs */
+	ctx->cl_dev.ops.cl_setup_bdle(ctx, &ctx->cl_dev.dmab_data,
+			&bdl, ctx->cl_dev.bufsize, 1);
+	ctx->cl_dev.ops.cl_setup_controller(ctx, &ctx->cl_dev.dmab_bdl,
+			ctx->cl_dev.bufsize, ctx->cl_dev.frags);
+
+	ctx->cl_dev.curr_spib_pos = 0;
+	ctx->cl_dev.dma_buffer_offset = 0;
+	init_waitqueue_head(&ctx->cl_dev.wait_queue);
+
+	return ret;
+}

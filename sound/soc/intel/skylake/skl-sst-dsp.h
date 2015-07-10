@@ -17,7 +17,9 @@
 #define __SKL_SST_DSP_H__
 
 #include <sound/memalloc.h>
+#include "skl-sst-cldma.h"
 
+struct sst_dsp;
 struct sst_dsp_device;
 
 /* Intel HD Audio General DSP Registers */
@@ -112,6 +114,10 @@ struct skl_dsp_loader_ops {
 	int (*free_dma_buf)(struct device *dev,
 		struct snd_dma_buffer *dmab);
 };
+
+void skl_cldma_process_intr(struct sst_dsp *ctx);
+void skl_cldma_int_disable(struct sst_dsp *ctx);
+int skl_cldma_prepare(struct sst_dsp *ctx);
 
 void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state);
 struct sst_dsp *skl_dsp_ctx_init(struct device *dev,

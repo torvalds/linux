@@ -308,8 +308,11 @@ struct sst_dsp {
 
 	/* SKL data */
 
+	/* To allocate CL dma buffers */
+	struct skl_dsp_loader_ops dsp_ops;
 	struct skl_dsp_fw_ops fw_ops;
 	int sst_state;
+	struct skl_cl_dev cl_dev;
 	u32 intr_status;
 };
 

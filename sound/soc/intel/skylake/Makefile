@@ -3,6 +3,6 @@ snd-soc-skl-objs := skl.o skl-pcm.o
 obj-$(CONFIG_SND_SOC_INTEL_SKYLAKE) += snd-soc-skl.o
 
 # Skylake IPC Support
-snd-soc-skl-ipc-objs := skl-sst-ipc.o skl-sst-dsp.o
+snd-soc-skl-ipc-objs := skl-sst-ipc.o skl-sst-dsp.o skl-sst-cldma.o
 
 obj-$(CONFIG_SND_SOC_INTEL_SKYLAKE) += snd-soc-skl-ipc.o
