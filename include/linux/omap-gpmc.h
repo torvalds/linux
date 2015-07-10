@@ -7,8 +7,7 @@
  *  option) any later version.
  */
 
-/* Maximum Number of Chip Selects */
-#define GPMC_CS_NUM		8
+#include <linux/platform_data/gpmc-omap.h>
 
 #define GPMC_CONFIG_WP		0x00000005
 
