@@ -144,9 +144,9 @@ static void mtk_pll_calc_values(struct mtk_clk_pll *pll, u32 *pcw, u32 *postdiv,
 	if (freq > pll->data->fmax)
 		freq = pll->data->fmax;
 
-	for (val = 0; val < 4; val++) {
+	for (val = 0; val < 5; val++) {
 		*postdiv = 1 << val;
-		if (freq * *postdiv >= fmin)
+		if ((u64)freq * *postdiv >= fmin)
 			break;
 	}
 
