@@ -317,6 +317,10 @@ static void hdmi_work_queue(struct work_struct *work)
 		break;
 	case HDMI_DISABLE_CTL:
 		if (hdmi->enable) {
+			if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+				hdmi_wq_set_output(hdmi,
+						   HDMI_VIDEO_MUTE |
+						   HDMI_AUDIO_MUTE);
 			if (!hdmi->sleep) {
 				if (hdmi->ops->disable)
 					hdmi->ops->disable(hdmi);
@@ -327,8 +331,10 @@ static void hdmi_work_queue(struct work_struct *work)
 		break;
 	case HDMI_SUSPEND_CTL:
 		if (!hdmi->sleep) {
-			hdmi_wq_set_output(hdmi,
-					   HDMI_VIDEO_MUTE | HDMI_AUDIO_MUTE);
+			if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+				hdmi_wq_set_output(hdmi,
+						   HDMI_VIDEO_MUTE |
+						   HDMI_AUDIO_MUTE);
 			if (hdmi->ops->disable)
 				hdmi->ops->disable(hdmi);
 			if (hdmi->enable)
