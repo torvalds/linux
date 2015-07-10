@@ -405,7 +405,6 @@ static SIMPLE_DEV_PM_OPS(hisi_thermal_pm_ops,
 static struct platform_driver hisi_thermal_driver = {
 	.driver = {
 		.name		= "hisi_thermal",
-		.owner		= THIS_MODULE,
 		.pm		= &hisi_thermal_pm_ops,
 		.of_match_table = of_hisi_thermal_match,
 	},
