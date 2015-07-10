@@ -922,6 +922,9 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		value = (ctx->params.bitrate & CODA_RATECONTROL_BITRATE_MASK)
 			<< CODA_RATECONTROL_BITRATE_OFFSET;
 		value |=  1 & CODA_RATECONTROL_ENABLE_MASK;
+		value |= (ctx->params.vbv_delay &
+			  CODA_RATECONTROL_INITIALDELAY_MASK)
+			 << CODA_RATECONTROL_INITIALDELAY_OFFSET;
 		if (dev->devtype->product == CODA_960)
 			value |= BIT(31); /* disable autoskip */
 	} else {
@@ -929,7 +932,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	}
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_RC_PARA);
 
-	coda_write(dev, 0, CODA_CMD_ENC_SEQ_RC_BUF_SIZE);
+	coda_write(dev, ctx->params.vbv_size, CODA_CMD_ENC_SEQ_RC_BUF_SIZE);
 	coda_write(dev, ctx->params.intra_refresh,
 		   CODA_CMD_ENC_SEQ_INTRA_REFRESH);
 

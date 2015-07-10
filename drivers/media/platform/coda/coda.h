@@ -128,6 +128,8 @@ struct coda_params {
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
 	u32			framerate;
 	u16			bitrate;
+	u16			vbv_delay;
+	u32			vbv_size;
 	u32			slice_max_bits;
 	u32			slice_max_mb;
 };

@@ -1400,6 +1400,12 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_JPEG_RESTART_INTERVAL:
 		ctx->params.jpeg_restart_interval = ctrl->val;
 		break;
+	case V4L2_CID_MPEG_VIDEO_VBV_DELAY:
+		ctx->params.vbv_delay = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VBV_SIZE:
+		ctx->params.vbv_size = min(ctrl->val * 8192, 0x7fffffff);
+		break;
 	default:
 		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 			"Invalid control, id=%d, val=%d\n",
@@ -1459,6 +1465,14 @@ static void coda_encode_ctrls(struct coda_ctx *ctx)
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB, 0,
 		1920 * 1088 / 256, 1, 0);
+	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_VBV_DELAY, 0, 0x7fff, 1, 0);
+	/*
+	 * The maximum VBV size value is 0x7fffffff bits,
+	 * one bit less than 262144 KiB
+	 */
+	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_VBV_SIZE, 0, 262144, 1, 0);
 }
 
 static void coda_jpeg_encode_ctrls(struct coda_ctx *ctx)
