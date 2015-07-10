@@ -198,8 +198,6 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 static int pwm_regulator_init_continuous(struct platform_device *pdev,
 					 struct pwm_regulator_data *drvdata)
 {
-	struct device_node *np = pdev->dev.of_node;
-
 	pwm_regulator_desc.ops = &pwm_regulator_voltage_continuous_ops;
 	pwm_regulator_desc.continuous_voltage_range = true;
 
