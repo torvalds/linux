@@ -157,7 +157,6 @@ MODULE_DEVICE_TABLE(i2c, i2c_slave_eeprom_id);
 static struct i2c_driver i2c_slave_eeprom_driver = {
 	.driver = {
 		.name = "i2c-slave-eeprom",
-		.owner = THIS_MODULE,
 	},
 	.probe = i2c_slave_eeprom_probe,
 	.remove = i2c_slave_eeprom_remove,
