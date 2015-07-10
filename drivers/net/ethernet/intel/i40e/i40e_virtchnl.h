@@ -152,6 +152,7 @@ struct i40e_virtchnl_vsi_resource {
 #define I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ		0x00000008
 #define I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG	0x00000010
 #define I40E_VIRTCHNL_VF_OFFLOAD_VLAN		0x00010000
+#define I40E_VIRTCHNL_VF_OFFLOAD_RX_POLLING	0x00020000
 
 struct i40e_virtchnl_vf_resource {
 	u16 num_vsis;

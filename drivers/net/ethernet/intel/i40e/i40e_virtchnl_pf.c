@@ -335,6 +335,18 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_id,
 		wr32(hw, reg_idx, reg);
 	}
 
+	/* if the vf is running in polling mode and using interrupt zero,
+	 * need to disable auto-mask on enabling zero interrupt for VFs.
+	 */
+	if ((vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_RX_POLLING) &&
+	    (vector_id == 0)) {
+		reg = rd32(hw, I40E_GLINT_CTL);
+		if (!(reg & I40E_GLINT_CTL_DIS_AUTOMASK_VF0_MASK)) {
+			reg |= I40E_GLINT_CTL_DIS_AUTOMASK_VF0_MASK;
+			wr32(hw, I40E_GLINT_CTL, reg);
+		}
+	}
+
 irq_list_done:
 	i40e_flush(hw);
 }
