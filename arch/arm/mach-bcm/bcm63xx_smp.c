@@ -127,7 +127,7 @@ static int bcm63138_smp_boot_secondary(unsigned int cpu,
 	}
 
 	/* Locate the secondary CPU node */
-	dn = of_get_cpu_node(cpu_logical_map(cpu), NULL);
+	dn = of_get_cpu_node(cpu, NULL);
 	if (!dn) {
 		pr_err("SMP: failed to locate secondary CPU%d node\n", cpu);
 		ret = -ENODEV;
