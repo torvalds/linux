@@ -996,15 +996,36 @@ config X86_THERMAL_VECTOR
 	def_bool y
 	depends on X86_MCE_INTEL
 
-config VM86
-	bool "Enable VM86 support" if EXPERT
-	default y
+config X86_LEGACY_VM86
+	bool "Legacy VM86 support (obsolete)"
+	default n
 	depends on X86_32
 	---help---
-	  This option is required by programs like DOSEMU to run
-	  16-bit real mode legacy code on x86 processors. It also may
-	  be needed by software like XFree86 to initialize some video
-	  cards via BIOS. Disabling this option saves about 6K.
+	  This option allows user programs to put the CPU into V8086
+	  mode, which is an 80286-era approximation of 16-bit real mode.
+
+	  Some very old versions of X and/or vbetool require this option
+	  for user mode setting.  Similarly, DOSEMU will use it if
+	  available to accelerate real mode DOS programs.  However, any
+	  recent version of DOSEMU, X, or vbetool should be fully
+	  functional even without kernel VM86 support, as they will all
+	  fall back to (pretty well performing) software emulation.
+
+	  Anything that works on a 64-bit kernel is unlikely to need
+	  this option, as 64-bit kernels don't, and can't, support V8086
+	  mode.  This option is also unrelated to 16-bit protected mode
+	  and is not needed to run most 16-bit programs under Wine.
+
+	  Enabling this option adds considerable attack surface to the
+	  kernel and slows down system calls and exception handling.
+
+	  Unless you use very old userspace or need the last drop of
+	  performance in your real mode DOS games and can't use KVM,
+	  say N here.
+
+config VM86
+       bool
+       default X86_LEGACY_VM86
 
 config X86_16BIT
 	bool "Enable support for 16-bit segments" if EXPERT
