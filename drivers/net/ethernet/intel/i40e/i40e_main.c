@@ -1255,6 +1255,8 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 	struct i40e_mac_filter *f;
 
 	list_for_each_entry(f, &vsi->mac_filter_list, list) {
+		if (vsi->info.pvid)
+			f->vlan = le16_to_cpu(vsi->info.pvid);
 		if (!i40e_find_filter(vsi, macaddr, f->vlan,
 				      is_vf, is_netdev)) {
 			if (!i40e_add_filter(vsi, macaddr, f->vlan,
