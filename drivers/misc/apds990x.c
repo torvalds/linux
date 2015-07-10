@@ -1275,7 +1275,6 @@ static const struct dev_pm_ops apds990x_pm_ops = {
 static struct i2c_driver apds990x_driver = {
 	.driver	 = {
 		.name	= "apds990x",
-		.owner	= THIS_MODULE,
 		.pm	= &apds990x_pm_ops,
 	},
 	.probe	  = apds990x_probe,
