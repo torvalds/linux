@@ -693,7 +693,6 @@ MODULE_DEVICE_TABLE(i2c, rt8973a_i2c_id);
 static struct i2c_driver rt8973a_muic_i2c_driver = {
 	.driver		= {
 		.name	= "rt8973a",
-		.owner	= THIS_MODULE,
 		.pm	= &rt8973a_muic_pm_ops,
 		.of_match_table = rt8973a_dt_match,
 	},
