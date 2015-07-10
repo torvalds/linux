@@ -247,7 +247,6 @@ static struct platform_driver ufs_qcom_phy_qmp_20nm_driver = {
 	.driver = {
 		.of_match_table = ufs_qcom_phy_qmp_20nm_of_match,
 		.name = "ufs_qcom_phy_qmp_20nm",
-		.owner = THIS_MODULE,
 	},
 };
 

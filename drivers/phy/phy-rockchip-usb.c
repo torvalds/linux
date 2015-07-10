@@ -146,7 +146,6 @@ static struct platform_driver rockchip_usb_driver = {
 	.probe		= rockchip_usb_phy_probe,
 	.driver		= {
 		.name	= "rockchip-usb-phy",
-		.owner	= THIS_MODULE,
 		.of_match_table = rockchip_usb_phy_dt_ids,
 	},
 };
