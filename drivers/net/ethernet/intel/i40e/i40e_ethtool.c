@@ -1559,6 +1559,21 @@ static inline bool i40e_active_vfs(struct i40e_pf *pf)
 	return false;
 }
 
+static inline bool i40e_active_vmdqs(struct i40e_pf *pf)
+{
+	struct i40e_vsi **vsi = pf->vsi;
+	int i;
+
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
+		if (!vsi[i])
+			continue;
+		if (vsi[i]->type == I40E_VSI_VMDQ2)
+			return true;
+	}
+
+	return false;
+}
+
 static void i40e_diag_test(struct net_device *netdev,
 			   struct ethtool_test *eth_test, u64 *data)
 {
@@ -1572,9 +1587,9 @@ static void i40e_diag_test(struct net_device *netdev,
 
 		set_bit(__I40E_TESTING, &pf->state);
 
-		if (i40e_active_vfs(pf)) {
+		if (i40e_active_vfs(pf) || i40e_active_vmdqs(pf)) {
 			dev_warn(&pf->pdev->dev,
-				 "Please take active VFS offline and restart the adapter before running NIC diagnostics\n");
+				 "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagnostics\n");
 			data[I40E_ETH_TEST_REG]		= 1;
 			data[I40E_ETH_TEST_EEPROM]	= 1;
 			data[I40E_ETH_TEST_INTR]	= 1;
