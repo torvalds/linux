@@ -24,7 +24,7 @@ struct delayed_work *hdmi_submit_work(struct hdmi *hdmi,
 {
 	struct hdmi_delayed_work *work;
 
-	DBG("%s event %04x delay %d", __func__, event, delay);
+	DBG("%s event %04x delay %d\n", __func__, event, delay);
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
 
@@ -60,14 +60,14 @@ static void hdmi_send_uevent(struct hdmi *hdmi, int uevent)
 
 static inline void hdmi_wq_set_output(struct hdmi *hdmi, int mute)
 {
-	DBG("%s mute %d", __func__, mute);
+	DBG("%s mute %d\n", __func__, mute);
 	if (hdmi->ops->setmute)
 		hdmi->ops->setmute(hdmi, mute);
 }
 
 static inline void hdmi_wq_set_audio(struct hdmi *hdmi)
 {
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 	if (hdmi->ops->setaudio)
 		hdmi->ops->setaudio(hdmi, &hdmi->audio);
 }
@@ -77,7 +77,7 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	struct hdmi_video	video;
 	int	deepcolor;
 
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 
 	video.vic = hdmi->vic & HDMI_VIC_MASK;
 	video.sink_hdmi = hdmi->edid.sink_hdmi;
@@ -137,7 +137,7 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 	if (hdmi == NULL)
 		return;
 
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 
 	pedid = &(hdmi->edid);
 	fb_destroy_modelist(&pedid->modelist);
@@ -221,7 +221,7 @@ out:
 
 static void hdmi_wq_insert(struct hdmi *hdmi)
 {
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 	if (hdmi->ops->insert)
 		hdmi->ops->insert(hdmi);
 	hdmi_wq_parse_edid(hdmi);
@@ -250,7 +250,7 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	struct rk_screen screen;
 	int i;
 
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 	if (hdmi->ops->remove)
 		hdmi->ops->remove(hdmi);
 	if (hdmi->hotplug == HDMI_HPD_ACTIVED) {
@@ -345,7 +345,7 @@ static void hdmi_work_queue(struct work_struct *work)
 	case HDMI_HPD_CHANGE:
 		if (hdmi->ops->getstatus)
 			hpd = hdmi->ops->getstatus(hdmi);
-		DBG("hdmi_work_queue() - hpd is %d hotplug is %d",
+		DBG("hdmi_work_queue() - hpd is %d hotplug is %d\n",
 		    hpd, hdmi->hotplug);
 		if (hpd != hdmi->hotplug) {
 			if (hpd == HDMI_HPD_ACTIVED) {
@@ -453,7 +453,7 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 	if (i == HDMI_MAX_ID)
 		return NULL;
 
-	DBG("hdmi_register() - video source %d display %d",
+	DBG("hdmi_register() - video source %d display %d\n",
 	    property->videosrc,  property->display);
 
 	hdmi = kmalloc(sizeof(*hdmi), GFP_KERNEL);
@@ -605,7 +605,6 @@ int hdmi_config_audio(struct hdmi_audio	*audio)
 	return 0;
 }
 
-#ifdef CONFIG_RK_HDMI
 int snd_config_hdmi_audio(struct snd_pcm_hw_params *params)
 {
 	struct hdmi_audio audio_cfg;
@@ -634,7 +633,7 @@ int snd_config_hdmi_audio(struct snd_pcm_hw_params *params)
 		rate = HDMI_AUDIO_FS_192000;
 		break;
 	default:
-		pr_err("rate %d unsupport.", params_rate(params));
+		pr_err("rate %d unsupport.\n", params_rate(params));
 		rate = HDMI_AUDIO_FS_44100;
 	}
 
@@ -651,7 +650,6 @@ int snd_config_hdmi_audio(struct snd_pcm_hw_params *params)
 	return hdmi_config_audio(&audio_cfg);
 }
 EXPORT_SYMBOL(snd_config_hdmi_audio);
-#endif
 
 void hdmi_audio_mute(int mute)
 {
