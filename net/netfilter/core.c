@@ -62,27 +62,31 @@ EXPORT_SYMBOL(nf_hooks_needed);
 
 static DEFINE_MUTEX(nf_hook_mutex);
 
+static struct list_head *find_nf_hook_list(const struct nf_hook_ops *reg)
+{
+	struct list_head *nf_hook_list = NULL;
+
+	if (reg->pf != NFPROTO_NETDEV)
+		nf_hook_list = &nf_hooks[reg->pf][reg->hooknum];
+	else if (reg->hooknum == NF_NETDEV_INGRESS) {
+#ifdef CONFIG_NETFILTER_INGRESS
+		if (reg->dev)
+			nf_hook_list = &reg->dev->nf_hooks_ingress;
+#endif
+	}
+	return nf_hook_list;
+}
+
 int nf_register_hook(struct nf_hook_ops *reg)
 {
 	struct list_head *nf_hook_list;
 	struct nf_hook_ops *elem;
 
-	mutex_lock(&nf_hook_mutex);
-	switch (reg->pf) {
-	case NFPROTO_NETDEV:
-#ifdef CONFIG_NETFILTER_INGRESS
-		if (reg->hooknum == NF_NETDEV_INGRESS) {
-			BUG_ON(reg->dev == NULL);
-			nf_hook_list = &reg->dev->nf_hooks_ingress;
-			break;
-		}
-#endif
-		/* Fall through. */
-	default:
-		nf_hook_list = &nf_hooks[reg->pf][reg->hooknum];
-		break;
-	}
+	nf_hook_list = find_nf_hook_list(reg);
+	if (!nf_hook_list)
+		return -ENOENT;
 
+	mutex_lock(&nf_hook_mutex);
 	list_for_each_entry(elem, nf_hook_list, list) {
 		if (reg->priority < elem->priority)
 			break;
