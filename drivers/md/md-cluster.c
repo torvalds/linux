@@ -45,6 +45,7 @@ struct resync_info {
 /* md_cluster_info flags */
 #define		MD_CLUSTER_WAITING_FOR_NEWDISK		1
 #define		MD_CLUSTER_SUSPEND_READ_BALANCING	2
+#define		MD_CLUSTER_BEGIN_JOIN_CLUSTER		3
 
 
 struct md_cluster_info {
@@ -320,10 +321,17 @@ static void recover_done(void *arg, struct dlm_slot *slots,
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 
 	cinfo->slot_number = our_slot;
-	complete(&cinfo->completion);
+	/* completion is only need to be complete when node join cluster,
+	 * it doesn't need to run during another node's failure */
+	if (test_bit(MD_CLUSTER_BEGIN_JOIN_CLUSTER, &cinfo->state)) {
+		complete(&cinfo->completion);
+		clear_bit(MD_CLUSTER_BEGIN_JOIN_CLUSTER, &cinfo->state);
+	}
 	clear_bit(MD_CLUSTER_SUSPEND_READ_BALANCING, &cinfo->state);
 }
 
+/* the ops is called when node join the cluster, and do lock recovery
+ * if node failure occurs */
 static const struct dlm_lockspace_ops md_ls_ops = {
 	.recover_prep = recover_prep,
 	.recover_slot = recover_slot,
@@ -675,6 +683,7 @@ static int join(struct mddev *mddev, int nodes)
 	INIT_LIST_HEAD(&cinfo->suspend_list);
 	spin_lock_init(&cinfo->suspend_lock);
 	init_completion(&cinfo->completion);
+	set_bit(MD_CLUSTER_BEGIN_JOIN_CLUSTER, &cinfo->state);
 
 	mutex_init(&cinfo->sb_mutex);
 	mddev->cluster_info = cinfo;
