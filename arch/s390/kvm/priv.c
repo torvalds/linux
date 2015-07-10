@@ -98,8 +98,6 @@ static int handle_set_prefix(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 
 	kvm_s390_set_prefix(vcpu, address);
-
-	VCPU_EVENT(vcpu, 5, "setting prefix to %x", address);
 	trace_kvm_s390_handle_prefix(vcpu, 1, address);
 	return 0;
 }

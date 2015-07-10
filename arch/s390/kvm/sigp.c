@@ -205,9 +205,6 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INCORRECT_STATE;
 		return SIGP_CC_STATUS_STORED;
-	} else if (rc == 0) {
-		VCPU_EVENT(vcpu, 4, "set prefix of cpu %02x to %x",
-			   dst_vcpu->vcpu_id, irq.u.prefix.address);
 	}
 
 	return rc;
