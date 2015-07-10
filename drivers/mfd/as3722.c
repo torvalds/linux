@@ -437,7 +437,6 @@ MODULE_DEVICE_TABLE(i2c, as3722_i2c_id);
 static struct i2c_driver as3722_i2c_driver = {
 	.driver = {
 		.name = "as3722",
-		.owner = THIS_MODULE,
 		.of_match_table = as3722_of_match,
 	},
 	.probe = as3722_i2c_probe,

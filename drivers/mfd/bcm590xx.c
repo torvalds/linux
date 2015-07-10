@@ -117,7 +117,6 @@ MODULE_DEVICE_TABLE(i2c, bcm590xx_i2c_id);
 static struct i2c_driver bcm590xx_i2c_driver = {
 	.driver = {
 		   .name = "bcm590xx",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(bcm590xx_of_match),
 	},
 	.probe = bcm590xx_i2c_probe,

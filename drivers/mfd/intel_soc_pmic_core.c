@@ -157,7 +157,6 @@ MODULE_DEVICE_TABLE(acpi, intel_soc_pmic_acpi_match);
 static struct i2c_driver intel_soc_pmic_i2c_driver = {
 	.driver = {
 		.name = "intel_soc_pmic_i2c",
-		.owner = THIS_MODULE,
 		.pm = &intel_soc_pmic_pm_ops,
 		.acpi_match_table = ACPI_PTR(intel_soc_pmic_acpi_match),
 	},

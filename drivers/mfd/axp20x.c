@@ -613,7 +613,6 @@ static int axp20x_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver axp20x_i2c_driver = {
 	.driver = {
 		.name	= "axp20x",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(axp20x_of_match),
 		.acpi_match_table = ACPI_PTR(axp20x_acpi_match),
 	},

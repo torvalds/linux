@@ -801,7 +801,6 @@ MODULE_DEVICE_TABLE(i2c, twl6040_i2c_id);
 static struct i2c_driver twl6040_driver = {
 	.driver = {
 		.name = "twl6040",
-		.owner = THIS_MODULE,
 	},
 	.probe		= twl6040_probe,
 	.remove		= twl6040_remove,

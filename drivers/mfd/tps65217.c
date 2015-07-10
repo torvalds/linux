@@ -248,7 +248,6 @@ MODULE_DEVICE_TABLE(i2c, tps65217_id_table);
 static struct i2c_driver tps65217_driver = {
 	.driver		= {
 		.name	= "tps65217",
-		.owner	= THIS_MODULE,
 		.of_match_table = tps65217_of_match,
 	},
 	.id_table	= tps65217_id_table,

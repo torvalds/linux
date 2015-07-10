@@ -105,7 +105,6 @@ MODULE_DEVICE_TABLE(i2c, arizona_i2c_id);
 static struct i2c_driver arizona_i2c_driver = {
 	.driver = {
 		.name	= "arizona",
-		.owner	= THIS_MODULE,
 		.pm	= &arizona_pm_ops,
 		.of_match_table	= of_match_ptr(arizona_of_match),
 	},
