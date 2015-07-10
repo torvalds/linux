@@ -1367,7 +1367,6 @@ static const struct i2c_device_id ir_transceiver_id[] = {
 
 static struct i2c_driver driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "Zilog/Hauppauge i2c IR",
 	},
 	.probe		= ir_probe,
