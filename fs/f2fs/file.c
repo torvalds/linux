@@ -27,6 +27,7 @@
 #include "segment.h"
 #include "xattr.h"
 #include "acl.h"
+#include "gc.h"
 #include "trace.h"
 #include <trace/events/f2fs.h>
 
@@ -1558,6 +1559,35 @@ got_it:
 	return 0;
 }
 
+static int f2fs_ioc_gc(struct file *filp, unsigned long arg)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	__u32 i, count;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (get_user(count, (__u32 __user *)arg))
+		return -EFAULT;
+
+	if (!count || count > F2FS_BATCH_GC_MAX_NUM)
+		return -EINVAL;
+
+	for (i = 0; i < count; i++) {
+		if (!mutex_trylock(&sbi->gc_mutex))
+			break;
+
+		if (f2fs_gc(sbi))
+			break;
+	}
+
+	if (put_user(i, (__u32 __user *)arg))
+		return -EFAULT;
+
+	return 0;
+}
+
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
@@ -1587,6 +1617,8 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_get_encryption_policy(filp, arg);
 	case F2FS_IOC_GET_ENCRYPTION_PWSALT:
 		return f2fs_ioc_get_encryption_pwsalt(filp, arg);
+	case F2FS_IOC_GARBAGE_COLLECT:
+		return f2fs_ioc_gc(filp, arg);
 	default:
 		return -ENOTTY;
 	}
