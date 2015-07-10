@@ -1626,11 +1626,13 @@ static void i40e_diag_test(struct net_device *netdev,
 			/* indicate we're in test mode */
 			dev_close(netdev);
 		else
+			/* This reset does not affect link - if it is
+			 * changed to a type of reset that does affect
+			 * link then the following link test would have
+			 * to be moved to before the reset
+			 */
 			i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED));
 
-		/* Link test performed before hardware reset
-		 * so autoneg doesn't interfere with test result
-		 */
 		if (i40e_link_test(netdev, &data[I40E_ETH_TEST_LINK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
