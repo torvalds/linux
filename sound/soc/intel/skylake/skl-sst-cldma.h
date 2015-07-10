@@ -188,4 +188,64 @@
 #define CL_SPBFIFO_SPBFCCTL_SPIBE(x)	\
 	((x << CL_SPBFIFO_SPBFCCTL_SPIBE_SHIFT) & CL_SPBFIFO_SPBFCCTL_SPIBE_MASK)
 
+/* SST IPC SKL defines */
+#define SKL_WAIT_TIMEOUT		500	/* 500 msec */
+#define SKL_MAX_BUFFER_SIZE		(32 * PAGE_SIZE)
+
+enum skl_cl_dma_wake_states {
+	SKL_CL_DMA_STATUS_NONE = 0,
+	SKL_CL_DMA_BUF_COMPLETE,
+	SKL_CL_DMA_ERR,	/* TODO: Expand the error states */
+};
+
+struct sst_dsp;
+
+struct skl_cl_dev_ops {
+	void (*cl_setup_bdle)(struct sst_dsp *ctx,
+			struct snd_dma_buffer *dmab_data,
+			u32 **bdlp, int size, int with_ioc);
+	void (*cl_setup_controller)(struct sst_dsp *ctx,
+			struct snd_dma_buffer *dmab_bdl,
+			unsigned int max_size, u32 page_count);
+	void (*cl_setup_spb)(struct sst_dsp  *ctx,
+			unsigned int size, bool enable);
+	void (*cl_cleanup_spb)(struct sst_dsp  *ctx);
+	void (*cl_trigger)(struct sst_dsp  *ctx, bool enable);
+	void (*cl_cleanup_controller)(struct sst_dsp  *ctx);
+	int (*cl_copy_to_dmabuf)(struct sst_dsp *ctx,
+			const void *bin, u32 size);
+	void (*cl_stop_dma)(struct sst_dsp *ctx);
+};
+
+/**
+ * skl_cl_dev - holds information for code loader dma transfer
+ *
+ * @dmab_data: buffer pointer
+ * @dmab_bdl: buffer descriptor list
+ * @bufsize: ring buffer size
+ * @frags: Last valid buffer descriptor index in the BDL
+ * @curr_spib_pos: Current position in ring buffer
+ * @dma_buffer_offset: dma buffer offset
+ * @ops: operations supported on CL dma
+ * @wait_queue: wait queue to wake for wake event
+ * @wake_status: DMA wake status
+ * @wait_condition: condition to wait on wait queue
+ * @cl_dma_lock: for synchronized access to cldma
+ */
+struct skl_cl_dev {
+	struct snd_dma_buffer dmab_data;
+	struct snd_dma_buffer dmab_bdl;
+
+	unsigned int bufsize;
+	unsigned int frags;
+
+	unsigned int curr_spib_pos;
+	unsigned int dma_buffer_offset;
+	struct skl_cl_dev_ops ops;
+
+	wait_queue_head_t wait_queue;
+	int wake_status;
+	bool wait_condition;
+};
+
 #endif /* SKL_SST_CLDMA_H_ */
