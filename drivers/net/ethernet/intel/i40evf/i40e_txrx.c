@@ -1293,17 +1293,17 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		old_itr = q_vector->rx.itr;
 		i40e_set_new_dynamic_itr(&q_vector->rx);
 		if (old_itr != q_vector->rx.itr) {
-			val = I40E_VFINT_DYN_CTLN_INTENA_MASK |
-			I40E_VFINT_DYN_CTLN_CLEARPBA_MASK |
+			val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+			I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
 			(I40E_RX_ITR <<
-				I40E_VFINT_DYN_CTLN_ITR_INDX_SHIFT) |
+				I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT) |
 			(q_vector->rx.itr <<
-				I40E_VFINT_DYN_CTLN_INTERVAL_SHIFT);
+				I40E_VFINT_DYN_CTLN1_INTERVAL_SHIFT);
 		} else {
-			val = I40E_VFINT_DYN_CTLN_INTENA_MASK |
-			I40E_VFINT_DYN_CTLN_CLEARPBA_MASK |
+			val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+			I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
 			(I40E_ITR_NONE <<
-				I40E_VFINT_DYN_CTLN_ITR_INDX_SHIFT);
+				I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT);
 		}
 		if (!test_bit(__I40E_DOWN, &vsi->state))
 			wr32(hw, I40E_VFINT_DYN_CTLN1(vector - 1), val);
@@ -1315,18 +1315,18 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		old_itr = q_vector->tx.itr;
 		i40e_set_new_dynamic_itr(&q_vector->tx);
 		if (old_itr != q_vector->tx.itr) {
-			val = I40E_VFINT_DYN_CTLN_INTENA_MASK |
-				I40E_VFINT_DYN_CTLN_CLEARPBA_MASK |
+			val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+				I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
 				(I40E_TX_ITR <<
-				   I40E_VFINT_DYN_CTLN_ITR_INDX_SHIFT) |
+				   I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT) |
 				(q_vector->tx.itr <<
-				   I40E_VFINT_DYN_CTLN_INTERVAL_SHIFT);
+				   I40E_VFINT_DYN_CTLN1_INTERVAL_SHIFT);
 
 		} else {
-			val = I40E_VFINT_DYN_CTLN_INTENA_MASK |
-				I40E_VFINT_DYN_CTLN_CLEARPBA_MASK |
+			val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+				I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
 				(I40E_ITR_NONE <<
-				   I40E_VFINT_DYN_CTLN_ITR_INDX_SHIFT);
+				   I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT);
 		}
 		if (!test_bit(__I40E_DOWN, &vsi->state))
 			wr32(hw, I40E_VFINT_DYN_CTLN1(vector - 1), val);

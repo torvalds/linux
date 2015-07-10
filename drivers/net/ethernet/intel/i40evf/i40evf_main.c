@@ -204,7 +204,7 @@ static void i40evf_misc_irq_enable(struct i40evf_adapter *adapter)
 
 	wr32(hw, I40E_VFINT_DYN_CTL01, I40E_VFINT_DYN_CTL01_INTENA_MASK |
 				       I40E_VFINT_DYN_CTL01_ITR_INDX_MASK);
-	wr32(hw, I40E_VFINT_ICR0_ENA1, I40E_VFINT_ICR0_ENA_ADMINQ_MASK);
+	wr32(hw, I40E_VFINT_ICR0_ENA1, I40E_VFINT_ICR0_ENA1_ADMINQ_MASK);
 
 	/* read flush */
 	rd32(hw, I40E_VFGEN_RSTAT);
@@ -245,7 +245,7 @@ void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask)
 			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1),
 			     I40E_VFINT_DYN_CTLN1_INTENA_MASK |
 			     I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
-			     I40E_VFINT_DYN_CTLN_CLEARPBA_MASK);
+			     I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK);
 		}
 	}
 }
@@ -263,17 +263,17 @@ static void i40evf_fire_sw_int(struct i40evf_adapter *adapter, u32 mask)
 
 	if (mask & 1) {
 		dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTL01);
-		dyn_ctl |= I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK |
+		dyn_ctl |= I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
 			   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
-			   I40E_VFINT_DYN_CTLN_CLEARPBA_MASK;
+			   I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK;
 		wr32(hw, I40E_VFINT_DYN_CTL01, dyn_ctl);
 	}
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
 		if (mask & BIT(i)) {
 			dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTLN1(i - 1));
-			dyn_ctl |= I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK |
+			dyn_ctl |= I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
 				   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
-				   I40E_VFINT_DYN_CTLN_CLEARPBA_MASK;
+				   I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK;
 			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1), dyn_ctl);
 		}
 	}
@@ -313,7 +313,7 @@ static irqreturn_t i40evf_msix_aq(int irq, void *data)
 
 
 	val = rd32(hw, I40E_VFINT_DYN_CTL01);
-	val = val | I40E_PFINT_DYN_CTL0_CLEARPBA_MASK;
+	val = val | I40E_VFINT_DYN_CTL01_CLEARPBA_MASK;
 	wr32(hw, I40E_VFINT_DYN_CTL01, val);
 
 	/* schedule work on the private workqueue */
@@ -1779,34 +1779,34 @@ static void i40evf_adminq_task(struct work_struct *work)
 	/* check for error indications */
 	val = rd32(hw, hw->aq.arq.len);
 	oldval = val;
-	if (val & I40E_VF_ARQLEN_ARQVFE_MASK) {
+	if (val & I40E_VF_ARQLEN1_ARQVFE_MASK) {
 		dev_info(&adapter->pdev->dev, "ARQ VF Error detected\n");
-		val &= ~I40E_VF_ARQLEN_ARQVFE_MASK;
+		val &= ~I40E_VF_ARQLEN1_ARQVFE_MASK;
 	}
-	if (val & I40E_VF_ARQLEN_ARQOVFL_MASK) {
+	if (val & I40E_VF_ARQLEN1_ARQOVFL_MASK) {
 		dev_info(&adapter->pdev->dev, "ARQ Overflow Error detected\n");
-		val &= ~I40E_VF_ARQLEN_ARQOVFL_MASK;
+		val &= ~I40E_VF_ARQLEN1_ARQOVFL_MASK;
 	}
-	if (val & I40E_VF_ARQLEN_ARQCRIT_MASK) {
+	if (val & I40E_VF_ARQLEN1_ARQCRIT_MASK) {
 		dev_info(&adapter->pdev->dev, "ARQ Critical Error detected\n");
-		val &= ~I40E_VF_ARQLEN_ARQCRIT_MASK;
+		val &= ~I40E_VF_ARQLEN1_ARQCRIT_MASK;
 	}
 	if (oldval != val)
 		wr32(hw, hw->aq.arq.len, val);
 
 	val = rd32(hw, hw->aq.asq.len);
 	oldval = val;
-	if (val & I40E_VF_ATQLEN_ATQVFE_MASK) {
+	if (val & I40E_VF_ATQLEN1_ATQVFE_MASK) {
 		dev_info(&adapter->pdev->dev, "ASQ VF Error detected\n");
-		val &= ~I40E_VF_ATQLEN_ATQVFE_MASK;
+		val &= ~I40E_VF_ATQLEN1_ATQVFE_MASK;
 	}
-	if (val & I40E_VF_ATQLEN_ATQOVFL_MASK) {
+	if (val & I40E_VF_ATQLEN1_ATQOVFL_MASK) {
 		dev_info(&adapter->pdev->dev, "ASQ Overflow Error detected\n");
-		val &= ~I40E_VF_ATQLEN_ATQOVFL_MASK;
+		val &= ~I40E_VF_ATQLEN1_ATQOVFL_MASK;
 	}
-	if (val & I40E_VF_ATQLEN_ATQCRIT_MASK) {
+	if (val & I40E_VF_ATQLEN1_ATQCRIT_MASK) {
 		dev_info(&adapter->pdev->dev, "ASQ Critical Error detected\n");
-		val &= ~I40E_VF_ATQLEN_ATQCRIT_MASK;
+		val &= ~I40E_VF_ATQLEN1_ATQCRIT_MASK;
 	}
 	if (oldval != val)
 		wr32(hw, hw->aq.asq.len, val);
