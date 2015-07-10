@@ -522,7 +522,6 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	int len;
 	int ihlen;
 	int err;
-	int sum_truesize;
 	u8 ecn;
 
 	ipq_kill(qp);
@@ -590,32 +589,19 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		add_frag_mem_limit(&qp->q, clone->truesize);
 	}
 
+	skb_shinfo(head)->frag_list = head->next;
 	skb_push(head, head->data - skb_network_header(head));
 
-	sum_truesize = head->truesize;
-	for (fp = head->next; fp;) {
-		bool headstolen;
-		int delta;
-		struct sk_buff *next = fp->next;
-
-		sum_truesize += fp->truesize;
+	for (fp=head->next; fp; fp = fp->next) {
+		head->data_len += fp->len;
+		head->len += fp->len;
 		if (head->ip_summed != fp->ip_summed)
 			head->ip_summed = CHECKSUM_NONE;
 		else if (head->ip_summed == CHECKSUM_COMPLETE)
 			head->csum = csum_add(head->csum, fp->csum);
-
-		if (skb_try_coalesce(head, fp, &headstolen, &delta)) {
-			kfree_skb_partial(fp, headstolen);
-		} else {
-			if (!skb_shinfo(head)->frag_list)
-				skb_shinfo(head)->frag_list = fp;
-			head->data_len += fp->len;
-			head->len += fp->len;
-			head->truesize += fp->truesize;
-		}
-		fp = next;
+		head->truesize += fp->truesize;
 	}
-	sub_frag_mem_limit(&qp->q, sum_truesize);
+	sub_frag_mem_limit(&qp->q, head->truesize);
 
 	head->next = NULL;
 	head->dev = dev;
