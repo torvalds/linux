@@ -236,7 +236,6 @@ static struct platform_driver opal_rtc_driver = {
 	.id_table	= opal_rtc_driver_ids,
 	.driver		= {
 		.name		= DRVNAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= opal_rtc_match,
 	},
 };
