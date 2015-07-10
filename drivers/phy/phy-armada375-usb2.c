@@ -149,7 +149,6 @@ static struct platform_driver armada375_usb_phy_driver = {
 	.driver = {
 		.of_match_table	= of_usb_cluster_table,
 		.name  = "armada-375-usb-cluster",
-		.owner = THIS_MODULE,
 	}
 };
 module_platform_driver(armada375_usb_phy_driver);
