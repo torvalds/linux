@@ -625,6 +625,7 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 	struct dlm_lock_resource *bm_lockres;
 	struct suspend_info *s;
 	char str[64];
+	sector_t lo, hi;
 
 
 	for (i = 0; i < total_slots; i++) {
@@ -659,7 +660,20 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 			lockres_free(bm_lockres);
 			goto out;
 		}
-		/* TODO: Read the disk bitmap sb and check if it needs recovery */
+
+		/* Read the disk bitmap sb and check if it needs recovery */
+		ret = bitmap_copy_from_slot(mddev, i, &lo, &hi, false);
+		if (ret) {
+			pr_warn("md-cluster: Could not gather bitmaps from slot %d", i);
+			lockres_free(bm_lockres);
+			continue;
+		}
+		if ((hi > 0) && (lo < mddev->recovery_cp)) {
+			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+			mddev->recovery_cp = lo;
+			md_check_recovery(mddev);
+		}
+
 		dlm_unlock_sync(bm_lockres);
 		lockres_free(bm_lockres);
 	}
