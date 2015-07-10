@@ -496,6 +496,8 @@ void skl_ipc_free(struct sst_generic_ipc *ipc)
 	/* Disable IPC BUSY interrupt */
 	sst_dsp_shim_update_bits(ipc->dsp, SKL_ADSP_REG_HIPCCTL,
 		SKL_ADSP_REG_HIPCCTL_BUSY, 0);
+
+	sst_ipc_fini(ipc);
 }
 
 int skl_ipc_create_pipeline(struct sst_generic_ipc *ipc,

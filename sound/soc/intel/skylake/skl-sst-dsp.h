@@ -16,10 +16,12 @@
 #ifndef __SKL_SST_DSP_H__
 #define __SKL_SST_DSP_H__
 
+#include <linux/interrupt.h>
 #include <sound/memalloc.h>
 #include "skl-sst-cldma.h"
 
 struct sst_dsp;
+struct skl_sst;
 struct sst_dsp_device;
 
 /* Intel HD Audio General DSP Registers */
@@ -61,6 +63,11 @@ struct sst_dsp_device;
 #define SKL_ADSP_W0_UP_SZ		0x800
 
 #define SKL_ADSP_W1_SZ			0x1000
+
+#define SKL_FW_STS_MASK			0xf
+
+#define SKL_FW_INIT			0x1
+#define SKL_FW_RFW_START		0xf
 
 #define SKL_ADSPIC_IPC			1
 #define SKL_ADSPIS_IPC			1
@@ -106,6 +113,7 @@ struct skl_dsp_fw_ops {
 	int (*parse_fw)(struct sst_dsp *ctx);
 	int (*set_state_D0)(struct sst_dsp *ctx);
 	int (*set_state_D3)(struct sst_dsp *ctx);
+	unsigned int (*get_fw_errcode)(struct sst_dsp *ctx);
 };
 
 struct skl_dsp_loader_ops {
@@ -130,5 +138,8 @@ int skl_dsp_sleep(struct sst_dsp *ctx);
 void skl_dsp_free(struct sst_dsp *dsp);
 
 int skl_dsp_boot(struct sst_dsp *ctx);
+int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
+		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
+void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
 #endif /*__SKL_SST_DSP_H__*/
