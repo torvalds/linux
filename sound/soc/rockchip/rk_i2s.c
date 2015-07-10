@@ -483,7 +483,7 @@ static int rockchip_i2s_runtime_suspend(struct device *dev)
 	struct rk_i2s_dev *i2s = dev_get_drvdata(dev);
 
 	dev_dbg(i2s->dev, "%s\n", __func__);
-	return pinctrl_pm_select_sleep_state(dev);
+	return 0;
 }
 
 static int rockchip_i2s_runtime_resume(struct device *dev)
@@ -491,7 +491,7 @@ static int rockchip_i2s_runtime_resume(struct device *dev)
 	struct rk_i2s_dev *i2s = dev_get_drvdata(dev);
 
 	dev_dbg(i2s->dev, "%s\n", __func__);
-	return pinctrl_pm_select_default_state(dev);
+	return 0;
 }
 #else
 #define i2s_runtime_suspend NULL
@@ -758,7 +758,7 @@ static int rockchip_i2s_suspend(struct device *dev)
 	struct rk_i2s_dev *i2s = dev_get_drvdata(dev);
 
 	dev_dbg(i2s->dev, "%s\n", __func__);
-	return 0;
+	return pinctrl_pm_select_sleep_state(dev);
 }
 
 static int rockchip_i2s_resume(struct device *dev)
@@ -767,6 +767,9 @@ static int rockchip_i2s_resume(struct device *dev)
 	int ret;
 
 	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		return ret;
+	ret = pinctrl_pm_select_default_state(dev);
 	if (ret < 0)
 		return ret;
 	ret = regmap_reinit_cache(i2s->regmap, &rockchip_i2s_regmap_config);
