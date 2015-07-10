@@ -1254,7 +1254,7 @@ static bool be_send_pkt_to_bmc(struct be_adapter *adapter,
 	if (is_udp_pkt((*skb))) {
 		struct udphdr *udp = udp_hdr((*skb));
 
-		switch (udp->dest) {
+		switch (ntohs(udp->dest)) {
 		case DHCP_CLIENT_PORT:
 			os2bmc = is_dhcp_client_filt_enabled(adapter);
 			goto done;
