@@ -1758,6 +1758,7 @@ struct be_cmd_req_set_mac_list {
 /*********************** HSW Config ***********************/
 #define PORT_FWD_TYPE_VEPA		0x3
 #define PORT_FWD_TYPE_VEB		0x2
+#define PORT_FWD_TYPE_PASSTHRU		0x1
 
 #define ENABLE_MAC_SPOOFCHK		0x2
 #define DISABLE_MAC_SPOOFCHK		0x3
