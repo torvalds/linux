@@ -214,6 +214,7 @@ static struct device iio_evgen_dev = {
 	.groups = iio_evgen_groups,
 	.release = &iio_evgen_release,
 };
+
 static __init int iio_dummy_evgen_init(void)
 {
 	int ret = iio_dummy_evgen_create();
