@@ -409,7 +409,6 @@ MODULE_DEVICE_TABLE(of, bq24735_match_ids);
 static struct i2c_driver bq24735_charger_driver = {
 	.driver = {
 		.name = "bq24735-charger",
-		.owner = THIS_MODULE,
 		.of_match_table = bq24735_match_ids,
 	},
 	.probe = bq24735_charger_probe,

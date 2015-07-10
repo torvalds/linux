@@ -1534,7 +1534,6 @@ static struct i2c_driver bq24190_driver = {
 	.id_table	= bq24190_i2c_ids,
 	.driver = {
 		.name		= "bq24190-charger",
-		.owner		= THIS_MODULE,
 		.pm		= &bq24190_pm_ops,
 		.of_match_table	= of_match_ptr(bq24190_of_match),
 	},
