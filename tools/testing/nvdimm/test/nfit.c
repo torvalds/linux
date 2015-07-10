@@ -155,7 +155,7 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	int i, rc;
 
 	if (!nfit_mem || !test_bit(cmd, &nfit_mem->dsm_mask))
-		return -ENXIO;
+		return -ENOTTY;
 
 	/* lookup label space for the given dimm */
 	for (i = 0; i < ARRAY_SIZE(handle); i++)
