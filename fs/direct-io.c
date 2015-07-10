@@ -370,6 +370,7 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 {
 	struct bio *bio = sdio->bio;
 	unsigned long flags;
+	int rw;
 
 	bio->bi_private = dio;
 
@@ -379,6 +380,9 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 
 	if (dio->is_async && dio->rw == READ)
 		bio_set_pages_dirty(bio);
+
+	rw = dio->rw;
+	dio->rw |= (dio->rw == READ) ? KERNEL_READ : KERNEL_WRITE;
 
 	if (sdio->submit_io)
 		sdio->submit_io(dio->rw, bio, dio->inode,
