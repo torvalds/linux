@@ -66,6 +66,14 @@
  * while before being re-enabled. The intention is to mitigate issues raising
  * from broken hardware triggering massive amounts of interrupts and grinding
  * the system to a halt.
+ *
+ * Current implementation expects that hotplug interrupt storm will not be
+ * seen when display port sink is connected, hence on platforms whose DP
+ * callback is handled by i915_digport_work_func reenabling of hpd is not
+ * performed (it was never expected to be disabled in the first place ;) )
+ * this is specific to DP sinks handled by this routine and any other display
+ * such as HDMI or DVI enabled on the same port will have proper logic since
+ * it will use i915_hotplug_work_func where this logic is handled.
  */
 
 enum port intel_hpd_pin_to_port(enum hpd_pin pin)
