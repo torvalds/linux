@@ -380,7 +380,7 @@ struct pmbus_driver_info {
 
 /* Regulator ops */
 
-extern struct regulator_ops pmbus_regulator_ops;
+extern const struct regulator_ops pmbus_regulator_ops;
 
 /* Macro for filling in array of struct regulator_desc */
 #define PMBUS_REGULATOR(_name, _id)				\
