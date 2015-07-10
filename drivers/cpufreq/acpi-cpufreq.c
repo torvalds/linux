@@ -69,6 +69,7 @@ struct acpi_cpufreq_data {
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int resume;
 	unsigned int cpu_feature;
+	unsigned int acpi_perf_cpu;
 	cpumask_var_t freqdomain_cpus;
 };
 
@@ -677,6 +678,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	data->acpi_data = per_cpu_ptr(acpi_perf_data, cpu);
+	data->acpi_perf_cpu = cpu;
 	policy->driver_data = data;
 
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC))
@@ -861,7 +863,7 @@ static int acpi_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	if (data) {
 		policy->driver_data = NULL;
 		acpi_processor_unregister_performance(data->acpi_data,
-						      policy->cpu);
+						      data->acpi_perf_cpu);
 		free_cpumask_var(data->freqdomain_cpus);
 		kfree(data->freq_table);
 		kfree(data);
