@@ -36,6 +36,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_trace_points.o \
 	  intel_hotplug.o \
 	  intel_lrc.o \
+	  intel_mocs.o \
 	  intel_ringbuffer.o \
 	  intel_uncore.o
 

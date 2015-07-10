@@ -135,6 +135,7 @@
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "intel_mocs.h"
 
 #define GEN9_LR_CONTEXT_RENDER_SIZE (22 * PAGE_SIZE)
 #define GEN8_LR_CONTEXT_RENDER_SIZE (20 * PAGE_SIZE)
@@ -772,8 +773,7 @@ static int logical_ring_prepare(struct drm_i915_gem_request *req, int bytes)
  *
  * Return: non-zero if the ringbuffer is not ready to be written to.
  */
-static int intel_logical_ring_begin(struct drm_i915_gem_request *req,
-				    int num_dwords)
+int intel_logical_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 {
 	struct drm_i915_private *dev_priv;
 	int ret;
@@ -1669,6 +1669,14 @@ static int gen8_init_rcs_context(struct drm_i915_gem_request *req)
 	ret = intel_logical_ring_workarounds_emit(req);
 	if (ret)
 		return ret;
+
+	ret = intel_rcs_context_init_mocs(req);
+	/*
+	 * Failing to program the MOCS is non-fatal.The system will not
+	 * run at peak performance. So generate an error and carry on.
+	 */
+	if (ret)
+		DRM_ERROR("MOCS failed to program: expect performance issues.\n");
 
 	return intel_lr_context_render_state_init(req);
 }
