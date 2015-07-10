@@ -162,12 +162,9 @@ static int ti_dma_xbar_probe(struct platform_device *pdev)
 		xbar->safe_val = (u16)safe_val;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	iomem = devm_ioremap_resource(&pdev->dev, res);
-	if (!iomem)
-		return -ENOMEM;
+	if (IS_ERR(iomem))
+		return PTR_ERR(iomem);
 
 	xbar->iomem = iomem;
 
