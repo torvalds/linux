@@ -4621,7 +4621,6 @@ failed:
 static struct platform_driver atlas7_gpio_driver = {
 	.driver = {
 		.name = "atlas7-gpio",
-		.owner = THIS_MODULE,
 		.of_match_table = atlas7_gpio_ids,
 	},
 	.probe = atlas7_gpio_probe,
