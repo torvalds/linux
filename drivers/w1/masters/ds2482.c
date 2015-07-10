@@ -97,7 +97,6 @@ MODULE_DEVICE_TABLE(i2c, ds2482_id);
 
 static struct i2c_driver ds2482_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "ds2482",
 	},
 	.probe		= ds2482_probe,
