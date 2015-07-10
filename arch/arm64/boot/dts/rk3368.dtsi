@@ -1183,6 +1183,9 @@
 		rockchip,sub = <&vpu>, <&hevc>;
 		clocks = <&aclk_vdpu>, <&hclk_vdpu>, <&clk_hevc_core>, <&clk_hevc_cabac>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
+		resets = <&reset RK3368_SRST_VIDEO_H>, <&reset RK3368_SRST_VIDEO_A>,
+			<&reset RK3368_SRST_VIDEO>;
+		reset-names = "video_h", "video_a", "video";
 		mode_bit = <12>;
 		mode_ctrl = <0x418>;
 		name = "vpu_combo";
