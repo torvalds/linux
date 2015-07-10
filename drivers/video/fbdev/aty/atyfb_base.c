@@ -3489,7 +3489,21 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 
 	/* Map in frame buffer */
 	info->fix.smem_start = addr;
-	info->screen_base = ioremap(addr, 0x800000);
+
+	/*
+	 * The framebuffer is not always 8 MiB, that's just the size of the
+	 * PCI BAR. We temporarily abuse smem_len here to store the size
+	 * of the BAR. aty_init() will later correct it to match the actual
+	 * framebuffer size.
+	 *
+	 * On devices that don't have the auxiliary register aperture, the
+	 * registers are housed at the top end of the framebuffer PCI BAR.
+	 * aty_fudge_framebuffer_len() is used to reduce smem_len to not
+	 * overlap with the registers.
+	 */
+	info->fix.smem_len = 0x800000;
+
+	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
 	if (info->screen_base == NULL) {
 		ret = -ENOMEM;
 		goto atyfb_setup_generic_fail;
