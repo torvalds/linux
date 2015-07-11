@@ -6,7 +6,7 @@
  * Original author: Hans Petter Selasky <hans.petter.selasky@stericsson.com>
  *
  * USB Host Driver for Network Control Model (NCM)
- * http://www.usb.org/developers/devclass_docs/NCM10.zip
+ * http://www.usb.org/developers/docs/devclass_docs/NCM10_012011.zip
  *
  * The NCM encoding, decoding and initialization logic
  * derives from FreeBSD 8.x. if_cdce.c and if_cdcereg.h
