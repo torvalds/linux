@@ -409,14 +409,16 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 		break;
 	}
 
-	if (cpumask_empty(tick_broadcast_mask)) {
-		if (!bc_stopped)
-			clockevents_shutdown(bc);
-	} else if (bc_stopped) {
-		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
-			tick_broadcast_start_periodic(bc);
-		else
-			tick_broadcast_setup_oneshot(bc);
+	if (bc) {
+		if (cpumask_empty(tick_broadcast_mask)) {
+			if (!bc_stopped)
+				clockevents_shutdown(bc);
+		} else if (bc_stopped) {
+			if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
+				tick_broadcast_start_periodic(bc);
+			else
+				tick_broadcast_setup_oneshot(bc);
+		}
 	}
 	raw_spin_unlock(&tick_broadcast_lock);
 }
