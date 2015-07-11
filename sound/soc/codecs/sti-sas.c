@@ -613,7 +613,6 @@ static int sti_sas_driver_remove(struct platform_device *pdev)
 static struct platform_driver sti_sas_platform_driver = {
 	.driver = {
 		.name = "sti-sas-codec",
-		.owner = THIS_MODULE,
 		.of_match_table = sti_sas_dev_match,
 	},
 	.probe = sti_sas_driver_probe,
