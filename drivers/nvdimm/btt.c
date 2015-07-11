@@ -632,8 +632,9 @@ static void parse_arena_meta(struct arena_info *arena, struct btt_sb *super,
 	arena->logoff = arena_off + le64_to_cpu(super->logoff);
 	arena->info2off = arena_off + le64_to_cpu(super->info2off);
 
-	arena->size = (super->nextoff > 0) ? (le64_to_cpu(super->nextoff)) :
-			(arena->info2off - arena->infooff + BTT_PG_SIZE);
+	arena->size = (le64_to_cpu(super->nextoff) > 0)
+		? (le64_to_cpu(super->nextoff))
+		: (arena->info2off - arena->infooff + BTT_PG_SIZE);
 
 	arena->flags = le32_to_cpu(super->flags);
 }
