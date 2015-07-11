@@ -677,9 +677,6 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		dprintk("RPC:       xs_tcp_send_request(%u) = %d\n",
 				xdr->len - req->rq_bytes_sent, status);
 
-		if (unlikely(sent == 0 && status < 0))
-			break;
-
 		/* If we've sent the entire packet, immediately
 		 * reset the count of bytes sent. */
 		req->rq_bytes_sent += sent;
@@ -689,10 +686,12 @@ static int xs_tcp_send_request(struct rpc_task *task)
 			return 0;
 		}
 
-		if (sent != 0)
-			continue;
-		status = -EAGAIN;
-		break;
+		if (status < 0)
+			break;
+		if (sent == 0) {
+			status = -EAGAIN;
+			break;
+		}
 	}
 	if (status == -EAGAIN && sk_stream_is_writeable(transport->inet))
 		status = -ENOBUFS;
