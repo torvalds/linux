@@ -63,6 +63,15 @@ config AMBA_PL08X
 	  Platform has a PL08x DMAC device
 	  which can provide DMA engine support
 
+config LPC18XX_DMAMUX
+	bool "NXP LPC18xx/43xx DMA MUX for PL080"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on OF && AMBA_PL08X
+	select MFD_SYSCON
+	help
+	  Enable support for DMA on NXP LPC18xx/43xx platforms
+	  with PL080 and multiplexed DMA request lines.
+
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86
