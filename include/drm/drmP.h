@@ -887,6 +887,7 @@ static inline bool drm_is_primary_client(const struct drm_file *file_priv)
 /*@{*/
 
 				/* Driver support (drm_drv.h) */
+extern int drm_ioctl_permit(u32 flags, struct drm_file *file_priv);
 extern long drm_ioctl(struct file *filp,
 		      unsigned int cmd, unsigned long arg);
 extern long drm_compat_ioctl(struct file *filp,
