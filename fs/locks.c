@@ -1163,20 +1163,19 @@ int posix_lock_file(struct file *filp, struct file_lock *fl,
 EXPORT_SYMBOL(posix_lock_file);
 
 /**
- * posix_lock_file_wait - Apply a POSIX-style lock to a file
- * @filp: The file to apply the lock to
+ * posix_lock_inode_wait - Apply a POSIX-style lock to a file
+ * @inode: inode of file to which lock request should be applied
  * @fl: The lock to be applied
  *
- * Add a POSIX style lock to a file.
- * We merge adjacent & overlapping locks whenever possible.
- * POSIX locks are sorted by owner task, then by starting address
+ * Variant of posix_lock_file_wait that does not take a filp, and so can be
+ * used after the filp has already been torn down.
  */
-int posix_lock_file_wait(struct file *filp, struct file_lock *fl)
+int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 {
 	int error;
 	might_sleep ();
 	for (;;) {
-		error = posix_lock_file(filp, fl, NULL);
+		error = __posix_lock_file(inode, fl, NULL);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
 		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
@@ -1187,6 +1186,21 @@ int posix_lock_file_wait(struct file *filp, struct file_lock *fl)
 		break;
 	}
 	return error;
+}
+EXPORT_SYMBOL(posix_lock_inode_wait);
+
+/**
+ * posix_lock_file_wait - Apply a POSIX-style lock to a file
+ * @filp: The file to apply the lock to
+ * @fl: The lock to be applied
+ *
+ * Add a POSIX style lock to a file.
+ * We merge adjacent & overlapping locks whenever possible.
+ * POSIX locks are sorted by owner task, then by starting address
+ */
+int posix_lock_file_wait(struct file *filp, struct file_lock *fl)
+{
+	return posix_lock_inode_wait(file_inode(filp), fl);
 }
 EXPORT_SYMBOL(posix_lock_file_wait);
 
@@ -1850,18 +1864,18 @@ int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 }
 
 /**
- * flock_lock_file_wait - Apply a FLOCK-style lock to a file
- * @filp: The file to apply the lock to
+ * flock_lock_inode_wait - Apply a FLOCK-style lock to a file
+ * @inode: inode of the file to apply to
  * @fl: The lock to be applied
  *
- * Add a FLOCK style lock to a file.
+ * Apply a FLOCK style lock request to an inode.
  */
-int flock_lock_file_wait(struct file *filp, struct file_lock *fl)
+int flock_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 {
 	int error;
 	might_sleep();
 	for (;;) {
-		error = flock_lock_inode(file_inode(filp), fl);
+		error = flock_lock_inode(inode, fl);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
 		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
@@ -1873,7 +1887,19 @@ int flock_lock_file_wait(struct file *filp, struct file_lock *fl)
 	}
 	return error;
 }
+EXPORT_SYMBOL(flock_lock_inode_wait);
 
+/**
+ * flock_lock_file_wait - Apply a FLOCK-style lock to a file
+ * @filp: The file to apply the lock to
+ * @fl: The lock to be applied
+ *
+ * Add a FLOCK style lock to a file.
+ */
+int flock_lock_file_wait(struct file *filp, struct file_lock *fl)
+{
+	return flock_lock_inode_wait(file_inode(filp), fl);
+}
 EXPORT_SYMBOL(flock_lock_file_wait);
 
 /**
