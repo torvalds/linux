@@ -1190,21 +1190,6 @@ int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 EXPORT_SYMBOL(posix_lock_inode_wait);
 
 /**
- * posix_lock_file_wait - Apply a POSIX-style lock to a file
- * @filp: The file to apply the lock to
- * @fl: The lock to be applied
- *
- * Add a POSIX style lock to a file.
- * We merge adjacent & overlapping locks whenever possible.
- * POSIX locks are sorted by owner task, then by starting address
- */
-int posix_lock_file_wait(struct file *filp, struct file_lock *fl)
-{
-	return posix_lock_inode_wait(file_inode(filp), fl);
-}
-EXPORT_SYMBOL(posix_lock_file_wait);
-
-/**
  * locks_mandatory_locked - Check for an active lock
  * @file: the file to check
  *
@@ -1888,19 +1873,6 @@ int flock_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 	return error;
 }
 EXPORT_SYMBOL(flock_lock_inode_wait);
-
-/**
- * flock_lock_file_wait - Apply a FLOCK-style lock to a file
- * @filp: The file to apply the lock to
- * @fl: The lock to be applied
- *
- * Add a FLOCK style lock to a file.
- */
-int flock_lock_file_wait(struct file *filp, struct file_lock *fl)
-{
-	return flock_lock_inode_wait(file_inode(filp), fl);
-}
-EXPORT_SYMBOL(flock_lock_file_wait);
 
 /**
  *	sys_flock: - flock() system call.
