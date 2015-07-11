@@ -526,6 +526,13 @@ config I2C_EG20T
 	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
 	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
 
+config I2C_EMEV2
+	tristate "EMMA Mobile series I2C adapter"
+	depends on HAVE_CLK
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Renesas Electronics EM/EV family of processors.
+
 config I2C_EXYNOS5
 	tristate "Exynos5 high-speed I2C driver"
 	depends on ARCH_EXYNOS && OF
