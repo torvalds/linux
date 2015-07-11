@@ -1076,6 +1076,11 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 	p = of_prop_next_u32(prop, NULL, &val);
 	if (!p)
 		return -EINVAL;
+
+	par->fbtftops.reset(par);
+	if (par->gpio.cs != -1)
+		gpio_set_value(par->gpio.cs, 0);  /* Activate chip */
+
 	while (p) {
 		if (val & FBTFT_OF_INIT_CMD) {
 			val &= 0xFFFF;
