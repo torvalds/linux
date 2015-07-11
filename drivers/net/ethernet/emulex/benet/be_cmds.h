@@ -1495,6 +1495,8 @@ struct be_cmd_resp_acpi_wol_magic_config_v1 {
 #define BE_PME_D3COLD_CAP		0x80
 
 /********************** LoopBack test *********************/
+#define SET_LB_MODE_TIMEOUT		12000
+
 struct be_cmd_req_loopback_test {
 	struct be_cmd_req_hdr hdr;
 	u32 loopback_type;
@@ -1758,6 +1760,7 @@ struct be_cmd_req_set_mac_list {
 /*********************** HSW Config ***********************/
 #define PORT_FWD_TYPE_VEPA		0x3
 #define PORT_FWD_TYPE_VEB		0x2
+#define PORT_FWD_TYPE_PASSTHRU		0x1
 
 #define ENABLE_MAC_SPOOFCHK		0x2
 #define DISABLE_MAC_SPOOFCHK		0x3
