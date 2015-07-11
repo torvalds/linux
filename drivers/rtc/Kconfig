@@ -1456,6 +1456,18 @@ config RTC_DRV_JZ4740
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-jz4740.
 
+config RTC_DRV_LPC24XX
+	tristate "NXP RTC for LPC178x/18xx/408x/43xx"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	help
+	  This enables support for the NXP RTC found which can be found on
+	  NXP LPC178x/18xx/408x/43xx devices.
+
+	  If you have one of the devices above enable this driver to use
+	  the hardware RTC. This driver can also be buillt as a module. If
+	  so, the module will be called rtc-lpc24xx.
+
 config RTC_DRV_LPC32XX
 	depends on ARCH_LPC32XX
 	tristate "NXP LPC32XX RTC"
