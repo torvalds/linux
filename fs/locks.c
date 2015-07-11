@@ -862,12 +862,11 @@ static int posix_locks_deadlock(struct file_lock *caller_fl,
  * whether or not a lock was successfully freed by testing the return
  * value for -ENOENT.
  */
-static int flock_lock_file(struct file *filp, struct file_lock *request)
+static int flock_lock_inode(struct inode *inode, struct file_lock *request)
 {
 	struct file_lock *new_fl = NULL;
 	struct file_lock *fl;
 	struct file_lock_context *ctx;
-	struct inode *inode = file_inode(filp);
 	int error = 0;
 	bool found = false;
 	LIST_HEAD(dispose);
@@ -890,7 +889,7 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 		goto find_conflict;
 
 	list_for_each_entry(fl, &ctx->flc_flock, fl_list) {
-		if (filp != fl->fl_file)
+		if (request->fl_file != fl->fl_file)
 			continue;
 		if (request->fl_type == fl->fl_type)
 			goto out;
@@ -1862,7 +1861,7 @@ int flock_lock_file_wait(struct file *filp, struct file_lock *fl)
 	int error;
 	might_sleep();
 	for (;;) {
-		error = flock_lock_file(filp, fl);
+		error = flock_lock_inode(file_inode(filp), fl);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
 		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
@@ -2401,7 +2400,8 @@ locks_remove_flock(struct file *filp)
 		.fl_type = F_UNLCK,
 		.fl_end = OFFSET_MAX,
 	};
-	struct file_lock_context *flctx = file_inode(filp)->i_flctx;
+	struct inode *inode = file_inode(filp);
+	struct file_lock_context *flctx = inode->i_flctx;
 
 	if (list_empty(&flctx->flc_flock))
 		return;
@@ -2409,7 +2409,7 @@ locks_remove_flock(struct file *filp)
 	if (filp->f_op->flock)
 		filp->f_op->flock(filp, F_SETLKW, &fl);
 	else
-		flock_lock_file(filp, &fl);
+		flock_lock_inode(inode, &fl);
 
 	if (fl.fl_ops && fl.fl_ops->fl_release_private)
 		fl.fl_ops->fl_release_private(&fl);
