@@ -492,8 +492,9 @@ static struct irq_chip amd_gpio_irqchip = {
 	.irq_set_type = amd_gpio_irq_set_type,
 };
 
-static void amd_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void amd_gpio_irq_handler(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	u32 i;
 	u32 off;
 	u32 reg;
