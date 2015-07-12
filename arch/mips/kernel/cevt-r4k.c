@@ -174,6 +174,11 @@ int c0_compare_int_usable(void)
 	return 1;
 }
 
+unsigned int __weak get_c0_compare_int(void)
+{
+	return MIPS_CPU_IRQ_BASE + cp0_compare_irq;
+}
+
 int r4k_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -189,11 +194,9 @@ int r4k_clockevent_init(void)
 	/*
 	 * With vectored interrupts things are getting platform specific.
 	 * get_c0_compare_int is a hook to allow a platform to return the
-	 * interrupt number of it's liking.
+	 * interrupt number of its liking.
 	 */
-	irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
-	if (get_c0_compare_int)
-		irq = get_c0_compare_int();
+	irq = get_c0_compare_int();
 
 	cd = &per_cpu(mips_clockevent_device, cpu);
 
