@@ -157,6 +157,7 @@
 /* Controller requires minimum 300us between commands */
 #define WDT_COMMAND_DELAY_MS		2
 #define WDT_FLASH_WRITE_DELAY_MS	4
+#define WDT_FW_RESET_TIME		2500
 
 struct wdt87xx_sys_param {
 	u16	fw_id;
@@ -406,7 +407,7 @@ static int wdt87xx_sw_reset(struct i2c_client *client)
 	}
 
 	/* Wait the device to be ready */
-	msleep(200);
+	msleep(WDT_FW_RESET_TIME);
 
 	return 0;
 }
