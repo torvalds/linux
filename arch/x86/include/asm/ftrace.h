@@ -3,9 +3,9 @@
 
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CC_USING_FENTRY
-# define MCOUNT_ADDR		((long)(__fentry__))
+# define MCOUNT_ADDR		((unsigned long)(__fentry__))
 #else
-# define MCOUNT_ADDR		((long)(mcount))
+# define MCOUNT_ADDR		((unsigned long)(mcount))
 #endif
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
 
