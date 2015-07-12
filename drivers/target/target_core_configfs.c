@@ -1658,22 +1658,32 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 		 * PR APTPL Metadata for Reservation
 		 */
 		case Opt_res_holder:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			res_holder = arg;
 			break;
 		case Opt_res_type:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			type = (u8)arg;
 			break;
 		case Opt_res_scope:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			break;
 		case Opt_res_all_tg_pt:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			all_tg_pt = (int)arg;
 			break;
 		case Opt_mapped_lun:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			mapped_lun = (u64)arg;
 			break;
 		/*
@@ -1701,14 +1711,20 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			}
 			break;
 		case Opt_tpgt:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			tpgt = (u16)arg;
 			break;
 		case Opt_port_rtpi:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			break;
 		case Opt_target_lun:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			target_lun = (u64)arg;
 			break;
 		default:
