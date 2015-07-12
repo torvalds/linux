@@ -821,13 +821,18 @@ static int vpe_release(struct inode *inode, struct file *filp)
 	Elf_Ehdr *hdr;
 	int ret = 0;
 
+	if (!vpe_run) {
+		pr_warn("VPE loader: ELF load failed.\n");
+		return -ENOEXEC;
+	}
+
 	v = get_vpe(aprp_cpu_index());
 	if (v == NULL)
 		return -ENODEV;
 
 	hdr = (Elf_Ehdr *) v->pbuffer;
 	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) == 0) {
-		if ((vpe_elfload(v) >= 0) && vpe_run) {
+		if (vpe_elfload(v) >= 0) {
 			vpe_run(v);
 		} else {
 			pr_warn("VPE loader: ELF load failed.\n");
