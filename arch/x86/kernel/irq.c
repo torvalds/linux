@@ -347,14 +347,22 @@ int check_irq_vectors_for_cpu_disable(void)
 			if (!desc)
 				continue;
 
+			/*
+			 * Protect against concurrent action removal,
+			 * affinity changes etc.
+			 */
+			raw_spin_lock(&desc->lock);
 			data = irq_desc_get_irq_data(desc);
 			cpumask_copy(&affinity_new, data->affinity);
 			cpumask_clear_cpu(this_cpu, &affinity_new);
 
 			/* Do not count inactive or per-cpu irqs. */
-			if (!irq_has_action(irq) || irqd_is_per_cpu(data))
+			if (!irq_has_action(irq) || irqd_is_per_cpu(data)) {
+				raw_spin_unlock(&desc->lock);
 				continue;
+			}
 
+			raw_spin_unlock(&desc->lock);
 			/*
 			 * A single irq may be mapped to multiple
 			 * cpu's vector_irq[] (for example IOAPIC cluster
@@ -385,6 +393,9 @@ int check_irq_vectors_for_cpu_disable(void)
 		 * vector. If the vector is marked in the used vectors
 		 * bitmap or an irq is assigned to it, we don't count
 		 * it as available.
+		 *
+		 * As this is an inaccurate snapshot anyway, we can do
+		 * this w/o holding vector_lock.
 		 */
 		for (vector = FIRST_EXTERNAL_VECTOR;
 		     vector < first_system_vector; vector++) {
@@ -486,6 +497,11 @@ void fixup_irqs(void)
 	 */
 	mdelay(1);
 
+	/*
+	 * We can walk the vector array of this cpu without holding
+	 * vector_lock because the cpu is already marked !online, so
+	 * nothing else will touch it.
+	 */
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		unsigned int irr;
 
@@ -497,9 +513,9 @@ void fixup_irqs(void)
 			irq = __this_cpu_read(vector_irq[vector]);
 
 			desc = irq_to_desc(irq);
+			raw_spin_lock(&desc->lock);
 			data = irq_desc_get_irq_data(desc);
 			chip = irq_data_get_irq_chip(data);
-			raw_spin_lock(&desc->lock);
 			if (chip->irq_retrigger) {
 				chip->irq_retrigger(data);
 				__this_cpu_write(vector_irq[vector], VECTOR_RETRIGGERED);
