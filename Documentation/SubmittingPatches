@@ -340,7 +340,7 @@ on the changes you are submitting.  It is important for a kernel
 developer to be able to "quote" your changes, using standard e-mail
 tools, so that they may comment on specific portions of your code.
 
-For this reason, all patches should be submitting e-mail "inline".
+For this reason, all patches should be submitted by e-mail "inline".
 WARNING:  Be wary of your editor's word-wrap corrupting your patch,
 if you choose to cut-n-paste your patch.
 
