@@ -635,15 +635,13 @@ static void rga_try_set_reg(void)
             rga_reg_from_wait_to_run(reg);
 
             #ifdef CONFIG_ARM
-            dmac_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[28]);
-            outer_flush_range(virt_to_phys(&rga_service.cmd_buff[0]),virt_to_phys(&rga_service.cmd_buff[28]));
+            dmac_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[32]);
+            outer_flush_range(virt_to_phys(&rga_service.cmd_buff[0]),virt_to_phys(&rga_service.cmd_buff[32]));
             #elif defined(CONFIG_ARM64)
-            __dma_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[28]);
+            __dma_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[32]);
             #endif
 
-            #if 1 
             rga_soft_reset();
-            #endif
 
             rga_write(0x0, RGA_SYS_CTRL);
             rga_write(0, RGA_MMU_CTRL);
