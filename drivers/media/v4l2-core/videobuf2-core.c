@@ -1254,19 +1254,19 @@ EXPORT_SYMBOL_GPL(vb2_discard_done);
 
 static void vb2_warn_zero_bytesused(struct vb2_buffer *vb)
 {
-	static bool __check_once __read_mostly;
+	static bool check_once;
 
-	if (__check_once)
+	if (check_once)
 		return;
 
-	__check_once = true;
-	__WARN();
+	check_once = true;
+	WARN_ON(1);
 
-	pr_warn_once("use of bytesused == 0 is deprecated and will be removed in the future,\n");
+	pr_warn("use of bytesused == 0 is deprecated and will be removed in the future,\n");
 	if (vb->vb2_queue->allow_zero_bytesused)
-		pr_warn_once("use VIDIOC_DECODER_CMD(V4L2_DEC_CMD_STOP) instead.\n");
+		pr_warn("use VIDIOC_DECODER_CMD(V4L2_DEC_CMD_STOP) instead.\n");
 	else
-		pr_warn_once("use the actual size instead.\n");
+		pr_warn("use the actual size instead.\n");
 }
 
 /**
