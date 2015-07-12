@@ -4286,14 +4286,15 @@ static struct irq_chip atlas7_gpio_irq_chip = {
 	.irq_set_type = atlas7_gpio_irq_type,
 };
 
-static void atlas7_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
+static void atlas7_gpio_handle_irq(unsigned int __irq, struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct atlas7_gpio_chip *a7gc = to_atlas7_gpio(gc);
 	struct atlas7_gpio_bank *bank = NULL;
 	u32 status, ctrl;
 	int pin_in_bank = 0, idx;
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned int irq = irq_desc_get_irq(desc);
 
 	for (idx = 0; idx < a7gc->nbank; idx++) {
 		bank = &a7gc->banks[idx];
