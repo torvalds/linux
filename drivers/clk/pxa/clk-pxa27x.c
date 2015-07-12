@@ -80,7 +80,7 @@ unsigned int pxa27x_get_clk_frequency_khz(int info)
 		pr_info("System bus clock: %ld.%02ldMHz\n",
 			clks[4] / 1000000, (clks[4] % 1000000) / 10000);
 	}
-	return (unsigned int)clks[0];
+	return (unsigned int)clks[0] / KHz;
 }
 
 bool pxa27x_is_ppll_disabled(void)
