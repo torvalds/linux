@@ -94,7 +94,7 @@ generated it with diff(1), to ensure accuracy.
 
 If your changes produce a lot of deltas, you need to split them into
 individual patches which modify things in logical stages; see section
-#3.  This will facilitate easier reviewing by other kernel developers,
+#3.  This will facilitate review by other kernel developers,
 very important if you want your patch accepted.
 
 If you're using git, "git rebase -i" can help you with this process.  If
