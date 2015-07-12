@@ -31,6 +31,9 @@ static int max98357a_daiops_trigger(struct snd_pcm_substream *substream,
 {
 	struct gpio_desc *sdmode = snd_soc_dai_get_drvdata(dai);
 
+	if (!sdmode)
+		return 0;
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -60,7 +63,7 @@ static int max98357a_codec_probe(struct snd_soc_codec *codec)
 {
 	struct gpio_desc *sdmode;
 
-	sdmode = devm_gpiod_get(codec->dev, "sdmode", GPIOD_OUT_LOW);
+	sdmode = devm_gpiod_get_optional(codec->dev, "sdmode", GPIOD_OUT_LOW);
 	if (IS_ERR(sdmode)) {
 		dev_err(codec->dev, "%s() unable to get sdmode GPIO: %ld\n",
 				__func__, PTR_ERR(sdmode));
