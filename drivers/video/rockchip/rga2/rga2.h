@@ -131,10 +131,10 @@ mdp_img_vir;
 
 typedef struct MMU_INFO
 {
-    uint64_t src0_base_addr;
-    uint64_t src1_base_addr;
-    uint64_t dst_base_addr;
-    uint64_t els_base_addr;
+    unsigned long src0_base_addr;
+    unsigned long src1_base_addr;
+    unsigned long dst_base_addr;
+    unsigned long els_base_addr;
 
     u8 src0_mmu_flag;     /* [0] src0 mmu enable [1] src0_flush [2] src0_prefetch_en [3] src0_prefetch dir */
     u8 src1_mmu_flag;     /* [0] src1 mmu enable [1] src1_flush [2] src1_prefetch_en [3] src1_prefetch dir */
@@ -219,7 +219,7 @@ FADING;
 typedef struct MMU
 {
     unsigned char mmu_en;
-    uint64_t base_addr;
+    unsigned long base_addr;
     uint32_t mmu_flag;     /* [0] mmu enable [1] src_flush [2] dst_flush [3] CMD_flush [4~5] page size*/
 } MMU;
 
@@ -257,9 +257,9 @@ line_draw_t;
 
 typedef struct rga_img_info_t
 {
-    uint64_t yrgb_addr;      /* yrgb    mem addr         */
-    uint64_t uv_addr;        /* cb/cr   mem addr         */
-    uint64_t v_addr;         /* cr      mem addr         */
+    unsigned long yrgb_addr;      /* yrgb    mem addr         */
+    unsigned long uv_addr;        /* cb/cr   mem addr         */
+    unsigned long v_addr;         /* cr      mem addr         */
     unsigned int format;         //definition by RK_FORMAT
 
     unsigned short act_w;
@@ -298,8 +298,8 @@ struct rga_req {
     rga_img_info_t dst;             /* dst image info */
     rga_img_info_t pat;             /* patten image info */
 
-    uint64_t rop_mask_addr;         /* rop4 mask addr */
-    uint64_t LUT_addr;              /* LUT addr */
+    unsigned long rop_mask_addr;         /* rop4 mask addr */
+    unsigned long LUT_addr;              /* LUT addr */
 
     RECT clip;                      /* dst clip window default value is dst_vir */
                                     /* value from [0, w-1] / [0, h-1]*/
@@ -425,8 +425,8 @@ struct rga2_req
     rga_img_info_t dst;    // dst  active window
     rga_img_info_t pat;    // patten active window
 
-    uint64_t rop_mask_addr;       // rop4 mask addr
-    uint64_t LUT_addr;            // LUT addr
+    unsigned long rop_mask_addr;       // rop4 mask addr
+    unsigned long LUT_addr;            // LUT addr
 
     u32 rop_mask_stride;
 

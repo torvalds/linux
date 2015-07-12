@@ -510,7 +510,7 @@ static void rga2_try_set_reg(void)
             __dma_flush_range(&rga2_service.cmd_buff[0], &rga2_service.cmd_buff[32]);
             #endif
 
-            rga2_soft_reset();
+            //rga2_soft_reset();
 
             rga2_write(0x0, RGA2_SYS_CTRL);
 
