@@ -388,10 +388,14 @@ EXPORT_SYMBOL_GPL(tty_find_polling_driver);
 int tty_check_change(struct tty_struct *tty)
 {
 	unsigned long flags;
+	struct pid *pgrp;
 	int ret = 0;
 
 	if (current->signal->tty != tty)
 		return 0;
+
+	rcu_read_lock();
+	pgrp = task_pgrp(current);
 
 	spin_lock_irqsave(&tty->ctrl_lock, flags);
 
@@ -399,22 +403,25 @@ int tty_check_change(struct tty_struct *tty)
 		printk(KERN_WARNING "tty_check_change: tty->pgrp == NULL!\n");
 		goto out_unlock;
 	}
-	if (task_pgrp(current) == tty->pgrp)
+	if (pgrp == tty->pgrp)
 		goto out_unlock;
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+
 	if (is_ignored(SIGTTOU))
-		goto out;
+		goto out_rcuunlock;
 	if (is_current_pgrp_orphaned()) {
 		ret = -EIO;
-		goto out;
+		goto out_rcuunlock;
 	}
-	kill_pgrp(task_pgrp(current), SIGTTOU, 1);
+	kill_pgrp(pgrp, SIGTTOU, 1);
+	rcu_read_unlock();
 	set_thread_flag(TIF_SIGPENDING);
 	ret = -ERESTARTSYS;
-out:
 	return ret;
 out_unlock:
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+out_rcuunlock:
+	rcu_read_unlock();
 	return ret;
 }
 
