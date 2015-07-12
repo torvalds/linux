@@ -1176,8 +1176,8 @@ static int gpmc_setup_irq(void)
 		gpmc_client_irq[i].irq = gpmc_irq_start + i;
 		irq_set_chip_and_handler(gpmc_client_irq[i].irq,
 					&gpmc_irq_chip, handle_simple_irq);
-		set_irq_flags(gpmc_client_irq[i].irq,
-				IRQF_VALID | IRQF_NOAUTOEN);
+		irq_modify_status(gpmc_client_irq[i].irq, IRQ_NOREQUEST,
+				  IRQ_NOAUTOEN);
 	}
 
 	/* Disable interrupts */
@@ -1200,7 +1200,6 @@ static int gpmc_free_irq(void)
 	for (i = 0; i < GPMC_NR_IRQ; i++) {
 		irq_set_handler(gpmc_client_irq[i].irq, NULL);
 		irq_set_chip(gpmc_client_irq[i].irq, &no_irq_chip);
-		irq_modify_status(gpmc_client_irq[i].irq, 0, 0);
 	}
 
 	irq_free_descs(gpmc_irq_start, GPMC_NR_IRQ);
