@@ -1280,8 +1280,6 @@ void jbd2_buffer_abort_trigger(struct journal_head *jh,
 	triggers->t_abort(triggers, jh2bh(jh));
 }
 
-
-
 /**
  * int jbd2_journal_dirty_metadata() -  mark a buffer as containing dirty metadata
  * @handle: transaction to add buffer to.
@@ -1314,12 +1312,41 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 
 	if (is_handle_aborted(handle))
 		return -EROFS;
-	journal = transaction->t_journal;
-	jh = jbd2_journal_grab_journal_head(bh);
-	if (!jh) {
+	if (!buffer_jbd(bh)) {
 		ret = -EUCLEAN;
 		goto out;
 	}
+	/*
+	 * We don't grab jh reference here since the buffer must be part
+	 * of the running transaction.
+	 */
+	jh = bh2jh(bh);
+	/*
+	 * This and the following assertions are unreliable since we may see jh
+	 * in inconsistent state unless we grab bh_state lock. But this is
+	 * crucial to catch bugs so let's do a reliable check until the
+	 * lockless handling is fully proven.
+	 */
+	if (jh->b_transaction != transaction &&
+	    jh->b_next_transaction != transaction) {
+		jbd_lock_bh_state(bh);
+		J_ASSERT_JH(jh, jh->b_transaction == transaction ||
+				jh->b_next_transaction == transaction);
+		jbd_unlock_bh_state(bh);
+	}
+	if (jh->b_modified == 1) {
+		/* If it's in our transaction it must be in BJ_Metadata list. */
+		if (jh->b_transaction == transaction &&
+		    jh->b_jlist != BJ_Metadata) {
+			jbd_lock_bh_state(bh);
+			J_ASSERT_JH(jh, jh->b_transaction != transaction ||
+					jh->b_jlist == BJ_Metadata);
+			jbd_unlock_bh_state(bh);
+		}
+		goto out;
+	}
+
+	journal = transaction->t_journal;
 	jbd_debug(5, "journal_head %p\n", jh);
 	JBUFFER_TRACE(jh, "entry");
 
@@ -1410,7 +1437,6 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 	spin_unlock(&journal->j_list_lock);
 out_unlock_bh:
 	jbd_unlock_bh_state(bh);
-	jbd2_journal_put_journal_head(jh);
 out:
 	JBUFFER_TRACE(jh, "exit");
 	return ret;
