@@ -190,7 +190,7 @@ static netdev_features_t ipoib_fix_features(struct net_device *dev, netdev_featu
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	if (test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags))
-		features &= ~(NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO);
+		features &= ~(NETIF_F_IP_CSUM | NETIF_F_TSO);
 
 	return features;
 }
