@@ -65,11 +65,11 @@ static struct davinci_gpio_regs __iomem *gpio2regs(unsigned gpio)
 	return ptr;
 }
 
-static inline struct davinci_gpio_regs __iomem *irq2regs(int irq)
+static inline struct davinci_gpio_regs __iomem *irq2regs(struct irq_data *d)
 {
 	struct davinci_gpio_regs __iomem *g;
 
-	g = (__force struct davinci_gpio_regs __iomem *)irq_get_chip_data(irq);
+	g = (__force struct davinci_gpio_regs __iomem *)irq_data_get_irq_chip_data(d);
 
 	return g;
 }
@@ -287,7 +287,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 
 static void gpio_irq_disable(struct irq_data *d)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
+	struct davinci_gpio_regs __iomem *g = irq2regs(d);
 	u32 mask = (u32) irq_data_get_irq_handler_data(d);
 
 	writel_relaxed(mask, &g->clr_falling);
@@ -296,7 +296,7 @@ static void gpio_irq_disable(struct irq_data *d)
 
 static void gpio_irq_enable(struct irq_data *d)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
+	struct davinci_gpio_regs __iomem *g = irq2regs(d);
 	u32 mask = (u32) irq_data_get_irq_handler_data(d);
 	unsigned status = irqd_get_trigger_type(d);
 
