@@ -187,14 +187,6 @@ static int msm_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return irq_create_mapping(domain, offset);
 }
 
-static inline int msm_irq_to_gpio(struct gpio_chip *chip, unsigned irq)
-{
-	struct irq_data *irq_data = irq_get_irq_data(irq);
-
-	return irq_data->hwirq;
-}
-
-
 /* For dual-edge interrupts in software, since the hardware has no
  * such support:
  *
@@ -238,7 +230,7 @@ static void msm_gpio_update_dual_edge_pos(unsigned gpio)
 
 static void msm_gpio_irq_ack(struct irq_data *d)
 {
-	int gpio = msm_irq_to_gpio(&msm_gpio.gpio_chip, d->irq);
+	int gpio = d->hwirq;
 
 	writel(BIT(INTR_STATUS), GPIO_INTR_STATUS(gpio));
 	if (test_bit(gpio, msm_gpio.dual_edge_irqs))
@@ -247,8 +239,8 @@ static void msm_gpio_irq_ack(struct irq_data *d)
 
 static void msm_gpio_irq_mask(struct irq_data *d)
 {
-	int gpio = msm_irq_to_gpio(&msm_gpio.gpio_chip, d->irq);
 	unsigned long irq_flags;
+	int gpio = d->hwirq;
 
 	spin_lock_irqsave(&tlmm_lock, irq_flags);
 	writel(TARGET_PROC_NONE, GPIO_INTR_CFG_SU(gpio));
@@ -259,8 +251,8 @@ static void msm_gpio_irq_mask(struct irq_data *d)
 
 static void msm_gpio_irq_unmask(struct irq_data *d)
 {
-	int gpio = msm_irq_to_gpio(&msm_gpio.gpio_chip, d->irq);
 	unsigned long irq_flags;
+	int gpio = d->hwirq;
 
 	spin_lock_irqsave(&tlmm_lock, irq_flags);
 	__set_bit(gpio, msm_gpio.enabled_irqs);
@@ -271,8 +263,8 @@ static void msm_gpio_irq_unmask(struct irq_data *d)
 
 static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	int gpio = msm_irq_to_gpio(&msm_gpio.gpio_chip, d->irq);
 	unsigned long irq_flags;
+	int gpio = d->hwirq;
 	uint32_t bits;
 
 	spin_lock_irqsave(&tlmm_lock, irq_flags);
@@ -331,7 +323,7 @@ static void msm_summary_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 static int msm_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 {
-	int gpio = msm_irq_to_gpio(&msm_gpio.gpio_chip, d->irq);
+	int gpio = d->hwirq;
 
 	if (on) {
 		if (bitmap_empty(msm_gpio.wake_irqs, MAX_NR_GPIO))
