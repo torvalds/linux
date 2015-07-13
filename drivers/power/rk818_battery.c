@@ -605,8 +605,9 @@ static void rk81x_bat_capacity_init(struct rk81x_battery *di, u32 capacity)
 
 	} while (buf == 0);
 
-	dev_dbg(di->dev, "update capacity :%d--remain_cap:%d\n",
-		 capacity, di->remain_capacity);
+	if (di->chrg_status != CHARGE_FINISH || di->dod0_status == 1)
+		dev_dbg(di->dev, "update capacity :%d--remain_cap:%d\n",
+			capacity, di->remain_capacity);
 }
 
 #if RK818_SYS_DBG
@@ -2032,8 +2033,10 @@ static void rk81x_bat_not_first_pwron(struct rk81x_battery *di)
 	 * so here we should skip init work
 	 */
 #if defined(CONFIG_ARCH_ROCKCHIP)
-	if (di->loader_charged)
+	if (di->loader_charged) {
+		dev_info(di->dev, "loader charged\n");
 		goto out;
+	}
 #endif
 	calib_vol = rk81x_bat_get_calib_vol(di);
 	if (calib_vol > 0) {
@@ -2806,17 +2809,19 @@ static void rk81x_bat_dbg_dmp_info(struct rk81x_battery *di)
 	u8 usb_ctrl_reg, chrg_ctrl_reg1, thremal_reg;
 	u8 chrg_ctrl_reg2, chrg_ctrl_reg3, rtc_val, misc_reg;
 
-	rk81x_bat_read(di, MISC_MARK_REG, &misc_reg, 1);
-	rk81x_bat_read(di, GGCON, &ggcon_reg, 1);
-	rk81x_bat_read(di, GGSTS, &ggsts_reg, 1);
-	rk81x_bat_read(di, SUP_STS_REG, &sup_tst_reg, 1);
-	rk81x_bat_read(di, VB_MOD_REG, &vb_mod_reg, 1);
-	rk81x_bat_read(di, USB_CTRL_REG, &usb_ctrl_reg, 1);
-	rk81x_bat_read(di, CHRG_CTRL_REG1, &chrg_ctrl_reg1, 1);
-	rk81x_bat_read(di, CHRG_CTRL_REG2, &chrg_ctrl_reg2, 1);
-	rk81x_bat_read(di, CHRG_CTRL_REG3, &chrg_ctrl_reg3, 1);
-	rk81x_bat_read(di, 0x00, &rtc_val, 1);
-	rk81x_bat_read(di, THERMAL_REG, &thremal_reg, 1);
+	if (dbg_enable) {
+		rk81x_bat_read(di, MISC_MARK_REG, &misc_reg, 1);
+		rk81x_bat_read(di, GGCON, &ggcon_reg, 1);
+		rk81x_bat_read(di, GGSTS, &ggsts_reg, 1);
+		rk81x_bat_read(di, SUP_STS_REG, &sup_tst_reg, 1);
+		rk81x_bat_read(di, VB_MOD_REG, &vb_mod_reg, 1);
+		rk81x_bat_read(di, USB_CTRL_REG, &usb_ctrl_reg, 1);
+		rk81x_bat_read(di, CHRG_CTRL_REG1, &chrg_ctrl_reg1, 1);
+		rk81x_bat_read(di, CHRG_CTRL_REG2, &chrg_ctrl_reg2, 1);
+		rk81x_bat_read(di, CHRG_CTRL_REG3, &chrg_ctrl_reg3, 1);
+		rk81x_bat_read(di, 0x00, &rtc_val, 1);
+		rk81x_bat_read(di, THERMAL_REG, &thremal_reg, 1);
+	}
 
 	DBG("\n------------- dump_debug_regs -----------------\n"
 	    "GGCON = 0x%2x, GGSTS = 0x%2x, RTC	= 0x%2x\n"
@@ -2837,7 +2842,6 @@ static void rk81x_bat_dbg_dmp_info(struct rk81x_battery *di)
 	    "check_ocv = %d, check_soc = %d, bat_res = %d\n"
 	    "display_soc = %d, cpapacity_soc = %d\n"
 	    "AC-ONLINE = %d, USB-ONLINE = %d, charging_status = %d\n"
-	    "finish_real_soc = %d, finish_temp_soc = %d\n"
 	    "i_offset=0x%x, cal_offset=0x%x, adjust_cap=%d\n"
 	    "plug_in = %d, plug_out = %d, finish_sig = %d, finish_chrg=%lu\n"
 	    "sec: chrg=%lu, dischrg=%lu, term_chrg=%lu, emu_chrg=%lu\n"
@@ -2849,7 +2853,6 @@ static void rk81x_bat_dbg_dmp_info(struct rk81x_battery *di)
 	    di->est_ocv_vol, di->est_ocv_soc, di->bat_res,
 	    di->dsoc, di->rsoc,
 	    di->ac_online, di->usb_online, di->psy_status,
-	    di->debug_finish_real_soc, di->debug_finish_temp_soc,
 	    rk81x_bat_get_ioffset(di), rk81x_bat_get_cal_offset(di),
 	    di->adjust_cap, di->plug_in_min, di->plug_out_min,
 	    di->finish_sig_min, BASE_TO_SEC(di->chrg_finish_base),
@@ -2861,7 +2864,6 @@ static void rk81x_bat_dbg_dmp_info(struct rk81x_battery *di)
 	    BASE_TO_SEC(di->power_on_base), g_base_sec,
 	    di->current_mode, di->chrg_save_sec, di->dischrg_save_sec
 	   );
-	DBG();
 }
 
 static void rk81x_bat_update_fcc(struct rk81x_battery *di)
