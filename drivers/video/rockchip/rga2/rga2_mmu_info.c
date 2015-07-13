@@ -67,15 +67,20 @@ static int rga2_mmu_buf_get_try(struct rga2_mmu_buf_t *t, uint32_t size)
 {
     mutex_lock(&rga2_service.lock);
     if((t->back - t->front) > t->size) {
-        if(t->front + size > t->back - t->size)
+        if(t->front + size > t->back - t->size) {
+	    pr_info("front %d, back %d dsize %d size %d", t->front, t->back, t->size, size);
             return -1;
+	}
     }
     else {
-        if((t->front + size) > t->back)
+        if((t->front + size) > t->back) {
+	    pr_info("front %d, back %d dsize %d size %d", t->front, t->back, t->size, size);
             return -1;
+	}
 
         if(t->front + size > t->size) {
             if (size > (t->back - t->size)) {
+	        pr_info("front %d, back %d dsize %d size %d", t->front, t->back, t->size, size);
                 return -1;
             }
             t->front = 0;

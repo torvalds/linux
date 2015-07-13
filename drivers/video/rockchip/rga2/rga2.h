@@ -676,6 +676,7 @@ struct rga2_service_info {
     int                 last_prc_src_format;
     atomic_t            rga_working;
     bool                enable;
+    uint32_t            dev_mode;
 
     //struct rga_req      req[10];
 
