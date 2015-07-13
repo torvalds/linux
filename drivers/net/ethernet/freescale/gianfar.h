@@ -1022,7 +1022,7 @@ struct rx_q_stats {
  *	@next_to_use: index of the next buffer to be alloc'd
  *	@next_to_clean: index of the next buffer to be cleaned
  *	@qindex: index of this queue
- *	@dev: back pointer to the dev structure
+ *	@ndev: back pointer to net_device
  *	@rx_ring_size: Rx ring size
  *	@rxcoalescing: enable/disable rx-coalescing
  *	@rxic: receive interrupt coalescing vlaue
@@ -1031,7 +1031,7 @@ struct rx_q_stats {
 struct gfar_priv_rx_q {
 	struct	sk_buff **rx_skbuff __aligned(SMP_CACHE_BYTES);
 	struct	rxbd8 *rx_bd_base;
-	struct	net_device *dev;
+	struct	net_device *ndev;
 	struct	gfar_priv_grp *grp;
 	u16 rx_ring_size;
 	u16 qindex;
