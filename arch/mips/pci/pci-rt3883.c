@@ -225,8 +225,7 @@ static int rt3883_pci_irq_init(struct device *dev,
 		return -ENODEV;
 	}
 
-	irq_set_handler_data(irq, rpc);
-	irq_set_chained_handler(irq, rt3883_pci_irq_handler);
+	irq_set_chained_handler_and_data(irq, rt3883_pci_irq_handler, rpc);
 
 	return 0;
 }
