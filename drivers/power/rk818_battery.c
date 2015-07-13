@@ -1268,7 +1268,7 @@ static void rk81x_bat_set_power_supply_state(struct rk81x_battery *di,
 static void rk81x_bat_lowpwr_check(struct rk81x_battery *di)
 {
 	static u64 time;
-	int pwr_off_thresd = di->pdata->power_off_thresd - 50;
+	int pwr_off_thresd = di->pdata->power_off_thresd;
 
 	if (di->current_avg < 0 &&  di->voltage < pwr_off_thresd) {
 		if (!time)
@@ -1277,6 +1277,11 @@ static void rk81x_bat_lowpwr_check(struct rk81x_battery *di)
 		if (BASE_TO_SEC(time) > (MINUTE)) {
 			rk81x_bat_set_power_supply_state(di, NO_CHARGER);
 			dev_info(di->dev, "low power....\n");
+		}
+
+		if (di->voltage <= pwr_off_thresd - 50) {
+			di->dsoc--;
+			rk81x_bat_set_power_supply_state(di, NO_CHARGER);
 		}
 	} else {
 		time = 0;
