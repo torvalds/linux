@@ -657,6 +657,27 @@ struct gb_uart_serial_state_request {
 	__u8	control;
 };
 
+/* Loopback */
+
+/* Version of the Greybus loopback protocol we support */
+#define	GB_LOOPBACK_VERSION_MAJOR		0x00
+#define	GB_LOOPBACK_VERSION_MINOR		0x01
+
+/* Greybus loopback request types */
+#define	GB_LOOPBACK_TYPE_INVALID		0x00
+#define	GB_LOOPBACK_TYPE_PROTOCOL_VERSION	0x01
+#define	GB_LOOPBACK_TYPE_PING			0x02
+#define	GB_LOOPBACK_TYPE_TRANSFER		0x03
+
+struct gb_loopback_transfer_request {
+	__le32	len;
+	__u8	data[0];
+};
+
+struct gb_loopback_transfer_response {
+	__u8	data[0];
+};
+
 /* SDIO */
 /* Version of the Greybus sdio protocol we support */
 #define GB_SDIO_VERSION_MAJOR		0x00
