@@ -3203,7 +3203,8 @@ static void __init nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
 		ep->ep.name = gp_ep_name[i];
 		ep->ep.ops = &nbu2ss_ep_ops;
 
-		ep->ep.maxpacket = (i == 0 ? EP0_PACKETSIZE : EP_PACKETSIZE);
+		usb_ep_set_maxpacket_limit(&ep->ep,
+				i == 0 ? EP0_PACKETSIZE : EP_PACKETSIZE);
 
 		list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
 		INIT_LIST_HEAD(&ep->queue);
