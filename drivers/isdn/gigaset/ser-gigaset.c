@@ -607,28 +607,6 @@ static int gigaset_tty_hangup(struct tty_struct *tty)
 }
 
 /*
- * Read on the tty.
- * Unused, received data goes only to the Gigaset driver.
- */
-static ssize_t
-gigaset_tty_read(struct tty_struct *tty, struct file *file,
-		 unsigned char __user *buf, size_t count)
-{
-	return -EAGAIN;
-}
-
-/*
- * Write on the tty.
- * Unused, transmit data comes only from the Gigaset driver.
- */
-static ssize_t
-gigaset_tty_write(struct tty_struct *tty, struct file *file,
-		  const unsigned char *buf, size_t count)
-{
-	return -EAGAIN;
-}
-
-/*
  * Ioctl on the tty.
  * Called in process context only.
  * May be re-entered by multiple ioctl calling threads.
@@ -761,8 +739,6 @@ static struct tty_ldisc_ops gigaset_ldisc = {
 	.open		= gigaset_tty_open,
 	.close		= gigaset_tty_close,
 	.hangup		= gigaset_tty_hangup,
-	.read		= gigaset_tty_read,
-	.write		= gigaset_tty_write,
 	.ioctl		= gigaset_tty_ioctl,
 	.receive_buf	= gigaset_tty_receive,
 	.write_wakeup	= gigaset_tty_wakeup,
