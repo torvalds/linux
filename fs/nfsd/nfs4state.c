@@ -3049,10 +3049,11 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	unconf = find_unconfirmed_client_by_name(&clname, nn);
 	if (unconf)
 		unhash_client_locked(unconf);
-	if (conf && same_verf(&conf->cl_verifier, &clverifier))
+	if (conf && same_verf(&conf->cl_verifier, &clverifier)) {
 		/* case 1: probable callback update */
 		copy_clid(new, conf);
-	else /* case 4 (new client) or cases 2, 3 (client reboot): */
+		gen_confirm(new, nn);
+	} else /* case 4 (new client) or cases 2, 3 (client reboot): */
 		gen_clid(new, nn);
 	new->cl_minorversion = 0;
 	gen_callback(new, setclid, rqstp);
