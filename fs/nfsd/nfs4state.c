@@ -3925,7 +3925,7 @@ static struct file_lock *nfs4_alloc_init_lease(struct nfs4_file *fp, int flag)
 static int nfs4_setlease(struct nfs4_delegation *dp)
 {
 	struct nfs4_file *fp = dp->dl_stid.sc_file;
-	struct file_lock *fl, *ret;
+	struct file_lock *fl;
 	struct file *filp;
 	int status = 0;
 
@@ -3940,7 +3940,6 @@ static int nfs4_setlease(struct nfs4_delegation *dp)
 		return -EBADF;
 	}
 	fl->fl_file = filp;
-	ret = fl;
 	status = vfs_setlease(filp, fl->fl_type, &fl, NULL);
 	if (fl)
 		locks_free_lock(fl);
