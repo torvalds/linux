@@ -276,8 +276,9 @@ static inline unsigned long viper_irq_pending(void)
 			viper_irq_enabled_mask;
 }
 
-static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void viper_irq_handler(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq;
 	unsigned long pending;
 
 	pending = viper_irq_pending();
