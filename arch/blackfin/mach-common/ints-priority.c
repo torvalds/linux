@@ -194,7 +194,8 @@ void bfin_internal_unmask_irq(unsigned int irq)
 #ifdef CONFIG_SMP
 static void bfin_internal_unmask_irq_chip(struct irq_data *d)
 {
-	bfin_internal_unmask_irq_affinity(d->irq, d->affinity);
+	bfin_internal_unmask_irq_affinity(d->irq,
+					  irq_data_get_affinity_mask(d));
 }
 
 static int bfin_internal_set_affinity(struct irq_data *d,
