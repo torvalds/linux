@@ -2588,6 +2588,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	struct intel_crtc *i;
 	struct drm_i915_gem_object *obj;
 	struct drm_plane *primary = intel_crtc->base.primary;
+	struct drm_plane_state *plane_state = primary->state;
 	struct drm_framebuffer *fb;
 
 	if (!plane_config->fb)
@@ -2627,13 +2628,21 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	return;
 
 valid_fb:
+	plane_state->src_x = plane_state->src_y = 0;
+	plane_state->src_w = fb->width << 16;
+	plane_state->src_h = fb->height << 16;
+
+	plane_state->crtc_x = plane_state->src_y = 0;
+	plane_state->crtc_w = fb->width;
+	plane_state->crtc_h = fb->height;
+
 	obj = intel_fb_obj(fb);
 	if (obj->tiling_mode != I915_TILING_NONE)
 		dev_priv->preserve_bios_swizzle = true;
 
-	primary->fb = fb;
+	drm_framebuffer_reference(fb);
+	primary->fb = primary->state->fb = fb;
 	primary->crtc = primary->state->crtc = &intel_crtc->base;
-	update_state_fb(primary);
 	intel_crtc->base.state->plane_mask |= (1 << drm_plane_index(primary));
 	obj->frontbuffer_bits |= to_intel_plane(primary)->frontbuffer_bit;
 }
