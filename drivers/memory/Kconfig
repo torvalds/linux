@@ -7,6 +7,14 @@ menuconfig MEMORY
 
 if MEMORY
 
+config ARM_PL172_MPMC
+	tristate "ARM PL172 MPMC driver"
+	depends on ARM_AMBA && OF
+	help
+	  This selects the ARM PrimeCell PL172 MultiPort Memory Controller.
+	  If you have an embedded system with an AMBA bus and a PL172
+	  controller, say Y or M here.
+
 config ATMEL_SDRAMC
 	bool "Atmel (Multi-port DDR-)SDRAM Controller"
 	default y
