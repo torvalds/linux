@@ -345,7 +345,6 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 		return -ENOMEM;
 	rcu_assign_pointer(*pp, p);
 
-	br_mdb_notify(br->dev, port, group, RTM_NEWMDB);
 	return 0;
 }
 
