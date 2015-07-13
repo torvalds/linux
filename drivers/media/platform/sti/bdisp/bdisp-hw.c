@@ -768,12 +768,12 @@ static void bdisp_hw_save_request(struct bdisp_ctx *ctx)
 		/* Allocate memory if not done yet */
 		if (!copy_node[i]) {
 			copy_node[i] = devm_kzalloc(ctx->bdisp_dev->dev,
-						    sizeof(*copy_node),
+						    sizeof(*copy_node[i]),
 						    GFP_KERNEL);
 			if (!copy_node[i])
 				return;
 		}
-		copy_node[i] = node[i];
+		*copy_node[i] = *node[i];
 	}
 }
 
