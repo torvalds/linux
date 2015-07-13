@@ -340,10 +340,26 @@ static void gb_loopback_freq_update(struct gb_loopback *gb)
 	gb_loopback_update_stats(&gb->frequency, gb->elapsed_nsecs);
 }
 
-static void gb_loopback_bw_update(struct gb_loopback *gb, int error)
+static void gb_loopback_throughput_update(struct gb_loopback *gb)
 {
-	if (!error)
-		gb->throughput.sum += gb->size * 2;
+	u32 aggregate_size = sizeof(struct gb_operation_msg_hdr) * 2;
+
+	switch (gb->type) {
+	case GB_LOOPBACK_TYPE_PING:
+		break;
+	case GB_LOOPBACK_TYPE_SINK:
+		aggregate_size += sizeof(struct gb_loopback_transfer_request) +
+				  gb->size;
+		break;
+	case GB_LOOPBACK_TYPE_TRANSFER:
+		aggregate_size += sizeof(struct gb_loopback_transfer_request) +
+				  sizeof(struct gb_loopback_transfer_response) +
+				  gb->size * 2;
+		break;
+	default:
+		return;
+	}
+	gb->throughput.sum += aggregate_size;
 	gb_loopback_update_stats(&gb->throughput, gb->elapsed_nsecs);
 }
 
@@ -393,8 +409,7 @@ static int gb_loopback_fn(void *data)
 		gb->elapsed_nsecs = timeval_to_ns(&gb->te) -
 					timeval_to_ns(&gb->ts);
 		gb_loopback_freq_update(gb);
-		if (gb->type == GB_LOOPBACK_TYPE_PING)
-			gb_loopback_bw_update(gb, error);
+		gb_loopback_throughput_update(gb);
 		gb_loopback_latency_update(gb, &tlat);
 		if (gb->elapsed_nsecs >= NSEC_PER_SEC)
 			gb->ts = gb->te;
