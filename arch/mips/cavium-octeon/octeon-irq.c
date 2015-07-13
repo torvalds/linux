@@ -663,6 +663,11 @@ static int octeon_irq_ciu_gpio_set_type(struct irq_data *data, unsigned int t)
 	irqd_set_trigger_type(data, t);
 	octeon_irq_gpio_setup(data);
 
+	if (irqd_get_trigger_type(data) & IRQ_TYPE_EDGE_BOTH)
+		irq_set_handler_locked(data, handle_edge_irq);
+	else
+		irq_set_handler_locked(data, handle_level_irq);
+
 	return IRQ_SET_MASK_OK;
 }
 
@@ -695,16 +700,6 @@ static void octeon_irq_ciu_gpio_ack(struct irq_data *data)
 	mask = 1ull << (cd->gpio_line);
 
 	cvmx_write_csr(CVMX_GPIO_INT_CLR, mask);
-}
-
-static void octeon_irq_handle_trigger(unsigned int irq, struct irq_desc *desc)
-{
-	struct irq_data *data = irq_desc_get_irq_data(desc);
-
-	if (irqd_get_trigger_type(data) & IRQ_TYPE_EDGE_BOTH)
-		handle_edge_irq(irq, desc);
-	else
-		handle_level_irq(irq, desc);
 }
 
 #ifdef CONFIG_SMP
@@ -1229,8 +1224,13 @@ static int octeon_irq_gpio_map(struct irq_domain *d,
 		octeon_irq_ciu_to_irq[line][bit] != 0)
 		return -EINVAL;
 
+	/*
+	 * Default to handle_level_irq. If the DT contains a different
+	 * trigger type, it will call the irq_set_type callback and
+	 * the handler gets updated.
+	 */
 	r = octeon_irq_set_ciu_mapping(virq, line, bit, hw,
-		octeon_irq_gpio_chip, octeon_irq_handle_trigger);
+				       octeon_irq_gpio_chip, handle_level_irq);
 	return r;
 }
 
