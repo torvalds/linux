@@ -39,12 +39,11 @@ struct uda134x_priv {
 	struct snd_pcm_substream *slave_substream;
 };
 
-/* In-data addresses are hard-coded into the reg-cache values */
 static const char uda134x_reg[UDA134X_REGS_NUM] = {
 	/* Extended address registers */
 	0x04, 0x04, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 	/* Status, data regs */
-	0x00, 0x83, 0x00, 0x40, 0x80, 0xC0, 0x00,
+	0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
 /*
@@ -99,12 +98,14 @@ static int uda134x_write(struct snd_soc_codec *codec, unsigned int reg,
 	case UDA134X_STATUS0:
 	case UDA134X_STATUS1:
 		addr = UDA134X_STATUS_ADDR;
+		data |= (reg - UDA134X_STATUS0) << 7;
 		break;
 	case UDA134X_DATA000:
 	case UDA134X_DATA001:
 	case UDA134X_DATA010:
 	case UDA134X_DATA011:
 		addr = UDA134X_DATA0_ADDR;
+		data |= (reg - UDA134X_DATA000) << 6;
 		break;
 	case UDA134X_DATA1:
 		addr = UDA134X_DATA1_ADDR;
