@@ -34,6 +34,7 @@ struct gb_loopback {
 
 	int type;
 	u32 size;
+	u32 size_max;
 	int ms_wait;
 
 	struct gb_loopback_stats latency;
@@ -46,7 +47,6 @@ struct gb_loopback {
 };
 
 #define GB_LOOPBACK_MS_WAIT_MAX				1000
-#define GB_LOOPBACK_SIZE_MAX				SZ_4K
 
 /* Define get_version() routine */
 define_get_version(gb_loopback, LOOPBACK);
@@ -122,8 +122,8 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 	}
 	if (gb->ms_wait > GB_LOOPBACK_MS_WAIT_MAX)
 		gb->ms_wait = GB_LOOPBACK_MS_WAIT_MAX;
-	if (gb->size > GB_LOOPBACK_SIZE_MAX)
-		gb->size = GB_LOOPBACK_SIZE_MAX;
+	if (gb->size > gb->size_max)
+		gb->size = gb->size_max;
 	gb->error = 0;
 	gb_loopback_reset_stats(gb);
 }
@@ -182,6 +182,7 @@ static int gb_loopback_sink(struct gb_loopback *gb,
 	do_gettimeofday(&ts);
 	retval = gb_operation_sync(gb->connection, GB_LOOPBACK_TYPE_SINK,
 				   request, len + sizeof(*request), NULL, 0);
+
 	do_gettimeofday(&te);
 	elapsed_nsecs = timeval_to_ns(&te) - timeval_to_ns(&ts);
 	*tping = ns_to_timeval(elapsed_nsecs);
@@ -250,6 +251,7 @@ static int gb_loopback_ping(struct gb_loopback *gb, struct timeval *tping)
 static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
+	struct gb_loopback *gb = connection->private;
 	struct gb_loopback_transfer_request *request;
 	struct gb_loopback_transfer_response *response;
 	u32 len;
@@ -273,6 +275,13 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 		}
 		request = operation->request->payload;
 		len = le32_to_cpu(request->len);
+		if (len > gb->size_max) {
+			dev_err(&connection->dev,
+				"transfer request too large (%zu > %zu)\n",
+				len, gb->size_max);
+			return -EINVAL;
+		}
+
 		if (len) {
 			if (!gb_operation_response_alloc(operation, len)) {
 				dev_err(&connection->dev,
@@ -415,6 +424,14 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	retval = get_version(gb);
 	if (retval)
 		goto out_get_ver;
+
+	/* Calculate maximum payload */
+	gb->size_max = gb_operation_get_payload_size_max(connection);
+	if (gb->size_max <= sizeof(struct gb_loopback_transfer_request)) {
+		retval = -EINVAL;
+		goto out_get_ver;
+	}
+	gb->size_max -= sizeof(struct gb_loopback_transfer_request);
 
 	gb_loopback_reset_stats(gb);
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
