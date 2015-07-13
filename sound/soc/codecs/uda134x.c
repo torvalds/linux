@@ -478,8 +478,8 @@ static struct snd_soc_dai_driver uda134x_dai = {
 static int uda134x_soc_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct uda134x_priv *uda134x;
 	struct uda134x_platform_data *pd = codec->component.card->dev->platform_data;
+	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 	const struct snd_soc_dapm_widget *widgets;
 	unsigned num_widgets;
 
@@ -506,10 +506,6 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 		return -EINVAL;
 	}
 
-	uda134x = kzalloc(sizeof(struct uda134x_priv), GFP_KERNEL);
-	if (uda134x == NULL)
-		return -ENOMEM;
-	snd_soc_codec_set_drvdata(codec, uda134x);
 
 	codec->control_data = pd;
 
@@ -530,7 +526,6 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 	if (ret) {
 		printk(KERN_ERR "%s failed to register dapm controls: %d",
 			__func__, ret);
-		kfree(uda134x);
 		return ret;
 	}
 
@@ -551,31 +546,19 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 	default:
 		printk(KERN_ERR "%s unknown codec type: %d",
 			__func__, pd->model);
-		kfree(uda134x);
 		return -EINVAL;
 	}
 
 	if (ret < 0) {
 		printk(KERN_ERR "UDA134X: failed to register controls\n");
-		kfree(uda134x);
 		return ret;
 	}
 
 	return 0;
 }
 
-/* power down chip */
-static int uda134x_soc_remove(struct snd_soc_codec *codec)
-{
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
-
-	kfree(uda134x);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
 	.probe =        uda134x_soc_probe,
-	.remove =       uda134x_soc_remove,
 	.reg_cache_size = sizeof(uda134x_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = uda134x_reg,
@@ -592,6 +575,14 @@ static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
 
 static int uda134x_codec_probe(struct platform_device *pdev)
 {
+	struct uda134x_priv *uda134x;
+
+	uda134x = devm_kzalloc(&pdev->dev, sizeof(*uda134x), GFP_KERNEL);
+	if (!uda134x)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, uda134x);
+
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_uda134x, &uda134x_dai, 1);
 }
