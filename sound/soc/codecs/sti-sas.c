@@ -568,17 +568,17 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 	/* Request the DAC & SPDIF registers memory region */
 	drvdata->dac.virt_regmap = devm_regmap_init(&pdev->dev, NULL, drvdata,
 						    drvdata->dev_data->regmap);
-	if (!drvdata->dac.virt_regmap) {
+	if (IS_ERR(drvdata->dac.virt_regmap)) {
 		dev_err(&pdev->dev, "audio registers not enabled\n");
-		return -EFAULT;
+		return PTR_ERR(drvdata->dac.virt_regmap);
 	}
 
 	/* Request the syscon region */
 	drvdata->dac.regmap =
 		syscon_regmap_lookup_by_phandle(pnode, "st,syscfg");
-	if (!drvdata->dac.regmap) {
+	if (IS_ERR(drvdata->dac.regmap)) {
 		dev_err(&pdev->dev, "syscon registers not available\n");
-		return -EFAULT;
+		return PTR_ERR(drvdata->dac.regmap);
 	}
 	drvdata->spdif.regmap = drvdata->dac.regmap;
 
