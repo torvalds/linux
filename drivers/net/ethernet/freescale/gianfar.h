@@ -92,6 +92,8 @@ extern const char gfar_driver_version[];
 #define DEFAULT_TX_RING_SIZE	256
 #define DEFAULT_RX_RING_SIZE	256
 
+#define GFAR_RX_BUFF_ALLOC	16
+
 #define GFAR_RX_MAX_RING_SIZE   256
 #define GFAR_TX_MAX_RING_SIZE   256
 
@@ -640,6 +642,7 @@ struct rmon_mib
 };
 
 struct gfar_extra_stats {
+	atomic64_t rx_alloc_err;
 	atomic64_t rx_large;
 	atomic64_t rx_short;
 	atomic64_t rx_nonoctet;
@@ -1015,9 +1018,9 @@ struct rx_q_stats {
 /**
  *	struct gfar_priv_rx_q - per rx queue structure
  *	@rx_skbuff: skb pointers
- *	@skb_currx: currently use skb pointer
  *	@rx_bd_base: First rx buffer descriptor
- *	@cur_rx: Next free rx ring entry
+ *	@next_to_use: index of the next buffer to be alloc'd
+ *	@next_to_clean: index of the next buffer to be cleaned
  *	@qindex: index of this queue
  *	@dev: back pointer to the dev structure
  *	@rx_ring_size: Rx ring size
@@ -1027,19 +1030,18 @@ struct rx_q_stats {
 
 struct gfar_priv_rx_q {
 	struct	sk_buff **rx_skbuff __aligned(SMP_CACHE_BYTES);
-	dma_addr_t rx_bd_dma_base;
 	struct	rxbd8 *rx_bd_base;
-	struct	rxbd8 *cur_rx;
 	struct	net_device *dev;
-	struct gfar_priv_grp *grp;
+	struct	gfar_priv_grp *grp;
+	u16 rx_ring_size;
+	u16 qindex;
+	u16 next_to_clean;
+	u16 next_to_use;
 	struct rx_q_stats stats;
-	u16	skb_currx;
-	u16	qindex;
-	unsigned int	rx_ring_size;
-	/* RX Coalescing values */
+	u32 __iomem *rfbptr;
 	unsigned char rxcoalescing;
 	unsigned long rxic;
-	u32 __iomem *rfbptr;
+	dma_addr_t rx_bd_dma_base;
 };
 
 enum gfar_irqinfo_id {
@@ -1293,6 +1295,23 @@ static inline void gfar_clear_txbd_status(struct txbd8 *bdp)
 
 	lstatus &= BD_LFLAG(TXBD_WRAP);
 	bdp->lstatus = cpu_to_be32(lstatus);
+}
+
+static inline int gfar_rxbd_unused(struct gfar_priv_rx_q *rxq)
+{
+	if (rxq->next_to_clean > rxq->next_to_use)
+		return rxq->next_to_clean - rxq->next_to_use - 1;
+
+	return rxq->rx_ring_size + rxq->next_to_clean - rxq->next_to_use - 1;
+}
+
+static inline struct rxbd8 *gfar_rxbd_lastfree(struct gfar_priv_rx_q *rxq)
+{
+	int i;
+
+	i = rxq->next_to_use ? rxq->next_to_use - 1 : rxq->rx_ring_size - 1;
+
+	return &rxq->rx_bd_base[i];
 }
 
 irqreturn_t gfar_receive(int irq, void *dev_id);
