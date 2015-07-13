@@ -259,7 +259,8 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 
 	if (offset < chdr_size) {
 		copy_size = min(chdr_size - offset, nbytes);
-		memcpy(&channel->chan_hdr + offset, local, copy_size);
+		memcpy(((char *)(&channel->chan_hdr)) + offset,
+		       local, copy_size);
 	}
 
 	memcpy_toio(channel->mapped + offset, local, nbytes);
