@@ -629,12 +629,15 @@ static void ntb_free_mw(struct ntb_transport_ctx *nt, int num_mw)
 }
 
 static int ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw,
-		      unsigned int size)
+		      resource_size_t size)
 {
 	struct ntb_transport_mw *mw = &nt->mw_vec[num_mw];
 	struct pci_dev *pdev = nt->ndev->pdev;
-	unsigned int xlat_size, buff_size;
+	size_t xlat_size, buff_size;
 	int rc;
+
+	if (!size)
+		return -EINVAL;
 
 	xlat_size = round_up(size, mw->xlat_align_size);
 	buff_size = round_up(size, mw->xlat_align);
@@ -655,7 +658,7 @@ static int ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw,
 	if (!mw->virt_addr) {
 		mw->xlat_size = 0;
 		mw->buff_size = 0;
-		dev_err(&pdev->dev, "Unable to alloc MW buff of size %d\n",
+		dev_err(&pdev->dev, "Unable to alloc MW buff of size %zu\n",
 			buff_size);
 		return -ENOMEM;
 	}
