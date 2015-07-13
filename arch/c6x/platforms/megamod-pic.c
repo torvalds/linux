@@ -282,8 +282,8 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 		soc_writel(~0, &pic->regs->evtmask[i]);
 		soc_writel(~0, &pic->regs->evtclr[i]);
 
-		irq_set_handler_data(irq, &cascade_data[i]);
-		irq_set_chained_handler(irq, megamod_irq_cascade);
+		irq_set_chained_handler_and_data(irq, megamod_irq_cascade,
+						 &cascade_data[i]);
 	}
 
 	/* Finally, set up the MUX registers */
