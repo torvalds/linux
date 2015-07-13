@@ -1858,11 +1858,12 @@ Similarly, the reverse case of a RELEASE followed by an ACQUIRE does not
 imply a full memory barrier.  If it is necessary for a RELEASE-ACQUIRE
 pair to produce a full barrier, the ACQUIRE can be followed by an
 smp_mb__after_unlock_lock() invocation.  This will produce a full barrier
-if either (a) the RELEASE and the ACQUIRE are executed by the same
-CPU or task, or (b) the RELEASE and ACQUIRE act on the same variable.
-The smp_mb__after_unlock_lock() primitive is free on many architectures.
-Without smp_mb__after_unlock_lock(), the CPU's execution of the critical
-sections corresponding to the RELEASE and the ACQUIRE can cross, so that:
+(including transitivity) if either (a) the RELEASE and the ACQUIRE are
+executed by the same CPU or task, or (b) the RELEASE and ACQUIRE act on
+the same variable.  The smp_mb__after_unlock_lock() primitive is free
+on many architectures.  Without smp_mb__after_unlock_lock(), the CPU's
+execution of the critical sections corresponding to the RELEASE and the
+ACQUIRE can cross, so that:
 
 	*A = a;
 	RELEASE M
