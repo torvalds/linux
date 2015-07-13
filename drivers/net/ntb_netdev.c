@@ -191,7 +191,7 @@ static int ntb_netdev_open(struct net_device *ndev)
 
 		rc = ntb_transport_rx_enqueue(dev->qp, skb, skb->data,
 					      ndev->mtu + ETH_HLEN);
-		if (rc == -EINVAL) {
+		if (rc) {
 			dev_kfree_skb(skb);
 			goto err;
 		}
