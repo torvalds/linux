@@ -212,6 +212,8 @@ struct ntb_transport_ctx {
 	bool link_is_up;
 	struct delayed_work link_work;
 	struct work_struct link_cleanup;
+
+	struct dentry *debugfs_node_dir;
 };
 
 enum {
@@ -945,12 +947,12 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 	qp->tx_max_frame = min(transport_mtu, tx_size / 2);
 	qp->tx_max_entry = tx_size / qp->tx_max_frame;
 
-	if (nt_debugfs_dir) {
+	if (nt->debugfs_node_dir) {
 		char debugfs_name[4];
 
 		snprintf(debugfs_name, 4, "qp%d", qp_num);
 		qp->debugfs_dir = debugfs_create_dir(debugfs_name,
-						     nt_debugfs_dir);
+						     nt->debugfs_node_dir);
 
 		qp->debugfs_stats = debugfs_create_file("stats", S_IRUSR,
 							qp->debugfs_dir, qp,
@@ -1051,6 +1053,12 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	if (!nt->qp_vec) {
 		rc = -ENOMEM;
 		goto err2;
+	}
+
+	if (nt_debugfs_dir) {
+		nt->debugfs_node_dir =
+			debugfs_create_dir(pci_name(ndev->pdev),
+					   nt_debugfs_dir);
 	}
 
 	for (i = 0; i < qp_count; i++) {
