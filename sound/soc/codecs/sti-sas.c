@@ -238,7 +238,7 @@ static int stih416_dac_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-const struct snd_soc_dapm_widget stih416_sas_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget stih416_sas_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("DAC bandgap", STIH416_AUDIO_DAC_CTRL,
 			 STIH416_DAC_NOT_PNDBG_MASK, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("DAC standby ana", STIH416_AUDIO_DAC_CTRL,
@@ -248,7 +248,7 @@ const struct snd_soc_dapm_widget stih416_sas_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("DAC Output"),
 };
 
-const struct snd_soc_dapm_widget stih407_sas_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget stih407_sas_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV("DAC standby ana", STIH407_AUDIO_DAC_CTRL,
 			     STIH407_DAC_STANDBY_ANA, 1, NULL, 0),
 	SND_SOC_DAPM_DAC("DAC standby",  "dac_p", STIH407_AUDIO_DAC_CTRL,
@@ -256,13 +256,13 @@ const struct snd_soc_dapm_widget stih407_sas_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("DAC Output"),
 };
 
-const struct snd_soc_dapm_route stih416_sas_route[] = {
+static const struct snd_soc_dapm_route stih416_sas_route[] = {
 	{"DAC Output", NULL, "DAC bandgap"},
 	{"DAC Output", NULL, "DAC standby ana"},
 	{"DAC standby ana", NULL, "DAC standby"},
 };
 
-const struct snd_soc_dapm_route stih407_sas_route[] = {
+static const struct snd_soc_dapm_route stih407_sas_route[] = {
 	{"DAC Output", NULL, "DAC standby ana"},
 	{"DAC standby ana", NULL, "DAC standby"},
 };
@@ -407,21 +407,21 @@ static int sti_sas_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-const struct snd_soc_dai_ops stih416_dac_ops = {
+static const struct snd_soc_dai_ops stih416_dac_ops = {
 	.set_fmt = sti_sas_dac_set_fmt,
 	.mute_stream = stih416_sas_dac_mute,
 	.prepare = sti_sas_prepare,
 	.set_sysclk = sti_sas_set_sysclk,
 };
 
-const struct snd_soc_dai_ops stih407_dac_ops = {
+static const struct snd_soc_dai_ops stih407_dac_ops = {
 	.set_fmt = sti_sas_dac_set_fmt,
 	.mute_stream = stih407_sas_dac_mute,
 	.prepare = sti_sas_prepare,
 	.set_sysclk = sti_sas_set_sysclk,
 };
 
-const struct regmap_config stih407_sas_regmap = {
+static const struct regmap_config stih407_sas_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
 
@@ -434,7 +434,7 @@ const struct regmap_config stih407_sas_regmap = {
 	.reg_write = sti_sas_write_reg,
 };
 
-const struct regmap_config stih416_sas_regmap = {
+static const struct regmap_config stih416_sas_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
 
@@ -447,7 +447,7 @@ const struct regmap_config stih416_sas_regmap = {
 	.reg_write = sti_sas_write_reg,
 };
 
-const struct sti_sas_dev_data stih416_data = {
+static const struct sti_sas_dev_data stih416_data = {
 	.chipid = CHIPID_STIH416,
 	.regmap = &stih416_sas_regmap,
 	.dac_ops = &stih416_dac_ops,
@@ -457,7 +457,7 @@ const struct sti_sas_dev_data stih416_data = {
 	.num_dapm_routes = ARRAY_SIZE(stih416_sas_route),
 };
 
-const struct sti_sas_dev_data stih407_data = {
+static const struct sti_sas_dev_data stih407_data = {
 	.chipid = CHIPID_STIH407,
 	.regmap = &stih407_sas_regmap,
 	.dac_ops = &stih407_dac_ops,
