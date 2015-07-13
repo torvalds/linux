@@ -356,7 +356,7 @@ static int gb_loopback_fn(void *data)
 		gb->elapsed_nsecs = timeval_to_ns(&gb->te) -
 					timeval_to_ns(&gb->ts);
 		gb_loopback_freq_update(gb);
-		if (gb->type == 2)
+		if (gb->type == GB_LOOPBACK_TYPE_PING)
 			gb_loopback_bw_update(gb, error);
 		gb_loopback_latency_update(gb, &tlat);
 		if (gb->elapsed_nsecs >= NSEC_PER_SEC)
