@@ -586,7 +586,7 @@ out_unlock:
 	spin_unlock(&tbl->slot_tbl_lock);
 	res->sr_slot = NULL;
 	if (send_new_highest_used_slotid)
-		nfs41_server_notify_highest_slotid_update(session->clp);
+		nfs41_notify_server(session->clp);
 }
 
 int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)

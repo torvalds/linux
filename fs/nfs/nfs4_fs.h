@@ -405,9 +405,7 @@ int nfs40_discover_server_trunking(struct nfs_client *clp,
 int nfs41_discover_server_trunking(struct nfs_client *clp,
 			struct nfs_client **, struct rpc_cred *);
 extern void nfs4_schedule_session_recovery(struct nfs4_session *, int);
-extern void nfs41_server_notify_target_slotid_update(struct nfs_client *clp);
-extern void nfs41_server_notify_highest_slotid_update(struct nfs_client *clp);
-
+extern void nfs41_notify_server(struct nfs_client *);
 #else
 static inline void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 {
