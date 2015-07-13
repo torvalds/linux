@@ -114,6 +114,7 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 	switch (gb->type) {
 	case GB_LOOPBACK_TYPE_PING:
 	case GB_LOOPBACK_TYPE_TRANSFER:
+	case GB_LOOPBACK_TYPE_SINK:
 		break;
 	default:
 		gb->type = 0;
@@ -163,6 +164,31 @@ static struct attribute *loopback_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(loopback);
+
+static int gb_loopback_sink(struct gb_loopback *gb,
+				struct timeval *tping, u32 len)
+{
+	struct timeval ts, te;
+	u64 elapsed_nsecs;
+	struct gb_loopback_transfer_request *request;
+	int retval;
+
+	request = kmalloc(len + sizeof(*request), GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
+
+	request->len = cpu_to_le32(len);
+
+	do_gettimeofday(&ts);
+	retval = gb_operation_sync(gb->connection, GB_LOOPBACK_TYPE_SINK,
+				   request, len + sizeof(*request), NULL, 0);
+	do_gettimeofday(&te);
+	elapsed_nsecs = timeval_to_ns(&te) - timeval_to_ns(&ts);
+	*tping = ns_to_timeval(elapsed_nsecs);
+
+	kfree(request);
+	return retval;
+}
 
 static int gb_loopback_transfer(struct gb_loopback *gb,
 				struct timeval *tping, u32 len)
@@ -235,6 +261,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 			"module-initiated version operation\n");
 		return -EINVAL;
 	case GB_LOOPBACK_TYPE_PING:
+	case GB_LOOPBACK_TYPE_SINK:
 		return 0;
 	case GB_LOOPBACK_TYPE_TRANSFER:
 		if (operation->request->payload_size < sizeof(*request)) {
@@ -345,6 +372,8 @@ static int gb_loopback_fn(void *data)
 			error = gb_loopback_ping(gb, &tlat);
 		else if (gb->type == GB_LOOPBACK_TYPE_TRANSFER)
 			error = gb_loopback_transfer(gb, &tlat, gb->size);
+		else if (gb->type == GB_LOOPBACK_TYPE_SINK)
+			error = gb_loopback_sink(gb, &tlat, gb->size);
 		if (error)
 			gb->error++;
 		if (gb->ts.tv_usec == 0 && gb->ts.tv_sec == 0) {

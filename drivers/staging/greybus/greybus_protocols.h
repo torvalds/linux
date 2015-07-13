@@ -668,6 +668,7 @@ struct gb_uart_serial_state_request {
 #define	GB_LOOPBACK_TYPE_PROTOCOL_VERSION	0x01
 #define	GB_LOOPBACK_TYPE_PING			0x02
 #define	GB_LOOPBACK_TYPE_TRANSFER		0x03
+#define GB_LOOPBACK_TYPE_SINK			0x04
 
 struct gb_loopback_transfer_request {
 	__le32	len;
