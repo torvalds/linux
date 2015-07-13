@@ -86,7 +86,6 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config);
 
-static int intel_set_mode(struct drm_atomic_state *state);
 static int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
 				  struct drm_mode_fb_cmd2 *mode_cmd,
@@ -110,14 +109,6 @@ static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_cr
 static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
 			   int num_connectors);
 static void intel_modeset_setup_hw_state(struct drm_device *dev);
-
-static struct intel_encoder *intel_find_encoder(struct intel_connector *connector, int pipe)
-{
-	if (!connector->mst_port)
-		return connector->encoder;
-	else
-		return &connector->mst_port->mst_encoders[pipe]->base;
-}
 
 typedef struct {
 	int	min, max;
@@ -6262,7 +6253,7 @@ int intel_display_suspend(struct drm_device *dev)
 	}
 
 	if (crtc_mask) {
-		ret = intel_set_mode(state);
+		ret = drm_atomic_commit(state);
 
 		if (!ret) {
 			for_each_crtc(dev, crtc)
@@ -6316,7 +6307,7 @@ int intel_crtc_control(struct drm_crtc *crtc, bool enable)
 	}
 	pipe_config->base.active = enable;
 
-	ret = intel_set_mode(state);
+	ret = drm_atomic_commit(state);
 	if (!ret)
 		return ret;
 
@@ -10430,7 +10421,7 @@ retry:
 
 	drm_mode_copy(&crtc_state->base.mode, mode);
 
-	if (intel_set_mode(state)) {
+	if (drm_atomic_commit(state)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
@@ -10498,7 +10489,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		if (ret)
 			goto fail;
 
-		ret = intel_set_mode(state);
+		ret = drm_atomic_commit(state);
 		if (ret)
 			goto fail;
 
@@ -13119,7 +13110,6 @@ static int intel_modeset_all_pipes(struct drm_atomic_state *state)
 }
 
 
-/* Code that should eventually be part of atomic_check() */
 static int intel_modeset_checks(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -13160,15 +13150,20 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	return 0;
 }
 
-static int
-intel_modeset_compute_config(struct drm_atomic_state *state)
+/**
+ * intel_atomic_check - validate state object
+ * @dev: drm device
+ * @state: state to validate
+ */
+static int intel_atomic_check(struct drm_device *dev,
+			      struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int ret, i;
 	bool any_ms = false;
 
-	ret = drm_atomic_helper_check_modeset(state->dev, state);
+	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)
 		return ret;
 
@@ -13231,15 +13226,37 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 	return drm_atomic_helper_check_planes(state->dev, state);
 }
 
-static int __intel_set_mode(struct drm_atomic_state *state)
+/**
+ * intel_atomic_commit - commit validated state object
+ * @dev: DRM device
+ * @state: the top-level driver state object
+ * @async: asynchronous commit
+ *
+ * This function commits a top-level state object that has been validated
+ * with drm_atomic_helper_check().
+ *
+ * FIXME:  Atomic modeset support for i915 is not yet complete.  At the moment
+ * we can only handle plane-related operations and do not yet support
+ * asynchronous commit.
+ *
+ * RETURNS
+ * Zero for success or -errno.
+ */
+static int intel_atomic_commit(struct drm_device *dev,
+			       struct drm_atomic_state *state,
+			       bool async)
 {
-	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int ret = 0;
 	int i;
 	bool any_ms = false;
+
+	if (async) {
+		DRM_DEBUG_KMS("i915 does not yet support async commit\n");
+		return -EINVAL;
+	}
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
@@ -13285,34 +13302,14 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 
 	/* FIXME: add subpixel order */
 
+	drm_atomic_helper_wait_for_vblanks(dev, state);
 	drm_atomic_helper_cleanup_planes(dev, state);
-
 	drm_atomic_state_free(state);
 
-	return 0;
-}
-
-static int intel_set_mode_checked(struct drm_atomic_state *state)
-{
-	struct drm_device *dev = state->dev;
-	int ret;
-
-	ret = __intel_set_mode(state);
-	if (ret == 0)
+	if (any_ms)
 		intel_modeset_check_state(dev);
 
-	return ret;
-}
-
-static int intel_set_mode(struct drm_atomic_state *state)
-{
-	int ret;
-
-	ret = intel_modeset_compute_config(state);
-	if (ret)
-		return ret;
-
-	return intel_set_mode_checked(state);
+	return 0;
 }
 
 void intel_crtc_restore_mode(struct drm_crtc *crtc)
@@ -13339,7 +13336,7 @@ retry:
 			goto out;
 
 		crtc_state->mode_changed = true;
-		ret = intel_set_mode(state);
+		ret = drm_atomic_commit(state);
 	}
 
 	if (ret == -EDEADLK) {
@@ -13355,201 +13352,9 @@ out:
 
 #undef for_each_intel_crtc_masked
 
-static bool intel_connector_in_mode_set(struct intel_connector *connector,
-					struct drm_mode_set *set)
-{
-	int ro;
-
-	for (ro = 0; ro < set->num_connectors; ro++)
-		if (set->connectors[ro] == &connector->base)
-			return true;
-
-	return false;
-}
-
-static int
-intel_modeset_stage_output_state(struct drm_device *dev,
-				 struct drm_mode_set *set,
-				 struct drm_atomic_state *state)
-{
-	struct intel_connector *connector;
-	struct drm_connector *drm_connector;
-	struct drm_connector_state *connector_state;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	int i, ret;
-
-	/* The upper layers ensure that we either disable a crtc or have a list
-	 * of connectors. For paranoia, double-check this. */
-	WARN_ON(!set->fb && (set->num_connectors != 0));
-	WARN_ON(set->fb && (set->num_connectors == 0));
-
-	for_each_intel_connector(dev, connector) {
-		bool in_mode_set = intel_connector_in_mode_set(connector, set);
-
-		if (!in_mode_set && connector->base.state->crtc != set->crtc)
-			continue;
-
-		connector_state =
-			drm_atomic_get_connector_state(state, &connector->base);
-		if (IS_ERR(connector_state))
-			return PTR_ERR(connector_state);
-
-		if (in_mode_set) {
-			int pipe = to_intel_crtc(set->crtc)->pipe;
-			connector_state->best_encoder =
-				&intel_find_encoder(connector, pipe)->base;
-		}
-
-		if (connector->base.state->crtc != set->crtc)
-			continue;
-
-		/* If we disable the crtc, disable all its connectors. Also, if
-		 * the connector is on the changing crtc but not on the new
-		 * connector list, disable it. */
-		if (!set->fb || !in_mode_set) {
-			connector_state->best_encoder = NULL;
-
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
-				connector->base.base.id,
-				connector->base.name);
-		}
-	}
-	/* connector->new_encoder is now updated for all connectors. */
-
-	for_each_connector_in_state(state, drm_connector, connector_state, i) {
-		connector = to_intel_connector(drm_connector);
-
-		if (!connector_state->best_encoder) {
-			ret = drm_atomic_set_crtc_for_connector(connector_state,
-								NULL);
-			if (ret)
-				return ret;
-
-			continue;
-		}
-
-		if (intel_connector_in_mode_set(connector, set)) {
-			struct drm_crtc *crtc = connector->base.state->crtc;
-
-			/* If this connector was in a previous crtc, add it
-			 * to the state. We might need to disable it. */
-			if (crtc) {
-				crtc_state =
-					drm_atomic_get_crtc_state(state, crtc);
-				if (IS_ERR(crtc_state))
-					return PTR_ERR(crtc_state);
-			}
-
-			ret = drm_atomic_set_crtc_for_connector(connector_state,
-								set->crtc);
-			if (ret)
-				return ret;
-		}
-
-		/* Make sure the new CRTC will work with the encoder */
-		if (!drm_encoder_crtc_ok(connector_state->best_encoder,
-					 connector_state->crtc)) {
-			return -EINVAL;
-		}
-
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
-			connector->base.base.id,
-			connector->base.name,
-			connector_state->crtc->base.id);
-
-		if (connector_state->best_encoder != &connector->encoder->base)
-			connector->encoder =
-				to_intel_encoder(connector_state->best_encoder);
-	}
-
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		bool has_connectors;
-
-		ret = drm_atomic_add_affected_connectors(state, crtc);
-		if (ret)
-			return ret;
-
-		has_connectors = !!drm_atomic_connectors_for_crtc(state, crtc);
-		if (has_connectors != crtc_state->enable)
-			crtc_state->enable =
-			crtc_state->active = has_connectors;
-	}
-
-	ret = intel_modeset_setup_plane_state(state, set->crtc, set->mode,
-					      set->fb, set->x, set->y);
-	if (ret)
-		return ret;
-
-	crtc_state = drm_atomic_get_crtc_state(state, set->crtc);
-	if (IS_ERR(crtc_state))
-		return PTR_ERR(crtc_state);
-
-	ret = drm_atomic_set_mode_for_crtc(crtc_state, set->mode);
-	if (ret)
-		return ret;
-
-	if (set->num_connectors)
-		crtc_state->active = true;
-
-	return 0;
-}
-
-static int intel_crtc_set_config(struct drm_mode_set *set)
-{
-	struct drm_device *dev;
-	struct drm_atomic_state *state = NULL;
-	int ret;
-
-	BUG_ON(!set);
-	BUG_ON(!set->crtc);
-	BUG_ON(!set->crtc->helper_private);
-
-	/* Enforce sane interface api - has been abused by the fb helper. */
-	BUG_ON(!set->mode && set->fb);
-	BUG_ON(set->fb && set->num_connectors == 0);
-
-	if (set->fb) {
-		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",
-				set->crtc->base.id, set->fb->base.id,
-				(int)set->num_connectors, set->x, set->y);
-	} else {
-		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
-	}
-
-	dev = set->crtc->dev;
-
-	state = drm_atomic_state_alloc(dev);
-	if (!state)
-		return -ENOMEM;
-
-	state->acquire_ctx = dev->mode_config.acquire_ctx;
-
-	ret = intel_modeset_stage_output_state(dev, set, state);
-	if (ret)
-		goto out;
-
-	ret = intel_modeset_compute_config(state);
-	if (ret)
-		goto out;
-
-	intel_update_pipe_size(to_intel_crtc(set->crtc));
-
-	ret = intel_set_mode_checked(state);
-	if (ret) {
-		DRM_DEBUG_KMS("failed to set mode on [CRTC:%d], err = %d\n",
-			      set->crtc->base.id, ret);
-	}
-
-out:
-	if (ret)
-		drm_atomic_state_free(state);
-	return ret;
-}
-
 static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.gamma_set = intel_crtc_gamma_set,
-	.set_config = intel_crtc_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	.destroy = intel_crtc_destroy,
 	.page_flip = intel_crtc_page_flip,
 	.atomic_duplicate_state = intel_crtc_duplicate_state,
@@ -15654,7 +15459,7 @@ void intel_display_resume(struct drm_device *dev)
 	intel_modeset_setup_hw_state(dev);
 
 	i915_redisable_vga(dev);
-	ret = intel_set_mode(state);
+	ret = drm_atomic_commit(state);
 	if (!ret)
 		return;
 

@@ -1393,11 +1393,6 @@ void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count);
 void intel_tv_init(struct drm_device *dev);
 
 /* intel_atomic.c */
-int intel_atomic_check(struct drm_device *dev,
-		       struct drm_atomic_state *state);
-int intel_atomic_commit(struct drm_device *dev,
-			struct drm_atomic_state *state,
-			bool async);
 int intel_connector_atomic_get_property(struct drm_connector *connector,
 					const struct drm_connector_state *state,
 					struct drm_property *property,
