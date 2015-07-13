@@ -1233,18 +1233,18 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset)
 		goto err;
 
 	if (len < copy_bytes)
-		goto err_wait;
+		goto err;
 
 	device = chan->device;
 	pay_off = (size_t)offset & ~PAGE_MASK;
 	buff_off = (size_t)buf & ~PAGE_MASK;
 
 	if (!is_dma_copy_aligned(device, pay_off, buff_off, len))
-		goto err_wait;
+		goto err;
 
 	unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_NOWAIT);
 	if (!unmap)
-		goto err_wait;
+		goto err;
 
 	unmap->len = len;
 	unmap->addr[0] = dma_map_page(device->dev, virt_to_page(offset),
@@ -1287,12 +1287,6 @@ err_set_unmap:
 	dmaengine_unmap_put(unmap);
 err_get_unmap:
 	dmaengine_unmap_put(unmap);
-err_wait:
-	/* If the callbacks come out of order, the writing of the index to the
-	 * last completed will be out of order.  This may result in the
-	 * receive stalling forever.
-	 */
-	dma_sync_wait(chan, qp->last_cookie);
 err:
 	ntb_memcpy_rx(entry, offset);
 	qp->rx_memcpy++;
