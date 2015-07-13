@@ -473,7 +473,7 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	 */
 	if (!HAS_PCH_SPLIT(dev)) {
 		drm_modeset_lock_all(dev);
-		intel_modeset_setup_hw_state(dev, true);
+		intel_display_resume(dev);
 		drm_modeset_unlock_all(dev);
 	}
 

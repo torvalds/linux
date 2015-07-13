@@ -109,6 +109,7 @@ static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_cr
 	struct intel_crtc_state *crtc_state);
 static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
 			   int num_connectors);
+static void intel_modeset_setup_hw_state(struct drm_device *dev);
 
 static struct intel_encoder *intel_find_encoder(struct intel_connector *connector, int pipe)
 {
@@ -3251,7 +3252,7 @@ void intel_finish_reset(struct drm_device *dev)
 		dev_priv->display.hpd_irq_setup(dev);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	intel_modeset_setup_hw_state(dev, true);
+	intel_display_resume(dev);
 
 	intel_hpd_init(dev_priv);
 
@@ -15157,7 +15158,7 @@ void intel_modeset_init(struct drm_device *dev)
 	intel_fbc_disable(dev_priv);
 
 	drm_modeset_lock_all(dev);
-	intel_modeset_setup_hw_state(dev, false);
+	intel_modeset_setup_hw_state(dev);
 	drm_modeset_unlock_all(dev);
 
 	for_each_intel_crtc(dev, crtc) {
@@ -15554,10 +15555,11 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	}
 }
 
-/* Scan out the current hw modeset state, sanitizes it and maps it into the drm
- * and i915 state tracking structures. */
-void intel_modeset_setup_hw_state(struct drm_device *dev,
-				  bool force_restore)
+/* Scan out the current hw modeset state,
+ * and sanitizes it to the current state
+ */
+static void
+intel_modeset_setup_hw_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
@@ -15600,24 +15602,59 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	else if (HAS_PCH_SPLIT(dev))
 		ilk_wm_get_hw_state(dev);
 
-	if (force_restore) {
-		i915_redisable_vga(dev);
+	intel_modeset_update_staged_output_state(dev);
+}
 
-		/*
-		 * We need to use raw interfaces for restoring state to avoid
-		 * checking (bogus) intermediate states.
-		 */
-		for_each_pipe(dev_priv, pipe) {
-			struct drm_crtc *crtc =
-				dev_priv->pipe_to_crtc_mapping[pipe];
+void intel_display_resume(struct drm_device *dev)
+{
+	struct drm_atomic_state *state = drm_atomic_state_alloc(dev);
+	struct intel_connector *conn;
+	struct intel_plane *plane;
+	struct drm_crtc *crtc;
+	int ret;
 
-			intel_crtc_restore_mode(crtc);
-		}
-	} else {
-		intel_modeset_update_staged_output_state(dev);
+	if (!state)
+		return;
+
+	state->acquire_ctx = dev->mode_config.acquire_ctx;
+
+	/* preserve complete old state, including dpll */
+	intel_atomic_get_shared_dpll_state(state);
+
+	for_each_crtc(dev, crtc) {
+		struct drm_crtc_state *crtc_state =
+			drm_atomic_get_crtc_state(state, crtc);
+
+		ret = PTR_ERR_OR_ZERO(crtc_state);
+		if (ret)
+			goto err;
+
+		/* force a restore */
+		crtc_state->mode_changed = true;
 	}
 
-	intel_modeset_check_state(dev);
+	for_each_intel_plane(dev, plane) {
+		ret = PTR_ERR_OR_ZERO(drm_atomic_get_plane_state(state, &plane->base));
+		if (ret)
+			goto err;
+	}
+
+	for_each_intel_connector(dev, conn) {
+		ret = PTR_ERR_OR_ZERO(drm_atomic_get_connector_state(state, &conn->base));
+		if (ret)
+			goto err;
+	}
+
+	intel_modeset_setup_hw_state(dev);
+
+	i915_redisable_vga(dev);
+	ret = intel_set_mode(state);
+	if (!ret)
+		return;
+
+err:
+	DRM_ERROR("Restoring old state failed with %i\n", ret);
+	drm_atomic_state_free(state);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
