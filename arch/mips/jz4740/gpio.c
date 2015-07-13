@@ -423,8 +423,8 @@ static void jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
 	chip->base = ioremap(JZ4740_GPIO_BASE_ADDR + (id * 0x100), 0x100);
 
 	chip->irq = JZ4740_IRQ_INTC_GPIO(id);
-	irq_set_handler_data(chip->irq, chip);
-	irq_set_chained_handler(chip->irq, jz_gpio_irq_demux_handler);
+	irq_set_chained_handler_and_data(chip->irq,
+					 jz_gpio_irq_demux_handler, chip);
 
 	gc = irq_alloc_generic_chip(chip->gpio_chip.label, 1, chip->irq_base,
 		chip->base, handle_level_irq);
