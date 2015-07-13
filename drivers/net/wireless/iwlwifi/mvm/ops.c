@@ -703,12 +703,13 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 		if (!cmds_trig->cmds[i].cmd_id)
 			break;
 
-		if (cmds_trig->cmds[i].cmd_id != pkt->hdr.cmd)
+		if (cmds_trig->cmds[i].cmd_id != pkt->hdr.cmd ||
+		    cmds_trig->cmds[i].group_id != pkt->hdr.group_id)
 			continue;
 
 		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-					    "CMD 0x%02x received",
-					    pkt->hdr.cmd);
+					    "CMD 0x%02x.%02x received",
+					    pkt->hdr.group_id, pkt->hdr.cmd);
 		break;
 	}
 }
