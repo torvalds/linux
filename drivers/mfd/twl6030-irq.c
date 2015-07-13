@@ -231,7 +231,7 @@ static irqreturn_t twl6030_irq_thread(int irq, void *data)
 
 static int twl6030_irq_set_wake(struct irq_data *d, unsigned int on)
 {
-	struct twl6030_irq *pdata = irq_get_chip_data(d->irq);
+	struct twl6030_irq *pdata = irq_data_get_irq_chip_data(d);
 
 	if (on)
 		atomic_inc(&pdata->wakeirqs);

@@ -113,14 +113,14 @@ static const struct max8997_irq_data max8997_irqs[] = {
 
 static void max8997_irq_lock(struct irq_data *data)
 {
-	struct max8997_dev *max8997 = irq_get_chip_data(data->irq);
+	struct max8997_dev *max8997 = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&max8997->irqlock);
 }
 
 static void max8997_irq_sync_unlock(struct irq_data *data)
 {
-	struct max8997_dev *max8997 = irq_get_chip_data(data->irq);
+	struct max8997_dev *max8997 = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < MAX8997_IRQ_GROUP_NR; i++) {
@@ -148,7 +148,7 @@ irq_to_max8997_irq(struct max8997_dev *max8997, int irq)
 
 static void max8997_irq_mask(struct irq_data *data)
 {
-	struct max8997_dev *max8997 = irq_get_chip_data(data->irq);
+	struct max8997_dev *max8997 = irq_data_get_irq_chip_data(data);
 	const struct max8997_irq_data *irq_data = irq_to_max8997_irq(max8997,
 								data->irq);
 
@@ -157,7 +157,7 @@ static void max8997_irq_mask(struct irq_data *data)
 
 static void max8997_irq_unmask(struct irq_data *data)
 {
-	struct max8997_dev *max8997 = irq_get_chip_data(data->irq);
+	struct max8997_dev *max8997 = irq_data_get_irq_chip_data(data);
 	const struct max8997_irq_data *irq_data = irq_to_max8997_irq(max8997,
 								data->irq);
 

@@ -60,14 +60,14 @@ static const struct mfd_cell mt6397_devs[] = {
 
 static void mt6397_irq_lock(struct irq_data *data)
 {
-	struct mt6397_chip *mt6397 = irq_get_chip_data(data->irq);
+	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&mt6397->irqlock);
 }
 
 static void mt6397_irq_sync_unlock(struct irq_data *data)
 {
-	struct mt6397_chip *mt6397 = irq_get_chip_data(data->irq);
+	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
 
 	regmap_write(mt6397->regmap, MT6397_INT_CON0, mt6397->irq_masks_cur[0]);
 	regmap_write(mt6397->regmap, MT6397_INT_CON1, mt6397->irq_masks_cur[1]);
@@ -77,7 +77,7 @@ static void mt6397_irq_sync_unlock(struct irq_data *data)
 
 static void mt6397_irq_disable(struct irq_data *data)
 {
-	struct mt6397_chip *mt6397 = irq_get_chip_data(data->irq);
+	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
 	int shift = data->hwirq & 0xf;
 	int reg = data->hwirq >> 4;
 
@@ -86,7 +86,7 @@ static void mt6397_irq_disable(struct irq_data *data)
 
 static void mt6397_irq_enable(struct irq_data *data)
 {
-	struct mt6397_chip *mt6397 = irq_get_chip_data(data->irq);
+	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
 	int shift = data->hwirq & 0xf;
 	int reg = data->hwirq >> 4;
 

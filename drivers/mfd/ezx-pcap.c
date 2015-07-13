@@ -207,7 +207,7 @@ static void pcap_isr_work(struct work_struct *work)
 
 static void pcap_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct pcap_chip *pcap = irq_get_handler_data(irq);
+	struct pcap_chip *pcap = irq_desc_get_handler_data(desc);
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 	queue_work(pcap->workqueue, &pcap->isr_work);

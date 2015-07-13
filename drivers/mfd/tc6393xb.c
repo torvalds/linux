@@ -525,7 +525,7 @@ static int tc6393xb_register_gpio(struct tc6393xb *tc6393xb, int gpio_base)
 static void
 tc6393xb_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct tc6393xb *tc6393xb = irq_get_handler_data(irq);
+	struct tc6393xb *tc6393xb = irq_desc_get_handler_data(desc);
 	unsigned int isr;
 	unsigned int i, irq_base;
 
