@@ -282,7 +282,7 @@ void ucb1x00_adc_disable(struct ucb1x00 *ucb)
  * SIBCLK to talk to the chip.  We leave the clock running until
  * we have finished processing all interrupts from the chip.
  */
-static void ucb1x00_irq(unsigned int irq, struct irq_desc *desc)
+static void ucb1x00_irq(unsigned int __irq, struct irq_desc *desc)
 {
 	struct ucb1x00 *ucb = irq_desc_get_handler_data(desc);
 	unsigned int isr, i;
@@ -292,7 +292,7 @@ static void ucb1x00_irq(unsigned int irq, struct irq_desc *desc)
 	ucb1x00_reg_write(ucb, UCB_IE_CLEAR, isr);
 	ucb1x00_reg_write(ucb, UCB_IE_CLEAR, 0);
 
-	for (i = 0; i < 16 && isr; i++, isr >>= 1, irq++)
+	for (i = 0; i < 16 && isr; i++, isr >>= 1)
 		if (isr & 1)
 			generic_handle_irq(ucb->irq_base + i);
 	ucb1x00_disable(ucb);
