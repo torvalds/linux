@@ -281,12 +281,11 @@ devmajorminor_create_file(struct visor_device *dev, const char *name,
 		rc = -ENOMEM;
 		goto away;
 	}
-	myattr = kmalloc(sizeof(*myattr), GFP_KERNEL);
+	myattr = kzalloc(sizeof(*myattr), GFP_KERNEL);
 	if (!myattr) {
 		rc = -ENOMEM;
 		goto away;
 	}
-	memset(myattr, 0, sizeof(struct devmajorminor_attribute));
 	myattr->show = DEVMAJORMINOR_ATTR;
 	myattr->store = NULL;
 	myattr->slot = slot;
