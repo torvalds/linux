@@ -619,6 +619,10 @@ static const struct mtk_gate infra_clks[] __initconst = {
 	GATE_ICG(CLK_INFRA_PMICWRAP, "infra_pmicwrap", "axi_sel", 23),
 };
 
+static const struct mtk_fixed_factor infra_divs[] __initconst = {
+	FACTOR(CLK_INFRA_CLK_13M, "clk13m", "clk26m", 1, 2),
+};
+
 static const struct mtk_gate_regs peri0_cg_regs = {
 	.set_ofs = 0x0008,
 	.clr_ofs = 0x0010,
@@ -754,6 +758,7 @@ static void __init mtk_infrasys_init(struct device_node *node)
 
 	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
 						clk_data);
+	mtk_clk_register_factors(infra_divs, ARRAY_SIZE(infra_divs), clk_data);
 
 	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
 	if (r)
