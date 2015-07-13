@@ -11781,34 +11781,6 @@ static bool check_encoder_cloning(struct drm_atomic_state *state,
 	return true;
 }
 
-static void intel_crtc_check_initial_planes(struct drm_crtc *crtc,
-					    struct drm_crtc_state *crtc_state)
-{
-	struct intel_crtc_state *pipe_config =
-		to_intel_crtc_state(crtc_state);
-	struct drm_plane *p;
-	unsigned visible_mask = 0;
-
-	drm_for_each_plane_mask(p, crtc->dev, crtc_state->plane_mask) {
-		struct drm_plane_state *plane_state =
-			drm_atomic_get_existing_plane_state(crtc_state->state, p);
-
-		if (WARN_ON(!plane_state))
-			continue;
-
-		if (!plane_state->fb)
-			crtc_state->plane_mask &=
-				~(1 << drm_plane_index(p));
-		else if (to_intel_plane_state(plane_state)->visible)
-			visible_mask |= 1 << drm_plane_index(p);
-	}
-
-	if (!visible_mask)
-		return;
-
-	pipe_config->quirks &= ~PIPE_CONFIG_QUIRK_INITIAL_PLANES;
-}
-
 static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *crtc_state)
 {
@@ -11829,10 +11801,6 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	I915_STATE_WARN(crtc->state->active != intel_crtc->active,
 		"[CRTC:%i] mismatch between state->active(%i) and crtc->active(%i)\n",
 		idx, crtc->state->active, intel_crtc->active);
-
-	/* plane mask is fixed up after all initial planes are calculated */
-	if (pipe_config->quirks & PIPE_CONFIG_QUIRK_INITIAL_PLANES)
-		intel_crtc_check_initial_planes(crtc, crtc_state);
 
 	if (mode_changed && !crtc_state->active)
 		intel_crtc->atomic.update_wm_post = true;
@@ -13184,19 +13152,6 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 			if (needs_modeset(crtc_state))
 				any_ms = true;
 			continue;
-		}
-
-		if (pipe_config->quirks & PIPE_CONFIG_QUIRK_INITIAL_PLANES) {
-			ret = drm_atomic_add_affected_planes(state, crtc);
-			if (ret)
-				return ret;
-
-			/*
-			 * We ought to handle i915.fastboot here.
-			 * If no modeset is required and the primary plane has
-			 * a fb, update the members of crtc_state as needed,
-			 * and run the necessary updates during vblank evasion.
-			 */
 		}
 
 		modeset = needs_modeset(crtc_state);
@@ -15456,47 +15411,22 @@ static void readout_plane_state(struct intel_crtc *crtc,
 				struct intel_crtc_state *crtc_state)
 {
 	struct intel_plane *p;
-	struct drm_plane_state *drm_plane_state;
+	struct intel_plane_state *plane_state;
 	bool active = crtc_state->base.active;
 
-	if (active) {
-		crtc_state->quirks |= PIPE_CONFIG_QUIRK_INITIAL_PLANES;
-
-		/* apply to previous sw state too */
-		to_intel_crtc_state(crtc->base.state)->quirks |=
-			PIPE_CONFIG_QUIRK_INITIAL_PLANES;
-	}
-
 	for_each_intel_plane(crtc->base.dev, p) {
-		bool visible = active;
-
 		if (crtc->pipe != p->pipe)
 			continue;
 
-		drm_plane_state = p->base.state;
+		plane_state = to_intel_plane_state(p->base.state);
 
-		/* Plane scaler state is not touched here. The first atomic
-		 * commit will restore all plane scalers to its old state.
-		 */
+		if (p->base.type == DRM_PLANE_TYPE_PRIMARY)
+			plane_state->visible = primary_get_hw_state(crtc);
+		else {
+			if (active)
+				p->disable_plane(&p->base, &crtc->base);
 
-		if (active && p->base.type == DRM_PLANE_TYPE_PRIMARY) {
-			visible = primary_get_hw_state(crtc);
-			to_intel_plane_state(drm_plane_state)->visible = visible;
-		} else {
-			/*
-			 * unknown state, assume it's off to force a transition
-			 * to on when calculating state changes.
-			 */
-			to_intel_plane_state(drm_plane_state)->visible = false;
-		}
-
-		if (visible) {
-			crtc_state->base.plane_mask |=
-				1 << drm_plane_index(&p->base);
-		} else if (crtc_state->base.state) {
-			/* Make this unconditional for atomic hw readout. */
-			crtc_state->base.plane_mask &=
-				~(1 << drm_plane_index(&p->base));
+			plane_state->visible = false;
 		}
 	}
 }
