@@ -12312,6 +12312,7 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *connector;
+	int i;
 
 	intel_shared_dpll_commit(state);
 
@@ -12331,7 +12332,7 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 	intel_modeset_update_staged_output_state(state->dev);
 
 	/* Double check state. */
-	for_each_crtc(dev, crtc) {
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		WARN_ON(crtc->state->enable != intel_crtc_in_use(crtc));
 
 		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
