@@ -38,6 +38,7 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->start_pfn = start_pfn;
 	iovad->dma_32bit_pfn = pfn_32bit;
 }
+EXPORT_SYMBOL_GPL(init_iova_domain);
 
 static struct rb_node *
 __get_cached_rbnode(struct iova_domain *iovad, unsigned long *limit_pfn)
@@ -238,6 +239,7 @@ int iova_cache_get(void)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(iova_cache_get);
 
 void iova_cache_put(void)
 {
@@ -251,6 +253,7 @@ void iova_cache_put(void)
 		kmem_cache_destroy(iova_cache);
 	mutex_unlock(&iova_cache_mutex);
 }
+EXPORT_SYMBOL_GPL(iova_cache_put);
 
 /**
  * alloc_iova - allocates an iova
@@ -285,6 +288,7 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 
 	return new_iova;
 }
+EXPORT_SYMBOL_GPL(alloc_iova);
 
 /**
  * find_iova - find's an iova for a given pfn
@@ -325,6 +329,7 @@ struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn)
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(find_iova);
 
 /**
  * __free_iova - frees the given iova
@@ -343,6 +348,7 @@ __free_iova(struct iova_domain *iovad, struct iova *iova)
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 	free_iova_mem(iova);
 }
+EXPORT_SYMBOL_GPL(__free_iova);
 
 /**
  * free_iova - finds and frees the iova for a given pfn
@@ -360,6 +366,7 @@ free_iova(struct iova_domain *iovad, unsigned long pfn)
 		__free_iova(iovad, iova);
 
 }
+EXPORT_SYMBOL_GPL(free_iova);
 
 /**
  * put_iova_domain - destroys the iova doamin
@@ -382,6 +389,7 @@ void put_iova_domain(struct iova_domain *iovad)
 	}
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 }
+EXPORT_SYMBOL_GPL(put_iova_domain);
 
 static int
 __is_range_overlap(struct rb_node *node,
@@ -471,6 +479,7 @@ finish:
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 	return iova;
 }
+EXPORT_SYMBOL_GPL(reserve_iova);
 
 /**
  * copy_reserved_iova - copies the reserved between domains
@@ -497,6 +506,7 @@ copy_reserved_iova(struct iova_domain *from, struct iova_domain *to)
 	}
 	spin_unlock_irqrestore(&from->iova_rbtree_lock, flags);
 }
+EXPORT_SYMBOL_GPL(copy_reserved_iova);
 
 struct iova *
 split_and_remove_iova(struct iova_domain *iovad, struct iova *iova,
