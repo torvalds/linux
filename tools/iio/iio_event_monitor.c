@@ -262,9 +262,8 @@ int main(int argc, char **argv)
 		printf("Found IIO device with name %s with device number %d\n",
 		       device_name, dev_num);
 		ret = asprintf(&chrdev_name, "/dev/iio:device%d", dev_num);
-		if (ret < 0) {
+		if (ret < 0)
 			return -ENOMEM;
-		}
 	} else {
 		/*
 		 * If we can't find an IIO device by name assume device_name is
