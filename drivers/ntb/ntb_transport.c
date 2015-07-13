@@ -494,6 +494,12 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 			       "tx_index - \t%u\n", qp->tx_index);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "tx_max_entry - \t%u\n", qp->tx_max_entry);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "qp->remote_rx_info->entry - \t%u\n",
+			       qp->remote_rx_info->entry);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "free tx - \t%u\n",
+			       ntb_transport_tx_free_entry(qp));
 
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "\nQP Link %s\n",
@@ -535,6 +541,7 @@ static struct ntb_queue_entry *ntb_list_rm(spinlock_t *lock,
 	}
 	entry = list_first_entry(list, struct ntb_queue_entry, entry);
 	list_del(&entry->entry);
+
 out:
 	spin_unlock_irqrestore(lock, flags);
 
@@ -1843,7 +1850,7 @@ int ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 	entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q);
 	if (!entry) {
 		qp->tx_err_no_buf++;
-		return -ENOMEM;
+		return -EBUSY;
 	}
 
 	entry->cb_data = cb;
@@ -1968,6 +1975,15 @@ unsigned int ntb_transport_max_size(struct ntb_transport_qp *qp)
 	return max;
 }
 EXPORT_SYMBOL_GPL(ntb_transport_max_size);
+
+unsigned int ntb_transport_tx_free_entry(struct ntb_transport_qp *qp)
+{
+	unsigned int head = qp->tx_index;
+	unsigned int tail = qp->remote_rx_info->entry;
+
+	return tail > head ? tail - head : qp->tx_max_entry + tail - head;
+}
+EXPORT_SYMBOL_GPL(ntb_transport_tx_free_entry);
 
 static void ntb_transport_doorbell_callback(void *data, int vector)
 {
