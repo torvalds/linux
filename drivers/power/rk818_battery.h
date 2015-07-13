@@ -7,6 +7,7 @@
 
 #define VB_MOD_REG					0x21
 #define THERMAL_REG					0x22
+#define DCDC_EN_REG					0x23
 #define NT_STS_MSK_REG2				0x4f
 #define DCDC_ILMAX_REG				0x90
 #define CHRG_COMP_REG1				0x99
@@ -108,6 +109,15 @@
 
 #define PLUG_IN_INT				(0)
 #define PLUG_OUT_INT				(1)
+#define CHRG_CVTLMT_INT				(6)
+
+#define CHRG_EN_MASK				(1 << 7)
+#define CHRG_EN					(1 << 7)
+#define CHRG_DIS				(0 << 7)
+
+#define OTG_EN_MASK				(1 << 7)
+#define OTG_EN					(1 << 7)
+#define OTG_DIS					(0 << 7)
 
 /* gasgauge module enable bit 0: disable  1:enabsle
 TS_CTRL_REG  0xAC*/
@@ -215,10 +225,6 @@ bit  0: disable 1: enable
 #define ILIM_2500MA					(0x09)
 #define ILIM_2750MA					(0x0A)
 #define ILIM_3000MA					(0x0B)
-
-
-/*CHRG_CTRL_REG*/
-#define CHRG_EN						(0x01<<7)
 
 /*CHRG_VOL_SEL*/
 #define CHRG_VOL4050				(0x00<<4)

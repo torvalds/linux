@@ -201,6 +201,7 @@ struct rk81x_battery {
 	int				irq;
 	int				ac_online;
 	int				usb_online;
+	int				otg_online;
 	int				psy_status;
 	int				current_avg;
 	int				current_offset;
@@ -288,9 +289,11 @@ struct rk81x_battery {
 	int				s2r; /*suspend to resume*/
 	struct workqueue_struct		*wq;
 	struct delayed_work		battery_monitor_work;
-	struct delayed_work		charge_check_work;
+	struct delayed_work		otg_check_work;
 	struct delayed_work             usb_phy_delay_work;
 	struct delayed_work		chrg_term_mode_switch_work;
+	struct delayed_work		ac_usb_check_work;
+	struct delayed_work		dc_det_check_work;
 	enum bc_port_type		charge_otg;
 	int				ma;
 
@@ -1738,152 +1741,122 @@ static void rk81x_bat_set_chrg_current(struct rk81x_battery *di,
 }
 
 #if defined(CONFIG_ARCH_ROCKCHIP)
-/*
-* There are three ways to detect dc_adp:
-*	1. hardware only support dc_adp: by reg VB_MOD_REG of rk818,
-*	   do not care about whether define dc_det_pin or not;
-*	2. define de_det_pin: check gpio level;
-*	3. support usb_adp and dc_adp: by VB_MOD_REG and usb interface.
-*	   case that: gpio invalid or not define.
-*/
+
+static void rk81x_bat_set_charger_param(struct rk81x_battery *di,
+					enum charger_type charger_type)
+{
+	rk81x_bat_set_chrg_current(di, charger_type);
+	rk81x_bat_set_power_supply_state(di, charger_type);
+
+	switch (charger_type) {
+	case NO_CHARGER:
+		power_supply_changed(&di->bat);
+		break;
+	case USB_CHARGER:
+	case AC_CHARGER:
+		power_supply_changed(&di->usb);
+		break;
+	case DC_CHARGER:
+		power_supply_changed(&di->ac);
+		break;
+	default:
+		break;
+	}
+}
+
 static enum charger_type rk81x_bat_get_dc_state(struct rk81x_battery *di)
 {
-	enum charger_type charger_type;
-	u8 buf;
 	int ret;
+	enum charger_type charger_type = NO_CHARGER;
 
-	rk81x_bat_read(di, VB_MOD_REG, &buf, 1);
+	if (di->fg_drv_mode == TEST_POWER_MODE) {
+		charger_type = DC_CHARGER;
+		goto out;
+	}
+	/*
+	if (di->otg_online)
+		goto out;
+	*/
+	if (!gpio_is_valid(di->dc_det_pin))
+		goto out;
 
-	/*only HW_ADP_TYPE_DC: det by rk818 is easily and will be successful*/
-	 if (!rk81x_bat_support_adp_type(HW_ADP_TYPE_USB)) {
-		if ((buf & PLUG_IN_STS) != 0)
-			charger_type = DC_CHARGER;
-		else
-			charger_type = NO_CHARGER;
-
-		return charger_type;
-	 }
-
-	/*det by gpio level*/
-	if (gpio_is_valid(di->dc_det_pin)) {
-		ret = gpio_request(di->dc_det_pin, "rk818_dc_det");
-		if (ret < 0) {
-			pr_err("Failed to request gpio %d with ret:""%d\n",
-			       di->dc_det_pin, ret);
-			return NO_CHARGER;
-		}
-
-		gpio_direction_input(di->dc_det_pin);
-		ret = gpio_get_value(di->dc_det_pin);
-		if (ret == di->dc_det_level)
-			charger_type = DC_CHARGER;
-		else
-			charger_type = NO_CHARGER;
-
-		gpio_free(di->dc_det_pin);
-		DBG("**********rk818 dc_det_pin=%d\n", ret);
-
-		return charger_type;
-
-	/*HW_ADP_TYPE_DUAL: det by rk818 and usb*/
-	} else if (rk81x_bat_support_adp_type(HW_ADP_TYPE_DUAL)) {
-		if ((buf & PLUG_IN_STS) != 0) {
-			charger_type = dwc_otg_check_dpdm(0);
-			if (charger_type == 0)
-				charger_type = DC_CHARGER;
-			else
-				charger_type = NO_CHARGER;
-		}
+	ret = gpio_request(di->dc_det_pin, "rk818_dc_det");
+	if (ret < 0) {
+		pr_err("Failed to request gpio %d with ret:""%d\n",
+		       di->dc_det_pin, ret);
+		goto out;
 	}
 
+	gpio_direction_input(di->dc_det_pin);
+	ret = gpio_get_value(di->dc_det_pin);
+	if (ret == di->dc_det_level)
+		charger_type = DC_CHARGER;
+	else
+		charger_type = NO_CHARGER;
+	gpio_free(di->dc_det_pin);
+out:
 	return charger_type;
 }
 
-static enum charger_type rk81x_bat_get_usbac_state(struct rk81x_battery *di)
+static void rk81x_battery_dc_delay_work(struct work_struct *work)
 {
 	enum charger_type charger_type;
-	int usb_id, gadget_flag;
+	struct rk81x_battery *di = container_of(work,
+				struct rk81x_battery, dc_det_check_work.work);
 
+	charger_type = rk81x_bat_get_dc_state(di);
+
+	if (charger_type == DC_CHARGER)
+		rk81x_bat_set_charger_param(di, DC_CHARGER);
+	else/*NO_CHARGER: maybe usb charger still plugin*/
+		queue_delayed_work(di->wq,
+				   &di->ac_usb_check_work,
+				   msecs_to_jiffies(10));
+}
+
+static void rk81x_battery_acusb_delay_work(struct work_struct *work)
+{
+	u8 buf;
+	int gadget_flag, usb_id;
+	struct rk81x_battery *di = container_of(work,
+			struct rk81x_battery, ac_usb_check_work.work);
+
+	rk81x_bat_read(di, VB_MOD_REG, &buf, 1);
 	usb_id = dwc_otg_check_dpdm(0);
 	switch (usb_id) {
 	case 0:
-		charger_type = NO_CHARGER;
+		if ((buf & PLUG_IN_STS) != 0)
+			rk81x_bat_set_charger_param(di, DC_CHARGER);
+		else
+			rk81x_bat_set_charger_param(di, NO_CHARGER);
 		break;
 	case 1:
 	case 3:
-		charger_type = USB_CHARGER;
+		rk81x_bat_set_charger_param(di, USB_CHARGER);
 		break;
 	case 2:
-		charger_type = AC_CHARGER;
+		rk81x_bat_set_charger_param(di, AC_CHARGER);
 		break;
 	default:
-		charger_type = NO_CHARGER;
+		break;
 	}
-
-	DBG("<%s>. DWC_OTG = %d\n", __func__, usb_id);
-	if (charger_type == USB_CHARGER) {
+	/*check unstanderd charger*/
+	if (usb_id == 1 || usb_id == 3) {
 		gadget_flag = get_gadget_connect_flag();
-		DBG("<%s>. gadget_flag=%d, check_cnt=%d\n",
-		    __func__, gadget_flag, di->check_count);
-
 		if (0 == gadget_flag) {
-			if (++di->check_count >= 5) {
-				charger_type = AC_CHARGER;
-				DBG("<%s>. turn to AC_CHARGER, check_cnt=%d\n",
-				    __func__, di->check_count);
+			di->check_count++;
+			if (di->check_count >= 5) {
+				di->check_count = 0;
+				rk81x_bat_set_charger_param(di, AC_CHARGER);
 			} else {
-				charger_type = USB_CHARGER;
+				queue_delayed_work(di->wq,
+						   &di->ac_usb_check_work,
+						   msecs_to_jiffies(1000));
 			}
-		} else {
-			charger_type = USB_CHARGER;
+		} else {/*confirm: USB_CHARGER*/
 			di->check_count = 0;
 		}
-	} else {
-		di->check_count = 0;
 	}
-
-	return charger_type;
-}
-
-/*
- * when support HW_ADP_TYPE_DUAL, and at the moment that usb_adp
- * and dc_adp are plugined in together, the dc_apt has high priority.
- * so we check dc_apt first and return rigth away if it's found.
- */
-static enum charger_type rk81x_bat_get_adp_type(struct rk81x_battery *di)
-{
-	u8 buf;
-	enum charger_type charger_type = NO_CHARGER;
-
-	/*check by ic hardware: this check make check work safer*/
-	rk81x_bat_read(di, VB_MOD_REG, &buf, 1);
-	if ((buf & PLUG_IN_STS) == 0)
-		return NO_CHARGER;
-
-	/*check DC first*/
-	if (rk81x_bat_support_adp_type(HW_ADP_TYPE_DC)) {
-		charger_type = rk81x_bat_get_dc_state(di);
-		if (charger_type == DC_CHARGER)
-			return charger_type;
-	}
-
-	/*HW_ADP_TYPE_USB*/
-	charger_type = rk81x_bat_get_usbac_state(di);
-
-	return charger_type;
-}
-
-static void rk81x_bat_status_check(struct rk81x_battery *di)
-{
-	static enum charger_type old_charger_type = DUAL_CHARGER;
-	enum charger_type  charger_type;
-
-	charger_type = rk81x_bat_get_adp_type(di);
-	if (charger_type == old_charger_type)
-		return;
-	rk81x_bat_set_chrg_current(di, charger_type);
-	rk81x_bat_set_power_supply_state(di, charger_type);
-	old_charger_type = charger_type;
 }
 #endif
 
@@ -2337,28 +2310,6 @@ static void rk81x_bat_charger_init(struct  rk81x_battery *di)
 	rk81x_bat_write(di, CHRG_CTRL_REG2, &chrg_ctrl_reg2, 1);
 	rk81x_bat_write(di, SUP_STS_REG, &sup_sts_reg, 1);
 	rk81x_bat_write(di, GGCON, &ggcon, 1);
-}
-
-void rk81x_charge_disable_open_otg(struct rk81x_battery *di)
-{
-	enum bc_port_type event = di->charge_otg;
-
-	switch (event) {
-	case USB_OTG_POWER_ON:
-		DBG("charge disable, enable OTG.\n");
-		rk818_set_bits(di->rk818, CHRG_CTRL_REG1, 1 << 7, 0 << 7);
-		rk818_set_bits(di->rk818, 0x23, 1 << 7, 1 << 7);
-		break;
-
-	case USB_OTG_POWER_OFF:
-		DBG("charge enable, disable OTG.\n");
-		rk818_set_bits(di->rk818, 0x23, 1 << 7, 0 << 7);
-		rk818_set_bits(di->rk818, CHRG_CTRL_REG1, 1 << 7, 1 << 7);
-		break;
-
-	default:
-		break;
-	}
 }
 
 static void rk81x_bat_fg_init(struct rk81x_battery *di)
@@ -3597,9 +3548,6 @@ static void rk81x_bat_update_info(struct rk81x_battery *di)
 	rk81x_bat_update_calib_param(di);
 	if (di->chrg_status == CC_OR_CV)
 		di->enter_finish = true;
-#if defined(CONFIG_ARCH_ROCKCHIP)
-	rk81x_bat_status_check(di);/* ac_online, usb_online, status*/
-#endif
 
 	if (!rk81x_chrg_online(di) && di->s2r)
 		return;
@@ -3729,13 +3677,41 @@ static void rk81x_battery_work(struct work_struct *work)
 			   msecs_to_jiffies(ms));
 }
 
-static void rk81x_battery_charge_check_work(struct work_struct *work)
+#if defined(CONFIG_ARCH_ROCKCHIP)
+static void rk81x_battery_otg_delay_work(struct work_struct *work)
 {
 	struct rk81x_battery *di = container_of(work,
-			struct rk81x_battery, charge_check_work.work);
+			struct rk81x_battery, otg_check_work.work);
 
-	DBG("rk81x_battery_charge_check_work\n");
-	rk81x_charge_disable_open_otg(di);
+	enum bc_port_type event = di->charge_otg;
+
+	/* do not touch CHRG_CTRL_REG1[7]: CHRG_EN, hardware can
+	 * recognize otg plugin and will auto ajust this bit
+	 */
+	switch (event) {
+	case USB_OTG_POWER_ON:
+		dev_info(di->dev, "charge disable, otg enable\n");
+		di->otg_online = ONLINE;
+		/*rk81x_bat_set_charger_param(di, NO_CHARGER);*/
+		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
+		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
+		rk818_set_bits(di->rk818, DCDC_EN_REG, OTG_EN_MASK, OTG_EN);
+		break;
+
+	case USB_OTG_POWER_OFF:
+		dev_info(di->dev, "charge enable, otg disable\n");
+		di->otg_online = OFFLINE;
+		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
+		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
+		rk818_set_bits(di->rk818, DCDC_EN_REG, OTG_EN_MASK, OTG_DIS);
+		/*maybe dc still plugin*/
+		queue_delayed_work(di->wq, &di->dc_det_check_work,
+				   msecs_to_jiffies(10));
+		break;
+
+	default:
+		break;
+	}
 }
 
 static BLOCKING_NOTIFIER_HEAD(battery_chain_head);
@@ -3759,36 +3735,50 @@ int battery_notifier_call_chain(unsigned long val)
 }
 EXPORT_SYMBOL_GPL(battery_notifier_call_chain);
 
-static int rk81x_bat_notifier_call(struct notifier_block *nb,
-				   unsigned long event, void *data)
+static int rk81x_bat_usb_notifier_call(struct notifier_block *nb,
+				       unsigned long event, void *data)
 {
+	enum charger_type charger_type;
 	struct rk81x_battery *di =
 	    container_of(nb, struct rk81x_battery, battery_nb);
 
-	switch (event) {
-	case USB_OTG_POWER_ON:
-		dev_info(di->dev, "charge disable, otg enable\n");
-		di->charge_otg	= USB_OTG_POWER_ON;
-		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
-		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
-		queue_delayed_work(di->wq, &di->charge_check_work,
-				   msecs_to_jiffies(50));
-		break;
+	if (di->fg_drv_mode == TEST_POWER_MODE)
+		return NOTIFY_OK;
 
-	case USB_OTG_POWER_OFF:
-		dev_info(di->dev, "charge enable, otg disable\n");
+	/*if dc is pluging, ignore usb*/
+	charger_type = rk81x_bat_get_dc_state(di);
+	if ((charger_type == DC_CHARGER) &&
+	    (event != USB_OTG_POWER_OFF) &&
+	    (event != USB_OTG_POWER_ON))
+		return NOTIFY_OK;
+
+	switch (event) {
+	case USB_BC_TYPE_DISCNT:/*maybe dc still plugin*/
+		queue_delayed_work(di->wq, &di->dc_det_check_work,
+				   msecs_to_jiffies(10));
+		break;
+	case USB_BC_TYPE_SDP:
+	case USB_BC_TYPE_CDP:/*nonstandard charger*/
+	case USB_BC_TYPE_DCP:/*standard charger*/
+		queue_delayed_work(di->wq, &di->ac_usb_check_work,
+				   msecs_to_jiffies(10));
+		break;
+	case USB_OTG_POWER_ON:/*otg on*/
+		di->charge_otg	= USB_OTG_POWER_ON;
+		queue_delayed_work(di->wq, &di->otg_check_work,
+				   msecs_to_jiffies(10));
+		break;
+	case USB_OTG_POWER_OFF:/*otg off*/
 		di->charge_otg = USB_OTG_POWER_OFF;
-		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
-		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
-		queue_delayed_work(di->wq, &di->charge_check_work,
-				   msecs_to_jiffies(50));
+		queue_delayed_work(di->wq, &di->otg_check_work,
+				   msecs_to_jiffies(10));
 		break;
 	default:
 		return NOTIFY_OK;
 	}
 	return NOTIFY_OK;
 }
-
+#endif
 static irqreturn_t rk81x_vbat_lo_irq(int irq, void *bat)
 {
 	pr_info("\n------- %s:lower power warning!\n", __func__);
@@ -3824,6 +3814,11 @@ static irqreturn_t rk81x_vbat_charge_ok(int irq, void  *bat)
 
 static irqreturn_t rk81x_vbat_dc_det(int irq, void *bat)
 {
+	struct rk81x_battery *di = (struct rk81x_battery *)bat;
+
+	queue_delayed_work(di->wq,
+			   &di->dc_det_check_work,
+			   msecs_to_jiffies(10));
 	rk_send_wakeup_key();
 
 	return IRQ_HANDLED;
@@ -3926,19 +3921,29 @@ static void rk81x_bat_dc_det_init(struct rk81x_battery *di,
 	int ret;
 
 	di->dc_det_pin = of_get_named_gpio_flags(np, "dc_det_gpio", 0, &flags);
-	if (di->dc_det_pin == -EPROBE_DEFER)
+	if (di->dc_det_pin == -EPROBE_DEFER) {
 		dev_err(dev, "dc_det_gpio error\n");
-	if (gpio_is_valid(di->dc_det_pin))
-		di->dc_det_level = (flags & OF_GPIO_ACTIVE_LOW) ?
-					RK818_DC_IN : RK818_DC_OUT;
-	di->dc_det_irq = gpio_to_irq(di->dc_det_pin);
-	ret = request_irq(di->dc_det_irq, rk81x_vbat_dc_det,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  "rk81x_dc_det", NULL);
+		return;
+	}
 
-	if (ret != 0)
-		dev_err(di->dev, "rk818_dc_det_irq request failed!\n");
-	enable_irq_wake(di->dc_det_irq);
+	if (gpio_is_valid(di->dc_det_pin)) {
+		di->dc_det_level = (flags & OF_GPIO_ACTIVE_LOW) ?
+						RK818_DC_IN : RK818_DC_OUT;
+		di->dc_det_irq = gpio_to_irq(di->dc_det_pin);
+
+		ret = request_irq(di->dc_det_irq, rk81x_vbat_dc_det,
+				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				  "rk81x_dc_det", di);
+		if (ret != 0) {
+			dev_err(di->dev, "rk818_dc_det_irq request failed!\n");
+			goto err;
+		}
+		enable_irq_wake(di->dc_det_irq);
+	}
+
+	return;
+err:
+	gpio_free(di->dc_det_pin);
 }
 
 static int rk81x_bat_get_suspend_sec(struct rk81x_battery *di)
@@ -4099,8 +4104,8 @@ static int rk81x_bat_parse_dt(struct rk81x_battery *di)
 		support_usb_adp = 1;
 	}
 
-	if (support_dc_adp)
-		rk81x_bat_dc_det_init(di, np);
+	/*if (support_dc_adp)*/
+	rk81x_bat_dc_det_init(di, np);
 
 	cell_cfg->ocv = ocv_cfg;
 	pdata->cell_cfg = cell_cfg;
@@ -4199,9 +4204,17 @@ static int rk81x_battery_probe(struct platform_device *pdev)
 			   msecs_to_jiffies(TIMER_MS_COUNTS * 5));
 
 #if defined(CONFIG_ARCH_ROCKCHIP)
-	INIT_DELAYED_WORK(&di->charge_check_work,
-			  rk81x_battery_charge_check_work);
-	di->battery_nb.notifier_call = rk81x_bat_notifier_call;
+	INIT_DELAYED_WORK(&di->otg_check_work,
+			  rk81x_battery_otg_delay_work);
+	INIT_DELAYED_WORK(&di->ac_usb_check_work,
+			  rk81x_battery_acusb_delay_work);
+	INIT_DELAYED_WORK(&di->dc_det_check_work,
+			  rk81x_battery_dc_delay_work);
+	/*power on check*/
+	queue_delayed_work(di->wq, &di->dc_det_check_work,
+			   msecs_to_jiffies(TIMER_MS_COUNTS * 5));
+
+	di->battery_nb.notifier_call = rk81x_bat_usb_notifier_call;
 	rk_bc_detect_notifier_register(&di->battery_nb, &di->charge_otg);
 #endif
 	dev_info(di->dev, "battery driver version %s\n", DRIVER_VERSION);
@@ -4214,8 +4227,10 @@ static int rk81x_battery_suspend(struct platform_device *dev,
 {
 	struct rk81x_battery *di = platform_get_drvdata(dev);
 
-	di->slp_psy_status = rk81x_chrg_online(di);
+	/*while otg and dc both plugin*/
+	rk81x_bat_set_bit(di, NT_STS_MSK_REG2, CHRG_CVTLMT_INT);
 
+	di->slp_psy_status = rk81x_chrg_online(di);
 	di->chrg_status = rk81x_bat_get_chrg_status(di);
 	di->slp_chrg_status = rk81x_bat_get_chrg_status(di);
 	di->suspend_charge_current = rk81x_bat_get_avg_current(di);
@@ -4253,6 +4268,9 @@ static int rk81x_battery_resume(struct platform_device *dev)
 	int time_step;
 	int delta_soc;
 	int vol;
+
+	/*while otg and dc both plugin*/
+	rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, CHRG_CVTLMT_INT);
 
 	di->discharge_smooth_status = true;
 	di->charge_smooth_status = true;
