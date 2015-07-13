@@ -156,7 +156,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
  */
 #define INVALID_VOL_THRESD	2500
 #define PWR_OFF_THRESD		3400
-#define MIN_ZERO_ACCURACY	10	/*0.01%*/
+#define MIN_ZERO_ACCURACY	5	/*0.01%*/
+#define MIN_ROUND_ACCURACY	1
 
 #define MAX_FCC			10000
 #define MIN_FCC			500
@@ -2448,14 +2449,17 @@ static void rk81x_bat_zero_algorithm(struct rk81x_battery *di)
 	    delta_soc, delta_cap, di->zero_old_remain_cap,
 	    di->zero_timeout_cnt);
 
-	if ((abs(delta_soc) > MIN_ZERO_ACCURACY) ||
+	if ((delta_soc >= MIN_ZERO_ACCURACY) ||
 	    (di->zero_timeout_cnt > 500)) {
 		DBG("ZERO1:--------- enter calc -----------\n");
 		di->zero_timeout_cnt = 0;
 		di->display_soc -= delta_soc;
-		tmp_dsoc = (di->display_soc + 500) / 1000;
+		tmp_dsoc = (di->display_soc + MIN_ROUND_ACCURACY) / 1000;
 		di->dsoc = tmp_dsoc;
-
+		/* need to be init, otherwise when switch between discharge and
+		 * charge display_soc will be init as: dsoc * 1000
+		 */
+		di->last_zero_mode_dsoc = tmp_dsoc;
 		DBG("ZERO1: display_soc(Y0)=%d, dsoc=%d, rsoc=%d, tmp_soc=%d",
 		    di->display_soc, di->dsoc, di->rsoc, tmp_dsoc);
 
@@ -2703,6 +2707,7 @@ static void rk81x_bat_normal_dischrg(struct rk81x_battery *di)
 static void rk81x_bat_dischrg_smooth(struct rk81x_battery *di)
 {
 	int delta_soc;
+	int tmp_dsoc;
 
 	/* first resume from suspend: we don't run this,
 	 * the sleep_dischrg will handle dsoc, and what
@@ -2739,7 +2744,21 @@ static void rk81x_bat_dischrg_smooth(struct rk81x_battery *di)
 			DBG("<%s>. dsoc=%d, last_zero_mode_dsoc=%d\n",
 			    __func__, di->dsoc, di->last_zero_mode_dsoc);
 			if (di->dsoc != di->last_zero_mode_dsoc) {
-				di->display_soc = di->dsoc * 1000;
+				tmp_dsoc = (di->display_soc +
+						MIN_ROUND_ACCURACY) / 1000;
+				/* if last display_soc invalid, recalc.
+				 * otherwise keep this value(in case: plugin and
+				 * plugout quickly or wakeup from deep sleep,
+				 * we need't init display_soc)
+				 */
+				if (tmp_dsoc != di->dsoc)
+					/* first init value should round up,
+					 * other wise dsoc will quickly turn to
+					 * dsoc-- if MIN_ROUND_ACCURACY value is
+					 * small,eg:1.(in case: power on system)
+					 */
+					di->display_soc = (di->dsoc + 1) *
+						1000 - MIN_ROUND_ACCURACY;
 				di->last_zero_mode_dsoc = di->dsoc;
 				rk81x_bat_zero_calc_linek(di);
 				DBG("<%s>. first calc, init linek\n", __func__);
@@ -3090,12 +3109,12 @@ static void rk81x_bat_arbitrate_rsoc_trend(struct rk81x_battery *di)
 	}
 
 	soc_time = di->fcc * 3600 / 100 / div(abs(now_current));
-	if ((di->chrg_save_sec + 20 > soc_time) &&
+	if ((di->chrg_save_sec * 3 / 4 > soc_time) &&
 	    (trend_up_cnt <= trend_cnt_thresd / 2) &&
 	    (now_current >= 0))
 		di->chrg_save_sec = 0;
 
-	else if ((di->dischrg_save_sec + 20 > soc_time) &&
+	else if ((di->dischrg_save_sec * 3 / 4 > soc_time) &&
 		 (trend_down_cnt <= trend_cnt_thresd / 2) &&
 		 (now_current < 0))
 		di->dischrg_save_sec = 0;
