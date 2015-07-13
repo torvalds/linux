@@ -83,12 +83,11 @@ EXPORT_SYMBOL_GPL(intc_irq_lookup);
 
 static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
 {
-	struct intc_virq_list **last, *entry;
-	struct irq_data *data = irq_get_irq_data(irq);
+	struct intc_virq_list *entry;
+	struct intc_virq_list **last = NULL;
 
 	/* scan for duplicates */
-	last = (struct intc_virq_list **)&data->handler_data;
-	for_each_virq(entry, data->handler_data) {
+	for_each_virq(entry, irq_get_handler_data(irq)) {
 		if (entry->irq == virq)
 			return 0;
 		last = &entry->next;
@@ -102,7 +101,10 @@ static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
 
 	entry->irq = virq;
 
-	*last = entry;
+	if (last)
+		*last = entry;
+	else
+		irq_set_handler_data(irq, entry);
 
 	return 0;
 }
