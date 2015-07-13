@@ -471,6 +471,7 @@ static struct attribute *channel_attrs[] = {
 		&dev_attr_typeguid.attr,
 		&dev_attr_zoneguid.attr,
 		&dev_attr_typename.attr,
+		NULL
 };
 
 static struct attribute_group channel_attr_grp = {
