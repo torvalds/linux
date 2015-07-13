@@ -606,7 +606,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 		if (I2C_SMBUS_READ == read_write)
 			count = cp2112_read_req(buf, addr, read_length);
 		else
-			count = cp2112_write_req(buf, addr, data->byte, NULL,
+			count = cp2112_write_req(buf, addr, command, NULL,
 						 0);
 		break;
 	case I2C_SMBUS_BYTE_DATA:
