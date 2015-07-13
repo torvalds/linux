@@ -3934,6 +3934,7 @@ static int nfs4_setlease(struct nfs4_delegation *dp)
 	if (!filp) {
 		/* We should always have a readable file here */
 		WARN_ON_ONCE(1);
+		locks_free_lock(fl);
 		return -EBADF;
 	}
 	fl->fl_file = filp;
