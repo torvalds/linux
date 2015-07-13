@@ -6214,6 +6214,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 
 	intel_crtc_disable_planes(crtc, crtc->state->plane_mask);
 	dev_priv->display.crtc_disable(crtc);
+	intel_disable_shared_dpll(intel_crtc);
 
 	domains = intel_crtc->enabled_power_domains;
 	for_each_power_domain(domain, domains)
