@@ -89,7 +89,7 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	offset = vaddr & ~PAGE_MASK;
 	buf->size = size;
 
-
+	down_read(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, vaddr);
 	if (vma && (vma->vm_flags & VM_PFNMAP) && (vma->vm_pgoff)) {
 		if (vb2_get_contig_userptr(vaddr, size, &vma, &physp))
@@ -121,6 +121,7 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 		if (!buf->vaddr)
 			goto fail_get_user_pages;
 	}
+	up_read(&current->mm->mmap_sem);
 
 	buf->vaddr += offset;
 	return buf;
@@ -133,6 +134,7 @@ fail_get_user_pages:
 	kfree(buf->pages);
 
 fail_pages_array_alloc:
+	up_read(&current->mm->mmap_sem);
 	kfree(buf);
 
 	return NULL;
