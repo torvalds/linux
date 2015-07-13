@@ -1812,7 +1812,7 @@ out_mark_dirty:
 	return res;
 }
 
-static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_control *wbc)
+int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	int flags = FLUSH_SYNC;
@@ -1846,11 +1846,6 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
 out_mark_dirty:
 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 	return ret;
-}
-
-int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
-{
-	return nfs_commit_unstable_pages(inode, wbc);
 }
 EXPORT_SYMBOL_GPL(nfs_write_inode);
 
