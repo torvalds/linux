@@ -249,8 +249,7 @@ static void t7l66xb_attach_irq(struct platform_device *dev)
 	}
 
 	irq_set_irq_type(t7l66xb->irq, IRQ_TYPE_EDGE_FALLING);
-	irq_set_handler_data(t7l66xb->irq, t7l66xb);
-	irq_set_chained_handler(t7l66xb->irq, t7l66xb_irq);
+	irq_set_chained_handler_and_data(t7l66xb->irq, t7l66xb_irq, t7l66xb);
 }
 
 static void t7l66xb_detach_irq(struct platform_device *dev)
@@ -260,8 +259,7 @@ static void t7l66xb_detach_irq(struct platform_device *dev)
 
 	irq_base = t7l66xb->irq_base;
 
-	irq_set_chained_handler(t7l66xb->irq, NULL);
-	irq_set_handler_data(t7l66xb->irq, NULL);
+	irq_set_chained_handler_and_data(t7l66xb->irq, NULL, NULL);
 
 	for (irq = irq_base; irq < irq_base + T7L66XB_NR_IRQS; irq++) {
 		irq_set_chip(irq, NULL);
