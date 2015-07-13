@@ -382,11 +382,9 @@ int __init ipu_irq_attach_irq(struct ipu *ipu, struct platform_device *dev)
 #endif
 	}
 
-	irq_set_handler_data(ipu->irq_fn, ipu);
-	irq_set_chained_handler(ipu->irq_fn, ipu_irq_fn);
+	irq_set_chained_handler_and_data(ipu->irq_fn, ipu_irq_fn, ipu);
 
-	irq_set_handler_data(ipu->irq_err, ipu);
-	irq_set_chained_handler(ipu->irq_err, ipu_irq_err);
+	irq_set_chained_handler_and_data(ipu->irq_err, ipu_irq_err, ipu);
 
 	ipu->irq_base = irq_base;
 
@@ -399,11 +397,9 @@ void ipu_irq_detach_irq(struct ipu *ipu, struct platform_device *dev)
 
 	irq_base = ipu->irq_base;
 
-	irq_set_chained_handler(ipu->irq_fn, NULL);
-	irq_set_handler_data(ipu->irq_fn, NULL);
+	irq_set_chained_handler_and_data(ipu->irq_fn, NULL, NULL);
 
-	irq_set_chained_handler(ipu->irq_err, NULL);
-	irq_set_handler_data(ipu->irq_err, NULL);
+	irq_set_chained_handler_and_data(ipu->irq_err, NULL, NULL);
 
 	for (irq = irq_base; irq < irq_base + CONFIG_MX3_IPU_IRQS; irq++) {
 #ifdef CONFIG_ARM
