@@ -272,16 +272,11 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct intel_plane *intel_plane;
 	struct intel_plane_state *plane_state = NULL;
-	struct intel_crtc_scaler_state *scaler_state;
-	struct drm_atomic_state *drm_state;
+	struct intel_crtc_scaler_state *scaler_state =
+		&crtc_state->scaler_state;
+	struct drm_atomic_state *drm_state = crtc_state->base.state;
 	int num_scalers_need;
 	int i, j;
-
-	if (INTEL_INFO(dev)->gen < 9 || !intel_crtc || !crtc_state)
-		return 0;
-
-	scaler_state = &crtc_state->scaler_state;
-	drm_state = crtc_state->base.state;
 
 	num_scalers_need = hweight32(scaler_state->scaler_users);
 	DRM_DEBUG_KMS("crtc_state = %p need = %d avail = %d scaler_users = 0x%x\n",
@@ -325,9 +320,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 			scaler_id = &scaler_state->scaler_id;
 		} else {
 			name = "PLANE";
-
-			if (!drm_state)
-				continue;
 
 			/* plane scaler case: assign as a plane scaler */
 			/* find the plane that set the bit as scaler_user */

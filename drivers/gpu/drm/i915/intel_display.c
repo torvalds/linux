@@ -2911,29 +2911,32 @@ unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
 	return i915_gem_obj_ggtt_offset_view(obj, view);
 }
 
+static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(SKL_PS_CTRL(intel_crtc->pipe, id), 0);
+	I915_WRITE(SKL_PS_WIN_POS(intel_crtc->pipe, id), 0);
+	I915_WRITE(SKL_PS_WIN_SZ(intel_crtc->pipe, id), 0);
+	DRM_DEBUG_KMS("CRTC:%d Disabled scaler id %u.%u\n",
+		intel_crtc->base.base.id, intel_crtc->pipe, id);
+}
+
 /*
  * This function detaches (aka. unbinds) unused scalers in hardware
  */
 static void skl_detach_scalers(struct intel_crtc *intel_crtc)
 {
-	struct drm_device *dev;
-	struct drm_i915_private *dev_priv;
 	struct intel_crtc_scaler_state *scaler_state;
 	int i;
 
-	dev = intel_crtc->base.dev;
-	dev_priv = dev->dev_private;
 	scaler_state = &intel_crtc->config->scaler_state;
 
 	/* loop through and disable scalers that aren't in use */
 	for (i = 0; i < intel_crtc->num_scalers; i++) {
-		if (!scaler_state->scalers[i].in_use) {
-			I915_WRITE(SKL_PS_CTRL(intel_crtc->pipe, i), 0);
-			I915_WRITE(SKL_PS_WIN_POS(intel_crtc->pipe, i), 0);
-			I915_WRITE(SKL_PS_WIN_SZ(intel_crtc->pipe, i), 0);
-			DRM_DEBUG_KMS("CRTC:%d Disabled scaler id %u.%u\n",
-				intel_crtc->base.base.id, intel_crtc->pipe, i);
-		}
+		if (!scaler_state->scalers[i].in_use)
+			skl_detach_scaler(intel_crtc, i);
 	}
 }
 
@@ -4364,13 +4367,12 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
  * skl_update_scaler_crtc - Stages update to scaler state for a given crtc.
  *
  * @state: crtc's scaler state
- * @force_detach: whether to forcibly disable scaler
  *
  * Return
  *     0 - scaler_usage updated successfully
  *    error - requested scaling cannot be supported or other error condition
  */
-int skl_update_scaler_crtc(struct intel_crtc_state *state, int force_detach)
+int skl_update_scaler_crtc(struct intel_crtc_state *state)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(state->base.crtc);
 	struct drm_display_mode *adjusted_mode =
@@ -4379,7 +4381,7 @@ int skl_update_scaler_crtc(struct intel_crtc_state *state, int force_detach)
 	DRM_DEBUG_KMS("Updating scaler for [CRTC:%i] scaler_user index %u.%u\n",
 		      intel_crtc->base.base.id, intel_crtc->pipe, SKL_CRTC_INDEX);
 
-	return skl_update_scaler(state, force_detach, SKL_CRTC_INDEX,
+	return skl_update_scaler(state, !state->base.active, SKL_CRTC_INDEX,
 		&state->scaler_state.scaler_id, DRM_ROTATE_0,
 		state->pipe_src_w, state->pipe_src_h,
 		adjusted_mode->hdisplay, adjusted_mode->vdisplay);
@@ -4453,7 +4455,15 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static void skylake_pfit_update(struct intel_crtc *crtc, int enable)
+static void skylake_scaler_disable(struct intel_crtc *crtc)
+{
+	int i;
+
+	for (i = 0; i < crtc->num_scalers; i++)
+		skl_detach_scaler(crtc, i);
+}
+
+static void skylake_pfit_enable(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4462,13 +4472,6 @@ static void skylake_pfit_update(struct intel_crtc *crtc, int enable)
 		&crtc->config->scaler_state;
 
 	DRM_DEBUG_KMS("for crtc_state = %p\n", crtc->config);
-
-	/* To update pfit, first update scaler state */
-	skl_update_scaler_crtc(crtc->config, !enable);
-	intel_atomic_setup_scalers(crtc->base.dev, crtc, crtc->config);
-	skl_detach_scalers(crtc);
-	if (!enable)
-		return;
 
 	if (crtc->config->pch_pfit.enabled) {
 		int id;
@@ -4944,7 +4947,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_ddi_enable_pipe_clock(intel_crtc);
 
 	if (INTEL_INFO(dev)->gen == 9)
-		skylake_pfit_update(intel_crtc, 1);
+		skylake_pfit_enable(intel_crtc);
 	else if (INTEL_INFO(dev)->gen < 9)
 		ironlake_pfit_enable(intel_crtc);
 	else
@@ -5081,7 +5084,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
 	if (INTEL_INFO(dev)->gen == 9)
-		skylake_pfit_update(intel_crtc, 0);
+		skylake_scaler_disable(intel_crtc);
 	else if (INTEL_INFO(dev)->gen < 9)
 		ironlake_pfit_disable(intel_crtc);
 	else
@@ -11834,7 +11837,17 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 			return ret;
 	}
 
-	return intel_atomic_setup_scalers(dev, intel_crtc, pipe_config);
+	ret = 0;
+	if (INTEL_INFO(dev)->gen >= 9) {
+		if (mode_changed)
+			ret = skl_update_scaler_crtc(pipe_config);
+
+		if (!ret)
+			ret = intel_atomic_setup_scalers(dev, intel_crtc,
+							 pipe_config);
+	}
+
+	return ret;
 }
 
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
@@ -15355,6 +15368,11 @@ static void readout_plane_state(struct intel_crtc *crtc,
 			continue;
 
 		drm_plane_state = p->base.state;
+
+		/* Plane scaler state is not touched here. The first atomic
+		 * commit will restore all plane scalers to its old state.
+		 */
+
 		if (active && p->base.type == DRM_PLANE_TYPE_PRIMARY) {
 			visible = primary_get_hw_state(crtc);
 			to_intel_plane_state(drm_plane_state)->visible = visible;

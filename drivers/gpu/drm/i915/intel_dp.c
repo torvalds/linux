@@ -1382,7 +1382,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 		if (INTEL_INFO(dev)->gen >= 9) {
 			int ret;
-			ret = skl_update_scaler_crtc(pipe_config, 0);
+			ret = skl_update_scaler_crtc(pipe_config);
 			if (ret)
 				return ret;
 		}
