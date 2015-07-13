@@ -17,7 +17,6 @@ Required properties:
 Optional properties:
 - clock-names : the name of clock used by the PPMU, "ppmu"
 - clocks : phandles for clock specified in "clock-names" property
-- #clock-cells: should be 1.
 
 Example1 : PPMU nodes in exynos3250.dtsi are listed below.
 
