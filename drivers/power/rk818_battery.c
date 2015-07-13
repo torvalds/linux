@@ -380,7 +380,7 @@ static u64 is_local_clock_reset(void)
 static inline unsigned long  BASE_TO_SEC(unsigned long x)
 {
 	if (x)
-		return get_runtime_sec() - x;
+		return (get_runtime_sec() > x) ? (get_runtime_sec() - x) : 0;
 	else
 		return 0;
 }
@@ -2958,6 +2958,11 @@ static void rk81x_bat_finish_chrg(struct rk81x_battery *di)
 	}
 }
 
+static u8 rk81x_bat_get_valid_soc(unsigned long soc)
+{
+	return (soc <= 100) ? soc : 0;
+}
+
 static void rk81x_bat_normal_chrg(struct rk81x_battery *di)
 {
 	int now_current;
@@ -2986,7 +2991,7 @@ static void rk81x_bat_normal_chrg(struct rk81x_battery *di)
 	} else if (di->rsoc < di->dsoc + 1) {
 		DBG("<%s>. rsoc < dsoc + 1\n", __func__);
 		unit_sec = soc_time * 3 / 2;
-		plus_soc = chrg_normal_sec / unit_sec;
+		plus_soc = rk81x_bat_get_valid_soc(chrg_normal_sec / unit_sec);
 		if  (chrg_normal_sec > unit_sec) {
 			di->dsoc += plus_soc;
 			di->chrg_normal_base = get_runtime_sec();
@@ -2996,7 +3001,7 @@ static void rk81x_bat_normal_chrg(struct rk81x_battery *di)
 	} else if (di->rsoc > di->dsoc + 1) {
 		DBG("<%s>. rsoc > dsoc + 1\n", __func__);
 		unit_sec = soc_time * 3 / 4;
-		plus_soc = chrg_normal_sec / unit_sec;
+		plus_soc = rk81x_bat_get_valid_soc(chrg_normal_sec / unit_sec);
 		if  (chrg_normal_sec > unit_sec) {
 			di->dsoc += plus_soc;
 			di->chrg_normal_base = get_runtime_sec();
@@ -3970,7 +3975,7 @@ err:
 static int rk81x_bat_get_suspend_sec(struct rk81x_battery *di)
 {
 	int err;
-	int delta_sec;
+	int delta_sec = 0;
 	struct rtc_time tm;
 	struct timespec tv = {
 		.tv_nsec = NSEC_PER_SEC >> 1,
@@ -3981,17 +3986,19 @@ static int rk81x_bat_get_suspend_sec(struct rk81x_battery *di)
 	if (err) {
 		dev_err(rtc->dev.parent,
 			"hctosys: unable to read the hardware clock\n");
+		goto out;
 	}
 	err = rtc_valid_tm(&tm);
 	if (err) {
 		dev_err(rtc->dev.parent,
 			"hctosys: invalid date/time\n");
+		goto out;
 	}
 
 	rtc_tm_to_time(&tm, &tv.tv_sec);
 	delta_sec = tv.tv_sec - di->suspend_rtc_base.tv_sec;
-
-	return delta_sec;
+out:
+	return (delta_sec > 0) ? delta_sec : 0;
 }
 
 #ifdef CONFIG_OF
