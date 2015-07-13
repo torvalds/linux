@@ -4340,8 +4340,6 @@ nfs4_laundromat(struct nfsd_net *nn)
 	spin_lock(&state_lock);
 	list_for_each_safe(pos, next, &nn->del_recall_lru) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
-		if (net_generic(dp->dl_stid.sc_client->net, nfsd_net_id) != nn)
-			continue;
 		if (time_after((unsigned long)dp->dl_time, (unsigned long)cutoff)) {
 			t = dp->dl_time - cutoff;
 			new_timeo = min(new_timeo, t);
