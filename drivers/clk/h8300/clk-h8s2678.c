@@ -4,8 +4,6 @@
  * Copyright 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
  */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/device.h>
