@@ -286,7 +286,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	struct pio_device	*pio = irq_desc_get_chip_data(desc);
 	unsigned		gpio_irq;
 
-	gpio_irq = (unsigned) irq_get_handler_data(irq);
+	gpio_irq = (unsigned) irq_desc_get_handler_data(desc);
 	for (;;) {
 		u32		isr;
 
