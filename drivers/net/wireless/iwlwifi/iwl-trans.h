@@ -148,6 +148,9 @@ static inline u32 iwl_cmd_id(u8 opcode, u8 groupid, u8 version)
 	return opcode + (groupid << 8) + (version << 16);
 }
 
+/* make u16 wide id out of u8 group and opcode */
+#define WIDE_ID(grp, opcode) ((grp << 8) | opcode)
+
 /* due to the conversion, this group is special; new groups
  * should be defined in the appropriate fw-api header files
  */

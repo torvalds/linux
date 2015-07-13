@@ -444,7 +444,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		u32 error_id;
 	} err_info;
 	struct iwl_notification_wait status_wait;
-	static const u8 status_cmd[] = {
+	static const u16 status_cmd[] = {
 		REPLY_WOWLAN_GET_STATUS,
 	};
 	struct iwlagn_wowlan_status status_data = {};

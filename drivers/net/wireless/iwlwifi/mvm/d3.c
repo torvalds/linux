@@ -1145,7 +1145,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 static int iwl_mvm_enter_d0i3_sync(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_d3;
-	static const u8 d3_notif[] = { D3_CONFIG_CMD };
+	static const u16 d3_notif[] = { D3_CONFIG_CMD };
 	int ret;
 
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_d3,

@@ -213,7 +213,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	const struct fw_img *fw;
 	int ret, i;
 	enum iwl_ucode_type old_type = mvm->cur_ucode;
-	static const u8 alive_cmd[] = { MVM_ALIVE };
+	static const u16 alive_cmd[] = { MVM_ALIVE };
 	struct iwl_sf_region st_fwrd_space;
 
 	if (ucode_type == IWL_UCODE_REGULAR &&
@@ -314,7 +314,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 {
 	struct iwl_notification_wait calib_wait;
-	static const u8 init_complete[] = {
+	static const u16 init_complete[] = {
 		INIT_COMPLETE_NOTIF,
 		CALIB_RES_NOTIF_PHY_DB
 	};

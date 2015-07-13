@@ -33,6 +33,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -183,7 +184,7 @@ static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 int iwl_mvm_get_temp(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_temp_notif;
-	static const u8 temp_notif[] = { DTS_MEASUREMENT_NOTIFICATION };
+	static const u16 temp_notif[] = { DTS_MEASUREMENT_NOTIFICATION };
 	int ret, temp;
 
 	lockdep_assert_held(&mvm->mutex);

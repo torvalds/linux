@@ -500,7 +500,7 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 				       struct iwl_mvm_time_event_data *te_data,
 				       struct iwl_time_event_cmd *te_cmd)
 {
-	static const u8 time_event_response[] = { TIME_EVENT_CMD };
+	static const u16 time_event_response[] = { TIME_EVENT_CMD };
 	struct iwl_notification_wait wait_time_event;
 	int ret;
 
@@ -563,7 +563,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
-	const u8 te_notif_response[] = { TIME_EVENT_NOTIFICATION };
+	const u16 te_notif_response[] = { TIME_EVENT_NOTIFICATION };
 	struct iwl_notification_wait wait_te_notif;
 	struct iwl_time_event_cmd time_cmd = {};
 
