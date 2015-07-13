@@ -371,14 +371,12 @@ static int pm8921_probe(struct platform_device *pdev)
 	if (!chip->irqdomain)
 		return -ENODEV;
 
-	irq_set_handler_data(irq, chip);
-	irq_set_chained_handler(irq, pm8xxx_irq_handler);
+	irq_set_chained_handler_and_data(irq, pm8xxx_irq_handler, chip);
 	irq_set_irq_wake(irq, 1);
 
 	rc = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 	if (rc) {
-		irq_set_chained_handler(irq, NULL);
-		irq_set_handler_data(irq, NULL);
+		irq_set_chained_handler_and_data(irq, NULL, NULL);
 		irq_domain_remove(chip->irqdomain);
 	}
 
@@ -397,8 +395,7 @@ static int pm8921_remove(struct platform_device *pdev)
 	struct pm_irq_chip *chip = platform_get_drvdata(pdev);
 
 	device_for_each_child(&pdev->dev, NULL, pm8921_remove_child);
-	irq_set_chained_handler(irq, NULL);
-	irq_set_handler_data(irq, NULL);
+	irq_set_chained_handler_and_data(irq, NULL, NULL);
 	irq_domain_remove(chip->irqdomain);
 
 	return 0;
