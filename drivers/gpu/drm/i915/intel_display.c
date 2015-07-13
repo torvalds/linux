@@ -10247,7 +10247,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 retry:
 	ret = drm_modeset_lock(&config->connection_mutex, ctx);
 	if (ret)
-		goto fail_unlock;
+		goto fail;
 
 	/*
 	 * Algorithm gets a little messy:
@@ -10265,10 +10265,10 @@ retry:
 
 		ret = drm_modeset_lock(&crtc->mutex, ctx);
 		if (ret)
-			goto fail_unlock;
+			goto fail;
 		ret = drm_modeset_lock(&crtc->primary->mutex, ctx);
 		if (ret)
-			goto fail_unlock;
+			goto fail;
 
 		old->dpms_mode = connector->dpms;
 		old->load_detect_temp = false;
@@ -10287,9 +10287,6 @@ retry:
 			continue;
 		if (possible_crtc->state->enable)
 			continue;
-		/* This can occur when applying the pipe A quirk on resume. */
-		if (to_intel_crtc(possible_crtc)->new_enabled)
-			continue;
 
 		crtc = possible_crtc;
 		break;
@@ -10300,20 +10297,17 @@ retry:
 	 */
 	if (!crtc) {
 		DRM_DEBUG_KMS("no pipe available for load-detect\n");
-		goto fail_unlock;
+		goto fail;
 	}
 
 	ret = drm_modeset_lock(&crtc->mutex, ctx);
 	if (ret)
-		goto fail_unlock;
+		goto fail;
 	ret = drm_modeset_lock(&crtc->primary->mutex, ctx);
 	if (ret)
-		goto fail_unlock;
-	intel_encoder->new_crtc = to_intel_crtc(crtc);
-	to_intel_connector(connector)->new_encoder = intel_encoder;
+		goto fail;
 
 	intel_crtc = to_intel_crtc(crtc);
-	intel_crtc->new_enabled = true;
 	old->dpms_mode = connector->dpms;
 	old->load_detect_temp = true;
 	old->release_fb = NULL;
@@ -10381,9 +10375,7 @@ retry:
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 	return true;
 
- fail:
-	intel_crtc->new_enabled = crtc->state->enable;
-fail_unlock:
+fail:
 	drm_atomic_state_free(state);
 	state = NULL;
 
@@ -10428,10 +10420,6 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
 		if (IS_ERR(crtc_state))
 			goto fail;
-
-		to_intel_connector(connector)->new_encoder = NULL;
-		intel_encoder->new_crtc = NULL;
-		intel_crtc->new_enabled = false;
 
 		connector_state->best_encoder = NULL;
 		connector_state->crtc = NULL;
@@ -11836,37 +11824,6 @@ static const struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.atomic_check = intel_crtc_atomic_check,
 };
 
-/**
- * intel_modeset_update_staged_output_state
- *
- * Updates the staged output configuration state, e.g. after we've read out the
- * current hw state.
- */
-static void intel_modeset_update_staged_output_state(struct drm_device *dev)
-{
-	struct intel_crtc *crtc;
-	struct intel_encoder *encoder;
-	struct intel_connector *connector;
-
-	for_each_intel_connector(dev, connector) {
-		connector->new_encoder =
-			to_intel_encoder(connector->base.encoder);
-	}
-
-	for_each_intel_encoder(dev, encoder) {
-		encoder->new_crtc =
-			to_intel_crtc(encoder->base.crtc);
-	}
-
-	for_each_intel_crtc(dev, crtc) {
-		crtc->new_enabled = crtc->base.state->enable;
-	}
-}
-
-/* Transitional helper to copy current connector/encoder state to
- * connector->state. This is needed so that code that is partially
- * converted to atomic does the right thing.
- */
 static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
 {
 	struct intel_connector *connector;
@@ -12307,7 +12264,6 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 	}
 
 	drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
-	intel_modeset_update_staged_output_state(state->dev);
 
 	/* Double check state. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
@@ -12707,11 +12663,14 @@ check_connector_state(struct drm_device *dev)
 	struct intel_connector *connector;
 
 	for_each_intel_connector(dev, connector) {
+		struct drm_encoder *encoder = connector->base.encoder;
+		struct drm_connector_state *state = connector->base.state;
+
 		/* This also checks the encoder/connector hw state with the
 		 * ->get_hw_state callbacks. */
 		intel_connector_check_state(connector);
 
-		I915_STATE_WARN(&connector->new_encoder->base != connector->base.encoder,
+		I915_STATE_WARN(state->best_encoder != encoder,
 		     "connector's staged encoder doesn't match current encoder\n");
 	}
 }
@@ -12731,8 +12690,6 @@ check_encoder_state(struct drm_device *dev)
 			      encoder->base.base.id,
 			      encoder->base.name);
 
-		I915_STATE_WARN(&encoder->new_crtc->base != encoder->base.crtc,
-		     "encoder's stage crtc doesn't match current crtc\n");
 		I915_STATE_WARN(encoder->connectors_active && !encoder->base.crtc,
 		     "encoder's active_connectors set, but no crtc\n");
 
@@ -12742,6 +12699,10 @@ check_encoder_state(struct drm_device *dev)
 			enabled = true;
 			if (connector->base.dpms != DRM_MODE_DPMS_OFF)
 				active = true;
+
+			I915_STATE_WARN(connector->base.state->crtc !=
+					encoder->base.crtc,
+			     "connector's crtc doesn't match encoder crtc\n");
 		}
 		/*
 		 * for MST connectors if we unplug the connector is gone
@@ -13312,11 +13273,12 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 	 * need to copy the staged config to the atomic state, otherwise the
 	 * mode set will just reapply the state the HW is already in. */
 	for_each_intel_encoder(dev, encoder) {
-		if (&encoder->new_crtc->base != crtc)
+		if (encoder->base.crtc != crtc)
 			continue;
 
 		for_each_intel_connector(dev, connector) {
-			if (connector->new_encoder != encoder)
+			if (connector->base.state->best_encoder !=
+			    &encoder->base)
 				continue;
 
 			connector_state = drm_atomic_get_connector_state(state, &connector->base);
@@ -13329,7 +13291,6 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 			}
 
 			connector_state->crtc = crtc;
-			connector_state->best_encoder = &encoder->base;
 		}
 	}
 
@@ -13340,9 +13301,6 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 		drm_atomic_state_free(state);
 		return;
 	}
-
-	crtc_state->base.active = crtc_state->base.enable =
-		to_intel_crtc(crtc)->new_enabled;
 
 	drm_mode_copy(&crtc_state->base.mode, &crtc->mode);
 
@@ -15601,8 +15559,6 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 		skl_wm_get_hw_state(dev);
 	else if (HAS_PCH_SPLIT(dev))
 		ilk_wm_get_hw_state(dev);
-
-	intel_modeset_update_staged_output_state(dev);
 }
 
 void intel_display_resume(struct drm_device *dev)

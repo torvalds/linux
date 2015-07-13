@@ -130,11 +130,6 @@ struct intel_fbdev {
 
 struct intel_encoder {
 	struct drm_encoder base;
-	/*
-	 * The new crtc this encoder will be driven from. Only differs from
-	 * base->crtc while a modeset is in progress.
-	 */
-	struct intel_crtc *new_crtc;
 
 	enum intel_output_type type;
 	unsigned int cloneable;
@@ -194,12 +189,6 @@ struct intel_connector {
 	 * The fixed encoder this connector is connected to.
 	 */
 	struct intel_encoder *encoder;
-
-	/*
-	 * The new encoder this connector will be driven. Only differs from
-	 * encoder while a modeset is in progress.
-	 */
-	struct intel_encoder *new_encoder;
 
 	/* Reads out the current hw, returning true if the connector is enabled
 	 * and active (i.e. dpms ON state). */
@@ -550,7 +539,6 @@ struct intel_crtc {
 	uint32_t cursor_base;
 
 	struct intel_crtc_state *config;
-	bool new_enabled;
 
 	/* reset counter value when the last flip was submitted */
 	unsigned int reset_counter;
