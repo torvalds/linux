@@ -928,8 +928,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 		goto err_put_ctrl;
 	}
 
-	irq_set_handler_data(pa->irq, pa);
-	irq_set_chained_handler(pa->irq, pmic_arb_chained_irq);
+	irq_set_chained_handler_and_data(pa->irq, pmic_arb_chained_irq, pa);
 
 	err = spmi_controller_add(ctrl);
 	if (err)
@@ -938,8 +937,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	return 0;
 
 err_domain_remove:
-	irq_set_chained_handler(pa->irq, NULL);
-	irq_set_handler_data(pa->irq, NULL);
+	irq_set_chained_handler_and_data(pa->irq, NULL, NULL);
 	irq_domain_remove(pa->domain);
 err_put_ctrl:
 	spmi_controller_put(ctrl);
@@ -951,8 +949,7 @@ static int spmi_pmic_arb_remove(struct platform_device *pdev)
 	struct spmi_controller *ctrl = platform_get_drvdata(pdev);
 	struct spmi_pmic_arb_dev *pa = spmi_controller_get_drvdata(ctrl);
 	spmi_controller_remove(ctrl);
-	irq_set_chained_handler(pa->irq, NULL);
-	irq_set_handler_data(pa->irq, NULL);
+	irq_set_chained_handler_and_data(pa->irq, NULL, NULL);
 	irq_domain_remove(pa->domain);
 	spmi_controller_put(ctrl);
 	return 0;
