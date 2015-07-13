@@ -71,11 +71,6 @@ struct ethtool_rx_list {
 /* Number of bytes to align the rx bufs to */
 #define RXBUF_ALIGNMENT 64
 
-/* The number of bytes which composes a unit for the purpose of
- * allocating data buffers.  ie-for any given MTU, the data buffer
- * will be the next highest multiple of 512 bytes. */
-#define INCREMENTAL_BUFFER_SIZE 512
-
 #define PHY_INIT_TIMEOUT 100000
 
 #define DRV_NAME "gfar-enet"
@@ -105,11 +100,14 @@ extern const char gfar_driver_version[];
 #define DEFAULT_RX_LFC_THR  16
 #define DEFAULT_LFC_PTVVAL  4
 
-#define DEFAULT_RX_BUFFER_SIZE  1536
+#define GFAR_RXB_SIZE 1536
+#define GFAR_SKBFRAG_SIZE (RXBUF_ALIGNMENT + GFAR_RXB_SIZE \
+			  + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define GFAR_RXB_TRUESIZE 2048
+
 #define TX_RING_MOD_MASK(size) (size-1)
 #define RX_RING_MOD_MASK(size) (size-1)
-#define JUMBO_BUFFER_SIZE 9728
-#define JUMBO_FRAME_SIZE 9600
+#define GFAR_JUMBO_FRAME_SIZE 9600
 
 #define DEFAULT_FIFO_TX_THR 0x100
 #define DEFAULT_FIFO_TX_STARVE 0x40
@@ -654,7 +652,6 @@ struct gfar_extra_stats {
 	atomic64_t eberr;
 	atomic64_t tx_babt;
 	atomic64_t tx_underrun;
-	atomic64_t rx_skbmissing;
 	atomic64_t tx_timeout;
 };
 
@@ -1015,9 +1012,15 @@ struct rx_q_stats {
 	unsigned long rx_dropped;
 };
 
+struct gfar_rx_buff {
+	dma_addr_t dma;
+	struct page *page;
+	unsigned int page_offset;
+};
+
 /**
  *	struct gfar_priv_rx_q - per rx queue structure
- *	@rx_skbuff: skb pointers
+ *	@rx_buff: Array of buffer info metadata structs
  *	@rx_bd_base: First rx buffer descriptor
  *	@next_to_use: index of the next buffer to be alloc'd
  *	@next_to_clean: index of the next buffer to be cleaned
@@ -1029,14 +1032,17 @@ struct rx_q_stats {
  */
 
 struct gfar_priv_rx_q {
-	struct	sk_buff **rx_skbuff __aligned(SMP_CACHE_BYTES);
+	struct	gfar_rx_buff *rx_buff __aligned(SMP_CACHE_BYTES);
 	struct	rxbd8 *rx_bd_base;
 	struct	net_device *ndev;
-	struct	gfar_priv_grp *grp;
+	struct	device *dev;
 	u16 rx_ring_size;
 	u16 qindex;
+	struct	gfar_priv_grp *grp;
 	u16 next_to_clean;
 	u16 next_to_use;
+	u16 next_to_alloc;
+	struct	sk_buff *skb;
 	struct rx_q_stats stats;
 	u32 __iomem *rfbptr;
 	unsigned char rxcoalescing;
@@ -1111,7 +1117,6 @@ struct gfar_private {
 	struct device *dev;
 	struct net_device *ndev;
 	enum gfar_errata errata;
-	unsigned int rx_buffer_size;
 
 	u16 uses_rxfcb;
 	u16 padding;

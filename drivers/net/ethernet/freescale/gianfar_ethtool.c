@@ -74,7 +74,6 @@ static const char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"ethernet-bus-error",
 	"tx-babbling-errors",
 	"tx-underrun-errors",
-	"rx-skb-missing-errors",
 	"tx-timeout-errors",
 	/* rmon stats */
 	"tx-rx-64-frames",
