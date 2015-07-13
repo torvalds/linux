@@ -51,9 +51,7 @@ obj-$(CONFIG_PM_RMOBILE)	+= pm-rmobile.o
 obj-$(CONFIG_ARCH_RCAR_GEN2)	+= pm-rcar-gen2.o
 
 # Board objects
-ifdef CONFIG_ARCH_SHMOBILE_MULTI
-obj-$(CONFIG_MACH_MARZEN)	+= board-marzen-reference.o
-else
+ifndef CONFIG_ARCH_SHMOBILE_MULTI
 obj-$(CONFIG_MACH_BOCKW)	+= board-bockw.o
 obj-$(CONFIG_MACH_BOCKW_REFERENCE)	+= board-bockw-reference.o
 obj-$(CONFIG_MACH_MARZEN)	+= board-marzen.o
