@@ -138,7 +138,7 @@ static struct locomo_dev_info locomo_devices[] = {
 	},
 };
 
-static void locomo_handler(unsigned int irq, struct irq_desc *desc)
+static void locomo_handler(unsigned int __irq, struct irq_desc *desc)
 {
 	struct locomo *lchip = irq_desc_get_chip_data(desc);
 	int req, i;
@@ -150,6 +150,8 @@ static void locomo_handler(unsigned int irq, struct irq_desc *desc)
 	req = locomo_readl(lchip->base + LOCOMO_ICR) & 0x0f00;
 
 	if (req) {
+		unsigned int irq;
+
 		/* generate the next interrupt(s) */
 		irq = lchip->irq_base;
 		for (i = 0; i <= 3; i++, irq++) {
