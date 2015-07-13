@@ -35,7 +35,7 @@ static unsigned long clk_periclk_recalc_rate(struct clk_hw *hwclk,
 	} else {
 		if (socfpgaclk->div_reg) {
 			val = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
-			val &= div_mask(socfpgaclk->width);
+			val &= GENMASK(socfpgaclk->width - 1, 0);
 			parent_rate /= (val + 1);
 		}
 		div = ((readl(socfpgaclk->hw.reg) & 0x1ff) + 1);

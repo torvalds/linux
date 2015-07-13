@@ -105,7 +105,7 @@ static unsigned long socfpga_clk_recalc_rate(struct clk_hw *hwclk,
 		div = socfpgaclk->fixed_div;
 	else if (socfpgaclk->div_reg) {
 		val = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
-		val &= div_mask(socfpgaclk->width);
+		val &= GENMASK(socfpgaclk->width - 1, 0);
 		/* Check for GPIO_DB_CLK by its offset */
 		if ((int) socfpgaclk->div_reg & SOCFPGA_GPIO_DB_CLK_OFFSET)
 			div = val + 1;

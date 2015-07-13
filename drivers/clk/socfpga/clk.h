@@ -26,7 +26,6 @@
 #define CLKMGR_PERPLL_SRC	0xAC
 
 #define SOCFPGA_MAX_PARENTS		5
-#define div_mask(width) ((1 << (width)) - 1)
 
 #define streq(a, b) (strcmp((a), (b)) == 0)
 #define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel) \
