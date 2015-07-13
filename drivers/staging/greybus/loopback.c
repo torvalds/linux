@@ -107,7 +107,6 @@ static ssize_t field##_store(struct device *dev,			\
 	struct gb_loopback *gb =					\
 		(struct gb_loopback *)connection->private;		\
 	ret = sscanf(buf, "%"#type, &gb->field);			\
-	pr_err("%s = %"#type"\n", #field, gb->field);			\
 	if (ret != 1)							\
 		return -EINVAL;						\
 	gb_loopback_check_attr(gb);					\
