@@ -358,23 +358,12 @@ static int __init rk81x_bat_loader_charged(char *__unused)
 }
 __setup("loader_charged", rk81x_bat_loader_charged);
 
-static u64 g_base_sec;
 static u64 get_runtime_sec(void)
 {
-	u64 ts_ns = local_clock();
+	struct timespec ts;
 
-	do_div(ts_ns, 1000000000);
-
-	return ts_ns + g_base_sec;
-}
-
-static u64 is_local_clock_reset(void)
-{
-	u64 ts_ns = local_clock();
-
-	do_div(ts_ns, 1000000000);
-
-	return !ts_ns;
+	get_monotonic_boottime(&ts);
+	return ts.tv_sec;
 }
 
 static inline unsigned long  BASE_TO_SEC(unsigned long x)
@@ -2850,7 +2839,7 @@ static void rk81x_bat_dbg_dmp_info(struct rk81x_battery *di)
 	    "i_offset=0x%x, cal_offset=0x%x, adjust_cap=%d\n"
 	    "plug_in = %d, plug_out = %d, finish_sig = %d, finish_chrg=%lu\n"
 	    "sec: chrg=%lu, dischrg=%lu, term_chrg=%lu, emu_chrg=%lu\n"
-	    "emu_dischrg = %lu, power_on_sec = %lu, g_base_sec=%lld\n"
+	    "emu_dischrg = %lu, power_on_sec = %lu\n"
 	    "mode:%d, save_chrg_sec = %lu, save_dischrg_sec = %lu\n"
 	    "#########################################################\n",
 	    di->voltage, di->current_avg,
@@ -2866,7 +2855,7 @@ static void rk81x_bat_dbg_dmp_info(struct rk81x_battery *di)
 	    BASE_TO_SEC(di->chrg_term_base),
 	    BASE_TO_SEC(di->chrg_emu_base),
 	    BASE_TO_SEC(di->dischrg_emu_base),
-	    BASE_TO_SEC(di->power_on_base), g_base_sec,
+	    BASE_TO_SEC(di->power_on_base),
 	    di->current_mode, di->chrg_save_sec, di->dischrg_save_sec
 	   );
 }
@@ -4281,10 +4270,6 @@ static int rk81x_battery_suspend(struct platform_device *dev,
 	}
 
 	di->s2r = 0;
-	/*
-	 * do not modify the g_base_sec
-	 */
-	g_base_sec = get_runtime_sec();
 
 	pr_info("battery suspend dl=%d rl=%d c=%d v=%d at=%ld st=0x%x chg=%d\n",
 		di->dsoc, di->rsoc, di->suspend_charge_current, di->voltage,
@@ -4348,15 +4333,6 @@ static int rk81x_battery_resume(struct platform_device *dev)
 	if ((!rk81x_chrg_online(di) && di->voltage <= pwroff_thresd) ||
 	    rk81x_chrg_online(di))
 		wake_lock_timeout(&di->resume_wake_lock, 5 * HZ);
-
-	/*
-	 * do not modify the g_base_sec
-	 */
-	if (is_local_clock_reset())
-		g_base_sec += delta_time;
-	else
-		g_base_sec = 0;
-
 	return 0;
 }
 
