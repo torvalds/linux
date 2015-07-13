@@ -2002,12 +2002,11 @@ dont_test_tx_en:
 	}
 
 	/*
-	 * Finally, enable interrupts.  Note: Modem status interrupts
-	 * are set via set_termios(), which will be occurring imminently
-	 * anyway, so we don't enable them here.
+	 * Set the IER shadow for rx interrupts but defer actual interrupt
+	 * enable until after the FIFOs are enabled; otherwise, an already-
+	 * active sender can swamp the interrupt handler with "too much work".
 	 */
 	up->ier = UART_IER_RLSI | UART_IER_RDI;
-	serial_port_out(port, UART_IER, up->ier);
 
 	if (port->flags & UPF_FOURPORT) {
 		unsigned int icp;
