@@ -763,7 +763,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		c->x86, c->x86_model, c->x86_mask,
 		m->bank,
 		((m->status & MCI_STATUS_OVER)	? "Over"  : "-"),
-		((m->status & MCI_STATUS_UC)	? "UE"	  : "CE"),
+		((m->status & MCI_STATUS_UC)	? "UE"	  :
+		 (m->status & MCI_STATUS_DEFERRED) ? "-"  : "CE"),
 		((m->status & MCI_STATUS_MISCV)	? "MiscV" : "-"),
 		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
 		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
