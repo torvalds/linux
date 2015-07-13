@@ -99,7 +99,7 @@ static struct resource irqpin0_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_spi(30)), /* IRQ3 */
 };
 
-void __init r8a7779_init_irq_extpin_dt(int irlm)
+static void __init r8a7779_init_irq_extpin_dt(int irlm)
 {
 	void __iomem *icr0 = ioremap_nocache(0xfe780000, PAGE_SIZE);
 	u32 tmp;

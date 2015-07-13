@@ -201,7 +201,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("rcar-du-r8a7779", &mstp_clks[MSTP103]), /* DU */
 };
 
-void __init r8a7779_clock_init(void)
+static void __init r8a7779_clock_init(void)
 {
 	u32 mode = r8a7779_read_mode_pins();
 	int k, ret = 0;
