@@ -162,10 +162,10 @@ static unsigned int fq_codel_drop(struct Qdisc *sch)
 	skb = dequeue_head(flow);
 	len = qdisc_pkt_len(skb);
 	q->backlogs[idx] -= len;
-	kfree_skb(skb);
 	sch->q.qlen--;
 	qdisc_qstats_drop(sch);
 	qdisc_qstats_backlog_dec(sch, skb);
+	kfree_skb(skb);
 	flow->dropped++;
 	return idx;
 }
