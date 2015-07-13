@@ -34,7 +34,7 @@ struct gb_loopback {
 
 	int type;
 	u32 size;
-	u32 size_max;
+	size_t size_max;
 	int ms_wait;
 
 	struct gb_loopback_stats latency;
@@ -254,7 +254,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 	struct gb_loopback *gb = connection->private;
 	struct gb_loopback_transfer_request *request;
 	struct gb_loopback_transfer_response *response;
-	u32 len;
+	size_t len;
 
 	/* By convention, the AP initiates the version operation */
 	switch (type) {
