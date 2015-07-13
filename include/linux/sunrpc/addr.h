@@ -46,8 +46,8 @@ static inline void rpc_set_port(struct sockaddr *sap,
 #define IPV6_SCOPE_DELIMITER		'%'
 #define IPV6_SCOPE_ID_LEN		sizeof("%nnnnnnnnnn")
 
-static inline bool __rpc_cmp_addr4(const struct sockaddr *sap1,
-				   const struct sockaddr *sap2)
+static inline bool rpc_cmp_addr4(const struct sockaddr *sap1,
+				 const struct sockaddr *sap2)
 {
 	const struct sockaddr_in *sin1 = (const struct sockaddr_in *)sap1;
 	const struct sockaddr_in *sin2 = (const struct sockaddr_in *)sap2;
@@ -67,8 +67,8 @@ static inline bool __rpc_copy_addr4(struct sockaddr *dst,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static inline bool __rpc_cmp_addr6(const struct sockaddr *sap1,
-				   const struct sockaddr *sap2)
+static inline bool rpc_cmp_addr6(const struct sockaddr *sap1,
+				 const struct sockaddr *sap2)
 {
 	const struct sockaddr_in6 *sin1 = (const struct sockaddr_in6 *)sap1;
 	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sap2;
@@ -122,9 +122,9 @@ static inline bool rpc_cmp_addr(const struct sockaddr *sap1,
 	if (sap1->sa_family == sap2->sa_family) {
 		switch (sap1->sa_family) {
 		case AF_INET:
-			return __rpc_cmp_addr4(sap1, sap2);
+			return rpc_cmp_addr4(sap1, sap2);
 		case AF_INET6:
-			return __rpc_cmp_addr6(sap1, sap2);
+			return rpc_cmp_addr6(sap1, sap2);
 		}
 	}
 	return false;
