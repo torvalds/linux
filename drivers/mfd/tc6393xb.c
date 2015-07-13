@@ -590,8 +590,8 @@ static void tc6393xb_attach_irq(struct platform_device *dev)
 	}
 
 	irq_set_irq_type(tc6393xb->irq, IRQ_TYPE_EDGE_FALLING);
-	irq_set_handler_data(tc6393xb->irq, tc6393xb);
-	irq_set_chained_handler(tc6393xb->irq, tc6393xb_irq);
+	irq_set_chained_handler_and_data(tc6393xb->irq, tc6393xb_irq,
+					 tc6393xb);
 }
 
 static void tc6393xb_detach_irq(struct platform_device *dev)
@@ -599,8 +599,7 @@ static void tc6393xb_detach_irq(struct platform_device *dev)
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	unsigned int irq, irq_base;
 
-	irq_set_chained_handler(tc6393xb->irq, NULL);
-	irq_set_handler_data(tc6393xb->irq, NULL);
+	irq_set_chained_handler_and_data(tc6393xb->irq, NULL, NULL);
 
 	irq_base = tc6393xb->irq_base;
 
