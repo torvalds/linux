@@ -346,6 +346,8 @@ int snd_dmaengine_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
+	dma_sync_wait_tasklet(prtd->dma_chan);
+
 	kfree(prtd);
 
 	return 0;

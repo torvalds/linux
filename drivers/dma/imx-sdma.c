@@ -792,7 +792,7 @@ static void sdma_tasklet(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sdmac->lock, flags);
-	if (sdmac->status != DMA_IN_PROGRESS && !(sdmac->flags & IMX_DMA_SG_LOOP)) {
+	if (sdmac->status != DMA_IN_PROGRESS) {
 		spin_unlock_irqrestore(&sdmac->lock, flags);
 		return;
 	}
@@ -822,7 +822,7 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 		struct sdma_channel *sdmac = &sdma->channel[channel];
 
 		spin_lock_irqsave(&sdmac->lock, flags);
-		if (sdmac->status == DMA_IN_PROGRESS || (sdmac->flags & IMX_DMA_SG_LOOP))
+		if (sdmac->status == DMA_IN_PROGRESS)
 			tasklet_schedule(&sdmac->tasklet);
 		spin_unlock_irqrestore(&sdmac->lock, flags);
 
@@ -1600,6 +1600,15 @@ static int sdma_config(struct dma_chan *chan,
 	return sdma_config_channel(chan);
 }
 
+static enum dma_status sdma_wait_tasklet(struct dma_chan *chan)
+{
+	struct sdma_channel *sdmac = to_sdma_chan(chan);
+
+	tasklet_kill(&sdmac->tasklet);
+
+	return sdmac->status;
+}
+
 static enum dma_status sdma_tx_status(struct dma_chan *chan,
 				      dma_cookie_t cookie,
 				      struct dma_tx_state *txstate)
@@ -2044,6 +2053,7 @@ static int sdma_probe(struct platform_device *pdev)
 	sdma->dma_device.device_alloc_chan_resources = sdma_alloc_chan_resources;
 	sdma->dma_device.device_free_chan_resources = sdma_free_chan_resources;
 	sdma->dma_device.device_tx_status = sdma_tx_status;
+	sdma->dma_device.device_wait_tasklet = sdma_wait_tasklet;
 	sdma->dma_device.device_prep_slave_sg = sdma_prep_slave_sg;
 	sdma->dma_device.device_prep_dma_cyclic = sdma_prep_dma_cyclic;
 	sdma->dma_device.device_config = sdma_config;
