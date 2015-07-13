@@ -7019,6 +7019,7 @@ F:	include/uapi/linux/netfilter/
 F:	net/*/netfilter.c
 F:	net/*/netfilter/
 F:	net/netfilter/
+F:	net/bridge/br_netfilter*.c
 
 NETLABEL
 M:	Paul Moore <paul@paul-moore.com>
