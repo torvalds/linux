@@ -895,6 +895,8 @@ static void ntb_qp_link_work(struct work_struct *work)
 
 		if (qp->event_handler)
 			qp->event_handler(qp->cb_data, qp->link_is_up);
+
+		tasklet_schedule(&qp->rxc_db_work);
 	} else if (nt->link_is_up)
 		schedule_delayed_work(&qp->link_work,
 				      msecs_to_jiffies(NTB_LINK_DOWN_TIMEOUT));
