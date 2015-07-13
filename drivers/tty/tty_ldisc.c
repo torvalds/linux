@@ -22,9 +22,7 @@
 #undef LDISC_DEBUG_HANGUP
 
 #ifdef LDISC_DEBUG_HANGUP
-#define tty_ldisc_debug(tty, f, args...) ({				  \
-	printk(KERN_DEBUG "%s: %s: " f, __func__, tty_name(tty), ##args); \
-})
+#define tty_ldisc_debug(tty, f, args...)	tty_debug(tty, f, ##args)
 #else
 #define tty_ldisc_debug(tty, f, args...)
 #endif
