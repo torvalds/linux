@@ -131,6 +131,19 @@ static inline bool rpc_cmp_addr(const struct sockaddr *sap1,
 }
 
 /**
+ * rpc_cmp_addr_port - compare the address and port number of two sockaddrs.
+ * @sap1: first sockaddr
+ * @sap2: second sockaddr
+ */
+static inline bool rpc_cmp_addr_port(const struct sockaddr *sap1,
+				     const struct sockaddr *sap2)
+{
+	if (!rpc_cmp_addr(sap1, sap2))
+		return false;
+	return rpc_get_port(sap1) == rpc_get_port(sap2);
+}
+
+/**
  * rpc_copy_addr - copy the address portion of one sockaddr to another
  * @dst: destination sockaddr
  * @src: source sockaddr
