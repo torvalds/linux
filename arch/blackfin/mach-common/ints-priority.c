@@ -686,12 +686,12 @@ void bfin_demux_mac_status_irq(unsigned int int_err_irq,
 }
 #endif
 
-static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
+static inline void bfin_set_irq_handler(struct irq_data *d, irq_flow_handler_t handle)
 {
 #ifdef CONFIG_IPIPE
 	handle = handle_level_irq;
 #endif
-	__irq_set_handler_locked(irq, handle);
+	irq_set_handler_locked(d, handle);
 }
 
 #ifdef CONFIG_GPIO_ADI
@@ -803,9 +803,9 @@ static int bfin_gpio_irq_type(struct irq_data *d, unsigned int type)
 	}
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		bfin_set_irq_handler(irq, handle_edge_irq);
+		bfin_set_irq_handler(d, handle_edge_irq);
 	else
-		bfin_set_irq_handler(irq, handle_level_irq);
+		bfin_set_irq_handler(d, handle_level_irq);
 
 	return 0;
 }
