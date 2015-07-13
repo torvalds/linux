@@ -75,10 +75,8 @@ static int usecs_to_scanlines(const struct drm_display_mode *mode, int usecs)
  * until a subsequent call to intel_pipe_update_end(). That is done to
  * avoid random delays. The value written to @start_vbl_count should be
  * supplied to intel_pipe_update_end() for error checking.
- *
- * Return: true if the call was successful
  */
-bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
+void intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
 {
 	struct drm_device *dev = crtc->base.dev;
 	const struct drm_display_mode *mode = &crtc->config->base.adjusted_mode;
@@ -96,13 +94,14 @@ bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
 	min = vblank_start - usecs_to_scanlines(mode, 100);
 	max = vblank_start - 1;
 
+	local_irq_disable();
+	*start_vbl_count = 0;
+
 	if (min <= 0 || max <= 0)
-		return false;
+		return;
 
 	if (WARN_ON(drm_crtc_vblank_get(&crtc->base)))
-		return false;
-
-	local_irq_disable();
+		return;
 
 	trace_i915_pipe_update_start(crtc, min, max);
 
@@ -138,8 +137,6 @@ bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
 	*start_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
 
 	trace_i915_pipe_update_vblank_evaded(crtc, min, max, *start_vbl_count);
-
-	return true;
 }
 
 /**
@@ -161,7 +158,7 @@ void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count)
 
 	local_irq_enable();
 
-	if (start_vbl_count != end_vbl_count)
+	if (start_vbl_count && start_vbl_count != end_vbl_count)
 		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u)\n",
 			  pipe_name(pipe), start_vbl_count, end_vbl_count);
 }

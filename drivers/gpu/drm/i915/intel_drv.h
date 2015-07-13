@@ -488,10 +488,6 @@ struct skl_pipe_wm {
  * and thus can't be run with interrupts disabled.
  */
 struct intel_crtc_atomic_commit {
-	/* vblank evasion */
-	bool evade;
-	unsigned start_vbl_count;
-
 	/* Sleepable operations to perform before commit */
 	bool wait_for_flips;
 	bool disable_fbc;
@@ -559,6 +555,7 @@ struct intel_crtc {
 
 	int scanline_offset;
 
+	unsigned start_vbl_count;
 	struct intel_crtc_atomic_commit atomic;
 
 	/* scalers available on this crtc */
@@ -1385,7 +1382,7 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob);
 int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
-bool intel_pipe_update_start(struct intel_crtc *crtc,
+void intel_pipe_update_start(struct intel_crtc *crtc,
 			     uint32_t *start_vbl_count);
 void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count);
 
