@@ -281,8 +281,9 @@ static char *misc_devnode(struct device *dev, umode_t *mode)
 static int __init misc_init(void)
 {
 	int err;
+	struct proc_dir_entry *ret;
 
-	proc_create("misc", 0, NULL, &misc_proc_fops);
+	ret = proc_create("misc", 0, NULL, &misc_proc_fops);
 	misc_class = class_create(THIS_MODULE, "misc");
 	err = PTR_ERR(misc_class);
 	if (IS_ERR(misc_class))
@@ -298,7 +299,8 @@ fail_printk:
 	printk("unable to get major %d for misc devices\n", MISC_MAJOR);
 	class_destroy(misc_class);
 fail_remove:
-	remove_proc_entry("misc", NULL);
+	if (ret)
+		remove_proc_entry("misc", NULL);
 	return err;
 }
 subsys_initcall(misc_init);
