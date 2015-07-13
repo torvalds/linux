@@ -219,10 +219,6 @@ static inline void nfs_fs_proc_exit(void)
 }
 #endif
 
-#ifdef CONFIG_NFS_V4_1
-int nfs_sockaddr_match_ipaddr(const struct sockaddr *, const struct sockaddr *);
-#endif
-
 /* callback_xdr.c */
 extern struct svc_version nfs4_callback_version1;
 extern struct svc_version nfs4_callback_version4;
