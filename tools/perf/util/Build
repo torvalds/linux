@@ -139,7 +139,7 @@ $(OUTPUT)util/find_next_bit.o: ../lib/util/find_next_bit.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
-$(OUTPUT)util/rbtree.o: ../../lib/rbtree.c FORCE
+$(OUTPUT)util/rbtree.o: ../lib/rbtree.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
