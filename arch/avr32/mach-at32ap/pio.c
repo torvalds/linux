@@ -312,7 +312,6 @@ gpio_irq_setup(struct pio_device *pio, int irq, int gpio_irq)
 	unsigned	i;
 
 	irq_set_chip_data(irq, pio);
-	irq_set_handler_data(irq, (void *)gpio_irq);
 
 	for (i = 0; i < 32; i++, gpio_irq++) {
 		irq_set_chip_data(gpio_irq, pio);
@@ -320,7 +319,8 @@ gpio_irq_setup(struct pio_device *pio, int irq, int gpio_irq)
 					 handle_simple_irq);
 	}
 
-	irq_set_chained_handler(irq, gpio_irq_handler);
+	irq_set_chained_handler_and_data(irq, gpio_irq_handler,
+					 (void *)gpio_irq);
 }
 
 /*--------------------------------------------------------------------------*/
