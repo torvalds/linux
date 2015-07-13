@@ -79,6 +79,7 @@ static int p8_aes_ctr_setkey(struct crypto_tfm *tfm, const u8 *key,
 
     pagefault_disable();
     enable_kernel_altivec();
+    enable_kernel_vsx();
     ret = aes_p8_set_encrypt_key(key, keylen * 8, &ctx->enc_key);
     pagefault_enable();
 
@@ -97,6 +98,7 @@ static void p8_aes_ctr_final(struct p8_aes_ctr_ctx *ctx,
 
     pagefault_disable();
     enable_kernel_altivec();
+    enable_kernel_vsx();
     aes_p8_encrypt(ctrblk, keystream, &ctx->enc_key);
     pagefault_enable();
 
@@ -127,6 +129,7 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
         while ((nbytes = walk.nbytes) >= AES_BLOCK_SIZE) {
             pagefault_disable();
             enable_kernel_altivec();
+            enable_kernel_vsx();
             aes_p8_ctr32_encrypt_blocks(walk.src.virt.addr, walk.dst.virt.addr,
                 (nbytes & AES_BLOCK_MASK)/AES_BLOCK_SIZE, &ctx->enc_key, walk.iv);
             pagefault_enable();
