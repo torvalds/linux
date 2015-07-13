@@ -524,8 +524,17 @@ gigaset_tty_open(struct tty_struct *tty)
 	cs->hw.ser->tty = tty;
 	atomic_set(&cs->hw.ser->refcnt, 1);
 	init_completion(&cs->hw.ser->dead_cmp);
-
 	tty->disc_data = cs;
+
+	/* Set the amount of data we're willing to receive per call
+	 * from the hardware driver to half of the input buffer size
+	 * to leave some reserve.
+	 * Note: We don't do flow control towards the hardware driver.
+	 * If more data is received than will fit into the input buffer,
+	 * it will be dropped and an error will be logged. This should
+	 * never happen as the device is slow and the buffer size ample.
+	 */
+	tty->receive_room = RBUFSIZE/2;
 
 	/* OK.. Initialization of the datastructures and the HW is done.. Now
 	 * startup system and notify the LL that we are ready to run
