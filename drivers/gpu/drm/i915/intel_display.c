@@ -6225,12 +6225,58 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
  * turn all crtc's off, but do not adjust state
  * This has to be paired with a call to intel_modeset_setup_hw_state.
  */
-void intel_display_suspend(struct drm_device *dev)
+int intel_display_suspend(struct drm_device *dev)
 {
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_modeset_acquire_ctx *ctx = config->acquire_ctx;
+	struct drm_atomic_state *state;
 	struct drm_crtc *crtc;
+	unsigned crtc_mask = 0;
+	int ret = 0;
 
-	for_each_crtc(dev, crtc)
-		intel_crtc_disable_noatomic(crtc);
+	if (WARN_ON(!ctx))
+		return 0;
+
+	lockdep_assert_held(&ctx->ww_ctx);
+	state = drm_atomic_state_alloc(dev);
+	if (WARN_ON(!state))
+		return -ENOMEM;
+
+	state->acquire_ctx = ctx;
+	state->allow_modeset = true;
+
+	for_each_crtc(dev, crtc) {
+		struct drm_crtc_state *crtc_state =
+			drm_atomic_get_crtc_state(state, crtc);
+
+		ret = PTR_ERR_OR_ZERO(crtc_state);
+		if (ret)
+			goto free;
+
+		if (!crtc_state->active)
+			continue;
+
+		crtc_state->active = false;
+		crtc_mask |= 1 << drm_crtc_index(crtc);
+	}
+
+	if (crtc_mask) {
+		ret = intel_set_mode(state);
+
+		if (!ret) {
+			for_each_crtc(dev, crtc)
+				if (crtc_mask & (1 << drm_crtc_index(crtc)))
+					crtc->state->active = true;
+
+			return ret;
+		}
+	}
+
+free:
+	if (ret)
+		DRM_ERROR("Suspending crtc's failed with %i\n", ret);
+	drm_atomic_state_free(state);
+	return ret;
 }
 
 /* Master function to enable/disable CRTC and corresponding power wells */
