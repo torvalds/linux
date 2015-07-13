@@ -244,13 +244,17 @@ static void pv_wait_head(struct qspinlock *lock, struct mcs_spinlock *node)
 		if (!lp) { /* ONCE */
 			lp = pv_hash(lock, pn);
 			/*
-			 * lp must be set before setting _Q_SLOW_VAL
+			 * We must hash before setting _Q_SLOW_VAL, such that
+			 * when we observe _Q_SLOW_VAL in __pv_queued_spin_unlock()
+			 * we'll be sure to be able to observe our hash entry.
 			 *
-			 * [S] lp = lock                [RmW] l = l->locked = 0
-			 *     MB                             MB
-			 * [S] l->locked = _Q_SLOW_VAL  [L]   lp
+			 *   [S] pn->state
+			 *   [S] <hash>                 [Rmw] l->locked == _Q_SLOW_VAL
+			 *       MB                           RMB
+			 * [RmW] l->locked = _Q_SLOW_VAL  [L] <unhash>
+			 *                                [L] pn->state
 			 *
-			 * Matches the cmpxchg() in __pv_queued_spin_unlock().
+			 * Matches the smp_rmb() in __pv_queued_spin_unlock().
 			 */
 			if (!cmpxchg(&l->locked, _Q_LOCKED_VAL, _Q_SLOW_VAL)) {
 				/*
@@ -304,6 +308,15 @@ __visible void __pv_queued_spin_unlock(struct qspinlock *lock)
 		     (unsigned long)lock, atomic_read(&lock->val));
 		return;
 	}
+
+	/*
+	 * A failed cmpxchg doesn't provide any memory-ordering guarantees,
+	 * so we need a barrier to order the read of the node data in
+	 * pv_unhash *after* we've read the lock being _Q_SLOW_VAL.
+	 *
+	 * Matches the cmpxchg() in pv_wait_head() setting _Q_SLOW_VAL.
+	 */
+	smp_rmb();
 
 	/*
 	 * Since the above failed to release, this must be the SLOW path.
