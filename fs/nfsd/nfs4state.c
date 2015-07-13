@@ -5045,9 +5045,6 @@ out:
 	return status;
 }
 
-
-#define LOFF_OVERFLOW(start, len)      ((u64)(len) > ~(u64)(start))
-
 static inline u64
 end_offset(u64 start, u64 len)
 {
@@ -5299,8 +5296,8 @@ find_or_create_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fi,
 static int
 check_lock_length(u64 offset, u64 length)
 {
-	return ((length == 0)  || ((length != NFS4_MAX_UINT64) &&
-	     LOFF_OVERFLOW(offset, length)));
+	return ((length == 0) || ((length != NFS4_MAX_UINT64) &&
+		(length > ~offset)));
 }
 
 static void get_lock_access(struct nfs4_ol_stateid *lock_stp, u32 access)
