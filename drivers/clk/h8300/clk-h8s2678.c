@@ -98,11 +98,9 @@ static void __init h8s2678_pll_clk_setup(struct device_node *node)
 	}
 
 
-	pll_clock = kzalloc(sizeof(struct pll_clock), GFP_KERNEL);
-	if (!pll_clock) {
-		pr_err("%s: failed to alloc memory", clk_name);
+	pll_clock = kzalloc(sizeof(*pll_clock), GFP_KERNEL);
+	if (!pll_clock)
 		return;
-	}
 
 	pll_clock->sckcr = of_iomap(node, 0);
 	if (pll_clock->sckcr == NULL) {
