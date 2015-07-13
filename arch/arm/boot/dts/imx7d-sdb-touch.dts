@@ -20,12 +20,12 @@
 		interrupt-parent = <&gpio2>;
 		interrupts = <13 0>;
 		pendown-gpio = <&gpio2 13 0>;
-		ti,x-min = <0>;
-		ti,x-max = <8000>;
-		ti,y-min = <0>;
-		ti,y-max = <4800>;
-		ti,pressure-max = <255>;
-		ti,x-plat-ohms = <40>;
+		ti,x-min = /bits/ 16 <0>;
+		ti,x-max = /bits/ 16 <0>;
+		ti,y-min = /bits/ 16 <0>;
+		ti,y-max = /bits/ 16 <0>;
+		ti,pressure-max = /bits/ 16 <0>;
+		ti,x-plat-ohms = /bits/ 16 <400>;
 		linux,wakeup;
 	};
 };
