@@ -341,9 +341,9 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	ktime_get_ts(&uptime);
 	sta->last_connected = uptime.tv_sec;
-	ewma_init(&sta->avg_signal, 1024, 8);
+	ewma_signal_init(&sta->avg_signal);
 	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
-		ewma_init(&sta->chain_signal_avg[i], 1024, 8);
+		ewma_signal_init(&sta->chain_signal_avg[i]);
 
 	if (local->ops->wake_tx_queue) {
 		void *txq_data;
@@ -1896,7 +1896,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		}
 
 		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))) {
-			sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
+			sinfo->signal_avg =
+				(s8) -ewma_signal_read(&sta->avg_signal);
 			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL_AVG);
 		}
 	}
@@ -1911,7 +1912,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		for (i = 0; i < ARRAY_SIZE(sinfo->chain_signal); i++) {
 			sinfo->chain_signal[i] = sta->chain_signal_last[i];
 			sinfo->chain_signal_avg[i] =
-				(s8) -ewma_read(&sta->chain_signal_avg[i]);
+				(s8) -ewma_signal_read(&sta->chain_signal_avg[i]);
 		}
 	}
 

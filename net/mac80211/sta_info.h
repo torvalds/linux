@@ -320,6 +320,8 @@ struct mesh_sta {
 	unsigned int fail_avg;
 };
 
+DECLARE_EWMA(signal, 1024, 8)
+
 /**
  * struct sta_info - STA information
  *
@@ -462,12 +464,12 @@ struct sta_info {
 	unsigned long rx_fragments;
 	unsigned long rx_dropped;
 	int last_signal;
-	struct ewma avg_signal;
+	struct ewma_signal avg_signal;
 	int last_ack_signal;
 
 	u8 chains;
 	s8 chain_signal_last[IEEE80211_MAX_CHAINS];
-	struct ewma chain_signal_avg[IEEE80211_MAX_CHAINS];
+	struct ewma_signal chain_signal_avg[IEEE80211_MAX_CHAINS];
 
 	/* Plus 1 for non-QoS frames */
 	__le16 last_seq_ctrl[IEEE80211_NUM_TIDS + 1];
