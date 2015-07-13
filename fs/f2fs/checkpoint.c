@@ -504,18 +504,13 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 	struct list_head *head;
 	struct f2fs_orphan_block *orphan_blk = NULL;
 	unsigned int nentries = 0;
-	unsigned short index;
+	unsigned short index = 1;
 	unsigned short orphan_blocks;
 	struct page *page = NULL;
 	struct ino_entry *orphan = NULL;
 	struct inode_management *im = &sbi->im[ORPHAN_INO];
 
 	orphan_blocks = GET_ORPHAN_BLOCKS(im->ino_num);
-
-	for (index = 0; index < orphan_blocks; index++)
-		grab_meta_page(sbi, start_blk + index);
-
-	index = 1;
 
 	/*
 	 * we don't need to do spin_lock(&im->ino_lock) here, since all the
@@ -527,12 +522,10 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 	/* loop for each orphan inode entry and write them in Jornal block */
 	list_for_each_entry(orphan, head, list) {
 		if (!page) {
-			page = find_get_page(META_MAPPING(sbi), start_blk++);
-			f2fs_bug_on(sbi, !page);
+			page = grab_meta_page(sbi, start_blk++);
 			orphan_blk =
 				(struct f2fs_orphan_block *)page_address(page);
 			memset(orphan_blk, 0, sizeof(*orphan_blk));
-			f2fs_put_page(page, 0);
 		}
 
 		orphan_blk->ino[nentries++] = cpu_to_le32(orphan->ino);
