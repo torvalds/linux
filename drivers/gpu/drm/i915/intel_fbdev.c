@@ -581,7 +581,6 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	struct intel_framebuffer *fb = NULL;
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
-	struct intel_initial_plane_config *plane_config = NULL;
 	unsigned int max_size = 0;
 
 	if (!i915.fastboot)
@@ -589,20 +588,21 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 	/* Find the largest fb */
 	for_each_crtc(dev, crtc) {
+		struct drm_i915_gem_object *obj =
+			intel_fb_obj(crtc->primary->state->fb);
 		intel_crtc = to_intel_crtc(crtc);
 
-		if (!intel_crtc->active || !crtc->primary->fb) {
+		if (!intel_crtc->active || !obj) {
 			DRM_DEBUG_KMS("pipe %c not active or no fb, skipping\n",
 				      pipe_name(intel_crtc->pipe));
 			continue;
 		}
 
-		if (intel_crtc->plane_config.size > max_size) {
+		if (obj->base.size > max_size) {
 			DRM_DEBUG_KMS("found possible fb from plane %c\n",
 				      pipe_name(intel_crtc->pipe));
-			plane_config = &intel_crtc->plane_config;
-			fb = to_intel_framebuffer(crtc->primary->fb);
-			max_size = plane_config->size;
+			fb = to_intel_framebuffer(crtc->primary->state->fb);
+			max_size = obj->base.size;
 		}
 	}
 
@@ -637,7 +637,6 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			DRM_DEBUG_KMS("fb not wide enough for plane %c (%d vs %d)\n",
 				      pipe_name(intel_crtc->pipe),
 				      cur_size, fb->base.pitches[0]);
-			plane_config = NULL;
 			fb = NULL;
 			break;
 		}
@@ -658,7 +657,6 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			DRM_DEBUG_KMS("fb not big enough for plane %c (%d vs %d)\n",
 				      pipe_name(intel_crtc->pipe),
 				      cur_size, max_size);
-			plane_config = NULL;
 			fb = NULL;
 			break;
 		}
