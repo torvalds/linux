@@ -106,6 +106,11 @@
 #include <linux/nsproxy.h>
 
 #undef TTY_DEBUG_HANGUP
+#ifdef TTY_DEBUG_HANGUP
+# define tty_debug_hangup(tty, f, args...)	tty_debug(tty, f, ##args)
+#else
+# define tty_debug_hangup(tty, f, args...)	do { } while (0)
+#endif
 
 #define TTY_PARANOIA_CHECK 1
 #define CHECK_TTY_COUNT 1
@@ -774,9 +779,7 @@ static void do_tty_hangup(struct work_struct *work)
 
 void tty_hangup(struct tty_struct *tty)
 {
-#ifdef TTY_DEBUG_HANGUP
-	tty_debug(tty, "\n");
-#endif
+	tty_debug_hangup(tty, "\n");
 	schedule_work(&tty->hangup_work);
 }
 
@@ -793,9 +796,7 @@ EXPORT_SYMBOL(tty_hangup);
 
 void tty_vhangup(struct tty_struct *tty)
 {
-#ifdef TTY_DEBUG_HANGUP
-	tty_debug(tty, "\n")
-#endif
+	tty_debug_hangup(tty, "\n");
 	__tty_hangup(tty, 0);
 }
 
@@ -832,9 +833,7 @@ void tty_vhangup_self(void)
 
 static void tty_vhangup_session(struct tty_struct *tty)
 {
-#ifdef TTY_DEBUG_HANGUP
-	tty_debug(tty, "\n");
-#endif
+	tty_debug_hangup(tty, "\n");
 	__tty_hangup(tty, 1);
 }
 
@@ -928,11 +927,8 @@ void disassociate_ctty(int on_exit)
 		tty->pgrp = NULL;
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		tty_kref_put(tty);
-	} else {
-#ifdef TTY_DEBUG_HANGUP
-		tty_debug(tty, "no current tty\n");
-#endif
-	}
+	} else
+		tty_debug_hangup(tty, "no current tty\n");
 
 	spin_unlock_irq(&current->sighand->siglock);
 	/* Now clear signal->tty under the lock */
@@ -1788,9 +1784,7 @@ int tty_release(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
-#ifdef TTY_DEBUG_HANGUP
-	tty_debug(tty, "(tty count=%d)...\n", tty->count);
-#endif
+	tty_debug_hangup(tty, "(tty count=%d)...\n", tty->count);
 
 	if (tty->ops->close)
 		tty->ops->close(tty, filp);
@@ -1900,9 +1894,7 @@ int tty_release(struct inode *inode, struct file *filp)
 	if (!final)
 		return 0;
 
-#ifdef TTY_DEBUG_HANGUP
-	tty_debug(tty, "final close\n");
-#endif
+	tty_debug_hangup(tty, "final close\n");
 	/*
 	 * Ask the line discipline code to release its structures
 	 */
@@ -1911,9 +1903,7 @@ int tty_release(struct inode *inode, struct file *filp)
 	/* Wait for pending work before tty destruction commmences */
 	tty_flush_works(tty);
 
-#ifdef TTY_DEBUG_HANGUP
-	tty_debug(tty, "freeing structure...\n");
-#endif
+	tty_debug_hangup(tty, "freeing structure...\n");
 	/*
 	 * The release_tty function takes care of the details of clearing
 	 * the slots and preserving the termios structure. The tty_unlock_pair
@@ -2102,9 +2092,9 @@ retry_open:
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 	    tty->driver->subtype == PTY_TYPE_MASTER)
 		noctty = 1;
-#ifdef TTY_DEBUG_HANGUP
-	tty_debug(tty, "(tty count=%d)\n", tty->count);
-#endif
+
+	tty_debug_hangup(tty, "(tty count=%d)\n", tty->count);
+
 	if (tty->ops->open)
 		retval = tty->ops->open(tty, filp);
 	else
@@ -2112,9 +2102,8 @@ retry_open:
 	filp->f_flags = saved_flags;
 
 	if (retval) {
-#ifdef TTY_DEBUG_HANGUP
-		tty_debug(tty, "error %d, releasing...\n", retval);
-#endif
+		tty_debug_hangup(tty, "error %d, releasing...\n", retval);
+
 		tty_unlock(tty); /* need to call tty_release without BTM */
 		tty_release(inode, filp);
 		if (retval != -ERESTARTSYS)
