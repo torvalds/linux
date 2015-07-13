@@ -531,8 +531,8 @@ static void __proc_set_tty(struct tty_struct *tty)
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 	tty->session = get_pid(task_session(current));
 	if (current->signal->tty) {
-		printk(KERN_DEBUG "%s: %s: current tty %s not NULL!!\n",
-		       __func__, tty->name, current->signal->tty->name);
+		tty_debug(tty, "current tty %s not NULL!!\n",
+			  current->signal->tty->name);
 		tty_kref_put(current->signal->tty);
 	}
 	put_pid(current->signal->tty_old_pgrp);
@@ -775,7 +775,7 @@ static void do_tty_hangup(struct work_struct *work)
 void tty_hangup(struct tty_struct *tty)
 {
 #ifdef TTY_DEBUG_HANGUP
-	printk(KERN_DEBUG "%s hangup...\n", tty_name(tty));
+	tty_debug(tty, "\n");
 #endif
 	schedule_work(&tty->hangup_work);
 }
@@ -794,7 +794,7 @@ EXPORT_SYMBOL(tty_hangup);
 void tty_vhangup(struct tty_struct *tty)
 {
 #ifdef TTY_DEBUG_HANGUP
-	printk(KERN_DEBUG "%s vhangup...\n", tty_name(tty));
+	tty_debug(tty, "\n")
 #endif
 	__tty_hangup(tty, 0);
 }
@@ -833,7 +833,7 @@ void tty_vhangup_self(void)
 static void tty_vhangup_session(struct tty_struct *tty)
 {
 #ifdef TTY_DEBUG_HANGUP
-	printk(KERN_DEBUG "%s vhangup session...\n", tty_name(tty));
+	tty_debug(tty, "\n");
 #endif
 	__tty_hangup(tty, 1);
 }
@@ -930,7 +930,7 @@ void disassociate_ctty(int on_exit)
 		tty_kref_put(tty);
 	} else {
 #ifdef TTY_DEBUG_HANGUP
-		printk(KERN_DEBUG "%s: no current tty\n", __func__);
+		tty_debug(tty, "no current tty\n");
 #endif
 	}
 
@@ -1712,8 +1712,7 @@ static int tty_release_checks(struct tty_struct *tty, int idx)
 {
 #ifdef TTY_PARANOIA_CHECK
 	if (idx < 0 || idx >= tty->driver->num) {
-		printk(KERN_DEBUG "%s: %s: bad idx %d\n",
-				__func__, tty->name, idx);
+		tty_debug(tty, "bad idx %d\n", idx);
 		return -1;
 	}
 
@@ -1722,22 +1721,20 @@ static int tty_release_checks(struct tty_struct *tty, int idx)
 		return 0;
 
 	if (tty != tty->driver->ttys[idx]) {
-		printk(KERN_DEBUG "%s: %s: bad driver table[%d] = %p\n",
-		       __func__, tty->name, idx, tty->driver->ttys[idx]);
+		tty_debug(tty, "bad driver table[%d] = %p\n",
+			  idx, tty->driver->ttys[idx]);
 		return -1;
 	}
 	if (tty->driver->other) {
 		struct tty_struct *o_tty = tty->link;
 
 		if (o_tty != tty->driver->other->ttys[idx]) {
-			printk(KERN_DEBUG "%s: %s: bad other table[%d] = %p\n",
-			       __func__, tty->name, idx,
-			       tty->driver->other->ttys[idx]);
+			tty_debug(tty, "bad other table[%d] = %p\n",
+				  idx, tty->driver->other->ttys[idx]);
 			return -1;
 		}
 		if (o_tty->link != tty) {
-			printk(KERN_DEBUG "%s: %s: bad link = %p\n",
-			       __func__, tty->name, o_tty->link);
+			tty_debug(tty, "bad link = %p\n", o_tty->link);
 			return -1;
 		}
 	}
@@ -1792,8 +1789,7 @@ int tty_release(struct inode *inode, struct file *filp)
 	}
 
 #ifdef TTY_DEBUG_HANGUP
-	printk(KERN_DEBUG "%s: %s (tty count=%d)...\n", __func__,
-			tty_name(tty), tty->count);
+	tty_debug(tty, "(tty count=%d)...\n", tty->count);
 #endif
 
 	if (tty->ops->close)
@@ -1905,7 +1901,7 @@ int tty_release(struct inode *inode, struct file *filp)
 		return 0;
 
 #ifdef TTY_DEBUG_HANGUP
-	printk(KERN_DEBUG "%s: %s: final close\n", __func__, tty_name(tty));
+	tty_debug(tty, "final close\n");
 #endif
 	/*
 	 * Ask the line discipline code to release its structures
@@ -1916,8 +1912,7 @@ int tty_release(struct inode *inode, struct file *filp)
 	tty_flush_works(tty);
 
 #ifdef TTY_DEBUG_HANGUP
-	printk(KERN_DEBUG "%s: %s: freeing structure...\n", __func__,
-	       tty_name(tty));
+	tty_debug(tty, "freeing structure...\n");
 #endif
 	/*
 	 * The release_tty function takes care of the details of clearing
@@ -2108,8 +2103,7 @@ retry_open:
 	    tty->driver->subtype == PTY_TYPE_MASTER)
 		noctty = 1;
 #ifdef TTY_DEBUG_HANGUP
-	printk(KERN_DEBUG "%s: %s: (tty count=%d)\n", __func__, tty->name,
-	       tty->count);
+	tty_debug(tty, "(tty count=%d)\n", tty->count);
 #endif
 	if (tty->ops->open)
 		retval = tty->ops->open(tty, filp);
@@ -2119,8 +2113,7 @@ retry_open:
 
 	if (retval) {
 #ifdef TTY_DEBUG_HANGUP
-		printk(KERN_DEBUG "%s: %s: error %d, releasing...\n", __func__,
-		       tty->name, retval);
+		tty_debug(tty, "error %d, releasing...\n", retval);
 #endif
 		tty_unlock(tty); /* need to call tty_release without BTM */
 		tty_release(inode, filp);
