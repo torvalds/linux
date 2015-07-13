@@ -5196,6 +5196,9 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc)
 	unsigned long mask;
 	enum transcoder transcoder;
 
+	if (!crtc->state->active)
+		return 0;
+
 	transcoder = intel_pipe_to_cpu_transcoder(dev->dev_private, pipe);
 
 	mask = BIT(POWER_DOMAIN_PIPE(pipe));
@@ -5210,27 +5213,46 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc)
 	return mask;
 }
 
+static unsigned long modeset_get_crtc_power_domains(struct drm_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum intel_display_power_domain domain;
+	unsigned long domains, new_domains, old_domains;
+
+	old_domains = intel_crtc->enabled_power_domains;
+	intel_crtc->enabled_power_domains = new_domains = get_crtc_power_domains(crtc);
+
+	domains = new_domains & ~old_domains;
+
+	for_each_power_domain(domain, domains)
+		intel_display_power_get(dev_priv, domain);
+
+	return old_domains & ~new_domains;
+}
+
+static void modeset_put_power_domains(struct drm_i915_private *dev_priv,
+				      unsigned long domains)
+{
+	enum intel_display_power_domain domain;
+
+	for_each_power_domain(domain, domains)
+		intel_display_power_put(dev_priv, domain);
+}
+
 static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long pipe_domains[I915_MAX_PIPES] = { 0, };
-	struct intel_crtc *crtc;
+	unsigned long put_domains[I915_MAX_PIPES] = {};
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int i;
 
-	/*
-	 * First get all needed power domains, then put all unneeded, to avoid
-	 * any unnecessary toggling of the power wells.
-	 */
-	for_each_intel_crtc(dev, crtc) {
-		enum intel_display_power_domain domain;
-
-		if (!crtc->base.state->enable)
-			continue;
-
-		pipe_domains[crtc->pipe] = get_crtc_power_domains(&crtc->base);
-
-		for_each_power_domain(domain, pipe_domains[crtc->pipe])
-			intel_display_power_get(dev_priv, domain);
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		if (needs_modeset(crtc->state))
+			put_domains[to_intel_crtc(crtc)->pipe] =
+				modeset_get_crtc_power_domains(crtc);
 	}
 
 	if (dev_priv->display.modeset_commit_cdclk) {
@@ -5241,16 +5263,9 @@ static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 			dev_priv->display.modeset_commit_cdclk(state);
 	}
 
-	for_each_intel_crtc(dev, crtc) {
-		enum intel_display_power_domain domain;
-
-		for_each_power_domain(domain, crtc->enabled_power_domains)
-			intel_display_power_put(dev_priv, domain);
-
-		crtc->enabled_power_domains = pipe_domains[crtc->pipe];
-	}
-
-	intel_display_set_init_power(dev_priv, false);
+	for (i = 0; i < I915_MAX_PIPES; i++)
+		if (put_domains[i])
+			modeset_put_power_domains(dev_priv, put_domains[i]);
 }
 
 static void intel_update_max_cdclk(struct drm_device *dev)
@@ -15559,6 +15574,15 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 		skl_wm_get_hw_state(dev);
 	else if (HAS_PCH_SPLIT(dev))
 		ilk_wm_get_hw_state(dev);
+
+	for_each_intel_crtc(dev, crtc) {
+		unsigned long put_domains;
+
+		put_domains = modeset_get_crtc_power_domains(&crtc->base);
+		if (WARN_ON(put_domains))
+			modeset_put_power_domains(dev_priv, put_domains);
+	}
+	intel_display_set_init_power(dev_priv, false);
 }
 
 void intel_display_resume(struct drm_device *dev)
