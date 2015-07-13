@@ -46,10 +46,10 @@ static int dump_channels(const char *dev_dir_name)
 	const struct dirent *ent;
 
 	dp = opendir(dev_dir_name);
-	if (dp == NULL)
+	if (!dp)
 		return -errno;
 
-	while (ent = readdir(dp), ent != NULL)
+	while (ent = readdir(dp), ent)
 		if (check_prefix(ent->d_name, "in_") &&
 		    check_postfix(ent->d_name, "_raw"))
 			printf("   %-10s\n", ent->d_name);
@@ -107,12 +107,12 @@ static int dump_devices(void)
 	DIR *dp;
 
 	dp = opendir(iio_dir);
-	if (dp == NULL) {
+	if (!dp) {
 		printf("No industrial I/O devices available\n");
 		return -ENODEV;
 	}
 
-	while (ent = readdir(dp), ent != NULL) {
+	while (ent = readdir(dp), ent) {
 		if (check_prefix(ent->d_name, type_device)) {
 			char *dev_dir_name;
 
@@ -134,7 +134,7 @@ static int dump_devices(void)
 		}
 	}
 	rewinddir(dp);
-	while (ent = readdir(dp), ent != NULL) {
+	while (ent = readdir(dp), ent) {
 		if (check_prefix(ent->d_name, type_trigger)) {
 			char *dev_dir_name;
 

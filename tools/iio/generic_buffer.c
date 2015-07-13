@@ -270,7 +270,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (device_name == NULL) {
+	if (!device_name) {
 		printf("Device name not set\n");
 		print_usage();
 		return -1;
@@ -290,7 +290,7 @@ int main(int argc, char **argv)
 		return -ENOMEM;
 
 	if (!notrigger) {
-		if (trigger_name == NULL) {
+		if (!trigger_name) {
 			/*
 			 * Build the trigger name. If it is device associated
 			 * its name is <device_name>_dev[n] where n matches

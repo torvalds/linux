@@ -117,13 +117,13 @@ int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
 	}
 
 	dp = opendir(scan_el_dir);
-	if (dp == NULL) {
+	if (!dp) {
 		ret = -errno;
 		goto error_free_builtname_generic;
 	}
 
 	ret = -ENOENT;
-	while (ent = readdir(dp), ent != NULL)
+	while (ent = readdir(dp), ent)
 		/*
 		 * Do we allow devices to override a generic name with
 		 * a specific one?
@@ -138,7 +138,7 @@ int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
 			}
 
 			sysfsfp = fopen(filename, "r");
-			if (sysfsfp == NULL) {
+			if (!sysfsfp) {
 				ret = -errno;
 				printf("failed to open %s\n", filename);
 				goto error_free_filename;
@@ -235,13 +235,13 @@ int iioutils_get_param_float(float *output, const char *param_name,
 	}
 
 	dp = opendir(device_dir);
-	if (dp == NULL) {
+	if (!dp) {
 		ret = -errno;
 		goto error_free_builtname_generic;
 	}
 
 	ret = -ENOENT;
-	while (ent = readdir(dp), ent != NULL)
+	while (ent = readdir(dp), ent)
 		if ((strcmp(builtname, ent->d_name) == 0) ||
 		    (strcmp(builtname_generic, ent->d_name) == 0)) {
 			ret = asprintf(&filename,
@@ -325,12 +325,12 @@ int build_channel_array(const char *device_dir,
 		return -ENOMEM;
 
 	dp = opendir(scan_el_dir);
-	if (dp == NULL) {
+	if (!dp) {
 		ret = -errno;
 		goto error_free_name;
 	}
 
-	while (ent = readdir(dp), ent != NULL)
+	while (ent = readdir(dp), ent)
 		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
 			   "_en") == 0) {
 			ret = asprintf(&filename,
@@ -341,7 +341,7 @@ int build_channel_array(const char *device_dir,
 			}
 
 			sysfsfp = fopen(filename, "r");
-			if (sysfsfp == NULL) {
+			if (!sysfsfp) {
 				ret = -errno;
 				free(filename);
 				goto error_close_dir;
@@ -369,13 +369,13 @@ int build_channel_array(const char *device_dir,
 		}
 
 	*ci_array = malloc(sizeof(**ci_array) * (*counter));
-	if (*ci_array == NULL) {
+	if (!*ci_array) {
 		ret = -ENOMEM;
 		goto error_close_dir;
 	}
 
 	seekdir(dp, 0);
-	while (ent = readdir(dp), ent != NULL) {
+	while (ent = readdir(dp), ent) {
 		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
 			   "_en") == 0) {
 			int current_enabled = 0;
@@ -391,7 +391,7 @@ int build_channel_array(const char *device_dir,
 			}
 
 			sysfsfp = fopen(filename, "r");
-			if (sysfsfp == NULL) {
+			if (!sysfsfp) {
 				ret = -errno;
 				free(filename);
 				count--;
@@ -424,7 +424,7 @@ int build_channel_array(const char *device_dir,
 			current->name = strndup(ent->d_name,
 						strlen(ent->d_name) -
 						strlen("_en"));
-			if (current->name == NULL) {
+			if (!current->name) {
 				free(filename);
 				ret = -ENOMEM;
 				count--;
@@ -452,7 +452,7 @@ int build_channel_array(const char *device_dir,
 			}
 
 			sysfsfp = fopen(filename, "r");
-			if (sysfsfp == NULL) {
+			if (!sysfsfp) {
 				ret = -errno;
 				printf("failed to open %s\n", filename);
 				free(filename);
@@ -567,12 +567,12 @@ int find_type_by_name(const char *name, const char *type)
 	char *filename;
 
 	dp = opendir(iio_dir);
-	if (dp == NULL) {
+	if (!dp) {
 		printf("No industrialio devices available\n");
 		return -ENODEV;
 	}
 
-	while (ent = readdir(dp), ent != NULL) {
+	while (ent = readdir(dp), ent) {
 		if (strcmp(ent->d_name, ".") != 0 &&
 		    strcmp(ent->d_name, "..") != 0 &&
 		    strlen(ent->d_name) > strlen(type) &&
@@ -595,7 +595,7 @@ int find_type_by_name(const char *name, const char *type)
 			    ":", 1) != 0) {
 				filename = malloc(strlen(iio_dir) + strlen(type)
 						  + numstrlen + 6);
-				if (filename == NULL) {
+				if (!filename) {
 					ret = -ENOMEM;
 					goto error_close_dir;
 				}
@@ -654,7 +654,7 @@ static int _write_sysfs_int(const char *filename, const char *basedir, int val,
 	int test;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 
-	if (temp == NULL)
+	if (!temp)
 		return -ENOMEM;
 
 	ret = sprintf(temp, "%s/%s", basedir, filename);
@@ -662,7 +662,7 @@ static int _write_sysfs_int(const char *filename, const char *basedir, int val,
 		goto error_free;
 
 	sysfsfp = fopen(temp, "w");
-	if (sysfsfp == NULL) {
+	if (!sysfsfp) {
 		ret = -errno;
 		printf("failed to open %s\n", temp);
 		goto error_free;
@@ -683,7 +683,7 @@ static int _write_sysfs_int(const char *filename, const char *basedir, int val,
 
 	if (verify) {
 		sysfsfp = fopen(temp, "r");
-		if (sysfsfp == NULL) {
+		if (!sysfsfp) {
 			ret = -errno;
 			printf("failed to open %s\n", temp);
 			goto error_free;
@@ -749,7 +749,7 @@ static int _write_sysfs_string(const char *filename, const char *basedir,
 	FILE  *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 
-	if (temp == NULL) {
+	if (!temp) {
 		printf("Memory allocation failed\n");
 		return -ENOMEM;
 	}
@@ -759,7 +759,7 @@ static int _write_sysfs_string(const char *filename, const char *basedir,
 		goto error_free;
 
 	sysfsfp = fopen(temp, "w");
-	if (sysfsfp == NULL) {
+	if (!sysfsfp) {
 		ret = -errno;
 		printf("Could not open %s\n", temp);
 		goto error_free;
@@ -780,7 +780,7 @@ static int _write_sysfs_string(const char *filename, const char *basedir,
 
 	if (verify) {
 		sysfsfp = fopen(temp, "r");
-		if (sysfsfp == NULL) {
+		if (!sysfsfp) {
 			ret = -errno;
 			printf("Could not open file to verify\n");
 			goto error_free;
@@ -855,7 +855,7 @@ int read_sysfs_posint(const char *filename, const char *basedir)
 	FILE  *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 
-	if (temp == NULL) {
+	if (!temp) {
 		printf("Memory allocation failed");
 		return -ENOMEM;
 	}
@@ -865,7 +865,7 @@ int read_sysfs_posint(const char *filename, const char *basedir)
 		goto error_free;
 
 	sysfsfp = fopen(temp, "r");
-	if (sysfsfp == NULL) {
+	if (!sysfsfp) {
 		ret = -errno;
 		goto error_free;
 	}
@@ -902,7 +902,7 @@ int read_sysfs_float(const char *filename, const char *basedir, float *val)
 	FILE  *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 
-	if (temp == NULL) {
+	if (!temp) {
 		printf("Memory allocation failed");
 		return -ENOMEM;
 	}
@@ -912,7 +912,7 @@ int read_sysfs_float(const char *filename, const char *basedir, float *val)
 		goto error_free;
 
 	sysfsfp = fopen(temp, "r");
-	if (sysfsfp == NULL) {
+	if (!sysfsfp) {
 		ret = -errno;
 		goto error_free;
 	}
@@ -949,7 +949,7 @@ int read_sysfs_string(const char *filename, const char *basedir, char *str)
 	FILE  *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 
-	if (temp == NULL) {
+	if (!temp) {
 		printf("Memory allocation failed");
 		return -ENOMEM;
 	}
@@ -959,7 +959,7 @@ int read_sysfs_string(const char *filename, const char *basedir, char *str)
 		goto error_free;
 
 	sysfsfp = fopen(temp, "r");
-	if (sysfsfp == NULL) {
+	if (!sysfsfp) {
 		ret = -errno;
 		goto error_free;
 	}
