@@ -1893,6 +1893,8 @@ int setup_intlist(struct intlist **list, const char *list_str,
 		pr_err("problems parsing %s list\n", list_name);
 		return -1;
 	}
+
+	symbol_conf.has_filter = true;
 	return 0;
 }
 
