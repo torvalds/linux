@@ -140,9 +140,8 @@ static void max8997_irq_sync_unlock(struct irq_data *data)
 }
 
 static const inline struct max8997_irq_data *
-irq_to_max8997_irq(struct max8997_dev *max8997, int irq)
+irq_to_max8997_irq(struct max8997_dev *max8997, struct irq_data *data)
 {
-	struct irq_data *data = irq_get_irq_data(irq);
 	return &max8997_irqs[data->hwirq];
 }
 
@@ -150,7 +149,7 @@ static void max8997_irq_mask(struct irq_data *data)
 {
 	struct max8997_dev *max8997 = irq_data_get_irq_chip_data(data);
 	const struct max8997_irq_data *irq_data = irq_to_max8997_irq(max8997,
-								data->irq);
+								     data);
 
 	max8997->irq_masks_cur[irq_data->group] |= irq_data->mask;
 }
@@ -159,7 +158,7 @@ static void max8997_irq_unmask(struct irq_data *data)
 {
 	struct max8997_dev *max8997 = irq_data_get_irq_chip_data(data);
 	const struct max8997_irq_data *irq_data = irq_to_max8997_irq(max8997,
-								data->irq);
+								     data);
 
 	max8997->irq_masks_cur[irq_data->group] &= ~irq_data->mask;
 }
