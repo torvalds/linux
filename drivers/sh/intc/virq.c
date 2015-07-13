@@ -109,8 +109,9 @@ static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
 	return 0;
 }
 
-static void intc_virq_handler(unsigned int irq, struct irq_desc *desc)
+static void intc_virq_handler(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	struct intc_virq_list *entry, *vlist = irq_data_get_irq_handler_data(data);
