@@ -439,6 +439,56 @@ static const struct pci_vpd_ops pci_vpd_pci22_ops = {
 	.release = pci_vpd_pci22_release,
 };
 
+static ssize_t pci_vpd_f0_read(struct pci_dev *dev, loff_t pos, size_t count,
+			       void *arg)
+{
+	struct pci_dev *tdev = pci_get_slot(dev->bus, PCI_SLOT(dev->devfn));
+	ssize_t ret;
+
+	if (!tdev)
+		return -ENODEV;
+
+	ret = pci_read_vpd(tdev, pos, count, arg);
+	pci_dev_put(tdev);
+	return ret;
+}
+
+static ssize_t pci_vpd_f0_write(struct pci_dev *dev, loff_t pos, size_t count,
+				const void *arg)
+{
+	struct pci_dev *tdev = pci_get_slot(dev->bus, PCI_SLOT(dev->devfn));
+	ssize_t ret;
+
+	if (!tdev)
+		return -ENODEV;
+
+	ret = pci_write_vpd(tdev, pos, count, arg);
+	pci_dev_put(tdev);
+	return ret;
+}
+
+static const struct pci_vpd_ops pci_vpd_f0_ops = {
+	.read = pci_vpd_f0_read,
+	.write = pci_vpd_f0_write,
+	.release = pci_vpd_pci22_release,
+};
+
+static int pci_vpd_f0_dev_check(struct pci_dev *dev)
+{
+	struct pci_dev *tdev = pci_get_slot(dev->bus, PCI_SLOT(dev->devfn));
+	int ret = 0;
+
+	if (!tdev)
+		return -ENODEV;
+	if (!tdev->vpd || !tdev->multifunction ||
+	    dev->class != tdev->class || dev->vendor != tdev->vendor ||
+	    dev->device != tdev->device)
+		ret = -ENODEV;
+
+	pci_dev_put(tdev);
+	return ret;
+}
+
 int pci_vpd_pci22_init(struct pci_dev *dev)
 {
 	struct pci_vpd_pci22 *vpd;
@@ -447,12 +497,21 @@ int pci_vpd_pci22_init(struct pci_dev *dev)
 	cap = pci_find_capability(dev, PCI_CAP_ID_VPD);
 	if (!cap)
 		return -ENODEV;
+	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0) {
+		int ret = pci_vpd_f0_dev_check(dev);
+
+		if (ret)
+			return ret;
+	}
 	vpd = kzalloc(sizeof(*vpd), GFP_ATOMIC);
 	if (!vpd)
 		return -ENOMEM;
 
 	vpd->base.len = PCI_VPD_PCI22_SIZE;
-	vpd->base.ops = &pci_vpd_pci22_ops;
+	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0)
+		vpd->base.ops = &pci_vpd_f0_ops;
+	else
+		vpd->base.ops = &pci_vpd_pci22_ops;
 	mutex_init(&vpd->lock);
 	vpd->cap = cap;
 	vpd->busy = false;
