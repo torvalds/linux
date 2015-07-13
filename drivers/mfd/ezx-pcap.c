@@ -472,8 +472,7 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	pcap->msr = PCAP_MASK_ALL_INTERRUPT;
 
 	irq_set_irq_type(spi->irq, IRQ_TYPE_EDGE_RISING);
-	irq_set_handler_data(spi->irq, pcap);
-	irq_set_chained_handler(spi->irq, pcap_irq_handler);
+	irq_set_chained_handler_and_data(spi->irq, pcap_irq_handler, pcap);
 	irq_set_irq_wake(spi->irq, 1);
 
 	/* ADC */
