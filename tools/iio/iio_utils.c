@@ -39,7 +39,7 @@ int iioutils_break_up_name(const char *full_name, char **generic_name)
 	char *working, *prefix = "";
 	int i, ret;
 
-	for (i = 0; i < sizeof(iio_direction) / sizeof(iio_direction[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(iio_direction); i++)
 		if (!strncmp(full_name, iio_direction[i],
 			     strlen(iio_direction[i]))) {
 			prefix = iio_direction[i];
