@@ -69,8 +69,9 @@ static struct irq_chip pmu_irq_chip = {
 	.irq_ack	= pmu_irq_ack,
 };
 
-static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void pmu_irq_handler(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned long cause = readl(PMU_INTERRUPT_CAUSE);
 
 	cause &= readl(PMU_INTERRUPT_MASK);
