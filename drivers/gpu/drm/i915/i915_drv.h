@@ -3117,7 +3117,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor);
 int i915_debugfs_connector_add(struct drm_connector *connector);
 void intel_display_crc_init(struct drm_device *dev);
 #else
-static inline int i915_debugfs_connector_add(struct drm_connector *connector) {}
+static inline int i915_debugfs_connector_add(struct drm_connector *connector)
+{ return 0; }
 static inline void intel_display_crc_init(struct drm_device *dev) {}
 #endif
 
