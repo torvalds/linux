@@ -2555,11 +2555,9 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			goto out_free_conn;
 		cs_slot = &conf->cl_cs_slot;
 		status = check_slot_seqid(cr_ses->seqid, cs_slot->sl_seqid, 0);
-		if (status == nfserr_replay_cache) {
-			status = nfsd4_replay_create_session(cr_ses, cs_slot);
-			goto out_free_conn;
-		} else if (cr_ses->seqid != cs_slot->sl_seqid + 1) {
-			status = nfserr_seq_misordered;
+		if (status) {
+			if (status == nfserr_replay_cache)
+				status = nfsd4_replay_create_session(cr_ses, cs_slot);
 			goto out_free_conn;
 		}
 	} else if (unconf) {
