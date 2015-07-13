@@ -206,7 +206,7 @@ static int sn_set_msi_irq_affinity(struct irq_data *data,
 	msg.address_lo = (u32)(bus_addr & 0x00000000ffffffff);
 
 	pci_write_msi_msg(irq, &msg);
-	cpumask_copy(data->affinity, cpu_mask);
+	cpumask_copy(irq_data_get_affinity_mask(data), cpu_mask);
 
 	return 0;
 }

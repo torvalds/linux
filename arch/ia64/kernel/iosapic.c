@@ -838,7 +838,7 @@ iosapic_unregister_intr (unsigned int gsi)
 	if (iosapic_intr_info[irq].count == 0) {
 #ifdef CONFIG_SMP
 		/* Clear affinity */
-		cpumask_setall(irq_get_irq_data(irq)->affinity);
+		cpumask_setall(irq_get_affinity_mask(irq));
 #endif
 		/* Clear the interrupt information */
 		iosapic_intr_info[irq].dest = 0;
