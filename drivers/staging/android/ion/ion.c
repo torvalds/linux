@@ -1103,10 +1103,10 @@ static struct dma_buf_ops dma_buf_ops = {
 struct dma_buf *ion_share_dma_buf(struct ion_client *client,
 						struct ion_handle *handle)
 {
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct ion_buffer *buffer;
 	struct dma_buf *dmabuf;
 	bool valid_handle;
-	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
 	mutex_lock(&client->lock);
 	valid_handle = ion_handle_validate(client, handle);
