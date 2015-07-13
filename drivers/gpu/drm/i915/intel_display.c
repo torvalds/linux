@@ -13292,12 +13292,19 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (needs_modeset(crtc->state) && crtc->state->active) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		bool modeset = needs_modeset(crtc->state);
+
+		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
 			dev_priv->display.crtc_enable(crtc);
 		}
 
+		if (!modeset)
+			intel_pre_plane_update(intel_crtc);
+
 		drm_atomic_helper_commit_planes_on_crtc(crtc_state);
+		intel_post_plane_update(intel_crtc);
 	}
 
 	/* FIXME: add subpixel order */
@@ -13635,9 +13642,6 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	if (!needs_modeset(crtc->state))
-		intel_pre_plane_update(intel_crtc);
-
 	if (intel_crtc->atomic.update_wm_pre)
 		intel_update_watermarks(crtc);
 
@@ -13664,8 +13668,6 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc)
 				      intel_crtc->atomic.start_vbl_count);
 
 	intel_runtime_pm_put(dev_priv);
-
-	intel_post_plane_update(intel_crtc);
 }
 
 /**
