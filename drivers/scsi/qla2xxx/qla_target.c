@@ -1170,6 +1170,70 @@ static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
 	    FCP_TMF_CMPL, true);
 }
 
+static int abort_cmd_for_tag(struct scsi_qla_host *vha, uint32_t tag)
+{
+	struct qla_tgt_sess_op *op;
+	struct qla_tgt_cmd *cmd;
+
+	spin_lock(&vha->cmd_list_lock);
+
+	list_for_each_entry(op, &vha->qla_sess_op_cmd_list, cmd_list) {
+		if (tag == op->atio.u.isp24.exchange_addr) {
+			op->aborted = true;
+			spin_unlock(&vha->cmd_list_lock);
+			return 1;
+		}
+	}
+
+	list_for_each_entry(cmd, &vha->qla_cmd_list, cmd_list) {
+		if (tag == cmd->atio.u.isp24.exchange_addr) {
+			cmd->state = QLA_TGT_STATE_ABORTED;
+			spin_unlock(&vha->cmd_list_lock);
+			return 1;
+		}
+	}
+
+	spin_unlock(&vha->cmd_list_lock);
+	return 0;
+}
+
+/* drop cmds for the given lun
+ * XXX only looks for cmds on the port through which lun reset was recieved
+ * XXX does not go through the list of other port (which may have cmds
+ *     for the same lun)
+ */
+static void abort_cmds_for_lun(struct scsi_qla_host *vha,
+				uint32_t lun, uint8_t *s_id)
+{
+	struct qla_tgt_sess_op *op;
+	struct qla_tgt_cmd *cmd;
+	uint32_t key;
+
+	key = sid_to_key(s_id);
+	spin_lock(&vha->cmd_list_lock);
+	list_for_each_entry(op, &vha->qla_sess_op_cmd_list, cmd_list) {
+		uint32_t op_key;
+		uint32_t op_lun;
+
+		op_key = sid_to_key(op->atio.u.isp24.fcp_hdr.s_id);
+		op_lun = scsilun_to_int(
+			(struct scsi_lun *)&op->atio.u.isp24.fcp_cmnd.lun);
+		if (op_key == key && op_lun == lun)
+			op->aborted = true;
+	}
+	list_for_each_entry(cmd, &vha->qla_cmd_list, cmd_list) {
+		uint32_t cmd_key;
+		uint32_t cmd_lun;
+
+		cmd_key = sid_to_key(cmd->atio.u.isp24.fcp_hdr.s_id);
+		cmd_lun = scsilun_to_int(
+			(struct scsi_lun *)&cmd->atio.u.isp24.fcp_cmnd.lun);
+		if (cmd_key == key && cmd_lun == lun)
+			cmd->state = QLA_TGT_STATE_ABORTED;
+	}
+	spin_unlock(&vha->cmd_list_lock);
+}
+
 /* ha->hardware_lock supposed to be held on entry */
 static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	struct abts_recv_from_24xx *abts, struct qla_tgt_sess *sess)
@@ -1194,8 +1258,19 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	}
 	spin_unlock(&se_sess->sess_cmd_lock);
 
-	if (!found_lun)
-		return -ENOENT;
+	/* cmd not in LIO lists, look in qla list */
+	if (!found_lun) {
+		if (abort_cmd_for_tag(vha, abts->exchange_addr_to_abort)) {
+			/* send TASK_ABORT response immediately */
+			qlt_24xx_send_abts_resp(vha, abts, FCP_TMF_CMPL, false);
+			return 0;
+		} else {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf081,
+			    "unable to find cmd in driver or LIO for tag 0x%x\n",
+			    abts->exchange_addr_to_abort);
+			return -ENOENT;
+		}
+	}
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00f,
 	    "qla_target(%d): task abort (tag=%d)\n",
@@ -3264,6 +3339,13 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	if (tgt->tgt_stop)
 		goto out_term;
 
+	if (cmd->state == QLA_TGT_STATE_ABORTED) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf082,
+		    "cmd with tag %u is aborted\n",
+		    cmd->atio.u.isp24.exchange_addr);
+		goto out_term;
+	}
+
 	cdb = &atio->u.isp24.fcp_cmnd.cdb[0];
 	cmd->se_cmd.tag = atio->u.isp24.exchange_addr;
 	cmd->unpacked_lun = scsilun_to_int(
@@ -3317,6 +3399,12 @@ out_term:
 static void qlt_do_work(struct work_struct *work)
 {
 	struct qla_tgt_cmd *cmd = container_of(work, struct qla_tgt_cmd, work);
+	scsi_qla_host_t *vha = cmd->vha;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vha->cmd_list_lock, flags);
+	list_del(&cmd->cmd_list);
+	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 
 	__qlt_do_work(cmd);
 }
@@ -3368,14 +3456,25 @@ static void qlt_create_sess_from_atio(struct work_struct *work)
 	unsigned long flags;
 	uint8_t *s_id = op->atio.u.isp24.fcp_hdr.s_id;
 
+	spin_lock_irqsave(&vha->cmd_list_lock, flags);
+	list_del(&op->cmd_list);
+	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
+
+	if (op->aborted) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf083,
+		    "sess_op with tag %u is aborted\n",
+		    op->atio.u.isp24.exchange_addr);
+		goto out_term;
+	}
+
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf022,
-		"qla_target(%d): Unable to find wwn login"
-		" (s_id %x:%x:%x), trying to create it manually\n",
-		vha->vp_idx, s_id[0], s_id[1], s_id[2]);
+	    "qla_target(%d): Unable to find wwn login"
+	    " (s_id %x:%x:%x), trying to create it manually\n",
+	    vha->vp_idx, s_id[0], s_id[1], s_id[2]);
 
 	if (op->atio.u.raw.entry_count > 1) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf023,
-		        "Dropping multy entry atio %p\n", &op->atio);
+		    "Dropping multy entry atio %p\n", &op->atio);
 		goto out_term;
 	}
 
@@ -3440,6 +3539,11 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 
 		memcpy(&op->atio, atio, sizeof(*atio));
 		op->vha = vha;
+
+		spin_lock(&vha->cmd_list_lock);
+		list_add_tail(&op->cmd_list, &vha->qla_sess_op_cmd_list);
+		spin_unlock(&vha->cmd_list_lock);
+
 		INIT_WORK(&op->work, qlt_create_sess_from_atio);
 		queue_work(qla_tgt_wq, &op->work);
 		return 0;
@@ -3459,6 +3563,11 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 
 	cmd->cmd_in_wq = 1;
 	cmd->cmd_flags |= BIT_0;
+
+	spin_lock(&vha->cmd_list_lock);
+	list_add_tail(&cmd->cmd_list, &vha->qla_cmd_list);
+	spin_unlock(&vha->cmd_list_lock);
+
 	INIT_WORK(&cmd->work, qlt_do_work);
 	queue_work(qla_tgt_wq, &cmd->work);
 	return 0;
@@ -3472,6 +3581,7 @@ static int qlt_issue_task_mgmt(struct qla_tgt_sess *sess, uint32_t lun,
 	struct scsi_qla_host *vha = sess->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt_mgmt_cmd *mcmd;
+	struct atio_from_isp *a = (struct atio_from_isp *)iocb;
 	int res;
 	uint8_t tmr_func;
 
@@ -3512,6 +3622,7 @@ static int qlt_issue_task_mgmt(struct qla_tgt_sess *sess, uint32_t lun,
 		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10002,
 		    "qla_target(%d): LUN_RESET received\n", sess->vha->vp_idx);
 		tmr_func = TMR_LUN_RESET;
+		abort_cmds_for_lun(vha, lun, a->u.isp24.fcp_hdr.s_id);
 		break;
 
 	case QLA_TGT_CLEAR_TS:

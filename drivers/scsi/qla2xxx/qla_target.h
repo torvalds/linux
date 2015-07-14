@@ -874,6 +874,8 @@ struct qla_tgt_sess_op {
 	struct scsi_qla_host *vha;
 	struct atio_from_isp atio;
 	struct work_struct work;
+	struct list_head cmd_list;
+	bool aborted;
 };
 
 /*
@@ -1074,6 +1076,16 @@ static inline void qla_reverse_ini_mode(struct scsi_qla_host *ha)
 		ha->host->active_mode &= ~MODE_INITIATOR;
 	else
 		ha->host->active_mode |= MODE_INITIATOR;
+}
+
+static inline uint32_t sid_to_key(const uint8_t *s_id)
+{
+	uint32_t key;
+
+	key = (((unsigned long)s_id[0] << 16) |
+	       ((unsigned long)s_id[1] << 8) |
+	       (unsigned long)s_id[2]);
+	return key;
 }
 
 /*

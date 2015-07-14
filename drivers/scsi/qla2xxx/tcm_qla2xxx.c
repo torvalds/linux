@@ -1148,9 +1148,7 @@ static struct qla_tgt_sess *tcm_qla2xxx_find_sess_by_s_id(
 		return NULL;
 	}
 
-	key = (((unsigned long)s_id[0] << 16) |
-	       ((unsigned long)s_id[1] << 8) |
-	       (unsigned long)s_id[2]);
+	key = sid_to_key(s_id);
 	pr_debug("find_sess_by_s_id: 0x%06x\n", key);
 
 	se_nacl = btree_lookup32(&lport->lport_fcport_map, key);
@@ -1185,9 +1183,7 @@ static void tcm_qla2xxx_set_sess_by_s_id(
 	void *slot;
 	int rc;
 
-	key = (((unsigned long)s_id[0] << 16) |
-	       ((unsigned long)s_id[1] << 8) |
-	       (unsigned long)s_id[2]);
+	key = sid_to_key(s_id);
 	pr_debug("set_sess_by_s_id: %06x\n", key);
 
 	slot = btree_lookup32(&lport->lport_fcport_map, key);

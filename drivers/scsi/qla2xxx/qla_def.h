@@ -3579,6 +3579,11 @@ typedef struct scsi_qla_host {
 	uint16_t	fcoe_fcf_idx;
 	uint8_t		fcoe_vn_port_mac[6];
 
+	/* list of commands waiting on workqueue */
+	struct list_head	qla_cmd_list;
+	struct list_head	qla_sess_op_cmd_list;
+	spinlock_t		cmd_list_lock;
+
 	uint32_t	vp_abort_cnt;
 
 	struct fc_vport	*fc_vport;	/* holds fc_vport * for each vport */
