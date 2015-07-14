@@ -305,7 +305,7 @@ static void trace_packet(const struct sk_buff *skb,
 }
 #endif
 
-static inline __pure struct ip6t_entry *
+static inline struct ip6t_entry *
 ip6t_next_entry(const struct ip6t_entry *entry)
 {
 	return (void *)entry + entry->next_offset;
