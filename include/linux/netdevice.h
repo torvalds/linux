@@ -1041,6 +1041,12 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	TX queue.
  * int (*ndo_get_iflink)(const struct net_device *dev);
  *	Called to get the iflink value of this device.
+ * void (*ndo_change_proto_down)(struct net_device *dev,
+ *				  bool proto_down);
+ *	This function is used to pass protocol port error state information
+ *	to the switch driver. The switch driver can react to the proto_down
+ *      by doing a phys down on the associated switch port.
+ *
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1211,6 +1217,8 @@ struct net_device_ops {
 						      int queue_index,
 						      u32 maxrate);
 	int			(*ndo_get_iflink)(const struct net_device *dev);
+	int			(*ndo_change_proto_down)(struct net_device *dev,
+							 bool proto_down);
 };
 
 /**
@@ -1502,6 +1510,10 @@ enum netdev_priv_flags {
  *
  *	@qdisc_tx_busylock:	XXX: need comments on this one
  *
+ *	@proto_down:	protocol port state information can be sent to the
+ *			switch driver and used to set the phys state of the
+ *			switch port.
+ *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
  */
@@ -1762,6 +1774,7 @@ struct net_device {
 #endif
 	struct phy_device *phydev;
 	struct lock_class_key *qdisc_tx_busylock;
+	bool proto_down;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -2982,6 +2995,7 @@ int dev_get_phys_port_id(struct net_device *dev,
 			 struct netdev_phys_item_id *ppid);
 int dev_get_phys_port_name(struct net_device *dev,
 			   char *name, size_t len);
+int dev_change_proto_down(struct net_device *dev, bool proto_down);
 struct sk_buff *validate_xmit_skb_list(struct sk_buff *skb, struct net_device *dev);
 struct sk_buff *dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 				    struct netdev_queue *txq, int *ret);
