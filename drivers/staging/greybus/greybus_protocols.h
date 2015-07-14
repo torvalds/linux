@@ -597,7 +597,7 @@ struct gb_svc_conn_destroy_request {
 #define GB_UART_TYPE_RECEIVE_DATA		0x03	/* Unsolicited data */
 #define GB_UART_TYPE_SET_LINE_CODING		0x04
 #define GB_UART_TYPE_SET_CONTROL_LINE_STATE	0x05
-#define GB_UART_TYPE_SET_BREAK			0x06
+#define GB_UART_TYPE_SEND_BREAK			0x06
 #define GB_UART_TYPE_SERIAL_STATE		0x07	/* Unsolicited data */
 
 /* Represents data from AP -> Module */

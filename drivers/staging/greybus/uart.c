@@ -186,7 +186,7 @@ static int send_break(struct gb_tty *gb_tty, u8 state)
 	}
 
 	request.state = state;
-	return gb_operation_sync(gb_tty->connection, GB_UART_TYPE_SET_BREAK,
+	return gb_operation_sync(gb_tty->connection, GB_UART_TYPE_SEND_BREAK,
 				 &request, sizeof(request), NULL, 0);
 }
 
