@@ -222,14 +222,15 @@ static int mmc35240_init(struct mmc35240_data *data)
 
 	/*
 	 * make sure we restore sensor characteristics, by doing
-	 * a RESET/SET sequence
+	 * a SET/RESET sequence, the axis polarity being naturally
+	 * aligned after RESET
 	 */
-	ret = mmc35240_hw_set(data, false);
+	ret = mmc35240_hw_set(data, true);
 	if (ret < 0)
 		return ret;
 	usleep_range(MMC53240_WAIT_SET_RESET, MMC53240_WAIT_SET_RESET + 1);
 
-	ret = mmc35240_hw_set(data, true);
+	ret = mmc35240_hw_set(data, false);
 	if (ret < 0)
 		return ret;
 
