@@ -642,16 +642,6 @@ int gb_operation_request_send(struct gb_operation *operation,
 
 	if (!callback)
 		return -EINVAL;
-
-	/*
-	 * First, get an extra reference on the operation.
-	 * It'll be dropped when the operation completes.
-	 */
-	gb_operation_get(operation);
-	ret = gb_operation_get_active(operation);
-	if (ret)
-		goto err_put;
-
 	/*
 	 * Record the callback function, which is executed in
 	 * non-atomic (workqueue) context when the final result
@@ -668,8 +658,16 @@ int gb_operation_request_send(struct gb_operation *operation,
 	header = operation->request->header;
 	header->operation_id = cpu_to_le16(operation->id);
 
-	/* All set, send the request */
 	gb_operation_result_set(operation, -EINPROGRESS);
+
+	/*
+	 * Get an extra reference on the operation. It'll be dropped when the
+	 * operation completes.
+	 */
+	gb_operation_get(operation);
+	ret = gb_operation_get_active(operation);
+	if (ret)
+		goto err_put;
 
 	ret = gb_message_send(operation->request, gfp);
 	if (ret)
