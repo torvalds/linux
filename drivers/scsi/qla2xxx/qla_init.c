@@ -3340,8 +3340,7 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	if (IS_QLAFX00(vha->hw)) {
 		qla2x00_set_fcport_state(fcport, FCS_ONLINE);
-		qla2x00_reg_remote_port(vha, fcport);
-		return;
+		goto reg_port;
 	}
 	fcport->login_retry = 0;
 	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
@@ -3349,7 +3348,16 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 	qla2x00_iidma_fcport(vha, fcport);
 	qla24xx_update_fcport_fcp_prio(vha, fcport);
-	qla2x00_reg_remote_port(vha, fcport);
+
+reg_port:
+	if (qla_ini_mode_enabled(vha))
+		qla2x00_reg_remote_port(vha, fcport);
+	else {
+		/*
+		 * Create target mode FC NEXUS in qla_target.c
+		 */
+		qlt_fc_port_added(vha, fcport);
+	}
 }
 
 /*
