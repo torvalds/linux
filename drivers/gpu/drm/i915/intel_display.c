@@ -12288,19 +12288,6 @@ encoder_retry:
 	DRM_DEBUG_KMS("plane bpp: %i, pipe bpp: %i, dithering: %i\n",
 		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
-	/* Check if we need to force a modeset */
-	if (pipe_config->has_audio !=
-	    to_intel_crtc_state(crtc->state)->has_audio) {
-		pipe_config->base.mode_changed = true;
-		ret = drm_atomic_add_affected_planes(state, crtc);
-	}
-
-	/*
-	 * Note we have an issue here with infoframes: current code
-	 * only updates them on the full mode set path per hw
-	 * requirements.  So here we should be checking for any
-	 * required changes and forcing a mode set.
-	 */
 fail:
 	return ret;
 }
@@ -12404,27 +12391,133 @@ static bool intel_fuzzy_clock_check(int clock1, int clock2)
 			    base.head) \
 		if (mask & (1 <<(intel_crtc)->pipe))
 
+
+static bool
+intel_compare_m_n(unsigned int m, unsigned int n,
+		  unsigned int m2, unsigned int n2,
+		  bool exact)
+{
+	if (m == m2 && n == n2)
+		return true;
+
+	if (exact || !m || !n || !m2 || !n2)
+		return false;
+
+	BUILD_BUG_ON(DATA_LINK_M_N_MASK > INT_MAX);
+
+	if (m > m2) {
+		while (m > m2) {
+			m2 <<= 1;
+			n2 <<= 1;
+		}
+	} else if (m < m2) {
+		while (m < m2) {
+			m <<= 1;
+			n <<= 1;
+		}
+	}
+
+	return m == m2 && n == n2;
+}
+
+static bool
+intel_compare_link_m_n(const struct intel_link_m_n *m_n,
+		       struct intel_link_m_n *m2_n2,
+		       bool adjust)
+{
+	if (m_n->tu == m2_n2->tu &&
+	    intel_compare_m_n(m_n->gmch_m, m_n->gmch_n,
+			      m2_n2->gmch_m, m2_n2->gmch_n, !adjust) &&
+	    intel_compare_m_n(m_n->link_m, m_n->link_n,
+			      m2_n2->link_m, m2_n2->link_n, !adjust)) {
+		if (adjust)
+			*m2_n2 = *m_n;
+
+		return true;
+	}
+
+	return false;
+}
+
 static bool
 intel_pipe_config_compare(struct drm_device *dev,
 			  struct intel_crtc_state *current_config,
-			  struct intel_crtc_state *pipe_config)
+			  struct intel_crtc_state *pipe_config,
+			  bool adjust)
 {
+	bool ret = true;
+
+#define INTEL_ERR_OR_DBG_KMS(fmt, ...) \
+	do { \
+		if (!adjust) \
+			DRM_ERROR(fmt, ##__VA_ARGS__); \
+		else \
+			DRM_DEBUG_KMS(fmt, ##__VA_ARGS__); \
+	} while (0)
+
 #define PIPE_CONF_CHECK_X(name)	\
 	if (current_config->name != pipe_config->name) { \
-		DRM_ERROR("mismatch in " #name " " \
+		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
 			  "(expected 0x%08x, found 0x%08x)\n", \
 			  current_config->name, \
 			  pipe_config->name); \
-		return false; \
+		ret = false; \
 	}
 
 #define PIPE_CONF_CHECK_I(name)	\
 	if (current_config->name != pipe_config->name) { \
-		DRM_ERROR("mismatch in " #name " " \
+		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
 			  "(expected %i, found %i)\n", \
 			  current_config->name, \
 			  pipe_config->name); \
-		return false; \
+		ret = false; \
+	}
+
+#define PIPE_CONF_CHECK_M_N(name) \
+	if (!intel_compare_link_m_n(&current_config->name, \
+				    &pipe_config->name,\
+				    adjust)) { \
+		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
+			  "(expected tu %i gmch %i/%i link %i/%i, " \
+			  "found tu %i, gmch %i/%i link %i/%i)\n", \
+			  current_config->name.tu, \
+			  current_config->name.gmch_m, \
+			  current_config->name.gmch_n, \
+			  current_config->name.link_m, \
+			  current_config->name.link_n, \
+			  pipe_config->name.tu, \
+			  pipe_config->name.gmch_m, \
+			  pipe_config->name.gmch_n, \
+			  pipe_config->name.link_m, \
+			  pipe_config->name.link_n); \
+		ret = false; \
+	}
+
+#define PIPE_CONF_CHECK_M_N_ALT(name, alt_name) \
+	if (!intel_compare_link_m_n(&current_config->name, \
+				    &pipe_config->name, adjust) && \
+	    !intel_compare_link_m_n(&current_config->alt_name, \
+				    &pipe_config->name, adjust)) { \
+		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
+			  "(expected tu %i gmch %i/%i link %i/%i, " \
+			  "or tu %i gmch %i/%i link %i/%i, " \
+			  "found tu %i, gmch %i/%i link %i/%i)\n", \
+			  current_config->name.tu, \
+			  current_config->name.gmch_m, \
+			  current_config->name.gmch_n, \
+			  current_config->name.link_m, \
+			  current_config->name.link_n, \
+			  current_config->alt_name.tu, \
+			  current_config->alt_name.gmch_m, \
+			  current_config->alt_name.gmch_n, \
+			  current_config->alt_name.link_m, \
+			  current_config->alt_name.link_n, \
+			  pipe_config->name.tu, \
+			  pipe_config->name.gmch_m, \
+			  pipe_config->name.gmch_n, \
+			  pipe_config->name.link_m, \
+			  pipe_config->name.link_n); \
+		ret = false; \
 	}
 
 /* This is required for BDW+ where there is only one set of registers for
@@ -12435,30 +12528,30 @@ intel_pipe_config_compare(struct drm_device *dev,
 #define PIPE_CONF_CHECK_I_ALT(name, alt_name) \
 	if ((current_config->name != pipe_config->name) && \
 		(current_config->alt_name != pipe_config->name)) { \
-			DRM_ERROR("mismatch in " #name " " \
+			INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
 				  "(expected %i or %i, found %i)\n", \
 				  current_config->name, \
 				  current_config->alt_name, \
 				  pipe_config->name); \
-			return false; \
+			ret = false; \
 	}
 
 #define PIPE_CONF_CHECK_FLAGS(name, mask)	\
 	if ((current_config->name ^ pipe_config->name) & (mask)) { \
-		DRM_ERROR("mismatch in " #name "(" #mask ") "	   \
+		INTEL_ERR_OR_DBG_KMS("mismatch in " #name "(" #mask ") " \
 			  "(expected %i, found %i)\n", \
 			  current_config->name & (mask), \
 			  pipe_config->name & (mask)); \
-		return false; \
+		ret = false; \
 	}
 
 #define PIPE_CONF_CHECK_CLOCK_FUZZY(name) \
 	if (!intel_fuzzy_clock_check(current_config->name, pipe_config->name)) { \
-		DRM_ERROR("mismatch in " #name " " \
+		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
 			  "(expected %i, found %i)\n", \
 			  current_config->name, \
 			  pipe_config->name); \
-		return false; \
+		ret = false; \
 	}
 
 #define PIPE_CONF_QUIRK(quirk)	\
@@ -12468,35 +12561,18 @@ intel_pipe_config_compare(struct drm_device *dev,
 
 	PIPE_CONF_CHECK_I(has_pch_encoder);
 	PIPE_CONF_CHECK_I(fdi_lanes);
-	PIPE_CONF_CHECK_I(fdi_m_n.gmch_m);
-	PIPE_CONF_CHECK_I(fdi_m_n.gmch_n);
-	PIPE_CONF_CHECK_I(fdi_m_n.link_m);
-	PIPE_CONF_CHECK_I(fdi_m_n.link_n);
-	PIPE_CONF_CHECK_I(fdi_m_n.tu);
+	PIPE_CONF_CHECK_M_N(fdi_m_n);
 
 	PIPE_CONF_CHECK_I(has_dp_encoder);
 
 	if (INTEL_INFO(dev)->gen < 8) {
-		PIPE_CONF_CHECK_I(dp_m_n.gmch_m);
-		PIPE_CONF_CHECK_I(dp_m_n.gmch_n);
-		PIPE_CONF_CHECK_I(dp_m_n.link_m);
-		PIPE_CONF_CHECK_I(dp_m_n.link_n);
-		PIPE_CONF_CHECK_I(dp_m_n.tu);
+		PIPE_CONF_CHECK_M_N(dp_m_n);
 
-		if (current_config->has_drrs) {
-			PIPE_CONF_CHECK_I(dp_m2_n2.gmch_m);
-			PIPE_CONF_CHECK_I(dp_m2_n2.gmch_n);
-			PIPE_CONF_CHECK_I(dp_m2_n2.link_m);
-			PIPE_CONF_CHECK_I(dp_m2_n2.link_n);
-			PIPE_CONF_CHECK_I(dp_m2_n2.tu);
-		}
-	} else {
-		PIPE_CONF_CHECK_I_ALT(dp_m_n.gmch_m, dp_m2_n2.gmch_m);
-		PIPE_CONF_CHECK_I_ALT(dp_m_n.gmch_n, dp_m2_n2.gmch_n);
-		PIPE_CONF_CHECK_I_ALT(dp_m_n.link_m, dp_m2_n2.link_m);
-		PIPE_CONF_CHECK_I_ALT(dp_m_n.link_n, dp_m2_n2.link_n);
-		PIPE_CONF_CHECK_I_ALT(dp_m_n.tu, dp_m2_n2.tu);
-	}
+		PIPE_CONF_CHECK_I(has_drrs);
+		if (current_config->has_drrs)
+			PIPE_CONF_CHECK_M_N(dp_m2_n2);
+	} else
+		PIPE_CONF_CHECK_M_N_ALT(dp_m_n, dp_m2_n2);
 
 	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_hdisplay);
 	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_htotal);
@@ -12592,8 +12668,9 @@ intel_pipe_config_compare(struct drm_device *dev,
 #undef PIPE_CONF_CHECK_FLAGS
 #undef PIPE_CONF_CHECK_CLOCK_FUZZY
 #undef PIPE_CONF_QUIRK
+#undef INTEL_ERR_OR_DBG_KMS
 
-	return true;
+	return ret;
 }
 
 static void check_wm_state(struct drm_device *dev)
@@ -12785,8 +12862,11 @@ check_crtc_state(struct drm_device *dev)
 		     "transitional active state does not match atomic hw state "
 		     "(expected %i, found %i)\n", crtc->base.state->active, crtc->active);
 
-		if (active &&
-		    !intel_pipe_config_compare(dev, crtc->config, &pipe_config)) {
+		if (!active)
+			continue;
+
+		if (!intel_pipe_config_compare(dev, crtc->config,
+					       &pipe_config, false)) {
 			I915_STATE_WARN(1, "pipe state doesn't match!\n");
 			intel_dump_pipe_config(crtc, &pipe_config,
 					       "[hw state]");
@@ -13087,14 +13167,17 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 		return ret;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		struct intel_crtc_state *pipe_config =
+			to_intel_crtc_state(crtc_state);
+		bool modeset, recalc;
+
 		if (!crtc_state->enable) {
 			if (needs_modeset(crtc_state))
 				any_ms = true;
 			continue;
 		}
 
-		if (to_intel_crtc_state(crtc_state)->quirks &
-		    PIPE_CONFIG_QUIRK_INITIAL_PLANES) {
+		if (pipe_config->quirks & PIPE_CONFIG_QUIRK_INITIAL_PLANES) {
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
 				return ret;
@@ -13107,23 +13190,36 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 			 */
 		}
 
-		if (!needs_modeset(crtc_state)) {
+		modeset = needs_modeset(crtc_state);
+		recalc = pipe_config->quirks & PIPE_CONFIG_QUIRK_INHERITED_MODE;
+
+		if (!modeset && !recalc)
+			continue;
+
+		if (recalc) {
 			ret = drm_atomic_add_affected_connectors(state, crtc);
 			if (ret)
 				return ret;
 		}
 
-		ret = intel_modeset_pipe_config(crtc,
-					to_intel_crtc_state(crtc_state));
+		ret = intel_modeset_pipe_config(crtc, pipe_config);
 		if (ret)
 			return ret;
 
-		if (needs_modeset(crtc_state))
-			any_ms = true;
+		if (recalc && !intel_pipe_config_compare(state->dev,
+					to_intel_crtc_state(crtc->state),
+					pipe_config, true)) {
+			modeset = crtc_state->mode_changed = true;
 
+			ret = drm_atomic_add_affected_planes(state, crtc);
+			if (ret)
+				return ret;
+		}
+
+		any_ms = modeset;
 		intel_dump_pipe_config(to_intel_crtc(crtc),
-				       to_intel_crtc_state(crtc_state),
-				       "[modeset]");
+				       pipe_config,
+				       modeset ? "[modeset]" : "[fastboot]");
 	}
 
 	if (any_ms) {
