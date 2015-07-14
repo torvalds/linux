@@ -3,6 +3,7 @@
 
 
 #include <linux/netdevice.h>
+#include <linux/static_key.h>
 #include <uapi/linux/netfilter/x_tables.h>
 
 /**
@@ -279,6 +280,12 @@ void xt_free_table_info(struct xt_table_info *info);
  * Low order bit set to 1 if a writer is active.
  */
 DECLARE_PER_CPU(seqcount_t, xt_recseq);
+
+/* xt_tee_enabled - true if x_tables needs to handle reentrancy
+ *
+ * Enabled if current ip(6)tables ruleset has at least one -j TEE rule.
+ */
+extern struct static_key xt_tee_enabled;
 
 /**
  * xt_write_recseq_begin - start of a write section

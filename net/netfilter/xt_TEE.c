@@ -251,6 +251,7 @@ static int tee_tg_check(const struct xt_tgchk_param *par)
 	} else
 		info->priv = NULL;
 
+	static_key_slow_inc(&xt_tee_enabled);
 	return 0;
 }
 
@@ -262,6 +263,7 @@ static void tee_tg_destroy(const struct xt_tgdtor_param *par)
 		unregister_netdevice_notifier(&info->priv->notifier);
 		kfree(info->priv);
 	}
+	static_key_slow_dec(&xt_tee_enabled);
 }
 
 static struct xt_target tee_tg_reg[] __read_mostly = {

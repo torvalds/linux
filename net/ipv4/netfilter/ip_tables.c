@@ -340,7 +340,8 @@ ipt_do_table(struct sk_buff *skb,
 	 * For recursion via REJECT or SYNPROXY the stack will be clobbered
 	 * but it is no problem since absolute verdict is issued by these.
 	 */
-	jumpstack += private->stacksize * __this_cpu_read(nf_skb_duplicated);
+	if (static_key_false(&xt_tee_enabled))
+		jumpstack += private->stacksize * __this_cpu_read(nf_skb_duplicated);
 
 	e = get_entry(table_base, private->hook_entry[hook]);
 
