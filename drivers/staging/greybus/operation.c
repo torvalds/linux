@@ -901,8 +901,7 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 	} else {
 		if (gb_operation_result_set(operation, errno)) {
 			gb_message_cancel(operation->request);
-			gb_operation_put_active(operation);
-			gb_operation_put(operation);
+			queue_work(gb_operation_workqueue, &operation->work);
 		}
 	}
 
