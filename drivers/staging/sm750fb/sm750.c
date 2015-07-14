@@ -24,7 +24,7 @@
 
 #include "modedb.h"
 
-int smi_indent = 0;
+int smi_indent;
 
 
 /*
@@ -47,9 +47,9 @@ static int g_noaccel;
 static int g_nomtrr;
 static const char *g_fbmode[] = {NULL, NULL};
 static const char *g_def_fbmode = "800x600-16@60";
-static char *g_settings = NULL;
+static char *g_settings;
 static int g_dualview;
-static char *g_option = NULL;
+static char *g_option;
 
 
 static const struct fb_videomode lynx750_ext[] = {
