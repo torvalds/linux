@@ -57,8 +57,42 @@ module_param(libcfs_debug, int, 0644);
 MODULE_PARM_DESC(libcfs_debug, "Lustre kernel debug mask");
 EXPORT_SYMBOL(libcfs_debug);
 
+static int libcfs_param_debug_mb_set(const char *val,
+				     const struct kernel_param *kp)
+{
+	int rc;
+	unsigned num;
+
+	rc = kstrtouint(val, 0, &num);
+	if (rc < 0)
+		return rc;
+
+	if (!*((unsigned int *)kp->arg)) {
+		*((unsigned int *)kp->arg) = num;
+		return 0;
+	}
+
+	rc = cfs_trace_set_debug_mb(num);
+
+	if (!rc)
+		*((unsigned int *)kp->arg) = cfs_trace_get_debug_mb();
+
+	return rc;
+}
+
+/* While debug_mb setting look like unsigned int, in fact
+ * it needs quite a bunch of extra processing, so we define special
+ * debugmb parameter type with corresponding methods to handle this case */
+static struct kernel_param_ops param_ops_debugmb = {
+	.set = libcfs_param_debug_mb_set,
+	.get = param_get_uint,
+};
+
+#define param_check_debugmb(name, p) \
+		__param_check(name, p, unsigned int)
+
 static unsigned int libcfs_debug_mb;
-module_param(libcfs_debug_mb, uint, 0644);
+module_param(libcfs_debug_mb, debugmb, 0644);
 MODULE_PARM_DESC(libcfs_debug_mb, "Total debug buffer size.");
 EXPORT_SYMBOL(libcfs_debug_mb);
 
@@ -437,8 +471,10 @@ int libcfs_debug_init(unsigned long bufsize)
 	}
 	rc = cfs_tracefile_init(max);
 
-	if (rc == 0)
+	if (rc == 0) {
 		libcfs_register_panic_notifier();
+		libcfs_debug_mb = cfs_trace_get_debug_mb();
+	}
 
 	return rc;
 }

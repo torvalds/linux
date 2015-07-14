@@ -550,31 +550,6 @@ static int proc_daemon_file(struct ctl_table *table, int write,
 				 __proc_daemon_file);
 }
 
-static int __proc_debug_mb(void *data, int write,
-			   loff_t pos, void __user *buffer, int nob)
-{
-	if (!write) {
-		char tmpstr[32];
-		int  len = snprintf(tmpstr, sizeof(tmpstr), "%d",
-				    cfs_trace_get_debug_mb());
-
-		if (pos >= len)
-			return 0;
-
-		return cfs_trace_copyout_string(buffer, nob, tmpstr + pos,
-		       "\n");
-	}
-
-	return cfs_trace_set_debug_mb_usrstr(buffer, nob);
-}
-
-static int proc_debug_mb(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return proc_call_handler(table->data, write, ppos, buffer, lenp,
-				 __proc_debug_mb);
-}
-
 static int proc_console_max_delay_cs(struct ctl_table *table, int write,
 				     void __user *buffer, size_t *lenp,
 				     loff_t *ppos)
@@ -790,11 +765,6 @@ static struct ctl_table lnet_table[] = {
 		.proc_handler = &proc_daemon_file,
 	},
 	{
-		.procname = "debug_mb",
-		.mode     = 0644,
-		.proc_handler = &proc_debug_mb,
-	},
-	{
 		.procname = "force_lbug",
 		.data     = NULL,
 		.maxlen   = 0,
@@ -833,6 +803,8 @@ struct lnet_debugfs_symlink_def lnet_debugfs_symlinks[] = {
 	  "/sys/module/libcfs/parameters/libcfs_panic_on_lbug"},
 	{ "libcfs_console_backoff",
 	  "/sys/module/libcfs/parameters/libcfs_console_backoff"},
+	{ "debug_mb",
+	  "/sys/module/libcfs/parameters/libcfs_debug_mb"},
 	{},
 };
 
