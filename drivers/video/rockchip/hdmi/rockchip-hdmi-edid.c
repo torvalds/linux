@@ -437,6 +437,7 @@ static int hdmi_edid_parse_extensions_cea(unsigned char *buf,
 			case 0x05:
 				EDBG("[CEA] Colorimetry Data Block\n");
 				EDBG("value is %02x\n", buf[cur_offset + 2]);
+				pedid->colorimetry = buf[cur_offset + 2];
 				break;
 			case 0x0e:
 				EDBG("[CEA] YCBCR 4:2:0 Video Data Block\n");

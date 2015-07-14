@@ -82,7 +82,7 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	video.vic = hdmi->vic & HDMI_VIC_MASK;
 	video.sink_hdmi = hdmi->edid.sink_hdmi;
 	video.format_3d = hdmi->mode_3d;
-
+	video.colorimetry = hdmi->colorimetry;
 	/* For DVI, output RGB */
 	if (hdmi->edid.sink_hdmi == 0) {
 		video.color_output = HDMI_COLOR_RGB_0_255;
@@ -481,6 +481,7 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 	}
 	hdmi->colormode = HDMI_VIDEO_DEFAULT_COLORMODE;
 	hdmi->colordepth = HDMI_DEPP_COLOR_AUTO;
+	hdmi->colorimetry = HDMI_COLORIMETRY_NO_DATA;
 	hdmi->mode_3d = HDMI_3D_NONE;
 	hdmi->audio.type = HDMI_AUDIO_DEFAULT_TYPE;
 	hdmi->audio.channel = HDMI_AUDIO_DEFAULT_CHANNEL;

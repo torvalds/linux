@@ -170,6 +170,20 @@ enum hdmi_deep_color {
 	HDMI_DEEP_COLOR_48BITS = 0x8,
 };
 
+enum hdmi_colorimetry {
+	HDMI_COLORIMETRY_NO_DATA = 0,
+	HDMI_COLORIMETRY_SMTPE_170M,
+	HDMI_COLORIMETRY_ITU709,
+	HDMI_COLORIMETRY_EXTEND_XVYCC_601,
+	HDMI_COLORIMETRY_EXTEND_XVYCC_709,
+	HDMI_COLORIMETRY_EXTEND_SYCC_601,
+	HDMI_COLORIMETRY_EXTEND_ADOBE_YCC601,
+	HDMI_COLORIMETRY_EXTEND_ADOBE_RGB,
+	HDMI_COLORIMETRY_EXTEND_BT_2020_YCC_C, /*constant luminance*/
+	HDMI_COLORIMETRY_EXTEND_BT_2020_YCC,
+	HDMI_COLORIMETRY_EXTEND_BT_2020_RGB,
+};
+
 /* HDMI Audio source */
 enum {
 	HDMI_AUDIO_SRC_IIS = 0,
@@ -251,6 +265,7 @@ struct hdmi_video {
 	unsigned int color_input;	/* Input video color mode*/
 	unsigned int color_output;	/* Output video color mode*/
 	unsigned int color_output_depth;/* Output video Color Depth*/
+	unsigned int colorimetry;	/* Output Colorimetry */
 	unsigned int sink_hdmi;		/* Output signal is DVI or HDMI*/
 	unsigned int format_3d;		/* Output 3D mode*/
 };
@@ -291,6 +306,7 @@ struct hdmi_edid {
 	unsigned char dual_view;
 	unsigned char osd_disparity_3d;
 
+	unsigned int colorimetry;
 	struct fb_monspecs	*specs;	/*Device spec*/
 	struct list_head modelist;	/*Device supported display mode list*/
 	unsigned char baseaudio_support;
@@ -380,9 +396,10 @@ struct hdmi {
 			   2 means mute audio,
 			   1 means mute display;
 			   0 is unmute*/
-	int colordepth;			/* Ouput color depth*/
-	int colormode;			/* Ouput color mode*/
+	int colordepth;			/* Output color depth*/
+	int colormode;			/* Output color mode*/
 	int colormode_input;		/* Input color mode*/
+	int colorimetry;		/* Output colorimetry */
 	struct hdmi_edid edid;		/* EDID information*/
 	int enable;			/* Enable flag*/
 	int sleep;			/* Sleep flag*/

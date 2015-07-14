@@ -218,6 +218,10 @@ static int hdmi_get_color(struct rk_display_device *device, char *buf)
 		      "Supported Color Depth: %d\n", mode);
 	i += snprintf(buf + i, PAGE_SIZE - i,
 		      "Current Color Depth: %d\n", hdmi->colordepth);
+	i += snprintf(buf + i, PAGE_SIZE - i,
+		      "Supported Colorimetry: %d\n", hdmi->edid.colorimetry);
+	i += snprintf(buf + i, PAGE_SIZE - i,
+		      "Current Colorimetry: %d\n", hdmi->colorimetry);
 	mutex_unlock(&hdmi->lock);
 	return i;
 }
@@ -242,6 +246,13 @@ static int hdmi_set_color(struct rk_display_device *device,
 			 hdmi->colordepth, value);
 		if (hdmi->colordepth != value)
 			hdmi->colordepth = value;
+	} else if (!strncmp(buf, "colorimetry", 11)) {
+		if (sscanf(buf, "colorimetry=%d", &value) == -1)
+			return -1;
+		pr_debug("current colorimetry is %d input colorimetry is %d\n",
+			 hdmi->colorimetry, value);
+		if (hdmi->colorimetry != value)
+			hdmi->colorimetry = value;
 	} else {
 		pr_err("%s unkown event\n", __func__);
 		return -1;
@@ -338,8 +349,8 @@ static int hdmi_show_sink_info(struct hdmi *hdmi, char *buf, int len)
 					 "\t%s\n", m->name);
 	}
 	lens += snprintf(buf + lens, PAGE_SIZE - lens,
-			 "Support video color mode:\n");
-	lens += snprintf(buf + lens, PAGE_SIZE - lens, "\tRGB");
+			 "Support video color mode:");
+	lens += snprintf(buf + lens, PAGE_SIZE - lens, " RGB");
 	if (hdmi->edid.ycbcr420)
 		lens += snprintf(buf + lens, PAGE_SIZE - lens,
 				 " YCbCr420");
@@ -350,8 +361,8 @@ static int hdmi_show_sink_info(struct hdmi *hdmi, char *buf, int len)
 		lens += snprintf(buf + lens, PAGE_SIZE - lens,
 				 " YCbCr444");
 	lens += snprintf(buf + lens, PAGE_SIZE - lens,
-			 "\nSupport video color depth:\n");
-	lens += snprintf(buf + lens, PAGE_SIZE - lens, "\t24bit");
+			 "\nSupport video color depth:");
+	lens += snprintf(buf + lens, PAGE_SIZE - lens, " 24bit");
 	if (hdmi->edid.deepcolor & HDMI_DEEP_COLOR_30BITS)
 		lens += snprintf(buf + lens, PAGE_SIZE - lens, " 30bit");
 	if (hdmi->edid.deepcolor & HDMI_DEEP_COLOR_36BITS)
@@ -366,77 +377,113 @@ static int hdmi_show_sink_info(struct hdmi *hdmi, char *buf, int len)
 		lens += snprintf(buf + lens, PAGE_SIZE - lens, " 420_36bit");
 	if (hdmi->edid.deepcolor_420 & HDMI_DEEP_COLOR_48BITS)
 		lens += snprintf(buf + lens, PAGE_SIZE - lens, " 420_48bit");
+	if (hdmi->edid.colorimetry) {
+		lens += snprintf(buf + lens, PAGE_SIZE - lens,
+				 "\nExtended Colorimetry:");
+		if (hdmi->edid.colorimetry &
+		    (1 << (HDMI_COLORIMETRY_EXTEND_XVYCC_601 - 3)))
+			lens += snprintf(buf + lens, PAGE_SIZE - lens,
+					 " xvYCC601");
+		if (hdmi->edid.colorimetry &
+		    (1 << (HDMI_COLORIMETRY_EXTEND_XVYCC_709 - 3)))
+			lens += snprintf(buf + lens, PAGE_SIZE - lens,
+					 " xvYCC709");
+		if (hdmi->edid.colorimetry &
+		    (1 << (HDMI_COLORIMETRY_EXTEND_SYCC_601 - 3)))
+			lens += snprintf(buf + lens, PAGE_SIZE - lens,
+					 " sYCC601");
+		if (hdmi->edid.colorimetry &
+		    (1 << (HDMI_COLORIMETRY_EXTEND_ADOBE_YCC601 - 3)))
+			lens += snprintf(buf + lens, PAGE_SIZE - lens,
+					 " AdobeYCC601");
+		if (hdmi->edid.colorimetry &
+		    (1 << (HDMI_COLORIMETRY_EXTEND_ADOBE_RGB - 3)))
+			lens += snprintf(buf + lens, PAGE_SIZE - lens,
+					 " AdobeRGB");
+		if (hdmi->edid.colorimetry &
+		    (1 << (HDMI_COLORIMETRY_EXTEND_BT_2020_YCC_C - 3)))
+			lens += snprintf(buf + lens, PAGE_SIZE - lens,
+					 " BT2020cYCC");
+		if (hdmi->edid.colorimetry &
+		    (1 << (HDMI_COLORIMETRY_EXTEND_BT_2020_YCC - 3)))
+			lens += snprintf(buf + lens, PAGE_SIZE - lens,
+					 " BT2020YCC");
+		if (hdmi->edid.colorimetry &
+		    (1 << (HDMI_COLORIMETRY_EXTEND_BT_2020_RGB - 3)))
+			lens += snprintf(buf + lens, PAGE_SIZE - lens,
+					 " BT2020RGB");
+	}
 	lens += snprintf(buf + lens, PAGE_SIZE - lens,
-			 "\nSupport audio type:\n");
+			 "\nSupport audio type:");
 	for (i = 0; i < hdmi->edid.audio_num; i++) {
 		audio = &(hdmi->edid.audio[i]);
 		switch (audio->type) {
 		case HDMI_AUDIO_LPCM:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-				"\tLPCM\n");
+				" LPCM\n");
 			break;
 		case HDMI_AUDIO_AC3:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tAC3\n");
+					 " AC3");
 			break;
 		case HDMI_AUDIO_MPEG1:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tMPEG1\n");
+					 " MPEG1");
 			break;
 		case HDMI_AUDIO_MP3:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tMP3\n");
+					 " MP3");
 			break;
 		case HDMI_AUDIO_MPEG2:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tMPEG2\n");
+					 " MPEG2");
 			break;
 		case HDMI_AUDIO_AAC_LC:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tAAC\n");
+					 " AAC");
 			break;
 		case HDMI_AUDIO_DTS:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tDTS\n");
+					 " DTS");
 			break;
 		case HDMI_AUDIO_ATARC:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tATARC\n");
+					 " ATARC");
 			break;
 		case HDMI_AUDIO_DSD:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tDSD\n");
+					 " DSD");
 			break;
 		case HDMI_AUDIO_E_AC3:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tE-AC3\n");
+					 " E-AC3");
 			break;
 		case HDMI_AUDIO_DTS_HD:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tDTS-HD\n");
+					 " DTS-HD");
 			break;
 		case HDMI_AUDIO_MLP:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tMLP\n");
+					 " MLP");
 			break;
 		case HDMI_AUDIO_DST:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tDST\n");
+					 " DST");
 			break;
 		case HDMI_AUDIO_WMA_PRO:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tWMP-PRO\n");
+					 " WMP-PRO");
 			break;
 		default:
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
-					 "\tUnkown\n");
+					 " Unkown");
 			break;
 		}
 		lens += snprintf(buf + lens, PAGE_SIZE - lens,
 				 "Support max audio channel is %d\n",
 				 audio->channel);
 		lens += snprintf(buf + lens, PAGE_SIZE - lens,
-				 "Support audio sample rate:\n\t");
+				 "Support audio sample rate:");
 		if (audio->rate & HDMI_AUDIO_FS_32000)
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
 					 " 32000");
@@ -459,7 +506,7 @@ static int hdmi_show_sink_info(struct hdmi *hdmi, char *buf, int len)
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
 					 " 192000");
 		lens += snprintf(buf + lens, PAGE_SIZE - lens,
-				 "\nSupport audio word lenght:\n\t");
+				 "\nSupport audio word lenght:");
 		if (audio->rate & HDMI_AUDIO_WORD_LENGTH_16bit)
 			lens += snprintf(buf + lens, PAGE_SIZE - lens,
 					 " 16bit");
