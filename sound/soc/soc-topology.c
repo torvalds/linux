@@ -144,7 +144,7 @@ static const struct snd_soc_tplg_kcontrol_ops io_ops[] = {
 	{SND_SOC_TPLG_CTL_STROBE, snd_soc_get_strobe,
 		snd_soc_put_strobe, NULL},
 	{SND_SOC_TPLG_DAPM_CTL_VOLSW, snd_soc_dapm_get_volsw,
-		snd_soc_dapm_put_volsw, NULL},
+		snd_soc_dapm_put_volsw, snd_soc_info_volsw},
 	{SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE, snd_soc_dapm_get_enum_double,
 		snd_soc_dapm_put_enum_double, snd_soc_info_enum_double},
 	{SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT, snd_soc_dapm_get_enum_double,
