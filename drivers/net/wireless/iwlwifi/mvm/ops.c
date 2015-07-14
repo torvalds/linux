@@ -453,6 +453,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_LIST_HEAD(&mvm->aux_roc_te_list);
 	INIT_LIST_HEAD(&mvm->async_handlers_list);
 	spin_lock_init(&mvm->time_event_lock);
+	spin_lock_init(&mvm->queue_info_lock);
 
 	INIT_WORK(&mvm->async_handlers_wk, iwl_mvm_async_handlers_wk);
 	INIT_WORK(&mvm->roc_done_wk, iwl_mvm_roc_done_wk);
@@ -775,37 +776,51 @@ static void iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	int mq = mvm->queue_to_mac80211[queue];
+	unsigned long mq;
+	int q;
 
-	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
+	spin_lock_bh(&mvm->queue_info_lock);
+	mq = mvm->queue_info[queue].hw_queue_to_mac80211;
+	spin_unlock_bh(&mvm->queue_info_lock);
+
+	if (WARN_ON_ONCE(!mq))
 		return;
 
-	if (atomic_inc_return(&mvm->mac80211_queue_stop_count[mq]) > 1) {
-		IWL_DEBUG_TX_QUEUES(mvm,
-				    "queue %d (mac80211 %d) already stopped\n",
-				    queue, mq);
-		return;
+	for_each_set_bit(q, &mq, IEEE80211_MAX_QUEUES) {
+		if (atomic_inc_return(&mvm->mac80211_queue_stop_count[q]) > 1) {
+			IWL_DEBUG_TX_QUEUES(mvm,
+					    "queue %d (mac80211 %d) already stopped\n",
+					    queue, q);
+			continue;
+		}
+
+		ieee80211_stop_queue(mvm->hw, q);
 	}
-
-	ieee80211_stop_queue(mvm->hw, mq);
 }
 
 static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	int mq = mvm->queue_to_mac80211[queue];
+	unsigned long mq;
+	int q;
 
-	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
+	spin_lock_bh(&mvm->queue_info_lock);
+	mq = mvm->queue_info[queue].hw_queue_to_mac80211;
+	spin_unlock_bh(&mvm->queue_info_lock);
+
+	if (WARN_ON_ONCE(!mq))
 		return;
 
-	if (atomic_dec_return(&mvm->mac80211_queue_stop_count[mq]) > 0) {
-		IWL_DEBUG_TX_QUEUES(mvm,
-				    "queue %d (mac80211 %d) still stopped\n",
-				    queue, mq);
-		return;
+	for_each_set_bit(q, &mq, IEEE80211_MAX_QUEUES) {
+		if (atomic_dec_return(&mvm->mac80211_queue_stop_count[q]) > 0) {
+			IWL_DEBUG_TX_QUEUES(mvm,
+					    "queue %d (mac80211 %d) still stopped\n",
+					    queue, q);
+			continue;
+		}
+
+		ieee80211_wake_queue(mvm->hw, q);
 	}
-
-	ieee80211_wake_queue(mvm->hw, mq);
 }
 
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
