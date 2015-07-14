@@ -15239,6 +15239,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	/* restore vblank interrupts to correct state */
 	drm_crtc_vblank_reset(&crtc->base);
 	if (crtc->active) {
+		drm_calc_timestamping_constants(&crtc->base, &crtc->base.hwmode);
 		update_scanline_offset(crtc);
 		drm_crtc_vblank_on(&crtc->base);
 	}
