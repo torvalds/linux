@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 4.1.0 Kernel Configuration
+# Linux/arm 4.1.2 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -889,6 +889,7 @@ CONFIG_CFG80211_DEFAULT_PS=y
 # CONFIG_CFG80211_INTERNAL_REGDB is not set
 CONFIG_CFG80211_WEXT=y
 # CONFIG_LIB80211 is not set
+CONFIG_CFG80211_ALLOW_RECONNECT=y
 # CONFIG_MAC80211 is not set
 # CONFIG_WIMAX is not set
 CONFIG_RFKILL=y

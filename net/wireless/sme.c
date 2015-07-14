@@ -984,7 +984,11 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 
 	ASSERT_WDEV_LOCK(wdev);
 
+#if defined(CONFIG_CFG80211_ALLOW_RECONNECT)
+	if (wdev->connect_keys) {
+#else
 	if (WARN_ON(wdev->connect_keys)) {
+#endif
 		kzfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 	}
