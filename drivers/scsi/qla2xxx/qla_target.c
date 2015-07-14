@@ -113,6 +113,7 @@ static void qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha,
 static void qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio, uint16_t status, int qfull);
 static void qlt_disable_vha(struct scsi_qla_host *vha);
+static void qlt_clear_tgt_db(struct qla_tgt *tgt);
 /*
  * Global Variables
  */
@@ -431,10 +432,10 @@ static int qlt_reset(struct scsi_qla_host *vha, void *iocb, int mcmd)
 
 	loop_id = le16_to_cpu(n->u.isp24.nport_handle);
 	if (loop_id == 0xFFFF) {
-#if 0 /* FIXME: Re-enable Global event handling.. */
 		/* Global event */
-		atomic_inc(&ha->tgt.qla_tgt->tgt_global_resets_count);
-		qlt_clear_tgt_db(ha->tgt.qla_tgt);
+		atomic_inc(&vha->vha_tgt.qla_tgt->tgt_global_resets_count);
+		qlt_clear_tgt_db(vha->vha_tgt.qla_tgt);
+#if 0 /* FIXME: do we need to choose a session here? */
 		if (!list_empty(&ha->tgt.qla_tgt->sess_list)) {
 			sess = list_entry(ha->tgt.qla_tgt->sess_list.next,
 			    typeof(*sess), sess_list_entry);
@@ -788,7 +789,7 @@ void qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport)
 	if (!vha->hw->tgt.tgt_ops)
 		return;
 
-	if (!tgt || (fcport->port_type != FCT_INITIATOR))
+	if (!tgt)
 		return;
 
 	if (tgt->tgt_stop) {
