@@ -190,27 +190,3 @@ void DOT11D_ScanComplete(struct rtllib_device *dev)
 		break;
 	}
 }
-
-int ToLegalChannel(struct rtllib_device *dev, u8 channel)
-{
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
-	u8 default_chn = 0;
-	u32 i;
-
-	for (i = 1; i <= MAX_CHANNEL_NUMBER; i++) {
-		if (pDot11dInfo->channel_map[i] > 0) {
-			default_chn = i;
-			break;
-		}
-	}
-
-	if (MAX_CHANNEL_NUMBER < channel) {
-		netdev_err(dev->dev, "%s(): Invalid Channel\n", __func__);
-		return default_chn;
-	}
-
-	if (pDot11dInfo->channel_map[channel] > 0)
-		return channel;
-
-	return default_chn;
-}
