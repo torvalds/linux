@@ -808,13 +808,6 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define	FC_TM_REJECT                4
 #define FC_TM_FAILED                5
 
-/*
- * Error code of qlt_pre_xmit_response() meaning that cmd's exchange was
- * terminated, so no more actions is needed and success should be returned
- * to target.
- */
-#define QLA_TGT_PRE_XMIT_RESP_CMD_ABORTED	0x1717
-
 #if (BITS_PER_LONG > 32) || defined(CONFIG_HIGHMEM64G)
 #define pci_dma_lo32(a) (a & 0xffffffff)
 #define pci_dma_hi32(a) ((((a) >> 16)>>16) & 0xffffffff)
@@ -950,7 +943,6 @@ struct qla_tgt_cmd {
 	unsigned int conf_compl_supported:1;
 	unsigned int sg_mapped:1;
 	unsigned int free_sg:1;
-	unsigned int aborted:1; /* Needed in case of SRR */
 	unsigned int write_data_transferred:1;
 	unsigned int ctx_dsd_alloced:1;
 	unsigned int q_full:1;
@@ -1134,6 +1126,7 @@ static inline uint32_t sid_to_key(const uint8_t *s_id)
 extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, response_t *);
 extern int qlt_rdy_to_xfer(struct qla_tgt_cmd *);
 extern int qlt_xmit_response(struct qla_tgt_cmd *, int, uint8_t);
+extern void qlt_abort_cmd(struct qla_tgt_cmd *);
 extern void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_cmd(struct qla_tgt_cmd *cmd);

@@ -1924,20 +1924,6 @@ static int qlt_pre_xmit_response(struct qla_tgt_cmd *cmd,
 	struct qla_hw_data *ha = vha->hw;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 
-	if (unlikely(cmd->aborted)) {
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf014,
-		       "qla_target(%d): terminating exchange for aborted cmd=%p (se_cmd=%p, tag=%lld)",
-		       vha->vp_idx, cmd, se_cmd, se_cmd->tag);
-
-		cmd->state = QLA_TGT_STATE_ABORTED;
-		cmd->cmd_flags |= BIT_6;
-
-		qlt_send_term_exchange(vha, cmd, &cmd->atio, 0);
-
-		/* !! At this point cmd could be already freed !! */
-		return QLA_TGT_PRE_XMIT_RESP_CMD_ABORTED;
-	}
-
 	prm->cmd = cmd;
 	prm->tgt = tgt;
 	prm->rq_result = scsi_status;
@@ -2524,9 +2510,6 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	res = qlt_pre_xmit_response(cmd, &prm, xmit_type, scsi_status,
 	    &full_req_cnt);
 	if (unlikely(res != 0)) {
-		if (res == QLA_TGT_PRE_XMIT_RESP_CMD_ABORTED)
-			return 0;
-
 		return res;
 	}
 
@@ -3091,6 +3074,24 @@ static void qlt_chk_exch_leak_thresh_hold(struct scsi_qla_host *vha)
 	}
 
 }
+
+void qlt_abort_cmd(struct qla_tgt_cmd *cmd)
+{
+	struct qla_tgt *tgt = cmd->tgt;
+	struct scsi_qla_host *vha = tgt->vha;
+	struct se_cmd *se_cmd = &cmd->se_cmd;
+
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf014,
+	    "qla_target(%d): terminating exchange for aborted cmd=%p "
+	    "(se_cmd=%p, tag=%llu)", vha->vp_idx, cmd, &cmd->se_cmd,
+	    se_cmd->tag);
+
+	cmd->state = QLA_TGT_STATE_ABORTED;
+	cmd->cmd_flags |= BIT_6;
+
+	qlt_send_term_exchange(vha, cmd, &cmd->atio, 0);
+}
+EXPORT_SYMBOL(qlt_abort_cmd);
 
 void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 {

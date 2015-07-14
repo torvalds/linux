@@ -541,7 +541,6 @@ static int tcm_qla2xxx_queue_data_in(struct se_cmd *se_cmd)
 	cmd->cmd_flags |= BIT_4;
 	cmd->bufflen = se_cmd->data_length;
 	cmd->dma_data_direction = target_reverse_dma_direction(se_cmd);
-	cmd->aborted = (se_cmd->transport_state & CMD_T_ABORTED);
 
 	cmd->sg_cnt = se_cmd->t_data_nents;
 	cmd->sg = se_cmd->t_data_sg;
@@ -570,7 +569,6 @@ static int tcm_qla2xxx_queue_status(struct se_cmd *se_cmd)
 	cmd->sg_cnt = 0;
 	cmd->offset = 0;
 	cmd->dma_data_direction = target_reverse_dma_direction(se_cmd);
-	cmd->aborted = (se_cmd->transport_state & CMD_T_ABORTED);
 	if (cmd->cmd_flags &  BIT_5) {
 		pr_crit("Bit_5 already set for cmd = %p.\n", cmd);
 		dump_stack();
@@ -635,14 +633,7 @@ static void tcm_qla2xxx_aborted_task(struct se_cmd *se_cmd)
 {
 	struct qla_tgt_cmd *cmd = container_of(se_cmd,
 				struct qla_tgt_cmd, se_cmd);
-	struct scsi_qla_host *vha = cmd->vha;
-	struct qla_hw_data *ha = vha->hw;
-
-	if (!cmd->sg_mapped)
-		return;
-
-	pci_unmap_sg(ha->pdev, cmd->sg, cmd->sg_cnt, cmd->dma_data_direction);
-	cmd->sg_mapped = 0;
+	qlt_abort_cmd(cmd);
 }
 
 static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *,
