@@ -7817,9 +7817,14 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 	mode->vsync_end = pipe_config->base.adjusted_mode.crtc_vsync_end;
 
 	mode->flags = pipe_config->base.adjusted_mode.flags;
+	mode->type = DRM_MODE_TYPE_DRIVER;
 
 	mode->clock = pipe_config->base.adjusted_mode.crtc_clock;
 	mode->flags |= pipe_config->base.adjusted_mode.flags;
+
+	mode->hsync = drm_mode_hsync(mode);
+	mode->vrefresh = drm_mode_vrefresh(mode);
+	drm_mode_set_name(mode);
 }
 
 static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
