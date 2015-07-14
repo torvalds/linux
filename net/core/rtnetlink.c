@@ -896,7 +896,9 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + rtnl_link_get_size(dev) /* IFLA_LINKINFO */
 	       + rtnl_link_get_af_size(dev) /* IFLA_AF_SPEC */
 	       + nla_total_size(MAX_PHYS_ITEM_ID_LEN) /* IFLA_PHYS_PORT_ID */
-	       + nla_total_size(MAX_PHYS_ITEM_ID_LEN); /* IFLA_PHYS_SWITCH_ID */
+	       + nla_total_size(MAX_PHYS_ITEM_ID_LEN) /* IFLA_PHYS_SWITCH_ID */
+	       + nla_total_size(1); /* IFLA_PROTO_DOWN */
+
 }
 
 static int rtnl_vf_ports_fill(struct sk_buff *skb, struct net_device *dev)
@@ -1082,7 +1084,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	    (dev->ifalias &&
 	     nla_put_string(skb, IFLA_IFALIAS, dev->ifalias)) ||
 	    nla_put_u32(skb, IFLA_CARRIER_CHANGES,
-			atomic_read(&dev->carrier_changes)))
+			atomic_read(&dev->carrier_changes)) ||
+	    nla_put_u8(skb, IFLA_PROTO_DOWN, dev->proto_down))
 		goto nla_put_failure;
 
 	if (1) {
@@ -1319,6 +1322,7 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_CARRIER_CHANGES]	= { .type = NLA_U32 },  /* ignored */
 	[IFLA_PHYS_SWITCH_ID]	= { .type = NLA_BINARY, .len = MAX_PHYS_ITEM_ID_LEN },
 	[IFLA_LINK_NETNSID]	= { .type = NLA_S32 },
+	[IFLA_PROTO_DOWN]	= { .type = NLA_U8 },
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -1857,6 +1861,14 @@ static int do_setlink(const struct sk_buff *skb,
 		}
 	}
 	err = 0;
+
+	if (tb[IFLA_PROTO_DOWN]) {
+		err = dev_change_proto_down(dev,
+					    nla_get_u8(tb[IFLA_PROTO_DOWN]));
+		if (err)
+			goto errout;
+		status |= DO_SETLINK_NOTIFY;
+	}
 
 errout:
 	if (status & DO_SETLINK_MODIFIED) {
