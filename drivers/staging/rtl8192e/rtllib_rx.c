@@ -44,6 +44,9 @@
 #include "rtllib.h"
 #include "dot11d.h"
 
+static void rtllib_rx_mgt(struct rtllib_device *ieee, struct sk_buff *skb,
+			  struct rtllib_rx_stats *stats);
+
 static inline void rtllib_monitor_rx(struct rtllib_device *ieee,
 				     struct sk_buff *skb,
 				     struct rtllib_rx_stats *rx_status,
@@ -2715,9 +2718,9 @@ free_network:
 	kfree(network);
 }
 
-void rtllib_rx_mgt(struct rtllib_device *ieee,
-		      struct sk_buff *skb,
-		      struct rtllib_rx_stats *stats)
+static void rtllib_rx_mgt(struct rtllib_device *ieee,
+			  struct sk_buff *skb,
+			  struct rtllib_rx_stats *stats)
 {
 	struct rtllib_hdr_4addr *header = (struct rtllib_hdr_4addr *)skb->data;
 

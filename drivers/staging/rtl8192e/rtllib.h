@@ -2000,9 +2000,6 @@ extern void rtllib_txb_free(struct rtllib_txb *);
 /* rtllib_rx.c */
 extern int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 			struct rtllib_rx_stats *rx_stats);
-extern void rtllib_rx_mgt(struct rtllib_device *ieee,
-			     struct sk_buff *skb,
-			     struct rtllib_rx_stats *stats);
 extern void rtllib_rx_probe_rq(struct rtllib_device *ieee,
 			   struct sk_buff *skb);
 extern int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel);
