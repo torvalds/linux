@@ -1995,7 +1995,6 @@ extern int rtllib_encrypt_fragment(
 	int hdr_len);
 
 extern int rtllib_xmit(struct sk_buff *skb,  struct net_device *dev);
-extern int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev);
 extern void rtllib_txb_free(struct rtllib_txb *);
 
 /* rtllib_rx.c */
@@ -2092,8 +2091,6 @@ extern void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success);
 
 extern void softmac_mgmt_xmit(struct sk_buff *skb,
 			      struct rtllib_device *ieee);
-extern u16 rtllib_query_seqnum(struct rtllib_device *ieee,
-			       struct sk_buff *skb, u8 *dst);
 extern u8 rtllib_ap_sec_type(struct rtllib_device *ieee);
 
 /* rtllib_softmac_wx.c */
