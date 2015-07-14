@@ -15291,7 +15291,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 			      crtc->base.state->enable ? "enabled" : "disabled",
 			      crtc->active ? "enabled" : "disabled");
 
-		crtc->base.state->enable = crtc->active;
+		WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, NULL) < 0);
 		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
 
