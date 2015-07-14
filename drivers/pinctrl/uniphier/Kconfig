@@ -1,0 +1,8 @@
+if ARCH_UNIPHIER
+
+config PINCTRL_UNIPHIER_CORE
+	bool
+	select PINMUX
+	select GENERIC_PINCONF
+
+endif
