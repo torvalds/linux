@@ -511,10 +511,11 @@ gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 
 	operation = gb_operation_create_common(connection, type,
 					request_size, 0, flags, GFP_ATOMIC);
-	if (operation) {
-		operation->id = id;
-		memcpy(operation->request->header, data, size);
-	}
+	if (!operation)
+		return NULL;
+
+	operation->id = id;
+	memcpy(operation->request->header, data, size);
 
 	return operation;
 }
