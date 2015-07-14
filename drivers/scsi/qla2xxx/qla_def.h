@@ -274,6 +274,7 @@
 #define RESPONSE_ENTRY_CNT_FX00		256     /* Number of response entries.*/
 
 struct req_que;
+struct qla_tgt_sess;
 
 /*
  * (sd.h is not exported, hence local inclusion)
@@ -2026,6 +2027,7 @@ typedef struct fc_port {
 	uint16_t port_id;
 
 	unsigned long retry_delay_timestamp;
+	struct qla_tgt_sess *tgt_session;
 } fc_port_t;
 
 #include "qla_mr.h"

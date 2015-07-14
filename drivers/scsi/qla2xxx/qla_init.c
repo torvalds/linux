@@ -115,6 +115,8 @@ qla2x00_async_iocb_timeout(void *data)
 			QLA_LOGIO_LOGIN_RETRIED : 0;
 		qla2x00_post_async_login_done_work(fcport->vha, fcport,
 			lio->u.logio.data);
+	} else if (sp->type == SRB_LOGOUT_CMD) {
+		qlt_logo_completion_handler(fcport, QLA_FUNCTION_TIMEOUT);
 	}
 }
 
@@ -497,7 +499,10 @@ void
 qla2x00_async_logout_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
-	qla2x00_mark_device_lost(vha, fcport, 1, 0);
+	/* Don't re-login in target mode */
+	if (!fcport->tgt_session)
+		qla2x00_mark_device_lost(vha, fcport, 1, 0);
+	qlt_logo_completion_handler(fcport, data[0]);
 	return;
 }
 

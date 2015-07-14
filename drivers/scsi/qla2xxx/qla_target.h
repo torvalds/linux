@@ -167,7 +167,24 @@ struct imm_ntfy_from_isp {
 			uint32_t srr_rel_offs;
 			uint16_t srr_ui;
 			uint16_t srr_ox_id;
-			uint8_t  reserved_4[19];
+			union {
+				struct {
+					uint8_t node_name[8];
+				} plogi; /* PLOGI/ADISC/PDISC */
+				struct {
+					/* PRLI word 3 bit 0-15 */
+					uint16_t wd3_lo;
+					uint8_t resv0[6];
+				} prli;
+				struct {
+					uint8_t port_id[3];
+					uint8_t resv1;
+					uint16_t nport_handle;
+					uint16_t resv2;
+				} req_els;
+			} u;
+			uint8_t port_name[8];
+			uint8_t resv3[3];
 			uint8_t  vp_index;
 			uint32_t reserved_5;
 			uint8_t  port_id[3];
@@ -234,6 +251,7 @@ struct nack_to_isp {
 	uint8_t  reserved[2];
 	uint16_t ox_id;
 } __packed;
+#define NOTIFY_ACK_FLAGS_TERMINATE	BIT_3
 #define NOTIFY_ACK_SRR_FLAGS_ACCEPT	0
 #define NOTIFY_ACK_SRR_FLAGS_REJECT	1
 
@@ -878,6 +896,13 @@ struct qla_tgt_sess_op {
 	bool aborted;
 };
 
+enum qla_sess_deletion {
+	QLA_SESS_DELETION_NONE		= 0,
+	QLA_SESS_DELETION_PENDING	= 1, /* hopefully we can get rid of
+					      * this one */
+	QLA_SESS_DELETION_IN_PROGRESS	= 2,
+};
+
 /*
  * Equivilant to IT Nexus (Initiator-Target)
  */
@@ -886,8 +911,13 @@ struct qla_tgt_sess {
 	port_id_t s_id;
 
 	unsigned int conf_compl_supported:1;
-	unsigned int deleted:1;
+	unsigned int deleted:2;
 	unsigned int local:1;
+	unsigned int logout_on_delete:1;
+	unsigned int plogi_ack_needed:1;
+	unsigned int keep_nport_handle:1;
+
+	unsigned char logout_completed;
 
 	struct se_session *se_sess;
 	struct scsi_qla_host *vha;
@@ -899,6 +929,10 @@ struct qla_tgt_sess {
 
 	uint8_t port_name[WWN_SIZE];
 	struct work_struct free_work;
+
+	union {
+		struct imm_ntfy_from_isp tm_iocb;
+	};
 };
 
 struct qla_tgt_cmd {
@@ -1031,6 +1065,10 @@ struct qla_tgt_srr_ctio {
 	struct qla_tgt_cmd *cmd;
 };
 
+/* Check for Switch reserved address */
+#define IS_SW_RESV_ADDR(_s_id) \
+	((_s_id.b.domain == 0xff) && (_s_id.b.area == 0xfc))
+
 #define QLA_TGT_XMIT_DATA		1
 #define QLA_TGT_XMIT_STATUS		2
 #define QLA_TGT_XMIT_ALL		(QLA_TGT_XMIT_STATUS|QLA_TGT_XMIT_DATA)
@@ -1124,5 +1162,6 @@ extern void qlt_stop_phase2(struct qla_tgt *);
 extern irqreturn_t qla83xx_msix_atio_q(int, void *);
 extern void qlt_83xx_iospace_config(struct qla_hw_data *);
 extern int qlt_free_qfull_cmds(struct scsi_qla_host *);
+extern void qlt_logo_completion_handler(fc_port_t *, int);
 
 #endif /* __QLA_TARGET_H */
