@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include <sys/utsname.h>
 #include "util.h"
 #include "debug.h"
 #include "llvm-utils.h"
@@ -204,6 +205,74 @@ version_notice(void)
 );
 }
 
+static int detect_kbuild_dir(char **kbuild_dir)
+{
+	const char *test_dir = llvm_param.kbuild_dir;
+	const char *prefix_dir = "";
+	const char *suffix_dir = "";
+
+	char *autoconf_path;
+	struct utsname utsname;
+
+	int err;
+
+	if (!test_dir) {
+		err = uname(&utsname);
+		if (err) {
+			pr_warning("uname failed: %s\n", strerror(errno));
+			return -EINVAL;
+		}
+
+		test_dir = utsname.release;
+		prefix_dir = "/lib/modules/";
+		suffix_dir = "/build";
+	}
+
+	err = asprintf(&autoconf_path, "%s%s%s/include/generated/autoconf.h",
+		       prefix_dir, test_dir, suffix_dir);
+	if (err < 0)
+		return -ENOMEM;
+
+	if (access(autoconf_path, R_OK) == 0) {
+		free(autoconf_path);
+
+		err = asprintf(kbuild_dir, "%s%s%s", prefix_dir, test_dir,
+			       suffix_dir);
+		if (err < 0)
+			return -ENOMEM;
+		return 0;
+	}
+	free(autoconf_path);
+	return -ENOENT;
+}
+
+static inline void
+get_kbuild_opts(char **kbuild_dir)
+{
+	int err;
+
+	if (!kbuild_dir)
+		return;
+
+	*kbuild_dir = NULL;
+
+	if (llvm_param.kbuild_dir && !llvm_param.kbuild_dir[0]) {
+		pr_debug("[llvm.kbuild-dir] is set to \"\" deliberately.\n");
+		pr_debug("Skip kbuild options detection.\n");
+		return;
+	}
+
+	err = detect_kbuild_dir(kbuild_dir);
+	if (err) {
+		pr_warning(
+"WARNING:\tunable to get correct kernel building directory.\n"
+"Hint:\tSet correct kbuild directory using 'kbuild-dir' option in [llvm]\n"
+"     \tsection of ~/.perfconfig or set it to \"\" to suppress kbuild\n"
+"     \tdetection.\n\n");
+		return;
+	}
+}
+
 int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		      size_t *p_obj_buf_sz)
 {
@@ -211,6 +280,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	char clang_path[PATH_MAX];
 	const char *clang_opt = llvm_param.clang_opt;
 	const char *template = llvm_param.clang_bpf_cmd_template;
+	char *kbuild_dir = NULL;
 	void *obj_buf = NULL;
 	size_t obj_buf_sz;
 
@@ -228,10 +298,16 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		return -ENOENT;
 	}
 
+	/*
+	 * This is an optional work. Even it fail we can continue our
+	 * work. Needn't to check error return.
+	 */
+	get_kbuild_opts(&kbuild_dir);
+
 	force_set_env("CLANG_EXEC", clang_path);
 	force_set_env("CLANG_OPTIONS", clang_opt);
 	force_set_env("KERNEL_INC_OPTIONS", NULL);
-	force_set_env("WORKING_DIR", ".");
+	force_set_env("WORKING_DIR", kbuild_dir ? : ".");
 
 	/*
 	 * Since we may reset clang's working dir, path of source file
@@ -253,6 +329,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		goto errout;
 	}
 
+	free(kbuild_dir);
 	if (!p_obj_buf)
 		free(obj_buf);
 	else
@@ -262,6 +339,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		*p_obj_buf_sz = obj_buf_sz;
 	return 0;
 errout:
+	free(kbuild_dir);
 	free(obj_buf);
 	if (p_obj_buf)
 		*p_obj_buf = NULL;
