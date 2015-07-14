@@ -1679,9 +1679,9 @@ static int cz_dpm_unforce_dpm_levels(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
-	DRM_INFO("DPM unforce state min=%d, max=%d.\n",
-			pi->sclk_dpm.soft_min_clk,
-			pi->sclk_dpm.soft_max_clk);
+	DRM_DEBUG("DPM unforce state min=%d, max=%d.\n",
+		  pi->sclk_dpm.soft_min_clk,
+		  pi->sclk_dpm.soft_max_clk);
 
 	return 0;
 }
