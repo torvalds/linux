@@ -317,7 +317,6 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			netdev_dbg(ieee->dev,
 				   "Decryption failed ICV mismatch (key %d)\n",
 				   skb->data[hdrlen + 3] >> 6);
-		ieee->ieee_stats.rx_discards_undecryptable++;
 		return -1;
 	}
 
@@ -1077,7 +1076,6 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			netdev_dbg(ieee->dev,
 				   "Decryption failed (not set) (SA= %pM)\n",
 				   hdr->addr2);
-			ieee->ieee_stats.rx_discards_undecryptable++;
 			return -1;
 		}
 	}

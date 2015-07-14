@@ -205,7 +205,6 @@ int rtllib_encrypt_fragment(struct rtllib_device *ieee, struct sk_buff *frag,
 	if (res < 0) {
 		netdev_info(ieee->dev, "%s: Encryption failed: len=%d.\n",
 			    ieee->dev->name, frag->len);
-		ieee->ieee_stats.tx_discards++;
 		return -1;
 	}
 

@@ -690,11 +690,6 @@ struct rtllib_frag_entry {
 	u8 dst_addr[ETH_ALEN];
 };
 
-struct rtllib_stats {
-	unsigned int tx_discards;
-	unsigned int rx_discards_undecryptable;
-};
-
 struct rtllib_device;
 
 #define SEC_ACTIVE_KEY    (1<<4)
@@ -1532,7 +1527,6 @@ struct rtllib_device {
 
 	/* Bookkeeping structures */
 	struct net_device_stats stats;
-	struct rtllib_stats ieee_stats;
 	struct rtllib_softmac_stats softmac_stats;
 
 	/* Probe / Beacon management */
