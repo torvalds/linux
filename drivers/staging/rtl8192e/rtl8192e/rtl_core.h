@@ -578,9 +578,6 @@ struct r8192_priv {
 
 extern const struct ethtool_ops rtl819x_ethtool_ops;
 
-void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb);
-short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
-
 u8 read_nic_byte(struct net_device *dev, int x);
 u32 read_nic_dword(struct net_device *dev, int x);
 u16 read_nic_word(struct net_device *dev, int x);
@@ -593,40 +590,19 @@ void force_pci_posting(struct net_device *dev);
 void rtl8192_rx_enable(struct net_device *);
 void rtl8192_tx_enable(struct net_device *);
 
-int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
-void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
-			    int rate);
-void rtl8192_data_hard_stop(struct net_device *dev);
-void rtl8192_data_hard_resume(struct net_device *dev);
-void rtl8192_restart(void *data);
-void rtl819x_watchdog_wqcallback(void *data);
 void rtl8192_hw_sleep_wq(void *data);
-void watch_dog_timer_callback(unsigned long data);
-void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
-void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
-int rtl8192_down(struct net_device *dev, bool shutdownrf);
-int rtl8192_up(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
-void rtl8192_set_chan(struct net_device *dev, short ch);
 
 void check_rfctrl_gpio_timer(unsigned long data);
 
 void rtl8192_hw_wakeup_wq(void *data);
-short rtl8192_pci_initdescring(struct net_device *dev);
 
-void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
-
-int _rtl8192_up(struct net_device *dev, bool is_silent_reset);
-
-short rtl8192_is_tx_queue_empty(struct net_device *dev);
 void rtl8192_irq_disable(struct net_device *dev);
 
-void rtl8192_tx_timeout(struct net_device *dev);
 void rtl8192_pci_resetdescring(struct net_device *dev);
 void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode);
 void rtl8192_irq_enable(struct net_device *dev);
 void rtl8192_config_rate(struct net_device *dev, u16 *rate_config);
-void rtl8192_update_cap(struct net_device *dev, u16 cap);
 void rtl8192_irq_disable(struct net_device *dev);
 
 void rtl819x_UpdateRxPktTimeStamp(struct net_device *dev,

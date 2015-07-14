@@ -87,6 +87,25 @@ static struct pci_driver rtl8192_pci_driver = {
 	.resume = rtl8192E_resume,                 /* PM resume fn  */
 };
 
+static short rtl8192_is_tx_queue_empty(struct net_device *dev);
+static void rtl819x_watchdog_wqcallback(void *data);
+static void watch_dog_timer_callback(unsigned long data);
+static void rtl8192_data_hard_stop(struct net_device *dev);
+static void rtl8192_data_hard_resume(struct net_device *dev);
+static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
+				   int rate);
+static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb);
+static short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
+static short rtl8192_pci_initdescring(struct net_device *dev);
+static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
+static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
+static void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
+static int _rtl8192_up(struct net_device *dev, bool is_silent_reset);
+static int rtl8192_up(struct net_device *dev);
+static int rtl8192_down(struct net_device *dev, bool shutdownrf);
+static void rtl8192_restart(void *data);
+
 /****************************************************************************
    -----------------------------IO STUFF-------------------------
 *****************************************************************************/
@@ -273,7 +292,7 @@ static short rtl8192_check_nic_enough_desc(struct net_device *dev, int prio)
 	return 0;
 }
 
-void rtl8192_tx_timeout(struct net_device *dev)
+static void rtl8192_tx_timeout(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -299,7 +318,7 @@ void rtl8192_irq_disable(struct net_device *dev)
 	priv->irq_enabled = 0;
 }
 
-void rtl8192_set_chan(struct net_device *dev, short ch)
+static void rtl8192_set_chan(struct net_device *dev, short ch)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
@@ -313,7 +332,7 @@ void rtl8192_set_chan(struct net_device *dev, short ch)
 		priv->rf_set_chan(dev, priv->chan);
 }
 
-void rtl8192_update_cap(struct net_device *dev, u16 cap)
+static void rtl8192_update_cap(struct net_device *dev, u16 cap)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_network *net = &priv->rtllib->current_network;
@@ -1105,7 +1124,7 @@ static short rtl8192_init(struct net_device *dev)
 /***************************************************************************
 	-------------------------------WATCHDOG STUFF---------------------------
 ***************************************************************************/
-short rtl8192_is_tx_queue_empty(struct net_device *dev)
+static short rtl8192_is_tx_queue_empty(struct net_device *dev)
 {
 	int i = 0;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1393,8 +1412,7 @@ static void rtl819x_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 	}
 }
 
-
-void	rtl819x_watchdog_wqcallback(void *data)
+static void rtl819x_watchdog_wqcallback(void *data)
 {
 	struct r8192_priv *priv = container_of_dwork_rsl(data,
 				  struct r8192_priv, watch_dog_wq);
@@ -1548,7 +1566,7 @@ void	rtl819x_watchdog_wqcallback(void *data)
 	RT_TRACE(COMP_TRACE, " <==RtUsbCheckForHangWorkItemCallback()\n");
 }
 
-void watch_dog_timer_callback(unsigned long data)
+static void watch_dog_timer_callback(unsigned long data)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
 
@@ -1625,16 +1643,15 @@ static void rtl8192_free_tx_ring(struct net_device *dev, unsigned int prio)
 	ring->desc = NULL;
 }
 
-void rtl8192_data_hard_stop(struct net_device *dev)
+static void rtl8192_data_hard_stop(struct net_device *dev)
 {
 }
 
-
-void rtl8192_data_hard_resume(struct net_device *dev)
+static void rtl8192_data_hard_resume(struct net_device *dev)
 {
 }
 
-void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
+static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 			    int rate)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
@@ -1666,7 +1683,7 @@ void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 	}
 }
 
-int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	int ret;
@@ -1725,7 +1742,7 @@ static void rtl8192_tx_isr(struct net_device *dev, int prio)
 		tasklet_schedule(&priv->irq_tx_tasklet);
 }
 
-void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
+static void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtl8192_tx_ring *ring;
@@ -1748,7 +1765,7 @@ void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 }
 
-short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
+static short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtl8192_tx_ring  *ring;
@@ -1900,8 +1917,7 @@ static int rtl8192_alloc_tx_desc_ring(struct net_device *dev,
 	return 0;
 }
 
-
-short rtl8192_pci_initdescring(struct net_device *dev)
+static short rtl8192_pci_initdescring(struct net_device *dev)
 {
 	u32 ret;
 	int i;
@@ -2178,12 +2194,12 @@ static void rtl8192_tx_resume(struct net_device *dev)
 	}
 }
 
-void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
 {
 	rtl8192_tx_resume(priv->rtllib->dev);
 }
 
-void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 {
 	rtl8192_rx_normal(priv->rtllib->dev);
 
@@ -2194,7 +2210,7 @@ void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 /****************************************************************************
  ---------------------------- NIC START/CLOSE STUFF---------------------------
 *****************************************************************************/
-void rtl8192_cancel_deferred_work(struct r8192_priv *priv)
+static void rtl8192_cancel_deferred_work(struct r8192_priv *priv)
 {
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);
@@ -2203,13 +2219,12 @@ void rtl8192_cancel_deferred_work(struct r8192_priv *priv)
 	cancel_work_sync(&priv->qos_activate);
 }
 
-int _rtl8192_up(struct net_device *dev, bool is_silent_reset)
+static int _rtl8192_up(struct net_device *dev, bool is_silent_reset)
 {
 	if (_rtl8192_sta_up(dev, is_silent_reset) == -1)
 		return -1;
 	return 0;
 }
-
 
 static int rtl8192_open(struct net_device *dev)
 {
@@ -2223,8 +2238,7 @@ static int rtl8192_open(struct net_device *dev)
 
 }
 
-
-int rtl8192_up(struct net_device *dev)
+static int rtl8192_up(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -2254,7 +2268,7 @@ static int rtl8192_close(struct net_device *dev)
 
 }
 
-int rtl8192_down(struct net_device *dev, bool shutdownrf)
+static int rtl8192_down(struct net_device *dev, bool shutdownrf)
 {
 	if (rtl8192_sta_down(dev, shutdownrf) == -1)
 		return -1;
@@ -2274,7 +2288,7 @@ void rtl8192_commit(struct net_device *dev)
 	_rtl8192_up(dev, false);
 }
 
-void rtl8192_restart(void *data)
+static void rtl8192_restart(void *data)
 {
 	struct r8192_priv *priv = container_of_work_rsl(data, struct r8192_priv,
 				  reset_wq);
