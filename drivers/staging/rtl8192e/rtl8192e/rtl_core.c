@@ -22,25 +22,6 @@
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
-#undef RX_DONT_PASS_UL
-#undef DEBUG_EPROM
-#undef DEBUG_RX_VERBOSE
-#undef DUMMY_RX
-#undef DEBUG_ZERO_RX
-#undef DEBUG_RX_SKB
-#undef DEBUG_TX_FRAG
-#undef DEBUG_RX_FRAG
-#undef DEBUG_TX_FILLDESC
-#undef DEBUG_TX
-#undef DEBUG_IRQ
-#undef DEBUG_RX
-#undef DEBUG_RXALLOC
-#undef DEBUG_REGISTERS
-#undef DEBUG_RING
-#undef DEBUG_IRQ_TASKLET
-#undef DEBUG_TX_ALLOC
-#undef DEBUG_TX_DESC
-
 #include <linux/uaccess.h>
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
