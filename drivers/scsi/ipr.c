@@ -554,9 +554,10 @@ static void ipr_trc_hook(struct ipr_cmnd *ipr_cmd,
 {
 	struct ipr_trace_entry *trace_entry;
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	unsigned int trace_index;
 
-	trace_entry = &ioa_cfg->trace[atomic_add_return
-			(1, &ioa_cfg->trace_index)%IPR_NUM_TRACE_ENTRIES];
+	trace_index = atomic_add_return(1, &ioa_cfg->trace_index) & IPR_TRACE_INDEX_MASK;
+	trace_entry = &ioa_cfg->trace[trace_index];
 	trace_entry->time = jiffies;
 	trace_entry->op_code = ipr_cmd->ioarcb.cmd_pkt.cdb[0];
 	trace_entry->type = type;
