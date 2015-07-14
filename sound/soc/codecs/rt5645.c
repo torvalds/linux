@@ -2874,7 +2874,18 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 	return rt5645->jack_type;
 }
 
-static int rt5645_irq_detection(struct rt5645_priv *rt5645);
+static int rt5645_button_detect(struct snd_soc_codec *codec)
+{
+	int btn_type, val;
+
+	val = snd_soc_read(codec, RT5650_4BTN_IL_CMD1);
+	pr_debug("val=0x%x\n", val);
+	btn_type = val & 0xfff0;
+	snd_soc_write(codec, RT5650_4BTN_IL_CMD1, val);
+
+	return btn_type;
+}
+
 static irqreturn_t rt5645_irq(int irq, void *data);
 
 int rt5645_set_jack_detect(struct snd_soc_codec *codec,
@@ -2905,34 +2916,6 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 {
 	struct rt5645_priv *rt5645 =
 		container_of(work, struct rt5645_priv, jack_detect_work.work);
-
-	rt5645_irq_detection(rt5645);
-}
-
-static irqreturn_t rt5645_irq(int irq, void *data)
-{
-	struct rt5645_priv *rt5645 = data;
-
-	queue_delayed_work(system_power_efficient_wq,
-			   &rt5645->jack_detect_work, msecs_to_jiffies(250));
-
-	return IRQ_HANDLED;
-}
-
-static int rt5645_button_detect(struct snd_soc_codec *codec)
-{
-	int btn_type, val;
-
-	val = snd_soc_read(codec, RT5650_4BTN_IL_CMD1);
-	pr_debug("val=0x%x\n", val);
-	btn_type = val & 0xfff0;
-	snd_soc_write(codec, RT5650_4BTN_IL_CMD1, val);
-
-	return btn_type;
-}
-
-static int rt5645_irq_detection(struct rt5645_priv *rt5645)
-{
 	int val, btn_type, gpio_state = 0, report = 0;
 
 	switch (rt5645->pdata.jd_mode) {
@@ -2947,7 +2930,7 @@ static int rt5645_irq_detection(struct rt5645_priv *rt5645)
 				    report, SND_JACK_HEADPHONE);
 		snd_soc_jack_report(rt5645->mic_jack,
 				    report, SND_JACK_MICROPHONE);
-		return report;
+		return;
 	case 1: /* 2 port */
 		val = snd_soc_read(rt5645->codec, RT5645_A_JD_CTRL1) & 0x0070;
 		break;
@@ -3029,8 +3012,16 @@ static int rt5645_irq_detection(struct rt5645_priv *rt5645)
 		snd_soc_jack_report(rt5645->btn_jack,
 			report, SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 				SND_JACK_BTN_2 | SND_JACK_BTN_3);
+}
 
-	return report;
+static irqreturn_t rt5645_irq(int irq, void *data)
+{
+	struct rt5645_priv *rt5645 = data;
+
+	queue_delayed_work(system_power_efficient_wq,
+			   &rt5645->jack_detect_work, msecs_to_jiffies(250));
+
+	return IRQ_HANDLED;
 }
 
 static int rt5645_probe(struct snd_soc_codec *codec)
