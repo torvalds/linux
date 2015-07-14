@@ -378,12 +378,11 @@ int btbcm_setup_apple(struct hci_dev *hdev)
 
 	/* Read Verbose Config Version Info */
 	skb = btbcm_read_verbose_config(hdev);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	BT_INFO("%s: BCM: chip id %u build %4.4u", hdev->name, skb->data[1],
-		get_unaligned_le16(skb->data + 5));
-	kfree_skb(skb);
+	if (!IS_ERR(skb)) {
+		BT_INFO("%s: BCM: chip id %u build %4.4u", hdev->name, skb->data[1],
+			get_unaligned_le16(skb->data + 5));
+		kfree_skb(skb);
+	}
 
 	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
 
