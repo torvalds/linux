@@ -4060,6 +4060,38 @@ qlt_find_sess_invalidate_other(struct qla_tgt *tgt, uint64_t wwn,
 	return sess;
 }
 
+/* Abort any commands for this s_id waiting on qla_tgt_wq workqueue */
+static int abort_cmds_for_s_id(struct scsi_qla_host *vha, port_id_t *s_id)
+{
+	struct qla_tgt_sess_op *op;
+	struct qla_tgt_cmd *cmd;
+	uint32_t key;
+	int count = 0;
+
+	key = (((u32)s_id->b.domain << 16) |
+	       ((u32)s_id->b.area   <<  8) |
+	       ((u32)s_id->b.al_pa));
+
+	spin_lock(&vha->cmd_list_lock);
+	list_for_each_entry(op, &vha->qla_sess_op_cmd_list, cmd_list) {
+		uint32_t op_key = sid_to_key(op->atio.u.isp24.fcp_hdr.s_id);
+		if (op_key == key) {
+			op->aborted = true;
+			count++;
+		}
+	}
+	list_for_each_entry(cmd, &vha->qla_cmd_list, cmd_list) {
+		uint32_t cmd_key = sid_to_key(cmd->atio.u.isp24.fcp_hdr.s_id);
+		if (cmd_key == key) {
+			cmd->state = QLA_TGT_STATE_ABORTED;
+			count++;
+		}
+	}
+	spin_unlock(&vha->cmd_list_lock);
+
+	return count;
+}
+
 /*
  * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
  */
@@ -4092,6 +4124,9 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 	 */
 	switch (iocb->u.isp24.status_subcode) {
 	case ELS_PLOGI:
+
+		/* Mark all stale commands in qla_tgt_wq for deletion */
+		abort_cmds_for_s_id(vha, &port_id);
 
 		if (wwn)
 			sess = qlt_find_sess_invalidate_other(tgt, wwn,
