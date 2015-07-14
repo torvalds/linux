@@ -25,4 +25,8 @@ config PINCTRL_UNIPHIER_PROXSTREAM2
 	tristate "UniPhier ProXstream2 SoC pinctrl driver"
 	select PINCTRL_UNIPHIER_CORE
 
+config PINCTRL_UNIPHIER_PH1_LD6B
+	tristate "UniPhier PH1-LD6b SoC pinctrl driver"
+	select PINCTRL_UNIPHIER_CORE
+
 endif
