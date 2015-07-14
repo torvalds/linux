@@ -222,6 +222,15 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 	else
 		pdata->has_fsl_erratum_a007792 = 0;
 
+	/*
+	 * Determine whether phy_clk_valid needs to be checked
+	 * by reading property in device tree
+	 */
+	if (of_get_property(np, "phy-clk-valid", NULL))
+		pdata->check_phy_clk_valid = 1;
+	else
+		pdata->check_phy_clk_valid = 0;
+
 	if (pdata->have_sysif_regs) {
 		if (pdata->controller_ver == FSL_USB_VER_NONE) {
 			dev_warn(&ofdev->dev, "Could not get controller version\n");
