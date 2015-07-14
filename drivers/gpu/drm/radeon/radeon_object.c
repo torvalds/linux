@@ -75,7 +75,6 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	bo = container_of(tbo, struct radeon_bo, tbo);
 
 	radeon_update_memory_usage(bo, bo->tbo.mem.mem_type, -1);
-	radeon_mn_unregister(bo);
 
 	mutex_lock(&bo->rdev->gem.mutex);
 	list_del_init(&bo->list);
