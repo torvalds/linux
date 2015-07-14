@@ -92,7 +92,6 @@ void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee);
 void Dot11d_Reset(struct rtllib_device *dev);
 void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 			    u16 CoutryIeLen, u8 *pCoutryIe);
-u8 DOT11D_GetMaxTxPwrInDbm(struct rtllib_device *dev, u8 Channel);
 void DOT11D_ScanComplete(struct rtllib_device *dev);
 
 #endif

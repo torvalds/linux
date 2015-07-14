@@ -160,21 +160,6 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
 }
 
-u8 DOT11D_GetMaxTxPwrInDbm(struct rtllib_device *dev, u8 Channel)
-{
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
-	u8 MaxTxPwrInDbm = 255;
-
-	if (MAX_CHANNEL_NUMBER < Channel) {
-		netdev_info(dev->dev, "DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
-		return MaxTxPwrInDbm;
-	}
-	if (pDot11dInfo->channel_map[Channel])
-		MaxTxPwrInDbm = pDot11dInfo->MaxTxPwrDbmList[Channel];
-
-	return MaxTxPwrInDbm;
-}
-
 void DOT11D_ScanComplete(struct rtllib_device *dev)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
