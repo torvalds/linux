@@ -550,72 +550,6 @@ static int proc_daemon_file(struct ctl_table *table, int write,
 				 __proc_daemon_file);
 }
 
-static int proc_console_max_delay_cs(struct ctl_table *table, int write,
-				     void __user *buffer, size_t *lenp,
-				     loff_t *ppos)
-{
-	int rc, max_delay_cs;
-	struct ctl_table dummy = *table;
-	long d;
-
-	dummy.data = &max_delay_cs;
-	dummy.proc_handler = &proc_dointvec;
-
-	if (!write) { /* read */
-		max_delay_cs = cfs_duration_sec(libcfs_console_max_delay * 100);
-		rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
-		return rc;
-	}
-
-	/* write */
-	max_delay_cs = 0;
-	rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
-	if (rc < 0)
-		return rc;
-	if (max_delay_cs <= 0)
-		return -EINVAL;
-
-	d = cfs_time_seconds(max_delay_cs) / 100;
-	if (d == 0 || d < libcfs_console_min_delay)
-		return -EINVAL;
-	libcfs_console_max_delay = d;
-
-	return rc;
-}
-
-static int proc_console_min_delay_cs(struct ctl_table *table, int write,
-				     void __user *buffer, size_t *lenp,
-				     loff_t *ppos)
-{
-	int rc, min_delay_cs;
-	struct ctl_table dummy = *table;
-	long d;
-
-	dummy.data = &min_delay_cs;
-	dummy.proc_handler = &proc_dointvec;
-
-	if (!write) { /* read */
-		min_delay_cs = cfs_duration_sec(libcfs_console_min_delay * 100);
-		rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
-		return rc;
-	}
-
-	/* write */
-	min_delay_cs = 0;
-	rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
-	if (rc < 0)
-		return rc;
-	if (min_delay_cs <= 0)
-		return -EINVAL;
-
-	d = cfs_time_seconds(min_delay_cs) / 100;
-	if (d == 0 || d > libcfs_console_max_delay)
-		return -EINVAL;
-	libcfs_console_min_delay = d;
-
-	return rc;
-}
-
 static int libcfs_force_lbug(struct ctl_table *table, int write,
 			     void __user *buffer,
 			     size_t *lenp, loff_t *ppos)
@@ -713,18 +647,6 @@ static struct ctl_table lnet_table[] = {
 		.proc_handler = &proc_dobitmasks,
 	},
 	{
-		.procname = "console_max_delay_centisecs",
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_console_max_delay_cs
-	},
-	{
-		.procname = "console_min_delay_centisecs",
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_console_min_delay_cs
-	},
-	{
 		.procname = "cpu_partition_table",
 		.maxlen   = 128,
 		.mode     = 0444,
@@ -805,6 +727,10 @@ struct lnet_debugfs_symlink_def lnet_debugfs_symlinks[] = {
 	  "/sys/module/libcfs/parameters/libcfs_console_backoff"},
 	{ "debug_mb",
 	  "/sys/module/libcfs/parameters/libcfs_debug_mb"},
+	{ "console_min_delay_centisecs",
+	  "/sys/module/libcfs/parameters/libcfs_console_min_delay"},
+	{ "console_max_delay_centisecs",
+	  "/sys/module/libcfs/parameters/libcfs_console_max_delay"},
 	{},
 };
 

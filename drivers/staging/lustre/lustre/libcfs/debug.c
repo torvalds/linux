@@ -106,15 +106,74 @@ module_param(libcfs_console_ratelimit, uint, 0644);
 MODULE_PARM_DESC(libcfs_console_ratelimit, "Lustre kernel debug console ratelimit (0 to disable)");
 EXPORT_SYMBOL(libcfs_console_ratelimit);
 
-unsigned int libcfs_console_max_delay;
-module_param(libcfs_console_max_delay, uint, 0644);
-MODULE_PARM_DESC(libcfs_console_max_delay, "Lustre kernel debug console max delay (jiffies)");
-EXPORT_SYMBOL(libcfs_console_max_delay);
+static int param_set_delay_minmax(const char *val,
+				  const struct kernel_param *kp,
+				  long min, long max)
+{
+	long d;
+	int sec;
+	int rc;
 
+	rc = kstrtoint(val, 0, &sec);
+	if (rc)
+		return -EINVAL;
+
+	d = cfs_time_seconds(sec) / 100;
+	if (d < min || d > max)
+		return -EINVAL;
+
+	*((unsigned int *)kp->arg) = d;
+
+	return 0;
+}
+
+static int param_get_delay(char *buffer, const struct kernel_param *kp)
+{
+	unsigned int d = *(unsigned int *)kp->arg;
+
+	return sprintf(buffer, "%u", (unsigned int)cfs_duration_sec(d * 100));
+}
+
+unsigned int libcfs_console_max_delay;
+EXPORT_SYMBOL(libcfs_console_max_delay);
 unsigned int libcfs_console_min_delay;
-module_param(libcfs_console_min_delay, uint, 0644);
-MODULE_PARM_DESC(libcfs_console_min_delay, "Lustre kernel debug console min delay (jiffies)");
 EXPORT_SYMBOL(libcfs_console_min_delay);
+
+static int param_set_console_max_delay(const char *val,
+				       const struct kernel_param *kp)
+{
+	return param_set_delay_minmax(val, kp,
+				      libcfs_console_min_delay, INT_MAX);
+}
+
+static struct kernel_param_ops param_ops_console_max_delay = {
+	.set = param_set_console_max_delay,
+	.get = param_get_delay,
+};
+
+#define param_check_console_max_delay(name, p) \
+		__param_check(name, p, unsigned int)
+
+module_param(libcfs_console_max_delay, console_max_delay, 0644);
+MODULE_PARM_DESC(libcfs_console_max_delay, "Lustre kernel debug console max delay (jiffies)");
+
+static int param_set_console_min_delay(const char *val,
+				       const struct kernel_param *kp)
+{
+	return param_set_delay_minmax(val, kp,
+				      1, libcfs_console_max_delay);
+}
+
+static struct kernel_param_ops param_ops_console_min_delay = {
+	.set = param_set_console_min_delay,
+	.get = param_get_delay,
+};
+
+#define param_check_console_min_delay(name, p) \
+		__param_check(name, p, unsigned int)
+
+module_param(libcfs_console_min_delay, console_min_delay, 0644);
+MODULE_PARM_DESC(libcfs_console_min_delay, "Lustre kernel debug console min delay (jiffies)");
 
 static int param_set_uint_minmax(const char *val,
 				 const struct kernel_param *kp,
