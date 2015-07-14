@@ -67,8 +67,6 @@ struct ipvl_dev {
 	struct ipvl_port	*port;
 	struct net_device	*phy_dev;
 	struct list_head	addrs;
-	int			ipv4cnt;
-	int			ipv6cnt;
 	struct ipvl_pcpu_stats	__percpu *pcpu_stats;
 	DECLARE_BITMAP(mac_filters, IPVLAN_MAC_FILTER_SIZE);
 	netdev_features_t	sfeatures;
