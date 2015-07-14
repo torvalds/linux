@@ -202,8 +202,8 @@ static int mmc35240_hw_set(struct mmc35240_data *data, bool set)
 		coil_bit = MMC35240_CTRL0_RESET_BIT;
 
 	return regmap_update_bits(data->regmap, MMC35240_REG_CTRL0,
-				  MMC35240_CTRL0_REFILL_BIT,
-				  coil_bit);
+				  coil_bit, coil_bit);
+
 }
 
 static int mmc35240_init(struct mmc35240_data *data)
