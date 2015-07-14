@@ -543,10 +543,9 @@ static bool ravb_rx(struct net_device *ndev, int *quota, int q)
 
 			skb = priv->rx_skb[q][entry];
 			priv->rx_skb[q][entry] = NULL;
-			dma_sync_single_for_cpu(&ndev->dev,
-						le32_to_cpu(desc->dptr),
-						ALIGN(PKT_BUF_SZ, 16),
-						DMA_FROM_DEVICE);
+			dma_unmap_single(&ndev->dev, le32_to_cpu(desc->dptr),
+					 ALIGN(PKT_BUF_SZ, 16),
+					 DMA_FROM_DEVICE);
 			get_ts &= (q == RAVB_NC) ?
 					RAVB_RXTSTAMP_TYPE_V2_L2_EVENT :
 					~RAVB_RXTSTAMP_TYPE_V2_L2_EVENT;
@@ -584,9 +583,6 @@ static bool ravb_rx(struct net_device *ndev, int *quota, int q)
 			if (!skb)
 				break;	/* Better luck next round. */
 			ravb_set_buffer_align(skb);
-			dma_unmap_single(&ndev->dev, le32_to_cpu(desc->dptr),
-					 ALIGN(PKT_BUF_SZ, 16),
-					 DMA_FROM_DEVICE);
 			dma_addr = dma_map_single(&ndev->dev, skb->data,
 						  le16_to_cpu(desc->ds_cc),
 						  DMA_FROM_DEVICE);
