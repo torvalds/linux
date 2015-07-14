@@ -1511,7 +1511,6 @@ static void rtllib_associate_step2(struct rtllib_device *ieee)
 	}
 }
 
-#define CANCELLED  2
 static void rtllib_associate_complete_wq(void *data)
 {
 	struct rtllib_device *ieee = (struct rtllib_device *)

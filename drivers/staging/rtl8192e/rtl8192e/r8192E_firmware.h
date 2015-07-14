@@ -19,8 +19,6 @@
 #ifndef __INC_FIRMWARE_H
 #define __INC_FIRMWARE_H
 
-#define RTL8190_CPU_START_OFFSET	0x80
-
 #define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8)
 
 #define RTL8192E_BOOT_IMG_FW	"RTL8192E/boot.img"

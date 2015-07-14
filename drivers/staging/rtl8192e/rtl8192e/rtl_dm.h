@@ -27,25 +27,16 @@
 #define		DM_DIG_THRESH_HIGH					40
 #define		DM_DIG_THRESH_LOW					35
 
-#define		DM_FALSEALARM_THRESH_LOW	40
-#define		DM_FALSEALARM_THRESH_HIGH	1000
-
 #define		DM_DIG_HIGH_PWR_THRESH_HIGH		75
 #define		DM_DIG_HIGH_PWR_THRESH_LOW		70
 
 #define		BW_AUTO_SWITCH_HIGH_LOW			25
 #define		BW_AUTO_SWITCH_LOW_HIGH			30
 
-#define		DM_check_fsync_time_interval				500
-
-
 #define		DM_DIG_BACKOFF				12
 #define		DM_DIG_MAX					0x36
 #define		DM_DIG_MIN					0x1c
 #define		DM_DIG_MIN_Netcore			0x12
-
-#define		DM_DIG_BACKOFF_MAX			12
-#define		DM_DIG_BACKOFF_MIN			-4
 
 #define		RxPathSelection_SS_TH_low		30
 #define		RxPathSelection_diff_TH			18
@@ -54,8 +45,6 @@
 #define		RateAdaptiveTH_Low_20M		30
 #define		RateAdaptiveTH_Low_40M		10
 #define		VeryLowRSSI					15
-
-#define		CTSToSelfTHVal					35
 
 #define		WAIotTHVal						25
 
@@ -70,14 +59,6 @@
 #define			Tx_Retry_Count_Reg	 0x1ac
 #define		RegC38_TH				 20
 
-#define		TX_POWER_NEAR_FIELD_THRESH_LVL2	74
-#define		TX_POWER_NEAR_FIELD_THRESH_LVL1	67
-
-#define		TxHighPwrLevel_Normal		0
-#define		TxHighPwrLevel_Level1		1
-#define		TxHighPwrLevel_Level2		2
-
-#define		DM_Type_ByFW			0
 #define		DM_Type_ByDriver		1
 
 /*--------------------------Define Parameters-------------------------------*/

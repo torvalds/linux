@@ -19,8 +19,6 @@
 #ifndef _TSTYPE_H_
 #define _TSTYPE_H_
 #include "rtl819x_Qos.h"
-#define TS_SETUP_TIMEOUT	60
-#define TS_INACT_TIMEOUT	60
 #define TS_ADDBA_DELAY		60
 
 #define TOTAL_TS_NUM		16

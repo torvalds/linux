@@ -58,9 +58,6 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] = {
 	0x5e4332
 };
 
-#define RTK_UL_EDCA 0xa44f
-#define RTK_DL_EDCA 0x5e4322
-
 const u32 dm_tx_bb_gain[TxBBGainTableLength] = {
 	0x7f8001fe, /* 12 dB */
 	0x788001e2, /* 11 dB */

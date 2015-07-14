@@ -84,9 +84,6 @@
 #define iwe_stream_add_point_rsl(info, start, stop, iwe, p)	\
 	iwe_stream_add_point(info, start, stop, iwe, p)
 
-#define usb_alloc_urb_rsl(x, y) usb_alloc_urb(x, y)
-#define usb_submit_urb_rsl(x, y) usb_submit_urb(x, y)
-
 static inline void *netdev_priv_rsl(struct net_device *dev)
 {
 	return netdev_priv(dev);
@@ -110,27 +107,14 @@ static inline void *netdev_priv_rsl(struct net_device *dev)
 #define HIGH_QUEUE			     7
 #define BEACON_QUEUE			   8
 
-#define LOW_QUEUE			      BE_QUEUE
-#define NORMAL_QUEUE			   MGNT_QUEUE
-
 #ifndef IW_MODE_MESH
 #define IW_MODE_MESH			7
 #endif
-#define AMSDU_SUBHEADER_LEN 14
-#define SWRF_TIMEOUT				50
 
 #define IE_CISCO_FLAG_POSITION		0x08
 #define SUPPORT_CKIP_MIC			0x08
 #define SUPPORT_CKIP_PK			0x10
-#define	RT_RF_OFF_LEVL_ASPM			BIT0
-#define	RT_RF_OFF_LEVL_CLK_REQ		BIT1
-#define	RT_RF_OFF_LEVL_PCI_D3			BIT2
 #define	RT_RF_OFF_LEVL_HALT_NIC		BIT3
-#define	RT_RF_OFF_LEVL_FREE_FW		BIT4
-#define	RT_RF_OFF_LEVL_FW_32K		BIT5
-#define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT6
-#define	RT_RF_LPS_DISALBE_2R			BIT30
-#define	RT_RF_LPS_LEVEL_ASPM			BIT31
 #define	RT_IN_PS_LEVEL(pPSC, _PS_FLAG)		\
 	((pPSC->CurPsLevel & _PS_FLAG) ? true : false)
 #define	RT_CLEAR_PS_LEVEL(pPSC, _PS_FLAG)	\
@@ -244,22 +228,6 @@ struct sw_chnl_cmd {
 #define MGN_MCS13	       0x8d
 #define MGN_MCS14	       0x8e
 #define MGN_MCS15	       0x8f
-#define	MGN_MCS0_SG			0x90
-#define	MGN_MCS1_SG			0x91
-#define	MGN_MCS2_SG			0x92
-#define	MGN_MCS3_SG			0x93
-#define	MGN_MCS4_SG			0x94
-#define	MGN_MCS5_SG			0x95
-#define	MGN_MCS6_SG			0x96
-#define	MGN_MCS7_SG			0x97
-#define	MGN_MCS8_SG			0x98
-#define	MGN_MCS9_SG			0x99
-#define	MGN_MCS10_SG		0x9a
-#define	MGN_MCS11_SG		0x9b
-#define	MGN_MCS12_SG		0x9c
-#define	MGN_MCS13_SG		0x9d
-#define	MGN_MCS14_SG		0x9e
-#define	MGN_MCS15_SG		0x9f
 
 enum hw_variables {
 	HW_VAR_ETHER_ADDR,
@@ -748,16 +716,11 @@ struct rtllib_stats {
 
 struct rtllib_device;
 
-#define SEC_KEY_1	 (1<<0)
-#define SEC_KEY_2	 (1<<1)
-#define SEC_KEY_3	 (1<<2)
-#define SEC_KEY_4	 (1<<3)
 #define SEC_ACTIVE_KEY    (1<<4)
 #define SEC_AUTH_MODE     (1<<5)
 #define SEC_UNICAST_GROUP (1<<6)
 #define SEC_LEVEL	 (1<<7)
 #define SEC_ENABLED       (1<<8)
-#define SEC_ENCRYPT       (1<<9)
 
 #define SEC_LEVEL_0      0 /* None */
 #define SEC_LEVEL_1      1 /* WEP 40 and 104 bit */
@@ -772,7 +735,6 @@ struct rtllib_device;
 
 #define WEP_KEY_LEN		13
 #define SCM_KEY_LEN		32
-#define SCM_TEMPORAL_KEY_LENGTH 16
 
 struct rtllib_security {
 	u16 active_key:2,
@@ -1187,8 +1149,6 @@ enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 #define WME_AC_BE   0x01
 #define WME_AC_VI   0x02
 #define WME_AC_VO   0x03
-#define WME_ACI_MASK 0x03
-#define WME_AIFSN_MASK 0x03
 #define WME_AC_PRAM_LEN 16
 
 #define MAX_RECEIVE_BUFFER_SIZE 9100

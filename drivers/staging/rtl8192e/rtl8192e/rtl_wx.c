@@ -729,9 +729,6 @@ static int r8192_wx_set_enc(struct net_device *dev,
 			hwkey[i] |= (key[4 * i + 3] & mask) << 24;
 		}
 
-		#define CONF_WEP40  0x4
-		#define CONF_WEP104 0x14
-
 		switch (wrqu->encoding.flags & IW_ENCODE_INDEX) {
 		case 0:
 			key_idx = ieee->crypt_info.tx_keyidx;
