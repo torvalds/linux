@@ -507,6 +507,7 @@ static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 	list_for_each_entry_safe(addr, next, &ipvlan->addrs, anode) {
 		ipvlan_ht_addr_del(addr, !dev->dismantle);
 		list_del(&addr->anode);
+		kfree_rcu(addr, rcu);
 	}
 
 	list_del_rcu(&ipvlan->pnode);
