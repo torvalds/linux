@@ -884,22 +884,23 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 }
 
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
-		     unsigned int frontbuffer_bits)
+		     unsigned int frontbuffer_bits, enum fb_op_origin origin)
 {
 	if (!dev_priv->fbc.enable_fbc)
 		return;
 
-	mutex_lock(&dev_priv->fbc.lock);
+	if (origin == ORIGIN_GTT)
+		return;
 
-	if (!dev_priv->fbc.busy_bits)
-		goto out;
+	mutex_lock(&dev_priv->fbc.lock);
 
 	dev_priv->fbc.busy_bits &= ~frontbuffer_bits;
 
-	if (!dev_priv->fbc.busy_bits)
+	if (!dev_priv->fbc.busy_bits) {
+		__intel_fbc_disable(dev_priv);
 		__intel_fbc_update(dev_priv);
+	}
 
-out:
 	mutex_unlock(&dev_priv->fbc.lock);
 }
 

@@ -1239,7 +1239,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned int frontbuffer_bits,
 			  enum fb_op_origin origin);
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
-		     unsigned int frontbuffer_bits);
+		     unsigned int frontbuffer_bits, enum fb_op_origin origin);
 const char *intel_no_fbc_reason_str(enum no_fbc_reason reason);
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv);
 
