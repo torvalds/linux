@@ -357,7 +357,7 @@ void rtl8192_phy_configmac(struct net_device *dev)
 
 }
 
-void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
+static void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 {
 	int i;
 	u32 *Rtl819XPHY_REGArray_Table = NULL;
@@ -986,7 +986,7 @@ static void rtl8192_phy_FinishSwChnlNow(struct net_device *dev, u8 channel)
 			break;
 	}
 }
-void rtl8192_SwChnl_WorkItem(struct net_device *dev)
+static void rtl8192_SwChnl_WorkItem(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1163,7 +1163,7 @@ static void CCK_Tx_Power_Track_BW_Switch(struct net_device *dev)
 		CCK_Tx_Power_Track_BW_Switch_ThermalMeter(dev);
 }
 
-void rtl8192_SetBWModeWorkItem(struct net_device *dev)
+static void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);

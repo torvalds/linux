@@ -80,7 +80,6 @@ extern u32 rtl8192_phy_QueryRFReg(struct net_device *dev,
 				  enum rf90_radio_path eRFPath,
 				  u32 RegAddr, u32 BitMask);
 extern void rtl8192_phy_configmac(struct net_device *dev);
-extern void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType);
 extern bool rtl8192_phy_checkBBAndRF(struct net_device *dev,
 				     enum hw90_block CheckBlock,
 				     enum rf90_radio_path eRFPath);
@@ -96,8 +95,6 @@ extern u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel);
 extern void rtl8192_SetBWMode(struct net_device *dev,
 			      enum ht_channel_width Bandwidth,
 			      enum ht_extchnl_offset Offset);
-extern void rtl8192_SwChnl_WorkItem(struct net_device *dev);
-extern void rtl8192_SetBWModeWorkItem(struct net_device *dev);
 extern void InitialGain819xPci(struct net_device *dev, u8 Operation);
 
 extern	void PHY_SetRtl8192eRfOff(struct net_device *dev);
