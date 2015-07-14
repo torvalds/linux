@@ -185,7 +185,7 @@ static int param_set_uint_minmax(const char *val,
 	if (!val)
 		return -EINVAL;
 	ret = kstrtouint(val, 0, &num);
-	if (ret == -EINVAL || num < min || num > max)
+	if (ret < 0 || num < min || num > max)
 		return -EINVAL;
 	*((unsigned int *)kp->arg) = num;
 	return 0;
