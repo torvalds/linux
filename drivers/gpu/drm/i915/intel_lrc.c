@@ -1248,6 +1248,35 @@ static int gen8_init_perctx_bb(struct intel_engine_cs *ring,
 	return wa_ctx_end(wa_ctx, *offset = index, 1);
 }
 
+static int gen9_init_indirectctx_bb(struct intel_engine_cs *ring,
+				    struct i915_wa_ctx_bb *wa_ctx,
+				    uint32_t *const batch,
+				    uint32_t *offset)
+{
+	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
+
+	/* FIXME: Replace me with WA */
+	wa_ctx_emit(batch, index, MI_NOOP);
+
+	/* Pad to end of cacheline */
+	while (index % CACHELINE_DWORDS)
+		wa_ctx_emit(batch, index, MI_NOOP);
+
+	return wa_ctx_end(wa_ctx, *offset = index, CACHELINE_DWORDS);
+}
+
+static int gen9_init_perctx_bb(struct intel_engine_cs *ring,
+			       struct i915_wa_ctx_bb *wa_ctx,
+			       uint32_t *const batch,
+			       uint32_t *offset)
+{
+	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
+
+	wa_ctx_emit(batch, index, MI_BATCH_BUFFER_END);
+
+	return wa_ctx_end(wa_ctx, *offset = index, 1);
+}
+
 static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *ring, u32 size)
 {
 	int ret;
@@ -1289,10 +1318,11 @@ static int intel_init_workaround_bb(struct intel_engine_cs *ring)
 	WARN_ON(ring->id != RCS);
 
 	/* update this when WA for higher Gen are added */
-	if (WARN(INTEL_INFO(ring->dev)->gen > 8,
-		 "WA batch buffer is not initialized for Gen%d\n",
-		 INTEL_INFO(ring->dev)->gen))
+	if (INTEL_INFO(ring->dev)->gen > 9) {
+		DRM_ERROR("WA batch buffer is not initialized for Gen%d\n",
+			  INTEL_INFO(ring->dev)->gen);
 		return 0;
+	}
 
 	/* some WA perform writes to scratch page, ensure it is valid */
 	if (ring->scratch.obj == NULL) {
@@ -1319,6 +1349,20 @@ static int intel_init_workaround_bb(struct intel_engine_cs *ring)
 			goto out;
 
 		ret = gen8_init_perctx_bb(ring,
+					  &wa_ctx->per_ctx,
+					  batch,
+					  &offset);
+		if (ret)
+			goto out;
+	} else if (INTEL_INFO(ring->dev)->gen == 9) {
+		ret = gen9_init_indirectctx_bb(ring,
+					       &wa_ctx->indirect_ctx,
+					       batch,
+					       &offset);
+		if (ret)
+			goto out;
+
+		ret = gen9_init_perctx_bb(ring,
 					  &wa_ctx->per_ctx,
 					  batch,
 					  &offset);
