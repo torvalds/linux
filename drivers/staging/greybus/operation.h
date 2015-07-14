@@ -171,6 +171,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 int gb_operation_request_send_sync(struct gb_operation *operation);
 
 void gb_operation_cancel(struct gb_operation *operation, int errno);
+void gb_operation_cancel_incoming(struct gb_operation *operation, int errno);
 
 void greybus_message_sent(struct greybus_host_device *hd,
 				struct gb_message *message, int status);

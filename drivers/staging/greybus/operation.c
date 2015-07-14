@@ -922,26 +922,17 @@ void gb_connection_recv(struct gb_connection *connection,
 }
 
 /*
- * Cancel an operation synchronously, and record the given error to indicate
- * why.
+ * Cancel an outgoing operation synchronously, and record the given error to
+ * indicate why.
  */
 void gb_operation_cancel(struct gb_operation *operation, int errno)
 {
-	if (gb_operation_is_incoming(operation)) {
-		if (!gb_operation_is_unidirectional(operation)) {
-			/*
-			 * Make sure the request handler has submitted the
-			 * response before cancelling it.
-			 */
-			flush_work(&operation->work);
-			if (!gb_operation_result_set(operation, errno))
-				gb_message_cancel(operation->response);
-		}
-	} else {
-		if (gb_operation_result_set(operation, errno)) {
-			gb_message_cancel(operation->request);
-			queue_work(gb_operation_workqueue, &operation->work);
-		}
+	if (WARN_ON(gb_operation_is_incoming(operation)))
+		return;
+
+	if (gb_operation_result_set(operation, errno)) {
+		gb_message_cancel(operation->request);
+		queue_work(gb_operation_workqueue, &operation->work);
 	}
 
 	atomic_inc(&operation->waiters);
@@ -950,6 +941,31 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 	atomic_dec(&operation->waiters);
 }
 EXPORT_SYMBOL_GPL(gb_operation_cancel);
+
+/*
+ * Cancel an incoming operation synchronously. Called during connection tear
+ * down.
+ */
+void gb_operation_cancel_incoming(struct gb_operation *operation, int errno)
+{
+	if (WARN_ON(!gb_operation_is_incoming(operation)))
+		return;
+
+	if (!gb_operation_is_unidirectional(operation)) {
+		/*
+		 * Make sure the request handler has submitted the response
+		 * before cancelling it.
+		 */
+		flush_work(&operation->work);
+		if (!gb_operation_result_set(operation, errno))
+			gb_message_cancel(operation->response);
+	}
+
+	atomic_inc(&operation->waiters);
+	wait_event(gb_operation_cancellation_queue,
+			!gb_operation_is_active(operation));
+	atomic_dec(&operation->waiters);
+}
 
 /**
  * gb_operation_sync: implement a "simple" synchronous gb operation.

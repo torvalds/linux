@@ -238,7 +238,11 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 		gb_operation_get(operation);
 		spin_unlock_irq(&connection->lock);
 
-		gb_operation_cancel(operation, errno);
+		if (gb_operation_is_incoming(operation))
+			gb_operation_cancel_incoming(operation, errno);
+		else
+			gb_operation_cancel(operation, errno);
+
 		gb_operation_put(operation);
 
 		spin_lock_irq(&connection->lock);
