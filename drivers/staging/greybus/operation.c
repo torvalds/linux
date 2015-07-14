@@ -928,10 +928,14 @@ void gb_connection_recv(struct gb_connection *connection,
 void gb_operation_cancel(struct gb_operation *operation, int errno)
 {
 	if (gb_operation_is_incoming(operation)) {
-		/* Cancel response if it has been allocated */
-		if (!gb_operation_result_set(operation, errno) &&
-				!gb_operation_is_unidirectional(operation)) {
-			gb_message_cancel(operation->response);
+		if (!gb_operation_is_unidirectional(operation)) {
+			/*
+			 * Make sure the request handler has submitted the
+			 * response before cancelling it.
+			 */
+			flush_work(&operation->work);
+			if (!gb_operation_result_set(operation, errno))
+				gb_message_cancel(operation->response);
 		}
 	} else {
 		if (gb_operation_result_set(operation, errno)) {
