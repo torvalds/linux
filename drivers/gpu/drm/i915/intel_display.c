@@ -15202,6 +15202,8 @@ void intel_modeset_init(struct drm_device *dev)
 	drm_modeset_unlock_all(dev);
 
 	for_each_intel_crtc(dev, crtc) {
+		struct intel_initial_plane_config plane_config = {};
+
 		if (!crtc->active)
 			continue;
 
@@ -15212,15 +15214,14 @@ void intel_modeset_init(struct drm_device *dev)
 		 * can even allow for smooth boot transitions if the BIOS
 		 * fb is large enough for the active pipe configuration.
 		 */
-		if (dev_priv->display.get_initial_plane_config) {
-			dev_priv->display.get_initial_plane_config(crtc,
-							   &crtc->plane_config);
-			/*
-			 * If the fb is shared between multiple heads, we'll
-			 * just get the first one.
-			 */
-			intel_find_initial_plane_obj(crtc, &crtc->plane_config);
-		}
+		dev_priv->display.get_initial_plane_config(crtc,
+							   &plane_config);
+
+		/*
+		 * If the fb is shared between multiple heads, we'll
+		 * just get the first one.
+		 */
+		intel_find_initial_plane_obj(crtc, &plane_config);
 	}
 }
 
