@@ -136,7 +136,6 @@ static struct gpio_desc *of_get_gpio_hog(struct device_node *np,
 {
 	struct device_node *chip_np;
 	enum of_gpio_flags xlate_flags;
-	struct gpio_desc *desc;
 	struct gg_data gg_data = {
 		.flags = &xlate_flags,
 	};
@@ -193,9 +192,7 @@ static struct gpio_desc *of_get_gpio_hog(struct device_node *np,
 	if (name && of_property_read_string(np, "line-name", name))
 		*name = np->name;
 
-	desc = gg_data.out_gpio;
-
-	return desc;
+	return gg_data.out_gpio;
 }
 
 /**
