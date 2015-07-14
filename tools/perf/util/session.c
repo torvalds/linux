@@ -686,6 +686,8 @@ static int process_finished_round(struct perf_tool *tool __maybe_unused,
 				  union perf_event *event __maybe_unused,
 				  struct ordered_events *oe)
 {
+	if (dump_trace)
+		fprintf(stdout, "\n");
 	return ordered_events__flush(oe, OE_FLUSH__ROUND);
 }
 
@@ -1726,7 +1728,7 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 	if (perf_header__has_feat(&session->header, HEADER_AUXTRACE))
 		msg = " (excludes AUX area (e.g. instruction trace) decoded / synthesized events)";
 
-	ret = fprintf(fp, "Aggregated stats:%s\n", msg);
+	ret = fprintf(fp, "\nAggregated stats:%s\n", msg);
 
 	ret += events_stats__fprintf(&session->evlist->stats, fp);
 	return ret;
@@ -1893,7 +1895,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	err = 0;
 
 out_delete_map:
-	cpu_map__delete(map);
+	cpu_map__put(map);
 	return err;
 }
 

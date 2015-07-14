@@ -65,6 +65,7 @@
 #define ACPI_SIG_DSDT           "DSDT"	/* Differentiated System Description Table */
 #define ACPI_SIG_FADT           "FACP"	/* Fixed ACPI Description Table */
 #define ACPI_SIG_FACS           "FACS"	/* Firmware ACPI Control Structure */
+#define ACPI_SIG_OSDT           "OSDT"	/* Override System Description Table */
 #define ACPI_SIG_PSDT           "PSDT"	/* Persistent System Description Table */
 #define ACPI_SIG_RSDP           "RSD PTR "	/* Root System Description Pointer */
 #define ACPI_SIG_RSDT           "RSDT"	/* Root System Description Table */

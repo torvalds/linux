@@ -425,6 +425,8 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   unsigned irq_type);
 int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
 		      struct amdgpu_fence **fence);
+int amdgpu_fence_recreate(struct amdgpu_ring *ring, void *owner,
+			  uint64_t seq, struct amdgpu_fence **fence);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
@@ -435,9 +437,6 @@ int amdgpu_fence_wait(struct amdgpu_fence *fence, bool interruptible);
 int amdgpu_fence_wait_any(struct amdgpu_device *adev,
 			  struct amdgpu_fence **fences,
 			  bool intr);
-long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev,
-				   u64 *target_seq, bool intr,
-				   long timeout);
 struct amdgpu_fence *amdgpu_fence_ref(struct amdgpu_fence *fence);
 void amdgpu_fence_unref(struct amdgpu_fence **fence);
 
@@ -1622,6 +1621,7 @@ struct amdgpu_vce {
 	unsigned		fb_version;
 	atomic_t		handles[AMDGPU_MAX_VCE_HANDLES];
 	struct drm_file		*filp[AMDGPU_MAX_VCE_HANDLES];
+	uint32_t		img_size[AMDGPU_MAX_VCE_HANDLES];
 	struct delayed_work	idle_work;
 	const struct firmware	*fw;	/* VCE firmware */
 	struct amdgpu_ring	ring[AMDGPU_MAX_VCE_RINGS];

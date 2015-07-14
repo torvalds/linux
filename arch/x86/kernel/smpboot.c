@@ -171,11 +171,6 @@ static void smp_callin(void)
 	apic_ap_setup();
 
 	/*
-	 * Need to setup vector mappings before we enable interrupts.
-	 */
-	setup_vector_irq(smp_processor_id());
-
-	/*
 	 * Save our processor parameters. Note: this information
 	 * is needed for clock calibration.
 	 */
@@ -239,18 +234,13 @@ static void notrace start_secondary(void *unused)
 	check_tsc_sync_target();
 
 	/*
-	 * Enable the espfix hack for this CPU
-	 */
-#ifdef CONFIG_X86_ESPFIX64
-	init_espfix_ap();
-#endif
-
-	/*
-	 * We need to hold vector_lock so there the set of online cpus
-	 * does not change while we are assigning vectors to cpus.  Holding
-	 * this lock ensures we don't half assign or remove an irq from a cpu.
+	 * Lock vector_lock and initialize the vectors on this cpu
+	 * before setting the cpu online. We must set it online with
+	 * vector_lock held to prevent a concurrent setup/teardown
+	 * from seeing a half valid vector space.
 	 */
 	lock_vector_lock();
+	setup_vector_irq(smp_processor_id());
 	set_cpu_online(smp_processor_id(), true);
 	unlock_vector_lock();
 	cpu_set_state_online(smp_processor_id());
@@ -853,6 +843,13 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
 	stack_start  = idle->thread.sp;
+
+	/*
+	 * Enable the espfix hack for this CPU
+	*/
+#ifdef CONFIG_X86_ESPFIX64
+	init_espfix_ap(cpu);
+#endif
 
 	/* So we see what's up */
 	announce_cpu(cpu, apicid);

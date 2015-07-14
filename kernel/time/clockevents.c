@@ -120,19 +120,25 @@ static int __clockevents_switch_state(struct clock_event_device *dev,
 		/* The clockevent device is getting replaced. Shut it down. */
 
 	case CLOCK_EVT_STATE_SHUTDOWN:
-		return dev->set_state_shutdown(dev);
+		if (dev->set_state_shutdown)
+			return dev->set_state_shutdown(dev);
+		return 0;
 
 	case CLOCK_EVT_STATE_PERIODIC:
 		/* Core internal bug */
 		if (!(dev->features & CLOCK_EVT_FEAT_PERIODIC))
 			return -ENOSYS;
-		return dev->set_state_periodic(dev);
+		if (dev->set_state_periodic)
+			return dev->set_state_periodic(dev);
+		return 0;
 
 	case CLOCK_EVT_STATE_ONESHOT:
 		/* Core internal bug */
 		if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
 			return -ENOSYS;
-		return dev->set_state_oneshot(dev);
+		if (dev->set_state_oneshot)
+			return dev->set_state_oneshot(dev);
+		return 0;
 
 	case CLOCK_EVT_STATE_ONESHOT_STOPPED:
 		/* Core internal bug */
@@ -470,18 +476,6 @@ static int clockevents_sanity_check(struct clock_event_device *dev)
 
 	if (dev->features & CLOCK_EVT_FEAT_DUMMY)
 		return 0;
-
-	/* New state-specific callbacks */
-	if (!dev->set_state_shutdown)
-		return -EINVAL;
-
-	if ((dev->features & CLOCK_EVT_FEAT_PERIODIC) &&
-	    !dev->set_state_periodic)
-		return -EINVAL;
-
-	if ((dev->features & CLOCK_EVT_FEAT_ONESHOT) &&
-	    !dev->set_state_oneshot)
-		return -EINVAL;
 
 	return 0;
 }

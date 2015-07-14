@@ -382,7 +382,7 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 	base_ni = ni;
 	if (NInoAttr(ni))
 		base_ni = ni->ext.base_ntfs_ino;
-	err = file_remove_suid(file);
+	err = file_remove_privs(file);
 	if (unlikely(err))
 		goto out;
 	/*

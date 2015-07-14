@@ -127,7 +127,7 @@
 		usb0: gadget@00400000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "atmel,at91sam9rl-udc";
+			compatible = "atmel,sama5d3-udc";
 			reg = <0x00400000 0x100000
 			       0xfc02c000 0x4000>;
 			interrupts = <47 IRQ_TYPE_LEVEL_HIGH 2>;

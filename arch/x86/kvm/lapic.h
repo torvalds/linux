@@ -26,6 +26,7 @@ struct kvm_lapic {
 	struct kvm_vcpu *vcpu;
 	bool sw_enabled;
 	bool irr_pending;
+	bool lvt0_in_nmi_mode;
 	/* Number of bits set in ISR. */
 	s16 isr_count;
 	/* The highest vector set in ISR; if -1 - invalid, must scan ISR. */

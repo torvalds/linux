@@ -1614,6 +1614,7 @@ M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/vexpress*
+F:	arch/arm64/boot/dts/arm/vexpress*
 F:	arch/arm/mach-vexpress/
 F:	*/*/vexpress*
 F:	*/*/*/vexpress*
@@ -2562,18 +2563,30 @@ F:	arch/powerpc/include/uapi/asm/spu*.h
 F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
 
-CEPH DISTRIBUTED FILE SYSTEM CLIENT
+CEPH COMMON CODE (LIBCEPH)
+M:	Ilya Dryomov <idryomov@gmail.com>
 M:	"Yan, Zheng" <zyan@redhat.com>
 M:	Sage Weil <sage@redhat.com>
 L:	ceph-devel@vger.kernel.org
 W:	http://ceph.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
+T:	git git://github.com/ceph/ceph-client.git
 S:	Supported
-F:	Documentation/filesystems/ceph.txt
-F:	fs/ceph/
 F:	net/ceph/
 F:	include/linux/ceph/
 F:	include/linux/crush/
+
+CEPH DISTRIBUTED FILE SYSTEM CLIENT (CEPH)
+M:	"Yan, Zheng" <zyan@redhat.com>
+M:	Sage Weil <sage@redhat.com>
+M:	Ilya Dryomov <idryomov@gmail.com>
+L:	ceph-devel@vger.kernel.org
+W:	http://ceph.com/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
+T:	git git://github.com/ceph/ceph-client.git
+S:	Supported
+F:	Documentation/filesystems/ceph.txt
+F:	fs/ceph/
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 L:	linux-usb@vger.kernel.org
@@ -4430,9 +4443,11 @@ FUSE: FILESYSTEM IN USERSPACE
 M:	Miklos Szeredi <miklos@szeredi.hu>
 L:	fuse-devel@lists.sourceforge.net
 W:	http://fuse.sourceforge.net/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/fuse.git
 S:	Maintained
 F:	fs/fuse/
 F:	include/uapi/linux/fuse.h
+F:	Documentation/filesystems/fuse.txt
 
 FUTURE DOMAIN TMC-16x0 SCSI DRIVER (16-bit)
 M:	Rik Faith <faith@cs.unc.edu>
@@ -5468,6 +5483,13 @@ F:	include/linux/mei_cl_bus.h
 F:	drivers/misc/mei/*
 F:	Documentation/misc-devices/mei/*
 
+INTEL PMC IPC DRIVER
+M:	Zha Qipeng<qipeng.zha@intel.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/intel_pmc_ipc.c
+F:	arch/x86/include/asm/intel_pmc_ipc.h
+
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-mips@linux-mips.org
@@ -6138,6 +6160,7 @@ L:	linux-nvdimm@lists.01.org
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
 F:	drivers/nvdimm/pmem.c
+F:	include/linux/pmem.h
 
 LINUX FOR IBM pSERIES (RS/6000)
 M:	Paul Mackerras <paulus@au.ibm.com>
@@ -6152,7 +6175,7 @@ M:	Michael Ellerman <mpe@ellerman.id.au>
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@lists.ozlabs.org
 Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/benh/powerpc.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git
 S:	Supported
 F:	Documentation/powerpc/
 F:	arch/powerpc/
@@ -6996,6 +7019,7 @@ F:	include/uapi/linux/netfilter/
 F:	net/*/netfilter.c
 F:	net/*/netfilter/
 F:	net/netfilter/
+F:	net/bridge/br_netfilter*.c
 
 NETLABEL
 M:	Paul Moore <paul@paul-moore.com>
@@ -7210,15 +7234,25 @@ F:	drivers/power/bq27x00_battery.c
 F:	drivers/power/isp1704_charger.c
 F:	drivers/power/rx51_battery.c
 
-NTB DRIVER
+NTB DRIVER CORE
 M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
+M:	Allen Hubbe <Allen.Hubbe@emc.com>
 S:	Supported
 W:	https://github.com/jonmason/ntb/wiki
 T:	git git://github.com/jonmason/ntb.git
 F:	drivers/ntb/
 F:	drivers/net/ntb_netdev.c
 F:	include/linux/ntb.h
+F:	include/linux/ntb_transport.h
+
+NTB INTEL DRIVER
+M:	Jon Mason <jdmason@kudzu.us>
+M:	Dave Jiang <dave.jiang@intel.com>
+S:	Supported
+W:	https://github.com/jonmason/ntb/wiki
+T:	git git://github.com/jonmason/ntb.git
+F:	drivers/ntb/hw/intel/
 
 NTFS FILESYSTEM
 M:	Anton Altaparmakov <anton@tuxera.com>
@@ -7362,7 +7396,6 @@ M:	Ohad Ben-Cohen <ohad@wizery.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/hwspinlock/omap_hwspinlock.c
-F:	arch/arm/mach-omap2/hwspinlock.c
 
 OMAP MMC SUPPORT
 M:	Jarkko Lavinen <jarkko.lavinen@nokia.com>
@@ -8348,10 +8381,12 @@ RADOS BLOCK DEVICE (RBD)
 M:	Ilya Dryomov <idryomov@gmail.com>
 M:	Sage Weil <sage@redhat.com>
 M:	Alex Elder <elder@kernel.org>
-M:	ceph-devel@vger.kernel.org
+L:	ceph-devel@vger.kernel.org
 W:	http://ceph.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
+T:	git git://github.com/ceph/ceph-client.git
 S:	Supported
+F:	Documentation/ABI/testing/sysfs-bus-rbd
 F:	drivers/block/rbd.c
 F:	drivers/block/rbd_types.h
 

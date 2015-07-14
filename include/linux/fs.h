@@ -1654,7 +1654,6 @@ struct inode_operations {
 	int (*set_acl)(struct inode *, struct posix_acl *, int);
 
 	/* WARNING: probably going away soon, do not use! */
-	int (*dentry_open)(struct dentry *, struct file *, const struct cred *);
 } ____cacheline_aligned;
 
 ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
@@ -1917,6 +1916,7 @@ struct file_system_type {
 #define FS_HAS_SUBTYPE		4
 #define FS_USERNS_MOUNT		8	/* Can be mounted by userns root */
 #define FS_USERNS_DEV_MOUNT	16 /* A userns mount does not imply MNT_NODEV */
+#define FS_USERNS_VISIBLE	32	/* FS must already be visible */
 #define FS_RENAME_DOES_D_MOVE	32768	/* FS will handle d_move() during rename() internally. */
 	struct dentry *(*mount) (struct file_system_type *, int,
 		       const char *, void *);
@@ -2004,7 +2004,6 @@ extern int vfs_ustat(dev_t, struct kstatfs *);
 extern int freeze_super(struct super_block *super);
 extern int thaw_super(struct super_block *super);
 extern bool our_mnt(struct vfsmount *mnt);
-extern bool fs_fully_visible(struct file_system_type *);
 
 extern int current_umask(void);
 
@@ -2213,7 +2212,6 @@ extern struct file *file_open_name(struct filename *, int, umode_t);
 extern struct file *filp_open(const char *, int, umode_t);
 extern struct file *file_open_root(struct dentry *, struct vfsmount *,
 				   const char *, int);
-extern int vfs_open(const struct path *, struct file *, const struct cred *);
 extern struct file * dentry_open(const struct path *, int, const struct cred *);
 extern int filp_close(struct file *, fl_owner_t id);
 
@@ -2530,6 +2528,8 @@ extern struct file * open_exec(const char *);
 extern int is_subdir(struct dentry *, struct dentry *);
 extern int path_is_under(struct path *, struct path *);
 
+extern char *file_path(struct file *, char *, int);
+
 #include <linux/err.h>
 
 /* needed for stackable file system support */
@@ -2581,7 +2581,12 @@ extern struct inode *new_inode_pseudo(struct super_block *sb);
 extern struct inode *new_inode(struct super_block *sb);
 extern void free_inode_nonrcu(struct inode *inode);
 extern int should_remove_suid(struct dentry *);
-extern int file_remove_suid(struct file *);
+extern int file_remove_privs(struct file *);
+extern int dentry_needs_remove_privs(struct dentry *dentry);
+static inline int file_needs_remove_privs(struct file *file)
+{
+	return dentry_needs_remove_privs(file->f_path.dentry);
+}
 
 extern void __insert_inode_hash(struct inode *, unsigned long hashval);
 static inline void insert_inode_hash(struct inode *inode)
@@ -2816,6 +2821,8 @@ extern struct dentry *simple_lookup(struct inode *, struct dentry *, unsigned in
 extern ssize_t generic_read_dir(struct file *, char __user *, size_t, loff_t *);
 extern const struct file_operations simple_dir_operations;
 extern const struct inode_operations simple_dir_inode_operations;
+extern void make_empty_dir_inode(struct inode *inode);
+extern bool is_empty_dir_inode(struct inode *inode);
 struct tree_descr { char *name; const struct file_operations *ops; int mode; };
 struct dentry *d_alloc_name(struct dentry *, const char *);
 extern int simple_fill_super(struct super_block *, unsigned long, struct tree_descr *);

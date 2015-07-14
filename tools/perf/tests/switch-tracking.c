@@ -560,8 +560,8 @@ out:
 		perf_evlist__disable(evlist);
 		perf_evlist__delete(evlist);
 	} else {
-		cpu_map__delete(cpus);
-		thread_map__delete(threads);
+		cpu_map__put(cpus);
+		thread_map__put(threads);
 	}
 
 	return err;

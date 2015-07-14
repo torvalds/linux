@@ -139,7 +139,8 @@ static int nfs4_stat_to_errno(int);
 #define encode_setclientid_maxsz \
 				(op_encode_hdr_maxsz + \
 				XDR_QUADLEN(NFS4_VERIFIER_SIZE) + \
-				XDR_QUADLEN(NFS4_SETCLIENTID_NAMELEN) + \
+				/* client name */ \
+				1 + XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + \
 				1 /* sc_prog */ + \
 				1 + XDR_QUADLEN(RPCBIND_MAXNETIDLEN) + \
 				1 + XDR_QUADLEN(RPCBIND_MAXUADDRLEN) + \
@@ -288,7 +289,8 @@ static int nfs4_stat_to_errno(int);
 #define encode_exchange_id_maxsz (op_encode_hdr_maxsz + \
 				encode_verifier_maxsz + \
 				1 /* co_ownerid.len */ + \
-				XDR_QUADLEN(NFS4_EXCHANGE_ID_LEN) + \
+				/* eia_clientowner */ \
+				1 + XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + \
 				1 /* flags */ + \
 				1 /* spa_how */ + \
 				/* max is SP4_MACH_CRED (for now) */ + \
@@ -1667,13 +1669,14 @@ static void encode_setclientid(struct xdr_stream *xdr, const struct nfs4_setclie
 	encode_op_hdr(xdr, OP_SETCLIENTID, decode_setclientid_maxsz, hdr);
 	encode_nfs4_verifier(xdr, setclientid->sc_verifier);
 
-	encode_string(xdr, setclientid->sc_name_len, setclientid->sc_name);
+	encode_string(xdr, strlen(setclientid->sc_clnt->cl_owner_id),
+			setclientid->sc_clnt->cl_owner_id);
 	p = reserve_space(xdr, 4);
 	*p = cpu_to_be32(setclientid->sc_prog);
 	encode_string(xdr, setclientid->sc_netid_len, setclientid->sc_netid);
 	encode_string(xdr, setclientid->sc_uaddr_len, setclientid->sc_uaddr);
 	p = reserve_space(xdr, 4);
-	*p = cpu_to_be32(setclientid->sc_cb_ident);
+	*p = cpu_to_be32(setclientid->sc_clnt->cl_cb_ident);
 }
 
 static void encode_setclientid_confirm(struct xdr_stream *xdr, const struct nfs4_setclientid_res *arg, struct compound_hdr *hdr)
@@ -1747,7 +1750,8 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 	encode_op_hdr(xdr, OP_EXCHANGE_ID, decode_exchange_id_maxsz, hdr);
 	encode_nfs4_verifier(xdr, args->verifier);
 
-	encode_string(xdr, args->id_len, args->id);
+	encode_string(xdr, strlen(args->client->cl_owner_id),
+			args->client->cl_owner_id);
 
 	encode_uint32(xdr, args->flags);
 	encode_uint32(xdr, args->state_protect.how);
@@ -7427,6 +7431,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
 	PROC(SEEK,		enc_seek,		dec_seek),
 	PROC(ALLOCATE,		enc_allocate,		dec_allocate),
 	PROC(DEALLOCATE,	enc_deallocate,		dec_deallocate),
+	PROC(LAYOUTSTATS,	enc_layoutstats,	dec_layoutstats),
 #endif /* CONFIG_NFS_V4_2 */
 };
 

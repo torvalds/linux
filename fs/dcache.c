@@ -642,7 +642,7 @@ static inline bool fast_dput(struct dentry *dentry)
 
 	/*
 	 * If we have a d_op->d_delete() operation, we sould not
-	 * let the dentry count go to zero, so use "put__or_lock".
+	 * let the dentry count go to zero, so use "put_or_lock".
 	 */
 	if (unlikely(dentry->d_flags & DCACHE_OP_DELETE))
 		return lockref_put_or_lock(&dentry->d_lockref);
@@ -697,7 +697,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	 */
 	smp_rmb();
 	d_flags = ACCESS_ONCE(dentry->d_flags);
-	d_flags &= DCACHE_REFERENCED | DCACHE_LRU_LIST;
+	d_flags &= DCACHE_REFERENCED | DCACHE_LRU_LIST | DCACHE_DISCONNECTED;
 
 	/* Nothing to do? Dropping the reference was all we needed? */
 	if (d_flags == (DCACHE_REFERENCED | DCACHE_LRU_LIST) && !d_unhashed(dentry))
@@ -774,6 +774,9 @@ repeat:
 
 	/* Unreachable? Get rid of it */
 	if (unlikely(d_unhashed(dentry)))
+		goto kill_it;
+
+	if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED))
 		goto kill_it;
 
 	if (unlikely(dentry->d_flags & DCACHE_OP_DELETE)) {
@@ -1673,7 +1676,8 @@ void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 				DCACHE_OP_COMPARE	|
 				DCACHE_OP_REVALIDATE	|
 				DCACHE_OP_WEAK_REVALIDATE	|
-				DCACHE_OP_DELETE ));
+				DCACHE_OP_DELETE	|
+				DCACHE_OP_SELECT_INODE));
 	dentry->d_op = op;
 	if (!op)
 		return;
@@ -1689,6 +1693,8 @@ void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 		dentry->d_flags |= DCACHE_OP_DELETE;
 	if (op->d_prune)
 		dentry->d_flags |= DCACHE_OP_PRUNE;
+	if (op->d_select_inode)
+		dentry->d_flags |= DCACHE_OP_SELECT_INODE;
 
 }
 EXPORT_SYMBOL(d_set_d_op);
@@ -2926,17 +2932,6 @@ restart:
 				mnt = parent;
 				vfsmnt = &mnt->mnt;
 				continue;
-			}
-			/*
-			 * Filesystems needing to implement special "root names"
-			 * should do so with ->d_dname()
-			 */
-			if (IS_ROOT(dentry) &&
-			   (dentry->d_name.len != 1 ||
-			    dentry->d_name.name[0] != '/')) {
-				WARN(1, "Root dentry has weird name <%.*s>\n",
-				     (int) dentry->d_name.len,
-				     dentry->d_name.name);
 			}
 			if (!error)
 				error = is_mounted(vfsmnt) ? 1 : 2;

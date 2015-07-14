@@ -33,11 +33,6 @@ static inline void dir_put_page(struct page *page)
 	page_cache_release(page);
 }
 
-static inline unsigned long dir_pages(struct inode *inode)
-{
-	return (inode->i_size+PAGE_CACHE_SIZE-1)>>PAGE_CACHE_SHIFT;
-}
-
 static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
 {
 	struct address_space *mapping = page->mapping;

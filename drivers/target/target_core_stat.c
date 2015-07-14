@@ -37,7 +37,6 @@
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 
 #include "target_core_internal.h"
@@ -104,7 +103,7 @@ static ssize_t target_stat_scsi_dev_show_attr_ports(
 	struct se_device *dev =
 		container_of(sgrps, struct se_device, dev_stat_grps);
 
-	return snprintf(page, PAGE_SIZE, "%u\n", dev->dev_port_count);
+	return snprintf(page, PAGE_SIZE, "%u\n", dev->export_count);
 }
 DEV_STAT_SCSI_DEV_ATTR_RO(ports);
 
@@ -540,20 +539,14 @@ static ssize_t target_stat_scsi_port_show_attr_inst(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	struct se_device *dev = lun->lun_se_dev;
-	struct se_hba *hba;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	hba = dev->se_hba;
-	ret = snprintf(page, PAGE_SIZE, "%u\n", hba->hba_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->hba_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(inst);
@@ -562,18 +555,14 @@ static ssize_t target_stat_scsi_port_show_attr_dev(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	struct se_device *dev = lun->lun_se_dev;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	ret = snprintf(page, PAGE_SIZE, "%u\n", dev->dev_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->dev_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(dev);
@@ -582,17 +571,14 @@ static ssize_t target_stat_scsi_port_show_attr_indx(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	ret = snprintf(page, PAGE_SIZE, "%u\n", sep->sep_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n", lun->lun_rtpi);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(indx);
@@ -601,21 +587,14 @@ static ssize_t target_stat_scsi_port_show_attr_role(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_device *dev = lun->lun_se_dev;
-	struct se_port *sep;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	if (!dev)
-		return -ENODEV;
-
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	ret = snprintf(page, PAGE_SIZE, "%s%u\n", "Device", dev->dev_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%s%u\n", "Device", dev->dev_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(role);
@@ -624,18 +603,16 @@ static ssize_t target_stat_scsi_port_show_attr_busy_count(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev) {
+		/* FIXME: scsiPortBusyStatuses  */
+		ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
 	}
-	/* FIXME: scsiPortBusyStatuses  */
-	ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(busy_count);
@@ -683,20 +660,14 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_inst(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_device *dev = lun->lun_se_dev;
-	struct se_port *sep;
-	struct se_hba *hba;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	hba = dev->se_hba;
-	ret = snprintf(page, PAGE_SIZE, "%u\n", hba->hba_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->hba_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(inst);
@@ -705,18 +676,14 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_dev(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_device *dev = lun->lun_se_dev;
-	struct se_port *sep;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	ret = snprintf(page, PAGE_SIZE, "%u\n", dev->dev_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->dev_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(dev);
@@ -725,17 +692,14 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_indx(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	ret = snprintf(page, PAGE_SIZE, "%u\n", sep->sep_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n", lun->lun_rtpi);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(indx);
@@ -744,21 +708,17 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_name(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	struct se_portal_group *tpg;
-	ssize_t ret;
+	struct se_portal_group *tpg = lun->lun_tpg;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	tpg = sep->sep_tpg;
-
-	ret = snprintf(page, PAGE_SIZE, "%sPort#%u\n",
-		tpg->se_tpg_tfo->get_fabric_name(), sep->sep_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%sPort#%u\n",
+			tpg->se_tpg_tfo->get_fabric_name(),
+			lun->lun_rtpi);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(name);
@@ -767,22 +727,17 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_port_index(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	struct se_portal_group *tpg;
-	ssize_t ret;
+	struct se_portal_group *tpg = lun->lun_tpg;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	tpg = sep->sep_tpg;
-
-	ret = snprintf(page, PAGE_SIZE, "%s%s%d\n",
-		tpg->se_tpg_tfo->tpg_get_wwn(tpg), "+t+",
-		tpg->se_tpg_tfo->tpg_get_tag(tpg));
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%s%s%d\n",
+			tpg->se_tpg_tfo->tpg_get_wwn(tpg), "+t+",
+			tpg->se_tpg_tfo->tpg_get_tag(tpg));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(port_index);
@@ -791,18 +746,15 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_in_cmds(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-
-	ret = snprintf(page, PAGE_SIZE, "%llu\n", sep->sep_stats.cmd_pdus);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%lu\n",
+			       atomic_long_read(&lun->lun_stats.cmd_pdus));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(in_cmds);
@@ -811,19 +763,15 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_write_mbytes(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-
-	ret = snprintf(page, PAGE_SIZE, "%u\n",
-			(u32)(sep->sep_stats.rx_data_octets >> 20));
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n",
+			(u32)(atomic_long_read(&lun->lun_stats.rx_data_octets) >> 20));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(write_mbytes);
@@ -832,19 +780,15 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_read_mbytes(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-
-	ret = snprintf(page, PAGE_SIZE, "%u\n",
-			(u32)(sep->sep_stats.tx_data_octets >> 20));
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n",
+				(u32)(atomic_long_read(&lun->lun_stats.tx_data_octets) >> 20));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(read_mbytes);
@@ -853,19 +797,16 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_hs_in_cmds(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev) {
+		/* FIXME: scsiTgtPortHsInCommands */
+		ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
 	}
-
-	/* FIXME: scsiTgtPortHsInCommands */
-	ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(hs_in_cmds);
@@ -919,21 +860,14 @@ static ssize_t target_stat_scsi_transport_show_attr_inst(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_device *dev = lun->lun_se_dev;
-	struct se_port *sep;
-	struct se_hba *hba;
-	ssize_t ret;
+	struct se_device *dev;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-
-	hba = dev->se_hba;
-	ret = snprintf(page, PAGE_SIZE, "%u\n", hba->hba_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->hba_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TRANSPORT_ATTR_RO(inst);
@@ -942,21 +876,18 @@ static ssize_t target_stat_scsi_transport_show_attr_device(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	struct se_portal_group *tpg;
-	ssize_t ret;
+	struct se_device *dev;
+	struct se_portal_group *tpg = lun->lun_tpg;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev) {
+		/* scsiTransportType */
+		ret = snprintf(page, PAGE_SIZE, "scsiTransport%s\n",
+			       tpg->se_tpg_tfo->get_fabric_name());
 	}
-	tpg = sep->sep_tpg;
-	/* scsiTransportType */
-	ret = snprintf(page, PAGE_SIZE, "scsiTransport%s\n",
-			tpg->se_tpg_tfo->get_fabric_name());
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TRANSPORT_ATTR_RO(device);
@@ -965,20 +896,16 @@ static ssize_t target_stat_scsi_transport_show_attr_indx(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_port *sep;
-	struct se_portal_group *tpg;
-	ssize_t ret;
+	struct se_device *dev;
+	struct se_portal_group *tpg = lun->lun_tpg;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
-	}
-	tpg = sep->sep_tpg;
-	ret = snprintf(page, PAGE_SIZE, "%u\n",
-			tpg->se_tpg_tfo->tpg_get_inst_index(tpg));
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n",
+			       tpg->se_tpg_tfo->tpg_get_inst_index(tpg));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TRANSPORT_ATTR_RO(indx);
@@ -987,26 +914,22 @@ static ssize_t target_stat_scsi_transport_show_attr_dev_name(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_device *dev = lun->lun_se_dev;
-	struct se_port *sep;
-	struct se_portal_group *tpg;
+	struct se_device *dev;
+	struct se_portal_group *tpg = lun->lun_tpg;
 	struct t10_wwn *wwn;
-	ssize_t ret;
+	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	sep = lun->lun_sep;
-	if (!sep) {
-		spin_unlock(&lun->lun_sep_lock);
-		return -ENODEV;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev) {
+		wwn = &dev->t10_wwn;
+		/* scsiTransportDevName */
+		ret = snprintf(page, PAGE_SIZE, "%s+%s\n",
+				tpg->se_tpg_tfo->tpg_get_wwn(tpg),
+				(strlen(wwn->unit_serial)) ? wwn->unit_serial :
+				wwn->vendor);
 	}
-	tpg = sep->sep_tpg;
-	wwn = &dev->t10_wwn;
-	/* scsiTransportDevName */
-	ret = snprintf(page, PAGE_SIZE, "%s+%s\n",
-			tpg->se_tpg_tfo->tpg_get_wwn(tpg),
-			(strlen(wwn->unit_serial)) ? wwn->unit_serial :
-			wwn->vendor);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TRANSPORT_ATTR_RO(dev_name);
@@ -1082,17 +1005,17 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_inst(
 	struct se_portal_group *tpg;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	tpg = nacl->se_tpg;
 	/* scsiInstIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n",
 			tpg->se_tpg_tfo->tpg_get_inst_index(tpg));
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(inst);
@@ -1107,16 +1030,16 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_dev(
 	struct se_lun *lun;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
-	lun = deve->se_lun;
+	lun = rcu_dereference(deve->se_lun);
 	/* scsiDeviceIndex */
-	ret = snprintf(page, PAGE_SIZE, "%u\n", lun->lun_se_dev->dev_index);
-	spin_unlock_irq(&nacl->device_list_lock);
+	ret = snprintf(page, PAGE_SIZE, "%u\n", lun->lun_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(dev);
@@ -1131,16 +1054,16 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_port(
 	struct se_portal_group *tpg;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	tpg = nacl->se_tpg;
 	/* scsiAuthIntrTgtPortIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", tpg->se_tpg_tfo->tpg_get_tag(tpg));
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(port);
@@ -1154,15 +1077,15 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_indx(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* scsiAuthIntrIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", nacl->acl_index);
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(indx);
@@ -1176,15 +1099,15 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_dev_or_port(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* scsiAuthIntrDevOrPort */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", 1);
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(dev_or_port);
@@ -1198,15 +1121,15 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_intr_name(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* scsiAuthIntrName */
 	ret = snprintf(page, PAGE_SIZE, "%s\n", nacl->initiatorname);
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(intr_name);
@@ -1220,15 +1143,15 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_map_indx(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* FIXME: scsiAuthIntrLunMapIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(map_indx);
@@ -1242,15 +1165,15 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_att_count(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* scsiAuthIntrAttachedTimes */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", deve->attach_count);
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(att_count);
@@ -1264,15 +1187,16 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_num_cmds(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* scsiAuthIntrOutCommands */
-	ret = snprintf(page, PAGE_SIZE, "%u\n", deve->total_cmds);
-	spin_unlock_irq(&nacl->device_list_lock);
+	ret = snprintf(page, PAGE_SIZE, "%lu\n",
+		       atomic_long_read(&deve->total_cmds));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(num_cmds);
@@ -1286,15 +1210,16 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_read_mbytes(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* scsiAuthIntrReadMegaBytes */
-	ret = snprintf(page, PAGE_SIZE, "%u\n", (u32)(deve->read_bytes >> 20));
-	spin_unlock_irq(&nacl->device_list_lock);
+	ret = snprintf(page, PAGE_SIZE, "%u\n",
+		      (u32)(atomic_long_read(&deve->read_bytes) >> 20));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(read_mbytes);
@@ -1308,15 +1233,16 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_write_mbytes(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* scsiAuthIntrWrittenMegaBytes */
-	ret = snprintf(page, PAGE_SIZE, "%u\n", (u32)(deve->write_bytes >> 20));
-	spin_unlock_irq(&nacl->device_list_lock);
+	ret = snprintf(page, PAGE_SIZE, "%u\n",
+		      (u32)(atomic_long_read(&deve->write_bytes) >> 20));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(write_mbytes);
@@ -1330,15 +1256,15 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_hs_num_cmds(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* FIXME: scsiAuthIntrHSOutCommands */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(hs_num_cmds);
@@ -1352,16 +1278,16 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_creation_time(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* scsiAuthIntrLastCreation */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", (u32)(((u32)deve->creation_time -
 				INITIAL_JIFFIES) * 100 / HZ));
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(creation_time);
@@ -1375,15 +1301,15 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_row_status(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* FIXME: scsiAuthIntrRowStatus */
 	ret = snprintf(page, PAGE_SIZE, "Ready\n");
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_AUTH_INTR_ATTR_RO(row_status);
@@ -1448,17 +1374,17 @@ static ssize_t target_stat_scsi_att_intr_port_show_attr_inst(
 	struct se_portal_group *tpg;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	tpg = nacl->se_tpg;
 	/* scsiInstIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n",
 			tpg->se_tpg_tfo->tpg_get_inst_index(tpg));
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_ATTR_INTR_PORT_ATTR_RO(inst);
@@ -1473,16 +1399,16 @@ static ssize_t target_stat_scsi_att_intr_port_show_attr_dev(
 	struct se_lun *lun;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
-	lun = deve->se_lun;
+	lun = rcu_dereference(deve->se_lun);
 	/* scsiDeviceIndex */
-	ret = snprintf(page, PAGE_SIZE, "%u\n", lun->lun_se_dev->dev_index);
-	spin_unlock_irq(&nacl->device_list_lock);
+	ret = snprintf(page, PAGE_SIZE, "%u\n", lun->lun_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_ATTR_INTR_PORT_ATTR_RO(dev);
@@ -1497,16 +1423,16 @@ static ssize_t target_stat_scsi_att_intr_port_show_attr_port(
 	struct se_portal_group *tpg;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	tpg = nacl->se_tpg;
 	/* scsiPortIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", tpg->se_tpg_tfo->tpg_get_tag(tpg));
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_ATTR_INTR_PORT_ATTR_RO(port);
@@ -1546,15 +1472,15 @@ static ssize_t target_stat_scsi_att_intr_port_show_attr_port_auth_indx(
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
-	spin_lock_irq(&nacl->device_list_lock);
-	deve = nacl->device_list[lacl->mapped_lun];
-	if (!deve->se_lun || !deve->se_lun_acl) {
-		spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
+	if (!deve) {
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 	/* scsiAttIntrPortAuthIntrIdx */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", nacl->acl_index);
-	spin_unlock_irq(&nacl->device_list_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_ATTR_INTR_PORT_ATTR_RO(port_auth_indx);

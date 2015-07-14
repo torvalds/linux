@@ -792,7 +792,7 @@ static void set_root(struct nameidata *nd)
 	get_fs_root(current->fs, &nd->root);
 }
 
-static unsigned set_root_rcu(struct nameidata *nd)
+static void set_root_rcu(struct nameidata *nd)
 {
 	struct fs_struct *fs = current->fs;
 	unsigned seq;
@@ -802,7 +802,6 @@ static unsigned set_root_rcu(struct nameidata *nd)
 		nd->root = fs->root;
 		nd->root_seq = __read_seqcount_begin(&nd->root.dentry->d_seq);
 	} while (read_seqcount_retry(&fs->seq, seq));
-	return nd->root_seq;
 }
 
 static void path_put_conditional(struct path *path, struct nameidata *nd)
@@ -1998,7 +1997,8 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 	if (*s == '/') {
 		if (flags & LOOKUP_RCU) {
 			rcu_read_lock();
-			nd->seq = set_root_rcu(nd);
+			set_root_rcu(nd);
+			nd->seq = nd->root_seq;
 		} else {
 			set_root(nd);
 			path_get(&nd->root);

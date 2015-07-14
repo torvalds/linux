@@ -3491,6 +3491,7 @@ enum skl_disp_power_wells {
 #define   BLM_POLARITY_PNV			(1 << 0) /* pnv only */
 
 #define BLC_HIST_CTL	(dev_priv->info.display_mmio_offset + 0x61260)
+#define  BLM_HISTOGRAM_ENABLE			(1 << 31)
 
 /* New registers for PCH-split platforms. Safe where new bits show up, the
  * register layout machtes with gen4 BLC_PWM_CTL[12]. */

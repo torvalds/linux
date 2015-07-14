@@ -4854,6 +4854,9 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 	struct intel_plane *intel_plane;
 	int pipe = intel_crtc->pipe;
 
+	if (!intel_crtc->active)
+		return;
+
 	intel_crtc_wait_for_pending_flips(crtc);
 
 	intel_pre_disable_primary(crtc);
@@ -7887,7 +7890,7 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 	int pipe = pipe_config->cpu_transcoder;
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
 	intel_clock_t clock;
-	u32 cmn_dw13, pll_dw0, pll_dw1, pll_dw2;
+	u32 cmn_dw13, pll_dw0, pll_dw1, pll_dw2, pll_dw3;
 	int refclk = 100000;
 
 	mutex_lock(&dev_priv->sb_lock);
@@ -7895,10 +7898,13 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 	pll_dw0 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW0(port));
 	pll_dw1 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW1(port));
 	pll_dw2 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW2(port));
+	pll_dw3 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW3(port));
 	mutex_unlock(&dev_priv->sb_lock);
 
 	clock.m1 = (pll_dw1 & 0x7) == DPIO_CHV_M1_DIV_BY_2 ? 2 : 0;
-	clock.m2 = ((pll_dw0 & 0xff) << 22) | (pll_dw2 & 0x3fffff);
+	clock.m2 = (pll_dw0 & 0xff) << 22;
+	if (pll_dw3 & DPIO_CHV_FRAC_DIV_EN)
+		clock.m2 |= pll_dw2 & 0x3fffff;
 	clock.n = (pll_dw1 >> DPIO_CHV_N_DIV_SHIFT) & 0xf;
 	clock.p1 = (cmn_dw13 >> DPIO_CHV_P1_DIV_SHIFT) & 0x7;
 	clock.p2 = (cmn_dw13 >> DPIO_CHV_P2_DIV_SHIFT) & 0x1f;
@@ -13303,6 +13309,16 @@ intel_check_primary_plane(struct drm_plane *plane,
 				intel_crtc->atomic.wait_vblank = true;
 		}
 
+		/*
+		 * FIXME: Actually if we will still have any other plane enabled
+		 * on the pipe we could let IPS enabled still, but for
+		 * now lets consider that when we make primary invisible
+		 * by setting DSPCNTR to 0 on update_primary_plane function
+		 * IPS needs to be disable.
+		 */
+		if (!state->visible || !fb)
+			intel_crtc->atomic.disable_ips = true;
+
 		intel_crtc->atomic.fb_bits |=
 			INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 
@@ -13399,6 +13415,9 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 
 	if (intel_crtc->atomic.disable_fbc)
 		intel_fbc_disable(dev);
+
+	if (intel_crtc->atomic.disable_ips)
+		hsw_disable_ips(intel_crtc);
 
 	if (intel_crtc->atomic.pre_disable_primary)
 		intel_pre_disable_primary(crtc);

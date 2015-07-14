@@ -1894,6 +1894,51 @@ static void gfx_v8_0_setup_rb(struct amdgpu_device *adev,
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
+/**
+ * gmc_v8_0_init_compute_vmid - gart enable
+ *
+ * @rdev: amdgpu_device pointer
+ *
+ * Initialize compute vmid sh_mem registers
+ *
+ */
+#define DEFAULT_SH_MEM_BASES	(0x6000)
+#define FIRST_COMPUTE_VMID	(8)
+#define LAST_COMPUTE_VMID	(16)
+static void gmc_v8_0_init_compute_vmid(struct amdgpu_device *adev)
+{
+	int i;
+	uint32_t sh_mem_config;
+	uint32_t sh_mem_bases;
+
+	/*
+	 * Configure apertures:
+	 * LDS:         0x60000000'00000000 - 0x60000001'00000000 (4GB)
+	 * Scratch:     0x60000001'00000000 - 0x60000002'00000000 (4GB)
+	 * GPUVM:       0x60010000'00000000 - 0x60020000'00000000 (1TB)
+	 */
+	sh_mem_bases = DEFAULT_SH_MEM_BASES | (DEFAULT_SH_MEM_BASES << 16);
+
+	sh_mem_config = SH_MEM_ADDRESS_MODE_HSA64 <<
+			SH_MEM_CONFIG__ADDRESS_MODE__SHIFT |
+			SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
+			SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT |
+			MTYPE_CC << SH_MEM_CONFIG__DEFAULT_MTYPE__SHIFT |
+			SH_MEM_CONFIG__PRIVATE_ATC_MASK;
+
+	mutex_lock(&adev->srbm_mutex);
+	for (i = FIRST_COMPUTE_VMID; i < LAST_COMPUTE_VMID; i++) {
+		vi_srbm_select(adev, 0, 0, 0, i);
+		/* CP and shaders */
+		WREG32(mmSH_MEM_CONFIG, sh_mem_config);
+		WREG32(mmSH_MEM_APE1_BASE, 1);
+		WREG32(mmSH_MEM_APE1_LIMIT, 0);
+		WREG32(mmSH_MEM_BASES, sh_mem_bases);
+	}
+	vi_srbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+}
+
 static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config;
@@ -2112,6 +2157,8 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	}
 	vi_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
+
+	gmc_v8_0_init_compute_vmid(adev);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	/*
@@ -3081,7 +3128,7 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 				WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
 				       AMDGPU_DOORBELL_KIQ << 2);
 				WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
-				       AMDGPU_DOORBELL_MEC_RING7 << 2);
+						0x7FFFF << 2);
 			}
 			tmp = RREG32(mmCP_HQD_PQ_DOORBELL_CONTROL);
 			tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL,
@@ -3096,6 +3143,12 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 		}
 		WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL,
 		       mqd->cp_hqd_pq_doorbell_control);
+
+		/* reset read and write pointers, similar to CP_RB0_WPTR/_RPTR */
+		ring->wptr = 0;
+		mqd->cp_hqd_pq_wptr = ring->wptr;
+		WREG32(mmCP_HQD_PQ_WPTR, mqd->cp_hqd_pq_wptr);
+		mqd->cp_hqd_pq_rptr = RREG32(mmCP_HQD_PQ_RPTR);
 
 		/* set the vmid for the queue */
 		mqd->cp_hqd_vmid = 0;

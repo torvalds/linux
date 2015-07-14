@@ -671,4 +671,10 @@ static inline int add_to_page_cache(struct page *page,
 	return error;
 }
 
+static inline unsigned long dir_pages(struct inode *inode)
+{
+	return (unsigned long)(inode->i_size + PAGE_CACHE_SIZE - 1) >>
+			       PAGE_CACHE_SHIFT;
+}
+
 #endif /* _LINUX_PAGEMAP_H */

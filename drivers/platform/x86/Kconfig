@@ -912,4 +912,11 @@ config PVPANIC
 	  a paravirtualized device provided by QEMU; it lets a virtual machine
 	  (guest) communicate panic events to the host.
 
+config INTEL_PMC_IPC
+	tristate "Intel PMC IPC Driver"
+	---help---
+	This driver provides support for PMC control on some Intel platforms.
+	The PMC is an ARC processor which defines IPC commands for communication
+	with other entities in the CPU.
+
 endif # X86_PLATFORM_DEVICES

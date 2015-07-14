@@ -1,7 +1,7 @@
 VERSION = 4
-PATCHLEVEL = 1
+PATCHLEVEL = 2
 SUBLEVEL = 0
-EXTRAVERSION =
+EXTRAVERSION = -rc2
 NAME = Hurr durr I'ma sheep
 
 # *DOCUMENTATION*
@@ -335,15 +335,6 @@ endif
 export KBUILD_MODULES KBUILD_BUILTIN
 export KBUILD_CHECKSRC KBUILD_SRC KBUILD_EXTMOD
 
-ifneq ($(CC),)
-ifeq ($(shell $(CC) -v 2>&1 | grep -c "clang version"), 1)
-COMPILER := clang
-else
-COMPILER := gcc
-endif
-export COMPILER
-endif
-
 # We need some generic definitions (do not try to remake the file).
 scripts/Kbuild.include: ;
 include scripts/Kbuild.include
@@ -669,6 +660,13 @@ else
 endif
 endif
 KBUILD_CFLAGS += $(stackp-flag)
+
+ifeq ($(shell $(CC) -v 2>&1 | grep -c "clang version"), 1)
+COMPILER := clang
+else
+COMPILER := gcc
+endif
+export COMPILER
 
 ifeq ($(COMPILER),clang)
 KBUILD_CPPFLAGS += $(call cc-option,-Qunused-arguments,)
