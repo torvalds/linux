@@ -32,6 +32,18 @@ static DEFINE_SPINLOCK(gb_operations_lock);
 static int gb_operation_response_send(struct gb_operation *operation,
 					int errno);
 
+/* Caller holds operation reference. */
+static inline void gb_operation_get_active(struct gb_operation *operation)
+{
+	atomic_inc(&operation->active);
+}
+
+/* Caller holds operation reference. */
+static inline void gb_operation_put_active(struct gb_operation *operation)
+{
+	atomic_dec(&operation->active);
+}
+
 /*
  * Set an operation's result.
  *
@@ -204,6 +216,7 @@ static void gb_operation_work(struct work_struct *work)
 
 	operation->callback(operation);
 
+	gb_operation_put_active(operation);
 	gb_operation_put(operation);
 }
 
@@ -449,6 +462,7 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	INIT_WORK(&operation->work, gb_operation_work);
 	init_completion(&operation->completion);
 	kref_init(&operation->kref);
+	atomic_set(&operation->active, 0);
 
 	spin_lock_irqsave(&gb_operations_lock, flags);
 	list_add_tail(&operation->links, &connection->operations);
@@ -597,6 +611,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	 * It'll be dropped when the operation completes.
 	 */
 	gb_operation_get(operation);
+	gb_operation_get_active(operation);
 
 	/*
 	 * Record the callback function, which is executed in
@@ -618,8 +633,10 @@ int gb_operation_request_send(struct gb_operation *operation,
 	gb_operation_result_set(operation, -EINPROGRESS);
 
 	ret = gb_message_send(operation->request, gfp);
-	if (ret)
+	if (ret) {
+		gb_operation_put_active(operation);
 		gb_operation_put(operation);
+	}
 
 	return ret;
 }
@@ -688,13 +705,16 @@ static int gb_operation_response_send(struct gb_operation *operation,
 
 	/* Reference will be dropped when message has been sent. */
 	gb_operation_get(operation);
+	gb_operation_get_active(operation);
 
 	/* Fill in the response header and send it */
 	operation->response->header->result = gb_operation_errno_map(errno);
 
 	ret = gb_message_send(operation->response, GFP_KERNEL);
-	if (ret)
+	if (ret) {
+		gb_operation_put_active(operation);
 		gb_operation_put(operation);
+	}
 
 	return ret;
 }
@@ -723,6 +743,7 @@ void greybus_message_sent(struct greybus_host_device *hd,
 			dev_err(&operation->connection->dev,
 				"error sending response: %d\n", status);
 		}
+		gb_operation_put_active(operation);
 		gb_operation_put(operation);
 	} else if (status) {
 		if (gb_operation_result_set(operation, status))
@@ -750,6 +771,8 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 		dev_err(&connection->dev, "can't create operation\n");
 		return;		/* XXX Respond with pre-allocated ENOMEM */
 	}
+
+	gb_operation_get_active(operation);
 
 	/*
 	 * Incoming requests are handled by arranging for the
@@ -863,6 +886,7 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 	} else {
 		if (gb_operation_result_set(operation, errno)) {
 			gb_message_cancel(operation->request);
+			gb_operation_put_active(operation);
 			gb_operation_put(operation);
 		}
 	}
