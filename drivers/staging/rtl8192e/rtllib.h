@@ -2194,7 +2194,6 @@ extern u16 MCS_DATA_RATE[2][2][77];
 extern u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame);
 extern void HTResetIOTSetting(struct rt_hi_throughput *pHTInfo);
 extern bool IsHTHalfNmodeAPs(struct rtllib_device *ieee);
-extern u16 HTMcsToDataRate(struct rtllib_device *ieee, u8 nMcsRate);
 extern u16  TxCountToDataRate(struct rtllib_device *ieee, u8 nDataRate);
 extern int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb);
 extern int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb);
@@ -2256,8 +2255,6 @@ extern int rtllib_parse_info_param(struct rtllib_device *ieee,
 
 void rtllib_indicate_packets(struct rtllib_device *ieee,
 			     struct rtllib_rxb **prxbIndicateArray, u8  index);
-extern u8 HTFilterMCSRate(struct rtllib_device *ieee, u8 *pSupportMCS,
-			  u8 *pOperateMCS);
 extern void HTUseDefaultSetting(struct rtllib_device *ieee);
 #define RT_ASOC_RETRY_LIMIT	5
 u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee);
