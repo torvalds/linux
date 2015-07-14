@@ -74,6 +74,7 @@
 	audio_codec: tlv320aic3106@1b {
 		compatible = "ti,tlv320aic3106";
 		reg = <0x1b>;
+		ai3x-micbias-vg = <0x2>;
 	};
 
 	accel: lis331dlh@1d {
@@ -153,7 +154,7 @@
 	ti,audio-routing =
 		"Headphone Jack",	"HPLOUT",
 		"Headphone Jack",	"HPROUT",
-		"LINE1L",		"Line In";
+		"MIC3L",		"Mic3L Switch";
 };
 
 &mcasp0 {
