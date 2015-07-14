@@ -145,7 +145,6 @@ static const struct usb_device_id id_table[] = {
 	{DEVICE_SWI(0x1199, 0x901c)},	/* Sierra Wireless EM7700 */
 	{DEVICE_SWI(0x1199, 0x901f)},	/* Sierra Wireless EM7355 */
 	{DEVICE_SWI(0x1199, 0x9040)},	/* Sierra Wireless Modem */
-	{DEVICE_SWI(0x1199, 0x9041)},	/* Sierra Wireless MC7305/MC7355 */
 	{DEVICE_SWI(0x1199, 0x9051)},	/* Netgear AirCard 340U */
 	{DEVICE_SWI(0x1199, 0x9053)},	/* Sierra Wireless Modem */
 	{DEVICE_SWI(0x1199, 0x9054)},	/* Sierra Wireless Modem */
