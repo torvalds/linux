@@ -1285,7 +1285,7 @@ static int omap8250_runtime_suspend(struct device *dev)
 			return -EBUSY;
 	}
 
-	if (up->dma)
+	if (up->dma && up->dma->rxchan)
 		omap_8250_rx_dma(up, UART_IIR_RX_TIMEOUT);
 
 	priv->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
@@ -1310,7 +1310,7 @@ static int omap8250_runtime_resume(struct device *dev)
 	if (loss_cntx)
 		omap8250_restore_regs(up);
 
-	if (up->dma)
+	if (up->dma && up->dma->rxchan)
 		omap_8250_rx_dma(up, 0);
 
 	priv->latency = priv->calc_latency;
