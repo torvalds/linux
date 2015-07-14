@@ -390,4 +390,15 @@ extern struct nfq_ct_hook __rcu *nfq_ct_hook;
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 #endif
 
+/**
+ * nf_skb_duplicated - TEE target has sent a packet
+ *
+ * When a xtables target sends a packet, the OUTPUT and POSTROUTING
+ * hooks are traversed again, i.e. nft and xtables are invoked recursively.
+ *
+ * This is used by xtables TEE target to prevent the duplicated skb from
+ * being duplicated again.
+ */
+DECLARE_PER_CPU(bool, nf_skb_duplicated);
+
 #endif /*__LINUX_NETFILTER_H*/

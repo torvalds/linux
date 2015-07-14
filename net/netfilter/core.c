@@ -34,6 +34,9 @@ EXPORT_SYMBOL(nf_afinfo);
 const struct nf_ipv6_ops __rcu *nf_ipv6_ops __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ipv6_ops);
 
+DEFINE_PER_CPU(bool, nf_skb_duplicated);
+EXPORT_SYMBOL_GPL(nf_skb_duplicated);
+
 int nf_register_afinfo(const struct nf_afinfo *afinfo)
 {
 	mutex_lock(&afinfo_mutex);

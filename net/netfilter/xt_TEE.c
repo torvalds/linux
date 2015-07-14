@@ -37,7 +37,6 @@ struct xt_tee_priv {
 };
 
 static const union nf_inet_addr tee_zero_address;
-static DEFINE_PER_CPU(bool, tee_active);
 
 static struct net *pick_net(struct sk_buff *skb)
 {
@@ -88,7 +87,7 @@ tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_tee_tginfo *info = par->targinfo;
 	struct iphdr *iph;
 
-	if (__this_cpu_read(tee_active))
+	if (__this_cpu_read(nf_skb_duplicated))
 		return XT_CONTINUE;
 	/*
 	 * Copy the skb, and route the copy. Will later return %XT_CONTINUE for
@@ -125,9 +124,9 @@ tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	ip_send_check(iph);
 
 	if (tee_tg_route4(skb, info)) {
-		__this_cpu_write(tee_active, true);
+		__this_cpu_write(nf_skb_duplicated, true);
 		ip_local_out(skb);
-		__this_cpu_write(tee_active, false);
+		__this_cpu_write(nf_skb_duplicated, false);
 	} else {
 		kfree_skb(skb);
 	}
@@ -170,7 +169,7 @@ tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tee_tginfo *info = par->targinfo;
 
-	if (__this_cpu_read(tee_active))
+	if (__this_cpu_read(nf_skb_duplicated))
 		return XT_CONTINUE;
 	skb = pskb_copy(skb, GFP_ATOMIC);
 	if (skb == NULL)
@@ -188,9 +187,9 @@ tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 		--iph->hop_limit;
 	}
 	if (tee_tg_route6(skb, info)) {
-		__this_cpu_write(tee_active, true);
+		__this_cpu_write(nf_skb_duplicated, true);
 		ip6_local_out(skb);
-		__this_cpu_write(tee_active, false);
+		__this_cpu_write(nf_skb_duplicated, false);
 	} else {
 		kfree_skb(skb);
 	}
