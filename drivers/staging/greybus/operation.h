@@ -14,6 +14,9 @@
 
 struct gb_operation;
 
+/* The default amount of time a request is given to complete */
+#define GB_OPERATION_TIMEOUT_DEFAULT	1000	/* milliseconds */
+
 /*
  * No protocol may define an operation that has numeric value 0x00.
  * It is reserved as an explicitly invalid value.
@@ -168,7 +171,14 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback,
 				gfp_t gfp);
-int gb_operation_request_send_sync(struct gb_operation *operation);
+int gb_operation_request_send_sync_timeout(struct gb_operation *operation,
+						unsigned int timeout);
+static inline int
+gb_operation_request_send_sync(struct gb_operation *operation)
+{
+	return gb_operation_request_send_sync_timeout(operation,
+			GB_OPERATION_TIMEOUT_DEFAULT);
+}
 
 void gb_operation_cancel(struct gb_operation *operation, int errno);
 void gb_operation_cancel_incoming(struct gb_operation *operation, int errno);

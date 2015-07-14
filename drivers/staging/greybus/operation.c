@@ -16,9 +16,6 @@
 
 #include "greybus.h"
 
-/* The default amount of time a request is given to complete */
-#define OPERATION_TIMEOUT_DEFAULT	1000	/* milliseconds */
-
 static struct kmem_cache *gb_operation_cache;
 static struct kmem_cache *gb_message_cache;
 
@@ -690,18 +687,24 @@ EXPORT_SYMBOL_GPL(gb_operation_request_send);
  * error is detected.  The return value is the result of the
  * operation.
  */
-int gb_operation_request_send_sync(struct gb_operation *operation)
+int gb_operation_request_send_sync_timeout(struct gb_operation *operation,
+						unsigned int timeout)
 {
 	int ret;
-	unsigned long timeout;
+	unsigned long timeout_jiffies;
 
 	ret = gb_operation_request_send(operation, gb_operation_sync_callback,
 					GFP_KERNEL);
 	if (ret)
 		return ret;
 
-	timeout = msecs_to_jiffies(OPERATION_TIMEOUT_DEFAULT);
-	ret = wait_for_completion_interruptible_timeout(&operation->completion, timeout);
+	if (timeout)
+		timeout_jiffies = msecs_to_jiffies(timeout);
+	else
+		timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
+
+	ret = wait_for_completion_interruptible_timeout(&operation->completion,
+							timeout_jiffies);
 	if (ret < 0) {
 		/* Cancel the operation if interrupted */
 		gb_operation_cancel(operation, -ECANCELED);
@@ -712,7 +715,7 @@ int gb_operation_request_send_sync(struct gb_operation *operation)
 
 	return gb_operation_result(operation);
 }
-EXPORT_SYMBOL_GPL(gb_operation_request_send_sync);
+EXPORT_SYMBOL_GPL(gb_operation_request_send_sync_timeout);
 
 /*
  * Send a response for an incoming operation request.  A non-zero
