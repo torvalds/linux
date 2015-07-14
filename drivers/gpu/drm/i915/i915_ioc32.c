@@ -35,15 +35,20 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-typedef struct drm_i915_getparam32 {
-	int param;
+struct drm_i915_getparam32 {
+	s32 param;
+	/*
+	 * We screwed up the generic ioctl struct here and used a variable-sized
+	 * pointer. Use u32 in the compat struct to match the 32bit pointer
+	 * userspace expects.
+	 */
 	u32 value;
-} drm_i915_getparam32_t;
+};
 
 static int compat_i915_getparam(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
-	drm_i915_getparam32_t req32;
+	struct drm_i915_getparam32 req32;
 	drm_i915_getparam_t __user *request;
 
 	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
