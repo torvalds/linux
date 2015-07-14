@@ -1783,6 +1783,7 @@ static struct clk_branch gcc_ce1_clk = {
 				"ce1_clk_src",
 			},
 			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
