@@ -186,9 +186,19 @@ void gb_operation_cancel_incoming(struct gb_operation *operation, int errno);
 void greybus_message_sent(struct greybus_host_device *hd,
 				struct gb_message *message, int status);
 
-int gb_operation_sync(struct gb_connection *connection, int type,
+int gb_operation_sync_timeout(struct gb_connection *connection, int type,
+				void *request, int request_size,
+				void *response, int response_size,
+				unsigned int timeout);
+
+static inline int gb_operation_sync(struct gb_connection *connection, int type,
 		      void *request, int request_size,
-		      void *response, int response_size);
+		      void *response, int response_size)
+{
+	return gb_operation_sync_timeout(connection, type,
+			request, request_size, response, response_size,
+			GB_OPERATION_TIMEOUT_DEFAULT);
+}
 
 int gb_operation_init(void);
 void gb_operation_exit(void);
