@@ -1247,10 +1247,11 @@ my_device_create(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
-	visorchannel = visorchannel_create(cmd->create_device.channel_addr,
-					   cmd->create_device.channel_bytes,
-					   GFP_KERNEL,
-					   cmd->create_device.data_type_uuid);
+	visorchannel =
+	       visorchannel_create_with_lock(cmd->create_device.channel_addr,
+					     cmd->create_device.channel_bytes,
+					     GFP_KERNEL,
+					     cmd->create_device.data_type_uuid);
 
 	if (!visorchannel) {
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
