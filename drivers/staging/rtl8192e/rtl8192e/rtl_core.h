@@ -635,8 +635,6 @@ long rtl819x_translate_todbm(struct r8192_priv *priv, u8 signal_strength_index);
 void rtl819x_update_rxsignalstatistics8190pci(struct r8192_priv *priv,
 				      struct rtllib_rx_stats *pprevious_stats);
 u8 rtl819x_evm_dbtopercentage(char value);
-void rtl819x_process_cck_rxpathsel(struct r8192_priv *priv,
-				   struct rtllib_rx_stats *pprevious_stats);
 u8 rtl819x_query_rxpwrpercentage(char antpower);
 void rtl8192_record_rxdesc_forlateruse(struct rtllib_rx_stats *psrc_stats,
 				       struct rtllib_rx_stats *ptarget_stats);

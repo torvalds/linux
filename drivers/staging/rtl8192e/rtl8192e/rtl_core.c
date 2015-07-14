@@ -2012,12 +2012,6 @@ rtl819x_update_rxsignalstatistics8190pci(
 					weighting) / 6;
 }
 
-void rtl819x_process_cck_rxpathsel(struct r8192_priv *priv,
-				   struct rtllib_rx_stats *pprevious_stats)
-{
-}
-
-
 u8 rtl819x_query_rxpwrpercentage(char antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
