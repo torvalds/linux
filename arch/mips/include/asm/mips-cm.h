@@ -33,6 +33,20 @@ extern void __iomem *mips_cm_l2sync_base;
  */
 extern phys_addr_t __mips_cm_phys_base(void);
 
+/*
+ * mips_cm_is64 - determine CM register width
+ *
+ * The CM register width is processor and CM specific. A 64-bit processor
+ * usually has a 64-bit CM and a 32-bit one has a 32-bit CM but a 64-bit
+ * processor could come with a 32-bit CM. Moreover, accesses on 64-bit CMs
+ * can be done either using regular 64-bit load/store instructions, or 32-bit
+ * load/store instruction on 32-bit register pairs. We opt for using 64-bit
+ * accesses on 64-bit CMs and kernels and 32-bit in any other case.
+ *
+ * It's set to 0 for 32-bit accesses and 1 for 64-bit accesses.
+ */
+extern int mips_cm_is64;
+
 /**
  * mips_cm_probe - probe for a Coherence Manager
  *
@@ -90,20 +104,46 @@ static inline bool mips_cm_has_l2sync(void)
 
 /* Macros to ease the creation of register access functions */
 #define BUILD_CM_R_(name, off)					\
-static inline u32 __iomem *addr_gcr_##name(void)		\
+static inline unsigned long __iomem *addr_gcr_##name(void)	\
 {								\
-	return (u32 __iomem *)(mips_cm_base + (off));		\
+	return (unsigned long __iomem *)(mips_cm_base + (off));	\
 }								\
 								\
-static inline u32 read_gcr_##name(void)				\
+static inline u32 read32_gcr_##name(void)			\
 {								\
 	return __raw_readl(addr_gcr_##name());			\
+}								\
+								\
+static inline u64 read64_gcr_##name(void)			\
+{								\
+	return __raw_readq(addr_gcr_##name());			\
+}								\
+								\
+static inline unsigned long read_gcr_##name(void)		\
+{								\
+	if (mips_cm_is64)					\
+		return read64_gcr_##name();			\
+	else							\
+		return read32_gcr_##name();			\
 }
 
 #define BUILD_CM__W(name, off)					\
-static inline void write_gcr_##name(u32 value)			\
+static inline void write32_gcr_##name(u32 value)		\
 {								\
 	__raw_writel(value, addr_gcr_##name());			\
+}								\
+								\
+static inline void write64_gcr_##name(u64 value)		\
+{								\
+	__raw_writeq(value, addr_gcr_##name());			\
+}								\
+								\
+static inline void write_gcr_##name(unsigned long value)	\
+{								\
+	if (mips_cm_is64)					\
+		write64_gcr_##name(value);			\
+	else							\
+		write32_gcr_##name(value);			\
 }
 
 #define BUILD_CM_RW(name, off)					\

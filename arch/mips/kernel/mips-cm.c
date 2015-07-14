@@ -15,6 +15,7 @@
 
 void __iomem *mips_cm_base;
 void __iomem *mips_cm_l2sync_base;
+int mips_cm_is64;
 
 phys_addr_t __mips_cm_phys_base(void)
 {
@@ -123,6 +124,9 @@ int mips_cm_probe(void)
 
 	/* probe for an L2-only sync region */
 	mips_cm_probe_l2sync();
+
+	/* determine register width for this CM */
+	mips_cm_is64 = config_enabled(CONFIG_64BIT) && (mips_cm_revision() >= CM_REV_CM3);
 
 	return 0;
 }
