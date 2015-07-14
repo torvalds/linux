@@ -209,6 +209,7 @@ static void brcm_sata_init(struct brcm_ahci_priv *priv)
 			   priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int brcm_ahci_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
@@ -231,6 +232,7 @@ static int brcm_ahci_resume(struct device *dev)
 	brcm_sata_phys_enable(priv);
 	return ahci_platform_resume(dev);
 }
+#endif
 
 static struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
