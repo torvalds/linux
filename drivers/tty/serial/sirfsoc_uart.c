@@ -886,9 +886,13 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 	else
 		wr_regl(port, ureg->sirfsoc_tx_dma_io_ctrl, SIRFUART_IO_MODE);
 	if (sirfport->rx_dma_chan)
-		wr_regl(port, ureg->sirfsoc_rx_dma_io_ctrl, SIRFUART_DMA_MODE);
+		wr_regl(port, ureg->sirfsoc_rx_dma_io_ctrl,
+			rd_regl(port, ureg->sirfsoc_rx_dma_io_ctrl) &
+			~SIRFUART_IO_MODE);
 	else
-		wr_regl(port, ureg->sirfsoc_rx_dma_io_ctrl, SIRFUART_IO_MODE);
+		wr_regl(port, ureg->sirfsoc_rx_dma_io_ctrl,
+			rd_regl(port, ureg->sirfsoc_rx_dma_io_ctrl) |
+			SIRFUART_IO_MODE);
 	sirfport->rx_period_time = 20000000;
 	/* Reset Rx/Tx FIFO Threshold level for proper baudrate */
 	if (set_baud < 1000000)
@@ -958,9 +962,9 @@ static int sirfsoc_uart_startup(struct uart_port *port)
 	wr_regl(port, ureg->sirfsoc_rx_fifo_ctrl, SIRFUART_FIFO_THD(port));
 	if (sirfport->rx_dma_chan)
 		wr_regl(port, ureg->sirfsoc_rx_fifo_level_chk,
-			SIRFUART_RX_FIFO_CHK_SC(port->line, 0x4) |
-			SIRFUART_RX_FIFO_CHK_LC(port->line, 0xe) |
-			SIRFUART_RX_FIFO_CHK_HC(port->line, 0x1b));
+			SIRFUART_RX_FIFO_CHK_SC(port->line, 0x1) |
+			SIRFUART_RX_FIFO_CHK_LC(port->line, 0x2) |
+			SIRFUART_RX_FIFO_CHK_HC(port->line, 0x4));
 	if (sirfport->tx_dma_chan) {
 		sirfport->tx_dma_state = TX_DMA_IDLE;
 		wr_regl(port, ureg->sirfsoc_tx_fifo_level_chk,
@@ -981,10 +985,21 @@ static int sirfsoc_uart_startup(struct uart_port *port)
 			goto init_rx_err;
 		}
 	}
+	if (sirfport->uart_reg->uart_type == SIRF_REAL_UART &&
+		sirfport->rx_dma_chan)
+		wr_regl(port, ureg->sirfsoc_swh_dma_io,
+			SIRFUART_CLEAR_RX_ADDR_EN);
+	if (sirfport->uart_reg->uart_type == SIRF_USP_UART &&
+			sirfport->rx_dma_chan)
+		wr_regl(port, ureg->sirfsoc_rx_dma_io_ctrl,
+			rd_regl(port, ureg->sirfsoc_rx_dma_io_ctrl) |
+			SIRFSOC_USP_FRADDR_CLR_EN);
 	enable_irq(port->irq);
 	if (sirfport->rx_dma_chan && !sirfport->is_hrt_enabled) {
 		sirfport->is_hrt_enabled = true;
 		sirfport->rx_period_time = 20000000;
+		sirfport->rx_last_pos = -1;
+		sirfport->pio_fetch_cnt = 0;
 		sirfport->rx_dma_items.xmit.tail =
 			sirfport->rx_dma_items.xmit.head = 0;
 		hrtimer_start(&sirfport->hrt,
@@ -1003,6 +1018,9 @@ static void sirfsoc_uart_shutdown(struct uart_port *port)
 {
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
 	struct sirfsoc_register *ureg = &sirfport->uart_reg->uart_reg;
+	struct circ_buf *xmit;
+
+	xmit = &sirfport->rx_dma_items.xmit;
 	if (!sirfport->is_atlas7)
 		wr_regl(port, ureg->sirfsoc_int_en_reg, 0);
 	else
@@ -1019,8 +1037,10 @@ static void sirfsoc_uart_shutdown(struct uart_port *port)
 	if (sirfport->tx_dma_chan)
 		sirfport->tx_dma_state = TX_DMA_IDLE;
 	if (sirfport->rx_dma_chan && sirfport->is_hrt_enabled) {
-		while ((rd_regl(port, ureg->sirfsoc_rx_fifo_status) &
-			SIRFUART_RX_FIFO_MASK) > 0)
+		while (((rd_regl(port, ureg->sirfsoc_rx_fifo_status) &
+			SIRFUART_RX_FIFO_MASK) > sirfport->pio_fetch_cnt) &&
+			!CIRC_CNT(xmit->head, xmit->tail,
+			SIRFSOC_RX_DMA_BUF_SIZE))
 			;
 		sirfport->is_hrt_enabled = false;
 		hrtimer_cancel(&sirfport->hrt);
@@ -1169,6 +1189,8 @@ static enum hrtimer_restart
 	struct tty_struct *tty;
 	struct sirfsoc_register *ureg;
 	struct circ_buf *xmit;
+	struct sirfsoc_fifo_status *ufifo_st;
+	int max_pio_cnt;
 
 	sirfport = container_of(hrt, struct sirfsoc_uart_port, hrt);
 	port = &sirfport->port;
@@ -1176,9 +1198,16 @@ static enum hrtimer_restart
 	tty = port->state->port.tty;
 	ureg = &sirfport->uart_reg->uart_reg;
 	xmit = &sirfport->rx_dma_items.xmit;
+	ufifo_st = &sirfport->uart_reg->fifo_status;
+
 	dmaengine_tx_status(sirfport->rx_dma_chan,
-		sirfport->rx_dma_items.cookie, &tx_state);
-	xmit->head = SIRFSOC_RX_DMA_BUF_SIZE - tx_state.residue;
+			sirfport->rx_dma_items.cookie, &tx_state);
+	if (SIRFSOC_RX_DMA_BUF_SIZE - tx_state.residue !=
+		sirfport->rx_last_pos) {
+		xmit->head = SIRFSOC_RX_DMA_BUF_SIZE - tx_state.residue;
+		sirfport->rx_last_pos = xmit->head;
+		sirfport->pio_fetch_cnt = 0;
+	}
 	count = CIRC_CNT_TO_END(xmit->head, xmit->tail,
 			SIRFSOC_RX_DMA_BUF_SIZE);
 	while (count > 0) {
@@ -1200,23 +1229,38 @@ static enum hrtimer_restart
 	 */
 	if (!inserted && !count &&
 		((rd_regl(port, ureg->sirfsoc_rx_fifo_status) &
-		SIRFUART_RX_FIFO_MASK) > 0)) {
+		SIRFUART_RX_FIFO_MASK) > sirfport->pio_fetch_cnt)) {
+		dmaengine_pause(sirfport->rx_dma_chan);
 		/* switch to pio mode */
 		wr_regl(port, ureg->sirfsoc_rx_dma_io_ctrl,
 			rd_regl(port, ureg->sirfsoc_rx_dma_io_ctrl) |
 			SIRFUART_IO_MODE);
-		while ((rd_regl(port, ureg->sirfsoc_rx_fifo_status) &
-			SIRFUART_RX_FIFO_MASK) > 0) {
-			if (sirfsoc_uart_pio_rx_chars(port, 16) > 0)
-				tty_flip_buffer_push(tty->port);
+		/*
+		 * UART controller SWH_DMA_IO register have CLEAR_RX_ADDR_EN
+		 * When found changing I/O to DMA mode, it clears
+		 * two low bits of read point;
+		 * USP have similar FRADDR_CLR_EN bit in USP_RX_DMA_IO_CTRL.
+		 * Fetch data out from rxfifo into DMA buffer in PIO mode,
+		 * while switch back to DMA mode, the data fetched will override
+		 * by DMA, as hardware have a strange behaviour:
+		 * after switch back to DMA mode, check rxfifo status it will
+		 * be the number PIO fetched, so record the fetched data count
+		 * to avoid the repeated fetch
+		 */
+		max_pio_cnt = 3;
+		while (!(rd_regl(port, ureg->sirfsoc_rx_fifo_status) &
+			ufifo_st->ff_empty(port)) && max_pio_cnt--) {
+			xmit->buf[xmit->head] =
+				rd_regl(port, ureg->sirfsoc_rx_fifo_data);
+			xmit->head = (xmit->head + 1) &
+					(SIRFSOC_RX_DMA_BUF_SIZE - 1);
+			sirfport->pio_fetch_cnt++;
 		}
-		wr_regl(port, ureg->sirfsoc_rx_fifo_op, SIRFUART_FIFO_RESET);
-		wr_regl(port, ureg->sirfsoc_rx_fifo_op, 0);
-		wr_regl(port, ureg->sirfsoc_rx_fifo_op, SIRFUART_FIFO_START);
 		/* switch back to dma mode */
 		wr_regl(port, ureg->sirfsoc_rx_dma_io_ctrl,
 			rd_regl(port, ureg->sirfsoc_rx_dma_io_ctrl) &
 			~SIRFUART_IO_MODE);
+		dmaengine_resume(sirfport->rx_dma_chan);
 	}
 next_hrt:
 	hrtimer_forward_now(hrt, ns_to_ktime(sirfport->rx_period_time));
@@ -1239,7 +1283,7 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 	struct dma_slave_config slv_cfg = {
-		.src_maxburst = 2,
+		.src_maxburst = 1,
 	};
 	struct dma_slave_config tx_slv_cfg = {
 		.dst_maxburst = 2,

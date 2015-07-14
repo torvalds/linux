@@ -296,6 +296,7 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRFUART_DMA_MODE			0x0
 #define SIRFUART_RX_DMA_FLUSH			0x4
 
+#define SIRFUART_CLEAR_RX_ADDR_EN		0x2
 /* Baud Rate Calculation */
 #define SIRF_USP_MIN_SAMPLE_DIV			0x1
 #define SIRF_MIN_SAMPLE_DIV			0xf
@@ -325,6 +326,7 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRFSOC_USP_ASYNC_DIV2_MASK		0x3f
 #define SIRFSOC_USP_ASYNC_DIV2_OFFSET		16
 #define SIRFSOC_USP_LOOP_BACK_CTRL		BIT(2)
+#define SIRFSOC_USP_FRADDR_CLR_EN		BIT(1)
 /* USP-UART Common */
 #define SIRFSOC_UART_RX_TIMEOUT(br, to)	(((br) * (((to) + 999) / 1000)) / 1000)
 #define SIRFUART_RECV_TIMEOUT_VALUE(x)	\
@@ -431,6 +433,8 @@ struct sirfsoc_uart_port {
 	struct hrtimer			hrt;
 	bool				is_hrt_enabled;
 	unsigned long			rx_period_time;
+	unsigned long			rx_last_pos;
+	unsigned long			pio_fetch_cnt;
 };
 
 /* Register Access Control */
