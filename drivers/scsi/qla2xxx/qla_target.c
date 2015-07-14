@@ -1477,6 +1477,11 @@ static void qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 		return;
 	}
 
+	if (sess->deleted == QLA_SESS_DELETION_IN_PROGRESS) {
+		qlt_24xx_send_abts_resp(vha, abts, FCP_TMF_REJECTED, false);
+		return;
+	}
+
 	rc = __qlt_24xx_handle_abts(vha, abts, sess);
 	if (rc != 0) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf054,
@@ -3768,6 +3773,16 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 		queue_work(qla_tgt_wq, &op->work);
 		return 0;
 	}
+
+	/* Another WWN used to have our s_id. Our PLOGI scheduled its
+	 * session deletion, but it's still in sess_del_work wq */
+	if (sess->deleted == QLA_SESS_DELETION_IN_PROGRESS) {
+		ql_dbg(ql_dbg_io, vha, 0x3061,
+		    "New command while old session %p is being deleted\n",
+		    sess);
+		return -EFAULT;
+	}
+
 	/*
 	 * Do kref_get() before returning + dropping qla_hw_data->hardware_lock.
 	 */
@@ -3930,6 +3945,9 @@ static int qlt_handle_task_mgmt(struct scsi_qla_host *vha, void *iocb)
 		return qlt_sched_sess_work(tgt, QLA_TGT_SESS_WORK_TM, iocb,
 		    sizeof(struct atio_from_isp));
 	}
+
+	if (sess->deleted == QLA_SESS_DELETION_IN_PROGRESS)
+		return -EFAULT;
 
 	return qlt_issue_task_mgmt(sess, unpacked_lun, fn, iocb, 0);
 }
@@ -5603,6 +5621,11 @@ static void qlt_abort_work(struct qla_tgt *tgt,
 		if (!sess)
 			goto out_term;
 	} else {
+		if (sess->deleted == QLA_SESS_DELETION_IN_PROGRESS) {
+			sess = NULL;
+			goto out_term;
+		}
+
 		kref_get(&sess->se_sess->sess_kref);
 	}
 
@@ -5657,6 +5680,11 @@ static void qlt_tmr_work(struct qla_tgt *tgt,
 		if (!sess)
 			goto out_term;
 	} else {
+		if (sess->deleted == QLA_SESS_DELETION_IN_PROGRESS) {
+			sess = NULL;
+			goto out_term;
+		}
+
 		kref_get(&sess->se_sess->sess_kref);
 	}
 
