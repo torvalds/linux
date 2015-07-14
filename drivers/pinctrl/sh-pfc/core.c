@@ -587,9 +587,6 @@ static int sh_pfc_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id sh_pfc_id_table[] = {
-#ifdef CONFIG_PINCTRL_PFC_R8A7740
-	{ "pfc-r8a7740", (kernel_ulong_t)&r8a7740_pinmux_info },
-#endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7778
 	{ "pfc-r8a7778", (kernel_ulong_t)&r8a7778_pinmux_info },
 #endif
