@@ -1687,17 +1687,23 @@ static int cz_dpm_unforce_dpm_levels(struct amdgpu_device *adev)
 }
 
 static int cz_dpm_force_dpm_level(struct amdgpu_device *adev,
-				enum amdgpu_dpm_forced_level level)
+				  enum amdgpu_dpm_forced_level level)
 {
 	int ret = 0;
 
 	switch (level) {
 	case AMDGPU_DPM_FORCED_LEVEL_HIGH:
+		ret = cz_dpm_unforce_dpm_levels(adev);
+		if (ret)
+			return ret;
 		ret = cz_dpm_force_highest(adev);
 		if (ret)
 			return ret;
 		break;
 	case AMDGPU_DPM_FORCED_LEVEL_LOW:
+		ret = cz_dpm_unforce_dpm_levels(adev);
+		if (ret)
+			return ret;
 		ret = cz_dpm_force_lowest(adev);
 		if (ret)
 			return ret;
