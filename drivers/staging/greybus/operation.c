@@ -705,6 +705,9 @@ static int gb_operation_response_send(struct gb_operation *operation,
 	struct gb_connection *connection = operation->connection;
 	int ret;
 
+	if (connection->state != GB_CONNECTION_STATE_ENABLED)
+		return -ENOTCONN;
+
 	if (!operation->response &&
 			!gb_operation_is_unidirectional(operation)) {
 		if (!gb_operation_response_alloc(operation, 0))
