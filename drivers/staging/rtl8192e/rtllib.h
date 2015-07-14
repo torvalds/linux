@@ -2026,7 +2026,6 @@ extern int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 extern int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len);
 
 /* rtllib_softmac.c */
-extern short rtllib_is_54g(struct rtllib_network *net);
 extern int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
 				   struct sk_buff *skb,
 				   struct rtllib_rx_stats *rx_stats, u16 type,
@@ -2040,13 +2039,9 @@ extern void rtllib_softmac_xmit(struct rtllib_txb *txb,
 
 extern void rtllib_stop_send_beacons(struct rtllib_device *ieee);
 extern void notify_wx_assoc_event(struct rtllib_device *ieee);
-extern void rtllib_softmac_check_all_nets(struct rtllib_device *ieee);
-extern void rtllib_start_bss(struct rtllib_device *ieee);
-extern void rtllib_start_master_bss(struct rtllib_device *ieee);
 extern void rtllib_start_ibss(struct rtllib_device *ieee);
 extern void rtllib_softmac_init(struct rtllib_device *ieee);
 extern void rtllib_softmac_free(struct rtllib_device *ieee);
-extern void rtllib_associate_abort(struct rtllib_device *ieee);
 extern void rtllib_disassociate(struct rtllib_device *ieee);
 extern void rtllib_stop_scan(struct rtllib_device *ieee);
 extern bool rtllib_act_scanning(struct rtllib_device *ieee, bool sync_scan);
@@ -2054,7 +2049,6 @@ extern void rtllib_stop_scan_syncro(struct rtllib_device *ieee);
 extern void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
 extern void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee,
 					  short pwr);
-extern void rtllib_sta_wakeup(struct rtllib_device *ieee, short nl);
 extern void rtllib_sta_ps_send_pspoll_frame(struct rtllib_device *ieee);
 extern void rtllib_start_protocol(struct rtllib_device *ieee);
 extern void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown);
@@ -2067,8 +2061,6 @@ extern void rtllib_EnableIntelPromiscuousMode(struct net_device *dev,
 					      bool bInitState);
 extern void rtllib_DisableIntelPromiscuousMode(struct net_device *dev,
 					       bool bInitState);
-extern void rtllib_send_probe_requests(struct rtllib_device *ieee, u8 is_mesh);
-
 extern void rtllib_softmac_stop_protocol(struct rtllib_device *ieee,
 					 u8 mesh_flag, u8 shutdown);
 extern void rtllib_softmac_start_protocol(struct rtllib_device *ieee,
@@ -2214,7 +2206,6 @@ extern  void TsStartAddBaProcess(struct rtllib_device *ieee,
 				  struct tx_ts_record *pTxTS);
 extern void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr);
 extern void RemoveAllTS(struct rtllib_device *ieee);
-void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
 
 extern const long rtllib_wlan_frequencies[];
 
@@ -2238,7 +2229,6 @@ bool rtllib_MgntDisconnect(struct rtllib_device *rtllib, u8 asRsn);
 /* For the function is more related to hardware setting, it's better to use the
  * ieee handler to refer to it.
  */
-extern void rtllib_update_active_chan_map(struct rtllib_device *ieee);
 extern void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,
 					struct rx_ts_record *pTS);
 extern int rtllib_parse_info_param(struct rtllib_device *ieee,
@@ -2252,7 +2242,6 @@ void rtllib_indicate_packets(struct rtllib_device *ieee,
 extern void HTUseDefaultSetting(struct rtllib_device *ieee);
 #define RT_ASOC_RETRY_LIMIT	5
 u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee);
-extern void rtllib_TURBO_Info(struct rtllib_device *ieee, u8 **tag_p);
 #define SEM_DOWN_IEEE_WX(psem) down(psem)
 #define SEM_UP_IEEE_WX(psem) up(psem)
 
