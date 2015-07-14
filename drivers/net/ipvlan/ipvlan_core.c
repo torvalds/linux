@@ -85,11 +85,9 @@ void ipvlan_ht_addr_add(struct ipvl_dev *ipvlan, struct ipvl_addr *addr)
 		hlist_add_head_rcu(&addr->hlnode, &port->hlhead[hash]);
 }
 
-void ipvlan_ht_addr_del(struct ipvl_addr *addr, bool sync)
+void ipvlan_ht_addr_del(struct ipvl_addr *addr)
 {
 	hlist_del_init_rcu(&addr->hlnode);
-	if (sync)
-		synchronize_rcu();
 }
 
 struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,

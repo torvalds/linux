@@ -171,7 +171,7 @@ static int ipvlan_stop(struct net_device *dev)
 	dev_uc_del(phy_dev, phy_dev->dev_addr);
 
 	list_for_each_entry(addr, &ipvlan->addrs, anode)
-		ipvlan_ht_addr_del(addr, !dev->dismantle);
+		ipvlan_ht_addr_del(addr);
 
 	return 0;
 }
@@ -505,7 +505,7 @@ static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 	struct ipvl_addr *addr, *next;
 
 	list_for_each_entry_safe(addr, next, &ipvlan->addrs, anode) {
-		ipvlan_ht_addr_del(addr, !dev->dismantle);
+		ipvlan_ht_addr_del(addr);
 		list_del(&addr->anode);
 		kfree_rcu(addr, rcu);
 	}
@@ -641,7 +641,7 @@ static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 	if (!addr)
 		return;
 
-	ipvlan_ht_addr_del(addr, true);
+	ipvlan_ht_addr_del(addr);
 	list_del(&addr->anode);
 	kfree_rcu(addr, rcu);
 
@@ -711,7 +711,7 @@ static void ipvlan_del_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 	if (!addr)
 		return;
 
-	ipvlan_ht_addr_del(addr, true);
+	ipvlan_ht_addr_del(addr);
 	list_del(&addr->anode);
 	kfree_rcu(addr, rcu);
 

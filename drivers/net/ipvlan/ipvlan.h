@@ -122,5 +122,5 @@ struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
 bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6);
 struct ipvl_addr *ipvlan_ht_addr_lookup(const struct ipvl_port *port,
 					const void *iaddr, bool is_v6);
-void ipvlan_ht_addr_del(struct ipvl_addr *addr, bool sync);
+void ipvlan_ht_addr_del(struct ipvl_addr *addr);
 #endif /* __IPVLAN_H */
