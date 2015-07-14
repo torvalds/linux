@@ -410,12 +410,14 @@ config MFD_KEMPLD
 	  device may provide functions like watchdog, GPIO, UART and I2C bus.
 
 	  The following modules are supported:
+		* COMe-bBL6
 		* COMe-bHL6
 		* COMe-bIP#
 		* COMe-bPC2 (ETXexpress-PC)
 		* COMe-bSC# (ETXexpress-SC T#)
 		* COMe-cBL6
 		* COMe-cBT6
+		* COMe-cBW6
 		* COMe-cCT6
 		* COMe-cDC2 (microETXexpress-DC)
 		* COMe-cHL6
