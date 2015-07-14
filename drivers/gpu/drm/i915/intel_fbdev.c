@@ -483,18 +483,13 @@ retry:
 			 * IMPORTANT: We want to use the adjusted mode (i.e.
 			 * after the panel fitter upscaling) as the initial
 			 * config, not the input mode, which is what crtc->mode
-			 * usually contains. But since our current fastboot
+			 * usually contains. But since our current
 			 * code puts a mode derived from the post-pfit timings
-			 * into crtc->mode this works out correctly. We don't
-			 * use hwmode anywhere right now, so use it for this
-			 * since the fb helper layer wants a pointer to
-			 * something we own.
+			 * into crtc->mode this works out correctly.
 			 */
 			DRM_DEBUG_KMS("looking for current mode on connector %s\n",
 				      connector->name);
-			intel_mode_from_pipe_config(&encoder->crtc->hwmode,
-						    to_intel_crtc(encoder->crtc)->config);
-			modes[i] = &encoder->crtc->hwmode;
+			modes[i] = &encoder->crtc->mode;
 		}
 		crtcs[i] = new_crtc;
 

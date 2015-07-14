@@ -13146,7 +13146,7 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct intel_crtc_state *pipe_config =
 			to_intel_crtc_state(crtc_state);
-		bool modeset, recalc;
+		bool modeset, recalc = false;
 
 		if (!crtc_state->enable) {
 			if (needs_modeset(crtc_state))
@@ -13155,7 +13155,10 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 		}
 
 		modeset = needs_modeset(crtc_state);
-		recalc = pipe_config->quirks & PIPE_CONFIG_QUIRK_INHERITED_MODE;
+		/* see comment in intel_modeset_readout_hw_state */
+		if (!modeset && crtc_state->mode_blob != crtc->state->mode_blob &&
+		    pipe_config->quirks & PIPE_CONFIG_QUIRK_INHERITED_MODE)
+			recalc = true;
 
 		if (!modeset && !recalc)
 			continue;
@@ -13170,9 +13173,10 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 		if (ret)
 			return ret;
 
-		if (recalc && !intel_pipe_config_compare(state->dev,
+		if (recalc && (!i915.fastboot ||
+		    !intel_pipe_config_compare(state->dev,
 					to_intel_crtc_state(crtc->state),
-					pipe_config, true)) {
+					pipe_config, true))) {
 			modeset = crtc_state->mode_changed = true;
 
 			ret = drm_atomic_add_affected_planes(state, crtc);
@@ -15451,11 +15455,42 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->active = dev_priv->display.get_pipe_config(crtc,
 								 crtc->config);
 
-		crtc->base.state->enable = crtc->active;
 		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
-		crtc->base.hwmode = crtc->config->base.adjusted_mode;
 
+		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
+		if (crtc->base.state->active) {
+			intel_mode_from_pipe_config(&crtc->base.mode, crtc->config);
+			intel_mode_from_pipe_config(&crtc->base.state->adjusted_mode, crtc->config);
+			WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, &crtc->base.mode));
+
+			/*
+			 * The initial mode needs to be set in order to keep
+			 * the atomic core happy. It wants a valid mode if the
+			 * crtc's enabled, so we do the above call.
+			 *
+			 * At this point some state updated by the connectors
+			 * in their ->detect() callback has not run yet, so
+			 * no recalculation can be done yet.
+			 *
+			 * Even if we could do a recalculation and modeset
+			 * right now it would cause a double modeset if
+			 * fbdev or userspace chooses a different initial mode.
+			 *
+			 * So to prevent the double modeset, fail the memcmp
+			 * test in drm_atomic_set_mode_for_crtc to get a new
+			 * mode blob, and compare if the mode blob changed
+			 * when the PIPE_CONFIG_QUIRK_INHERITED_MODE quirk is
+			 * set.
+			 *
+			 * If that happens, someone indicated they wanted a
+			 * mode change, which means it's safe to do a full
+			 * recalculation.
+			 */
+			crtc->base.state->mode.private_flags = ~0;
+		}
+
+		crtc->base.hwmode = crtc->config->base.adjusted_mode;
 		readout_plane_state(crtc, to_intel_crtc_state(crtc->base.state));
 
 		DRM_DEBUG_KMS("[CRTC:%d] hw state readout: %s\n",
@@ -15531,21 +15566,6 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	int i;
 
 	intel_modeset_readout_hw_state(dev);
-
-	/*
-	 * Now that we have the config, copy it to each CRTC struct
-	 * Note that this could go away if we move to using crtc_config
-	 * checking everywhere.
-	 */
-	for_each_intel_crtc(dev, crtc) {
-		if (crtc->active && i915.fastboot) {
-			intel_mode_from_pipe_config(&crtc->base.mode,
-						    crtc->config);
-			DRM_DEBUG_KMS("[CRTC:%d] found active mode: ",
-				      crtc->base.base.id);
-			drm_mode_debug_printmodeline(&crtc->base.mode);
-		}
-	}
 
 	/* HW state is read out, now we need to sanitize this mess. */
 	for_each_intel_encoder(dev, encoder) {
