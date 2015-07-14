@@ -1935,7 +1935,7 @@ static void nvme_config_discard(struct nvme_ns *ns)
 	ns->queue->limits.discard_zeroes_data = 0;
 	ns->queue->limits.discard_alignment = logical_block_size;
 	ns->queue->limits.discard_granularity = logical_block_size;
-	ns->queue->limits.max_discard_sectors = 0xffffffff;
+	blk_queue_max_discard_sectors(ns->queue, 0xffffffff);
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
 }
 

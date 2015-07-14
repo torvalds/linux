@@ -500,7 +500,7 @@ static struct brd_device *brd_alloc(int i)
 	blk_queue_physical_block_size(brd->brd_queue, PAGE_SIZE);
 
 	brd->brd_queue->limits.discard_granularity = PAGE_SIZE;
-	brd->brd_queue->limits.max_discard_sectors = UINT_MAX;
+	blk_queue_max_discard_sectors(brd->brd_queue, UINT_MAX);
 	brd->brd_queue->limits.discard_zeroes_data = 1;
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, brd->brd_queue);
 
