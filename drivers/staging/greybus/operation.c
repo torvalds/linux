@@ -212,9 +212,10 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 }
 
 /*
- * Complete an operation in non-atomic context.  For incoming
- * requests, the callback function is the request handler, and
- * the operation result should be -EINPROGRESS at this point.
+ * Process operation work.
+ *
+ * For incoming requests, call the protocol request handler. The operation
+ * result should be -EINPROGRESS at this point.
  *
  * For outgoing requests, the operation result value should have
  * been set before queueing this.  The operation callback function
@@ -227,7 +228,10 @@ static void gb_operation_work(struct work_struct *work)
 
 	operation = container_of(work, struct gb_operation, work);
 
-	operation->callback(operation);
+	if (gb_operation_is_incoming(operation))
+		gb_operation_request_handle(operation);
+	else
+		operation->callback(operation);
 
 	gb_operation_put_active(operation);
 	gb_operation_put(operation);
@@ -789,14 +793,9 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 	gb_operation_get_active(operation);
 
 	/*
-	 * Incoming requests are handled by arranging for the
-	 * request handler to be the operation's callback function.
-	 *
-	 * The last thing the handler does is send a response
-	 * message. The initial reference to the operation will be
-	 * dropped when the handler returns.
+	 * The initial reference to the operation will be dropped when the
+	 * request handler returns.
 	 */
-	operation->callback = gb_operation_request_handle;
 	if (gb_operation_result_set(operation, -EINPROGRESS))
 		queue_work(gb_operation_workqueue, &operation->work);
 }
