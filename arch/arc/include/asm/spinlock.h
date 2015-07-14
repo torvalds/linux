@@ -18,9 +18,68 @@
 #define arch_spin_unlock_wait(x) \
 	do { while (arch_spin_is_locked(x)) cpu_relax(); } while (0)
 
+#ifdef CONFIG_ARC_HAS_LLSC
+
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
-	unsigned int tmp = __ARCH_SPIN_LOCK_LOCKED__;
+	unsigned int val;
+
+	smp_mb();
+
+	__asm__ __volatile__(
+	"1:	llock	%[val], [%[slock]]	\n"
+	"	breq	%[val], %[LOCKED], 1b	\n"	/* spin while LOCKED */
+	"	scond	%[LOCKED], [%[slock]]	\n"	/* acquire */
+	"	bnz	1b			\n"
+	"					\n"
+	: [val]		"=&r"	(val)
+	: [slock]	"r"	(&(lock->slock)),
+	  [LOCKED]	"r"	(__ARCH_SPIN_LOCK_LOCKED__)
+	: "memory", "cc");
+
+	smp_mb();
+}
+
+/* 1 - lock taken successfully */
+static inline int arch_spin_trylock(arch_spinlock_t *lock)
+{
+	unsigned int val, got_it = 0;
+
+	smp_mb();
+
+	__asm__ __volatile__(
+	"1:	llock	%[val], [%[slock]]	\n"
+	"	breq	%[val], %[LOCKED], 4f	\n"	/* already LOCKED, just bail */
+	"	scond	%[LOCKED], [%[slock]]	\n"	/* acquire */
+	"	bnz	1b			\n"
+	"	mov	%[got_it], 1		\n"
+	"4:					\n"
+	"					\n"
+	: [val]		"=&r"	(val),
+	  [got_it]	"+&r"	(got_it)
+	: [slock]	"r"	(&(lock->slock)),
+	  [LOCKED]	"r"	(__ARCH_SPIN_LOCK_LOCKED__)
+	: "memory", "cc");
+
+	smp_mb();
+
+	return got_it;
+}
+
+static inline void arch_spin_unlock(arch_spinlock_t *lock)
+{
+	smp_mb();
+
+	lock->slock = __ARCH_SPIN_LOCK_UNLOCKED__;
+
+	smp_mb();
+}
+
+#else	/* !CONFIG_ARC_HAS_LLSC */
+
+static inline void arch_spin_lock(arch_spinlock_t *lock)
+{
+	unsigned int val = __ARCH_SPIN_LOCK_LOCKED__;
 
 	/*
 	 * This smp_mb() is technically superfluous, we only need the one
@@ -33,7 +92,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	__asm__ __volatile__(
 	"1:	ex  %0, [%1]		\n"
 	"	breq  %0, %2, 1b	\n"
-	: "+&r" (tmp)
+	: "+&r" (val)
 	: "r"(&(lock->slock)), "ir"(__ARCH_SPIN_LOCK_LOCKED__)
 	: "memory");
 
@@ -48,26 +107,27 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	smp_mb();
 }
 
+/* 1 - lock taken successfully */
 static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
-	unsigned int tmp = __ARCH_SPIN_LOCK_LOCKED__;
+	unsigned int val = __ARCH_SPIN_LOCK_LOCKED__;
 
 	smp_mb();
 
 	__asm__ __volatile__(
 	"1:	ex  %0, [%1]		\n"
-	: "+r" (tmp)
+	: "+r" (val)
 	: "r"(&(lock->slock))
 	: "memory");
 
 	smp_mb();
 
-	return (tmp == __ARCH_SPIN_LOCK_UNLOCKED__);
+	return (val == __ARCH_SPIN_LOCK_UNLOCKED__);
 }
 
 static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
-	unsigned int tmp = __ARCH_SPIN_LOCK_UNLOCKED__;
+	unsigned int val = __ARCH_SPIN_LOCK_UNLOCKED__;
 
 	/*
 	 * RELEASE barrier: given the instructions avail on ARCv2, full barrier
@@ -77,7 +137,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 
 	__asm__ __volatile__(
 	"	ex  %0, [%1]		\n"
-	: "+r" (tmp)
+	: "+r" (val)
 	: "r"(&(lock->slock))
 	: "memory");
 
@@ -87,6 +147,8 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	 */
 	smp_mb();
 }
+
+#endif
 
 /*
  * Read-write spinlocks, allowing multiple readers but only one writer.
