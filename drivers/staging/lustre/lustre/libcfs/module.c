@@ -80,7 +80,7 @@ extern char lnet_upcall[1024];
  */
 extern char lnet_debug_log_upcall[1024];
 
-static void kportal_memhog_free (struct libcfs_device_userstate *ldu)
+static void kportal_memhog_free(struct libcfs_device_userstate *ldu)
 {
 	struct page **level0p = &ldu->ldu_memhog_root_page;
 	struct page **level1p;
@@ -120,7 +120,7 @@ static void kportal_memhog_free (struct libcfs_device_userstate *ldu)
 		*level0p = NULL;
 	}
 
-	LASSERT (ldu->ldu_memhog_pages == 0);
+	LASSERT(ldu->ldu_memhog_pages == 0);
 }
 
 static int kportal_memhog_alloc(struct libcfs_device_userstate *ldu, int npages,
@@ -132,8 +132,8 @@ static int kportal_memhog_alloc(struct libcfs_device_userstate *ldu, int npages,
 	int	   count1;
 	int	   count2;
 
-	LASSERT (ldu->ldu_memhog_pages == 0);
-	LASSERT (ldu->ldu_memhog_root_page == NULL);
+	LASSERT(ldu->ldu_memhog_pages == 0);
+	LASSERT(ldu->ldu_memhog_root_page == NULL);
 
 	if (npages < 0)
 		return -EINVAL;
@@ -312,7 +312,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile, unsigned long cmd,
 			if (err != -EINVAL) {
 				if (err == 0)
 					err = libcfs_ioctl_popdata(arg,
-							data, sizeof (*data));
+							data, sizeof(*data));
 				break;
 			}
 		}
@@ -404,7 +404,7 @@ static int init_libcfs_module(void)
 
 	insert_debugfs();
 
-	CDEBUG (D_OTHER, "portals setup OK\n");
+	CDEBUG(D_OTHER, "portals setup OK\n");
 	return 0;
  cleanup_wi:
 	cfs_wi_shutdown();
