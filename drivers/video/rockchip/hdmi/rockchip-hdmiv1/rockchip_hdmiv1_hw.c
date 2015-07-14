@@ -823,16 +823,17 @@ int rockchip_hdmiv1_control_output(struct hdmi *hdmi_drv, int enable)
 	if (enable == HDMI_AV_UNMUTE) {
 		if (hdmi_dev->pwr_mode == LOWER_PWR)
 			rockchip_hdmiv1_set_pwr_mode(hdmi_drv, NORMAL);
-
-		rockchip_hdmiv1_sys_power(hdmi_drv, true);
-		rockchip_hdmiv1_sys_power(hdmi_drv, false);
-		delay100us();
-		rockchip_hdmiv1_sys_power(hdmi_drv, true);
-		hdmi_writel(hdmi_dev, 0xce, 0x00);
-		delay100us();
-		hdmi_writel(hdmi_dev, 0xce, 0x01);
-
 		hdmi_readl(hdmi_dev, AV_MUTE, &mutestatus);
+		if (mutestatus & m_VIDEO_BLACK) {
+			rockchip_hdmiv1_sys_power(hdmi_drv, true);
+			rockchip_hdmiv1_sys_power(hdmi_drv, false);
+			delay100us();
+			rockchip_hdmiv1_sys_power(hdmi_drv, true);
+			hdmi_writel(hdmi_dev, 0xce, 0x00);
+			delay100us();
+			hdmi_writel(hdmi_dev, 0xce, 0x01);
+		}
+
 		if (mutestatus && (m_AUDIO_MUTE | m_VIDEO_BLACK)) {
 			hdmi_msk_reg(hdmi_dev, AV_MUTE,
 				     m_AUDIO_MUTE | m_VIDEO_BLACK,
@@ -840,12 +841,19 @@ int rockchip_hdmiv1_control_output(struct hdmi *hdmi_drv, int enable)
 		}
 		rockchip_hdmiv1_av_mute(hdmi_drv, 0);
 	} else {
+		mutestatus = 0;
+		if (enable & HDMI_VIDEO_MUTE)
+			mutestatus |= v_VIDEO_MUTE(1);
+		if (enable & HDMI_AUDIO_MUTE)
+			mutestatus |= v_AUDIO_MUTE(1);
 		hdmi_msk_reg(hdmi_dev, AV_MUTE,
 			     m_AUDIO_MUTE | m_VIDEO_BLACK,
-			     v_AUDIO_MUTE(1) | v_VIDEO_MUTE(1));
-		rockchip_hdmiv1_av_mute(hdmi_drv, 1);
-		msleep(100);
-		rockchip_hdmiv1_set_pwr_mode(hdmi_drv, LOWER_PWR);
+			     mutestatus);
+		if (enable == (HDMI_VIDEO_MUTE | HDMI_AUDIO_MUTE)) {
+			rockchip_hdmiv1_av_mute(hdmi_drv, 1);
+			msleep(100);
+			rockchip_hdmiv1_set_pwr_mode(hdmi_drv, LOWER_PWR);
+		}
 	}
 	return 0;
 }
