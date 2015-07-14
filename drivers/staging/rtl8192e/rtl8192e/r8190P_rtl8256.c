@@ -81,15 +81,7 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev,
 	}
 }
 
-bool PHY_RF8256_Config(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
-	return phy_RF8256_Config_ParaFile(dev);
-}
-
-bool phy_RF8256_Config_ParaFile(struct net_device *dev)
+static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 {
 	u32	u4RegValue = 0;
 	u8	eRFPath;
@@ -238,6 +230,14 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 
 phy_RF8256_Config_ParaFile_Fail:
 	return false;
+}
+
+bool PHY_RF8256_Config(struct net_device *dev)
+{
+	struct r8192_priv *priv = rtllib_priv(dev);
+
+	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
+	return phy_RF8256_Config_ParaFile(dev);
 }
 
 void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8	powerlevel)
