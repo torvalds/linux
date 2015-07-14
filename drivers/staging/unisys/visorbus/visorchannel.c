@@ -417,11 +417,12 @@ bool
 visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 {
 	bool rc;
+	unsigned long flags;
 
 	if (channel->needs_lock) {
-		spin_lock(&channel->remove_lock);
+		spin_lock_irqsave(&channel->remove_lock, flags);
 		rc = signalremove_inner(channel, queue, msg);
-		spin_unlock(&channel->remove_lock);
+		spin_unlock_irqrestore(&channel->remove_lock, flags);
 	} else {
 		rc = signalremove_inner(channel, queue, msg);
 	}
@@ -471,11 +472,12 @@ bool
 visorchannel_signalinsert(struct visorchannel *channel, u32 queue, void *msg)
 {
 	bool rc;
+	unsigned long flags;
 
 	if (channel->needs_lock) {
-		spin_lock(&channel->insert_lock);
+		spin_lock_irqsave(&channel->insert_lock, flags);
 		rc = signalinsert_inner(channel, queue, msg);
-		spin_unlock(&channel->insert_lock);
+		spin_unlock_irqrestore(&channel->insert_lock, flags);
 	} else {
 		rc = signalinsert_inner(channel, queue, msg);
 	}
