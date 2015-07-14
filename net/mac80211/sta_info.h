@@ -277,6 +277,7 @@ struct ieee80211_fast_tx {
  * @plink_lock: serialize access to plink fields
  * @llid: Local link ID
  * @plid: Peer link ID
+ * @aid: local aid supplied by peer
  * @reason: Cancel reason on PLINK_HOLDING state
  * @plink_retries: Retries in establishment
  * @plink_state: peer link state
@@ -301,6 +302,7 @@ struct mesh_sta {
 	spinlock_t plink_lock;
 	u16 llid;
 	u16 plid;
+	u16 aid;
 	u16 reason;
 	u8 plink_retries;
 
