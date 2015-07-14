@@ -23,17 +23,51 @@
 
 #define atomic_set(v, i) (((v)->counter) = (i))
 
+#ifdef CONFIG_ARC_STAR_9000923308
+
+#define SCOND_FAIL_RETRY_VAR_DEF						\
+	unsigned int delay = 1, tmp;						\
+
+#define SCOND_FAIL_RETRY_ASM							\
+	"	bz	4f			\n"				\
+	"   ; --- scond fail delay ---		\n"				\
+	"	mov	%[tmp], %[delay]	\n"	/* tmp = delay */	\
+	"2: 	brne.d	%[tmp], 0, 2b		\n"	/* while (tmp != 0) */	\
+	"	sub	%[tmp], %[tmp], 1	\n"	/* tmp-- */		\
+	"	asl.f	%[delay], %[delay], 1	\n"	/* delay *= 2 */	\
+	"	mov.z	%[delay], 1		\n"	/* handle overflow */	\
+	"	b	1b			\n"	/* start over */	\
+	"4: ; --- success ---			\n"				\
+
+#define SCOND_FAIL_RETRY_VARS							\
+	  ,[delay] "+&r" (delay),[tmp] "=&r"	(tmp)				\
+
+#else	/* !CONFIG_ARC_STAR_9000923308 */
+
+#define SCOND_FAIL_RETRY_VAR_DEF
+
+#define SCOND_FAIL_RETRY_ASM							\
+	"	bnz     1b			\n"				\
+
+#define SCOND_FAIL_RETRY_VARS
+
+#endif
+
 #define ATOMIC_OP(op, c_op, asm_op)					\
 static inline void atomic_##op(int i, atomic_t *v)			\
 {									\
-	unsigned int val;						\
+	unsigned int val;				                \
+	SCOND_FAIL_RETRY_VAR_DEF                                        \
 									\
 	__asm__ __volatile__(						\
 	"1:	llock   %[val], [%[ctr]]		\n"		\
 	"	" #asm_op " %[val], %[val], %[i]	\n"		\
 	"	scond   %[val], [%[ctr]]		\n"		\
-	"	bnz     1b				\n"		\
+	"						\n"		\
+	SCOND_FAIL_RETRY_ASM						\
+									\
 	: [val]	"=&r"	(val) /* Early clobber to prevent reg reuse */	\
+	  SCOND_FAIL_RETRY_VARS						\
 	: [ctr]	"r"	(&v->counter), /* Not "m": llock only supports reg direct addr mode */	\
 	  [i]	"ir"	(i)						\
 	: "cc");							\
@@ -42,7 +76,8 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
 static inline int atomic_##op##_return(int i, atomic_t *v)		\
 {									\
-	unsigned int val;						\
+	unsigned int val;				                \
+	SCOND_FAIL_RETRY_VAR_DEF                                        \
 									\
 	/*								\
 	 * Explicit full memory barrier needed before/after as		\
@@ -54,8 +89,11 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 	"1:	llock   %[val], [%[ctr]]		\n"		\
 	"	" #asm_op " %[val], %[val], %[i]	\n"		\
 	"	scond   %[val], [%[ctr]]		\n"		\
-	"	bnz     1b				\n"		\
+	"						\n"		\
+	SCOND_FAIL_RETRY_ASM						\
+									\
 	: [val]	"=&r"	(val)						\
+	  SCOND_FAIL_RETRY_VARS						\
 	: [ctr]	"r"	(&v->counter),					\
 	  [i]	"ir"	(i)						\
 	: "cc");							\
@@ -142,6 +180,9 @@ ATOMIC_OP(and, &=, and)
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
+#undef SCOND_FAIL_RETRY_VAR_DEF
+#undef SCOND_FAIL_RETRY_ASM
+#undef SCOND_FAIL_RETRY_VARS
 
 /**
  * __atomic_add_unless - add unless the number is a given value
