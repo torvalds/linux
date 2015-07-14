@@ -103,22 +103,6 @@ if ARCH_SHMOBILE_LEGACY
 
 comment "Renesas ARM SoCs System Type"
 
-config ARCH_SH73A0
-	bool "SH-Mobile AG5 (R8A73A00)"
-	select ARCH_RMOBILE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select I2C
-	select SH_INTC
-	select RENESAS_INTC_IRQPIN
-
-config ARCH_R8A7740
-	bool "R-Mobile A1 (R8A77400)"
-	select ARCH_RMOBILE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select RENESAS_INTC_IRQPIN
-
 config ARCH_R8A7778
 	bool "R-Car M1A (R8A77781)"
 	select ARCH_RCAR_GEN1
@@ -132,15 +116,6 @@ config ARCH_R8A7779
 	select ARM_GIC
 
 comment "Renesas ARM SoCs Board Type"
-
-config MACH_ARMADILLO800EVA
-	bool "Armadillo-800 EVA board"
-	depends on ARCH_R8A7740
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SMSC_PHY if SH_ETH
-	select SND_SOC_WM8978 if SND_SIMPLE_CARD && I2C
-	select USE_OF
 
 config MACH_BOCKW
 	bool "BOCK-W platform"
@@ -169,14 +144,6 @@ config MACH_MARZEN
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select USE_OF
-
-config MACH_KZM9G
-	bool "KZM-A9-GT board"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	select USE_OF
 
 comment "Renesas ARM SoCs System Configuration"
