@@ -894,6 +894,7 @@ enum fb_op_origin {
 	ORIGIN_CPU,
 	ORIGIN_CS,
 	ORIGIN_FLIP,
+	ORIGIN_DIRTYFB,
 };
 
 struct i915_fbc {
