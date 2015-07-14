@@ -818,13 +818,9 @@ static int r8192_wx_set_retry(struct net_device *dev,
 	}
 	if (wrqu->retry.flags & IW_RETRY_MAX) {
 		priv->retry_rts = wrqu->retry.value;
-		DMESG("Setting retry for RTS/CTS data to %d",
-		      wrqu->retry.value);
 
 	} else {
 		priv->retry_data = wrqu->retry.value;
-		DMESG("Setting retry for non RTS/CTS data to %d",
-		      wrqu->retry.value);
 	}
 
 

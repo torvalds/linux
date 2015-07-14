@@ -2723,8 +2723,6 @@ err_rel_mem:
 	release_mem_region(pmem_start, pmem_len);
 err_rel_rtllib:
 	free_rtllib(dev);
-
-	DMESG("wlan driver load failed\n");
 err_pci_disable:
 	pci_disable_device(pdev);
 	return err;
@@ -2830,7 +2828,6 @@ static int __init rtl8192_pci_module_init(void)
 	pr_info("Copyright (c) 2007-2008, Realsil Wlan Driver\n");
 
 	if (0 != pci_register_driver(&rtl8192_pci_driver)) {
-		DMESG("No device found");
 		/*pci_unregister_driver (&rtl8192_pci_driver);*/
 		return -ENODEV;
 	}

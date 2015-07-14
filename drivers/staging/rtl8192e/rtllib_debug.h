@@ -30,8 +30,6 @@
 #define DRV_NAME "rtllib_92e"
 #endif
 
-#define DMESG(x, a...)
-
 extern u32 rt_global_debug_component;
 
 /* These are the defines for rt_global_debug_component */
