@@ -1097,6 +1097,15 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *ring,
 {
 	uint32_t l3sqc4_flush = (0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES);
 
+	/*
+	 * WaDisableLSQCROPERFforOCL:skl
+	 * This WA is implemented in skl_init_clock_gating() but since
+	 * this batch updates GEN8_L3SQCREG4 with default value we need to
+	 * set this bit here to retain the WA during flush.
+	 */
+	if (IS_SKYLAKE(ring->dev) && INTEL_REVID(ring->dev) <= SKL_REVID_E0)
+		l3sqc4_flush |= GEN8_LQSC_RO_PERF_DIS;
+
 	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8(1) |
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit(batch, index, GEN8_L3SQCREG4);
@@ -1253,6 +1262,7 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *ring,
 				    uint32_t *const batch,
 				    uint32_t *offset)
 {
+	int ret;
 	struct drm_device *dev = ring->dev;
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
@@ -1260,6 +1270,12 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *ring,
 	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) <= SKL_REVID_D0)) ||
 	    (IS_BROXTON(dev) && (INTEL_REVID(dev) == BXT_REVID_A0)))
 		wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_DISABLE);
+
+	/* WaFlushCoherentL3CacheLinesAtContextSwitch:skl,bxt */
+	ret = gen8_emit_flush_coherentl3_wa(ring, batch, index);
+	if (ret < 0)
+		return ret;
+	index = ret;
 
 	/* Pad to end of cacheline */
 	while (index % CACHELINE_DWORDS)

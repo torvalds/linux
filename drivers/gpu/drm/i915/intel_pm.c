@@ -95,6 +95,9 @@ static void skl_init_clock_gating(struct drm_device *dev)
 			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
 	}
 
+	/* GEN8_L3SQCREG4 has a dependency with WA batch so any new changes
+	 * involving this register should also be added to WA batch as required.
+	 */
 	if (INTEL_REVID(dev) <= SKL_REVID_E0)
 		/* WaDisableLSQCROPERFforOCL:skl */
 		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
