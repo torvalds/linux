@@ -188,9 +188,6 @@ struct hal_ops {
 	u8	(*GetHalDefVarHandler)(struct adapter *padapter,
 				       enum hal_def_variable eVariable,
 				       void *pValue);
-	u8	(*SetHalDefVarHandler)(struct adapter *padapter,
-				       enum hal_def_variable eVariable,
-				       void *pValue);
 
 	void	(*SetHalODMVarHandler)(struct adapter *padapter,
 				       enum hal_odm_variable eVariable,
@@ -265,8 +262,6 @@ void rtw_hal_chip_configure(struct adapter *padapter);
 void rtw_hal_read_chip_info(struct adapter *padapter);
 void rtw_hal_read_chip_version(struct adapter *padapter);
 
-u8 rtw_hal_set_def_var(struct adapter *padapter,
-		       enum hal_def_variable eVariable, void *pValue);
 u8 rtw_hal_get_def_var(struct adapter *padapter,
 		       enum hal_def_variable eVariable, void *pValue);
 
