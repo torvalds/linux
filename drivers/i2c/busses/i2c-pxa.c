@@ -459,7 +459,7 @@ static void i2c_pxa_reset(struct pxa_i2c *i2c)
 	writel(I2C_ISR_INIT, _ISR(i2c));
 	writel(readl(_ICR(i2c)) & ~ICR_UR, _ICR(i2c));
 
-	if (i2c->reg_isar)
+	if (i2c->reg_isar && IS_ENABLED(CONFIG_I2C_PXA_SLAVE))
 		writel(i2c->slave_addr, _ISAR(i2c));
 
 	/* set control register values */
