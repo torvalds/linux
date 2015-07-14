@@ -27,7 +27,6 @@
 
 #include "r8190P_def.h"
 
-u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc);
 bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device *dev);
 bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev);
 bool rtl8192_HalTxCheckStuck(struct net_device *dev);

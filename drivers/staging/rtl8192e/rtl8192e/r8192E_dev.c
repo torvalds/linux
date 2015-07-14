@@ -1176,6 +1176,18 @@ static u8 rtl8192_MapHwQueueToFirmwareQueue(struct net_device *dev, u8 QueueID,
 	return QueueSelect;
 }
 
+static u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
+{
+	u8   tmp_Short;
+
+	tmp_Short = (TxHT == 1) ? ((tcb_desc->bUseShortGI) ? 1 : 0) :
+			((tcb_desc->bUseShortPreamble) ? 1 : 0);
+	if (TxHT == 1 && TxRate != DESC90_RATEMCS15)
+		tmp_Short = 0;
+
+	return tmp_Short;
+}
+
 void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 			   struct cb_desc *cb_desc, struct sk_buff *skb)
 {
@@ -2378,18 +2390,6 @@ bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device *dev)
 		Reval =  false;
 
 	return Reval;
-}
-
-u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
-{
-	u8   tmp_Short;
-
-	tmp_Short = (TxHT == 1) ? ((tcb_desc->bUseShortGI) ? 1 : 0) :
-			((tcb_desc->bUseShortPreamble) ? 1 : 0);
-	if (TxHT == 1 && TxRate != DESC90_RATEMCS15)
-		tmp_Short = 0;
-
-	return tmp_Short;
 }
 
 void ActUpdateChannelAccessSetting(struct net_device *dev,
