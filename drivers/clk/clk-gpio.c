@@ -251,8 +251,10 @@ static struct clk *of_clk_gpio_delayed_register_get(
 	num_parents = of_clk_get_parent_count(data->node);
 
 	parent_names = kcalloc(num_parents, sizeof(char *), GFP_KERNEL);
-	if (!parent_names)
-		return ERR_PTR(-ENOMEM);
+	if (!parent_names) {
+		clk = ERR_PTR(-ENOMEM);
+		goto out;
+	}
 
 	for (i = 0; i < num_parents; i++)
 		parent_names[i] = of_clk_get_parent_name(data->node, i);
