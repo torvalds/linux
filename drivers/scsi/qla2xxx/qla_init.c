@@ -2927,24 +2927,14 @@ qla2x00_rport_del(void *data)
 {
 	fc_port_t *fcport = data;
 	struct fc_rport *rport;
-	scsi_qla_host_t *vha = fcport->vha;
 	unsigned long flags;
-	unsigned long vha_flags;
 
 	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
 	rport = fcport->drport ? fcport->drport: fcport->rport;
 	fcport->drport = NULL;
 	spin_unlock_irqrestore(fcport->vha->host->host_lock, flags);
-	if (rport) {
+	if (rport)
 		fc_remote_port_delete(rport);
-		/*
-		 * Release the target mode FC NEXUS in qla_target.c code
-		 * if target mod is enabled.
-		 */
-		spin_lock_irqsave(&vha->hw->hardware_lock, vha_flags);
-		qlt_fc_port_deleted(vha, fcport);
-		spin_unlock_irqrestore(&vha->hw->hardware_lock, vha_flags);
-	}
 }
 
 /**
@@ -3384,6 +3374,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 	LIST_HEAD(new_fcports);
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
+	int		discovery_gen;
 
 	/* If FL port exists, then SNS is present */
 	if (IS_FWI2_CAPABLE(ha))
@@ -3454,6 +3445,14 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			fcport->scan_state = QLA_FCPORT_SCAN;
 		}
 
+		/* Mark the time right before querying FW for connected ports.
+		 * This process is long, asynchronous and by the time it's done,
+		 * collected information might not be accurate anymore. E.g.
+		 * disconnected port might have re-connected and a brand new
+		 * session has been created. In this case session's generation
+		 * will be newer than discovery_gen. */
+		qlt_do_generation_tick(vha, &discovery_gen);
+
 		rval = qla2x00_find_all_fabric_devs(vha, &new_fcports);
 		if (rval != QLA_SUCCESS)
 			break;
@@ -3505,7 +3504,8 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 					    atomic_read(&fcport->state),
 					    fcport->flags, fcport->fc4_type,
 					    fcport->scan_state);
-					qlt_fc_port_deleted(vha, fcport);
+					qlt_fc_port_deleted(vha, fcport,
+					    discovery_gen);
 				}
 			}
 		}
@@ -4282,6 +4282,14 @@ qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 			    atomic_read(&fcport->state) != FCS_UNCONFIGURED) {
 				spin_unlock_irqrestore(&ha->vport_slock, flags);
 				qla2x00_rport_del(fcport);
+
+				/*
+				 * Release the target mode FC NEXUS in
+				 * qla_target.c, if target mod is enabled.
+				 */
+				qlt_fc_port_deleted(vha, fcport,
+				    base_vha->total_fcport_update_gen);
+
 				spin_lock_irqsave(&ha->vport_slock, flags);
 			}
 		}

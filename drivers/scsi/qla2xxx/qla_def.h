@@ -3586,6 +3586,11 @@ typedef struct scsi_qla_host {
 	struct list_head	qla_sess_op_cmd_list;
 	spinlock_t		cmd_list_lock;
 
+	/* Counter to detect races between ELS and RSCN events */
+	atomic_t		generation_tick;
+	/* Time when global fcport update has been scheduled */
+	int			total_fcport_update_gen;
+
 	uint32_t	vp_abort_cnt;
 
 	struct fc_vport	*fc_vport;	/* holds fc_vport * for each vport */

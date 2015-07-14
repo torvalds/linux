@@ -919,6 +919,8 @@ struct qla_tgt_sess {
 
 	unsigned char logout_completed;
 
+	int generation;
+
 	struct se_session *se_sess;
 	struct scsi_qla_host *vha;
 	struct qla_tgt *tgt;
@@ -1086,7 +1088,7 @@ extern int qlt_lport_register(void *, u64, u64, u64,
 extern void qlt_lport_deregister(struct scsi_qla_host *);
 extern void qlt_unreg_sess(struct qla_tgt_sess *);
 extern void qlt_fc_port_added(struct scsi_qla_host *, fc_port_t *);
-extern void qlt_fc_port_deleted(struct scsi_qla_host *, fc_port_t *);
+extern void qlt_fc_port_deleted(struct scsi_qla_host *, fc_port_t *, int);
 extern int __init qlt_init(void);
 extern void qlt_exit(void);
 extern void qlt_update_vp_map(struct scsi_qla_host *, int);
@@ -1163,5 +1165,6 @@ extern irqreturn_t qla83xx_msix_atio_q(int, void *);
 extern void qlt_83xx_iospace_config(struct qla_hw_data *);
 extern int qlt_free_qfull_cmds(struct scsi_qla_host *);
 extern void qlt_logo_completion_handler(fc_port_t *, int);
+extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
 
 #endif /* __QLA_TARGET_H */

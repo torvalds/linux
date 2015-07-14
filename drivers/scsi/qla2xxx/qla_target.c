@@ -127,6 +127,16 @@ static struct workqueue_struct *qla_tgt_wq;
 static DEFINE_MUTEX(qla_tgt_mutex);
 static LIST_HEAD(qla_tgt_glist);
 
+/* This API intentionally takes dest as a parameter, rather than returning
+ * int value to avoid caller forgetting to issue wmb() after the store */
+void qlt_do_generation_tick(struct scsi_qla_host *vha, int *dest)
+{
+	scsi_qla_host_t *base_vha = pci_get_drvdata(vha->hw->pdev);
+	*dest = atomic_inc_return(&base_vha->generation_tick);
+	/* memory barrier */
+	wmb();
+}
+
 /* ha->hardware_lock supposed to be held on entry (to protect tgt->sess_list) */
 static struct qla_tgt_sess *qlt_find_sess_by_port_name(
 	struct qla_tgt *tgt,
@@ -576,10 +586,12 @@ static void qlt_schedule_sess_for_deletion(struct qla_tgt_sess *sess,
 	sess->expires = jiffies + dev_loss_tmo * HZ;
 
 	ql_dbg(ql_dbg_tgt, sess->vha, 0xe048,
-	    "qla_target(%d): session for port %8phC (loop ID %d) scheduled for "
-	    "deletion in %u secs (expires: %lu) immed: %d, logout: %d\n",
-	    sess->vha->vp_idx, sess->port_name, sess->loop_id, dev_loss_tmo,
-	    sess->expires, immediate, sess->logout_on_delete);
+	    "qla_target(%d): session for port %8phC (loop ID %d s_id %02x:%02x:%02x)"
+	    " scheduled for deletion in %u secs (expires: %lu) immed: %d, logout: %d, gen: %#x\n",
+	    sess->vha->vp_idx, sess->port_name, sess->loop_id,
+	    sess->s_id.b.domain, sess->s_id.b.area, sess->s_id.b.al_pa,
+	    dev_loss_tmo, sess->expires, immediate, sess->logout_on_delete,
+	    sess->generation);
 
 	if (immediate)
 		mod_delayed_work(system_wq, &tgt->sess_del_work, 0);
@@ -734,6 +746,9 @@ static struct qla_tgt_sess *qlt_create_sess(
 
 			if (sess->local && !local)
 				sess->local = 0;
+
+			qlt_do_generation_tick(vha, &sess->generation);
+
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 			return sess;
@@ -795,6 +810,7 @@ static struct qla_tgt_sess *qlt_create_sess(
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	list_add_tail(&sess->sess_list_entry, &vha->vha_tgt.qla_tgt->sess_list);
 	vha->vha_tgt.qla_tgt->sess_count++;
+	qlt_do_generation_tick(vha, &sess->generation);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf04b,
@@ -808,7 +824,7 @@ static struct qla_tgt_sess *qlt_create_sess(
 }
 
 /*
- * Called from drivers/scsi/qla2xxx/qla_init.c:qla2x00_reg_remote_port()
+ * Called from qla2x00_reg_remote_port()
  */
 void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
@@ -874,7 +890,12 @@ void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
-void qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport)
+/*
+ * max_gen - specifies maximum session generation
+ * at which this deletion requestion is still valid
+ */
+void
+qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport, int max_gen)
 {
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 	struct qla_tgt_sess *sess;
@@ -890,6 +911,15 @@ void qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport)
 	}
 	sess = qlt_find_sess_by_port_name(tgt, fcport->port_name);
 	if (!sess) {
+		return;
+	}
+
+	if (max_gen - sess->generation < 0) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf092,
+		    "Ignoring stale deletion request for se_sess %p / sess %p"
+		    " for port %8phC, req_gen %d, sess_gen %d\n",
+		    sess->se_sess, sess, sess->port_name, max_gen,
+		    sess->generation);
 		return;
 	}
 
@@ -3970,7 +4000,7 @@ void qlt_logo_completion_handler(fc_port_t *fcport, int rc)
 {
 	if (fcport->tgt_session) {
 		if (rc != MBS_COMMAND_COMPLETE) {
-			ql_dbg(ql_dbg_tgt_mgt, fcport->vha, 0xf088,
+			ql_dbg(ql_dbg_tgt_mgt, fcport->vha, 0xf093,
 				"%s: se_sess %p / sess %p from"
 				" port %8phC loop_id %#04x s_id %02x:%02x:%02x"
 				" LOGO failed: %#x\n",
@@ -4099,6 +4129,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 	struct imm_ntfy_from_isp *iocb)
 {
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt_sess *sess = NULL;
 	uint64_t wwn;
 	port_id_t port_id;
@@ -4144,7 +4175,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 			 * without acking, new one will get acked when session
 			 * deletion completes.
 			 */
-			ql_log(ql_log_warn, sess->vha, 0xf089,
+			ql_log(ql_log_warn, sess->vha, 0xf094,
 			    "sess %p received double plogi.\n", sess);
 
 			qlt_swap_imm_ntfy_iocb(iocb, &sess->tm_iocb);
@@ -4201,7 +4232,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 				 * PLOGI could finish. Will force him to re-try,
 				 * while last one finishes.
 				 */
-				ql_log(ql_log_warn, sess->vha, 0xf090,
+				ql_log(ql_log_warn, sess->vha, 0xf095,
 				    "sess %p PRLI received, before plogi ack.\n",
 				    sess);
 				qlt_send_term_imm_notif(vha, iocb, 1);
@@ -4213,7 +4244,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 			 * This shouldn't happen under normal circumstances,
 			 * since we have deleted the old session during PLOGI
 			 */
-			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf091,
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf096,
 			    "PRLI (loop_id %#04x) for existing sess %p (loop_id %#04x)\n",
 			    sess->loop_id, sess, iocb->u.isp24.nport_handle);
 
@@ -4224,7 +4255,14 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 			if (wd3_lo & BIT_7)
 				sess->conf_compl_supported = 1;
 
-			res = 1;
+		}
+		res = 1; /* send notify ack */
+
+		/* Make session global (not used in fabric mode) */
+		if (ha->current_topology != ISP_CFG_F) {
+			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
 		} else {
 			/* todo: else - create sess here. */
 			res = 1; /* send notify ack */
