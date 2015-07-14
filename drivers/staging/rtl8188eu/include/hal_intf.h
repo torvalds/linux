@@ -171,8 +171,6 @@ struct hal_ops {
 
 	void	(*read_adapter_info)(struct adapter *padapter);
 
-	void	(*enable_interrupt)(struct adapter *padapter);
-	void	(*disable_interrupt)(struct adapter *padapter);
 	s32	(*interrupt_handler)(struct adapter *padapter);
 
 	void	(*set_bwmode_handler)(struct adapter *padapter,
@@ -275,9 +273,6 @@ u8 rtw_hal_get_def_var(struct adapter *padapter,
 void rtw_hal_set_odm_var(struct adapter *padapter,
 			 enum hal_odm_variable eVariable, void *pValue1,
 			 bool bSet);
-
-void rtw_hal_enable_interrupt(struct adapter *padapter);
-void rtw_hal_disable_interrupt(struct adapter *padapter);
 
 u32	rtw_hal_inirp_init(struct adapter *padapter);
 u32	rtw_hal_inirp_deinit(struct adapter *padapter);
