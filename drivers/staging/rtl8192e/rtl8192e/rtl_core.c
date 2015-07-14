@@ -2599,7 +2599,6 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 	struct rtl819x_ops *ops = (struct rtl819x_ops *)(id->driver_data);
 	unsigned long pmem_start, pmem_len, pmem_flags;
 	int err = -ENOMEM;
-	bool bdma64 = false;
 	u8 revision_id;
 
 	RT_TRACE(COMP_INIT, "Configuring chip resources");
@@ -2623,8 +2622,6 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 		goto err_pci_disable;
 
 	err = -ENODEV;
-	if (bdma64)
-		dev->features |= NETIF_F_HIGHDMA;
 
 	pci_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
