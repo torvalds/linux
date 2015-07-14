@@ -290,7 +290,10 @@ int gpiochip_add(struct gpio_chip *chip)
 	if (!chip->owner && chip->dev && chip->dev->driver)
 		chip->owner = chip->dev->driver->owner;
 
-	of_gpiochip_add(chip);
+	status = of_gpiochip_add(chip);
+	if (status)
+		goto err_remove_chip;
+
 	acpi_gpiochip_add(chip);
 
 	status = gpiochip_sysfs_register(chip);
