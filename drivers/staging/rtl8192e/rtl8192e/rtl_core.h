@@ -581,13 +581,6 @@ extern const struct ethtool_ops rtl819x_ethtool_ops;
 void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
 
-u8 read_nic_io_byte(struct net_device *dev, int x);
-u32 read_nic_io_dword(struct net_device *dev, int x);
-u16 read_nic_io_word(struct net_device *dev, int x);
-void write_nic_io_byte(struct net_device *dev, int x, u8 y);
-void write_nic_io_word(struct net_device *dev, int x, u16 y);
-void write_nic_io_dword(struct net_device *dev, int x, u32 y);
-
 u8 read_nic_byte(struct net_device *dev, int x);
 u32 read_nic_dword(struct net_device *dev, int x);
 u16 read_nic_word(struct net_device *dev, int x);
