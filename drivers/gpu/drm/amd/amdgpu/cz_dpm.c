@@ -494,6 +494,13 @@ static void cz_dpm_fini(struct amdgpu_device *adev)
 	amdgpu_free_extended_power_table(adev);
 }
 
+#define ixSMUSVI_NB_CURRENTVID 0xD8230044
+#define CURRENT_NB_VID_MASK 0xff000000
+#define CURRENT_NB_VID__SHIFT 24
+#define ixSMUSVI_GFX_CURRENTVID  0xD8230048
+#define CURRENT_GFX_VID_MASK 0xff000000
+#define CURRENT_GFX_VID__SHIFT 24
+
 static void
 cz_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
 					       struct seq_file *m)
@@ -505,18 +512,20 @@ cz_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
 		TARGET_AND_CURRENT_PROFILE_INDEX__CURR_SCLK_INDEX_MASK) >>
 		TARGET_AND_CURRENT_PROFILE_INDEX__CURR_SCLK_INDEX__SHIFT;
 	u32 sclk, tmp;
-	u16 vddc;
+	u16 vddnb, vddgfx;
 
 	if (current_index >= NUM_SCLK_LEVELS) {
 		seq_printf(m, "invalid dpm profile %d\n", current_index);
 	} else {
 		sclk = table->entries[current_index].clk;
-		tmp = (RREG32_SMC(ixSMU_VOLTAGE_STATUS) &
-			SMU_VOLTAGE_STATUS__SMU_VOLTAGE_CURRENT_LEVEL_MASK) >>
-			SMU_VOLTAGE_STATUS__SMU_VOLTAGE_CURRENT_LEVEL__SHIFT;
-		vddc = cz_convert_8bit_index_to_voltage(adev, (u16)tmp);
-		seq_printf(m, "power level %d    sclk: %u vddc: %u\n",
-			   current_index, sclk, vddc);
+		tmp = (RREG32_SMC(ixSMUSVI_NB_CURRENTVID) &
+		       CURRENT_NB_VID_MASK) >> CURRENT_NB_VID__SHIFT;
+		vddnb = cz_convert_8bit_index_to_voltage(adev, (u16)tmp);
+		tmp = (RREG32_SMC(ixSMUSVI_GFX_CURRENTVID) &
+		       CURRENT_GFX_VID_MASK) >> CURRENT_GFX_VID__SHIFT;
+		vddgfx = cz_convert_8bit_index_to_voltage(adev, (u16)tmp);
+		seq_printf(m, "power level %d    sclk: %u vddnb: %u vddgfx: %u\n",
+			   current_index, sclk, vddnb, vddgfx);
 	}
 }
 
