@@ -529,7 +529,7 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 int ipvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
-	struct ipvl_port *port = ipvlan_port_get_rcu(ipvlan->phy_dev);
+	struct ipvl_port *port = ipvlan_port_get_rcu_bh(ipvlan->phy_dev);
 
 	if (!port)
 		goto out;
