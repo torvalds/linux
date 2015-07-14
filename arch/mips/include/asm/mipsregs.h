@@ -934,7 +934,7 @@ do {								\
  */
 
 #define __read_32bit_c0_register(source, sel)				\
-({ int __res;								\
+({ unsigned int __res;							\
 	if (sel == 0)							\
 		__asm__ __volatile__(					\
 			"mfc0\t%0, " #source "\n\t"			\
@@ -1016,7 +1016,7 @@ do {									\
  * On RM7000/RM9000 these are uses to access cop0 set 1 registers
  */
 #define __read_32bit_c0_ctrl_register(source)				\
-({ int __res;								\
+({ unsigned int __res;							\
 	__asm__ __volatile__(						\
 		"cfc0\t%0, " #source "\n\t"				\
 		: "=r" (__res));					\
