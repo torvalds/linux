@@ -536,6 +536,7 @@ config ARCH_ORION5X
 	select MVEBU_MBUS
 	select PCI
 	select PLAT_ORION_LEGACY
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
