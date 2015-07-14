@@ -195,8 +195,6 @@ static int __pci_bus_find_cap_start(struct pci_bus *bus,
 		return PCI_CAPABILITY_LIST;
 	case PCI_HEADER_TYPE_CARDBUS:
 		return PCI_CB_CAPABILITY_LIST;
-	default:
-		return 0;
 	}
 
 	return 0;
