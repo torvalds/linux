@@ -1918,6 +1918,7 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 			clk_prepare_enable(dsi->dsi_host_pclk);
 
 		clk_prepare_enable(dsi->dsi_pd);
+		dsi->clk_on = 1;
 		udelay(10);
 	}
 
