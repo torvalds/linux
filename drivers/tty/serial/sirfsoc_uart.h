@@ -423,7 +423,6 @@ struct sirfsoc_uart_port {
 	struct dma_chan			*tx_dma_chan;
 	dma_addr_t			tx_dma_addr;
 	struct dma_async_tx_descriptor	*tx_dma_desc;
-	unsigned int			rx_io_count;
 	unsigned long			transfer_size;
 	enum sirfsoc_tx_state		tx_dma_state;
 	unsigned int			cts_gpio;
