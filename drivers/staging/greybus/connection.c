@@ -222,22 +222,45 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 }
 
 /*
+ * Cancel all active operations on a connection.
+ *
+ * Should only be called during connection tear down.
+ */
+static void gb_connection_cancel_operations(struct gb_connection *connection,
+						int errno)
+{
+	struct gb_operation *operation;
+
+	spin_lock_irq(&connection->lock);
+
+	WARN_ON(!list_empty(&connection->operations));
+
+	while (!list_empty(&connection->operations)) {
+		operation = list_last_entry(&connection->operations,
+						struct gb_operation, links);
+		gb_operation_get(operation);
+		spin_unlock_irq(&connection->lock);
+
+		gb_operation_cancel(operation, errno);
+		gb_operation_put(operation);
+
+		spin_lock_irq(&connection->lock);
+	}
+	spin_unlock_irq(&connection->lock);
+}
+
+/*
  * Tear down a previously set up connection.
  */
 void gb_connection_destroy(struct gb_connection *connection)
 {
-	struct gb_operation *operation;
-	struct gb_operation *next;
 	struct ida *id_map;
 
 	if (WARN_ON(!connection))
 		return;
 
-	if (WARN_ON(!list_empty(&connection->operations))) {
-		list_for_each_entry_safe(operation, next,
-					 &connection->operations, links)
-			gb_operation_cancel(operation, -ESHUTDOWN);
-	}
+	gb_connection_cancel_operations(connection, -ESHUTDOWN);
+
 	spin_lock_irq(&gb_connections_lock);
 	list_del(&connection->bundle_links);
 	list_del(&connection->hd_links);

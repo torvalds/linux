@@ -127,9 +127,9 @@ struct gb_operation {
 	struct completion	completion;
 
 	struct kref		kref;
-	atomic_t		active;
 	atomic_t		waiters;
 
+	int			active;
 	struct list_head	links;		/* connection->operations */
 };
 

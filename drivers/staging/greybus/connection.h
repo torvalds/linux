@@ -37,9 +37,9 @@ struct gb_connection {
 
 	spinlock_t			lock;
 	enum gb_connection_state	state;
+	struct list_head		operations;
 
 	atomic_t			op_cycle;
-	struct list_head		operations;
 
 	void				*private;
 };

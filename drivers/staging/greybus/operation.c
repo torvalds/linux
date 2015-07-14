@@ -29,32 +29,65 @@ static struct workqueue_struct *gb_operation_workqueue;
 static DECLARE_WAIT_QUEUE_HEAD(gb_operation_cancellation_queue);
 
 /*
- * Protects access to connection operations lists, as well as
- * updates to operation->errno.
+ * Protects updates to operation->errno.
  */
 static DEFINE_SPINLOCK(gb_operations_lock);
 
 static int gb_operation_response_send(struct gb_operation *operation,
 					int errno);
 
-/* Caller holds operation reference. */
-static inline void gb_operation_get_active(struct gb_operation *operation)
+/*
+ * Increment operation active count and add to connection list unless the
+ * connection is going away.
+ *
+ * Caller holds operation reference.
+ */
+static int gb_operation_get_active(struct gb_operation *operation)
 {
-	atomic_inc(&operation->active);
+	struct gb_connection *connection = operation->connection;
+	unsigned long flags;
+
+	spin_lock_irqsave(&connection->lock, flags);
+
+	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
+		spin_unlock_irqrestore(&connection->lock, flags);
+		return -ENOTCONN;
+	}
+
+	if (operation->active++ == 0)
+		list_add_tail(&operation->links, &connection->operations);
+
+	spin_unlock_irqrestore(&connection->lock, flags);
+
+	return 0;
 }
 
 /* Caller holds operation reference. */
-static inline void gb_operation_put_active(struct gb_operation *operation)
+static void gb_operation_put_active(struct gb_operation *operation)
 {
-	if (atomic_dec_and_test(&operation->active)) {
+	struct gb_connection *connection = operation->connection;
+	unsigned long flags;
+
+	spin_lock_irqsave(&connection->lock, flags);
+	if (--operation->active == 0) {
+		list_del(&operation->links);
 		if (atomic_read(&operation->waiters))
 			wake_up(&gb_operation_cancellation_queue);
 	}
+	spin_unlock_irqrestore(&connection->lock, flags);
 }
 
-static inline bool gb_operation_is_active(struct gb_operation *operation)
+static bool gb_operation_is_active(struct gb_operation *operation)
 {
-	return atomic_read(&operation->active);
+	struct gb_connection *connection = operation->connection;
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&connection->lock, flags);
+	ret = operation->active;
+	spin_unlock_irqrestore(&connection->lock, flags);
+
+	return ret;
 }
 
 /*
@@ -150,7 +183,7 @@ gb_operation_find_outgoing(struct gb_connection *connection, u16 operation_id)
 	unsigned long flags;
 	bool found = false;
 
-	spin_lock_irqsave(&gb_operations_lock, flags);
+	spin_lock_irqsave(&connection->lock, flags);
 	list_for_each_entry(operation, &connection->operations, links)
 		if (operation->id == operation_id &&
 				!gb_operation_is_incoming(operation)) {
@@ -158,7 +191,7 @@ gb_operation_find_outgoing(struct gb_connection *connection, u16 operation_id)
 			found = true;
 			break;
 		}
-	spin_unlock_irqrestore(&gb_operations_lock, flags);
+	spin_unlock_irqrestore(&connection->lock, flags);
 
 	return found ? operation : NULL;
 }
@@ -453,7 +486,6 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 {
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_operation *operation;
-	unsigned long flags;
 
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
@@ -479,12 +511,7 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	INIT_WORK(&operation->work, gb_operation_work);
 	init_completion(&operation->completion);
 	kref_init(&operation->kref);
-	atomic_set(&operation->active, 0);
 	atomic_set(&operation->waiters, 0);
-
-	spin_lock_irqsave(&gb_operations_lock, flags);
-	list_add_tail(&operation->links, &connection->operations);
-	spin_unlock_irqrestore(&gb_operations_lock, flags);
 
 	return operation;
 
@@ -570,10 +597,6 @@ static void _gb_operation_destroy(struct kref *kref)
 
 	operation = container_of(kref, struct gb_operation, kref);
 
-	/* XXX Make sure it's not in flight */
-	list_del(&operation->links);
-	spin_unlock(&gb_operations_lock);
-
 	if (operation->response)
 		gb_operation_message_free(operation->response);
 	gb_operation_message_free(operation->request);
@@ -590,8 +613,7 @@ void gb_operation_put(struct gb_operation *operation)
 	if (WARN_ON(!operation))
 		return;
 
-	kref_put_spinlock_irqsave(&operation->kref, _gb_operation_destroy,
-			&gb_operations_lock);
+	kref_put(&operation->kref, _gb_operation_destroy);
 }
 EXPORT_SYMBOL_GPL(gb_operation_put);
 
@@ -621,15 +643,14 @@ int gb_operation_request_send(struct gb_operation *operation,
 	if (!callback)
 		return -EINVAL;
 
-	if (connection->state != GB_CONNECTION_STATE_ENABLED)
-		return -ENOTCONN;
-
 	/*
 	 * First, get an extra reference on the operation.
 	 * It'll be dropped when the operation completes.
 	 */
 	gb_operation_get(operation);
-	gb_operation_get_active(operation);
+	ret = gb_operation_get_active(operation);
+	if (ret)
+		goto err_put;
 
 	/*
 	 * Record the callback function, which is executed in
@@ -651,10 +672,15 @@ int gb_operation_request_send(struct gb_operation *operation,
 	gb_operation_result_set(operation, -EINPROGRESS);
 
 	ret = gb_message_send(operation->request, gfp);
-	if (ret) {
-		gb_operation_put_active(operation);
-		gb_operation_put(operation);
-	}
+	if (ret)
+		goto err_put_active;
+
+	return 0;
+
+err_put_active:
+	gb_operation_put_active(operation);
+err_put:
+	gb_operation_put(operation);
 
 	return ret;
 }
@@ -705,9 +731,6 @@ static int gb_operation_response_send(struct gb_operation *operation,
 	struct gb_connection *connection = operation->connection;
 	int ret;
 
-	if (connection->state != GB_CONNECTION_STATE_ENABLED)
-		return -ENOTCONN;
-
 	if (!operation->response &&
 			!gb_operation_is_unidirectional(operation)) {
 		if (!gb_operation_response_alloc(operation, 0))
@@ -726,16 +749,23 @@ static int gb_operation_response_send(struct gb_operation *operation,
 
 	/* Reference will be dropped when message has been sent. */
 	gb_operation_get(operation);
-	gb_operation_get_active(operation);
+	ret = gb_operation_get_active(operation);
+	if (ret)
+		goto err_put;
 
 	/* Fill in the response header and send it */
 	operation->response->header->result = gb_operation_errno_map(errno);
 
 	ret = gb_message_send(operation->response, GFP_KERNEL);
-	if (ret) {
-		gb_operation_put_active(operation);
-		gb_operation_put(operation);
-	}
+	if (ret)
+		goto err_put_active;
+
+	return 0;
+
+err_put_active:
+	gb_operation_put_active(operation);
+err_put:
+	gb_operation_put(operation);
 
 	return ret;
 }
@@ -785,6 +815,7 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 				       void *data, size_t size)
 {
 	struct gb_operation *operation;
+	int ret;
 
 	operation = gb_operation_create_incoming(connection, operation_id,
 						type, data, size);
@@ -793,7 +824,11 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 		return;		/* XXX Respond with pre-allocated ENOMEM */
 	}
 
-	gb_operation_get_active(operation);
+	ret = gb_operation_get_active(operation);
+	if (ret) {
+		gb_operation_put(operation);
+		return;
+	}
 
 	/*
 	 * The initial reference to the operation will be dropped when the
