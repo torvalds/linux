@@ -2263,11 +2263,6 @@ config MIPS_CM
 config MIPS_CPC
 	bool
 
-config SB1_PASS_1_WORKAROUNDS
-	bool
-	depends on CPU_SB1_PASS_1
-	default y
-
 config SB1_PASS_2_WORKAROUNDS
 	bool
 	depends on CPU_SB1 && (CPU_SB1_PASS_2_2 || CPU_SB1_PASS_2)
