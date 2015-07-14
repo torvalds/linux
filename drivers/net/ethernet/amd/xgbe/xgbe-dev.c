@@ -1110,6 +1110,7 @@ static void xgbe_rx_desc_reset(struct xgbe_prv_data *pdata,
 	unsigned int rx_usecs = pdata->rx_usecs;
 	unsigned int rx_frames = pdata->rx_frames;
 	unsigned int inte;
+	dma_addr_t hdr_dma, buf_dma;
 
 	if (!rx_usecs && !rx_frames) {
 		/* No coalescing, interrupt for every descriptor */
@@ -1129,10 +1130,12 @@ static void xgbe_rx_desc_reset(struct xgbe_prv_data *pdata,
 	 *   Set buffer 2 (hi) address to buffer dma address (hi) and
 	 *     set control bits OWN and INTE
 	 */
-	rdesc->desc0 = cpu_to_le32(lower_32_bits(rdata->rx.hdr.dma));
-	rdesc->desc1 = cpu_to_le32(upper_32_bits(rdata->rx.hdr.dma));
-	rdesc->desc2 = cpu_to_le32(lower_32_bits(rdata->rx.buf.dma));
-	rdesc->desc3 = cpu_to_le32(upper_32_bits(rdata->rx.buf.dma));
+	hdr_dma = rdata->rx.hdr.dma_base + rdata->rx.hdr.dma_off;
+	buf_dma = rdata->rx.buf.dma_base + rdata->rx.buf.dma_off;
+	rdesc->desc0 = cpu_to_le32(lower_32_bits(hdr_dma));
+	rdesc->desc1 = cpu_to_le32(upper_32_bits(hdr_dma));
+	rdesc->desc2 = cpu_to_le32(lower_32_bits(buf_dma));
+	rdesc->desc3 = cpu_to_le32(upper_32_bits(buf_dma));
 
 	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE, inte);
 
