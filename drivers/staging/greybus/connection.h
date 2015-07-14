@@ -35,6 +35,7 @@ struct gb_connection {
 	u8				major;
 	u8				minor;
 
+	spinlock_t			lock;
 	enum gb_connection_state	state;
 
 	atomic_t			op_cycle;

@@ -65,8 +65,13 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct gb_connection *connection = to_gb_connection(dev);
+	enum gb_connection_state state;
 
-	return sprintf(buf, "%d\n", connection->state);
+	spin_lock_irq(&connection->lock);
+	state = connection->state;
+	spin_unlock_irq(&connection->lock);
+
+	return sprintf(buf, "%d\n", state);
 }
 static DEVICE_ATTR_RO(state);
 
@@ -204,6 +209,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 	spin_unlock_irq(&gb_connections_lock);
 
 	atomic_set(&connection->op_cycle, 0);
+	spin_lock_init(&connection->lock);
 	INIT_LIST_HEAD(&connection->operations);
 
 	/* XXX Will have to establish connections to get version */
@@ -274,10 +280,16 @@ int gb_connection_init(struct gb_connection *connection)
 	}
 
 	/* Need to enable the connection to initialize it */
+	spin_lock_irq(&connection->lock);
 	connection->state = GB_CONNECTION_STATE_ENABLED;
+	spin_unlock_irq(&connection->lock);
+
 	ret = connection->protocol->connection_init(connection);
-	if (ret)
+	if (ret) {
+		spin_lock_irq(&connection->lock);
 		connection->state = GB_CONNECTION_STATE_ERROR;
+		spin_unlock_irq(&connection->lock);
+	}
 
 	return ret;
 }
@@ -291,10 +303,14 @@ void gb_connection_exit(struct gb_connection *connection)
 		return;
 	}
 
-	if (connection->state != GB_CONNECTION_STATE_ENABLED)
+	spin_lock_irq(&connection->lock);
+	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
+		spin_unlock_irq(&connection->lock);
 		return;
-
+	}
 	connection->state = GB_CONNECTION_STATE_DESTROYING;
+	spin_unlock_irq(&connection->lock);
+
 	connection->protocol->connection_exit(connection);
 
 	/*
