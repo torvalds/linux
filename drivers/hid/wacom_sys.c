@@ -1145,40 +1145,6 @@ static struct input_dev *wacom_allocate_input(struct wacom *wacom)
 	return input_dev;
 }
 
-static void wacom_free_inputs(struct wacom *wacom)
-{
-	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
-
-	input_free_device(wacom_wac->pen_input);
-	input_free_device(wacom_wac->touch_input);
-	input_free_device(wacom_wac->pad_input);
-	wacom_wac->pen_input = NULL;
-	wacom_wac->touch_input = NULL;
-	wacom_wac->pad_input = NULL;
-}
-
-static int wacom_allocate_inputs(struct wacom *wacom)
-{
-	struct input_dev *pen_input_dev, *touch_input_dev, *pad_input_dev;
-	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
-
-	pen_input_dev = wacom_allocate_input(wacom);
-	touch_input_dev = wacom_allocate_input(wacom);
-	pad_input_dev = wacom_allocate_input(wacom);
-	if (!pen_input_dev || !touch_input_dev || !pad_input_dev) {
-		wacom_free_inputs(wacom);
-		return -ENOMEM;
-	}
-
-	wacom_wac->pen_input = pen_input_dev;
-	wacom_wac->touch_input = touch_input_dev;
-	wacom_wac->touch_input->name = wacom_wac->touch_name;
-	wacom_wac->pad_input = pad_input_dev;
-	wacom_wac->pad_input->name = wacom_wac->pad_name;
-
-	return 0;
-}
-
 static void wacom_clean_inputs(struct wacom *wacom)
 {
 	if (wacom->wacom_wac.pen_input) {
@@ -1203,6 +1169,24 @@ static void wacom_clean_inputs(struct wacom *wacom)
 	wacom->wacom_wac.touch_input = NULL;
 	wacom->wacom_wac.pad_input = NULL;
 	wacom_destroy_leds(wacom);
+}
+
+static int wacom_allocate_inputs(struct wacom *wacom)
+{
+	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
+
+	wacom_wac->pen_input = wacom_allocate_input(wacom);
+	wacom_wac->touch_input = wacom_allocate_input(wacom);
+	wacom_wac->pad_input = wacom_allocate_input(wacom);
+	if (!wacom_wac->pen_input || !wacom_wac->touch_input || !wacom_wac->pad_input) {
+		wacom_clean_inputs(wacom);
+		return -ENOMEM;
+	}
+
+	wacom_wac->touch_input->name = wacom_wac->touch_name;
+	wacom_wac->pad_input->name = wacom_wac->pad_name;
+
+	return 0;
 }
 
 static int wacom_register_inputs(struct wacom *wacom)
