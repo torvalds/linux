@@ -13267,63 +13267,37 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_atomic_state *state;
-	struct intel_encoder *encoder;
-	struct intel_connector *connector;
-	struct drm_connector_state *connector_state;
-	struct intel_crtc_state *crtc_state;
+	struct drm_crtc_state *crtc_state;
 	int ret;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
-		DRM_DEBUG_KMS("[CRTC:%d] mode restore failed, out of memory",
+		DRM_DEBUG_KMS("[CRTC:%d] crtc restore failed, out of memory",
 			      crtc->base.id);
 		return;
 	}
 
-	state->acquire_ctx = dev->mode_config.acquire_ctx;
+	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
 
-	/* The force restore path in the HW readout code relies on the staged
-	 * config still keeping the user requested config while the actual
-	 * state has been overwritten by the configuration read from HW. We
-	 * need to copy the staged config to the atomic state, otherwise the
-	 * mode set will just reapply the state the HW is already in. */
-	for_each_intel_encoder(dev, encoder) {
-		if (encoder->base.crtc != crtc)
-			continue;
+retry:
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	ret = PTR_ERR_OR_ZERO(crtc_state);
+	if (!ret) {
+		if (!crtc_state->active)
+			goto out;
 
-		for_each_intel_connector(dev, connector) {
-			if (connector->base.state->best_encoder !=
-			    &encoder->base)
-				continue;
-
-			connector_state = drm_atomic_get_connector_state(state, &connector->base);
-			if (IS_ERR(connector_state)) {
-				DRM_DEBUG_KMS("Failed to add [CONNECTOR:%d:%s] to state: %ld\n",
-					      connector->base.base.id,
-					      connector->base.name,
-					      PTR_ERR(connector_state));
-				continue;
-			}
-
-			connector_state->crtc = crtc;
-		}
+		crtc_state->mode_changed = true;
+		ret = intel_set_mode(state);
 	}
 
-	crtc_state = intel_atomic_get_crtc_state(state, to_intel_crtc(crtc));
-	if (IS_ERR(crtc_state)) {
-		DRM_DEBUG_KMS("Failed to add [CRTC:%d] to state: %ld\n",
-			      crtc->base.id, PTR_ERR(crtc_state));
-		drm_atomic_state_free(state);
-		return;
+	if (ret == -EDEADLK) {
+		drm_atomic_state_clear(state);
+		drm_modeset_backoff(state->acquire_ctx);
+		goto retry;
 	}
 
-	drm_mode_copy(&crtc_state->base.mode, &crtc->mode);
-
-	intel_modeset_setup_plane_state(state, crtc, &crtc->mode,
-					crtc->primary->fb, crtc->x, crtc->y);
-
-	ret = intel_set_mode(state);
 	if (ret)
+out:
 		drm_atomic_state_free(state);
 }
 
