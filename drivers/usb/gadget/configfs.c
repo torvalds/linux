@@ -1572,11 +1572,49 @@ static const struct usb_gadget_driver configfs_driver_template = {
 	.match_existing_only = 1,
 };
 
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+static ssize_t state_show(struct device *pdev, struct device_attribute *attr,
+			char *buf)
+{
+	struct gadget_info *dev = dev_get_drvdata(pdev);
+	struct usb_composite_dev *cdev;
+	char *state = "DISCONNECTED";
+	unsigned long flags;
+
+	if (!dev)
+		goto out;
+
+	cdev = &dev->cdev;
+
+	if (!cdev)
+		goto out;
+
+	spin_lock_irqsave(&cdev->lock, flags);
+	if (cdev->config)
+		state = "CONFIGURED";
+	else if (dev->connected)
+		state = "CONNECTED";
+	spin_unlock_irqrestore(&cdev->lock, flags);
+out:
+	return sprintf(buf, "%s\n", state);
+}
+
+static DEVICE_ATTR(state, S_IRUGO, state_show, NULL);
+
+static struct device_attribute *android_usb_attributes[] = {
+	&dev_attr_state,
+	NULL
+};
+#endif
+
 static struct config_group *gadgets_make(
 		struct config_group *group,
 		const char *name)
 {
 	struct gadget_info *gi;
+	struct device_attribute **attrs;
+	struct device_attribute *attr;
+	int err;
 
 	gi = kzalloc(sizeof(*gi), GFP_KERNEL);
 	if (!gi)
@@ -1626,12 +1664,31 @@ static struct config_group *gadgets_make(
 				MKDEV(0, 0), NULL, "android0");
 	if (IS_ERR(android_device))
 		goto err;
+
+	dev_set_drvdata(android_device, gi);
+
+	attrs = android_usb_attributes;
+	while ((attr = *attrs++)) {
+		err = device_create_file(android_device, attr);
+		if (err)
+			goto err1;
+	}
 #endif
 
 	if (!gi->composite.gadget_driver.function)
-		goto err;
+		goto err1;
 
 	return &gi->group;
+
+err1:
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+	attrs = android_usb_attributes;
+	while ((attr = *attrs++))
+		device_remove_file(android_device, attr);
+
+	device_destroy(android_device->class,
+				android_device->devt);
+#endif
 err:
 	kfree(gi);
 	return ERR_PTR(-ENOMEM);
@@ -1639,8 +1696,15 @@ err:
 
 static void gadgets_drop(struct config_group *group, struct config_item *item)
 {
+	struct device_attribute **attrs;
+	struct device_attribute *attr;
+
 	config_item_put(item);
+
 #ifdef CONFIG_USB_CONFIGFS_UEVENT
+	attrs = android_usb_attributes;
+	while ((attr = *attrs++))
+		device_remove_file(android_device, attr);
 	device_destroy(android_device->class, android_device->devt);
 #endif
 }
