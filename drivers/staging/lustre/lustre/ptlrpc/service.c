@@ -2826,9 +2826,7 @@ void ptlrpc_hr_fini(void)
 	ptlrpc_stop_hr_threads();
 
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
-		if (hrp->hrp_thrs != NULL) {
-			kfree(hrp->hrp_thrs);
-		}
+		kfree(hrp->hrp_thrs);
 	}
 
 	cfs_percpt_free(ptlrpc_hr.hr_partitions);

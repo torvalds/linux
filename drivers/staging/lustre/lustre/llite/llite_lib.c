@@ -1114,7 +1114,7 @@ void ll_clear_inode(struct inode *inode)
 	if (lli->lli_mds_read_och)
 		ll_md_real_close(inode, FMODE_READ);
 
-	if (S_ISLNK(inode->i_mode) && lli->lli_symlink_name) {
+	if (S_ISLNK(inode->i_mode)) {
 		kfree(lli->lli_symlink_name);
 		lli->lli_symlink_name = NULL;
 	}

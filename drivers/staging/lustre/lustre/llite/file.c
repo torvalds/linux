@@ -702,8 +702,7 @@ out_och_free:
 out_openerr:
 		if (opendir_set != 0)
 			ll_stop_statahead(inode, lli->lli_opendir_key);
-		if (fd != NULL)
-			ll_file_data_put(fd);
+		ll_file_data_put(fd);
 	} else {
 		ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_OPEN, 1);
 	}
