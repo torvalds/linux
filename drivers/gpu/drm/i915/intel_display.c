@@ -15441,6 +15441,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	int i;
 
 	for_each_intel_crtc(dev, crtc) {
+		__drm_atomic_helper_crtc_destroy_state(&crtc->base, crtc->base.state);
 		memset(crtc->config, 0, sizeof(*crtc->config));
 		crtc->config->base.crtc = &crtc->base;
 
