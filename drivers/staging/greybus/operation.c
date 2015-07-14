@@ -10,6 +10,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 
 #include "greybus.h"
@@ -22,6 +24,9 @@ static struct kmem_cache *gb_message_cache;
 
 /* Workqueue to handle Greybus operation completions. */
 static struct workqueue_struct *gb_operation_workqueue;
+
+/* Wait queue for synchronous cancellations. */
+static DECLARE_WAIT_QUEUE_HEAD(gb_operation_cancellation_queue);
 
 /*
  * Protects access to connection operations lists, as well as
@@ -41,7 +46,15 @@ static inline void gb_operation_get_active(struct gb_operation *operation)
 /* Caller holds operation reference. */
 static inline void gb_operation_put_active(struct gb_operation *operation)
 {
-	atomic_dec(&operation->active);
+	if (atomic_dec_and_test(&operation->active)) {
+		if (atomic_read(&operation->waiters))
+			wake_up(&gb_operation_cancellation_queue);
+	}
+}
+
+static inline bool gb_operation_is_active(struct gb_operation *operation)
+{
+	return atomic_read(&operation->active);
 }
 
 /*
@@ -463,6 +476,7 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	init_completion(&operation->completion);
 	kref_init(&operation->kref);
 	atomic_set(&operation->active, 0);
+	atomic_set(&operation->waiters, 0);
 
 	spin_lock_irqsave(&gb_operations_lock, flags);
 	list_add_tail(&operation->links, &connection->operations);
@@ -873,7 +887,8 @@ void gb_connection_recv(struct gb_connection *connection,
 }
 
 /*
- * Cancel an operation, and record the given error to indicate why.
+ * Cancel an operation synchronously, and record the given error to indicate
+ * why.
  */
 void gb_operation_cancel(struct gb_operation *operation, int errno)
 {
@@ -890,6 +905,11 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 			gb_operation_put(operation);
 		}
 	}
+
+	atomic_inc(&operation->waiters);
+	wait_event(gb_operation_cancellation_queue,
+			!gb_operation_is_active(operation));
+	atomic_dec(&operation->waiters);
 }
 EXPORT_SYMBOL_GPL(gb_operation_cancel);
 

@@ -227,7 +227,6 @@ void gb_connection_destroy(struct gb_connection *connection)
 	if (WARN_ON(!connection))
 		return;
 
-	/* XXX Need to wait for any outstanding requests to complete */
 	if (WARN_ON(!list_empty(&connection->operations))) {
 		list_for_each_entry_safe(operation, next,
 					 &connection->operations, links)

@@ -128,6 +128,7 @@ struct gb_operation {
 
 	struct kref		kref;
 	atomic_t		active;
+	atomic_t		waiters;
 
 	struct list_head	links;		/* connection->operations */
 };
