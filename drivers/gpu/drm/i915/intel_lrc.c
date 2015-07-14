@@ -1292,6 +1292,16 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *ring,
 	struct drm_device *dev = ring->dev;
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
+	/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl,bxt */
+	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) <= SKL_REVID_B0)) ||
+	    (IS_BROXTON(dev) && (INTEL_REVID(dev) == BXT_REVID_A0))) {
+		wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
+		wa_ctx_emit(batch, index, GEN9_SLICE_COMMON_ECO_CHICKEN0);
+		wa_ctx_emit(batch, index,
+			    _MASKED_BIT_ENABLE(DISABLE_PIXEL_MASK_CAMMING));
+		wa_ctx_emit(batch, index, MI_NOOP);
+	}
+
 	/* WaDisableCtxRestoreArbitration:skl,bxt */
 	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) <= SKL_REVID_D0)) ||
 	    (IS_BROXTON(dev) && (INTEL_REVID(dev) == BXT_REVID_A0)))

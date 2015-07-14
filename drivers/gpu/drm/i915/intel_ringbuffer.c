@@ -946,8 +946,11 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 		/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl,bxt */
 		WA_SET_BIT_MASKED(GEN7_COMMON_SLICE_CHICKEN1,
 				  GEN9_RHWO_OPTIMIZATION_DISABLE);
-		WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN0,
-				  DISABLE_PIXEL_MASK_CAMMING);
+		/*
+		 * WA also requires GEN9_SLICE_COMMON_ECO_CHICKEN0[14:14] to be set
+		 * but we do that in per ctx batchbuffer as there is an issue
+		 * with this register not getting restored on ctx restore
+		 */
 	}
 
 	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) >= SKL_REVID_C0) ||
