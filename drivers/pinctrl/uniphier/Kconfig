@@ -17,4 +17,8 @@ config PINCTRL_UNIPHIER_PH1_SLD8
 	tristate "UniPhier PH1-sLD8 SoC pinctrl driver"
 	select PINCTRL_UNIPHIER_CORE
 
+config PINCTRL_UNIPHIER_PH1_PRO5
+	tristate "UniPhier PH1-Pro5 SoC pinctrl driver"
+	select PINCTRL_UNIPHIER_CORE
+
 endif
