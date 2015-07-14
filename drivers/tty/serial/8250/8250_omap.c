@@ -1082,6 +1082,7 @@ static const struct of_device_id omap8250_dt_ids[] = {
 	{ .compatible = "ti,omap4-uart" },
 	{ .compatible = "ti,am3352-uart", .data = &am3352_habit, },
 	{ .compatible = "ti,am4372-uart", .data = &am4372_habit, },
+	{ .compatible = "ti,dra742-uart", .data = &am4372_habit, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap8250_dt_ids);
