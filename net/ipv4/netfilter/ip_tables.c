@@ -439,11 +439,15 @@ ipt_do_table(struct sk_buff *skb,
 }
 
 /* Figures out from what hook each rule can be called: returns 0 if
-   there are loops.  Puts hook bitmask in comefrom. */
+ * there are loops.  Puts hook bitmask in comefrom.
+ *
+ * Keeps track of largest call depth seen and stores it in newinfo->stacksize.
+ */
 static int
-mark_source_chains(const struct xt_table_info *newinfo,
+mark_source_chains(struct xt_table_info *newinfo,
 		   unsigned int valid_hooks, void *entry0)
 {
+	unsigned int calldepth, max_calldepth = 0;
 	unsigned int hook;
 
 	/* No recursion; use packet counter to save back ptrs (reset
@@ -457,6 +461,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 
 		/* Set initial back pointer. */
 		e->counters.pcnt = pos;
+		calldepth = 0;
 
 		for (;;) {
 			const struct xt_standard_target *t
@@ -518,6 +523,9 @@ mark_source_chains(const struct xt_table_info *newinfo,
 					(entry0 + pos + size);
 				e->counters.pcnt = pos;
 				pos += size;
+				WARN_ON_ONCE(calldepth == 0);
+				if (calldepth > 0)
+					--calldepth;
 			} else {
 				int newpos = t->verdict;
 
@@ -531,9 +539,14 @@ mark_source_chains(const struct xt_table_info *newinfo,
 								newpos);
 						return 0;
 					}
+					if (entry0 + newpos != ipt_next_entry(e) &&
+					    !(e->ip.flags & IPT_F_GOTO) &&
+					    ++calldepth > max_calldepth)
+						max_calldepth = calldepth;
+
 					/* This a jump; chase it. */
-					duprintf("Jump rule %u -> %u\n",
-						 pos, newpos);
+					duprintf("Jump rule %u -> %u, calldepth %d\n",
+						 pos, newpos, calldepth);
 				} else {
 					/* ... this is a fallthru */
 					newpos = pos + e->next_offset;
@@ -547,6 +560,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 		next:
 		duprintf("Finished chain %u\n", hook);
 	}
+	newinfo->stacksize = max_calldepth;
 	return 1;
 }
 
@@ -826,9 +840,6 @@ translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
 		if (ret != 0)
 			return ret;
 		++i;
-		if (strcmp(ipt_get_target(iter)->u.user.name,
-		    XT_ERROR_TARGET) == 0)
-			++newinfo->stacksize;
 	}
 
 	if (i != repl->num_entries) {
@@ -1744,9 +1755,6 @@ translate_compat_table(struct net *net,
 		if (ret != 0)
 			break;
 		++i;
-		if (strcmp(ipt_get_target(iter1)->u.user.name,
-		    XT_ERROR_TARGET) == 0)
-			++newinfo->stacksize;
 	}
 	if (ret) {
 		/*

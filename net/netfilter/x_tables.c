@@ -749,6 +749,10 @@ static int xt_jumpstack_alloc(struct xt_table_info *i)
 	if (i->jumpstack == NULL)
 		return -ENOMEM;
 
+	/* ruleset without jumps -- no stack needed */
+	if (i->stacksize == 0)
+		return 0;
+
 	i->stacksize *= xt_jumpstack_multiplier;
 	size = sizeof(void *) * i->stacksize;
 	for_each_possible_cpu(cpu) {
