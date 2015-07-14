@@ -5,4 +5,8 @@ config PINCTRL_UNIPHIER_CORE
 	select PINMUX
 	select GENERIC_PINCONF
 
+config PINCTRL_UNIPHIER_PH1_LD4
+	tristate "UniPhier PH1-LD4 SoC pinctrl driver"
+	select PINCTRL_UNIPHIER_CORE
+
 endif
