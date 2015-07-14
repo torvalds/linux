@@ -222,7 +222,6 @@ struct xt_table_info {
 	 * @stacksize jumps (number of user chains) can possibly be made.
 	 */
 	unsigned int stacksize;
-	unsigned int __percpu *stackptr;
 	void ***jumpstack;
 
 	unsigned char entries[0] __aligned(8);
