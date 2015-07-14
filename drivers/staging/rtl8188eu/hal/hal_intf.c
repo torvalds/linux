@@ -245,14 +245,6 @@ u32 rtw_hal_read_rfreg(struct adapter *adapt, enum rf_radio_path rfpath,
 	return data;
 }
 
-void rtw_hal_write_rfreg(struct adapter *adapt, enum rf_radio_path rfpath,
-			 u32 regaddr, u32 bitmask, u32 data)
-{
-	if (adapt->HalFunc.write_rfreg)
-		adapt->HalFunc.write_rfreg(adapt, rfpath, regaddr,
-					      bitmask, data);
-}
-
 void rtw_hal_set_bwmode(struct adapter *adapt,
 			enum ht_channel_width bandwidth, u8 offset)
 {

@@ -211,9 +211,6 @@ struct hal_ops {
 	u32	(*read_rfreg)(struct adapter *padapter,
 			      enum rf_radio_path eRFPath, u32 RegAddr,
 			      u32 BitMask);
-	void	(*write_rfreg)(struct adapter *padapter,
-			       enum rf_radio_path eRFPath, u32 RegAddr,
-			       u32 BitMask, u32 Data);
 
 	void (*sreset_init_value)(struct adapter *padapter);
 	u8 (*sreset_get_wifi_status)(struct adapter *padapter);
@@ -290,9 +287,6 @@ void rtw_hal_bcn_related_reg_setting(struct adapter *padapter);
 
 u32	rtw_hal_read_rfreg(struct adapter *padapter, enum rf_radio_path eRFPath,
 			   u32 RegAddr, u32 BitMask);
-void	rtw_hal_write_rfreg(struct adapter *padapter,
-			    enum rf_radio_path eRFPath, u32 RegAddr,
-			    u32 BitMask, u32 Data);
 
 void	rtw_hal_set_bwmode(struct adapter *padapter,
 			   enum ht_channel_width Bandwidth, u8 Offset);
