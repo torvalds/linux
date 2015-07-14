@@ -1136,27 +1136,32 @@ static void hdmi_dev_config_avi(struct hdmi_dev *hdmi_dev,
 	case HDMI_720X480P_60HZ_4_3:
 	case HDMI_720X576P_50HZ_4_3:
 		aspect_ratio = AVI_CODED_FRAME_ASPECT_4_3;
-		colorimetry = AVI_COLORIMETRY_SMPTE_170M;
+		if (vpara->colorimetry == HDMI_COLORIMETRY_NO_DATA)
+			colorimetry = AVI_COLORIMETRY_SMPTE_170M;
 		break;
 	case HDMI_720X480I_60HZ_16_9:
 	case HDMI_720X576I_50HZ_16_9:
 	case HDMI_720X480P_60HZ_16_9:
 	case HDMI_720X576P_50HZ_16_9:
 		aspect_ratio = AVI_CODED_FRAME_ASPECT_16_9;
-		colorimetry = AVI_COLORIMETRY_SMPTE_170M;
+		if (vpara->colorimetry == HDMI_COLORIMETRY_NO_DATA)
+			colorimetry = AVI_COLORIMETRY_SMPTE_170M;
 		break;
 	default:
 		aspect_ratio = AVI_CODED_FRAME_ASPECT_16_9;
-		colorimetry = AVI_COLORIMETRY_ITU709;
+		if (vpara->colorimetry == HDMI_COLORIMETRY_NO_DATA)
+			colorimetry = AVI_COLORIMETRY_ITU709;
 	}
 
-	if (vpara->color_output_depth > 8) {
+	if (vpara->colorimetry > HDMI_COLORIMETRY_ITU709) {
 		colorimetry = AVI_COLORIMETRY_EXTENDED;
-		ext_colorimetry = 6;
+		ext_colorimetry = vpara->colorimetry;
 	} else if (vpara->color_output == HDMI_COLOR_RGB_16_235 ||
 		 vpara->color_output == HDMI_COLOR_RGB_0_255) {
 		colorimetry = AVI_COLORIMETRY_NO_DATA;
 		ext_colorimetry = 0;
+	} else if (vpara->colorimetry != HDMI_COLORIMETRY_NO_DATA) {
+		colorimetry = vpara->colorimetry;
 	}
 
 	hdmi_writel(hdmi_dev, FC_AVICONF1,
