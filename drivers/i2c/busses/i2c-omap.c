@@ -1342,7 +1342,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(omap->dev);
 
 	r = pm_runtime_get_sync(omap->dev);
-	if (IS_ERR_VALUE(r))
+	if (r < 0)
 		goto err_free_mem;
 
 	/*
