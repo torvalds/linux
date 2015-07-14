@@ -210,6 +210,9 @@ static void dm_deInit_fsync(struct net_device *dev);
 
 static	void dm_check_txrateandretrycount(struct net_device *dev);
 static  void dm_check_ac_dc_power(struct net_device *dev);
+static void dm_check_fsync(struct net_device *dev);
+static void dm_CheckRfCtrlGPIO(void *data);
+static void dm_fsync_timer_callback(unsigned long data);
 
 /*---------------------Define local function prototype-----------------------*/
 
@@ -1851,7 +1854,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 {
 }
 
-void dm_CheckRfCtrlGPIO(void *data)
+static void dm_CheckRfCtrlGPIO(void *data)
 {
 	struct r8192_priv *priv = container_of_dwork_rsl(data,
 				  struct r8192_priv, gpio_change_rf_wq);
@@ -2188,7 +2191,7 @@ static void dm_deInit_fsync(struct net_device *dev)
 	del_timer_sync(&priv->fsync_timer);
 }
 
-void dm_fsync_timer_callback(unsigned long data)
+static void dm_fsync_timer_callback(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
@@ -2372,7 +2375,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 
 }
 
-void dm_check_fsync(struct net_device *dev)
+static void dm_check_fsync(struct net_device *dev)
 {
 #define	RegC38_Default			0
 #define	RegC38_NonFsync_Other_AP	1
