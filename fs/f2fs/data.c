@@ -388,7 +388,8 @@ repeat:
  *
  * Also, caller should grab and release a rwsem by calling f2fs_lock_op() and
  * f2fs_unlock_op().
- * Note that, ipage is set only by make_empty_dir.
+ * Note that, ipage is set only by make_empty_dir, and if any error occur,
+ * ipage should be released by this function.
  */
 struct page *get_new_data_page(struct inode *inode,
 		struct page *ipage, pgoff_t index, bool new_i_size)
@@ -399,8 +400,14 @@ struct page *get_new_data_page(struct inode *inode,
 	int err;
 repeat:
 	page = grab_cache_page(mapping, index);
-	if (!page)
+	if (!page) {
+		/*
+		 * before exiting, we should make sure ipage will be released
+		 * if any error occur.
+		 */
+		f2fs_put_page(ipage, 1);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	set_new_dnode(&dn, inode, ipage, NULL, 0);
 	err = f2fs_reserve_block(&dn, index);
