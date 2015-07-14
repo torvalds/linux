@@ -2161,11 +2161,6 @@ done:
 
 }
 
-static void rtl8192_rx_cmd(struct net_device *dev)
-{
-}
-
-
 static void rtl8192_tx_resume(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
@@ -2191,9 +2186,6 @@ void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
 void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 {
 	rtl8192_rx_normal(priv->rtllib->dev);
-
-	if (MAX_RX_QUEUE > 1)
-		rtl8192_rx_cmd(priv->rtllib->dev);
 
 	write_nic_dword(priv->rtllib->dev, INTA_MASK,
 			read_nic_dword(priv->rtllib->dev, INTA_MASK) | IMR_RDU);
