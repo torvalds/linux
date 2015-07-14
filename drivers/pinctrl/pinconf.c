@@ -470,10 +470,12 @@ exit:
  * pinconf_dbg_config_write() - modify the pinctrl config in the pinctrl
  * map, of a dev/pin/state entry based on user entries to pinconf-config
  * @user_buf: contains the modification request with expected format:
- *     modify config_pin <devicename> <state> <pinname> <newvalue>
+ *     modify <config> <devicename> <state> <name> <newvalue>
  * modify is literal string, alternatives like add/delete not supported yet
- * config_pin is literal, alternatives like config_mux not supported yet
- * <devicename> <state> <pinname> are values that should match the pinctrl-maps
+ * <config> is the configuration to be changed. Supported configs are
+ *     "config_pin" or "config_group", alternatives like config_mux are not
+ *     supported yet.
+ * <devicename> <state> <name> are values that should match the pinctrl-maps
  * <newvalue> reflects the new config and is driver dependant
  */
 static ssize_t pinconf_dbg_config_write(struct file *file,
@@ -511,13 +513,19 @@ static ssize_t pinconf_dbg_config_write(struct file *file,
 	if (strcmp(token, "modify"))
 		return -EINVAL;
 
-	/* Get arg type: "config_pin" type supported so far */
+	/*
+	 * Get arg type: "config_pin" and "config_group"
+	 *                types are supported so far
+	 */
 	token = strsep(&b, " ");
 	if (!token)
 		return -EINVAL;
-	if (strcmp(token, "config_pin"))
+	if (!strcmp(token, "config_pin"))
+		dbg->map_type = PIN_MAP_TYPE_CONFIGS_PIN;
+	else if (!strcmp(token, "config_group"))
+		dbg->map_type = PIN_MAP_TYPE_CONFIGS_GROUP;
+	else
 		return -EINVAL;
-	dbg->map_type = PIN_MAP_TYPE_CONFIGS_PIN;
 
 	/* get arg 'device_name' */
 	token = strsep(&b, " ");
