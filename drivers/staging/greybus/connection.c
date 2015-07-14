@@ -232,9 +232,6 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 	struct gb_operation *operation;
 
 	spin_lock_irq(&connection->lock);
-
-	WARN_ON(!list_empty(&connection->operations));
-
 	while (!list_empty(&connection->operations)) {
 		operation = list_last_entry(&connection->operations,
 						struct gb_operation, links);
@@ -258,8 +255,6 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 	if (WARN_ON(!connection))
 		return;
-
-	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 
 	spin_lock_irq(&gb_connections_lock);
 	list_del(&connection->bundle_links);
@@ -333,6 +328,8 @@ void gb_connection_exit(struct gb_connection *connection)
 	}
 	connection->state = GB_CONNECTION_STATE_DESTROYING;
 	spin_unlock_irq(&connection->lock);
+
+	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 
 	connection->protocol->connection_exit(connection);
 
