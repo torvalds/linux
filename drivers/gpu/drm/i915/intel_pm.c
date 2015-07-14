@@ -59,6 +59,10 @@ static void gen9_init_clock_gating(struct drm_device *dev)
 	/* WaEnableLbsSlaRetryTimerDecrement:skl */
 	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
 		   GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
+
+	/* WaDisableKillLogic:bxt,skl */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+		   ECOCHK_DIS_TLB);
 }
 
 static void skl_init_clock_gating(struct drm_device *dev)
