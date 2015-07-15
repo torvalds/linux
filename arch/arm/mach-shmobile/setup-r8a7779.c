@@ -719,7 +719,6 @@ void __init r8a7779_init_irq_dt(void)
 	void __iomem *gic_dist_base = ioremap_nocache(0xf0001000, 0x1000);
 	void __iomem *gic_cpu_base = ioremap_nocache(0xf0000100, 0x1000);
 #endif
-	gic_set_irqchip_flags(IRQCHIP_SKIP_SET_WAKE);
 
 #ifdef CONFIG_ARCH_SHMOBILE_LEGACY
 	gic_init(0, 29, gic_dist_base, gic_cpu_base);
