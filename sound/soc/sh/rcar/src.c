@@ -189,7 +189,7 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 			val |= 0x76543210 & ~mask;
 			break;
 		}
-		rsnd_mod_write(ssi_mod, BUSIF_DALIGN, val);
+		rsnd_mod_write(ssi_mod, SSI_BUSIF_DALIGN, val);
 
 	}
 
