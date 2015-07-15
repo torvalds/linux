@@ -278,6 +278,37 @@ static int rk818_ldo_suspend_disable(struct regulator_dev *dev)
 		return rk818_set_bits(rk818, RK818_SLEEP_SET_OFF_REG2, 1 << ldo, 1 << ldo);
 
 }
+
+int rk818_ldo_slp_enable(int ldo_id)
+{
+	int ldo = ldo_id - 1;
+
+	if (ldo == 8)
+		return rk818_set_bits(g_rk818, RK818_SLEEP_SET_OFF_REG1,
+				      1 << 5, 0); /*ldo9*/
+	else if (ldo == 9)
+		return rk818_set_bits(g_rk818, RK818_SLEEP_SET_OFF_REG1,
+				      1 << 6, 0); /*ldo10 switch*/
+	else
+		return rk818_set_bits(g_rk818, RK818_SLEEP_SET_OFF_REG2,
+				      1 << ldo, 0);
+}
+
+int rk818_ldo_slp_disable(int ldo_id)
+{
+	int ldo = ldo_id - 1;
+
+	if (ldo == 8)
+		return rk818_set_bits(g_rk818, RK818_SLEEP_SET_OFF_REG1,
+				      1 << 5, 1 << 5); /*ldo9*/
+	else if (ldo == 9)
+		return rk818_set_bits(g_rk818, RK818_SLEEP_SET_OFF_REG1,
+				      1 << 6, 1 << 6); /*ldo10 switch*/
+	else
+		return rk818_set_bits(g_rk818, RK818_SLEEP_SET_OFF_REG2,
+				      1 << ldo, 1 << ldo);
+}
+
 static int rk818_ldo_set_sleep_voltage(struct regulator_dev *dev,
 					    int uV)
 {
