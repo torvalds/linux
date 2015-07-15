@@ -667,10 +667,10 @@ static unsigned long task_h_load(struct task_struct *p);
 #define LOAD_AVG_MAX 47742 /* maximum possible load avg */
 #define LOAD_AVG_MAX_N 345 /* number of full periods to produce LOAD_MAX_AVG */
 
-/* Give new task start runnable values to heavy its load in infant time */
-void init_task_runnable_average(struct task_struct *p)
+/* Give new sched_entity start runnable values to heavy its load in infant time */
+void init_entity_runnable_average(struct sched_entity *se)
 {
-	struct sched_avg *sa = &p->se.avg;
+	struct sched_avg *sa = &se->avg;
 
 	sa->last_update_time = 0;
 	/*
@@ -679,14 +679,14 @@ void init_task_runnable_average(struct task_struct *p)
 	 * will definitely be update (after enqueue).
 	 */
 	sa->period_contrib = 1023;
-	sa->load_avg = scale_load_down(p->se.load.weight);
+	sa->load_avg = scale_load_down(se->load.weight);
 	sa->load_sum = sa->load_avg * LOAD_AVG_MAX;
 	sa->util_avg = scale_load_down(SCHED_LOAD_SCALE);
 	sa->util_sum = LOAD_AVG_MAX;
 	/* when this task enqueue'ed, it will contribute to its cfs_rq's load_avg */
 }
 #else
-void init_task_runnable_average(struct task_struct *p)
+void init_entity_runnable_average(struct sched_entity *se)
 {
 }
 #endif
@@ -8029,6 +8029,7 @@ int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
 
 		init_cfs_rq(cfs_rq);
 		init_tg_cfs_entry(tg, cfs_rq, se, i, parent->se[i]);
+		init_entity_runnable_average(se);
 	}
 
 	return 1;
