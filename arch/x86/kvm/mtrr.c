@@ -672,15 +672,16 @@ u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 	if (iter.mtrr_disabled)
 		return mtrr_disabled_type();
 
-	/* It is not covered by MTRRs. */
-	if (iter.partial_map) {
-		/*
-		 * We just check one page, partially covered by MTRRs is
-		 * impossible.
-		 */
-		WARN_ON(type != -1);
-		type = mtrr_default_type(mtrr_state);
-	}
+	/*
+	 * We just check one page, partially covered by MTRRs is
+	 * impossible.
+	 */
+	WARN_ON(iter.partial_map);
+
+	/* not contained in any MTRRs. */
+	if (type == -1)
+		return mtrr_default_type(mtrr_state);
+
 	return type;
 }
 EXPORT_SYMBOL_GPL(kvm_mtrr_get_guest_memory_type);
