@@ -441,12 +441,6 @@ struct rsnd_priv {
 	void *gen;
 
 	/*
-	 * below value will be filled on rsnd_src_probe()
-	 */
-	void *src;
-	int src_nr;
-
-	/*
 	 * below value will be filled on rsnd_adg_probe()
 	 */
 	void *adg;
@@ -461,6 +455,12 @@ struct rsnd_priv {
 	 */
 	void *ssi;
 	int ssi_nr;
+
+	/*
+	 * below value will be filled on rsnd_src_probe()
+	 */
+	void *src;
+	int src_nr;
 
 	/*
 	 * below value will be filled on rsnd_dvc_probe()
@@ -535,6 +535,19 @@ int rsnd_kctrl_new_e(struct rsnd_mod *mod,
 		     u32 max);
 
 /*
+ *	R-Car SSI
+ */
+int rsnd_ssi_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
+		   struct rsnd_priv *priv);
+void rsnd_ssi_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
+struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
+int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
+int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
+int rsnd_ssi_use_busif(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
+
+/*
  *	R-Car SRC
  */
 int rsnd_src_probe(struct platform_device *pdev,
@@ -553,19 +566,6 @@ int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
 		       struct rsnd_dai_stream *io);
 int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod);
 int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod);
-
-/*
- *	R-Car SSI
- */
-int rsnd_ssi_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
-		   struct rsnd_priv *priv);
-void rsnd_ssi_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv);
-struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
-int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
-int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
-int rsnd_ssi_use_busif(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
 
 /*
  *	R-Car DVC

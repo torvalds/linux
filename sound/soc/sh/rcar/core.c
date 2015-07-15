@@ -641,13 +641,13 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	 * using fixed path.
 	 */
 
-	/* SRC */
-	ret = rsnd_path_add(priv, io, src);
+	/* SSI */
+	ret = rsnd_path_add(priv, io, ssi);
 	if (ret < 0)
 		return ret;
 
-	/* SSI */
-	ret = rsnd_path_add(priv, io, ssi);
+	/* SRC */
+	ret = rsnd_path_add(priv, io, src);
 	if (ret < 0)
 		return ret;
 
