@@ -227,6 +227,8 @@ int __init omap2_clk_provider_init(struct device_node *parent, int index,
 	clocks_node_ptr[index] = clocks;
 
 	io = kzalloc(sizeof(*io), GFP_KERNEL);
+	if (!io)
+		return -ENOMEM;
 
 	io->regmap = syscon;
 	io->mem = mem;
