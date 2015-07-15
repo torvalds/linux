@@ -23,7 +23,8 @@ void dump_tlb_regs(void)
 	pr_info("EntryLo0 : %0*lx\n", field, read_c0_entrylo0());
 	pr_info("EntryLo1 : %0*lx\n", field, read_c0_entrylo1());
 	pr_info("Wired    : %0x\n", read_c0_wired());
-	pr_info("PageGrain: %0x\n", read_c0_pagegrain());
+	if (cpu_has_small_pages || cpu_has_rixi || cpu_has_xpa)
+		pr_info("PageGrain: %0x\n", read_c0_pagegrain());
 	if (cpu_has_htw) {
 		pr_info("PWField  : %0*lx\n", field, read_c0_pwfield());
 		pr_info("PWSize   : %0*lx\n", field, read_c0_pwsize());
