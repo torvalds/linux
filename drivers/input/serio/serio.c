@@ -49,8 +49,6 @@ static DEFINE_MUTEX(serio_mutex);
 
 static LIST_HEAD(serio_list);
 
-static struct bus_type serio_bus;
-
 static void serio_add_port(struct serio *serio);
 static int serio_reconnect_port(struct serio *serio);
 static void serio_disconnect_port(struct serio *serio);
@@ -1017,7 +1015,7 @@ irqreturn_t serio_interrupt(struct serio *serio,
 }
 EXPORT_SYMBOL(serio_interrupt);
 
-static struct bus_type serio_bus = {
+struct bus_type serio_bus = {
 	.name		= "serio",
 	.drv_groups	= serio_driver_groups,
 	.match		= serio_bus_match,
@@ -1029,6 +1027,7 @@ static struct bus_type serio_bus = {
 	.pm		= &serio_pm_ops,
 #endif
 };
+EXPORT_SYMBOL(serio_bus);
 
 static int __init serio_init(void)
 {
