@@ -482,6 +482,11 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	ret = iwl_wait_notification(&mvm->notif_wait, &alive_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
 	if (ret) {
+		if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+			IWL_ERR(mvm,
+				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
+				iwl_read_prph(mvm->trans, SB_CPU_1_STATUS),
+				iwl_read_prph(mvm->trans, SB_CPU_2_STATUS));
 		mvm->cur_ucode = old_type;
 		return ret;
 	}

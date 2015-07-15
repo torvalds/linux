@@ -383,6 +383,8 @@ enum aux_misc_master1_en {
 #define AUX_MISC_MASTER1_SMPHR_STATUS	0xA20800
 #define RSA_ENABLE			0xA24B08
 #define PREG_AUX_BUS_WPROT_0		0xA04CC0
+#define SB_CPU_1_STATUS			0xA01E30
+#define SB_CPU_2_STATUS			0xA01E34
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
