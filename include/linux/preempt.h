@@ -20,7 +20,8 @@
 #if defined(CONFIG_DEBUG_PREEMPT) || defined(CONFIG_PREEMPT_TRACER)
 extern void preempt_count_add(int val);
 extern void preempt_count_sub(int val);
-#define preempt_count_dec_and_test() ({ preempt_count_sub(1); should_resched(); })
+#define preempt_count_dec_and_test() \
+	({ preempt_count_sub(1); should_resched(0); })
 #else
 #define preempt_count_add(val)	__preempt_count_add(val)
 #define preempt_count_sub(val)	__preempt_count_sub(val)
@@ -59,7 +60,7 @@ do { \
 
 #define preempt_check_resched() \
 do { \
-	if (should_resched()) \
+	if (should_resched(0)) \
 		__preempt_schedule(); \
 } while (0)
 
