@@ -1473,7 +1473,7 @@ do {									\
  */
 #define _read_32bit_cp1_register(source, gas_hardfloat)			\
 ({									\
-	int __res;							\
+	unsigned int __res;						\
 									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
