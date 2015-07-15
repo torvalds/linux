@@ -181,13 +181,6 @@ void rsnd_path_parse(struct rsnd_priv *priv,
  *	R-Car DMA
  */
 struct rsnd_dma;
-struct rsnd_dma_ops {
-	void (*start)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-	void (*stop)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-	int (*init)(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id,
-		    struct rsnd_mod *mod_from, struct rsnd_mod *mod_to);
-	void (*quit)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-};
 
 struct rsnd_dmaen {
 	struct dma_chan		*chan;
