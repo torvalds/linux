@@ -215,7 +215,6 @@ static int armada_drm_crtc_queue_frame_work(struct armada_crtc *dcrtc,
 	struct armada_frame_work *work)
 {
 	struct drm_device *dev = dcrtc->crtc.dev;
-	unsigned long flags;
 	int ret;
 
 	ret = drm_vblank_get(dev, dcrtc->num);
@@ -224,30 +223,29 @@ static int armada_drm_crtc_queue_frame_work(struct armada_crtc *dcrtc,
 		return ret;
 	}
 
-	spin_lock_irqsave(&dev->event_lock, flags);
-	if (!dcrtc->frame_work)
-		dcrtc->frame_work = work;
-	else
-		ret = -EBUSY;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	if (ret)
+	if (cmpxchg(&dcrtc->frame_work, NULL, work)) {
 		drm_vblank_put(dev, dcrtc->num);
+		ret = -EBUSY;
+	}
 
 	return ret;
 }
 
-static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc)
+static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
+	struct armada_frame_work *work)
 {
 	struct drm_device *dev = dcrtc->crtc.dev;
-	struct armada_frame_work *work = dcrtc->frame_work;
+	unsigned long flags;
 
-	dcrtc->frame_work = NULL;
-
+	spin_lock_irqsave(&dcrtc->irq_lock, flags);
 	armada_drm_crtc_update_regs(dcrtc, work->regs);
+	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 
-	if (work->event)
+	if (work->event) {
+		spin_lock_irqsave(&dev->event_lock, flags);
 		drm_send_vblank_event(dev, dcrtc->num, work->event);
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
 
 	drm_vblank_put(dev, dcrtc->num);
 
@@ -293,7 +291,7 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 
 static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
 {
-	struct drm_device *dev = dcrtc->crtc.dev;
+	struct armada_frame_work *work;
 
 	/*
 	 * Tell the DRM core that vblank IRQs aren't going to happen for
@@ -302,10 +300,9 @@ static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
 	drm_crtc_vblank_off(&dcrtc->crtc);
 
 	/* Handle any pending flip event. */
-	spin_lock_irq(&dev->event_lock);
-	if (dcrtc->frame_work)
-		armada_drm_crtc_complete_frame_work(dcrtc);
-	spin_unlock_irq(&dev->event_lock);
+	work = xchg(&dcrtc->frame_work, NULL);
+	if (work)
+		armada_drm_crtc_complete_frame_work(dcrtc, work);
 }
 
 void armada_drm_crtc_gamma_set(struct drm_crtc *crtc, u16 r, u16 g, u16 b,
@@ -434,12 +431,10 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 	spin_unlock(&dcrtc->irq_lock);
 
 	if (stat & GRA_FRAME_IRQ) {
-		struct drm_device *dev = dcrtc->crtc.dev;
+		struct armada_frame_work *work = xchg(&dcrtc->frame_work, NULL);
 
-		spin_lock(&dev->event_lock);
-		if (dcrtc->frame_work)
-			armada_drm_crtc_complete_frame_work(dcrtc);
-		spin_unlock(&dev->event_lock);
+		if (work)
+			armada_drm_crtc_complete_frame_work(dcrtc, work);
 
 		wake_up(&dcrtc->frame_wait);
 	}
@@ -957,8 +952,6 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct armada_frame_work *work;
-	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
 	unsigned i;
 	int ret;
 
@@ -1004,10 +997,10 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	 * interrupt, so complete it now.
 	 */
 	if (dpms_blanked(dcrtc->dpms)) {
-		spin_lock_irqsave(&dev->event_lock, flags);
-		if (dcrtc->frame_work)
-			armada_drm_crtc_complete_frame_work(dcrtc);
-		spin_unlock_irqrestore(&dev->event_lock, flags);
+		struct armada_frame_work *work = xchg(&dcrtc->frame_work, NULL);
+
+		if (work)
+			armada_drm_crtc_complete_frame_work(dcrtc, work);
 	}
 
 	return 0;
