@@ -547,18 +547,10 @@ struct max77693_dev {
 	struct regmap_irq_chip_data *irq_data_muic;
 
 	int irq;
-	int irq_gpio;
-	struct mutex irqlock;
-	int irq_masks_cur[MAX77693_IRQ_GROUP_NR];
-	int irq_masks_cache[MAX77693_IRQ_GROUP_NR];
 };
 
 enum max77693_types {
 	TYPE_MAX77693,
 };
-
-extern int max77693_irq_init(struct max77693_dev *max77686);
-extern void max77693_irq_exit(struct max77693_dev *max77686);
-extern int max77693_irq_resume(struct max77693_dev *max77686);
 
 #endif /*  __LINUX_MFD_MAX77693_PRIV_H */
