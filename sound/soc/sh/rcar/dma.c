@@ -494,7 +494,7 @@ static dma_addr_t rsnd_dma_addr(struct rsnd_dai_stream *io,
 	return rsnd_gen2_dma_addr(io, mod, is_play, is_from);
 }
 
-#define MOD_MAX 4 /* MEM/SSI/SRC/DVC */
+#define MOD_MAX (RSND_MOD_MAX + 1) /* +Memory */
 static void rsnd_dma_of_path(struct rsnd_dma *dma,
 			     struct rsnd_dai_stream *io,
 			     int is_play,
@@ -506,53 +506,71 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
 	struct rsnd_mod *mod[MOD_MAX];
-	int i, index;
+	struct rsnd_mod *mod_start, *mod_end;
+	struct rsnd_priv *priv = rsnd_mod_to_priv(this);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	int nr, i;
 
+	if (!ssi)
+		return;
 
-	for (i = 0; i < MOD_MAX; i++)
+	nr = 0;
+	for (i = 0; i < MOD_MAX; i++) {
 		mod[i] = NULL;
-
-	/*
-	 * in play case...
-	 *
-	 * src -> dst
-	 *
-	 * mem -> SSI
-	 * mem -> SRC -> SSI
-	 * mem -> SRC -> DVC -> SSI
-	 */
-	mod[0] = NULL; /* for "mem" */
-	index = 1;
-	for (i = 1; i < MOD_MAX; i++) {
-		if (!src) {
-			mod[i] = ssi;
-		} else if (!dvc) {
-			mod[i] = src;
-			src = NULL;
-		} else {
-			if ((!is_play) && (this == src))
-				this = dvc;
-
-			mod[i] = (is_play) ? src : dvc;
-			i++;
-			mod[i] = (is_play) ? dvc : src;
-			src = NULL;
-			dvc = NULL;
-		}
-
-		if (mod[i] == this)
-			index = i;
-
-		if (mod[i] == ssi)
-			break;
+		nr += !!rsnd_io_to_mod(io, i);
 	}
 
-	if (is_play) {
-		*mod_from = mod[index - 1];
-		*mod_to   = mod[index];
+	/*
+	 * [S] -*-> [E]
+	 * [S] -*-> SRC -o-> [E]
+	 * [S] -*-> SRC -> DVC -o-> [E]
+	 * [S] -*-> SRC -> CTU -> MIX -> DVC -o-> [E]
+	 *
+	 * playback	[S] = mem
+	 *		[E] = SSI
+	 *
+	 * capture	[S] = SSI
+	 *		[E] = mem
+	 *
+	 * -*->		Audio DMAC
+	 * -o->		Audio DMAC peri peri
+	 */
+	mod_start	= (is_play) ? NULL : ssi;
+	mod_end		= (is_play) ? ssi  : NULL;
+
+	mod[0] = mod_start;
+	for (i = 1; i < nr; i++) {
+		if (src) {
+			mod[i] = src;
+			src = NULL;
+		} else if (dvc) {
+			mod[i] = dvc;
+			dvc = NULL;
+		}
+	}
+	mod[i] = mod_end;
+
+	/*
+	 *		| SSI | SRC |
+	 * -------------+-----+-----+
+	 *  is_play	|  o  |  *  |
+	 * !is_play	|  *  |  o  |
+	 */
+	if ((this == ssi) == (is_play)) {
+		*mod_from	= mod[nr - 1];
+		*mod_to		= mod[nr];
 	} else {
-		*mod_from = mod[index];
-		*mod_to   = mod[index - 1];
+		*mod_from	= mod[0];
+		*mod_to		= mod[1];
+	}
+
+	dev_dbg(dev, "module connection (this is %s[%d])\n",
+		rsnd_mod_name(this), rsnd_mod_id(this));
+	for (i = 0; i <= nr; i++) {
+		dev_dbg(dev, "  %s[%d]%s\n",
+		       rsnd_mod_name(mod[i]), rsnd_mod_id(mod[i]),
+		       (mod[i] == *mod_from) ? " from" :
+		       (mod[i] == *mod_to)   ? " to" : "");
 	}
 }
 
@@ -580,8 +598,8 @@ void rsnd_dma_quit(struct rsnd_dai_stream *io, struct rsnd_dma *dma)
 
 int rsnd_dma_init(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id)
 {
-	struct rsnd_mod *mod_from;
-	struct rsnd_mod *mod_to;
+	struct rsnd_mod *mod_from = NULL;
+	struct rsnd_mod *mod_to = NULL;
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
