@@ -76,4 +76,16 @@ config PINCTRL_QCOM_SPMI_PMIC
          which are using SPMI for communication with SoC. Example PMIC's
          devices are pm8841, pm8941 and pma8084.
 
+config PINCTRL_QCOM_SSBI_PMIC
+       tristate "Qualcomm SSBI PMIC pin controller driver"
+       depends on GPIOLIB && OF
+       select PINMUX
+       select PINCONF
+       select GENERIC_PINCONF
+       help
+         This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+         Qualcomm GPIO and MPP blocks found in the Qualcomm PMIC's chips,
+         which are using SSBI for communication with SoC. Example PMIC's
+         devices are pm8058 and pm8921.
+
 endif
