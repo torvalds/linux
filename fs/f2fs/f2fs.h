@@ -782,6 +782,7 @@ struct f2fs_sb_info {
 	unsigned int block_count[2];		/* # of allocated blocks */
 	atomic_t inplace_count;		/* # of inplace update */
 	int total_hit_ext, read_hit_ext;	/* extent cache hit ratio */
+	atomic_t inline_xattr;			/* # of inline_xattr inodes */
 	atomic_t inline_inode;			/* # of inline_data inodes */
 	atomic_t inline_dir;			/* # of inline_dentry inodes */
 	int bg_gc;				/* background gc calls */
@@ -1804,7 +1805,8 @@ struct f2fs_stat_info {
 	int ndirty_node, ndirty_dent, ndirty_dirs, ndirty_meta;
 	int nats, dirty_nats, sits, dirty_sits, fnids;
 	int total_count, utilization;
-	int bg_gc, inline_inode, inline_dir, inmem_pages, wb_pages;
+	int bg_gc, inmem_pages, wb_pages;
+	int inline_xattr, inline_inode, inline_dir;
 	unsigned int valid_count, valid_node_count, valid_inode_count;
 	unsigned int bimodal, avg_vblocks;
 	int util_free, util_valid, util_invalid;
@@ -1837,6 +1839,16 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 #define stat_dec_dirty_dir(sbi)		((sbi)->n_dirty_dirs--)
 #define stat_inc_total_hit(sb)		((F2FS_SB(sb))->total_hit_ext++)
 #define stat_inc_read_hit(sb)		((F2FS_SB(sb))->read_hit_ext++)
+#define stat_inc_inline_xattr(inode)					\
+	do {								\
+		if (f2fs_has_inline_xattr(inode))			\
+			(atomic_inc(&F2FS_I_SB(inode)->inline_xattr));	\
+	} while (0)
+#define stat_dec_inline_xattr(inode)					\
+	do {								\
+		if (f2fs_has_inline_xattr(inode))			\
+			(atomic_dec(&F2FS_I_SB(inode)->inline_xattr));	\
+	} while (0)
 #define stat_inc_inline_inode(inode)					\
 	do {								\
 		if (f2fs_has_inline_data(inode))			\
@@ -1907,6 +1919,8 @@ void f2fs_destroy_root_stats(void);
 #define stat_dec_dirty_dir(sbi)
 #define stat_inc_total_hit(sb)
 #define stat_inc_read_hit(sb)
+#define stat_inc_inline_xattr(inode)
+#define stat_dec_inline_xattr(inode)
 #define stat_inc_inline_inode(inode)
 #define stat_dec_inline_inode(inode)
 #define stat_inc_inline_dir(inode)

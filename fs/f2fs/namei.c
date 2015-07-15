@@ -67,6 +67,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 
 	f2fs_init_extent_tree(inode, NULL);
 
+	stat_inc_inline_xattr(inode);
 	stat_inc_inline_inode(inode);
 	stat_inc_inline_dir(inode);
 
