@@ -211,10 +211,12 @@ void armada_drm_vbl_event_add(struct armada_crtc *dcrtc,
 void armada_drm_vbl_event_remove(struct armada_crtc *dcrtc,
 	struct armada_vbl_event *evt)
 {
+	spin_lock_irq(&dcrtc->irq_lock);
 	if (!list_empty(&evt->node)) {
 		list_del_init(&evt->node);
 		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
 	}
+	spin_unlock_irq(&dcrtc->irq_lock);
 }
 
 static void armada_drm_vbl_event_run(struct armada_crtc *dcrtc)

@@ -273,9 +273,7 @@ static int armada_ovl_plane_disable(struct drm_plane *plane)
 	dcrtc = drm_to_armada_crtc(dplane->base.base.crtc);
 	dcrtc->plane = NULL;
 
-	spin_lock_irq(&dcrtc->irq_lock);
 	armada_drm_vbl_event_remove(dcrtc, &dplane->vbl.update);
-	spin_unlock_irq(&dcrtc->irq_lock);
 
 	dplane->ctrl0 = 0;
 
