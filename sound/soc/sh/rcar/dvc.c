@@ -64,6 +64,12 @@ static const char * const dvc_ramp_rate[] = {
 	"0.125 dB/8192 steps",	 /* 10111 */
 };
 
+static void rsnd_dvc_soft_reset(struct rsnd_mod *mod)
+{
+	rsnd_mod_write(mod, DVC_SWRSR, 0);
+	rsnd_mod_write(mod, DVC_SWRSR, 1);
+}
+
 static void rsnd_dvc_volume_update(struct rsnd_dai_stream *io,
 				   struct rsnd_mod *mod)
 {
@@ -160,14 +166,13 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 
 	rsnd_mod_hw_start(dvc_mod);
 
+	rsnd_dvc_soft_reset(dvc_mod);
+
 	/*
 	 * fixme
 	 * it doesn't support CTU/MIX
 	 */
 	rsnd_mod_write(dvc_mod, CMD_ROUTE_SLCT, route[src_id]);
-
-	rsnd_mod_write(dvc_mod, DVC_SWRSR, 0);
-	rsnd_mod_write(dvc_mod, DVC_SWRSR, 1);
 
 	rsnd_mod_write(dvc_mod, DVC_DVUIR, 1);
 
