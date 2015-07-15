@@ -28,6 +28,7 @@ struct rsnd_dma_ctrl {
 };
 
 struct rsnd_dma_ops {
+	char *name;
 	void (*start)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 	void (*stop)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 	int (*init)(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id,
@@ -190,7 +191,8 @@ static int rsnd_dmaen_init(struct rsnd_dai_stream *io,
 	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
-	dev_dbg(dev, "dma : %pad -> %pad\n",
+	dev_dbg(dev, "%s %pad -> %pad\n",
+		dma->ops->name,
 		&cfg.src_addr, &cfg.dst_addr);
 
 	ret = dmaengine_slave_config(dmaen->chan, &cfg);
@@ -223,6 +225,7 @@ static void rsnd_dmaen_quit(struct rsnd_dai_stream *io, struct rsnd_dma *dma)
 }
 
 static struct rsnd_dma_ops rsnd_dmaen_ops = {
+	.name	= "audmac",
 	.start	= rsnd_dmaen_start,
 	.stop	= rsnd_dmaen_stop,
 	.init	= rsnd_dmaen_init,
@@ -368,6 +371,7 @@ static int rsnd_dmapp_init(struct rsnd_dai_stream *io,
 }
 
 static struct rsnd_dma_ops rsnd_dmapp_ops = {
+	.name	= "audmac-pp",
 	.start	= rsnd_dmapp_start,
 	.stop	= rsnd_dmapp_stop,
 	.init	= rsnd_dmapp_init,
@@ -580,6 +584,7 @@ int rsnd_dma_init(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id)
 	struct rsnd_mod *mod_to;
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
+	struct device *dev = rsnd_priv_to_dev(priv);
 	int is_play = rsnd_io_is_play(io);
 
 	/*
@@ -605,6 +610,11 @@ int rsnd_dma_init(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id)
 	/* for Gen1, overwrite */
 	if (rsnd_is_gen1(priv))
 		dma->ops = &rsnd_dmaen_ops;
+
+	dev_dbg(dev, "%s %s[%d] -> %s[%d]\n",
+		dma->ops->name,
+		rsnd_mod_name(mod_from), rsnd_mod_id(mod_from),
+		rsnd_mod_name(mod_to),   rsnd_mod_id(mod_to));
 
 	return dma->ops->init(io, dma, id, mod_from, mod_to);
 }
