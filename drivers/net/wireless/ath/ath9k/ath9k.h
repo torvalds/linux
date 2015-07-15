@@ -23,6 +23,7 @@
 #include <linux/leds.h>
 #include <linux/completion.h>
 #include <linux/time.h>
+#include <linux/hw_random.h>
 
 #include "common.h"
 #include "debug.h"
@@ -1041,6 +1042,12 @@ struct ath_softc {
 	u32 wow_intr_before_sleep;
 	bool force_wow;
 #endif
+
+#ifdef CONFIG_ATH9K_HWRNG
+	struct hwrng rng;
+	bool rng_initialized;
+	u32 rng_last;
+#endif
 };
 
 /********/
@@ -1062,6 +1069,22 @@ static inline int ath9k_tx99_send(struct ath_softc *sc,
 	return 0;
 }
 #endif /* CONFIG_ATH9K_TX99 */
+
+/***************************/
+/* Random Number Generator */
+/***************************/
+#ifdef CONFIG_ATH9K_HWRNG
+void ath9k_rng_register(struct ath_softc *sc);
+void ath9k_rng_unregister(struct ath_softc *sc);
+#else
+static inline void ath9k_rng_register(struct ath_softc *sc)
+{
+}
+
+static inline void ath9k_rng_unregister(struct ath_softc *sc)
+{
+}
+#endif
 
 static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 {

@@ -176,3 +176,10 @@ config ATH9K_HTC_DEBUGFS
 	depends on ATH9K_HTC && DEBUG_FS
 	---help---
 	  Say Y, if you need access to ath9k_htc's statistics.
+
+config ATH9K_HWRNG
+	bool "Random number generator support"
+	depends on ATH9K && (HW_RANDOM = y || HW_RANDOM = ATH9K)
+	default y
+	---help---
+	  Provides a hardware random number generator to the kernel.
