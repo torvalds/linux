@@ -242,9 +242,9 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	if (val == __rsnd_mod_call_##func) {				\
 		called = 1;						\
 		ret = (mod)->ops->func(mod, io, param);			\
-		mod->status = (mod->status & ~mask) +			\
-			(add << __rsnd_mod_shift_##func);		\
 	}								\
+	mod->status = (mod->status & ~mask) +				\
+		(add << __rsnd_mod_shift_##func);			\
 	dev_dbg(dev, "%s[%d] 0x%08x %s\n",				\
 		rsnd_mod_name(mod), rsnd_mod_id(mod), mod->status,	\
 		called ? #func : "");					\
