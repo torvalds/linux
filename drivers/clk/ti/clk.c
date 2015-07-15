@@ -32,7 +32,7 @@
 struct ti_clk_ll_ops *ti_clk_ll_ops;
 static struct device_node *clocks_node_ptr[CLK_MAX_MEMMAPS];
 
-struct ti_clk_features ti_clk_features;
+static struct ti_clk_features ti_clk_features;
 
 struct clk_iomap {
 	struct regmap *regmap;
