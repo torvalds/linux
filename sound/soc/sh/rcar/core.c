@@ -277,16 +277,6 @@ static int rsnd_dai_connect(struct rsnd_mod *mod,
 	if (!mod)
 		return -EIO;
 
-	if (io->mod[mod->type]) {
-		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-		struct device *dev = rsnd_priv_to_dev(priv);
-
-		dev_err(dev, "%s[%d] is not empty\n",
-			rsnd_mod_name(mod),
-			rsnd_mod_id(mod));
-		return -EIO;
-	}
-
 	io->mod[mod->type] = mod;
 
 	return 0;
