@@ -21,6 +21,9 @@ Required properties:
 - rcar_sound,ctu		: Should contain CTU feature.
 				  The number of CTU subnode should be same as HW.
 				  see below for detail.
+- rcar_sound,mix		: Should contain MIX feature.
+				  The number of MIX subnode should be same as HW.
+				  see below for detail.
 - rcar_sound,dvc		: Should contain DVC feature.
 				  The number of DVC subnode should be same as HW.
 				  see below for detail.
@@ -91,6 +94,11 @@ rcar_sound: sound@ec500000 {
 			dmas = <&audma0 0xbe>;
 			dma-names = "tx";
 		};
+	};
+
+	rcar_sound,mix {
+		mix0: mix@0 { };
+		mix1: mix@1 { };
 	};
 
 	rcar_sound,ctu {

@@ -427,6 +427,7 @@ rsnd_gen2_dma_addr(struct rsnd_dai_stream *io,
 	int is_ssi = !!(rsnd_io_to_mod_ssi(io) == mod);
 	int use_src = !!rsnd_io_to_mod_src(io);
 	int use_cmd = !!rsnd_io_to_mod_dvc(io) ||
+		      !!rsnd_io_to_mod_mix(io) ||
 		      !!rsnd_io_to_mod_ctu(io);
 	int id = rsnd_mod_id(mod);
 	struct dma_addr {
@@ -506,6 +507,7 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 	struct rsnd_mod *ssi = rsnd_io_to_mod_ssi(io);
 	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct rsnd_mod *ctu = rsnd_io_to_mod_ctu(io);
+	struct rsnd_mod *mix = rsnd_io_to_mod_mix(io);
 	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
 	struct rsnd_mod *mod[MOD_MAX];
 	struct rsnd_mod *mod_start, *mod_end;
@@ -548,6 +550,9 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 		} else if (ctu) {
 			mod[i] = ctu;
 			ctu = NULL;
+		} else if (mix) {
+			mod[i] = mix;
+			mix = NULL;
 		} else if (dvc) {
 			mod[i] = dvc;
 			dvc = NULL;

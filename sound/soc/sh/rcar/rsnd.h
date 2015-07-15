@@ -49,6 +49,16 @@ enum rsnd_reg {
 	RSND_REG_CMD_ROUTE_SLCT,
 	RSND_REG_CTU_CTUIR,
 	RSND_REG_CTU_ADINR,
+	RSND_REG_MIX_SWRSR,
+	RSND_REG_MIX_MIXIR,
+	RSND_REG_MIX_ADINR,
+	RSND_REG_MIX_MIXMR,
+	RSND_REG_MIX_MVPDR,
+	RSND_REG_MIX_MDBAR,
+	RSND_REG_MIX_MDBBR,
+	RSND_REG_MIX_MDBCR,
+	RSND_REG_MIX_MDBDR,
+	RSND_REG_MIX_MDBER,
 	RSND_REG_DVC_SWRSR,
 	RSND_REG_DVC_DVUIR,
 	RSND_REG_DVC_ADINR,
@@ -222,6 +232,7 @@ struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
  */
 enum rsnd_mod_type {
 	RSND_MOD_DVC = 0,
+	RSND_MOD_MIX,
 	RSND_MOD_CTU,
 	RSND_MOD_SRC,
 	RSND_MOD_SSI,
@@ -355,6 +366,7 @@ struct rsnd_dai_stream {
 #define rsnd_io_to_mod_ssi(io)	rsnd_io_to_mod((io), RSND_MOD_SSI)
 #define rsnd_io_to_mod_src(io)	rsnd_io_to_mod((io), RSND_MOD_SRC)
 #define rsnd_io_to_mod_ctu(io)	rsnd_io_to_mod((io), RSND_MOD_CTU)
+#define rsnd_io_to_mod_mix(io)	rsnd_io_to_mod((io), RSND_MOD_MIX)
 #define rsnd_io_to_mod_dvc(io)	rsnd_io_to_mod((io), RSND_MOD_DVC)
 #define rsnd_io_to_rdai(io)	((io)->rdai)
 #define rsnd_io_to_priv(io)	(rsnd_rdai_to_priv(rsnd_io_to_rdai(io)))
@@ -473,6 +485,12 @@ struct rsnd_priv {
 	int ctu_nr;
 
 	/*
+	 * below value will be filled on rsnd_mix_probe()
+	 */
+	void *mix;
+	int mix_nr;
+
+	/*
 	 * below value will be filled on rsnd_dvc_probe()
 	 */
 	void *dvc;
@@ -587,6 +605,17 @@ int rsnd_ctu_probe(struct platform_device *pdev,
 void rsnd_ctu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
+
+/*
+ *	R-Car MIX
+ */
+int rsnd_mix_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
+		   struct rsnd_priv *priv);
+
+void rsnd_mix_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
+struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
 
 /*
  *	R-Car DVC

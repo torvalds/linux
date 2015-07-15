@@ -605,23 +605,74 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 void rsnd_path_parse(struct rsnd_priv *priv,
 		     struct rsnd_dai_stream *io)
 {
-	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
-	int src_id = rsnd_mod_id(src);
-	u32 path[] = {
-		[0] = 0x30000,
-		[1] = 0x30001,
-		[2] = 0x40000,
-		[3] = 0x10000,
-		[4] = 0x20000,
-		[5] = 0x40100
-	};
+	struct rsnd_mod *mix = rsnd_io_to_mod_mix(io);
+	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+	struct rsnd_mod *cmd;
+	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 data;
 
 	/* Gen1 is not supported */
 	if (rsnd_is_gen1(priv))
 		return;
 
-	rsnd_mod_write(dvc, CMD_ROUTE_SLCT, path[src_id]);
+	if (!mix && !dvc)
+		return;
+
+	if (mix) {
+		struct rsnd_dai *rdai;
+		int i;
+		u32 path[] = {
+			[0] = 0,
+			[1] = 1 << 0,
+			[2] = 0,
+			[3] = 0,
+			[4] = 0,
+			[5] = 1 << 8
+		};
+
+		/*
+		 * it is assuming that integrater is well understanding about
+		 * data path. Here doesn't check impossible connection,
+		 * like src2 + src5
+		 */
+		data = 0;
+		for_each_rsnd_dai(rdai, priv, i) {
+			io = &rdai->playback;
+			if (mix == rsnd_io_to_mod_mix(io))
+				data |= path[rsnd_mod_id(src)];
+
+			io = &rdai->capture;
+			if (mix == rsnd_io_to_mod_mix(io))
+				data |= path[rsnd_mod_id(src)];
+		}
+
+		/*
+		 * We can't use ctu = rsnd_io_ctu() here.
+		 * Since, ID of dvc/mix are 0 or 1 (= same as CMD number)
+		 * but ctu IDs are 0 - 7 (= CTU00 - CTU13)
+		 */
+		cmd = mix;
+	} else {
+		u32 path[] = {
+			[0] = 0x30000,
+			[1] = 0x30001,
+			[2] = 0x40000,
+			[3] = 0x10000,
+			[4] = 0x20000,
+			[5] = 0x40100
+		};
+
+		data = path[rsnd_mod_id(src)];
+
+		cmd = dvc;
+	}
+
+	dev_dbg(dev, "ctu/mix path = 0x%08x", data);
+
+	rsnd_mod_write(cmd, CMD_ROUTE_SLCT, data);
+
+	rsnd_mod_write(cmd, CMD_CTRL, 0x10);
 }
 
 static int rsnd_path_init(struct rsnd_priv *priv,
@@ -656,6 +707,11 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	if (ret < 0)
 		return ret;
 
+	/* MIX */
+	ret = rsnd_path_add(priv, io, mix);
+	if (ret < 0)
+		return ret;
+
 	/* DVC */
 	ret = rsnd_path_add(priv, io, dvc);
 	if (ret < 0)
@@ -672,13 +728,14 @@ static void rsnd_of_parse_dai(struct platform_device *pdev,
 	struct device_node *ssi_node,	*ssi_np;
 	struct device_node *src_node,	*src_np;
 	struct device_node *ctu_node,	*ctu_np;
+	struct device_node *mix_node,	*mix_np;
 	struct device_node *dvc_node,	*dvc_np;
 	struct device_node *playback, *capture;
 	struct rsnd_dai_platform_info *dai_info;
 	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct device *dev = &pdev->dev;
 	int nr, i;
-	int dai_i, ssi_i, src_i, ctu_i, dvc_i;
+	int dai_i, ssi_i, src_i, ctu_i, mix_i, dvc_i;
 
 	if (!of_data)
 		return;
@@ -705,6 +762,7 @@ static void rsnd_of_parse_dai(struct platform_device *pdev,
 	ssi_node = of_get_child_by_name(dev->of_node, "rcar_sound,ssi");
 	src_node = of_get_child_by_name(dev->of_node, "rcar_sound,src");
 	ctu_node = of_get_child_by_name(dev->of_node, "rcar_sound,ctu");
+	mix_node = of_get_child_by_name(dev->of_node, "rcar_sound,mix");
 	dvc_node = of_get_child_by_name(dev->of_node, "rcar_sound,dvc");
 
 #define mod_parse(name)							\
@@ -742,6 +800,7 @@ if (name##_node) {							\
 			mod_parse(ssi);
 			mod_parse(src);
 			mod_parse(ctu);
+			mod_parse(mix);
 			mod_parse(dvc);
 
 			of_node_put(playback);
@@ -1155,6 +1214,7 @@ static int rsnd_probe(struct platform_device *pdev)
 		rsnd_ssi_probe,
 		rsnd_src_probe,
 		rsnd_ctu_probe,
+		rsnd_mix_probe,
 		rsnd_dvc_probe,
 		rsnd_adg_probe,
 		rsnd_dai_probe,
@@ -1251,6 +1311,7 @@ static int rsnd_remove(struct platform_device *pdev)
 		rsnd_ssi_remove,
 		rsnd_src_remove,
 		rsnd_ctu_remove,
+		rsnd_mix_remove,
 		rsnd_dvc_remove,
 	};
 	int ret = 0, i;
