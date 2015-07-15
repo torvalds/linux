@@ -1047,10 +1047,8 @@ int rsnd_src_probe(struct platform_device *pdev,
 		return 0;
 
 	src	= devm_kzalloc(dev, sizeof(*src) * nr, GFP_KERNEL);
-	if (!src) {
-		dev_err(dev, "SRC allocate failed\n");
+	if (!src)
 		return -ENOMEM;
-	}
 
 	priv->src_nr	= nr;
 	priv->src	= src;
