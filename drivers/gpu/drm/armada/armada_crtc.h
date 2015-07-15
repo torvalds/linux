@@ -103,6 +103,9 @@ void armada_drm_crtc_disable_irq(struct armada_crtc *, u32);
 void armada_drm_crtc_enable_irq(struct armada_crtc *, u32);
 void armada_drm_crtc_update_regs(struct armada_crtc *, struct armada_regs *);
 
+void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
+	struct drm_plane *plane);
+
 extern struct platform_driver armada_lcd_platform_driver;
 
 #endif

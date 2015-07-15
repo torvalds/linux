@@ -700,18 +700,39 @@ static int armada_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
+void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
+	struct drm_plane *plane)
+{
+	u32 sram_para1;
+
+	/*
+	 * Drop our reference on any framebuffer attached to this plane.
+	 * We don't need to NULL this out as drm_plane_force_disable(),
+	 * and __setplane_internal() will do so for an overlay plane, and
+	 * __drm_helper_disable_unused_functions() will do so for the
+	 * primary plane.
+	 */
+	if (plane->fb)
+		drm_framebuffer_unreference(plane->fb);
+
+	/* Power down the Y/U/V FIFOs */
+	sram_para1 = CFG_PDWN16x66 | CFG_PDWN32x66;
+
+	/* Power down most RAMs and FIFOs if this is the primary plane */
+	if (plane->type == DRM_PLANE_TYPE_PRIMARY)
+		sram_para1 |= CFG_PDWN256x32 | CFG_PDWN256x24 | CFG_PDWN256x8 |
+			      CFG_PDWN32x32 | CFG_PDWN64x66;
+
+	armada_updatel(sram_para1, 0, dcrtc->base + LCD_SPU_SRAM_PARA1);
+}
+
 /* The mode_config.mutex will be held for this call */
 static void armada_drm_crtc_disable(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	armada_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-	armada_drm_crtc_finish_fb(dcrtc, crtc->primary->fb, true);
-
-	/* Power down most RAMs and FIFOs */
-	writel_relaxed(CFG_PDWN256x32 | CFG_PDWN256x24 | CFG_PDWN256x8 |
-		       CFG_PDWN32x32 | CFG_PDWN16x66 | CFG_PDWN32x66 |
-		       CFG_PDWN64x66, dcrtc->base + LCD_SPU_SRAM_PARA1);
+	armada_drm_crtc_plane_disable(dcrtc, crtc->primary);
 }
 
 static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {

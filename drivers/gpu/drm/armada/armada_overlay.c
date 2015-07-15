@@ -279,12 +279,7 @@ static int armada_ovl_plane_disable(struct drm_plane *plane)
 	dplane->ctrl0 = 0;
 	spin_unlock_irq(&dcrtc->irq_lock);
 
-	/* Power down the Y/U/V FIFOs */
-	armada_updatel(CFG_PDWN16x66 | CFG_PDWN32x66, 0,
-		       dcrtc->base + LCD_SPU_SRAM_PARA1);
-
-	if (plane->fb)
-		drm_framebuffer_unreference(plane->fb);
+	armada_drm_crtc_plane_disable(dcrtc, plane);
 
 	fb = xchg(&dplane->old_fb, NULL);
 	if (fb)
