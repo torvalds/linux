@@ -48,6 +48,7 @@
 #define ADF_DH895x_HW_DATA_H_
 
 /* PCIe configuration space */
+#define ADF_DH895XCC_SRAM_BAR 0
 #define ADF_DH895XCC_PMISC_BAR 1
 #define ADF_DH895XCC_ETR_BAR 2
 #define ADF_DH895XCC_RX_RINGS_OFFSET 8

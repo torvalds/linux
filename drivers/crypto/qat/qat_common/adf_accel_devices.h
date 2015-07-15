@@ -135,6 +135,7 @@ struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
 	uint32_t (*get_accel_mask)(uint32_t fuse);
 	uint32_t (*get_ae_mask)(uint32_t fuse);
+	uint32_t (*get_sram_bar_id)(struct adf_hw_device_data *self);
 	uint32_t (*get_misc_bar_id)(struct adf_hw_device_data *self);
 	uint32_t (*get_etr_bar_id)(struct adf_hw_device_data *self);
 	uint32_t (*get_num_aes)(struct adf_hw_device_data *self);

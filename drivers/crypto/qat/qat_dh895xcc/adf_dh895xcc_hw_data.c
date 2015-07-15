@@ -117,6 +117,11 @@ static uint32_t get_etr_bar_id(struct adf_hw_device_data *self)
 	return ADF_DH895XCC_ETR_BAR;
 }
 
+static uint32_t get_sram_bar_id(struct adf_hw_device_data *self)
+{
+	return ADF_DH895XCC_SRAM_BAR;
+}
+
 static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 {
 	int sku = (self->fuses & ADF_DH895XCC_FUSECTL_SKU_MASK)
@@ -219,6 +224,7 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->get_num_aes = get_num_aes;
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;
+	hw_data->get_sram_bar_id = get_sram_bar_id;
 	hw_data->get_sku = get_sku;
 	hw_data->fw_name = ADF_DH895XCC_FW;
 	hw_data->init_admin_comms = adf_init_admin_comms;
