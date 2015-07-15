@@ -1104,7 +1104,6 @@ static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 	unsigned long ret;
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_data_result_buffer *result_buffer;
-	struct hv_24x7_result *resb;
 
 	BUILD_BUG_ON(sizeof(*request_buffer) > 4096);
 	BUILD_BUG_ON(sizeof(*result_buffer) > 4096);
@@ -1125,8 +1124,7 @@ static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 	}
 
 	/* process result from hcall */
-	resb = &result_buffer->results[0];
-	*count = be64_to_cpu(resb->elements[0].element_data[0]);
+	*count = be64_to_cpu(result_buffer->results[0].elements[0].element_data[0]);
 
 out:
 	put_cpu_var(hv_24x7_reqb);
