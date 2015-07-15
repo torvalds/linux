@@ -341,6 +341,13 @@ the phases are:
 	and is entirely responsible for bringing the device back to the
 	functional state as appropriate.
 
+	Note that this direct-complete procedure applies even if the device is
+	disabled for runtime PM; only the runtime-PM status matters.  It follows
+	that if a device has system-sleep callbacks but does not support runtime
+	PM, then its prepare callback must never return a positive value.  This
+	is because all devices are initially set to runtime-suspended with
+	runtime PM disabled.
+
     2.	The suspend methods should quiesce the device to stop it from performing
 	I/O.  They also may save the device registers and put it into the
 	appropriate low-power state, depending on the bus type the device is on,
