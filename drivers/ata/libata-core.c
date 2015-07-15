@@ -4239,6 +4239,9 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "Samsung SSD 8*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
 						ATA_HORKAGE_ZERO_AFTER_TRIM, },
 
+	/* devices that don't properly handle TRIM commands */
+	{ "SuperSSpeed S238*",		NULL,	ATA_HORKAGE_NOTRIM, },
+
 	/*
 	 * As defined, the DRAT (Deterministic Read After Trim) and RZAT
 	 * (Return Zero After Trim) flags in the ATA Command Set are
