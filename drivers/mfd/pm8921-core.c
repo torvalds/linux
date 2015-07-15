@@ -236,11 +236,49 @@ static int pm8xxx_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return pm8xxx_config_irq(chip, block, config);
 }
 
+static int pm8xxx_irq_get_irqchip_state(struct irq_data *d,
+					enum irqchip_irq_state which,
+					bool *state)
+{
+	struct pm_irq_chip *chip = irq_data_get_irq_chip_data(d);
+	unsigned int pmirq = irqd_to_hwirq(d);
+	unsigned int bits;
+	int irq_bit;
+	u8 block;
+	int rc;
+
+	if (which != IRQCHIP_STATE_LINE_LEVEL)
+		return -EINVAL;
+
+	block = pmirq / 8;
+	irq_bit = pmirq % 8;
+
+	spin_lock(&chip->pm_irq_lock);
+	rc = regmap_write(chip->regmap, SSBI_REG_ADDR_IRQ_BLK_SEL, block);
+	if (rc) {
+		pr_err("Failed Selecting Block %d rc=%d\n", block, rc);
+		goto bail;
+	}
+
+	rc = regmap_read(chip->regmap, SSBI_REG_ADDR_IRQ_RT_STATUS, &bits);
+	if (rc) {
+		pr_err("Failed Reading Status rc=%d\n", rc);
+		goto bail;
+	}
+
+	*state = !!(bits & BIT(irq_bit));
+bail:
+	spin_unlock(&chip->pm_irq_lock);
+
+	return rc;
+}
+
 static struct irq_chip pm8xxx_irq_chip = {
 	.name		= "pm8xxx",
 	.irq_mask_ack	= pm8xxx_irq_mask_ack,
 	.irq_unmask	= pm8xxx_irq_unmask,
 	.irq_set_type	= pm8xxx_irq_set_type,
+	.irq_get_irqchip_state = pm8xxx_irq_get_irqchip_state,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE,
 };
 
