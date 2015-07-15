@@ -119,6 +119,7 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 
 'x'	- Used by xmon interface on ppc/powerpc platforms.
           Show global PMU Registers on sparc64.
+          Dump all TLB entries on MIPS.
 
 'y'	- Show global CPU Registers [SPARC-64 specific]
 
