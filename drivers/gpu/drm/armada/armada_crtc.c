@@ -703,7 +703,7 @@ static int armada_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
 	struct drm_plane *plane)
 {
-	u32 sram_para1;
+	u32 sram_para1, dma_ctrl0_mask;
 
 	/*
 	 * Drop our reference on any framebuffer attached to this plane.
@@ -719,9 +719,17 @@ void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
 	sram_para1 = CFG_PDWN16x66 | CFG_PDWN32x66;
 
 	/* Power down most RAMs and FIFOs if this is the primary plane */
-	if (plane->type == DRM_PLANE_TYPE_PRIMARY)
+	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
 		sram_para1 |= CFG_PDWN256x32 | CFG_PDWN256x24 | CFG_PDWN256x8 |
 			      CFG_PDWN32x32 | CFG_PDWN64x66;
+		dma_ctrl0_mask = CFG_GRA_ENA;
+	} else {
+		dma_ctrl0_mask = CFG_DMA_ENA;
+	}
+
+	spin_lock_irq(&dcrtc->irq_lock);
+	armada_updatel(0, dma_ctrl0_mask, dcrtc->base + LCD_SPU_DMA_CTRL0);
+	spin_unlock_irq(&dcrtc->irq_lock);
 
 	armada_updatel(sram_para1, 0, dcrtc->base + LCD_SPU_SRAM_PARA1);
 }

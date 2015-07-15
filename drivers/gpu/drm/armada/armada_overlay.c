@@ -275,7 +275,6 @@ static int armada_ovl_plane_disable(struct drm_plane *plane)
 
 	spin_lock_irq(&dcrtc->irq_lock);
 	armada_drm_vbl_event_remove(dcrtc, &dplane->vbl.update);
-	armada_updatel(0, CFG_DMA_ENA, dcrtc->base + LCD_SPU_DMA_CTRL0);
 	dplane->ctrl0 = 0;
 	spin_unlock_irq(&dcrtc->irq_lock);
 
