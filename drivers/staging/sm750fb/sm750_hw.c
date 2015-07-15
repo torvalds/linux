@@ -188,9 +188,8 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 	}
 
 	/* init 2d engine */
-	if (!share->accel_off) {
+	if (!share->accel_off)
 		hw_sm750_initAccel(share);
-	}
 
 	return 0;
 }
@@ -537,9 +536,8 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, BLANK, crtdb));
 	}
 
-	if (output->paths & sm750_panel) {
+	if (output->paths & sm750_panel)
 		POKE32(PANEL_DISPLAY_CTRL, FIELD_VALUE(PEEK32(PANEL_DISPLAY_CTRL), PANEL_DISPLAY_CTRL, DATA, pps));
-	}
 
 	return 0;
 }

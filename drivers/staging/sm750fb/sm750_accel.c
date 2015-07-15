@@ -259,9 +259,8 @@ unsigned int rop2)   /* ROP value */
 	FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/Bpp)) |
 	FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (sPitch/Bpp))); /* dpr3c */
 
-	if (accel->de_wait() != 0) {
+	if (accel->de_wait() != 0)
 		return -1;
-	}
 
 	{
 
@@ -332,9 +331,8 @@ int hw_imageblit(struct lynx_accel *accel,
 	ul4BytesPerScan = ulBytesPerScan & ~3;
 	ulBytesRemain = ulBytesPerScan & 3;
 
-	if (accel->de_wait() != 0) {
+	if (accel->de_wait() != 0)
 		return -1;
-	}
 
 	/* 2D Source Base.
 	 Use 0 for HOST Blt.
@@ -402,9 +400,8 @@ int hw_imageblit(struct lynx_accel *accel,
 	/* Write MONO data (line by line) to 2D Engine data port */
 	for (i = 0; i < height; i++) {
 		/* For each line, send the data in chunks of 4 bytes */
-		for (j = 0; j < (ul4BytesPerScan/4); j++) {
+		for (j = 0; j < (ul4BytesPerScan/4); j++)
 			write_dpPort(accel, *(unsigned int *)(pSrcbuf + (j * 4)));
-		}
 
 		if (ulBytesRemain) {
 			memcpy(ajRemain, pSrcbuf+ul4BytesPerScan, ulBytesRemain);
