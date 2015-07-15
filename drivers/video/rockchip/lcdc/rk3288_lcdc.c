@@ -51,6 +51,7 @@ module_param(dbg_thresd, int, S_IRUGO | S_IWUSR);
 static int rk3288_lcdc_set_bcsh(struct rk_lcdc_driver *dev_drv,
 				     bool enable);
 
+struct fb_info *rk_get_fb(int fb_id);
 /*#define WAIT_FOR_SYNC 1*/
 
 static int rk3288_lcdc_get_id(u32 phy_base)
@@ -289,6 +290,7 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 	struct rk_lcdc_win *win0 = lcdc_dev->driver.win[0];
 
 	spin_lock(&lcdc_dev->reg_lock);
+	memcpy(lcdc_dev->regsbak, lcdc_dev->regs, FRC_LOWER11_1);
 	for (reg = 0; reg < FRC_LOWER11_1; reg += 4) {
 		val = lcdc_readl(lcdc_dev, reg);
 		switch (reg) {
@@ -887,6 +889,7 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 			mask = m_WIN2_MST0_EN;
 			val  = v_WIN2_MST0_EN(0);
 			lcdc_msk_reg(lcdc_dev,WIN2_CTRL0+off,mask,val);
+			lcdc_writel(lcdc_dev, WIN2_MST0 + off, 0x80000000);
 		}
 		/*area 1*/
 		if(win->area[1].state == 1){
@@ -911,6 +914,7 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 			mask = m_WIN2_MST1_EN;
 			val  = v_WIN2_MST1_EN(0);
 			lcdc_msk_reg(lcdc_dev,WIN2_CTRL0+off,mask,val);
+			lcdc_writel(lcdc_dev, WIN2_MST1 + off, 0x80000000);
 		}
 		/*area 2*/
 		if(win->area[2].state == 1){
@@ -935,6 +939,7 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 			mask = m_WIN2_MST2_EN;
 			val  = v_WIN2_MST2_EN(0);
 			lcdc_msk_reg(lcdc_dev,WIN2_CTRL0+off,mask,val);
+			lcdc_writel(lcdc_dev, WIN2_MST2 + off, 0x80000000);
 		}
 		/*area 3*/
 		if(win->area[3].state == 1){
@@ -959,6 +964,7 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 			mask = m_WIN2_MST3_EN;
 			val  = v_WIN2_MST3_EN(0);
 			lcdc_msk_reg(lcdc_dev,WIN2_CTRL0+off,mask,val);
+			lcdc_writel(lcdc_dev, WIN2_MST3 + off, 0x80000000);
 		}	
 
 		if(win->alpha_en == 1)
@@ -3294,6 +3300,8 @@ static int rk3288_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 	int i;
 	unsigned int mask, val;
 	struct rk_lcdc_win *win = NULL;
+	struct fb_info *fb0 = rk_get_fb(0);
+
 	spin_lock(&lcdc_dev->reg_lock);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN,
 			     v_STANDBY_EN(lcdc_dev->standby));
@@ -3319,6 +3327,14 @@ static int rk3288_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 				val  =  v_WIN2_EN(0) | v_WIN2_MST0_EN(0) | v_WIN2_MST1_EN(0) |
 					v_WIN2_MST2_EN(0) | v_WIN2_MST3_EN(0);
 				lcdc_msk_reg(lcdc_dev, WIN2_CTRL0, mask,val);			
+				lcdc_writel(lcdc_dev,WIN2_DSP_INFO0,0);
+				lcdc_writel(lcdc_dev,WIN2_DSP_INFO1,0);
+				lcdc_writel(lcdc_dev,WIN2_DSP_INFO2,0);
+				lcdc_writel(lcdc_dev,WIN2_DSP_INFO3,0);
+				lcdc_writel(lcdc_dev,WIN2_MST0, fb0->fix.smem_start);
+				lcdc_writel(lcdc_dev,WIN2_MST1, fb0->fix.smem_start);
+				lcdc_writel(lcdc_dev,WIN2_MST2, fb0->fix.smem_start);
+				lcdc_writel(lcdc_dev,WIN2_MST3, fb0->fix.smem_start);
 				break;
 			case 3:
 				mask =  m_WIN3_EN | m_WIN3_MST0_EN | m_WIN3_MST1_EN |
@@ -3326,6 +3342,14 @@ static int rk3288_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 				val  =  v_WIN3_EN(0) | v_WIN3_MST0_EN(0) |  v_WIN3_MST1_EN(0) |
 					v_WIN3_MST2_EN(0) | v_WIN3_MST3_EN(0);
 				lcdc_msk_reg(lcdc_dev, WIN3_CTRL0, mask,val);
+				lcdc_writel(lcdc_dev,WIN3_DSP_INFO0,0);
+				lcdc_writel(lcdc_dev,WIN3_DSP_INFO1,0);
+				lcdc_writel(lcdc_dev,WIN3_DSP_INFO2,0);
+				lcdc_writel(lcdc_dev,WIN3_DSP_INFO3,0);
+				lcdc_writel(lcdc_dev,WIN3_MST0, fb0->fix.smem_start);
+				lcdc_writel(lcdc_dev,WIN3_MST1, fb0->fix.smem_start);
+				lcdc_writel(lcdc_dev,WIN3_MST2, fb0->fix.smem_start);
+				lcdc_writel(lcdc_dev,WIN3_MST3, fb0->fix.smem_start);
 				break;
 			default:
 				break;
