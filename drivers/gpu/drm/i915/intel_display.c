@@ -14665,6 +14665,24 @@ void intel_modeset_init(struct drm_device *dev)
 	if (INTEL_INFO(dev)->num_pipes == 0)
 		return;
 
+	/*
+	 * There may be no VBT; and if the BIOS enabled SSC we can
+	 * just keep using it to avoid unnecessary flicker.  Whereas if the
+	 * BIOS isn't using it, don't assume it will work even if the VBT
+	 * indicates as much.
+	 */
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+		bool bios_lvds_use_ssc = !!(I915_READ(PCH_DREF_CONTROL) &
+					    DREF_SSC1_ENABLE);
+
+		if (dev_priv->vbt.lvds_use_ssc != bios_lvds_use_ssc) {
+			DRM_DEBUG_KMS("SSC %sabled by BIOS, overriding VBT which says %sabled\n",
+				     bios_lvds_use_ssc ? "en" : "dis",
+				     dev_priv->vbt.lvds_use_ssc ? "en" : "dis");
+			dev_priv->vbt.lvds_use_ssc = bios_lvds_use_ssc;
+		}
+	}
+
 	intel_init_display(dev);
 	intel_init_audio(dev);
 
@@ -15160,7 +15178,6 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 
 void intel_modeset_gem_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *c;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -15168,16 +15185,6 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 	intel_init_gt_powersave(dev);
 	mutex_unlock(&dev->struct_mutex);
-
-	/*
-	 * There may be no VBT; and if the BIOS enabled SSC we can
-	 * just keep using it to avoid unnecessary flicker.  Whereas if the
-	 * BIOS isn't using it, don't assume it will work even if the VBT
-	 * indicates as much.
-	 */
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
-		dev_priv->vbt.lvds_use_ssc = !!(I915_READ(PCH_DREF_CONTROL) &
-						DREF_SSC1_ENABLE);
 
 	intel_modeset_init_hw(dev);
 
