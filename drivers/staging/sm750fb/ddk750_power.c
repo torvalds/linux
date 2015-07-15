@@ -10,7 +10,7 @@ void ddk750_setDPMS(DPMS_t state)
 		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(value, CRT_DISPLAY_CTRL, DPMS, state));
 	} else {
 		value = PEEK32(SYSTEM_CTRL);
-		value= FIELD_VALUE(value, SYSTEM_CTRL, DPMS, state);
+		value = FIELD_VALUE(value, SYSTEM_CTRL, DPMS, state);
 		POKE32(SYSTEM_CTRL, value);
 	}
 }
