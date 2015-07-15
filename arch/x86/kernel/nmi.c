@@ -408,8 +408,8 @@ static void default_do_nmi(struct pt_regs *regs)
 NOKPROBE_SYMBOL(default_do_nmi);
 
 /*
- * NMIs can hit breakpoints which will cause it to lose its NMI context
- * with the CPU when the breakpoint or page fault does an IRET.
+ * NMIs can page fault or hit breakpoints which will cause it to lose
+ * its NMI context with the CPU when the breakpoint or page fault does an IRET.
  *
  * As a result, NMIs can nest if NMIs get unmasked due an IRET during
  * NMI processing.  On x86_64, the asm glue protects us from nested NMIs
