@@ -86,8 +86,7 @@
 	CRT means crt path DSUB
 */
 #if 0
-typedef enum _disp_output_t
-{
+typedef enum _disp_output_t {
 	NO_DISPLAY = DPMS_OFF,
 
 	LCD1_PRI = PNL_2_PRI|PRI_TP_ON|PNL_SEQ_ON|DPMS_OFF|DAC_ON,

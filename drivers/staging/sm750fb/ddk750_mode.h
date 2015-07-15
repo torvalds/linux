@@ -3,16 +3,14 @@
 
 #include "ddk750_chip.h"
 
-typedef enum _spolarity_t
-{
+typedef enum _spolarity_t {
 	POS = 0, /* positive */
 	NEG, /* negative */
 }
 spolarity_t;
 
 
-typedef struct _mode_parameter_t
-{
+typedef struct _mode_parameter_t {
 	/* Horizontal timing. */
 	unsigned long horizontal_total;
 	unsigned long horizontal_display_end;

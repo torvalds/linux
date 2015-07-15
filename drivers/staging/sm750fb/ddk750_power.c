@@ -36,8 +36,7 @@ void setPowerMode(unsigned int powerMode)
 	if (getChipType() == SM750LE)
 		return;
 
-	switch (powerMode)
-	{
+	switch (powerMode) {
 	case POWER_MODE_CTRL_MODE_MODE0:
 		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE, MODE0);
 		break;
@@ -55,16 +54,13 @@ void setPowerMode(unsigned int powerMode)
 	}
 
 	/* Set up other fields in Power Control Register */
-	if (powerMode == POWER_MODE_CTRL_MODE_SLEEP)
-	{
+	if (powerMode == POWER_MODE_CTRL_MODE_SLEEP) {
 		control_value =
 #ifdef VALIDATION_CHIP
 		FIELD_SET(control_value, POWER_MODE_CTRL, 336CLK, OFF) |
 #endif
 		FIELD_SET(control_value, POWER_MODE_CTRL, OSC_INPUT,  OFF);
-	}
-	else
-	{
+	} else {
 		control_value =
 #ifdef VALIDATION_CHIP
 		FIELD_SET(control_value, POWER_MODE_CTRL, 336CLK, ON) |
@@ -84,8 +80,7 @@ void setCurrentGate(unsigned int gate)
 	/* Get current power mode. */
 	mode = getPowerMode();
 
-	switch (mode)
-	{
+	switch (mode) {
 	case POWER_MODE_CTRL_MODE_MODE0:
 		gate_reg = MODE0_GATE;
 		break;
@@ -111,13 +106,10 @@ void enable2DEngine(unsigned int enable)
 	uint32_t gate;
 
 	gate = PEEK32(CURRENT_GATE);
-	if (enable)
-	{
+	if (enable) {
 		gate = FIELD_SET(gate, CURRENT_GATE, DE,  ON);
 		gate = FIELD_SET(gate, CURRENT_GATE, CSC, ON);
-	}
-	else
-	{
+	} else {
 		gate = FIELD_SET(gate, CURRENT_GATE, DE,  OFF);
 		gate = FIELD_SET(gate, CURRENT_GATE, CSC, OFF);
 	}
@@ -135,8 +127,7 @@ void enableZVPort(unsigned int enable)
 
 	/* Enable ZV Port Gate */
 	gate = PEEK32(CURRENT_GATE);
-	if (enable)
-	{
+	if (enable) {
 		gate = FIELD_SET(gate, CURRENT_GATE, ZVPORT, ON);
 #if 1
 		/* Using Software I2C */
@@ -145,9 +136,7 @@ void enableZVPort(unsigned int enable)
 		/* Using Hardware I2C */
 		gate = FIELD_SET(gate, CURRENT_GATE, I2C,    ON);
 #endif
-	}
-	else
-	{
+	} else {
 		/* Disable ZV Port Gate. There is no way to know whether the GPIO pins are being used
 		 or not. Therefore, do not disable the GPIO gate. */
 		gate = FIELD_SET(gate, CURRENT_GATE, ZVPORT, OFF);

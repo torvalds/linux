@@ -122,8 +122,7 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 		odd=0;
 */
 
-	for (i = 0; i < count; i++)
-	{
+	for (i = 0; i < count; i++) {
 		color = *pcol++;
 		mask = *pmsk++;
 		data = 0;
@@ -137,11 +136,10 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 		else
 			opr = mask & color;
 
-		for (j = 0; j < 8; j++)
-		{
+		for (j = 0; j < 8; j++) {
 
-			if (opr & (0x80 >> j))
-			{	/* use fg color,id = 2 */
+			if (opr & (0x80 >> j)) {
+				/* use fg color,id = 2 */
 				data |= 2 << (j*2);
 			} else {
 				/* use bg color,id = 1 */
@@ -204,8 +202,7 @@ void hw_cursor_setData2(struct lynx_cursor *cursor,
 	pstart = cursor->vstart;
 	pbuffer = pstart;
 
-	for (i = 0; i < count; i++)
-	{
+	for (i = 0; i < count; i++) {
 		color = *pcol++;
 		mask = *pmsk++;
 		data = 0;
@@ -217,11 +214,10 @@ void hw_cursor_setData2(struct lynx_cursor *cursor,
 		else
 			opr = mask & color;
 
-		for (j = 0; j < 8; j++)
-		{
+		for (j = 0; j < 8; j++) {
 
-			if (opr & (0x80 >> j))
-			{	/* use fg color,id = 2 */
+			if (opr & (0x80 >> j)) {
+				/* use fg color,id = 2 */
 				data |= 2 << (j*2);
 			} else {
 				/* use bg color,id = 1 */
@@ -237,8 +233,7 @@ void hw_cursor_setData2(struct lynx_cursor *cursor,
 		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/
-		if (!(i&(pitch-1)))
-		{
+		if (!(i&(pitch-1))) {
 			/* need a return */
 			pstart += offset;
 			pbuffer = pstart;

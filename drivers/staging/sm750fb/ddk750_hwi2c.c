@@ -106,8 +106,7 @@ static unsigned int hwI2CWriteData(
 	 * Note:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
-	do
-	{
+	do {
 		/* Reset I2C by writing 0 to I2C_RESET register to clear the previous status. */
 		POKE32(I2C_RESET, 0);
 
@@ -173,8 +172,7 @@ static unsigned int hwI2CReadData(
 	 * Note:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
-	do
-	{
+	do {
 		/* Reset I2C by writing 0 to I2C_RESET register to clear all the status. */
 		POKE32(I2C_RESET, 0);
 

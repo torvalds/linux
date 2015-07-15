@@ -15,12 +15,10 @@ static void setDisplayControl(int ctrl, int dispState)
 	cnt = 0;
 
 	/* Set the primary display control */
-	if (!ctrl)
-	{
+	if (!ctrl) {
 		ulDisplayCtrlReg = PEEK32(PANEL_DISPLAY_CTRL);
 		/* Turn on/off the Panel display control */
-		if (dispState)
-		{
+		if (dispState) {
 			/* Timing should be enabled first before enabling the plane
 			 * because changing at the same time does not guarantee that
 			 * the plane will also enabled or disabled.
@@ -45,16 +43,13 @@ static void setDisplayControl(int ctrl, int dispState)
 			 * until a few delay. Need to write
 			 * and read it a couple times
 			 */
-			do
-			{
+			do {
 				cnt++;
 				POKE32(PANEL_DISPLAY_CTRL, ulDisplayCtrlReg);
 			} while ((PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits) !=
 					(ulDisplayCtrlReg & ~ulReservedBits));
 			printk("Set Panel Plane enbit:after tried %d times\n", cnt);
-		}
-		else
-		{
+		} else {
 			/* When turning off, there is no rule on the programming
 			 * sequence since whenever the clock is off, then it does not
 			 * matter whether the plane is enabled or disabled.
@@ -71,14 +66,11 @@ static void setDisplayControl(int ctrl, int dispState)
 			POKE32(PANEL_DISPLAY_CTRL, ulDisplayCtrlReg);
 		}
 
-	}
-	/* Set the secondary display control */
-	else
-	{
+	} else {
+		/* Set the secondary display control */
 		ulDisplayCtrlReg = PEEK32(CRT_DISPLAY_CTRL);
 
-		if (dispState)
-		{
+		if (dispState) {
 			/* Timing should be enabled first before enabling the plane because changing at the
 			   same time does not guarantee that the plane will also enabled or disabled.
 			   */
@@ -100,16 +92,13 @@ static void setDisplayControl(int ctrl, int dispState)
 				FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_3_MASK, ENABLE) |
 				FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_4_MASK, ENABLE);
 
-			do
-			{
+			do {
 				cnt++;
 				POKE32(CRT_DISPLAY_CTRL, ulDisplayCtrlReg);
 			} while ((PEEK32(CRT_DISPLAY_CTRL) & ~ulReservedBits) !=
 					(ulDisplayCtrlReg & ~ulReservedBits));
 				printk("Set Crt Plane enbit:after tried %d times\n", cnt);
-		}
-		else
-		{
+		} else {
 			/* When turning off, there is no rule on the programming
 			 * sequence since whenever the clock is off, then it does not
 			 * matter whether the plane is enabled or disabled.
@@ -140,16 +129,13 @@ static void waitNextVerticalSync(int ctrl, int delay)
 		if ((FIELD_GET(PEEK32(PANEL_PLL_CTRL), PANEL_PLL_CTRL, POWER) ==
 			 PANEL_PLL_CTRL_POWER_OFF) ||
 			(FIELD_GET(PEEK32(PANEL_DISPLAY_CTRL), PANEL_DISPLAY_CTRL, TIMING) ==
-			 PANEL_DISPLAY_CTRL_TIMING_DISABLE))
-		{
+			 PANEL_DISPLAY_CTRL_TIMING_DISABLE)) {
 			return;
 		}
 
-		while (delay-- > 0)
-		{
+		while (delay-- > 0) {
 			/* Wait for end of vsync. */
-			do
-			{
+			do {
 				status = FIELD_GET(PEEK32(SYSTEM_CTRL),
 						   SYSTEM_CTRL,
 						   PANEL_VSYNC);
@@ -157,8 +143,7 @@ static void waitNextVerticalSync(int ctrl, int delay)
 			while (status == SYSTEM_CTRL_PANEL_VSYNC_ACTIVE);
 
 			/* Wait for start of vsync. */
-			do
-			{
+			do {
 				status = FIELD_GET(PEEK32(SYSTEM_CTRL),
 						   SYSTEM_CTRL,
 						   PANEL_VSYNC);
@@ -173,16 +158,13 @@ static void waitNextVerticalSync(int ctrl, int delay)
 		if ((FIELD_GET(PEEK32(CRT_PLL_CTRL), CRT_PLL_CTRL, POWER) ==
 			 CRT_PLL_CTRL_POWER_OFF) ||
 			(FIELD_GET(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, TIMING) ==
-			 CRT_DISPLAY_CTRL_TIMING_DISABLE))
-		{
+			 CRT_DISPLAY_CTRL_TIMING_DISABLE)) {
 			return;
 		}
 
-		while (delay-- > 0)
-		{
+		while (delay-- > 0) {
 			/* Wait for end of vsync. */
-			do
-			{
+			do {
 				status = FIELD_GET(PEEK32(SYSTEM_CTRL),
 								   SYSTEM_CTRL,
 								   CRT_VSYNC);
@@ -190,8 +172,7 @@ static void waitNextVerticalSync(int ctrl, int delay)
 			while (status == SYSTEM_CTRL_CRT_VSYNC_ACTIVE);
 
 			/* Wait for start of vsync. */
-			do
-			{
+			do {
 				status = FIELD_GET(PEEK32(SYSTEM_CTRL),
 								   SYSTEM_CTRL,
 								   CRT_VSYNC);
@@ -293,8 +274,7 @@ int ddk750_initDVIDisp(void)
 		     1,  /* Enable continuous Sync */
 		     1,  /* Enable PLL Filter */
 		     4   /* Use the recommended value for PLL Filter value */
-		     ) != 0) && (dviGetVendorID() != 0x0000) && (dviGetDeviceID() != 0x0000))
-	{
+		     ) != 0) && (dviGetVendorID() != 0x0000) && (dviGetDeviceID() != 0x0000)) {
 		return (-1);
 	}
 

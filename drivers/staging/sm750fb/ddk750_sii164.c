@@ -136,8 +136,7 @@ long sii164InitChip(
 #endif
 
 	/* Check if SII164 Chip exists */
-	if ((sii164GetVendorID() == SII164_VENDOR_ID) && (sii164GetDeviceID() == SII164_DEVICE_ID))
-	{
+	if ((sii164GetVendorID() == SII164_VENDOR_ID) && (sii164GetDeviceID() == SII164_DEVICE_ID)) {
 		/*
 		 *  Initialize SII164 controller chip.
 		 */
@@ -183,8 +182,7 @@ long sii164InitChip(
 		else
 			config = SII164_DESKEW_ENABLE;
 
-		switch (deskewSetting)
-		{
+		switch (deskewSetting) {
 		case 0:
 			config |= SII164_DESKEW_1_STEP;
 			break;
@@ -286,15 +284,12 @@ void sii164SetPower(
 	unsigned char config;
 
 	config = i2cReadReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION);
-	if (powerUp == 1)
-	{
+	if (powerUp == 1) {
 		/* Power up the chip */
 		config &= ~SII164_CONFIGURATION_POWER_MASK;
 		config |= SII164_CONFIGURATION_POWER_NORMAL;
 		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
-	}
-	else
-	{
+	} else {
 		/* Power down the chip */
 		config &= ~SII164_CONFIGURATION_POWER_MASK;
 		config |= SII164_CONFIGURATION_POWER_DOWN;
@@ -314,8 +309,7 @@ static void sii164SelectHotPlugDetectionMode(
 	unsigned char detectReg;
 
 	detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT) & ~SII164_DETECT_MONITOR_SENSE_OUTPUT_FLAG;
-	switch (hotPlugMode)
-	{
+	switch (hotPlugMode) {
 	case SII164_HOTPLUG_DISABLE:
 		detectReg |= SII164_DETECT_MONITOR_SENSE_OUTPUT_HIGH;
 		break;

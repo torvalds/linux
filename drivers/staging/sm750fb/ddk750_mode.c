@@ -80,8 +80,7 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 	int ret = 0;
 	int cnt = 0;
 	unsigned int ulTmpValue, ulReg;
-	if (pll->clockType == SECONDARY_PLL)
-	{
+	if (pll->clockType == SECONDARY_PLL) {
 		/* programe secondary pixel clock */
 		POKE32(CRT_PLL_CTRL, formatPllReg(pll));
 		POKE32(CRT_HORIZONTAL_TOTAL,
@@ -119,9 +118,7 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 			 POKE32(CRT_DISPLAY_CTRL, ulTmpValue|ulReg);
 		}
 
-	}
-	else if (pll->clockType == PRIMARY_PLL)
-	{
+	} else if (pll->clockType == PRIMARY_PLL) {
 		unsigned int ulReservedBits;
 		POKE32(PANEL_PLL_CTRL, formatPllReg(pll));
 
@@ -170,16 +167,14 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 
 		POKE32(PANEL_DISPLAY_CTRL, ulTmpValue|ulReg);
 #if 1
-		while ((PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits) != (ulTmpValue|ulReg))
-		{
+		while ((PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits) != (ulTmpValue|ulReg)) {
 			cnt++;
 			if (cnt > 1000)
 				break;
 			POKE32(PANEL_DISPLAY_CTRL, ulTmpValue|ulReg);
 		}
 #endif
-	}
-	else {
+	} else {
 		ret = -1;
 	}
 	return ret;

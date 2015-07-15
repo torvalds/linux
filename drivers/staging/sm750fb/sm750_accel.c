@@ -96,8 +96,7 @@ int hw_fillrect(struct lynx_accel *accel,
 {
 	u32 deCtrl;
 
-	if (accel->de_wait() != 0)
-	{
+	if (accel->de_wait() != 0) {
 		/* int time wait and always busy,seems hardware
 		 * got something error */
 		pr_debug("De engine always busy\n");
@@ -159,11 +158,9 @@ unsigned int rop2)   /* ROP value */
 	de_ctrl = 0;
 
 	/* If source and destination are the same surface, need to check for overlay cases */
-	if (sBase == dBase && sPitch == dPitch)
-	{
+	if (sBase == dBase && sPitch == dPitch) {
 		/* Determine direction of operation */
-		if (sy < dy)
-		{
+		if (sy < dy) {
 			/* +----------+
 			   |S         |
 			   |   +----------+
@@ -174,9 +171,7 @@ unsigned int rop2)   /* ROP value */
 			   +----------+ */
 
 			nDirection = BOTTOM_TO_TOP;
-		}
-		else if (sy > dy)
-		{
+		} else if (sy > dy) {
 			/* +----------+
 			   |D         |
 			   |   +----------+
@@ -187,13 +182,10 @@ unsigned int rop2)   /* ROP value */
 			   +----------+ */
 
 			nDirection = TOP_TO_BOTTOM;
-		}
-		else
-		{
+		} else {
 			/* sy == dy */
 
-			if (sx <= dx)
-			{
+			if (sx <= dx) {
 				/* +------+---+------+
 				   |S     |   |     D|
 				   |      |   |      |
@@ -202,9 +194,7 @@ unsigned int rop2)   /* ROP value */
 				   +------+---+------+ */
 
 				nDirection = RIGHT_TO_LEFT;
-			}
-			else
-			{
+			} else {
 			/* sx > dx */
 
 				/* +------+---+------+
@@ -219,8 +209,7 @@ unsigned int rop2)   /* ROP value */
 		}
 	}
 
-	if ((nDirection == BOTTOM_TO_TOP) || (nDirection == RIGHT_TO_LEFT))
-	{
+	if ((nDirection == BOTTOM_TO_TOP) || (nDirection == RIGHT_TO_LEFT)) {
 		sx += width - 1;
 		sy += height - 1;
 		dx += width - 1;
@@ -255,8 +244,7 @@ unsigned int rop2)   /* ROP value */
 		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
 				FIELD_VALUE(0, DE_PITCH, SOURCE,      sPitch)); /* dpr10 */
-	}
-	else
+	} else
 #endif
 	{
 		write_dpr(accel, DE_PITCH,
@@ -344,8 +332,7 @@ int hw_imageblit(struct lynx_accel *accel,
 	ul4BytesPerScan = ulBytesPerScan & ~3;
 	ulBytesRemain = ulBytesPerScan & 3;
 
-	if (accel->de_wait() != 0)
-	{
+	if (accel->de_wait() != 0) {
 		return -1;
 	}
 
@@ -371,8 +358,7 @@ int hw_imageblit(struct lynx_accel *accel,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
 				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch)); /* dpr10 */
 
-	}
-	else
+	} else
 #endif
 	{
 		write_dpr(accel, DE_PITCH,
@@ -414,16 +400,13 @@ int hw_imageblit(struct lynx_accel *accel,
 	write_dpr(accel, DE_CONTROL, de_ctrl | deGetTransparency(accel));
 
 	/* Write MONO data (line by line) to 2D Engine data port */
-	for (i = 0; i < height; i++)
-	{
+	for (i = 0; i < height; i++) {
 		/* For each line, send the data in chunks of 4 bytes */
-		for (j = 0; j < (ul4BytesPerScan/4); j++)
-		{
+		for (j = 0; j < (ul4BytesPerScan/4); j++) {
 			write_dpPort(accel, *(unsigned int *)(pSrcbuf + (j * 4)));
 		}
 
-		if (ulBytesRemain)
-		{
+		if (ulBytesRemain) {
 			memcpy(ajRemain, pSrcbuf+ul4BytesPerScan, ulBytesRemain);
 			write_dpPort(accel, *(unsigned int *)ajRemain);
 		}
