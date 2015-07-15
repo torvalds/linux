@@ -41,6 +41,7 @@ static const struct rsrc_card_of_data routes_of_ssi0_ak4642 = {
 static const struct of_device_id rsrc_card_of_match[] = {
 	{ .compatible = "renesas,rsrc-card,lager",	.data = &routes_of_ssi0_ak4642 },
 	{ .compatible = "renesas,rsrc-card,koelsch",	.data = &routes_of_ssi0_ak4642 },
+	{ .compatible = "renesas,rsrc-card", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rsrc_card_of_match);
@@ -242,8 +243,15 @@ static int rsrc_card_parse_links(struct device_node *np,
 		snd_soc_of_get_dai_name(np, &dai_link->codec_dai_name);
 
 		/* additional name prefix */
-		priv->codec_conf.of_node	= dai_link->codec_of_node;
-		priv->codec_conf.name_prefix	= of_data->prefix;
+		if (of_data) {
+			priv->codec_conf.of_node = dai_link->codec_of_node;
+			priv->codec_conf.name_prefix = of_data->prefix;
+		} else {
+			snd_soc_of_parse_audio_prefix(&priv->snd_card,
+						      &priv->codec_conf,
+						      dai_link->codec_of_node,
+						      "audio-prefix");
+		}
 
 		/* set dai_name */
 		snprintf(dai_props->dai_name, DAI_NAME_NUM, "be.%s",
@@ -361,8 +369,14 @@ static int rsrc_card_parse_of(struct device_node *node,
 	priv->snd_card.num_links		= num;
 	priv->snd_card.codec_conf		= &priv->codec_conf;
 	priv->snd_card.num_configs		= 1;
-	priv->snd_card.of_dapm_routes		= of_data->routes;
-	priv->snd_card.num_of_dapm_routes	= of_data->num_routes;
+
+	if (of_data) {
+		priv->snd_card.of_dapm_routes		= of_data->routes;
+		priv->snd_card.num_of_dapm_routes	= of_data->num_routes;
+	} else {
+		snd_soc_of_parse_audio_routing(&priv->snd_card,
+					       "audio-routing");
+	}
 
 	/* Parse the card name from DT */
 	snd_soc_of_parse_card_name(&priv->snd_card, "card-name");
