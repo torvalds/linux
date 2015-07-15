@@ -70,11 +70,6 @@ static void omap3430es2_clk_ssi_find_idlest(struct clk_hw_omap *clk,
 	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
 
-const struct clk_hw_omap_ops clkhwops_omap3430es2_ssi_wait = {
-	.find_idlest	= omap3430es2_clk_ssi_find_idlest,
-	.find_companion	= omap2_clk_dflt_find_companion,
-};
-
 const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_ssi_wait = {
 	.allow_idle	= omap2_clkt_iclk_allow_idle,
 	.deny_idle	= omap2_clkt_iclk_deny_idle,
@@ -149,11 +144,6 @@ static void omap3430es2_clk_hsotgusb_find_idlest(struct clk_hw_omap *clk,
 const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_hsotgusb_wait = {
 	.allow_idle	= omap2_clkt_iclk_allow_idle,
 	.deny_idle	= omap2_clkt_iclk_deny_idle,
-	.find_idlest	= omap3430es2_clk_hsotgusb_find_idlest,
-	.find_companion	= omap2_clk_dflt_find_companion,
-};
-
-const struct clk_hw_omap_ops clkhwops_omap3430es2_hsotgusb_wait = {
 	.find_idlest	= omap3430es2_clk_hsotgusb_find_idlest,
 	.find_companion	= omap2_clk_dflt_find_companion,
 };
