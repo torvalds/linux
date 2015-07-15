@@ -63,6 +63,14 @@ config PINCTRL_MSM8916
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm TLMM block found on the Qualcomm 8916 platform.
 
+config PINCTRL_QDF2XXX
+	tristate "Qualcomm Technologies QDF2xxx pin controller driver"
+	depends on GPIOLIB && ACPI
+	select PINCTRL_MSM
+	help
+	  This is the GPIO driver for the TLMM block found on the
+	  Qualcomm Technologies QDF2xxx SOCs.
+
 config PINCTRL_QCOM_SPMI_PMIC
        tristate "Qualcomm SPMI PMIC pin controller driver"
        depends on GPIOLIB && OF && SPMI
