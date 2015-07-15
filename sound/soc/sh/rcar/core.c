@@ -537,6 +537,28 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	}							\
 }
 
+void rsnd_path_parse(struct rsnd_priv *priv,
+		     struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
+	int src_id = rsnd_mod_id(src);
+	u32 path[] = {
+		[0] = 0x30000,
+		[1] = 0x30001,
+		[2] = 0x40000,
+		[3] = 0x10000,
+		[4] = 0x20000,
+		[5] = 0x40100
+	};
+
+	/* Gen1 is not supported */
+	if (rsnd_is_gen1(priv))
+		return;
+
+	rsnd_mod_write(dvc, CMD_ROUTE_SLCT, path[src_id]);
+}
+
 static int rsnd_path_init(struct rsnd_priv *priv,
 			  struct rsnd_dai *rdai,
 			  struct rsnd_dai_stream *io)

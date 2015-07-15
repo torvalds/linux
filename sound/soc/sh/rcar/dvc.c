@@ -142,48 +142,26 @@ static int rsnd_dvc_remove_gen2(struct rsnd_mod *mod,
 	return 0;
 }
 
-static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
+static int rsnd_dvc_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	int dvc_id = rsnd_mod_id(dvc_mod);
-	int src_id = rsnd_mod_id(src_mod);
-	u32 route[] = {
-		[0] = 0x30000,
-		[1] = 0x30001,
-		[2] = 0x40000,
-		[3] = 0x10000,
-		[4] = 0x20000,
-		[5] = 0x40100
-	};
+	rsnd_mod_hw_start(mod);
 
-	if (src_id >= ARRAY_SIZE(route)) {
-		dev_err(dev, "DVC%d isn't connected to SRC%d\n", dvc_id, src_id);
-		return -EINVAL;
-	}
+	rsnd_dvc_soft_reset(mod);
 
-	rsnd_mod_hw_start(dvc_mod);
+	rsnd_path_parse(priv, io);
 
-	rsnd_dvc_soft_reset(dvc_mod);
+	rsnd_mod_write(mod, DVC_DVUIR, 1);
 
-	/*
-	 * fixme
-	 * it doesn't support CTU/MIX
-	 */
-	rsnd_mod_write(dvc_mod, CMD_ROUTE_SLCT, route[src_id]);
-
-	rsnd_mod_write(dvc_mod, DVC_DVUIR, 1);
-
-	rsnd_mod_write(dvc_mod, DVC_ADINR, rsnd_get_adinr(dvc_mod, io));
+	rsnd_mod_write(mod, DVC_ADINR, rsnd_get_adinr(mod, io));
 
 	/* ch0/ch1 Volume */
-	rsnd_dvc_volume_update(io, dvc_mod);
+	rsnd_dvc_volume_update(io, mod);
 
-	rsnd_mod_write(dvc_mod, DVC_DVUIR, 0);
+	rsnd_mod_write(mod, DVC_DVUIR, 0);
 
-	rsnd_adg_set_cmd_timsel_gen2(dvc_mod, io);
+	rsnd_adg_set_cmd_timsel_gen2(mod, io);
 
 	return 0;
 }
