@@ -166,7 +166,7 @@ static void waitNextVerticalSync(int ctrl, int delay)
 			while (status == SYSTEM_CTRL_PANEL_VSYNC_INACTIVE);
 		}
 
-	}else {
+	} else {
 
 		/* Do not wait when the Primary PLL is off or display control is already off.
 			   This will prevent the software to wait forever. */
