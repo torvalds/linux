@@ -6688,6 +6688,8 @@ static int run(struct mddev *mddev)
 		sector_t here_new, here_old;
 		int old_disks;
 		int max_degraded = (mddev->level == 6 ? 2 : 1);
+		int chunk_sectors;
+		int new_data_disks;
 
 		if (mddev->new_level != mddev->level) {
 			printk(KERN_ERR "md/raid:%s: unsupported reshape "
@@ -6699,28 +6701,25 @@ static int run(struct mddev *mddev)
 		/* reshape_position must be on a new-stripe boundary, and one
 		 * further up in new geometry must map after here in old
 		 * geometry.
+		 * If the chunk sizes are different, then as we perform reshape
+		 * in units of the largest of the two, reshape_position needs
+		 * be a multiple of the largest chunk size times new data disks.
 		 */
 		here_new = mddev->reshape_position;
-		if (sector_div(here_new, mddev->new_chunk_sectors *
-			       (mddev->raid_disks - max_degraded))) {
+		chunk_sectors = max(mddev->chunk_sectors, mddev->new_chunk_sectors);
+		new_data_disks = mddev->raid_disks - max_degraded;
+		if (sector_div(here_new, chunk_sectors * new_data_disks)) {
 			printk(KERN_ERR "md/raid:%s: reshape_position not "
 			       "on a stripe boundary\n", mdname(mddev));
 			return -EINVAL;
 		}
-		reshape_offset = here_new * mddev->new_chunk_sectors;
+		reshape_offset = here_new * chunk_sectors;
 		/* here_new is the stripe we will write to */
 		here_old = mddev->reshape_position;
-		sector_div(here_old, mddev->chunk_sectors *
-			   (old_disks-max_degraded));
+		sector_div(here_old, chunk_sectors * (old_disks-max_degraded));
 		/* here_old is the first stripe that we might need to read
 		 * from */
 		if (mddev->delta_disks == 0) {
-			if ((here_new * mddev->new_chunk_sectors !=
-			     here_old * mddev->chunk_sectors)) {
-				printk(KERN_ERR "md/raid:%s: reshape position is"
-				       " confused - aborting\n", mdname(mddev));
-				return -EINVAL;
-			}
 			/* We cannot be sure it is safe to start an in-place
 			 * reshape.  It is only safe if user-space is monitoring
 			 * and taking constant backups.
@@ -6739,10 +6738,10 @@ static int run(struct mddev *mddev)
 				return -EINVAL;
 			}
 		} else if (mddev->reshape_backwards
-		    ? (here_new * mddev->new_chunk_sectors + min_offset_diff <=
-		       here_old * mddev->chunk_sectors)
-		    : (here_new * mddev->new_chunk_sectors >=
-		       here_old * mddev->chunk_sectors + (-min_offset_diff))) {
+		    ? (here_new * chunk_sectors + min_offset_diff <=
+		       here_old * chunk_sectors)
+		    : (here_new * chunk_sectors >=
+		       here_old * chunk_sectors + (-min_offset_diff))) {
 			/* Reading from the same stripe as writing to - bad */
 			printk(KERN_ERR "md/raid:%s: reshape_position too early for "
 			       "auto-recovery - aborting.\n",
