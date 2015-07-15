@@ -33,7 +33,13 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/regmap.h>
 
-#define CHGIN_ILIM_STEP_20mA			20000
+/* Charger regulator differences between MAX77693 and MAX77843 */
+struct chg_reg_data {
+	unsigned int linear_reg;
+	unsigned int linear_mask;
+	unsigned int uA_step;
+	unsigned int min_sel;
+};
 
 /*
  * CHARGER regulator - Min : 20mA, Max : 2580mA, step : 20mA
@@ -42,25 +48,26 @@
  */
 static int max77693_chg_get_current_limit(struct regulator_dev *rdev)
 {
+	const struct chg_reg_data *reg_data = rdev_get_drvdata(rdev);
 	unsigned int chg_min_uA = rdev->constraints->min_uA;
 	unsigned int chg_max_uA = rdev->constraints->max_uA;
 	unsigned int reg, sel;
 	unsigned int val;
 	int ret;
 
-	ret = regmap_read(rdev->regmap, MAX77693_CHG_REG_CHG_CNFG_09, &reg);
+	ret = regmap_read(rdev->regmap, reg_data->linear_reg, &reg);
 	if (ret < 0)
 		return ret;
 
-	sel = reg & CHG_CNFG_09_CHGIN_ILIM_MASK;
+	sel = reg & reg_data->linear_mask;
 
 	/* the first four codes for charger current are all 60mA */
-	if (sel <= 3)
+	if (sel <= reg_data->min_sel)
 		sel = 0;
 	else
-		sel -= 3;
+		sel -= reg_data->min_sel;
 
-	val = chg_min_uA + CHGIN_ILIM_STEP_20mA * sel;
+	val = chg_min_uA + reg_data->uA_step * sel;
 	if (val > chg_max_uA)
 		return -EINVAL;
 
@@ -70,20 +77,20 @@ static int max77693_chg_get_current_limit(struct regulator_dev *rdev)
 static int max77693_chg_set_current_limit(struct regulator_dev *rdev,
 						int min_uA, int max_uA)
 {
+	const struct chg_reg_data *reg_data = rdev_get_drvdata(rdev);
 	unsigned int chg_min_uA = rdev->constraints->min_uA;
 	int sel = 0;
 
-	while (chg_min_uA + CHGIN_ILIM_STEP_20mA * sel < min_uA)
+	while (chg_min_uA + reg_data->uA_step * sel < min_uA)
 		sel++;
 
-	if (chg_min_uA + CHGIN_ILIM_STEP_20mA * sel > max_uA)
+	if (chg_min_uA + reg_data->uA_step * sel > max_uA)
 		return -EINVAL;
 
 	/* the first four codes for charger current are all 60mA */
-	sel += 3;
+	sel += reg_data->min_sel;
 
-	return regmap_write(rdev->regmap,
-				MAX77693_CHG_REG_CHG_CNFG_09, sel);
+	return regmap_write(rdev->regmap, reg_data->linear_reg, sel);
 }
 /* end of CHARGER regulator ops */
 
@@ -145,6 +152,13 @@ static const struct regulator_desc regulators[] = {
 	},
 };
 
+static const struct chg_reg_data max77693_chg_reg_data = {
+	.linear_reg	= MAX77693_CHG_REG_CHG_CNFG_09,
+	.linear_mask	= CHG_CNFG_09_CHGIN_ILIM_MASK,
+	.uA_step	= 20000,
+	.min_sel	= 3,
+};
+
 static int max77693_pmic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *iodev = dev_get_drvdata(pdev->dev.parent);
@@ -153,6 +167,7 @@ static int max77693_pmic_probe(struct platform_device *pdev)
 
 	config.dev = iodev->dev;
 	config.regmap = iodev->regmap;
+	config.driver_data = (void *)&max77693_chg_reg_data;
 
 	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
 		struct regulator_dev *rdev;
@@ -170,7 +185,7 @@ static int max77693_pmic_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id max77693_pmic_id[] = {
-	{"max77693-pmic", 0},
+	{ "max77693-pmic", TYPE_MAX77693 },
 	{},
 };
 
