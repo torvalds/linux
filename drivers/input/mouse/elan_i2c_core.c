@@ -771,7 +771,7 @@ static const struct attribute_group *elan_sysfs_groups[] = {
  */
 static void elan_report_contact(struct elan_tp_data *data,
 				int contact_num, bool contact_valid,
-				bool hover_event, u8 *finger_data)
+				u8 *finger_data)
 {
 	struct input_dev *input = data->input;
 	unsigned int pos_x, pos_y;
@@ -815,9 +815,7 @@ static void elan_report_contact(struct elan_tp_data *data,
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
 		input_report_abs(input, ABS_MT_POSITION_X, pos_x);
 		input_report_abs(input, ABS_MT_POSITION_Y, data->max_y - pos_y);
-		input_report_abs(input, ABS_MT_DISTANCE, hover_event);
-		input_report_abs(input, ABS_MT_PRESSURE,
-				 hover_event ? 0 : scaled_pressure);
+		input_report_abs(input, ABS_MT_PRESSURE, scaled_pressure);
 		input_report_abs(input, ABS_TOOL_WIDTH, mk_x);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, major);
 		input_report_abs(input, ABS_MT_TOUCH_MINOR, minor);
@@ -839,14 +837,14 @@ static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
 	hover_event = hover_info & 0x40;
 	for (i = 0; i < ETP_MAX_FINGERS; i++) {
 		contact_valid = tp_info & (1U << (3 + i));
-		elan_report_contact(data, i, contact_valid, hover_event,
-				    finger_data);
+		elan_report_contact(data, i, contact_valid, finger_data);
 
 		if (contact_valid)
 			finger_data += ETP_FINGER_DATA_LEN;
 	}
 
 	input_report_key(input, BTN_LEFT, tp_info & 0x01);
+	input_report_abs(input, ABS_DISTANCE, hover_event != 0);
 	input_mt_report_pointer_emulation(input, true);
 	input_sync(input);
 }
@@ -922,6 +920,7 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 	input_abs_set_res(input, ABS_Y, data->y_res);
 	input_set_abs_params(input, ABS_PRESSURE, 0, ETP_MAX_PRESSURE, 0, 0);
 	input_set_abs_params(input, ABS_TOOL_WIDTH, 0, ETP_FINGER_WIDTH, 0, 0);
+	input_set_abs_params(input, ABS_DISTANCE, 0, 1, 0, 0);
 
 	/* And MT parameters */
 	input_set_abs_params(input, ABS_MT_POSITION_X, 0, data->max_x, 0, 0);
@@ -934,7 +933,6 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 			     ETP_FINGER_WIDTH * max_width, 0, 0);
 	input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0,
 			     ETP_FINGER_WIDTH * min_width, 0, 0);
-	input_set_abs_params(input, ABS_MT_DISTANCE, 0, 1, 0, 0);
 
 	data->input = input;
 

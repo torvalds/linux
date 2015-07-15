@@ -120,7 +120,7 @@
 
 	lcd0: display@0 {
 		compatible = "lgphilips,lb035q02";
-		label = "lcd";
+		label = "lcd35";
 
 		reg = <1>;					/* CS1 */
 		spi-max-frequency = <10000000>;

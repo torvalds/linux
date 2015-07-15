@@ -203,6 +203,7 @@ const struct file_operations hpfs_file_ops =
 	.release	= hpfs_file_release,
 	.fsync		= hpfs_file_fsync,
 	.splice_read	= generic_file_splice_read,
+	.unlocked_ioctl	= hpfs_ioctl,
 };
 
 const struct inode_operations hpfs_file_iops =
