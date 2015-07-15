@@ -24,9 +24,9 @@
 		serial3 = &uart3;
 	};
 
-	vmmcsd_fixed: fixedregulator-sd {
+	evm_v3_3d: fixedregulator-v3_3d {
 		compatible = "regulator-fixed";
-		regulator-name = "vmmcsd_fixed";
+		regulator-name = "evm_v3_3d";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
@@ -83,17 +83,6 @@
 		compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
 		label = "lcd";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_pins>;
-
-		/*
-		 * SelLCDorHDMI, LOW to select HDMI. This is not really the
-		 * panel's enable GPIO, but we don't have HDMI driver support nor
-		 * support to switch between two displays, so using this gpio as
-		 * panel's enable should be safe.
-		 */
-		enable-gpios = <&gpio5 8 GPIO_ACTIVE_HIGH>;
-
 		panel-timing {
 			clock-frequency = <33000000>;
 			hactive = <800>;
@@ -124,6 +113,32 @@
 		clock-frequency = <12000000>;
 	};
 
+	sound0: sound@0 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "AM437x-GP-EVM";
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack",
+			"Line", "Line In";
+		simple-audio-card,routing =
+			"Headphone Jack",	"HPLOUT",
+			"Headphone Jack",	"HPROUT",
+			"LINE1L",		"Line In",
+			"LINE1R",		"Line In";
+		simple-audio-card,format = "dsp_b";
+		simple-audio-card,bitclock-master = <&sound0_master>;
+		simple-audio-card,frame-master = <&sound0_master>;
+		simple-audio-card,bitclock-inversion;
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp1>;
+			system-clock-frequency = <12000000>;
+		};
+
+		sound0_master: simple-audio-card,codec {
+			sound-dai = <&tlv320aic3106>;
+			system-clock-frequency = <12000000>;
+		};
+	};
 };
 
 &am43xx_pinmux {
@@ -270,7 +285,7 @@
 		>;
 	};
 
-	lcd_pins: lcd_pins {
+	display_mux_pins: display_mux_pins {
 		pinctrl-single,pins = <
 			/* GPIO 5_8 to select LCD / HDMI */
 			0x238 (PIN_OUTPUT_PULLUP | MUX_MODE7)
@@ -409,6 +424,24 @@
 			0x234 (PIN_OUTPUT_PULLDOWN | MUX_MODE0) /* uart3_rtsn.uart3_rtsn */
 		>;
 	};
+
+	mcasp1_pins: mcasp1_pins {
+		pinctrl-single,pins = <
+			0x108 (PIN_OUTPUT_PULLDOWN | MUX_MODE4)	/* mii1_col.mcasp1_axr2 */
+			0x10c (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* mii1_crs.mcasp1_aclkx */
+			0x110 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* mii1_rxerr.mcasp1_fsx */
+			0x144 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* rmii1_ref_clk.mcasp1_axr3 */
+		>;
+	};
+
+	mcasp1_sleep_pins: mcasp1_sleep_pins {
+		pinctrl-single,pins = <
+			0x108 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x10c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x110 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			0x144 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+		>;
+	};
 };
 
 &i2c0 {
@@ -521,6 +554,19 @@
 			};
 		};
 	};
+
+	tlv320aic3106: tlv320aic3106@1b {
+		#sound-dai-cells = <0>;
+		compatible = "ti,tlv320aic3106";
+		reg = <0x1b>;
+		status = "okay";
+
+		/* Regulators */
+		IOVDD-supply = <&evm_v3_3d>; /* V3_3D -> <tps63031> EN: V1_8D -> VBAT */
+		AVDD-supply = <&evm_v3_3d>; /* v3_3AUD -> V3_3D -> ... */
+		DRVDD-supply = <&evm_v3_3d>; /* v3_3AUD -> V3_3D -> ... */
+		DVDD-supply = <&ldo1>; /* V1_8D -> LDO1 */
+	};
 };
 
 &epwmss0 {
@@ -558,13 +604,27 @@
 };
 
 &gpio5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&display_mux_pins>;
 	status = "okay";
 	ti,no-reset-on-init;
+
+	p8 {
+		/*
+		 * SelLCDorHDMI selects between display and audio paths:
+		 * Low: HDMI display with audio via HDMI
+		 * High: LCD display with analog audio via aic3111 codec
+		 */
+		gpio-hog;
+		gpios = <8 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "SelLCDorHDMI";
+	};
 };
 
 &mmc1 {
 	status = "okay";
-	vmmc-supply = <&vmmcsd_fixed>;
+	vmmc-supply = <&evm_v3_3d>;
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
@@ -789,4 +849,22 @@
 			vsync-active = <0>;
 		};
 	};
+};
+
+&mcasp1 {
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&mcasp1_pins>;
+	pinctrl-1 = <&mcasp1_sleep_pins>;
+
+	status = "okay";
+
+	op-mode = <0>; /* MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	/* 4 serializers */
+	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
+		0 0 1 2
+	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
 };

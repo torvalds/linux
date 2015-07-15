@@ -103,6 +103,15 @@
 			#size-cells = <1>;
 			ranges = <0 0x44c00000 0x280000>;
 
+			wkup_m3: wkup_m3@100000 {
+				compatible = "ti,am3352-wkup-m3";
+				reg = <0x100000 0x4000>,
+				      <0x180000	0x2000>;
+				reg-names = "umem", "dmem";
+				ti,hwmods = "wkup_m3";
+				ti,pm-firmware = "am335x-pm-firmware.elf";
+			};
+
 			prcm: prcm@200000 {
 				compatible = "ti,am3-prcm";
 				reg = <0x200000 0x4000>;
@@ -760,14 +769,6 @@
 		ocmcram: ocmcram@40300000 {
 			compatible = "mmio-sram";
 			reg = <0x40300000 0x10000>; /* 64k */
-		};
-
-		wkup_m3: wkup_m3@44d00000 {
-			compatible = "ti,am3353-wkup-m3";
-			reg = <0x44d00000 0x4000	/* M3 UMEM */
-			       0x44d80000 0x2000>;	/* M3 DMEM */
-			ti,hwmods = "wkup_m3";
-			ti,no-reset-on-init;
 		};
 
 		elm: elm@48080000 {

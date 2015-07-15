@@ -218,3 +218,58 @@
 	pinctrl-0 = <&uart2_pins>;
 };
 
+&mcbsp2 {
+	status = "okay";
+};
+
+&gpmc {
+	ranges = <0 0 0x00000000 0x20000000>;
+
+	nand@0,0 {
+		linux,mtd-name= "micron,mt29c4g96maz";
+		reg = <0 0 0>;
+		nand-bus-width = <16>;
+		gpmc,device-width = <2>;
+		ti,nand-ecc-opt = "bch8";
+
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "SPL";
+			reg = <0 0x80000>; /* 512KiB */
+		};
+		partition@80000 {
+			label = "U-Boot";
+			reg = <0x80000 0x1C0000>; /* 1792KiB */
+		};
+		partition@1c0000 {
+			label = "Environment";
+			reg = <0x240000 0x40000>; /* 256KiB */
+		};
+		partition@280000 {
+			label = "Kernel";
+			reg = <0x280000 0x800000>; /* 8192KiB */
+		};
+		partition@780000 {
+			label = "Filesystem";
+			reg = <0xA80000 0>;
+			/* HACK: MTDPART_SIZ_FULL=0 so fill to end */
+		};
+	};
+};

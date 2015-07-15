@@ -14,6 +14,7 @@
 #include <dt-bindings/pinctrl/am43xx.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/sound/tlv320aic31xx-micbias.h>
 
 / {
 	model = "TI AM43x EPOS EVM";
@@ -31,20 +32,17 @@
 		enable-active-high;
 	};
 
+	vbat: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+
 	lcd0: display {
 		compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
 		label = "lcd";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_pins>;
-
-		/*
-		 * SelLCDorHDMI, LOW to select HDMI. This is not really the
-		 * panel's enable GPIO, but we don't have HDMI driver support nor
-		 * support to switch between two displays, so using this gpio as
-		 * panel's enable should be safe.
-		 */
-		enable-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 
 		panel-timing {
 			clock-frequency = <33000000>;
@@ -107,6 +105,38 @@
 		pwms = <&ecap0 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 51 53 56 62 75 101 152 255>;
 		default-brightness-level = <8>;
+	};
+
+	sound0: sound@0 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "AM43-EPOS-EVM";
+		simple-audio-card,widgets =
+			"Microphone", "Microphone Jack",
+			"Headphone", "Headphone Jack",
+			"Speaker", "Speaker";
+		simple-audio-card,routing =
+			"MIC1LP", "Microphone Jack",
+			"MIC1RP", "Microphone Jack",
+			"MIC1LP", "MICBIAS",
+			"MIC1RP", "MICBIAS",
+			"Headphone Jack", "HPL",
+			"Headphone Jack", "HPR",
+			"Speaker", "SPL",
+			"Speaker", "SPR";
+		simple-audio-card,format = "dsp_b";
+		simple-audio-card,bitclock-master = <&sound0_master>;
+		simple-audio-card,frame-master = <&sound0_master>;
+		simple-audio-card,bitclock-inversion;
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp1>;
+			system-clock-frequency = <12000000>;
+		};
+
+		sound0_master: simple-audio-card,codec {
+			sound-dai = <&tlv320aic3111>;
+			system-clock-frequency = <12000000>;
+		};
 	};
 };
 
@@ -278,7 +308,7 @@
 			>;
 		};
 
-		lcd_pins: lcd_pins {
+		display_mux_pins: display_mux_pins {
 			pinctrl-single,pins = <
 				/* GPMC CLK -> GPIO 2_1 to select LCD / HDMI */
 				0x08C (PIN_OUTPUT_PULLUP | MUX_MODE7)
@@ -318,6 +348,24 @@
 				0x1fc (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
 				0x200 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
 				0x204 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			>;
+		};
+
+		mcasp1_pins: mcasp1_pins {
+			pinctrl-single,pins = <
+				0x1a0 (PIN_INPUT_PULLDOWN | MUX_MODE3) /* MCASP0_ACLKR/MCASP1_ACLKX */
+				0x1a4 (PIN_INPUT_PULLDOWN | MUX_MODE3) /* MCASP0_FSR/MCASP1_FSX */
+				0x1a8 (PIN_OUTPUT_PULLDOWN | MUX_MODE3)/* MCASP0_AXR1/MCASP1_AXR0 */
+				0x1ac (PIN_INPUT_PULLDOWN | MUX_MODE3) /* MCASP0_AHCLKX/MCASP1_AXR1 */
+			>;
+		};
+
+		mcasp1_sleep_pins: mcasp1_sleep_pins {
+			pinctrl-single,pins = <
+				0x1a0 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x1a4 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x1a8 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x1ac (PIN_INPUT_PULLDOWN | MUX_MODE7)
 			>;
 		};
 };
@@ -399,6 +447,15 @@
 			regulator-always-on;
 		};
 
+		dcdc4: regulator-dcdc4 {
+			compatible = "ti,tps65218-dcdc4";
+			regulator-name = "vdcdc4";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
 		dcdc5: regulator-dcdc5 {
 			compatible = "ti,tps65218-dcdc5";
 			regulator-name = "v1_0bat";
@@ -441,6 +498,23 @@
 		touchscreen-size-x = <1024>;
 		touchscreen-size-y = <600>;
 	};
+
+	tlv320aic3111: tlv320aic3111@18 {
+		#sound-dai-cells = <0>;
+		compatible = "ti,tlv320aic3111";
+		reg = <0x18>;
+		status = "okay";
+
+		ai31xx-micbias-vg = <MICBIAS_2_0V>;
+
+		/* Regulators */
+		HPVDD-supply = <&dcdc4>; /* v3_3AUD -> V3_3D -> DCDC4 */
+		SPRVDD-supply = <&vbat>; /* vbat */
+		SPLVDD-supply = <&vbat>; /* vbat */
+		AVDD-supply = <&dcdc4>; /* v3_3AUD -> V3_3D -> DCDC4 */
+		IOVDD-supply = <&dcdc4>; /* V3_3D -> DCDC4 */
+		DVDD-supply = <&ldo1>; /* V1_8AUD -> V1_8D -> LDO1 */
+	};
 };
 
 &i2c2 {
@@ -458,7 +532,21 @@
 };
 
 &gpio2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&display_mux_pins>;
 	status = "okay";
+
+	p1 {
+		/*
+		 * SelLCDorHDMI selects between display and audio paths:
+		 * Low: HDMI display with audio via HDMI
+		 * High: LCD display with analog audio via aic3111 codec
+		 */
+		gpio-hog;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "SelLCDorHDMI";
+	};
 };
 
 &gpio3 {
@@ -685,4 +773,22 @@
 			vsync-active = <0>;
 		};
 	};
+};
+
+&mcasp1 {
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&mcasp1_pins>;
+	pinctrl-1 = <&mcasp1_sleep_pins>;
+
+	status = "okay";
+
+	op-mode = <0>;          /* MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	/* 4 serializer */
+	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
+		1 2 0 0
+	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
 };
