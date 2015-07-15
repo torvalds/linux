@@ -1,4 +1,4 @@
-#define USE_DVICHIP 
+#define USE_DVICHIP
 #ifdef USE_DVICHIP
 #include "ddk750_help.h"
 #include "ddk750_reg.h"

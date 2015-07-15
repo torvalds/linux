@@ -37,7 +37,7 @@ void hw_de_init(struct lynx_accel *accel)
 {
 	/* setup 2d engine registers */
 	u32 reg, clr;
-	
+
 	write_dpr(accel, DE_MASKS, 0xFFFFFFFF);
 
 	/* dpr1c */
@@ -82,7 +82,7 @@ void hw_de_init(struct lynx_accel *accel)
 void hw_set2dformat(struct lynx_accel *accel, int fmt)
 {
 	u32 reg;
-	
+
 	/* fmt=0,1,2 for 8,16,32,bpp on sm718/750/502 */
 	reg = read_dpr(accel, DE_STRETCH_FORMAT);
 	reg = FIELD_VALUE(reg, DE_STRETCH_FORMAT, PIXEL_FORMAT, fmt);
