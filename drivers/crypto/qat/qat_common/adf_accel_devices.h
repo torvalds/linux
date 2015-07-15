@@ -152,6 +152,7 @@ struct adf_hw_device_data {
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	const char *fw_name;
+	const char *fw_mmp_name;
 	uint32_t pci_dev_id;
 	uint32_t fuses;
 	uint32_t accel_capabilities_mask;
@@ -185,6 +186,7 @@ struct icp_qat_fw_loader_handle;
 struct adf_fw_loader_data {
 	struct icp_qat_fw_loader_handle *fw_loader;
 	const struct firmware *uof_fw;
+	const struct firmware *mmp_fw;
 };
 
 struct adf_accel_dev {

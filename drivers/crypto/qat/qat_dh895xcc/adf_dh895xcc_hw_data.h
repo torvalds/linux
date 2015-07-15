@@ -85,5 +85,7 @@
 #define ADF_DH895XCC_ADMINMSGLR_OFFSET (0x3A000 + 0x578)
 #define ADF_DH895XCC_MAILBOX_BASE_OFFSET 0x20970
 #define ADF_DH895XCC_MAILBOX_STRIDE 0x1000
+/* FW names */
 #define ADF_DH895XCC_FW "qat_895xcc.bin"
+#define ADF_DH895XCC_MMP "qat_mmp.bin"
 #endif
