@@ -23,6 +23,14 @@ void dump_tlb_regs(void)
 	pr_info("EntryLo0 : %0*lx\n", field, read_c0_entrylo0());
 	pr_info("EntryLo1 : %0*lx\n", field, read_c0_entrylo1());
 	pr_info("Wired    : %0x\n", read_c0_wired());
+	switch (current_cpu_type()) {
+	case CPU_R10000:
+	case CPU_R12000:
+	case CPU_R14000:
+	case CPU_R16000:
+		pr_info("FrameMask: %0x\n", read_c0_framemask());
+		break;
+	}
 	if (cpu_has_small_pages || cpu_has_rixi || cpu_has_xpa)
 		pr_info("PageGrain: %0x\n", read_c0_pagegrain());
 	if (cpu_has_htw) {
