@@ -1752,11 +1752,11 @@ void amdgpu_test_syncing(struct amdgpu_device *adev);
 int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr);
 void amdgpu_mn_unregister(struct amdgpu_bo *bo);
 #else
-static int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
+static inline int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 {
 	return -ENODEV;
 }
-static void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}
+static inline void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}
 #endif
 
 /*
