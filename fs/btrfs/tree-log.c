@@ -1613,6 +1613,9 @@ static bool name_in_log_ref(struct btrfs_root *log_root,
  * not exist in the FS, it is skipped.  fsyncs on directories
  * do not force down inodes inside that directory, just changes to the
  * names or unlinks in a directory.
+ *
+ * Returns < 0 on error, 0 if the name wasn't replayed (dentry points to a
+ * non-existing inode) and 1 if the name was replayed.
  */
 static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 				    struct btrfs_root *root,
@@ -1631,6 +1634,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	int exists;
 	int ret = 0;
 	bool update_size = (key->type == BTRFS_DIR_INDEX_KEY);
+	bool name_added = false;
 
 	dir = read_one_inode(root, key->objectid);
 	if (!dir)
@@ -1708,6 +1712,8 @@ out:
 	}
 	kfree(name);
 	iput(dir);
+	if (!ret && name_added)
+		ret = 1;
 	return ret;
 
 insert:
@@ -1723,6 +1729,8 @@ insert:
 			      name, name_len, log_type, &log_key);
 	if (ret && ret != -ENOENT && ret != -EEXIST)
 		goto out;
+	if (!ret)
+		name_added = true;
 	update_size = false;
 	ret = 0;
 	goto out;
@@ -1740,12 +1748,13 @@ static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
 					struct extent_buffer *eb, int slot,
 					struct btrfs_key *key)
 {
-	int ret;
+	int ret = 0;
 	u32 item_size = btrfs_item_size_nr(eb, slot);
 	struct btrfs_dir_item *di;
 	int name_len;
 	unsigned long ptr;
 	unsigned long ptr_end;
+	struct btrfs_path *fixup_path = NULL;
 
 	ptr = btrfs_item_ptr_offset(eb, slot);
 	ptr_end = ptr + item_size;
@@ -1755,12 +1764,59 @@ static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
 			return -EIO;
 		name_len = btrfs_dir_name_len(eb, di);
 		ret = replay_one_name(trans, root, path, eb, di, key);
-		if (ret)
-			return ret;
+		if (ret < 0)
+			break;
 		ptr = (unsigned long)(di + 1);
 		ptr += name_len;
+
+		/*
+		 * If this entry refers to a non-directory (directories can not
+		 * have a link count > 1) and it was added in the transaction
+		 * that was not committed, make sure we fixup the link count of
+		 * the inode it the entry points to. Otherwise something like
+		 * the following would result in a directory pointing to an
+		 * inode with a wrong link that does not account for this dir
+		 * entry:
+		 *
+		 * mkdir testdir
+		 * touch testdir/foo
+		 * touch testdir/bar
+		 * sync
+		 *
+		 * ln testdir/bar testdir/bar_link
+		 * ln testdir/foo testdir/foo_link
+		 * xfs_io -c "fsync" testdir/bar
+		 *
+		 * <power failure>
+		 *
+		 * mount fs, log replay happens
+		 *
+		 * File foo would remain with a link count of 1 when it has two
+		 * entries pointing to it in the directory testdir. This would
+		 * make it impossible to ever delete the parent directory has
+		 * it would result in stale dentries that can never be deleted.
+		 */
+		if (ret == 1 && btrfs_dir_type(eb, di) != BTRFS_FT_DIR) {
+			struct btrfs_key di_key;
+
+			if (!fixup_path) {
+				fixup_path = btrfs_alloc_path();
+				if (!fixup_path) {
+					ret = -ENOMEM;
+					break;
+				}
+			}
+
+			btrfs_dir_item_key_to_cpu(eb, di, &di_key);
+			ret = link_to_fixup_dir(trans, root, fixup_path,
+						di_key.objectid);
+			if (ret)
+				break;
+		}
+		ret = 0;
 	}
-	return 0;
+	btrfs_free_path(fixup_path);
+	return ret;
 }
 
 /*
