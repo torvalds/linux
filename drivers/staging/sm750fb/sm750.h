@@ -108,12 +108,12 @@ struct lynxfb_crtc {
 
 	void *priv;
 
-	int(*proc_setMode)(struct lynxfb_crtc*,
+	int (*proc_setMode)(struct lynxfb_crtc*,
 						struct fb_var_screeninfo*,
 						struct fb_fix_screeninfo*);
 
-	int(*proc_checkMode)(struct lynxfb_crtc*, struct fb_var_screeninfo*);
-	int(*proc_setColReg)(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
+	int (*proc_checkMode)(struct lynxfb_crtc*, struct fb_var_screeninfo*);
+	int (*proc_setColReg)(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
 	void (*clear)(struct lynxfb_crtc*);
 	/* pan display */
 	int (*proc_panDisplay)(struct lynxfb_crtc *,
@@ -140,12 +140,12 @@ struct lynxfb_output {
 	*/
 	void *priv;
 
-	int(*proc_setMode)(struct lynxfb_output*,
+	int (*proc_setMode)(struct lynxfb_output*,
 						struct fb_var_screeninfo*,
 						struct fb_fix_screeninfo*);
 
-	int(*proc_checkMode)(struct lynxfb_output*, struct fb_var_screeninfo*);
-	int(*proc_setBLANK)(struct lynxfb_output*, int);
+	int (*proc_checkMode)(struct lynxfb_output*, struct fb_var_screeninfo*);
+	int (*proc_setBLANK)(struct lynxfb_output*, int);
 	void  (*clear)(struct lynxfb_output*);
 };
 
