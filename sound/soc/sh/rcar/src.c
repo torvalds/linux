@@ -215,10 +215,9 @@ int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod)
 		return 0;
 
 	/* enable SSI interrupt if Gen2 */
-	if (rsnd_ssi_is_dma_mode(ssi_mod))
-		rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0e000000);
-	else
-		rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0f000000);
+	rsnd_mod_write(ssi_mod, SSI_INT_ENABLE,
+		       rsnd_ssi_is_dma_mode(ssi_mod) ?
+		       0x0e000000 : 0x0f000000);
 
 	return 0;
 }
@@ -231,7 +230,7 @@ int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod)
 		return 0;
 
 	/* disable SSI interrupt if Gen2 */
-	rsnd_mod_write(ssi_mod, INT_ENABLE, 0x00000000);
+	rsnd_mod_write(ssi_mod, SSI_INT_ENABLE, 0x00000000);
 
 	return 0;
 }

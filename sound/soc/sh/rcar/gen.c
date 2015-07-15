@@ -218,7 +218,7 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		RSND_GEN_M_REG(SSI_BUSIF_ADINR,	0x4,	0x80),
 		RSND_GEN_M_REG(SSI_BUSIF_DALIGN,0x8,	0x80),
 		RSND_GEN_M_REG(SSI_CTRL,	0x10,	0x80),
-		RSND_GEN_M_REG(INT_ENABLE,	0x18,	0x80),
+		RSND_GEN_M_REG(SSI_INT_ENABLE,	0x18,	0x80),
 	};
 	struct rsnd_regmap_field_conf conf_scu[] = {
 		RSND_GEN_M_REG(SRC_BUSIF_MODE,	0x0,	0x20),
