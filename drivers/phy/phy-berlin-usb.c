@@ -147,7 +147,7 @@ static int phy_berlin_usb_power_on(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops phy_berlin_usb_ops = {
+static const struct phy_ops phy_berlin_usb_ops = {
 	.power_on	= phy_berlin_usb_power_on,
 	.owner		= THIS_MODULE,
 };

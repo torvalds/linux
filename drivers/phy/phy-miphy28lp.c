@@ -1132,7 +1132,7 @@ static struct phy *miphy28lp_xlate(struct device *dev,
 	return miphy_phy->phy;
 }
 
-static struct phy_ops miphy28lp_ops = {
+static const struct phy_ops miphy28lp_ops = {
 	.init = miphy28lp_init,
 	.owner = THIS_MODULE,
 };

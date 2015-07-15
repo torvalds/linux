@@ -171,7 +171,7 @@ static int ufs_qcom_phy_qmp_20nm_is_pcs_ready(struct ufs_qcom_phy *phy_common)
 	return err;
 }
 
-static struct phy_ops ufs_qcom_phy_qmp_20nm_phy_ops = {
+static const struct phy_ops ufs_qcom_phy_qmp_20nm_phy_ops = {
 	.init		= ufs_qcom_phy_qmp_20nm_init,
 	.exit		= ufs_qcom_phy_exit,
 	.power_on	= ufs_qcom_phy_power_on,

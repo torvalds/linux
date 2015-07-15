@@ -373,7 +373,7 @@ void sun4i_usb_phy_set_squelch_detect(struct phy *_phy, bool enabled)
 	sun4i_usb_phy_write(phy, PHY_SQUELCH_DETECT, enabled ? 0 : 2, 2);
 }
 
-static struct phy_ops sun4i_usb_phy_ops = {
+static const struct phy_ops sun4i_usb_phy_ops = {
 	.init		= sun4i_usb_phy_init,
 	.exit		= sun4i_usb_phy_exit,
 	.power_on	= sun4i_usb_phy_power_on,

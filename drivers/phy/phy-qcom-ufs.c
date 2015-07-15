@@ -77,7 +77,7 @@ EXPORT_SYMBOL_GPL(ufs_qcom_phy_calibrate);
 
 struct phy *ufs_qcom_phy_generic_probe(struct platform_device *pdev,
 				struct ufs_qcom_phy *common_cfg,
-				struct phy_ops *ufs_qcom_phy_gen_ops,
+				const struct phy_ops *ufs_qcom_phy_gen_ops,
 				struct ufs_qcom_phy_specific_ops *phy_spec_ops)
 {
 	int err;
