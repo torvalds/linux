@@ -794,7 +794,7 @@ static inline int ntb_peer_db_set(struct ntb_dev *ntb, u64 db_bits)
 }
 
 /**
- * ntb_peer_db_clear() - clear bits in the local doorbell register
+ * ntb_peer_db_clear() - clear bits in the peer doorbell register
  * @ntb:	NTB device context.
  * @db_bits:	Doorbell bits to clear.
  *
