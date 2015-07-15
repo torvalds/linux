@@ -15,6 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77843-private.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -32,7 +33,7 @@ enum max77843_muic_status {
 
 struct max77843_muic_info {
 	struct device *dev;
-	struct max77843 *max77843;
+	struct max77693_dev *max77843;
 	struct extcon_dev *edev;
 
 	struct mutex mutex;
@@ -198,7 +199,7 @@ static const struct regmap_irq_chip max77843_muic_irq_chip = {
 static int max77843_muic_set_path(struct max77843_muic_info *info,
 		u8 val, bool attached)
 {
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 	int ret = 0;
 	unsigned int ctrl1, ctrl2;
 
@@ -539,7 +540,7 @@ static void max77843_muic_irq_work(struct work_struct *work)
 {
 	struct max77843_muic_info *info = container_of(work,
 			struct max77843_muic_info, irq_work);
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 	int ret = 0;
 
 	mutex_lock(&info->mutex);
@@ -615,7 +616,7 @@ static void max77843_muic_detect_cable_wq(struct work_struct *work)
 {
 	struct max77843_muic_info *info = container_of(to_delayed_work(work),
 			struct max77843_muic_info, wq_detcable);
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 	int chg_type, adc, ret;
 	bool attached;
 
@@ -656,7 +657,7 @@ err_cable_wq:
 static int max77843_muic_set_debounce_time(struct max77843_muic_info *info,
 		enum max77843_muic_adc_debounce_time time)
 {
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 	int ret;
 
 	switch (time) {
@@ -681,7 +682,7 @@ static int max77843_muic_set_debounce_time(struct max77843_muic_info *info,
 	return 0;
 }
 
-static int max77843_init_muic_regmap(struct max77843 *max77843)
+static int max77843_init_muic_regmap(struct max77693_dev *max77843)
 {
 	int ret;
 
@@ -720,7 +721,7 @@ err_muic_i2c:
 
 static int max77843_muic_probe(struct platform_device *pdev)
 {
-	struct max77843 *max77843 = dev_get_drvdata(pdev->dev.parent);
+	struct max77693_dev *max77843 = dev_get_drvdata(pdev->dev.parent);
 	struct max77843_muic_info *info;
 	unsigned int id;
 	int i, ret;
@@ -821,7 +822,7 @@ err_muic_irq:
 static int max77843_muic_remove(struct platform_device *pdev)
 {
 	struct max77843_muic_info *info = platform_get_drvdata(pdev);
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 
 	cancel_work_sync(&info->irq_work);
 	regmap_del_irq_chip(max77843->irq, max77843->irq_data_muic);

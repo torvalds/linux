@@ -431,24 +431,4 @@ enum max77843_irq_muic {
 #define MAX77843_REG_SAFEOUTCTRL_SAFEOUT2_MASK \
 		(0x3 << SAFEOUTCTRL_SAFEOUT2_SHIFT)
 
-struct max77843 {
-	struct device *dev;
-
-	struct i2c_client *i2c;
-	struct i2c_client *i2c_chg;
-	struct i2c_client *i2c_fuel;
-	struct i2c_client *i2c_muic;
-
-	struct regmap *regmap;
-	struct regmap *regmap_chg;
-	struct regmap *regmap_fuel;
-	struct regmap *regmap_muic;
-
-	struct regmap_irq_chip_data *irq_data;
-	struct regmap_irq_chip_data *irq_data_chg;
-	struct regmap_irq_chip_data *irq_data_fuel;
-	struct regmap_irq_chip_data *irq_data_muic;
-
-	int irq;
-};
 #endif /* __MAX77843_H__ */

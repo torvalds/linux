@@ -15,6 +15,9 @@
 enum max77693_types {
 	TYPE_MAX77693_UNKNOWN,
 	TYPE_MAX77693,
+	TYPE_MAX77843,
+
+	TYPE_MAX77693_NUM,
 };
 
 /*
@@ -25,12 +28,14 @@ struct max77693_dev {
 	struct i2c_client *i2c;		/* 0xCC , PMIC, Charger, Flash LED */
 	struct i2c_client *i2c_muic;	/* 0x4A , MUIC */
 	struct i2c_client *i2c_haptic;	/* MAX77693: 0x90 , Haptic */
+	struct i2c_client *i2c_chg;	/* MAX77843: 0xD2, Charger */
 
 	enum max77693_types type;
 
 	struct regmap *regmap;
 	struct regmap *regmap_muic;
 	struct regmap *regmap_haptic;	/* Only MAX77693 */
+	struct regmap *regmap_chg;	/* Only MAX77843 */
 
 	struct regmap_irq_chip_data *irq_data_led;
 	struct regmap_irq_chip_data *irq_data_topsys;

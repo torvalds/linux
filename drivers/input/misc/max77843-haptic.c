@@ -14,6 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/input.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77843-private.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -243,7 +244,7 @@ static void max77843_haptic_close(struct input_dev *dev)
 
 static int max77843_haptic_probe(struct platform_device *pdev)
 {
-	struct max77843 *max77843 = dev_get_drvdata(pdev->dev.parent);
+	struct max77693_dev *max77843 = dev_get_drvdata(pdev->dev.parent);
 	struct max77843_haptic *haptic;
 	int error;
 

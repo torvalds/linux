@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77843-private.h>
 #include <linux/regulator/of_regulator.h>
 
@@ -130,7 +131,8 @@ static const struct regulator_desc max77843_supported_regulators[] = {
 	},
 };
 
-static struct regmap *max77843_get_regmap(struct max77843 *max77843, int reg_id)
+static struct regmap *max77843_get_regmap(struct max77693_dev *max77843,
+					  int reg_id)
 {
 	switch (reg_id) {
 	case MAX77843_SAFEOUT1:
@@ -145,7 +147,7 @@ static struct regmap *max77843_get_regmap(struct max77843 *max77843, int reg_id)
 
 static int max77843_regulator_probe(struct platform_device *pdev)
 {
-	struct max77843 *max77843 = dev_get_drvdata(pdev->dev.parent);
+	struct max77693_dev *max77843 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = {};
 	int i;
 
