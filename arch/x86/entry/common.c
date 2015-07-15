@@ -264,7 +264,8 @@ __visible void prepare_exit_to_usermode(struct pt_regs *regs)
 			READ_ONCE(pt_regs_to_thread_info(regs)->flags);
 
 		if (!(cached_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME |
-				      _TIF_UPROBE | _TIF_NEED_RESCHED)))
+				      _TIF_UPROBE | _TIF_NEED_RESCHED |
+				      _TIF_USER_RETURN_NOTIFY)))
 			break;
 
 		/* We have work to do. */
