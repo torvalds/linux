@@ -16,7 +16,7 @@
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
 
-struct armada_plane_properties {
+struct armada_ovl_plane_properties {
 	uint32_t colorkey_yr;
 	uint32_t colorkey_ug;
 	uint32_t colorkey_vb;
@@ -29,7 +29,7 @@ struct armada_plane_properties {
 	uint32_t colorkey_mode;
 };
 
-struct armada_plane {
+struct armada_ovl_plane {
 	struct drm_plane base;
 	spinlock_t lock;
 	struct drm_framebuffer *old_fb;
@@ -42,13 +42,13 @@ struct armada_plane {
 		struct armada_regs regs[13];
 		wait_queue_head_t wait;
 	} vbl;
-	struct armada_plane_properties prop;
+	struct armada_ovl_plane_properties prop;
 };
-#define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
+#define drm_to_armada_ovl_plane(p) container_of(p, struct armada_ovl_plane, base)
 
 
 static void
-armada_ovl_update_attr(struct armada_plane_properties *prop,
+armada_ovl_update_attr(struct armada_ovl_plane_properties *prop,
 	struct armada_crtc *dcrtc)
 {
 	writel_relaxed(prop->colorkey_yr, dcrtc->base + LCD_SPU_COLORKEY_Y);
@@ -72,9 +72,9 @@ armada_ovl_update_attr(struct armada_plane_properties *prop,
 }
 
 /* === Plane support === */
-static void armada_plane_vbl(struct armada_crtc *dcrtc, void *data)
+static void armada_ovl_plane_vbl(struct armada_crtc *dcrtc, void *data)
 {
-	struct armada_plane *dplane = data;
+	struct armada_ovl_plane *dplane = data;
 	struct drm_framebuffer *fb;
 
 	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
@@ -91,12 +91,12 @@ static void armada_plane_vbl(struct armada_crtc *dcrtc, void *data)
 }
 
 static int
-armada_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
+armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_framebuffer *fb,
 	int crtc_x, int crtc_y, unsigned crtc_w, unsigned crtc_h,
 	uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h)
 {
-	struct armada_plane *dplane = drm_to_armada_plane(plane);
+	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct drm_rect src = {
 		.x1 = src_x,
@@ -267,9 +267,9 @@ armada_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	return 0;
 }
 
-static int armada_plane_disable(struct drm_plane *plane)
+static int armada_ovl_plane_disable(struct drm_plane *plane)
 {
-	struct armada_plane *dplane = drm_to_armada_plane(plane);
+	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	struct drm_framebuffer *fb;
 	struct armada_crtc *dcrtc;
 
@@ -302,20 +302,20 @@ static int armada_plane_disable(struct drm_plane *plane)
 	return 0;
 }
 
-static void armada_plane_destroy(struct drm_plane *plane)
+static void armada_ovl_plane_destroy(struct drm_plane *plane)
 {
-	struct armada_plane *dplane = drm_to_armada_plane(plane);
+	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 
 	drm_plane_cleanup(plane);
 
 	kfree(dplane);
 }
 
-static int armada_plane_set_property(struct drm_plane *plane,
+static int armada_ovl_plane_set_property(struct drm_plane *plane,
 	struct drm_property *property, uint64_t val)
 {
 	struct armada_private *priv = plane->dev->dev_private;
-	struct armada_plane *dplane = drm_to_armada_plane(plane);
+	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	bool update_attr = false;
 
 	if (property == priv->colorkey_prop) {
@@ -379,14 +379,14 @@ static int armada_plane_set_property(struct drm_plane *plane,
 	return 0;
 }
 
-static const struct drm_plane_funcs armada_plane_funcs = {
-	.update_plane	= armada_plane_update,
-	.disable_plane	= armada_plane_disable,
-	.destroy	= armada_plane_destroy,
-	.set_property	= armada_plane_set_property,
+static const struct drm_plane_funcs armada_ovl_plane_funcs = {
+	.update_plane	= armada_ovl_plane_update,
+	.disable_plane	= armada_ovl_plane_disable,
+	.destroy	= armada_ovl_plane_destroy,
+	.set_property	= armada_ovl_plane_set_property,
 };
 
-static const uint32_t armada_formats[] = {
+static const uint32_t armada_ovl_formats[] = {
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YUV420,
@@ -456,7 +456,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 {
 	struct armada_private *priv = dev->dev_private;
 	struct drm_mode_object *mobj;
-	struct armada_plane *dplane;
+	struct armada_ovl_plane *dplane;
 	int ret;
 
 	ret = armada_overlay_create_properties(dev);
@@ -469,11 +469,16 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 
 	spin_lock_init(&dplane->lock);
 	init_waitqueue_head(&dplane->vbl.wait);
-	armada_drm_vbl_event_init(&dplane->vbl.update, armada_plane_vbl,
+	armada_drm_vbl_event_init(&dplane->vbl.update, armada_ovl_plane_vbl,
 				  dplane);
 
-	drm_plane_init(dev, &dplane->base, crtcs, &armada_plane_funcs,
-		       armada_formats, ARRAY_SIZE(armada_formats), false);
+	drm_plane_init(dev, &dplane->base, crtcs, &armada_ovl_plane_funcs,
+		       armada_ovl_formats, ARRAY_SIZE(armada_ovl_formats),
+		       false);
+	if (ret) {
+		kfree(dplane);
+		return ret;
+	}
 
 	dplane->prop.colorkey_yr = 0xfefefe00;
 	dplane->prop.colorkey_ug = 0x01010100;
