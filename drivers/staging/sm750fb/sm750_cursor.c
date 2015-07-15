@@ -61,6 +61,7 @@ writel((data), cursor->mmio + (addr))
 void hw_cursor_enable(struct lynx_cursor *cursor)
 {
 	u32 reg;
+
 	reg = FIELD_VALUE(0, HWC_ADDRESS, ADDRESS, cursor->offset)|
 			FIELD_SET(0, HWC_ADDRESS, EXT, LOCAL)|
 			FIELD_SET(0, HWC_ADDRESS, ENABLE, ENABLE);
@@ -81,6 +82,7 @@ void hw_cursor_setPos(struct lynx_cursor *cursor,
 						int x, int y)
 {
 	u32 reg;
+
 	reg = FIELD_VALUE(0, HWC_LOCATION, Y, y)|
 			FIELD_VALUE(0, HWC_LOCATION, X, x);
 	POKE32(HWC_LOCATION, reg);

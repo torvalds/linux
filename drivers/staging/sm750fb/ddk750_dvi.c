@@ -43,6 +43,7 @@ int dviInit(
 			)
 {
 	dvi_ctrl_device_t *pCurrentDviCtrl;
+
 	pCurrentDviCtrl = g_dcftSupportedDviController;
 	if (pCurrentDviCtrl->pfnInit != NULL) {
 		return pCurrentDviCtrl->pfnInit(edgeSelect, busSelect, dualEdgeClkSelect, hsyncEnable,

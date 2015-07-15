@@ -80,6 +80,7 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 	int ret = 0;
 	int cnt = 0;
 	unsigned int ulTmpValue, ulReg;
+
 	if (pll->clockType == SECONDARY_PLL) {
 		/* programe secondary pixel clock */
 		POKE32(CRT_PLL_CTRL, formatPllReg(pll));
@@ -120,6 +121,7 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 
 	} else if (pll->clockType == PRIMARY_PLL) {
 		unsigned int ulReservedBits;
+
 		POKE32(PANEL_PLL_CTRL, formatPllReg(pll));
 
 		POKE32(PANEL_HORIZONTAL_TOTAL,
@@ -184,6 +186,7 @@ int ddk750_setModeTiming(mode_parameter_t *parm, clock_type_t clock)
 {
 	pll_value_t pll;
 	unsigned int uiActualPixelClk;
+
 	pll.inputFreq = DEFAULT_INPUT_CLOCK;
 	pll.clockType = clock;
 

@@ -340,6 +340,7 @@ void sii164EnableHotPlugDetection(
 )
 {
 	unsigned char detectReg;
+
 	detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT);
 
 	/* Depending on each DVI controller, need to enable the hot plug based on each

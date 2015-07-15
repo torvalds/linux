@@ -244,6 +244,7 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 	} else {
 		/* just open DISPLAY_CONTROL_750LE register bit 3:0*/
 		u32 reg;
+
 		reg = PEEK32(DISPLAY_CONTROL_750LE);
 		reg |= 0xf;
 		POKE32(DISPLAY_CONTROL_750LE, reg);
@@ -418,6 +419,7 @@ int hw_sm750_setColReg(struct lynxfb_crtc *crtc, ushort index,
 								ushort red, ushort green, ushort blue)
 {
 	static unsigned int add[] = {PANEL_PALETTE_RAM, CRT_PALETTE_RAM};
+
 	POKE32(add[crtc->channel] + index*4, (red<<16)|(green<<8)|blue);
 	return 0;
 }
@@ -546,6 +548,7 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 void hw_sm750_initAccel(struct lynx_share *share)
 {
 	u32 reg;
+
 	enable2DEngine(1);
 
 	if (getChipType() == SM750LE) {
@@ -575,8 +578,10 @@ void hw_sm750_initAccel(struct lynx_share *share)
 int hw_sm750le_deWait(void)
 {
 	int i = 0x10000000;
+
 	while (i--) {
 		unsigned int dwVal = PEEK32(DE_STATE2);
+
 		if ((FIELD_GET(dwVal, DE_STATE2, DE_STATUS) == DE_STATE2_DE_STATUS_IDLE) &&
 			(FIELD_GET(dwVal, DE_STATE2, DE_FIFO)  == DE_STATE2_DE_FIFO_EMPTY) &&
 			(FIELD_GET(dwVal, DE_STATE2, DE_MEM_FIFO) == DE_STATE2_DE_MEM_FIFO_EMPTY)) {
@@ -591,8 +596,10 @@ int hw_sm750le_deWait(void)
 int hw_sm750_deWait(void)
 {
 	int i = 0x10000000;
+
 	while (i--) {
 		unsigned int dwVal = PEEK32(SYSTEM_CTRL);
+
 		if ((FIELD_GET(dwVal, SYSTEM_CTRL, DE_STATUS) == SYSTEM_CTRL_DE_STATUS_IDLE) &&
 			(FIELD_GET(dwVal, SYSTEM_CTRL, DE_FIFO)  == SYSTEM_CTRL_DE_FIFO_EMPTY) &&
 			(FIELD_GET(dwVal, SYSTEM_CTRL, DE_MEM_FIFO) == SYSTEM_CTRL_DE_MEM_FIFO_EMPTY)) {
