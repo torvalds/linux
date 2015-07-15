@@ -14,7 +14,7 @@
 extern int smi_indent;
 
 
-struct lynx_accel{
+struct lynx_accel {
 	/* base virtual address of DPR registers */
 	volatile unsigned char __iomem * dprBase;
 	/* base virtual address of de data port */
@@ -41,7 +41,7 @@ struct lynx_accel{
 /* lynx_share stands for a presentation of two frame buffer
    that use one smi adaptor , it is similar to a basic class of C++
 */
-struct lynx_share{
+struct lynx_share {
 	/* common members */
 	u16 devid;
 	u8 revid;
@@ -68,7 +68,7 @@ struct lynx_share{
 	void (*resume)(struct lynx_share*);
 };
 
-struct lynx_cursor{
+struct lynx_cursor {
 	/* cursor width ,height and size */
 	int w;
 	int h;
@@ -92,7 +92,7 @@ struct lynx_cursor{
 	void (*setData)(struct lynx_cursor *, u16, const u8*, const u8*);
 };
 
-struct lynxfb_crtc{
+struct lynxfb_crtc {
 	unsigned char __iomem *vCursor; /* virtual address of cursor */
 	unsigned char __iomem *vScreen; /* virtual address of on_screen */
 	int oCursor; /* cursor address offset in vidmem */
@@ -123,7 +123,7 @@ struct lynxfb_crtc{
 	struct lynx_cursor cursor;
 };
 
-struct lynxfb_output{
+struct lynxfb_output {
 	int dpms;
 	int paths;
 	/* which paths(s) this output stands for,for sm750:
@@ -149,7 +149,7 @@ struct lynxfb_output{
 	void  (*clear)(struct lynxfb_output*);
 };
 
-struct lynxfb_par{
+struct lynxfb_par {
 	/* either 0 or 1 for dual head adaptor,0 is the older one registered */
 	int index;
 	unsigned int pseudo_palette[256];

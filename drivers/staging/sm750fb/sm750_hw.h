@@ -42,7 +42,7 @@ enum sm750_path {
 	sm750_pnc = 3,/* panel and crt */
 };
 
-struct init_status{
+struct init_status {
 	ushort powerMode;
 	/* below three clocks are in unit of MHZ*/
 	ushort chip_clk;
@@ -52,7 +52,7 @@ struct init_status{
 	ushort resetMemory;
 };
 
-struct sm750_state{
+struct sm750_state {
 	struct init_status initParm;
 	enum sm750_pnltype pnltype;
 	enum sm750_dataflow dataflow;
@@ -66,7 +66,7 @@ struct sm750_state{
    in C++
  */
 
-struct sm750_share{
+struct sm750_share {
 	/* it's better to put lynx_share struct to the first place of sm750_share */
 	struct lynx_share share;
 	struct sm750_state state;
