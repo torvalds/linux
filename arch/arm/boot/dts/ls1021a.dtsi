@@ -342,28 +342,30 @@
 		};
 
 		sai1: sai@2b50000 {
+			#sound-dai-cells = <0>;
 			compatible = "fsl,vf610-sai";
 			reg = <0x0 0x2b50000 0x0 0x10000>;
 			interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
-			clock-names = "sai";
+			clocks = <&platform_clk 1>, <&platform_clk 1>,
+				 <&platform_clk 1>, <&platform_clk 1>;
+			clock-names = "bus", "mclk1", "mclk2", "mclk3";
 			dma-names = "tx", "rx";
 			dmas = <&edma0 1 47>,
 			       <&edma0 1 46>;
-			big-endian;
 			status = "disabled";
 		};
 
 		sai2: sai@2b60000 {
+			#sound-dai-cells = <0>;
 			compatible = "fsl,vf610-sai";
 			reg = <0x0 0x2b60000 0x0 0x10000>;
 			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
-			clock-names = "sai";
+			clocks = <&platform_clk 1>, <&platform_clk 1>,
+				 <&platform_clk 1>, <&platform_clk 1>;
+			clock-names = "bus", "mclk1", "mclk2", "mclk3";
 			dma-names = "tx", "rx";
 			dmas = <&edma0 1 45>,
 			       <&edma0 1 44>;
-			big-endian;
 			status = "disabled";
 		};
 
