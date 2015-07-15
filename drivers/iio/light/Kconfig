@@ -86,7 +86,7 @@ config CM3323
 	depends on I2C
 	tristate "Capella CM3323 color light sensor"
 	help
-	 Say Y here if you want to build a driver for Capela CM3323
+	 Say Y here if you want to build a driver for Capella CM3323
 	 color sensor.
 
 	 To compile this driver as a module, choose M here: the module will
@@ -167,6 +167,17 @@ config JSA1212
 
 	 To compile this driver as a module, choose M here:
 	 the module will be called jsa1212.
+
+config RPR0521
+	tristate "ROHM RPR0521 ALS and proximity sensor driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	 Say Y here if you want to build support for ROHM's RPR0521
+	 ambient light and proximity sensor device.
+
+	 To compile this driver as a module, choose M here:
+	 the module will be called rpr0521.
 
 config SENSORS_LM3533
 	tristate "LM3533 ambient light sensor"

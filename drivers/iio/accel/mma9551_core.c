@@ -297,7 +297,7 @@ EXPORT_SYMBOL(mma9551_read_status_byte);
  * Returns: 0 on success, negative value on failure.
  */
 int mma9551_read_config_word(struct i2c_client *client, u8 app_id,
-			    u16 reg, u16 *val)
+			     u16 reg, u16 *val)
 {
 	int ret;
 	__be16 v;
@@ -328,12 +328,12 @@ EXPORT_SYMBOL(mma9551_read_config_word);
  * Returns: 0 on success, negative value on failure.
  */
 int mma9551_write_config_word(struct i2c_client *client, u8 app_id,
-			     u16 reg, u16 val)
+			      u16 reg, u16 val)
 {
 	__be16 v = cpu_to_be16(val);
 
 	return mma9551_transfer(client, app_id, MMA9551_CMD_WRITE_CONFIG, reg,
-				(u8 *) &v, 2, NULL, 0);
+				(u8 *)&v, 2, NULL, 0);
 }
 EXPORT_SYMBOL(mma9551_write_config_word);
 
@@ -373,7 +373,7 @@ EXPORT_SYMBOL(mma9551_read_status_word);
  * @client:	I2C client
  * @app_id:	Application ID
  * @reg:	Application register
- * @len:	Length of array to read in bytes
+ * @len:	Length of array to read (in words)
  * @buf:	Array of words to read
  *
  * Read multiple configuration registers (word-sized registers).
@@ -385,23 +385,22 @@ EXPORT_SYMBOL(mma9551_read_status_word);
  * Returns: 0 on success, negative value on failure.
  */
 int mma9551_read_config_words(struct i2c_client *client, u8 app_id,
-			     u16 reg, u8 len, u16 *buf)
+			      u16 reg, u8 len, u16 *buf)
 {
 	int ret, i;
-	int len_words = len / sizeof(u16);
 	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS / 2];
 
-	if (len_words > ARRAY_SIZE(be_buf)) {
+	if (len > ARRAY_SIZE(be_buf)) {
 		dev_err(&client->dev, "Invalid buffer size %d\n", len);
 		return -EINVAL;
 	}
 
 	ret = mma9551_transfer(client, app_id, MMA9551_CMD_READ_CONFIG,
-			       reg, NULL, 0, (u8 *) be_buf, len);
+			       reg, NULL, 0, (u8 *)be_buf, len * sizeof(u16));
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < len_words; i++)
+	for (i = 0; i < len; i++)
 		buf[i] = be16_to_cpu(be_buf[i]);
 
 	return 0;
@@ -413,7 +412,7 @@ EXPORT_SYMBOL(mma9551_read_config_words);
  * @client:	I2C client
  * @app_id:	Application ID
  * @reg:	Application register
- * @len:	Length of array to read in bytes
+ * @len:	Length of array to read (in words)
  * @buf:	Array of words to read
  *
  * Read multiple status registers (word-sized registers).
@@ -428,20 +427,19 @@ int mma9551_read_status_words(struct i2c_client *client, u8 app_id,
 			      u16 reg, u8 len, u16 *buf)
 {
 	int ret, i;
-	int len_words = len / sizeof(u16);
 	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS / 2];
 
-	if (len_words > ARRAY_SIZE(be_buf)) {
+	if (len > ARRAY_SIZE(be_buf)) {
 		dev_err(&client->dev, "Invalid buffer size %d\n", len);
 		return -EINVAL;
 	}
 
 	ret = mma9551_transfer(client, app_id, MMA9551_CMD_READ_STATUS,
-			       reg, NULL, 0, (u8 *) be_buf, len);
+			       reg, NULL, 0, (u8 *)be_buf, len * sizeof(u16));
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < len_words; i++)
+	for (i = 0; i < len; i++)
 		buf[i] = be16_to_cpu(be_buf[i]);
 
 	return 0;
@@ -453,7 +451,7 @@ EXPORT_SYMBOL(mma9551_read_status_words);
  * @client:	I2C client
  * @app_id:	Application ID
  * @reg:	Application register
- * @len:	Length of array to write in bytes
+ * @len:	Length of array to write (in words)
  * @buf:	Array of words to write
  *
  * Write multiple configuration registers (word-sized registers).
@@ -468,19 +466,18 @@ int mma9551_write_config_words(struct i2c_client *client, u8 app_id,
 			       u16 reg, u8 len, u16 *buf)
 {
 	int i;
-	int len_words = len / sizeof(u16);
 	__be16 be_buf[(MMA9551_MAX_MAILBOX_DATA_REGS - 1) / 2];
 
-	if (len_words > ARRAY_SIZE(be_buf)) {
+	if (len > ARRAY_SIZE(be_buf)) {
 		dev_err(&client->dev, "Invalid buffer size %d\n", len);
 		return -EINVAL;
 	}
 
-	for (i = 0; i < len_words; i++)
+	for (i = 0; i < len; i++)
 		be_buf[i] = cpu_to_be16(buf[i]);
 
 	return mma9551_transfer(client, app_id, MMA9551_CMD_WRITE_CONFIG,
-				reg, (u8 *) be_buf, len, NULL, 0);
+				reg, (u8 *)be_buf, len * sizeof(u16), NULL, 0);
 }
 EXPORT_SYMBOL(mma9551_write_config_words);
 

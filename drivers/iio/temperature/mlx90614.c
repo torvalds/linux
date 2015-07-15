@@ -551,7 +551,6 @@ static const struct dev_pm_ops mlx90614_pm_ops = {
 static struct i2c_driver mlx90614_driver = {
 	.driver = {
 		.name	= "mlx90614",
-		.owner	= THIS_MODULE,
 		.pm	= &mlx90614_pm_ops,
 	},
 	.probe = mlx90614_probe,

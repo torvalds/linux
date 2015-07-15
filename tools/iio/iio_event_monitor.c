@@ -13,7 +13,6 @@
  *
  * Usage:
  *	iio_event_monitor <device_name>
- *
  */
 
 #include <unistd.h>
@@ -51,6 +50,9 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_HUMIDITYRELATIVE] = "humidityrelative",
 	[IIO_ACTIVITY] = "activity",
 	[IIO_STEPS] = "steps",
+	[IIO_ENERGY] = "energy",
+	[IIO_DISTANCE] = "distance",
+	[IIO_VELOCITY] = "velocity",
 };
 
 static const char * const iio_ev_type_text[] = {
@@ -99,6 +101,7 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_JOGGING] = "jogging",
 	[IIO_MOD_WALKING] = "walking",
 	[IIO_MOD_STILL] = "still",
+	[IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z] = "sqrt(x^2+y^2+z^2)",
 };
 
 static bool event_is_known(struct iio_event_data *event)
@@ -130,6 +133,9 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_HUMIDITYRELATIVE:
 	case IIO_ACTIVITY:
 	case IIO_STEPS:
+	case IIO_ENERGY:
+	case IIO_DISTANCE:
+	case IIO_VELOCITY:
 		break;
 	default:
 		return false;
@@ -167,6 +173,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MOD_JOGGING:
 	case IIO_MOD_WALKING:
 	case IIO_MOD_STILL:
+	case IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z:
 		break;
 	default:
 		return false;
@@ -209,7 +216,8 @@ static void print_event(struct iio_event_data *event)
 
 	if (!event_is_known(event)) {
 		printf("Unknown event: time: %lld, id: %llx\n",
-				event->timestamp, event->id);
+		       event->timestamp, event->id);
+
 		return;
 	}
 
@@ -229,6 +237,7 @@ static void print_event(struct iio_event_data *event)
 
 	if (dir != IIO_EV_DIR_NONE)
 		printf(", direction: %s", iio_ev_dir_text[dir]);
+
 	printf("\n");
 }
 
@@ -251,14 +260,16 @@ int main(int argc, char **argv)
 	dev_num = find_type_by_name(device_name, "iio:device");
 	if (dev_num >= 0) {
 		printf("Found IIO device with name %s with device number %d\n",
-			device_name, dev_num);
+		       device_name, dev_num);
 		ret = asprintf(&chrdev_name, "/dev/iio:device%d", dev_num);
 		if (ret < 0) {
 			return -ENOMEM;
 		}
 	} else {
-		/* If we can't find a IIO device by name assume device_name is a
-		   IIO chrdev */
+		/*
+		 * If we can't find an IIO device by name assume device_name is
+		 * an IIO chrdev
+		 */
 		chrdev_name = strdup(device_name);
 		if (!chrdev_name)
 			return -ENOMEM;
@@ -297,6 +308,12 @@ int main(int argc, char **argv)
 				perror("Failed to read event from device");
 				break;
 			}
+		}
+
+		if (ret != sizeof(event)) {
+			printf("Reading event failed!\n");
+			ret = -EIO;
+			break;
 		}
 
 		print_event(&event);

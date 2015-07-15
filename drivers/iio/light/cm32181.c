@@ -358,7 +358,6 @@ static struct i2c_driver cm32181_driver = {
 	.driver = {
 		.name	= "cm32181",
 		.of_match_table = of_match_ptr(cm32181_of_match),
-		.owner	= THIS_MODULE,
 	},
 	.id_table       = cm32181_id,
 	.probe		= cm32181_probe,

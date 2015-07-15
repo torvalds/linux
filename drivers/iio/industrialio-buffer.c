@@ -71,8 +71,9 @@ static bool iio_buffer_ready(struct iio_dev *indio_dev, struct iio_buffer *buf,
 
 	if (avail >= to_wait) {
 		/* force a flush for non-blocking reads */
-		if (!to_wait && !avail && to_flush)
-			iio_buffer_flush_hwfifo(indio_dev, buf, to_flush);
+		if (!to_wait && avail < to_flush)
+			iio_buffer_flush_hwfifo(indio_dev, buf,
+						to_flush - avail);
 		return true;
 	}
 
@@ -100,8 +101,7 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 	struct iio_dev *indio_dev = filp->private_data;
 	struct iio_buffer *rb = indio_dev->buffer;
 	size_t datum_size;
-	size_t to_wait = 0;
-	size_t to_read;
+	size_t to_wait;
 	int ret;
 
 	if (!indio_dev->info)
@@ -119,14 +119,14 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 	if (!datum_size)
 		return 0;
 
-	to_read = min_t(size_t, n / datum_size, rb->watermark);
-
-	if (!(filp->f_flags & O_NONBLOCK))
-		to_wait = to_read;
+	if (filp->f_flags & O_NONBLOCK)
+		to_wait = 0;
+	else
+		to_wait = min_t(size_t, n / datum_size, rb->watermark);
 
 	do {
 		ret = wait_event_interruptible(rb->pollq,
-			iio_buffer_ready(indio_dev, rb, to_wait, to_read));
+		      iio_buffer_ready(indio_dev, rb, to_wait, n / datum_size));
 		if (ret)
 			return ret;
 

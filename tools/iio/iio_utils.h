@@ -51,17 +51,16 @@ struct iio_channel_info {
 };
 
 int iioutils_break_up_name(const char *full_name, char **generic_name);
-int iioutils_get_type(unsigned *is_signed, unsigned *bytes,
-					  unsigned *bits_used, unsigned *shift,
-					  uint64_t *mask, unsigned *be,
-					  const char *device_dir, const char *name,
-					  const char *generic_name);
+int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
+		      unsigned *shift, uint64_t *mask, unsigned *be,
+		      const char *device_dir, const char *name,
+		      const char *generic_name);
 int iioutils_get_param_float(float *output, const char *param_name,
-							 const char *device_dir, const char *name,
-							 const char *generic_name);
+			     const char *device_dir, const char *name,
+			     const char *generic_name);
 void bsort_channel_array_by_index(struct iio_channel_info **ci_array, int cnt);
 int build_channel_array(const char *device_dir,
-						struct iio_channel_info **ci_array, int *counter);
+			struct iio_channel_info **ci_array, int *counter);
 int find_type_by_name(const char *name, const char *type);
 int write_sysfs_int(const char *filename, const char *basedir, int val);
 int write_sysfs_int_and_verify(const char *filename, const char *basedir,

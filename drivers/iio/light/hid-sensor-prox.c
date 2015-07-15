@@ -284,8 +284,7 @@ static int hid_prox_probe(struct platform_device *pdev)
 		goto error_free_dev_mem;
 	}
 
-	indio_dev->num_channels =
-				ARRAY_SIZE(prox_channels);
+	indio_dev->num_channels = ARRAY_SIZE(prox_channels);
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &prox_info;
 	indio_dev->name = name;

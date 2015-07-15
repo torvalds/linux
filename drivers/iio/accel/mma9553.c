@@ -182,6 +182,10 @@ struct mma9553_conf_regs {
 
 struct mma9553_data {
 	struct i2c_client *client;
+	/*
+	 * 1. Serialize access to HW (requested by mma9551_core API).
+	 * 2. Serialize sequences that power on/off the device and access HW.
+	 */
 	struct mutex mutex;
 	struct mma9553_conf_regs conf;
 	struct mma9553_event events[MMA9553_EVENTS_INFO_SIZE];
@@ -322,7 +326,8 @@ static int mma9553_read_activity_stepcnt(struct mma9553_data *data,
 	int ret;
 
 	ret = mma9551_read_status_words(data->client, MMA9551_APPID_PEDOMETER,
-					MMA9553_REG_STATUS, sizeof(u32), buf);
+					MMA9553_REG_STATUS, ARRAY_SIZE(buf),
+					buf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"error reading status and stepcnt\n");
@@ -342,10 +347,10 @@ static int mma9553_conf_gpio(struct mma9553_data *data)
 	struct mma9553_event *ev_step_detect;
 	bool activity_enabled;
 
-	activity_enabled =
-	    mma9553_is_any_event_enabled(data, true, IIO_ACTIVITY);
-	ev_step_detect =
-	    mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD, IIO_EV_DIR_NONE);
+	activity_enabled = mma9553_is_any_event_enabled(data, true,
+							IIO_ACTIVITY);
+	ev_step_detect = mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD,
+					   IIO_EV_DIR_NONE);
 
 	/*
 	 * If both step detector and activity are enabled, use the MRGFL bit.
@@ -371,9 +376,8 @@ static int mma9553_conf_gpio(struct mma9553_data *data)
 			return ret;
 	}
 
-	ret = mma9551_gpio_config(data->client,
-				  MMA9553_DEFAULT_GPIO_PIN,
-				  appid, bitnum, MMA9553_DEFAULT_GPIO_POLARITY);
+	ret = mma9551_gpio_config(data->client, MMA9553_DEFAULT_GPIO_PIN, appid,
+				  bitnum, MMA9553_DEFAULT_GPIO_POLARITY);
 	if (ret < 0)
 		return ret;
 	data->gpio_bitnum = bitnum;
@@ -394,16 +398,15 @@ static int mma9553_init(struct mma9553_data *data)
 	 * a device identification command to differentiate the MMA9553L
 	 * from the MMA9550L.
 	 */
-	ret =
-	    mma9551_read_config_words(data->client, MMA9551_APPID_PEDOMETER,
-				      MMA9553_REG_CONF_SLEEPMIN,
-				      sizeof(data->conf), (u16 *) &data->conf);
+	ret = mma9551_read_config_words(data->client, MMA9551_APPID_PEDOMETER,
+					MMA9553_REG_CONF_SLEEPMIN,
+					sizeof(data->conf) / sizeof(u16),
+					(u16 *)&data->conf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"failed to read configuration registers\n");
 		return ret;
 	}
-
 
 	/* Reset GPIO */
 	data->gpio_bitnum = MMA9553_MAX_BITNUM;
@@ -419,18 +422,18 @@ static int mma9553_init(struct mma9553_data *data)
 	data->conf.sleepmin = MMA9553_DEFAULT_SLEEPMIN;
 	data->conf.sleepmax = MMA9553_DEFAULT_SLEEPMAX;
 	data->conf.sleepthd = MMA9553_DEFAULT_SLEEPTHD;
-	data->conf.config =
-	    mma9553_set_bits(data->conf.config, 1, MMA9553_MASK_CONF_CONFIG);
+	data->conf.config = mma9553_set_bits(data->conf.config, 1,
+					     MMA9553_MASK_CONF_CONFIG);
 	/*
 	 * Clear the activity debounce counter when the activity level changes,
 	 * so that the confidence level applies for any activity level.
 	 */
 	data->conf.config = mma9553_set_bits(data->conf.config, 1,
 					     MMA9553_MASK_CONF_ACT_DBCNTM);
-	ret =
-	    mma9551_write_config_words(data->client, MMA9551_APPID_PEDOMETER,
-				       MMA9553_REG_CONF_SLEEPMIN,
-				       sizeof(data->conf), (u16 *) &data->conf);
+	ret = mma9551_write_config_words(data->client, MMA9551_APPID_PEDOMETER,
+					 MMA9553_REG_CONF_SLEEPMIN,
+					 sizeof(data->conf) / sizeof(u16),
+					 (u16 *)&data->conf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"failed to write configuration registers\n");
@@ -567,7 +570,7 @@ static int mma9553_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBHEIGHT:
 		tmp = mma9553_get_bits(data->conf.height_weight,
-					MMA9553_MASK_CONF_HEIGHT);
+				       MMA9553_MASK_CONF_HEIGHT);
 		*val = tmp / 100;	/* cm to m */
 		*val2 = (tmp % 100) * 10000;
 		return IIO_VAL_INT_PLUS_MICRO;
@@ -719,7 +722,6 @@ static int mma9553_read_event_config(struct iio_dev *indio_dev,
 				     enum iio_event_type type,
 				     enum iio_event_direction dir)
 {
-
 	struct mma9553_data *data = iio_priv(indio_dev);
 	struct mma9553_event *event;
 
@@ -1026,22 +1028,22 @@ static irqreturn_t mma9553_event_handler(int irq, void *private)
 		return IRQ_HANDLED;
 	}
 
-	ev_prev_activity =
-	    mma9553_get_event(data, IIO_ACTIVITY,
-			      mma9553_activity_to_mod(data->activity),
-			      IIO_EV_DIR_FALLING);
-	ev_activity =
-	    mma9553_get_event(data, IIO_ACTIVITY,
-			      mma9553_activity_to_mod(activity),
-			      IIO_EV_DIR_RISING);
-	ev_step_detect =
-	    mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD, IIO_EV_DIR_NONE);
+	ev_prev_activity = mma9553_get_event(data, IIO_ACTIVITY,
+					     mma9553_activity_to_mod(
+					     data->activity),
+					     IIO_EV_DIR_FALLING);
+	ev_activity = mma9553_get_event(data, IIO_ACTIVITY,
+					mma9553_activity_to_mod(activity),
+					IIO_EV_DIR_RISING);
+	ev_step_detect = mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD,
+					   IIO_EV_DIR_NONE);
 
 	if (ev_step_detect->enabled && (stepcnt != data->stepcnt)) {
 		data->stepcnt = stepcnt;
 		iio_push_event(indio_dev,
 			       IIO_EVENT_CODE(IIO_STEPS, 0, IIO_NO_MOD,
-			       IIO_EV_DIR_NONE, IIO_EV_TYPE_CHANGE, 0, 0, 0),
+					      IIO_EV_DIR_NONE,
+					      IIO_EV_TYPE_CHANGE, 0, 0, 0),
 			       data->timestamp);
 	}
 
@@ -1051,17 +1053,19 @@ static irqreturn_t mma9553_event_handler(int irq, void *private)
 		if (ev_prev_activity && ev_prev_activity->enabled)
 			iio_push_event(indio_dev,
 				       IIO_EVENT_CODE(IIO_ACTIVITY, 0,
-				       ev_prev_activity->info->mod,
-				       IIO_EV_DIR_FALLING,
-				       IIO_EV_TYPE_THRESH, 0, 0, 0),
+						    ev_prev_activity->info->mod,
+						    IIO_EV_DIR_FALLING,
+						    IIO_EV_TYPE_THRESH, 0, 0,
+						    0),
 				       data->timestamp);
 
 		if (ev_activity && ev_activity->enabled)
 			iio_push_event(indio_dev,
 				       IIO_EVENT_CODE(IIO_ACTIVITY, 0,
-				       ev_activity->info->mod,
-				       IIO_EV_DIR_RISING,
-				       IIO_EV_TYPE_THRESH, 0, 0, 0),
+						      ev_activity->info->mod,
+						      IIO_EV_DIR_RISING,
+						      IIO_EV_TYPE_THRESH, 0, 0,
+						      0),
 				       data->timestamp);
 	}
 	mutex_unlock(&data->mutex);
@@ -1156,7 +1160,6 @@ static int mma9553_probe(struct i2c_client *client,
 				client->irq);
 			goto out_poweroff;
 		}
-
 	}
 
 	ret = iio_device_register(indio_dev);

@@ -421,7 +421,6 @@ static const struct of_device_id cm3232_of_match[] = {
 static struct i2c_driver cm3232_driver = {
 	.driver = {
 		.name	= "cm3232",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(cm3232_of_match),
 #ifdef CONFIG_PM_SLEEP
 		.pm	= &cm3232_pm_ops,

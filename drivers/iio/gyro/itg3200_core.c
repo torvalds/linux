@@ -379,7 +379,6 @@ MODULE_DEVICE_TABLE(i2c, itg3200_id);
 
 static struct i2c_driver itg3200_driver = {
 	.driver = {
-		.owner  = THIS_MODULE,
 		.name	= "itg3200",
 		.pm	= &itg3200_pm_ops,
 	},
