@@ -1149,70 +1149,6 @@ static int enic_rq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc,
 	return 0;
 }
 
-static int enic_poll(struct napi_struct *napi, int budget)
-{
-	struct net_device *netdev = napi->dev;
-	struct enic *enic = netdev_priv(netdev);
-	unsigned int cq_rq = enic_cq_rq(enic, 0);
-	unsigned int cq_wq = enic_cq_wq(enic, 0);
-	unsigned int intr = enic_legacy_io_intr();
-	unsigned int rq_work_to_do = budget;
-	unsigned int wq_work_to_do = -1; /* no limit */
-	unsigned int  work_done, rq_work_done = 0, wq_work_done;
-	int err;
-
-	wq_work_done = vnic_cq_service(&enic->cq[cq_wq], wq_work_to_do,
-				       enic_wq_service, NULL);
-
-	if (!enic_poll_lock_napi(&enic->rq[cq_rq])) {
-		if (wq_work_done > 0)
-			vnic_intr_return_credits(&enic->intr[intr],
-						 wq_work_done,
-						 0 /* dont unmask intr */,
-						 0 /* dont reset intr timer */);
-		return budget;
-	}
-
-	if (budget > 0)
-		rq_work_done = vnic_cq_service(&enic->cq[cq_rq],
-			rq_work_to_do, enic_rq_service, NULL);
-
-	/* Accumulate intr event credits for this polling
-	 * cycle.  An intr event is the completion of a
-	 * a WQ or RQ packet.
-	 */
-
-	work_done = rq_work_done + wq_work_done;
-
-	if (work_done > 0)
-		vnic_intr_return_credits(&enic->intr[intr],
-			work_done,
-			0 /* don't unmask intr */,
-			0 /* don't reset intr timer */);
-
-	err = vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
-	enic_poll_unlock_napi(&enic->rq[cq_rq], napi);
-
-	/* Buffer allocation failed. Stay in polling
-	 * mode so we can try to fill the ring again.
-	 */
-
-	if (err)
-		rq_work_done = rq_work_to_do;
-
-	if (rq_work_done < rq_work_to_do) {
-
-		/* Some work done, but not enough to stay in polling,
-		 * exit polling
-		 */
-
-		napi_complete(napi);
-		vnic_intr_unmask(&enic->intr[intr]);
-	}
-
-	return rq_work_done;
-}
-
 static void enic_set_int_moderation(struct enic *enic, struct vnic_rq *rq)
 {
 	unsigned int intr = enic_msix_rq_intr(enic, rq->index);
@@ -1269,6 +1205,77 @@ static void enic_calc_int_moderation(struct enic *enic, struct vnic_rq *rq)
 
 	pkt_size_counter->large_pkt_bytes_cnt = 0;
 	pkt_size_counter->small_pkt_bytes_cnt = 0;
+}
+
+static int enic_poll(struct napi_struct *napi, int budget)
+{
+	struct net_device *netdev = napi->dev;
+	struct enic *enic = netdev_priv(netdev);
+	unsigned int cq_rq = enic_cq_rq(enic, 0);
+	unsigned int cq_wq = enic_cq_wq(enic, 0);
+	unsigned int intr = enic_legacy_io_intr();
+	unsigned int rq_work_to_do = budget;
+	unsigned int wq_work_to_do = -1; /* no limit */
+	unsigned int  work_done, rq_work_done = 0, wq_work_done;
+	int err;
+
+	wq_work_done = vnic_cq_service(&enic->cq[cq_wq], wq_work_to_do,
+				       enic_wq_service, NULL);
+
+	if (!enic_poll_lock_napi(&enic->rq[cq_rq])) {
+		if (wq_work_done > 0)
+			vnic_intr_return_credits(&enic->intr[intr],
+						 wq_work_done,
+						 0 /* dont unmask intr */,
+						 0 /* dont reset intr timer */);
+		return budget;
+	}
+
+	if (budget > 0)
+		rq_work_done = vnic_cq_service(&enic->cq[cq_rq],
+			rq_work_to_do, enic_rq_service, NULL);
+
+	/* Accumulate intr event credits for this polling
+	 * cycle.  An intr event is the completion of a
+	 * a WQ or RQ packet.
+	 */
+
+	work_done = rq_work_done + wq_work_done;
+
+	if (work_done > 0)
+		vnic_intr_return_credits(&enic->intr[intr],
+			work_done,
+			0 /* don't unmask intr */,
+			0 /* don't reset intr timer */);
+
+	err = vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
+	enic_poll_unlock_napi(&enic->rq[cq_rq], napi);
+
+	/* Buffer allocation failed. Stay in polling
+	 * mode so we can try to fill the ring again.
+	 */
+
+	if (err)
+		rq_work_done = rq_work_to_do;
+	if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
+		/* Call the function which refreshes the intr coalescing timer
+		 * value based on the traffic.
+		 */
+		enic_calc_int_moderation(enic, &enic->rq[0]);
+
+	if (rq_work_done < rq_work_to_do) {
+
+		/* Some work done, but not enough to stay in polling,
+		 * exit polling
+		 */
+
+		napi_complete(napi);
+		if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
+			enic_set_int_moderation(enic, &enic->rq[0]);
+		vnic_intr_unmask(&enic->intr[intr]);
+	}
+
+	return rq_work_done;
 }
 
 #ifdef CONFIG_RFS_ACCEL
@@ -1407,10 +1414,8 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 	if (err)
 		work_done = work_to_do;
 	if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
-		/* Call the function which refreshes
-		 * the intr coalescing timer value based on
-		 * the traffic.  This is supported only in
-		 * the case of MSI-x mode
+		/* Call the function which refreshes the intr coalescing timer
+		 * value based on the traffic.
 		 */
 		enic_calc_int_moderation(enic, &enic->rq[rq]);
 
@@ -1568,12 +1573,6 @@ static void enic_set_rx_coal_setting(struct enic *enic)
 	unsigned int speed;
 	int index = -1;
 	struct enic_rx_coal *rx_coal = &enic->rx_coalesce_setting;
-
-	/* If intr mode is not MSIX, do not do adaptive coalescing */
-	if (VNIC_DEV_INTR_MODE_MSIX != vnic_dev_get_intr_mode(enic->vdev)) {
-		netdev_info(enic->netdev, "INTR mode is not MSIX, Not initializing adaptive coalescing");
-		return;
-	}
 
 	/* 1. Read the link speed from fw
 	 * 2. Pick the default range for the speed
