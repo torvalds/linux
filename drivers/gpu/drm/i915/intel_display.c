@@ -13161,7 +13161,6 @@ static int intel_atomic_check(struct drm_device *dev,
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct intel_crtc_state *pipe_config =
 			to_intel_crtc_state(crtc_state);
-		bool modeset;
 
 		/* Catch I915_MODE_FLAG_INHERITED */
 		if (crtc_state->mode.private_flags != crtc->state->mode.private_flags)
@@ -13173,10 +13172,11 @@ static int intel_atomic_check(struct drm_device *dev,
 			continue;
 		}
 
-		modeset = needs_modeset(crtc_state);
-
-		if (!modeset)
+		if (!needs_modeset(crtc_state))
 			continue;
+
+		/* FIXME: For only active_changed we shouldn't need to do any
+		 * state recomputation at all. */
 
 		ret = drm_atomic_add_affected_connectors(state, crtc);
 		if (ret)
@@ -13186,21 +13186,24 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (ret)
 			return ret;
 
-		if (!i915.fastboot ||
-		    !intel_pipe_config_compare(state->dev,
+		if (i915.fastboot &&
+		    intel_pipe_config_compare(state->dev,
 					to_intel_crtc_state(crtc->state),
 					pipe_config, true)) {
-			modeset = crtc_state->mode_changed = true;
+			crtc_state->mode_changed = false;
+		}
+
+		if (needs_modeset(crtc_state)) {
+			any_ms = true;
 
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
 				return ret;
 		}
 
-		any_ms = modeset;
-		intel_dump_pipe_config(to_intel_crtc(crtc),
-				       pipe_config,
-				       modeset ? "[modeset]" : "[fastboot]");
+		intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
+				       needs_modeset(crtc_state) ?
+				       "[modeset]" : "[fastset]");
 	}
 
 	if (any_ms) {
