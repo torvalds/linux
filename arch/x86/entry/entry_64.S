@@ -1420,8 +1420,7 @@ nested_nmi:
 	 * Modify the "iret" frame to point to repeat_nmi, forcing another
 	 * iteration of NMI handling.
 	 */
-	leaq	-1*8(%rsp), %rdx
-	movq	%rdx, %rsp
+	subq	$8, %rsp
 	leaq	-10*8(%rsp), %rdx
 	pushq	$__KERNEL_DS
 	pushq	%rdx
