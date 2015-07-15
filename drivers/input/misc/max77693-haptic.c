@@ -24,6 +24,7 @@
 #include <linux/workqueue.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/max77693.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77693-private.h>
 
 #define MAX_MAGNITUDE_SHIFT	16

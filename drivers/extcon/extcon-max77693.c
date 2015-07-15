@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/max77693.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77693-private.h>
 #include <linux/extcon.h>
 #include <linux/regmap.h>
@@ -1077,7 +1078,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "allocate register map\n");
 	} else {
 		info->max77693->regmap_muic = devm_regmap_init_i2c(
-						info->max77693->muic,
+						info->max77693->i2c_muic,
 						&max77693_muic_regmap_config);
 		if (IS_ERR(info->max77693->regmap_muic)) {
 			ret = PTR_ERR(info->max77693->regmap_muic);

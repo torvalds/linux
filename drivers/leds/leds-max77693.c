@@ -13,6 +13,7 @@
 
 #include <linux/led-class-flash.h>
 #include <linux/mfd/max77693.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77693-private.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
