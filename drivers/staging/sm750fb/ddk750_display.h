@@ -8,7 +8,7 @@
 #define PNL_2_OFFSET 0
 #define PNL_2_MASK (3 << PNL_2_OFFSET)
 #define PNL_2_USAGE	(PNL_2_MASK << 16)
-#define PNL_2_PRI 	((0 << PNL_2_OFFSET)|PNL_2_USAGE)
+#define PNL_2_PRI	((0 << PNL_2_OFFSET)|PNL_2_USAGE)
 #define PNL_2_SEC	((2 << PNL_2_OFFSET)|PNL_2_USAGE)
 
 

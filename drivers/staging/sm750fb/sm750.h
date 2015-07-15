@@ -5,7 +5,7 @@
 
 #define FB_ACCEL_SMI 0xab
 /* please use revision id to distinguish sm750le and sm750*/
-#define SPC_SM750 	0
+#define SPC_SM750 0
 
 #define MB(x) ((x)<<20)
 #define MHZ(x) ((x) * 1000000)
@@ -38,8 +38,8 @@ struct lynx_accel{
 
 };
 
-/* 	lynx_share stands for a presentation of two frame buffer
-	that use one smi adaptor , it is similar to a basic class of C++
+/* lynx_share stands for a presentation of two frame buffer
+   that use one smi adaptor , it is similar to a basic class of C++
 */
 struct lynx_share{
 	/* common members */
@@ -115,7 +115,7 @@ struct lynxfb_crtc{
 	int(*proc_checkMode)(struct lynxfb_crtc*, struct fb_var_screeninfo*);
 	int(*proc_setColReg)(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
 	void (*clear)(struct lynxfb_crtc*);
-        /* pan display */
+	/* pan display */
 	int (*proc_panDisplay)(struct lynxfb_crtc *,
 			       const struct fb_var_screeninfo *,
 			       const struct fb_info *);
@@ -126,17 +126,17 @@ struct lynxfb_crtc{
 struct lynxfb_output{
 	int dpms;
 	int paths;
-	/* 	which paths(s) this output stands for,for sm750:
-		paths=1:means output for panel paths
-		paths=2:means output for crt paths
-		paths=3:means output for both panel and crt paths
+	/* which paths(s) this output stands for,for sm750:
+	   paths=1:means output for panel paths
+	   paths=2:means output for crt paths
+	   paths=3:means output for both panel and crt paths
 	*/
 
 	int *channel;
-	/* 	which channel these outputs linked with,for sm750:
-		*channel=0 means primary channel
-		*channel=1 means secondary channel
-		output->channel ==> &crtc->channel
+	/* which channel these outputs linked with,for sm750:
+	   *channel=0 means primary channel
+	   *channel=1 means secondary channel
+	   output->channel ==> &crtc->channel
 	*/
 	void *priv;
 
@@ -165,7 +165,7 @@ struct lynxfb_par{
 
 
 #define PS_TO_HZ(ps)	\
-			({ 	\
+			({ \
 			unsigned long long hz = 1000*1000*1000*1000ULL;	\
 			do_div(hz, ps);	\
 			(unsigned long)hz;})
