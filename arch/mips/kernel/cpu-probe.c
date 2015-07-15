@@ -538,6 +538,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 	}
 	if (config3 & MIPS_CONF3_CDMM)
 		c->options |= MIPS_CPU_CDMM;
+	if (config3 & MIPS_CONF3_SP)
+		c->options |= MIPS_CPU_SP;
 
 	return config3 & MIPS_CONF_M;
 }
