@@ -20,7 +20,7 @@
 static int sysfs__fprintf_build_id(FILE *fp)
 {
 	u8 kallsyms_build_id[BUILD_ID_SIZE];
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	if (sysfs__read_build_id("/sys/kernel/notes", kallsyms_build_id,
 				 sizeof(kallsyms_build_id)) != 0)
@@ -35,7 +35,7 @@ static int sysfs__fprintf_build_id(FILE *fp)
 static int filename__fprintf_build_id(const char *name, FILE *fp)
 {
 	u8 build_id[BUILD_ID_SIZE];
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	if (filename__read_build_id(name, build_id,
 				    sizeof(build_id)) != sizeof(build_id))

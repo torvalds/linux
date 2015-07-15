@@ -124,7 +124,7 @@ static char *build_id__filename(const char *sbuild_id, char *bf, size_t size)
 
 char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size)
 {
-	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
+	char build_id_hex[SBUILD_ID_SIZE];
 
 	if (!dso->has_build_id)
 		return NULL;
@@ -384,7 +384,7 @@ static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
 				 const char *name, bool is_kallsyms,
 				 bool is_vdso)
 {
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	build_id__sprintf(build_id, build_id_size, sbuild_id);
 

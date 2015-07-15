@@ -127,7 +127,7 @@ static int build_id_cache__kcore_existing(const char *from_dir, char *to_dir,
 
 static int build_id_cache__add_kcore(const char *filename, bool force)
 {
-	char dir[32], sbuildid[BUILD_ID_SIZE * 2 + 1];
+	char dir[32], sbuildid[SBUILD_ID_SIZE];
 	char from_dir[PATH_MAX], to_dir[PATH_MAX];
 	char *p;
 
@@ -184,7 +184,7 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 
 static int build_id_cache__add_file(const char *filename)
 {
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 	u8 build_id[BUILD_ID_SIZE];
 	int err;
 
@@ -204,7 +204,7 @@ static int build_id_cache__add_file(const char *filename)
 static int build_id_cache__remove_file(const char *filename)
 {
 	u8 build_id[BUILD_ID_SIZE];
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	int err;
 
@@ -276,7 +276,7 @@ static int build_id_cache__fprintf_missing(struct perf_session *session, FILE *f
 static int build_id_cache__update_file(const char *filename)
 {
 	u8 build_id[BUILD_ID_SIZE];
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	int err = 0;
 
