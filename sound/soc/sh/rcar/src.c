@@ -616,6 +616,14 @@ static void rsnd_src_irq_ctrol_gen2(struct rsnd_mod *mod, int enable)
 		int_val = 0;
 	}
 
+	/*
+	 * WORKAROUND
+	 *
+	 * ignore over flow error when rsnd_enable_sync_convert()
+	 */
+	if (rsnd_enable_sync_convert(src))
+		sys_int_val = sys_int_val & 0xffff;
+
 	rsnd_mod_write(mod, SRC_INT_ENABLE0, int_val);
 	rsnd_mod_bset(mod, SCU_SYS_INT_EN0, sys_int_mask, sys_int_val);
 	rsnd_mod_bset(mod, SCU_SYS_INT_EN1, sys_int_mask, sys_int_val);
@@ -631,11 +639,22 @@ static void rsnd_src_error_clear_gen2(struct rsnd_mod *mod)
 
 static bool rsnd_src_error_record_gen2(struct rsnd_mod *mod)
 {
-	u32 val = OUF_SRC(rsnd_mod_id(mod));
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	u32 val0, val1;
 	bool ret = false;
 
-	if ((rsnd_mod_read(mod, SCU_SYS_STATUS0) & val) ||
-	    (rsnd_mod_read(mod, SCU_SYS_STATUS1) & val)) {
+	val0 = val1 = OUF_SRC(rsnd_mod_id(mod));
+
+	/*
+	 * WORKAROUND
+	 *
+	 * ignore over flow error when rsnd_enable_sync_convert()
+	 */
+	if (rsnd_enable_sync_convert(src))
+		val0 = val0 & 0xffff;
+
+	if ((rsnd_mod_read(mod, SCU_SYS_STATUS0) & val0) ||
+	    (rsnd_mod_read(mod, SCU_SYS_STATUS1) & val1)) {
 		struct rsnd_src *src = rsnd_mod_to_src(mod);
 
 		src->err++;
@@ -651,7 +670,16 @@ static bool rsnd_src_error_record_gen2(struct rsnd_mod *mod)
 static int _rsnd_src_start_gen2(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io)
 {
-	u32 val = rsnd_io_to_mod_dvc(io) ? 0x01 : 0x11;
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	u32 val;
+
+	/*
+	 * WORKAROUND
+	 *
+	 * Enable SRC output if you want to use sync convert together with DVC
+	 */
+	val = (rsnd_io_to_mod_dvc(io) && !rsnd_enable_sync_convert(src)) ?
+		0x01 : 0x11;
 
 	rsnd_mod_write(mod, SRC_CTRL, val);
 
@@ -918,13 +946,6 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 	 * SRC sync convert needs clock master
 	 */
 	if (!rsnd_rdai_is_clk_master(rdai))
-		return 0;
-
-	/*
-	 * We can't use SRC sync convert
-	 * if it has DVC
-	 */
-	if (rsnd_io_to_mod_dvc(io))
 		return 0;
 
 	/*
