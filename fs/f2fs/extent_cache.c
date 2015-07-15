@@ -279,7 +279,7 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 			et->largest.fofs + et->largest.len > pgofs) {
 		*ei = et->largest;
 		ret = true;
-		stat_inc_read_hit(sbi->sb);
+		stat_inc_read_hit(sbi);
 		goto out;
 	}
 
@@ -292,10 +292,10 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 		et->cached_en = en;
 		spin_unlock(&sbi->extent_lock);
 		ret = true;
-		stat_inc_read_hit(sbi->sb);
+		stat_inc_read_hit(sbi);
 	}
 out:
-	stat_inc_total_hit(sbi->sb);
+	stat_inc_total_hit(sbi);
 	read_unlock(&et->lock);
 
 	trace_f2fs_lookup_extent_tree_end(inode, pgofs, ei);

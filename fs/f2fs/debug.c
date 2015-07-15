@@ -33,8 +33,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	int i;
 
 	/* validation check of the segment numbers */
-	si->hit_ext = sbi->read_hit_ext;
-	si->total_ext = sbi->total_hit_ext;
+	si->hit_ext = atomic_read(&sbi->read_hit_ext);
+	si->total_ext = atomic_read(&sbi->total_hit_ext);
 	si->ext_tree = sbi->total_ext_tree;
 	si->ext_node = atomic_read(&sbi->total_ext_node);
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
@@ -368,6 +368,9 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 				le32_to_cpu(raw_super->secs_per_zone);
 	si->sbi = sbi;
 	sbi->stat_info = si;
+
+	atomic_set(&sbi->total_hit_ext, 0);
+	atomic_set(&sbi->read_hit_ext, 0);
 
 	atomic_set(&sbi->inline_xattr, 0);
 	atomic_set(&sbi->inline_inode, 0);

@@ -781,7 +781,8 @@ struct f2fs_sb_info {
 	unsigned int segment_count[2];		/* # of allocated segments */
 	unsigned int block_count[2];		/* # of allocated blocks */
 	atomic_t inplace_count;		/* # of inplace update */
-	int total_hit_ext, read_hit_ext;	/* extent cache hit ratio */
+	atomic_t total_hit_ext;			/* # of lookup extent cache */
+	atomic_t read_hit_ext;			/* # of hit extent cache */
 	atomic_t inline_xattr;			/* # of inline_xattr inodes */
 	atomic_t inline_inode;			/* # of inline_data inodes */
 	atomic_t inline_dir;			/* # of inline_dentry inodes */
@@ -1837,8 +1838,8 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 #define stat_inc_bggc_count(sbi)	((sbi)->bg_gc++)
 #define stat_inc_dirty_dir(sbi)		((sbi)->n_dirty_dirs++)
 #define stat_dec_dirty_dir(sbi)		((sbi)->n_dirty_dirs--)
-#define stat_inc_total_hit(sb)		((F2FS_SB(sb))->total_hit_ext++)
-#define stat_inc_read_hit(sb)		((F2FS_SB(sb))->read_hit_ext++)
+#define stat_inc_total_hit(sbi)		(atomic_inc(&(sbi)->total_hit_ext))
+#define stat_inc_read_hit(sbi)		(atomic_inc(&(sbi)->read_hit_ext))
 #define stat_inc_inline_xattr(inode)					\
 	do {								\
 		if (f2fs_has_inline_xattr(inode))			\
