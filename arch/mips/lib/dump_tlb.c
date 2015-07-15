@@ -13,6 +13,24 @@
 #include <asm/pgtable.h>
 #include <asm/tlbdebug.h>
 
+void dump_tlb_regs(void)
+{
+	const int field = 2 * sizeof(unsigned long);
+
+	pr_info("Index    : %0x\n", read_c0_index());
+	pr_info("PageMask : %0x\n", read_c0_pagemask());
+	pr_info("EntryHi  : %0*lx\n", field, read_c0_entryhi());
+	pr_info("EntryLo0 : %0*lx\n", field, read_c0_entrylo0());
+	pr_info("EntryLo1 : %0*lx\n", field, read_c0_entrylo1());
+	pr_info("Wired    : %0x\n", read_c0_wired());
+	pr_info("PageGrain: %0x\n", read_c0_pagegrain());
+	if (cpu_has_htw) {
+		pr_info("PWField  : %0*lx\n", field, read_c0_pwfield());
+		pr_info("PWSize   : %0*lx\n", field, read_c0_pwsize());
+		pr_info("PWCtl    : %0x\n", read_c0_pwctl());
+	}
+}
+
 static inline const char *msk2str(unsigned int mask)
 {
 	switch (mask) {
