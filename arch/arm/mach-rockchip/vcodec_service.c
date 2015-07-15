@@ -779,6 +779,11 @@ static void vpu_put_clk(struct vpu_service_info *pservice)
 static void vpu_reset(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
+	enum pmu_idle_req type = IDLE_REQ_VIDEO;
+
+	if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC)
+		type = IDLE_REQ_HEVC;
+
 	pr_info("%s: resetting...", dev_name(pservice->dev));
 
 #if defined(CONFIG_ARCH_RK29)
@@ -817,6 +822,9 @@ static void vpu_reset(struct vpu_subdev_data *data)
 	pr_info("for 3288/3368...");
 #ifdef CONFIG_RESET_CONTROLLER
 	if (pservice->rst_a && pservice->rst_h) {
+		if (rockchip_pmu_ops.set_idle_request)
+			rockchip_pmu_ops.set_idle_request(type, true);
+		pr_info("reset in\n");
 		if (pservice->rst_v)
 			reset_control_assert(pservice->rst_v);
 		reset_control_assert(pservice->rst_a);
@@ -826,6 +834,8 @@ static void vpu_reset(struct vpu_subdev_data *data)
 		reset_control_deassert(pservice->rst_a);
 		if (pservice->rst_v)
 			reset_control_deassert(pservice->rst_v);
+		if (rockchip_pmu_ops.set_idle_request)
+			rockchip_pmu_ops.set_idle_request(type, false);
 	}
 #endif
 
