@@ -2478,16 +2478,54 @@ out:
 	free(buf);
 }
 
+/* Set new name from original perf_probe_event and namelist */
+static int probe_trace_event__set_name(struct probe_trace_event *tev,
+				       struct perf_probe_event *pev,
+				       struct strlist *namelist,
+				       bool allow_suffix)
+{
+	const char *event, *group;
+	char buf[64];
+	int ret;
+
+	if (pev->event)
+		event = pev->event;
+	else
+		if (pev->point.function && !strisglob(pev->point.function))
+			event = pev->point.function;
+		else
+			event = tev->point.realname;
+	if (pev->group)
+		group = pev->group;
+	else
+		group = PERFPROBE_GROUP;
+
+	/* Get an unused new event name */
+	ret = get_new_event_name(buf, 64, event,
+				 namelist, allow_suffix);
+	if (ret < 0)
+		return ret;
+
+	event = buf;
+
+	tev->event = strdup(event);
+	tev->group = strdup(group);
+	if (tev->event == NULL || tev->group == NULL)
+		return -ENOMEM;
+
+	/* Add added event name to namelist */
+	strlist__add(namelist, event);
+	return 0;
+}
+
 static int __add_probe_trace_events(struct perf_probe_event *pev,
 				     struct probe_trace_event *tevs,
 				     int ntevs, bool allow_suffix)
 {
 	int i, fd, ret;
 	struct probe_trace_event *tev = NULL;
-	char buf[64];
 	const char *event = NULL, *group = NULL;
 	struct strlist *namelist;
-	bool safename;
 
 	if (pev->uprobes)
 		fd = open_uprobe_events(true);
@@ -2507,7 +2545,6 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		goto close_out;
 	}
 
-	safename = (pev->point.function && !strisglob(pev->point.function));
 	ret = 0;
 	pr_info("Added new event%s\n", (ntevs > 1) ? "s:" : ":");
 	for (i = 0; i < ntevs; i++) {
@@ -2516,36 +2553,15 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		if (!tev->point.symbol)
 			continue;
 
-		if (pev->event)
-			event = pev->event;
-		else
-			if (safename)
-				event = pev->point.function;
-			else
-				event = tev->point.realname;
-		if (pev->group)
-			group = pev->group;
-		else
-			group = PERFPROBE_GROUP;
-
-		/* Get an unused new event name */
-		ret = get_new_event_name(buf, 64, event,
-					 namelist, allow_suffix);
+		/* Set new name for tev (and update namelist) */
+		ret = probe_trace_event__set_name(tev, pev, namelist,
+						  allow_suffix);
 		if (ret < 0)
 			break;
-		event = buf;
 
-		tev->event = strdup(event);
-		tev->group = strdup(group);
-		if (tev->event == NULL || tev->group == NULL) {
-			ret = -ENOMEM;
-			break;
-		}
 		ret = write_probe_trace_event(fd, tev);
 		if (ret < 0)
 			break;
-		/* Add added event name to namelist */
-		strlist__add(namelist, event);
 
 		/* We use tev's name for showing new events */
 		show_perf_probe_event(tev->group, tev->event, pev,
