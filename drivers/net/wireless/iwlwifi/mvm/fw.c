@@ -735,8 +735,13 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 
 int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 				struct iwl_mvm_dump_desc *desc,
-				unsigned int delay)
+				struct iwl_fw_dbg_trigger_tlv *trigger)
 {
+	unsigned int delay = 0;
+
+	if (trigger)
+		delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
+
 	if (test_and_set_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status))
 		return -EBUSY;
 
@@ -747,6 +752,7 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 		 le32_to_cpu(desc->trig_desc.type));
 
 	mvm->fw_dump_desc = desc;
+	mvm->fw_dump_trig = trigger;
 
 	queue_delayed_work(system_wq, &mvm->fw_dump_wk, delay);
 
@@ -754,7 +760,8 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 }
 
 int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
-			   const char *str, size_t len, unsigned int delay)
+			   const char *str, size_t len,
+			   struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_mvm_dump_desc *desc;
 
@@ -766,14 +773,13 @@ int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
 	desc->trig_desc.type = cpu_to_le32(trig);
 	memcpy(desc->trig_desc.data, str, len);
 
-	return iwl_mvm_fw_dbg_collect_desc(mvm, desc, delay);
+	return iwl_mvm_fw_dbg_collect_desc(mvm, desc, trigger);
 }
 
 int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
 				struct iwl_fw_dbg_trigger_tlv *trigger,
 				const char *fmt, ...)
 {
-	unsigned int delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
 	u16 occurrences = le16_to_cpu(trigger->occurrences);
 	int ret, len = 0;
 	char buf[64];
@@ -797,8 +803,9 @@ int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
 		len = strlen(buf) + 1;
 	}
 
-	ret = iwl_mvm_fw_dbg_collect(mvm, le32_to_cpu(trigger->id), buf,
-				     len, delay);
+	ret = iwl_mvm_fw_dbg_collect(mvm, le32_to_cpu(trigger->id), buf, len,
+				     trigger);
+
 	if (ret)
 		return ret;
 

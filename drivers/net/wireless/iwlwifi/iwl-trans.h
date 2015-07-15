@@ -608,7 +608,9 @@ struct iwl_trans_ops {
 	int  (*suspend)(struct iwl_trans *trans);
 	void (*resume)(struct iwl_trans *trans);
 
-	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans);
+	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
+						 struct iwl_fw_dbg_trigger_tlv
+						 *trigger);
 };
 
 /**
@@ -832,11 +834,12 @@ static inline void iwl_trans_resume(struct iwl_trans *trans)
 }
 
 static inline struct iwl_trans_dump_data *
-iwl_trans_dump_data(struct iwl_trans *trans)
+iwl_trans_dump_data(struct iwl_trans *trans,
+		    struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	if (!trans->ops->dump_data)
 		return NULL;
-	return trans->ops->dump_data(trans);
+	return trans->ops->dump_data(trans, trigger);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,

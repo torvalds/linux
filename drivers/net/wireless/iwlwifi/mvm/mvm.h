@@ -708,6 +708,7 @@ struct iwl_mvm {
 	u8 fw_dbg_conf;
 	struct delayed_work fw_dump_wk;
 	struct iwl_mvm_dump_desc *fw_dump_desc;
+	struct iwl_fw_dbg_trigger_tlv *fw_dump_trig;
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;
@@ -1443,10 +1444,11 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
 
 int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 id);
 int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
-			   const char *str, size_t len, unsigned int delay);
+			   const char *str, size_t len,
+			   struct iwl_fw_dbg_trigger_tlv *trigger);
 int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 				struct iwl_mvm_dump_desc *desc,
-				unsigned int delay);
+				struct iwl_fw_dbg_trigger_tlv *trigger);
 void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm);
 int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
 				struct iwl_fw_dbg_trigger_tlv *trigger,

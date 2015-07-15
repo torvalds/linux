@@ -498,10 +498,13 @@ struct iwl_fw_dbg_conf_hcmd {
  *
  * @IWL_FW_DBG_TRIGGER_START: when trigger occurs re-conf the dbg mechanism
  * @IWL_FW_DBG_TRIGGER_STOP: when trigger occurs pull the dbg data
+ * @IWL_FW_DBG_TRIGGER_MONITOR_ONLY: when trigger occurs trigger is set to
+ *	collect only monitor data
  */
 enum iwl_fw_dbg_trigger_mode {
 	IWL_FW_DBG_TRIGGER_START = BIT(0),
 	IWL_FW_DBG_TRIGGER_STOP = BIT(1),
+	IWL_FW_DBG_TRIGGER_MONITOR_ONLY = BIT(2),
 };
 
 /**
