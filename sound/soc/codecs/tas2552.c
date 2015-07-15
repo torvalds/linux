@@ -769,7 +769,6 @@ MODULE_DEVICE_TABLE(of, tas2552_of_match);
 static struct i2c_driver tas2552_i2c_driver = {
 	.driver = {
 		.name = "tas2552",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(tas2552_of_match),
 		.pm = &tas2552_pm,
 	},

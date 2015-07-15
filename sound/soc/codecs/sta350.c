@@ -1264,7 +1264,6 @@ MODULE_DEVICE_TABLE(i2c, sta350_i2c_id);
 static struct i2c_driver sta350_i2c_driver = {
 	.driver = {
 		.name = "sta350",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(st350_dt_ids),
 	},
 	.probe =    sta350_i2c_probe,

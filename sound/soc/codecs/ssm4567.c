@@ -453,7 +453,6 @@ MODULE_DEVICE_TABLE(i2c, ssm4567_i2c_ids);
 static struct i2c_driver ssm4567_driver = {
 	.driver = {
 		.name = "ssm4567",
-		.owner = THIS_MODULE,
 	},
 	.probe = ssm4567_i2c_probe,
 	.remove = ssm4567_i2c_remove,

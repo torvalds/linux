@@ -1363,7 +1363,6 @@ MODULE_DEVICE_TABLE(i2c, wm8991_i2c_id);
 static struct i2c_driver wm8991_i2c_driver = {
 	.driver = {
 		.name = "wm8991",
-		.owner = THIS_MODULE,
 	},
 	.probe = wm8991_i2c_probe,
 	.remove = wm8991_i2c_remove,

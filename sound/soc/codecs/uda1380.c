@@ -810,7 +810,6 @@ MODULE_DEVICE_TABLE(i2c, uda1380_i2c_id);
 static struct i2c_driver uda1380_i2c_driver = {
 	.driver = {
 		.name =  "uda1380-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe =    uda1380_i2c_probe,
 	.remove =   uda1380_i2c_remove,

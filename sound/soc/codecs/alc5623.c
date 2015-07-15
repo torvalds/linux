@@ -1085,7 +1085,6 @@ MODULE_DEVICE_TABLE(of, alc5623_of_match);
 static struct i2c_driver alc5623_i2c_driver = {
 	.driver = {
 		.name = "alc562x-codec",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(alc5623_of_match),
 	},
 	.probe = alc5623_i2c_probe,

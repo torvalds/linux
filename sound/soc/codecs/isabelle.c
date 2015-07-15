@@ -1149,7 +1149,6 @@ MODULE_DEVICE_TABLE(i2c, isabelle_i2c_id);
 static struct i2c_driver isabelle_i2c_driver = {
 	.driver = {
 		.name = "isabelle",
-		.owner = THIS_MODULE,
 	},
 	.probe = isabelle_i2c_probe,
 	.remove = isabelle_i2c_remove,

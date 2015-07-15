@@ -1491,7 +1491,6 @@ MODULE_DEVICE_TABLE(i2c, cs42l73_id);
 static struct i2c_driver cs42l73_i2c_driver = {
 	.driver = {
 		   .name = "cs42l73",
-		   .owner = THIS_MODULE,
 		   .of_match_table = cs42l73_of_match,
 		   },
 	.id_table = cs42l73_id,

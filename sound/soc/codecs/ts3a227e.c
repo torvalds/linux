@@ -377,7 +377,6 @@ MODULE_DEVICE_TABLE(of, ts3a227e_of_match);
 static struct i2c_driver ts3a227e_driver = {
 	.driver = {
 		.name = "ts3a227e",
-		.owner = THIS_MODULE,
 		.pm = &ts3a227e_pm,
 		.of_match_table = of_match_ptr(ts3a227e_of_match),
 	},

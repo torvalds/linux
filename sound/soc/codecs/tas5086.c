@@ -994,7 +994,6 @@ static int tas5086_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver tas5086_i2c_driver = {
 	.driver = {
 		.name	= "tas5086",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(tas5086_dt_ids),
 	},
 	.id_table	= tas5086_i2c_id,

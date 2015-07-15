@@ -815,7 +815,6 @@ MODULE_DEVICE_TABLE(i2c, ssm2518_i2c_ids);
 static struct i2c_driver ssm2518_driver = {
 	.driver = {
 		.name = "ssm2518",
-		.owner = THIS_MODULE,
 	},
 	.probe = ssm2518_i2c_probe,
 	.remove = ssm2518_i2c_remove,

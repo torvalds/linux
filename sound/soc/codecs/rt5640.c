@@ -2242,7 +2242,6 @@ static int rt5640_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver rt5640_i2c_driver = {
 	.driver = {
 		.name = "rt5640",
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(rt5640_acpi_match),
 		.of_match_table = of_match_ptr(rt5640_of_match),
 	},

@@ -1356,7 +1356,6 @@ MODULE_DEVICE_TABLE(i2c, wm8990_i2c_id);
 static struct i2c_driver wm8990_i2c_driver = {
 	.driver = {
 		.name = "wm8990",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm8990_i2c_probe,
 	.remove =   wm8990_i2c_remove,

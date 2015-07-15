@@ -352,7 +352,6 @@ MODULE_DEVICE_TABLE(i2c, max9850_i2c_id);
 static struct i2c_driver max9850_i2c_driver = {
 	.driver = {
 		.name = "max9850",
-		.owner = THIS_MODULE,
 	},
 	.probe = max9850_i2c_probe,
 	.remove = max9850_i2c_remove,

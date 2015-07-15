@@ -1259,7 +1259,6 @@ static int rt298_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver rt298_i2c_driver = {
 	.driver = {
 		   .name = "rt298",
-		   .owner = THIS_MODULE,
 		   .acpi_match_table = ACPI_PTR(rt298_acpi_match),
 		   },
 	.probe = rt298_i2c_probe,

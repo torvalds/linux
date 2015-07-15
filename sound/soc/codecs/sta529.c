@@ -379,7 +379,6 @@ MODULE_DEVICE_TABLE(i2c, sta529_i2c_id);
 static struct i2c_driver sta529_i2c_driver = {
 	.driver = {
 		.name = "sta529",
-		.owner = THIS_MODULE,
 	},
 	.probe		= sta529_i2c_probe,
 	.remove		= sta529_i2c_remove,
