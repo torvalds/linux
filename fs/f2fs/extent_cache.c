@@ -302,6 +302,126 @@ out:
 	return ret;
 }
 
+
+/*
+ * lookup extent at @fofs, if hit, return the extent
+ * if not, return NULL and
+ * @prev_ex: extent before fofs
+ * @next_ex: extent after fofs
+ * @insert_p: insert point for new extent at fofs
+ * in order to simpfy the insertion after.
+ * tree must stay unchanged between lookup and insertion.
+ */
+static struct extent_node *__lookup_extent_tree_ret(struct extent_tree *et,
+				unsigned int fofs, struct extent_node **prev_ex,
+				struct extent_node **next_ex,
+				struct rb_node ***insert_p,
+				struct rb_node **insert_parent)
+{
+	struct rb_node **pnode = &et->root.rb_node;
+	struct rb_node *parent = NULL, *tmp_node;
+	struct extent_node *en;
+
+	if (et->cached_en) {
+		struct extent_info *cei = &et->cached_en->ei;
+
+		if (cei->fofs <= fofs && cei->fofs + cei->len > fofs)
+			return et->cached_en;
+	}
+
+	while (*pnode) {
+		parent = *pnode;
+		en = rb_entry(*pnode, struct extent_node, rb_node);
+
+		if (fofs < en->ei.fofs)
+			pnode = &(*pnode)->rb_left;
+		else if (fofs >= en->ei.fofs + en->ei.len)
+			pnode = &(*pnode)->rb_right;
+		else
+			return en;
+	}
+
+	*insert_p = pnode;
+	*insert_parent = parent;
+
+	en = rb_entry(parent, struct extent_node, rb_node);
+	tmp_node = parent;
+	if (parent && fofs > en->ei.fofs)
+		tmp_node = rb_next(parent);
+	*next_ex = tmp_node ?
+		rb_entry(tmp_node, struct extent_node, rb_node) : NULL;
+
+	tmp_node = parent;
+	if (parent && fofs < en->ei.fofs)
+		tmp_node = rb_prev(parent);
+	*prev_ex = tmp_node ?
+		rb_entry(tmp_node, struct extent_node, rb_node) : NULL;
+
+	return NULL;
+}
+
+static struct extent_node *__insert_extent_tree_ret(struct f2fs_sb_info *sbi,
+				struct extent_tree *et, struct extent_info *ei,
+				struct extent_node **den,
+				struct extent_node *prev_ex,
+				struct extent_node *next_ex,
+				struct rb_node **insert_p,
+				struct rb_node *insert_parent)
+{
+	struct rb_node **p = &et->root.rb_node;
+	struct rb_node *parent = NULL;
+	struct extent_node *en = NULL;
+	int merged = 0;
+
+	if (prev_ex && __is_back_mergeable(ei, &prev_ex->ei)) {
+		f2fs_bug_on(sbi, !den);
+		merged = 1;
+		prev_ex->ei.len += ei->len;
+		ei = &prev_ex->ei;
+		en = prev_ex;
+	}
+	if (next_ex && __is_front_mergeable(ei, &next_ex->ei)) {
+		f2fs_bug_on(sbi, !den);
+		if (merged++) {
+			__detach_extent_node(sbi, et, prev_ex);
+			*den = prev_ex;
+		}
+		next_ex->ei.fofs = ei->fofs;
+		next_ex->ei.blk = ei->blk;
+		next_ex->ei.len += ei->len;
+		en = next_ex;
+	}
+	if (merged)
+		goto update_out;
+
+	if (insert_p && insert_parent) {
+		parent = insert_parent;
+		p = insert_p;
+		goto do_insert;
+	}
+
+	while (*p) {
+		parent = *p;
+		en = rb_entry(parent, struct extent_node, rb_node);
+
+		if (ei->fofs < en->ei.fofs)
+			p = &(*p)->rb_left;
+		else if (ei->fofs >= en->ei.fofs + en->ei.len)
+			p = &(*p)->rb_right;
+		else
+			f2fs_bug_on(sbi, 1);
+	}
+do_insert:
+	en = __attach_extent_node(sbi, et, ei, parent, p);
+	if (!en)
+		return NULL;
+update_out:
+	if (en->ei.len > et->largest.len)
+		et->largest = en->ei;
+	et->cached_en = en;
+	return en;
+}
+
 /* return true, if on-disk extent should be updated */
 static bool f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 							block_t blkaddr)
@@ -309,8 +429,9 @@ static bool f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct extent_tree *et = F2FS_I(inode)->extent_tree;
 	struct extent_node *en = NULL, *en1 = NULL, *en2 = NULL, *en3 = NULL;
-	struct extent_node *den = NULL;
+	struct extent_node *den = NULL, *prev_ex = NULL, *next_ex = NULL;
 	struct extent_info ei, dei, prev;
+	struct rb_node **insert_p = NULL, *insert_parent = NULL;
 	unsigned int endofs;
 
 	if (!et)
@@ -332,20 +453,22 @@ static bool f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 	f2fs_drop_largest_extent(inode, fofs);
 
 	/* 1. lookup and remove existing extent info in cache */
-	en = __lookup_extent_tree(et, fofs);
+	en = __lookup_extent_tree_ret(et, fofs, &prev_ex, &next_ex,
+					&insert_p, &insert_parent);
 	if (!en)
 		goto update_extent;
 
 	dei = en->ei;
 	__detach_extent_node(sbi, et, en);
 
-	/* 2. if extent can be split more, split and insert the left part */
+	/* 2. if extent can be split, try to split it */
 	if (dei.len > F2FS_MIN_EXTENT_LEN) {
 		/*  insert left part of split extent into cache */
 		if (fofs - dei.fofs >= F2FS_MIN_EXTENT_LEN) {
 			set_extent_info(&ei, dei.fofs, dei.blk,
-							fofs - dei.fofs);
-			en1 = __insert_extent_tree(sbi, et, &ei, NULL);
+						fofs - dei.fofs);
+			en1 = __insert_extent_tree_ret(sbi, et, &ei, NULL,
+						NULL, NULL, NULL, NULL);
 		}
 
 		/* insert right part of split extent into cache */
@@ -353,7 +476,8 @@ static bool f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 		if (endofs - fofs >= F2FS_MIN_EXTENT_LEN) {
 			set_extent_info(&ei, fofs + 1,
 				fofs - dei.fofs + dei.blk + 1, endofs - fofs);
-			en2 = __insert_extent_tree(sbi, et, &ei, NULL);
+			en2 = __insert_extent_tree_ret(sbi, et, &ei, NULL,
+						NULL, NULL, NULL, NULL);
 		}
 	}
 
@@ -361,7 +485,8 @@ update_extent:
 	/* 3. update extent in extent cache */
 	if (blkaddr) {
 		set_extent_info(&ei, fofs, blkaddr, 1);
-		en3 = __insert_extent_tree(sbi, et, &ei, &den);
+		en3 = __insert_extent_tree_ret(sbi, et, &ei, &den,
+				prev_ex, next_ex, insert_p, insert_parent);
 
 		/* give up extent_cache, if split and small updates happen */
 		if (dei.len >= 1 &&
