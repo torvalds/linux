@@ -332,10 +332,17 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 static int rsnd_dai_connect(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+
 	if (!mod)
 		return -EIO;
 
 	io->mod[mod->type] = mod;
+
+	dev_dbg(dev, "%s[%d] is connected to io (%s)\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod),
+		rsnd_io_is_play(io) ? "Playback" : "Capture");
 
 	return 0;
 }
