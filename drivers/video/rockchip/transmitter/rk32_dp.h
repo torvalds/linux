@@ -79,19 +79,19 @@
 #define TOTAL_LINE_CFG_H			0x4c
 #define ATV_LINE_CFG_L				0x50
 #define ATV_LINE_CFG_H				0x54
-#define VF_PORCH_REG            		0x58
-#define VSYNC_CFG_REG           		0x5c
-#define VB_PORCH_REG            		0x60
-#define TOTAL_PIXELL_REG        		0x64
-#define TOTAL_PIXELH_REG        		0x68
-#define ATV_PIXELL_REG          		0x6c
-#define ATV_PIXELH_REG          		0x70
-#define HF_PORCHL_REG           		0x74
-#define HF_PORCHH_REG           		0x78
-#define HSYNC_CFGL_REG          		0x7c
-#define HSYNC_CFGH_REG          		0x80
-#define HB_PORCHL_REG           		0x84
-#define HB_PORCHH_REG           		0x88
+#define VF_PORCH_REG				0x58
+#define VSYNC_CFG_REG				0x5c
+#define VB_PORCH_REG				0x60
+#define TOTAL_PIXELL_REG			0x64
+#define TOTAL_PIXELH_REG			0x68
+#define ATV_PIXELL_REG				0x6c
+#define ATV_PIXELH_REG				0x70
+#define HF_PORCHL_REG				0x74
+#define HF_PORCHH_REG				0x78
+#define HSYNC_CFGL_REG				0x7c
+#define HSYNC_CFGH_REG				0x80
+#define HB_PORCHL_REG				0x84
+#define HB_PORCHH_REG				0x88
 
 
 #define SSC_REG					0x104
@@ -390,6 +390,41 @@
 #define GRF_EDP_SECURE_EN			(1 << 3)
 #define EDP_SEL_VOP_LIT				(1 << 5)
 
+/* PSR */
+/*
+#define PANEL_SELF_REFRESH_CAPABILITY_SUPPORTED_AND_VERSION 0x70
+#define PANEL_SELF_REFRESH_CAPABILITIES 0x71
+#define PSR_SUPPORT 0x1
+#define PSR_ENABLE 0x170
+#define SUorPSR_EVENT_STATUS_INDICATOR 0x2007
+#define SINK_DEVICE_PANEL_SELF_REFRESH_STATUS 0x2008
+#define LAST_RECEIVED_PSR_SDP 0x200a
+#define Definition_within_LinkorSink_Device_Power_Control_Field 0x600
+
+#define HB0 0x02F8
+#define HB1 0x02FC
+#define HB2 0x0300
+#define HB3 0x0304
+#define PB0 0x0308
+#define PB1 0x030C
+#define PB2 0x0310
+#define PB3 0x0314
+#define DB0 0x0254
+#define DB1 0x0258
+#define DB2 0x025C
+#define DB3 0x0260
+#define DB4 0x0264
+#define DB5 0x0268
+#define DB6 0x026c
+#define DB7 0x0270
+#define DP_PD 0x012C
+#define IF_TYPE 0x0244
+#define VSC_SHADOW_DB1 0x0320
+#define PSR_FRAME_UPDATA_CTRL 0x0318
+#define SPDIF_AUDIO_CTL_0 0x00D8
+*/
+/* PSR END */
+
 enum dp_irq_type {
 	DP_IRQ_TYPE_HP_CABLE_IN,
 	DP_IRQ_TYPE_HP_CABLE_OUT,
@@ -516,13 +551,13 @@ struct link_train {
 
 
 struct rk32_edp {
-	struct device 		*dev;
-	void __iomem  		*regs;
+	struct device		*dev;
+	void __iomem		*regs;
 	struct regmap		*grf;
-	unsigned int  		irq;
+	unsigned int		irq;
 	struct clk		*pd;
-	struct clk    		*clk_edp;  /*clk for edp controller*/
-	struct clk    		*clk_24m;  /*clk for edp phy*/
+	struct clk		*clk_edp;  /*clk for edp controller*/
+	struct clk		*clk_24m;  /*clk for edp phy*/
 	struct clk		*pclk;	   /*clk for phb bus*/
 	struct reset_control    *rst_24m;
 	struct reset_control    *rst_apb;
@@ -530,7 +565,7 @@ struct rk32_edp {
 	struct video_info	video_info;
 	struct rk_screen	screen;
 	struct fb_monspecs      specs;
-	bool 			clk_on;
+	bool clk_on;
 	bool edp_en;
 	struct dentry *debugfs_dir;
 };
@@ -556,47 +591,47 @@ int rk32_edp_write_byte_to_dpcd(struct rk32_edp *edp,
 				unsigned int reg_addr,
 				unsigned char data);
 int rk32_edp_read_byte_from_dpcd(struct rk32_edp *edp,
-				unsigned int reg_addr,
-				unsigned char *data);
+				 unsigned int reg_addr,
+				 unsigned char *data);
 int rk32_edp_write_bytes_to_dpcd(struct rk32_edp *edp,
-				unsigned int reg_addr,
-				unsigned int count,
-				unsigned char data[]);
+				 unsigned int reg_addr,
+				 unsigned int count,
+				 unsigned char data[]);
 int rk32_edp_read_bytes_from_dpcd(struct rk32_edp *edp,
-				unsigned int reg_addr,
-				unsigned int count,
-				unsigned char data[]);
+				  unsigned int reg_addr,
+				  unsigned int count,
+				  unsigned char data[]);
 int rk32_edp_select_i2c_device(struct rk32_edp *edp,
-				unsigned int device_addr,
-				unsigned int reg_addr);
+			       unsigned int device_addr,
+			       unsigned int reg_addr);
 int rk32_edp_read_byte_from_i2c(struct rk32_edp *edp,
 				unsigned int device_addr,
 				unsigned int reg_addr,
 				unsigned int *data);
 int rk32_edp_read_bytes_from_i2c(struct rk32_edp *edp,
-				unsigned int device_addr,
-				unsigned int reg_addr,
-				unsigned int count,
-				unsigned char edid[]);
+				 unsigned int device_addr,
+				 unsigned int reg_addr,
+				 unsigned int count,
+				 unsigned char edid[]);
 void rk32_edp_set_link_bandwidth(struct rk32_edp *edp, u32 bwtype);
 void rk32_edp_get_link_bandwidth(struct rk32_edp *edp, u32 *bwtype);
 void rk32_edp_set_lane_count(struct rk32_edp *edp, u32 count);
 void rk32_edp_get_lane_count(struct rk32_edp *edp, u32 *count);
 void rk32_edp_enable_enhanced_mode(struct rk32_edp *edp, bool enable);
 void rk32_edp_set_training_pattern(struct rk32_edp *edp,
-				 enum pattern_set pattern);
+				   enum pattern_set pattern);
 void rk32_edp_set_lane0_pre_emphasis(struct rk32_edp *edp, u32 level);
 void rk32_edp_set_lane1_pre_emphasis(struct rk32_edp *edp, u32 level);
 void rk32_edp_set_lane2_pre_emphasis(struct rk32_edp *edp, u32 level);
 void rk32_edp_set_lane3_pre_emphasis(struct rk32_edp *edp, u32 level);
 void rk32_edp_set_lane0_link_training(struct rk32_edp *edp,
-				u32 training_lane);
+				      u32 training_lane);
 void rk32_edp_set_lane1_link_training(struct rk32_edp *edp,
-				u32 training_lane);
+				      u32 training_lane);
 void rk32_edp_set_lane2_link_training(struct rk32_edp *edp,
-				u32 training_lane);
+				      u32 training_lane);
 void rk32_edp_set_lane3_link_training(struct rk32_edp *edp,
-				u32 training_lane);
+				      u32 training_lane);
 u32 rk32_edp_get_lane0_link_training(struct rk32_edp *edp);
 u32 rk32_edp_get_lane1_link_training(struct rk32_edp *edp);
 u32 rk32_edp_get_lane2_link_training(struct rk32_edp *edp);
@@ -605,26 +640,26 @@ void rk32_edp_reset_macro(struct rk32_edp *edp);
 int rk32_edp_init_video(struct rk32_edp *edp);
 
 void rk32_edp_set_video_color_format(struct rk32_edp *edp,
-				u32 color_depth,
-				u32 color_space,
-				u32 dynamic_range,
-				u32 coeff);
+				     u32 color_depth,
+				     u32 color_space,
+				     u32 dynamic_range,
+				     u32 coeff);
 int rk32_edp_is_slave_video_stream_clock_on(struct rk32_edp *edp);
 void rk32_edp_set_video_cr_mn(struct rk32_edp *edp,
-			enum clock_recovery_m_value_type type,
-			u32 m_value,
-			u32 n_value);
+			      enum clock_recovery_m_value_type type,
+			      u32 m_value,
+			      u32 n_value);
 void rk32_edp_set_video_timing_mode(struct rk32_edp *edp, u32 type);
 void rk32_edp_enable_video_master(struct rk32_edp *edp, bool enable);
 void rk32_edp_start_video(struct rk32_edp *edp);
 int rk32_edp_is_video_stream_on(struct rk32_edp *edp);
 void rk32_edp_config_video_slave_mode(struct rk32_edp *edp,
-			struct video_info *video_info);
+				      struct video_info *video_info);
 void rk32_edp_enable_scrambling(struct rk32_edp *edp);
 void rk32_edp_disable_scrambling(struct rk32_edp *edp);
 void rk32_edp_rx_control(struct rk32_edp *edp, bool enable);
 int rk32_edp_bist_cfg(struct rk32_edp *edp);
-void rk32_edp_hw_link_training_en(struct rk32_edp * edp);
+void rk32_edp_hw_link_training_en(struct rk32_edp *edp);
 int rk32_edp_get_hw_lt_status(struct rk32_edp *edp);
 int rk32_edp_wait_hw_lt_done(struct rk32_edp *edp);
 enum dp_irq_type rk32_edp_get_irq_type(struct rk32_edp *edp);

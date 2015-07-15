@@ -140,7 +140,7 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 	return 0;
 }
 
-#if 0
+/*#if 0
 static int rk32_edp_detect_hpd(struct rk32_edp *edp)
 {
 	int timeout_loop = 0;
@@ -160,7 +160,8 @@ static int rk32_edp_detect_hpd(struct rk32_edp *edp)
 
 	return 0;
 }
-#endif
+#endif*/
+
 static int rk32_edp_read_edid(struct rk32_edp *edp)
 {
 	unsigned char edid[EDID_LENGTH * 2];
@@ -176,8 +177,9 @@ static int rk32_edp_read_edid(struct rk32_edp *edp)
 	 */
 
 	/* Read Extension Flag, Number of 128-byte EDID extension blocks */
-	retval = rk32_edp_read_byte_from_i2c(edp,
-		EDID_ADDR, EDID_EXTENSION_FLAG, &extend_block);
+	retval = rk32_edp_read_byte_from_i2c
+			(edp,
+			 EDID_ADDR, EDID_EXTENSION_FLAG, &extend_block);
 	if (retval < 0) {
 		dev_err(edp->dev, "EDID extension flag failed!\n");
 		return -EIO;
@@ -187,7 +189,8 @@ static int rk32_edp_read_edid(struct rk32_edp *edp)
 		dev_dbg(edp->dev, "EDID data includes a single extension!\n");
 
 		/* Read EDID data */
-		retval = rk32_edp_read_bytes_from_i2c(edp,
+		retval = rk32_edp_read_bytes_from_i2c
+			       (edp,
 				EDID_ADDR, EDID_HEADER,
 				EDID_LENGTH, &edid[EDID_HEADER]);
 		if (retval != 0) {
@@ -201,7 +204,8 @@ static int rk32_edp_read_edid(struct rk32_edp *edp)
 		}
 
 		/* Read additional EDID data */
-		retval = rk32_edp_read_bytes_from_i2c(edp,
+		retval = rk32_edp_read_bytes_from_i2c
+			       (edp,
 				EDID_ADDR, EDID_LENGTH,
 				EDID_LENGTH, &edid[EDID_LENGTH]);
 		if (retval != 0) {
@@ -214,22 +218,25 @@ static int rk32_edp_read_edid(struct rk32_edp *edp)
 			return 0;
 		}
 
-		retval = rk32_edp_read_byte_from_dpcd(edp,
-				DPCD_TEST_REQUEST, &test_vector);
+		retval = rk32_edp_read_byte_from_dpcd
+				(edp,
+				 DPCD_TEST_REQUEST, &test_vector);
 		if (retval < 0) {
 			dev_err(edp->dev, "DPCD EDID Read failed!\n");
 			return retval;
 		}
 
 		if (test_vector & DPCD_TEST_EDID_READ) {
-			retval = rk32_edp_write_byte_to_dpcd(edp,
+			retval = rk32_edp_write_byte_to_dpcd
+				       (edp,
 					DPCD_TEST_EDID_CHECKSUM,
 					edid[EDID_LENGTH + EDID_CHECKSUM]);
 			if (retval < 0) {
 				dev_err(edp->dev, "DPCD EDID Write failed!\n");
 				return retval;
 			}
-			retval = rk32_edp_write_byte_to_dpcd(edp,
+			retval = rk32_edp_write_byte_to_dpcd
+				       (edp,
 					DPCD_TEST_RESPONSE,
 					DPCD_TEST_EDID_CHECKSUM_WRITE);
 			if (retval < 0) {
@@ -241,7 +248,8 @@ static int rk32_edp_read_edid(struct rk32_edp *edp)
 		dev_info(edp->dev, "EDID data does not include any extensions.\n");
 
 		/* Read EDID data */
-		retval = rk32_edp_read_bytes_from_i2c(edp,
+		retval = rk32_edp_read_bytes_from_i2c
+			       (edp,
 				EDID_ADDR, EDID_HEADER,
 				EDID_LENGTH, &edid[EDID_HEADER]);
 		if (retval != 0) {
@@ -254,22 +262,25 @@ static int rk32_edp_read_edid(struct rk32_edp *edp)
 			return 0;
 		}
 
-		retval = rk32_edp_read_byte_from_dpcd(edp,
-				DPCD_TEST_REQUEST, &test_vector);
+		retval = rk32_edp_read_byte_from_dpcd
+				(edp,
+				 DPCD_TEST_REQUEST, &test_vector);
 		if (retval < 0) {
 			dev_err(edp->dev, "DPCD EDID Read failed!\n");
 			return retval;
 		}
 
 		if (test_vector & DPCD_TEST_EDID_READ) {
-			retval = rk32_edp_write_byte_to_dpcd(edp,
-					DPCD_TEST_EDID_CHECKSUM,
-					edid[EDID_CHECKSUM]);
+			retval = rk32_edp_write_byte_to_dpcd
+					(edp,
+					 DPCD_TEST_EDID_CHECKSUM,
+					 edid[EDID_CHECKSUM]);
 			if (retval < 0) {
 				dev_err(edp->dev, "DPCD EDID Write failed!\n");
 				return retval;
 			}
-			retval = rk32_edp_write_byte_to_dpcd(edp,
+			retval = rk32_edp_write_byte_to_dpcd
+				       (edp,
 					DPCD_TEST_RESPONSE,
 					DPCD_TEST_EDID_CHECKSUM_WRITE);
 			if (retval < 0) {
@@ -282,8 +293,8 @@ static int rk32_edp_read_edid(struct rk32_edp *edp)
 	dev_err(edp->dev, "EDID Read success!\n");
 	return 0;
 }
-
-#if 0
+#define open_t 0
+#if open_t
 static int rk32_edp_handle_edid(struct rk32_edp *edp)
 {
 	u8 buf[12];
@@ -309,28 +320,31 @@ static int rk32_edp_handle_edid(struct rk32_edp *edp)
 
 
 static int rk32_edp_enable_rx_to_enhanced_mode(struct rk32_edp *edp,
-						bool enable)
+					       bool enable)
 {
 	u8 data;
 	int retval;
 
-	retval = rk32_edp_read_byte_from_dpcd(edp,
-			DPCD_LANE_CNT_SET, &data);
+	retval = rk32_edp_read_byte_from_dpcd
+			(edp,
+			 DPCD_LANE_CNT_SET, &data);
 	if (retval < 0)
 		return retval;
 
 	if (enable) {
-		retval = rk32_edp_write_byte_to_dpcd(edp,
-				DPCD_LANE_CNT_SET,
-				DPCD_ENHANCED_FRAME_EN |
-				DPCD_LANE_COUNT_SET(data));
+		retval = rk32_edp_write_byte_to_dpcd
+				(edp,
+				 DPCD_LANE_CNT_SET,
+				 DPCD_ENHANCED_FRAME_EN |
+				 DPCD_LANE_COUNT_SET(data));
 	} else {
 		/*retval = rk32_edp_write_byte_to_dpcd(edp,
 				DPCD_ADDR_CONFIGURATION_SET, 0);*/
 
-		retval = rk32_edp_write_byte_to_dpcd(edp,
-				DPCD_LANE_CNT_SET,
-				DPCD_LANE_COUNT_SET(data));
+		retval = rk32_edp_write_byte_to_dpcd
+				(edp,
+				 DPCD_LANE_CNT_SET,
+				 DPCD_LANE_COUNT_SET(data));
 	}
 
 	return retval;
@@ -355,8 +369,9 @@ static int rk32_edp_is_enhanced_mode_available(struct rk32_edp *edp)
 	u8 data;
 	int retval;
 
-	retval = rk32_edp_read_byte_from_dpcd(edp,
-			DPCD_MAX_LANE_CNT, &data);
+	retval = rk32_edp_read_byte_from_dpcd
+			(edp,
+			 DPCD_MAX_LANE_CNT, &data);
 	if (retval < 0)
 		return retval;
 
@@ -394,6 +409,7 @@ static int rk32_edp_set_enhanced_mode(struct rk32_edp *edp)
 }
 #endif
 
+
 #if defined(SW_LT)
 static int rk32_edp_training_pattern_dis(struct rk32_edp *edp)
 {
@@ -402,8 +418,8 @@ static int rk32_edp_training_pattern_dis(struct rk32_edp *edp)
 	rk32_edp_set_training_pattern(edp, DP_NONE);
 
 	retval = rk32_edp_write_byte_to_dpcd(edp,
-			DPCD_TRAINING_PATTERN_SET,
-			DPCD_TRAINING_PATTERN_DISABLED);
+					     DPCD_TRAINING_PATTERN_SET,
+					     DPCD_TRAINING_PATTERN_DISABLED);
 	if (retval < 0)
 		return retval;
 
@@ -411,7 +427,7 @@ static int rk32_edp_training_pattern_dis(struct rk32_edp *edp)
 }
 
 static void rk32_edp_set_lane_lane_pre_emphasis(struct rk32_edp *edp,
-					int pre_emphasis, int lane)
+						int pre_emphasis, int lane)
 {
 	switch (lane) {
 	case 0:
@@ -448,7 +464,7 @@ static int rk32_edp_link_start(struct rk32_edp *edp)
 
 	/* Set sink to D0 (Sink Not Ready) mode. */
 	retval = rk32_edp_write_byte_to_dpcd(edp, DPCD_SINK_POWER_STATE,
-				DPCD_SET_POWER_STATE_D0);
+					     DPCD_SET_POWER_STATE_D0);
 	if (retval < 0) {
 		dev_err(edp->dev, "failed to set sink device to D0!\n");
 		return retval;
@@ -462,7 +478,7 @@ static int rk32_edp_link_start(struct rk32_edp *edp)
 	buf[0] = edp->link_train.link_rate;
 	buf[1] = edp->link_train.lane_count;
 	retval = rk32_edp_write_bytes_to_dpcd(edp, DPCD_LINK_BW_SET,
-					2, buf);
+					      2, buf);
 	if (retval < 0) {
 		dev_err(edp->dev, "failed to set bandwidth and lane count!\n");
 		return retval;
@@ -470,17 +486,18 @@ static int rk32_edp_link_start(struct rk32_edp *edp)
 
 	/* Set TX pre-emphasis to level1 */
 	for (lane = 0; lane < lane_count; lane++)
-		rk32_edp_set_lane_lane_pre_emphasis(edp,
-			PRE_EMPHASIS_LEVEL_1, lane);
+		rk32_edp_set_lane_lane_pre_emphasis
+			(edp,
+			 PRE_EMPHASIS_LEVEL_1, lane);
 
 	/* Set training pattern 1 */
 	rk32_edp_set_training_pattern(edp, TRAINING_PTN1);
 
 	/* Set RX training pattern */
 	retval = rk32_edp_write_byte_to_dpcd(edp,
-			DPCD_TRAINING_PATTERN_SET,
-			DPCD_SCRAMBLING_DISABLED |
-			DPCD_TRAINING_PATTERN_1);
+					     DPCD_TRAINING_PATTERN_SET,
+					     DPCD_SCRAMBLING_DISABLED |
+					     DPCD_TRAINING_PATTERN_1);
 	if (retval < 0) {
 		dev_err(edp->dev, "failed to set training pattern 1!\n");
 		return retval;
@@ -490,8 +507,8 @@ static int rk32_edp_link_start(struct rk32_edp *edp)
 		buf[lane] = DPCD_PRE_EMPHASIS_PATTERN2_LEVEL0 |
 			    DPCD_VOLTAGE_SWING_PATTERN1_LEVEL0;
 	retval = rk32_edp_write_bytes_to_dpcd(edp,
-			DPCD_TRAINING_LANE0_SET,
-			lane_count, buf);
+					      DPCD_TRAINING_LANE0_SET,
+					      lane_count, buf);
 	if (retval < 0) {
 		dev_err(edp->dev, "failed to set training lane!\n");
 		return retval;
@@ -542,7 +559,7 @@ static int rk32_edp_channel_eq_ok(u8 link_align[3], int lane_count)
 }
 
 static unsigned char rk32_edp_get_adjust_request_voltage(u8 adjust_request[2],
-							int lane)
+							 int lane)
 {
 	int shift = (lane & 1) * 4;
 	u8 link_value = adjust_request[lane>>1];
@@ -561,7 +578,7 @@ static unsigned char rk32_edp_get_adjust_request_pre_emphasis(
 }
 
 static void rk32_edp_set_lane_link_training(struct rk32_edp *edp,
-					u8 training_lane_set, int lane)
+					    u8 training_lane_set, int lane)
 {
 	switch (lane) {
 	case 0:
@@ -582,8 +599,8 @@ static void rk32_edp_set_lane_link_training(struct rk32_edp *edp,
 }
 
 static unsigned int rk32_edp_get_lane_link_training(
-				struct rk32_edp *edp,
-				int lane)
+						    struct rk32_edp *edp,
+						    int lane)
 {
 	u32 reg;
 
@@ -624,13 +641,14 @@ static int rk32_edp_process_clock_recovery(struct rk32_edp *edp)
 	u8 training_lane;
 	int retval;
 
-	udelay(100);
+	/*udelay(100);*/
+	usleep_range(99, 100);
 
 	lane_count = edp->link_train.lane_count;
 
 	retval = rk32_edp_read_bytes_from_dpcd(edp,
-			DPCD_LANE0_1_STATUS,
-			2, link_status);
+					       DPCD_LANE0_1_STATUS,
+					       2, link_status);
 	if (retval < 0) {
 		dev_err(edp->dev, "failed to read lane status!\n");
 		return retval;
@@ -641,9 +659,10 @@ static int rk32_edp_process_clock_recovery(struct rk32_edp *edp)
 		rk32_edp_set_training_pattern(edp, TRAINING_PTN2);
 
 		for (lane = 0; lane < lane_count; lane++) {
-			retval = rk32_edp_read_bytes_from_dpcd(edp,
-					DPCD_ADJUST_REQUEST_LANE0_1,
-					2, adjust_request);
+			retval = rk32_edp_read_bytes_from_dpcd
+					(edp,
+					 DPCD_ADJUST_REQUEST_LANE0_1,
+					 2, adjust_request);
 			if (retval < 0) {
 				dev_err(edp->dev, "failed to read adjust request!\n");
 				return retval;
@@ -663,23 +682,24 @@ static int rk32_edp_process_clock_recovery(struct rk32_edp *edp)
 
 			edp->link_train.training_lane[lane] = training_lane;
 
-			rk32_edp_set_lane_link_training(edp,
-				edp->link_train.training_lane[lane],
-				lane);
+			rk32_edp_set_lane_link_training
+				(edp,
+				 edp->link_train.training_lane[lane],
+				 lane);
 		}
 
 		retval = rk32_edp_write_byte_to_dpcd(edp,
-				DPCD_TRAINING_PATTERN_SET,
-				DPCD_SCRAMBLING_DISABLED |
-				DPCD_TRAINING_PATTERN_2);
+						     DPCD_TRAINING_PATTERN_SET,
+						     DPCD_SCRAMBLING_DISABLED |
+						     DPCD_TRAINING_PATTERN_2);
 		if (retval < 0) {
 			dev_err(edp->dev, "failed to set training pattern 2!\n");
 			return retval;
 		}
 
 		retval = rk32_edp_write_bytes_to_dpcd(edp,
-				DPCD_TRAINING_LANE0_SET,
-				lane_count,
+						      DPCD_TRAINING_LANE0_SET,
+						      lane_count,
 				edp->link_train.training_lane);
 		if (retval < 0) {
 			dev_err(edp->dev, "failed to set training lane!\n");
@@ -692,9 +712,10 @@ static int rk32_edp_process_clock_recovery(struct rk32_edp *edp)
 		for (lane = 0; lane < lane_count; lane++) {
 			training_lane = rk32_edp_get_lane_link_training(
 							edp, lane);
-			retval = rk32_edp_read_bytes_from_dpcd(edp,
-					DPCD_ADJUST_REQUEST_LANE0_1,
-					2, adjust_request);
+			retval = rk32_edp_read_bytes_from_dpcd
+					(edp,
+					 DPCD_ADJUST_REQUEST_LANE0_1,
+					 2, adjust_request);
 			if (retval < 0) {
 				dev_err(edp->dev, "failed to read adjust request!\n");
 				return retval;
@@ -716,7 +737,8 @@ static int rk32_edp_process_clock_recovery(struct rk32_edp *edp)
 			   (DPCD_PRE_EMPHASIS_GET(training_lane) ==
 					pre_emphasis)) {
 				edp->link_train.cr_loop[lane]++;
-				if (edp->link_train.cr_loop[lane] == MAX_CR_LOOP) {
+				if (edp->link_train.cr_loop[lane] ==
+					MAX_CR_LOOP) {
 					dev_err(edp->dev, "CR Max loop\n");
 					goto reduce_link_rate;
 				}
@@ -732,14 +754,16 @@ static int rk32_edp_process_clock_recovery(struct rk32_edp *edp)
 
 			edp->link_train.training_lane[lane] = training_lane;
 
-			rk32_edp_set_lane_link_training(edp,
-				edp->link_train.training_lane[lane], lane);
+			rk32_edp_set_lane_link_training
+				(edp,
+				 edp->link_train.training_lane[lane], lane);
 		}
 
-		retval = rk32_edp_write_bytes_to_dpcd(edp,
-				DPCD_TRAINING_LANE0_SET,
-				lane_count,
-				edp->link_train.training_lane);
+		retval = rk32_edp_write_bytes_to_dpcd
+				(edp,
+				 DPCD_TRAINING_LANE0_SET,
+				 lane_count,
+				 edp->link_train.training_lane);
 		if (retval < 0) {
 			dev_err(edp->dev, "failed to set training lane!\n");
 			return retval;
@@ -767,13 +791,14 @@ static int rk32_edp_process_equalizer_training(struct rk32_edp *edp)
 	u8 training_lane;
 	int retval;
 
-	udelay(400);
+	/*udelay(400);*/
+	usleep_range(399, 400);
 
 	lane_count = edp->link_train.lane_count;
 
 	retval = rk32_edp_read_bytes_from_dpcd(edp,
-			DPCD_LANE0_1_STATUS,
-			2, link_status);
+					       DPCD_LANE0_1_STATUS,
+					       2, link_status);
 	if (retval < 0) {
 		dev_err(edp->dev, "failed to read lane status!\n");
 		return retval;
@@ -783,18 +808,20 @@ static int rk32_edp_process_equalizer_training(struct rk32_edp *edp)
 		link_align[0] = link_status[0];
 		link_align[1] = link_status[1];
 
-		retval = rk32_edp_read_byte_from_dpcd(edp,
-				DPCD_LANE_ALIGN_STATUS_UPDATED,
-				&link_align[2]);
+		retval = rk32_edp_read_byte_from_dpcd
+				(edp,
+				 DPCD_LANE_ALIGN_STATUS_UPDATED,
+				 &link_align[2]);
 		if (retval < 0) {
 			dev_err(edp->dev, "failed to read lane aligne status!\n");
 			return retval;
 		}
 
 		for (lane = 0; lane < lane_count; lane++) {
-			retval = rk32_edp_read_bytes_from_dpcd(edp,
-					DPCD_ADJUST_REQUEST_LANE0_1,
-					2, adjust_request);
+			retval = rk32_edp_read_bytes_from_dpcd
+					(edp,
+					 DPCD_ADJUST_REQUEST_LANE0_1,
+					 2, adjust_request);
 			if (retval < 0) {
 				dev_err(edp->dev, "failed to read adjust request!\n");
 				return retval;
@@ -846,14 +873,16 @@ static int rk32_edp_process_equalizer_training(struct rk32_edp *edp)
 			}
 
 			for (lane = 0; lane < lane_count; lane++)
-				rk32_edp_set_lane_link_training(edp,
-					edp->link_train.training_lane[lane],
-					lane);
+				rk32_edp_set_lane_link_training
+				(edp,
+				 edp->link_train.training_lane[lane],
+				 lane);
 
-			retval = rk32_edp_write_bytes_to_dpcd(edp,
-					DPCD_TRAINING_LANE0_SET,
-					lane_count,
-					edp->link_train.training_lane);
+			retval = rk32_edp_write_bytes_to_dpcd
+					(edp,
+					 DPCD_TRAINING_LANE0_SET,
+					 lane_count,
+					 edp->link_train.training_lane);
 			if (retval < 0) {
 				dev_err(edp->dev, "failed to set training lane!\n");
 				return retval;
@@ -871,7 +900,7 @@ reduce_link_rate:
 }
 #endif
 static int rk32_edp_get_max_rx_bandwidth(struct rk32_edp *edp,
-					u8 *bandwidth)
+					 u8 *bandwidth)
 {
 	u8 data;
 	int retval = 0;
@@ -881,17 +910,16 @@ static int rk32_edp_get_max_rx_bandwidth(struct rk32_edp *edp,
 	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
 	 */
 	retval = rk32_edp_read_byte_from_dpcd(edp,
-			DPCD_MAX_LINK_RATE, &data);
+					      DPCD_MAX_LINK_RATE, &data);
 	if (retval < 0)
 		*bandwidth = 0;
 	else
 		*bandwidth = data;
 	return retval;
-
 }
 
 static int rk32_edp_get_max_rx_lane_count(struct rk32_edp *edp,
-					u8 *lane_count)
+					  u8 *lane_count)
 {
 	u8 data;
 	int retval;
@@ -901,7 +929,7 @@ static int rk32_edp_get_max_rx_lane_count(struct rk32_edp *edp,
 	 * 0x01 = 1 lane, 0x02 = 2 lanes, 0x04 = 4 lanes
 	 */
 	retval = rk32_edp_read_byte_from_dpcd(edp,
-			DPCD_MAX_LANE_CNT, &data);
+					      DPCD_MAX_LANE_CNT, &data);
 	if (retval < 0)
 		*lane_count = 0;
 	else
@@ -921,29 +949,31 @@ static int rk32_edp_init_training(struct rk32_edp *edp)
 
 
 	retval = rk32_edp_get_max_rx_bandwidth(edp,
-				&edp->link_train.link_rate);
+					       &edp->link_train.link_rate);
 	retval = rk32_edp_get_max_rx_lane_count(edp,
-				&edp->link_train.lane_count);
+						&edp->link_train.lane_count);
 	dev_info(edp->dev, "max link rate:%d.%dGps max number of lanes:%d\n",
-			edp->link_train.link_rate * 27/100,
-			edp->link_train.link_rate*27%100,
-			edp->link_train.lane_count);
+		 edp->link_train.link_rate * 27/100,
+		 edp->link_train.link_rate*27%100,
+		 edp->link_train.lane_count);
 
 	if ((edp->link_train.link_rate != LINK_RATE_1_62GBPS) &&
-	   (edp->link_train.link_rate != LINK_RATE_2_70GBPS)) {
-		dev_warn(edp->dev, "Rx Max Link Rate is abnormal :%x !"
-			"use default link rate:%d.%dGps\n",
-			edp->link_train.link_rate,
-			edp->video_info.link_rate*27/100,
-			edp->video_info.link_rate*27%100);
+	    (edp->link_train.link_rate != LINK_RATE_2_70GBPS)) {
+		dev_warn
+		(edp->dev,
+		 "Rx Mx Link Rate is abnormal:%x!default link rate:%d.%dGps\n",
+		 edp->link_train.link_rate,
+		 edp->video_info.link_rate*27/100,
+		 edp->video_info.link_rate*27%100);
 		edp->link_train.link_rate = edp->video_info.link_rate;
 	}
 
 	if (edp->link_train.lane_count == 0) {
-		dev_err(edp->dev, "Rx Max Lane count is abnormal :%x !"
-			"use default lanes:%d\n",
-			edp->link_train.lane_count,
-			edp->video_info.lane_count);
+		dev_err
+		(edp->dev,
+		 "Rx Max Lane count is abnormal :%x !use default lanes:%d\n",
+		 edp->link_train.lane_count,
+		 edp->video_info.lane_count);
 		edp->link_train.lane_count = edp->video_info.lane_count;
 	}
 
@@ -1013,7 +1043,6 @@ static int rk32_edp_hw_link_training(struct rk32_edp *edp)
 	if (val)
 		dev_err(edp->dev, "hw lt err:%d\n", val);
 	return val;
-
 }
 #endif
 
@@ -1034,7 +1063,7 @@ static int rk32_edp_set_link_train(struct rk32_edp *edp)
 }
 
 static int rk32_edp_config_video(struct rk32_edp *edp,
-			struct video_info *video_info)
+				 struct video_info *video_info)
 {
 	int retval = 0;
 	int timeout_loop = 0;
@@ -1043,9 +1072,9 @@ static int rk32_edp_config_video(struct rk32_edp *edp,
 	rk32_edp_config_video_slave_mode(edp, video_info);
 
 	rk32_edp_set_video_color_format(edp, video_info->color_depth,
-			video_info->color_space,
-			video_info->dynamic_range,
-			video_info->ycbcr_coeff);
+					video_info->color_space,
+					video_info->dynamic_range,
+					video_info->ycbcr_coeff);
 
 	if (rk32_edp_get_pll_lock_status(edp) == DP_PLL_UNLOCKED) {
 		dev_err(edp->dev, "PLL is not locked yet.\n");
@@ -1104,46 +1133,6 @@ static int rk32_edp_config_video(struct rk32_edp *edp,
 
 	return retval;
 }
-
-#if 0
-static int rk32_edp_enable_scramble(struct rk32_edp *edp, bool enable)
-{
-	u8 data;
-	int retval;
-
-	if (enable) {
-		rk32_edp_enable_scrambling(edp);
-
-		retval = rk32_edp_read_byte_from_dpcd(edp,
-				DPCD_TRAINING_PATTERN_SET,
-				&data);
-		if (retval < 0)
-			return retval;
-
-		retval = rk32_edp_write_byte_to_dpcd(edp,
-				DPCD_TRAINING_PATTERN_SET,
-				(u8)(data & ~DPCD_SCRAMBLING_DISABLED));
-		if (retval < 0)
-			return retval;
-	} else {
-		rk32_edp_disable_scrambling(edp);
-
-		retval = rk32_edp_read_byte_from_dpcd(edp,
-				DPCD_TRAINING_PATTERN_SET,
-				&data);
-		if (retval < 0)
-			return retval;
-
-		retval = rk32_edp_write_byte_to_dpcd(edp,
-				DPCD_TRAINING_PATTERN_SET,
-				(u8)(data | DPCD_SCRAMBLING_DISABLED));
-		if (retval < 0)
-			return retval;
-	}
-
-	return 0;
-}
-#endif
 
 static irqreturn_t rk32_edp_isr(int irq, void *arg)
 {
@@ -1248,7 +1237,49 @@ static struct rk_fb_trsm_ops trsm_edp_ops = {
 	.disable = rk32_edp_disable,
 };
 
+/*#if 0
+static int rk32_edp_enable_scramble(struct rk32_edp *edp, bool enable)
+{
+	u8 data;
+	int retval;
 
+	if (enable) {
+		rk32_edp_enable_scrambling(edp);
+
+		retval = rk32_edp_read_byte_from_dpcd
+				(edp,
+				 DPCD_TRAINING_PATTERN_SET,
+				 &data);
+		if (retval < 0)
+			return retval;
+
+		retval = rk32_edp_write_byte_to_dpcd
+				(edp,
+				 DPCD_TRAINING_PATTERN_SET,
+				 (u8)(data & ~DPCD_SCRAMBLING_DISABLED));
+		if (retval < 0)
+			return retval;
+	} else {
+		rk32_edp_disable_scrambling(edp);
+
+		retval = rk32_edp_read_byte_from_dpcd
+				(edp,
+				 DPCD_TRAINING_PATTERN_SET,
+				 &data);
+		if (retval < 0)
+			return retval;
+
+		retval = rk32_edp_write_byte_to_dpcd
+				(edp,
+				 DPCD_TRAINING_PATTERN_SET,
+				 (u8)(data | DPCD_SCRAMBLING_DISABLED));
+		if (retval < 0)
+			return retval;
+	}
+
+	return 0;
+}
+#endif*/
 #if defined(CONFIG_DEBUG_FS)
 
 static int edp_dpcd_debugfs_show(struct seq_file *s, void *v)
@@ -1256,6 +1287,7 @@ static int edp_dpcd_debugfs_show(struct seq_file *s, void *v)
 	int i = 0;
 	unsigned char buf[12];
 	struct rk32_edp *edp = s->private;
+
 	if (!edp) {
 		dev_err(edp->dev, "no edp device!\n");
 		return -ENODEV;
@@ -1263,20 +1295,24 @@ static int edp_dpcd_debugfs_show(struct seq_file *s, void *v)
 
 
 	rk32_edp_read_bytes_from_dpcd(edp,
-			DPCD_SYMBOL_ERR_CONUT_LANE0, 12, buf);
+				      DPCD_SYMBOL_ERR_CONUT_LANE0, 12, buf);
 	for (i = 0; i < 12; i++)
 		seq_printf(s, "0x%02x>>0x%02x\n", 0x210 + i, buf[i]);
 	return 0;
 }
 
-static ssize_t edp_dpcd_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
-{ 
+static ssize_t edp_dpcd_write(struct file *file,
+			      const char __user *buf,
+			      size_t count,
+			      loff_t *ppos)
+{
 	return count;
 }
 
 static int edp_edid_debugfs_show(struct seq_file *s, void *v)
 {
 	struct rk32_edp *edp = s->private;
+
 	if (!edp) {
 		dev_err(edp->dev, "no edp device!\n");
 		return -ENODEV;
@@ -1286,9 +1322,14 @@ static int edp_edid_debugfs_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static ssize_t edp_edid_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
-{ 
-	struct rk32_edp *edp =  ((struct seq_file *)file->private_data)->private;
+static ssize_t edp_edid_write(struct file *file,
+			      const char __user *buf,
+			      size_t count,
+			      loff_t *ppos)
+{
+	struct rk32_edp *edp =
+		((struct seq_file *)file->private_data)->private;
+
 	if (!edp) {
 		dev_err(edp->dev, "no edp device!\n");
 		return -ENODEV;
@@ -1302,6 +1343,7 @@ static int edp_reg_debugfs_show(struct seq_file *s, void *v)
 {
 	int i = 0;
 	struct rk32_edp *edp = s->private;
+
 	if (!edp) {
 		dev_err(edp->dev, "no edp device!\n");
 		return -ENODEV;
@@ -1315,8 +1357,10 @@ static int edp_reg_debugfs_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static ssize_t edp_reg_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
-{ 
+static ssize_t edp_reg_write(struct file *file,
+			     const char __user *buf, size_t count,
+			     loff_t *ppos)
+{
 	return count;
 }
 
@@ -1335,7 +1379,7 @@ static const struct file_operations edp_##name##_debugfs_fops = { \
 	.release = single_release, \
 }
 
-EDP_DEBUG_ENTRY(dpcd); 
+EDP_DEBUG_ENTRY(dpcd);
 EDP_DEBUG_ENTRY(edid);
 EDP_DEBUG_ENTRY(reg);
 #endif
@@ -1419,14 +1463,12 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	 */
 	/*edp 24m need sorft reset*/
 	edp->rst_24m = devm_reset_control_get(&pdev->dev, "edp_24m");
-	if (IS_ERR(edp->rst_24m)) {
+	if (IS_ERR(edp->rst_24m))
 		dev_err(&pdev->dev, "failed to get reset\n");
-	}
 	/* edp ctrl apb bus need sorft reset */
 	edp->rst_apb = devm_reset_control_get(&pdev->dev, "edp_apb");
-	if (IS_ERR(edp->rst_apb)) {
+	if (IS_ERR(edp->rst_apb))
 		dev_err(&pdev->dev, "failed to get reset\n");
-	}
 	rk32_edp_clk_enable(edp);
 	if (!support_uboot_display())
 		rk32_edp_pre_init(edp);
@@ -1436,7 +1478,7 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return edp->irq;
 	}
 	ret = devm_request_irq(&pdev->dev, edp->irq, rk32_edp_isr, 0,
-			dev_name(&pdev->dev), edp);
+			       dev_name(&pdev->dev), edp);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", edp->irq);
 		return ret;
@@ -1452,11 +1494,11 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		dev_err(edp->dev, "failed to create debugfs dir for edp!\n");
 	} else {
 		debugfs_create_file("dpcd", S_IRUSR, edp->debugfs_dir,
-					edp, &edp_dpcd_debugfs_fops);
+				    edp, &edp_dpcd_debugfs_fops);
 		debugfs_create_file("edid", S_IRUSR, edp->debugfs_dir,
-					edp, &edp_edid_debugfs_fops);
+				    edp, &edp_edid_debugfs_fops);
 		debugfs_create_file("reg", S_IRUSR, edp->debugfs_dir,
-					edp, &edp_reg_debugfs_fops);
+				    edp, &edp_reg_debugfs_fops);
 	}
 
 #endif
@@ -1467,7 +1509,6 @@ static int rk32_edp_probe(struct platform_device *pdev)
 
 static void rk32_edp_shutdown(struct platform_device *pdev)
 {
-
 }
 
 #if defined(CONFIG_OF)
@@ -1498,7 +1539,6 @@ static int __init rk32_edp_module_init(void)
 
 static void __exit rk32_edp_module_exit(void)
 {
-
 }
 
 fs_initcall(rk32_edp_module_init);
