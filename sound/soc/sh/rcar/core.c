@@ -227,6 +227,28 @@ u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	return adinr;
 }
 
+u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 chan = runtime->channels;
+
+	switch (chan) {
+	case 1:
+	case 2:
+	case 4:
+	case 6:
+	case 8:
+		break;
+	default:
+		dev_warn(dev, "not supported channel\n");
+		chan = 0;
+		break;
+	}
+
+	return chan;
+}
 /*
  *	rsnd_dai functions
  */
