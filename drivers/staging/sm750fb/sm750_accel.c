@@ -96,7 +96,7 @@ int hw_fillrect(struct lynx_accel *accel,
 {
 	u32 deCtrl;
 
-	if(accel->de_wait() != 0)
+	if (accel->de_wait() != 0)
 	{
 		/* int time wait and always busy,seems hardware
 		 * got something error */
@@ -248,7 +248,7 @@ unsigned int rop2)   /* ROP value */
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	if(Bpp == 3){
+	if (Bpp == 3){
 			sx *= 3;
 			dx *= 3;
 			width *= 3;
@@ -344,7 +344,7 @@ int hw_imageblit(struct lynx_accel *accel,
 	ul4BytesPerScan = ulBytesPerScan & ~3;
 	ulBytesRemain = ulBytesPerScan & 3;
 
-	if(accel->de_wait() != 0)
+	if (accel->de_wait() != 0)
 	{
 		return -1;
 	}
@@ -363,7 +363,7 @@ int hw_imageblit(struct lynx_accel *accel,
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	if(bytePerPixel == 3){
+	if (bytePerPixel == 3){
 		dx *= 3;
 		width *= 3;
 		startBit *= 3;

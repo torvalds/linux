@@ -49,7 +49,7 @@ static void setDisplayControl(int ctrl, int dispState)
 			{
 				cnt++;
 				POKE32(PANEL_DISPLAY_CTRL, ulDisplayCtrlReg);
-			} while((PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits) !=
+			} while ((PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits) !=
 					(ulDisplayCtrlReg & ~ulReservedBits));
 			printk("Set Panel Plane enbit:after tried %d times\n", cnt);
 		}
@@ -104,7 +104,7 @@ static void setDisplayControl(int ctrl, int dispState)
 			{
 				cnt++;
 				POKE32(CRT_DISPLAY_CTRL, ulDisplayCtrlReg);
-			} while((PEEK32(CRT_DISPLAY_CTRL) & ~ulReservedBits) !=
+			} while ((PEEK32(CRT_DISPLAY_CTRL) & ~ulReservedBits) !=
 					(ulDisplayCtrlReg & ~ulReservedBits));
 				printk("Set Crt Plane enbit:after tried %d times\n", cnt);
 		}
@@ -132,7 +132,7 @@ static void setDisplayControl(int ctrl, int dispState)
 static void waitNextVerticalSync(int ctrl, int delay)
 {
 	unsigned int status;
-	if(!ctrl){
+	if (!ctrl){
 		/* primary controller */
 
 		/* Do not wait when the Primary PLL is off or display control is already off.
@@ -233,14 +233,14 @@ static void swPanelPowerSequence(int disp, int delay)
 void ddk750_setLogicalDispOut(disp_output_t output)
 {
 	unsigned int reg;
-	if(output & PNL_2_USAGE){
+	if (output & PNL_2_USAGE){
 		/* set panel path controller select */
 		reg = PEEK32(PANEL_DISPLAY_CTRL);
 		reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, SELECT, (output & PNL_2_MASK)>>PNL_2_OFFSET);
 		POKE32(PANEL_DISPLAY_CTRL, reg);
 	}
 
-	if(output & CRT_2_USAGE){
+	if (output & CRT_2_USAGE){
 		/* set crt path controller select */
 		reg = PEEK32(CRT_DISPLAY_CTRL);
 		reg = FIELD_VALUE(reg, CRT_DISPLAY_CTRL, SELECT, (output & CRT_2_MASK)>>CRT_2_OFFSET);
@@ -250,25 +250,25 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 
 	}
 
-	if(output & PRI_TP_USAGE){
+	if (output & PRI_TP_USAGE){
 		/* set primary timing and plane en_bit */
 		setDisplayControl(0, (output&PRI_TP_MASK)>>PRI_TP_OFFSET);
 	}
 
-	if(output & SEC_TP_USAGE){
+	if (output & SEC_TP_USAGE){
 		/* set secondary timing and plane en_bit*/
 		setDisplayControl(1, (output&SEC_TP_MASK)>>SEC_TP_OFFSET);
 	}
 
-	if(output & PNL_SEQ_USAGE){
+	if (output & PNL_SEQ_USAGE){
 		/* set  panel sequence */
 		swPanelPowerSequence((output&PNL_SEQ_MASK)>>PNL_SEQ_OFFSET, 4);
 	}
 
-	if(output & DAC_USAGE)
+	if (output & DAC_USAGE)
 		setDAC((output & DAC_MASK)>>DAC_OFFSET);
 
-	if(output & DPMS_USAGE)
+	if (output & DPMS_USAGE)
 		ddk750_setDPMS((output & DPMS_MASK) >> DPMS_OFFSET);
 }
 
