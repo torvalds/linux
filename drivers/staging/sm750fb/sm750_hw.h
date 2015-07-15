@@ -9,7 +9,7 @@
 #endif
 
 
-enum sm750_pnltype{
+enum sm750_pnltype {
 
 	sm750_24TFT = 0,/* 24bit tft */
 
@@ -19,7 +19,7 @@ enum sm750_pnltype{
 };
 
 /* vga channel is not concerned  */
-enum sm750_dataflow{
+enum sm750_dataflow {
 	sm750_simul_pri,/* primary => all head */
 
 	sm750_simul_sec,/* secondary => all head */
@@ -30,13 +30,13 @@ enum sm750_dataflow{
 };
 
 
-enum sm750_channel{
+enum sm750_channel {
 	sm750_primary = 0,
 	/* enum value equal to the register filed data */
 	sm750_secondary = 1,
 };
 
-enum sm750_path{
+enum sm750_path {
 	sm750_panel = 1,
 	sm750_crt = 2,
 	sm750_pnc = 3,/* panel and crt */

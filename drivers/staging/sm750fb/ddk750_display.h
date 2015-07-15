@@ -129,7 +129,7 @@ typedef enum _disp_output_t
 }
 disp_output_t;
 #else
-typedef enum _disp_output_t{
+typedef enum _disp_output_t {
 	do_LCD1_PRI = PNL_2_PRI|PRI_TP_ON|PNL_SEQ_ON|DAC_ON,
 	do_LCD1_SEC = PNL_2_SEC|SEC_TP_ON|PNL_SEQ_ON|DAC_ON,
 #if 0
