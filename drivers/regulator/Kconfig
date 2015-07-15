@@ -424,14 +424,6 @@ config REGULATOR_MAX77802
 	  Exynos5420/Exynos5800 SoCs to control various voltages.
 	  It includes support for control of voltage and ramp speed.
 
-config REGULATOR_MAX77843
-	tristate "Maxim 77843 regulator"
-	depends on MFD_MAX77843
-	help
-	  This driver controls a Maxim 77843 regulator.
-	  The regulator include two 'SAFEOUT' for USB(Universal Serial Bus)
-	  This is suitable for Exynos5433 SoC chips.
-
 config REGULATOR_MC13XXX_CORE
 	tristate
 
