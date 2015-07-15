@@ -109,6 +109,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 static struct regulator *create_regulator(struct regulator_dev *rdev,
 					  struct device *dev,
 					  const char *supply_name);
+static void _regulator_put(struct regulator *regulator);
 
 static const char *rdev_get_name(struct regulator_dev *rdev)
 {
@@ -1401,8 +1402,11 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	/* Cascade always-on state to supply */
 	if (_regulator_is_enabled(rdev)) {
 		ret = regulator_enable(rdev->supply);
-		if (ret < 0)
+		if (ret < 0) {
+			if (rdev->supply)
+				_regulator_put(rdev->supply);
 			return ret;
+		}
 	}
 
 	return 0;
