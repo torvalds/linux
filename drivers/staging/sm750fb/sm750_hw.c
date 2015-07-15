@@ -250,7 +250,7 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 		POKE32(DISPLAY_CONTROL_750LE, reg);
 	}
 
-	pr_info("ddk setlogicdispout done \n");
+	pr_info("ddk setlogicdispout done\n");
 	return ret;
 }
 
@@ -489,14 +489,14 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 #else
 	case VESA_NO_BLANKING:
 #endif
-		pr_info("flag = FB_BLANK_UNBLANK \n");
+		pr_info("flag = FB_BLANK_UNBLANK\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		pps = PANEL_DISPLAY_CTRL_DATA_ENABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_OFF;
 		break;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_NORMAL:
-		pr_info("flag = FB_BLANK_NORMAL \n");
+		pr_info("flag = FB_BLANK_NORMAL\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
