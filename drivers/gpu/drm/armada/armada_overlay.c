@@ -461,9 +461,11 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	armada_drm_vbl_event_init(&dplane->vbl.update, armada_ovl_plane_vbl,
 				  dplane);
 
-	drm_plane_init(dev, &dplane->base, crtcs, &armada_ovl_plane_funcs,
-		       armada_ovl_formats, ARRAY_SIZE(armada_ovl_formats),
-		       false);
+	ret = drm_universal_plane_init(dev, &dplane->base, crtcs,
+				       &armada_ovl_plane_funcs,
+				       armada_ovl_formats,
+				       ARRAY_SIZE(armada_ovl_formats),
+				       DRM_PLANE_TYPE_OVERLAY);
 	if (ret) {
 		kfree(dplane);
 		return ret;
