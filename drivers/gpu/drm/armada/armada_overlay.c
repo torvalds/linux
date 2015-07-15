@@ -31,7 +31,6 @@ struct armada_ovl_plane_properties {
 
 struct armada_ovl_plane {
 	struct drm_plane base;
-	spinlock_t lock;
 	struct drm_framebuffer *old_fb;
 	uint32_t src_hw;
 	uint32_t dst_hw;
@@ -76,10 +75,7 @@ static void armada_ovl_retire_fb(struct armada_ovl_plane *dplane,
 {
 	struct drm_framebuffer *old_fb;
 
-	spin_lock(&dplane->lock);
-	old_fb = dplane->old_fb;
-	dplane->old_fb = fb;
-	spin_unlock(&dplane->lock);
+	old_fb = xchg(&dplane->old_fb, fb);
 
 	if (old_fb)
 		armada_drm_queue_unref_work(dplane->base.dev, old_fb);
@@ -289,10 +285,7 @@ static int armada_ovl_plane_disable(struct drm_plane *plane)
 	if (plane->fb)
 		drm_framebuffer_unreference(plane->fb);
 
-	spin_lock_irq(&dplane->lock);
-	fb = dplane->old_fb;
-	dplane->old_fb = NULL;
-	spin_unlock_irq(&dplane->lock);
+	fb = xchg(&dplane->old_fb, NULL);
 	if (fb)
 		drm_framebuffer_unreference(fb);
 
@@ -464,7 +457,6 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	if (!dplane)
 		return -ENOMEM;
 
-	spin_lock_init(&dplane->lock);
 	init_waitqueue_head(&dplane->vbl.wait);
 	armada_drm_vbl_event_init(&dplane->vbl.update, armada_ovl_plane_vbl,
 				  dplane);
