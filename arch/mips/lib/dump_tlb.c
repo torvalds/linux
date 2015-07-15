@@ -114,7 +114,7 @@ static void dump_tlb(int first, int last)
 		 * leave only a single G bit set after a machine check exception
 		 * due to duplicate TLB entry.
 		 */
-		if (!((entrylo0 | entrylo1) & MIPS_ENTRYLO_G) &&
+		if (!((entrylo0 | entrylo1) & ENTRYLO_G) &&
 		    (entryhi & 0xff) != asid)
 			continue;
 
@@ -123,8 +123,8 @@ static void dump_tlb(int first, int last)
 		 */
 		printk("Index: %2d pgmask=%s ", i, msk2str(pagemask));
 
-		c0 = (entrylo0 & MIPS_ENTRYLO_C) >> MIPS_ENTRYLO_C_SHIFT;
-		c1 = (entrylo1 & MIPS_ENTRYLO_C) >> MIPS_ENTRYLO_C_SHIFT;
+		c0 = (entrylo0 & ENTRYLO_C) >> ENTRYLO_C_SHIFT;
+		c1 = (entrylo1 & ENTRYLO_C) >> ENTRYLO_C_SHIFT;
 
 		printk("va=%0*lx asid=%02lx\n",
 		       vwidth, (entryhi & ~0x1fffUL),
@@ -141,9 +141,9 @@ static void dump_tlb(int first, int last)
 			       (entrylo0 & MIPS_ENTRYLO_XI) ? 1 : 0);
 		printk("pa=%0*llx c=%d d=%d v=%d g=%d] [",
 		       pwidth, pa, c0,
-		       (entrylo0 & MIPS_ENTRYLO_D) ? 1 : 0,
-		       (entrylo0 & MIPS_ENTRYLO_V) ? 1 : 0,
-		       (entrylo0 & MIPS_ENTRYLO_G) ? 1 : 0);
+		       (entrylo0 & ENTRYLO_D) ? 1 : 0,
+		       (entrylo0 & ENTRYLO_V) ? 1 : 0,
+		       (entrylo0 & ENTRYLO_G) ? 1 : 0);
 		/* RI/XI are in awkward places, so mask them off separately */
 		pa = entrylo1 & ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
 		if (xpa)
@@ -155,9 +155,9 @@ static void dump_tlb(int first, int last)
 			       (entrylo1 & MIPS_ENTRYLO_XI) ? 1 : 0);
 		printk("pa=%0*llx c=%d d=%d v=%d g=%d]\n",
 		       pwidth, pa, c1,
-		       (entrylo1 & MIPS_ENTRYLO_D) ? 1 : 0,
-		       (entrylo1 & MIPS_ENTRYLO_V) ? 1 : 0,
-		       (entrylo1 & MIPS_ENTRYLO_G) ? 1 : 0);
+		       (entrylo1 & ENTRYLO_D) ? 1 : 0,
+		       (entrylo1 & ENTRYLO_V) ? 1 : 0,
+		       (entrylo1 & ENTRYLO_G) ? 1 : 0);
 	}
 	printk("\n");
 

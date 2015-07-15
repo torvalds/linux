@@ -112,6 +112,30 @@
 #define CP0_TX39_CACHE	$7
 
 
+/* Generic EntryLo bit definitions */
+#define ENTRYLO_G		(_ULCAST_(1) << 0)
+#define ENTRYLO_V		(_ULCAST_(1) << 1)
+#define ENTRYLO_D		(_ULCAST_(1) << 2)
+#define ENTRYLO_C_SHIFT		3
+#define ENTRYLO_C		(_ULCAST_(7) << ENTRYLO_C_SHIFT)
+
+/* R3000 EntryLo bit definitions */
+#define R3K_ENTRYLO_G		(_ULCAST_(1) << 8)
+#define R3K_ENTRYLO_V		(_ULCAST_(1) << 9)
+#define R3K_ENTRYLO_D		(_ULCAST_(1) << 10)
+#define R3K_ENTRYLO_N		(_ULCAST_(1) << 11)
+
+/* MIPS32/64 EntryLo bit definitions */
+#ifdef CONFIG_64BIT
+/* as read by dmfc0 */
+#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 62)
+#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 63)
+#else
+/* as read by mfc0 */
+#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 30)
+#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 31)
+#endif
+
 /*
  * Values for PageMask register
  */
@@ -202,6 +226,9 @@
 #define PG_ELPA		(_ULCAST_(1) <<	 29)
 #define PG_ESP		(_ULCAST_(1) <<	 28)
 #define PG_IEC		(_ULCAST_(1) <<  27)
+
+/* MIPS32/64 EntryHI bit definitions */
+#define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
 
 /*
  * R4x00 interrupt enable / cause bits
@@ -587,31 +614,6 @@
 #define MIPS_MAAR_ADDR_SHIFT	12
 #define MIPS_MAAR_S		(_ULCAST_(1) << 1)
 #define MIPS_MAAR_V		(_ULCAST_(1) << 0)
-
-/*  EntryHI bit definition */
-#define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
-
-/* R3000 EntryLo bit definitions */
-#define R3K_ENTRYLO_G		(_ULCAST_(1) << 8)
-#define R3K_ENTRYLO_V		(_ULCAST_(1) << 9)
-#define R3K_ENTRYLO_D		(_ULCAST_(1) << 10)
-#define R3K_ENTRYLO_N		(_ULCAST_(1) << 11)
-
-/* R4000 compatible EntryLo bit definitions */
-#define MIPS_ENTRYLO_G		(_ULCAST_(1) << 0)
-#define MIPS_ENTRYLO_V		(_ULCAST_(1) << 1)
-#define MIPS_ENTRYLO_D		(_ULCAST_(1) << 2)
-#define MIPS_ENTRYLO_C_SHIFT	3
-#define MIPS_ENTRYLO_C		(_ULCAST_(7) << MIPS_ENTRYLO_C_SHIFT)
-#ifdef CONFIG_64BIT
-/* as read by dmfc0 */
-#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 62)
-#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 63)
-#else
-/* as read by mfc0 */
-#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 30)
-#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 31)
-#endif
 
 /* CMGCRBase bit definitions */
 #define MIPS_CMGCRB_BASE	11
