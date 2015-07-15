@@ -70,6 +70,13 @@ static void rsnd_dvc_soft_reset(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, DVC_SWRSR, 1);
 }
 
+#define rsnd_dvc_initialize_lock(mod)	__rsnd_dvc_initialize_lock(mod, 1)
+#define rsnd_dvc_initialize_unlock(mod)	__rsnd_dvc_initialize_lock(mod, 0)
+static void __rsnd_dvc_initialize_lock(struct rsnd_mod *mod, u32 enable)
+{
+	rsnd_mod_write(mod, DVC_DVUIR, enable);
+}
+
 static void rsnd_dvc_volume_update(struct rsnd_dai_stream *io,
 				   struct rsnd_mod *mod)
 {
@@ -150,16 +157,14 @@ static int rsnd_dvc_init(struct rsnd_mod *mod,
 
 	rsnd_dvc_soft_reset(mod);
 
-	rsnd_path_parse(priv, io);
+	rsnd_dvc_initialize_lock(mod);
 
-	rsnd_mod_write(mod, DVC_DVUIR, 1);
+	rsnd_path_parse(priv, io);
 
 	rsnd_mod_write(mod, DVC_ADINR, rsnd_get_adinr(mod, io));
 
 	/* ch0/ch1 Volume */
 	rsnd_dvc_volume_update(io, mod);
-
-	rsnd_mod_write(mod, DVC_DVUIR, 0);
 
 	rsnd_adg_set_cmd_timsel_gen2(mod, io);
 
@@ -179,6 +184,8 @@ static int rsnd_dvc_start(struct rsnd_mod *mod,
 			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
 {
+	rsnd_dvc_initialize_unlock(mod);
+
 	rsnd_mod_write(mod, CMD_CTRL, 0x10);
 
 	return 0;
