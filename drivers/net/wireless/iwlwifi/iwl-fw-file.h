@@ -132,6 +132,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_API_CHANGES_SET	= 29,
 	IWL_UCODE_TLV_ENABLED_CAPABILITIES	= 30,
 	IWL_UCODE_TLV_N_SCAN_CHANNELS		= 31,
+	IWL_UCODE_TLV_PAGING		= 32,
 	IWL_UCODE_TLV_SEC_RT_USNIFFER	= 34,
 	IWL_UCODE_TLV_SDIO_ADMA_ADDR	= 35,
 	IWL_UCODE_TLV_FW_VERSION	= 36,
@@ -343,8 +344,9 @@ enum iwl_ucode_tlv_capa {
  * For 16.0 uCode and above, there is no differentiation between sections,
  * just an offset to the HW address.
  */
-#define IWL_UCODE_SECTION_MAX 12
+#define IWL_UCODE_SECTION_MAX 16
 #define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
+#define PAGING_SEPARATOR_SECTION	0xAAAABBBB
 
 /* uCode version contains 4 values: Major/Minor/API/Serial */
 #define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)

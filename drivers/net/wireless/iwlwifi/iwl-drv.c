@@ -573,10 +573,11 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	size_t len = ucode_raw->size;
 	const u8 *data;
 	u32 tlv_len;
+	u32 usniffer_img;
 	enum iwl_ucode_tlv_type tlv_type;
 	const u8 *tlv_data;
 	char buildstr[25];
-	u32 build;
+	u32 build, paging_mem_size;
 	int num_of_cpus;
 	bool usniffer_images = false;
 	bool usniffer_req = false;
@@ -954,6 +955,35 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			iwl_store_ucode_sec(pieces, tlv_data,
 					    IWL_UCODE_REGULAR_USNIFFER,
 					    tlv_len);
+			break;
+		case IWL_UCODE_TLV_PAGING:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			paging_mem_size = le32_to_cpup((__le32 *)tlv_data);
+
+			IWL_DEBUG_FW(drv,
+				     "Paging: paging enabled (size = %u bytes)\n",
+				     paging_mem_size);
+
+			if (paging_mem_size > MAX_PAGING_IMAGE_SIZE) {
+				IWL_ERR(drv,
+					"Paging: driver supports up to %lu bytes for paging image\n",
+					MAX_PAGING_IMAGE_SIZE);
+				return -EINVAL;
+			}
+
+			if (paging_mem_size & (FW_PAGING_SIZE - 1)) {
+				IWL_ERR(drv,
+					"Paging: image isn't multiple %lu\n",
+					FW_PAGING_SIZE);
+				return -EINVAL;
+			}
+
+			drv->fw.img[IWL_UCODE_REGULAR].paging_mem_size =
+				paging_mem_size;
+			usniffer_img = IWL_UCODE_REGULAR_USNIFFER;
+			drv->fw.img[usniffer_img].paging_mem_size =
+				paging_mem_size;
 			break;
 		case IWL_UCODE_TLV_SDIO_ADMA_ADDR:
 			if (tlv_len != sizeof(u32))

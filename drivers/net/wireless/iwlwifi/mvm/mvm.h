@@ -610,6 +610,11 @@ struct iwl_mvm {
 	/* NVM sections */
 	struct iwl_nvm_section nvm_sections[NVM_MAX_NUM_SECTIONS];
 
+	/* Paging section */
+	struct iwl_fw_paging fw_paging_db[NUM_OF_FW_PAGING_BLOCKS];
+	u16 num_of_paging_blk;
+	u16 num_of_pages_in_last_blk;
+
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[IWL_MVM_MAX_ADDRESSES];
 

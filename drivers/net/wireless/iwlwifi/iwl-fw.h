@@ -133,11 +133,51 @@ struct fw_desc {
 struct fw_img {
 	struct fw_desc sec[IWL_UCODE_SECTION_MAX];
 	bool is_dual_cpus;
+	u32 paging_mem_size;
 };
 
 struct iwl_sf_region {
 	u32 addr;
 	u32 size;
+};
+
+/*
+ * Block paging calculations
+ */
+#define PAGE_2_EXP_SIZE 12 /* 4K == 2^12 */
+#define FW_PAGING_SIZE BIT(PAGE_2_EXP_SIZE) /* page size is 4KB */
+#define PAGE_PER_GROUP_2_EXP_SIZE 3
+/* 8 pages per group */
+#define NUM_OF_PAGE_PER_GROUP BIT(PAGE_PER_GROUP_2_EXP_SIZE)
+/* don't change, support only 32KB size */
+#define PAGING_BLOCK_SIZE (NUM_OF_PAGE_PER_GROUP * FW_PAGING_SIZE)
+/* 32K == 2^15 */
+#define BLOCK_2_EXP_SIZE (PAGE_2_EXP_SIZE + PAGE_PER_GROUP_2_EXP_SIZE)
+
+/*
+ * Image paging calculations
+ */
+#define BLOCK_PER_IMAGE_2_EXP_SIZE 5
+/* 2^5 == 32 blocks per image */
+#define NUM_OF_BLOCK_PER_IMAGE BIT(BLOCK_PER_IMAGE_2_EXP_SIZE)
+/* maximum image size 1024KB */
+#define MAX_PAGING_IMAGE_SIZE (NUM_OF_BLOCK_PER_IMAGE * PAGING_BLOCK_SIZE)
+
+#define PAGING_CMD_IS_SECURED BIT(9)
+#define PAGING_CMD_IS_ENABLED BIT(8)
+#define PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS	0
+#define PAGING_TLV_SECURE_MASK 1
+
+/**
+ * struct iwl_fw_paging
+ * @fw_paging_phys: page phy pointer
+ * @fw_paging_block: pointer to the allocated block
+ * @fw_paging_size: page size
+ */
+struct iwl_fw_paging {
+	dma_addr_t fw_paging_phys;
+	struct page *fw_paging_block;
+	u32 fw_paging_size;
 };
 
 /**

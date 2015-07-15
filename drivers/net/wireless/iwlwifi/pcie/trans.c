@@ -764,8 +764,15 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 	for (i = *first_ucode_section; i < IWL_UCODE_SECTION_MAX; i++) {
 		last_read_idx = i;
 
+		/*
+		 * CPU1_CPU2_SEPARATOR_SECTION delimiter - separate between
+		 * CPU1 to CPU2.
+		 * PAGING_SEPARATOR_SECTION delimiter - separate between
+		 * CPU2 non paged to CPU2 paging sec.
+		 */
 		if (!image->sec[i].data ||
-		    image->sec[i].offset == CPU1_CPU2_SEPARATOR_SECTION) {
+		    image->sec[i].offset == CPU1_CPU2_SEPARATOR_SECTION ||
+		    image->sec[i].offset == PAGING_SEPARATOR_SECTION) {
 			IWL_DEBUG_FW(trans,
 				     "Break since Data not valid or Empty section, sec = %d\n",
 				     i);
@@ -813,8 +820,15 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 	for (i = *first_ucode_section; i < IWL_UCODE_SECTION_MAX; i++) {
 		last_read_idx = i;
 
+		/*
+		 * CPU1_CPU2_SEPARATOR_SECTION delimiter - separate between
+		 * CPU1 to CPU2.
+		 * PAGING_SEPARATOR_SECTION delimiter - separate between
+		 * CPU2 non paged to CPU2 paging sec.
+		 */
 		if (!image->sec[i].data ||
-		    image->sec[i].offset == CPU1_CPU2_SEPARATOR_SECTION) {
+		    image->sec[i].offset == CPU1_CPU2_SEPARATOR_SECTION ||
+		    image->sec[i].offset == PAGING_SEPARATOR_SECTION) {
 			IWL_DEBUG_FW(trans,
 				     "Break since Data not valid or Empty section, sec = %d\n",
 				     i);

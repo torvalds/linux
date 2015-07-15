@@ -149,6 +149,9 @@ enum {
 
 	LQ_CMD = 0x4e,
 
+	/* paging block to FW cpu2 */
+	FW_PAGING_BLOCK_CMD = 0x4f,
+
 	/* Scan offload */
 	SCAN_OFFLOAD_REQUEST_CMD = 0x51,
 	SCAN_OFFLOAD_ABORT_CMD = 0x52,
@@ -369,6 +372,27 @@ struct iwl_nvm_access_cmd {
 	__le16 length;
 	u8 data[];
 } __packed; /* NVM_ACCESS_CMD_API_S_VER_2 */
+
+#define NUM_OF_FW_PAGING_BLOCKS	33 /* 32 for data and 1 block for CSS */
+
+/*
+ * struct iwl_fw_paging_cmd - paging layout
+ *
+ * (FW_PAGING_BLOCK_CMD = 0x4f)
+ *
+ * Send to FW the paging layout in the driver.
+ *
+ * @flags: various flags for the command
+ * @block_size: the block size in powers of 2
+ * @block_num: number of blocks specified in the command.
+ * @device_phy_addr: virtual addresses from device side
+*/
+struct iwl_fw_paging_cmd {
+	__le32 flags;
+	__le32 block_size;
+	__le32 block_num;
+	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
+} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
 
 /**
  * struct iwl_nvm_access_resp_ver2 - response to NVM_ACCESS_CMD
