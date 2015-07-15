@@ -2729,7 +2729,7 @@ static const struct sense_info sense_info_table[] = {
 	},
 };
 
-static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
+static int translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 {
 	const struct sense_info *si;
 	u8 *buffer = cmd->sense_buffer;
@@ -2756,7 +2756,11 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 
 	scsi_build_sense_buffer(0, buffer, si->key, asc, ascq);
 	if (si->add_sector_info)
-		scsi_set_sense_information(buffer, cmd->bad_sector);
+		return scsi_set_sense_information(buffer,
+						  cmd->scsi_sense_length,
+						  cmd->bad_sector);
+
+	return 0;
 }
 
 int
@@ -2774,10 +2778,14 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	if (!from_transport) {
+		int rc;
+
 		cmd->se_cmd_flags |= SCF_EMULATED_TASK_SENSE;
-		translate_sense_reason(cmd, reason);
 		cmd->scsi_status = SAM_STAT_CHECK_CONDITION;
 		cmd->scsi_sense_length  = TRANSPORT_SENSE_BUFFER;
+		rc = translate_sense_reason(cmd, reason);
+		if (rc)
+			return rc;
 	}
 
 	trace_target_cmd_complete(cmd);

@@ -5,6 +5,7 @@
 #include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/errno.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_common.h>
 
@@ -249,10 +250,13 @@ EXPORT_SYMBOL(scsi_build_sense_buffer);
  * scsi_set_sense_information - set the information field in a
  *		formatted sense data buffer
  * @buf:	Where to build sense data
+ * @buf_len:    buffer length
  * @info:	64-bit information value to be set
  *
+ * Return value:
+ *	0 on success or EINVAL for invalid sense buffer length
  **/
-void scsi_set_sense_information(u8 *buf, u64 info)
+int scsi_set_sense_information(u8 *buf, int buf_len, u64 info)
 {
 	if ((buf[0] & 0x7f) == 0x72) {
 		u8 *ucp, len;
@@ -263,6 +267,11 @@ void scsi_set_sense_information(u8 *buf, u64 info)
 			buf[7] = len + 0xc;
 			ucp = buf + 8 + len;
 		}
+
+		if (buf_len < len + 0xc)
+			/* Not enough room for info */
+			return -EINVAL;
+
 		ucp[0] = 0;
 		ucp[1] = 0xa;
 		ucp[2] = 0x80; /* Valid bit */
@@ -272,5 +281,7 @@ void scsi_set_sense_information(u8 *buf, u64 info)
 		buf[0] |= 0x80;
 		put_unaligned_be64(info, &buf[3]);
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL(scsi_set_sense_information);

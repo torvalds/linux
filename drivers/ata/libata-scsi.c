@@ -289,7 +289,9 @@ void ata_scsi_set_sense_information(struct scsi_cmnd *cmd,
 		return;
 
 	information = ata_tf_read_block(tf, NULL);
-	scsi_set_sense_information(cmd->sense_buffer, information);
+	scsi_set_sense_information(cmd->sense_buffer,
+				   SCSI_SENSE_BUFFERSIZE,
+				   information);
 }
 
 static ssize_t
