@@ -1454,6 +1454,21 @@ first_nmi:
 
 	/* Everything up to here is safe from nested NMIs */
 
+#ifdef CONFIG_DEBUG_ENTRY
+	/*
+	 * For ease of testing, unmask NMIs right away.  Disabled by
+	 * default because IRET is very expensive.
+	 */
+	pushq	$0		/* SS */
+	pushq	%rsp		/* RSP (minus 8 because of the previous push) */
+	addq	$8, (%rsp)	/* Fix up RSP */
+	pushfq			/* RFLAGS */
+	pushq	$__KERNEL_CS	/* CS */
+	pushq	$1f		/* RIP */
+	INTERRUPT_RETURN	/* continues at repeat_nmi below */
+1:
+#endif
+
 repeat_nmi:
 	/*
 	 * If there was a nested NMI, the first NMI's iret will return
