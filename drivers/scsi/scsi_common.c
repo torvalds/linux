@@ -260,7 +260,7 @@ void scsi_set_sense_information(u8 *buf, u64 info)
 		len = buf[7];
 		ucp = (char *)scsi_sense_desc_find(buf, len + 8, 0);
 		if (!ucp) {
-			buf[7] = len + 0xa;
+			buf[7] = len + 0xc;
 			ucp = buf + 8 + len;
 		}
 		ucp[0] = 0;
