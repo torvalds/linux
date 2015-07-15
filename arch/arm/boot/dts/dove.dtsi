@@ -438,6 +438,13 @@
 						marvell,pmu_iso_mask = <0x00000001>;
 						resets = <&pmu 16>;
 					};
+
+					gpu_domain: gpu-domain {
+						#power-domain-cells = <0>;
+						marvell,pmu_pwr_mask = <0x00000004>;
+						marvell,pmu_iso_mask = <0x00000002>;
+						resets = <&pmu 18>;
+					};
 				};
 
 				thermal: thermal-diode@001c {
