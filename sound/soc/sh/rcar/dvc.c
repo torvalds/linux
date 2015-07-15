@@ -354,10 +354,8 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 	}
 
 	dvc	= devm_kzalloc(dev, sizeof(*dvc) * nr, GFP_KERNEL);
-	if (!dvc) {
-		dev_err(dev, "CMD allocate failed\n");
+	if (!dvc)
 		return -ENOMEM;
-	}
 
 	priv->dvc_nr	= nr;
 	priv->dvc	= dvc;
