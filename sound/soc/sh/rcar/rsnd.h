@@ -554,8 +554,6 @@ int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
 int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod);
 int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod);
 
-#define rsnd_src_nr(priv) ((priv)->src_nr)
-
 /*
  *	R-Car SSI
  */

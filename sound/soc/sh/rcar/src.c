@@ -30,6 +30,7 @@ struct rsnd_src {
 
 #define RSND_SRC_NAME_SIZE 16
 
+#define rsnd_src_nr(priv) ((priv)->src_nr)
 #define rsnd_enable_sync_convert(src) ((src)->sen.val)
 #define rsnd_src_of_node(priv) \
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,src")
