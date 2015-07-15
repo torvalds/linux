@@ -246,6 +246,13 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	pr_info_once("%s: %s PHY revision: 0x%02x, patch: %d\n",
 		     dev_name(&phydev->dev), phydev->drv->name, rev, patch);
 
+	/* Dummy read to a register to workaround an issue upon reset where the
+	 * internal inverter may not allow the first MDIO transaction to pass
+	 * the MDIO management controller and make us return 0xffff for such
+	 * reads.
+	 */
+	phy_read(phydev, MII_BMSR);
+
 	switch (rev) {
 	case 0xb0:
 		ret = bcm7xxx_28nm_b0_afe_config_init(phydev);

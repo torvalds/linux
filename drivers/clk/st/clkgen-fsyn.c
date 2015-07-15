@@ -340,7 +340,7 @@ static const struct clkgen_quadfs_data st_fs660c32_C_407 = {
 		    CLKGEN_FIELD(0x30c, 0xf, 20),
 		    CLKGEN_FIELD(0x310, 0xf, 20) },
 	.lockstatus_present = true,
-	.lock_status = CLKGEN_FIELD(0x2A0, 0x1, 24),
+	.lock_status = CLKGEN_FIELD(0x2f0, 0x1, 24),
 	.powerup_polarity = 1,
 	.standby_polarity = 1,
 	.pll_ops	= &st_quadfs_pll_c32_ops,
@@ -489,10 +489,10 @@ static int quadfs_pll_is_enabled(struct clk_hw *hw)
 	struct st_clk_quadfs_pll *pll = to_quadfs_pll(hw);
 	u32 npda = CLKGEN_READ(pll, npda);
 
-	return !!npda;
+	return pll->data->powerup_polarity ? !npda : !!npda;
 }
 
-int clk_fs660c32_vco_get_rate(unsigned long input, struct stm_fs *fs,
+static int clk_fs660c32_vco_get_rate(unsigned long input, struct stm_fs *fs,
 			   unsigned long *rate)
 {
 	unsigned long nd = fs->ndiv + 16; /* ndiv value */
@@ -519,7 +519,7 @@ static unsigned long quadfs_pll_fs660c32_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-int clk_fs660c32_vco_get_params(unsigned long input,
+static int clk_fs660c32_vco_get_params(unsigned long input,
 				unsigned long output, struct stm_fs *fs)
 {
 /* Formula
@@ -635,7 +635,7 @@ static struct clk * __init st_clk_register_quadfs_pll(
 
 	init.name = name;
 	init.ops = quadfs->pll_ops;
-	init.flags = CLK_IS_BASIC;
+	init.flags = CLK_IS_BASIC | CLK_GET_RATE_NOCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -774,7 +774,7 @@ static void quadfs_fsynth_disable(struct clk_hw *hw)
 	if (fs->lock)
 		spin_lock_irqsave(fs->lock, flags);
 
-	CLKGEN_WRITE(fs, nsb[fs->chan], !fs->data->standby_polarity);
+	CLKGEN_WRITE(fs, nsb[fs->chan], fs->data->standby_polarity);
 
 	if (fs->lock)
 		spin_unlock_irqrestore(fs->lock, flags);
@@ -1081,10 +1081,6 @@ static const struct of_device_id quadfs_of_match[] = {
 	{
 		.compatible = "st,stih407-quadfs660-D",
 		.data = &st_fs660c32_D_407
-	},
-	{
-		.compatible = "st,stih407-quadfs660-D",
-		.data = (void *)&st_fs660c32_D_407
 	},
 	{}
 };

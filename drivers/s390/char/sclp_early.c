@@ -98,7 +98,7 @@ static int __init sclp_read_info_early(struct read_info_sccb *sccb)
 
 static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 {
-	struct sclp_cpu_entry *cpue;
+	struct sclp_core_entry *cpue;
 	u16 boot_cpu_address, cpu;
 
 	if (sclp_read_info_early(sccb))
@@ -106,7 +106,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 
 	sclp.facilities = sccb->facilities;
 	sclp.has_sprp = !!(sccb->fac84 & 0x02);
-	sclp.has_cpu_type = !!(sccb->fac84 & 0x01);
+	sclp.has_core_type = !!(sccb->fac84 & 0x01);
 	if (sccb->fac85 & 0x02)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
 	sclp.rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
@@ -116,11 +116,11 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 
 	if (!sccb->hcpua) {
 		if (MACHINE_IS_VM)
-			sclp.max_cpu = 64;
+			sclp.max_cores = 64;
 		else
-			sclp.max_cpu = sccb->ncpurl;
+			sclp.max_cores = sccb->ncpurl;
 	} else {
-		sclp.max_cpu = sccb->hcpua + 1;
+		sclp.max_cores = sccb->hcpua + 1;
 	}
 
 	boot_cpu_address = stap();

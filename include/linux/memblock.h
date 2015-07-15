@@ -101,6 +101,9 @@ void __next_mem_range_rev(u64 *idx, int nid, ulong flags,
 			  struct memblock_type *type_b, phys_addr_t *out_start,
 			  phys_addr_t *out_end, int *out_nid);
 
+void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
+			       phys_addr_t *out_end);
+
 /**
  * for_each_mem_range - iterate through memblock areas from type_a and not
  * included in type_b. Or just type_a if type_b is NULL.
@@ -141,6 +144,21 @@ void __next_mem_range_rev(u64 *idx, int nid, ulong flags,
 	     i != (u64)ULLONG_MAX;					\
 	     __next_mem_range_rev(&i, nid, flags, type_a, type_b,	\
 				  p_start, p_end, p_nid))
+
+/**
+ * for_each_reserved_mem_region - iterate over all reserved memblock areas
+ * @i: u64 used as loop variable
+ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
+ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
+ *
+ * Walks over reserved areas of memblock. Available as soon as memblock
+ * is initialized.
+ */
+#define for_each_reserved_mem_region(i, p_start, p_end)			\
+	for (i = 0UL,							\
+	     __next_reserved_mem_region(&i, p_start, p_end);		\
+	     i != (u64)ULLONG_MAX;					\
+	     __next_reserved_mem_region(&i, p_start, p_end))
 
 #ifdef CONFIG_MOVABLE_NODE
 static inline bool memblock_is_hotpluggable(struct memblock_region *m)

@@ -192,15 +192,27 @@ out:
 }
 
 #ifdef CONFIG_FS_DAX
+static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
+{
+	struct inode *inode = bh->b_assoc_map->host;
+	/* XXX: breaks on 32-bit > 16GB. Is that even supported? */
+	loff_t offset = (loff_t)(uintptr_t)bh->b_private << inode->i_blkbits;
+	int err;
+	if (!uptodate)
+		return;
+	WARN_ON(!buffer_unwritten(bh));
+	err = ext4_convert_unwritten_extents(NULL, inode, offset, bh->b_size);
+}
+
 static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_fault(vma, vmf, ext4_get_block);
+	return dax_fault(vma, vmf, ext4_get_block, ext4_end_io_unwritten);
 					/* Is this the right get_block? */
 }
 
 static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_mkwrite(vma, vmf, ext4_get_block);
+	return dax_mkwrite(vma, vmf, ext4_get_block, ext4_end_io_unwritten);
 }
 
 static const struct vm_operations_struct ext4_dax_vm_ops = {

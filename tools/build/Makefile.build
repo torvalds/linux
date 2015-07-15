@@ -25,7 +25,7 @@ build-dir := $(srctree)/tools/build
 include $(build-dir)/Build.include
 
 # do not force detected configuration
--include .config-detected
+-include $(OUTPUT).config-detected
 
 # Init all relevant variables used in build files so
 # 1) they have correct type

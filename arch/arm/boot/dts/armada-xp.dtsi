@@ -185,7 +185,7 @@
 			};
 
 			eth2: ethernet@30000 {
-				compatible = "marvell,armada-370-neta";
+				compatible = "marvell,armada-xp-neta";
 				reg = <0x30000 0x4000>;
 				interrupts = <12>;
 				clocks = <&gateclk 2>;
@@ -226,6 +226,14 @@
 					dmacap,xor;
 					dmacap,memset;
 				};
+			};
+
+			ethernet@70000 {
+				compatible = "marvell,armada-xp-neta";
+			};
+
+			ethernet@74000 {
+				compatible = "marvell,armada-xp-neta";
 			};
 
 			xor@f0900 {
@@ -297,7 +305,7 @@
 	spi0_pins: spi0-pins {
 		marvell,pins = "mpp36", "mpp37",
 			       "mpp38", "mpp39";
-		marvell,function = "spi";
+		marvell,function = "spi0";
 	};
 
 	uart2_pins: uart2-pins {

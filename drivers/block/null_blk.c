@@ -99,7 +99,7 @@ static int null_set_queue_mode(const char *str, const struct kernel_param *kp)
 	return null_param_store_val(str, &queue_mode, NULL_Q_BIO, NULL_Q_MQ);
 }
 
-static struct kernel_param_ops null_queue_mode_param_ops = {
+static const struct kernel_param_ops null_queue_mode_param_ops = {
 	.set	= null_set_queue_mode,
 	.get	= param_get_int,
 };
@@ -127,7 +127,7 @@ static int null_set_irqmode(const char *str, const struct kernel_param *kp)
 					NULL_IRQ_TIMER);
 }
 
-static struct kernel_param_ops null_irqmode_param_ops = {
+static const struct kernel_param_ops null_irqmode_param_ops = {
 	.set	= null_set_irqmode,
 	.get	= param_get_int,
 };

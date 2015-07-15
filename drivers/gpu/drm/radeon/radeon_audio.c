@@ -469,22 +469,22 @@ void radeon_audio_detect(struct drm_connector *connector,
 	dig = radeon_encoder->enc_priv;
 
 	if (status == connector_status_connected) {
-		struct radeon_connector *radeon_connector;
-		int sink_type;
-
 		if (!drm_detect_monitor_audio(radeon_connector_edid(connector))) {
 			radeon_encoder->audio = NULL;
 			return;
 		}
 
-		radeon_connector = to_radeon_connector(connector);
-		sink_type = radeon_dp_getsinktype(radeon_connector);
+		if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
-		if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort &&
-			sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
-			radeon_encoder->audio = rdev->audio.dp_funcs;
-		else
+			if (radeon_dp_getsinktype(radeon_connector) ==
+			    CONNECTOR_OBJECT_ID_DISPLAYPORT)
+				radeon_encoder->audio = rdev->audio.dp_funcs;
+			else
+				radeon_encoder->audio = rdev->audio.hdmi_funcs;
+		} else {
 			radeon_encoder->audio = rdev->audio.hdmi_funcs;
+		}
 
 		dig->afmt->pin = radeon_audio_get_pin(connector->encoder);
 		radeon_audio_enable(rdev, dig->afmt->pin, 0xf);

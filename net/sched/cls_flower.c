@@ -216,8 +216,8 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 	[TCA_FLOWER_KEY_IPV6_DST_MASK]	= { .len = sizeof(struct in6_addr) },
 	[TCA_FLOWER_KEY_TCP_SRC]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_TCP_DST]	= { .type = NLA_U16 },
-	[TCA_FLOWER_KEY_TCP_SRC]	= { .type = NLA_U16 },
-	[TCA_FLOWER_KEY_TCP_DST]	= { .type = NLA_U16 },
+	[TCA_FLOWER_KEY_UDP_SRC]	= { .type = NLA_U16 },
+	[TCA_FLOWER_KEY_UDP_DST]	= { .type = NLA_U16 },
 };
 
 static void fl_set_key_val(struct nlattr **tb,

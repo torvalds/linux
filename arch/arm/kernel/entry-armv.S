@@ -15,6 +15,8 @@
  *  that causes it to save wrong values...  Be aware!
  */
 
+#include <linux/init.h>
+
 #include <asm/assembler.h>
 #include <asm/memory.h>
 #include <asm/glue-df.h>
@@ -408,7 +410,7 @@ ENDPROC(__fiq_abt)
 	zero_fp
 
 	.if	\trace
-#ifdef CONFIG_IRQSOFF_TRACER
+#ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
 #endif
 	ct_user_exit save = 0

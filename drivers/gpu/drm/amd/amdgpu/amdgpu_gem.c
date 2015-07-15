@@ -352,7 +352,7 @@ unsigned long amdgpu_gem_timeout(uint64_t timeout_ns)
 	if (((int64_t)timeout_ns) < 0)
 		return MAX_SCHEDULE_TIMEOUT;
 
-	timeout = ktime_sub_ns(ktime_get(), timeout_ns);
+	timeout = ktime_sub(ns_to_ktime(timeout_ns), ktime_get());
 	if (ktime_to_ns(timeout) < 0)
 		return 0;
 
@@ -496,7 +496,7 @@ error_unreserve:
 error_free:
 	drm_free_large(vm_bos);
 
-	if (r)
+	if (r && r != -ERESTARTSYS)
 		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
 }
 
@@ -525,8 +525,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	invalid_flags = ~(AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE |
-			AMDGPU_VM_PAGE_EXECUTABLE);
+	invalid_flags = ~(AMDGPU_VM_DELAY_UPDATE | AMDGPU_VM_PAGE_READABLE |
+			AMDGPU_VM_PAGE_WRITEABLE | AMDGPU_VM_PAGE_EXECUTABLE);
 	if ((args->flags & invalid_flags)) {
 		dev_err(&dev->pdev->dev, "invalid flags 0x%08X vs 0x%08X\n",
 			args->flags, invalid_flags);
@@ -579,7 +579,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 
-	if (!r)
+	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE))
 		amdgpu_gem_va_update_vm(adev, bo_va);
 
 	drm_gem_object_unreference_unlocked(gobj);

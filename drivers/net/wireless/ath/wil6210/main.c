@@ -62,7 +62,7 @@ static int mtu_max_set(const char *val, const struct kernel_param *kp)
 	return ret;
 }
 
-static struct kernel_param_ops mtu_max_ops = {
+static const struct kernel_param_ops mtu_max_ops = {
 	.set = mtu_max_set,
 	.get = param_get_uint,
 };
@@ -91,7 +91,7 @@ static int ring_order_set(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops ring_order_ops = {
+static const struct kernel_param_ops ring_order_ops = {
 	.set = ring_order_set,
 	.get = param_get_uint,
 };

@@ -62,18 +62,13 @@ static void hypfs_add_dentry(struct dentry *dentry)
 	hypfs_last_dentry = dentry;
 }
 
-static inline int hypfs_positive(struct dentry *dentry)
-{
-	return d_really_is_positive(dentry) && !d_unhashed(dentry);
-}
-
 static void hypfs_remove(struct dentry *dentry)
 {
 	struct dentry *parent;
 
 	parent = dentry->d_parent;
 	mutex_lock(&d_inode(parent)->i_mutex);
-	if (hypfs_positive(dentry)) {
+	if (simple_positive(dentry)) {
 		if (d_is_dir(dentry))
 			simple_rmdir(d_inode(parent), dentry);
 		else
@@ -456,8 +451,6 @@ static const struct super_operations hypfs_s_ops = {
 	.show_options	= hypfs_show_options,
 };
 
-static struct kobject *s390_kobj;
-
 static int __init hypfs_init(void)
 {
 	int rc;
@@ -481,18 +474,16 @@ static int __init hypfs_init(void)
 		rc = -ENODATA;
 		goto fail_hypfs_sprp_exit;
 	}
-	s390_kobj = kobject_create_and_add("s390", hypervisor_kobj);
-	if (!s390_kobj) {
-		rc = -ENOMEM;
+	rc = sysfs_create_mount_point(hypervisor_kobj, "s390");
+	if (rc)
 		goto fail_hypfs_diag0c_exit;
-	}
 	rc = register_filesystem(&hypfs_type);
 	if (rc)
 		goto fail_filesystem;
 	return 0;
 
 fail_filesystem:
-	kobject_put(s390_kobj);
+	sysfs_remove_mount_point(hypervisor_kobj, "s390");
 fail_hypfs_diag0c_exit:
 	hypfs_diag0c_exit();
 fail_hypfs_sprp_exit:
@@ -510,7 +501,7 @@ fail_dbfs_exit:
 static void __exit hypfs_exit(void)
 {
 	unregister_filesystem(&hypfs_type);
-	kobject_put(s390_kobj);
+	sysfs_remove_mount_point(hypervisor_kobj, "s390");
 	hypfs_diag0c_exit();
 	hypfs_sprp_exit();
 	hypfs_vm_exit();

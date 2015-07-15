@@ -18,6 +18,7 @@ if NET_VENDOR_VIA
 config VIA_RHINE
 	tristate "VIA Rhine support"
 	depends on (PCI || OF_IRQ)
+	depends on HAS_DMA
 	select CRC32
 	select MII
 	---help---
@@ -42,6 +43,7 @@ config VIA_RHINE_MMIO
 config VIA_VELOCITY
 	tristate "VIA Velocity support"
 	depends on (PCI || (OF_ADDRESS && OF_IRQ))
+	depends on HAS_DMA
 	select CRC32
 	select CRC_CCITT
 	select MII

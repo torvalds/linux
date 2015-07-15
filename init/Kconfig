@@ -435,6 +435,7 @@ config TASKSTATS
 config TASK_DELAY_ACCT
 	bool "Enable per-task delay accounting"
 	depends on TASKSTATS
+	select SCHED_INFO
 	help
 	  Collect information on time spent by a task waiting for system
 	  resources like cpu, synchronous block I/O completion and swapping
@@ -820,7 +821,7 @@ config IKCONFIG_PROC
 
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
-	range 12 21
+	range 12 25
 	default 17
 	depends on PRINTK
 	help
@@ -1941,26 +1942,21 @@ config MODULE_COMPRESS
 	bool "Compress modules on installation"
 	depends on MODULES
 	help
-	  This option compresses the kernel modules when 'make
-	  modules_install' is run.
 
-	  The modules will be compressed either using gzip or xz depend on the
-	  choice made in "Compression algorithm".
+	  Compresses kernel modules when 'make modules_install' is run; gzip or
+	  xz depending on "Compression algorithm" below.
 
-	  module-init-tools has support for gzip format while kmod handle gzip
-	  and xz compressed modules.
+	  module-init-tools MAY support gzip, and kmod MAY support gzip and xz.
 
-	  When a kernel module is installed from outside of the main kernel
-	  source and uses the Kbuild system for installing modules then that
-	  kernel module will also be compressed when it is installed.
+	  Out-of-tree kernel modules installed using Kbuild will also be
+	  compressed upon installation.
 
-	  This option provides little benefit when the modules are to be used inside
-	  an initrd or initramfs, it generally is more efficient to compress the whole
-	  initrd or initramfs instead.
+	  Note: for modules inside an initrd or initramfs, it's more efficient
+	  to compress the whole initrd or initramfs instead.
 
-	  This is fully compatible with signed modules while the signed module is
-	  compressed. module-init-tools or kmod handles decompression and provide to
-	  other layer the uncompressed but signed payload.
+	  Note: This is fully compatible with signed modules.
+
+	  If in doubt, say N.
 
 choice
 	prompt "Compression algorithm"
@@ -1981,6 +1977,10 @@ config MODULE_COMPRESS_XZ
 endchoice
 
 endif # MODULES
+
+config MODULES_TREE_LOOKUP
+	def_bool y
+	depends on PERF_EVENTS || TRACING
 
 config INIT_ALL_POSSIBLE
 	bool

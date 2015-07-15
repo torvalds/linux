@@ -602,12 +602,12 @@ struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
 EXPORT_SYMBOL(devm_gen_pool_create);
 
 /**
- * dev_get_gen_pool - Obtain the gen_pool (if any) for a device
+ * gen_pool_get - Obtain the gen_pool (if any) for a device
  * @dev: device to retrieve the gen_pool from
  *
  * Returns the gen_pool for the device if one is present, or NULL.
  */
-struct gen_pool *dev_get_gen_pool(struct device *dev)
+struct gen_pool *gen_pool_get(struct device *dev)
 {
 	struct gen_pool **p = devres_find(dev, devm_gen_pool_release, NULL,
 					NULL);
@@ -616,11 +616,11 @@ struct gen_pool *dev_get_gen_pool(struct device *dev)
 		return NULL;
 	return *p;
 }
-EXPORT_SYMBOL_GPL(dev_get_gen_pool);
+EXPORT_SYMBOL_GPL(gen_pool_get);
 
 #ifdef CONFIG_OF
 /**
- * of_get_named_gen_pool - find a pool by phandle property
+ * of_gen_pool_get - find a pool by phandle property
  * @np: device node
  * @propname: property name containing phandle(s)
  * @index: index into the phandle array
@@ -629,7 +629,7 @@ EXPORT_SYMBOL_GPL(dev_get_gen_pool);
  * address of the device tree node pointed at by the phandle property,
  * or NULL if not found.
  */
-struct gen_pool *of_get_named_gen_pool(struct device_node *np,
+struct gen_pool *of_gen_pool_get(struct device_node *np,
 	const char *propname, int index)
 {
 	struct platform_device *pdev;
@@ -642,7 +642,7 @@ struct gen_pool *of_get_named_gen_pool(struct device_node *np,
 	of_node_put(np_pool);
 	if (!pdev)
 		return NULL;
-	return dev_get_gen_pool(&pdev->dev);
+	return gen_pool_get(&pdev->dev);
 }
-EXPORT_SYMBOL_GPL(of_get_named_gen_pool);
+EXPORT_SYMBOL_GPL(of_gen_pool_get);
 #endif /* CONFIG_OF */

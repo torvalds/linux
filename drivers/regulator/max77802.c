@@ -27,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>

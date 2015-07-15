@@ -77,12 +77,12 @@ static void __init clk_misc_init(void)
 	writel_relaxed(30 << BP_FRAC_IOFRAC, FRAC + SET);
 }
 
-static const char *sel_pll[]  __initdata = { "pll", "ref_xtal", };
-static const char *sel_cpu[]  __initdata = { "ref_cpu", "ref_xtal", };
-static const char *sel_pix[]  __initdata = { "ref_pix", "ref_xtal", };
-static const char *sel_io[]   __initdata = { "ref_io", "ref_xtal", };
-static const char *cpu_sels[] __initdata = { "cpu_pll", "cpu_xtal", };
-static const char *emi_sels[] __initdata = { "emi_pll", "emi_xtal", };
+static const char *const sel_pll[]  __initconst = { "pll", "ref_xtal", };
+static const char *const sel_cpu[]  __initconst = { "ref_cpu", "ref_xtal", };
+static const char *const sel_pix[]  __initconst = { "ref_pix", "ref_xtal", };
+static const char *const sel_io[]   __initconst = { "ref_io", "ref_xtal", };
+static const char *const cpu_sels[] __initconst = { "cpu_pll", "cpu_xtal", };
+static const char *const emi_sels[] __initconst = { "emi_pll", "emi_xtal", };
 
 enum imx23_clk {
 	ref_xtal, pll, ref_cpu, ref_emi, ref_pix, ref_io, saif_sel,

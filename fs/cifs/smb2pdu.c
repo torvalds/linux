@@ -304,6 +304,59 @@ small_smb2_init(__le16 smb2_command, struct cifs_tcon *tcon,
 	return rc;
 }
 
+#ifdef CONFIG_CIFS_SMB311
+/* offset is sizeof smb2_negotiate_req - 4 but rounded up to 8 bytes */
+#define OFFSET_OF_NEG_CONTEXT 0x68  /* sizeof(struct smb2_negotiate_req) - 4 */
+
+
+#define SMB2_PREAUTH_INTEGRITY_CAPABILITIES	cpu_to_le16(1)
+#define SMB2_ENCRYPTION_CAPABILITIES		cpu_to_le16(2)
+
+static void
+build_preauth_ctxt(struct smb2_preauth_neg_context *pneg_ctxt)
+{
+	pneg_ctxt->ContextType = SMB2_PREAUTH_INTEGRITY_CAPABILITIES;
+	pneg_ctxt->DataLength = cpu_to_le16(38);
+	pneg_ctxt->HashAlgorithmCount = cpu_to_le16(1);
+	pneg_ctxt->SaltLength = cpu_to_le16(SMB311_SALT_SIZE);
+	get_random_bytes(pneg_ctxt->Salt, SMB311_SALT_SIZE);
+	pneg_ctxt->HashAlgorithms = SMB2_PREAUTH_INTEGRITY_SHA512;
+}
+
+static void
+build_encrypt_ctxt(struct smb2_encryption_neg_context *pneg_ctxt)
+{
+	pneg_ctxt->ContextType = SMB2_ENCRYPTION_CAPABILITIES;
+	pneg_ctxt->DataLength = cpu_to_le16(6);
+	pneg_ctxt->CipherCount = cpu_to_le16(2);
+	pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_GCM;
+	pneg_ctxt->Ciphers[1] = SMB2_ENCRYPTION_AES128_CCM;
+}
+
+static void
+assemble_neg_contexts(struct smb2_negotiate_req *req)
+{
+
+	/* +4 is to account for the RFC1001 len field */
+	char *pneg_ctxt = (char *)req + OFFSET_OF_NEG_CONTEXT + 4;
+
+	build_preauth_ctxt((struct smb2_preauth_neg_context *)pneg_ctxt);
+	/* Add 2 to size to round to 8 byte boundary */
+	pneg_ctxt += 2 + sizeof(struct smb2_preauth_neg_context);
+	build_encrypt_ctxt((struct smb2_encryption_neg_context *)pneg_ctxt);
+	req->NegotiateContextOffset = cpu_to_le32(OFFSET_OF_NEG_CONTEXT);
+	req->NegotiateContextCount = cpu_to_le16(2);
+	inc_rfc1001_len(req, 4 + sizeof(struct smb2_preauth_neg_context) + 2
+			+ sizeof(struct smb2_encryption_neg_context)); /* calculate hash */
+}
+#else
+static void assemble_neg_contexts(struct smb2_negotiate_req *req)
+{
+	return;
+}
+#endif /* SMB311 */
+
+
 /*
  *
  *	SMB2 Worker functions follow:
@@ -363,10 +416,12 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	/* ClientGUID must be zero for SMB2.02 dialect */
 	if (ses->server->vals->protocol_id == SMB20_PROT_ID)
 		memset(req->ClientGUID, 0, SMB2_CLIENT_GUID_SIZE);
-	else
+	else {
 		memcpy(req->ClientGUID, server->client_guid,
 			SMB2_CLIENT_GUID_SIZE);
-
+		if (ses->server->vals->protocol_id == SMB311_PROT_ID)
+			assemble_neg_contexts(req);
+	}
 	iov[0].iov_base = (char *)req;
 	/* 4 for rfc1002 length field */
 	iov[0].iov_len = get_rfc1002_length(req) + 4;
@@ -393,8 +448,12 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		cifs_dbg(FYI, "negotiated smb3.0 dialect\n");
 	else if (rsp->DialectRevision == cpu_to_le16(SMB302_PROT_ID))
 		cifs_dbg(FYI, "negotiated smb3.02 dialect\n");
+#ifdef CONFIG_CIFS_SMB311
+	else if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID))
+		cifs_dbg(FYI, "negotiated smb3.1.1 dialect\n");
+#endif /* SMB311 */
 	else {
-		cifs_dbg(VFS, "Illegal dialect returned by server %d\n",
+		cifs_dbg(VFS, "Illegal dialect returned by server 0x%x\n",
 			 le16_to_cpu(rsp->DialectRevision));
 		rc = -EIO;
 		goto neg_exit;
@@ -572,7 +631,7 @@ ssetup_ntlmssp_authenticate:
 		return rc;
 
 	req->hdr.SessionId = 0; /* First session, not a reauthenticate */
-	req->VcNumber = 0; /* MBZ */
+	req->Flags = 0; /* MBZ */
 	/* to enable echos and oplocks */
 	req->hdr.CreditRequest = cpu_to_le16(3);
 

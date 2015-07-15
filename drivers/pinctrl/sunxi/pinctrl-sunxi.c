@@ -1005,9 +1005,9 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 		writel(0xffffffff,
 			pctl->membase + sunxi_irq_status_reg_from_bank(i));
 
-		irq_set_chained_handler(pctl->irq[i],
-					sunxi_pinctrl_irq_handler);
-		irq_set_handler_data(pctl->irq[i], pctl);
+		irq_set_chained_handler_and_data(pctl->irq[i],
+						 sunxi_pinctrl_irq_handler,
+						 pctl);
 	}
 
 	dev_info(&pdev->dev, "initialized sunXi PIO driver\n");

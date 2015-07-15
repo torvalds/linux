@@ -65,11 +65,6 @@ static inline void ufs_put_page(struct page *page)
 	page_cache_release(page);
 }
 
-static inline unsigned long ufs_dir_pages(struct inode *inode)
-{
-	return (inode->i_size+PAGE_CACHE_SIZE-1)>>PAGE_CACHE_SHIFT;
-}
-
 ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 {
 	ino_t res = 0;
@@ -87,7 +82,8 @@ ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 
 /* Releases the page */
 void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-		  struct page *page, struct inode *inode)
+		  struct page *page, struct inode *inode,
+		  bool update_times)
 {
 	loff_t pos = page_offset(page) +
 			(char *) de - (char *) page_address(page);
@@ -103,7 +99,8 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 
 	err = ufs_commit_chunk(page, pos, len);
 	ufs_put_page(page);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	if (update_times)
+		dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(dir);
 }
 
@@ -256,7 +253,7 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
 	int namelen = qstr->len;
 	unsigned reclen = UFS_DIR_REC_LEN(namelen);
 	unsigned long start, n;
-	unsigned long npages = ufs_dir_pages(dir);
+	unsigned long npages = dir_pages(dir);
 	struct page *page = NULL;
 	struct ufs_inode_info *ui = UFS_I(dir);
 	struct ufs_dir_entry *de;
@@ -320,7 +317,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 	unsigned short rec_len, name_len;
 	struct page *page = NULL;
 	struct ufs_dir_entry *de;
-	unsigned long npages = ufs_dir_pages(dir);
+	unsigned long npages = dir_pages(dir);
 	unsigned long n;
 	char *kaddr;
 	loff_t pos;
@@ -437,7 +434,7 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 	struct super_block *sb = inode->i_sb;
 	unsigned int offset = pos & ~PAGE_CACHE_MASK;
 	unsigned long n = pos >> PAGE_CACHE_SHIFT;
-	unsigned long npages = ufs_dir_pages(inode);
+	unsigned long npages = dir_pages(inode);
 	unsigned chunk_mask = ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
 	int need_revalidate = file->f_version != inode->i_version;
 	unsigned flags = UFS_SB(sb)->s_flags;
@@ -608,7 +605,7 @@ int ufs_empty_dir(struct inode * inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct page *page = NULL;
-	unsigned long i, npages = ufs_dir_pages(inode);
+	unsigned long i, npages = dir_pages(inode);
 
 	for (i = 0; i < npages; i++) {
 		char *kaddr;

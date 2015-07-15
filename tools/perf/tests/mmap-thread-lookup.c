@@ -143,7 +143,7 @@ static int synth_process(struct machine *machine)
 						perf_event__process,
 						machine, 0, 500);
 
-	thread_map__delete(map);
+	thread_map__put(map);
 	return err;
 }
 

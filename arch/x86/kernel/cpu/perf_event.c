@@ -357,34 +357,24 @@ void x86_release_hardware(void)
  */
 int x86_add_exclusive(unsigned int what)
 {
-	int ret = -EBUSY, i;
+	int i;
 
-	if (atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what]))
-		return 0;
-
-	mutex_lock(&pmc_reserve_mutex);
-	for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
-		if (i != what && atomic_read(&x86_pmu.lbr_exclusive[i]))
-			goto out;
+	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
+		mutex_lock(&pmc_reserve_mutex);
+		for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
+			if (i != what && atomic_read(&x86_pmu.lbr_exclusive[i]))
+				goto fail_unlock;
+		}
+		atomic_inc(&x86_pmu.lbr_exclusive[what]);
+		mutex_unlock(&pmc_reserve_mutex);
 	}
 
-	atomic_inc(&x86_pmu.lbr_exclusive[what]);
-	ret = 0;
+	atomic_inc(&active_events);
+	return 0;
 
-out:
+fail_unlock:
 	mutex_unlock(&pmc_reserve_mutex);
-
-	/*
-	 * Assuming that all exclusive events will share the PMI handler
-	 * (which checks active_events for whether there is work to do),
-	 * we can bump active_events counter right here, except for
-	 * x86_lbr_exclusive_lbr events that go through x86_pmu_event_init()
-	 * path, which already bumps active_events for them.
-	 */
-	if (!ret && what != x86_lbr_exclusive_lbr)
-		atomic_inc(&active_events);
-
-	return ret;
+	return -EBUSY;
 }
 
 void x86_del_exclusive(unsigned int what)

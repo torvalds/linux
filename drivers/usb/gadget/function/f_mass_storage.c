@@ -2936,7 +2936,7 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 	if (fsg_lun_is_open(lun)) {
 		p = "(error)";
 		if (pathbuf) {
-			p = d_path(&lun->filp->f_path, pathbuf, PATH_MAX);
+			p = file_path(lun->filp, pathbuf, PATH_MAX);
 			if (IS_ERR(p))
 				p = "(error)";
 		}

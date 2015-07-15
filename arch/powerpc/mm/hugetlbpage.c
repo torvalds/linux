@@ -928,7 +928,7 @@ static int __init hugetlbpage_init(void)
 	return 0;
 }
 #endif
-module_init(hugetlbpage_init);
+arch_initcall(hugetlbpage_init);
 
 void flush_dcache_icache_hugepage(struct page *page)
 {

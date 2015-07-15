@@ -34,13 +34,6 @@ int iscsi_login_rx_data(
 	iov.iov_len	= length;
 	iov.iov_base	= buf;
 
-	/*
-	 * Initial Marker-less Interval.
-	 * Add the values regardless of IFMarker/OFMarker, considering
-	 * it may not be negoitated yet.
-	 */
-	conn->of_marker += length;
-
 	rx_got = rx_data(conn, &iov, 1, length);
 	if (rx_got != length) {
 		pr_err("rx_data returned %d, expecting %d.\n",
@@ -72,13 +65,6 @@ int iscsi_login_tx_data(
 		iov_cnt++;
 	}
 
-	/*
-	 * Initial Marker-less Interval.
-	 * Add the values regardless of IFMarker/OFMarker, considering
-	 * it may not be negoitated yet.
-	 */
-	conn->if_marker += length;
-
 	tx_sent = tx_data(conn, &iov[0], iov_cnt, length);
 	if (tx_sent != length) {
 		pr_err("tx_data returned %d, expecting %d.\n",
@@ -97,12 +83,6 @@ void iscsi_dump_conn_ops(struct iscsi_conn_ops *conn_ops)
 				"CRC32C" : "None");
 	pr_debug("MaxRecvDataSegmentLength: %u\n",
 				conn_ops->MaxRecvDataSegmentLength);
-	pr_debug("OFMarker: %s\n", (conn_ops->OFMarker) ? "Yes" : "No");
-	pr_debug("IFMarker: %s\n", (conn_ops->IFMarker) ? "Yes" : "No");
-	if (conn_ops->OFMarker)
-		pr_debug("OFMarkInt: %u\n", conn_ops->OFMarkInt);
-	if (conn_ops->IFMarker)
-		pr_debug("IFMarkInt: %u\n", conn_ops->IFMarkInt);
 }
 
 void iscsi_dump_sess_ops(struct iscsi_sess_ops *sess_ops)
@@ -193,10 +173,6 @@ static struct iscsi_param *iscsi_set_default_param(struct iscsi_param_list *para
 	case TYPERANGE_AUTH:
 	case TYPERANGE_DIGEST:
 		param->type = TYPE_VALUE_LIST | TYPE_STRING;
-		break;
-	case TYPERANGE_MARKINT:
-		param->type = TYPE_NUMBER_RANGE;
-		param->type_range |= TYPERANGE_1_TO_65535;
 		break;
 	case TYPERANGE_ISCSINAME:
 	case TYPERANGE_SESSIONTYPE:
@@ -422,13 +398,13 @@ int iscsi_create_default_params(struct iscsi_param_list **param_list_ptr)
 
 	param = iscsi_set_default_param(pl, IFMARKINT, INITIAL_IFMARKINT,
 			PHASE_OPERATIONAL, SCOPE_CONNECTION_ONLY, SENDER_BOTH,
-			TYPERANGE_MARKINT, USE_INITIAL_ONLY);
+			TYPERANGE_UTF8, USE_INITIAL_ONLY);
 	if (!param)
 		goto out;
 
 	param = iscsi_set_default_param(pl, OFMARKINT, INITIAL_OFMARKINT,
 			PHASE_OPERATIONAL, SCOPE_CONNECTION_ONLY, SENDER_BOTH,
-			TYPERANGE_MARKINT, USE_INITIAL_ONLY);
+			TYPERANGE_UTF8, USE_INITIAL_ONLY);
 	if (!param)
 		goto out;
 	/*
@@ -524,9 +500,9 @@ int iscsi_set_keys_to_negotiate(
 		} else if (!strcmp(param->name, OFMARKER)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, IFMARKINT)) {
-			SET_PSTATE_NEGOTIATE(param);
+			SET_PSTATE_REJECT(param);
 		} else if (!strcmp(param->name, OFMARKINT)) {
-			SET_PSTATE_NEGOTIATE(param);
+			SET_PSTATE_REJECT(param);
 		} else if (!strcmp(param->name, RDMAEXTENSIONS)) {
 			if (iser)
 				SET_PSTATE_NEGOTIATE(param);
@@ -906,91 +882,6 @@ static int iscsi_check_numerical_value(struct iscsi_param *param, char *value_pt
 	return 0;
 }
 
-static int iscsi_check_numerical_range_value(struct iscsi_param *param, char *value)
-{
-	char *left_val_ptr = NULL, *right_val_ptr = NULL;
-	char *tilde_ptr = NULL;
-	u32 left_val, right_val, local_left_val;
-
-	if (strcmp(param->name, IFMARKINT) &&
-	    strcmp(param->name, OFMARKINT)) {
-		pr_err("Only parameters \"%s\" or \"%s\" may contain a"
-		       " numerical range value.\n", IFMARKINT, OFMARKINT);
-		return -1;
-	}
-
-	if (IS_PSTATE_PROPOSER(param))
-		return 0;
-
-	tilde_ptr = strchr(value, '~');
-	if (!tilde_ptr) {
-		pr_err("Unable to locate numerical range indicator"
-			" \"~\" for \"%s\".\n", param->name);
-		return -1;
-	}
-	*tilde_ptr = '\0';
-
-	left_val_ptr = value;
-	right_val_ptr = value + strlen(left_val_ptr) + 1;
-
-	if (iscsi_check_numerical_value(param, left_val_ptr) < 0)
-		return -1;
-	if (iscsi_check_numerical_value(param, right_val_ptr) < 0)
-		return -1;
-
-	left_val = simple_strtoul(left_val_ptr, NULL, 0);
-	right_val = simple_strtoul(right_val_ptr, NULL, 0);
-	*tilde_ptr = '~';
-
-	if (right_val < left_val) {
-		pr_err("Numerical range for parameter \"%s\" contains"
-			" a right value which is less than the left.\n",
-				param->name);
-		return -1;
-	}
-
-	/*
-	 * For now,  enforce reasonable defaults for [I,O]FMarkInt.
-	 */
-	tilde_ptr = strchr(param->value, '~');
-	if (!tilde_ptr) {
-		pr_err("Unable to locate numerical range indicator"
-			" \"~\" for \"%s\".\n", param->name);
-		return -1;
-	}
-	*tilde_ptr = '\0';
-
-	left_val_ptr = param->value;
-	right_val_ptr = param->value + strlen(left_val_ptr) + 1;
-
-	local_left_val = simple_strtoul(left_val_ptr, NULL, 0);
-	*tilde_ptr = '~';
-
-	if (param->set_param) {
-		if ((left_val < local_left_val) ||
-		    (right_val < local_left_val)) {
-			pr_err("Passed value range \"%u~%u\" is below"
-				" minimum left value \"%u\" for key \"%s\","
-				" rejecting.\n", left_val, right_val,
-				local_left_val, param->name);
-			return -1;
-		}
-	} else {
-		if ((left_val < local_left_val) &&
-		    (right_val < local_left_val)) {
-			pr_err("Received value range \"%u~%u\" is"
-				" below minimum left value \"%u\" for key"
-				" \"%s\", rejecting.\n", left_val, right_val,
-				local_left_val, param->name);
-			SET_PSTATE_REJECT(param);
-			if (iscsi_update_param_value(param, REJECT) < 0)
-				return -1;
-		}
-	}
-
-	return 0;
-}
-
 static int iscsi_check_string_or_list_value(struct iscsi_param *param, char *value)
 {
 	if (IS_PSTATE_PROPOSER(param))
@@ -1025,33 +916,6 @@ static int iscsi_check_string_or_list_value(struct iscsi_param *param, char *val
 	}
 
 	return 0;
-}
-
-/*
- *	This function is used to pick a value range number,  currently just
- *	returns the lesser of both right values.
- */
-static char *iscsi_get_value_from_number_range(
-	struct iscsi_param *param,
-	char *value)
-{
-	char *end_ptr, *tilde_ptr1 = NULL, *tilde_ptr2 = NULL;
-	u32 acceptor_right_value, proposer_right_value;
-
-	tilde_ptr1 = strchr(value, '~');
-	if (!tilde_ptr1)
-		return NULL;
-	*tilde_ptr1++ = '\0';
-	proposer_right_value = simple_strtoul(tilde_ptr1, &end_ptr, 0);
-
-	tilde_ptr2 = strchr(param->value, '~');
-	if (!tilde_ptr2)
-		return NULL;
-	*tilde_ptr2++ = '\0';
-	acceptor_right_value = simple_strtoul(tilde_ptr2, &end_ptr, 0);
-
-	return (acceptor_right_value >= proposer_right_value) ?
-		tilde_ptr1 : tilde_ptr2;
 }
 
 static char *iscsi_check_valuelist_for_support(
@@ -1103,7 +967,7 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 				struct iscsi_conn *conn)
 {
 	u8 acceptor_boolean_value = 0, proposer_boolean_value = 0;
-	char *negoitated_value = NULL;
+	char *negotiated_value = NULL;
 
 	if (IS_PSTATE_ACCEPTOR(param)) {
 		pr_err("Received key \"%s\" twice, protocol error.\n",
@@ -1203,24 +1067,16 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 			pr_debug("Updated %s to target MXDSL value: %s\n",
 					param->name, param->value);
 		}
-
-	} else if (IS_TYPE_NUMBER_RANGE(param)) {
-		negoitated_value = iscsi_get_value_from_number_range(
-					param, value);
-		if (!negoitated_value)
-			return -1;
-		if (iscsi_update_param_value(param, negoitated_value) < 0)
-			return -1;
 	} else if (IS_TYPE_VALUE_LIST(param)) {
-		negoitated_value = iscsi_check_valuelist_for_support(
+		negotiated_value = iscsi_check_valuelist_for_support(
 					param, value);
-		if (!negoitated_value) {
+		if (!negotiated_value) {
 			pr_err("Proposer's value list \"%s\" contains"
 				" no valid values from Acceptor's value list"
 				" \"%s\".\n", value, param->value);
 			return -1;
 		}
-		if (iscsi_update_param_value(param, negoitated_value) < 0)
+		if (iscsi_update_param_value(param, negotiated_value) < 0)
 			return -1;
 	} else if (IS_PHASE_DECLARATIVE(param)) {
 		if (iscsi_update_param_value(param, value) < 0)
@@ -1239,47 +1095,7 @@ static int iscsi_check_proposer_state(struct iscsi_param *param, char *value)
 		return -1;
 	}
 
-	if (IS_TYPE_NUMBER_RANGE(param)) {
-		u32 left_val = 0, right_val = 0, recieved_value = 0;
-		char *left_val_ptr = NULL, *right_val_ptr = NULL;
-		char *tilde_ptr = NULL;
-
-		if (!strcmp(value, IRRELEVANT) || !strcmp(value, REJECT)) {
-			if (iscsi_update_param_value(param, value) < 0)
-				return -1;
-			return 0;
-		}
-
-		tilde_ptr = strchr(value, '~');
-		if (tilde_ptr) {
-			pr_err("Illegal \"~\" in response for \"%s\".\n",
-					param->name);
-			return -1;
-		}
-		tilde_ptr = strchr(param->value, '~');
-		if (!tilde_ptr) {
-			pr_err("Unable to locate numerical range"
-				" indicator \"~\" for \"%s\".\n", param->name);
-			return -1;
-		}
-		*tilde_ptr = '\0';
-
-		left_val_ptr = param->value;
-		right_val_ptr = param->value + strlen(left_val_ptr) + 1;
-		left_val = simple_strtoul(left_val_ptr, NULL, 0);
-		right_val = simple_strtoul(right_val_ptr, NULL, 0);
-		recieved_value = simple_strtoul(value, NULL, 0);
-
-		*tilde_ptr = '~';
-
-		if ((recieved_value < left_val) ||
-		    (recieved_value > right_val)) {
-			pr_err("Illegal response \"%s=%u\", value must"
-				" be between %u and %u.\n", param->name,
-				recieved_value, left_val, right_val);
-			return -1;
-		}
-	} else if (IS_TYPE_VALUE_LIST(param)) {
+	if (IS_TYPE_VALUE_LIST(param)) {
 		char *comma_ptr = NULL, *tmp_ptr = NULL;
 
 		comma_ptr = strchr(value, ',');
@@ -1360,9 +1176,6 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 				return -1;
 		} else if (IS_TYPE_NUMBER(param)) {
 			if (iscsi_check_numerical_value(param, value) < 0)
-				return -1;
-		} else if (IS_TYPE_NUMBER_RANGE(param)) {
-			if (iscsi_check_numerical_range_value(param, value) < 0)
 				return -1;
 		} else if (IS_TYPE_STRING(param) || IS_TYPE_VALUE_LIST(param)) {
 			if (iscsi_check_string_or_list_value(param, value) < 0)
@@ -1483,8 +1296,6 @@ static int iscsi_enforce_integrity_rules(
 	char *tmpptr;
 	u8 DataSequenceInOrder = 0;
 	u8 ErrorRecoveryLevel = 0, SessionType = 0;
-	u8 IFMarker = 0, OFMarker = 0;
-	u8 IFMarkInt_Reject = 1, OFMarkInt_Reject = 1;
 	u32 FirstBurstLength = 0, MaxBurstLength = 0;
 	struct iscsi_param *param = NULL;
 
@@ -1503,28 +1314,12 @@ static int iscsi_enforce_integrity_rules(
 		if (!strcmp(param->name, MAXBURSTLENGTH))
 			MaxBurstLength = simple_strtoul(param->value,
 					&tmpptr, 0);
-		if (!strcmp(param->name, IFMARKER))
-			if (!strcmp(param->value, YES))
-				IFMarker = 1;
-		if (!strcmp(param->name, OFMARKER))
-			if (!strcmp(param->value, YES))
-				OFMarker = 1;
-		if (!strcmp(param->name, IFMARKINT))
-			if (!strcmp(param->value, REJECT))
-				IFMarkInt_Reject = 1;
-		if (!strcmp(param->name, OFMARKINT))
-			if (!strcmp(param->value, REJECT))
-				OFMarkInt_Reject = 1;
 	}
 
 	list_for_each_entry(param, &param_list->param_list, p_list) {
 		if (!(param->phase & phase))
 			continue;
-		if (!SessionType && (!IS_PSTATE_ACCEPTOR(param) &&
-		     (strcmp(param->name, IFMARKER) &&
-		      strcmp(param->name, OFMARKER) &&
-		      strcmp(param->name, IFMARKINT) &&
-		      strcmp(param->name, OFMARKINT))))
+		if (!SessionType && !IS_PSTATE_ACCEPTOR(param))
 			continue;
 		if (!strcmp(param->name, MAXOUTSTANDINGR2T) &&
 		    DataSequenceInOrder && (ErrorRecoveryLevel > 0)) {
@@ -1555,38 +1350,6 @@ static int iscsi_enforce_integrity_rules(
 				pr_debug("Reset \"%s\" to \"%s\".\n",
 					param->name, param->value);
 			}
-		}
-		if (!strcmp(param->name, IFMARKER) && IFMarkInt_Reject) {
-			if (iscsi_update_param_value(param, NO) < 0)
-				return -1;
-			IFMarker = 0;
-			pr_debug("Reset \"%s\" to \"%s\".\n",
-					param->name, param->value);
-		}
-		if (!strcmp(param->name, OFMARKER) && OFMarkInt_Reject) {
-			if (iscsi_update_param_value(param, NO) < 0)
-				return -1;
-			OFMarker = 0;
-			pr_debug("Reset \"%s\" to \"%s\".\n",
-					 param->name, param->value);
-		}
-		if (!strcmp(param->name, IFMARKINT) && !IFMarker) {
-			if (!strcmp(param->value, REJECT))
-				continue;
-			param->state &= ~PSTATE_NEGOTIATE;
-			if (iscsi_update_param_value(param, IRRELEVANT) < 0)
-				return -1;
-			pr_debug("Reset \"%s\" to \"%s\".\n",
-					param->name, param->value);
-		}
-		if (!strcmp(param->name, OFMARKINT) && !OFMarker) {
-			if (!strcmp(param->value, REJECT))
-				continue;
-			param->state &= ~PSTATE_NEGOTIATE;
-			if (iscsi_update_param_value(param, IRRELEVANT) < 0)
-				return -1;
-			pr_debug("Reset \"%s\" to \"%s\".\n",
-					param->name, param->value);
 		}
 	}
 
@@ -1824,24 +1587,6 @@ void iscsi_set_connection_parameters(
 			 */
 			pr_debug("MaxRecvDataSegmentLength:     %u\n",
 				ops->MaxRecvDataSegmentLength);
-		} else if (!strcmp(param->name, OFMARKER)) {
-			ops->OFMarker = !strcmp(param->value, YES);
-			pr_debug("OFMarker:                     %s\n",
-				param->value);
-		} else if (!strcmp(param->name, IFMARKER)) {
-			ops->IFMarker = !strcmp(param->value, YES);
-			pr_debug("IFMarker:                     %s\n",
-				param->value);
-		} else if (!strcmp(param->name, OFMARKINT)) {
-			ops->OFMarkInt =
-				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("OFMarkInt:                    %s\n",
-				param->value);
-		} else if (!strcmp(param->name, IFMARKINT)) {
-			ops->IFMarkInt =
-				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("IFMarkInt:                    %s\n",
-				param->value);
 		} else if (!strcmp(param->name, INITIATORRECVDATASEGMENTLENGTH)) {
 			ops->InitiatorRecvDataSegmentLength =
 				simple_strtoul(param->value, &tmpptr, 0);

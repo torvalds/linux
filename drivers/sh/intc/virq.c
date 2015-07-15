@@ -243,8 +243,9 @@ restart:
 		 */
 		irq_set_nothread(irq);
 
-		irq_set_chained_handler(entry->pirq, intc_virq_handler);
+		/* Set handler data before installing the handler */
 		add_virq_to_pirq(entry->pirq, irq);
+		irq_set_chained_handler(entry->pirq, intc_virq_handler);
 
 		radix_tree_tag_clear(&d->tree, entry->enum_id,
 				     INTC_TAG_VIRQ_NEEDS_ALLOC);

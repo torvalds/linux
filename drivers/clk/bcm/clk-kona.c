@@ -1240,7 +1240,7 @@ static bool __kona_clk_init(struct kona_clk *bcm_clk)
 	default:
 		BUG();
 	}
-	return -EINVAL;
+	return false;
 }
 
 /* Set a CCU and all its clocks into their desired initial state */

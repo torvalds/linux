@@ -37,6 +37,7 @@
 #include <asm/cacheflush.h> /* for run_uncached() */
 #include <asm/traps.h>
 #include <asm/dma-coherence.h>
+#include <asm/mips-cm.h>
 
 /*
  * Special Variant of smp_call_function for use by cache functions:
@@ -51,9 +52,16 @@ static inline void r4k_on_each_cpu(void (*func) (void *info), void *info)
 {
 	preempt_disable();
 
-#ifndef CONFIG_MIPS_MT_SMP
-	smp_call_function(func, info, 1);
-#endif
+	/*
+	 * The Coherent Manager propagates address-based cache ops to other
+	 * cores but not index-based ops. However, r4k_on_each_cpu is used
+	 * in both cases so there is no easy way to tell what kind of op is
+	 * executed to the other cores. The best we can probably do is
+	 * to restrict that call when a CM is not present because both
+	 * CM-based SMP protocols (CMP & CPS) restrict index-based cache ops.
+	 */
+	if (!mips_cm_present())
+		smp_call_function_many(&cpu_foreign_map, func, info, 1);
 	func(info);
 	preempt_enable();
 }
@@ -295,7 +303,7 @@ static void r4k_blast_icache_page_setup(void)
 
 static void (*r4k_blast_icache_user_page)(unsigned long addr);
 
-static void __cpuinit r4k_blast_icache_user_page_setup(void)
+static void r4k_blast_icache_user_page_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -937,7 +945,9 @@ static void b5k_instruction_hazard(void)
 }
 
 static char *way_string[] = { NULL, "direct mapped", "2-way",
-	"3-way", "4-way", "5-way", "6-way", "7-way", "8-way"
+	"3-way", "4-way", "5-way", "6-way", "7-way", "8-way",
+	"9-way", "10-way", "11-way", "12-way",
+	"13-way", "14-way", "15-way", "16-way",
 };
 
 static void probe_pcache(void)

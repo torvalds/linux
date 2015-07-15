@@ -1216,7 +1216,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 	static const u32 rxprod_reg[2] = {
 		VMXNET3_REG_RXPROD, VMXNET3_REG_RXPROD2
 	};
-	u32 num_rxd = 0;
+	u32 num_pkts = 0;
 	bool skip_page_frags = false;
 	struct Vmxnet3_RxCompDesc *rcd;
 	struct vmxnet3_rx_ctx *ctx = &rq->rx_ctx;
@@ -1235,13 +1235,12 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 		struct Vmxnet3_RxDesc *rxd;
 		u32 idx, ring_idx;
 		struct vmxnet3_cmd_ring	*ring = NULL;
-		if (num_rxd >= quota) {
+		if (num_pkts >= quota) {
 			/* we may stop even before we see the EOP desc of
 			 * the current pkt
 			 */
 			break;
 		}
-		num_rxd++;
 		BUG_ON(rcd->rqID != rq->qid && rcd->rqID != rq->qid2);
 		idx = rcd->rxdIdx;
 		ring_idx = rcd->rqID < adapter->num_rx_queues ? 0 : 1;
@@ -1413,6 +1412,7 @@ not_lro:
 				napi_gro_receive(&rq->napi, skb);
 
 			ctx->skb = NULL;
+			num_pkts++;
 		}
 
 rcd_done:
@@ -1443,7 +1443,7 @@ rcd_done:
 				  &rq->comp_ring.base[rq->comp_ring.next2proc].rcd, &rxComp);
 	}
 
-	return num_rxd;
+	return num_pkts;
 }
 
 

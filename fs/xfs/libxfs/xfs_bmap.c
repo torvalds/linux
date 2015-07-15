@@ -1112,7 +1112,6 @@ xfs_bmap_add_attrfork(
 	int			committed;	/* xaction was committed */
 	int			logflags;	/* logging flags */
 	int			error;		/* error return value */
-	int			cancel_flags = 0;
 
 	ASSERT(XFS_IFORK_Q(ip) == 0);
 
@@ -1124,17 +1123,15 @@ xfs_bmap_add_attrfork(
 		tp->t_flags |= XFS_TRANS_RESERVE;
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_addafork, blks, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
-	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	error = xfs_trans_reserve_quota_nblks(tp, ip, blks, 0, rsvd ?
 			XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_FORCE_RES :
 			XFS_QMOPT_RES_REGBLKS);
 	if (error)
 		goto trans_cancel;
-	cancel_flags |= XFS_TRANS_ABORT;
 	if (XFS_IFORK_Q(ip))
 		goto trans_cancel;
 	if (ip->i_d.di_aformat != XFS_DINODE_FMT_EXTENTS) {
@@ -1218,14 +1215,14 @@ xfs_bmap_add_attrfork(
 	error = xfs_bmap_finish(&tp, &flist, &committed);
 	if (error)
 		goto bmap_cancel;
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 
 bmap_cancel:
 	xfs_bmap_cancel(&flist);
 trans_cancel:
-	xfs_trans_cancel(tp, cancel_flags);
+	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
@@ -3521,7 +3518,8 @@ xfs_bmap_longest_free_extent(
 		}
 	}
 
-	longest = xfs_alloc_longest_free_extent(mp, pag);
+	longest = xfs_alloc_longest_free_extent(mp, pag,
+					xfs_alloc_min_freelist(mp, pag));
 	if (*blen < longest)
 		*blen = longest;
 
@@ -4424,7 +4422,15 @@ xfs_bmapi_convert_unwritten(
 	error = xfs_bmap_add_extent_unwritten_real(bma->tp, bma->ip, &bma->idx,
 			&bma->cur, mval, bma->firstblock, bma->flist,
 			&tmp_logflags);
-	bma->logflags |= tmp_logflags;
+	/*
+	 * Log the inode core unconditionally in the unwritten extent conversion
+	 * path because the conversion might not have done so (e.g., if the
+	 * extent count hasn't changed). We need to make sure the inode is dirty
+	 * in the transaction for the sake of fsync(), even if nothing has
+	 * changed, because fsync() will not force the log for this transaction
+	 * unless it sees the inode pinned.
+	 */
+	bma->logflags |= tmp_logflags | XFS_ILOG_CORE;
 	if (error)
 		return error;
 
@@ -5918,7 +5924,7 @@ xfs_bmap_split_extent(
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
 			XFS_DIOSTRAT_SPACE_RES(mp, 0), 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -5936,10 +5942,9 @@ xfs_bmap_split_extent(
 	if (error)
 		goto out;
 
-	return xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-
+	return xfs_trans_commit(tp);
 
 out:
-	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
+	xfs_trans_cancel(tp);
 	return error;
 }

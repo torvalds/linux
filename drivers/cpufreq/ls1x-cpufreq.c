@@ -17,8 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <asm/mach-loongson1/cpufreq.h>
-#include <asm/mach-loongson1/loongson1.h>
+#include <cpufreq.h>
+#include <loongson1.h>
 
 static struct {
 	struct device *dev;

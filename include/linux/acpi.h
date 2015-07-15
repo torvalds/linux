@@ -53,10 +53,23 @@ static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 	return adev ? adev->handle : NULL;
 }
 
-#define ACPI_COMPANION(dev)		acpi_node((dev)->fwnode)
+#define ACPI_COMPANION(dev)		to_acpi_node((dev)->fwnode)
 #define ACPI_COMPANION_SET(dev, adev)	set_primary_fwnode(dev, (adev) ? \
 	acpi_fwnode_handle(adev) : NULL)
 #define ACPI_HANDLE(dev)		acpi_device_handle(ACPI_COMPANION(dev))
+
+/**
+ * ACPI_DEVICE_CLASS - macro used to describe an ACPI device with
+ * the PCI-defined class-code information
+ *
+ * @_cls : the class, subclass, prog-if triple for this device
+ * @_msk : the class mask for this device
+ *
+ * This macro is used to create a struct acpi_device_id that matches a
+ * specific PCI class. The .id and .driver_data fields will be left
+ * initialized with the default value.
+ */
+#define ACPI_DEVICE_CLASS(_cls, _msk)	.cls = (_cls), .cls_msk = (_msk),
 
 static inline bool has_acpi_companion(struct device *dev)
 {
@@ -261,8 +274,13 @@ extern void acpi_osi_setup(char *str);
 extern bool acpi_osi_is_win8(void);
 
 #ifdef CONFIG_ACPI_NUMA
+int acpi_map_pxm_to_online_node(int pxm);
 int acpi_get_node(acpi_handle handle);
 #else
+static inline int acpi_map_pxm_to_online_node(int pxm)
+{
+	return 0;
+}
 static inline int acpi_get_node(acpi_handle handle)
 {
 	return 0;
@@ -303,9 +321,6 @@ int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
 
 int acpi_resources_are_enforced(void);
-
-int acpi_reserve_region(u64 start, unsigned int length, u8 space_id,
-			unsigned long flags, char *desc);
 
 #ifdef CONFIG_HIBERNATION
 void __init acpi_no_s4_hw_signature(void);
@@ -441,6 +456,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *);
 #define ACPI_COMPANION(dev)		(NULL)
 #define ACPI_COMPANION_SET(dev, adev)	do { } while (0)
 #define ACPI_HANDLE(dev)		(NULL)
+#define ACPI_DEVICE_CLASS(_cls, _msk)	.cls = (0), .cls_msk = (0),
 
 struct fwnode_handle;
 
@@ -449,7 +465,7 @@ static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 	return false;
 }
 
-static inline struct acpi_device *acpi_node(struct fwnode_handle *fwnode)
+static inline struct acpi_device *to_acpi_node(struct fwnode_handle *fwnode)
 {
 	return NULL;
 }
@@ -500,13 +516,6 @@ static inline int acpi_check_region(resource_size_t start, resource_size_t n,
 				    const char *name)
 {
 	return 0;
-}
-
-static inline int acpi_reserve_region(u64 start, unsigned int length,
-				      u8 space_id, unsigned long flags,
-				      char *desc)
-{
-	return -ENXIO;
 }
 
 struct acpi_table_header;

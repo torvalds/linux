@@ -237,17 +237,19 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 	if (ret_val)
 		return false;
 out:
-	if ((hw->mac.type == e1000_pch_lpt) ||
-	    (hw->mac.type == e1000_pch_spt)) {
-		/* Unforce SMBus mode in PHY */
-		e1e_rphy_locked(hw, CV_SMB_CTRL, &phy_reg);
-		phy_reg &= ~CV_SMB_CTRL_FORCE_SMBUS;
-		e1e_wphy_locked(hw, CV_SMB_CTRL, phy_reg);
+	if ((hw->mac.type == e1000_pch_lpt) || (hw->mac.type == e1000_pch_spt)) {
+		/* Only unforce SMBus if ME is not active */
+		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+			/* Unforce SMBus mode in PHY */
+			e1e_rphy_locked(hw, CV_SMB_CTRL, &phy_reg);
+			phy_reg &= ~CV_SMB_CTRL_FORCE_SMBUS;
+			e1e_wphy_locked(hw, CV_SMB_CTRL, phy_reg);
 
-		/* Unforce SMBus mode in MAC */
-		mac_reg = er32(CTRL_EXT);
-		mac_reg &= ~E1000_CTRL_EXT_FORCE_SMBUS;
-		ew32(CTRL_EXT, mac_reg);
+			/* Unforce SMBus mode in MAC */
+			mac_reg = er32(CTRL_EXT);
+			mac_reg &= ~E1000_CTRL_EXT_FORCE_SMBUS;
+			ew32(CTRL_EXT, mac_reg);
+		}
 	}
 
 	return true;
@@ -1087,6 +1089,7 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	u32 mac_reg;
 	s32 ret_val = 0;
 	u16 phy_reg;
+	u16 oem_reg = 0;
 
 	if ((hw->mac.type < e1000_pch_lpt) ||
 	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPT_I217_LM) ||
@@ -1128,21 +1131,6 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	if (ret_val)
 		goto out;
 
-	/* Si workaround for ULP entry flow on i127/rev6 h/w.  Enable
-	 * LPLU and disable Gig speed when entering ULP
-	 */
-	if ((hw->phy.type == e1000_phy_i217) && (hw->phy.revision == 6)) {
-		ret_val = e1000_read_phy_reg_hv_locked(hw, HV_OEM_BITS,
-						       &phy_reg);
-		if (ret_val)
-			goto release;
-		phy_reg |= HV_OEM_BITS_LPLU | HV_OEM_BITS_GBE_DIS;
-		ret_val = e1000_write_phy_reg_hv_locked(hw, HV_OEM_BITS,
-							phy_reg);
-		if (ret_val)
-			goto release;
-	}
-
 	/* Force SMBus mode in PHY */
 	ret_val = e1000_read_phy_reg_hv_locked(hw, CV_SMB_CTRL, &phy_reg);
 	if (ret_val)
@@ -1155,6 +1143,25 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	mac_reg |= E1000_CTRL_EXT_FORCE_SMBUS;
 	ew32(CTRL_EXT, mac_reg);
 
+	/* Si workaround for ULP entry flow on i127/rev6 h/w.  Enable
+	 * LPLU and disable Gig speed when entering ULP
+	 */
+	if ((hw->phy.type == e1000_phy_i217) && (hw->phy.revision == 6)) {
+		ret_val = e1000_read_phy_reg_hv_locked(hw, HV_OEM_BITS,
+						       &oem_reg);
+		if (ret_val)
+			goto release;
+
+		phy_reg = oem_reg;
+		phy_reg |= HV_OEM_BITS_LPLU | HV_OEM_BITS_GBE_DIS;
+
+		ret_val = e1000_write_phy_reg_hv_locked(hw, HV_OEM_BITS,
+							phy_reg);
+
+		if (ret_val)
+			goto release;
+	}
+
 	/* Set Inband ULP Exit, Reset to SMBus mode and
 	 * Disable SMBus Release on PERST# in PHY
 	 */
@@ -1166,10 +1173,15 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	if (to_sx) {
 		if (er32(WUFC) & E1000_WUFC_LNKC)
 			phy_reg |= I218_ULP_CONFIG1_WOL_HOST;
+		else
+			phy_reg &= ~I218_ULP_CONFIG1_WOL_HOST;
 
 		phy_reg |= I218_ULP_CONFIG1_STICKY_ULP;
+		phy_reg &= ~I218_ULP_CONFIG1_INBAND_EXIT;
 	} else {
 		phy_reg |= I218_ULP_CONFIG1_INBAND_EXIT;
+		phy_reg &= ~I218_ULP_CONFIG1_STICKY_ULP;
+		phy_reg &= ~I218_ULP_CONFIG1_WOL_HOST;
 	}
 	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
 
@@ -1181,6 +1193,15 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	/* Commit ULP changes in PHY by starting auto ULP configuration */
 	phy_reg |= I218_ULP_CONFIG1_START;
 	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
+
+	if ((hw->phy.type == e1000_phy_i217) && (hw->phy.revision == 6) &&
+	    to_sx && (er32(STATUS) & E1000_STATUS_LU)) {
+		ret_val = e1000_write_phy_reg_hv_locked(hw, HV_OEM_BITS,
+							oem_reg);
+		if (ret_val)
+			goto release;
+	}
+
 release:
 	hw->phy.ops.release(hw);
 out:
@@ -1379,16 +1400,20 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	if (((hw->mac.type == e1000_pch2lan) ||
 	     (hw->mac.type == e1000_pch_lpt) ||
 	     (hw->mac.type == e1000_pch_spt)) && link) {
-		u32 reg;
+		u16 speed, duplex;
 
-		reg = er32(STATUS);
+		e1000e_get_speed_and_duplex_copper(hw, &speed, &duplex);
 		tipg_reg = er32(TIPG);
 		tipg_reg &= ~E1000_TIPG_IPGT_MASK;
 
-		if (!(reg & (E1000_STATUS_FD | E1000_STATUS_SPEED_MASK))) {
+		if (duplex == HALF_DUPLEX && speed == SPEED_10) {
 			tipg_reg |= 0xFF;
 			/* Reduce Rx latency in analog PHY */
 			emi_val = 0;
+		} else if (hw->mac.type == e1000_pch_spt &&
+			   duplex == FULL_DUPLEX && speed != SPEED_1000) {
+			tipg_reg |= 0xC;
+			emi_val = 1;
 		} else {
 
 			/* Roll back the default values */
@@ -1412,14 +1437,59 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 
 		if (ret_val)
 			return ret_val;
+
+		if (hw->mac.type == e1000_pch_spt) {
+			u16 data;
+			u16 ptr_gap;
+
+			if (speed == SPEED_1000) {
+				ret_val = hw->phy.ops.acquire(hw);
+				if (ret_val)
+					return ret_val;
+
+				ret_val = e1e_rphy_locked(hw,
+							  PHY_REG(776, 20),
+							  &data);
+				if (ret_val) {
+					hw->phy.ops.release(hw);
+					return ret_val;
+				}
+
+				ptr_gap = (data & (0x3FF << 2)) >> 2;
+				if (ptr_gap < 0x18) {
+					data &= ~(0x3FF << 2);
+					data |= (0x18 << 2);
+					ret_val =
+					    e1e_wphy_locked(hw,
+							    PHY_REG(776, 20),
+							    data);
+				}
+				hw->phy.ops.release(hw);
+				if (ret_val)
+					return ret_val;
+			}
+		}
+	}
+
+	/* I217 Packet Loss issue:
+	 * ensure that FEXTNVM4 Beacon Duration is set correctly
+	 * on power up.
+	 * Set the Beacon Duration for I217 to 8 usec
+	 */
+	if ((hw->mac.type == e1000_pch_lpt) || (hw->mac.type == e1000_pch_spt)) {
+		u32 mac_reg;
+
+		mac_reg = er32(FEXTNVM4);
+		mac_reg &= ~E1000_FEXTNVM4_BEACON_DURATION_MASK;
+		mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_8USEC;
+		ew32(FEXTNVM4, mac_reg);
 	}
 
 	/* Work-around I218 hang issue */
 	if ((hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_LM) ||
 	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_V) ||
 	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_LM3) ||
-	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_V3) ||
-	    (hw->mac.type == e1000_pch_spt)) {
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_V3)) {
 		ret_val = e1000_k1_workaround_lpt_lp(hw, link);
 		if (ret_val)
 			return ret_val;

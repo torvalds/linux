@@ -138,9 +138,10 @@ Some platforms may require initial configuration of default parent clocks
 and clock frequencies. Such a configuration can be specified in a device tree
 node through assigned-clocks, assigned-clock-parents and assigned-clock-rates
 properties. The assigned-clock-parents property should contain a list of parent
-clocks in form of phandle and clock specifier pairs, the assigned-clock-parents
-property the list of assigned clock frequency values - corresponding to clocks
-listed in the assigned-clocks property.
+clocks in the form of a phandle and clock specifier pair and the
+assigned-clock-rates property should contain a list of frequencies in Hz. Both
+these properties should correspond to the clocks listed in the assigned-clocks
+property.
 
 To skip setting parent or rate of a clock its corresponding entry should be
 set to 0, or can be omitted if it is not followed by any non-zero entry.

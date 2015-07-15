@@ -45,7 +45,6 @@
 #include <linux/slab.h>
 #include <net/ip.h>
 
-#include <asm/xen/page.h>
 #include <xen/xen.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
@@ -1245,10 +1244,6 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	np                   = netdev_priv(netdev);
 	np->xbdev            = dev;
 
-	/* No need to use rtnl_lock() before the call below as it
-	 * happens before register_netdev().
-	 */
-	netif_set_real_num_tx_queues(netdev, 0);
 	np->queues = NULL;
 
 	err = -ENOMEM;
@@ -1900,9 +1895,6 @@ abort_transaction_no_dev_fatal:
 	xennet_disconnect_backend(info);
 	kfree(info->queues);
 	info->queues = NULL;
-	rtnl_lock();
-	netif_set_real_num_tx_queues(info->netdev, 0);
-	rtnl_unlock();
  out:
 	return err;
 }

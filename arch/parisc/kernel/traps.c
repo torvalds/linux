@@ -43,10 +43,6 @@
 
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
 
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
-DEFINE_SPINLOCK(pa_dbit_lock);
-#endif
-
 static void parisc_show_stack(struct task_struct *task, unsigned long *sp,
 	struct pt_regs *regs);
 

@@ -92,8 +92,8 @@ struct read_cpu_info_sccb {
 	u8	reserved[4096 - 16];
 } __attribute__((packed, aligned(PAGE_SIZE)));
 
-static void sclp_fill_cpu_info(struct sclp_cpu_info *info,
-			       struct read_cpu_info_sccb *sccb)
+static void sclp_fill_core_info(struct sclp_core_info *info,
+				struct read_cpu_info_sccb *sccb)
 {
 	char *page = (char *) sccb;
 
@@ -101,12 +101,11 @@ static void sclp_fill_cpu_info(struct sclp_cpu_info *info,
 	info->configured = sccb->nr_configured;
 	info->standby = sccb->nr_standby;
 	info->combined = sccb->nr_configured + sccb->nr_standby;
-	info->has_cpu_type = sclp.has_cpu_type;
-	memcpy(&info->cpu, page + sccb->offset_configured,
-	       info->combined * sizeof(struct sclp_cpu_entry));
+	memcpy(&info->core, page + sccb->offset_configured,
+	       info->combined * sizeof(struct sclp_core_entry));
 }
 
-int sclp_get_cpu_info(struct sclp_cpu_info *info)
+int sclp_get_core_info(struct sclp_core_info *info)
 {
 	int rc;
 	struct read_cpu_info_sccb *sccb;
@@ -127,7 +126,7 @@ int sclp_get_cpu_info(struct sclp_cpu_info *info)
 		rc = -EIO;
 		goto out;
 	}
-	sclp_fill_cpu_info(info, sccb);
+	sclp_fill_core_info(info, sccb);
 out:
 	free_page((unsigned long) sccb);
 	return rc;
@@ -137,7 +136,7 @@ struct cpu_configure_sccb {
 	struct sccb_header header;
 } __attribute__((packed, aligned(8)));
 
-static int do_cpu_configure(sclp_cmdw_t cmd)
+static int do_core_configure(sclp_cmdw_t cmd)
 {
 	struct cpu_configure_sccb *sccb;
 	int rc;
@@ -171,14 +170,14 @@ out:
 	return rc;
 }
 
-int sclp_cpu_configure(u8 cpu)
+int sclp_core_configure(u8 core)
 {
-	return do_cpu_configure(SCLP_CMDW_CONFIGURE_CPU | cpu << 8);
+	return do_core_configure(SCLP_CMDW_CONFIGURE_CPU | core << 8);
 }
 
-int sclp_cpu_deconfigure(u8 cpu)
+int sclp_core_deconfigure(u8 core)
 {
-	return do_cpu_configure(SCLP_CMDW_DECONFIGURE_CPU | cpu << 8);
+	return do_core_configure(SCLP_CMDW_DECONFIGURE_CPU | core << 8);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

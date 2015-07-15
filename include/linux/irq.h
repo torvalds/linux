@@ -407,7 +407,6 @@ enum {
 	IRQCHIP_EOI_THREADED		= (1 <<  6),
 };
 
-/* This include will go away once we isolated irq_desc usage to core code */
 #include <linux/irqdesc.h>
 
 /*

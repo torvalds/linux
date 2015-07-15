@@ -272,6 +272,7 @@ header-y += ncp_fs.h
 header-y += ncp.h
 header-y += ncp_mount.h
 header-y += ncp_no.h
+header-y += ndctl.h
 header-y += neighbour.h
 header-y += netconf.h
 header-y += netdevice.h

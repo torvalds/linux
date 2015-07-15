@@ -1599,7 +1599,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	char file_arr[] = "CMVxy.bin";
 	char *file;
 
-	kparam_block_sysfs_write(cmv_file);
+	kernel_param_lock(THIS_MODULE);
 	/* set proper name corresponding modem version and line type */
 	if (cmv_file[sc->modem_index] == NULL) {
 		if (UEA_CHIP_VERSION(sc) == ADI930)
@@ -1618,7 +1618,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	strlcat(cmv_name, file, UEA_FW_NAME_MAX);
 	if (ver == 2)
 		strlcat(cmv_name, ".v2", UEA_FW_NAME_MAX);
-	kparam_unblock_sysfs_write(cmv_file);
+	kernel_param_unlock(THIS_MODULE);
 }
 
 static int request_cmvs_old(struct uea_softc *sc,

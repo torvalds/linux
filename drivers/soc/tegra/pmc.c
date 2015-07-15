@@ -1021,7 +1021,7 @@ static struct platform_driver tegra_pmc_driver = {
 	},
 	.probe = tegra_pmc_probe,
 };
-module_platform_driver(tegra_pmc_driver);
+builtin_platform_driver(tegra_pmc_driver);
 
 /*
  * Early initialization to allow access to registers in the very early boot

@@ -80,8 +80,8 @@ struct ft_node_auth {
  * Node ACL for FC remote port session.
  */
 struct ft_node_acl {
-	struct ft_node_auth node_auth;
 	struct se_node_acl se_node_acl;
+	struct ft_node_auth node_auth;
 };
 
 struct ft_lun {
@@ -157,7 +157,6 @@ int ft_queue_status(struct se_cmd *);
 int ft_queue_data_in(struct se_cmd *);
 int ft_write_pending(struct se_cmd *);
 int ft_write_pending_status(struct se_cmd *);
-u32 ft_get_task_tag(struct se_cmd *);
 int ft_get_cmd_state(struct se_cmd *);
 void ft_queue_tm_resp(struct se_cmd *);
 void ft_aborted_task(struct se_cmd *);

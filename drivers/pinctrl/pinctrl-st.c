@@ -1661,8 +1661,8 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 		if (IS_ERR(info->irqmux_base))
 			return PTR_ERR(info->irqmux_base);
 
-		irq_set_chained_handler(irq, st_gpio_irqmux_handler);
-		irq_set_handler_data(irq, info);
+		irq_set_chained_handler_and_data(irq, st_gpio_irqmux_handler,
+						 info);
 
 	}
 

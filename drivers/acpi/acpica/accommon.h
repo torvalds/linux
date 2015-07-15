@@ -59,5 +59,8 @@
 #include "acglobal.h"		/* All global variables */
 #include "achware.h"		/* Hardware defines and interfaces */
 #include "acutils.h"		/* Utility interfaces */
+#ifndef ACPI_USE_SYSTEM_CLIBRARY
+#include "acclib.h"		/* C library interfaces */
+#endif				/* !ACPI_USE_SYSTEM_CLIBRARY */
 
 #endif				/* __ACCOMMON_H__ */

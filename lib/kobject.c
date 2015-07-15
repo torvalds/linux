@@ -545,6 +545,7 @@ out:
 	kfree(devpath);
 	return error;
 }
+EXPORT_SYMBOL_GPL(kobject_move);
 
 /**
  * kobject_del - unlink kobject from hierarchy.

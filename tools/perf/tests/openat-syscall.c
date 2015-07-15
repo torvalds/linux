@@ -44,9 +44,9 @@ int test__openat_syscall_event(void)
 		goto out_close_fd;
 	}
 
-	if (evsel->counts->cpu[0].val != nr_openat_calls) {
+	if (perf_counts(evsel->counts, 0, 0)->val != nr_openat_calls) {
 		pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls, got %" PRIu64 "\n",
-			 nr_openat_calls, evsel->counts->cpu[0].val);
+			 nr_openat_calls, perf_counts(evsel->counts, 0, 0)->val);
 		goto out_close_fd;
 	}
 
@@ -56,6 +56,6 @@ out_close_fd:
 out_evsel_delete:
 	perf_evsel__delete(evsel);
 out_thread_map_delete:
-	thread_map__delete(threads);
+	thread_map__put(threads);
 	return err;
 }

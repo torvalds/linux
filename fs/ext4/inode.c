@@ -656,18 +656,6 @@ has_zeroout:
 	return retval;
 }
 
-static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
-{
-	struct inode *inode = bh->b_assoc_map->host;
-	/* XXX: breaks on 32-bit > 16GB. Is that even supported? */
-	loff_t offset = (loff_t)(uintptr_t)bh->b_private << inode->i_blkbits;
-	int err;
-	if (!uptodate)
-		return;
-	WARN_ON(!buffer_unwritten(bh));
-	err = ext4_convert_unwritten_extents(NULL, inode, offset, bh->b_size);
-}
-
 /* Maximum number of blocks we map for direct IO at once. */
 #define DIO_MAX_BLOCKS 4096
 
@@ -705,10 +693,15 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
 
 		map_bh(bh, inode->i_sb, map.m_pblk);
 		bh->b_state = (bh->b_state & ~EXT4_MAP_FLAGS) | map.m_flags;
-		if (IS_DAX(inode) && buffer_unwritten(bh) && !io_end) {
+		if (IS_DAX(inode) && buffer_unwritten(bh)) {
+			/*
+			 * dgc: I suspect unwritten conversion on ext4+DAX is
+			 * fundamentally broken here when there are concurrent
+			 * read/write in progress on this inode.
+			 */
+			WARN_ON_ONCE(io_end);
 			bh->b_assoc_map = inode->i_mapping;
 			bh->b_private = (void *)(unsigned long)iblock;
-			bh->b_end_io = ext4_end_io_unwritten;
 		}
 		if (io_end && io_end->flag & EXT4_IO_END_UNWRITTEN)
 			set_buffer_defer_completion(bh);
@@ -1330,7 +1323,7 @@ static void ext4_da_page_release_reservation(struct page *page,
 					     unsigned int offset,
 					     unsigned int length)
 {
-	int to_release = 0;
+	int to_release = 0, contiguous_blks = 0;
 	struct buffer_head *head, *bh;
 	unsigned int curr_off = 0;
 	struct inode *inode = page->mapping->host;
@@ -1351,14 +1344,23 @@ static void ext4_da_page_release_reservation(struct page *page,
 
 		if ((offset <= curr_off) && (buffer_delay(bh))) {
 			to_release++;
+			contiguous_blks++;
 			clear_buffer_delay(bh);
+		} else if (contiguous_blks) {
+			lblk = page->index <<
+			       (PAGE_CACHE_SHIFT - inode->i_blkbits);
+			lblk += (curr_off >> inode->i_blkbits) -
+				contiguous_blks;
+			ext4_es_remove_extent(inode, lblk, contiguous_blks);
+			contiguous_blks = 0;
 		}
 		curr_off = next_off;
 	} while ((bh = bh->b_this_page) != head);
 
-	if (to_release) {
+	if (contiguous_blks) {
 		lblk = page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-		ext4_es_remove_extent(inode, lblk, to_release);
+		lblk += (curr_off >> inode->i_blkbits) - contiguous_blks;
+		ext4_es_remove_extent(inode, lblk, contiguous_blks);
 	}
 
 	/* If we have released all the blocks belonging to a cluster, then we
@@ -4351,7 +4353,12 @@ static void ext4_update_other_inodes_time(struct super_block *sb,
 	int inode_size = EXT4_INODE_SIZE(sb);
 
 	oi.orig_ino = orig_ino;
-	ino = (orig_ino & ~(inodes_per_block - 1)) + 1;
+	/*
+	 * Calculate the first inode in the inode table block.  Inode
+	 * numbers are one-based.  That is, the first inode in a block
+	 * (assuming 4k blocks and 256 byte inodes) is (n*16 + 1).
+	 */
+	ino = ((orig_ino - 1) & ~(inodes_per_block - 1)) + 1;
 	for (i = 0; i < inodes_per_block; i++, ino++, buf += inode_size) {
 		if (ino == orig_ino)
 			continue;
