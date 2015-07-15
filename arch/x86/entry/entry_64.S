@@ -1361,7 +1361,24 @@ ENTRY(nmi)
 	/*
 	 * Determine whether we're a nested NMI.
 	 *
-	 * First check "NMI executing".  If it's set, then we're nested.
+	 * If we interrupted kernel code between repeat_nmi and
+	 * end_repeat_nmi, then we are a nested NMI.  We must not
+	 * modify the "iret" frame because it's being written by
+	 * the outer NMI.  That's okay; the outer NMI handler is
+	 * about to about to call do_nmi anyway, so we can just
+	 * resume the outer NMI.
+	 */
+
+	movq	$repeat_nmi, %rdx
+	cmpq	8(%rsp), %rdx
+	ja	1f
+	movq	$end_repeat_nmi, %rdx
+	cmpq	8(%rsp), %rdx
+	ja	nested_nmi_out
+1:
+
+	/*
+	 * Now check "NMI executing".  If it's set, then we're nested.
 	 * This will not detect if we interrupted an outer NMI just
 	 * before IRET.
 	 */
@@ -1386,21 +1403,6 @@ ENTRY(nmi)
 	/* Ah, it is within the NMI stack, treat it as nested */
 
 nested_nmi:
-	/*
-	 * If we interrupted an NMI that is between repeat_nmi and
-	 * end_repeat_nmi, then we must not modify the "iret" frame
-	 * because it's being written by the outer NMI.  That's okay;
-	 * the outer NMI handler is about to call do_nmi anyway,
-	 * so we can just resume the outer NMI.
-	 */
-	movq	$repeat_nmi, %rdx
-	cmpq	8(%rsp), %rdx
-	ja	1f
-	movq	$end_repeat_nmi, %rdx
-	cmpq	8(%rsp), %rdx
-	ja	nested_nmi_out
-
-1:
 	/*
 	 * Modify the "iret" frame to point to repeat_nmi, forcing another
 	 * iteration of NMI handling.
