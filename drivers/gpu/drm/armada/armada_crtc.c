@@ -455,7 +455,7 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 		if (work)
 			armada_drm_crtc_complete_frame_work(dcrtc, work);
 
-		wake_up(&dcrtc->frame_wait);
+		wake_up(&drm_to_armada_plane(dcrtc->crtc.primary)->frame_wait);
 	}
 }
 
@@ -571,7 +571,8 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 		adj->crtc_vtotal, tm, bm);
 
 	/* Wait for pending flips to complete */
-	wait_event(dcrtc->frame_wait, !dcrtc->frame_work);
+	wait_event(drm_to_armada_plane(dcrtc->crtc.primary)->frame_wait,
+		   !dcrtc->frame_work);
 
 	drm_crtc_vblank_off(crtc);
 
@@ -688,7 +689,8 @@ static int armada_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	armada_reg_queue_end(regs, i);
 
 	/* Wait for pending flips to complete */
-	wait_event(dcrtc->frame_wait, !dcrtc->frame_work);
+	wait_event(drm_to_armada_plane(dcrtc->crtc.primary)->frame_wait,
+		   !dcrtc->frame_work);
 
 	/* Take a reference to the new fb as we're using it */
 	drm_framebuffer_reference(crtc->primary->fb);
@@ -1096,6 +1098,13 @@ static const struct drm_plane_funcs armada_primary_plane_funcs = {
 	.destroy	= drm_primary_helper_destroy,
 };
 
+int armada_drm_plane_init(struct armada_plane *plane)
+{
+	init_waitqueue_head(&plane->frame_wait);
+
+	return 0;
+}
+
 static struct drm_prop_enum_list armada_drm_csc_yuv_enum_list[] = {
 	{ CSC_AUTO,        "Auto" },
 	{ CSC_YUV_CCIR601, "CCIR601" },
@@ -1166,7 +1175,6 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	spin_lock_init(&dcrtc->irq_lock);
 	dcrtc->irq_ena = CLEAN_SPU_IRQ_ISR;
 	INIT_LIST_HEAD(&dcrtc->vbl_list);
-	init_waitqueue_head(&dcrtc->frame_wait);
 
 	/* Initialize some registers which we don't otherwise set */
 	writel_relaxed(0x00000001, dcrtc->base + LCD_CFG_SCLK_DIV);
@@ -1207,6 +1215,12 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
 	if (!primary)
 		return -ENOMEM;
+
+	ret = armada_drm_plane_init(primary);
+	if (ret) {
+		kfree(primary);
+		return ret;
+	}
 
 	ret = drm_universal_plane_init(drm, &primary->base, 0,
 				       &armada_primary_plane_funcs,

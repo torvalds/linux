@@ -39,7 +39,6 @@ struct armada_ovl_plane {
 	struct {
 		struct armada_vbl_event update;
 		struct armada_regs regs[13];
-		wait_queue_head_t wait;
 	} vbl;
 	struct armada_ovl_plane_properties prop;
 };
@@ -90,7 +89,7 @@ static void armada_ovl_plane_vbl(struct armada_crtc *dcrtc, void *data)
 	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
 	armada_ovl_retire_fb(dplane, NULL);
 
-	wake_up(&dplane->vbl.wait);
+	wake_up(&dplane->base.frame_wait);
 }
 
 static int
@@ -163,7 +162,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			       dcrtc->base + LCD_SPU_SRAM_PARA1);
 	}
 
-	wait_event_timeout(dplane->vbl.wait,
+	wait_event_timeout(dplane->base.frame_wait,
 			   list_empty(&dplane->vbl.update.node),
 			   HZ/25);
 
@@ -451,7 +450,12 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	if (!dplane)
 		return -ENOMEM;
 
-	init_waitqueue_head(&dplane->vbl.wait);
+	ret = armada_drm_plane_init(&dplane->base);
+	if (ret) {
+		kfree(dplane);
+		return ret;
+	}
+
 	armada_drm_vbl_event_init(&dplane->vbl.update, armada_ovl_plane_vbl,
 				  dplane);
 

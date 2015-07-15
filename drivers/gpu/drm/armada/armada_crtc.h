@@ -36,8 +36,11 @@ struct armada_variant;
 
 struct armada_plane {
 	struct drm_plane	base;
+	wait_queue_head_t	frame_wait;
 };
 #define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
+
+int armada_drm_plane_init(struct armada_plane *plane);
 
 struct armada_crtc {
 	struct drm_crtc		crtc;
@@ -71,7 +74,6 @@ struct armada_crtc {
 	uint32_t		dumb_ctrl;
 	uint32_t		spu_iopad_ctrl;
 
-	wait_queue_head_t	frame_wait;
 	struct armada_frame_work *frame_work;
 
 	spinlock_t		irq_lock;
