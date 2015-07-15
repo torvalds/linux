@@ -1725,9 +1725,16 @@ err_free:
 
 err_undo_flags:
 	/* Enslave of first slave has failed and we need to fix master's mac */
-	if (!bond_has_slaves(bond) &&
-	    ether_addr_equal_64bits(bond_dev->dev_addr, slave_dev->dev_addr))
-		eth_hw_addr_random(bond_dev);
+	if (!bond_has_slaves(bond)) {
+		if (ether_addr_equal_64bits(bond_dev->dev_addr,
+					    slave_dev->dev_addr))
+			eth_hw_addr_random(bond_dev);
+		if (bond_dev->type != ARPHRD_ETHER) {
+			ether_setup(bond_dev);
+			bond_dev->flags |= IFF_MASTER;
+			bond_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+		}
+	}
 
 	return res;
 }
