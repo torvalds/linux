@@ -507,7 +507,7 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.set_fmt	= rsnd_soc_dai_set_fmt,
 };
 
-#define rsnd_path_parse(priv, io, type)				\
+#define rsnd_path_add(priv, io, type)				\
 ({								\
 	struct rsnd_mod *mod;					\
 	int ret = 0;						\
@@ -523,7 +523,7 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	ret;							\
 })
 
-#define rsnd_path_break(priv, io, type)				\
+#define rsnd_path_remove(priv, io, type)			\
 {								\
 	struct rsnd_mod *mod;					\
 	int id = -1;						\
@@ -555,17 +555,17 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	 */
 
 	/* SRC */
-	ret = rsnd_path_parse(priv, io, src);
+	ret = rsnd_path_add(priv, io, src);
 	if (ret < 0)
 		return ret;
 
 	/* SSI */
-	ret = rsnd_path_parse(priv, io, ssi);
+	ret = rsnd_path_add(priv, io, ssi);
 	if (ret < 0)
 		return ret;
 
 	/* DVC */
-	ret = rsnd_path_parse(priv, io, dvc);
+	ret = rsnd_path_add(priv, io, dvc);
 	if (ret < 0)
 		return ret;
 
@@ -1023,8 +1023,8 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 		/*
 		 * remove SRC/DVC from DAI,
 		 */
-		rsnd_path_break(priv, io, src);
-		rsnd_path_break(priv, io, dvc);
+		rsnd_path_remove(priv, io, src);
+		rsnd_path_remove(priv, io, dvc);
 
 		/*
 		 * fallback
