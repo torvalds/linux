@@ -408,7 +408,7 @@ System ON/OFF key driver
       Value type: <int>
       Definition: Keycode to emit, KEY_POWER by default.
 
-  - wakeup:
+  - wakeup-source:
       Usage: option
       Value type: <boo>
       Definition: Button can wake-up the system.
