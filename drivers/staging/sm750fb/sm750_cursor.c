@@ -122,7 +122,7 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 		odd=0;
 */
 
-	for (i = 0;i < count;i++)
+	for (i = 0; i < count; i++)
 	{
 		color = *pcol++;
 		mask = *pmsk++;
@@ -137,7 +137,7 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 		else
 			opr = mask & color;
 
-		for (j = 0;j < 8;j++)
+		for (j = 0; j < 8; j++)
 		{
 
 			if (opr & (0x80 >> j))
@@ -149,7 +149,7 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 			}
 		}
 #else
-		for (j = 0;j < 8;j++) {
+		for (j = 0; j < 8; j++) {
 			if (mask & (0x80>>j)) {
 				if (rop == ROP_XOR)
 					opr = mask ^ color;
@@ -204,7 +204,7 @@ void hw_cursor_setData2(struct lynx_cursor *cursor,
 	pstart = cursor->vstart;
 	pbuffer = pstart;
 
-	for (i = 0;i < count;i++)
+	for (i = 0; i < count; i++)
 	{
 		color = *pcol++;
 		mask = *pmsk++;
@@ -217,7 +217,7 @@ void hw_cursor_setData2(struct lynx_cursor *cursor,
 		else
 			opr = mask & color;
 
-		for (j = 0;j < 8;j++)
+		for (j = 0; j < 8; j++)
 		{
 
 			if (opr & (0x80 >> j))
@@ -229,7 +229,7 @@ void hw_cursor_setData2(struct lynx_cursor *cursor,
 			}
 		}
 #else
-		for (j = 0;j < 8;j++) {
+		for (j = 0; j < 8; j++) {
 			if (mask & (1<<j))
 				data |= ((color & (1<<j))?1:2)<<(j*2);
 		}

@@ -168,7 +168,7 @@ struct lynxfb_par {
 			({ \
 			unsigned long long hz = 1000*1000*1000*1000ULL;	\
 			do_div(hz, ps);	\
-			(unsigned long)hz;})
+			(unsigned long)hz; })
 
 static inline unsigned long ps_to_hz(unsigned int psvalue)
 {
