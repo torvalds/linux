@@ -33,6 +33,23 @@ enum csc_mode {
 	CSC_RGB_STUDIO = 2,
 };
 
+static const uint32_t armada_primary_formats[] = {
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_VYUY,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
+};
+
 /*
  * A note about interlacing.  Let's consider HDMI 1920x1080i.
  * The timing parameters we have from X are:
@@ -1080,6 +1097,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 {
 	struct armada_private *priv = drm->dev_private;
 	struct armada_crtc *dcrtc;
+	struct drm_plane *primary;
 	void __iomem *base;
 	int ret;
 
@@ -1148,7 +1166,17 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	priv->dcrtc[dcrtc->num] = dcrtc;
 
 	dcrtc->crtc.port = port;
-	drm_crtc_init(drm, &dcrtc->crtc, &armada_crtc_funcs);
+
+	primary = drm_primary_helper_create_plane(drm, armada_primary_formats,
+					ARRAY_SIZE(armada_primary_formats));
+	if (!primary)
+		return -ENOMEM;
+
+	ret = drm_crtc_init_with_planes(drm, &dcrtc->crtc, primary, NULL,
+					&armada_crtc_funcs);
+	if (ret)
+		goto err_crtc_init;
+
 	drm_crtc_helper_add(&dcrtc->crtc, &armada_crtc_helper_funcs);
 
 	drm_object_attach_property(&dcrtc->crtc.base, priv->csc_yuv_prop,
@@ -1157,6 +1185,10 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 				   dcrtc->csc_rgb_mode);
 
 	return armada_overlay_plane_create(drm, 1 << dcrtc->num);
+
+err_crtc_init:
+	primary->funcs->destroy(primary);
+	return ret;
 }
 
 static int
