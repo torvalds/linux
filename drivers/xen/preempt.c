@@ -31,7 +31,7 @@ EXPORT_SYMBOL_GPL(xen_in_preemptible_hcall);
 asmlinkage __visible void xen_maybe_preempt_hcall(void)
 {
 	if (unlikely(__this_cpu_read(xen_in_preemptible_hcall)
-		     && should_resched())) {
+		     && need_resched())) {
 		/*
 		 * Clear flag as we may be rescheduled on a different
 		 * cpu.
