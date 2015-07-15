@@ -1121,7 +1121,7 @@ static struct snd_soc_codec_driver soc_codec_driver_aic31xx = {
 	.num_dapm_routes	= ARRAY_SIZE(aic31xx_audio_map),
 };
 
-static struct snd_soc_dai_ops aic31xx_dai_ops = {
+static const struct snd_soc_dai_ops aic31xx_dai_ops = {
 	.hw_params	= aic31xx_hw_params,
 	.set_sysclk	= aic31xx_set_dai_sysclk,
 	.set_fmt	= aic31xx_set_dai_fmt,

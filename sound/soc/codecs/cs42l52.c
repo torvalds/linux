@@ -919,7 +919,7 @@ static int cs42l52_set_bias_level(struct snd_soc_codec *codec,
 			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_U20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_U24_LE)
 
-static struct snd_soc_dai_ops cs42l52_ops = {
+static const struct snd_soc_dai_ops cs42l52_ops = {
 	.hw_params	= cs42l52_pcm_hw_params,
 	.digital_mute	= cs42l52_digital_mute,
 	.set_fmt	= cs42l52_set_fmt,
