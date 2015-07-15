@@ -332,17 +332,17 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 	char name[RSND_DVC_NAME_SIZE];
 	int i, nr, ret;
 
-	rsnd_of_parse_dvc(pdev, of_data, priv);
-
-	nr = info->dvc_info_nr;
-	if (!nr)
-		return 0;
-
 	/* This driver doesn't support Gen1 at this point */
 	if (rsnd_is_gen1(priv)) {
 		dev_warn(dev, "CMD is not supported on Gen1\n");
 		return -EINVAL;
 	}
+
+	rsnd_of_parse_dvc(pdev, of_data, priv);
+
+	nr = info->dvc_info_nr;
+	if (!nr)
+		return 0;
 
 	dvc	= devm_kzalloc(dev, sizeof(*dvc) * nr, GFP_KERNEL);
 	if (!dvc)
