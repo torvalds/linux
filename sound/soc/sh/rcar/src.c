@@ -189,7 +189,7 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 		u32 mask = ~0;
 
 		rsnd_mod_write(ssi_mod, SSI_BUSIF_ADINR,
-			       rsnd_get_adinr(ssi_mod, io));
+			       rsnd_get_adinr_bit(ssi_mod, io));
 		rsnd_mod_write(ssi_mod, SSI_BUSIF_MODE,  1);
 		rsnd_mod_write(ssi_mod, SSI_CTRL, 0x1);
 
@@ -309,7 +309,7 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 		fsrate = 0x0400000 / convert_rate * runtime->rate;
 
 	/* Set channel number and output bit length */
-	rsnd_mod_write(mod, SRC_ADINR, rsnd_get_adinr(mod, io));
+	rsnd_mod_write(mod, SRC_ADINR, rsnd_get_adinr_bit(mod, io));
 
 	/* Enable the initial value of IFS */
 	if (fsrate) {

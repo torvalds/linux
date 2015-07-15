@@ -203,9 +203,9 @@ int rsnd_io_is_working(struct rsnd_dai_stream *io)
 }
 
 /*
- *	settting function
+ *	ADINR function
  */
-u32 rsnd_get_adinr(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
+u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
