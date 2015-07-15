@@ -529,13 +529,18 @@ enum max77693_irq_muic {
 	MAX77693_MUIC_IRQ_NR,
 };
 
+enum max77693_types {
+	TYPE_MAX77693_UNKNOWN,
+	TYPE_MAX77693,
+};
+
 struct max77693_dev {
 	struct device *dev;
 	struct i2c_client *i2c;		/* 0xCC , PMIC, Charger, Flash LED */
 	struct i2c_client *muic;	/* 0x4A , MUIC */
 	struct i2c_client *haptic;	/* 0x90 , Haptic */
 
-	int type;
+	enum max77693_types type;
 
 	struct regmap *regmap;
 	struct regmap *regmap_muic;
@@ -547,10 +552,6 @@ struct max77693_dev {
 	struct regmap_irq_chip_data *irq_data_muic;
 
 	int irq;
-};
-
-enum max77693_types {
-	TYPE_MAX77693,
 };
 
 #endif /*  __LINUX_MFD_MAX77693_PRIV_H */
