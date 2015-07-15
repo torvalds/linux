@@ -127,6 +127,13 @@ to specify in a pin configuration subnode:
 	Definition: Selects the power source for the specified pins. Valid power
 		    sources are defined in <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
+- qcom,analog-level:
+	Usage: optional
+	Value type: <u32>
+	Definition: Selects the source for analog output. Valued values are
+		    defined in <dt-binding/pinctrl/qcom,pmic-mpp.h>
+		    PMIC_MPP_AOUT_LVL_*
+
 - qcom,analog-mode:
 	Usage: optional
 	Value type: <none>
