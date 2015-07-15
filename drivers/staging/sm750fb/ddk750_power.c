@@ -5,10 +5,10 @@
 void ddk750_setDPMS(DPMS_t state)
 {
 	unsigned int value;
-	if (getChipType() == SM750LE){
+	if (getChipType() == SM750LE) {
 		value = PEEK32(CRT_DISPLAY_CTRL);
 		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(value, CRT_DISPLAY_CTRL, DPMS, state));
-	}else{
+	}else {
 		value = PEEK32(SYSTEM_CTRL);
 		value= FIELD_VALUE(value, SYSTEM_CTRL, DPMS, state);
 		POKE32(SYSTEM_CTRL, value);

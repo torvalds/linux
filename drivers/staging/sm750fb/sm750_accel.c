@@ -248,7 +248,7 @@ unsigned int rop2)   /* ROP value */
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	if (Bpp == 3){
+	if (Bpp == 3) {
 			sx *= 3;
 			dx *= 3;
 			width *= 3;
@@ -271,7 +271,7 @@ unsigned int rop2)   /* ROP value */
 	FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/Bpp)) |
 	FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (sPitch/Bpp))); /* dpr3c */
 
-	if (accel->de_wait() != 0){
+	if (accel->de_wait() != 0) {
 		return -1;
 	}
 
@@ -363,7 +363,7 @@ int hw_imageblit(struct lynx_accel *accel,
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	if (bytePerPixel == 3){
+	if (bytePerPixel == 3) {
 		dx *= 3;
 		width *= 3;
 		startBit *= 3;
