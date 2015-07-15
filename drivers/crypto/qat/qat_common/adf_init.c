@@ -257,7 +257,7 @@ int adf_dev_start(struct adf_accel_dev *accel_dev)
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	set_bit(ADF_STATUS_STARTED, &accel_dev->status);
 
-	if (qat_algs_register()) {
+	if (qat_algs_register() || qat_asym_algs_register()) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to register crypto algs\n");
 		set_bit(ADF_STATUS_STARTING, &accel_dev->status);
@@ -295,6 +295,8 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 	if (qat_algs_unregister())
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to unregister crypto algs\n");
+
+	qat_asym_algs_unregister();
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);

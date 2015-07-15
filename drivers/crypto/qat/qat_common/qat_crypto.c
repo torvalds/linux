@@ -88,12 +88,6 @@ static int qat_crypto_free_instances(struct adf_accel_dev *accel_dev)
 		if (inst->pke_rx)
 			adf_remove_ring(inst->pke_rx);
 
-		if (inst->rnd_tx)
-			adf_remove_ring(inst->rnd_tx);
-
-		if (inst->rnd_rx)
-			adf_remove_ring(inst->rnd_rx);
-
 		list_del(list_ptr);
 		kfree(inst);
 	}
@@ -202,11 +196,6 @@ static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 				    msg_size, key, NULL, 0, &inst->sym_tx))
 			goto err;
 
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_RND_TX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
-				    msg_size, key, NULL, 0, &inst->rnd_tx))
-			goto err;
-
 		msg_size = msg_size >> 1;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_TX, i);
 		if (adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
@@ -220,15 +209,9 @@ static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 				    &inst->sym_rx))
 			goto err;
 
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_RND_RX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
-				    msg_size, key, qat_alg_callback, 0,
-				    &inst->rnd_rx))
-			goto err;
-
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_RX, i);
 		if (adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
-				    msg_size, key, qat_alg_callback, 0,
+				    msg_size, key, qat_alg_asym_callback, 0,
 				    &inst->pke_rx))
 			goto err;
 	}

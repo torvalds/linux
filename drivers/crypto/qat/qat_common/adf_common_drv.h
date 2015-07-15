@@ -55,7 +55,7 @@
 
 #define ADF_MAJOR_VERSION	0
 #define ADF_MINOR_VERSION	1
-#define ADF_BUILD_VERSION	3
+#define ADF_BUILD_VERSION	4
 #define ADF_DRV_VERSION		__stringify(ADF_MAJOR_VERSION) "." \
 				__stringify(ADF_MINOR_VERSION) "." \
 				__stringify(ADF_BUILD_VERSION)
@@ -93,6 +93,11 @@ struct service_hndl {
 	struct list_head list;
 	int admin;
 };
+
+static inline int get_current_node(void)
+{
+	return cpu_data(current_thread_info()->cpu).phys_proc_id;
+}
 
 int adf_service_register(struct service_hndl *service);
 int adf_service_unregister(struct service_hndl *service);
@@ -141,10 +146,13 @@ int qat_crypto_unregister(void);
 struct qat_crypto_instance *qat_crypto_get_instance_node(int node);
 void qat_crypto_put_instance(struct qat_crypto_instance *inst);
 void qat_alg_callback(void *resp);
+void qat_alg_asym_callback(void *resp);
 int qat_algs_init(void);
 void qat_algs_exit(void);
 int qat_algs_register(void);
 int qat_algs_unregister(void);
+int qat_asym_algs_register(void);
+void qat_asym_algs_unregister(void);
 
 int qat_hal_init(struct adf_accel_dev *accel_dev);
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle);

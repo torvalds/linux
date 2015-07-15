@@ -129,11 +129,6 @@ struct qat_alg_ablkcipher_ctx {
 	spinlock_t lock;	/* protects qat_alg_ablkcipher_ctx struct */
 };
 
-static int get_current_node(void)
-{
-	return cpu_data(current_thread_info()->cpu).phys_proc_id;
-}
-
 static int qat_get_inter_state_size(enum icp_qat_hw_auth_algo qat_hash_alg)
 {
 	switch (qat_hash_alg) {
