@@ -43,7 +43,7 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 
 	/* Set bit 29:27 of display control register for the right clock */
 	/* Note that SM750LE only need to supported 7 resoluitons. */
-	if (x == 800 && y == 600 )
+	if (x == 800 && y == 600)
 		dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL41);
 	else if (x == 1024 && y == 768)
 		dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL65);

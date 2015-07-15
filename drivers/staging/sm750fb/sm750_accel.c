@@ -363,7 +363,7 @@ int hw_imageblit(struct lynx_accel *accel,
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	if(bytePerPixel == 3 ){
+	if(bytePerPixel == 3){
 		dx *= 3;
 		width *= 3;
 		startBit *= 3;
