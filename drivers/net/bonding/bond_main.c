@@ -3751,7 +3751,6 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 	struct slave *slave;
 	struct list_head *iter;
 	struct bond_up_slave *new_arr, *old_arr;
-	int slaves_in_agg;
 	int agg_id = 0;
 	int ret = 0;
 
@@ -3782,7 +3781,6 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 			}
 			goto out;
 		}
-		slaves_in_agg = ad_info.ports;
 		agg_id = ad_info.aggregator_id;
 	}
 	bond_for_each_slave(bond, slave, iter) {
