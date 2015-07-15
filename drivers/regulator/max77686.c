@@ -2,7 +2,7 @@
  * max77686.c - Regulator driver for the Maxim 77686
  *
  * Copyright (C) 2012 Samsung Electronics
- * Chiwoong Byun <woong.byun@smasung.com>
+ * Chiwoong Byun <woong.byun@samsung.com>
  * Jonghwa Lee <jonghwa3.lee@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -88,7 +88,7 @@ enum max77686_ramp_rate {
 };
 
 struct max77686_data {
-	u64 gpio_enabled:MAX77686_REGULATORS;
+	DECLARE_BITMAP(gpio_enabled, MAX77686_REGULATORS);
 
 	/* Array indexed by regulator id */
 	unsigned int opmode[MAX77686_REGULATORS];
@@ -121,7 +121,7 @@ static unsigned int max77686_map_normal_mode(struct max77686_data *max77686,
 	case MAX77686_BUCK8:
 	case MAX77686_BUCK9:
 	case MAX77686_LDO20 ... MAX77686_LDO22:
-		if (max77686->gpio_enabled & (1 << id))
+		if (test_bit(id, max77686->gpio_enabled))
 			return MAX77686_GPIO_CONTROL;
 	}
 
@@ -277,7 +277,7 @@ static int max77686_of_parse_cb(struct device_node *np,
 	}
 
 	if (gpio_is_valid(config->ena_gpio)) {
-		max77686->gpio_enabled |= (1 << desc->id);
+		set_bit(desc->id, max77686->gpio_enabled);
 
 		return regmap_update_bits(config->regmap, desc->enable_reg,
 					  desc->enable_mask,

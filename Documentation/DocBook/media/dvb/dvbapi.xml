@@ -28,12 +28,22 @@
 	<holder>Convergence GmbH</holder>
 </copyright>
 <copyright>
-	<year>2009-2014</year>
+	<year>2009-2015</year>
 	<holder>Mauro Carvalho Chehab</holder>
 </copyright>
 
 <revhistory>
 <!-- Put document revisions here, newest first. -->
+<revision>
+	<revnumber>2.1.0</revnumber>
+	<date>2015-05-29</date>
+	<authorinitials>mcc</authorinitials>
+	<revremark>
+		DocBook improvements and cleanups, in order to document the
+		system calls on a more standard way and provide more description
+		about the current DVB API.
+	</revremark>
+</revision>
 <revision>
 	<revnumber>2.0.4</revnumber>
 	<date>2011-05-06</date>
@@ -95,17 +105,25 @@ Added ISDB-T test originally written by Patrick Boettcher
   <chapter id="dvb_demux">
     &sub-demux;
   </chapter>
-  <chapter id="dvb_video">
-    &sub-video;
-  </chapter>
-  <chapter id="dvb_audio">
-    &sub-audio;
-  </chapter>
   <chapter id="dvb_ca">
     &sub-ca;
   </chapter>
-  <chapter id="dvb_net">
+  <chapter id="net">
     &sub-net;
+  </chapter>
+  <chapter id="legacy_dvb_apis">
+  <title>DVB Deprecated APIs</title>
+  <para>The APIs described here are kept only for historical reasons. There's
+      just one driver for a very legacy hardware that uses this API. No
+      modern drivers should use it. Instead, audio and video should be using
+      the V4L2 and ALSA APIs, and the pipelines should be set using the
+      Media Controller API</para>
+    <section id="dvb_video">
+	&sub-video;
+    </section>
+    <section id="dvb_audio">
+	&sub-audio;
+    </section>
   </chapter>
   <chapter id="dvb_kdapi">
     &sub-kdapi;

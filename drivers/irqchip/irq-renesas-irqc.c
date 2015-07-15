@@ -29,7 +29,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/pm_runtime.h>
 
 #define IRQC_IRQ_MAX	32	/* maximum 32 interrupts per driver instance */
@@ -62,7 +61,6 @@ struct irqc_priv {
 	void __iomem *iomem;
 	void __iomem *cpu_int_base;
 	struct irqc_irq irq[IRQC_IRQ_MAX];
-	struct renesas_irqc_config config;
 	unsigned int number_of_irqs;
 	struct platform_device *pdev;
 	struct irq_chip irq_chip;
@@ -168,14 +166,13 @@ static int irqc_irq_domain_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops irqc_irq_domain_ops = {
+static const struct irq_domain_ops irqc_irq_domain_ops = {
 	.map	= irqc_irq_domain_map,
 	.xlate  = irq_domain_xlate_twocell,
 };
 
 static int irqc_probe(struct platform_device *pdev)
 {
-	struct renesas_irqc_config *pdata = pdev->dev.platform_data;
 	struct irqc_priv *p;
 	struct resource *io;
 	struct resource *irq;
@@ -190,10 +187,6 @@ static int irqc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err0;
 	}
-
-	/* deal with driver instance configuration */
-	if (pdata)
-		memcpy(&p->config, pdata, sizeof(*pdata));
 
 	p->pdev = pdev;
 	platform_set_drvdata(pdev, p);
@@ -251,8 +244,7 @@ static int irqc_probe(struct platform_device *pdev)
 	irq_chip->flags	= IRQCHIP_MASK_ON_SUSPEND;
 
 	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,
-					      p->number_of_irqs,
-					      p->config.irq_base,
+					      p->number_of_irqs, 0,
 					      &irqc_irq_domain_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;
@@ -271,13 +263,6 @@ static int irqc_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "driving %d irqs\n", p->number_of_irqs);
-
-	/* warn in case of mismatch if irq base is specified */
-	if (p->config.irq_base) {
-		if (p->config.irq_base != p->irq[0].domain_irq)
-			dev_warn(&pdev->dev, "irq base mismatch (%d/%d)\n",
-				 p->config.irq_base, p->irq[0].domain_irq);
-	}
 
 	return 0;
 err3:

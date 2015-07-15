@@ -250,7 +250,6 @@ DEFINE_EVENT(writeback_class, name, \
 DEFINE_WRITEBACK_EVENT(writeback_nowork);
 DEFINE_WRITEBACK_EVENT(writeback_wake_background);
 DEFINE_WRITEBACK_EVENT(writeback_bdi_register);
-DEFINE_WRITEBACK_EVENT(writeback_bdi_unregister);
 
 DECLARE_EVENT_CLASS(wbc_class,
 	TP_PROTO(struct writeback_control *wbc, struct backing_dev_info *bdi),
@@ -361,7 +360,7 @@ TRACE_EVENT(global_dirty_state,
 		__entry->nr_written	= global_page_state(NR_WRITTEN);
 		__entry->background_thresh = background_thresh;
 		__entry->dirty_thresh	= dirty_thresh;
-		__entry->dirty_limit = global_dirty_limit;
+		__entry->dirty_limit	= global_wb_domain.dirty_limit;
 	),
 
 	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
@@ -400,13 +399,13 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 
 	TP_fast_assign(
 		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
-		__entry->write_bw	= KBps(bdi->write_bandwidth);
-		__entry->avg_write_bw	= KBps(bdi->avg_write_bandwidth);
+		__entry->write_bw	= KBps(bdi->wb.write_bandwidth);
+		__entry->avg_write_bw	= KBps(bdi->wb.avg_write_bandwidth);
 		__entry->dirty_rate	= KBps(dirty_rate);
-		__entry->dirty_ratelimit = KBps(bdi->dirty_ratelimit);
+		__entry->dirty_ratelimit = KBps(bdi->wb.dirty_ratelimit);
 		__entry->task_ratelimit	= KBps(task_ratelimit);
 		__entry->balanced_dirty_ratelimit =
-					  KBps(bdi->balanced_dirty_ratelimit);
+					KBps(bdi->wb.balanced_dirty_ratelimit);
 	),
 
 	TP_printk("bdi %s: "
@@ -463,8 +462,9 @@ TRACE_EVENT(balance_dirty_pages,
 		unsigned long freerun = (thresh + bg_thresh) / 2;
 		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
 
-		__entry->limit		= global_dirty_limit;
-		__entry->setpoint	= (global_dirty_limit + freerun) / 2;
+		__entry->limit		= global_wb_domain.dirty_limit;
+		__entry->setpoint	= (global_wb_domain.dirty_limit +
+						freerun) / 2;
 		__entry->dirty		= dirty;
 		__entry->bdi_setpoint	= __entry->setpoint *
 						bdi_thresh / (thresh + 1);

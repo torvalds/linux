@@ -21,6 +21,14 @@
 	status = "okay";
 };
 
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
 &enet0 {
 	status = "okay";
 };

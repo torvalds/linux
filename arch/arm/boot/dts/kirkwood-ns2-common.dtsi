@@ -29,7 +29,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mxicy,mx25l4005a";
+				compatible = "mxicy,mx25l4005a", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <20000000>;
 				mode = <0>;

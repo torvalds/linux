@@ -538,8 +538,8 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 			igb->perout[i].start.tv_nsec = rq->perout.start.nsec;
 			igb->perout[i].period.tv_sec = ts.tv_sec;
 			igb->perout[i].period.tv_nsec = ts.tv_nsec;
-			wr32(trgttiml, rq->perout.start.sec);
-			wr32(trgttimh, rq->perout.start.nsec);
+			wr32(trgttimh, rq->perout.start.sec);
+			wr32(trgttiml, rq->perout.start.nsec);
 			tsauxc |= tsauxc_mask;
 			tsim |= tsim_mask;
 		} else {

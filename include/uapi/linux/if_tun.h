@@ -50,6 +50,12 @@
 #define TUNGETFILTER _IOR('T', 219, struct sock_fprog)
 #define TUNSETVNETLE _IOW('T', 220, int)
 #define TUNGETVNETLE _IOR('T', 221, int)
+/* The TUNSETVNETBE and TUNGETVNETBE ioctls are for cross-endian support on
+ * little-endian hosts. Not all kernel configurations support them, but all
+ * configurations that support SET also support GET.
+ */
+#define TUNSETVNETBE _IOW('T', 222, int)
+#define TUNGETVNETBE _IOR('T', 223, int)
 
 /* TUNSETIFF ifr flags */
 #define IFF_TUN		0x0001

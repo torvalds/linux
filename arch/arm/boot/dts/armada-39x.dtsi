@@ -128,7 +128,8 @@
 			};
 
 			spi0: spi@10600 {
-				compatible = "marvell,orion-spi";
+				compatible = "marvell,armada-390-spi",
+						"marvell,orion-spi";
 				reg = <0x10600 0x50>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -139,7 +140,8 @@
 			};
 
 			spi1: spi@10680 {
-				compatible = "marvell,orion-spi";
+				compatible = "marvell,armada-390-spi",
+						"marvell,orion-spi";
 				reg = <0x10680 0x50>;
 				#address-cells = <1>;
 				#size-cells = <0>;

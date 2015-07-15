@@ -40,29 +40,34 @@
 #include "../include/lprocfs_status.h"
 #include "mdc_internal.h"
 
-static int mdc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
+static ssize_t max_rpcs_in_flight_show(struct kobject *kobj,
+				       struct attribute *attr,
+				       char *buf)
 {
-	struct obd_device *dev = m->private;
+	int len;
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct client_obd *cli = &dev->u.cli;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
-	seq_printf(m, "%u\n", cli->cl_max_rpcs_in_flight);
+	len = sprintf(buf, "%u\n", cli->cl_max_rpcs_in_flight);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
 
-	return 0;
+	return len;
 }
 
-static ssize_t mdc_max_rpcs_in_flight_seq_write(struct file *file,
-						const char __user *buffer,
-						size_t count,
-						loff_t *off)
+static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
+					struct attribute *attr,
+					const char *buffer,
+					size_t count)
 {
-	struct obd_device *dev =
-			((struct seq_file *)file->private_data)->private;
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct client_obd *cli = &dev->u.cli;
-	int val, rc;
+	int rc;
+	unsigned long val;
 
-	rc = lprocfs_write_helper(buffer, count, &val);
+	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
 		return rc;
 
@@ -75,11 +80,11 @@ static ssize_t mdc_max_rpcs_in_flight_seq_write(struct file *file,
 
 	return count;
 }
-LPROC_SEQ_FOPS(mdc_max_rpcs_in_flight);
+LUSTRE_RW_ATTR(max_rpcs_in_flight);
 
 static int mdc_kuc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, NULL, PDE_DATA(inode));
+	return single_open(file, NULL, inode->i_private);
 }
 
 /* temporary for testing */
@@ -106,7 +111,7 @@ static ssize_t mdc_kuc_write(struct file *file,
 	len = sizeof(*lh) + sizeof(*hal) + MTI_NAME_MAXLEN +
 		/* for mockup below */ 2 * cfs_size_round(sizeof(*hai));
 
-	OBD_ALLOC(lh, len);
+	lh = kzalloc(len, GFP_NOFS);
 	if (!lh)
 		return -ENOMEM;
 
@@ -141,13 +146,13 @@ static ssize_t mdc_kuc_write(struct file *file,
 		rc = libcfs_kkuc_msg_put(fp, lh);
 		fput(fp);
 	}
-	OBD_FREE(lh, len);
+	kfree(lh);
 	if (rc < 0)
 		return rc;
 	return count;
 }
 
-struct file_operations mdc_kuc_fops = {
+static struct file_operations mdc_kuc_fops = {
 	.open		= mdc_kuc_open,
 	.write		= mdc_kuc_write,
 	.release	= single_release,
@@ -155,49 +160,39 @@ struct file_operations mdc_kuc_fops = {
 
 LPROC_SEQ_FOPS_WR_ONLY(mdc, ping);
 
-LPROC_SEQ_FOPS_RO_TYPE(mdc, uuid);
 LPROC_SEQ_FOPS_RO_TYPE(mdc, connect_flags);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, blksize);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, kbytestotal);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, kbytesfree);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, kbytesavail);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, filestotal);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, filesfree);
 LPROC_SEQ_FOPS_RO_TYPE(mdc, server_uuid);
 LPROC_SEQ_FOPS_RO_TYPE(mdc, conn_uuid);
 LPROC_SEQ_FOPS_RO_TYPE(mdc, timeouts);
 LPROC_SEQ_FOPS_RO_TYPE(mdc, state);
 
-static int mdc_obd_max_pages_per_rpc_seq_show(struct seq_file *m, void *v)
+/*
+ * Note: below sysfs entry is provided, but not currently in use, instead
+ * sbi->sb_md_brw_size is used, the per obd variable should be used
+ * when DNE is enabled, and dir pages are managed in MDC layer.
+ * Don't forget to enable sysfs store function then.
+ */
+static ssize_t max_pages_per_rpc_show(struct kobject *kobj,
+				      struct attribute *attr,
+				      char *buf)
 {
-	return lprocfs_obd_rd_max_pages_per_rpc(m, m->private);
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	struct client_obd *cli = &dev->u.cli;
+
+	return sprintf(buf, "%d\n", cli->cl_max_pages_per_rpc);
 }
-LPROC_SEQ_FOPS_RO(mdc_obd_max_pages_per_rpc);
+LUSTRE_RO_ATTR(max_pages_per_rpc);
 
 LPROC_SEQ_FOPS_RW_TYPE(mdc, import);
 LPROC_SEQ_FOPS_RW_TYPE(mdc, pinger_recov);
 
 static struct lprocfs_vars lprocfs_mdc_obd_vars[] = {
-	{ "uuid",		&mdc_uuid_fops,			NULL, 0 },
 	{ "ping",		&mdc_ping_fops,			NULL, 0222 },
 	{ "connect_flags",	&mdc_connect_flags_fops,	NULL, 0 },
-	{ "blocksize",		&mdc_blksize_fops,		NULL, 0 },
-	{ "kbytestotal",	&mdc_kbytestotal_fops,		NULL, 0 },
-	{ "kbytesfree",		&mdc_kbytesfree_fops,		NULL, 0 },
-	{ "kbytesavail",	&mdc_kbytesavail_fops,		NULL, 0 },
-	{ "filestotal",		&mdc_filestotal_fops,		NULL, 0 },
-	{ "filesfree",		&mdc_filesfree_fops,		NULL, 0 },
 	/*{ "filegroups",	lprocfs_rd_filegroups,		NULL, 0 },*/
 	{ "mds_server_uuid",	&mdc_server_uuid_fops,		NULL, 0 },
 	{ "mds_conn_uuid",	&mdc_conn_uuid_fops,		NULL, 0 },
-	/*
-	 * FIXME: below proc entry is provided, but not in used, instead
-	 * sbi->sb_md_brw_size is used, the per obd variable should be used
-	 * when CMD is enabled, and dir pages are managed in MDC layer.
-	 * Remember to enable proc write function.
-	 */
-	{ "max_pages_per_rpc",	&mdc_obd_max_pages_per_rpc_fops, NULL, 0 },
-	{ "max_rpcs_in_flight",	&mdc_max_rpcs_in_flight_fops,	NULL, 0 },
 	{ "timeouts",		&mdc_timeouts_fops,		NULL, 0 },
 	{ "import",		&mdc_import_fops,		NULL, 0 },
 	{ "state",		&mdc_state_fops,		NULL, 0 },
@@ -206,15 +201,18 @@ static struct lprocfs_vars lprocfs_mdc_obd_vars[] = {
 	{ NULL }
 };
 
-LPROC_SEQ_FOPS_RO_TYPE(mdc, numrefs);
+static struct attribute *mdc_attrs[] = {
+	&lustre_attr_max_rpcs_in_flight.attr,
+	&lustre_attr_max_pages_per_rpc.attr,
+	NULL,
+};
 
-static struct lprocfs_vars lprocfs_mdc_module_vars[] = {
-	{ "num_refs",		&mdc_numrefs_fops,		NULL, 0 },
-	{ NULL }
+static struct attribute_group mdc_attr_group = {
+	.attrs = mdc_attrs,
 };
 
 void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars)
 {
-	lvars->module_vars  = lprocfs_mdc_module_vars;
+	lvars->sysfs_vars   = &mdc_attr_group;
 	lvars->obd_vars     = lprocfs_mdc_obd_vars;
 }

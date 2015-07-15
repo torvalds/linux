@@ -90,27 +90,12 @@ static struct reg_data rt8973a_reg_data[] = {
 };
 
 /* List of detectable cables */
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_USB_HOST,
-	EXTCON_CABLE_TA,
-	EXTCON_CABLE_JIG_OFF_USB,
-	EXTCON_CABLE_JIG_ON_USB,
-	EXTCON_CABLE_JIG_OFF_UART,
-	EXTCON_CABLE_JIG_ON_UART,
-
-	EXTCON_CABLE_END,
-};
-
-static const char *rt8973a_extcon_cable[] = {
-	[EXTCON_CABLE_USB]		= "USB",
-	[EXTCON_CABLE_USB_HOST]		= "USB-Host",
-	[EXTCON_CABLE_TA]		= "TA",
-	[EXTCON_CABLE_JIG_OFF_USB]	= "JIG-USB-OFF",
-	[EXTCON_CABLE_JIG_ON_USB]	= "JIG-USB-ON",
-	[EXTCON_CABLE_JIG_OFF_UART]	= "JIG-UART-OFF",
-	[EXTCON_CABLE_JIG_ON_UART]	= "JIG-UART-ON",
-	NULL,
+static const unsigned int rt8973a_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_TA,
+	EXTCON_JIG,
+	EXTCON_NONE,
 };
 
 /* Define OVP (Over Voltage Protection), OTP (Over Temperature Protection) */
@@ -313,13 +298,10 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 					enum rt8973a_event_type event)
 {
 	static unsigned int prev_cable_type;
-	const char **cable_names = info->edev->supported_cable;
 	unsigned int con_sw = DM_DP_SWITCH_UART;
-	int ret, idx = 0, cable_type;
+	int ret, cable_type;
+	unsigned int id;
 	bool attached = false;
-
-	if (!cable_names)
-		return 0;
 
 	switch (event) {
 	case RT8973A_EVENT_ATTACH:
@@ -347,31 +329,25 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 
 	switch (cable_type) {
 	case RT8973A_MUIC_ADC_OTG:
-		idx = EXTCON_CABLE_USB_HOST;
+		id = EXTCON_USB_HOST;
 		con_sw = DM_DP_SWITCH_USB;
 		break;
 	case RT8973A_MUIC_ADC_TA:
-		idx = EXTCON_CABLE_TA;
+		id = EXTCON_TA;
 		con_sw = DM_DP_SWITCH_OPEN;
 		break;
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_OFF_USB:
-		idx = EXTCON_CABLE_JIG_OFF_USB;
-		con_sw = DM_DP_SWITCH_UART;
-		break;
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_ON_USB:
-		idx = EXTCON_CABLE_JIG_ON_USB;
-		con_sw = DM_DP_SWITCH_UART;
+		id = EXTCON_JIG;
+		con_sw = DM_DP_SWITCH_USB;
 		break;
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_OFF_UART:
-		idx = EXTCON_CABLE_JIG_OFF_UART;
-		con_sw = DM_DP_SWITCH_UART;
-		break;
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_ON_UART:
-		idx = EXTCON_CABLE_JIG_ON_UART;
+		id = EXTCON_JIG;
 		con_sw = DM_DP_SWITCH_UART;
 		break;
 	case RT8973A_MUIC_ADC_USB:
-		idx = EXTCON_CABLE_USB;
+		id = EXTCON_USB;
 		con_sw = DM_DP_SWITCH_USB;
 		break;
 	case RT8973A_MUIC_ADC_OPEN:
@@ -421,7 +397,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 		return ret;
 
 	/* Change the state of external accessory */
-	extcon_set_cable_state(info->edev, cable_names[idx], attached);
+	extcon_set_cable_state_(info->edev, id, attached);
 
 	return 0;
 }
@@ -643,7 +619,6 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c,
 		dev_err(info->dev, "failed to allocate memory for extcon\n");
 		return -ENOMEM;
 	}
-	info->edev->name = np->name;
 
 	/* Register extcon device */
 	ret = devm_extcon_dev_register(info->dev, info->edev);

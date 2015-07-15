@@ -101,6 +101,27 @@ struct rds_transport *rds_trans_get_preferred(__be32 addr)
 	return ret;
 }
 
+struct rds_transport *rds_trans_get(int t_type)
+{
+	struct rds_transport *ret = NULL;
+	struct rds_transport *trans;
+	unsigned int i;
+
+	down_read(&rds_trans_sem);
+	for (i = 0; i < RDS_TRANS_COUNT; i++) {
+		trans = transports[i];
+
+		if (trans && trans->t_type == t_type &&
+		    (!trans->t_owner || try_module_get(trans->t_owner))) {
+			ret = trans;
+			break;
+		}
+	}
+	up_read(&rds_trans_sem);
+
+	return ret;
+}
+
 /*
  * This returns the number of stats entries in the snapshot and only
  * copies them using the iter if there is enough space for them.  The

@@ -26,6 +26,8 @@
 #include "11n.h"
 
 static struct mwifiex_debug_data items[] = {
+	{"debug_mask", item_size(debug_mask),
+	 item_addr(debug_mask), 1},
 	{"int_counter", item_size(int_counter),
 	 item_addr(int_counter), 1},
 	{"wmm_ac_vo", item_size(packets_out[WMM_AC_VO]),
@@ -158,7 +160,8 @@ int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 	} else if (func_init_shutdown == MWIFIEX_FUNC_SHUTDOWN) {
 		cmd = HostCmd_CMD_FUNC_SHUTDOWN;
 	} else {
-		dev_err(priv->adapter->dev, "unsupported parameter\n");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "unsupported parameter\n");
 		return -1;
 	}
 
@@ -178,6 +181,7 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (info) {
+		info->debug_mask = adapter->debug_mask;
 		memcpy(info->packets_out,
 		       priv->wmm.packets_out,
 		       sizeof(priv->wmm.packets_out));
@@ -325,7 +329,7 @@ mwifiex_parse_mgmt_packet(struct mwifiex_private *priv, u8 *payload, u16 len,
 			  struct rxpd *rx_pd)
 {
 	u16 stype;
-	u8 category, action_code;
+	u8 category, action_code, *addr2;
 	struct ieee80211_hdr *ieee_hdr = (void *)payload;
 
 	stype = (le16_to_cpu(ieee_hdr->frame_control) & IEEE80211_FCTL_STYPE);
@@ -333,21 +337,35 @@ mwifiex_parse_mgmt_packet(struct mwifiex_private *priv, u8 *payload, u16 len,
 	switch (stype) {
 	case IEEE80211_STYPE_ACTION:
 		category = *(payload + sizeof(struct ieee80211_hdr));
-		action_code = *(payload + sizeof(struct ieee80211_hdr) + 1);
-		if (category == WLAN_CATEGORY_PUBLIC &&
-		    action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) {
-			dev_dbg(priv->adapter->dev,
-				"TDLS discovery response %pM nf=%d, snr=%d\n",
-				ieee_hdr->addr2, rx_pd->nf, rx_pd->snr);
-			mwifiex_auto_tdls_update_peer_signal(priv,
-							     ieee_hdr->addr2,
-							     rx_pd->snr,
-							     rx_pd->nf);
+		switch (category) {
+		case WLAN_CATEGORY_PUBLIC:
+			action_code = *(payload + sizeof(struct ieee80211_hdr)
+					+ 1);
+			if (action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) {
+				addr2 = ieee_hdr->addr2;
+				mwifiex_dbg(priv->adapter, INFO,
+					    "TDLS discovery response %pM nf=%d, snr=%d\n",
+					    addr2, rx_pd->nf, rx_pd->snr);
+				mwifiex_auto_tdls_update_peer_signal(priv,
+								     addr2,
+								     rx_pd->snr,
+								     rx_pd->nf);
+			}
+			break;
+		case WLAN_CATEGORY_BACK:
+			/*we dont indicate BACK action frames to cfg80211*/
+			mwifiex_dbg(priv->adapter, INFO,
+				    "drop BACK action frames");
+			return -1;
+		default:
+			mwifiex_dbg(priv->adapter, INFO,
+				    "unknown public action frame category %d\n",
+				    category);
 		}
-		break;
 	default:
-		dev_dbg(priv->adapter->dev,
-			"unknown mgmt frame subytpe %#x\n", stype);
+		mwifiex_dbg(priv->adapter, INFO,
+		    "unknown mgmt frame subtype %#x\n", stype);
+		return 0;
 	}
 
 	return 0;
@@ -369,8 +387,8 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 
 	if (!priv->mgmt_frame_mask ||
 	    priv->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED) {
-		dev_dbg(priv->adapter->dev,
-			"do not receive mgmt frames on uninitialized intf");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "do not receive mgmt frames on uninitialized intf");
 		return -1;
 	}
 
@@ -383,8 +401,9 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 
 	ieee_hdr = (void *)skb->data;
 	if (ieee80211_is_mgmt(ieee_hdr->frame_control)) {
-		mwifiex_parse_mgmt_packet(priv, (u8 *)ieee_hdr,
-					  pkt_len, rx_pd);
+		if (mwifiex_parse_mgmt_packet(priv, (u8 *)ieee_hdr,
+					      pkt_len, rx_pd))
+			return -1;
 	}
 	/* Remove address4 */
 	memmove(skb->data + sizeof(struct ieee80211_hdr_3addr),
@@ -412,11 +431,24 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
  */
 int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 {
+	struct mwifiex_sta_node *src_node;
+	struct ethhdr *p_ethhdr;
+
 	if (!skb)
 		return -1;
 
 	priv->stats.rx_bytes += skb->len;
 	priv->stats.rx_packets++;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		p_ethhdr = (void *)skb->data;
+		src_node = mwifiex_get_sta_entry(priv, p_ethhdr->h_source);
+		if (src_node) {
+			src_node->stats.last_rx = jiffies;
+			src_node->stats.rx_bytes += skb->len;
+			src_node->stats.rx_packets++;
+		}
+	}
 
 	skb->dev = priv->netdev;
 	skb->protocol = eth_type_trans(skb, priv->netdev);
@@ -464,13 +496,14 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
 			 struct cmd_ctrl_node *cmd_node)
 {
-	dev_dbg(adapter->dev, "cmd completed: status=%d\n",
-		adapter->cmd_wait_q.status);
+	mwifiex_dbg(adapter, CMD,
+		    "cmd completed: status=%d\n",
+		    adapter->cmd_wait_q.status);
 
 	*(cmd_node->condition) = true;
 
 	if (adapter->cmd_wait_q.status == -ETIMEDOUT)
-		dev_err(adapter->dev, "cmd timeout\n");
+		mwifiex_dbg(adapter, ERROR, "cmd timeout\n");
 	else
 		wake_up_interruptible(&adapter->cmd_wait_q.wait);
 
@@ -536,13 +569,16 @@ void
 mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
 		       int ies_len, struct mwifiex_sta_node *node)
 {
+	struct ieee_types_header *ht_cap_ie;
 	const struct ieee80211_ht_cap *ht_cap;
 
 	if (!ies)
 		return;
 
-	ht_cap = (void *)cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, ies, ies_len);
-	if (ht_cap) {
+	ht_cap_ie = (void *)cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, ies,
+					     ies_len);
+	if (ht_cap_ie) {
+		ht_cap = (void *)(ht_cap_ie + 1);
 		node->is_11n_enabled = 1;
 		node->max_amsdu = le16_to_cpu(ht_cap->cap_info) &
 				  IEEE80211_HT_CAP_MAX_AMSDU ?

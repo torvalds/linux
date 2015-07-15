@@ -217,7 +217,6 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	sg_dma_len(sg) = obj->base.size;
 
 	obj->pages = st;
-	obj->has_dma_mapping = true;
 	return 0;
 }
 
@@ -269,8 +268,6 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj)
 
 	sg_free_table(obj->pages);
 	kfree(obj->pages);
-
-	obj->has_dma_mapping = false;
 }
 
 static void
@@ -2146,6 +2143,8 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 		obj->base.read_domains = obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	}
 
+	i915_gem_gtt_finish_object(obj);
+
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj);
 
@@ -2206,6 +2205,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	struct sg_page_iter sg_iter;
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
+	int ret;
 	gfp_t gfp;
 
 	/* Assert that the object is not currently in any GPU domain. As it
@@ -2253,8 +2253,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 			 */
 			i915_gem_shrink_all(dev_priv);
 			page = shmem_read_mapping_page(mapping, i);
-			if (IS_ERR(page))
+			if (IS_ERR(page)) {
+				ret = PTR_ERR(page);
 				goto err_pages;
+			}
 		}
 #ifdef CONFIG_SWIOTLB
 		if (swiotlb_nr_tbl()) {
@@ -2283,6 +2285,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 		sg_mark_end(sg);
 	obj->pages = st;
 
+	ret = i915_gem_gtt_prepare_object(obj);
+	if (ret)
+		goto err_pages;
+
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj);
 
@@ -2307,10 +2313,10 @@ err_pages:
 	 * space and so want to translate the error from shmemfs back to our
 	 * usual understanding of ENOMEM.
 	 */
-	if (PTR_ERR(page) == -ENOSPC)
-		return -ENOMEM;
-	else
-		return PTR_ERR(page);
+	if (ret == -ENOSPC)
+		ret = -ENOMEM;
+
+	return ret;
 }
 
 /* Ensure that the associated pages are gathered from the backing storage
@@ -2549,6 +2555,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	request->batch_obj = obj;
 
 	request->emitted_jiffies = jiffies;
+	ring->last_submitted_seqno = request->seqno;
 	list_add_tail(&request->list, &ring->request_list);
 
 	trace_i915_gem_request_add(request);
@@ -3279,8 +3286,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 		} else if (vma->ggtt_view.pages) {
 			sg_free_table(vma->ggtt_view.pages);
 			kfree(vma->ggtt_view.pages);
-			vma->ggtt_view.pages = NULL;
 		}
+		vma->ggtt_view.pages = NULL;
 	}
 
 	drm_mm_remove_node(&vma->node);
@@ -3288,10 +3295,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	/* Since the unbound list is global, only move to that list if
 	 * no more VMAs exist. */
-	if (list_empty(&obj->vma_list)) {
-		i915_gem_gtt_finish_object(obj);
+	if (list_empty(&obj->vma_list))
 		list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
-	}
 
 	/* And finally now the object is completely decoupled from this vma,
 	 * we can drop its hold on the backing storage and allow it to be
@@ -3819,22 +3824,16 @@ search_free:
 		goto err_remove_node;
 	}
 
-	ret = i915_gem_gtt_prepare_object(obj);
-	if (ret)
-		goto err_remove_node;
-
 	trace_i915_vma_bind(vma, flags);
 	ret = i915_vma_bind(vma, obj->cache_level, flags);
 	if (ret)
-		goto err_finish_gtt;
+		goto err_remove_node;
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&vma->mm_list, &vm->inactive_list);
 
 	return vma;
 
-err_finish_gtt:
-	i915_gem_gtt_finish_object(obj);
 err_remove_node:
 	drm_mm_remove_node(&vma->node);
 err_free_vma:

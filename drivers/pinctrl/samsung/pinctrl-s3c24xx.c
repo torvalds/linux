@@ -514,8 +514,7 @@ static int s3c24xx_eint_init(struct samsung_pinctrl_drv_data *d)
 		}
 
 		eint_data->parents[i] = irq;
-		irq_set_chained_handler(irq, handlers[i]);
-		irq_set_handler_data(irq, eint_data);
+		irq_set_chained_handler_and_data(irq, handlers[i], eint_data);
 	}
 
 	bank = d->pin_banks;

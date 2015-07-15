@@ -743,6 +743,11 @@ static int init_nandsim(struct mtd_info *mtd)
 			goto error;
 		}
 		ns->partitions[i].name   = get_partition_name(i);
+		if (!ns->partitions[i].name) {
+			NS_ERR("unable to allocate memory.\n");
+			ret = -ENOMEM;
+			goto error;
+		}
 		ns->partitions[i].offset = next_offset;
 		ns->partitions[i].size   = part_sz;
 		next_offset += ns->partitions[i].size;
@@ -756,6 +761,11 @@ static int init_nandsim(struct mtd_info *mtd)
 			goto error;
 		}
 		ns->partitions[i].name   = get_partition_name(i);
+		if (!ns->partitions[i].name) {
+			NS_ERR("unable to allocate memory.\n");
+			ret = -ENOMEM;
+			goto error;
+		}
 		ns->partitions[i].offset = next_offset;
 		ns->partitions[i].size   = remains;
 		ns->nbparts += 1;

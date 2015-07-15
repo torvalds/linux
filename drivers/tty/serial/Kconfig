@@ -241,7 +241,6 @@ config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
 	depends on PLAT_SAMSUNG || ARCH_EXYNOS
 	select SERIAL_CORE
-	select SERIAL_EARLYCON
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
 	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
@@ -277,6 +276,7 @@ config SERIAL_SAMSUNG_CONSOLE
 	bool "Support for console on Samsung SoC serial port"
 	depends on SERIAL_SAMSUNG=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Allow selection of the S3C24XX on-board serial ports for use as
 	  an virtual console.
@@ -728,7 +728,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on SUPERH || ARCH_SHMOBILE || H8300 || COMPILE_TEST
 	select SERIAL_CORE
 
 config SERIAL_SH_SCI_NR_UARTS
@@ -1179,15 +1179,42 @@ config SERIAL_SCCNXP_CONSOLE
 	help
 	  Support for console on SCCNXP serial ports.
 
+config SERIAL_SC16IS7XX_CORE
+        tristate
+
 config SERIAL_SC16IS7XX
-	tristate "SC16IS7xx serial support"
-	depends on I2C
-	select SERIAL_CORE
-	select REGMAP_I2C if I2C
-	help
-	  This selects support for SC16IS7xx serial ports.
-	  Supported ICs are SC16IS740, SC16IS741, SC16IS750, SC16IS752,
-	  SC16IS760 and SC16IS762.
+        tristate "SC16IS7xx serial support"
+        select SERIAL_CORE
+        depends on I2C || SPI_MASTER
+        help
+          This selects support for SC16IS7xx serial ports.
+          Supported ICs are SC16IS740, SC16IS741, SC16IS750, SC16IS752,
+          SC16IS760 and SC16IS762. Select supported buses using options below.
+
+config SERIAL_SC16IS7XX_I2C
+        bool "SC16IS7xx for I2C interface"
+        depends on SERIAL_SC16IS7XX
+        depends on I2C
+        select SERIAL_SC16IS7XX_CORE if SERIAL_SC16IS7XX
+        select REGMAP_I2C if I2C
+        default y
+        help
+          Enable SC16IS7xx driver on I2C bus,
+          If required say y, and say n to i2c if not required,
+          Enabled by default to support oldconfig.
+          You must select at least one bus for the driver to be built.
+
+config SERIAL_SC16IS7XX_SPI
+        bool "SC16IS7xx for spi interface"
+        depends on SERIAL_SC16IS7XX
+        depends on SPI_MASTER
+        select SERIAL_SC16IS7XX_CORE if SERIAL_SC16IS7XX
+        select REGMAP_SPI if SPI_MASTER
+        help
+          Enable SC16IS7xx driver on SPI bus,
+          If required say y, and say n to spi if not required,
+          This is additional support to exsisting driver.
+          You must select at least one bus for the driver to be built.
 
 config SERIAL_BFIN_SPORT
 	tristate "Blackfin SPORT emulate UART"
@@ -1349,7 +1376,7 @@ config SERIAL_ALTERA_UART_CONSOLE
 
 config SERIAL_IFX6X60
         tristate "SPI protocol driver for Infineon 6x60 modem (EXPERIMENTAL)"
-	depends on GPIOLIB && SPI
+	depends on GPIOLIB && SPI && HAS_DMA
 	help
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
@@ -1377,14 +1404,6 @@ config SERIAL_PCH_UART_CONSOLE
 	  Say Y here if you wish to use the PCH UART as the system console
 	  (the system  console is the device which receives all kernel messages and
 	  warnings and which allows logins in single user mode).
-
-config SERIAL_MSM_SMD
-	bool "Enable tty device interface for some SMD ports"
-	default n
-	depends on MSM_SMD
-	help
-	  Enables userspace clients to read and write to some streaming SMD
-	  ports via tty device interface for MSM chipset.
 
 config SERIAL_MXS_AUART
 	depends on ARCH_MXS
@@ -1588,6 +1607,23 @@ config SERIAL_SPRD_CONSOLE
 	  the console before standard serial driver is probed. This is enabled
 	  with "earlycon" on the kernel command line. The console is
 	  enabled when early_param is processed.
+
+config SERIAL_STM32
+	tristate "STMicroelectronics STM32 serial port support"
+	select SERIAL_CORE
+	depends on ARM || COMPILE_TEST
+	help
+	  This driver is for the on-chip Serial Controller on
+	  STMicroelectronics STM32 MCUs.
+	  USART supports Rx & Tx functionality.
+	  It support all industry standard baud rates.
+
+	  If unsure, say N.
+
+config SERIAL_STM32_CONSOLE
+	bool "Support for console on STM32"
+	depends on SERIAL_STM32=y
+	select SERIAL_CORE_CONSOLE
 
 endmenu
 

@@ -48,6 +48,28 @@
 		ti,mcbsp = <&mcbsp2>;
 	};
 
+	 /* GSM audio */
+	sound_telephony {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "GTA04 voice";
+		simple-audio-card,bitclock-master = <&telephony_link_master>;
+		simple-audio-card,frame-master = <&telephony_link_master>;
+		simple-audio-card,format = "i2s";
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcbsp4>;
+		};
+
+		telephony_link_master: simple-audio-card,codec {
+			sound-dai = <&gtm601_codec>;
+		};
+	};
+
+	gtm601_codec: gsm_codec {
+		compatible = "option,gtm601";
+		#sound-dai-cells = <0>;
+	};
+
 	spi_lcd {
 		compatible = "spi-gpio";
 		#address-cells = <0x1>;
@@ -200,6 +222,12 @@
 			OMAP3_CORE1_IOPAD(0x210a, PIN_OUTPUT | MUX_MODE0)   /* dss_data23.dss_data23 */
 		>;
        };
+
+	hdq_pins: hdq_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21c6, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c3_sda.hdq */
+		>;
+	};
 };
 
 &omap3_pmx_core2 {
@@ -515,5 +543,14 @@
 };
 
 &mcbsp2 {
+	status = "okay";
+};
+
+&hdqw1w {
+        pinctrl-names = "default";
+        pinctrl-0 = <&hdq_pins>;
+};
+
+&mcbsp4 {
 	status = "okay";
 };

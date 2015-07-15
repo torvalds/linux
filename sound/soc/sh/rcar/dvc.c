@@ -63,7 +63,8 @@ static const char * const dvc_ramp_rate[] = {
 	"0.125 dB/8192 steps",	 /* 10111 */
 };
 
-static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
+static void rsnd_dvc_volume_update(struct rsnd_dai_stream *io,
+				   struct rsnd_mod *mod)
 {
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	u32 val[RSND_DVC_CHANNELS];
@@ -120,6 +121,7 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 }
 
 static int rsnd_dvc_remove_gen2(struct rsnd_mod *mod,
+				struct rsnd_dai_stream *io,
 				struct rsnd_priv *priv)
 {
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
@@ -134,9 +136,9 @@ static int rsnd_dvc_remove_gen2(struct rsnd_mod *mod,
 }
 
 static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
+			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(dvc_mod);
 	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int dvc_id = rsnd_mod_id(dvc_mod);
@@ -168,10 +170,10 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 
 	rsnd_mod_write(dvc_mod, DVC_DVUIR, 1);
 
-	rsnd_mod_write(dvc_mod, DVC_ADINR, rsnd_get_adinr(dvc_mod));
+	rsnd_mod_write(dvc_mod, DVC_ADINR, rsnd_get_adinr(dvc_mod, io));
 
 	/* ch0/ch1 Volume */
-	rsnd_dvc_volume_update(dvc_mod);
+	rsnd_dvc_volume_update(io, dvc_mod);
 
 	rsnd_mod_write(dvc_mod, DVC_DVUIR, 0);
 
@@ -181,6 +183,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 }
 
 static int rsnd_dvc_quit(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
 	rsnd_mod_hw_stop(mod);
@@ -189,6 +192,7 @@ static int rsnd_dvc_quit(struct rsnd_mod *mod,
 }
 
 static int rsnd_dvc_start(struct rsnd_mod *mod,
+			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
 {
 	rsnd_mod_write(mod, CMD_CTRL, 0x10);
@@ -197,6 +201,7 @@ static int rsnd_dvc_start(struct rsnd_mod *mod,
 }
 
 static int rsnd_dvc_stop(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
 	rsnd_mod_write(mod, CMD_CTRL, 0);
@@ -205,15 +210,15 @@ static int rsnd_dvc_stop(struct rsnd_mod *mod,
 }
 
 static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
 			    struct snd_soc_pcm_runtime *rtd)
 {
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	int is_play = rsnd_io_is_play(io);
 	int ret;
 
 	/* Volume */
-	ret = rsnd_kctrl_new_m(mod, rtd,
+	ret = rsnd_kctrl_new_m(mod, io, rtd,
 			is_play ?
 			"DVC Out Playback Volume" : "DVC In Capture Volume",
 			rsnd_dvc_volume_update,
@@ -222,7 +227,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 		return ret;
 
 	/* Mute */
-	ret = rsnd_kctrl_new_m(mod, rtd,
+	ret = rsnd_kctrl_new_m(mod, io, rtd,
 			is_play ?
 			"DVC Out Mute Switch" : "DVC In Mute Switch",
 			rsnd_dvc_volume_update,
@@ -231,7 +236,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 		return ret;
 
 	/* Ramp */
-	ret = rsnd_kctrl_new_s(mod, rtd,
+	ret = rsnd_kctrl_new_s(mod, io, rtd,
 			is_play ?
 			"DVC Out Ramp Switch" : "DVC In Ramp Switch",
 			rsnd_dvc_volume_update,
@@ -239,7 +244,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_kctrl_new_e(mod, rtd,
+	ret = rsnd_kctrl_new_e(mod, io, rtd,
 			is_play ?
 			"DVC Out Ramp Up Rate" : "DVC In Ramp Up Rate",
 			&dvc->rup,
@@ -248,7 +253,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_kctrl_new_e(mod, rtd,
+	ret = rsnd_kctrl_new_e(mod, io, rtd,
 			is_play ?
 			"DVC Out Ramp Down Rate" : "DVC In Ramp Down Rate",
 			&dvc->rdown,
@@ -261,7 +266,8 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	return 0;
 }
 
-static struct dma_chan *rsnd_dvc_dma_req(struct rsnd_mod *mod)
+static struct dma_chan *rsnd_dvc_dma_req(struct rsnd_dai_stream *io,
+					 struct rsnd_mod *mod)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 
@@ -366,7 +372,7 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 
 		dvc->info = &info->dvc_info[i];
 
-		ret = rsnd_mod_init(&dvc->mod, &rsnd_dvc_ops,
+		ret = rsnd_mod_init(priv, &dvc->mod, &rsnd_dvc_ops,
 			      clk, RSND_MOD_DVC, i);
 		if (ret)
 			return ret;

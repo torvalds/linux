@@ -14,12 +14,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-
-struct bpf_array {
-	struct bpf_map map;
-	u32 elem_size;
-	char value[0] __aligned(8);
-};
+#include <linux/filter.h>
 
 /* Called from syscall */
 static struct bpf_map *array_map_alloc(union bpf_attr *attr)
@@ -154,3 +149,109 @@ static int __init register_array_map(void)
 	return 0;
 }
 late_initcall(register_array_map);
+
+static struct bpf_map *prog_array_map_alloc(union bpf_attr *attr)
+{
+	/* only bpf_prog file descriptors can be stored in prog_array map */
+	if (attr->value_size != sizeof(u32))
+		return ERR_PTR(-EINVAL);
+	return array_map_alloc(attr);
+}
+
+static void prog_array_map_free(struct bpf_map *map)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	int i;
+
+	synchronize_rcu();
+
+	/* make sure it's empty */
+	for (i = 0; i < array->map.max_entries; i++)
+		BUG_ON(array->prog[i] != NULL);
+	kvfree(array);
+}
+
+static void *prog_array_map_lookup_elem(struct bpf_map *map, void *key)
+{
+	return NULL;
+}
+
+/* only called from syscall */
+static int prog_array_map_update_elem(struct bpf_map *map, void *key,
+				      void *value, u64 map_flags)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	struct bpf_prog *prog, *old_prog;
+	u32 index = *(u32 *)key, ufd;
+
+	if (map_flags != BPF_ANY)
+		return -EINVAL;
+
+	if (index >= array->map.max_entries)
+		return -E2BIG;
+
+	ufd = *(u32 *)value;
+	prog = bpf_prog_get(ufd);
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
+	if (!bpf_prog_array_compatible(array, prog)) {
+		bpf_prog_put(prog);
+		return -EINVAL;
+	}
+
+	old_prog = xchg(array->prog + index, prog);
+	if (old_prog)
+		bpf_prog_put_rcu(old_prog);
+
+	return 0;
+}
+
+static int prog_array_map_delete_elem(struct bpf_map *map, void *key)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	struct bpf_prog *old_prog;
+	u32 index = *(u32 *)key;
+
+	if (index >= array->map.max_entries)
+		return -E2BIG;
+
+	old_prog = xchg(array->prog + index, NULL);
+	if (old_prog) {
+		bpf_prog_put_rcu(old_prog);
+		return 0;
+	} else {
+		return -ENOENT;
+	}
+}
+
+/* decrement refcnt of all bpf_progs that are stored in this map */
+void bpf_prog_array_map_clear(struct bpf_map *map)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	int i;
+
+	for (i = 0; i < array->map.max_entries; i++)
+		prog_array_map_delete_elem(map, &i);
+}
+
+static const struct bpf_map_ops prog_array_ops = {
+	.map_alloc = prog_array_map_alloc,
+	.map_free = prog_array_map_free,
+	.map_get_next_key = array_map_get_next_key,
+	.map_lookup_elem = prog_array_map_lookup_elem,
+	.map_update_elem = prog_array_map_update_elem,
+	.map_delete_elem = prog_array_map_delete_elem,
+};
+
+static struct bpf_map_type_list prog_array_type __read_mostly = {
+	.ops = &prog_array_ops,
+	.type = BPF_MAP_TYPE_PROG_ARRAY,
+};
+
+static int __init register_prog_array_map(void)
+{
+	bpf_register_map_type(&prog_array_type);
+	return 0;
+}
+late_initcall(register_prog_array_map);

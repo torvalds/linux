@@ -644,6 +644,12 @@ static inline void entering_ack_irq(void)
 	entering_irq();
 }
 
+static inline void ipi_entering_ack_irq(void)
+{
+	ack_APIC_irq();
+	irq_enter();
+}
+
 static inline void exiting_irq(void)
 {
 	irq_exit();

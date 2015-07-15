@@ -128,11 +128,6 @@ static inline int gpio_export_link(struct device *dev, const char *name,
 	return gpiod_export_link(dev, name, gpio_to_desc(gpio));
 }
 
-static inline int gpio_sysfs_set_active_low(unsigned gpio, int value)
-{
-	return gpiod_sysfs_set_active_low(gpio_to_desc(gpio), value);
-}
-
 static inline void gpio_unexport(unsigned gpio)
 {
 	gpiod_unexport(gpio_to_desc(gpio));

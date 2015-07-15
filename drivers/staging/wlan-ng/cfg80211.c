@@ -722,7 +722,7 @@ void prism2_connect_result(wlandevice_t *wlandev, u8 failed)
 void prism2_disconnected(wlandevice_t *wlandev)
 {
 	cfg80211_disconnected(wlandev->netdev, 0, NULL,
-		0, GFP_KERNEL);
+		0, false, GFP_KERNEL);
 }
 
 void prism2_roamed(wlandevice_t *wlandev)

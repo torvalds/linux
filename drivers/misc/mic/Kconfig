@@ -15,11 +15,28 @@ config INTEL_MIC_BUS
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
 
+comment "SCIF Bus Driver"
+
+config SCIF_BUS
+	tristate "SCIF Bus Driver"
+	depends on 64BIT && PCI && X86 && X86_DEV_DMA_OPS
+	help
+	  This option is selected by any driver which registers a
+	  device or driver on the SCIF Bus, such as CONFIG_INTEL_MIC_HOST
+	  and CONFIG_INTEL_MIC_CARD.
+
+	  If you are building a host/card kernel with an Intel MIC device
+	  then say M (recommended) or Y, else say N. If unsure say N.
+
+	  More information about the Intel MIC family as well as the Linux
+	  OS and tools for MIC to use with this driver are available from
+	  <http://software.intel.com/en-us/mic-developer>.
+
 comment "Intel MIC Host Driver"
 
 config INTEL_MIC_HOST
 	tristate "Intel MIC Host Driver"
-	depends on 64BIT && PCI && X86 && INTEL_MIC_BUS
+	depends on 64BIT && PCI && X86 && INTEL_MIC_BUS && SCIF_BUS
 	select VHOST_RING
 	help
 	  This enables Host Driver support for the Intel Many Integrated
@@ -39,7 +56,7 @@ comment "Intel MIC Card Driver"
 
 config INTEL_MIC_CARD
 	tristate "Intel MIC Card Driver"
-	depends on 64BIT && X86 && INTEL_MIC_BUS
+	depends on 64BIT && X86 && INTEL_MIC_BUS && SCIF_BUS
 	select VIRTIO
 	help
 	  This enables card driver support for the Intel Many Integrated
@@ -51,4 +68,23 @@ config INTEL_MIC_CARD
 	  say M (recommended) or Y, else say N. If unsure say N.
 
 	  For more information see
+	  <http://software.intel.com/en-us/mic-developer>.
+
+comment "SCIF Driver"
+
+config SCIF
+	tristate "SCIF Driver"
+	depends on 64BIT && PCI && X86 && SCIF_BUS
+	help
+	  This enables SCIF Driver support for the Intel Many Integrated
+	  Core (MIC) family of PCIe form factor coprocessor devices that
+	  run a 64 bit Linux OS. The Symmetric Communication Interface
+	  (SCIF (pronounced as skiff)) is a low level communications API
+	  across PCIe currently implemented for MIC.
+
+	  If you are building a host kernel with an Intel MIC device then
+	  say M (recommended) or Y, else say N. If unsure say N.
+
+	  More information about the Intel MIC family as well as the Linux
+	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.

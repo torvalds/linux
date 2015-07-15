@@ -23,7 +23,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
 				__perf_evsel__hw_cache_type_op_res_name(type, op, i,
 									name, sizeof(name));
-				err = parse_events(evlist, name);
+				err = parse_events(evlist, name, NULL);
 				if (err)
 					ret = err;
 			}
@@ -71,7 +71,7 @@ static int __perf_evsel__name_array_test(const char *names[], int nr_names)
                 return -ENOMEM;
 
 	for (i = 0; i < nr_names; ++i) {
-		err = parse_events(evlist, names[i]);
+		err = parse_events(evlist, names[i], NULL);
 		if (err) {
 			pr_debug("failed to parse event '%s', err %d\n",
 				 names[i], err);

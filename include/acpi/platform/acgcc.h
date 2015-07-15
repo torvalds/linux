@@ -75,4 +75,8 @@
 #undef strchr
 #endif
 
+/* GCC supports __VA_ARGS__ in macros */
+
+#define COMPILER_VA_MACRO               1
+
 #endif				/* __ACGCC_H__ */

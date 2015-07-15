@@ -30,6 +30,9 @@ Optional Properties:
 
 - max-speed: Maximum PHY supported speed (10, 100, 1000...)
 
+- broken-turn-around: If set, indicates the PHY device does not correctly
+  release the turn around line low at the end of a MDIO transaction.
+
 Example:
 
 ethernet-phy@0 {

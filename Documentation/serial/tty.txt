@@ -4,9 +4,6 @@
 Your guide to the ancient and twisted locking policies of the tty layer and
 the warped logic behind them. Beware all ye who read on.
 
-FIXME: still need to work out the full set of BKL assumptions and document
-them so they can eventually be killed off.
-
 
 Line Discipline
 ---------------

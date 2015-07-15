@@ -1,5 +1,4 @@
 generic-y += auxvec.h
-generic-y += barrier.h
 generic-y += bitsperlong.h
 generic-y += bugs.h
 generic-y += clkdev.h
@@ -33,7 +32,6 @@ generic-y += poll.h
 generic-y += posix_types.h
 generic-y += preempt.h
 generic-y += resource.h
-generic-y += scatterlist.h
 generic-y += sembuf.h
 generic-y += shmbuf.h
 generic-y += siginfo.h

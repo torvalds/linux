@@ -564,7 +564,8 @@ static int htcpld_core_probe(struct platform_device *pdev)
 		htcpld->chained_irq = res->start;
 
 		/* Setup the chained interrupt handler */
-		flags = IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING;
+		flags = IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+			IRQF_ONESHOT;
 		ret = request_threaded_irq(htcpld->chained_irq,
 					   NULL, htcpld_handler,
 					   flags, pdev->name, htcpld);

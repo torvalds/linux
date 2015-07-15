@@ -1908,7 +1908,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	sbi->s_mount_state = le16_to_cpu(es->s_state);
 	sbi->s_addr_per_block_bits = ilog2(EXT3_ADDR_PER_BLOCK(sb));
 	sbi->s_desc_per_block_bits = ilog2(EXT3_DESC_PER_BLOCK(sb));
-	for (i=0; i < 4; i++)
+	for (i = 0; i < 4; i++)
 		sbi->s_hash_seed[i] = le32_to_cpu(es->s_hash_seed[i]);
 	sbi->s_def_hash_version = es->s_def_hash_version;
 	i = le32_to_cpu(es->s_flags);

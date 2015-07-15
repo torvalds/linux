@@ -31,11 +31,18 @@
 #include <asm/processor.h>
 #include <asm/msr.h>
 
-static inline int
-update_match_cpu(unsigned int csig, unsigned int cpf,
-		 unsigned int sig, unsigned int pf)
+static inline bool cpu_signatures_match(unsigned int s1, unsigned int p1,
+					unsigned int s2, unsigned int p2)
 {
-	return (!sigmatch(sig, csig, pf, cpf)) ? 0 : 1;
+	if (s1 != s2)
+		return false;
+
+	/* Processor flags are either both 0 ... */
+	if (!p1 && !p2)
+		return true;
+
+	/* ... or they intersect. */
+	return p1 & p2;
 }
 
 int microcode_sanity_check(void *mc, int print_err)
@@ -124,27 +131,25 @@ EXPORT_SYMBOL_GPL(microcode_sanity_check);
 /*
  * Returns 1 if update has been found, 0 otherwise.
  */
-int get_matching_sig(unsigned int csig, int cpf, int rev, void *mc)
+int find_matching_signature(void *mc, unsigned int csig, int cpf)
 {
-	struct microcode_header_intel *mc_header = mc;
-	struct extended_sigtable *ext_header;
-	unsigned long total_size = get_totalsize(mc_header);
-	int ext_sigcount, i;
+	struct microcode_header_intel *mc_hdr = mc;
+	struct extended_sigtable *ext_hdr;
 	struct extended_signature *ext_sig;
+	int i;
 
-	if (update_match_cpu(csig, cpf, mc_header->sig, mc_header->pf))
+	if (cpu_signatures_match(csig, cpf, mc_hdr->sig, mc_hdr->pf))
 		return 1;
 
 	/* Look for ext. headers: */
-	if (total_size <= get_datasize(mc_header) + MC_HEADER_SIZE)
+	if (get_totalsize(mc_hdr) <= get_datasize(mc_hdr) + MC_HEADER_SIZE)
 		return 0;
 
-	ext_header = mc + get_datasize(mc_header) + MC_HEADER_SIZE;
-	ext_sigcount = ext_header->count;
-	ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
+	ext_hdr = mc + get_datasize(mc_hdr) + MC_HEADER_SIZE;
+	ext_sig = (void *)ext_hdr + EXT_HEADER_SIZE;
 
-	for (i = 0; i < ext_sigcount; i++) {
-		if (update_match_cpu(csig, cpf, ext_sig->sig, ext_sig->pf))
+	for (i = 0; i < ext_hdr->count; i++) {
+		if (cpu_signatures_match(csig, cpf, ext_sig->sig, ext_sig->pf))
 			return 1;
 		ext_sig++;
 	}
@@ -154,13 +159,13 @@ int get_matching_sig(unsigned int csig, int cpf, int rev, void *mc)
 /*
  * Returns 1 if update has been found, 0 otherwise.
  */
-int get_matching_microcode(unsigned int csig, int cpf, int rev, void *mc)
+int has_newer_microcode(void *mc, unsigned int csig, int cpf, int new_rev)
 {
 	struct microcode_header_intel *mc_hdr = mc;
 
-	if (!revision_is_newer(mc_hdr, rev))
+	if (mc_hdr->rev <= new_rev)
 		return 0;
 
-	return get_matching_sig(csig, cpf, rev, mc);
+	return find_matching_signature(mc, csig, cpf);
 }
-EXPORT_SYMBOL_GPL(get_matching_microcode);
+EXPORT_SYMBOL_GPL(has_newer_microcode);

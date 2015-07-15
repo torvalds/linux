@@ -279,7 +279,7 @@ struct dvb_frontend_ops {
 		    bool re_tune,
 		    unsigned int mode_flags,
 		    unsigned int *delay,
-		    fe_status_t *status);
+		    enum fe_status *status);
 	/* get frontend tuning algorithm from the module */
 	enum dvbfe_algo (*get_frontend_algo)(struct dvb_frontend *fe);
 
@@ -289,7 +289,7 @@ struct dvb_frontend_ops {
 
 	int (*get_frontend)(struct dvb_frontend *fe);
 
-	int (*read_status)(struct dvb_frontend* fe, fe_status_t* status);
+	int (*read_status)(struct dvb_frontend *fe, enum fe_status *status);
 	int (*read_ber)(struct dvb_frontend* fe, u32* ber);
 	int (*read_signal_strength)(struct dvb_frontend* fe, u16* strength);
 	int (*read_snr)(struct dvb_frontend* fe, u16* snr);
@@ -298,9 +298,11 @@ struct dvb_frontend_ops {
 	int (*diseqc_reset_overload)(struct dvb_frontend* fe);
 	int (*diseqc_send_master_cmd)(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd* cmd);
 	int (*diseqc_recv_slave_reply)(struct dvb_frontend* fe, struct dvb_diseqc_slave_reply* reply);
-	int (*diseqc_send_burst)(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd);
-	int (*set_tone)(struct dvb_frontend* fe, fe_sec_tone_mode_t tone);
-	int (*set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
+	int (*diseqc_send_burst)(struct dvb_frontend *fe,
+				 enum fe_sec_mini_cmd minicmd);
+	int (*set_tone)(struct dvb_frontend *fe, enum fe_sec_tone_mode tone);
+	int (*set_voltage)(struct dvb_frontend *fe,
+			   enum fe_sec_voltage voltage);
 	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, long arg);
 	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned long cmd);
 	int (*i2c_gate_ctrl)(struct dvb_frontend* fe, int enable);
@@ -338,24 +340,24 @@ struct dtv_frontend_properties {
 	u32			state;
 
 	u32			frequency;
-	fe_modulation_t		modulation;
+	enum fe_modulation		modulation;
 
-	fe_sec_voltage_t	voltage;
-	fe_sec_tone_mode_t	sectone;
-	fe_spectral_inversion_t	inversion;
-	fe_code_rate_t		fec_inner;
-	fe_transmit_mode_t	transmission_mode;
+	enum fe_sec_voltage	voltage;
+	enum fe_sec_tone_mode	sectone;
+	enum fe_spectral_inversion	inversion;
+	enum fe_code_rate		fec_inner;
+	enum fe_transmit_mode	transmission_mode;
 	u32			bandwidth_hz;	/* 0 = AUTO */
-	fe_guard_interval_t	guard_interval;
-	fe_hierarchy_t		hierarchy;
+	enum fe_guard_interval	guard_interval;
+	enum fe_hierarchy		hierarchy;
 	u32			symbol_rate;
-	fe_code_rate_t		code_rate_HP;
-	fe_code_rate_t		code_rate_LP;
+	enum fe_code_rate		code_rate_HP;
+	enum fe_code_rate		code_rate_LP;
 
-	fe_pilot_t		pilot;
-	fe_rolloff_t		rolloff;
+	enum fe_pilot		pilot;
+	enum fe_rolloff		rolloff;
 
-	fe_delivery_system_t	delivery_system;
+	enum fe_delivery_system	delivery_system;
 
 	enum fe_interleaving	interleaving;
 
@@ -368,8 +370,8 @@ struct dtv_frontend_properties {
 	u8			isdbt_layer_enabled;
 	struct {
 	    u8			segment_count;
-	    fe_code_rate_t	fec;
-	    fe_modulation_t	modulation;
+	    enum fe_code_rate	fec;
+	    enum fe_modulation	modulation;
 	    u8			interleaving;
 	} layer[3];
 
@@ -439,7 +441,6 @@ extern void dvb_frontend_reinitialise(struct dvb_frontend *fe);
 extern int dvb_frontend_suspend(struct dvb_frontend *fe);
 extern int dvb_frontend_resume(struct dvb_frontend *fe);
 
-extern void dvb_frontend_sleep_until(struct timeval *waketime, u32 add_usec);
-extern s32 timeval_usec_diff(struct timeval lasttime, struct timeval curtime);
+extern void dvb_frontend_sleep_until(ktime_t *waketime, u32 add_usec);
 
 #endif

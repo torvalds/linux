@@ -15,6 +15,7 @@
  */
 
 #include <linux/types.h>
+#include "core.h"
 #include "hw.h"
 
 const struct ath10k_hw_regs qca988x_regs = {
@@ -56,3 +57,23 @@ const struct ath10k_hw_regs qca6174_regs = {
 	.soc_chip_id_address			= 0x000f0,
 	.scratch_3_address			= 0x0028,
 };
+
+void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
+				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev)
+{
+	u32 cc_fix = 0;
+
+	survey->filled |= SURVEY_INFO_TIME |
+			  SURVEY_INFO_TIME_BUSY;
+
+	if (ar->hw_params.has_shifted_cc_wraparound && cc < cc_prev) {
+		cc_fix = 0x7fffffff;
+		survey->filled &= ~SURVEY_INFO_TIME_BUSY;
+	}
+
+	cc -= cc_prev - cc_fix;
+	rcc -= rcc_prev;
+
+	survey->time = CCNT_TO_MSEC(cc);
+	survey->time_busy = CCNT_TO_MSEC(rcc);
+}

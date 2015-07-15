@@ -27,7 +27,7 @@
 #include <linux/acpi.h>
 #include <acpi/hed.h>
 
-static struct acpi_device_id acpi_hed_ids[] = {
+static const struct acpi_device_id acpi_hed_ids[] = {
 	{"PNP0C33", 0},
 	{"", 0},
 };

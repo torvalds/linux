@@ -125,15 +125,15 @@ static void __init clk_misc_init(void)
 	writel_relaxed(val, FRAC0);
 }
 
-static const char *sel_cpu[]  __initdata = { "ref_cpu", "ref_xtal", };
-static const char *sel_io0[]  __initdata = { "ref_io0", "ref_xtal", };
-static const char *sel_io1[]  __initdata = { "ref_io1", "ref_xtal", };
-static const char *sel_pix[]  __initdata = { "ref_pix", "ref_xtal", };
-static const char *sel_gpmi[] __initdata = { "ref_gpmi", "ref_xtal", };
-static const char *sel_pll0[] __initdata = { "pll0", "ref_xtal", };
-static const char *cpu_sels[] __initdata = { "cpu_pll", "cpu_xtal", };
-static const char *emi_sels[] __initdata = { "emi_pll", "emi_xtal", };
-static const char *ptp_sels[] __initdata = { "ref_xtal", "pll0", };
+static const char *const sel_cpu[]  __initconst = { "ref_cpu", "ref_xtal", };
+static const char *const sel_io0[]  __initconst = { "ref_io0", "ref_xtal", };
+static const char *const sel_io1[]  __initconst = { "ref_io1", "ref_xtal", };
+static const char *const sel_pix[]  __initconst = { "ref_pix", "ref_xtal", };
+static const char *const sel_gpmi[] __initconst = { "ref_gpmi", "ref_xtal", };
+static const char *const sel_pll0[] __initconst = { "pll0", "ref_xtal", };
+static const char *const cpu_sels[] __initconst = { "cpu_pll", "cpu_xtal", };
+static const char *const emi_sels[] __initconst = { "emi_pll", "emi_xtal", };
+static const char *const ptp_sels[] __initconst = { "ref_xtal", "pll0", };
 
 enum imx28_clk {
 	ref_xtal, pll0, pll1, pll2, ref_cpu, ref_emi, ref_io0, ref_io1,

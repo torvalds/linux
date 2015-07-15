@@ -26,6 +26,7 @@ struct simple_card_data {
 	struct simple_dai_props {
 		struct asoc_simple_dai cpu_dai;
 		struct asoc_simple_dai codec_dai;
+		unsigned int mclk_fs;
 	} *dai_props;
 	unsigned int mclk_fs;
 	int gpio_hp_det;
@@ -76,11 +77,18 @@ static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct simple_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
-	unsigned int mclk;
+	struct simple_dai_props *dai_props =
+		&priv->dai_props[rtd - rtd->card->rtd];
+	unsigned int mclk, mclk_fs = 0;
 	int ret = 0;
 
-	if (priv->mclk_fs) {
-		mclk = params_rate(params) * priv->mclk_fs;
+	if (priv->mclk_fs)
+		mclk_fs = priv->mclk_fs;
+	else if (dai_props->mclk_fs)
+		mclk_fs = dai_props->mclk_fs;
+
+	if (mclk_fs) {
+		mclk = params_rate(params) * mclk_fs;
 		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					     SND_SOC_CLOCK_IN);
 	}
@@ -307,11 +315,13 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, idx);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, idx);
 	struct device_node *cpu = NULL;
+	struct device_node *plat = NULL;
 	struct device_node *codec = NULL;
 	char *name;
 	char prop[128];
 	char *prefix = "";
 	int ret, cpu_args;
+	u32 val;
 
 	/* For single DAI link & old style of DT node */
 	if (is_top_level_node)
@@ -319,6 +329,9 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 
 	snprintf(prop, sizeof(prop), "%scpu", prefix);
 	cpu = of_get_child_by_name(node, prop);
+
+	snprintf(prop, sizeof(prop), "%splat", prefix);
+	plat = of_get_child_by_name(node, prop);
 
 	snprintf(prop, sizeof(prop), "%scodec", prefix);
 	codec = of_get_child_by_name(node, prop);
@@ -333,6 +346,9 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 					    codec, prefix, idx);
 	if (ret < 0)
 		goto dai_link_of_err;
+
+	if (!of_property_read_u32(node, "mclk-fs", &val))
+		dai_props->mclk_fs = val;
 
 	ret = asoc_simple_card_sub_parse_of(cpu, &dai_props->cpu_dai,
 					    &dai_link->cpu_of_node,
@@ -352,8 +368,16 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 		goto dai_link_of_err;
 	}
 
-	/* Simple Card assumes platform == cpu */
-	dai_link->platform_of_node = dai_link->cpu_of_node;
+	if (plat) {
+		struct of_phandle_args args;
+
+		ret = of_parse_phandle_with_args(plat, "sound-dai",
+						 "#sound-dai-cells", 0, &args);
+		dai_link->platform_of_node = args.np;
+	} else {
+		/* Assumes platform == cpu */
+		dai_link->platform_of_node = dai_link->cpu_of_node;
+	}
 
 	/* DAI link name is created from CPU/CODEC dai name */
 	name = devm_kzalloc(dev,

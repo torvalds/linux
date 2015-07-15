@@ -2,8 +2,10 @@
  * I2C link layer for the NXP NCI driver
  *
  * Copyright (C) 2014  NXP Semiconductors  All rights reserved.
+ * Copyright (C) 2012-2015  Intel Corporation. All rights reserved.
  *
  * Authors: Clément Perrochaud <clement.perrochaud@nxp.com>
+ * Authors: Oleg Zhurakivskyy <oleg.zhurakivskyy@intel.com>
  *
  * Derived from PN544 device driver:
  * Copyright (C) 2012  Intel Corporation. All rights reserved.
@@ -23,12 +25,14 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/nfc.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/platform_data/nxp-nci.h>
@@ -48,6 +52,7 @@ struct nxp_nci_i2c_phy {
 
 	unsigned int gpio_en;
 	unsigned int gpio_fw;
+	unsigned int gpio_irq;
 
 	int hard_fault; /*
 			 * < 0 if hardware error occurred (e.g. i2c err)
@@ -308,6 +313,37 @@ static int nxp_nci_i2c_parse_devtree(struct i2c_client *client)
 
 #endif
 
+static int nxp_nci_i2c_acpi_config(struct nxp_nci_i2c_phy *phy)
+{
+	struct i2c_client *client = phy->i2c_dev;
+	struct gpio_desc *gpiod_en, *gpiod_fw, *gpiod_irq;
+
+	gpiod_en = devm_gpiod_get_index(&client->dev, NULL, 2);
+	gpiod_fw = devm_gpiod_get_index(&client->dev, NULL, 1);
+	gpiod_irq = devm_gpiod_get_index(&client->dev, NULL, 0);
+
+	if (IS_ERR(gpiod_en) || IS_ERR(gpiod_fw) || IS_ERR(gpiod_irq)) {
+		nfc_err(&client->dev, "No GPIOs\n");
+		return -EINVAL;
+	}
+
+	gpiod_direction_output(gpiod_en, 0);
+	gpiod_direction_output(gpiod_fw, 0);
+	gpiod_direction_input(gpiod_irq);
+
+	client->irq = gpiod_to_irq(gpiod_irq);
+	if (client->irq < 0) {
+		nfc_err(&client->dev, "No IRQ\n");
+		return -EINVAL;
+	}
+
+	phy->gpio_en = desc_to_gpio(gpiod_en);
+	phy->gpio_fw = desc_to_gpio(gpiod_fw);
+	phy->gpio_irq = desc_to_gpio(gpiod_irq);
+
+	return 0;
+}
+
 static int nxp_nci_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
@@ -343,6 +379,11 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 		phy->gpio_en = pdata->gpio_en;
 		phy->gpio_fw = pdata->gpio_fw;
 		client->irq = pdata->irq;
+	} else if (ACPI_HANDLE(&client->dev)) {
+		r = nxp_nci_i2c_acpi_config(phy);
+		if (r < 0)
+			goto probe_exit;
+		goto nci_probe;
 	} else {
 		nfc_err(&client->dev, "No platform data\n");
 		r = -EINVAL;
@@ -359,6 +400,7 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 	if (r < 0)
 		goto probe_exit;
 
+nci_probe:
 	r = nxp_nci_probe(phy, &client->dev, &i2c_phy_ops,
 			  NXP_NCI_I2C_MAX_PAYLOAD, &phy->ndev);
 	if (r < 0)
@@ -397,10 +439,19 @@ static const struct of_device_id of_nxp_nci_i2c_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_nxp_nci_i2c_match);
 
+#ifdef CONFIG_ACPI
+static struct acpi_device_id acpi_id[] = {
+	{ "NXP7471" },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, acpi_id);
+#endif
+
 static struct i2c_driver nxp_nci_i2c_driver = {
 	.driver = {
 		   .name = NXP_NCI_I2C_DRIVER_NAME,
 		   .owner  = THIS_MODULE,
+		   .acpi_match_table = ACPI_PTR(acpi_id),
 		   .of_match_table = of_match_ptr(of_nxp_nci_i2c_match),
 		  },
 	.probe = nxp_nci_i2c_probe,
@@ -413,3 +464,4 @@ module_i2c_driver(nxp_nci_i2c_driver);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("I2C driver for NXP NCI NFC controllers");
 MODULE_AUTHOR("Clément Perrochaud <clement.perrochaud@nxp.com>");
+MODULE_AUTHOR("Oleg Zhurakivskyy <oleg.zhurakivskyy@intel.com>");

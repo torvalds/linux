@@ -1259,15 +1259,10 @@ static s32 fm10k_mbx_process_error(struct fm10k_hw *hw,
 				   struct fm10k_mbx_info *mbx)
 {
 	const u32 *hdr = &mbx->mbx_hdr;
-	s32 err_no;
 	u16 head;
 
 	/* we will need to pull all of the fields for verification */
 	head = FM10K_MSG_HDR_FIELD_GET(*hdr, HEAD);
-
-	/* we only have lower 10 bits of error number so add upper bits */
-	err_no = FM10K_MSG_HDR_FIELD_GET(*hdr, ERR_NO);
-	err_no |= ~FM10K_MSG_HDR_MASK(ERR_NO);
 
 	switch (mbx->state) {
 	case FM10K_STATE_OPEN:

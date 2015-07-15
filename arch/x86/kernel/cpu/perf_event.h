@@ -74,6 +74,9 @@ struct event_constraint {
 #define PERF_X86_EVENT_EXCL		0x0040 /* HT exclusivity on counter */
 #define PERF_X86_EVENT_DYNAMIC		0x0080 /* dynamic alloc'd constraint */
 #define PERF_X86_EVENT_RDPMC_ALLOWED	0x0100 /* grant rdpmc permission */
+#define PERF_X86_EVENT_EXCL_ACCT	0x0200 /* accounted EXCL event */
+#define PERF_X86_EVENT_AUTO_RELOAD	0x0400 /* use PEBS auto-reload */
+#define PERF_X86_EVENT_FREERUNNING	0x0800 /* use freerunning PEBS */
 
 
 struct amd_nb {
@@ -85,6 +88,18 @@ struct amd_nb {
 
 /* The maximal number of PEBS events: */
 #define MAX_PEBS_EVENTS		8
+
+/*
+ * Flags PEBS can handle without an PMI.
+ *
+ * TID can only be handled by flushing at context switch.
+ *
+ */
+#define PEBS_FREERUNNING_FLAGS \
+	(PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_ADDR | \
+	PERF_SAMPLE_ID | PERF_SAMPLE_CPU | PERF_SAMPLE_STREAM_ID | \
+	PERF_SAMPLE_DATA_SRC | PERF_SAMPLE_IDENTIFIER | \
+	PERF_SAMPLE_TRANSACTION)
 
 /*
  * A debug store configuration.
@@ -132,10 +147,7 @@ enum intel_excl_state_type {
 };
 
 struct intel_excl_states {
-	enum intel_excl_state_type init_state[X86_PMC_IDX_MAX];
 	enum intel_excl_state_type state[X86_PMC_IDX_MAX];
-	int  num_alloc_cntrs;/* #counters allocated */
-	int  max_alloc_cntrs;/* max #counters allowed */
 	bool sched_started; /* true if scheduling has started */
 };
 
@@ -143,6 +155,11 @@ struct intel_excl_cntrs {
 	raw_spinlock_t	lock;
 
 	struct intel_excl_states states[2];
+
+	union {
+		u16	has_exclusive[2];
+		u32	exclusive_present;
+	};
 
 	int		refcnt;		/* per-core: #HT threads */
 	unsigned	core_id;	/* per-core: core id */
@@ -172,7 +189,11 @@ struct cpu_hw_events {
 					     added in the current transaction */
 	int			assign[X86_PMC_IDX_MAX]; /* event to counter assignment */
 	u64			tags[X86_PMC_IDX_MAX];
+
 	struct perf_event	*event_list[X86_PMC_IDX_MAX]; /* in enabled order */
+	struct event_constraint	*event_constraint[X86_PMC_IDX_MAX];
+
+	int			n_excl; /* the number of exclusive events */
 
 	unsigned int		group_flag;
 	int			is_fake;
@@ -519,11 +540,9 @@ struct x86_pmu {
 	void		(*put_event_constraints)(struct cpu_hw_events *cpuc,
 						 struct perf_event *event);
 
-	void		(*commit_scheduling)(struct cpu_hw_events *cpuc,
-					     struct perf_event *event,
-					     int cntr);
-
 	void		(*start_scheduling)(struct cpu_hw_events *cpuc);
+
+	void		(*commit_scheduling)(struct cpu_hw_events *cpuc, int idx, int cntr);
 
 	void		(*stop_scheduling)(struct cpu_hw_events *cpuc);
 
@@ -697,6 +716,10 @@ int x86_add_exclusive(unsigned int what);
 
 void x86_del_exclusive(unsigned int what);
 
+int x86_reserve_hardware(void);
+
+void x86_release_hardware(void);
+
 void hw_perf_lbr_event_destroy(struct perf_event *event);
 
 int x86_setup_perfctr(struct perf_event *event);
@@ -717,8 +740,8 @@ static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc,
 
 void x86_pmu_enable_all(int added);
 
-int perf_assign_events(struct perf_event **events, int n,
-			int wmin, int wmax, int *assign);
+int perf_assign_events(struct event_constraint **constraints, int n,
+			int wmin, int wmax, int gpmax, int *assign);
 int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign);
 
 void x86_pmu_stop(struct perf_event *event, int flags);
@@ -860,6 +883,8 @@ void intel_pmu_pebs_enable_all(void);
 
 void intel_pmu_pebs_disable_all(void);
 
+void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in);
+
 void intel_ds_init(void);
 
 void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in);
@@ -929,4 +954,8 @@ static inline struct intel_shared_regs *allocate_shared_regs(int cpu)
 	return NULL;
 }
 
+static inline int is_ht_workaround_enabled(void)
+{
+	return 0;
+}
 #endif /* CONFIG_CPU_SUP_INTEL */

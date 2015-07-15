@@ -93,9 +93,9 @@ static int dra7xx_pcie_link_up(struct pcie_port *pp)
 
 static int dra7xx_pcie_establish_link(struct pcie_port *pp)
 {
-	u32 reg;
-	unsigned int retries = 1000;
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pp);
+	u32 reg;
+	unsigned int retries;
 
 	if (dw_pcie_link_up(pp)) {
 		dev_err(pp->dev, "link is already up\n");
@@ -106,19 +106,14 @@ static int dra7xx_pcie_establish_link(struct pcie_port *pp)
 	reg |= LTSSM_EN;
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD, reg);
 
-	while (retries--) {
-		reg = dra7xx_pcie_readl(dra7xx,	PCIECTRL_DRA7XX_CONF_PHY_CS);
-		if (reg & LINK_UP)
-			break;
+	for (retries = 0; retries < 1000; retries++) {
+		if (dw_pcie_link_up(pp))
+			return 0;
 		usleep_range(10, 20);
 	}
 
-	if (retries == 0) {
-		dev_err(pp->dev, "link is not up\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	dev_err(pp->dev, "link is not up\n");
+	return -EINVAL;
 }
 
 static void dra7xx_pcie_enable_interrupts(struct pcie_port *pp)

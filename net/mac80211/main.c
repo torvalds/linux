@@ -41,9 +41,6 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	unsigned int changed_flags;
 	unsigned int new_flags = 0;
 
-	if (atomic_read(&local->iff_promiscs))
-		new_flags |= FIF_PROMISC_IN_BSS;
-
 	if (atomic_read(&local->iff_allmultis))
 		new_flags |= FIF_ALLMULTI;
 
@@ -249,6 +246,7 @@ static void ieee80211_restart_work(struct work_struct *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, restart_work);
+	struct ieee80211_sub_if_data *sdata;
 
 	/* wait for scan work complete */
 	flush_workqueue(local->workqueue);
@@ -257,6 +255,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 	     "%s called with hardware scan in progress\n", __func__);
 
 	rtnl_lock();
+	list_for_each_entry(sdata, &local->interfaces, list)
+		flush_delayed_work(&sdata->dec_tailroom_needed_wk);
 	ieee80211_scan_cancel(local);
 	ieee80211_reconfig(local);
 	rtnl_unlock();
@@ -646,7 +646,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	skb_queue_head_init(&local->skb_queue);
 	skb_queue_head_init(&local->skb_queue_unreliable);
 
-	ieee80211_led_names(local);
+	ieee80211_alloc_led_names(local);
 
 	ieee80211_roc_setup(local);
 
@@ -661,7 +661,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 {
 	bool have_wep = !(IS_ERR(local->wep_tx_tfm) ||
 			  IS_ERR(local->wep_rx_tfm));
-	bool have_mfp = local->hw.flags & IEEE80211_HW_MFP_CAPABLE;
+	bool have_mfp = ieee80211_hw_check(&local->hw, MFP_CAPABLE);
 	int n_suites = 0, r = 0, w = 0;
 	u32 *suites;
 	static const u32 cipher_suites[] = {
@@ -681,7 +681,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		WLAN_CIPHER_SUITE_BIP_GMAC_256,
 	};
 
-	if (local->hw.flags & IEEE80211_HW_SW_CRYPTO_CONTROL ||
+	if (ieee80211_hw_check(&local->hw, SW_CRYPTO_CONTROL) ||
 	    local->hw.wiphy->cipher_suites) {
 		/* If the driver advertises, or doesn't support SW crypto,
 		 * we only need to remove WEP if necessary.
@@ -771,8 +771,13 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 			suites[w++] = WLAN_CIPHER_SUITE_BIP_GMAC_256;
 		}
 
-		for (r = 0; r < local->hw.n_cipher_schemes; r++)
+		for (r = 0; r < local->hw.n_cipher_schemes; r++) {
 			suites[w++] = cs[r].cipher;
+			if (WARN_ON(cs[r].pn_len > IEEE80211_MAX_PN_LEN)) {
+				kfree(suites);
+				return -EINVAL;
+			}
+		}
 	}
 
 	local->hw.wiphy->cipher_suites = suites;
@@ -792,7 +797,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	netdev_features_t feature_whitelist;
 	struct cfg80211_chan_def dflt_chandef = {};
 
-	if (hw->flags & IEEE80211_HW_QUEUE_CONTROL &&
+	if (ieee80211_hw_check(hw, QUEUE_CONTROL) &&
 	    (local->hw.offchannel_tx_hw_queue == IEEE80211_INVAL_HW_QUEUE ||
 	     local->hw.offchannel_tx_hw_queue >= local->hw.queues))
 		return -EINVAL;
@@ -840,7 +845,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	/* Only HW csum features are currently compatible with mac80211 */
 	feature_whitelist = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			    NETIF_F_HW_CSUM;
+			    NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_HIGHDMA |
+			    NETIF_F_GSO_SOFTWARE;
 	if (WARN_ON(hw->netdev_features & ~feature_whitelist))
 		return -EINVAL;
 
@@ -939,9 +945,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/* mac80211 supports control port protocol changing */
 	local->hw.wiphy->flags |= WIPHY_FLAG_CONTROL_PORT_PROTOCOL;
 
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
+	if (ieee80211_hw_check(&local->hw, SIGNAL_DBM)) {
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
-	} else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC) {
+	} else if (ieee80211_hw_check(&local->hw, SIGNAL_UNSPEC)) {
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
 		if (hw->max_signal <= 0) {
 			result = -EINVAL;
@@ -995,7 +1001,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		local->hw.wiphy->flags |= WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
 
 	/* mac80211 supports eCSA, if the driver supports STA CSA at all */
-	if (local->hw.flags & IEEE80211_HW_CHANCTX_STA_CSA)
+	if (ieee80211_hw_check(&local->hw, CHANCTX_STA_CSA))
 		local->ext_capa[0] |= WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING;
 
 	local->hw.wiphy->max_num_csa_counters = IEEE80211_MAX_CSA_COUNTERS_NUM;
@@ -1063,7 +1069,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	/* add one default STA interface if supported */
 	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_STATION) &&
-	    !(hw->flags & IEEE80211_HW_NO_AUTO_VIF)) {
+	    !ieee80211_hw_check(hw, NO_AUTO_VIF)) {
 		result = ieee80211_if_add(local, "wlan%d", NET_NAME_ENUM, NULL,
 					  NL80211_IFTYPE_STATION, NULL);
 		if (result)
@@ -1208,6 +1214,8 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	idr_destroy(&local->ack_status_frames);
 
 	sta_info_stop(local);
+
+	ieee80211_free_led_names(local);
 
 	wiphy_free(local->hw.wiphy);
 }

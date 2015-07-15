@@ -12,6 +12,10 @@
 	model = "Atmel AT91RM9200 evaluation kit";
 	compatible = "atmel,at91rm9200ek", "atmel,at91rm9200";
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		reg = <0x20000000 0x4000000>;
 	};

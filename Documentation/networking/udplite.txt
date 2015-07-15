@@ -20,7 +20,7 @@
 	files/UDP-Lite-HOWTO.txt
 
    o The Wireshark UDP-Lite WiKi (with capture files):
-       http://wiki.wireshark.org/Lightweight_User_Datagram_Protocol
+       https://wiki.wireshark.org/Lightweight_User_Datagram_Protocol
 
    o The Protocol Spec, RFC 3828, http://www.ietf.org/rfc/rfc3828.txt
 

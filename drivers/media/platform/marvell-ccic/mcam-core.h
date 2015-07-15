@@ -146,7 +146,6 @@ struct mcam_camera {
 	struct v4l2_ctrl_handler ctrl_handler;
 	enum mcam_state state;
 	unsigned long flags;		/* Buffer status, mainly (dev_lock) */
-	int users;			/* How many open FDs */
 
 	struct mcam_frame_state frame_state;	/* Frame state counter */
 	/*
@@ -162,6 +161,8 @@ struct mcam_camera {
 
 	unsigned int nbufs;		/* How many are alloc'd */
 	int next_buf;			/* Next to consume (dev_lock) */
+
+	char bus_info[32];		/* querycap bus_info */
 
 	/* DMA buffers - vmalloc mode */
 #ifdef MCAM_MODE_VMALLOC

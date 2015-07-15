@@ -108,6 +108,11 @@ void tipc_bclink_remove_node(struct net *net, u32 addr)
 
 	tipc_bclink_lock(net);
 	tipc_nmap_remove(&tn->bclink->bcast_nodes, addr);
+
+	/* Last node? => reset backlog queue */
+	if (!tn->bclink->bcast_nodes.count)
+		tipc_link_purge_backlog(&tn->bclink->link);
+
 	tipc_bclink_unlock(net);
 }
 
@@ -115,19 +120,15 @@ static void bclink_set_last_sent(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_link *bcl = tn->bcl;
-	struct sk_buff *skb = skb_peek(&bcl->backlogq);
 
-	if (skb)
-		bcl->fsm_msg_cnt = mod(buf_seqno(skb) - 1);
-	else
-		bcl->fsm_msg_cnt = mod(bcl->next_out_no - 1);
+	bcl->silent_intv_cnt = mod(bcl->snd_nxt - 1);
 }
 
 u32 tipc_bclink_get_last_sent(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
-	return tn->bcl->fsm_msg_cnt;
+	return tn->bcl->silent_intv_cnt;
 }
 
 static void bclink_update_last_sent(struct tipc_node *node, u32 seqno)
@@ -212,16 +213,16 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 		 * or both sent and unsent messages (otherwise)
 		 */
 		if (tn->bclink->bcast_nodes.count)
-			acked = tn->bcl->fsm_msg_cnt;
+			acked = tn->bcl->silent_intv_cnt;
 		else
-			acked = tn->bcl->next_out_no;
+			acked = tn->bcl->snd_nxt;
 	} else {
 		/*
 		 * Bail out if specified sequence number does not correspond
 		 * to a message that has been sent and not yet acknowledged
 		 */
 		if (less(acked, buf_seqno(skb)) ||
-		    less(tn->bcl->fsm_msg_cnt, acked) ||
+		    less(tn->bcl->silent_intv_cnt, acked) ||
 		    less_eq(acked, n_ptr->bclink.acked))
 			goto exit;
 	}
@@ -803,9 +804,9 @@ int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg)
 		goto attr_msg_full;
 	if (nla_put_string(msg->skb, TIPC_NLA_LINK_NAME, bcl->name))
 		goto attr_msg_full;
-	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_RX, bcl->next_in_no))
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_RX, bcl->rcv_nxt))
 		goto attr_msg_full;
-	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_TX, bcl->next_out_no))
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_TX, bcl->snd_nxt))
 		goto attr_msg_full;
 
 	prop = nla_nest_start(msg->skb, TIPC_NLA_LINK_PROP);
@@ -866,6 +867,27 @@ int tipc_bclink_set_queue_limits(struct net *net, u32 limit)
 	return 0;
 }
 
+int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[])
+{
+	int err;
+	u32 win;
+	struct nlattr *props[TIPC_NLA_PROP_MAX + 1];
+
+	if (!attrs[TIPC_NLA_LINK_PROP])
+		return -EINVAL;
+
+	err = tipc_nl_parse_link_prop(attrs[TIPC_NLA_LINK_PROP], props);
+	if (err)
+		return err;
+
+	if (!props[TIPC_NLA_PROP_WIN])
+		return -EOPNOTSUPP;
+
+	win = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
+
+	return tipc_bclink_set_queue_limits(net, win);
+}
+
 int tipc_bclink_init(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
@@ -893,7 +915,7 @@ int tipc_bclink_init(struct net *net)
 	__skb_queue_head_init(&bcl->backlogq);
 	__skb_queue_head_init(&bcl->deferdq);
 	skb_queue_head_init(&bcl->wakeupq);
-	bcl->next_out_no = 1;
+	bcl->snd_nxt = 1;
 	spin_lock_init(&bclink->node.lock);
 	__skb_queue_head_init(&bclink->arrvq);
 	skb_queue_head_init(&bclink->inputq);

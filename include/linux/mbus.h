@@ -54,8 +54,13 @@ struct mbus_dram_target_info
  */
 #ifdef CONFIG_PLAT_ORION
 extern const struct mbus_dram_target_info *mv_mbus_dram_info(void);
+extern const struct mbus_dram_target_info *mv_mbus_dram_info_nooverlap(void);
 #else
 static inline const struct mbus_dram_target_info *mv_mbus_dram_info(void)
+{
+	return NULL;
+}
+static inline const struct mbus_dram_target_info *mv_mbus_dram_info_nooverlap(void)
 {
 	return NULL;
 }

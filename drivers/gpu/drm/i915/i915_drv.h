@@ -866,6 +866,7 @@ struct intel_context {
 	struct kref ref;
 	int user_handle;
 	uint8_t remap_slice;
+	struct drm_i915_private *i915;
 	int flags;
 	struct drm_i915_file_private *file_priv;
 	struct i915_ctx_hang_stats hang_stats;
@@ -2073,8 +2074,6 @@ struct drm_i915_gem_object {
 	unsigned int cache_level:3;
 	unsigned int cache_dirty:1;
 
-	unsigned int has_dma_mapping:1;
-
 	unsigned int frontbuffer_bits:INTEL_FRONTBUFFER_BITS;
 
 	unsigned int pin_display;
@@ -3173,7 +3172,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor);
 int i915_debugfs_connector_add(struct drm_connector *connector);
 void intel_display_crc_init(struct drm_device *dev);
 #else
-static inline int i915_debugfs_connector_add(struct drm_connector *connector) {}
+static inline int i915_debugfs_connector_add(struct drm_connector *connector)
+{ return 0; }
 static inline void intel_display_crc_init(struct drm_device *dev) {}
 #endif
 

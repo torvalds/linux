@@ -187,9 +187,16 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	struct mlx5_destroy_qp_mbox_in din;
 	struct mlx5_destroy_qp_mbox_out dout;
 	int err;
+	void *qpc;
 
 	memset(&out, 0, sizeof(out));
 	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_QP);
+
+	if (dev->issi) {
+		qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
+		/* 0xffffff means we ask to work with cqe version 0 */
+		MLX5_SET(qpc, qpc, user_index, 0xffffff);
+	}
 
 	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
 	if (err) {

@@ -1,1 +1,1 @@
-rcutorture.torture_type=srcu
+rcutorture.torture_type=srcud

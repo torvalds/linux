@@ -60,7 +60,7 @@ extern void read_decode_cache_bcr(void);
 #define ARC_REG_IC_IVIC		0x10
 #define ARC_REG_IC_CTRL		0x11
 #define ARC_REG_IC_IVIL		0x19
-#if defined(CONFIG_ARC_MMU_V3)
+#if defined(CONFIG_ARC_MMU_V3) || defined(CONFIG_ARC_MMU_V4)
 #define ARC_REG_IC_PTAG		0x1E
 #endif
 
@@ -74,12 +74,24 @@ extern void read_decode_cache_bcr(void);
 #define ARC_REG_DC_IVDL		0x4A
 #define ARC_REG_DC_FLSH		0x4B
 #define ARC_REG_DC_FLDL		0x4C
-#if defined(CONFIG_ARC_MMU_V3)
 #define ARC_REG_DC_PTAG		0x5C
-#endif
 
 /* Bit val in DC_CTRL */
 #define DC_CTRL_INV_MODE_FLUSH  0x40
 #define DC_CTRL_FLUSH_STATUS    0x100
+
+/*System-level cache (L2 cache) related Auxiliary registers */
+#define ARC_REG_SLC_CFG		0x901
+#define ARC_REG_SLC_CTRL	0x903
+#define ARC_REG_SLC_FLUSH	0x904
+#define ARC_REG_SLC_INVALIDATE	0x905
+#define ARC_REG_SLC_RGN_START	0x914
+#define ARC_REG_SLC_RGN_END	0x916
+
+/* Bit val in SLC_CONTROL */
+#define SLC_CTRL_IM		0x040
+#define SLC_CTRL_DISABLE	0x001
+#define SLC_CTRL_BUSY		0x100
+#define SLC_CTRL_RGN_OP_INV	0x200
 
 #endif /* _ASM_CACHE_H */

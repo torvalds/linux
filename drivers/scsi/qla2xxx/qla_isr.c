@@ -1580,7 +1580,7 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 			ql_log(ql_log_warn, fcport->vha, 0x503c,
 			    "Async-%s error - hdl=%x response(%x).\n",
 			    type, sp->handle, sts->data[3]);
-		iocb->u.tmf.data = QLA_FUNCTION_FAILED;
+			iocb->u.tmf.data = QLA_FUNCTION_FAILED;
 		}
 	}
 
@@ -1979,7 +1979,7 @@ qla25xx_process_bidir_status_iocb(scsi_qla_host_t *vha, void *pkt,
 		rval = EXT_STATUS_ERR;
 		break;
 	}
-		bsg_job->reply->reply_payload_rcv_len = 0;
+	bsg_job->reply->reply_payload_rcv_len = 0;
 
 done:
 	/* Return the vendor specific reply to API */

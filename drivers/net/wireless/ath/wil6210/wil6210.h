@@ -21,6 +21,7 @@
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
 #include <linux/timex.h>
+#include <linux/types.h>
 #include "wil_platform.h"
 
 extern bool no_fw_recovery;
@@ -29,10 +30,11 @@ extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
 extern u32 vring_idle_trsh;
 extern bool rx_align_2;
+extern bool debug_fw;
 
 #define WIL_NAME "wil6210"
 #define WIL_FW_NAME "wil6210.fw" /* code */
-#define WIL_FW2_NAME "wil6210.board" /* board & radio parameters */
+#define WIL_FW2_NAME "wil6210.brd" /* board & radio parameters */
 
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
@@ -279,7 +281,7 @@ struct fw_map {
 };
 
 /* array size should be in sync with actual definition in the wmi.c */
-extern const struct fw_map fw_mapping[7];
+extern const struct fw_map fw_mapping[8];
 
 /**
  * mk_cidxtid - construct @cidxtid field
@@ -396,6 +398,7 @@ struct vring {
  * Additional data for Tx Vring
  */
 struct vring_tx_data {
+	bool dot1x_open;
 	int enabled;
 	cycles_t idle, last_idle, begin;
 	u8 agg_wsize; /* agreed aggregation window, 0 - no agg */
@@ -461,6 +464,7 @@ enum wil_sta_status {
 };
 
 #define WIL_STA_TID_NUM (16)
+#define WIL_MCS_MAX (12) /* Maximum MCS supported */
 
 struct wil_net_stats {
 	unsigned long	rx_packets;
@@ -470,6 +474,7 @@ struct wil_net_stats {
 	unsigned long	tx_errors;
 	unsigned long	rx_dropped;
 	u16 last_mcs_rx;
+	u64 rx_per_mcs[WIL_MCS_MAX + 1];
 };
 
 /**
@@ -484,7 +489,6 @@ struct wil_sta_info {
 	u8 addr[ETH_ALEN];
 	enum wil_sta_status status;
 	struct wil_net_stats stats;
-	bool data_port_open; /* can send any data, not only EAPOL */
 	/* Rx BACK */
 	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
 	spinlock_t tid_rx_lock; /* guarding tid_rx array */
@@ -524,6 +528,17 @@ struct wil_probe_client_req {
 	struct list_head list;
 	u64 cookie;
 	u8 cid;
+};
+
+struct pmc_ctx {
+	/* alloc, free, and read operations must own the lock */
+	struct mutex		lock;
+	struct vring_tx_desc	*pring_va;
+	dma_addr_t		pring_pa;
+	struct desc_alloc_info  *descriptors;
+	int			last_cmd_status;
+	int			num_descriptors;
+	int			descriptor_size;
 };
 
 struct wil6210_priv {
@@ -610,6 +625,8 @@ struct wil6210_priv {
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
+
+	struct pmc_ctx pmc;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -669,7 +686,7 @@ void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 			size_t count);
 
-void *wil_if_alloc(struct device *dev, void __iomem *csr);
+void *wil_if_alloc(struct device *dev);
 void wil_if_free(struct wil6210_priv *wil);
 int wil_if_add(struct wil6210_priv *wil);
 void wil_if_remove(struct wil6210_priv *wil);
@@ -701,9 +718,10 @@ int wmi_get_ssid(struct wil6210_priv *wil, u8 *ssid_len, void *ssid);
 int wmi_set_channel(struct wil6210_priv *wil, int channel);
 int wmi_get_channel(struct wil6210_priv *wil, int *channel);
 int wmi_del_cipher_key(struct wil6210_priv *wil, u8 key_index,
-		       const void *mac_addr);
+		       const void *mac_addr, int key_usage);
 int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
-		       const void *mac_addr, int key_len, const void *key);
+		       const void *mac_addr, int key_len, const void *key,
+		       int key_usage);
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
@@ -746,7 +764,8 @@ struct wireless_dev *wil_cfg80211_init(struct device *dev);
 void wil_wdev_free(struct wil6210_priv *wil);
 
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
-int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan);
+int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
+		  u8 chan, u8 hidden_ssid);
 int wmi_pcp_stop(struct wil6210_priv *wil);
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			u16 reason_code, bool from_event);

@@ -3,9 +3,9 @@ perf-y += parse-events.o
 perf-y += dso-data.o
 perf-y += attr.o
 perf-y += vmlinux-kallsyms.o
-perf-y += open-syscall.o
-perf-y += open-syscall-all-cpus.o
-perf-y += open-syscall-tp-fields.o
+perf-y += openat-syscall.o
+perf-y += openat-syscall-all-cpus.o
+perf-y += openat-syscall-tp-fields.o
 perf-y += mmap-basic.o
 perf-y += perf-record.o
 perf-y += rdpmc.o
@@ -31,10 +31,11 @@ perf-y += code-reading.o
 perf-y += sample-parsing.o
 perf-y += parse-no-sample-id-all.o
 perf-y += kmod-path.o
+perf-y += thread-map.o
 
 perf-$(CONFIG_X86) += perf-time-to-tsc.o
 
-ifeq ($(ARCH),$(filter $(ARCH),x86 arm))
+ifeq ($(ARCH),$(filter $(ARCH),x86 arm arm64))
 perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
 endif
 

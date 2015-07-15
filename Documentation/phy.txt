@@ -76,6 +76,8 @@ struct phy *phy_get(struct device *dev, const char *string);
 struct phy *phy_optional_get(struct device *dev, const char *string);
 struct phy *devm_phy_get(struct device *dev, const char *string);
 struct phy *devm_phy_optional_get(struct device *dev, const char *string);
+struct phy *devm_of_phy_get_by_index(struct device *dev, struct device_node *np,
+				     int index);
 
 phy_get, phy_optional_get, devm_phy_get and devm_phy_optional_get can
 be used to get the PHY. In the case of dt boot, the string arguments
@@ -86,7 +88,10 @@ successful PHY get. On driver detach, release function is invoked on
 the the devres data and devres data is freed. phy_optional_get and
 devm_phy_optional_get should be used when the phy is optional. These
 two functions will never return -ENODEV, but instead returns NULL when
-the phy cannot be found.
+the phy cannot be found.Some generic drivers, such as ehci, may use multiple
+phys and for such drivers referencing phy(s) by name(s) does not make sense. In
+this case, devm_of_phy_get_by_index can be used to get a phy reference based on
+the index.
 
 It should be noted that NULL is a valid phy reference. All phy
 consumer calls on the NULL phy become NOPs. That is the release calls,

@@ -1,0 +1,15 @@
+ZTE platforms device tree bindings
+---------------------------------------
+
+-  ZX296702 board:
+    Required root node properties:
+      - compatible = "zte,zx296702-ad1", "zte,zx296702"
+
+System management required properties:
+      - compatible = "zte,sysctrl"
+
+Low power management required properties:
+      - compatible = "zte,zx296702-pcu"
+
+Bus matrix required properties:
+      - compatible = "zte,zx-bus-matrix"

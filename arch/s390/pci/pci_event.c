@@ -75,7 +75,13 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	zpci_err_hex(ccdf, sizeof(*ccdf));
 
 	switch (ccdf->pec) {
-	case 0x0301: /* Standby -> Configured */
+	case 0x0301: /* Reserved|Standby -> Configured */
+		if (!zdev) {
+			ret = clp_add_pci_device(ccdf->fid, ccdf->fh, 0);
+			if (ret)
+				break;
+			zdev = get_zdev_by_fid(ccdf->fid);
+		}
 		if (!zdev || zdev->state != ZPCI_FN_STATE_STANDBY)
 			break;
 		zdev->state = ZPCI_FN_STATE_CONFIGURED;

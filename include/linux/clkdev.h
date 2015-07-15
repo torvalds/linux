@@ -22,6 +22,7 @@ struct clk_lookup {
 	const char		*dev_id;
 	const char		*con_id;
 	struct clk		*clk;
+	struct clk_hw		*clk_hw;
 };
 
 #define CLKDEV_INIT(d, n, c)	\
@@ -37,8 +38,11 @@ struct clk_lookup *clkdev_alloc(struct clk *clk, const char *con_id,
 void clkdev_add(struct clk_lookup *cl);
 void clkdev_drop(struct clk_lookup *cl);
 
+struct clk_lookup *clkdev_create(struct clk *clk, const char *con_id,
+	const char *dev_fmt, ...);
+
 void clkdev_add_table(struct clk_lookup *, size_t);
-int clk_add_alias(const char *, const char *, char *, struct device *);
+int clk_add_alias(const char *, const char *, const char *, struct device *);
 
 int clk_register_clkdev(struct clk *, const char *, const char *, ...);
 int clk_register_clkdevs(struct clk *, struct clk_lookup *, size_t);

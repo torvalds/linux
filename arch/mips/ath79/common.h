@@ -22,6 +22,7 @@
 void ath79_clocks_init(void);
 unsigned long ath79_get_sys_clk_rate(const char *id);
 
+void ath79_ddr_ctrl_init(void);
 void ath79_ddr_wb_flush(unsigned int reg);
 
 void ath79_gpio_function_enable(u32 mask);

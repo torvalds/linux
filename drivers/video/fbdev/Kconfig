@@ -2326,13 +2326,6 @@ config FB_PRE_INIT_FB
 	  Select this option if display contents should be inherited as set by
 	  the bootloader.
 
-config FB_MSM
-	tristate "MSM Framebuffer support"
-	depends on FB && ARCH_MSM
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-
 config FB_MX3
 	tristate "MX3 Framebuffer support"
 	depends on FB && MX3_IPU
@@ -2478,6 +2471,7 @@ config FB_SSD1307
 	select FB_SYS_IMAGEBLIT
 	select FB_DEFERRED_IO
 	select PWM
+	select FB_BACKLIGHT
 	help
 	  This driver implements support for the Solomon SSD1307
 	  OLED controller over I2C.

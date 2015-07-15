@@ -6,6 +6,7 @@
 #include <linux/inet.h>
 #include <linux/kthread.h>
 #include <linux/net.h>
+#include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/string.h>
@@ -278,7 +279,6 @@ static void _ceph_msgr_exit(void)
 	ceph_msgr_slab_exit();
 
 	BUG_ON(zero_page == NULL);
-	kunmap(zero_page);
 	page_cache_release(zero_page);
 	zero_page = NULL;
 }
@@ -480,8 +480,8 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 	int ret;
 
 	BUG_ON(con->sock);
-	ret = sock_create_kern(con->peer_addr.in_addr.ss_family, SOCK_STREAM,
-			       IPPROTO_TCP, &sock);
+	ret = sock_create_kern(read_pnet(&con->msgr->net), paddr->ss_family,
+			       SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret)
 		return ret;
 	sock->sk->sk_allocation = GFP_NOFS;
@@ -1545,7 +1545,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 		page = ceph_msg_data_next(&msg->cursor, &page_offset, &length,
 							&last_piece);
 		ret = ceph_tcp_sendpage(con->sock, page, page_offset,
-				      length, last_piece);
+					length, !last_piece);
 		if (ret <= 0) {
 			if (do_datacrc)
 				msg->footer.data_crc = cpu_to_le32(crc);
@@ -1732,17 +1732,17 @@ static int verify_hello(struct ceph_connection *con)
 
 static bool addr_is_blank(struct sockaddr_storage *ss)
 {
+	struct in_addr *addr = &((struct sockaddr_in *)ss)->sin_addr;
+	struct in6_addr *addr6 = &((struct sockaddr_in6 *)ss)->sin6_addr;
+
 	switch (ss->ss_family) {
 	case AF_INET:
-		return ((struct sockaddr_in *)ss)->sin_addr.s_addr == 0;
+		return addr->s_addr == htonl(INADDR_ANY);
 	case AF_INET6:
-		return
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[0] == 0 &&
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[1] == 0 &&
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[2] == 0 &&
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[3] == 0;
+		return ipv6_addr_any(addr6);
+	default:
+		return true;
 	}
-	return false;
 }
 
 static int addr_port(struct sockaddr_storage *ss)
@@ -2945,10 +2945,17 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 	msgr->tcp_nodelay = tcp_nodelay;
 
 	atomic_set(&msgr->stopping, 0);
+	write_pnet(&msgr->net, get_net(current->nsproxy->net_ns));
 
 	dout("%s %p\n", __func__, msgr);
 }
 EXPORT_SYMBOL(ceph_messenger_init);
+
+void ceph_messenger_fini(struct ceph_messenger *msgr)
+{
+	put_net(read_pnet(&msgr->net));
+}
+EXPORT_SYMBOL(ceph_messenger_fini);
 
 static void clear_standby(struct ceph_connection *con)
 {

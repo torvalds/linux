@@ -910,7 +910,7 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 	if (pcmd->res != H2C_SUCCESS)
 		mod_timer(&pmlmepriv->assoc_timer,
 			  jiffies + msecs_to_jiffies(1));
-	del_timer_sync(&pmlmepriv->assoc_timer);
+	del_timer(&pmlmepriv->assoc_timer);
 #ifdef __BIG_ENDIAN
 	/* endian_convert */
 	pnetwork->Length = le32_to_cpu(pnetwork->Length);

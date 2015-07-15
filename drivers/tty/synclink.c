@@ -4410,7 +4410,8 @@ static void synclink_cleanup(void)
 	printk("Unloading %s: %s\n", driver_name, driver_version);
 
 	if (serial_driver) {
-		if ((rc = tty_unregister_driver(serial_driver)))
+		rc = tty_unregister_driver(serial_driver);
+		if (rc)
 			printk("%s(%d) failed to unregister tty driver err=%d\n",
 			       __FILE__,__LINE__,rc);
 		put_tty_driver(serial_driver);
@@ -7751,7 +7752,8 @@ static int hdlcdev_open(struct net_device *dev)
 		printk("%s:hdlcdev_open(%s)\n",__FILE__,dev->name);
 
 	/* generic HDLC layer open processing */
-	if ((rc = hdlc_open(dev)))
+	rc = hdlc_open(dev);
+	if (rc)
 		return rc;
 
 	/* arbitrate between network and tty opens */
@@ -8018,7 +8020,8 @@ static int hdlcdev_init(struct mgsl_struct *info)
 
 	/* allocate and initialize network and HDLC layer objects */
 
-	if (!(dev = alloc_hdlcdev(info))) {
+	dev = alloc_hdlcdev(info);
+	if (!dev) {
 		printk(KERN_ERR "%s:hdlc device allocation failure\n",__FILE__);
 		return -ENOMEM;
 	}
@@ -8039,7 +8042,8 @@ static int hdlcdev_init(struct mgsl_struct *info)
 	hdlc->xmit   = hdlcdev_xmit;
 
 	/* register objects with HDLC layer */
-	if ((rc = register_hdlc_device(dev))) {
+	rc = register_hdlc_device(dev);
+	if (rc) {
 		printk(KERN_WARNING "%s:unable to register hdlc device\n",__FILE__);
 		free_netdev(dev);
 		return rc;
@@ -8075,7 +8079,8 @@ static int synclink_init_one (struct pci_dev *dev,
 		return -EIO;
 	}
 
-	if (!(info = mgsl_allocate_device())) {
+	info = mgsl_allocate_device();
+	if (!info) {
 		printk("can't allocate device instance data.\n");
 		return -EIO;
 	}

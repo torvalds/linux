@@ -253,6 +253,12 @@ struct btrfs_fs_devices {
 	 * nonrot flag set
 	 */
 	int rotating;
+
+	struct btrfs_fs_info *fs_info;
+	/* sysfs kobjects */
+	struct kobject super_kobj;
+	struct kobject *device_dir_kobj;
+	struct completion kobj_unregister;
 };
 
 #define BTRFS_BIO_INLINE_CSUM_SIZE	64
@@ -291,8 +297,6 @@ struct btrfs_bio_stripe {
 
 struct btrfs_bio;
 typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
-
-#define BTRFS_BIO_ORIG_BIO_SUBMITTED	(1 << 0)
 
 struct btrfs_bio {
 	atomic_t refs;
@@ -537,5 +541,8 @@ static inline void unlock_chunks(struct btrfs_root *root)
 	mutex_unlock(&root->fs_info->chunk_mutex);
 }
 
+struct list_head *btrfs_get_fs_uuids(void);
+void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
+void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
 
 #endif

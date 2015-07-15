@@ -439,6 +439,31 @@ static void sdma_v3_0_rlc_stop(struct amdgpu_device *adev)
 }
 
 /**
+ * sdma_v3_0_ctx_switch_enable - stop the async dma engines context switch
+ *
+ * @adev: amdgpu_device pointer
+ * @enable: enable/disable the DMA MEs context switch.
+ *
+ * Halt or unhalt the async dma engines context switch (VI).
+ */
+static void sdma_v3_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
+{
+	u32 f32_cntl;
+	int i;
+
+	for (i = 0; i < SDMA_MAX_INSTANCE; i++) {
+		f32_cntl = RREG32(mmSDMA0_CNTL + sdma_offsets[i]);
+		if (enable)
+			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
+					AUTO_CTXSW_ENABLE, 1);
+		else
+			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
+					AUTO_CTXSW_ENABLE, 0);
+		WREG32(mmSDMA0_CNTL + sdma_offsets[i], f32_cntl);
+	}
+}
+
+/**
  * sdma_v3_0_enable - stop the async dma engines
  *
  * @adev: amdgpu_device pointer
@@ -648,6 +673,8 @@ static int sdma_v3_0_start(struct amdgpu_device *adev)
 
 	/* unhalt the MEs */
 	sdma_v3_0_enable(adev, true);
+	/* enable sdma ring preemption */
+	sdma_v3_0_ctx_switch_enable(adev, true);
 
 	/* start the gfx rings and rlc compute queues */
 	r = sdma_v3_0_gfx_resume(adev);
@@ -1079,6 +1106,7 @@ static int sdma_v3_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	sdma_v3_0_ctx_switch_enable(adev, false);
 	sdma_v3_0_enable(adev, false);
 
 	return 0;

@@ -1247,16 +1247,22 @@ config COMEDI_8254
 	tristate
 
 config COMEDI_8255
-	tristate "Generic 8255 support"
+	tristate
+
+config COMEDI_8255_SA
+	tristate "Standalone 8255 support"
+	select COMEDI_8255
 	---help---
-	  Enable generic 8255 support.
+	  Enable support for 8255 digital I/O as a standalone driver.
 
 	  You should enable compilation this driver if you plan to use a board
-	  that has an 8255 chip. For multifunction boards, the main driver will
-	  configure the 8255 subdevice automatically.
+	  that has an 8255 chip at a known I/O base address and there are no
+	  other Comedi drivers for the board.
 
-	  Note that most PCI based 8255 boards use the 8255_pci driver as a
-	  wrapper around this driver.
+	  Note that Comedi drivers for most multi-function boards incorporating
+	  an 8255 chip use the 'comedi_8255' module.  Most PCI-based 8255
+	  boards use the 8255_pci driver as a wrapper around the 'comedi_8255'
+	  module.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called 8255.

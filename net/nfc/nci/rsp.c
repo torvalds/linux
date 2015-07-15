@@ -296,6 +296,15 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	/* strip the nci control header */
 	skb_pull(skb, NCI_CTRL_HDR_SIZE);
 
+	if (nci_opcode_gid(rsp_opcode) == NCI_GID_PROPRIETARY) {
+		if (nci_prop_rsp_packet(ndev, rsp_opcode, skb) == -ENOTSUPP) {
+			pr_err("unsupported rsp opcode 0x%x\n",
+			       rsp_opcode);
+		}
+
+		goto end;
+	}
+
 	switch (rsp_opcode) {
 	case NCI_OP_CORE_RESET_RSP:
 		nci_core_reset_rsp_packet(ndev, skb);
@@ -346,6 +355,7 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 	}
 
+end:
 	kfree_skb(skb);
 
 	/* trigger the next cmd */

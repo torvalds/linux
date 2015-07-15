@@ -61,9 +61,6 @@ pciehp-objs		:=	pciehp_core.o	\
 				pciehp_ctrl.o	\
 				pciehp_pci.o	\
 				pciehp_hpc.o
-ifdef CONFIG_ACPI
-pciehp-objs		+=	pciehp_acpi.o
-endif
 
 shpchp-objs		:=	shpchp_core.o	\
 				shpchp_ctrl.o	\

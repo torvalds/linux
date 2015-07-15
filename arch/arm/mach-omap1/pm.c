@@ -62,6 +62,7 @@
 #include "iomap.h"
 #include "clock.h"
 #include "pm.h"
+#include "soc.h"
 #include "sram.h"
 
 static unsigned int arm_sleep_save[ARM_SLEEP_SAVE_SIZE];

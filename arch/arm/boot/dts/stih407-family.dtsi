@@ -7,7 +7,10 @@
  * publishhed by the Free Software Foundation.
  */
 #include "stih407-pinctrl.dtsi"
+#include <dt-bindings/mfd/st-lpc.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/reset-controller/stih407-resets.h>
+#include <dt-bindings/interrupt-controller/irq-st.h>
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -56,12 +59,24 @@
 		cache-level = <2>;
 	};
 
+	arm-pmu {
+		interrupt-parent = <&intc>;
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		interrupt-parent = <&intc>;
 		ranges;
 		compatible = "simple-bus";
+
+		restart {
+			compatible = "st,stih407-restart";
+			st,syscfg = <&syscfg_sbc_reg>;
+			status = "okay";
+		};
 
 		powerdown: powerdown-controller {
 			compatible = "st,stih407-powerdown";
@@ -111,6 +126,15 @@
 		syscfg_lpm: lpm-syscfg@94b5100 {
 			compatible = "st,stih407-lpm-syscfg", "syscon";
 			reg = <0x94b5100 0x1000>;
+		};
+
+		irq-syscfg {
+			compatible    = "st,stih407-irq-syscfg";
+			st,syscfg     = <&syscfg_core>;
+			st,irq-device = <ST_IRQ_SYSCFG_PMU_0>,
+					<ST_IRQ_SYSCFG_PMU_1>;
+			st,fiq-device = <ST_IRQ_SYSCFG_DISABLED>,
+					<ST_IRQ_SYSCFG_DISABLED>;
 		};
 
 		serial@9830000 {
@@ -280,7 +304,7 @@
 			#phy-cells = <0>;
 			st,syscfg = <&syscfg_core 0x100 0xf4>;
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
-				 <&picophyreset STIH407_PICOPHY0_RESET>;
+				 <&picophyreset STIH407_PICOPHY2_RESET>;
 			reset-names = "global", "port";
 		};
 
@@ -334,6 +358,211 @@
 
 				reset-names = "miphy-sw-rst";
 				resets = <&softreset STIH407_MIPHY2_SOFTRESET>;
+			};
+		};
+
+		spi@9840000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9840000 0x110>;
+			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+			pinctrl-0 = <&pinctrl_spi0_default>;
+			pinctrl-names = "default";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+		};
+
+		spi@9841000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9841000 0x110>;
+			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9842000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9842000 0x110>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9843000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9843000 0x110>;
+			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9844000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9844000 0x110>;
+			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		/* SBC SSC */
+		spi@9540000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9540000 0x110>;
+			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_sysin>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9541000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9541000 0x110>;
+			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_sysin>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9542000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9542000 0x110>;
+			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_sysin>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		mmc0: sdhci@09060000 {
+			compatible = "st,sdhci-stih407", "st,sdhci";
+			status = "disabled";
+			reg = <0x09060000 0x7ff>, <0x9061008 0x20>;
+			reg-names = "mmc", "top-mmc-delay";
+			interrupts = <GIC_SPI 92 IRQ_TYPE_NONE>;
+			interrupt-names = "mmcirq";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_mmc0>;
+			clock-names = "mmc";
+			clocks = <&clk_s_c0_flexgen CLK_MMC_0>;
+			bus-width = <8>;
+			non-removable;
+		};
+
+		mmc1: sdhci@09080000 {
+			compatible = "st,sdhci-stih407", "st,sdhci";
+			status = "disabled";
+			reg = <0x09080000 0x7ff>;
+			reg-names = "mmc";
+			interrupts = <GIC_SPI 90 IRQ_TYPE_NONE>;
+			interrupt-names = "mmcirq";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sd1>;
+			clock-names = "mmc";
+			clocks = <&clk_s_c0_flexgen CLK_MMC_1>;
+			resets = <&softreset STIH407_MMC1_SOFTRESET>;
+			bus-width = <4>;
+		};
+
+		/* Watchdog and Real-Time Clock */
+		lpc@8787000 {
+			compatible = "st,stih407-lpc";
+			reg = <0x8787000 0x1000>;
+			interrupts = <GIC_SPI 129 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clk_s_d3_flexgen CLK_LPC_0>;
+			timeout-sec = <120>;
+			st,syscfg = <&syscfg_core>;
+			st,lpc-mode = <ST_LPC_MODE_WDT>;
+		};
+
+		lpc@8788000 {
+			compatible = "st,stih407-lpc";
+			reg = <0x8788000 0x1000>;
+			interrupts = <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clk_s_d3_flexgen CLK_LPC_1>;
+			st,lpc-mode = <ST_LPC_MODE_RTC>;
+		};
+
+		sata0: sata@9b20000 {
+			compatible = "st,ahci";
+			reg = <0x9b20000 0x1000>;
+
+			interrupts = <GIC_SPI 159 IRQ_TYPE_NONE>;
+			interrupt-names = "hostc";
+
+			phys = <&phy_port0 PHY_TYPE_SATA>;
+			phy-names = "ahci_phy";
+
+			resets = <&powerdown STIH407_SATA0_POWERDOWN>,
+				 <&softreset STIH407_SATA0_SOFTRESET>,
+				 <&softreset STIH407_SATA0_PWR_SOFTRESET>;
+			reset-names = "pwr-dwn", "sw-rst", "pwr-rst";
+
+			clock-names = "ahci_clk";
+			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
+
+			status = "disabled";
+		};
+
+		sata1: sata@9b28000 {
+			compatible = "st,ahci";
+			reg = <0x9b28000 0x1000>;
+
+			interrupts = <GIC_SPI 170 IRQ_TYPE_NONE>;
+			interrupt-names = "hostc";
+
+			phys = <&phy_port1 PHY_TYPE_SATA>;
+			phy-names = "ahci_phy";
+
+			resets = <&powerdown STIH407_SATA1_POWERDOWN>,
+				 <&softreset STIH407_SATA1_SOFTRESET>,
+				 <&softreset STIH407_SATA1_PWR_SOFTRESET>;
+			reset-names = "pwr-dwn",
+				      "sw-rst",
+				      "pwr-rst";
+
+			clock-names = "ahci_clk";
+			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
+
+			status = "disabled";
+		};
+
+		st_dwc3: dwc3@8f94000 {
+			compatible	= "st,stih407-dwc3";
+			reg		= <0x08f94000 0x1000>, <0x110 0x4>;
+			reg-names	= "reg-glue", "syscfg-reg";
+			st,syscfg	= <&syscfg_core>;
+			resets		= <&powerdown STIH407_USB3_POWERDOWN>,
+					  <&softreset STIH407_MIPHY2_SOFTRESET>;
+			reset-names	= "powerdown", "softreset";
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			pinctrl-names	= "default";
+			pinctrl-0	= <&pinctrl_usb3>;
+			ranges;
+
+			status = "disabled";
+
+			dwc3: dwc3@9900000 {
+				compatible	= "snps,dwc3";
+				reg		= <0x09900000 0x100000>;
+				interrupts	= <GIC_SPI 155 IRQ_TYPE_NONE>;
+				dr_mode		= "host";
+				phy-names	= "usb2-phy", "usb3-phy";
+				phys		= <&usb2_picophy0>,
+						  <&phy_port2 PHY_TYPE_USB3>;
 			};
 		};
 	};

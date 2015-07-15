@@ -51,7 +51,6 @@
 
 #include "ubifs.h"
 #include <linux/mount.h>
-#include <linux/namei.h>
 #include <linux/slab.h>
 
 static int read_block(struct inode *inode, void *addr, unsigned int block,
@@ -1300,14 +1299,6 @@ static void ubifs_invalidatepage(struct page *page, unsigned int offset,
 	ClearPageChecked(page);
 }
 
-static void *ubifs_follow_link(struct dentry *dentry, struct nameidata *nd)
-{
-	struct ubifs_inode *ui = ubifs_inode(d_inode(dentry));
-
-	nd_set_link(nd, ui->data);
-	return NULL;
-}
-
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
@@ -1570,7 +1561,7 @@ const struct inode_operations ubifs_file_inode_operations = {
 
 const struct inode_operations ubifs_symlink_inode_operations = {
 	.readlink    = generic_readlink,
-	.follow_link = ubifs_follow_link,
+	.follow_link = simple_follow_link,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
 	.setxattr    = ubifs_setxattr,

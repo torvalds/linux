@@ -221,29 +221,6 @@ struct vgic_sr_vectors {
 	void	*restore_vgic;
 };
 
-static inline void vgic_arch_setup(const struct vgic_params *vgic)
-{
-	extern struct vgic_sr_vectors __vgic_sr_vectors;
-
-	switch(vgic->type)
-	{
-	case VGIC_V2:
-		__vgic_sr_vectors.save_vgic	= __save_vgic_v2_state;
-		__vgic_sr_vectors.restore_vgic	= __restore_vgic_v2_state;
-		break;
-
-#ifdef CONFIG_ARM_GIC_V3
-	case VGIC_V3:
-		__vgic_sr_vectors.save_vgic	= __save_vgic_v3_state;
-		__vgic_sr_vectors.restore_vgic	= __restore_vgic_v3_state;
-		break;
-#endif
-
-	default:
-		BUG();
-	}
-}
-
 static inline void kvm_arch_hardware_disable(void) {}
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}

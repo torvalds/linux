@@ -149,6 +149,7 @@
  */
 #define TRF7970A_QUIRK_IRQ_STATUS_READ		BIT(0)
 #define TRF7970A_QUIRK_EN2_MUST_STAY_LOW	BIT(1)
+#define TRF7970A_QUIRK_T5T_RMB_EXTRA_BYTE	BIT(2)
 
 /* Direct commands */
 #define TRF7970A_CMD_IDLE			0x00
@@ -446,6 +447,7 @@ struct trf7970a {
 	u8				md_rf_tech;
 	u8				tx_cmd;
 	bool				issue_eof;
+	bool				adjust_resp_len;
 	int				en2_gpio;
 	int				en_gpio;
 	struct mutex			lock;
@@ -624,6 +626,11 @@ static void trf7970a_send_upstream(struct trf7970a *trf)
 		}
 
 		trf->aborting = false;
+	}
+
+	if (trf->adjust_resp_len) {
+		skb_trim(trf->rx_skb, trf->rx_skb->len - 1);
+		trf->adjust_resp_len = false;
 	}
 
 	trf->cb(trf->ddev, trf->cb_arg, trf->rx_skb);
@@ -1429,10 +1436,15 @@ static int trf7970a_per_cmd_config(struct trf7970a *trf, struct sk_buff *skb)
 			trf->iso_ctrl = iso_ctrl;
 		}
 
-		if ((trf->framing == NFC_DIGITAL_FRAMING_ISO15693_T5T) &&
-				trf7970a_is_iso15693_write_or_lock(req[1]) &&
-				(req[0] & ISO15693_REQ_FLAG_OPTION))
-			trf->issue_eof = true;
+		if (trf->framing == NFC_DIGITAL_FRAMING_ISO15693_T5T) {
+			if (trf7970a_is_iso15693_write_or_lock(req[1]) &&
+					(req[0] & ISO15693_REQ_FLAG_OPTION))
+				trf->issue_eof = true;
+			else if ((trf->quirks &
+					TRF7970A_QUIRK_T5T_RMB_EXTRA_BYTE) &&
+				 (req[1] == ISO15693_CMD_READ_MULTIPLE_BLOCK))
+				trf->adjust_resp_len = true;
+		}
 	}
 
 	return 0;
@@ -1991,6 +2003,9 @@ static int trf7970a_probe(struct spi_device *spi)
 		dev_err(trf->dev, "Can't set up SPI Communication\n");
 		return ret;
 	}
+
+	if (of_property_read_bool(np, "t5t-rmb-extra-byte-quirk"))
+		trf->quirks |= TRF7970A_QUIRK_T5T_RMB_EXTRA_BYTE;
 
 	if (of_property_read_bool(np, "irq-status-read-quirk"))
 		trf->quirks |= TRF7970A_QUIRK_IRQ_STATUS_READ;

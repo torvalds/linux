@@ -91,121 +91,21 @@ union tspec_body {
 	} f;
 };
 
-struct wmm_tspec {
-	u8		ID;
-	u8		Length;
-	u8		OUI[3];
-	u8		OUI_Type;
-	u8		OUI_SubType;
-	u8		Version;
-	union tspec_body Body;
-};
-
 struct octet_string {
 	u8 *Octet;
 	u16 Length;
 };
-
-#define	MAX_WMMELE_LENGTH	64
-
-#define QOS_MODE u32
-
-#define QOS_DISABLE		0
-#define QOS_WMM		1
-#define QOS_WMMSA		2
-#define QOS_EDCA		4
-#define QOS_HCCA		8
-#define QOS_WMM_UAPSD		16
-
-#define WMM_PARAM_ELE_BODY_LEN	18
-
-#define MAX_STA_TS_COUNT			16
-#define MAX_AP_TS_COUNT			32
-#define QOS_TSTREAM_KEY_SIZE		13
-
-#define WMM_ACTION_CATEGORY_CODE	17
-#define WMM_PARAM_ELE_BODY_LEN	18
-
-#define MAX_TSPEC_TSID				15
-#define SESSION_REJECT_TSID			0xfe
-#define DEFAULT_TSID					0xff
-
-#define ADDTS_TIME_SLOT				100
-
-#define ACM_TIMEOUT				1000
-#define SESSION_REJECT_TIMEOUT		60000
 
 enum ack_policy {
 	eAckPlc0_ACK		= 0x00,
 	eAckPlc1_NoACK		= 0x01,
 };
 
-
-#define SET_WMM_QOS_INFO_FIELD(_pStart, _val)	\
-	WriteEF1Byte(_pStart, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_PARAMETERSET_COUNT(_pStart) \
-	LE_BITS_TO_1BYTE(_pStart, 0, 4)
-#define SET_WMM_QOS_INFO_FIELD_PARAMETERSET_COUNT(_pStart, _val) \
-	SET_BITS_TO_LE_1BYTE(_pStart, 0, 4, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_AP_UAPSD(_pStart) \
-	LE_BITS_TO_1BYTE(_pStart, 7, 1)
-#define SET_WMM_QOS_INFO_FIELD_AP_UAPSD(_pStart, _val) \
-	SET_BITS_TO_LE_1BYTE(_pStart, 7, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_AC_VO_UAPSD(_pStart) \
-	LE_BITS_TO_1BYTE(_pStart, 0, 1)
-#define SET_WMM_QOS_INFO_FIELD_STA_AC_VO_UAPSD(_pStart, _val) \
-	SET_BITS_TO_LE_1BYTE(_pStart, 0, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_AC_VI_UAPSD(_pStart) \
-	LE_BITS_TO_1BYTE(_pStart, 1, 1)
-#define SET_WMM_QOS_INFO_FIELD_STA_AC_VI_UAPSD(_pStart, _val) \
-	SET_BITS_TO_LE_1BYTE(_pStart, 1, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_AC_BE_UAPSD(_pStart) \
-	LE_BITS_TO_1BYTE(_pStart, 2, 1)
-#define SET_WMM_QOS_INFO_FIELD_STA_AC_BE_UAPSD(_pStart, _val) \
-	SET_BITS_TO_LE_1BYTE(_pStart, 2, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_AC_BK_UAPSD(_pStart) \
-	LE_BITS_TO_1BYTE(_pStart, 3, 1)
-#define SET_WMM_QOS_INFO_FIELD_STA_AC_BK_UAPSD(_pStart, _val) \
-	SET_BITS_TO_LE_1BYTE(_pStart, 3, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart) \
-	LE_BITS_TO_1BYTE(_pStart, 5, 2)
-#define SET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart, _val) \
-	SET_BITS_TO_LE_1BYTE(_pStart, 5, 2, _val)
-
-enum qos_ie_source {
-	QOSIE_SRC_ADDTSREQ,
-	QOSIE_SRC_ADDTSRSP,
-	QOSIE_SRC_REASOCREQ,
-	QOSIE_SRC_REASOCRSP,
-	QOSIE_SRC_DELTS,
-};
-
-
-#define AC_CODING u32
-
 #define AC0_BE	0
 #define AC1_BK	1
 #define AC2_VI	2
 #define AC3_VO	3
 #define AC_MAX	4
-
-
-#define AC_PARAM_SIZE	4
-
-#define WMM_PARAM_ELEMENT_SIZE	(8+(4*AC_PARAM_SIZE))
-
-enum qos_ele_subtype {
-	QOSELE_TYPE_INFO		= 0x00,
-	QOSELE_TYPE_PARAM	= 0x01,
-};
-
 
 enum direction_value {
 	DIR_UP			= 0,
@@ -227,22 +127,6 @@ struct acm {
 	u8		HwAcmCtl;
 };
 
-
-
-#define AC_UAPSD	u8
-
-#define	GET_VO_UAPSD(_apsd) ((_apsd) & BIT0)
-#define	SET_VO_UAPSD(_apsd) ((_apsd) |= BIT0)
-
-#define	GET_VI_UAPSD(_apsd) ((_apsd) & BIT1)
-#define	SET_VI_UAPSD(_apsd) ((_apsd) |= BIT1)
-
-#define	GET_BK_UAPSD(_apsd) ((_apsd) & BIT2)
-#define	SET_BK_UAPSD(_apsd) ((_apsd) |= BIT2)
-
-#define	GET_BE_UAPSD(_apsd) ((_apsd) & BIT3)
-#define	SET_BE_UAPSD(_apsd) ((_apsd) |= BIT3)
-
 union qos_tclas {
 
 	struct _TYPE_GENERAL {
@@ -255,8 +139,8 @@ union qos_tclas {
 		u8		Priority;
 		u8		ClassifierType;
 		u8		Mask;
-		u8		SrcAddr[6];
-		u8		DstAddr[6];
+		u8		SrcAddr[ETH_ALEN];
+		u8		DstAddr[ETH_ALEN];
 		u16		Type;
 	} TYPE0_ETH;
 
@@ -294,65 +178,6 @@ union qos_tclas {
 	} TYPE2_8021Q;
 };
 
-struct qos_tstream {
-
-	bool			bUsed;
-	u16			MsduLifetime;
-	bool			bEstablishing;
-	u8			TimeSlotCount;
-	u8			DialogToken;
-	struct wmm_tspec TSpec;
-	struct wmm_tspec OutStandingTSpec;
-	u8			NominalPhyRate;
-};
-
-struct sta_qos {
-	u8 WMMIEBuf[MAX_WMMELE_LENGTH];
-	u8 *WMMIE;
-
-	QOS_MODE QosCapability;
-	QOS_MODE CurrentQosMode;
-
-	AC_UAPSD b4ac_Uapsd;
-	AC_UAPSD Curr4acUapsd;
-	u8 bInServicePeriod;
-	u8 MaxSPLength;
-	int NumBcnBeforeTrigger;
-
-	u8 *pWMMInfoEle;
-	u8 WMMParamEle[WMM_PARAM_ELEMENT_SIZE];
-
-	struct acm acm[4];
-	enum acm_method AcmMethod;
-
-	struct qos_tstream StaTsArray[MAX_STA_TS_COUNT];
-	u8				DialogToken;
-	struct wmm_tspec TSpec;
-
-	u8				QBssWirelessMode;
-
-	bool				bNoAck;
-
-	bool				bEnableRxImmBA;
-
-};
-
-#define QBSS_LOAD_SIZE				5
-
-struct bss_qos {
-	QOS_MODE bdQoSMode;
-	u8 bdWMMIEBuf[MAX_WMMELE_LENGTH];
-	struct octet_string bdWMMIE;
-
-	enum qos_ele_subtype EleSubType;
-
-	u8 *pWMMInfoEle;
-	u8 *pWMMParamEle;
-
-	u8 QBssLoad[QBSS_LOAD_SIZE];
-	bool bQBssLoadValid;
-};
-
 #define IsACValid(ac)		((ac >= 0 && ac <= 7) ? true : false)
 
 
@@ -364,25 +189,6 @@ union aci_aifsn {
 		u8	acm:1;
 		u8	ACI:2;
 		u8	Reserved:1;
-	} f;
-};
-
-union ecw {
-	u8	charData;
-	struct {
-		u8	ECWmin:4;
-		u8	ECWmax:4;
-	} f;
-};
-
-union ac_param {
-	u32	longData;
-	u8	charData[4];
-
-	struct {
-		union aci_aifsn AciAifsn;
-		union ecw Ecw;
-		u16		TXOPLimit;
 	} f;
 };
 

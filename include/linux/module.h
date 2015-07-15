@@ -17,6 +17,7 @@
 #include <linux/moduleparam.h>
 #include <linux/jump_label.h>
 #include <linux/export.h>
+#include <linux/rbtree_latch.h>
 
 #include <linux/percpu.h>
 #include <asm/module.h>
@@ -210,6 +211,13 @@ enum module_state {
 	MODULE_STATE_UNFORMED,	/* Still setting it up. */
 };
 
+struct module;
+
+struct mod_tree_node {
+	struct module *mod;
+	struct latch_tree_node node;
+};
+
 struct module {
 	enum module_state state;
 
@@ -232,6 +240,9 @@ struct module {
 	unsigned int num_syms;
 
 	/* Kernel parameters. */
+#ifdef CONFIG_SYSFS
+	struct mutex param_lock;
+#endif
 	struct kernel_param *kp;
 	unsigned int num_kp;
 
@@ -257,6 +268,8 @@ struct module {
 	bool sig_ok;
 #endif
 
+	bool async_probe_requested;
+
 	/* symbols that will be GPL-only in the near future. */
 	const struct kernel_symbol *gpl_future_syms;
 	const unsigned long *gpl_future_crcs;
@@ -269,8 +282,15 @@ struct module {
 	/* Startup function. */
 	int (*init)(void);
 
-	/* If this is non-NULL, vfree after init() returns */
-	void *module_init;
+	/*
+	 * If this is non-NULL, vfree() after init() returns.
+	 *
+	 * Cacheline align here, such that:
+	 *   module_init, module_core, init_size, core_size,
+	 *   init_text_size, core_text_size and mtn_core::{mod,node[0]}
+	 * are on the same cacheline.
+	 */
+	void *module_init	____cacheline_aligned;
 
 	/* Here is the actual code + data, vfree'd on unload. */
 	void *module_core;
@@ -280,6 +300,16 @@ struct module {
 
 	/* The size of the executable code in each section.  */
 	unsigned int init_text_size, core_text_size;
+
+#ifdef CONFIG_MODULES_TREE_LOOKUP
+	/*
+	 * We want mtn_core::{mod,node[0]} to be in the same cacheline as the
+	 * above entries such that a regular lookup will only touch one
+	 * cacheline.
+	 */
+	struct mod_tree_node	mtn_core;
+	struct mod_tree_node	mtn_init;
+#endif
 
 	/* Size of RO sections of the module (text+rodata) */
 	unsigned int init_ro_size, core_ro_size;
@@ -336,7 +366,7 @@ struct module {
 	const char **trace_bprintk_fmt_start;
 #endif
 #ifdef CONFIG_EVENT_TRACING
-	struct ftrace_event_call **trace_events;
+	struct trace_event_call **trace_events;
 	unsigned int num_trace_events;
 	struct trace_enum_map **trace_enums;
 	unsigned int num_trace_enums;
@@ -367,7 +397,7 @@ struct module {
 	ctor_fn_t *ctors;
 	unsigned int num_ctors;
 #endif
-};
+} ____cacheline_aligned;
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
 #endif
@@ -421,14 +451,22 @@ struct symsearch {
 	bool unused;
 };
 
-/* Search for an exported symbol by name. */
+/*
+ * Search for an exported symbol by name.
+ *
+ * Must be called with module_mutex held or preemption disabled.
+ */
 const struct kernel_symbol *find_symbol(const char *name,
 					struct module **owner,
 					const unsigned long **crc,
 					bool gplok,
 					bool warn);
 
-/* Walk the exported symbol table */
+/*
+ * Walk the exported symbol table
+ *
+ * Must be called with module_mutex held or preemption disabled.
+ */
 bool each_symbol_section(bool (*fn)(const struct symsearch *arr,
 				    struct module *owner,
 				    void *data), void *data);
@@ -507,6 +545,11 @@ int register_module_notifier(struct notifier_block *nb);
 int unregister_module_notifier(struct notifier_block *nb);
 
 extern void print_modules(void);
+
+static inline bool module_requested_async_probing(struct module *module)
+{
+	return module && module->async_probe_requested;
+}
 
 #else /* !CONFIG_MODULES... */
 
@@ -618,6 +661,12 @@ static inline int unregister_module_notifier(struct notifier_block *nb)
 static inline void print_modules(void)
 {
 }
+
+static inline bool module_requested_async_probing(struct module *module)
+{
+	return false;
+}
+
 #endif /* CONFIG_MODULES */
 
 #ifdef CONFIG_SYSFS
@@ -654,5 +703,17 @@ static inline void module_bug_finalize(const Elf_Ehdr *hdr,
 }
 static inline void module_bug_cleanup(struct module *mod) {}
 #endif	/* CONFIG_GENERIC_BUG */
+
+#ifdef CONFIG_MODULE_SIG
+static inline bool module_sig_ok(struct module *module)
+{
+	return module->sig_ok;
+}
+#else	/* !CONFIG_MODULE_SIG */
+static inline bool module_sig_ok(struct module *module)
+{
+	return true;
+}
+#endif	/* CONFIG_MODULE_SIG */
 
 #endif /* _LINUX_MODULE_H */

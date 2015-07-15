@@ -313,6 +313,9 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VA_OP_MAP			1
 #define AMDGPU_VA_OP_UNMAP			2
 
+/* Delay the page table update till the next CS */
+#define AMDGPU_VM_DELAY_UPDATE		(1 << 0)
+
 /* Mapping flags */
 /* readable mapping */
 #define AMDGPU_VM_PAGE_READABLE		(1 << 1)
@@ -348,6 +351,7 @@ struct drm_amdgpu_gem_va {
 
 #define AMDGPU_CHUNK_ID_IB		0x01
 #define AMDGPU_CHUNK_ID_FENCE		0x02
+#define AMDGPU_CHUNK_ID_DEPENDENCIES	0x03
 
 struct drm_amdgpu_cs_chunk {
 	uint32_t		chunk_id;
@@ -397,6 +401,14 @@ struct drm_amdgpu_cs_chunk_ib {
 	uint32_t ip_instance;
 	/** Ring index to submit to */
 	uint32_t ring;
+};
+
+struct drm_amdgpu_cs_chunk_dep {
+	uint32_t ip_type;
+	uint32_t ip_instance;
+	uint32_t ring;
+	uint32_t ctx_id;
+	uint64_t handle;
 };
 
 struct drm_amdgpu_cs_chunk_fence {

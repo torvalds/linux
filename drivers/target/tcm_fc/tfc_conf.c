@@ -34,21 +34,14 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <asm/unaligned.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_cmnd.h>
 #include <scsi/libfc.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
-#include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 
 #include "tcm_fc.h"
-
-static const struct target_core_fabric_ops ft_fabric_ops;
 
 static LIST_HEAD(ft_wwn_list);
 DEFINE_MUTEX(ft_lport_lock);
@@ -198,48 +191,17 @@ static struct configfs_attribute *ft_nacl_base_attrs[] = {
  * Add ACL for an initiator.  The ACL is named arbitrarily.
  * The port_name and/or node_name are attributes.
  */
-static struct se_node_acl *ft_add_acl(
-	struct se_portal_group *se_tpg,
-	struct config_group *group,
-	const char *name)
+static int ft_init_nodeacl(struct se_node_acl *nacl, const char *name)
 {
-	struct ft_node_acl *acl;
-	struct ft_tpg *tpg;
+	struct ft_node_acl *acl =
+		container_of(nacl, struct ft_node_acl, se_node_acl);
 	u64 wwpn;
-	u32 q_depth;
-
-	pr_debug("add acl %s\n", name);
-	tpg = container_of(se_tpg, struct ft_tpg, se_tpg);
 
 	if (ft_parse_wwn(name, &wwpn, 1) < 0)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
-	acl = kzalloc(sizeof(struct ft_node_acl), GFP_KERNEL);
-	if (!acl)
-		return ERR_PTR(-ENOMEM);
 	acl->node_auth.port_name = wwpn;
-
-	q_depth = 32;		/* XXX bogus default - get from tpg? */
-	return core_tpg_add_initiator_node_acl(&tpg->se_tpg,
-				&acl->se_node_acl, name, q_depth);
-}
-
-static void ft_del_acl(struct se_node_acl *se_acl)
-{
-	struct se_portal_group *se_tpg = se_acl->se_tpg;
-	struct ft_tpg *tpg;
-	struct ft_node_acl *acl = container_of(se_acl,
-				struct ft_node_acl, se_node_acl);
-
-	pr_debug("del acl %s\n",
-		config_item_name(&se_acl->acl_group.cg_item));
-
-	tpg = container_of(se_tpg, struct ft_tpg, se_tpg);
-	pr_debug("del acl %p se_acl %p tpg %p se_tpg %p\n",
-		    acl, se_acl, tpg, &tpg->se_tpg);
-
-	core_tpg_del_initiator_node_acl(&tpg->se_tpg, se_acl, 1);
-	kfree(acl);
+	return 0;
 }
 
 struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
@@ -249,7 +211,7 @@ struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
 	struct se_portal_group *se_tpg = &tpg->se_tpg;
 	struct se_node_acl *se_acl;
 
-	spin_lock_irq(&se_tpg->acl_node_lock);
+	mutex_lock(&se_tpg->acl_node_mutex);
 	list_for_each_entry(se_acl, &se_tpg->acl_node_list, acl_list) {
 		acl = container_of(se_acl, struct ft_node_acl, se_node_acl);
 		pr_debug("acl %p port_name %llx\n",
@@ -263,31 +225,8 @@ struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
 			break;
 		}
 	}
-	spin_unlock_irq(&se_tpg->acl_node_lock);
+	mutex_unlock(&se_tpg->acl_node_mutex);
 	return found;
-}
-
-static struct se_node_acl *ft_tpg_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	struct ft_node_acl *acl;
-
-	acl = kzalloc(sizeof(*acl), GFP_KERNEL);
-	if (!acl) {
-		pr_err("Unable to allocate struct ft_node_acl\n");
-		return NULL;
-	}
-	pr_debug("acl %p\n", acl);
-	return &acl->se_node_acl;
-}
-
-static void ft_tpg_release_fabric_acl(struct se_portal_group *se_tpg,
-				      struct se_node_acl *se_acl)
-{
-	struct ft_node_acl *acl = container_of(se_acl,
-				struct ft_node_acl, se_node_acl);
-
-	pr_debug("acl %p\n", acl);
-	kfree(acl);
 }
 
 /*
@@ -337,8 +276,7 @@ static struct se_portal_group *ft_add_tpg(
 		return NULL;
 	}
 
-	ret = core_tpg_register(&ft_fabric_ops, wwn, &tpg->se_tpg,
-				tpg, TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(wwn, &tpg->se_tpg, SCSI_PROTOCOL_FCP);
 	if (ret < 0) {
 		destroy_workqueue(wq);
 		kfree(tpg);
@@ -463,6 +401,11 @@ static struct configfs_attribute *ft_wwn_attrs[] = {
 	NULL,
 };
 
+static inline struct ft_tpg *ft_tpg(struct se_portal_group *se_tpg)
+{
+	return container_of(se_tpg, struct ft_tpg, se_tpg);
+}
+
 static char *ft_get_fabric_name(void)
 {
 	return "fc";
@@ -470,25 +413,16 @@ static char *ft_get_fabric_name(void)
 
 static char *ft_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
-	struct ft_tpg *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->lport_wwn->name;
+	return ft_tpg(se_tpg)->lport_wwn->name;
 }
 
 static u16 ft_get_tag(struct se_portal_group *se_tpg)
 {
-	struct ft_tpg *tpg = se_tpg->se_tpg_fabric_ptr;
-
 	/*
 	 * This tag is used when forming SCSI Name identifier in EVPD=1 0x83
 	 * to represent the SCSI Target Port.
 	 */
-	return tpg->index;
-}
-
-static u32 ft_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
+	return ft_tpg(se_tpg)->index;
 }
 
 static int ft_check_false(struct se_portal_group *se_tpg)
@@ -502,28 +436,20 @@ static void ft_set_default_node_attr(struct se_node_acl *se_nacl)
 
 static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
-	struct ft_tpg *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->index;
+	return ft_tpg(se_tpg)->index;
 }
 
 static const struct target_core_fabric_ops ft_fabric_ops = {
 	.module =			THIS_MODULE,
 	.name =				"fc",
+	.node_acl_size =		sizeof(struct ft_node_acl),
 	.get_fabric_name =		ft_get_fabric_name,
-	.get_fabric_proto_ident =	fc_get_fabric_proto_ident,
 	.tpg_get_wwn =			ft_get_fabric_wwn,
 	.tpg_get_tag =			ft_get_tag,
-	.tpg_get_default_depth =	ft_get_default_depth,
-	.tpg_get_pr_transport_id =	fc_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len =	fc_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id = fc_parse_pr_out_transport_id,
 	.tpg_check_demo_mode =		ft_check_false,
 	.tpg_check_demo_mode_cache =	ft_check_false,
 	.tpg_check_demo_mode_write_protect = ft_check_false,
 	.tpg_check_prod_mode_write_protect = ft_check_false,
-	.tpg_alloc_fabric_acl =		ft_tpg_alloc_fabric_acl,
-	.tpg_release_fabric_acl =	ft_tpg_release_fabric_acl,
 	.tpg_get_inst_index =		ft_tpg_get_inst_index,
 	.check_stop_free =		ft_check_stop_free,
 	.release_cmd =			ft_release_cmd,
@@ -534,7 +460,6 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.write_pending =		ft_write_pending,
 	.write_pending_status =		ft_write_pending_status,
 	.set_default_node_attributes =	ft_set_default_node_attr,
-	.get_task_tag =			ft_get_task_tag,
 	.get_cmd_state =		ft_get_cmd_state,
 	.queue_data_in =		ft_queue_data_in,
 	.queue_status =			ft_queue_status,
@@ -548,12 +473,7 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.fabric_drop_wwn =		&ft_del_wwn,
 	.fabric_make_tpg =		&ft_add_tpg,
 	.fabric_drop_tpg =		&ft_del_tpg,
-	.fabric_post_link =		NULL,
-	.fabric_pre_unlink =		NULL,
-	.fabric_make_np =		NULL,
-	.fabric_drop_np =		NULL,
-	.fabric_make_nodeacl =		&ft_add_acl,
-	.fabric_drop_nodeacl =		&ft_del_acl,
+	.fabric_init_nodeacl =		&ft_init_nodeacl,
 
 	.tfc_wwn_attrs			= ft_wwn_attrs,
 	.tfc_tpg_nacl_base_attrs	= ft_nacl_base_attrs,

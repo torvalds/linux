@@ -31,14 +31,11 @@
 static void memswap(void *a, void *b, size_t len)
 {
 	unsigned char *ap, *bp;
-	unsigned char tmp;
 
 	ap = (unsigned char *)a;
 	bp = (unsigned char *)b;
 	while (len-- > 0) {
-		tmp = *ap;
-		*ap = *bp;
-		*bp = tmp;
+		swap(*ap, *bp);
 		ap++;
 		bp++;
 	}
@@ -675,8 +672,8 @@ encryption_policy_out:
 			if (err)
 				return err;
 		}
-		if (copy_to_user((void *) arg, sbi->s_es->s_encrypt_pw_salt,
-				 16))
+		if (copy_to_user((void __user *) arg,
+				 sbi->s_es->s_encrypt_pw_salt, 16))
 			return -EFAULT;
 		return 0;
 	}
@@ -690,7 +687,7 @@ encryption_policy_out:
 		err = ext4_get_policy(inode, &policy);
 		if (err)
 			return err;
-		if (copy_to_user((void *)arg, &policy, sizeof(policy)))
+		if (copy_to_user((void __user *)arg, &policy, sizeof(policy)))
 			return -EFAULT;
 		return 0;
 #else
@@ -758,7 +755,6 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 	}
 	case EXT4_IOC_MOVE_EXT:
-	case FITRIM:
 	case EXT4_IOC_RESIZE_FS:
 	case EXT4_IOC_PRECACHE_EXTENTS:
 	case EXT4_IOC_SET_ENCRYPTION_POLICY:

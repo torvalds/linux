@@ -104,7 +104,6 @@ do {									\
 	if (test_and_clear_tsk_thread_flag(prev, TIF_USEDMSA))		\
 		__fpsave = FP_SAVE_VECTOR;				\
 	(last) = resume(prev, next, task_thread_info(next), __fpsave);	\
-	disable_msa();							\
 } while (0)
 
 #define finish_arch_switch(prev)					\
@@ -122,6 +121,7 @@ do {									\
 	if (cpu_has_userlocal)						\
 		write_c0_userlocal(current_thread_info()->tp_value);	\
 	__restore_watch();						\
+	disable_msa();							\
 } while (0)
 
 #endif /* _ASM_SWITCH_TO_H */

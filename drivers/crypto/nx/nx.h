@@ -143,18 +143,17 @@ struct nx_crypto_ctx {
 
 /* prototypes */
 int nx_crypto_ctx_aes_ccm_init(struct crypto_tfm *tfm);
-int nx_crypto_ctx_aes_gcm_init(struct crypto_tfm *tfm);
+int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm);
 int nx_crypto_ctx_aes_xcbc_init(struct crypto_tfm *tfm);
 int nx_crypto_ctx_aes_ctr_init(struct crypto_tfm *tfm);
 int nx_crypto_ctx_aes_cbc_init(struct crypto_tfm *tfm);
 int nx_crypto_ctx_aes_ecb_init(struct crypto_tfm *tfm);
 int nx_crypto_ctx_sha_init(struct crypto_tfm *tfm);
 void nx_crypto_ctx_exit(struct crypto_tfm *tfm);
+void nx_crypto_ctx_aead_exit(struct crypto_aead *tfm);
 void nx_ctx_init(struct nx_crypto_ctx *nx_ctx, unsigned int function);
 int nx_hcall_sync(struct nx_crypto_ctx *ctx, struct vio_pfo_op *op,
 		  u32 may_sleep);
-int nx_sha_build_sg_list(struct nx_crypto_ctx *, struct nx_sg *,
-			 s64 *, unsigned int *, u8 *, u32);
 struct nx_sg *nx_build_sg_list(struct nx_sg *, u8 *, unsigned int *, u32);
 int nx_build_sg_lists(struct nx_crypto_ctx *, struct blkcipher_desc *,
 		      struct scatterlist *, struct scatterlist *, unsigned int *,
@@ -178,8 +177,8 @@ void nx_debugfs_fini(struct nx_crypto_driver *);
 
 extern struct crypto_alg nx_cbc_aes_alg;
 extern struct crypto_alg nx_ecb_aes_alg;
-extern struct crypto_alg nx_gcm_aes_alg;
-extern struct crypto_alg nx_gcm4106_aes_alg;
+extern struct aead_alg nx_gcm_aes_alg;
+extern struct aead_alg nx_gcm4106_aes_alg;
 extern struct crypto_alg nx_ctr_aes_alg;
 extern struct crypto_alg nx_ctr3686_aes_alg;
 extern struct crypto_alg nx_ccm_aes_alg;

@@ -230,30 +230,7 @@ clk_register(...)
 
 See the basic clock types in drivers/clk/clk-*.c for examples.
 
-	Part 5 - static initialization of clock data
-
-For platforms with many clocks (often numbering into the hundreds) it
-may be desirable to statically initialize some clock data.  This
-presents a problem since the definition of struct clk should be hidden
-from everyone except for the clock core in drivers/clk/clk.c.
-
-To get around this problem struct clk's definition is exposed in
-include/linux/clk-private.h along with some macros for more easily
-initializing instances of the basic clock types.  These clocks must
-still be initialized with the common clock framework via a call to
-__clk_init.
-
-clk-private.h must NEVER be included by code which implements struct
-clk_ops callbacks, nor must it be included by any logic which pokes
-around inside of struct clk at run-time.  To do so is a layering
-violation.
-
-To better enforce this policy, always follow this simple rule: any
-statically initialized clock data MUST be defined in a separate file
-from the logic that implements its ops.  Basically separate the logic
-from the data and all is well.
-
-	Part 6 - Disabling clock gating of unused clocks
+	Part 5 - Disabling clock gating of unused clocks
 
 Sometimes during development it can be useful to be able to bypass the
 default disabling of unused clocks. For example, if drivers aren't enabling
@@ -264,7 +241,7 @@ are sorted out.
 To bypass this disabling, include "clk_ignore_unused" in the bootargs to the
 kernel.
 
-	Part 7 - Locking
+	Part 6 - Locking
 
 The common clock framework uses two global locks, the prepare lock and the
 enable lock.

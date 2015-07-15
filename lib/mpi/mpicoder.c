@@ -128,28 +128,36 @@ leave:
 }
 EXPORT_SYMBOL_GPL(mpi_read_from_buffer);
 
-/****************
- * Return an allocated buffer with the MPI (msb first).
- * NBYTES receives the length of this buffer. Caller must free the
- * return string (This function does return a 0 byte buffer with NBYTES
- * set to zero if the value of A is zero. If sign is not NULL, it will
- * be set to the sign of the A.
+/**
+ * mpi_read_buffer() - read MPI to a bufer provided by user (msb first)
+ *
+ * @a:		a multi precision integer
+ * @buf:	bufer to which the output will be written to. Needs to be at
+ *		leaset mpi_get_size(a) long.
+ * @buf_len:	size of the buf.
+ * @nbytes:	receives the actual length of the data written.
+ * @sign:	if not NULL, it will be set to the sign of a.
+ *
+ * Return:	0 on success or error code in case of error
  */
-void *mpi_get_buffer(MPI a, unsigned *nbytes, int *sign)
+int mpi_read_buffer(MPI a, uint8_t *buf, unsigned buf_len, unsigned *nbytes,
+		    int *sign)
 {
-	uint8_t *p, *buffer;
+	uint8_t *p;
 	mpi_limb_t alimb;
+	unsigned int n = mpi_get_size(a);
 	int i;
-	unsigned int n;
+
+	if (buf_len < n || !buf)
+		return -EINVAL;
 
 	if (sign)
 		*sign = a->sign;
-	*nbytes = n = a->nlimbs * BYTES_PER_MPI_LIMB;
-	if (!n)
-		n++;		/* avoid zero length allocation */
-	p = buffer = kmalloc(n, GFP_KERNEL);
-	if (!p)
-		return NULL;
+
+	if (nbytes)
+		*nbytes = n;
+
+	p = buf;
 
 	for (i = a->nlimbs - 1; i >= 0; i--) {
 		alimb = a->d[i];
@@ -171,15 +179,56 @@ void *mpi_get_buffer(MPI a, unsigned *nbytes, int *sign)
 #error please implement for this limb size.
 #endif
 	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mpi_read_buffer);
+
+/*
+ * mpi_get_buffer() - Returns an allocated buffer with the MPI (msb first).
+ * Caller must free the return string.
+ * This function does return a 0 byte buffer with nbytes set to zero if the
+ * value of A is zero.
+ *
+ * @a:		a multi precision integer.
+ * @nbytes:	receives the length of this buffer.
+ * @sign:	if not NULL, it will be set to the sign of the a.
+ *
+ * Return:	Pointer to MPI buffer or NULL on error
+ */
+void *mpi_get_buffer(MPI a, unsigned *nbytes, int *sign)
+{
+	uint8_t *buf, *p;
+	unsigned int n;
+	int ret;
+
+	if (!nbytes)
+		return NULL;
+
+	n = mpi_get_size(a);
+
+	if (!n)
+		n++;
+
+	buf = kmalloc(n, GFP_KERNEL);
+
+	if (!buf)
+		return NULL;
+
+	ret = mpi_read_buffer(a, buf, n, nbytes, sign);
+
+	if (ret) {
+		kfree(buf);
+		return NULL;
+	}
 
 	/* this is sub-optimal but we need to do the shift operation
 	 * because the caller has to free the returned buffer */
-	for (p = buffer; !*p && *nbytes; p++, --*nbytes)
+	for (p = buf; !*p && *nbytes; p++, --*nbytes)
 		;
-	if (p != buffer)
-		memmove(buffer, p, *nbytes);
+	if (p != buf)
+		memmove(buf, p, *nbytes);
 
-	return buffer;
+	return buf;
 }
 EXPORT_SYMBOL_GPL(mpi_get_buffer);
 

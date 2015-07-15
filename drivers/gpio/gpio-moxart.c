@@ -39,17 +39,6 @@ static void moxart_gpio_free(struct gpio_chip *chip, unsigned offset)
 	pinctrl_free_gpio(offset);
 }
 
-static int moxart_gpio_get(struct gpio_chip *chip, unsigned offset)
-{
-	struct bgpio_chip *bgc = to_bgpio_chip(chip);
-	u32 ret = bgc->read_reg(bgc->reg_dir);
-
-	if (ret & BIT(offset))
-		return !!(bgc->read_reg(bgc->reg_set) & BIT(offset));
-	else
-		return !!(bgc->read_reg(bgc->reg_dat) & BIT(offset));
-}
-
 static int moxart_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -68,8 +57,9 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	ret = bgpio_init(bgc, dev, 4, base + GPIO_DATA_IN,
-		    base + GPIO_DATA_OUT, NULL,
-		    base + GPIO_PIN_DIRECTION, NULL, 0);
+			 base + GPIO_DATA_OUT, NULL,
+			 base + GPIO_PIN_DIRECTION, NULL,
+			 BGPIOF_READ_OUTPUT_REG_SET);
 	if (ret) {
 		dev_err(&pdev->dev, "bgpio_init failed\n");
 		return ret;
@@ -78,7 +68,6 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 	bgc->gc.label = "moxart-gpio";
 	bgc->gc.request = moxart_gpio_request;
 	bgc->gc.free = moxart_gpio_free;
-	bgc->gc.get = moxart_gpio_get;
 	bgc->data = bgc->read_reg(bgc->reg_set);
 	bgc->gc.base = 0;
 	bgc->gc.ngpio = 32;

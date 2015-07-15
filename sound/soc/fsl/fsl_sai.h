@@ -72,13 +72,15 @@
 
 /* SAI Transmit and Recieve Configuration 2 Register */
 #define FSL_SAI_CR2_SYNC	BIT(30)
-#define FSL_SAI_CR2_MSEL_MASK	(0xff << 26)
+#define FSL_SAI_CR2_MSEL_MASK	(0x3 << 26)
 #define FSL_SAI_CR2_MSEL_BUS	0
 #define FSL_SAI_CR2_MSEL_MCLK1	BIT(26)
 #define FSL_SAI_CR2_MSEL_MCLK2	BIT(27)
 #define FSL_SAI_CR2_MSEL_MCLK3	(BIT(26) | BIT(27))
+#define FSL_SAI_CR2_MSEL(ID)	((ID) << 26)
 #define FSL_SAI_CR2_BCP		BIT(25)
 #define FSL_SAI_CR2_BCD_MSTR	BIT(24)
+#define FSL_SAI_CR2_DIV_MASK	0xff
 
 /* SAI Transmit and Recieve Configuration 3 Register */
 #define FSL_SAI_CR3_TRCE	BIT(16)
@@ -120,7 +122,7 @@
 #define FSL_SAI_CLK_MAST2	2
 #define FSL_SAI_CLK_MAST3	3
 
-#define FSL_SAI_MCLK_MAX	3
+#define FSL_SAI_MCLK_MAX	4
 
 /* SAI data transfer numbers per DMA request */
 #define FSL_SAI_MAXBURST_TX 6
@@ -132,11 +134,14 @@ struct fsl_sai {
 	struct clk *bus_clk;
 	struct clk *mclk_clk[FSL_SAI_MCLK_MAX];
 
+	bool is_slave_mode;
 	bool is_lsb_first;
 	bool is_dsp_mode;
 	bool sai_on_imx;
 	bool synchronous[2];
 
+	unsigned int mclk_id[2];
+	unsigned int mclk_streams;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
 };

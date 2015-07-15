@@ -135,7 +135,6 @@ enum bna_tx_type {
 enum bna_tx_flags {
 	BNA_TX_F_ENET_STARTED	= 1,
 	BNA_TX_F_ENABLED	= 2,
-	BNA_TX_F_PRIO_CHANGED	= 4,
 	BNA_TX_F_BW_UPDATED	= 8,
 };
 
@@ -182,17 +181,11 @@ enum bna_rx_mod_flags {
 	BNA_RX_MOD_F_ENET_LOOPBACK	= 2,
 };
 
-enum bna_rxf_flags {
-	BNA_RXF_F_PAUSED		= 1,
-};
-
 enum bna_rxf_event {
 	RXF_E_START			= 1,
 	RXF_E_STOP			= 2,
 	RXF_E_FAIL			= 3,
 	RXF_E_CONFIG			= 4,
-	RXF_E_PAUSE			= 5,
-	RXF_E_RESUME			= 6,
 	RXF_E_FW_RESP			= 7,
 };
 
@@ -362,9 +355,6 @@ struct bna_enet {
 	void (*stop_cbfn)(void *);
 	void			*stop_cbarg;
 
-	/* Callback for bna_enet_pause_config() */
-	void (*pause_cbfn)(struct bnad *);
-
 	/* Callback for bna_enet_mtu_set() */
 	void (*mtu_cbfn)(struct bnad *);
 
@@ -497,9 +487,6 @@ struct bna_tx {
 	/* callback for bna_tx_disable(), bna_tx_stop() */
 	void (*stop_cbfn)(void *arg, struct bna_tx *tx);
 	void			*stop_cbarg;
-
-	/* callback for bna_tx_prio_set() */
-	void (*prio_change_cbfn)(struct bnad *bnad, struct bna_tx *tx);
 
 	struct bfa_msgq_cmd_entry msgq_cmd;
 	union {
@@ -676,7 +663,6 @@ struct bna_rx_config {
 	enum bna_rx_type rx_type;
 	int			num_paths;
 	enum bna_rxp_type rxp_type;
-	int			paused;
 	int			coalescing_timeo;
 	/*
 	 * Small/Large (or Header/Data) buffer size to be configured
@@ -721,7 +707,6 @@ struct bna_rxp {
 /* RxF structure (hardware Rx Function) */
 struct bna_rxf {
 	bfa_fsm_t		fsm;
-	enum bna_rxf_flags flags;
 
 	struct bfa_msgq_cmd_entry msgq_cmd;
 	union {
@@ -741,10 +726,6 @@ struct bna_rxf {
 	/* callback for bna_rxf_stop() */
 	void (*stop_cbfn) (struct bna_rx *rx);
 	struct bna_rx *stop_cbarg;
-
-	/* callback for bna_rx_receive_pause() / bna_rx_receive_resume() */
-	void (*oper_state_cbfn) (struct bnad *bnad, struct bna_rx *rx);
-	struct bnad *oper_state_cbarg;
 
 	/**
 	 * callback for:

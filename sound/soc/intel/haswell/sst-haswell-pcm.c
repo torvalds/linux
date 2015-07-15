@@ -928,10 +928,15 @@ static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
 
 	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
 		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
-		sst_hsw_runtime_module_free(pcm_data->runtime);
+		if (pcm_data->runtime){
+			sst_hsw_runtime_module_free(pcm_data->runtime);
+			pcm_data->runtime = NULL;
+		}
 	}
-	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES)) {
+	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES) &&
+				pdata->runtime_waves) {
 		sst_hsw_runtime_module_free(pdata->runtime_waves);
+		pdata->runtime_waves = NULL;
 	}
 }
 
@@ -1204,6 +1209,20 @@ static int hsw_pcm_runtime_idle(struct device *dev)
 	return 0;
 }
 
+static int hsw_pcm_suspend(struct device *dev)
+{
+	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
+	struct sst_hsw *hsw = pdata->hsw;
+
+	/* enter D3 state and stall */
+	sst_hsw_dsp_runtime_suspend(hsw);
+	/* free all runtime modules */
+	hsw_pcm_free_modules(pdata);
+	/* put the DSP to sleep, fw unloaded after runtime modules freed */
+	sst_hsw_dsp_runtime_sleep(hsw);
+	return 0;
+}
+
 static int hsw_pcm_runtime_suspend(struct device *dev)
 {
 	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
@@ -1220,8 +1239,7 @@ static int hsw_pcm_runtime_suspend(struct device *dev)
 			return ret;
 		sst_hsw_set_module_enabled_rtd3(hsw, SST_HSW_MODULE_WAVES);
 	}
-	sst_hsw_dsp_runtime_suspend(hsw);
-	sst_hsw_dsp_runtime_sleep(hsw);
+	hsw_pcm_suspend(dev);
 	pdata->pm_state = HSW_PM_STATE_RTD3;
 
 	return 0;
@@ -1328,7 +1346,6 @@ static void hsw_pcm_complete(struct device *dev)
 static int hsw_pcm_prepare(struct device *dev)
 {
 	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
-	struct sst_hsw *hsw = pdata->hsw;
 	struct hsw_pcm_data *pcm_data;
 	int i, err;
 
@@ -1361,10 +1378,7 @@ static int hsw_pcm_prepare(struct device *dev)
 			if (err < 0)
 				dev_err(dev, "failed to save context for PCM %d\n", i);
 		}
-		/* enter D3 state and stall */
-		sst_hsw_dsp_runtime_suspend(hsw);
-		/* put the DSP to sleep */
-		sst_hsw_dsp_runtime_sleep(hsw);
+		hsw_pcm_suspend(dev);
 	}
 
 	snd_soc_suspend(pdata->soc_card->dev);

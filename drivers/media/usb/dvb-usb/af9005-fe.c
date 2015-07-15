@@ -29,7 +29,7 @@
 
 struct af9005_fe_state {
 	struct dvb_usb_device *d;
-	fe_status_t stat;
+	enum fe_status stat;
 
 	/* retraining parameters */
 	u32 original_fcw;
@@ -437,7 +437,8 @@ static int af9005_fe_refresh_state(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int af9005_fe_read_status(struct dvb_frontend *fe, fe_status_t * stat)
+static int af9005_fe_read_status(struct dvb_frontend *fe,
+				 enum fe_status *stat)
 {
 	struct af9005_fe_state *state = fe->demodulator_priv;
 	u8 temp;
@@ -481,7 +482,7 @@ static int af9005_fe_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 		return ret;
 	if (temp != state->strong) {
 		deb_info("adjust for strong signal %d\n", temp);
-			state->strong = temp;
+		state->strong = temp;
 	}
 	return 0;
 }

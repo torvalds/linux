@@ -4,11 +4,12 @@
 /* Caches aren't brain-dead on the intel. */
 #include <asm-generic/cacheflush.h>
 #include <asm/special_insns.h>
+#include <asm/uaccess.h>
 
 /*
  * The set_memory_* API can be used to change various attributes of a virtual
  * address range. The attributes include:
- * Cachability   : UnCached, WriteCombining, WriteBack
+ * Cachability   : UnCached, WriteCombining, WriteThrough, WriteBack
  * Executability : eXeutable, NoteXecutable
  * Read/Write    : ReadOnly, ReadWrite
  * Presence      : NotPresent
@@ -35,9 +36,11 @@
 
 int _set_memory_uc(unsigned long addr, int numpages);
 int _set_memory_wc(unsigned long addr, int numpages);
+int _set_memory_wt(unsigned long addr, int numpages);
 int _set_memory_wb(unsigned long addr, int numpages);
 int set_memory_uc(unsigned long addr, int numpages);
 int set_memory_wc(unsigned long addr, int numpages);
+int set_memory_wt(unsigned long addr, int numpages);
 int set_memory_wb(unsigned long addr, int numpages);
 int set_memory_x(unsigned long addr, int numpages);
 int set_memory_nx(unsigned long addr, int numpages);
@@ -48,10 +51,12 @@ int set_memory_4k(unsigned long addr, int numpages);
 
 int set_memory_array_uc(unsigned long *addr, int addrinarray);
 int set_memory_array_wc(unsigned long *addr, int addrinarray);
+int set_memory_array_wt(unsigned long *addr, int addrinarray);
 int set_memory_array_wb(unsigned long *addr, int addrinarray);
 
 int set_pages_array_uc(struct page **pages, int addrinarray);
 int set_pages_array_wc(struct page **pages, int addrinarray);
+int set_pages_array_wt(struct page **pages, int addrinarray);
 int set_pages_array_wb(struct page **pages, int addrinarray);
 
 /*
@@ -101,6 +106,77 @@ int rodata_test(void);
 static inline int rodata_test(void)
 {
 	return 0;
+}
+#endif
+
+#ifdef ARCH_HAS_NOCACHE_UACCESS
+
+/**
+ * arch_memcpy_to_pmem - copy data to persistent memory
+ * @dst: destination buffer for the copy
+ * @src: source buffer for the copy
+ * @n: length of the copy in bytes
+ *
+ * Copy data to persistent memory media via non-temporal stores so that
+ * a subsequent arch_wmb_pmem() can flush cpu and memory controller
+ * write buffers to guarantee durability.
+ */
+static inline void arch_memcpy_to_pmem(void __pmem *dst, const void *src,
+		size_t n)
+{
+	int unwritten;
+
+	/*
+	 * We are copying between two kernel buffers, if
+	 * __copy_from_user_inatomic_nocache() returns an error (page
+	 * fault) we would have already reported a general protection fault
+	 * before the WARN+BUG.
+	 */
+	unwritten = __copy_from_user_inatomic_nocache((void __force *) dst,
+			(void __user *) src, n);
+	if (WARN(unwritten, "%s: fault copying %p <- %p unwritten: %d\n",
+				__func__, dst, src, unwritten))
+		BUG();
+}
+
+/**
+ * arch_wmb_pmem - synchronize writes to persistent memory
+ *
+ * After a series of arch_memcpy_to_pmem() operations this drains data
+ * from cpu write buffers and any platform (memory controller) buffers
+ * to ensure that written data is durable on persistent memory media.
+ */
+static inline void arch_wmb_pmem(void)
+{
+	/*
+	 * wmb() to 'sfence' all previous writes such that they are
+	 * architecturally visible to 'pcommit'.  Note, that we've
+	 * already arranged for pmem writes to avoid the cache via
+	 * arch_memcpy_to_pmem().
+	 */
+	wmb();
+	pcommit_sfence();
+}
+
+static inline bool __arch_has_wmb_pmem(void)
+{
+#ifdef CONFIG_X86_64
+	/*
+	 * We require that wmb() be an 'sfence', that is only guaranteed on
+	 * 64-bit builds
+	 */
+	return static_cpu_has(X86_FEATURE_PCOMMIT);
+#else
+	return false;
+#endif
+}
+#else /* ARCH_HAS_NOCACHE_UACCESS i.e. ARCH=um */
+extern void arch_memcpy_to_pmem(void __pmem *dst, const void *src, size_t n);
+extern void arch_wmb_pmem(void);
+
+static inline bool __arch_has_wmb_pmem(void)
+{
+	return false;
 }
 #endif
 

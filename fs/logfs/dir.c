@@ -779,6 +779,7 @@ fail:
 const struct inode_operations logfs_symlink_iops = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
+	.put_link	= page_put_link,
 };
 
 const struct inode_operations logfs_dir_iops = {

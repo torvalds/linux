@@ -22,9 +22,8 @@
 #undef LDISC_DEBUG_HANGUP
 
 #ifdef LDISC_DEBUG_HANGUP
-#define tty_ldisc_debug(tty, f, args...) ({				       \
-	char __b[64];							       \
-	printk(KERN_DEBUG "%s: %s: " f, __func__, tty_name(tty, __b), ##args); \
+#define tty_ldisc_debug(tty, f, args...) ({				  \
+	printk(KERN_DEBUG "%s: %s: " f, __func__, tty_name(tty), ##args); \
 })
 #else
 #define tty_ldisc_debug(tty, f, args...)
@@ -483,7 +482,6 @@ static void tty_ldisc_close(struct tty_struct *tty, struct tty_ldisc *ld)
 
 static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 {
-	char buf[64];
 	struct tty_ldisc *new_ldisc;
 	int r;
 
@@ -504,7 +502,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 		if (r < 0)
 			panic("Couldn't open N_TTY ldisc for "
 			      "%s --- error %d.",
-			      tty_name(tty, buf), r);
+			      tty_name(tty), r);
 	}
 }
 

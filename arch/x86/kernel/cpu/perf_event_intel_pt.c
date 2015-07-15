@@ -151,7 +151,7 @@ static int __init pt_pmu_hw_init(void)
 
 		de_attr->attr.attr.name = pt_caps[i].name;
 
-		sysfs_attr_init(&de_attrs->attr.attr);
+		sysfs_attr_init(&de_attr->attr.attr);
 
 		de_attr->attr.attr.mode		= S_IRUGO;
 		de_attr->attr.show		= pt_cap_show;
@@ -186,15 +186,6 @@ static bool pt_event_valid(struct perf_event *event)
  * PT configuration helpers
  * These all are cpu affine and operate on a local PT
  */
-
-static bool pt_is_running(void)
-{
-	u64 ctl;
-
-	rdmsrl(MSR_IA32_RTIT_CTL, ctl);
-
-	return !!(ctl & RTIT_CTL_TRACEEN);
-}
 
 static void pt_config(struct perf_event *event)
 {
@@ -609,16 +600,19 @@ static unsigned int pt_topa_next_entry(struct pt_buffer *buf, unsigned int pg)
  * @handle:	Current output handle.
  *
  * Place INT and STOP marks to prevent overwriting old data that the consumer
- * hasn't yet collected.
+ * hasn't yet collected and waking up the consumer after a certain fraction of
+ * the buffer has filled up. Only needed and sensible for non-snapshot counters.
+ *
+ * This obviously relies on buf::head to figure out buffer markers, so it has
+ * to be called after pt_buffer_reset_offsets() and before the hardware tracing
+ * is enabled.
  */
 static int pt_buffer_reset_markers(struct pt_buffer *buf,
 				   struct perf_output_handle *handle)
 
 {
-	unsigned long idx, npages, end;
-
-	if (buf->snapshot)
-		return 0;
+	unsigned long head = local64_read(&buf->head);
+	unsigned long idx, npages, wakeup;
 
 	/* can't stop in the middle of an output region */
 	if (buf->output_off + handle->size + 1 <
@@ -634,17 +628,26 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 	buf->topa_index[buf->stop_pos]->stop = 0;
 	buf->topa_index[buf->intr_pos]->intr = 0;
 
-	if (pt_cap_get(PT_CAP_topa_multiple_entries)) {
-		npages = (handle->size + 1) >> PAGE_SHIFT;
-		end = (local64_read(&buf->head) >> PAGE_SHIFT) + npages;
-		/*if (end > handle->wakeup >> PAGE_SHIFT)
-		  end = handle->wakeup >> PAGE_SHIFT;*/
-		idx = end & (buf->nr_pages - 1);
-		buf->stop_pos = idx;
-		idx = (local64_read(&buf->head) >> PAGE_SHIFT) + npages - 1;
-		idx &= buf->nr_pages - 1;
-		buf->intr_pos = idx;
-	}
+	/* how many pages till the STOP marker */
+	npages = handle->size >> PAGE_SHIFT;
+
+	/* if it's on a page boundary, fill up one more page */
+	if (!offset_in_page(head + handle->size + 1))
+		npages++;
+
+	idx = (head >> PAGE_SHIFT) + npages;
+	idx &= buf->nr_pages - 1;
+	buf->stop_pos = idx;
+
+	wakeup = handle->wakeup >> PAGE_SHIFT;
+
+	/* in the worst case, wake up the consumer one page before hard stop */
+	idx = (head >> PAGE_SHIFT) + npages - 1;
+	if (idx > wakeup)
+		idx = wakeup;
+
+	idx &= buf->nr_pages - 1;
+	buf->intr_pos = idx;
 
 	buf->topa_index[buf->stop_pos]->stop = 1;
 	buf->topa_index[buf->intr_pos]->intr = 1;
@@ -664,7 +667,7 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
 	struct topa *cur = buf->first, *prev = buf->last;
 	struct topa_entry *te_cur = TOPA_ENTRY(cur, 0),
 		*te_prev = TOPA_ENTRY(prev, prev->last - 1);
-	int pg = 0, idx = 0, ntopa = 0;
+	int pg = 0, idx = 0;
 
 	while (pg < buf->nr_pages) {
 		int tidx;
@@ -679,9 +682,9 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
 			/* advance to next topa table */
 			idx = 0;
 			cur = list_entry(cur->list.next, struct topa, list);
-			ntopa++;
-		} else
+		} else {
 			idx++;
+		}
 		te_cur = TOPA_ENTRY(cur, idx);
 	}
 
@@ -693,7 +696,14 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
  * @head:	Write pointer (aux_head) from AUX buffer.
  *
  * Find the ToPA table and entry corresponding to given @head and set buffer's
- * "current" pointers accordingly.
+ * "current" pointers accordingly. This is done after we have obtained the
+ * current aux_head position from a successful call to perf_aux_output_begin()
+ * to make sure the hardware is writing to the right place.
+ *
+ * This function modifies buf::{cur,cur_idx,output_off} that will be programmed
+ * into PT msrs when the tracing is enabled and buf::head and buf::data_size,
+ * which are used to determine INT and STOP markers' locations by a subsequent
+ * call to pt_buffer_reset_markers().
  */
 static void pt_buffer_reset_offsets(struct pt_buffer *buf, unsigned long head)
 {
@@ -891,6 +901,7 @@ void intel_pt_interrupt(void)
 		}
 
 		pt_buffer_reset_offsets(buf, pt->handle.head);
+		/* snapshot counters don't use PMI, so it's safe */
 		ret = pt_buffer_reset_markers(buf, &pt->handle);
 		if (ret) {
 			perf_aux_output_end(&pt->handle, 0, true);
@@ -913,7 +924,7 @@ static void pt_event_start(struct perf_event *event, int mode)
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	struct pt_buffer *buf = perf_get_aux(&pt->handle);
 
-	if (pt_is_running() || !buf || pt_buffer_is_full(buf, pt)) {
+	if (!buf || pt_buffer_is_full(buf, pt)) {
 		event->hw.state = PERF_HES_STOPPED;
 		return;
 	}
@@ -944,7 +955,6 @@ static void pt_event_stop(struct perf_event *event, int mode)
 	event->hw.state = PERF_HES_STOPPED;
 
 	if (mode & PERF_EF_UPDATE) {
-		struct pt *pt = this_cpu_ptr(&pt_ctx);
 		struct pt_buffer *buf = perf_get_aux(&pt->handle);
 
 		if (!buf)
@@ -1096,5 +1106,4 @@ static __init int pt_init(void)
 
 	return ret;
 }
-
-module_init(pt_init);
+arch_initcall(pt_init);

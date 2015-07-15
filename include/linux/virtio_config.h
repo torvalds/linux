@@ -205,35 +205,41 @@ int virtqueue_set_affinity(struct virtqueue *vq, int cpu)
 	return 0;
 }
 
+static inline bool virtio_is_little_endian(struct virtio_device *vdev)
+{
+	return virtio_has_feature(vdev, VIRTIO_F_VERSION_1) ||
+		virtio_legacy_is_little_endian();
+}
+
 /* Memory accessors */
 static inline u16 virtio16_to_cpu(struct virtio_device *vdev, __virtio16 val)
 {
-	return __virtio16_to_cpu(virtio_has_feature(vdev, VIRTIO_F_VERSION_1), val);
+	return __virtio16_to_cpu(virtio_is_little_endian(vdev), val);
 }
 
 static inline __virtio16 cpu_to_virtio16(struct virtio_device *vdev, u16 val)
 {
-	return __cpu_to_virtio16(virtio_has_feature(vdev, VIRTIO_F_VERSION_1), val);
+	return __cpu_to_virtio16(virtio_is_little_endian(vdev), val);
 }
 
 static inline u32 virtio32_to_cpu(struct virtio_device *vdev, __virtio32 val)
 {
-	return __virtio32_to_cpu(virtio_has_feature(vdev, VIRTIO_F_VERSION_1), val);
+	return __virtio32_to_cpu(virtio_is_little_endian(vdev), val);
 }
 
 static inline __virtio32 cpu_to_virtio32(struct virtio_device *vdev, u32 val)
 {
-	return __cpu_to_virtio32(virtio_has_feature(vdev, VIRTIO_F_VERSION_1), val);
+	return __cpu_to_virtio32(virtio_is_little_endian(vdev), val);
 }
 
 static inline u64 virtio64_to_cpu(struct virtio_device *vdev, __virtio64 val)
 {
-	return __virtio64_to_cpu(virtio_has_feature(vdev, VIRTIO_F_VERSION_1), val);
+	return __virtio64_to_cpu(virtio_is_little_endian(vdev), val);
 }
 
 static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 {
-	return __cpu_to_virtio64(virtio_has_feature(vdev, VIRTIO_F_VERSION_1), val);
+	return __cpu_to_virtio64(virtio_is_little_endian(vdev), val);
 }
 
 /* Config space accessors. */

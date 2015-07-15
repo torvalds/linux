@@ -723,7 +723,6 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 		err = -ENOMEM;
 		goto err1;
 	}
-	memset(grpci2priv, 0, sizeof(*grpci2priv));
 	priv->regs = regs;
 	priv->irq = ofdev->archdata.irqs[0]; /* BASE IRQ */
 	priv->irq_mode = (capability & STS_IRQMODE) >> STS_IRQMODE_BIT;

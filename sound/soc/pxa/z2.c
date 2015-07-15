@@ -132,15 +132,7 @@ static const struct snd_soc_dapm_route z2_audio_map[] = {
  */
 static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
-
-	/* NC codec pins */
-	snd_soc_dapm_disable_pin(dapm, "LINPUT3");
-	snd_soc_dapm_disable_pin(dapm, "RINPUT3");
-	snd_soc_dapm_disable_pin(dapm, "OUT3");
-	snd_soc_dapm_disable_pin(dapm, "MONO1");
 
 	/* Jack detection API stuff */
 	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack", SND_JACK_HEADSET,
@@ -189,6 +181,7 @@ static struct snd_soc_card snd_soc_z2 = {
 	.num_dapm_widgets = ARRAY_SIZE(wm8750_dapm_widgets),
 	.dapm_routes = z2_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(z2_audio_map),
+	.fully_routed = true,
 };
 
 static struct platform_device *z2_snd_device;

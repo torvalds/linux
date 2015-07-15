@@ -270,7 +270,7 @@ static int clkgen_pll_is_enabled(struct clk_hw *hw)
 	return !poweroff;
 }
 
-unsigned long recalc_stm_pll800c65(struct clk_hw *hw,
+static unsigned long recalc_stm_pll800c65(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct clkgen_pll *pll = to_clkgen_pll(hw);
@@ -297,7 +297,7 @@ unsigned long recalc_stm_pll800c65(struct clk_hw *hw,
 
 }
 
-unsigned long recalc_stm_pll1600c65(struct clk_hw *hw,
+static unsigned long recalc_stm_pll1600c65(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct clkgen_pll *pll = to_clkgen_pll(hw);
@@ -321,7 +321,7 @@ unsigned long recalc_stm_pll1600c65(struct clk_hw *hw,
 	return rate;
 }
 
-unsigned long recalc_stm_pll3200c32(struct clk_hw *hw,
+static unsigned long recalc_stm_pll3200c32(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct clkgen_pll *pll = to_clkgen_pll(hw);
@@ -343,7 +343,7 @@ unsigned long recalc_stm_pll3200c32(struct clk_hw *hw,
 	return rate;
 }
 
-unsigned long recalc_stm_pll1200c32(struct clk_hw *hw,
+static unsigned long recalc_stm_pll1200c32(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct clkgen_pll *pll = to_clkgen_pll(hw);
@@ -406,7 +406,7 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 	init.name = clk_name;
 	init.ops = pll_data->ops;
 
-	init.flags = CLK_IS_BASIC;
+	init.flags = CLK_IS_BASIC | CLK_GET_RATE_NOCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents  = 1;
 
@@ -544,7 +544,7 @@ CLK_OF_DECLARE(clkgena_c65_plls,
 	       "st,clkgena-plls-c65", clkgena_c65_pll_setup);
 
 static struct clk * __init clkgen_odf_register(const char *parent_name,
-					       void * __iomem reg,
+					       void __iomem *reg,
 					       struct clkgen_pll_data *pll_data,
 					       int odf,
 					       spinlock_t *odf_lock,

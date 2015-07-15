@@ -21,7 +21,7 @@
 #include "../codecs/wm8731.h"
 #include "psc.h"
 
-static struct platform_device_id db1200_pids[] = {
+static const struct platform_device_id db1200_pids[] = {
 	{
 		.name		= "db1200-ac97",
 		.driver_data	= 0,

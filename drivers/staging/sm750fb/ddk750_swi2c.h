@@ -29,8 +29,8 @@
  *       0   - Success
  */
 long swI2CInit(
-    unsigned char i2cClkGPIO,
-    unsigned char i2cDataGPIO
+	unsigned char i2cClkGPIO,
+	unsigned char i2cDataGPIO
 );
 
 /*
@@ -45,8 +45,8 @@ long swI2CInit(
  *      Register value
  */
 unsigned char swI2CReadReg(
-    unsigned char deviceAddress,
-    unsigned char registerIndex
+	unsigned char deviceAddress,
+	unsigned char registerIndex
 );
 
 /*
@@ -63,14 +63,14 @@ unsigned char swI2CReadReg(
  *         -1   - Fail
  */
 long swI2CWriteReg(
-    unsigned char deviceAddress,
-    unsigned char registerIndex,
-    unsigned char data
+	unsigned char deviceAddress,
+	unsigned char registerIndex,
+	unsigned char data
 );
 
 /*
- *  These two functions are used to toggle the data on the SCL and SDA I2C lines.
- *  The used of these two functions are not recommended unless it is necessary.
+ *  These two functions toggle the data on the SCL and SDA I2C lines.
+ *  The use of these two functions is not recommended unless it is necessary.
  */
 
 /*

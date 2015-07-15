@@ -674,7 +674,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
 		return 0;
 
 	if (gtt && gtt->userptr) {
-		ttm->sg = kcalloc(1, sizeof(struct sg_table), GFP_KERNEL);
+		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 		if (!ttm->sg)
 			return -ENOMEM;
 

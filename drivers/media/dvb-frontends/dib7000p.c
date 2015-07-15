@@ -1558,9 +1558,9 @@ static int dib7000p_set_frontend(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int dib7000p_get_stats(struct dvb_frontend *fe, fe_status_t stat);
+static int dib7000p_get_stats(struct dvb_frontend *fe, enum fe_status stat);
 
-static int dib7000p_read_status(struct dvb_frontend *fe, fe_status_t * stat)
+static int dib7000p_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 lock = dib7000p_read_word(state, 509);
@@ -1877,7 +1877,7 @@ static u32 dib7000p_get_time_us(struct dvb_frontend *demod)
 	return time_us;
 }
 
-static int dib7000p_get_stats(struct dvb_frontend *demod, fe_status_t stat)
+static int dib7000p_get_stats(struct dvb_frontend *demod, enum fe_status stat)
 {
 	struct dib7000p_state *state = demod->demodulator_priv;
 	struct dtv_frontend_properties *c = &demod->dtv_property_cache;

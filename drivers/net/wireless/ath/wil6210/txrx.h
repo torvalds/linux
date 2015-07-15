@@ -384,19 +384,27 @@ struct vring_rx_mac {
  *  [word 7] length
  */
 
-#define RX_DMA_D0_CMD_DMA_IT     BIT(10)
+#define RX_DMA_D0_CMD_DMA_EOP	BIT(8)
+#define RX_DMA_D0_CMD_DMA_RT	BIT(9)  /* always 1 */
+#define RX_DMA_D0_CMD_DMA_IT	BIT(10) /* interrupt */
 
-/* Error field, offload bits */
-#define RX_DMA_ERROR_L3_ERR   BIT(4)
-#define RX_DMA_ERROR_L4_ERR   BIT(5)
+/* Error field */
+#define RX_DMA_ERROR_FCS	BIT(0)
+#define RX_DMA_ERROR_MIC	BIT(1)
+#define RX_DMA_ERROR_KEY	BIT(2) /* Key missing */
+#define RX_DMA_ERROR_REPLAY	BIT(3)
+#define RX_DMA_ERROR_L3_ERR	BIT(4)
+#define RX_DMA_ERROR_L4_ERR	BIT(5)
 
 /* Status field */
-#define RX_DMA_STATUS_DU         BIT(0)
-#define RX_DMA_STATUS_ERROR      BIT(2)
-
+#define RX_DMA_STATUS_DU	BIT(0)
+#define RX_DMA_STATUS_EOP	BIT(1)
+#define RX_DMA_STATUS_ERROR	BIT(2)
+#define RX_DMA_STATUS_MI	BIT(3) /* MAC Interrupt is asserted */
 #define RX_DMA_STATUS_L3I	BIT(4)
 #define RX_DMA_STATUS_L4I	BIT(5)
 #define RX_DMA_STATUS_PHY_INFO	BIT(6)
+#define RX_DMA_STATUS_FFM	BIT(7) /* EtherType Flex Filter Match */
 
 struct vring_rx_dma {
 	u32 d0;

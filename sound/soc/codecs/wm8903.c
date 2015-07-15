@@ -1105,7 +1105,7 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			snd_soc_update_bits(codec, WM8903_BIAS_CONTROL_0,
 					    WM8903_POBCTRL | WM8903_ISEL_MASK |
 					    WM8903_STARTUP_BIAS_ENA |
@@ -1199,8 +1199,6 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 				    WM8903_STARTUP_BIAS_ENA, 0);
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

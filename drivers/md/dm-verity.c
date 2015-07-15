@@ -459,7 +459,7 @@ static void verity_finish_io(struct dm_verity_io *io, int error)
 	bio->bi_end_io = io->orig_bi_end_io;
 	bio->bi_private = io->orig_bi_private;
 
-	bio_endio_nodec(bio, error);
+	bio_endio(bio, error);
 }
 
 static void verity_work(struct work_struct *w)

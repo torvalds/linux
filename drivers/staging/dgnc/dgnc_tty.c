@@ -42,16 +42,11 @@
 #include "dgnc_sysfs.h"
 #include "dgnc_utils.h"
 
-#define init_MUTEX(sem)	 sema_init(sem, 1)
-#define DECLARE_MUTEX(name)     \
-	struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
-
 /*
  * internal variables
  */
 static struct dgnc_board	*dgnc_BoardsByMajor[256];
 static unsigned char		*dgnc_TmpWriteBuf;
-static DECLARE_MUTEX(dgnc_TmpWriteSem);
 
 /*
  * Default transparent print information.
@@ -304,19 +299,15 @@ int dgnc_tty_init(struct dgnc_board *brd)
 
 	brd->nasync = brd->maxports;
 
-	/*
-	 * Allocate channel memory that might not have been allocated
-	 * when the driver was first loaded.
-	 */
 	for (i = 0; i < brd->nasync; i++) {
-		if (!brd->channels[i]) {
-
-			/*
-			 * Okay to malloc with GFP_KERNEL, we are not at
-			 * interrupt context, and there are no locks held.
-			 */
-			brd->channels[i] = kzalloc(sizeof(*brd->channels[i]), GFP_KERNEL);
-		}
+		/*
+		 * Okay to malloc with GFP_KERNEL, we are not at
+		 * interrupt context, and there are no locks held.
+		 */
+		brd->channels[i] = kzalloc(sizeof(*brd->channels[i]),
+					   GFP_KERNEL);
+		if (!brd->channels[i])
+			goto err_free_channels;
 	}
 
 	ch = brd->channels[0];
@@ -324,10 +315,6 @@ int dgnc_tty_init(struct dgnc_board *brd)
 
 	/* Set up channel variables */
 	for (i = 0; i < brd->nasync; i++, ch = brd->channels[i]) {
-
-		if (!brd->channels[i])
-			continue;
-
 		spin_lock_init(&ch->ch_lock);
 
 		/* Store all our magic numbers */
@@ -375,6 +362,13 @@ int dgnc_tty_init(struct dgnc_board *brd)
 	}
 
 	return 0;
+
+err_free_channels:
+	for (i = i - 1; i >= 0; --i) {
+		kfree(brd->channels[i]);
+		brd->channels[i] = NULL;
+	}
+	return -ENOMEM;
 }
 
 
@@ -404,7 +398,9 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 		dgnc_BoardsByMajor[brd->SerialDriver.major] = NULL;
 		brd->dgnc_Serial_Major = 0;
 		for (i = 0; i < brd->nasync; i++) {
-			dgnc_remove_tty_sysfs(brd->channels[i]->ch_tun.un_sysfs);
+			if (brd->channels[i])
+				dgnc_remove_tty_sysfs(brd->channels[i]->
+						      ch_tun.un_sysfs);
 			tty_unregister_device(&brd->SerialDriver, i);
 		}
 		tty_unregister_driver(&brd->SerialDriver);
@@ -415,7 +411,9 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 		dgnc_BoardsByMajor[brd->PrintDriver.major] = NULL;
 		brd->dgnc_TransparentPrint_Major = 0;
 		for (i = 0; i < brd->nasync; i++) {
-			dgnc_remove_tty_sysfs(brd->channels[i]->ch_pun.un_sysfs);
+			if (brd->channels[i])
+				dgnc_remove_tty_sysfs(brd->channels[i]->
+						      ch_pun.un_sysfs);
 			tty_unregister_device(&brd->PrintDriver, i);
 		}
 		tty_unregister_driver(&brd->PrintDriver);
@@ -424,12 +422,13 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 
 	kfree(brd->SerialDriver.ttys);
 	brd->SerialDriver.ttys = NULL;
+	kfree(brd->SerialDriver.termios);
+	brd->SerialDriver.termios = NULL;
 	kfree(brd->PrintDriver.ttys);
 	brd->PrintDriver.ttys = NULL;
+	kfree(brd->PrintDriver.termios);
+	brd->PrintDriver.termios = NULL;
 }
-
-
-#define TMPBUFLEN (1024)
 
 /*=======================================================================
  *
@@ -554,15 +553,6 @@ void dgnc_input(struct channel_t *ch)
 	len = min(len, (N_TTY_BUF_SIZE - 1));
 
 	ld = tty_ldisc_ref(tp);
-
-#ifdef TTY_DONT_FLIP
-	/*
-	 * If the DONT_FLIP flag is on, don't flush our buffer, and act
-	 * like the ld doesn't have any space to put the data right now.
-	 */
-	if (test_bit(TTY_DONT_FLIP, &tp->flags))
-		len = 0;
-#endif
 
 	/*
 	 * If we were unable to get a reference to the ld,
@@ -896,10 +886,6 @@ void dgnc_check_queue_flow_control(struct channel_t *ch)
 		else if (ch->ch_c_iflag & IXOFF && ch->ch_stops_sent) {
 			ch->ch_stops_sent = 0;
 			ch->ch_bd->bd_ops->send_start_character(ch);
-		}
-		/* No FLOW */
-		else {
-			/* Nothing needed. */
 		}
 	}
 }
@@ -1705,7 +1691,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	ushort tail;
 	ushort tmask;
 	uint remain;
-	int from_user = 0;
 
 	if (tty == NULL || dgnc_TmpWriteBuf == NULL)
 		return 0;
@@ -1779,44 +1764,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		ch->ch_flags &= ~CH_PRON;
 	}
 
-	/*
-	 * If there is nothing left to copy, or I can't handle any more data, leave.
-	 */
-	if (count <= 0)
-		goto exit_retry;
-
-	if (from_user) {
-
-		count = min(count, WRITEBUFLEN);
-
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-
-		/*
-		 * If data is coming from user space, copy it into a temporary
-		 * buffer so we don't get swapped out while doing the copy to
-		 * the board.
-		 */
-		/* we're allowed to block if it's from_user */
-		if (down_interruptible(&dgnc_TmpWriteSem))
-			return -EINTR;
-
-		/*
-		 * copy_from_user() returns the number
-		 * of bytes that could *NOT* be copied.
-		 */
-		count -= copy_from_user(dgnc_TmpWriteBuf, (const unsigned char __user *) buf, count);
-
-		if (!count) {
-			up(&dgnc_TmpWriteSem);
-			return -EFAULT;
-		}
-
-		spin_lock_irqsave(&ch->ch_lock, flags);
-
-		buf = dgnc_TmpWriteBuf;
-
-	}
-
 	n = count;
 
 	/*
@@ -1853,12 +1800,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
 	}
 
-	if (from_user) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		up(&dgnc_TmpWriteSem);
-	} else {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-	}
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 	if (count) {
 		/*

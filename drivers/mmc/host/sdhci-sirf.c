@@ -17,7 +17,7 @@
 
 #define SDHCI_CLK_DELAY_SETTING 0x4C
 #define SDHCI_SIRF_8BITBUS BIT(3)
-#define SIRF_TUNING_COUNT 128
+#define SIRF_TUNING_COUNT 16384
 
 struct sdhci_sirf_priv {
 	int gpio_cd;
@@ -43,10 +43,43 @@ static void sdhci_sirf_set_bus_width(struct sdhci_host *host, int width)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
+static u32 sdhci_sirf_readl_le(struct sdhci_host *host, int reg)
+{
+	u32 val = readl(host->ioaddr + reg);
+
+	if (unlikely((reg == SDHCI_CAPABILITIES_1) &&
+			(host->mmc->caps & MMC_CAP_UHS_SDR50))) {
+		/* fake CAP_1 register */
+		val = SDHCI_SUPPORT_SDR50 | SDHCI_USE_SDR50_TUNING;
+	}
+
+	if (unlikely(reg == SDHCI_SLOT_INT_STATUS)) {
+		u32 prss = val;
+		/* fake chips as V3.0 host conreoller */
+		prss &= ~(0xFF << 16);
+		val = prss | (SDHCI_SPEC_300 << 16);
+	}
+	return val;
+}
+
+static u16 sdhci_sirf_readw_le(struct sdhci_host *host, int reg)
+{
+	u16 ret = 0;
+
+	ret = readw(host->ioaddr + reg);
+
+	if (unlikely(reg == SDHCI_HOST_VERSION)) {
+		ret = readw(host->ioaddr + SDHCI_HOST_VERSION);
+		ret |= SDHCI_SPEC_300;
+	}
+
+	return ret;
+}
+
 static int sdhci_sirf_execute_tuning(struct sdhci_host *host, u32 opcode)
 {
 	int tuning_seq_cnt = 3;
-	u8 phase, tuned_phases[SIRF_TUNING_COUNT];
+	int phase;
 	u8 tuned_phase_cnt = 0;
 	int rc = 0, longest_range = 0;
 	int start = -1, end = 0, tuning_value = -1, range = 0;
@@ -58,6 +91,7 @@ static int sdhci_sirf_execute_tuning(struct sdhci_host *host, u32 opcode)
 
 retry:
 	phase = 0;
+	tuned_phase_cnt = 0;
 	do {
 		sdhci_writel(host,
 			clock_setting | phase,
@@ -65,7 +99,7 @@ retry:
 
 		if (!mmc_send_tuning(mmc)) {
 			/* Tuning is successful at this tuning point */
-			tuned_phases[tuned_phase_cnt++] = phase;
+			tuned_phase_cnt++;
 			dev_dbg(mmc_dev(mmc), "%s: Found good phase = %d\n",
 				 mmc_hostname(mmc), phase);
 			if (start == -1)
@@ -85,7 +119,7 @@ retry:
 			start = -1;
 			end = range = 0;
 		}
-	} while (++phase < ARRAY_SIZE(tuned_phases));
+	} while (++phase < SIRF_TUNING_COUNT);
 
 	if (tuned_phase_cnt && tuning_value > 0) {
 		/*
@@ -112,6 +146,8 @@ retry:
 }
 
 static struct sdhci_ops sdhci_sirf_ops = {
+	.read_l = sdhci_sirf_readl_le,
+	.read_w = sdhci_sirf_readw_le,
 	.platform_execute_tuning = sdhci_sirf_execute_tuning,
 	.set_clock = sdhci_set_clock,
 	.get_max_clock	= sdhci_pltfm_clk_get_max_clock,

@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/irq.h>
-#include <asm/pci.h>
 #include <asm/io.h>
 #include "pci-sh5.h"
 

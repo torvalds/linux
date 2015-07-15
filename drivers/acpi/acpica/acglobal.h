@@ -61,6 +61,8 @@ ACPI_GLOBAL(struct acpi_table_header, acpi_gbl_original_dsdt_header);
 
 #if (!ACPI_REDUCED_HARDWARE)
 ACPI_GLOBAL(struct acpi_table_facs *, acpi_gbl_FACS);
+ACPI_GLOBAL(struct acpi_table_facs *, acpi_gbl_facs32);
+ACPI_GLOBAL(struct acpi_table_facs *, acpi_gbl_facs64);
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 

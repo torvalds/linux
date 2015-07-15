@@ -44,6 +44,7 @@
 #include <xen/interface/io/blkif.h>
 #include <xen/interface/io/protocols.h>
 
+extern unsigned int xen_blkif_max_ring_order;
 /*
  * This is the maximum number of segments that would be allowed in indirect
  * requests. This value will also be passed to the frontend.
@@ -248,7 +249,7 @@ struct backend_info;
 #define PERSISTENT_GNT_WAS_ACTIVE	1
 
 /* Number of requests that we can fit in a ring */
-#define XEN_BLKIF_REQS			32
+#define XEN_BLKIF_REQS_PER_PAGE		32
 
 struct persistent_gnt {
 	struct page *page;
@@ -320,6 +321,7 @@ struct xen_blkif {
 	struct work_struct	free_work;
 	/* Thread shutdown wait queue. */
 	wait_queue_head_t	shutdown_wq;
+	unsigned int nr_ring_pages;
 };
 
 struct seg_buf {
@@ -343,7 +345,7 @@ struct grant_page {
 struct pending_req {
 	struct xen_blkif	*blkif;
 	u64			id;
-	int			nr_pages;
+	int			nr_segs;
 	atomic_t		pendcnt;
 	unsigned short		operation;
 	int			status;

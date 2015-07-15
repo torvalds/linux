@@ -1,0 +1,121 @@
+Qualcomm SPMI Regulators
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+			"qcom,pm8841-regulators"
+			"qcom,pm8916-regulators"
+			"qcom,pm8941-regulators"
+
+- interrupts:
+	Usage: optional
+	Value type: <prop-encoded-array>
+	Definition: List of OCP interrupts.
+
+- interrupt-names:
+	Usage: required if 'interrupts' property present
+	Value type: <string-array>
+	Definition: List of strings defining the names of the
+		    interrupts in the 'interrupts' property 1-to-1.
+		    Supported values are "ocp-<regulator_name>", where
+		    <regulator_name> corresponds to a voltage switch
+		    type regulator.
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s4-supply:
+- vdd_s5-supply:
+- vdd_s6-supply:
+- vdd_s7-supply:
+- vdd_s8-supply:
+	Usage: optional (pm8841 only)
+	Value type: <phandle>
+	Definition: Reference to regulator supplying the input pin, as
+		    described in the data sheet.
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s4-supply:
+- vdd_l1_l3-supply:
+- vdd_l2-supply:
+- vdd_l4_l5_l6-supply:
+- vdd_l7-supply:
+- vdd_l8_l11_l14_l15_l16-supply:
+- vdd_l9_l10_l12_l13_l17_l18-supply:
+	Usage: optional (pm8916 only)
+	Value type: <phandle>
+	Definition: Reference to regulator supplying the input pin, as
+		    described in the data sheet.
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_l1_l3-supply:
+- vdd_l2_lvs_1_2_3-supply:
+- vdd_l4_l11-supply:
+- vdd_l5_l7-supply:
+- vdd_l6_l12_l14_l15-supply:
+- vdd_l8_l16_l18_19-supply:
+- vdd_l9_l10_l17_l22-supply:
+- vdd_l13_l20_l23_l24-supply:
+- vdd_l21-supply:
+- vin_5vs-supply:
+	Usage: optional (pm8941 only)
+	Value type: <phandle>
+	Definition: Reference to regulator supplying the input pin, as
+		    described in the data sheet.
+
+
+The regulator node houses sub-nodes for each regulator within the device. Each
+sub-node is identified using the node's name, with valid values listed for each
+of the PMICs below.
+
+pm8841:
+	s1, s2, s3, s4, s5, s6, s7, s8
+
+pm8916:
+	s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13,
+	l14, l15, l16, l17, l18
+
+pm8941:
+	s1, s2, s3, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14,
+	l15, l16, l17, l18, l19, l20, l21, l22, l23, l24, lvs1, lvs2, lvs3,
+	mvs1, mvs2
+
+The content of each sub-node is defined by the standard binding for regulators -
+see regulator.txt - with additional custom properties described below:
+
+- regulator-initial-mode:
+	Usage: optional
+	Value type: <u32>
+	Descrption: 1 = Set initial mode to high power mode (HPM), also referred
+		    to as NPM.  HPM consumes more ground current than LPM, but
+		    it can source significantly higher load current. HPM is not
+		    available on boost type regulators. For voltage switch type
+		    regulators, HPM implies that over current protection and
+		    soft start are active all the time. 0 = Set initial mode to
+		    low power mode (LPM).
+
+Example:
+
+	regulators {
+		compatible = "qcom,pm8941-regulators";
+		vdd_l1_l3-supply = <&s1>;
+
+		s1: s1 {
+			regulator-min-microvolt = <1300000>;
+			regulator-max-microvolt = <1400000>;
+		};
+
+		...
+
+		l1: l1 {
+			regulator-min-microvolt = <1225000>;
+			regulator-max-microvolt = <1300000>;
+		};
+
+		....
+	};

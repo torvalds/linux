@@ -16,14 +16,12 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 	struct inode *inode = page->mapping->host;
 	char *link = kmap(page);
 	struct slink_front *lf;
-	int err;
 	int			 i, j;
 	char			 c;
 	char			 lc;
 
 	pr_debug("follow_link(ino=%lu)\n", inode->i_ino);
 
-	err = -EIO;
 	bh = affs_bread(inode->i_sb, inode->i_ino);
 	if (!bh)
 		goto fail;
@@ -66,7 +64,7 @@ fail:
 	SetPageError(page);
 	kunmap(page);
 	unlock_page(page);
-	return err;
+	return -EIO;
 }
 
 const struct address_space_operations affs_symlink_aops = {

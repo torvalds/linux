@@ -29,6 +29,7 @@ struct iio_buffer;
  * @set_length:		set number of datums in buffer
  * @release:		called when the last reference to the buffer is dropped,
  *			should free all resources allocated by the buffer.
+ * @modes:		Supported operating modes by this buffer type
  *
  * The purpose of this structure is to make the buffer element
  * modular as event for a given driver, different usecases may require
@@ -51,6 +52,8 @@ struct iio_buffer_access_funcs {
 	int (*set_length)(struct iio_buffer *buffer, int length);
 
 	void (*release)(struct iio_buffer *buffer);
+
+	unsigned int modes;
 };
 
 /**

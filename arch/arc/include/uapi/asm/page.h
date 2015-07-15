@@ -30,7 +30,7 @@
 #define PAGE_OFFSET	(0x80000000)
 #else
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)	/* Default 8K */
-#define PAGE_OFFSET	(0x80000000UL)	/* Kernel starts at 2G onwards */
+#define PAGE_OFFSET	(0x80000000UL)		/* Kernel starts at 2G onwards */
 #endif
 
 #define PAGE_MASK	(~(PAGE_SIZE-1))

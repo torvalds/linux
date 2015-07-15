@@ -3532,6 +3532,7 @@ enum skl_disp_power_wells {
 #define   BLM_POLARITY_PNV			(1 << 0) /* pnv only */
 
 #define BLC_HIST_CTL	(dev_priv->info.display_mmio_offset + 0x61260)
+#define  BLM_HISTOGRAM_ENABLE			(1 << 31)
 
 /* New registers for PCH-split platforms. Safe where new bits show up, the
  * register layout machtes with gen4 BLC_PWM_CTL[12]. */
@@ -7030,6 +7031,9 @@ enum skl_disp_power_wells {
 #define   AUDIO_OUTPUT_ENABLE(trans)	((1 << 2) << ((trans) * 4))
 #define   AUDIO_CP_READY(trans)		((1 << 1) << ((trans) * 4))
 #define   AUDIO_ELD_VALID(trans)	((1 << 0) << ((trans) * 4))
+
+#define HSW_AUD_CHICKENBIT			0x65f10
+#define   SKL_AUD_CODEC_WAKE_SIGNAL		(1 << 15)
 
 /* HSW Power Wells */
 #define HSW_PWR_WELL_BIOS			0x45400 /* CTL1 */

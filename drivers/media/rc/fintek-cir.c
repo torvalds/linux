@@ -33,7 +33,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <media/rc-core.h>
-#include <linux/pci_ids.h>
 
 #include "fintek-cir.h"
 

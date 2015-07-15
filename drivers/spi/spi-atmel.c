@@ -41,6 +41,8 @@
 #define SPI_CSR1				0x0034
 #define SPI_CSR2				0x0038
 #define SPI_CSR3				0x003c
+#define SPI_FMR					0x0040
+#define SPI_FLR					0x0044
 #define SPI_VERSION				0x00fc
 #define SPI_RPR					0x0100
 #define SPI_RCR					0x0104
@@ -62,6 +64,14 @@
 #define SPI_SWRST_SIZE				1
 #define SPI_LASTXFER_OFFSET			24
 #define SPI_LASTXFER_SIZE			1
+#define SPI_TXFCLR_OFFSET			16
+#define SPI_TXFCLR_SIZE				1
+#define SPI_RXFCLR_OFFSET			17
+#define SPI_RXFCLR_SIZE				1
+#define SPI_FIFOEN_OFFSET			30
+#define SPI_FIFOEN_SIZE				1
+#define SPI_FIFODIS_OFFSET			31
+#define SPI_FIFODIS_SIZE			1
 
 /* Bitfields in MR */
 #define SPI_MSTR_OFFSET				0
@@ -114,6 +124,22 @@
 #define SPI_TXEMPTY_SIZE			1
 #define SPI_SPIENS_OFFSET			16
 #define SPI_SPIENS_SIZE				1
+#define SPI_TXFEF_OFFSET			24
+#define SPI_TXFEF_SIZE				1
+#define SPI_TXFFF_OFFSET			25
+#define SPI_TXFFF_SIZE				1
+#define SPI_TXFTHF_OFFSET			26
+#define SPI_TXFTHF_SIZE				1
+#define SPI_RXFEF_OFFSET			27
+#define SPI_RXFEF_SIZE				1
+#define SPI_RXFFF_OFFSET			28
+#define SPI_RXFFF_SIZE				1
+#define SPI_RXFTHF_OFFSET			29
+#define SPI_RXFTHF_SIZE				1
+#define SPI_TXFPTEF_OFFSET			30
+#define SPI_TXFPTEF_SIZE			1
+#define SPI_RXFPTEF_OFFSET			31
+#define SPI_RXFPTEF_SIZE			1
 
 /* Bitfields in CSR0 */
 #define SPI_CPOL_OFFSET				0
@@ -157,6 +183,22 @@
 #define SPI_TXTDIS_OFFSET			9
 #define SPI_TXTDIS_SIZE				1
 
+/* Bitfields in FMR */
+#define SPI_TXRDYM_OFFSET			0
+#define SPI_TXRDYM_SIZE				2
+#define SPI_RXRDYM_OFFSET			4
+#define SPI_RXRDYM_SIZE				2
+#define SPI_TXFTHRES_OFFSET			16
+#define SPI_TXFTHRES_SIZE			6
+#define SPI_RXFTHRES_OFFSET			24
+#define SPI_RXFTHRES_SIZE			6
+
+/* Bitfields in FLR */
+#define SPI_TXFL_OFFSET				0
+#define SPI_TXFL_SIZE				6
+#define SPI_RXFL_OFFSET				16
+#define SPI_RXFL_SIZE				6
+
 /* Constants for BITS */
 #define SPI_BITS_8_BPT				0
 #define SPI_BITS_9_BPT				1
@@ -167,6 +209,9 @@
 #define SPI_BITS_14_BPT				6
 #define SPI_BITS_15_BPT				7
 #define SPI_BITS_16_BPT				8
+#define SPI_ONE_DATA				0
+#define SPI_TWO_DATA				1
+#define SPI_FOUR_DATA				2
 
 /* Bit manipulation macros */
 #define SPI_BIT(name) \
@@ -185,11 +230,31 @@
 	__raw_readl((port)->regs + SPI_##reg)
 #define spi_writel(port, reg, value) \
 	__raw_writel((value), (port)->regs + SPI_##reg)
+
+#define spi_readw(port, reg) \
+	__raw_readw((port)->regs + SPI_##reg)
+#define spi_writew(port, reg, value) \
+	__raw_writew((value), (port)->regs + SPI_##reg)
+
+#define spi_readb(port, reg) \
+	__raw_readb((port)->regs + SPI_##reg)
+#define spi_writeb(port, reg, value) \
+	__raw_writeb((value), (port)->regs + SPI_##reg)
 #else
 #define spi_readl(port, reg) \
 	readl_relaxed((port)->regs + SPI_##reg)
 #define spi_writel(port, reg, value) \
 	writel_relaxed((value), (port)->regs + SPI_##reg)
+
+#define spi_readw(port, reg) \
+	readw_relaxed((port)->regs + SPI_##reg)
+#define spi_writew(port, reg, value) \
+	writew_relaxed((value), (port)->regs + SPI_##reg)
+
+#define spi_readb(port, reg) \
+	readb_relaxed((port)->regs + SPI_##reg)
+#define spi_writeb(port, reg, value) \
+	writeb_relaxed((value), (port)->regs + SPI_##reg)
 #endif
 /* use PIO for small transfers, avoiding DMA setup/teardown overhead and
  * cache operations; better heuristics consider wordsize and bitrate.
@@ -246,11 +311,14 @@ struct atmel_spi {
 
 	bool			use_dma;
 	bool			use_pdc;
+	bool			use_cs_gpios;
 	/* dmaengine data */
 	struct atmel_spi_dma	dma;
 
 	bool			keep_cs;
 	bool			cs_active;
+
+	u32			fifo_size;
 };
 
 /* Controller-specific per-slave state */
@@ -321,7 +389,8 @@ static void cs_activate(struct atmel_spi *as, struct spi_device *spi)
 		}
 
 		mr = spi_readl(as, MR);
-		gpio_set_value(asd->npcs_pin, active);
+		if (as->use_cs_gpios)
+			gpio_set_value(asd->npcs_pin, active);
 	} else {
 		u32 cpol = (spi->mode & SPI_CPOL) ? SPI_BIT(CPOL) : 0;
 		int i;
@@ -337,7 +406,7 @@ static void cs_activate(struct atmel_spi *as, struct spi_device *spi)
 
 		mr = spi_readl(as, MR);
 		mr = SPI_BFINS(PCS, ~(1 << spi->chip_select), mr);
-		if (spi->chip_select != 0)
+		if (as->use_cs_gpios && spi->chip_select != 0)
 			gpio_set_value(asd->npcs_pin, active);
 		spi_writel(as, MR, mr);
 	}
@@ -366,7 +435,9 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 			asd->npcs_pin, active ? " (low)" : "",
 			mr);
 
-	if (atmel_spi_is_v2(as) || spi->chip_select != 0)
+	if (!as->use_cs_gpios)
+		spi_writel(as, CR, SPI_BIT(LASTXFER));
+	else if (atmel_spi_is_v2(as) || spi->chip_select != 0)
 		gpio_set_value(asd->npcs_pin, !active);
 }
 
@@ -406,6 +477,20 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 	slave_config->dst_maxburst = 1;
 	slave_config->device_fc = false;
 
+	/*
+	 * This driver uses fixed peripheral select mode (PS bit set to '0' in
+	 * the Mode Register).
+	 * So according to the datasheet, when FIFOs are available (and
+	 * enabled), the Transmit FIFO operates in Multiple Data Mode.
+	 * In this mode, up to 2 data, not 4, can be written into the Transmit
+	 * Data Register in a single access.
+	 * However, the first data has to be written into the lowest 16 bits and
+	 * the second data into the highest 16 bits of the Transmit
+	 * Data Register. For 8bit data (the most frequent case), it would
+	 * require to rework tx_buf so each data would actualy fit 16 bits.
+	 * So we'd rather write only one data at the time. Hence the transmit
+	 * path works the same whether FIFOs are available (and enabled) or not.
+	 */
 	slave_config->direction = DMA_MEM_TO_DEV;
 	if (dmaengine_slave_config(as->dma.chan_tx, slave_config)) {
 		dev_err(&as->pdev->dev,
@@ -413,6 +498,14 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 		err = -EINVAL;
 	}
 
+	/*
+	 * This driver configures the spi controller for master mode (MSTR bit
+	 * set to '1' in the Mode Register).
+	 * So according to the datasheet, when FIFOs are available (and
+	 * enabled), the Receive FIFO operates in Single Data Mode.
+	 * So the receive path works the same whether FIFOs are available (and
+	 * enabled) or not.
+	 */
 	slave_config->direction = DMA_DEV_TO_MEM;
 	if (dmaengine_slave_config(as->dma.chan_rx, slave_config)) {
 		dev_err(&as->pdev->dev,
@@ -502,10 +595,10 @@ static void dma_callback(void *data)
 }
 
 /*
- * Next transfer using PIO.
+ * Next transfer using PIO without FIFO.
  */
-static void atmel_spi_next_xfer_pio(struct spi_master *master,
-				struct spi_transfer *xfer)
+static void atmel_spi_next_xfer_single(struct spi_master *master,
+				       struct spi_transfer *xfer)
 {
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 	unsigned long xfer_pos = xfer->len - as->current_remaining_bytes;
@@ -535,6 +628,99 @@ static void atmel_spi_next_xfer_pio(struct spi_master *master,
 
 	/* Enable relevant interrupts */
 	spi_writel(as, IER, SPI_BIT(RDRF) | SPI_BIT(OVRES));
+}
+
+/*
+ * Next transfer using PIO with FIFO.
+ */
+static void atmel_spi_next_xfer_fifo(struct spi_master *master,
+				     struct spi_transfer *xfer)
+{
+	struct atmel_spi *as = spi_master_get_devdata(master);
+	u32 current_remaining_data, num_data;
+	u32 offset = xfer->len - as->current_remaining_bytes;
+	const u16 *words = (const u16 *)((u8 *)xfer->tx_buf + offset);
+	const u8  *bytes = (const u8  *)((u8 *)xfer->tx_buf + offset);
+	u16 td0, td1;
+	u32 fifomr;
+
+	dev_vdbg(master->dev.parent, "atmel_spi_next_xfer_fifo\n");
+
+	/* Compute the number of data to transfer in the current iteration */
+	current_remaining_data = ((xfer->bits_per_word > 8) ?
+				  ((u32)as->current_remaining_bytes >> 1) :
+				  (u32)as->current_remaining_bytes);
+	num_data = min(current_remaining_data, as->fifo_size);
+
+	/* Flush RX and TX FIFOs */
+	spi_writel(as, CR, SPI_BIT(RXFCLR) | SPI_BIT(TXFCLR));
+	while (spi_readl(as, FLR))
+		cpu_relax();
+
+	/* Set RX FIFO Threshold to the number of data to transfer */
+	fifomr = spi_readl(as, FMR);
+	spi_writel(as, FMR, SPI_BFINS(RXFTHRES, num_data, fifomr));
+
+	/* Clear FIFO flags in the Status Register, especially RXFTHF */
+	(void)spi_readl(as, SR);
+
+	/* Fill TX FIFO */
+	while (num_data >= 2) {
+		if (xfer->tx_buf) {
+			if (xfer->bits_per_word > 8) {
+				td0 = *words++;
+				td1 = *words++;
+			} else {
+				td0 = *bytes++;
+				td1 = *bytes++;
+			}
+		} else {
+			td0 = 0;
+			td1 = 0;
+		}
+
+		spi_writel(as, TDR, (td1 << 16) | td0);
+		num_data -= 2;
+	}
+
+	if (num_data) {
+		if (xfer->tx_buf) {
+			if (xfer->bits_per_word > 8)
+				td0 = *words++;
+			else
+				td0 = *bytes++;
+		} else {
+			td0 = 0;
+		}
+
+		spi_writew(as, TDR, td0);
+		num_data--;
+	}
+
+	dev_dbg(master->dev.parent,
+		"  start fifo xfer %p: len %u tx %p rx %p bitpw %d\n",
+		xfer, xfer->len, xfer->tx_buf, xfer->rx_buf,
+		xfer->bits_per_word);
+
+	/*
+	 * Enable RX FIFO Threshold Flag interrupt to be notified about
+	 * transfer completion.
+	 */
+	spi_writel(as, IER, SPI_BIT(RXFTHF) | SPI_BIT(OVRES));
+}
+
+/*
+ * Next transfer using PIO.
+ */
+static void atmel_spi_next_xfer_pio(struct spi_master *master,
+				    struct spi_transfer *xfer)
+{
+	struct atmel_spi *as = spi_master_get_devdata(master);
+
+	if (as->fifo_size)
+		atmel_spi_next_xfer_fifo(master, xfer);
+	else
+		atmel_spi_next_xfer_single(master, xfer);
 }
 
 /*
@@ -839,13 +1025,8 @@ static void atmel_spi_disable_pdc_transfer(struct atmel_spi *as)
 	spi_writel(as, PTCR, SPI_BIT(RXTDIS) | SPI_BIT(TXTDIS));
 }
 
-/* Called from IRQ
- *
- * Must update "current_remaining_bytes" to keep track of data
- * to transfer.
- */
 static void
-atmel_spi_pump_pio_data(struct atmel_spi *as, struct spi_transfer *xfer)
+atmel_spi_pump_single_data(struct atmel_spi *as, struct spi_transfer *xfer)
 {
 	u8		*rxp;
 	u16		*rxp16;
@@ -870,6 +1051,57 @@ atmel_spi_pump_pio_data(struct atmel_spi *as, struct spi_transfer *xfer)
 	} else {
 		as->current_remaining_bytes--;
 	}
+}
+
+static void
+atmel_spi_pump_fifo_data(struct atmel_spi *as, struct spi_transfer *xfer)
+{
+	u32 fifolr = spi_readl(as, FLR);
+	u32 num_bytes, num_data = SPI_BFEXT(RXFL, fifolr);
+	u32 offset = xfer->len - as->current_remaining_bytes;
+	u16 *words = (u16 *)((u8 *)xfer->rx_buf + offset);
+	u8  *bytes = (u8  *)((u8 *)xfer->rx_buf + offset);
+	u16 rd; /* RD field is the lowest 16 bits of RDR */
+
+	/* Update the number of remaining bytes to transfer */
+	num_bytes = ((xfer->bits_per_word > 8) ?
+		     (num_data << 1) :
+		     num_data);
+
+	if (as->current_remaining_bytes > num_bytes)
+		as->current_remaining_bytes -= num_bytes;
+	else
+		as->current_remaining_bytes = 0;
+
+	/* Handle odd number of bytes when data are more than 8bit width */
+	if (xfer->bits_per_word > 8)
+		as->current_remaining_bytes &= ~0x1;
+
+	/* Read data */
+	while (num_data) {
+		rd = spi_readl(as, RDR);
+		if (xfer->rx_buf) {
+			if (xfer->bits_per_word > 8)
+				*words++ = rd;
+			else
+				*bytes++ = rd;
+		}
+		num_data--;
+	}
+}
+
+/* Called from IRQ
+ *
+ * Must update "current_remaining_bytes" to keep track of data
+ * to transfer.
+ */
+static void
+atmel_spi_pump_pio_data(struct atmel_spi *as, struct spi_transfer *xfer)
+{
+	if (as->fifo_size)
+		atmel_spi_pump_fifo_data(as, xfer);
+	else
+		atmel_spi_pump_single_data(as, xfer);
 }
 
 /* Interrupt
@@ -912,7 +1144,7 @@ atmel_spi_pio_interrupt(int irq, void *dev_id)
 
 		complete(&as->xfer_completion);
 
-	} else if (pending & SPI_BIT(RDRF)) {
+	} else if (pending & (SPI_BIT(RDRF) | SPI_BIT(RXFTHF))) {
 		atmel_spi_lock(as);
 
 		if (as->current_remaining_bytes) {
@@ -996,6 +1228,8 @@ static int atmel_spi_setup(struct spi_device *spi)
 		csr |= SPI_BIT(CPOL);
 	if (!(spi->mode & SPI_CPHA))
 		csr |= SPI_BIT(NCPHA);
+	if (!as->use_cs_gpios)
+		csr |= SPI_BIT(CSAAT);
 
 	/* DLYBS is mostly irrelevant since we manage chipselect using GPIOs.
 	 *
@@ -1009,7 +1243,9 @@ static int atmel_spi_setup(struct spi_device *spi)
 	/* chipselect must have been muxed as GPIO (e.g. in board setup) */
 	npcs_pin = (unsigned long)spi->controller_data;
 
-	if (gpio_is_valid(spi->cs_gpio))
+	if (!as->use_cs_gpios)
+		npcs_pin = spi->chip_select;
+	else if (gpio_is_valid(spi->cs_gpio))
 		npcs_pin = spi->cs_gpio;
 
 	asd = spi->controller_state;
@@ -1018,15 +1254,19 @@ static int atmel_spi_setup(struct spi_device *spi)
 		if (!asd)
 			return -ENOMEM;
 
-		ret = gpio_request(npcs_pin, dev_name(&spi->dev));
-		if (ret) {
-			kfree(asd);
-			return ret;
+		if (as->use_cs_gpios) {
+			ret = gpio_request(npcs_pin, dev_name(&spi->dev));
+			if (ret) {
+				kfree(asd);
+				return ret;
+			}
+
+			gpio_direction_output(npcs_pin,
+					      !(spi->mode & SPI_CS_HIGH));
 		}
 
 		asd->npcs_pin = npcs_pin;
 		spi->controller_state = asd;
-		gpio_direction_output(npcs_pin, !(spi->mode & SPI_CS_HIGH));
 	}
 
 	asd->csr = csr;
@@ -1338,6 +1578,13 @@ static int atmel_spi_probe(struct platform_device *pdev)
 
 	atmel_get_caps(as);
 
+	as->use_cs_gpios = true;
+	if (atmel_spi_is_v2(as) &&
+	    !of_get_property(pdev->dev.of_node, "cs-gpios", NULL)) {
+		as->use_cs_gpios = false;
+		master->num_chipselect = 4;
+	}
+
 	as->use_dma = false;
 	as->use_pdc = false;
 	if (as->caps.has_dma_support) {
@@ -1379,6 +1626,13 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	if (as->use_pdc)
 		spi_writel(as, PTCR, SPI_BIT(RXTDIS) | SPI_BIT(TXTDIS));
 	spi_writel(as, CR, SPI_BIT(SPIEN));
+
+	as->fifo_size = 0;
+	if (!of_property_read_u32(pdev->dev.of_node, "atmel,fifo-size",
+				  &as->fifo_size)) {
+		dev_info(&pdev->dev, "Using FIFO (%u data)\n", as->fifo_size);
+		spi_writel(as, CR, SPI_BIT(FIFOEN));
+	}
 
 	/* go! */
 	dev_info(&pdev->dev, "Atmel SPI Controller at 0x%08lx (irq %d)\n",

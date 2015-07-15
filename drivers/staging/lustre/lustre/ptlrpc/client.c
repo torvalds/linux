@@ -57,8 +57,8 @@ void ptlrpc_init_client(int req_portal, int rep_portal, char *name,
 			struct ptlrpc_client *cl)
 {
 	cl->cli_request_portal = req_portal;
-	cl->cli_reply_portal   = rep_portal;
-	cl->cli_name	   = name;
+	cl->cli_reply_portal = rep_portal;
+	cl->cli_name = name;
 }
 EXPORT_SYMBOL(ptlrpc_init_client);
 
@@ -68,9 +68,9 @@ EXPORT_SYMBOL(ptlrpc_init_client);
 struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid)
 {
 	struct ptlrpc_connection *c;
-	lnet_nid_t		self;
-	lnet_process_id_t	 peer;
-	int		       err;
+	lnet_nid_t self;
+	lnet_process_id_t peer;
+	int err;
 
 	/* ptlrpc_uuid_to_peer() initializes its 2nd parameter
 	 * before accessing its values. */
@@ -103,7 +103,8 @@ struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
 	struct ptlrpc_bulk_desc *desc;
 	int i;
 
-	OBD_ALLOC(desc, offsetof(struct ptlrpc_bulk_desc, bd_iov[npages]));
+	desc = kzalloc(offsetof(struct ptlrpc_bulk_desc, bd_iov[npages]),
+		       GFP_NOFS);
 	if (!desc)
 		return NULL;
 
@@ -147,7 +148,7 @@ struct ptlrpc_bulk_desc *ptlrpc_prep_bulk_imp(struct ptlrpc_request *req,
 	desc->bd_import = class_import_get(imp);
 	desc->bd_req = req;
 
-	desc->bd_cbid.cbid_fn  = client_bulk_callback;
+	desc->bd_cbid.cbid_fn = client_bulk_callback;
 	desc->bd_cbid.cbid_arg = desc;
 
 	/* This makes req own desc, and free it when she frees herself */
@@ -205,8 +206,7 @@ void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
 			page_cache_release(desc->bd_iov[i].kiov_page);
 	}
 
-	OBD_FREE(desc, offsetof(struct ptlrpc_bulk_desc,
-				bd_iov[desc->bd_max_iov]));
+	kfree(desc);
 }
 EXPORT_SYMBOL(__ptlrpc_free_bulk);
 
@@ -343,8 +343,8 @@ static int unpack_reply(struct ptlrpc_request *req)
 static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
 {
 	struct ptlrpc_request *early_req;
-	time_t		 olddl;
-	int		    rc;
+	time_t olddl;
+	int rc;
 
 	req->rq_early = 0;
 	spin_unlock(&req->rq_lock);
@@ -390,7 +390,7 @@ static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
 	return rc;
 }
 
-struct kmem_cache *request_cache;
+static struct kmem_cache *request_cache;
 
 int ptlrpc_request_cache_init(void)
 {
@@ -435,11 +435,11 @@ void ptlrpc_free_rq_pool(struct ptlrpc_request_pool *pool)
 		list_del(&req->rq_list);
 		LASSERT(req->rq_reqbuf);
 		LASSERT(req->rq_reqbuf_len == pool->prp_rq_size);
-		OBD_FREE_LARGE(req->rq_reqbuf, pool->prp_rq_size);
+		kvfree(req->rq_reqbuf);
 		ptlrpc_request_cache_free(req);
 	}
 	spin_unlock(&pool->prp_lock);
-	OBD_FREE(pool, sizeof(*pool));
+	kfree(pool);
 }
 EXPORT_SYMBOL(ptlrpc_free_rq_pool);
 
@@ -469,7 +469,7 @@ void ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq)
 		req = ptlrpc_request_cache_alloc(GFP_NOFS);
 		if (!req)
 			return;
-		OBD_ALLOC_LARGE(msg, size);
+		msg = libcfs_kvzalloc(size, GFP_NOFS);
 		if (!msg) {
 			ptlrpc_request_cache_free(req);
 			return;
@@ -498,7 +498,7 @@ ptlrpc_init_rq_pool(int num_rq, int msgsize,
 {
 	struct ptlrpc_request_pool *pool;
 
-	OBD_ALLOC(pool, sizeof(struct ptlrpc_request_pool));
+	pool = kzalloc(sizeof(struct ptlrpc_request_pool), GFP_NOFS);
 	if (!pool)
 		return NULL;
 
@@ -514,7 +514,7 @@ ptlrpc_init_rq_pool(int num_rq, int msgsize,
 
 	if (list_empty(&pool->prp_req_list)) {
 		/* have not allocated a single request for the pool */
-		OBD_FREE(pool, sizeof(struct ptlrpc_request_pool));
+		kfree(pool);
 		pool = NULL;
 	}
 	return pool;
@@ -580,8 +580,8 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 				      int count, __u32 *lengths, char **bufs,
 				      struct ptlrpc_cli_ctx *ctx)
 {
-	struct obd_import  *imp = request->rq_import;
-	int		 rc;
+	struct obd_import *imp = request->rq_import;
+	int rc;
 
 	if (unlikely(ctx))
 		request->rq_cli_ctx = sptlrpc_cli_ctx_get(ctx);
@@ -605,10 +605,10 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 	request->rq_type = PTL_RPC_MSG_REQUEST;
 	request->rq_export = NULL;
 
-	request->rq_req_cbid.cbid_fn  = request_out_callback;
+	request->rq_req_cbid.cbid_fn = request_out_callback;
 	request->rq_req_cbid.cbid_arg = request;
 
-	request->rq_reply_cbid.cbid_fn  = reply_in_callback;
+	request->rq_reply_cbid.cbid_fn = reply_in_callback;
 	request->rq_reply_cbid.cbid_arg = request;
 
 	request->rq_reply_deadline = 0;
@@ -761,8 +761,8 @@ EXPORT_SYMBOL(ptlrpc_request_alloc);
  * initialize its buffer structure according to capsule template \a format.
  */
 struct ptlrpc_request *ptlrpc_request_alloc_pool(struct obd_import *imp,
-					    struct ptlrpc_request_pool *pool,
-					    const struct req_format *format)
+						 struct ptlrpc_request_pool *pool,
+						 const struct req_format *format)
 {
 	return ptlrpc_request_alloc_internal(imp, pool, format);
 }
@@ -789,11 +789,11 @@ EXPORT_SYMBOL(ptlrpc_request_free);
  * Returns allocated request or NULL on error.
  */
 struct ptlrpc_request *ptlrpc_request_alloc_pack(struct obd_import *imp,
-						const struct req_format *format,
-						__u32 version, int opcode)
+						 const struct req_format *format,
+						 __u32 version, int opcode)
 {
 	struct ptlrpc_request *req = ptlrpc_request_alloc(imp, format);
-	int		    rc;
+	int rc;
 
 	if (req) {
 		rc = ptlrpc_request_pack(req, version, opcode);
@@ -820,7 +820,7 @@ ptlrpc_prep_req_pool(struct obd_import *imp,
 		     struct ptlrpc_request_pool *pool)
 {
 	struct ptlrpc_request *request;
-	int		    rc;
+	int rc;
 
 	request = __ptlrpc_request_alloc(imp, pool);
 	if (!request)
@@ -856,7 +856,7 @@ struct ptlrpc_request_set *ptlrpc_prep_set(void)
 {
 	struct ptlrpc_request_set *set;
 
-	OBD_ALLOC(set, sizeof(*set));
+	set = kzalloc(sizeof(*set), GFP_NOFS);
 	if (!set)
 		return NULL;
 	atomic_set(&set->set_refcount, 1);
@@ -868,9 +868,9 @@ struct ptlrpc_request_set *ptlrpc_prep_set(void)
 	INIT_LIST_HEAD(&set->set_new_requests);
 	INIT_LIST_HEAD(&set->set_cblist);
 	set->set_max_inflight = UINT_MAX;
-	set->set_producer     = NULL;
+	set->set_producer = NULL;
 	set->set_producer_arg = NULL;
-	set->set_rc	   = 0;
+	set->set_rc = 0;
 
 	return set;
 }
@@ -894,9 +894,9 @@ struct ptlrpc_request_set *ptlrpc_prep_fcset(int max, set_producer_func func,
 	if (!set)
 		return NULL;
 
-	set->set_max_inflight  = max;
-	set->set_producer      = func;
-	set->set_producer_arg  = arg;
+	set->set_max_inflight = max;
+	set->set_producer = func;
+	set->set_producer_arg = arg;
 
 	return set;
 }
@@ -912,10 +912,10 @@ EXPORT_SYMBOL(ptlrpc_prep_fcset);
  */
 void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 {
-	struct list_head       *tmp;
-	struct list_head       *next;
-	int	       expected_phase;
-	int	       n = 0;
+	struct list_head *tmp;
+	struct list_head *next;
+	int expected_phase;
+	int n = 0;
 
 	/* Requests on the set should either all be completed, or all be new */
 	expected_phase = (atomic_read(&set->set_remaining) == 0) ?
@@ -970,7 +970,7 @@ int ptlrpc_set_add_cb(struct ptlrpc_request_set *set,
 {
 	struct ptlrpc_set_cbdata *cbdata;
 
-	OBD_ALLOC_PTR(cbdata);
+	cbdata = kzalloc(sizeof(*cbdata), GFP_NOFS);
 	if (cbdata == NULL)
 		return -ENOMEM;
 
@@ -1013,7 +1013,7 @@ EXPORT_SYMBOL(ptlrpc_set_add_req);
  * Currently only used for ptlrpcd.
  */
 void ptlrpc_set_add_new_req(struct ptlrpcd_ctl *pc,
-			   struct ptlrpc_request *req)
+			    struct ptlrpc_request *req)
 {
 	struct ptlrpc_request_set *set = pc->pc_set;
 	int count, i;
@@ -1400,7 +1400,7 @@ static int after_reply(struct ptlrpc_request *req)
  */
 static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 {
-	struct obd_import     *imp = req->rq_import;
+	struct obd_import *imp = req->rq_import;
 	int rc;
 
 	LASSERT(req->rq_phase == RQ_PHASE_NEW);
@@ -1669,7 +1669,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					continue;
 				}
 
-				if (status != 0)  {
+				if (status != 0) {
 					req->rq_status = status;
 					ptlrpc_rqphase_move(req,
 						RQ_PHASE_INTERPRET);
@@ -1969,8 +1969,8 @@ int ptlrpc_expire_one_request(struct ptlrpc_request *req, int async_unlink)
 int ptlrpc_expired_set(void *data)
 {
 	struct ptlrpc_request_set *set = data;
-	struct list_head		*tmp;
-	time_t		     now = get_seconds();
+	struct list_head *tmp;
+	time_t now = get_seconds();
 
 	LASSERT(set != NULL);
 
@@ -2052,11 +2052,11 @@ EXPORT_SYMBOL(ptlrpc_interrupted_set);
  */
 int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
 {
-	struct list_head	    *tmp;
-	time_t		 now = get_seconds();
-	int		    timeout = 0;
+	struct list_head *tmp;
+	time_t now = get_seconds();
+	int timeout = 0;
 	struct ptlrpc_request *req;
-	int		    deadline;
+	int deadline;
 
 	list_for_each(tmp, &set->set_requests) {
 		req = list_entry(tmp, struct ptlrpc_request, rq_set_chain);
@@ -2105,10 +2105,10 @@ EXPORT_SYMBOL(ptlrpc_set_next_timeout);
  */
 int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 {
-	struct list_head	    *tmp;
+	struct list_head *tmp;
 	struct ptlrpc_request *req;
-	struct l_wait_info     lwi;
-	int		    rc, timeout;
+	struct l_wait_info lwi;
+	int rc, timeout;
 
 	if (set->set_producer)
 		(void)ptlrpc_set_producer(set);
@@ -2214,7 +2214,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			err = cbdata->psc_interpret(set, cbdata->psc_data, rc);
 			if (err && !rc)
 				rc = err;
-			OBD_FREE_PTR(cbdata);
+			kfree(cbdata);
 		}
 	}
 
@@ -2353,8 +2353,8 @@ EXPORT_SYMBOL(ptlrpc_req_xid);
  */
 int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 {
-	int		rc;
-	wait_queue_head_t       *wq;
+	int rc;
+	wait_queue_head_t *wq;
 	struct l_wait_info lwi;
 
 	/*
@@ -2471,7 +2471,7 @@ void ptlrpc_free_committed(struct obd_import *imp)
 {
 	struct ptlrpc_request *req, *saved;
 	struct ptlrpc_request *last_req = NULL; /* temporary fire escape */
-	bool		       skip_committed_list = true;
+	bool skip_committed_list = true;
 
 	LASSERT(imp != NULL);
 	assert_spin_locked(&imp->imp_lock);
@@ -3023,8 +3023,8 @@ EXPORT_SYMBOL(ptlrpc_sample_next_xid);
  *    have delay before it really runs by ptlrpcd thread.
  */
 struct ptlrpc_work_async_args {
-	int   (*cb)(const struct lu_env *, void *);
-	void   *cbdata;
+	int (*cb)(const struct lu_env *, void *);
+	void *cbdata;
 };
 
 static void ptlrpcd_add_work_req(struct ptlrpc_request *req)
@@ -3113,7 +3113,7 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 
 	CLASSERT(sizeof(*args) <= sizeof(req->rq_async_args));
 	args = ptlrpc_req_async_args(req);
-	args->cb     = cb;
+	args->cb = cb;
 	args->cbdata = cbdata;
 
 	return req;

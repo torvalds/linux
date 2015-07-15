@@ -85,7 +85,7 @@ int __init integrity_init_keyring(const unsigned int id)
 	return err;
 }
 
-int __init integrity_load_x509(const unsigned int id, char *path)
+int __init integrity_load_x509(const unsigned int id, const char *path)
 {
 	key_ref_t key;
 	char *data;

@@ -146,6 +146,7 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 				csa_settings->chandef.chan->center_freq);
 		presp->csa_counter_offsets[0] = (pos - presp->head);
 		*pos++ = csa_settings->count;
+		presp->csa_current_counter = csa_settings->count;
 	}
 
 	/* put the remaining rates in WLAN_EID_EXT_SUPP_RATES */
@@ -1031,8 +1032,11 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (sta && elems->wmm_info && local->hw.queues >= IEEE80211_NUM_ACS)
+	if (sta && !sta->sta.wme &&
+	    elems->wmm_info && local->hw.queues >= IEEE80211_NUM_ACS) {
 		sta->sta.wme = true;
+		ieee80211_check_fast_xmit(sta);
+	}
 
 	if (sta && elems->ht_operation && elems->ht_cap_elem &&
 	    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&

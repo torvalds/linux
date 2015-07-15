@@ -66,14 +66,13 @@
 
 /* 4 extra for alignment play space */
 #define WRITEBUFLEN		((4096) + 4)
-#define MYFLIPLEN		N_TTY_BUF_SIZE
 
 #define dgnc_jiffies_from_ms(a) (((a) * HZ) / 1000)
 
 /*
  * Define a local default termios struct. All ports will be created
  * with this termios initially.  This is the same structure that is defined
- * as the default in tty_io.c with the same settings overriden as in serial.c
+ * as the default in tty_io.c with the same settings overridden as in serial.c
  *
  * In short, this should match the internal serial ports' defaults.
  */
@@ -212,8 +211,6 @@ struct dgnc_board {
 
 	uint		TtyRefCnt;
 
-	char		*flipbuf;	/* Our flip buffer, alloced if board is found */
-
 	u16		dpatype;	/* The board "type", as defined by DPA */
 	u16		dpastatus;	/* The board "status", as defined by DPA */
 
@@ -288,7 +285,6 @@ struct un_t {
 #define CH_TX_FIFO_LWM  0x0800		/* TX Fifo is below Low Water	*/
 #define CH_BREAK_SENDING 0x1000		/* Break is being sent		*/
 #define CH_LOOPBACK 0x2000		/* Channel is in lookback mode	*/
-#define CH_FLIPBUF_IN_USE 0x4000	/* Channel's flipbuf is in use	*/
 #define CH_BAUD0	0x08000		/* Used for checking B0 transitions */
 #define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped	*/
 #define CH_FORCED_STOPI 0x40000		/* Input is forcibly stopped	*/

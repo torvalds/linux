@@ -900,10 +900,8 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 				continue;
 			}
 			if (status & DP_AUX_CH_CTL_DONE)
-				break;
+				goto done;
 		}
-		if (status & DP_AUX_CH_CTL_DONE)
-			break;
 	}
 
 	if ((status & DP_AUX_CH_CTL_DONE) == 0) {
@@ -912,6 +910,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		goto out;
 	}
 
+done:
 	/* Check for timeout or receive error.
 	 * Timeouts occur when the sink is not connected
 	 */
@@ -1148,6 +1147,9 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_clock)
 static void
 hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config, int link_bw)
 {
+	memset(&pipe_config->dpll_hw_state, 0,
+	       sizeof(pipe_config->dpll_hw_state));
+
 	switch (link_bw) {
 	case DP_LINK_BW_1_62:
 		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_810;

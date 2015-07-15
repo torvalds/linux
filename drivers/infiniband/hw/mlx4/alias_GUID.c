@@ -189,7 +189,7 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 {
 	int i;
 	u64 guid_indexes;
-	int slave_id;
+	int slave_id, slave_port;
 	enum slave_port_state new_state;
 	enum slave_port_state prev_state;
 	__be64 tmp_cur_ag, form_cache_ag;
@@ -217,6 +217,11 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 		slave_id = (block_num * NUM_ALIAS_GUID_IN_REC) + i ;
 		if (slave_id >= dev->dev->persist->num_vfs + 1)
 			return;
+
+		slave_port = mlx4_phys_to_slave_port(dev->dev, slave_id, port_num);
+		if (slave_port < 0) /* this port isn't available for the VF */
+			continue;
+
 		tmp_cur_ag = *(__be64 *)&p_data[i * GUID_REC_SIZE];
 		form_cache_ag = get_cached_alias_guid(dev, port_num,
 					(NUM_ALIAS_GUID_IN_REC * block_num) + i);

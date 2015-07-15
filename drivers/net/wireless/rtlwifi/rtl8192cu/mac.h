@@ -66,12 +66,9 @@ void rtl92c_init_edca_param(struct ieee80211_hw *hw,
 
 void rtl92c_init_edca(struct ieee80211_hw *hw);
 void rtl92c_init_ampdu_aggregation(struct ieee80211_hw *hw);
-void rtl92c_init_beacon_max_error(struct ieee80211_hw *hw, bool infra_mode);
+void rtl92c_init_beacon_max_error(struct ieee80211_hw *hw);
 void rtl92c_init_rdg_setting(struct ieee80211_hw *hw);
 void rtl92c_init_retry_function(struct ieee80211_hw *hw);
-
-void rtl92c_init_beacon_parameters(struct ieee80211_hw *hw,
-				   enum version_8192c version);
 
 void rtl92c_disable_fast_edca(struct ieee80211_hw *hw);
 void rtl92c_set_min_space(struct ieee80211_hw *hw, bool is2T);

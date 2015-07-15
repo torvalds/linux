@@ -377,6 +377,16 @@ static int dw8250_probe_of(struct uart_port *p,
 	return 0;
 }
 
+static bool dw8250_idma_filter(struct dma_chan *chan, void *param)
+{
+	struct device *dev = param;
+
+	if (dev != chan->device->dev->parent)
+		return false;
+
+	return true;
+}
+
 static int dw8250_probe_acpi(struct uart_8250_port *up,
 			     struct dw8250_data *data)
 {
@@ -389,8 +399,15 @@ static int dw8250_probe_acpi(struct uart_8250_port *up,
 	p->serial_out = dw8250_serial_out32;
 	p->regshift = 2;
 
-	up->dma = &data->dma;
+	/* Platforms with iDMA */
+	if (platform_get_resource_byname(to_platform_device(up->port.dev),
+					 IORESOURCE_MEM, "lpss_priv")) {
+		data->dma.rx_param = up->port.dev->parent;
+		data->dma.tx_param = up->port.dev->parent;
+		data->dma.fn = dw8250_idma_filter;
+	}
 
+	up->dma = &data->dma;
 	up->dma->rxconf.src_maxburst = p->fifosize / 4;
 	up->dma->txconf.dst_maxburst = p->fifosize / 4;
 

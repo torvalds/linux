@@ -54,12 +54,13 @@
 #include <asm/ftrace.h>
 #include <asm/traps.h>
 #include <asm/desc.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 #include <asm/mce.h>
 #include <asm/fixmap.h>
 #include <asm/mach_traps.h>
 #include <asm/alternative.h>
+#include <asm/fpu/xstate.h>
+#include <asm/trace/mpx.h>
 #include <asm/mpx.h>
 
 #ifdef CONFIG_X86_64
@@ -72,8 +73,7 @@ gate_desc debug_idt_table[NR_VECTORS] __page_aligned_bss;
 #else
 #include <asm/processor-flags.h>
 #include <asm/setup.h>
-
-asmlinkage int system_call(void);
+#include <asm/proto.h>
 #endif
 
 /* Must be page-aligned because the real IDT is used in a fixmap. */
@@ -371,10 +371,8 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 
 dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 {
-	struct task_struct *tsk = current;
-	struct xsave_struct *xsave_buf;
 	enum ctx_state prev_state;
-	struct bndcsr *bndcsr;
+	const struct bndcsr *bndcsr;
 	siginfo_t *info;
 
 	prev_state = exception_enter();
@@ -393,15 +391,15 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 
 	/*
 	 * We need to look at BNDSTATUS to resolve this exception.
-	 * It is not directly accessible, though, so we need to
-	 * do an xsave and then pull it out of the xsave buffer.
+	 * A NULL here might mean that it is in its 'init state',
+	 * which is all zeros which indicates MPX was not
+	 * responsible for the exception.
 	 */
-	fpu_save_init(&tsk->thread.fpu);
-	xsave_buf = &(tsk->thread.fpu.state->xsave);
-	bndcsr = get_xsave_addr(xsave_buf, XSTATE_BNDCSR);
+	bndcsr = get_xsave_field_ptr(XSTATE_BNDCSR);
 	if (!bndcsr)
 		goto exit_trap;
 
+	trace_bounds_exception_mpx(bndcsr);
 	/*
 	 * The error code field of the BNDSTATUS register communicates status
 	 * information of a bound range exception #BR or operation involving
@@ -409,11 +407,11 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	 */
 	switch (bndcsr->bndstatus & MPX_BNDSTA_ERROR_CODE) {
 	case 2:	/* Bound directory has invalid entry. */
-		if (mpx_handle_bd_fault(xsave_buf))
+		if (mpx_handle_bd_fault())
 			goto exit_trap;
 		break; /* Success, it was handled */
 	case 1: /* Bound violation. */
-		info = mpx_generate_siginfo(regs, xsave_buf);
+		info = mpx_generate_siginfo(regs);
 		if (IS_ERR(info)) {
 			/*
 			 * We failed to decode the MPX instruction.  Act as if
@@ -709,8 +707,8 @@ NOKPROBE_SYMBOL(do_debug);
 static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 {
 	struct task_struct *task = current;
+	struct fpu *fpu = &task->thread.fpu;
 	siginfo_t info;
-	unsigned short err;
 	char *str = (trapnr == X86_TRAP_MF) ? "fpu exception" :
 						"simd exception";
 
@@ -718,8 +716,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 		return;
 	conditional_sti(regs);
 
-	if (!user_mode(regs))
-	{
+	if (!user_mode(regs)) {
 		if (!fixup_exception(regs)) {
 			task->thread.error_code = error_code;
 			task->thread.trap_nr = trapnr;
@@ -731,62 +728,20 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 	/*
 	 * Save the info for the exception handler and clear the error.
 	 */
-	unlazy_fpu(task);
-	task->thread.trap_nr = trapnr;
+	fpu__save(fpu);
+
+	task->thread.trap_nr	= trapnr;
 	task->thread.error_code = error_code;
-	info.si_signo = SIGFPE;
-	info.si_errno = 0;
-	info.si_addr = (void __user *)uprobe_get_trap_addr(regs);
-	if (trapnr == X86_TRAP_MF) {
-		unsigned short cwd, swd;
-		/*
-		 * (~cwd & swd) will mask out exceptions that are not set to unmasked
-		 * status.  0x3f is the exception bits in these regs, 0x200 is the
-		 * C1 reg you need in case of a stack fault, 0x040 is the stack
-		 * fault bit.  We should only be taking one exception at a time,
-		 * so if this combination doesn't produce any single exception,
-		 * then we have a bad program that isn't synchronizing its FPU usage
-		 * and it will suffer the consequences since we won't be able to
-		 * fully reproduce the context of the exception
-		 */
-		cwd = get_fpu_cwd(task);
-		swd = get_fpu_swd(task);
+	info.si_signo		= SIGFPE;
+	info.si_errno		= 0;
+	info.si_addr		= (void __user *)uprobe_get_trap_addr(regs);
 
-		err = swd & ~cwd;
-	} else {
-		/*
-		 * The SIMD FPU exceptions are handled a little differently, as there
-		 * is only a single status/control register.  Thus, to determine which
-		 * unmasked exception was caught we must mask the exception mask bits
-		 * at 0x1f80, and then use these to mask the exception bits at 0x3f.
-		 */
-		unsigned short mxcsr = get_fpu_mxcsr(task);
-		err = ~(mxcsr >> 7) & mxcsr;
-	}
+	info.si_code = fpu__exception_code(fpu, trapnr);
 
-	if (err & 0x001) {	/* Invalid op */
-		/*
-		 * swd & 0x240 == 0x040: Stack Underflow
-		 * swd & 0x240 == 0x240: Stack Overflow
-		 * User must clear the SF bit (0x40) if set
-		 */
-		info.si_code = FPE_FLTINV;
-	} else if (err & 0x004) { /* Divide by Zero */
-		info.si_code = FPE_FLTDIV;
-	} else if (err & 0x008) { /* Overflow */
-		info.si_code = FPE_FLTOVF;
-	} else if (err & 0x012) { /* Denormal, Underflow */
-		info.si_code = FPE_FLTUND;
-	} else if (err & 0x020) { /* Precision */
-		info.si_code = FPE_FLTRES;
-	} else {
-		/*
-		 * If we're using IRQ 13, or supposedly even some trap
-		 * X86_TRAP_MF implementations, it's possible
-		 * we get a spurious trap, which is not an error.
-		 */
+	/* Retry when we get spurious exceptions: */
+	if (!info.si_code)
 		return;
-	}
+
 	force_sig_info(SIGFPE, &info, task);
 }
 
@@ -813,61 +768,7 @@ dotraplinkage void
 do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
-#if 0
-	/* No need to warn about this any longer. */
-	pr_info("Ignoring P6 Local APIC Spurious Interrupt Bug...\n");
-#endif
 }
-
-asmlinkage __visible void __attribute__((weak)) smp_thermal_interrupt(void)
-{
-}
-
-asmlinkage __visible void __attribute__((weak)) smp_threshold_interrupt(void)
-{
-}
-
-/*
- * 'math_state_restore()' saves the current math information in the
- * old math state array, and gets the new ones from the current task
- *
- * Careful.. There are problems with IBM-designed IRQ13 behaviour.
- * Don't touch unless you *really* know how it works.
- *
- * Must be called with kernel preemption disabled (eg with local
- * local interrupts as in the case of do_device_not_available).
- */
-void math_state_restore(void)
-{
-	struct task_struct *tsk = current;
-
-	if (!tsk_used_math(tsk)) {
-		local_irq_enable();
-		/*
-		 * does a slab alloc which can sleep
-		 */
-		if (init_fpu(tsk)) {
-			/*
-			 * ran out of memory!
-			 */
-			do_group_exit(SIGKILL);
-			return;
-		}
-		local_irq_disable();
-	}
-
-	/* Avoid __kernel_fpu_begin() right after __thread_fpu_begin() */
-	kernel_fpu_disable();
-	__thread_fpu_begin(tsk);
-	if (unlikely(restore_fpu_checking(tsk))) {
-		fpu_reset_state(tsk);
-		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
-	} else {
-		tsk->thread.fpu_counter++;
-	}
-	kernel_fpu_enable();
-}
-EXPORT_SYMBOL_GPL(math_state_restore);
 
 dotraplinkage void
 do_device_not_available(struct pt_regs *regs, long error_code)
@@ -889,7 +790,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 		return;
 	}
 #endif
-	math_state_restore(); /* interrupts still off */
+	fpu__restore(&current->thread.fpu); /* interrupts still off */
 #ifdef CONFIG_X86_32
 	conditional_sti(regs);
 #endif
@@ -992,13 +893,13 @@ void __init trap_init(void)
 		set_bit(i, used_vectors);
 
 #ifdef CONFIG_IA32_EMULATION
-	set_system_intr_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
+	set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_compat);
 	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
 #endif
 
 #ifdef CONFIG_X86_32
-	set_system_trap_gate(SYSCALL_VECTOR, &system_call);
-	set_bit(SYSCALL_VECTOR, used_vectors);
+	set_system_trap_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
+	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
 #endif
 
 	/*

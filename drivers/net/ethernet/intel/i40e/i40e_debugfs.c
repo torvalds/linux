@@ -1021,6 +1021,15 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			goto command_write_done;
 		}
 
+		/* By default we are in VEPA mode, if this is the first VF/VMDq
+		 * VSI to be added switch to VEB mode.
+		 */
+		if (!(pf->flags & I40E_FLAG_VEB_MODE_ENABLED)) {
+			pf->flags |= I40E_FLAG_VEB_MODE_ENABLED;
+			i40e_do_reset_safe(pf,
+					   BIT_ULL(__I40E_PF_RESET_REQUESTED));
+		}
+
 		vsi = i40e_vsi_setup(pf, I40E_VSI_VMDQ2, vsi_seid, 0);
 		if (vsi)
 			dev_info(&pf->pdev->dev, "added VSI %d to relay %d\n",

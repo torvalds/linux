@@ -42,8 +42,22 @@
 #define CMD_UNSOLICITED_ABORT   0x000A
 #define CMD_TIMEOUT             0x000B
 #define CMD_UNABORTABLE		0x000C
+#define CMD_TMF_STATUS		0x000D
 #define CMD_IOACCEL_DISABLED	0x000E
+#define CMD_CTLR_LOCKUP		0xffff
+/* Note: CMD_CTLR_LOCKUP is not a value defined by the CISS spec
+ * it is a value defined by the driver that commands can be marked
+ * with when a controller lockup has been detected by the driver
+ */
 
+/* TMF function status values */
+#define CISS_TMF_COMPLETE	0x00
+#define CISS_TMF_INVALID_FRAME	0x02
+#define CISS_TMF_NOT_SUPPORTED	0x04
+#define CISS_TMF_FAILED		0x05
+#define CISS_TMF_SUCCESS	0x08
+#define CISS_TMF_WRONG_LUN	0x09
+#define CISS_TMF_OVERLAPPED_TAG 0x0a
 
 /* Unit Attentions ASC's as defined for the MSA2012sa */
 #define POWER_OR_RESET			0x29
@@ -240,6 +254,7 @@ struct ReportLUNdata {
 
 struct ext_report_lun_entry {
 	u8 lunid[8];
+#define MASKED_DEVICE(x) ((x)[3] & 0xC0)
 #define GET_BMIC_BUS(lunid) ((lunid)[7] & 0x3F)
 #define GET_BMIC_LEVEL_TWO_TARGET(lunid) ((lunid)[6])
 #define GET_BMIC_DRIVE_NUMBER(lunid) (((GET_BMIC_BUS((lunid)) - 1) << 8) + \
@@ -247,6 +262,8 @@ struct ext_report_lun_entry {
 	u8 wwid[8];
 	u8 device_type;
 	u8 device_flags;
+#define NON_DISK_PHYS_DEV(x) ((x)[17] & 0x01)
+#define PHYS_IOACCEL(x) ((x)[17] & 0x08)
 	u8 lun_count; /* multi-lun device, how many luns */
 	u8 redundant_paths;
 	u32 ioaccel_handle; /* ioaccel1 only uses lower 16 bits */
@@ -379,6 +396,7 @@ struct ErrorInfo {
 #define CMD_SCSI	0x03
 #define CMD_IOACCEL1	0x04
 #define CMD_IOACCEL2	0x05
+#define IOACCEL2_TMF	0x06
 
 #define DIRECT_LOOKUP_SHIFT 4
 #define DIRECT_LOOKUP_MASK (~((1 << DIRECT_LOOKUP_SHIFT) - 1))
@@ -421,7 +439,10 @@ struct CommandList {
 	 * not used.
 	 */
 	struct hpsa_scsi_dev_t *phys_disk;
-	atomic_t refcount; /* Must be last to avoid memset in cmd_alloc */
+
+	int abort_pending;
+	struct hpsa_scsi_dev_t *reset_pending;
+	atomic_t refcount; /* Must be last to avoid memset in hpsa_cmd_init() */
 } __aligned(COMMANDLIST_ALIGNMENT);
 
 /* Max S/G elements in I/O accelerator command */
@@ -515,6 +536,12 @@ struct io_accel2_scsi_response {
 #define IOACCEL2_STATUS_SR_TASK_COMP_SET_FULL	0x28
 #define IOACCEL2_STATUS_SR_TASK_COMP_ABORTED	0x40
 #define IOACCEL2_STATUS_SR_IOACCEL_DISABLED	0x0E
+#define IOACCEL2_STATUS_SR_IO_ERROR		0x01
+#define IOACCEL2_STATUS_SR_IO_ABORTED		0x02
+#define IOACCEL2_STATUS_SR_NO_PATH_TO_DEVICE	0x03
+#define IOACCEL2_STATUS_SR_INVALID_DEVICE	0x04
+#define IOACCEL2_STATUS_SR_UNDERRUN		0x51
+#define IOACCEL2_STATUS_SR_OVERRUN		0x75
 	u8 data_present;		/* low 2 bits */
 #define IOACCEL2_NO_DATAPRESENT		0x000
 #define IOACCEL2_RESPONSE_DATAPRESENT	0x001
@@ -567,6 +594,7 @@ struct io_accel2_cmd {
 #define IOACCEL2_DIR_NO_DATA	0x00
 #define IOACCEL2_DIR_DATA_IN	0x01
 #define IOACCEL2_DIR_DATA_OUT	0x02
+#define IOACCEL2_TMF_ABORT	0x01
 /*
  * SCSI Task Management Request format for Accelerator Mode 2
  */
@@ -575,13 +603,13 @@ struct hpsa_tmf_struct {
 	u8 reply_queue;		/* Reply Queue ID */
 	u8 tmf;			/* Task Management Function */
 	u8 reserved1;		/* byte 3 Reserved */
-	u32 it_nexus;		/* SCSI I-T Nexus */
+	__le32 it_nexus;	/* SCSI I-T Nexus */
 	u8 lun_id[8];		/* LUN ID for TMF request */
 	__le64 tag;		/* cciss tag associated w/ request */
 	__le64 abort_tag;	/* cciss tag of SCSI cmd or TMF to abort */
 	__le64 error_ptr;		/* Error Pointer */
 	__le32 error_len;		/* Error Length */
-};
+} __aligned(IOACCEL2_COMMANDLIST_ALIGNMENT);
 
 /* Configuration Table Structure */
 struct HostWrite {

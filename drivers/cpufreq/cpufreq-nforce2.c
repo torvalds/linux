@@ -414,7 +414,7 @@ static int nforce2_detect_chipset(void)
  * nforce2_init - initializes the nForce2 CPUFreq driver
  *
  * Initializes the nForce2 FSB support. Returns -ENODEV on unsupported
- * devices, -EINVAL on problems during initiatization, and zero on
+ * devices, -EINVAL on problems during initialization, and zero on
  * success.
  */
 static int __init nforce2_init(void)

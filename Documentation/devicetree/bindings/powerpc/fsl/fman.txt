@@ -189,6 +189,19 @@ PROPERTIES
 		Definition: There is one reg region describing the port
 		configuration registers.
 
+- fsl,fman-10g-port
+		Usage: optional
+		Value type: boolean
+		Definition: The default port rate is 1G.
+		If this property exists, the port is s 10G port.
+
+- fsl,fman-best-effort-port
+		Usage: optional
+		Value type: boolean
+		Definition: Can be defined only if 10G-support is set.
+		This property marks a best-effort 10G port (10G port that
+		may not be capable of line rate).
+
 EXAMPLE
 
 port@a8000 {

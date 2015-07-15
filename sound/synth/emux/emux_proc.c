@@ -24,8 +24,6 @@
 #include <sound/info.h>
 #include "emux_voice.h"
 
-#ifdef CONFIG_PROC_FS
-
 static void
 snd_emux_proc_info_read(struct snd_info_entry *entry, 
 			struct snd_info_buffer *buf)
@@ -128,5 +126,3 @@ void snd_emux_proc_free(struct snd_emux *emu)
 	snd_info_free_entry(emu->proc);
 	emu->proc = NULL;
 }
-
-#endif /* CONFIG_PROC_FS */

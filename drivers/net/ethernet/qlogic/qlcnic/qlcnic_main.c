@@ -1031,7 +1031,7 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 		pfn = pci_info[i].id;
 
 		if (pfn >= ahw->max_vnic_func) {
-			ret = QL_STATUS_INVALID_PARAM;
+			ret = -EINVAL;
 			dev_err(&adapter->pdev->dev, "%s: Invalid function 0x%x, max 0x%x\n",
 				__func__, pfn, ahw->max_vnic_func);
 			goto err_eswitch;

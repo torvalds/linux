@@ -59,21 +59,21 @@ static const struct berlin_desc_group berlin2q_soc_pinctrl_groups[] = {
 			BERLIN_PINCTRL_FUNCTION(0x2, "gpio"),
 			BERLIN_PINCTRL_FUNCTION(0x3, "eddc")),
 	BERLIN_PINCTRL_GROUP("G8", 0x18, 0x3, 0x18,
-			BERLIN_PINCTRL_FUNCTION(0x0, "spi1"),
+			BERLIN_PINCTRL_FUNCTION(0x0, "spi1"), /* CLK/SDI/SDO */
 			BERLIN_PINCTRL_FUNCTION(0x1, "gpio")),
 	BERLIN_PINCTRL_GROUP("G9", 0x18, 0x3, 0x1b,
-			BERLIN_PINCTRL_FUNCTION(0x0, "spi1"),
+			BERLIN_PINCTRL_FUNCTION(0x0, "spi1"), /* SS0n/SS1n */
 			BERLIN_PINCTRL_FUNCTION(0x1, "gpio"),
 			BERLIN_PINCTRL_FUNCTION(0x5, "sata")),
 	BERLIN_PINCTRL_GROUP("G10", 0x1c, 0x3, 0x00,
 			BERLIN_PINCTRL_FUNCTION(0x0, "gpio"),
-			BERLIN_PINCTRL_FUNCTION(0x1, "spi1"),
+			BERLIN_PINCTRL_FUNCTION(0x1, "spi1"), /* SS2n */
 			BERLIN_PINCTRL_FUNCTION(0x3, "i2s0"),
 			BERLIN_PINCTRL_FUNCTION(0x4, "pwm"),
 			BERLIN_PINCTRL_FUNCTION(0x5, "sata")),
 	BERLIN_PINCTRL_GROUP("G11", 0x1c, 0x3, 0x03,
 			BERLIN_PINCTRL_FUNCTION(0x0, "jtag"),
-			BERLIN_PINCTRL_FUNCTION(0x1, "spi1"),
+			BERLIN_PINCTRL_FUNCTION(0x1, "spi1"), /* SS3n */
 			BERLIN_PINCTRL_FUNCTION(0x2, "gpio"),
 			BERLIN_PINCTRL_FUNCTION(0x3, "i2s1"),
 			BERLIN_PINCTRL_FUNCTION(0x4, "pwm"),
@@ -301,19 +301,19 @@ static const struct berlin_desc_group berlin2q_sysmgr_pinctrl_groups[] = {
 	/* GSM */
 	BERLIN_PINCTRL_GROUP("GSM0", 0x40, 0x2, 0x00,
 			BERLIN_PINCTRL_FUNCTION(0x0, "gpio"),
-			BERLIN_PINCTRL_FUNCTION(0x1, "spi2"),
+			BERLIN_PINCTRL_FUNCTION(0x1, "spi2"), /* SS0n */
 			BERLIN_PINCTRL_FUNCTION(0x2, "eth1")),
 	BERLIN_PINCTRL_GROUP("GSM1", 0x40, 0x2, 0x02,
 			BERLIN_PINCTRL_FUNCTION(0x0, "gpio"),
-			BERLIN_PINCTRL_FUNCTION(0x1, "spi2"),
+			BERLIN_PINCTRL_FUNCTION(0x1, "spi2"), /* SS1n */
 			BERLIN_PINCTRL_FUNCTION(0x2, "eth1")),
 	BERLIN_PINCTRL_GROUP("GSM2", 0x40, 0x2, 0x04,
 			BERLIN_PINCTRL_FUNCTION(0x0, "gpio"),
-			BERLIN_PINCTRL_FUNCTION(0x1, "spi2"),
+			BERLIN_PINCTRL_FUNCTION(0x1, "spi2"), /* SS2n/SS3n */
 			BERLIN_PINCTRL_FUNCTION(0x2, "eddc")),
 	BERLIN_PINCTRL_GROUP("GSM3", 0x40, 0x2, 0x06,
 			BERLIN_PINCTRL_FUNCTION(0x0, "gpio"),
-			BERLIN_PINCTRL_FUNCTION(0x1, "spi2"),
+			BERLIN_PINCTRL_FUNCTION(0x1, "spi2"), /* CLK/SDO */
 			BERLIN_PINCTRL_FUNCTION(0x2, "eddc")),
 	BERLIN_PINCTRL_GROUP("GSM4", 0x40, 0x1, 0x08,
 			BERLIN_PINCTRL_FUNCTION(0x0, "gpio"),
@@ -380,11 +380,11 @@ static const struct berlin_pinctrl_desc berlin2q_sysmgr_pinctrl_data = {
 
 static const struct of_device_id berlin2q_pinctrl_match[] = {
 	{
-		.compatible = "marvell,berlin2q-chip-ctrl",
+		.compatible = "marvell,berlin2q-soc-pinctrl",
 		.data = &berlin2q_soc_pinctrl_data,
 	},
 	{
-		.compatible = "marvell,berlin2q-system-ctrl",
+		.compatible = "marvell,berlin2q-system-pinctrl",
 		.data = &berlin2q_sysmgr_pinctrl_data,
 	},
 	{}
@@ -395,28 +395,6 @@ static int berlin2q_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
 		of_match_device(berlin2q_pinctrl_match, &pdev->dev);
-	struct regmap_config *rmconfig;
-	struct regmap *regmap;
-	struct resource *res;
-	void __iomem *base;
-
-	rmconfig = devm_kzalloc(&pdev->dev, sizeof(*rmconfig), GFP_KERNEL);
-	if (!rmconfig)
-		return -ENOMEM;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	rmconfig->reg_bits = 32,
-	rmconfig->val_bits = 32,
-	rmconfig->reg_stride = 4,
-	rmconfig->max_register = resource_size(res);
-
-	regmap = devm_regmap_init_mmio(&pdev->dev, base, rmconfig);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
 
 	return berlin_pinctrl_probe(pdev, match->data);
 }

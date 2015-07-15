@@ -19,10 +19,13 @@
  * reset link state etc.
  *
  * @priv:	A pointer to struct lbs_private structure
+ * @locally_generated: indicates disconnect was requested locally
+ *		(usually by userspace)
  *
  * returns:	n/a
  */
-void lbs_mac_event_disconnected(struct lbs_private *priv)
+void lbs_mac_event_disconnected(struct lbs_private *priv,
+				bool locally_generated)
 {
 	if (priv->connect_status != LBS_CONNECTED)
 		return;
@@ -36,7 +39,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	msleep_interruptible(1000);
 
 	if (priv->wdev->iftype == NL80211_IFTYPE_STATION)
-		lbs_send_disconnect_notification(priv);
+		lbs_send_disconnect_notification(priv, locally_generated);
 
 	/* report disconnect to upper layer */
 	netif_stop_queue(priv->dev);
@@ -229,17 +232,17 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 
 	case MACREG_INT_CODE_DEAUTHENTICATED:
 		lbs_deb_cmd("EVENT: deauthenticated\n");
-		lbs_mac_event_disconnected(priv);
+		lbs_mac_event_disconnected(priv, false);
 		break;
 
 	case MACREG_INT_CODE_DISASSOCIATED:
 		lbs_deb_cmd("EVENT: disassociated\n");
-		lbs_mac_event_disconnected(priv);
+		lbs_mac_event_disconnected(priv, false);
 		break;
 
 	case MACREG_INT_CODE_LINK_LOST_NO_SCAN:
 		lbs_deb_cmd("EVENT: link lost\n");
-		lbs_mac_event_disconnected(priv);
+		lbs_mac_event_disconnected(priv, true);
 		break;
 
 	case MACREG_INT_CODE_PS_SLEEP:

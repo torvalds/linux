@@ -136,6 +136,38 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
 }
 
 /**
+ * amdgpu_fence_recreate - recreate a fence from an user fence
+ *
+ * @ring: ring the fence is associated with
+ * @owner: creator of the fence
+ * @seq: user fence sequence number
+ * @fence: resulting amdgpu fence object
+ *
+ * Recreates a fence command from the user fence sequence number (all asics).
+ * Returns 0 on success, -ENOMEM on failure.
+ */
+int amdgpu_fence_recreate(struct amdgpu_ring *ring, void *owner,
+			  uint64_t seq, struct amdgpu_fence **fence)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	if (seq > ring->fence_drv.sync_seq[ring->idx])
+		return -EINVAL;
+
+	*fence = kmalloc(sizeof(struct amdgpu_fence), GFP_KERNEL);
+	if ((*fence) == NULL)
+		return -ENOMEM;
+
+	(*fence)->seq = seq;
+	(*fence)->ring = ring;
+	(*fence)->owner = owner;
+	fence_init(&(*fence)->base, &amdgpu_fence_ops,
+		&adev->fence_queue.lock, adev->fence_context + ring->idx,
+		(*fence)->seq);
+	return 0;
+}
+
+/**
  * amdgpu_fence_check_signaled - callback from fence_queue
  *
  * this function is called with fence_queue lock held, which is also used
@@ -517,12 +549,14 @@ static bool amdgpu_fence_any_seq_signaled(struct amdgpu_device *adev, u64 *seq)
  * the wait timeout, or an error for all other cases.
  * -EDEADLK is returned when a GPU lockup has been detected.
  */
-long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev, u64 *target_seq,
-				   bool intr, long timeout)
+static long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev,
+					  u64 *target_seq, bool intr,
+					  long timeout)
 {
 	uint64_t last_seq[AMDGPU_MAX_RINGS];
 	bool signaled;
-	int i, r;
+	int i;
+	long r;
 
 	if (timeout == 0) {
 		return amdgpu_fence_any_seq_signaled(adev, target_seq);
@@ -1023,7 +1057,7 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 
 		amdgpu_fence_process(ring);
 
-		seq_printf(m, "--- ring %d ---\n", i);
+		seq_printf(m, "--- ring %d (%s) ---\n", i, ring->name);
 		seq_printf(m, "Last signaled fence 0x%016llx\n",
 			   (unsigned long long)atomic64_read(&ring->fence_drv.last_seq));
 		seq_printf(m, "Last emitted        0x%016llx\n",
@@ -1031,7 +1065,8 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 
 		for (j = 0; j < AMDGPU_MAX_RINGS; ++j) {
 			struct amdgpu_ring *other = adev->rings[j];
-			if (i != j && other && other->fence_drv.initialized)
+			if (i != j && other && other->fence_drv.initialized &&
+			    ring->fence_drv.sync_seq[j])
 				seq_printf(m, "Last sync to ring %d 0x%016llx\n",
 					   j, ring->fence_drv.sync_seq[j]);
 		}

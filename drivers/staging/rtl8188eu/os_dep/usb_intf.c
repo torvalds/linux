@@ -32,8 +32,6 @@
 #include <usb_hal.h>
 #include <rtw_ioctl.h>
 
-int ui_pid[3] = {0, 0, 0};
-
 #define USB_VENDER_ID_REALTEK		0x0bda
 
 /* DID_USB_v916_20130116 */
@@ -330,11 +328,6 @@ static int rtw_resume_process(struct adapter *padapter)
 
 	_exit_pwrlock(&pwrpriv->lock);
 
-	if (padapter->pid[1] != 0) {
-		DBG_88E("pid[1]:%d\n", padapter->pid[1]);
-		rtw_signal_process(padapter->pid[1], SIGUSR2);
-	}
-
 	rtw_roaming(padapter, NULL);
 
 	ret = 0;
@@ -509,11 +502,6 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 	if (if1 == NULL) {
 		DBG_88E("rtw_init_primarystruct adapter Failed!\n");
 		goto free_dvobj;
-	}
-
-	if (ui_pid[1] != 0) {
-		DBG_88E("ui_pid[1]:%d\n", ui_pid[1]);
-		rtw_signal_process(ui_pid[1], SIGUSR2);
 	}
 
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-871x_drv - drv_init, success!\n"));

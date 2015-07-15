@@ -71,7 +71,7 @@ static inline struct device_node *of_graph_get_next_endpoint(
 	return NULL;
 }
 
-struct device_node *of_graph_get_endpoint_by_regs(
+static inline struct device_node *of_graph_get_endpoint_by_regs(
 		const struct device_node *parent, int port_reg, int reg)
 {
 	return NULL;
