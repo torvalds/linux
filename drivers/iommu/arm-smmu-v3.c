@@ -118,6 +118,7 @@
 
 #define ARM_SMMU_IRQ_CTRL		0x50
 #define IRQ_CTRL_EVTQ_IRQEN		(1 << 2)
+#define IRQ_CTRL_PRIQ_IRQEN		(1 << 1)
 #define IRQ_CTRL_GERROR_IRQEN		(1 << 0)
 
 #define ARM_SMMU_IRQ_CTRLACK		0x54
@@ -2198,6 +2199,7 @@ static int arm_smmu_write_reg_sync(struct arm_smmu_device *smmu, u32 val,
 static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 {
 	int ret, irq;
+	u32 irqen_flags = IRQ_CTRL_EVTQ_IRQEN | IRQ_CTRL_GERROR_IRQEN;
 
 	/* Disable IRQs first */
 	ret = arm_smmu_write_reg_sync(smmu, 0, ARM_SMMU_IRQ_CTRL,
@@ -2252,13 +2254,13 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 			if (IS_ERR_VALUE(ret))
 				dev_warn(smmu->dev,
 					 "failed to enable priq irq\n");
+			else
+				irqen_flags |= IRQ_CTRL_PRIQ_IRQEN;
 		}
 	}
 
 	/* Enable interrupt generation on the SMMU */
-	ret = arm_smmu_write_reg_sync(smmu,
-				      IRQ_CTRL_EVTQ_IRQEN |
-				      IRQ_CTRL_GERROR_IRQEN,
+	ret = arm_smmu_write_reg_sync(smmu, irqen_flags,
 				      ARM_SMMU_IRQ_CTRL, ARM_SMMU_IRQ_CTRLACK);
 	if (ret)
 		dev_warn(smmu->dev, "failed to enable irqs\n");
