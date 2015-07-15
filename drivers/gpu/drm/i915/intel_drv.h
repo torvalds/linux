@@ -317,6 +317,9 @@ struct intel_crtc_scaler_state {
 	int scaler_id;
 };
 
+/* drm_mode->private_flags */
+#define I915_MODE_FLAG_INHERITED 1
+
 struct intel_crtc_state {
 	struct drm_crtc_state base;
 
@@ -329,7 +332,6 @@ struct intel_crtc_state {
 	 * accordingly.
 	 */
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
-#define PIPE_CONFIG_QUIRK_INHERITED_MODE	(1<<1) /* mode inherited from firmware */
 	unsigned long quirks;
 
 	/* Pipe source size (ie. panel fitter input size)

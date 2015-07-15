@@ -13161,7 +13161,11 @@ static int intel_atomic_check(struct drm_device *dev,
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct intel_crtc_state *pipe_config =
 			to_intel_crtc_state(crtc_state);
-		bool modeset, recalc = false;
+		bool modeset;
+
+		/* Catch I915_MODE_FLAG_INHERITED */
+		if (crtc_state->mode.private_flags != crtc->state->mode.private_flags)
+			crtc_state->mode_changed = true;
 
 		if (!crtc_state->enable) {
 			if (needs_modeset(crtc_state))
@@ -13170,28 +13174,22 @@ static int intel_atomic_check(struct drm_device *dev,
 		}
 
 		modeset = needs_modeset(crtc_state);
-		/* see comment in intel_modeset_readout_hw_state */
-		if (!modeset && crtc_state->mode_blob != crtc->state->mode_blob &&
-		    pipe_config->quirks & PIPE_CONFIG_QUIRK_INHERITED_MODE)
-			recalc = true;
 
-		if (!modeset && !recalc)
+		if (!modeset)
 			continue;
 
-		if (recalc) {
-			ret = drm_atomic_add_affected_connectors(state, crtc);
-			if (ret)
-				return ret;
-		}
+		ret = drm_atomic_add_affected_connectors(state, crtc);
+		if (ret)
+			return ret;
 
 		ret = intel_modeset_pipe_config(crtc, pipe_config);
 		if (ret)
 			return ret;
 
-		if (recalc && (!i915.fastboot ||
+		if (!i915.fastboot ||
 		    !intel_pipe_config_compare(state->dev,
 					to_intel_crtc_state(crtc->state),
-					pipe_config, true))) {
+					pipe_config, true)) {
 			modeset = crtc_state->mode_changed = true;
 
 			ret = drm_atomic_add_affected_planes(state, crtc);
@@ -15238,8 +15236,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		memset(crtc->config, 0, sizeof(*crtc->config));
 		crtc->config->base.crtc = &crtc->base;
 
-		crtc->config->quirks |= PIPE_CONFIG_QUIRK_INHERITED_MODE;
-
 		crtc->active = dev_priv->display.get_pipe_config(crtc,
 								 crtc->config);
 
@@ -15265,17 +15261,11 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 * right now it would cause a double modeset if
 			 * fbdev or userspace chooses a different initial mode.
 			 *
-			 * So to prevent the double modeset, fail the memcmp
-			 * test in drm_atomic_set_mode_for_crtc to get a new
-			 * mode blob, and compare if the mode blob changed
-			 * when the PIPE_CONFIG_QUIRK_INHERITED_MODE quirk is
-			 * set.
-			 *
 			 * If that happens, someone indicated they wanted a
 			 * mode change, which means it's safe to do a full
 			 * recalculation.
 			 */
-			crtc->base.state->mode.private_flags = ~0;
+			crtc->base.state->mode.private_flags = I915_MODE_FLAG_INHERITED;
 		}
 
 		crtc->base.hwmode = crtc->config->base.adjusted_mode;
