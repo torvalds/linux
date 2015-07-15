@@ -24,6 +24,7 @@ struct rsnd_dvc {
 	struct rsnd_kctrl_cfg_s rdown;	/* Ramp Rate Down */
 };
 
+#define rsnd_dvc_nr(priv) ((priv)->dvc_nr)
 #define rsnd_dvc_of_node(priv) \
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,dvc")
 

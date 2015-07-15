@@ -579,7 +579,4 @@ void rsnd_dvc_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
 
-#define rsnd_dvc_nr(priv) ((priv)->dvc_nr)
-
-
 #endif
