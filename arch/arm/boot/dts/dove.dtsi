@@ -723,6 +723,7 @@
 				rtc: real-time-clock@8500 {
 					compatible = "marvell,orion-rtc";
 					reg = <0x8500 0x20>;
+					interrupts = <5>;
 				};
 			};
 
