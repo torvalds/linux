@@ -124,6 +124,14 @@ static void rsnd_src_soft_reset(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, SRC_SWRSR, 1);
 }
 
+
+#define rsnd_src_initialize_lock(mod)	__rsnd_src_initialize_lock(mod, 1)
+#define rsnd_src_initialize_unlock(mod)	__rsnd_src_initialize_lock(mod, 0)
+static void __rsnd_src_initialize_lock(struct rsnd_mod *mod, u32 enable)
+{
+	rsnd_mod_write(mod, SRC_SRCIR, enable);
+}
+
 static struct dma_chan *rsnd_src_dma_req(struct rsnd_dai_stream *io,
 					 struct rsnd_mod *mod)
 {
@@ -362,16 +370,12 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 
 	rsnd_src_soft_reset(mod);
 
+	rsnd_src_initialize_lock(mod);
+
 	src->err = 0;
 
 	/* reset sync convert_rate */
 	src->sync.val = 0;
-
-	/*
-	 * Initialize the operation of the SRC internal circuits
-	 * see rsnd_src_start()
-	 */
-	rsnd_mod_write(mod, SRC_SRCIR, 1);
 
 	return 0;
 }
@@ -399,11 +403,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 
 static int rsnd_src_start(struct rsnd_mod *mod)
 {
-	/*
-	 * Cancel the initialization and operate the SRC function
-	 * see rsnd_src_init()
-	 */
-	rsnd_mod_write(mod, SRC_SRCIR, 0);
+	rsnd_src_initialize_unlock(mod);
 
 	return 0;
 }
