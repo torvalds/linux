@@ -71,21 +71,27 @@ armada_ovl_update_attr(struct armada_ovl_plane_properties *prop,
 	spin_unlock_irq(&dcrtc->irq_lock);
 }
 
+static void armada_ovl_retire_fb(struct armada_ovl_plane *dplane,
+	struct drm_framebuffer *fb)
+{
+	struct drm_framebuffer *old_fb;
+
+	spin_lock(&dplane->lock);
+	old_fb = dplane->old_fb;
+	dplane->old_fb = fb;
+	spin_unlock(&dplane->lock);
+
+	if (old_fb)
+		armada_drm_queue_unref_work(dplane->base.dev, old_fb);
+}
+
 /* === Plane support === */
 static void armada_ovl_plane_vbl(struct armada_crtc *dcrtc, void *data)
 {
 	struct armada_ovl_plane *dplane = data;
-	struct drm_framebuffer *fb;
 
 	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
-
-	spin_lock(&dplane->lock);
-	fb = dplane->old_fb;
-	dplane->old_fb = NULL;
-	spin_unlock(&dplane->lock);
-
-	if (fb)
-		armada_drm_queue_unref_work(dcrtc->crtc.dev, fb);
+	armada_ovl_retire_fb(dplane, NULL);
 
 	wake_up(&dplane->vbl.wait);
 }
@@ -175,17 +181,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		 */
 		drm_framebuffer_reference(fb);
 
-		if (plane->fb) {
-			struct drm_framebuffer *older_fb;
-
-			spin_lock_irq(&dplane->lock);
-			older_fb = dplane->old_fb;
-			dplane->old_fb = plane->fb;
-			spin_unlock_irq(&dplane->lock);
-			if (older_fb)
-				armada_drm_queue_unref_work(dcrtc->crtc.dev,
-							    older_fb);
-		}
+		if (plane->fb)
+			armada_ovl_retire_fb(dplane, plane->fb);
 
 		src_y = src.y1 >> 16;
 		src_x = src.x1 >> 16;
