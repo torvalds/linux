@@ -1441,8 +1441,8 @@ first_nmi:
 	/* Restore rdx. */
 	movq	(%rsp), %rdx
 
-	/* Set "NMI executing" on the stack. */
-	pushq	$1
+	/* Make room for "NMI executing". */
+	pushq	$0
 
 	/* Leave room for the "iret" frame */
 	subq	$(5*8), %rsp
@@ -1467,11 +1467,10 @@ repeat_nmi:
 	 * RSP is pointing to "outermost RIP".  gsbase is unknown, but, if
 	 * we're repeating an NMI, gsbase has the same value that it had on
 	 * the first iteration.  paranoid_entry will load the kernel
-	 * gsbase if needed before we call do_nmi.
-	 *
-	 * Set "NMI executing" in case we came back here via IRET.
+	 * gsbase if needed before we call do_nmi.  "NMI executing"
+	 * is zero.
 	 */
-	movq	$1, 10*8(%rsp)
+	movq	$1, 10*8(%rsp)		/* Set "NMI executing". */
 
 	/*
 	 * Copy the "outermost" frame to the "iret" frame.  NMIs that nest
