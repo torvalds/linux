@@ -758,9 +758,7 @@ static void device_free_td0_ring(struct vnt_private *pDevice)
 			dma_unmap_single(&pDevice->pcid->dev, pTDInfo->skb_dma,
 					 pTDInfo->skb->len, DMA_TO_DEVICE);
 
-		if (pTDInfo->skb)
-			dev_kfree_skb(pTDInfo->skb);
-
+		dev_kfree_skb(pTDInfo->skb);
 		kfree(pDesc->pTDInfo);
 	}
 }
@@ -777,9 +775,7 @@ static void device_free_td1_ring(struct vnt_private *pDevice)
 			dma_unmap_single(&pDevice->pcid->dev, pTDInfo->skb_dma,
 					 pTDInfo->skb->len, DMA_TO_DEVICE);
 
-		if (pTDInfo->skb)
-			dev_kfree_skb(pTDInfo->skb);
-
+		dev_kfree_skb(pTDInfo->skb);
 		kfree(pDesc->pTDInfo);
 	}
 }
