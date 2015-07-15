@@ -1059,6 +1059,12 @@ static struct drm_crtc_funcs armada_crtc_funcs = {
 	.set_property	= armada_drm_crtc_set_property,
 };
 
+static const struct drm_plane_funcs armada_primary_plane_funcs = {
+	.update_plane	= drm_primary_helper_update,
+	.disable_plane	= drm_primary_helper_disable,
+	.destroy	= drm_primary_helper_destroy,
+};
+
 static struct drm_prop_enum_list armada_drm_csc_yuv_enum_list[] = {
 	{ CSC_AUTO,        "Auto" },
 	{ CSC_YUV_CCIR601, "CCIR601" },
@@ -1097,7 +1103,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 {
 	struct armada_private *priv = drm->dev_private;
 	struct armada_crtc *dcrtc;
-	struct drm_plane *primary;
+	struct armada_plane *primary;
 	void __iomem *base;
 	int ret;
 
@@ -1167,12 +1173,21 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 
 	dcrtc->crtc.port = port;
 
-	primary = drm_primary_helper_create_plane(drm, armada_primary_formats,
-					ARRAY_SIZE(armada_primary_formats));
+	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
 	if (!primary)
 		return -ENOMEM;
 
-	ret = drm_crtc_init_with_planes(drm, &dcrtc->crtc, primary, NULL,
+	ret = drm_universal_plane_init(drm, &primary->base, 0,
+				       &armada_primary_plane_funcs,
+				       armada_primary_formats,
+				       ARRAY_SIZE(armada_primary_formats),
+				       DRM_PLANE_TYPE_PRIMARY);
+	if (ret) {
+		kfree(primary);
+		return ret;
+	}
+
+	ret = drm_crtc_init_with_planes(drm, &dcrtc->crtc, &primary->base, NULL,
 					&armada_crtc_funcs);
 	if (ret)
 		goto err_crtc_init;
@@ -1187,7 +1202,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	return armada_overlay_plane_create(drm, 1 << dcrtc->num);
 
 err_crtc_init:
-	primary->funcs->destroy(primary);
+	primary->base.funcs->destroy(&primary->base);
 	return ret;
 }
 
