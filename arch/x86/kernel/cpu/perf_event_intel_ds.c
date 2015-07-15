@@ -1188,6 +1188,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 
 	for (at = base; at < top; at += x86_pmu.pebs_record_size) {
 		struct pebs_record_nhm *p = at;
+		u64 pebs_status;
 
 		/* PEBS v3 has accurate status bits */
 		if (x86_pmu.intel_cap.pebs_format >= 3) {
@@ -1198,12 +1199,17 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 			continue;
 		}
 
-		bit = find_first_bit((unsigned long *)&p->status,
+		pebs_status = p->status & cpuc->pebs_enabled;
+		pebs_status &= (1ULL << x86_pmu.max_pebs_events) - 1;
+
+		bit = find_first_bit((unsigned long *)&pebs_status,
 					x86_pmu.max_pebs_events);
-		if (bit >= x86_pmu.max_pebs_events)
+		if (WARN(bit >= x86_pmu.max_pebs_events,
+			 "PEBS record without PEBS event! status=%Lx pebs_enabled=%Lx active_mask=%Lx",
+			 (unsigned long long)p->status, (unsigned long long)cpuc->pebs_enabled,
+			 *(unsigned long long *)cpuc->active_mask))
 			continue;
-		if (!test_bit(bit, cpuc->active_mask))
-			continue;
+
 		/*
 		 * The PEBS hardware does not deal well with the situation
 		 * when events happen near to each other and multiple bits
@@ -1218,27 +1224,21 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 		 * one, and it's not possible to reconstruct all events
 		 * that caused the PEBS record. It's called collision.
 		 * If collision happened, the record will be dropped.
-		 *
 		 */
-		if (p->status != (1 << bit)) {
-			u64 pebs_status;
-
-			/* slow path */
-			pebs_status = p->status & cpuc->pebs_enabled;
-			pebs_status &= (1ULL << MAX_PEBS_EVENTS) - 1;
-			if (pebs_status != (1 << bit)) {
-				for_each_set_bit(i, (unsigned long *)&pebs_status,
-						 MAX_PEBS_EVENTS)
-					error[i]++;
-				continue;
-			}
+		if (p->status != (1ULL << bit)) {
+			for_each_set_bit(i, (unsigned long *)&pebs_status,
+					 x86_pmu.max_pebs_events)
+				error[i]++;
+			continue;
 		}
+
 		counts[bit]++;
 	}
 
 	for (bit = 0; bit < x86_pmu.max_pebs_events; bit++) {
 		if ((counts[bit] == 0) && (error[bit] == 0))
 			continue;
+
 		event = cpuc->events[bit];
 		WARN_ON_ONCE(!event);
 		WARN_ON_ONCE(!event->attr.precise_ip);
