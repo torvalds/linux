@@ -946,7 +946,6 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-#ifdef __BIG_ENDIAN
 static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
 			   size_t count, loff_t *ppos)
 {
@@ -1107,7 +1106,6 @@ static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
 
 	return (cnt) ? cnt : err;
 }
-#endif	/* ! __BIG_ENDIAN */
 
 static void sm7xx_set_timing(struct smtcfb_info *sfb)
 {
@@ -1303,10 +1301,8 @@ static struct fb_ops smtcfb_ops = {
 	.fb_fillrect  = cfb_fillrect,
 	.fb_imageblit = cfb_imageblit,
 	.fb_copyarea  = cfb_copyarea,
-#ifdef __BIG_ENDIAN
 	.fb_read      = smtcfb_read,
 	.fb_write     = smtcfb_write,
-#endif
 };
 
 /*
