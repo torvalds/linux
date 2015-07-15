@@ -118,6 +118,12 @@ struct rsnd_src {
 /*
  *		Gen1/Gen2 common functions
  */
+static void rsnd_src_soft_reset(struct rsnd_mod *mod)
+{
+	rsnd_mod_write(mod, SRC_SWRSR, 0);
+	rsnd_mod_write(mod, SRC_SWRSR, 1);
+}
+
 static struct dma_chan *rsnd_src_dma_req(struct rsnd_dai_stream *io,
 					 struct rsnd_mod *mod)
 {
@@ -294,10 +300,6 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 	if (convert_rate)
 		fsrate = 0x0400000 / convert_rate * runtime->rate;
 
-	/* set/clear soft reset */
-	rsnd_mod_write(mod, SRC_SWRSR, 0);
-	rsnd_mod_write(mod, SRC_SWRSR, 1);
-
 	/* Set channel number and output bit length */
 	rsnd_mod_write(mod, SRC_ADINR, rsnd_get_adinr(mod, io));
 
@@ -357,6 +359,8 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
 	rsnd_mod_hw_start(mod);
+
+	rsnd_src_soft_reset(mod);
 
 	src->err = 0;
 
