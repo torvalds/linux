@@ -3496,7 +3496,7 @@ static void cache_resume(struct dm_target *ti)
  * <#demotions> <#promotions> <#dirty>
  * <#features> <features>*
  * <#core args> <core args>
- * <policy name> <#policy args> <policy args>* <cache metadata mode>
+ * <policy name> <#policy args> <policy args>* <cache metadata mode> <needs_check>
  */
 static void cache_status(struct dm_target *ti, status_type_t type,
 			 unsigned status_flags, char *result, unsigned maxlen)
@@ -3581,6 +3581,11 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("ro ");
 		else
 			DMEMIT("rw ");
+
+		if (dm_cache_metadata_needs_check(cache->cmd))
+			DMEMIT("needs_check ");
+		else
+			DMEMIT("- ");
 
 		break;
 
@@ -3820,7 +3825,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type cache_target = {
 	.name = "cache",
-	.version = {1, 7, 0},
+	.version = {1, 8, 0},
 	.module = THIS_MODULE,
 	.ctr = cache_ctr,
 	.dtr = cache_dtr,
