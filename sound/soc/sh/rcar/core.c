@@ -651,6 +651,11 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	if (ret < 0)
 		return ret;
 
+	/* CTU */
+	ret = rsnd_path_add(priv, io, ctu);
+	if (ret < 0)
+		return ret;
+
 	/* DVC */
 	ret = rsnd_path_add(priv, io, dvc);
 	if (ret < 0)
@@ -666,13 +671,14 @@ static void rsnd_of_parse_dai(struct platform_device *pdev,
 	struct device_node *dai_node,	*dai_np;
 	struct device_node *ssi_node,	*ssi_np;
 	struct device_node *src_node,	*src_np;
+	struct device_node *ctu_node,	*ctu_np;
 	struct device_node *dvc_node,	*dvc_np;
 	struct device_node *playback, *capture;
 	struct rsnd_dai_platform_info *dai_info;
 	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct device *dev = &pdev->dev;
 	int nr, i;
-	int dai_i, ssi_i, src_i, dvc_i;
+	int dai_i, ssi_i, src_i, ctu_i, dvc_i;
 
 	if (!of_data)
 		return;
@@ -698,6 +704,7 @@ static void rsnd_of_parse_dai(struct platform_device *pdev,
 
 	ssi_node = of_get_child_by_name(dev->of_node, "rcar_sound,ssi");
 	src_node = of_get_child_by_name(dev->of_node, "rcar_sound,src");
+	ctu_node = of_get_child_by_name(dev->of_node, "rcar_sound,ctu");
 	dvc_node = of_get_child_by_name(dev->of_node, "rcar_sound,dvc");
 
 #define mod_parse(name)							\
@@ -734,6 +741,7 @@ if (name##_node) {							\
 
 			mod_parse(ssi);
 			mod_parse(src);
+			mod_parse(ctu);
 			mod_parse(dvc);
 
 			of_node_put(playback);
@@ -1146,6 +1154,7 @@ static int rsnd_probe(struct platform_device *pdev)
 		rsnd_dma_probe,
 		rsnd_ssi_probe,
 		rsnd_src_probe,
+		rsnd_ctu_probe,
 		rsnd_dvc_probe,
 		rsnd_adg_probe,
 		rsnd_dai_probe,
@@ -1241,6 +1250,7 @@ static int rsnd_remove(struct platform_device *pdev)
 			      struct rsnd_priv *priv) = {
 		rsnd_ssi_remove,
 		rsnd_src_remove,
+		rsnd_ctu_remove,
 		rsnd_dvc_remove,
 	};
 	int ret = 0, i;

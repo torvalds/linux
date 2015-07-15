@@ -47,6 +47,8 @@ enum rsnd_reg {
 	RSND_REG_SCU_SYS_STATUS0,
 	RSND_REG_SCU_SYS_INT_EN0,
 	RSND_REG_CMD_ROUTE_SLCT,
+	RSND_REG_CTU_CTUIR,
+	RSND_REG_CTU_ADINR,
 	RSND_REG_DVC_SWRSR,
 	RSND_REG_DVC_DVUIR,
 	RSND_REG_DVC_ADINR,
@@ -220,6 +222,7 @@ struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
  */
 enum rsnd_mod_type {
 	RSND_MOD_DVC = 0,
+	RSND_MOD_CTU,
 	RSND_MOD_SRC,
 	RSND_MOD_SSI,
 	RSND_MOD_MAX,
@@ -351,6 +354,7 @@ struct rsnd_dai_stream {
 #define rsnd_io_to_mod(io, i)	((i) < RSND_MOD_MAX ? (io)->mod[(i)] : NULL)
 #define rsnd_io_to_mod_ssi(io)	rsnd_io_to_mod((io), RSND_MOD_SSI)
 #define rsnd_io_to_mod_src(io)	rsnd_io_to_mod((io), RSND_MOD_SRC)
+#define rsnd_io_to_mod_ctu(io)	rsnd_io_to_mod((io), RSND_MOD_CTU)
 #define rsnd_io_to_mod_dvc(io)	rsnd_io_to_mod((io), RSND_MOD_DVC)
 #define rsnd_io_to_rdai(io)	((io)->rdai)
 #define rsnd_io_to_priv(io)	(rsnd_rdai_to_priv(rsnd_io_to_rdai(io)))
@@ -463,6 +467,12 @@ struct rsnd_priv {
 	int src_nr;
 
 	/*
+	 * below value will be filled on rsnd_ctu_probe()
+	 */
+	void *ctu;
+	int ctu_nr;
+
+	/*
 	 * below value will be filled on rsnd_dvc_probe()
 	 */
 	void *dvc;
@@ -566,6 +576,17 @@ int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
 		       struct rsnd_dai_stream *io);
 int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod);
 int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod);
+
+/*
+ *	R-Car CTU
+ */
+int rsnd_ctu_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
+		   struct rsnd_priv *priv);
+
+void rsnd_ctu_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
+struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
 
 /*
  *	R-Car DVC

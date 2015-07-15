@@ -426,7 +426,8 @@ rsnd_gen2_dma_addr(struct rsnd_dai_stream *io,
 	phys_addr_t src_reg = rsnd_gen_get_phy_addr(priv, RSND_GEN2_SCU);
 	int is_ssi = !!(rsnd_io_to_mod_ssi(io) == mod);
 	int use_src = !!rsnd_io_to_mod_src(io);
-	int use_dvc = !!rsnd_io_to_mod_dvc(io);
+	int use_cmd = !!rsnd_io_to_mod_dvc(io) ||
+		      !!rsnd_io_to_mod_ctu(io);
 	int id = rsnd_mod_id(mod);
 	struct dma_addr {
 		dma_addr_t out_addr;
@@ -464,7 +465,7 @@ rsnd_gen2_dma_addr(struct rsnd_dai_stream *io,
 	};
 
 	/* it shouldn't happen */
-	if (use_dvc && !use_src)
+	if (use_cmd && !use_src)
 		dev_err(dev, "DVC is selected without SRC\n");
 
 	/* use SSIU or SSI ? */
@@ -472,8 +473,8 @@ rsnd_gen2_dma_addr(struct rsnd_dai_stream *io,
 		is_ssi++;
 
 	return (is_from) ?
-		dma_addrs[is_ssi][is_play][use_src + use_dvc].out_addr :
-		dma_addrs[is_ssi][is_play][use_src + use_dvc].in_addr;
+		dma_addrs[is_ssi][is_play][use_src + use_cmd].out_addr :
+		dma_addrs[is_ssi][is_play][use_src + use_cmd].in_addr;
 }
 
 static dma_addr_t rsnd_dma_addr(struct rsnd_dai_stream *io,
@@ -504,6 +505,7 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 	struct rsnd_mod *this = rsnd_dma_to_mod(dma);
 	struct rsnd_mod *ssi = rsnd_io_to_mod_ssi(io);
 	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+	struct rsnd_mod *ctu = rsnd_io_to_mod_ctu(io);
 	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
 	struct rsnd_mod *mod[MOD_MAX];
 	struct rsnd_mod *mod_start, *mod_end;
@@ -543,6 +545,9 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 		if (src) {
 			mod[i] = src;
 			src = NULL;
+		} else if (ctu) {
+			mod[i] = ctu;
+			ctu = NULL;
 		} else if (dvc) {
 			mod[i] = dvc;
 			dvc = NULL;
