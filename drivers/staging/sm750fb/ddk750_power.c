@@ -59,17 +59,17 @@ void setPowerMode(unsigned int powerMode)
 	{
 		control_value =
 #ifdef VALIDATION_CHIP
-		FIELD_SET(  control_value, POWER_MODE_CTRL, 336CLK, OFF) |
+		FIELD_SET(control_value, POWER_MODE_CTRL, 336CLK, OFF) |
 #endif
-		FIELD_SET(  control_value, POWER_MODE_CTRL, OSC_INPUT,  OFF);
+		FIELD_SET(control_value, POWER_MODE_CTRL, OSC_INPUT,  OFF);
 	}
 	else
 	{
 		control_value =
 #ifdef VALIDATION_CHIP
-		FIELD_SET(  control_value, POWER_MODE_CTRL, 336CLK, ON) |
+		FIELD_SET(control_value, POWER_MODE_CTRL, 336CLK, ON) |
 #endif
-		FIELD_SET(  control_value, POWER_MODE_CTRL, OSC_INPUT,  ON);
+		FIELD_SET(control_value, POWER_MODE_CTRL, OSC_INPUT,  ON);
 	}
 
 	/* Program new power mode. */
