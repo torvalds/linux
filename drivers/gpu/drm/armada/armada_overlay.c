@@ -30,7 +30,7 @@ struct armada_ovl_plane_properties {
 };
 
 struct armada_ovl_plane {
-	struct drm_plane base;
+	struct armada_plane base;
 	struct drm_framebuffer *old_fb;
 	uint32_t src_hw;
 	uint32_t dst_hw;
@@ -43,7 +43,8 @@ struct armada_ovl_plane {
 	} vbl;
 	struct armada_ovl_plane_properties prop;
 };
-#define drm_to_armada_ovl_plane(p) container_of(p, struct armada_ovl_plane, base)
+#define drm_to_armada_ovl_plane(p) \
+	container_of(p, struct armada_ovl_plane, base.base)
 
 
 static void
@@ -78,7 +79,7 @@ static void armada_ovl_retire_fb(struct armada_ovl_plane *dplane,
 	old_fb = xchg(&dplane->old_fb, fb);
 
 	if (old_fb)
-		armada_drm_queue_unref_work(dplane->base.dev, old_fb);
+		armada_drm_queue_unref_work(dplane->base.base.dev, old_fb);
 }
 
 /* === Plane support === */
@@ -266,10 +267,10 @@ static int armada_ovl_plane_disable(struct drm_plane *plane)
 	struct drm_framebuffer *fb;
 	struct armada_crtc *dcrtc;
 
-	if (!dplane->base.crtc)
+	if (!dplane->base.base.crtc)
 		return 0;
 
-	dcrtc = drm_to_armada_crtc(dplane->base.crtc);
+	dcrtc = drm_to_armada_crtc(dplane->base.base.crtc);
 	dcrtc->plane = NULL;
 
 	spin_lock_irq(&dcrtc->irq_lock);
@@ -362,9 +363,9 @@ static int armada_ovl_plane_set_property(struct drm_plane *plane,
 		update_attr = true;
 	}
 
-	if (update_attr && dplane->base.crtc)
+	if (update_attr && dplane->base.base.crtc)
 		armada_ovl_update_attr(&dplane->prop,
-				       drm_to_armada_crtc(dplane->base.crtc));
+				       drm_to_armada_crtc(dplane->base.base.crtc));
 
 	return 0;
 }
@@ -461,7 +462,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	armada_drm_vbl_event_init(&dplane->vbl.update, armada_ovl_plane_vbl,
 				  dplane);
 
-	ret = drm_universal_plane_init(dev, &dplane->base, crtcs,
+	ret = drm_universal_plane_init(dev, &dplane->base.base, crtcs,
 				       &armada_ovl_plane_funcs,
 				       armada_ovl_formats,
 				       ARRAY_SIZE(armada_ovl_formats),
@@ -479,7 +480,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	dplane->prop.contrast = 0x4000;
 	dplane->prop.saturation = 0x4000;
 
-	mobj = &dplane->base.base;
+	mobj = &dplane->base.base.base;
 	drm_object_attach_property(mobj, priv->colorkey_prop,
 				   0x0101fe);
 	drm_object_attach_property(mobj, priv->colorkey_min_prop,

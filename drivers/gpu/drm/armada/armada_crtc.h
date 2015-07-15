@@ -34,6 +34,11 @@ struct armada_regs {
 struct armada_frame_work;
 struct armada_variant;
 
+struct armada_plane {
+	struct drm_plane	base;
+};
+#define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
+
 struct armada_crtc {
 	struct drm_crtc		crtc;
 	const struct armada_variant *variant;
