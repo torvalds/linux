@@ -597,7 +597,7 @@ const struct clk_ops clkops_rate_3288_usb480m = {
 	.recalc_rate	= clk_3288_usb480m_recalc_rate,
 };
 
-#define RK3288_LIMIT_PLL_VIO0 (410*MHZ)
+#define RK3288_LIMIT_PLL_VIO0 (600*MHZ)
 
 static long clk_3288_dclk_lcdc0_determine_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long *best_parent_rate,
