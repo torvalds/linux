@@ -95,3 +95,22 @@ struct modeinit {
 	unsigned char init_cr30_cr4d[SIZE_CR30_CR4D];
 	unsigned char init_cr90_cra7[SIZE_CR90_CRA7];
 };
+
+#ifdef __BIG_ENDIAN
+#define pal_rgb(r, g, b, val)	(((r & 0xf800) >> 8) | \
+				((g & 0xe000) >> 13) | \
+				((g & 0x1c00) << 3) | \
+				((b & 0xf800) >> 3))
+#define big_addr		0x800000
+#define mmio_addr		0x00800000
+#define seqw17()		smtc_seqw(0x17, 0x30)
+#define big_pixel_depth(p, d)	{if (p == 24) {p = 32; d = 32; } }
+#define big_swap(p)		((p & 0xff00ff00 >> 8) | (p & 0x00ff00ff << 8))
+#else
+#define pal_rgb(r, g, b, val)	val
+#define big_addr		0
+#define mmio_addr		0x00c00000
+#define seqw17()		do { } while (0)
+#define big_pixel_depth(p, d)	do { } while (0)
+#define big_swap(p)		p
+#endif
