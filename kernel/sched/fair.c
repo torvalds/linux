@@ -685,6 +685,9 @@ void init_entity_runnable_average(struct sched_entity *se)
 	sa->util_sum = LOAD_AVG_MAX;
 	/* when this task enqueue'ed, it will contribute to its cfs_rq's load_avg */
 }
+
+static inline unsigned long cfs_rq_runnable_load_avg(struct cfs_rq *cfs_rq);
+static inline unsigned long cfs_rq_load_avg(struct cfs_rq *cfs_rq);
 #else
 void init_entity_runnable_average(struct sched_entity *se)
 {
@@ -2360,7 +2363,7 @@ static inline long calc_tg_weight(struct task_group *tg, struct cfs_rq *cfs_rq)
 	 */
 	tg_weight = atomic_long_read(&tg->load_avg);
 	tg_weight -= cfs_rq->tg_load_avg_contrib;
-	tg_weight += cfs_rq->avg.load_avg;
+	tg_weight += cfs_rq_load_avg(cfs_rq);
 
 	return tg_weight;
 }
@@ -2370,7 +2373,7 @@ static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 	long tg_weight, load, shares;
 
 	tg_weight = calc_tg_weight(tg, cfs_rq);
-	load = cfs_rq->avg.load_avg;
+	load = cfs_rq_load_avg(cfs_rq);
 
 	shares = (tg->shares * load);
 	if (tg_weight)
@@ -2794,6 +2797,16 @@ void idle_enter_fair(struct rq *this_rq)
  */
 void idle_exit_fair(struct rq *this_rq)
 {
+}
+
+static inline unsigned long cfs_rq_runnable_load_avg(struct cfs_rq *cfs_rq)
+{
+	return cfs_rq->runnable_load_avg;
+}
+
+static inline unsigned long cfs_rq_load_avg(struct cfs_rq *cfs_rq)
+{
+	return cfs_rq->avg.load_avg;
 }
 
 static int idle_balance(struct rq *this_rq);
@@ -4270,6 +4283,12 @@ static void __update_cpu_load(struct rq *this_rq, unsigned long this_load,
 	sched_avg_update(this_rq);
 }
 
+/* Used instead of source_load when we know the type == 0 */
+static unsigned long weighted_cpuload(const int cpu)
+{
+	return cfs_rq_runnable_load_avg(&cpu_rq(cpu)->cfs);
+}
+
 #ifdef CONFIG_NO_HZ_COMMON
 /*
  * There is no sane way to deal with nohz on smp when using jiffies because the
@@ -4291,7 +4310,7 @@ static void __update_cpu_load(struct rq *this_rq, unsigned long this_load,
 static void update_idle_cpu_load(struct rq *this_rq)
 {
 	unsigned long curr_jiffies = READ_ONCE(jiffies);
-	unsigned long load = this_rq->cfs.avg.load_avg;
+	unsigned long load = weighted_cpuload(cpu_of(this_rq));
 	unsigned long pending_updates;
 
 	/*
@@ -4337,18 +4356,12 @@ void update_cpu_load_nohz(void)
  */
 void update_cpu_load_active(struct rq *this_rq)
 {
-	unsigned long load = this_rq->cfs.avg.load_avg;
+	unsigned long load = weighted_cpuload(cpu_of(this_rq));
 	/*
 	 * See the mess around update_idle_cpu_load() / update_cpu_load_nohz().
 	 */
 	this_rq->last_load_update_tick = jiffies;
 	__update_cpu_load(this_rq, load, 1);
-}
-
-/* Used instead of source_load when we know the type == 0 */
-static unsigned long weighted_cpuload(const int cpu)
-{
-	return cpu_rq(cpu)->cfs.avg.load_avg;
 }
 
 /*
@@ -4398,7 +4411,7 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long nr_running = READ_ONCE(rq->cfs.h_nr_running);
-	unsigned long load_avg = rq->cfs.avg.load_avg;
+	unsigned long load_avg = weighted_cpuload(cpu);
 
 	if (nr_running)
 		return load_avg / nr_running;
@@ -4517,7 +4530,7 @@ static long effective_load(struct task_group *tg, int cpu, long wl, long wg)
 		/*
 		 * w = rw_i + @wl
 		 */
-		w = se->my_q->avg.load_avg + wl;
+		w = cfs_rq_load_avg(se->my_q) + wl;
 
 		/*
 		 * wl = S * s'_i; see (2)
@@ -5862,13 +5875,14 @@ static void update_cfs_rq_h_load(struct cfs_rq *cfs_rq)
 	}
 
 	if (!se) {
-		cfs_rq->h_load = cfs_rq->avg.load_avg;
+		cfs_rq->h_load = cfs_rq_load_avg(cfs_rq);
 		cfs_rq->last_h_load_update = now;
 	}
 
 	while ((se = cfs_rq->h_load_next) != NULL) {
 		load = cfs_rq->h_load;
-		load = div64_ul(load * se->avg.load_avg, cfs_rq->avg.load_avg + 1);
+		load = div64_ul(load * se->avg.load_avg,
+			cfs_rq_load_avg(cfs_rq) + 1);
 		cfs_rq = group_cfs_rq(se);
 		cfs_rq->h_load = load;
 		cfs_rq->last_h_load_update = now;
@@ -5881,7 +5895,7 @@ static unsigned long task_h_load(struct task_struct *p)
 
 	update_cfs_rq_h_load(cfs_rq);
 	return div64_ul(p->se.avg.load_avg * cfs_rq->h_load,
-			cfs_rq->avg.load_avg + 1);
+			cfs_rq_load_avg(cfs_rq) + 1);
 }
 #else
 static inline void update_blocked_averages(int cpu)
