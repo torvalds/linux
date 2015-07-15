@@ -249,6 +249,42 @@ u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 
 	return chan;
 }
+
+/*
+ *	DALIGN function
+ */
+u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+	struct rsnd_mod *ssi = rsnd_io_to_mod_ssi(io);
+	struct rsnd_mod *target = src ? src : ssi;
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	u32 val = 0x76543210;
+	u32 mask = ~0;
+
+	mask <<= runtime->channels * 4;
+	val = val & mask;
+
+	switch (runtime->sample_bits) {
+	case 16:
+		val |= 0x67452301 & ~mask;
+		break;
+	case 32:
+		val |= 0x76543210 & ~mask;
+		break;
+	}
+
+	/*
+	 * exchange channeles on SRC if possible,
+	 * otherwise, R/L volume settings on DVC
+	 * changes inverted channels
+	 */
+	if (mod == target)
+		return val;
+	else
+		return 0x76543210;
+}
+
 /*
  *	rsnd_dai functions
  */

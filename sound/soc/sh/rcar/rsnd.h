@@ -99,6 +99,7 @@ enum rsnd_reg {
 	RSND_REG_SHARE26,
 	RSND_REG_SHARE27,
 	RSND_REG_SHARE28,
+	RSND_REG_SHARE29,
 
 	RSND_REG_MAX,
 };
@@ -143,6 +144,7 @@ enum rsnd_reg {
 #define RSND_REG_SCU_SYS_STATUS1	RSND_REG_SHARE26
 #define RSND_REG_SCU_SYS_INT_EN1	RSND_REG_SHARE27
 #define RSND_REG_SRC_INT_ENABLE0	RSND_REG_SHARE28
+#define RSND_REG_SRC_BUSIF_DALIGN	RSND_REG_SHARE29
 
 struct rsnd_of_data;
 struct rsnd_priv;
@@ -171,6 +173,7 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
 		    u32 mask, u32 data);
 u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
 u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
+u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
 void rsnd_path_parse(struct rsnd_priv *priv,
 		     struct rsnd_dai_stream *io);
 

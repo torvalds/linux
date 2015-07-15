@@ -148,7 +148,6 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 			int use_busif)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	int ssi_id = rsnd_mod_id(ssi_mod);
 
 	/*
@@ -185,27 +184,14 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 	 * DMA settings for SSIU
 	 */
 	if (use_busif) {
-		u32 val = 0x76543210;
-		u32 mask = ~0;
+		u32 val = rsnd_get_dalign(ssi_mod, io);
 
 		rsnd_mod_write(ssi_mod, SSI_BUSIF_ADINR,
 			       rsnd_get_adinr_bit(ssi_mod, io));
 		rsnd_mod_write(ssi_mod, SSI_BUSIF_MODE,  1);
 		rsnd_mod_write(ssi_mod, SSI_CTRL, 0x1);
 
-		mask <<= runtime->channels * 4;
-		val = val & mask;
-
-		switch (runtime->sample_bits) {
-		case 16:
-			val |= 0x67452301 & ~mask;
-			break;
-		case 32:
-			val |= 0x76543210 & ~mask;
-			break;
-		}
 		rsnd_mod_write(ssi_mod, SSI_BUSIF_DALIGN, val);
-
 	}
 
 	return 0;
@@ -677,6 +663,10 @@ static int _rsnd_src_start_gen2(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 val;
+
+	val = rsnd_get_dalign(mod, io);
+
+	rsnd_mod_write(mod, SRC_BUSIF_DALIGN, val);
 
 	/*
 	 * WORKAROUND
