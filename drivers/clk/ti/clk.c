@@ -193,7 +193,7 @@ void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index)
 
 	reg->offset = val;
 
-	return (void __iomem *)tmp;
+	return (__force void __iomem *)tmp;
 }
 
 /**
