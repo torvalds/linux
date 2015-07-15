@@ -69,8 +69,10 @@ repeat:
 
 	fio.page = page;
 
-	if (f2fs_submit_page_bio(&fio))
+	if (f2fs_submit_page_bio(&fio)) {
+		f2fs_put_page(page, 1);
 		goto repeat;
+	}
 
 	lock_page(page);
 	if (unlikely(page->mapping != mapping)) {

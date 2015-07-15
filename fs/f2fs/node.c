@@ -991,8 +991,7 @@ fail:
 /*
  * Caller should do after getting the following values.
  * 0: f2fs_put_page(page, 0)
- * LOCKED_PAGE: f2fs_put_page(page, 1)
- * error: nothing
+ * LOCKED_PAGE or error: f2fs_put_page(page, 1)
  */
 static int read_node_page(struct page *page, int rw)
 {
@@ -1010,7 +1009,6 @@ static int read_node_page(struct page *page, int rw)
 
 	if (unlikely(ni.blk_addr == NULL_ADDR)) {
 		ClearPageUptodate(page);
-		f2fs_put_page(page, 1);
 		return -ENOENT;
 	}
 
@@ -1041,10 +1039,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 		return;
 
 	err = read_node_page(apage, READA);
-	if (err == 0)
-		f2fs_put_page(apage, 0);
-	else if (err == LOCKED_PAGE)
-		f2fs_put_page(apage, 1);
+	f2fs_put_page(apage, err ? 1 : 0);
 }
 
 struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
@@ -1057,10 +1052,12 @@ repeat:
 		return ERR_PTR(-ENOMEM);
 
 	err = read_node_page(page, READ_SYNC);
-	if (err < 0)
+	if (err < 0) {
+		f2fs_put_page(page, 1);
 		return ERR_PTR(err);
-	else if (err != LOCKED_PAGE)
+	} else if (err != LOCKED_PAGE) {
 		lock_page(page);
+	}
 
 	if (unlikely(!PageUptodate(page) || nid != nid_of_node(page))) {
 		ClearPageUptodate(page);
@@ -1096,10 +1093,12 @@ repeat:
 		return ERR_PTR(-ENOMEM);
 
 	err = read_node_page(page, READ_SYNC);
-	if (err < 0)
+	if (err < 0) {
+		f2fs_put_page(page, 1);
 		return ERR_PTR(err);
-	else if (err == LOCKED_PAGE)
+	} else if (err == LOCKED_PAGE) {
 		goto page_hit;
+	}
 
 	blk_start_plug(&plug);
 
