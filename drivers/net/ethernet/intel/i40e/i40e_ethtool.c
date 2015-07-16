@@ -148,7 +148,9 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("fdir_flush_cnt", fd_flush_cnt),
 	I40E_PF_STAT("fdir_atr_match", stats.fd_atr_match),
 	I40E_PF_STAT("fdir_atr_tunnel_match", stats.fd_atr_tunnel_match),
+	I40E_PF_STAT("fdir_atr_status", stats.fd_atr_status),
 	I40E_PF_STAT("fdir_sb_match", stats.fd_sb_match),
+	I40E_PF_STAT("fdir_sb_status", stats.fd_sb_status),
 
 	/* LPI stats */
 	I40E_PF_STAT("tx_lpi_status", stats.tx_lpi_status),

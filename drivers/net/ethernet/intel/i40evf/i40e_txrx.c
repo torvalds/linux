@@ -1841,6 +1841,8 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	    netif_xmit_stopped(netdev_get_tx_queue(tx_ring->netdev,
 						   tx_ring->queue_index)))
 		writel(i, tx_ring->tail);
+	else
+		prefetchw(tx_desc + 1);
 
 	return;
 
