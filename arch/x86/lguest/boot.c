@@ -985,23 +985,11 @@ static int lguest_clockevent_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void lguest_clockevent_set_mode(enum clock_event_mode mode,
-                                      struct clock_event_device *evt)
+static int lguest_clockevent_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		/* A 0 argument shuts the clock down. */
-		hcall(LHCALL_SET_CLOCKEVENT, 0, 0, 0, 0);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* This is what we expect. */
-		break;
-	case CLOCK_EVT_MODE_PERIODIC:
-		BUG();
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+	/* A 0 argument shuts the clock down. */
+	hcall(LHCALL_SET_CLOCKEVENT, 0, 0, 0, 0);
+	return 0;
 }
 
 /* This describes our primitive timer chip. */
@@ -1009,7 +997,7 @@ static struct clock_event_device lguest_clockevent = {
 	.name                   = "lguest",
 	.features               = CLOCK_EVT_FEAT_ONESHOT,
 	.set_next_event         = lguest_clockevent_set_next_event,
-	.set_mode               = lguest_clockevent_set_mode,
+	.set_state_shutdown	= lguest_clockevent_shutdown,
 	.rating                 = INT_MAX,
 	.mult                   = 1,
 	.shift                  = 0,
