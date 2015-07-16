@@ -359,7 +359,7 @@ void perf_event_print_debug(void)
 	local_irq_restore(flags);
 }
 
-static irqreturn_t xtensa_pmu_irq_handler(int irq, void *dev_id)
+irqreturn_t xtensa_pmu_irq_handler(int irq, void *dev_id)
 {
 	irqreturn_t rc = IRQ_NONE;
 	struct xtensa_pmu_events *ev = this_cpu_ptr(&xtensa_pmu_events);
@@ -436,10 +436,14 @@ static int __init xtensa_pmu_init(void)
 	int irq = irq_create_mapping(NULL, XCHAL_PROFILING_INTERRUPT);
 
 	perf_cpu_notifier(xtensa_pmu_notifier);
+#if XTENSA_FAKE_NMI
+	enable_irq(irq);
+#else
 	ret = request_irq(irq, xtensa_pmu_irq_handler, IRQF_PERCPU,
 			  "pmu", NULL);
 	if (ret < 0)
 		return ret;
+#endif
 
 	ret = perf_pmu_register(&xtensa_pmu, "cpu", PERF_TYPE_RAW);
 	if (ret)

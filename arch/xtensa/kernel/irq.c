@@ -29,6 +29,7 @@
 #include <asm/platform.h>
 
 atomic_t irq_err_count;
+DECLARE_PER_CPU(unsigned long, nmi_count);
 
 asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 {
@@ -57,11 +58,18 @@ asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
+	unsigned cpu __maybe_unused;
 #ifdef CONFIG_SMP
 	show_ipi_list(p, prec);
 #endif
 	seq_printf(p, "%*s: ", prec, "ERR");
 	seq_printf(p, "%10u\n", atomic_read(&irq_err_count));
+#if XTENSA_FAKE_NMI
+	seq_printf(p, "%*s:", prec, "NMI");
+	for_each_online_cpu(cpu)
+		seq_printf(p, " %10lu", per_cpu(nmi_count, cpu));
+	seq_puts(p, "   Non-maskable interrupts\n");
+#endif
 	return 0;
 }
 

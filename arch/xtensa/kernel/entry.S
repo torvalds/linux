@@ -1,6 +1,4 @@
 /*
- * arch/xtensa/kernel/entry.S
- *
  * Low-level exception handling
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -8,6 +6,7 @@
  * for more details.
  *
  * Copyright (C) 2004 - 2008 by Tensilica Inc.
+ * Copyright (C) 2015 Cadence Design Systems Inc.
  *
  * Chris Zankel <chris@zankel.net>
  *
@@ -72,6 +71,27 @@
 	addi    \bit, \bit, -1
 99:
 
+#endif
+	.endm
+
+
+	.macro	irq_save flags tmp
+#if XTENSA_FAKE_NMI
+#if defined(CONFIG_DEBUG_KERNEL) && (LOCKLEVEL | TOPLEVEL) >= XCHAL_DEBUGLEVEL
+	rsr	\flags, ps
+	extui	\tmp, \flags, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	bgei	\tmp, LOCKLEVEL, 99f
+	rsil	\tmp, LOCKLEVEL
+99:
+#else
+	movi	\tmp, LOCKLEVEL
+	rsr	\flags, ps
+	or	\flags, \flags, \tmp
+	xsr	\flags, ps
+	rsync
+#endif
+#else
+	rsil	\flags, LOCKLEVEL
 #endif
 	.endm
 
@@ -352,11 +372,11 @@ common_exception:
 
 	/* It is now save to restore the EXC_TABLE_FIXUP variable. */
 
-	rsr	a0, exccause
+	rsr	a2, exccause
 	movi	a3, 0
-	rsr	a2, excsave1
-	s32i	a0, a1, PT_EXCCAUSE
-	s32i	a3, a2, EXC_TABLE_FIXUP
+	rsr	a0, excsave1
+	s32i	a2, a1, PT_EXCCAUSE
+	s32i	a3, a0, EXC_TABLE_FIXUP
 
 	/* All unrecoverable states are saved on stack, now, and a1 is valid.
 	 * Now we can allow exceptions again. In case we've got an interrupt
@@ -367,19 +387,46 @@ common_exception:
 	 */
 
 	rsr	a3, ps
-	addi	a0, a0, -EXCCAUSE_LEVEL1_INTERRUPT
-	movi	a2, LOCKLEVEL
+	s32i	a3, a1, PT_PS		# save ps
+
+#if XTENSA_FAKE_NMI
+	/* Correct PS needs to be saved in the PT_PS:
+	 * - in case of exception or level-1 interrupt it's in the PS,
+	 *   and is already saved.
+	 * - in case of medium level interrupt it's in the excsave2.
+	 */
+	movi	a0, EXCCAUSE_MAPPED_NMI
+	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	beq	a2, a0, .Lmedium_level_irq
+	bnei	a2, EXCCAUSE_LEVEL1_INTERRUPT, .Lexception
+	beqz	a3, .Llevel1_irq	# level-1 IRQ sets ps.intlevel to 0
+
+.Lmedium_level_irq:
+	rsr	a0, excsave2
+	s32i	a0, a1, PT_PS		# save medium-level interrupt ps
+	bgei	a3, LOCKLEVEL, .Lexception
+
+.Llevel1_irq:
+	movi	a3, LOCKLEVEL
+
+.Lexception:
+	movi	a0, 1 << PS_WOE_BIT
+	or	a3, a3, a0
+#else
+	addi	a2, a2, -EXCCAUSE_LEVEL1_INTERRUPT
+	movi	a0, LOCKLEVEL
 	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
 					# a3 = PS.INTLEVEL
-	moveqz	a3, a2, a0		# a3 = LOCKLEVEL iff interrupt
+	moveqz	a3, a0, a2		# a3 = LOCKLEVEL iff interrupt
 	movi	a2, 1 << PS_WOE_BIT
 	or	a3, a3, a2
 	rsr	a2, exccause
+#endif
+
 	/* restore return address (or 0 if return to userspace) */
 	rsr	a0, depc
-	xsr	a3, ps
-
-	s32i	a3, a1, PT_PS		# save ps
+	wsr	a3, ps
+	rsync				# PS.WOE => rsync => overflow
 
 	/* Save lbeg, lend */
 
@@ -417,8 +464,13 @@ common_exception:
 	.global common_exception_return
 common_exception_return:
 
+#if XTENSA_FAKE_NMI
+	l32i	a2, a1, PT_EXCCAUSE
+	movi	a3, EXCCAUSE_MAPPED_NMI
+	beq	a2, a3, .LNMIexit
+#endif
 1:
-	rsil	a2, LOCKLEVEL
+	irq_save a2, a3
 #ifdef CONFIG_TRACE_IRQFLAGS
 	movi	a4, trace_hardirqs_off
 	callx4	a4
@@ -479,6 +531,12 @@ common_exception_return:
 	movi	a4, preempt_schedule_irq
 	callx4	a4
 	j	1b
+#endif
+
+#if XTENSA_FAKE_NMI
+.LNMIexit:
+	l32i	a3, a1, PT_PS
+	_bbci.l	a3, PS_UM_BIT, 4f
 #endif
 
 5:
@@ -1564,6 +1622,13 @@ ENTRY(fast_second_level_miss)
 	rfde
 
 9:	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
+	bnez	a0, 8b
+
+	/* Even more unlikely case active_mm == 0.
+	 * We can get here with NMI in the middle of context_switch that
+	 * touches vmalloc area.
+	 */
+	movi	a0, init_mm
 	j	8b
 
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)
@@ -1867,7 +1932,7 @@ ENTRY(_switch_to)
 
 	/* Disable ints while we manipulate the stack pointer. */
 
-	rsil	a14, LOCKLEVEL
+	irq_save a14, a3
 	rsync
 
 	/* Switch CPENABLE */

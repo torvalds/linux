@@ -29,7 +29,7 @@
  *
  * Locking interrupts looks like this:
  *
- *    rsil a15, LOCKLEVEL
+ *    rsil a15, TOPLEVEL
  *    <code>
  *    wsr  a15, PS
  *    rsync
@@ -106,7 +106,7 @@ static inline void atomic_##op(int i, atomic_t * v)			\
 	unsigned int vval;						\
 									\
 	__asm__ __volatile__(						\
-			"       rsil    a15, "__stringify(LOCKLEVEL)"\n"\
+			"       rsil    a15, "__stringify(TOPLEVEL)"\n"\
 			"       l32i    %0, %2, 0\n"			\
 			"       " #op " %0, %0, %1\n"			\
 			"       s32i    %0, %2, 0\n"			\
@@ -124,7 +124,7 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 	unsigned int vval;						\
 									\
 	__asm__ __volatile__(						\
-			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"	\
+			"       rsil    a15,"__stringify(TOPLEVEL)"\n"	\
 			"       l32i    %0, %2, 0\n"			\
 			"       " #op " %0, %0, %1\n"			\
 			"       s32i    %0, %2, 0\n"			\
@@ -272,7 +272,7 @@ static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 	unsigned int vval;
 
 	__asm__ __volatile__(
-			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"
+			"       rsil    a15,"__stringify(TOPLEVEL)"\n"
 			"       l32i    %0, %2, 0\n"
 			"       xor     %1, %4, %3\n"
 			"       and     %0, %0, %4\n"
@@ -306,7 +306,7 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 	unsigned int vval;
 
 	__asm__ __volatile__(
-			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"
+			"       rsil    a15,"__stringify(TOPLEVEL)"\n"
 			"       l32i    %0, %2, 0\n"
 			"       or      %0, %0, %1\n"
 			"       s32i    %0, %2, 0\n"
