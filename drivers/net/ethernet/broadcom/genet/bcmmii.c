@@ -227,10 +227,10 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 	u32 port_ctrl;
 	u32 reg;
 
-	priv->ext_phy = !phy_is_internal(priv->phydev) &&
+	priv->ext_phy = !priv->internal_phy &&
 			(priv->phy_interface != PHY_INTERFACE_MODE_MOCA);
 
-	if (phy_is_internal(priv->phydev))
+	if (priv->internal_phy)
 		priv->phy_interface = PHY_INTERFACE_MODE_NA;
 
 	switch (priv->phy_interface) {
@@ -248,7 +248,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 
 		bcmgenet_sys_writel(priv, port_ctrl, SYS_PORT_CTRL);
 
-		if (phy_is_internal(priv->phydev)) {
+		if (priv->internal_phy) {
 			phy_name = "internal PHY";
 			bcmgenet_internal_phy_setup(dev);
 		} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
@@ -386,7 +386,7 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	/* The internal PHY has its link interrupts routed to the
 	 * Ethernet MAC ISRs
 	 */
-	if (phy_is_internal(priv->phydev))
+	if (priv->internal_phy)
 		priv->mii_bus->irq[phydev->addr] = PHY_IGNORE_INTERRUPT;
 	else
 		priv->mii_bus->irq[phydev->addr] = PHY_POLL;
@@ -479,7 +479,9 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 {
 	struct device_node *dn = priv->pdev->dev.of_node;
 	struct device *kdev = &priv->pdev->dev;
+	const char *phy_mode_str = NULL;
 	char *compat;
+	int phy_mode;
 	int ret;
 
 	compat = kasprintf(GFP_KERNEL, "brcm,genet-mdio-v%d", priv->version);
@@ -503,7 +505,24 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	priv->phy_dn = of_parse_phandle(dn, "phy-handle", 0);
 
 	/* Get the link mode */
-	priv->phy_interface = of_get_phy_mode(dn);
+	phy_mode = of_get_phy_mode(dn);
+	priv->phy_interface = phy_mode;
+
+	/* We need to specifically look up whether this PHY interface is internal
+	 * or not *before* we even try to probe the PHY driver over MDIO as we
+	 * may have shut down the internal PHY for power saving purposes.
+	 */
+	if (phy_mode < 0) {
+		ret = of_property_read_string(dn, "phy-mode", &phy_mode_str);
+		if (ret < 0) {
+			dev_err(kdev, "invalid PHY mode property\n");
+			return ret;
+		}
+
+		priv->phy_interface = PHY_INTERFACE_MODE_NA;
+		if (!strcasecmp(phy_mode_str, "internal"))
+			priv->internal_phy = true;
+	}
 
 	return 0;
 }

@@ -1724,7 +1724,7 @@ static int init_umac(struct bcmgenet_priv *priv)
 	int0_enable |= UMAC_IRQ_TXDMA_DONE;
 
 	/* Monitor cable plug/unplugged event for internal PHY */
-	if (phy_is_internal(priv->phydev)) {
+	if (priv->internal_phy) {
 		int0_enable |= UMAC_IRQ_LINK_EVENT;
 	} else if (priv->ext_phy) {
 		int0_enable |= UMAC_IRQ_LINK_EVENT;
@@ -2631,7 +2631,7 @@ static int bcmgenet_open(struct net_device *dev)
 	/* If this is an internal GPHY, power it back on now, before UniMAC is
 	 * brought out of reset as absolutely no UniMAC activity is allowed
 	 */
-	if (phy_is_internal(priv->phydev))
+	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
 	/* take MAC out of reset */
@@ -2650,7 +2650,7 @@ static int bcmgenet_open(struct net_device *dev)
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
-	if (phy_is_internal(priv->phydev)) {
+	if (priv->internal_phy) {
 		reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 		reg |= EXT_ENERGY_DET_MASK;
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
@@ -2756,7 +2756,7 @@ static int bcmgenet_close(struct net_device *dev)
 	free_irq(priv->irq0, priv);
 	free_irq(priv->irq1, priv);
 
-	if (phy_is_internal(priv->phydev))
+	if (priv->internal_phy)
 		ret = bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
 
 	if (!IS_ERR(priv->clk))
@@ -3318,7 +3318,7 @@ static int bcmgenet_suspend(struct device *d)
 	if (device_may_wakeup(d) && priv->wolopts) {
 		ret = bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
 		clk_prepare_enable(priv->clk_wol);
-	} else if (phy_is_internal(priv->phydev)) {
+	} else if (priv->internal_phy) {
 		ret = bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
 	}
 
@@ -3347,7 +3347,7 @@ static int bcmgenet_resume(struct device *d)
 	/* If this is an internal GPHY, power it back on now, before UniMAC is
 	 * brought out of reset as absolutely no UniMAC activity is allowed
 	 */
-	if (phy_is_internal(priv->phydev))
+	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
 	bcmgenet_umac_reset(priv);
@@ -3369,7 +3369,7 @@ static int bcmgenet_resume(struct device *d)
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
-	if (phy_is_internal(priv->phydev)) {
+	if (priv->internal_phy) {
 		reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 		reg |= EXT_ENERGY_DET_MASK;
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
