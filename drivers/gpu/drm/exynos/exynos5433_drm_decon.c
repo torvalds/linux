@@ -407,7 +407,7 @@ void decon_te_irq_handler(struct exynos_drm_crtc *crtc)
 		writel(val, ctx->addr + DECON_TRIGCON);
 	}
 
-	drm_handle_vblank(ctx->drm_dev, ctx->pipe);
+	drm_crtc_handle_vblank(&ctx->crtc->base);
 }
 
 static void decon_clear_channels(struct exynos_drm_crtc *crtc)
@@ -533,7 +533,7 @@ static irqreturn_t decon_vsync_irq_handler(int irq, void *dev_id)
 
 	val = readl(ctx->addr + DECON_VIDINTCON1);
 	if (val & VIDINTCON1_INTFRMPEND) {
-		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
+		drm_crtc_handle_vblank(&ctx->crtc->base);
 
 		/* clear */
 		writel(VIDINTCON1_INTFRMPEND, ctx->addr + DECON_VIDINTCON1);
@@ -553,7 +553,7 @@ static irqreturn_t decon_lcd_sys_irq_handler(int irq, void *dev_id)
 
 	val = readl(ctx->addr + DECON_VIDINTCON1);
 	if (val & VIDINTCON1_INTFRMDONEPEND) {
-		exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
+		exynos_drm_crtc_finish_pageflip(ctx->crtc);
 
 		/* clear */
 		writel(VIDINTCON1_INTFRMDONEPEND,

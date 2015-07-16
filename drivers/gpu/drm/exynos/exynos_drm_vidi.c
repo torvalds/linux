@@ -196,7 +196,7 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 	mutex_lock(&ctx->lock);
 
 	if (ctx->direct_vblank) {
-		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
+		drm_crtc_handle_vblank(&ctx->crtc->base);
 		ctx->direct_vblank = false;
 		mutex_unlock(&ctx->lock);
 		return;
@@ -204,7 +204,7 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 
 	mutex_unlock(&ctx->lock);
 
-	exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
+	exynos_drm_crtc_finish_pageflip(ctx->crtc);
 }
 
 static int vidi_show_connection(struct device *dev,

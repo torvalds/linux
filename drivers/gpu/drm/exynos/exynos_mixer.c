@@ -738,8 +738,8 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 				goto out;
 		}
 
-		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
-		exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
+		drm_crtc_handle_vblank(&ctx->crtc->base);
+		exynos_drm_crtc_finish_pageflip(ctx->crtc);
 
 		/* set wait vsync event to zero and wake up queue. */
 		if (atomic_read(&ctx->wait_vsync_event)) {
