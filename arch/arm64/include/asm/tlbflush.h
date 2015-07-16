@@ -154,20 +154,6 @@ static inline void __flush_tlb_pgtable(struct mm_struct *mm,
 	asm("tlbi	vae1is, %0" : : "r" (addr));
 	dsb(ish);
 }
-/*
- * On AArch64, the cache coherency is handled via the set_pte_at() function.
- */
-static inline void update_mmu_cache(struct vm_area_struct *vma,
-				    unsigned long addr, pte_t *ptep)
-{
-	/*
-	 * set_pte() does not have a DSB for user mappings, so make sure that
-	 * the page table write is visible.
-	 */
-	dsb(ishst);
-}
-
-#define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
 
 #endif
 
