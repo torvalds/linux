@@ -177,7 +177,7 @@ int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
 		return -EPERM;
 
 	if (exynos_crtc->ops->enable_vblank)
-		exynos_crtc->ops->enable_vblank(exynos_crtc);
+		return exynos_crtc->ops->enable_vblank(exynos_crtc);
 
 	return 0;
 }
