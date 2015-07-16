@@ -55,7 +55,6 @@ MODULE_DEVICE_TABLE(usb, rtw_usb_id_tbl);
 static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 {
 	int	i;
-	int	status = _FAIL;
 	struct dvobj_priv *pdvobjpriv;
 	struct usb_host_config		*phost_conf;
 	struct usb_config_descriptor	*pconf_desc;
@@ -117,10 +116,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 
 	if (pdvobjpriv->usb_vendor_req_buf) {
 		usb_get_dev(pusbd);
-		status = _SUCCESS;
-	}
-
-	if (status != _SUCCESS) {
+	} else {
 		usb_set_intfdata(usb_intf, NULL);
 		kfree(pdvobjpriv);
 		pdvobjpriv = NULL;
