@@ -192,8 +192,8 @@ struct tipc_link {
 	u16 rcv_nxt;
 	u32 rcv_unacked;
 	struct sk_buff_head deferdq;
-	struct sk_buff_head inputq;
-	struct sk_buff_head namedq;
+	struct sk_buff_head *inputq;
+	struct sk_buff_head *namedq;
 
 	/* Congestion handling */
 	struct sk_buff_head wakeupq;
@@ -207,9 +207,11 @@ struct tipc_link {
 
 struct tipc_port;
 
-struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
-			      struct tipc_bearer *b_ptr,
-			      const struct tipc_media_addr *media_addr);
+struct tipc_link *tipc_link_create(struct tipc_node *n,
+				   struct tipc_bearer *b,
+				   const struct tipc_media_addr *maddr,
+				   struct sk_buff_head *inputq,
+				   struct sk_buff_head *namedq);
 void tipc_link_delete(struct tipc_link *link);
 void tipc_link_delete_list(struct net *net, unsigned int bearer_id);
 void tipc_link_failover_send_queue(struct tipc_link *l_ptr);

@@ -132,6 +132,7 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	INIT_LIST_HEAD(&n_ptr->list);
 	INIT_LIST_HEAD(&n_ptr->publ_list);
 	INIT_LIST_HEAD(&n_ptr->conn_sks);
+	skb_queue_head_init(&n_ptr->bclink.namedq);
 	__skb_queue_head_init(&n_ptr->bclink.deferdq);
 	hlist_add_head_rcu(&n_ptr->hash, &tn->node_htable[tipc_hashfn(addr)]);
 	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
@@ -350,9 +351,10 @@ bool tipc_node_update_dest(struct tipc_node *n,  struct tipc_bearer *b,
 {
 	struct tipc_link *l = n->links[b->identity].link;
 	struct tipc_media_addr *curr = &n->links[b->identity].maddr;
+	struct sk_buff_head *inputq = &n->links[b->identity].inputq;
 
 	if (!l)
-		l = tipc_link_create(n, b, maddr);
+		l = tipc_link_create(n, b, maddr, inputq, &n->bclink.namedq);
 	if (!l)
 		return false;
 	memcpy(&l->media_addr, maddr, sizeof(*maddr));

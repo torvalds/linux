@@ -85,13 +85,14 @@ struct tipc_node_bclink {
 	u32 deferred_size;
 	struct sk_buff_head deferdq;
 	struct sk_buff *reasm_buf;
-	int inputq_map;
+	struct sk_buff_head namedq;
 	bool recv_permitted;
 };
 
 struct tipc_link_entry {
 	struct tipc_link *link;
 	u32 mtu;
+	struct sk_buff_head inputq;
 	struct tipc_media_addr maddr;
 };
 
