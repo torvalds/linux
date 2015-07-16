@@ -62,6 +62,10 @@ int coda_debug;
 module_param(coda_debug, int, 0644);
 MODULE_PARM_DESC(coda_debug, "Debug level (0-2)");
 
+static int disable_tiling;
+module_param(disable_tiling, int, 0644);
+MODULE_PARM_DESC(disable_tiling, "Disable tiled frame buffers");
+
 void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
 	v4l2_dbg(2, coda_debug, &dev->v4l2_dev,
@@ -585,6 +589,22 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f)
 	q_data->rect.width = f->fmt.pix.width;
 	q_data->rect.height = f->fmt.pix.height;
 
+	switch (f->fmt.pix.pixelformat) {
+	case V4L2_PIX_FMT_NV12:
+		if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+			ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
+			if (!disable_tiling)
+				break;
+		}
+		/* else fall through */
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
+		ctx->tiled_map_type = GDI_LINEAR_FRAME_MAP;
+		break;
+	default:
+		break;
+	}
+
 	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 		"Setting format for type %d, wxh: %dx%d, fmt: %d\n",
 		f->type, q_data->width, q_data->height, q_data->fourcc);
@@ -916,27 +936,6 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-void coda_set_gdi_regs(struct coda_ctx *ctx)
-{
-	struct gdi_tiled_map *tiled_map = &ctx->tiled_map;
-	struct coda_dev *dev = ctx->dev;
-	int i;
-
-	for (i = 0; i < 16; i++)
-		coda_write(dev, tiled_map->xy2ca_map[i],
-				CODA9_GDI_XY2_CAS_0 + 4 * i);
-	for (i = 0; i < 4; i++)
-		coda_write(dev, tiled_map->xy2ba_map[i],
-				CODA9_GDI_XY2_BA_0 + 4 * i);
-	for (i = 0; i < 16; i++)
-		coda_write(dev, tiled_map->xy2ra_map[i],
-				CODA9_GDI_XY2_RAS_0 + 4 * i);
-	coda_write(dev, tiled_map->xy2rbc_config, CODA9_GDI_XY2_RBC_CONFIG);
-	for (i = 0; i < 32; i++)
-		coda_write(dev, tiled_map->rbc2axi_map[i],
-				CODA9_GDI_RBC2_AXI_0 + 4 * i);
-}
-
 /*
  * Mem-to-mem operations.
  */
@@ -1084,32 +1083,6 @@ static const struct v4l2_m2m_ops coda_m2m_ops = {
 	.unlock		= coda_unlock,
 };
 
-static void coda_set_tiled_map_type(struct coda_ctx *ctx, int tiled_map_type)
-{
-	struct gdi_tiled_map *tiled_map = &ctx->tiled_map;
-	int luma_map, chro_map, i;
-
-	memset(tiled_map, 0, sizeof(*tiled_map));
-
-	luma_map = 64;
-	chro_map = 64;
-	tiled_map->map_type = tiled_map_type;
-	for (i = 0; i < 16; i++)
-		tiled_map->xy2ca_map[i] = luma_map << 8 | chro_map;
-	for (i = 0; i < 4; i++)
-		tiled_map->xy2ba_map[i] = luma_map << 8 | chro_map;
-	for (i = 0; i < 16; i++)
-		tiled_map->xy2ra_map[i] = luma_map << 8 | chro_map;
-
-	if (tiled_map_type == GDI_LINEAR_FRAME_MAP) {
-		tiled_map->xy2rbc_config = 0;
-	} else {
-		dev_err(&ctx->dev->plat_dev->dev, "invalid map type: %d\n",
-			tiled_map_type);
-		return;
-	}
-}
-
 static void set_default_params(struct coda_ctx *ctx)
 {
 	unsigned int max_w, max_h, usize, csize;
@@ -1148,8 +1121,11 @@ static void set_default_params(struct coda_ctx *ctx)
 	ctx->q_data[V4L2_M2M_DST].rect.width = max_w;
 	ctx->q_data[V4L2_M2M_DST].rect.height = max_h;
 
-	if (ctx->dev->devtype->product == CODA_960)
-		coda_set_tiled_map_type(ctx, GDI_LINEAR_FRAME_MAP);
+	/*
+	 * Since the RBC2AXI logic only supports a single chroma plane,
+	 * macroblock tiling only works for to NV12 pixel format.
+	 */
+	ctx->tiled_map_type = GDI_LINEAR_FRAME_MAP;
 }
 
 /*

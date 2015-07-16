@@ -340,7 +340,6 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 {
 	struct coda_dev *dev = ctx->dev;
 	int width, height;
-	dma_addr_t paddr;
 	int ysize;
 	int ret;
 	int i;
@@ -360,7 +359,10 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 		size_t size;
 		char *name;
 
-		size = ysize + ysize / 2;
+		if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
+			size = round_up(ysize, 4096) + ysize / 2;
+		else
+			size = ysize + ysize / 2;
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
 		    dev->devtype->product != CODA_DX6)
 			size += ysize / 4;
@@ -376,11 +378,23 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 
 	/* Register frame buffers in the parameter buffer */
 	for (i = 0; i < ctx->num_internal_frames; i++) {
-		paddr = ctx->internal_frames[i].paddr;
+		u32 y, cb, cr;
+
 		/* Start addresses of Y, Cb, Cr planes */
-		coda_parabuf_write(ctx, i * 3 + 0, paddr);
-		coda_parabuf_write(ctx, i * 3 + 1, paddr + ysize);
-		coda_parabuf_write(ctx, i * 3 + 2, paddr + ysize + ysize / 4);
+		y = ctx->internal_frames[i].paddr;
+		cb = y + ysize;
+		cr = y + ysize + ysize/4;
+		if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP) {
+			cb = round_up(cb, 4096);
+			cr = 0;
+			/* Packed 20-bit MSB of base addresses */
+			/* YYYYYCCC, CCyyyyyc, cccc.... */
+			y = (y & 0xfffff000) | cb >> 20;
+			cb = (cb & 0x000ff000) << 12;
+		}
+		coda_parabuf_write(ctx, i * 3 + 0, y);
+		coda_parabuf_write(ctx, i * 3 + 1, cb);
+		coda_parabuf_write(ctx, i * 3 + 2, cr);
 
 		/* mvcol buffer for h.264 */
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
@@ -725,9 +739,15 @@ static void coda9_set_frame_cache(struct coda_ctx *ctx, u32 fourcc)
 {
 	u32 cache_size, cache_config;
 
-	/* Luma 2x0 page, 2x6 cache, chroma 2x0 page, 2x4 cache size */
-	cache_size = 0x20262024;
-	cache_config = 2 << CODA9_CACHE_PAGEMERGE_OFFSET;
+	if (ctx->tiled_map_type == GDI_LINEAR_FRAME_MAP) {
+		/* Luma 2x0 page, 2x6 cache, chroma 2x0 page, 2x4 cache size */
+		cache_size = 0x20262024;
+		cache_config = 2 << CODA9_CACHE_PAGEMERGE_OFFSET;
+	} else {
+		/* Luma 0x2 page, 4x4 cache, chroma 0x2 page, 4x3 cache size */
+		cache_size = 0x02440243;
+		cache_config = 1 << CODA9_CACHE_PAGEMERGE_OFFSET;
+	}
 	coda_write(ctx->dev, cache_size, CODA9_CMD_SET_FRAME_CACHE_SIZE);
 	if (fourcc == V4L2_PIX_FMT_NV12) {
 		cache_config |= 32 << CODA9_CACHE_LUMA_BUFFER_SIZE_OFFSET |
@@ -818,9 +838,12 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		break;
 	}
 
-	ctx->frame_mem_ctrl &= ~CODA_FRAME_CHROMA_INTERLEAVE;
+	ctx->frame_mem_ctrl &= ~(CODA_FRAME_CHROMA_INTERLEAVE | (0x3 << 9) |
+				 CODA9_FRAME_TILED2LINEAR);
 	if (q_data_src->fourcc == V4L2_PIX_FMT_NV12)
 		ctx->frame_mem_ctrl |= CODA_FRAME_CHROMA_INTERLEAVE;
+	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
+		ctx->frame_mem_ctrl |= (0x3 << 9) | CODA9_FRAME_TILED2LINEAR;
 	coda_write(dev, ctx->frame_mem_ctrl, CODA_REG_BIT_FRAME_MEM_CTRL);
 
 	if (dev->devtype->product == CODA_DX6) {
@@ -1497,9 +1520,12 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	/* Update coda bitstream read and write pointers from kfifo */
 	coda_kfifo_sync_to_device_full(ctx);
 
-	ctx->frame_mem_ctrl &= ~CODA_FRAME_CHROMA_INTERLEAVE;
+	ctx->frame_mem_ctrl &= ~(CODA_FRAME_CHROMA_INTERLEAVE | (0x3 << 9) |
+				 CODA9_FRAME_TILED2LINEAR);
 	if (dst_fourcc == V4L2_PIX_FMT_NV12)
 		ctx->frame_mem_ctrl |= CODA_FRAME_CHROMA_INTERLEAVE;
+	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
+		ctx->frame_mem_ctrl |= (0x3 << 9) | CODA9_FRAME_TILED2LINEAR;
 	coda_write(dev, ctx->frame_mem_ctrl, CODA_REG_BIT_FRAME_MEM_CTRL);
 
 	ctx->display_idx = -1;

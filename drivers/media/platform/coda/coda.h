@@ -167,15 +167,8 @@ struct coda_iram_info {
 	phys_addr_t	next_paddr;
 };
 
-struct gdi_tiled_map {
-	int xy2ca_map[16];
-	int xy2ba_map[16];
-	int xy2ra_map[16];
-	int rbc2axi_map[32];
-	int xy2rbc_config;
-	int map_type;
 #define GDI_LINEAR_FRAME_MAP 0
-};
+#define GDI_TILED_FRAME_MB_RASTER_MAP 1
 
 struct coda_ctx;
 
@@ -236,7 +229,7 @@ struct coda_ctx {
 	int				idx;
 	int				reg_idx;
 	struct coda_iram_info		iram_info;
-	struct gdi_tiled_map		tiled_map;
+	int				tiled_map_type;
 	u32				bit_stream_param;
 	u32				frm_dis_flg;
 	u32				frame_mem_ctrl;
