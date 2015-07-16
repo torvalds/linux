@@ -2766,13 +2766,9 @@ static void rt5645_enable_push_button_irq(struct snd_soc_codec *codec,
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
 
 	if (enable) {
-		snd_soc_dapm_mutex_lock(dapm);
-		snd_soc_dapm_force_enable_pin_unlocked(dapm, "ADC L power");
-		snd_soc_dapm_force_enable_pin_unlocked(dapm, "ADC R power");
-		snd_soc_dapm_force_enable_pin_unlocked(dapm, "LDO2");
-		snd_soc_dapm_force_enable_pin_unlocked(dapm, "Mic Det Power");
-		snd_soc_dapm_sync_unlocked(dapm);
-		snd_soc_dapm_mutex_unlock(dapm);
+		snd_soc_dapm_force_enable_pin(dapm, "ADC L power");
+		snd_soc_dapm_force_enable_pin(dapm, "ADC R power");
+		snd_soc_dapm_sync(dapm);
 
 		snd_soc_update_bits(codec,
 					RT5645_INT_IRQ_ST, 0x8, 0x8);
@@ -2785,14 +2781,9 @@ static void rt5645_enable_push_button_irq(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, RT5650_4BTN_IL_CMD2, 0x8000, 0x0);
 		snd_soc_update_bits(codec, RT5645_INT_IRQ_ST, 0x8, 0x0);
 
-		snd_soc_dapm_mutex_lock(dapm);
-		snd_soc_dapm_disable_pin_unlocked(dapm, "ADC L power");
-		snd_soc_dapm_disable_pin_unlocked(dapm, "ADC R power");
-		if (rt5645->pdata.jd_mode == 0)
-			snd_soc_dapm_disable_pin_unlocked(dapm, "LDO2");
-		snd_soc_dapm_disable_pin_unlocked(dapm, "Mic Det Power");
-		snd_soc_dapm_sync_unlocked(dapm);
-		snd_soc_dapm_mutex_unlock(dapm);
+		snd_soc_dapm_disable_pin(dapm, "ADC L power");
+		snd_soc_dapm_disable_pin(dapm, "ADC R power");
+		snd_soc_dapm_sync(dapm);
 	}
 }
 
@@ -2847,14 +2838,14 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 
 	} else { /* jack out */
 		rt5645->jack_type = 0;
+
 		if (rt5645->en_button_func)
 			rt5645_enable_push_button_irq(codec, false);
-		else {
-			if (rt5645->pdata.jd_mode == 0)
-				snd_soc_dapm_disable_pin(dapm, "LDO2");
-			snd_soc_dapm_disable_pin(dapm, "Mic Det Power");
-			snd_soc_dapm_sync(dapm);
-		}
+
+		if (rt5645->pdata.jd_mode == 0)
+			snd_soc_dapm_disable_pin(dapm, "LDO2");
+		snd_soc_dapm_disable_pin(dapm, "Mic Det Power");
+		snd_soc_dapm_sync(dapm);
 	}
 
 	return rt5645->jack_type;
