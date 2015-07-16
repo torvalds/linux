@@ -1934,7 +1934,7 @@ ENDPROC(system_call)
 	mov	a12, a0
 	.endr
 #endif
-	_entry	a1, 48
+	_entry	a1, 16
 #if XCHAL_NUM_AREGS % 12 == 0
 	mov	a8, a8
 #elif XCHAL_NUM_AREGS % 12 == 4
@@ -1958,7 +1958,7 @@ ENDPROC(system_call)
 
 ENTRY(_switch_to)
 
-	entry	a1, 16
+	entry	a1, 48
 
 	mov	a11, a3			# and 'next' (a3)
 
