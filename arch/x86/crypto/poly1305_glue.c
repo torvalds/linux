@@ -18,13 +18,47 @@
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
 
+struct poly1305_simd_desc_ctx {
+	struct poly1305_desc_ctx base;
+	/* derived key u set? */
+	bool uset;
+	/* derived Poly1305 key r^2 */
+	u32 u[5];
+};
+
 asmlinkage void poly1305_block_sse2(u32 *h, const u8 *src,
 				    const u32 *r, unsigned int blocks);
+asmlinkage void poly1305_2block_sse2(u32 *h, const u8 *src, const u32 *r,
+				     unsigned int blocks, const u32 *u);
+
+static int poly1305_simd_init(struct shash_desc *desc)
+{
+	struct poly1305_simd_desc_ctx *sctx = shash_desc_ctx(desc);
+
+	sctx->uset = false;
+
+	return crypto_poly1305_init(desc);
+}
+
+static void poly1305_simd_mult(u32 *a, const u32 *b)
+{
+	u8 m[POLY1305_BLOCK_SIZE];
+
+	memset(m, 0, sizeof(m));
+	/* The poly1305 block function adds a hi-bit to the accumulator which
+	 * we don't need for key multiplication; compensate for it. */
+	a[4] -= 1 << 24;
+	poly1305_block_sse2(a, m, b, 1);
+}
 
 static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
 					 const u8 *src, unsigned int srclen)
 {
+	struct poly1305_simd_desc_ctx *sctx;
 	unsigned int blocks, datalen;
+
+	BUILD_BUG_ON(offsetof(struct poly1305_simd_desc_ctx, base));
+	sctx = container_of(dctx, struct poly1305_simd_desc_ctx, base);
 
 	if (unlikely(!dctx->sset)) {
 		datalen = crypto_poly1305_setdesckey(dctx, src, srclen);
@@ -32,10 +66,20 @@ static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
 		srclen = datalen;
 	}
 
+	if (likely(srclen >= POLY1305_BLOCK_SIZE * 2)) {
+		if (unlikely(!sctx->uset)) {
+			memcpy(sctx->u, dctx->r, sizeof(sctx->u));
+			poly1305_simd_mult(sctx->u, dctx->r);
+			sctx->uset = true;
+		}
+		blocks = srclen / (POLY1305_BLOCK_SIZE * 2);
+		poly1305_2block_sse2(dctx->h, src, dctx->r, blocks, sctx->u);
+		src += POLY1305_BLOCK_SIZE * 2 * blocks;
+		srclen -= POLY1305_BLOCK_SIZE * 2 * blocks;
+	}
 	if (srclen >= POLY1305_BLOCK_SIZE) {
-		blocks = srclen / POLY1305_BLOCK_SIZE;
-		poly1305_block_sse2(dctx->h, src, dctx->r, blocks);
-		srclen -= POLY1305_BLOCK_SIZE * blocks;
+		poly1305_block_sse2(dctx->h, src, dctx->r, 1);
+		srclen -= POLY1305_BLOCK_SIZE;
 	}
 	return srclen;
 }
@@ -84,11 +128,11 @@ static int poly1305_simd_update(struct shash_desc *desc,
 
 static struct shash_alg alg = {
 	.digestsize	= POLY1305_DIGEST_SIZE,
-	.init		= crypto_poly1305_init,
+	.init		= poly1305_simd_init,
 	.update		= poly1305_simd_update,
 	.final		= crypto_poly1305_final,
 	.setkey		= crypto_poly1305_setkey,
-	.descsize	= sizeof(struct poly1305_desc_ctx),
+	.descsize	= sizeof(struct poly1305_simd_desc_ctx),
 	.base		= {
 		.cra_name		= "poly1305",
 		.cra_driver_name	= "poly1305-simd",

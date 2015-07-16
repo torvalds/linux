@@ -15,6 +15,7 @@
 .align 16
 
 ANMASK:	.octa 0x0000000003ffffff0000000003ffffff
+ORMASK:	.octa 0x00000000010000000000000001000000
 
 .text
 
@@ -274,3 +275,308 @@ ENTRY(poly1305_block_sse2)
 	pop		%rbx
 	ret
 ENDPROC(poly1305_block_sse2)
+
+
+#define u0 0x00(%r8)
+#define u1 0x04(%r8)
+#define u2 0x08(%r8)
+#define u3 0x0c(%r8)
+#define u4 0x10(%r8)
+#define hc0 %xmm0
+#define hc1 %xmm1
+#define hc2 %xmm2
+#define hc3 %xmm5
+#define hc4 %xmm6
+#define ru0 %xmm7
+#define ru1 %xmm8
+#define ru2 %xmm9
+#define ru3 %xmm10
+#define ru4 %xmm11
+#define sv1 %xmm12
+#define sv2 %xmm13
+#define sv3 %xmm14
+#define sv4 %xmm15
+#undef d0
+#define d0 %r13
+
+ENTRY(poly1305_2block_sse2)
+	# %rdi: Accumulator h[5]
+	# %rsi: 16 byte input block m
+	# %rdx: Poly1305 key r[5]
+	# %rcx: Doubleblock count
+	# %r8:  Poly1305 derived key r^2 u[5]
+
+	# This two-block variant further improves performance by using loop
+	# unrolled block processing. This is more straight forward and does
+	# less byte shuffling, but requires a second Poly1305 key r^2:
+	# h = (h + m) * r    =>    h = (h + m1) * r^2 + m2 * r
+
+	push		%rbx
+	push		%r12
+	push		%r13
+
+	# combine r0,u0
+	movd		u0,ru0
+	movd		r0,t1
+	punpcklqdq	t1,ru0
+
+	# combine r1,u1 and s1=r1*5,v1=u1*5
+	movd		u1,ru1
+	movd		r1,t1
+	punpcklqdq	t1,ru1
+	movdqa		ru1,sv1
+	pslld		$2,sv1
+	paddd		ru1,sv1
+
+	# combine r2,u2 and s2=r2*5,v2=u2*5
+	movd		u2,ru2
+	movd		r2,t1
+	punpcklqdq	t1,ru2
+	movdqa		ru2,sv2
+	pslld		$2,sv2
+	paddd		ru2,sv2
+
+	# combine r3,u3 and s3=r3*5,v3=u3*5
+	movd		u3,ru3
+	movd		r3,t1
+	punpcklqdq	t1,ru3
+	movdqa		ru3,sv3
+	pslld		$2,sv3
+	paddd		ru3,sv3
+
+	# combine r4,u4 and s4=r4*5,v4=u4*5
+	movd		u4,ru4
+	movd		r4,t1
+	punpcklqdq	t1,ru4
+	movdqa		ru4,sv4
+	pslld		$2,sv4
+	paddd		ru4,sv4
+
+.Ldoblock2:
+	# hc0 = [ m[16-19] & 0x3ffffff, h0 + m[0-3] & 0x3ffffff ]
+	movd		0x00(m),hc0
+	movd		0x10(m),t1
+	punpcklqdq	t1,hc0
+	pand		ANMASK(%rip),hc0
+	movd		h0,t1
+	paddd		t1,hc0
+	# hc1 = [ (m[19-22] >> 2) & 0x3ffffff, h1 + (m[3-6] >> 2) & 0x3ffffff ]
+	movd		0x03(m),hc1
+	movd		0x13(m),t1
+	punpcklqdq	t1,hc1
+	psrld		$2,hc1
+	pand		ANMASK(%rip),hc1
+	movd		h1,t1
+	paddd		t1,hc1
+	# hc2 = [ (m[22-25] >> 4) & 0x3ffffff, h2 + (m[6-9] >> 4) & 0x3ffffff ]
+	movd		0x06(m),hc2
+	movd		0x16(m),t1
+	punpcklqdq	t1,hc2
+	psrld		$4,hc2
+	pand		ANMASK(%rip),hc2
+	movd		h2,t1
+	paddd		t1,hc2
+	# hc3 = [ (m[25-28] >> 6) & 0x3ffffff, h3 + (m[9-12] >> 6) & 0x3ffffff ]
+	movd		0x09(m),hc3
+	movd		0x19(m),t1
+	punpcklqdq	t1,hc3
+	psrld		$6,hc3
+	pand		ANMASK(%rip),hc3
+	movd		h3,t1
+	paddd		t1,hc3
+	# hc4 = [ (m[28-31] >> 8) | (1<<24), h4 + (m[12-15] >> 8) | (1<<24) ]
+	movd		0x0c(m),hc4
+	movd		0x1c(m),t1
+	punpcklqdq	t1,hc4
+	psrld		$8,hc4
+	por		ORMASK(%rip),hc4
+	movd		h4,t1
+	paddd		t1,hc4
+
+	# t1 = [ hc0[1] * r0, hc0[0] * u0 ]
+	movdqa		ru0,t1
+	pmuludq		hc0,t1
+	# t1 += [ hc1[1] * s4, hc1[0] * v4 ]
+	movdqa		sv4,t2
+	pmuludq		hc1,t2
+	paddq		t2,t1
+	# t1 += [ hc2[1] * s3, hc2[0] * v3 ]
+	movdqa		sv3,t2
+	pmuludq		hc2,t2
+	paddq		t2,t1
+	# t1 += [ hc3[1] * s2, hc3[0] * v2 ]
+	movdqa		sv2,t2
+	pmuludq		hc3,t2
+	paddq		t2,t1
+	# t1 += [ hc4[1] * s1, hc4[0] * v1 ]
+	movdqa		sv1,t2
+	pmuludq		hc4,t2
+	paddq		t2,t1
+	# d0 = t1[0] + t1[1]
+	movdqa		t1,t2
+	psrldq		$8,t2
+	paddq		t2,t1
+	movq		t1,d0
+
+	# t1 = [ hc0[1] * r1, hc0[0] * u1 ]
+	movdqa		ru1,t1
+	pmuludq		hc0,t1
+	# t1 += [ hc1[1] * r0, hc1[0] * u0 ]
+	movdqa		ru0,t2
+	pmuludq		hc1,t2
+	paddq		t2,t1
+	# t1 += [ hc2[1] * s4, hc2[0] * v4 ]
+	movdqa		sv4,t2
+	pmuludq		hc2,t2
+	paddq		t2,t1
+	# t1 += [ hc3[1] * s3, hc3[0] * v3 ]
+	movdqa		sv3,t2
+	pmuludq		hc3,t2
+	paddq		t2,t1
+	# t1 += [ hc4[1] * s2, hc4[0] * v2 ]
+	movdqa		sv2,t2
+	pmuludq		hc4,t2
+	paddq		t2,t1
+	# d1 = t1[0] + t1[1]
+	movdqa		t1,t2
+	psrldq		$8,t2
+	paddq		t2,t1
+	movq		t1,d1
+
+	# t1 = [ hc0[1] * r2, hc0[0] * u2 ]
+	movdqa		ru2,t1
+	pmuludq		hc0,t1
+	# t1 += [ hc1[1] * r1, hc1[0] * u1 ]
+	movdqa		ru1,t2
+	pmuludq		hc1,t2
+	paddq		t2,t1
+	# t1 += [ hc2[1] * r0, hc2[0] * u0 ]
+	movdqa		ru0,t2
+	pmuludq		hc2,t2
+	paddq		t2,t1
+	# t1 += [ hc3[1] * s4, hc3[0] * v4 ]
+	movdqa		sv4,t2
+	pmuludq		hc3,t2
+	paddq		t2,t1
+	# t1 += [ hc4[1] * s3, hc4[0] * v3 ]
+	movdqa		sv3,t2
+	pmuludq		hc4,t2
+	paddq		t2,t1
+	# d2 = t1[0] + t1[1]
+	movdqa		t1,t2
+	psrldq		$8,t2
+	paddq		t2,t1
+	movq		t1,d2
+
+	# t1 = [ hc0[1] * r3, hc0[0] * u3 ]
+	movdqa		ru3,t1
+	pmuludq		hc0,t1
+	# t1 += [ hc1[1] * r2, hc1[0] * u2 ]
+	movdqa		ru2,t2
+	pmuludq		hc1,t2
+	paddq		t2,t1
+	# t1 += [ hc2[1] * r1, hc2[0] * u1 ]
+	movdqa		ru1,t2
+	pmuludq		hc2,t2
+	paddq		t2,t1
+	# t1 += [ hc3[1] * r0, hc3[0] * u0 ]
+	movdqa		ru0,t2
+	pmuludq		hc3,t2
+	paddq		t2,t1
+	# t1 += [ hc4[1] * s4, hc4[0] * v4 ]
+	movdqa		sv4,t2
+	pmuludq		hc4,t2
+	paddq		t2,t1
+	# d3 = t1[0] + t1[1]
+	movdqa		t1,t2
+	psrldq		$8,t2
+	paddq		t2,t1
+	movq		t1,d3
+
+	# t1 = [ hc0[1] * r4, hc0[0] * u4 ]
+	movdqa		ru4,t1
+	pmuludq		hc0,t1
+	# t1 += [ hc1[1] * r3, hc1[0] * u3 ]
+	movdqa		ru3,t2
+	pmuludq		hc1,t2
+	paddq		t2,t1
+	# t1 += [ hc2[1] * r2, hc2[0] * u2 ]
+	movdqa		ru2,t2
+	pmuludq		hc2,t2
+	paddq		t2,t1
+	# t1 += [ hc3[1] * r1, hc3[0] * u1 ]
+	movdqa		ru1,t2
+	pmuludq		hc3,t2
+	paddq		t2,t1
+	# t1 += [ hc4[1] * r0, hc4[0] * u0 ]
+	movdqa		ru0,t2
+	pmuludq		hc4,t2
+	paddq		t2,t1
+	# d4 = t1[0] + t1[1]
+	movdqa		t1,t2
+	psrldq		$8,t2
+	paddq		t2,t1
+	movq		t1,d4
+
+	# d1 += d0 >> 26
+	mov		d0,%rax
+	shr		$26,%rax
+	add		%rax,d1
+	# h0 = d0 & 0x3ffffff
+	mov		d0,%rbx
+	and		$0x3ffffff,%ebx
+
+	# d2 += d1 >> 26
+	mov		d1,%rax
+	shr		$26,%rax
+	add		%rax,d2
+	# h1 = d1 & 0x3ffffff
+	mov		d1,%rax
+	and		$0x3ffffff,%eax
+	mov		%eax,h1
+
+	# d3 += d2 >> 26
+	mov		d2,%rax
+	shr		$26,%rax
+	add		%rax,d3
+	# h2 = d2 & 0x3ffffff
+	mov		d2,%rax
+	and		$0x3ffffff,%eax
+	mov		%eax,h2
+
+	# d4 += d3 >> 26
+	mov		d3,%rax
+	shr		$26,%rax
+	add		%rax,d4
+	# h3 = d3 & 0x3ffffff
+	mov		d3,%rax
+	and		$0x3ffffff,%eax
+	mov		%eax,h3
+
+	# h0 += (d4 >> 26) * 5
+	mov		d4,%rax
+	shr		$26,%rax
+	lea		(%eax,%eax,4),%eax
+	add		%eax,%ebx
+	# h4 = d4 & 0x3ffffff
+	mov		d4,%rax
+	and		$0x3ffffff,%eax
+	mov		%eax,h4
+
+	# h1 += h0 >> 26
+	mov		%ebx,%eax
+	shr		$26,%eax
+	add		%eax,h1
+	# h0 = h0 & 0x3ffffff
+	andl		$0x3ffffff,%ebx
+	mov		%ebx,h0
+
+	add		$0x20,m
+	dec		%rcx
+	jnz		.Ldoblock2
+
+	pop		%r13
+	pop		%r12
+	pop		%rbx
+	ret
+ENDPROC(poly1305_2block_sse2)
