@@ -663,6 +663,12 @@ static inline void hd_struct_put(struct hd_struct *part)
 		__delete_partition(part);
 }
 
+static inline void hd_free_part(struct hd_struct *part)
+{
+	free_part_stats(part);
+	free_part_info(part);
+}
+
 /*
  * Any access of part->nr_sects which is not protected by partition
  * bd_mutex or gendisk bdev bd_mutex, should be done using this

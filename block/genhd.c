@@ -1110,8 +1110,7 @@ static void disk_release(struct device *dev)
 	disk_release_events(disk);
 	kfree(disk->random);
 	disk_replace_part_tbl(disk, NULL);
-	free_part_stats(&disk->part0);
-	free_part_info(&disk->part0);
+	hd_free_part(&disk->part0);
 	if (disk->queue)
 		blk_put_queue(disk->queue);
 	kfree(disk);

@@ -212,8 +212,7 @@ static void part_release(struct device *dev)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	blk_free_devt(dev->devt);
-	free_part_stats(p);
-	free_part_info(p);
+	hd_free_part(p);
 	kfree(p);
 }
 
