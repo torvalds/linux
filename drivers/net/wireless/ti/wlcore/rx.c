@@ -74,7 +74,8 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	if (desc->rate <= wl->hw_min_ht_rate)
 		status->flag |= RX_FLAG_HT;
 
-	status->signal = desc->rssi;
+	status->signal = ((desc->rssi & RSSI_LEVEL_BITMASK) | BIT(7));
+	status->antenna = ((desc->rssi & ANT_DIVERSITY_BITMASK) >> 7);
 
 	/*
 	 * FIXME: In wl1251, the SNR should be divided by two.  In wl1271 we
