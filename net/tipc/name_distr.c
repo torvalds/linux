@@ -96,7 +96,7 @@ void named_cluster_distribute(struct net *net, struct sk_buff *skb)
 		dnode = node->addr;
 		if (in_own_node(net, dnode))
 			continue;
-		if (!tipc_node_active_links(node))
+		if (!tipc_node_is_up(node))
 			continue;
 		oskb = pskb_copy(skb, GFP_ATOMIC);
 		if (!oskb)

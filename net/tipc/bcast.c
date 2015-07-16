@@ -413,7 +413,7 @@ static void bclink_accept_pkt(struct tipc_node *node, u32 seqno)
 	 * all nodes in the cluster don't ACK at the same time
 	 */
 	if (((seqno - tn->own_addr) % TIPC_MIN_LINK_WIN) == 0) {
-		tipc_link_proto_xmit(node->active_links[node->addr & 1],
+		tipc_link_proto_xmit(node_active_link(node, node->addr),
 				     STATE_MSG, 0, 0, 0, 0);
 		tn->bcl->stats.sent_acks++;
 	}

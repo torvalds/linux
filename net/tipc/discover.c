@@ -170,7 +170,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *buf,
 		return;
 	tipc_node_lock(node);
 	node->capabilities = caps;
-	link = node->links[bearer->identity];
+	link = node->links[bearer->identity].link;
 
 	/* Prepare to validate requesting node's signature and media address */
 	sign_match = (signature == node->signature);
