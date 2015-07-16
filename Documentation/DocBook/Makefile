@@ -60,7 +60,7 @@ mandocs: $(MAN)
 
 installmandocs: mandocs
 	mkdir -p /usr/local/man/man9/
-	install $(obj)/man/*.9.gz /usr/local/man/man9/
+	install -m 644 $(obj)/man/*.9.gz /usr/local/man/man9/
 
 ###
 #External programs used
