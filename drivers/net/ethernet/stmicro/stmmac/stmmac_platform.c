@@ -104,7 +104,7 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
  * this function is to read the driver parameters from device-tree and
  * set some private fields that will be used by the main at runtime.
  */
-static struct plat_stmmacenet_data *
+struct plat_stmmacenet_data *
 stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -251,15 +251,16 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	return plat;
 }
 #else
-static struct plat_stmmacenet_data *
+struct plat_stmmacenet_data *
 stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 {
 	return ERR_PTR(-ENOSYS);
 }
 #endif /* CONFIG_OF */
+EXPORT_SYMBOL_GPL(stmmac_probe_config_dt);
 
-static int stmmac_get_platform_resources(struct platform_device *pdev,
-					 struct stmmac_resources *stmmac_res)
+int stmmac_get_platform_resources(struct platform_device *pdev,
+				  struct stmmac_resources *stmmac_res)
 {
 	struct resource *res;
 
@@ -302,6 +303,7 @@ static int stmmac_get_platform_resources(struct platform_device *pdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(stmmac_get_platform_resources);
 
 /**
  * stmmac_pltfr_probe - platform driver probe.
