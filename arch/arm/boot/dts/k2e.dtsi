@@ -96,6 +96,7 @@
 			ranges = <0x81000000 0 0 0x23260000 0x4000 0x4000
 				0x82000000 0 0x60000000 0x60000000 0 0x10000000>;
 
+			status = "disabled";
 			device_type = "pci";
 			num-lanes = <2>;
 
