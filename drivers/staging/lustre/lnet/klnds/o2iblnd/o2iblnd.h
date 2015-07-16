@@ -120,7 +120,7 @@ extern kib_tunables_t  kiblnd_tunables;
 #define IBLND_CREDIT_HIGHWATER_V1 7 /* V1 only : when eagerly to return credits */
 
 #define IBLND_CREDITS_DEFAULT     8 /* default # of peer credits */
-#define IBLND_CREDITS_MAX	  ((typeof(((kib_msg_t*) 0)->ibm_credits)) - 1)  /* Max # of peer credits */
+#define IBLND_CREDITS_MAX	  ((typeof(((kib_msg_t *) 0)->ibm_credits)) - 1)  /* Max # of peer credits */
 
 #define IBLND_MSG_QUEUE_SIZE(v)    ((v) == IBLND_MSG_VERSION_1 ? \
 				     IBLND_MSG_QUEUE_SIZE_V1 :   \
