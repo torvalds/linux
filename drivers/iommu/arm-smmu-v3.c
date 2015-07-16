@@ -2054,9 +2054,17 @@ static int arm_smmu_init_strtab_2lvl(struct arm_smmu_device *smmu)
 	int ret;
 	struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
 
-	/* Calculate the L1 size, capped to the SIDSIZE */
-	size = STRTAB_L1_SZ_SHIFT - (ilog2(STRTAB_L1_DESC_DWORDS) + 3);
-	size = min(size, smmu->sid_bits - STRTAB_SPLIT);
+	/*
+	 * If we can resolve everything with a single L2 table, then we
+	 * just need a single L1 descriptor. Otherwise, calculate the L1
+	 * size, capped to the SIDSIZE.
+	 */
+	if (smmu->sid_bits < STRTAB_SPLIT) {
+		size = 0;
+	} else {
+		size = STRTAB_L1_SZ_SHIFT - (ilog2(STRTAB_L1_DESC_DWORDS) + 3);
+		size = min(size, smmu->sid_bits - STRTAB_SPLIT);
+	}
 	cfg->num_l1_ents = 1 << size;
 
 	size += STRTAB_SPLIT;
