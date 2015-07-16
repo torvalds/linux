@@ -58,6 +58,13 @@ enum {
 	TIPC_LINK_TUNNEL
 };
 
+/* Events occurring at packet reception or at timeout
+ */
+enum {
+	TIPC_LINK_UP_EVT       = 1,
+	TIPC_LINK_DOWN_EVT     = (1 << 1)
+};
+
 /* Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
  */
