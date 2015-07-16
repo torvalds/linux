@@ -2735,6 +2735,7 @@ static int translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 	u8 *buffer = cmd->sense_buffer;
 	int r = (__force int)reason;
 	u8 asc, ascq;
+	bool desc_format = target_sense_desc_format(cmd->se_dev);
 
 	if (r < ARRAY_SIZE(sense_info_table) && sense_info_table[r].key)
 		si = &sense_info_table[r];
@@ -2754,7 +2755,7 @@ static int translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 		ascq = si->ascq;
 	}
 
-	scsi_build_sense_buffer(0, buffer, si->key, asc, ascq);
+	scsi_build_sense_buffer(desc_format, buffer, si->key, asc, ascq);
 	if (si->add_sector_info)
 		return scsi_set_sense_information(buffer,
 						  cmd->scsi_sense_length,

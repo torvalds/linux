@@ -176,3 +176,8 @@ core_delete_hba(struct se_hba *hba)
 	kfree(hba);
 	return 0;
 }
+
+bool target_sense_desc_format(struct se_device *dev)
+{
+	return dev->transport->get_blocks(dev) > U32_MAX;
+}

@@ -761,7 +761,12 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	if (pc == 1)
 		goto out;
 
-	p[2] = 2;
+	/* GLTSD: No implicit save of log parameters */
+	p[2] = (1 << 1);
+	if (target_sense_desc_format(dev))
+		/* D_SENSE: Descriptor format sense data for 64bit sectors */
+		p[2] |= (1 << 2);
+
 	/*
 	 * From spc4r23, 7.4.7 Control mode page
 	 *
@@ -1144,6 +1149,7 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 	unsigned char *rbuf;
 	u8 ua_asc = 0, ua_ascq = 0;
 	unsigned char buf[SE_SENSE_BUF];
+	bool desc_format = target_sense_desc_format(cmd->se_dev);
 
 	memset(buf, 0, SE_SENSE_BUF);
 
@@ -1158,10 +1164,10 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq))
-		scsi_build_sense_buffer(0, buf, UNIT_ATTENTION,
+		scsi_build_sense_buffer(desc_format, buf, UNIT_ATTENTION,
 					ua_asc, ua_ascq);
 	else
-		scsi_build_sense_buffer(0, buf, NO_SENSE, 0x0, 0x0);
+		scsi_build_sense_buffer(desc_format, buf, NO_SENSE, 0x0, 0x0);
 
 	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
 	transport_kunmap_data_sg(cmd);
