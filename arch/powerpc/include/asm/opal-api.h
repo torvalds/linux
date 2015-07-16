@@ -361,6 +361,7 @@ enum opal_msg_type {
 	OPAL_MSG_HMI_EVT,
 	OPAL_MSG_DPO,
 	OPAL_MSG_PRD,
+	OPAL_MSG_OCC,
 	OPAL_MSG_TYPE_MAX,
 };
 
@@ -699,6 +700,17 @@ struct opal_prd_msg_header {
 };
 
 struct opal_prd_msg;
+
+#define OCC_RESET                       0
+#define OCC_LOAD                        1
+#define OCC_THROTTLE                    2
+#define OCC_MAX_THROTTLE_STATUS         5
+
+struct opal_occ_msg {
+	__be64 type;
+	__be64 chip;
+	__be64 throttle_status;
+};
 
 /*
  * SG entries
