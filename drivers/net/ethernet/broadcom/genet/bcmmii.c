@@ -316,7 +316,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 	return 0;
 }
 
-static int bcmgenet_mii_probe(struct net_device *dev)
+int bcmgenet_mii_probe(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device_node *dn = priv->pdev->dev.of_node;
@@ -334,22 +334,6 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	priv->old_pause = -1;
 
 	if (dn) {
-		if (priv->phydev) {
-			pr_info("PHY already attached\n");
-			return 0;
-		}
-
-		/* In the case of a fixed PHY, the DT node associated
-		 * to the PHY is the Ethernet MAC DT node.
-		 */
-		if (!priv->phy_dn && of_phy_is_fixed_link(dn)) {
-			ret = of_phy_register_fixed_link(dn);
-			if (ret)
-				return ret;
-
-			priv->phy_dn = of_node_get(dn);
-		}
-
 		phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
 					phy_flags, priv->phy_interface);
 		if (!phydev) {
@@ -390,9 +374,6 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 		priv->mii_bus->irq[phydev->addr] = PHY_IGNORE_INTERRUPT;
 	else
 		priv->mii_bus->irq[phydev->addr] = PHY_POLL;
-
-	pr_info("attached PHY at address %d [%s]\n",
-		phydev->addr, phydev->drv->name);
 
 	return 0;
 }
@@ -503,6 +484,17 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 
 	/* Fetch the PHY phandle */
 	priv->phy_dn = of_parse_phandle(dn, "phy-handle", 0);
+
+	/* In the case of a fixed PHY, the DT node associated
+	 * to the PHY is the Ethernet MAC DT node.
+	 */
+	if (!priv->phy_dn && of_phy_is_fixed_link(dn)) {
+		ret = of_phy_register_fixed_link(dn);
+		if (ret)
+			return ret;
+
+		priv->phy_dn = of_node_get(dn);
+	}
 
 	/* Get the link mode */
 	phy_mode = of_get_phy_mode(dn);
@@ -623,10 +615,6 @@ int bcmgenet_mii_init(struct net_device *dev)
 
 	ret = bcmgenet_mii_bus_init(priv);
 	if (ret)
-		goto out_free;
-
-	ret = bcmgenet_mii_probe(dev);
-	if (ret)
 		goto out;
 
 	return 0;
@@ -634,7 +622,6 @@ int bcmgenet_mii_init(struct net_device *dev)
 out:
 	of_node_put(priv->phy_dn);
 	mdiobus_unregister(priv->mii_bus);
-out_free:
 	kfree(priv->mii_bus->irq);
 	mdiobus_free(priv->mii_bus);
 	return ret;
