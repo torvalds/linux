@@ -909,6 +909,10 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 				wildcard_ssid_tlv->max_ssid_length =
 							IEEE80211_MAX_SSID_LEN;
 
+			if (!memcmp(user_scan_in->ssid_list[i].ssid,
+				    "DIRECT-", 7))
+				wildcard_ssid_tlv->max_ssid_length = 0xfe;
+
 			memcpy(wildcard_ssid_tlv->ssid,
 			       user_scan_in->ssid_list[i].ssid, ssid_len);
 
