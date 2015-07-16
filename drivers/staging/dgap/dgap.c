@@ -7004,7 +7004,7 @@ static void dgap_cleanup_board(struct board_t *brd)
 	kfree(brd);
 }
 
-static void dgap_stop(void)
+static void dgap_stop(bool removesys, struct pci_driver *drv)
 {
 	unsigned long lock_flags;
 
@@ -7013,6 +7013,8 @@ static void dgap_stop(void)
 	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
 
 	del_timer_sync(&dgap_poll_timer);
+	if (removesys)
+		dgap_remove_driver_sysfiles(drv);
 
 	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
 	class_destroy(dgap_class);
@@ -7134,7 +7136,7 @@ static int dgap_init_module(void)
 
 	rc = pci_register_driver(&dgap_driver);
 	if (rc) {
-		dgap_stop();
+		dgap_stop(false, NULL);
 		return rc;
 	}
 
