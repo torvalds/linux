@@ -800,10 +800,10 @@ static int f2fs_do_collapse(struct inode *inode, pgoff_t start, pgoff_t end)
 	pgoff_t nrpages = (i_size_read(inode) + PAGE_SIZE - 1) / PAGE_SIZE;
 	int ret = 0;
 
-	f2fs_lock_op(sbi);
-
 	for (; end < nrpages; start++, end++) {
 		block_t new_addr, old_addr;
+
+		f2fs_lock_op(sbi);
 
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		ret = get_dnode_of_data(&dn, end, LOOKUP_NODE_RA);
@@ -820,13 +820,16 @@ static int f2fs_do_collapse(struct inode *inode, pgoff_t start, pgoff_t end)
 		if (new_addr == NULL_ADDR) {
 			set_new_dnode(&dn, inode, NULL, NULL, 0);
 			ret = get_dnode_of_data(&dn, start, LOOKUP_NODE_RA);
-			if (ret && ret != -ENOENT)
+			if (ret && ret != -ENOENT) {
 				goto out;
-			else if (ret == -ENOENT)
+			} else if (ret == -ENOENT) {
+				f2fs_unlock_op(sbi);
 				continue;
+			}
 
 			if (dn.data_blkaddr == NULL_ADDR) {
 				f2fs_put_dnode(&dn);
+				f2fs_unlock_op(sbi);
 				continue;
 			} else {
 				truncate_data_blocks_range(&dn, 1);
@@ -865,8 +868,9 @@ static int f2fs_do_collapse(struct inode *inode, pgoff_t start, pgoff_t end)
 
 			f2fs_put_dnode(&dn);
 		}
+		f2fs_unlock_op(sbi);
 	}
-	ret = 0;
+	return 0;
 out:
 	f2fs_unlock_op(sbi);
 	return ret;
