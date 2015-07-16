@@ -21,12 +21,27 @@
 
 asmlinkage void chacha20_block_xor_ssse3(u32 *state, u8 *dst, const u8 *src);
 asmlinkage void chacha20_4block_xor_ssse3(u32 *state, u8 *dst, const u8 *src);
+#ifdef CONFIG_AS_AVX2
+asmlinkage void chacha20_8block_xor_avx2(u32 *state, u8 *dst, const u8 *src);
+static bool chacha20_use_avx2;
+#endif
 
 static void chacha20_dosimd(u32 *state, u8 *dst, const u8 *src,
 			    unsigned int bytes)
 {
 	u8 buf[CHACHA20_BLOCK_SIZE];
 
+#ifdef CONFIG_AS_AVX2
+	if (chacha20_use_avx2) {
+		while (bytes >= CHACHA20_BLOCK_SIZE * 8) {
+			chacha20_8block_xor_avx2(state, dst, src);
+			bytes -= CHACHA20_BLOCK_SIZE * 8;
+			src += CHACHA20_BLOCK_SIZE * 8;
+			dst += CHACHA20_BLOCK_SIZE * 8;
+			state[12] += 8;
+		}
+	}
+#endif
 	while (bytes >= CHACHA20_BLOCK_SIZE * 4) {
 		chacha20_4block_xor_ssse3(state, dst, src);
 		bytes -= CHACHA20_BLOCK_SIZE * 4;
@@ -113,6 +128,10 @@ static int __init chacha20_simd_mod_init(void)
 	if (!cpu_has_ssse3)
 		return -ENODEV;
 
+#ifdef CONFIG_AS_AVX2
+	chacha20_use_avx2 = cpu_has_avx && cpu_has_avx2 &&
+			    cpu_has_xfeatures(XSTATE_SSE | XSTATE_YMM, NULL);
+#endif
 	return crypto_register_alg(&alg);
 }
 

@@ -1214,7 +1214,7 @@ config CRYPTO_CHACHA20
 	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
 
 config CRYPTO_CHACHA20_X86_64
-	tristate "ChaCha20 cipher algorithm (x86_64/SSSE3)"
+	tristate "ChaCha20 cipher algorithm (x86_64/SSSE3/AVX2)"
 	depends on X86 && 64BIT
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_CHACHA20
