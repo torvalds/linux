@@ -121,7 +121,7 @@ static const struct snd_soc_dapm_route max9877_dapm_routes[] = {
 	{ "HPR", NULL, "SHDN" },
 };
 
-static const struct snd_soc_codec_driver max9877_codec = {
+static const struct snd_soc_component_driver max9877_component_driver = {
 	.controls = max9877_controls,
 	.num_controls = ARRAY_SIZE(max9877_controls),
 
@@ -154,14 +154,8 @@ static int max9877_i2c_probe(struct i2c_client *client,
 	for (i = 0; i < ARRAY_SIZE(max9877_regs); i++)
 		regmap_write(regmap, max9877_regs[i].reg, max9877_regs[i].def);
 
-	return snd_soc_register_codec(&client->dev, &max9877_codec, NULL, 0);
-}
-
-static int max9877_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-
-	return 0;
+	return devm_snd_soc_register_component(&client->dev,
+			&max9877_component_driver, NULL, 0);
 }
 
 static const struct i2c_device_id max9877_i2c_id[] = {
@@ -175,7 +169,6 @@ static struct i2c_driver max9877_i2c_driver = {
 		.name = "max9877",
 	},
 	.probe = max9877_i2c_probe,
-	.remove = max9877_i2c_remove,
 	.id_table = max9877_i2c_id,
 };
 
