@@ -592,12 +592,14 @@ static void journal_write_unlocked(struct closure *cl)
 
 	if (!w->need_write) {
 		closure_return_with_destructor(cl, journal_write_unlock);
+		return;
 	} else if (journal_full(&c->journal)) {
 		journal_reclaim(c);
 		spin_unlock(&c->journal.lock);
 
 		btree_flush_write(c);
 		continue_at(cl, journal_write, system_wq);
+		return;
 	}
 
 	c->journal.blocks_free -= set_blocks(w->data, block_bytes(c));
