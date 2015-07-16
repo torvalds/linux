@@ -105,12 +105,19 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
  * set some private fields that will be used by the main at runtime.
  */
 static int stmmac_probe_config_dt(struct platform_device *pdev,
-				  struct plat_stmmacenet_data *plat,
+				  struct plat_stmmacenet_data **plat_dat,
 				  const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct plat_stmmacenet_data *plat;
 	const struct stmmac_of_data *data;
 	struct stmmac_dma_cfg *dma_cfg;
+
+	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
+	if (!plat)
+		return -ENOMEM;
+
+	*plat_dat = plat;
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (data) {
@@ -180,6 +187,12 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	 */
 	plat->maxmtu = JUMBO_LEN;
 
+	/* Set default value for multicast hash bins */
+	plat->multicast_filter_bins = HASH_TABLE_SIZE;
+
+	/* Set default value for unicast filter entries */
+	plat->unicast_filter_entries = 1;
+
 	/*
 	 * Currently only the properties needed on SPEAr600
 	 * are provided. All other properties should be added
@@ -242,7 +255,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 }
 #else
 static int stmmac_probe_config_dt(struct platform_device *pdev,
-				  struct plat_stmmacenet_data *plat,
+				  struct plat_stmmacenet_data **plat,
 				  const char **mac)
 {
 	return -ENOSYS;
@@ -301,29 +314,24 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 	if (IS_ERR(stmmac_res.addr))
 		return PTR_ERR(stmmac_res.addr);
 
-	plat_dat = dev_get_platdata(&pdev->dev);
-
-	if (!plat_dat)
-		plat_dat = devm_kzalloc(&pdev->dev,
-					sizeof(struct plat_stmmacenet_data),
-					GFP_KERNEL);
-	if (!plat_dat) {
-		pr_err("%s: ERROR: no memory", __func__);
-		return  -ENOMEM;
-	}
-
-	/* Set default value for multicast hash bins */
-	plat_dat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-	/* Set default value for unicast filter entries */
-	plat_dat->unicast_filter_entries = 1;
-
 	if (pdev->dev.of_node) {
-		ret = stmmac_probe_config_dt(pdev, plat_dat, &stmmac_res.mac);
+		ret = stmmac_probe_config_dt(pdev, &plat_dat, &stmmac_res.mac);
 		if (ret) {
-			pr_err("%s: main dt probe failed", __func__);
+			dev_err(&pdev->dev, "dt configuration failed\n");
 			return ret;
 		}
+	} else {
+		plat_dat = dev_get_platdata(&pdev->dev);
+		if (!plat_dat) {
+			dev_err(&pdev->dev, "no platform data provided\n");
+			return  -EINVAL;
+		}
+
+		/* Set default value for multicast hash bins */
+		plat_dat->multicast_filter_bins = HASH_TABLE_SIZE;
+
+		/* Set default value for unicast filter entries */
+		plat_dat->unicast_filter_entries = 1;
 	}
 
 	/* Custom setup (if needed) */
