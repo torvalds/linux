@@ -1215,4 +1215,13 @@ int uni_player_resume(struct uniperif *player);
 /* uniperiph reader */
 int uni_reader_init(struct platform_device *pdev,
 		    struct uniperif *uni_reader);
+
+/* common */
+int sti_uniperiph_dai_set_fmt(struct snd_soc_dai *dai,
+			      unsigned int fmt);
+
+int sti_uniperiph_dai_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai);
+
 #endif
