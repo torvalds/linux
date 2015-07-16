@@ -555,7 +555,7 @@ void __init ti814x_init_early(void)
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
 	ti814x_clockdomains_init();
-	ti81xx_hwmod_init();
+	dm814x_hwmod_init();
 	omap_hwmod_init_postsetup();
 	if (of_have_populated_dt())
 		omap_clk_soc_init = dm814x_dt_clk_init;
@@ -572,7 +572,7 @@ void __init ti816x_init_early(void)
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
 	ti816x_clockdomains_init();
-	ti81xx_hwmod_init();
+	dm816x_hwmod_init();
 	omap_hwmod_init_postsetup();
 	if (of_have_populated_dt())
 		omap_clk_soc_init = dm816x_dt_clk_init;
