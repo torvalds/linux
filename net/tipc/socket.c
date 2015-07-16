@@ -261,7 +261,7 @@ static void tsk_rej_rx_queue(struct sock *sk)
 
 	while ((skb = __skb_dequeue(&sk->sk_receive_queue))) {
 		if (tipc_msg_reverse(own_node, skb, &dnode, TIPC_ERR_NO_PORT))
-			tipc_link_xmit_skb(sock_net(sk), skb, dnode, 0);
+			tipc_node_xmit_skb(sock_net(sk), skb, dnode, 0);
 	}
 }
 
@@ -443,7 +443,7 @@ static int tipc_release(struct socket *sock)
 			}
 			if (tipc_msg_reverse(tsk_own_node(tsk), skb, &dnode,
 					     TIPC_ERR_NO_PORT))
-				tipc_link_xmit_skb(net, skb, dnode, 0);
+				tipc_node_xmit_skb(net, skb, dnode, 0);
 		}
 	}
 
@@ -456,7 +456,7 @@ static int tipc_release(struct socket *sock)
 				      tsk_own_node(tsk), tsk_peer_port(tsk),
 				      tsk->portid, TIPC_ERR_NO_PORT);
 		if (skb)
-			tipc_link_xmit_skb(net, skb, dnode, tsk->portid);
+			tipc_node_xmit_skb(net, skb, dnode, tsk->portid);
 		tipc_node_remove_conn(net, dnode, tsk->portid);
 	}
 
@@ -925,7 +925,7 @@ new_mtu:
 	do {
 		skb = skb_peek(pktchain);
 		TIPC_SKB_CB(skb)->wakeup_pending = tsk->link_cong;
-		rc = tipc_link_xmit(net, pktchain, dnode, tsk->portid);
+		rc = tipc_node_xmit(net, pktchain, dnode, tsk->portid);
 		if (likely(!rc)) {
 			if (sock->state != SS_READY)
 				sock->state = SS_CONNECTING;
@@ -1045,7 +1045,7 @@ next:
 		return rc;
 	do {
 		if (likely(!tsk_conn_cong(tsk))) {
-			rc = tipc_link_xmit(net, pktchain, dnode, portid);
+			rc = tipc_node_xmit(net, pktchain, dnode, portid);
 			if (likely(!rc)) {
 				tsk->sent_unacked++;
 				sent += send;
@@ -1224,7 +1224,7 @@ static void tipc_sk_send_ack(struct tipc_sock *tsk, uint ack)
 		return;
 	msg = buf_msg(skb);
 	msg_set_msgcnt(msg, ack);
-	tipc_link_xmit_skb(net, skb, dnode, msg_link_selector(msg));
+	tipc_node_xmit_skb(net, skb, dnode, msg_link_selector(msg));
 }
 
 static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
@@ -1703,7 +1703,7 @@ static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 		return 0;
 	}
 	if (!err || tipc_msg_reverse(tsk_own_node(tsk), skb, &dnode, -err))
-		tipc_link_xmit_skb(net, skb, dnode, tsk->portid);
+		tipc_node_xmit_skb(net, skb, dnode, tsk->portid);
 	return 0;
 }
 
@@ -1799,7 +1799,7 @@ int tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq)
 		if (!tipc_msg_reverse(tn->own_addr, skb, &dnode, -err))
 			continue;
 xmit:
-		tipc_link_xmit_skb(net, skb, dnode, dport);
+		tipc_node_xmit_skb(net, skb, dnode, dport);
 	}
 	return err ? -EHOSTUNREACH : 0;
 }
@@ -2092,7 +2092,7 @@ restart:
 			}
 			if (tipc_msg_reverse(tsk_own_node(tsk), skb, &dnode,
 					     TIPC_CONN_SHUTDOWN))
-				tipc_link_xmit_skb(net, skb, dnode,
+				tipc_node_xmit_skb(net, skb, dnode,
 						   tsk->portid);
 		} else {
 			dnode = tsk_peer_node(tsk);
@@ -2102,7 +2102,7 @@ restart:
 					      0, dnode, tsk_own_node(tsk),
 					      tsk_peer_port(tsk),
 					      tsk->portid, TIPC_CONN_SHUTDOWN);
-			tipc_link_xmit_skb(net, skb, dnode, tsk->portid);
+			tipc_node_xmit_skb(net, skb, dnode, tsk->portid);
 		}
 		tsk->connected = 0;
 		sock->state = SS_DISCONNECTING;
@@ -2164,7 +2164,7 @@ static void tipc_sk_timeout(unsigned long data)
 	}
 	bh_unlock_sock(sk);
 	if (skb)
-		tipc_link_xmit_skb(sock_net(sk), skb, peer_node, tsk->portid);
+		tipc_node_xmit_skb(sock_net(sk), skb, peer_node, tsk->portid);
 exit:
 	sock_put(sk);
 }

@@ -563,6 +563,84 @@ msg_full:
 	return -EMSGSIZE;
 }
 
+static struct tipc_link *tipc_node_select_link(struct tipc_node *n, int sel,
+					       int *bearer_id,
+					       struct tipc_media_addr **maddr)
+{
+	int id = n->active_links[sel & 1];
+
+	if (unlikely(id < 0))
+		return NULL;
+
+	*bearer_id = id;
+	*maddr = &n->links[id].maddr;
+	return n->links[id].link;
+}
+
+/**
+ * tipc_node_xmit() is the general link level function for message sending
+ * @net: the applicable net namespace
+ * @list: chain of buffers containing message
+ * @dnode: address of destination node
+ * @selector: a number used for deterministic link selection
+ * Consumes the buffer chain, except when returning -ELINKCONG
+ * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
+ */
+int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
+		   u32 dnode, int selector)
+{
+	struct tipc_link *l = NULL;
+	struct tipc_node *n;
+	struct sk_buff_head xmitq;
+	struct tipc_media_addr *maddr;
+	int bearer_id;
+	int rc = -EHOSTUNREACH;
+
+	__skb_queue_head_init(&xmitq);
+	n = tipc_node_find(net, dnode);
+	if (likely(n)) {
+		tipc_node_lock(n);
+		l = tipc_node_select_link(n, selector, &bearer_id, &maddr);
+		if (likely(l))
+			rc = tipc_link_xmit(l, list, &xmitq);
+		if (unlikely(rc == -ENOBUFS))
+			tipc_link_reset(l);
+		tipc_node_unlock(n);
+		tipc_node_put(n);
+	}
+	if (likely(!rc)) {
+		tipc_bearer_xmit(net, bearer_id, &xmitq, maddr);
+		return 0;
+	}
+	if (likely(in_own_node(net, dnode))) {
+		tipc_sk_rcv(net, list);
+		return 0;
+	}
+	return rc;
+}
+
+/* tipc_node_xmit_skb(): send single buffer to destination
+ * Buffers sent via this functon are generally TIPC_SYSTEM_IMPORTANCE
+ * messages, which will not be rejected
+ * The only exception is datagram messages rerouted after secondary
+ * lookup, which are rare and safe to dispose of anyway.
+ * TODO: Return real return value, and let callers use
+ * tipc_wait_for_sendpkt() where applicable
+ */
+int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
+		       u32 selector)
+{
+	struct sk_buff_head head;
+	int rc;
+
+	skb_queue_head_init(&head);
+	__skb_queue_tail(&head, skb);
+	rc = tipc_node_xmit(net, &head, dnode, selector);
+	if (rc == -ELINKCONG)
+		kfree_skb(skb);
+	return 0;
+}
+
 int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	int err;
