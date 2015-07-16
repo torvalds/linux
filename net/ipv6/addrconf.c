@@ -1360,8 +1360,6 @@ out:
 
 static int __ipv6_dev_get_saddr(struct net *net,
 				struct ipv6_saddr_dst *dst,
-				unsigned int prefs,
-				const struct in6_addr *saddr,
 				struct inet6_dev *idev,
 				struct ipv6_saddr_score *scores,
 				int hiscore_idx)
@@ -1485,13 +1483,13 @@ int ipv6_dev_get_saddr(struct net *net, const struct net_device *dst_dev,
 
 	if (use_oif_addr) {
 		if (idev)
-			hiscore_idx = __ipv6_dev_get_saddr(net, &dst, prefs, saddr, idev, scores, hiscore_idx);
+			hiscore_idx = __ipv6_dev_get_saddr(net, &dst, idev, scores, hiscore_idx);
 	} else {
 		for_each_netdev_rcu(net, dev) {
 			idev = __in6_dev_get(dev);
 			if (!idev)
 				continue;
-			hiscore_idx = __ipv6_dev_get_saddr(net, &dst, prefs, saddr, idev, scores, hiscore_idx);
+			hiscore_idx = __ipv6_dev_get_saddr(net, &dst, idev, scores, hiscore_idx);
 		}
 	}
 	rcu_read_unlock();
