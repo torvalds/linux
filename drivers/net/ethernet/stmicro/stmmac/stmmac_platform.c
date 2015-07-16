@@ -109,13 +109,11 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 				  const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
+	const struct stmmac_of_data *data;
 	struct stmmac_dma_cfg *dma_cfg;
-	const struct of_device_id *device;
-	struct device *dev = &pdev->dev;
 
-	device = of_match_device(dev->driver->of_match_table, dev);
-	if (device->data) {
-		const struct stmmac_of_data *data = device->data;
+	data = of_device_get_match_data(&pdev->dev);
+	if (data) {
 		plat->has_gmac = data->has_gmac;
 		plat->enh_desc = data->enh_desc;
 		plat->tx_coe = data->tx_coe;
