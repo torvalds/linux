@@ -117,11 +117,6 @@ static int s390_next_event(unsigned long delta,
 	return 0;
 }
 
-static void s390_set_mode(enum clock_event_mode mode,
-			  struct clock_event_device *evt)
-{
-}
-
 /*
  * Set up lowcore and control register of the current cpu to
  * enable TOD clock and clock comparator interrupts.
@@ -145,7 +140,6 @@ void init_cpu_timer(void)
 	cd->rating		= 400;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= s390_next_event;
-	cd->set_mode		= s390_set_mode;
 
 	clockevents_register_device(cd);
 
