@@ -140,6 +140,8 @@ struct tipc_node {
 	u32 link_id;
 	struct list_head publ_list;
 	struct list_head conn_sks;
+	unsigned long keepalive_intv;
+	struct timer_list timer;
 	struct rcu_head rcu;
 };
 

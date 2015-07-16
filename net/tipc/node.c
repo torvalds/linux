@@ -44,6 +44,7 @@
 static void node_lost_contact(struct tipc_node *n_ptr);
 static void node_established_contact(struct tipc_node *n_ptr);
 static void tipc_node_delete(struct tipc_node *node);
+static void tipc_node_timeout(unsigned long data);
 
 struct tipc_sock_conn {
 	u32 port;
@@ -145,9 +146,25 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	n_ptr->active_links[0] = INVALID_BEARER_ID;
 	n_ptr->active_links[1] = INVALID_BEARER_ID;
 	tipc_node_get(n_ptr);
+	setup_timer(&n_ptr->timer, tipc_node_timeout, (unsigned long)n_ptr);
+	n_ptr->keepalive_intv = U32_MAX;
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
 	return n_ptr;
+}
+
+static void tipc_node_calculate_timer(struct tipc_node *n, struct tipc_link *l)
+{
+	unsigned long tol = l->tolerance;
+	unsigned long intv = ((tol / 4) > 500) ? 500 : tol / 4;
+	unsigned long keepalive_intv = msecs_to_jiffies(intv);
+
+	/* Link with lowest tolerance determines timer interval */
+	if (keepalive_intv < n->keepalive_intv)
+		n->keepalive_intv = keepalive_intv;
+
+	/* Ensure link's abort limit corresponds to current interval */
+	l->abort_limit = l->tolerance / jiffies_to_msecs(n->keepalive_intv);
 }
 
 static void tipc_node_delete(struct tipc_node *node)
@@ -163,8 +180,11 @@ void tipc_node_stop(struct net *net)
 	struct tipc_node *node, *t_node;
 
 	spin_lock_bh(&tn->node_list_lock);
-	list_for_each_entry_safe(node, t_node, &tn->node_list, list)
+	list_for_each_entry_safe(node, t_node, &tn->node_list, list) {
+		if (del_timer(&node->timer))
+			tipc_node_put(node);
 		tipc_node_put(node);
+	}
 	spin_unlock_bh(&tn->node_list_lock);
 }
 
@@ -220,6 +240,38 @@ void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port)
 	}
 	tipc_node_unlock(node);
 	tipc_node_put(node);
+}
+
+/* tipc_node_timeout - handle expiration of node timer
+ */
+static void tipc_node_timeout(unsigned long data)
+{
+	struct tipc_node *n = (struct tipc_node *)data;
+	struct sk_buff_head xmitq;
+	struct tipc_link *l;
+	struct tipc_media_addr *maddr;
+	int bearer_id;
+	int rc = 0;
+
+	__skb_queue_head_init(&xmitq);
+
+	for (bearer_id = 0; bearer_id < MAX_BEARERS; bearer_id++) {
+		tipc_node_lock(n);
+		l = n->links[bearer_id].link;
+		if (l) {
+			/* Link tolerance may change asynchronously: */
+			tipc_node_calculate_timer(n, l);
+			rc = tipc_link_timeout(l, &xmitq);
+			if (rc & TIPC_LINK_DOWN_EVT)
+				tipc_link_reset(l);
+		}
+		tipc_node_unlock(n);
+		maddr = &n->links[bearer_id].maddr;
+		tipc_bearer_xmit(n->net, bearer_id, &xmitq, maddr);
+	}
+	if (!mod_timer(&n->timer, jiffies + n->keepalive_intv))
+		tipc_node_get(n);
+	tipc_node_put(n);
 }
 
 /**
@@ -335,10 +387,16 @@ bool tipc_node_update_dest(struct tipc_node *n,  struct tipc_bearer *b,
 	struct tipc_media_addr *curr = &n->links[b->identity].maddr;
 	struct sk_buff_head *inputq = &n->links[b->identity].inputq;
 
-	if (!l)
+	if (!l) {
 		l = tipc_link_create(n, b, maddr, inputq, &n->bclink.namedq);
-	if (!l)
-		return false;
+		if (!l)
+			return false;
+		tipc_node_calculate_timer(n, l);
+		if (n->link_cnt == 1) {
+			if (!mod_timer(&n->timer, jiffies + n->keepalive_intv))
+				tipc_node_get(n);
+		}
+	}
 	memcpy(&l->media_addr, maddr, sizeof(*maddr));
 	memcpy(curr, maddr, sizeof(*maddr));
 	tipc_link_reset(l);

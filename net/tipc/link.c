@@ -127,7 +127,6 @@ static void link_handle_out_of_seq_msg(struct tipc_link *link,
 				       struct sk_buff *skb);
 static void tipc_link_proto_rcv(struct tipc_link *link,
 				struct sk_buff *skb);
-static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tol);
 static void link_state_event(struct tipc_link *l_ptr, u32 event);
 static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 				      u16 rcvgap, int tolerance, int priority,
@@ -139,7 +138,6 @@ static void tipc_link_sync_rcv(struct tipc_node *n, struct sk_buff *buf);
 static void tipc_link_input(struct tipc_link *l, struct sk_buff *skb);
 static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb);
 static bool tipc_link_failover_rcv(struct tipc_link *l, struct sk_buff **skb);
-static void link_set_timer(struct tipc_link *link, unsigned long time);
 static void link_activate(struct tipc_link *link);
 
 /*
@@ -148,21 +146,6 @@ static void link_activate(struct tipc_link *link);
 static unsigned int align(unsigned int i)
 {
 	return (i + 3) & ~3u;
-}
-
-static void tipc_link_release(struct kref *kref)
-{
-	kfree(container_of(kref, struct tipc_link, ref));
-}
-
-static void tipc_link_get(struct tipc_link *l_ptr)
-{
-	kref_get(&l_ptr->ref);
-}
-
-static void tipc_link_put(struct tipc_link *l_ptr)
-{
-	kref_put(&l_ptr->ref, tipc_link_release);
 }
 
 static struct tipc_link *tipc_parallel_link(struct tipc_link *l)
@@ -189,40 +172,6 @@ int tipc_link_is_active(struct tipc_link *l)
 	struct tipc_node *n = l->owner;
 
 	return (node_active_link(n, 0) == l) || (node_active_link(n, 1) == l);
-}
-
-/**
- * link_timeout - handle expiration of link timer
- */
-static void link_timeout(unsigned long data)
-{
-	struct tipc_link *l = (struct tipc_link *)data;
-	struct sk_buff_head xmitq;
-	struct sk_buff *skb;
-	int rc;
-
-	__skb_queue_head_init(&xmitq);
-
-	tipc_node_lock(l->owner);
-
-	rc = tipc_link_timeout(l, &xmitq);
-
-	if (rc & TIPC_LINK_DOWN_EVT)
-		tipc_link_reset(l);
-
-	skb = __skb_dequeue(&xmitq);
-	if (skb)
-		tipc_bearer_send(l->owner->net, l->bearer_id,
-				 skb, &l->media_addr);
-	link_set_timer(l, l->keepalive_intv);
-	tipc_node_unlock(l->owner);
-	tipc_link_put(l);
-}
-
-static void link_set_timer(struct tipc_link *link, unsigned long time)
-{
-	if (!mod_timer(&link->timer, jiffies + time))
-		tipc_link_get(link);
 }
 
 /**
@@ -265,7 +214,6 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 		pr_warn("Link creation failed, no memory\n");
 		return NULL;
 	}
-	kref_init(&l_ptr->ref);
 	l_ptr->addr = peer;
 	if_name = strchr(b_ptr->name, ':') + 1;
 	sprintf(l_ptr->name, "%u.%u.%u:%s-%u.%u.%u:unknown",
@@ -278,7 +226,7 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 	l_ptr->owner = n_ptr;
 	l_ptr->peer_session = WILDCARD_SESSION;
 	l_ptr->bearer_id = b_ptr->identity;
-	link_set_supervision_props(l_ptr, b_ptr->tolerance);
+	l_ptr->tolerance = b_ptr->tolerance;
 	l_ptr->state = TIPC_LINK_RESETTING;
 
 	l_ptr->pmsg = (struct tipc_msg *)&l_ptr->proto_msg;
@@ -304,8 +252,6 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 	skb_queue_head_init(l_ptr->inputq);
 	link_reset_statistics(l_ptr);
 	tipc_node_attach_link(n_ptr, l_ptr);
-	setup_timer(&l_ptr->timer, link_timeout, (unsigned long)l_ptr);
-	link_set_timer(l_ptr, l_ptr->keepalive_intv);
 	return l_ptr;
 }
 
@@ -316,12 +262,8 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 void tipc_link_delete(struct tipc_link *l)
 {
 	tipc_link_reset(l);
-	if (del_timer(&l->timer))
-		tipc_link_put(l);
-	/* Delete link now, or when timer is finished: */
 	tipc_link_reset_fragments(l);
 	tipc_node_detach_link(l->owner, l);
-	tipc_link_put(l);
 }
 
 void tipc_link_delete_list(struct net *net, unsigned int bearer_id)
@@ -1447,7 +1389,7 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr,
 
 		msg_tol = msg_link_tolerance(msg);
 		if (msg_tol > l_ptr->tolerance)
-			link_set_supervision_props(l_ptr, msg_tol);
+			l_ptr->tolerance = msg_tol;
 
 		if (msg_linkprio(msg) > l_ptr->priority)
 			l_ptr->priority = msg_linkprio(msg);
@@ -1473,7 +1415,7 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr,
 
 		msg_tol = msg_link_tolerance(msg);
 		if (msg_tol)
-			link_set_supervision_props(l_ptr, msg_tol);
+			l_ptr->tolerance = msg_tol;
 
 		if (msg_linkprio(msg) &&
 		    (msg_linkprio(msg) != l_ptr->priority)) {
@@ -1796,18 +1738,6 @@ exit:
 	return *skb;
 }
 
-static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tol)
-{
-	unsigned long intv = ((tol / 4) > 500) ? 500 : tol / 4;
-
-	if ((tol < TIPC_MIN_LINK_TOL) || (tol > TIPC_MAX_LINK_TOL))
-		return;
-
-	l_ptr->tolerance = tol;
-	l_ptr->keepalive_intv = msecs_to_jiffies(intv);
-	l_ptr->abort_limit = tol / (jiffies_to_msecs(l_ptr->keepalive_intv));
-}
-
 void tipc_link_set_queue_limits(struct tipc_link *l, u32 win)
 {
 	int max_bulk = TIPC_MAX_PUBLICATIONS / (l->mtu / ITEM_SIZE);
@@ -1984,7 +1914,7 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info)
 			u32 tol;
 
 			tol = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
-			link_set_supervision_props(link, tol);
+			link->tolerance = tol;
 			tipc_link_proto_xmit(link, STATE_MSG, 0, 0, tol, 0);
 		}
 		if (props[TIPC_NLA_PROP_PRIO]) {
