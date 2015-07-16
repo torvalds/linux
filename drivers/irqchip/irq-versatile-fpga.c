@@ -65,9 +65,10 @@ static void fpga_irq_unmask(struct irq_data *d)
 	writel(mask, f->base + IRQ_ENABLE_SET);
 }
 
-static void fpga_irq_handle(unsigned int irq, struct irq_desc *desc)
+static void fpga_irq_handle(unsigned int __irq, struct irq_desc *desc)
 {
 	struct fpga_irq_data *f = irq_desc_get_handler_data(desc);
+	unsigned int irq = irq_desc_get_irq(desc);
 	u32 status = readl(f->base + IRQ_STATUS);
 
 	if (status == 0) {
