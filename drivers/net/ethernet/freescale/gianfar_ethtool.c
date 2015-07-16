@@ -61,6 +61,8 @@ static void gfar_gdrvinfo(struct net_device *dev,
 			  struct ethtool_drvinfo *drvinfo);
 
 static const char stat_gstrings[][ETH_GSTRING_LEN] = {
+	/* extra stats */
+	"rx-allocation-errors",
 	"rx-large-frame-errors",
 	"rx-short-frame-errors",
 	"rx-non-octet-errors",
@@ -72,8 +74,8 @@ static const char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"ethernet-bus-error",
 	"tx-babbling-errors",
 	"tx-underrun-errors",
-	"rx-skb-missing-errors",
 	"tx-timeout-errors",
+	/* rmon stats */
 	"tx-rx-64-frames",
 	"tx-rx-65-127-frames",
 	"tx-rx-128-255-frames",
