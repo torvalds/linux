@@ -78,7 +78,6 @@ struct pm800_regulator_info {
 };
 
 struct pm800_regulators {
-	struct regulator_dev *regulators[PM800_ID_RG_MAX];
 	struct pm80x_chip *chip;
 	struct regmap *map;
 };
@@ -318,6 +317,8 @@ static int pm800_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pm800_data);
 
 	for (i = 0; i < PM800_ID_RG_MAX; i++) {
+		struct regulator_dev *regulator;
+
 		if (!pdata || pdata->num_regulators == 0)
 			init_data = pm800_regulator_matches[i].init_data;
 		else
@@ -331,30 +332,15 @@ static int pm800_regulator_probe(struct platform_device *pdev)
 		config.regmap = pm800_data->map;
 		config.of_node = pm800_regulator_matches[i].of_node;
 
-		pm800_data->regulators[i] =
-				regulator_register(&info->desc, &config);
-		if (IS_ERR(pm800_data->regulators[i])) {
-			ret = PTR_ERR(pm800_data->regulators[i]);
+		regulator = devm_regulator_register(&pdev->dev,
+					&info->desc, &config);
+		if (IS_ERR(regulator)) {
+			ret = PTR_ERR(regulator);
 			dev_err(&pdev->dev, "Failed to register %s\n",
 				info->desc.name);
-
-			while (--i >= 0)
-				regulator_unregister(pm800_data->regulators[i]);
-
 			return ret;
 		}
 	}
-
-	return 0;
-}
-
-static int pm800_regulator_remove(struct platform_device *pdev)
-{
-	struct pm800_regulators *pm800_data = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < PM800_ID_RG_MAX; i++)
-		regulator_unregister(pm800_data->regulators[i]);
 
 	return 0;
 }
@@ -364,7 +350,6 @@ static struct platform_driver pm800_regulator_driver = {
 		.name	= "88pm80x-regulator",
 	},
 	.probe		= pm800_regulator_probe,
-	.remove		= pm800_regulator_remove,
 };
 
 module_platform_driver(pm800_regulator_driver);
