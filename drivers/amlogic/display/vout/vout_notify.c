@@ -97,22 +97,22 @@ EXPORT_SYMBOL(get_current_vmode);
 */
 int set_vframe_rate_hint(int duration)
 {
-        int r=-1;
-        vout_server_t  *p_server;
+    int r=-1;
+    vout_server_t  *p_server;
 
-        //mutex_lock(&vout_mutex);
-        list_for_each_entry(p_server, &vout_module.vout_server_list, list)
-        {
-		if (p_server->op.set_vframe_rate_hint(duration) == 0)
-                {
-			mutex_unlock(&vout_mutex);
+    //mutex_lock(&vout_mutex);
+    list_for_each_entry(p_server, &vout_module.vout_server_list, list)
+    {
+		if ( (p_server->op.set_vframe_rate_hint!=NULL) && (p_server->op.set_vframe_rate_hint(duration)==0) )
+    	{
+			//mutex_unlock(&vout_mutex);
 			return 0;
-                }
         }
+    }
 
-        //mutex_unlock(&vout_mutex);
+    //mutex_unlock(&vout_mutex);
 
-        return r;
+    return r;
 }
 EXPORT_SYMBOL(set_vframe_rate_hint);
 
@@ -121,22 +121,22 @@ EXPORT_SYMBOL(set_vframe_rate_hint);
 */
 int set_vframe_rate_end_hint(void)
 {
-        int r=-1;
-        vout_server_t  *p_server;
+    int r=-1;
+    vout_server_t  *p_server;
 
-        //mutex_lock(&vout_mutex);
-        list_for_each_entry(p_server, &vout_module.vout_server_list, list)
+    //mutex_lock(&vout_mutex);
+    list_for_each_entry(p_server, &vout_module.vout_server_list, list)
+    {
+        if ( (p_server->op.set_vframe_rate_end_hint!=NULL) && (p_server->op.set_vframe_rate_end_hint()==0) )
         {
-                if (p_server->op.set_vframe_rate_end_hint() == 0)
-                {
-                        mutex_unlock(&vout_mutex);
-                        return 0;
-                }
+            //mutex_unlock(&vout_mutex);
+            return 0;
         }
+    }
 
-        //mutex_unlock(&vout_mutex);
+    //mutex_unlock(&vout_mutex);
 
-        return r;
+    return r;
 }
 EXPORT_SYMBOL(set_vframe_rate_end_hint);
 

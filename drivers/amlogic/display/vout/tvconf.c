@@ -987,7 +987,7 @@ static int clock_fine_tune(void)
 		case VMODE_480P_59HZ:
 			if( (MESON_CPU_TYPE==MESON_CPU_TYPE_MESON8B) || (IS_MESON_M8M2_CPU) ){
 				aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84f48);
-				aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042c);
+				aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x400d042c);
 			}
 			else{
 				aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8cf48);
@@ -997,7 +997,7 @@ static int clock_fine_tune(void)
 		case VMODE_480P:
 			if( (MESON_CPU_TYPE==MESON_CPU_TYPE_MESON8B) || (IS_MESON_M8M2_CPU) ){
 				aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c84000);
-				aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042d);
+				aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x400d042d);
 			}
 			else{
 				aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c88000);
