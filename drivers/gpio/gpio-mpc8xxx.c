@@ -174,6 +174,15 @@ static int mpc5121_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val
 	return mpc8xxx_gpio_dir_out(gc, gpio, val);
 }
 
+static int mpc5125_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
+{
+	/* GPIO 0..3 are input only on MPC5125 */
+	if (gpio <= 3)
+		return -EINVAL;
+
+	return mpc8xxx_gpio_dir_out(gc, gpio, val);
+}
+
 static int mpc8xxx_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
@@ -341,6 +350,11 @@ static const struct mpc8xxx_gpio_devtype mpc512x_gpio_devtype = {
 	.irq_set_type = mpc512x_irq_set_type,
 };
 
+static const struct mpc8xxx_gpio_devtype mpc5125_gpio_devtype = {
+	.gpio_dir_out = mpc5125_gpio_dir_out,
+	.irq_set_type = mpc512x_irq_set_type,
+};
+
 static const struct mpc8xxx_gpio_devtype mpc8572_gpio_devtype = {
 	.gpio_get = mpc8572_gpio_get,
 };
@@ -356,6 +370,7 @@ static const struct of_device_id mpc8xxx_gpio_ids[] = {
 	{ .compatible = "fsl,mpc8572-gpio", .data = &mpc8572_gpio_devtype, },
 	{ .compatible = "fsl,mpc8610-gpio", },
 	{ .compatible = "fsl,mpc5121-gpio", .data = &mpc512x_gpio_devtype, },
+	{ .compatible = "fsl,mpc5125-gpio", .data = &mpc5125_gpio_devtype, },
 	{ .compatible = "fsl,pq3-gpio",     },
 	{ .compatible = "fsl,qoriq-gpio",   },
 	{}
