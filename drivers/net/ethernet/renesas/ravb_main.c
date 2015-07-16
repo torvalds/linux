@@ -1275,7 +1275,6 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	u32 dma_addr;
 	void *buffer;
 	u32 entry;
-	u32 tccr;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->cur_tx[q] - priv->dirty_tx[q] >= priv->num_tx_ring[q]) {
@@ -1324,9 +1323,7 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	dma_wmb();
 	desc->die_dt = DT_FSINGLE;
 
-	tccr = ravb_read(ndev, TCCR);
-	if (!(tccr & (TCCR_TSRQ0 << q)))
-		ravb_write(ndev, tccr | (TCCR_TSRQ0 << q), TCCR);
+	ravb_write(ndev, ravb_read(ndev, TCCR) | (TCCR_TSRQ0 << q), TCCR);
 
 	priv->cur_tx[q]++;
 	if (priv->cur_tx[q] - priv->dirty_tx[q] >= priv->num_tx_ring[q] &&
