@@ -237,8 +237,8 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	val = COORDINATE_X(plane->crtc_x) | COORDINATE_Y(plane->crtc_y);
 	writel(val, ctx->addr + DECON_VIDOSDxA(win));
 
-	val = COORDINATE_X(plane->crtc_x + plane->crtc_width - 1) |
-		COORDINATE_Y(plane->crtc_y + plane->crtc_height - 1);
+	val = COORDINATE_X(plane->crtc_x + plane->crtc_w - 1) |
+		COORDINATE_Y(plane->crtc_y + plane->crtc_h - 1);
 	writel(val, ctx->addr + DECON_VIDOSDxB(win));
 
 	val = VIDOSD_Wx_ALPHA_R_F(0x0) | VIDOSD_Wx_ALPHA_G_F(0x0) |
@@ -251,11 +251,11 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(plane->dma_addr[0], ctx->addr + DECON_VIDW0xADD0B0(win));
 
-	val = plane->dma_addr[0] + pitch * plane->crtc_height;
+	val = plane->dma_addr[0] + pitch * plane->crtc_h;
 	writel(val, ctx->addr + DECON_VIDW0xADD1B0(win));
 
-	val = OFFSIZE(pitch - plane->crtc_width * bpp)
-		| PAGEWIDTH(plane->crtc_width * bpp);
+	val = OFFSIZE(pitch - plane->crtc_w * bpp)
+		| PAGEWIDTH(plane->crtc_w * bpp);
 	writel(val, ctx->addr + DECON_VIDW0xADD2(win));
 
 	decon_win_set_pixfmt(ctx, win, state->fb);

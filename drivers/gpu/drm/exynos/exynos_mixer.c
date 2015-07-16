@@ -446,19 +446,19 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height / 2));
 
-	vp_reg_write(res, VP_SRC_WIDTH, plane->src_width);
-	vp_reg_write(res, VP_SRC_HEIGHT, plane->src_height);
+	vp_reg_write(res, VP_SRC_WIDTH, plane->src_w);
+	vp_reg_write(res, VP_SRC_HEIGHT, plane->src_h);
 	vp_reg_write(res, VP_SRC_H_POSITION,
 			VP_SRC_H_POSITION_VAL(plane->src_x));
 	vp_reg_write(res, VP_SRC_V_POSITION, plane->src_y);
 
-	vp_reg_write(res, VP_DST_WIDTH, plane->crtc_width);
+	vp_reg_write(res, VP_DST_WIDTH, plane->crtc_w);
 	vp_reg_write(res, VP_DST_H_POSITION, plane->crtc_x);
 	if (ctx->interlace) {
-		vp_reg_write(res, VP_DST_HEIGHT, plane->crtc_height / 2);
+		vp_reg_write(res, VP_DST_HEIGHT, plane->crtc_h / 2);
 		vp_reg_write(res, VP_DST_V_POSITION, plane->crtc_y / 2);
 	} else {
-		vp_reg_write(res, VP_DST_HEIGHT, plane->crtc_height);
+		vp_reg_write(res, VP_DST_HEIGHT, plane->crtc_h);
 		vp_reg_write(res, VP_DST_V_POSITION, plane->crtc_y);
 	}
 
@@ -495,15 +495,15 @@ static void mixer_layer_update(struct mixer_context *ctx)
 static int mixer_setup_scale(const struct exynos_drm_plane *plane,
 		unsigned int *x_ratio, unsigned int *y_ratio)
 {
-	if (plane->crtc_width != plane->src_width) {
-		if (plane->crtc_width == 2 * plane->src_width)
+	if (plane->crtc_w != plane->src_w) {
+		if (plane->crtc_w == 2 * plane->src_w)
 			*x_ratio = 1;
 		else
 			goto fail;
 	}
 
-	if (plane->crtc_height != plane->src_height) {
-		if (plane->crtc_height == 2 * plane->src_height)
+	if (plane->crtc_h != plane->src_h) {
+		if (plane->crtc_h == 2 * plane->src_h)
 			*y_ratio = 1;
 		else
 			goto fail;
@@ -592,8 +592,8 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 		mixer_reg_write(res, MXR_RESOLUTION, val);
 	}
 
-	val  = MXR_GRP_WH_WIDTH(plane->src_width);
-	val |= MXR_GRP_WH_HEIGHT(plane->src_height);
+	val  = MXR_GRP_WH_WIDTH(plane->src_w);
+	val |= MXR_GRP_WH_HEIGHT(plane->src_h);
 	val |= MXR_GRP_WH_H_SCALE(x_ratio);
 	val |= MXR_GRP_WH_V_SCALE(y_ratio);
 	mixer_reg_write(res, MXR_GRAPHIC_WH(win), val);

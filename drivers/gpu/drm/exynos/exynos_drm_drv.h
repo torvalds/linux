@@ -44,12 +44,12 @@ enum exynos_drm_output_type {
  *	- the unit is screen coordinates.
  * @src_y: offset y on a framebuffer to be displayed.
  *	- the unit is screen coordinates.
- * @src_width: width of a partial image to be displayed from framebuffer.
- * @src_height: height of a partial image to be displayed from framebuffer.
+ * @src_w: width of a partial image to be displayed from framebuffer.
+ * @src_h: height of a partial image to be displayed from framebuffer.
  * @crtc_x: offset x on hardware screen.
  * @crtc_y: offset y on hardware screen.
- * @crtc_width: window width to be displayed (hardware screen).
- * @crtc_height: window height to be displayed (hardware screen).
+ * @crtc_w: window width to be displayed (hardware screen).
+ * @crtc_h: window height to be displayed (hardware screen).
  * @h_ratio: horizontal scaling ratio, 16.16 fixed point
  * @v_ratio: vertical scaling ratio, 16.16 fixed point
  * @dma_addr: array of bus(accessed by dma) address to the memory region
@@ -64,12 +64,12 @@ struct exynos_drm_plane {
 	struct drm_plane base;
 	unsigned int src_x;
 	unsigned int src_y;
-	unsigned int src_width;
-	unsigned int src_height;
+	unsigned int src_w;
+	unsigned int src_h;
 	unsigned int crtc_x;
 	unsigned int crtc_y;
-	unsigned int crtc_width;
-	unsigned int crtc_height;
+	unsigned int crtc_w;
+	unsigned int crtc_h;
 	unsigned int h_ratio;
 	unsigned int v_ratio;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];

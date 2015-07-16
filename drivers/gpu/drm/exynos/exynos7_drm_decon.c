@@ -430,25 +430,25 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	DRM_DEBUG_KMS("start addr = 0x%lx\n",
 			(unsigned long)val);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			plane->crtc_width, plane->crtc_height);
+			plane->crtc_w, plane->crtc_h);
 
 	/*
 	 * OSD position.
 	 * In case the window layout goes of LCD layout, DECON fails.
 	 */
-	if ((plane->crtc_x + plane->crtc_width) > mode->hdisplay)
-		plane->crtc_x = mode->hdisplay - plane->crtc_width;
-	if ((plane->crtc_y + plane->crtc_height) > mode->vdisplay)
-		plane->crtc_y = mode->vdisplay - plane->crtc_height;
+	if ((plane->crtc_x + plane->crtc_w) > mode->hdisplay)
+		plane->crtc_x = mode->hdisplay - plane->crtc_w;
+	if ((plane->crtc_y + plane->crtc_h) > mode->vdisplay)
+		plane->crtc_y = mode->vdisplay - plane->crtc_h;
 
 	val = VIDOSDxA_TOPLEFT_X(plane->crtc_x) |
 		VIDOSDxA_TOPLEFT_Y(plane->crtc_y);
 	writel(val, ctx->regs + VIDOSD_A(win));
 
-	last_x = plane->crtc_x + plane->crtc_width;
+	last_x = plane->crtc_x + plane->crtc_w;
 	if (last_x)
 		last_x--;
-	last_y = plane->crtc_y + plane->crtc_height;
+	last_y = plane->crtc_y + plane->crtc_h;
 	if (last_y)
 		last_y--;
 

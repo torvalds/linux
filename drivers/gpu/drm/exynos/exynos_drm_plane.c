@@ -97,17 +97,18 @@ static void exynos_plane_mode_set(struct drm_plane *plane,
 	/* set drm framebuffer data. */
 	exynos_plane->src_x = src_x;
 	exynos_plane->src_y = src_y;
-	exynos_plane->src_width = (actual_w * exynos_plane->h_ratio) >> 16;
-	exynos_plane->src_height = (actual_h * exynos_plane->v_ratio) >> 16;
+	exynos_plane->src_w = (actual_w * exynos_plane->h_ratio) >> 16;
+	exynos_plane->src_h = (actual_h * exynos_plane->v_ratio) >> 16;
 
 	/* set plane range to be displayed. */
 	exynos_plane->crtc_x = crtc_x;
 	exynos_plane->crtc_y = crtc_y;
-	exynos_plane->crtc_width = actual_w;
-	exynos_plane->crtc_height = actual_h;
+	exynos_plane->crtc_w = actual_w;
+	exynos_plane->crtc_h = actual_h;
+
 	DRM_DEBUG_KMS("plane : offset_x/y(%d,%d), width/height(%d,%d)",
 			exynos_plane->crtc_x, exynos_plane->crtc_y,
-			exynos_plane->crtc_width, exynos_plane->crtc_height);
+			exynos_plane->crtc_w, exynos_plane->crtc_h);
 
 	plane->crtc = crtc;
 }
