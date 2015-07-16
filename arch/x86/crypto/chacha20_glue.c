@@ -20,12 +20,20 @@
 #define CHACHA20_STATE_ALIGN 16
 
 asmlinkage void chacha20_block_xor_ssse3(u32 *state, u8 *dst, const u8 *src);
+asmlinkage void chacha20_4block_xor_ssse3(u32 *state, u8 *dst, const u8 *src);
 
 static void chacha20_dosimd(u32 *state, u8 *dst, const u8 *src,
 			    unsigned int bytes)
 {
 	u8 buf[CHACHA20_BLOCK_SIZE];
 
+	while (bytes >= CHACHA20_BLOCK_SIZE * 4) {
+		chacha20_4block_xor_ssse3(state, dst, src);
+		bytes -= CHACHA20_BLOCK_SIZE * 4;
+		src += CHACHA20_BLOCK_SIZE * 4;
+		dst += CHACHA20_BLOCK_SIZE * 4;
+		state[12] += 4;
+	}
 	while (bytes >= CHACHA20_BLOCK_SIZE) {
 		chacha20_block_xor_ssse3(state, dst, src);
 		bytes -= CHACHA20_BLOCK_SIZE;
