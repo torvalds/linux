@@ -37,7 +37,7 @@
 hdmitx_dev_t *hdmitx_device = NULL;
 
 __u16 cec_key_map[128] = {
-    KEY_SELECT, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, 0 , 0 , 0 ,//0x00
+    KEY_ENTER, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, 0 , 0 , 0 ,//0x00
     0 , KEY_HOMEPAGE , KEY_MENU, 0, 0, KEY_BACK, 0, 0,
     0 , 0, 0, 0, 0, 0, 0, 0,//0x10
     0 , 0, 0, 0, 0, 0, 0, 0,
