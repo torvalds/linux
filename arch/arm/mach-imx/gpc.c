@@ -43,6 +43,11 @@
 #define GPC_M4_LPSR_M4_SLEEP_HOLD_ACK_MASK	0x1
 #define GPC_M4_LPSR_M4_SLEEP_HOLD_ACK_SHIFT	1
 
+#define GPC_PGC_CPU_SW_SHIFT		0
+#define GPC_PGC_CPU_SW_MASK		0x3f
+#define GPC_PGC_CPU_SW2ISO_SHIFT	8
+#define GPC_PGC_CPU_SW2ISO_MASK		0x3f
+
 #define IMR_NUM			4
 #define GPC_MAX_IRQS		(IMR_NUM * 32)
 
@@ -365,6 +370,9 @@ static int __init imx_gpc_init(struct device_node *node,
 {
 	struct irq_domain *parent_domain, *domain;
 	int i;
+	u32 val;
+	u32 cpu_pupscr_sw2iso, cpu_pupscr_sw;
+	u32 cpu_pdnscr_iso2sw, cpu_pdnscr_iso;
 
 	if (!parent) {
 		pr_err("%s: no parent, giving up\n", node->full_name);
@@ -407,6 +415,41 @@ static int __init imx_gpc_init(struct device_node *node,
 			gpc_mf_irqs[2] | gpc_mf_irqs[3]))
 			pr_info("No wakeup source in Mega/Fast domain found!\n");
 	}
+
+	/*
+	 * If there are CPU isolation timing settings in dts,
+	 * update them according to dts, otherwise, keep them
+	 * with default value in registers.
+	 */
+	cpu_pupscr_sw2iso = cpu_pupscr_sw =
+		cpu_pdnscr_iso2sw = cpu_pdnscr_iso = 0;
+
+	/* Read CPU isolation setting for GPC */
+	of_property_read_u32(node, "fsl,cpu_pupscr_sw2iso", &cpu_pupscr_sw2iso);
+	of_property_read_u32(node, "fsl,cpu_pupscr_sw", &cpu_pupscr_sw);
+	of_property_read_u32(node, "fsl,cpu_pdnscr_iso2sw", &cpu_pdnscr_iso2sw);
+	of_property_read_u32(node, "fsl,cpu_pdnscr_iso", &cpu_pdnscr_iso);
+
+	/* Return if no property found in dtb */
+	if ((cpu_pupscr_sw2iso | cpu_pupscr_sw
+		| cpu_pdnscr_iso2sw | cpu_pdnscr_iso) == 0)
+		return 0;
+
+	/* Update CPU PUPSCR timing if it is defined in dts */
+	val = readl_relaxed(gpc_base + GPC_PGC_CPU_PUPSCR);
+	val &= ~(GPC_PGC_CPU_SW2ISO_MASK << GPC_PGC_CPU_SW2ISO_SHIFT);
+	val &= ~(GPC_PGC_CPU_SW_MASK << GPC_PGC_CPU_SW_SHIFT);
+	val |= cpu_pupscr_sw2iso << GPC_PGC_CPU_SW2ISO_SHIFT;
+	val |= cpu_pupscr_sw << GPC_PGC_CPU_SW_SHIFT;
+	writel_relaxed(val, gpc_base + GPC_PGC_CPU_PUPSCR);
+
+	/* Update CPU PDNSCR timing if it is defined in dts */
+	val = readl_relaxed(gpc_base + GPC_PGC_CPU_PDNSCR);
+	val &= ~(GPC_PGC_CPU_SW2ISO_MASK << GPC_PGC_CPU_SW2ISO_SHIFT);
+	val &= ~(GPC_PGC_CPU_SW_MASK << GPC_PGC_CPU_SW_SHIFT);
+	val |= cpu_pdnscr_iso2sw << GPC_PGC_CPU_SW2ISO_SHIFT;
+	val |= cpu_pdnscr_iso << GPC_PGC_CPU_SW_SHIFT;
+	writel_relaxed(val, gpc_base + GPC_PGC_CPU_PDNSCR);
 
 	return 0;
 }
