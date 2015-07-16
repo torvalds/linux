@@ -691,14 +691,14 @@ save_and_set_mmdc_io_lpm:
 	/*
 	 * enable the RBC bypass counter here
 	 * to hold off the interrupts. RBC counter
-	 * = 1 (30us). With this setting, the latency
+	 * = 4 (120us). With this setting, the latency
 	 * from wakeup interrupt to ARM power up
-	 * is ~40uS.
+	 * is ~130uS.
 	 */
 	ldr     r10, [r0, #PM_INFO_MX6Q_CCM_V_OFFSET]
 	ldr	r3, [r10, #MX6Q_CCM_CCR]
 	bic	r3, r3, #(0x3f << 21)
-	orr	r3, r3, #(0x1 << 21)
+	orr	r3, r3, #(0x4 << 21)
 	str	r3, [r10, #MX6Q_CCM_CCR]
 
 	/* enable the counter. */
@@ -715,7 +715,7 @@ save_and_set_mmdc_io_lpm:
 
 	/*
 	 * now delay for a short while (3usec)
-	 * ARM is at 1GHz at this point
+	 * ARM is at 24MHz at this point
 	 * so a short loop should be enough.
 	 * this delay is required to ensure that
 	 * the RBC counter can start counting in
@@ -723,7 +723,7 @@ save_and_set_mmdc_io_lpm:
 	 * or in case an interrupt arrives just
 	 * as ARM is about to assert DSM_request.
 	 */
-	ldr	r4, =2000
+	ldr	r4, =50
 rbc_loop:
 	subs	r4, r4, #0x1
 	bne	rbc_loop
