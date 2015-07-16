@@ -1367,7 +1367,7 @@ config CPU_MIPS32_R2
 	  otherwise CPU_MIPS32_R1 is a safe bet for any MIPS32 system.
 
 config CPU_MIPS32_R6
-	bool "MIPS32 Release 6 (EXPERIMENTAL)"
+	bool "MIPS32 Release 6"
 	depends on SYS_HAS_CPU_MIPS32_R6
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
@@ -1418,7 +1418,7 @@ config CPU_MIPS64_R2
 	  otherwise CPU_MIPS64_R1 is a safe bet for any MIPS64 system.
 
 config CPU_MIPS64_R6
-	bool "MIPS64 Release 6 (EXPERIMENTAL)"
+	bool "MIPS64 Release 6"
 	depends on SYS_HAS_CPU_MIPS64_R6
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
