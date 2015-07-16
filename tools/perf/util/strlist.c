@@ -72,7 +72,7 @@ int strlist__load(struct strlist *slist, const char *filename)
 	FILE *fp = fopen(filename, "r");
 
 	if (fp == NULL)
-		return errno;
+		return -errno;
 
 	while (fgets(entry, sizeof(entry), fp) != NULL) {
 		const size_t len = strlen(entry);
