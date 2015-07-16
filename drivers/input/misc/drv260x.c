@@ -313,14 +313,14 @@ static void drv260x_close(struct input_dev *input)
 	gpiod_set_value(haptics->enable_gpio, 0);
 }
 
-static const struct reg_default drv260x_lra_cal_regs[] = {
+static const struct reg_sequence drv260x_lra_cal_regs[] = {
 	{ DRV260X_MODE, DRV260X_AUTO_CAL },
 	{ DRV260X_CTRL3, DRV260X_NG_THRESH_2 },
 	{ DRV260X_FEEDBACK_CTRL, DRV260X_FB_REG_LRA_MODE |
 		DRV260X_BRAKE_FACTOR_4X | DRV260X_LOOP_GAIN_HIGH },
 };
 
-static const struct reg_default drv260x_lra_init_regs[] = {
+static const struct reg_sequence drv260x_lra_init_regs[] = {
 	{ DRV260X_MODE, DRV260X_RT_PLAYBACK },
 	{ DRV260X_A_TO_V_CTRL, DRV260X_AUDIO_HAPTICS_PEAK_20MS |
 		DRV260X_AUDIO_HAPTICS_FILTER_125HZ },
@@ -337,7 +337,7 @@ static const struct reg_default drv260x_lra_init_regs[] = {
 	{ DRV260X_CTRL4, DRV260X_AUTOCAL_TIME_500MS },
 };
 
-static const struct reg_default drv260x_erm_cal_regs[] = {
+static const struct reg_sequence drv260x_erm_cal_regs[] = {
 	{ DRV260X_MODE, DRV260X_AUTO_CAL },
 	{ DRV260X_A_TO_V_MIN_INPUT, DRV260X_AUDIO_HAPTICS_MIN_IN_VOLT },
 	{ DRV260X_A_TO_V_MAX_INPUT, DRV260X_AUDIO_HAPTICS_MAX_IN_VOLT },

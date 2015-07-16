@@ -136,7 +136,7 @@ struct regmap {
 	/* if set, the HW registers are known to match map->reg_defaults */
 	bool no_sync_defaults;
 
-	struct reg_default *patch;
+	struct reg_sequence *patch;
 	int patch_regs;
 
 	/* if set, converts bulk rw to single rw */
