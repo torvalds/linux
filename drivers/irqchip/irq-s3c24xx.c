@@ -298,16 +298,14 @@ static struct irq_chip s3c_irq_eint0t4 = {
 	.irq_set_type	= s3c_irqext0_type,
 };
 
-static void s3c_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux(unsigned int __irq, struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct s3c_irq_data *irq_data = irq_desc_get_chip_data(desc);
 	struct s3c_irq_intc *intc = irq_data->intc;
 	struct s3c_irq_intc *sub_intc = irq_data->sub_intc;
-	unsigned long src;
-	unsigned long msk;
-	unsigned int n;
-	unsigned int offset;
+	unsigned int n, offset, irq;
+	unsigned long src, msk;
 
 	/* we're using individual domains for the non-dt case
 	 * and one big domain for the dt case where the subintc
