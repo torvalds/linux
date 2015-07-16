@@ -911,9 +911,13 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 
 	if (l_ptr->addr) {
 		/* Handle failure on standard link */
-		link_print(l_ptr, "Resetting link\n");
+		link_print(l_ptr, "Resetting link ");
+		pr_info("Failed msg: usr %u, typ %u, len %u, err %u\n",
+			msg_user(msg), msg_type(msg), msg_size(msg),
+			msg_errcode(msg));
+		pr_info("sqno %u, prev: %x, src: %x\n",
+			msg_seqno(msg), msg_prevnode(msg), msg_orignode(msg));
 		tipc_link_reset(l_ptr);
-
 	} else {
 		/* Handle failure on broadcast link */
 		struct tipc_node *n_ptr;
@@ -1067,15 +1071,8 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		if (unlikely(!l_ptr))
 			goto unlock;
 
-		/* Verify that communication with node is currently allowed */
-		if ((n_ptr->action_flags & TIPC_WAIT_PEER_LINKS_DOWN) &&
-		    msg_user(msg) == LINK_PROTOCOL &&
-		    (msg_type(msg) == RESET_MSG ||
-		    msg_type(msg) == ACTIVATE_MSG) &&
-		    !msg_redundant_link(msg))
-			n_ptr->action_flags &= ~TIPC_WAIT_PEER_LINKS_DOWN;
-
-		if (tipc_node_blocked(n_ptr))
+		/* Is reception of this pkt permitted at the moment ? */
+		if (!tipc_node_filter_skb(n_ptr, msg))
 			goto unlock;
 
 		/* Validate message sequence number info */
@@ -1371,15 +1368,6 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr,
 			if (less_eq(msg_session(msg), l_ptr->peer_session))
 				break; /* duplicate or old reset: ignore */
 		}
-
-		if (!msg_redundant_link(msg) && (link_working(l_ptr) ||
-						 link_probing(l_ptr))) {
-			/* peer has lost contact -- don't allow peer's links
-			 * to reactivate before we recognize loss & clean up
-			 */
-			l_ptr->owner->action_flags |= TIPC_WAIT_OWN_LINKS_DOWN;
-		}
-
 		link_state_event(l_ptr, RESET_MSG);
 
 		/* fall thru' */
@@ -1408,6 +1396,8 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr,
 		l_ptr->peer_session = msg_session(msg);
 		l_ptr->peer_bearer_id = msg_bearer_id(msg);
 
+		if (!msg_peer_is_up(msg))
+			tipc_node_fsm_evt(l_ptr->owner, PEER_LOST_CONTACT_EVT);
 		if (msg_type(msg) == ACTIVATE_MSG)
 			link_state_event(l_ptr, ACTIVATE_MSG);
 		break;
@@ -1419,11 +1409,11 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr,
 
 		if (msg_linkprio(msg) &&
 		    (msg_linkprio(msg) != l_ptr->priority)) {
-			pr_debug("%s<%s>, priority change %u->%u\n",
-				 link_rst_msg, l_ptr->name,
-				 l_ptr->priority, msg_linkprio(msg));
+			pr_info("%s<%s>, priority change %u->%u\n",
+				link_rst_msg, l_ptr->name,
+				l_ptr->priority, msg_linkprio(msg));
 			l_ptr->priority = msg_linkprio(msg);
-			tipc_link_reset(l_ptr); /* Enforce change to take effect */
+			tipc_link_reset(l_ptr);
 			break;
 		}
 
@@ -1446,15 +1436,18 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr,
 			tipc_bclink_update_link_state(l_ptr->owner,
 						      msg_last_bcast(msg));
 
-		if (rec_gap || (msg_probe(msg))) {
+		if (rec_gap || (msg_probe(msg)))
 			tipc_link_proto_xmit(l_ptr, STATE_MSG, 0,
 					     rec_gap, 0, 0);
-		}
+
 		if (msg_seq_gap(msg)) {
 			l_ptr->stats.recv_nacks++;
 			tipc_link_retransmit(l_ptr, skb_peek(&l_ptr->transmq),
 					     msg_seq_gap(msg));
 		}
+		if (tipc_link_is_up(l_ptr))
+			tipc_node_fsm_evt(l_ptr->owner,
+					  PEER_ESTABL_CONTACT_EVT);
 		break;
 	}
 exit:
@@ -1476,10 +1469,6 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 
 	/* Don't send protocol message during reset or link failover */
 	if (l->exec_mode == TIPC_LINK_BLOCKED)
-		return;
-
-	/* Abort non-RESET send if communication with node is prohibited */
-	if ((tipc_node_blocked(l->owner)) && (mtyp != RESET_MSG))
 		return;
 
 	msg_set_type(hdr, mtyp);
@@ -1799,27 +1788,28 @@ static void link_reset_statistics(struct tipc_link *l_ptr)
 	l_ptr->stats.recv_info = l_ptr->rcv_nxt;
 }
 
-static void link_print(struct tipc_link *l_ptr, const char *str)
+static void link_print(struct tipc_link *l, const char *str)
 {
-	struct tipc_net *tn = net_generic(l_ptr->owner->net, tipc_net_id);
-	struct tipc_bearer *b_ptr;
+	struct sk_buff *hskb = skb_peek(&l->transmq);
+	u16 head = hskb ? msg_seqno(buf_msg(hskb)) : l->snd_nxt;
+	u16 tail = l->snd_nxt - 1;
 
-	rcu_read_lock();
-	b_ptr = rcu_dereference_rtnl(tn->bearer_list[l_ptr->bearer_id]);
-	if (b_ptr)
-		pr_info("%s Link %x<%s>:", str, l_ptr->addr, b_ptr->name);
-	rcu_read_unlock();
+	pr_info("%s Link <%s>:", str, l->name);
 
-	if (link_probing(l_ptr))
+	if (link_probing(l))
 		pr_cont(":P\n");
-	else if (link_establishing(l_ptr))
+	else if (link_establishing(l))
 		pr_cont(":E\n");
-	else if (link_resetting(l_ptr))
+	else if (link_resetting(l))
 		pr_cont(":R\n");
-	else if (link_working(l_ptr))
+	else if (link_working(l))
 		pr_cont(":W\n");
 	else
 		pr_cont("\n");
+
+	pr_info("XMTQ: %u [%u-%u], BKLGQ: %u, SNDNX: %u, RCVNX: %u\n",
+		skb_queue_len(&l->transmq), head, tail,
+		skb_queue_len(&l->backlogq), l->snd_nxt, l->rcv_nxt);
 }
 
 /* Parse and validate nested (link) properties valid for media, bearer and link

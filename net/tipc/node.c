@@ -141,7 +141,7 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 			break;
 	}
 	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
-	n_ptr->action_flags = TIPC_WAIT_PEER_LINKS_DOWN;
+	n_ptr->state = SELF_DOWN_PEER_DOWN;
 	n_ptr->signature = INVALID_NODE_SIG;
 	n_ptr->active_links[0] = INVALID_BEARER_ID;
 	n_ptr->active_links[1] = INVALID_BEARER_ID;
@@ -421,8 +421,131 @@ void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	}
 }
 
+/* tipc_node_fsm_evt - node finite state machine
+ * Determines when contact is allowed with peer node
+ */
+void tipc_node_fsm_evt(struct tipc_node *n, int evt)
+{
+	int state = n->state;
+
+	switch (state) {
+	case SELF_DOWN_PEER_DOWN:
+		switch (evt) {
+		case SELF_ESTABL_CONTACT_EVT:
+			state = SELF_UP_PEER_COMING;
+			break;
+		case PEER_ESTABL_CONTACT_EVT:
+			state = SELF_COMING_PEER_UP;
+			break;
+		case SELF_LOST_CONTACT_EVT:
+		case PEER_LOST_CONTACT_EVT:
+			break;
+		default:
+			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+		}
+		break;
+	case SELF_UP_PEER_UP:
+		switch (evt) {
+		case SELF_LOST_CONTACT_EVT:
+			state = SELF_DOWN_PEER_LEAVING;
+			break;
+		case PEER_LOST_CONTACT_EVT:
+			state = SELF_LEAVING_PEER_DOWN;
+			break;
+		case SELF_ESTABL_CONTACT_EVT:
+		case PEER_ESTABL_CONTACT_EVT:
+			break;
+		default:
+			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+		}
+		break;
+	case SELF_DOWN_PEER_LEAVING:
+		switch (evt) {
+		case PEER_LOST_CONTACT_EVT:
+			state = SELF_DOWN_PEER_DOWN;
+			break;
+		case SELF_ESTABL_CONTACT_EVT:
+		case PEER_ESTABL_CONTACT_EVT:
+		case SELF_LOST_CONTACT_EVT:
+			break;
+		default:
+			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+		}
+		break;
+	case SELF_UP_PEER_COMING:
+		switch (evt) {
+		case PEER_ESTABL_CONTACT_EVT:
+			state = SELF_UP_PEER_UP;
+			break;
+		case SELF_LOST_CONTACT_EVT:
+			state = SELF_DOWN_PEER_LEAVING;
+			break;
+		case SELF_ESTABL_CONTACT_EVT:
+		case PEER_LOST_CONTACT_EVT:
+			break;
+		default:
+			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+		}
+		break;
+	case SELF_COMING_PEER_UP:
+		switch (evt) {
+		case SELF_ESTABL_CONTACT_EVT:
+			state = SELF_UP_PEER_UP;
+			break;
+		case PEER_LOST_CONTACT_EVT:
+			state = SELF_LEAVING_PEER_DOWN;
+			break;
+		case SELF_LOST_CONTACT_EVT:
+		case PEER_ESTABL_CONTACT_EVT:
+			break;
+		default:
+			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+		}
+		break;
+	case SELF_LEAVING_PEER_DOWN:
+		switch (evt) {
+		case SELF_LOST_CONTACT_EVT:
+			state = SELF_DOWN_PEER_DOWN;
+			break;
+		case SELF_ESTABL_CONTACT_EVT:
+		case PEER_ESTABL_CONTACT_EVT:
+		case PEER_LOST_CONTACT_EVT:
+			break;
+		default:
+			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+		}
+		break;
+	default:
+		pr_err("Unknown node fsm state %x\n", state);
+		break;
+	}
+
+	n->state = state;
+}
+
+bool tipc_node_filter_skb(struct tipc_node *n, struct tipc_msg *hdr)
+{
+	int state = n->state;
+
+	if (likely(state == SELF_UP_PEER_UP))
+		return true;
+	if (state == SELF_DOWN_PEER_DOWN)
+		return true;
+	if (state == SELF_UP_PEER_COMING)
+		return true;
+	if (state == SELF_COMING_PEER_UP)
+		return true;
+	if (state == SELF_LEAVING_PEER_DOWN)
+		return false;
+	if (state == SELF_DOWN_PEER_LEAVING)
+		if (!msg_peer_is_up(hdr))
+			return true;
+	return false;
+}
+
 static void node_established_contact(struct tipc_node *n_ptr)
 {
+	tipc_node_fsm_evt(n_ptr, SELF_ESTABL_CONTACT_EVT);
 	n_ptr->action_flags |= TIPC_NOTIFY_NODE_UP;
 	n_ptr->bclink.oos_state = 0;
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent(n_ptr->net);
@@ -468,11 +591,8 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		l_ptr->failover_skb = NULL;
 		tipc_link_reset_fragments(l_ptr);
 	}
-
-	n_ptr->action_flags &= ~TIPC_WAIT_OWN_LINKS_DOWN;
-
 	/* Prevent re-contact with node until cleanup is done */
-	n_ptr->action_flags |= TIPC_WAIT_PEER_LINKS_DOWN;
+	tipc_node_fsm_evt(n_ptr, SELF_LOST_CONTACT_EVT);
 
 	/* Notify publications from this node */
 	n_ptr->action_flags |= TIPC_NOTIFY_NODE_DOWN;

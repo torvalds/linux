@@ -47,6 +47,24 @@
 
 #define INVALID_BEARER_ID -1
 
+/* Node FSM states and events:
+ */
+enum {
+	SELF_DOWN_PEER_DOWN    = 0xdd,
+	SELF_UP_PEER_UP        = 0xaa,
+	SELF_DOWN_PEER_LEAVING = 0xd1,
+	SELF_UP_PEER_COMING    = 0xac,
+	SELF_COMING_PEER_UP    = 0xca,
+	SELF_LEAVING_PEER_DOWN = 0x1d,
+};
+
+enum {
+	SELF_ESTABL_CONTACT_EVT = 0xec,
+	SELF_LOST_CONTACT_EVT   = 0x1c,
+	PEER_ESTABL_CONTACT_EVT = 0xfec,
+	PEER_LOST_CONTACT_EVT   = 0xf1c
+};
+
 /* Flags used to take different actions according to flag type
  * TIPC_WAIT_PEER_LINKS_DOWN: wait to see that peer's links are down
  * TIPC_WAIT_OWN_LINKS_DOWN: wait until peer node is declared down
@@ -56,8 +74,6 @@
  */
 enum {
 	TIPC_MSG_EVT                    = 1,
-	TIPC_WAIT_PEER_LINKS_DOWN	= (1 << 1),
-	TIPC_WAIT_OWN_LINKS_DOWN	= (1 << 2),
 	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
 	TIPC_NOTIFY_NODE_UP		= (1 << 4),
 	TIPC_WAKEUP_BCAST_USERS		= (1 << 5),
@@ -133,6 +149,7 @@ struct tipc_node {
 	int action_flags;
 	struct tipc_node_bclink bclink;
 	struct list_head list;
+	int state;
 	int link_cnt;
 	u16 working_links;
 	u16 capabilities;
@@ -176,11 +193,8 @@ static inline void tipc_node_lock(struct tipc_node *node)
 	spin_lock_bh(&node->lock);
 }
 
-static inline bool tipc_node_blocked(struct tipc_node *node)
-{
-	return (node->action_flags & (TIPC_WAIT_PEER_LINKS_DOWN |
-		TIPC_NOTIFY_NODE_DOWN | TIPC_WAIT_OWN_LINKS_DOWN));
-}
+void tipc_node_fsm_evt(struct tipc_node *n, int evt);
+bool tipc_node_filter_skb(struct tipc_node *n, struct tipc_msg *hdr);
 
 static inline struct tipc_link *node_active_link(struct tipc_node *n, int sel)
 {
