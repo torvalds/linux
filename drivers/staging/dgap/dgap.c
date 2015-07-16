@@ -7004,6 +7004,21 @@ static void dgap_cleanup_board(struct board_t *brd)
 	kfree(brd);
 }
 
+static void dgap_stop(void)
+{
+	unsigned long lock_flags;
+
+	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
+	dgap_poll_stop = 1;
+	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
+
+	del_timer_sync(&dgap_poll_timer);
+
+	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
+	class_destroy(dgap_class);
+	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
+}
+
 static void dgap_remove_one(struct pci_dev *dev)
 {
 	unsigned int i;
@@ -7094,21 +7109,6 @@ failed_device:
 failed_class:
 	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 	return rc;
-}
-
-static void dgap_stop(void)
-{
-	unsigned long lock_flags;
-
-	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
-	dgap_poll_stop = 1;
-	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
-
-	del_timer_sync(&dgap_poll_timer);
-
-	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
-	class_destroy(dgap_class);
-	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 }
 
 /************************************************************************
