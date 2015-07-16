@@ -475,6 +475,7 @@ static int uni_player_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
 	struct uniperif *player = priv->dai_data.uni;
+	int ret;
 
 	if (dir == SND_SOC_CLOCK_IN)
 		return 0;
@@ -482,9 +483,11 @@ static int uni_player_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	if (clk_id != 0)
 		return -EINVAL;
 
-	player->mclk = freq;
+	ret = clk_set_rate(player->clk, freq);
+	if (!ret)
+		player->mclk = freq;
 
-	return clk_set_rate(player->clk, freq);
+	return ret;
 }
 
 static int uni_player_prepare(struct snd_pcm_substream *substream,
@@ -562,6 +565,7 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 	case SND_SOC_DAIFMT_IB_IF:
 		SET_UNIPERIF_I2S_FMT_LR_POL_HIG(player);
 		SET_UNIPERIF_I2S_FMT_SCLK_EDGE_FALLING(player);
+		break;
 	}
 
 	switch (player->daifmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -840,7 +844,7 @@ int uni_player_init(struct platform_device *pdev,
 	/* Get uniperif resource */
 	player->clk = of_clk_get(pdev->dev.of_node, 0);
 	if (IS_ERR(player->clk))
-		ret = (int)PTR_ERR(player->clk);
+		ret = PTR_ERR(player->clk);
 
 	/* Select the frequency synthesizer clock */
 	if (player->clk_sel) {
