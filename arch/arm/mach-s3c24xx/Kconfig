@@ -394,6 +394,8 @@ config MACH_MINI2451
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
 	select S3C2416_SETUP_SDHCI
+	select S3C2443_SETUP_SPI
+	select S3C64XX_DEV_SPI0
 	select OID_REGISTRY
 	select WL_WEXT if !(BCMDHD || BCM4336)
 	help

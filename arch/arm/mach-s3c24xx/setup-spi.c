@@ -16,6 +16,7 @@
 
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #ifdef CONFIG_S3C64XX_DEV_SPI0
 int s3c64xx_spi0_cfg_gpio(void)

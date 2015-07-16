@@ -390,6 +390,29 @@ static void __init mini2451_wifi_init(void)
 #endif
 }
 
+#ifdef CONFIG_S3C64XX_DEV_SPI0
+#include <linux/spi/spi.h>
+#include <linux/platform_data/spi-s3c64xx.h>
+
+static struct s3c64xx_spi_csinfo spi0_csi = {
+	.line		= S3C2410_GPL(13),
+	.fb_delay	= 0x2,
+};
+
+static struct spi_board_info spi0_board_info[] __initdata = {
+#ifdef CONFIG_SPI_SPIDEV
+	{
+		.modalias		= "spidev",
+		.max_speed_hz	= 10000000,
+		.bus_num		= 0,
+		.chip_select	= 0,
+		.mode			= SPI_MODE_0,
+		.controller_data= &spi0_csi,
+	},
+#endif
+};
+#endif
+
 static struct ts_onewire_platform_data mini2451_1wire_pdata = {
 	.timer_irq	= IRQ_TIMER2,
 	.pwm_id		= 2,
@@ -414,6 +437,9 @@ static struct platform_device *mini2451_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_hsmmc0,
 	&s3c2443_device_dma,
+#ifdef CONFIG_S3C64XX_DEV_SPI0
+	&s3c64xx_device_spi0,
+#endif
 	&samsung_device_pwm,
 	&mini2451_1wire,
 };
@@ -448,6 +474,12 @@ static void __init mini2451_machine_init(void)
 
 	s3c_ohci_set_platdata(&mini2451_hcd_info);
 	s3c24xx_hsudc_set_platdata(&mini2451_hsudc_platdata);
+
+#ifdef CONFIG_S3C64XX_DEV_SPI0
+	s3c64xx_spi0_set_platdata(NULL, 0, 1);
+	spi_register_board_info(spi0_board_info,
+			ARRAY_SIZE(spi0_board_info));
+#endif
 
 	platform_add_devices(mini2451_devices, ARRAY_SIZE(mini2451_devices));
 
