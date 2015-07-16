@@ -43,7 +43,7 @@
  * Note: snd_pcm_hardware is linked to DMA controller but is declared here to
  * integrate  DAI_CPU capability in term of rate and supported channels
  */
-const struct snd_pcm_hardware uni_player_pcm_hw = {
+static const struct snd_pcm_hardware uni_player_pcm_hw = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID,
@@ -175,7 +175,7 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 	return ret;
 }
 
-int uni_player_clk_set_rate(struct uniperif *player, unsigned long rate)
+static int uni_player_clk_set_rate(struct uniperif *player, unsigned long rate)
 {
 	int rate_adjusted, rate_achieved, delta, ret;
 	int adjustment = player->clk_adj;

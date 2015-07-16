@@ -14,7 +14,7 @@
  * This function is used to create Ctrl associated to DAI but also pcm device.
  * Request is done by front end to associate ctrl with pcm device id
  */
-int sti_uniperiph_dai_create_ctrl(struct snd_soc_dai *dai)
+static int sti_uniperiph_dai_create_ctrl(struct snd_soc_dai *dai)
 {
 	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
 	struct uniperif *uni = priv->dai_data.uni;

@@ -17,7 +17,7 @@
  * Note: snd_pcm_hardware is linked to DMA controller but is declared here to
  * integrate unireader capability in term of rate and supported channels
  */
-const struct snd_pcm_hardware uni_reader_pcm_hw = {
+static const struct snd_pcm_hardware uni_reader_pcm_hw = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID,
@@ -324,7 +324,7 @@ static int uni_reader_parse_dt(struct platform_device *pdev,
 	return 0;
 }
 
-const struct snd_soc_dai_ops uni_reader_dai_ops = {
+static const struct snd_soc_dai_ops uni_reader_dai_ops = {
 		.shutdown = uni_reader_shutdown,
 		.prepare = uni_reader_prepare,
 		.trigger = uni_reader_trigger,
