@@ -58,7 +58,7 @@ enum {
 	TIPC_LINK_TUNNEL
 };
 
-/* Events occurring at packet reception or at timeout
+/* Events returned from link at packet reception or at timeout
  */
 enum {
 	TIPC_LINK_UP_EVT       = 1,
@@ -223,6 +223,7 @@ void tipc_link_purge_queues(struct tipc_link *l_ptr);
 void tipc_link_purge_backlog(struct tipc_link *l);
 void tipc_link_reset_all(struct tipc_node *node);
 void tipc_link_reset(struct tipc_link *l_ptr);
+void tipc_link_activate(struct tipc_link *link);
 int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 		     struct sk_buff_head *list);
 int tipc_link_xmit(struct tipc_link *link,	struct sk_buff_head *list,
@@ -244,7 +245,8 @@ int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[]);
 void link_prepare_wakeup(struct tipc_link *l);
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq);
-
+int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
+		  struct sk_buff_head *xmitq);
 static inline u32 link_own_addr(struct tipc_link *l)
 {
 	return msg_prevnode(l->pmsg);

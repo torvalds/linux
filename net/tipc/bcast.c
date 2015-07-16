@@ -316,6 +316,29 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr,
 	}
 }
 
+void tipc_bclink_sync_state(struct tipc_node *n, struct tipc_msg *hdr)
+{
+	u16 last = msg_last_bcast(hdr);
+	int mtyp = msg_type(hdr);
+
+	if (unlikely(msg_user(hdr) != LINK_PROTOCOL))
+		return;
+	if (mtyp == STATE_MSG) {
+		tipc_bclink_update_link_state(n, last);
+		return;
+	}
+	/* Compatibility: older nodes don't know BCAST_PROTOCOL synchronization,
+	 * and transfer synch info in LINK_PROTOCOL messages.
+	 */
+	if (tipc_node_is_up(n))
+		return;
+	if ((mtyp != RESET_MSG) && (mtyp != ACTIVATE_MSG))
+		return;
+	n->bclink.last_sent = last;
+	n->bclink.last_in = last;
+	n->bclink.oos_state = 0;
+}
+
 /**
  * bclink_peek_nack - monitor retransmission requests sent by other nodes
  *

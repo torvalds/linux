@@ -185,16 +185,12 @@ int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dest,
 		       u32 selector);
 int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port);
 void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port);
-
 int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 static inline void tipc_node_lock(struct tipc_node *node)
 {
 	spin_lock_bh(&node->lock);
 }
-
-void tipc_node_fsm_evt(struct tipc_node *n, int evt);
-bool tipc_node_filter_skb(struct tipc_node *n, struct tipc_msg *hdr);
 
 static inline struct tipc_link *node_active_link(struct tipc_node *n, int sel)
 {
