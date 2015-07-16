@@ -63,7 +63,8 @@ int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb)
 
 	lockdep_assert_held(&htt->tx_lock);
 
-	ret = idr_alloc(&htt->pending_tx, skb, 0, 0x10000, GFP_ATOMIC);
+	ret = idr_alloc(&htt->pending_tx, skb, 0,
+			htt->max_num_pending_tx, GFP_ATOMIC);
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx alloc msdu_id %d\n", ret);
 
@@ -259,6 +260,7 @@ int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
 	cmd->frag_desc_bank_cfg.desc_size = sizeof(struct htt_msdu_ext_desc);
 	cmd->frag_desc_bank_cfg.bank_base_addrs[0] =
 				__cpu_to_le32(htt->frag_desc.paddr);
+	cmd->frag_desc_bank_cfg.bank_id[0].bank_min_id = 0;
 	cmd->frag_desc_bank_cfg.bank_id[0].bank_max_id =
 				__cpu_to_le16(htt->max_num_pending_tx - 1);
 
@@ -537,16 +539,29 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
 		/* pass through */
 	case ATH10K_HW_TXRX_ETHERNET:
-		frags = skb_cb->htt.txbuf->frags;
+		if (ar->hw_params.continuous_frag_desc) {
+			frags = (struct htt_data_tx_desc_frag *)
+				&htt->frag_desc.vaddr[msdu_id].frags;
+			frags[0].tword_addr.paddr_lo =
+				__cpu_to_le32(skb_cb->paddr);
+			frags[0].tword_addr.paddr_hi = 0;
+			frags[0].tword_addr.len_16 = __cpu_to_le16(msdu->len);
+			frags[1].tword_addr.paddr_lo = 0;
+			frags[1].tword_addr.paddr_hi = 0;
 
-		frags[0].paddr = __cpu_to_le32(skb_cb->paddr);
-		frags[0].len = __cpu_to_le32(msdu->len);
-		frags[1].paddr = 0;
-		frags[1].len = 0;
+			frags_paddr =  htt->frag_desc.paddr +
+				(sizeof(struct htt_msdu_ext_desc) * msdu_id);
+		} else {
+			frags = skb_cb->htt.txbuf->frags;
+			frags[0].dword_addr.paddr =
+				__cpu_to_le32(skb_cb->paddr);
+			frags[0].dword_addr.len = __cpu_to_le32(msdu->len);
+			frags[1].dword_addr.paddr = 0;
+			frags[1].dword_addr.len = 0;
 
+			frags_paddr = skb_cb->htt.txbuf_paddr;
+		}
 		flags0 |= SM(skb_cb->txmode, HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
-
-		frags_paddr = skb_cb->htt.txbuf_paddr;
 		break;
 	case ATH10K_HW_TXRX_MGMT:
 		flags0 |= SM(ATH10K_HW_TXRX_MGMT,
