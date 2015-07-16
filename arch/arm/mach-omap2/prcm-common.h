@@ -51,6 +51,12 @@
 /*
  * TI81XX PRM module offsets
  */
+#define TI814X_PRM_DSP_MOD				0x0a00
+#define TI814X_PRM_HDVICP_MOD				0x0c00
+#define TI814X_PRM_ISP_MOD				0x0d00
+#define TI814X_PRM_HDVPSS_MOD				0x0e00
+#define TI814X_PRM_GFX_MOD				0x0f00
+
 #define TI81XX_PRM_DEVICE_MOD			0x0000
 #define TI816X_PRM_ACTIVE_MOD			0x0a00
 #define TI81XX_PRM_DEFAULT_MOD			0x0b00
