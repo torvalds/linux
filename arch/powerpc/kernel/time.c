@@ -99,16 +99,17 @@ static struct clocksource clocksource_timebase = {
 
 static int decrementer_set_next_event(unsigned long evt,
 				      struct clock_event_device *dev);
-static void decrementer_set_mode(enum clock_event_mode mode,
-				 struct clock_event_device *dev);
+static int decrementer_shutdown(struct clock_event_device *evt);
 
 struct clock_event_device decrementer_clockevent = {
-	.name           = "decrementer",
-	.rating         = 200,
-	.irq            = 0,
-	.set_next_event = decrementer_set_next_event,
-	.set_mode       = decrementer_set_mode,
-	.features       = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP,
+	.name			= "decrementer",
+	.rating			= 200,
+	.irq			= 0,
+	.set_next_event		= decrementer_set_next_event,
+	.set_state_shutdown	= decrementer_shutdown,
+	.tick_resume		= decrementer_shutdown,
+	.features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_C3STOP,
 };
 EXPORT_SYMBOL(decrementer_clockevent);
 
@@ -862,11 +863,10 @@ static int decrementer_set_next_event(unsigned long evt,
 	return 0;
 }
 
-static void decrementer_set_mode(enum clock_event_mode mode,
-				 struct clock_event_device *dev)
+static int decrementer_shutdown(struct clock_event_device *dev)
 {
-	if (mode != CLOCK_EVT_MODE_ONESHOT)
-		decrementer_set_next_event(DECREMENTER_MAX, dev);
+	decrementer_set_next_event(DECREMENTER_MAX, dev);
+	return 0;
 }
 
 /* Interrupt handler for the timer broadcast IPI */
