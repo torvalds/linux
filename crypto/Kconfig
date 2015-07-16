@@ -471,7 +471,7 @@ config CRYPTO_POLY1305
 	  in IETF protocols. This is the portable C implementation of Poly1305.
 
 config CRYPTO_POLY1305_X86_64
-	tristate "Poly1305 authenticator algorithm (x86_64/SSE2)"
+	tristate "Poly1305 authenticator algorithm (x86_64/SSE2/AVX2)"
 	depends on X86 && 64BIT
 	select CRYPTO_POLY1305
 	help

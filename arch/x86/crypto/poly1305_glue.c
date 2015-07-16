@@ -22,20 +22,33 @@ struct poly1305_simd_desc_ctx {
 	struct poly1305_desc_ctx base;
 	/* derived key u set? */
 	bool uset;
+#ifdef CONFIG_AS_AVX2
+	/* derived keys r^3, r^4 set? */
+	bool wset;
+#endif
 	/* derived Poly1305 key r^2 */
 	u32 u[5];
+	/* ... silently appended r^3 and r^4 when using AVX2 */
 };
 
 asmlinkage void poly1305_block_sse2(u32 *h, const u8 *src,
 				    const u32 *r, unsigned int blocks);
 asmlinkage void poly1305_2block_sse2(u32 *h, const u8 *src, const u32 *r,
 				     unsigned int blocks, const u32 *u);
+#ifdef CONFIG_AS_AVX2
+asmlinkage void poly1305_4block_avx2(u32 *h, const u8 *src, const u32 *r,
+				     unsigned int blocks, const u32 *u);
+static bool poly1305_use_avx2;
+#endif
 
 static int poly1305_simd_init(struct shash_desc *desc)
 {
 	struct poly1305_simd_desc_ctx *sctx = shash_desc_ctx(desc);
 
 	sctx->uset = false;
+#ifdef CONFIG_AS_AVX2
+	sctx->wset = false;
+#endif
 
 	return crypto_poly1305_init(desc);
 }
@@ -66,6 +79,26 @@ static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
 		srclen = datalen;
 	}
 
+#ifdef CONFIG_AS_AVX2
+	if (poly1305_use_avx2 && srclen >= POLY1305_BLOCK_SIZE * 4) {
+		if (unlikely(!sctx->wset)) {
+			if (!sctx->uset) {
+				memcpy(sctx->u, dctx->r, sizeof(sctx->u));
+				poly1305_simd_mult(sctx->u, dctx->r);
+				sctx->uset = true;
+			}
+			memcpy(sctx->u + 5, sctx->u, sizeof(sctx->u));
+			poly1305_simd_mult(sctx->u + 5, dctx->r);
+			memcpy(sctx->u + 10, sctx->u + 5, sizeof(sctx->u));
+			poly1305_simd_mult(sctx->u + 10, dctx->r);
+			sctx->wset = true;
+		}
+		blocks = srclen / (POLY1305_BLOCK_SIZE * 4);
+		poly1305_4block_avx2(dctx->h, src, dctx->r, blocks, sctx->u);
+		src += POLY1305_BLOCK_SIZE * 4 * blocks;
+		srclen -= POLY1305_BLOCK_SIZE * 4 * blocks;
+	}
+#endif
 	if (likely(srclen >= POLY1305_BLOCK_SIZE * 2)) {
 		if (unlikely(!sctx->uset)) {
 			memcpy(sctx->u, dctx->r, sizeof(sctx->u));
@@ -149,6 +182,13 @@ static int __init poly1305_simd_mod_init(void)
 	if (!cpu_has_xmm2)
 		return -ENODEV;
 
+#ifdef CONFIG_AS_AVX2
+	poly1305_use_avx2 = cpu_has_avx && cpu_has_avx2 &&
+			    cpu_has_xfeatures(XSTATE_SSE | XSTATE_YMM, NULL);
+	alg.descsize = sizeof(struct poly1305_simd_desc_ctx);
+	if (poly1305_use_avx2)
+		alg.descsize += 10 * sizeof(u32);
+#endif
 	return crypto_register_shash(&alg);
 }
 

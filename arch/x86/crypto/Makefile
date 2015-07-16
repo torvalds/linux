@@ -89,6 +89,7 @@ sha1-ssse3-y := sha1_ssse3_asm.o sha1_ssse3_glue.o
 poly1305-x86_64-y := poly1305-sse2-x86_64.o poly1305_glue.o
 ifeq ($(avx2_supported),yes)
 sha1-ssse3-y += sha1_avx2_x86_64_asm.o
+poly1305-x86_64-y += poly1305-avx2-x86_64.o
 endif
 crc32c-intel-y := crc32c-intel_glue.o
 crc32c-intel-$(CONFIG_64BIT) += crc32c-pcl-intel-asm_64.o
