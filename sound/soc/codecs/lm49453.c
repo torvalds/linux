@@ -30,7 +30,7 @@
 #include <asm/div64.h>
 #include "lm49453.h"
 
-static struct reg_default lm49453_reg_defs[] = {
+static const struct reg_default lm49453_reg_defs[] = {
 	{ 0, 0x00 },
 	{ 1, 0x00 },
 	{ 2, 0x00 },

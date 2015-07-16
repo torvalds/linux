@@ -22,7 +22,7 @@
 
 static struct regmap *regmap;
 
-static struct reg_default max9877_regs[] = {
+static const struct reg_default max9877_regs[] = {
 	{ 0, 0x40 },
 	{ 1, 0x00 },
 	{ 2, 0x00 },

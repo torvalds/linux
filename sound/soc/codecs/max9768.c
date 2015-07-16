@@ -35,7 +35,7 @@ struct max9768 {
 	u32 flags;
 };
 
-static struct reg_default max9768_default_regs[] = {
+static const struct reg_default max9768_default_regs[] = {
 	{ 0, 0 },
 	{ 3,  MAX9768_CTRL_FILTERLESS},
 };

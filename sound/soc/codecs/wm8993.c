@@ -41,7 +41,7 @@ static const char *wm8993_supply_names[WM8993_NUM_SUPPLIES] = {
 	"SPKVDD",
 };
 
-static struct reg_default wm8993_reg_defaults[] = {
+static const struct reg_default wm8993_reg_defaults[] = {
 	{ 1,   0x0000 },     /* R1   - Power Management (1) */
 	{ 2,   0x6000 },     /* R2   - Power Management (2) */
 	{ 3,   0x0000 },     /* R3   - Power Management (3) */
@@ -1595,7 +1595,7 @@ static int wm8993_resume(struct snd_soc_codec *codec)
 #endif
 
 /* Tune DC servo configuration */
-static struct reg_default wm8993_regmap_patch[] = {
+static const struct reg_default wm8993_regmap_patch[] = {
 	{ 0x44, 3 },
 	{ 0x56, 3 },
 	{ 0x44, 0 },

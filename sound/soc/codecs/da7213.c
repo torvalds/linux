@@ -954,7 +954,7 @@ static const struct snd_soc_dapm_route da7213_audio_map[] = {
 	{"LINE", NULL, "Lineout PGA"},
 };
 
-static struct reg_default da7213_reg_defaults[] = {
+static const struct reg_default da7213_reg_defaults[] = {
 	{ DA7213_DIG_ROUTING_DAI, 0x10 },
 	{ DA7213_SR, 0x0A },
 	{ DA7213_REFERENCES, 0x80 },

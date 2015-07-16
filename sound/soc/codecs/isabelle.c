@@ -33,7 +33,7 @@
 
 
 /* Register default values for ISABELLE driver. */
-static struct reg_default isabelle_reg_defs[] = {
+static const struct reg_default isabelle_reg_defs[] = {
 	{ 0, 0x00 },
 	{ 1, 0x00 },
 	{ 2, 0x00 },
