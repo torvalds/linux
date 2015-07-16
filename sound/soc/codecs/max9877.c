@@ -20,8 +20,6 @@
 
 #include "max9877.h"
 
-static struct regmap *regmap;
-
 static const struct reg_default max9877_regs[] = {
 	{ 0, 0x40 },
 	{ 1, 0x00 },
@@ -145,6 +143,7 @@ static const struct regmap_config max9877_regmap = {
 static int max9877_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
+	struct regmap *regmap;
 	int i;
 
 	regmap = devm_regmap_init_i2c(client, &max9877_regmap);
