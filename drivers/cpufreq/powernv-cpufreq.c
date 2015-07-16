@@ -48,6 +48,7 @@ static struct chip {
 	bool throttled;
 	cpumask_t mask;
 	struct work_struct throttle;
+	bool restore;
 } *chips;
 
 static int nr_chips;
@@ -415,9 +416,29 @@ static struct notifier_block powernv_cpufreq_reboot_nb = {
 void powernv_cpufreq_work_fn(struct work_struct *work)
 {
 	struct chip *chip = container_of(work, struct chip, throttle);
+	unsigned int cpu;
+	cpumask_var_t mask;
 
 	smp_call_function_any(&chip->mask,
 			      powernv_cpufreq_throttle_check, NULL, 0);
+
+	if (!chip->restore)
+		return;
+
+	chip->restore = false;
+	cpumask_copy(mask, &chip->mask);
+	for_each_cpu_and(cpu, mask, cpu_online_mask) {
+		int index, tcpu;
+		struct cpufreq_policy policy;
+
+		cpufreq_get_policy(&policy, cpu);
+		cpufreq_frequency_table_target(&policy, policy.freq_table,
+					       policy.cur,
+					       CPUFREQ_RELATION_C, &index);
+		powernv_cpufreq_target_index(&policy, index);
+		for_each_cpu(tcpu, policy.cpus)
+			cpumask_clear_cpu(tcpu, mask);
+	}
 }
 
 static char throttle_reason[][30] = {
@@ -469,8 +490,10 @@ static int powernv_cpufreq_occ_msg(struct notifier_block *nb,
 			throttled = false;
 			pr_info("OCC: Active\n");
 
-			for (i = 0; i < nr_chips; i++)
+			for (i = 0; i < nr_chips; i++) {
+				chips[i].restore = true;
 				schedule_work(&chips[i].throttle);
+			}
 
 			return 0;
 		}
@@ -487,8 +510,11 @@ static int powernv_cpufreq_occ_msg(struct notifier_block *nb,
 			return 0;
 
 		for (i = 0; i < nr_chips; i++)
-			if (chips[i].id == omsg.chip)
+			if (chips[i].id == omsg.chip) {
+				if (!omsg.throttle_status)
+					chips[i].restore = true;
 				schedule_work(&chips[i].throttle);
+			}
 	}
 	return 0;
 }
@@ -542,6 +568,7 @@ static int init_chip_info(void)
 		chips[i].throttled = false;
 		cpumask_copy(&chips[i].mask, cpumask_of_node(chip[i]));
 		INIT_WORK(&chips[i].throttle, powernv_cpufreq_work_fn);
+		chips[i].restore = false;
 	}
 
 	return 0;
