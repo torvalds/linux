@@ -157,13 +157,6 @@ config MACH_BOCKW_REFERENCE
 
 	   This is intended to aid developers
 
-config MACH_MARZEN
-	bool "MARZEN board"
-	depends on ARCH_R8A7779
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select USE_OF
-
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
 	depends on ARCH_SH73A0
