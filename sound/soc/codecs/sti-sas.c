@@ -227,8 +227,8 @@ static int stih416_dac_probe(struct snd_soc_dai *dai)
 	dac->rst = devm_reset_control_get(codec->dev, "dac_rst");
 	if (IS_ERR(dac->rst)) {
 		dev_err(dai->codec->dev,
-			"%s: ERROR: DAC reset control not defined (%d)!\n",
-			__func__, (int)dac->rst);
+			"%s: ERROR: DAC reset control not defined !\n",
+			__func__);
 		dac->rst = NULL;
 		return -EFAULT;
 	}
@@ -547,6 +547,7 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 {
 	struct device_node *pnode = pdev->dev.of_node;
 	struct sti_sas_data *drvdata;
+	const struct of_device_id *of_id;
 
 	/* Allocate device structure */
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct sti_sas_data),
@@ -555,12 +556,13 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Populate data structure depending on compatibility */
-	if (!of_match_node(sti_sas_dev_match, pnode)->data) {
+	of_id = of_match_node(sti_sas_dev_match, pnode);
+	if (!of_id->data) {
 		dev_err(&pdev->dev, "data associated to device is missing");
 		return -EINVAL;
 	}
 
-	drvdata->dev_data = of_match_node(sti_sas_dev_match, pnode)->data;
+	drvdata->dev_data = (struct sti_sas_dev_data *)of_id->data;
 
 	/* Initialise device structure */
 	drvdata->dev = &pdev->dev;
