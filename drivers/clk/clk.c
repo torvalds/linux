@@ -58,6 +58,8 @@ struct clk_core {
 	unsigned long		flags;
 	unsigned int		enable_count;
 	unsigned int		prepare_count;
+	unsigned long		min_rate;
+	unsigned long		max_rate;
 	unsigned long		accuracy;
 	int			phase;
 	struct hlist_head	children;
@@ -512,8 +514,8 @@ static void clk_core_get_boundaries(struct clk_core *core,
 {
 	struct clk *clk_user;
 
-	*min_rate = 0;
-	*max_rate = ULONG_MAX;
+	*min_rate = core->min_rate;
+	*max_rate = core->max_rate;
 
 	hlist_for_each_entry(clk_user, &core->clks, clks_node)
 		*min_rate = max(*min_rate, clk_user->min_rate);
@@ -521,6 +523,14 @@ static void clk_core_get_boundaries(struct clk_core *core,
 	hlist_for_each_entry(clk_user, &core->clks, clks_node)
 		*max_rate = min(*max_rate, clk_user->max_rate);
 }
+
+void clk_hw_set_rate_range(struct clk_hw *hw, unsigned long min_rate,
+			   unsigned long max_rate)
+{
+	hw->core->min_rate = min_rate;
+	hw->core->max_rate = max_rate;
+}
+EXPORT_SYMBOL_GPL(clk_hw_set_rate_range);
 
 /*
  * Helper for finding best parent to provide a given frequency. This can be used
@@ -2498,6 +2508,8 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 	core->hw = hw;
 	core->flags = hw->init->flags;
 	core->num_parents = hw->init->num_parents;
+	core->min_rate = 0;
+	core->max_rate = ULONG_MAX;
 	hw->core = core;
 
 	/* allocate local copy in case parent_names is __initdata */
