@@ -45,6 +45,8 @@
 /* Out-of-range value for node signature */
 #define INVALID_NODE_SIG	0x10000
 
+#define INVALID_BEARER_ID -1
+
 /* Flags used to take different actions according to flag type
  * TIPC_WAIT_PEER_LINKS_DOWN: wait to see that peer's links are down
  * TIPC_WAIT_OWN_LINKS_DOWN: wait until peer node is declared down
@@ -105,7 +107,7 @@ struct tipc_link_entry {
  * @hash: links to adjacent nodes in unsorted hash chain
  * @inputq: pointer to input queue containing messages for msg event
  * @namedq: pointer to name table input queue with name table messages
- * @active_links: pointer into links[] array, identifying which links are active
+ * @active_links: bearer ids of active links, used as index into links[] array
  * @links: array containing references to all links to node
  * @action_flags: bit mask of different types of node actions
  * @bclink: broadcast-related info
@@ -126,7 +128,7 @@ struct tipc_node {
 	struct hlist_node hash;
 	struct sk_buff_head *inputq;
 	struct sk_buff_head *namedq;
-	struct tipc_link_entry *active_links[2];
+	int active_links[2];
 	struct tipc_link_entry links[MAX_BEARERS];
 	int action_flags;
 	struct tipc_node_bclink bclink;
@@ -176,25 +178,27 @@ static inline bool tipc_node_blocked(struct tipc_node *node)
 
 static inline struct tipc_link *node_active_link(struct tipc_node *n, int sel)
 {
-	struct tipc_link_entry *le = n->active_links[sel & 1];
+	int bearer_id = n->active_links[sel & 1];
 
-	if (likely(le))
-		return le->link;
-	return NULL;
+	if (unlikely(bearer_id == INVALID_BEARER_ID))
+		return NULL;
+
+	return n->links[bearer_id].link;
 }
 
-static inline uint tipc_node_get_mtu(struct net *net, u32 addr, u32 selector)
+static inline unsigned int tipc_node_get_mtu(struct net *net, u32 addr, u32 sel)
 {
 	struct tipc_node *n;
-	struct tipc_link_entry *le;
+	int bearer_id;
 	unsigned int mtu = MAX_MSG_SIZE;
 
 	n = tipc_node_find(net, addr);
 	if (unlikely(!n))
 		return mtu;
-	le = n->active_links[selector & 1];
-	if (likely(le))
-		mtu = le->mtu;
+
+	bearer_id = n->active_links[sel & 1];
+	if (likely(bearer_id != INVALID_BEARER_ID))
+		mtu = n->links[bearer_id].mtu;
 	tipc_node_put(n);
 	return mtu;
 }

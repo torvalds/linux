@@ -142,6 +142,8 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 	n_ptr->action_flags = TIPC_WAIT_PEER_LINKS_DOWN;
 	n_ptr->signature = INVALID_NODE_SIG;
+	n_ptr->active_links[0] = INVALID_BEARER_ID;
+	n_ptr->active_links[1] = INVALID_BEARER_ID;
 	tipc_node_get(n_ptr);
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
@@ -227,12 +229,13 @@ void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port)
  */
 void tipc_node_link_up(struct tipc_node *n, int bearer_id)
 {
-	struct tipc_link_entry **actv = &n->active_links[0];
-	struct tipc_link_entry *le = &n->links[bearer_id];
-	struct tipc_link *l = le->link;
+	int *slot0 = &n->active_links[0];
+	int *slot1 = &n->active_links[1];
+	struct tipc_link_entry *links = n->links;
+	struct tipc_link *l = n->links[bearer_id].link;
 
 	/* Leave room for tunnel header when returning 'mtu' to users: */
-	n->links[bearer_id].mtu = l->mtu - INT_H_SIZE;
+	links[bearer_id].mtu = l->mtu - INT_H_SIZE;
 
 	n->working_links++;
 	n->action_flags |= TIPC_NOTIFY_LINK_UP;
@@ -242,55 +245,30 @@ void tipc_node_link_up(struct tipc_node *n, int bearer_id)
 		 l->name, l->net_plane);
 
 	/* No active links ? => take both active slots */
-	if (!actv[0]) {
-		actv[0] = le;
-		actv[1] = le;
+	if (*slot0 < 0) {
+		*slot0 = bearer_id;
+		*slot1 = bearer_id;
 		node_established_contact(n);
 		return;
 	}
-	if (l->priority < actv[0]->link->priority) {
+
+	/* Lower prio than current active ? => no slot */
+	if (l->priority < links[*slot0].link->priority) {
 		pr_debug("New link <%s> becomes standby\n", l->name);
 		return;
 	}
-	tipc_link_dup_queue_xmit(actv[0]->link, l);
+	tipc_link_dup_queue_xmit(links[*slot0].link, l);
 
-	/* Take one active slot if applicable */
-	if (l->priority == actv[0]->link->priority) {
-		actv[0] = le;
+	/* Same prio as current active ? => take one slot */
+	if (l->priority == links[*slot0].link->priority) {
+		*slot0 = bearer_id;
 		return;
 	}
-	/* Higher prio than current active? => take both active slots */
-	pr_debug("Old l <%s> becomes standby\n", actv[0]->link->name);
-	if (actv[1] != actv[0])
-		pr_debug("Old link <%s> now standby\n", actv[1]->link->name);
-	actv[0] = le;
-	actv[1] = le;
-}
 
-/**
- * node_select_active_links - select which working links should be active
- */
-static void node_select_active_links(struct tipc_node *n)
-{
-	struct tipc_link_entry **actv = &n->active_links[0];
-	struct tipc_link *l;
-	u32 b, highest = 0;
-
-	actv[0] = NULL;
-	actv[1] = NULL;
-
-	for (b = 0; b < MAX_BEARERS; b++) {
-		l = n->links[b].link;
-		if (!l || !tipc_link_is_up(l) || (l->priority < highest))
-			continue;
-		if (l->priority > highest) {
-			highest = l->priority;
-			actv[0] = &n->links[b];
-			actv[1] = &n->links[b];
-			continue;
-		}
-		actv[1] = &n->links[b];
-	}
+	/* Higher prio than current active => take both active slots */
+	pr_debug("Old link <%s> now standby\n", links[*slot0].link->name);
+	*slot0 = bearer_id;
+	*slot1 = bearer_id;
 }
 
 /**
@@ -298,32 +276,36 @@ static void node_select_active_links(struct tipc_node *n)
  */
 void tipc_node_link_down(struct tipc_node *n, int bearer_id)
 {
-	struct tipc_link_entry **actv = &n->active_links[0];
-	struct tipc_link_entry *le = &n->links[bearer_id];
-	struct tipc_link *l = le->link;
+	int *slot0 = &n->active_links[0];
+	int *slot1 = &n->active_links[1];
+	int i, highest = 0;
+	struct tipc_link *l, *_l;
 
+	l = n->links[bearer_id].link;
 	n->working_links--;
 	n->action_flags |= TIPC_NOTIFY_LINK_DOWN;
 	n->link_id = l->peer_bearer_id << 16 | l->bearer_id;
 
-	if (!tipc_link_is_active(l)) {
-		pr_debug("Lost standby link <%s> on network plane %c\n",
-			 l->name, l->net_plane);
-		return;
-	}
 	pr_debug("Lost link <%s> on network plane %c\n",
 		 l->name, l->net_plane);
 
-	/* Resdistribute active slots if applicable */
-	if (actv[0] == le)
-		actv[0] = actv[1];
-	if (actv[1] == le)
-		actv[1] = actv[0];
-
-	/* Last link of this priority? => select other ones if available */
-	if (actv[0] == le)
-		node_select_active_links(n);
-
+	/* Select new active link if any available */
+	*slot0 = INVALID_BEARER_ID;
+	*slot1 = INVALID_BEARER_ID;
+	for (i = 0; i < MAX_BEARERS; i++) {
+		_l = n->links[i].link;
+		if (!_l || !tipc_link_is_up(_l))
+			continue;
+		if (_l->priority < highest)
+			continue;
+		if (_l->priority > highest) {
+			highest = _l->priority;
+			*slot0 = i;
+			*slot1 = i;
+			continue;
+		}
+		*slot1 = i;
+	}
 	if (tipc_node_is_up(n))
 		tipc_link_failover_send_queue(l);
 	else
@@ -332,7 +314,7 @@ void tipc_node_link_down(struct tipc_node *n, int bearer_id)
 
 bool tipc_node_is_up(struct tipc_node *n)
 {
-	return n->active_links[0];
+	return n->active_links[0] != INVALID_BEARER_ID;
 }
 
 void tipc_node_check_dest(struct tipc_node *n, struct tipc_bearer *b,
