@@ -502,7 +502,7 @@
 			<&clk_i2s_pll &clk_gpll>, <&clk_spdif_pll &clk_gpll>,
 			<&usbphy_480m &otgphy2_480m>;
 		rockchip,clocks-init-rate =
-			<&clk_core 792000000>,	<&clk_gpll 297000000>,
+			<&clk_core 792000000>,	<&clk_gpll 594000000>,
 			/*<&clk_cpll 47000000>,*/	<&clk_npll 1250000000>,
 			<&aclk_bus_src 300000000>,	<&aclk_bus 300000000>,
 			<&hclk_bus 150000000>,	<&pclk_bus 75000000>,

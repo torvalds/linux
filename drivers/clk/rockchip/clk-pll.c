@@ -898,7 +898,7 @@ static int clk_pll_set_rate_3188plus(struct clk_hw *hw, unsigned long rate,
 		clk_set++;
 	}
 
-	if (cpu_is_rk3288() && (rate == 297*MHZ)) {
+	if (cpu_is_rk3288() && ((rate == 297*MHZ) || (rate == 594*MHZ))) {
 		if((strncmp(__clk_get_name(hw->clk), "clk_gpll",
 			strlen("clk_gpll")) == 0)) {
 
