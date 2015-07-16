@@ -665,10 +665,16 @@ drm_atomic_helper_update_legacy_modeset_state(struct drm_device *dev,
 
 	/* set legacy state in the crtc structure */
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		struct drm_plane *primary = crtc->primary;
+
 		crtc->mode = crtc->state->mode;
 		crtc->enabled = crtc->state->enable;
-		crtc->x = crtc->primary->state->src_x >> 16;
-		crtc->y = crtc->primary->state->src_y >> 16;
+
+		if (drm_atomic_get_existing_plane_state(old_state, primary) &&
+		    primary->state->crtc == crtc) {
+			crtc->x = primary->state->src_x >> 16;
+			crtc->y = primary->state->src_y >> 16;
+		}
 
 		if (crtc->state->enable)
 			drm_calc_timestamping_constants(crtc,
