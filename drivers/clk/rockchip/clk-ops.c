@@ -644,9 +644,11 @@ static int clk_3288_dclk_lcdc0_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	/* set aclk_vio */
 	if (parent_rate	== __clk_get_rate(gpll)) {
+		parent = clk_get(NULL, "clk_gpll");
 		clk_set_parent(aclk_vio0, gpll);
 		clk_set_rate(aclk_vio0, 300*MHZ);
 	} else {
+		parent = clk_get(NULL, "clk_cpll");
 		clk_set_parent(aclk_vio0, cpll);
 		clk_set_rate(aclk_vio0, __clk_get_rate(cpll));
 	}
@@ -714,9 +716,11 @@ static int clk_3288_dclk_lcdc1_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	/* set aclk_vio */
 	if (parent_rate	== __clk_get_rate(gpll)) {
+		parent = clk_get(NULL, "clk_gpll");
 		clk_set_parent(aclk_vio1, gpll);
 		clk_set_rate(aclk_vio1, 300*MHZ);
 	} else {
+		parent = clk_get(NULL, "clk_cpll");
 		clk_set_parent(aclk_vio1, cpll);
 		clk_set_rate(aclk_vio1, __clk_get_rate(cpll));
 	}
