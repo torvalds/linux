@@ -1011,7 +1011,8 @@ static irqreturn_t ioc4_intr(int irq, void *arg)
 		 */
 		for (xx = 0; xx < num_intrs; xx++) {
 			intr_info = &soft->is_intr_type[intr_type].is_intr_info[xx];
-			if ((this_mir = this_ir & intr_info->sd_bits)) {
+			this_mir = this_ir & intr_info->sd_bits;
+			if (this_mir) {
 				/* Disable owned interrupts, call handler */
 				handled++;
 				write_ireg(soft, intr_info->sd_bits, IOC4_W_IEC,
@@ -2597,7 +2598,6 @@ static struct uart_ops ioc4_ops = {
 	.stop_tx	= ic4_stop_tx,
 	.start_tx	= ic4_start_tx,
 	.stop_rx	= null_void_function,
-	.enable_ms	= null_void_function,
 	.break_ctl	= ic4_break_ctl,
 	.startup	= ic4_startup,
 	.shutdown	= ic4_shutdown,
@@ -2866,10 +2866,12 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 
 	/* register port with the serial core - 1 rs232, 1 rs422 */
 
-	if ((ret = ioc4_serial_core_attach(idd->idd_pdev, PROTO_RS232)))
+	ret = ioc4_serial_core_attach(idd->idd_pdev, PROTO_RS232);
+	if (ret)
 		goto out4;
 
-	if ((ret = ioc4_serial_core_attach(idd->idd_pdev, PROTO_RS422)))
+	ret = ioc4_serial_core_attach(idd->idd_pdev, PROTO_RS422);
+	if (ret)
 		goto out5;
 
 	Num_of_ioc4_cards++;

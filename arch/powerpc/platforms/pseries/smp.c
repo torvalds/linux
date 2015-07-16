@@ -44,6 +44,7 @@
 #include <asm/xics.h>
 #include <asm/dbell.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/code-patching.h>
 
 #include "pseries.h"
 #include "offline_states.h"
@@ -96,8 +97,8 @@ int smp_query_cpu_stopped(unsigned int pcpu)
 static inline int smp_startup_cpu(unsigned int lcpu)
 {
 	int status;
-	unsigned long start_here = __pa((u32)*((unsigned long *)
-					       generic_secondary_smp_init));
+	unsigned long start_here =
+			__pa(ppc_function_entry(generic_secondary_smp_init));
 	unsigned int pcpu;
 	int start_cpu;
 
@@ -196,16 +197,14 @@ static void pSeries_cause_ipi_mux(int cpu, unsigned long data)
 		xics_cause_ipi(cpu, data);
 }
 
-static __init int pSeries_smp_probe(void)
+static __init void pSeries_smp_probe(void)
 {
-	int ret = xics_smp_probe();
+	xics_smp_probe();
 
 	if (cpu_has_feature(CPU_FTR_DBELL)) {
 		xics_cause_ipi = smp_ops->cause_ipi;
 		smp_ops->cause_ipi = pSeries_cause_ipi_mux;
 	}
-
-	return ret;
 }
 
 static struct smp_ops_t pSeries_mpic_smp_ops = {

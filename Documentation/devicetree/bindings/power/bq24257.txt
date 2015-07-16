@@ -1,0 +1,21 @@
+Binding for TI bq24257 Li-Ion Charger
+
+Required properties:
+- compatible: Should contain one of the following:
+ * "ti,bq24257"
+- reg:			   integer, i2c address of the device.
+- ti,battery-regulation-voltage: integer, maximum charging voltage in uV.
+- ti,charge-current:	   integer, maximum charging current in uA.
+- ti,termination-current:  integer, charge will be terminated when current in
+			   constant-voltage phase drops below this value (in uA).
+
+Example:
+
+bq24257 {
+	compatible = "ti,bq24257";
+	reg = <0x6a>;
+
+	ti,battery-regulation-voltage = <4200000>;
+	ti,charge-current = <1000000>;
+	ti,termination-current = <50000>;
+};

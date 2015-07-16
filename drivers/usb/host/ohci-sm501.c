@@ -168,6 +168,7 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval)
 		goto err5;
+	device_wakeup_enable(hcd->self.controller);
 
 	/* enable power and unmask interrupts */
 
@@ -264,7 +265,6 @@ static struct platform_driver ohci_hcd_sm501_driver = {
 	.suspend	= ohci_sm501_suspend,
 	.resume		= ohci_sm501_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "sm501-usb",
 	},
 };

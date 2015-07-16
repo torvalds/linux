@@ -3410,7 +3410,7 @@ static struct spear_function *spear320_functions[] = {
 	&i2c2_function,
 };
 
-static struct of_device_id spear320_pinctrl_of_match[] = {
+static const struct of_device_id spear320_pinctrl_of_match[] = {
 	{
 		.compatible = "st,spear320-pinmux",
 	},
@@ -3449,7 +3449,6 @@ static int spear320_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver spear320_pinctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = spear320_pinctrl_of_match,
 	},
 	.probe = spear320_pinctrl_probe,

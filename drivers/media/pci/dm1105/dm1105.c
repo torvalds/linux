@@ -591,7 +591,8 @@ static inline struct dm1105_dev *frontend_to_dm1105_dev(struct dvb_frontend *fe)
 	return container_of(fe->dvb, struct dm1105_dev, dvb_adapter);
 }
 
-static int dm1105_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int dm1105_set_voltage(struct dvb_frontend *fe,
+			      enum fe_sec_voltage voltage)
 {
 	struct dm1105_dev *dev = frontend_to_dm1105_dev(fe);
 
@@ -614,7 +615,7 @@ static int dm1105_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 
 static void dm1105_set_dma_addr(struct dm1105_dev *dev)
 {
-	dm_writel(DM1105_STADR, cpu_to_le32(dev->dma_addr));
+	dm_writel(DM1105_STADR, (__force u32)cpu_to_le32(dev->dma_addr));
 }
 
 static int dm1105_dma_map(struct dm1105_dev *dev)
@@ -678,7 +679,8 @@ static void dm1105_emit_key(struct work_struct *work)
 
 	data = (ircom >> 8) & 0x7f;
 
-	rc_keydown(ir->dev, data, 0);
+	/* FIXME: UNKNOWN because we don't generate a full NEC scancode (yet?) */
+	rc_keydown(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 }
 
 /* work handler */

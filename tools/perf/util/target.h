@@ -12,7 +12,8 @@ struct target {
 	uid_t	     uid;
 	bool	     system_wide;
 	bool	     uses_mmap;
-	bool	     force_per_cpu;
+	bool	     default_per_cpu;
+	bool	     per_thread;
 };
 
 enum target_errno {
@@ -33,6 +34,7 @@ enum target_errno {
 	TARGET_ERRNO__UID_OVERRIDE_CPU,
 	TARGET_ERRNO__PID_OVERRIDE_SYSTEM,
 	TARGET_ERRNO__UID_OVERRIDE_SYSTEM,
+	TARGET_ERRNO__SYSTEM_OVERRIDE_THREAD,
 
 	/* for target__parse_uid() */
 	TARGET_ERRNO__INVALID_UID,
@@ -59,6 +61,19 @@ static inline bool target__has_cpu(struct target *target)
 static inline bool target__none(struct target *target)
 {
 	return !target__has_task(target) && !target__has_cpu(target);
+}
+
+static inline bool target__uses_dummy_map(struct target *target)
+{
+	bool use_dummy = false;
+
+	if (target->default_per_cpu)
+		use_dummy = target->per_thread ? true : false;
+	else if (target__has_task(target) ||
+	         (!target__has_cpu(target) && !target->uses_mmap))
+		use_dummy = true;
+
+	return use_dummy;
 }
 
 #endif /* _PERF_TARGET_H */

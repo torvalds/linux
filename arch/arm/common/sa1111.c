@@ -282,8 +282,8 @@ static int sa1111_retrigger_lowirq(struct irq_data *d)
 	}
 
 	if (i == 8)
-		printk(KERN_ERR "Danger Will Robinson: failed to "
-			"re-trigger IRQ%d\n", d->irq);
+		pr_err("Danger Will Robinson: failed to re-trigger IRQ%d\n",
+		       d->irq);
 	return i == 8 ? -1 : 0;
 }
 
@@ -384,8 +384,8 @@ static int sa1111_retrigger_highirq(struct irq_data *d)
 	}
 
 	if (i == 8)
-		printk(KERN_ERR "Danger Will Robinson: failed to "
-			"re-trigger IRQ%d\n", d->irq);
+		pr_err("Danger Will Robinson: failed to re-trigger IRQ%d\n",
+		       d->irq);
 	return i == 8 ? -1 : 0;
 }
 
@@ -501,8 +501,8 @@ static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
 	 * Register SA1111 interrupt
 	 */
 	irq_set_irq_type(sachip->irq, IRQ_TYPE_EDGE_RISING);
-	irq_set_handler_data(sachip->irq, sachip);
-	irq_set_chained_handler(sachip->irq, sa1111_irq_handler);
+	irq_set_chained_handler_and_data(sachip->irq, sa1111_irq_handler,
+					 sachip);
 
 	dev_info(sachip->dev, "Providing IRQ%u-%u\n",
 		sachip->irq_base, sachip->irq_base + SA1111_IRQ_NR - 1);
@@ -740,9 +740,8 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 		goto err_unmap;
 	}
 
-	printk(KERN_INFO "SA1111 Microprocessor Companion Chip: "
-		"silicon revision %lx, metal revision %lx\n",
-		(id & SKID_SIREV_MASK)>>4, (id & SKID_MTREV_MASK));
+	pr_info("SA1111 Microprocessor Companion Chip: silicon revision %lx, metal revision %lx\n",
+		(id & SKID_SIREV_MASK) >> 4, id & SKID_MTREV_MASK);
 
 	/*
 	 * We found it.  Wake the chip up, and initialise.
@@ -837,8 +836,7 @@ static void __sa1111_remove(struct sa1111 *sachip)
 	clk_unprepare(sachip->clk);
 
 	if (sachip->irq != NO_IRQ) {
-		irq_set_chained_handler(sachip->irq, NULL);
-		irq_set_handler_data(sachip->irq, NULL);
+		irq_set_chained_handler_and_data(sachip->irq, NULL, NULL);
 		irq_free_descs(sachip->irq_base, SA1111_IRQ_NR);
 
 		release_mem_region(sachip->phys + SA1111_INTC, 512);
@@ -1057,7 +1055,6 @@ static struct platform_driver sa1111_device_driver = {
 	.resume		= sa1111_resume,
 	.driver		= {
 		.name	= "sa1111",
-		.owner	= THIS_MODULE,
 	},
 };
 

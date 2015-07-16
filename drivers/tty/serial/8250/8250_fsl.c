@@ -28,8 +28,7 @@ int fsl8250_handle_irq(struct uart_port *port)
 	unsigned char lsr, orig_lsr;
 	unsigned long flags;
 	unsigned int iir;
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 
 	spin_lock_irqsave(&up->port.lock, flags);
 

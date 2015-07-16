@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2014 Open Grid Computing, Inc. All rights reserved.
  * Copyright (c) 2005-2007 Network Appliance, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -65,6 +66,7 @@ static void dto_tasklet_func(unsigned long data);
 static void svc_rdma_detach(struct svc_xprt *xprt);
 static void svc_rdma_free(struct svc_xprt *xprt);
 static int svc_rdma_has_wspace(struct svc_xprt *xprt);
+static int svc_rdma_secure_port(struct svc_rqst *);
 static void rq_cq_reap(struct svcxprt_rdma *xprt);
 static void sq_cq_reap(struct svcxprt_rdma *xprt);
 
@@ -82,25 +84,23 @@ static struct svc_xprt_ops svc_rdma_ops = {
 	.xpo_prep_reply_hdr = svc_rdma_prep_reply_hdr,
 	.xpo_has_wspace = svc_rdma_has_wspace,
 	.xpo_accept = svc_rdma_accept,
+	.xpo_secure_port = svc_rdma_secure_port,
 };
 
 struct svc_xprt_class svc_rdma_class = {
 	.xcl_name = "rdma",
 	.xcl_owner = THIS_MODULE,
 	.xcl_ops = &svc_rdma_ops,
-	.xcl_max_payload = RPCSVC_MAXPAYLOAD_TCP,
+	.xcl_max_payload = RPCRDMA_MAXPAYLOAD,
+	.xcl_ident = XPRT_TRANSPORT_RDMA,
 };
 
 struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 {
 	struct svc_rdma_op_ctxt *ctxt;
 
-	while (1) {
-		ctxt = kmem_cache_alloc(svc_rdma_ctxt_cachep, GFP_KERNEL);
-		if (ctxt)
-			break;
-		schedule_timeout_uninterruptible(msecs_to_jiffies(500));
-	}
+	ctxt = kmem_cache_alloc(svc_rdma_ctxt_cachep,
+				GFP_KERNEL | __GFP_NOFAIL);
 	ctxt->xprt = xprt;
 	INIT_LIST_HEAD(&ctxt->dto_q);
 	ctxt->count = 0;
@@ -135,7 +135,6 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 	struct svcxprt_rdma *xprt;
 	int i;
 
-	BUG_ON(!ctxt);
 	xprt = ctxt->xprt;
 	if (free_pages)
 		for (i = 0; i < ctxt->count; i++)
@@ -153,14 +152,9 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 struct svc_rdma_req_map *svc_rdma_get_req_map(void)
 {
 	struct svc_rdma_req_map *map;
-	while (1) {
-		map = kmem_cache_alloc(svc_rdma_map_cachep, GFP_KERNEL);
-		if (map)
-			break;
-		schedule_timeout_uninterruptible(msecs_to_jiffies(500));
-	}
+	map = kmem_cache_alloc(svc_rdma_map_cachep,
+			       GFP_KERNEL | __GFP_NOFAIL);
 	map->count = 0;
-	map->frmr = NULL;
 	return map;
 }
 
@@ -173,8 +167,8 @@ void svc_rdma_put_req_map(struct svc_rdma_req_map *map)
 static void cq_event_handler(struct ib_event *event, void *context)
 {
 	struct svc_xprt *xprt = context;
-	dprintk("svcrdma: received CQ event id=%d, context=%p\n",
-		event->event, context);
+	dprintk("svcrdma: received CQ event %s (%d), context=%p\n",
+		ib_event_msg(event->event), event->event, context);
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
 }
 
@@ -189,8 +183,9 @@ static void qp_event_handler(struct ib_event *event, void *context)
 	case IB_EVENT_COMM_EST:
 	case IB_EVENT_SQ_DRAINED:
 	case IB_EVENT_QP_LAST_WQE_REACHED:
-		dprintk("svcrdma: QP event %d received for QP=%p\n",
-			event->event, event->element.qp);
+		dprintk("svcrdma: QP event %s (%d) received for QP=%p\n",
+			ib_event_msg(event->event), event->event,
+			event->element.qp);
 		break;
 	/* These are considered fatal events */
 	case IB_EVENT_PATH_MIG_ERR:
@@ -199,9 +194,10 @@ static void qp_event_handler(struct ib_event *event, void *context)
 	case IB_EVENT_QP_ACCESS_ERR:
 	case IB_EVENT_DEVICE_FATAL:
 	default:
-		dprintk("svcrdma: QP ERROR event %d received for QP=%p, "
+		dprintk("svcrdma: QP ERROR event %s (%d) received for QP=%p, "
 			"closing transport\n",
-			event->event, event->element.qp);
+			ib_event_msg(event->event), event->event,
+			event->element.qp);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		break;
 	}
@@ -336,27 +332,31 @@ static void process_context(struct svcxprt_rdma *xprt,
 
 	switch (ctxt->wr_op) {
 	case IB_WR_SEND:
-		if (test_bit(RDMACTXT_F_FAST_UNREG, &ctxt->flags))
-			svc_rdma_put_frmr(xprt, ctxt->frmr);
+		if (ctxt->frmr)
+			pr_err("svcrdma: SEND: ctxt->frmr != NULL\n");
 		svc_rdma_put_context(ctxt, 1);
 		break;
 
 	case IB_WR_RDMA_WRITE:
+		if (ctxt->frmr)
+			pr_err("svcrdma: WRITE: ctxt->frmr != NULL\n");
 		svc_rdma_put_context(ctxt, 0);
 		break;
 
 	case IB_WR_RDMA_READ:
 	case IB_WR_RDMA_READ_WITH_INV:
+		svc_rdma_put_frmr(xprt, ctxt->frmr);
 		if (test_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags)) {
 			struct svc_rdma_op_ctxt *read_hdr = ctxt->read_hdr;
-			BUG_ON(!read_hdr);
-			if (test_bit(RDMACTXT_F_FAST_UNREG, &ctxt->flags))
-				svc_rdma_put_frmr(xprt, ctxt->frmr);
-			spin_lock_bh(&xprt->sc_rq_dto_lock);
-			set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
-			list_add_tail(&read_hdr->dto_q,
-				      &xprt->sc_read_complete_q);
-			spin_unlock_bh(&xprt->sc_rq_dto_lock);
+			if (read_hdr) {
+				spin_lock_bh(&xprt->sc_rq_dto_lock);
+				set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
+				list_add_tail(&read_hdr->dto_q,
+					      &xprt->sc_read_complete_q);
+				spin_unlock_bh(&xprt->sc_rq_dto_lock);
+			} else {
+				pr_err("svcrdma: ctxt->read_hdr == NULL\n");
+			}
 			svc_xprt_enqueue(&xprt->sc_xprt);
 		}
 		svc_rdma_put_context(ctxt, 0);
@@ -378,29 +378,43 @@ static void process_context(struct svcxprt_rdma *xprt,
 static void sq_cq_reap(struct svcxprt_rdma *xprt)
 {
 	struct svc_rdma_op_ctxt *ctxt = NULL;
-	struct ib_wc wc;
+	struct ib_wc wc_a[6];
+	struct ib_wc *wc;
 	struct ib_cq *cq = xprt->sc_sq_cq;
 	int ret;
+
+	memset(wc_a, 0, sizeof(wc_a));
 
 	if (!test_and_clear_bit(RDMAXPRT_SQ_PENDING, &xprt->sc_flags))
 		return;
 
 	ib_req_notify_cq(xprt->sc_sq_cq, IB_CQ_NEXT_COMP);
 	atomic_inc(&rdma_stat_sq_poll);
-	while ((ret = ib_poll_cq(cq, 1, &wc)) > 0) {
-		if (wc.status != IB_WC_SUCCESS)
-			/* Close the transport */
-			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+	while ((ret = ib_poll_cq(cq, ARRAY_SIZE(wc_a), wc_a)) > 0) {
+		int i;
 
-		/* Decrement used SQ WR count */
-		atomic_dec(&xprt->sc_sq_count);
-		wake_up(&xprt->sc_send_wait);
+		for (i = 0; i < ret; i++) {
+			wc = &wc_a[i];
+			if (wc->status != IB_WC_SUCCESS) {
+				dprintk("svcrdma: sq wc err status %s (%d)\n",
+					ib_wc_status_msg(wc->status),
+					wc->status);
 
-		ctxt = (struct svc_rdma_op_ctxt *)(unsigned long)wc.wr_id;
-		if (ctxt)
-			process_context(xprt, ctxt);
+				/* Close the transport */
+				set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+			}
 
-		svc_xprt_put(&xprt->sc_xprt);
+			/* Decrement used SQ WR count */
+			atomic_dec(&xprt->sc_sq_count);
+			wake_up(&xprt->sc_send_wait);
+
+			ctxt = (struct svc_rdma_op_ctxt *)
+				(unsigned long)wc->wr_id;
+			if (ctxt)
+				process_context(xprt, ctxt);
+
+			svc_xprt_put(&xprt->sc_xprt);
+		}
 	}
 
 	if (ctxt)
@@ -471,19 +485,6 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	return cma_xprt;
 }
 
-struct page *svc_rdma_get_page(void)
-{
-	struct page *page;
-
-	while ((page = alloc_page(GFP_KERNEL)) == NULL) {
-		/* If we can't get memory, wait a bit and try again */
-		printk(KERN_INFO "svcrdma: out of memory...retrying in 1000 "
-		       "jiffies.\n");
-		schedule_timeout_uninterruptible(msecs_to_jiffies(1000));
-	}
-	return page;
-}
-
 int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 {
 	struct ib_recv_wr recv_wr, *bad_recv_wr;
@@ -498,8 +499,11 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 	buflen = 0;
 	ctxt->direction = DMA_FROM_DEVICE;
 	for (sge_no = 0; buflen < xprt->sc_max_req_size; sge_no++) {
-		BUG_ON(sge_no >= xprt->sc_max_sge);
-		page = svc_rdma_get_page();
+		if (sge_no >= xprt->sc_max_sge) {
+			pr_err("svcrdma: Too many sges (%d)\n", sge_no);
+			goto err_put_ctxt;
+		}
+		page = alloc_page(GFP_KERNEL | __GFP_NOFAIL);
 		ctxt->pages[sge_no] = page;
 		pa = ib_dma_map_page(xprt->sc_cm_id->device,
 				     page, 0, PAGE_SIZE,
@@ -595,7 +599,8 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 	switch (event->event) {
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
 		dprintk("svcrdma: Connect request on cma_id=%p, xprt = %p, "
-			"event=%d\n", cma_id, cma_id->context, event->event);
+			"event = %s (%d)\n", cma_id, cma_id->context,
+			rdma_event_msg(event->event), event->event);
 		handle_connect_req(cma_id,
 				   event->param.conn.initiator_depth);
 		break;
@@ -615,7 +620,8 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 
 	default:
 		dprintk("svcrdma: Unexpected event on listening endpoint %p, "
-			"event=%d\n", cma_id, event->event);
+			"event = %s (%d)\n", cma_id,
+			rdma_event_msg(event->event), event->event);
 		break;
 	}
 
@@ -648,7 +654,8 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		dprintk("svcrdma: Device removal cma_id=%p, xprt = %p, "
-			"event=%d\n", cma_id, xprt, event->event);
+			"event = %s (%d)\n", cma_id, xprt,
+			rdma_event_msg(event->event), event->event);
 		if (xprt) {
 			set_bit(XPT_CLOSE, &xprt->xpt_flags);
 			svc_xprt_enqueue(xprt);
@@ -656,7 +663,8 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 		break;
 	default:
 		dprintk("svcrdma: Unexpected event on DTO endpoint %p, "
-			"event=%d\n", cma_id, event->event);
+			"event = %s (%d)\n", cma_id,
+			rdma_event_msg(event->event), event->event);
 		break;
 	}
 	return 0;
@@ -672,7 +680,6 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 {
 	struct rdma_cm_id *listen_id;
 	struct svcxprt_rdma *cma_xprt;
-	struct svc_xprt *xprt;
 	int ret;
 
 	dprintk("svcrdma: Creating RDMA socket\n");
@@ -683,7 +690,6 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	cma_xprt = rdma_create_xprt(serv, 1);
 	if (!cma_xprt)
 		return ERR_PTR(-ENOMEM);
-	xprt = &cma_xprt->sc_xprt;
 
 	listen_id = rdma_create_id(rdma_listen_handler, cma_xprt, RDMA_PS_TCP,
 				   IB_QPT_RC);
@@ -807,7 +813,7 @@ void svc_rdma_put_frmr(struct svcxprt_rdma *rdma,
 	if (frmr) {
 		frmr_unmap_dma(rdma, frmr);
 		spin_lock_bh(&rdma->sc_frmr_q_lock);
-		BUG_ON(!list_empty(&frmr->frmr_list));
+		WARN_ON_ONCE(!list_empty(&frmr->frmr_list));
 		list_add(&frmr->frmr_list, &rdma->sc_frmr_q);
 		spin_unlock_bh(&rdma->sc_frmr_q_lock);
 	}
@@ -829,10 +835,11 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct svcxprt_rdma *listen_rdma;
 	struct svcxprt_rdma *newxprt = NULL;
 	struct rdma_conn_param conn_param;
+	struct ib_cq_init_attr cq_attr = {};
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device_attr devattr;
 	int uninitialized_var(dma_mr_acc);
-	int need_dma_mr;
+	int need_dma_mr = 0;
 	int ret;
 	int i;
 
@@ -881,22 +888,22 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		dprintk("svcrdma: error creating PD for connect request\n");
 		goto errout;
 	}
+	cq_attr.cqe = newxprt->sc_sq_depth;
 	newxprt->sc_sq_cq = ib_create_cq(newxprt->sc_cm_id->device,
 					 sq_comp_handler,
 					 cq_event_handler,
 					 newxprt,
-					 newxprt->sc_sq_depth,
-					 0);
+					 &cq_attr);
 	if (IS_ERR(newxprt->sc_sq_cq)) {
 		dprintk("svcrdma: error creating SQ CQ for connect request\n");
 		goto errout;
 	}
+	cq_attr.cqe = newxprt->sc_max_requests;
 	newxprt->sc_rq_cq = ib_create_cq(newxprt->sc_cm_id->device,
 					 rq_comp_handler,
 					 cq_event_handler,
 					 newxprt,
-					 newxprt->sc_max_requests,
-					 0);
+					 &cq_attr);
 	if (IS_ERR(newxprt->sc_rq_cq)) {
 		dprintk("svcrdma: error creating RQ CQ for connect request\n");
 		goto errout;
@@ -928,23 +935,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	ret = rdma_create_qp(newxprt->sc_cm_id, newxprt->sc_pd, &qp_attr);
 	if (ret) {
-		/*
-		 * XXX: This is a hack. We need a xx_request_qp interface
-		 * that will adjust the qp_attr's with a best-effort
-		 * number
-		 */
-		qp_attr.cap.max_send_sge -= 2;
-		qp_attr.cap.max_recv_sge -= 2;
-		ret = rdma_create_qp(newxprt->sc_cm_id, newxprt->sc_pd,
-				     &qp_attr);
-		if (ret) {
-			dprintk("svcrdma: failed to create QP, ret=%d\n", ret);
-			goto errout;
-		}
-		newxprt->sc_max_sge = qp_attr.cap.max_send_sge;
-		newxprt->sc_max_sge = qp_attr.cap.max_recv_sge;
-		newxprt->sc_sq_depth = qp_attr.cap.max_send_wr;
-		newxprt->sc_max_requests = qp_attr.cap.max_recv_wr;
+		dprintk("svcrdma: failed to create QP, ret=%d\n", ret);
+		goto errout;
 	}
 	newxprt->sc_qp = newxprt->sc_cm_id->qp;
 
@@ -970,39 +962,36 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	 * NB:	iWARP requires remote write access for the data sink
 	 *	of an RDMA_READ. IB does not.
 	 */
+	newxprt->sc_reader = rdma_read_chunk_lcl;
 	if (devattr.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
 		newxprt->sc_frmr_pg_list_len =
 			devattr.max_fast_reg_page_list_len;
 		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_FAST_REG;
+		newxprt->sc_reader = rdma_read_chunk_frmr;
 	}
 
 	/*
 	 * Determine if a DMA MR is required and if so, what privs are required
 	 */
-	switch (rdma_node_get_transport(newxprt->sc_cm_id->device->node_type)) {
-	case RDMA_TRANSPORT_IWARP:
-		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_READ_W_INV;
-		if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG)) {
-			need_dma_mr = 1;
-			dma_mr_acc =
-				(IB_ACCESS_LOCAL_WRITE |
-				 IB_ACCESS_REMOTE_WRITE);
-		} else if (!(devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
-			need_dma_mr = 1;
-			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
-		} else
-			need_dma_mr = 0;
-		break;
-	case RDMA_TRANSPORT_IB:
-		if (!(devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
-			need_dma_mr = 1;
-			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
-		} else
-			need_dma_mr = 0;
-		break;
-	default:
+	if (!rdma_protocol_iwarp(newxprt->sc_cm_id->device,
+				 newxprt->sc_cm_id->port_num) &&
+	    !rdma_ib_or_roce(newxprt->sc_cm_id->device,
+			     newxprt->sc_cm_id->port_num))
 		goto errout;
+
+	if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG) ||
+	    !(devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
+		need_dma_mr = 1;
+		dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
+		if (rdma_protocol_iwarp(newxprt->sc_cm_id->device,
+					newxprt->sc_cm_id->port_num) &&
+		    !(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG))
+			dma_mr_acc |= IB_ACCESS_REMOTE_WRITE;
 	}
+
+	if (rdma_protocol_iwarp(newxprt->sc_cm_id->device,
+				newxprt->sc_cm_id->port_num))
+		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_READ_W_INV;
 
 	/* Create the DMA MR if needed, otherwise, use the DMA LKEY */
 	if (need_dma_mr) {
@@ -1121,7 +1110,9 @@ static void __svc_rdma_free(struct work_struct *work)
 	dprintk("svcrdma: svc_rdma_free(%p)\n", rdma);
 
 	/* We should only be called from kref_put */
-	BUG_ON(atomic_read(&rdma->sc_xprt.xpt_ref.refcount) != 0);
+	if (atomic_read(&rdma->sc_xprt.xpt_ref.refcount) != 0)
+		pr_err("svcrdma: sc_xprt still in use? (%d)\n",
+		       atomic_read(&rdma->sc_xprt.xpt_ref.refcount));
 
 	/*
 	 * Destroy queued, but not processed read completions. Note
@@ -1149,8 +1140,12 @@ static void __svc_rdma_free(struct work_struct *work)
 	}
 
 	/* Warn if we leaked a resource or under-referenced */
-	WARN_ON(atomic_read(&rdma->sc_ctxt_used) != 0);
-	WARN_ON(atomic_read(&rdma->sc_dma_used) != 0);
+	if (atomic_read(&rdma->sc_ctxt_used) != 0)
+		pr_err("svcrdma: ctxt still in use? (%d)\n",
+		       atomic_read(&rdma->sc_ctxt_used));
+	if (atomic_read(&rdma->sc_dma_used) != 0)
+		pr_err("svcrdma: dma still in use? (%d)\n",
+		       atomic_read(&rdma->sc_dma_used));
 
 	/* De-allocate fastreg mr */
 	rdma_dealloc_frmr_q(rdma);
@@ -1191,20 +1186,18 @@ static int svc_rdma_has_wspace(struct svc_xprt *xprt)
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 
 	/*
-	 * If there are fewer SQ WR available than required to send a
-	 * simple response, return false.
-	 */
-	if ((rdma->sc_sq_depth - atomic_read(&rdma->sc_sq_count) < 3))
-		return 0;
-
-	/*
-	 * ...or there are already waiters on the SQ,
+	 * If there are already waiters on the SQ,
 	 * return false.
 	 */
 	if (waitqueue_active(&rdma->sc_send_wait))
 		return 0;
 
 	/* Otherwise return true. */
+	return 1;
+}
+
+static int svc_rdma_secure_port(struct svc_rqst *rqstp)
+{
 	return 1;
 }
 
@@ -1252,7 +1245,6 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 	if (test_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags))
 		return -ENOTCONN;
 
-	BUG_ON(wr->send_flags != IB_SEND_SIGNALED);
 	wr_count = 1;
 	for (n_wr = wr->next; n_wr; n_wr = n_wr->next)
 		wr_count++;
@@ -1306,11 +1298,11 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	struct ib_send_wr err_wr;
 	struct page *p;
 	struct svc_rdma_op_ctxt *ctxt;
-	u32 *va;
+	__be32 *va;
 	int length;
 	int ret;
 
-	p = svc_rdma_get_page();
+	p = alloc_page(GFP_KERNEL | __GFP_NOFAIL);
 	va = page_address(p);
 
 	/* XDR encode error */

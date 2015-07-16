@@ -32,8 +32,9 @@
 #include <asm/sections.h>
 
 extern int  data_start;
+extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
 
-#if PT_NLEVELS == 3
+#if CONFIG_PGTABLE_LEVELS == 3
 /* NOTE: This layout exactly conforms to the hybrid L2/L3 page table layout
  * with the first pmd adjacent to the pgd and below it. gcc doesn't actually
  * guarantee that global objects will be laid out in memory in the same order
@@ -324,8 +325,9 @@ static void __init setup_bootmem(void)
 	reserve_bootmem_node(NODE_DATA(0), 0UL,
 			(unsigned long)(PAGE0->mem_free +
 				PDC_CONSOLE_IO_IODC_SIZE), BOOTMEM_DEFAULT);
-	reserve_bootmem_node(NODE_DATA(0), __pa((unsigned long)_text),
-			(unsigned long)(_end - _text), BOOTMEM_DEFAULT);
+	reserve_bootmem_node(NODE_DATA(0), __pa(KERNEL_BINARY_TEXT_START),
+			(unsigned long)(_end - KERNEL_BINARY_TEXT_START),
+			BOOTMEM_DEFAULT);
 	reserve_bootmem_node(NODE_DATA(0), (bootmap_start_pfn << PAGE_SHIFT),
 			((bootmap_pfn - bootmap_start_pfn) << PAGE_SHIFT),
 			BOOTMEM_DEFAULT);
@@ -376,6 +378,17 @@ static void __init setup_bootmem(void)
 		request_resource(res, &data_resource);
 	}
 	request_resource(&sysram_resources[0], &pdcdata_resource);
+}
+
+static int __init parisc_text_address(unsigned long vaddr)
+{
+	static unsigned long head_ptr __initdata;
+
+	if (!head_ptr)
+		head_ptr = PAGE_MASK & (unsigned long)
+			dereference_function_descriptor(&parisc_kernel_start);
+
+	return core_kernel_text(vaddr) || vaddr == head_ptr;
 }
 
 static void __init map_pages(unsigned long start_vaddr,
@@ -466,7 +479,7 @@ static void __init map_pages(unsigned long start_vaddr,
 				 */
 				if (force)
 					pte =  __mk_pte(address, pgprot);
-				else if (core_kernel_text(vaddr) &&
+				else if (parisc_text_address(vaddr) &&
 					 address != fv_addr)
 					pte = __mk_pte(address, PAGE_KERNEL_EXEC);
 				else
@@ -632,55 +645,30 @@ EXPORT_SYMBOL(empty_zero_page);
 
 void show_mem(unsigned int filter)
 {
-	int i,free = 0,total = 0,reserved = 0;
-	int shared = 0, cached = 0;
+	int total = 0,reserved = 0;
+	pg_data_t *pgdat;
 
 	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas(filter);
-	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
-		return;
-#ifndef CONFIG_DISCONTIGMEM
-	i = max_mapnr;
-	while (i-- > 0) {
-		total++;
-		if (PageReserved(mem_map+i))
-			reserved++;
-		else if (PageSwapCache(mem_map+i))
-			cached++;
-		else if (!page_count(&mem_map[i]))
-			free++;
-		else
-			shared += page_count(&mem_map[i]) - 1;
+
+	for_each_online_pgdat(pgdat) {
+		unsigned long flags;
+		int zoneid;
+
+		pgdat_resize_lock(pgdat, &flags);
+		for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
+			struct zone *zone = &pgdat->node_zones[zoneid];
+			if (!populated_zone(zone))
+				continue;
+
+			total += zone->present_pages;
+			reserved = zone->present_pages - zone->managed_pages;
+		}
+		pgdat_resize_unlock(pgdat, &flags);
 	}
-#else
-	for (i = 0; i < npmem_ranges; i++) {
-		int j;
 
-		for (j = node_start_pfn(i); j < node_end_pfn(i); j++) {
-			struct page *p;
-			unsigned long flags;
-
-			pgdat_resize_lock(NODE_DATA(i), &flags);
-			p = nid_page_nr(i, j) - node_start_pfn(i);
-
-			total++;
-			if (PageReserved(p))
-				reserved++;
-			else if (PageSwapCache(p))
-				cached++;
-			else if (!page_count(p))
-				free++;
-			else
-				shared += page_count(p) - 1;
-			pgdat_resize_unlock(NODE_DATA(i), &flags);
-        	}
-	}
-#endif
 	printk(KERN_INFO "%d pages of RAM\n", total);
 	printk(KERN_INFO "%d reserved pages\n", reserved);
-	printk(KERN_INFO "%d pages shared\n", shared);
-	printk(KERN_INFO "%d pages swap cached\n", cached);
-
 
 #ifdef CONFIG_DISCONTIGMEM
 	{
@@ -740,7 +728,6 @@ static void __init pagetable_init(void)
 #endif
 
 	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
-	memset(empty_zero_page, 0, PAGE_SIZE);
 }
 
 static void __init gateway_init(void)
@@ -762,78 +749,6 @@ static void __init gateway_init(void)
 	map_pages(linux_gateway_page_addr, __pa(&linux_gateway_page),
 		  PAGE_SIZE, PAGE_GATEWAY, 1);
 }
-
-#ifdef CONFIG_HPUX
-void
-map_hpux_gateway_page(struct task_struct *tsk, struct mm_struct *mm)
-{
-	pgd_t *pg_dir;
-	pmd_t *pmd;
-	pte_t *pg_table;
-	unsigned long start_pmd;
-	unsigned long start_pte;
-	unsigned long address;
-	unsigned long hpux_gw_page_addr;
-	/* FIXME: This is 'const' in order to trick the compiler
-	   into not treating it as DP-relative data. */
-	extern void * const hpux_gateway_page;
-
-	hpux_gw_page_addr = HPUX_GATEWAY_ADDR & PAGE_MASK;
-
-	/*
-	 * Setup HP-UX Gateway page.
-	 *
-	 * The HP-UX gateway page resides in the user address space,
-	 * so it needs to be aliased into each process.
-	 */
-
-	pg_dir = pgd_offset(mm,hpux_gw_page_addr);
-
-#if PTRS_PER_PMD == 1
-	start_pmd = 0;
-#else
-	start_pmd = ((hpux_gw_page_addr >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
-#endif
-	start_pte = ((hpux_gw_page_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
-
-	address = __pa(&hpux_gateway_page);
-#if PTRS_PER_PMD == 1
-	pmd = (pmd_t *)__pa(pg_dir);
-#else
-	pmd = (pmd_t *) pgd_address(*pg_dir);
-
-	/*
-	 * pmd is physical at this point
-	 */
-
-	if (!pmd) {
-		pmd = (pmd_t *) get_zeroed_page(GFP_KERNEL);
-		pmd = (pmd_t *) __pa(pmd);
-	}
-
-	__pgd_val_set(*pg_dir, PxD_FLAG_PRESENT | PxD_FLAG_VALID | (unsigned long) pmd);
-#endif
-	/* now change pmd to kernel virtual addresses */
-
-	pmd = (pmd_t *)__va(pmd) + start_pmd;
-
-	/*
-	 * pg_table is physical at this point
-	 */
-
-	pg_table = (pte_t *) pmd_address(*pmd);
-	if (!pg_table)
-		pg_table = (pte_t *) __pa(get_zeroed_page(GFP_KERNEL));
-
-	__pmd_val_set(*pmd, PxD_FLAG_PRESENT | PxD_FLAG_VALID | (unsigned long) pg_table);
-
-	/* now change pg_table to kernel virtual addresses */
-
-	pg_table = (pte_t *) __va(pg_table) + start_pte;
-	set_pte(pg_table, __mk_pte(address, PAGE_GATEWAY));
-}
-EXPORT_SYMBOL(map_hpux_gateway_page);
-#endif
 
 void __init paging_init(void)
 {

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,7 +100,7 @@ acpi_ut_create_list(char *list_name,
 		return (AE_NO_MEMORY);
 	}
 
-	ACPI_MEMSET(cache, 0, sizeof(struct acpi_memory_list));
+	memset(cache, 0, sizeof(struct acpi_memory_list));
 
 	cache->list_name = list_name;
 	cache->object_size = object_size;
@@ -276,7 +276,8 @@ acpi_ut_free_and_track(void *allocation,
 	}
 
 	acpi_os_free(debug_block);
-	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "%p freed\n", allocation));
+	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "%p freed (block %p)\n",
+			  allocation, debug_block));
 	return_VOID;
 }
 
@@ -401,7 +402,7 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 	allocation->component = component;
 	allocation->line = line;
 
-	ACPI_STRNCPY(allocation->module, module, ACPI_MAX_MODULE_NAME);
+	strncpy(allocation->module, module, ACPI_MAX_MODULE_NAME);
 	allocation->module[ACPI_MAX_MODULE_NAME - 1] = 0;
 
 	if (!element) {
@@ -496,7 +497,7 @@ acpi_ut_remove_allocation(struct acpi_debug_mem_block *allocation,
 
 	/* Mark the segment as deleted */
 
-	ACPI_MEMSET(&allocation->user_space, 0xEA, allocation->size);
+	memset(&allocation->user_space, 0xEA, allocation->size);
 
 	status = acpi_ut_release_mutex(ACPI_MTX_MEMORY);
 	return (status);
@@ -594,7 +595,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 	while (element) {
 		if ((element->component & component) &&
 		    ((module == NULL)
-		     || (0 == ACPI_STRCMP(module, element->module)))) {
+		     || (0 == strcmp(module, element->module)))) {
 			descriptor =
 			    ACPI_CAST_PTR(union acpi_descriptor,
 					  &element->user_space);

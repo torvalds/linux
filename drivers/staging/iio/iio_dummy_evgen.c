@@ -33,6 +33,7 @@
  * @base: base of irq range
  * @enabled: mask of which irqs are enabled
  * @inuse: mask of which irqs are connected
+ * @regs: irq regs we are faking
  * @lock: protect the evgen state
  */
 struct iio_dummy_eventgen {
@@ -40,6 +41,7 @@ struct iio_dummy_eventgen {
 	int base;
 	bool enabled[IIO_EVENTGEN_NO];
 	bool inuse[IIO_EVENTGEN_NO];
+	struct iio_dummy_regs regs[IIO_EVENTGEN_NO];
 	struct mutex lock;
 };
 
@@ -70,7 +72,7 @@ static int iio_dummy_evgen_create(void)
 	int ret, i;
 
 	iio_evgen = kzalloc(sizeof(*iio_evgen), GFP_KERNEL);
-	if (iio_evgen == NULL)
+	if (!iio_evgen)
 		return -ENOMEM;
 
 	iio_evgen->base = irq_alloc_descs(-1, 0, IIO_EVENTGEN_NO, 0);
@@ -103,7 +105,7 @@ int iio_dummy_evgen_get_irq(void)
 {
 	int i, ret = 0;
 
-	if (iio_evgen == NULL)
+	if (!iio_evgen)
 		return -ENODEV;
 
 	mutex_lock(&iio_evgen->lock);
@@ -126,15 +128,19 @@ EXPORT_SYMBOL_GPL(iio_dummy_evgen_get_irq);
  *
  * Used by client driver instances to give the irqs back when they disconnect
  */
-int iio_dummy_evgen_release_irq(int irq)
+void iio_dummy_evgen_release_irq(int irq)
 {
 	mutex_lock(&iio_evgen->lock);
 	iio_evgen->inuse[irq - iio_evgen->base] = false;
 	mutex_unlock(&iio_evgen->lock);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(iio_dummy_evgen_release_irq);
+
+struct iio_dummy_regs *iio_dummy_evgen_get_regs(int irq)
+{
+	return &iio_evgen->regs[irq - iio_evgen->base];
+}
+EXPORT_SYMBOL_GPL(iio_dummy_evgen_get_regs);
 
 static void iio_dummy_evgen_free(void)
 {
@@ -153,6 +159,15 @@ static ssize_t iio_evgen_poke(struct device *dev,
 			      size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	unsigned long event;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &event);
+	if (ret)
+		return ret;
+
+	iio_evgen->regs[this_attr->address].reg_id   = this_attr->address;
+	iio_evgen->regs[this_attr->address].reg_data = event;
 
 	if (iio_evgen->enabled[this_attr->address])
 		handle_nested_irq(iio_evgen->base + this_attr->address);
@@ -202,6 +217,7 @@ static struct device iio_evgen_dev = {
 static __init int iio_dummy_evgen_init(void)
 {
 	int ret = iio_dummy_evgen_create();
+
 	if (ret < 0)
 		return ret;
 	device_initialize(&iio_evgen_dev);

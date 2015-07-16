@@ -37,7 +37,12 @@ struct mpc512x_ccm {
 	u32	cccr;	/* CFM Clock Control Register */
 	u32	dccr;	/* DIU Clock Control Register */
 	u32	mscan_ccr[4];	/* MSCAN Clock Control Registers */
-	u8	res[0x98]; /* Reserved */
+	u32	out_ccr[4];	/* OUT CLK Configure Registers */
+	u32	rsv0[2];	/* Reserved */
+	u32	scfr3;		/* System Clock Frequency Register 3 */
+	u32	rsv1[3];	/* Reserved */
+	u32	spll_lock_cnt;	/* System PLL Lock Counter */
+	u8	res[0x6c];	/* Reserved */
 };
 
 /*

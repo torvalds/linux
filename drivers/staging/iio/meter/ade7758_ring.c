@@ -85,17 +85,16 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
  **/
 static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 {
-	struct ade7758_state *st = iio_priv(indio_dev);
 	unsigned channel;
 
-	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
+	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
 	channel = find_first_bit(indio_dev->active_scan_mask,
 				 indio_dev->masklength);
 
 	ade7758_write_waveform_type(&indio_dev->dev,
-		st->ade7758_ring_channels[channel].address);
+		indio_dev->channels[channel].address);
 
 	return 0;
 }
@@ -119,11 +118,9 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 	struct iio_buffer *buffer;
 	int ret = 0;
 
-	buffer = iio_kfifo_allocate(indio_dev);
-	if (!buffer) {
-		ret = -ENOMEM;
-		return ret;
-	}
+	buffer = iio_kfifo_allocate();
+	if (!buffer)
+		return -ENOMEM;
 
 	iio_device_attach_buffer(indio_dev, buffer);
 
@@ -135,7 +132,7 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 						 indio_dev,
 						 "ade7759_consumer%d",
 						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
+	if (!indio_dev->pollfunc) {
 		ret = -ENOMEM;
 		goto error_iio_kfifo_free;
 	}
@@ -180,9 +177,4 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 error_iio_kfifo_free:
 	iio_kfifo_free(indio_dev->buffer);
 	return ret;
-}
-
-void ade7758_uninitialize_ring(struct iio_dev *indio_dev)
-{
-	iio_buffer_unregister(indio_dev);
 }

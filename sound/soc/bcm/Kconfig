@@ -1,0 +1,9 @@
+config SND_BCM2835_SOC_I2S
+	tristate "SoC Audio support for the Broadcom BCM2835 I2S module"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the BCM2835 I2S interface. You will also need
+	  to select the audio interfaces to support below.

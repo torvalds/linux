@@ -215,6 +215,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to add hcd with err %d\n", ret);
 		goto err_pm_runtime;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	/*
 	 * Bring PHYs out of reset for non PHY modes.

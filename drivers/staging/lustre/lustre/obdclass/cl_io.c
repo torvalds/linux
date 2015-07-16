@@ -40,11 +40,11 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
 #include <linux/list.h>
-#include <cl_object.h>
+#include "../include/cl_object.h"
 #include "cl_internal.h"
 
 /*****************************************************************************
@@ -126,7 +126,7 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 		info->clt_current_io = NULL;
 
 	/* sanity check for layout change */
-	switch(io->ci_type) {
+	switch (io->ci_type) {
 	case CIT_READ:
 	case CIT_WRITE:
 		break;
@@ -227,7 +227,7 @@ int cl_io_rw_init(const struct lu_env *env, struct cl_io *io,
 	LINVRNT(io->ci_obj != NULL);
 
 	LU_OBJECT_HEADER(D_VFSTRACE, env, &io->ci_obj->co_lu,
-			 "io range: %u ["LPU64", "LPU64") %u %u\n",
+			 "io range: %u [%llu, %llu) %u %u\n",
 			 iot, (__u64)pos, (__u64)pos + count,
 			 io->u.ci_rw.crw_nonblock, io->u.ci_wr.wr_append);
 	io->u.ci_rw.crw_pos    = pos;
@@ -612,7 +612,7 @@ EXPORT_SYMBOL(cl_io_lock_add);
 static void cl_free_io_lock_link(const struct lu_env *env,
 				 struct cl_io_lock_link *link)
 {
-	OBD_FREE_PTR(link);
+	kfree(link);
 }
 
 /**
@@ -624,7 +624,7 @@ int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
 	struct cl_io_lock_link *link;
 	int result;
 
-	OBD_ALLOC_PTR(link);
+	link = kzalloc(sizeof(*link), GFP_NOFS);
 	if (link != NULL) {
 		link->cill_descr     = *descr;
 		link->cill_fini      = cl_free_io_lock_link;
@@ -942,7 +942,7 @@ int cl_io_cancel(const struct lu_env *env, struct cl_io *io,
 	struct cl_page *page;
 	int result = 0;
 
-	CERROR("Canceling ongoing page trasmission\n");
+	CERROR("Canceling ongoing page transmission\n");
 	cl_page_list_for_each(page, queue) {
 		int rc;
 
@@ -1387,9 +1387,9 @@ static void cl_req_free(const struct lu_env *env, struct cl_req *req)
 				cl_object_put(env, obj);
 			}
 		}
-		OBD_FREE(req->crq_o, req->crq_nrobjs * sizeof(req->crq_o[0]));
+		kfree(req->crq_o);
 	}
-	OBD_FREE_PTR(req);
+	kfree(req);
 }
 
 static int cl_req_init(const struct lu_env *env, struct cl_req *req,
@@ -1448,16 +1448,18 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 
 	LINVRNT(nr_objects > 0);
 
-	OBD_ALLOC_PTR(req);
+	req = kzalloc(sizeof(*req), GFP_NOFS);
 	if (req != NULL) {
 		int result;
 
-		OBD_ALLOC(req->crq_o, nr_objects * sizeof(req->crq_o[0]));
+		req->crq_type = crt;
+		INIT_LIST_HEAD(&req->crq_pages);
+		INIT_LIST_HEAD(&req->crq_layers);
+
+		req->crq_o = kcalloc(nr_objects, sizeof(req->crq_o[0]),
+				     GFP_NOFS);
 		if (req->crq_o != NULL) {
 			req->crq_nrobjs = nr_objects;
-			req->crq_type = crt;
-			INIT_LIST_HEAD(&req->crq_pages);
-			INIT_LIST_HEAD(&req->crq_layers);
 			result = cl_req_init(env, req, page);
 		} else
 			result = -ENOMEM;
@@ -1559,7 +1561,7 @@ EXPORT_SYMBOL(cl_req_prep);
  * for the same request.
  */
 void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
-		     struct cl_req_attr *attr, obd_valid flags)
+		     struct cl_req_attr *attr, u64 flags)
 {
 	const struct cl_req_slice *slice;
 	struct cl_page	    *page;
@@ -1621,8 +1623,7 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_io *io,
 			  atomic_read(&anchor->csi_sync_nr) == 0,
 			  &lwi);
 	if (rc < 0) {
-		CERROR("SYNC IO failed with error: %d, try to cancel "
-		       "%d remaining pages\n",
+		CERROR("SYNC IO failed with error: %d, try to cancel %d remaining pages\n",
 		       rc, atomic_read(&anchor->csi_sync_nr));
 
 		(void)cl_io_cancel(env, io, queue);

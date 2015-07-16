@@ -113,7 +113,7 @@ int cx25840_loadfw(struct i2c_client *client)
 	const u8 *ptr;
 	const char *fwname = get_fw_name(client);
 	int size, retval;
-	int MAX_BUF_SIZE = FWSEND;
+	int max_buf_size = FWSEND;
 	u32 gpio_oe = 0, gpio_da = 0;
 
 	if (is_cx2388x(state)) {
@@ -122,10 +122,9 @@ int cx25840_loadfw(struct i2c_client *client)
 		gpio_da = cx25840_read(client, 0x164);
 	}
 
-	if (is_cx231xx(state) && MAX_BUF_SIZE > 16) {
-		v4l_err(client, " Firmware download size changed to 16 bytes max length\n");
-		MAX_BUF_SIZE = 16;  /* cx231xx cannot accept more than 16 bytes at a time */
-	}
+	/* cx231xx cannot accept more than 16 bytes at a time */
+	if (is_cx231xx(state) && max_buf_size > 16)
+		max_buf_size = 16;
 
 	if (request_firmware(&fw, fwname, FWDEV(client)) != 0) {
 		v4l_err(client, "unable to open firmware %s\n", fwname);
@@ -140,7 +139,7 @@ int cx25840_loadfw(struct i2c_client *client)
 	size = fw->size;
 	ptr = fw->data;
 	while (size > 0) {
-		int len = min(MAX_BUF_SIZE - 2, size);
+		int len = min(max_buf_size - 2, size);
 
 		memcpy(buffer + 2, ptr, len);
 

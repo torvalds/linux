@@ -53,7 +53,7 @@ static int ad7606_par_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	void __iomem *addr;
 	resource_size_t remap_size;
-	int ret, irq;
+	int irq;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -62,55 +62,30 @@ static int ad7606_par_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
+	addr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(addr))
+		return PTR_ERR(addr);
 
 	remap_size = resource_size(res);
-
-	/* Request the regions */
-	if (!request_mem_region(res->start, remap_size, "iio-ad7606")) {
-		ret = -EBUSY;
-		goto out1;
-	}
-	addr = ioremap(res->start, remap_size);
-	if (!addr) {
-		ret = -ENOMEM;
-		goto out1;
-	}
 
 	indio_dev = ad7606_probe(&pdev->dev, irq, addr,
 			  platform_get_device_id(pdev)->driver_data,
 			  remap_size > 1 ? &ad7606_par16_bops :
 			  &ad7606_par8_bops);
 
-	if (IS_ERR(indio_dev))  {
-		ret = PTR_ERR(indio_dev);
-		goto out2;
-	}
+	if (IS_ERR(indio_dev))
+		return PTR_ERR(indio_dev);
 
 	platform_set_drvdata(pdev, indio_dev);
 
 	return 0;
-
-out2:
-	iounmap(addr);
-out1:
-	release_mem_region(res->start, remap_size);
-
-	return ret;
 }
 
 static int ad7606_par_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct resource *res;
-	struct ad7606_state *st = iio_priv(indio_dev);
 
 	ad7606_remove(indio_dev, platform_get_irq(pdev, 0));
-
-	iounmap(st->base_address);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }
@@ -144,7 +119,7 @@ static const struct dev_pm_ops ad7606_pm_ops = {
 #define AD7606_PAR_PM_OPS NULL
 #endif  /* CONFIG_PM */
 
-static struct platform_device_id ad7606_driver_ids[] = {
+static const struct platform_device_id ad7606_driver_ids[] = {
 	{
 		.name		= "ad7606-8",
 		.driver_data	= ID_AD7606_8,
@@ -166,7 +141,6 @@ static struct platform_driver ad7606_driver = {
 	.id_table = ad7606_driver_ids,
 	.driver = {
 		.name	 = "ad7606",
-		.owner	= THIS_MODULE,
 		.pm    = AD7606_PAR_PM_OPS,
 	},
 };

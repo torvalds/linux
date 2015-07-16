@@ -36,7 +36,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -78,7 +77,7 @@ static bool acard_ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
 static int acard_ahci_port_start(struct ata_port *ap);
 static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int acard_ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int acard_ahci_pci_device_resume(struct pci_dev *pdev);
 #endif
@@ -119,13 +118,13 @@ static struct pci_driver acard_ahci_pci_driver = {
 	.id_table		= acard_ahci_pci_tbl,
 	.probe			= acard_ahci_init_one,
 	.remove			= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= acard_ahci_pci_device_suspend,
 	.resume			= acard_ahci_pci_device_resume,
 #endif
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int acard_ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	struct ata_host *host = pci_get_drvdata(pdev);
@@ -182,10 +181,10 @@ static int acard_ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 	int rc;
 
 	if (using_dac &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	    !dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 		if (rc) {
-			rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+			rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 			if (rc) {
 				dev_err(&pdev->dev,
 					   "64-bit DMA enable failed\n");
@@ -193,12 +192,12 @@ static int acard_ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 			}
 		}
 	} else {
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_err(&pdev->dev, "32-bit DMA enable failed\n");
 			return rc;
 		}
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_err(&pdev->dev,
 				"32-bit consistent DMA enable failed\n");
@@ -434,6 +433,8 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
 		return -ENOMEM;
+
+	hpriv->irq = pdev->irq;
 	hpriv->flags |= (unsigned long)pi.private_data;
 
 	if (!(hpriv->flags & AHCI_HFLAG_NO_MSI))
@@ -442,7 +443,7 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 	hpriv->mmio = pcim_iomap_table(pdev)[AHCI_PCI_BAR];
 
 	/* save initial config */
-	ahci_save_initial_config(&pdev->dev, hpriv, 0, 0);
+	ahci_save_initial_config(&pdev->dev, hpriv);
 
 	/* prepare host */
 	if (hpriv->cap & HOST_CAP_NCQ)
@@ -499,8 +500,7 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 	acard_ahci_pci_print_info(host);
 
 	pci_set_master(pdev);
-	return ata_host_activate(host, pdev->irq, ahci_interrupt, IRQF_SHARED,
-				 &acard_ahci_sht);
+	return ahci_host_activate(host, &acard_ahci_sht);
 }
 
 module_pci_driver(acard_ahci_pci_driver);

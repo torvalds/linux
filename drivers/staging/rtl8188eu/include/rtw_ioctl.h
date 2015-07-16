@@ -102,8 +102,6 @@ struct oid_obj_priv {
 
 #if defined(_RTW_MP_IOCTL_C_)
 static int oid_null_function(struct oid_par_priv *poid_par_priv) {
-	_func_enter_;
-	_func_exit_;
 	return NDIS_STATUS_SUCCESS;
 }
 #endif
@@ -118,7 +116,5 @@ int drv_set_info(struct  net_device *MiniportAdapterContext,
 		 NDIS_OID oid, void *informationbuffer,
 		 u32 informationbufferlength, u32 *bytesread,
 		 u32 *bytesneeded);
-
-extern int ui_pid[3];
 
 #endif /*  #ifndef __INC_CEINFO_ */

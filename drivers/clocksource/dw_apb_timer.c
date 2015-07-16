@@ -117,7 +117,8 @@ static void apbt_set_mode(enum clock_event_mode mode,
 	unsigned long period;
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
 
-	pr_debug("%s CPU %d mode=%d\n", __func__, first_cpu(*evt->cpumask),
+	pr_debug("%s CPU %d mode=%d\n", __func__,
+		 cpumask_first(evt->cpumask),
 		 mode);
 
 	switch (mode) {
@@ -243,8 +244,7 @@ dw_apb_clockevent_init(int cpu, const char *name, unsigned rating,
 	dw_ced->irqaction.dev_id	= &dw_ced->ced;
 	dw_ced->irqaction.irq		= irq;
 	dw_ced->irqaction.flags		= IRQF_TIMER | IRQF_IRQPOLL |
-					  IRQF_NOBALANCING |
-					  IRQF_DISABLED;
+					  IRQF_NOBALANCING;
 
 	dw_ced->eoi = apbt_eoi;
 	err = setup_irq(irq, &dw_ced->irqaction);

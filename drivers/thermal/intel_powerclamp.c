@@ -119,7 +119,7 @@ exit:
 	return ret;
 }
 
-static struct kernel_param_ops duration_ops = {
+static const struct kernel_param_ops duration_ops = {
 	.set = duration_set,
 	.get = param_get_int,
 };
@@ -167,7 +167,7 @@ exit_win:
 	return ret;
 }
 
-static struct kernel_param_ops window_size_ops = {
+static const struct kernel_param_ops window_size_ops = {
 	.set = window_size_set,
 	.get = param_get_int,
 };
@@ -206,42 +206,57 @@ static void find_target_mwait(void)
 
 }
 
+struct pkg_cstate_info {
+	bool skip;
+	int msr_index;
+	int cstate_id;
+};
+
+#define PKG_CSTATE_INIT(id) {				\
+		.msr_index = MSR_PKG_C##id##_RESIDENCY, \
+		.cstate_id = id				\
+			}
+
+static struct pkg_cstate_info pkg_cstates[] = {
+	PKG_CSTATE_INIT(2),
+	PKG_CSTATE_INIT(3),
+	PKG_CSTATE_INIT(6),
+	PKG_CSTATE_INIT(7),
+	PKG_CSTATE_INIT(8),
+	PKG_CSTATE_INIT(9),
+	PKG_CSTATE_INIT(10),
+	{NULL},
+};
+
+static bool has_pkg_state_counter(void)
+{
+	u64 val;
+	struct pkg_cstate_info *info = pkg_cstates;
+
+	/* check if any one of the counter msrs exists */
+	while (info->msr_index) {
+		if (!rdmsrl_safe(info->msr_index, &val))
+			return true;
+		info++;
+	}
+
+	return false;
+}
+
 static u64 pkg_state_counter(void)
 {
 	u64 val;
 	u64 count = 0;
+	struct pkg_cstate_info *info = pkg_cstates;
 
-	static bool skip_c2;
-	static bool skip_c3;
-	static bool skip_c6;
-	static bool skip_c7;
-
-	if (!skip_c2) {
-		if (!rdmsrl_safe(MSR_PKG_C2_RESIDENCY, &val))
-			count += val;
-		else
-			skip_c2 = true;
-	}
-
-	if (!skip_c3) {
-		if (!rdmsrl_safe(MSR_PKG_C3_RESIDENCY, &val))
-			count += val;
-		else
-			skip_c3 = true;
-	}
-
-	if (!skip_c6) {
-		if (!rdmsrl_safe(MSR_PKG_C6_RESIDENCY, &val))
-			count += val;
-		else
-			skip_c6 = true;
-	}
-
-	if (!skip_c7) {
-		if (!rdmsrl_safe(MSR_PKG_C7_RESIDENCY, &val))
-			count += val;
-		else
-			skip_c7 = true;
+	while (info->msr_index) {
+		if (!info->skip) {
+			if (!rdmsrl_safe(info->msr_index, &val))
+				count += val;
+			else
+				info->skip = true;
+		}
+		info++;
 	}
 
 	return count;
@@ -426,7 +441,6 @@ static int clamp_thread(void *arg)
 		 * allowed. thus jiffies are updated properly.
 		 */
 		preempt_disable();
-		tick_nohz_idle_enter();
 		/* mwait until target jiffies is reached */
 		while (time_before(jiffies, target_jiffies)) {
 			unsigned long ecx = 1;
@@ -438,14 +452,11 @@ static int clamp_thread(void *arg)
 			 */
 			local_touch_nmi();
 			stop_critical_timings();
-			__monitor((void *)&current_thread_info()->flags, 0, 0);
-			cpu_relax(); /* allow HT sibling to run */
-			__mwait(eax, ecx);
+			mwait_idle_with_hints(eax, ecx);
 			start_critical_timings();
 			atomic_inc(&idle_wakeup_counter);
 		}
-		tick_nohz_idle_exit();
-		preempt_enable_no_resched();
+		preempt_enable();
 	}
 	del_timer_sync(&wakeup_timer);
 	clear_bit(cpunr, cpu_clamping_mask);
@@ -500,7 +511,7 @@ static int start_power_clamp(void)
 	struct task_struct *thread;
 
 	/* check if pkg cstate counter is completely 0, abort in this case */
-	if (!pkg_state_counter()) {
+	if (!has_pkg_state_counter()) {
 		pr_err("pkg cstate counter not functional, abort\n");
 		return -EINVAL;
 	}
@@ -662,7 +673,7 @@ static struct thermal_cooling_device_ops powerclamp_cooling_ops = {
 };
 
 /* runs on Nehalem and later */
-static const struct x86_cpu_id intel_powerclamp_ids[] = {
+static const struct x86_cpu_id intel_powerclamp_ids[] __initconst = {
 	{ X86_VENDOR_INTEL, 6, 0x1a},
 	{ X86_VENDOR_INTEL, 6, 0x1c},
 	{ X86_VENDOR_INTEL, 6, 0x1e},
@@ -674,17 +685,24 @@ static const struct x86_cpu_id intel_powerclamp_ids[] = {
 	{ X86_VENDOR_INTEL, 6, 0x2d},
 	{ X86_VENDOR_INTEL, 6, 0x2e},
 	{ X86_VENDOR_INTEL, 6, 0x2f},
+	{ X86_VENDOR_INTEL, 6, 0x37},
 	{ X86_VENDOR_INTEL, 6, 0x3a},
 	{ X86_VENDOR_INTEL, 6, 0x3c},
+	{ X86_VENDOR_INTEL, 6, 0x3d},
 	{ X86_VENDOR_INTEL, 6, 0x3e},
 	{ X86_VENDOR_INTEL, 6, 0x3f},
 	{ X86_VENDOR_INTEL, 6, 0x45},
 	{ X86_VENDOR_INTEL, 6, 0x46},
+	{ X86_VENDOR_INTEL, 6, 0x4c},
+	{ X86_VENDOR_INTEL, 6, 0x4d},
+	{ X86_VENDOR_INTEL, 6, 0x4f},
+	{ X86_VENDOR_INTEL, 6, 0x56},
+	{ X86_VENDOR_INTEL, 6, 0x57},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);
 
-static int powerclamp_probe(void)
+static int __init powerclamp_probe(void)
 {
 	if (!x86_match_cpu(intel_powerclamp_ids)) {
 		pr_err("Intel powerclamp does not run on family %d model %d\n",
@@ -750,7 +768,7 @@ file_error:
 	debugfs_remove_recursive(debug_dir);
 }
 
-static int powerclamp_init(void)
+static int __init powerclamp_init(void)
 {
 	int retval;
 	int bitmap_size;
@@ -799,7 +817,7 @@ exit_free:
 }
 module_init(powerclamp_init);
 
-static void powerclamp_exit(void)
+static void __exit powerclamp_exit(void)
 {
 	unregister_hotcpu_notifier(&powerclamp_cpu_notifier);
 	end_power_clamp();

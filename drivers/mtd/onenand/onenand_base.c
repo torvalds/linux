@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -1744,7 +1743,6 @@ static int onenand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct onenand_chip *this = mtd->priv;
 	int column, subpage;
 	int written = 0;
-	int ret = 0;
 
 	if (this->state == FL_PM_SUSPENDED)
 		return -EBUSY;
@@ -1787,15 +1785,10 @@ static int onenand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 		onenand_panic_wait(mtd);
 
 		/* In partial page write we don't update bufferram */
-		onenand_update_bufferram(mtd, to, !ret && !subpage);
+		onenand_update_bufferram(mtd, to, !subpage);
 		if (ONENAND_IS_2PLANE(this)) {
 			ONENAND_SET_BUFFERRAM1(this);
-			onenand_update_bufferram(mtd, to + this->writesize, !ret && !subpage);
-		}
-
-		if (ret) {
-			printk(KERN_ERR "%s: write failed %d\n", __func__, ret);
-			break;
+			onenand_update_bufferram(mtd, to + this->writesize, !subpage);
 		}
 
 		written += thislen;
@@ -1809,7 +1802,7 @@ static int onenand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 	*retlen = written;
-	return ret;
+	return 0;
 }
 
 /**
@@ -3238,20 +3231,17 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 /**
  * onenand_get_fact_prot_info - [MTD Interface] Read factory OTP info
  * @param mtd		MTD device structure
- * @param buf		the databuffer to put/get data
  * @param len		number of bytes to read
+ * @param retlen	pointer to variable to store the number of read bytes
+ * @param buf		the databuffer to put/get data
  *
  * Read factory OTP info.
  */
-static int onenand_get_fact_prot_info(struct mtd_info *mtd,
-			struct otp_info *buf, size_t len)
+static int onenand_get_fact_prot_info(struct mtd_info *mtd, size_t len,
+				      size_t *retlen, struct otp_info *buf)
 {
-	size_t retlen;
-	int ret;
-
-	ret = onenand_otp_walk(mtd, 0, len, &retlen, (u_char *) buf, NULL, MTD_OTP_FACTORY);
-
-	return ret ? : retlen;
+	return onenand_otp_walk(mtd, 0, len, retlen, (u_char *) buf, NULL,
+				MTD_OTP_FACTORY);
 }
 
 /**
@@ -3273,20 +3263,17 @@ static int onenand_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
 /**
  * onenand_get_user_prot_info - [MTD Interface] Read user OTP info
  * @param mtd		MTD device structure
- * @param buf		the databuffer to put/get data
+ * @param retlen	pointer to variable to store the number of read bytes
  * @param len		number of bytes to read
+ * @param buf		the databuffer to put/get data
  *
  * Read user OTP info.
  */
-static int onenand_get_user_prot_info(struct mtd_info *mtd,
-			struct otp_info *buf, size_t len)
+static int onenand_get_user_prot_info(struct mtd_info *mtd, size_t len,
+				      size_t *retlen, struct otp_info *buf)
 {
-	size_t retlen;
-	int ret;
-
-	ret = onenand_otp_walk(mtd, 0, len, &retlen, (u_char *) buf, NULL, MTD_OTP_USER);
-
-	return ret ? : retlen;
+	return onenand_otp_walk(mtd, 0, len, retlen, (u_char *) buf, NULL,
+				MTD_OTP_USER);
 }
 
 /**
@@ -3995,11 +3982,8 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	/* Allocate buffers, if necessary */
 	if (!this->page_buf) {
 		this->page_buf = kzalloc(mtd->writesize, GFP_KERNEL);
-		if (!this->page_buf) {
-			printk(KERN_ERR "%s: Can't allocate page_buf\n",
-				__func__);
+		if (!this->page_buf)
 			return -ENOMEM;
-		}
 #ifdef CONFIG_MTD_ONENAND_VERIFY_WRITE
 		this->verify_buf = kzalloc(mtd->writesize, GFP_KERNEL);
 		if (!this->verify_buf) {
@@ -4012,8 +3996,6 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	if (!this->oob_buf) {
 		this->oob_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
 		if (!this->oob_buf) {
-			printk(KERN_ERR "%s: Can't allocate oob_buf\n",
-				__func__);
 			if (this->options & ONENAND_PAGEBUF_ALLOC) {
 				this->options &= ~ONENAND_PAGEBUF_ALLOC;
 				kfree(this->page_buf);

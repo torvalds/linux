@@ -119,10 +119,11 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 	int err = 0;
 	long vm_wait = 0;
 	long current_timeo = *timeo_p;
+	bool noblock = (*timeo_p ? false : true);
 	DEFINE_WAIT(wait);
 
 	if (sk_stream_memory_free(sk))
-		current_timeo = vm_wait = (net_random() % (HZ / 5)) + 2;
+		current_timeo = vm_wait = (prandom_u32() % (HZ / 5)) + 2;
 
 	while (1) {
 		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
@@ -131,8 +132,11 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 
 		if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
 			goto do_error;
-		if (!*timeo_p)
+		if (!*timeo_p) {
+			if (noblock)
+				set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 			goto do_nonblock;
+		}
 		if (signal_pending(current))
 			goto do_interrupted;
 		clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);

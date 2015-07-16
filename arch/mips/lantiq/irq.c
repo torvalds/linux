@@ -61,7 +61,7 @@
 /* we have a cascade of 8 irqs */
 #define MIPS_CPU_IRQ_CASCADE		8
 
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
+#ifdef CONFIG_MIPS_MT_SMP
 int gic_present;
 #endif
 
@@ -70,6 +70,7 @@ static struct resource ltq_eiu_irq[MAX_EIU];
 static void __iomem *ltq_icu_membase[MAX_IM];
 static void __iomem *ltq_eiu_membase;
 static struct irq_domain *ltq_domain;
+static int ltq_perfcount_irq;
 
 int ltq_eiu_get_irq(int exin)
 {
@@ -378,30 +379,6 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 			panic("Failed to remap icu memory");
 	}
 
-	/* the external interrupts are optional and xway only */
-	eiu_node = of_find_compatible_node(NULL, NULL, "lantiq,eiu-xway");
-	if (eiu_node && !of_address_to_resource(eiu_node, 0, &res)) {
-		/* find out how many external irq sources we have */
-		exin_avail = of_irq_count(eiu_node);
-
-		if (exin_avail > MAX_EIU)
-			exin_avail = MAX_EIU;
-
-		ret = of_irq_to_resource_table(eiu_node,
-						ltq_eiu_irq, exin_avail);
-		if (ret != exin_avail)
-			panic("failed to load external irq resources");
-
-		if (request_mem_region(res.start, resource_size(&res),
-							res.name) < 0)
-			pr_err("Failed to request eiu memory");
-
-		ltq_eiu_membase = ioremap_nocache(res.start,
-							resource_size(&res));
-		if (!ltq_eiu_membase)
-			panic("Failed to remap eiu memory");
-	}
-
 	/* turn off all irqs by default */
 	for (i = 0; i < MAX_IM; i++) {
 		/* make sure all irqs are turned off by default */
@@ -440,7 +417,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	arch_init_ipiirq(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ, &irq_call);
 #endif
 
-#if !defined(CONFIG_MIPS_MT_SMP) && !defined(CONFIG_MIPS_MT_SMTC)
+#ifndef CONFIG_MIPS_MT_SMP
 	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 |
 		IE_IRQ3 | IE_IRQ4 | IE_IRQ5);
 #else
@@ -449,7 +426,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 #endif
 
 	/* tell oprofile which irq to use */
-	cp0_perfcount_irq = irq_create_mapping(ltq_domain, LTQ_PERF_IRQ);
+	ltq_perfcount_irq = irq_create_mapping(ltq_domain, LTQ_PERF_IRQ);
 
 	/*
 	 * if the timer irq is not one of the mips irqs we need to
@@ -458,7 +435,36 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	if (MIPS_CPU_TIMER_IRQ != 7)
 		irq_create_mapping(ltq_domain, MIPS_CPU_TIMER_IRQ);
 
+	/* the external interrupts are optional and xway only */
+	eiu_node = of_find_compatible_node(NULL, NULL, "lantiq,eiu-xway");
+	if (eiu_node && !of_address_to_resource(eiu_node, 0, &res)) {
+		/* find out how many external irq sources we have */
+		exin_avail = of_irq_count(eiu_node);
+
+		if (exin_avail > MAX_EIU)
+			exin_avail = MAX_EIU;
+
+		ret = of_irq_to_resource_table(eiu_node,
+						ltq_eiu_irq, exin_avail);
+		if (ret != exin_avail)
+			panic("failed to load external irq resources");
+
+		if (request_mem_region(res.start, resource_size(&res),
+							res.name) < 0)
+			pr_err("Failed to request eiu memory");
+
+		ltq_eiu_membase = ioremap_nocache(res.start,
+							resource_size(&res));
+		if (!ltq_eiu_membase)
+			panic("Failed to remap eiu memory");
+	}
+
 	return 0;
+}
+
+int get_c0_perfcount_int(void)
+{
+	return ltq_perfcount_irq;
 }
 
 unsigned int get_c0_compare_int(void)

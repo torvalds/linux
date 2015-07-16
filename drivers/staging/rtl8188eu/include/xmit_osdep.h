@@ -32,10 +32,6 @@ struct pkt_file {
 	size_t buf_len;
 };
 
-extern int rtw_ht_enable;
-extern int rtw_cbw40_enable;
-extern int rtw_ampdu_enable;/* for enable tx_ampdu */
-
 #define NR_XMITFRAME	256
 
 struct xmit_priv;
@@ -52,8 +48,6 @@ int rtw_os_xmit_resource_alloc(struct adapter *padapter,
 			       struct xmit_buf *pxmitbuf, u32 alloc_sz);
 void rtw_os_xmit_resource_free(struct adapter *padapter,
 			       struct xmit_buf *pxmitbuf, u32 free_sz);
-
-void rtw_set_tx_chksum_offload(struct sk_buff *pkt, struct pkt_attrib *pattrib);
 
 uint rtw_remainder_len(struct pkt_file *pfile);
 void _rtw_open_pktfile(struct sk_buff *pkt, struct pkt_file *pfile);

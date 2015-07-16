@@ -415,7 +415,7 @@ static int tz1090_pdc_pinctrl_dt_subnode_to_map(struct device *dev,
 		function = NULL;
 	}
 
-	ret = pinconf_generic_parse_dt_config(np, &configs, &num_configs);
+	ret = pinconf_generic_parse_dt_config(np, NULL, &configs, &num_configs);
 	if (ret)
 		return ret;
 
@@ -547,8 +547,9 @@ static void tz1090_pdc_pinctrl_mux(struct tz1090_pdc_pmx *pmx,
 	__global_unlock2(flags);
 }
 
-static int tz1090_pdc_pinctrl_enable(struct pinctrl_dev *pctldev,
-				     unsigned int function, unsigned int group)
+static int tz1090_pdc_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+				      unsigned int function,
+				      unsigned int group)
 {
 	struct tz1090_pdc_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const struct tz1090_pdc_pingroup *grp = &tz1090_pdc_groups[group];
@@ -572,33 +573,6 @@ static int tz1090_pdc_pinctrl_enable(struct pinctrl_dev *pctldev,
 	tz1090_pdc_pinctrl_mux(pmx, grp);
 	spin_unlock(&pmx->lock);
 	return 0;
-}
-
-static void tz1090_pdc_pinctrl_disable(struct pinctrl_dev *pctldev,
-				       unsigned int function,
-				       unsigned int group)
-{
-	struct tz1090_pdc_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	const struct tz1090_pdc_pingroup *grp = &tz1090_pdc_groups[group];
-
-	dev_dbg(pctldev->dev, "%s(func=%u (%s), group=%u (%s))\n",
-		__func__,
-		function, tz1090_pdc_functions[function].name,
-		group, tz1090_pdc_groups[group].name);
-
-	/* is it even a mux? */
-	if (grp->drv)
-		return;
-
-	/* does this group even control the function? */
-	if (function != grp->func)
-		return;
-
-	/* record the pin being unmuxed and update mux bit */
-	spin_lock(&pmx->lock);
-	pmx->mux_en &= ~BIT(grp->pins[0]);
-	tz1090_pdc_pinctrl_mux(pmx, grp);
-	spin_unlock(&pmx->lock);
 }
 
 static const struct tz1090_pdc_pingroup *find_mux_group(
@@ -661,8 +635,7 @@ static struct pinmux_ops tz1090_pdc_pinmux_ops = {
 	.get_functions_count	= tz1090_pdc_pinctrl_get_funcs_count,
 	.get_function_name	= tz1090_pdc_pinctrl_get_func_name,
 	.get_function_groups	= tz1090_pdc_pinctrl_get_func_groups,
-	.enable			= tz1090_pdc_pinctrl_enable,
-	.disable		= tz1090_pdc_pinctrl_disable,
+	.set_mux		= tz1090_pdc_pinctrl_set_mux,
 	.gpio_request_enable	= tz1090_pdc_pinctrl_gpio_request_enable,
 	.gpio_disable_free	= tz1090_pdc_pinctrl_gpio_disable_free,
 };
@@ -975,9 +948,9 @@ static int tz1090_pdc_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pmx->regs);
 
 	pmx->pctl = pinctrl_register(&tz1090_pdc_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
 
 	platform_set_drvdata(pdev, pmx);
@@ -996,7 +969,7 @@ static int tz1090_pdc_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tz1090_pdc_pinctrl_of_match[] = {
+static const struct of_device_id tz1090_pdc_pinctrl_of_match[] = {
 	{ .compatible = "img,tz1090-pdc-pinctrl", },
 	{ },
 };
@@ -1004,7 +977,6 @@ static struct of_device_id tz1090_pdc_pinctrl_of_match[] = {
 static struct platform_driver tz1090_pdc_pinctrl_driver = {
 	.driver = {
 		.name		= "tz1090-pdc-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= tz1090_pdc_pinctrl_of_match,
 	},
 	.probe	= tz1090_pdc_pinctrl_probe,

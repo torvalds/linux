@@ -253,7 +253,7 @@ static void v253_close(struct tty_struct *tty)
 	/* Prevent the codec driver from further accessing the modem */
 	codec->hw_write = NULL;
 	cx20442->control_data = NULL;
-	codec->card->pop_time = 0;
+	codec->component.card->pop_time = 0;
 }
 
 /* Line discipline .hangup() */
@@ -281,7 +281,7 @@ static void v253_receive(struct tty_struct *tty,
 		/* Set up codec driver access to modem controls */
 		cx20442->control_data = tty;
 		codec->hw_write = (hw_write_t)tty->ops->write;
-		codec->card->pop_time = 1;
+		codec->component.card->pop_time = 1;
 	}
 }
 
@@ -333,7 +333,7 @@ static int cx20442_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (codec->dapm.bias_level != SND_SOC_BIAS_STANDBY)
+		if (snd_soc_codec_get_bias_level(codec) != SND_SOC_BIAS_STANDBY)
 			break;
 		if (IS_ERR(cx20442->por))
 			err = PTR_ERR(cx20442->por);
@@ -341,7 +341,7 @@ static int cx20442_set_bias_level(struct snd_soc_codec *codec,
 			err = regulator_enable(cx20442->por);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level != SND_SOC_BIAS_PREPARE)
+		if (snd_soc_codec_get_bias_level(codec) != SND_SOC_BIAS_PREPARE)
 			break;
 		if (IS_ERR(cx20442->por))
 			err = PTR_ERR(cx20442->por);
@@ -351,8 +351,6 @@ static int cx20442_set_bias_level(struct snd_soc_codec *codec,
 	default:
 		break;
 	}
-	if (!err)
-		codec->dapm.bias_level = level;
 
 	return err;
 }
@@ -372,7 +370,7 @@ static int cx20442_codec_probe(struct snd_soc_codec *codec)
 
 	snd_soc_codec_set_drvdata(codec, cx20442);
 	codec->hw_write = NULL;
-	codec->card->pop_time = 0;
+	codec->component.card->pop_time = 0;
 
 	return 0;
 }
@@ -383,8 +381,8 @@ static int cx20442_codec_remove(struct snd_soc_codec *codec)
 	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
 
 	if (cx20442->control_data) {
-			struct tty_struct *tty = cx20442->control_data;
-			tty_hangup(tty);
+		struct tty_struct *tty = cx20442->control_data;
+		tty_hangup(tty);
 	}
 
 	if (!IS_ERR(cx20442->por)) {
@@ -420,7 +418,7 @@ static int cx20442_platform_probe(struct platform_device *pdev)
 			&cx20442_codec_dev, &cx20442_dai, 1);
 }
 
-static int __exit cx20442_platform_remove(struct platform_device *pdev)
+static int cx20442_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -429,10 +427,9 @@ static int __exit cx20442_platform_remove(struct platform_device *pdev)
 static struct platform_driver cx20442_platform_driver = {
 	.driver = {
 		.name = "cx20442-codec",
-		.owner = THIS_MODULE,
 		},
 	.probe = cx20442_platform_probe,
-	.remove = __exit_p(cx20442_platform_remove),
+	.remove = cx20442_platform_remove,
 };
 
 module_platform_driver(cx20442_platform_driver);

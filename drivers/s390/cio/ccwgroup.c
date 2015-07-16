@@ -128,14 +128,14 @@ static ssize_t ccwgroup_online_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
-	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(dev->driver);
 	unsigned long value;
 	int ret;
 
-	if (!dev->driver)
-		return -EINVAL;
-	if (!try_module_get(gdrv->driver.owner))
-		return -EINVAL;
+	device_lock(dev);
+	if (!dev->driver) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = kstrtoul(buf, 0, &value);
 	if (ret)
@@ -148,7 +148,7 @@ static ssize_t ccwgroup_online_store(struct device *dev,
 	else
 		ret = -EINVAL;
 out:
-	module_put(gdrv->driver.owner);
+	device_unlock(dev);
 	return (ret == 0) ? count : ret;
 }
 
@@ -168,14 +168,12 @@ static ssize_t ccwgroup_online_show(struct device *dev,
  * Provide an 'ungroup' attribute so the user can remove group devices no
  * longer needed or accidentially created. Saves memory :)
  */
-static void ccwgroup_ungroup_callback(struct device *dev)
+static void ccwgroup_ungroup(struct ccwgroup_device *gdev)
 {
-	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
-
 	mutex_lock(&gdev->reg_mutex);
 	if (device_is_registered(&gdev->dev)) {
 		__ccwgroup_remove_symlinks(gdev);
-		device_unregister(dev);
+		device_unregister(&gdev->dev);
 		__ccwgroup_remove_cdev_refs(gdev);
 	}
 	mutex_unlock(&gdev->reg_mutex);
@@ -186,7 +184,7 @@ static ssize_t ccwgroup_ungroup_store(struct device *dev,
 				      const char *buf, size_t count)
 {
 	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
-	int rc;
+	int rc = 0;
 
 	/* Prevent concurrent online/offline processing and ungrouping. */
 	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
@@ -195,15 +193,15 @@ static ssize_t ccwgroup_ungroup_store(struct device *dev,
 		rc = -EINVAL;
 		goto out;
 	}
-	/* Note that we cannot unregister the device from one of its
-	 * attribute methods, so we have to use this roundabout approach.
-	 */
-	rc = device_schedule_callback(dev, ccwgroup_ungroup_callback);
+
+	if (device_remove_file_self(dev, attr))
+		ccwgroup_ungroup(gdev);
+	else
+		rc = -ENODEV;
 out:
 	if (rc) {
-		if (rc != -EAGAIN)
-			/* Release onoff "lock" when ungrouping failed. */
-			atomic_set(&gdev->onoff, 0);
+		/* Release onoff "lock" when ungrouping failed. */
+		atomic_set(&gdev->onoff, 0);
 		return rc;
 	}
 	return count;
@@ -223,6 +221,15 @@ static const struct attribute_group *ccwgroup_attr_groups[] = {
 	&ccwgroup_attr_group,
 	NULL,
 };
+
+static void ccwgroup_ungroup_workfn(struct work_struct *work)
+{
+	struct ccwgroup_device *gdev =
+		container_of(work, struct ccwgroup_device, ungroup_work);
+
+	ccwgroup_ungroup(gdev);
+	put_device(&gdev->dev);
+}
 
 static void ccwgroup_release(struct device *dev)
 {
@@ -323,6 +330,7 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 	atomic_set(&gdev->onoff, 0);
 	mutex_init(&gdev->reg_mutex);
 	mutex_lock(&gdev->reg_mutex);
+	INIT_WORK(&gdev->ungroup_work, ccwgroup_ungroup_workfn);
 	gdev->count = num_devices;
 	gdev->dev.bus = &ccwgroup_bus_type;
 	gdev->dev.parent = parent;
@@ -404,10 +412,12 @@ EXPORT_SYMBOL(ccwgroup_create_dev);
 static int ccwgroup_notifier(struct notifier_block *nb, unsigned long action,
 			     void *data)
 {
-	struct device *dev = data;
+	struct ccwgroup_device *gdev = to_ccwgroupdev(data);
 
-	if (action == BUS_NOTIFY_UNBIND_DRIVER)
-		device_schedule_callback(dev, ccwgroup_ungroup_callback);
+	if (action == BUS_NOTIFY_UNBIND_DRIVER) {
+		get_device(&gdev->dev);
+		schedule_work(&gdev->ungroup_work);
+	}
 
 	return NOTIFY_OK;
 }
@@ -576,11 +586,7 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 					 __ccwgroup_match_all))) {
 		struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
 
-		mutex_lock(&gdev->reg_mutex);
-		__ccwgroup_remove_symlinks(gdev);
-		device_unregister(dev);
-		__ccwgroup_remove_cdev_refs(gdev);
-		mutex_unlock(&gdev->reg_mutex);
+		ccwgroup_ungroup(gdev);
 		put_device(dev);
 	}
 	driver_unregister(&cdriver->driver);
@@ -627,13 +633,7 @@ void ccwgroup_remove_ccwdev(struct ccw_device *cdev)
 	get_device(&gdev->dev);
 	spin_unlock_irq(cdev->ccwlock);
 	/* Unregister group device. */
-	mutex_lock(&gdev->reg_mutex);
-	if (device_is_registered(&gdev->dev)) {
-		__ccwgroup_remove_symlinks(gdev);
-		device_unregister(&gdev->dev);
-		__ccwgroup_remove_cdev_refs(gdev);
-	}
-	mutex_unlock(&gdev->reg_mutex);
+	ccwgroup_ungroup(gdev);
 	/* Release ccwgroup device reference for local processing. */
 	put_device(&gdev->dev);
 }

@@ -10,6 +10,7 @@
 #define _ASM_S390_TIMEX_H
 
 #include <asm/lowcore.h>
+#include <linux/time64.h>
 
 /* The value of the TOD clock for 1.1.1970. */
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
@@ -67,20 +68,22 @@ static inline void local_tick_enable(unsigned long long comp)
 	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
-#define CLOCK_TICK_RATE	1193180 /* Underlying HZ */
+#define CLOCK_TICK_RATE		1193180 /* Underlying HZ */
+#define STORE_CLOCK_EXT_SIZE	16	/* stcke writes 16 bytes */
 
 typedef unsigned long long cycles_t;
 
-static inline void get_tod_clock_ext(char clk[16])
+static inline void get_tod_clock_ext(char *clk)
 {
-	typedef struct { char _[sizeof(clk)]; } addrtype;
+	typedef struct { char _[STORE_CLOCK_EXT_SIZE]; } addrtype;
 
 	asm volatile("stcke %0" : "=Q" (*(addrtype *) clk) : : "cc");
 }
 
 static inline unsigned long long get_tod_clock(void)
 {
-	unsigned char clk[16];
+	unsigned char clk[STORE_CLOCK_EXT_SIZE];
+
 	get_tod_clock_ext(clk);
 	return *((unsigned long long *)&clk[1]);
 }
@@ -106,10 +109,10 @@ int get_sync_clock(unsigned long long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
 
-void tod_to_timeval(__u64, struct timespec *);
+void tod_to_timeval(__u64 todval, struct timespec64 *xt);
 
 static inline
-void stck_to_timespec(unsigned long long stck, struct timespec *ts)
+void stck_to_timespec64(unsigned long long stck, struct timespec64 *ts)
 {
 	tod_to_timeval(stck - TOD_UNIX_EPOCH, ts);
 }

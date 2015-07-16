@@ -25,17 +25,30 @@ unsigned int oz_dbg_mask = OZ_DEFAULT_DBG_MASK;
  * netcards. Bindings can be added later using an IOCTL.
  */
 static char *g_net_dev = "";
+module_param(g_net_dev, charp, S_IRUGO);
+MODULE_PARM_DESC(g_net_dev, "The device(s) to bind to; "
+	"'*' means all, '' (empty string; default) means none.");
 
 /*
  * Context: process
  */
 static int __init ozwpan_init(void)
 {
-	oz_cdev_register();
-	oz_protocol_init(g_net_dev);
+	int err;
+
+	err = oz_cdev_register();
+	if (err)
+		return err;
+	err = oz_protocol_init(g_net_dev);
+	if (err)
+		goto err_protocol;
 	oz_app_enable(OZ_APPID_USB, 1);
 	oz_apps_init();
 	return 0;
+
+err_protocol:
+	oz_cdev_deregister();
+	return err;
 }
 
 /*
@@ -48,7 +61,6 @@ static void __exit ozwpan_exit(void)
 	oz_cdev_deregister();
 }
 
-module_param(g_net_dev, charp, S_IRUGO);
 module_init(ozwpan_init);
 module_exit(ozwpan_exit);
 

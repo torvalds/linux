@@ -53,6 +53,7 @@ struct slip {
   struct tty_struct	*tty;		/* ptr to TTY structure		*/
   struct net_device	*dev;		/* easy for intr handling	*/
   spinlock_t		lock;
+  struct work_struct	tx_work;	/* Flushes transmit buffer	*/
 
 #ifdef SL_INCLUDE_CSLIP
   struct slcompress	*slcomp;	/* for header compression 	*/

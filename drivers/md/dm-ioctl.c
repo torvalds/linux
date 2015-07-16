@@ -639,8 +639,8 @@ static int check_name(const char *name)
 
 /*
  * On successful return, the caller must not attempt to acquire
- * _hash_lock without first calling dm_table_put, because dm_table_destroy
- * waits for this dm_table_put and could be called under this lock.
+ * _hash_lock without first calling dm_put_live_table, because dm_table_destroy
+ * waits for this dm_put_live_table and could be called under this lock.
  */
 static struct dm_table *dm_get_inactive_table(struct mapped_device *md, int *srcu_idx)
 {
@@ -684,10 +684,13 @@ static void __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 	int srcu_idx;
 
 	param->flags &= ~(DM_SUSPEND_FLAG | DM_READONLY_FLAG |
-			  DM_ACTIVE_PRESENT_FLAG);
+			  DM_ACTIVE_PRESENT_FLAG | DM_INTERNAL_SUSPEND_FLAG);
 
 	if (dm_suspended_md(md))
 		param->flags |= DM_SUSPEND_FLAG;
+
+	if (dm_suspended_internally_md(md))
+		param->flags |= DM_INTERNAL_SUSPEND_FLAG;
 
 	if (dm_test_deferred_remove_flag(md))
 		param->flags |= DM_DEFERRED_REMOVE;
@@ -1295,21 +1298,22 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 		goto err_unlock_md_type;
 	}
 
-	if (dm_get_md_type(md) == DM_TYPE_NONE)
+	if (dm_get_md_type(md) == DM_TYPE_NONE) {
 		/* Initial table load: acquire type of table. */
 		dm_set_md_type(md, dm_table_get_type(t));
-	else if (dm_get_md_type(md) != dm_table_get_type(t)) {
+
+		/* setup md->queue to reflect md's type (may block) */
+		r = dm_setup_md_queue(md);
+		if (r) {
+			DMWARN("unable to set up device queue for new table.");
+			goto err_unlock_md_type;
+		}
+	} else if (dm_get_md_type(md) != dm_table_get_type(t)) {
 		DMWARN("can't change device type after initial table load.");
 		r = -EINVAL;
 		goto err_unlock_md_type;
 	}
 
-	/* setup md->queue to reflect md's type (may block) */
-	r = dm_setup_md_queue(md);
-	if (r) {
-		DMWARN("unable to set up device queue for new table.");
-		goto err_unlock_md_type;
-	}
 	dm_unlock_md_type(md);
 
 	/* stage inactive table */
@@ -1418,7 +1422,7 @@ static void retrieve_deps(struct dm_table *table,
 	deps->count = count;
 	count = 0;
 	list_for_each_entry (dd, dm_table_get_devices(table), list)
-		deps->dev[count++] = huge_encode_dev(dd->dm_dev.bdev->bd_dev);
+		deps->dev[count++] = huge_encode_dev(dd->dm_dev->bdev->bd_dev);
 
 	param->data_size = param->data_start + needed;
 }

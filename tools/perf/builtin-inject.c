@@ -16,20 +16,23 @@
 #include "util/debug.h"
 #include "util/build-id.h"
 #include "util/data.h"
+#include "util/auxtrace.h"
 
 #include "util/parse-options.h"
 
 #include <linux/list.h>
 
 struct perf_inject {
-	struct perf_tool tool;
-	bool		 build_ids;
-	bool		 sched_stat;
-	const char	 *input_name;
-	int		 pipe_output,
-			 output;
-	u64		 bytes_written;
-	struct list_head samples;
+	struct perf_tool	tool;
+	struct perf_session	*session;
+	bool			build_ids;
+	bool			sched_stat;
+	bool			have_auxtrace;
+	const char		*input_name;
+	struct perf_data_file	output;
+	u64			bytes_written;
+	struct list_head	samples;
+	struct itrace_synth_opts itrace_synth_opts;
 };
 
 struct event_entry {
@@ -38,26 +41,32 @@ struct event_entry {
 	union perf_event event[0];
 };
 
+static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
+{
+	ssize_t size;
+
+	size = perf_data_file__write(&inject->output, buf, sz);
+	if (size < 0)
+		return -errno;
+
+	inject->bytes_written += size;
+	return 0;
+}
+
 static int perf_event__repipe_synth(struct perf_tool *tool,
 				    union perf_event *event)
 {
-	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
-	uint32_t size;
-	void *buf = event;
+	struct perf_inject *inject = container_of(tool, struct perf_inject,
+						  tool);
 
-	size = event->header.size;
+	return output_bytes(inject, event, event->header.size);
+}
 
-	while (size) {
-		int ret = write(inject->output, buf, size);
-		if (ret < 0)
-			return -errno;
-
-		size -= ret;
-		buf += ret;
-		inject->bytes_written += ret;
-	}
-
-	return 0;
+static int perf_event__repipe_oe_synth(struct perf_tool *tool,
+				       union perf_event *event,
+				       struct ordered_events *oe __maybe_unused)
+{
+	return perf_event__repipe_synth(tool, event);
 }
 
 static int perf_event__repipe_op2_synth(struct perf_tool *tool,
@@ -80,11 +89,84 @@ static int perf_event__repipe_attr(struct perf_tool *tool,
 	if (ret)
 		return ret;
 
-	if (!inject->pipe_output)
+	if (!inject->output.is_pipe)
 		return 0;
 
 	return perf_event__repipe_synth(tool, event);
 }
+
+#ifdef HAVE_AUXTRACE_SUPPORT
+
+static int copy_bytes(struct perf_inject *inject, int fd, off_t size)
+{
+	char buf[4096];
+	ssize_t ssz;
+	int ret;
+
+	while (size > 0) {
+		ssz = read(fd, buf, min(size, (off_t)sizeof(buf)));
+		if (ssz < 0)
+			return -errno;
+		ret = output_bytes(inject, buf, ssz);
+		if (ret)
+			return ret;
+		size -= ssz;
+	}
+
+	return 0;
+}
+
+static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
+				       union perf_event *event,
+				       struct perf_session *session
+				       __maybe_unused)
+{
+	struct perf_inject *inject = container_of(tool, struct perf_inject,
+						  tool);
+	int ret;
+
+	inject->have_auxtrace = true;
+
+	if (!inject->output.is_pipe) {
+		off_t offset;
+
+		offset = lseek(inject->output.fd, 0, SEEK_CUR);
+		if (offset == -1)
+			return -errno;
+		ret = auxtrace_index__auxtrace_event(&session->auxtrace_index,
+						     event, offset);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (perf_data_file__is_pipe(session->file) || !session->one_mmap) {
+		ret = output_bytes(inject, event, event->header.size);
+		if (ret < 0)
+			return ret;
+		ret = copy_bytes(inject, perf_data_file__fd(session->file),
+				 event->auxtrace.size);
+	} else {
+		ret = output_bytes(inject, event,
+				   event->header.size + event->auxtrace.size);
+	}
+	if (ret < 0)
+		return ret;
+
+	return event->auxtrace.size;
+}
+
+#else
+
+static s64
+perf_event__repipe_auxtrace(struct perf_tool *tool __maybe_unused,
+			    union perf_event *event __maybe_unused,
+			    struct perf_session *session __maybe_unused)
+{
+	pr_err("AUX area tracing not supported\n");
+	return -EINVAL;
+}
+
+#endif
 
 static int perf_event__repipe(struct perf_tool *tool,
 			      union perf_event *event,
@@ -155,6 +237,32 @@ static int perf_event__repipe_fork(struct perf_tool *tool,
 	return err;
 }
 
+static int perf_event__repipe_comm(struct perf_tool *tool,
+				   union perf_event *event,
+				   struct perf_sample *sample,
+				   struct machine *machine)
+{
+	int err;
+
+	err = perf_event__process_comm(tool, event, sample, machine);
+	perf_event__repipe(tool, event, sample, machine);
+
+	return err;
+}
+
+static int perf_event__repipe_exit(struct perf_tool *tool,
+				   union perf_event *event,
+				   struct perf_sample *sample,
+				   struct machine *machine)
+{
+	int err;
+
+	err = perf_event__process_exit(tool, event, sample, machine);
+	perf_event__repipe(tool, event, sample, machine);
+
+	return err;
+}
+
 static int perf_event__repipe_tracing_data(struct perf_tool *tool,
 					   union perf_event *event,
 					   struct perf_session *session)
@@ -163,6 +271,18 @@ static int perf_event__repipe_tracing_data(struct perf_tool *tool,
 
 	perf_event__repipe_synth(tool, event);
 	err = perf_event__process_tracing_data(tool, event, session);
+
+	return err;
+}
+
+static int perf_event__repipe_id_index(struct perf_tool *tool,
+				       union perf_event *event,
+				       struct perf_session *session)
+{
+	int err;
+
+	perf_event__repipe_synth(tool, event);
+	err = perf_event__process_id_index(tool, event, session);
 
 	return err;
 }
@@ -217,15 +337,14 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 
 	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	thread = machine__findnew_thread(machine, sample->pid, sample->pid);
+	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
 	if (thread == NULL) {
 		pr_err("problem processing %d event, skipping it.\n",
 		       event->header.type);
 		goto repipe;
 	}
 
-	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
-			      sample->ip, &al);
+	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, &al);
 
 	if (al.map != NULL) {
 		if (!al.map->dso->hit) {
@@ -246,6 +365,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 		}
 	}
 
+	thread__put(thread);
 repipe:
 	perf_event__repipe(tool, event, sample, machine);
 	return 0;
@@ -320,7 +440,6 @@ found:
 	sample_sw.period = sample->period;
 	sample_sw.time	 = sample->time;
 	perf_event__synthesize_sample(event_sw, evsel->attr.sample_type,
-				      evsel->attr.sample_regs_user,
 				      evsel->attr.read_format, &sample_sw,
 				      false);
 	build_id__mark_dso_hit(tool, event_sw, &sample_sw, evsel, machine);
@@ -349,34 +468,30 @@ static int perf_evsel__check_stype(struct perf_evsel *evsel,
 
 static int __cmd_inject(struct perf_inject *inject)
 {
-	struct perf_session *session;
 	int ret = -EINVAL;
-	struct perf_data_file file = {
-		.path = inject->input_name,
-		.mode = PERF_DATA_MODE_READ,
-	};
+	struct perf_session *session = inject->session;
+	struct perf_data_file *file_out = &inject->output;
+	int fd = perf_data_file__fd(file_out);
+	u64 output_data_offset;
 
 	signal(SIGINT, sig_handler);
 
-	if (inject->build_ids || inject->sched_stat) {
+	if (inject->build_ids || inject->sched_stat ||
+	    inject->itrace_synth_opts.set) {
 		inject->tool.mmap	  = perf_event__repipe_mmap;
 		inject->tool.mmap2	  = perf_event__repipe_mmap2;
 		inject->tool.fork	  = perf_event__repipe_fork;
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 	}
 
-	session = perf_session__new(&file, true, &inject->tool);
-	if (session == NULL)
-		return -ENOMEM;
+	output_data_offset = session->header.data_offset;
 
 	if (inject->build_ids) {
 		inject->tool.sample = perf_event__inject_buildid;
 	} else if (inject->sched_stat) {
 		struct perf_evsel *evsel;
 
-		inject->tool.ordered_samples = true;
-
-		list_for_each_entry(evsel, &session->evlist->entries, node) {
+		evlist__for_each(session->evlist, evsel) {
 			const char *name = perf_evsel__name(evsel);
 
 			if (!strcmp(name, "sched:sched_switch")) {
@@ -389,19 +504,46 @@ static int __cmd_inject(struct perf_inject *inject)
 			else if (!strncmp(name, "sched:sched_stat_", 17))
 				evsel->handler = perf_inject__sched_stat;
 		}
+	} else if (inject->itrace_synth_opts.set) {
+		session->itrace_synth_opts = &inject->itrace_synth_opts;
+		inject->itrace_synth_opts.inject = true;
+		inject->tool.comm	    = perf_event__repipe_comm;
+		inject->tool.exit	    = perf_event__repipe_exit;
+		inject->tool.id_index	    = perf_event__repipe_id_index;
+		inject->tool.auxtrace_info  = perf_event__process_auxtrace_info;
+		inject->tool.auxtrace	    = perf_event__process_auxtrace;
+		inject->tool.ordered_events = true;
+		inject->tool.ordering_requires_timestamps = true;
+		/* Allow space in the header for new attributes */
+		output_data_offset = 4096;
 	}
 
-	if (!inject->pipe_output)
-		lseek(inject->output, session->header.data_offset, SEEK_SET);
+	if (!inject->itrace_synth_opts.set)
+		auxtrace_index__free(&session->auxtrace_index);
 
-	ret = perf_session__process_events(session, &inject->tool);
+	if (!file_out->is_pipe)
+		lseek(fd, output_data_offset, SEEK_SET);
 
-	if (!inject->pipe_output) {
+	ret = perf_session__process_events(session);
+
+	if (!file_out->is_pipe) {
+		if (inject->build_ids) {
+			perf_header__set_feat(&session->header,
+					      HEADER_BUILD_ID);
+			if (inject->have_auxtrace)
+				dsos__hit_all(session);
+		}
+		/*
+		 * The AUX areas have been removed and replaced with
+		 * synthesized hardware events, so clear the feature flag.
+		 */
+		if (inject->itrace_synth_opts.set)
+			perf_header__clear_feat(&session->header,
+						HEADER_AUXTRACE);
+		session->header.data_offset = output_data_offset;
 		session->header.data_size = inject->bytes_written;
-		perf_session__write_header(session, session->evlist, inject->output, true);
+		perf_session__write_header(session, session->evlist, fd, true);
 	}
-
-	perf_session__delete(session);
 
 	return ret;
 }
@@ -417,30 +559,50 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.fork		= perf_event__repipe,
 			.exit		= perf_event__repipe,
 			.lost		= perf_event__repipe,
+			.aux		= perf_event__repipe,
+			.itrace_start	= perf_event__repipe,
 			.read		= perf_event__repipe_sample,
 			.throttle	= perf_event__repipe,
 			.unthrottle	= perf_event__repipe,
 			.attr		= perf_event__repipe_attr,
 			.tracing_data	= perf_event__repipe_op2_synth,
-			.finished_round	= perf_event__repipe_op2_synth,
+			.auxtrace_info	= perf_event__repipe_op2_synth,
+			.auxtrace	= perf_event__repipe_auxtrace,
+			.auxtrace_error	= perf_event__repipe_op2_synth,
+			.finished_round	= perf_event__repipe_oe_synth,
 			.build_id	= perf_event__repipe_op2_synth,
+			.id_index	= perf_event__repipe_op2_synth,
 		},
 		.input_name  = "-",
 		.samples = LIST_HEAD_INIT(inject.samples),
+		.output = {
+			.path = "-",
+			.mode = PERF_DATA_MODE_WRITE,
+		},
 	};
-	const char *output_name = "-";
+	struct perf_data_file file = {
+		.mode = PERF_DATA_MODE_READ,
+	};
+	int ret;
+
 	const struct option options[] = {
 		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
 			    "Inject build-ids into the output stream"),
 		OPT_STRING('i', "input", &inject.input_name, "file",
 			   "input file name"),
-		OPT_STRING('o', "output", &output_name, "file",
+		OPT_STRING('o', "output", &inject.output.path, "file",
 			   "output file name"),
 		OPT_BOOLEAN('s', "sched-stat", &inject.sched_stat,
 			    "Merge sched-stat and sched-switch for getting events "
 			    "where and how long tasks slept"),
 		OPT_INCR('v', "verbose", &verbose,
 			 "be more verbose (show build ids, etc)"),
+		OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name, "file",
+			   "kallsyms pathname"),
+		OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+		OPT_CALLBACK_OPTARG(0, "itrace", &inject.itrace_synth_opts,
+				    NULL, "opts", "Instruction Tracing options",
+				    itrace_parse_synth_opts),
 		OPT_END()
 	};
 	const char * const inject_usage[] = {
@@ -456,20 +618,25 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (argc)
 		usage_with_options(inject_usage, options);
 
-	if (!strcmp(output_name, "-")) {
-		inject.pipe_output = 1;
-		inject.output = STDOUT_FILENO;
-	} else {
-		inject.output = open(output_name, O_CREAT | O_WRONLY | O_TRUNC,
-						  S_IRUSR | S_IWUSR);
-		if (inject.output < 0) {
-			perror("failed to create output file");
-			return -1;
-		}
+	if (perf_data_file__open(&inject.output)) {
+		perror("failed to create output file");
+		return -1;
 	}
 
-	if (symbol__init() < 0)
+	inject.tool.ordered_events = inject.sched_stat;
+
+	file.path = inject.input_name;
+	inject.session = perf_session__new(&file, true, &inject.tool);
+	if (inject.session == NULL)
 		return -1;
 
-	return __cmd_inject(&inject);
+	ret = symbol__init(&inject.session->header.env);
+	if (ret < 0)
+		goto out_delete;
+
+	ret = __cmd_inject(&inject);
+
+out_delete:
+	perf_session__delete(inject.session);
+	return ret;
 }

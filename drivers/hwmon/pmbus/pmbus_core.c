@@ -29,6 +29,8 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/jiffies.h>
 #include <linux/i2c/pmbus.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
 #include "pmbus.h"
 
 /*
@@ -90,7 +92,8 @@ struct pmbus_data {
 
 	u32 flags;		/* from platform data */
 
-	int exponent;		/* linear mode: exponent for output voltages */
+	int exponent[PMBUS_PAGES];
+				/* linear mode: exponent for output voltages */
 
 	const struct pmbus_driver_info *info;
 
@@ -252,6 +255,37 @@ int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg)
 }
 EXPORT_SYMBOL_GPL(pmbus_read_byte_data);
 
+int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg, u8 value)
+{
+	int rv;
+
+	rv = pmbus_set_page(client, page);
+	if (rv < 0)
+		return rv;
+
+	return i2c_smbus_write_byte_data(client, reg, value);
+}
+EXPORT_SYMBOL_GPL(pmbus_write_byte_data);
+
+int pmbus_update_byte_data(struct i2c_client *client, int page, u8 reg,
+			   u8 mask, u8 value)
+{
+	unsigned int tmp;
+	int rv;
+
+	rv = pmbus_read_byte_data(client, page, reg);
+	if (rv < 0)
+		return rv;
+
+	tmp = (rv & ~mask) | (value & mask);
+
+	if (tmp != rv)
+		rv = pmbus_write_byte_data(client, page, reg, tmp);
+
+	return rv;
+}
+EXPORT_SYMBOL_GPL(pmbus_update_byte_data);
+
 /*
  * _pmbus_read_byte_data() is similar to pmbus_read_byte_data(), but checks if
  * a device specific mapping function exists and calls it if necessary.
@@ -410,7 +444,7 @@ static long pmbus_reg2data_linear(struct pmbus_data *data,
 	long val;
 
 	if (sensor->class == PSC_VOLTAGE_OUT) {	/* LINEAR16 */
-		exponent = data->exponent;
+		exponent = data->exponent[sensor->page];
 		mantissa = (u16) sensor->data;
 	} else {				/* LINEAR11 */
 		exponent = ((s16)sensor->data) >> 11;
@@ -516,7 +550,7 @@ static long pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
 #define MIN_MANTISSA	(511 * 1000)
 
 static u16 pmbus_data2reg_linear(struct pmbus_data *data,
-				 enum pmbus_sensor_classes class, long val)
+				 struct pmbus_sensor *sensor, long val)
 {
 	s16 exponent = 0, mantissa;
 	bool negative = false;
@@ -525,7 +559,7 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 	if (val == 0)
 		return 0;
 
-	if (class == PSC_VOLTAGE_OUT) {
+	if (sensor->class == PSC_VOLTAGE_OUT) {
 		/* LINEAR16 does not support negative voltages */
 		if (val < 0)
 			return 0;
@@ -534,10 +568,10 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 		 * For a static exponents, we don't have a choice
 		 * but to adjust the value to it.
 		 */
-		if (data->exponent < 0)
-			val <<= -data->exponent;
+		if (data->exponent[sensor->page] < 0)
+			val <<= -data->exponent[sensor->page];
 		else
-			val >>= data->exponent;
+			val >>= data->exponent[sensor->page];
 		val = DIV_ROUND_CLOSEST(val, 1000);
 		return val & 0xffff;
 	}
@@ -548,14 +582,14 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 	}
 
 	/* Power is in uW. Convert to mW before converting. */
-	if (class == PSC_POWER)
+	if (sensor->class == PSC_POWER)
 		val = DIV_ROUND_CLOSEST(val, 1000L);
 
 	/*
 	 * For simplicity, convert fan data to milli-units
 	 * before calculating the exponent.
 	 */
-	if (class == PSC_FAN)
+	if (sensor->class == PSC_FAN)
 		val = val * 1000;
 
 	/* Reduce large mantissa until it fits into 10 bit */
@@ -585,22 +619,22 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 }
 
 static u16 pmbus_data2reg_direct(struct pmbus_data *data,
-				 enum pmbus_sensor_classes class, long val)
+				 struct pmbus_sensor *sensor, long val)
 {
 	long m, b, R;
 
-	m = data->info->m[class];
-	b = data->info->b[class];
-	R = data->info->R[class];
+	m = data->info->m[sensor->class];
+	b = data->info->b[sensor->class];
+	R = data->info->R[sensor->class];
 
 	/* Power is in uW. Adjust R and b. */
-	if (class == PSC_POWER) {
+	if (sensor->class == PSC_POWER) {
 		R -= 3;
 		b *= 1000;
 	}
 
 	/* Calculate Y = (m * X + b) * 10^R */
-	if (class != PSC_FAN) {
+	if (sensor->class != PSC_FAN) {
 		R -= 3;		/* Adjust R and b for data in milli-units */
 		b *= 1000;
 	}
@@ -619,7 +653,7 @@ static u16 pmbus_data2reg_direct(struct pmbus_data *data,
 }
 
 static u16 pmbus_data2reg_vid(struct pmbus_data *data,
-			      enum pmbus_sensor_classes class, long val)
+			      struct pmbus_sensor *sensor, long val)
 {
 	val = clamp_val(val, 500, 1600);
 
@@ -627,20 +661,20 @@ static u16 pmbus_data2reg_vid(struct pmbus_data *data,
 }
 
 static u16 pmbus_data2reg(struct pmbus_data *data,
-			  enum pmbus_sensor_classes class, long val)
+			  struct pmbus_sensor *sensor, long val)
 {
 	u16 regval;
 
-	switch (data->info->format[class]) {
+	switch (data->info->format[sensor->class]) {
 	case direct:
-		regval = pmbus_data2reg_direct(data, class, val);
+		regval = pmbus_data2reg_direct(data, sensor, val);
 		break;
 	case vid:
-		regval = pmbus_data2reg_vid(data, class, val);
+		regval = pmbus_data2reg_vid(data, sensor, val);
 		break;
 	case linear:
 	default:
-		regval = pmbus_data2reg_linear(data, class, val);
+		regval = pmbus_data2reg_linear(data, sensor, val);
 		break;
 	}
 	return regval;
@@ -746,7 +780,7 @@ static ssize_t pmbus_set_sensor(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
-	regval = pmbus_data2reg(data, sensor->class, val);
+	regval = pmbus_data2reg(data, sensor, val);
 	ret = _pmbus_write_word_data(client, sensor->page, sensor->reg, regval);
 	if (ret < 0)
 		rv = ret;
@@ -1643,12 +1677,13 @@ static int pmbus_find_attributes(struct i2c_client *client,
  * This function is called for all chips.
  */
 static int pmbus_identify_common(struct i2c_client *client,
-				 struct pmbus_data *data)
+				 struct pmbus_data *data, int page)
 {
 	int vout_mode = -1;
 
-	if (pmbus_check_byte_register(client, 0, PMBUS_VOUT_MODE))
-		vout_mode = _pmbus_read_byte_data(client, 0, PMBUS_VOUT_MODE);
+	if (pmbus_check_byte_register(client, page, PMBUS_VOUT_MODE))
+		vout_mode = _pmbus_read_byte_data(client, page,
+						  PMBUS_VOUT_MODE);
 	if (vout_mode >= 0 && vout_mode != 0xff) {
 		/*
 		 * Not all chips support the VOUT_MODE command,
@@ -1659,7 +1694,7 @@ static int pmbus_identify_common(struct i2c_client *client,
 			if (data->info->format[PSC_VOLTAGE_OUT] != linear)
 				return -ENODEV;
 
-			data->exponent = ((s8)(vout_mode << 3)) >> 3;
+			data->exponent[page] = ((s8)(vout_mode << 3)) >> 3;
 			break;
 		case 1: /* VID mode         */
 			if (data->info->format[PSC_VOLTAGE_OUT] != vid)
@@ -1674,7 +1709,7 @@ static int pmbus_identify_common(struct i2c_client *client,
 		}
 	}
 
-	pmbus_clear_fault_page(client, 0);
+	pmbus_clear_fault_page(client, page);
 	return 0;
 }
 
@@ -1682,7 +1717,7 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 			     struct pmbus_driver_info *info)
 {
 	struct device *dev = &client->dev;
-	int ret;
+	int page, ret;
 
 	/*
 	 * Some PMBus chips don't support PMBUS_STATUS_BYTE, so try
@@ -1715,13 +1750,93 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 		return -ENODEV;
 	}
 
-	ret = pmbus_identify_common(client, data);
-	if (ret < 0) {
-		dev_err(dev, "Failed to identify chip capabilities\n");
-		return ret;
+	for (page = 0; page < info->pages; page++) {
+		ret = pmbus_identify_common(client, data, page);
+		if (ret < 0) {
+			dev_err(dev, "Failed to identify chip capabilities\n");
+			return ret;
+		}
 	}
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_REGULATOR)
+static int pmbus_regulator_is_enabled(struct regulator_dev *rdev)
+{
+	struct device *dev = rdev_get_dev(rdev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	u8 page = rdev_get_id(rdev);
+	int ret;
+
+	ret = pmbus_read_byte_data(client, page, PMBUS_OPERATION);
+	if (ret < 0)
+		return ret;
+
+	return !!(ret & PB_OPERATION_CONTROL_ON);
+}
+
+static int _pmbus_regulator_on_off(struct regulator_dev *rdev, bool enable)
+{
+	struct device *dev = rdev_get_dev(rdev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	u8 page = rdev_get_id(rdev);
+
+	return pmbus_update_byte_data(client, page, PMBUS_OPERATION,
+				      PB_OPERATION_CONTROL_ON,
+				      enable ? PB_OPERATION_CONTROL_ON : 0);
+}
+
+static int pmbus_regulator_enable(struct regulator_dev *rdev)
+{
+	return _pmbus_regulator_on_off(rdev, 1);
+}
+
+static int pmbus_regulator_disable(struct regulator_dev *rdev)
+{
+	return _pmbus_regulator_on_off(rdev, 0);
+}
+
+struct regulator_ops pmbus_regulator_ops = {
+	.enable = pmbus_regulator_enable,
+	.disable = pmbus_regulator_disable,
+	.is_enabled = pmbus_regulator_is_enabled,
+};
+EXPORT_SYMBOL_GPL(pmbus_regulator_ops);
+
+static int pmbus_regulator_register(struct pmbus_data *data)
+{
+	struct device *dev = data->dev;
+	const struct pmbus_driver_info *info = data->info;
+	const struct pmbus_platform_data *pdata = dev_get_platdata(dev);
+	struct regulator_dev *rdev;
+	int i;
+
+	for (i = 0; i < info->num_regulators; i++) {
+		struct regulator_config config = { };
+
+		config.dev = dev;
+		config.driver_data = data;
+
+		if (pdata && pdata->reg_init_data)
+			config.init_data = &pdata->reg_init_data[i];
+
+		rdev = devm_regulator_register(dev, &info->reg_desc[i],
+					       &config);
+		if (IS_ERR(rdev)) {
+			dev_err(dev, "Failed to register %s regulator\n",
+				info->reg_desc[i].name);
+			return PTR_ERR(rdev);
+		}
+	}
+
+	return 0;
+}
+#else
+static int pmbus_regulator_register(struct pmbus_data *data)
+{
+	return 0;
+}
+#endif
 
 int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		   struct pmbus_driver_info *info)
@@ -1777,8 +1892,15 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		dev_err(dev, "Failed to register hwmon device\n");
 		goto out_kfree;
 	}
+
+	ret = pmbus_regulator_register(data);
+	if (ret)
+		goto out_unregister;
+
 	return 0;
 
+out_unregister:
+	hwmon_device_unregister(data->hwmon_dev);
 out_kfree:
 	kfree(data->group.attrs);
 	return ret;

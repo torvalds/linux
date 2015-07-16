@@ -12,7 +12,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <asm/hd64461.h>
@@ -84,7 +83,6 @@ static struct platform_driver hp6xxled_driver = {
 	.remove		= hp6xxled_remove,
 	.driver		= {
 		.name		= "hp6xx-led",
-		.owner		= THIS_MODULE,
 	},
 };
 

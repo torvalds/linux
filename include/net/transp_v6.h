@@ -32,8 +32,13 @@ void tcpv6_exit(void);
 
 int udpv6_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 
-int ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
-			  struct sk_buff *skb);
+/* this does all the common and the specific ctl work */
+void ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
+			   struct sk_buff *skb);
+void ip6_datagram_recv_common_ctl(struct sock *sk, struct msghdr *msg,
+				  struct sk_buff *skb);
+void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
+				    struct sk_buff *skb);
 
 int ip6_datagram_send_ctl(struct net *net, struct sock *sk, struct msghdr *msg,
 			  struct flowi6 *fl6, struct ipv6_txoptions *opt,

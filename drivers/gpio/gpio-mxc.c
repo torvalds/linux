@@ -131,7 +131,7 @@ static struct mxc_gpio_hwdata *mxc_gpio_hwdata;
 #define GPIO_INT_FALL_EDGE	(mxc_gpio_hwdata->fall_edge)
 #define GPIO_INT_BOTH_EDGES	0x4
 
-static struct platform_device_id mxc_gpio_devtype[] = {
+static const struct platform_device_id mxc_gpio_devtype[] = {
 	{
 		.name = "imx1-gpio",
 		.driver_data = IMX1_GPIO,
@@ -422,7 +422,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	port->irq_high = platform_get_irq(pdev, 1);
 	port->irq = platform_get_irq(pdev, 0);
 	if (port->irq < 0)
-		return -EINVAL;
+		return port->irq;
 
 	/* disable the interrupt and clear the status */
 	writel(0, port->base + GPIO_IMR);
@@ -437,20 +437,20 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 		irq_set_chained_handler(port->irq, mx2_gpio_irq_handler);
 	} else {
 		/* setup one handler for each entry */
-		irq_set_chained_handler(port->irq, mx3_gpio_irq_handler);
-		irq_set_handler_data(port->irq, port);
-		if (port->irq_high > 0) {
+		irq_set_chained_handler_and_data(port->irq,
+						 mx3_gpio_irq_handler, port);
+		if (port->irq_high > 0)
 			/* setup handler for GPIO 16 to 31 */
-			irq_set_chained_handler(port->irq_high,
-						mx3_gpio_irq_handler);
-			irq_set_handler_data(port->irq_high, port);
-		}
+			irq_set_chained_handler_and_data(port->irq_high,
+							 mx3_gpio_irq_handler,
+							 port);
 	}
 
 	err = bgpio_init(&port->bgc, &pdev->dev, 4,
 			 port->base + GPIO_PSR,
 			 port->base + GPIO_DR, NULL,
-			 port->base + GPIO_GDIR, NULL, 0);
+			 port->base + GPIO_GDIR, NULL,
+			 BGPIOF_READ_OUTPUT_REG_SET);
 	if (err)
 		goto out_bgio;
 
@@ -485,7 +485,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 out_irqdesc_free:
 	irq_free_descs(irq_base, 32);
 out_gpiochip_remove:
-	WARN_ON(gpiochip_remove(&port->bgc.gc) < 0);
+	gpiochip_remove(&port->bgc.gc);
 out_bgpio_remove:
 	bgpio_remove(&port->bgc);
 out_bgio:
@@ -496,7 +496,6 @@ out_bgio:
 static struct platform_driver mxc_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-mxc",
-		.owner	= THIS_MODULE,
 		.of_match_table = mxc_gpio_dt_ids,
 	},
 	.probe		= mxc_gpio_probe,

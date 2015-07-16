@@ -180,7 +180,10 @@ static int64_t hp_sdc_rtc_read_i8042timer (uint8_t loadcmd, int numreg)
 	if (WARN_ON(down_interruptible(&i8042tregs)))
 		return -1;
 
-	if (hp_sdc_enqueue_transaction(&t)) return -1;
+	if (hp_sdc_enqueue_transaction(&t)) {
+		up(&i8042tregs);
+		return -1;
+	}
 	
 	/* Sleep until results come back. */
 	if (WARN_ON(down_interruptible(&i8042tregs)))

@@ -14,20 +14,26 @@
 #ifdef __KERNEL__
 #include <asm/byteorder.h>
 #include <asm/page.h>
+#include <asm/vectors.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
 
 #include <linux/types.h>
 
-#define XCHAL_KIO_CACHED_VADDR	0xe0000000
-#define XCHAL_KIO_BYPASS_VADDR	0xf0000000
-#define XCHAL_KIO_PADDR		0xf0000000
-#define XCHAL_KIO_SIZE		0x10000000
-
 #define IOADDR(x)		(XCHAL_KIO_BYPASS_VADDR + (x))
 #define IO_SPACE_LIMIT ~0
 
 #ifdef CONFIG_MMU
+
+#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY && defined(CONFIG_OF)
+extern unsigned long xtensa_kio_paddr;
+
+static inline unsigned long xtensa_get_kio_paddr(void)
+{
+	return xtensa_kio_paddr;
+}
+#endif
+
 /*
  * Return the virtual address for the specified bus memory.
  * Note that we currently don't support any address outside the KIO segment.
@@ -53,6 +59,7 @@ static inline void __iomem *ioremap_cache(unsigned long offset,
 }
 
 #define ioremap_wc ioremap_nocache
+#define ioremap_wt ioremap_nocache
 
 static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {
@@ -67,13 +74,6 @@ static inline void iounmap(volatile void __iomem *addr)
 #define bus_to_virt     phys_to_virt
 
 #endif /* CONFIG_MMU */
-
-/*
- * Generic I/O
- */
-#define readb_relaxed readb
-#define readw_relaxed readw
-#define readl_relaxed readl
 
 #endif	/* __KERNEL__ */
 

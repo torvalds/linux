@@ -21,6 +21,12 @@ config RADIO_SI470X
 
 source "drivers/media/radio/si470x/Kconfig"
 
+config RADIO_SI4713
+	tristate "Silicon Labs Si4713 FM Radio with RDS Transmitter support"
+	depends on VIDEO_V4L2
+
+source "drivers/media/radio/si4713/Kconfig"
+
 config RADIO_SI476X
 	tristate "Silicon Laboratories Si476x I2C FM Radio"
 	depends on I2C && VIDEO_V4L2
@@ -113,29 +119,6 @@ config RADIO_SHARK2
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-shark2.
 
-config I2C_SI4713
-	tristate "I2C driver for Silicon Labs Si4713 device"
-	depends on I2C && VIDEO_V4L2
-	---help---
-	  Say Y here if you want support to Si4713 I2C device.
-	  This device driver supports only i2c bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called si4713.
-
-config RADIO_SI4713
-	tristate "Silicon Labs Si4713 FM Radio Transmitter support"
-	depends on I2C && VIDEO_V4L2
-	select I2C_SI4713
-	---help---
-	  Say Y here if you want support to Si4713 FM Radio Transmitter.
-	  This device can transmit audio through FM. It can transmit
-	  RDS and RBDS signals as well. This module is the v4l2 radio
-	  interface for the i2c driver of this device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-si4713.
-
 config USB_KEENE
 	tristate "Keene FM Transmitter USB support"
 	depends on USB && VIDEO_V4L2
@@ -145,6 +128,20 @@ config USB_KEENE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-keene.
+
+config USB_RAREMONO
+	tristate "Thanko's Raremono AM/FM/SW radio support"
+	depends on USB && VIDEO_V4L2
+	---help---
+	  The 'Thanko's Raremono' device contains the Si4734 chip from Silicon Labs Inc.
+	  It is one of the very few or perhaps the only consumer USB radio device
+	  to receive the AM/FM/SW bands.
+
+	  Say Y here if you want to connect this type of AM/FM/SW receiver
+	  to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-raremono.
 
 config USB_MA901
 	tristate "Masterkit MA901 USB FM radio support"

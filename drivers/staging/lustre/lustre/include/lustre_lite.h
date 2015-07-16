@@ -42,25 +42,24 @@
  * @{
  */
 
-#include <linux/lustre_lite.h>
+#include "linux/lustre_lite.h"
 
-#include <obd_class.h>
-#include <obd_ost.h>
-#include <lustre_net.h>
-#include <lustre_mds.h>
-#include <lustre_ha.h>
+#include "obd_class.h"
+#include "lustre_net.h"
+#include "lustre_mds.h"
+#include "lustre_ha.h"
 
 /* 4UL * 1024 * 1024 */
 #define LL_MAX_BLKSIZE_BITS     (22)
 #define LL_MAX_BLKSIZE	  (1UL<<LL_MAX_BLKSIZE_BITS)
 
-#include <lustre/lustre_user.h>
+#include "lustre/lustre_user.h"
 
 
 struct lustre_rw_params {
 	int		lrp_lock_mode;
 	ldlm_policy_data_t lrp_policy;
-	obd_flag	   lrp_brw_flags;
+	u32		lrp_brw_flags;
 	int		lrp_ast_flags;
 };
 

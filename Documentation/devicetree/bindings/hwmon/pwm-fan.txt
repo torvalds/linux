@@ -1,0 +1,12 @@
+Bindings for a fan connected to the PWM lines
+
+Required properties:
+- compatible	: "pwm-fan"
+- pwms		: the PWM that is used to control the PWM fan
+
+Example:
+	pwm-fan {
+		compatible = "pwm-fan";
+		status = "okay";
+		pwms = <&pwm 0 10000 0>;
+	};

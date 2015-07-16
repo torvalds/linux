@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: Channel, Frequence and Power
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -71,6 +71,95 @@ u16 region_code_index[MWIFIEX_MAX_REGION_CODE] = { 0x10, 0x20, 0x30,
 
 static u8 supported_rates_n[N_SUPPORTED_RATES] = { 0x02, 0x04, 0 };
 
+/* For every mcs_rate line, the first 8 bytes are for stream 1x1,
+ * and all 16 bytes are for stream 2x2.
+ */
+static const u16 mcs_rate[4][16] = {
+	/* LGI 40M */
+	{ 0x1b, 0x36, 0x51, 0x6c, 0xa2, 0xd8, 0xf3, 0x10e,
+	  0x36, 0x6c, 0xa2, 0xd8, 0x144, 0x1b0, 0x1e6, 0x21c },
+
+	/* SGI 40M */
+	{ 0x1e, 0x3c, 0x5a, 0x78, 0xb4, 0xf0, 0x10e, 0x12c,
+	  0x3c, 0x78, 0xb4, 0xf0, 0x168, 0x1e0, 0x21c, 0x258 },
+
+	/* LGI 20M */
+	{ 0x0d, 0x1a, 0x27, 0x34, 0x4e, 0x68, 0x75, 0x82,
+	  0x1a, 0x34, 0x4e, 0x68, 0x9c, 0xd0, 0xea, 0x104 },
+
+	/* SGI 20M */
+	{ 0x0e, 0x1c, 0x2b, 0x39, 0x56, 0x73, 0x82, 0x90,
+	  0x1c, 0x39, 0x56, 0x73, 0xad, 0xe7, 0x104, 0x120 }
+};
+
+/* AC rates */
+static const u16 ac_mcs_rate_nss1[8][10] = {
+	/* LG 160M */
+	{ 0x75, 0xEA, 0x15F, 0x1D4, 0x2BE, 0x3A8, 0x41D,
+	  0x492, 0x57C, 0x618 },
+
+	/* SG 160M */
+	{ 0x82, 0x104, 0x186, 0x208, 0x30C, 0x410, 0x492,
+	  0x514, 0x618, 0x6C6 },
+
+	/* LG 80M */
+	{ 0x3B, 0x75, 0xB0, 0xEA, 0x15F, 0x1D4, 0x20F,
+	  0x249, 0x2BE, 0x30C },
+
+	/* SG 80M */
+	{ 0x41, 0x82, 0xC3, 0x104, 0x186, 0x208, 0x249,
+	  0x28A, 0x30C, 0x363 },
+
+	/* LG 40M */
+	{ 0x1B, 0x36, 0x51, 0x6C, 0xA2, 0xD8, 0xF3,
+	  0x10E, 0x144, 0x168 },
+
+	/* SG 40M */
+	{ 0x1E, 0x3C, 0x5A, 0x78, 0xB4, 0xF0, 0x10E,
+	  0x12C, 0x168, 0x190 },
+
+	/* LG 20M */
+	{ 0xD, 0x1A, 0x27, 0x34, 0x4E, 0x68, 0x75, 0x82, 0x9C, 0x00 },
+
+	/* SG 20M */
+	{ 0xF, 0x1D, 0x2C, 0x3A, 0x57, 0x74, 0x82, 0x91, 0xAE, 0x00 },
+};
+
+/* NSS2 note: the value in the table is 2 multiplier of the actual rate */
+static const u16 ac_mcs_rate_nss2[8][10] = {
+	/* LG 160M */
+	{ 0xEA, 0x1D4, 0x2BE, 0x3A8, 0x57C, 0x750, 0x83A,
+	  0x924, 0xAF8, 0xC30 },
+
+	/* SG 160M */
+	{ 0x104, 0x208, 0x30C, 0x410, 0x618, 0x820, 0x924,
+	  0xA28, 0xC30, 0xD8B },
+
+	/* LG 80M */
+	{ 0x75, 0xEA, 0x15F, 0x1D4, 0x2BE, 0x3A8, 0x41D,
+	  0x492, 0x57C, 0x618 },
+
+	/* SG 80M */
+	{ 0x82, 0x104, 0x186, 0x208, 0x30C, 0x410, 0x492,
+	  0x514, 0x618, 0x6C6 },
+
+	/* LG 40M */
+	{ 0x36, 0x6C, 0xA2, 0xD8, 0x144, 0x1B0, 0x1E6,
+	  0x21C, 0x288, 0x2D0 },
+
+	/* SG 40M */
+	{ 0x3C, 0x78, 0xB4, 0xF0, 0x168, 0x1E0, 0x21C,
+	  0x258, 0x2D0, 0x320 },
+
+	/* LG 20M */
+	{ 0x1A, 0x34, 0x4A, 0x68, 0x9C, 0xD0, 0xEA, 0x104,
+	  0x138, 0x00 },
+
+	/* SG 20M */
+	{ 0x1D, 0x3A, 0x57, 0x74, 0xAE, 0xE6, 0x104, 0x121,
+	  0x15B, 0x00 },
+};
+
 struct region_code_mapping {
 	u8 code;
 	u8 region[IEEE80211_COUNTRY_STRING_LEN];
@@ -109,95 +198,6 @@ u8 *mwifiex_11d_code_2_region(u8 code)
 u32 mwifiex_index_to_acs_data_rate(struct mwifiex_private *priv,
 				   u8 index, u8 ht_info)
 {
-	/*
-	 * For every mcs_rate line, the first 8 bytes are for stream 1x1,
-	 * and all 16 bytes are for stream 2x2.
-	 */
-	u16  mcs_rate[4][16] = {
-		/* LGI 40M */
-		{ 0x1b, 0x36, 0x51, 0x6c, 0xa2, 0xd8, 0xf3, 0x10e,
-		  0x36, 0x6c, 0xa2, 0xd8, 0x144, 0x1b0, 0x1e6, 0x21c },
-
-		/* SGI 40M */
-		{ 0x1e, 0x3c, 0x5a, 0x78, 0xb4, 0xf0, 0x10e, 0x12c,
-		  0x3c, 0x78, 0xb4, 0xf0, 0x168, 0x1e0, 0x21c, 0x258 },
-
-		/* LGI 20M */
-		{ 0x0d, 0x1a, 0x27, 0x34, 0x4e, 0x68, 0x75, 0x82,
-		  0x1a, 0x34, 0x4e, 0x68, 0x9c, 0xd0, 0xea, 0x104 },
-
-		/* SGI 20M */
-		{ 0x0e, 0x1c, 0x2b, 0x39, 0x56, 0x73, 0x82, 0x90,
-		  0x1c, 0x39, 0x56, 0x73, 0xad, 0xe7, 0x104, 0x120 }
-	};
-	/* AC rates */
-	u16 ac_mcs_rate_nss1[8][10] = {
-		/* LG 160M */
-		{ 0x75, 0xEA, 0x15F, 0x1D4, 0x2BE, 0x3A8, 0x41D,
-		  0x492, 0x57C, 0x618 },
-
-		/* SG 160M */
-		{ 0x82, 0x104, 0x186, 0x208, 0x30C, 0x410, 0x492,
-		  0x514, 0x618, 0x6C6 },
-
-		/* LG 80M */
-		{ 0x3B, 0x75, 0xB0, 0xEA, 0x15F, 0x1D4, 0x20F,
-		  0x249, 0x2BE, 0x30C },
-
-		/* SG 80M */
-		{ 0x41, 0x82, 0xC3, 0x104, 0x186, 0x208, 0x249,
-		  0x28A, 0x30C, 0x363 },
-
-		/* LG 40M */
-		{ 0x1B, 0x36, 0x51, 0x6C, 0xA2, 0xD8, 0xF3,
-		  0x10E, 0x144, 0x168 },
-
-		/* SG 40M */
-		{ 0x1E, 0x3C, 0x5A, 0x78, 0xB4, 0xF0, 0x10E,
-		  0x12C, 0x168, 0x190 },
-
-		/* LG 20M */
-		{ 0xD, 0x1A, 0x27, 0x34, 0x4E, 0x68, 0x75, 0x82, 0x9C, 0x00 },
-
-		/* SG 20M */
-		{ 0xF, 0x1D, 0x2C, 0x3A, 0x57, 0x74, 0x82, 0x91, 0xAE, 0x00 },
-	};
-	/* NSS2 note: the value in the table is 2 multiplier of the actual
-	 * rate
-	 */
-	u16 ac_mcs_rate_nss2[8][10] = {
-		/* LG 160M */
-		{ 0xEA, 0x1D4, 0x2BE, 0x3A8, 0x57C, 0x750, 0x83A,
-		  0x924, 0xAF8, 0xC30 },
-
-		/* SG 160M */
-		{ 0x104, 0x208, 0x30C, 0x410, 0x618, 0x820, 0x924,
-		  0xA28, 0xC30, 0xD8B },
-
-		/* LG 80M */
-		{ 0x75, 0xEA, 0x15F, 0x1D4, 0x2BE, 0x3A8, 0x41D,
-		  0x492, 0x57C, 0x618 },
-
-		/* SG 80M */
-		{ 0x82, 0x104, 0x186, 0x208, 0x30C, 0x410, 0x492,
-		  0x514, 0x618, 0x6C6 },
-
-		/* LG 40M */
-		{ 0x36, 0x6C, 0xA2, 0xD8, 0x144, 0x1B0, 0x1E6,
-		  0x21C, 0x288, 0x2D0 },
-
-		/* SG 40M */
-		{ 0x3C, 0x78, 0xB4, 0xF0, 0x168, 0x1E0, 0x21C,
-		  0x258, 0x2D0, 0x320 },
-
-		/* LG 20M */
-		{ 0x1A, 0x34, 0x4A, 0x68, 0x9C, 0xD0, 0xEA, 0x104,
-		  0x138, 0x00 },
-
-		/* SG 20M */
-		{ 0x1D, 0x3A, 0x57, 0x74, 0xAE, 0xE6, 0x104, 0x121,
-		  0x15B, 0x00 },
-	};
 	u32 rate = 0;
 	u8 mcs_index = 0;
 	u8 bw = 0;
@@ -252,28 +252,8 @@ u32 mwifiex_index_to_acs_data_rate(struct mwifiex_private *priv,
 u32 mwifiex_index_to_data_rate(struct mwifiex_private *priv,
 			       u8 index, u8 ht_info)
 {
-	/* For every mcs_rate line, the first 8 bytes are for stream 1x1,
-	 * and all 16 bytes are for stream 2x2.
-	 */
-	u16  mcs_rate[4][16] = {
-		/* LGI 40M */
-		{ 0x1b, 0x36, 0x51, 0x6c, 0xa2, 0xd8, 0xf3, 0x10e,
-		  0x36, 0x6c, 0xa2, 0xd8, 0x144, 0x1b0, 0x1e6, 0x21c },
-
-		/* SGI 40M */
-		{ 0x1e, 0x3c, 0x5a, 0x78, 0xb4, 0xf0, 0x10e, 0x12c,
-		  0x3c, 0x78, 0xb4, 0xf0, 0x168, 0x1e0, 0x21c, 0x258 },
-
-		/* LGI 20M */
-		{ 0x0d, 0x1a, 0x27, 0x34, 0x4e, 0x68, 0x75, 0x82,
-		  0x1a, 0x34, 0x4e, 0x68, 0x9c, 0xd0, 0xea, 0x104 },
-
-		/* SGI 20M */
-		{ 0x0e, 0x1c, 0x2b, 0x39, 0x56, 0x73, 0x82, 0x90,
-		  0x1c, 0x39, 0x56, 0x73, 0xad, 0xe7, 0x104, 0x120 }
-	};
 	u32 mcs_num_supp =
-		(priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2) ? 16 : 8;
+		(priv->adapter->user_dev_mcs_support == HT_STREAM_2X2) ? 16 : 8;
 	u32 rate;
 
 	if (priv->adapter->is_hw_11ac_capable)
@@ -342,13 +322,14 @@ mwifiex_get_cfp(struct mwifiex_private *priv, u8 band, u16 channel, u32 freq)
 		return cfp;
 
 	if (mwifiex_band_to_radio_type(band) == HostCmd_SCAN_RADIO_TYPE_BG)
-		sband = priv->wdev->wiphy->bands[IEEE80211_BAND_2GHZ];
+		sband = priv->wdev.wiphy->bands[IEEE80211_BAND_2GHZ];
 	else
-		sband = priv->wdev->wiphy->bands[IEEE80211_BAND_5GHZ];
+		sband = priv->wdev.wiphy->bands[IEEE80211_BAND_5GHZ];
 
 	if (!sband) {
-		dev_err(priv->adapter->dev, "%s: cannot find cfp by band %d\n",
-			__func__, band);
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "%s: cannot find cfp by band %d\n",
+			    __func__, band);
 		return cfp;
 	}
 
@@ -369,9 +350,10 @@ mwifiex_get_cfp(struct mwifiex_private *priv, u8 band, u16 channel, u32 freq)
 		}
 	}
 	if (i == sband->n_channels) {
-		dev_err(priv->adapter->dev, "%s: cannot find cfp by band %d"
-			" & channel=%d freq=%d\n", __func__, band, channel,
-			freq);
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "%s: cannot find cfp by band %d\t"
+			    "& channel=%d freq=%d\n",
+			    __func__, band, channel, freq);
 	} else {
 		if (!ch)
 			return cfp;
@@ -451,16 +433,17 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 	    priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) {
 		switch (adapter->config_bands) {
 		case BAND_B:
-			dev_dbg(adapter->dev, "info: infra band=%d "
-				"supported_rates_b\n", adapter->config_bands);
+			mwifiex_dbg(adapter, INFO, "info: infra band=%d\t"
+				    "supported_rates_b\n",
+				    adapter->config_bands);
 			k = mwifiex_copy_rates(rates, k, supported_rates_b,
 					       sizeof(supported_rates_b));
 			break;
 		case BAND_G:
 		case BAND_G | BAND_GN:
-		case BAND_G | BAND_GN | BAND_GAC:
-			dev_dbg(adapter->dev, "info: infra band=%d "
-				"supported_rates_g\n", adapter->config_bands);
+			mwifiex_dbg(adapter, INFO, "info: infra band=%d\t"
+				    "supported_rates_g\n",
+				    adapter->config_bands);
 			k = mwifiex_copy_rates(rates, k, supported_rates_g,
 					       sizeof(supported_rates_g));
 			break;
@@ -469,19 +452,18 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 		case BAND_A | BAND_B:
 		case BAND_A | BAND_B | BAND_G | BAND_GN | BAND_AN:
 		case BAND_A | BAND_B | BAND_G | BAND_GN | BAND_AN | BAND_AAC:
-		case BAND_A | BAND_B | BAND_G | BAND_GN | BAND_AN |
-		     BAND_AAC | BAND_GAC:
 		case BAND_B | BAND_G | BAND_GN:
-		case BAND_B | BAND_G | BAND_GN | BAND_GAC:
-			dev_dbg(adapter->dev, "info: infra band=%d "
-				"supported_rates_bg\n", adapter->config_bands);
+			mwifiex_dbg(adapter, INFO, "info: infra band=%d\t"
+				    "supported_rates_bg\n",
+				    adapter->config_bands);
 			k = mwifiex_copy_rates(rates, k, supported_rates_bg,
 					       sizeof(supported_rates_bg));
 			break;
 		case BAND_A:
 		case BAND_A | BAND_G:
-			dev_dbg(adapter->dev, "info: infra band=%d "
-				"supported_rates_a\n", adapter->config_bands);
+			mwifiex_dbg(adapter, INFO, "info: infra band=%d\t"
+				    "supported_rates_a\n",
+				    adapter->config_bands);
 			k = mwifiex_copy_rates(rates, k, supported_rates_a,
 					       sizeof(supported_rates_a));
 			break;
@@ -490,15 +472,16 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 		case BAND_A | BAND_AN | BAND_AAC:
 		case BAND_A | BAND_G | BAND_AN | BAND_GN:
 		case BAND_A | BAND_G | BAND_AN | BAND_GN | BAND_AAC:
-			dev_dbg(adapter->dev, "info: infra band=%d "
-				"supported_rates_a\n", adapter->config_bands);
+			mwifiex_dbg(adapter, INFO, "info: infra band=%d\t"
+				    "supported_rates_a\n",
+				    adapter->config_bands);
 			k = mwifiex_copy_rates(rates, k, supported_rates_a,
 					       sizeof(supported_rates_a));
 			break;
 		case BAND_GN:
-		case BAND_GN | BAND_GAC:
-			dev_dbg(adapter->dev, "info: infra band=%d "
-				"supported_rates_n\n", adapter->config_bands);
+			mwifiex_dbg(adapter, INFO, "info: infra band=%d\t"
+				    "supported_rates_n\n",
+				    adapter->config_bands);
 			k = mwifiex_copy_rates(rates, k, supported_rates_n,
 					       sizeof(supported_rates_n));
 			break;
@@ -507,25 +490,25 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 		/* Ad-hoc mode */
 		switch (adapter->adhoc_start_band) {
 		case BAND_B:
-			dev_dbg(adapter->dev, "info: adhoc B\n");
+			mwifiex_dbg(adapter, INFO, "info: adhoc B\n");
 			k = mwifiex_copy_rates(rates, k, adhoc_rates_b,
 					       sizeof(adhoc_rates_b));
 			break;
 		case BAND_G:
 		case BAND_G | BAND_GN:
-			dev_dbg(adapter->dev, "info: adhoc G only\n");
+			mwifiex_dbg(adapter, INFO, "info: adhoc G only\n");
 			k = mwifiex_copy_rates(rates, k, adhoc_rates_g,
 					       sizeof(adhoc_rates_g));
 			break;
 		case BAND_B | BAND_G:
 		case BAND_B | BAND_G | BAND_GN:
-			dev_dbg(adapter->dev, "info: adhoc BG\n");
+			mwifiex_dbg(adapter, INFO, "info: adhoc BG\n");
 			k = mwifiex_copy_rates(rates, k, adhoc_rates_bg,
 					       sizeof(adhoc_rates_bg));
 			break;
 		case BAND_A:
 		case BAND_A | BAND_AN:
-			dev_dbg(adapter->dev, "info: adhoc A\n");
+			mwifiex_dbg(adapter, INFO, "info: adhoc A\n");
 			k = mwifiex_copy_rates(rates, k, adhoc_rates_a,
 					       sizeof(adhoc_rates_a));
 			break;
@@ -533,4 +516,22 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 	}
 
 	return k;
+}
+
+u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
+			    u8 rx_rate, u8 rate_info)
+{
+	u8 rate_index = 0;
+
+	/* HT40 */
+	if ((rate_info & BIT(0)) && (rate_info & BIT(1)))
+		rate_index = MWIFIEX_RATE_INDEX_MCS0 +
+			     MWIFIEX_BW20_MCS_NUM + rx_rate;
+	else if (rate_info & BIT(0)) /* HT20 */
+		rate_index = MWIFIEX_RATE_INDEX_MCS0 + rx_rate;
+	else
+		rate_index = (rx_rate > MWIFIEX_RATE_INDEX_OFDM0) ?
+			      rx_rate - 1 : rx_rate;
+
+	return rate_index;
 }

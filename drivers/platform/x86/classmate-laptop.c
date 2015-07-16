@@ -21,13 +21,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/backlight.h>
 #include <linux/input.h>
 #include <linux/rfkill.h>
 
 MODULE_LICENSE("GPL");
-
 
 struct cmpc_accel {
 	int sensitivity;
@@ -521,7 +520,7 @@ static acpi_status cmpc_get_accel(acpi_handle handle,
 {
 	union acpi_object param[2];
 	struct acpi_object_list input;
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, 0 };
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	unsigned char *locs;
 	acpi_status status;
 

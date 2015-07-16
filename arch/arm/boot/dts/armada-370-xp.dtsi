@@ -8,9 +8,43 @@
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  * Ben Dooks <ben.dooks@codethink.co.uk>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
  *
  * This file contains the definitions that are common to the Armada
  * 370 and Armada XP SoC.
@@ -25,8 +59,8 @@
 	compatible = "marvell,armada-370-xp";
 
 	aliases {
-		eth0 = &eth0;
-		eth1 = &eth1;
+		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	cpus {
@@ -39,13 +73,18 @@
 		};
 	};
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts-extended = <&mpic 3>;
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <1>;
 		controller = <&mbusc>;
 		interrupt-parent = <&mpic>;
-		pcie-mem-aperture = <0xe0000000 0x8000000>;
-		pcie-io-aperture  = <0xe8000000 0x100000>;
+		pcie-mem-aperture = <0xf8000000 0x7e00000>;
+		pcie-io-aperture  = <0xffe00000 0x100000>;
 
 		devbus-bootcs {
 			compatible = "marvell,mvebu-devbus";
@@ -103,83 +142,29 @@
 			#size-cells = <1>;
 			ranges = <0 MBUS_ID(0xf0, 0x01) 0 0x100000>;
 
-			mbusc: mbus-controller@20000 {
-				compatible = "marvell,mbus-controller";
-				reg = <0x20000 0x100>, <0x20180 0x20>;
+			rtc@10300 {
+				compatible = "marvell,orion-rtc";
+				reg = <0x10300 0x20>;
+				interrupts = <50>;
 			};
 
-			mpic: interrupt-controller@20000 {
-				compatible = "marvell,mpic";
-				#interrupt-cells = <1>;
-				#size-cells = <1>;
-				interrupt-controller;
-				msi-controller;
-			};
-
-			coherency-fabric@20200 {
-				compatible = "marvell,coherency-fabric";
-				reg = <0x20200 0xb0>, <0x21810 0x1c>;
-			};
-
-			serial@12000 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x12000 0x100>;
-				reg-shift = <2>;
-				interrupts = <41>;
-				reg-io-width = <1>;
-				status = "disabled";
-			};
-			serial@12100 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x12100 0x100>;
-				reg-shift = <2>;
-				interrupts = <42>;
-				reg-io-width = <1>;
-				status = "disabled";
-			};
-
-			coredivclk: corediv-clock@18740 {
-				compatible = "marvell,armada-370-corediv-clock";
-				reg = <0x18740 0xc>;
-				#clock-cells = <1>;
-				clocks = <&mainpll>;
-				clock-output-names = "nand";
-			};
-
-			timer@20300 {
-				reg = <0x20300 0x30>, <0x21040 0x30>;
-				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
-			};
-
-			sata@a0000 {
-				compatible = "marvell,orion-sata";
-				reg = <0xa0000 0x5000>;
-				interrupts = <55>;
-				clocks = <&gateclk 15>, <&gateclk 30>;
-				clock-names = "0", "1";
-				status = "disabled";
-			};
-
-			mdio {
+			spi0: spi@10600 {
+				reg = <0x10600 0x28>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "marvell,orion-mdio";
-				reg = <0x72004 0x4>;
-			};
-
-			eth0: ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
-				reg = <0x70000 0x4000>;
-				interrupts = <8>;
-				clocks = <&gateclk 4>;
+				cell-index = <0>;
+				interrupts = <30>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 
-			eth1: ethernet@74000 {
-				compatible = "marvell,armada-370-neta";
-				reg = <0x74000 0x4000>;
-				interrupts = <10>;
-				clocks = <&gateclk 3>;
+			spi1: spi@10680 {
+				reg = <0x10680 0x28>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <1>;
+				interrupts = <92>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 
@@ -203,22 +188,69 @@
 				status = "disabled";
 			};
 
-			rtc@10300 {
-				compatible = "marvell,orion-rtc";
-				reg = <0x10300 0x20>;
-				interrupts = <50>;
+			uart0: serial@12000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x12000 0x100>;
+				reg-shift = <2>;
+				interrupts = <41>;
+				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
 			};
 
-			mvsdio@d4000 {
-				compatible = "marvell,orion-sdio";
-				reg = <0xd4000 0x200>;
-				interrupts = <54>;
-				clocks = <&gateclk 17>;
-				bus-width = <4>;
-				cap-sdio-irq;
-				cap-sd-highspeed;
-				cap-mmc-highspeed;
+			uart1: serial@12100 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x12100 0x100>;
+				reg-shift = <2>;
+				interrupts = <42>;
+				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
+			};
+
+			pinctrl: pin-ctrl@18000 {
+				reg = <0x18000 0x38>;
+			};
+
+			coredivclk: corediv-clock@18740 {
+				compatible = "marvell,armada-370-corediv-clock";
+				reg = <0x18740 0xc>;
+				#clock-cells = <1>;
+				clocks = <&mainpll>;
+				clock-output-names = "nand";
+			};
+
+			mbusc: mbus-controller@20000 {
+				compatible = "marvell,mbus-controller";
+				reg = <0x20000 0x100>, <0x20180 0x20>,
+				      <0x20250 0x8>;
+			};
+
+			mpic: interrupt-controller@20a00 {
+				compatible = "marvell,mpic";
+				#interrupt-cells = <1>;
+				#size-cells = <1>;
+				interrupt-controller;
+				msi-controller;
+			};
+
+			coherency-fabric@20200 {
+				compatible = "marvell,coherency-fabric";
+				reg = <0x20200 0xb0>, <0x21010 0x1c>;
+			};
+
+			timer@20300 {
+				reg = <0x20300 0x30>, <0x21040 0x30>;
+				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
+			};
+
+			watchdog@20300 {
+				reg = <0x20300 0x34>, <0x20704 0x4>;
+			};
+
+			pmsu@22000 {
+				compatible = "marvell,armada-370-pmsu";
+				reg = <0x22000 0x1000>;
 			};
 
 			usb@50000 {
@@ -235,28 +267,58 @@
 				status = "disabled";
 			};
 
-			spi0: spi@10600 {
-				compatible = "marvell,orion-spi";
-				reg = <0x10600 0x28>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cell-index = <0>;
-				interrupts = <30>;
-				clocks = <&coreclk 0>;
+			eth0: ethernet@70000 {
+				reg = <0x70000 0x4000>;
+				interrupts = <8>;
+				clocks = <&gateclk 4>;
 				status = "disabled";
 			};
 
-			spi1: spi@10680 {
-				compatible = "marvell,orion-spi";
-				reg = <0x10680 0x28>;
+			mdio: mdio {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				cell-index = <1>;
-				interrupts = <92>;
-				clocks = <&coreclk 0>;
+				compatible = "marvell,orion-mdio";
+				reg = <0x72004 0x4>;
+				clocks = <&gateclk 4>;
+			};
+
+			eth1: ethernet@74000 {
+				reg = <0x74000 0x4000>;
+				interrupts = <10>;
+				clocks = <&gateclk 3>;
 				status = "disabled";
 			};
 
+			sata@a0000 {
+				compatible = "marvell,armada-370-sata";
+				reg = <0xa0000 0x5000>;
+				interrupts = <55>;
+				clocks = <&gateclk 15>, <&gateclk 30>;
+				clock-names = "0", "1";
+				status = "disabled";
+			};
+
+			nand@d0000 {
+				compatible = "marvell,armada370-nand";
+				reg = <0xd0000 0x54>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				interrupts = <113>;
+				clocks = <&coredivclk 0>;
+				status = "disabled";
+			};
+
+			mvsdio@d4000 {
+				compatible = "marvell,orion-sdio";
+				reg = <0xd4000 0x200>;
+				interrupts = <54>;
+				clocks = <&gateclk 17>;
+				bus-width = <4>;
+				cap-sdio-irq;
+				cap-sd-highspeed;
+				cap-mmc-highspeed;
+				status = "disabled";
+			};
 		};
 	};
 

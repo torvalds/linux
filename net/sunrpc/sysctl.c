@@ -37,7 +37,7 @@ EXPORT_SYMBOL_GPL(nfsd_debug);
 unsigned int	nlm_debug;
 EXPORT_SYMBOL_GPL(nlm_debug);
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 
 static struct ctl_table_header *sunrpc_table_header;
 static struct ctl_table sunrpc_table[];

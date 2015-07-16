@@ -26,7 +26,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -466,10 +465,10 @@ il3945_is_network_packet(struct il_priv *il, struct ieee80211_hdr *header)
 	switch (il->iw_mode) {
 	case NL80211_IFTYPE_ADHOC:	/* Header: Dest. | Source    | BSSID */
 		/* packets to our IBSS update information */
-		return ether_addr_equal(header->addr3, il->bssid);
+		return ether_addr_equal_64bits(header->addr3, il->bssid);
 	case NL80211_IFTYPE_STATION:	/* Header: Dest. | AP{BSSID} | Source */
 		/* packets to our IBSS update information */
-		return ether_addr_equal(header->addr2, il->bssid);
+		return ether_addr_equal_64bits(header->addr2, il->bssid);
 	default:
 		return 1;
 	}
@@ -574,7 +573,7 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
 
 	if ((unlikely(rx_stats->phy_count > 20))) {
-		D_DROP("dsp size out of range [0,20]: %d/n",
+		D_DROP("dsp size out of range [0,20]: %d\n",
 		       rx_stats->phy_count);
 		return;
 	}
@@ -2729,7 +2728,7 @@ static struct il_cfg il3945_abg_cfg = {
 	},
 };
 
-DEFINE_PCI_DEVICE_TABLE(il3945_hw_card_ids) = {
+const struct pci_device_id il3945_hw_card_ids[] = {
 	{IL_PCI_DEVICE(0x4222, 0x1005, il3945_bg_cfg)},
 	{IL_PCI_DEVICE(0x4222, 0x1034, il3945_bg_cfg)},
 	{IL_PCI_DEVICE(0x4222, 0x1044, il3945_bg_cfg)},

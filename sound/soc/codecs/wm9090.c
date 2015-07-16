@@ -254,7 +254,7 @@ SOC_SINGLE_TLV("MIXOUTR IN2B Volume", WM9090_OUTPUT_MIXER4, 0, 3, 1,
 static int hp_ev(struct snd_soc_dapm_widget *w,
 		 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int reg = snd_soc_read(codec, WM9090_ANALOGUE_HP_0);
 
 	switch (event) {
@@ -425,7 +425,7 @@ static const struct snd_soc_dapm_route audio_map_in2_diff[] = {
 static int wm9090_add_controls(struct snd_soc_codec *codec)
 {
 	struct wm9090_priv *wm9090 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	int i;
 
 	snd_soc_dapm_new_controls(dapm, wm9090_dapm_widgets,
@@ -496,7 +496,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* Restore the register cache */
 			regcache_sync(wm9090->regmap);
 		}
@@ -515,23 +515,11 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
-
 	return 0;
 }
 
 static int wm9090_probe(struct snd_soc_codec *codec)
 {
-	struct wm9090_priv *wm9090 = dev_get_drvdata(codec->dev);
-	int ret;
-
-	codec->control_data = wm9090->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	/* Configure some defaults; they will be written out when we
 	 * bring the bias up.
 	 */
@@ -560,45 +548,15 @@ static int wm9090_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM9090_CLOCKING_1,
 			    WM9090_TOCLK_ENA, WM9090_TOCLK_ENA);
 
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	wm9090_add_controls(codec);
-
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int wm9090_suspend(struct snd_soc_codec *codec)
-{
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm9090_resume(struct snd_soc_codec *codec)
-{
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm9090_suspend NULL
-#define wm9090_resume NULL
-#endif
-
-static int wm9090_remove(struct snd_soc_codec *codec)
-{
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_wm9090 = {
 	.probe = 	wm9090_probe,
-	.remove = 	wm9090_remove,
-	.suspend = 	wm9090_suspend,
-	.resume =	wm9090_resume,
 	.set_bias_level = wm9090_set_bias_level,
+	.suspend_bias_off = true,
 };
 
 static const struct regmap_config wm9090_regmap = {
@@ -623,10 +581,8 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 	int ret;
 
 	wm9090 = devm_kzalloc(&i2c->dev, sizeof(*wm9090), GFP_KERNEL);
-	if (wm9090 == NULL) {
-		dev_err(&i2c->dev, "Can not allocate memory\n");
+	if (!wm9090)
 		return -ENOMEM;
-	}
 
 	wm9090->regmap = devm_regmap_init_i2c(i2c, &wm9090_regmap);
 	if (IS_ERR(wm9090->regmap)) {

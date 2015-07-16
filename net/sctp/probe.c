@@ -38,6 +38,7 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
+MODULE_SOFTDEP("pre: sctp");
 MODULE_AUTHOR("Wei Yongjun <yjwei@cn.fujitsu.com>");
 MODULE_DESCRIPTION("SCTP snooper");
 MODULE_LICENSE("GPL");
@@ -182,6 +183,20 @@ static struct jprobe sctp_recv_probe = {
 	.entry	= jsctp_sf_eat_sack,
 };
 
+static __init int sctp_setup_jprobe(void)
+{
+	int ret = register_jprobe(&sctp_recv_probe);
+
+	if (ret) {
+		if (request_module("sctp"))
+			goto out;
+		ret = register_jprobe(&sctp_recv_probe);
+	}
+
+out:
+	return ret;
+}
+
 static __init int sctpprobe_init(void)
 {
 	int ret = -ENOMEM;
@@ -202,7 +217,7 @@ static __init int sctpprobe_init(void)
 			 &sctpprobe_fops))
 		goto free_kfifo;
 
-	ret = register_jprobe(&sctp_recv_probe);
+	ret = sctp_setup_jprobe();
 	if (ret)
 		goto remove_proc;
 

@@ -42,7 +42,7 @@ static int geoid;
 
 static const char driver_name[] = "vme_ca91cx42";
 
-static DEFINE_PCI_DEVICE_TABLE(ca91cx42_ids) = {
+static const struct pci_device_id ca91cx42_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TUNDRA, PCI_DEVICE_ID_TUNDRA_CA91C142) },
 	{ },
 };
@@ -869,14 +869,13 @@ static ssize_t ca91cx42_master_read(struct vme_master_resource *image,
 
 	spin_lock(&image->lock);
 
-	/* The following code handles VME address alignment problem
-	 * in order to assure the maximal data width cycle.
-	 * We cannot use memcpy_xxx directly here because it
-	 * may cut data transfer in 8-bits cycles, thus making
-	 * D16 cycle impossible.
-	 * From the other hand, the bridge itself assures that
-	 * maximal configured data cycle is used and splits it
-	 * automatically for non-aligned addresses.
+	/* The following code handles VME address alignment. We cannot use
+	 * memcpy_xxx here because it may cut data transfers in to 8-bit
+	 * cycles when D16 or D32 cycles are required on the VME bus.
+	 * On the other hand, the bridge itself assures that the maximum data
+	 * cycle configured for the transfer is used and splits it
+	 * automatically for non-aligned addresses, so we don't want the
+	 * overhead of needlessly forcing small transfers for the entire cycle.
 	 */
 	if ((uintptr_t)addr & 0x1) {
 		*(u8 *)buf = ioread8(addr);
@@ -884,7 +883,7 @@ static ssize_t ca91cx42_master_read(struct vme_master_resource *image,
 		if (done == count)
 			goto out;
 	}
-	if ((uintptr_t)addr & 0x2) {
+	if ((uintptr_t)(addr + done) & 0x2) {
 		if ((count - done) < 2) {
 			*(u8 *)(buf + done) = ioread8(addr + done);
 			done += 1;
@@ -896,9 +895,9 @@ static ssize_t ca91cx42_master_read(struct vme_master_resource *image,
 	}
 
 	count32 = (count - done) & ~0x3;
-	if (count32 > 0) {
-		memcpy_fromio(buf + done, addr + done, (unsigned int)count);
-		done += count32;
+	while (done < count32) {
+		*(u32 *)(buf + done) = ioread32(addr + done);
+		done += 4;
 	}
 
 	if ((count - done) & 0x2) {
@@ -930,7 +929,7 @@ static ssize_t ca91cx42_master_write(struct vme_master_resource *image,
 	spin_lock(&image->lock);
 
 	/* Here we apply for the same strategy we do in master_read
-	 * function in order to assure D16 cycle when required.
+	 * function in order to assure the correct cycles.
 	 */
 	if ((uintptr_t)addr & 0x1) {
 		iowrite8(*(u8 *)buf, addr);
@@ -938,7 +937,7 @@ static ssize_t ca91cx42_master_write(struct vme_master_resource *image,
 		if (done == count)
 			goto out;
 	}
-	if ((uintptr_t)addr & 0x2) {
+	if ((uintptr_t)(addr + done) & 0x2) {
 		if ((count - done) < 2) {
 			iowrite8(*(u8 *)(buf + done), addr + done);
 			done += 1;
@@ -950,9 +949,9 @@ static ssize_t ca91cx42_master_write(struct vme_master_resource *image,
 	}
 
 	count32 = (count - done) & ~0x3;
-	if (count32 > 0) {
-		memcpy_toio(addr + done, buf + done, count32);
-		done += count32;
+	while (done < count32) {
+		iowrite32(*(u32 *)(buf + done), addr + done);
+		done += 4;
 	}
 
 	if ((count - done) & 0x2) {
@@ -1193,7 +1192,7 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 {
 	struct vme_dma_resource *ctrlr;
 	struct ca91cx42_dma_entry *entry;
-	int retval = 0;
+	int retval;
 	dma_addr_t bus_addr;
 	u32 val;
 	struct device *dev;
@@ -1246,8 +1245,18 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 
 	iowrite32(val, bridge->base + DGCS);
 
-	wait_event_interruptible(bridge->dma_queue,
-		ca91cx42_dma_busy(ctrlr->parent));
+	retval = wait_event_interruptible(bridge->dma_queue,
+					  ca91cx42_dma_busy(ctrlr->parent));
+
+	if (retval) {
+		val = ioread32(bridge->base + DGCS);
+		iowrite32(val | CA91CX42_DGCS_STOP_REQ, bridge->base + DGCS);
+		/* Wait for the operation to abort */
+		wait_event(bridge->dma_queue,
+			   ca91cx42_dma_busy(ctrlr->parent));
+		retval = -EINTR;
+		goto exit;
+	}
 
 	/*
 	 * Read status register, this register is valid until we kick off a
@@ -1260,8 +1269,10 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 
 		dev_err(dev, "ca91c042: DMA Error. DGCS=%08X\n", val);
 		val = ioread32(bridge->base + DCTL);
+		retval = -EIO;
 	}
 
+exit:
 	/* Remove list from running list */
 	mutex_lock(&ctrlr->mtx);
 	list_del(&list->list);
@@ -1556,15 +1567,13 @@ static int ca91cx42_crcsr_init(struct vme_bridge *ca91cx42_bridge,
 	}
 
 	/* Allocate mem for CR/CSR image */
-	bridge->crcsr_kernel = pci_alloc_consistent(pdev, VME_CRCSR_BUF_SIZE,
-		&bridge->crcsr_bus);
+	bridge->crcsr_kernel = pci_zalloc_consistent(pdev, VME_CRCSR_BUF_SIZE,
+						     &bridge->crcsr_bus);
 	if (bridge->crcsr_kernel == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for CR/CSR "
 			"image\n");
 		return -ENOMEM;
 	}
-
-	memset(bridge->crcsr_kernel, 0, VME_CRCSR_BUF_SIZE);
 
 	crcsr_addr = slot * (512 * 1024);
 	iowrite32(bridge->crcsr_bus - crcsr_addr, bridge->base + VCSR_TO);

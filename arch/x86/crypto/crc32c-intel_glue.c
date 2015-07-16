@@ -32,8 +32,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/cpu_device_id.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
@@ -280,5 +279,5 @@ MODULE_AUTHOR("Austin Zhang <austin.zhang@intel.com>, Kent Liu <kent.liu@intel.c
 MODULE_DESCRIPTION("CRC32c (Castagnoli) optimization using Intel Hardware.");
 MODULE_LICENSE("GPL");
 
-MODULE_ALIAS("crc32c");
-MODULE_ALIAS("crc32c-intel");
+MODULE_ALIAS_CRYPTO("crc32c");
+MODULE_ALIAS_CRYPTO("crc32c-intel");

@@ -327,18 +327,18 @@ static int sony_btf_mpx_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner 
 
 /* --------------------------------------------------------------------------*/
 
-static const struct v4l2_subdev_core_ops sony_btf_mpx_core_ops = {
-	.s_std = sony_btf_mpx_s_std,
-};
-
 static const struct v4l2_subdev_tuner_ops sony_btf_mpx_tuner_ops = {
 	.s_tuner = sony_btf_mpx_s_tuner,
 	.g_tuner = sony_btf_mpx_g_tuner,
 };
 
+static const struct v4l2_subdev_video_ops sony_btf_mpx_video_ops = {
+	.s_std = sony_btf_mpx_s_std,
+};
+
 static const struct v4l2_subdev_ops sony_btf_mpx_ops = {
-	.core = &sony_btf_mpx_core_ops,
 	.tuner = &sony_btf_mpx_tuner_ops,
+	.video = &sony_btf_mpx_video_ops,
 };
 
 /* --------------------------------------------------------------------------*/

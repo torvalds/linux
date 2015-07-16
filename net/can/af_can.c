@@ -57,14 +57,12 @@
 #include <linux/skbuff.h>
 #include <linux/can.h>
 #include <linux/can/core.h>
+#include <linux/can/skb.h>
 #include <linux/ratelimit.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 
 #include "af_can.h"
-
-static __initconst const char banner[] = KERN_INFO
-	"can: controller area network core (" CAN_VERSION_STRING ")\n";
 
 MODULE_DESCRIPTION("Controller Area Network PF_CAN core");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -90,6 +88,8 @@ static DEFINE_MUTEX(proto_tab_lock);
 struct timer_list can_stattimer;   /* timer for statistics update */
 struct s_stats    can_stats;       /* packet statistics */
 struct s_pstats   can_pstats;      /* receive list statistics */
+
+static atomic_t skbcounter = ATOMIC_INIT(0);
 
 /*
  * af_can socket functions
@@ -181,7 +181,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 
 	sock->ops = cp->ops;
 
-	sk = sk_alloc(net, PF_CAN, GFP_KERNEL, cp->prot);
+	sk = sk_alloc(net, PF_CAN, GFP_KERNEL, cp->prot, kern);
 	if (!sk) {
 		err = -ENOMEM;
 		goto errout;
@@ -261,6 +261,9 @@ int can_send(struct sk_buff *skb, int loop)
 		goto inval_skb;
 	}
 
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
 
@@ -290,7 +293,7 @@ int can_send(struct sk_buff *skb, int loop)
 				return -ENOMEM;
 			}
 
-			newskb->sk = skb->sk;
+			can_skb_set_owner(newskb, skb->sk);
 			newskb->ip_summed = CHECKSUM_UNNECESSARY;
 			newskb->pkt_type = PACKET_BROADCAST;
 		}
@@ -334,6 +337,29 @@ static struct dev_rcv_lists *find_dev_rcv_lists(struct net_device *dev)
 		return &can_rx_alldev_list;
 	else
 		return (struct dev_rcv_lists *)dev->ml_priv;
+}
+
+/**
+ * effhash - hash function for 29 bit CAN identifier reduction
+ * @can_id: 29 bit CAN identifier
+ *
+ * Description:
+ *  To reduce the linear traversal in one linked list of _single_ EFF CAN
+ *  frame subscriptions the 29 bit identifier is mapped to 10 bits.
+ *  (see CAN_EFF_RCV_HASH_BITS definition)
+ *
+ * Return:
+ *  Hash value from 0x000 - 0x3FF ( enforced by CAN_EFF_RCV_HASH_BITS mask )
+ */
+static unsigned int effhash(canid_t can_id)
+{
+	unsigned int hash;
+
+	hash = can_id;
+	hash ^= can_id >> CAN_EFF_RCV_HASH_BITS;
+	hash ^= can_id >> (2 * CAN_EFF_RCV_HASH_BITS);
+
+	return hash & ((1 << CAN_EFF_RCV_HASH_BITS) - 1);
 }
 
 /**
@@ -399,10 +425,8 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
 	    !(*can_id & CAN_RTR_FLAG)) {
 
 		if (*can_id & CAN_EFF_FLAG) {
-			if (*mask == (CAN_EFF_MASK | CAN_EFF_RTR_FLAGS)) {
-				/* RFC: a future use-case for hash-tables? */
-				return &d->rx[RX_EFF];
-			}
+			if (*mask == (CAN_EFF_MASK | CAN_EFF_RTR_FLAGS))
+				return &d->rx_eff[effhash(*can_id)];
 		} else {
 			if (*mask == (CAN_SFF_MASK | CAN_EFF_RTR_FLAGS))
 				return &d->rx_sff[*can_id];
@@ -502,7 +526,7 @@ static void can_rx_delete_receiver(struct rcu_head *rp)
 
 /**
  * can_rx_unregister - unsubscribe CAN frames from a specific interface
- * @dev: pointer to netdevice (NULL => unsubcribe from 'all' CAN devices list)
+ * @dev: pointer to netdevice (NULL => unsubscribe from 'all' CAN devices list)
  * @can_id: CAN identifier
  * @mask: CAN mask
  * @func: callback function on filter match
@@ -631,7 +655,7 @@ static int can_rcv_filter(struct dev_rcv_lists *d, struct sk_buff *skb)
 		return matches;
 
 	if (can_id & CAN_EFF_FLAG) {
-		hlist_for_each_entry_rcu(r, &d->rx[RX_EFF], list) {
+		hlist_for_each_entry_rcu(r, &d->rx_eff[effhash(can_id)], list) {
 			if (r->can_id == can_id) {
 				deliver(skb, r);
 				matches++;
@@ -656,6 +680,10 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	/* update statistics */
 	can_stats.rx_frames++;
 	can_stats.rx_frames_delta++;
+
+	/* create non-zero unique skb identifier together with *skb */
+	while (!(can_skb_prv(skb)->skbcnt))
+		can_skb_prv(skb)->skbcnt = atomic_inc_return(&skbcounter);
 
 	rcu_read_lock();
 
@@ -874,7 +902,7 @@ static __init int can_init(void)
 		     offsetof(struct can_frame, data) !=
 		     offsetof(struct canfd_frame, data));
 
-	printk(banner);
+	pr_info("can: controller area network core (" CAN_VERSION_STRING ")\n");
 
 	memset(&can_rx_alldev_list, 0, sizeof(can_rx_alldev_list));
 

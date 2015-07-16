@@ -38,8 +38,8 @@ struct nf_conntrack_l3proto {
 			     const struct nf_conntrack_tuple *orig);
 
 	/* Print out the per-protocol part of the tuple. */
-	int (*print_tuple)(struct seq_file *s,
-			   const struct nf_conntrack_tuple *);
+	void (*print_tuple)(struct seq_file *s,
+			    const struct nf_conntrack_tuple *);
 
 	/*
 	 * Called before tracking. 
@@ -87,7 +87,6 @@ int nf_ct_l3proto_register(struct nf_conntrack_l3proto *proto);
 void nf_ct_l3proto_unregister(struct nf_conntrack_l3proto *proto);
 
 struct nf_conntrack_l3proto *nf_ct_l3proto_find_get(u_int16_t l3proto);
-void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p);
 
 /* Existing built-in protocols */
 extern struct nf_conntrack_l3proto nf_conntrack_l3proto_generic;

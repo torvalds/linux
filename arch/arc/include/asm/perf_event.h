@@ -54,29 +54,13 @@ struct arc_reg_cc_build {
 #define PERF_COUNT_ARC_BPOK	(PERF_COUNT_HW_MAX + 3)
 #define PERF_COUNT_ARC_EDTLB	(PERF_COUNT_HW_MAX + 4)
 #define PERF_COUNT_ARC_EITLB	(PERF_COUNT_HW_MAX + 5)
-#define PERF_COUNT_ARC_HW_MAX	(PERF_COUNT_HW_MAX + 6)
+#define PERF_COUNT_ARC_LDC	(PERF_COUNT_HW_MAX + 6)
+#define PERF_COUNT_ARC_STC	(PERF_COUNT_HW_MAX + 7)
+
+#define PERF_COUNT_ARC_HW_MAX	(PERF_COUNT_HW_MAX + 8)
 
 /*
- * The "generalized" performance events seem to really be a copy
- * of the available events on x86 processors; the mapping to ARC
- * events is not always possible 1-to-1. Fortunately, there doesn't
- * seem to be an exact definition for these events, so we can cheat
- * a bit where necessary.
- *
- * In particular, the following PERF events may behave a bit differently
- * compared to other architectures:
- *
- * PERF_COUNT_HW_CPU_CYCLES
- *	Cycles not in halted state
- *
- * PERF_COUNT_HW_REF_CPU_CYCLES
- *	Reference cycles not in halted state, same as PERF_COUNT_HW_CPU_CYCLES
- *	for now as we don't do Dynamic Voltage/Frequency Scaling (yet)
- *
- * PERF_COUNT_HW_BUS_CYCLES
- *	Unclear what this means, Intel uses 0x013c, which according to
- *	their datasheet means "unhalted reference cycles". It sounds similar
- *	to PERF_COUNT_HW_REF_CPU_CYCLES, and we use the same counter for it.
+ * Some ARC pct quirks:
  *
  * PERF_COUNT_HW_STALLED_CYCLES_BACKEND
  * PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
@@ -91,21 +75,38 @@ struct arc_reg_cc_build {
  *	Note that I$ cache misses aren't counted by either of the two!
  */
 
+/*
+ * ARC PCT has hardware conditions with fixed "names" but variable "indexes"
+ * (based on a specific RTL build)
+ * Below is the static map between perf generic/arc specific event_id and
+ * h/w condition names.
+ * At the time of probe, we loop thru each index and find it's name to
+ * complete the mapping of perf event_id to h/w index as latter is needed
+ * to program the counter really
+ */
 static const char * const arc_pmu_ev_hw_map[] = {
+	/* count cycles */
 	[PERF_COUNT_HW_CPU_CYCLES] = "crun",
 	[PERF_COUNT_HW_REF_CPU_CYCLES] = "crun",
 	[PERF_COUNT_HW_BUS_CYCLES] = "crun",
-	[PERF_COUNT_HW_INSTRUCTIONS] = "iall",
-	[PERF_COUNT_HW_BRANCH_MISSES] = "bpfail",
-	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = "ijmp",
+
 	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = "bflush",
 	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] = "bstall",
-	[PERF_COUNT_ARC_DCLM] = "dclm",
-	[PERF_COUNT_ARC_DCSM] = "dcsm",
-	[PERF_COUNT_ARC_ICM] = "icm",
-	[PERF_COUNT_ARC_BPOK] = "bpok",
-	[PERF_COUNT_ARC_EDTLB] = "edtlb",
-	[PERF_COUNT_ARC_EITLB] = "eitlb",
+
+	/* counts condition */
+	[PERF_COUNT_HW_INSTRUCTIONS] = "iall",
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = "ijmp",
+	[PERF_COUNT_ARC_BPOK]         = "bpok",	  /* NP-NT, PT-T, PNT-NT */
+	[PERF_COUNT_HW_BRANCH_MISSES] = "bpfail", /* NP-T, PT-NT, PNT-T */
+
+	[PERF_COUNT_ARC_LDC] = "imemrdc",	/* Instr: mem read cached */
+	[PERF_COUNT_ARC_STC] = "imemwrc",	/* Instr: mem write cached */
+
+	[PERF_COUNT_ARC_DCLM] = "dclm",		/* D-cache Load Miss */
+	[PERF_COUNT_ARC_DCSM] = "dcsm",		/* D-cache Store Miss */
+	[PERF_COUNT_ARC_ICM] = "icm",		/* I-cache Miss */
+	[PERF_COUNT_ARC_EDTLB] = "edtlb",	/* D-TLB Miss */
+	[PERF_COUNT_ARC_EITLB] = "eitlb",	/* I-TLB Miss */
 };
 
 #define C(_x)			PERF_COUNT_HW_CACHE_##_x
@@ -114,11 +115,11 @@ static const char * const arc_pmu_ev_hw_map[] = {
 static const unsigned arc_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {
 		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_ACCESS)]	= PERF_COUNT_ARC_LDC,
 			[C(RESULT_MISS)]	= PERF_COUNT_ARC_DCLM,
 		},
 		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_ACCESS)]	= PERF_COUNT_ARC_STC,
 			[C(RESULT_MISS)]	= PERF_COUNT_ARC_DCSM,
 		},
 		[C(OP_PREFETCH)] = {
@@ -128,7 +129,7 @@ static const unsigned arc_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 	[C(L1I)] = {
 		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_ACCESS)]	= PERF_COUNT_HW_INSTRUCTIONS,
 			[C(RESULT_MISS)]	= PERF_COUNT_ARC_ICM,
 		},
 		[C(OP_WRITE)] = {
@@ -156,9 +157,10 @@ static const unsigned arc_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 	[C(DTLB)] = {
 		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_ACCESS)]	= PERF_COUNT_ARC_LDC,
 			[C(RESULT_MISS)]	= PERF_COUNT_ARC_EDTLB,
 		},
+			/* DTLB LD/ST Miss not segregated by h/w*/
 		[C(OP_WRITE)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
 			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,

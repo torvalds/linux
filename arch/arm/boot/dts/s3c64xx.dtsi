@@ -23,6 +23,10 @@
 	aliases {
 		i2c0 = &i2c0;
 		pinctrl0 = &pinctrl0;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
 	};
 
 	cpus {
@@ -168,7 +172,6 @@
 			clocks = <&clocks PCLK_PWM>;
 			samsung,pwm-outputs = <0>, <1>;
 			#pwm-cells = <3>;
-			status = "disabled";
 		};
 
 		pinctrl0: pinctrl@7f008000 {

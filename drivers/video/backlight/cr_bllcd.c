@@ -235,6 +235,7 @@ static int cr_backlight_probe(struct platform_device *pdev)
 static int cr_backlight_remove(struct platform_device *pdev)
 {
 	struct cr_panel *crp = platform_get_drvdata(pdev);
+
 	crp->cr_backlight_device->props.power = FB_BLANK_POWERDOWN;
 	crp->cr_backlight_device->props.brightness = 0;
 	crp->cr_backlight_device->props.max_brightness = 0;

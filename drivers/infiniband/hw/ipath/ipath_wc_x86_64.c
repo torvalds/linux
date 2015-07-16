@@ -37,7 +37,6 @@
  */
 
 #include <linux/pci.h>
-#include <asm/mtrr.h>
 #include <asm/processor.h>
 
 #include "ipath_kernel.h"
@@ -122,27 +121,14 @@ int ipath_enable_wc(struct ipath_devdata *dd)
 	}
 
 	if (!ret) {
-		int cookie;
-		ipath_cdbg(VERBOSE, "Setting mtrr for chip to WC "
-			   "(addr %llx, len=0x%llx)\n",
-			   (unsigned long long) pioaddr,
-			   (unsigned long long) piolen);
-		cookie = mtrr_add(pioaddr, piolen, MTRR_TYPE_WRCOMB, 0);
-		if (cookie < 0) {
-			{
-				dev_info(&dd->pcidev->dev,
-					 "mtrr_add()  WC for PIO bufs "
-					 "failed (%d)\n",
-					 cookie);
-				ret = -EINVAL;
-			}
-		} else {
-			ipath_cdbg(VERBOSE, "Set mtrr for chip to WC, "
-				   "cookie is %d\n", cookie);
-			dd->ipath_wc_cookie = cookie;
-			dd->ipath_wc_base = (unsigned long) pioaddr;
-			dd->ipath_wc_len = (unsigned long) piolen;
-		}
+		dd->wc_cookie = arch_phys_wc_add(pioaddr, piolen);
+		if (dd->wc_cookie < 0) {
+			ipath_dev_err(dd, "Seting mtrr failed on PIO buffers\n");
+			ret = -ENODEV;
+		} else if (dd->wc_cookie == 0)
+			ipath_cdbg(VERBOSE, "Set mtrr for chip to WC not needed\n");
+		else
+			ipath_cdbg(VERBOSE, "Set mtrr for chip to WC\n");
 	}
 
 	return ret;
@@ -154,31 +140,5 @@ int ipath_enable_wc(struct ipath_devdata *dd)
  */
 void ipath_disable_wc(struct ipath_devdata *dd)
 {
-	if (dd->ipath_wc_cookie) {
-		int r;
-		ipath_cdbg(VERBOSE, "undoing WCCOMB on pio buffers\n");
-		r = mtrr_del(dd->ipath_wc_cookie, dd->ipath_wc_base,
-			     dd->ipath_wc_len);
-		if (r < 0)
-			dev_info(&dd->pcidev->dev,
-				 "mtrr_del(%lx, %lx, %lx) failed: %d\n",
-				 dd->ipath_wc_cookie, dd->ipath_wc_base,
-				 dd->ipath_wc_len, r);
-		dd->ipath_wc_cookie = 0; /* even on failure */
-	}
-}
-
-/**
- * ipath_unordered_wc - indicate whether write combining is ordered
- *
- * Because our performance depends on our ability to do write combining mmio
- * writes in the most efficient way, we need to know if we are on an Intel
- * or AMD x86_64 processor.  AMD x86_64 processors flush WC buffers out in
- * the order completed, and so no special flushing is required to get
- * correct ordering.  Intel processors, however, will flush write buffers
- * out in "random" orders, and so explicit ordering is needed at times.
- */
-int ipath_unordered_wc(void)
-{
-	return boot_cpu_data.x86_vendor != X86_VENDOR_AMD;
+	arch_phys_wc_del(dd->wc_cookie);
 }

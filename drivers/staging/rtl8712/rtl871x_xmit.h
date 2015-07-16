@@ -233,9 +233,9 @@ struct	xmit_priv {
 	u8	hwxmit_entry;
 	u8	txirp_cnt;
 	struct tasklet_struct xmit_tasklet;
-	_workitem xmit_pipe4_reset_wi;
-	_workitem xmit_pipe6_reset_wi;
-	_workitem xmit_piped_reset_wi;
+	struct work_struct xmit_pipe4_reset_wi;
+	struct work_struct xmit_pipe6_reset_wi;
+	struct work_struct xmit_piped_reset_wi;
 	/*per AC pending irp*/
 	int beq_cnt;
 	int bkq_cnt;

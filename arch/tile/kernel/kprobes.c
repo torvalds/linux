@@ -90,8 +90,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		return -EINVAL;
 
 	if (insn_has_control(*p->addr)) {
-		pr_notice("Kprobes for control instructions are not "
-			  "supported\n");
+		pr_notice("Kprobes for control instructions are not supported\n");
 		return -EINVAL;
 	}
 

@@ -28,9 +28,16 @@ enum efx_mcdi_state {
 	MCDI_STATE_COMPLETED,
 };
 
+/**
+ * enum efx_mcdi_mode - MCDI transaction mode
+ * @MCDI_MODE_POLL: poll for MCDI completion, until timeout
+ * @MCDI_MODE_EVENTS: wait for an mcdi_event.  On timeout, poll once
+ * @MCDI_MODE_FAIL: we think MCDI is dead, so fail-fast all calls
+ */
 enum efx_mcdi_mode {
 	MCDI_MODE_POLL,
 	MCDI_MODE_EVENTS,
+	MCDI_MODE_FAIL,
 };
 
 /**
@@ -51,6 +58,8 @@ enum efx_mcdi_mode {
  *	enabled
  * @async_list: Queue of asynchronous requests
  * @async_timer: Timer for asynchronous request timeout
+ * @logging_buffer: buffer that may be used to build MCDI tracing messages
+ * @logging_enabled: whether to trace MCDI
  */
 struct efx_mcdi_iface {
 	struct efx_nic *efx;
@@ -67,6 +76,10 @@ struct efx_mcdi_iface {
 	spinlock_t async_lock;
 	struct list_head async_list;
 	struct timer_list async_timer;
+#ifdef CONFIG_SFC_MCDI_LOGGING
+	char *logging_buffer;
+	bool logging_enabled;
+#endif
 };
 
 struct efx_mcdi_mon {
@@ -75,6 +88,8 @@ struct efx_mcdi_mon {
 	unsigned long last_update;
 	struct device *device;
 	struct efx_mcdi_mon_attribute *attrs;
+	struct attribute_group group;
+	const struct attribute_group *groups[2];
 	unsigned int n_attrs;
 };
 
@@ -92,13 +107,21 @@ struct efx_mcdi_mtd_partition {
  * struct efx_mcdi_data - extra state for NICs that implement MCDI
  * @iface: Interface/protocol state
  * @hwmon: Hardware monitor state
+ * @fn_flags: Flags for this function, as returned by %MC_CMD_DRV_ATTACH.
  */
 struct efx_mcdi_data {
 	struct efx_mcdi_iface iface;
 #ifdef CONFIG_SFC_MCDI_MON
 	struct efx_mcdi_mon hwmon;
 #endif
+	u32 fn_flags;
 };
+
+static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
+{
+	EFX_BUG_ON_PARANOID(!efx->mcdi);
+	return &efx->mcdi->iface;
+}
 
 #ifdef CONFIG_SFC_MCDI_MON
 static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
@@ -114,12 +137,19 @@ void efx_mcdi_fini(struct efx_nic *efx);
 int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd, const efx_dword_t *inbuf,
 		 size_t inlen, efx_dword_t *outbuf, size_t outlen,
 		 size_t *outlen_actual);
+int efx_mcdi_rpc_quiet(struct efx_nic *efx, unsigned cmd,
+		       const efx_dword_t *inbuf, size_t inlen,
+		       efx_dword_t *outbuf, size_t outlen,
+		       size_t *outlen_actual);
 
 int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
 		       const efx_dword_t *inbuf, size_t inlen);
 int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 			efx_dword_t *outbuf, size_t outlen,
 			size_t *outlen_actual);
+int efx_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned cmd,
+			      size_t inlen, efx_dword_t *outbuf,
+			      size_t outlen, size_t *outlen_actual);
 
 typedef void efx_mcdi_async_completer(struct efx_nic *efx,
 				      unsigned long cookie, int rc,
@@ -129,6 +159,15 @@ int efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
 		       const efx_dword_t *inbuf, size_t inlen, size_t outlen,
 		       efx_mcdi_async_completer *complete,
 		       unsigned long cookie);
+int efx_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
+			     const efx_dword_t *inbuf, size_t inlen,
+			     size_t outlen,
+			     efx_mcdi_async_completer *complete,
+			     unsigned long cookie);
+
+void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
+			    size_t inlen, efx_dword_t *outbuf,
+			    size_t outlen, int rc);
 
 int efx_mcdi_poll_reboot(struct efx_nic *efx);
 void efx_mcdi_mode_poll(struct efx_nic *efx);
@@ -143,8 +182,12 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
  * 32-bit-aligned.  Also, on Siena we must copy to the MC shared
  * memory strictly 32 bits at a time, so add any necessary padding.
  */
-#define MCDI_DECLARE_BUF(_name, _len)					\
+#define _MCDI_DECLARE_BUF(_name, _len)					\
 	efx_dword_t _name[DIV_ROUND_UP(_len, 4)]
+#define MCDI_DECLARE_BUF(_name, _len)					\
+	_MCDI_DECLARE_BUF(_name, _len) = {{{0}}}
+#define MCDI_DECLARE_BUF_ERR(_name)					\
+	MCDI_DECLARE_BUF(_name, 8)
 #define _MCDI_PTR(_buf, _offset)					\
 	((u8 *)(_buf) + (_offset))
 #define MCDI_PTR(_buf, _field)						\
@@ -299,10 +342,13 @@ int efx_mcdi_set_mac(struct efx_nic *efx);
 #define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
 void efx_mcdi_mac_start_stats(struct efx_nic *efx);
 void efx_mcdi_mac_stop_stats(struct efx_nic *efx);
+void efx_mcdi_mac_pull_stats(struct efx_nic *efx);
 bool efx_mcdi_mac_check_fault(struct efx_nic *efx);
 enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason);
 int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method);
 int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled);
+int efx_mcdi_get_workarounds(struct efx_nic *efx, unsigned int *impl_out,
+			     unsigned int *enabled_out);
 
 #ifdef CONFIG_SFC_MCDI_MON
 int efx_mcdi_mon_probe(struct efx_nic *efx);

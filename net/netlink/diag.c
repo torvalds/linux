@@ -4,6 +4,7 @@
 #include <linux/netlink.h>
 #include <linux/sock_diag.h>
 #include <linux/netlink_diag.h>
+#include <linux/rhashtable.h>
 
 #include "af_netlink.h"
 
@@ -90,7 +91,8 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 	    sk_diag_put_rings_cfg(sk, skb))
 		goto out_nlmsg_trim;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 out_nlmsg_trim:
 	nlmsg_cancel(skb, nlh);
@@ -101,16 +103,22 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 				int protocol, int s_num)
 {
 	struct netlink_table *tbl = &nl_table[protocol];
-	struct nl_portid_hash *hash = &tbl->hash;
+	struct rhashtable *ht = &tbl->hash;
+	const struct bucket_table *htbl = rht_dereference_rcu(ht->tbl, ht);
 	struct net *net = sock_net(skb->sk);
 	struct netlink_diag_req *req;
+	struct netlink_sock *nlsk;
 	struct sock *sk;
 	int ret = 0, num = 0, i;
 
 	req = nlmsg_data(cb->nlh);
 
-	for (i = 0; i <= hash->mask; i++) {
-		sk_for_each(sk, &hash->table[i]) {
+	for (i = 0; i < htbl->size; i++) {
+		struct rhash_head *pos;
+
+		rht_for_each_entry_rcu(nlsk, pos, htbl, i, node) {
+			sk = (struct sock *)nlsk;
+
 			if (!net_eq(sock_net(sk), net))
 				continue;
 			if (num < s_num) {
@@ -165,6 +173,7 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	req = nlmsg_data(cb->nlh);
 
+	rcu_read_lock();
 	read_lock(&nl_table_lock);
 
 	if (req->sdiag_protocol == NDIAG_PROTO_ALL) {
@@ -178,6 +187,7 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	} else {
 		if (req->sdiag_protocol >= MAX_LINKS) {
 			read_unlock(&nl_table_lock);
+			rcu_read_unlock();
 			return -ENOENT;
 		}
 
@@ -185,6 +195,7 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 
 	read_unlock(&nl_table_lock);
+	rcu_read_unlock();
 
 	return skb->len;
 }

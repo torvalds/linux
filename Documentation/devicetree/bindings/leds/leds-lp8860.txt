@@ -1,0 +1,29 @@
+* Texas Instruments - lp8860 4-Channel LED Driver
+
+The LP8860-Q1 is an high-efficiency LED
+driver with boost controller. It has 4 high-precision
+current sinks that can be controlled by a PWM input
+signal, a SPI/I2C master, or both.
+
+Required properties:
+	- compatible:
+		"ti,lp8860"
+	- reg -  I2C slave address
+	- label - Used for naming LEDs
+
+Optional properties:
+	- enable-gpio - gpio pin to enable/disable the device.
+	- supply - "vled" - LED supply
+
+Example:
+
+leds: leds@6 {
+	compatible = "ti,lp8860";
+	reg = <0x2d>;
+	label = "display_cluster";
+	enable-gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+	vled-supply = <&vbatt>;
+}
+
+For more product information please see the link below:
+http://www.ti.com/product/lp8860-q1

@@ -182,7 +182,6 @@
 			};
 
 			mdio@10d40 {
-				device_type = "mdio";
 				compatible = "fsl,mpc8272ads-mdio-bitbang",
 				             "fsl,mpc8272-mdio-bitbang",
 				             "fsl,cpm2-mdio-bitbang";
@@ -196,14 +195,12 @@
 					interrupt-parent = <&PIC>;
 					interrupts = <23 8>;
 					reg = <0x0>;
-					device_type = "ethernet-phy";
 				};
 
 				PHY1: ethernet-phy@1 {
 					interrupt-parent = <&PIC>;
 					interrupts = <23 8>;
 					reg = <0x3>;
-					device_type = "ethernet-phy";
 				};
 			};
 

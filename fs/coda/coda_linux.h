@@ -12,6 +12,12 @@
 #ifndef _LINUX_CODA_FS
 #define _LINUX_CODA_FS
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/mm.h>
@@ -46,7 +52,6 @@ int coda_setattr(struct dentry *, struct iattr *);
 
 /* this file:  heloers */
 char *coda_f2s(struct CodaFid *f);
-int coda_isroot(struct inode *i);
 int coda_iscontrol(const char *name, size_t length);
 
 void coda_vattr_to_iattr(struct inode *, struct coda_vattr *);
@@ -63,7 +68,7 @@ void coda_sysctl_clean(void);
     else \
         ptr = (cast)vzalloc((unsigned long) size); \
     if (!ptr) \
-        printk("kernel malloc returns 0 at %s:%d\n", __FILE__, __LINE__); \
+	pr_warn("kernel malloc returns 0 at %s:%d\n", __FILE__, __LINE__); \
 } while (0)
 
 
@@ -74,7 +79,7 @@ void coda_sysctl_clean(void);
 
 static inline struct coda_inode_info *ITOC(struct inode *inode)
 {
-	return list_entry(inode, struct coda_inode_info, vfs_inode);
+	return container_of(inode, struct coda_inode_info, vfs_inode);
 }
 
 static __inline__ struct CodaFid *coda_i2f(struct inode *inode)

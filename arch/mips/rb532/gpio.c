@@ -79,7 +79,7 @@ static inline void rb532_set_bit(unsigned bitval,
  */
 static inline int rb532_get_bit(unsigned offset, void __iomem *ioaddr)
 {
-	return (readl(ioaddr) & (1 << offset));
+	return readl(ioaddr) & (1 << offset);
 }
 
 /*

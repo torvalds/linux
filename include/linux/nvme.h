@@ -1,6 +1,6 @@
 /*
  * Definitions for the NVM Express interface
- * Copyright (c) 2011-2013, Intel Corporation.
+ * Copyright (c) 2011-2014, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -10,10 +10,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef _LINUX_NVME_H
@@ -21,8 +17,8 @@
 
 #include <uapi/linux/nvme.h>
 #include <linux/pci.h>
-#include <linux/miscdevice.h>
 #include <linux/kref.h>
+#include <linux/blk-mq.h>
 
 struct nvme_bar {
 	__u64			cap;	/* Controller Capabilities */
@@ -42,6 +38,7 @@ struct nvme_bar {
 #define NVME_CAP_TIMEOUT(cap)	(((cap) >> 24) & 0xff)
 #define NVME_CAP_STRIDE(cap)	(((cap) >> 32) & 0xf)
 #define NVME_CAP_MPSMIN(cap)	(((cap) >> 48) & 0xf)
+#define NVME_CAP_MPSMAX(cap)	(((cap) >> 52) & 0xf)
 
 enum {
 	NVME_CC_ENABLE		= 1 << 0,
@@ -64,9 +61,8 @@ enum {
 	NVME_CSTS_SHST_MASK	= 3 << 2,
 };
 
-#define NVME_VS(major, minor)	(major << 16 | minor)
-
-#define NVME_IO_TIMEOUT	(5 * HZ)
+extern unsigned char nvme_io_timeout;
+#define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
@@ -74,26 +70,40 @@ enum {
 struct nvme_dev {
 	struct list_head node;
 	struct nvme_queue **queues;
+	struct request_queue *admin_q;
+	struct blk_mq_tag_set tagset;
+	struct blk_mq_tag_set admin_tagset;
 	u32 __iomem *dbs;
-	struct pci_dev *pci_dev;
+	struct device *dev;
 	struct dma_pool *prp_page_pool;
 	struct dma_pool *prp_small_pool;
 	int instance;
-	int queue_count;
-	int db_stride;
+	unsigned queue_count;
+	unsigned online_queues;
+	unsigned max_qid;
+	int q_depth;
+	u32 db_stride;
 	u32 ctrl_config;
 	struct msix_entry *entry;
 	struct nvme_bar __iomem *bar;
 	struct list_head namespaces;
 	struct kref kref;
-	struct miscdevice miscdev;
+	struct device *device;
+	work_func_t reset_workfn;
+	struct work_struct reset_work;
+	struct work_struct probe_work;
+	struct work_struct scan_work;
 	char name[12];
 	char serial[20];
 	char model[40];
 	char firmware_rev[8];
 	u32 max_hw_sectors;
 	u32 stripe_size;
+	u32 page_size;
 	u16 oncs;
+	u16 abort_limit;
+	u8 event_limit;
+	u8 vwc;
 };
 
 /*
@@ -108,7 +118,9 @@ struct nvme_ns {
 
 	unsigned ns_id;
 	int lba_shift;
-	int ms;
+	u16 ms;
+	bool ext;
+	u8 pi_type;
 	u64 mode_select_num_blocks;
 	u32 mode_select_block_len;
 };
@@ -120,13 +132,13 @@ struct nvme_ns {
  * allocated to store the PRP list.
  */
 struct nvme_iod {
-	void *private;		/* For the use of the submitter of the I/O */
+	unsigned long private;	/* For the use of the submitter of the I/O */
 	int npages;		/* In the PRP list. 0 means small pool in use */
 	int offset;		/* Of PRP list */
 	int nents;		/* Used in scatterlist */
 	int length;		/* Of data, in bytes */
-	unsigned long start_time;
 	dma_addr_t first_dma;
+	struct scatterlist meta_sg[1]; /* metadata requires single contiguous buffer */
 	struct scatterlist sg[0];
 };
 
@@ -135,28 +147,15 @@ static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
 	return (sector >> (ns->lba_shift - 9));
 }
 
-/**
- * nvme_free_iod - frees an nvme_iod
- * @dev: The device that the I/O was submitted to
- * @iod: The memory to free
- */
-void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod);
-
-int nvme_setup_prps(struct nvme_dev *dev, struct nvme_common_command *cmd,
-			struct nvme_iod *iod, int total_len, gfp_t gfp);
-struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
-				unsigned long addr, unsigned length);
-void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
-			struct nvme_iod *iod);
-struct nvme_queue *get_nvmeq(struct nvme_dev *dev);
-void put_nvmeq(struct nvme_queue *nvmeq);
-int nvme_submit_sync_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd,
-						u32 *result, unsigned timeout);
-int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns);
-int nvme_submit_admin_cmd(struct nvme_dev *, struct nvme_command *,
-							u32 *result);
-int nvme_identify(struct nvme_dev *, unsigned nsid, unsigned cns,
-							dma_addr_t dma_addr);
+int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
+		void *buf, unsigned bufflen);
+int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
+		void *buffer, void __user *ubuffer, unsigned bufflen,
+		u32 *result, unsigned timeout);
+int nvme_identify_ctrl(struct nvme_dev *dev, struct nvme_id_ctrl **id);
+int nvme_identify_ns(struct nvme_dev *dev, unsigned nsid,
+		struct nvme_id_ns **id);
+int nvme_get_log_page(struct nvme_dev *dev, struct nvme_smart_log **log);
 int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
 			dma_addr_t dma_addr, u32 *result);
 int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,
@@ -165,6 +164,7 @@ int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,
 struct sg_io_hdr;
 
 int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr);
+int nvme_sg_io32(struct nvme_ns *ns, unsigned long arg);
 int nvme_sg_get_version_num(int __user *ip);
 
 #endif /* _LINUX_NVME_H */

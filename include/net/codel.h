@@ -7,7 +7,7 @@
  *  Copyright (C) 2011-2012 Kathleen Nichols <nichols@pollere.com>
  *  Copyright (C) 2011-2012 Van Jacobson <van@pollere.net>
  *  Copyright (C) 2012 Michael D. Taht <dave.taht@bufferbloat.net>
- *  Copyright (C) 2012 Eric Dumazet <edumazet@google.com>
+ *  Copyright (C) 2012,2015 Eric Dumazet <edumazet@google.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,7 +46,6 @@
 #include <linux/skbuff.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
-#include <linux/reciprocal_div.h>
 
 /* Controlling Queue Delay (CoDel) algorithm
  * =========================================
@@ -67,7 +66,7 @@ typedef s32 codel_tdiff_t;
 
 static inline codel_time_t codel_get_time(void)
 {
-	u64 ns = ktime_to_ns(ktime_get());
+	u64 ns = ktime_get_ns();
 
 	return ns >> CODEL_SHIFT;
 }
@@ -120,12 +119,16 @@ static inline u32 codel_time_to_us(codel_time_t val)
 /**
  * struct codel_params - contains codel parameters
  * @target:	target queue size (in time units)
+ * @ce_threshold:  threshold for marking packets with ECN CE
  * @interval:	width of moving time window
+ * @mtu:	device mtu, or minimal queue backlog in bytes.
  * @ecn:	is Explicit Congestion Notification enabled
  */
 struct codel_params {
 	codel_time_t	target;
+	codel_time_t	ce_threshold;
 	codel_time_t	interval;
+	u32		mtu;
 	bool		ecn;
 };
 
@@ -160,17 +163,24 @@ struct codel_vars {
  * @maxpacket:	largest packet we've seen so far
  * @drop_count:	temp count of dropped packets in dequeue()
  * ecn_mark:	number of packets we ECN marked instead of dropping
+ * ce_mark:	number of packets CE marked because sojourn time was above ce_threshold
  */
 struct codel_stats {
 	u32		maxpacket;
 	u32		drop_count;
 	u32		ecn_mark;
+	u32		ce_mark;
 };
 
-static void codel_params_init(struct codel_params *params)
+#define CODEL_DISABLED_THRESHOLD INT_MAX
+
+static void codel_params_init(struct codel_params *params,
+			      const struct Qdisc *sch)
 {
 	params->interval = MS2TIME(100);
 	params->target = MS2TIME(5);
+	params->mtu = psched_mtu(qdisc_dev(sch));
+	params->ce_threshold = CODEL_DISABLED_THRESHOLD;
 	params->ecn = false;
 }
 
@@ -181,7 +191,7 @@ static void codel_vars_init(struct codel_vars *vars)
 
 static void codel_stats_init(struct codel_stats *stats)
 {
-	stats->maxpacket = 256;
+	stats->maxpacket = 0;
 }
 
 /*
@@ -211,9 +221,8 @@ static codel_time_t codel_control_law(codel_time_t t,
 				      codel_time_t interval,
 				      u32 rec_inv_sqrt)
 {
-	return t + reciprocal_divide(interval, rec_inv_sqrt << REC_INV_SQRT_SHIFT);
+	return t + reciprocal_scale(interval, rec_inv_sqrt << REC_INV_SQRT_SHIFT);
 }
-
 
 static bool codel_should_drop(const struct sk_buff *skb,
 			      struct Qdisc *sch,
@@ -236,7 +245,7 @@ static bool codel_should_drop(const struct sk_buff *skb,
 		stats->maxpacket = qdisc_pkt_len(skb);
 
 	if (codel_time_before(vars->ldelay, params->target) ||
-	    sch->qstats.backlog <= stats->maxpacket) {
+	    sch->qstats.backlog <= params->mtu) {
 		/* went below - stay below for at least interval */
 		vars->first_above_time = 0;
 		return false;
@@ -352,6 +361,9 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 						    vars->rec_inv_sqrt);
 	}
 end:
+	if (skb && codel_time_after(vars->ldelay, params->ce_threshold) &&
+	    INET_ECN_set_ce(skb))
+		stats->ce_mark++;
 	return skb;
 }
 #endif

@@ -463,9 +463,7 @@ struct ipath_devdata {
 	/* offset in HT config space of slave/primary interface block */
 	u8 ipath_ht_slave_off;
 	/* for write combining settings */
-	unsigned long ipath_wc_cookie;
-	unsigned long ipath_wc_base;
-	unsigned long ipath_wc_len;
+	int wc_cookie;
 	/* ref count for each pkey */
 	atomic_t ipath_pkeyrefs[4];
 	/* shadow copy of struct page *'s for exp tid pages */
@@ -907,9 +905,6 @@ extern const char *ipath_ibcstatus_str[];
 void ipath_chip_cleanup(struct ipath_devdata *);
 /* clean up any chip type-specific stuff */
 void ipath_chip_done(void);
-
-/* check to see if we have to force ordering for write combining */
-int ipath_unordered_wc(void);
 
 void ipath_disarm_piobufs(struct ipath_devdata *, unsigned first,
 			  unsigned cnt);

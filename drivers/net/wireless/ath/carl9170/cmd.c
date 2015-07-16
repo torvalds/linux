@@ -188,12 +188,12 @@ int carl9170_collect_tally(struct ar9170 *ar)
 
 		if (ar->channel) {
 			info = &ar->survey[ar->channel->hw_value];
-			info->channel_time = ar->tally.active;
-			info->channel_time_busy = ar->tally.cca;
-			info->channel_time_tx = ar->tally.tx_time;
-			do_div(info->channel_time, 1000);
-			do_div(info->channel_time_busy, 1000);
-			do_div(info->channel_time_tx, 1000);
+			info->time = ar->tally.active;
+			info->time_busy = ar->tally.cca;
+			info->time_tx = ar->tally.tx_time;
+			do_div(info->time, 1000);
+			do_div(info->time_busy, 1000);
+			do_div(info->time_tx, 1000);
 		}
 	}
 	return 0;

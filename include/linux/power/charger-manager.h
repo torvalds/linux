@@ -17,6 +17,7 @@
 
 #include <linux/power_supply.h>
 #include <linux/extcon.h>
+#include <linux/alarmtimer.h>
 
 enum data_source {
 	CM_BATTERY_PRESENT,
@@ -37,32 +38,11 @@ enum cm_event_types {
 	CM_EVENT_BATT_FULL,
 	CM_EVENT_BATT_IN,
 	CM_EVENT_BATT_OUT,
+	CM_EVENT_BATT_OVERHEAT,
+	CM_EVENT_BATT_COLD,
 	CM_EVENT_EXT_PWR_IN_OUT,
 	CM_EVENT_CHG_START_STOP,
 	CM_EVENT_OTHERS,
-};
-
-/**
- * struct charger_global_desc
- * @rtc_name: the name of RTC used to wake up the system from suspend.
- * @rtc_only_wakeup:
- *	If the system is woken up by waekup-sources other than the RTC or
- *	callbacks, Charger Manager should recognize with
- *	rtc_only_wakeup() returning false.
- *	If the RTC given to CM is the only wakeup reason,
- *	rtc_only_wakeup should return true.
- * @assume_timer_stops_in_suspend:
- *	Assume that the jiffy timer stops in suspend-to-RAM.
- *	When enabled, CM does not rely on jiffies value in
- *	suspend_again and assumes that jiffies value does not
- *	change during suspend.
- */
-struct charger_global_desc {
-	char *rtc_name;
-
-	bool (*rtc_only_wakeup)(void);
-
-	bool assume_timer_stops_in_suspend;
 };
 
 /**
@@ -173,11 +153,10 @@ struct charger_regulator {
  * @num_charger_regulator: the number of entries in charger_regulators
  * @charger_regulators: array of charger regulators
  * @psy_fuel_gauge: the name of power-supply for fuel gauge
- * @temperature_out_of_range:
- *	Determine whether the status is overheat or cold or normal.
- *	return_value > 0: overheat
- *	return_value == 0: normal
- *	return_value < 0: cold
+ * @thermal_zone : the name of thermal zone for battery
+ * @temp_min : Minimum battery temperature for charging.
+ * @temp_max : Maximum battery temperature for charging.
+ * @temp_diff : Temperature diffential to restart charging.
  * @measure_battery_temp:
  *	true: measure battery temperature
  *	false: measure ambient temperature
@@ -190,7 +169,7 @@ struct charger_regulator {
  *	max_duration_ms', cm start charging.
  */
 struct charger_desc {
-	char *psy_name;
+	const char *psy_name;
 
 	enum polling_modes polling_mode;
 	unsigned int polling_interval_ms;
@@ -203,18 +182,23 @@ struct charger_desc {
 
 	enum data_source battery_present;
 
-	char **psy_charger_stat;
+	const char **psy_charger_stat;
 
 	int num_charger_regulators;
 	struct charger_regulator *charger_regulators;
 
-	char *psy_fuel_gauge;
+	const char *psy_fuel_gauge;
 
-	int (*temperature_out_of_range)(int *mC);
+	const char *thermal_zone;
+
+	int temp_min;
+	int temp_max;
+	int temp_diff;
+
 	bool measure_battery_temp;
 
-	u64 charging_max_duration_ms;
-	u64 discharging_max_duration_ms;
+	u32 charging_max_duration_ms;
+	u32 discharging_max_duration_ms;
 };
 
 #define PSY_NAME_MAX	30
@@ -226,13 +210,13 @@ struct charger_desc {
  * @desc: instance of charger_desc
  * @fuel_gauge: power_supply for fuel gauge
  * @charger_stat: array of power_supply for chargers
+ * @tzd_batt : thermal zone device for battery
  * @charger_enabled: the state of charger
  * @fullbatt_vchk_jiffies_at:
  *	jiffies at the time full battery check will occur.
  * @fullbatt_vchk_work: work queue for full battery check
  * @emergency_stop:
  *	When setting true, stop charging
- * @last_temp_mC: the measured temperature in milli-Celsius
  * @psy_name_buf: the name of power-supply-class for charger manager
  * @charger_psy: power_supply for charger manager
  * @status_save_ext_pwr_inserted:
@@ -247,36 +231,28 @@ struct charger_manager {
 	struct device *dev;
 	struct charger_desc *desc;
 
-	struct power_supply *fuel_gauge;
-	struct power_supply **charger_stat;
-
+#ifdef CONFIG_THERMAL
+	struct thermal_zone_device *tzd_batt;
+#endif
 	bool charger_enabled;
 
 	unsigned long fullbatt_vchk_jiffies_at;
 	struct delayed_work fullbatt_vchk_work;
 
 	int emergency_stop;
-	int last_temp_mC;
 
 	char psy_name_buf[PSY_NAME_MAX + 1];
-	struct power_supply charger_psy;
-
-	bool status_save_ext_pwr_inserted;
-	bool status_save_batt;
+	struct power_supply_desc charger_psy_desc;
+	struct power_supply *charger_psy;
 
 	u64 charging_start_time;
 	u64 charging_end_time;
 };
 
 #ifdef CONFIG_CHARGER_MANAGER
-extern int setup_charger_manager(struct charger_global_desc *gd);
-extern bool cm_suspend_again(void);
 extern void cm_notify_event(struct power_supply *psy,
 				enum cm_event_types type, char *msg);
 #else
-static inline int setup_charger_manager(struct charger_global_desc *gd)
-{ return 0; }
-static inline bool cm_suspend_again(void) { return false; }
 static inline void cm_notify_event(struct power_supply *psy,
 				enum cm_event_types type, char *msg) { }
 #endif

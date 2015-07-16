@@ -61,6 +61,7 @@ static void snd_pdacf_detach(struct pcmcia_device *p_dev);
 
 static void pdacf_release(struct pcmcia_device *link)
 {
+	free_irq(link->irq, link->priv);
 	pcmcia_disable_device(link);
 }
 
@@ -112,7 +113,8 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		return -ENODEV; /* disabled explicitly */
 
 	/* ok, create a card instance */
-	err = snd_card_create(index[i], id[i], THIS_MODULE, 0, &card);
+	err = snd_card_new(&link->dev, index[i], id[i], THIS_MODULE,
+			   0, &card);
 	if (err < 0) {
 		snd_printk(KERN_ERR "pdacf: cannot create a card instance\n");
 		return err;
@@ -130,8 +132,6 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		snd_card_free(card);
 		return err;
 	}
-
-	snd_card_set_dev(card, &link->dev);
 
 	pdacf->index = i;
 	card_list[i] = card;
@@ -221,11 +221,13 @@ static int pdacf_config(struct pcmcia_device *link)
 
 	ret = pcmcia_request_io(link);
 	if (ret)
-		goto failed;
+		goto failed_preirq;
 
-	ret = pcmcia_request_irq(link, pdacf_interrupt);
+	ret = request_threaded_irq(link->irq, pdacf_interrupt,
+				   pdacf_threaded_irq,
+				   IRQF_SHARED, link->devname, link->priv);
 	if (ret)
-		goto failed;
+		goto failed_preirq;
 
 	ret = pcmcia_enable_device(link);
 	if (ret)
@@ -237,7 +239,9 @@ static int pdacf_config(struct pcmcia_device *link)
 
 	return 0;
 
-failed:
+ failed:
+	free_irq(link->irq, link->priv);
+failed_preirq:
 	pcmcia_disable_device(link);
 	return -ENODEV;
 }

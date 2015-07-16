@@ -16,6 +16,7 @@ mktree
 uImage
 cuImage.*
 dtbImage.*
+*.dtb
 treeImage.*
 zImage
 zImage.initrd

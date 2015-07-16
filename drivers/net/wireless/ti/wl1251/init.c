@@ -33,7 +33,7 @@ int wl1251_hw_init_hwenc_config(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl1251_acx_feature_cfg(wl);
+	ret = wl1251_acx_feature_cfg(wl, 0);
 	if (ret < 0) {
 		wl1251_warning("couldn't set feature config");
 		return ret;
@@ -127,7 +127,7 @@ int wl1251_hw_init_phy_config(struct wl1251 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1251_acx_group_address_tbl(wl);
+	ret = wl1251_acx_group_address_tbl(wl, true, NULL, 0);
 	if (ret < 0)
 		return ret;
 
@@ -394,8 +394,13 @@ int wl1251_hw_init(struct wl1251 *wl)
 	if (ret < 0)
 		goto out_free_data_path;
 
-	/* Enable data path */
-	ret = wl1251_cmd_data_path(wl, wl->channel, 1);
+	/* Enable rx data path */
+	ret = wl1251_cmd_data_path_rx(wl, wl->channel, 1);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* Enable tx data path */
+	ret = wl1251_cmd_data_path_tx(wl, wl->channel, 1);
 	if (ret < 0)
 		goto out_free_data_path;
 

@@ -365,10 +365,10 @@ static const struct v4l2_subdev_core_ops saa7110_core_ops = {
 	.s_ctrl = v4l2_subdev_s_ctrl,
 	.queryctrl = v4l2_subdev_queryctrl,
 	.querymenu = v4l2_subdev_querymenu,
-	.s_std = saa7110_s_std,
 };
 
 static const struct v4l2_subdev_video_ops saa7110_video_ops = {
+	.s_std = saa7110_s_std,
 	.s_routing = saa7110_s_routing,
 	.s_stream = saa7110_s_stream,
 	.querystd = saa7110_querystd,

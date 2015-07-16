@@ -149,14 +149,14 @@ static int max9850_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_write(codec, MAX9850_LRCLK_MSB, (lrclk_div >> 8) & 0x7f);
 	snd_soc_write(codec, MAX9850_LRCLK_LSB, lrclk_div & 0xff);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		da = 0;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		da = 0x2;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		da = 0x3;
 		break;
 	default:
@@ -252,7 +252,7 @@ static int max9850_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regcache_sync(max9850->regmap);
 			if (ret) {
 				dev_err(codec->dev,
@@ -264,7 +264,6 @@ static int max9850_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_OFF:
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -291,35 +290,8 @@ static struct snd_soc_dai_driver max9850_dai = {
 	.ops = &max9850_dai_ops,
 };
 
-#ifdef CONFIG_PM
-static int max9850_suspend(struct snd_soc_codec *codec)
-{
-	max9850_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int max9850_resume(struct snd_soc_codec *codec)
-{
-	max9850_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define max9850_suspend NULL
-#define max9850_resume NULL
-#endif
-
 static int max9850_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	/* enable zero-detect */
 	snd_soc_update_bits(codec, MAX9850_GENERAL_PURPOSE, 1, 1);
 	/* enable slew-rate control */
@@ -332,9 +304,8 @@ static int max9850_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_max9850 = {
 	.probe =	max9850_probe,
-	.suspend =	max9850_suspend,
-	.resume =	max9850_resume,
 	.set_bias_level = max9850_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = max9850_controls,
 	.num_controls = ARRAY_SIZE(max9850_controls),

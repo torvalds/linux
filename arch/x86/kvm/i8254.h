@@ -3,7 +3,7 @@
 
 #include <linux/kthread.h>
 
-#include "iodev.h"
+#include <kvm/iodev.h>
 
 struct kvm_kpit_channel_state {
 	u32 count; /* can be 65536 */

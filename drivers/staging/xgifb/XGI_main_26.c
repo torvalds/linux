@@ -8,10 +8,7 @@
 
 #include <linux/sizes.h>
 #include <linux/module.h>
-
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
+#include <linux/pci.h>
 
 #include "XGI_main.h"
 #include "vb_init.h"
@@ -66,6 +63,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	unsigned short ModeIdIndex = 0, ClockIndex = 0;
 	unsigned short RefreshRateTableIndex = 0;
 	int Clock;
+
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
 	XGI_SearchModeID(ModeNo, &ModeIdIndex);
@@ -95,6 +93,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned short HRE, HBE, HRS, HDE;
 	unsigned char sr_data, cr_data, cr_data2;
 	int B, C, D, F, temp, j;
+
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex))
 		return 0;
@@ -104,7 +103,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 
 	sr_data = XGI_CRT1Table[index].CR[5];
 
-	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3);
+	HDE = XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3;
 
 	cr_data = XGI_CRT1Table[index].CR[3];
 
@@ -216,6 +215,7 @@ void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 	XGI_Pr->P3c8 = BaseAddr + 0x18;
 	XGI_Pr->P3c9 = BaseAddr + 0x19;
 	XGI_Pr->P3da = BaseAddr + 0x2A;
+	XGI_Pr->Part0Port = BaseAddr + XGI_CRT2_PORT_00;
 	/* Digital video interface registers (LCD) */
 	XGI_Pr->Part1Port = BaseAddr + SIS_CRT2_PORT_04;
 	/* 301 TV Encoder registers */
@@ -585,13 +585,11 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 		}
 		i++;
 	}
-	if (xgifb_info->rate_idx > 0) {
+	if (xgifb_info->rate_idx > 0)
 		return xgifb_info->rate_idx;
-	} else {
-		pr_info("Unsupported rate %d for %dx%d\n",
-		       rate, xres, yres);
-		return 0;
-	}
+	pr_info("Unsupported rate %d for %dx%d\n",
+		rate, xres, yres);
+	return 0;
 }
 
 static void XGIfb_search_tvstd(const char *name)
@@ -929,7 +927,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			+ var->hsync_len;
 	unsigned int vtotal = var->upper_margin + var->yres + var->lower_margin
 			+ var->vsync_len;
-#if defined(__powerpc__)
+#if defined(__BIG_ENDIAN)
 	u8 cr_data;
 #endif
 	unsigned int drate = 0, hrate = 0;
@@ -951,7 +949,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	} pr_debug("var->pixclock=%d, htotal=%d, vtotal=%d\n",
 			var->pixclock, htotal, vtotal);
 
-	if (var->pixclock && htotal && vtotal) {
+	if (var->pixclock) {
 		drate = 1000000000 / var->pixclock;
 		hrate = (drate * 1000) / htotal;
 		xgifb_info->refresh_rate = (unsigned int) (hrate * 2
@@ -1010,8 +1008,8 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			       XGIbios_mode[xgifb_info->mode_idx].mode_no);
 			return -EINVAL;
 		}
-		info->fix.line_length = ((info->var.xres_virtual
-				* info->var.bits_per_pixel) >> 6);
+		info->fix.line_length = (info->var.xres_virtual
+				* info->var.bits_per_pixel) >> 6;
 
 		xgifb_reg_set(XGISR, IND_SIS_PASSWORD, SIS_PASSWORD);
 
@@ -1043,7 +1041,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			xgifb_info->DstColor = 0x0000;
 			xgifb_info->XGI310_AccelDepth = 0x00000000;
 			xgifb_info->video_cmap_len = 256;
-#if defined(__powerpc__)
+#if defined(__BIG_ENDIAN)
 			cr_data = xgifb_reg_get(XGICR, 0x4D);
 			xgifb_reg_set(XGICR, 0x4D, (cr_data & 0xE0));
 #endif
@@ -1051,7 +1049,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		case 16:
 			xgifb_info->DstColor = 0x8000;
 			xgifb_info->XGI310_AccelDepth = 0x00010000;
-#if defined(__powerpc__)
+#if defined(__BIG_ENDIAN)
 			cr_data = xgifb_reg_get(XGICR, 0x4D);
 			xgifb_reg_set(XGICR, 0x4D, ((cr_data & 0xE0) | 0x0B));
 #endif
@@ -1061,7 +1059,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			xgifb_info->DstColor = 0xC000;
 			xgifb_info->XGI310_AccelDepth = 0x00020000;
 			xgifb_info->video_cmap_len = 16;
-#if defined(__powerpc__)
+#if defined(__BIG_ENDIAN)
 			cr_data = xgifb_reg_get(XGICR, 0x4D);
 			xgifb_reg_set(XGICR, 0x4D, ((cr_data & 0xE0) | 0x15));
 #endif
@@ -1754,8 +1752,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Unable request memory size %x\n",
 		       xgifb_info->video_size);
 		dev_err(&pdev->dev,
-			"Fatal error: Unable to reserve frame buffer memory. "
-			"Is there another framebuffer driver active?\n");
+			"Fatal error: Unable to reserve frame buffer memory. Is there another framebuffer driver active?\n");
 		ret = -ENODEV;
 		goto error_disable;
 	}
@@ -1770,7 +1767,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	}
 
 	xgifb_info->video_vbase = hw_info->pjVideoMemoryAddress =
-	ioremap(xgifb_info->video_base, xgifb_info->video_size);
+		ioremap_wc(xgifb_info->video_base, xgifb_info->video_size);
 	xgifb_info->mmio_vbase = ioremap(xgifb_info->mmio_base,
 					    xgifb_info->mmio_size);
 
@@ -2012,14 +2009,10 @@ static int xgifb_probe(struct pci_dev *pdev,
 	XGIfb_get_fix(&fb_info->fix, -1, fb_info);
 	fb_info->pseudo_palette = xgifb_info->pseudo_palette;
 
-	fb_alloc_cmap(&fb_info->cmap, 256 , 0);
+	fb_alloc_cmap(&fb_info->cmap, 256, 0);
 
-#ifdef CONFIG_MTRR
-	xgifb_info->mtrr = mtrr_add(xgifb_info->video_base,
-		xgifb_info->video_size, MTRR_TYPE_WRCOMB, 1);
-	if (xgifb_info->mtrr >= 0)
-		dev_info(&pdev->dev, "Added MTRR\n");
-#endif
+	xgifb_info->mtrr = arch_phys_wc_add(xgifb_info->video_base,
+					    xgifb_info->video_size);
 
 	if (register_framebuffer(fb_info) < 0) {
 		ret = -EINVAL;
@@ -2031,11 +2024,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	return 0;
 
 error_mtrr:
-#ifdef CONFIG_MTRR
-	if (xgifb_info->mtrr >= 0)
-		mtrr_del(xgifb_info->mtrr, xgifb_info->video_base,
-			xgifb_info->video_size);
-#endif /* CONFIG_MTRR */
+	arch_phys_wc_del(xgifb_info->mtrr);
 error_1:
 	iounmap(xgifb_info->mmio_vbase);
 	iounmap(xgifb_info->video_vbase);
@@ -2059,11 +2048,7 @@ static void xgifb_remove(struct pci_dev *pdev)
 	struct fb_info *fb_info = xgifb_info->fb_info;
 
 	unregister_framebuffer(fb_info);
-#ifdef CONFIG_MTRR
-	if (xgifb_info->mtrr >= 0)
-		mtrr_del(xgifb_info->mtrr, xgifb_info->video_base,
-			xgifb_info->video_size);
-#endif /* CONFIG_MTRR */
+	arch_phys_wc_del(xgifb_info->mtrr);
 	iounmap(xgifb_info->mmio_vbase);
 	iounmap(xgifb_info->video_vbase);
 	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);
@@ -2087,23 +2072,19 @@ static struct pci_driver xgifb_driver = {
 
 module_param(mode, charp, 0);
 MODULE_PARM_DESC(mode,
-	"Selects the desired default display mode in the format XxYxDepth "
-	"(eg. 1024x768x16).");
+	"Selects the desired default display mode in the format XxYxDepth (eg. 1024x768x16).");
 
 module_param(forcecrt2type, charp, 0);
 MODULE_PARM_DESC(forcecrt2type,
-	"Force the second display output type. Possible values are NONE, "
-	"LCD, TV, VGA, SVIDEO or COMPOSITE.");
+	"Force the second display output type. Possible values are NONE, LCD, TV, VGA, SVIDEO or COMPOSITE.");
 
 module_param(vesa, int, 0);
 MODULE_PARM_DESC(vesa,
-	"Selects the desired default display mode by VESA mode number "
-	"(eg. 0x117).");
+	"Selects the desired default display mode by VESA mode number (eg. 0x117).");
 
 module_param(filter, int, 0);
 MODULE_PARM_DESC(filter,
-	"Selects TV flicker filter type (only for systems with a SiS301 video bridge). "
-	"Possible values 0-7. Default: [no filter]).");
+	"Selects TV flicker filter type (only for systems with a SiS301 video bridge). Possible values 0-7. Default: [no filter]).");
 
 static int __init xgifb_init(void)
 {

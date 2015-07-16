@@ -1367,16 +1367,16 @@ bfa_faa_query(struct bfa_s *bfa, struct bfa_faa_attr_s *attr,
 	struct bfa_iocfc_s      *iocfc = &bfa->iocfc;
 	bfa_status_t            status;
 
-	iocfc->faa_args.faa_attr = attr;
-	iocfc->faa_args.faa_cb.faa_cbfn = cbfn;
-	iocfc->faa_args.faa_cb.faa_cbarg = cbarg;
-
 	status = bfa_faa_validate_request(bfa);
 	if (status != BFA_STATUS_OK)
 		return status;
 
 	if (iocfc->faa_args.busy == BFA_TRUE)
 		return BFA_STATUS_DEVBUSY;
+
+	iocfc->faa_args.faa_attr = attr;
+	iocfc->faa_args.faa_cb.faa_cbfn = cbfn;
+	iocfc->faa_args.faa_cb.faa_cbarg = cbarg;
 
 	iocfc->faa_args.busy = BFA_TRUE;
 	memset(&faa_attr_req, 0, sizeof(struct bfi_faa_query_s));

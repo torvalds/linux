@@ -44,6 +44,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -52,7 +53,6 @@
 #include <sound/initval.h>
 #include <sound/info.h>
 
-#include <asm/io.h>
 #include <asm/hardware.h>
 #include <asm/parisc-device.h>
 
@@ -776,15 +776,9 @@ static int
 snd_harmony_captureroute_info(struct snd_kcontrol *kc, 
 			      struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = { "Line", "Mic" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item > 1)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	static const char * const texts[2] = { "Line", "Mic" };
+
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int 
@@ -899,9 +893,7 @@ snd_harmony_free(struct snd_harmony *h)
 	if (h->irq >= 0)
 		free_irq(h->irq, h);
 
-	if (h->iobase)
-		iounmap(h->iobase);
-
+	iounmap(h->iobase);
 	kfree(h);
 	return 0;
 }
@@ -959,8 +951,6 @@ snd_harmony_create(struct snd_card *card,
                 goto free_and_ret;
         }
 
-	snd_card_set_dev(card, &padev->dev);
-
 	*rchip = h;
 
 	return 0;
@@ -977,7 +967,7 @@ snd_harmony_probe(struct parisc_device *padev)
 	struct snd_card *card;
 	struct snd_harmony *h;
 
-	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	err = snd_card_new(&padev->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 

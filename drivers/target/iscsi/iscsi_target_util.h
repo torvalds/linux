@@ -9,14 +9,13 @@ extern struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsi_cmd *);
 extern void iscsit_free_r2t(struct iscsi_r2t *, struct iscsi_cmd *);
 extern void iscsit_free_r2ts_from_list(struct iscsi_cmd *);
 extern struct iscsi_cmd *iscsit_alloc_cmd(struct iscsi_conn *, gfp_t);
-extern struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *, gfp_t);
+extern struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *, int);
 extern struct iscsi_seq *iscsit_get_seq_holder_for_datain(struct iscsi_cmd *, u32);
 extern struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsi_cmd *);
 extern struct iscsi_r2t *iscsit_get_holder_for_r2tsn(struct iscsi_cmd *, u32);
 extern int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 			       unsigned char * ,__be32 cmdsn);
 extern int iscsit_check_unsolicited_dataout(struct iscsi_cmd *, unsigned char *);
-extern struct iscsi_cmd *iscsit_find_cmd_from_itt(struct iscsi_conn *, itt_t);
 extern struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(struct iscsi_conn *,
 			itt_t, u32);
 extern struct iscsi_cmd *iscsit_find_cmd_from_ttt(struct iscsi_conn *, u32);
@@ -30,11 +29,11 @@ extern void iscsit_remove_cmd_from_tx_queues(struct iscsi_cmd *, struct iscsi_co
 extern bool iscsit_conn_all_queues_empty(struct iscsi_conn *);
 extern void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *);
 extern void iscsit_release_cmd(struct iscsi_cmd *);
+extern void __iscsit_free_cmd(struct iscsi_cmd *, bool, bool);
 extern void iscsit_free_cmd(struct iscsi_cmd *, bool);
 extern int iscsit_check_session_usage_count(struct iscsi_session *);
 extern void iscsit_dec_session_usage_count(struct iscsi_session *);
 extern void iscsit_inc_session_usage_count(struct iscsi_session *);
-extern int iscsit_set_sync_and_steering_values(struct iscsi_conn *);
 extern struct iscsi_conn *iscsit_get_conn_from_cid(struct iscsi_session *, u16);
 extern struct iscsi_conn *iscsit_get_conn_from_cid_rcfr(struct iscsi_session *, u16);
 extern void iscsit_check_conn_usage_count(struct iscsi_conn *);

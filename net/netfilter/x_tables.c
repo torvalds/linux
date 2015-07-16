@@ -71,18 +71,14 @@ static const char *const xt_prefix[NFPROTO_NUMPROTO] = {
 static const unsigned int xt_jumpstack_multiplier = 2;
 
 /* Registration hooks for targets. */
-int
-xt_register_target(struct xt_target *target)
+int xt_register_target(struct xt_target *target)
 {
 	u_int8_t af = target->family;
-	int ret;
 
-	ret = mutex_lock_interruptible(&xt[af].mutex);
-	if (ret != 0)
-		return ret;
+	mutex_lock(&xt[af].mutex);
 	list_add(&target->list, &xt[af].target);
 	mutex_unlock(&xt[af].mutex);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(xt_register_target);
 
@@ -125,20 +121,14 @@ xt_unregister_targets(struct xt_target *target, unsigned int n)
 }
 EXPORT_SYMBOL(xt_unregister_targets);
 
-int
-xt_register_match(struct xt_match *match)
+int xt_register_match(struct xt_match *match)
 {
 	u_int8_t af = match->family;
-	int ret;
 
-	ret = mutex_lock_interruptible(&xt[af].mutex);
-	if (ret != 0)
-		return ret;
-
+	mutex_lock(&xt[af].mutex);
 	list_add(&match->list, &xt[af].match);
 	mutex_unlock(&xt[af].mutex);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(xt_register_match);
 
@@ -194,9 +184,7 @@ struct xt_match *xt_find_match(u8 af, const char *name, u8 revision)
 	struct xt_match *m;
 	int err = -ENOENT;
 
-	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
-		return ERR_PTR(-EINTR);
-
+	mutex_lock(&xt[af].mutex);
 	list_for_each_entry(m, &xt[af].match, list) {
 		if (strcmp(m->name, name) == 0) {
 			if (m->revision == revision) {
@@ -239,9 +227,7 @@ struct xt_target *xt_find_target(u8 af, const char *name, u8 revision)
 	struct xt_target *t;
 	int err = -ENOENT;
 
-	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
-		return ERR_PTR(-EINTR);
-
+	mutex_lock(&xt[af].mutex);
 	list_for_each_entry(t, &xt[af].target, list) {
 		if (strcmp(t->name, name) == 0) {
 			if (t->revision == revision) {
@@ -323,10 +309,7 @@ int xt_find_revision(u8 af, const char *name, u8 revision, int target,
 {
 	int have_rev, best = -1;
 
-	if (mutex_lock_interruptible(&xt[af].mutex) != 0) {
-		*err = -EINTR;
-		return 1;
-	}
+	mutex_lock(&xt[af].mutex);
 	if (target == 1)
 		have_rev = target_revfn(af, name, revision, &best);
 	else
@@ -675,35 +658,23 @@ EXPORT_SYMBOL_GPL(xt_compat_target_to_user);
 
 struct xt_table_info *xt_alloc_table_info(unsigned int size)
 {
-	struct xt_table_info *newinfo;
-	int cpu;
+	struct xt_table_info *info = NULL;
+	size_t sz = sizeof(*info) + size;
 
 	/* Pedantry: prevent them from hitting BUG() in vmalloc.c --RR */
 	if ((SMP_ALIGN(size) >> PAGE_SHIFT) + 2 > totalram_pages)
 		return NULL;
 
-	newinfo = kzalloc(XT_TABLE_INFO_SZ, GFP_KERNEL);
-	if (!newinfo)
-		return NULL;
-
-	newinfo->size = size;
-
-	for_each_possible_cpu(cpu) {
-		if (size <= PAGE_SIZE)
-			newinfo->entries[cpu] = kmalloc_node(size,
-							GFP_KERNEL,
-							cpu_to_node(cpu));
-		else
-			newinfo->entries[cpu] = vmalloc_node(size,
-							cpu_to_node(cpu));
-
-		if (newinfo->entries[cpu] == NULL) {
-			xt_free_table_info(newinfo);
+	if (sz <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+		info = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	if (!info) {
+		info = vmalloc(sz);
+		if (!info)
 			return NULL;
-		}
 	}
-
-	return newinfo;
+	memset(info, 0, sizeof(*info));
+	info->size = size;
+	return info;
 }
 EXPORT_SYMBOL(xt_alloc_table_info);
 
@@ -711,31 +682,15 @@ void xt_free_table_info(struct xt_table_info *info)
 {
 	int cpu;
 
-	for_each_possible_cpu(cpu) {
-		if (info->size <= PAGE_SIZE)
-			kfree(info->entries[cpu]);
-		else
-			vfree(info->entries[cpu]);
-	}
-
 	if (info->jumpstack != NULL) {
-		if (sizeof(void *) * info->stacksize > PAGE_SIZE) {
-			for_each_possible_cpu(cpu)
-				vfree(info->jumpstack[cpu]);
-		} else {
-			for_each_possible_cpu(cpu)
-				kfree(info->jumpstack[cpu]);
-		}
+		for_each_possible_cpu(cpu)
+			kvfree(info->jumpstack[cpu]);
+		kvfree(info->jumpstack);
 	}
-
-	if (sizeof(void **) * nr_cpu_ids > PAGE_SIZE)
-		vfree(info->jumpstack);
-	else
-		kfree(info->jumpstack);
 
 	free_percpu(info->stackptr);
 
-	kfree(info);
+	kvfree(info);
 }
 EXPORT_SYMBOL(xt_free_table_info);
 
@@ -745,9 +700,7 @@ struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 {
 	struct xt_table *t;
 
-	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
-		return ERR_PTR(-EINTR);
-
+	mutex_lock(&xt[af].mutex);
 	list_for_each_entry(t, &net->xt.tables[af], list)
 		if (strcmp(t->name, name) == 0 && try_module_get(t->me))
 			return t;
@@ -896,10 +849,7 @@ struct xt_table *xt_register_table(struct net *net,
 		goto out;
 	}
 
-	ret = mutex_lock_interruptible(&xt[table->af].mutex);
-	if (ret != 0)
-		goto out_free;
-
+	mutex_lock(&xt[table->af].mutex);
 	/* Don't autoload: we'd eat our tail... */
 	list_for_each_entry(t, &net->xt.tables[table->af], list) {
 		if (strcmp(t->name, table->name) == 0) {
@@ -924,9 +874,8 @@ struct xt_table *xt_register_table(struct net *net,
 	mutex_unlock(&xt[table->af].mutex);
 	return table;
 
- unlock:
+unlock:
 	mutex_unlock(&xt[table->af].mutex);
-out_free:
 	kfree(table);
 out:
 	return ERR_PTR(ret);
@@ -983,10 +932,9 @@ static int xt_table_seq_show(struct seq_file *seq, void *v)
 {
 	struct xt_table *table = list_entry(v, struct xt_table, list);
 
-	if (strlen(table->name))
-		return seq_printf(seq, "%s\n", table->name);
-	else
-		return 0;
+	if (*table->name)
+		seq_printf(seq, "%s\n", table->name);
+	return 0;
 }
 
 static const struct seq_operations xt_table_seq_ops = {
@@ -1122,8 +1070,8 @@ static int xt_match_seq_show(struct seq_file *seq, void *v)
 		if (trav->curr == trav->head)
 			return 0;
 		match = list_entry(trav->curr, struct xt_match, list);
-		return (*match->name == '\0') ? 0 :
-		       seq_printf(seq, "%s\n", match->name);
+		if (*match->name)
+			seq_printf(seq, "%s\n", match->name);
 	}
 	return 0;
 }
@@ -1137,22 +1085,11 @@ static const struct seq_operations xt_match_seq_ops = {
 
 static int xt_match_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
 	struct nf_mttg_trav *trav;
-	int ret;
-
-	trav = kmalloc(sizeof(*trav), GFP_KERNEL);
-	if (trav == NULL)
+	trav = __seq_open_private(file, &xt_match_seq_ops, sizeof(*trav));
+	if (!trav)
 		return -ENOMEM;
 
-	ret = seq_open(file, &xt_match_seq_ops);
-	if (ret < 0) {
-		kfree(trav);
-		return ret;
-	}
-
-	seq = file->private_data;
-	seq->private = trav;
 	trav->nfproto = (unsigned long)PDE_DATA(inode);
 	return 0;
 }
@@ -1186,8 +1123,8 @@ static int xt_target_seq_show(struct seq_file *seq, void *v)
 		if (trav->curr == trav->head)
 			return 0;
 		target = list_entry(trav->curr, struct xt_target, list);
-		return (*target->name == '\0') ? 0 :
-		       seq_printf(seq, "%s\n", target->name);
+		if (*target->name)
+			seq_printf(seq, "%s\n", target->name);
 	}
 	return 0;
 }
@@ -1201,22 +1138,11 @@ static const struct seq_operations xt_target_seq_ops = {
 
 static int xt_target_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
 	struct nf_mttg_trav *trav;
-	int ret;
-
-	trav = kmalloc(sizeof(*trav), GFP_KERNEL);
-	if (trav == NULL)
+	trav = __seq_open_private(file, &xt_target_seq_ops, sizeof(*trav));
+	if (!trav)
 		return -ENOMEM;
 
-	ret = seq_open(file, &xt_target_seq_ops);
-	if (ret < 0) {
-		kfree(trav);
-		return ret;
-	}
-
-	seq = file->private_data;
-	seq->private = trav;
 	trav->nfproto = (unsigned long)PDE_DATA(inode);
 	return 0;
 }

@@ -20,7 +20,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -41,8 +40,6 @@
 #define RTL8192U
 #define RTL819xU_MODULE_NAME "rtl819xU"
 /* HW security */
-#define FALSE 0
-#define TRUE 1
 #define MAX_KEY_LEN     61
 #define KEY_BUF_SIZE    5
 

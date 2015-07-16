@@ -27,7 +27,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -113,7 +112,7 @@ struct cypress_private {
 	int baud_rate;			   /* stores current baud rate in
 					      integer form */
 	int isthrottled;		   /* if throttled, discard reads */
-	char prev_status, diff_status;	   /* used for TIOCMIWAIT */
+	char prev_status;		   /* used for TIOCMIWAIT */
 	/* we pass a pointer to this as the argument sent to
 	   cypress_set_termios old_termios */
 	struct ktermios tmp_termios; 	   /* stores the old termios settings */
@@ -136,7 +135,6 @@ static void cypress_set_termios(struct tty_struct *tty,
 static int  cypress_tiocmget(struct tty_struct *tty);
 static int  cypress_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
-static int  cypress_tiocmiwait(struct tty_struct *tty, unsigned long arg);
 static int  cypress_chars_in_buffer(struct tty_struct *tty);
 static void cypress_throttle(struct tty_struct *tty);
 static void cypress_unthrottle(struct tty_struct *tty);
@@ -162,7 +160,7 @@ static struct usb_serial_driver cypress_earthmate_device = {
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
-	.tiocmiwait =			cypress_tiocmiwait,
+	.tiocmiwait =			usb_serial_generic_tiocmiwait,
 	.chars_in_buffer =		cypress_chars_in_buffer,
 	.throttle =		 	cypress_throttle,
 	.unthrottle =			cypress_unthrottle,
@@ -188,7 +186,7 @@ static struct usb_serial_driver cypress_hidcom_device = {
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
-	.tiocmiwait =			cypress_tiocmiwait,
+	.tiocmiwait =			usb_serial_generic_tiocmiwait,
 	.chars_in_buffer =		cypress_chars_in_buffer,
 	.throttle =			cypress_throttle,
 	.unthrottle =			cypress_unthrottle,
@@ -214,7 +212,7 @@ static struct usb_serial_driver cypress_ca42v2_device = {
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
-	.tiocmiwait =			cypress_tiocmiwait,
+	.tiocmiwait =			usb_serial_generic_tiocmiwait,
 	.chars_in_buffer =		cypress_chars_in_buffer,
 	.throttle =			cypress_throttle,
 	.unthrottle =			cypress_unthrottle,
@@ -281,7 +279,7 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 			 * the generic firmware, but are not used with
 			 * NMEA and SiRF protocols */
 			dev_dbg(&port->dev,
-				"%s - failed setting baud rate, unsupported speed of %d on Earthmate GPS",
+				"%s - failed setting baud rate, unsupported speed of %d on Earthmate GPS\n",
 				__func__, new_rate);
 			return -1;
 		}
@@ -864,45 +862,6 @@ static int cypress_tiocmset(struct tty_struct *tty,
 	return cypress_write(tty, port, NULL, 0);
 }
 
-
-static int cypress_tiocmiwait(struct tty_struct *tty, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct cypress_private *priv = usb_get_serial_port_data(port);
-	char diff;
-
-	for (;;) {
-		interruptible_sleep_on(&port->port.delta_msr_wait);
-		/* see if a signal did it */
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		if (port->serial->disconnected)
-			return -EIO;
-
-		diff = priv->diff_status;
-		if (diff == 0)
-			return -EIO; /* no change => error */
-
-		/* consume all events */
-		priv->diff_status = 0;
-
-		/* return 0 if caller wanted to know about
-		   these bits */
-		if (((arg & TIOCM_RNG) && (diff & UART_RI))  ||
-			((arg & TIOCM_DSR) && (diff & UART_DSR)) ||
-			((arg & TIOCM_CD)  && (diff & UART_CD))  ||
-			((arg & TIOCM_CTS) && (diff & UART_CTS)))
-			return 0;
-		/* otherwise caller can't care less about what
-		 * happened, and so we continue to wait for
-		 * more events.
-		 */
-	}
-
-	return 0;
-}
-
 static void cypress_set_termios(struct tty_struct *tty,
 	struct usb_serial_port *port, struct ktermios *old_termios)
 {
@@ -1185,9 +1144,21 @@ static void cypress_read_int_callback(struct urb *urb)
 	spin_lock_irqsave(&priv->lock, flags);
 	/* check to see if status has changed */
 	if (priv->current_status != priv->prev_status) {
-		priv->diff_status |= priv->current_status ^
-			priv->prev_status;
-		wake_up_interruptible(&port->port.delta_msr_wait);
+		u8 delta = priv->current_status ^ priv->prev_status;
+
+		if (delta & UART_MSR_MASK) {
+			if (delta & UART_CTS)
+				port->icount.cts++;
+			if (delta & UART_DSR)
+				port->icount.dsr++;
+			if (delta & UART_RI)
+				port->icount.rng++;
+			if (delta & UART_CD)
+				port->icount.dcd++;
+
+			wake_up_interruptible(&port->port.delta_msr_wait);
+		}
+
 		priv->prev_status = priv->current_status;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1253,7 +1224,6 @@ static void cypress_write_int_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	struct device *dev = &urb->dev->dev;
-	int result;
 	int status = urb->status;
 
 	switch (status) {
@@ -1268,21 +1238,9 @@ static void cypress_write_int_callback(struct urb *urb)
 			__func__, status);
 		priv->write_urb_in_use = 0;
 		return;
-	case -EPIPE: /* no break needed; clear halt and resubmit */
-		if (!priv->comm_is_ok)
-			break;
-		usb_clear_halt(port->serial->dev, 0x02);
-		/* error in the urb, so we have to resubmit it */
-		dev_dbg(dev, "%s - nonzero write bulk status received: %d\n",
-			__func__, status);
-		port->interrupt_out_urb->transfer_buffer_length = 1;
-		result = usb_submit_urb(port->interrupt_out_urb, GFP_ATOMIC);
-		if (!result)
-			return;
-		dev_err(dev, "%s - failed resubmitting write urb, error %d\n",
-			__func__, result);
-		cypress_set_dead(port);
-		break;
+	case -EPIPE:
+		/* Cannot call usb_clear_halt while in_interrupt */
+		/* FALLTHROUGH */
 	default:
 		dev_err(dev, "%s - unexpected nonzero write status received: %d\n",
 			__func__, status);

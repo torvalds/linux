@@ -122,7 +122,7 @@ static int sh_pfc_dt_subnode_to_map(struct device *dev, struct device_node *np,
 		return ret;
 	}
 
-	ret = pinconf_generic_parse_dt_config(np, &configs, &num_configs);
+	ret = pinconf_generic_parse_dt_config(np, NULL, &configs, &num_configs);
 	if (ret < 0)
 		return ret;
 
@@ -312,8 +312,8 @@ static int sh_pfc_get_function_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int sh_pfc_func_enable(struct pinctrl_dev *pctldev, unsigned selector,
-			      unsigned group)
+static int sh_pfc_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
+			       unsigned group)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct sh_pfc *pfc = pmx->pfc;
@@ -343,27 +343,6 @@ static int sh_pfc_func_enable(struct pinctrl_dev *pctldev, unsigned selector,
 done:
 	spin_unlock_irqrestore(&pfc->lock, flags);
 	return ret;
-}
-
-static void sh_pfc_func_disable(struct pinctrl_dev *pctldev, unsigned selector,
-				unsigned group)
-{
-	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct sh_pfc *pfc = pmx->pfc;
-	const struct sh_pfc_pin_group *grp = &pfc->info->groups[group];
-	unsigned long flags;
-	unsigned int i;
-
-	spin_lock_irqsave(&pfc->lock, flags);
-
-	for (i = 0; i < grp->nr_pins; ++i) {
-		int idx = sh_pfc_get_pin_index(pfc, grp->pins[i]);
-		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
-
-		cfg->type = PINMUX_TYPE_NONE;
-	}
-
-	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
 static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
@@ -463,8 +442,7 @@ static const struct pinmux_ops sh_pfc_pinmux_ops = {
 	.get_functions_count	= sh_pfc_get_functions_count,
 	.get_function_name	= sh_pfc_get_function_name,
 	.get_function_groups	= sh_pfc_get_function_groups,
-	.enable			= sh_pfc_func_enable,
-	.disable		= sh_pfc_func_disable,
+	.set_mux		= sh_pfc_func_set_mux,
 	.gpio_request_enable	= sh_pfc_gpio_request_enable,
 	.gpio_disable_free	= sh_pfc_gpio_disable_free,
 	.gpio_set_direction	= sh_pfc_gpio_set_direction,
@@ -647,8 +625,8 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pmx->pctl_desc.npins = pfc->info->nr_pins;
 
 	pmx->pctl = pinctrl_register(&pmx->pctl_desc, pfc->dev, pmx);
-	if (pmx->pctl == NULL)
-		return -EINVAL;
+	if (IS_ERR(pmx->pctl))
+		return PTR_ERR(pmx->pctl);
 
 	return 0;
 }

@@ -135,15 +135,33 @@
 
 
 enum cmds {
-	CMD_SET_VCO     = 0x10,
-	CMD_TUNEREQUEST = 0x11,
-	CMD_MPEGCONFIG  = 0x13,
-	CMD_TUNERINIT   = 0x14,
-	CMD_LNBSEND     = 0x21, /* Formerly CMD_SEND_DISEQC */
-	CMD_LNBDCLEVEL  = 0x22,
-	CMD_SET_TONE    = 0x23,
-	CMD_UPDFWVERS   = 0x35,
-	CMD_TUNERSLEEP  = 0x36,
+	CMD_SET_VCOFREQ    = 0x10,
+	CMD_TUNEREQUEST    = 0x11,
+	CMD_GLOBAL_MPEGCFG = 0x13,
+	CMD_MPEGCFG        = 0x14,
+	CMD_TUNERINIT      = 0x15,
+	CMD_GET_SRATE      = 0x18,
+	CMD_SET_GOLDCODE   = 0x19,
+	CMD_GET_AGCACC     = 0x1a,
+	CMD_DEMODINIT      = 0x1b,
+	CMD_GETCTLACC      = 0x1c,
+
+	CMD_LNBCONFIG      = 0x20,
+	CMD_LNBSEND        = 0x21,
+	CMD_LNBDCLEVEL     = 0x22,
+	CMD_LNBPCBCONFIG   = 0x23,
+	CMD_LNBSENDTONEBST = 0x24,
+	CMD_LNBUPDREPLY    = 0x25,
+
+	CMD_SET_GPIOMODE   = 0x30,
+	CMD_SET_GPIOEN     = 0x31,
+	CMD_SET_GPIODIR    = 0x32,
+	CMD_SET_GPIOOUT    = 0x33,
+	CMD_ENABLERSCORR   = 0x34,
+	CMD_FWVERSION      = 0x35,
+	CMD_SET_SLEEPMODE  = 0x36,
+	CMD_BERCTRL        = 0x3c,
+	CMD_EVENTCTRL      = 0x3d,
 };
 
 static LIST_HEAD(hybrid_tuner_instance_list);
@@ -153,13 +171,13 @@ static DEFINE_MUTEX(cx24117_list_mutex);
 struct cx24117_tuning {
 	u32 frequency;
 	u32 symbol_rate;
-	fe_spectral_inversion_t inversion;
-	fe_code_rate_t fec;
+	enum fe_spectral_inversion inversion;
+	enum fe_code_rate fec;
 
-	fe_delivery_system_t delsys;
-	fe_modulation_t modulation;
-	fe_pilot_t pilot;
-	fe_rolloff_t rolloff;
+	enum fe_delivery_system delsys;
+	enum fe_modulation modulation;
+	enum fe_pilot pilot;
+	enum fe_rolloff rolloff;
 
 	/* Demod values */
 	u8 fec_val;
@@ -202,9 +220,9 @@ struct cx24117_state {
 /* modfec (modulation and FEC) lookup table */
 /* Check cx24116.c for a detailed description of each field */
 static struct cx24117_modfec {
-	fe_delivery_system_t delivery_system;
-	fe_modulation_t modulation;
-	fe_code_rate_t fec;
+	enum fe_delivery_system delivery_system;
+	enum fe_modulation modulation;
+	enum fe_code_rate fec;
 	u8 mask;	/* In DVBS mode this is used to autodetect */
 	u8 val;		/* Passed to the firmware to indicate mode selection */
 } cx24117_modfec_modes[] = {
@@ -344,7 +362,7 @@ static int cx24117_readregN(struct cx24117_state *state,
 }
 
 static int cx24117_set_inversion(struct cx24117_state *state,
-	fe_spectral_inversion_t inversion)
+	enum fe_spectral_inversion inversion)
 {
 	dev_dbg(&state->priv->i2c->dev, "%s(%d) demod%d\n",
 		__func__, inversion, state->demod);
@@ -369,7 +387,7 @@ static int cx24117_set_inversion(struct cx24117_state *state,
 }
 
 static int cx24117_lookup_fecmod(struct cx24117_state *state,
-	fe_delivery_system_t d, fe_modulation_t m, fe_code_rate_t f)
+	enum fe_delivery_system d, enum fe_modulation m, enum fe_code_rate f)
 {
 	int i, ret = -EINVAL;
 
@@ -390,7 +408,9 @@ static int cx24117_lookup_fecmod(struct cx24117_state *state,
 }
 
 static int cx24117_set_fec(struct cx24117_state *state,
-	fe_delivery_system_t delsys, fe_modulation_t mod, fe_code_rate_t fec)
+			   enum fe_delivery_system delsys,
+			   enum fe_modulation mod,
+			   enum fe_code_rate fec)
 {
 	int ret;
 
@@ -441,7 +461,7 @@ static int cx24117_firmware_ondemand(struct dvb_frontend *fe)
 	if (state->priv->skip_fw_load)
 		return 0;
 
-	/* check if firmware if already running */
+	/* check if firmware is already running */
 	if (cx24117_readreg(state, 0xeb) != 0xa) {
 		/* Load firmware */
 		/* request the firmware, this will block until loaded */
@@ -619,8 +639,8 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	cx24117_writereg(state, 0xf7, 0x0c);
 	cx24117_writereg(state, 0xe0, 0x00);
 
-	/* CMD 1B */
-	cmd.args[0] = 0x1b;
+	/* Init demodulator */
+	cmd.args[0] = CMD_DEMODINIT;
 	cmd.args[1] = 0x00;
 	cmd.args[2] = 0x01;
 	cmd.args[3] = 0x00;
@@ -629,8 +649,8 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	if (ret != 0)
 		goto error;
 
-	/* CMD 10 */
-	cmd.args[0] = CMD_SET_VCO;
+	/* Set VCO frequency */
+	cmd.args[0] = CMD_SET_VCOFREQ;
 	cmd.args[1] = 0x06;
 	cmd.args[2] = 0x2b;
 	cmd.args[3] = 0xd8;
@@ -648,8 +668,8 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	if (ret != 0)
 		goto error;
 
-	/* CMD 15 */
-	cmd.args[0] = 0x15;
+	/* Tuner init */
+	cmd.args[0] = CMD_TUNERINIT;
 	cmd.args[1] = 0x00;
 	cmd.args[2] = 0x01;
 	cmd.args[3] = 0x00;
@@ -667,8 +687,8 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	if (ret != 0)
 		goto error;
 
-	/* CMD 13 */
-	cmd.args[0] = CMD_MPEGCONFIG;
+	/* Global MPEG config */
+	cmd.args[0] = CMD_GLOBAL_MPEGCFG;
 	cmd.args[1] = 0x00;
 	cmd.args[2] = 0x00;
 	cmd.args[3] = 0x00;
@@ -679,9 +699,9 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	if (ret != 0)
 		goto error;
 
-	/* CMD 14 */
+	/* MPEG config for each demod */
 	for (i = 0; i < 2; i++) {
-		cmd.args[0] = CMD_TUNERINIT;
+		cmd.args[0] = CMD_MPEGCFG;
 		cmd.args[1] = (u8) i;
 		cmd.args[2] = 0x00;
 		cmd.args[3] = 0x05;
@@ -699,8 +719,8 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	cx24117_writereg(state, 0xcf, 0x00);
 	cx24117_writereg(state, 0xe5, 0x04);
 
-	/* Firmware CMD 35: Get firmware version */
-	cmd.args[0] = CMD_UPDFWVERS;
+	/* Get firmware version */
+	cmd.args[0] = CMD_FWVERSION;
 	cmd.len = 2;
 	for (i = 0; i < 4; i++) {
 		cmd.args[1] = i;
@@ -719,7 +739,7 @@ error:
 	return ret;
 }
 
-static int cx24117_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int cx24117_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 	int lock;
@@ -779,8 +799,8 @@ static int cx24117_read_signal_strength(struct dvb_frontend *fe,
 	u8 reg = (state->demod == 0) ?
 		CX24117_REG_SSTATUS0 : CX24117_REG_SSTATUS1;
 
-	/* Firmware CMD 1A */
-	cmd.args[0] = 0x1a;
+	/* Read AGC accumulator register */
+	cmd.args[0] = CMD_GET_AGCACC;
 	cmd.args[1] = (u8) state->demod;
 	cmd.len = 2;
 	ret = cx24117_cmd_execute(fe, &cmd);
@@ -825,7 +845,7 @@ static int cx24117_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int cx24117_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
-	fe_delivery_system_t delsys = fe->dtv_property_cache.delivery_system;
+	enum fe_delivery_system delsys = fe->dtv_property_cache.delivery_system;
 	int ret;
 	u8 buf[2];
 	u8 reg = (state->demod == 0) ?
@@ -886,7 +906,7 @@ static int cx24117_wait_for_lnb(struct dvb_frontend *fe)
 }
 
 static int cx24117_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t voltage)
+			       enum fe_sec_voltage voltage)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 	struct cx24117_cmd cmd;
@@ -899,22 +919,15 @@ static int cx24117_set_voltage(struct dvb_frontend *fe,
 		voltage == SEC_VOLTAGE_18 ? "SEC_VOLTAGE_18" :
 		"SEC_VOLTAGE_OFF");
 
-	/* CMD 32 */
-	cmd.args[0] = 0x32;
-	cmd.args[1] = reg;
-	cmd.args[2] = reg;
+	/* Prepare a set GPIO logic level CMD */
+	cmd.args[0] = CMD_SET_GPIOOUT;
+	cmd.args[2] = reg; /* mask */
 	cmd.len = 3;
-	ret = cx24117_cmd_execute(fe, &cmd);
-	if (ret)
-		return ret;
 
 	if ((voltage == SEC_VOLTAGE_13) ||
 	    (voltage == SEC_VOLTAGE_18)) {
-		/* CMD 33 */
-		cmd.args[0] = 0x33;
+		/* power on LNB */
 		cmd.args[1] = reg;
-		cmd.args[2] = reg;
-		cmd.len = 3;
 		ret = cx24117_cmd_execute(fe, &cmd);
 		if (ret != 0)
 			return ret;
@@ -926,26 +939,26 @@ static int cx24117_set_voltage(struct dvb_frontend *fe,
 		/* Wait for voltage/min repeat delay */
 		msleep(100);
 
-		/* CMD 22 - CMD_LNBDCLEVEL */
+		/* Set 13V/18V select pin */
 		cmd.args[0] = CMD_LNBDCLEVEL;
 		cmd.args[1] = state->demod ? 0 : 1;
 		cmd.args[2] = (voltage == SEC_VOLTAGE_18 ? 0x01 : 0x00);
 		cmd.len = 3;
+		ret = cx24117_cmd_execute(fe, &cmd);
 
 		/* Min delay time before DiSEqC send */
 		msleep(20);
 	} else {
-		cmd.args[0] = 0x33;
+		/* power off LNB */
 		cmd.args[1] = 0x00;
-		cmd.args[2] = reg;
-		cmd.len = 3;
+		ret = cx24117_cmd_execute(fe, &cmd);
 	}
 
-	return cx24117_cmd_execute(fe, &cmd);
+	return ret;
 }
 
 static int cx24117_set_tone(struct dvb_frontend *fe,
-	fe_sec_tone_mode_t tone)
+			    enum fe_sec_tone_mode tone)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 	struct cx24117_cmd cmd;
@@ -968,8 +981,7 @@ static int cx24117_set_tone(struct dvb_frontend *fe,
 	msleep(20);
 
 	/* Set the tone */
-	/* CMD 23 - CMD_SET_TONE */
-	cmd.args[0] = CMD_SET_TONE;
+	cmd.args[0] = CMD_LNBPCBCONFIG;
 	cmd.args[1] = (state->demod ? 0 : 1);
 	cmd.args[2] = 0x00;
 	cmd.args[3] = 0x00;
@@ -1033,7 +1045,7 @@ static int cx24117_send_diseqc_msg(struct dvb_frontend *fe,
 	dev_dbg(&state->priv->i2c->dev, ")\n");
 
 	/* Validate length */
-	if (d->msg_len > 15)
+	if (d->msg_len > sizeof(d->msg))
 		return -EINVAL;
 
 	/* DiSEqC message */
@@ -1102,7 +1114,7 @@ static int cx24117_send_diseqc_msg(struct dvb_frontend *fe,
 
 /* Send DiSEqC burst */
 static int cx24117_diseqc_send_burst(struct dvb_frontend *fe,
-	fe_sec_mini_cmd_t burst)
+	enum fe_sec_mini_cmd burst)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 
@@ -1166,7 +1178,7 @@ struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 
 	switch (demod) {
 	case 0:
-		dev_err(&state->priv->i2c->dev,
+		dev_err(&i2c->dev,
 			"%s: Error attaching frontend %d\n",
 			KBUILD_MODNAME, demod);
 		goto error1;
@@ -1190,12 +1202,6 @@ struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 	state->demod = demod - 1;
 	state->priv = priv;
 
-	/* test i2c bus for ack */
-	if (demod == 0) {
-		if (cx24117_readreg(state, 0x00) < 0)
-			goto error3;
-	}
-
 	dev_info(&state->priv->i2c->dev,
 		"%s: Attaching frontend %d\n",
 		KBUILD_MODNAME, state->demod);
@@ -1206,8 +1212,6 @@ struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
-error3:
-	kfree(state);
 error2:
 	cx24117_release_priv(priv);
 error1:
@@ -1231,8 +1235,8 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 
 	mutex_lock(&state->priv->fe_lock);
 
-	/* Firmware CMD 36: Power config */
-	cmd.args[0] = CMD_TUNERSLEEP;
+	/* Set sleep mode off */
+	cmd.args[0] = CMD_SET_SLEEPMODE;
 	cmd.args[1] = (state->demod ? 1 : 0);
 	cmd.args[2] = 0;
 	cmd.len = 3;
@@ -1244,8 +1248,8 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	if (ret != 0)
 		goto exit;
 
-	/* CMD 3C */
-	cmd.args[0] = 0x3c;
+	/* Set BER control */
+	cmd.args[0] = CMD_BERCTRL;
 	cmd.args[1] = (state->demod ? 1 : 0);
 	cmd.args[2] = 0x10;
 	cmd.args[3] = 0x10;
@@ -1254,10 +1258,20 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	if (ret != 0)
 		goto exit;
 
-	/* CMD 34 */
-	cmd.args[0] = 0x34;
+	/* Set RS correction (enable/disable) */
+	cmd.args[0] = CMD_ENABLERSCORR;
 	cmd.args[1] = (state->demod ? 1 : 0);
 	cmd.args[2] = CX24117_OCC;
+	cmd.len = 3;
+	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	if (ret != 0)
+		goto exit;
+
+	/* Set GPIO direction */
+	/* Set as output - controls LNB power on/off */
+	cmd.args[0] = CMD_SET_GPIODIR;
+	cmd.args[1] = 0x30;
+	cmd.args[2] = 0x30;
 	cmd.len = 3;
 	ret = cx24117_cmd_execute_nolock(fe, &cmd);
 
@@ -1278,8 +1292,8 @@ static int cx24117_sleep(struct dvb_frontend *fe)
 	dev_dbg(&state->priv->i2c->dev, "%s() demod%d\n",
 		__func__, state->demod);
 
-	/* Firmware CMD 36: Power config */
-	cmd.args[0] = CMD_TUNERSLEEP;
+	/* Set sleep mode on */
+	cmd.args[0] = CMD_SET_SLEEPMODE;
 	cmd.args[1] = (state->demod ? 1 : 0);
 	cmd.args[2] = 1;
 	cmd.len = 3;
@@ -1294,7 +1308,7 @@ static int cx24117_set_frontend(struct dvb_frontend *fe)
 	struct cx24117_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24117_cmd cmd;
-	fe_status_t tunerstat;
+	enum fe_status tunerstat;
 	int i, status, ret, retune = 1;
 	u8 reg_clkdiv, reg_ratediv;
 
@@ -1525,7 +1539,7 @@ static int cx24117_set_frontend(struct dvb_frontend *fe)
 }
 
 static int cx24117_tune(struct dvb_frontend *fe, bool re_tune,
-	unsigned int mode_flags, unsigned int *delay, fe_status_t *status)
+	unsigned int mode_flags, unsigned int *delay, enum fe_status *status)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 
@@ -1558,7 +1572,8 @@ static int cx24117_get_frontend(struct dvb_frontend *fe)
 
 	u8 buf[0x1f-4];
 
-	cmd.args[0] = 0x1c;
+	/* Read current tune parameters */
+	cmd.args[0] = CMD_GETCTLACC;
 	cmd.args[1] = (u8) state->demod;
 	cmd.len = 2;
 	ret = cx24117_cmd_execute(fe, &cmd);

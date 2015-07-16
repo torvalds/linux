@@ -27,10 +27,13 @@
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps65217.h>
 
-#define TPS65217_REGULATOR(_name, _id, _ops, _n, _vr, _vm, _em, _t, _lr, _nlr) \
+#define TPS65217_REGULATOR(_name, _id, _of_match, _ops, _n, _vr, _vm, _em, \
+                           _t, _lr, _nlr) \
 	{						\
 		.name		= _name,		\
 		.id		= _id,			\
+		.of_match       = of_match_ptr(_of_match),    \
+		.regulators_node= of_match_ptr("regulators"), \
 		.ops		= &_ops,		\
 		.n_voltages	= _n,			\
 		.type		= REGULATOR_VOLTAGE,	\
@@ -68,7 +71,7 @@ static const struct regulator_linear_range tps65217_uv2_ranges[] = {
 static int tps65217_pmic_enable(struct regulator_dev *dev)
 {
 	struct tps65217 *tps = rdev_get_drvdata(dev);
-	unsigned int rid = rdev_get_id(dev);
+	int rid = rdev_get_id(dev);
 
 	if (rid < TPS65217_DCDC_1 || rid > TPS65217_LDO_4)
 		return -EINVAL;
@@ -82,7 +85,7 @@ static int tps65217_pmic_enable(struct regulator_dev *dev)
 static int tps65217_pmic_disable(struct regulator_dev *dev)
 {
 	struct tps65217 *tps = rdev_get_drvdata(dev);
-	unsigned int rid = rdev_get_id(dev);
+	int rid = rdev_get_id(dev);
 
 	if (rid < TPS65217_DCDC_1 || rid > TPS65217_LDO_4)
 		return -EINVAL;
@@ -134,106 +137,51 @@ static struct regulator_ops tps65217_pmic_ldo1_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= tps65217_pmic_set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_table,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static const struct regulator_desc regulators[] = {
-	TPS65217_REGULATOR("DCDC1", TPS65217_DCDC_1, tps65217_pmic_ops, 64,
-			   TPS65217_REG_DEFDCDC1, TPS65217_DEFDCDCX_DCDC_MASK,
-			   TPS65217_ENABLE_DC1_EN, NULL, tps65217_uv1_ranges,
-			   2),	/* DCDC1 voltage range: 900000 ~ 1800000 */
-	TPS65217_REGULATOR("DCDC2", TPS65217_DCDC_2, tps65217_pmic_ops, 64,
-			   TPS65217_REG_DEFDCDC2, TPS65217_DEFDCDCX_DCDC_MASK,
-			   TPS65217_ENABLE_DC2_EN, NULL, tps65217_uv1_ranges,
+	TPS65217_REGULATOR("DCDC1", TPS65217_DCDC_1, "dcdc1",
+			   tps65217_pmic_ops, 64, TPS65217_REG_DEFDCDC1,
+			   TPS65217_DEFDCDCX_DCDC_MASK, TPS65217_ENABLE_DC1_EN,
+			   NULL, tps65217_uv1_ranges, 2),
+	TPS65217_REGULATOR("DCDC2", TPS65217_DCDC_2, "dcdc2",
+			   tps65217_pmic_ops, 64, TPS65217_REG_DEFDCDC2,
+			   TPS65217_DEFDCDCX_DCDC_MASK, TPS65217_ENABLE_DC2_EN,
+			   NULL, tps65217_uv1_ranges,
 			   ARRAY_SIZE(tps65217_uv1_ranges)),
-	TPS65217_REGULATOR("DCDC3", TPS65217_DCDC_3, tps65217_pmic_ops, 64,
-			   TPS65217_REG_DEFDCDC3, TPS65217_DEFDCDCX_DCDC_MASK,
-			   TPS65217_ENABLE_DC3_EN, NULL, tps65217_uv1_ranges,
-			   1),	/* DCDC3 voltage range: 900000 ~ 1500000 */
-	TPS65217_REGULATOR("LDO1", TPS65217_LDO_1, tps65217_pmic_ldo1_ops, 16,
-			   TPS65217_REG_DEFLDO1, TPS65217_DEFLDO1_LDO1_MASK,
-			   TPS65217_ENABLE_LDO1_EN, LDO1_VSEL_table, NULL, 0),
-	TPS65217_REGULATOR("LDO2", TPS65217_LDO_2, tps65217_pmic_ops, 64,
-			   TPS65217_REG_DEFLDO2, TPS65217_DEFLDO2_LDO2_MASK,
-			   TPS65217_ENABLE_LDO2_EN, NULL, tps65217_uv1_ranges,
+	TPS65217_REGULATOR("DCDC3", TPS65217_DCDC_3, "dcdc3",
+			   tps65217_pmic_ops, 64, TPS65217_REG_DEFDCDC3,
+			   TPS65217_DEFDCDCX_DCDC_MASK, TPS65217_ENABLE_DC3_EN,
+			   NULL, tps65217_uv1_ranges, 1),
+	TPS65217_REGULATOR("LDO1", TPS65217_LDO_1, "ldo1",
+			   tps65217_pmic_ldo1_ops, 16, TPS65217_REG_DEFLDO1,
+			   TPS65217_DEFLDO1_LDO1_MASK, TPS65217_ENABLE_LDO1_EN,
+			   LDO1_VSEL_table, NULL, 0),
+	TPS65217_REGULATOR("LDO2", TPS65217_LDO_2, "ldo2", tps65217_pmic_ops,
+			   64, TPS65217_REG_DEFLDO2,
+			   TPS65217_DEFLDO2_LDO2_MASK, TPS65217_ENABLE_LDO2_EN,
+			   NULL, tps65217_uv1_ranges,
 			   ARRAY_SIZE(tps65217_uv1_ranges)),
-	TPS65217_REGULATOR("LDO3", TPS65217_LDO_3, tps65217_pmic_ops, 32,
-			   TPS65217_REG_DEFLS1, TPS65217_DEFLDO3_LDO3_MASK,
+	TPS65217_REGULATOR("LDO3", TPS65217_LDO_3, "ldo3", tps65217_pmic_ops,
+			   32, TPS65217_REG_DEFLS1, TPS65217_DEFLDO3_LDO3_MASK,
 			   TPS65217_ENABLE_LS1_EN | TPS65217_DEFLDO3_LDO3_EN,
 			   NULL, tps65217_uv2_ranges,
 			   ARRAY_SIZE(tps65217_uv2_ranges)),
-	TPS65217_REGULATOR("LDO4", TPS65217_LDO_4, tps65217_pmic_ops, 32,
-			   TPS65217_REG_DEFLS2, TPS65217_DEFLDO4_LDO4_MASK,
+	TPS65217_REGULATOR("LDO4", TPS65217_LDO_4, "ldo4", tps65217_pmic_ops,
+			   32, TPS65217_REG_DEFLS2, TPS65217_DEFLDO4_LDO4_MASK,
 			   TPS65217_ENABLE_LS2_EN | TPS65217_DEFLDO4_LDO4_EN,
 			   NULL, tps65217_uv2_ranges,
 			   ARRAY_SIZE(tps65217_uv2_ranges)),
 };
 
-#ifdef CONFIG_OF
-static struct of_regulator_match reg_matches[] = {
-	{ .name = "dcdc1", .driver_data = (void *)TPS65217_DCDC_1 },
-	{ .name = "dcdc2", .driver_data = (void *)TPS65217_DCDC_2 },
-	{ .name = "dcdc3", .driver_data = (void *)TPS65217_DCDC_3 },
-	{ .name = "ldo1", .driver_data = (void *)TPS65217_LDO_1 },
-	{ .name = "ldo2", .driver_data = (void *)TPS65217_LDO_2 },
-	{ .name = "ldo3", .driver_data = (void *)TPS65217_LDO_3 },
-	{ .name = "ldo4", .driver_data = (void *)TPS65217_LDO_4 },
-};
-
-static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
-{
-	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *node = tps->dev->of_node;
-	struct tps65217_board *pdata;
-	struct device_node *regs;
-	int i, count;
-
-	regs = of_find_node_by_name(node, "regulators");
-	if (!regs)
-		return NULL;
-
-	count = of_regulator_match(&pdev->dev, regs, reg_matches,
-				   TPS65217_NUM_REGULATOR);
-	of_node_put(regs);
-	if ((count < 0) || (count > TPS65217_NUM_REGULATOR))
-		return NULL;
-
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return NULL;
-
-	for (i = 0; i < count; i++) {
-		if (!reg_matches[i].init_data || !reg_matches[i].of_node)
-			continue;
-
-		pdata->tps65217_init_data[i] = reg_matches[i].init_data;
-		pdata->of_node[i] = reg_matches[i].of_node;
-	}
-
-	return pdata;
-}
-#else
-static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
-{
-	return NULL;
-}
-#endif
-
 static int tps65217_regulator_probe(struct platform_device *pdev)
 {
 	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
 	struct tps65217_board *pdata = dev_get_platdata(tps->dev);
-	struct regulator_init_data *reg_data;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
 	int i;
-
-	if (tps->dev->of_node)
-		pdata = tps65217_parse_dt(pdev);
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "Platform data not found\n");
-		return -EINVAL;
-	}
 
 	if (tps65217_chip_id(tps) != TPS65217) {
 		dev_err(&pdev->dev, "Invalid tps chip version\n");
@@ -243,23 +191,12 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tps);
 
 	for (i = 0; i < TPS65217_NUM_REGULATOR; i++) {
-
-		reg_data = pdata->tps65217_init_data[i];
-
-		/*
-		 * Regulator API handles empty constraints but not NULL
-		 * constraints
-		 */
-		if (!reg_data)
-			continue;
-
 		/* Register the regulators */
 		config.dev = tps->dev;
-		config.init_data = reg_data;
+		if (pdata)
+			config.init_data = pdata->tps65217_init_data[i];
 		config.driver_data = tps;
 		config.regmap = tps->regmap;
-		if (tps->dev->of_node)
-			config.of_node = pdata->of_node[i];
 
 		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
 					       &config);
@@ -268,10 +205,8 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 				pdev->name);
 			return PTR_ERR(rdev);
 		}
-
-		/* Save regulator for cleanup */
-		tps->rdev[i] = rdev;
 	}
+
 	return 0;
 }
 

@@ -78,7 +78,7 @@
 #define DATA_TYPE_C420				0x6
 #define DATA_TYPE_YC422				0x7
 #define DATA_TYPE_YC444				0x8
-#define DATA_TYPE_CY422				0x23
+#define DATA_TYPE_CY422				0x27
 
 #define DATA_TYPE_RGB16_565			0x0
 #define DATA_TYPE_ARGB_1555			0x1

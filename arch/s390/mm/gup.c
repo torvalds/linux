@@ -106,11 +106,9 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
 	pmd_t *pmdp, pmd;
 
 	pmdp = (pmd_t *) pudp;
-#ifdef CONFIG_64BIT
 	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
 		pmdp = (pmd_t *) pud_deref(pud);
 	pmdp += pmd_index(addr);
-#endif
 	do {
 		pmd = *pmdp;
 		barrier();
@@ -145,11 +143,9 @@ static inline int gup_pud_range(pgd_t *pgdp, pgd_t pgd, unsigned long addr,
 	pud_t *pudp, pud;
 
 	pudp = (pud_t *) pgdp;
-#ifdef CONFIG_64BIT
 	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
 		pudp = (pud_t *) pgd_deref(pgd);
 	pudp += pud_index(addr);
-#endif
 	do {
 		pud = *pudp;
 		barrier();
@@ -235,10 +231,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	/* Try to get the remaining pages with get_user_pages */
 	start += nr << PAGE_SHIFT;
 	pages += nr;
-	down_read(&mm->mmap_sem);
-	ret = get_user_pages(current, mm, start,
-			     nr_pages - nr, write, 0, pages, NULL);
-	up_read(&mm->mmap_sem);
+	ret = get_user_pages_unlocked(current, mm, start,
+			     nr_pages - nr, write, 0, pages);
 	/* Have to be a bit careful with return values */
 	if (nr > 0)
 		ret = (ret < 0) ? nr : ret + nr;

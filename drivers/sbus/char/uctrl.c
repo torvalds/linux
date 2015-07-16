@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/ioport.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/of.h>
@@ -426,7 +425,6 @@ MODULE_DEVICE_TABLE(of, uctrl_match);
 static struct platform_driver uctrl_driver = {
 	.driver = {
 		.name = "uctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = uctrl_match,
 	},
 	.probe		= uctrl_probe,

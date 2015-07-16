@@ -20,10 +20,10 @@ struct timed_output_dev {
 	const char	*name;
 
 	/* enable the output and set the timer */
-	void	(*enable)(struct timed_output_dev *sdev, int timeout);
+	void (*enable)(struct timed_output_dev *sdev, int timeout);
 
 	/* returns the current number of milliseconds remaining on the timer */
-	int		(*get_time)(struct timed_output_dev *sdev);
+	int (*get_time)(struct timed_output_dev *sdev);
 
 	/* private data */
 	struct device	*dev;

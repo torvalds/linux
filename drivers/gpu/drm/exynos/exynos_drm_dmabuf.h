@@ -12,14 +12,9 @@
 #ifndef _EXYNOS_DRM_DMABUF_H_
 #define _EXYNOS_DRM_DMABUF_H_
 
-#ifdef CONFIG_DRM_EXYNOS_DMABUF
 struct dma_buf *exynos_dmabuf_prime_export(struct drm_device *drm_dev,
 				struct drm_gem_object *obj, int flags);
 
 struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 						struct dma_buf *dma_buf);
-#else
-#define exynos_dmabuf_prime_export		NULL
-#define exynos_dmabuf_prime_import		NULL
-#endif
 #endif

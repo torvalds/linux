@@ -176,6 +176,8 @@ skpinv:	addi	r6,r6,1				/* Increment */
 /* 7. Jump to KERNELBASE mapping */
 	lis	r6,(KERNELBASE & ~0xfff)@h
 	ori	r6,r6,(KERNELBASE & ~0xfff)@l
+	rlwinm	r7,r25,0,0x03ffffff
+	add	r6,r7,r6
 
 #elif defined(ENTRY_MAPPING_KEXEC_SETUP)
 /*

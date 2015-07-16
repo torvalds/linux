@@ -22,6 +22,7 @@
  *      .../monmap      - current monmap
  *      .../osdc        - active osd requests
  *      .../monc        - mon client state
+ *      .../client_options - libceph-only (i.e. not rbd or cephfs) options
  *      .../dentry_lru  - dump contents of dentry lru
  *      .../caps        - expose cap (reservation) stats
  *      .../bdi         - symlink to ../../bdi/something
@@ -53,34 +54,55 @@ static int osdmap_show(struct seq_file *s, void *p)
 {
 	int i;
 	struct ceph_client *client = s->private;
+	struct ceph_osdmap *map = client->osdc.osdmap;
 	struct rb_node *n;
 
-	if (client->osdc.osdmap == NULL)
+	if (map == NULL)
 		return 0;
-	seq_printf(s, "epoch %d\n", client->osdc.osdmap->epoch);
+
+	seq_printf(s, "epoch %d\n", map->epoch);
 	seq_printf(s, "flags%s%s\n",
-		   (client->osdc.osdmap->flags & CEPH_OSDMAP_NEARFULL) ?
-		   " NEARFULL" : "",
-		   (client->osdc.osdmap->flags & CEPH_OSDMAP_FULL) ?
-		   " FULL" : "");
-	for (n = rb_first(&client->osdc.osdmap->pg_pools); n; n = rb_next(n)) {
+		   (map->flags & CEPH_OSDMAP_NEARFULL) ?  " NEARFULL" : "",
+		   (map->flags & CEPH_OSDMAP_FULL) ?  " FULL" : "");
+
+	for (n = rb_first(&map->pg_pools); n; n = rb_next(n)) {
 		struct ceph_pg_pool_info *pool =
 			rb_entry(n, struct ceph_pg_pool_info, node);
-		seq_printf(s, "pg_pool %llu pg_num %d / %d\n",
-			   (unsigned long long)pool->id, pool->pg_num,
-			   pool->pg_num_mask);
+
+		seq_printf(s, "pool %lld pg_num %u (%d) read_tier %lld write_tier %lld\n",
+			   pool->id, pool->pg_num, pool->pg_num_mask,
+			   pool->read_tier, pool->write_tier);
 	}
-	for (i = 0; i < client->osdc.osdmap->max_osd; i++) {
-		struct ceph_entity_addr *addr =
-			&client->osdc.osdmap->osd_addr[i];
-		int state = client->osdc.osdmap->osd_state[i];
+	for (i = 0; i < map->max_osd; i++) {
+		struct ceph_entity_addr *addr = &map->osd_addr[i];
+		int state = map->osd_state[i];
 		char sb[64];
 
-		seq_printf(s, "\tosd%d\t%s\t%3d%%\t(%s)\n",
+		seq_printf(s, "osd%d\t%s\t%3d%%\t(%s)\t%3d%%\n",
 			   i, ceph_pr_addr(&addr->in_addr),
-			   ((client->osdc.osdmap->osd_weight[i]*100) >> 16),
-			   ceph_osdmap_state_str(sb, sizeof(sb), state));
+			   ((map->osd_weight[i]*100) >> 16),
+			   ceph_osdmap_state_str(sb, sizeof(sb), state),
+			   ((ceph_get_primary_affinity(map, i)*100) >> 16));
 	}
+	for (n = rb_first(&map->pg_temp); n; n = rb_next(n)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(n, struct ceph_pg_mapping, node);
+
+		seq_printf(s, "pg_temp %llu.%x [", pg->pgid.pool,
+			   pg->pgid.seed);
+		for (i = 0; i < pg->pg_temp.len; i++)
+			seq_printf(s, "%s%d", (i == 0 ? "" : ","),
+				   pg->pg_temp.osds[i]);
+		seq_printf(s, "]\n");
+	}
+	for (n = rb_first(&map->primary_temp); n; n = rb_next(n)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(n, struct ceph_pg_mapping, node);
+
+		seq_printf(s, "primary_temp %llu.%x %d\n", pg->pgid.pool,
+			   pg->pgid.seed, pg->primary_temp.osd);
+	}
+
 	return 0;
 }
 
@@ -105,9 +127,11 @@ static int monc_show(struct seq_file *s, void *p)
 		req = rb_entry(rp, struct ceph_mon_generic_request, node);
 		op = le16_to_cpu(req->request->hdr.type);
 		if (op == CEPH_MSG_STATFS)
-			seq_printf(s, "%lld statfs\n", req->tid);
+			seq_printf(s, "%llu statfs\n", req->tid);
+		else if (op == CEPH_MSG_MON_GET_VERSION)
+			seq_printf(s, "%llu mon_get_version", req->tid);
 		else
-			seq_printf(s, "%lld unknown\n", req->tid);
+			seq_printf(s, "%llu unknown\n", req->tid);
 	}
 
 	mutex_unlock(&monc->mutex);
@@ -132,7 +156,8 @@ static int osdc_show(struct seq_file *s, void *pp)
 			   req->r_osd ? req->r_osd->o_osd : -1,
 			   req->r_pgid.pool, req->r_pgid.seed);
 
-		seq_printf(s, "%.*s", req->r_oid_len, req->r_oid);
+		seq_printf(s, "%.*s", req->r_base_oid.name_len,
+			   req->r_base_oid.name);
 
 		if (req->r_reassert_version.epoch)
 			seq_printf(s, "\t%u'%llu",
@@ -143,7 +168,8 @@ static int osdc_show(struct seq_file *s, void *pp)
 
 		for (i = 0; i < req->r_num_ops; i++) {
 			opcode = req->r_ops[i].op;
-			seq_printf(s, "\t%s", ceph_osd_op_name(opcode));
+			seq_printf(s, "%s%s", (i == 0 ? "\t" : ","),
+				   ceph_osd_op_name(opcode));
 		}
 
 		seq_printf(s, "\n");
@@ -152,10 +178,24 @@ static int osdc_show(struct seq_file *s, void *pp)
 	return 0;
 }
 
+static int client_options_show(struct seq_file *s, void *p)
+{
+	struct ceph_client *client = s->private;
+	int ret;
+
+	ret = ceph_print_client_options(s, client);
+	if (ret)
+		return ret;
+
+	seq_putc(s, '\n');
+	return 0;
+}
+
 CEPH_DEFINE_SHOW_FUNC(monmap_show)
 CEPH_DEFINE_SHOW_FUNC(osdmap_show)
 CEPH_DEFINE_SHOW_FUNC(monc_show)
 CEPH_DEFINE_SHOW_FUNC(osdc_show)
+CEPH_DEFINE_SHOW_FUNC(client_options_show)
 
 int ceph_debugfs_init(void)
 {
@@ -217,6 +257,14 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 	if (!client->debugfs_osdmap)
 		goto out;
 
+	client->debugfs_options = debugfs_create_file("client_options",
+					0600,
+					client->debugfs_dir,
+					client,
+					&client_options_show_fops);
+	if (!client->debugfs_options)
+		goto out;
+
 	return 0;
 
 out:
@@ -227,6 +275,7 @@ out:
 void ceph_debugfs_client_cleanup(struct ceph_client *client)
 {
 	dout("ceph_debugfs_client_cleanup %p\n", client);
+	debugfs_remove(client->debugfs_options);
 	debugfs_remove(client->debugfs_osdmap);
 	debugfs_remove(client->debugfs_monmap);
 	debugfs_remove(client->osdc.debugfs_file);

@@ -19,10 +19,12 @@
  *
  */
 
+#include <net/genetlink.h>
 #include "event.h"
 #include "scan.h"
 #include "../wlcore/cmd.h"
 #include "../wlcore/debug.h"
+#include "../wlcore/vendor_cmd.h"
 
 int wl18xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,
 			  bool *timeout)
@@ -45,6 +47,71 @@ int wl18xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,
 	return wlcore_cmd_wait_for_event_or_timeout(wl, local_event, timeout);
 }
 
+static const char *wl18xx_radar_type_decode(u8 radar_type)
+{
+	switch (radar_type) {
+	case RADAR_TYPE_REGULAR:
+		return "REGULAR";
+	case RADAR_TYPE_CHIRP:
+		return "CHIRP";
+	case RADAR_TYPE_NONE:
+	default:
+		return "N/A";
+	}
+}
+
+static int wlcore_smart_config_sync_event(struct wl1271 *wl, u8 sync_channel,
+					  u8 sync_band)
+{
+	struct sk_buff *skb;
+	enum ieee80211_band band;
+	int freq;
+
+	if (sync_band == WLCORE_BAND_5GHZ)
+		band = IEEE80211_BAND_5GHZ;
+	else
+		band = IEEE80211_BAND_2GHZ;
+
+	freq = ieee80211_channel_to_frequency(sync_channel, band);
+
+	wl1271_debug(DEBUG_EVENT,
+		     "SMART_CONFIG_SYNC_EVENT_ID, freq: %d (chan: %d band %d)",
+		     freq, sync_channel, sync_band);
+	skb = cfg80211_vendor_event_alloc(wl->hw->wiphy, NULL, 20,
+					  WLCORE_VENDOR_EVENT_SC_SYNC,
+					  GFP_KERNEL);
+
+	if (nla_put_u32(skb, WLCORE_VENDOR_ATTR_FREQ, freq)) {
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
+	cfg80211_vendor_event(skb, GFP_KERNEL);
+	return 0;
+}
+
+static int wlcore_smart_config_decode_event(struct wl1271 *wl,
+					    u8 ssid_len, u8 *ssid,
+					    u8 pwd_len, u8 *pwd)
+{
+	struct sk_buff *skb;
+
+	wl1271_debug(DEBUG_EVENT, "SMART_CONFIG_DECODE_EVENT_ID");
+	wl1271_dump_ascii(DEBUG_EVENT, "SSID:", ssid, ssid_len);
+
+	skb = cfg80211_vendor_event_alloc(wl->hw->wiphy, NULL,
+					  ssid_len + pwd_len + 20,
+					  WLCORE_VENDOR_EVENT_SC_DECODE,
+					  GFP_KERNEL);
+
+	if (nla_put(skb, WLCORE_VENDOR_ATTR_SSID, ssid_len, ssid) ||
+	    nla_put(skb, WLCORE_VENDOR_ATTR_PSK, pwd_len, pwd)) {
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
+	cfg80211_vendor_event(skb, GFP_KERNEL);
+	return 0;
+}
+
 int wl18xx_process_mailbox_events(struct wl1271 *wl)
 {
 	struct wl18xx_event_mailbox *mbox = wl->mbox;
@@ -59,6 +126,14 @@ int wl18xx_process_mailbox_events(struct wl1271 *wl)
 
 		if (wl->scan_wlvif)
 			wl18xx_scan_completed(wl, wl->scan_wlvif);
+	}
+
+	if (vector & RADAR_DETECTED_EVENT_ID) {
+		wl1271_info("radar event: channel %d type %s",
+			    mbox->radar_channel,
+			    wl18xx_radar_type_decode(mbox->radar_type));
+
+		ieee80211_radar_detected(wl->hw);
 	}
 
 	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {
@@ -106,6 +181,17 @@ int wl18xx_process_mailbox_events(struct wl1271 *wl)
 
 	if (vector & REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID)
 		wlcore_event_roc_complete(wl);
+
+	if (vector & SMART_CONFIG_SYNC_EVENT_ID)
+		wlcore_smart_config_sync_event(wl, mbox->sc_sync_channel,
+					       mbox->sc_sync_band);
+
+	if (vector & SMART_CONFIG_DECODE_EVENT_ID)
+		wlcore_smart_config_decode_event(wl,
+						 mbox->sc_ssid_len,
+						 mbox->sc_ssid,
+						 mbox->sc_pwd_len,
+						 mbox->sc_pwd);
 
 	return 0;
 }

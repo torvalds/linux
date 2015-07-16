@@ -6,11 +6,14 @@
 #include <linux/kgdb.h>
 #include <linux/kdebug.h>
 #include <linux/ftrace.h>
+#include <linux/context_tracking.h>
 
 #include <asm/cacheflush.h>
 #include <asm/kdebug.h>
 #include <asm/ptrace.h>
 #include <asm/irq.h>
+
+#include "kernel.h"
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {

@@ -110,6 +110,7 @@ struct rds_connection {
 	void			*c_transport_data;
 
 	atomic_t		c_state;
+	unsigned long		c_send_gen;
 	unsigned long		c_flags;
 	unsigned long		c_reconnect_jiffies;
 	struct delayed_work	c_send_w;
@@ -362,6 +363,8 @@ struct rds_message {
 			unsigned int		op_active:1;
 			unsigned int		op_nents;
 			unsigned int		op_count;
+			unsigned int		op_dmasg;
+			unsigned int		op_dmaoff;
 			struct scatterlist	*op_sg;
 		} data;
 	};
@@ -407,11 +410,6 @@ struct rds_notifier {
  *                 should try hard not to block.
  */
 
-#define RDS_TRANS_IB	0
-#define RDS_TRANS_IWARP	1
-#define RDS_TRANS_TCP	2
-#define RDS_TRANS_COUNT	3
-
 struct rds_transport {
 	char			t_name[TRANSNAMSIZ];
 	struct list_head	t_item;
@@ -431,8 +429,7 @@ struct rds_transport {
 	int (*xmit_rdma)(struct rds_connection *conn, struct rm_rdma_op *op);
 	int (*xmit_atomic)(struct rds_connection *conn, struct rm_atomic_op *op);
 	int (*recv)(struct rds_connection *conn);
-	int (*inc_copy_to_user)(struct rds_incoming *inc, struct iovec *iov,
-				size_t size);
+	int (*inc_copy_to_user)(struct rds_incoming *inc, struct iov_iter *to);
 	void (*inc_free)(struct rds_incoming *inc);
 
 	int (*cm_handle_connect)(struct rdma_cm_id *cm_id,
@@ -575,7 +572,6 @@ struct rds_statistics {
 };
 
 /* af_rds.c */
-char *rds_str_array(char **array, size_t elements, size_t index);
 void rds_sock_addref(struct rds_sock *rs);
 void rds_sock_put(struct rds_sock *rs);
 void rds_wake_sk_sleep(struct rds_sock *rs);
@@ -657,8 +653,7 @@ rds_conn_connecting(struct rds_connection *conn)
 /* message.c */
 struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp);
 struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents);
-int rds_message_copy_from_user(struct rds_message *rm, struct iovec *first_iov,
-					       size_t total_len);
+int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from);
 struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned int total_len);
 void rds_message_populate_header(struct rds_header *hdr, __be16 sport,
 				 __be16 dport, u64 seq);
@@ -667,8 +662,7 @@ int rds_message_add_extension(struct rds_header *hdr,
 int rds_message_next_extension(struct rds_header *hdr,
 			       unsigned int *pos, void *buf, unsigned int *buflen);
 int rds_message_add_rdma_dest_extension(struct rds_header *hdr, u32 r_key, u32 offset);
-int rds_message_inc_copy_to_user(struct rds_incoming *inc,
-				 struct iovec *first_iov, size_t size);
+int rds_message_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to);
 void rds_message_inc_free(struct rds_incoming *inc);
 void rds_message_addref(struct rds_message *rm);
 void rds_message_put(struct rds_message *rm);
@@ -705,8 +699,8 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 void rds_inc_put(struct rds_incoming *inc);
 void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 		       struct rds_incoming *inc, gfp_t gfp);
-int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
-		size_t size, int msg_flags);
+int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+		int msg_flags);
 void rds_clear_recv_queue(struct rds_sock *rs);
 int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msg);
 void rds_inc_info_copy(struct rds_incoming *inc,
@@ -714,8 +708,7 @@ void rds_inc_info_copy(struct rds_incoming *inc,
 		       __be32 saddr, __be32 daddr, int flip);
 
 /* send.c */
-int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
-		size_t payload_len);
+int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len);
 void rds_send_reset(struct rds_connection *conn);
 int rds_send_xmit(struct rds_connection *conn);
 struct sockaddr_in;
@@ -806,6 +799,7 @@ struct rds_transport *rds_trans_get_preferred(__be32 addr);
 void rds_trans_put(struct rds_transport *trans);
 unsigned int rds_trans_stats_info_copy(struct rds_info_iterator *iter,
 				       unsigned int avail);
+struct rds_transport *rds_trans_get(int t_type);
 int rds_trans_init(void);
 void rds_trans_exit(void);
 

@@ -1,0 +1,14 @@
+Maxim max5821 DAC device driver
+
+Required properties:
+	- compatible: Must be "maxim,max5821"
+	- reg: Should contain the DAC I2C address
+	- vref-supply: Phandle to the vref power supply
+
+Example:
+
+	max5821@38 {
+		compatible = "maxim,max5821";
+		reg = <0x38>;
+		vref-supply = <&reg_max5821>;
+	};

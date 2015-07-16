@@ -6,13 +6,10 @@
  * This file is released under the GPLv2.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_qos.h>
 #include <linux/hrtimer.h>
-
-#ifdef CONFIG_PM_RUNTIME
 
 static int dev_update_qos_constraint(struct device *dev, void *data)
 {
@@ -43,7 +40,7 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
  * default_stop_ok - Default PM domain governor routine for stopping devices.
  * @dev: Device to check.
  */
-bool default_stop_ok(struct device *dev)
+static bool default_stop_ok(struct device *dev)
 {
 	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
 	unsigned long flags;
@@ -227,18 +224,6 @@ static bool always_on_power_down_ok(struct dev_pm_domain *domain)
 {
 	return false;
 }
-
-#else /* !CONFIG_PM_RUNTIME */
-
-bool default_stop_ok(struct device *dev)
-{
-	return false;
-}
-
-#define default_power_down_ok	NULL
-#define always_on_power_down_ok	NULL
-
-#endif /* !CONFIG_PM_RUNTIME */
 
 struct dev_power_governor simple_qos_governor = {
 	.stop_ok = default_stop_ok,

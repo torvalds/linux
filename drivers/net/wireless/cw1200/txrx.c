@@ -1166,8 +1166,7 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 			return;
 	} else if (ieee80211_is_beacon(frame->frame_control) &&
 		   !arg->status && priv->vif &&
-		   !memcmp(ieee80211_get_SA(frame), priv->vif->bss_conf.bssid,
-			   ETH_ALEN)) {
+		   ether_addr_equal(ieee80211_get_SA(frame), priv->vif->bss_conf.bssid)) {
 		const u8 *tim_ie;
 		u8 *ies = ((struct ieee80211_mgmt *)
 			  (skb->data))->u.beacon.variable;
@@ -1430,7 +1429,7 @@ void cw1200_link_id_gc_work(struct work_struct *work)
 				priv->link_id_map &= ~mask;
 				priv->sta_asleep_mask &= ~mask;
 				priv->pspoll_mask &= ~mask;
-				memset(map_link.mac_addr, 0, ETH_ALEN);
+				eth_zero_addr(map_link.mac_addr);
 				spin_unlock_bh(&priv->ps_state_lock);
 				reset.link_id = i + 1;
 				wsm_reset(priv, &reset);

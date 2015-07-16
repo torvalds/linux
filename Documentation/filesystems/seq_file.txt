@@ -54,6 +54,15 @@ how the mechanism works without getting lost in other details.  (Those
 wanting to see the full source for this module can find it at
 http://lwn.net/Articles/22359/).
 
+Deprecated create_proc_entry
+
+Note that the above article uses create_proc_entry which was removed in
+kernel 3.10. Current versions require the following update
+
+-	entry = create_proc_entry("sequence", 0, NULL);
+-	if (entry)
+-		entry->proc_fops = &ct_file_ops;
++	entry = proc_create("sequence", 0, NULL, &ct_file_ops);
 
 The iterator interface
 
@@ -171,34 +180,38 @@ output must be passed to the seq_file code. Some utility functions have
 been defined which make this task easy.
 
 Most code will simply use seq_printf(), which works pretty much like
-printk(), but which requires the seq_file pointer as an argument. It is
-common to ignore the return value from seq_printf(), but a function
-producing complicated output may want to check that value and quit if
-something non-zero is returned; an error return means that the seq_file
-buffer has been filled and further output will be discarded.
+printk(), but which requires the seq_file pointer as an argument.
 
 For straight character output, the following functions may be used:
 
-	int seq_putc(struct seq_file *m, char c);
-	int seq_puts(struct seq_file *m, const char *s);
-	int seq_escape(struct seq_file *m, const char *s, const char *esc);
+	seq_putc(struct seq_file *m, char c);
+	seq_puts(struct seq_file *m, const char *s);
+	seq_escape(struct seq_file *m, const char *s, const char *esc);
 
 The first two output a single character and a string, just like one would
 expect. seq_escape() is like seq_puts(), except that any character in s
 which is in the string esc will be represented in octal form in the output.
 
-There is also a pair of functions for printing filenames:
+There are also a pair of functions for printing filenames:
 
-	int seq_path(struct seq_file *m, struct path *path, char *esc);
-	int seq_path_root(struct seq_file *m, struct path *path,
-			  struct path *root, char *esc)
+	int seq_path(struct seq_file *m, const struct path *path,
+		     const char *esc);
+	int seq_path_root(struct seq_file *m, const struct path *path,
+			  const struct path *root, const char *esc)
 
 Here, path indicates the file of interest, and esc is a set of characters
 which should be escaped in the output.  A call to seq_path() will output
 the path relative to the current process's filesystem root.  If a different
-root is desired, it can be used with seq_path_root().  Note that, if it
-turns out that path cannot be reached from root, the value of root will be
-changed in seq_file_root() to a root which *does* work.
+root is desired, it can be used with seq_path_root().  If it turns out that
+path cannot be reached from root, seq_path_root() returns SEQ_SKIP.
+
+A function producing complicated output may want to check
+	bool seq_has_overflowed(struct seq_file *m);
+and avoid further seq_<output> calls if true is returned.
+
+A true return from seq_has_overflowed means that the seq_file buffer will
+be discarded and the seq_show function will attempt to allocate a larger
+buffer and retry printing.
 
 
 Making it all work
@@ -225,6 +238,39 @@ file->private_data. If you have an application where the same iterator can
 be used for more than one file, you can store an arbitrary pointer in the
 private field of the seq_file structure; that value can then be retrieved
 by the iterator functions.
+
+There is also a wrapper function to seq_open() called seq_open_private(). It
+kmallocs a zero filled block of memory and stores a pointer to it in the
+private field of the seq_file structure, returning 0 on success. The
+block size is specified in a third parameter to the function, e.g.:
+
+	static int ct_open(struct inode *inode, struct file *file)
+	{
+		return seq_open_private(file, &ct_seq_ops,
+					sizeof(struct mystruct));
+	}
+
+There is also a variant function, __seq_open_private(), which is functionally
+identical except that, if successful, it returns the pointer to the allocated
+memory block, allowing further initialisation e.g.:
+
+	static int ct_open(struct inode *inode, struct file *file)
+	{
+		struct mystruct *p =
+			__seq_open_private(file, &ct_seq_ops, sizeof(*p));
+
+		if (!p)
+			return -ENOMEM;
+
+		p->foo = bar; /* initialize my stuff */
+			...
+		p->baz = true;
+
+		return 0;
+	}
+
+A corresponding close function, seq_release_private() is available which
+frees the memory allocated in the corresponding open.
 
 The other operations of interest - read(), llseek(), and release() - are
 all implemented by the seq_file code itself. So a virtual file's

@@ -12,7 +12,6 @@
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/kernel.h>
@@ -298,7 +297,6 @@ static struct platform_driver nuc900wdt_driver = {
 	.remove		= nuc900wdt_remove,
 	.driver		= {
 		.name	= "nuc900-wdt",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -56,7 +56,10 @@ static void nlm_linux_exit(void)
 {
 	uint64_t sysbase = nlm_get_node(0)->sysbase;
 
-	nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
+	if (cpu_is_xlp9xx())
+		nlm_write_sys_reg(sysbase, SYS_9XX_CHIP_RESET, 1);
+	else
+		nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
 	for ( ; ; )
 		cpu_wait();
 }
@@ -78,7 +81,7 @@ static void __init xlp_init_mem_from_bars(void)
 	uint64_t map[16];
 	int i, n;
 
-	n = xlp_get_dram_map(-1, map);	/* -1: info for all nodes */
+	n = nlm_get_dram_map(-1, map, ARRAY_SIZE(map));	/* -1 : all nodes */
 	for (i = 0; i < n; i += 2) {
 		/* exclude 0x1000_0000-0x2000_0000, u-boot device */
 		if (map[i] <= 0x10000000 && map[i+1] > 0x10000000)
@@ -92,7 +95,14 @@ static void __init xlp_init_mem_from_bars(void)
 
 void __init plat_mem_setup(void)
 {
-	panic_timeout	= 5;
+#ifdef CONFIG_SMP
+	nlm_wakeup_secondary_cpus();
+
+	/* update TLB size after waking up threads */
+	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
+
+	register_smp_ops(&nlm_smp_ops);
+#endif
 	_machine_restart = (void (*)(char *))nlm_linux_exit;
 	_machine_halt	= nlm_linux_exit;
 	pm_power_off	= nlm_linux_exit;
@@ -110,7 +120,9 @@ void __init plat_mem_setup(void)
 
 const char *get_system_type(void)
 {
-	switch (read_c0_prid() & 0xff00) {
+	switch (read_c0_prid() & PRID_IMP_MASK) {
+	case PRID_IMP_NETLOGIC_XLP9XX:
+	case PRID_IMP_NETLOGIC_XLP5XX:
 	case PRID_IMP_NETLOGIC_XLP2XX:
 		return "Broadcom XLPII Series";
 	default:
@@ -163,11 +175,5 @@ void __init prom_init(void)
 
 #ifdef CONFIG_SMP
 	cpumask_setall(&nlm_cpumask);
-	nlm_wakeup_secondary_cpus();
-
-	/* update TLB size after waking up threads */
-	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
-
-	register_smp_ops(&nlm_smp_ops);
 #endif
 }

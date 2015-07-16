@@ -15,7 +15,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/kgdb.h>
 #include <linux/smp.h>
 #include <linux/signal.h>
@@ -156,7 +155,7 @@ static int kgdb_singlestep(struct pt_regs *regs)
 {
 	struct thread_info *thread_info, *exception_thread_info;
 	struct thread_info *backup_current_thread_info =
-		&__get_cpu_var(kgdb_thread_info);
+		this_cpu_ptr(&kgdb_thread_info);
 
 	if (user_mode(regs))
 		return 0;

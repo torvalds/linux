@@ -23,8 +23,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -39,7 +37,6 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_trace.h"
-#include "xfs_dinode.h"
 #include "xfs_dir2.h"
 
 /*
@@ -76,7 +73,7 @@ xfs_attr3_leaf_freextent(
 		error = xfs_bmapi_read(dp, (xfs_fileoff_t)tblkno, tblkcnt,
 				       &map, &nmap, XFS_BMAPI_ATTRFORK);
 		if (error) {
-			return(error);
+			return error;
 		}
 		ASSERT(nmap == 1);
 		ASSERT(map.br_startblock != DELAYSTARTBLOCK);
@@ -95,21 +92,21 @@ xfs_attr3_leaf_freextent(
 					dp->i_mount->m_ddev_targp,
 					dblkno, dblkcnt, 0);
 			if (!bp)
-				return ENOMEM;
+				return -ENOMEM;
 			xfs_trans_binval(*trans, bp);
 			/*
 			 * Roll to next transaction.
 			 */
 			error = xfs_trans_roll(trans, dp);
 			if (error)
-				return (error);
+				return error;
 		}
 
 		tblkno += map.br_blockcount;
 		tblkcnt -= map.br_blockcount;
 	}
 
-	return(0);
+	return 0;
 }
 
 /*
@@ -135,9 +132,10 @@ xfs_attr3_leaf_inactive(
 	int			size;
 	int			tmp;
 	int			i;
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
 	leaf = bp->b_addr;
-	xfs_attr3_leaf_hdr_from_disk(&ichdr, leaf);
+	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
 
 	/*
 	 * Count the number of "remote" value extents.
@@ -227,7 +225,7 @@ xfs_attr3_node_inactive(
 	 */
 	if (level > XFS_DA_NODE_MAXDEPTH) {
 		xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
-		return XFS_ERROR(EIO);
+		return -EIO;
 	}
 
 	node = bp->b_addr;
@@ -256,7 +254,7 @@ xfs_attr3_node_inactive(
 		error = xfs_da3_node_read(*trans, dp, child_fsb, -2, &child_bp,
 						XFS_ATTR_FORK);
 		if (error)
-			return(error);
+			return error;
 		if (child_bp) {
 						/* save for re-read later */
 			child_blkno = XFS_BUF_ADDR(child_bp);
@@ -277,7 +275,7 @@ xfs_attr3_node_inactive(
 							child_bp);
 				break;
 			default:
-				error = XFS_ERROR(EIO);
+				error = -EIO;
 				xfs_trans_brelse(*trans, child_bp);
 				break;
 			}
@@ -360,7 +358,7 @@ xfs_attr3_root_inactive(
 		error = xfs_attr3_leaf_inactive(trans, dp, bp);
 		break;
 	default:
-		error = XFS_ERROR(EIO);
+		error = -EIO;
 		xfs_trans_brelse(*trans, bp);
 		break;
 	}
@@ -382,23 +380,30 @@ xfs_attr3_root_inactive(
 	return error;
 }
 
+/*
+ * xfs_attr_inactive kills all traces of an attribute fork on an inode. It
+ * removes both the on-disk and in-memory inode fork. Note that this also has to
+ * handle the condition of inodes without attributes but with an attribute fork
+ * configured, so we can't use xfs_inode_hasattr() here.
+ *
+ * The in-memory attribute fork is removed even on error.
+ */
 int
-xfs_attr_inactive(xfs_inode_t *dp)
+xfs_attr_inactive(
+	struct xfs_inode	*dp)
 {
-	xfs_trans_t *trans;
-	xfs_mount_t *mp;
-	int error;
+	struct xfs_trans	*trans;
+	struct xfs_mount	*mp;
+	int			lock_mode = XFS_ILOCK_SHARED;
+	int			error = 0;
 
 	mp = dp->i_mount;
 	ASSERT(! XFS_NOT_DQATTACHED(mp, dp));
 
-	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (!xfs_inode_hasattr(dp) ||
-	    dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
-		xfs_iunlock(dp, XFS_ILOCK_SHARED);
-		return 0;
-	}
-	xfs_iunlock(dp, XFS_ILOCK_SHARED);
+	xfs_ilock(dp, lock_mode);
+	if (!XFS_IFORK_Q(dp))
+		goto out_destroy_fork;
+	xfs_iunlock(dp, lock_mode);
 
 	/*
 	 * Start our first transaction of the day.
@@ -410,13 +415,17 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	 * the inode in every transaction to let it float upward through
 	 * the log.
 	 */
+	lock_mode = 0;
 	trans = xfs_trans_alloc(mp, XFS_TRANS_ATTRINVAL);
 	error = xfs_trans_reserve(trans, &M_RES(mp)->tr_attrinval, 0, 0);
-	if (error) {
-		xfs_trans_cancel(trans, 0);
-		return(error);
-	}
-	xfs_ilock(dp, XFS_ILOCK_EXCL);
+	if (error)
+		goto out_cancel;
+
+	lock_mode = XFS_ILOCK_EXCL;
+	xfs_ilock(dp, lock_mode);
+
+	if (!XFS_IFORK_Q(dp))
+		goto out_cancel;
 
 	/*
 	 * No need to make quota reservations here. We expect to release some
@@ -425,28 +434,36 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	xfs_trans_ijoin(trans, dp, 0);
 
 	/*
-	 * Decide on what work routines to call based on the inode size.
+	 * Invalidate and truncate the attribute fork extents. Make sure the
+	 * fork actually has attributes as otherwise the invalidation has no
+	 * blocks to read and returns an error. In this case, just do the fork
+	 * removal below.
 	 */
-	if (!xfs_inode_hasattr(dp) ||
-	    dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
-		error = 0;
-		goto out;
+	if (xfs_inode_hasattr(dp) &&
+	    dp->i_d.di_aformat != XFS_DINODE_FMT_LOCAL) {
+		error = xfs_attr3_root_inactive(&trans, dp);
+		if (error)
+			goto out_cancel;
+
+		error = xfs_itruncate_extents(&trans, dp, XFS_ATTR_FORK, 0);
+		if (error)
+			goto out_cancel;
 	}
-	error = xfs_attr3_root_inactive(&trans, dp);
-	if (error)
-		goto out;
 
-	error = xfs_itruncate_extents(&trans, dp, XFS_ATTR_FORK, 0);
-	if (error)
-		goto out;
+	/* Reset the attribute fork - this also destroys the in-core fork */
+	xfs_attr_fork_remove(dp, trans);
 
-	error = xfs_trans_commit(trans, XFS_TRANS_RELEASE_LOG_RES);
-	xfs_iunlock(dp, XFS_ILOCK_EXCL);
+	error = xfs_trans_commit(trans);
+	xfs_iunlock(dp, lock_mode);
+	return error;
 
-	return(error);
-
-out:
-	xfs_trans_cancel(trans, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
-	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-	return(error);
+out_cancel:
+	xfs_trans_cancel(trans);
+out_destroy_fork:
+	/* kill the in-core attr fork before we drop the inode lock */
+	if (dp->i_afp)
+		xfs_idestroy_fork(dp, XFS_ATTR_FORK);
+	if (lock_mode)
+		xfs_iunlock(dp, lock_mode);
+	return error;
 }

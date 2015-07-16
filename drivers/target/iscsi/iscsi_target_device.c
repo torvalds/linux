@@ -17,11 +17,10 @@
  * GNU General Public License for more details.
  ******************************************************************************/
 
-#include <scsi/scsi_device.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_device.h"
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_util.h"

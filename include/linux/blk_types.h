@@ -5,8 +5,6 @@
 #ifndef __LINUX_BLK_TYPES_H
 #define __LINUX_BLK_TYPES_H
 
-#ifdef CONFIG_BLOCK
-
 #include <linux/types.h>
 
 struct bio_set;
@@ -28,13 +26,24 @@ struct bio_vec {
 	unsigned int	bv_offset;
 };
 
+#ifdef CONFIG_BLOCK
+
+struct bvec_iter {
+	sector_t		bi_sector;	/* device address in 512 byte
+						   sectors */
+	unsigned int		bi_size;	/* residual I/O count */
+
+	unsigned int		bi_idx;		/* current index into bvl_vec */
+
+	unsigned int            bi_bvec_done;	/* number of bytes completed in
+						   current bvec */
+};
+
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
  * stacking drivers)
  */
 struct bio {
-	sector_t		bi_sector;	/* device address in 512 byte
-						   sectors */
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
 	unsigned long		bi_flags;	/* status, command, etc */
@@ -42,15 +51,12 @@ struct bio {
 						 * top bits priority
 						 */
 
-	unsigned short		bi_vcnt;	/* how many bio_vec's */
-	unsigned short		bi_idx;		/* current index into bvl_vec */
+	struct bvec_iter	bi_iter;
 
 	/* Number of segments in this BIO after
 	 * physical address coalescing is performed.
 	 */
 	unsigned int		bi_phys_segments;
-
-	unsigned int		bi_size;	/* residual I/O count */
 
 	/*
 	 * To keep track of the max segment size, we account for the
@@ -58,6 +64,8 @@ struct bio {
 	 */
 	unsigned int		bi_seg_front_size;
 	unsigned int		bi_seg_back_size;
+
+	atomic_t		__bi_remaining;
 
 	bio_end_io_t		*bi_end_io;
 
@@ -70,17 +78,21 @@ struct bio {
 	struct io_context	*bi_ioc;
 	struct cgroup_subsys_state *bi_css;
 #endif
+	union {
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
-	struct bio_integrity_payload *bi_integrity;  /* data integrity */
+		struct bio_integrity_payload *bi_integrity; /* data integrity */
 #endif
+	};
+
+	unsigned short		bi_vcnt;	/* how many bio_vec's */
 
 	/*
 	 * Everything starting with bi_max_vecs will be preserved by bio_reset()
 	 */
 
-	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
+	unsigned short		bi_max_vecs;	/* max bvl_vecs we can hold */
 
-	atomic_t		bi_cnt;		/* pin count */
+	atomic_t		__bi_cnt;	/* pin count */
 
 	struct bio_vec		*bi_io_vec;	/* the actual vec list */
 
@@ -100,18 +112,15 @@ struct bio {
  * bio flags
  */
 #define BIO_UPTODATE	0	/* ok after I/O completion */
-#define BIO_RW_BLOCK	1	/* RW_AHEAD set, and read/write would block */
-#define BIO_EOF		2	/* out-out-bounds error */
-#define BIO_SEG_VALID	3	/* bi_phys_segments valid */
-#define BIO_CLONED	4	/* doesn't own data */
-#define BIO_BOUNCED	5	/* bio is a bounce bio */
-#define BIO_USER_MAPPED 6	/* contains user pages */
-#define BIO_EOPNOTSUPP	7	/* not supported */
-#define BIO_NULL_MAPPED 8	/* contains invalid user pages */
-#define BIO_FS_INTEGRITY 9	/* fs owns integrity data, not block layer */
-#define BIO_QUIET	10	/* Make BIO Quiet */
-#define BIO_MAPPED_INTEGRITY 11/* integrity metadata has been remapped */
-#define BIO_SNAP_STABLE	12	/* bio data must be snapshotted during write */
+#define BIO_SEG_VALID	1	/* bi_phys_segments valid */
+#define BIO_CLONED	2	/* doesn't own data */
+#define BIO_BOUNCED	3	/* bio is a bounce bio */
+#define BIO_USER_MAPPED 4	/* contains user pages */
+#define BIO_NULL_MAPPED 5	/* contains invalid user pages */
+#define BIO_QUIET	6	/* Make BIO Quiet */
+#define BIO_SNAP_STABLE	7	/* bio data must be snapshotted during write */
+#define BIO_CHAIN	8	/* chained bio, ->bi_remaining in effect */
+#define BIO_REFFED	9	/* bio has elevated ->bi_cnt */
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes
@@ -152,6 +161,7 @@ enum rq_flag_bits {
 	__REQ_WRITE_SAME,	/* write same block many times */
 
 	__REQ_NOIDLE,		/* don't anticipate more IO after this one */
+	__REQ_INTEGRITY,	/* I/O includes block integrity payload */
 	__REQ_FUA,		/* forced unit access */
 	__REQ_FLUSH,		/* request for cache flush */
 
@@ -170,15 +180,18 @@ enum rq_flag_bits {
 	__REQ_ELVPRIV,		/* elevator private data attached */
 	__REQ_FAILED,		/* set if the request failed */
 	__REQ_QUIET,		/* don't worry about errors */
-	__REQ_PREEMPT,		/* set for "ide_preempt" requests */
+	__REQ_PREEMPT,		/* set for "ide_preempt" requests and also
+				   for requests for which the SCSI "quiesce"
+				   state must be ignored. */
 	__REQ_ALLOCED,		/* request came from our alloc pool */
 	__REQ_COPY_USER,	/* contains copies of user pages */
 	__REQ_FLUSH_SEQ,	/* request for flush sequence */
 	__REQ_IO_STAT,		/* account I/O stat */
 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
-	__REQ_KERNEL, 		/* direct IO to kernel pages */
 	__REQ_PM,		/* runtime pm request */
-	__REQ_END,		/* last of chain of requests */
+	__REQ_HASHED,		/* on IO scheduler merge hash */
+	__REQ_MQ_INFLIGHT,	/* track inflight for MQ */
+	__REQ_NO_TIMEOUT,	/* requests may never expire */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -192,20 +205,21 @@ enum rq_flag_bits {
 #define REQ_DISCARD		(1ULL << __REQ_DISCARD)
 #define REQ_WRITE_SAME		(1ULL << __REQ_WRITE_SAME)
 #define REQ_NOIDLE		(1ULL << __REQ_NOIDLE)
+#define REQ_INTEGRITY		(1ULL << __REQ_INTEGRITY)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
 #define REQ_COMMON_MASK \
 	(REQ_WRITE | REQ_FAILFAST_MASK | REQ_SYNC | REQ_META | REQ_PRIO | \
 	 REQ_DISCARD | REQ_WRITE_SAME | REQ_NOIDLE | REQ_FLUSH | REQ_FUA | \
-	 REQ_SECURE)
+	 REQ_SECURE | REQ_INTEGRITY)
 #define REQ_CLONE_MASK		REQ_COMMON_MASK
 
 #define BIO_NO_ADVANCE_ITER_MASK	(REQ_DISCARD|REQ_WRITE_SAME)
 
 /* This mask is used for both bio and request merge checking */
 #define REQ_NOMERGE_FLAGS \
-	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_FLUSH | REQ_FUA)
+	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_FLUSH | REQ_FUA | REQ_FLUSH_SEQ)
 
 #define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
 #define REQ_THROTTLED		(1ULL << __REQ_THROTTLED)
@@ -228,8 +242,9 @@ enum rq_flag_bits {
 #define REQ_IO_STAT		(1ULL << __REQ_IO_STAT)
 #define REQ_MIXED_MERGE		(1ULL << __REQ_MIXED_MERGE)
 #define REQ_SECURE		(1ULL << __REQ_SECURE)
-#define REQ_KERNEL		(1ULL << __REQ_KERNEL)
 #define REQ_PM			(1ULL << __REQ_PM)
-#define REQ_END			(1ULL << __REQ_END)
+#define REQ_HASHED		(1ULL << __REQ_HASHED)
+#define REQ_MQ_INFLIGHT		(1ULL << __REQ_MQ_INFLIGHT)
+#define REQ_NO_TIMEOUT		(1ULL << __REQ_NO_TIMEOUT)
 
 #endif /* __LINUX_BLK_TYPES_H */

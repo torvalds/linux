@@ -195,6 +195,7 @@ struct tlan_priv {
 	u32			timer_set_at;
 	u32			timer_type;
 	struct timer_list	timer;
+	struct timer_list	media_timer;
 	struct board		*adapter;
 	u32			adapter_rev;
 	u32			aui;
@@ -206,9 +207,7 @@ struct tlan_priv {
 	u8			tlan_rev;
 	u8			tlan_full_duplex;
 	spinlock_t		lock;
-	u8			link;
 	struct work_struct			tlan_tqueue;
-	u8			neg_be_verbose;
 };
 
 
@@ -219,7 +218,6 @@ struct tlan_priv {
 	 *
 	 ****************************************************************/
 
-#define TLAN_TIMER_LINK_BEAT		1
 #define TLAN_TIMER_ACTIVITY		2
 #define TLAN_TIMER_PHY_PDOWN		3
 #define TLAN_TIMER_PHY_PUP		4
@@ -241,6 +239,7 @@ struct tlan_priv {
 #define TLAN_EEPROM_ACK		0
 #define TLAN_EEPROM_STOP	1
 
+#define TLAN_EEPROM_SIZE	256
 
 
 

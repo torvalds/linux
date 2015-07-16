@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 #include <linux/elf.h>
+#include <linux/memblock.h>
 #include <asm/os_info.h>
 #include <asm/elf.h>
 #include <asm/ipl.h>
@@ -22,32 +23,26 @@
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))
 #define PTR_DIFF(x, y) ((unsigned long)(((char *) (x)) - ((unsigned long) (y))))
 
+static struct memblock_region oldmem_region;
+
+static struct memblock_type oldmem_type = {
+	.cnt = 1,
+	.max = 1,
+	.total_size = 0,
+	.regions = &oldmem_region,
+};
+
+#define for_each_dump_mem_range(i, nid, p_start, p_end, p_nid)		\
+	for (i = 0, __next_mem_range(&i, nid, MEMBLOCK_NONE,		\
+				     &memblock.physmem,			\
+				     &oldmem_type, p_start,		\
+				     p_end, p_nid);			\
+	     i != (u64)ULLONG_MAX;					\
+	     __next_mem_range(&i, nid, MEMBLOCK_NONE, &memblock.physmem,\
+			      &oldmem_type,				\
+			      p_start, p_end, p_nid))
+
 struct dump_save_areas dump_save_areas;
-
-/*
- * Allocate and add a save area for a CPU
- */
-struct save_area *dump_save_area_create(int cpu)
-{
-	struct save_area **save_areas, *save_area;
-
-	save_area = kmalloc(sizeof(*save_area), GFP_KERNEL);
-	if (!save_area)
-		return NULL;
-	if (cpu + 1 > dump_save_areas.count) {
-		dump_save_areas.count = cpu + 1;
-		save_areas = krealloc(dump_save_areas.areas,
-				      dump_save_areas.count * sizeof(void *),
-				      GFP_KERNEL | __GFP_ZERO);
-		if (!save_areas) {
-			kfree(save_area);
-			return NULL;
-		}
-		dump_save_areas.areas = save_areas;
-	}
-	dump_save_areas.areas[cpu] = save_area;
-	return save_area;
-}
 
 /*
  * Return physical address for virtual address
@@ -103,7 +98,7 @@ static ssize_t copy_oldmem_page_zfcpdump(char *buf, size_t csize,
 {
 	int rc;
 
-	if (src < sclp_get_hsa_size()) {
+	if (src < sclp.hsa_size) {
 		rc = memcpy_hsa(buf, src, csize, userbuf);
 	} else {
 		if (userbuf)
@@ -196,7 +191,7 @@ static int remap_oldmem_pfn_range_zfcpdump(struct vm_area_struct *vma,
 					   unsigned long pfn,
 					   unsigned long size, pgprot_t prot)
 {
-	unsigned long hsa_end = sclp_get_hsa_size();
+	unsigned long hsa_end = sclp.hsa_size;
 	unsigned long size_hsa;
 
 	if (pfn < hsa_end >> PAGE_SHIFT) {
@@ -239,7 +234,7 @@ int copy_from_oldmem(void *dest, void *src, size_t count)
 				return rc;
 		}
 	} else {
-		unsigned long hsa_end = sclp_get_hsa_size();
+		unsigned long hsa_end = sclp.hsa_size;
 		if ((unsigned long) src < hsa_end) {
 			copied = min(count, hsa_end - (unsigned long) src);
 			rc = memcpy_hsa(dest, (unsigned long) src, copied, 0);
@@ -261,19 +256,6 @@ static void *kzalloc_panic(int len)
 	if (!rc)
 		panic("s390 kdump kzalloc (%d) failed", len);
 	return rc;
-}
-
-/*
- * Get memory layout and create hole for oldmem
- */
-static struct mem_chunk *get_memory_layout(void)
-{
-	struct mem_chunk *chunk_array;
-
-	chunk_array = kzalloc_panic(MEMORY_CHUNKS * sizeof(struct mem_chunk));
-	detect_memory_layout(chunk_array, 0);
-	create_mem_hole(chunk_array, OLDMEM_BASE, OLDMEM_SIZE);
-	return chunk_array;
 }
 
 /*
@@ -380,9 +362,45 @@ static void *nt_s390_prefix(void *ptr, struct save_area *sa)
 }
 
 /*
+ * Initialize vxrs high note (full 128 bit VX registers 16-31)
+ */
+static void *nt_s390_vx_high(void *ptr, __vector128 *vx_regs)
+{
+	return nt_init(ptr, NT_S390_VXRS_HIGH, &vx_regs[16],
+		       16 * sizeof(__vector128), KEXEC_CORE_NOTE_NAME);
+}
+
+/*
+ * Initialize vxrs low note (lower halves of VX registers 0-15)
+ */
+static void *nt_s390_vx_low(void *ptr, __vector128 *vx_regs)
+{
+	Elf64_Nhdr *note;
+	u64 len;
+	int i;
+
+	note = (Elf64_Nhdr *)ptr;
+	note->n_namesz = strlen(KEXEC_CORE_NOTE_NAME) + 1;
+	note->n_descsz = 16 * 8;
+	note->n_type = NT_S390_VXRS_LOW;
+	len = sizeof(Elf64_Nhdr);
+
+	memcpy(ptr + len, KEXEC_CORE_NOTE_NAME, note->n_namesz);
+	len = roundup(len + note->n_namesz, 4);
+
+	ptr += len;
+	/* Copy lower halves of SIMD registers 0-15 */
+	for (i = 0; i < 16; i++) {
+		memcpy(ptr, &vx_regs[i].u[2], 8);
+		ptr += 8;
+	}
+	return ptr;
+}
+
+/*
  * Fill ELF notes for one CPU with save area registers
  */
-void *fill_cpu_elf_notes(void *ptr, struct save_area *sa)
+void *fill_cpu_elf_notes(void *ptr, struct save_area *sa, __vector128 *vx_regs)
 {
 	ptr = nt_prstatus(ptr, sa);
 	ptr = nt_fpregset(ptr, sa);
@@ -391,6 +409,10 @@ void *fill_cpu_elf_notes(void *ptr, struct save_area *sa)
 	ptr = nt_s390_tod_preg(ptr, sa);
 	ptr = nt_s390_ctrs(ptr, sa);
 	ptr = nt_s390_prefix(ptr, sa);
+	if (MACHINE_HAS_VX && vx_regs) {
+		ptr = nt_s390_vx_low(ptr, vx_regs);
+		ptr = nt_s390_vx_high(ptr, vx_regs);
+	}
 	return ptr;
 }
 
@@ -478,7 +500,7 @@ static int get_cpu_cnt(void)
 	int i, cpus = 0;
 
 	for (i = 0; i < dump_save_areas.count; i++) {
-		if (dump_save_areas.areas[i]->pref_reg == 0)
+		if (dump_save_areas.areas[i]->sa.pref_reg == 0)
 			continue;
 		cpus++;
 	}
@@ -490,52 +512,33 @@ static int get_cpu_cnt(void)
  */
 static int get_mem_chunk_cnt(void)
 {
-	struct mem_chunk *chunk_array, *mem_chunk;
-	int i, cnt = 0;
+	int cnt = 0;
+	u64 idx;
 
-	chunk_array = get_memory_layout();
-	for (i = 0; i < MEMORY_CHUNKS; i++) {
-		mem_chunk = &chunk_array[i];
-		if (chunk_array[i].type != CHUNK_READ_WRITE &&
-		    chunk_array[i].type != CHUNK_READ_ONLY)
-			continue;
-		if (mem_chunk->size == 0)
-			continue;
+	for_each_dump_mem_range(idx, NUMA_NO_NODE, NULL, NULL, NULL)
 		cnt++;
-	}
-	kfree(chunk_array);
 	return cnt;
 }
 
 /*
  * Initialize ELF loads (new kernel)
  */
-static int loads_init(Elf64_Phdr *phdr, u64 loads_offset)
+static void loads_init(Elf64_Phdr *phdr, u64 loads_offset)
 {
-	struct mem_chunk *chunk_array, *mem_chunk;
-	int i;
+	phys_addr_t start, end;
+	u64 idx;
 
-	chunk_array = get_memory_layout();
-	for (i = 0; i < MEMORY_CHUNKS; i++) {
-		mem_chunk = &chunk_array[i];
-		if (mem_chunk->size == 0)
-			continue;
-		if (chunk_array[i].type != CHUNK_READ_WRITE &&
-		    chunk_array[i].type != CHUNK_READ_ONLY)
-			continue;
-		else
-			phdr->p_filesz = mem_chunk->size;
+	for_each_dump_mem_range(idx, NUMA_NO_NODE, &start, &end, NULL) {
+		phdr->p_filesz = end - start;
 		phdr->p_type = PT_LOAD;
-		phdr->p_offset = mem_chunk->addr;
-		phdr->p_vaddr = mem_chunk->addr;
-		phdr->p_paddr = mem_chunk->addr;
-		phdr->p_memsz = mem_chunk->size;
+		phdr->p_offset = start;
+		phdr->p_vaddr = start;
+		phdr->p_paddr = start;
+		phdr->p_memsz = end - start;
 		phdr->p_flags = PF_R | PF_W | PF_X;
 		phdr->p_align = PAGE_SIZE;
 		phdr++;
 	}
-	kfree(chunk_array);
-	return i;
 }
 
 /*
@@ -543,17 +546,17 @@ static int loads_init(Elf64_Phdr *phdr, u64 loads_offset)
  */
 static void *notes_init(Elf64_Phdr *phdr, void *ptr, u64 notes_offset)
 {
-	struct save_area *sa;
+	struct save_area_ext *sa_ext;
 	void *ptr_start = ptr;
 	int i;
 
 	ptr = nt_prpsinfo(ptr);
 
 	for (i = 0; i < dump_save_areas.count; i++) {
-		sa = dump_save_areas.areas[i];
-		if (sa->pref_reg == 0)
+		sa_ext = dump_save_areas.areas[i];
+		if (sa_ext->sa.pref_reg == 0)
 			continue;
-		ptr = fill_cpu_elf_notes(ptr, sa);
+		ptr = fill_cpu_elf_notes(ptr, &sa_ext->sa, sa_ext->vx_regs);
 	}
 	ptr = nt_vmcoreinfo(ptr);
 	memset(phdr, 0, sizeof(*phdr));
@@ -582,11 +585,19 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	if (elfcorehdr_addr != ELFCORE_ADDR_MAX)
 		return 0;
 	/* If we cannot get HSA size for zfcpdump return error */
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !sclp_get_hsa_size())
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !sclp.hsa_size)
 		return -ENODEV;
+
+	/* For kdump, exclude previous crashkernel memory */
+	if (OLDMEM_BASE) {
+		oldmem_region.base = OLDMEM_BASE;
+		oldmem_region.size = OLDMEM_SIZE;
+		oldmem_type.total_size = OLDMEM_SIZE;
+	}
+
 	mem_chunk_cnt = get_mem_chunk_cnt();
 
-	alloc_size = 0x1000 + get_cpu_cnt() * 0x300 +
+	alloc_size = 0x1000 + get_cpu_cnt() * 0x4a0 +
 		mem_chunk_cnt * sizeof(Elf64_Phdr);
 	hdr = kzalloc_panic(alloc_size);
 	/* Init elf header */

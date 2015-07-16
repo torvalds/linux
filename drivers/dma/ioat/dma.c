@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
  *
@@ -77,7 +73,8 @@ static irqreturn_t ioat_dma_do_interrupt(int irq, void *data)
 	attnstatus = readl(instance->reg_base + IOAT_ATTNSTATUS_OFFSET);
 	for_each_set_bit(bit, &attnstatus, BITS_PER_LONG) {
 		chan = ioat_chan_by_index(instance, bit);
-		tasklet_schedule(&chan->cleanup_task);
+		if (test_bit(IOAT_RUN, &chan->state))
+			tasklet_schedule(&chan->cleanup_task);
 	}
 
 	writeb(intrctrl, instance->reg_base + IOAT_INTRCTRL_OFFSET);
@@ -93,7 +90,8 @@ static irqreturn_t ioat_dma_do_interrupt_msix(int irq, void *data)
 {
 	struct ioat_chan_common *chan = data;
 
-	tasklet_schedule(&chan->cleanup_task);
+	if (test_bit(IOAT_RUN, &chan->state))
+		tasklet_schedule(&chan->cleanup_task);
 
 	return IRQ_HANDLED;
 }
@@ -116,7 +114,6 @@ void ioat_init_channel(struct ioatdma_device *device, struct ioat_chan_common *c
 	chan->timer.function = device->timer_fn;
 	chan->timer.data = data;
 	tasklet_init(&chan->cleanup_task, device->cleanup_fn, data);
-	tasklet_disable(&chan->cleanup_task);
 }
 
 /**
@@ -354,11 +351,47 @@ static int ioat1_dma_alloc_chan_resources(struct dma_chan *c)
 	writel(((u64) chan->completion_dma) >> 32,
 	       chan->reg_base + IOAT_CHANCMP_OFFSET_HIGH);
 
-	tasklet_enable(&chan->cleanup_task);
+	set_bit(IOAT_RUN, &chan->state);
 	ioat1_dma_start_null_desc(ioat);  /* give chain to dma device */
 	dev_dbg(to_dev(chan), "%s: allocated %d descriptors\n",
 		__func__, ioat->desccount);
 	return ioat->desccount;
+}
+
+void ioat_stop(struct ioat_chan_common *chan)
+{
+	struct ioatdma_device *device = chan->device;
+	struct pci_dev *pdev = device->pdev;
+	int chan_id = chan_num(chan);
+	struct msix_entry *msix;
+
+	/* 1/ stop irq from firing tasklets
+	 * 2/ stop the tasklet from re-arming irqs
+	 */
+	clear_bit(IOAT_RUN, &chan->state);
+
+	/* flush inflight interrupts */
+	switch (device->irq_mode) {
+	case IOAT_MSIX:
+		msix = &device->msix_entries[chan_id];
+		synchronize_irq(msix->vector);
+		break;
+	case IOAT_MSI:
+	case IOAT_INTX:
+		synchronize_irq(pdev->irq);
+		break;
+	default:
+		break;
+	}
+
+	/* flush inflight timers */
+	del_timer_sync(&chan->timer);
+
+	/* flush inflight tasklet runs */
+	tasklet_kill(&chan->cleanup_task);
+
+	/* final cleanup now that everything is quiesced and can't re-arm */
+	device->cleanup_fn((unsigned long) &chan->common);
 }
 
 /**
@@ -379,9 +412,7 @@ static void ioat1_dma_free_chan_resources(struct dma_chan *c)
 	if (ioat->desccount == 0)
 		return;
 
-	tasklet_disable(&chan->cleanup_task);
-	del_timer_sync(&chan->timer);
-	ioat1_cleanup(ioat);
+	ioat_stop(chan);
 
 	/* Delay 100ms after reset to allow internal DMA logic to quiesce
 	 * before removing DMA descriptor resources.
@@ -526,8 +557,11 @@ ioat1_dma_prep_memcpy(struct dma_chan *c, dma_addr_t dma_dest,
 static void ioat1_cleanup_event(unsigned long data)
 {
 	struct ioat_dma_chan *ioat = to_ioat_chan((void *) data);
+	struct ioat_chan_common *chan = &ioat->base;
 
 	ioat1_cleanup(ioat);
+	if (!test_bit(IOAT_RUN, &chan->state))
+		return;
 	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
@@ -817,7 +851,15 @@ int ioat_dma_self_test(struct ioatdma_device *device)
 	}
 
 	dma_src = dma_map_single(dev, src, IOAT_TEST_SIZE, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, dma_src)) {
+		dev_err(dev, "mapping src buffer failed\n");
+		goto free_resources;
+	}
 	dma_dest = dma_map_single(dev, dest, IOAT_TEST_SIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, dma_dest)) {
+		dev_err(dev, "mapping dest buffer failed\n");
+		goto unmap_src;
+	}
 	flags = DMA_PREP_INTERRUPT;
 	tx = device->common.device_prep_dma_memcpy(dma_chan, dma_dest, dma_src,
 						   IOAT_TEST_SIZE, flags);
@@ -855,8 +897,9 @@ int ioat_dma_self_test(struct ioatdma_device *device)
 	}
 
 unmap_dma:
-	dma_unmap_single(dev, dma_src, IOAT_TEST_SIZE, DMA_TO_DEVICE);
 	dma_unmap_single(dev, dma_dest, IOAT_TEST_SIZE, DMA_FROM_DEVICE);
+unmap_src:
+	dma_unmap_single(dev, dma_src, IOAT_TEST_SIZE, DMA_TO_DEVICE);
 free_resources:
 	dma->device_free_chan_resources(dma_chan);
 out:
@@ -900,7 +943,7 @@ msix:
 	for (i = 0; i < msixcnt; i++)
 		device->msix_entries[i].entry = i;
 
-	err = pci_enable_msix(pdev, device->msix_entries, msixcnt);
+	err = pci_enable_msix_exact(pdev, device->msix_entries, msixcnt);
 	if (err)
 		goto msi;
 
@@ -1175,7 +1218,6 @@ int ioat1_dma_probe(struct ioatdma_device *device, int dca)
 	err = ioat_probe(device);
 	if (err)
 		return err;
-	ioat_set_tcp_copy_break(4096);
 	err = ioat_register(device);
 	if (err)
 		return err;

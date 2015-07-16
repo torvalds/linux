@@ -118,8 +118,7 @@ static int vprbrd_i2c_addr(struct usb_device *usb_dev,
 static int vprbrd_i2c_read(struct vprbrd *vb, struct i2c_msg *msg)
 {
 	int ret;
-	u16 remain_len, bytes_xfer, len1, len2,
-		start = 0x0000;
+	u16 remain_len, len1, len2, start = 0x0000;
 	struct vprbrd_i2c_read_msg *rmsg =
 		(struct vprbrd_i2c_read_msg *)vb->buf;
 
@@ -166,7 +165,6 @@ static int vprbrd_i2c_read(struct vprbrd *vb, struct i2c_msg *msg)
 			rmsg->header.len3 = remain_len - 512;
 			rmsg->header.len4 = 0x00;
 			rmsg->header.len5 = 0x00;
-			bytes_xfer = remain_len;
 			remain_len = 0;
 		} else if (remain_len <= 1022) {
 			len1 = 512;
@@ -290,10 +288,6 @@ static int vprbrd_i2c_xfer(struct i2c_adapter *i2c, struct i2c_msg *msgs,
 			i, pmsg->flags & I2C_M_RD ? "read" : "write",
 			pmsg->flags, pmsg->len, pmsg->addr);
 
-		/* msgs longer than 2048 bytes are not supported by adapter */
-		if (pmsg->len > 2048)
-			return -EINVAL;
-
 		mutex_lock(&vb->lock);
 		/* directly send the message */
 		if (pmsg->flags & I2C_M_RD) {
@@ -360,6 +354,11 @@ static const struct i2c_algorithm vprbrd_algorithm = {
 	.functionality	= vprbrd_i2c_func,
 };
 
+static struct i2c_adapter_quirks vprbrd_quirks = {
+	.max_read_len = 2048,
+	.max_write_len = 2048,
+};
+
 static int vprbrd_i2c_probe(struct platform_device *pdev)
 {
 	struct vprbrd *vb = dev_get_drvdata(pdev->dev.parent);
@@ -367,7 +366,7 @@ static int vprbrd_i2c_probe(struct platform_device *pdev)
 	int ret;
 	int pipe;
 
-	vb_i2c = kzalloc(sizeof(*vb_i2c), GFP_KERNEL);
+	vb_i2c = devm_kzalloc(&pdev->dev, sizeof(*vb_i2c), GFP_KERNEL);
 	if (vb_i2c == NULL)
 		return -ENOMEM;
 
@@ -375,6 +374,7 @@ static int vprbrd_i2c_probe(struct platform_device *pdev)
 	vb_i2c->i2c.owner = THIS_MODULE;
 	vb_i2c->i2c.class = I2C_CLASS_HWMON;
 	vb_i2c->i2c.algo = &vprbrd_algorithm;
+	vb_i2c->i2c.quirks = &vprbrd_quirks;
 	vb_i2c->i2c.algo_data = vb;
 	/* save the param in usb capabable memory */
 	vb_i2c->bus_freq_param = i2c_bus_param;
@@ -394,14 +394,12 @@ static int vprbrd_i2c_probe(struct platform_device *pdev)
 	    if (ret != 1) {
 		dev_err(&pdev->dev,
 			"failure setting i2c_bus_freq to %d\n", i2c_bus_freq);
-		ret = -EIO;
-		goto error;
+		return -EIO;
 	    }
 	} else {
 		dev_err(&pdev->dev,
 			"invalid i2c_bus_freq setting:%d\n", i2c_bus_freq);
-		ret = -EIO;
-		goto error;
+		return -EIO;
 	}
 
 	vb_i2c->i2c.dev.parent = &pdev->dev;
@@ -412,10 +410,6 @@ static int vprbrd_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vb_i2c);
 
 	return 0;
-
-error:
-	kfree(vb_i2c);
-	return ret;
 }
 
 static int vprbrd_i2c_remove(struct platform_device *pdev)

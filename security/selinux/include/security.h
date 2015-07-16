@@ -8,6 +8,7 @@
 #ifndef _SELINUX_SECURITY_H_
 #define _SELINUX_SECURITY_H_
 
+#include <linux/compiler.h>
 #include <linux/dcache.h>
 #include <linux/magic.h>
 #include <linux/types.h>
@@ -33,13 +34,14 @@
 #define POLICYDB_VERSION_ROLETRANS	26
 #define POLICYDB_VERSION_NEW_OBJECT_DEFAULTS	27
 #define POLICYDB_VERSION_DEFAULT_TYPE	28
+#define POLICYDB_VERSION_CONSTRAINT_NAMES	29
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
 #ifdef CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX
 #define POLICYDB_VERSION_MAX	CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX_VALUE
 #else
-#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_DEFAULT_TYPE
+#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_CONSTRAINT_NAMES
 #endif
 
 /* Mask for just the mount related flags */
@@ -54,6 +56,7 @@
 /* Non-mount related flags */
 #define SE_SBINITIALIZED	0x0100
 #define SE_SBPROC		0x0200
+#define SE_SBGENFS		0x0400
 
 #define CONTEXT_STR	"context="
 #define FSCONTEXT_STR	"fscontext="
@@ -133,7 +136,7 @@ int security_sid_to_context(u32 sid, char **scontext,
 int security_sid_to_context_force(u32 sid, char **scontext, u32 *scontext_len);
 
 int security_context_to_sid(const char *scontext, u32 scontext_len,
-	u32 *out_sid);
+			    u32 *out_sid, gfp_t gfp);
 
 int security_context_to_sid_default(const char *scontext, u32 scontext_len,
 				    u32 *out_sid, u32 def_sid, gfp_t gfp_flags);
@@ -219,7 +222,7 @@ struct selinux_kernel_status {
 	/*
 	 * The version > 0 supports above members.
 	 */
-} __attribute__((packed));
+} __packed;
 
 extern void selinux_status_update_setenforce(int enforcing);
 extern void selinux_status_update_policyload(int seqno);

@@ -22,7 +22,9 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#ifndef CONFIG_ARCH_MULTIPLATFORM
 #include <mach/irqs.h>
+#endif
 
 #include "core.h"
 #include "sh_pfc.h"
@@ -256,7 +258,7 @@ enum {
 	/* SCIFA7 */
 	SCIFA7_TXD_MARK,	SCIFA7_RXD_MARK,
 
-	/* SCIFAB */
+	/* SCIFB */
 	SCIFB_SCK_PORT190_MARK, /* MSEL5CR_17_0 */
 	SCIFB_RXD_PORT191_MARK,
 	SCIFB_TXD_PORT192_MARK,
@@ -1543,7 +1545,7 @@ static const u16 pinmux_data[] = {
 #define R8A7740_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
 #define R8A7740_PIN_O_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __O | __PUD)
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 56-1 (I/O and Pull U/D) */
 	R8A7740_PIN_IO_PD(0),		R8A7740_PIN_IO_PD(1),
 	R8A7740_PIN_IO_PD(2),		R8A7740_PIN_IO_PD(3),
@@ -3234,17 +3236,6 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(tpu0),
 };
 
-#undef PORTCR
-#define PORTCR(nr, reg)							\
-	{								\
-		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),	\
-				PORT##nr##_FN0, PORT##nr##_FN1,		\
-				PORT##nr##_FN2, PORT##nr##_FN3,		\
-				PORT##nr##_FN4, PORT##nr##_FN5,		\
-				PORT##nr##_FN6, PORT##nr##_FN7 }	\
-	}
-
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0,	0xe6050000), /* PORT0CR */
 	PORTCR(1,	0xe6050001), /* PORT1CR */
@@ -3720,8 +3711,8 @@ static void __iomem *r8a7740_pinmux_portcr(struct sh_pfc *pfc, unsigned int pin)
 		const struct r8a7740_portcr_group *group =
 			&r8a7740_portcr_offsets[i];
 
-		if (i <= group->end_pin)
-			return pfc->window->virt + group->offset + pin;
+		if (pin <= group->end_pin)
+			return pfc->windows->virt + group->offset + pin;
 	}
 
 	return NULL;
@@ -3761,14 +3752,14 @@ static void r8a7740_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	iowrite8(value, addr);
 }
 
-static const struct sh_pfc_soc_operations r8a7740_pinmux_ops = {
+static const struct sh_pfc_soc_operations r8a7740_pfc_ops = {
 	.get_bias = r8a7740_pinmux_get_bias,
 	.set_bias = r8a7740_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.name		= "r8a7740_pfc",
-	.ops		= &r8a7740_pinmux_ops,
+	.ops		= &r8a7740_pfc_ops,
 
 	.input		= { PINMUX_INPUT_BEGIN,
 			    PINMUX_INPUT_END },

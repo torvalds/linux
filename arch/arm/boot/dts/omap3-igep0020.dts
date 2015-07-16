@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for IGEPv2 board
+ * Device Tree Source for IGEPv2 Rev. C (TI OMAP AM/DM37x)
  *
  * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
  * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
@@ -9,168 +9,59 @@
  * published by the Free Software Foundation.
  */
 
-#include "omap3-igep.dtsi"
-#include "omap-gpmc-smsc911x.dtsi"
+#include "omap3-igep0020-common.dtsi"
 
 / {
-	model = "IGEPv2";
-	compatible = "isee,omap3-igep0020", "ti,omap3";
+	model = "IGEPv2 Rev. C (TI OMAP AM/DM37x)";
+	compatible = "isee,omap3-igep0020", "ti,omap36xx", "ti,omap3";
 
-	leds {
-		pinctrl-names = "default";
-		pinctrl-0 = <&leds_pins>;
-		compatible = "gpio-leds";
-
-		boot {
-			 label = "omap3:green:boot";
-			 gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
-			 default-state = "on";
-		};
-
-		user0 {
-			 label = "omap3:red:user0";
-			 gpios = <&gpio1 27 GPIO_ACTIVE_HIGH>;
-			 default-state = "off";
-		};
-
-		user1 {
-			 label = "omap3:red:user1";
-			 gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
-			 default-state = "off";
-		};
-
-		user2 {
-			label = "omap3:green:user1";
-			gpios = <&twl_gpio 19 GPIO_ACTIVE_LOW>;
-		};
+	/* Regulator to trigger the WIFI_PDN signal of the Wifi module */
+	lbee1usjyc_pdn: lbee1usjyc_pdn {
+		compatible = "regulator-fixed";
+		regulator-name = "regulator-lbee1usjyc-pdn";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 10 GPIO_ACTIVE_HIGH>;	/* gpio_138 - WIFI_PDN */
+		startup-delay-us = <10000>;
+		enable-active-high;
 	};
 
-       /* HS USB Port 1 Power */
-       hsusb1_power: hsusb1_power_reg {
-               compatible = "regulator-fixed";
-               regulator-name = "hsusb1_vbus";
-               regulator-min-microvolt = <3300000>;
-               regulator-max-microvolt = <3300000>;
-               gpio = <&twl_gpio 18 GPIO_ACTIVE_LOW>;	/* GPIO LEDA */
-               startup-delay-us = <70000>;
-       };
-
-	/* HS USB Host PHY on PORT 1 */
-	hsusb1_phy: hsusb1_phy {
-		compatible = "usb-nop-xceiv";
-		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>; /* gpio_24 */
-		vcc-supply = <&hsusb1_power>;
+	/* Regulator to trigger the RESET_N_W signal of the Wifi module */
+	lbee1usjyc_reset_n_w: lbee1usjyc_reset_n_w {
+		compatible = "regulator-fixed";
+		regulator-name = "regulator-lbee1usjyc-reset-n-w";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 11 GPIO_ACTIVE_HIGH>;	/* gpio_139 - RESET_N_W */
+		enable-active-high;
 	};
 };
 
 &omap3_pmx_core {
-	pinctrl-names = "default";
-	pinctrl-0 = <
-		&hsusbb1_pins
-	>;
-
-	hsusbb1_pins: pinmux_hsusbb1_pins {
+	lbee1usjyc_pins: pinmux_lbee1usjyc_pins {
 		pinctrl-single,pins = <
-			0x5aa (PIN_OUTPUT | MUX_MODE3)		/* etk_ctl.hsusb1_clk */
-			0x5a8 (PIN_OUTPUT | MUX_MODE3)		/* etk_clk.hsusb1_stp */
-			0x5bc (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d8.hsusb1_dir */
-			0x5be (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d9.hsusb1_nxt */
-			0x5ac (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d0.hsusb1_data0 */
-			0x5ae (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d1.hsusb1_data1 */
-			0x5b0 (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d2.hsusb1_data2 */
-			0x5b2 (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d3.hsusb1_data7 */
-			0x5b4 (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d4.hsusb1_data4 */
-			0x5b6 (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d5.hsusb1_data5 */
-			0x5b8 (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d6.hsusb1_data6 */
-			0x5ba (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d7.hsusb1_data3 */
+			OMAP3_CORE1_IOPAD(0x2166, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat5.gpio_137 - RESET_N_W */
+			OMAP3_CORE1_IOPAD(0x2168, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat6.gpio_138 - WIFI_PDN */
+			OMAP3_CORE1_IOPAD(0x216a, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat7.gpio_139 - RST_N_B */
+		>;
+	};
+
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2174, PIN_INPUT | MUX_MODE0)	/* uart2_cts.uart2_cts */
+			OMAP3_CORE1_IOPAD(0x2176, PIN_OUTPUT | MUX_MODE0)	/* uart2_rts .uart2_rts*/
+			OMAP3_CORE1_IOPAD(0x2178, PIN_OUTPUT | MUX_MODE0)	/* uart2_tx.uart2_tx */
+			OMAP3_CORE1_IOPAD(0x217a, PIN_INPUT | MUX_MODE0)	/* uart2_rx.uart2_rx */
 		>;
 	};
 };
 
-&leds_pins {
-	pinctrl-single,pins = <
-		0x5c4 (PIN_OUTPUT | MUX_MODE4) /* etk_d12.gpio_26 */
-		0x5c6 (PIN_OUTPUT | MUX_MODE4) /* etk_d13.gpio_27 */
-		0x5c8 (PIN_OUTPUT | MUX_MODE4) /* etk_d14.gpio_28 */
-	>;
-};
-
-&i2c3 {
-	clock-frequency = <100000>;
-
-	/*
-	 * Display monitor features are burnt in the EEPROM
-	 * as EDID data.
-	 */
-	eeprom@50 {
-		compatible = "ti,eeprom";
-		reg = <0x50>;
-	};
-};
-
-&gpmc {
-	ranges = <0 0 0x00000000 0x20000000>,
-		 <5 0 0x2c000000 0x01000000>;
-
-	nand@0,0 {
-		linux,mtd-name= "micron,mt29c4g96maz";
-		reg = <0 0 0>;
-		nand-bus-width = <16>;
-		ti,nand-ecc-opt = "bch8";
-
-		gpmc,sync-clk-ps = <0>;
-		gpmc,cs-on-ns = <0>;
-		gpmc,cs-rd-off-ns = <44>;
-		gpmc,cs-wr-off-ns = <44>;
-		gpmc,adv-on-ns = <6>;
-		gpmc,adv-rd-off-ns = <34>;
-		gpmc,adv-wr-off-ns = <44>;
-		gpmc,we-off-ns = <40>;
-		gpmc,oe-off-ns = <54>;
-		gpmc,access-ns = <64>;
-		gpmc,rd-cycle-ns = <82>;
-		gpmc,wr-cycle-ns = <82>;
-		gpmc,wr-access-ns = <40>;
-		gpmc,wr-data-mux-bus-ns = <0>;
-
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		partition@0 {
-			label = "SPL";
-			reg = <0 0x100000>;
-		};
-		partition@80000 {
-			label = "U-Boot";
-			reg = <0x100000 0x180000>;
-		};
-		partition@1c0000 {
-			label = "Environment";
-			reg = <0x280000 0x100000>;
-		};
-		partition@280000 {
-			label = "Kernel";
-			reg = <0x380000 0x300000>;
-		};
-		partition@780000 {
-			label = "Filesystem";
-			reg = <0x680000 0x1f980000>;
-		};
-	};
-
-	ethernet@gpmc {
-		pinctrl-names = "default";
-		pinctrl-0 = <&smsc911x_pins>;
-		reg = <5 0 0xff>;
-		interrupt-parent = <&gpio6>;
-		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
-	};
-};
-
-&usbhshost {
-	port1-mode = "ehci-phy";
-};
-
-&usbhsehci {
-	phys = <&hsusb1_phy>;
+/* On board Wifi module */
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins &lbee1usjyc_pins>;
+	vmmc-supply = <&lbee1usjyc_pdn>;
+	vmmc_aux-supply = <&lbee1usjyc_reset_n_w>;
+	bus-width = <4>;
+	non-removable;
 };

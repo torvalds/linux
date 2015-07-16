@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/if_ether.h>
@@ -46,8 +45,8 @@ ebt_vlan_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	/* VLAN encapsulated Type/Length field, given from orig frame */
 	__be16 encap;
 
-	if (vlan_tx_tag_present(skb)) {
-		TCI = vlan_tx_tag_get(skb);
+	if (skb_vlan_tag_present(skb)) {
+		TCI = skb_vlan_tag_get(skb);
 		encap = skb->protocol;
 	} else {
 		const struct vlan_hdr *fp;

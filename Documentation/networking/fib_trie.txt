@@ -73,8 +73,8 @@ trie_leaf_remove()
 
 trie_rebalance()
 	The key function for the dynamic trie after any change in the trie
-	it is run to optimize and reorganize. Tt will walk the trie upwards 
-	towards the root from a given tnode, doing a resize() at each step 
+	it is run to optimize and reorganize. It will walk the trie upwards
+	towards the root from a given tnode, doing a resize() at each step
 	to implement level compression.
 
 resize()

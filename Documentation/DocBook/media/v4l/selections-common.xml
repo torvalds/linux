@@ -63,6 +63,22 @@
 	    <entry>Yes</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_SEL_TGT_NATIVE_SIZE</constant></entry>
+	    <entry>0x0003</entry>
+	    <entry>The native size of the device, e.g. a sensor's
+	    pixel array. <structfield>left</structfield> and
+	    <structfield>top</structfield> fields are zero for this
+	    target. Setting the native size will generally only make
+	    sense for memory to memory devices where the software can
+	    create a canvas of a given size in which for example a
+	    video frame can be composed. In that case
+	    V4L2_SEL_TGT_NATIVE_SIZE can be used to configure the size
+	    of that canvas.
+	    </entry>
+	    <entry>Yes</entry>
+	    <entry>Yes</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_SEL_TGT_COMPOSE</constant></entry>
 	    <entry>0x0100</entry>
 	    <entry>Compose rectangle. Used to configure scaling

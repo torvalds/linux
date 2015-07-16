@@ -211,7 +211,7 @@ struct emma_prp_resize {
 
 /* prp configuration for a client-host fmt pair */
 struct mx2_fmt_cfg {
-	enum v4l2_mbus_pixelcode	in_fmt;
+	u32	in_fmt;
 	u32				out_fmt;
 	struct mx2_prp_cfg		cfg;
 };
@@ -309,7 +309,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 		}
 	},
 	{
-		.in_fmt		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.in_fmt		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.out_fmt	= V4L2_PIX_FMT_YUYV,
 		.cfg		= {
 			.channel	= 1,
@@ -323,7 +323,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 		}
 	},
 	{
-		.in_fmt		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.in_fmt		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.out_fmt	= V4L2_PIX_FMT_YUYV,
 		.cfg		= {
 			.channel	= 1,
@@ -337,7 +337,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 		}
 	},
 	{
-		.in_fmt		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.in_fmt		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.out_fmt	= V4L2_PIX_FMT_YUV420,
 		.cfg		= {
 			.channel	= 2,
@@ -351,7 +351,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 		}
 	},
 	{
-		.in_fmt		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.in_fmt		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.out_fmt	= V4L2_PIX_FMT_YUV420,
 		.cfg		= {
 			.channel	= 2,
@@ -366,9 +366,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 	},
 };
 
-static struct mx2_fmt_cfg *mx27_emma_prp_get_format(
-					enum v4l2_mbus_pixelcode in_fmt,
-					u32 out_fmt)
+static struct mx2_fmt_cfg *mx27_emma_prp_get_format(u32 in_fmt, u32 out_fmt)
 {
 	int i;
 
@@ -659,7 +657,7 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 	unsigned long flags;
 
 	if (count < 2)
-		return -EINVAL;
+		return -ENOBUFS;
 
 	spin_lock_irqsave(&pcdev->lock, flags);
 
@@ -741,7 +739,7 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 	return 0;
 }
 
-static int mx2_stop_streaming(struct vb2_queue *q)
+static void mx2_stop_streaming(struct vb2_queue *q)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(q);
 	struct soc_camera_host *ici =
@@ -773,8 +771,6 @@ static int mx2_stop_streaming(struct vb2_queue *q)
 
 	dma_free_coherent(ici->v4l2_dev.dev,
 			  pcdev->discard_size, b, pcdev->discard_buffer_dma);
-
-	return 0;
 }
 
 static struct vb2_ops mx2_videobuf_ops = {
@@ -794,7 +790,7 @@ static int mx2_camera_init_videobuf(struct vb2_queue *q,
 	q->ops = &mx2_videobuf_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct mx2_buffer);
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	return vb2_queue_init(q);
 }
@@ -811,10 +807,9 @@ static int mx2_camera_init_videobuf(struct vb2_queue *q,
 
 static int mx27_camera_emma_prp_reset(struct mx2_camera_dev *pcdev)
 {
-	u32 cntl;
 	int count = 0;
 
-	cntl = readl(pcdev->base_emma + PRP_CNTL);
+	readl(pcdev->base_emma + PRP_CNTL);
 	writel(PRP_CNTL_SWRST, pcdev->base_emma + PRP_CNTL);
 	while (count++ < 100) {
 		if (!(readl(pcdev->base_emma + PRP_CNTL) & PRP_CNTL_SWRST))
@@ -917,7 +912,10 @@ static int mx2_camera_set_crop(struct soc_camera_device *icd,
 	struct v4l2_crop a_writable = *a;
 	struct v4l2_rect *rect = &a_writable.c;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	int ret;
 
 	soc_camera_limit_side(&rect->left, &rect->width, 0, 2, 4096);
@@ -928,15 +926,15 @@ static int mx2_camera_set_crop(struct soc_camera_device *icd,
 		return ret;
 
 	/* The capture device might have changed its output  */
-	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(icd->parent, "Sensor cropped %dx%d\n",
-		mf.width, mf.height);
+		mf->width, mf->height);
 
-	icd->user_width		= mf.width;
-	icd->user_height	= mf.height;
+	icd->user_width		= mf->width;
+	icd->user_height	= mf->height;
 
 	return ret;
 }
@@ -948,22 +946,25 @@ static int mx2_camera_get_formats(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_mbus_pixelfmt *fmt;
 	struct device *dev = icd->parent;
-	enum v4l2_mbus_pixelcode code;
+	struct v4l2_subdev_mbus_code_enum code = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.index = idx,
+	};
 	int ret, formats = 0;
 
-	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
+	ret = v4l2_subdev_call(sd, pad, enum_mbus_code, NULL, &code);
 	if (ret < 0)
 		/* no more formats */
 		return 0;
 
-	fmt = soc_mbus_get_fmtdesc(code);
+	fmt = soc_mbus_get_fmtdesc(code.code);
 	if (!fmt) {
-		dev_err(dev, "Invalid format code #%u: %d\n", idx, code);
+		dev_err(dev, "Invalid format code #%u: %d\n", idx, code.code);
 		return 0;
 	}
 
-	if (code == V4L2_MBUS_FMT_YUYV8_2X8 ||
-	    code == V4L2_MBUS_FMT_UYVY8_2X8) {
+	if (code.code == MEDIA_BUS_FMT_YUYV8_2X8 ||
+	    code.code == MEDIA_BUS_FMT_UYVY8_2X8) {
 		formats++;
 		if (xlate) {
 			/*
@@ -971,22 +972,22 @@ static int mx2_camera_get_formats(struct soc_camera_device *icd,
 			 * soc_mediabus.c
 			 */
 			xlate->host_fmt =
-				soc_mbus_get_fmtdesc(V4L2_MBUS_FMT_YUYV8_1_5X8);
-			xlate->code	= code;
+				soc_mbus_get_fmtdesc(MEDIA_BUS_FMT_YUYV8_1_5X8);
+			xlate->code	= code.code;
 			dev_dbg(dev, "Providing host format %s for sensor code %d\n",
-			       xlate->host_fmt->name, code);
+			       xlate->host_fmt->name, code.code);
 			xlate++;
 		}
 	}
 
-	if (code == V4L2_MBUS_FMT_UYVY8_2X8) {
+	if (code.code == MEDIA_BUS_FMT_UYVY8_2X8) {
 		formats++;
 		if (xlate) {
 			xlate->host_fmt =
-				soc_mbus_get_fmtdesc(V4L2_MBUS_FMT_YUYV8_2X8);
-			xlate->code	= code;
+				soc_mbus_get_fmtdesc(MEDIA_BUS_FMT_YUYV8_2X8);
+			xlate->code	= code.code;
 			dev_dbg(dev, "Providing host format %s for sensor code %d\n",
-				xlate->host_fmt->name, code);
+				xlate->host_fmt->name, code.code);
 			xlate++;
 		}
 	}
@@ -995,7 +996,7 @@ static int mx2_camera_get_formats(struct soc_camera_device *icd,
 	formats++;
 	if (xlate) {
 		xlate->host_fmt = fmt;
-		xlate->code	= code;
+		xlate->code	= code.code;
 		xlate++;
 	}
 	return formats;
@@ -1005,7 +1006,7 @@ static int mx2_emmaprp_resize(struct mx2_camera_dev *pcdev,
 			      struct v4l2_mbus_framefmt *mf_in,
 			      struct v4l2_pix_format *pix_out, bool apply)
 {
-	int num, den;
+	unsigned int num, den;
 	unsigned long m;
 	int i, dir;
 
@@ -1126,7 +1127,10 @@ static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &format.format;
 	int ret;
 
 	dev_dbg(icd->parent, "%s: requested params: width = %d, height = %d\n",
@@ -1139,19 +1143,19 @@ static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	mf.width	= pix->width;
-	mf.height	= pix->height;
-	mf.field	= pix->field;
-	mf.colorspace	= pix->colorspace;
-	mf.code		= xlate->code;
+	mf->width	= pix->width;
+	mf->height	= pix->height;
+	mf->field	= pix->field;
+	mf->colorspace	= pix->colorspace;
+	mf->code	= xlate->code;
 
-	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, NULL, &format);
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		return ret;
 
 	/* Store width and height returned by the sensor for resizing */
-	pcdev->s_width = mf.width;
-	pcdev->s_height = mf.height;
+	pcdev->s_width = mf->width;
+	pcdev->s_height = mf->height;
 	dev_dbg(icd->parent, "%s: sensor params: width = %d, height = %d\n",
 		__func__, pcdev->s_width, pcdev->s_height);
 
@@ -1159,19 +1163,19 @@ static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 						   xlate->host_fmt->fourcc);
 
 	memset(pcdev->resizing, 0, sizeof(pcdev->resizing));
-	if ((mf.width != pix->width || mf.height != pix->height) &&
+	if ((mf->width != pix->width || mf->height != pix->height) &&
 		pcdev->emma_prp->cfg.in_fmt == PRP_CNTL_DATA_IN_YUV422) {
-		if (mx2_emmaprp_resize(pcdev, &mf, pix, true) < 0)
+		if (mx2_emmaprp_resize(pcdev, mf, pix, true) < 0)
 			dev_dbg(icd->parent, "%s: can't resize\n", __func__);
 	}
 
-	if (mf.code != xlate->code)
+	if (mf->code != xlate->code)
 		return -EINVAL;
 
-	pix->width		= mf.width;
-	pix->height		= mf.height;
-	pix->field		= mf.field;
-	pix->colorspace		= mf.colorspace;
+	pix->width		= mf->width;
+	pix->height		= mf->height;
+	pix->field		= mf->field;
+	pix->colorspace		= mf->colorspace;
 	icd->current_fmt	= xlate;
 
 	dev_dbg(icd->parent, "%s: returned params: width = %d, height = %d\n",
@@ -1186,7 +1190,11 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+	};
+	struct v4l2_mbus_framefmt *mf = &format.format;
 	__u32 pixfmt = pix->pixelformat;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
@@ -1209,13 +1217,13 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 	pix->width &= ~0x7;
 
 	/* limit to sensor capabilities */
-	mf.width	= pix->width;
-	mf.height	= pix->height;
-	mf.field	= pix->field;
-	mf.colorspace	= pix->colorspace;
-	mf.code		= xlate->code;
+	mf->width	= pix->width;
+	mf->height	= pix->height;
+	mf->field	= pix->field;
+	mf->colorspace	= pix->colorspace;
+	mf->code	= xlate->code;
 
-	ret = v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, &pad_cfg, &format);
 	if (ret < 0)
 		return ret;
 
@@ -1226,29 +1234,29 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 	emma_prp = mx27_emma_prp_get_format(xlate->code,
 					    xlate->host_fmt->fourcc);
 
-	if ((mf.width != pix->width || mf.height != pix->height) &&
+	if ((mf->width != pix->width || mf->height != pix->height) &&
 		emma_prp->cfg.in_fmt == PRP_CNTL_DATA_IN_YUV422) {
-		if (mx2_emmaprp_resize(pcdev, &mf, pix, false) < 0)
+		if (mx2_emmaprp_resize(pcdev, mf, pix, false) < 0)
 			dev_dbg(icd->parent, "%s: can't resize\n", __func__);
 	}
 
-	if (mf.field == V4L2_FIELD_ANY)
-		mf.field = V4L2_FIELD_NONE;
+	if (mf->field == V4L2_FIELD_ANY)
+		mf->field = V4L2_FIELD_NONE;
 	/*
 	 * Driver supports interlaced images provided they have
 	 * both fields so that they can be processed as if they
 	 * were progressive.
 	 */
-	if (mf.field != V4L2_FIELD_NONE && !V4L2_FIELD_HAS_BOTH(mf.field)) {
+	if (mf->field != V4L2_FIELD_NONE && !V4L2_FIELD_HAS_BOTH(mf->field)) {
 		dev_err(icd->parent, "Field type %d unsupported.\n",
-				mf.field);
+				mf->field);
 		return -EINVAL;
 	}
 
-	pix->width	= mf.width;
-	pix->height	= mf.height;
-	pix->field	= mf.field;
-	pix->colorspace	= mf.colorspace;
+	pix->width	= mf->width;
+	pix->height	= mf->height;
+	pix->field	= mf->field;
+	pix->colorspace	= mf->colorspace;
 
 	dev_dbg(icd->parent, "%s: returned params: width = %d, height = %d\n",
 		__func__, pix->width, pix->height);
@@ -1261,7 +1269,8 @@ static int mx2_camera_querycap(struct soc_camera_host *ici,
 {
 	/* cap->name is set by the friendly caller:-> */
 	strlcpy(cap->card, MX2_CAM_DRIVER_DESCRIPTION, sizeof(cap->card));
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }

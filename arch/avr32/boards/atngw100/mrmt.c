@@ -17,6 +17,8 @@
 #include <linux/types.h>
 #include <linux/fb.h>
 #include <linux/leds.h>
+#include <linux/pwm.h>
+#include <linux/leds_pwm.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/atmel_serial.h>
@@ -155,21 +157,28 @@ static struct platform_device rmt_ts_device = {
 
 #ifdef CONFIG_BOARD_MRMT_BL_PWM
 /* PWM LEDs: LCD Backlight, etc */
-static struct gpio_led rmt_pwm_led[] = {
-	/* here the "gpio" is actually a PWM channel */
-	{ .name = "backlight",	.gpio = PWM_CH_BL, },
+static struct pwm_lookup pwm_lookup[] = {
+	PWM_LOOKUP("at91sam9rl-pwm", PWM_CH_BL, "leds_pwm", "ds1",
+		   5000, PWM_POLARITY_INVERSED),
 };
 
-static struct gpio_led_platform_data rmt_pwm_led_data = {
-	.num_leds	= ARRAY_SIZE(rmt_pwm_led),
-	.leds		= rmt_pwm_led,
+static struct led_pwm pwm_leds[] = {
+	{
+		.name = "backlight",
+		.max_brightness = 255,
+	},
 };
 
-static struct platform_device rmt_pwm_led_dev = {
-	.name		= "leds-atmel-pwm",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &rmt_pwm_led_data,
+static struct led_pwm_platform_data pwm_data = {
+	.num_leds       = ARRAY_SIZE(pwm_leds),
+	.leds           = pwm_leds,
+};
+
+static struct platform_device leds_pwm = {
+	.name   = "leds_pwm",
+	.id     = -1,
+	.dev    = {
+		.platform_data = &pwm_data,
 	},
 };
 #endif
@@ -325,7 +334,8 @@ static int __init mrmt1_init(void)
 #ifdef CONFIG_BOARD_MRMT_BL_PWM
 	/* Use PWM for Backlight controls */
 	at32_add_device_pwm(1 << PWM_CH_BL);
-	platform_device_register(&rmt_pwm_led_dev);
+	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
+	platform_device_register(&leds_pwm);
 #else
 	/* Backlight always on */
 	udelay( 1 );

@@ -504,7 +504,6 @@ static const struct dev_pm_ops vpss_pm_ops = {
 static struct platform_driver vpss_driver = {
 	.driver = {
 		.name	= "vpss",
-		.owner = THIS_MODULE,
 		.pm = &vpss_pm_ops,
 	},
 	.remove = vpss_remove,

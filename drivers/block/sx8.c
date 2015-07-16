@@ -568,7 +568,7 @@ static struct carm_request *carm_get_special(struct carm_host *host)
 		return NULL;
 
 	rq = blk_get_request(host->oob_q, WRITE /* bogus */, GFP_KERNEL);
-	if (!rq) {
+	if (IS_ERR(rq)) {
 		spin_lock_irqsave(&host->lock, flags);
 		carm_put_request(host, crq);
 		spin_unlock_irqrestore(&host->lock, flags);
@@ -620,7 +620,7 @@ static int carm_array_info (struct carm_host *host, unsigned int array_idx)
 	spin_unlock_irq(&host->lock);
 
 	DPRINTK("blk_execute_rq_nowait, tag == %u\n", idx);
-	crq->rq->cmd_type = REQ_TYPE_SPECIAL;
+	crq->rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	crq->rq->special = crq;
 	blk_execute_rq_nowait(host->oob_q, NULL, crq->rq, true, NULL);
 
@@ -661,7 +661,7 @@ static int carm_send_special (struct carm_host *host, carm_sspc_t func)
 	crq->msg_bucket = (u32) rc;
 
 	DPRINTK("blk_execute_rq_nowait, tag == %u\n", idx);
-	crq->rq->cmd_type = REQ_TYPE_SPECIAL;
+	crq->rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	crq->rq->special = crq;
 	blk_execute_rq_nowait(host->oob_q, NULL, crq->rq, true, NULL);
 
@@ -1744,20 +1744,6 @@ static void carm_remove_one (struct pci_dev *pdev)
 	kfree(host);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
-static int __init carm_init(void)
-{
-	return pci_register_driver(&carm_driver);
-}
-
-static void __exit carm_exit(void)
-{
-	pci_unregister_driver(&carm_driver);
-}
-
-module_init(carm_init);
-module_exit(carm_exit);
-
-
+module_pci_driver(carm_driver);

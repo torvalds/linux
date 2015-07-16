@@ -12,6 +12,7 @@
 #include <linux/pm.h>
 #include <linux/io.h>
 
+#include <asm/irqdomain.h>
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
 #include <asm/time.h>
@@ -74,9 +75,6 @@ static inline void hpet_writel(unsigned int d, unsigned int a)
 static inline void hpet_set_mapping(void)
 {
 	hpet_virt_address = ioremap_nocache(hpet_address, HPET_MMAP_SIZE);
-#ifdef CONFIG_X86_64
-	__set_fixmap(VSYSCALL_HPET, hpet_address, PAGE_KERNEL_VVAR_NOCACHE);
-#endif
 }
 
 static inline void hpet_clear_mapping(void)
@@ -88,7 +86,7 @@ static inline void hpet_clear_mapping(void)
 /*
  * HPET command line enable / disable
  */
-static int boot_hpet_disable;
+int boot_hpet_disable;
 int hpet_force_user;
 static int hpet_verbose;
 
@@ -171,7 +169,7 @@ static void _hpet_print_config(const char *function, int line)
 #define hpet_print_config()					\
 do {								\
 	if (hpet_verbose)					\
-		_hpet_print_config(__FUNCTION__, __LINE__);	\
+		_hpet_print_config(__func__, __LINE__);	\
 } while (0)
 
 /*
@@ -308,8 +306,6 @@ static void hpet_legacy_clockevent_register(void)
 	printk(KERN_DEBUG "hpet clockevent registered\n");
 }
 
-static int hpet_setup_msi_irq(unsigned int irq);
-
 static void hpet_set_mode(enum clock_event_mode mode,
 			  struct clock_event_device *evt, int timer)
 {
@@ -360,7 +356,7 @@ static void hpet_set_mode(enum clock_event_mode mode,
 			hpet_enable_legacy_int();
 		} else {
 			struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
-			hpet_setup_msi_irq(hdev->irq);
+			irq_domain_activate_irq(irq_get_irq_data(hdev->irq));
 			disable_irq(hdev->irq);
 			irq_set_affinity(hdev->irq, cpumask_of(hdev->cpu));
 			enable_irq(hdev->irq);
@@ -426,6 +422,7 @@ static int hpet_legacy_next_event(unsigned long delta,
 
 static DEFINE_PER_CPU(struct hpet_dev *, cpu_hpet_dev);
 static struct hpet_dev	*hpet_devs;
+static struct irq_domain *hpet_domain;
 
 void hpet_msi_unmask(struct irq_data *data)
 {
@@ -476,32 +473,6 @@ static int hpet_msi_next_event(unsigned long delta,
 	return hpet_next_event(delta, evt, hdev->num);
 }
 
-static int hpet_setup_msi_irq(unsigned int irq)
-{
-	if (x86_msi.setup_hpet_msi(irq, hpet_blockid)) {
-		destroy_irq(irq);
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int hpet_assign_irq(struct hpet_dev *dev)
-{
-	unsigned int irq;
-
-	irq = create_irq_nr(0, -1);
-	if (!irq)
-		return -EINVAL;
-
-	irq_set_handler_data(irq, dev);
-
-	if (hpet_setup_msi_irq(irq))
-		return -EINVAL;
-
-	dev->irq = irq;
-	return 0;
-}
-
 static irqreturn_t hpet_interrupt_handler(int irq, void *data)
 {
 	struct hpet_dev *dev = (struct hpet_dev *)data;
@@ -521,7 +492,7 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 {
 
 	if (request_irq(dev->irq, hpet_interrupt_handler,
-			IRQF_TIMER | IRQF_DISABLED | IRQF_NOBALANCING,
+			IRQF_TIMER | IRQF_NOBALANCING,
 			dev->name, dev))
 		return -1;
 
@@ -542,9 +513,6 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 
 	WARN_ON(cpu != smp_processor_id());
 	if (!(hdev->flags & HPET_DEV_VALID))
-		return;
-
-	if (hpet_setup_msi_irq(hdev->irq))
 		return;
 
 	hdev->cpu = cpu;
@@ -578,7 +546,7 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
 	unsigned int id;
 	unsigned int num_timers;
 	unsigned int num_timers_used = 0;
-	int i;
+	int i, irq;
 
 	if (hpet_msi_disable)
 		return;
@@ -590,6 +558,10 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
 	num_timers = ((id & HPET_ID_NUMBER) >> HPET_ID_NUMBER_SHIFT);
 	num_timers++; /* Value read out starts from 0 */
 	hpet_print_config();
+
+	hpet_domain = hpet_create_irq_domain(hpet_blockid);
+	if (!hpet_domain)
+		return;
 
 	hpet_devs = kzalloc(sizeof(struct hpet_dev) * num_timers, GFP_KERNEL);
 	if (!hpet_devs)
@@ -608,12 +580,14 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
 		hdev->flags = 0;
 		if (cfg & HPET_TN_PERIODIC_CAP)
 			hdev->flags |= HPET_DEV_PERI_CAP;
+		sprintf(hdev->name, "hpet%d", i);
 		hdev->num = i;
 
-		sprintf(hdev->name, "hpet%d", i);
-		if (hpet_assign_irq(hdev))
+		irq = hpet_assign_irq(hpet_domain, hdev, hdev->num);
+		if (irq <= 0)
 			continue;
 
+		hdev->irq = irq;
 		hdev->flags |= HPET_DEV_FSB_CAP;
 		hdev->flags |= HPET_DEV_VALID;
 		num_timers_used++;
@@ -699,7 +673,7 @@ static int hpet_cpuhp_notify(struct notifier_block *n,
 		/* FIXME: add schedule_work_on() */
 		schedule_delayed_work_on(cpu, &work.work, 0);
 		wait_for_completion(&work.complete);
-		destroy_timer_on_stack(&work.work.timer);
+		destroy_delayed_work_on_stack(&work.work);
 		break;
 	case CPU_DEAD:
 		if (hdev) {
@@ -713,10 +687,6 @@ static int hpet_cpuhp_notify(struct notifier_block *n,
 }
 #else
 
-static int hpet_setup_msi_irq(unsigned int irq)
-{
-	return 0;
-}
 static void hpet_msi_capability_lookup(unsigned int start_timer)
 {
 	return;
@@ -752,9 +722,7 @@ static struct clocksource clocksource_hpet = {
 	.mask		= HPET_MASK,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	.resume		= hpet_resume_counter,
-#ifdef CONFIG_X86_64
 	.archdata	= { .vclock_mode = VCLOCK_HPET },
-#endif
 };
 
 static int hpet_clocksource_register(void)
@@ -943,12 +911,14 @@ static __init int hpet_late_init(void)
 	if (boot_cpu_has(X86_FEATURE_ARAT))
 		return 0;
 
+	cpu_notifier_register_begin();
 	for_each_online_cpu(cpu) {
 		hpet_cpuhp_notify(NULL, CPU_ONLINE, (void *)(long)cpu);
 	}
 
 	/* This notifier should be called after workqueue is ready */
-	hotcpu_notifier(hpet_cpuhp_notify, -20);
+	__hotcpu_notifier(hpet_cpuhp_notify, -20);
+	cpu_notifier_register_done();
 
 	return 0;
 }

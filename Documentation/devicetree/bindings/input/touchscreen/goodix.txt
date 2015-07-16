@@ -1,0 +1,29 @@
+Device tree bindings for Goodix GT9xx series touchscreen controller
+
+Required properties:
+
+ - compatible		: Should be "goodix,gt911"
+				 or "goodix,gt9110"
+				 or "goodix,gt912"
+				 or "goodix,gt927"
+				 or "goodix,gt9271"
+				 or "goodix,gt928"
+				 or "goodix,gt967"
+ - reg			: I2C address of the chip. Should be 0x5d or 0x14
+ - interrupt-parent	: Interrupt controller to which the chip is connected
+ - interrupts		: Interrupt to which the chip is connected
+
+Example:
+
+	i2c@00000000 {
+		/* ... */
+
+		gt928@5d {
+			compatible = "goodix,gt928";
+			reg = <0x5d>;
+			interrupt-parent = <&gpio>;
+			interrupts = <0 0>;
+		};
+
+		/* ... */
+	};

@@ -12,11 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR /PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
  */
 
 #include <linux/linkage.h>
@@ -27,7 +22,7 @@
  * Boot code for secondary CPUs.
  *
  * First we turn on L1 cache coherency for our CPU. Then we jump to
- * shmobile_invalidate_start that invalidates the cache and hands over control
+ * secondary_startup that invalidates the cache and hands over control
  * to the common ARM startup code.
  */
 ENTRY(shmobile_boot_scu)
@@ -41,7 +36,7 @@ ENTRY(shmobile_boot_scu)
 	bic	r2, r2, r3		@ Clear bits of our CPU (Run Mode)
 	str	r2, [r0, #8]		@ write back
 
-	b	shmobile_invalidate_start
+	b	secondary_startup
 ENDPROC(shmobile_boot_scu)
 
 	.text

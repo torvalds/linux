@@ -62,6 +62,7 @@ static unsigned int card_alloc;
  */
 static void vxpocket_release(struct pcmcia_device *link)
 {
+	free_irq(link->irq, link->priv);
 	pcmcia_disable_device(link);
 }
 
@@ -173,6 +174,7 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 
 /**
  * snd_vxpocket_assign_resources - initialize the hardware and card instance.
+ * @chip: VX core instance
  * @port: i/o port for the card
  * @irq: irq number for the card
  *
@@ -227,18 +229,19 @@ static int vxpocket_config(struct pcmcia_device *link)
 
 	ret = pcmcia_request_io(link);
 	if (ret)
-		goto failed;
+		goto failed_preirq;
 
-	ret = pcmcia_request_irq(link, snd_vx_irq_handler);
+	ret = request_threaded_irq(link->irq, snd_vx_irq_handler,
+				   snd_vx_threaded_irq_handler,
+				   IRQF_SHARED, link->devname, link->priv);
 	if (ret)
-		goto failed;
+		goto failed_preirq;
 
 	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
 	chip->dev = &link->dev;
-	snd_card_set_dev(chip->card, chip->dev);
 
 	if (snd_vxpocket_assign_resources(chip, link->resource[0]->start,
 						link->irq) < 0)
@@ -246,7 +249,9 @@ static int vxpocket_config(struct pcmcia_device *link)
 
 	return 0;
 
-failed:
+ failed:
+	free_irq(link->irq, link->priv);
+failed_preirq:
 	pcmcia_disable_device(link);
 	return -ENODEV;
 }
@@ -307,7 +312,8 @@ static int vxpocket_probe(struct pcmcia_device *p_dev)
 		return -ENODEV; /* disabled explicitly */
 
 	/* ok, create a card instance */
-	err = snd_card_create(index[i], id[i], THIS_MODULE, 0, &card);
+	err = snd_card_new(&p_dev->dev, index[i], id[i], THIS_MODULE,
+			   0, &card);
 	if (err < 0) {
 		snd_printk(KERN_ERR "vxpocket: cannot create a card instance\n");
 		return err;

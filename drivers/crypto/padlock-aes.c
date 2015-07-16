@@ -22,7 +22,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/byteorder.h>
 #include <asm/processor.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 /*
  * Number of data blocks actually fetched for each xcrypt insn.
@@ -563,4 +563,4 @@ MODULE_DESCRIPTION("VIA PadLock AES algorithm support");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michal Ludvig");
 
-MODULE_ALIAS("aes");
+MODULE_ALIAS_CRYPTO("aes");

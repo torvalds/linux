@@ -3,7 +3,7 @@
  * @brief This file contains definitions for PCI-E interface.
  * driver.
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -40,8 +40,8 @@
 #define MWIFIEX_TXBD_MASK			0x3F
 #define MWIFIEX_RXBD_MASK			0x3F
 
-#define MWIFIEX_MAX_EVT_BD			0x04
-#define MWIFIEX_EVTBD_MASK			0x07
+#define MWIFIEX_MAX_EVT_BD			0x08
+#define MWIFIEX_EVTBD_MASK			0x0f
 
 /* PCIE INTERNAL REGISTERS */
 #define PCIE_SCRATCH_0_REG				0xC10
@@ -69,6 +69,7 @@
 #define CPU_INTR_DOOR_BELL				BIT(1)
 #define CPU_INTR_SLEEP_CFM_DONE			BIT(2)
 #define CPU_INTR_RESET					BIT(3)
+#define CPU_INTR_EVENT_DONE				BIT(5)
 
 #define HOST_INTR_DNLD_DONE				BIT(0)
 #define HOST_INTR_UPLD_RDY				BIT(1)
@@ -97,6 +98,8 @@
 #define MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD		256
 /* FW awake cookie after FW ready */
 #define FW_AWAKE_COOKIE						(0xAA55AA55)
+#define MWIFIEX_DEF_SLEEP_COOKIE			0xBEEFBEEF
+#define MWIFIEX_MAX_DELAY_COUNT				5
 
 struct mwifiex_pcie_card_reg {
 	u16 cmd_addr_lo;
@@ -127,6 +130,9 @@ struct mwifiex_pcie_card_reg {
 	u32 ring_tx_start_ptr;
 	u8 pfu_enabled;
 	u8 sleep_cookie;
+	u16 fw_dump_ctrl;
+	u16 fw_dump_start;
+	u16 fw_dump_end;
 };
 
 static const struct mwifiex_pcie_card_reg mwifiex_reg_8766 = {
@@ -189,24 +195,36 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8897 = {
 	.ring_tx_start_ptr = MWIFIEX_BD_FLAG_TX_START_PTR,
 	.pfu_enabled = 1,
 	.sleep_cookie = 0,
+	.fw_dump_ctrl = 0xcf4,
+	.fw_dump_start = 0xcf8,
+	.fw_dump_end = 0xcff
 };
 
 struct mwifiex_pcie_device {
 	const char *firmware;
 	const struct mwifiex_pcie_card_reg *reg;
 	u16 blksz_fw_dl;
+	u16 tx_buf_size;
+	bool can_dump_fw;
+	bool can_ext_scan;
 };
 
 static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
 	.firmware       = PCIE8766_DEFAULT_FW_NAME,
 	.reg            = &mwifiex_reg_8766,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
+	.can_dump_fw = false,
+	.can_ext_scan = true,
 };
 
 static const struct mwifiex_pcie_device mwifiex_pcie8897 = {
 	.firmware       = PCIE8897_DEFAULT_FW_NAME,
 	.reg            = &mwifiex_reg_8897,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
+	.can_dump_fw = true,
+	.can_ext_scan = true,
 };
 
 struct mwifiex_evt_buf_desc {
@@ -317,4 +335,5 @@ mwifiex_pcie_txbd_not_full(struct pcie_service_card *card)
 
 	return 0;
 }
+
 #endif /* _MWIFIEX_PCIE_H */

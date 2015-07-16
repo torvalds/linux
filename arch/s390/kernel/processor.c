@@ -8,30 +8,36 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/smp.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <asm/elf.h>
 #include <asm/lowcore.h>
 #include <asm/param.h>
+#include <asm/smp.h>
 
 static DEFINE_PER_CPU(struct cpuid, cpu_id);
+
+void notrace cpu_relax(void)
+{
+	if (!smp_cpu_mtid && MACHINE_HAS_DIAG44)
+		asm volatile("diag 0,0,0x44");
+	barrier();
+}
+EXPORT_SYMBOL(cpu_relax);
 
 /*
  * cpu_init - initializes state that is per-CPU.
  */
 void cpu_init(void)
 {
-	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
-	struct cpuid *id = &__get_cpu_var(cpu_id);
+	struct cpuid *id = this_cpu_ptr(&cpu_id);
 
 	get_cpu_id(id);
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
-	memset(idle, 0, sizeof(*idle));
 }
 
 /*
@@ -41,7 +47,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te"
+		"edat", "etf3eh", "highgprs", "te", "vx"
 	};
 	unsigned long n = (unsigned long) v - 1;
 	int i;

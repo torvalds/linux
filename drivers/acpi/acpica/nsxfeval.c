@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 			   acpi_object_type return_type)
 {
 	acpi_status status;
-	u8 must_free = FALSE;
+	u8 free_buffer_on_error = FALSE;
 
 	ACPI_FUNCTION_TRACE(acpi_evaluate_object_typed);
 
@@ -95,14 +95,13 @@ acpi_evaluate_object_typed(acpi_handle handle,
 	}
 
 	if (return_buffer->length == ACPI_ALLOCATE_BUFFER) {
-		must_free = TRUE;
+		free_buffer_on_error = TRUE;
 	}
 
 	/* Evaluate the object */
 
-	status =
-	    acpi_evaluate_object(handle, pathname, external_params,
-				 return_buffer);
+	status = acpi_evaluate_object(handle, pathname,
+				      external_params, return_buffer);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -135,11 +134,15 @@ acpi_evaluate_object_typed(acpi_handle handle,
 					   pointer)->type),
 		    acpi_ut_get_type_name(return_type)));
 
-	if (must_free) {
-
-		/* Caller used ACPI_ALLOCATE_BUFFER, free the return buffer */
-
-		ACPI_FREE_BUFFER(*return_buffer);
+	if (free_buffer_on_error) {
+		/*
+		 * Free a buffer created via ACPI_ALLOCATE_BUFFER.
+		 * Note: We use acpi_os_free here because acpi_os_allocate was used
+		 * to allocate the buffer. This purposefully bypasses the
+		 * (optionally enabled) allocation tracking mechanism since we
+		 * only want to track internal allocations.
+		 */
+		acpi_os_free(return_buffer->pointer);
 		return_buffer->pointer = NULL;
 	}
 
@@ -693,7 +696,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 			return (AE_CTRL_DEPTH);
 		}
 
-		no_match = ACPI_STRCMP(hid->string, info->hid);
+		no_match = strcmp(hid->string, info->hid);
 		ACPI_FREE(hid);
 
 		if (no_match) {
@@ -712,8 +715,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 			found = FALSE;
 			for (i = 0; i < cid->count; i++) {
-				if (ACPI_STRCMP(cid->ids[i].string, info->hid)
-				    == 0) {
+				if (strcmp(cid->ids[i].string, info->hid) == 0) {
 
 					/* Found a matching CID */
 
@@ -920,19 +922,22 @@ ACPI_EXPORT_SYMBOL(acpi_detach_data)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_get_data
+ * FUNCTION:    acpi_get_data_full
  *
  * PARAMETERS:  obj_handle          - Namespace node
  *              handler             - Handler used in call to attach_data
  *              data                - Where the data is returned
+ *              callback            - function to execute before returning
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Retrieve data that was previously attached to a namespace node.
+ * DESCRIPTION: Retrieve data that was previously attached to a namespace node
+ *              and execute a callback before returning.
  *
  ******************************************************************************/
 acpi_status
-acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
+acpi_get_data_full(acpi_handle obj_handle, acpi_object_handler handler,
+		   void **data, void (*callback)(void *))
 {
 	struct acpi_namespace_node *node;
 	acpi_status status;
@@ -957,10 +962,34 @@ acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
 	}
 
 	status = acpi_ns_get_attached_data(node, handler, data);
+	if (ACPI_SUCCESS(status) && callback) {
+		callback(*data);
+	}
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_get_data_full)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_get_data
+ *
+ * PARAMETERS:  obj_handle          - Namespace node
+ *              handler             - Handler used in call to attach_data
+ *              data                - Where the data is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Retrieve data that was previously attached to a namespace node.
+ *
+ ******************************************************************************/
+acpi_status
+acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
+{
+	return acpi_get_data_full(obj_handle, handler, data, NULL);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_data)

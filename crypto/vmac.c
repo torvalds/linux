@@ -613,7 +613,7 @@ static int vmac_final(struct shash_desc *pdesc, u8 *out)
 	}
 	mac = vmac(ctx->partial, ctx->partial_size, nonce, NULL, ctx);
 	memcpy(out, &mac, sizeof(vmac_t));
-	memset(&mac, 0, sizeof(vmac_t));
+	memzero_explicit(&mac, sizeof(vmac_t));
 	memset(&ctx->__vmac_ctx, 0, sizeof(struct vmac_ctx));
 	ctx->partial_size = 0;
 	return 0;
@@ -713,3 +713,4 @@ module_exit(vmac_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VMAC hash algorithm");
+MODULE_ALIAS_CRYPTO("vmac");

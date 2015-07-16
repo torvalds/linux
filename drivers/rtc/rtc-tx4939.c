@@ -176,8 +176,8 @@ static irqreturn_t tx4939_rtc_interrupt(int irq, void *dev_id)
 		tx4939_rtc_cmd(rtcreg, TX4939_RTCCTL_COMMAND_NOP);
 	}
 	spin_unlock(&pdata->lock);
-	if (likely(pdata->rtc))
-		rtc_update_irq(pdata->rtc, 1, events);
+	rtc_update_irq(pdata->rtc, 1, events);
+
 	return IRQ_HANDLED;
 }
 
@@ -287,7 +287,6 @@ static struct platform_driver tx4939_rtc_driver = {
 	.remove		= __exit_p(tx4939_rtc_remove),
 	.driver		= {
 		.name	= "tx4939rtc",
-		.owner	= THIS_MODULE,
 	},
 };
 

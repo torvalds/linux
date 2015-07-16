@@ -34,15 +34,17 @@ void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 
 	root_bus = pci_scan_root_bus(&ofdev->dev, 0, info->ops, info,
 				     &resources);
-	if (root_bus) {
-		/* Setup IRQs of all devices using custom routines */
-		pci_fixup_irqs(pci_common_swizzle, info->map_irq);
-
-		/* Assign devices with resources */
-		pci_assign_unassigned_resources();
-	} else {
+	if (!root_bus) {
 		pci_free_resource_list(&resources);
+		return;
 	}
+
+	/* Setup IRQs of all devices using custom routines */
+	pci_fixup_irqs(pci_common_swizzle, info->map_irq);
+
+	/* Assign devices with resources */
+	pci_assign_unassigned_resources();
+	pci_bus_add_devices(root_bus);
 }
 
 void pcibios_fixup_bus(struct pci_bus *pbus)
@@ -98,87 +100,3 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 {
 	return res->start;
 }
-
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	return pci_enable_resources(dev, mask);
-}
-
-/* in/out routines taken from pcic.c
- *
- * This probably belongs here rather than ioport.c because
- * we do not want this crud linked into SBus kernels.
- * Also, think for a moment about likes of floppy.c that
- * include architecture specific parts. They may want to redefine ins/outs.
- *
- * We do not use horrible macros here because we want to
- * advance pointer by sizeof(size).
- */
-void outsb(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 1;
-		outb(*(const char *)src, addr);
-		src += 1;
-		/* addr += 1; */
-	}
-}
-EXPORT_SYMBOL(outsb);
-
-void outsw(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 2;
-		outw(*(const short *)src, addr);
-		src += 2;
-		/* addr += 2; */
-	}
-}
-EXPORT_SYMBOL(outsw);
-
-void outsl(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 4;
-		outl(*(const long *)src, addr);
-		src += 4;
-		/* addr += 4; */
-	}
-}
-EXPORT_SYMBOL(outsl);
-
-void insb(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 1;
-		*(unsigned char *)dst = inb(addr);
-		dst += 1;
-		/* addr += 1; */
-	}
-}
-EXPORT_SYMBOL(insb);
-
-void insw(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 2;
-		*(unsigned short *)dst = inw(addr);
-		dst += 2;
-		/* addr += 2; */
-	}
-}
-EXPORT_SYMBOL(insw);
-
-void insl(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 4;
-		/*
-		 * XXX I am sure we are in for an unaligned trap here.
-		 */
-		*(unsigned long *)dst = inl(addr);
-		dst += 4;
-		/* addr += 4; */
-	}
-}
-EXPORT_SYMBOL(insl);

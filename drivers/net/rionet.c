@@ -493,7 +493,8 @@ static int rionet_setup_netdev(struct rio_mport *mport, struct net_device *ndev)
 	ndev->netdev_ops = &rionet_netdev_ops;
 	ndev->mtu = RIO_MAX_MSG_SIZE - 14;
 	ndev->features = NETIF_F_LLTX;
-	SET_ETHTOOL_OPS(ndev, &rionet_ethtool_ops);
+	SET_NETDEV_DEV(ndev, &mport->dev);
+	ndev->ethtool_ops = &rionet_ethtool_ops;
 
 	spin_lock_init(&rnet->lock);
 	spin_lock_init(&rnet->tx_lock);

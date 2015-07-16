@@ -42,8 +42,8 @@
  * DAMAGE.
  */
 
-#ifndef CAN_RAW_H
-#define CAN_RAW_H
+#ifndef _UAPI_CAN_RAW_H
+#define _UAPI_CAN_RAW_H
 
 #include <linux/can.h>
 
@@ -57,6 +57,7 @@ enum {
 	CAN_RAW_LOOPBACK,	/* local loopback (default:on)       */
 	CAN_RAW_RECV_OWN_MSGS,	/* receive my own msgs (default:off) */
 	CAN_RAW_FD_FRAMES,	/* allow CAN FD frames (default:off) */
+	CAN_RAW_JOIN_FILTERS,	/* all filters must match to trigger */
 };
 
-#endif
+#endif /* !_UAPI_CAN_RAW_H */

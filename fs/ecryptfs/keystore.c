@@ -26,7 +26,6 @@
  */
 
 #include <linux/string.h>
-#include <linux/syscalls.h>
 #include <linux/pagemap.h>
 #include <linux/key.h>
 #include <linux/random.h>
@@ -101,12 +100,12 @@ int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
 	(*size) = 0;
 	if (data[0] < 192) {
 		/* One-byte length */
-		(*size) = (unsigned char)data[0];
+		(*size) = data[0];
 		(*length_size) = 1;
 	} else if (data[0] < 224) {
 		/* Two-byte length */
-		(*size) = (((unsigned char)(data[0]) - 192) * 256);
-		(*size) += ((unsigned char)(data[1]) + 192);
+		(*size) = (data[0] - 192) * 256;
+		(*size) += data[1] + 192;
 		(*length_size) = 2;
 	} else if (data[0] == 255) {
 		/* If support is added, adjust ECRYPTFS_MAX_PKT_LEN_SIZE */
@@ -892,7 +891,7 @@ struct ecryptfs_parse_tag_70_packet_silly_stack {
 	struct blkcipher_desc desc;
 	char fnek_sig_hex[ECRYPTFS_SIG_SIZE_HEX + 1];
 	char iv[ECRYPTFS_MAX_IV_BYTES];
-	char cipher_string[ECRYPTFS_MAX_CIPHER_NAME_SIZE];
+	char cipher_string[ECRYPTFS_MAX_CIPHER_NAME_SIZE + 1];
 };
 
 /**
@@ -1846,7 +1845,6 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 					"(Tag 11 not allowed by itself)\n");
 			rc = -EIO;
 			goto out_wipe_list;
-			break;
 		default:
 			ecryptfs_printk(KERN_DEBUG, "No packet at offset [%zd] "
 					"of the file header; hex value of "

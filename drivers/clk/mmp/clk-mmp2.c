@@ -54,7 +54,7 @@
 
 static DEFINE_SPINLOCK(clk_lock);
 
-static struct clk_factor_masks uart_factor_masks = {
+static struct mmp_clk_factor_masks uart_factor_masks = {
 	.factor = 2,
 	.num_mask = 0x1fff,
 	.den_mask = 0x1fff,
@@ -62,11 +62,9 @@ static struct clk_factor_masks uart_factor_masks = {
 	.den_shift = 0,
 };
 
-static struct clk_factor_tbl uart_factor_tbl[] = {
-	{.num = 14634, .den = 2165},	/*14.745MHZ */
+static struct mmp_clk_factor_tbl uart_factor_tbl[] = {
+	{.num = 8125, .den = 1536},	/*14.745MHZ */
 	{.num = 3521, .den = 689},	/*19.23MHZ */
-	{.num = 9679, .den = 5728},	/*58.9824MHZ */
-	{.num = 15850, .den = 9451},	/*59.429MHZ */
 };
 
 static const char *uart_parent[] = {"uart_pll", "vctcxo"};
@@ -191,7 +189,7 @@ void __init mmp2_clk_init(void)
 	clk = mmp_clk_register_factor("uart_pll", "pll1_4", 0,
 				mpmu_base + MPMU_UART_PLL,
 				&uart_factor_masks, uart_factor_tbl,
-				ARRAY_SIZE(uart_factor_tbl));
+				ARRAY_SIZE(uart_factor_tbl), &clk_lock);
 	clk_set_rate(clk, 14745600);
 	clk_register_clkdev(clk, "uart_pll", NULL);
 

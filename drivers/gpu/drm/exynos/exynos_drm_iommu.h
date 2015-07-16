@@ -14,7 +14,6 @@
 
 #define EXYNOS_DEV_ADDR_START	0x20000000
 #define EXYNOS_DEV_ADDR_SIZE	0x40000000
-#define EXYNOS_DEV_ADDR_ORDER	0x0
 
 #ifdef CONFIG_DRM_EXYNOS_IOMMU
 
@@ -39,9 +38,12 @@ static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
 #endif
 }
 
+int drm_iommu_attach_device_if_possible(
+		struct exynos_drm_crtc *exynos_crtc, struct drm_device *drm_dev,
+		struct device *subdrv_dev);
+
 #else
 
-struct dma_iommu_mapping;
 static inline int drm_create_iommu_mapping(struct drm_device *drm_dev)
 {
 	return 0;
@@ -65,6 +67,13 @@ static inline void drm_iommu_detach_device(struct drm_device *drm_dev,
 static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
 {
 	return false;
+}
+
+static inline int drm_iommu_attach_device_if_possible(
+		struct exynos_drm_crtc *exynos_crtc, struct drm_device *drm_dev,
+		struct device *subdrv_dev)
+{
+	return 0;
 }
 
 #endif

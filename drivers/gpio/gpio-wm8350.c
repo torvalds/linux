@@ -106,7 +106,7 @@ static struct gpio_chip template_chip = {
 	.direction_output	= wm8350_gpio_direction_out,
 	.set			= wm8350_gpio_set,
 	.to_irq			= wm8350_gpio_to_irq,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int wm8350_gpio_probe(struct platform_device *pdev)
@@ -145,7 +145,8 @@ static int wm8350_gpio_remove(struct platform_device *pdev)
 {
 	struct wm8350_gpio_data *wm8350_gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&wm8350_gpio->gpio_chip);
+	gpiochip_remove(&wm8350_gpio->gpio_chip);
+	return 0;
 }
 
 static struct platform_driver wm8350_gpio_driver = {

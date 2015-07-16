@@ -1,7 +1,7 @@
 /*
  * rcar_du_lvdsenc.c  --  R-Car Display Unit LVDS Encoder
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -28,7 +28,7 @@ struct rcar_du_lvdsenc {
 	unsigned int index;
 	void __iomem *mmio;
 	struct clk *clock;
-	int dpms;
+	bool enabled;
 
 	enum rcar_lvds_input input;
 };
@@ -44,10 +44,11 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	const struct drm_display_mode *mode = &rcrtc->crtc.mode;
 	unsigned int freq = mode->clock;
 	u32 lvdcr0;
+	u32 lvdhcr;
 	u32 pllcr;
 	int ret;
 
-	if (lvds->dpms == DRM_MODE_DPMS_ON)
+	if (lvds->enabled)
 		return 0;
 
 	ret = clk_prepare_enable(lvds->clock);
@@ -72,15 +73,19 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	 * VSYNC -> CTRL1
 	 * DISP  -> CTRL2
 	 * 0     -> CTRL3
-	 *
-	 * Channels 1 and 3 are switched on ES1.
 	 */
 	rcar_lvds_write(lvds, LVDCTRCR, LVDCTRCR_CTR3SEL_ZERO |
 			LVDCTRCR_CTR2SEL_DISP | LVDCTRCR_CTR1SEL_VSYNC |
 			LVDCTRCR_CTR0SEL_HSYNC);
-	rcar_lvds_write(lvds, LVDCHCR,
-			LVDCHCR_CHSEL_CH(0, 0) | LVDCHCR_CHSEL_CH(1, 3) |
-			LVDCHCR_CHSEL_CH(2, 2) | LVDCHCR_CHSEL_CH(3, 1));
+
+	if (rcar_du_needs(lvds->dev, RCAR_DU_QUIRK_LVDS_LANES))
+		lvdhcr = LVDCHCR_CHSEL_CH(0, 0) | LVDCHCR_CHSEL_CH(1, 3)
+		       | LVDCHCR_CHSEL_CH(2, 2) | LVDCHCR_CHSEL_CH(3, 1);
+	else
+		lvdhcr = LVDCHCR_CHSEL_CH(0, 0) | LVDCHCR_CHSEL_CH(1, 1)
+		       | LVDCHCR_CHSEL_CH(2, 2) | LVDCHCR_CHSEL_CH(3, 3);
+
+	rcar_lvds_write(lvds, LVDCHCR, lvdhcr);
 
 	/* Select the input, hardcode mode 0, enable LVDS operation and turn
 	 * bias circuitry on.
@@ -105,13 +110,13 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	lvdcr0 |= LVDCR0_LVRES;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 
-	lvds->dpms = DRM_MODE_DPMS_ON;
+	lvds->enabled = true;
 	return 0;
 }
 
 static void rcar_du_lvdsenc_stop(struct rcar_du_lvdsenc *lvds)
 {
-	if (lvds->dpms == DRM_MODE_DPMS_OFF)
+	if (!lvds->enabled)
 		return;
 
 	rcar_lvds_write(lvds, LVDCR0, 0);
@@ -119,13 +124,13 @@ static void rcar_du_lvdsenc_stop(struct rcar_du_lvdsenc *lvds)
 
 	clk_disable_unprepare(lvds->clock);
 
-	lvds->dpms = DRM_MODE_DPMS_OFF;
+	lvds->enabled = false;
 }
 
-int rcar_du_lvdsenc_dpms(struct rcar_du_lvdsenc *lvds,
-			 struct drm_crtc *crtc, int mode)
+int rcar_du_lvdsenc_enable(struct rcar_du_lvdsenc *lvds, struct drm_crtc *crtc,
+			   bool enable)
 {
-	if (mode == DRM_MODE_DPMS_OFF) {
+	if (!enable) {
 		rcar_du_lvdsenc_stop(lvds);
 		return 0;
 	} else if (crtc) {
@@ -144,18 +149,9 @@ static int rcar_du_lvdsenc_get_resources(struct rcar_du_lvdsenc *lvds,
 	sprintf(name, "lvds.%u", lvds->index);
 
 	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	if (mem == NULL) {
-		dev_err(&pdev->dev, "failed to get memory resource for %s\n",
-			name);
-		return -EINVAL;
-	}
-
 	lvds->mmio = devm_ioremap_resource(&pdev->dev, mem);
-	if (lvds->mmio == NULL) {
-		dev_err(&pdev->dev, "failed to remap memory resource for %s\n",
-			name);
-		return -ENOMEM;
-	}
+	if (IS_ERR(lvds->mmio))
+		return PTR_ERR(lvds->mmio);
 
 	lvds->clock = devm_clk_get(&pdev->dev, name);
 	if (IS_ERR(lvds->clock)) {
@@ -183,7 +179,7 @@ int rcar_du_lvdsenc_init(struct rcar_du_device *rcdu)
 		lvds->dev = rcdu;
 		lvds->index = i;
 		lvds->input = i ? RCAR_LVDS_INPUT_DU1 : RCAR_LVDS_INPUT_DU0;
-		lvds->dpms = DRM_MODE_DPMS_OFF;
+		lvds->enabled = false;
 
 		ret = rcar_du_lvdsenc_get_resources(lvds, pdev);
 		if (ret < 0)

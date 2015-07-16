@@ -100,13 +100,11 @@ void output_thread_info_defines(void)
 {
 	COMMENT("SCORE thread_info offsets.");
 	OFFSET(TI_TASK, thread_info, task);
-	OFFSET(TI_EXEC_DOMAIN, thread_info, exec_domain);
 	OFFSET(TI_FLAGS, thread_info, flags);
 	OFFSET(TI_TP_VALUE, thread_info, tp_value);
 	OFFSET(TI_CPU, thread_info, cpu);
 	OFFSET(TI_PRE_COUNT, thread_info, preempt_count);
 	OFFSET(TI_ADDR_LIMIT, thread_info, addr_limit);
-	OFFSET(TI_RESTART_BLOCK, thread_info, restart_block);
 	OFFSET(TI_REGS, thread_info, regs);
 	DEFINE(KERNEL_STACK_SIZE, THREAD_SIZE);
 	DEFINE(KERNEL_STACK_MASK, THREAD_MASK);

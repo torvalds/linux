@@ -61,8 +61,6 @@ static int wm1250_ev1_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
-
 	return 0;
 }
 
@@ -164,7 +162,6 @@ static int wm1250_ev1_pdata(struct i2c_client *i2c)
 
 	wm1250 = devm_kzalloc(&i2c->dev, sizeof(*wm1250), GFP_KERNEL);
 	if (!wm1250) {
-		dev_err(&i2c->dev, "Unable to allocate private data\n");
 		ret = -ENOMEM;
 		goto err;
 	}

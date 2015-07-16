@@ -30,7 +30,6 @@
 #include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
@@ -653,10 +652,8 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	}
 
 	prv = devm_kzalloc(dev, sizeof(*prv), GFP_KERNEL);
-	if (!prv) {
-		dev_err(dev, "Memory exhausted!\n");
+	if (!prv)
 		return -ENOMEM;
-	}
 
 	mtd = &prv->mtd;
 	chip = &prv->chip;
@@ -731,7 +728,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	of_node_put(rootnode);
 
 	/* Enable NFC clock */
-	clk = devm_clk_get(dev, "nfc_clk");
+	clk = devm_clk_get(dev, "ipg");
 	if (IS_ERR(clk)) {
 		dev_err(dev, "Unable to acquire NFC clock!\n");
 		retval = PTR_ERR(clk);
@@ -786,7 +783,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	/* Detect NAND chips */
 	if (nand_scan(mtd, be32_to_cpup(chips_no))) {
 		dev_err(dev, "NAND Flash not found !\n");
-		devm_free_irq(dev, prv->irq, mtd);
 		retval = -ENXIO;
 		goto error;
 	}
@@ -811,7 +807,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 
 	default:
 		dev_err(dev, "Unsupported NAND flash!\n");
-		devm_free_irq(dev, prv->irq, mtd);
 		retval = -ENXIO;
 		goto error;
 	}
@@ -822,7 +817,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	retval = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
 	if (retval) {
 		dev_err(dev, "Error adding MTD device!\n");
-		devm_free_irq(dev, prv->irq, mtd);
 		goto error;
 	}
 
@@ -836,17 +830,14 @@ static int mpc5121_nfc_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mtd_info *mtd = dev_get_drvdata(dev);
-	struct nand_chip *chip = mtd->priv;
-	struct mpc5121_nfc_prv *prv = chip->priv;
 
 	nand_release(mtd);
-	devm_free_irq(dev, prv->irq, mtd);
 	mpc5121_nfc_free(dev, mtd);
 
 	return 0;
 }
 
-static struct of_device_id mpc5121_nfc_match[] = {
+static const struct of_device_id mpc5121_nfc_match[] = {
 	{ .compatible = "fsl,mpc5121-nfc", },
 	{},
 };
@@ -856,7 +847,6 @@ static struct platform_driver mpc5121_nfc_driver = {
 	.remove		= mpc5121_nfc_remove,
 	.driver		= {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mpc5121_nfc_match,
 	},
 };

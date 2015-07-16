@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -47,10 +46,10 @@ i40e_status i40e_add_sd_table_entry(struct i40e_hw *hw,
 					      u64 direct_mode_sz)
 {
 	enum i40e_memory_type mem_type __attribute__((unused));
-	i40e_status ret_code = 0;
 	struct i40e_hmc_sd_entry *sd_entry;
 	bool dma_mem_alloc_done = false;
 	struct i40e_dma_mem mem;
+	i40e_status ret_code;
 	u64 alloc_len;
 
 	if (NULL == hmc_info->sd_table.sd_entry) {
@@ -90,11 +89,9 @@ i40e_status i40e_add_sd_table_entry(struct i40e_hw *hw,
 			sd_entry->u.pd_table.pd_entry =
 				(struct i40e_hmc_pd_entry *)
 				sd_entry->u.pd_table.pd_entry_virt_mem.va;
-			memcpy(&sd_entry->u.pd_table.pd_page_addr, &mem,
-			       sizeof(struct i40e_dma_mem));
+			sd_entry->u.pd_table.pd_page_addr = mem;
 		} else {
-			memcpy(&sd_entry->u.bp.addr, &mem,
-			       sizeof(struct i40e_dma_mem));
+			sd_entry->u.bp.addr = mem;
 			sd_entry->u.bp.sd_pd_index = sd_index;
 		}
 		/* initialize the sd entry */
@@ -165,7 +162,7 @@ i40e_status i40e_add_pd_table_entry(struct i40e_hw *hw,
 		if (ret_code)
 			goto exit;
 
-		memcpy(&pd_entry->bp.addr, &mem, sizeof(struct i40e_dma_mem));
+		pd_entry->bp.addr = mem;
 		pd_entry->bp.sd_pd_index = pd_index;
 		pd_entry->bp.entry_type = I40E_SD_TYPE_PAGED;
 		/* Set page address and valid bit */
@@ -204,7 +201,7 @@ exit:
  **/
 i40e_status i40e_remove_pd_bp(struct i40e_hw *hw,
 					struct i40e_hmc_info *hmc_info,
-					u32 idx, bool is_pf)
+					u32 idx)
 {
 	i40e_status ret_code = 0;
 	struct i40e_hmc_pd_entry *pd_entry;
@@ -240,10 +237,7 @@ i40e_status i40e_remove_pd_bp(struct i40e_hw *hw,
 	pd_addr = (u64 *)pd_table->pd_page_addr.va;
 	pd_addr += rel_pd_idx;
 	memset(pd_addr, 0, sizeof(u64));
-	if (is_pf)
-		I40E_INVALIDATE_PF_HMC_PD(hw, sd_idx, idx);
-	else
-		I40E_INVALIDATE_VF_HMC_PD(hw, sd_idx, idx, hmc_info->hmc_fn_id);
+	I40E_INVALIDATE_PF_HMC_PD(hw, sd_idx, idx);
 
 	/* free memory here */
 	ret_code = i40e_free_dma_mem(hw, &(pd_entry->bp.addr));

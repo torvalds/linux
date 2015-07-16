@@ -33,7 +33,7 @@
 #include <asm/io.h>
 #include <asm/msr.h>
 #include <asm/cpufeature.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 
 
@@ -141,7 +141,7 @@ static int via_rng_init(struct hwrng *rng)
 	 * register */
 	if ((c->x86 == 6) && (c->x86_model >= 0x0f)) {
 		if (!cpu_has_xstore_enabled) {
-			printk(KERN_ERR PFX "can't enable hardware RNG "
+			pr_err(PFX "can't enable hardware RNG "
 				"if XSTORE is not enabled\n");
 			return -ENODEV;
 		}
@@ -180,7 +180,7 @@ static int via_rng_init(struct hwrng *rng)
 	   unneeded */
 	rdmsr(MSR_VIA_RNG, lo, hi);
 	if ((lo & VIA_RNG_ENABLE) == 0) {
-		printk(KERN_ERR PFX "cannot enable VIA C3 RNG, aborting\n");
+		pr_err(PFX "cannot enable VIA C3 RNG, aborting\n");
 		return -ENODEV;
 	}
 
@@ -202,10 +202,10 @@ static int __init mod_init(void)
 
 	if (!cpu_has_xstore)
 		return -ENODEV;
-	printk(KERN_INFO "VIA RNG detected\n");
+	pr_info("VIA RNG detected\n");
 	err = hwrng_register(&via_rng);
 	if (err) {
-		printk(KERN_ERR PFX "RNG registering failed (%d)\n",
+		pr_err(PFX "RNG registering failed (%d)\n",
 		       err);
 		goto out;
 	}
@@ -221,7 +221,7 @@ static void __exit mod_exit(void)
 module_init(mod_init);
 module_exit(mod_exit);
 
-static struct x86_cpu_id via_rng_cpu_id[] = {
+static struct x86_cpu_id __maybe_unused via_rng_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_XSTORE),
 	{}
 };

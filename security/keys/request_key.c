@@ -21,24 +21,6 @@
 
 #define key_negative_timeout	60	/* default timeout on a negative key's existence */
 
-/*
- * wait_on_bit() sleep function for uninterruptible waiting
- */
-static int key_wait_bit(void *flags)
-{
-	schedule();
-	return 0;
-}
-
-/*
- * wait_on_bit() sleep function for interruptible waiting
- */
-static int key_wait_bit_intr(void *flags)
-{
-	schedule();
-	return signal_pending(current) ? -ERESTARTSYS : 0;
-}
-
 /**
  * complete_request_key - Complete the construction of a key.
  * @cons: The key construction record.
@@ -432,6 +414,7 @@ link_check_failed:
 
 link_prealloc_failed:
 	mutex_unlock(&user->cons_lock);
+	key_put(key);
 	kleave(" = %d [prelink]", ret);
 	return ret;
 
@@ -531,9 +514,11 @@ struct key *request_key_and_link(struct key_type *type,
 		.index_key.type		= type,
 		.index_key.description	= description,
 		.cred			= current_cred(),
-		.match			= type->match,
-		.match_data		= description,
-		.flags			= KEYRING_SEARCH_LOOKUP_DIRECT,
+		.match_data.cmp		= key_default_cmp,
+		.match_data.raw_data	= description,
+		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
+		.flags			= (KEYRING_SEARCH_DO_STATE_CHECK |
+					   KEYRING_SEARCH_SKIP_EXPIRED),
 	};
 	struct key *key;
 	key_ref_t key_ref;
@@ -542,6 +527,14 @@ struct key *request_key_and_link(struct key_type *type,
 	kenter("%s,%s,%p,%zu,%p,%p,%lx",
 	       ctx.index_key.type->name, ctx.index_key.description,
 	       callout_info, callout_len, aux, dest_keyring, flags);
+
+	if (type->match_preparse) {
+		ret = type->match_preparse(&ctx.match_data);
+		if (ret < 0) {
+			key = ERR_PTR(ret);
+			goto error;
+		}
+	}
 
 	/* search all the process keyrings for a key */
 	key_ref = search_process_keyrings(&ctx);
@@ -555,7 +548,7 @@ struct key *request_key_and_link(struct key_type *type,
 			if (ret < 0) {
 				key_put(key);
 				key = ERR_PTR(ret);
-				goto error;
+				goto error_free;
 			}
 		}
 	} else if (PTR_ERR(key_ref) != -EAGAIN) {
@@ -565,12 +558,15 @@ struct key *request_key_and_link(struct key_type *type,
 		 * should consult userspace if we can */
 		key = ERR_PTR(-ENOKEY);
 		if (!callout_info)
-			goto error;
+			goto error_free;
 
 		key = construct_key_and_link(&ctx, callout_info, callout_len,
 					     aux, dest_keyring, flags);
 	}
 
+error_free:
+	if (type->match_free)
+		type->match_free(&ctx.match_data);
 error:
 	kleave(" = %p", key);
 	return key;
@@ -592,10 +588,9 @@ int wait_for_key_construction(struct key *key, bool intr)
 	int ret;
 
 	ret = wait_on_bit(&key->flags, KEY_FLAG_USER_CONSTRUCT,
-			  intr ? key_wait_bit_intr : key_wait_bit,
 			  intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
-	if (ret < 0)
-		return ret;
+	if (ret)
+		return -ERESTARTSYS;
 	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
 		smp_rmb();
 		return key->type_data.reject_error;

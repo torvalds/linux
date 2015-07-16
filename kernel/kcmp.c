@@ -44,11 +44,12 @@ static long kptr_obfuscate(long v, int type)
  */
 static int kcmp_ptr(void *v1, void *v2, enum kcmp_type type)
 {
-	long ret;
+	long t1, t2;
 
-	ret = kptr_obfuscate((long)v1, type) - kptr_obfuscate((long)v2, type);
+	t1 = kptr_obfuscate((long)v1, type);
+	t2 = kptr_obfuscate((long)v2, type);
 
-	return (ret < 0) | ((ret > 0) << 1);
+	return (t1 < t2) | ((t1 > t2) << 1);
 }
 
 /* The caller must have pinned the task */

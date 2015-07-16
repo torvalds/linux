@@ -77,20 +77,16 @@ STD_ENDPROC(__mcount)
 
 	.align	64
 STD_ENTRY(ftrace_caller)
-	moveli	r11, hw2_last(function_trace_stop)
-	{ shl16insli	r11, r11, hw1(function_trace_stop); move r12, lr }
-	{ shl16insli	r11, r11, hw0(function_trace_stop); move lr, r10 }
-	ld	r11, r11
-	beqz	r11, 1f
-	jrp	r12
-
-1:
-	{ move	r10, lr; move	lr, r12 }
 	MCOUNT_SAVE_REGS
 
 	/* arg1: self return address */
 	/* arg2: parent's return address */
-	{ move	r0, lr; move	r1, r10 }
+	/* arg3: ftrace_ops */
+	/* arg4: regs (but make it NULL) */
+	{ move	r0, lr;  moveli        r2, hw2_last(function_trace_op) }
+	{ move	r1, r10; shl16insli    r2, r2, hw1(function_trace_op) }
+	{ movei	r3, 0;   shl16insli    r2, r2, hw0(function_trace_op) }
+	ld	r2,r2
 
 	.global	ftrace_call
 ftrace_call:
@@ -119,15 +115,6 @@ STD_ENDPROC(ftrace_caller)
 
 	.align	64
 STD_ENTRY(__mcount)
-	moveli	r11, hw2_last(function_trace_stop)
-	{ shl16insli	r11, r11, hw1(function_trace_stop); move r12, lr }
-	{ shl16insli	r11, r11, hw0(function_trace_stop); move lr, r10 }
-	ld	r11, r11
-	beqz	r11, 1f
-	jrp	r12
-
-1:
-	{ move	r10, lr; move	lr, r12 }
 	{
 	 moveli	r11, hw2_last(ftrace_trace_function)
 	 moveli	r13, hw2_last(ftrace_stub)

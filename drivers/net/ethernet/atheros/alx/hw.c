@@ -1050,3 +1050,61 @@ bool alx_get_phy_info(struct alx_hw *hw)
 
 	return true;
 }
+
+void alx_update_hw_stats(struct alx_hw *hw)
+{
+	/* RX stats */
+	hw->stats.rx_ok          += alx_read_mem32(hw, ALX_MIB_RX_OK);
+	hw->stats.rx_bcast       += alx_read_mem32(hw, ALX_MIB_RX_BCAST);
+	hw->stats.rx_mcast       += alx_read_mem32(hw, ALX_MIB_RX_MCAST);
+	hw->stats.rx_pause       += alx_read_mem32(hw, ALX_MIB_RX_PAUSE);
+	hw->stats.rx_ctrl        += alx_read_mem32(hw, ALX_MIB_RX_CTRL);
+	hw->stats.rx_fcs_err     += alx_read_mem32(hw, ALX_MIB_RX_FCS_ERR);
+	hw->stats.rx_len_err     += alx_read_mem32(hw, ALX_MIB_RX_LEN_ERR);
+	hw->stats.rx_byte_cnt    += alx_read_mem32(hw, ALX_MIB_RX_BYTE_CNT);
+	hw->stats.rx_runt        += alx_read_mem32(hw, ALX_MIB_RX_RUNT);
+	hw->stats.rx_frag        += alx_read_mem32(hw, ALX_MIB_RX_FRAG);
+	hw->stats.rx_sz_64B      += alx_read_mem32(hw, ALX_MIB_RX_SZ_64B);
+	hw->stats.rx_sz_127B     += alx_read_mem32(hw, ALX_MIB_RX_SZ_127B);
+	hw->stats.rx_sz_255B     += alx_read_mem32(hw, ALX_MIB_RX_SZ_255B);
+	hw->stats.rx_sz_511B     += alx_read_mem32(hw, ALX_MIB_RX_SZ_511B);
+	hw->stats.rx_sz_1023B    += alx_read_mem32(hw, ALX_MIB_RX_SZ_1023B);
+	hw->stats.rx_sz_1518B    += alx_read_mem32(hw, ALX_MIB_RX_SZ_1518B);
+	hw->stats.rx_sz_max      += alx_read_mem32(hw, ALX_MIB_RX_SZ_MAX);
+	hw->stats.rx_ov_sz       += alx_read_mem32(hw, ALX_MIB_RX_OV_SZ);
+	hw->stats.rx_ov_rxf      += alx_read_mem32(hw, ALX_MIB_RX_OV_RXF);
+	hw->stats.rx_ov_rrd      += alx_read_mem32(hw, ALX_MIB_RX_OV_RRD);
+	hw->stats.rx_align_err   += alx_read_mem32(hw, ALX_MIB_RX_ALIGN_ERR);
+	hw->stats.rx_bc_byte_cnt += alx_read_mem32(hw, ALX_MIB_RX_BCCNT);
+	hw->stats.rx_mc_byte_cnt += alx_read_mem32(hw, ALX_MIB_RX_MCCNT);
+	hw->stats.rx_err_addr    += alx_read_mem32(hw, ALX_MIB_RX_ERRADDR);
+
+	/* TX stats */
+	hw->stats.tx_ok          += alx_read_mem32(hw, ALX_MIB_TX_OK);
+	hw->stats.tx_bcast       += alx_read_mem32(hw, ALX_MIB_TX_BCAST);
+	hw->stats.tx_mcast       += alx_read_mem32(hw, ALX_MIB_TX_MCAST);
+	hw->stats.tx_pause       += alx_read_mem32(hw, ALX_MIB_TX_PAUSE);
+	hw->stats.tx_exc_defer   += alx_read_mem32(hw, ALX_MIB_TX_EXC_DEFER);
+	hw->stats.tx_ctrl        += alx_read_mem32(hw, ALX_MIB_TX_CTRL);
+	hw->stats.tx_defer       += alx_read_mem32(hw, ALX_MIB_TX_DEFER);
+	hw->stats.tx_byte_cnt    += alx_read_mem32(hw, ALX_MIB_TX_BYTE_CNT);
+	hw->stats.tx_sz_64B      += alx_read_mem32(hw, ALX_MIB_TX_SZ_64B);
+	hw->stats.tx_sz_127B     += alx_read_mem32(hw, ALX_MIB_TX_SZ_127B);
+	hw->stats.tx_sz_255B     += alx_read_mem32(hw, ALX_MIB_TX_SZ_255B);
+	hw->stats.tx_sz_511B     += alx_read_mem32(hw, ALX_MIB_TX_SZ_511B);
+	hw->stats.tx_sz_1023B    += alx_read_mem32(hw, ALX_MIB_TX_SZ_1023B);
+	hw->stats.tx_sz_1518B    += alx_read_mem32(hw, ALX_MIB_TX_SZ_1518B);
+	hw->stats.tx_sz_max      += alx_read_mem32(hw, ALX_MIB_TX_SZ_MAX);
+	hw->stats.tx_single_col  += alx_read_mem32(hw, ALX_MIB_TX_SINGLE_COL);
+	hw->stats.tx_multi_col   += alx_read_mem32(hw, ALX_MIB_TX_MULTI_COL);
+	hw->stats.tx_late_col    += alx_read_mem32(hw, ALX_MIB_TX_LATE_COL);
+	hw->stats.tx_abort_col   += alx_read_mem32(hw, ALX_MIB_TX_ABORT_COL);
+	hw->stats.tx_underrun    += alx_read_mem32(hw, ALX_MIB_TX_UNDERRUN);
+	hw->stats.tx_trd_eop     += alx_read_mem32(hw, ALX_MIB_TX_TRD_EOP);
+	hw->stats.tx_len_err     += alx_read_mem32(hw, ALX_MIB_TX_LEN_ERR);
+	hw->stats.tx_trunc       += alx_read_mem32(hw, ALX_MIB_TX_TRUNC);
+	hw->stats.tx_bc_byte_cnt += alx_read_mem32(hw, ALX_MIB_TX_BCCNT);
+	hw->stats.tx_mc_byte_cnt += alx_read_mem32(hw, ALX_MIB_TX_MCCNT);
+
+	hw->stats.update         += alx_read_mem32(hw, ALX_MIB_UPDATE);
+}

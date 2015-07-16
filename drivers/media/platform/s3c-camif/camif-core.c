@@ -256,8 +256,7 @@ static void camif_unregister_sensor(struct camif_dev *camif)
 	v4l2_device_unregister_subdev(sd);
 	camif->sensor.sd = NULL;
 	i2c_unregister_device(client);
-	if (adapter)
-		i2c_put_adapter(adapter);
+	i2c_put_adapter(adapter);
 }
 
 static int camif_create_media_links(struct camif_dev *camif)
@@ -629,7 +628,7 @@ static struct s3c_camif_drvdata s3c6410_camif_drvdata = {
 	.bus_clk_freq	= 133000000UL,
 };
 
-static struct platform_device_id s3c_camif_driver_ids[] = {
+static const struct platform_device_id s3c_camif_driver_ids[] = {
 	{
 		.name		= "s3c2440-camif",
 		.driver_data	= (unsigned long)&s3c244x_camif_drvdata,
@@ -652,7 +651,6 @@ static struct platform_driver s3c_camif_driver = {
 	.id_table	= s3c_camif_driver_ids,
 	.driver = {
 		.name	= S3C_CAMIF_DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &s3c_camif_pm_ops,
 	}
 };

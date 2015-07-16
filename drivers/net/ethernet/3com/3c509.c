@@ -252,8 +252,7 @@ static int el3_isa_id_sequence(__be16 *phys_addr)
 		for (i = 0; i < el3_cards; i++) {
 			struct el3_private *lp = netdev_priv(el3_devs[i]);
 			if (lp->type == EL3_PNP &&
-			    !memcmp(phys_addr, el3_devs[i]->dev_addr,
-				    ETH_ALEN)) {
+			    ether_addr_equal((u8 *)phys_addr, el3_devs[i]->dev_addr)) {
 				if (el3_debug > 3)
 					pr_debug("3c509 with address %02x %02x %02x %02x %02x %02x was found by ISAPnP\n",
 						phys_addr[0] & 0xff, phys_addr[0] >> 8,
@@ -535,7 +534,7 @@ static int el3_common_init(struct net_device *dev)
 	/* The EL3-specific entries in the device structure. */
 	dev->netdev_ops = &netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 
 	err = register_netdev(dev);
 	if (err) {
@@ -696,9 +695,9 @@ el3_tx_timeout (struct net_device *dev)
 	int ioaddr = dev->base_addr;
 
 	/* Transmitter timeout, serious problems. */
-	pr_warning("%s: transmit timed out, Tx_status %2.2x status %4.4x Tx FIFO room %d.\n",
-		   dev->name, inb(ioaddr + TX_STATUS), inw(ioaddr + EL3_STATUS),
-		   inw(ioaddr + TX_FREE));
+	pr_warn("%s: transmit timed out, Tx_status %2.2x status %4.4x Tx FIFO room %d\n",
+		dev->name, inb(ioaddr + TX_STATUS), inw(ioaddr + EL3_STATUS),
+		inw(ioaddr + TX_FREE));
 	dev->stats.tx_errors++;
 	dev->trans_start = jiffies; /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
@@ -750,7 +749,7 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	dev_kfree_skb (skb);
+	dev_consume_skb_any (skb);
 
 	/* Clear the Tx status stack. */
 	{

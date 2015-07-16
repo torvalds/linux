@@ -131,8 +131,12 @@ static const struct sdhci_ops bcm2835_sdhci_ops = {
 	.read_l = bcm2835_sdhci_readl,
 	.read_w = bcm2835_sdhci_readw,
 	.read_b = bcm2835_sdhci_readb,
+	.set_clock = sdhci_set_clock,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_min_clock = bcm2835_sdhci_get_min_clock,
+	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 static const struct sdhci_pltfm_data bcm2835_sdhci_pdata = {
@@ -168,17 +172,22 @@ static int bcm2835_sdhci_probe(struct platform_device *pdev)
 		ret = PTR_ERR(pltfm_host->clk);
 		goto err;
 	}
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable host clk\n");
+		goto err;
+	}
 
-	return sdhci_add_host(host);
+	ret = sdhci_add_host(host);
+	if (ret)
+		goto err_clk;
 
+	return 0;
+err_clk:
+	clk_disable_unprepare(pltfm_host->clk);
 err:
 	sdhci_pltfm_free(pdev);
 	return ret;
-}
-
-static int bcm2835_sdhci_remove(struct platform_device *pdev)
-{
-	return sdhci_pltfm_unregister(pdev);
 }
 
 static const struct of_device_id bcm2835_sdhci_of_match[] = {
@@ -190,12 +199,11 @@ MODULE_DEVICE_TABLE(of, bcm2835_sdhci_of_match);
 static struct platform_driver bcm2835_sdhci_driver = {
 	.driver = {
 		.name = "sdhci-bcm2835",
-		.owner = THIS_MODULE,
 		.of_match_table = bcm2835_sdhci_of_match,
 		.pm = SDHCI_PLTFM_PMOPS,
 	},
 	.probe = bcm2835_sdhci_probe,
-	.remove = bcm2835_sdhci_remove,
+	.remove = sdhci_pltfm_unregister,
 };
 module_platform_driver(bcm2835_sdhci_driver);
 

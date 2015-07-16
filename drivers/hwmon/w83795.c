@@ -2,7 +2,7 @@
  *  w83795.c - Linux kernel driver for hardware monitoring
  *  Copyright (C) 2008 Nuvoton Technology Corp.
  *                Wei Song
- *  Copyright (C) 2010 Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2010 Jean Delvare <jdelvare@suse.de>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
+#include <linux/util_macros.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {
@@ -308,11 +309,8 @@ static u8 pwm_freq_to_reg(unsigned long val, u16 clkin)
 	unsigned long best0, best1;
 
 	/* Best fit for cksel = 0 */
-	for (reg0 = 0; reg0 < ARRAY_SIZE(pwm_freq_cksel0) - 1; reg0++) {
-		if (val > (pwm_freq_cksel0[reg0] +
-			   pwm_freq_cksel0[reg0 + 1]) / 2)
-			break;
-	}
+	reg0 = find_closest_descending(val, pwm_freq_cksel0,
+				       ARRAY_SIZE(pwm_freq_cksel0));
 	if (val < 375)	/* cksel = 1 can't beat this */
 		return reg0;
 	best0 = pwm_freq_cksel0[reg0];
@@ -2282,6 +2280,6 @@ static struct i2c_driver w83795_driver = {
 
 module_i2c_driver(w83795_driver);
 
-MODULE_AUTHOR("Wei Song, Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Wei Song, Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("W83795G/ADG hardware monitoring driver");
 MODULE_LICENSE("GPL");

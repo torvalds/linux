@@ -63,12 +63,15 @@
 #include "c2_provider.h"
 #include "c2_user.h"
 
-static int c2_query_device(struct ib_device *ibdev,
-			   struct ib_device_attr *props)
+static int c2_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			   struct ib_udata *uhw)
 {
 	struct c2_dev *c2dev = to_c2dev(ibdev);
 
 	pr_debug("%s:%u\n", __func__, __LINE__);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	*props = c2dev->props;
 	return 0;
@@ -286,12 +289,17 @@ static int c2_destroy_qp(struct ib_qp *ib_qp)
 	return 0;
 }
 
-static struct ib_cq *c2_create_cq(struct ib_device *ibdev, int entries, int vector,
+static struct ib_cq *c2_create_cq(struct ib_device *ibdev,
+				  const struct ib_cq_init_attr *attr,
 				  struct ib_ucontext *context,
 				  struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	struct c2_cq *cq;
 	int err;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	cq = kmalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq) {
@@ -431,9 +439,9 @@ static struct ib_mr *c2_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	u64 *pages;
 	u64 kva = 0;
 	int shift, n, len;
-	int i, j, k;
+	int i, k, entry;
 	int err = 0;
-	struct ib_umem_chunk *chunk;
+	struct scatterlist *sg;
 	struct c2_pd *c2pd = to_c2pd(pd);
 	struct c2_mr *c2mr;
 
@@ -452,10 +460,7 @@ static struct ib_mr *c2_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	shift = ffs(c2mr->umem->page_size) - 1;
-
-	n = 0;
-	list_for_each_entry(chunk, &c2mr->umem->chunk_list, list)
-		n += chunk->nents;
+	n = c2mr->umem->nmap;
 
 	pages = kmalloc(n * sizeof(u64), GFP_KERNEL);
 	if (!pages) {
@@ -464,14 +469,12 @@ static struct ib_mr *c2_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	i = 0;
-	list_for_each_entry(chunk, &c2mr->umem->chunk_list, list) {
-		for (j = 0; j < chunk->nmap; ++j) {
-			len = sg_dma_len(&chunk->page_list[j]) >> shift;
-			for (k = 0; k < len; ++k) {
-				pages[i++] =
-					sg_dma_address(&chunk->page_list[j]) +
-					(c2mr->umem->page_size * k);
-			}
+	for_each_sg(c2mr->umem->sg_head.sgl, sg, c2mr->umem->nmap, entry) {
+		len = sg_dma_len(sg) >> shift;
+		for (k = 0; k < len; ++k) {
+			pages[i++] =
+				sg_dma_address(sg) +
+				(c2mr->umem->page_size * k);
 		}
 	}
 
@@ -481,7 +484,7 @@ static struct ib_mr *c2_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 					 c2mr->umem->page_size,
 					 i,
 					 length,
-					 c2mr->umem->offset,
+					 ib_umem_offset(c2mr->umem),
 					 &kva,
 					 c2_convert_access(acc),
 					 c2mr);
@@ -587,9 +590,13 @@ static int c2_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 static int c2_process_mad(struct ib_device *ibdev,
 			  int mad_flags,
 			  u8 port_num,
-			  struct ib_wc *in_wc,
-			  struct ib_grh *in_grh,
-			  struct ib_mad *in_mad, struct ib_mad *out_mad)
+			  const struct ib_wc *in_wc,
+			  const struct ib_grh *in_grh,
+			  const struct ib_mad_hdr *in_mad,
+			  size_t in_mad_size,
+			  struct ib_mad_hdr *out_mad,
+			  size_t *out_mad_size,
+			  u16 *out_mad_pkey_index)
 {
 	pr_debug("%s:%u\n", __func__, __LINE__);
 	return -ENOSYS;
@@ -739,7 +746,7 @@ static struct net_device *c2_pseudo_netdev_init(struct c2_dev *c2dev)
 	/* change ethxxx to iwxxx */
 	strcpy(name, "iw");
 	strcat(name, &c2dev->netdev->name[3]);
-	netdev = alloc_netdev(0, name, setup);
+	netdev = alloc_netdev(0, name, NET_NAME_UNKNOWN, setup);
 	if (!netdev) {
 		printk(KERN_ERR PFX "%s -  etherdev alloc failed",
 			__func__);
@@ -760,6 +767,23 @@ static struct net_device *c2_pseudo_netdev_init(struct c2_dev *c2dev)
 	netif_stop_queue(netdev);
 #endif
 	return netdev;
+}
+
+static int c2_port_immutable(struct ib_device *ibdev, u8 port_num,
+			     struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = c2_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	return 0;
 }
 
 int c2_register_device(struct c2_dev *dev)
@@ -825,6 +849,7 @@ int c2_register_device(struct c2_dev *dev)
 	dev->ibdev.reg_phys_mr = c2_reg_phys_mr;
 	dev->ibdev.reg_user_mr = c2_reg_user_mr;
 	dev->ibdev.dereg_mr = c2_dereg_mr;
+	dev->ibdev.get_port_immutable = c2_port_immutable;
 
 	dev->ibdev.alloc_fmr = NULL;
 	dev->ibdev.unmap_fmr = NULL;

@@ -1,0 +1,120 @@
+/*
+ * Broadcom BCM470X / BCM5301X arm platform code.
+ * DTS for SmartRG SR400ac
+ *
+ * Copyright (C) 2015 Rafał Miłecki <zajec5@gmail.com>
+ *
+ * Licensed under the GNU/GPL. See COPYING for details.
+ */
+
+/dts-v1/;
+
+#include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
+
+/ {
+	compatible = "smartrg,sr400ac", "brcm,bcm4708";
+	model = "SmartRG SR400ac";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	memory {
+		reg = <0x00000000 0x08000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		power-white {
+			label = "bcm53xx:white:power";
+			gpios = <&chipcommon 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		power-amber {
+			label = "bcm53xx:amber:power";
+			gpios = <&chipcommon 2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		usb2 {
+			label = "bcm53xx:white:usb2";
+			gpios = <&chipcommon 3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		usb3-white {
+			label = "bcm53xx:white:usb3";
+			gpios = <&chipcommon 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		usb3-green {
+			label = "bcm53xx:green:usb3";
+			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		wps {
+			label = "bcm53xx:white:wps";
+			gpios = <&chipcommon 6 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		status-red {
+			label = "bcm53xx:red:status";
+			gpios = <&chipcommon 8 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		status-green {
+			label = "bcm53xx:green:status";
+			gpios = <&chipcommon 9 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		status-blue {
+			label = "bcm53xx:blue:status";
+			gpios = <&chipcommon 10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		wan-white {
+			label = "bcm53xx:white:wan";
+			gpios = <&chipcommon 12 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		wan-red {
+			label = "bcm53xx:red:wan";
+			gpios = <&chipcommon 13 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rfkill {
+			label = "WiFi";
+			linux,code = <KEY_RFKILL>;
+			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
+		};
+
+		wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
+		};
+
+		restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
+		};
+	};
+};

@@ -126,7 +126,6 @@ static int timbradio_probe(struct platform_device *pdev)
 	tr->video_dev.release = video_device_release_empty;
 	tr->video_dev.minor = -1;
 	tr->video_dev.lock = &tr->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &tr->video_dev.flags);
 
 	strlcpy(tr->v4l2_dev.name, DRIVER_NAME, sizeof(tr->v4l2_dev.name));
 	err = v4l2_device_register(NULL, &tr->v4l2_dev);
@@ -139,8 +138,10 @@ static int timbradio_probe(struct platform_device *pdev)
 		i2c_get_adapter(pdata->i2c_adapter), pdata->tuner, NULL);
 	tr->sd_dsp = v4l2_i2c_new_subdev_board(&tr->v4l2_dev,
 		i2c_get_adapter(pdata->i2c_adapter), pdata->dsp, NULL);
-	if (tr->sd_tuner == NULL || tr->sd_dsp == NULL)
+	if (tr->sd_tuner == NULL || tr->sd_dsp == NULL) {
+		err = -ENODEV;
 		goto err_video_req;
+	}
 
 	tr->v4l2_dev.ctrl_handler = tr->sd_dsp->ctrl_handler;
 
@@ -175,7 +176,6 @@ static int timbradio_remove(struct platform_device *pdev)
 static struct platform_driver timbradio_platform_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= timbradio_probe,
 	.remove		= timbradio_remove,

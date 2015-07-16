@@ -576,8 +576,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		      rq->cmd[0], (unsigned long long)blk_rq_pos(rq),
 		      blk_rq_sectors(rq));
 
-	BUG_ON(!(rq->cmd_type == REQ_TYPE_SPECIAL ||
-		 rq->cmd_type == REQ_TYPE_SENSE));
+	BUG_ON(!(rq->cmd_type == REQ_TYPE_DRV_PRIV ||
+		 rq->cmd_type == REQ_TYPE_ATA_SENSE));
 
 	/* Retry a failed packet command */
 	if (drive->failed_pc && drive->pc->c[0] == REQUEST_SENSE) {
@@ -853,7 +853,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
 	BUG_ON(size < 0 || size % tape->blk_size);
 
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	rq->cmd[13] = cmd;
 	rq->rq_disk = tape->disk;
 	rq->__sector = tape->first_frame;
@@ -1793,11 +1793,11 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	tape->best_dsc_rw_freq = clamp_t(unsigned long, t, IDETAPE_DSC_RW_MIN,
 					 IDETAPE_DSC_RW_MAX);
 	printk(KERN_INFO "ide-tape: %s <-> %s: %dKBps, %d*%dkB buffer, "
-		"%lums tDSC%s\n",
+		"%ums tDSC%s\n",
 		drive->name, tape->name, *(u16 *)&tape->caps[14],
 		(*(u16 *)&tape->caps[16] * 512) / tape->buffer_size,
 		tape->buffer_size / 1024,
-		tape->best_dsc_rw_freq * 1000 / HZ,
+		jiffies_to_msecs(tape->best_dsc_rw_freq),
 		(drive->dev_flags & IDE_DFLAG_USING_DMA) ? ", DMA" : "");
 
 	ide_proc_register_driver(drive, tape->driver);

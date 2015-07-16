@@ -57,7 +57,6 @@
  *  urb->dev->devnum, to make sure that we always have the right
  *  destination address.
  */
-#include <linux/init.h>
 #include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
@@ -80,7 +79,7 @@ static int __rpipe_get_descr(struct wahc *wa,
 		USB_REQ_GET_DESCRIPTOR,
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_RPIPE,
 		USB_DT_RPIPE<<8, index, descr, sizeof(*descr),
-		1000 /* FIXME: arbitrary */);
+		USB_CTRL_GET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "rpipe %u: get descriptor failed: %d\n",
 			index, (int)result);
@@ -118,7 +117,7 @@ static int __rpipe_set_descr(struct wahc *wa,
 		USB_REQ_SET_DESCRIPTOR,
 		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
 		USB_DT_RPIPE<<8, index, descr, sizeof(*descr),
-		HZ / 10);
+		USB_CTRL_SET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "rpipe %u: set descriptor failed: %d\n",
 			index, (int)result);
@@ -184,7 +183,7 @@ EXPORT_SYMBOL_GPL(rpipe_destroy);
 /*
  * Locate an idle rpipe, create an structure for it and return it
  *
- * @wa 	  is referenced and unlocked
+ * @wa	  is referenced and unlocked
  * @crs   enum rpipe_attr, required endpoint characteristics
  *
  * The rpipe can be used only sequentially (not in parallel).
@@ -237,7 +236,7 @@ static int __rpipe_reset(struct wahc *wa, unsigned index)
 		wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 		USB_REQ_RPIPE_RESET,
 		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
-		0, index, NULL, 0, 1000 /* FIXME: arbitrary */);
+		0, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (result < 0)
 		dev_err(dev, "rpipe %u: reset failed: %d\n",
 			index, result);
@@ -299,7 +298,7 @@ static struct usb_wireless_ep_comp_descriptor *rpipe_epc_find(
 			break;
 		}
 		itr += hdr->bLength;
-		itr_size -= hdr->bDescriptorType;
+		itr_size -= hdr->bLength;
 	}
 out:
 	return epcd;
@@ -308,7 +307,7 @@ out:
 /*
  * Aim an rpipe to its device & endpoint destination
  *
- * Make sure we change the address to unauthenticathed if the device
+ * Make sure we change the address to unauthenticated if the device
  * is WUSB and it is not authenticated.
  */
 static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
@@ -329,7 +328,8 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 	}
 	unauth = usb_dev->wusb && !usb_dev->authenticated ? 0x80 : 0;
 	__rpipe_reset(wa, le16_to_cpu(rpipe->descr.wRPipeIndex));
-	atomic_set(&rpipe->segs_available, le16_to_cpu(rpipe->descr.wRequests));
+	atomic_set(&rpipe->segs_available,
+		le16_to_cpu(rpipe->descr.wRequests));
 	/* FIXME: block allocation system; request with queuing and timeout */
 	/* FIXME: compute so seg_size > ep->maxpktsize */
 	rpipe->descr.wBlocks = cpu_to_le16(16);		/* given */
@@ -496,10 +496,9 @@ void wa_rpipes_destroy(struct wahc *wa)
 	struct device *dev = &wa->usb_iface->dev;
 
 	if (!bitmap_empty(wa->rpipe_bm, wa->rpipes)) {
-		char buf[256];
 		WARN_ON(1);
-		bitmap_scnprintf(buf, sizeof(buf), wa->rpipe_bm, wa->rpipes);
-		dev_err(dev, "BUG: pipes not released on exit: %s\n", buf);
+		dev_err(dev, "BUG: pipes not released on exit: %*pb\n",
+			wa->rpipes, wa->rpipe_bm);
 	}
 	kfree(wa->rpipe_bm);
 }
@@ -524,10 +523,10 @@ void rpipe_ep_disable(struct wahc *wa, struct usb_host_endpoint *ep)
 		u16 index = le16_to_cpu(rpipe->descr.wRPipeIndex);
 
 		usb_control_msg(
-			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
+			wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			USB_REQ_RPIPE_ABORT,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
-			0, index, NULL, 0, 1000 /* FIXME: arbitrary */);
+			0, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
 		rpipe_put(rpipe);
 	}
 	mutex_unlock(&wa->rpipe_mutex);
@@ -545,12 +544,11 @@ void rpipe_clear_feature_stalled(struct wahc *wa, struct usb_host_endpoint *ep)
 		u16 index = le16_to_cpu(rpipe->descr.wRPipeIndex);
 
 		usb_control_msg(
-			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
+			wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			USB_REQ_CLEAR_FEATURE,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
-			RPIPE_STALL, index, NULL, 0, 1000);
+			RPIPE_STALL, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	}
 	mutex_unlock(&wa->rpipe_mutex);
 }
 EXPORT_SYMBOL_GPL(rpipe_clear_feature_stalled);
-

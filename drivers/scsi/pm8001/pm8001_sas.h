@@ -466,11 +466,16 @@ struct pm8001_hba_memspace {
 	u64			membase;
 	u32			memsize;
 };
+struct isr_param {
+	struct pm8001_hba_info *drv_inst;
+	u32 irq_id;
+};
 struct pm8001_hba_info {
 	char			name[PM8001_NAME_LENGTH];
 	struct list_head	list;
 	unsigned long		flags;
 	spinlock_t		lock;/* host-wide lock */
+	spinlock_t		bitmap_lock;
 	struct pci_dev		*pdev;/* our device */
 	struct device		*dev;
 	struct pm8001_hba_memspace io_mem[6];
@@ -519,14 +524,13 @@ struct pm8001_hba_info {
 	int			number_of_intr;/*will be used in remove()*/
 #endif
 #ifdef PM8001_USE_TASKLET
-	struct tasklet_struct	tasklet;
+	struct tasklet_struct	tasklet[PM8001_MAX_MSIX_VEC];
 #endif
 	u32			logging_level;
 	u32			fw_status;
 	u32			smp_exp_mode;
-	u32			int_vector;
 	const struct firmware 	*fw_image;
-	u8			outq[PM8001_MAX_MSIX_VEC];
+	struct isr_param irq_vector[PM8001_MAX_MSIX_VEC];
 };
 
 struct pm8001_work {
@@ -613,15 +617,13 @@ extern struct workqueue_struct *pm8001_wq;
 int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out);
 void pm8001_tag_init(struct pm8001_hba_info *pm8001_ha);
 u32 pm8001_get_ncq_tag(struct sas_task *task, u32 *tag);
-void pm8001_ccb_free(struct pm8001_hba_info *pm8001_ha, u32 ccb_idx);
 void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task, struct pm8001_ccb_info *ccb, u32 ccb_idx);
 int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	void *funcdata);
 void pm8001_scan_start(struct Scsi_Host *shost);
 int pm8001_scan_finished(struct Scsi_Host *shost, unsigned long time);
-int pm8001_queue_command(struct sas_task *task, const int num,
-	gfp_t gfp_flags);
+int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags);
 int pm8001_abort_task(struct sas_task *task);
 int pm8001_abort_task_set(struct domain_device *dev, u8 *lun);
 int pm8001_clear_aca(struct domain_device *dev, u8 *lun);
@@ -704,6 +706,18 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 ssize_t pm8001_get_gsm_dump(struct device *cdev, u32, char *buf);
 /* ctl shared API */
 extern struct device_attribute *pm8001_host_attrs[];
+
+static inline void
+pm8001_ccb_task_free_done(struct pm8001_hba_info *pm8001_ha,
+			struct sas_task *task, struct pm8001_ccb_info *ccb,
+			u32 ccb_idx)
+{
+	pm8001_ccb_task_free(pm8001_ha, task, ccb, ccb_idx);
+	smp_mb(); /*in order to force CPU ordering*/
+	spin_unlock(&pm8001_ha->lock);
+	task->task_done(task);
+	spin_lock(&pm8001_ha->lock);
+}
 
 #endif
 

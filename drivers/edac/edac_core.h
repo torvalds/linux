@@ -66,7 +66,7 @@
 #define EDAC_PCI "PCI"
 #define EDAC_DEBUG "DEBUG"
 
-extern const char *edac_mem_types[];
+extern const char * const edac_mem_types[];
 
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
@@ -446,7 +446,9 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 				   unsigned n_layers,
 				   struct edac_mc_layer *layers,
 				   unsigned sz_pvt);
-extern int edac_mc_add_mc(struct mem_ctl_info *mci);
+extern int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
+				      const struct attribute_group **groups);
+#define edac_mc_add_mc(mci)	edac_mc_add_mc_with_groups(mci, NULL)
 extern void edac_mc_free(struct mem_ctl_info *mci);
 extern struct mem_ctl_info *edac_mc_find(int idx);
 extern struct mem_ctl_info *find_mci_by_dev(struct device *dev);

@@ -19,118 +19,68 @@
 #define BCM6368_CPU_ID		0x6368
 
 void __init bcm63xx_cpu_init(void);
-u16 __bcm63xx_get_cpu_id(void);
 u8 bcm63xx_get_cpu_rev(void);
 unsigned int bcm63xx_get_cpu_freq(void);
 
+static inline u16 __pure __bcm63xx_get_cpu_id(const u16 cpu_id)
+{
+	switch (cpu_id) {
 #ifdef CONFIG_BCM63XX_CPU_3368
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM3368_CPU_ID
-# endif
-# define BCMCPU_IS_3368()	(bcm63xx_get_cpu_id() == BCM3368_CPU_ID)
-#else
-# define BCMCPU_IS_3368()	(0)
+		case BCM3368_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6328
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6328_CPU_ID
-# endif
-# define BCMCPU_IS_6328()	(bcm63xx_get_cpu_id() == BCM6328_CPU_ID)
-#else
-# define BCMCPU_IS_6328()	(0)
+		case BCM6328_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6338
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6338_CPU_ID
-# endif
-# define BCMCPU_IS_6338()	(bcm63xx_get_cpu_id() == BCM6338_CPU_ID)
-#else
-# define BCMCPU_IS_6338()	(0)
+		case BCM6338_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6345
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6345_CPU_ID
-# endif
-# define BCMCPU_IS_6345()	(bcm63xx_get_cpu_id() == BCM6345_CPU_ID)
-#else
-# define BCMCPU_IS_6345()	(0)
+		case BCM6345_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6348
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6348_CPU_ID
-# endif
-# define BCMCPU_IS_6348()	(bcm63xx_get_cpu_id() == BCM6348_CPU_ID)
-#else
-# define BCMCPU_IS_6348()	(0)
+		case BCM6348_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6358
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6358_CPU_ID
-# endif
-# define BCMCPU_IS_6358()	(bcm63xx_get_cpu_id() == BCM6358_CPU_ID)
-#else
-# define BCMCPU_IS_6358()	(0)
+		case BCM6358_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6362
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6362_CPU_ID
-# endif
-# define BCMCPU_IS_6362()	(bcm63xx_get_cpu_id() == BCM6362_CPU_ID)
-#else
-# define BCMCPU_IS_6362()	(0)
+		case BCM6362_CPU_ID:
 #endif
-
 
 #ifdef CONFIG_BCM63XX_CPU_6368
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6368_CPU_ID
-# endif
-# define BCMCPU_IS_6368()	(bcm63xx_get_cpu_id() == BCM6368_CPU_ID)
-#else
-# define BCMCPU_IS_6368()	(0)
+		case BCM6368_CPU_ID:
 #endif
+		break;
+	default:
+		unreachable();
+	}
 
-#ifndef bcm63xx_get_cpu_id
-#error "No CPU support configured"
-#endif
+	return cpu_id;
+}
+
+extern u16 bcm63xx_cpu_id;
+
+static inline u16 __pure bcm63xx_get_cpu_id(void)
+{
+	const u16 cpu_id = bcm63xx_cpu_id;
+
+	return __bcm63xx_get_cpu_id(cpu_id);
+}
+
+#define BCMCPU_IS_3368()	(bcm63xx_get_cpu_id() == BCM3368_CPU_ID)
+#define BCMCPU_IS_6328()	(bcm63xx_get_cpu_id() == BCM6328_CPU_ID)
+#define BCMCPU_IS_6338()	(bcm63xx_get_cpu_id() == BCM6338_CPU_ID)
+#define BCMCPU_IS_6345()	(bcm63xx_get_cpu_id() == BCM6345_CPU_ID)
+#define BCMCPU_IS_6348()	(bcm63xx_get_cpu_id() == BCM6348_CPU_ID)
+#define BCMCPU_IS_6358()	(bcm63xx_get_cpu_id() == BCM6358_CPU_ID)
+#define BCMCPU_IS_6362()	(bcm63xx_get_cpu_id() == BCM6362_CPU_ID)
+#define BCMCPU_IS_6368()	(bcm63xx_get_cpu_id() == BCM6368_CPU_ID)
 
 /*
  * While registers sets are (mostly) the same across 63xx CPU, base
@@ -145,6 +95,7 @@ enum bcm63xx_regs_set {
 	RSET_UART1,
 	RSET_GPIO,
 	RSET_SPI,
+	RSET_HSSPI,
 	RSET_UDC0,
 	RSET_OHCI0,
 	RSET_OHCI_PRIV,
@@ -193,6 +144,7 @@ enum bcm63xx_regs_set {
 #define RSET_ENETDMAS_SIZE(chans)	(16 * (chans))
 #define RSET_ENETSW_SIZE		65536
 #define RSET_UART_SIZE			24
+#define RSET_HSSPI_SIZE			1536
 #define RSET_UDC_SIZE			256
 #define RSET_OHCI_SIZE			256
 #define RSET_EHCI_SIZE			256
@@ -265,6 +217,7 @@ enum bcm63xx_regs_set {
 #define BCM_6328_UART1_BASE		(0xb0000120)
 #define BCM_6328_GPIO_BASE		(0xb0000080)
 #define BCM_6328_SPI_BASE		(0xdeadbeef)
+#define BCM_6328_HSSPI_BASE		(0xb0001000)
 #define BCM_6328_UDC0_BASE		(0xdeadbeef)
 #define BCM_6328_USBDMA_BASE		(0xb000c000)
 #define BCM_6328_OHCI0_BASE		(0xb0002600)
@@ -313,6 +266,7 @@ enum bcm63xx_regs_set {
 #define BCM_6338_UART1_BASE		(0xdeadbeef)
 #define BCM_6338_GPIO_BASE		(0xfffe0400)
 #define BCM_6338_SPI_BASE		(0xfffe0c00)
+#define BCM_6338_HSSPI_BASE		(0xdeadbeef)
 #define BCM_6338_UDC0_BASE		(0xdeadbeef)
 #define BCM_6338_USBDMA_BASE		(0xfffe2400)
 #define BCM_6338_OHCI0_BASE		(0xdeadbeef)
@@ -360,6 +314,7 @@ enum bcm63xx_regs_set {
 #define BCM_6345_UART1_BASE		(0xdeadbeef)
 #define BCM_6345_GPIO_BASE		(0xfffe0400)
 #define BCM_6345_SPI_BASE		(0xdeadbeef)
+#define BCM_6345_HSSPI_BASE		(0xdeadbeef)
 #define BCM_6345_UDC0_BASE		(0xdeadbeef)
 #define BCM_6345_USBDMA_BASE		(0xfffe2800)
 #define BCM_6345_ENET0_BASE		(0xfffe1800)
@@ -406,6 +361,7 @@ enum bcm63xx_regs_set {
 #define BCM_6348_UART1_BASE		(0xdeadbeef)
 #define BCM_6348_GPIO_BASE		(0xfffe0400)
 #define BCM_6348_SPI_BASE		(0xfffe0c00)
+#define BCM_6348_HSSPI_BASE		(0xdeadbeef)
 #define BCM_6348_UDC0_BASE		(0xfffe1000)
 #define BCM_6348_USBDMA_BASE		(0xdeadbeef)
 #define BCM_6348_OHCI0_BASE		(0xfffe1b00)
@@ -451,6 +407,7 @@ enum bcm63xx_regs_set {
 #define BCM_6358_UART1_BASE		(0xfffe0120)
 #define BCM_6358_GPIO_BASE		(0xfffe0080)
 #define BCM_6358_SPI_BASE		(0xfffe0800)
+#define BCM_6358_HSSPI_BASE		(0xdeadbeef)
 #define BCM_6358_UDC0_BASE		(0xfffe0800)
 #define BCM_6358_USBDMA_BASE		(0xdeadbeef)
 #define BCM_6358_OHCI0_BASE		(0xfffe1400)
@@ -553,6 +510,7 @@ enum bcm63xx_regs_set {
 #define BCM_6368_UART1_BASE		(0xb0000120)
 #define BCM_6368_GPIO_BASE		(0xb0000080)
 #define BCM_6368_SPI_BASE		(0xb0000800)
+#define BCM_6368_HSSPI_BASE		(0xdeadbeef)
 #define BCM_6368_UDC0_BASE		(0xdeadbeef)
 #define BCM_6368_USBDMA_BASE		(0xb0004800)
 #define BCM_6368_OHCI0_BASE		(0xb0001600)
@@ -590,54 +548,6 @@ enum bcm63xx_regs_set {
 
 extern const unsigned long *bcm63xx_regs_base;
 
-#define __GEN_RSET_BASE(__cpu, __rset)					\
-	case RSET_## __rset :						\
-		return BCM_## __cpu ##_## __rset ##_BASE;
-
-#define __GEN_RSET(__cpu)						\
-	switch (set) {							\
-	__GEN_RSET_BASE(__cpu, DSL_LMEM)				\
-	__GEN_RSET_BASE(__cpu, PERF)					\
-	__GEN_RSET_BASE(__cpu, TIMER)					\
-	__GEN_RSET_BASE(__cpu, WDT)					\
-	__GEN_RSET_BASE(__cpu, UART0)					\
-	__GEN_RSET_BASE(__cpu, UART1)					\
-	__GEN_RSET_BASE(__cpu, GPIO)					\
-	__GEN_RSET_BASE(__cpu, SPI)					\
-	__GEN_RSET_BASE(__cpu, UDC0)					\
-	__GEN_RSET_BASE(__cpu, OHCI0)					\
-	__GEN_RSET_BASE(__cpu, OHCI_PRIV)				\
-	__GEN_RSET_BASE(__cpu, USBH_PRIV)				\
-	__GEN_RSET_BASE(__cpu, USBD)					\
-	__GEN_RSET_BASE(__cpu, USBDMA)					\
-	__GEN_RSET_BASE(__cpu, MPI)					\
-	__GEN_RSET_BASE(__cpu, PCMCIA)					\
-	__GEN_RSET_BASE(__cpu, PCIE)					\
-	__GEN_RSET_BASE(__cpu, DSL)					\
-	__GEN_RSET_BASE(__cpu, ENET0)					\
-	__GEN_RSET_BASE(__cpu, ENET1)					\
-	__GEN_RSET_BASE(__cpu, ENETDMA)					\
-	__GEN_RSET_BASE(__cpu, ENETDMAC)				\
-	__GEN_RSET_BASE(__cpu, ENETDMAS)				\
-	__GEN_RSET_BASE(__cpu, ENETSW)					\
-	__GEN_RSET_BASE(__cpu, EHCI0)					\
-	__GEN_RSET_BASE(__cpu, SDRAM)					\
-	__GEN_RSET_BASE(__cpu, MEMC)					\
-	__GEN_RSET_BASE(__cpu, DDR)					\
-	__GEN_RSET_BASE(__cpu, M2M)					\
-	__GEN_RSET_BASE(__cpu, ATM)					\
-	__GEN_RSET_BASE(__cpu, XTM)					\
-	__GEN_RSET_BASE(__cpu, XTMDMA)					\
-	__GEN_RSET_BASE(__cpu, XTMDMAC)					\
-	__GEN_RSET_BASE(__cpu, XTMDMAS)					\
-	__GEN_RSET_BASE(__cpu, PCM)					\
-	__GEN_RSET_BASE(__cpu, PCMDMA)					\
-	__GEN_RSET_BASE(__cpu, PCMDMAC)					\
-	__GEN_RSET_BASE(__cpu, PCMDMAS)					\
-	__GEN_RSET_BASE(__cpu, RNG)					\
-	__GEN_RSET_BASE(__cpu, MISC)					\
-	}
-
 #define __GEN_CPU_REGS_TABLE(__cpu)					\
 	[RSET_DSL_LMEM]		= BCM_## __cpu ##_DSL_LMEM_BASE,	\
 	[RSET_PERF]		= BCM_## __cpu ##_PERF_BASE,		\
@@ -647,6 +557,7 @@ extern const unsigned long *bcm63xx_regs_base;
 	[RSET_UART1]		= BCM_## __cpu ##_UART1_BASE,		\
 	[RSET_GPIO]		= BCM_## __cpu ##_GPIO_BASE,		\
 	[RSET_SPI]		= BCM_## __cpu ##_SPI_BASE,		\
+	[RSET_HSSPI]		= BCM_## __cpu ##_HSSPI_BASE,		\
 	[RSET_UDC0]		= BCM_## __cpu ##_UDC0_BASE,		\
 	[RSET_OHCI0]		= BCM_## __cpu ##_OHCI0_BASE,		\
 	[RSET_OHCI_PRIV]	= BCM_## __cpu ##_OHCI_PRIV_BASE,	\
@@ -683,36 +594,7 @@ extern const unsigned long *bcm63xx_regs_base;
 
 static inline unsigned long bcm63xx_regset_address(enum bcm63xx_regs_set set)
 {
-#ifdef BCMCPU_RUNTIME_DETECT
 	return bcm63xx_regs_base[set];
-#else
-#ifdef CONFIG_BCM63XX_CPU_3368
-	__GEN_RSET(3368)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6328
-	__GEN_RSET(6328)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6338
-	__GEN_RSET(6338)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6345
-	__GEN_RSET(6345)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6348
-	__GEN_RSET(6348)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6358
-	__GEN_RSET(6358)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6362
-	__GEN_RSET(6362)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6368
-	__GEN_RSET(6368)
-#endif
-#endif
-	/* unreached */
-	return 0;
 }
 
 /*
@@ -727,6 +609,7 @@ enum bcm63xx_irq {
 	IRQ_ENET0,
 	IRQ_ENET1,
 	IRQ_ENET_PHY,
+	IRQ_HSSPI,
 	IRQ_OHCI0,
 	IRQ_EHCI0,
 	IRQ_USBD,
@@ -815,6 +698,7 @@ enum bcm63xx_irq {
 #define BCM_6328_ENET0_IRQ		0
 #define BCM_6328_ENET1_IRQ		0
 #define BCM_6328_ENET_PHY_IRQ		(IRQ_INTERNAL_BASE + 12)
+#define BCM_6328_HSSPI_IRQ		(IRQ_INTERNAL_BASE + 29)
 #define BCM_6328_OHCI0_IRQ		(BCM_6328_HIGH_IRQ_BASE + 9)
 #define BCM_6328_EHCI0_IRQ		(BCM_6328_HIGH_IRQ_BASE + 10)
 #define BCM_6328_USBD_IRQ		(IRQ_INTERNAL_BASE + 4)
@@ -860,6 +744,7 @@ enum bcm63xx_irq {
 #define BCM_6338_ENET0_IRQ		(IRQ_INTERNAL_BASE + 8)
 #define BCM_6338_ENET1_IRQ		0
 #define BCM_6338_ENET_PHY_IRQ		(IRQ_INTERNAL_BASE + 9)
+#define BCM_6338_HSSPI_IRQ		0
 #define BCM_6338_OHCI0_IRQ		0
 #define BCM_6338_EHCI0_IRQ		0
 #define BCM_6338_USBD_IRQ		0
@@ -898,6 +783,7 @@ enum bcm63xx_irq {
 #define BCM_6345_ENET0_IRQ		(IRQ_INTERNAL_BASE + 8)
 #define BCM_6345_ENET1_IRQ		0
 #define BCM_6345_ENET_PHY_IRQ		(IRQ_INTERNAL_BASE + 12)
+#define BCM_6345_HSSPI_IRQ		0
 #define BCM_6345_OHCI0_IRQ		0
 #define BCM_6345_EHCI0_IRQ		0
 #define BCM_6345_USBD_IRQ		0
@@ -936,6 +822,7 @@ enum bcm63xx_irq {
 #define BCM_6348_ENET0_IRQ		(IRQ_INTERNAL_BASE + 8)
 #define BCM_6348_ENET1_IRQ		(IRQ_INTERNAL_BASE + 7)
 #define BCM_6348_ENET_PHY_IRQ		(IRQ_INTERNAL_BASE + 9)
+#define BCM_6348_HSSPI_IRQ		0
 #define BCM_6348_OHCI0_IRQ		(IRQ_INTERNAL_BASE + 12)
 #define BCM_6348_EHCI0_IRQ		0
 #define BCM_6348_USBD_IRQ		0
@@ -974,6 +861,7 @@ enum bcm63xx_irq {
 #define BCM_6358_ENET0_IRQ		(IRQ_INTERNAL_BASE + 8)
 #define BCM_6358_ENET1_IRQ		(IRQ_INTERNAL_BASE + 6)
 #define BCM_6358_ENET_PHY_IRQ		(IRQ_INTERNAL_BASE + 9)
+#define BCM_6358_HSSPI_IRQ		0
 #define BCM_6358_OHCI0_IRQ		(IRQ_INTERNAL_BASE + 5)
 #define BCM_6358_EHCI0_IRQ		(IRQ_INTERNAL_BASE + 10)
 #define BCM_6358_USBD_IRQ		0
@@ -1086,6 +974,7 @@ enum bcm63xx_irq {
 #define BCM_6368_ENET0_IRQ		0
 #define BCM_6368_ENET1_IRQ		0
 #define BCM_6368_ENET_PHY_IRQ		(IRQ_INTERNAL_BASE + 15)
+#define BCM_6368_HSSPI_IRQ		0
 #define BCM_6368_OHCI0_IRQ		(IRQ_INTERNAL_BASE + 5)
 #define BCM_6368_EHCI0_IRQ		(IRQ_INTERNAL_BASE + 7)
 #define BCM_6368_USBD_IRQ		(IRQ_INTERNAL_BASE + 8)
@@ -1133,6 +1022,7 @@ extern const int *bcm63xx_irqs;
 	[IRQ_ENET0]		= BCM_## __cpu ##_ENET0_IRQ,		\
 	[IRQ_ENET1]		= BCM_## __cpu ##_ENET1_IRQ,		\
 	[IRQ_ENET_PHY]		= BCM_## __cpu ##_ENET_PHY_IRQ,		\
+	[IRQ_HSSPI]		= BCM_## __cpu ##_HSSPI_IRQ,		\
 	[IRQ_OHCI0]		= BCM_## __cpu ##_OHCI0_IRQ,		\
 	[IRQ_EHCI0]		= BCM_## __cpu ##_EHCI0_IRQ,		\
 	[IRQ_USBD]		= BCM_## __cpu ##_USBD_IRQ,		\

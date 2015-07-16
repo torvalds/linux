@@ -367,7 +367,6 @@ static struct scsi_host_template cumanascsi2_template = {
 	.this_id			= 7,
 	.sg_tablesize			= SCSI_MAX_SG_CHAIN_SEGMENTS,
 	.dma_boundary			= IOMD_DMA_BOUNDARY,
-	.cmd_per_lun			= 1,
 	.use_clustering			= DISABLE_CLUSTERING,
 	.proc_name			= "cumanascsi2",
 };
@@ -431,7 +430,7 @@ static int cumanascsi2_probe(struct expansion_card *ec,
 		goto out_free;
 
 	ret = request_irq(ec->irq, cumanascsi_2_intr,
-			  IRQF_DISABLED, "cumanascsi2", info);
+			  0, "cumanascsi2", info);
 	if (ret) {
 		printk("scsi%d: IRQ%d not free: %d\n",
 		       host->host_no, ec->irq, ret);

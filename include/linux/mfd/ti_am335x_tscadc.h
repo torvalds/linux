@@ -52,6 +52,7 @@
 
 /* IRQ enable */
 #define IRQENB_HW_PEN		BIT(0)
+#define IRQENB_EOS		BIT(1)
 #define IRQENB_FIFO0THRES	BIT(2)
 #define IRQENB_FIFO0OVRRUN	BIT(3)
 #define IRQENB_FIFO0UNDRFLW	BIT(4)
@@ -107,7 +108,7 @@
 /* Charge delay */
 #define CHARGEDLY_OPEN_MASK	(0x3FFFF << 0)
 #define CHARGEDLY_OPEN(val)	((val) << 0)
-#define CHARGEDLY_OPENDLY	CHARGEDLY_OPEN(1)
+#define CHARGEDLY_OPENDLY	CHARGEDLY_OPEN(0x400)
 
 /* Control register */
 #define CNTRLREG_TSCSSENB	BIT(0)
@@ -127,6 +128,7 @@
 
 /* Sequencer Status */
 #define SEQ_STATUS BIT(5)
+#define CHARGE_STEP		0x11
 
 #define ADC_CLK			3000000
 #define TOTAL_STEPS		16
@@ -155,10 +157,14 @@ struct ti_tscadc_dev {
 	void __iomem *tscadc_base;
 	int irq;
 	int used_cells;	/* 1-2 */
+	int tsc_wires;
 	int tsc_cell;	/* -1 if not used */
 	int adc_cell;	/* -1 if not used */
 	struct mfd_cell cells[TSCADC_CELLS];
 	u32 reg_se_cache;
+	bool adc_waiting;
+	bool adc_in_use;
+	wait_queue_head_t reg_se_wait;
 	spinlock_t reg_lock;
 	unsigned int clk_div;
 
@@ -176,8 +182,9 @@ static inline struct ti_tscadc_dev *ti_tscadc_dev_get(struct platform_device *p)
 	return *tscadc_dev;
 }
 
-void am335x_tsc_se_update(struct ti_tscadc_dev *tsadc);
-void am335x_tsc_se_set(struct ti_tscadc_dev *tsadc, u32 val);
+void am335x_tsc_se_set_cache(struct ti_tscadc_dev *tsadc, u32 val);
+void am335x_tsc_se_set_once(struct ti_tscadc_dev *tsadc, u32 val);
 void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val);
+void am335x_tsc_se_adc_done(struct ti_tscadc_dev *tsadc);
 
 #endif

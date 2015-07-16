@@ -90,6 +90,18 @@ struct cpu_spec {
 	 * if the error is fatal, 1 if it was fully recovered and 0 to
 	 * pass up (not CPU originated) */
 	int		(*machine_check)(struct pt_regs *regs);
+
+	/*
+	 * Processor specific early machine check handler which is
+	 * called in real mode to handle SLB and TLB errors.
+	 */
+	long		(*machine_check_early)(struct pt_regs *regs);
+
+	/*
+	 * Processor specific routine to flush tlbs.
+	 */
+	void		(*flush_tlb)(unsigned int action);
+
 };
 
 extern struct cpu_spec		*cur_cpu_spec;
@@ -101,6 +113,12 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 			      void *fixup_end);
 
 extern const char *powerpc_base_platform;
+
+/* TLB flush actions. Used as argument to cpu_spec.flush_tlb() hook */
+enum {
+	TLB_INVAL_SCOPE_GLOBAL = 0,	/* invalidate all TLBs */
+	TLB_INVAL_SCOPE_LPID = 1,	/* invalidate TLBs for current LPID */
+};
 
 #endif /* __ASSEMBLY__ */
 
@@ -153,7 +171,7 @@ extern const char *powerpc_base_platform;
 #define CPU_FTR_ARCH_201		LONG_ASM_CONST(0x0000000200000000)
 #define CPU_FTR_ARCH_206		LONG_ASM_CONST(0x0000000400000000)
 #define CPU_FTR_ARCH_207S		LONG_ASM_CONST(0x0000000800000000)
-#define CPU_FTR_IABR			LONG_ASM_CONST(0x0000001000000000)
+/* Free					LONG_ASM_CONST(0x0000001000000000) */
 #define CPU_FTR_MMCRA			LONG_ASM_CONST(0x0000002000000000)
 #define CPU_FTR_CTRL			LONG_ASM_CONST(0x0000004000000000)
 #define CPU_FTR_SMT			LONG_ASM_CONST(0x0000008000000000)
@@ -177,13 +195,13 @@ extern const char *powerpc_base_platform;
 #define	CPU_FTR_HAS_PPR			LONG_ASM_CONST(0x0200000000000000)
 #define CPU_FTR_DAWR			LONG_ASM_CONST(0x0400000000000000)
 #define CPU_FTR_DABRX			LONG_ASM_CONST(0x0800000000000000)
+#define CPU_FTR_PMAO_BUG		LONG_ASM_CONST(0x1000000000000000)
 
 #ifndef __ASSEMBLY__
 
 #define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_NOEXECUTE | CPU_FTR_NODSISRALIGN)
 
-#define MMU_FTR_PPCAS_ARCH_V2 	(MMU_FTR_SLB | MMU_FTR_TLBIEL | \
-				 MMU_FTR_16M_PAGE)
+#define MMU_FTR_PPCAS_ARCH_V2 	(MMU_FTR_TLBIEL | MMU_FTR_16M_PAGE)
 
 /* We only set the altivec features if the kernel was compiled with altivec
  * support
@@ -224,11 +242,13 @@ extern const char *powerpc_base_platform;
 
 /* We only set the TM feature if the kernel was compiled with TM supprt */
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-#define CPU_FTR_TM_COMP		CPU_FTR_TM
-#define PPC_FEATURE2_HTM_COMP	PPC_FEATURE2_HTM
+#define CPU_FTR_TM_COMP			CPU_FTR_TM
+#define PPC_FEATURE2_HTM_COMP		PPC_FEATURE2_HTM
+#define PPC_FEATURE2_HTM_NOSC_COMP	PPC_FEATURE2_HTM_NOSC
 #else
-#define CPU_FTR_TM_COMP		0
-#define PPC_FEATURE2_HTM_COMP	0
+#define CPU_FTR_TM_COMP			0
+#define PPC_FEATURE2_HTM_COMP		0
+#define PPC_FEATURE2_HTM_NOSC_COMP	0
 #endif
 
 /* We need to mark all pages as being coherent if we're SMP or we have a
@@ -254,10 +274,6 @@ extern const char *powerpc_base_platform;
 #define CPU_FTR_MAYBE_CAN_DOZE	0
 #define CPU_FTR_MAYBE_CAN_NAP	0
 #endif
-
-#define CLASSIC_PPC (!defined(CONFIG_8xx) && !defined(CONFIG_4xx) && \
-		     !defined(CONFIG_POWER3) && !defined(CONFIG_POWER4) && \
-		     !defined(CONFIG_BOOKE))
 
 #define CPU_FTRS_PPC601	(CPU_FTR_COMMON | CPU_FTR_601 | \
 	CPU_FTR_COHERENT_ICACHE | CPU_FTR_UNIFIED_ID_CACHE)
@@ -352,7 +368,7 @@ extern const char *powerpc_base_platform;
 	    CPU_FTR_USE_TB | CPU_FTR_MAYBE_CAN_NAP | \
 	    CPU_FTR_COMMON | CPU_FTR_FPU_UNAVAILABLE)
 #define CPU_FTRS_CLASSIC32	(CPU_FTR_COMMON | CPU_FTR_USE_TB)
-#define CPU_FTRS_8XX	(CPU_FTR_USE_TB)
+#define CPU_FTRS_8XX	(CPU_FTR_USE_TB | CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_40X	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_44X	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_440x6	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE | \
@@ -383,15 +399,10 @@ extern const char *powerpc_base_platform;
 	    CPU_FTR_L2CSR | CPU_FTR_LWSYNC | CPU_FTR_NOEXECUTE | \
 	    CPU_FTR_DBELL | CPU_FTR_POPCNTB | CPU_FTR_POPCNTD | \
 	    CPU_FTR_DEBUG_LVL_EXC | CPU_FTR_EMB_HV | CPU_FTR_ALTIVEC_COMP | \
-	    CPU_FTR_CELL_TB_BUG)
+	    CPU_FTR_CELL_TB_BUG | CPU_FTR_SMT)
 #define CPU_FTRS_GENERIC_32	(CPU_FTR_COMMON | CPU_FTR_NODSISRALIGN)
 
 /* 64-bit CPUs */
-#define CPU_FTRS_POWER3	(CPU_FTR_USE_TB | \
-	    CPU_FTR_IABR | CPU_FTR_PPC_LE)
-#define CPU_FTRS_RS64	(CPU_FTR_USE_TB | \
-	    CPU_FTR_IABR | \
-	    CPU_FTR_MMCRA | CPU_FTR_CTRL)
 #define CPU_FTRS_POWER4	(CPU_FTR_USE_TB | CPU_FTR_LWSYNC | \
 	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
 	    CPU_FTR_MMCRA | CPU_FTR_CP_USE_DCBTZ | \
@@ -433,6 +444,8 @@ extern const char *powerpc_base_platform;
 	    CPU_FTR_ICSWX | CPU_FTR_CFAR | CPU_FTR_HVMODE | CPU_FTR_VMX_COPY | \
 	    CPU_FTR_DBELL | CPU_FTR_HAS_PPR | CPU_FTR_DAWR | \
 	    CPU_FTR_ARCH_207S | CPU_FTR_TM_COMP)
+#define CPU_FTRS_POWER8E (CPU_FTRS_POWER8 | CPU_FTR_PMAO_BUG)
+#define CPU_FTRS_POWER8_DD1 (CPU_FTRS_POWER8 & ~CPU_FTR_DBELL)
 #define CPU_FTRS_CELL	(CPU_FTR_USE_TB | CPU_FTR_LWSYNC | \
 	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
 	    CPU_FTR_ALTIVEC_COMP | CPU_FTR_MMCRA | CPU_FTR_SMT | \
@@ -443,24 +456,20 @@ extern const char *powerpc_base_platform;
 	    CPU_FTR_PURR | CPU_FTR_REAL_LE | CPU_FTR_DABRX)
 #define CPU_FTRS_COMPATIBLE	(CPU_FTR_USE_TB | CPU_FTR_PPCAS_ARCH_V2)
 
-#define CPU_FTRS_A2 (CPU_FTR_USE_TB | CPU_FTR_SMT | CPU_FTR_DBELL | \
-		     CPU_FTR_NOEXECUTE | CPU_FTR_NODSISRALIGN | \
-		     CPU_FTR_ICSWX | CPU_FTR_DABRX )
-
 #ifdef __powerpc64__
 #ifdef CONFIG_PPC_BOOK3E
-#define CPU_FTRS_POSSIBLE	(CPU_FTRS_E6500 | CPU_FTRS_E5500 | CPU_FTRS_A2)
+#define CPU_FTRS_POSSIBLE	(CPU_FTRS_E6500 | CPU_FTRS_E5500)
 #else
 #define CPU_FTRS_POSSIBLE	\
-	    (CPU_FTRS_POWER3 | CPU_FTRS_RS64 | CPU_FTRS_POWER4 |	\
-	    CPU_FTRS_PPC970 | CPU_FTRS_POWER5 | CPU_FTRS_POWER6 |	\
-	    CPU_FTRS_POWER7 | CPU_FTRS_POWER8 | CPU_FTRS_CELL |		\
-	    CPU_FTRS_PA6T | CPU_FTR_VSX)
+	    (CPU_FTRS_POWER4 | CPU_FTRS_PPC970 | CPU_FTRS_POWER5 | \
+	     CPU_FTRS_POWER6 | CPU_FTRS_POWER7 | CPU_FTRS_POWER8E | \
+	     CPU_FTRS_POWER8 | CPU_FTRS_POWER8_DD1 | CPU_FTRS_CELL | \
+	     CPU_FTRS_PA6T | CPU_FTR_VSX)
 #endif
 #else
 enum {
 	CPU_FTRS_POSSIBLE =
-#if CLASSIC_PPC
+#ifdef CONFIG_PPC_BOOK3S_32
 	    CPU_FTRS_PPC601 | CPU_FTRS_603 | CPU_FTRS_604 | CPU_FTRS_740_NOTAU |
 	    CPU_FTRS_740 | CPU_FTRS_750 | CPU_FTRS_750FX1 |
 	    CPU_FTRS_750FX2 | CPU_FTRS_750FX | CPU_FTRS_750GX |
@@ -500,17 +509,18 @@ enum {
 
 #ifdef __powerpc64__
 #ifdef CONFIG_PPC_BOOK3E
-#define CPU_FTRS_ALWAYS		(CPU_FTRS_E6500 & CPU_FTRS_E5500 & CPU_FTRS_A2)
+#define CPU_FTRS_ALWAYS		(CPU_FTRS_E6500 & CPU_FTRS_E5500)
 #else
 #define CPU_FTRS_ALWAYS		\
-	    (CPU_FTRS_POWER3 & CPU_FTRS_RS64 & CPU_FTRS_POWER4 &	\
-	    CPU_FTRS_PPC970 & CPU_FTRS_POWER5 & CPU_FTRS_POWER6 &	\
-	    CPU_FTRS_POWER7 & CPU_FTRS_CELL & CPU_FTRS_PA6T & CPU_FTRS_POSSIBLE)
+	    (CPU_FTRS_POWER4 & CPU_FTRS_PPC970 & CPU_FTRS_POWER5 & \
+	     CPU_FTRS_POWER6 & CPU_FTRS_POWER7 & CPU_FTRS_CELL & \
+	     CPU_FTRS_PA6T & CPU_FTRS_POWER8 & CPU_FTRS_POWER8E & \
+	     CPU_FTRS_POWER8_DD1 & ~CPU_FTR_HVMODE & CPU_FTRS_POSSIBLE)
 #endif
 #else
 enum {
 	CPU_FTRS_ALWAYS =
-#if CLASSIC_PPC
+#ifdef CONFIG_PPC_BOOK3S_32
 	    CPU_FTRS_PPC601 & CPU_FTRS_603 & CPU_FTRS_604 & CPU_FTRS_740_NOTAU &
 	    CPU_FTRS_740 & CPU_FTRS_750 & CPU_FTRS_750FX1 &
 	    CPU_FTRS_750FX2 & CPU_FTRS_750FX & CPU_FTRS_750GX &

@@ -78,14 +78,19 @@ static void mq_attach(struct Qdisc *sch)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mq_sched *priv = qdisc_priv(sch);
-	struct Qdisc *qdisc;
+	struct Qdisc *qdisc, *old;
 	unsigned int ntx;
 
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
 		qdisc = priv->qdiscs[ntx];
-		qdisc = dev_graft_qdisc(qdisc->dev_queue, qdisc);
-		if (qdisc)
-			qdisc_destroy(qdisc);
+		old = dev_graft_qdisc(qdisc->dev_queue, qdisc);
+		if (old)
+			qdisc_destroy(old);
+#ifdef CONFIG_NET_SCHED
+		if (ntx < dev->real_num_tx_queues)
+			qdisc_list_add(qdisc);
+#endif
+
 	}
 	kfree(priv->qdiscs);
 	priv->qdiscs = NULL;
@@ -107,7 +112,6 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 		sch->q.qlen		+= qdisc->q.qlen;
 		sch->bstats.bytes	+= qdisc->bstats.bytes;
 		sch->bstats.packets	+= qdisc->bstats.packets;
-		sch->qstats.qlen	+= qdisc->qstats.qlen;
 		sch->qstats.backlog	+= qdisc->qstats.backlog;
 		sch->qstats.drops	+= qdisc->qstats.drops;
 		sch->qstats.requeues	+= qdisc->qstats.requeues;
@@ -195,9 +199,8 @@ static int mq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	struct netdev_queue *dev_queue = mq_queue_get(sch, cl);
 
 	sch = dev_queue->qdisc_sleeping;
-	sch->qstats.qlen = sch->q.qlen;
-	if (gnet_stats_copy_basic(d, &sch->bstats) < 0 ||
-	    gnet_stats_copy_queue(d, &sch->qstats) < 0)
+	if (gnet_stats_copy_basic(d, NULL, &sch->bstats) < 0 ||
+	    gnet_stats_copy_queue(d, NULL, &sch->qstats, sch->q.qlen) < 0)
 		return -1;
 	return 0;
 }

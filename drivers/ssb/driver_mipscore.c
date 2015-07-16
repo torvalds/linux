@@ -15,6 +15,9 @@
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/time.h>
+#ifdef CONFIG_BCM47XX
+#include <linux/bcm47xx_nvram.h>
+#endif
 
 #include "ssb_private.h"
 
@@ -210,6 +213,7 @@ static void ssb_mips_serial_init(struct ssb_mipscore *mcore)
 static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 {
 	struct ssb_bus *bus = mcore->dev->bus;
+	struct ssb_sflash *sflash = &mcore->sflash;
 	struct ssb_pflash *pflash = &mcore->pflash;
 
 	/* When there is no chipcommon on the bus there is 4MB flash */
@@ -242,7 +246,15 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 	}
 
 ssb_pflash:
-	if (pflash->present) {
+	if (sflash->present) {
+#ifdef CONFIG_BCM47XX
+		bcm47xx_nvram_init_from_mem(sflash->window, sflash->size);
+#endif
+	} else if (pflash->present) {
+#ifdef CONFIG_BCM47XX
+		bcm47xx_nvram_init_from_mem(pflash->window, pflash->window_size);
+#endif
+
 		ssb_pflash_data.width = pflash->buswidth;
 		ssb_pflash_resource.start = pflash->window;
 		ssb_pflash_resource.end = pflash->window + pflash->window_size;

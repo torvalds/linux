@@ -273,7 +273,7 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id, int irq_ctx)
 	    (hwif->host_flags & IDE_HFLAG_BROKEN_ALTSTATUS) == 0) {
 		a = tp_ops->read_altstatus(hwif);
 		s = tp_ops->read_status(hwif);
-		if ((a ^ s) & ~ATA_IDX)
+		if ((a ^ s) & ~ATA_SENSE)
 			/* ancient Seagate drives, broken interfaces */
 			printk(KERN_INFO "%s: probing with STATUS(0x%02x) "
 					 "instead of ALTSTATUS(0x%02x)\n",
@@ -853,8 +853,9 @@ static int init_irq (ide_hwif_t *hwif)
 	if (irq_handler == NULL)
 		irq_handler = ide_intr;
 
-	if (request_irq(hwif->irq, irq_handler, sa, hwif->name, hwif))
-		goto out_up;
+	if (!host->get_lock)
+		if (request_irq(hwif->irq, irq_handler, sa, hwif->name, hwif))
+			goto out_up;
 
 #if !defined(__mc68000__)
 	printk(KERN_INFO "%s at 0x%03lx-0x%03lx,0x%03lx on irq %d", hwif->name,
@@ -1533,7 +1534,8 @@ static void ide_unregister(ide_hwif_t *hwif)
 
 	ide_proc_unregister_port(hwif);
 
-	free_irq(hwif->irq, hwif);
+	if (!hwif->host->get_lock)
+		free_irq(hwif->irq, hwif);
 
 	device_unregister(hwif->portdev);
 	device_unregister(&hwif->gendev);

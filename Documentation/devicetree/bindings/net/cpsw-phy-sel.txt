@@ -2,7 +2,9 @@ TI CPSW Phy mode Selection Device Tree Bindings
 -----------------------------------------------
 
 Required properties:
-- compatible		: Should be "ti,am3352-cpsw-phy-sel"
+- compatible		: Should be "ti,am3352-cpsw-phy-sel" for am335x platform and
+			  "ti,dra7xx-cpsw-phy-sel" for dra7xx platform
+			  "ti,am43xx-cpsw-phy-sel" for am43xx platform
 - reg			: physical base address and size of the cpsw
 			  registers map
 - reg-names		: names of the register map given in "reg" node

@@ -170,7 +170,7 @@ struct uart_pram {
     unsigned short  frmer;          /* Rx framing error counter */
     unsigned short  nosec;          /* Rx noise counter */
     unsigned short  brkec;          /* Rx break character counter */
-    unsigned short  brkln;          /* Reaceive break length */
+    unsigned short  brkln;          /* Receive break length */
                    
     unsigned short  uaddr1;         /* address character 1 */
     unsigned short  uaddr2;         /* address character 2 */
@@ -338,7 +338,7 @@ struct ethernet_pram {
     unsigned long   c_pres;         /* preset CRC */
     unsigned long   c_mask;         /* constant mask for CRC */
     unsigned long   crcec;          /* CRC error counter */
-    unsigned long   alec;           /* alighnment error counter */
+    unsigned long   alec;           /* alignment error counter */
     unsigned long   disfc;          /* discard frame counter */
     unsigned short  pads;           /* short frame PAD characters */
     unsigned short  ret_lim;        /* retry limit threshold */

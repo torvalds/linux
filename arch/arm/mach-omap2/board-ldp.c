@@ -242,11 +242,17 @@ static void __init ldp_display_init(void)
 
 static int ldp_twl_gpio_setup(struct device *dev, unsigned gpio, unsigned ngpio)
 {
+	int res;
+
 	/* LCD enable GPIO */
 	ldp_lcd_pdata.enable_gpio = gpio + 7;
 
 	/* Backlight enable GPIO */
 	ldp_lcd_pdata.backlight_gpio = gpio + 15;
+
+	res = platform_device_register(&ldp_lcd_device);
+	if (res)
+		pr_err("Unable to register LCD: %d\n", res);
 
 	return 0;
 }
@@ -346,7 +352,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 
 static struct platform_device *ldp_devices[] __initdata = {
 	&ldp_gpio_keys_device,
-	&ldp_lcd_device,
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -417,7 +422,6 @@ MACHINE_START(OMAP_LDP, "OMAP LDP board")
 	.map_io		= omap3_map_io,
 	.init_early	= omap3430_init_early,
 	.init_irq	= omap3_init_irq,
-	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_ldp_init,
 	.init_late	= omap3430_init_late,
 	.init_time	= omap3_sync32k_timer_init,

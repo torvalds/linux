@@ -327,7 +327,7 @@ static int pcm990_mci_init(struct device *dev, irq_handler_t mci_detect_int,
 {
 	int err;
 
-	err = request_irq(PCM027_MMCDET_IRQ, mci_detect_int, IRQF_DISABLED,
+	err = request_irq(PCM027_MMCDET_IRQ, mci_detect_int, 0,
 			     "MMC card detect", data);
 	if (err)
 		printk(KERN_ERR "pcm990_mci_init: MMC/SD: can't request MMC "

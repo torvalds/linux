@@ -52,7 +52,6 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/lp.h>
 #include <linux/mutex.h>
@@ -661,7 +660,8 @@ static long usblp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		switch (cmd) {
 
 		case LPGETSTATUS:
-			if ((retval = usblp_read_status(usblp, usblp->statusbuf))) {
+			retval = usblp_read_status(usblp, usblp->statusbuf);
+			if (retval) {
 				printk_ratelimited(KERN_ERR "usblp%d:"
 					    "failed reading printer status (%d)\n",
 					    usblp->minor, retval);
@@ -694,9 +694,11 @@ static struct urb *usblp_new_writeurb(struct usblp *usblp, int transfer_length)
 	struct urb *urb;
 	char *writebuf;
 
-	if ((writebuf = kmalloc(transfer_length, GFP_KERNEL)) == NULL)
+	writebuf = kmalloc(transfer_length, GFP_KERNEL);
+	if (writebuf == NULL)
 		return NULL;
-	if ((urb = usb_alloc_urb(0, GFP_KERNEL)) == NULL) {
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (urb == NULL) {
 		kfree(writebuf);
 		return NULL;
 	}
@@ -733,7 +735,8 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 			transfer_length = USBLP_BUF_SIZE;
 
 		rv = -ENOMEM;
-		if ((writeurb = usblp_new_writeurb(usblp, transfer_length)) == NULL)
+		writeurb = usblp_new_writeurb(usblp, transfer_length);
+		if (writeurb == NULL)
 			goto raise_urb;
 		usb_anchor_urb(writeurb, &usblp->urbs);
 
@@ -981,7 +984,8 @@ static int usblp_submit_read(struct usblp *usblp)
 	int rc;
 
 	rc = -ENOMEM;
-	if ((urb = usb_alloc_urb(0, GFP_KERNEL)) == NULL)
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (urb == NULL)
 		goto raise_urb;
 
 	usb_fill_bulk_urb(urb, usblp->dev,

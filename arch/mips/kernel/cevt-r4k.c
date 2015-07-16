@@ -12,17 +12,9 @@
 #include <linux/smp.h>
 #include <linux/irq.h>
 
-#include <asm/smtc_ipi.h>
 #include <asm/time.h>
 #include <asm/cevt-r4k.h>
-#include <asm/gic.h>
 
-/*
- * The SMTC Kernel for the 34K, 1004K, et. al. replaces several
- * of these routines with SMTC-specific variants.
- */
-
-#ifndef CONFIG_MIPS_MT_SMTC
 static int mips_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
@@ -36,8 +28,6 @@ static int mips_next_event(unsigned long delta,
 	return res;
 }
 
-#endif /* CONFIG_MIPS_MT_SMTC */
-
 void mips_set_clock_mode(enum clock_event_mode mode,
 				struct clock_event_device *evt)
 {
@@ -47,10 +37,27 @@ void mips_set_clock_mode(enum clock_event_mode mode,
 DEFINE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 int cp0_timer_irq_installed;
 
-#ifndef CONFIG_MIPS_MT_SMTC
+/*
+ * Possibly handle a performance counter interrupt.
+ * Return true if the timer interrupt should not be checked
+ */
+static inline int handle_perf_irq(int r2)
+{
+	/*
+	 * The performance counter overflow interrupt may be shared with the
+	 * timer interrupt (cp0_perfcount_irq < 0). If it is and a
+	 * performance counter has overflowed (perf_irq() == IRQ_HANDLED)
+	 * and we can't reliably determine if a counter interrupt has also
+	 * happened (!r2) then don't check for a timer interrupt.
+	 */
+	return (cp0_perfcount_irq < 0) &&
+		perf_irq() == IRQ_HANDLED &&
+		!r2;
+}
+
 irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 {
-	const int r2 = cpu_has_mips_r2;
+	const int r2 = cpu_has_mips_r2_r6;
 	struct clock_event_device *cd;
 	int cpu = smp_processor_id();
 
@@ -61,32 +68,32 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 	 * the performance counter interrupt handler anyway.
 	 */
 	if (handle_perf_irq(r2))
-		goto out;
+		return IRQ_HANDLED;
 
 	/*
 	 * The same applies to performance counter interrupts.	But with the
 	 * above we now know that the reason we got here must be a timer
 	 * interrupt.  Being the paranoiacs we are we check anyway.
 	 */
-	if (!r2 || (read_c0_cause() & (1 << 30))) {
+	if (!r2 || (read_c0_cause() & CAUSEF_TI)) {
 		/* Clear Count/Compare Interrupt */
 		write_c0_compare(read_c0_compare());
 		cd = &per_cpu(mips_clockevent_device, cpu);
-#ifdef CONFIG_CEVT_GIC
-		if (!gic_present)
-#endif
 		cd->event_handler(cd);
+
+		return IRQ_HANDLED;
 	}
 
-out:
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
-
-#endif /* Not CONFIG_MIPS_MT_SMTC */
 
 struct irqaction c0_compare_irqaction = {
 	.handler = c0_compare_interrupt,
-	.flags = IRQF_PERCPU | IRQF_TIMER,
+	/*
+	 * IRQF_SHARED: The timer interrupt may be shared with other interrupts
+	 * such as perf counter and FDC interrupts.
+	 */
+	.flags = IRQF_PERCPU | IRQF_TIMER | IRQF_SHARED,
 	.name = "timer",
 };
 
@@ -100,10 +107,7 @@ void mips_event_handler(struct clock_event_device *dev)
  */
 static int c0_compare_int_pending(void)
 {
-#ifdef CONFIG_IRQ_GIC
-	if (cpu_has_veic)
-		return gic_get_timer_pending();
-#endif
+	/* When cpu_has_mips_r2, this checks Cause.TI instead of Cause.IP7 */
 	return (read_c0_cause() >> cp0_compare_irq_shift) & (1ul << CAUSEB_IP);
 }
 
@@ -170,7 +174,6 @@ int c0_compare_int_usable(void)
 	return 1;
 }
 
-#ifndef CONFIG_MIPS_MT_SMTC
 int r4k_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -195,7 +198,9 @@ int r4k_clockevent_init(void)
 	cd = &per_cpu(mips_clockevent_device, cpu);
 
 	cd->name		= "MIPS";
-	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_C3STOP |
+				  CLOCK_EVT_FEAT_PERCPU;
 
 	clockevent_set_clock(cd, mips_hpt_frequency);
 
@@ -210,9 +215,6 @@ int r4k_clockevent_init(void)
 	cd->set_mode		= mips_set_clock_mode;
 	cd->event_handler	= mips_event_handler;
 
-#ifdef CONFIG_CEVT_GIC
-	if (!gic_present)
-#endif
 	clockevents_register_device(cd);
 
 	if (cp0_timer_irq_installed)
@@ -225,4 +227,3 @@ int r4k_clockevent_init(void)
 	return 0;
 }
 
-#endif /* Not CONFIG_MIPS_MT_SMTC */

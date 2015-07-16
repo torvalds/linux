@@ -76,7 +76,7 @@ static unsigned int ics_rtas_startup(struct irq_data *d)
 	 * at that level, so we do it here by hand.
 	 */
 	if (d->msi_desc)
-		unmask_msi_irq(d);
+		pci_msi_unmask_irq(d);
 #endif
 	/* unmask it */
 	ics_rtas_unmask_irq(d);
@@ -140,11 +140,8 @@ static int ics_rtas_set_affinity(struct irq_data *d,
 
 	irq_server = xics_get_irq_server(d->irq, cpumask, 1);
 	if (irq_server == -1) {
-		char cpulist[128];
-		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
-		printk(KERN_WARNING
-			"%s: No online cpus in the mask %s for irq %d\n",
-			__func__, cpulist, d->irq);
+		pr_warning("%s: No online cpus in the mask %*pb for irq %d\n",
+			   __func__, cpumask_pr_args(cpumask), d->irq);
 		return -1;
 	}
 

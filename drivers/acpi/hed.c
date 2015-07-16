@@ -25,11 +25,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 #include <acpi/hed.h>
 
-static struct acpi_device_id acpi_hed_ids[] = {
+static const struct acpi_device_id acpi_hed_ids[] = {
 	{"PNP0C33", 0},
 	{"", 0},
 };

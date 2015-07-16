@@ -68,6 +68,23 @@ Description:
                 Defines the penalty which will be applied to an
                 originator message's tq-field on every hop.
 
+What:		/sys/class/net/<mesh_iface>/mesh/isolation_mark
+Date:		Nov 2013
+Contact:	Antonio Quartulli <antonio@meshcoding.com>
+Description:
+		Defines the isolation mark (and its bitmask) which
+		is used to classify clients as "isolated" by the
+		Extended Isolation feature.
+
+What:           /sys/class/net/<mesh_iface>/mesh/multicast_mode
+Date:           Feb 2014
+Contact:        Linus Lüssing <linus.luessing@web.de>
+Description:
+                Indicates whether multicast optimizations are enabled
+                or disabled. If set to zero then all nodes in the
+                mesh are going to use classic flooding for any
+                multicast packet with no optimizations.
+
 What:           /sys/class/net/<mesh_iface>/mesh/network_coding
 Date:           Nov 2012
 Contact:        Martin Hundeboll <martin@hundeboll.net>

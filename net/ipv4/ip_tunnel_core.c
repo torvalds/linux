@@ -46,7 +46,7 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 
-int iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
+int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		  __be32 src, __be32 dst, __u8 proto,
 		  __u8 tos, __u8 ttl, __be16 df, bool xnet)
 {
@@ -56,7 +56,7 @@ int iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 
 	skb_scrub_packet(skb, xnet);
 
-	skb->rxhash = 0;
+	skb_clear_hash(skb);
 	skb_dst_set(skb, &rt->dst);
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
@@ -74,9 +74,10 @@ int iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 	iph->daddr	=	dst;
 	iph->saddr	=	src;
 	iph->ttl	=	ttl;
-	__ip_select_ident(iph, &rt->dst, (skb_shinfo(skb)->gso_segs ?: 1) - 1);
+	__ip_select_ident(dev_net(rt->dst.dev), iph,
+			  skb_shinfo(skb)->gso_segs ?: 1);
 
-	err = ip_local_out(skb);
+	err = ip_local_out_sk(sk, skb);
 	if (unlikely(net_xmit_eval(err)))
 		pkt_len = 0;
 	return pkt_len;
@@ -91,12 +92,13 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto)
 	skb_pull_rcsum(skb, hdr_len);
 
 	if (inner_proto == htons(ETH_P_TEB)) {
-		struct ethhdr *eh = (struct ethhdr *)skb->data;
+		struct ethhdr *eh;
 
 		if (unlikely(!pskb_may_pull(skb, ETH_HLEN)))
 			return -ENOMEM;
 
-		if (likely(ntohs(eh->h_proto) >= ETH_P_802_3_MIN))
+		eh = (struct ethhdr *)skb->data;
+		if (likely(eth_proto_is_802_3(eh->h_proto)))
 			skb->protocol = eh->h_proto;
 		else
 			skb->protocol = htons(ETH_P_802_2);
@@ -107,8 +109,7 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto)
 
 	nf_reset(skb);
 	secpath_reset(skb);
-	if (!skb->l4_rxhash)
-		skb->rxhash = 0;
+	skb_clear_hash_if_not_l4(skb);
 	skb_dst_drop(skb);
 	skb->vlan_tci = 0;
 	skb_set_queue_mapping(skb, 0);
@@ -136,6 +137,14 @@ struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
 		return skb;
 	}
 
+	/* If packet is not gso and we are resolving any partial checksum,
+	 * clear encapsulation flag. This allows setting CHECKSUM_PARTIAL
+	 * on the outer header without confusing devices that implement
+	 * NETIF_F_IP_CSUM with encapsulation.
+	 */
+	if (csum_help)
+		skb->encapsulation = 0;
+
 	if (skb->ip_summed == CHECKSUM_PARTIAL && csum_help) {
 		err = skb_checksum_help(skb);
 		if (unlikely(err))
@@ -149,3 +158,35 @@ error:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(iptunnel_handle_offloads);
+
+/* Often modified stats are per cpu, other are shared (netdev->stats) */
+struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
+						struct rtnl_link_stats64 *tot)
+{
+	int i;
+
+	netdev_stats_to_stats64(tot, &dev->stats);
+
+	for_each_possible_cpu(i) {
+		const struct pcpu_sw_netstats *tstats =
+						   per_cpu_ptr(dev->tstats, i);
+		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
+		unsigned int start;
+
+		do {
+			start = u64_stats_fetch_begin_irq(&tstats->syncp);
+			rx_packets = tstats->rx_packets;
+			tx_packets = tstats->tx_packets;
+			rx_bytes = tstats->rx_bytes;
+			tx_bytes = tstats->tx_bytes;
+		} while (u64_stats_fetch_retry_irq(&tstats->syncp, start));
+
+		tot->rx_packets += rx_packets;
+		tot->tx_packets += tx_packets;
+		tot->rx_bytes   += rx_bytes;
+		tot->tx_bytes   += tx_bytes;
+	}
+
+	return tot;
+}
+EXPORT_SYMBOL_GPL(ip_tunnel_get_stats64);

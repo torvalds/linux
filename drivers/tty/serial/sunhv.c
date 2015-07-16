@@ -268,6 +268,9 @@ static void sunhv_send_xchar(struct uart_port *port, char ch)
 	unsigned long flags;
 	int limit = 10000;
 
+	if (ch == __DISABLED_CHAR)
+		return;
+
 	spin_lock_irqsave(&port->lock, flags);
 
 	while (limit-- > 0) {
@@ -282,11 +285,6 @@ static void sunhv_send_xchar(struct uart_port *port, char ch)
 
 /* port->lock held by caller.  */
 static void sunhv_stop_rx(struct uart_port *port)
-{
-}
-
-/* port->lock held by caller.  */
-static void sunhv_enable_ms(struct uart_port *port)
 {
 }
 
@@ -379,7 +377,6 @@ static struct uart_ops sunhv_pops = {
 	.start_tx	= sunhv_start_tx,
 	.send_xchar	= sunhv_send_xchar,
 	.stop_rx	= sunhv_stop_rx,
-	.enable_ms	= sunhv_enable_ms,
 	.break_ctl	= sunhv_break_ctl,
 	.startup	= sunhv_startup,
 	.shutdown	= sunhv_shutdown,
@@ -433,13 +430,10 @@ static void sunhv_console_write_paged(struct console *con, const char *s, unsign
 	unsigned long flags;
 	int locked = 1;
 
-	local_irq_save(flags);
-	if (port->sysrq) {
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = spin_trylock(&port->lock);
-	} else
-		spin_lock(&port->lock);
+	if (port->sysrq || oops_in_progress)
+		locked = spin_trylock_irqsave(&port->lock, flags);
+	else
+		spin_lock_irqsave(&port->lock, flags);
 
 	while (n > 0) {
 		unsigned long ra = __pa(con_write_page);
@@ -470,8 +464,7 @@ static void sunhv_console_write_paged(struct console *con, const char *s, unsign
 	}
 
 	if (locked)
-		spin_unlock(&port->lock);
-	local_irq_restore(flags);
+		spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static inline void sunhv_console_putchar(struct uart_port *port, char c)
@@ -492,7 +485,10 @@ static void sunhv_console_write_bychar(struct console *con, const char *s, unsig
 	unsigned long flags;
 	int i, locked = 1;
 
-	local_irq_save(flags);
+	if (port->sysrq || oops_in_progress)
+		locked = spin_trylock_irqsave(&port->lock, flags);
+	else
+		spin_lock_irqsave(&port->lock, flags);
 	if (port->sysrq) {
 		locked = 0;
 	} else if (oops_in_progress) {
@@ -507,8 +503,7 @@ static void sunhv_console_write_bychar(struct console *con, const char *s, unsig
 	}
 
 	if (locked)
-		spin_unlock(&port->lock);
-	local_irq_restore(flags);
+		spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static struct console sunhv_console = {
@@ -631,7 +626,6 @@ MODULE_DEVICE_TABLE(of, hv_match);
 static struct platform_driver hv_driver = {
 	.driver = {
 		.name = "hv",
-		.owner = THIS_MODULE,
 		.of_match_table = hv_match,
 	},
 	.probe		= hv_probe,

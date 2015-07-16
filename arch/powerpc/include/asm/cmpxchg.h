@@ -144,7 +144,6 @@ __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
  * Compare and exchange - if *p == old, set it to new,
  * and return the old value of *p.
  */
-#define __HAVE_ARCH_CMPXCHG	1
 
 static __always_inline unsigned long
 __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)
@@ -300,6 +299,7 @@ __cmpxchg_local(volatile void *ptr, unsigned long old, unsigned long new,
 	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg_local((ptr), (o), (n));					\
   })
+#define cmpxchg64_relaxed	cmpxchg64_local
 #else
 #include <asm-generic/cmpxchg-local.h>
 #define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))

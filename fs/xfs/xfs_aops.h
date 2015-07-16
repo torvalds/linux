@@ -24,14 +24,12 @@ extern mempool_t *xfs_ioend_pool;
  * Types of I/O for bmap clustering and I/O completion tracking.
  */
 enum {
-	XFS_IO_DIRECT = 0,	/* special case for direct I/O ioends */
 	XFS_IO_DELALLOC,	/* covers delalloc region */
 	XFS_IO_UNWRITTEN,	/* covers allocated but uninitialized data */
 	XFS_IO_OVERWRITE,	/* covers already allocated extent */
 };
 
 #define XFS_IO_TYPES \
-	{ 0,			"" }, \
 	{ XFS_IO_DELALLOC,		"delalloc" }, \
 	{ XFS_IO_UNWRITTEN,		"unwritten" }, \
 	{ XFS_IO_OVERWRITE,		"overwrite" }
@@ -45,7 +43,6 @@ typedef struct xfs_ioend {
 	unsigned int		io_type;	/* delalloc / unwritten */
 	int			io_error;	/* I/O error code */
 	atomic_t		io_remaining;	/* hold count */
-	unsigned int		io_isdirect : 1;/* direct I/O */
 	struct inode		*io_inode;	/* file being written to */
 	struct buffer_head	*io_buffer_head;/* buffer linked list head */
 	struct buffer_head	*io_buffer_tail;/* buffer linked list tail */
@@ -56,7 +53,12 @@ typedef struct xfs_ioend {
 } xfs_ioend_t;
 
 extern const struct address_space_operations xfs_address_space_operations;
-extern int xfs_get_blocks(struct inode *, sector_t, struct buffer_head *, int);
+
+int	xfs_get_blocks(struct inode *inode, sector_t offset,
+		       struct buffer_head *map_bh, int create);
+int	xfs_get_blocks_direct(struct inode *inode, sector_t offset,
+			      struct buffer_head *map_bh, int create);
+void	xfs_end_io_dax_write(struct buffer_head *bh, int uptodate);
 
 extern void xfs_count_page_state(struct page *, int *, int *);
 

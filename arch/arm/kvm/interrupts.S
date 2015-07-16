@@ -52,7 +52,7 @@ ENTRY(__kvm_tlb_flush_vmid_ipa)
 	dsb	ishst
 	add	r0, r0, #KVM_VTTBR
 	ldrd	r2, r3, [r0]
-	mcrr	p15, 6, r2, r3, c2	@ Write VTTBR
+	mcrr	p15, 6, rr_lo_hi(r2, r3), c2	@ Write VTTBR
 	isb
 	mcr     p15, 0, r0, c8, c3, 0	@ TLBIALLIS (rt ignored)
 	dsb	ish
@@ -65,6 +65,17 @@ ENTRY(__kvm_tlb_flush_vmid_ipa)
 	pop	{r2, r3}
 	bx	lr
 ENDPROC(__kvm_tlb_flush_vmid_ipa)
+
+/**
+ * void __kvm_tlb_flush_vmid(struct kvm *kvm) - Flush per-VMID TLBs
+ *
+ * Reuses __kvm_tlb_flush_vmid_ipa() for ARMv7, without passing address
+ * parameter
+ */
+
+ENTRY(__kvm_tlb_flush_vmid)
+	b	__kvm_tlb_flush_vmid_ipa
+ENDPROC(__kvm_tlb_flush_vmid)
 
 /********************************************************************
  * Flush TLBs and instruction caches of all CPUs inside the inner-shareable
@@ -135,7 +146,7 @@ ENTRY(__kvm_vcpu_run)
 	ldr	r1, [vcpu, #VCPU_KVM]
 	add	r1, r1, #KVM_VTTBR
 	ldrd	r2, r3, [r1]
-	mcrr	p15, 6, r2, r3, c2	@ Write VTTBR
+	mcrr	p15, 6, rr_lo_hi(r2, r3), c2	@ Write VTTBR
 
 	@ We're all done, just restore the GPRs and go to the guest
 	restore_guest_regs
@@ -159,13 +170,9 @@ __kvm_vcpu_return:
 	@ Don't trap coprocessor accesses for host kernel
 	set_hstr vmexit
 	set_hdcr vmexit
-	set_hcptr vmexit, (HCPTR_TTA | HCPTR_TCP(10) | HCPTR_TCP(11))
+	set_hcptr vmexit, (HCPTR_TTA | HCPTR_TCP(10) | HCPTR_TCP(11)), after_vfp_restore
 
 #ifdef CONFIG_VFPv3
-	@ Save floating point registers we if let guest use them.
-	tst	r2, #(HCPTR_TCP(10) | HCPTR_TCP(11))
-	bne	after_vfp_restore
-
 	@ Switch VFP/NEON hardware state to the host's
 	add	r7, vcpu, #VCPU_VFP_GUEST
 	store_vfp_state r7
@@ -177,6 +184,8 @@ after_vfp_restore:
 	@ Restore FPEXC_EN which we clobbered on entry
 	pop	{r2}
 	VFPFMXR FPEXC, r2
+#else
+after_vfp_restore:
 #endif
 
 	@ Reset Hyp-role
@@ -199,8 +208,13 @@ after_vfp_restore:
 
 	restore_host_regs
 	clrex				@ Clear exclusive monitor
+#ifndef CONFIG_CPU_ENDIAN_BE8
 	mov	r0, r1			@ Return the return code
 	mov	r1, #0			@ Clear upper bits in return value
+#else
+	@ r1 already has return code
+	mov	r0, #0			@ Clear upper bits in return value
+#endif /* CONFIG_CPU_ENDIAN_BE8 */
 	bx	lr			@ return to IOCTL
 
 /********************************************************************
@@ -219,6 +233,10 @@ after_vfp_restore:
  * function pointer can be passed).  The function being called must be mapped
  * in Hyp mode (see init_hyp_mode in arch/arm/kvm/arm.c).  Return values are
  * passed in r0 and r1.
+ *
+ * A function pointer with a value of 0xffffffff has a special meaning,
+ * and is used to implement __hyp_get_vectors in the same way as in
+ * arch/arm/kernel/hyp_stub.S.
  *
  * The calling convention follows the standard AAPCS:
  *   r0 - r3: caller save
@@ -289,7 +307,7 @@ ENTRY(kvm_call_hyp)
 THUMB(	orr	r2, r2, #PSR_T_BIT	)
 	msr	spsr_cxsf, r2
 	mrs	r1, ELR_hyp
-	ldr	r2, =BSYM(panic)
+	ldr	r2, =panic
 	msr	ELR_hyp, r2
 	ldr	r0, =\panic_str
 	clrex				@ Clear exclusive monitor
@@ -363,6 +381,11 @@ hyp_hvc:
 host_switch_to_hyp:
 	pop	{r0, r1, r2}
 
+	/* Check for __hyp_get_vectors */
+	cmp	r0, #-1
+	mrceq	p15, 4, r0, c12, c0, 0	@ get HVBAR
+	beq	1f
+
 	push	{lr}
 	mrs	lr, SPSR
 	push	{lr}
@@ -378,7 +401,7 @@ THUMB(	orr	lr, #1)
 	pop	{lr}
 	msr	SPSR_csxf, lr
 	pop	{lr}
-	eret
+1:	eret
 
 guest_trap:
 	load_vcpu			@ Load VCPU pointer to r0
@@ -458,7 +481,7 @@ switch_to_guest_vfp:
 	push	{r3-r7}
 
 	@ NEON/VFP used.  Turn on VFP access.
-	set_hcptr vmexit, (HCPTR_TCP(10) | HCPTR_TCP(11))
+	set_hcptr vmtrap, (HCPTR_TCP(10) | HCPTR_TCP(11))
 
 	@ Switch VFP/NEON hardware state to the guest's
 	add	r7, r0, #VCPU_VFP_HOST

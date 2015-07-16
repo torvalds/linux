@@ -101,7 +101,7 @@ out:
 }
 
 
-static struct of_device_id pmi_match[] = {
+static const struct of_device_id pmi_match[] = {
 	{ .type = "ibm,pmi", .name = "ibm,pmi" },
 	{ .type = "ibm,pmi" },
 	{},
@@ -210,7 +210,6 @@ static struct platform_driver pmi_of_platform_driver = {
 	.remove		= pmi_of_remove,
 	.driver = {
 		.name = "pmi",
-		.owner = THIS_MODULE,
 		.of_match_table = pmi_match,
 	},
 };

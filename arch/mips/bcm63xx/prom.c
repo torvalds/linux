@@ -17,7 +17,6 @@
 #include <bcm63xx_cpu.h>
 #include <bcm63xx_io.h>
 #include <bcm63xx_regs.h>
-#include <bcm63xx_gpio.h>
 
 void __init prom_init(void)
 {
@@ -53,20 +52,15 @@ void __init prom_init(void)
 	reg &= ~mask;
 	bcm_perf_writel(reg, PERF_CKCTL_REG);
 
-	/* register gpiochip */
-	bcm63xx_gpio_init();
-
 	/* do low level board init */
 	board_prom_init();
 
-	if (IS_ENABLED(CONFIG_CPU_BMIPS4350) && IS_ENABLED(CONFIG_SMP)) {
-		/* set up SMP */
-		register_smp_ops(&bmips_smp_ops);
-
+	/* set up SMP */
+	if (!register_bmips_smp_ops()) {
 		/*
-		 * BCM6328 might not have its second CPU enabled, while BCM6358
-		 * needs special handling for its shared TLB, so disable SMP
-		 * for now.
+		 * BCM6328 might not have its second CPU enabled, while BCM3368
+		 * and BCM6358 need special handling for their shared TLB, so
+		 * disable SMP for now.
 		 */
 		if (BCMCPU_IS_6328()) {
 			reg = bcm_readl(BCM_6328_OTP_BASE +
@@ -74,7 +68,7 @@ void __init prom_init(void)
 
 			if (reg & OTP_6328_REG3_TP1_DISABLED)
 				bmips_smp_enabled = 0;
-		} else if (BCMCPU_IS_6358()) {
+		} else if (BCMCPU_IS_3368() || BCMCPU_IS_6358()) {
 			bmips_smp_enabled = 0;
 		}
 

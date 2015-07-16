@@ -28,7 +28,7 @@
 
 #include <linux/delay.h>
 
-static struct regmap_irq wm8994_irqs[] = {
+static const struct regmap_irq wm8994_irqs[] = {
 	[WM8994_IRQ_TEMP_SHUT] = {
 		.reg_offset = 1,
 		.mask = WM8994_TEMP_SHUT_EINT,
@@ -128,7 +128,7 @@ static struct regmap_irq wm8994_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip wm8994_irq_chip = {
+static const struct regmap_irq_chip wm8994_irq_chip = {
 	.name = "wm8994",
 	.irqs = wm8994_irqs,
 	.num_irqs = ARRAY_SIZE(wm8994_irqs),
@@ -184,7 +184,7 @@ static int wm8994_edge_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops wm8994_edge_irq_ops = {
+static const struct irq_domain_ops wm8994_edge_irq_ops = {
 	.map	= wm8994_edge_irq_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
@@ -262,8 +262,10 @@ int wm8994_irq_init(struct wm8994 *wm8994)
 
 	return 0;
 }
+EXPORT_SYMBOL(wm8994_irq_init);
 
 void wm8994_irq_exit(struct wm8994 *wm8994)
 {
 	regmap_del_irq_chip(wm8994->irq, wm8994->irq_data);
 }
+EXPORT_SYMBOL(wm8994_irq_exit);

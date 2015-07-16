@@ -1,4 +1,4 @@
-#include <sys/types.h>
+#include <linux/types.h>
 #include <unistd.h>
 #include <sys/prctl.h>
 
@@ -51,7 +51,7 @@ static int find_comm(struct perf_evlist *evlist, const char *comm)
  */
 int test__keep_tracking(void)
 {
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
@@ -78,8 +78,8 @@ int test__keep_tracking(void)
 
 	perf_evlist__set_maps(evlist, cpus, threads);
 
-	CHECK__(parse_events(evlist, "dummy:u"));
-	CHECK__(parse_events(evlist, "cycles:u"));
+	CHECK__(parse_events(evlist, "dummy:u", NULL));
+	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
 	perf_evlist__config(evlist, &opts);
 
@@ -142,14 +142,11 @@ int test__keep_tracking(void)
 out_err:
 	if (evlist) {
 		perf_evlist__disable(evlist);
-		perf_evlist__munmap(evlist);
-		perf_evlist__close(evlist);
 		perf_evlist__delete(evlist);
+	} else {
+		cpu_map__put(cpus);
+		thread_map__put(threads);
 	}
-	if (cpus)
-		cpu_map__delete(cpus);
-	if (threads)
-		thread_map__delete(threads);
 
 	return err;
 }

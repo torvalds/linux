@@ -152,7 +152,8 @@ struct ceph_msg_header {
 			     receiver: mask against ~PAGE_MASK */
 
 	struct ceph_entity_name src;
-	__le32 reserved;
+	__le16 compat_version;
+	__le16 reserved;
 	__le32 crc;       /* header crc32c */
 } __attribute__ ((packed));
 
@@ -164,13 +165,21 @@ struct ceph_msg_header {
 /*
  * follows data payload
  */
+struct ceph_msg_footer_old {
+	__le32 front_crc, middle_crc, data_crc;
+	__u8 flags;
+} __attribute__ ((packed));
+
 struct ceph_msg_footer {
 	__le32 front_crc, middle_crc, data_crc;
+	// sig holds the 64 bits of the digital signature for the message PLR
+	__le64  sig;
 	__u8 flags;
 } __attribute__ ((packed));
 
 #define CEPH_MSG_FOOTER_COMPLETE  (1<<0)   /* msg wasn't aborted */
 #define CEPH_MSG_FOOTER_NOCRC     (1<<1)   /* no data crc */
+#define CEPH_MSG_FOOTER_SIGNED	  (1<<2)   /* msg was signed */
 
 
 #endif

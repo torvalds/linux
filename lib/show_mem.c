@@ -6,8 +6,8 @@
  */
 
 #include <linux/mm.h>
-#include <linux/nmi.h>
 #include <linux/quicklist.h>
+#include <linux/cma.h>
 
 void show_mem(unsigned int filter)
 {
@@ -16,9 +16,6 @@ void show_mem(unsigned int filter)
 
 	printk("Mem-Info:\n");
 	show_free_areas(filter);
-
-	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
-		return;
 
 	for_each_online_pgdat(pgdat) {
 		unsigned long flags;
@@ -31,7 +28,7 @@ void show_mem(unsigned int filter)
 				continue;
 
 			total += zone->present_pages;
-			reserved = zone->present_pages - zone->managed_pages;
+			reserved += zone->present_pages - zone->managed_pages;
 
 			if (is_highmem_idx(zoneid))
 				highmem += zone->present_pages;
@@ -41,9 +38,17 @@ void show_mem(unsigned int filter)
 
 	printk("%lu pages RAM\n", total);
 	printk("%lu pages HighMem/MovableOnly\n", highmem);
+#ifdef CONFIG_CMA
+	printk("%lu pages reserved\n", (reserved - totalcma_pages));
+	printk("%lu pages cma reserved\n", totalcma_pages);
+#else
 	printk("%lu pages reserved\n", reserved);
+#endif
 #ifdef CONFIG_QUICKLIST
 	printk("%lu pages in pagetable cache\n",
 		quicklist_total_size());
+#endif
+#ifdef CONFIG_MEMORY_FAILURE
+	printk("%lu pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));
 #endif
 }

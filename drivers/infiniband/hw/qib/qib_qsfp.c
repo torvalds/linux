@@ -81,7 +81,7 @@ static int qsfp_read(struct qib_pportdata *ppd, int addr, void *bp, int len)
 	 * Module could take up to 2 Msec to respond to MOD_SEL, and there
 	 * is no way to tell if it is ready, so we must wait.
 	 */
-	msleep(2);
+	msleep(20);
 
 	/* Make sure TWSI bus is in sane state. */
 	ret = qib_twsi_reset(dd);
@@ -99,6 +99,7 @@ static int qsfp_read(struct qib_pportdata *ppd, int addr, void *bp, int len)
 	while (cnt < len) {
 		unsigned in_page;
 		int wlen = len - cnt;
+
 		in_page = addr % QSFP_PAGESIZE;
 		if ((in_page + wlen) > QSFP_PAGESIZE)
 			wlen = QSFP_PAGESIZE - in_page;
@@ -139,7 +140,7 @@ deselect:
 	else if (pass)
 		qib_dev_porterr(dd, ppd->port, "QSFP retries: %d\n", pass);
 
-	msleep(2);
+	msleep(20);
 
 bail:
 	mutex_unlock(&dd->eep_lock);
@@ -189,7 +190,7 @@ static int qib_qsfp_write(struct qib_pportdata *ppd, int addr, void *bp,
 	 * Module could take up to 2 Msec to respond to MOD_SEL,
 	 * and there is no way to tell if it is ready, so we must wait.
 	 */
-	msleep(2);
+	msleep(20);
 
 	/* Make sure TWSI bus is in sane state. */
 	ret = qib_twsi_reset(dd);
@@ -206,6 +207,7 @@ static int qib_qsfp_write(struct qib_pportdata *ppd, int addr, void *bp,
 	while (cnt < len) {
 		unsigned in_page;
 		int wlen = len - cnt;
+
 		in_page = addr % QSFP_PAGESIZE;
 		if ((in_page + wlen) > QSFP_PAGESIZE)
 			wlen = QSFP_PAGESIZE - in_page;
@@ -234,7 +236,7 @@ deselect:
 	 * going away, and there is no way to tell if it is ready.
 	 * so we must wait.
 	 */
-	msleep(2);
+	msleep(20);
 
 bail:
 	mutex_unlock(&dd->eep_lock);
@@ -296,6 +298,7 @@ int qib_refresh_qsfp_cache(struct qib_pportdata *ppd, struct qib_qsfp_cache *cp)
 		 * set the page to zero, Even if it already appears to be zero.
 		 */
 		u8 poke = 0;
+
 		ret = qib_qsfp_write(ppd, 127, &poke, 1);
 		udelay(50);
 		if (ret != 1) {
@@ -480,7 +483,6 @@ void qib_qsfp_init(struct qib_qsfp_data *qd,
 	udelay(20); /* Generous RST dwell */
 
 	dd->f_gpio_mod(dd, mask, mask, mask);
-	return;
 }
 
 void qib_qsfp_deinit(struct qib_qsfp_data *qd)
@@ -540,6 +542,7 @@ int qib_qsfp_dump(struct qib_pportdata *ppd, char *buf, int len)
 
 	while (bidx < QSFP_DEFAULT_HDR_CNT) {
 		int iidx;
+
 		ret = qsfp_read(ppd, bidx, bin_buff, QSFP_DUMP_CHUNK);
 		if (ret < 0)
 			goto bail;

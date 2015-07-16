@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_MAIN_H_
@@ -26,7 +24,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2013.5.0"
+#define BATADV_SOURCE_VERSION "2015.1"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -46,7 +44,7 @@
 #define BATADV_TT_CLIENT_TEMP_TIMEOUT 600000 /* in milliseconds */
 #define BATADV_TT_WORK_PERIOD 5000 /* 5 seconds */
 #define BATADV_ORIG_WORK_PERIOD 1000 /* 1 second */
-#define BATADV_DAT_ENTRY_TIMEOUT (5*60000) /* 5 mins in milliseconds */
+#define BATADV_DAT_ENTRY_TIMEOUT (5 * 60000) /* 5 mins in milliseconds */
 /* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size)
  */
@@ -72,6 +70,14 @@
 
 #define BATADV_NULL_IFINDEX 0 /* dummy ifindex used to avoid iface checks */
 
+#define BATADV_NO_MARK 0
+
+/* default interface for multi interface operation. The default interface is
+ * used for communication which originated locally (i.e. is not forwarded)
+ * or where special forwarding is not desired/necessary.
+ */
+#define BATADV_IF_DEFAULT	((struct batadv_hard_iface *)NULL)
+
 #define BATADV_NUM_WORDS BITS_TO_LONGS(BATADV_TQ_LOCAL_WINDOW_SIZE)
 
 #define BATADV_LOG_BUF_LEN 8192	  /* has to be a power of 2 */
@@ -86,9 +92,8 @@
 /* numbers of originator to contact for any PUT/GET DHT operation */
 #define BATADV_DAT_CANDIDATES_NUM 3
 
-/**
- * BATADV_TQ_SIMILARITY_THRESHOLD - TQ points that a secondary metric can differ
- *  at most from the primary one in order to be still considered acceptable
+/* BATADV_TQ_SIMILARITY_THRESHOLD - TQ points that a secondary metric can differ
+ * at most from the primary one in order to be still considered acceptable
  */
 #define BATADV_TQ_SIMILARITY_THRESHOLD 50
 
@@ -158,26 +163,26 @@ enum batadv_uev_type {
 
 /* Kernel headers */
 
-#include <linux/mutex.h>	/* mutex */
-#include <linux/module.h>	/* needed by all modules */
-#include <linux/netdevice.h>	/* netdevice */
-#include <linux/etherdevice.h>  /* ethernet address classification */
-#include <linux/if_ether.h>	/* ethernet header */
-#include <linux/poll.h>		/* poll_table */
-#include <linux/kthread.h>	/* kernel threads */
-#include <linux/pkt_sched.h>	/* schedule types */
-#include <linux/workqueue.h>	/* workqueue */
+#include <linux/atomic.h>
+#include <linux/bitops.h> /* for packet.h */
+#include <linux/compiler.h>
+#include <linux/cpumask.h>
+#include <linux/etherdevice.h>
+#include <linux/if_ether.h> /* for packet.h */
+#include <linux/netdevice.h>
+#include <linux/printk.h>
+#include <linux/types.h>
 #include <linux/percpu.h>
-#include <linux/slab.h>
-#include <net/sock.h>		/* struct sock */
-#include <net/rtnetlink.h>
 #include <linux/jiffies.h>
-#include <linux/seq_file.h>
 #include <linux/if_vlan.h>
 
 #include "types.h"
 
-#define BATADV_PRINT_VID(vid) (vid & BATADV_VLAN_HAS_TAG ? \
+struct batadv_ogm_packet;
+struct seq_file;
+struct sk_buff;
+
+#define BATADV_PRINT_VID(vid) ((vid & BATADV_VLAN_HAS_TAG) ? \
 			       (int)(vid & VLAN_VID_MASK) : -1)
 
 extern char batadv_routing_algo[];
@@ -188,7 +193,7 @@ extern struct workqueue_struct *batadv_event_workqueue;
 
 int batadv_mesh_init(struct net_device *soft_iface);
 void batadv_mesh_free(struct net_device *soft_iface);
-int batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr);
+bool batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr);
 struct batadv_hard_iface *
 batadv_seq_print_text_primary_if_get(struct seq_file *seq);
 int batadv_max_header_len(void);
@@ -230,20 +235,28 @@ enum batadv_dbg_level {
 int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 __printf(2, 3);
 
-#define batadv_dbg(type, bat_priv, fmt, arg...)			\
+/* possibly ratelimited debug output */
+#define _batadv_dbg(type, bat_priv, ratelimited, fmt, arg...)	\
 	do {							\
-		if (atomic_read(&bat_priv->log_level) & type)	\
+		if (atomic_read(&bat_priv->log_level) & type && \
+		    (!ratelimited || net_ratelimit()))		\
 			batadv_debug_log(bat_priv, fmt, ## arg);\
 	}							\
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
-__printf(3, 4)
-static inline void batadv_dbg(int type __always_unused,
-			      struct batadv_priv *bat_priv __always_unused,
-			      const char *fmt __always_unused, ...)
+__printf(4, 5)
+static inline void _batadv_dbg(int type __always_unused,
+			       struct batadv_priv *bat_priv __always_unused,
+			       int ratelimited __always_unused,
+			       const char *fmt __always_unused, ...)
 {
 }
 #endif
+
+#define batadv_dbg(type, bat_priv, arg...) \
+	_batadv_dbg(type, bat_priv, 0, ## arg)
+#define batadv_dbg_ratelimited(type, bat_priv, arg...) \
+	_batadv_dbg(type, bat_priv, 1, ## arg)
 
 #define batadv_info(net_dev, fmt, arg...)				\
 	do {								\
@@ -264,9 +277,9 @@ static inline void batadv_dbg(int type __always_unused,
  *
  * note: can't use ether_addr_equal() as it requires aligned memory
  */
-static inline int batadv_compare_eth(const void *data1, const void *data2)
+static inline bool batadv_compare_eth(const void *data1, const void *data2)
 {
-	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+	return ether_addr_equal_unaligned(data1, data2);
 }
 
 /**
@@ -297,10 +310,10 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  *  - when adding 128 - it is neither a predecessor nor a successor,
  *  - after adding more than 127 to the starting value - it is a successor
  */
-#define batadv_seq_before(x, y) ({typeof(x) _d1 = (x); \
-				 typeof(y) _d2 = (y); \
-				 typeof(x) _dummy = (_d1 - _d2); \
-				 (void) (&_d1 == &_d2); \
+#define batadv_seq_before(x, y) ({typeof(x)_d1 = (x); \
+				 typeof(y)_d2 = (y); \
+				 typeof(x)_dummy = (_d1 - _d2); \
+				 (void)(&_d1 == &_d2); \
 				 _dummy > batadv_smallest_signed_int(_dummy); })
 #define batadv_seq_after(x, y) batadv_seq_before(y, x)
 
@@ -369,5 +382,6 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
 			      uint8_t *dst, uint8_t type, uint8_t version,
 			      void *tvlv_value, uint16_t tvlv_value_len);
 unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len);
+bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid);
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

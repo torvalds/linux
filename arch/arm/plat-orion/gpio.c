@@ -306,9 +306,10 @@ EXPORT_SYMBOL(orion_gpio_set_blink);
 
 #define ORION_BLINK_HALF_PERIOD 100 /* ms */
 
-int orion_gpio_led_blink_set(unsigned gpio, int state,
+int orion_gpio_led_blink_set(struct gpio_desc *desc, int state,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
+	unsigned gpio = desc_to_gpio(desc);
 
 	if (delay_on && delay_off && !*delay_on && !*delay_off)
 		*delay_on = *delay_off = ORION_BLINK_HALF_PERIOD;
@@ -497,6 +498,34 @@ static void orion_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 #define orion_gpio_dbg_show NULL
 #endif
 
+static void orion_gpio_unmask_irq(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct irq_chip_type *ct = irq_data_get_chip_type(d);
+	u32 reg_val;
+	u32 mask = d->mask;
+
+	irq_gc_lock(gc);
+	reg_val = irq_reg_readl(gc, ct->regs.mask);
+	reg_val |= mask;
+	irq_reg_writel(gc, reg_val, ct->regs.mask);
+	irq_gc_unlock(gc);
+}
+
+static void orion_gpio_mask_irq(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct irq_chip_type *ct = irq_data_get_chip_type(d);
+	u32 mask = d->mask;
+	u32 reg_val;
+
+	irq_gc_lock(gc);
+	reg_val = irq_reg_readl(gc, ct->regs.mask);
+	reg_val &= ~mask;
+	irq_reg_writel(gc, reg_val, ct->regs.mask);
+	irq_gc_unlock(gc);
+}
+
 void __init orion_gpio_init(struct device_node *np,
 			    int gpio_base, int ngpio,
 			    void __iomem *base, int mask_offset,
@@ -565,8 +594,8 @@ void __init orion_gpio_init(struct device_node *np,
 	ct = gc->chip_types;
 	ct->regs.mask = ochip->mask_offset + GPIO_LEVEL_MASK_OFF;
 	ct->type = IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW;
-	ct->chip.irq_mask = irq_gc_mask_clr_bit;
-	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_mask = orion_gpio_mask_irq;
+	ct->chip.irq_unmask = orion_gpio_unmask_irq;
 	ct->chip.irq_set_type = gpio_irq_set_type;
 	ct->chip.name = ochip->chip.label;
 
@@ -575,8 +604,8 @@ void __init orion_gpio_init(struct device_node *np,
 	ct->regs.ack = GPIO_EDGE_CAUSE_OFF;
 	ct->type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	ct->chip.irq_ack = irq_gc_ack_clr_bit;
-	ct->chip.irq_mask = irq_gc_mask_clr_bit;
-	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_mask = orion_gpio_mask_irq;
+	ct->chip.irq_unmask = orion_gpio_unmask_irq;
 	ct->chip.irq_set_type = gpio_irq_set_type;
 	ct->handler = handle_edge_irq;
 	ct->chip.name = ochip->chip.label;
@@ -597,51 +626,3 @@ void __init orion_gpio_init(struct device_node *np,
 
 	orion_gpio_chip_count++;
 }
-
-#ifdef CONFIG_OF
-static void __init orion_gpio_of_init_one(struct device_node *np,
-					  int irq_gpio_base)
-{
-	int ngpio, gpio_base, mask_offset;
-	void __iomem *base;
-	int ret, i;
-	int irqs[4];
-	int secondary_irq_base;
-
-	ret = of_property_read_u32(np, "ngpio", &ngpio);
-	if (ret)
-		goto out;
-	ret = of_property_read_u32(np, "mask-offset", &mask_offset);
-	if (ret == -EINVAL)
-		mask_offset = 0;
-	else
-		goto out;
-	base = of_iomap(np, 0);
-	if (!base)
-		goto out;
-
-	secondary_irq_base = irq_gpio_base + (32 * orion_gpio_chip_count);
-	gpio_base = 32 * orion_gpio_chip_count;
-
-	/* Get the interrupt numbers. Each chip can have up to 4
-	 * interrupt handlers, with each handler dealing with 8 GPIO
-	 * pins. */
-
-	for (i = 0; i < 4; i++)
-		irqs[i] = irq_of_parse_and_map(np, i);
-
-	orion_gpio_init(np, gpio_base, ngpio, base, mask_offset,
-			secondary_irq_base, irqs);
-	return;
-out:
-	pr_err("%s: %s: missing mandatory property\n", __func__, np->name);
-}
-
-void __init orion_gpio_of_init(int irq_gpio_base)
-{
-	struct device_node *np;
-
-	for_each_compatible_node(np, NULL, "marvell,orion-gpio")
-		orion_gpio_of_init_one(np, irq_gpio_base);
-}
-#endif

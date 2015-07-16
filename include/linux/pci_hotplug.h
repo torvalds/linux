@@ -109,7 +109,6 @@ struct hotplug_slot {
 	struct list_head		slot_list;
 	struct pci_slot			*pci_slot;
 };
-#define to_hotplug_slot(n) container_of(n, struct hotplug_slot, kobj)
 
 static inline const char *hotplug_slot_name(const struct hotplug_slot *slot)
 {
@@ -175,8 +174,7 @@ struct hotplug_params {
 };
 
 #ifdef CONFIG_ACPI
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
+#include <linux/acpi.h>
 int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp);
 int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags);
 int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle);
@@ -188,6 +186,4 @@ static inline int pci_get_hp_params(struct pci_dev *dev,
 	return -ENODEV;
 }
 #endif
-
-void pci_configure_slot(struct pci_dev *dev);
 #endif

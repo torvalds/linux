@@ -145,12 +145,12 @@ out:
 
 static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct efivar_entry *var = dentry->d_inode->i_private;
+	struct efivar_entry *var = d_inode(dentry)->i_private;
 
 	if (efivar_entry_delete(var))
 		return -EINVAL;
 
-	drop_nlink(dentry->d_inode);
+	drop_nlink(d_inode(dentry));
 	dput(dentry);
 	return 0;
 };

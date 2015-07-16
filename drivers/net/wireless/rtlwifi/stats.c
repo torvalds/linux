@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -43,15 +39,8 @@ EXPORT_SYMBOL(rtl_query_rxpwrpercentage);
 
 u8 rtl_evm_db_to_percentage(char value)
 {
-	char ret_val;
-	ret_val = value;
+	char ret_val = clamp(-value, 0, 33) * 3;
 
-	if (ret_val >= 0)
-		ret_val = 0;
-	if (ret_val <= -33)
-		ret_val = -33;
-	ret_val = 0 - ret_val;
-	ret_val *= 3;
 	if (ret_val == 99)
 		ret_val = 100;
 
@@ -60,7 +49,7 @@ u8 rtl_evm_db_to_percentage(char value)
 EXPORT_SYMBOL(rtl_evm_db_to_percentage);
 
 static long rtl_translate_todbm(struct ieee80211_hw *hw,
-				u8 signal_strength_index)
+			 u8 signal_strength_index)
 {
 	long signal_power;
 
@@ -106,6 +95,10 @@ static void rtl_process_ui_rssi(struct ieee80211_hw *hw,
 	u8 rfpath;
 	u32 last_rssi, tmpval;
 
+	if (!pstatus->packet_toself && !pstatus->packet_beacon)
+		return;
+
+	rtlpriv->stats.pwdb_all_cnt += pstatus->rx_pwdb_all;
 	rtlpriv->stats.rssi_calculate_cnt++;
 
 	if (rtlpriv->stats.ui_rssi.total_num++ >= PHY_RSSI_SLID_WIN_MAX) {
@@ -151,6 +144,12 @@ static void rtl_process_ui_rssi(struct ieee80211_hw *hw,
 			     (pstatus->rx_mimo_signalstrength[rfpath])) /
 			    (RX_SMOOTH_FACTOR);
 		}
+		rtlpriv->stats.rx_snr_db[rfpath] = pstatus->rx_snr[rfpath];
+		rtlpriv->stats.rx_evm_dbm[rfpath] =
+					pstatus->rx_mimo_evm_dbm[rfpath];
+		rtlpriv->stats.rx_cfo_short[rfpath] =
+					pstatus->cfo_short[rfpath];
+		rtlpriv->stats.rx_cfo_tail[rfpath] = pstatus->cfo_tail[rfpath];
 	}
 }
 
@@ -197,7 +196,8 @@ static void rtl_process_pwdb(struct ieee80211_hw *hw, struct rtl_stats *pstatus)
 		     (pstatus->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
 		undec_sm_pwdb = undec_sm_pwdb + 1;
 	} else {
-		undec_sm_pwdb = (((undec_sm_pwdb) * (RX_SMOOTH_FACTOR - 1)) +
+		undec_sm_pwdb = (((undec_sm_pwdb) *
+		      (RX_SMOOTH_FACTOR - 1)) +
 		     (pstatus->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
 	}
 
@@ -231,7 +231,7 @@ static void rtl_process_ui_link_quality(struct ieee80211_hw *hw,
 	rtlpriv->stats.ui_link_quality.total_val += pstatus->signalquality;
 	rtlpriv->stats.ui_link_quality.elements[
 		rtlpriv->stats.ui_link_quality.index++] =
-						 pstatus->signalquality;
+							pstatus->signalquality;
 	if (rtlpriv->stats.ui_link_quality.index >=
 	    PHY_LINKQUALITY_SLID_WIN_MAX)
 		rtlpriv->stats.ui_link_quality.index = 0;
@@ -255,7 +255,7 @@ static void rtl_process_ui_link_quality(struct ieee80211_hw *hw,
 }
 
 void rtl_process_phyinfo(struct ieee80211_hw *hw, u8 *buffer,
-	struct rtl_stats *pstatus)
+			 struct rtl_stats *pstatus)
 {
 
 	if (!pstatus->packet_matchbssid)

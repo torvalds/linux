@@ -44,12 +44,7 @@
 #include <xen/interface/io/blkif.h>
 #include <xen/interface/io/protocols.h>
 
-#define DRV_PFX "xen-blkback:"
-#define DPRINTK(fmt, args...)				\
-	pr_debug(DRV_PFX "(%s:%d) " fmt ".\n",		\
-		 __func__, __LINE__, ##args)
-
-
+extern unsigned int xen_blkif_max_ring_order;
 /*
  * This is the maximum number of segments that would be allowed in indirect
  * requests. This value will also be passed to the frontend.
@@ -57,7 +52,7 @@
 #define MAX_INDIRECT_SEGMENTS 256
 
 #define SEGS_PER_INDIRECT_FRAME \
-	(PAGE_SIZE/sizeof(struct blkif_request_segment_aligned))
+	(PAGE_SIZE/sizeof(struct blkif_request_segment))
 #define MAX_INDIRECT_PAGES \
 	((MAX_INDIRECT_SEGMENTS + SEGS_PER_INDIRECT_FRAME - 1)/SEGS_PER_INDIRECT_FRAME)
 #define INDIRECT_PAGES(_segs) \
@@ -214,6 +209,15 @@ enum blkif_protocol {
 	BLKIF_PROTOCOL_X86_64 = 3,
 };
 
+/*
+ * Default protocol if the frontend doesn't specify one.
+ */
+#ifdef CONFIG_X86
+#  define BLKIF_PROTOCOL_DEFAULT BLKIF_PROTOCOL_X86_32
+#else
+#  define BLKIF_PROTOCOL_DEFAULT BLKIF_PROTOCOL_NATIVE
+#endif
+
 struct xen_vbd {
 	/* What the domain refers to this vbd as. */
 	blkif_vdev_t		handle;
@@ -245,7 +249,7 @@ struct backend_info;
 #define PERSISTENT_GNT_WAS_ACTIVE	1
 
 /* Number of requests that we can fit in a ring */
-#define XEN_BLKIF_REQS			32
+#define XEN_BLKIF_REQS_PER_PAGE		32
 
 struct persistent_gnt {
 	struct page *page;
@@ -278,6 +282,7 @@ struct xen_blkif {
 	/* for barrier (drain) requests */
 	struct completion	drain_complete;
 	atomic_t		drain;
+	atomic_t		inflight;
 	/* One thread per one blkif. */
 	struct task_struct	*xenblkd;
 	unsigned int		waiting_reqs;
@@ -313,9 +318,10 @@ struct xen_blkif {
 	unsigned long long			st_rd_sect;
 	unsigned long long			st_wr_sect;
 
-	wait_queue_head_t	waiting_to_free;
+	struct work_struct	free_work;
 	/* Thread shutdown wait queue. */
 	wait_queue_head_t	shutdown_wq;
+	unsigned int nr_ring_pages;
 };
 
 struct seg_buf {
@@ -339,7 +345,7 @@ struct grant_page {
 struct pending_req {
 	struct xen_blkif	*blkif;
 	u64			id;
-	int			nr_pages;
+	int			nr_segs;
 	atomic_t		pendcnt;
 	unsigned short		operation;
 	int			status;
@@ -349,6 +355,9 @@ struct pending_req {
 	struct grant_page	*indirect_pages[MAX_INDIRECT_PAGES];
 	struct seg_buf		seg[MAX_INDIRECT_SEGMENTS];
 	struct bio		*biolist[MAX_INDIRECT_SEGMENTS];
+	struct gnttab_unmap_grant_ref unmap[MAX_INDIRECT_SEGMENTS];
+	struct page                   *unmap_pages[MAX_INDIRECT_SEGMENTS];
+	struct gntab_unmap_queue_data gnttab_unmap_data;
 };
 
 
@@ -360,7 +369,7 @@ struct pending_req {
 #define xen_blkif_put(_b)				\
 	do {						\
 		if (atomic_dec_and_test(&(_b)->refcnt))	\
-			wake_up(&(_b)->waiting_to_free);\
+			schedule_work(&(_b)->free_work);\
 	} while (0)
 
 struct phys_req {
@@ -376,6 +385,7 @@ int xen_blkif_xenbus_init(void);
 irqreturn_t xen_blkif_be_int(int irq, void *dev_id);
 int xen_blkif_schedule(void *arg);
 int xen_blkif_purge_persistent(void *arg);
+void xen_blkbk_free_caches(struct xen_blkif *blkif);
 
 int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 			      struct backend_info *be, int state);
@@ -383,6 +393,7 @@ int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 int xen_blkbk_barrier(struct xenbus_transaction xbt,
 		      struct backend_info *be, int state);
 struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be);
+void xen_blkbk_unmap_purged_grants(struct work_struct *work);
 
 static inline void blkif_get_x86_32_req(struct blkif_request *dst,
 					struct blkif_x86_32_request *src)

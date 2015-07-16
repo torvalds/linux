@@ -14,15 +14,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/linkage.h>
 
-#include <asm/cache.h>
+#include <soc/tegra/fuse.h>
+
 #include <asm/asm-offsets.h>
-#include <asm/hardware/cache-l2x0.h>
+#include <asm/cache.h>
 
 #include "flowctrl.h"
-#include "fuse.h"
 #include "iomap.h"
 #include "reset.h"
 #include "sleep.h"
@@ -51,6 +51,7 @@ ENTRY(tegra_resume)
  THUMB(	it	ne )
 	bne	cpu_resume			@ no
 
+	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
 	/* Are we on Tegra20? */
 	cmp	r6, #TEGRA20
 	beq	1f				@ Yes
@@ -78,8 +79,10 @@ ENTRY(tegra_resume)
 	str	r1, [r0]
 #endif
 
+#ifdef CONFIG_CACHE_L2X0
 	/* L2 cache resume & re-enable */
-	l2_cache_resume r0, r1, r2, l2x0_saved_regs_addr
+	bl	l2c310_early_resume
+#endif
 end_ca9_scu_l2_resume:
 	mov32	r9, 0xc0f
 	cmp	r8, r9
@@ -87,12 +90,6 @@ end_ca9_scu_l2_resume:
 
 	b	cpu_resume
 ENDPROC(tegra_resume)
-#endif
-
-#ifdef CONFIG_CACHE_L2X0
-	.globl	l2x0_saved_regs_addr
-l2x0_saved_regs_addr:
-	.long	0
 #endif
 
 	.align L1_CACHE_SHIFT
@@ -172,10 +169,10 @@ after_errata:
 	cmp	r6, #TEGRA20
 	bne	1f
 	/* If not CPU0, don't let CPU0 reset CPU1 now that CPU1 is coming up. */
-	mov32	r5, TEGRA_PMC_BASE
-	mov	r0, #0
+	mov32	r5, TEGRA_IRAM_BASE + TEGRA_IRAM_RESET_HANDLER_OFFSET
+	mov	r0, #CPU_NOT_RESETTABLE
 	cmp	r10, #0
-	strne	r0, [r5, #PMC_SCRATCH41]
+	strneb	r0, [r5, #__tegra20_cpu1_resettable_status_offset]
 1:
 #endif
 
@@ -284,6 +281,10 @@ __tegra_cpu_reset_handler_data:
 	.rept	TEGRA_RESET_DATA_SIZE
 	.long	0
 	.endr
+	.globl	__tegra20_cpu1_resettable_status_offset
+	.equ	__tegra20_cpu1_resettable_status_offset, \
+					. - __tegra_cpu_reset_handler_start
+	.byte	0
 	.align L1_CACHE_SHIFT
 
 ENTRY(__tegra_cpu_reset_handler_end)

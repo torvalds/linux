@@ -28,7 +28,8 @@ static int arizona_spi_probe(struct spi_device *spi)
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct arizona *arizona;
 	const struct regmap_config *regmap_config;
-	int ret, type;
+	unsigned long type;
+	int ret;
 
 	if (spi->dev.of_node)
 		type = arizona_of_get_type(&spi->dev);
@@ -43,6 +44,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 #endif
 #ifdef CONFIG_MFD_WM5110
 	case WM5110:
+	case WM8280:
 		regmap_config = &wm5110_spi_regmap;
 		break;
 #endif
@@ -74,13 +76,16 @@ static int arizona_spi_probe(struct spi_device *spi)
 static int arizona_spi_remove(struct spi_device *spi)
 {
 	struct arizona *arizona = spi_get_drvdata(spi);
+
 	arizona_dev_exit(arizona);
+
 	return 0;
 }
 
 static const struct spi_device_id arizona_spi_ids[] = {
 	{ "wm5102", WM5102 },
 	{ "wm5110", WM5110 },
+	{ "wm8280", WM8280 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, arizona_spi_ids);

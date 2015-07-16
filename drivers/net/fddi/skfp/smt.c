@@ -900,7 +900,7 @@ static void smt_send_rdf(struct s_smc *smc, SMbuf *rej, int fc, int reason,
 	rdf->version.v_pad2 = 0 ;
 
 	/* set P13 */
-	if ((unsigned) frame_len <= SMT_MAX_INFO_LEN - sizeof(*rdf) +
+	if ((unsigned int) frame_len <= SMT_MAX_INFO_LEN - sizeof(*rdf) +
 		2*sizeof(struct smt_header))
 		len = frame_len ;
 	else
@@ -1733,18 +1733,6 @@ char *addr_to_string(struct fddi_addr *addr)
 	}
 	string[5 * 3 + 2] = 0;
 	return string;
-}
-#endif
-
-#ifdef	AM29K
-int smt_ifconfig(int argc, char *argv[])
-{
-	if (argc >= 2 && !strcmp(argv[0],"opt_bypass") &&
-	    !strcmp(argv[1],"yes")) {
-		smc->mib.fddiSMTBypassPresent = 1 ;
-		return 0;
-	}
-	return amdfddi_config(0, argc, argv);
 }
 #endif
 

@@ -82,7 +82,7 @@ static void hdpvr_read_bulk_callback(struct urb *urb)
 }
 
 /*=========================================================================*/
-/* bufffer bits */
+/* buffer bits */
 
 /* function expects dev->io_mutex to be hold by caller */
 int hdpvr_cancel_queue(struct hdpvr_device *dev)
@@ -797,7 +797,7 @@ static int vidioc_s_input(struct file *file, void *_fh,
 		 * Comment this out for now, but if the legacy mode can be
 		 * removed in the future, then this code should be enabled
 		 * again.
-		dev->video_dev->tvnorms =
+		dev->video_dev.tvnorms =
 			(index != HDPVR_COMPONENT) ? V4L2_STD_ALL : 0;
 		 */
 	}
@@ -926,7 +926,7 @@ static int hdpvr_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		if (dev->flags & HDPVR_FLAG_AC3_CAP) {
 			opt->audio_codec = ctrl->val;
-			return hdpvr_set_audio(dev, opt->audio_input,
+			return hdpvr_set_audio(dev, opt->audio_input + 1,
 					      opt->audio_codec);
 		}
 		return 0;
@@ -1022,14 +1022,13 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *_fh,
 	f->fmt.pix.pixelformat	= V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage	= dev->bulk_in_size;
 	f->fmt.pix.bytesperline	= 0;
-	f->fmt.pix.priv		= 0;
 	if (f->fmt.pix.width == 720) {
 		/* SDTV formats */
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 		f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	} else {
 		/* HDTV formats */
-		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE240M;
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
 		f->fmt.pix.field = V4L2_FIELD_NONE;
 	}
 	return 0;
@@ -1198,7 +1197,7 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	v4l2_ctrl_new_std_menu(hdl, &hdpvr_ctrl_ops,
 		V4L2_CID_MPEG_AUDIO_ENCODING,
 		ac3 ? V4L2_MPEG_AUDIO_ENCODING_AC3 : V4L2_MPEG_AUDIO_ENCODING_AAC,
-		0x7, V4L2_MPEG_AUDIO_ENCODING_AAC);
+		0x7, ac3 ? dev->options.audio_codec : V4L2_MPEG_AUDIO_ENCODING_AAC);
 	v4l2_ctrl_new_std_menu(hdl, &hdpvr_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_ENCODING,
 		V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 0x3,
@@ -1229,20 +1228,12 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	}
 
 	/* setup and register video device */
-	dev->video_dev = video_device_alloc();
-	if (!dev->video_dev) {
-		v4l2_err(&dev->v4l2_dev, "video_device_alloc() failed\n");
-		res = -ENOMEM;
-		goto error;
-	}
+	dev->video_dev = hdpvr_video_template;
+	strcpy(dev->video_dev.name, "Hauppauge HD PVR");
+	dev->video_dev.v4l2_dev = &dev->v4l2_dev;
+	video_set_drvdata(&dev->video_dev, dev);
 
-	*dev->video_dev = hdpvr_video_template;
-	strcpy(dev->video_dev->name, "Hauppauge HD PVR");
-	dev->video_dev->v4l2_dev = &dev->v4l2_dev;
-	video_set_drvdata(dev->video_dev, dev);
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->video_dev->flags);
-
-	res = video_register_device(dev->video_dev, VFL_TYPE_GRABBER, devnum);
+	res = video_register_device(&dev->video_dev, VFL_TYPE_GRABBER, devnum);
 	if (res < 0) {
 		v4l2_err(&dev->v4l2_dev, "video_device registration failed\n");
 		goto error;

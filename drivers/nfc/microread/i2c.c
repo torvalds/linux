@@ -13,9 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -213,7 +211,6 @@ flush:
 static irqreturn_t microread_i2c_irq_thread_fn(int irq, void *phy_id)
 {
 	struct microread_i2c_phy *phy = phy_id;
-	struct i2c_client *client;
 	struct sk_buff *skb = NULL;
 	int r;
 
@@ -221,8 +218,6 @@ static irqreturn_t microread_i2c_irq_thread_fn(int irq, void *phy_id)
 		WARN_ON_ONCE(1);
 		return IRQ_NONE;
 	}
-
-	client = phy->i2c_dev;
 
 	if (phy->hard_fault != 0)
 		return IRQ_HANDLED;
@@ -288,7 +283,7 @@ static int microread_i2c_probe(struct i2c_client *client,
 	if (r < 0)
 		goto err_irq;
 
-	nfc_info(&client->dev, "Probed");
+	nfc_info(&client->dev, "Probed\n");
 
 	return 0;
 

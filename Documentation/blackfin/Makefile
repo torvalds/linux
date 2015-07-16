@@ -1,6 +1,5 @@
+ifneq ($(CONFIG_BLACKFIN),)
+ifneq ($(CONFIG_BFIN_GPTIMERS),)
 obj-m := gptimers-example.o
-
-all: modules
-
-modules clean:
-	$(MAKE) -C ../.. SUBDIRS=$(PWD) $@
+endif
+endif

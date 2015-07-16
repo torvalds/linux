@@ -275,10 +275,8 @@ static int max197_probe(struct platform_device *pdev)
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct max197_data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "devm_kzalloc failed\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->pdata = pdata;
 	mutex_init(&data->lock);
@@ -326,7 +324,7 @@ static int max197_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id max197_device_ids[] = {
+static const struct platform_device_id max197_device_ids[] = {
 	{ "max197", max197 },
 	{ "max199", max199 },
 	{ }
@@ -336,7 +334,6 @@ MODULE_DEVICE_TABLE(platform, max197_device_ids);
 static struct platform_driver max197_driver = {
 	.driver = {
 		.name = "max197",
-		.owner = THIS_MODULE,
 	},
 	.probe = max197_probe,
 	.remove = max197_remove,

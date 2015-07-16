@@ -419,7 +419,7 @@ netx_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	port->read_status_mask = 0;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SR_BE;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= SR_PE | SR_FE;
@@ -710,7 +710,6 @@ static struct platform_driver serial_netx_driver = {
 
 	.driver		= {
 		.name   = DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -54,8 +54,9 @@ static void br_send_bpdu(struct net_bridge_port *p,
 
 	skb_reset_mac_header(skb);
 
-	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
-		dev_queue_xmit);
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, NULL, skb,
+		NULL, skb->dev,
+		dev_queue_xmit_sk);
 }
 
 static inline void br_set_ticks(unsigned char *dest, int j)
@@ -153,7 +154,7 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 	if (buf[0] != 0 || buf[1] != 0 || buf[2] != 0)
 		goto err;
 
-	p = br_port_get_rcu(dev);
+	p = br_port_get_check_rcu(dev);
 	if (!p)
 		goto err;
 

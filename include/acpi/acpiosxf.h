@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,7 +95,7 @@ acpi_physical_address acpi_os_get_root_pointer(void);
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_predefined_override
 acpi_status
 acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
-			    acpi_string * new_val);
+			    char **new_val);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_table_override
@@ -397,6 +397,37 @@ char *acpi_os_get_next_filename(void *dir_handle);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
 void acpi_os_close_directory(void *dir_handle);
+#endif
+
+/*
+ * File I/O and related support
+ */
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_open_file
+ACPI_FILE acpi_os_open_file(const char *path, u8 modes);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_file
+void acpi_os_close_file(ACPI_FILE file);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_read_file
+int
+acpi_os_read_file(ACPI_FILE file,
+		  void *buffer, acpi_size size, acpi_size count);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_write_file
+int
+acpi_os_write_file(ACPI_FILE file,
+		   void *buffer, acpi_size size, acpi_size count);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_file_offset
+long acpi_os_get_file_offset(ACPI_FILE file);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_set_file_offset
+acpi_status acpi_os_set_file_offset(ACPI_FILE file, long offset, u8 from);
 #endif
 
 #endif				/* __ACPIOSXF_H__ */

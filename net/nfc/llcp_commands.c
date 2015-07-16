@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) "llcp: %s: " fmt, __func__
@@ -389,7 +387,7 @@ int nfc_llcp_send_symm(struct nfc_dev *dev)
 
 	__net_timestamp(skb);
 
-	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_TX);
+	nfc_llcp_send_to_raw_sock(local, skb, NFC_DIRECTION_TX);
 
 	return nfc_data_exchange(dev, local->target_idx, skb,
 				 nfc_llcp_recv, local);
@@ -403,7 +401,8 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 	u8 *miux_tlv = NULL, miux_tlv_length;
 	u8 *rw_tlv = NULL, rw_tlv_length, rw;
 	int err;
-	u16 size = 0, miux;
+	u16 size = 0;
+	__be16 miux;
 
 	pr_debug("Sending CONNECT\n");
 
@@ -467,7 +466,8 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 	u8 *miux_tlv = NULL, miux_tlv_length;
 	u8 *rw_tlv = NULL, rw_tlv_length, rw;
 	int err;
-	u16 size = 0, miux;
+	u16 size = 0;
+	__be16 miux;
 
 	pr_debug("Sending CC\n");
 
@@ -667,7 +667,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 	if (msg_data == NULL)
 		return -ENOMEM;
 
-	if (memcpy_fromiovec(msg_data, msg->msg_iov, len)) {
+	if (memcpy_from_msg(msg_data, msg, len)) {
 		kfree(msg_data);
 		return -EFAULT;
 	}
@@ -677,7 +677,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 	do {
 		remote_miu = sock->remote_miu > LLCP_MAX_MIU ?
-				local->remote_miu : sock->remote_miu;
+				LLCP_DEFAULT_MIU : sock->remote_miu;
 
 		frag_len = min_t(size_t, remote_miu, remaining_len);
 
@@ -686,8 +686,10 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 		pdu = llcp_allocate_pdu(sock, LLCP_PDU_I,
 					frag_len + LLCP_SEQUENCE_SIZE);
-		if (pdu == NULL)
+		if (pdu == NULL) {
+			kfree(msg_data);
 			return -ENOMEM;
+		}
 
 		skb_put(pdu, LLCP_SEQUENCE_SIZE);
 
@@ -731,7 +733,7 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 	if (msg_data == NULL)
 		return -ENOMEM;
 
-	if (memcpy_fromiovec(msg_data, msg->msg_iov, len)) {
+	if (memcpy_from_msg(msg_data, msg, len)) {
 		kfree(msg_data);
 		return -EFAULT;
 	}

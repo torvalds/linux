@@ -26,6 +26,17 @@
 #include <asm/pgtable.h>
 #include <asm/vectors.h>
 
+#if XCHAL_HAVE_PTP_MMU
+#define CA_BYPASS	(_PAGE_CA_BYPASS | _PAGE_HW_WRITE | _PAGE_HW_EXEC)
+#define CA_WRITEBACK	(_PAGE_CA_WB     | _PAGE_HW_WRITE | _PAGE_HW_EXEC)
+#else
+#define CA_WRITEBACK	(0x4)
+#endif
+
+#ifndef XCHAL_SPANNING_WAY
+#define XCHAL_SPANNING_WAY 0
+#endif
+
 #ifdef __ASSEMBLY__
 
 #define XTENSA_HWVERSION_RC_2009_0 230000
@@ -72,7 +83,7 @@
 
 	/* Step 1: invalidate mapping at 0x40000000..0x5FFFFFFF. */
 
-	movi	a2, 0x40000006
+	movi	a2, 0x40000000 | XCHAL_SPANNING_WAY
 	idtlb	a2
 	iitlb	a2
 	isync
@@ -80,8 +91,6 @@
 	/* Step 2: map 0x40000000..0x47FFFFFF to paddr containing this code
 	 * and jump to the new mapping.
 	 */
-#define CA_BYPASS	(_PAGE_CA_BYPASS | _PAGE_HW_WRITE | _PAGE_HW_EXEC)
-#define CA_WRITEBACK	(_PAGE_CA_WB     | _PAGE_HW_WRITE | _PAGE_HW_EXEC)
 
 	srli	a3, a0, 27
 	slli	a3, a3, 27
@@ -123,13 +132,13 @@
 	wdtlb	a4, a5
 	witlb	a4, a5
 
-	movi	a5, 0xe0000006
-	movi	a4, 0xf0000000 + CA_WRITEBACK
+	movi	a5, XCHAL_KIO_CACHED_VADDR + 6
+	movi	a4, XCHAL_KIO_DEFAULT_PADDR + CA_WRITEBACK
 	wdtlb	a4, a5
 	witlb	a4, a5
 
-	movi	a5, 0xf0000006
-	movi	a4, 0xf0000000 + CA_BYPASS
+	movi	a5, XCHAL_KIO_BYPASS_VADDR + 6
+	movi	a4, XCHAL_KIO_DEFAULT_PADDR + CA_BYPASS
 	wdtlb	a4, a5
 	witlb	a4, a5
 
@@ -140,9 +149,6 @@
 	jx	a4
 
 1:
-	movi    a2, VECBASE_RESET_VADDR
-	wsr	a2, vecbase
-
 	/* Step 5: remove temporary mapping. */
 	idtlb	a7
 	iitlb	a7
@@ -154,6 +160,33 @@
 
 #endif /* defined(CONFIG_MMU) && XCHAL_HAVE_PTP_MMU &&
 	  XCHAL_HAVE_SPANNING_WAY */
+
+#if !defined(CONFIG_MMU) && XCHAL_HAVE_TLBS
+	/* Enable data and instruction cache in the DEFAULT_MEMORY region
+	 * if the processor has DTLB and ITLB.
+	 */
+
+	movi	a5, PLATFORM_DEFAULT_MEM_START | XCHAL_SPANNING_WAY
+	movi	a6, ~_PAGE_ATTRIB_MASK
+	movi	a7, CA_WRITEBACK
+	movi	a8, 0x20000000
+	movi	a9, PLATFORM_DEFAULT_MEM_SIZE
+	j	2f
+1:
+	sub	a9, a9, a8
+2:
+	rdtlb1	a3, a5
+	ritlb1	a4, a5
+	and	a3, a3, a6
+	and	a4, a4, a6
+	or	a3, a3, a7
+	or	a4, a4, a7
+	wdtlb	a3, a5
+	witlb	a4, a5
+	add	a5, a5, a8
+	bltu	a8, a9, 1b
+
+#endif
 
 	.endm
 

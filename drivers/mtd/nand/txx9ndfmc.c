@@ -319,11 +319,8 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 			continue;
 		txx9_priv = kzalloc(sizeof(struct txx9ndfmc_priv),
 				    GFP_KERNEL);
-		if (!txx9_priv) {
-			dev_err(&dev->dev, "Unable to allocate "
-				"TXx9 NDFMC MTD device structure.\n");
+		if (!txx9_priv)
 			continue;
-		}
 		chip = &txx9_priv->chip;
 		mtd = &txx9_priv->mtd;
 		mtd->owner = THIS_MODULE;
@@ -420,7 +417,6 @@ static struct platform_driver txx9ndfmc_driver = {
 	.resume		= txx9ndfmc_resume,
 	.driver		= {
 		.name	= "txx9ndfmc",
-		.owner	= THIS_MODULE,
 	},
 };
 

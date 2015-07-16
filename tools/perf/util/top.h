@@ -2,7 +2,7 @@
 #define __PERF_TOP_H 1
 
 #include "tool.h"
-#include "types.h"
+#include <linux/types.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <termios.h>
@@ -14,7 +14,7 @@ struct perf_session;
 struct perf_top {
 	struct perf_tool   tool;
 	struct perf_evlist *evlist;
-	struct perf_record_opts record_opts;
+	struct record_opts record_opts;
 	/*
 	 * Symbols will be added here in perf_event__process_sample and will
 	 * get out after decayed.

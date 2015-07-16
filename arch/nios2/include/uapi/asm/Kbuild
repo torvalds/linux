@@ -1,0 +1,5 @@
+include include/uapi/asm-generic/Kbuild.asm
+
+header-y += elf.h
+
+generic-y += ucontext.h

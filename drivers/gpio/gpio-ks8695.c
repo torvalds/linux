@@ -228,7 +228,7 @@ static struct gpio_chip ks8695_gpio_chip = {
 	.to_irq			= ks8695_gpio_to_irq,
 	.base			= 0,
 	.ngpio			= 16,
-	.can_sleep		= 0,
+	.can_sleep		= false,
 };
 
 /* Register the GPIOs */
@@ -265,29 +265,27 @@ static int ks8695_gpio_show(struct seq_file *s, void *unused)
 				seq_printf(s, "EXT%i ", i);
 
 				switch ((ctrl & intmask[i]) >> (4 * i)) {
-					case IOPC_TM_LOW:
-						seq_printf(s, "(Low)");		break;
-					case IOPC_TM_HIGH:
-						seq_printf(s, "(High)");	break;
-					case IOPC_TM_RISING:
-						seq_printf(s, "(Rising)");	break;
-					case IOPC_TM_FALLING:
-						seq_printf(s, "(Falling)");	break;
-					case IOPC_TM_EDGE:
-						seq_printf(s, "(Edges)");	break;
+				case IOPC_TM_LOW:
+					seq_printf(s, "(Low)");		break;
+				case IOPC_TM_HIGH:
+					seq_printf(s, "(High)");	break;
+				case IOPC_TM_RISING:
+					seq_printf(s, "(Rising)");	break;
+				case IOPC_TM_FALLING:
+					seq_printf(s, "(Falling)");	break;
+				case IOPC_TM_EDGE:
+					seq_printf(s, "(Edges)");	break;
 				}
-			}
-			else
+			} else
 				seq_printf(s, "GPIO\t");
-		}
-		else if (i <= KS8695_GPIO_5) {
+		} else if (i <= KS8695_GPIO_5) {
 			if (ctrl & enable[i])
 				seq_printf(s, "TOUT%i\t", i - KS8695_GPIO_4);
 			else
 				seq_printf(s, "GPIO\t");
-		}
-		else
+		} else {
 			seq_printf(s, "GPIO\t");
+		}
 
 		seq_printf(s, "\t");
 

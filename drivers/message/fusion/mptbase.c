@@ -59,10 +59,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>		/* needed for in_interrupt() proto */
 #include <linux/dma-mapping.h>
-#include <asm/io.h>
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
 #include <linux/kthread.h>
 #include <scsi/scsi_host.h>
 
@@ -346,7 +342,7 @@ static int mpt_remove_dead_ioc_func(void *arg)
 	if ((pdev == NULL))
 		return -1;
 
-	pci_stop_and_remove_bus_device(pdev);
+	pci_stop_and_remove_bus_device_locked(pdev);
 	return 0;
 }
 
@@ -649,12 +645,10 @@ mptbase_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 	case MPI_FUNCTION_CONFIG:
 	case MPI_FUNCTION_SAS_IO_UNIT_CONTROL:
 		ioc->mptbase_cmds.status |= MPT_MGMT_STATUS_COMMAND_GOOD;
-		if (reply) {
-			ioc->mptbase_cmds.status |= MPT_MGMT_STATUS_RF_VALID;
-			memcpy(ioc->mptbase_cmds.reply, reply,
-			    min(MPT_DEFAULT_FRAME_SIZE,
-				4 * reply->u.reply.MsgLength));
-		}
+		ioc->mptbase_cmds.status |= MPT_MGMT_STATUS_RF_VALID;
+		memcpy(ioc->mptbase_cmds.reply, reply,
+		    min(MPT_DEFAULT_FRAME_SIZE,
+			4 * reply->u.reply.MsgLength));
 		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_PENDING) {
 			ioc->mptbase_cmds.status &= ~MPT_MGMT_STATUS_PENDING;
 			complete(&ioc->mptbase_cmds.done);
@@ -1037,7 +1031,7 @@ mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 		goto out;
 	/* signature to know if this mf is freed */
 	mf->u.frame.linkage.arg1 = cpu_to_le32(0xdeadbeaf);
-	list_add_tail(&mf->u.frame.linkage.list, &ioc->FreeQ);
+	list_add(&mf->u.frame.linkage.list, &ioc->FreeQ);
 #ifdef MFCNT
 	ioc->mfcnt--;
 #endif
@@ -1402,14 +1396,13 @@ mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp)
  *	@vendor: pci vendor id
  *	@device: pci device id
  *	@revision: pci revision id
- *	@prod_name: string returned
  *
  *	Returns product string displayed when driver loads,
  *	in /proc/mpt/summary and /sysfs/class/scsi_host/host<X>/version_product
  *
  **/
-static void
-mpt_get_product_name(u16 vendor, u16 device, u8 revision, char *prod_name)
+static const char*
+mpt_get_product_name(u16 vendor, u16 device, u8 revision)
 {
 	char *product_str = NULL;
 
@@ -1635,8 +1628,7 @@ mpt_get_product_name(u16 vendor, u16 device, u8 revision, char *prod_name)
 	}
 
  out:
-	if (product_str)
-		sprintf(prod_name, "%s", product_str);
+	return product_str;
 }
 
 /**
@@ -1887,8 +1879,8 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	dinitprintk(ioc, printk(MYIOC_s_INFO_FMT "facts @ %p, pfacts[0] @ %p\n",
 	    ioc->name, &ioc->facts, &ioc->pfacts[0]));
 
-	mpt_get_product_name(pdev->vendor, pdev->device, pdev->revision,
-			     ioc->prod_name);
+	ioc->prod_name = mpt_get_product_name(pdev->vendor, pdev->device,
+					      pdev->revision);
 
 	switch (pdev->device)
 	{
@@ -2824,13 +2816,6 @@ mpt_adapter_dispose(MPT_ADAPTER *ioc)
 	pci_disable_device(ioc->pcidev);
 	pci_release_selected_regions(ioc->pcidev, ioc->bars);
 
-#if defined(CONFIG_MTRR) && 0
-	if (ioc->mtrr_reg > 0) {
-		mtrr_del(ioc->mtrr_reg, 0, 0);
-		dprintk(ioc, printk(MYIOC_s_INFO_FMT "MTRR region de-registered\n", ioc->name));
-	}
-#endif
-
 	/*  Zap the adapter lookup ptr!  */
 	list_del(&ioc->list);
 
@@ -3175,12 +3160,7 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 			facts->FWImageSize = le32_to_cpu(facts->FWImageSize);
 		}
 
-		sz = facts->FWImageSize;
-		if ( sz & 0x01 )
-			sz += 1;
-		if ( sz & 0x02 )
-			sz += 2;
-		facts->FWImageSize = sz;
+		facts->FWImageSize = ALIGN(facts->FWImageSize, 4);
 
 		if (!facts->RequestFrameSize) {
 			/*  Something is wrong!  */
@@ -4520,19 +4500,6 @@ PrimeIocFifos(MPT_ADAPTER *ioc)
 			 	ioc->name, mem, (void *)(ulong)alloc_dma));
 
 		ioc->req_frames_low_dma = (u32) (alloc_dma & 0xFFFFFFFF);
-
-#if defined(CONFIG_MTRR) && 0
-		/*
-		 *  Enable Write Combining MTRR for IOC's memory region.
-		 *  (at least as much as we can; "size and base must be
-		 *  multiples of 4 kiB"
-		 */
-		ioc->mtrr_reg = mtrr_add(ioc->req_frames_dma,
-					 sz,
-					 MTRR_TYPE_WRCOMB, 1);
-		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "MTRR region registered (base:size=%08x:%x)\n",
-				ioc->name, ioc->req_frames_dma, sz));
-#endif
 
 		for (i = 0; i < ioc->req_depth; i++) {
 			alloc_dma += ioc->req_sz;
@@ -7007,7 +6974,7 @@ EXPORT_SYMBOL(mpt_halt_firmware);
  *	IOC doesn't reply to any outstanding request. This will transfer IOC
  *	to READY state.
  **/
-int
+static int
 mpt_SoftResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 {
 	int		 rc;

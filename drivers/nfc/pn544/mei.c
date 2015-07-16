@@ -13,9 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -69,7 +67,7 @@ static int pn544_mei_remove(struct mei_cl_device *device)
 }
 
 static struct mei_cl_device_id pn544_mei_tbl[] = {
-	{ PN544_DRIVER_NAME },
+	{ PN544_DRIVER_NAME, MEI_NFC_UUID},
 
 	/* required last entry */
 	{ }

@@ -25,19 +25,17 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/acpi_gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <linux/rfkill-gpio.h>
 
 struct rfkill_gpio_data {
 	const char		*name;
 	enum rfkill_type	type;
-	int			reset_gpio;
-	int			shutdown_gpio;
+	struct gpio_desc	*reset_gpio;
+	struct gpio_desc	*shutdown_gpio;
 
 	struct rfkill		*rfkill_dev;
-	char			*reset_name;
-	char			*shutdown_name;
 	struct clk		*clk;
 
 	bool			clk_enabled;
@@ -47,29 +45,31 @@ static int rfkill_gpio_set_power(void *data, bool blocked)
 {
 	struct rfkill_gpio_data *rfkill = data;
 
-	if (blocked) {
-		if (gpio_is_valid(rfkill->shutdown_gpio))
-			gpio_set_value(rfkill->shutdown_gpio, 0);
-		if (gpio_is_valid(rfkill->reset_gpio))
-			gpio_set_value(rfkill->reset_gpio, 0);
-		if (!IS_ERR(rfkill->clk) && rfkill->clk_enabled)
-			clk_disable(rfkill->clk);
-	} else {
-		if (!IS_ERR(rfkill->clk) && !rfkill->clk_enabled)
-			clk_enable(rfkill->clk);
-		if (gpio_is_valid(rfkill->reset_gpio))
-			gpio_set_value(rfkill->reset_gpio, 1);
-		if (gpio_is_valid(rfkill->shutdown_gpio))
-			gpio_set_value(rfkill->shutdown_gpio, 1);
-	}
+	if (!blocked && !IS_ERR(rfkill->clk) && !rfkill->clk_enabled)
+		clk_enable(rfkill->clk);
 
-	rfkill->clk_enabled = blocked;
+	gpiod_set_value_cansleep(rfkill->shutdown_gpio, !blocked);
+	gpiod_set_value_cansleep(rfkill->reset_gpio, !blocked);
+
+	if (blocked && !IS_ERR(rfkill->clk) && rfkill->clk_enabled)
+		clk_disable(rfkill->clk);
+
+	rfkill->clk_enabled = !blocked;
 
 	return 0;
 }
 
 static const struct rfkill_ops rfkill_gpio_ops = {
 	.set_block = rfkill_gpio_set_power,
+};
+
+static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
+static const struct acpi_gpio_params shutdown_gpios = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_rfkill_default_gpios[] = {
+	{ "reset-gpios", &reset_gpios, 1 },
+	{ "shutdown-gpios", &shutdown_gpios, 1 },
+	{ },
 };
 
 static int rfkill_gpio_acpi_probe(struct device *dev,
@@ -83,19 +83,17 @@ static int rfkill_gpio_acpi_probe(struct device *dev,
 
 	rfkill->name = dev_name(dev);
 	rfkill->type = (unsigned)id->driver_data;
-	rfkill->reset_gpio = acpi_get_gpio_by_index(dev, 0, NULL);
-	rfkill->shutdown_gpio = acpi_get_gpio_by_index(dev, 1, NULL);
 
-	return 0;
+	return acpi_dev_add_driver_gpios(ACPI_COMPANION(dev),
+					 acpi_rfkill_default_gpios);
 }
 
 static int rfkill_gpio_probe(struct platform_device *pdev)
 {
 	struct rfkill_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct rfkill_gpio_data *rfkill;
-	const char *clk_name = NULL;
-	int ret = 0;
-	int len = 0;
+	struct gpio_desc *gpio;
+	int ret;
 
 	rfkill = devm_kzalloc(&pdev->dev, sizeof(*rfkill), GFP_KERNEL);
 	if (!rfkill)
@@ -106,61 +104,32 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	} else if (pdata) {
-		clk_name = pdata->power_clk_name;
 		rfkill->name = pdata->name;
 		rfkill->type = pdata->type;
-		rfkill->reset_gpio = pdata->reset_gpio;
-		rfkill->shutdown_gpio = pdata->shutdown_gpio;
 	} else {
 		return -ENODEV;
 	}
 
-	/* make sure at-least one of the GPIO is defined and that
-	 * a name is specified for this instance */
-	if ((!gpio_is_valid(rfkill->reset_gpio) &&
-	     !gpio_is_valid(rfkill->shutdown_gpio)) || !rfkill->name) {
-		pr_warn("%s: invalid platform data\n", __func__);
+	rfkill->clk = devm_clk_get(&pdev->dev, NULL);
+
+	gpio = devm_gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
+	rfkill->reset_gpio = gpio;
+
+	gpio = devm_gpiod_get_optional(&pdev->dev, "shutdown", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
+	rfkill->shutdown_gpio = gpio;
+
+	/* Make sure at-least one of the GPIO is defined and that
+	 * a name is specified for this instance
+	 */
+	if ((!rfkill->reset_gpio && !rfkill->shutdown_gpio) || !rfkill->name) {
+		dev_err(&pdev->dev, "invalid platform data\n");
 		return -EINVAL;
-	}
-
-	if (pdata && pdata->gpio_runtime_setup) {
-		ret = pdata->gpio_runtime_setup(pdev);
-		if (ret) {
-			pr_warn("%s: can't set up gpio\n", __func__);
-			return ret;
-		}
-	}
-
-	len = strlen(rfkill->name);
-	rfkill->reset_name = devm_kzalloc(&pdev->dev, len + 7, GFP_KERNEL);
-	if (!rfkill->reset_name)
-		return -ENOMEM;
-
-	rfkill->shutdown_name = devm_kzalloc(&pdev->dev, len + 10, GFP_KERNEL);
-	if (!rfkill->shutdown_name)
-		return -ENOMEM;
-
-	snprintf(rfkill->reset_name, len + 6 , "%s_reset", rfkill->name);
-	snprintf(rfkill->shutdown_name, len + 9, "%s_shutdown", rfkill->name);
-
-	rfkill->clk = devm_clk_get(&pdev->dev, clk_name);
-
-	if (gpio_is_valid(rfkill->reset_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev, rfkill->reset_gpio,
-					    0, rfkill->reset_name);
-		if (ret) {
-			pr_warn("%s: failed to get reset gpio.\n", __func__);
-			return ret;
-		}
-	}
-
-	if (gpio_is_valid(rfkill->shutdown_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev, rfkill->shutdown_gpio,
-					    0, rfkill->shutdown_name);
-		if (ret) {
-			pr_warn("%s: failed to get shutdown gpio.\n", __func__);
-			return ret;
-		}
 	}
 
 	rfkill->rfkill_dev = rfkill_alloc(rfkill->name, &pdev->dev,
@@ -183,27 +152,34 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 static int rfkill_gpio_remove(struct platform_device *pdev)
 {
 	struct rfkill_gpio_data *rfkill = platform_get_drvdata(pdev);
-	struct rfkill_gpio_platform_data *pdata = pdev->dev.platform_data;
 
-	if (pdata && pdata->gpio_runtime_close)
-		pdata->gpio_runtime_close(pdev);
 	rfkill_unregister(rfkill->rfkill_dev);
 	rfkill_destroy(rfkill->rfkill_dev);
+
+	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&pdev->dev));
 
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id rfkill_acpi_match[] = {
+	{ "BCM2E1A", RFKILL_TYPE_BLUETOOTH },
+	{ "BCM2E39", RFKILL_TYPE_BLUETOOTH },
+	{ "BCM2E3D", RFKILL_TYPE_BLUETOOTH },
+	{ "BCM2E40", RFKILL_TYPE_BLUETOOTH },
+	{ "BCM2E64", RFKILL_TYPE_BLUETOOTH },
 	{ "BCM4752", RFKILL_TYPE_GPS },
+	{ "LNV4752", RFKILL_TYPE_GPS },
 	{ },
 };
+MODULE_DEVICE_TABLE(acpi, rfkill_acpi_match);
+#endif
 
 static struct platform_driver rfkill_gpio_driver = {
 	.probe = rfkill_gpio_probe,
 	.remove = rfkill_gpio_remove,
 	.driver = {
 		.name = "rfkill_gpio",
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(rfkill_acpi_match),
 	},
 };

@@ -58,6 +58,8 @@
 
 #define STACK_END_MAGIC		0x57AC6E9D
 
+#define TRACEFS_MAGIC          0x74726163
+
 #define V9FS_MAGIC		0x01021997
 
 #define BDEVFS_MAGIC            0x62646576
@@ -72,5 +74,6 @@
 #define MTD_INODE_FS_MAGIC      0x11307854
 #define ANON_INODE_FS_MAGIC	0x09041934
 #define BTRFS_TEST_MAGIC	0x73727279
+#define NSFS_MAGIC		0x6e736673
 
 #endif /* __LINUX_MAGIC_H__ */

@@ -15,7 +15,9 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/notifier.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/watchdog.h>
 #include <linux/moduleparam.h>
 
@@ -27,9 +29,23 @@ struct moxart_wdt_dev {
 	struct watchdog_device dev;
 	void __iomem *base;
 	unsigned int clock_frequency;
+	struct notifier_block restart_handler;
 };
 
 static int heartbeat;
+
+static int moxart_restart_handle(struct notifier_block *this,
+				 unsigned long mode, void *cmd)
+{
+	struct moxart_wdt_dev *moxart_wdt = container_of(this,
+							 struct moxart_wdt_dev,
+							 restart_handler);
+	writel(1, moxart_wdt->base + REG_COUNT);
+	writel(0x5ab9, moxart_wdt->base + REG_MODE);
+	writel(0x03, moxart_wdt->base + REG_ENABLE);
+
+	return NOTIFY_DONE;
+}
 
 static int moxart_wdt_stop(struct watchdog_device *wdt_dev)
 {
@@ -125,6 +141,13 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	moxart_wdt->restart_handler.notifier_call = moxart_restart_handle;
+	moxart_wdt->restart_handler.priority = 128;
+	err = register_restart_handler(&moxart_wdt->restart_handler);
+	if (err)
+		dev_err(dev, "cannot register restart notifier (err=%d)\n",
+			err);
+
 	dev_dbg(dev, "Watchdog enabled (heartbeat=%d sec, nowayout=%d)\n",
 		moxart_wdt->dev.timeout, nowayout);
 
@@ -135,8 +158,8 @@ static int moxart_wdt_remove(struct platform_device *pdev)
 {
 	struct moxart_wdt_dev *moxart_wdt = platform_get_drvdata(pdev);
 
+	unregister_restart_handler(&moxart_wdt->restart_handler);
 	moxart_wdt_stop(&moxart_wdt->dev);
-	watchdog_unregister_device(&moxart_wdt->dev);
 
 	return 0;
 }
@@ -151,7 +174,6 @@ static struct platform_driver moxart_wdt_driver = {
 	.remove     = moxart_wdt_remove,
 	.driver     = {
 		.name		= "moxart-watchdog",
-		.owner		= THIS_MODULE,
 		.of_match_table	= moxart_watchdog_match,
 	},
 };

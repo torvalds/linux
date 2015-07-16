@@ -6,6 +6,7 @@
 # Networking Core Drivers
 #
 obj-$(CONFIG_BONDING) += bonding/
+obj-$(CONFIG_IPVLAN) += ipvlan/
 obj-$(CONFIG_DUMMY) += dummy.o
 obj-$(CONFIG_EQUALIZER) += eql.o
 obj-$(CONFIG_IFB) += ifb.o
@@ -22,6 +23,7 @@ obj-$(CONFIG_TUN) += tun.o
 obj-$(CONFIG_VETH) += veth.o
 obj-$(CONFIG_VIRTIO_NET) += virtio_net.o
 obj-$(CONFIG_VXLAN) += vxlan.o
+obj-$(CONFIG_GENEVE) += geneve.o
 obj-$(CONFIG_NLMON) += nlmon.o
 
 #
@@ -61,15 +63,7 @@ obj-$(CONFIG_VMXNET3) += vmxnet3/
 obj-$(CONFIG_XEN_NETDEV_FRONTEND) += xen-netfront.o
 obj-$(CONFIG_XEN_NETDEV_BACKEND) += xen-netback/
 
-obj-$(CONFIG_USB_CATC)          += usb/
-obj-$(CONFIG_USB_KAWETH)        += usb/
-obj-$(CONFIG_USB_PEGASUS)       += usb/
-obj-$(CONFIG_USB_RTL8150)       += usb/
-obj-$(CONFIG_USB_HSO)		+= usb/
-obj-$(CONFIG_USB_USBNET)        += usb/
-obj-$(CONFIG_USB_ZD1201)        += usb/
-obj-$(CONFIG_USB_IPHETH)        += usb/
-obj-$(CONFIG_USB_CDC_PHONET)   += usb/
+obj-$(CONFIG_USB_NET_DRIVERS) += usb/
 
 obj-$(CONFIG_HYPERV_NET) += hyperv/
 obj-$(CONFIG_NTB_NETDEV) += ntb_netdev.o

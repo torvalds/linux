@@ -162,9 +162,6 @@ static struct snd_pcm_hardware snd_imx_hardware = {
 		SNDRV_PCM_INFO_PAUSE |
 		SNDRV_PCM_INFO_RESUME,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	.rate_min = 8000,
-	.channels_min = 2,
-	.channels_max = 2,
 	.buffer_bytes_max = IMX_SSI_DMABUF_SIZE,
 	.period_bytes_min = 128,
 	.period_bytes_max = 16 * 1024,
@@ -273,18 +270,17 @@ static int imx_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		ret = imx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		ret = imx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 static int ssi_irq = 0;

@@ -54,6 +54,8 @@ svc_authenticate(struct svc_rqst *rqstp, __be32 *authp)
 	}
 	spin_unlock(&authtab_lock);
 
+	rqstp->rq_auth_slack = 0;
+
 	rqstp->rq_authop = aops;
 	return aops->accept(rqstp, authp);
 }

@@ -42,7 +42,7 @@
 #include <linux/kref.h>
 #include <linux/idr.h>
 #include <linux/workqueue.h>
-
+#include <uapi/linux/if_ether.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_cache.h>
 #include "sa.h"
@@ -450,7 +450,7 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 		struct ib_sa_port *port =
 			&sa_dev->port[event->element.port_num - sa_dev->start_port];
 
-		if (rdma_port_get_link_layer(handler->device, port->port_num) != IB_LINK_LAYER_INFINIBAND)
+		if (!rdma_cap_ib_sa(handler->device, port->port_num))
 			return;
 
 		spin_lock_irqsave(&port->ah_lock, flags);
@@ -540,7 +540,7 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	ah_attr->port_num = port_num;
 	ah_attr->static_rate = rec->rate;
 
-	force_grh = rdma_port_get_link_layer(device, port_num) == IB_LINK_LAYER_ETHERNET;
+	force_grh = rdma_cap_eth_ah(device, port_num);
 
 	if (rec->hop_limit > 1 || force_grh) {
 		ah_attr->ah_flags = IB_AH_GRH;
@@ -556,6 +556,13 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 		ah_attr->grh.hop_limit     = rec->hop_limit;
 		ah_attr->grh.traffic_class = rec->traffic_class;
 	}
+	if (force_grh) {
+		memcpy(ah_attr->dmac, rec->dmac, ETH_ALEN);
+		ah_attr->vlan_id = rec->vlan_id;
+	} else {
+		ah_attr->vlan_id = 0xffff;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(ib_init_ah_from_path);
@@ -576,7 +583,8 @@ static int alloc_mad(struct ib_sa_query *query, gfp_t gfp_mask)
 	query->mad_buf = ib_create_send_mad(query->port->agent, 1,
 					    query->sm_ah->pkey_index,
 					    0, IB_MGMT_SA_HDR, IB_MGMT_SA_DATA,
-					    gfp_mask);
+					    gfp_mask,
+					    IB_MGMT_BASE_VERSION);
 	if (IS_ERR(query->mad_buf)) {
 		kref_put(&query->sm_ah->ref, free_sm_ah);
 		return -ENOMEM;
@@ -611,7 +619,7 @@ static void init_mad(struct ib_sa_mad *mad, struct ib_mad_agent *agent)
 
 static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 {
-	bool preload = gfp_mask & __GFP_WAIT;
+	bool preload = !!(gfp_mask & __GFP_WAIT);
 	unsigned long flags;
 	int ret, id;
 
@@ -670,6 +678,9 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 
 		ib_unpack(path_rec_table, ARRAY_SIZE(path_rec_table),
 			  mad->data, &rec);
+		rec.vlan_id = 0xffff;
+		memset(rec.dmac, 0, ETH_ALEN);
+		memset(rec.smac, 0, ETH_ALEN);
 		query->callback(status, &rec, query->context);
 	} else
 		query->callback(status, NULL, query->context);
@@ -1143,16 +1154,10 @@ static void ib_sa_add_one(struct ib_device *device)
 {
 	struct ib_sa_device *sa_dev;
 	int s, e, i;
+	int count = 0;
 
-	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
-		return;
-
-	if (device->node_type == RDMA_NODE_IB_SWITCH)
-		s = e = 0;
-	else {
-		s = 1;
-		e = device->phys_port_cnt;
-	}
+	s = rdma_start_port(device);
+	e = rdma_end_port(device);
 
 	sa_dev = kzalloc(sizeof *sa_dev +
 			 (e - s + 1) * sizeof (struct ib_sa_port),
@@ -1165,7 +1170,7 @@ static void ib_sa_add_one(struct ib_device *device)
 
 	for (i = 0; i <= e - s; ++i) {
 		spin_lock_init(&sa_dev->port[i].ah_lock);
-		if (rdma_port_get_link_layer(device, i + 1) != IB_LINK_LAYER_INFINIBAND)
+		if (!rdma_cap_ib_sa(device, i + 1))
 			continue;
 
 		sa_dev->port[i].sm_ah    = NULL;
@@ -1174,12 +1179,17 @@ static void ib_sa_add_one(struct ib_device *device)
 		sa_dev->port[i].agent =
 			ib_register_mad_agent(device, i + s, IB_QPT_GSI,
 					      NULL, 0, send_handler,
-					      recv_handler, sa_dev);
+					      recv_handler, sa_dev, 0);
 		if (IS_ERR(sa_dev->port[i].agent))
 			goto err;
 
 		INIT_WORK(&sa_dev->port[i].update_task, update_sm_ah);
+
+		count++;
 	}
+
+	if (!count)
+		goto free;
 
 	ib_set_client_data(device, &sa_client, sa_dev);
 
@@ -1194,19 +1204,20 @@ static void ib_sa_add_one(struct ib_device *device)
 	if (ib_register_event_handler(&sa_dev->event_handler))
 		goto err;
 
-	for (i = 0; i <= e - s; ++i)
-		if (rdma_port_get_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND)
+	for (i = 0; i <= e - s; ++i) {
+		if (rdma_cap_ib_sa(device, i + 1))
 			update_sm_ah(&sa_dev->port[i].update_task);
+	}
 
 	return;
 
 err:
-	while (--i >= 0)
-		if (rdma_port_get_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND)
+	while (--i >= 0) {
+		if (rdma_cap_ib_sa(device, i + 1))
 			ib_unregister_mad_agent(sa_dev->port[i].agent);
-
+	}
+free:
 	kfree(sa_dev);
-
 	return;
 }
 
@@ -1223,7 +1234,7 @@ static void ib_sa_remove_one(struct ib_device *device)
 	flush_workqueue(ib_wq);
 
 	for (i = 0; i <= sa_dev->end_port - sa_dev->start_port; ++i) {
-		if (rdma_port_get_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND) {
+		if (rdma_cap_ib_sa(device, i + 1)) {
 			ib_unregister_mad_agent(sa_dev->port[i].agent);
 			if (sa_dev->port[i].sm_ah)
 				kref_put(&sa_dev->port[i].sm_ah->ref, free_sm_ah);

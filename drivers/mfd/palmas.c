@@ -25,52 +25,6 @@
 #include <linux/mfd/palmas.h>
 #include <linux/of_device.h>
 
-#define PALMAS_EXT_REQ (PALMAS_EXT_CONTROL_ENABLE1 |	\
-			PALMAS_EXT_CONTROL_ENABLE2 |	\
-			PALMAS_EXT_CONTROL_NSLEEP)
-
-struct palmas_sleep_requestor_info {
-	int id;
-	int reg_offset;
-	int bit_pos;
-};
-
-#define EXTERNAL_REQUESTOR(_id, _offset, _pos)		\
-	[PALMAS_EXTERNAL_REQSTR_ID_##_id] = {		\
-		.id = PALMAS_EXTERNAL_REQSTR_ID_##_id,	\
-		.reg_offset = _offset,			\
-		.bit_pos = _pos,			\
-	}
-
-static struct palmas_sleep_requestor_info sleep_req_info[] = {
-	EXTERNAL_REQUESTOR(REGEN1, 0, 0),
-	EXTERNAL_REQUESTOR(REGEN2, 0, 1),
-	EXTERNAL_REQUESTOR(SYSEN1, 0, 2),
-	EXTERNAL_REQUESTOR(SYSEN2, 0, 3),
-	EXTERNAL_REQUESTOR(CLK32KG, 0, 4),
-	EXTERNAL_REQUESTOR(CLK32KGAUDIO, 0, 5),
-	EXTERNAL_REQUESTOR(REGEN3, 0, 6),
-	EXTERNAL_REQUESTOR(SMPS12, 1, 0),
-	EXTERNAL_REQUESTOR(SMPS3, 1, 1),
-	EXTERNAL_REQUESTOR(SMPS45, 1, 2),
-	EXTERNAL_REQUESTOR(SMPS6, 1, 3),
-	EXTERNAL_REQUESTOR(SMPS7, 1, 4),
-	EXTERNAL_REQUESTOR(SMPS8, 1, 5),
-	EXTERNAL_REQUESTOR(SMPS9, 1, 6),
-	EXTERNAL_REQUESTOR(SMPS10, 1, 7),
-	EXTERNAL_REQUESTOR(LDO1, 2, 0),
-	EXTERNAL_REQUESTOR(LDO2, 2, 1),
-	EXTERNAL_REQUESTOR(LDO3, 2, 2),
-	EXTERNAL_REQUESTOR(LDO4, 2, 3),
-	EXTERNAL_REQUESTOR(LDO5, 2, 4),
-	EXTERNAL_REQUESTOR(LDO6, 2, 5),
-	EXTERNAL_REQUESTOR(LDO7, 2, 6),
-	EXTERNAL_REQUESTOR(LDO8, 2, 7),
-	EXTERNAL_REQUESTOR(LDO9, 3, 0),
-	EXTERNAL_REQUESTOR(LDOLN, 3, 1),
-	EXTERNAL_REQUESTOR(LDOUSB, 3, 2),
-};
-
 static const struct regmap_config palmas_regmap_config[PALMAS_NUM_CLIENTS] = {
 	{
 		.reg_bits = 8,
@@ -89,6 +43,133 @@ static const struct regmap_config palmas_regmap_config[PALMAS_NUM_CLIENTS] = {
 		.val_bits = 8,
 		.max_register = PALMAS_BASE_TO_REG(PALMAS_TRIM_GPADC_BASE,
 					PALMAS_GPADC_TRIM16),
+	},
+};
+
+static const struct regmap_irq tps65917_irqs[] = {
+	/* INT1 IRQs */
+	[TPS65917_RESERVED1] = {
+		.mask = TPS65917_RESERVED,
+	},
+	[TPS65917_PWRON_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_PWRON,
+	},
+	[TPS65917_LONG_PRESS_KEY_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_LONG_PRESS_KEY,
+	},
+	[TPS65917_RESERVED2] = {
+		.mask = TPS65917_RESERVED,
+	},
+	[TPS65917_PWRDOWN_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_PWRDOWN,
+	},
+	[TPS65917_HOTDIE_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_HOTDIE,
+	},
+	[TPS65917_VSYS_MON_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_VSYS_MON,
+	},
+	[TPS65917_RESERVED3] = {
+		.mask = TPS65917_RESERVED,
+	},
+	/* INT2 IRQs*/
+	[TPS65917_RESERVED4] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 1,
+	},
+	[TPS65917_OTP_ERROR_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_OTP_ERROR,
+		.reg_offset = 1,
+	},
+	[TPS65917_WDT_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_WDT,
+		.reg_offset = 1,
+	},
+	[TPS65917_RESERVED5] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 1,
+	},
+	[TPS65917_RESET_IN_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_RESET_IN,
+		.reg_offset = 1,
+	},
+	[TPS65917_FSD_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_FSD,
+		.reg_offset = 1,
+	},
+	[TPS65917_SHORT_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_SHORT,
+		.reg_offset = 1,
+	},
+	[TPS65917_RESERVED6] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 1,
+	},
+	/* INT3 IRQs */
+	[TPS65917_GPADC_AUTO_0_IRQ] = {
+		.mask = TPS65917_INT3_STATUS_GPADC_AUTO_0,
+		.reg_offset = 2,
+	},
+	[TPS65917_GPADC_AUTO_1_IRQ] = {
+		.mask = TPS65917_INT3_STATUS_GPADC_AUTO_1,
+		.reg_offset = 2,
+	},
+	[TPS65917_GPADC_EOC_SW_IRQ] = {
+		.mask = TPS65917_INT3_STATUS_GPADC_EOC_SW,
+		.reg_offset = 2,
+	},
+	[TPS65917_RESREVED6] = {
+		.mask = TPS65917_RESERVED6,
+		.reg_offset = 2,
+	},
+	[TPS65917_RESERVED7] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 2,
+	},
+	[TPS65917_RESERVED8] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 2,
+	},
+	[TPS65917_RESERVED9] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 2,
+	},
+	[TPS65917_VBUS_IRQ] = {
+		.mask = TPS65917_INT3_STATUS_VBUS,
+		.reg_offset = 2,
+	},
+	/* INT4 IRQs */
+	[TPS65917_GPIO_0_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_0,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_1_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_1,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_2_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_2,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_3_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_3,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_4_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_4,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_5_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_5,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_6_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_6,
+		.reg_offset = 3,
+	},
+	[TPS65917_RESERVED10] = {
+		.mask = TPS65917_RESERVED10,
+		.reg_offset = 3,
 	},
 };
 
@@ -232,13 +313,26 @@ static struct regmap_irq_chip palmas_irq_chip = {
 			PALMAS_INT1_MASK),
 };
 
+static struct regmap_irq_chip tps65917_irq_chip = {
+	.name = "tps65917",
+	.irqs = tps65917_irqs,
+	.num_irqs = ARRAY_SIZE(tps65917_irqs),
+
+	.num_regs = 4,
+	.irq_reg_stride = 5,
+	.status_base = PALMAS_BASE_TO_REG(PALMAS_INTERRUPT_BASE,
+			PALMAS_INT1_STATUS),
+	.mask_base = PALMAS_BASE_TO_REG(PALMAS_INTERRUPT_BASE,
+			PALMAS_INT1_MASK),
+};
+
 int palmas_ext_control_req_config(struct palmas *palmas,
 	enum palmas_external_requestor_id id,  int ext_ctrl, bool enable)
 {
+	struct palmas_pmic_driver_data *pmic_ddata = palmas->pmic_ddata;
 	int preq_mask_bit = 0;
 	int reg_add = 0;
-	int bit_pos;
-	int ret;
+	int bit_pos, ret;
 
 	if (!(ext_ctrl & PALMAS_EXT_REQ))
 		return 0;
@@ -257,8 +351,8 @@ int palmas_ext_control_req_config(struct palmas *palmas,
 		preq_mask_bit = 2;
 	}
 
-	bit_pos = sleep_req_info[id].bit_pos;
-	reg_add += sleep_req_info[id].reg_offset;
+	bit_pos = pmic_ddata->sleep_req_info[id].bit_pos;
+	reg_add += pmic_ddata->sleep_req_info[id].reg_offset;
 	if (enable)
 		ret = palmas_update_bits(palmas, PALMAS_RESOURCE_BASE,
 				reg_add, BIT(bit_pos), BIT(bit_pos));
@@ -357,14 +451,38 @@ static void palmas_power_off(void)
 static unsigned int palmas_features = PALMAS_PMIC_FEATURE_SMPS10_BOOST;
 static unsigned int tps659038_features;
 
+struct palmas_driver_data {
+	unsigned int *features;
+	struct regmap_irq_chip *irq_chip;
+};
+
+static struct palmas_driver_data palmas_data = {
+	.features = &palmas_features,
+	.irq_chip = &palmas_irq_chip,
+};
+
+static struct palmas_driver_data tps659038_data = {
+	.features = &tps659038_features,
+	.irq_chip = &palmas_irq_chip,
+};
+
+static struct palmas_driver_data tps65917_data = {
+	.features = &tps659038_features,
+	.irq_chip = &tps65917_irq_chip,
+};
+
 static const struct of_device_id of_palmas_match_tbl[] = {
 	{
 		.compatible = "ti,palmas",
-		.data = &palmas_features,
+		.data = &palmas_data,
 	},
 	{
 		.compatible = "ti,tps659038",
-		.data = &tps659038_features,
+		.data = &tps659038_data,
+	},
+	{
+		.compatible = "ti,tps65917",
+		.data = &tps65917_data,
 	},
 	{ },
 };
@@ -375,9 +493,10 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 {
 	struct palmas *palmas;
 	struct palmas_platform_data *pdata;
+	struct palmas_driver_data *driver_data;
 	struct device_node *node = i2c->dev.of_node;
 	int ret = 0, i;
-	unsigned int reg, addr, *features;
+	unsigned int reg, addr;
 	int slave;
 	const struct of_device_id *match;
 
@@ -408,8 +527,8 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 	if (!match)
 		return -ENODATA;
 
-	features = (unsigned int *)match->data;
-	palmas->features = *features;
+	driver_data = (struct palmas_driver_data *)match->data;
+	palmas->features = *driver_data->features;
 
 	for (i = 0; i < PALMAS_NUM_CLIENTS; i++) {
 		if (i == 0)
@@ -463,8 +582,8 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 	regmap_write(palmas->regmap[slave], addr, reg);
 
 	ret = regmap_add_irq_chip(palmas->regmap[slave], palmas->irq,
-			IRQF_ONESHOT | pdata->irq_flags, 0, &palmas_irq_chip,
-			&palmas->irq_data);
+				  IRQF_ONESHOT | pdata->irq_flags, 0,
+				  driver_data->irq_chip, &palmas->irq_data);
 	if (ret < 0)
 		goto err_i2c;
 

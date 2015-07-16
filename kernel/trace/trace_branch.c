@@ -7,7 +7,6 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/irqflags.h>
-#include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/ftrace.h>
@@ -30,15 +29,18 @@ static struct trace_array *branch_tracer;
 static void
 probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 {
-	struct ftrace_event_call *call = &event_branch;
+	struct trace_event_call *call = &event_branch;
 	struct trace_array *tr = branch_tracer;
 	struct trace_array_cpu *data;
 	struct ring_buffer_event *event;
 	struct trace_branch *entry;
 	struct ring_buffer *buffer;
 	unsigned long flags;
-	int cpu, pc;
+	int pc;
 	const char *p;
+
+	if (current->trace_recursion & TRACE_BRANCH_BIT)
+		return;
 
 	/*
 	 * I would love to save just the ftrace_likely_data pointer, but
@@ -50,10 +52,10 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	if (unlikely(!tr))
 		return;
 
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
-	if (atomic_inc_return(&data->disabled) != 1)
+	raw_local_irq_save(flags);
+	current->trace_recursion |= TRACE_BRANCH_BIT;
+	data = this_cpu_ptr(tr->trace_buffer.data);
+	if (atomic_read(&data->disabled))
 		goto out;
 
 	pc = preempt_count();
@@ -82,8 +84,8 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 		__buffer_unlock_commit(buffer, event);
 
  out:
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
+	current->trace_recursion &= ~TRACE_BRANCH_BIT;
+	raw_local_irq_restore(flags);
 }
 
 static inline
@@ -151,22 +153,21 @@ static enum print_line_t trace_branch_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
-	if (trace_seq_printf(&iter->seq, "[%s] %s:%s:%d\n",
-			     field->correct ? "  ok  " : " MISS ",
-			     field->func,
-			     field->file,
-			     field->line))
-		return TRACE_TYPE_PARTIAL_LINE;
+	trace_seq_printf(&iter->seq, "[%s] %s:%s:%d\n",
+			 field->correct ? "  ok  " : " MISS ",
+			 field->func,
+			 field->file,
+			 field->line);
 
-	return TRACE_TYPE_HANDLED;
+	return trace_handle_return(&iter->seq);
 }
 
 static void branch_print_header(struct seq_file *s)
 {
 	seq_puts(s, "#           TASK-PID    CPU#    TIMESTAMP  CORRECT"
-		"  FUNC:FILE:LINE\n");
-	seq_puts(s, "#              | |       |          |         |   "
-		"    |\n");
+		    "  FUNC:FILE:LINE\n"
+		    "#              | |       |          |         |   "
+		    "    |\n");
 }
 
 static struct trace_event_functions trace_branch_funcs = {
@@ -193,7 +194,7 @@ __init static int init_branch_tracer(void)
 {
 	int ret;
 
-	ret = register_ftrace_event(&trace_branch_event);
+	ret = register_trace_event(&trace_branch_event);
 	if (!ret) {
 		printk(KERN_WARNING "Warning: could not register "
 				    "branch events\n");
@@ -233,12 +234,12 @@ extern unsigned long __stop_annotated_branch_profile[];
 
 static int annotated_branch_stat_headers(struct seq_file *m)
 {
-	seq_printf(m, " correct incorrect  %% ");
-	seq_printf(m, "       Function                "
-			      "  File              Line\n"
-			      " ------- ---------  - "
-			      "       --------                "
-			      "  ----              ----\n");
+	seq_puts(m, " correct incorrect  % "
+		    "       Function                "
+		    "  File              Line\n"
+		    " ------- ---------  - "
+		    "       --------                "
+		    "  ----              ----\n");
 	return 0;
 }
 
@@ -274,7 +275,7 @@ static int branch_stat_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "%8lu %8lu ",  p->correct, p->incorrect);
 	if (percent < 0)
-		seq_printf(m, "  X ");
+		seq_puts(m, "  X ");
 	else
 		seq_printf(m, "%3ld ", percent);
 	seq_printf(m, "%-30.30s %-20.20s %d\n", p->func, f, p->line);
@@ -362,12 +363,12 @@ extern unsigned long __stop_branch_profile[];
 
 static int all_branch_stat_headers(struct seq_file *m)
 {
-	seq_printf(m, "   miss      hit    %% ");
-	seq_printf(m, "       Function                "
-			      "  File              Line\n"
-			      " ------- ---------  - "
-			      "       --------                "
-			      "  ----              ----\n");
+	seq_puts(m, "   miss      hit    % "
+		    "       Function                "
+		    "  File              Line\n"
+		    " ------- ---------  - "
+		    "       --------                "
+		    "  ----              ----\n");
 	return 0;
 }
 

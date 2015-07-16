@@ -141,8 +141,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 
 			for (i = 0; i < sband->n_channels; i++) {
 				chan = &sband->channels[i];
-				if (chan->flags & (IEEE80211_CHAN_NO_IBSS |
-						   IEEE80211_CHAN_PASSIVE_SCAN |
+				if (chan->flags & (IEEE80211_CHAN_NO_IR |
 						   IEEE80211_CHAN_DISABLED |
 						   IEEE80211_CHAN_RADAR))
 					continue;
@@ -175,19 +174,15 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 							       scan_width);
 	}
 
-	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef))
+	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef,
+				     NL80211_IFTYPE_MESH_POINT))
 		return -EINVAL;
-
-	err = cfg80211_can_use_chan(rdev, wdev, setup->chandef.chan,
-				    CHAN_MODE_SHARED);
-	if (err)
-		return err;
 
 	err = rdev_join_mesh(rdev, dev, conf, setup);
 	if (!err) {
 		memcpy(wdev->ssid, setup->mesh_id, setup->mesh_id_len);
 		wdev->mesh_id_len = setup->mesh_id_len;
-		wdev->channel = setup->chandef.chan;
+		wdev->chandef = setup->chandef;
 	}
 
 	return err;
@@ -228,15 +223,10 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 		if (!netif_running(wdev->netdev))
 			return -ENETDOWN;
 
-		err = cfg80211_can_use_chan(rdev, wdev, chandef->chan,
-					    CHAN_MODE_SHARED);
-		if (err)
-			return err;
-
 		err = rdev_libertas_set_mesh_channel(rdev, wdev->netdev,
 						     chandef->chan);
 		if (!err)
-			wdev->channel = chandef->chan;
+			wdev->chandef = *chandef;
 
 		return err;
 	}
@@ -248,8 +238,8 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
-static int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
-				 struct net_device *dev)
+int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -268,7 +258,8 @@ static int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 	err = rdev_leave_mesh(rdev, dev);
 	if (!err) {
 		wdev->mesh_id_len = 0;
-		wdev->channel = NULL;
+		memset(&wdev->chandef, 0, sizeof(wdev->chandef));
+		rdev_set_qos_map(rdev, dev, NULL);
 	}
 
 	return err;

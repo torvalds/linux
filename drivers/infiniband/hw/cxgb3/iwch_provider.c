@@ -85,9 +85,13 @@ static int iwch_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 static int iwch_process_mad(struct ib_device *ibdev,
 			    int mad_flags,
 			    u8 port_num,
-			    struct ib_wc *in_wc,
-			    struct ib_grh *in_grh,
-			    struct ib_mad *in_mad, struct ib_mad *out_mad)
+			    const struct ib_wc *in_wc,
+			    const struct ib_grh *in_grh,
+			    const struct ib_mad_hdr *in_mad,
+			    size_t in_mad_size,
+			    struct ib_mad_hdr *out_mad,
+			    size_t *out_mad_size,
+			    u16 *out_mad_pkey_index)
 {
 	return -ENOSYS;
 }
@@ -138,10 +142,12 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq)
 	return 0;
 }
 
-static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
-			     struct ib_ucontext *ib_context,
-			     struct ib_udata *udata)
+static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
+				    const struct ib_cq_init_attr *attr,
+				    struct ib_ucontext *ib_context,
+				    struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	struct iwch_dev *rhp;
 	struct iwch_cq *chp;
 	struct iwch_create_cq_resp uresp;
@@ -151,6 +157,9 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 	size_t resplen;
 
 	PDBG("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
+
 	rhp = to_iwch_dev(ibdev);
 	chp = kzalloc(sizeof(*chp), GFP_KERNEL);
 	if (!chp)
@@ -618,14 +627,13 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 {
 	__be64 *pages;
 	int shift, n, len;
-	int i, j, k;
+	int i, k, entry;
 	int err = 0;
-	struct ib_umem_chunk *chunk;
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
 	struct iwch_mr *mhp;
 	struct iwch_reg_user_mr_resp uresp;
-
+	struct scatterlist *sg;
 	PDBG("%s ib_pd %p\n", __func__, pd);
 
 	php = to_iwch_pd(pd);
@@ -645,9 +653,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	shift = ffs(mhp->umem->page_size) - 1;
 
-	n = 0;
-	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
-		n += chunk->nents;
+	n = mhp->umem->nmap;
 
 	err = iwch_alloc_pbl(mhp, n);
 	if (err)
@@ -661,12 +667,10 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	i = n = 0;
 
-	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
-		for (j = 0; j < chunk->nmap; ++j) {
-			len = sg_dma_len(&chunk->page_list[j]) >> shift;
+	for_each_sg(mhp->umem->sg_head.sgl, sg, mhp->umem->nmap, entry) {
+			len = sg_dma_len(sg) >> shift;
 			for (k = 0; k < len; ++k) {
-				pages[i++] = cpu_to_be64(sg_dma_address(
-					&chunk->page_list[j]) +
+				pages[i++] = cpu_to_be64(sg_dma_address(sg) +
 					mhp->umem->page_size * k);
 				if (i == PAGE_SIZE / sizeof *pages) {
 					err = iwch_write_pbl(mhp, pages, i, n);
@@ -676,7 +680,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 					i = 0;
 				}
 			}
-		}
+	}
 
 	if (i)
 		err = iwch_write_pbl(mhp, pages, i, n);
@@ -1150,12 +1154,16 @@ static u64 fw_vers_string_to_u64(struct iwch_dev *iwch_dev)
 	       (fw_mic & 0xffff);
 }
 
-static int iwch_query_device(struct ib_device *ibdev,
-			     struct ib_device_attr *props)
+static int iwch_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			     struct ib_udata *uhw)
 {
 
 	struct iwch_dev *dev;
+
 	PDBG("%s ibdev %p\n", __func__, ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	dev = to_iwch_dev(ibdev);
 	memset(props, 0, sizeof *props);
@@ -1348,6 +1356,23 @@ static struct device_attribute *iwch_class_attributes[] = {
 	&dev_attr_board_id,
 };
 
+static int iwch_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = iwch_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	return 0;
+}
+
 int iwch_register_device(struct iwch_dev *dev)
 {
 	int ret;
@@ -1425,6 +1450,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.post_recv = iwch_post_receive;
 	dev->ibdev.get_protocol_stats = iwch_get_mib;
 	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
+	dev->ibdev.get_port_immutable = iwch_port_immutable;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)

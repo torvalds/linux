@@ -42,6 +42,9 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
+#include "scsiglue.h"
+
+#define DRV_NAME "ums-alauda"
 
 MODULE_DESCRIPTION("Driver for Alauda-based card readers");
 MODULE_AUTHOR("Daniel Drake <dsd@gentoo.org>");
@@ -207,7 +210,8 @@ static struct alauda_card_info alauda_card_ids[] = {
 	{ 0,}
 };
 
-static struct alauda_card_info *alauda_card_find_id(unsigned char id) {
+static struct alauda_card_info *alauda_card_find_id(unsigned char id)
+{
 	int i;
 
 	for (i = 0; alauda_card_ids[i].id != 0; i++)
@@ -223,7 +227,8 @@ static struct alauda_card_info *alauda_card_find_id(unsigned char id) {
 static unsigned char parity[256];
 static unsigned char ecc2[256];
 
-static void nand_init_ecc(void) {
+static void nand_init_ecc(void)
+{
 	int i, j, a;
 
 	parity[0] = 0;
@@ -247,7 +252,8 @@ static void nand_init_ecc(void) {
 }
 
 /* compute 3-byte ecc on 256 bytes */
-static void nand_compute_ecc(unsigned char *data, unsigned char *ecc) {
+static void nand_compute_ecc(unsigned char *data, unsigned char *ecc)
+{
 	int i, j, a;
 	unsigned char par = 0, bit, bits[8] = {0};
 
@@ -270,11 +276,13 @@ static void nand_compute_ecc(unsigned char *data, unsigned char *ecc) {
 	ecc[2] = ecc2[par];
 }
 
-static int nand_compare_ecc(unsigned char *data, unsigned char *ecc) {
+static int nand_compare_ecc(unsigned char *data, unsigned char *ecc)
+{
 	return (data[0] == ecc[0] && data[1] == ecc[1] && data[2] == ecc[2]);
 }
 
-static void nand_store_ecc(unsigned char *data, unsigned char *ecc) {
+static void nand_store_ecc(unsigned char *data, unsigned char *ecc)
+{
 	memcpy(data, ecc, 3);
 }
 
@@ -415,14 +423,11 @@ static int alauda_init_media(struct us_data *us)
 	if (alauda_get_media_signature(us, data) != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	usb_stor_dbg(us, "Media signature: %02X %02X %02X %02X\n",
-		     data[0], data[1], data[2], data[3]);
+	usb_stor_dbg(us, "Media signature: %4ph\n", data);
 	media_info = alauda_card_find_id(data[1]);
 	if (media_info == NULL) {
-		printk(KERN_WARNING
-			"alauda_init_media: Unrecognised media signature: "
-			"%02X %02X %02X %02X\n",
-			data[0], data[1], data[2], data[3]);
+		pr_warn("alauda_init_media: Unrecognised media signature: %4ph\n",
+			data);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -513,7 +518,7 @@ static int alauda_check_status2(struct us_data *us)
 	if (rc != USB_STOR_XFER_GOOD)
 		return rc;
 
-	usb_stor_dbg(us, "%02X %02X %02X\n", data[0], data[1], data[2]);
+	usb_stor_dbg(us, "%3ph\n", data);
 	if (data[0] & ALAUDA_STATUS_ERROR)
 		return USB_STOR_XFER_ERROR;
 
@@ -1230,6 +1235,8 @@ static int alauda_transport(struct scsi_cmnd *srb, struct us_data *us)
 	return USB_STOR_TRANSPORT_FAILED;
 }
 
+static struct scsi_host_template alauda_host_template;
+
 static int alauda_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -1237,7 +1244,8 @@ static int alauda_probe(struct usb_interface *intf,
 	int result;
 
 	result = usb_stor_probe1(&us, intf, id,
-			(id - alauda_usb_ids) + alauda_unusual_dev_list);
+			(id - alauda_usb_ids) + alauda_unusual_dev_list,
+			&alauda_host_template);
 	if (result)
 		return result;
 
@@ -1251,7 +1259,7 @@ static int alauda_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver alauda_driver = {
-	.name =		"ums-alauda",
+	.name =		DRV_NAME,
 	.probe =	alauda_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -1264,4 +1272,4 @@ static struct usb_driver alauda_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(alauda_driver);
+module_usb_stor_driver(alauda_driver, alauda_host_template, DRV_NAME);

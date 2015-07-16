@@ -17,7 +17,7 @@
 #ifdef CONFIG_MTD_UCLINUX
 #include <linux/mtd/map.h>
 #include <linux/ext2_fs.h>
-#include <linux/cramfs_fs.h>
+#include <uapi/linux/cramfs_fs.h>
 #include <linux/romfs_fs.h>
 #endif
 
@@ -1464,5 +1464,5 @@ void __init cmdline_init(const char *r0)
 {
 	early_shadow_stamp();
 	if (r0)
-		strncpy(command_line, r0, COMMAND_LINE_SIZE);
+		strlcpy(command_line, r0, COMMAND_LINE_SIZE);
 }

@@ -1,0 +1,50 @@
+/*
+ * Copyright 2013 Eukréa Electromatique <eric@eukrea.com>
+ * Copyright 2013 Eukréa Electromatique <denis@eukrea.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/*
+ * Module contains : i.MX287 + 128MB DDR2 + NAND + 2 x Ethernet PHY + RTC
+ */
+
+#include "imx28-eukrea-mbmx283lc.dts"
+
+/ {
+	model = "Eukrea Electromatique MBMX287LC";
+	compatible = "eukrea,mbmx287lc", "eukrea,mbmx283lc", "eukrea,mbmx28lc", "fsl,imx28";
+
+	memory {
+		reg = <0x40000000 0x08000000>;
+	};
+};
+
+&mac1 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mac1_pins_a>;
+	phy-reset-gpios = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hog_pins_cpuimx283 &hog_pins_cpuimx287>;
+	hog_pins_cpuimx287: hog-cpuimx287@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_SPDIF__GPIO_3_27
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_ENABLE>;
+	};
+};

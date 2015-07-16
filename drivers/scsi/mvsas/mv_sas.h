@@ -65,7 +65,6 @@ extern struct mvs_tgt_initiator mvs_tgt;
 extern struct mvs_info *tgt_mvi;
 extern const struct mvs_dispatch mvs_64xx_dispatch;
 extern const struct mvs_dispatch mvs_94xx_dispatch;
-extern struct kmem_cache *mvs_task_list_cache;
 
 #define DEV_IS_EXPANDER(type)	\
 	((type == SAS_EDGE_EXPANDER_DEVICE) || (type == SAS_FANOUT_EXPANDER_DEVICE))
@@ -440,12 +439,6 @@ struct mvs_task_exec_info {
 	int n_elem;
 };
 
-struct mvs_task_list {
-	struct sas_task *task;
-	struct list_head list;
-};
-
-
 /******************** function prototype *********************/
 void mvs_get_sas_addr(void *buf, u32 buflen);
 void mvs_tag_clear(struct mvs_info *mvi, u32 tag);
@@ -462,8 +455,7 @@ void mvs_set_sas_addr(struct mvs_info *mvi, int port_id, u32 off_lo,
 		      u32 off_hi, u64 sas_addr);
 void mvs_scan_start(struct Scsi_Host *shost);
 int mvs_scan_finished(struct Scsi_Host *shost, unsigned long time);
-int mvs_queue_command(struct sas_task *task, const int num,
-			gfp_t gfp_flags);
+int mvs_queue_command(struct sas_task *task, gfp_t gfp_flags);
 int mvs_abort_task(struct sas_task *task);
 int mvs_abort_task_set(struct domain_device *dev, u8 *lun);
 int mvs_clear_aca(struct domain_device *dev, u8 *lun);

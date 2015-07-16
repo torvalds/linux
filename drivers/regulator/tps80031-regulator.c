@@ -115,7 +115,7 @@ static int tps80031_reg_is_enabled(struct regulator_dev *rdev)
 			ri->rinfo->state_reg, ret);
 		return ret;
 	}
-	return ((reg_val & TPS80031_STATE_MASK) == TPS80031_STATE_ON);
+	return (reg_val & TPS80031_STATE_MASK) == TPS80031_STATE_ON;
 }
 
 static int tps80031_reg_enable(struct regulator_dev *rdev)
@@ -693,10 +693,8 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(&pdev->dev,
 			TPS80031_REGULATOR_MAX * sizeof(*pmic), GFP_KERNEL);
-	if (!pmic) {
-		dev_err(&pdev->dev, "mem alloc for pmic failed\n");
+	if (!pmic)
 		return -ENOMEM;
-	}
 
 	for (num = 0; num < TPS80031_REGULATOR_MAX; ++num) {
 		tps_pdata = pdata->regulator_pdata[num];
@@ -748,7 +746,6 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps80031_regulator_driver = {
 	.driver	= {
 		.name	= "tps80031-pmic",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= tps80031_regulator_probe,
 };

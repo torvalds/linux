@@ -14,6 +14,7 @@
 #define _ASM_MIPSREGS_H
 
 #include <linux/linkage.h>
+#include <linux/types.h>
 #include <asm/hazards.h>
 #include <asm/war.h>
 
@@ -110,70 +111,6 @@
  */
 #define CP0_TX39_CACHE	$7
 
-/*
- * Coprocessor 1 (FPU) register names
- */
-#define CP1_REVISION   $0
-#define CP1_STATUS     $31
-
-/*
- * FPU Status Register Values
- */
-/*
- * Status Register Values
- */
-
-#define FPU_CSR_FLUSH	0x01000000	/* flush denormalised results to 0 */
-#define FPU_CSR_COND	0x00800000	/* $fcc0 */
-#define FPU_CSR_COND0	0x00800000	/* $fcc0 */
-#define FPU_CSR_COND1	0x02000000	/* $fcc1 */
-#define FPU_CSR_COND2	0x04000000	/* $fcc2 */
-#define FPU_CSR_COND3	0x08000000	/* $fcc3 */
-#define FPU_CSR_COND4	0x10000000	/* $fcc4 */
-#define FPU_CSR_COND5	0x20000000	/* $fcc5 */
-#define FPU_CSR_COND6	0x40000000	/* $fcc6 */
-#define FPU_CSR_COND7	0x80000000	/* $fcc7 */
-
-/*
- * Bits 18 - 20 of the FPU Status Register will be read as 0,
- * and should be written as zero.
- */
-#define FPU_CSR_RSVD	0x001c0000
-
-/*
- * X the exception cause indicator
- * E the exception enable
- * S the sticky/flag bit
-*/
-#define FPU_CSR_ALL_X	0x0003f000
-#define FPU_CSR_UNI_X	0x00020000
-#define FPU_CSR_INV_X	0x00010000
-#define FPU_CSR_DIV_X	0x00008000
-#define FPU_CSR_OVF_X	0x00004000
-#define FPU_CSR_UDF_X	0x00002000
-#define FPU_CSR_INE_X	0x00001000
-
-#define FPU_CSR_ALL_E	0x00000f80
-#define FPU_CSR_INV_E	0x00000800
-#define FPU_CSR_DIV_E	0x00000400
-#define FPU_CSR_OVF_E	0x00000200
-#define FPU_CSR_UDF_E	0x00000100
-#define FPU_CSR_INE_E	0x00000080
-
-#define FPU_CSR_ALL_S	0x0000007c
-#define FPU_CSR_INV_S	0x00000040
-#define FPU_CSR_DIV_S	0x00000020
-#define FPU_CSR_OVF_S	0x00000010
-#define FPU_CSR_UDF_S	0x00000008
-#define FPU_CSR_INE_S	0x00000004
-
-/* Bits 0 and 1 of FPU Status Register specify the rounding mode */
-#define FPU_CSR_RM	0x00000003
-#define FPU_CSR_RN	0x0	/* nearest */
-#define FPU_CSR_RZ	0x1	/* towards zero */
-#define FPU_CSR_RU	0x2	/* towards +Infinity */
-#define FPU_CSR_RD	0x3	/* towards -Infinity */
-
 
 /*
  * Values for PageMask register
@@ -264,6 +201,7 @@
 #define PG_XIE		(_ULCAST_(1) <<	 30)
 #define PG_ELPA		(_ULCAST_(1) <<	 29)
 #define PG_ESP		(_ULCAST_(1) <<	 28)
+#define PG_IEC		(_ULCAST_(1) <<  27)
 
 /*
  * R4x00 interrupt enable / cause bits
@@ -339,39 +277,6 @@
 #define ST0_MX			0x01000000
 
 /*
- * Bitfields in the TX39 family CP0 Configuration Register 3
- */
-#define TX39_CONF_ICS_SHIFT	19
-#define TX39_CONF_ICS_MASK	0x00380000
-#define TX39_CONF_ICS_1KB	0x00000000
-#define TX39_CONF_ICS_2KB	0x00080000
-#define TX39_CONF_ICS_4KB	0x00100000
-#define TX39_CONF_ICS_8KB	0x00180000
-#define TX39_CONF_ICS_16KB	0x00200000
-
-#define TX39_CONF_DCS_SHIFT	16
-#define TX39_CONF_DCS_MASK	0x00070000
-#define TX39_CONF_DCS_1KB	0x00000000
-#define TX39_CONF_DCS_2KB	0x00010000
-#define TX39_CONF_DCS_4KB	0x00020000
-#define TX39_CONF_DCS_8KB	0x00030000
-#define TX39_CONF_DCS_16KB	0x00040000
-
-#define TX39_CONF_CWFON		0x00004000
-#define TX39_CONF_WBON		0x00002000
-#define TX39_CONF_RF_SHIFT	10
-#define TX39_CONF_RF_MASK	0x00000c00
-#define TX39_CONF_DOZE		0x00000200
-#define TX39_CONF_HALT		0x00000100
-#define TX39_CONF_LOCK		0x00000080
-#define TX39_CONF_ICE		0x00000020
-#define TX39_CONF_DCE		0x00000010
-#define TX39_CONF_IRSIZE_SHIFT	2
-#define TX39_CONF_IRSIZE_MASK	0x0000000c
-#define TX39_CONF_DRSIZE_SHIFT	0
-#define TX39_CONF_DRSIZE_MASK	0x00000003
-
-/*
  * Status register bits available in all MIPS CPUs.
  */
 #define ST0_IM			0x0000ff00
@@ -423,9 +328,9 @@
 
 /*
  * Bitfields and bit numbers in the coprocessor 0 IntCtl register. (MIPSR2)
- *
- * Refer to your MIPS R4xx0 manual, chapter 5 for explanation.
  */
+#define INTCTLB_IPFDC		23
+#define INTCTLF_IPFDC		(_ULCAST_(7) << INTCTLB_IPFDC)
 #define INTCTLB_IPPCI		26
 #define INTCTLF_IPPCI		(_ULCAST_(7) << INTCTLB_IPPCI)
 #define INTCTLB_IPTI		29
@@ -436,10 +341,10 @@
  *
  * Refer to your MIPS R4xx0 manual, chapter 5 for explanation.
  */
-#define	 CAUSEB_EXCCODE		2
-#define	 CAUSEF_EXCCODE		(_ULCAST_(31)  <<  2)
-#define	 CAUSEB_IP		8
-#define	 CAUSEF_IP		(_ULCAST_(255) <<  8)
+#define CAUSEB_EXCCODE		2
+#define CAUSEF_EXCCODE		(_ULCAST_(31)  <<  2)
+#define CAUSEB_IP		8
+#define CAUSEF_IP		(_ULCAST_(255) <<  8)
 #define	 CAUSEB_IP0		8
 #define	 CAUSEF_IP0		(_ULCAST_(1)   <<  8)
 #define	 CAUSEB_IP1		9
@@ -456,16 +361,18 @@
 #define	 CAUSEF_IP6		(_ULCAST_(1)   << 14)
 #define	 CAUSEB_IP7		15
 #define	 CAUSEF_IP7		(_ULCAST_(1)   << 15)
-#define	 CAUSEB_IV		23
-#define	 CAUSEF_IV		(_ULCAST_(1)   << 23)
-#define	 CAUSEB_PCI		26
-#define	 CAUSEF_PCI		(_ULCAST_(1)   << 26)
-#define	 CAUSEB_CE		28
-#define	 CAUSEF_CE		(_ULCAST_(3)   << 28)
-#define	 CAUSEB_TI		30
-#define	 CAUSEF_TI		(_ULCAST_(1)   << 30)
-#define	 CAUSEB_BD		31
-#define	 CAUSEF_BD		(_ULCAST_(1)   << 31)
+#define CAUSEB_FDCI		21
+#define CAUSEF_FDCI		(_ULCAST_(1)   << 21)
+#define CAUSEB_IV		23
+#define CAUSEF_IV		(_ULCAST_(1)   << 23)
+#define CAUSEB_PCI		26
+#define CAUSEF_PCI		(_ULCAST_(1)   << 26)
+#define CAUSEB_CE		28
+#define CAUSEF_CE		(_ULCAST_(3)   << 28)
+#define CAUSEB_TI		30
+#define CAUSEF_TI		(_ULCAST_(1)   << 30)
+#define CAUSEB_BD		31
+#define CAUSEF_BD		(_ULCAST_(1)   << 31)
 
 /*
  * Bits in the coprocessor 0 config register.
@@ -567,13 +474,27 @@
 #define MIPS_CONF1_PC		(_ULCAST_(1) <<	 4)
 #define MIPS_CONF1_MD		(_ULCAST_(1) <<	 5)
 #define MIPS_CONF1_C2		(_ULCAST_(1) <<	 6)
+#define MIPS_CONF1_DA_SHF	7
+#define MIPS_CONF1_DA_SZ	3
 #define MIPS_CONF1_DA		(_ULCAST_(7) <<	 7)
+#define MIPS_CONF1_DL_SHF	10
+#define MIPS_CONF1_DL_SZ	3
 #define MIPS_CONF1_DL		(_ULCAST_(7) << 10)
+#define MIPS_CONF1_DS_SHF	13
+#define MIPS_CONF1_DS_SZ	3
 #define MIPS_CONF1_DS		(_ULCAST_(7) << 13)
+#define MIPS_CONF1_IA_SHF	16
+#define MIPS_CONF1_IA_SZ	3
 #define MIPS_CONF1_IA		(_ULCAST_(7) << 16)
+#define MIPS_CONF1_IL_SHF	19
+#define MIPS_CONF1_IL_SZ	3
 #define MIPS_CONF1_IL		(_ULCAST_(7) << 19)
+#define MIPS_CONF1_IS_SHF	22
+#define MIPS_CONF1_IS_SZ	3
 #define MIPS_CONF1_IS		(_ULCAST_(7) << 22)
-#define MIPS_CONF1_TLBS		(_ULCAST_(63)<< 25)
+#define MIPS_CONF1_TLBS_SHIFT   (25)
+#define MIPS_CONF1_TLBS_SIZE    (6)
+#define MIPS_CONF1_TLBS         (_ULCAST_(63) << MIPS_CONF1_TLBS_SHIFT)
 
 #define MIPS_CONF2_SA		(_ULCAST_(15)<<	 0)
 #define MIPS_CONF2_SL		(_ULCAST_(15)<<	 4)
@@ -587,34 +508,225 @@
 #define MIPS_CONF3_TL		(_ULCAST_(1) <<	 0)
 #define MIPS_CONF3_SM		(_ULCAST_(1) <<	 1)
 #define MIPS_CONF3_MT		(_ULCAST_(1) <<	 2)
+#define MIPS_CONF3_CDMM		(_ULCAST_(1) <<	 3)
 #define MIPS_CONF3_SP		(_ULCAST_(1) <<	 4)
 #define MIPS_CONF3_VINT		(_ULCAST_(1) <<	 5)
 #define MIPS_CONF3_VEIC		(_ULCAST_(1) <<	 6)
 #define MIPS_CONF3_LPA		(_ULCAST_(1) <<	 7)
+#define MIPS_CONF3_ITL		(_ULCAST_(1) <<	 8)
+#define MIPS_CONF3_CTXTC	(_ULCAST_(1) <<	 9)
 #define MIPS_CONF3_DSP		(_ULCAST_(1) << 10)
 #define MIPS_CONF3_DSP2P	(_ULCAST_(1) << 11)
 #define MIPS_CONF3_RXI		(_ULCAST_(1) << 12)
 #define MIPS_CONF3_ULRI		(_ULCAST_(1) << 13)
 #define MIPS_CONF3_ISA		(_ULCAST_(3) << 14)
 #define MIPS_CONF3_ISA_OE	(_ULCAST_(1) << 16)
+#define MIPS_CONF3_MCU		(_ULCAST_(1) << 17)
+#define MIPS_CONF3_MMAR		(_ULCAST_(7) << 18)
+#define MIPS_CONF3_IPLW		(_ULCAST_(3) << 21)
 #define MIPS_CONF3_VZ		(_ULCAST_(1) << 23)
+#define MIPS_CONF3_PW		(_ULCAST_(1) << 24)
+#define MIPS_CONF3_SC		(_ULCAST_(1) << 25)
+#define MIPS_CONF3_BI		(_ULCAST_(1) << 26)
+#define MIPS_CONF3_BP		(_ULCAST_(1) << 27)
+#define MIPS_CONF3_MSA		(_ULCAST_(1) << 28)
+#define MIPS_CONF3_CMGCR	(_ULCAST_(1) << 29)
+#define MIPS_CONF3_BPG		(_ULCAST_(1) << 30)
 
+#define MIPS_CONF4_MMUSIZEEXT_SHIFT	(0)
 #define MIPS_CONF4_MMUSIZEEXT	(_ULCAST_(255) << 0)
+#define MIPS_CONF4_FTLBSETS_SHIFT	(0)
+#define MIPS_CONF4_FTLBSETS	(_ULCAST_(15) << MIPS_CONF4_FTLBSETS_SHIFT)
+#define MIPS_CONF4_FTLBWAYS_SHIFT	(4)
+#define MIPS_CONF4_FTLBWAYS	(_ULCAST_(15) << MIPS_CONF4_FTLBWAYS_SHIFT)
+#define MIPS_CONF4_FTLBPAGESIZE_SHIFT	(8)
+/* bits 10:8 in FTLB-only configurations */
+#define MIPS_CONF4_FTLBPAGESIZE (_ULCAST_(7) << MIPS_CONF4_FTLBPAGESIZE_SHIFT)
+/* bits 12:8 in VTLB-FTLB only configurations */
+#define MIPS_CONF4_VFTLBPAGESIZE (_ULCAST_(31) << MIPS_CONF4_FTLBPAGESIZE_SHIFT)
 #define MIPS_CONF4_MMUEXTDEF	(_ULCAST_(3) << 14)
 #define MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT (_ULCAST_(1) << 14)
+#define MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT	(_ULCAST_(2) << 14)
+#define MIPS_CONF4_MMUEXTDEF_VTLBSIZEEXT	(_ULCAST_(3) << 14)
+#define MIPS_CONF4_KSCREXIST	(_ULCAST_(255) << 16)
+#define MIPS_CONF4_VTLBSIZEEXT_SHIFT	(24)
+#define MIPS_CONF4_VTLBSIZEEXT	(_ULCAST_(15) << MIPS_CONF4_VTLBSIZEEXT_SHIFT)
+#define MIPS_CONF4_AE		(_ULCAST_(1) << 28)
+#define MIPS_CONF4_IE		(_ULCAST_(3) << 29)
+#define MIPS_CONF4_TLBINV	(_ULCAST_(2) << 29)
 
 #define MIPS_CONF5_NF		(_ULCAST_(1) << 0)
 #define MIPS_CONF5_UFR		(_ULCAST_(1) << 2)
+#define MIPS_CONF5_MRP		(_ULCAST_(1) << 3)
+#define MIPS_CONF5_LLB		(_ULCAST_(1) << 4)
+#define MIPS_CONF5_MVH		(_ULCAST_(1) << 5)
+#define MIPS_CONF5_FRE		(_ULCAST_(1) << 8)
+#define MIPS_CONF5_UFE		(_ULCAST_(1) << 9)
 #define MIPS_CONF5_MSAEN	(_ULCAST_(1) << 27)
 #define MIPS_CONF5_EVA		(_ULCAST_(1) << 28)
 #define MIPS_CONF5_CV		(_ULCAST_(1) << 29)
 #define MIPS_CONF5_K		(_ULCAST_(1) << 30)
 
 #define MIPS_CONF6_SYND		(_ULCAST_(1) << 13)
+/* proAptiv FTLB on/off bit */
+#define MIPS_CONF6_FTLBEN	(_ULCAST_(1) << 15)
+/* FTLB probability bits */
+#define MIPS_CONF6_FTLBP_SHIFT	(16)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
 
 #define MIPS_CONF7_RPS		(_ULCAST_(1) << 2)
+
+#define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
+#define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
+
+/* MAAR bit definitions */
+#define MIPS_MAAR_ADDR		((BIT_ULL(BITS_PER_LONG - 12) - 1) << 12)
+#define MIPS_MAAR_ADDR_SHIFT	12
+#define MIPS_MAAR_S		(_ULCAST_(1) << 1)
+#define MIPS_MAAR_V		(_ULCAST_(1) << 0)
+
+/*  EntryHI bit definition */
+#define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
+
+/* R3000 EntryLo bit definitions */
+#define R3K_ENTRYLO_G		(_ULCAST_(1) << 8)
+#define R3K_ENTRYLO_V		(_ULCAST_(1) << 9)
+#define R3K_ENTRYLO_D		(_ULCAST_(1) << 10)
+#define R3K_ENTRYLO_N		(_ULCAST_(1) << 11)
+
+/* R4000 compatible EntryLo bit definitions */
+#define MIPS_ENTRYLO_G		(_ULCAST_(1) << 0)
+#define MIPS_ENTRYLO_V		(_ULCAST_(1) << 1)
+#define MIPS_ENTRYLO_D		(_ULCAST_(1) << 2)
+#define MIPS_ENTRYLO_C_SHIFT	3
+#define MIPS_ENTRYLO_C		(_ULCAST_(7) << MIPS_ENTRYLO_C_SHIFT)
+#ifdef CONFIG_64BIT
+/* as read by dmfc0 */
+#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 62)
+#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 63)
+#else
+/* as read by mfc0 */
+#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 30)
+#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 31)
+#endif
+
+/* CMGCRBase bit definitions */
+#define MIPS_CMGCRB_BASE	11
+#define MIPS_CMGCRF_BASE	(~_ULCAST_((1 << MIPS_CMGCRB_BASE) - 1))
+
+/*
+ * Bits in the MIPS32 Memory Segmentation registers.
+ */
+#define MIPS_SEGCFG_PA_SHIFT	9
+#define MIPS_SEGCFG_PA		(_ULCAST_(127) << MIPS_SEGCFG_PA_SHIFT)
+#define MIPS_SEGCFG_AM_SHIFT	4
+#define MIPS_SEGCFG_AM		(_ULCAST_(7) << MIPS_SEGCFG_AM_SHIFT)
+#define MIPS_SEGCFG_EU_SHIFT	3
+#define MIPS_SEGCFG_EU		(_ULCAST_(1) << MIPS_SEGCFG_EU_SHIFT)
+#define MIPS_SEGCFG_C_SHIFT	0
+#define MIPS_SEGCFG_C		(_ULCAST_(7) << MIPS_SEGCFG_C_SHIFT)
+
+#define MIPS_SEGCFG_UUSK	_ULCAST_(7)
+#define MIPS_SEGCFG_USK		_ULCAST_(5)
+#define MIPS_SEGCFG_MUSUK	_ULCAST_(4)
+#define MIPS_SEGCFG_MUSK	_ULCAST_(3)
+#define MIPS_SEGCFG_MSK		_ULCAST_(2)
+#define MIPS_SEGCFG_MK		_ULCAST_(1)
+#define MIPS_SEGCFG_UK		_ULCAST_(0)
+
+#define MIPS_PWFIELD_GDI_SHIFT	24
+#define MIPS_PWFIELD_GDI_MASK	0x3f000000
+#define MIPS_PWFIELD_UDI_SHIFT	18
+#define MIPS_PWFIELD_UDI_MASK	0x00fc0000
+#define MIPS_PWFIELD_MDI_SHIFT	12
+#define MIPS_PWFIELD_MDI_MASK	0x0003f000
+#define MIPS_PWFIELD_PTI_SHIFT	6
+#define MIPS_PWFIELD_PTI_MASK	0x00000fc0
+#define MIPS_PWFIELD_PTEI_SHIFT	0
+#define MIPS_PWFIELD_PTEI_MASK	0x0000003f
+
+#define MIPS_PWSIZE_GDW_SHIFT	24
+#define MIPS_PWSIZE_GDW_MASK	0x3f000000
+#define MIPS_PWSIZE_UDW_SHIFT	18
+#define MIPS_PWSIZE_UDW_MASK	0x00fc0000
+#define MIPS_PWSIZE_MDW_SHIFT	12
+#define MIPS_PWSIZE_MDW_MASK	0x0003f000
+#define MIPS_PWSIZE_PTW_SHIFT	6
+#define MIPS_PWSIZE_PTW_MASK	0x00000fc0
+#define MIPS_PWSIZE_PTEW_SHIFT	0
+#define MIPS_PWSIZE_PTEW_MASK	0x0000003f
+
+#define MIPS_PWCTL_PWEN_SHIFT	31
+#define MIPS_PWCTL_PWEN_MASK	0x80000000
+#define MIPS_PWCTL_DPH_SHIFT	7
+#define MIPS_PWCTL_DPH_MASK	0x00000080
+#define MIPS_PWCTL_HUGEPG_SHIFT	6
+#define MIPS_PWCTL_HUGEPG_MASK	0x00000060
+#define MIPS_PWCTL_PSN_SHIFT	0
+#define MIPS_PWCTL_PSN_MASK	0x0000003f
+
+/* CDMMBase register bit definitions */
+#define MIPS_CDMMBASE_SIZE_SHIFT 0
+#define MIPS_CDMMBASE_SIZE	(_ULCAST_(511) << MIPS_CDMMBASE_SIZE_SHIFT)
+#define MIPS_CDMMBASE_CI	(_ULCAST_(1) << 9)
+#define MIPS_CDMMBASE_EN	(_ULCAST_(1) << 10)
+#define MIPS_CDMMBASE_ADDR_SHIFT 11
+#define MIPS_CDMMBASE_ADDR_START 15
+
+/*
+ * Bitfields in the TX39 family CP0 Configuration Register 3
+ */
+#define TX39_CONF_ICS_SHIFT	19
+#define TX39_CONF_ICS_MASK	0x00380000
+#define TX39_CONF_ICS_1KB	0x00000000
+#define TX39_CONF_ICS_2KB	0x00080000
+#define TX39_CONF_ICS_4KB	0x00100000
+#define TX39_CONF_ICS_8KB	0x00180000
+#define TX39_CONF_ICS_16KB	0x00200000
+
+#define TX39_CONF_DCS_SHIFT	16
+#define TX39_CONF_DCS_MASK	0x00070000
+#define TX39_CONF_DCS_1KB	0x00000000
+#define TX39_CONF_DCS_2KB	0x00010000
+#define TX39_CONF_DCS_4KB	0x00020000
+#define TX39_CONF_DCS_8KB	0x00030000
+#define TX39_CONF_DCS_16KB	0x00040000
+
+#define TX39_CONF_CWFON		0x00004000
+#define TX39_CONF_WBON		0x00002000
+#define TX39_CONF_RF_SHIFT	10
+#define TX39_CONF_RF_MASK	0x00000c00
+#define TX39_CONF_DOZE		0x00000200
+#define TX39_CONF_HALT		0x00000100
+#define TX39_CONF_LOCK		0x00000080
+#define TX39_CONF_ICE		0x00000020
+#define TX39_CONF_DCE		0x00000010
+#define TX39_CONF_IRSIZE_SHIFT	2
+#define TX39_CONF_IRSIZE_MASK	0x0000000c
+#define TX39_CONF_DRSIZE_SHIFT	0
+#define TX39_CONF_DRSIZE_MASK	0x00000003
+
+/*
+ * Interesting Bits in the R10K CP0 Branch Diagnostic Register
+ */
+/* Disable Branch Target Address Cache */
+#define R10K_DIAG_D_BTAC	(_ULCAST_(1) << 27)
+/* Enable Branch Prediction Global History */
+#define R10K_DIAG_E_GHIST	(_ULCAST_(1) << 26)
+/* Disable Branch Return Cache */
+#define R10K_DIAG_D_BRC		(_ULCAST_(1) << 22)
+
+/*
+ * Coprocessor 1 (FPU) register names
+ */
+#define CP1_REVISION	$0
+#define CP1_UFR		$1
+#define CP1_UNFR	$4
+#define CP1_FCCR	$25
+#define CP1_FEXR	$26
+#define CP1_FENR	$28
+#define CP1_STATUS	$31
 
 
 /*
@@ -627,15 +739,123 @@
 #define MIPS_FPIR_W		(_ULCAST_(1) << 20)
 #define MIPS_FPIR_L		(_ULCAST_(1) << 21)
 #define MIPS_FPIR_F64		(_ULCAST_(1) << 22)
+#define MIPS_FPIR_HAS2008	(_ULCAST_(1) << 23)
+#define MIPS_FPIR_UFRP		(_ULCAST_(1) << 28)
+#define MIPS_FPIR_FREP		(_ULCAST_(1) << 29)
+
+/*
+ * Bits in the MIPS32/64 coprocessor 1 (FPU) condition codes register.
+ */
+#define MIPS_FCCR_CONDX_S	0
+#define MIPS_FCCR_CONDX		(_ULCAST_(255) << MIPS_FCCR_CONDX_S)
+#define MIPS_FCCR_COND0_S	0
+#define MIPS_FCCR_COND0		(_ULCAST_(1) << MIPS_FCCR_COND0_S)
+#define MIPS_FCCR_COND1_S	1
+#define MIPS_FCCR_COND1		(_ULCAST_(1) << MIPS_FCCR_COND1_S)
+#define MIPS_FCCR_COND2_S	2
+#define MIPS_FCCR_COND2		(_ULCAST_(1) << MIPS_FCCR_COND2_S)
+#define MIPS_FCCR_COND3_S	3
+#define MIPS_FCCR_COND3		(_ULCAST_(1) << MIPS_FCCR_COND3_S)
+#define MIPS_FCCR_COND4_S	4
+#define MIPS_FCCR_COND4		(_ULCAST_(1) << MIPS_FCCR_COND4_S)
+#define MIPS_FCCR_COND5_S	5
+#define MIPS_FCCR_COND5		(_ULCAST_(1) << MIPS_FCCR_COND5_S)
+#define MIPS_FCCR_COND6_S	6
+#define MIPS_FCCR_COND6		(_ULCAST_(1) << MIPS_FCCR_COND6_S)
+#define MIPS_FCCR_COND7_S	7
+#define MIPS_FCCR_COND7		(_ULCAST_(1) << MIPS_FCCR_COND7_S)
+
+/*
+ * Bits in the MIPS32/64 coprocessor 1 (FPU) enables register.
+ */
+#define MIPS_FENR_FS_S		2
+#define MIPS_FENR_FS		(_ULCAST_(1) << MIPS_FENR_FS_S)
+
+/*
+ * FPU Status Register Values
+ */
+#define FPU_CSR_COND_S	23					/* $fcc0 */
+#define FPU_CSR_COND	(_ULCAST_(1) << FPU_CSR_COND_S)
+
+#define FPU_CSR_FS_S	24		/* flush denormalised results to 0 */
+#define FPU_CSR_FS	(_ULCAST_(1) << FPU_CSR_FS_S)
+
+#define FPU_CSR_CONDX_S	25					/* $fcc[7:1] */
+#define FPU_CSR_CONDX	(_ULCAST_(127) << FPU_CSR_CONDX_S)
+#define FPU_CSR_COND1_S	25					/* $fcc1 */
+#define FPU_CSR_COND1	(_ULCAST_(1) << FPU_CSR_COND1_S)
+#define FPU_CSR_COND2_S	26					/* $fcc2 */
+#define FPU_CSR_COND2	(_ULCAST_(1) << FPU_CSR_COND2_S)
+#define FPU_CSR_COND3_S	27					/* $fcc3 */
+#define FPU_CSR_COND3	(_ULCAST_(1) << FPU_CSR_COND3_S)
+#define FPU_CSR_COND4_S	28					/* $fcc4 */
+#define FPU_CSR_COND4	(_ULCAST_(1) << FPU_CSR_COND4_S)
+#define FPU_CSR_COND5_S	29					/* $fcc5 */
+#define FPU_CSR_COND5	(_ULCAST_(1) << FPU_CSR_COND5_S)
+#define FPU_CSR_COND6_S	30					/* $fcc6 */
+#define FPU_CSR_COND6	(_ULCAST_(1) << FPU_CSR_COND6_S)
+#define FPU_CSR_COND7_S	31					/* $fcc7 */
+#define FPU_CSR_COND7	(_ULCAST_(1) << FPU_CSR_COND7_S)
+
+/*
+ * Bits 22:20 of the FPU Status Register will be read as 0,
+ * and should be written as zero.
+ */
+#define FPU_CSR_RSVD	(_ULCAST_(7) << 20)
+
+#define FPU_CSR_ABS2008	(_ULCAST_(1) << 19)
+#define FPU_CSR_NAN2008	(_ULCAST_(1) << 18)
+
+/*
+ * X the exception cause indicator
+ * E the exception enable
+ * S the sticky/flag bit
+*/
+#define FPU_CSR_ALL_X	0x0003f000
+#define FPU_CSR_UNI_X	0x00020000
+#define FPU_CSR_INV_X	0x00010000
+#define FPU_CSR_DIV_X	0x00008000
+#define FPU_CSR_OVF_X	0x00004000
+#define FPU_CSR_UDF_X	0x00002000
+#define FPU_CSR_INE_X	0x00001000
+
+#define FPU_CSR_ALL_E	0x00000f80
+#define FPU_CSR_INV_E	0x00000800
+#define FPU_CSR_DIV_E	0x00000400
+#define FPU_CSR_OVF_E	0x00000200
+#define FPU_CSR_UDF_E	0x00000100
+#define FPU_CSR_INE_E	0x00000080
+
+#define FPU_CSR_ALL_S	0x0000007c
+#define FPU_CSR_INV_S	0x00000040
+#define FPU_CSR_DIV_S	0x00000020
+#define FPU_CSR_OVF_S	0x00000010
+#define FPU_CSR_UDF_S	0x00000008
+#define FPU_CSR_INE_S	0x00000004
+
+/* Bits 0 and 1 of FPU Status Register specify the rounding mode */
+#define FPU_CSR_RM	0x00000003
+#define FPU_CSR_RN	0x0	/* nearest */
+#define FPU_CSR_RZ	0x1	/* towards zero */
+#define FPU_CSR_RU	0x2	/* towards +Infinity */
+#define FPU_CSR_RD	0x3	/* towards -Infinity */
+
 
 #ifndef __ASSEMBLY__
 
 /*
- * Macros for handling the ISA mode bit for microMIPS.
+ * Macros for handling the ISA mode bit for MIPS16 and microMIPS.
  */
+#if defined(CONFIG_SYS_SUPPORTS_MIPS16) || \
+    defined(CONFIG_SYS_SUPPORTS_MICROMIPS)
 #define get_isa16_mode(x)		((x) & 0x1)
 #define msk_isa16_mode(x)		((x) & ~0x1)
 #define set_isa16_mode(x)		do { (x) |= 0x1; } while(0)
+#else
+#define get_isa16_mode(x)		0
+#define msk_isa16_mode(x)		(x)
+#define set_isa16_mode(x)		do { } while(0)
+#endif
 
 /*
  * microMIPS instructions can be 16-bit or 32-bit in length. This
@@ -647,6 +867,19 @@ static inline int mm_insn_16bit(u16 insn)
 
 	return (opcode >= 1 && opcode <= 3) ? 1 : 0;
 }
+
+/*
+ * TLB Invalidate Flush
+ */
+static inline void tlbinvf(void)
+{
+	__asm__ __volatile__(
+		".set push\n\t"
+		".set noreorder\n\t"
+		".word 0x42000004\n\t" /* tlbinvf */
+		".set pop");
+}
+
 
 /*
  * Functions to access the R10000 performance counters.	 These are basically
@@ -856,6 +1089,39 @@ do {									\
 	local_irq_restore(__flags);					\
 } while (0)
 
+#define __readx_32bit_c0_register(source)				\
+({									\
+	unsigned int __res;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	.set	mips32r2				\n"	\
+	"	.insn						\n"	\
+	"	# mfhc0 $1, %1					\n"	\
+	"	.word	(0x40410000 | ((%1 & 0x1f) << 11))	\n"	\
+	"	move	%0, $1					\n"	\
+	"	.set	pop					\n"	\
+	: "=r" (__res)							\
+	: "i" (source));						\
+	__res;								\
+})
+
+#define __writex_32bit_c0_register(register, value)			\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	.set	mips32r2				\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mthc0 $1, %1					\n"	\
+	"	.insn						\n"	\
+	"	.word	(0x40c10000 | ((%1 & 0x1f) << 11))	\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (value), "i" (register));					\
+} while (0)
+
 #define read_c0_index()		__read_32bit_c0_register($0, 0)
 #define write_c0_index(val)	__write_32bit_c0_register($0, 0, val)
 
@@ -865,8 +1131,14 @@ do {									\
 #define read_c0_entrylo0()	__read_ulong_c0_register($2, 0)
 #define write_c0_entrylo0(val)	__write_ulong_c0_register($2, 0, val)
 
+#define readx_c0_entrylo0()	__readx_32bit_c0_register(2)
+#define writex_c0_entrylo0(val)	__writex_32bit_c0_register(2, val)
+
 #define read_c0_entrylo1()	__read_ulong_c0_register($3, 0)
 #define write_c0_entrylo1(val)	__write_ulong_c0_register($3, 0, val)
+
+#define readx_c0_entrylo1()	__readx_32bit_c0_register(3)
+#define writex_c0_entrylo1(val)	__writex_32bit_c0_register(3, val)
 
 #define read_c0_conf()		__read_32bit_c0_register($3, 0)
 #define write_c0_conf(val)	__write_32bit_c0_register($3, 0, val)
@@ -916,19 +1188,8 @@ do {									\
 #define write_c0_compare3(val)	__write_32bit_c0_register($11, 7, val)
 
 #define read_c0_status()	__read_32bit_c0_register($12, 0)
-#ifdef CONFIG_MIPS_MT_SMTC
-#define write_c0_status(val)						\
-do {									\
-	__write_32bit_c0_register($12, 0, val);				\
-	__ehb();							\
-} while (0)
-#else
-/*
- * Legacy non-SMTC code, which may be hazardous
- * but which might not support EHB
- */
+
 #define write_c0_status(val)	__write_32bit_c0_register($12, 0, val)
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 #define read_c0_cause()		__read_32bit_c0_register($13, 0)
 #define write_c0_cause(val)	__write_32bit_c0_register($13, 0, val)
@@ -937,6 +1198,8 @@ do {									\
 #define write_c0_epc(val)	__write_ulong_c0_register($14, 0, val)
 
 #define read_c0_prid()		__read_32bit_c0_register($15, 0)
+
+#define read_c0_cmgcrbase()	__read_ulong_c0_register($15, 3)
 
 #define read_c0_config()	__read_32bit_c0_register($16, 0)
 #define read_c0_config1()	__read_32bit_c0_register($16, 1)
@@ -954,6 +1217,13 @@ do {									\
 #define write_c0_config5(val)	__write_32bit_c0_register($16, 5, val)
 #define write_c0_config6(val)	__write_32bit_c0_register($16, 6, val)
 #define write_c0_config7(val)	__write_32bit_c0_register($16, 7, val)
+
+#define read_c0_lladdr()	__read_ulong_c0_register($17, 0)
+#define write_c0_lladdr(val)	__write_ulong_c0_register($17, 0, val)
+#define read_c0_maar()		__read_ulong_c0_register($17, 1)
+#define write_c0_maar(val)	__write_ulong_c0_register($17, 1, val)
+#define read_c0_maari()		__read_32bit_c0_register($17, 2)
+#define write_c0_maari(val)	__write_32bit_c0_register($17, 2, val)
 
 /*
  * The WatchLo register.  There may be up to 8 of them.
@@ -1007,6 +1277,10 @@ do {									\
 
 #define read_c0_diag()		__read_32bit_c0_register($22, 0)
 #define write_c0_diag(val)	__write_32bit_c0_register($22, 0, val)
+
+/* R10K CP0 Branch Diagnostic register is 64bits wide */
+#define read_c0_r10k_diag()	__read_64bit_c0_register($22, 0)
+#define write_c0_r10k_diag(val)	__write_64bit_c0_register($22, 0, val)
 
 #define read_c0_diag1()		__read_32bit_c0_register($22, 1)
 #define write_c0_diag1(val)	__write_32bit_c0_register($22, 1, val)
@@ -1102,6 +1376,31 @@ do {									\
 #define read_c0_ebase()		__read_32bit_c0_register($15, 1)
 #define write_c0_ebase(val)	__write_32bit_c0_register($15, 1, val)
 
+#define read_c0_cdmmbase()	__read_ulong_c0_register($15, 2)
+#define write_c0_cdmmbase(val)	__write_ulong_c0_register($15, 2, val)
+
+/* MIPSR3 */
+#define read_c0_segctl0()	__read_32bit_c0_register($5, 2)
+#define write_c0_segctl0(val)	__write_32bit_c0_register($5, 2, val)
+
+#define read_c0_segctl1()	__read_32bit_c0_register($5, 3)
+#define write_c0_segctl1(val)	__write_32bit_c0_register($5, 3, val)
+
+#define read_c0_segctl2()	__read_32bit_c0_register($5, 4)
+#define write_c0_segctl2(val)	__write_32bit_c0_register($5, 4, val)
+
+/* Hardware Page Table Walker */
+#define read_c0_pwbase()	__read_ulong_c0_register($5, 5)
+#define write_c0_pwbase(val)	__write_ulong_c0_register($5, 5, val)
+
+#define read_c0_pwfield()	__read_ulong_c0_register($5, 6)
+#define write_c0_pwfield(val)	__write_ulong_c0_register($5, 6, val)
+
+#define read_c0_pwsize()	__read_ulong_c0_register($5, 7)
+#define write_c0_pwsize(val)	__write_ulong_c0_register($5, 7, val)
+
+#define read_c0_pwctl()		__read_32bit_c0_register($6, 6)
+#define write_c0_pwctl(val)	__write_32bit_c0_register($6, 6, val)
 
 /* Cavium OCTEON (cnMIPS) */
 #define read_c0_cvmcount()	__read_ulong_c0_register($9, 6)
@@ -1170,7 +1469,7 @@ do {									\
 /*
  * Macros to access the floating point coprocessor control registers
  */
-#define read_32bit_cp1_register(source)					\
+#define _read_32bit_cp1_register(source, gas_hardfloat)			\
 ({									\
 	int __res;							\
 									\
@@ -1180,11 +1479,35 @@ do {									\
 	"	# gas fails to assemble cfc1 for some archs,	\n"	\
 	"	# like Octeon.					\n"	\
 	"	.set	mips1					\n"	\
+	"	"STR(gas_hardfloat)"				\n"	\
 	"	cfc1	%0,"STR(source)"			\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res));						\
 	__res;								\
 })
+
+#define _write_32bit_cp1_register(dest, val, gas_hardfloat)		\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	reorder					\n"	\
+	"	"STR(gas_hardfloat)"				\n"	\
+	"	ctc1	%0,"STR(dest)"				\n"	\
+	"	.set	pop					\n"	\
+	: : "r" (val));							\
+} while (0)
+
+#ifdef GAS_HAS_SET_HARDFLOAT
+#define read_32bit_cp1_register(source)					\
+	_read_32bit_cp1_register(source, .set hardfloat)
+#define write_32bit_cp1_register(dest, val)				\
+	_write_32bit_cp1_register(dest, val, .set hardfloat)
+#else
+#define read_32bit_cp1_register(source)					\
+	_read_32bit_cp1_register(source, )
+#define write_32bit_cp1_register(dest, val)				\
+	_write_32bit_cp1_register(dest, val, )
+#endif
 
 #ifdef HAVE_AS_DSP
 #define rddsp(mask)							\
@@ -1641,11 +1964,6 @@ static inline void tlb_write_random(void)
 /*
  * Manipulate bits in a c0 register.
  */
-#ifndef CONFIG_MIPS_MT_SMTC
-/*
- * SMTC Linux requires shutting-down microthread scheduling
- * during CP0 register read-modify-write sequences.
- */
 #define __BUILD_SET_C0(name)					\
 static inline unsigned int					\
 set_c0_##name(unsigned int set)					\
@@ -1684,127 +2002,14 @@ change_c0_##name(unsigned int change, unsigned int val)		\
 	return res;						\
 }
 
-#else /* SMTC versions that manage MT scheduling */
-
-#include <linux/irqflags.h>
-
-/*
- * This is a duplicate of dmt() in mipsmtregs.h to avoid problems with
- * header file recursion.
- */
-static inline unsigned int __dmt(void)
-{
-	int res;
-
-	__asm__ __volatile__(
-	"	.set	push						\n"
-	"	.set	mips32r2					\n"
-	"	.set	noat						\n"
-	"	.word	0x41610BC1			# dmt $1	\n"
-	"	ehb							\n"
-	"	move	%0, $1						\n"
-	"	.set	pop						\n"
-	: "=r" (res));
-
-	instruction_hazard();
-
-	return res;
-}
-
-#define __VPECONTROL_TE_SHIFT	15
-#define __VPECONTROL_TE		(1UL << __VPECONTROL_TE_SHIFT)
-
-#define __EMT_ENABLE		__VPECONTROL_TE
-
-static inline void __emt(unsigned int previous)
-{
-	if ((previous & __EMT_ENABLE))
-		__asm__ __volatile__(
-		"	.set	mips32r2				\n"
-		"	.word	0x41600be1		# emt		\n"
-		"	ehb						\n"
-		"	.set	mips0					\n");
-}
-
-static inline void __ehb(void)
-{
-	__asm__ __volatile__(
-	"	.set	mips32r2					\n"
-	"	ehb							\n"		"	.set	mips0						\n");
-}
-
-/*
- * Note that local_irq_save/restore affect TC-specific IXMT state,
- * not Status.IE as in non-SMTC kernel.
- */
-
-#define __BUILD_SET_C0(name)					\
-static inline unsigned int					\
-set_c0_##name(unsigned int set)					\
-{								\
-	unsigned int res;					\
-	unsigned int new;					\
-	unsigned int omt;					\
-	unsigned long flags;					\
-								\
-	local_irq_save(flags);					\
-	omt = __dmt();						\
-	res = read_c0_##name();					\
-	new = res | set;					\
-	write_c0_##name(new);					\
-	__emt(omt);						\
-	local_irq_restore(flags);				\
-								\
-	return res;						\
-}								\
-								\
-static inline unsigned int					\
-clear_c0_##name(unsigned int clear)				\
-{								\
-	unsigned int res;					\
-	unsigned int new;					\
-	unsigned int omt;					\
-	unsigned long flags;					\
-								\
-	local_irq_save(flags);					\
-	omt = __dmt();						\
-	res = read_c0_##name();					\
-	new = res & ~clear;					\
-	write_c0_##name(new);					\
-	__emt(omt);						\
-	local_irq_restore(flags);				\
-								\
-	return res;						\
-}								\
-								\
-static inline unsigned int					\
-change_c0_##name(unsigned int change, unsigned int newbits)	\
-{								\
-	unsigned int res;					\
-	unsigned int new;					\
-	unsigned int omt;					\
-	unsigned long flags;					\
-								\
-	local_irq_save(flags);					\
-								\
-	omt = __dmt();						\
-	res = read_c0_##name();					\
-	new = res & ~change;					\
-	new |= (newbits & change);				\
-	write_c0_##name(new);					\
-	__emt(omt);						\
-	local_irq_restore(flags);				\
-								\
-	return res;						\
-}
-#endif
-
 __BUILD_SET_C0(status)
 __BUILD_SET_C0(cause)
 __BUILD_SET_C0(config)
+__BUILD_SET_C0(config5)
 __BUILD_SET_C0(intcontrol)
 __BUILD_SET_C0(intctl)
 __BUILD_SET_C0(srsmap)
+__BUILD_SET_C0(pagegrain)
 __BUILD_SET_C0(brcm_config_0)
 __BUILD_SET_C0(brcm_bus_pll)
 __BUILD_SET_C0(brcm_reset)
@@ -1812,6 +2017,15 @@ __BUILD_SET_C0(brcm_cmt_intr)
 __BUILD_SET_C0(brcm_cmt_ctrl)
 __BUILD_SET_C0(brcm_config)
 __BUILD_SET_C0(brcm_mode)
+
+/*
+ * Return low 10 bits of ebase.
+ * Note that under KVM (MIPSVZ) this returns vcpu id.
+ */
+static inline unsigned int get_ebase_cpunum(void)
+{
+	return read_c0_ebase() & 0x3ff;
+}
 
 #endif /* !__ASSEMBLY__ */
 

@@ -16,10 +16,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  * The full GNU General Public License is included in this distribution in the
  * file called COPYING.
  */
@@ -530,29 +526,6 @@ static void ppc440spe_desc_init_memcpy(struct ppc440spe_adma_desc_slot *desc,
 		clear_bit(PPC440SPE_DESC_INT, &desc->flags);
 
 	hw_desc->opc = DMA_CDB_OPC_MV_SG1_SG2;
-}
-
-/**
- * ppc440spe_desc_init_memset - initialize the descriptor for MEMSET operation
- */
-static void ppc440spe_desc_init_memset(struct ppc440spe_adma_desc_slot *desc,
-					int value, unsigned long flags)
-{
-	struct dma_cdb *hw_desc = desc->hw_desc;
-
-	memset(desc->hw_desc, 0, sizeof(struct dma_cdb));
-	desc->hw_next = NULL;
-	desc->src_cnt = 1;
-	desc->dst_cnt = 1;
-
-	if (flags & DMA_PREP_INTERRUPT)
-		set_bit(PPC440SPE_DESC_INT, &desc->flags);
-	else
-		clear_bit(PPC440SPE_DESC_INT, &desc->flags);
-
-	hw_desc->sg1u = hw_desc->sg1l = cpu_to_le32((u32)value);
-	hw_desc->sg3u = hw_desc->sg3l = cpu_to_le32((u32)value);
-	hw_desc->opc = DMA_CDB_OPC_DFILL128;
 }
 
 /**
@@ -1504,8 +1477,6 @@ static dma_cookie_t ppc440spe_adma_run_tx_complete_actions(
 		struct ppc440spe_adma_chan *chan,
 		dma_cookie_t cookie)
 {
-	int i;
-
 	BUG_ON(desc->async_tx.cookie < 0);
 	if (desc->async_tx.cookie > 0) {
 		cookie = desc->async_tx.cookie;
@@ -3898,7 +3869,7 @@ static void ppc440spe_adma_init_capabilities(struct ppc440spe_adma_device *adev)
 			ppc440spe_adma_prep_dma_interrupt;
 	}
 	pr_info("%s: AMCC(R) PPC440SP(E) ADMA Engine: "
-	  "( %s%s%s%s%s%s%s)\n",
+	  "( %s%s%s%s%s%s)\n",
 	  dev_name(adev->dev),
 	  dma_has_cap(DMA_PQ, adev->common.cap_mask) ? "pq " : "",
 	  dma_has_cap(DMA_PQ_VAL, adev->common.cap_mask) ? "pq_val " : "",
@@ -4139,6 +4110,7 @@ static int ppc440spe_adma_probe(struct platform_device *ofdev)
 	regs = ioremap(res.start, resource_size(&res));
 	if (!regs) {
 		dev_err(&ofdev->dev, "failed to ioremap regs!\n");
+		ret = -ENOMEM;
 		goto err_regs_alloc;
 	}
 
@@ -4603,7 +4575,6 @@ static struct platform_driver ppc440spe_adma_driver = {
 	.remove = ppc440spe_adma_remove,
 	.driver = {
 		.name = "PPC440SP(E)-ADMA",
-		.owner = THIS_MODULE,
 		.of_match_table = ppc440spe_adma_of_match,
 	},
 };

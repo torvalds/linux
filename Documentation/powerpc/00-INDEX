@@ -11,14 +11,14 @@ bootwrapper.txt
 cpu_features.txt
 	- info on how we support a variety of CPUs with minimal compile-time
 	options.
+cxl.txt
+	- Overview of the CXL driver.
 eeh-pci-error-recovery.txt
 	- info on PCI Bus EEH Error Recovery
 firmware-assisted-dump.txt
 	- Documentation on the firmware assisted dump mechanism "fadump".
 hvcs.txt
 	- IBM "Hypervisor Virtual Console Server" Installation Guide
-kvm_440.txt
-	- Various notes on the implementation of KVM for PowerPC 440.
 mpc52xx.txt
 	- Linux 2.6.x on MPC52xx family
 pmu-ebb.txt
@@ -30,3 +30,5 @@ ptrace.txt
 	- Information on the ptrace interfaces for hardware debug registers.
 transactional_memory.txt
 	- Overview of the Power8 transactional memory support.
+dscr.txt
+	- Overview DSCR (Data Stream Control Register) support.

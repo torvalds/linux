@@ -81,8 +81,8 @@ static struct x25_asy *x25_asy_alloc(void)
 		char name[IFNAMSIZ];
 		sprintf(name, "x25asy%d", i);
 
-		dev = alloc_netdev(sizeof(struct x25_asy),
-				   name, x25_asy_setup);
+		dev = alloc_netdev(sizeof(struct x25_asy), name,
+				   NET_NAME_UNKNOWN, x25_asy_setup);
 		if (!dev)
 			return NULL;
 
@@ -122,8 +122,12 @@ static int x25_asy_change_mtu(struct net_device *dev, int newmtu)
 {
 	struct x25_asy *sl = netdev_priv(dev);
 	unsigned char *xbuff, *rbuff;
-	int len = 2 * newmtu;
+	int len;
 
+	if (newmtu > 65534)
+		return -EINVAL;
+
+	len = 2 * newmtu;
 	xbuff = kmalloc(len + 4, GFP_ATOMIC);
 	rbuff = kmalloc(len + 4, GFP_ATOMIC);
 

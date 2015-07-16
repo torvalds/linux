@@ -17,11 +17,11 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/pagemap.h>
-#include <linux/namei.h>
 #include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
+#include <linux/device.h>
 
 static ssize_t default_read_file(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
@@ -40,17 +40,6 @@ const struct file_operations debugfs_file_operations = {
 	.write =	default_write_file,
 	.open =		simple_open,
 	.llseek =	noop_llseek,
-};
-
-static void *debugfs_follow_link(struct dentry *dentry, struct nameidata *nd)
-{
-	nd_set_link(nd, dentry->d_inode->i_private);
-	return NULL;
-}
-
-const struct inode_operations debugfs_link_operations = {
-	.readlink       = generic_readlink,
-	.follow_link    = debugfs_follow_link,
 };
 
 static int debugfs_u8_set(void *data, u64 val)
@@ -451,7 +440,7 @@ static ssize_t read_file_bool(struct file *file, char __user *user_buf,
 {
 	char buf[3];
 	u32 *val = file->private_data;
-	
+
 	if (*val)
 		buf[0] = 'Y';
 	else
@@ -692,18 +681,19 @@ EXPORT_SYMBOL_GPL(debugfs_create_u32_array);
  * because some peripherals have several blocks of identical registers,
  * for example configuration of dma channels
  */
-int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
-			   int nregs, void __iomem *base, char *prefix)
+void debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
+			  int nregs, void __iomem *base, char *prefix)
 {
-	int i, ret = 0;
+	int i;
 
 	for (i = 0; i < nregs; i++, regs++) {
 		if (prefix)
-			ret += seq_printf(s, "%s", prefix);
-		ret += seq_printf(s, "%s = 0x%08x\n", regs->name,
-				  readl(base + regs->offset));
+			seq_printf(s, "%s", prefix);
+		seq_printf(s, "%s = 0x%08x\n", regs->name,
+			   readl(base + regs->offset));
+		if (seq_has_overflowed(s))
+			break;
 	}
-	return ret;
 }
 EXPORT_SYMBOL_GPL(debugfs_print_regs32);
 
@@ -761,3 +751,56 @@ struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
 EXPORT_SYMBOL_GPL(debugfs_create_regset32);
 
 #endif /* CONFIG_HAS_IOMEM */
+
+struct debugfs_devm_entry {
+	int (*read)(struct seq_file *seq, void *data);
+	struct device *dev;
+};
+
+static int debugfs_devm_entry_open(struct inode *inode, struct file *f)
+{
+	struct debugfs_devm_entry *entry = inode->i_private;
+
+	return single_open(f, entry->read, entry->dev);
+}
+
+static const struct file_operations debugfs_devm_entry_ops = {
+	.owner = THIS_MODULE,
+	.open = debugfs_devm_entry_open,
+	.release = single_release,
+	.read = seq_read,
+	.llseek = seq_lseek
+};
+
+/**
+ * debugfs_create_devm_seqfile - create a debugfs file that is bound to device.
+ *
+ * @dev: device related to this debugfs file.
+ * @name: name of the debugfs file.
+ * @parent: a pointer to the parent dentry for this file.  This should be a
+ *	directory dentry if set.  If this parameter is %NULL, then the
+ *	file will be created in the root of the debugfs filesystem.
+ * @read_fn: function pointer called to print the seq_file content.
+ */
+struct dentry *debugfs_create_devm_seqfile(struct device *dev, const char *name,
+					   struct dentry *parent,
+					   int (*read_fn)(struct seq_file *s,
+							  void *data))
+{
+	struct debugfs_devm_entry *entry;
+
+	if (IS_ERR(parent))
+		return ERR_PTR(-ENOENT);
+
+	entry = devm_kzalloc(dev, sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return ERR_PTR(-ENOMEM);
+
+	entry->read = read_fn;
+	entry->dev = dev;
+
+	return debugfs_create_file(name, S_IRUGO, parent, entry,
+				   &debugfs_devm_entry_ops);
+}
+EXPORT_SYMBOL_GPL(debugfs_create_devm_seqfile);
+

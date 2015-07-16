@@ -110,38 +110,6 @@ static void cpu8815_restart(enum reboot_mode mode, const char *cmd)
 }
 
 /*
- * The SMSC911x IRQ is connected to a GPIO pin, but the driver expects
- * to simply request an IRQ passed as a resource. So the GPIO pin needs
- * to be requested by this hog and set as input.
- */
-static int __init cpu8815_eth_init(void)
-{
-	struct device_node *eth;
-	int gpio, irq, err;
-
-	eth = of_find_node_by_path("/usb-s8815/ethernet-gpio");
-	if (!eth) {
-		pr_info("could not find any ethernet GPIO\n");
-		return 0;
-	}
-	gpio = of_get_gpio(eth, 0);
-	err = gpio_request(gpio, "eth_irq");
-	if (err) {
-		pr_info("failed to request ethernet GPIO\n");
-		return -ENODEV;
-	}
-	err = gpio_direction_input(gpio);
-	if (err) {
-		pr_info("failed to set ethernet GPIO as input\n");
-		return -ENODEV;
-	}
-	irq = gpio_to_irq(gpio);
-	pr_info("enabled USB-S8815 ethernet GPIO %d, IRQ %d\n", gpio, irq);
-	return 0;
-}
-device_initcall(cpu8815_eth_init);
-
-/*
  * This GPIO pin turns on a line that is used to detect card insertion
  * on this board.
  */
@@ -175,23 +143,17 @@ static int __init cpu8815_mmcsd_init(void)
 }
 device_initcall(cpu8815_mmcsd_init);
 
-static void __init cpu8815_init_of(void)
-{
-#ifdef CONFIG_CACHE_L2X0
-	/* At full speed latency must be >=2, so 0x249 in low bits */
-	l2x0_of_init(0x00730249, 0xfe000fff);
-#endif
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
-
 static const char * cpu8815_board_compat[] = {
+	"st,nomadik-nhk-15",
 	"calaosystems,usb-s8815",
 	NULL,
 };
 
 DT_MACHINE_START(NOMADIK_DT, "Nomadik STn8815")
+	/* At full speed latency must be >=2, so 0x249 in low bits */
+	.l2c_aux_val	= 0x00700249,
+	.l2c_aux_mask	= 0xfe0fefff,
 	.map_io		= cpu8815_map_io,
-	.init_machine	= cpu8815_init_of,
 	.restart	= cpu8815_restart,
 	.dt_compat      = cpu8815_board_compat,
 MACHINE_END

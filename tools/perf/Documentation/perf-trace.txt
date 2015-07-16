@@ -20,7 +20,7 @@ scheduling events, etc.
 This is a live mode tool in addition to working with perf.data files like
 the other perf tools. Files can be generated using the 'perf record' command
 but the session needs to include the raw_syscalls events (-e 'raw_syscalls:*').
-Alernatively, the 'perf trace record' can be used as a shortcut to
+Alternatively, 'perf trace record' can be used as a shortcut to
 automatically include the raw_syscalls events when writing events to a file.
 
 The following options apply to perf trace; options to perf trace record are
@@ -35,7 +35,7 @@ OPTIONS
 
 -e::
 --expr::
-	List of events to show, currently only syscall names.
+	List of syscalls to show, currently only syscall names.
 	Prefixing with ! shows all syscalls but the ones specified.  You may
 	need to escape it.
 
@@ -54,6 +54,9 @@ OPTIONS
 -u::
 --uid=::
         Record events in threads owned by uid. Name or number.
+
+--filter-pids=::
+	Filter out events for these pids and for 'trace' itself (comma separated list).
 
 -v::
 --verbose=::
@@ -106,6 +109,60 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --tool_stats::
 	Show tool stats such as number of times fd->pathname was discovered thru
 	hooking the open syscall return + vfs_getname or via reading /proc/pid/fd, etc.
+
+-F=[all|min|maj]::
+--pf=[all|min|maj]::
+	Trace pagefaults. Optionally, you can specify whether you want minor,
+	major or all pagefaults. Default value is maj.
+
+--syscalls::
+	Trace system calls. This options is enabled by default.
+
+--event::
+	Trace other events, see 'perf list' for a complete list.
+
+--proc-map-timeout::
+	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
+	because the file may be huge. A time out is needed in such cases.
+	This option sets the time out limit. The default value is 500 ms.
+
+PAGEFAULTS
+----------
+
+When tracing pagefaults, the format of the trace is as follows:
+
+<min|maj>fault [<ip.symbol>+<ip.offset>] => <addr.dso@addr.offset> (<map type><addr level>).
+
+- min/maj indicates whether fault event is minor or major;
+- ip.symbol shows symbol for instruction pointer (the code that generated the
+  fault); if no debug symbols available, perf trace will print raw IP;
+- addr.dso shows DSO for the faulted address;
+- map type is either 'd' for non-executable maps or 'x' for executable maps;
+- addr level is either 'k' for kernel dso or '.' for user dso.
+
+For symbols resolution you may need to install debugging symbols.
+
+Please be aware that duration is currently always 0 and doesn't reflect actual
+time it took for fault to be handled!
+
+When --verbose specified, perf trace tries to print all available information
+for both IP and fault address in the form of dso@symbol+offset.
+
+EXAMPLES
+--------
+
+Trace only major pagefaults:
+
+ $ perf trace --no-syscalls -F
+
+Trace syscalls, major and minor pagefaults:
+
+ $ perf trace -F all
+
+  1416.547 ( 0.000 ms): python/20235 majfault [CRYPTO_push_info_+0x0] => /lib/x86_64-linux-gnu/libcrypto.so.1.0.0@0x61be0 (x.)
+
+  As you can see, there was major pagefault in python process, from
+  CRYPTO_push_info_ routine which faulted somewhere in libcrypto.so.
 
 SEE ALSO
 --------

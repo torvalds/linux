@@ -5,8 +5,6 @@
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -18,15 +16,12 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * ########################################################################
+ *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-
 
 #include "ieee754sp.h"
 
-ieee754sp ieee754sp_sqrt(ieee754sp x)
+union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 {
 	int ix, s, q, m, t, i;
 	unsigned int r;
@@ -35,34 +30,37 @@ ieee754sp ieee754sp_sqrt(ieee754sp x)
 	/* take care of Inf and NaN */
 
 	EXPLODEXSP;
-	CLEARCX;
+	ieee754_clearcx();
 	FLUSHXSP;
 
 	/* x == INF or NAN? */
 	switch (xc) {
+	case IEEE754_CLASS_SNAN:
+		return ieee754sp_nanxcpt(x);
+
 	case IEEE754_CLASS_QNAN:
 		/* sqrt(Nan) = Nan */
-		return ieee754sp_nanxcpt(x, "sqrt");
-	case IEEE754_CLASS_SNAN:
-		SETCX(IEEE754_INVALID_OPERATION);
-		return ieee754sp_nanxcpt(ieee754sp_indef(), "sqrt");
+		return x;
+
 	case IEEE754_CLASS_ZERO:
 		/* sqrt(0) = 0 */
 		return x;
+
 	case IEEE754_CLASS_INF:
 		if (xs) {
 			/* sqrt(-Inf) = Nan */
-			SETCX(IEEE754_INVALID_OPERATION);
-			return ieee754sp_nanxcpt(ieee754sp_indef(), "sqrt");
+			ieee754_setcx(IEEE754_INVALID_OPERATION);
+			return ieee754sp_indef();
 		}
 		/* sqrt(+Inf) = Inf */
 		return x;
+
 	case IEEE754_CLASS_DNORM:
 	case IEEE754_CLASS_NORM:
 		if (xs) {
 			/* sqrt(-x) = Nan */
-			SETCX(IEEE754_INVALID_OPERATION);
-			return ieee754sp_nanxcpt(ieee754sp_indef(), "sqrt");
+			ieee754_setcx(IEEE754_INVALID_OPERATION);
+			return ieee754sp_indef();
 		}
 		break;
 	}
@@ -99,12 +97,12 @@ ieee754sp ieee754sp_sqrt(ieee754sp x)
 	}
 
 	if (ix != 0) {
-		SETCX(IEEE754_INEXACT);
+		ieee754_setcx(IEEE754_INEXACT);
 		switch (ieee754_csr.rm) {
-		case IEEE754_RP:
+		case FPU_CSR_RU:
 			q += 2;
 			break;
-		case IEEE754_RN:
+		case FPU_CSR_RN:
 			q += (q & 1);
 			break;
 		}

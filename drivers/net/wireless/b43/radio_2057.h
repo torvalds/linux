@@ -84,6 +84,8 @@
 #define R2057_CMOSBUF_RX_RCCR			0x04c
 #define R2057_LOGEN_SEL_PKDET			0x04d
 #define R2057_CMOSBUF_SHAREIQ_PTAT		0x04e
+
+/* MISC core 0 */
 #define R2057_RXTXBIAS_CONFIG_CORE0		0x04f
 #define R2057_TXGM_TXRF_PUS_CORE0		0x050
 #define R2057_TXGM_IDAC_BLEED_CORE0		0x051
@@ -204,6 +206,8 @@
 #define R2057_RXBB_GPAIOSEL_RXLPF_RCCAL_CORE0	0x0d1
 #define R2057_LPF_GAIN_CORE0			0x0d2
 #define R2057_DACBUF_IDACS_BW_CORE0		0x0d3
+
+/* MISC core 1 */
 #define R2057_RXTXBIAS_CONFIG_CORE1		0x0d4
 #define R2057_TXGM_TXRF_PUS_CORE1		0x0d5
 #define R2057_TXGM_IDAC_BLEED_CORE1		0x0d6
@@ -324,6 +328,7 @@
 #define R2057_RXBB_GPAIOSEL_RXLPF_RCCAL_CORE1	0x156
 #define R2057_LPF_GAIN_CORE1			0x157
 #define R2057_DACBUF_IDACS_BW_CORE1		0x158
+
 #define R2057_DACBUF_VINCM_CORE1		0x159
 #define R2057_RCCAL_START_R1_Q1_P1		0x15a
 #define R2057_RCCAL_X1				0x15b
@@ -345,6 +350,8 @@
 #define R2057_RCCAL_BCAP_VAL			0x16b
 #define R2057_RCCAL_HPC_VAL			0x16c
 #define R2057_RCCAL_OVERRIDES			0x16d
+
+/* TX core 0 */
 #define R2057_TX0_IQCAL_GAIN_BW			0x170
 #define R2057_TX0_LOFT_FINE_I			0x171
 #define R2057_TX0_LOFT_FINE_Q			0x172
@@ -362,6 +369,8 @@
 #define R2057_TX0_TXRXCOUPLE_2G_PWRUP		0x17e
 #define R2057_TX0_TXRXCOUPLE_5G_ATTEN		0x17f
 #define R2057_TX0_TXRXCOUPLE_5G_PWRUP		0x180
+
+/* TX core 1 */
 #define R2057_TX1_IQCAL_GAIN_BW			0x190
 #define R2057_TX1_LOFT_FINE_I			0x191
 #define R2057_TX1_LOFT_FINE_Q			0x192
@@ -379,6 +388,7 @@
 #define R2057_TX1_TXRXCOUPLE_2G_PWRUP		0x19e
 #define R2057_TX1_TXRXCOUPLE_5G_ATTEN		0x19f
 #define R2057_TX1_TXRXCOUPLE_5G_PWRUP		0x1a0
+
 #define R2057_AFE_VCM_CAL_MASTER_CORE0		0x1a1
 #define R2057_AFE_SET_VCM_I_CORE0		0x1a2
 #define R2057_AFE_SET_VCM_Q_CORE0		0x1a3
@@ -425,6 +435,72 @@
 
 #define R2057_VCM_MASK				0x7
 
+struct b43_nphy_chantabent_rev7 {
+	/* The channel frequency in MHz */
+	u16 freq;
+	/* Radio regs values on channelswitch */
+	u8 radio_vcocal_countval0;
+	u8 radio_vcocal_countval1;
+	u8 radio_rfpll_refmaster_sparextalsize;
+	u8 radio_rfpll_loopfilter_r1;
+	u8 radio_rfpll_loopfilter_c2;
+	u8 radio_rfpll_loopfilter_c1;
+	u8 radio_cp_kpd_idac;
+	u8 radio_rfpll_mmd0;
+	u8 radio_rfpll_mmd1;
+	u8 radio_vcobuf_tune;
+	u8 radio_logen_mx2g_tune;
+	u8 radio_logen_mx5g_tune;
+	u8 radio_logen_indbuf2g_tune;
+	u8 radio_logen_indbuf5g_tune;
+	u8 radio_txmix2g_tune_boost_pu_core0;
+	u8 radio_pad2g_tune_pus_core0;
+	u8 radio_pga_boost_tune_core0;
+	u8 radio_txmix5g_boost_tune_core0;
+	u8 radio_pad5g_tune_misc_pus_core0;
+	u8 radio_lna2g_tune_core0;
+	u8 radio_lna5g_tune_core0;
+	u8 radio_txmix2g_tune_boost_pu_core1;
+	u8 radio_pad2g_tune_pus_core1;
+	u8 radio_pga_boost_tune_core1;
+	u8 radio_txmix5g_boost_tune_core1;
+	u8 radio_pad5g_tune_misc_pus_core1;
+	u8 radio_lna2g_tune_core1;
+	u8 radio_lna5g_tune_core1;
+	/* PHY res values on channelswitch */
+	struct b43_phy_n_sfo_cfg phy_regs;
+};
+
+struct b43_nphy_chantabent_rev7_2g {
+	/* The channel frequency in MHz */
+	u16 freq;
+	/* Radio regs values on channelswitch */
+	u8 radio_vcocal_countval0;
+	u8 radio_vcocal_countval1;
+	u8 radio_rfpll_refmaster_sparextalsize;
+	u8 radio_rfpll_loopfilter_r1;
+	u8 radio_rfpll_loopfilter_c2;
+	u8 radio_rfpll_loopfilter_c1;
+	u8 radio_cp_kpd_idac;
+	u8 radio_rfpll_mmd0;
+	u8 radio_rfpll_mmd1;
+	u8 radio_vcobuf_tune;
+	u8 radio_logen_mx2g_tune;
+	u8 radio_logen_indbuf2g_tune;
+	u8 radio_txmix2g_tune_boost_pu_core0;
+	u8 radio_pad2g_tune_pus_core0;
+	u8 radio_lna2g_tune_core0;
+	u8 radio_txmix2g_tune_boost_pu_core1;
+	u8 radio_pad2g_tune_pus_core1;
+	u8 radio_lna2g_tune_core1;
+	/* PHY regs values on channelswitch */
+	struct b43_phy_n_sfo_cfg phy_regs;
+};
+
 void r2057_upload_inittabs(struct b43_wldev *dev);
+
+void r2057_get_chantabent_rev7(struct b43_wldev *dev, u16 freq,
+			       const struct b43_nphy_chantabent_rev7 **tabent_r7,
+			       const struct b43_nphy_chantabent_rev7_2g **tabent_r7_2g);
 
 #endif /* B43_RADIO_2057_H_ */

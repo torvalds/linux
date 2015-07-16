@@ -102,8 +102,8 @@ struct av7110 {
 	struct dvb_device	dvb_dev;
 	struct dvb_net		dvb_net;
 
-	struct video_device	*v4l_dev;
-	struct video_device	*vbi_dev;
+	struct video_device	v4l_dev;
+	struct video_device	vbi_dev;
 
 	struct saa7146_dev	*dev;
 
@@ -269,25 +269,30 @@ struct av7110 {
 	unsigned long size_root;
 
 	struct dvb_frontend* fe;
-	fe_status_t fe_status;
+	enum fe_status fe_status;
 
 	struct mutex ioctl_mutex;
 
 	/* crash recovery */
 	void				(*recover)(struct av7110* av7110);
-	fe_sec_voltage_t		saved_voltage;
-	fe_sec_tone_mode_t		saved_tone;
+	enum fe_sec_voltage		saved_voltage;
+	enum fe_sec_tone_mode		saved_tone;
 	struct dvb_diseqc_master_cmd	saved_master_cmd;
-	fe_sec_mini_cmd_t		saved_minicmd;
+	enum fe_sec_mini_cmd		saved_minicmd;
 
 	int (*fe_init)(struct dvb_frontend* fe);
-	int (*fe_read_status)(struct dvb_frontend* fe, fe_status_t* status);
-	int (*fe_diseqc_reset_overload)(struct dvb_frontend* fe);
-	int (*fe_diseqc_send_master_cmd)(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd* cmd);
-	int (*fe_diseqc_send_burst)(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd);
-	int (*fe_set_tone)(struct dvb_frontend* fe, fe_sec_tone_mode_t tone);
-	int (*fe_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
-	int (*fe_dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned long cmd);
+	int (*fe_read_status)(struct dvb_frontend *fe, enum fe_status *status);
+	int (*fe_diseqc_reset_overload)(struct dvb_frontend *fe);
+	int (*fe_diseqc_send_master_cmd)(struct dvb_frontend *fe,
+					 struct dvb_diseqc_master_cmd *cmd);
+	int (*fe_diseqc_send_burst)(struct dvb_frontend *fe,
+				    enum fe_sec_mini_cmd minicmd);
+	int (*fe_set_tone)(struct dvb_frontend *fe,
+			   enum fe_sec_tone_mode tone);
+	int (*fe_set_voltage)(struct dvb_frontend *fe,
+			      enum fe_sec_voltage voltage);
+	int (*fe_dishnetwork_send_legacy_command)(struct dvb_frontend *fe,
+						  unsigned long cmd);
 	int (*fe_set_frontend)(struct dvb_frontend *fe);
 };
 

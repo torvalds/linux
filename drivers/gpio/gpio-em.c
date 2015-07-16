@@ -99,6 +99,27 @@ static void em_gio_irq_enable(struct irq_data *d)
 	em_gio_write(p, GIO_IEN, BIT(irqd_to_hwirq(d)));
 }
 
+static int em_gio_irq_reqres(struct irq_data *d)
+{
+	struct em_gio_priv *p = irq_data_get_irq_chip_data(d);
+
+	if (gpiochip_lock_as_irq(&p->gpio_chip, irqd_to_hwirq(d))) {
+		dev_err(p->gpio_chip.dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			irqd_to_hwirq(d));
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void em_gio_irq_relres(struct irq_data *d)
+{
+	struct em_gio_priv *p = irq_data_get_irq_chip_data(d);
+
+	gpiochip_unlock_as_irq(&p->gpio_chip, irqd_to_hwirq(d));
+}
+
+
 #define GIO_ASYNC(x) (x + 8)
 
 static unsigned char em_gio_sense_table[IRQ_TYPE_SENSE_MASK + 1] = {
@@ -191,7 +212,7 @@ static void __em_gio_set(struct gpio_chip *chip, unsigned int reg,
 {
 	/* upper 16 bits contains mask and lower 16 actual value */
 	em_gio_write(gpio_to_priv(chip), reg,
-		     (1 << (shift + 16)) | (value << shift));
+		     (BIT(shift + 16)) | (value << shift));
 }
 
 static void em_gio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -245,7 +266,7 @@ static int em_gio_irq_domain_map(struct irq_domain *h, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops em_gio_irq_domain_ops = {
+static const struct irq_domain_ops em_gio_irq_domain_ops = {
 	.map	= em_gio_irq_domain_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
@@ -263,7 +284,6 @@ static int em_gio_probe(struct platform_device *pdev)
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		ret = -ENOMEM;
 		goto err0;
 	}
@@ -310,12 +330,7 @@ static int em_gio_probe(struct platform_device *pdev)
 			goto err0;
 		}
 
-		ret = of_alias_get_id(pdev->dev.of_node, "gpio");
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Couldn't get OF id\n");
-			goto err0;
-		}
-		pdata->gpio_base = ret * 32; /* 32 GPIOs per instance */
+		pdata->gpio_base = -1;
 	}
 
 	gpio_chip = &p->gpio_chip;
@@ -328,6 +343,7 @@ static int em_gio_probe(struct platform_device *pdev)
 	gpio_chip->request = em_gio_request;
 	gpio_chip->free = em_gio_free;
 	gpio_chip->label = name;
+	gpio_chip->dev = &pdev->dev;
 	gpio_chip->owner = THIS_MODULE;
 	gpio_chip->base = pdata->gpio_base;
 	gpio_chip->ngpio = pdata->number_of_pins;
@@ -336,10 +352,10 @@ static int em_gio_probe(struct platform_device *pdev)
 	irq_chip->name = name;
 	irq_chip->irq_mask = em_gio_irq_disable;
 	irq_chip->irq_unmask = em_gio_irq_enable;
-	irq_chip->irq_enable = em_gio_irq_enable;
-	irq_chip->irq_disable = em_gio_irq_disable;
 	irq_chip->irq_set_type = em_gio_irq_set_type;
-	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE;
+	irq_chip->irq_request_resources = em_gio_irq_reqres;
+	irq_chip->irq_release_resources = em_gio_irq_relres;
+	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
 
 	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,
 					      pdata->number_of_pins,
@@ -388,11 +404,8 @@ err0:
 static int em_gio_remove(struct platform_device *pdev)
 {
 	struct em_gio_priv *p = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&p->gpio_chip);
-	if (ret)
-		return ret;
+	gpiochip_remove(&p->gpio_chip);
 
 	irq_domain_remove(p->irq_domain);
 	return 0;
@@ -410,7 +423,6 @@ static struct platform_driver em_gio_device_driver = {
 	.driver		= {
 		.name	= "em_gio",
 		.of_match_table = em_gio_dt_ids,
-		.owner		= THIS_MODULE,
 	}
 };
 

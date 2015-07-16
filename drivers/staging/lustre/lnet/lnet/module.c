@@ -35,21 +35,21 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 static int config_on_load;
-CFS_MODULE_PARM(config_on_load, "i", int, 0444,
-		"configure network at module load");
+module_param(config_on_load, int, 0444);
+MODULE_PARM_DESC(config_on_load, "configure network at module load");
 
 static struct mutex lnet_config_mutex;
 
-int
+static int
 lnet_configure(void *arg)
 {
 	/* 'arg' only there so I can be passed to cfs_create_thread() */
-	int    rc = 0;
+	int rc = 0;
 
-	LNET_MUTEX_LOCK(&lnet_config_mutex);
+	mutex_lock(&lnet_config_mutex);
 
 	if (!the_lnet.ln_niinit_self) {
 		rc = LNetNIInit(LUSTRE_SRV_LNET_PID);
@@ -59,34 +59,34 @@ lnet_configure(void *arg)
 		}
 	}
 
-	LNET_MUTEX_UNLOCK(&lnet_config_mutex);
+	mutex_unlock(&lnet_config_mutex);
 	return rc;
 }
 
-int
+static int
 lnet_unconfigure(void)
 {
-	int   refcount;
+	int refcount;
 
-	LNET_MUTEX_LOCK(&lnet_config_mutex);
+	mutex_lock(&lnet_config_mutex);
 
 	if (the_lnet.ln_niinit_self) {
 		the_lnet.ln_niinit_self = 0;
 		LNetNIFini();
 	}
 
-	LNET_MUTEX_LOCK(&the_lnet.ln_api_mutex);
+	mutex_lock(&the_lnet.ln_api_mutex);
 	refcount = the_lnet.ln_refcount;
-	LNET_MUTEX_UNLOCK(&the_lnet.ln_api_mutex);
+	mutex_unlock(&the_lnet.ln_api_mutex);
 
-	LNET_MUTEX_UNLOCK(&lnet_config_mutex);
+	mutex_unlock(&lnet_config_mutex);
 	return (refcount == 0) ? 0 : -EBUSY;
 }
 
-int
+static int
 lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
 {
-	int   rc;
+	int rc;
 
 	switch (cmd) {
 	case IOC_LIBCFS_CONFIGURE:
@@ -108,18 +108,18 @@ lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
 	}
 }
 
-DECLARE_IOCTL_HANDLER(lnet_ioctl_handler, lnet_ioctl);
+static DECLARE_IOCTL_HANDLER(lnet_ioctl_handler, lnet_ioctl);
 
-int
+static int __init
 init_lnet(void)
 {
-	int		  rc;
+	int rc;
 
 	mutex_init(&lnet_config_mutex);
 
-	rc = LNetInit();
+	rc = lnet_init();
 	if (rc != 0) {
-		CERROR("LNetInit: error %d\n", rc);
+		CERROR("lnet_init: error %d\n", rc);
 		return rc;
 	}
 
@@ -135,7 +135,7 @@ init_lnet(void)
 	return 0;
 }
 
-void
+static void __exit
 fini_lnet(void)
 {
 	int rc;
@@ -143,11 +143,11 @@ fini_lnet(void)
 	rc = libcfs_deregister_ioctl(&lnet_ioctl_handler);
 	LASSERT(rc == 0);
 
-	LNetFini();
+	lnet_fini();
 }
 
 MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
-MODULE_DESCRIPTION("Portals v3.1");
+MODULE_DESCRIPTION("LNet v3.1");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
 

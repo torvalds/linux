@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/sched_clock.h>
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
 
@@ -46,6 +47,11 @@ static struct txx9_clocksource txx9_clocksource = {
 	},
 };
 
+static u64 notrace txx9_read_sched_clock(void)
+{
+	return __raw_readl(&txx9_clocksource.tmrptr->trr);
+}
+
 void __init txx9_clocksource_init(unsigned long baseaddr,
 				  unsigned int imbusclk)
 {
@@ -61,6 +67,9 @@ void __init txx9_clocksource_init(unsigned long baseaddr,
 	__raw_writel(1 << TXX9_CLOCKSOURCE_BITS, &tmrptr->cpra);
 	__raw_writel(TCR_BASE | TXx9_TMTCR_TCE, &tmrptr->tcr);
 	txx9_clocksource.tmrptr = tmrptr;
+
+	sched_clock_register(txx9_read_sched_clock, TXX9_CLOCKSOURCE_BITS,
+			     TIMER_CLK(imbusclk));
 }
 
 struct txx9_clock_event_device {

@@ -1,8 +1,6 @@
 * Pin configuration nodes
 
 Required properties:
-- linux,phandle : phandle of this node; likely referenced by a QE
-  device.
 - pio-map : array of pin configurations.  Each pin is defined by 6
   integers.  The six numbers are respectively: port, pin, dir,
   open_drain, assignment, has_irq.
@@ -29,7 +27,6 @@ Required properties:
 
 Example:
      ucc_pin@01 {
-	linux,phandle = <140001>;
 	pio-map = <
 	/* port  pin  dir  open_drain  assignment  has_irq */
 		0  3  1  0  1  0 	/* TxD0 */

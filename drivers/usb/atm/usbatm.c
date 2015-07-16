@@ -170,9 +170,9 @@ struct usbatm_control {
 static void usbatm_atm_dev_close(struct atm_dev *atm_dev);
 static int usbatm_atm_open(struct atm_vcc *vcc);
 static void usbatm_atm_close(struct atm_vcc *vcc);
-static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __user * arg);
+static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __user *arg);
 static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb);
-static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t * pos, char *page);
+static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t *pos, char *page);
 
 static struct atmdev_ops usbatm_atm_devops = {
 	.dev_close	= usbatm_atm_dev_close,
@@ -382,7 +382,8 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 		     "%s: got packet (length: %u, pdu_length: %u, vcc: 0x%p)",
 		     __func__, length, pdu_length, vcc);
 
-		if (!(skb = dev_alloc_skb(length))) {
+		skb = dev_alloc_skb(length);
+		if (!skb) {
 			if (printk_ratelimit())
 				atm_err(instance, "%s: no memory for skb (length: %u)!\n",
 					__func__, length);
@@ -739,7 +740,7 @@ static void usbatm_atm_dev_close(struct atm_dev *atm_dev)
 	usbatm_put_instance(instance);	/* taken in usbatm_atm_init */
 }
 
-static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t * pos, char *page)
+static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t *pos, char *page)
 {
 	struct usbatm_data *instance = atm_dev->dev_data;
 	int left = *pos;
@@ -816,7 +817,8 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 		goto fail;
 	}
 
-	if (!(new = kzalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL))) {
+	new = kzalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL);
+	if (!new) {
 		atm_err(instance, "%s: no memory for vcc_data!\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
@@ -895,7 +897,7 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 }
 
 static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd,
-			  void __user * arg)
+			  void __user *arg)
 {
 	struct usbatm_data *instance = atm_dev->dev_data;
 

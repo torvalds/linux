@@ -22,10 +22,8 @@
 /*
  * Driver: pcl711
  * Description: Advantech PCL-711 and 711b, ADLink ACL-8112
- * Devices: (Advantech) PCL-711 [pcl711]
- *	    (Advantech) PCL-711B [pcl711b]
- *	    (AdLink) ACL-8112HG [acl8112hg]
- *	    (AdLink) ACL-8112DG [acl8112dg]
+ * Devices: [Advantech] PCL-711 (pcl711), PCL-711B (pcl711b),
+ *   [ADLink] ACL-8112HG (acl8112hg), ACL-8112DG (acl8112dg)
  * Author: David A. Schleef <ds@schleef.org>
  *	   Janne Jalkanen <jalkanen@cs.hut.fi>
  *	   Eric Bunn <ebu@cs.hut.fi>
@@ -43,8 +41,7 @@
 
 #include "../comedidev.h"
 
-#include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 
 /*
  * I/O port register map
@@ -155,13 +152,6 @@ static const struct pcl711_board boardtypes[] = {
 	},
 };
 
-struct pcl711_private {
-	unsigned int ntrig;
-	unsigned int ao_readback[2];
-	unsigned int divisor1;
-	unsigned int divisor2;
-};
-
 static void pcl711_ai_set_mode(struct comedi_device *dev, unsigned int mode)
 {
 	/*
@@ -200,12 +190,12 @@ static int pcl711_ai_cancel(struct comedi_device *dev,
 static irqreturn_t pcl711_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct pcl711_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int data;
 
 	if (!dev->attached) {
-		comedi_error(dev, "spurious interrupt");
+		dev_err(dev->class_dev, "spurious interrupt\n");
 		return IRQ_HANDLED;
 	}
 
@@ -213,17 +203,14 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 	outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
 
-	if (comedi_buf_put(s->async, data) == 0) {
-		s->async->events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
-	} else {
-		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-		if (s->async->cmd.stop_src == TRIG_COUNT &&
-		    !(--devpriv->ntrig)) {
-			pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
-			s->async->events |= COMEDI_CB_EOA;
-		}
-	}
-	comedi_event(dev, s);
+	comedi_buf_write_samples(s, &data, 1);
+
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg)
+		s->async->events |= COMEDI_CB_EOA;
+
+	comedi_handle_events(dev, s);
+
 	return IRQ_HANDLED;
 }
 
@@ -253,18 +240,17 @@ static void pcl711_set_changain(struct comedi_device *dev,
 	outb(mux | PCL711_MUX_CHAN(chan), dev->iobase + PCL711_MUX_REG);
 }
 
-static int pcl711_ai_wait_for_eoc(struct comedi_device *dev,
-				  unsigned int timeout)
+static int pcl711_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
-	unsigned int msb;
+	unsigned int status;
 
-	while (timeout--) {
-		msb = inb(dev->iobase + PCL711_AI_MSB_REG);
-		if ((msb & PCL711_AI_MSB_DRDY) == 0)
-			return 0;
-		udelay(1);
-	}
-	return -ETIME;
+	status = inb(dev->iobase + PCL711_AI_MSB_REG);
+	if ((status & PCL711_AI_MSB_DRDY) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int pcl711_ai_insn_read(struct comedi_device *dev,
@@ -282,7 +268,7 @@ static int pcl711_ai_insn_read(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		outb(PCL711_SOFTTRIG, dev->iobase + PCL711_SOFTTRIG_REG);
 
-		ret = pcl711_ai_wait_for_eoc(dev, 100);
+		ret = comedi_timeout(dev, s, insn, pcl711_ai_eoc, 0);
 		if (ret)
 			return ret;
 
@@ -295,26 +281,24 @@ static int pcl711_ai_insn_read(struct comedi_device *dev,
 static int pcl711_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	struct pcl711_private *devpriv = dev->private;
-	int tmp;
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -323,24 +307,24 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_EXT) {
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	} else {
 #define MAX_SPEED 1000
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 MAX_SPEED);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    MAX_SPEED);
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_NONE) {
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	} else {
-		/* ignore */
-	}
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -348,14 +332,10 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 	/* step 4 */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		unsigned int arg = cmd->scan_begin_arg;
+
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
@@ -366,29 +346,14 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 
 static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct pcl711_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	pcl711_set_changain(dev, s, cmd->chanlist[0]);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg == 0) {
-			/* an empty acquisition */
-			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev, s);
-			return 0;
-		}
-		devpriv->ntrig = cmd->stop_arg;
-	}
-
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
-			   1, devpriv->divisor1, I8254_MODE2 | I8254_BINARY);
-		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
-			   2, devpriv->divisor2, I8254_MODE2 | I8254_BINARY);
-
+		comedi_8254_update_divisors(dev->pacer);
+		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 		outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
-
 		pcl711_ai_set_mode(dev, PCL711_MODE_PACER_IRQ);
 	} else {
 		pcl711_ai_set_mode(dev, PCL711_MODE_EXT_IRQ);
@@ -409,31 +374,15 @@ static int pcl711_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct pcl711_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = devpriv->ao_readback[chan];
+	unsigned int val = s->readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 		pcl711_ao_write(dev, chan, val);
 	}
-	devpriv->ao_readback[chan] = val;
-
-	return insn->n;
-}
-
-static int pcl711_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct pcl711_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
+	s->readback[chan] = val;
 
 	return insn->n;
 }
@@ -475,14 +424,9 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 
 static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pcl711_board *board = comedi_board(dev);
-	struct pcl711_private *devpriv;
+	const struct pcl711_board *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	int ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
@@ -494,6 +438,11 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (ret == 0)
 			dev->irq = it->options[1];
 	}
+
+	dev->pacer = comedi_8254_init(dev->iobase + PCL711_TIMER_BASE,
+				      I8254_OSC_BASE_2MHZ, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -526,7 +475,10 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0xfff;
 	s->range_table	= &range_bipolar5;
 	s->insn_write	= pcl711_ao_insn_write;
-	s->insn_read	= pcl711_ao_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* Digital Input subdevice */
 	s = &dev->subdevices[2];

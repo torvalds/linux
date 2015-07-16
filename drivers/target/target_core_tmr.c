@@ -27,13 +27,10 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/export.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 
 #include "target_core_internal.h"
 #include "target_core_alua.h"
@@ -64,20 +61,16 @@ int core_tmr_alloc_req(
 }
 EXPORT_SYMBOL(core_tmr_alloc_req);
 
-void core_tmr_release_req(
-	struct se_tmr_req *tmr)
+void core_tmr_release_req(struct se_tmr_req *tmr)
 {
 	struct se_device *dev = tmr->tmr_dev;
 	unsigned long flags;
 
-	if (!dev) {
-		kfree(tmr);
-		return;
+	if (dev) {
+		spin_lock_irqsave(&dev->se_tmr_lock, flags);
+		list_del(&tmr->tmr_list);
+		spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 	}
-
-	spin_lock_irqsave(&dev->se_tmr_lock, flags);
-	list_del(&tmr->tmr_list);
-	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 
 	kfree(tmr);
 }
@@ -87,14 +80,16 @@ static void core_tmr_handle_tas_abort(
 	struct se_cmd *cmd,
 	int tas)
 {
+	bool remove = true;
 	/*
 	 * TASK ABORTED status (TAS) bit support
-	*/
-	if ((tmr_nacl &&
-	     (tmr_nacl == cmd->se_sess->se_node_acl)) || tas)
+	 */
+	if ((tmr_nacl && (tmr_nacl != cmd->se_sess->se_node_acl)) && tas) {
+		remove = false;
 		transport_send_task_abort(cmd);
+	}
 
-	transport_cmd_finish_abort(cmd, 0);
+	transport_cmd_finish_abort(cmd, remove);
 }
 
 static int target_check_cdb_and_preempt(struct list_head *list,
@@ -117,26 +112,31 @@ void core_tmr_abort_task(
 	struct se_tmr_req *tmr,
 	struct se_session *se_sess)
 {
-	struct se_cmd *se_cmd, *tmp_cmd;
+	struct se_cmd *se_cmd;
 	unsigned long flags;
-	int ref_tag;
+	u64 ref_tag;
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	list_for_each_entry_safe(se_cmd, tmp_cmd,
-			&se_sess->sess_cmd_list, se_cmd_list) {
+	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list) {
 
 		if (dev != se_cmd->se_dev)
 			continue;
-		ref_tag = se_cmd->se_tfo->get_task_tag(se_cmd);
+
+		/* skip task management functions, including tmr->task_cmd */
+		if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
+			continue;
+
+		ref_tag = se_cmd->tag;
 		if (tmr->ref_task_tag != ref_tag)
 			continue;
 
-		printk("ABORT_TASK: Found referenced %s task_tag: %u\n",
+		printk("ABORT_TASK: Found referenced %s task_tag: %llu\n",
 			se_cmd->se_tfo->get_fabric_name(), ref_tag);
 
 		spin_lock(&se_cmd->t_state_lock);
 		if (se_cmd->transport_state & CMD_T_COMPLETE) {
-			printk("ABORT_TASK: ref_tag: %u already complete, skipping\n", ref_tag);
+			printk("ABORT_TASK: ref_tag: %llu already complete,"
+			       " skipping\n", ref_tag);
 			spin_unlock(&se_cmd->t_state_lock);
 			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 			goto out;
@@ -150,28 +150,19 @@ void core_tmr_abort_task(
 
 		cancel_work_sync(&se_cmd->work);
 		transport_wait_for_tasks(se_cmd);
-		/*
-		 * Now send SAM_STAT_TASK_ABORTED status for the referenced
-		 * se_cmd descriptor..
-		 */
-		transport_send_task_abort(se_cmd);
-		/*
-		 * Also deal with possible extra acknowledge reference..
-		 */
-		if (se_cmd->se_cmd_flags & SCF_ACK_KREF)
-			target_put_sess_cmd(se_sess, se_cmd);
 
-		target_put_sess_cmd(se_sess, se_cmd);
+		target_put_sess_cmd(se_cmd);
+		transport_cmd_finish_abort(se_cmd, true);
 
 		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"
-				" ref_tag: %d\n", ref_tag);
+				" ref_tag: %llu\n", ref_tag);
 		tmr->response = TMR_FUNCTION_COMPLETE;
 		return;
 	}
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
 out:
-	printk("ABORT_TASK: Sending TMR_TASK_DOES_NOT_EXIST for ref_tag: %d\n",
+	printk("ABORT_TASK: Sending TMR_TASK_DOES_NOT_EXIST for ref_tag: %lld\n",
 			tmr->ref_task_tag);
 	tmr->response = TMR_TASK_DOES_NOT_EXIST;
 }
@@ -296,16 +287,16 @@ static void core_tmr_drain_state_list(
 		list_del(&cmd->state_list);
 
 		pr_debug("LUN_RESET: %s cmd: %p"
-			" ITT/CmdSN: 0x%08x/0x%08x, i_state: %d, t_state: %d"
+			" ITT/CmdSN: 0x%08llx/0x%08x, i_state: %d, t_state: %d"
 			"cdb: 0x%02x\n",
 			(preempt_and_abort_list) ? "Preempt" : "", cmd,
-			cmd->se_tfo->get_task_tag(cmd), 0,
+			cmd->tag, 0,
 			cmd->se_tfo->get_cmd_state(cmd), cmd->t_state,
 			cmd->t_task_cdb[0]);
-		pr_debug("LUN_RESET: ITT[0x%08x] - pr_res_key: 0x%016Lx"
+		pr_debug("LUN_RESET: ITT[0x%08llx] - pr_res_key: 0x%016Lx"
 			" -- CMD_T_ACTIVE: %d"
 			" CMD_T_STOP: %d CMD_T_SENT: %d\n",
-			cmd->se_tfo->get_task_tag(cmd), cmd->pr_res_key,
+			cmd->tag, cmd->pr_res_key,
 			(cmd->transport_state & CMD_T_ACTIVE) != 0,
 			(cmd->transport_state & CMD_T_STOP) != 0,
 			(cmd->transport_state & CMD_T_SENT) != 0);

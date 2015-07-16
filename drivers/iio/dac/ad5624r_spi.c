@@ -67,7 +67,6 @@ static int ad5624r_write_raw(struct iio_dev *indio_dev,
 			       long mask)
 {
 	struct ad5624r_state *st = iio_priv(indio_dev);
-	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -79,10 +78,8 @@ static int ad5624r_write_raw(struct iio_dev *indio_dev,
 				chan->address, val,
 				chan->scan_type.shift);
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-
-	return -EINVAL;
 }
 
 static const char * const ad5624r_powerdown_modes[] = {
@@ -176,7 +173,12 @@ static const struct iio_chan_spec_ext_info ad5624r_ext_info[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 	.address = (_chan), \
-	.scan_type = IIO_ST('u', (_bits), 16, 16 - (_bits)), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = (_bits), \
+		.storagebits = 16, \
+		.shift = 16 - (_bits), \
+	}, \
 	.ext_info = ad5624r_ext_info, \
 }
 

@@ -9,7 +9,6 @@
  * more details.
  */
 
-//#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -18,7 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
-#include <asm/string.h>
+#include <linux/string.h>
 #include <linux/wireless.h>
 
 #include "ieee80211.h"
@@ -57,7 +56,7 @@ struct ieee80211_ccmp_data {
 	u8 rx_b0[AES_BLOCK_LEN], rx_b[AES_BLOCK_LEN], rx_a[AES_BLOCK_LEN];
 };
 
-void ieee80211_ccmp_aes_encrypt(struct crypto_tfm *tfm,
+static void ieee80211_ccmp_aes_encrypt(struct crypto_tfm *tfm,
 			     const u8 pt[16], u8 ct[16])
 {
 	crypto_cipher_encrypt_one((void *)tfm, ct, pt);
@@ -113,7 +112,7 @@ static inline void xor_block(u8 *b, u8 *a, size_t len)
 
 
 static void ccmp_init_blocks(struct crypto_tfm *tfm,
-			     struct ieee80211_hdr_4addr *hdr,
+			     struct rtl_80211_hdr_4addr *hdr,
 			     u8 *pn, size_t dlen, u8 *b0, u8 *auth,
 			     u8 *s0)
 {
@@ -130,9 +129,9 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	qc_included = ((WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) &&
 		       (WLAN_FC_GET_STYPE(fc) & 0x08));
 	*/
-	// fixed by David :2006.9.6
-	qc_included = ((WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) &&
-		       (WLAN_FC_GET_STYPE(fc) & 0x80));
+	/* fixed by David :2006.9.6 */
+	qc_included = (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) &&
+		       (WLAN_FC_GET_STYPE(fc) & 0x80);
 	aad_len = 22;
 	if (a4_included)
 		aad_len += 6;
@@ -197,7 +196,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	struct ieee80211_ccmp_data *key = priv;
 	int data_len, i;
 	u8 *pos;
-	struct ieee80211_hdr_4addr *hdr;
+	struct rtl_80211_hdr_4addr *hdr;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 
 	if (skb_headroom(skb) < CCMP_HDR_LEN ||
@@ -209,7 +208,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos = skb_push(skb, CCMP_HDR_LEN);
 	memmove(pos, pos + CCMP_HDR_LEN, hdr_len);
 	pos += hdr_len;
-//	mic = skb_put(skb, CCMP_MIC_LEN);
+	/* mic = skb_put(skb, CCMP_MIC_LEN); */
 
 	i = CCMP_PN_LEN - 1;
 	while (i >= 0) {
@@ -229,7 +228,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[0];
 
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
 	if (!tcb_desc->bHwSec)
 	{
 		int blocks, last, len;
@@ -239,7 +238,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		u8 *e = key->tx_e;
 		u8 *s0 = key->tx_s0;
 
-		//mic is moved to here by john
+		/* mic is moved to here by john */
 		mic = skb_put(skb, CCMP_MIC_LEN);
 
 		ccmp_init_blocks(key->tfm, hdr, key->tx_pn, data_len, b0, b, s0);
@@ -271,7 +270,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_ccmp_data *key = priv;
 	u8 keyidx, *pos;
-	struct ieee80211_hdr_4addr *hdr;
+	struct rtl_80211_hdr_4addr *hdr;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 pn[6];
 
@@ -280,7 +279,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 	}
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
@@ -444,7 +443,7 @@ static char *ieee80211_ccmp_print_stats(char *p, void *priv)
 
 void ieee80211_ccmp_null(void)
 {
-//    printk("============>%s()\n", __FUNCTION__);
+	/* printk("============>%s()\n", __func__); */
 	return;
 }
 

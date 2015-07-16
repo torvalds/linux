@@ -187,13 +187,3 @@ struct pvr2_device_desc {
 extern struct usb_device_id pvr2_device_table[];
 
 #endif /* __PVRUSB2_HDW_INTERNAL_H */
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

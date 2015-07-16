@@ -61,13 +61,6 @@ const struct file_operations vxfs_dir_operations = {
 	.iterate =		vxfs_readdir,
 };
 
- 
-static inline u_long
-dir_pages(struct inode *inode)
-{
-	return (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-}
- 
 static inline u_long
 dir_blocks(struct inode *ip)
 {
@@ -192,7 +185,7 @@ vxfs_inode_by_name(struct inode *dip, struct dentry *dp)
  * vxfs_lookup - lookup pathname component
  * @dip:	dir in which we lookup
  * @dp:		dentry we lookup
- * @nd:		lookup nameidata
+ * @flags:	lookup flags
  *
  * Description:
  *   vxfs_lookup tries to lookup the pathname component described

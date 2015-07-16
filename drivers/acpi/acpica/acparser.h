@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,9 @@
  * Parser interfaces
  *
  *****************************************************************************/
+
+extern const u8 acpi_gbl_short_op_index[];
+extern const u8 acpi_gbl_long_op_index[];
 
 /*
  * psxface - Parser external interfaces

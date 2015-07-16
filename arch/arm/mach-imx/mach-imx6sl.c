@@ -17,6 +17,7 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
+#include "cpuidle.h"
 
 static void __init imx6sl_fec_init(void)
 {
@@ -34,11 +35,18 @@ static void __init imx6sl_fec_init(void)
 	}
 }
 
+static void __init imx6sl_init_late(void)
+{
+	/* imx6sl reuses imx6q cpufreq driver */
+	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ))
+		platform_device_register_simple("imx6q-cpufreq", -1, NULL, 0);
+
+	imx6sl_cpuidle_init();
+}
+
 static void __init imx6sl_init_machine(void)
 {
 	struct device *parent;
-
-	mxc_arch_reset_init_dt();
 
 	parent = imx_soc_device_init();
 	if (parent == NULL)
@@ -48,28 +56,27 @@ static void __init imx6sl_init_machine(void)
 
 	imx6sl_fec_init();
 	imx_anatop_init();
-	/* Reuse imx6q pm code */
-	imx6q_pm_init();
+	imx6sl_pm_init();
 }
 
 static void __init imx6sl_init_irq(void)
 {
+	imx_gpc_check_dt();
 	imx_init_revision_from_anatop();
 	imx_init_l2cache();
 	imx_src_init();
-	imx_gpc_init();
 	irqchip_init();
+	imx6_pm_ccm_init("fsl,imx6sl-ccm");
 }
 
-static const char *imx6sl_dt_compat[] __initdata = {
+static const char * const imx6sl_dt_compat[] __initconst = {
 	"fsl,imx6sl",
 	NULL,
 };
 
 DT_MACHINE_START(IMX6SL, "Freescale i.MX6 SoloLite (Device Tree)")
-	.map_io		= debug_ll_io_init,
 	.init_irq	= imx6sl_init_irq,
 	.init_machine	= imx6sl_init_machine,
+	.init_late      = imx6sl_init_late,
 	.dt_compat	= imx6sl_dt_compat,
-	.restart	= mxc_restart,
 MACHINE_END

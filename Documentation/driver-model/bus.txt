@@ -45,7 +45,7 @@ them are inherently bus-specific. Drivers typically declare an array
 of device IDs of devices they support that reside in a bus-specific
 driver structure. 
 
-The purpose of the match callback is provide the bus an opportunity to
+The purpose of the match callback is to give the bus an opportunity to
 determine if a particular driver supports a particular device by
 comparing the device IDs the driver supports with the device ID of a
 particular device, without sacrificing bus-specific functionality or

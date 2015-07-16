@@ -18,8 +18,6 @@
 #ifndef __XFS_MOUNT_H__
 #define	__XFS_MOUNT_H__
 
-#ifdef __KERNEL__
-
 struct xlog;
 struct xfs_inode;
 struct xfs_mru_cache;
@@ -27,44 +25,7 @@ struct xfs_nameops;
 struct xfs_ail;
 struct xfs_quotainfo;
 struct xfs_dir_ops;
-
-#ifdef HAVE_PERCPU_SB
-
-/*
- * Valid per-cpu incore superblock counters. Note that if you add new counters,
- * you may need to define new counter disabled bit field descriptors as there
- * are more possible fields in the superblock that can fit in a bitfield on a
- * 32 bit platform. The XFS_SBS_* values for the current current counters just
- * fit.
- */
-typedef struct xfs_icsb_cnts {
-	uint64_t	icsb_fdblocks;
-	uint64_t	icsb_ifree;
-	uint64_t	icsb_icount;
-	unsigned long	icsb_flags;
-} xfs_icsb_cnts_t;
-
-#define XFS_ICSB_FLAG_LOCK	(1 << 0)	/* counter lock bit */
-
-#define XFS_ICSB_LAZY_COUNT	(1 << 1)	/* accuracy not needed */
-
-extern int	xfs_icsb_init_counters(struct xfs_mount *);
-extern void	xfs_icsb_reinit_counters(struct xfs_mount *);
-extern void	xfs_icsb_destroy_counters(struct xfs_mount *);
-extern void	xfs_icsb_sync_counters(struct xfs_mount *, int);
-extern void	xfs_icsb_sync_counters_locked(struct xfs_mount *, int);
-extern int	xfs_icsb_modify_counters(struct xfs_mount *, xfs_sb_field_t,
-						int64_t, int);
-
-#else
-#define xfs_icsb_init_counters(mp)		(0)
-#define xfs_icsb_destroy_counters(mp)		do { } while (0)
-#define xfs_icsb_reinit_counters(mp)		do { } while (0)
-#define xfs_icsb_sync_counters(mp, flags)	do { } while (0)
-#define xfs_icsb_sync_counters_locked(mp, flags) do { } while (0)
-#define xfs_icsb_modify_counters(mp, field, delta, rsvd) \
-	xfs_mod_incore_sb(mp, field, delta, rsvd)
-#endif
+struct xfs_da_geometry;
 
 /* dynamic preallocation free space thresholds, 5% down to 1% */
 enum {
@@ -80,8 +41,13 @@ typedef struct xfs_mount {
 	struct super_block	*m_super;
 	xfs_tid_t		m_tid;		/* next unused tid for fs */
 	struct xfs_ail		*m_ail;		/* fs active log item list */
-	xfs_sb_t		m_sb;		/* copy of fs superblock */
+
+	struct xfs_sb		m_sb;		/* copy of fs superblock */
 	spinlock_t		m_sb_lock;	/* sb counter lock */
+	struct percpu_counter	m_icount;	/* allocated inodes counter */
+	struct percpu_counter	m_ifree;	/* free inodes counter */
+	struct percpu_counter	m_fdblocks;	/* free block counter */
+
 	struct xfs_buf		*m_sb_bp;	/* buffer for superblock */
 	char			*m_fsname;	/* filesystem name */
 	int			m_fsname_len;	/* strlen of fs name */
@@ -96,6 +62,8 @@ typedef struct xfs_mount {
 	uint			m_readio_blocks; /* min read size blocks */
 	uint			m_writeio_log;	/* min write size log bytes */
 	uint			m_writeio_blocks; /* min write size blocks */
+	struct xfs_da_geometry	*m_dir_geo;	/* directory block geometry */
+	struct xfs_da_geometry	*m_attr_geo;	/* attribute block geometry */
 	struct xlog		*m_log;		/* log specific stuff */
 	int			m_logbufs;	/* number of log buffers */
 	int			m_logbsize;	/* size of each log buffer */
@@ -131,10 +99,10 @@ typedef struct xfs_mount {
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
 	__uint64_t		m_flags;	/* global mount flags */
-	uint			m_dir_node_ents; /* #entries in a dir danode */
-	uint			m_attr_node_ents; /* #entries in attr danode */
 	int			m_ialloc_inos;	/* inodes in inode allocation */
 	int			m_ialloc_blks;	/* blocks in inode allocation */
+	int			m_ialloc_min_blks;/* min blocks in sparse inode
+						   * allocation */
 	int			m_inoalign_mask;/* mask sb_inoalignmt if used */
 	uint			m_qflags;	/* quota status flags */
 	struct xfs_trans_resv	m_resv;		/* precomputed res values */
@@ -145,40 +113,39 @@ typedef struct xfs_mount {
 	int			m_dalign;	/* stripe unit */
 	int			m_swidth;	/* stripe width */
 	int			m_sinoalign;	/* stripe unit inode alignment */
-	int			m_attr_magicpct;/* 37% of the blocksize */
-	int			m_dir_magicpct;	/* 37% of the dir blocksize */
 	__uint8_t		m_sectbb_log;	/* sectlog - BBSHIFT */
 	const struct xfs_nameops *m_dirnameops;	/* vector of dir name ops */
 	const struct xfs_dir_ops *m_dir_inode_ops; /* vector of dir inode ops */
 	const struct xfs_dir_ops *m_nondir_inode_ops; /* !dir inode ops */
-	int			m_dirblksize;	/* directory block sz--bytes */
-	int			m_dirblkfsbs;	/* directory block sz--fsbs */
-	xfs_dablk_t		m_dirdatablk;	/* blockno of dir data v2 */
-	xfs_dablk_t		m_dirleafblk;	/* blockno of dir non-data v2 */
-	xfs_dablk_t		m_dirfreeblk;	/* blockno of dirfreeindex v2 */
 	uint			m_chsize;	/* size of next field */
 	atomic_t		m_active_trans;	/* number trans frozen */
-#ifdef HAVE_PERCPU_SB
-	xfs_icsb_cnts_t __percpu *m_sb_cnts;	/* per-cpu superblock counters */
-	unsigned long		m_icsb_counters; /* disabled per-cpu counters */
-	struct notifier_block	m_icsb_notifier; /* hotplug cpu notifier */
-	struct mutex		m_icsb_mutex;	/* balancer sync lock */
-#endif
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
 	struct delayed_work	m_eofblocks_work; /* background eof blocks
 						     trimming */
-	__int64_t		m_update_flags;	/* sb flags we need to update
-						   on the next remount,rw */
+	bool			m_update_sb;	/* sb needs update in mount */
 	int64_t			m_low_space[XFS_LOWSP_MAX];
 						/* low free space thresholds */
+	struct xfs_kobj		m_kobj;
 
+	struct workqueue_struct *m_buf_workqueue;
 	struct workqueue_struct	*m_data_workqueue;
 	struct workqueue_struct	*m_unwritten_workqueue;
 	struct workqueue_struct	*m_cil_workqueue;
 	struct workqueue_struct	*m_reclaim_workqueue;
 	struct workqueue_struct	*m_log_workqueue;
 	struct workqueue_struct *m_eofblocks_workqueue;
+
+	/*
+	 * Generation of the filesysyem layout.  This is incremented by each
+	 * growfs, and used by the pNFS server to ensure the client updates
+	 * its view of the block device once it gets a layout that might
+	 * reference the newly added blocks.  Does not need to be persistent
+	 * as long as we only allow file system size increments, but if we
+	 * ever support shrinks it would have to be persisted in addition
+	 * to various other kinds of pain inflicted on the pNFS server.
+	 */
+	__uint32_t		m_generation;
 } xfs_mount_t;
 
 /*
@@ -213,6 +180,8 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_FILESTREAMS	(1ULL << 24)	/* enable the filestreams
 						   allocator */
 #define XFS_MOUNT_NOATTR2	(1ULL << 25)	/* disable use of attr2 format */
+
+#define XFS_MOUNT_DAX		(1ULL << 62)	/* TEST ONLY! */
 
 
 /*
@@ -295,40 +264,8 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 }
 
 /*
- * Per-cpu superblock locking functions
- */
-#ifdef HAVE_PERCPU_SB
-static inline void
-xfs_icsb_lock(xfs_mount_t *mp)
-{
-	mutex_lock(&mp->m_icsb_mutex);
-}
-
-static inline void
-xfs_icsb_unlock(xfs_mount_t *mp)
-{
-	mutex_unlock(&mp->m_icsb_mutex);
-}
-#else
-#define xfs_icsb_lock(mp)
-#define xfs_icsb_unlock(mp)
-#endif
-
-/*
- * This structure is for use by the xfs_mod_incore_sb_batch() routine.
- * xfs_growfs can specify a few fields which are more than int limit
- */
-typedef struct xfs_mod_sb {
-	xfs_sb_field_t	msb_field;	/* Field to modify, see below */
-	int64_t		msb_delta;	/* Change to make to specified field */
-} xfs_mod_sb_t;
-
-/*
  * Per-ag incore structure, copies of information in agf and agi, to improve the
- * performance of allocation group selection. This is defined for the kernel
- * only, and hence is defined here instead of in xfs_ag.h. You need the struct
- * xfs_mount to be defined to look up a xfs_perag anyway (via mp->m_perag_tree),
- * so this doesn't introduce any strange header file dependencies.
+ * performance of allocation group selection.
  */
 typedef struct xfs_perag {
 	struct xfs_mount *pag_mount;	/* owner filesystem */
@@ -380,22 +317,23 @@ extern __uint64_t xfs_default_resblks(xfs_mount_t *mp);
 extern int	xfs_mountfs(xfs_mount_t *mp);
 extern int	xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount,
 				     xfs_agnumber_t *maxagi);
-
 extern void	xfs_unmountfs(xfs_mount_t *);
-extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int64_t, int);
-extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
-			uint, int);
-extern int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
+
+extern int	xfs_mod_icount(struct xfs_mount *mp, int64_t delta);
+extern int	xfs_mod_ifree(struct xfs_mount *mp, int64_t delta);
+extern int	xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta,
+				 bool reserved);
+extern int	xfs_mod_frextents(struct xfs_mount *mp, int64_t delta);
+
+extern int	xfs_mount_log_sb(xfs_mount_t *);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);
-extern int	xfs_fs_writable(xfs_mount_t *);
+extern bool	xfs_fs_writable(struct xfs_mount *mp, int level);
 extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
 extern int	xfs_dev_is_read_only(struct xfs_mount *, char *);
 
 extern void	xfs_set_low_space_thresholds(struct xfs_mount *);
-
-#endif	/* __KERNEL__ */
 
 #endif	/* __XFS_MOUNT_H__ */

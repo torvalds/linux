@@ -17,6 +17,7 @@
 #include <xen/xenbus.h>
 #include <xen/page.h>
 #include "tpm.h"
+#include <xen/platform_pci.h>
 
 struct tpm_private {
 	struct tpm_chip *chip;
@@ -143,46 +144,7 @@ static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	return length;
 }
 
-static const struct file_operations vtpm_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
-
-static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
-static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
-static DEVICE_ATTR(enabled, S_IRUGO, tpm_show_enabled, NULL);
-static DEVICE_ATTR(active, S_IRUGO, tpm_show_active, NULL);
-static DEVICE_ATTR(owned, S_IRUGO, tpm_show_owned, NULL);
-static DEVICE_ATTR(temp_deactivated, S_IRUGO, tpm_show_temp_deactivated,
-		NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
-static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
-static DEVICE_ATTR(durations, S_IRUGO, tpm_show_durations, NULL);
-static DEVICE_ATTR(timeouts, S_IRUGO, tpm_show_timeouts, NULL);
-
-static struct attribute *vtpm_attrs[] = {
-	&dev_attr_pubek.attr,
-	&dev_attr_pcrs.attr,
-	&dev_attr_enabled.attr,
-	&dev_attr_active.attr,
-	&dev_attr_owned.attr,
-	&dev_attr_temp_deactivated.attr,
-	&dev_attr_caps.attr,
-	&dev_attr_cancel.attr,
-	&dev_attr_durations.attr,
-	&dev_attr_timeouts.attr,
-	NULL,
-};
-
-static struct attribute_group vtpm_attr_grp = {
-	.attrs = vtpm_attrs,
-};
-
-static const struct tpm_vendor_specific tpm_vtpm = {
+static const struct tpm_class_ops tpm_vtpm = {
 	.status = vtpm_status,
 	.recv = vtpm_recv,
 	.send = vtpm_send,
@@ -190,10 +152,6 @@ static const struct tpm_vendor_specific tpm_vtpm = {
 	.req_complete_mask = VTPM_STATUS_IDLE | VTPM_STATUS_RESULT,
 	.req_complete_val  = VTPM_STATUS_IDLE | VTPM_STATUS_RESULT,
 	.req_canceled      = vtpm_req_canceled,
-	.attr_group = &vtpm_attr_grp,
-	.miscdev = {
-		.fops = &vtpm_ops,
-	},
 };
 
 static irqreturn_t tpmif_interrupt(int dummy, void *dev_id)
@@ -217,9 +175,9 @@ static int setup_chip(struct device *dev, struct tpm_private *priv)
 {
 	struct tpm_chip *chip;
 
-	chip = tpm_register_hardware(dev, &tpm_vtpm);
-	if (!chip)
-		return -ENODEV;
+	chip = tpmm_chip_alloc(dev, &tpm_vtpm);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
 	init_waitqueue_head(&chip->vendor.read_queue);
 
@@ -235,6 +193,7 @@ static int setup_ring(struct xenbus_device *dev, struct tpm_private *priv)
 	struct xenbus_transaction xbt;
 	const char *message = NULL;
 	int rv;
+	grant_ref_t gref;
 
 	priv->shr = (void *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
 	if (!priv->shr) {
@@ -242,11 +201,11 @@ static int setup_ring(struct xenbus_device *dev, struct tpm_private *priv)
 		return -ENOMEM;
 	}
 
-	rv = xenbus_grant_ring(dev, virt_to_mfn(priv->shr));
+	rv = xenbus_grant_ring(dev, &priv->shr, 1, &gref);
 	if (rv < 0)
 		return rv;
 
-	priv->ring_ref = rv;
+	priv->ring_ref = gref;
 
 	rv = xenbus_alloc_evtchn(dev, &priv->evtchn);
 	if (rv)
@@ -328,6 +287,7 @@ static int tpmfront_probe(struct xenbus_device *dev,
 		const struct xenbus_device_id *id)
 {
 	struct tpm_private *priv;
+	struct tpm_chip *chip;
 	int rv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -344,21 +304,22 @@ static int tpmfront_probe(struct xenbus_device *dev,
 
 	rv = setup_ring(dev, priv);
 	if (rv) {
-		tpm_remove_hardware(&dev->dev);
+		chip = dev_get_drvdata(&dev->dev);
+		tpm_chip_unregister(chip);
 		ring_free(priv);
 		return rv;
 	}
 
 	tpm_get_timeouts(priv->chip);
 
-	return rv;
+	return tpm_chip_register(priv->chip);
 }
 
 static int tpmfront_remove(struct xenbus_device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(&dev->dev);
 	struct tpm_private *priv = TPM_VPRIV(chip);
-	tpm_remove_hardware(&dev->dev);
+	tpm_chip_unregister(chip);
 	ring_free(priv);
 	TPM_VPRIV(chip) = NULL;
 	return 0;
@@ -409,16 +370,20 @@ static const struct xenbus_device_id tpmfront_ids[] = {
 };
 MODULE_ALIAS("xen:vtpm");
 
-static DEFINE_XENBUS_DRIVER(tpmfront, ,
-		.probe = tpmfront_probe,
-		.remove = tpmfront_remove,
-		.resume = tpmfront_resume,
-		.otherend_changed = backend_changed,
-	);
+static struct xenbus_driver tpmfront_driver = {
+	.ids = tpmfront_ids,
+	.probe = tpmfront_probe,
+	.remove = tpmfront_remove,
+	.resume = tpmfront_resume,
+	.otherend_changed = backend_changed,
+};
 
 static int __init xen_tpmfront_init(void)
 {
 	if (!xen_domain())
+		return -ENODEV;
+
+	if (!xen_has_pv_devices())
 		return -ENODEV;
 
 	return xenbus_register_frontend(&tpmfront_driver);

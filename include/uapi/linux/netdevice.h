@@ -37,6 +37,12 @@
 #define INIT_NETDEV_GROUP	0
 
 
+/* interface name assignment types (sysfs name_assign_type attribute) */
+#define NET_NAME_UNKNOWN	0	/* unknown origin (not exposed to userspace) */
+#define NET_NAME_ENUM		1	/* enumerated by kernel */
+#define NET_NAME_PREDICTABLE	2	/* predictably named by the kernel */
+#define NET_NAME_USER		3	/* provided by user-space */
+#define NET_NAME_RENAMED	4	/* renamed by user-space */
 
 /* Media selection options. */
 enum {
@@ -49,5 +55,11 @@ enum {
         IF_PORT_100BASEFX
 };
 
+/* hardware address assignment types */
+#define NET_ADDR_PERM		0	/* address is permanent (default) */
+#define NET_ADDR_RANDOM		1	/* address is generated randomly */
+#define NET_ADDR_STOLEN		2	/* address is stolen from other device */
+#define NET_ADDR_SET		3	/* address is set using
+					 * dev_set_mac_address() */
 
 #endif /* _UAPI_LINUX_NETDEVICE_H */

@@ -5,6 +5,13 @@ TODO:
 	- make sure things build as modules properly
 	- add proper arch dependencies as needed
 	- audit userspace interfaces to make sure they are sane
+	- kuid_t should never be exposed to user space as it is
+          kernel internal type. Data structure for this kuid_t is:
+          typedef struct {
+          	uid_t val;
+          } kuid_t;
+	- This bug is introduced by Xiong Zhou in the patch bd471258f2e09
+	- ("staging: android: logger: use kuid_t instead of uid_t")
 
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc:
 Brian Swetland <swetland@google.com>

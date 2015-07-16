@@ -27,6 +27,7 @@
 #include "usbhid/usbhid.h"
 #include "hid-ids.h"
 #include "hid-lg.h"
+#include "hid-lg4ff.h"
 
 #define LG_RDESC		0x001
 #define LG_BAD_RELATIVE_KEYS	0x002
@@ -345,14 +346,14 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	struct usb_device_descriptor *udesc;
 	__u16 bcdDevice, rev_maj, rev_min;
 
-	if ((drv_data->quirks & LG_RDESC) && *rsize >= 90 && rdesc[83] == 0x26 &&
+	if ((drv_data->quirks & LG_RDESC) && *rsize >= 91 && rdesc[83] == 0x26 &&
 			rdesc[84] == 0x8c && rdesc[85] == 0x02) {
 		hid_info(hdev,
 			 "fixing up Logitech keyboard report descriptor\n");
 		rdesc[84] = rdesc[89] = 0x4d;
 		rdesc[85] = rdesc[90] = 0x10;
 	}
-	if ((drv_data->quirks & LG_RDESC_REL_ABS) && *rsize >= 50 &&
+	if ((drv_data->quirks & LG_RDESC_REL_ABS) && *rsize >= 51 &&
 			rdesc[32] == 0x81 && rdesc[33] == 0x06 &&
 			rdesc[49] == 0x81 && rdesc[50] == 0x06) {
 		hid_info(hdev,
@@ -692,30 +693,36 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (hdev->product == USB_DEVICE_ID_LOGITECH_WII_WHEEL) {
 		unsigned char buf[] = { 0x00, 0xAF,  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-		ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+		ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 
 		if (ret >= 0) {
 			/* insert a little delay of 10 jiffies ~ 40ms */
 			wait_queue_head_t wait;
 			init_waitqueue_head (&wait);
-			wait_event_interruptible_timeout(wait, 0, 10);
+			wait_event_interruptible_timeout(wait, 0,
+							 msecs_to_jiffies(40));
 
 			/* Select random Address */
 			buf[1] = 0xB2;
 			get_random_bytes(&buf[2], 2);
 
-			ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+			ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 		}
 	}
 
 	if (drv_data->quirks & LG_FF)
-		lgff_init(hdev);
-	if (drv_data->quirks & LG_FF2)
-		lg2ff_init(hdev);
-	if (drv_data->quirks & LG_FF3)
-		lg3ff_init(hdev);
-	if (drv_data->quirks & LG_FF4)
-		lg4ff_init(hdev);
+		ret = lgff_init(hdev);
+	else if (drv_data->quirks & LG_FF2)
+		ret = lg2ff_init(hdev);
+	else if (drv_data->quirks & LG_FF3)
+		ret = lg3ff_init(hdev);
+	else if (drv_data->quirks & LG_FF4)
+		ret = lg4ff_init(hdev);
+
+	if (ret)
+		goto err_free;
 
 	return 0;
 err_free:
@@ -728,8 +735,8 @@ static void lg_remove(struct hid_device *hdev)
 	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 	if (drv_data->quirks & LG_FF4)
 		lg4ff_deinit(hdev);
-
-	hid_hw_stop(hdev);
+	else
+		hid_hw_stop(hdev);
 	kfree(drv_data);
 }
 
@@ -757,6 +764,8 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_IGNORE_DOUBLED_WHEEL | LG_EXPANDED_KEYMAP },
 
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_EXTREME_3D),
+		.driver_data = LG_NOGET },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_DUAL_ACTION),
 		.driver_data = LG_NOGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL),
 		.driver_data = LG_NOGET | LG_FF4 },
@@ -813,5 +822,11 @@ static struct hid_driver lg_driver = {
 	.remove = lg_remove,
 };
 module_hid_driver(lg_driver);
+
+#ifdef CONFIG_LOGIWHEELS_FF
+int lg4ff_no_autoswitch = 0;
+module_param_named(lg4ff_no_autoswitch, lg4ff_no_autoswitch, int, S_IRUGO);
+MODULE_PARM_DESC(lg4ff_no_autoswitch, "Do not switch multimode wheels to their native mode automatically");
+#endif
 
 MODULE_LICENSE("GPL");

@@ -26,6 +26,7 @@
  **************************************************************************/
 
 #include "vmwgfx_kms.h"
+#include <drm/drm_plane_helper.h>
 
 
 #define vmw_crtc_to_sou(x) \
@@ -307,9 +308,10 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 
 		connector->encoder = NULL;
 		encoder->crtc = NULL;
-		crtc->fb = NULL;
+		crtc->primary->fb = NULL;
 		crtc->x = 0;
 		crtc->y = 0;
+		crtc->enabled = false;
 
 		vmw_sou_del_active(dev_priv, sou);
 
@@ -367,9 +369,10 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 
 		connector->encoder = NULL;
 		encoder->crtc = NULL;
-		crtc->fb = NULL;
+		crtc->primary->fb = NULL;
 		crtc->x = 0;
 		crtc->y = 0;
+		crtc->enabled = false;
 
 		return ret;
 	}
@@ -379,9 +382,10 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 	connector->encoder = encoder;
 	encoder->crtc = crtc;
 	crtc->mode = *mode;
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 	crtc->x = set->x;
 	crtc->y = set->y;
+	crtc->enabled = true;
 
 	return 0;
 }
@@ -463,6 +467,8 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	drm_mode_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
+
+	(void) drm_connector_register(connector);
 
 	drm_crtc_init(dev, crtc, &vmw_screen_object_crtc_funcs);
 
@@ -567,5 +573,5 @@ void vmw_kms_screen_object_update_implicit_fb(struct vmw_private *dev_priv,
 	BUG_ON(!sou->base.is_implicit);
 
 	dev_priv->sou_priv->implicit_fb =
-		vmw_framebuffer_to_vfb(sou->base.crtc.fb);
+		vmw_framebuffer_to_vfb(sou->base.crtc.primary->fb);
 }

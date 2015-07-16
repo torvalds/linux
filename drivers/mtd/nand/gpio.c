@@ -8,7 +8,9 @@
  *
  * © 2004 Simtec Electronics
  *
- * Device driver for NAND connected via GPIO
+ * Device driver for NAND flash that uses a memory mapped interface to
+ * read/write the NAND commands and data, and GPIO pins for control signals
+ * (the DT binding refers to this as "GPIO assisted NAND flash")
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -132,11 +133,15 @@ static int gpio_nand_get_config_of(const struct device *dev,
 
 static struct resource *gpio_nand_get_io_sync_of(struct platform_device *pdev)
 {
-	struct resource *r = devm_kzalloc(&pdev->dev, sizeof(*r), GFP_KERNEL);
+	struct resource *r;
 	u64 addr;
 
-	if (!r || of_property_read_u64(pdev->dev.of_node,
+	if (of_property_read_u64(pdev->dev.of_node,
 				       "gpio-control-nand,io-sync-reg", &addr))
+		return NULL;
+
+	r = devm_kzalloc(&pdev->dev, sizeof(*r), GFP_KERNEL);
+	if (!r)
 		return NULL;
 
 	r->start = addr;
@@ -211,10 +216,8 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	gpiomtd = devm_kzalloc(&pdev->dev, sizeof(*gpiomtd), GFP_KERNEL);
-	if (!gpiomtd) {
-		dev_err(&pdev->dev, "failed to create NAND MTD\n");
+	if (!gpiomtd)
 		return -ENOMEM;
-	}
 
 	chip = &gpiomtd->nand_chip;
 
@@ -307,7 +310,6 @@ static struct platform_driver gpio_nand_driver = {
 	.remove		= gpio_nand_remove,
 	.driver		= {
 		.name	= "gpio-nand",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(gpio_nand_id_table),
 	},
 };

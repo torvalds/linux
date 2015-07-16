@@ -2,7 +2,7 @@
 #define _TRACE_KVMMMU_H
 
 #include <linux/tracepoint.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvmmmu
@@ -22,7 +22,7 @@
 	__entry->unsync = sp->unsync;
 
 #define KVM_MMU_PAGE_PRINTK() ({				        \
-	const char *ret = p->buffer + p->len;				\
+	const char *saved_ptr = trace_seq_buffer_ptr(p);		\
 	static const char *access_str[] = {			        \
 		"---", "--x", "w--", "w-x", "-u-", "-ux", "wu-", "wux"  \
 	};							        \
@@ -41,7 +41,7 @@
 			 role.nxe ? "" : "!",				\
 			 __entry->root_count,				\
 			 __entry->unsync ? "unsync" : "sync", 0);	\
-	ret;								\
+	saved_ptr;							\
 		})
 
 #define kvm_mmu_trace_pferr_flags       \

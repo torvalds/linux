@@ -7,7 +7,8 @@ obj-y				+= common.o devices.o time.o
 # SoC support
 obj-$(CONFIG_CPU_PXA168)	+= pxa168.o
 obj-$(CONFIG_CPU_PXA910)	+= pxa910.o
-obj-$(CONFIG_CPU_MMP2)		+= mmp2.o sram.o
+obj-$(CONFIG_CPU_MMP2)		+= mmp2.o
+obj-$(CONFIG_MMP_SRAM)		+= sram.o
 
 ifeq ($(CONFIG_COMMON_CLK), )
 obj-y				+= clock.o

@@ -424,7 +424,7 @@ int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len)
 }
 
 /* Data available on socket or listen socket received a connect */
-static void lowcomms_data_ready(struct sock *sk, int count_unused)
+static void lowcomms_data_ready(struct sock *sk)
 {
 	struct connection *con = sock2con(sk);
 	if (con && !test_and_set_bit(CF_READ_PENDING, &con->flags))
@@ -617,6 +617,11 @@ static void retry_failed_sctp_send(struct connection *recv_con,
 	int nodeid = sn_send_failed->ssf_info.sinfo_ppid;
 
 	log_print("Retry sending %d bytes to node id %d", len, nodeid);
+	
+	if (!nodeid) {
+		log_print("Shouldn't resend data via listening connection.");
+		return;
+	}
 
 	con = nodeid2con(nodeid, 0);
 	if (!con) {
@@ -649,6 +654,7 @@ static void process_sctp_notification(struct connection *con,
 				      struct msghdr *msg, char *buf)
 {
 	union sctp_notification *sn = (union sctp_notification *)buf;
+	struct linger linger;
 
 	switch (sn->sn_header.sn_type) {
 	case SCTP_SEND_FAILED:
@@ -713,11 +719,11 @@ static void process_sctp_notification(struct connection *con,
 				return;
 
 			/* Peel off a new sock */
-			sctp_lock_sock(con->sock->sk);
+			lock_sock(con->sock->sk);
 			ret = sctp_do_peeloff(con->sock->sk,
 				sn->sn_assoc_change.sac_assoc_id,
 				&new_con->sock);
-			sctp_release_sock(con->sock->sk);
+			release_sock(con->sock->sk);
 			if (ret < 0) {
 				log_print("Can't peel off a socket for "
 					  "connection %d to node %d: err=%d",
@@ -726,6 +732,13 @@ static void process_sctp_notification(struct connection *con,
 				return;
 			}
 			add_sock(new_con->sock, new_con);
+
+			linger.l_onoff = 1;
+			linger.l_linger = 0;
+			ret = kernel_setsockopt(new_con->sock, SOL_SOCKET, SO_LINGER,
+						(char *)&linger, sizeof(linger));
+			if (ret < 0)
+				log_print("set socket option SO_LINGER failed");
 
 			log_print("connecting to %d sctp association %d",
 				 nodeid, (int)sn->sn_assoc_change.sac_assoc_id);
@@ -908,8 +921,8 @@ static int tcp_accept_from_sock(struct connection *con)
 	mutex_unlock(&connections_lock);
 
 	memset(&peeraddr, 0, sizeof(peeraddr));
-	result = sock_create_kern(dlm_local_addr[0]->ss_family, SOCK_STREAM,
-				  IPPROTO_TCP, &newsock);
+	result = sock_create_kern(&init_net, dlm_local_addr[0]->ss_family,
+				  SOCK_STREAM, IPPROTO_TCP, &newsock);
 	if (result < 0)
 		return -ENOMEM;
 
@@ -1160,8 +1173,8 @@ static void tcp_connect_to_sock(struct connection *con)
 		goto out;
 
 	/* Create a socket to communicate with */
-	result = sock_create_kern(dlm_local_addr[0]->ss_family, SOCK_STREAM,
-				  IPPROTO_TCP, &sock);
+	result = sock_create_kern(&init_net, dlm_local_addr[0]->ss_family,
+				  SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (result < 0)
 		goto out_err;
 
@@ -1245,8 +1258,8 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
 		addr_len = sizeof(struct sockaddr_in6);
 
 	/* Create a socket to communicate with */
-	result = sock_create_kern(dlm_local_addr[0]->ss_family, SOCK_STREAM,
-				  IPPROTO_TCP, &sock);
+	result = sock_create_kern(&init_net, dlm_local_addr[0]->ss_family,
+				  SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (result < 0) {
 		log_print("Can't create listening comms socket");
 		goto create_out;
@@ -1352,8 +1365,8 @@ static int sctp_listen_for_all(void)
 
 	log_print("Using SCTP for communications");
 
-	result = sock_create_kern(dlm_local_addr[0]->ss_family, SOCK_SEQPACKET,
-				  IPPROTO_SCTP, &sock);
+	result = sock_create_kern(&init_net, dlm_local_addr[0]->ss_family,
+				  SOCK_SEQPACKET, IPPROTO_SCTP, &sock);
 	if (result < 0) {
 		log_print("Can't create comms socket, check SCTP is loaded");
 		goto out;

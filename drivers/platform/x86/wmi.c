@@ -37,8 +37,6 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 
 ACPI_MODULE_NAME("wmi");
 MODULE_AUTHOR("Carlos Corbacho");
@@ -47,7 +45,6 @@ MODULE_LICENSE("GPL");
 
 #define ACPI_WMI_CLASS "wmi"
 
-static DEFINE_MUTEX(wmi_data_lock);
 static LIST_HEAD(wmi_block_list);
 
 struct guid_block {
@@ -242,10 +239,10 @@ static bool find_guid(const char *guid_string, struct wmi_block **out)
 		if (memcmp(block->guid, guid_input, 16) == 0) {
 			if (out)
 				*out = wblock;
-			return 1;
+			return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
@@ -257,10 +254,6 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
 
 	block = &wblock->gblock;
 	handle = wblock->handle;
-
-	if (!block)
-		return AE_NOT_EXIST;
-
 
 	snprintf(method, 5, "WE%02X", block->notify_id);
 	status = acpi_execute_simple_method(handle, method, enable);
@@ -672,8 +665,10 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 	struct wmi_block *wblock;
 
 	wblock = dev_get_drvdata(dev);
-	if (!wblock)
-		return -ENOMEM;
+	if (!wblock) {
+		strcat(buf, "\n");
+		return strlen(buf);
+	}
 
 	wmi_gtoa(wblock->gblock.guid, guid_string);
 

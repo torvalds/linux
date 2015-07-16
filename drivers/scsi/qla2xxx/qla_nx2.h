@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -133,6 +133,7 @@
 #define QLA8044_LINK_SPEED(f)		(0x36E0+(((f) >> 2) * 4))
 #define QLA8044_MAX_LINK_SPEED(f)       (0x36F0+(((f) / 4) * 4))
 #define QLA8044_LINK_SPEED_FACTOR	10
+#define QLA8044_FUN7_ACTIVE_INDEX	0x80
 
 /* FLASH API Defines */
 #define QLA8044_FLASH_MAX_WAIT_USEC	100
@@ -431,6 +432,50 @@ struct qla8044_minidump_entry_pollrd {
 	uint32_t rsvd_1;
 } __packed;
 
+struct qla8044_minidump_entry_rddfe {
+	struct qla8044_minidump_entry_hdr h;
+	uint32_t addr_1;
+	uint32_t value;
+	uint8_t stride;
+	uint8_t stride2;
+	uint16_t count;
+	uint32_t poll;
+	uint32_t mask;
+	uint32_t modify_mask;
+	uint32_t data_size;
+	uint32_t rsvd;
+
+} __packed;
+
+struct qla8044_minidump_entry_rdmdio {
+	struct qla8044_minidump_entry_hdr h;
+
+	uint32_t addr_1;
+	uint32_t addr_2;
+	uint32_t value_1;
+	uint8_t stride_1;
+	uint8_t stride_2;
+	uint16_t count;
+	uint32_t poll;
+	uint32_t mask;
+	uint32_t value_2;
+	uint32_t data_size;
+
+} __packed;
+
+struct qla8044_minidump_entry_pollwr {
+	struct qla8044_minidump_entry_hdr h;
+	uint32_t addr_1;
+	uint32_t addr_2;
+	uint32_t value_1;
+	uint32_t value_2;
+	uint32_t poll;
+	uint32_t mask;
+	uint32_t data_size;
+	uint32_t rsvd;
+
+}  __packed;
+
 /* RDMUX2 Entry */
 struct qla8044_minidump_entry_rdmux2 {
 	struct qla8044_minidump_entry_hdr h;
@@ -516,6 +561,9 @@ static const uint32_t qla8044_reg_tbl[] = {
 #define QLA8044_DBG_RSVD_ARRAY_LEN              8
 #define QLA8044_DBG_OCM_WNDREG_ARRAY_LEN        16
 #define QLA8044_SS_PCI_INDEX                    0
+#define QLA8044_RDDFE          38
+#define QLA8044_RDMDIO         39
+#define QLA8044_POLLWR         40
 
 struct qla8044_minidump_template_hdr {
 	uint32_t entry_type;

@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -378,7 +377,6 @@ static int eeprom_93xx46_remove(struct spi_device *spi)
 		device_remove_file(&spi->dev, &dev_attr_erase);
 
 	sysfs_remove_bin_file(&spi->dev.kobj, &edev->bin);
-	spi_set_drvdata(spi, NULL);
 	kfree(edev);
 	return 0;
 }

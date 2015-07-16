@@ -8,7 +8,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/leds.h>
@@ -159,7 +158,6 @@ static struct platform_driver ot200_led_driver = {
 	.remove		= ot200_led_remove,
 	.driver		= {
 		.name	= "leds-ot200",
-		.owner	= THIS_MODULE,
 	},
 };
 

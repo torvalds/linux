@@ -215,7 +215,7 @@ int aix_partition(struct parsed_partitions *state)
 		numlvs = be16_to_cpu(p->numlvs);
 		put_dev_sector(sect);
 	}
-	lvip = kzalloc(sizeof(struct lv_info) * state->limit, GFP_KERNEL);
+	lvip = kcalloc(state->limit, sizeof(struct lv_info), GFP_KERNEL);
 	if (!lvip)
 		return 0;
 	if (numlvs && (d = read_part_sector(state, vgda_sector + 1, &sect))) {
@@ -253,7 +253,7 @@ int aix_partition(struct parsed_partitions *state)
 				continue;
 			}
 			lv_ix = be16_to_cpu(p->lv_ix) - 1;
-			if (lv_ix > state->limit) {
+			if (lv_ix >= state->limit) {
 				cur_lv_ix = -1;
 				continue;
 			}

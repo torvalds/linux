@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -288,7 +286,7 @@ static ssize_t rt2x00debug_read_queue_dump(struct file *file,
 	if (retval)
 		return retval;
 
-	status = min((size_t)skb->len, length);
+	status = min_t(size_t, skb->len, length);
 	if (copy_to_user(buf, skb->data, status)) {
 		status = -EFAULT;
 		goto exit;

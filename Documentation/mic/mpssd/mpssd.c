@@ -41,6 +41,7 @@
 #include "mpssd.h"
 #include <linux/mic_ioctl.h>
 #include <linux/mic_common.h>
+#include <tools/endian.h>
 
 static void init_mic(struct mic_info *mic);
 
@@ -313,7 +314,7 @@ static struct mic_device_desc *get_device_desc(struct mic_info *mic, int type)
 	int i;
 	void *dp = get_dp(mic, type);
 
-	for (i = mic_aligned_size(struct mic_bootparam); i < PAGE_SIZE;
+	for (i = sizeof(struct mic_bootparam); i < PAGE_SIZE;
 		i += mic_total_desc_size(d)) {
 		d = dp + i;
 
@@ -445,8 +446,8 @@ init_vr(struct mic_info *mic, int fd, int type,
 		__func__, mic->name, vr0->va, vr0->info, vr_size,
 		vring_size(MIC_VRING_ENTRIES, MIC_VIRTIO_RING_ALIGN));
 	mpsslog("magic 0x%x expected 0x%x\n",
-		vr0->info->magic, MIC_MAGIC + type);
-	assert(vr0->info->magic == MIC_MAGIC + type);
+		le32toh(vr0->info->magic), MIC_MAGIC + type);
+	assert(le32toh(vr0->info->magic) == MIC_MAGIC + type);
 	if (vr1) {
 		vr1->va = (struct mic_vring *)
 			&va[MIC_DEVICE_PAGE_END + vr_size];
@@ -458,8 +459,8 @@ init_vr(struct mic_info *mic, int fd, int type,
 			__func__, mic->name, vr1->va, vr1->info, vr_size,
 			vring_size(MIC_VRING_ENTRIES, MIC_VIRTIO_RING_ALIGN));
 		mpsslog("magic 0x%x expected 0x%x\n",
-			vr1->info->magic, MIC_MAGIC + type + 1);
-		assert(vr1->info->magic == MIC_MAGIC + type + 1);
+			le32toh(vr1->info->magic), MIC_MAGIC + type + 1);
+		assert(le32toh(vr1->info->magic) == MIC_MAGIC + type + 1);
 	}
 done:
 	return va;
@@ -520,7 +521,7 @@ static void *
 virtio_net(void *arg)
 {
 	static __u8 vnet_hdr[2][sizeof(struct virtio_net_hdr)];
-	static __u8 vnet_buf[2][MAX_NET_PKT_SIZE] __aligned(64);
+	static __u8 vnet_buf[2][MAX_NET_PKT_SIZE] __attribute__ ((aligned(64)));
 	struct iovec vnet_iov[2][2] = {
 		{ { .iov_base = vnet_hdr[0], .iov_len = sizeof(vnet_hdr[0]) },
 		  { .iov_base = vnet_buf[0], .iov_len = sizeof(vnet_buf[0]) } },
@@ -1412,6 +1413,12 @@ mic_config(void *arg)
 	}
 
 	do {
+		ret = lseek(fd, 0, SEEK_SET);
+		if (ret < 0) {
+			mpsslog("%s: Failed to seek to file start '%s': %s\n",
+				mic->name, pathname, strerror(errno));
+			goto close_error1;
+		}
 		ret = read(fd, value, sizeof(value));
 		if (ret < 0) {
 			mpsslog("%s: Failed to read sysfs entry '%s': %s\n",
@@ -1470,9 +1477,9 @@ set_cmdline(struct mic_info *mic)
 
 	len = snprintf(buffer, PATH_MAX,
 		"clocksource=tsc highres=off nohz=off ");
-	len += snprintf(buffer + len, PATH_MAX,
+	len += snprintf(buffer + len, PATH_MAX - len,
 		"cpufreq_on;corec6_off;pc3_off;pc6_off ");
-	len += snprintf(buffer + len, PATH_MAX,
+	len += snprintf(buffer + len, PATH_MAX - len,
 		"ifcfg=static;address,172.31.%d.1;netmask,255.255.255.0",
 		mic->id);
 

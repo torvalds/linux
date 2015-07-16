@@ -120,12 +120,11 @@ static int em_canid_match(struct sk_buff *skb, struct tcf_ematch *m,
 	return match;
 }
 
-static int em_canid_change(struct tcf_proto *tp, void *data, int len,
+static int em_canid_change(struct net *net, void *data, int len,
 			  struct tcf_ematch *m)
 {
 	struct can_filter *conf = data; /* Array with rules */
 	struct canid_match *cm;
-	struct canid_match *cm_old = (struct canid_match *)m->data;
 	int i;
 
 	if (!len)
@@ -181,16 +180,10 @@ static int em_canid_change(struct tcf_proto *tp, void *data, int len,
 
 	m->datalen = sizeof(struct canid_match) + len;
 	m->data = (unsigned long)cm;
-
-	if (cm_old != NULL) {
-		pr_err("canid: Configuring an existing ematch!\n");
-		kfree(cm_old);
-	}
-
 	return 0;
 }
 
-static void em_canid_destroy(struct tcf_proto *tp, struct tcf_ematch *m)
+static void em_canid_destroy(struct tcf_ematch *m)
 {
 	struct canid_match *cm = em_canid_priv(m);
 

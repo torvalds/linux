@@ -12,18 +12,17 @@
       <refsect1>
 	<title>Description</title>
 
-	<para>This is a multi-planar, two-plane version of the YUV 4:2:0 format.
+	<para>This is a multi-planar, two-plane version of the YUV 4:2:2 format.
 The three components are separated into two sub-images or planes.
 <constant>V4L2_PIX_FMT_NV16M</constant> differs from <constant>V4L2_PIX_FMT_NV16
 </constant> in that the two planes are non-contiguous in memory, i.e. the chroma
-plane does not necessarily immediately follows the luma plane.
+plane does not necessarily immediately follow the luma plane.
 The luminance data occupies the first plane. The Y plane has one byte per pixel.
 In the second plane there is chrominance data with alternating chroma samples.
 The CbCr plane is the same width and height, in bytes, as the Y plane.
-Each CbCr pair belongs to four pixels. For example,
+Each CbCr pair belongs to two pixels. For example,
 Cb<subscript>0</subscript>/Cr<subscript>0</subscript> belongs to
-Y'<subscript>00</subscript>, Y'<subscript>01</subscript>,
-Y'<subscript>10</subscript>, Y'<subscript>11</subscript>.
+Y'<subscript>00</subscript>, Y'<subscript>01</subscript>.
 <constant>V4L2_PIX_FMT_NV61M</constant> is the same as <constant>V4L2_PIX_FMT_NV16M</constant>
 except the Cb and Cr bytes are swapped, the CrCb plane starts with a Cr byte.</para>
 

@@ -24,6 +24,7 @@
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/memblock.h>
+#include <linux/sched.h>
 
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
@@ -59,13 +60,12 @@ static void kvm_get_wallclock(struct timespec *now)
 
 	native_write_msr(msr_kvm_wall_clock, low, high);
 
-	preempt_disable();
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 
 	vcpu_time = &hv_clock[cpu].pvti;
 	pvclock_read_wallclock(&wall_clock, vcpu_time, now);
 
-	preempt_enable();
+	put_cpu();
 }
 
 static int kvm_set_wallclock(const struct timespec *now)
@@ -107,11 +107,10 @@ static unsigned long kvm_get_tsc_khz(void)
 	int cpu;
 	unsigned long tsc_khz;
 
-	preempt_disable();
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 	src = &hv_clock[cpu].pvti;
 	tsc_khz = pvclock_tsc_khz(src);
-	preempt_enable();
+	put_cpu();
 	return tsc_khz;
 }
 
@@ -219,8 +218,10 @@ static void kvm_shutdown(void)
 
 void __init kvmclock_init(void)
 {
+	struct pvclock_vcpu_time_info *vcpu_time;
 	unsigned long mem;
-	int size;
+	int size, cpu;
+	u8 flags;
 
 	size = PAGE_ALIGN(sizeof(struct pvclock_vsyscall_time_info)*NR_CPUS);
 
@@ -242,7 +243,7 @@ void __init kvmclock_init(void)
 	hv_clock = __va(mem);
 	memset(hv_clock, 0, size);
 
-	if (kvm_register_clock("boot clock")) {
+	if (kvm_register_clock("primary cpu clock")) {
 		hv_clock = NULL;
 		memblock_free(mem, size);
 		return;
@@ -263,11 +264,17 @@ void __init kvmclock_init(void)
 #endif
 	kvm_get_preset_lpj();
 	clocksource_register_hz(&kvm_clock, NSEC_PER_SEC);
-	pv_info.paravirt_enabled = 1;
 	pv_info.name = "KVM";
 
 	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE_STABLE_BIT))
-		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
+		pvclock_set_flags(~0);
+
+	cpu = get_cpu();
+	vcpu_time = &hv_clock[cpu].pvti;
+	flags = pvclock_read_flags(vcpu_time);
+	if (flags & PVCLOCK_COUNTS_FROM_ZERO)
+		set_sched_clock_stable();
+	put_cpu();
 }
 
 int __init kvm_setup_vsyscall_timeinfo(void)
@@ -284,23 +291,22 @@ int __init kvm_setup_vsyscall_timeinfo(void)
 
 	size = PAGE_ALIGN(sizeof(struct pvclock_vsyscall_time_info)*NR_CPUS);
 
-	preempt_disable();
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 
 	vcpu_time = &hv_clock[cpu].pvti;
 	flags = pvclock_read_flags(vcpu_time);
 
 	if (!(flags & PVCLOCK_TSC_STABLE_BIT)) {
-		preempt_enable();
+		put_cpu();
 		return 1;
 	}
 
 	if ((ret = pvclock_init_vsyscall(hv_clock, size))) {
-		preempt_enable();
+		put_cpu();
 		return ret;
 	}
 
-	preempt_enable();
+	put_cpu();
 
 	kvm_clock.archdata.vclock_mode = VCLOCK_PVCLOCK;
 #endif

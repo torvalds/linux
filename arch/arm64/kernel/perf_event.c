@@ -22,10 +22,13 @@
 
 #include <linux/bitmap.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/of.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 
@@ -168,8 +171,14 @@ armpmu_event_set_period(struct perf_event *event,
 		ret = 1;
 	}
 
-	if (left > (s64)armpmu->max_period)
-		left = armpmu->max_period;
+	/*
+	 * Limit the maximum period to prevent the counter value
+	 * from overtaking the one we are about to program. In
+	 * effect we are reducing max_period to account for
+	 * interrupt latency (and we are being very conservative).
+	 */
+	if (left > (armpmu->max_period >> 1))
+		left = armpmu->max_period >> 1;
 
 	local64_set(&hwc->prev_count, (u64)-left);
 
@@ -315,15 +324,23 @@ out:
 }
 
 static int
-validate_event(struct pmu_hw_events *hw_events,
-	       struct perf_event *event)
+validate_event(struct pmu *pmu, struct pmu_hw_events *hw_events,
+				struct perf_event *event)
 {
-	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
+	struct arm_pmu *armpmu;
 	struct hw_perf_event fake_event = event->hw;
 	struct pmu *leader_pmu = event->group_leader->pmu;
 
 	if (is_software_event(event))
 		return 1;
+
+	/*
+	 * Reject groups spanning multiple HW PMUs (e.g. CPU + CCI). The
+	 * core perf code won't check that the pmu->ctx == leader->ctx
+	 * until after pmu->event_init(event).
+	 */
+	if (event->pmu != pmu)
+		return 0;
 
 	if (event->pmu != leader_pmu || event->state < PERF_EVENT_STATE_OFF)
 		return 1;
@@ -331,6 +348,7 @@ validate_event(struct pmu_hw_events *hw_events,
 	if (event->state == PERF_EVENT_STATE_OFF && !event->attr.enable_on_exec)
 		return 1;
 
+	armpmu = to_arm_pmu(event->pmu);
 	return armpmu->get_event_idx(hw_events, &fake_event) >= 0;
 }
 
@@ -348,41 +366,73 @@ validate_group(struct perf_event *event)
 	memset(fake_used_mask, 0, sizeof(fake_used_mask));
 	fake_pmu.used_mask = fake_used_mask;
 
-	if (!validate_event(&fake_pmu, leader))
+	if (!validate_event(event->pmu, &fake_pmu, leader))
 		return -EINVAL;
 
 	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
-		if (!validate_event(&fake_pmu, sibling))
+		if (!validate_event(event->pmu, &fake_pmu, sibling))
 			return -EINVAL;
 	}
 
-	if (!validate_event(&fake_pmu, event))
+	if (!validate_event(event->pmu, &fake_pmu, event))
 		return -EINVAL;
 
 	return 0;
 }
 
 static void
+armpmu_disable_percpu_irq(void *data)
+{
+	unsigned int irq = *(unsigned int *)data;
+	disable_percpu_irq(irq);
+}
+
+static void
 armpmu_release_hardware(struct arm_pmu *armpmu)
 {
-	int i, irq, irqs;
+	int irq;
+	unsigned int i, irqs;
 	struct platform_device *pmu_device = armpmu->plat_device;
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
+	if (!irqs)
+		return;
 
-	for (i = 0; i < irqs; ++i) {
-		if (!cpumask_test_and_clear_cpu(i, &armpmu->active_irqs))
-			continue;
-		irq = platform_get_irq(pmu_device, i);
-		if (irq >= 0)
-			free_irq(irq, armpmu);
+	irq = platform_get_irq(pmu_device, 0);
+	if (irq <= 0)
+		return;
+
+	if (irq_is_percpu(irq)) {
+		on_each_cpu(armpmu_disable_percpu_irq, &irq, 1);
+		free_percpu_irq(irq, &cpu_hw_events);
+	} else {
+		for (i = 0; i < irqs; ++i) {
+			int cpu = i;
+
+			if (armpmu->irq_affinity)
+				cpu = armpmu->irq_affinity[i];
+
+			if (!cpumask_test_and_clear_cpu(cpu, &armpmu->active_irqs))
+				continue;
+			irq = platform_get_irq(pmu_device, i);
+			if (irq > 0)
+				free_irq(irq, armpmu);
+		}
 	}
+}
+
+static void
+armpmu_enable_percpu_irq(void *data)
+{
+	unsigned int irq = *(unsigned int *)data;
+	enable_percpu_irq(irq, IRQ_TYPE_NONE);
 }
 
 static int
 armpmu_reserve_hardware(struct arm_pmu *armpmu)
 {
-	int i, err, irq, irqs;
+	int err, irq;
+	unsigned int i, irqs;
 	struct platform_device *pmu_device = armpmu->plat_device;
 
 	if (!pmu_device) {
@@ -391,39 +441,64 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 	}
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
-	if (irqs < 1) {
+	if (!irqs) {
 		pr_err("no irqs for PMUs defined\n");
 		return -ENODEV;
 	}
 
-	for (i = 0; i < irqs; ++i) {
-		err = 0;
-		irq = platform_get_irq(pmu_device, i);
-		if (irq < 0)
-			continue;
+	irq = platform_get_irq(pmu_device, 0);
+	if (irq <= 0) {
+		pr_err("failed to get valid irq for PMU device\n");
+		return -ENODEV;
+	}
 
-		/*
-		 * If we have a single PMU interrupt that we can't shift,
-		 * assume that we're running on a uniprocessor machine and
-		 * continue. Otherwise, continue without this interrupt.
-		 */
-		if (irq_set_affinity(irq, cpumask_of(i)) && irqs > 1) {
-			pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
-				    irq, i);
-			continue;
-		}
+	if (irq_is_percpu(irq)) {
+		err = request_percpu_irq(irq, armpmu->handle_irq,
+				"arm-pmu", &cpu_hw_events);
 
-		err = request_irq(irq, armpmu->handle_irq,
-				  IRQF_NOBALANCING,
-				  "arm-pmu", armpmu);
 		if (err) {
-			pr_err("unable to request IRQ%d for ARM PMU counters\n",
-				irq);
+			pr_err("unable to request percpu IRQ%d for ARM PMU counters\n",
+					irq);
 			armpmu_release_hardware(armpmu);
 			return err;
 		}
 
-		cpumask_set_cpu(i, &armpmu->active_irqs);
+		on_each_cpu(armpmu_enable_percpu_irq, &irq, 1);
+	} else {
+		for (i = 0; i < irqs; ++i) {
+			int cpu = i;
+
+			err = 0;
+			irq = platform_get_irq(pmu_device, i);
+			if (irq <= 0)
+				continue;
+
+			if (armpmu->irq_affinity)
+				cpu = armpmu->irq_affinity[i];
+
+			/*
+			 * If we have a single PMU interrupt that we can't shift,
+			 * assume that we're running on a uniprocessor machine and
+			 * continue. Otherwise, continue without this interrupt.
+			 */
+			if (irq_set_affinity(irq, cpumask_of(cpu)) && irqs > 1) {
+				pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
+						irq, cpu);
+				continue;
+			}
+
+			err = request_irq(irq, armpmu->handle_irq,
+					IRQF_NOBALANCING | IRQF_NO_THREAD,
+					"arm-pmu", armpmu);
+			if (err) {
+				pr_err("unable to request IRQ%d for ARM PMU counters\n",
+						irq);
+				armpmu_release_hardware(armpmu);
+				return err;
+			}
+
+			cpumask_set_cpu(cpu, &armpmu->active_irqs);
+		}
 	}
 
 	return 0;
@@ -1228,16 +1303,60 @@ arch_initcall(cpu_pmu_reset);
 /*
  * PMU platform driver and devicetree bindings.
  */
-static struct of_device_id armpmu_of_device_ids[] = {
+static const struct of_device_id armpmu_of_device_ids[] = {
 	{.compatible = "arm,armv8-pmuv3"},
 	{},
 };
 
 static int armpmu_device_probe(struct platform_device *pdev)
 {
+	int i, irq, *irqs;
+
 	if (!cpu_pmu)
 		return -ENODEV;
 
+	/* Don't bother with PPIs; they're already affine */
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0 && irq_is_percpu(irq))
+		goto out;
+
+	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
+	if (!irqs)
+		return -ENOMEM;
+
+	for (i = 0; i < pdev->num_resources; ++i) {
+		struct device_node *dn;
+		int cpu;
+
+		dn = of_parse_phandle(pdev->dev.of_node, "interrupt-affinity",
+				      i);
+		if (!dn) {
+			pr_warn("Failed to parse %s/interrupt-affinity[%d]\n",
+				of_node_full_name(pdev->dev.of_node), i);
+			break;
+		}
+
+		for_each_possible_cpu(cpu)
+			if (arch_find_n_match_cpu_physical_id(dn, cpu, NULL))
+				break;
+
+		if (cpu >= nr_cpu_ids) {
+			pr_warn("Failed to find logical CPU for %s\n",
+				dn->name);
+			of_node_put(dn);
+			break;
+		}
+		of_node_put(dn);
+
+		irqs[i] = cpu;
+	}
+
+	if (i == pdev->num_resources)
+		cpu_pmu->irq_affinity = irqs;
+	else
+		kfree(irqs);
+
+out:
 	cpu_pmu->plat_device = pdev;
 	return 0;
 }
@@ -1300,8 +1419,8 @@ early_initcall(init_hw_perf_events);
  * Callchain handling code.
  */
 struct frame_tail {
-	struct frame_tail   __user *fp;
-	unsigned long	    lr;
+	struct frame_tail	__user *fp;
+	unsigned long		lr;
 } __attribute__((packed));
 
 /*
@@ -1338,22 +1457,84 @@ user_backtrace(struct frame_tail __user *tail,
 	return buftail.fp;
 }
 
+#ifdef CONFIG_COMPAT
+/*
+ * The registers we're interested in are at the end of the variable
+ * length saved register structure. The fp points at the end of this
+ * structure so the address of this struct is:
+ * (struct compat_frame_tail *)(xxx->fp)-1
+ *
+ * This code has been adapted from the ARM OProfile support.
+ */
+struct compat_frame_tail {
+	compat_uptr_t	fp; /* a (struct compat_frame_tail *) in compat mode */
+	u32		sp;
+	u32		lr;
+} __attribute__((packed));
+
+static struct compat_frame_tail __user *
+compat_user_backtrace(struct compat_frame_tail __user *tail,
+		      struct perf_callchain_entry *entry)
+{
+	struct compat_frame_tail buftail;
+	unsigned long err;
+
+	/* Also check accessibility of one struct frame_tail beyond */
+	if (!access_ok(VERIFY_READ, tail, sizeof(buftail)))
+		return NULL;
+
+	pagefault_disable();
+	err = __copy_from_user_inatomic(&buftail, tail, sizeof(buftail));
+	pagefault_enable();
+
+	if (err)
+		return NULL;
+
+	perf_callchain_store(entry, buftail.lr);
+
+	/*
+	 * Frame pointers should strictly progress back up the stack
+	 * (towards higher addresses).
+	 */
+	if (tail + 1 >= (struct compat_frame_tail __user *)
+			compat_ptr(buftail.fp))
+		return NULL;
+
+	return (struct compat_frame_tail __user *)compat_ptr(buftail.fp) - 1;
+}
+#endif /* CONFIG_COMPAT */
+
 void perf_callchain_user(struct perf_callchain_entry *entry,
 			 struct pt_regs *regs)
 {
-	struct frame_tail __user *tail;
-
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* We don't support guest os callchain now */
 		return;
 	}
 
 	perf_callchain_store(entry, regs->pc);
-	tail = (struct frame_tail __user *)regs->regs[29];
 
-	while (entry->nr < PERF_MAX_STACK_DEPTH &&
-	       tail && !((unsigned long)tail & 0xf))
-		tail = user_backtrace(tail, entry);
+	if (!compat_user_mode(regs)) {
+		/* AARCH64 mode */
+		struct frame_tail __user *tail;
+
+		tail = (struct frame_tail __user *)regs->regs[29];
+
+		while (entry->nr < PERF_MAX_STACK_DEPTH &&
+		       tail && !((unsigned long)tail & 0xf))
+			tail = user_backtrace(tail, entry);
+	} else {
+#ifdef CONFIG_COMPAT
+		/* AARCH32 compat mode */
+		struct compat_frame_tail __user *tail;
+
+		tail = (struct compat_frame_tail __user *)regs->compat_fp - 1;
+
+		while ((entry->nr < PERF_MAX_STACK_DEPTH) &&
+			tail && !((unsigned long)tail & 0x3))
+			tail = compat_user_backtrace(tail, entry);
+#endif
+	}
 }
 
 /*
@@ -1381,6 +1562,7 @@ void perf_callchain_kernel(struct perf_callchain_entry *entry,
 	frame.fp = regs->regs[29];
 	frame.sp = regs->sp;
 	frame.pc = regs->pc;
+
 	walk_stackframe(&frame, callchain_trace, entry);
 }
 

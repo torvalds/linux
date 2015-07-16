@@ -1,6 +1,7 @@
 config UNICORE32
 	def_bool y
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select HAVE_MEMBLOCK
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_DMA_ATTRS
@@ -26,7 +27,7 @@ config UNICORE32
 config GENERIC_CSUM
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	bool
 
 config STACKTRACE_SUPPORT
@@ -48,9 +49,6 @@ config ARCH_HAS_ILOG2_U32
 	bool
 
 config ARCH_HAS_ILOG2_U64
-	bool
-
-config ARCH_HAS_CPUFREQ
 	bool
 
 config GENERIC_HWEIGHT
@@ -86,7 +84,6 @@ config ARCH_PUV3
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	select ARCH_REQUIRE_GPIOLIB
-	select ARCH_HAS_CPUFREQ
 
 # CONFIGs for ARCH_PUV3
 
@@ -197,9 +194,7 @@ menu "Power management options"
 
 source "kernel/power/Kconfig"
 
-if ARCH_HAS_CPUFREQ
 source "drivers/cpufreq/Kconfig"
-endif
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y if !ARCH_FPGA

@@ -50,12 +50,18 @@ Description:
 		This may allow the driver to support more hardware than
 		was included in the driver's static device ID support
 		table at compile time. The format for the device ID is:
-		idVendor idProduct bInterfaceClass.
+		idVendor idProduct bInterfaceClass RefIdVendor RefIdProduct
 		The vendor ID and device ID fields are required, the
-		interface class is optional.
+		rest is optional. The Ref* tuple can be used to tell the
+		driver to use the same driver_data for the new device as
+		it is used for the reference device.
 		Upon successfully adding an ID, the driver will probe
 		for the device and attempt to bind to it.  For example:
 		# echo "8086 10f5" > /sys/bus/usb/drivers/foo/new_id
+
+		Here add a new device (0458:7045) using driver_data from
+		an already supported device (0458:704c):
+		# echo "0458 7045 0 0458 704c" > /sys/bus/usb/drivers/foo/new_id
 
 		Reading from this file will list all dynamically added
 		device IDs in the same format, with one entry per
@@ -98,16 +104,15 @@ What:		/sys/bus/usb/devices/.../power/usb2_hardware_lpm
 Date:		September 2011
 Contact:	Andiry Xu <andiry.xu@amd.com>
 Description:
-		If CONFIG_PM_RUNTIME is set and a USB 2.0 lpm-capable device
-		is plugged in to a xHCI host which support link PM, it will
-		perform a LPM test; if the test is passed and host supports
-		USB2 hardware LPM (xHCI 1.0 feature), USB2 hardware LPM will
-		be enabled for the device and the USB device directory will
-		contain a file named power/usb2_hardware_lpm.  The file holds
-		a string value (enable or disable) indicating whether or not
-		USB2 hardware LPM is enabled for the device. Developer can
-		write y/Y/1 or n/N/0 to the file to enable/disable the
-		feature.
+		If CONFIG_PM is set and a USB 2.0 lpm-capable device is plugged
+		in to a xHCI host which support link PM, it will perform a LPM
+		test; if the test is passed and host supports USB2 hardware LPM
+		(xHCI 1.0 feature), USB2 hardware LPM will be enabled for the
+		device and the USB device directory will contain a file named
+		power/usb2_hardware_lpm.  The file holds a string value (enable
+		or disable) indicating whether or not USB2 hardware LPM is
+		enabled for the device. Developer can write y/Y/1 or n/N/0 to
+		the file to enable/disable the feature.
 
 What:		/sys/bus/usb/devices/.../removable
 Date:		February 2012

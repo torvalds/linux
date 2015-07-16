@@ -122,7 +122,7 @@ This must be done from a context that can sleep.
 PHY Management
 --------------
 
-The physical link (i2c, ...) management is defined by the following struture:
+The physical link (i2c, ...) management is defined by the following structure:
 
 struct nfc_phy_ops {
 	int (*write)(void *dev_id, struct sk_buff *skb);

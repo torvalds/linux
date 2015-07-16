@@ -34,7 +34,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
@@ -517,7 +516,6 @@ static struct platform_driver iop3xx_i2c_driver = {
 	.probe		= iop3xx_i2c_probe,
 	.remove		= iop3xx_i2c_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "IOP3xx-I2C",
 	},
 };

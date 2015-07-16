@@ -46,6 +46,7 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
  *			    to create when creating a new device.
  *	@get_num_rx_queues: Function to determine number of receive queues
  *			    to create when creating a new device.
+ *	@get_link_net: Function to get the i/o netns of the device
  */
 struct rtnl_link_ops {
 	struct list_head	list;
@@ -79,6 +80,21 @@ struct rtnl_link_ops {
 					       const struct net_device *dev);
 	unsigned int		(*get_num_tx_queues)(void);
 	unsigned int		(*get_num_rx_queues)(void);
+
+	int			slave_maxtype;
+	const struct nla_policy	*slave_policy;
+	int			(*slave_validate)(struct nlattr *tb[],
+						  struct nlattr *data[]);
+	int			(*slave_changelink)(struct net_device *dev,
+						    struct net_device *slave_dev,
+						    struct nlattr *tb[],
+						    struct nlattr *data[]);
+	size_t			(*get_slave_size)(const struct net_device *dev,
+						  const struct net_device *slave_dev);
+	int			(*fill_slave_info)(struct sk_buff *skb,
+						   const struct net_device *dev,
+						   const struct net_device *slave_dev);
+	struct net		*(*get_link_net)(const struct net_device *dev);
 };
 
 int __rtnl_link_register(struct rtnl_link_ops *ops);
@@ -115,19 +131,19 @@ struct rtnl_af_ops {
 					       const struct nlattr *attr);
 };
 
-int __rtnl_af_register(struct rtnl_af_ops *ops);
 void __rtnl_af_unregister(struct rtnl_af_ops *ops);
 
-int rtnl_af_register(struct rtnl_af_ops *ops);
+void rtnl_af_register(struct rtnl_af_ops *ops);
 void rtnl_af_unregister(struct rtnl_af_ops *ops);
 
 struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[]);
-struct net_device *rtnl_create_link(struct net *net, char *ifname,
+struct net_device *rtnl_create_link(struct net *net, const char *ifname,
+				    unsigned char name_assign_type,
 				    const struct rtnl_link_ops *ops,
 				    struct nlattr *tb[]);
 int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm);
 
-extern const struct nla_policy ifla_policy[IFLA_MAX+1];
+int rtnl_nla_parse_ifla(struct nlattr **tb, const struct nlattr *head, int len);
 
 #define MODULE_ALIAS_RTNL_LINK(kind) MODULE_ALIAS("rtnl-link-" kind)
 

@@ -78,7 +78,7 @@ struct ad5686_state {
 	 */
 
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} data[3] ____cacheline_aligned;
 };
@@ -267,7 +267,7 @@ static const struct iio_chan_spec_ext_info ad5686_ext_info[] = {
 	{ },
 };
 
-#define AD5868_CHANNEL(chan, bits, shift) {			\
+#define AD5868_CHANNEL(chan, bits, _shift) {			\
 		.type = IIO_VOLTAGE,				\
 		.indexed = 1,					\
 		.output = 1,					\
@@ -275,7 +275,12 @@ static const struct iio_chan_spec_ext_info ad5686_ext_info[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),\
 		.address = AD5686_ADDR_DAC(chan),		\
-		.scan_type = IIO_ST('u', bits, 16, shift),	\
+		.scan_type = {					\
+			.sign = 'u',				\
+			.realbits = (bits),			\
+			.storagebits = 16,			\
+			.shift = (_shift),			\
+		},						\
 		.ext_info = ad5686_ext_info,			\
 }
 
@@ -308,7 +313,7 @@ static int ad5686_probe(struct spi_device *spi)
 {
 	struct ad5686_state *st;
 	struct iio_dev *indio_dev;
-	int ret, regdone = 0, voltage_uv = 0;
+	int ret, voltage_uv = 0;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
@@ -317,7 +322,7 @@ static int ad5686_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
 
-	st->reg = devm_regulator_get(&spi->dev, "vcc");
+	st->reg = devm_regulator_get_optional(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
@@ -350,7 +355,6 @@ static int ad5686_probe(struct spi_device *spi)
 	indio_dev->channels = st->chip_info->channel;
 	indio_dev->num_channels = AD5686_DAC_CHANNELS;
 
-	regdone = 1;
 	ret = ad5686_spi_write(st, AD5686_CMD_INTERNAL_REFER_SETUP, 0,
 				!!voltage_uv, 0);
 	if (ret)

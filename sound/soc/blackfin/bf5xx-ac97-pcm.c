@@ -107,7 +107,6 @@ static const struct snd_pcm_hardware bf5xx_pcm_hardware = {
 #endif
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER,
 
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 0x10000,
 	.periods_min		= 1,
@@ -463,7 +462,6 @@ static int bf5xx_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver bf5xx_pcm_driver = {
 	.driver = {
 			.name = "bfin-ac97-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = bf5xx_soc_platform_probe,

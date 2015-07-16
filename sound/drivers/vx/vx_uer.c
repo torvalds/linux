@@ -60,9 +60,9 @@ static int vx_modify_board_inputs(struct vx_core *chip)
  */
 static int vx_read_one_cbit(struct vx_core *chip, int index)
 {
-	unsigned long flags;
 	int val;
-	spin_lock_irqsave(&chip->lock, flags);
+
+	mutex_lock(&chip->lock);
 	if (chip->type >= VX_TYPE_VXPOCKET) {
 		vx_outb(chip, CSUER, 1); /* read */
 		vx_outb(chip, RUER, index & XX_UER_CBITS_OFFSET_MASK);
@@ -72,7 +72,7 @@ static int vx_read_one_cbit(struct vx_core *chip, int index)
 		vx_outl(chip, RUER, index & XX_UER_CBITS_OFFSET_MASK);
 		val = (vx_inl(chip, RUER) >> 7) & 0x01;
 	}
-	spin_unlock_irqrestore(&chip->lock, flags);
+	mutex_unlock(&chip->lock);
 	return val;
 }
 
@@ -83,9 +83,8 @@ static int vx_read_one_cbit(struct vx_core *chip, int index)
  */
 static void vx_write_one_cbit(struct vx_core *chip, int index, int val)
 {
-	unsigned long flags;
 	val = !!val;	/* 0 or 1 */
-	spin_lock_irqsave(&chip->lock, flags);
+	mutex_lock(&chip->lock);
 	if (vx_is_pcmcia(chip)) {
 		vx_outb(chip, CSUER, 0); /* write */
 		vx_outb(chip, RUER, (val << 7) | (index & XX_UER_CBITS_OFFSET_MASK));
@@ -93,7 +92,7 @@ static void vx_write_one_cbit(struct vx_core *chip, int index, int val)
 		vx_outl(chip, CSUER, 0); /* write */
 		vx_outl(chip, RUER, (val << 7) | (index & XX_UER_CBITS_OFFSET_MASK));
 	}
-	spin_unlock_irqrestore(&chip->lock, flags);
+	mutex_unlock(&chip->lock);
 }
 
 /*
@@ -190,14 +189,12 @@ static int vx_calc_clock_from_freq(struct vx_core *chip, int freq)
  */
 static void vx_change_clock_source(struct vx_core *chip, int source)
 {
-	unsigned long flags;
-
 	/* we mute DAC to prevent clicks */
 	vx_toggle_dac_mute(chip, 1);
-	spin_lock_irqsave(&chip->lock, flags);
+	mutex_lock(&chip->lock);
 	chip->ops->set_clock_source(chip, source);
 	chip->clock_source = source;
-	spin_unlock_irqrestore(&chip->lock, flags);
+	mutex_unlock(&chip->lock);
 	/* unmute */
 	vx_toggle_dac_mute(chip, 0);
 }
@@ -209,11 +206,11 @@ static void vx_change_clock_source(struct vx_core *chip, int source)
 void vx_set_internal_clock(struct vx_core *chip, unsigned int freq)
 {
 	int clock;
-	unsigned long flags;
+
 	/* Get real clock value */
 	clock = vx_calc_clock_from_freq(chip, freq);
 	snd_printdd(KERN_DEBUG "set internal clock to 0x%x from freq %d\n", clock, freq);
-	spin_lock_irqsave(&chip->lock, flags);
+	mutex_lock(&chip->lock);
 	if (vx_is_pcmcia(chip)) {
 		vx_outb(chip, HIFREQ, (clock >> 8) & 0x0f);
 		vx_outb(chip, LOFREQ, clock & 0xff);
@@ -221,7 +218,7 @@ void vx_set_internal_clock(struct vx_core *chip, unsigned int freq)
 		vx_outl(chip, HIFREQ, (clock >> 8) & 0x0f);
 		vx_outl(chip, LOFREQ, clock & 0xff);
 	}
-	spin_unlock_irqrestore(&chip->lock, flags);
+	mutex_unlock(&chip->lock);
 }
 
 

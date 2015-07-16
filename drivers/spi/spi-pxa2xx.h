@@ -93,6 +93,7 @@ struct driver_data {
 struct chip_data {
 	u32 cr0;
 	u32 cr1;
+	u32 dds_rate;
 	u32 psp;
 	u32 timeout;
 	u8 n_bytes;
@@ -114,22 +115,17 @@ struct chip_data {
 	void (*cs_control)(u32 command);
 };
 
-#define DEFINE_SSP_REG(reg, off) \
-static inline u32 read_##reg(void const __iomem *p) \
-{ return __raw_readl(p + (off)); } \
-\
-static inline void write_##reg(u32 v, void __iomem *p) \
-{ __raw_writel(v, p + (off)); }
+static inline u32 pxa2xx_spi_read(const struct driver_data *drv_data,
+				  unsigned reg)
+{
+	return __raw_readl(drv_data->ioaddr + reg);
+}
 
-DEFINE_SSP_REG(SSCR0, 0x00)
-DEFINE_SSP_REG(SSCR1, 0x04)
-DEFINE_SSP_REG(SSSR, 0x08)
-DEFINE_SSP_REG(SSITR, 0x0c)
-DEFINE_SSP_REG(SSDR, 0x10)
-DEFINE_SSP_REG(SSTO, 0x28)
-DEFINE_SSP_REG(SSPSP, 0x2c)
-DEFINE_SSP_REG(SSITF, SSITF)
-DEFINE_SSP_REG(SSIRF, SSIRF)
+static  inline void pxa2xx_spi_write(const struct driver_data *drv_data,
+				     unsigned reg, u32 val)
+{
+	__raw_writel(val, drv_data->ioaddr + reg);
+}
 
 #define START_STATE ((void *)0)
 #define RUNNING_STATE ((void *)1)
@@ -141,21 +137,23 @@ DEFINE_SSP_REG(SSIRF, SSIRF)
 
 static inline int pxa25x_ssp_comp(struct driver_data *drv_data)
 {
-	if (drv_data->ssp_type == PXA25x_SSP)
+	switch (drv_data->ssp_type) {
+	case PXA25x_SSP:
+	case CE4100_SSP:
+	case QUARK_X1000_SSP:
 		return 1;
-	if (drv_data->ssp_type == CE4100_SSP)
-		return 1;
-	return 0;
+	default:
+		return 0;
+	}
 }
 
 static inline void write_SSSR_CS(struct driver_data *drv_data, u32 val)
 {
-	void __iomem *reg = drv_data->ioaddr;
+	if (drv_data->ssp_type == CE4100_SSP ||
+	    drv_data->ssp_type == QUARK_X1000_SSP)
+		val |= pxa2xx_spi_read(drv_data, SSSR) & SSSR_ALT_FRM_MASK;
 
-	if (drv_data->ssp_type == CE4100_SSP)
-		val |= read_SSSR(reg) & SSSR_ALT_FRM_MASK;
-
-	write_SSSR(val, reg);
+	pxa2xx_spi_write(drv_data, SSSR, val);
 }
 
 extern int pxa2xx_spi_flush(struct driver_data *drv_data);
@@ -164,11 +162,7 @@ extern void *pxa2xx_spi_next_transfer(struct driver_data *drv_data);
 /*
  * Select the right DMA implementation.
  */
-#if defined(CONFIG_SPI_PXA2XX_PXADMA)
-#define SPI_PXA2XX_USE_DMA	1
-#define MAX_DMA_LEN		8191
-#define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TINTE)
-#elif defined(CONFIG_SPI_PXA2XX_DMA)
+#if defined(CONFIG_SPI_PXA2XX_DMA)
 #define SPI_PXA2XX_USE_DMA	1
 #define MAX_DMA_LEN		SZ_64K
 #define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TRAIL)

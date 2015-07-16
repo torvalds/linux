@@ -724,14 +724,14 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	struct ath_ant_comb *antcomb = &sc->ant_comb;
 	int alt_ratio = 0, alt_rssi_avg = 0, main_rssi_avg = 0, curr_alt_set;
 	int curr_main_set;
-	int main_rssi = rs->rs_rssi_ctl0;
-	int alt_rssi = rs->rs_rssi_ctl1;
+	int main_rssi = rs->rs_rssi_ctl[0];
+	int alt_rssi = rs->rs_rssi_ctl[1];
 	int rx_ant_conf,  main_ant_conf;
 	bool short_scan = false, ret;
 
-	rx_ant_conf = (rs->rs_rssi_ctl2 >> ATH_ANT_RX_CURRENT_SHIFT) &
+	rx_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_CURRENT_SHIFT) &
 		       ATH_ANT_RX_MASK;
-	main_ant_conf = (rs->rs_rssi_ctl2 >> ATH_ANT_RX_MAIN_SHIFT) &
+	main_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_MAIN_SHIFT) &
 			 ATH_ANT_RX_MASK;
 
 	if (alt_rssi >= antcomb->low_rssi_thresh) {

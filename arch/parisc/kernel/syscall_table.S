@@ -55,8 +55,8 @@
 #define ENTRY_COMP(_name_) .word sys_##_name_
 #endif
 
-	ENTRY_SAME(restart_syscall)	/* 0 */
-	ENTRY_SAME(exit)
+90:	ENTRY_SAME(restart_syscall)	/* 0 */
+91:	ENTRY_SAME(exit)
 	ENTRY_SAME(fork_wrapper)
 	ENTRY_SAME(read)
 	ENTRY_SAME(write)
@@ -286,11 +286,11 @@
 	ENTRY_COMP(msgsnd)
 	ENTRY_COMP(msgrcv)
 	ENTRY_SAME(msgget)		/* 190 */
-	ENTRY_SAME(msgctl)
-	ENTRY_SAME(shmat)
+	ENTRY_COMP(msgctl)
+	ENTRY_COMP(shmat)
 	ENTRY_SAME(shmdt)
 	ENTRY_SAME(shmget)
-	ENTRY_SAME(shmctl)		/* 195 */
+	ENTRY_COMP(shmctl)		/* 195 */
 	ENTRY_SAME(ni_syscall)		/* streams1 */
 	ENTRY_SAME(ni_syscall)		/* streams2 */
 	ENTRY_SAME(lstat64)
@@ -323,7 +323,7 @@
 	ENTRY_SAME(epoll_ctl)		/* 225 */
 	ENTRY_SAME(epoll_wait)
  	ENTRY_SAME(remap_file_pages)
-	ENTRY_SAME(semtimedop)
+	ENTRY_COMP(semtimedop)
 	ENTRY_COMP(mq_open)
 	ENTRY_SAME(mq_unlink)		/* 230 */
 	ENTRY_COMP(mq_timedsend)
@@ -392,7 +392,7 @@
 	ENTRY_COMP(vmsplice)
 	ENTRY_COMP(move_pages)		/* 295 */
 	ENTRY_SAME(getcpu)
-	ENTRY_SAME(epoll_pwait)
+	ENTRY_COMP(epoll_pwait)
 	ENTRY_COMP(statfs64)
 	ENTRY_COMP(fstatfs64)
 	ENTRY_COMP(kexec_load)		/* 300 */
@@ -418,7 +418,7 @@
 	ENTRY_SAME(accept4)		/* 320 */
 	ENTRY_SAME(prlimit64)
 	ENTRY_SAME(fanotify_init)
-	ENTRY_COMP(fanotify_mark)
+	ENTRY_DIFF(fanotify_mark)
 	ENTRY_COMP(clock_adjtime)
 	ENTRY_SAME(name_to_handle_at)	/* 325 */
 	ENTRY_COMP(open_by_handle_at)
@@ -429,8 +429,20 @@
 	ENTRY_COMP(process_vm_writev)
 	ENTRY_SAME(kcmp)
 	ENTRY_SAME(finit_module)
+	ENTRY_SAME(sched_setattr)
+	ENTRY_SAME(sched_getattr)	/* 335 */
+	ENTRY_COMP(utimes)
+	ENTRY_SAME(renameat2)
+	ENTRY_SAME(seccomp)
+	ENTRY_SAME(getrandom)
+	ENTRY_SAME(memfd_create)	/* 340 */
+	ENTRY_SAME(bpf)
+	ENTRY_COMP(execveat)
 
-	/* Nothing yet */
+
+.ifne (. - 90b) - (__NR_Linux_syscalls * (91b - 90b))
+.error "size of syscall table does not fit value of __NR_Linux_syscalls"
+.endif
 
 #undef ENTRY_SAME
 #undef ENTRY_DIFF

@@ -24,6 +24,7 @@
 #include <asm/i8259.h>
 #include <asm/time.h>
 #include <asm/udbg.h>
+#include <asm/dma.h>
 
 extern void __flush_disable_L1(void);
 

@@ -190,7 +190,7 @@ static int tz1090_pdc_gpio_probe(struct platform_device *pdev)
 
 	/* Ioremap the registers */
 	priv->reg = devm_ioremap(&pdev->dev, res_regs->start,
-				 res_regs->end - res_regs->start);
+				 resource_size(res_regs));
 	if (!priv->reg) {
 		dev_err(&pdev->dev, "unable to ioremap registers\n");
 		return -ENOMEM;
@@ -230,7 +230,6 @@ static struct of_device_id tz1090_pdc_gpio_of_match[] = {
 static struct platform_driver tz1090_pdc_gpio_driver = {
 	.driver = {
 		.name		= "tz1090-pdc-gpio",
-		.owner		= THIS_MODULE,
 		.of_match_table	= tz1090_pdc_gpio_of_match,
 	},
 	.probe		= tz1090_pdc_gpio_probe,

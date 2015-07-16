@@ -22,6 +22,12 @@
  *
  */
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) "FS-Cache: " fmt
+
 #include <linux/fscache-cache.h>
 #include <linux/sched.h>
 
@@ -91,8 +97,6 @@ static inline bool fscache_object_congested(void)
 	return workqueue_congested(WORK_CPU_UNBOUND, fscache_object_wq);
 }
 
-extern int fscache_wait_bit(void *);
-extern int fscache_wait_bit_interruptible(void *);
 extern int fscache_wait_atomic_t(atomic_t *);
 
 /*
@@ -120,8 +124,7 @@ extern int fscache_submit_exclusive_op(struct fscache_object *,
 				       struct fscache_operation *);
 extern int fscache_submit_op(struct fscache_object *,
 			     struct fscache_operation *);
-extern int fscache_cancel_op(struct fscache_operation *,
-			     void (*)(struct fscache_operation *));
+extern int fscache_cancel_op(struct fscache_operation *, bool);
 extern void fscache_cancel_all_ops(struct fscache_object *);
 extern void fscache_abort_object(struct fscache_object *);
 extern void fscache_start_operations(struct fscache_object *);
@@ -134,8 +137,7 @@ extern int fscache_wait_for_deferred_lookup(struct fscache_cookie *);
 extern int fscache_wait_for_operation_activation(struct fscache_object *,
 						 struct fscache_operation *,
 						 atomic_t *,
-						 atomic_t *,
-						 void (*)(struct fscache_operation *));
+						 atomic_t *);
 extern void fscache_invalidate_writes(struct fscache_cookie *);
 
 /*
@@ -160,6 +162,7 @@ extern atomic_t fscache_n_op_pend;
 extern atomic_t fscache_n_op_run;
 extern atomic_t fscache_n_op_enqueue;
 extern atomic_t fscache_n_op_deferred_release;
+extern atomic_t fscache_n_op_initialised;
 extern atomic_t fscache_n_op_release;
 extern atomic_t fscache_n_op_gc;
 extern atomic_t fscache_n_op_cancelled;
@@ -266,6 +269,11 @@ extern atomic_t fscache_n_cop_allocate_pages;
 extern atomic_t fscache_n_cop_write_page;
 extern atomic_t fscache_n_cop_uncache_page;
 extern atomic_t fscache_n_cop_dissociate_pages;
+
+extern atomic_t fscache_n_cache_no_space_reject;
+extern atomic_t fscache_n_cache_stale_objects;
+extern atomic_t fscache_n_cache_retired_objects;
+extern atomic_t fscache_n_cache_culled_objects;
 
 static inline void fscache_stat(atomic_t *stat)
 {
@@ -413,8 +421,8 @@ do {						\
 #define ASSERT(X)							\
 do {									\
 	if (unlikely(!(X))) {						\
-		printk(KERN_ERR "\n");					\
-		printk(KERN_ERR "FS-Cache: Assertion failed\n");	\
+		pr_err("\n");					\
+		pr_err("Assertion failed\n");	\
 		BUG();							\
 	}								\
 } while (0)
@@ -422,9 +430,9 @@ do {									\
 #define ASSERTCMP(X, OP, Y)						\
 do {									\
 	if (unlikely(!((X) OP (Y)))) {					\
-		printk(KERN_ERR "\n");					\
-		printk(KERN_ERR "FS-Cache: Assertion failed\n");	\
-		printk(KERN_ERR "%lx " #OP " %lx is false\n",		\
+		pr_err("\n");					\
+		pr_err("Assertion failed\n");	\
+		pr_err("%lx " #OP " %lx is false\n",		\
 		       (unsigned long)(X), (unsigned long)(Y));		\
 		BUG();							\
 	}								\
@@ -433,8 +441,8 @@ do {									\
 #define ASSERTIF(C, X)							\
 do {									\
 	if (unlikely((C) && !(X))) {					\
-		printk(KERN_ERR "\n");					\
-		printk(KERN_ERR "FS-Cache: Assertion failed\n");	\
+		pr_err("\n");					\
+		pr_err("Assertion failed\n");	\
 		BUG();							\
 	}								\
 } while (0)
@@ -442,9 +450,9 @@ do {									\
 #define ASSERTIFCMP(C, X, OP, Y)					\
 do {									\
 	if (unlikely((C) && !((X) OP (Y)))) {				\
-		printk(KERN_ERR "\n");					\
-		printk(KERN_ERR "FS-Cache: Assertion failed\n");	\
-		printk(KERN_ERR "%lx " #OP " %lx is false\n",		\
+		pr_err("\n");					\
+		pr_err("Assertion failed\n");	\
+		pr_err("%lx " #OP " %lx is false\n",		\
 		       (unsigned long)(X), (unsigned long)(Y));		\
 		BUG();							\
 	}								\

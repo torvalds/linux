@@ -168,8 +168,8 @@ static int pci_frv_write_config(struct pci_bus *bus, unsigned int devfn, int whe
 }
 
 static struct pci_ops pci_direct_frv = {
-	pci_frv_read_config,
-	pci_frv_write_config,
+	.read = pci_frv_read_config,
+	.write = pci_frv_write_config,
 };
 
 /*
@@ -316,6 +316,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 
 int __init pcibios_init(void)
 {
+	struct pci_bus *bus;
 	struct pci_ops *dir = NULL;
 	LIST_HEAD(resources);
 
@@ -383,12 +384,15 @@ int __init pcibios_init(void)
 	printk("PCI: Probing PCI hardware\n");
 	pci_add_resource(&resources, &pci_ioport_resource);
 	pci_add_resource(&resources, &pci_iomem_resource);
-	pci_scan_root_bus(NULL, 0, pci_root_ops, NULL, &resources);
+	bus = pci_scan_root_bus(NULL, 0, pci_root_ops, NULL, &resources);
 
 	pcibios_irq_init();
 	pcibios_fixup_irqs();
 	pcibios_resource_survey();
+	if (!bus)
+		return 0;
 
+	pci_bus_add_devices(bus);
 	return 0;
 }
 

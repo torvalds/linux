@@ -127,7 +127,6 @@ static int dnp_dio_insn_config(struct comedi_device *dev,
 	outb(val, CSCDR);
 
 	return insn->n;
-
 }
 
 static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -161,8 +160,7 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(PCMR, CSCIR);
 	outb((inb(CSCDR) & 0xAA), CSCDR);
 
-	dev_info(dev->class_dev, "%s: attached\n", dev->board_name);
-	return 1;
+	return 0;
 }
 
 static void dnp_detach(struct comedi_device *dev)

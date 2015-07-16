@@ -19,8 +19,8 @@
  * Author: Kent Yoder <yoder1@us.ibm.com>
  */
 
+#include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
-#include <crypto/hash.h>
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include <crypto/algapi.h>
@@ -29,10 +29,10 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <linux/device.h>
 #include <linux/of.h>
+#include <linux/types.h>
 #include <asm/hvcall.h>
 #include <asm/vio.h>
 
@@ -90,7 +90,7 @@ int nx_hcall_sync(struct nx_crypto_ctx *nx_ctx,
  */
 struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 			       u8           *start_addr,
-			       unsigned int  len,
+			       unsigned int *len,
 			       u32           sgmax)
 {
 	unsigned int sg_len = 0;
@@ -106,7 +106,7 @@ struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 	else
 		sg_addr = __pa(sg_addr);
 
-	end_addr = sg_addr + len;
+	end_addr = sg_addr + *len;
 
 	/* each iteration will write one struct nx_sg element and add the
 	 * length of data described by that element to sg_len. Once @len bytes
@@ -118,7 +118,7 @@ struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 	 * Also when using vmalloc'ed data, every time that a system page
 	 * boundary is crossed the physical address needs to be re-calculated.
 	 */
-	for (sg = sg_head; sg_len < len; sg++) {
+	for (sg = sg_head; sg_len < *len; sg++) {
 		u64 next_page;
 
 		sg->addr = sg_addr;
@@ -133,15 +133,17 @@ struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 				is_vmalloc_addr(start_addr + sg_len)) {
 			sg_addr = page_to_phys(vmalloc_to_page(
 						start_addr + sg_len));
-			end_addr = sg_addr + len - sg_len;
+			end_addr = sg_addr + *len - sg_len;
 		}
 
 		if ((sg - sg_head) == sgmax) {
 			pr_err("nx: scatter/gather list overflow, pid: %d\n",
 			       current->pid);
-			return NULL;
+			sg++;
+			break;
 		}
 	}
+	*len = sg_len;
 
 	/* return the moved sg_head pointer */
 	return sg;
@@ -160,11 +162,11 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
 				unsigned int        sglen,
 				struct scatterlist *sg_src,
 				unsigned int        start,
-				unsigned int        src_len)
+				unsigned int       *src_len)
 {
 	struct scatter_walk walk;
 	struct nx_sg *nx_sg = nx_dst;
-	unsigned int n, offset = 0, len = src_len;
+	unsigned int n, offset = 0, len = *src_len;
 	char *dst;
 
 	/* we need to fast forward through @start bytes first */
@@ -175,31 +177,78 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
 			break;
 
 		offset += sg_src->length;
-		sg_src = scatterwalk_sg_next(sg_src);
+		sg_src = sg_next(sg_src);
 	}
 
 	/* start - offset is the number of bytes to advance in the scatterlist
 	 * element we're currently looking at */
 	scatterwalk_advance(&walk, start - offset);
 
-	while (len && nx_sg) {
+	while (len && (nx_sg - nx_dst) < sglen) {
 		n = scatterwalk_clamp(&walk, len);
 		if (!n) {
+			/* In cases where we have scatterlist chain sg_next
+			 * handles with it properly */
 			scatterwalk_start(&walk, sg_next(walk.sg));
 			n = scatterwalk_clamp(&walk, len);
 		}
 		dst = scatterwalk_map(&walk);
 
-		nx_sg = nx_build_sg_list(nx_sg, dst, n, sglen);
+		nx_sg = nx_build_sg_list(nx_sg, dst, &n, sglen - (nx_sg - nx_dst));
 		len -= n;
 
 		scatterwalk_unmap(dst);
 		scatterwalk_advance(&walk, n);
 		scatterwalk_done(&walk, SCATTERWALK_FROM_SG, len);
 	}
+	/* update to_process */
+	*src_len -= len;
 
 	/* return the moved destination pointer */
 	return nx_sg;
+}
+
+/**
+ * trim_sg_list - ensures the bound in sg list.
+ * @sg: sg list head
+ * @end: sg lisg end
+ * @delta:  is the amount we need to crop in order to bound the list.
+ *
+ */
+static long int trim_sg_list(struct nx_sg *sg,
+			     struct nx_sg *end,
+			     unsigned int delta,
+			     unsigned int *nbytes)
+{
+	long int oplen;
+	long int data_back;
+	unsigned int is_delta = delta;
+
+	while (delta && end > sg) {
+		struct nx_sg *last = end - 1;
+
+		if (last->len > delta) {
+			last->len -= delta;
+			delta = 0;
+		} else {
+			end--;
+			delta -= last->len;
+		}
+	}
+
+	/* There are cases where we need to crop list in order to make it
+	 * a block size multiple, but we also need to align data. In order to
+	 * that we need to calculate how much we need to put back to be
+	 * processed
+	 */
+	oplen = (sg - end) * sizeof(struct nx_sg);
+	if (is_delta) {
+		data_back = (abs(oplen) / AES_BLOCK_SIZE) *  sg->len;
+		data_back = *nbytes - (data_back & ~(AES_BLOCK_SIZE - 1));
+		*nbytes -= data_back;
+	}
+
+	return oplen;
 }
 
 /**
@@ -223,26 +272,39 @@ int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
 		      struct blkcipher_desc *desc,
 		      struct scatterlist    *dst,
 		      struct scatterlist    *src,
-		      unsigned int           nbytes,
+		      unsigned int          *nbytes,
 		      unsigned int           offset,
 		      u8                    *iv)
 {
+	unsigned int delta = 0;
+	unsigned int total = *nbytes;
 	struct nx_sg *nx_insg = nx_ctx->in_sg;
 	struct nx_sg *nx_outsg = nx_ctx->out_sg;
+	unsigned int max_sg_len;
+
+	max_sg_len = min_t(u64, nx_ctx->ap->sglen,
+			nx_driver.of.max_sg_len/sizeof(struct nx_sg));
+	max_sg_len = min_t(u64, max_sg_len,
+			nx_ctx->ap->databytelen/NX_PAGE_SIZE);
 
 	if (iv)
 		memcpy(iv, desc->info, AES_BLOCK_SIZE);
 
-	nx_insg = nx_walk_and_build(nx_insg, nx_ctx->ap->sglen, src,
-				    offset, nbytes);
-	nx_outsg = nx_walk_and_build(nx_outsg, nx_ctx->ap->sglen, dst,
-				    offset, nbytes);
+	*nbytes = min_t(u64, *nbytes, nx_ctx->ap->databytelen);
+
+	nx_outsg = nx_walk_and_build(nx_outsg, max_sg_len, dst,
+					offset, nbytes);
+	nx_insg = nx_walk_and_build(nx_insg, max_sg_len, src,
+					offset, nbytes);
+
+	if (*nbytes < total)
+		delta = *nbytes - (*nbytes & ~(AES_BLOCK_SIZE - 1));
 
 	/* these lengths should be negative, which will indicate to phyp that
 	 * the input and output parameters are scatterlists, not linear
 	 * buffers */
-	nx_ctx->op.inlen = (nx_ctx->in_sg - nx_insg) * sizeof(struct nx_sg);
-	nx_ctx->op.outlen = (nx_ctx->out_sg - nx_outsg) * sizeof(struct nx_sg);
+	nx_ctx->op.inlen = trim_sg_list(nx_ctx->in_sg, nx_insg, delta, nbytes);
+	nx_ctx->op.outlen = trim_sg_list(nx_ctx->out_sg, nx_outsg, delta, nbytes);
 
 	return 0;
 }
@@ -334,6 +396,13 @@ static void nx_of_update_msc(struct device   *dev,
 				dev_err(dev, "unknown function code/mode "
 					"combo: %d/%d (ignored)\n", msc->fc,
 					msc->mode);
+				goto next_loop;
+			}
+
+			if (!trip->sglen || trip->databytelen < NX_PAGE_SIZE) {
+				dev_warn(dev, "bogus sglen/databytelen: "
+					 "%u/%u (ignored)\n", trip->sglen,
+					 trip->databytelen);
 				goto next_loop;
 			}
 
@@ -429,6 +498,72 @@ static void nx_of_init(struct device *dev, struct nx_of *props)
 		nx_of_update_msc(dev, p, props);
 }
 
+static bool nx_check_prop(struct device *dev, u32 fc, u32 mode, int slot)
+{
+	struct alg_props *props = &nx_driver.of.ap[fc][mode][slot];
+
+	if (!props->sglen || props->databytelen < NX_PAGE_SIZE) {
+		if (dev)
+			dev_warn(dev, "bogus sglen/databytelen for %u/%u/%u: "
+				 "%u/%u (ignored)\n", fc, mode, slot,
+				 props->sglen, props->databytelen);
+		return false;
+	}
+
+	return true;
+}
+
+static bool nx_check_props(struct device *dev, u32 fc, u32 mode)
+{
+	int i;
+
+	for (i = 0; i < 3; i++)
+		if (!nx_check_prop(dev, fc, mode, i))
+			return false;
+
+	return true;
+}
+
+static int nx_register_alg(struct crypto_alg *alg, u32 fc, u32 mode)
+{
+	return nx_check_props(&nx_driver.viodev->dev, fc, mode) ?
+	       crypto_register_alg(alg) : 0;
+}
+
+static int nx_register_aead(struct aead_alg *alg, u32 fc, u32 mode)
+{
+	return nx_check_props(&nx_driver.viodev->dev, fc, mode) ?
+	       crypto_register_aead(alg) : 0;
+}
+
+static int nx_register_shash(struct shash_alg *alg, u32 fc, u32 mode, int slot)
+{
+	return (slot >= 0 ? nx_check_prop(&nx_driver.viodev->dev,
+					  fc, mode, slot) :
+			    nx_check_props(&nx_driver.viodev->dev, fc, mode)) ?
+	       crypto_register_shash(alg) : 0;
+}
+
+static void nx_unregister_alg(struct crypto_alg *alg, u32 fc, u32 mode)
+{
+	if (nx_check_props(NULL, fc, mode))
+		crypto_unregister_alg(alg);
+}
+
+static void nx_unregister_aead(struct aead_alg *alg, u32 fc, u32 mode)
+{
+	if (nx_check_props(NULL, fc, mode))
+		crypto_unregister_aead(alg);
+}
+
+static void nx_unregister_shash(struct shash_alg *alg, u32 fc, u32 mode,
+				int slot)
+{
+	if (slot >= 0 ? nx_check_prop(NULL, fc, mode, slot) :
+			nx_check_props(NULL, fc, mode))
+		crypto_unregister_shash(alg);
+}
+
 /**
  * nx_register_algs - register algorithms with the crypto API
  *
@@ -453,72 +588,77 @@ static int nx_register_algs(void)
 
 	nx_driver.of.status = NX_OKAY;
 
-	rc = crypto_register_alg(&nx_ecb_aes_alg);
+	rc = nx_register_alg(&nx_ecb_aes_alg, NX_FC_AES, NX_MODE_AES_ECB);
 	if (rc)
 		goto out;
 
-	rc = crypto_register_alg(&nx_cbc_aes_alg);
+	rc = nx_register_alg(&nx_cbc_aes_alg, NX_FC_AES, NX_MODE_AES_CBC);
 	if (rc)
 		goto out_unreg_ecb;
 
-	rc = crypto_register_alg(&nx_ctr_aes_alg);
+	rc = nx_register_alg(&nx_ctr_aes_alg, NX_FC_AES, NX_MODE_AES_CTR);
 	if (rc)
 		goto out_unreg_cbc;
 
-	rc = crypto_register_alg(&nx_ctr3686_aes_alg);
+	rc = nx_register_alg(&nx_ctr3686_aes_alg, NX_FC_AES, NX_MODE_AES_CTR);
 	if (rc)
 		goto out_unreg_ctr;
 
-	rc = crypto_register_alg(&nx_gcm_aes_alg);
+	rc = nx_register_aead(&nx_gcm_aes_alg, NX_FC_AES, NX_MODE_AES_GCM);
 	if (rc)
 		goto out_unreg_ctr3686;
 
-	rc = crypto_register_alg(&nx_gcm4106_aes_alg);
+	rc = nx_register_aead(&nx_gcm4106_aes_alg, NX_FC_AES, NX_MODE_AES_GCM);
 	if (rc)
 		goto out_unreg_gcm;
 
-	rc = crypto_register_alg(&nx_ccm_aes_alg);
+	rc = nx_register_alg(&nx_ccm_aes_alg, NX_FC_AES, NX_MODE_AES_CCM);
 	if (rc)
 		goto out_unreg_gcm4106;
 
-	rc = crypto_register_alg(&nx_ccm4309_aes_alg);
+	rc = nx_register_alg(&nx_ccm4309_aes_alg, NX_FC_AES, NX_MODE_AES_CCM);
 	if (rc)
 		goto out_unreg_ccm;
 
-	rc = crypto_register_shash(&nx_shash_sha256_alg);
+	rc = nx_register_shash(&nx_shash_sha256_alg, NX_FC_SHA, NX_MODE_SHA,
+			       NX_PROPS_SHA256);
 	if (rc)
 		goto out_unreg_ccm4309;
 
-	rc = crypto_register_shash(&nx_shash_sha512_alg);
+	rc = nx_register_shash(&nx_shash_sha512_alg, NX_FC_SHA, NX_MODE_SHA,
+			       NX_PROPS_SHA512);
 	if (rc)
 		goto out_unreg_s256;
 
-	rc = crypto_register_shash(&nx_shash_aes_xcbc_alg);
+	rc = nx_register_shash(&nx_shash_aes_xcbc_alg,
+			       NX_FC_AES, NX_MODE_AES_XCBC_MAC, -1);
 	if (rc)
 		goto out_unreg_s512;
 
 	goto out;
 
 out_unreg_s512:
-	crypto_unregister_shash(&nx_shash_sha512_alg);
+	nx_unregister_shash(&nx_shash_sha512_alg, NX_FC_SHA, NX_MODE_SHA,
+			    NX_PROPS_SHA512);
 out_unreg_s256:
-	crypto_unregister_shash(&nx_shash_sha256_alg);
+	nx_unregister_shash(&nx_shash_sha256_alg, NX_FC_SHA, NX_MODE_SHA,
+			    NX_PROPS_SHA256);
 out_unreg_ccm4309:
-	crypto_unregister_alg(&nx_ccm4309_aes_alg);
+	nx_unregister_alg(&nx_ccm4309_aes_alg, NX_FC_AES, NX_MODE_AES_CCM);
 out_unreg_ccm:
-	crypto_unregister_alg(&nx_ccm_aes_alg);
+	nx_unregister_alg(&nx_ccm_aes_alg, NX_FC_AES, NX_MODE_AES_CCM);
 out_unreg_gcm4106:
-	crypto_unregister_alg(&nx_gcm4106_aes_alg);
+	nx_unregister_aead(&nx_gcm4106_aes_alg, NX_FC_AES, NX_MODE_AES_GCM);
 out_unreg_gcm:
-	crypto_unregister_alg(&nx_gcm_aes_alg);
+	nx_unregister_aead(&nx_gcm_aes_alg, NX_FC_AES, NX_MODE_AES_GCM);
 out_unreg_ctr3686:
-	crypto_unregister_alg(&nx_ctr3686_aes_alg);
+	nx_unregister_alg(&nx_ctr3686_aes_alg, NX_FC_AES, NX_MODE_AES_CTR);
 out_unreg_ctr:
-	crypto_unregister_alg(&nx_ctr_aes_alg);
+	nx_unregister_alg(&nx_ctr_aes_alg, NX_FC_AES, NX_MODE_AES_CTR);
 out_unreg_cbc:
-	crypto_unregister_alg(&nx_cbc_aes_alg);
+	nx_unregister_alg(&nx_cbc_aes_alg, NX_FC_AES, NX_MODE_AES_CBC);
 out_unreg_ecb:
-	crypto_unregister_alg(&nx_ecb_aes_alg);
+	nx_unregister_alg(&nx_ecb_aes_alg, NX_FC_AES, NX_MODE_AES_ECB);
 out:
 	return rc;
 }
@@ -540,10 +680,10 @@ static int nx_crypto_ctx_init(struct nx_crypto_ctx *nx_ctx, u32 fc, u32 mode)
 
 	/* we need an extra page for csbcpb_aead for these modes */
 	if (mode == NX_MODE_AES_GCM || mode == NX_MODE_AES_CCM)
-		nx_ctx->kmem_len = (4 * NX_PAGE_SIZE) +
+		nx_ctx->kmem_len = (5 * NX_PAGE_SIZE) +
 				   sizeof(struct nx_csbcpb);
 	else
-		nx_ctx->kmem_len = (3 * NX_PAGE_SIZE) +
+		nx_ctx->kmem_len = (4 * NX_PAGE_SIZE) +
 				   sizeof(struct nx_csbcpb);
 
 	nx_ctx->kmem = kmalloc(nx_ctx->kmem_len, GFP_KERNEL);
@@ -573,13 +713,16 @@ static int nx_crypto_ctx_init(struct nx_crypto_ctx *nx_ctx, u32 fc, u32 mode)
 /* entry points from the crypto tfm initializers */
 int nx_crypto_ctx_aes_ccm_init(struct crypto_tfm *tfm)
 {
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+				sizeof(struct nx_ccm_rctx));
 	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_AES,
 				  NX_MODE_AES_CCM);
 }
 
-int nx_crypto_ctx_aes_gcm_init(struct crypto_tfm *tfm)
+int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm)
 {
-	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_AES,
+	crypto_aead_set_reqsize(tfm, sizeof(struct nx_gcm_rctx));
+	return nx_crypto_ctx_init(crypto_aead_ctx(tfm), NX_FC_AES,
 				  NX_MODE_AES_GCM);
 }
 
@@ -631,6 +774,13 @@ void nx_crypto_ctx_exit(struct crypto_tfm *tfm)
 	nx_ctx->out_sg = NULL;
 }
 
+void nx_crypto_ctx_aead_exit(struct crypto_aead *tfm)
+{
+	struct nx_crypto_ctx *nx_ctx = crypto_aead_ctx(tfm);
+
+	kzfree(nx_ctx->kmem);
+}
+
 static int nx_probe(struct vio_dev *viodev, const struct vio_device_id *id)
 {
 	dev_dbg(&viodev->dev, "driver probed: %s resource id: 0x%x\n",
@@ -657,17 +807,24 @@ static int nx_remove(struct vio_dev *viodev)
 	if (nx_driver.of.status == NX_OKAY) {
 		NX_DEBUGFS_FINI(&nx_driver);
 
-		crypto_unregister_alg(&nx_ccm_aes_alg);
-		crypto_unregister_alg(&nx_ccm4309_aes_alg);
-		crypto_unregister_alg(&nx_gcm_aes_alg);
-		crypto_unregister_alg(&nx_gcm4106_aes_alg);
-		crypto_unregister_alg(&nx_ctr_aes_alg);
-		crypto_unregister_alg(&nx_ctr3686_aes_alg);
-		crypto_unregister_alg(&nx_cbc_aes_alg);
-		crypto_unregister_alg(&nx_ecb_aes_alg);
-		crypto_unregister_shash(&nx_shash_sha256_alg);
-		crypto_unregister_shash(&nx_shash_sha512_alg);
-		crypto_unregister_shash(&nx_shash_aes_xcbc_alg);
+		nx_unregister_shash(&nx_shash_aes_xcbc_alg,
+				    NX_FC_AES, NX_MODE_AES_XCBC_MAC, -1);
+		nx_unregister_shash(&nx_shash_sha512_alg,
+				    NX_FC_SHA, NX_MODE_SHA, NX_PROPS_SHA256);
+		nx_unregister_shash(&nx_shash_sha256_alg,
+				    NX_FC_SHA, NX_MODE_SHA, NX_PROPS_SHA512);
+		nx_unregister_alg(&nx_ccm4309_aes_alg,
+				  NX_FC_AES, NX_MODE_AES_CCM);
+		nx_unregister_alg(&nx_ccm_aes_alg, NX_FC_AES, NX_MODE_AES_CCM);
+		nx_unregister_aead(&nx_gcm4106_aes_alg,
+				   NX_FC_AES, NX_MODE_AES_GCM);
+		nx_unregister_aead(&nx_gcm_aes_alg,
+				   NX_FC_AES, NX_MODE_AES_GCM);
+		nx_unregister_alg(&nx_ctr3686_aes_alg,
+				  NX_FC_AES, NX_MODE_AES_CTR);
+		nx_unregister_alg(&nx_ctr_aes_alg, NX_FC_AES, NX_MODE_AES_CTR);
+		nx_unregister_alg(&nx_cbc_aes_alg, NX_FC_AES, NX_MODE_AES_CBC);
+		nx_unregister_alg(&nx_ecb_aes_alg, NX_FC_AES, NX_MODE_AES_ECB);
 	}
 
 	return 0;

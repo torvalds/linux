@@ -402,6 +402,7 @@
  * block and vice versa.  This applies to GRPH, CUR, etc.
  */
 #define AVIVO_D1GRPH_LUT_SEL                                    0x6108
+#       define AVIVO_LUT_10BIT_BYPASS_EN                        (1 << 8)
 #define AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS                    0x6110
 #define R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH                0x6914
 #define R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH                0x6114

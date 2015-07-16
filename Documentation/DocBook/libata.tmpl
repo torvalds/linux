@@ -677,7 +677,7 @@ and other resources, etc.
 
 	<listitem>
 	<para>
-	ATA_QCFLAG_ACTIVE is clared from qc->flags.
+	ATA_QCFLAG_ACTIVE is cleared from qc->flags.
 	</para>
 	</listitem>
 
@@ -708,7 +708,7 @@ and other resources, etc.
 
 	   <listitem>
 	   <para>
-	   qc->waiting is claread &amp; completed (in that order).
+	   qc->waiting is cleared &amp; completed (in that order).
 	   </para>
 	   </listitem>
 
@@ -1163,7 +1163,7 @@ and other resources, etc.
 
 	<para>
 	Once sense data is acquired, this type of errors can be
-	handled similary to other SCSI errors.  Note that sense data
+	handled similarly to other SCSI errors.  Note that sense data
 	may indicate ATA bus error (e.g. Sense Key 04h HARDWARE ERROR
 	&amp;&amp; ASC/ASCQ 47h/00h SCSI PARITY ERROR).  In such
 	cases, the error should be considered as an ATA bus error and

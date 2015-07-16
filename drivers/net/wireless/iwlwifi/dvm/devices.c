@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -317,7 +317,7 @@ static const struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.nrg_th_cca = 62,
 };
 
-static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
+static const struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 	.min_nrg_cck = 95,
 	.auto_corr_min_ofdm = 90,
 	.auto_corr_min_ofdm_mrc = 170,
@@ -417,7 +417,6 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
 		.len = { sizeof(cmd), },
-		.flags = CMD_SYNC,
 		.data = { &cmd, },
 	};
 
@@ -579,7 +578,6 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
 		.len = { sizeof(*cmd), },
-		.flags = CMD_SYNC,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
 	int err;

@@ -17,9 +17,10 @@ config CPU_S3C6410
 	help
 	  Enable S3C6410 CPU support
 
-config S3C64XX_DMA
-	bool "S3C64XX DMA"
-	select S3C_DMA
+config S3C64XX_PL080
+	def_bool DMADEVICES
+	select ARM_AMBA
+	select AMBA_PL08X
 
 config S3C64XX_SETUP_SDHCI
 	bool
@@ -85,8 +86,7 @@ config MACH_SMDK6400
        bool "SMDK6400"
 	select CPU_S3C6400
 	select S3C64XX_SETUP_SDHCI
-	select S3C_DEV_HSMMC
-	select S3C_DEV_NAND
+	select S3C_DEV_HSMMC1
 	help
 	  Machine support for the Samsung SMDK6400
 
@@ -189,10 +189,10 @@ endchoice
 config SMDK6410_WM1190_EV1
 	bool "Support Wolfson Microelectronics 1190-EV1 PMIC card"
 	depends on MACH_SMDK6410
+	depends on I2C=y
 	select MFD_WM8350_I2C
 	select REGULATOR
 	select REGULATOR_WM8350
-	select SAMSUNG_GPIO_EXTRA64
 	help
 	  The Wolfson Microelectronics 1190-EV1 is a WM835x based PMIC
 	  and audio daughtercard for the Samsung SMDK6410 reference
@@ -204,11 +204,11 @@ config SMDK6410_WM1190_EV1
 config SMDK6410_WM1192_EV1
 	bool "Support Wolfson Microelectronics 1192-EV1 PMIC card"
 	depends on MACH_SMDK6410
+	depends on I2C=y
 	select MFD_WM831X
 	select MFD_WM831X_I2C
 	select REGULATOR
 	select REGULATOR_WM831X
-	select SAMSUNG_GPIO_EXTRA64
 	help
 	  The Wolfson Microelectronics 1192-EV1 is a WM831x based PMIC
 	  daughtercard for the Samsung SMDK6410 reference platform.
@@ -271,8 +271,8 @@ config MACH_SMARTQ7
 
 config MACH_WLF_CRAGG_6410
 	bool "Wolfson Cragganmore 6410"
+	depends on I2C=y
 	select CPU_S3C6410
-	select I2C
 	select LEDS_GPIO_REGISTER
 	select S3C64XX_DEV_SPI0
 	select S3C64XX_SETUP_FB_24BPP
@@ -294,7 +294,6 @@ config MACH_WLF_CRAGG_6410
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_DEV_PWM
-	select SAMSUNG_GPIO_EXTRA128
 	help
 	  Machine support for the Wolfson Cragganmore S3C6410 variant.
 

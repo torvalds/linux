@@ -300,7 +300,7 @@ static ssize_t store_fan16(struct device *dev,
  * respectively. That doesn't mean that's what the motherboard provides. :)
  */
 
-static int asc7621_in_scaling[] = {
+static const int asc7621_in_scaling[] = {
 	2500, 2250, 3300, 5000, 12000
 };
 
@@ -451,7 +451,7 @@ static ssize_t store_temp62(struct device *dev,
  * hwmon specs, we synthesize the auto_point_2 from them.
  */
 
-static u32 asc7621_range_map[] = {
+static const u32 asc7621_range_map[] = {
 	2000, 2500, 3330, 4000, 5000, 6670, 8000, 10000,
 	13330, 16000, 20000, 26670, 32000, 40000, 53330, 80000,
 };
@@ -512,7 +512,7 @@ static ssize_t show_pwm_ac(struct device *dev,
 {
 	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 config, altbit, regval;
-	u8 map[] = {
+	const u8 map[] = {
 		0x01, 0x02, 0x04, 0x1f, 0x00, 0x06, 0x07, 0x10,
 		0x08, 0x0f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f
 	};
@@ -533,7 +533,7 @@ static ssize_t store_pwm_ac(struct device *dev,
 	SETUP_STORE_DATA_PARAM(dev, attr);
 	unsigned long reqval;
 	u8 currval, config, altbit, newval;
-	u16 map[] = {
+	const u16 map[] = {
 		0x04, 0x00, 0x01, 0xff, 0x02, 0xff, 0x05, 0x06,
 		0x08, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0f,
 		0x07, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -651,7 +651,7 @@ static ssize_t store_pwm_enable(struct device *dev,
 	return count;
 }
 
-static u32 asc7621_pwm_freq_map[] = {
+static const u32 asc7621_pwm_freq_map[] = {
 	10, 15, 23, 30, 38, 47, 62, 94,
 	23000, 24000, 25000, 26000, 27000, 28000, 29000, 30000
 };
@@ -700,7 +700,7 @@ static ssize_t store_pwm_freq(struct device *dev,
 	return count;
 }
 
-static u32 asc7621_pwm_auto_spinup_map[] =  {
+static const u32 asc7621_pwm_auto_spinup_map[] =  {
 	0, 100, 250, 400, 700, 1000, 2000, 4000
 };
 
@@ -749,7 +749,7 @@ static ssize_t store_pwm_ast(struct device *dev,
 	return count;
 }
 
-static u32 asc7621_temp_smoothing_time_map[] = {
+static const u32 asc7621_temp_smoothing_time_map[] = {
 	35000, 17600, 11800, 7000, 4400, 3000, 1600, 800
 };
 
@@ -1115,7 +1115,6 @@ asc7621_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	/* Initialize the asc7621 chip */

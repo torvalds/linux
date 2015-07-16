@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,7 @@ acpi_status acpi_ns_initialize_objects(void)
 
 	/* Set all init info to zero */
 
-	ACPI_MEMSET(&info, 0, sizeof(struct acpi_init_walk_info));
+	memset(&info, 0, sizeof(struct acpi_init_walk_info));
 
 	/* Walk entire namespace from the supplied root */
 
@@ -111,9 +111,8 @@ acpi_status acpi_ns_initialize_objects(void)
 			      info.object_count));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "%u Control Methods found\n", info.method_count));
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "%u Op Regions found\n", info.op_region_count));
+			  "%u Control Methods found\n%u Op Regions found\n",
+			  info.method_count, info.op_region_count));
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -567,7 +566,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
 			(ACPI_TYPE_METHOD, device_node, METHOD_NAME__INI));
 
-	ACPI_MEMSET(info, 0, sizeof(struct acpi_evaluate_info));
+	memset(info, 0, sizeof(struct acpi_evaluate_info));
 	info->prefix_node = device_node;
 	info->relative_pathname = METHOD_NAME__INI;
 	info->parameters = NULL;

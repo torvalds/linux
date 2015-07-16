@@ -23,7 +23,6 @@
 #ifndef _ATL1E_H_
 #define _ATL1E_H_
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/errno.h>

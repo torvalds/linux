@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/ata.h>
 #include <linux/libata.h>
@@ -386,7 +385,6 @@ static struct platform_driver pxa_ata_driver = {
 	.remove		= pxa_ata_remove,
 	.driver		= {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 	},
 };
 

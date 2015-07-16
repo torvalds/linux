@@ -82,8 +82,8 @@ static inline unsigned long leon_load_reg(unsigned long paddr)
 #define LEON_BYPASS_LOAD_PA(x)      leon_load_reg((unsigned long)(x))
 #define LEON_BYPASS_STORE_PA(x, v)  leon_store_reg((unsigned long)(x), (unsigned long)(v))
 
-extern void leon_switch_mm(void);
-extern void leon_init_IRQ(void);
+void leon_switch_mm(void);
+void leon_init_IRQ(void);
 
 static inline unsigned long sparc_leon3_get_dcachecfg(void)
 {
@@ -196,14 +196,14 @@ static inline int sparc_leon3_cpuid(void)
 #ifndef __ASSEMBLY__
 struct vm_area_struct;
 
-extern unsigned long leon_swprobe(unsigned long vaddr, unsigned long *paddr);
-extern void leon_flush_icache_all(void);
-extern void leon_flush_dcache_all(void);
-extern void leon_flush_cache_all(void);
-extern void leon_flush_tlb_all(void);
+unsigned long leon_swprobe(unsigned long vaddr, unsigned long *paddr);
+void leon_flush_icache_all(void);
+void leon_flush_dcache_all(void);
+void leon_flush_cache_all(void);
+void leon_flush_tlb_all(void);
 extern int leon_flush_during_switch;
-extern int leon_flush_needed(void);
-extern void leon_flush_pcache_all(struct vm_area_struct *vma, unsigned long page);
+int leon_flush_needed(void);
+void leon_flush_pcache_all(struct vm_area_struct *vma, unsigned long page);
 
 /* struct that hold LEON3 cache configuration registers */
 struct leon3_cacheregs {
@@ -217,29 +217,29 @@ struct leon3_cacheregs {
 
 struct device_node;
 struct task_struct;
-extern unsigned int leon_build_device_irq(unsigned int real_irq,
-					   irq_flow_handler_t flow_handler,
-					   const char *name, int do_ack);
-extern void leon_update_virq_handling(unsigned int virq,
-			      irq_flow_handler_t flow_handler,
-			      const char *name, int do_ack);
-extern void leon_init_timers(void);
-extern void leon_trans_init(struct device_node *dp);
-extern void leon_node_init(struct device_node *dp, struct device_node ***nextp);
-extern void init_leon(void);
-extern void poke_leonsparc(void);
-extern void leon3_getCacheRegs(struct leon3_cacheregs *regs);
+unsigned int leon_build_device_irq(unsigned int real_irq,
+				   irq_flow_handler_t flow_handler,
+				   const char *name, int do_ack);
+void leon_update_virq_handling(unsigned int virq,
+			       irq_flow_handler_t flow_handler,
+			       const char *name, int do_ack);
+void leon_init_timers(void);
+void leon_trans_init(struct device_node *dp);
+void leon_node_init(struct device_node *dp, struct device_node ***nextp);
+void init_leon(void);
+void poke_leonsparc(void);
+void leon3_getCacheRegs(struct leon3_cacheregs *regs);
 extern int leon3_ticker_irq;
 
 #ifdef CONFIG_SMP
-extern int leon_smp_nrcpus(void);
-extern void leon_clear_profile_irq(int cpu);
-extern void leon_smp_done(void);
-extern void leon_boot_cpus(void);
-extern int leon_boot_one_cpu(int i, struct task_struct *);
+int leon_smp_nrcpus(void);
+void leon_clear_profile_irq(int cpu);
+void leon_smp_done(void);
+void leon_boot_cpus(void);
+int leon_boot_one_cpu(int i, struct task_struct *);
 void leon_init_smp(void);
 void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu);
-extern irqreturn_t leon_percpu_timer_interrupt(int irq, void *unused);
+irqreturn_t leon_percpu_timer_interrupt(int irq, void *unused);
 
 extern unsigned int smpleon_ipi[];
 extern unsigned int linux_trap_ipi15_leon[];

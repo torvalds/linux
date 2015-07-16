@@ -1,0 +1,34 @@
+* Mediatek Universal Asynchronous Receiver/Transmitter (UART)
+
+Required properties:
+- compatible should contain:
+  * "mediatek,mt8135-uart" for MT8135 compatible UARTS
+  * "mediatek,mt8127-uart" for MT8127 compatible UARTS
+  * "mediatek,mt8173-uart" for MT8173 compatible UARTS
+  * "mediatek,mt6589-uart" for MT6589 compatible UARTS
+  * "mediatek,mt6582-uart" for MT6582 compatible UARTS
+  * "mediatek,mt6577-uart" for all compatible UARTS (MT8173, MT6589, MT6582, 
+	MT6577)
+
+- reg: The base address of the UART register bank.
+
+- interrupts: A single interrupt specifier.
+
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names:
+  - "baud": The clock the baudrate is derived from
+  - "bus": The bus clock for register accesses (optional)
+
+For compatibility with older device trees an unnamed clock is used for the
+baud clock if the baudclk does not exist. Do not use this for new designs.
+
+Example:
+
+	uart0: serial@11006000 {
+		compatible = "mediatek,mt6589-uart", "mediatek,mt6577-uart";
+		reg = <0x11006000 0x400>;
+		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&uart_clk>, <&bus_clk>;
+		clock-names = "baud", "bus";
+	};

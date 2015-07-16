@@ -323,10 +323,8 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(struct wdt_at32ap700x),
 			GFP_KERNEL);
-	if (!wdt) {
-		dev_dbg(&pdev->dev, "no memory for wdt structure\n");
+	if (!wdt)
 		return -ENOMEM;
-	}
 
 	wdt->regs = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
 	if (!wdt->regs) {
@@ -424,7 +422,6 @@ static struct platform_driver at32_wdt_driver = {
 	.resume		= at32_wdt_resume,
 	.driver		= {
 		.name	= "at32_wdt",
-		.owner	= THIS_MODULE,
 	},
 	.shutdown	= at32_wdt_shutdown,
 };

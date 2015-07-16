@@ -33,22 +33,28 @@
 #include <linux/acpi.h>
 #include <linux/cper.h>
 #include <acpi/apei.h>
+#include <acpi/ghes.h>
 #include <asm/mce.h>
 
 #include "mce-internal.h"
 
-void apei_mce_report_mem_error(int corrected, struct cper_sec_mem_err *mem_err)
+void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 {
 	struct mce m;
 
-	/* Only corrected MC is reported */
-	if (!corrected || !(mem_err->validation_bits & CPER_MEM_VALID_PA))
+	if (!(mem_err->validation_bits & CPER_MEM_VALID_PA))
 		return;
 
 	mce_setup(&m);
 	m.bank = 1;
-	/* Fake a memory read corrected error with unknown channel */
+	/* Fake a memory read error with unknown channel */
 	m.status = MCI_STATUS_VAL | MCI_STATUS_EN | MCI_STATUS_ADDRV | 0x9f;
+
+	if (severity >= GHES_SEV_RECOVERABLE)
+		m.status |= MCI_STATUS_UC;
+	if (severity >= GHES_SEV_PANIC)
+		m.status |= MCI_STATUS_PCC;
+
 	m.addr = mem_err->physical_addr;
 	mce_log(&m);
 	mce_notify_irq();

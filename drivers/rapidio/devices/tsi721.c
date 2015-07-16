@@ -768,15 +768,10 @@ static int tsi721_enable_msix(struct tsi721_device *priv)
 	}
 #endif /* CONFIG_RAPIDIO_DMA_ENGINE */
 
-	err = pci_enable_msix(priv->pdev, entries, ARRAY_SIZE(entries));
+	err = pci_enable_msix_exact(priv->pdev, entries, ARRAY_SIZE(entries));
 	if (err) {
-		if (err > 0)
-			dev_info(&priv->pdev->dev,
-				 "Only %d MSI-X vectors available, "
-				 "not using MSI-X\n", err);
-		else
-			dev_err(&priv->pdev->dev,
-				"Failed to enable MSI-X (err=%d)\n", err);
+		dev_err(&priv->pdev->dev,
+			"Failed to enable MSI-X (err=%d)\n", err);
 		return err;
 	}
 
@@ -2256,6 +2251,7 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 	mport->phy_type = RIO_PHY_SERIAL;
 	mport->priv = (void *)priv;
 	mport->phys_efptr = 0x100;
+	mport->dev.parent = &pdev->dev;
 	priv->mport = mport;
 
 	INIT_LIST_HEAD(&mport->dbells);
@@ -2434,7 +2430,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
 		PCI_EXP_DEVCTL_READRQ | PCI_EXP_DEVCTL_RELAX_EN |
 		PCI_EXP_DEVCTL_NOSNOOP_EN,
-		0x2 << MAX_READ_REQUEST_SZ_SHIFT);
+		PCI_EXP_DEVCTL_READRQ_512B);
 
 	/* Adjust PCIe completion timeout. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL2, 0xf, 0x2);
@@ -2497,7 +2493,7 @@ err_exit:
 	return err;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(tsi721_pci_tbl) = {
+static const struct pci_device_id tsi721_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IDT, PCI_DEVICE_ID_TSI721) },
 	{ 0, }	/* terminate list */
 };

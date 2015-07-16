@@ -23,6 +23,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "sumod.h"
 #include "r600_dpm.h"
 #include "cypress_dpm.h"
@@ -71,7 +72,7 @@ static const u32 sumo_dtc[SUMO_PM_NUMBER_OF_TC] =
 	SUMO_DTC_DFLT_14,
 };
 
-struct sumo_ps *sumo_get_ps(struct radeon_ps *rps)
+static struct sumo_ps *sumo_get_ps(struct radeon_ps *rps)
 {
 	struct sumo_ps *ps = rps->ps_priv;
 
@@ -1202,14 +1203,10 @@ static void sumo_update_requested_ps(struct radeon_device *rdev,
 int sumo_dpm_enable(struct radeon_device *rdev)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
-	int ret;
 
 	if (sumo_dpm_enabled(rdev))
 		return -EINVAL;
 
-	ret = sumo_enable_clock_power_gating(rdev);
-	if (ret)
-		return ret;
 	sumo_program_bootup_state(rdev);
 	sumo_init_bsp(rdev);
 	sumo_reset_am(rdev);
@@ -1233,6 +1230,19 @@ int sumo_dpm_enable(struct radeon_device *rdev)
 	if (pi->enable_boost)
 		sumo_enable_boost_timer(rdev);
 
+	sumo_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+
+	return 0;
+}
+
+int sumo_dpm_late_enable(struct radeon_device *rdev)
+{
+	int ret;
+
+	ret = sumo_enable_clock_power_gating(rdev);
+	if (ret)
+		return ret;
+
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 		ret = sumo_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
@@ -1241,8 +1251,6 @@ int sumo_dpm_enable(struct radeon_device *rdev)
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 	}
-
-	sumo_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
 
 	return 0;
 }
@@ -1330,6 +1338,7 @@ void sumo_dpm_post_set_power_state(struct radeon_device *rdev)
 	sumo_update_current_ps(rdev, new_ps);
 }
 
+#if 0
 void sumo_dpm_reset_asic(struct radeon_device *rdev)
 {
 	sumo_program_bootup_state(rdev);
@@ -1341,6 +1350,7 @@ void sumo_dpm_reset_asic(struct radeon_device *rdev)
 	sumo_set_forced_mode_enabled(rdev);
 	sumo_set_forced_mode_disabled(rdev);
 }
+#endif
 
 void sumo_dpm_setup_asic(struct radeon_device *rdev)
 {
@@ -1477,9 +1487,6 @@ static int sumo_parse_power_table(struct radeon_device *rdev)
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
@@ -1532,6 +1539,7 @@ u32 sumo_convert_vid2_to_vid7(struct radeon_device *rdev,
 	return vid_mapping_table->entries[vid_mapping_table->num_entries - 1].vid_7bit;
 }
 
+#if 0
 u32 sumo_convert_vid7_to_vid2(struct radeon_device *rdev,
 			      struct sumo_vid_mapping_table *vid_mapping_table,
 			      u32 vid_7bit)
@@ -1545,6 +1553,7 @@ u32 sumo_convert_vid7_to_vid2(struct radeon_device *rdev,
 
 	return vid_mapping_table->entries[vid_mapping_table->num_entries - 1].vid_2bit;
 }
+#endif
 
 static u16 sumo_convert_voltage_index_to_value(struct radeon_device *rdev,
 					       u32 vid_2bit)
@@ -1765,6 +1774,10 @@ int sumo_dpm_init(struct radeon_device *rdev)
 
 	sumo_construct_boot_and_acpi_state(rdev);
 
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
+
 	ret = sumo_parse_power_table(rdev);
 	if (ret)
 		return ret;
@@ -1800,7 +1813,7 @@ void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev
 						      struct seq_file *m)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct radeon_ps *rps = &pi->current_rps;
 	struct sumo_ps *ps = sumo_get_ps(rps);
 	struct sumo_pl *pl;
 	u32 current_index =
@@ -1822,6 +1835,34 @@ void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev
 			   current_index, pl->sclk,
 			   sumo_convert_voltage_index_to_value(rdev, pl->vddc_index));
 	}
+}
+
+u32 sumo_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	struct radeon_ps *rps = &pi->current_rps;
+	struct sumo_ps *ps = sumo_get_ps(rps);
+	struct sumo_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURR_INDEX_MASK) >>
+		CURR_INDEX_SHIFT;
+
+	if (current_index == BOOST_DPM_LEVEL) {
+		pl = &pi->boost_pl;
+		return pl->sclk;
+	} else if (current_index >= ps->num_levels) {
+		return 0;
+	} else {
+		pl = &ps->levels[current_index];
+		return pl->sclk;
+	}
+}
+
+u32 sumo_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+
+	return pi->sys_info.bootup_uma_clk;
 }
 
 void sumo_dpm_fini(struct radeon_device *rdev)

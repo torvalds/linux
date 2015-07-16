@@ -94,7 +94,7 @@
 		scsi_opcode_name(WRITE_16),			\
 		scsi_opcode_name(VERIFY_16),			\
 		scsi_opcode_name(WRITE_SAME_16),		\
-		scsi_opcode_name(SERVICE_ACTION_IN),		\
+		scsi_opcode_name(SERVICE_ACTION_IN_16),		\
 		scsi_opcode_name(SAI_READ_CAPACITY_16),		\
 		scsi_opcode_name(SAI_GET_LBA_STATUS),		\
 		scsi_opcode_name(MI_REPORT_TARGET_PGS),		\

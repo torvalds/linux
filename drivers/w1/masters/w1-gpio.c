@@ -18,9 +18,30 @@
 #include <linux/of_gpio.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/delay.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
+
+static u8 w1_gpio_set_pullup(void *data, int delay)
+{
+	struct w1_gpio_platform_data *pdata = data;
+
+	if (delay) {
+		pdata->pullup_duration = delay;
+	} else {
+		if (pdata->pullup_duration) {
+			gpio_direction_output(pdata->pin, 1);
+
+			msleep(pdata->pullup_duration);
+
+			gpio_direction_input(pdata->pin);
+		}
+		pdata->pullup_duration = 0;
+	}
+
+	return 0;
+}
 
 static void w1_gpio_write_bit_dir(void *data, u8 bit)
 {
@@ -47,7 +68,7 @@ static u8 w1_gpio_read_bit(void *data)
 }
 
 #if defined(CONFIG_OF)
-static struct of_device_id w1_gpio_dt_ids[] = {
+static const struct of_device_id w1_gpio_dt_ids[] = {
 	{ .compatible = "w1-gpio" },
 	{}
 };
@@ -68,11 +89,22 @@ static int w1_gpio_probe_dt(struct platform_device *pdev)
 		pdata->is_open_drain = 1;
 
 	gpio = of_get_gpio(np, 0);
-	if (gpio < 0)
+	if (gpio < 0) {
+		if (gpio != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+					"Failed to parse gpio property for data pin (%d)\n",
+					gpio);
+
 		return gpio;
+	}
 	pdata->pin = gpio;
 
-	pdata->ext_pullup_enable_pin = of_get_gpio(np, 1);
+	gpio = of_get_gpio(np, 1);
+	if (gpio == -EPROBE_DEFER)
+		return gpio;
+	/* ignore other errors as the pullup gpio is optional */
+	pdata->ext_pullup_enable_pin = gpio;
+
 	pdev->dev.platform_data = pdata;
 
 	return 0;
@@ -86,10 +118,8 @@ static int w1_gpio_probe(struct platform_device *pdev)
 
 	if (of_have_populated_dt()) {
 		err = w1_gpio_probe_dt(pdev);
-		if (err < 0) {
-			dev_err(&pdev->dev, "Failed to parse DT\n");
+		if (err < 0)
 			return err;
-		}
 	}
 
 	pdata = dev_get_platdata(&pdev->dev);
@@ -132,6 +162,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	} else {
 		gpio_direction_input(pdata->pin);
 		master->write_bit = w1_gpio_write_bit_dir;
+		master->set_pullup = w1_gpio_set_pullup;
 	}
 
 	err = w1_add_master_device(master);
@@ -197,7 +228,6 @@ static int w1_gpio_resume(struct platform_device *pdev)
 static struct platform_driver w1_gpio_driver = {
 	.driver = {
 		.name	= "w1-gpio",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(w1_gpio_dt_ids),
 	},
 	.probe = w1_gpio_probe,

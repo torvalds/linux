@@ -1,0 +1,16 @@
+config SND_SOC_ROCKCHIP
+	tristate "ASoC support for Rockchip"
+	depends on COMPILE_TEST || ARCH_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Rockchip SoCs' Audio interfaces. You will also need to
+	  select the audio interfaces to support below.
+
+config SND_SOC_ROCKCHIP_I2S
+	tristate "Rockchip I2S Device Driver"
+	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for I2S driver for
+	  Rockchip I2S device. The device supports upto maximum of
+	  8 channels each for play and record.

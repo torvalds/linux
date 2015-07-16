@@ -12,6 +12,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/utsname.h>
 
 #include "builtin.h"
 #include "helpers/helpers.h"
@@ -169,6 +172,8 @@ int main(int argc, const char *argv[])
 {
 	const char *cmd;
 	unsigned int i, ret;
+	struct stat statbuf;
+	struct utsname uts;
 
 	cpus_chosen = bitmask_alloc(sysconf(_SC_NPROCESSORS_CONF));
 
@@ -194,7 +199,16 @@ int main(int argc, const char *argv[])
 	}
 
 	get_cpu_info(0, &cpupower_cpu_info);
-	run_as_root = !getuid();
+	run_as_root = !geteuid();
+	if (run_as_root) {
+		ret = uname(&uts);
+		if (!ret && !strcmp(uts.machine, "x86_64") &&
+		    stat("/dev/cpu/0/msr", &statbuf) != 0) {
+			if (system("modprobe msr") == -1)
+	fprintf(stderr, _("MSR access not available.\n"));
+		}
+	}
+		
 
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
 		struct cmd_struct *p = commands + i;

@@ -28,11 +28,6 @@ void check_if_starfire(void)
 		this_is_starfire = 1;
 }
 
-int starfire_hard_smp_processor_id(void)
-{
-	return upa_readl(0x1fff40000d0UL);
-}
-
 /*
  * Each Starfire board has 32 registers which perform translation
  * and delivery of traditional interrupt packets into the extended

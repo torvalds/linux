@@ -299,7 +299,12 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
 	BIT(IIO_CHAN_INFO_SCALE),					\
 	.address = addr,					\
-	.scan_type = IIO_ST('u', (bits), 16, 20 - (bits)),	\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (bits),				\
+		.storagebits = 16,				\
+		.shift = 20 - bits,				\
+	},							\
 	.ext_info = ad5064_ext_info,				\
 }
 

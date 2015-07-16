@@ -661,6 +661,28 @@ struct rx_msdu_end {
 #define RX_PPDU_START_INFO5_SERVICE_MASK 0x0000ffff
 #define RX_PPDU_START_INFO5_SERVICE_LSB  0
 
+/* No idea what this flag means. It seems to be always set in rate. */
+#define RX_PPDU_START_RATE_FLAG BIT(3)
+
+enum rx_ppdu_start_rate {
+	RX_PPDU_START_RATE_OFDM_48M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_48M,
+	RX_PPDU_START_RATE_OFDM_24M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_24M,
+	RX_PPDU_START_RATE_OFDM_12M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_12M,
+	RX_PPDU_START_RATE_OFDM_6M  = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_6M,
+	RX_PPDU_START_RATE_OFDM_54M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_54M,
+	RX_PPDU_START_RATE_OFDM_36M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_36M,
+	RX_PPDU_START_RATE_OFDM_18M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_18M,
+	RX_PPDU_START_RATE_OFDM_9M  = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_9M,
+
+	RX_PPDU_START_RATE_CCK_LP_11M  = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_LP_11M,
+	RX_PPDU_START_RATE_CCK_LP_5_5M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_LP_5_5M,
+	RX_PPDU_START_RATE_CCK_LP_2M   = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_LP_2M,
+	RX_PPDU_START_RATE_CCK_LP_1M   = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_LP_1M,
+	RX_PPDU_START_RATE_CCK_SP_11M  = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_SP_11M,
+	RX_PPDU_START_RATE_CCK_SP_5_5M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_SP_5_5M,
+	RX_PPDU_START_RATE_CCK_SP_2M   = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_SP_2M,
+};
+
 struct rx_ppdu_start {
 	struct {
 		u8 pri20_mhz;
@@ -839,7 +861,6 @@ struct rx_ppdu_start {
  *		Reserved: HW should fill with 0, FW should ignore.
 */
 
-
 #define RX_PPDU_END_FLAGS_PHY_ERR             (1 << 0)
 #define RX_PPDU_END_FLAGS_RX_LOCATION         (1 << 1)
 #define RX_PPDU_END_FLAGS_TXBF_H_INFO         (1 << 2)
@@ -851,7 +872,7 @@ struct rx_ppdu_start {
 
 #define RX_PPDU_END_INFO1_PPDU_DONE (1 << 15)
 
-struct rx_ppdu_end {
+struct rx_ppdu_end_common {
 	__le32 evm_p0;
 	__le32 evm_p1;
 	__le32 evm_p2;
@@ -874,8 +895,31 @@ struct rx_ppdu_end {
 	u8 phy_err_code;
 	__le16 flags; /* %RX_PPDU_END_FLAGS_ */
 	__le32 info0; /* %RX_PPDU_END_INFO0_ */
+} __packed;
+
+struct rx_ppdu_end_qca988x {
 	__le16 bb_length;
 	__le16 info1; /* %RX_PPDU_END_INFO1_ */
+} __packed;
+
+#define RX_PPDU_END_RTT_CORRELATION_VALUE_MASK 0x00ffffff
+#define RX_PPDU_END_RTT_CORRELATION_VALUE_LSB  0
+#define RX_PPDU_END_RTT_UNUSED_MASK            0x7f000000
+#define RX_PPDU_END_RTT_UNUSED_LSB             24
+#define RX_PPDU_END_RTT_NORMAL_MODE            BIT(31)
+
+struct rx_ppdu_end_qca6174 {
+	__le32 rtt; /* %RX_PPDU_END_RTT_ */
+	__le16 bb_length;
+	__le16 info1; /* %RX_PPDU_END_INFO1_ */
+} __packed;
+
+struct rx_ppdu_end {
+	struct rx_ppdu_end_common common;
+	union {
+		struct rx_ppdu_end_qca988x qca988x;
+		struct rx_ppdu_end_qca6174 qca6174;
+	} __packed;
 } __packed;
 
 /*

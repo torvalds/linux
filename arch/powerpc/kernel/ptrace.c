@@ -932,7 +932,7 @@ void ptrace_triggered(struct perf_event *bp,
 }
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 
-int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
+static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 			       unsigned long data)
 {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
@@ -1555,7 +1555,7 @@ long arch_ptrace(struct task_struct *child, long request,
 
 			flush_fp_to_thread(child);
 			if (fpidx < (PT_FPSCR - PT_FPR0))
-				memcpy(&tmp, &child->thread.fp_state.fpr,
+				memcpy(&tmp, &child->thread.TS_FPR(fpidx),
 				       sizeof(long));
 			else
 				tmp = child->thread.fp_state.fpscr;
@@ -1588,7 +1588,7 @@ long arch_ptrace(struct task_struct *child, long request,
 
 			flush_fp_to_thread(child);
 			if (fpidx < (PT_FPSCR - PT_FPR0))
-				memcpy(&child->thread.fp_state.fpr, &data,
+				memcpy(&child->thread.TS_FPR(fpidx), &data,
 				       sizeof(long));
 			else
 				child->thread.fp_state.fpscr = data;
@@ -1788,14 +1788,11 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 
 #ifdef CONFIG_PPC64
 	if (!is_32bit_task())
-		audit_syscall_entry(AUDIT_ARCH_PPC64,
-				    regs->gpr[0],
-				    regs->gpr[3], regs->gpr[4],
+		audit_syscall_entry(regs->gpr[0], regs->gpr[3], regs->gpr[4],
 				    regs->gpr[5], regs->gpr[6]);
 	else
 #endif
-		audit_syscall_entry(AUDIT_ARCH_PPC,
-				    regs->gpr[0],
+		audit_syscall_entry(regs->gpr[0],
 				    regs->gpr[3] & 0xffffffff,
 				    regs->gpr[4] & 0xffffffff,
 				    regs->gpr[5] & 0xffffffff,

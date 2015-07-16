@@ -46,6 +46,7 @@
 #include <linux/quotaops.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
+#include <linux/posix_acl.h>
 
 struct ocfs2_cow_context {
 	struct inode *inode;
@@ -1405,12 +1406,9 @@ static int cmp_refcount_rec_by_cpos(const void *a, const void *b)
 
 static void swap_refcount_rec(void *a, void *b, int size)
 {
-	struct ocfs2_refcount_rec *l = a, *r = b, tmp;
+	struct ocfs2_refcount_rec *l = a, *r = b;
 
-	tmp = *(struct ocfs2_refcount_rec *)l;
-	*(struct ocfs2_refcount_rec *)l =
-			*(struct ocfs2_refcount_rec *)r;
-	*(struct ocfs2_refcount_rec *)r = tmp;
+	swap(*l, *r);
 }
 
 /*
@@ -2428,8 +2426,6 @@ static int ocfs2_calc_refcount_meta_credits(struct super_block *sb,
 			get_bh(prev_bh);
 		}
 
-		rb = (struct ocfs2_refcount_block *)ref_leaf_bh->b_data;
-
 		trace_ocfs2_calc_refcount_meta_credits_iterate(
 				recs_add, (unsigned long long)cpos, clusters,
 				(unsigned long long)le64_to_cpu(rec.r_cpos),
@@ -3109,7 +3105,7 @@ static int ocfs2_clear_ext_refcount(handle_t *handle,
 	el = path_leaf_el(path);
 
 	index = ocfs2_search_extent_list(el, cpos);
-	if (index == -1 || index >= le16_to_cpu(el->l_next_free_rec)) {
+	if (index == -1) {
 		ocfs2_error(sb,
 			    "Inode %llu has an extent at cpos %u which can no "
 			    "longer be found.\n",
@@ -4196,7 +4192,7 @@ static int __ocfs2_reflink(struct dentry *old_dentry,
 			   bool preserve)
 {
 	int ret;
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	struct buffer_head *new_bh = NULL;
 
 	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_SYSTEM_FILE) {
@@ -4265,15 +4261,30 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 			 struct dentry *new_dentry, bool preserve)
 {
 	int error;
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	struct buffer_head *old_bh = NULL;
 	struct inode *new_orphan_inode = NULL;
+	struct posix_acl *default_acl, *acl;
+	umode_t mode;
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb)))
 		return -EOPNOTSUPP;
 
-	error = ocfs2_create_inode_in_orphan(dir, inode->i_mode,
+	mode = inode->i_mode;
+	error = posix_acl_create(dir, &mode, &default_acl, &acl);
+	if (error) {
+		mlog_errno(error);
+		return error;
+	}
+
+	error = ocfs2_create_inode_in_orphan(dir, mode,
 					     &new_orphan_inode);
+	if (error) {
+		mlog_errno(error);
+		goto out;
+	}
+
+	error = ocfs2_rw_lock(inode, 1);
 	if (error) {
 		mlog_errno(error);
 		goto out;
@@ -4282,6 +4293,7 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	error = ocfs2_inode_lock(inode, &old_bh, 1);
 	if (error) {
 		mlog_errno(error);
+		ocfs2_rw_unlock(inode, 1);
 		goto out;
 	}
 
@@ -4293,6 +4305,7 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	up_write(&OCFS2_I(inode)->ip_xattr_sem);
 
 	ocfs2_inode_unlock(inode, 1);
+	ocfs2_rw_unlock(inode, 1);
 	brelse(old_bh);
 
 	if (error) {
@@ -4303,11 +4316,16 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	/* If the security isn't preserved, we need to re-initialize them. */
 	if (!preserve) {
 		error = ocfs2_init_security_and_acl(dir, new_orphan_inode,
-						    &new_dentry->d_name);
+						    &new_dentry->d_name,
+						    default_acl, acl);
 		if (error)
 			mlog_errno(error);
 	}
 out:
+	if (default_acl)
+		posix_acl_release(default_acl);
+	if (acl)
+		posix_acl_release(acl);
 	if (!error) {
 		error = ocfs2_mv_orphaned_inode_to_new(dir, new_orphan_inode,
 						       new_dentry);
@@ -4337,7 +4355,7 @@ out:
 /* copied from may_create in VFS. */
 static inline int ocfs2_may_create(struct inode *dir, struct dentry *child)
 {
-	if (child->d_inode)
+	if (d_really_is_positive(child))
 		return -EEXIST;
 	if (IS_DEADDIR(dir))
 		return -ENOENT;
@@ -4355,7 +4373,7 @@ static inline int ocfs2_may_create(struct inode *dir, struct dentry *child)
 static int ocfs2_vfs_reflink(struct dentry *old_dentry, struct inode *dir,
 			     struct dentry *new_dentry, bool preserve)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	int error;
 
 	if (!inode)
@@ -4443,7 +4461,7 @@ int ocfs2_reflink_ioctl(struct inode *inode,
 	}
 
 	error = ocfs2_vfs_reflink(old_path.dentry,
-				  new_path.dentry->d_inode,
+				  d_inode(new_path.dentry),
 				  new_dentry, preserve);
 out_dput:
 	done_path_create(&new_path, new_dentry);

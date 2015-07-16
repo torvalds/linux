@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -257,7 +257,8 @@ enum {
 
 /* Bit 17-18: (0) SS, (1) SS*2 */
 #define RATE_MCS_STBC_POS		17
-#define RATE_MCS_STBC_MSK		(1 << RATE_MCS_STBC_POS)
+#define RATE_MCS_HT_STBC_MSK		(3 << RATE_MCS_STBC_POS)
+#define RATE_MCS_VHT_STBC_MSK		(1 << RATE_MCS_STBC_POS)
 
 /* Bit 19: (0) Beamforming is off, (1) Beamforming is on */
 #define RATE_MCS_BF_POS			19
@@ -281,8 +282,67 @@ enum {
 /* # entries in rate scale table to support Tx retries */
 #define  LQ_MAX_RETRY_NUM 16
 
-/* Link quality command flags, only this one is available */
-#define  LQ_FLAG_SET_STA_TLC_RTS_MSK	BIT(0)
+/* Link quality command flags bit fields */
+
+/* Bit 0: (0) Don't use RTS (1) Use RTS */
+#define LQ_FLAG_USE_RTS_POS             0
+#define LQ_FLAG_USE_RTS_MSK	        (1 << LQ_FLAG_USE_RTS_POS)
+
+/* Bit 1-3: LQ command color. Used to match responses to LQ commands */
+#define LQ_FLAG_COLOR_POS               1
+#define LQ_FLAG_COLOR_MSK               (7 << LQ_FLAG_COLOR_POS)
+
+/* Bit 4-5: Tx RTS BW Signalling
+ * (0) No RTS BW signalling
+ * (1) Static BW signalling
+ * (2) Dynamic BW signalling
+ */
+#define LQ_FLAG_RTS_BW_SIG_POS          4
+#define LQ_FLAG_RTS_BW_SIG_NONE         (0 << LQ_FLAG_RTS_BW_SIG_POS)
+#define LQ_FLAG_RTS_BW_SIG_STATIC       (1 << LQ_FLAG_RTS_BW_SIG_POS)
+#define LQ_FLAG_RTS_BW_SIG_DYNAMIC      (2 << LQ_FLAG_RTS_BW_SIG_POS)
+
+/* Bit 6: (0) No dynamic BW selection (1) Allow dynamic BW selection
+ * Dyanmic BW selection allows Tx with narrower BW then requested in rates
+ */
+#define LQ_FLAG_DYNAMIC_BW_POS          6
+#define LQ_FLAG_DYNAMIC_BW_MSK          (1 << LQ_FLAG_DYNAMIC_BW_POS)
+
+/* Single Stream Tx Parameters (lq_cmd->ss_params)
+ * Flags to control a smart FW decision about whether BFER/STBC/SISO will be
+ * used for single stream Tx.
+ */
+
+/* Bit 0-1: Max STBC streams allowed. Can be 0-3.
+ * (0) - No STBC allowed
+ * (1) - 2x1 STBC allowed (HT/VHT)
+ * (2) - 4x2 STBC allowed (HT/VHT)
+ * (3) - 3x2 STBC allowed (HT only)
+ * All our chips are at most 2 antennas so only (1) is valid for now.
+ */
+#define LQ_SS_STBC_ALLOWED_POS          0
+#define LQ_SS_STBC_ALLOWED_MSK		(3 << LQ_SS_STBC_ALLOWED_MSK)
+
+/* 2x1 STBC is allowed */
+#define LQ_SS_STBC_1SS_ALLOWED		(1 << LQ_SS_STBC_ALLOWED_POS)
+
+/* Bit 2: Beamformer (VHT only) is allowed */
+#define LQ_SS_BFER_ALLOWED_POS		2
+#define LQ_SS_BFER_ALLOWED		(1 << LQ_SS_BFER_ALLOWED_POS)
+
+/* Bit 3: Force BFER or STBC for testing
+ * If this is set:
+ * If BFER is allowed then force the ucode to choose BFER else
+ * If STBC is allowed then force the ucode to choose STBC over SISO
+ */
+#define LQ_SS_FORCE_POS			3
+#define LQ_SS_FORCE			(1 << LQ_SS_FORCE_POS)
+
+/* Bit 31: ss_params field is valid. Used for FW backward compatibility
+ * with other drivers which don't support the ss_params API yet
+ */
+#define LQ_SS_PARAMS_VALID_POS		31
+#define LQ_SS_PARAMS_VALID		(1 << LQ_SS_PARAMS_VALID_POS)
 
 /**
  * struct iwl_lq_cmd - link quality command
@@ -306,11 +366,11 @@ enum {
  *	2 - 0x3f: maximal number of frames (up to 3f == 63)
  * @rs_table: array of rates for each TX try, each is rate_n_flags,
  *	meaning it is a combination of RATE_MCS_* and IWL_RATE_*_PLCP
- * @bf_params: beam forming params, currently not used
+ * @ss_params: single stream features. declare whether STBC or BFER are allowed.
  */
 struct iwl_lq_cmd {
 	u8 sta_id;
-	u8 reserved1;
+	u8 reduced_tpc;
 	u16 control;
 	/* LINK_QUAL_GENERAL_PARAMS_API_S_VER_1 */
 	u8 flags;
@@ -324,6 +384,6 @@ struct iwl_lq_cmd {
 	u8 agg_frame_cnt_limit;
 	__le32 reserved2;
 	__le32 rs_table[LQ_MAX_RETRY_NUM];
-	__le32 bf_params;
+	__le32 ss_params;
 }; /* LINK_QUALITY_CMD_API_S_VER_1 */
 #endif /* __fw_api_rs_h__ */

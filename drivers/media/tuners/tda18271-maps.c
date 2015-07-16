@@ -1305,11 +1305,3 @@ int tda18271_assign_map_layout(struct dvb_frontend *fe)
 
 	return ret;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

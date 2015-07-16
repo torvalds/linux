@@ -49,4 +49,6 @@ void ib_sysfs_cleanup(void);
 int  ib_cache_setup(void);
 void ib_cache_cleanup(void);
 
+int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
+			    struct ib_qp_attr *qp_attr, int *qp_attr_mask);
 #endif /* _CORE_PRIV_H */

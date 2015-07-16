@@ -31,7 +31,6 @@
 #include <linux/notifier.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
-#include <linux/netfilter.h>
 #include <linux/sysctl.h>
 #include <net/ip.h>
 #include <net/arp.h>
@@ -46,9 +45,9 @@
 
 #ifdef CONFIG_INET
 
-int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
-		     unsigned short type, const void *daddr,
-		     const void *saddr, unsigned int len)
+static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
+			    unsigned short type, const void *daddr,
+			    const void *saddr, unsigned int len)
 {
 	unsigned char *buff;
 
@@ -100,7 +99,7 @@ int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return -AX25_HEADER_LEN;	/* Unfinished header */
 }
 
-int ax25_rebuild_header(struct sk_buff *skb)
+netdev_tx_t ax25_ip_xmit(struct sk_buff *skb)
 {
 	struct sk_buff *ourskb;
 	unsigned char *bp  = skb->data;
@@ -115,9 +114,6 @@ int ax25_rebuild_header(struct sk_buff *skb)
 	dst = (ax25_address *)(bp + 1);
 	src = (ax25_address *)(bp + 8);
 
-	if (arp_find(bp + 1, skb))
-		return 1;
-
 	route = ax25_get_route(dst, NULL);
 	if (route) {
 		digipeat = route->digipeat;
@@ -129,6 +125,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 		dev = skb->dev;
 
 	if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL) {
+		kfree_skb(skb);
 		goto put;
 	}
 
@@ -212,31 +209,29 @@ put:
 	if (route)
 		ax25_put_route(route);
 
-	return 1;
+	return NETDEV_TX_OK;
 }
 
 #else	/* INET */
 
-int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
-		     unsigned short type, const void *daddr,
-		     const void *saddr, unsigned int len)
+static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
+			    unsigned short type, const void *daddr,
+			    const void *saddr, unsigned int len)
 {
 	return -AX25_HEADER_LEN;
 }
 
-int ax25_rebuild_header(struct sk_buff *skb)
+netdev_tx_t ax25_ip_xmit(struct sk_buff *skb)
 {
-	return 1;
+	kfree_skb(skb);
+	return NETDEV_TX_OK;
 }
-
 #endif
 
 const struct header_ops ax25_header_ops = {
 	.create = ax25_hard_header,
-	.rebuild = ax25_rebuild_header,
 };
 
-EXPORT_SYMBOL(ax25_hard_header);
-EXPORT_SYMBOL(ax25_rebuild_header);
 EXPORT_SYMBOL(ax25_header_ops);
+EXPORT_SYMBOL(ax25_ip_xmit);
 

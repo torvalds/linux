@@ -17,8 +17,8 @@
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
+#include <xen/page.h>
 #include <asm/xen/hypercall.h>
-#include <asm/xen/page.h>
 #include <asm/xen/hypervisor.h>
 #include <xen/tmem.h>
 
@@ -374,36 +374,32 @@ static struct frontswap_ops tmem_frontswap_ops = {
 };
 #endif
 
-static int xen_tmem_init(void)
+static int __init xen_tmem_init(void)
 {
 	if (!xen_domain())
 		return 0;
 #ifdef CONFIG_FRONTSWAP
 	if (tmem_enabled && frontswap) {
 		char *s = "";
-		struct frontswap_ops *old_ops;
 
 		tmem_frontswap_poolid = -1;
-		old_ops = frontswap_register_ops(&tmem_frontswap_ops);
-		if (IS_ERR(old_ops) || old_ops) {
-			if (IS_ERR(old_ops))
-				return PTR_ERR(old_ops);
-			s = " (WARNING: frontswap_ops overridden)";
-		}
+		frontswap_register_ops(&tmem_frontswap_ops);
 		pr_info("frontswap enabled, RAM provided by Xen Transcendent Memory%s\n",
 			s);
 	}
 #endif
 #ifdef CONFIG_CLEANCACHE
-	BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
+	BUILD_BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
 	if (tmem_enabled && cleancache) {
-		char *s = "";
-		struct cleancache_ops *old_ops =
-			cleancache_register_ops(&tmem_cleancache_ops);
-		if (old_ops)
-			s = " (WARNING: cleancache_ops overridden)";
-		pr_info("cleancache enabled, RAM provided by Xen Transcendent Memory%s\n",
-			s);
+		int err;
+
+		err = cleancache_register_ops(&tmem_cleancache_ops);
+		if (err)
+			pr_warn("xen-tmem: failed to enable cleancache: %d\n",
+				err);
+		else
+			pr_info("cleancache enabled, RAM provided by "
+				"Xen Transcendent Memory\n");
 	}
 #endif
 #ifdef CONFIG_XEN_SELFBALLOONING

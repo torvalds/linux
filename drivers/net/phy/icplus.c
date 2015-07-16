@@ -48,7 +48,7 @@ MODULE_LICENSE("GPL");
 static int ip175c_config_init(struct phy_device *phydev)
 {
 	int err, i;
-	static int full_reset_performed = 0;
+	static int full_reset_performed;
 
 	if (full_reset_performed == 0) {
 
@@ -139,10 +139,7 @@ static int ip1001_config_init(struct phy_device *phydev)
 	if (c < 0)
 		return c;
 
-	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
+	if (phy_interface_is_rgmii(phydev)) {
 
 		c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
 		if (c < 0)
@@ -253,20 +250,7 @@ static struct phy_driver icplus_driver[] = {
 	.driver		= { .owner = THIS_MODULE,},
 } };
 
-static int __init icplus_init(void)
-{
-	return phy_drivers_register(icplus_driver,
-		ARRAY_SIZE(icplus_driver));
-}
-
-static void __exit icplus_exit(void)
-{
-	phy_drivers_unregister(icplus_driver,
-		ARRAY_SIZE(icplus_driver));
-}
-
-module_init(icplus_init);
-module_exit(icplus_exit);
+module_phy_driver(icplus_driver);
 
 static struct mdio_device_id __maybe_unused icplus_tbl[] = {
 	{ 0x02430d80, 0x0ffffff0 },

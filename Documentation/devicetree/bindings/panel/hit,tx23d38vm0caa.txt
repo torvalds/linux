@@ -1,0 +1,7 @@
+Hitachi Ltd. Corporation 9" WVGA (800x480) TFT LCD panel
+
+Required properties:
+- compatible: should be "hit,tx23d38vm0caa"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

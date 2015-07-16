@@ -25,7 +25,7 @@
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include <crypto/algapi.h>
-#include <crypto/aead.h>
+#include <crypto/internal/aead.h>
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 
@@ -575,7 +575,8 @@ static int init_tfm_ablk(struct crypto_tfm *tfm)
 
 static int init_tfm_aead(struct crypto_tfm *tfm)
 {
-	tfm->crt_aead.reqsize = sizeof(struct aead_ctx);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+				sizeof(struct aead_ctx));
 	return init_tfm(tfm);
 }
 
@@ -784,7 +785,7 @@ static struct buffer_desc *chainup_buffers(struct device *dev,
 		struct buffer_desc *buf, gfp_t flags,
 		enum dma_data_direction dir)
 {
-	for (;nbytes > 0; sg = scatterwalk_sg_next(sg)) {
+	for (; nbytes > 0; sg = sg_next(sg)) {
 		unsigned len = min(nbytes, sg->length);
 		struct buffer_desc *next_buf;
 		u32 next_buf_phys;
@@ -982,7 +983,7 @@ static int hmac_inconsistent(struct scatterlist *sg, unsigned start,
 			break;
 
 		offset += sg->length;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 	return (start + nbytes > offset + sg->length);
 }
@@ -1096,7 +1097,7 @@ static int aead_setup(struct crypto_aead *tfm, unsigned int authsize)
 {
 	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
 	u32 *flags = &tfm->base.crt_flags;
-	unsigned digest_len = crypto_aead_alg(tfm)->maxauthsize;
+	unsigned digest_len = crypto_aead_maxauthsize(tfm);
 	int ret;
 
 	if (!ctx->enckey_len && !ctx->authkey_len)
@@ -1138,7 +1139,7 @@ out:
 
 static int aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
-	int max = crypto_aead_alg(tfm)->maxauthsize >> 2;
+	int max = crypto_aead_maxauthsize(tfm) >> 2;
 
 	if ((authsize>>2) < 1 || (authsize>>2) > max || (authsize & 3))
 		return -EINVAL;
@@ -1149,32 +1150,24 @@ static int aead_setkey(struct crypto_aead *tfm, const u8 *key,
 			unsigned int keylen)
 {
 	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
-	struct rtattr *rta = (struct rtattr *)key;
-	struct crypto_authenc_key_param *param;
+	struct crypto_authenc_keys keys;
 
-	if (!RTA_OK(rta, keylen))
-		goto badkey;
-	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
-		goto badkey;
-	if (RTA_PAYLOAD(rta) < sizeof(*param))
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-	param = RTA_DATA(rta);
-	ctx->enckey_len = be32_to_cpu(param->enckeylen);
-
-	key += RTA_ALIGN(rta->rta_len);
-	keylen -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < ctx->enckey_len)
+	if (keys.authkeylen > sizeof(ctx->authkey))
 		goto badkey;
 
-	ctx->authkey_len = keylen - ctx->enckey_len;
-	memcpy(ctx->enckey, key + ctx->authkey_len, ctx->enckey_len);
-	memcpy(ctx->authkey, key, ctx->authkey_len);
+	if (keys.enckeylen > sizeof(ctx->enckey))
+		goto badkey;
+
+	memcpy(ctx->authkey, keys.authkey, keys.authkeylen);
+	memcpy(ctx->enckey, keys.enckey, keys.enckeylen);
+	ctx->authkey_len = keys.authkeylen;
+	ctx->enckey_len = keys.enckeylen;
 
 	return aead_setup(tfm, crypto_aead_authsize(tfm));
 badkey:
-	ctx->enckey_len = 0;
 	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
@@ -1418,13 +1411,11 @@ static const struct platform_device_info ixp_dev_info __initdata = {
 static int __init ixp_module_init(void)
 {
 	int num = ARRAY_SIZE(ixp4xx_algos);
-	int i, err ;
+	int i, err;
 
 	pdev = platform_device_register_full(&ixp_dev_info);
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
-
-	dev = &pdev->dev;
 
 	spin_lock_init(&desc_lock);
 	spin_lock_init(&emerg_lock);

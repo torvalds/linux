@@ -171,7 +171,7 @@ struct cfpkt *cfpkt_split(struct cfpkt *pkt, u16 pos);
  * @return    Checksum of buffer.
  */
 
-u16 cfpkt_iterate(struct cfpkt *pkt,
+int cfpkt_iterate(struct cfpkt *pkt,
 		u16 (*iter_func)(u16 chks, void *buf, u16 len),
 		u16 data);
 

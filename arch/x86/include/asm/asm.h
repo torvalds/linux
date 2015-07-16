@@ -57,6 +57,37 @@
 	.long (from) - . ;					\
 	.long (to) - . + 0x7ffffff0 ;				\
 	.popsection
+
+# define _ASM_NOKPROBE(entry)					\
+	.pushsection "_kprobe_blacklist","aw" ;			\
+	_ASM_ALIGN ;						\
+	_ASM_PTR (entry);					\
+	.popsection
+
+.macro ALIGN_DESTINATION
+	/* check for bad alignment of destination */
+	movl %edi,%ecx
+	andl $7,%ecx
+	jz 102f				/* already aligned */
+	subl $8,%ecx
+	negl %ecx
+	subl %ecx,%edx
+100:	movb (%rsi),%al
+101:	movb %al,(%rdi)
+	incq %rsi
+	incq %rdi
+	decl %ecx
+	jnz 100b
+102:
+	.section .fixup,"ax"
+103:	addl %ecx,%edx			/* ecx is zerorest also */
+	jmp copy_user_handle_tail
+	.previous
+
+	_ASM_EXTABLE(100b,103b)
+	_ASM_EXTABLE(101b,103b)
+	.endm
+
 #else
 # define _ASM_EXTABLE(from,to)					\
 	" .pushsection \"__ex_table\",\"a\"\n"			\
@@ -71,6 +102,7 @@
 	" .long (" #from ") - .\n"				\
 	" .long (" #to ") - . + 0x7ffffff0\n"			\
 	" .popsection\n"
+/* For C file, we already have NOKPROBE_SYMBOL macro */
 #endif
 
 #endif /* _ASM_X86_ASM_H */

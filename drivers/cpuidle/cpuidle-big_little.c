@@ -24,6 +24,8 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 
+#include "dt_idle_states.h"
+
 static int bl_enter_powerdown(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv, int idx);
 
@@ -65,12 +67,17 @@ static struct cpuidle_driver bl_idle_little_driver = {
 		.enter			= bl_enter_powerdown,
 		.exit_latency		= 700,
 		.target_residency	= 2500,
-		.flags			= CPUIDLE_FLAG_TIME_VALID |
-					  CPUIDLE_FLAG_TIMER_STOP,
+		.flags			= CPUIDLE_FLAG_TIMER_STOP,
 		.name			= "C1",
 		.desc			= "ARM little-cluster power down",
 	},
 	.state_count = 2,
+};
+
+static const struct of_device_id bl_idle_state_match[] __initconst = {
+	{ .compatible = "arm,idle-state",
+	  .data = bl_enter_powerdown },
+	{ },
 };
 
 static struct cpuidle_driver bl_idle_big_driver = {
@@ -81,8 +88,7 @@ static struct cpuidle_driver bl_idle_big_driver = {
 		.enter			= bl_enter_powerdown,
 		.exit_latency		= 500,
 		.target_residency	= 2000,
-		.flags			= CPUIDLE_FLAG_TIME_VALID |
-					  CPUIDLE_FLAG_TIMER_STOP,
+		.flags			= CPUIDLE_FLAG_TIMER_STOP,
 		.name			= "C1",
 		.desc			= "ARM big-cluster power down",
 	},
@@ -102,13 +108,7 @@ static int notrace bl_powerdown_finisher(unsigned long arg)
 	unsigned int cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 
 	mcpm_set_entry_vector(cpu, cluster, cpu_resume);
-
-	/*
-	 * Residency value passed to mcpm_cpu_suspend back-end
-	 * has to be given clear semantics. Set to 0 as a
-	 * temporary value.
-	 */
-	mcpm_cpu_suspend(0);
+	mcpm_cpu_suspend();
 
 	/* return value != 0 means failure */
 	return 1;
@@ -138,40 +138,48 @@ static int bl_enter_powerdown(struct cpuidle_device *dev,
 	return idx;
 }
 
-static int __init bl_idle_driver_init(struct cpuidle_driver *drv, int cpu_id)
+static int __init bl_idle_driver_init(struct cpuidle_driver *drv, int part_id)
 {
-	struct cpuinfo_arm *cpu_info;
 	struct cpumask *cpumask;
-	unsigned long cpuid;
 	int cpu;
 
 	cpumask = kzalloc(cpumask_size(), GFP_KERNEL);
 	if (!cpumask)
 		return -ENOMEM;
 
-	for_each_possible_cpu(cpu) {
-		cpu_info = &per_cpu(cpu_data, cpu);
-		cpuid = is_smp() ? cpu_info->cpuid : read_cpuid_id();
-
-		/* read cpu id part number */
-		if ((cpuid & 0xFFF0) == cpu_id)
+	for_each_possible_cpu(cpu)
+		if (smp_cpuid_part(cpu) == part_id)
 			cpumask_set_cpu(cpu, cpumask);
-	}
 
 	drv->cpumask = cpumask;
 
 	return 0;
 }
 
+static const struct of_device_id compatible_machine_match[] = {
+	{ .compatible = "arm,vexpress,v2p-ca15_a7" },
+	{ .compatible = "samsung,exynos5420" },
+	{ .compatible = "samsung,exynos5800" },
+	{},
+};
+
 static int __init bl_idle_init(void)
 {
 	int ret;
+	struct device_node *root = of_find_node_by_path("/");
+
+	if (!root)
+		return -ENODEV;
 
 	/*
 	 * Initialize the driver just for a compliant set of machines
 	 */
-	if (!of_machine_is_compatible("arm,vexpress,v2p-ca15_a7"))
+	if (!of_match_node(compatible_machine_match, root))
 		return -ENODEV;
+
+	if (!mcpm_is_available())
+		return -EUNATCH;
+
 	/*
 	 * For now the differentiation between little and big cores
 	 * is based on the part number. A7 cores are considered little
@@ -186,6 +194,17 @@ static int __init bl_idle_init(void)
 	ret = bl_idle_driver_init(&bl_idle_big_driver, ARM_CPU_PART_CORTEX_A15);
 	if (ret)
 		goto out_uninit_little;
+
+	/* Start at index 1, index 0 standard WFI */
+	ret = dt_init_idle_driver(&bl_idle_big_driver, bl_idle_state_match, 1);
+	if (ret < 0)
+		goto out_uninit_big;
+
+	/* Start at index 1, index 0 standard WFI */
+	ret = dt_init_idle_driver(&bl_idle_little_driver,
+				  bl_idle_state_match, 1);
+	if (ret < 0)
+		goto out_uninit_big;
 
 	ret = cpuidle_register(&bl_idle_little_driver, NULL);
 	if (ret)

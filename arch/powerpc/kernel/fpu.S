@@ -81,6 +81,22 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 /*
+ * Enable use of the FPU, and VSX if possible, for the caller.
+ */
+_GLOBAL(fp_enable)
+	mfmsr	r3
+	ori	r3,r3,MSR_FP
+#ifdef CONFIG_VSX
+BEGIN_FTR_SECTION
+	oris	r3,r3,MSR_VSX@h
+END_FTR_SECTION_IFSET(CPU_FTR_VSX)
+#endif
+	SYNC
+	MTMSRD(r3)
+	isync			/* (not necessary for arch 2.02 and later) */
+	blr
+
+/*
  * Load state from memory into FP registers including FPSCR.
  * Assumes the caller has enabled FP in the MSR.
  */

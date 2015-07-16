@@ -1,0 +1,14 @@
+Maxim MAX98357A audio DAC
+
+This node models the Maxim MAX98357A DAC.
+
+Required properties:
+- compatible   : "maxim,max98357a"
+- sdmode-gpios : GPIO specifier for the GPIO -> DAC SDMODE pin
+
+Example:
+
+max98357a {
+	compatible = "maxim,max98357a";
+	sdmode-gpios = <&qcom_pinmux 25 0>;
+};

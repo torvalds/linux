@@ -18,6 +18,9 @@ struct ifaddrmsg {
  * It makes no difference for normally configured broadcast interfaces,
  * but for point-to-point IFA_ADDRESS is DESTINATION address,
  * local address is supplied in IFA_LOCAL attribute.
+ *
+ * IFA_FLAGS is a u32 attribute that extends the u8 field ifa_flags.
+ * If present, the value from struct ifaddrmsg will be ignored.
  */
 enum {
 	IFA_UNSPEC,
@@ -28,6 +31,7 @@ enum {
 	IFA_ANYCAST,
 	IFA_CACHEINFO,
 	IFA_MULTICAST,
+	IFA_FLAGS,
 	__IFA_MAX,
 };
 
@@ -44,6 +48,10 @@ enum {
 #define IFA_F_DEPRECATED	0x20
 #define IFA_F_TENTATIVE		0x40
 #define IFA_F_PERMANENT		0x80
+#define IFA_F_MANAGETEMPADDR	0x100
+#define IFA_F_NOPREFIXROUTE	0x200
+#define IFA_F_MCAUTOJOIN	0x400
+#define IFA_F_STABLE_PRIVACY	0x800
 
 struct ifa_cacheinfo {
 	__u32	ifa_prefered;

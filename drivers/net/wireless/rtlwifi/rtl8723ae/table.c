@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -335,7 +331,7 @@ u32 RTL8723EPHY_REG_ARRAY_PG[RTL8723E_PHY_REG_ARRAY_PGLENGTH] = {
 	0x868, 0xffffffff, 0x00000000,
 };
 
-u32 RTL8723E_RADIOA_1TARRAY[Rtl8723ERADIOA_1TARRAYLENGTH] = {
+u32 RTL8723E_RADIOA_1TARRAY[RTL8723ERADIOA_1TARRAYLENGTH] = {
 	0x000, 0x00030159,
 	0x001, 0x00031284,
 	0x002, 0x00098000,
@@ -479,11 +475,9 @@ u32 RTL8723E_RADIOA_1TARRAY[Rtl8723ERADIOA_1TARRAYLENGTH] = {
 	0x000, 0x00030159,
 };
 
-
 u32 RTL8723E_RADIOB_1TARRAY[RTL8723E_RADIOB_1TARRAYLENGTH] = {
 	0x0,
 };
-
 
 u32 RTL8723EMAC_ARRAY[RTL8723E_MACARRAYLENGTH] = {
 	0x420, 0x00000080,

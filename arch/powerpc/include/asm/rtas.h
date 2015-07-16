@@ -4,6 +4,7 @@
 
 #include <linux/spinlock.h>
 #include <asm/page.h>
+#include <linux/time.h>
 
 /*
  * Definitions for talking to the RTAS on CHRP machines.
@@ -150,18 +151,52 @@ struct rtas_suspend_me_data {
 #define RTAS_VECTOR_EXTERNAL_INTERRUPT	0x500
 
 struct rtas_error_log {
-	unsigned long version:8;		/* Architectural version */
-	unsigned long severity:3;		/* Severity level of error */
-	unsigned long disposition:2;		/* Degree of recovery */
-	unsigned long extended:1;		/* extended log present? */
-	unsigned long /* reserved */ :2;	/* Reserved for future use */
-	unsigned long initiator:4;		/* Initiator of event */
-	unsigned long target:4;			/* Target of failed operation */
-	unsigned long type:8;			/* General event or error*/
-	unsigned long extended_log_length:32;	/* length in bytes */
-	unsigned char buffer[1];		/* Start of extended log */
+	/* Byte 0 */
+	uint8_t		byte0;			/* Architectural version */
+
+	/* Byte 1 */
+	uint8_t		byte1;
+	/* XXXXXXXX
+	 * XXX		3: Severity level of error
+	 *    XX	2: Degree of recovery
+	 *      X	1: Extended log present?
+	 *       XX	2: Reserved
+	 */
+
+	/* Byte 2 */
+	uint8_t		byte2;
+	/* XXXXXXXX
+	 * XXXX		4: Initiator of event
+	 *     XXXX	4: Target of failed operation
+	 */
+	uint8_t		byte3;			/* General event or error*/
+	__be32		extended_log_length;	/* length in bytes */
+	unsigned char	buffer[1];		/* Start of extended log */
 						/* Variable length.      */
 };
+
+static inline uint8_t rtas_error_severity(const struct rtas_error_log *elog)
+{
+	return (elog->byte1 & 0xE0) >> 5;
+}
+
+static inline uint8_t rtas_error_disposition(const struct rtas_error_log *elog)
+{
+	return (elog->byte1 & 0x18) >> 3;
+}
+
+static inline uint8_t rtas_error_extended(const struct rtas_error_log *elog)
+{
+	return (elog->byte1 & 0x04) >> 2;
+}
+
+#define rtas_error_type(x)	((x)->byte3)
+
+static inline
+uint32_t rtas_error_extended_log_length(const struct rtas_error_log *elog)
+{
+	return be32_to_cpu(elog->extended_log_length);
+}
 
 #define RTAS_V6EXT_LOG_FORMAT_EVENT_LOG	14
 
@@ -172,38 +207,53 @@ struct rtas_error_log {
  */
 struct rtas_ext_event_log_v6 {
 	/* Byte 0 */
-	uint32_t log_valid:1;		/* 1:Log valid */
-	uint32_t unrecoverable_error:1;	/* 1:Unrecoverable error */
-	uint32_t recoverable_error:1;	/* 1:recoverable (correctable	*/
-					/*   or successfully retried)	*/
-	uint32_t degraded_operation:1;	/* 1:Unrecoverable err, bypassed*/
-					/*   - degraded operation (e.g.	*/
-					/*   CPU or mem taken off-line)	*/
-	uint32_t predictive_error:1;
-	uint32_t new_log:1;		/* 1:"New" log (Always 1 for	*/
-					/*   data returned from RTAS	*/
-	uint32_t big_endian:1;		/* 1: Big endian */
-	uint32_t :1;			/* reserved */
+	uint8_t byte0;
+	/* XXXXXXXX
+	 * X		1: Log valid
+	 *  X		1: Unrecoverable error
+	 *   X		1: Recoverable (correctable or successfully retried)
+	 *    X		1: Bypassed unrecoverable error (degraded operation)
+	 *     X	1: Predictive error
+	 *      X	1: "New" log (always 1 for data returned from RTAS)
+	 *       X	1: Big Endian
+	 *        X	1: Reserved
+	 */
+
 	/* Byte 1 */
-	uint32_t :8;			/* reserved */
+	uint8_t byte1;			/* reserved */
+
 	/* Byte 2 */
-	uint32_t powerpc_format:1;	/* Set to 1 (indicating log is	*/
-					/* in PowerPC format		*/
-	uint32_t :3;			/* reserved */
-	uint32_t log_format:4;		/* Log format indicator. Define	*/
-					/* format used for byte 12-2047	*/
+	uint8_t byte2;
+	/* XXXXXXXX
+	 * X		1: Set to 1 (indicating log is in PowerPC format)
+	 *  XXX		3: Reserved
+	 *     XXXX	4: Log format used for bytes 12-2047
+	 */
+
 	/* Byte 3 */
-	uint32_t :8;			/* reserved */
+	uint8_t byte3;			/* reserved */
 	/* Byte 4-11 */
 	uint8_t reserved[8];		/* reserved */
 	/* Byte 12-15 */
-	uint32_t company_id;		/* Company ID of the company	*/
+	__be32  company_id;		/* Company ID of the company	*/
 					/* that defines the format for	*/
 					/* the vendor specific log type	*/
 	/* Byte 16-end of log */
 	uint8_t vendor_log[1];		/* Start of vendor specific log	*/
 					/* Variable length.		*/
 };
+
+static
+inline uint8_t rtas_ext_event_log_format(struct rtas_ext_event_log_v6 *ext_log)
+{
+	return ext_log->byte2 & 0x0F;
+}
+
+static
+inline uint32_t rtas_ext_event_company_id(struct rtas_ext_event_log_v6 *ext_log)
+{
+	return be32_to_cpu(ext_log->company_id);
+}
 
 /* pSeries event log format */
 
@@ -224,16 +274,54 @@ struct rtas_ext_event_log_v6 {
 #define PSERIES_ELOG_SECT_ID_MANUFACT_INFO	(('M' << 8) | 'I')
 #define PSERIES_ELOG_SECT_ID_CALL_HOME		(('C' << 8) | 'H')
 #define PSERIES_ELOG_SECT_ID_USER_DEF		(('U' << 8) | 'D')
+#define PSERIES_ELOG_SECT_ID_HOTPLUG		(('H' << 8) | 'P')
 
 /* Vendor specific Platform Event Log Format, Version 6, section header */
 struct pseries_errorlog {
-	uint16_t id;			/* 0x00 2-byte ASCII section ID	*/
-	uint16_t length;		/* 0x02 Section length in bytes	*/
+	__be16 id;			/* 0x00 2-byte ASCII section ID	*/
+	__be16 length;			/* 0x02 Section length in bytes	*/
 	uint8_t version;		/* 0x04 Section version		*/
 	uint8_t subtype;		/* 0x05 Section subtype		*/
-	uint16_t creator_component;	/* 0x06 Creator component ID	*/
+	__be16 creator_component;	/* 0x06 Creator component ID	*/
 	uint8_t data[];			/* 0x08 Start of section data	*/
 };
+
+static
+inline uint16_t pseries_errorlog_id(struct pseries_errorlog *sect)
+{
+	return be16_to_cpu(sect->id);
+}
+
+static
+inline uint16_t pseries_errorlog_length(struct pseries_errorlog *sect)
+{
+	return be16_to_cpu(sect->length);
+}
+
+/* RTAS pseries hotplug errorlog section */
+struct pseries_hp_errorlog {
+	u8	resource;
+	u8	action;
+	u8	id_type;
+	u8	reserved;
+	union {
+		__be32	drc_index;
+		__be32	drc_count;
+		char	drc_name[1];
+	} _drc_u;
+};
+
+#define PSERIES_HP_ELOG_RESOURCE_CPU	1
+#define PSERIES_HP_ELOG_RESOURCE_MEM	2
+#define PSERIES_HP_ELOG_RESOURCE_SLOT	3
+#define PSERIES_HP_ELOG_RESOURCE_PHB	4
+
+#define PSERIES_HP_ELOG_ACTION_ADD	1
+#define PSERIES_HP_ELOG_ACTION_REMOVE	2
+
+#define PSERIES_HP_ELOG_ID_DRC_NAME	1
+#define PSERIES_HP_ELOG_ID_DRC_INDEX	2
+#define PSERIES_HP_ELOG_ID_DRC_COUNT	3
 
 struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 					      uint16_t section_id);
@@ -266,7 +354,7 @@ extern int rtas_suspend_cpu(struct rtas_suspend_me_data *data);
 extern int rtas_suspend_last_cpu(struct rtas_suspend_me_data *data);
 extern int rtas_online_cpus_mask(cpumask_var_t cpus);
 extern int rtas_offline_cpus_mask(cpumask_var_t cpus);
-extern int rtas_ibm_suspend_me(struct rtas_args *);
+extern int rtas_ibm_suspend_me(u64 handle);
 
 struct rtc_time;
 extern unsigned long rtas_get_boot_time(void);
@@ -282,7 +370,12 @@ extern int early_init_dt_scan_rtas(unsigned long node,
 extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 
 #ifdef CONFIG_PPC_PSERIES
+extern time64_t last_rtas_event;
+extern int clobbering_unread_rtas_event(void);
 extern int pseries_devicetree_update(s32 scope);
+extern void post_mobility_fixup(void);
+#else
+static inline int clobbering_unread_rtas_event(void) { return 0; }
 #endif
 
 #ifdef CONFIG_PPC_RTAS_DAEMON

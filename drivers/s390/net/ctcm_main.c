@@ -567,7 +567,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	fsm_newstate(ch->fsm, CTC_STATE_TX);
 	fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
 	spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
-	ch->prof.send_stamp = current_kernel_time(); /* xtime */
+	ch->prof.send_stamp = jiffies;
 	rc = ccw_device_start(ch->cdev, &ch->ccw[ccw_idx],
 					(unsigned long)ch, 0xff, 0);
 	spin_unlock_irqrestore(get_ccwdev_lock(ch->cdev), saveflags);
@@ -831,7 +831,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 					sizeof(struct ccw1) * 3);
 
 	spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
-	ch->prof.send_stamp = current_kernel_time(); /* xtime */
+	ch->prof.send_stamp = jiffies;
 	rc = ccw_device_start(ch->cdev, &ch->ccw[ccw_idx],
 					(unsigned long)ch, 0xff, 0);
 	spin_unlock_irqrestore(get_ccwdev_lock(ch->cdev), saveflags);
@@ -1137,9 +1137,11 @@ static struct net_device *ctcm_init_netdevice(struct ctcm_priv *priv)
 		return NULL;
 
 	if (IS_MPC(priv))
-		dev = alloc_netdev(0, MPC_DEVICE_GENE, ctcm_dev_setup);
+		dev = alloc_netdev(0, MPC_DEVICE_GENE, NET_NAME_UNKNOWN,
+				   ctcm_dev_setup);
 	else
-		dev = alloc_netdev(0, CTC_DEVICE_GENE, ctcm_dev_setup);
+		dev = alloc_netdev(0, CTC_DEVICE_GENE, NET_NAME_UNKNOWN,
+				   ctcm_dev_setup);
 
 	if (!dev) {
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_CRIT,
@@ -1837,7 +1839,7 @@ static int __init ctcm_init(void)
 	if (ret)
 		goto out_err;
 	ctcm_root_dev = root_device_register("ctcm");
-	ret = PTR_RET(ctcm_root_dev);
+	ret = PTR_ERR_OR_ZERO(ctcm_root_dev);
 	if (ret)
 		goto register_err;
 	ret = ccw_driver_register(&ctcm_ccw_driver);

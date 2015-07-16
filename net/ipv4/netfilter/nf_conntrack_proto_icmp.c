@@ -72,13 +72,13 @@ static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
 }
 
 /* Print out the per-protocol part of the tuple. */
-static int icmp_print_tuple(struct seq_file *s,
+static void icmp_print_tuple(struct seq_file *s,
 			    const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "type=%u code=%u id=%u ",
-			  tuple->dst.u.icmp.type,
-			  tuple->dst.u.icmp.code,
-			  ntohs(tuple->src.u.icmp.id));
+	seq_printf(s, "type=%u code=%u id=%u ",
+		   tuple->dst.u.icmp.type,
+		   tuple->dst.u.icmp.code,
+		   ntohs(tuple->src.u.icmp.id));
 }
 
 static unsigned int *icmp_get_timeouts(struct net *net)
@@ -226,7 +226,7 @@ icmp_error(struct net *net, struct nf_conn *tmpl,
 	return icmp_error_message(net, tmpl, skb, ctinfo, hooknum);
 }
 
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
@@ -408,7 +408,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 	.error			= icmp_error,
 	.destroy		= NULL,
 	.me			= NULL,
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmp_tuple_to_nlattr,
 	.nlattr_tuple_size	= icmp_nlattr_tuple_size,
 	.nlattr_to_tuple	= icmp_nlattr_to_tuple,

@@ -84,7 +84,7 @@ static int ak4554_soc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id ak4554_of_match[] = {
+static const struct of_device_id ak4554_of_match[] = {
 	{ .compatible = "asahi-kasei,ak4554" },
 	{},
 };
@@ -93,7 +93,6 @@ MODULE_DEVICE_TABLE(of, ak4554_of_match);
 static struct platform_driver ak4554_driver = {
 	.driver = {
 		.name = "ak4554-adc-dac",
-		.owner = THIS_MODULE,
 		.of_match_table = ak4554_of_match,
 	},
 	.probe	= ak4554_soc_probe,

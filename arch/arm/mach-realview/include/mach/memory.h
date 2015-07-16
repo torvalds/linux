@@ -20,15 +20,6 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-/*
- * Physical DRAM offset.
- */
-#ifdef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
-#define PLAT_PHYS_OFFSET		UL(0x70000000)
-#else
-#define PLAT_PHYS_OFFSET		UL(0x00000000)
-#endif
-
 #ifdef CONFIG_SPARSEMEM
 
 /*
@@ -55,6 +46,8 @@
 /* bank page offsets */
 #define PAGE_OFFSET1	(PAGE_OFFSET + 0x10000000)
 #define PAGE_OFFSET2	(PAGE_OFFSET + 0x30000000)
+
+#define PHYS_OFFSET PLAT_PHYS_OFFSET
 
 #define __phys_to_virt(phys)						\
 	((phys) >= 0x80000000 ?	(phys) - 0x80000000 + PAGE_OFFSET2 :	\

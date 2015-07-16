@@ -29,6 +29,8 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -55,11 +57,12 @@ static u16 isp170x_id[] = {
 };
 
 struct isp1704_charger {
-	struct device		*dev;
-	struct power_supply	psy;
-	struct usb_phy		*phy;
-	struct notifier_block	nb;
-	struct work_struct	work;
+	struct device			*dev;
+	struct power_supply		*psy;
+	struct power_supply_desc	psy_desc;
+	struct usb_phy			*phy;
+	struct notifier_block		nb;
+	struct work_struct		work;
 
 	/* properties */
 	char			model[8];
@@ -88,6 +91,8 @@ static void isp1704_charger_set_power(struct isp1704_charger *isp, bool on)
 
 	if (board && board->set_power)
 		board->set_power(on);
+	else if (board)
+		gpio_set_value(board->enable_gpio, on);
 }
 
 /*
@@ -255,10 +260,10 @@ static void isp1704_charger_work(struct work_struct *data)
 
 			/* detect wall charger */
 			if (isp1704_charger_detect_dcp(isp)) {
-				isp->psy.type = POWER_SUPPLY_TYPE_USB_DCP;
+				isp->psy_desc.type = POWER_SUPPLY_TYPE_USB_DCP;
 				isp->current_max = 1800;
 			} else {
-				isp->psy.type = POWER_SUPPLY_TYPE_USB;
+				isp->psy_desc.type = POWER_SUPPLY_TYPE_USB;
 				isp->current_max = 500;
 			}
 
@@ -267,7 +272,7 @@ static void isp1704_charger_work(struct work_struct *data)
 				usb_gadget_connect(isp->phy->otg->gadget);
 		}
 
-		if (isp->psy.type != POWER_SUPPLY_TYPE_USB_DCP) {
+		if (isp->psy_desc.type != POWER_SUPPLY_TYPE_USB_DCP) {
 			/*
 			 * Only 500mA here or high speed chirp
 			 * handshaking may break
@@ -276,14 +281,14 @@ static void isp1704_charger_work(struct work_struct *data)
 				isp->current_max = 500;
 
 			if (isp->current_max > 100)
-				isp->psy.type = POWER_SUPPLY_TYPE_USB_CDP;
+				isp->psy_desc.type = POWER_SUPPLY_TYPE_USB_CDP;
 		}
 		break;
 	case USB_EVENT_NONE:
 		isp->online = false;
 		isp->present = 0;
 		isp->current_max = 0;
-		isp->psy.type = POWER_SUPPLY_TYPE_USB;
+		isp->psy_desc.type = POWER_SUPPLY_TYPE_USB;
 
 		/*
 		 * Disable data pullups. We need to prevent the controller from
@@ -302,7 +307,7 @@ static void isp1704_charger_work(struct work_struct *data)
 		goto out;
 	}
 
-	power_supply_changed(&isp->psy);
+	power_supply_changed(isp->psy);
 out:
 	mutex_unlock(&lock);
 }
@@ -322,8 +327,7 @@ static int isp1704_charger_get_property(struct power_supply *psy,
 				enum power_supply_property psp,
 				union power_supply_propval *val)
 {
-	struct isp1704_charger *isp =
-		container_of(psy, struct isp1704_charger, psy);
+	struct isp1704_charger *isp = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -399,14 +403,48 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 {
 	struct isp1704_charger	*isp;
 	int			ret = -ENODEV;
+	struct power_supply_config psy_cfg = {};
+
+	struct isp1704_charger_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
+
+	if (np) {
+		int gpio = of_get_named_gpio(np, "nxp,enable-gpio", 0);
+
+		if (gpio < 0)
+			return gpio;
+
+		pdata = devm_kzalloc(&pdev->dev,
+			sizeof(struct isp1704_charger_data), GFP_KERNEL);
+		pdata->enable_gpio = gpio;
+
+		dev_info(&pdev->dev, "init gpio %d\n", pdata->enable_gpio);
+
+		ret = devm_gpio_request_one(&pdev->dev, pdata->enable_gpio,
+					GPIOF_OUT_INIT_HIGH, "isp1704_reset");
+		if (ret)
+			goto fail0;
+	}
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "missing platform data!\n");
+		return -ENODEV;
+	}
+
 
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
 		return -ENOMEM;
 
-	isp->phy = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (IS_ERR_OR_NULL(isp->phy))
+	if (np)
+		isp->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
+	else
+		isp->phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
+
+	if (IS_ERR(isp->phy)) {
+		ret = PTR_ERR(isp->phy);
 		goto fail0;
+	}
 
 	isp->dev = &pdev->dev;
 	platform_set_drvdata(pdev, isp);
@@ -417,15 +455,19 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto fail1;
 
-	isp->psy.name		= "isp1704";
-	isp->psy.type		= POWER_SUPPLY_TYPE_USB;
-	isp->psy.properties	= power_props;
-	isp->psy.num_properties	= ARRAY_SIZE(power_props);
-	isp->psy.get_property	= isp1704_charger_get_property;
+	isp->psy_desc.name		= "isp1704";
+	isp->psy_desc.type		= POWER_SUPPLY_TYPE_USB;
+	isp->psy_desc.properties	= power_props;
+	isp->psy_desc.num_properties	= ARRAY_SIZE(power_props);
+	isp->psy_desc.get_property	= isp1704_charger_get_property;
 
-	ret = power_supply_register(isp->dev, &isp->psy);
-	if (ret)
+	psy_cfg.drv_data		= isp;
+
+	isp->psy = power_supply_register(isp->dev, &isp->psy_desc, &psy_cfg);
+	if (IS_ERR(isp->psy)) {
+		ret = PTR_ERR(isp->psy);
 		goto fail1;
+	}
 
 	/*
 	 * REVISIT: using work in order to allow the usb notifications to be
@@ -461,10 +503,9 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 
 	return 0;
 fail2:
-	power_supply_unregister(&isp->psy);
+	power_supply_unregister(isp->psy);
 fail1:
 	isp1704_charger_set_power(isp, 0);
-	usb_put_phy(isp->phy);
 fail0:
 	dev_err(&pdev->dev, "failed to register isp1704 with error %d\n", ret);
 
@@ -476,16 +517,24 @@ static int isp1704_charger_remove(struct platform_device *pdev)
 	struct isp1704_charger *isp = platform_get_drvdata(pdev);
 
 	usb_unregister_notifier(isp->phy, &isp->nb);
-	power_supply_unregister(&isp->psy);
-	usb_put_phy(isp->phy);
+	power_supply_unregister(isp->psy);
 	isp1704_charger_set_power(isp, 0);
 
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id omap_isp1704_of_match[] = {
+	{ .compatible = "nxp,isp1704", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_isp1704_of_match);
+#endif
+
 static struct platform_driver isp1704_charger_driver = {
 	.driver = {
 		.name = "isp1704_charger",
+		.of_match_table = of_match_ptr(omap_isp1704_of_match),
 	},
 	.probe = isp1704_charger_probe,
 	.remove = isp1704_charger_remove,

@@ -1692,7 +1692,6 @@ static u16 MXL5005_TunerConfig(struct dvb_frontend *fe,
 	)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
-	u16 status = 0;
 
 	state->Mode = Mode;
 	state->IF_Mode = IF_mode;
@@ -1715,7 +1714,7 @@ static u16 MXL5005_TunerConfig(struct dvb_frontend *fe,
 	/* Synthesizer LO frequency calculation */
 	MXL_SynthIFLO_Calc(fe);
 
-	return status;
+	return 0;
 }
 
 static void MXL_SynthIFLO_Calc(struct dvb_frontend *fe)

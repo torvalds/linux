@@ -61,8 +61,6 @@
  *
  *****************************************************************************/
 
-#define DEBUG
-
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/export.h>
@@ -128,8 +126,8 @@ void __iwl_dbg(struct device *dev,
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_have_debug_level(level) &&
 	    (!limit || net_ratelimit()))
-		dev_dbg(dev, "%c %s %pV", in_interrupt() ? 'I' : 'U',
-			function, &vaf);
+		dev_printk(KERN_DEBUG, dev, "%c %s %pV",
+			   in_interrupt() ? 'I' : 'U', function, &vaf);
 #endif
 	trace_iwlwifi_dbg(level, in_interrupt(), function, &vaf);
 	va_end(args);

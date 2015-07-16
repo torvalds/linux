@@ -23,6 +23,7 @@
  */
 
 #define SARL				0	/* Low part [0:31] */
+#define	 SARL_A370_SSCG_ENABLE		BIT(10)
 #define	 SARL_A370_PCLK_FREQ_OPT	11
 #define	 SARL_A370_PCLK_FREQ_OPT_MASK	0xF
 #define	 SARL_A370_FAB_FREQ_OPT		15
@@ -133,20 +134,20 @@ static void __init a370_get_clk_ratio(
 	}
 }
 
+static bool a370_is_sscg_enabled(void __iomem *sar)
+{
+	return !(readl(sar) & SARL_A370_SSCG_ENABLE);
+}
+
 static const struct coreclk_soc_desc a370_coreclks = {
 	.get_tclk_freq = a370_get_tclk_freq,
 	.get_cpu_freq = a370_get_cpu_freq,
 	.get_clk_ratio = a370_get_clk_ratio,
+	.is_sscg_enabled = a370_is_sscg_enabled,
+	.fix_sscg_deviation = kirkwood_fix_sscg_deviation,
 	.ratios = a370_coreclk_ratios,
 	.num_ratios = ARRAY_SIZE(a370_coreclk_ratios),
 };
-
-static void __init a370_coreclk_init(struct device_node *np)
-{
-	mvebu_coreclk_setup(np, &a370_coreclks);
-}
-CLK_OF_DECLARE(a370_core_clk, "marvell,armada-370-core-clock",
-	       a370_coreclk_init);
 
 /*
  * Clock Gating Control
@@ -162,15 +163,22 @@ static const struct clk_gating_soc_desc a370_gating_desc[] __initconst = {
 	{ "pex1", "pex1_en", 9, 0 },
 	{ "sata0", NULL, 15, 0 },
 	{ "sdio", NULL, 17, 0 },
+	{ "crypto", NULL, 23, CLK_IGNORE_UNUSED },
 	{ "tdm", NULL, 25, 0 },
 	{ "ddr", NULL, 28, CLK_IGNORE_UNUSED },
 	{ "sata1", NULL, 30, 0 },
 	{ }
 };
 
-static void __init a370_clk_gating_init(struct device_node *np)
+static void __init a370_clk_init(struct device_node *np)
 {
-	mvebu_clk_gating_setup(np, a370_gating_desc);
+	struct device_node *cgnp =
+		of_find_compatible_node(NULL, NULL, "marvell,armada-370-gating-clock");
+
+	mvebu_coreclk_setup(np, &a370_coreclks);
+
+	if (cgnp)
+		mvebu_clk_gating_setup(cgnp, a370_gating_desc);
 }
-CLK_OF_DECLARE(a370_clk_gating, "marvell,armada-370-gating-clock",
-	       a370_clk_gating_init);
+CLK_OF_DECLARE(a370_clk, "marvell,armada-370-core-clock", a370_clk_init);
+

@@ -35,8 +35,7 @@
 #include <linux/genhd.h>
 #include <linux/file.h>
 #include <linux/module.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
+#include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
@@ -53,17 +52,11 @@ static inline struct iblock_dev *IBLOCK_DEV(struct se_device *dev)
 }
 
 
-static struct se_subsystem_api iblock_template;
-
-/*	iblock_attach_hba(): (Part of se_subsystem_api_t template)
- *
- *
- */
 static int iblock_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	pr_debug("CORE_HBA[%d] - TCM iBlock HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
-		IBLOCK_VERSION, TARGET_CORE_MOD_VERSION);
+		IBLOCK_VERSION, TARGET_CORE_VERSION);
 	return 0;
 }
 
@@ -91,6 +84,7 @@ static int iblock_configure_device(struct se_device *dev)
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 	struct request_queue *q;
 	struct block_device *bd = NULL;
+	struct blk_integrity *bi;
 	fmode_t mode;
 	int ret = -ENOMEM;
 
@@ -122,7 +116,7 @@ static int iblock_configure_device(struct se_device *dev)
 	q = bdev_get_queue(bd);
 
 	dev->dev_attrib.hw_block_size = bdev_logical_block_size(bd);
-	dev->dev_attrib.hw_max_sectors = UINT_MAX;
+	dev->dev_attrib.hw_max_sectors = queue_max_hw_sectors(q);
 	dev->dev_attrib.hw_queue_depth = q->nr_requests;
 
 	/*
@@ -155,13 +149,53 @@ static int iblock_configure_device(struct se_device *dev)
 	if (blk_queue_nonrot(q))
 		dev->dev_attrib.is_nonrot = 1;
 
+	bi = bdev_get_integrity(bd);
+	if (bi) {
+		struct bio_set *bs = ib_dev->ibd_bio_set;
+
+		if (!strcmp(bi->name, "T10-DIF-TYPE3-IP") ||
+		    !strcmp(bi->name, "T10-DIF-TYPE1-IP")) {
+			pr_err("IBLOCK export of blk_integrity: %s not"
+			       " supported\n", bi->name);
+			ret = -ENOSYS;
+			goto out_blkdev_put;
+		}
+
+		if (!strcmp(bi->name, "T10-DIF-TYPE3-CRC")) {
+			dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE3_PROT;
+		} else if (!strcmp(bi->name, "T10-DIF-TYPE1-CRC")) {
+			dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE1_PROT;
+		}
+
+		if (dev->dev_attrib.pi_prot_type) {
+			if (bioset_integrity_create(bs, IBLOCK_BIO_POOL_SIZE) < 0) {
+				pr_err("Unable to allocate bioset for PI\n");
+				ret = -ENOMEM;
+				goto out_blkdev_put;
+			}
+			pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
+				 bs->bio_integrity_pool);
+		}
+		dev->dev_attrib.hw_pi_prot_type = dev->dev_attrib.pi_prot_type;
+	}
+
 	return 0;
 
+out_blkdev_put:
+	blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
 out_free_bioset:
 	bioset_free(ib_dev->ibd_bio_set);
 	ib_dev->ibd_bio_set = NULL;
 out:
 	return ret;
+}
+
+static void iblock_dev_call_rcu(struct rcu_head *p)
+{
+	struct se_device *dev = container_of(p, struct se_device, rcu_head);
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+
+	kfree(ib_dev);
 }
 
 static void iblock_free_device(struct se_device *dev)
@@ -172,7 +206,8 @@ static void iblock_free_device(struct se_device *dev)
 		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
 	if (ib_dev->ibd_bio_set != NULL)
 		bioset_free(ib_dev->ibd_bio_set);
-	kfree(ib_dev);
+
+	call_rcu(&dev->rcu_head, iblock_dev_call_rcu);
 }
 
 static unsigned long long iblock_emulate_read_cap_with_block_size(
@@ -289,7 +324,7 @@ static void iblock_bio_done(struct bio *bio, int err)
 		 * Bump the ib_bio_err_cnt and release bio.
 		 */
 		atomic_inc(&ibr->ib_bio_err_cnt);
-		smp_mb__after_atomic_inc();
+		smp_mb__after_atomic();
 	}
 
 	bio_put(bio);
@@ -319,7 +354,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
 	bio->bi_bdev = ib_dev->ibd_bd;
 	bio->bi_private = cmd;
 	bio->bi_end_io = &iblock_bio_done;
-	bio->bi_sector = lba;
+	bio->bi_iter.bi_sector = lba;
 
 	return bio;
 }
@@ -380,10 +415,9 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-iblock_do_unmap(struct se_cmd *cmd, void *priv,
-		sector_t lba, sector_t nolb)
+iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 {
-	struct block_device *bdev = priv;
+	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 	int ret;
 
 	ret = blkdev_issue_discard(bdev, lba, nolb, GFP_KERNEL, 0);
@@ -392,30 +426,6 @@ iblock_do_unmap(struct se_cmd *cmd, void *priv,
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
-	return 0;
-}
-
-static sense_reason_t
-iblock_execute_unmap(struct se_cmd *cmd)
-{
-	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
-
-	return sbc_execute_unmap(cmd, iblock_do_unmap, bdev);
-}
-
-static sense_reason_t
-iblock_execute_write_same_unmap(struct se_cmd *cmd)
-{
-	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
-	sector_t lba = cmd->t_task_lba;
-	sector_t nolb = sbc_get_write_same_sectors(cmd);
-	int ret;
-
-	ret = iblock_do_unmap(cmd, bdev, lba, nolb);
-	if (ret)
-		return ret;
-
-	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
@@ -429,6 +439,11 @@ iblock_execute_write_same(struct se_cmd *cmd)
 	sector_t block_lba = cmd->t_task_lba;
 	sector_t sectors = sbc_get_write_same_sectors(cmd);
 
+	if (cmd->prot_op) {
+		pr_err("WRITE_SAME: Protection information with IBLOCK"
+		       " backends not supported\n");
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
 	sg = &cmd->t_data_sg[0];
 
 	if (cmd->t_data_nents > 1 ||
@@ -586,13 +601,58 @@ static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
 	return bl;
 }
 
+static int
+iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio)
+{
+	struct se_device *dev = cmd->se_dev;
+	struct blk_integrity *bi;
+	struct bio_integrity_payload *bip;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct scatterlist *sg;
+	int i, rc;
+
+	bi = bdev_get_integrity(ib_dev->ibd_bd);
+	if (!bi) {
+		pr_err("Unable to locate bio_integrity\n");
+		return -ENODEV;
+	}
+
+	bip = bio_integrity_alloc(bio, GFP_NOIO, cmd->t_prot_nents);
+	if (!bip) {
+		pr_err("Unable to allocate bio_integrity_payload\n");
+		return -ENOMEM;
+	}
+
+	bip->bip_iter.bi_size = (cmd->data_length / dev->dev_attrib.block_size) *
+			 dev->prot_length;
+	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
+
+	pr_debug("IBLOCK BIP Size: %u Sector: %llu\n", bip->bip_iter.bi_size,
+		 (unsigned long long)bip->bip_iter.bi_sector);
+
+	for_each_sg(cmd->t_prot_sg, sg, cmd->t_prot_nents, i) {
+
+		rc = bio_integrity_add_page(bio, sg_page(sg), sg->length,
+					    sg->offset);
+		if (rc != sg->length) {
+			pr_err("bio_integrity_add_page() failed; %d\n", rc);
+			return -ENOMEM;
+		}
+
+		pr_debug("Added bio integrity page: %p length: %d offset; %d\n",
+			 sg_page(sg), sg->length, sg->offset);
+	}
+
+	return 0;
+}
+
 static sense_reason_t
 iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		  enum dma_data_direction data_direction)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct iblock_req *ibr;
-	struct bio *bio;
+	struct bio *bio, *bio_start;
 	struct bio_list list;
 	struct scatterlist *sg;
 	u32 sg_num = sgl_nents;
@@ -655,6 +715,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	if (!bio)
 		goto fail_free_ibr;
 
+	bio_start = bio;
 	bio_list_init(&list);
 	bio_list_add(&list, bio);
 
@@ -686,6 +747,12 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		/* Always in 512 byte units for Linux/Block */
 		block_lba += sg->length >> IBLOCK_LBA_SHIFT;
 		sg_num--;
+	}
+
+	if (cmd->prot_type && dev->dev_attrib.pi_prot_type) {
+		int rc = iblock_alloc_bip(cmd, bio_start);
+		if (rc)
+			goto fail_put_bios;
 	}
 
 	iblock_submit_bios(&list, rw);
@@ -753,7 +820,6 @@ static struct sbc_ops iblock_sbc_ops = {
 	.execute_rw		= iblock_execute_rw,
 	.execute_sync_cache	= iblock_execute_sync_cache,
 	.execute_write_same	= iblock_execute_write_same,
-	.execute_write_same_unmap = iblock_execute_write_same_unmap,
 	.execute_unmap		= iblock_execute_unmap,
 };
 
@@ -763,7 +829,7 @@ iblock_parse_cdb(struct se_cmd *cmd)
 	return sbc_parse_cdb(cmd, &iblock_sbc_ops);
 }
 
-bool iblock_get_write_cache(struct se_device *dev)
+static bool iblock_get_write_cache(struct se_device *dev)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 	struct block_device *bd = ib_dev->ibd_bd;
@@ -772,12 +838,11 @@ bool iblock_get_write_cache(struct se_device *dev)
 	return q->flush_flags & REQ_FLUSH;
 }
 
-static struct se_subsystem_api iblock_template = {
+static const struct target_backend_ops iblock_ops = {
 	.name			= "iblock",
 	.inquiry_prod		= "IBLOCK",
 	.inquiry_rev		= IBLOCK_VERSION,
 	.owner			= THIS_MODULE,
-	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
 	.attach_hba		= iblock_attach_hba,
 	.detach_hba		= iblock_detach_hba,
 	.alloc_device		= iblock_alloc_device,
@@ -793,16 +858,17 @@ static struct se_subsystem_api iblock_template = {
 	.get_io_min		= iblock_get_io_min,
 	.get_io_opt		= iblock_get_io_opt,
 	.get_write_cache	= iblock_get_write_cache,
+	.tb_dev_attrib_attrs	= sbc_attrib_attrs,
 };
 
 static int __init iblock_module_init(void)
 {
-	return transport_subsystem_register(&iblock_template);
+	return transport_backend_register(&iblock_ops);
 }
 
 static void __exit iblock_module_exit(void)
 {
-	transport_subsystem_release(&iblock_template);
+	target_backend_unregister(&iblock_ops);
 }
 
 MODULE_DESCRIPTION("TCM IBLOCK subsystem plugin");

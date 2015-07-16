@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,9 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			u32 level, u32 index)
 {
 	u32 i;
+	u32 timer;
+	union acpi_operand_object *object_desc;
+	u32 value;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_do_debug_object, source_desc);
 
@@ -86,11 +89,19 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	}
 
 	/*
+	 * We will emit the current timer value (in microseconds) with each
+	 * debug output. Only need the lower 26 bits. This allows for 67
+	 * million microseconds or 67 seconds before rollover.
+	 */
+	timer = ((u32)acpi_os_get_timer() / 10);	/* (100 nanoseconds to microseconds) */
+	timer &= 0x03FFFFFF;
+
+	/*
 	 * Print line header as long as we are not in the middle of an
 	 * object display
 	 */
 	if (!((level > 0) && index == 0)) {
-		acpi_os_printf("[ACPI Debug] %*s", level, " ");
+		acpi_os_printf("[ACPI Debug %.8u] %*s", timer, level, " ");
 	}
 
 	/* Display the index for package output only */
@@ -245,8 +256,44 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 							 object)->object,
 							level + 4, 0);
 			} else {
-				acpi_ex_do_debug_object(source_desc->reference.
-							object, level + 4, 0);
+				object_desc = source_desc->reference.object;
+				value = source_desc->reference.value;
+
+				switch (object_desc->common.type) {
+				case ACPI_TYPE_BUFFER:
+
+					acpi_os_printf("Buffer[%u] = 0x%2.2X\n",
+						       value,
+						       *source_desc->reference.
+						       index_pointer);
+					break;
+
+				case ACPI_TYPE_STRING:
+
+					acpi_os_printf
+					    ("String[%u] = \"%c\" (0x%2.2X)\n",
+					     value,
+					     *source_desc->reference.
+					     index_pointer,
+					     *source_desc->reference.
+					     index_pointer);
+					break;
+
+				case ACPI_TYPE_PACKAGE:
+
+					acpi_os_printf("Package[%u] = ", value);
+					acpi_ex_do_debug_object(*source_desc->
+								reference.where,
+								level + 4, 0);
+					break;
+
+				default:
+
+					acpi_os_printf
+					    ("Unknown Reference object type %X\n",
+					     object_desc->common.type);
+					break;
+				}
 			}
 		}
 		break;

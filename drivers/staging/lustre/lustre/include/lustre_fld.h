@@ -42,8 +42,8 @@
  * @{
  */
 
-#include <lustre/lustre_idl.h>
-#include <linux/libcfs/libcfs.h>
+#include "lustre/lustre_idl.h"
+#include "../../include/linux/libcfs/libcfs.h"
 
 struct lu_client_fld;
 struct lu_server_fld;
@@ -71,10 +71,6 @@ struct lu_fld_target {
 
 struct lu_server_fld {
 	/**
-	 * Fld dir proc entry. */
-	struct proc_dir_entry    *lsf_proc_dir;
-
-	/**
 	 * /fld file object device */
 	struct dt_object	*lsf_obj;
 
@@ -93,14 +89,14 @@ struct lu_server_fld {
 
 	/**
 	 * Fld service name in form "fld-srv-lustre-MDTXXX" */
-	char		     lsf_name[80];
+	char		     lsf_name[LUSTRE_MDT_MAXNAMELEN];
 
 };
 
 struct lu_client_fld {
 	/**
-	 * Client side proc entry. */
-	struct proc_dir_entry    *lcf_proc_dir;
+	 * Client side debugfs entry. */
+	struct dentry		*lcf_debugfs_entry;
 
 	/**
 	 * List of exports client FLD knows about. */
@@ -123,10 +119,10 @@ struct lu_client_fld {
 	struct fld_cache	*lcf_cache;
 
 	/**
-	 * Client fld proc entry name. */
-	char		     lcf_name[80];
+	 * Client fld debugfs entry name. */
+	char			 lcf_name[LUSTRE_MDT_MAXNAMELEN];
 
-	int		      lcf_flags;
+	int			 lcf_flags;
 };
 
 /* Client methods */
@@ -137,15 +133,14 @@ void fld_client_fini(struct lu_client_fld *fld);
 
 void fld_client_flush(struct lu_client_fld *fld);
 
-int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
+int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 		      __u32 flags, const struct lu_env *env);
 
 int fld_client_create(struct lu_client_fld *fld,
 		      struct lu_seq_range *range,
 		      const struct lu_env *env);
 
-int fld_client_delete(struct lu_client_fld *fld,
-		      seqno_t seq,
+int fld_client_delete(struct lu_client_fld *fld, u64 seq,
 		      const struct lu_env *env);
 
 int fld_client_add_target(struct lu_client_fld *fld,
@@ -154,7 +149,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 int fld_client_del_target(struct lu_client_fld *fld,
 			  __u64 idx);
 
-void fld_client_proc_fini(struct lu_client_fld *fld);
+void fld_client_debugfs_fini(struct lu_client_fld *fld);
 
 /** @} fld */
 

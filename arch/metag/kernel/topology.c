@@ -19,6 +19,7 @@
 DEFINE_PER_CPU(struct cpuinfo_metag, cpu_data);
 
 cpumask_t cpu_core_map[NR_CPUS];
+EXPORT_SYMBOL(cpu_core_map);
 
 static cpumask_t cpu_coregroup_map(unsigned int cpu)
 {

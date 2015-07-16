@@ -1,19 +1,15 @@
 #ifndef TARGET_CORE_BACKEND_H
 #define TARGET_CORE_BACKEND_H
 
-#define TRANSPORT_PLUGIN_PHBA_PDEV		1
-#define TRANSPORT_PLUGIN_VHBA_PDEV		2
-#define TRANSPORT_PLUGIN_VHBA_VDEV		3
+#define TRANSPORT_FLAG_PASSTHROUGH		1
 
-struct se_subsystem_api {
-	struct list_head sub_api_list;
-
+struct target_backend_ops {
 	char name[16];
 	char inquiry_prod[16];
 	char inquiry_rev[4];
 	struct module *owner;
 
-	u8 transport_type;
+	u8 transport_flags;
 
 	int (*attach_hba)(struct se_hba *, u32);
 	void (*detach_hba)(struct se_hba *);
@@ -41,6 +37,11 @@ struct se_subsystem_api {
 	unsigned int (*get_io_opt)(struct se_device *);
 	unsigned char *(*get_sense_buffer)(struct se_cmd *);
 	bool (*get_write_cache)(struct se_device *);
+	int (*init_prot)(struct se_device *);
+	int (*format_prot)(struct se_device *);
+	void (*free_prot)(struct se_device *);
+
+	struct configfs_attribute **tb_dev_attrib_attrs;
 };
 
 struct sbc_ops {
@@ -48,14 +49,15 @@ struct sbc_ops {
 				     u32, enum dma_data_direction);
 	sense_reason_t (*execute_sync_cache)(struct se_cmd *cmd);
 	sense_reason_t (*execute_write_same)(struct se_cmd *cmd);
-	sense_reason_t (*execute_write_same_unmap)(struct se_cmd *cmd);
-	sense_reason_t (*execute_unmap)(struct se_cmd *cmd);
+	sense_reason_t (*execute_unmap)(struct se_cmd *cmd,
+				sector_t lba, sector_t nolb);
 };
 
-int	transport_subsystem_register(struct se_subsystem_api *);
-void	transport_subsystem_release(struct se_subsystem_api *);
+int	transport_backend_register(const struct target_backend_ops *);
+void	target_backend_unregister(const struct target_backend_ops *);
 
 void	target_complete_cmd(struct se_cmd *, u8);
+void	target_complete_cmd_with_length(struct se_cmd *, u8, int);
 
 sense_reason_t	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
 sense_reason_t	spc_emulate_report_luns(struct se_cmd *cmd);
@@ -66,15 +68,18 @@ sense_reason_t	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
 u32	sbc_get_device_rev(struct se_device *dev);
 u32	sbc_get_device_type(struct se_device *dev);
 sector_t	sbc_get_write_same_sectors(struct se_cmd *cmd);
-sense_reason_t sbc_execute_unmap(struct se_cmd *cmd,
-	sense_reason_t (*do_unmap_fn)(struct se_cmd *cmd, void *priv,
-				      sector_t lba, sector_t nolb),
-	void *priv);
-
+void	sbc_dif_generate(struct se_cmd *);
+sense_reason_t	sbc_dif_verify(struct se_cmd *, sector_t, unsigned int,
+				     unsigned int, struct scatterlist *, int);
+void sbc_dif_copy_prot(struct se_cmd *, unsigned int, bool,
+		       struct scatterlist *, int);
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_assoc(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_ident_type(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_ident(struct t10_vpd *, unsigned char *);
+
+extern struct configfs_attribute *sbc_attrib_attrs[];
+extern struct configfs_attribute *passthrough_attrib_attrs[];
 
 /* core helpers also used by command snooping in pscsi */
 void	*transport_kmap_data_sg(struct se_cmd *);
@@ -84,6 +89,8 @@ int	target_alloc_sgl(struct scatterlist **, unsigned int *, u32, bool);
 sense_reason_t	transport_generic_map_mem_to_cmd(struct se_cmd *,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 
-void	array_free(void *array, int n);
+bool	target_lun_is_rdonly(struct se_cmd *);
+sense_reason_t passthrough_parse_cdb(struct se_cmd *cmd,
+	sense_reason_t (*exec_cmd)(struct se_cmd *cmd));
 
 #endif /* TARGET_CORE_BACKEND_H */

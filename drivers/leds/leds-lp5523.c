@@ -1,5 +1,5 @@
 /*
- * lp5523.c - LP5523 LED Driver
+ * lp5523.c - LP5523, LP55231 LED Driver
  *
  * Copyright (C) 2010 Nokia Corporation
  * Copyright (C) 2012 Texas Instruments
@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -35,7 +34,15 @@
 
 #include "leds-lp55xx-common.h"
 
-#define LP5523_PROGRAM_LENGTH		32
+#define LP5523_PROGRAM_LENGTH		32	/* bytes */
+/* Memory is used like this:
+   0x00 engine 1 program
+   0x10 engine 2 program
+   0x20 engine 3 program
+   0x30 engine 1 muxing info
+   0x40 engine 2 muxing info
+   0x50 engine 3 muxing info
+*/
 #define LP5523_MAX_LEDS			9
 
 /* Registers */
@@ -43,6 +50,7 @@
 #define LP5523_REG_OP_MODE		0x01
 #define LP5523_REG_ENABLE_LEDS_MSB	0x04
 #define LP5523_REG_ENABLE_LEDS_LSB	0x05
+#define LP5523_REG_LED_CTRL_BASE	0x06
 #define LP5523_REG_LED_PWM_BASE		0x16
 #define LP5523_REG_LED_CURRENT_BASE	0x26
 #define LP5523_REG_CONFIG		0x36
@@ -50,6 +58,7 @@
 #define LP5523_REG_RESET		0x3D
 #define LP5523_REG_LED_TEST_CTRL	0x41
 #define LP5523_REG_LED_TEST_ADC		0x42
+#define LP5523_REG_MASTER_FADER_BASE	0x48
 #define LP5523_REG_CH1_PROG_START	0x4C
 #define LP5523_REG_CH2_PROG_START	0x4D
 #define LP5523_REG_CH3_PROG_START	0x4E
@@ -70,6 +79,9 @@
 #define LP5523_ADC_SHORTCIRC_LIM	80
 #define LP5523_EXT_CLK_USED		0x08
 #define LP5523_ENG_STATUS_MASK		0x07
+
+#define LP5523_FADER_MAPPING_MASK	0xC0
+#define LP5523_FADER_MAPPING_SHIFT	6
 
 /* Memory Page Selection */
 #define LP5523_PAGE_ENG1		0
@@ -187,9 +199,23 @@ static void lp5523_load_engine_and_select_page(struct lp55xx_chip *chip)
 	lp55xx_write(chip, LP5523_REG_PROG_PAGE_SEL, page_sel[idx]);
 }
 
-static void lp5523_stop_engine(struct lp55xx_chip *chip)
+static void lp5523_stop_all_engines(struct lp55xx_chip *chip)
 {
 	lp55xx_write(chip, LP5523_REG_OP_MODE, 0);
+	lp5523_wait_opmode_done();
+}
+
+static void lp5523_stop_engine(struct lp55xx_chip *chip)
+{
+	enum lp55xx_engine_index idx = chip->engine_idx;
+	u8 mask[] = {
+		[LP55XX_ENGINE_1] = LP5523_MODE_ENG1_M,
+		[LP55XX_ENGINE_2] = LP5523_MODE_ENG2_M,
+		[LP55XX_ENGINE_3] = LP5523_MODE_ENG3_M,
+	};
+
+	lp55xx_update_bits(chip, LP5523_REG_OP_MODE, mask[idx], 0);
+
 	lp5523_wait_opmode_done();
 }
 
@@ -303,7 +329,7 @@ static int lp5523_init_program_engine(struct lp55xx_chip *chip)
 	}
 
 out:
-	lp5523_stop_engine(chip);
+	lp5523_stop_all_engines(chip);
 	return ret;
 }
 
@@ -337,17 +363,11 @@ static int lp5523_update_program_memory(struct lp55xx_chip *chip,
 	if (i % 2)
 		goto err;
 
-	mutex_lock(&chip->lock);
-
 	for (i = 0; i < LP5523_PROGRAM_LENGTH; i++) {
 		ret = lp55xx_write(chip, LP5523_REG_PROG_MEM + i, pattern[i]);
-		if (ret) {
-			mutex_unlock(&chip->lock);
+		if (ret)
 			return -EINVAL;
-		}
 	}
-
-	mutex_unlock(&chip->lock);
 
 	return size;
 
@@ -548,15 +568,17 @@ static ssize_t store_engine_load(struct device *dev,
 {
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 	struct lp55xx_chip *chip = led->chip;
+	int ret;
 
 	mutex_lock(&chip->lock);
 
 	chip->engine_idx = nr;
 	lp5523_load_engine_and_select_page(chip);
+	ret = lp5523_update_program_memory(chip, buf, len);
 
 	mutex_unlock(&chip->lock);
 
-	return lp5523_update_program_memory(chip, buf, len);
+	return ret;
 }
 store_load(1)
 store_load(2)
@@ -649,6 +671,137 @@ release_lock:
 	return pos;
 }
 
+#define show_fader(nr)						\
+static ssize_t show_master_fader##nr(struct device *dev,	\
+			    struct device_attribute *attr,	\
+			    char *buf)				\
+{								\
+	return show_master_fader(dev, attr, buf, nr);		\
+}
+
+#define store_fader(nr)						\
+static ssize_t store_master_fader##nr(struct device *dev,	\
+			     struct device_attribute *attr,	\
+			     const char *buf, size_t len)	\
+{								\
+	return store_master_fader(dev, attr, buf, len, nr);	\
+}
+
+static ssize_t show_master_fader(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf, int nr)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	int ret;
+	u8 val;
+
+	mutex_lock(&chip->lock);
+	ret = lp55xx_read(chip, LP5523_REG_MASTER_FADER_BASE + nr - 1, &val);
+	mutex_unlock(&chip->lock);
+
+	if (ret == 0)
+		ret = sprintf(buf, "%u\n", val);
+
+	return ret;
+}
+show_fader(1)
+show_fader(2)
+show_fader(3)
+
+static ssize_t store_master_fader(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t len, int nr)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	int ret;
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	if (val > 0xff)
+		return -EINVAL;
+
+	mutex_lock(&chip->lock);
+	ret = lp55xx_write(chip, LP5523_REG_MASTER_FADER_BASE + nr - 1,
+			   (u8)val);
+	mutex_unlock(&chip->lock);
+
+	if (ret == 0)
+		ret = len;
+
+	return ret;
+}
+store_fader(1)
+store_fader(2)
+store_fader(3)
+
+static ssize_t show_master_fader_leds(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	int i, ret, pos = 0;
+	u8 val;
+
+	mutex_lock(&chip->lock);
+
+	for (i = 0; i < LP5523_MAX_LEDS; i++) {
+		ret = lp55xx_read(chip, LP5523_REG_LED_CTRL_BASE + i, &val);
+		if (ret)
+			goto leave;
+
+		val = (val & LP5523_FADER_MAPPING_MASK)
+			>> LP5523_FADER_MAPPING_SHIFT;
+		if (val > 3) {
+			ret = -EINVAL;
+			goto leave;
+		}
+		buf[pos++] = val + '0';
+	}
+	buf[pos++] = '\n';
+	ret = pos;
+leave:
+	mutex_unlock(&chip->lock);
+	return ret;
+}
+
+static ssize_t store_master_fader_leds(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t len)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	int i, n, ret;
+	u8 val;
+
+	n = min_t(int, len, LP5523_MAX_LEDS);
+
+	mutex_lock(&chip->lock);
+
+	for (i = 0; i < n; i++) {
+		if (buf[i] >= '0' && buf[i] <= '3') {
+			val = (buf[i] - '0') << LP5523_FADER_MAPPING_SHIFT;
+			ret = lp55xx_update_bits(chip,
+						 LP5523_REG_LED_CTRL_BASE + i,
+						 LP5523_FADER_MAPPING_MASK,
+						 val);
+			if (ret)
+				goto leave;
+		} else {
+			ret = -EINVAL;
+			goto leave;
+		}
+	}
+	ret = len;
+leave:
+	mutex_unlock(&chip->lock);
+	return ret;
+}
+
 static void lp5523_led_brightness_work(struct work_struct *work)
 {
 	struct lp55xx_led *led = container_of(work, struct lp55xx_led,
@@ -671,6 +824,14 @@ static LP55XX_DEV_ATTR_WO(engine1_load, store_engine1_load);
 static LP55XX_DEV_ATTR_WO(engine2_load, store_engine2_load);
 static LP55XX_DEV_ATTR_WO(engine3_load, store_engine3_load);
 static LP55XX_DEV_ATTR_RO(selftest, lp5523_selftest);
+static LP55XX_DEV_ATTR_RW(master_fader1, show_master_fader1,
+			  store_master_fader1);
+static LP55XX_DEV_ATTR_RW(master_fader2, show_master_fader2,
+			  store_master_fader2);
+static LP55XX_DEV_ATTR_RW(master_fader3, show_master_fader3,
+			  store_master_fader3);
+static LP55XX_DEV_ATTR_RW(master_fader_leds, show_master_fader_leds,
+			  store_master_fader_leds);
 
 static struct attribute *lp5523_attributes[] = {
 	&dev_attr_engine1_mode.attr,
@@ -683,6 +844,10 @@ static struct attribute *lp5523_attributes[] = {
 	&dev_attr_engine2_leds.attr,
 	&dev_attr_engine3_leds.attr,
 	&dev_attr_selftest.attr,
+	&dev_attr_master_fader1.attr,
+	&dev_attr_master_fader2.attr,
+	&dev_attr_master_fader3.attr,
+	&dev_attr_master_fader_leds.attr,
 	NULL,
 };
 
@@ -778,7 +943,7 @@ static int lp5523_remove(struct i2c_client *client)
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
 
-	lp5523_stop_engine(chip);
+	lp5523_stop_all_engines(chip);
 	lp55xx_unregister_sysfs(chip);
 	lp55xx_unregister_leds(led, chip);
 	lp55xx_deinit_device(chip);
@@ -797,6 +962,7 @@ MODULE_DEVICE_TABLE(i2c, lp5523_id);
 #ifdef CONFIG_OF
 static const struct of_device_id of_lp5523_leds_match[] = {
 	{ .compatible = "national,lp5523", },
+	{ .compatible = "ti,lp55231", },
 	{},
 };
 

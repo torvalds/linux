@@ -16,6 +16,7 @@
 #include <linux/stat.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_address.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
@@ -25,7 +26,6 @@
 #include <asm/mach/map.h>
 
 #include "setup.h"
-#include "devices.h"
 
 #include "board-mop500.h"
 #include "db8500-regs.h"
@@ -53,51 +53,36 @@ void ux500_restart(enum reboot_mode mode, const char *cmd)
 */
 void __init ux500_init_irq(void)
 {
-	void __iomem *dist_base;
-	void __iomem *cpu_base;
+	struct device_node *np;
+	struct resource r;
 
-	gic_arch_extn.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
-
-	if (cpu_is_u8500_family() || cpu_is_ux540_family()) {
-		dist_base = __io_address(U8500_GIC_DIST_BASE);
-		cpu_base = __io_address(U8500_GIC_CPU_BASE);
-	} else
-		ux500_unknown_soc();
-
-#ifdef CONFIG_OF
-	if (of_have_populated_dt())
-		irqchip_init();
-	else
-#endif
-		gic_init(0, 29, dist_base, cpu_base);
+	gic_set_irqchip_flags(IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND);
+	irqchip_init();
+	np = of_find_compatible_node(NULL, NULL, "stericsson,db8500-prcmu");
+	of_address_to_resource(np, 0, &r);
+	of_node_put(np);
+	if (!r.start) {
+		pr_err("could not find PRCMU base resource\n");
+		return;
+	}
+	prcmu_early_init(r.start, r.end-r.start);
+	ux500_pm_init(r.start, r.end-r.start);
 
 	/*
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
 	if (cpu_is_u8500_family()) {
-		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
-		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
-
-		if (of_have_populated_dt())
-			u8500_of_clk_init(U8500_CLKRST1_BASE,
-					  U8500_CLKRST2_BASE,
-					  U8500_CLKRST3_BASE,
-					  U8500_CLKRST5_BASE,
-					  U8500_CLKRST6_BASE);
-		else
-			u8500_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
-				       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
-				       U8500_CLKRST6_BASE);
+		u8500_of_clk_init(U8500_CLKRST1_BASE,
+				  U8500_CLKRST2_BASE,
+				  U8500_CLKRST3_BASE,
+				  U8500_CLKRST5_BASE,
+				  U8500_CLKRST6_BASE);
 	} else if (cpu_is_u9540()) {
-		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
-		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
 		u9540_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
 			       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
 			       U8500_CLKRST6_BASE);
 	} else if (cpu_is_u8540()) {
-		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
-		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
 		u8540_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
 			       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
 			       U8500_CLKRST6_BASE);
@@ -146,7 +131,7 @@ static void __init soc_info_populate(struct soc_device_attribute *soc_dev_attr,
 	soc_dev_attr->revision = ux500_get_revision();
 }
 
-struct device_attribute ux500_soc_attr =
+static const struct device_attribute ux500_soc_attr =
 	__ATTR(process,  S_IRUGO, ux500_get_process,  NULL);
 
 struct device * __init ux500_soc_device_init(const char *soc_id)

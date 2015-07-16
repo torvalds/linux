@@ -35,6 +35,7 @@
 #include <linux/nmi.h>
 #include <linux/hardirq.h>
 #include <linux/pstore.h>
+#include <linux/vmalloc.h>
 #include <acpi/apei.h>
 
 #include "apei-internal.h"
@@ -611,7 +612,7 @@ static void __erst_record_id_cache_compact(void)
 		if (entries[i] == APEI_ERST_INVALID_RECORD_ID)
 			continue;
 		if (wpos != i)
-			memcpy(&entries[wpos], &entries[i], sizeof(entries[i]));
+			entries[wpos] = entries[i];
 		wpos++;
 	}
 	erst_record_id_cache.len = wpos;
@@ -942,6 +943,7 @@ static int erst_clearer(enum pstore_type_id type, u64 id, int count,
 static struct pstore_info erst_info = {
 	.owner		= THIS_MODULE,
 	.name		= "erst",
+	.flags		= PSTORE_FLAGS_FRAGILE,
 	.open		= erst_open_pstore,
 	.close		= erst_close_pstore,
 	.read		= erst_reader,

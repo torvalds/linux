@@ -279,6 +279,7 @@ static int child_count;
 static int single_menu_mode;
 static int show_all_options;
 static int save_and_exit;
+static int silent;
 
 static void conf(struct menu *menu, struct menu *active_menu);
 static void conf_choice(struct menu *menu);
@@ -299,7 +300,7 @@ static void set_config_filename(const char *config_filename)
 	int size;
 
 	size = snprintf(menu_backtitle, sizeof(menu_backtitle),
-	                "%s - %s", config_filename, rootmenu.prompt->text);
+			"%s - %s", config_filename, rootmenu.prompt->text);
 	if (size >= sizeof(menu_backtitle))
 		menu_backtitle[sizeof(menu_backtitle)-1] = '\0';
 	set_dialog_backtitle(menu_backtitle);
@@ -330,10 +331,10 @@ static void set_subtitle(void)
 	list_for_each_entry(sp, &trail, entries) {
 		if (sp->text) {
 			if (pos) {
-				pos->next = xcalloc(sizeof(*pos), 1);
+				pos->next = xcalloc(1, sizeof(*pos));
 				pos = pos->next;
 			} else {
-				subtitles = pos = xcalloc(sizeof(*pos), 1);
+				subtitles = pos = xcalloc(1, sizeof(*pos));
 			}
 			pos->text = sp->text;
 		}
@@ -777,10 +778,12 @@ static void conf_message_callback(const char *fmt, va_list ap)
 	char buf[PATH_MAX+1];
 
 	vsnprintf(buf, sizeof(buf), fmt, ap);
-	if (save_and_exit)
-		printf("%s", buf);
-	else
+	if (save_and_exit) {
+		if (!silent)
+			printf("%s", buf);
+	} else {
 		show_textbox(NULL, buf, 6, 60);
+	}
 }
 
 static void show_help(struct menu *menu)
@@ -977,16 +980,18 @@ static int handle_exit(void)
 		}
 		/* fall through */
 	case -1:
-		printf(_("\n\n"
-			 "*** End of the configuration.\n"
-			 "*** Execute 'make' to start the build or try 'make help'."
-			 "\n\n"));
+		if (!silent)
+			printf(_("\n\n"
+				 "*** End of the configuration.\n"
+				 "*** Execute 'make' to start the build or try 'make help'."
+				 "\n\n"));
 		res = 0;
 		break;
 	default:
-		fprintf(stderr, _("\n\n"
-				  "Your configuration changes were NOT saved."
-				  "\n\n"));
+		if (!silent)
+			fprintf(stderr, _("\n\n"
+					  "Your configuration changes were NOT saved."
+					  "\n\n"));
 		if (res != KEY_ESC)
 			res = 0;
 	}
@@ -1010,6 +1015,12 @@ int main(int ac, char **av)
 
 	signal(SIGINT, sig_handler);
 
+	if (ac > 1 && strcmp(av[1], "-s") == 0) {
+		silent = 1;
+		/* Silence conf_read() until the real callback is set up */
+		conf_set_message_callback(NULL);
+		av++;
+	}
 	conf_parse(av[1]);
 	conf_read(NULL);
 
@@ -1034,4 +1045,3 @@ int main(int ac, char **av)
 
 	return res;
 }
-

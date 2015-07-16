@@ -332,10 +332,10 @@ static const struct ltq_pin_group xway_grps[] = {
 	GRP_MUX("mdio", MDIO, pins_mdio),
 	GRP_MUX("gphy0 led0", GPHY, pins_gphy0_led0),
 	GRP_MUX("gphy0 led1", GPHY, pins_gphy0_led1),
-	GRP_MUX("gphy0 lde2", GPHY, pins_gphy0_led2),
+	GRP_MUX("gphy0 led2", GPHY, pins_gphy0_led2),
 	GRP_MUX("gphy1 led0", GPHY, pins_gphy1_led0),
 	GRP_MUX("gphy1 led1", GPHY, pins_gphy1_led1),
-	GRP_MUX("gphy1 lde2", GPHY, pins_gphy1_led2),
+	GRP_MUX("gphy1 led2", GPHY, pins_gphy1_led2),
 };
 
 static const struct ltq_pin_group ase_grps[] = {
@@ -798,7 +798,6 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 
 	/* load the gpio chip */
 	xway_chip.dev = &pdev->dev;
-	of_gpiochip_add(&xway_chip);
 	ret = gpiochip_add(&xway_chip);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register gpio chip\n");
@@ -822,6 +821,7 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	/* register with the generic lantiq layer */
 	ret = ltq_pinctrl_register(pdev, &xway_info);
 	if (ret) {
+		gpiochip_remove(&xway_chip);
 		dev_err(&pdev->dev, "Failed to register pinctrl driver\n");
 		return ret;
 	}
@@ -838,7 +838,6 @@ static struct platform_driver pinmux_xway_driver = {
 	.probe	= pinmux_xway_probe,
 	.driver = {
 		.name	= "pinctrl-xway",
-		.owner	= THIS_MODULE,
 		.of_match_table = xway_match,
 	},
 };

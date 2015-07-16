@@ -256,7 +256,7 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 		if (ret)
 			return ret;
 
-		mark_page_dirty(vcpu->kvm, table_gfn);
+		kvm_vcpu_mark_page_dirty(vcpu, table_gfn);
 		walker->ptes[level] = pte;
 	}
 	return 0;
@@ -298,8 +298,7 @@ retry_walk:
 	}
 #endif
 	walker->max_level = walker->level;
-	ASSERT((!is_long_mode(vcpu) && is_pae(vcpu)) ||
-	       (mmu->get_cr3(vcpu) & CR3_NONPAE_RESERVED_BITS) == 0);
+	ASSERT(!(is_long_mode(vcpu) && !is_pae(vcpu)));
 
 	accessed_dirty = PT_GUEST_ACCESSED_MASK;
 	pt_access = pte_access = ACC_ALL;
@@ -321,12 +320,25 @@ retry_walk:
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
 		real_gfn = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
-					      PFERR_USER_MASK|PFERR_WRITE_MASK);
+					      PFERR_USER_MASK|PFERR_WRITE_MASK,
+					      &walker->fault);
+
+		/*
+		 * FIXME: This can happen if emulation (for of an INS/OUTS
+		 * instruction) triggers a nested page fault.  The exit
+		 * qualification / exit info field will incorrectly have
+		 * "guest page access" as the nested page fault's cause,
+		 * instead of "guest page structure access".  To fix this,
+		 * the x86_exception struct should be augmented with enough
+		 * information to fix the exit_qualification or exit_info_1
+		 * fields.
+		 */
 		if (unlikely(real_gfn == UNMAPPED_GVA))
-			goto error;
+			return 0;
+
 		real_gfn = gpa_to_gfn(real_gfn);
 
-		host_addr = gfn_to_hva_prot(vcpu->kvm, real_gfn,
+		host_addr = kvm_vcpu_gfn_to_hva_prot(vcpu, real_gfn,
 					    &walker->pte_writable[walker->level - 1]);
 		if (unlikely(kvm_is_error_hva(host_addr)))
 			goto error;
@@ -353,7 +365,7 @@ retry_walk:
 		walker->ptes[walker->level - 1] = pte;
 	} while (!is_last_gpte(mmu, walker->level, pte));
 
-	if (unlikely(permission_fault(mmu, pte_access, access))) {
+	if (unlikely(permission_fault(vcpu, mmu, pte_access, access))) {
 		errcode |= PFERR_PRESENT_MASK;
 		goto error;
 	}
@@ -364,7 +376,7 @@ retry_walk:
 	if (PTTYPE == 32 && walker->level == PT_DIRECTORY_LEVEL && is_cpuid_PSE36())
 		gfn += pse36_gfn_delta(pte);
 
-	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn), access);
+	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn), access, &walker->fault);
 	if (real_gpa == UNMAPPED_GVA)
 		return 0;
 
@@ -499,11 +511,11 @@ static bool FNAME(gpte_changed)(struct kvm_vcpu *vcpu,
 		base_gpa = pte_gpa & ~mask;
 		index = (pte_gpa - base_gpa) / sizeof(pt_element_t);
 
-		r = kvm_read_guest_atomic(vcpu->kvm, base_gpa,
+		r = kvm_vcpu_read_guest_atomic(vcpu, base_gpa,
 				gw->prefetch_ptes, sizeof(gw->prefetch_ptes));
 		curr_pte = gw->prefetch_ptes[index];
 	} else
-		r = kvm_read_guest_atomic(vcpu->kvm, pte_gpa,
+		r = kvm_vcpu_read_guest_atomic(vcpu, pte_gpa,
 				  &curr_pte, sizeof(curr_pte));
 
 	return r || curr_pte != gw->ptes[level - 1];
@@ -567,6 +579,9 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	 * really care if it changes underneath us after this point).
 	 */
 	if (FNAME(gpte_changed)(vcpu, gw, top_level))
+		goto out_gpte_changed;
+
+	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		goto out_gpte_changed;
 
 	for (shadow_walk_init(&it, vcpu, addr);
@@ -703,6 +718,13 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 					      mmu_is_nested(vcpu));
 		if (likely(r != RET_MMIO_PF_INVALID))
 			return r;
+
+		/*
+		 * page fault with PFEC.RSVD  = 1 is caused by shadow
+		 * page fault, should not be used to walk guest page
+		 * table.
+		 */
+		error_code &= ~PFERR_RSVD_MASK;
 	};
 
 	r = mmu_topup_memory_caches(vcpu);
@@ -820,6 +842,11 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 	 */
 	mmu_topup_memory_caches(vcpu);
 
+	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa)) {
+		WARN_ON(1);
+		return;
+	}
+
 	spin_lock(&vcpu->kvm->mmu_lock);
 	for_each_shadow_entry(vcpu, gva, iterator) {
 		level = iterator.level;
@@ -842,8 +869,8 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 			if (!rmap_can_add(vcpu))
 				break;
 
-			if (kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &gpte,
-						  sizeof(pt_element_t)))
+			if (kvm_vcpu_read_guest_atomic(vcpu, pte_gpa, &gpte,
+						       sizeof(pt_element_t)))
 				break;
 
 			FNAME(update_pte)(vcpu, sp, sptep, &gpte);
@@ -929,8 +956,8 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		pte_gpa = first_pte_gpa + i * sizeof(pt_element_t);
 
-		if (kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &gpte,
-					  sizeof(pt_element_t)))
+		if (kvm_vcpu_read_guest_atomic(vcpu, pte_gpa, &gpte,
+					       sizeof(pt_element_t)))
 			return -EINVAL;
 
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
@@ -943,7 +970,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		pte_access &= FNAME(gpte_access)(vcpu, gpte);
 		FNAME(protect_clean_gpte)(&pte_access, gpte);
 
-		if (sync_mmio_spte(vcpu->kvm, &sp->spt[i], gfn, pte_access,
+		if (sync_mmio_spte(vcpu, &sp->spt[i], gfn, pte_access,
 		      &nr_present))
 			continue;
 

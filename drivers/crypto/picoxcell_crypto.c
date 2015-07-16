@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <crypto/aead.h>
+#include <crypto/internal/aead.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/authenc.h>
@@ -40,6 +40,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 
@@ -261,18 +262,9 @@ static unsigned spacc_load_ctx(struct spacc_generic_ctx *ctx,
 }
 
 /* Count the number of scatterlist entries in a scatterlist. */
-static int sg_count(struct scatterlist *sg_list, int nbytes)
+static inline int sg_count(struct scatterlist *sg_list, int nbytes)
 {
-	struct scatterlist *sg = sg_list;
-	int sg_nents = 0;
-
-	while (nbytes > 0) {
-		++sg_nents;
-		nbytes -= sg->length;
-		sg = sg_next(sg);
-	}
-
-	return sg_nents;
+	return sg_nents_for_len(sg_list, nbytes);
 }
 
 static inline void ddt_set(struct spacc_ddt *ddt, dma_addr_t phys, size_t len)
@@ -326,6 +318,7 @@ static int spacc_aead_make_ddts(struct spacc_req *req, u8 *giv)
 	struct spacc_ddt *src_ddt, *dst_ddt;
 	unsigned ivsize = crypto_aead_ivsize(crypto_aead_reqtfm(areq));
 	unsigned nents = sg_count(areq->src, areq->cryptlen);
+	unsigned total;
 	dma_addr_t iv_addr;
 	struct scatterlist *cur;
 	int i, dst_ents, src_ents, assoc_ents;
@@ -369,11 +362,18 @@ static int spacc_aead_make_ddts(struct spacc_req *req, u8 *giv)
 	 * Map the associated data. For decryption we don't copy the
 	 * associated data.
 	 */
+	total = areq->assoclen;
 	for_each_sg(areq->assoc, cur, assoc_ents, i) {
-		ddt_set(src_ddt++, sg_dma_address(cur), sg_dma_len(cur));
+		unsigned len = sg_dma_len(cur);
+
+		if (len > total)
+			len = total;
+
+		total -= len;
+
+		ddt_set(src_ddt++, sg_dma_address(cur), len);
 		if (req->is_encrypt)
-			ddt_set(dst_ddt++, sg_dma_address(cur),
-				sg_dma_len(cur));
+			ddt_set(dst_ddt++, sg_dma_address(cur), len);
 	}
 	ddt_set(src_ddt++, iv_addr, ivsize);
 
@@ -495,45 +495,29 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 {
 	struct spacc_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct spacc_alg *alg = to_spacc_alg(tfm->base.__crt_alg);
-	struct rtattr *rta = (void *)key;
-	struct crypto_authenc_key_param *param;
-	unsigned int authkeylen, enckeylen;
+	struct crypto_authenc_keys keys;
 	int err = -EINVAL;
 
-	if (!RTA_OK(rta, keylen))
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
+	if (keys.enckeylen > AES_MAX_KEY_SIZE)
 		goto badkey;
 
-	if (RTA_PAYLOAD(rta) < sizeof(*param))
-		goto badkey;
-
-	param = RTA_DATA(rta);
-	enckeylen = be32_to_cpu(param->enckeylen);
-
-	key += RTA_ALIGN(rta->rta_len);
-	keylen -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < enckeylen)
-		goto badkey;
-
-	authkeylen = keylen - enckeylen;
-
-	if (enckeylen > AES_MAX_KEY_SIZE)
+	if (keys.authkeylen > sizeof(ctx->hash_ctx))
 		goto badkey;
 
 	if ((alg->ctrl_default & SPACC_CRYPTO_ALG_MASK) ==
 	    SPA_CTRL_CIPH_ALG_AES)
-		err = spacc_aead_aes_setkey(tfm, key + authkeylen, enckeylen);
+		err = spacc_aead_aes_setkey(tfm, keys.enckey, keys.enckeylen);
 	else
-		err = spacc_aead_des_setkey(tfm, key + authkeylen, enckeylen);
+		err = spacc_aead_des_setkey(tfm, keys.enckey, keys.enckeylen);
 
 	if (err)
 		goto badkey;
 
-	memcpy(ctx->hash_ctx, key, authkeylen);
-	ctx->hash_key_len = authkeylen;
+	memcpy(ctx->hash_ctx, keys.authkey, keys.authkeylen);
+	ctx->hash_key_len = keys.authkeylen;
 
 	return 0;
 
@@ -806,7 +790,8 @@ static int spacc_aead_cra_init(struct crypto_tfm *tfm)
 
 	get_random_bytes(ctx->salt, sizeof(ctx->salt));
 
-	tfm->crt_aead.reqsize = sizeof(struct spacc_req);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+				sizeof(struct spacc_req));
 
 	return 0;
 }
@@ -1736,20 +1721,14 @@ static int spacc_probe(struct platform_device *pdev)
 	engine->name = dev_name(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	engine->regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(engine->regs))
+		return PTR_ERR(engine->regs);
+
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!mem || !irq) {
+	if (!irq) {
 		dev_err(&pdev->dev, "no memory/irq resource for engine\n");
 		return -ENXIO;
-	}
-
-	if (!devm_request_mem_region(&pdev->dev, mem->start, resource_size(mem),
-				     engine->name))
-		return -ENOMEM;
-
-	engine->regs = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (!engine->regs) {
-		dev_err(&pdev->dev, "memory map failed\n");
-		return -ENOMEM;
 	}
 
 	if (devm_request_irq(&pdev->dev, irq->start, spacc_spacc_irq, 0,
@@ -1776,15 +1755,15 @@ static int spacc_probe(struct platform_device *pdev)
 		return PTR_ERR(engine->clk);
 	}
 
-	if (clk_enable(engine->clk)) {
-		dev_info(&pdev->dev, "unable to enable clk\n");
+	if (clk_prepare_enable(engine->clk)) {
+		dev_info(&pdev->dev, "unable to prepare/enable clk\n");
 		clk_put(engine->clk);
 		return -EIO;
 	}
 
 	err = device_create_file(&pdev->dev, &dev_attr_stat_irq_thresh);
 	if (err) {
-		clk_disable(engine->clk);
+		clk_disable_unprepare(engine->clk);
 		clk_put(engine->clk);
 		return err;
 	}
@@ -1852,7 +1831,7 @@ static int spacc_remove(struct platform_device *pdev)
 		crypto_unregister_alg(&alg->alg);
 	}
 
-	clk_disable(engine->clk);
+	clk_disable_unprepare(engine->clk);
 	clk_put(engine->clk);
 
 	return 0;

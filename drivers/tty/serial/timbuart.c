@@ -244,11 +244,6 @@ static void timbuart_mctrl_check(struct uart_port *port, u32 isr, u32 *ier)
 	*ier |= CTS_DELTA;
 }
 
-static void timbuart_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 static void timbuart_break_ctl(struct uart_port *port, int ctl)
 {
 	/* N/A */
@@ -278,6 +273,8 @@ static void timbuart_shutdown(struct uart_port *port)
 	dev_dbg(port->dev, "%s\n", __func__);
 	free_irq(port->irq, uart);
 	iowrite32(0, port->membase + TIMBUART_IER);
+
+	timbuart_flush_buffer(port);
 }
 
 static int get_bindex(int baud)
@@ -405,7 +402,6 @@ static struct uart_ops timbuart_ops = {
 	.start_tx = timbuart_start_tx,
 	.flush_buffer = timbuart_flush_buffer,
 	.stop_rx = timbuart_stop_rx,
-	.enable_ms = timbuart_enable_ms,
 	.break_ctl = timbuart_break_ctl,
 	.startup = timbuart_startup,
 	.shutdown = timbuart_shutdown,
@@ -507,7 +503,6 @@ static int timbuart_remove(struct platform_device *dev)
 static struct platform_driver timbuart_platform_driver = {
 	.driver = {
 		.name	= "timb-uart",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= timbuart_probe,
 	.remove		= timbuart_remove,

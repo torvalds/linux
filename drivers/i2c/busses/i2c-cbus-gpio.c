@@ -19,7 +19,6 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -288,7 +287,6 @@ static struct platform_driver cbus_i2c_driver = {
 	.probe	= cbus_i2c_probe,
 	.remove	= cbus_i2c_remove,
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name	= "i2c-cbus-gpio",
 		.of_match_table = of_match_ptr(i2c_cbus_dt_ids),
 	},

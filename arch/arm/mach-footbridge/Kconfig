@@ -52,6 +52,7 @@ config ARCH_EBSA285_HOST
 	select FOOTBRIDGE_HOST
 	select ISA
 	select ISA_DMA
+	select ARCH_MAY_HAVE_PC_FDC
 	select PCI
 	help
 	  Say Y here if you intend to run this kernel on the EBSA285 card
@@ -85,6 +86,7 @@ config FOOTBRIDGE
 # Footbridge in host mode
 config FOOTBRIDGE_HOST
 	bool
+	select ARCH_MIGHT_HAVE_PC_SERIO
 
 # Footbridge in addin mode
 config FOOTBRIDGE_ADDIN
@@ -93,6 +95,5 @@ config FOOTBRIDGE_ADDIN
 # EBSA285 board in either host or addin mode
 config ARCH_EBSA285
 	bool
-	select ARCH_MAY_HAVE_PC_FDC
 
 endif

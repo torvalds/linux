@@ -15,4 +15,6 @@ struct clk_icst_desc {
 
 struct clk *icst_clk_register(struct device *dev,
 			      const struct clk_icst_desc *desc,
+			      const char *name,
+			      const char *parent_name,
 			      void __iomem *base);

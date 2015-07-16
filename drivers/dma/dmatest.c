@@ -31,7 +31,7 @@ module_param_string(channel, test_channel, sizeof(test_channel),
 		S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(channel, "Bus ID of the channel to test (default: any)");
 
-static char test_device[20];
+static char test_device[32];
 module_param_string(device, test_device, sizeof(test_device),
 		S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(device, "Bus ID of the DMA Engine to test (default: any)");
@@ -89,7 +89,7 @@ MODULE_PARM_DESC(verbose, "Enable \"success\" result messages (default: off)");
 struct dmatest_params {
 	unsigned int	buf_size;
 	char		channel[20];
-	char		device[20];
+	char		device[32];
 	unsigned int	threads_per_chan;
 	unsigned int	max_channels;
 	unsigned int	iterations;
@@ -120,7 +120,7 @@ static struct dmatest_info {
 
 static int dmatest_run_set(const char *val, const struct kernel_param *kp);
 static int dmatest_run_get(char *val, const struct kernel_param *kp);
-static struct kernel_param_ops run_ops = {
+static const struct kernel_param_ops run_ops = {
 	.set = dmatest_run_set,
 	.get = dmatest_run_get,
 };
@@ -195,7 +195,7 @@ static int dmatest_wait_get(char *val, const struct kernel_param *kp)
 	return param_get_bool(val, kp);
 }
 
-static struct kernel_param_ops wait_ops = {
+static const struct kernel_param_ops wait_ops = {
 	.get = dmatest_wait_get,
 	.set = param_set_bool,
 };
@@ -340,7 +340,7 @@ static unsigned int min_odd(unsigned int x, unsigned int y)
 static void result(const char *err, unsigned int n, unsigned int src_off,
 		   unsigned int dst_off, unsigned int len, unsigned long data)
 {
-	pr_info("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)",
+	pr_info("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)\n",
 		current->comm, n, err, src_off, dst_off, len, data);
 }
 
@@ -348,15 +348,15 @@ static void dbg_result(const char *err, unsigned int n, unsigned int src_off,
 		       unsigned int dst_off, unsigned int len,
 		       unsigned long data)
 {
-	pr_debug("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)",
-		   current->comm, n, err, src_off, dst_off, len, data);
+	pr_debug("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)\n",
+		 current->comm, n, err, src_off, dst_off, len, data);
 }
 
-#define verbose_result(err, n, src_off, dst_off, len, data) ({ \
-	if (verbose) \
-		result(err, n, src_off, dst_off, len, data); \
-	else \
-		dbg_result(err, n, src_off, dst_off, len, data); \
+#define verbose_result(err, n, src_off, dst_off, len, data) ({	\
+	if (verbose)						\
+		result(err, n, src_off, dst_off, len, data);	\
+	else							\
+		dbg_result(err, n, src_off, dst_off, len, data);\
 })
 
 static unsigned long long dmatest_persec(s64 runtime, unsigned int val)
@@ -405,7 +405,6 @@ static int dmatest_func(void *data)
 	struct dmatest_params	*params;
 	struct dma_chan		*chan;
 	struct dma_device	*dev;
-	unsigned int		src_off, dst_off, len;
 	unsigned int		error_count;
 	unsigned int		failed_tests = 0;
 	unsigned int		total_tests = 0;
@@ -484,6 +483,7 @@ static int dmatest_func(void *data)
 		struct dmaengine_unmap_data *um;
 		dma_addr_t srcs[src_cnt];
 		dma_addr_t *dsts;
+		unsigned int src_off, dst_off, len;
 		u8 align = 0;
 
 		total_tests++;
@@ -502,15 +502,21 @@ static int dmatest_func(void *data)
 			break;
 		}
 
-		if (params->noverify) {
+		if (params->noverify)
 			len = params->buf_size;
+		else
+			len = dmatest_random() % params->buf_size + 1;
+
+		len = (len >> align) << align;
+		if (!len)
+			len = 1 << align;
+
+		total_len += len;
+
+		if (params->noverify) {
 			src_off = 0;
 			dst_off = 0;
 		} else {
-			len = dmatest_random() % params->buf_size + 1;
-			len = (len >> align) << align;
-			if (!len)
-				len = 1 << align;
 			src_off = dmatest_random() % (params->buf_size - len + 1);
 			dst_off = dmatest_random() % (params->buf_size - len + 1);
 
@@ -523,11 +529,6 @@ static int dmatest_func(void *data)
 					  params->buf_size);
 		}
 
-		len = (len >> align) << align;
-		if (!len)
-			len = 1 << align;
-		total_len += len;
-
 		um = dmaengine_get_unmap_data(dev->dev, src_cnt+dst_cnt,
 					      GFP_KERNEL);
 		if (!um) {
@@ -539,9 +540,9 @@ static int dmatest_func(void *data)
 
 		um->len = params->buf_size;
 		for (i = 0; i < src_cnt; i++) {
-			unsigned long buf = (unsigned long) thread->srcs[i];
+			void *buf = thread->srcs[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = buf & ~PAGE_MASK;
+			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
 
 			um->addr[i] = dma_map_page(dev->dev, pg, pg_off,
 						   um->len, DMA_TO_DEVICE);
@@ -559,9 +560,9 @@ static int dmatest_func(void *data)
 		/* map with DMA_BIDIRECTIONAL to force writeback/invalidate */
 		dsts = &um->addr[src_cnt];
 		for (i = 0; i < dst_cnt; i++) {
-			unsigned long buf = (unsigned long) thread->dsts[i];
+			void *buf = thread->dsts[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = buf & ~PAGE_MASK;
+			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
 
 			dsts[i] = dma_map_page(dev->dev, pg, pg_off, um->len,
 					       DMA_BIDIRECTIONAL);
@@ -688,14 +689,14 @@ static int dmatest_func(void *data)
 	runtime = ktime_us_delta(ktime_get(), ktime);
 
 	ret = 0;
+err_dstbuf:
 	for (i = 0; thread->dsts[i]; i++)
 		kfree(thread->dsts[i]);
-err_dstbuf:
 	kfree(thread->dsts);
 err_dsts:
+err_srcbuf:
 	for (i = 0; thread->srcs[i]; i++)
 		kfree(thread->srcs[i]);
-err_srcbuf:
 	kfree(thread->srcs);
 err_srcs:
 	kfree(pq_coefs);

@@ -404,11 +404,10 @@ static const struct file_operations mtrr_fops = {
 static int mtrr_seq_show(struct seq_file *seq, void *offset)
 {
 	char factor;
-	int i, max, len;
+	int i, max;
 	mtrr_type type;
 	unsigned long base, size;
 
-	len = 0;
 	max = num_var_ranges;
 	for (i = 0; i < max; i++) {
 		mtrr_if->get(i, &base, &size, &type);
@@ -425,11 +424,10 @@ static int mtrr_seq_show(struct seq_file *seq, void *offset)
 			size >>= 20 - PAGE_SHIFT;
 		}
 		/* Base can be > 32bit */
-		len += seq_printf(seq, "reg%02i: base=0x%06lx000 "
-			"(%5luMB), size=%5lu%cB, count=%d: %s\n",
-			i, base, base >> (20 - PAGE_SHIFT), size,
-			factor, mtrr_usage_table[i],
-			mtrr_attrib_to_str(type));
+		seq_printf(seq, "reg%02i: base=0x%06lx000 (%5luMB), size=%5lu%cB, count=%d: %s\n",
+			   i, base, base >> (20 - PAGE_SHIFT),
+			   size, factor,
+			   mtrr_usage_table[i], mtrr_attrib_to_str(type));
 	}
 	return 0;
 }

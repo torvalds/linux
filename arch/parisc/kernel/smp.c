@@ -230,9 +230,6 @@ send_IPI_allbutself(enum ipi_message_type op)
 inline void 
 smp_send_stop(void)	{ send_IPI_allbutself(IPI_CPU_STOP); }
 
-static inline void
-smp_send_start(void)	{ send_IPI_allbutself(IPI_CPU_START); }
-
 void 
 smp_send_reschedule(int cpu) { send_IPI_single(cpu, IPI_RESCHEDULE); }
 

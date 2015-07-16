@@ -29,7 +29,7 @@
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-extern __wsum csum_partial(const void *buff, int len, __wsum sum);
+__wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /* the same as csum_partial, but copies from fs:src while it
  * checksums
@@ -38,7 +38,7 @@ extern __wsum csum_partial(const void *buff, int len, __wsum sum);
  * better 64-bit) boundary
  */
 
-extern unsigned int __csum_partial_copy_sparc_generic (const unsigned char *, unsigned char *);
+unsigned int __csum_partial_copy_sparc_generic (const unsigned char *, unsigned char *);
 
 static inline __wsum
 csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
@@ -236,6 +236,18 @@ static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 static inline __sum16 ip_compute_csum(const void *buff, int len)
 {
 	return csum_fold(csum_partial(buff, len, 0));
+}
+
+#define HAVE_ARCH_CSUM_ADD
+static inline __wsum csum_add(__wsum csum, __wsum addend)
+{
+	__asm__ __volatile__(
+		"addcc   %0, %1, %0\n"
+		"addx    %0, %%g0, %0"
+		: "=r" (csum)
+		: "r" (addend), "0" (csum));
+
+	return csum;
 }
 
 #endif /* !(__SPARC_CHECKSUM_H) */

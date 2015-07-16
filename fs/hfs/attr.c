@@ -16,7 +16,7 @@
 int hfs_setxattr(struct dentry *dentry, const char *name,
 		 const void *value, size_t size, int flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hfs_find_data fd;
 	hfs_cat_rec rec;
 	struct hfs_cat_file *file;
@@ -59,7 +59,7 @@ out:
 ssize_t hfs_getxattr(struct dentry *dentry, const char *name,
 			 void *value, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hfs_find_data fd;
 	hfs_cat_rec rec;
 	struct hfs_cat_file *file;
@@ -105,7 +105,7 @@ out:
 
 ssize_t hfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	if (!S_ISREG(inode->i_mode) || HFS_IS_RSRC(inode))
 		return -EOPNOTSUPP;

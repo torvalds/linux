@@ -199,16 +199,9 @@ frame header.
 TX limitations
 --------------
 
-Kernel processing usually involves validation of the message received by
-user-space, then processing its contents. The kernel must assure that
-userspace is not able to modify the message contents after they have been
-validated. In order to do so, the message is copied from the ring frame
-to an allocated buffer if either of these conditions is false:
-
-- only a single mapping of the ring exists
-- the file descriptor is not shared between processes
-
-This means that for threaded programs, the kernel will fall back to copying.
+As of Jan 2015 the message is always copied from the ring frame to an
+allocated buffer due to unresolved security concerns.
+See commit 4682a0358639b29cf ("netlink: Always copy on mmap TX.").
 
 Example
 -------
@@ -226,9 +219,9 @@ Ring setup:
 	void *rx_ring, *tx_ring;
 
 	/* Configure ring parameters */
-	if (setsockopt(fd, NETLINK_RX_RING, &req, sizeof(req)) < 0)
+	if (setsockopt(fd, SOL_NETLINK, NETLINK_RX_RING, &req, sizeof(req)) < 0)
 		exit(1);
-	if (setsockopt(fd, NETLINK_TX_RING, &req, sizeof(req)) < 0)
+	if (setsockopt(fd, SOL_NETLINK, NETLINK_TX_RING, &req, sizeof(req)) < 0)
 		exit(1)
 
 	/* Calculate size of each individual ring */

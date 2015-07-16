@@ -23,15 +23,16 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/mfd/palmas.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
-static const char *palmas_extcon_cable[] = {
-	[0] = "USB",
-	[1] = "USB-HOST",
-	NULL,
+static const unsigned int palmas_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_NONE,
 };
 
 static const int mutually_exclusive[] = {0x3, 0x0};
@@ -48,6 +49,7 @@ static void palmas_usb_wakeup(struct palmas *palmas, int enable)
 static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 {
 	struct palmas_usb *palmas_usb = _palmas_usb;
+	struct extcon_dev *edev = palmas_usb->edev;
 	unsigned int vbus_line_state;
 
 	palmas_read(palmas_usb->palmas, PALMAS_INTERRUPT_BASE,
@@ -56,7 +58,7 @@ static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 	if (vbus_line_state & PALMAS_INT3_LINE_STATE_VBUS) {
 		if (palmas_usb->linkstat != PALMAS_USB_STATE_VBUS) {
 			palmas_usb->linkstat = PALMAS_USB_STATE_VBUS;
-			extcon_set_cable_state(&palmas_usb->edev, "USB", true);
+			extcon_set_cable_state_(edev, EXTCON_USB, true);
 			dev_info(palmas_usb->dev, "USB cable is attached\n");
 		} else {
 			dev_dbg(palmas_usb->dev,
@@ -65,7 +67,7 @@ static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 	} else if (!(vbus_line_state & PALMAS_INT3_LINE_STATE_VBUS)) {
 		if (palmas_usb->linkstat == PALMAS_USB_STATE_VBUS) {
 			palmas_usb->linkstat = PALMAS_USB_STATE_DISCONNECT;
-			extcon_set_cable_state(&palmas_usb->edev, "USB", false);
+			extcon_set_cable_state_(edev, EXTCON_USB, false);
 			dev_info(palmas_usb->dev, "USB cable is detached\n");
 		} else {
 			dev_dbg(palmas_usb->dev,
@@ -78,31 +80,41 @@ static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 
 static irqreturn_t palmas_id_irq_handler(int irq, void *_palmas_usb)
 {
-	unsigned int set;
+	unsigned int set, id_src;
 	struct palmas_usb *palmas_usb = _palmas_usb;
+	struct extcon_dev *edev = palmas_usb->edev;
 
 	palmas_read(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
 		PALMAS_USB_ID_INT_LATCH_SET, &set);
+	palmas_read(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
+		PALMAS_USB_ID_INT_SRC, &id_src);
 
-	if (set & PALMAS_USB_ID_INT_SRC_ID_GND) {
+	if ((set & PALMAS_USB_ID_INT_SRC_ID_GND) &&
+				(id_src & PALMAS_USB_ID_INT_SRC_ID_GND)) {
 		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
 			PALMAS_USB_ID_INT_LATCH_CLR,
 			PALMAS_USB_ID_INT_EN_HI_CLR_ID_GND);
 		palmas_usb->linkstat = PALMAS_USB_STATE_ID;
-		extcon_set_cable_state(&palmas_usb->edev, "USB-HOST", true);
+		extcon_set_cable_state_(edev, EXTCON_USB_HOST, true);
 		dev_info(palmas_usb->dev, "USB-HOST cable is attached\n");
-	} else if (set & PALMAS_USB_ID_INT_SRC_ID_FLOAT) {
+	} else if ((set & PALMAS_USB_ID_INT_SRC_ID_FLOAT) &&
+				(id_src & PALMAS_USB_ID_INT_SRC_ID_FLOAT)) {
 		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
 			PALMAS_USB_ID_INT_LATCH_CLR,
 			PALMAS_USB_ID_INT_EN_HI_CLR_ID_FLOAT);
 		palmas_usb->linkstat = PALMAS_USB_STATE_DISCONNECT;
-		extcon_set_cable_state(&palmas_usb->edev, "USB-HOST", false);
+		extcon_set_cable_state_(edev, EXTCON_USB_HOST, false);
 		dev_info(palmas_usb->dev, "USB-HOST cable is detached\n");
 	} else if ((palmas_usb->linkstat == PALMAS_USB_STATE_ID) &&
 				(!(set & PALMAS_USB_ID_INT_SRC_ID_GND))) {
 		palmas_usb->linkstat = PALMAS_USB_STATE_DISCONNECT;
-		extcon_set_cable_state(&palmas_usb->edev, "USB-HOST", false);
+		extcon_set_cable_state_(edev, EXTCON_USB_HOST, false);
 		dev_info(palmas_usb->dev, "USB-HOST cable is detached\n");
+	} else if ((palmas_usb->linkstat == PALMAS_USB_STATE_DISCONNECT) &&
+				(id_src & PALMAS_USB_ID_INT_SRC_ID_GND)) {
+		palmas_usb->linkstat = PALMAS_USB_STATE_ID;
+		extcon_set_cable_state_(edev, EXTCON_USB_HOST, true);
+		dev_info(palmas_usb->dev, " USB-HOST cable is attached\n");
 	}
 
 	return IRQ_HANDLED;
@@ -177,13 +189,18 @@ static int palmas_usb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, palmas_usb);
 
-	palmas_usb->edev.supported_cable = palmas_extcon_cable;
-	palmas_usb->edev.dev.parent = palmas_usb->dev;
-	palmas_usb->edev.mutually_exclusive = mutually_exclusive;
+	palmas_usb->edev = devm_extcon_dev_allocate(&pdev->dev,
+						    palmas_extcon_cable);
+	if (IS_ERR(palmas_usb->edev)) {
+		dev_err(&pdev->dev, "failed to allocate extcon device\n");
+		return -ENOMEM;
+	}
+	palmas_usb->edev->mutually_exclusive = mutually_exclusive;
 
-	status = extcon_dev_register(&palmas_usb->edev);
+	status = devm_extcon_dev_register(&pdev->dev, palmas_usb->edev);
 	if (status) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
+		kfree(palmas_usb->edev->name);
 		return status;
 	}
 
@@ -197,7 +214,8 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		if (status < 0) {
 			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 					palmas_usb->id_irq, status);
-			goto fail_extcon;
+			kfree(palmas_usb->edev->name);
+			return status;
 		}
 	}
 
@@ -211,25 +229,21 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		if (status < 0) {
 			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 					palmas_usb->vbus_irq, status);
-			goto fail_extcon;
+			kfree(palmas_usb->edev->name);
+			return status;
 		}
 	}
 
 	palmas_enable_irq(palmas_usb);
 	device_set_wakeup_capable(&pdev->dev, true);
 	return 0;
-
-fail_extcon:
-	extcon_dev_unregister(&palmas_usb->edev);
-
-	return status;
 }
 
 static int palmas_usb_remove(struct platform_device *pdev)
 {
 	struct palmas_usb *palmas_usb = platform_get_drvdata(pdev);
 
-	extcon_dev_unregister(&palmas_usb->edev);
+	kfree(palmas_usb->edev->name);
 
 	return 0;
 }
@@ -262,14 +276,13 @@ static int palmas_usb_resume(struct device *dev)
 };
 #endif
 
-static const struct dev_pm_ops palmas_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(palmas_usb_suspend,
-				palmas_usb_resume)
-};
+static SIMPLE_DEV_PM_OPS(palmas_pm_ops, palmas_usb_suspend, palmas_usb_resume);
 
-static struct of_device_id of_palmas_match_tbl[] = {
+static const struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,palmas-usb", },
+	{ .compatible = "ti,palmas-usb-vid", },
 	{ .compatible = "ti,twl6035-usb", },
+	{ .compatible = "ti,twl6035-usb-vid", },
 	{ /* end */ }
 };
 
@@ -279,7 +292,6 @@ static struct platform_driver palmas_usb_driver = {
 	.driver = {
 		.name = "palmas-usb",
 		.of_match_table = of_palmas_match_tbl,
-		.owner = THIS_MODULE,
 		.pm = &palmas_pm_ops,
 	},
 };

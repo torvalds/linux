@@ -22,6 +22,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/nwpserial.h>
+#include <linux/delay.h>
 #include <asm/prom.h>
 #include <asm/dcr.h>
 
@@ -240,11 +241,6 @@ static void nwpserial_break_ctl(struct uart_port *port, int ctl)
 	/* N/A */
 }
 
-static void nwpserial_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 static void nwpserial_stop_rx(struct uart_port *port)
 {
 	struct nwpserial_port *up;
@@ -315,7 +311,6 @@ static struct uart_ops nwpserial_pops = {
 	.stop_tx      = nwpserial_stop_tx,
 	.start_tx     = nwpserial_start_tx,
 	.stop_rx      = nwpserial_stop_rx,
-	.enable_ms    = nwpserial_enable_ms,
 	.break_ctl    = nwpserial_break_ctl,
 	.startup      = nwpserial_startup,
 	.shutdown     = nwpserial_shutdown,

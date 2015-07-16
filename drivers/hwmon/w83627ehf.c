@@ -1,7 +1,7 @@
 /*
  *  w83627ehf - Driver for the hardware monitoring functionality of
  *		the Winbond W83627EHF Super-I/O chip
- *  Copyright (C) 2005-2012  Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2005-2012  Jean Delvare <jdelvare@suse.de>
  *  Copyright (C) 2006  Yuan Mu (Winbond),
  *			Rudolf Marek <r.marek@assembler.cz>
  *			David Hubbard <david.c.hubbard@gmail.com>
@@ -1937,27 +1937,11 @@ static inline void w83627ehf_init_device(struct w83627ehf_data *data,
 static void w82627ehf_swap_tempreg(struct w83627ehf_data *data,
 				   int r1, int r2)
 {
-	u16 tmp;
-
-	tmp = data->temp_src[r1];
-	data->temp_src[r1] = data->temp_src[r2];
-	data->temp_src[r2] = tmp;
-
-	tmp = data->reg_temp[r1];
-	data->reg_temp[r1] = data->reg_temp[r2];
-	data->reg_temp[r2] = tmp;
-
-	tmp = data->reg_temp_over[r1];
-	data->reg_temp_over[r1] = data->reg_temp_over[r2];
-	data->reg_temp_over[r2] = tmp;
-
-	tmp = data->reg_temp_hyst[r1];
-	data->reg_temp_hyst[r1] = data->reg_temp_hyst[r2];
-	data->reg_temp_hyst[r2] = tmp;
-
-	tmp = data->reg_temp_config[r1];
-	data->reg_temp_config[r1] = data->reg_temp_config[r2];
-	data->reg_temp_config[r2] = tmp;
+	swap(data->temp_src[r1], data->temp_src[r2]);
+	swap(data->reg_temp[r1], data->reg_temp[r2]);
+	swap(data->reg_temp_over[r1], data->reg_temp_over[r2]);
+	swap(data->reg_temp_hyst[r1], data->reg_temp_hyst[r2]);
+	swap(data->reg_temp_config[r1], data->reg_temp_config[r2]);
 }
 
 static void
@@ -2705,7 +2689,6 @@ static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
 
 static struct platform_driver w83627ehf_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 		.pm	= W83627EHF_DEV_PM_OPS,
 	},
@@ -2889,7 +2872,7 @@ static void __exit sensors_w83627ehf_exit(void)
 	platform_driver_unregister(&w83627ehf_driver);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("W83627EHF driver");
 MODULE_LICENSE("GPL");
 

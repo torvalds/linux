@@ -85,8 +85,11 @@ struct kmem_cache {
 	struct kobject kobj;	/* For sysfs */
 #endif
 #ifdef CONFIG_MEMCG_KMEM
-	struct memcg_cache_params *memcg_params;
+	struct memcg_cache_params memcg_params;
 	int max_attr_size; /* for propagation, maximum size of a stored attr */
+#ifdef CONFIG_SYSFS
+	struct kset *memcg_kset;
+#endif
 #endif
 
 #ifdef CONFIG_NUMA
@@ -97,5 +100,33 @@ struct kmem_cache {
 #endif
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
+
+#ifdef CONFIG_SYSFS
+#define SLAB_SUPPORTS_SYSFS
+void sysfs_slab_remove(struct kmem_cache *);
+#else
+static inline void sysfs_slab_remove(struct kmem_cache *s)
+{
+}
+#endif
+
+
+/**
+ * virt_to_obj - returns address of the beginning of object.
+ * @s: object's kmem_cache
+ * @slab_page: address of slab page
+ * @x: address within object memory range
+ *
+ * Returns address of the beginning of object
+ */
+static inline void *virt_to_obj(struct kmem_cache *s,
+				const void *slab_page,
+				const void *x)
+{
+	return (void *)x - ((x - slab_page) % s->size);
+}
+
+void object_err(struct kmem_cache *s, struct page *page,
+		u8 *object, char *reason);
 
 #endif /* _LINUX_SLUB_DEF_H */

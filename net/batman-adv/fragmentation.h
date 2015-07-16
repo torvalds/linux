@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2015 B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll <martin@hundeboll.net>
  *
@@ -12,13 +12,20 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_FRAGMENTATION_H_
 #define _NET_BATMAN_ADV_FRAGMENTATION_H_
+
+#include "main.h"
+
+#include <linux/compiler.h>
+#include <linux/list.h>
+#include <linux/stddef.h>
+#include <linux/types.h>
+
+struct sk_buff;
 
 void batadv_frag_purge_orig(struct batadv_orig_node *orig,
 			    bool (*check_cb)(struct batadv_frag_table_entry *));
@@ -43,8 +50,7 @@ batadv_frag_check_entry(struct batadv_frag_table_entry *frags_entry)
 	if (!hlist_empty(&frags_entry->head) &&
 	    batadv_has_timed_out(frags_entry->timestamp, BATADV_FRAG_TIMEOUT))
 		return true;
-	else
-		return false;
+	return false;
 }
 
 #endif /* _NET_BATMAN_ADV_FRAGMENTATION_H_ */

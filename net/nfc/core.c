@@ -16,9 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
@@ -135,11 +133,8 @@ int nfc_dev_up(struct nfc_dev *dev)
 		dev->dev_up = true;
 
 	/* We have to enable the device before discovering SEs */
-	if (dev->ops->discover_se) {
-		rc = dev->ops->discover_se(dev);
-		if (rc)
-			pr_warn("SE discovery failed\n");
-	}
+	if (dev->ops->discover_se && dev->ops->discover_se(dev))
+		pr_err("SE discovery failed\n");
 
 error:
 	device_unlock(&dev->dev);
@@ -285,9 +280,6 @@ static struct nfc_target *nfc_find_target(struct nfc_dev *dev, u32 target_idx)
 {
 	int i;
 
-	if (dev->n_targets == 0)
-		return NULL;
-
 	for (i = 0; i < dev->n_targets; i++) {
 		if (dev->targets[i].idx == target_idx)
 			return &dev->targets[i];
@@ -384,7 +376,7 @@ int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 {
 	dev->dep_link_up = true;
 
-	if (!dev->active_target) {
+	if (!dev->active_target && rf_mode == NFC_RF_INITIATOR) {
 		struct nfc_target *target;
 
 		target = nfc_find_target(dev, target_idx);
@@ -551,9 +543,9 @@ error:
 
 struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx)
 {
-	struct nfc_se *se, *n;
+	struct nfc_se *se;
 
-	list_for_each_entry_safe(se, n, &dev->secure_elements, list)
+	list_for_each_entry(se, &dev->secure_elements, list)
 		if (se->idx == se_idx)
 			return se;
 
@@ -563,7 +555,6 @@ EXPORT_SYMBOL(nfc_find_se);
 
 int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 {
-
 	struct nfc_se *se;
 	int rc;
 
@@ -613,7 +604,6 @@ error:
 
 int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
 {
-
 	struct nfc_se *se;
 	int rc;
 
@@ -659,9 +649,6 @@ error:
 int nfc_set_remote_general_bytes(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 {
 	pr_debug("dev_name=%s gb_len=%d\n", dev_name(&dev->dev), gb_len);
-
-	if (gb_len > NFC_MAX_GT_LEN)
-		return -EINVAL;
 
 	return nfc_llcp_set_remote_gb(dev, gb, gb_len);
 }
@@ -944,6 +931,27 @@ int nfc_remove_se(struct nfc_dev *dev, u32 se_idx)
 	return -EINVAL;
 }
 EXPORT_SYMBOL(nfc_remove_se);
+
+int nfc_se_transaction(struct nfc_dev *dev, u8 se_idx,
+		       struct nfc_evt_transaction *evt_transaction)
+{
+	int rc;
+
+	pr_debug("transaction: %x\n", se_idx);
+
+	device_lock(&dev->dev);
+
+	if (!evt_transaction) {
+		rc = -EPROTO;
+		goto out;
+	}
+
+	rc = nfc_genl_se_transaction(dev, se_idx, evt_transaction);
+out:
+	device_unlock(&dev->dev);
+	return rc;
+}
+EXPORT_SYMBOL(nfc_se_transaction);
 
 static void nfc_release(struct device *d)
 {

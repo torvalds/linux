@@ -46,11 +46,9 @@
 #include <linux/if_ether.h>
 #include <linux/can.h>
 #include <linux/can/dev.h>
+#include <linux/can/skb.h>
 #include <linux/slab.h>
 #include <net/rtnetlink.h>
-
-static __initconst const char banner[] =
-	KERN_INFO "vcan: Virtual CAN interface driver\n";
 
 MODULE_DESCRIPTION("virtual CAN interface");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -109,25 +107,23 @@ static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 			stats->rx_packets++;
 			stats->rx_bytes += cfd->len;
 		}
-		kfree_skb(skb);
+		consume_skb(skb);
 		return NETDEV_TX_OK;
 	}
 
 	/* perform standard echo handling for CAN network interfaces */
 
 	if (loop) {
-		struct sock *srcsk = skb->sk;
 
-		skb = skb_share_check(skb, GFP_ATOMIC);
+		skb = can_create_echo_skb(skb);
 		if (!skb)
 			return NETDEV_TX_OK;
 
 		/* receive with packet counting */
-		skb->sk = srcsk;
 		vcan_rx(skb, dev);
 	} else {
 		/* no looped packets => no counting */
-		kfree_skb(skb);
+		consume_skb(skb);
 	}
 	return NETDEV_TX_OK;
 }
@@ -174,7 +170,7 @@ static struct rtnl_link_ops vcan_link_ops __read_mostly = {
 
 static __init int vcan_init_module(void)
 {
-	printk(banner);
+	pr_info("vcan: Virtual CAN interface driver\n");
 
 	if (echo)
 		printk(KERN_INFO "vcan: enabled echo on driver level.\n");

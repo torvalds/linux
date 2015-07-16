@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,26 +12,39 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
-#include "distributed-arp-table.h"
 #include "hard-interface.h"
-#include "soft-interface.h"
-#include "send.h"
-#include "translation-table.h"
-#include "routing.h"
-#include "sysfs.h"
-#include "originator.h"
-#include "hash.h"
-#include "bridge_loop_avoidance.h"
-#include "gateway_client.h"
+#include "main.h"
 
+#include <linux/bug.h>
+#include <linux/byteorder/generic.h>
+#include <linux/errno.h>
+#include <linux/fs.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
+#include <linux/if.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/netdevice.h>
+#include <linux/printk.h>
+#include <linux/rculist.h>
+#include <linux/rtnetlink.h>
+#include <linux/slab.h>
+#include <linux/workqueue.h>
+#include <net/net_namespace.h>
+
+#include "bridge_loop_avoidance.h"
+#include "debugfs.h"
+#include "distributed-arp-table.h"
+#include "gateway_client.h"
+#include "originator.h"
+#include "packet.h"
+#include "send.h"
+#include "soft-interface.h"
+#include "sysfs.h"
+#include "translation-table.h"
 
 void batadv_hardif_free_rcu(struct rcu_head *rcu)
 {
@@ -84,19 +97,18 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 		return true;
 
 	/* no more parents..stop recursion */
-	if (net_dev->iflink == net_dev->ifindex)
+	if (dev_get_iflink(net_dev) == 0 ||
+	    dev_get_iflink(net_dev) == net_dev->ifindex)
 		return false;
 
 	/* recurse over the parent device */
-	parent_dev = dev_get_by_index(&init_net, net_dev->iflink);
+	parent_dev = __dev_get_by_index(&init_net, dev_get_iflink(net_dev));
 	/* if we got a NULL parent_dev there is something broken.. */
 	if (WARN(!parent_dev, "Cannot find parent device"))
 		return false;
 
 	ret = batadv_is_on_batman_iface(parent_dev);
 
-	if (parent_dev)
-		dev_put(parent_dev);
 	return ret;
 }
 
@@ -244,7 +256,7 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	const struct batadv_hard_iface *hard_iface;
-	int min_mtu = ETH_DATA_LEN;
+	int min_mtu = INT_MAX;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -259,8 +271,6 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 	}
 	rcu_read_unlock();
 
-	atomic_set(&bat_priv->packet_size_max, min_mtu);
-
 	if (atomic_read(&bat_priv->fragmentation) == 0)
 		goto out;
 
@@ -271,13 +281,21 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 	min_mtu = min_t(int, min_mtu, BATADV_FRAG_MAX_FRAG_SIZE);
 	min_mtu -= sizeof(struct batadv_frag_packet);
 	min_mtu *= BATADV_FRAG_MAX_FRAGMENTS;
-	atomic_set(&bat_priv->packet_size_max, min_mtu);
-
-	/* with fragmentation enabled we can fragment external packets easily */
-	min_mtu = min_t(int, min_mtu, ETH_DATA_LEN);
 
 out:
-	return min_mtu - batadv_max_header_len();
+	/* report to the other components the maximum amount of bytes that
+	 * batman-adv can send over the wire (without considering the payload
+	 * overhead). For example, this value is used by TT to compute the
+	 * maximum local table table size
+	 */
+	atomic_set(&bat_priv->packet_size_max, min_mtu);
+
+	/* the real soft-interface MTU is computed by removing the payload
+	 * overhead from the maximum amount of bytes that was just computed.
+	 *
+	 * However batman-adv does not support MTUs bigger than ETH_DATA_LEN
+	 */
+	return min_t(int, min_mtu - batadv_max_header_len(), ETH_DATA_LEN);
 }
 
 /* adjusts the MTU if a new interface with a smaller MTU appeared. */
@@ -541,6 +559,7 @@ static void batadv_hardif_remove_interface_finish(struct work_struct *work)
 	hard_iface = container_of(work, struct batadv_hard_iface,
 				  cleanup_work);
 
+	batadv_debugfs_del_hardif(hard_iface);
 	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
 	batadv_hardif_free_ref(hard_iface);
 }
@@ -571,6 +590,11 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	hard_iface->net_dev = net_dev;
 	hard_iface->soft_iface = NULL;
 	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
+
+	ret = batadv_debugfs_add_hardif(hard_iface);
+	if (ret)
+		goto free_sysfs;
+
 	INIT_LIST_HEAD(&hard_iface->list);
 	INIT_WORK(&hard_iface->cleanup_work,
 		  batadv_hardif_remove_interface_finish);
@@ -587,6 +611,8 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	return hard_iface;
 
+free_sysfs:
+	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
 free_if:
 	kfree(hard_iface);
 release_dev:

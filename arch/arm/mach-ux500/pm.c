@@ -3,6 +3,8 @@
  * Author: Rickard Andersson <rickard.andersson@stericsson.com> for
  *         ST-Ericsson.
  * Author: Daniel Lezcano <daniel.lezcano@linaro.org> for Linaro.
+ * Author: Ulf Hansson <ulf.hansson@linaro.org> for Linaro.
+ *
  * License terms: GNU General Public License (GPL) version 2
  *
  */
@@ -11,9 +13,13 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/suspend.h>
 #include <linux/platform_data/arm-ux500-pm.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "db8500-regs.h"
+#include "pm_domains.h"
 
 /* ARM WFI Standby signal register */
 #define PRCM_ARM_WFI_STANDBY    (prcmu_base + 0x130)
@@ -38,6 +44,7 @@
 #define PRCM_ARMITVAL127TO96	(prcmu_base + 0x26C)
 
 static void __iomem *prcmu_base;
+static void __iomem *dist_base;
 
 /* This function decouple the gic from the prcmu */
 int prcmu_gic_decouple(void)
@@ -84,7 +91,6 @@ bool prcmu_gic_pending_irq(void)
 {
 	u32 pr; /* Pending register */
 	u32 er; /* Enable register */
-	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
 	int i;
 
 	/* 5 registers. STI & PPI not skipped */
@@ -139,7 +145,6 @@ bool prcmu_is_cpu_in_wfi(int cpu)
 int prcmu_copy_gic_settings(void)
 {
 	u32 er; /* Enable register */
-	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
 	int i;
 
 	/* We skip the STI and PPI */
@@ -152,16 +157,53 @@ int prcmu_copy_gic_settings(void)
 	return 0;
 }
 
+#ifdef CONFIG_SUSPEND
+static int ux500_suspend_enter(suspend_state_t state)
+{
+	cpu_do_idle();
+	return 0;
+}
+
+static int ux500_suspend_valid(suspend_state_t state)
+{
+	return state == PM_SUSPEND_MEM || state == PM_SUSPEND_STANDBY;
+}
+
+static const struct platform_suspend_ops ux500_suspend_ops = {
+	.enter	      = ux500_suspend_enter,
+	.valid	      = ux500_suspend_valid,
+};
+#define UX500_SUSPEND_OPS	(&ux500_suspend_ops)
+#else
+#define UX500_SUSPEND_OPS	NULL
+#endif
+
 void __init ux500_pm_init(u32 phy_base, u32 size)
 {
+	struct device_node *np;
+
 	prcmu_base = ioremap(phy_base, size);
 	if (!prcmu_base) {
 		pr_err("could not remap PRCMU for PM functions\n");
 		return;
 	}
+	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-gic");
+	dist_base = of_iomap(np, 0);
+	of_node_put(np);
+	if (!dist_base) {
+		pr_err("could not remap GIC dist base for PM functions\n");
+		return;
+	}
+
 	/*
 	 * On watchdog reboot the GIC is in some cases decoupled.
 	 * This will make sure that the GIC is correctly configured.
 	 */
 	prcmu_gic_recouple();
+
+	/* Set up ux500 suspend callbacks. */
+	suspend_set_ops(UX500_SUSPEND_OPS);
+
+	/* Initialize ux500 power domains */
+	ux500_pm_domains_init();
 }

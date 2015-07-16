@@ -159,9 +159,9 @@ struct isif_oper_config {
 	struct isif_params_raw bayer;
 	enum isif_data_pack data_pack;
 	struct isif_gain_values isif_gain_params;
-	void *__iomem base_addr;
-	void *__iomem linear_tbl0_addr;
-	void *__iomem linear_tbl1_addr;
+	void __iomem *base_addr;
+	void __iomem *linear_tbl0_addr;
+	void __iomem *linear_tbl1_addr;
 };
 
 #define ISIF_PAD_SINK      0

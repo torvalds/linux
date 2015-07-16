@@ -15,7 +15,6 @@
 
 #define QLC_DCB_GET_MAP(V)		(1 << V)
 
-#define QLC_DCB_AEN_BIT			0x2
 #define QLC_DCB_FW_VER			0x2
 #define QLC_DCB_MAX_TC			0x8
 #define QLC_DCB_MAX_APP			0x8
@@ -71,7 +70,6 @@ static void qlcnic_82xx_dcb_aen_handler(struct qlcnic_dcb *, void *);
 static int qlcnic_83xx_dcb_get_hw_capability(struct qlcnic_dcb *);
 static int qlcnic_83xx_dcb_query_cee_param(struct qlcnic_dcb *, char *, u8);
 static int qlcnic_83xx_dcb_get_cee_cfg(struct qlcnic_dcb *);
-static int qlcnic_83xx_dcb_register_aen(struct qlcnic_dcb *, bool);
 static void qlcnic_83xx_dcb_aen_handler(struct qlcnic_dcb *, void *);
 
 struct qlcnic_dcb_capability {
@@ -179,7 +177,6 @@ static struct qlcnic_dcb_ops qlcnic_83xx_dcb_ops = {
 	.get_hw_capability	= qlcnic_83xx_dcb_get_hw_capability,
 	.query_cee_param	= qlcnic_83xx_dcb_query_cee_param,
 	.get_cee_cfg		= qlcnic_83xx_dcb_get_cee_cfg,
-	.register_aen		= qlcnic_83xx_dcb_register_aen,
 	.aen_handler		= qlcnic_83xx_dcb_aen_handler,
 };
 
@@ -260,6 +257,9 @@ int qlcnic_register_dcb(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_dcb *dcb;
 
+	if (qlcnic_sriov_vf_check(adapter))
+		return 0;
+
 	dcb = kzalloc(sizeof(struct qlcnic_dcb), GFP_ATOMIC);
 	if (!dcb)
 		return -ENOMEM;
@@ -280,7 +280,6 @@ static void __qlcnic_dcb_free(struct qlcnic_dcb *dcb)
 		return;
 
 	adapter = dcb->adapter;
-	qlcnic_dcb_register_aen(dcb, 0);
 
 	while (test_bit(QLCNIC_DCB_AEN_MODE, &dcb->state))
 		usleep_range(10000, 11000);
@@ -304,7 +303,6 @@ static void __qlcnic_dcb_get_info(struct qlcnic_dcb *dcb)
 {
 	qlcnic_dcb_get_hw_capability(dcb);
 	qlcnic_dcb_get_cee_cfg(dcb);
-	qlcnic_dcb_register_aen(dcb, 1);
 }
 
 static int __qlcnic_dcb_attach(struct qlcnic_dcb *dcb)
@@ -331,8 +329,6 @@ static int __qlcnic_dcb_attach(struct qlcnic_dcb *dcb)
 		err = -ENOMEM;
 		goto out_free_cfg;
 	}
-
-	qlcnic_dcb_get_info(dcb);
 
 	return 0;
 out_free_cfg:
@@ -642,29 +638,6 @@ static int qlcnic_83xx_dcb_get_cee_cfg(struct qlcnic_dcb *dcb)
 	return err;
 }
 
-static int qlcnic_83xx_dcb_register_aen(struct qlcnic_dcb *dcb, bool flag)
-{
-	u8 val = (flag ? QLCNIC_CMD_INIT_NIC_FUNC : QLCNIC_CMD_STOP_NIC_FUNC);
-	struct qlcnic_adapter *adapter = dcb->adapter;
-	struct qlcnic_cmd_args cmd;
-	int err;
-
-	err = qlcnic_alloc_mbx_args(&cmd, adapter, val);
-	if (err)
-		return err;
-
-	cmd.req.arg[1] = QLC_DCB_AEN_BIT;
-
-	err = qlcnic_issue_cmd(adapter, &cmd);
-	if (err)
-		dev_err(&adapter->pdev->dev, "Failed to %s DCBX AEN, err %d\n",
-			(flag ? "register" : "unregister"), err);
-
-	qlcnic_free_mbx_args(&cmd);
-
-	return err;
-}
-
 static void qlcnic_83xx_dcb_aen_handler(struct qlcnic_dcb *dcb, void *data)
 {
 	u32 *val = data;
@@ -832,7 +805,7 @@ qlcnic_dcb_get_pg_tc_cfg_tx(struct net_device *netdev, int tc, u8 *prio,
 	    !type->tc_param_valid)
 		return;
 
-	if (tc < 0 || (tc > QLC_DCB_MAX_TC))
+	if (tc < 0 || (tc >= QLC_DCB_MAX_TC))
 		return;
 
 	tc_cfg = &type->tc_cfg[tc];
@@ -868,7 +841,7 @@ static void qlcnic_dcb_get_pg_bwg_cfg_tx(struct net_device *netdev, int pgid,
 	    !type->tc_param_valid)
 		return;
 
-	if (pgid < 0 || pgid > QLC_DCB_MAX_PG)
+	if (pgid < 0 || pgid >= QLC_DCB_MAX_PG)
 		return;
 
 	pgcfg = &type->pg_cfg[pgid];
@@ -953,7 +926,7 @@ static int qlcnic_dcb_get_num_tcs(struct net_device *netdev, int attr, u8 *num)
 	}
 }
 
-static u8 qlcnic_dcb_get_app(struct net_device *netdev, u8 idtype, u16 id)
+static int qlcnic_dcb_get_app(struct net_device *netdev, u8 idtype, u16 id)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct dcb_app app = {
@@ -962,7 +935,7 @@ static u8 qlcnic_dcb_get_app(struct net_device *netdev, u8 idtype, u16 id)
 			     };
 
 	if (!test_bit(QLCNIC_DCB_STATE, &adapter->dcb->state))
-		return 0;
+		return -EINVAL;
 
 	return dcb_getapp(netdev, &app);
 }
@@ -1047,6 +1020,7 @@ static int qlcnic_dcb_peer_app_info(struct net_device *netdev,
 	struct qlcnic_dcb_cee *peer;
 	int i;
 
+	memset(info, 0, sizeof(*info));
 	*app_count = 0;
 
 	if (!test_bit(QLCNIC_DCB_STATE, &adapter->dcb->state))

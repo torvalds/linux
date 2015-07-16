@@ -1,0 +1,154 @@
+/*
+ * Device Tree common file for LaCie 2Big and 5Big Network v2
+ *
+ * Copyright (C) 2014
+ *
+ * Andrew Lunn <andrew@lunn.ch>
+ *
+ * Based on netxbig_v2-setup.c,
+ * Copyright (C) 2010 Simon Guinot <sguinot@lacie.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+*/
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+
+/ {
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
+	};
+
+	ocp@f1000000 {
+		serial@12000 {
+			status = "okay";
+		};
+
+		spi@10600 {
+			status = "okay";
+
+			flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "mxicy,mx25l4005a", "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <20000000>;
+				mode = <0>;
+
+				partition@0 {
+					reg = <0x0 0x80000>;
+					label = "u-boot";
+				};
+			};
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/*
+		 * button@1 and button@2 represent a three position rocker
+		 * switch. Thus the conventional KEY_POWER does not fit
+		 */
+		button@1 {
+			label = "Back power switch (on|auto)";
+			linux,code = <KEY_ESC>;
+			linux,input-type = <5>;
+			gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+		};
+		button@2 {
+			label = "Back power switch (auto|off)";
+			linux,code = <KEY_1>;
+			linux,input-type = <5>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
+		};
+		button@3 {
+			label = "Function button";
+			linux,code = <KEY_OPTION>;
+			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
+		};
+
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+	};
+
+	regulators: regulators {
+		status = "okay";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+
+		regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "hdd0power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <8>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+
+	pmx_button_function: pmx-button-function {
+		marvell,pins = "mpp34";
+		marvell,function = "gpio";
+	};
+	pmx_button_power_off: pmx-button-power-off {
+		marvell,pins = "mpp15";
+		marvell,function = "gpio";
+	};
+	pmx_button_power_on: pmx-button-power-on {
+		marvell,pins = "mpp13";
+		marvell,function = "gpio";
+	};
+};
+
+&i2c0 {
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c04";
+		pagesize = <16>;
+		reg = <0x50>;
+	};
+};

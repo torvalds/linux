@@ -50,7 +50,6 @@
 
 struct ar71xx_pci_controller {
 	void __iomem *cfg_base;
-	spinlock_t lock;
 	int irq;
 	int irq_base;
 	struct pci_controller pci_ctrl;
@@ -182,7 +181,6 @@ static int ar71xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 {
 	struct ar71xx_pci_controller *apc = pci_bus_to_ar71xx_controller(bus);
 	void __iomem *base = apc->cfg_base;
-	unsigned long flags;
 	u32 data;
 	int err;
 	int ret;
@@ -190,16 +188,12 @@ static int ar71xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	ret = PCIBIOS_SUCCESSFUL;
 	data = ~0;
 
-	spin_lock_irqsave(&apc->lock, flags);
-
 	err = ar71xx_pci_set_cfgaddr(bus, devfn, where, size,
 				     AR71XX_PCI_CFG_CMD_READ);
 	if (err)
 		ret = PCIBIOS_DEVICE_NOT_FOUND;
 	else
 		data = __raw_readl(base + AR71XX_PCI_REG_CFG_RDDATA);
-
-	spin_unlock_irqrestore(&apc->lock, flags);
 
 	*value = (data >> (8 * (where & 3))) & ar71xx_pci_read_mask[size & 7];
 
@@ -211,14 +205,11 @@ static int ar71xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 {
 	struct ar71xx_pci_controller *apc = pci_bus_to_ar71xx_controller(bus);
 	void __iomem *base = apc->cfg_base;
-	unsigned long flags;
 	int err;
 	int ret;
 
 	value = value << (8 * (where & 3));
 	ret = PCIBIOS_SUCCESSFUL;
-
-	spin_lock_irqsave(&apc->lock, flags);
 
 	err = ar71xx_pci_set_cfgaddr(bus, devfn, where, size,
 				     AR71XX_PCI_CFG_CMD_WRITE);
@@ -226,8 +217,6 @@ static int ar71xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 		ret = PCIBIOS_DEVICE_NOT_FOUND;
 	else
 		__raw_writel(value, base + AR71XX_PCI_REG_CFG_WRDATA);
-
-	spin_unlock_irqrestore(&apc->lock, flags);
 
 	return ret;
 }
@@ -243,7 +232,7 @@ static void ar71xx_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 	void __iomem *base = ath79_reset_base;
 	u32 pending;
 
-	apc = irq_get_handler_data(irq);
+	apc = irq_desc_get_handler_data(desc);
 
 	pending = __raw_readl(base + AR71XX_RESET_REG_PCI_INT_STATUS) &
 		  __raw_readl(base + AR71XX_RESET_REG_PCI_INT_ENABLE);
@@ -329,23 +318,13 @@ static void ar71xx_pci_irq_init(struct ar71xx_pci_controller *apc)
 
 static void ar71xx_pci_reset(void)
 {
-	void __iomem *ddr_base = ath79_ddr_base;
-
 	ath79_device_reset_set(AR71XX_RESET_PCI_BUS | AR71XX_RESET_PCI_CORE);
 	mdelay(100);
 
 	ath79_device_reset_clear(AR71XX_RESET_PCI_BUS | AR71XX_RESET_PCI_CORE);
 	mdelay(100);
 
-	__raw_writel(AR71XX_PCI_WIN0_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN0);
-	__raw_writel(AR71XX_PCI_WIN1_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN1);
-	__raw_writel(AR71XX_PCI_WIN2_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN2);
-	__raw_writel(AR71XX_PCI_WIN3_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN3);
-	__raw_writel(AR71XX_PCI_WIN4_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN4);
-	__raw_writel(AR71XX_PCI_WIN5_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN5);
-	__raw_writel(AR71XX_PCI_WIN6_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN6);
-	__raw_writel(AR71XX_PCI_WIN7_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN7);
-
+	ath79_ddr_set_pci_windows();
 	mdelay(100);
 }
 
@@ -359,8 +338,6 @@ static int ar71xx_pci_probe(struct platform_device *pdev)
 			   GFP_KERNEL);
 	if (!apc)
 		return -ENOMEM;
-
-	spin_lock_init(&apc->lock);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg_base");
 	apc->cfg_base = devm_ioremap_resource(&pdev->dev, res);
@@ -416,7 +393,6 @@ static struct platform_driver ar71xx_pci_driver = {
 	.probe = ar71xx_pci_probe,
 	.driver = {
 		.name = "ar71xx-pci",
-		.owner = THIS_MODULE,
 	},
 };
 

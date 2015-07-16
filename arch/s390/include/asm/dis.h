@@ -13,12 +13,13 @@
 #define OPERAND_FPR	0x2	/* Operand printed as %fx */
 #define OPERAND_AR	0x4	/* Operand printed as %ax */
 #define OPERAND_CR	0x8	/* Operand printed as %cx */
-#define OPERAND_DISP	0x10	/* Operand printed as displacement */
-#define OPERAND_BASE	0x20	/* Operand printed as base register */
-#define OPERAND_INDEX	0x40	/* Operand printed as index register */
-#define OPERAND_PCREL	0x80	/* Operand printed as pc-relative symbol */
-#define OPERAND_SIGNED	0x100	/* Operand printed as signed value */
-#define OPERAND_LENGTH	0x200	/* Operand printed as length (+1) */
+#define OPERAND_VR	0x10	/* Operand printed as %vx */
+#define OPERAND_DISP	0x20	/* Operand printed as displacement */
+#define OPERAND_BASE	0x40	/* Operand printed as base register */
+#define OPERAND_INDEX	0x80	/* Operand printed as index register */
+#define OPERAND_PCREL	0x100	/* Operand printed as pc-relative symbol */
+#define OPERAND_SIGNED	0x200	/* Operand printed as signed value */
+#define OPERAND_LENGTH	0x400	/* Operand printed as length (+1) */
 
 
 struct s390_operand {

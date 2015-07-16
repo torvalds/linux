@@ -1326,7 +1326,7 @@ static int ecryptfs_read_headers_virt(char *page_virt,
 	if (rc)
 		goto out;
 	if (!(crypt_stat->flags & ECRYPTFS_I_SIZE_INITIALIZED))
-		ecryptfs_i_size_init(page_virt, ecryptfs_dentry->d_inode);
+		ecryptfs_i_size_init(page_virt, d_inode(ecryptfs_dentry));
 	offset += MAGIC_ECRYPTFS_MARKER_SIZE_BYTES;
 	rc = ecryptfs_process_flags(crypt_stat, (page_virt + offset),
 				    &bytes_read);
@@ -1373,7 +1373,7 @@ out:
 int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode)
 {
 	struct dentry *lower_dentry =
-		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_dentry;
+		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_path.dentry;
 	ssize_t size;
 	int rc = 0;
 
@@ -1425,7 +1425,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 {
 	int rc;
 	char *page_virt;
-	struct inode *ecryptfs_inode = ecryptfs_dentry->d_inode;
+	struct inode *ecryptfs_inode = d_inode(ecryptfs_dentry);
 	struct ecryptfs_crypt_stat *crypt_stat =
 	    &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
@@ -1917,7 +1917,6 @@ ecryptfs_decode_from_filename(unsigned char *dst, size_t *dst_size,
 			break;
 		case 2:
 			dst[dst_byte_offset++] |= (src_byte);
-			dst[dst_byte_offset] = 0;
 			current_bit_offset = 0;
 			break;
 		}

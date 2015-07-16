@@ -72,6 +72,17 @@ DEFINE_IRQ_VECTOR_EVENT(x86_platform_ipi);
 DEFINE_IRQ_VECTOR_EVENT(irq_work);
 
 /*
+ * We must dis-allow sampling irq_work_exit() because perf event sampling
+ * itself can cause irq_work, which would lead to an infinite loop;
+ *
+ *  1) irq_work_exit happens
+ *  2) generates perf sample
+ *  3) generates irq_work
+ *  4) goto 1
+ */
+TRACE_EVENT_PERF_PERM(irq_work_exit, is_sampling_event(p_event) ? -EPERM : 0);
+
+/*
  * call_function - called when entering/exiting a call function interrupt
  * vector handler
  */
@@ -88,6 +99,12 @@ DEFINE_IRQ_VECTOR_EVENT(call_function_single);
  * vector handler
  */
 DEFINE_IRQ_VECTOR_EVENT(threshold_apic);
+
+/*
+ * deferred_error_apic - called when entering/exiting a deferred apic interrupt
+ * vector handler
+ */
+DEFINE_IRQ_VECTOR_EVENT(deferred_error_apic);
 
 /*
  * thermal_apic - called when entering/exiting a thermal apic interrupt

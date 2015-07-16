@@ -11,6 +11,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 //#define DEBUG
+#include <linux/rcupdate.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/assoc_array_priv.h>
@@ -157,7 +158,7 @@ enum assoc_array_walk_status {
 	assoc_array_walk_tree_empty,
 	assoc_array_walk_found_terminal_node,
 	assoc_array_walk_found_wrong_shortcut,
-} status;
+};
 
 struct assoc_array_walk_result {
 	struct {
@@ -759,8 +760,8 @@ all_leaves_cluster_together:
 	pr_devel("all leaves cluster together\n");
 	diff = INT_MAX;
 	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
-		int x = ops->diff_objects(assoc_array_ptr_to_leaf(edit->leaf),
-					  assoc_array_ptr_to_leaf(node->slots[i]));
+		int x = ops->diff_objects(assoc_array_ptr_to_leaf(node->slots[i]),
+					  index_key);
 		if (x < diff) {
 			BUG_ON(x < 0);
 			diff = x;
@@ -1723,11 +1724,13 @@ ascend_old_tree:
 		shortcut = assoc_array_ptr_to_shortcut(ptr);
 		slot = shortcut->parent_slot;
 		cursor = shortcut->back_pointer;
+		if (!cursor)
+			goto gc_complete;
 	} else {
 		slot = node->parent_slot;
 		cursor = ptr;
 	}
-	BUG_ON(!ptr);
+	BUG_ON(!cursor);
 	node = assoc_array_ptr_to_node(cursor);
 	slot++;
 	goto continue_node;
@@ -1735,7 +1738,7 @@ ascend_old_tree:
 gc_complete:
 	edit->set[0].to = new_root;
 	assoc_array_apply_edit(edit);
-	edit->array->nr_leaves_on_tree = nr_leaves_on_tree;
+	array->nr_leaves_on_tree = nr_leaves_on_tree;
 	return 0;
 
 enomem:

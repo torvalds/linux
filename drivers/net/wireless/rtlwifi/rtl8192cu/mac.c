@@ -40,6 +40,7 @@
 #include "dm.h"
 #include "mac.h"
 #include "trx.h"
+#include "../rtl8192c/fw_common.h"
 
 #include <linux/module.h>
 
@@ -496,7 +497,7 @@ int rtl92c_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 			 "Network type %d not supported!\n", type);
 		return -EOPNOTSUPP;
 	}
-	rtl_write_byte(rtlpriv, (REG_CR + 2), value);
+	rtl_write_byte(rtlpriv, MSR, value);
 	return 0;
 }
 
@@ -612,7 +613,7 @@ void rtl92c_init_ampdu_aggregation(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, 0x4CA, 0x0708);
 }
 
-void rtl92c_init_beacon_max_error(struct ieee80211_hw *hw, bool infra_mode)
+void rtl92c_init_beacon_max_error(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -638,21 +639,6 @@ void rtl92c_init_retry_function(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, REG_FWHW_TXQ_CTRL, value8);
 	/* Set ACK timeout */
 	rtl_write_byte(rtlpriv, REG_ACKTO, 0x40);
-}
-
-void rtl92c_init_beacon_parameters(struct ieee80211_hw *hw,
-				   enum version_8192c version)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
-
-	rtl_write_word(rtlpriv, REG_TBTT_PROHIBIT, 0x6404);/* ms */
-	rtl_write_byte(rtlpriv, REG_DRVERLYINT, DRIVER_EARLY_INT_TIME);/*ms*/
-	rtl_write_byte(rtlpriv, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME);
-	if (IS_NORMAL_CHIP(rtlhal->version))
-		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x660F);
-	else
-		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x66FF);
 }
 
 void rtl92c_disable_fast_edca(struct ieee80211_hw *hw)
@@ -786,7 +772,7 @@ static void _rtl92c_query_rxphystatus(struct ieee80211_hw *hw,
 	bool is_cck_rate;
 	u8 *pdesc = (u8 *)p_desc;
 
-	is_cck_rate = RX_HAL_IS_CCK_RATE(p_desc);
+	is_cck_rate = RX_HAL_IS_CCK_RATE(p_desc->rxmcs);
 	pstats->packet_matchbssid = packet_match_bssid;
 	pstats->packet_toself = packet_toself;
 	pstats->packet_beacon = packet_beacon;
@@ -879,8 +865,8 @@ static void _rtl92c_query_rxphystatus(struct ieee80211_hw *hw,
 		pstats->rxpower = rx_pwr_all;
 		pstats->recvsignalpower = rx_pwr_all;
 		if (GET_RX_DESC_RX_MCS(pdesc) &&
-		    GET_RX_DESC_RX_MCS(pdesc) >= DESC92_RATEMCS8 &&
-		    GET_RX_DESC_RX_MCS(pdesc) <= DESC92_RATEMCS15)
+		    GET_RX_DESC_RX_MCS(pdesc) >= DESC_RATEMCS8 &&
+		    GET_RX_DESC_RX_MCS(pdesc) <= DESC_RATEMCS15)
 			max_spatial_stream = 2;
 		else
 			max_spatial_stream = 1;

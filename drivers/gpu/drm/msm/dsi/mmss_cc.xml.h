@@ -8,16 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    595 bytes, from 2013-07-05 19:21:12)
+- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2014-12-05 15:34:49)
 - /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp4/mdp4.xml           (  19332 bytes, from 2013-10-07 16:36:48)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  11712 bytes, from 2013-08-17 17:13:43)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2015-03-24 22:05:22)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2352 bytes, from 2015-04-12 15:02:42)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  35083 bytes, from 2015-04-12 15:04:03)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  22094 bytes, from 2015-05-12 12:45:23)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2013-08-11 19:26:32)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1544 bytes, from 2013-08-16 19:17:05)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2014-10-31 16:48:57)
 - /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2013-07-05 19:21:12)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  19288 bytes, from 2013-08-11 18:14:15)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  29012 bytes, from 2015-05-12 12:45:23)
+- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2015-05-12 12:45:23)
 
-Copyright (C) 2013 by the following authors:
+Copyright (C) 2013-2014 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -109,6 +112,12 @@ static inline uint32_t MMSS_CC_CLK_NS_VAL(uint32_t val)
 {
 	return ((val) << MMSS_CC_CLK_NS_VAL__SHIFT) & MMSS_CC_CLK_NS_VAL__MASK;
 }
+
+#define REG_MMSS_CC_DSI2_PIXEL_CC				0x00000094
+
+#define REG_MMSS_CC_DSI2_PIXEL_NS				0x000000e4
+
+#define REG_MMSS_CC_DSI2_PIXEL_CC2				0x00000264
 
 
 #endif /* MMSS_CC_XML */

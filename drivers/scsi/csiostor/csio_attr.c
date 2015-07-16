@@ -451,9 +451,9 @@ csio_fcoe_alloc_vnp(struct csio_hw *hw, struct csio_lnode *ln)
 
 	/* Process Mbox response of VNP command */
 	rsp = (struct fw_fcoe_vnp_cmd *)(mbp->mb);
-	if (FW_CMD_RETVAL_GET(ntohl(rsp->alloc_to_len16)) != FW_SUCCESS) {
+	if (FW_CMD_RETVAL_G(ntohl(rsp->alloc_to_len16)) != FW_SUCCESS) {
 		csio_ln_err(ln, "FCOE VNP ALLOC cmd returned 0x%x!\n",
-			    FW_CMD_RETVAL_GET(ntohl(rsp->alloc_to_len16)));
+			    FW_CMD_RETVAL_G(ntohl(rsp->alloc_to_len16)));
 		ret = -EINVAL;
 		goto out_free;
 	}
@@ -526,9 +526,9 @@ csio_fcoe_free_vnp(struct csio_hw *hw, struct csio_lnode *ln)
 
 	/* Process Mbox response of VNP command */
 	rsp = (struct fw_fcoe_vnp_cmd *)(mbp->mb);
-	if (FW_CMD_RETVAL_GET(ntohl(rsp->alloc_to_len16)) != FW_SUCCESS) {
+	if (FW_CMD_RETVAL_G(ntohl(rsp->alloc_to_len16)) != FW_SUCCESS) {
 		csio_ln_err(ln, "FCOE VNP FREE cmd returned 0x%x!\n",
-			    FW_CMD_RETVAL_GET(ntohl(rsp->alloc_to_len16)));
+			    FW_CMD_RETVAL_G(ntohl(rsp->alloc_to_len16)));
 		ret = -EINVAL;
 	}
 

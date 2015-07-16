@@ -1,0 +1,92 @@
+ACT88xx regulators
+-------------------
+
+Required properties:
+- compatible: "active-semi,act8846" or "active-semi,act8865" or "active-semi,act8600"
+- reg: I2C slave address
+
+Optional properties:
+- system-power-controller: Telling whether or not this pmic is controlling
+  the system power. See Documentation/devicetree/bindings/power/power-controller.txt .
+
+Optional input supply properties:
+- for act8600:
+  - vp1-supply: The input supply for DCDC_REG1
+  - vp2-supply: The input supply for DCDC_REG2
+  - vp3-supply: The input supply for DCDC_REG3
+  - inl-supply: The input supply for LDO_REG5, LDO_REG6, LDO_REG7 and LDO_REG8
+  SUDCDC_REG4, LDO_REG9 and LDO_REG10 do not have separate supplies.
+- for act8846:
+  - vp1-supply: The input supply for REG1
+  - vp2-supply: The input supply for REG2
+  - vp3-supply: The input supply for REG3
+  - vp4-supply: The input supply for REG4
+  - inl1-supply: The input supply for REG5, REG6 and REG7
+  - inl2-supply: The input supply for REG8 and LDO_REG9
+  - inl3-supply: The input supply for REG10, REG11 and REG12
+- for act8865:
+  - vp1-supply: The input supply for DCDC_REG1
+  - vp2-supply: The input supply for DCDC_REG2
+  - vp3-supply: The input supply for DCDC_REG3
+  - inl45-supply: The input supply for LDO_REG1 and LDO_REG2
+  - inl67-supply: The input supply for LDO_REG3 and LDO_REG4
+
+Any standard regulator properties can be used to configure the single regulator.
+
+The valid names for regulators are:
+	- for act8846:
+	REG1, REG2, REG3, REG4, REG5, REG6, REG7, REG8, REG9, REG10, REG11, REG12
+	- for act8865:
+	DCDC_REG1, DCDC_REG2, DCDC_REG3, LDO_REG1, LDO_REG2, LDO_REG3, LDO_REG4.
+	- for act8600:
+	DCDC_REG1, DCDC_REG2, DCDC_REG3, SUDCDC_REG4, LDO_REG5, LDO_REG6, LDO_REG7,
+	LDO_REG8, LDO_REG9, LDO_REG10,
+
+Example:
+--------
+
+		i2c1: i2c@f0018000 {
+			pmic: act8865@5b {
+				compatible = "active-semi,act8865";
+				reg = <0x5b>;
+				status = "disabled";
+
+				regulators {
+					vcc_1v8_reg: DCDC_REG1 {
+						regulator-name = "VCC_1V8";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-always-on;
+					};
+
+					vcc_1v2_reg: DCDC_REG2 {
+						regulator-name = "VCC_1V2";
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <1300000>;
+						regulator-suspend-mem-microvolt = <1150000>;
+						regulator-suspend-standby-microvolt = <1150000>;
+						regulator-always-on;
+					};
+
+					vcc_3v3_reg: DCDC_REG3 {
+						regulator-name = "VCC_3V3";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+					};
+
+					vddana_reg: LDO_REG1 {
+						regulator-name = "VDDANA";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+					};
+
+					vddfuse_reg: LDO_REG2 {
+						regulator-name = "FUSE_2V5";
+						regulator-min-microvolt = <2500000>;
+						regulator-max-microvolt = <2500000>;
+					};
+				};
+			};
+		};

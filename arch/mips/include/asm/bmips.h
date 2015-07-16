@@ -46,8 +46,35 @@
 
 #include <linux/cpumask.h>
 #include <asm/r4kcache.h>
+#include <asm/smp-ops.h>
 
-extern struct plat_smp_ops bmips_smp_ops;
+extern struct plat_smp_ops bmips43xx_smp_ops;
+extern struct plat_smp_ops bmips5000_smp_ops;
+
+static inline int register_bmips_smp_ops(void)
+{
+#if IS_ENABLED(CONFIG_CPU_BMIPS) && IS_ENABLED(CONFIG_SMP)
+	switch (current_cpu_type()) {
+	case CPU_BMIPS32:
+	case CPU_BMIPS3300:
+		return register_up_smp_ops();
+	case CPU_BMIPS4350:
+	case CPU_BMIPS4380:
+		register_smp_ops(&bmips43xx_smp_ops);
+		break;
+	case CPU_BMIPS5000:
+		register_smp_ops(&bmips5000_smp_ops);
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	return 0;
+#else
+	return -ENODEV;
+#endif
+}
+
 extern char bmips_reset_nmi_vec;
 extern char bmips_reset_nmi_vec_end;
 extern char bmips_smp_movevec;
@@ -57,6 +84,7 @@ extern char bmips_smp_int_vec_end;
 extern int bmips_smp_enabled;
 extern int bmips_cpu_offset;
 extern cpumask_t bmips_booted_mask;
+extern unsigned long bmips_tp1_irqs;
 
 extern void bmips_ebase_setup(void);
 extern asmlinkage void plat_wired_tlb_setup(void);
@@ -92,6 +120,22 @@ static inline void bmips_write_zscm_reg(unsigned int offset, unsigned long data)
 	_ssnop();
 	_ssnop();
 	barrier();
+}
+
+static inline void bmips_post_dma_flush(struct device *dev)
+{
+	void __iomem *cbr = BMIPS_GET_CBR();
+	u32 cfg;
+
+	if (boot_cpu_type() != CPU_BMIPS3300 &&
+	    boot_cpu_type() != CPU_BMIPS4350 &&
+	    boot_cpu_type() != CPU_BMIPS4380)
+		return;
+
+	/* Flush stale data out of the readahead cache */
+	cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
+	__raw_writel(cfg | 0x100, cbr + BMIPS_RAC_CONFIG);
+	__raw_readl(cbr + BMIPS_RAC_CONFIG);
 }
 
 #endif /* !defined(__ASSEMBLY__) */

@@ -343,11 +343,6 @@ static void nilfs_end_bio_write(struct bio *bio, int err)
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct nilfs_segment_buffer *segbuf = bio->bi_private;
 
-	if (err == -EOPNOTSUPP) {
-		set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
-		/* to be detected by nilfs_segbuf_submit_bio() */
-	}
-
 	if (!uptodate)
 		atomic_inc(&segbuf->sb_err);
 
@@ -374,15 +369,8 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
 
 	bio->bi_end_io = nilfs_end_bio_write;
 	bio->bi_private = segbuf;
-	bio_get(bio);
 	submit_bio(mode, bio);
 	segbuf->sb_nbio++;
-	if (bio_flagged(bio, BIO_EOPNOTSUPP)) {
-		bio_put(bio);
-		err = -EOPNOTSUPP;
-		goto failed;
-	}
-	bio_put(bio);
 
 	wi->bio = NULL;
 	wi->rest_blocks -= wi->end - wi->start;
@@ -416,7 +404,8 @@ static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
 	}
 	if (likely(bio)) {
 		bio->bi_bdev = nilfs->ns_bdev;
-		bio->bi_sector = start << (nilfs->ns_blocksize_bits - 9);
+		bio->bi_iter.bi_sector =
+			start << (nilfs->ns_blocksize_bits - 9);
 	}
 	return bio;
 }

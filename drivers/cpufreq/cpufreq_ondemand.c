@@ -170,21 +170,24 @@ static void od_check_cpu(int cpu, unsigned int load)
 		dbs_freq_increase(policy, policy->max);
 	} else {
 		/* Calculate the next frequency proportional to load */
-		unsigned int freq_next;
-		freq_next = load * policy->cpuinfo.max_freq / 100;
+		unsigned int freq_next, min_f, max_f;
+
+		min_f = policy->cpuinfo.min_freq;
+		max_f = policy->cpuinfo.max_freq;
+		freq_next = min_f + load * (max_f - min_f) / 100;
 
 		/* No longer fully busy, reset rate_mult */
 		dbs_info->rate_mult = 1;
 
 		if (!od_tuners->powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,
-					CPUFREQ_RELATION_L);
+					CPUFREQ_RELATION_C);
 			return;
 		}
 
 		freq_next = od_ops.powersave_bias_target(policy, freq_next,
 					CPUFREQ_RELATION_L);
-		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_L);
+		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_C);
 	}
 }
 
@@ -472,7 +475,7 @@ static struct attribute_group od_attr_group_gov_pol = {
 
 /************************** sysfs end ************************/
 
-static int od_init(struct dbs_data *dbs_data)
+static int od_init(struct dbs_data *dbs_data, bool notify)
 {
 	struct od_dbs_tuners *tuners;
 	u64 idle_time;
@@ -510,11 +513,10 @@ static int od_init(struct dbs_data *dbs_data)
 	tuners->io_is_busy = should_io_be_busy();
 
 	dbs_data->tuners = tuners;
-	mutex_init(&dbs_data->mutex);
 	return 0;
 }
 
-static void od_exit(struct dbs_data *dbs_data)
+static void od_exit(struct dbs_data *dbs_data, bool notify)
 {
 	kfree(dbs_data->tuners);
 }
@@ -538,6 +540,7 @@ static struct common_dbs_data od_dbs_cdata = {
 	.gov_ops = &od_ops,
 	.init = od_init,
 	.exit = od_exit,
+	.mutex = __MUTEX_INITIALIZER(od_dbs_cdata.mutex),
 };
 
 static void od_set_powersave_bias(unsigned int powersave_bias)

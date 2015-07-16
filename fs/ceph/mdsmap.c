@@ -62,7 +62,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 
 	ceph_decode_16_safe(p, end, version, bad);
 	if (version > 3) {
-		pr_warning("got mdsmap version %d > 3, failing", version);
+		pr_warn("got mdsmap version %d > 3, failing", version);
 		goto bad;
 	}
 

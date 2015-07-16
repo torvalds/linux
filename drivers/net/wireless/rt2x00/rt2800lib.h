@@ -14,9 +14,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef RT2800LIB_H
@@ -211,8 +209,9 @@ int rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev);
 
 int rt2800_probe_hw(struct rt2x00_dev *rt2x00dev);
 
-void rt2800_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx, u32 *iv32,
-			 u16 *iv16);
+void rt2800_get_key_seq(struct ieee80211_hw *hw,
+			struct ieee80211_key_conf *key,
+			struct ieee80211_key_seq *seq);
 int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 int rt2800_conf_tx(struct ieee80211_hw *hw,
 		   struct ieee80211_vif *vif, u16 queue_idx,

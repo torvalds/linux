@@ -10,7 +10,6 @@
  */
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -871,7 +870,6 @@ static struct platform_driver meth_driver = {
 	.remove	= __exit_p(meth_remove),
 	.driver = {
 		.name	= "meth",
-		.owner	= THIS_MODULE,
 	}
 };
 

@@ -84,11 +84,6 @@ static inline int pullbit(struct pushpull *pp)
 	return bit;
 }
 
-static inline int pulledbits(struct pushpull *pp)
-{
-	return pp->ofs;
-}
-
 
 static void init_rubin(struct rubin_state *rs, int div, int *bits)
 {

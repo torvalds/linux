@@ -12,11 +12,15 @@
 
 #include <linux/crypto.h>
 
-struct crypto_aead *ieee80211_aes_key_setup_encrypt(const u8 key[]);
+struct crypto_aead *ieee80211_aes_key_setup_encrypt(const u8 key[],
+						    size_t key_len,
+						    size_t mic_len);
 void ieee80211_aes_ccm_encrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
-			       u8 *data, size_t data_len, u8 *mic);
+			       u8 *data, size_t data_len, u8 *mic,
+			       size_t mic_len);
 int ieee80211_aes_ccm_decrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
-			      u8 *data, size_t data_len, u8 *mic);
+			      u8 *data, size_t data_len, u8 *mic,
+			      size_t mic_len);
 void ieee80211_aes_key_free(struct crypto_aead *tfm);
 
 #endif /* AES_CCM_H */

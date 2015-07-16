@@ -27,11 +27,7 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 
-#ifdef CONFIG_64BIT
 #define ARCH_OFFSET	4
-#else
-#define ARCH_OFFSET	0
-#endif
 
 __HEAD
 
@@ -67,7 +63,6 @@ __HEAD
 # subroutine to set architecture mode
 #
 .Lsetmode:
-#ifdef CONFIG_64BIT
 	mvi	__LC_AR_MODE_ID,1	# set esame flag
 	slr	%r0,%r0 		# set cpuid to zero
 	lhi	%r1,2			# mode 2 = esame (dump)
@@ -76,16 +71,12 @@ __HEAD
 	.fill	16,4,0x0
 0:	lmh	%r0,%r15,0(%r13)	# clear high-order half of gprs
 	sam31				# switch to 31 bit addressing mode
-#else
-	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
-#endif
 	br	%r14
 
 #
 # subroutine to wait for end I/O
 #
 .Lirqwait:
-#ifdef CONFIG_64BIT
 	mvc	0x1f0(16),.Lnewpsw	# set up IO interrupt psw
 	lpsw	.Lwaitpsw
 .Lioint:
@@ -93,15 +84,6 @@ __HEAD
 	.align	8
 .Lnewpsw:
 	.quad	0x0000000080000000,.Lioint
-#else
-	mvc	0x78(8),.Lnewpsw	# set up IO interrupt psw
-	lpsw	.Lwaitpsw
-.Lioint:
-	br	%r14
-	.align	8
-.Lnewpsw:
-	.long	0x00080000,0x80000000+.Lioint
-#endif
 .Lwaitpsw:
 	.long	0x020a0000,0x80000000+.Lioint
 
@@ -375,7 +357,6 @@ ENTRY(startup)
 ENTRY(startup_kdump)
 	j	.Lep_startup_kdump
 .Lep_startup_normal:
-#ifdef CONFIG_64BIT
 	mvi	__LC_AR_MODE_ID,1	# set esame flag
 	slr	%r0,%r0 		# set cpuid to zero
 	lhi	%r1,2			# mode 2 = esame (dump)
@@ -384,9 +365,6 @@ ENTRY(startup_kdump)
 	.fill	16,4,0x0
 0:	lmh	%r0,%r15,0(%r13)	# clear high-order half of gprs
 	sam31				# switch to 31 bit addressing mode
-#else
-	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
-#endif
 	basr	%r13,0			# get base
 .LPG0:
 	xc	0x200(256),0x200	# partially clear lowcore
@@ -396,9 +374,8 @@ ENTRY(startup_kdump)
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
 	xc	__LC_STFL_FAC_LIST(8),__LC_STFL_FAC_LIST
-#ifndef CONFIG_MARCH_G5
 	# check capabilities against MARCH_{G5,Z900,Z990,Z9_109,Z10}
-	.insn	s,0xb2b10000,__LC_STFL_FAC_LIST	# store facility list
+	.insn	s,0xb2b10000,0		# store facilities @ __LC_STFL_FAC_LIST
 	tm	__LC_STFL_FAC_LIST,0x01	# stfle available ?
 	jz	0f
 	la	%r0,1
@@ -435,49 +412,25 @@ ENTRY(startup_kdump)
 # the kernel will crash. Format is number of facility words with bits set,
 # followed by the facility words.
 
-#if defined(CONFIG_64BIT)
-#if defined(CONFIG_MARCH_ZEC12)
-	.long 3, 0xc100efe3, 0xf46ce800, 0x00400000
+#if defined(CONFIG_MARCH_Z13)
+	.long 3, 0xc100eff2, 0xf46ce800, 0x00400000
+#elif defined(CONFIG_MARCH_ZEC12)
+	.long 3, 0xc100eff2, 0xf46ce800, 0x00400000
 #elif defined(CONFIG_MARCH_Z196)
-	.long 2, 0xc100efe3, 0xf46c0000
+	.long 2, 0xc100eff2, 0xf46c0000
 #elif defined(CONFIG_MARCH_Z10)
-	.long 2, 0xc100efe3, 0xf0680000
+	.long 2, 0xc100eff2, 0xf0680000
 #elif defined(CONFIG_MARCH_Z9_109)
-	.long 1, 0xc100efc3
+	.long 1, 0xc100efc2
 #elif defined(CONFIG_MARCH_Z990)
 	.long 1, 0xc0002000
 #elif defined(CONFIG_MARCH_Z900)
 	.long 1, 0xc0000000
 #endif
-#else
-#if defined(CONFIG_MARCH_ZEC12)
-	.long 1, 0x8100c880
-#elif defined(CONFIG_MARCH_Z196)
-	.long 1, 0x8100c880
-#elif defined(CONFIG_MARCH_Z10)
-	.long 1, 0x8100c880
-#elif defined(CONFIG_MARCH_Z9_109)
-	.long 1, 0x8100c880
-#elif defined(CONFIG_MARCH_Z990)
-	.long 1, 0x80002000
-#elif defined(CONFIG_MARCH_Z900)
-	.long 1, 0x80000000
-#endif
-#endif
 4:
-#endif
-
-#ifdef CONFIG_64BIT
 	/* Continue with 64bit startup code in head64.S */
 	sam64				# switch to 64 bit mode
 	jg	startup_continue
-#else
-	/* Continue with 31bit startup code in head31.S */
-	l	%r13,5f-.LPG0(%r13)
-	b	0(%r13)
-	.align	8
-5:	.long	startup_continue
-#endif
 
 	.align	8
 6:	.long	0x7fffffff,0xffffffff

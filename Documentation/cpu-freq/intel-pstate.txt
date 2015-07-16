@@ -1,0 +1,65 @@
+Intel P-state driver
+--------------------
+
+This driver provides an interface to control the P state selection for
+SandyBridge+ Intel processors.  The driver can operate two different
+modes based on the processor model, legacy mode and Hardware P state (HWP)
+mode.
+
+In legacy mode, the Intel P-state implements two internal governors,
+performance and powersave, that differ from the general cpufreq governors of
+the same name (the general cpufreq governors implement target(), whereas the
+internal Intel P-state governors implement setpolicy()).  The internal
+performance governor sets the max_perf_pct and min_perf_pct to 100; that is,
+the governor selects the highest available P state to maximize the performance
+of the core.  The internal powersave governor selects the appropriate P state
+based on the current load on the CPU.
+
+In HWP mode P state selection is implemented in the processor
+itself. The driver provides the interfaces between the cpufreq core and
+the processor to control P state selection based on user preferences
+and reporting frequency to the cpufreq core.  In this mode the
+internal Intel P-state governor code is disabled.
+
+In addition to the interfaces provided by the cpufreq core for
+controlling frequency the driver provides sysfs files for
+controlling P state selection. These files have been added to
+/sys/devices/system/cpu/intel_pstate/
+
+      max_perf_pct: limits the maximum P state that will be requested by
+      the driver stated as a percentage of the available performance. The
+      available (P states) performance may be reduced by the no_turbo
+      setting described below.
+
+      min_perf_pct: limits the minimum P state that will be  requested by
+      the driver stated as a percentage of the max (non-turbo)
+      performance level.
+
+      no_turbo: limits the driver to selecting P states below the turbo
+      frequency range.
+
+      turbo_pct: displays the percentage of the total performance that
+      is supported by hardware that is in the turbo range.  This number
+      is independent of whether turbo has been disabled or not.
+
+      num_pstates: displays the number of pstates that are supported
+      by hardware.  This number is independent of whether turbo has
+      been disabled or not.
+
+For contemporary Intel processors, the frequency is controlled by the
+processor itself and the P-states exposed to software are related to
+performance levels.  The idea that frequency can be set to a single
+frequency is fiction for Intel Core processors. Even if the scaling
+driver selects a single P state the actual frequency the processor
+will run at is selected by the processor itself.
+
+For legacy mode debugfs files have also been added to allow tuning of
+the internal governor algorythm. These files are located at
+/sys/kernel/debug/pstate_snb/ These files are NOT present in HWP mode.
+
+      deadband
+      d_gain_pct
+      i_gain_pct
+      p_gain_pct
+      sample_rate_ms
+      setpoint

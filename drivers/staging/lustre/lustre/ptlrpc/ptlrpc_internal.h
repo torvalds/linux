@@ -55,6 +55,10 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc);
 /* client.c */
 struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
 					 unsigned type, unsigned portal);
+int ptlrpc_request_cache_init(void);
+void ptlrpc_request_cache_fini(void);
+struct ptlrpc_request *ptlrpc_request_cache_alloc(gfp_t flags);
+void ptlrpc_request_cache_free(struct ptlrpc_request *req);
 void ptlrpc_init_xid(void);
 
 /* events.c */
@@ -72,19 +76,16 @@ void ptlrpc_initiate_recovery(struct obd_import *imp);
 int lustre_unpack_req_ptlrpc_body(struct ptlrpc_request *req, int offset);
 int lustre_unpack_rep_ptlrpc_body(struct ptlrpc_request *req, int offset);
 
-#ifdef LPROCFS
-void ptlrpc_lprocfs_register_service(struct proc_dir_entry *proc_entry,
-				     struct ptlrpc_service *svc);
+int ptlrpc_sysfs_register_service(struct kset *parent,
+				  struct ptlrpc_service *svc);
+void ptlrpc_sysfs_unregister_service(struct ptlrpc_service *svc);
+
+void ptlrpc_ldebugfs_register_service(struct dentry *debugfs_entry,
+				      struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_rpc_sent(struct ptlrpc_request *req, long amount);
-void ptlrpc_lprocfs_do_request_stat (struct ptlrpc_request *req,
+void ptlrpc_lprocfs_do_request_stat(struct ptlrpc_request *req,
 				     long q_usec, long work_usec);
-#else
-#define ptlrpc_lprocfs_register_service(params...) do{}while(0)
-#define ptlrpc_lprocfs_unregister_service(params...) do{}while(0)
-#define ptlrpc_lprocfs_rpc_sent(params...) do{}while(0)
-#define ptlrpc_lprocfs_do_request_stat(params...) do{}while(0)
-#endif /* LPROCFS */
 
 /* NRS */
 

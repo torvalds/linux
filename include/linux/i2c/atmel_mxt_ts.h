@@ -15,35 +15,11 @@
 
 #include <linux/types.h>
 
-/* For key_map array */
-#define MXT_NUM_GPIO		4
-
-/* Orient */
-#define MXT_NORMAL		0x0
-#define MXT_DIAGONAL		0x1
-#define MXT_HORIZONTAL_FLIP	0x2
-#define MXT_ROTATED_90_COUNTER	0x3
-#define MXT_VERTICAL_FLIP	0x4
-#define MXT_ROTATED_90		0x5
-#define MXT_ROTATED_180		0x6
-#define MXT_DIAGONAL_COUNTER	0x7
-
 /* The platform data for the Atmel maXTouch touchscreen driver */
 struct mxt_platform_data {
-	const u8 *config;
-	size_t config_length;
-
-	unsigned int x_line;
-	unsigned int y_line;
-	unsigned int x_size;
-	unsigned int y_size;
-	unsigned int blen;
-	unsigned int threshold;
-	unsigned int voltage;
-	unsigned char orient;
 	unsigned long irqflags;
-	bool is_tp;
-	const unsigned int key_map[MXT_NUM_GPIO];
+	u8 t19_num_keys;
+	const unsigned int *t19_keymap;
 };
 
 #endif /* __LINUX_ATMEL_MXT_TS_H */

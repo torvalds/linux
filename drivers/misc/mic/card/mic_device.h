@@ -29,6 +29,9 @@
 
 #include <linux/workqueue.h>
 #include <linux/io.h>
+#include <linux/interrupt.h>
+#include <linux/mic_bus.h>
+#include "../bus/scif_bus.h"
 
 /**
  * struct mic_intr_info - Contains h/w specific interrupt sources info
@@ -69,6 +72,10 @@ struct mic_device {
  * @hotplug_work: Hot plug work for adding/removing virtio devices.
  * @irq_info: The OS specific irq information
  * @intr_info: H/W specific interrupt information.
+ * @dma_mbdev: dma device on the MIC virtual bus.
+ * @dma_ch - Array of DMA channels
+ * @num_dma_ch - Number of DMA channels available
+ * @scdev: SCIF device on the SCIF virtual bus.
  */
 struct mic_driver {
 	char name[20];
@@ -79,6 +86,10 @@ struct mic_driver {
 	struct work_struct hotplug_work;
 	struct mic_irq_info irq_info;
 	struct mic_intr_info intr_info;
+	struct mbus_device *dma_mbdev;
+	struct dma_chan *dma_ch[MIC_MAX_DMA_CHAN];
+	int num_dma_ch;
+	struct scif_hw_dev *scdev;
 };
 
 /**
@@ -115,11 +126,13 @@ mic_mmio_write(struct mic_mw *mw, u32 val, u32 offset)
 int mic_driver_init(struct mic_driver *mdrv);
 void mic_driver_uninit(struct mic_driver *mdrv);
 int mic_next_card_db(void);
-struct mic_irq *mic_request_card_irq(irqreturn_t (*func)(int irq, void *data),
-	const char *name, void *data, int intr_src);
+struct mic_irq *
+mic_request_card_irq(irq_handler_t handler, irq_handler_t thread_fn,
+		     const char *name, void *data, int db);
 void mic_free_card_irq(struct mic_irq *cookie, void *data);
 u32 mic_read_spad(struct mic_device *mdev, unsigned int idx);
 void mic_send_intr(struct mic_device *mdev, int doorbell);
+void mic_send_p2p_intr(int doorbell, struct mic_mw *mw);
 int mic_db_to_irq(struct mic_driver *mdrv, int db);
 u32 mic_ack_interrupt(struct mic_device *mdev);
 void mic_hw_intr_init(struct mic_driver *mdrv);

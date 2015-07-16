@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -271,7 +270,6 @@ static struct platform_driver puv3_i2c_driver = {
 	.remove		= puv3_i2c_remove,
 	.driver		= {
 		.name	= "PKUnity-v3-I2C",
-		.owner	= THIS_MODULE,
 		.pm	= PUV3_I2C_PM,
 	}
 };

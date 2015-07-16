@@ -35,28 +35,28 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lu_object.h>
-#include <linux/lnet/types.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lu_object.h"
+#include "../../include/linux/lnet/types.h"
 #include "ptlrpc_internal.h"
 
 /* The following are visible and mutable through /sys/module/ptlrpc */
 int test_req_buffer_pressure = 0;
-CFS_MODULE_PARM(test_req_buffer_pressure, "i", int, 0444,
-		"set non-zero to put pressure on request buffer pools");
-CFS_MODULE_PARM(at_min, "i", int, 0644,
-		"Adaptive timeout minimum (sec)");
-CFS_MODULE_PARM(at_max, "i", int, 0644,
-		"Adaptive timeout maximum (sec)");
-CFS_MODULE_PARM(at_history, "i", int, 0644,
-		"Adaptive timeouts remember the slowest event that took place "
-		"within this period (sec)");
-CFS_MODULE_PARM(at_early_margin, "i", int, 0644,
-		"How soon before an RPC deadline to send an early reply");
-CFS_MODULE_PARM(at_extra, "i", int, 0644,
-		"How much extra time to give with each early reply");
+module_param(test_req_buffer_pressure, int, 0444);
+MODULE_PARM_DESC(test_req_buffer_pressure, "set non-zero to put pressure on request buffer pools");
+module_param(at_min, int, 0644);
+MODULE_PARM_DESC(at_min, "Adaptive timeout minimum (sec)");
+module_param(at_max, int, 0644);
+MODULE_PARM_DESC(at_max, "Adaptive timeout maximum (sec)");
+module_param(at_history, int, 0644);
+MODULE_PARM_DESC(at_history,
+		 "Adaptive timeouts remember the slowest event that took place within this period (sec)");
+module_param(at_early_margin, int, 0644);
+MODULE_PARM_DESC(at_early_margin, "How soon before an RPC deadline to send an early reply");
+module_param(at_extra, int, 0644);
+MODULE_PARM_DESC(at_extra, "How much extra time to give with each early reply");
 
 
 /* forward ref */
@@ -72,10 +72,12 @@ struct mutex ptlrpc_all_services_mutex;
 struct ptlrpc_request_buffer_desc *
 ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 {
-	struct ptlrpc_service		  *svc = svcpt->scp_service;
+	struct ptlrpc_service *svc = svcpt->scp_service;
 	struct ptlrpc_request_buffer_desc *rqbd;
 
-	OBD_CPT_ALLOC_PTR(rqbd, svc->srv_cptable, svcpt->scp_cpt);
+	rqbd = kzalloc_node(sizeof(*rqbd), GFP_NOFS,
+			    cfs_cpt_spread_node(svc->srv_cptable,
+						svcpt->scp_cpt));
 	if (rqbd == NULL)
 		return NULL;
 
@@ -87,7 +89,7 @@ ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 	OBD_CPT_ALLOC_LARGE(rqbd->rqbd_buffer, svc->srv_cptable,
 			    svcpt->scp_cpt, svc->srv_buf_size);
 	if (rqbd->rqbd_buffer == NULL) {
-		OBD_FREE_PTR(rqbd);
+		kfree(rqbd);
 		return NULL;
 	}
 
@@ -112,17 +114,17 @@ ptlrpc_free_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	svcpt->scp_nrqbds_total--;
 	spin_unlock(&svcpt->scp_lock);
 
-	OBD_FREE_LARGE(rqbd->rqbd_buffer, svcpt->scp_service->srv_buf_size);
-	OBD_FREE_PTR(rqbd);
+	kvfree(rqbd->rqbd_buffer);
+	kfree(rqbd);
 }
 
 int
 ptlrpc_grow_req_bufs(struct ptlrpc_service_part *svcpt, int post)
 {
-	struct ptlrpc_service		  *svc = svcpt->scp_service;
+	struct ptlrpc_service *svc = svcpt->scp_service;
 	struct ptlrpc_request_buffer_desc *rqbd;
-	int				rc = 0;
-	int				i;
+	int rc = 0;
+	int i;
 
 	if (svcpt->scp_rqbd_allocating)
 		goto try_post;
@@ -177,14 +179,14 @@ ptlrpc_grow_req_bufs(struct ptlrpc_service_part *svcpt, int post)
 
 /**
  * Part of Rep-Ack logic.
- * Puts a lock and its mode into reply state assotiated to request reply.
+ * Puts a lock and its mode into reply state associated to request reply.
  */
 void
 ptlrpc_save_lock(struct ptlrpc_request *req,
 		 struct lustre_handle *lock, int mode, int no_ack)
 {
 	struct ptlrpc_reply_state *rs = req->rq_reply_state;
-	int			idx;
+	int idx;
 
 	LASSERT(rs != NULL);
 	LASSERT(rs->rs_nlocks < RS_MAX_LOCKS);
@@ -252,7 +254,7 @@ struct rs_batch {
 static struct ptlrpc_hr_service		ptlrpc_hr;
 
 /**
- * maximum mumber of replies scheduled in one batch
+ * maximum number of replies scheduled in one batch
  */
 #define MAX_SCHEDULED 256
 
@@ -273,8 +275,8 @@ static void rs_batch_init(struct rs_batch *b)
 static struct ptlrpc_hr_thread *
 ptlrpc_hr_select(struct ptlrpc_service_part *svcpt)
 {
-	struct ptlrpc_hr_partition	*hrp;
-	unsigned int			rotor;
+	struct ptlrpc_hr_partition *hrp;
+	unsigned int rotor;
 
 	if (svcpt->scp_cpt >= 0 &&
 	    svcpt->scp_service->srv_cptable == ptlrpc_hr.hr_cpt_table) {
@@ -384,9 +386,9 @@ void ptlrpc_dispatch_difficult_reply(struct ptlrpc_reply_state *rs)
 void
 ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs)
 {
-	LASSERT(spin_is_locked(&rs->rs_svcpt->scp_rep_lock));
-	LASSERT(spin_is_locked(&rs->rs_lock));
-	LASSERT (rs->rs_difficult);
+	assert_spin_locked(&rs->rs_svcpt->scp_rep_lock);
+	assert_spin_locked(&rs->rs_lock);
+	LASSERT(rs->rs_difficult);
 	rs->rs_scheduled_ever = 1;  /* flag any notification attempt */
 
 	if (rs->rs_scheduled) {     /* being set up or already notified */
@@ -412,7 +414,7 @@ void ptlrpc_commit_replies(struct obd_export *exp)
 	spin_lock(&exp->exp_uncommitted_replies_lock);
 	list_for_each_entry_safe(rs, nxt, &exp->exp_uncommitted_replies,
 				     rs_obd_list) {
-		LASSERT (rs->rs_difficult);
+		LASSERT(rs->rs_difficult);
 		/* VBR: per-export last_committed */
 		LASSERT(rs->rs_export);
 		if (rs->rs_transno <= exp->exp_last_committed) {
@@ -429,8 +431,8 @@ static int
 ptlrpc_server_post_idle_rqbds(struct ptlrpc_service_part *svcpt)
 {
 	struct ptlrpc_request_buffer_desc *rqbd;
-	int				  rc;
-	int				  posted = 0;
+	int rc;
+	int posted = 0;
 
 	for (;;) {
 		spin_lock(&svcpt->scp_lock);
@@ -487,11 +489,11 @@ static void
 ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 			     struct ptlrpc_service_conf *conf)
 {
-	struct ptlrpc_service_thr_conf	*tc = &conf->psc_thr;
-	unsigned			init;
-	unsigned			total;
-	unsigned			nthrs;
-	int				weight;
+	struct ptlrpc_service_thr_conf *tc = &conf->psc_thr;
+	unsigned init;
+	unsigned total;
+	unsigned nthrs;
+	int weight;
 
 	/*
 	 * Common code for estimating & validating threads number.
@@ -515,7 +517,7 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 		 * be up to 8 * nthrs_max */
 		total = min(tc->tc_nthrs_max * 8, tc->tc_nthrs_user);
 		nthrs = total / svc->srv_ncpts;
-		init  = max(init, nthrs);
+		init = max(init, nthrs);
 		goto out;
 	}
 
@@ -529,7 +531,7 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 
 	nthrs = tc->tc_nthrs_base;
 	if (svc->srv_ncpts == 1) {
-		int	i;
+		int i;
 
 		/* NB: Increase the base number if it's single partition
 		 * and total number of cores/HTs is larger or equal to 4.
@@ -541,9 +543,8 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 	}
 
 	if (tc->tc_thr_factor != 0) {
-		int	  factor = tc->tc_thr_factor;
+		int factor = tc->tc_thr_factor;
 		const int fade = 4;
-		cpumask_t mask;
 
 		/*
 		 * User wants to increase number of threads with for
@@ -557,8 +558,8 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 		 * have too many threads no matter how many cores/HTs
 		 * there are.
 		 */
-		cpumask_copy(&mask, topology_thread_cpumask(0));
-		if (cpus_weight(mask) > 1) { /* weight is # of HTs */
+		/* weight is # of HTs */
+		if (cpumask_weight(topology_sibling_cpumask(0)) > 1) {
 			/* depress thread factor for hyper-thread */
 			factor = factor - (factor >> 1) + (factor >> 3);
 		}
@@ -580,8 +581,7 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 	svc->srv_nthrs_cpt_init = init;
 
 	if (nthrs * svc->srv_ncpts > tc->tc_nthrs_max) {
-		CDEBUG(D_OTHER, "%s: This service may have more threads (%d) "
-		       "than the given soft limit (%d)\n",
+		CDEBUG(D_OTHER, "%s: This service may have more threads (%d) than the given soft limit (%d)\n",
 		       svc->srv_name, nthrs * svc->srv_ncpts,
 		       tc->tc_nthrs_max);
 	}
@@ -595,9 +595,9 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 			 struct ptlrpc_service_part *svcpt, int cpt)
 {
 	struct ptlrpc_at_array	*array;
-	int			size;
-	int			index;
-	int			rc;
+	int size;
+	int index;
+	int rc;
 
 	svcpt->scp_cpt = cpt;
 	INIT_LIST_HEAD(&svcpt->scp_threads);
@@ -612,7 +612,7 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	INIT_LIST_HEAD(&svcpt->scp_hist_reqs);
 	INIT_LIST_HEAD(&svcpt->scp_hist_rqbds);
 
-	/* acitve requests and hp requests */
+	/* active requests and hp requests */
 	spin_lock_init(&svcpt->scp_req_lock);
 
 	/* reply states */
@@ -627,23 +627,25 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	array = &svcpt->scp_at_array;
 
 	size = at_est2timeout(at_max);
-	array->paa_size     = size;
-	array->paa_count    = 0;
+	array->paa_size = size;
+	array->paa_count = 0;
 	array->paa_deadline = -1;
 
 	/* allocate memory for scp_at_array (ptlrpc_at_array) */
-	OBD_CPT_ALLOC(array->paa_reqs_array,
-		      svc->srv_cptable, cpt, sizeof(struct list_head) * size);
+	array->paa_reqs_array =
+		kzalloc_node(sizeof(struct list_head) * size, GFP_NOFS,
+			     cfs_cpt_spread_node(svc->srv_cptable, cpt));
 	if (array->paa_reqs_array == NULL)
 		return -ENOMEM;
 
 	for (index = 0; index < size; index++)
 		INIT_LIST_HEAD(&array->paa_reqs_array[index]);
 
-	OBD_CPT_ALLOC(array->paa_reqs_count,
-		      svc->srv_cptable, cpt, sizeof(__u32) * size);
+	array->paa_reqs_count =
+		kzalloc_node(sizeof(__u32) * size, GFP_NOFS,
+			     cfs_cpt_spread_node(svc->srv_cptable, cpt));
 	if (array->paa_reqs_count == NULL)
-		goto failed;
+		goto free_reqs_array;
 
 	cfs_timer_init(&svcpt->scp_at_timer, ptlrpc_at_timer, svcpt);
 	/* At SOW, service time should be quick; 10s seems generous. If client
@@ -657,21 +659,16 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	/* We shouldn't be under memory pressure at startup, so
 	 * fail if we can't allocate all our buffers at this time. */
 	if (rc != 0)
-		goto failed;
+		goto free_reqs_count;
 
 	return 0;
 
- failed:
-	if (array->paa_reqs_count != NULL) {
-		OBD_FREE(array->paa_reqs_count, sizeof(__u32) * size);
-		array->paa_reqs_count = NULL;
-	}
-
-	if (array->paa_reqs_array != NULL) {
-		OBD_FREE(array->paa_reqs_array,
-			 sizeof(struct list_head) * array->paa_size);
-		array->paa_reqs_array = NULL;
-	}
+free_reqs_count:
+	kfree(array->paa_reqs_count);
+	array->paa_reqs_count = NULL;
+free_reqs_array:
+	kfree(array->paa_reqs_array);
+	array->paa_reqs_array = NULL;
 
 	return -ENOMEM;
 }
@@ -683,17 +680,18 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
  */
 struct ptlrpc_service *
 ptlrpc_register_service(struct ptlrpc_service_conf *conf,
-			struct proc_dir_entry *proc_entry)
+			struct kset *parent,
+			struct dentry *debugfs_entry)
 {
-	struct ptlrpc_service_cpt_conf	*cconf = &conf->psc_cpt;
-	struct ptlrpc_service		*service;
-	struct ptlrpc_service_part	*svcpt;
-	struct cfs_cpt_table		*cptable;
-	__u32				*cpts = NULL;
-	int				ncpts;
-	int				cpt;
-	int				rc;
-	int				i;
+	struct ptlrpc_service_cpt_conf *cconf = &conf->psc_cpt;
+	struct ptlrpc_service *service;
+	struct ptlrpc_service_part *svcpt;
+	struct cfs_cpt_table *cptable;
+	__u32 *cpts = NULL;
+	int ncpts;
+	int cpt;
+	int rc;
+	int i;
 
 	LASSERT(conf->psc_buf.bc_nbufs > 0);
 	LASSERT(conf->psc_buf.bc_buf_size >=
@@ -709,7 +707,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	} else {
 		ncpts = cfs_cpt_number(cptable);
 		if (cconf->cc_pattern != NULL) {
-			struct cfs_expr_list	*el;
+			struct cfs_expr_list *el;
 
 			rc = cfs_expr_list_parse(cconf->cc_pattern,
 						 strlen(cconf->cc_pattern),
@@ -725,24 +723,23 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 			if (rc <= 0) {
 				CERROR("%s: failed to parse CPT array %s: %d\n",
 				       conf->psc_name, cconf->cc_pattern, rc);
-				if (cpts != NULL)
-					OBD_FREE(cpts, sizeof(*cpts) * ncpts);
+				kfree(cpts);
 				return ERR_PTR(rc < 0 ? rc : -EINVAL);
 			}
 			ncpts = rc;
 		}
 	}
 
-	OBD_ALLOC(service, offsetof(struct ptlrpc_service, srv_parts[ncpts]));
+	service = kzalloc(offsetof(struct ptlrpc_service, srv_parts[ncpts]),
+			  GFP_NOFS);
 	if (service == NULL) {
-		if (cpts != NULL)
-			OBD_FREE(cpts, sizeof(*cpts) * ncpts);
+		kfree(cpts);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	service->srv_cptable		= cptable;
-	service->srv_cpts		= cpts;
-	service->srv_ncpts		= ncpts;
+	service->srv_cptable = cptable;
+	service->srv_cpts = cpts;
+	service->srv_ncpts = ncpts;
 
 	service->srv_cpt_bits = 0; /* it's zero already, easy to read... */
 	while ((1 << service->srv_cpt_bits) < cfs_cpt_number(cptable))
@@ -750,18 +747,18 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 
 	/* public members */
 	spin_lock_init(&service->srv_lock);
-	service->srv_name		= conf->psc_name;
-	service->srv_watchdog_factor	= conf->psc_watchdog_factor;
-	INIT_LIST_HEAD(&service->srv_list); /* for safty of cleanup */
+	service->srv_name = conf->psc_name;
+	service->srv_watchdog_factor = conf->psc_watchdog_factor;
+	INIT_LIST_HEAD(&service->srv_list); /* for safety of cleanup */
 
 	/* buffer configuration */
-	service->srv_nbuf_per_group	= test_req_buffer_pressure ?
+	service->srv_nbuf_per_group = test_req_buffer_pressure ?
 					  1 : conf->psc_buf.bc_nbufs;
-	service->srv_max_req_size	= conf->psc_buf.bc_req_max_size +
+	service->srv_max_req_size = conf->psc_buf.bc_req_max_size +
 					  SPTLRPC_MAX_PAYLOAD;
-	service->srv_buf_size		= conf->psc_buf.bc_buf_size;
-	service->srv_rep_portal		= conf->psc_buf.bc_rep_portal;
-	service->srv_req_portal		= conf->psc_buf.bc_req_portal;
+	service->srv_buf_size = conf->psc_buf.bc_buf_size;
+	service->srv_rep_portal	= conf->psc_buf.bc_rep_portal;
+	service->srv_req_portal	= conf->psc_buf.bc_req_portal;
 
 	/* Increase max reply size to next power of two */
 	service->srv_max_reply_size = 1;
@@ -769,10 +766,10 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	       conf->psc_buf.bc_rep_max_size + SPTLRPC_MAX_PAYLOAD)
 		service->srv_max_reply_size <<= 1;
 
-	service->srv_thread_name	= conf->psc_thr.tc_thr_name;
-	service->srv_ctx_tags		= conf->psc_thr.tc_ctx_tags;
-	service->srv_hpreq_ratio	= PTLRPC_SVC_HP_RATIO;
-	service->srv_ops		= conf->psc_ops;
+	service->srv_thread_name = conf->psc_thr.tc_thr_name;
+	service->srv_ctx_tags = conf->psc_thr.tc_ctx_tags;
+	service->srv_hpreq_ratio = PTLRPC_SVC_HP_RATIO;
+	service->srv_ops = conf->psc_ops;
 
 	for (i = 0; i < ncpts; i++) {
 		if (!conf->psc_thr.tc_cpu_affinity)
@@ -780,14 +777,17 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 		else
 			cpt = cpts != NULL ? cpts[i] : i;
 
-		OBD_CPT_ALLOC(svcpt, cptable, cpt, sizeof(*svcpt));
-		if (svcpt == NULL)
-			GOTO(failed, rc = -ENOMEM);
+		svcpt = kzalloc_node(sizeof(*svcpt), GFP_NOFS,
+				     cfs_cpt_spread_node(cptable, cpt));
+		if (svcpt == NULL) {
+			rc = -ENOMEM;
+			goto failed;
+		}
 
 		service->srv_parts[i] = svcpt;
 		rc = ptlrpc_service_part_init(service, svcpt, cpt);
 		if (rc != 0)
-			GOTO(failed, rc);
+			goto failed;
 	}
 
 	ptlrpc_server_nthreads_check(service, conf);
@@ -796,15 +796,21 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	LASSERT(rc == 0);
 
 	mutex_lock(&ptlrpc_all_services_mutex);
-	list_add (&service->srv_list, &ptlrpc_all_services);
+	list_add(&service->srv_list, &ptlrpc_all_services);
 	mutex_unlock(&ptlrpc_all_services_mutex);
 
-	if (proc_entry != NULL)
-		ptlrpc_lprocfs_register_service(proc_entry, service);
+	if (parent) {
+		rc = ptlrpc_sysfs_register_service(parent, service);
+		if (rc)
+			goto failed;
+	}
+
+	if (!IS_ERR_OR_NULL(debugfs_entry))
+		ptlrpc_ldebugfs_register_service(debugfs_entry, service);
 
 	rc = ptlrpc_service_nrs_setup(service);
 	if (rc != 0)
-		GOTO(failed, rc);
+		goto failed;
 
 	CDEBUG(D_NET, "%s: Started, listening on portal %d\n",
 	       service->srv_name, service->srv_req_portal);
@@ -813,7 +819,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	if (rc != 0) {
 		CERROR("Failed to start threads for service %s: %d\n",
 		       service->srv_name, rc);
-		GOTO(failed, rc);
+		goto failed;
 	}
 
 	return service;
@@ -842,7 +848,7 @@ static void ptlrpc_server_free_request(struct ptlrpc_request *req)
 		/* NB request buffers use an embedded
 		 * req if the incoming req unlinked the
 		 * MD; this isn't one of them! */
-		OBD_FREE(req, sizeof(*req));
+		ptlrpc_request_cache_free(req);
 	}
 }
 
@@ -853,11 +859,11 @@ static void ptlrpc_server_free_request(struct ptlrpc_request *req)
 void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 {
 	struct ptlrpc_request_buffer_desc *rqbd = req->rq_rqbd;
-	struct ptlrpc_service_part	  *svcpt = rqbd->rqbd_svcpt;
-	struct ptlrpc_service		  *svc = svcpt->scp_service;
-	int				refcount;
-	struct list_head			*tmp;
-	struct list_head			*nxt;
+	struct ptlrpc_service_part *svcpt = rqbd->rqbd_svcpt;
+	struct ptlrpc_service *svc = svcpt->scp_service;
+	int refcount;
+	struct list_head *tmp;
+	struct list_head *nxt;
 
 	if (!atomic_dec_and_test(&req->rq_refcount))
 		return;
@@ -1037,14 +1043,11 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 	   will make it to the top of the list. */
 
 	/* Do not pay attention on 1sec or smaller renewals. */
-	new_time = cfs_time_current_sec() + extra_delay;
+	new_time = get_seconds() + extra_delay;
 	if (exp->exp_last_request_time + 1 /*second */ >= new_time)
 		return;
 
 	exp->exp_last_request_time = new_time;
-	CDEBUG(D_HA, "updating export %s at "CFS_TIME_T" exp %p\n",
-	       exp->exp_client_uuid.uuid,
-	       exp->exp_last_request_time, exp);
 
 	/* exports may get disconnected from the chain even though the
 	   export has references, so we must keep the spin lock while
@@ -1073,20 +1076,20 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 	/* Note - racing to start/reset the obd_eviction timer is safe */
 	if (exp->exp_obd->obd_eviction_timer == 0) {
 		/* Check if the oldest entry is expired. */
-		if (cfs_time_current_sec() > (oldest_time + PING_EVICT_TIMEOUT +
+		if (get_seconds() > (oldest_time + PING_EVICT_TIMEOUT +
 					      extra_delay)) {
 			/* We need a second timer, in case the net was down and
 			 * it just came back. Since the pinger may skip every
 			 * other PING_INTERVAL (see note in ptlrpc_pinger_main),
 			 * we better wait for 3. */
 			exp->exp_obd->obd_eviction_timer =
-				cfs_time_current_sec() + 3 * PING_INTERVAL;
+				get_seconds() + 3 * PING_INTERVAL;
 			CDEBUG(D_HA, "%s: Think about evicting %s from "CFS_TIME_T"\n",
 			       exp->exp_obd->obd_name,
 			       obd_export_nid2str(oldest_exp), oldest_time);
 		}
 	} else {
-		if (cfs_time_current_sec() >
+		if (get_seconds() >
 		    (exp->exp_obd->obd_eviction_timer + extra_delay)) {
 			/* The evictor won't evict anyone who we've heard from
 			 * recently, so we don't have to check before we start
@@ -1103,6 +1106,7 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
  */
 static int ptlrpc_check_req(struct ptlrpc_request *req)
 {
+	struct obd_device *obd = req->rq_export->exp_obd;
 	int rc = 0;
 
 	if (unlikely(lustre_msg_get_conn_cnt(req->rq_reqmsg) <
@@ -1113,24 +1117,24 @@ static int ptlrpc_check_req(struct ptlrpc_request *req)
 			  req->rq_export->exp_conn_cnt);
 		return -EEXIST;
 	}
-	if (unlikely(req->rq_export->exp_obd &&
-		     req->rq_export->exp_obd->obd_fail)) {
-	     /* Failing over, don't handle any more reqs, send
-		error response instead. */
+	if (unlikely(obd == NULL || obd->obd_fail)) {
+		/*
+		 * Failing over, don't handle any more reqs, send
+		 * error response instead.
+		 */
 		CDEBUG(D_RPCTRACE, "Dropping req %p for failed obd %s\n",
-		       req, req->rq_export->exp_obd->obd_name);
+		       req, (obd != NULL) ? obd->obd_name : "unknown");
 		rc = -ENODEV;
 	} else if (lustre_msg_get_flags(req->rq_reqmsg) &
 		   (MSG_REPLAY | MSG_REQ_REPLAY_DONE) &&
-		   !(req->rq_export->exp_obd->obd_recovering)) {
+		   !obd->obd_recovering) {
 			DEBUG_REQ(D_ERROR, req,
 				  "Invalid replay without recovery");
 			class_fail_export(req->rq_export);
 			rc = -ENODEV;
 	} else if (lustre_msg_get_transno(req->rq_reqmsg) != 0 &&
-		   !(req->rq_export->exp_obd->obd_recovering)) {
-			DEBUG_REQ(D_ERROR, req, "Invalid req with transno "
-				  LPU64" without recovery",
+		   !obd->obd_recovering) {
+			DEBUG_REQ(D_ERROR, req, "Invalid req with transno %llu without recovery",
 				  lustre_msg_get_transno(req->rq_reqmsg));
 			class_fail_export(req->rq_export);
 			rc = -ENODEV;
@@ -1154,7 +1158,7 @@ static void ptlrpc_at_set_timer(struct ptlrpc_service_part *svcpt)
 	}
 
 	/* Set timer for closest deadline */
-	next = (__s32)(array->paa_deadline - cfs_time_current_sec() -
+	next = (__s32)(array->paa_deadline - get_seconds() -
 		       at_early_margin);
 	if (next <= 0) {
 		ptlrpc_at_timer((unsigned long)svcpt);
@@ -1174,13 +1178,13 @@ static int ptlrpc_at_add_timed(struct ptlrpc_request *req)
 	__u32 index;
 
 	if (AT_OFF)
-		return(0);
+		return 0;
 
 	if (req->rq_no_reply)
 		return 0;
 
 	if ((lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT) == 0)
-		return(-ENOSYS);
+		return -ENOSYS;
 
 	spin_lock(&svcpt->scp_at_lock);
 	LASSERT(list_empty(&req->rq_timed_list));
@@ -1244,15 +1248,15 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	struct ptlrpc_service_part *svcpt = req->rq_rqbd->rqbd_svcpt;
 	struct ptlrpc_request *reqcopy;
 	struct lustre_msg *reqmsg;
-	cfs_duration_t olddl = req->rq_deadline - cfs_time_current_sec();
+	long olddl = req->rq_deadline - get_seconds();
 	time_t newdl;
 	int rc;
 
 	/* deadline is when the client expects us to reply, margin is the
 	   difference between clients' and servers' expectations */
 	DEBUG_REQ(D_ADAPTTO, req,
-		  "%ssending early reply (deadline %+lds, margin %+lds) for "
-		  "%d+%d", AT_OFF ? "AT off - not " : "",
+		  "%ssending early reply (deadline %+lds, margin %+lds) for %d+%d",
+		  AT_OFF ? "AT off - not " : "",
 		  olddl, olddl - at_get(&svcpt->scp_at_estimate),
 		  at_get(&svcpt->scp_at_estimate), at_extra);
 
@@ -1260,17 +1264,15 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 		return 0;
 
 	if (olddl < 0) {
-		DEBUG_REQ(D_WARNING, req, "Already past deadline (%+lds), "
-			  "not sending early reply. Consider increasing "
-			  "at_early_margin (%d)?", olddl, at_early_margin);
+		DEBUG_REQ(D_WARNING, req, "Already past deadline (%+lds), not sending early reply. Consider increasing at_early_margin (%d)?",
+			  olddl, at_early_margin);
 
 		/* Return an error so we're not re-added to the timed list. */
 		return -ETIMEDOUT;
 	}
 
-	if ((lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT) == 0){
-		DEBUG_REQ(D_INFO, req, "Wanted to ask client for more time, "
-			  "but no AT support");
+	if (!(lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT)) {
+		DEBUG_REQ(D_INFO, req, "Wanted to ask client for more time, but no AT support");
 		return -ENOSYS;
 	}
 
@@ -1289,30 +1291,29 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 		/* Fake our processing time into the future to ask the clients
 		 * for some extra amount of time */
 		at_measured(&svcpt->scp_at_estimate, at_extra +
-			    cfs_time_current_sec() -
+			    get_seconds() -
 			    req->rq_arrival_time.tv_sec);
 
 		/* Check to see if we've actually increased the deadline -
 		 * we may be past adaptive_max */
 		if (req->rq_deadline >= req->rq_arrival_time.tv_sec +
 		    at_get(&svcpt->scp_at_estimate)) {
-			DEBUG_REQ(D_WARNING, req, "Couldn't add any time "
-				  "(%ld/%ld), not sending early reply\n",
+			DEBUG_REQ(D_WARNING, req, "Couldn't add any time (%ld/%ld), not sending early reply\n",
 				  olddl, req->rq_arrival_time.tv_sec +
 				  at_get(&svcpt->scp_at_estimate) -
-				  cfs_time_current_sec());
+				  get_seconds());
 			return -ETIMEDOUT;
 		}
 	}
-	newdl = cfs_time_current_sec() + at_get(&svcpt->scp_at_estimate);
+	newdl = get_seconds() + at_get(&svcpt->scp_at_estimate);
 
-	OBD_ALLOC(reqcopy, sizeof(*reqcopy));
+	reqcopy = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (reqcopy == NULL)
 		return -ENOMEM;
-	OBD_ALLOC_LARGE(reqmsg, req->rq_reqlen);
+	reqmsg = libcfs_kvzalloc(req->rq_reqlen, GFP_NOFS);
 	if (!reqmsg) {
-		OBD_FREE(reqcopy, sizeof(*reqcopy));
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out_free;
 	}
 
 	*reqcopy = *req;
@@ -1329,26 +1330,30 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	LASSERT(atomic_read(&req->rq_refcount));
 	/** if it is last refcount then early reply isn't needed */
 	if (atomic_read(&req->rq_refcount) == 1) {
-		DEBUG_REQ(D_ADAPTTO, reqcopy, "Normal reply already sent out, "
-			  "abort sending early reply\n");
-		GOTO(out, rc = -EINVAL);
+		DEBUG_REQ(D_ADAPTTO, reqcopy, "Normal reply already sent out, abort sending early reply\n");
+		rc = -EINVAL;
+		goto out;
 	}
 
 	/* Connection ref */
 	reqcopy->rq_export = class_conn2export(
 				     lustre_msg_get_handle(reqcopy->rq_reqmsg));
-	if (reqcopy->rq_export == NULL)
-		GOTO(out, rc = -ENODEV);
+	if (reqcopy->rq_export == NULL) {
+		rc = -ENODEV;
+		goto out;
+	}
 
 	/* RPC ref */
 	class_export_rpc_inc(reqcopy->rq_export);
 	if (reqcopy->rq_export->exp_obd &&
-	    reqcopy->rq_export->exp_obd->obd_fail)
-		GOTO(out_put, rc = -ENODEV);
+	    reqcopy->rq_export->exp_obd->obd_fail) {
+		rc = -ENODEV;
+		goto out_put;
+	}
 
 	rc = lustre_pack_reply_flags(reqcopy, 1, NULL, NULL, LPRFL_EARLY_REPLY);
 	if (rc)
-		GOTO(out_put, rc);
+		goto out_put;
 
 	rc = ptlrpc_send_reply(reqcopy, PTLRPC_REPLY_EARLY);
 
@@ -1369,8 +1374,9 @@ out_put:
 	class_export_put(reqcopy->rq_export);
 out:
 	sptlrpc_svc_ctx_decref(reqcopy);
-	OBD_FREE_LARGE(reqmsg, req->rq_reqlen);
-	OBD_FREE(reqcopy, sizeof(*reqcopy));
+	kvfree(reqmsg);
+out_free:
+	ptlrpc_request_cache_free(reqcopy);
 	return rc;
 }
 
@@ -1381,10 +1387,10 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	struct ptlrpc_at_array *array = &svcpt->scp_at_array;
 	struct ptlrpc_request *rq, *n;
 	struct list_head work_list;
-	__u32  index, count;
+	__u32 index, count;
 	time_t deadline;
-	time_t now = cfs_time_current_sec();
-	cfs_duration_t delay;
+	time_t now = get_seconds();
+	long delay;
 	int first, counter = 0;
 
 	spin_lock(&svcpt->scp_at_lock);
@@ -1448,16 +1454,14 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 
 	spin_unlock(&svcpt->scp_at_lock);
 
-	CDEBUG(D_ADAPTTO, "timeout in %+ds, asking for %d secs on %d early "
-	       "replies\n", first, at_extra, counter);
+	CDEBUG(D_ADAPTTO, "timeout in %+ds, asking for %d secs on %d early replies\n",
+	       first, at_extra, counter);
 	if (first < 0) {
 		/* We're already past request deadlines before we even get a
 		   chance to send early replies */
-		LCONSOLE_WARN("%s: This server is not able to keep up with "
-			      "request traffic (cpu-bound).\n",
+		LCONSOLE_WARN("%s: This server is not able to keep up with request traffic (cpu-bound).\n",
 			      svcpt->scp_service->srv_name);
-		CWARN("earlyQ=%d reqQ=%d recA=%d, svcEst=%d, "
-		      "delay="CFS_DURATION_T"(jiff)\n",
+		CWARN("earlyQ=%d reqQ=%d recA=%d, svcEst=%d, delay=" CFS_DURATION_T "(jiff)\n",
 		      counter, svcpt->scp_nreqs_incoming,
 		      svcpt->scp_nreqs_active,
 		      at_get(&svcpt->scp_at_estimate), delay);
@@ -1728,10 +1732,10 @@ static int
 ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 			    struct ptlrpc_thread *thread)
 {
-	struct ptlrpc_service	*svc = svcpt->scp_service;
-	struct ptlrpc_request	*req;
-	__u32			deadline;
-	int			rc;
+	struct ptlrpc_service *svc = svcpt->scp_service;
+	struct ptlrpc_request *req;
+	__u32 deadline;
+	int rc;
 
 	spin_lock(&svcpt->scp_lock);
 	if (list_empty(&svcpt->scp_req_incoming)) {
@@ -1768,24 +1772,24 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	if (SPTLRPC_FLVR_POLICY(req->rq_flvr.sf_rpc) != SPTLRPC_POLICY_NULL) {
 		rc = ptlrpc_unpack_req_msg(req, req->rq_reqlen);
 		if (rc != 0) {
-			CERROR("error unpacking request: ptl %d from %s "
-			       "x"LPU64"\n", svc->srv_req_portal,
-			       libcfs_id2str(req->rq_peer), req->rq_xid);
+			CERROR("error unpacking request: ptl %d from %s x%llu\n",
+			       svc->srv_req_portal, libcfs_id2str(req->rq_peer),
+			       req->rq_xid);
 			goto err_req;
 		}
 	}
 
 	rc = lustre_unpack_req_ptlrpc_body(req, MSG_PTLRPC_BODY_OFF);
 	if (rc) {
-		CERROR ("error unpacking ptlrpc body: ptl %d from %s x"
-			LPU64"\n", svc->srv_req_portal,
-			libcfs_id2str(req->rq_peer), req->rq_xid);
+		CERROR("error unpacking ptlrpc body: ptl %d from %s x%llu\n",
+		       svc->srv_req_portal, libcfs_id2str(req->rq_peer),
+		       req->rq_xid);
 		goto err_req;
 	}
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DROP_REQ_OPC) &&
 	    lustre_msg_get_opc(req->rq_reqmsg) == cfs_fail_val) {
-		CERROR("drop incoming rpc opc %u, x"LPU64"\n",
+		CERROR("drop incoming rpc opc %u, x%llu\n",
 		       cfs_fail_val, req->rq_xid);
 		goto err_req;
 	}
@@ -1798,7 +1802,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 		goto err_req;
 	}
 
-	switch(lustre_msg_get_opc(req->rq_reqmsg)) {
+	switch (lustre_msg_get_opc(req->rq_reqmsg)) {
 	case MDS_WRITEPAGE:
 	case OST_WRITE:
 		req->rq_bulk_write = 1;
@@ -1810,7 +1814,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 		break;
 	}
 
-	CDEBUG(D_RPCTRACE, "got req x"LPU64"\n", req->rq_xid);
+	CDEBUG(D_RPCTRACE, "got req x%llu\n", req->rq_xid);
 
 	req->rq_export = class_conn2export(
 		lustre_msg_get_handle(req->rq_reqmsg));
@@ -1819,8 +1823,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 		if (rc == 0) {
 			rc = sptlrpc_target_export_check(req->rq_export, req);
 			if (rc)
-				DEBUG_REQ(D_ERROR, req, "DROPPING req with "
-					  "illegal security flavor,");
+				DEBUG_REQ(D_ERROR, req, "DROPPING req with illegal security flavor,");
 		}
 
 		if (rc)
@@ -1829,9 +1832,9 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	}
 
 	/* req_in handling should/must be fast */
-	if (cfs_time_current_sec() - req->rq_arrival_time.tv_sec > 5)
+	if (get_seconds() - req->rq_arrival_time.tv_sec > 5)
 		DEBUG_REQ(D_WARNING, req, "Slow req_in handling "CFS_DURATION_T"s",
-			  cfs_time_sub(cfs_time_current_sec(),
+			  cfs_time_sub(get_seconds(),
 				       req->rq_arrival_time.tv_sec));
 
 	/* Set rpc server deadline and add it to the timed list */
@@ -1852,7 +1855,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	/* Move it over to the request processing queue */
 	rc = ptlrpc_server_request_add(svcpt, req);
 	if (rc)
-		GOTO(err_req, rc);
+		goto err_req;
 
 	wake_up(&svcpt->scp_waitq);
 	return 1;
@@ -1873,11 +1876,11 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 {
 	struct ptlrpc_service *svc = svcpt->scp_service;
 	struct ptlrpc_request *request;
-	struct timeval	 work_start;
-	struct timeval	 work_end;
-	long		   timediff;
-	int		    rc;
-	int		    fail_opc = 0;
+	struct timeval work_start;
+	struct timeval work_end;
+	long timediff;
+	int rc;
+	int fail_opc = 0;
 
 	request = ptlrpc_server_request_get(svcpt, false);
 	if (request == NULL)
@@ -1895,11 +1898,12 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 
 	ptlrpc_rqphase_move(request, RQ_PHASE_INTERPRET);
 
-	if(OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DUMP_LOG))
+	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DUMP_LOG))
 		libcfs_debug_dumplog();
 
 	do_gettimeofday(&work_start);
-	timediff = cfs_timeval_sub(&work_start, &request->rq_arrival_time,NULL);
+	timediff = cfs_timeval_sub(&work_start, &request->rq_arrival_time,
+				   NULL);
 	if (likely(svc->srv_stats != NULL)) {
 		lprocfs_counter_add(svc->srv_stats, PTLRPC_REQWAIT_CNTR,
 				    timediff);
@@ -1920,7 +1924,7 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	request->rq_session.lc_cookie = 0x5;
 	lu_context_enter(&request->rq_session);
 
-	CDEBUG(D_NET, "got req "LPU64"\n", request->rq_xid);
+	CDEBUG(D_NET, "got req %llu\n", request->rq_xid);
 
 	request->rq_svc_thread = thread;
 	if (thread)
@@ -1934,19 +1938,18 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 
 	/* Discard requests queued for longer than the deadline.
 	   The deadline is increased if we send an early reply. */
-	if (cfs_time_current_sec() > request->rq_deadline) {
-		DEBUG_REQ(D_ERROR, request, "Dropping timed-out request from %s"
-			  ": deadline "CFS_DURATION_T":"CFS_DURATION_T"s ago\n",
+	if (get_seconds() > request->rq_deadline) {
+		DEBUG_REQ(D_ERROR, request, "Dropping timed-out request from %s: deadline " CFS_DURATION_T ":" CFS_DURATION_T "s ago\n",
 			  libcfs_id2str(request->rq_peer),
 			  cfs_time_sub(request->rq_deadline,
-			  request->rq_arrival_time.tv_sec),
-			  cfs_time_sub(cfs_time_current_sec(),
-			  request->rq_deadline));
+				       request->rq_arrival_time.tv_sec),
+			  cfs_time_sub(get_seconds(),
+				       request->rq_deadline));
 		goto put_conn;
 	}
 
-	CDEBUG(D_RPCTRACE, "Handling RPC pname:cluuid+ref:pid:xid:nid:opc "
-	       "%s:%s+%d:%d:x"LPU64":%s:%d\n", current_comm(),
+	CDEBUG(D_RPCTRACE, "Handling RPC pname:cluuid+ref:pid:xid:nid:opc %s:%s+%d:%d:x%llu:%s:%d\n",
+	       current_comm(),
 	       (request->rq_export ?
 		(char *)request->rq_export->exp_client_uuid.uuid : "0"),
 	       (request->rq_export ?
@@ -1966,38 +1969,37 @@ put_conn:
 	lu_context_exit(&request->rq_session);
 	lu_context_fini(&request->rq_session);
 
-	if (unlikely(cfs_time_current_sec() > request->rq_deadline)) {
-		     DEBUG_REQ(D_WARNING, request, "Request took longer "
-			       "than estimated ("CFS_DURATION_T":"CFS_DURATION_T"s);"
-			       " client may timeout.",
-			       cfs_time_sub(request->rq_deadline,
-					    request->rq_arrival_time.tv_sec),
-			       cfs_time_sub(cfs_time_current_sec(),
-					    request->rq_deadline));
+	if (unlikely(get_seconds() > request->rq_deadline)) {
+		DEBUG_REQ(D_WARNING, request,
+			  "Request took longer than estimated ("
+				CFS_DURATION_T":"CFS_DURATION_T
+				"s); client may timeout.",
+			  cfs_time_sub(request->rq_deadline,
+				       request->rq_arrival_time.tv_sec),
+			  cfs_time_sub(get_seconds(),
+				       request->rq_deadline));
 	}
 
 	do_gettimeofday(&work_end);
 	timediff = cfs_timeval_sub(&work_end, &work_start, NULL);
-	CDEBUG(D_RPCTRACE, "Handled RPC pname:cluuid+ref:pid:xid:nid:opc "
-	       "%s:%s+%d:%d:x"LPU64":%s:%d Request procesed in "
-	       "%ldus (%ldus total) trans "LPU64" rc %d/%d\n",
-		current_comm(),
-		(request->rq_export ?
-		 (char *)request->rq_export->exp_client_uuid.uuid : "0"),
-		(request->rq_export ?
-		 atomic_read(&request->rq_export->exp_refcount) : -99),
-		lustre_msg_get_status(request->rq_reqmsg),
-		request->rq_xid,
-		libcfs_id2str(request->rq_peer),
-		lustre_msg_get_opc(request->rq_reqmsg),
-		timediff,
-		cfs_timeval_sub(&work_end, &request->rq_arrival_time, NULL),
-		(request->rq_repmsg ?
-		 lustre_msg_get_transno(request->rq_repmsg) :
-		 request->rq_transno),
-		request->rq_status,
-		(request->rq_repmsg ?
-		 lustre_msg_get_status(request->rq_repmsg) : -999));
+	CDEBUG(D_RPCTRACE, "Handled RPC pname:cluuid+ref:pid:xid:nid:opc %s:%s+%d:%d:x%llu:%s:%d Request processed in %ldus (%ldus total) trans %llu rc %d/%d\n",
+	       current_comm(),
+	       (request->rq_export ?
+		(char *)request->rq_export->exp_client_uuid.uuid : "0"),
+	       (request->rq_export ?
+		atomic_read(&request->rq_export->exp_refcount) : -99),
+	       lustre_msg_get_status(request->rq_reqmsg),
+	       request->rq_xid,
+	       libcfs_id2str(request->rq_peer),
+	       lustre_msg_get_opc(request->rq_reqmsg),
+	       timediff,
+	       cfs_timeval_sub(&work_end, &request->rq_arrival_time, NULL),
+	       (request->rq_repmsg ?
+		lustre_msg_get_transno(request->rq_repmsg) :
+		request->rq_transno),
+	       request->rq_status,
+	       (request->rq_repmsg ?
+		lustre_msg_get_status(request->rq_repmsg) : -999));
 	if (likely(svc->srv_stats != NULL && request->rq_reqmsg != NULL)) {
 		__u32 op = lustre_msg_get_opc(request->rq_reqmsg);
 		int opc = opcode_offset(op);
@@ -2030,20 +2032,20 @@ static int
 ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 {
 	struct ptlrpc_service_part *svcpt = rs->rs_svcpt;
-	struct ptlrpc_service     *svc = svcpt->scp_service;
-	struct obd_export	 *exp;
-	int			nlocks;
-	int			been_handled;
+	struct ptlrpc_service *svc = svcpt->scp_service;
+	struct obd_export *exp;
+	int nlocks;
+	int been_handled;
 
 	exp = rs->rs_export;
 
-	LASSERT (rs->rs_difficult);
-	LASSERT (rs->rs_scheduled);
-	LASSERT (list_empty(&rs->rs_list));
+	LASSERT(rs->rs_difficult);
+	LASSERT(rs->rs_scheduled);
+	LASSERT(list_empty(&rs->rs_list));
 
 	spin_lock(&exp->exp_lock);
 	/* Noop if removed already */
-	list_del_init (&rs->rs_exp_list);
+	list_del_init(&rs->rs_exp_list);
 	spin_unlock(&exp->exp_lock);
 
 	/* The disk commit callback holds exp_uncommitted_replies_lock while it
@@ -2085,8 +2087,7 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 	if (nlocks == 0 && !been_handled) {
 		/* If we see this, we should already have seen the warning
 		 * in mds_steal_ack_locks()  */
-		CDEBUG(D_HA, "All locks stolen from rs %p x"LPD64".t"LPD64
-		       " o%d NID %s\n",
+		CDEBUG(D_HA, "All locks stolen from rs %p x%lld.t%lld o%d NID %s\n",
 		       rs,
 		       rs->rs_xid, rs->rs_transno, rs->rs_opc,
 		       libcfs_nid2str(exp->exp_connection->c_peer.nid));
@@ -2113,9 +2114,9 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 		/* Off the net */
 		spin_unlock(&rs->rs_lock);
 
-		class_export_put (exp);
+		class_export_put(exp);
 		rs->rs_export = NULL;
-		ptlrpc_rs_decref (rs);
+		ptlrpc_rs_decref(rs);
 		if (atomic_dec_and_test(&svcpt->scp_nreps_difficult) &&
 		    svc->srv_is_stopping)
 			wake_up_all(&svcpt->scp_waitq);
@@ -2261,13 +2262,11 @@ ptlrpc_wait_event(struct ptlrpc_service_part *svcpt,
  */
 static int ptlrpc_main(void *arg)
 {
-	struct ptlrpc_thread		*thread = (struct ptlrpc_thread *)arg;
-	struct ptlrpc_service_part	*svcpt = thread->t_svcpt;
-	struct ptlrpc_service		*svc = svcpt->scp_service;
-	struct ptlrpc_reply_state	*rs;
-#ifdef WITH_GROUP_INFO
+	struct ptlrpc_thread *thread = (struct ptlrpc_thread *)arg;
+	struct ptlrpc_service_part *svcpt = thread->t_svcpt;
+	struct ptlrpc_service *svc = svcpt->scp_service;
+	struct ptlrpc_reply_state *rs;
 	struct group_info *ginfo = NULL;
-#endif
 	struct lu_env *env;
 	int counter = 0, rc = 0;
 
@@ -2283,7 +2282,6 @@ static int ptlrpc_main(void *arg)
 		      svc->srv_name, thread->t_name, svcpt->scp_cpt);
 	}
 
-#ifdef WITH_GROUP_INFO
 	ginfo = groups_alloc(0);
 	if (!ginfo) {
 		rc = -ENOMEM;
@@ -2292,7 +2290,6 @@ static int ptlrpc_main(void *arg)
 
 	set_current_groups(ginfo);
 	put_group_info(ginfo);
-#endif
 
 	if (svc->srv_ops.so_thr_init != NULL) {
 		rc = svc->srv_ops.so_thr_init(thread);
@@ -2300,7 +2297,7 @@ static int ptlrpc_main(void *arg)
 			goto out;
 	}
 
-	OBD_ALLOC_PTR(env);
+	env = kzalloc(sizeof(*env), GFP_NOFS);
 	if (env == NULL) {
 		rc = -ENOMEM;
 		goto out_srv_fini;
@@ -2326,7 +2323,7 @@ static int ptlrpc_main(void *arg)
 	}
 
 	/* Alloc reply state structure for this one */
-	OBD_ALLOC_LARGE(rs, svc->srv_max_reply_size);
+	rs = libcfs_kvzalloc(svc->srv_max_reply_size, GFP_NOFS);
 	if (!rs) {
 		rc = -ENOMEM;
 		goto out_srv_fini;
@@ -2423,7 +2420,7 @@ out_srv_fini:
 
 	if (env != NULL) {
 		lu_context_fini(&env->le_ctx);
-		OBD_FREE_PTR(env);
+		kfree(env);
 	}
 out:
 	CDEBUG(D_RPCTRACE, "service thread [ %p : %u ] %d exiting: rc %d\n",
@@ -2467,11 +2464,11 @@ static int hrt_dont_sleep(struct ptlrpc_hr_thread *hrt,
  */
 static int ptlrpc_hr_main(void *arg)
 {
-	struct ptlrpc_hr_thread		*hrt = (struct ptlrpc_hr_thread *)arg;
-	struct ptlrpc_hr_partition	*hrp = hrt->hrt_partition;
-	LIST_HEAD			(replies);
-	char				threadname[20];
-	int				rc;
+	struct ptlrpc_hr_thread	*hrt = (struct ptlrpc_hr_thread *)arg;
+	struct ptlrpc_hr_partition *hrp = hrt->hrt_partition;
+	LIST_HEAD	(replies);
+	char threadname[20];
+	int rc;
 
 	snprintf(threadname, sizeof(threadname), "ptlrpc_hr%02d_%03d",
 		 hrp->hrp_cpt, hrt->hrt_id);
@@ -2508,9 +2505,9 @@ static int ptlrpc_hr_main(void *arg)
 
 static void ptlrpc_stop_hr_threads(void)
 {
-	struct ptlrpc_hr_partition	*hrp;
-	int				i;
-	int				j;
+	struct ptlrpc_hr_partition *hrp;
+	int i;
+	int j;
 
 	ptlrpc_hr.hr_stopping = 1;
 
@@ -2532,12 +2529,12 @@ static void ptlrpc_stop_hr_threads(void)
 
 static int ptlrpc_start_hr_threads(void)
 {
-	struct ptlrpc_hr_partition	*hrp;
-	int				i;
-	int				j;
+	struct ptlrpc_hr_partition *hrp;
+	int i;
+	int j;
 
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
-		int	rc = 0;
+		int rc = 0;
 
 		for (j = 0; j < hrp->hrp_nthrs; j++) {
 			struct	ptlrpc_hr_thread *hrt = &hrp->hrp_thrs[j];
@@ -2554,8 +2551,8 @@ static int ptlrpc_start_hr_threads(void)
 		if (!IS_ERR_VALUE(rc))
 			continue;
 
-		CERROR("Reply handling thread %d:%d Failed on starting: "
-		       "rc = %d\n", i, j, rc);
+		CERROR("Reply handling thread %d:%d Failed on starting: rc = %d\n",
+		       i, j, rc);
 		ptlrpc_stop_hr_threads();
 		return rc;
 	}
@@ -2564,9 +2561,9 @@ static int ptlrpc_start_hr_threads(void)
 
 static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 {
-	struct l_wait_info	lwi = { 0 };
-	struct ptlrpc_thread	*thread;
-	LIST_HEAD		(zombie);
+	struct l_wait_info lwi = { 0 };
+	struct ptlrpc_thread *thread;
+	LIST_HEAD	(zombie);
 
 	CDEBUG(D_INFO, "Stopping threads for service %s\n",
 	       svcpt->scp_service->srv_name);
@@ -2605,7 +2602,7 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 		thread = list_entry(zombie.next,
 					struct ptlrpc_thread, t_link);
 		list_del(&thread->t_link);
-		OBD_FREE_PTR(thread);
+		kfree(thread);
 	}
 }
 
@@ -2615,7 +2612,7 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 void ptlrpc_stop_all_threads(struct ptlrpc_service *svc)
 {
 	struct ptlrpc_service_part *svcpt;
-	int			   i;
+	int i;
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
 		if (svcpt->scp_service != NULL)
@@ -2626,9 +2623,9 @@ EXPORT_SYMBOL(ptlrpc_stop_all_threads);
 
 int ptlrpc_start_threads(struct ptlrpc_service *svc)
 {
-	int	rc = 0;
-	int	i;
-	int	j;
+	int rc = 0;
+	int i;
+	int j;
 
 	/* We require 2 threads min, see note in ptlrpc_server_handle_request */
 	LASSERT(svc->srv_nthrs_cpt_init >= PTLRPC_NTHRS_INIT);
@@ -2657,10 +2654,10 @@ EXPORT_SYMBOL(ptlrpc_start_threads);
 
 int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 {
-	struct l_wait_info	lwi = { 0 };
-	struct ptlrpc_thread	*thread;
-	struct ptlrpc_service	*svc;
-	int			rc;
+	struct l_wait_info lwi = { 0 };
+	struct ptlrpc_thread *thread;
+	struct ptlrpc_service *svc;
+	int rc;
 
 	LASSERT(svcpt != NULL);
 
@@ -2679,7 +2676,9 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	     svcpt->scp_nthrs_running == svc->srv_nthrs_cpt_init - 1))
 		return -EMFILE;
 
-	OBD_CPT_ALLOC_PTR(thread, svc->srv_cptable, svcpt->scp_cpt);
+	thread = kzalloc_node(sizeof(*thread), GFP_NOFS,
+			      cfs_cpt_spread_node(svc->srv_cptable,
+						  svcpt->scp_cpt));
 	if (thread == NULL)
 		return -ENOMEM;
 	init_waitqueue_head(&thread->t_ctl_waitq);
@@ -2687,7 +2686,7 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	spin_lock(&svcpt->scp_lock);
 	if (!ptlrpc_threads_increasable(svcpt)) {
 		spin_unlock(&svcpt->scp_lock);
-		OBD_FREE_PTR(thread);
+		kfree(thread);
 		return -EMFILE;
 	}
 
@@ -2696,7 +2695,7 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 		 * might require unique and contiguous t_id */
 		LASSERT(svcpt->scp_nthrs_starting == 1);
 		spin_unlock(&svcpt->scp_lock);
-		OBD_FREE_PTR(thread);
+		kfree(thread);
 		if (wait) {
 			CDEBUG(D_INFO, "Waiting for creating thread %s #%d\n",
 			       svc->srv_thread_name, svcpt->scp_thr_nextid);
@@ -2733,7 +2732,7 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 		spin_lock(&svcpt->scp_lock);
 		--svcpt->scp_nthrs_starting;
 		if (thread_is_stopping(thread)) {
-			/* this ptlrpc_thread is being hanled
+			/* this ptlrpc_thread is being handled
 			 * by ptlrpc_svcpt_stop_threads now
 			 */
 			thread_add_flags(thread, SVC_STOPPED);
@@ -2742,7 +2741,7 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 		} else {
 			list_del(&thread->t_link);
 			spin_unlock(&svcpt->scp_lock);
-			OBD_FREE_PTR(thread);
+			kfree(thread);
 		}
 		return rc;
 	}
@@ -2760,13 +2759,12 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 
 int ptlrpc_hr_init(void)
 {
-	cpumask_t			mask;
-	struct ptlrpc_hr_partition	*hrp;
-	struct ptlrpc_hr_thread		*hrt;
-	int				rc;
-	int				i;
-	int				j;
-	int				weight;
+	struct ptlrpc_hr_partition *hrp;
+	struct ptlrpc_hr_thread	*hrt;
+	int rc;
+	int i;
+	int j;
+	int weight;
 
 	memset(&ptlrpc_hr, 0, sizeof(ptlrpc_hr));
 	ptlrpc_hr.hr_cpt_table = cfs_cpt_table;
@@ -2778,8 +2776,7 @@ int ptlrpc_hr_init(void)
 
 	init_waitqueue_head(&ptlrpc_hr.hr_waitq);
 
-	cpumask_copy(&mask, topology_thread_cpumask(0));
-	weight = cpus_weight(mask);
+	weight = cpumask_weight(topology_sibling_cpumask(0));
 
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
 		hrp->hrp_cpt = i;
@@ -2791,10 +2788,14 @@ int ptlrpc_hr_init(void)
 		hrp->hrp_nthrs /= weight;
 
 		LASSERT(hrp->hrp_nthrs > 0);
-		OBD_CPT_ALLOC(hrp->hrp_thrs, ptlrpc_hr.hr_cpt_table, i,
-			      hrp->hrp_nthrs * sizeof(*hrt));
-		if (hrp->hrp_thrs == NULL)
-			GOTO(out, rc = -ENOMEM);
+		hrp->hrp_thrs =
+			kzalloc_node(hrp->hrp_nthrs * sizeof(*hrt), GFP_NOFS,
+				cfs_cpt_spread_node(ptlrpc_hr.hr_cpt_table,
+						    i));
+		if (hrp->hrp_thrs == NULL) {
+			rc = -ENOMEM;
+			goto out;
+		}
 
 		for (j = 0; j < hrp->hrp_nthrs; j++) {
 			hrt = &hrp->hrp_thrs[j];
@@ -2816,8 +2817,8 @@ out:
 
 void ptlrpc_hr_fini(void)
 {
-	struct ptlrpc_hr_partition	*hrp;
-	int				i;
+	struct ptlrpc_hr_partition *hrp;
+	int i;
 
 	if (ptlrpc_hr.hr_partitions == NULL)
 		return;
@@ -2826,8 +2827,7 @@ void ptlrpc_hr_fini(void)
 
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
 		if (hrp->hrp_thrs != NULL) {
-			OBD_FREE(hrp->hrp_thrs,
-				 hrp->hrp_nthrs * sizeof(hrp->hrp_thrs[0]));
+			kfree(hrp->hrp_thrs);
 		}
 	}
 
@@ -2858,8 +2858,8 @@ static void ptlrpc_wait_replies(struct ptlrpc_service_part *svcpt)
 static void
 ptlrpc_service_del_atimer(struct ptlrpc_service *svc)
 {
-	struct ptlrpc_service_part	*svcpt;
-	int				i;
+	struct ptlrpc_service_part *svcpt;
+	int i;
 
 	/* early disarm AT timer... */
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
@@ -2871,11 +2871,11 @@ ptlrpc_service_del_atimer(struct ptlrpc_service *svc)
 static void
 ptlrpc_service_unlink_rqbd(struct ptlrpc_service *svc)
 {
-	struct ptlrpc_service_part	  *svcpt;
+	struct ptlrpc_service_part *svcpt;
 	struct ptlrpc_request_buffer_desc *rqbd;
-	struct l_wait_info		  lwi;
-	int				  rc;
-	int				  i;
+	struct l_wait_info lwi;
+	int rc;
+	int i;
 
 	/* All history will be culled when the next request buffer is
 	 * freed in ptlrpc_service_purge_all() */
@@ -2915,8 +2915,7 @@ ptlrpc_service_unlink_rqbd(struct ptlrpc_service *svc)
 			rc = l_wait_event(svcpt->scp_waitq,
 					  svcpt->scp_nrqbds_posted == 0, &lwi);
 			if (rc == -ETIMEDOUT) {
-				CWARN("Service %s waiting for "
-				      "request buffers\n",
+				CWARN("Service %s waiting for request buffers\n",
 				      svcpt->scp_service->srv_name);
 			}
 			spin_lock(&svcpt->scp_lock);
@@ -2928,11 +2927,11 @@ ptlrpc_service_unlink_rqbd(struct ptlrpc_service *svc)
 static void
 ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 {
-	struct ptlrpc_service_part		*svcpt;
-	struct ptlrpc_request_buffer_desc	*rqbd;
-	struct ptlrpc_request			*req;
-	struct ptlrpc_reply_state		*rs;
-	int					i;
+	struct ptlrpc_service_part *svcpt;
+	struct ptlrpc_request_buffer_desc *rqbd;
+	struct ptlrpc_request *req;
+	struct ptlrpc_reply_state *rs;
+	int i;
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
 		if (svcpt->scp_service == NULL)
@@ -2988,7 +2987,7 @@ ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 					    struct ptlrpc_reply_state,
 					    rs_list);
 			list_del(&rs->rs_list);
-			OBD_FREE_LARGE(rs, svc->srv_max_reply_size);
+			kvfree(rs);
 		}
 	}
 }
@@ -2996,9 +2995,9 @@ ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 static void
 ptlrpc_service_free(struct ptlrpc_service *svc)
 {
-	struct ptlrpc_service_part	*svcpt;
-	struct ptlrpc_at_array		*array;
-	int				i;
+	struct ptlrpc_service_part *svcpt;
+	struct ptlrpc_at_array *array;
+	int i;
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
 		if (svcpt->scp_service == NULL)
@@ -3008,27 +3007,19 @@ ptlrpc_service_free(struct ptlrpc_service *svc)
 		cfs_timer_disarm(&svcpt->scp_at_timer);
 		array = &svcpt->scp_at_array;
 
-		if (array->paa_reqs_array != NULL) {
-			OBD_FREE(array->paa_reqs_array,
-				 sizeof(struct list_head) * array->paa_size);
-			array->paa_reqs_array = NULL;
-		}
-
-		if (array->paa_reqs_count != NULL) {
-			OBD_FREE(array->paa_reqs_count,
-				 sizeof(__u32) * array->paa_size);
-			array->paa_reqs_count = NULL;
-		}
+		kfree(array->paa_reqs_array);
+		array->paa_reqs_array = NULL;
+		kfree(array->paa_reqs_count);
+		array->paa_reqs_count = NULL;
 	}
 
 	ptlrpc_service_for_each_part(svcpt, i, svc)
-		OBD_FREE_PTR(svcpt);
+		kfree(svcpt);
 
 	if (svc->srv_cpts != NULL)
 		cfs_expr_list_values_free(svc->srv_cpts, svc->srv_ncpts);
 
-	OBD_FREE(svc, offsetof(struct ptlrpc_service,
-			       srv_parts[svc->srv_ncpts]));
+	kfree(svc);
 }
 
 int ptlrpc_unregister_service(struct ptlrpc_service *service)
@@ -3049,6 +3040,7 @@ int ptlrpc_unregister_service(struct ptlrpc_service *service)
 	ptlrpc_service_nrs_cleanup(service);
 
 	ptlrpc_lprocfs_unregister_service(service);
+	ptlrpc_sysfs_unregister_service(service);
 
 	ptlrpc_service_free(service);
 
@@ -3064,9 +3056,9 @@ EXPORT_SYMBOL(ptlrpc_unregister_service);
  * to be shot, so it's intentionally non-aggressive. */
 int ptlrpc_svcpt_health_check(struct ptlrpc_service_part *svcpt)
 {
-	struct ptlrpc_request		*request = NULL;
-	struct timeval			right_now;
-	long				timediff;
+	struct ptlrpc_request *request = NULL;
+	struct timeval right_now;
+	long timediff;
 
 	do_gettimeofday(&right_now);
 
@@ -3098,8 +3090,8 @@ int ptlrpc_svcpt_health_check(struct ptlrpc_service_part *svcpt)
 int
 ptlrpc_service_health_check(struct ptlrpc_service *svc)
 {
-	struct ptlrpc_service_part	*svcpt;
-	int				i;
+	struct ptlrpc_service_part *svcpt;
+	int i;
 
 	if (svc == NULL)
 		return 0;

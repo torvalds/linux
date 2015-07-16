@@ -20,7 +20,6 @@
 #include <linux/signal.h>
 #include <linux/syscore_ops.h>
 #include <linux/device.h>
-#include <linux/bootmem.h>
 #include <linux/spinlock.h>
 #include <linux/fsl_devices.h>
 #include <asm/irq.h>
@@ -692,7 +691,7 @@ static int ipic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops ipic_host_ops = {
+static const struct irq_domain_ops ipic_host_ops = {
 	.match	= ipic_host_match,
 	.map	= ipic_host_map,
 	.xlate	= irq_domain_xlate_onetwocell,

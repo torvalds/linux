@@ -35,11 +35,11 @@
 #include <linux/hash.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
+#include <linux/blk-cgroup.h>
 
 #include <trace/events/block.h>
 
 #include "blk.h"
-#include "blk-cgroup.h"
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
@@ -157,7 +157,7 @@ struct elevator_queue *elevator_alloc(struct request_queue *q,
 
 	eq = kzalloc_node(sizeof(*eq), GFP_KERNEL, q->node);
 	if (unlikely(!eq))
-		goto err;
+		return NULL;
 
 	eq->type = e;
 	kobject_init(&eq->kobj, &elv_ktype);
@@ -165,10 +165,6 @@ struct elevator_queue *elevator_alloc(struct request_queue *q,
 	hash_init(eq->hash);
 
 	return eq;
-err:
-	kfree(eq);
-	elevator_put(e);
-	return NULL;
 }
 EXPORT_SYMBOL(elevator_alloc);
 
@@ -229,7 +225,9 @@ int elevator_init(struct request_queue *q, char *name)
 	}
 
 	err = e->ops.elevator_init_fn(q, e);
-	return 0;
+	if (err)
+		elevator_put(e);
+	return err;
 }
 EXPORT_SYMBOL(elevator_init);
 
@@ -247,6 +245,7 @@ EXPORT_SYMBOL(elevator_exit);
 static inline void __elv_rqhash_del(struct request *rq)
 {
 	hash_del(&rq->hash);
+	rq->cmd_flags &= ~REQ_HASHED;
 }
 
 static void elv_rqhash_del(struct request_queue *q, struct request *rq)
@@ -261,6 +260,7 @@ static void elv_rqhash_add(struct request_queue *q, struct request *rq)
 
 	BUG_ON(ELV_ON_HASH(rq));
 	hash_add(e->hash, &rq->hash, rq_hash_key(rq));
+	rq->cmd_flags |= REQ_HASHED;
 }
 
 static void elv_rqhash_reposition(struct request_queue *q, struct request *rq)
@@ -440,7 +440,7 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 	/*
 	 * See if our hash lookup can find a potential backmerge.
 	 */
-	__rq = elv_rqhash_find(q, bio->bi_sector);
+	__rq = elv_rqhash_find(q, bio->bi_iter.bi_sector);
 	if (__rq && elv_rq_merge_ok(__rq, bio)) {
 		*req = __rq;
 		return ELEVATOR_BACK_MERGE;
@@ -535,7 +535,7 @@ void elv_bio_merged(struct request_queue *q, struct request *rq,
 		e->type->ops.elevator_bio_merged_fn(q, rq, bio);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static void blk_pm_requeue_request(struct request *rq)
 {
 	if (rq->q->dev && !(rq->cmd_flags & REQ_PM))
@@ -727,26 +727,6 @@ int elv_may_queue(struct request_queue *q, int rw)
 	return ELV_MQUEUE_MAY;
 }
 
-void elv_abort_queue(struct request_queue *q)
-{
-	struct request *rq;
-
-	blk_abort_flushes(q);
-
-	while (!list_empty(&q->queue_head)) {
-		rq = list_entry_rq(q->queue_head.next);
-		rq->cmd_flags |= REQ_QUIET;
-		trace_block_rq_abort(q, rq);
-		/*
-		 * Mark this request as started so we don't trigger
-		 * any debug logic in the end I/O path.
-		 */
-		blk_start_request(rq);
-		__blk_end_request_all(rq, -EIO);
-	}
-}
-EXPORT_SYMBOL(elv_abort_queue);
-
 void elv_completed_request(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
@@ -826,6 +806,8 @@ int elv_register_queue(struct request_queue *q)
 		}
 		kobject_uevent(&e->kobj, KOBJ_ADD);
 		e->registered = 1;
+		if (e->type->ops.elevator_registered_fn)
+			e->type->ops.elevator_registered_fn(q);
 	}
 	return error;
 }

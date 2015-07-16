@@ -191,9 +191,6 @@ void __init time_init_deferred(void)
 {
 	struct resource *resource = NULL;
 	struct clock_event_device *ce_dev = &hexagon_clockevent_dev;
-	struct device_node *dn;
-	struct resource r;
-	int err;
 
 	ce_dev->cpumask = cpu_all_mask;
 
@@ -231,6 +228,15 @@ void __init time_init(void)
 {
 	late_time_init = time_init_deferred;
 }
+
+void __delay(unsigned long cycles)
+{
+	unsigned long long start = __vmgettime();
+
+	while ((__vmgettime() - start) < cycles)
+		cpu_relax();
+}
+EXPORT_SYMBOL(__delay);
 
 /*
  * This could become parametric or perhaps even computed at run-time,

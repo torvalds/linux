@@ -323,7 +323,8 @@ void flush_dcache_page(struct page *page)
 		 * specifically accesses it, of course) */
 
 		flush_tlb_page(mpnt, addr);
-		if (old_addr == 0 || (old_addr & (SHMLBA - 1)) != (addr & (SHMLBA - 1))) {
+		if (old_addr == 0 || (old_addr & (SHM_COLOUR - 1))
+				      != (addr & (SHM_COLOUR - 1))) {
 			__flush_cache_page(mpnt, addr, page_to_phys(page));
 			if (old_addr)
 				printk(KERN_ERR "INEQUIVALENT ALIASES 0x%lx and 0x%lx in file %s\n", old_addr, addr, mpnt->vm_file ? (char *)mpnt->vm_file->f_path.dentry->d_name.name : "(null)");
@@ -341,12 +342,15 @@ EXPORT_SYMBOL(flush_data_cache_local);
 EXPORT_SYMBOL(flush_kernel_icache_range_asm);
 
 #define FLUSH_THRESHOLD 0x80000 /* 0.5MB */
-int parisc_cache_flush_threshold __read_mostly = FLUSH_THRESHOLD;
+static unsigned long parisc_cache_flush_threshold __read_mostly = FLUSH_THRESHOLD;
+
+#define FLUSH_TLB_THRESHOLD (2*1024*1024) /* 2MB initial TLB threshold */
+static unsigned long parisc_tlb_flush_threshold __read_mostly = FLUSH_TLB_THRESHOLD;
 
 void __init parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
-	unsigned long size;
+	unsigned long size, start;
 
 	alltime = mfctl(16);
 	flush_data_cache();
@@ -363,14 +367,43 @@ void __init parisc_setup_cache_timing(void)
 	/* Racy, but if we see an intermediate value, it's ok too... */
 	parisc_cache_flush_threshold = size * alltime / rangetime;
 
-	parisc_cache_flush_threshold = (parisc_cache_flush_threshold + L1_CACHE_BYTES - 1) &~ (L1_CACHE_BYTES - 1); 
+	parisc_cache_flush_threshold = L1_CACHE_ALIGN(parisc_cache_flush_threshold);
 	if (!parisc_cache_flush_threshold)
 		parisc_cache_flush_threshold = FLUSH_THRESHOLD;
 
 	if (parisc_cache_flush_threshold > cache_info.dc_size)
 		parisc_cache_flush_threshold = cache_info.dc_size;
 
-	printk(KERN_INFO "Setting cache flush threshold to %x (%d CPUs online)\n", parisc_cache_flush_threshold, num_online_cpus());
+	printk(KERN_INFO "Setting cache flush threshold to %lu kB\n",
+		parisc_cache_flush_threshold/1024);
+
+	/* calculate TLB flush threshold */
+
+	alltime = mfctl(16);
+	flush_tlb_all();
+	alltime = mfctl(16) - alltime;
+
+	size = PAGE_SIZE;
+	start = (unsigned long) _text;
+	rangetime = mfctl(16);
+	while (start < (unsigned long) _end) {
+		flush_tlb_kernel_range(start, start + PAGE_SIZE);
+		start += PAGE_SIZE;
+		size += PAGE_SIZE;
+	}
+	rangetime = mfctl(16) - rangetime;
+
+	printk(KERN_DEBUG "Whole TLB flush %lu cycles, flushing %lu bytes %lu cycles\n",
+		alltime, size, rangetime);
+
+	parisc_tlb_flush_threshold = size * alltime / rangetime;
+	parisc_tlb_flush_threshold *= num_online_cpus();
+	parisc_tlb_flush_threshold = PAGE_ALIGN(parisc_tlb_flush_threshold);
+	if (!parisc_tlb_flush_threshold)
+		parisc_tlb_flush_threshold = FLUSH_TLB_THRESHOLD;
+
+	printk(KERN_INFO "Setting TLB flush threshold to %lu kB\n",
+		parisc_tlb_flush_threshold/1024);
 }
 
 extern void purge_kernel_dcache_page_asm(unsigned long);
@@ -388,83 +421,59 @@ void flush_kernel_dcache_page_addr(void *addr)
 }
 EXPORT_SYMBOL(flush_kernel_dcache_page_addr);
 
-void clear_user_page(void *vto, unsigned long vaddr, struct page *page)
-{
-	clear_page_asm(vto);
-	if (!parisc_requires_coherency())
-		flush_kernel_dcache_page_asm(vto);
-}
-EXPORT_SYMBOL(clear_user_page);
-
 void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 	struct page *pg)
 {
-	/* Copy using kernel mapping.  No coherency is needed
-	   (all in kmap/kunmap) on machines that don't support
-	   non-equivalent aliasing.  However, the `from' page
-	   needs to be flushed before it can be accessed through
-	   the kernel mapping. */
+       /* Copy using kernel mapping.  No coherency is needed (all in
+	  kunmap) for the `to' page.  However, the `from' page needs to
+	  be flushed through a mapping equivalent to the user mapping
+	  before it can be accessed through the kernel mapping. */
 	preempt_disable();
 	flush_dcache_page_asm(__pa(vfrom), vaddr);
 	preempt_enable();
 	copy_page_asm(vto, vfrom);
-	if (!parisc_requires_coherency())
-		flush_kernel_dcache_page_asm(vto);
 }
 EXPORT_SYMBOL(copy_user_page);
 
-#ifdef CONFIG_PA8X00
-
-void kunmap_parisc(void *addr)
+/* __flush_tlb_range()
+ *
+ * returns 1 if all TLBs were flushed.
+ */
+int __flush_tlb_range(unsigned long sid, unsigned long start,
+		      unsigned long end)
 {
-	if (parisc_requires_coherency())
-		flush_kernel_dcache_page_addr(addr);
-}
-EXPORT_SYMBOL(kunmap_parisc);
-#endif
+	unsigned long flags, size;
 
-void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
-{
-	unsigned long flags;
-
-	/* Note: purge_tlb_entries can be called at startup with
-	   no context.  */
-
-	purge_tlb_start(flags);
-	mtsp(mm->context, 1);
-	pdtlb(addr);
-	pitlb(addr);
-	purge_tlb_end(flags);
-}
-EXPORT_SYMBOL(purge_tlb_entries);
-
-void __flush_tlb_range(unsigned long sid, unsigned long start,
-		       unsigned long end)
-{
-	unsigned long npages;
-
-	npages = ((end - (start & PAGE_MASK)) + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	if (npages >= 512)  /* 2MB of space: arbitrary, should be tuned */
+	size = (end - start);
+	if (size >= parisc_tlb_flush_threshold) {
 		flush_tlb_all();
-	else {
-		unsigned long flags;
+		return 1;
+	}
 
+	/* Purge TLB entries for small ranges using the pdtlb and
+	   pitlb instructions.  These instructions execute locally
+	   but cause a purge request to be broadcast to other TLBs.  */
+	if (likely(!split_tlb)) {
+		while (start < end) {
+			purge_tlb_start(flags);
+			mtsp(sid, 1);
+			pdtlb(start);
+			purge_tlb_end(flags);
+			start += PAGE_SIZE;
+		}
+		return 0;
+	}
+
+	/* split TLB case */
+	while (start < end) {
 		purge_tlb_start(flags);
 		mtsp(sid, 1);
-		if (split_tlb) {
-			while (npages--) {
-				pdtlb(start);
-				pitlb(start);
-				start += PAGE_SIZE;
-			}
-		} else {
-			while (npages--) {
-				pdtlb(start);
-				start += PAGE_SIZE;
-			}
-		}
+		pdtlb(start);
+		pitlb(start);
 		purge_tlb_end(flags);
+		start += PAGE_SIZE;
 	}
+	return 0;
 }
 
 static void cacheflush_h_tmp_function(void *dummy)
@@ -602,67 +611,3 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 	}
 }
-
-#ifdef CONFIG_PARISC_TMPALIAS
-
-void clear_user_highpage(struct page *page, unsigned long vaddr)
-{
-	void *vto;
-	unsigned long flags;
-
-	/* Clear using TMPALIAS region.  The page doesn't need to
-	   be flushed but the kernel mapping needs to be purged.  */
-
-	vto = kmap_atomic(page);
-
-	/* The PA-RISC 2.0 Architecture book states on page F-6:
-	   "Before a write-capable translation is enabled, *all*
-	   non-equivalently-aliased translations must be removed
-	   from the page table and purged from the TLB.  (Note
-	   that the caches are not required to be flushed at this
-	   time.)  Before any non-equivalent aliased translation
-	   is re-enabled, the virtual address range for the writeable
-	   page (the entire page) must be flushed from the cache,
-	   and the write-capable translation removed from the page
-	   table and purged from the TLB."  */
-
-	purge_kernel_dcache_page_asm((unsigned long)vto);
-	purge_tlb_start(flags);
-	pdtlb_kernel(vto);
-	purge_tlb_end(flags);
-	preempt_disable();
-	clear_user_page_asm(vto, vaddr);
-	preempt_enable();
-
-	pagefault_enable();		/* kunmap_atomic(addr, KM_USER0); */
-}
-
-void copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr, struct vm_area_struct *vma)
-{
-	void *vfrom, *vto;
-	unsigned long flags;
-
-	/* Copy using TMPALIAS region.  This has the advantage
-	   that the `from' page doesn't need to be flushed.  However,
-	   the `to' page must be flushed in copy_user_page_asm since
-	   it can be used to bring in executable code.  */
-
-	vfrom = kmap_atomic(from);
-	vto = kmap_atomic(to);
-
-	purge_kernel_dcache_page_asm((unsigned long)vto);
-	purge_tlb_start(flags);
-	pdtlb_kernel(vto);
-	pdtlb_kernel(vfrom);
-	purge_tlb_end(flags);
-	preempt_disable();
-	copy_user_page_asm(vto, vfrom, vaddr);
-	flush_dcache_page_asm(__pa(vto), vaddr);
-	preempt_enable();
-
-	pagefault_enable();		/* kunmap_atomic(addr, KM_USER1); */
-	pagefault_enable();		/* kunmap_atomic(addr, KM_USER0); */
-}
-
-#endif /* CONFIG_PARISC_TMPALIAS */

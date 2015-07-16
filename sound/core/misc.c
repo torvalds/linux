@@ -145,6 +145,8 @@ EXPORT_SYMBOL(snd_pci_quirk_lookup_id);
 const struct snd_pci_quirk *
 snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list)
 {
+	if (!pci)
+		return NULL;
 	return snd_pci_quirk_lookup_id(pci->subsystem_vendor,
 				       pci->subsystem_device,
 				       list);

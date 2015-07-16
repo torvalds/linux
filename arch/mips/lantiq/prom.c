@@ -36,7 +36,12 @@ const char *get_system_type(void)
 	return soc_info.sys_type;
 }
 
-void prom_free_prom_memory(void)
+int ltq_soc_type(void)
+{
+	return soc_info.type;
+}
+
+void __init prom_free_prom_memory(void)
 {
 }
 
@@ -71,23 +76,14 @@ void __init plat_mem_setup(void)
 	 * Load the builtin devicetree. This causes the chosen node to be
 	 * parsed resulting in our memory appearing
 	 */
-	__dt_setup_arch(&__dtb_start);
+	__dt_setup_arch(__dtb_start);
+
+	strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
 }
 
 void __init device_tree_init(void)
 {
-	unsigned long base, size;
-
-	if (!initial_boot_params)
-		return;
-
-	base = virt_to_phys((void *)initial_boot_params);
-	size = be32_to_cpu(initial_boot_params->totalsize);
-
-	/* Before we do anything, lets reserve the dt blob */
-	reserve_bootmem(base, size, BOOTMEM_DEFAULT);
-
-	unflatten_device_tree();
+	unflatten_and_copy_device_tree();
 }
 
 void __init prom_init(void)
@@ -108,16 +104,7 @@ void __init prom_init(void)
 
 int __init plat_of_setup(void)
 {
-	static struct of_device_id of_ids[3];
-
-	if (!of_have_populated_dt())
-		panic("device tree not present");
-
-	strlcpy(of_ids[0].compatible, soc_info.compatible,
-		sizeof(of_ids[0].compatible));
-	strncpy(of_ids[1].compatible, "simple-bus",
-		sizeof(of_ids[1].compatible));
-	return of_platform_populate(NULL, of_ids, NULL, NULL);
+	return __dt_register_buses(soc_info.compatible, "simple-bus");
 }
 
 arch_initcall(plat_of_setup);

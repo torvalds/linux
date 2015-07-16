@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -35,15 +36,62 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/smc91x.h>
+#include <linux/ata_platform.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
+#include <asm/mach-au1x00/au1xxx_psc.h>
 #include <asm/mach-au1x00/au1200fb.h>
 #include <asm/mach-au1x00/au1550_spi.h>
 #include <asm/mach-db1x00/bcsr.h>
-#include <asm/mach-db1x00/db1200.h>
 
 #include "platform.h"
+
+#define BCSR_INT_IDE		0x0001
+#define BCSR_INT_ETH		0x0002
+#define BCSR_INT_PC0		0x0004
+#define BCSR_INT_PC0STSCHG	0x0008
+#define BCSR_INT_PC1		0x0010
+#define BCSR_INT_PC1STSCHG	0x0020
+#define BCSR_INT_DC		0x0040
+#define BCSR_INT_FLASHBUSY	0x0080
+#define BCSR_INT_PC0INSERT	0x0100
+#define BCSR_INT_PC0EJECT	0x0200
+#define BCSR_INT_PC1INSERT	0x0400
+#define BCSR_INT_PC1EJECT	0x0800
+#define BCSR_INT_SD0INSERT	0x1000
+#define BCSR_INT_SD0EJECT	0x2000
+#define BCSR_INT_SD1INSERT	0x4000
+#define BCSR_INT_SD1EJECT	0x8000
+
+#define DB1200_IDE_PHYS_ADDR	0x18800000
+#define DB1200_IDE_REG_SHIFT	5
+#define DB1200_IDE_PHYS_LEN	(16 << DB1200_IDE_REG_SHIFT)
+#define DB1200_ETH_PHYS_ADDR	0x19000300
+#define DB1200_NAND_PHYS_ADDR	0x20000000
+
+#define PB1200_IDE_PHYS_ADDR	0x0C800000
+#define PB1200_ETH_PHYS_ADDR	0x0D000300
+#define PB1200_NAND_PHYS_ADDR	0x1C000000
+
+#define DB1200_INT_BEGIN	(AU1000_MAX_INTR + 1)
+#define DB1200_IDE_INT		(DB1200_INT_BEGIN + 0)
+#define DB1200_ETH_INT		(DB1200_INT_BEGIN + 1)
+#define DB1200_PC0_INT		(DB1200_INT_BEGIN + 2)
+#define DB1200_PC0_STSCHG_INT	(DB1200_INT_BEGIN + 3)
+#define DB1200_PC1_INT		(DB1200_INT_BEGIN + 4)
+#define DB1200_PC1_STSCHG_INT	(DB1200_INT_BEGIN + 5)
+#define DB1200_DC_INT		(DB1200_INT_BEGIN + 6)
+#define DB1200_FLASHBUSY_INT	(DB1200_INT_BEGIN + 7)
+#define DB1200_PC0_INSERT_INT	(DB1200_INT_BEGIN + 8)
+#define DB1200_PC0_EJECT_INT	(DB1200_INT_BEGIN + 9)
+#define DB1200_PC1_INSERT_INT	(DB1200_INT_BEGIN + 10)
+#define DB1200_PC1_EJECT_INT	(DB1200_INT_BEGIN + 11)
+#define DB1200_SD0_INSERT_INT	(DB1200_INT_BEGIN + 12)
+#define DB1200_SD0_EJECT_INT	(DB1200_INT_BEGIN + 13)
+#define PB1200_SD1_INSERT_INT	(DB1200_INT_BEGIN + 14)
+#define PB1200_SD1_EJECT_INT	(DB1200_INT_BEGIN + 15)
+#define DB1200_INT_END		(DB1200_INT_BEGIN + 15)
 
 const char *get_system_type(void);
 
@@ -82,44 +130,24 @@ static int __init db1200_detect_board(void)
 
 int __init db1200_board_setup(void)
 {
-	unsigned long freq0, clksrc, div, pfc;
 	unsigned short whoami;
 
 	if (db1200_detect_board())
 		return -ENODEV;
 
 	whoami = bcsr_read(BCSR_WHOAMI);
+	switch (BCSR_WHOAMI_BOARD(whoami)) {
+	case BCSR_WHOAMI_PB1200_DDR1:
+	case BCSR_WHOAMI_PB1200_DDR2:
+	case BCSR_WHOAMI_DB1200:
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	printk(KERN_INFO "Alchemy/AMD/RMI %s Board, CPLD Rev %d"
 		"  Board-ID %d	Daughtercard ID %d\n", get_system_type(),
 		(whoami >> 4) & 0xf, (whoami >> 8) & 0xf, whoami & 0xf);
-
-	/* SMBus/SPI on PSC0, Audio on PSC1 */
-	pfc = __raw_readl((void __iomem *)SYS_PINFUNC);
-	pfc &= ~(SYS_PINFUNC_P0A | SYS_PINFUNC_P0B);
-	pfc &= ~(SYS_PINFUNC_P1A | SYS_PINFUNC_P1B | SYS_PINFUNC_FS3);
-	pfc |= SYS_PINFUNC_P1C; /* SPI is configured later */
-	__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
-	wmb();
-
-	/* Clock configurations: PSC0: ~50MHz via Clkgen0, derived from
-	 * CPU clock; all other clock generators off/unused.
-	 */
-	div = (get_au1x00_speed() + 25000000) / 50000000;
-	if (div & 1)
-		div++;
-	div = ((div >> 1) - 1) & 0xff;
-
-	freq0 = div << SYS_FC_FRDIV0_BIT;
-	__raw_writel(freq0, (void __iomem *)SYS_FREQCTRL0);
-	wmb();
-	freq0 |= SYS_FC_FE0;	/* enable F0 */
-	__raw_writel(freq0, (void __iomem *)SYS_FREQCTRL0);
-	wmb();
-
-	/* psc0_intclk comes 1:1 from F0 */
-	clksrc = SYS_CS_MUX_FQ0 << SYS_CS_ME0_BIT;
-	__raw_writel(clksrc, (void __iomem *)SYS_CLKSRC);
-	wmb();
 
 	return 0;
 }
@@ -194,7 +222,7 @@ static void au1200_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 
 static int au1200_nand_device_ready(struct mtd_info *mtd)
 {
-	return __raw_readl((void __iomem *)MEM_STSTAT) & 1;
+	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }
 
 static struct mtd_partition db1200_nand_parts[] = {
@@ -275,32 +303,38 @@ static struct platform_device db1200_eth_dev = {
 
 /**********************************************************************/
 
+static struct pata_platform_info db1200_ide_info = {
+	.ioport_shift	= DB1200_IDE_REG_SHIFT,
+};
+
+#define IDE_ALT_START	(14 << DB1200_IDE_REG_SHIFT)
 static struct resource db1200_ide_res[] = {
 	[0] = {
 		.start	= DB1200_IDE_PHYS_ADDR,
-		.end	= DB1200_IDE_PHYS_ADDR + DB1200_IDE_PHYS_LEN - 1,
+		.end	= DB1200_IDE_PHYS_ADDR + IDE_ALT_START - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
+		.start	= DB1200_IDE_PHYS_ADDR + IDE_ALT_START,
+		.end	= DB1200_IDE_PHYS_ADDR + DB1200_IDE_PHYS_LEN - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
 		.start	= DB1200_IDE_INT,
 		.end	= DB1200_IDE_INT,
 		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= AU1200_DSCR_CMD0_DMA_REQ1,
-		.end	= AU1200_DSCR_CMD0_DMA_REQ1,
-		.flags	= IORESOURCE_DMA,
 	},
 };
 
 static u64 au1200_ide_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device db1200_ide_dev = {
-	.name		= "au1200-ide",
+	.name		= "pata_platform",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &au1200_ide_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &db1200_ide_info,
 	},
 	.num_resources	= ARRAY_SIZE(db1200_ide_res),
 	.resource	= db1200_ide_res,
@@ -785,6 +819,7 @@ int __init db1200_dev_setup(void)
 	unsigned long pfc;
 	unsigned short sw;
 	int swapped, bid;
+	struct clk *c;
 
 	bid = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
 	if ((bid == BCSR_WHOAMI_PB1200_DDR1) ||
@@ -796,6 +831,25 @@ int __init db1200_dev_setup(void)
 	/* GPIO7 is low-level triggered CPLD cascade */
 	irq_set_irq_type(AU1200_GPIO7_INT, IRQ_TYPE_LEVEL_LOW);
 	bcsr_init_irq(DB1200_INT_BEGIN, DB1200_INT_END, AU1200_GPIO7_INT);
+
+	/* SMBus/SPI on PSC0, Audio on PSC1 */
+	pfc = alchemy_rdsys(AU1000_SYS_PINFUNC);
+	pfc &= ~(SYS_PINFUNC_P0A | SYS_PINFUNC_P0B);
+	pfc &= ~(SYS_PINFUNC_P1A | SYS_PINFUNC_P1B | SYS_PINFUNC_FS3);
+	pfc |= SYS_PINFUNC_P1C; /* SPI is configured later */
+	alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
+
+	/* get 50MHz for I2C driver on PSC0 */
+	c = clk_get(NULL, "psc0_intclk");
+	if (!IS_ERR(c)) {
+		pfc = clk_round_rate(c, 50000000);
+		if ((pfc < 1) || (abs(50000000 - pfc) > 2500000))
+			pr_warn("DB1200: cant get I2C close to 50MHz\n");
+		else
+			clk_set_rate(c, pfc);
+		clk_prepare_enable(c);
+		clk_put(c);
+	}
 
 	/* insert/eject pairs: one of both is always screaming.	 To avoid
 	 * issues they must not be automatically enabled when initially
@@ -824,7 +878,7 @@ int __init db1200_dev_setup(void)
 	 * As a result, in SPI mode, OTG simply won't work (PSC0 uses
 	 * it as an input pin which is pulled high on the boards).
 	 */
-	pfc = __raw_readl((void __iomem *)SYS_PINFUNC) & ~SYS_PINFUNC_P0A;
+	pfc = alchemy_rdsys(AU1000_SYS_PINFUNC) & ~SYS_PINFUNC_P0A;
 
 	/* switch off OTG VBUS supply */
 	gpio_request(215, "otg-vbus");
@@ -850,8 +904,7 @@ int __init db1200_dev_setup(void)
 		printk(KERN_INFO " S6.8 ON : PSC0 mode SPI\n");
 		printk(KERN_INFO "   OTG port VBUS supply disabled\n");
 	}
-	__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
-	wmb();
+	alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
 
 	/* Audio: DIP7 selects I2S(0)/AC97(1), but need I2C for I2S!
 	 * so: DIP7=1 || DIP8=0 => AC97, DIP7=0 && DIP8=1 => I2S

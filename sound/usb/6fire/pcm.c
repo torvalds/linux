@@ -79,32 +79,35 @@ static int usb6fire_pcm_set_rate(struct pcm_runtime *rt)
 	ctrl_rt->usb_streaming = false;
 	ret = ctrl_rt->update_streaming(ctrl_rt);
 	if (ret < 0) {
-		snd_printk(KERN_ERR PREFIX "error stopping streaming while "
-				"setting samplerate %d.\n", rates[rt->rate]);
+		dev_err(&rt->chip->dev->dev,
+			"error stopping streaming while setting samplerate %d.\n",
+			rates[rt->rate]);
 		return ret;
 	}
 
 	ret = ctrl_rt->set_rate(ctrl_rt, rt->rate);
 	if (ret < 0) {
-		snd_printk(KERN_ERR PREFIX "error setting samplerate %d.\n",
-				rates[rt->rate]);
+		dev_err(&rt->chip->dev->dev,
+			"error setting samplerate %d.\n",
+			rates[rt->rate]);
 		return ret;
 	}
 
 	ret = ctrl_rt->set_channels(ctrl_rt, OUT_N_CHANNELS, IN_N_CHANNELS,
 			false, false);
 	if (ret < 0) {
-		snd_printk(KERN_ERR PREFIX "error initializing channels "
-				"while setting samplerate %d.\n",
-				rates[rt->rate]);
+		dev_err(&rt->chip->dev->dev,
+			"error initializing channels while setting samplerate %d.\n",
+			rates[rt->rate]);
 		return ret;
 	}
 
 	ctrl_rt->usb_streaming = true;
 	ret = ctrl_rt->update_streaming(ctrl_rt);
 	if (ret < 0) {
-		snd_printk(KERN_ERR PREFIX "error starting streaming while "
-				"setting samplerate %d.\n", rates[rt->rate]);
+		dev_err(&rt->chip->dev->dev,
+			"error starting streaming while setting samplerate %d.\n",
+			rates[rt->rate]);
 		return ret;
 	}
 
@@ -124,7 +127,7 @@ static struct pcm_substream *usb6fire_pcm_get_substream(
 		return &rt->playback;
 	else if (alsa_sub->stream == SNDRV_PCM_STREAM_CAPTURE)
 		return &rt->capture;
-	snd_printk(KERN_ERR PREFIX "error getting pcm substream slot.\n");
+	dev_err(&rt->chip->dev->dev, "error getting pcm substream slot.\n");
 	return NULL;
 }
 
@@ -257,7 +260,7 @@ static void usb6fire_pcm_playback(struct pcm_substream *sub,
 	else if (alsa_rt->format == SNDRV_PCM_FORMAT_S24_LE)
 		dest = (u32 *) (urb->buffer);
 	else {
-		snd_printk(KERN_ERR PREFIX "Unknown sample format.");
+		dev_err(&rt->chip->dev->dev, "Unknown sample format.");
 		return;
 	}
 
@@ -307,8 +310,8 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 		}
 
 	if (rt->stream_state == STREAM_DISABLED) {
-		snd_printk(KERN_ERR PREFIX "internal error: "
-				"stream disabled in in-urb handler.\n");
+		dev_err(&rt->chip->dev->dev,
+			"internal error: stream disabled in in-urb handler.\n");
 		return;
 	}
 
@@ -410,7 +413,7 @@ static int usb6fire_pcm_open(struct snd_pcm_substream *alsa_sub)
 
 	if (!sub) {
 		mutex_unlock(&rt->stream_mutex);
-		snd_printk(KERN_ERR PREFIX "invalid stream type.\n");
+		dev_err(&rt->chip->dev->dev, "invalid stream type.\n");
 		return -EINVAL;
 	}
 
@@ -481,8 +484,9 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 				break;
 		if (rt->rate == ARRAY_SIZE(rates)) {
 			mutex_unlock(&rt->stream_mutex);
-			snd_printk("invalid rate %d in prepare.\n",
-					alsa_rt->rate);
+			dev_err(&rt->chip->dev->dev,
+				"invalid rate %d in prepare.\n",
+				alsa_rt->rate);
 			return -EINVAL;
 		}
 
@@ -494,8 +498,8 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 		ret = usb6fire_pcm_stream_start(rt);
 		if (ret) {
 			mutex_unlock(&rt->stream_mutex);
-			snd_printk(KERN_ERR PREFIX
-					"could not start pcm stream.\n");
+			dev_err(&rt->chip->dev->dev,
+				"could not start pcm stream.\n");
 			return ret;
 		}
 	}
@@ -650,7 +654,7 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	if (ret < 0) {
 		usb6fire_pcm_buffers_destroy(rt);
 		kfree(rt);
-		snd_printk(KERN_ERR PREFIX "cannot create pcm instance.\n");
+		dev_err(&chip->dev->dev, "cannot create pcm instance.\n");
 		return ret;
 	}
 
@@ -662,8 +666,8 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	if (ret) {
 		usb6fire_pcm_buffers_destroy(rt);
 		kfree(rt);
-		snd_printk(KERN_ERR PREFIX
-				"error preallocating pcm buffers.\n");
+		dev_err(&chip->dev->dev,
+			"error preallocating pcm buffers.\n");
 		return ret;
 	}
 	rt->instance = pcm;
@@ -675,25 +679,16 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 void usb6fire_pcm_abort(struct sfire_chip *chip)
 {
 	struct pcm_runtime *rt = chip->pcm;
-	unsigned long flags;
 	int i;
 
 	if (rt) {
 		rt->panic = true;
 
-		if (rt->playback.instance) {
-			snd_pcm_stream_lock_irqsave(rt->playback.instance, flags);
-			snd_pcm_stop(rt->playback.instance,
-					SNDRV_PCM_STATE_XRUN);
-			snd_pcm_stream_unlock_irqrestore(rt->playback.instance, flags);
-		}
+		if (rt->playback.instance)
+			snd_pcm_stop_xrun(rt->playback.instance);
 
-		if (rt->capture.instance) {
-			snd_pcm_stream_lock_irqsave(rt->capture.instance, flags);
-			snd_pcm_stop(rt->capture.instance,
-					SNDRV_PCM_STATE_XRUN);
-			snd_pcm_stream_unlock_irqrestore(rt->capture.instance, flags);
-		}
+		if (rt->capture.instance)
+			snd_pcm_stop_xrun(rt->capture.instance);
 
 		for (i = 0; i < PCM_N_URBS; i++) {
 			usb_poison_urb(&rt->in_urbs[i].instance);

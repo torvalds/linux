@@ -99,6 +99,8 @@ ret_from_kernel_thread:
 
 	.type	ret_from_intr,@function
 ret_from_intr:
+	moveq	0, $r9			; not a syscall
+
 	;; Check for resched if preemptive kernel, or if we're going back to
 	;; user-mode. This test matches the user_regs(regs) macro. Don't simply
 	;; test CCS since that doesn't necessarily reflect what mode we'll
@@ -145,7 +147,7 @@ system_call:
 	;; Stack-frame similar to the irq heads, which is reversed in
 	;; ret_from_sys_call.
 
-	sub.d	92, $sp		; Skip EXS and EDA.
+	sub.d	92, $sp		; Skip EDA.
 	movem	$r13, [$sp]
 	move.d	$sp, $r8
 	addq	14*4, $r8
@@ -156,8 +158,9 @@ system_call:
 	move	$ccs, $r4
 	move	$srp, $r5
 	move	$erp, $r6
+	move.d	$r9, $r7	; Store syscall number in EXS
 	subq	4, $sp
-	movem	$r6, [$r8]
+	movem	$r7, [$r8]
 	ei			; Enable interrupts while processing syscalls.
 	move.d	$r10, [$sp]
 
@@ -278,43 +281,14 @@ _syscall_exit_work:
 	.type	_work_pending,@function
 _work_pending:
 	addoq	+TI_flags, $r0, $acr
-	move.d	[$acr], $r10
-	btstq	TIF_NEED_RESCHED, $r10	; Need resched?
-	bpl	_work_notifysig		; No, must be signal/notify.
-	nop
-	.size	_work_pending, . - _work_pending
-
-	.type	_work_resched,@function
-_work_resched:
-	move.d	$r9, $r1		; Preserve R9.
-	jsr	schedule
-	nop
-	move.d	$r1, $r9
-	di
-
-	addoq	+TI_flags, $r0, $acr
-	move.d	[$acr], $r1
-	and.d	_TIF_WORK_MASK, $r1	; Ignore sycall trace counter.
-	beq	_Rexit
-	nop
-	btstq	TIF_NEED_RESCHED, $r1
-	bmi	_work_resched		; current->work.need_resched.
-	nop
-	.size	_work_resched, . - _work_resched
-
-	.type	_work_notifysig,@function
-_work_notifysig:
-	;; Deal with pending signals and notify-resume requests.
-
-	addoq	+TI_flags, $r0, $acr
 	move.d	[$acr], $r12		; The thread_info_flags parameter.
 	move.d	$sp, $r11		; The regs param.
-	jsr	do_notify_resume
-	move.d	$r9, $r10		; do_notify_resume syscall/irq param.
+	jsr	do_work_pending
+	move.d	$r9, $r10		; The syscall/irq param.
 
 	ba _Rexit
 	nop
-	.size	_work_notifysig, . - _work_notifysig
+	.size	_work_pending, . - _work_pending
 
 	;; We get here as a sidetrack when we've entered a syscall with the
 	;; trace-bit set. We need to call do_syscall_trace and then continue
@@ -424,7 +398,7 @@ nmi_interrupt:
 	bpl     1f
 	nop
 	jsr	handle_watchdog_bite	; In time.c.
-        move.d	$sp, $r10		; Pointer to registers
+	move.d	$sp, $r10		; Pointer to registers
 1:	btstq	REG_BIT(intr_vect, r_nmi, ext), $r0
 	bpl     1f
 	nop
@@ -452,7 +426,7 @@ spurious_interrupt:
 	nop
 
 	;; This handles the case when multiple interrupts arrive at the same
-	;; time. Jump to the first set interrupt bit in a priotiry fashion. The
+	;; time. Jump to the first set interrupt bit in a priority fashion. The
 	;; hardware will call the unserved interrupts after the handler
 	;; finishes.
 	.type	multiple_interrupt, @function
@@ -885,13 +859,29 @@ sys_call_table:
 	.long sys_preadv
 	.long sys_pwritev
 	.long sys_setns			/* 335 */
+	.long sys_name_to_handle_at
+	.long sys_open_by_handle_at
+	.long sys_rt_tgsigqueueinfo
+	.long sys_perf_event_open
+	.long sys_recvmmsg		/* 340 */
+	.long sys_accept4
+	.long sys_fanotify_init
+	.long sys_fanotify_mark
+	.long sys_prlimit64
+	.long sys_clock_adjtime		/* 345 */
+	.long sys_syncfs
+	.long sys_sendmmsg
+	.long sys_process_vm_readv
+	.long sys_process_vm_writev
+	.long sys_kcmp			/* 350 */
+	.long sys_finit_module
 
-        /*
-         * NOTE!! This doesn't have to be exact - we just have
-         * to make sure we have _enough_ of the "sys_ni_syscall"
-         * entries. Don't panic if you notice that this hasn't
-         * been shrunk every time we add a new system call.
-         */
+	/*
+	 * NOTE!! This doesn't have to be exact - we just have
+	 * to make sure we have _enough_ of the "sys_ni_syscall"
+	 * entries. Don't panic if you notice that this hasn't
+	 * been shrunk every time we add a new system call.
+	 */
 
 	.rept NR_syscalls - (.-sys_call_table) / 4
 		.long sys_ni_syscall

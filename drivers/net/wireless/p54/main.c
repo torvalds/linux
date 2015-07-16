@@ -16,7 +16,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
@@ -183,7 +182,7 @@ static int p54_start(struct ieee80211_hw *dev)
 	if (err)
 		goto out;
 
-	memset(priv->bssid, ~0, ETH_ALEN);
+	eth_broadcast_addr(priv->bssid);
 	priv->mode = NL80211_IFTYPE_MONITOR;
 	err = p54_setup_mac(priv);
 	if (err) {
@@ -275,8 +274,8 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 		wait_for_completion_interruptible_timeout(&priv->beacon_comp, HZ);
 	}
 	priv->mode = NL80211_IFTYPE_MONITOR;
-	memset(priv->mac_addr, 0, ETH_ALEN);
-	memset(priv->bssid, 0, ETH_ALEN);
+	eth_zero_addr(priv->mac_addr);
+	eth_zero_addr(priv->bssid);
 	p54_setup_mac(priv);
 	mutex_unlock(&priv->conf_mutex);
 }
@@ -306,9 +305,9 @@ static void p54_reset_stats(struct p54_common *priv)
 		struct survey_info *info = &priv->survey[chan->hw_value];
 
 		/* only reset channel statistics, don't touch .filled, etc. */
-		info->channel_time = 0;
-		info->channel_time_busy = 0;
-		info->channel_time_tx = 0;
+		info->time = 0;
+		info->time_busy = 0;
+		info->time_tx = 0;
 	}
 
 	priv->update_stats = true;
@@ -396,13 +395,11 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	*total_flags &= FIF_PROMISC_IN_BSS |
-			FIF_ALLMULTI |
-			FIF_OTHER_BSS;
+	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS;
 
 	priv->filter_flags = *total_flags;
 
-	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS))
+	if (changed_flags & FIF_OTHER_BSS)
 		p54_setup_mac(priv);
 
 	if (changed_flags & FIF_ALLMULTI || multicast)
@@ -576,6 +573,8 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			key->hw_key_idx = 0xff;
 			goto out_unlock;
 		}
+
+		key->flags |= IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
 	} else {
 		slot = key->hw_key_idx;
 
@@ -635,7 +634,7 @@ static int p54_get_survey(struct ieee80211_hw *dev, int idx,
 
 		if (in_use) {
 			/* test if the reported statistics are valid. */
-			if  (survey->channel_time != 0) {
+			if  (survey->time != 0) {
 				survey->filled |= SURVEY_INFO_IN_USE;
 			} else {
 				/*
@@ -670,7 +669,8 @@ static unsigned int p54_flush_count(struct p54_common *priv)
 	return total;
 }
 
-static void p54_flush(struct ieee80211_hw *dev, u32 queues, bool drop)
+static void p54_flush(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
+		      u32 queues, bool drop)
 {
 	struct p54_common *priv = dev->priv;
 	unsigned int total, i;
@@ -696,7 +696,8 @@ static void p54_flush(struct ieee80211_hw *dev, u32 queues, bool drop)
 	WARN(total, "tx flush timeout, unresponsive firmware");
 }
 
-static void p54_set_coverage_class(struct ieee80211_hw *dev, u8 coverage_class)
+static void p54_set_coverage_class(struct ieee80211_hw *dev,
+				   s16 coverage_class)
 {
 	struct p54_common *priv = dev->priv;
 
@@ -745,19 +746,18 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	spin_lock_init(&priv->tx_stats_lock);
 	skb_queue_head_init(&priv->tx_queue);
 	skb_queue_head_init(&priv->tx_pending);
-	dev->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_SIGNAL_DBM |
-		     IEEE80211_HW_SUPPORTS_PS |
-		     IEEE80211_HW_PS_NULLFUNC_STACK |
-		     IEEE80211_HW_MFP_CAPABLE |
-		     IEEE80211_HW_REPORTS_TX_ACK_STATUS;
+	ieee80211_hw_set(dev, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(dev, MFP_CAPABLE);
+	ieee80211_hw_set(dev, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(dev, SUPPORTS_PS);
+	ieee80211_hw_set(dev, RX_INCLUDES_FCS);
+	ieee80211_hw_set(dev, SIGNAL_DBM);
 
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				      BIT(NL80211_IFTYPE_ADHOC) |
 				      BIT(NL80211_IFTYPE_AP) |
 				      BIT(NL80211_IFTYPE_MESH_POINT);
 
-	dev->channel_change_time = 1000;	/* TODO: find actual value */
 	priv->beacon_req_id = cpu_to_le32(0);
 	priv->tx_stats[P54_QUEUE_BEACON].limit = 1;
 	priv->tx_stats[P54_QUEUE_FWSCAN].limit = 1;
@@ -792,7 +792,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	init_completion(&priv->beacon_comp);
 	INIT_DELAYED_WORK(&priv->work, p54_work);
 
-	memset(&priv->mc_maclist[0], ~0, ETH_ALEN);
+	eth_broadcast_addr(priv->mc_maclist[0]);
 	priv->curchan = NULL;
 	p54_reset_stats(priv);
 	return dev;

@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/spinlock.h>
 
 #include <asm/ptrace.h>

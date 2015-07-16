@@ -1,0 +1,44 @@
+DT bindings for Renesas R-Mobile and SH-Mobile memory controllers
+=================================================================
+
+Renesas R-Mobile and SH-Mobile SoCs contain one or more memory controllers.
+These memory controllers differ from one SoC variant to another, and are called
+by different names ("DDR Bus Controller (DBSC)", "DDR3 Bus State Controller
+(DBSC3)", "SDRAM Bus State Controller (SBSC)").
+
+Currently memory controller device nodes are used only to reference PM
+domains, and prevent these PM domains from being powered down, which would
+crash the system.
+
+As there exist no actual drivers for these controllers yet, these bindings
+should be considered EXPERIMENTAL for now.
+
+Required properties:
+  - compatible: Must be one of the following SoC-specific values:
+		  - "renesas,dbsc-r8a73a4" (R-Mobile APE6)
+		  - "renesas,dbsc3-r8a7740" (R-Mobile A1)
+		  - "renesas,sbsc-sh73a0" (SH-Mobile AG5)
+  - reg: Must contain the base address and length of the memory controller's
+	 registers.
+
+Optional properties:
+  - interrupts: Must contain a list of interrupt specifiers for memory
+		controller interrupts, if available.
+  - interrupts-names: Must contain a list of interrupt names corresponding to
+		      the interrupts in the interrupts property, if available.
+		      Valid interrupt names are:
+			- "sec" (secure interrupt)
+			- "temp" (normal (temperature) interrupt)
+  - power-domains: Must contain a reference to the PM domain that the memory
+		   controller belongs to, if available.
+
+Example:
+
+	sbsc1: memory-controller@fe400000 {
+		compatible = "renesas,sbsc-sh73a0";
+		reg = <0xfe400000 0x400>;
+		interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 36 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "sec", "temp";
+		power-domains = <&pd_a4bc0>;
+	};

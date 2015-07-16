@@ -786,7 +786,6 @@ port address 0x1400.
         irqm:1     same as initial settings (assumed BIOS settings)
         irqm:2     always totem pole
         irqm:0x10  driver will not use IRQF_SHARED flag when requesting irq
-        irqm:0x20  driver will not use IRQF_DISABLED flag when requesting irq
 
     (Bits 0x10 and 0x20 can be combined with hardware irq mode option)
 
@@ -1095,7 +1094,7 @@ SCSI_NCR_SETUP_FORCE_SYNC_NEGO	(default: not defined)
 SCSI_NCR_SETUP_MASTER_PARITY	(default: defined)
 	If defined, master parity checking is enabled.
 
-SCSI_NCR_SETUP_MASTER_PARITY	(default: defined)
+SCSI_NCR_SETUP_SCSI_PARITY	(default: defined)
 	If defined, SCSI parity checking is enabled.
 
 SCSI_NCR_PROFILE_SUPPORT	(default: not defined)
@@ -1230,30 +1229,6 @@ This cannot happen under Linux when scatter/gather lists are used since
 they only refer to system buffers that are well aligned. So, a work around 
 may only be needed under Linux when a scatter/gather list is not used and 
 when the SCSI DATA IN phase is reentered after a phase mismatch.
-
-14.5 IRQ sharing problems
-
-When an IRQ is shared by devices that are handled by different drivers, it 
-may happen that one driver complains about the request of the IRQ having 
-failed. Inder Linux-2.0, this may be due to one driver having requested the 
-IRQ using the IRQF_DISABLED flag but some other having requested the same IRQ
-without this flag. Under both Linux-2.0 and linux-2.2, this may be caused by 
-one driver not having requested the IRQ with the IRQF_SHARED flag.
-
-By default, the ncr53c8xx and sym53c8xx drivers request IRQs with both the 
-IRQF_DISABLED and the IRQF_SHARED flag under Linux-2.0 and with only the IRQF_SHARED
-flag under Linux-2.2.
-
-Under Linux-2.0, you can disable use of IRQF_DISABLED flag from the boot
-command line by using the following option:
-
-     ncr53c8xx=irqm:0x20   (for the generic ncr53c8xx driver)
-     sym53c8xx=irqm:0x20   (for the sym53c8xx driver)
-
-If this does not fix the problem, then you may want to check how all other 
-drivers are requesting the IRQ and report the problem. Note that if at least 
-a single driver does not request the IRQ with the IRQF_SHARED flag (share IRQ),
-then the request of the IRQ obviously will not succeed for all the drivers.
 
 15. SCSI problem troubleshooting
 

@@ -1,0 +1,129 @@
+/*
+ * Spreadtrum SC9836 SoC DTS file
+ *
+ * Copyright (C) 2014, Spreadtrum Communications Inc.
+ *
+ * This file is licensed under a dual GPLv2 or X11 license.
+ */
+
+#include "sharkl64.dtsi"
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	compatible = "sprd,sc9836";
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x0>;
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x1>;
+			enable-method = "psci";
+		};
+
+		cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x2>;
+			enable-method = "psci";
+		};
+
+		cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x3>;
+			enable-method = "psci";
+		};
+	};
+
+	etf@10003000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0 0x10003000 0 0x1000>;
+		clocks = <&clk26mhz>;
+		clock-names = "apb_pclk";
+		port {
+			etf_in: endpoint {
+				slave-mode;
+				remote-endpoint = <&funnel_out_port0>;
+			};
+		};
+	};
+
+	funnel@10001000 {
+		compatible = "arm,coresight-funnel", "arm,primecell";
+		reg = <0 0x10001000 0 0x1000>;
+		clocks = <&clk26mhz>;
+		clock-names = "apb_pclk";
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* funnel output port */
+			port@0 {
+				reg = <0>;
+				funnel_out_port0: endpoint {
+					remote-endpoint = <&etf_in>;
+				};
+			};
+
+			/* funnel input port 0~3 is reserved for ETMs */
+			port@1 {
+				reg = <4>;
+				funnel_in_port4: endpoint {
+					slave-mode;
+					remote-endpoint = <&stm_out>;
+				};
+			};
+		};
+	};
+
+	stm@10006000 {
+		compatible = "arm,coresight-stm", "arm,primecell";
+		reg = <0 0x10006000 0 0x1000>,
+		      <0 0x01000000 0 0x180000>;
+		reg-names = "stm-base", "stm-stimulus-base";
+		clocks = <&clk26mhz>;
+		clock-names = "apb_pclk";
+		port {
+			stm_out: endpoint {
+				remote-endpoint = <&funnel_in_port4>;
+			};
+		};
+	};
+
+	gic: interrupt-controller@12001000 {
+		compatible = "arm,gic-400";
+		reg = <0 0x12001000 0 0x1000>,
+		      <0 0x12002000 0 0x2000>,
+		      <0 0x12004000 0 0x2000>,
+		      <0 0x12006000 0 0x2000>;
+		#interrupt-cells = <3>;
+		interrupt-controller;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
+	psci {
+		compatible	= "arm,psci";
+		method		= "smc";
+		cpu_on		= <0xc4000003>;
+		cpu_off		= <0x84000002>;
+		cpu_suspend	= <0xc4000001>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+};

@@ -117,10 +117,12 @@ config DVB_USB_CXUSB
 	select DVB_TUNER_DIB0070 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_ATBM8830 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_LGS8GXX if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_SI2168 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_SIMPLE if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_XC2028 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MXL5005S if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MAX2165 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
 	  Currently, only DVB and ATSC modes are supported, analog mode
@@ -276,9 +278,10 @@ config DVB_USB_DW2102
 	select DVB_STV6110 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STV0900 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_M88RS2000 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_M88DS3103 if MEDIA_SUBDRV_AUTOSELECT
 	help
-	  Say Y here to support the DvbWorld, TeVii, Prof DVB-S/S2 USB2.0
-	  receivers.
+	  Say Y here to support the DvbWorld, TeVii, Prof, TechnoTrend
+	  DVB-S/S2 USB2.0 receivers.
 
 config DVB_USB_CINERGY_T2
 	tristate "Terratec CinergyT2/qanu USB 2.0 DVB-T receiver"

@@ -89,29 +89,12 @@ struct camelot_pcm {
 #define DMABRG_PREALLOC_BUFFER		32 * 1024
 #define DMABRG_PREALLOC_BUFFER_MAX	32 * 1024
 
-/* support everything the SSI supports */
-#define DMABRG_RATES	\
-	SNDRV_PCM_RATE_8000_192000
-
-#define DMABRG_FMTS	\
-	(SNDRV_PCM_FMTBIT_S8      | SNDRV_PCM_FMTBIT_U8      |	\
-	 SNDRV_PCM_FMTBIT_S16_LE  | SNDRV_PCM_FMTBIT_U16_LE  |	\
-	 SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_U20_3LE |	\
-	 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_U24_3LE |	\
-	 SNDRV_PCM_FMTBIT_S32_LE  | SNDRV_PCM_FMTBIT_U32_LE)
-
 static struct snd_pcm_hardware camelot_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_BATCH),
-	.formats =	DMABRG_FMTS,
-	.rates =	DMABRG_RATES,
-	.rate_min =		8000,
-	.rate_max =		192000,
-	.channels_min =		2,
-	.channels_max =		8,		/* max of the SSI */
 	.buffer_bytes_max =	DMABRG_PERIOD_MAX,
 	.period_bytes_min =	DMABRG_PERIOD_MIN,
 	.period_bytes_max =	DMABRG_PERIOD_MAX / 2,
@@ -322,11 +305,6 @@ static struct snd_pcm_ops camelot_pcm_ops = {
 	.pointer	= camelot_pos,
 };
 
-static void camelot_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int camelot_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
@@ -345,7 +323,6 @@ static int camelot_pcm_new(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_platform_driver sh7760_soc_platform = {
 	.ops		= &camelot_pcm_ops,
 	.pcm_new	= camelot_pcm_new,
-	.pcm_free	= camelot_pcm_free,
 };
 
 static int sh7760_soc_platform_probe(struct platform_device *pdev)
@@ -362,7 +339,6 @@ static int sh7760_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver sh7760_pcm_driver = {
 	.driver = {
 			.name = "sh7760-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = sh7760_soc_platform_probe,

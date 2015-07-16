@@ -26,6 +26,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mem2mem.h>
+#include <media/v4l2-image-sizes.h>
 #include <media/videobuf2-dma-contig.h>
 
 #define VEU_STR 0x00 /* start register */
@@ -135,9 +136,6 @@ enum sh_veu_fmt_idx {
 	SH_VEU_FMT_RGB24,
 };
 
-#define VGA_WIDTH	640
-#define VGA_HEIGHT	480
-
 #define DEFAULT_IN_WIDTH	VGA_WIDTH
 #define DEFAULT_IN_HEIGHT	VGA_HEIGHT
 #define DEFAULT_IN_FMTIDX	SH_VEU_FMT_NV12
@@ -242,20 +240,6 @@ static void sh_veu_job_abort(void *priv)
 
 	/* Will cancel the transaction in the next interrupt handler */
 	veu->aborting = true;
-}
-
-static void sh_veu_lock(void *priv)
-{
-	struct sh_veu_dev *veu = priv;
-
-	mutex_lock(&veu->fop_lock);
-}
-
-static void sh_veu_unlock(void *priv)
-{
-	struct sh_veu_dev *veu = priv;
-
-	mutex_unlock(&veu->fop_lock);
 }
 
 static void sh_veu_process(struct sh_veu_dev *veu,
@@ -425,7 +409,6 @@ static int sh_veu_g_fmt(struct sh_veu_file *veu_file, struct v4l2_format *f)
 	pix->bytesperline	= vfmt->bytesperline;
 	pix->sizeimage		= vfmt->bytesperline * pix->height *
 		vfmt->fmt->depth / vfmt->fmt->ydepth;
-	pix->priv		= 0;
 	dev_dbg(veu->dev, "%s(): type: %d, size %u @ %ux%u, fmt %x\n", __func__,
 		f->type, pix->sizeimage, pix->width, pix->height, pix->pixelformat);
 
@@ -473,7 +456,6 @@ static int sh_veu_try_fmt(struct v4l2_format *f, const struct sh_veu_format *fmt
 
 	pix->pixelformat	= fmt->fourcc;
 	pix->colorspace		= sh_veu_4cc2cspace(pix->pixelformat);
-	pix->priv		= 0;
 
 	pr_debug("%s(): type: %d, size %u\n", __func__, f->type, pix->sizeimage);
 
@@ -954,36 +936,28 @@ static void sh_veu_buf_queue(struct vb2_buffer *vb)
 	v4l2_m2m_buf_queue(veu->m2m_ctx, vb);
 }
 
-static void sh_veu_wait_prepare(struct vb2_queue *q)
-{
-	sh_veu_unlock(vb2_get_drv_priv(q));
-}
-
-static void sh_veu_wait_finish(struct vb2_queue *q)
-{
-	sh_veu_lock(vb2_get_drv_priv(q));
-}
-
 static const struct vb2_ops sh_veu_qops = {
 	.queue_setup	 = sh_veu_queue_setup,
 	.buf_prepare	 = sh_veu_buf_prepare,
 	.buf_queue	 = sh_veu_buf_queue,
-	.wait_prepare	 = sh_veu_wait_prepare,
-	.wait_finish	 = sh_veu_wait_finish,
+	.wait_prepare	 = vb2_ops_wait_prepare,
+	.wait_finish	 = vb2_ops_wait_finish,
 };
 
 static int sh_veu_queue_init(void *priv, struct vb2_queue *src_vq,
 			     struct vb2_queue *dst_vq)
 {
+	struct sh_veu_dev *veu = priv;
 	int ret;
 
 	memset(src_vq, 0, sizeof(*src_vq));
 	src_vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
 	src_vq->io_modes = VB2_MMAP | VB2_USERPTR;
-	src_vq->drv_priv = priv;
+	src_vq->drv_priv = veu;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->ops = &sh_veu_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
+	src_vq->lock = &veu->fop_lock;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret < 0)
@@ -992,10 +966,11 @@ static int sh_veu_queue_init(void *priv, struct vb2_queue *src_vq,
 	memset(dst_vq, 0, sizeof(*dst_vq));
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	dst_vq->io_modes = VB2_MMAP | VB2_USERPTR;
-	dst_vq->drv_priv = priv;
+	dst_vq->drv_priv = veu;
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->ops = &sh_veu_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
+	dst_vq->lock = &veu->fop_lock;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -1183,6 +1158,7 @@ static int sh_veu_probe(struct platform_device *pdev)
 	}
 
 	*vdev = sh_veu_videodev;
+	vdev->v4l2_dev = &veu->v4l2_dev;
 	spin_lock_init(&veu->lock);
 	mutex_init(&veu->fop_lock);
 	vdev->lock = &veu->fop_lock;
@@ -1239,7 +1215,6 @@ static struct platform_driver __refdata sh_veu_pdrv = {
 	.remove		= sh_veu_remove,
 	.driver		= {
 		.name	= "sh_veu",
-		.owner	= THIS_MODULE,
 	},
 };
 

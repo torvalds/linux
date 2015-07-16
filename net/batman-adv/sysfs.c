@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -12,31 +12,50 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "sysfs.h"
-#include "translation-table.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/compiler.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/fs.h>
+#include <linux/if.h>
+#include <linux/if_vlan.h>
+#include <linux/kernel.h>
+#include <linux/netdevice.h>
+#include <linux/printk.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/rtnetlink.h>
+#include <linux/slab.h>
+#include <linux/stat.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+#include <linux/stringify.h>
+
 #include "distributed-arp-table.h"
-#include "network-coding.h"
-#include "originator.h"
-#include "hard-interface.h"
-#include "soft-interface.h"
-#include "gateway_common.h"
 #include "gateway_client.h"
+#include "gateway_common.h"
+#include "hard-interface.h"
+#include "network-coding.h"
+#include "packet.h"
+#include "soft-interface.h"
 
 static struct net_device *batadv_kobj_to_netdev(struct kobject *obj)
 {
 	struct device *dev = container_of(obj->parent, struct device, kobj);
+
 	return to_net_dev(dev);
 }
 
 static struct batadv_priv *batadv_kobj_to_batpriv(struct kobject *obj)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(obj);
+
 	return netdev_priv(net_dev);
 }
 
@@ -108,7 +127,7 @@ struct batadv_attribute batadv_attr_vlan_##_name = {	\
 		 .mode = _mode },			\
 	.show   = _show,				\
 	.store  = _store,				\
-};
+}
 
 /* Use this, if you have customized show and store functions */
 #define BATADV_ATTR(_name, _mode, _show, _store)	\
@@ -117,7 +136,7 @@ struct batadv_attribute batadv_attr_##_name = {		\
 		 .mode = _mode },			\
 	.show   = _show,				\
 	.store  = _store,				\
-};
+}
 
 #define BATADV_ATTR_SIF_STORE_BOOL(_name, _post_func)			\
 ssize_t batadv_store_##_name(struct kobject *kobj,			\
@@ -126,6 +145,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
+									\
 	return __batadv_store_bool_attr(buff, count, _post_func, attr,	\
 					&bat_priv->_name, net_dev);	\
 }
@@ -135,6 +155,7 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
+									\
 	return sprintf(buff, "%s\n",					\
 		       atomic_read(&bat_priv->_name) == 0 ?		\
 		       "disabled" : "enabled");				\
@@ -149,33 +170,34 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 	static BATADV_ATTR(_name, _mode, batadv_show_##_name,		\
 			   batadv_store_##_name)
 
-
-#define BATADV_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)	\
+#define BATADV_ATTR_SIF_STORE_UINT(_name, _var, _min, _max, _post_func)	\
 ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     struct attribute *attr, char *buff,	\
 			     size_t count)				\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
+									\
 	return __batadv_store_uint_attr(buff, count, _min, _max,	\
 					_post_func, attr,		\
-					&bat_priv->_name, net_dev);	\
+					&bat_priv->_var, net_dev);	\
 }
 
-#define BATADV_ATTR_SIF_SHOW_UINT(_name)				\
+#define BATADV_ATTR_SIF_SHOW_UINT(_name, _var)				\
 ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
-	return sprintf(buff, "%i\n", atomic_read(&bat_priv->_name));	\
+									\
+	return sprintf(buff, "%i\n", atomic_read(&bat_priv->_var));	\
 }									\
 
 /* Use this, if you are going to set [name] in the soft-interface
  * (bat_priv) to an unsigned integer value
  */
-#define BATADV_ATTR_SIF_UINT(_name, _mode, _min, _max, _post_func)	\
-	static BATADV_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)\
-	static BATADV_ATTR_SIF_SHOW_UINT(_name)				\
+#define BATADV_ATTR_SIF_UINT(_name, _var, _mode, _min, _max, _post_func)\
+	static BATADV_ATTR_SIF_STORE_UINT(_name, _var, _min, _max, _post_func)\
+	static BATADV_ATTR_SIF_SHOW_UINT(_name, _var)			\
 	static BATADV_ATTR(_name, _mode, batadv_show_##_name,		\
 			   batadv_store_##_name)
 
@@ -190,6 +212,7 @@ ssize_t batadv_store_vlan_##_name(struct kobject *kobj,			\
 	size_t res = __batadv_store_bool_attr(buff, count, _post_func,	\
 					      attr, &vlan->_name,	\
 					      bat_priv->soft_iface);	\
+									\
 	batadv_softif_vlan_free_ref(vlan);				\
 	return res;							\
 }
@@ -204,6 +227,7 @@ ssize_t batadv_show_vlan_##_name(struct kobject *kobj,			\
 	size_t res = sprintf(buff, "%s\n",				\
 			     atomic_read(&vlan->_name) == 0 ?		\
 			     "disabled" : "enabled");			\
+									\
 	batadv_softif_vlan_free_ref(vlan);				\
 	return res;							\
 }
@@ -326,13 +350,15 @@ static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 				    struct attribute *attr, char *buff)
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+
 	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
 }
 
-static void batadv_post_gw_deselect(struct net_device *net_dev)
+static void batadv_post_gw_reselect(struct net_device *net_dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	batadv_gw_deselect(bat_priv);
+
+	batadv_gw_reselect(bat_priv);
 }
 
 static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
@@ -408,7 +434,16 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	batadv_info(net_dev, "Changing gw mode from: %s to: %s\n",
 		    curr_gw_mode_str, buff);
 
-	batadv_gw_deselect(bat_priv);
+	/* Invoking batadv_gw_reselect() is not enough to really de-select the
+	 * current GW. It will only instruct the gateway client code to perform
+	 * a re-election the next time that this is needed.
+	 *
+	 * When gw client mode is being switched off the current GW must be
+	 * de-selected explicitly otherwise no GW_ADD uevent is thrown on
+	 * client mode re-activation. This is operation is performed in
+	 * batadv_gw_check_client_stop().
+	 */
+	batadv_gw_reselect(bat_priv);
 	/* always call batadv_gw_check_client_stop() before changing the gateway
 	 * state
 	 */
@@ -443,6 +478,74 @@ static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,
 	return batadv_gw_bandwidth_set(net_dev, buff, count);
 }
 
+/**
+ * batadv_show_isolation_mark - print the current isolation mark/mask
+ * @kobj: kobject representing the private mesh sysfs directory
+ * @attr: the batman-adv attribute the user is interacting with
+ * @buff: the buffer that will contain the data to send back to the user
+ *
+ * Returns the number of bytes written into 'buff' on success or a negative
+ * error code in case of failure
+ */
+static ssize_t batadv_show_isolation_mark(struct kobject *kobj,
+					  struct attribute *attr, char *buff)
+{
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+
+	return sprintf(buff, "%#.8x/%#.8x\n", bat_priv->isolation_mark,
+		       bat_priv->isolation_mark_mask);
+}
+
+/**
+ * batadv_store_isolation_mark - parse and store the isolation mark/mask entered
+ *  by the user
+ * @kobj: kobject representing the private mesh sysfs directory
+ * @attr: the batman-adv attribute the user is interacting with
+ * @buff: the buffer containing the user data
+ * @count: number of bytes in the buffer
+ *
+ * Returns 'count' on success or a negative error code in case of failure
+ */
+static ssize_t batadv_store_isolation_mark(struct kobject *kobj,
+					   struct attribute *attr, char *buff,
+					   size_t count)
+{
+	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+	uint32_t mark, mask;
+	char *mask_ptr;
+
+	/* parse the mask if it has been specified, otherwise assume the mask is
+	 * the biggest possible
+	 */
+	mask = 0xFFFFFFFF;
+	mask_ptr = strchr(buff, '/');
+	if (mask_ptr) {
+		*mask_ptr = '\0';
+		mask_ptr++;
+
+		/* the mask must be entered in hex base as it is going to be a
+		 * bitmask and not a prefix length
+		 */
+		if (kstrtou32(mask_ptr, 16, &mask) < 0)
+			return -EINVAL;
+	}
+
+	/* the mark can be entered in any base */
+	if (kstrtou32(buff, 0, &mark) < 0)
+		return -EINVAL;
+
+	bat_priv->isolation_mark_mask = mask;
+	/* erase bits not covered by the mask */
+	bat_priv->isolation_mark = mark & bat_priv->isolation_mark_mask;
+
+	batadv_info(net_dev,
+		    "New skb mark for extended isolation: %#.8x/%#.8x\n",
+		    bat_priv->isolation_mark, bat_priv->isolation_mark_mask);
+
+	return count;
+}
+
 BATADV_ATTR_SIF_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
 BATADV_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
 #ifdef CONFIG_BATMAN_ADV_BLA
@@ -456,21 +559,27 @@ BATADV_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, batadv_update_min_mtu);
 static BATADV_ATTR(routing_algo, S_IRUGO, batadv_show_bat_algo, NULL);
 static BATADV_ATTR(gw_mode, S_IRUGO | S_IWUSR, batadv_show_gw_mode,
 		   batadv_store_gw_mode);
-BATADV_ATTR_SIF_UINT(orig_interval, S_IRUGO | S_IWUSR, 2 * BATADV_JITTER,
-		     INT_MAX, NULL);
-BATADV_ATTR_SIF_UINT(hop_penalty, S_IRUGO | S_IWUSR, 0, BATADV_TQ_MAX_VALUE,
-		     NULL);
-BATADV_ATTR_SIF_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, BATADV_TQ_MAX_VALUE,
-		     batadv_post_gw_deselect);
+BATADV_ATTR_SIF_UINT(orig_interval, orig_interval, S_IRUGO | S_IWUSR,
+		     2 * BATADV_JITTER, INT_MAX, NULL);
+BATADV_ATTR_SIF_UINT(hop_penalty, hop_penalty, S_IRUGO | S_IWUSR, 0,
+		     BATADV_TQ_MAX_VALUE, NULL);
+BATADV_ATTR_SIF_UINT(gw_sel_class, gw_sel_class, S_IRUGO | S_IWUSR, 1,
+		     BATADV_TQ_MAX_VALUE, batadv_post_gw_reselect);
 static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 		   batadv_store_gw_bwidth);
+#ifdef CONFIG_BATMAN_ADV_MCAST
+BATADV_ATTR_SIF_BOOL(multicast_mode, S_IRUGO | S_IWUSR, NULL);
+#endif
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, BATADV_DBG_ALL, NULL);
+BATADV_ATTR_SIF_UINT(log_level, log_level, S_IRUGO | S_IWUSR, 0,
+		     BATADV_DBG_ALL, NULL);
 #endif
 #ifdef CONFIG_BATMAN_ADV_NC
 BATADV_ATTR_SIF_BOOL(network_coding, S_IRUGO | S_IWUSR,
 		     batadv_nc_status_update);
 #endif
+static BATADV_ATTR(isolation_mark, S_IRUGO | S_IWUSR,
+		   batadv_show_isolation_mark, batadv_store_isolation_mark);
 
 static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_aggregated_ogms,
@@ -480,6 +589,9 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 #endif
 #ifdef CONFIG_BATMAN_ADV_DAT
 	&batadv_attr_distributed_arp_table,
+#endif
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	&batadv_attr_multicast_mode,
 #endif
 	&batadv_attr_fragmentation,
 	&batadv_attr_routing_algo,
@@ -494,6 +606,7 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 #ifdef CONFIG_BATMAN_ADV_NC
 	&batadv_attr_network_coding,
 #endif
+	&batadv_attr_isolation_mark,
 	NULL,
 };
 
@@ -806,32 +919,24 @@ int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 
 	bat_kobj = &bat_priv->soft_iface->dev.kobj;
 
-	uevent_env[0] = kmalloc(strlen(BATADV_UEV_TYPE_VAR) +
-				strlen(batadv_uev_type_str[type]) + 1,
-				GFP_ATOMIC);
+	uevent_env[0] = kasprintf(GFP_ATOMIC,
+				  "%s%s", BATADV_UEV_TYPE_VAR,
+				  batadv_uev_type_str[type]);
 	if (!uevent_env[0])
 		goto out;
 
-	sprintf(uevent_env[0], "%s%s", BATADV_UEV_TYPE_VAR,
-		batadv_uev_type_str[type]);
-
-	uevent_env[1] = kmalloc(strlen(BATADV_UEV_ACTION_VAR) +
-				strlen(batadv_uev_action_str[action]) + 1,
-				GFP_ATOMIC);
+	uevent_env[1] = kasprintf(GFP_ATOMIC,
+				  "%s%s", BATADV_UEV_ACTION_VAR,
+				  batadv_uev_action_str[action]);
 	if (!uevent_env[1])
 		goto out;
 
-	sprintf(uevent_env[1], "%s%s", BATADV_UEV_ACTION_VAR,
-		batadv_uev_action_str[action]);
-
 	/* If the event is DEL, ignore the data field */
 	if (action != BATADV_UEV_DEL) {
-		uevent_env[2] = kmalloc(strlen(BATADV_UEV_DATA_VAR) +
-					strlen(data) + 1, GFP_ATOMIC);
+		uevent_env[2] = kasprintf(GFP_ATOMIC,
+					  "%s%s", BATADV_UEV_DATA_VAR, data);
 		if (!uevent_env[2])
 			goto out;
-
-		sprintf(uevent_env[2], "%s%s", BATADV_UEV_DATA_VAR, data);
 	}
 
 	ret = kobject_uevent_env(bat_kobj, KOBJ_CHANGE, uevent_env);

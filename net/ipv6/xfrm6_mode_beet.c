@@ -95,8 +95,8 @@ static int xfrm6_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	ip6h = ipv6_hdr(skb);
 	ip6h->payload_len = htons(skb->len - size);
-	ip6h->daddr = *(struct in6_addr *)&x->sel.daddr.a6;
-	ip6h->saddr = *(struct in6_addr *)&x->sel.saddr.a6;
+	ip6h->daddr = x->sel.daddr.in6;
+	ip6h->saddr = x->sel.saddr.in6;
 	err = 0;
 out:
 	return err;

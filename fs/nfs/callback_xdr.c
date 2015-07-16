@@ -313,7 +313,7 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 		goto out;
 	}
 
-	args->devs = kmalloc(n * sizeof(*args->devs), GFP_KERNEL);
+	args->devs = kmalloc_array(n, sizeof(*args->devs), GFP_KERNEL);
 	if (!args->devs) {
 		status = htonl(NFS4ERR_DELAY);
 		goto out;
@@ -415,7 +415,7 @@ static __be32 decode_rc_list(struct xdr_stream *xdr,
 			     rc_list->rcl_nrefcalls * 2 * sizeof(uint32_t));
 		if (unlikely(p == NULL))
 			goto out;
-		rc_list->rcl_refcalls = kmalloc(rc_list->rcl_nrefcalls *
+		rc_list->rcl_refcalls = kmalloc_array(rc_list->rcl_nrefcalls,
 						sizeof(*rc_list->rcl_refcalls),
 						GFP_KERNEL);
 		if (unlikely(rc_list->rcl_refcalls == NULL))
@@ -464,8 +464,10 @@ static __be32 decode_cb_sequence_args(struct svc_rqst *rqstp,
 
 		for (i = 0; i < args->csa_nrclists; i++) {
 			status = decode_rc_list(xdr, &args->csa_rclists[i]);
-			if (status)
+			if (status) {
+				args->csa_nrclists = i;
 				goto out_free;
+			}
 		}
 	}
 	status = 0;
@@ -907,7 +909,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	xdr_init_encode(&xdr_out, &rqstp->rq_res, p);
 
 	status = decode_compound_hdr_arg(&xdr_in, &hdr_arg);
-	if (status == __constant_htonl(NFS4ERR_RESOURCE))
+	if (status == htonl(NFS4ERR_RESOURCE))
 		return rpc_garbage_args;
 
 	if (hdr_arg.minorversion == 0) {

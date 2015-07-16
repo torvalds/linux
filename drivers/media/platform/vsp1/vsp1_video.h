@@ -1,7 +1,7 @@
 /*
  * vsp1_video.h  --  R-Car VSP1 Video Node
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -33,6 +33,7 @@ struct vsp1_video;
  * @swap_uv: the U and V components are swapped (V comes before U)
  * @hsub: horizontal subsampling factor
  * @vsub: vertical subsampling factor
+ * @alpha: has an alpha channel
  */
 struct vsp1_format_info {
 	u32 fourcc;
@@ -45,6 +46,7 @@ struct vsp1_format_info {
 	bool swap_uv;
 	unsigned int hsub;
 	unsigned int vsub;
+	bool alpha;
 };
 
 enum vsp1_pipeline_state {
@@ -73,9 +75,12 @@ struct vsp1_pipeline {
 
 	unsigned int num_video;
 	unsigned int num_inputs;
-	struct vsp1_rwpf *inputs[VPS1_MAX_RPF];
+	struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
 	struct vsp1_rwpf *output;
+	struct vsp1_entity *bru;
 	struct vsp1_entity *lif;
+	struct vsp1_entity *uds;
+	struct vsp1_entity *uds_input;
 
 	struct list_head entities;
 };
@@ -89,7 +94,6 @@ static inline struct vsp1_pipeline *to_vsp1_pipeline(struct media_entity *e)
 }
 
 struct vsp1_video_buffer {
-	struct vsp1_video *video;
 	struct vb2_buffer buf;
 	struct list_head queue;
 
@@ -140,5 +144,9 @@ int vsp1_video_init(struct vsp1_video *video, struct vsp1_entity *rwpf);
 void vsp1_video_cleanup(struct vsp1_video *video);
 
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe);
+
+void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
+				   struct vsp1_entity *input,
+				   unsigned int alpha);
 
 #endif /* __VSP1_VIDEO_H__ */

@@ -682,7 +682,7 @@ struct ngene_channel {
 	int                   AudioDTOUpdated;
 	u32                   AudioDTOValue;
 
-	int (*set_tone)(struct dvb_frontend *, fe_sec_tone_mode_t);
+	int (*set_tone)(struct dvb_frontend *, enum fe_sec_tone_mode);
 	u8 lnbh;
 
 	/* stuff from analog driver */
@@ -737,7 +737,7 @@ typedef void (tx_cb_t)(struct ngene *, u32);
 struct ngene {
 	int                   nr;
 	struct pci_dev       *pci_dev;
-	unsigned char        *iomem;
+	unsigned char __iomem *iomem;
 
 	/*struct i2c_adapter  i2c_adapter;*/
 

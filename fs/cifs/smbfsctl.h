@@ -63,7 +63,7 @@
 #define FSCTL_SET_OBJECT_ID_EXTENDED 0x000900BC /* BB add struct */
 #define FSCTL_CREATE_OR_GET_OBJECT_ID 0x000900C0 /* BB add struct */
 #define FSCTL_SET_SPARSE             0x000900C4 /* BB add struct */
-#define FSCTL_SET_ZERO_DATA          0x000900C8 /* BB add struct */
+#define FSCTL_SET_ZERO_DATA          0x000980C8
 #define FSCTL_SET_ENCRYPTION         0x000900D7 /* BB add struct */
 #define FSCTL_ENCRYPTION_FSCTL_IO    0x000900DB /* BB add struct */
 #define FSCTL_WRITE_RAW_ENCRYPTED    0x000900DF /* BB add struct */
@@ -75,10 +75,13 @@
 #define FSCTL_QUERY_SPARING_INFO     0x00090138 /* BB add struct */
 #define FSCTL_SET_ZERO_ON_DEALLOC    0x00090194 /* BB add struct */
 #define FSCTL_SET_SHORT_NAME_BEHAVIOR 0x000901B4 /* BB add struct */
+#define FSCTL_GET_INTEGRITY_INFORMATION 0x0009027C
 #define FSCTL_QUERY_ALLOCATED_RANGES 0x000940CF /* BB add struct */
 #define FSCTL_SET_DEFECT_MANAGEMENT  0x00098134 /* BB add struct */
 #define FSCTL_FILE_LEVEL_TRIM        0x00098208 /* BB add struct */
+#define FSCTL_DUPLICATE_EXTENTS_TO_FILE 0x00098344
 #define FSCTL_SIS_LINK_FILES         0x0009C104
+#define FSCTL_SET_INTEGRITY_INFORMATION 0x0009C280
 #define FSCTL_PIPE_PEEK              0x0011400C /* BB add struct */
 #define FSCTL_PIPE_TRANSCEIVE        0x0011C017 /* BB add struct */
 /* strange that the number for this op is not sequential with previous op */
@@ -90,7 +93,7 @@
 #define FSCTL_LMR_REQUEST_RESILIENCY 0x001401D4 /* BB add struct */
 #define FSCTL_LMR_GET_LINK_TRACK_INF 0x001400E8 /* BB add struct */
 #define FSCTL_LMR_SET_LINK_TRACK_INF 0x001400EC /* BB add struct */
-#define FSCTL_VALIDATE_NEGOTIATE_INFO 0x00140204 /* BB add struct */
+#define FSCTL_VALIDATE_NEGOTIATE_INFO 0x00140204
 /* Perform server-side data movement */
 #define FSCTL_SRV_COPYCHUNK 0x001440F2
 #define FSCTL_SRV_COPYCHUNK_WRITE 0x001480F2

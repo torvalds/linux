@@ -21,11 +21,8 @@
  * Description: Advantech PCL-726 & compatibles
  * Author: David A. Schleef <ds@schleef.org>
  * Status: untested
- * Devices: (Advantech) PCL-726 [pcl726]
- *	    (Advantech) PCL-727 [pcl727]
- *	    (Advantech) PCL-728 [pcl728]
- *	    (ADLink) ACL-6126 [acl6126]
- *	    (ADLink) ACL-6128 [acl6128]
+ * Devices: [Advantech] PCL-726 (pcl726), PCL-727 (pcl727), PCL-728 (pcl728),
+ *   [ADLink] ACL-6126 (acl6126), ACL-6128 (acl6128)
  *
  * Configuration Options:
  *   [0]  - IO Base
@@ -64,8 +61,6 @@
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"
-
-#include "comedi_fc.h"
 
 #define PCL726_AO_MSB_REG(x)	(0x00 + ((x) * 2))
 #define PCL726_AO_LSB_REG(x)	(0x01 + ((x) * 2))
@@ -156,7 +151,6 @@ static const struct pcl726_board pcl726_boards[] = {
 
 struct pcl726_private {
 	const struct comedi_lrange *rangelist[12];
-	unsigned int ao_readback[12];
 	unsigned int cmd_running:1;
 };
 
@@ -177,11 +171,11 @@ static int pcl726_intr_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
 
 	if (err)
 		return 1;
@@ -189,24 +183,21 @@ static int pcl726_intr_cmdtest(struct comedi_device *dev,
 	/* Step 2a : make sure trigger sources are unique */
 	/* Step 2b : and mutually compatible */
 
-	if (err)
-		return 2;
-
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
-	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
 
-	/* step 4: ignored */
+	/* Step 4: fix up any arguments */
 
-	if (err)
-		return 4;
+	/* Step 5: check channel list if it exists */
 
 	return 0;
 }
@@ -240,9 +231,8 @@ static irqreturn_t pcl726_interrupt(int irq, void *d)
 	if (devpriv->cmd_running) {
 		pcl726_intr_cancel(dev, s);
 
-		comedi_buf_put(s->async, 0);
-		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
-		comedi_event(dev, s);
+		comedi_buf_write_samples(s, &s->state, 1);
+		comedi_handle_events(dev, s);
 	}
 
 	return IRQ_HANDLED;
@@ -253,15 +243,14 @@ static int pcl726_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct pcl726_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
-		devpriv->ao_readback[chan] = val;
+		unsigned int val = data[i];
+
+		s->readback[chan] = val;
 
 		/* bipolar data to the DAC is two's complement */
 		if (comedi_chan_range_is_bipolar(s, chan, range))
@@ -275,27 +264,12 @@ static int pcl726_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pcl726_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct pcl726_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return insn->n;
-}
-
 static int pcl726_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	const struct pcl726_board *board = comedi_board(dev);
+	const struct pcl726_board *board = dev->board_ptr;
 	unsigned int val;
 
 	if (board->is_pcl727) {
@@ -316,7 +290,7 @@ static int pcl726_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	const struct pcl726_board *board = comedi_board(dev);
+	const struct pcl726_board *board = dev->board_ptr;
 	unsigned long io = dev->iobase;
 	unsigned int mask;
 
@@ -343,7 +317,7 @@ static int pcl726_do_insn_bits(struct comedi_device *dev,
 static int pcl726_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it)
 {
-	const struct pcl726_board *board = comedi_board(dev);
+	const struct pcl726_board *board = dev->board_ptr;
 	struct pcl726_private *devpriv;
 	struct comedi_subdevice *s;
 	int subdev;
@@ -398,7 +372,10 @@ static int pcl726_attach(struct comedi_device *dev,
 	s->maxdata	= 0x0fff;
 	s->range_table_list = devpriv->rangelist;
 	s->insn_write	= pcl726_ao_insn_write;
-	s->insn_read	= pcl726_ao_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	if (board->have_dio) {
 		/* Digital Input subdevice */
@@ -430,6 +407,7 @@ static int pcl726_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl726_intr_insn_bits;
+		s->len_chanlist	= 1;
 		s->do_cmdtest	= pcl726_intr_cmdtest;
 		s->do_cmd	= pcl726_intr_cmd;
 		s->cancel	= pcl726_intr_cancel;

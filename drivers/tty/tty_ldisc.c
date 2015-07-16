@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/wait.h>
@@ -23,9 +22,8 @@
 #undef LDISC_DEBUG_HANGUP
 
 #ifdef LDISC_DEBUG_HANGUP
-#define tty_ldisc_debug(tty, f, args...) ({				       \
-	char __b[64];							       \
-	printk(KERN_DEBUG "%s: %s: " f, __func__, tty_name(tty, __b), ##args); \
+#define tty_ldisc_debug(tty, f, args...) ({				  \
+	printk(KERN_DEBUG "%s: %s: " f, __func__, tty_name(tty), ##args); \
 })
 #else
 #define tty_ldisc_debug(tty, f, args...)
@@ -309,21 +307,39 @@ EXPORT_SYMBOL_GPL(tty_ldisc_deref);
 
 
 static inline int __lockfunc
-tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
+__tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
 {
 	return ldsem_down_write(&tty->ldisc_sem, timeout);
 }
 
 static inline int __lockfunc
-tty_ldisc_lock_nested(struct tty_struct *tty, unsigned long timeout)
+__tty_ldisc_lock_nested(struct tty_struct *tty, unsigned long timeout)
 {
 	return ldsem_down_write_nested(&tty->ldisc_sem,
 				       LDISC_SEM_OTHER, timeout);
 }
 
-static inline void tty_ldisc_unlock(struct tty_struct *tty)
+static inline void __tty_ldisc_unlock(struct tty_struct *tty)
 {
 	return ldsem_up_write(&tty->ldisc_sem);
+}
+
+static int __lockfunc
+tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
+{
+	int ret;
+
+	ret = __tty_ldisc_lock(tty, timeout);
+	if (!ret)
+		return -EBUSY;
+	set_bit(TTY_LDISC_HALTED, &tty->flags);
+	return 0;
+}
+
+static void tty_ldisc_unlock(struct tty_struct *tty)
+{
+	clear_bit(TTY_LDISC_HALTED, &tty->flags);
+	__tty_ldisc_unlock(tty);
 }
 
 static int __lockfunc
@@ -333,24 +349,24 @@ tty_ldisc_lock_pair_timeout(struct tty_struct *tty, struct tty_struct *tty2,
 	int ret;
 
 	if (tty < tty2) {
-		ret = tty_ldisc_lock(tty, timeout);
+		ret = __tty_ldisc_lock(tty, timeout);
 		if (ret) {
-			ret = tty_ldisc_lock_nested(tty2, timeout);
+			ret = __tty_ldisc_lock_nested(tty2, timeout);
 			if (!ret)
-				tty_ldisc_unlock(tty);
+				__tty_ldisc_unlock(tty);
 		}
 	} else {
 		/* if this is possible, it has lots of implications */
 		WARN_ON_ONCE(tty == tty2);
 		if (tty2 && tty != tty2) {
-			ret = tty_ldisc_lock(tty2, timeout);
+			ret = __tty_ldisc_lock(tty2, timeout);
 			if (ret) {
-				ret = tty_ldisc_lock_nested(tty, timeout);
+				ret = __tty_ldisc_lock_nested(tty, timeout);
 				if (!ret)
-					tty_ldisc_unlock(tty2);
+					__tty_ldisc_unlock(tty2);
 			}
 		} else
-			ret = tty_ldisc_lock(tty, timeout);
+			ret = __tty_ldisc_lock(tty, timeout);
 	}
 
 	if (!ret)
@@ -371,38 +387,26 @@ tty_ldisc_lock_pair(struct tty_struct *tty, struct tty_struct *tty2)
 static void __lockfunc tty_ldisc_unlock_pair(struct tty_struct *tty,
 					     struct tty_struct *tty2)
 {
-	tty_ldisc_unlock(tty);
+	__tty_ldisc_unlock(tty);
 	if (tty2)
-		tty_ldisc_unlock(tty2);
-}
-
-static void __lockfunc tty_ldisc_enable_pair(struct tty_struct *tty,
-					     struct tty_struct *tty2)
-{
-	clear_bit(TTY_LDISC_HALTED, &tty->flags);
-	if (tty2)
-		clear_bit(TTY_LDISC_HALTED, &tty2->flags);
-
-	tty_ldisc_unlock_pair(tty, tty2);
+		__tty_ldisc_unlock(tty2);
 }
 
 /**
  *	tty_ldisc_flush	-	flush line discipline queue
  *	@tty: tty
  *
- *	Flush the line discipline queue (if any) for this tty. If there
- *	is no line discipline active this is a no-op.
+ *	Flush the line discipline queue (if any) and the tty flip buffers
+ *	for this tty.
  */
 
 void tty_ldisc_flush(struct tty_struct *tty)
 {
 	struct tty_ldisc *ld = tty_ldisc_ref(tty);
-	if (ld) {
-		if (ld->ops->flush_buffer)
-			ld->ops->flush_buffer(tty);
+
+	tty_buffer_flush(tty, ld);
+	if (ld)
 		tty_ldisc_deref(ld);
-	}
-	tty_buffer_flush(tty);
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_flush);
 
@@ -478,7 +482,6 @@ static void tty_ldisc_close(struct tty_struct *tty, struct tty_ldisc *ld)
 
 static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 {
-	char buf[64];
 	struct tty_ldisc *new_ldisc;
 	int r;
 
@@ -499,7 +502,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 		if (r < 0)
 			panic("Couldn't open N_TTY ldisc for "
 			      "%s --- error %d.",
-			      tty_name(tty, buf), r);
+			      tty_name(tty), r);
 	}
 }
 
@@ -518,15 +521,16 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 {
 	int retval;
 	struct tty_ldisc *old_ldisc, *new_ldisc;
-	struct tty_struct *o_tty = tty->link;
 
 	new_ldisc = tty_ldisc_get(tty, ldisc);
 	if (IS_ERR(new_ldisc))
 		return PTR_ERR(new_ldisc);
 
-	retval = tty_ldisc_lock_pair_timeout(tty, o_tty, 5 * HZ);
+	tty_lock(tty);
+	retval = tty_ldisc_lock(tty, 5 * HZ);
 	if (retval) {
 		tty_ldisc_put(new_ldisc);
+		tty_unlock(tty);
 		return retval;
 	}
 
@@ -535,19 +539,18 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	 */
 
 	if (tty->ldisc->ops->num == ldisc) {
-		tty_ldisc_enable_pair(tty, o_tty);
+		tty_ldisc_unlock(tty);
 		tty_ldisc_put(new_ldisc);
+		tty_unlock(tty);
 		return 0;
 	}
 
 	old_ldisc = tty->ldisc;
-	tty_lock(tty);
 
-	if (test_bit(TTY_HUPPING, &tty->flags) ||
-	    test_bit(TTY_HUPPED, &tty->flags)) {
+	if (test_bit(TTY_HUPPED, &tty->flags)) {
 		/* We were raced by the hangup method. It will have stomped
 		   the ldisc data and closed the ldisc down */
-		tty_ldisc_enable_pair(tty, o_tty);
+		tty_ldisc_unlock(tty);
 		tty_ldisc_put(new_ldisc);
 		tty_unlock(tty);
 		return -EIO;
@@ -567,8 +570,11 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 		tty_ldisc_restore(tty, old_ldisc);
 	}
 
-	if (tty->ldisc->ops->num != old_ldisc->ops->num && tty->ops->set_ldisc)
+	if (tty->ldisc->ops->num != old_ldisc->ops->num && tty->ops->set_ldisc) {
+		down_read(&tty->termios_rwsem);
 		tty->ops->set_ldisc(tty);
+		up_read(&tty->termios_rwsem);
+	}
 
 	/* At this point we hold a reference to the new ldisc and a
 	   reference to the old ldisc, or we hold two references to
@@ -581,13 +587,11 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	/*
 	 *	Allow ldisc referencing to occur again
 	 */
-	tty_ldisc_enable_pair(tty, o_tty);
+	tty_ldisc_unlock(tty);
 
 	/* Restart the work queue in case no characters kick it off. Safe if
 	   already running */
 	schedule_work(&tty->port->buf.work);
-	if (o_tty)
-		schedule_work(&o_tty->port->buf.work);
 
 	tty_unlock(tty);
 	return retval;
@@ -676,16 +680,13 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
 	wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 
-	tty_unlock(tty);
-
 	/*
 	 * Shutdown the current line discipline, and reset it to
 	 * N_TTY if need be.
 	 *
 	 * Avoid racing set_ldisc or tty_ldisc_release
 	 */
-	tty_ldisc_lock_pair(tty, tty->link);
-	tty_lock(tty);
+	tty_ldisc_lock(tty, MAX_SCHEDULE_TIMEOUT);
 
 	if (tty->ldisc) {
 
@@ -707,7 +708,7 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 			WARN_ON(tty_ldisc_open(tty, tty->ldisc));
 		}
 	}
-	tty_ldisc_enable_pair(tty, tty->link);
+	tty_ldisc_unlock(tty);
 	if (reset)
 		tty_reset_termios(tty);
 
@@ -759,16 +760,17 @@ static void tty_ldisc_kill(struct tty_struct *tty)
 
 /**
  *	tty_ldisc_release		-	release line discipline
- *	@tty: tty being shut down
- *	@o_tty: pair tty for pty/tty pairs
+ *	@tty: tty being shut down (or one end of pty pair)
  *
- *	Called during the final close of a tty/pty pair in order to shut down
- *	the line discpline layer. On exit the ldisc assigned is N_TTY and the
- *	ldisc has not been opened.
+ *	Called during the final close of a tty or a pty pair in order to shut
+ *	down the line discpline layer. On exit, each ldisc assigned is N_TTY and
+ *	each ldisc has not been opened.
  */
 
-void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
+void tty_ldisc_release(struct tty_struct *tty)
 {
+	struct tty_struct *o_tty = tty->link;
+
 	/*
 	 * Shutdown this line discipline. As this is the final close,
 	 * it does not race with the set_ldisc code path.
@@ -777,13 +779,9 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 	tty_ldisc_debug(tty, "closing ldisc: %p\n", tty->ldisc);
 
 	tty_ldisc_lock_pair(tty, o_tty);
-	tty_lock_pair(tty, o_tty);
-
 	tty_ldisc_kill(tty);
 	if (o_tty)
 		tty_ldisc_kill(o_tty);
-
-	tty_unlock_pair(tty, o_tty);
 	tty_ldisc_unlock_pair(tty, o_tty);
 
 	/* And the memory resources remaining (buffers, termios) will be

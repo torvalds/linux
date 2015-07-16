@@ -33,8 +33,9 @@
 #define I2SLVL3ADDR	0x3c
 #define I2SSTR1		0x40
 #define I2SVER		0x44
-#define I2SFIC2		0x48
+#define I2SFIC1		0x48
 #define I2STDM		0x4c
+#define I2SFSTA		0x50
 
 #define CON_RSTCLR		(1 << 31)
 #define CON_FRXOFSTATUS		(1 << 26)
@@ -93,8 +94,6 @@
 #define MOD_BLC_24BIT		(2 << 13)
 #define MOD_BLC_MASK		(3 << 13)
 
-#define MOD_IMS_SYSMUX		(1 << 10)
-#define MOD_SLAVE		(1 << 11)
 #define MOD_TXONLY		(0 << 8)
 #define MOD_RXONLY		(1 << 8)
 #define MOD_TXRX		(2 << 8)
@@ -132,7 +131,10 @@
 #define EXYNOS5420_MOD_BCLK_256FS	8
 #define EXYNOS5420_MOD_BCLK_MASK	0xf
 
-#define MOD_CDCLKCON		(1 << 12)
+#define EXYNOS7_MOD_RCLK_64FS	4
+#define EXYNOS7_MOD_RCLK_128FS	5
+#define EXYNOS7_MOD_RCLK_96FS	6
+#define EXYNOS7_MOD_RCLK_192FS	7
 
 #define PSR_PSREN		(1 << 15)
 

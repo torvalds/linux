@@ -379,6 +379,11 @@ int __generic_block_fiemap(struct inode *inode,
 				past_eof = true;
 		}
 		cond_resched();
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+
 	} while (1);
 
 	/* If ret is 1 then we just hit the end of the extent array */
@@ -443,7 +448,7 @@ int ioctl_preallocate(struct file *filp, void __user *argp)
 		return -EINVAL;
 	}
 
-	return do_fallocate(filp, FALLOC_FL_KEEP_SIZE, sr.l_start, sr.l_len);
+	return vfs_fallocate(filp, FALLOC_FL_KEEP_SIZE, sr.l_start, sr.l_len);
 }
 
 static int file_ioctl(struct file *filp, unsigned int cmd,
@@ -518,10 +523,12 @@ static int ioctl_fsfreeze(struct file *filp)
 		return -EPERM;
 
 	/* If filesystem doesn't support freeze feature, return. */
-	if (sb->s_op->freeze_fs == NULL)
+	if (sb->s_op->freeze_fs == NULL && sb->s_op->freeze_super == NULL)
 		return -EOPNOTSUPP;
 
 	/* Freeze */
+	if (sb->s_op->freeze_super)
+		return sb->s_op->freeze_super(sb);
 	return freeze_super(sb);
 }
 
@@ -533,6 +540,8 @@ static int ioctl_fsthaw(struct file *filp)
 		return -EPERM;
 
 	/* Thaw */
+	if (sb->s_op->thaw_super)
+		return sb->s_op->thaw_super(sb);
 	return thaw_super(sb);
 }
 

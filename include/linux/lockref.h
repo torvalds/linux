@@ -19,7 +19,7 @@
 
 #define USE_CMPXCHG_LOCKREF \
 	(IS_ENABLED(CONFIG_ARCH_USE_CMPXCHG_LOCKREF) && \
-	 IS_ENABLED(CONFIG_SMP) && !BLOATED_SPINLOCKS)
+	 IS_ENABLED(CONFIG_SMP) && SPINLOCK_SIZE <= 4)
 
 struct lockref {
 	union {
@@ -28,12 +28,13 @@ struct lockref {
 #endif
 		struct {
 			spinlock_t lock;
-			unsigned int count;
+			int count;
 		};
 	};
 };
 
 extern void lockref_get(struct lockref *);
+extern int lockref_put_return(struct lockref *);
 extern int lockref_get_not_zero(struct lockref *);
 extern int lockref_get_or_lock(struct lockref *);
 extern int lockref_put_or_lock(struct lockref *);

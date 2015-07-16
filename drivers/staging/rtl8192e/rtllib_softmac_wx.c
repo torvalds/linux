@@ -120,7 +120,7 @@ int rtllib_wx_get_wap(struct rtllib_device *ieee,
 		ieee->state != RTLLIB_LINKED_SCANNING &&
 		ieee->wap_set == 0)
 
-		memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu->ap_addr.sa_data);
 	else
 		memcpy(wrqu->ap_addr.sa_data,
 		       ieee->current_network.bssid, ETH_ALEN);
@@ -160,7 +160,7 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 
 	if (is_zero_ether_addr(temp->sa_data)) {
 		spin_lock_irqsave(&ieee->lock, flags);
-		memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
+		ether_addr_copy(ieee->current_network.bssid, temp->sa_data);
 		ieee->wap_set = 0;
 		spin_unlock_irqrestore(&ieee->lock, flags);
 		ret = -1;
@@ -177,7 +177,7 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	ieee->cannot_notify = false;
-	memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
+	ether_addr_copy(ieee->current_network.bssid, temp->sa_data);
 	ieee->wap_set = !is_zero_ether_addr(temp->sa_data);
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
@@ -244,6 +244,7 @@ int rtllib_wx_get_rate(struct rtllib_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	u32 tmp_rate = 0;
+
 	tmp_rate = TxCountToDataRate(ieee,
 				     ieee->softmac_stats.CurrentShowTxate);
 	wrqu->bitrate.value = tmp_rate * 500000;
@@ -334,7 +335,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 	enum ht_extchnl_offset chan_offset = 0;
 	enum ht_channel_width bandwidth = 0;
 	int b40M = 0;
-	static int count;
 
 	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)) {
 		rtllib_start_scan_syncro(ieee, 0);
@@ -411,7 +411,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 
 	rtllib_wake_all_queues(ieee);
 
-	count = 0;
 out:
 	up(&ieee->wx_sem);
 
@@ -455,13 +454,7 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 
 	proto_started = ieee->proto_started;
 
-	len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? wrqu->essid.length :
-	       IW_ESSID_MAX_SIZE;
-
-	if (len > IW_ESSID_MAX_SIZE) {
-		ret = -E2BIG;
-		goto out;
-	}
+	len = min_t(__u16, wrqu->essid.length, IW_ESSID_MAX_SIZE);
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		ret = -1;
@@ -528,8 +521,8 @@ int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
 	else
 		ieee->raw_tx = 0;
 
-	printk(KERN_INFO"raw TX is %s\n",
-	      ieee->raw_tx ? "enabled" : "disabled");
+	netdev_info(ieee->dev, "raw TX is %s\n",
+		    ieee->raw_tx ? "enabled" : "disabled");
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		if (prev == 0 && ieee->raw_tx) {
@@ -576,8 +569,9 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 	if ((!ieee->sta_wake_up) ||
 	    (!ieee->enter_sleep_state) ||
 	    (!ieee->ps_is_queue_empty)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "%s(): PS mode is tried to be use "
-			     "but driver missed a callback\n\n", __func__);
+		netdev_warn(ieee->dev,
+			    "%s(): PS mode is tried to be use but driver missed a callback\n",
+			    __func__);
 		return -1;
 	}
 
@@ -628,8 +622,6 @@ int rtllib_wx_get_power(struct rtllib_device *ieee,
 				 struct iw_request_info *info,
 				 union iwreq_data *wrqu, char *extra)
 {
-	int ret = 0;
-
 	down(&ieee->wx_sem);
 
 	if (ieee->ps == RTLLIB_PS_DISABLED) {
@@ -657,7 +649,7 @@ int rtllib_wx_get_power(struct rtllib_device *ieee,
 
 exit:
 	up(&ieee->wx_sem);
-	return ret;
+	return 0;
 
 }
 EXPORT_SYMBOL(rtllib_wx_get_power);

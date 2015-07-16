@@ -62,10 +62,8 @@ static int pwmss_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	mutex_init(&info->pwmss_lock);
 
@@ -121,7 +119,6 @@ static SIMPLE_DEV_PM_OPS(pwmss_pm_ops, pwmss_suspend, pwmss_resume);
 static struct platform_driver pwmss_driver = {
 	.driver	= {
 		.name	= "pwmss",
-		.owner	= THIS_MODULE,
 		.pm	= &pwmss_pm_ops,
 		.of_match_table	= pwmss_of_match,
 	},

@@ -2,7 +2,7 @@
  *    Support for NXT2002 and NXT2004 - VSB/QAM
  *
  *    Copyright (C) 2005 Kirk Lapray <kirk.lapray@gmail.com>
- *    Copyright (C) 2006 Michael Krufky <mkrufky@m1k.net>
+ *    Copyright (C) 2006-2014 Michael Krufky <mkrufky@linuxtv.org>
  *    based on nxt2002 by Taylor Jacob <rtjacob@earthlink.net>
  *    and nxt2004 by Jean-Francois Thibert <jeanfrancois@sagetv.com>
  *
@@ -40,7 +40,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 /* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  64
+#define MAX_XFER_SIZE  256
 
 #define NXT2002_DEFAULT_FIRMWARE "dvb-fe-nxt2002.fw"
 #define NXT2004_DEFAULT_FIRMWARE "dvb-fe-nxt2004.fw"
@@ -781,7 +781,7 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int nxt200x_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int nxt200x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct nxt200x_state* state = fe->demodulator_priv;
 	u8 lock;

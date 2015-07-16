@@ -21,7 +21,6 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 
-#include <asm/bootinfo.h>
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_via.h>
@@ -48,9 +47,8 @@ void __init oss_init(void)
 	/* Disable all interrupts. Unlike a VIA it looks like we    */
 	/* do this by setting the source's interrupt level to zero. */
 
-	for (i = 0; i <= OSS_NUM_SOURCES; i++) {
+	for (i = 0; i < OSS_NUM_SOURCES; i++)
 		oss->irq_level[i] = 0;
-	}
 }
 
 /*

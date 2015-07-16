@@ -70,6 +70,11 @@ structure or returns the &EINVAL; if cropping is not supported.</para>
 <constant>VIDIOC_S_CROP</constant> ioctl with a pointer to this
 structure.</para>
 
+<para>Do not use the multiplanar buffer types.  Use <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>
+instead of <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>
+and use <constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant> instead of
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant>.</para>
+
     <para>The driver first adjusts the requested dimensions against
 hardware limits, &ie; the bounds given by the capture/output window,
 and it rounds to the closest possible values of horizontal and

@@ -10,17 +10,17 @@
  */
 
 #include <linux/oprofile.h>
+#include <linux/perf_event.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <asm/processor.h>
+#include <asm/perf_event.h>
 
 #include "../../../drivers/oprofile/oprof.h"
 
 extern void s390_backtrace(struct pt_regs * const regs, unsigned int depth);
-
-#ifdef CONFIG_64BIT
 
 #include "hwsampler.h"
 #include "op_counter.h"
@@ -67,6 +67,21 @@ module_param_call(cpu_type, set_cpu_type, NULL, NULL, 0);
 MODULE_PARM_DESC(cpu_type, "Force legacy basic mode sampling"
 		           "(report cpu_type \"timer\"");
 
+static int __oprofile_hwsampler_start(void)
+{
+	int retval;
+
+	retval = hwsampler_allocate(oprofile_sdbt_blocks, oprofile_sdb_blocks);
+	if (retval)
+		return retval;
+
+	retval = hwsampler_start_all(oprofile_hw_interval);
+	if (retval)
+		hwsampler_deallocate();
+
+	return retval;
+}
+
 static int oprofile_hwsampler_start(void)
 {
 	int retval;
@@ -76,13 +91,13 @@ static int oprofile_hwsampler_start(void)
 	if (!hwsampler_running)
 		return timer_ops.start();
 
-	retval = hwsampler_allocate(oprofile_sdbt_blocks, oprofile_sdb_blocks);
+	retval = perf_reserve_sampling();
 	if (retval)
 		return retval;
 
-	retval = hwsampler_start_all(oprofile_hw_interval);
+	retval = __oprofile_hwsampler_start();
 	if (retval)
-		hwsampler_deallocate();
+		perf_release_sampling();
 
 	return retval;
 }
@@ -96,6 +111,7 @@ static void oprofile_hwsampler_stop(void)
 
 	hwsampler_stop_all();
 	hwsampler_deallocate();
+	perf_release_sampling();
 	return;
 }
 
@@ -478,13 +494,9 @@ static void oprofile_hwsampler_exit(void)
 	hwsampler_shutdown();
 }
 
-#endif /* CONFIG_64BIT */
-
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	ops->backtrace = s390_backtrace;
-
-#ifdef CONFIG_64BIT
 
 	/*
 	 * -ENODEV is not reported to the caller.  The module itself
@@ -494,14 +506,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	hwsampler_available = oprofile_hwsampler_init(ops) == 0;
 
 	return 0;
-#else
-	return -ENODEV;
-#endif
 }
 
 void oprofile_arch_exit(void)
 {
-#ifdef CONFIG_64BIT
 	oprofile_hwsampler_exit();
-#endif
 }

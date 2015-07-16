@@ -23,12 +23,12 @@
 #include <target/target_core_base.h>
 #include <target/configfs_macros.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_parameters.h"
 #include "iscsi_target_device.h"
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_util.h"
-#include "iscsi_target_stat.h"
+#include <target/iscsi/iscsi_target_stat.h>
 
 #ifndef INITIAL_JIFFIES
 #define INITIAL_JIFFIES ((unsigned long)(unsigned int) (-300*HZ))

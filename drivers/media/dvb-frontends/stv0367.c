@@ -59,8 +59,7 @@ struct stv0367cab_state {
 	int locked;			/* channel found		*/
 	u32 freq_khz;			/* found frequency (in kHz)	*/
 	u32 symbol_rate;		/* found symbol rate (in Bds)	*/
-	enum stv0367cab_mod modulation;	/* modulation			*/
-	fe_spectral_inversion_t	spect_inv; /* Spectrum Inversion	*/
+	enum fe_spectral_inversion spect_inv; /* Spectrum Inversion	*/
 };
 
 struct stv0367ter_state {
@@ -68,10 +67,10 @@ struct stv0367ter_state {
 	enum stv0367_ter_signal_type state;
 	enum stv0367_ter_if_iq_mode if_iq_mode;
 	enum stv0367_ter_mode mode;/* mode 2K or 8K */
-	fe_guard_interval_t guard;
+	enum fe_guard_interval guard;
 	enum stv0367_ter_hierarchy hierarchy;
 	u32 frequency;
-	fe_spectral_inversion_t  sense; /*  current search spectrum */
+	enum fe_spectral_inversion sense; /*  current search spectrum */
 	u8  force; /* force mode/guard */
 	u8  bw; /* channel width 6, 7 or 8 in MHz */
 	u8  pBW; /* channel width used during previous lock */
@@ -554,7 +553,7 @@ static struct st_register def0367ter[STV0367TER_NBREGS] = {
 #define RF_LOOKUP_TABLE_SIZE  31
 #define RF_LOOKUP_TABLE2_SIZE 16
 /* RF Level (for RF AGC->AGC1) Lookup Table, depends on the board and tuner.*/
-s32 stv0367cab_RF_LookUp1[RF_LOOKUP_TABLE_SIZE][RF_LOOKUP_TABLE_SIZE] = {
+static const s32 stv0367cab_RF_LookUp1[RF_LOOKUP_TABLE_SIZE][RF_LOOKUP_TABLE_SIZE] = {
 	{/*AGC1*/
 		48, 50, 51, 53, 54, 56, 57, 58, 60, 61, 62, 63,
 		64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
@@ -566,7 +565,7 @@ s32 stv0367cab_RF_LookUp1[RF_LOOKUP_TABLE_SIZE][RF_LOOKUP_TABLE_SIZE] = {
 	}
 };
 /* RF Level (for IF AGC->AGC2) Lookup Table, depends on the board and tuner.*/
-s32 stv0367cab_RF_LookUp2[RF_LOOKUP_TABLE2_SIZE][RF_LOOKUP_TABLE2_SIZE] = {
+static const s32 stv0367cab_RF_LookUp2[RF_LOOKUP_TABLE2_SIZE][RF_LOOKUP_TABLE2_SIZE] = {
 	{/*AGC2*/
 		28, 29, 31, 32, 34, 35, 36, 37,
 		38, 39, 40, 41, 42, 43, 44, 45,
@@ -922,18 +921,13 @@ static int stv0367ter_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 static u32 stv0367_get_tuner_freq(struct dvb_frontend *fe)
 {
-	struct dvb_frontend_ops	*frontend_ops = NULL;
-	struct dvb_tuner_ops	*tuner_ops = NULL;
+	struct dvb_frontend_ops	*frontend_ops = &fe->ops;
+	struct dvb_tuner_ops	*tuner_ops = &frontend_ops->tuner_ops;
 	u32 freq = 0;
 	int err = 0;
 
 	dprintk("%s:\n", __func__);
 
-
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
 	if (tuner_ops->get_frequency) {
 		err = tuner_ops->get_frequency(fe, &freq);
 		if (err < 0) {
@@ -1940,8 +1934,6 @@ static int stv0367ter_get_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct stv0367ter_state *ter_state = state->ter_state;
-
-	int error = 0;
 	enum stv0367_ter_mode mode;
 	int constell = 0,/* snr = 0,*/ Data = 0;
 
@@ -2025,7 +2017,7 @@ static int stv0367ter_get_frontend(struct dvb_frontend *fe)
 
 	p->guard_interval = stv0367_readbits(state, F367TER_SYR_GUARD);
 
-	return error;
+	return 0;
 }
 
 static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
@@ -2082,7 +2074,8 @@ static int stv0367ter_status(struct dvb_frontend *fe)
 	return locked;
 }
 #endif
-static int stv0367ter_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int stv0367ter_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 
@@ -2724,7 +2717,8 @@ static u32 stv0367cab_GetSymbolRate(struct stv0367_state *state, u32 mclk_hz)
 	return regsym;
 }
 
-static int stv0367cab_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int stv0367cab_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 
@@ -3004,7 +2998,6 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 
 	if (QAMFEC_Lock) {
 		signalType = FE_CAB_DATAOK;
-		cab_state->modulation = p->modulation;
 		cab_state->spect_inv = stv0367_readbits(state,
 							F367CAB_QUAD_INV);
 #if 0
@@ -3170,7 +3163,7 @@ static int stv0367cab_get_frontend(struct dvb_frontend *fe)
 	case FE_CAB_MOD_QAM128:
 		p->modulation = QAM_128;
 		break;
-	case QAM_256:
+	case FE_CAB_MOD_QAM256:
 		p->modulation = QAM_256;
 		break;
 	default:

@@ -83,6 +83,7 @@ struct ppi_info {
 };
 
 struct ppi_if {
+	struct device *dev;
 	unsigned long ppi_control;
 	const struct ppi_ops *ops;
 	const struct ppi_info *info;
@@ -91,6 +92,7 @@ struct ppi_if {
 	void *priv;
 };
 
-struct ppi_if *ppi_create_instance(const struct ppi_info *info);
+struct ppi_if *ppi_create_instance(struct platform_device *pdev,
+			const struct ppi_info *info);
 void ppi_delete_instance(struct ppi_if *ppi);
 #endif

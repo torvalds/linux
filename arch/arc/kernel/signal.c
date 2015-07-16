@@ -67,7 +67,33 @@ stash_usr_regs(struct rt_sigframe __user *sf, struct pt_regs *regs,
 	       sigset_t *set)
 {
 	int err;
-	err = __copy_to_user(&(sf->uc.uc_mcontext.regs), regs,
+	struct user_regs_struct uregs;
+
+	uregs.scratch.bta	= regs->bta;
+	uregs.scratch.lp_start	= regs->lp_start;
+	uregs.scratch.lp_end	= regs->lp_end;
+	uregs.scratch.lp_count	= regs->lp_count;
+	uregs.scratch.status32	= regs->status32;
+	uregs.scratch.ret	= regs->ret;
+	uregs.scratch.blink	= regs->blink;
+	uregs.scratch.fp	= regs->fp;
+	uregs.scratch.gp	= regs->r26;
+	uregs.scratch.r12	= regs->r12;
+	uregs.scratch.r11	= regs->r11;
+	uregs.scratch.r10	= regs->r10;
+	uregs.scratch.r9	= regs->r9;
+	uregs.scratch.r8	= regs->r8;
+	uregs.scratch.r7	= regs->r7;
+	uregs.scratch.r6	= regs->r6;
+	uregs.scratch.r5	= regs->r5;
+	uregs.scratch.r4	= regs->r4;
+	uregs.scratch.r3	= regs->r3;
+	uregs.scratch.r2	= regs->r2;
+	uregs.scratch.r1	= regs->r1;
+	uregs.scratch.r0	= regs->r0;
+	uregs.scratch.sp	= regs->sp;
+
+	err = __copy_to_user(&(sf->uc.uc_mcontext.regs.scratch), &uregs.scratch,
 			     sizeof(sf->uc.uc_mcontext.regs.scratch));
 	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(sigset_t));
 
@@ -78,13 +104,39 @@ static int restore_usr_regs(struct pt_regs *regs, struct rt_sigframe __user *sf)
 {
 	sigset_t set;
 	int err;
+	struct user_regs_struct uregs;
 
 	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
 	if (!err)
 		set_current_blocked(&set);
 
-	err |= __copy_from_user(regs, &(sf->uc.uc_mcontext.regs),
+	err |= __copy_from_user(&uregs.scratch,
+				&(sf->uc.uc_mcontext.regs.scratch),
 				sizeof(sf->uc.uc_mcontext.regs.scratch));
+
+	regs->bta	= uregs.scratch.bta;
+	regs->lp_start	= uregs.scratch.lp_start;
+	regs->lp_end	= uregs.scratch.lp_end;
+	regs->lp_count	= uregs.scratch.lp_count;
+	regs->status32	= uregs.scratch.status32;
+	regs->ret	= uregs.scratch.ret;
+	regs->blink	= uregs.scratch.blink;
+	regs->fp	= uregs.scratch.fp;
+	regs->r26	= uregs.scratch.gp;
+	regs->r12	= uregs.scratch.r12;
+	regs->r11	= uregs.scratch.r11;
+	regs->r10	= uregs.scratch.r10;
+	regs->r9	= uregs.scratch.r9;
+	regs->r8	= uregs.scratch.r8;
+	regs->r7	= uregs.scratch.r7;
+	regs->r6	= uregs.scratch.r6;
+	regs->r5	= uregs.scratch.r5;
+	regs->r4	= uregs.scratch.r4;
+	regs->r3	= uregs.scratch.r3;
+	regs->r2	= uregs.scratch.r2;
+	regs->r1	= uregs.scratch.r1;
+	regs->r0	= uregs.scratch.r0;
+	regs->sp	= uregs.scratch.sp;
 
 	return err;
 }
@@ -104,7 +156,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	struct pt_regs *regs = current_pt_regs();
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	/* Since we stacked the signal on a word boundary,
 	 * then 'sp' should be word aligned here.  If it's
@@ -131,6 +183,15 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	/* Don't restart from sigreturn */
 	syscall_wont_restart(regs);
 
+	/*
+	 * Ensure that sigreturn always returns to user mode (in case the
+	 * regs saved on user stack got fudged between save and sigreturn)
+	 * Otherwise it is easy to panic the kernel with a custom
+	 * signal handler and/or restorer which clobberes the status32/ret
+	 * to return to a bogus location in kernel mode.
+	 */
+	regs->status32 |= STATUS_U_MASK;
+
 	return regs->r0;
 
 badframe:
@@ -141,16 +202,12 @@ badframe:
 /*
  * Determine which stack to use..
  */
-static inline void __user *get_sigframe(struct k_sigaction *ka,
+static inline void __user *get_sigframe(struct ksignal *ksig,
 					struct pt_regs *regs,
 					unsigned long framesize)
 {
-	unsigned long sp = regs->sp;
+	unsigned long sp = sigsp(regs->sp, ksig);
 	void __user *frame;
-
-	/* This is the X/Open sanctioned signal stack switching */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && !sas_ss_flags(sp))
-		sp = current->sas_ss_sp + current->sas_ss_size;
 
 	/* No matter what happens, 'sp' must be word
 	 * aligned otherwise nasty things could happen
@@ -166,27 +223,14 @@ static inline void __user *get_sigframe(struct k_sigaction *ka,
 	return frame;
 }
 
-/*
- * translate the signal
- */
-static inline int map_sig(int sig)
-{
-	struct thread_info *thread = current_thread_info();
-	if (thread->exec_domain && thread->exec_domain->signal_invmap
-	    && sig < 32)
-		sig = thread->exec_domain->signal_invmap[sig];
-	return sig;
-}
-
 static int
-setup_rt_frame(int signo, struct k_sigaction *ka, siginfo_t *info,
-	       sigset_t *set, struct pt_regs *regs)
+setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *sf;
 	unsigned int magic = 0;
 	int err = 0;
 
-	sf = get_sigframe(ka, regs, sizeof(struct rt_sigframe));
+	sf = get_sigframe(ksig, regs, sizeof(struct rt_sigframe));
 	if (!sf)
 		return 1;
 
@@ -205,8 +249,8 @@ setup_rt_frame(int signo, struct k_sigaction *ka, siginfo_t *info,
 	 *  #2: struct siginfo
 	 *  #3: struct ucontext (completely populated)
 	 */
-	if (unlikely(ka->sa.sa_flags & SA_SIGINFO)) {
-		err |= copy_siginfo_to_user(&sf->info, info);
+	if (unlikely(ksig->ka.sa.sa_flags & SA_SIGINFO)) {
+		err |= copy_siginfo_to_user(&sf->info, &ksig->info);
 		err |= __put_user(0, &sf->uc.uc_flags);
 		err |= __put_user(NULL, &sf->uc.uc_link);
 		err |= __save_altstack(&sf->uc.uc_stack, regs->sp);
@@ -227,16 +271,19 @@ setup_rt_frame(int signo, struct k_sigaction *ka, siginfo_t *info,
 		return err;
 
 	/* #1 arg to the user Signal handler */
-	regs->r0 = map_sig(signo);
+	regs->r0 = ksig->sig;
 
 	/* setup PC of user space signal handler */
-	regs->ret = (unsigned long)ka->sa.sa_handler;
+	regs->ret = (unsigned long)ksig->ka.sa.sa_handler;
 
 	/*
 	 * handler returns using sigreturn stub provided already by userpsace
+	 * If not, nuke the process right away
 	 */
-	BUG_ON(!(ka->sa.sa_flags & SA_RESTORER));
-	regs->blink = (unsigned long)ka->sa.sa_restorer;
+	if(!(ksig->ka.sa.sa_flags & SA_RESTORER))
+		return 1;
+
+	regs->blink = (unsigned long)ksig->ka.sa.sa_restorer;
 
 	/* User Stack for signal handler will be above the frame just carved */
 	regs->sp = (unsigned long)sf;
@@ -289,7 +336,7 @@ static void arc_restart_syscall(struct k_sigaction *ka, struct pt_regs *regs)
 		 * their orig user space value when we ret from kernel
 		 */
 		regs->r0 = regs->orig_r0;
-		regs->ret -= 4;
+		regs->ret -= is_isa_arcv2() ? 2 : 4;
 		break;
 	}
 }
@@ -298,38 +345,30 @@ static void arc_restart_syscall(struct k_sigaction *ka, struct pt_regs *regs)
  * OK, we're invoking a handler
  */
 static void
-handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
-	      struct pt_regs *regs)
+handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	sigset_t *oldset = sigmask_to_save();
-	int ret;
+	int failed;
 
 	/* Set up the stack frame */
-	ret = setup_rt_frame(sig, ka, info, oldset, regs);
+	failed = setup_rt_frame(ksig, oldset, regs);
 
-	if (ret)
-		force_sigsegv(sig, current);
-	else
-		signal_delivered(sig, info, ka, regs, 0);
+	signal_setup_done(failed, ksig, 0);
 }
 
 void do_signal(struct pt_regs *regs)
 {
-	struct k_sigaction ka;
-	siginfo_t info;
-	int signr;
+	struct ksignal ksig;
 	int restart_scall;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
 	restart_scall = in_syscall(regs) && syscall_restartable(regs);
 
-	if (signr > 0) {
+	if (get_signal(&ksig)) {
 		if (restart_scall) {
-			arc_restart_syscall(&ka, regs);
+			arc_restart_syscall(&ksig.ka, regs);
 			syscall_wont_restart(regs);	/* No more restarts */
 		}
-		handle_signal(signr, &ka, &info, regs);
+		handle_signal(&ksig, regs);
 		return;
 	}
 
@@ -338,10 +377,10 @@ void do_signal(struct pt_regs *regs)
 		if (regs->r0 == -ERESTARTNOHAND ||
 		    regs->r0 == -ERESTARTSYS || regs->r0 == -ERESTARTNOINTR) {
 			regs->r0 = regs->orig_r0;
-			regs->ret -= 4;
+			regs->ret -= is_isa_arcv2() ? 2 : 4;
 		} else if (regs->r0 == -ERESTART_RESTARTBLOCK) {
 			regs->r8 = __NR_restart_syscall;
-			regs->ret -= 4;
+			regs->ret -= is_isa_arcv2() ? 2 : 4;
 		}
 		syscall_wont_restart(regs);	/* No more restarts */
 	}

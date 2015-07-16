@@ -134,7 +134,7 @@ struct qib_mmap_info *qib_create_mmap_info(struct qib_ibdev *dev,
 					   void *obj) {
 	struct qib_mmap_info *ip;
 
-	ip = kmalloc(sizeof *ip, GFP_KERNEL);
+	ip = kmalloc(sizeof(*ip), GFP_KERNEL);
 	if (!ip)
 		goto bail;
 

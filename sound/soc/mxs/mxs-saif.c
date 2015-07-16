@@ -50,9 +50,9 @@ static struct mxs_saif *mxs_saif[2];
  * This also means that both SAIFs must operate at the same sample rate.
  *
  * We abstract this as each saif has a master, the master could be
- * himself or other saifs. In the generic saif driver, saif does not need
- * to know the different clkmux. Saif only needs to know who is his master
- * and operating his master to generate the proper clock rate for him.
+ * itself or other saifs. In the generic saif driver, saif does not need
+ * to know the different clkmux. Saif only needs to know who is its master
+ * and operating its master to generate the proper clock rate for it.
  * The master id is provided in mach-specific layer according to different
  * clkmux setting.
  */
@@ -76,7 +76,7 @@ static int mxs_saif_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
  * Since SAIF may work on EXTMASTER mode, IOW, it's working BITCLK&LRCLK
  * is provided by other SAIF, we provide a interface here to get its master
  * from its master_id.
- * Note that the master could be himself.
+ * Note that the master could be itself.
  */
 static inline struct mxs_saif *mxs_saif_get_master(struct mxs_saif * saif)
 {
@@ -516,7 +516,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		/*
-		 * If the saif's master is not himself, we also need to enable
+		 * If the saif's master is not itself, we also need to enable
 		 * itself clk for its internal basic logic to work.
 		 */
 		if (saif != master_saif) {
@@ -710,7 +710,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *iores;
 	struct mxs_saif *saif;
-	int ret = 0;
+	int irq, ret = 0;
 	struct device_node *master;
 
 	if (!np)
@@ -763,17 +763,17 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	if (IS_ERR(saif->base))
 		return PTR_ERR(saif->base);
 
-	saif->irq = platform_get_irq(pdev, 0);
-	if (saif->irq < 0) {
-		ret = saif->irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
 		dev_err(&pdev->dev, "failed to get irq resource: %d\n",
 			ret);
 		return ret;
 	}
 
 	saif->dev = &pdev->dev;
-	ret = devm_request_irq(&pdev->dev, saif->irq, mxs_saif_irq, 0,
-			       "mxs-saif", saif);
+	ret = devm_request_irq(&pdev->dev, irq, mxs_saif_irq, 0,
+			       dev_name(&pdev->dev), saif);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return ret;
@@ -804,13 +804,6 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mxs_saif_remove(struct platform_device *pdev)
-{
-	mxs_pcm_platform_unregister(&pdev->dev);
-
-	return 0;
-}
-
 static const struct of_device_id mxs_saif_dt_ids[] = {
 	{ .compatible = "fsl,imx28-saif", },
 	{ /* sentinel */ }
@@ -819,11 +812,9 @@ MODULE_DEVICE_TABLE(of, mxs_saif_dt_ids);
 
 static struct platform_driver mxs_saif_driver = {
 	.probe = mxs_saif_probe,
-	.remove = mxs_saif_remove,
 
 	.driver = {
 		.name = "mxs-saif",
-		.owner = THIS_MODULE,
 		.of_match_table = mxs_saif_dt_ids,
 	},
 };

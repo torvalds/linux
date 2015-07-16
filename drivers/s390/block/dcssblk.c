@@ -28,8 +28,8 @@
 static int dcssblk_open(struct block_device *bdev, fmode_t mode);
 static void dcssblk_release(struct gendisk *disk, fmode_t mode);
 static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
-static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
-				 void **kaddr, unsigned long *pfn);
+static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
+				 void **kaddr, unsigned long *pfn, long size);
 
 static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
 
@@ -304,12 +304,6 @@ dcssblk_load_segment(char *name, struct segment_info **seg_info)
 	return rc;
 }
 
-static void dcssblk_unregister_callback(struct device *dev)
-{
-	device_unregister(dev);
-	put_device(dev);
-}
-
 /*
  * device attribute for switching shared/nonshared (exclusive)
  * operation (show + store)
@@ -397,7 +391,13 @@ removeseg:
 	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
-	rc = device_schedule_callback(dev, dcssblk_unregister_callback);
+	up_write(&dcssblk_devices_sem);
+
+	if (device_remove_file_self(dev, attr)) {
+		device_unregister(dev);
+		put_device(dev);
+	}
+	return rc;
 out:
 	up_write(&dcssblk_devices_sem);
 	return rc;
@@ -438,7 +438,13 @@ dcssblk_save_store(struct device *dev, struct device_attribute *attr, const char
 			pr_info("All DCSSs that map to device %s are "
 				"saved\n", dev_info->segment_name);
 			list_for_each_entry(entry, &dev_info->seg_list, lh) {
-				segment_save(entry->segment_name);
+				if (entry->segment_type == SEG_TYPE_EN ||
+				    entry->segment_type == SEG_TYPE_SN)
+					pr_warn("DCSS %s is of type SN or EN"
+						" and cannot be saved\n",
+						entry->segment_name);
+				else
+					segment_save(entry->segment_name);
 			}
 		}  else {
 			// device is busy => we save it when it becomes
@@ -541,7 +547,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	 * parse input
 	 */
 	num_of_segments = 0;
-	for (i = 0; ((buf[i] != '\0') && (buf[i] != '\n') && i < count); i++) {
+	for (i = 0; (i < count && (buf[i] != '\0') && (buf[i] != '\n')); i++) {
 		for (j = i; (buf[j] != ':') &&
 			(buf[j] != '\0') &&
 			(buf[j] != '\n') &&
@@ -593,7 +599,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->start = dcssblk_find_lowest_addr(dev_info);
 	dev_info->end = dcssblk_find_highest_addr(dev_info);
 
-	dev_set_name(&dev_info->dev, dev_info->segment_name);
+	dev_set_name(&dev_info->dev, "%s", dev_info->segment_name);
 	dev_info->dev.release = dcssblk_release_segment;
 	dev_info->dev.groups = dcssblk_dev_attr_groups;
 	INIT_LIST_HEAD(&dev_info->lh);
@@ -797,7 +803,12 @@ dcssblk_release(struct gendisk *disk, fmode_t mode)
 		pr_info("Device %s has become idle and is being saved "
 			"now\n", dev_info->segment_name);
 		list_for_each_entry(entry, &dev_info->seg_list, lh) {
-			segment_save(entry->segment_name);
+			if (entry->segment_type == SEG_TYPE_EN ||
+			    entry->segment_type == SEG_TYPE_SN)
+				pr_warn("DCSS %s is of type SN or EN and cannot"
+					" be saved\n", entry->segment_name);
+			else
+				segment_save(entry->segment_name);
 		}
 		dev_info->save_pending = 0;
 	}
@@ -808,18 +819,19 @@ static void
 dcssblk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct dcssblk_dev_info *dev_info;
-	struct bio_vec *bvec;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
 	unsigned long index;
 	unsigned long page_addr;
 	unsigned long source_addr;
 	unsigned long bytes_done;
-	int i;
 
 	bytes_done = 0;
 	dev_info = bio->bi_bdev->bd_disk->private_data;
 	if (dev_info == NULL)
 		goto fail;
-	if ((bio->bi_sector & 7) != 0 || (bio->bi_size & 4095) != 0)
+	if ((bio->bi_iter.bi_sector & 7) != 0 ||
+	    (bio->bi_iter.bi_size & 4095) != 0)
 		/* Request is not page-aligned. */
 		goto fail;
 	if (bio_end_sector(bio) > get_capacity(bio->bi_bdev->bd_disk)) {
@@ -842,22 +854,22 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 		}
 	}
 
-	index = (bio->bi_sector >> 3);
-	bio_for_each_segment(bvec, bio, i) {
+	index = (bio->bi_iter.bi_sector >> 3);
+	bio_for_each_segment(bvec, bio, iter) {
 		page_addr = (unsigned long)
-			page_address(bvec->bv_page) + bvec->bv_offset;
+			page_address(bvec.bv_page) + bvec.bv_offset;
 		source_addr = dev_info->start + (index<<12) + bytes_done;
-		if (unlikely((page_addr & 4095) != 0) || (bvec->bv_len & 4095) != 0)
+		if (unlikely((page_addr & 4095) != 0) || (bvec.bv_len & 4095) != 0)
 			// More paranoia.
 			goto fail;
 		if (bio_data_dir(bio) == READ) {
 			memcpy((void*)page_addr, (void*)source_addr,
-				bvec->bv_len);
+				bvec.bv_len);
 		} else {
 			memcpy((void*)source_addr, (void*)page_addr,
-				bvec->bv_len);
+				bvec.bv_len);
 		}
-		bytes_done += bvec->bv_len;
+		bytes_done += bvec.bv_len;
 	}
 	bio_endio(bio, 0);
 	return;
@@ -865,25 +877,22 @@ fail:
 	bio_io_error(bio);
 }
 
-static int
+static long
 dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
-			void **kaddr, unsigned long *pfn)
+			void **kaddr, unsigned long *pfn, long size)
 {
 	struct dcssblk_dev_info *dev_info;
-	unsigned long pgoff;
+	unsigned long offset, dev_sz;
 
 	dev_info = bdev->bd_disk->private_data;
 	if (!dev_info)
 		return -ENODEV;
-	if (secnum % (PAGE_SIZE/512))
-		return -EINVAL;
-	pgoff = secnum / (PAGE_SIZE / 512);
-	if ((pgoff+1)*PAGE_SIZE-1 > dev_info->end - dev_info->start)
-		return -ERANGE;
-	*kaddr = (void *) (dev_info->start+pgoff*PAGE_SIZE);
+	dev_sz = dev_info->end - dev_info->start;
+	offset = secnum * 512;
+	*kaddr = (void *) (dev_info->start + offset);
 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
 
-	return 0;
+	return dev_sz - offset;
 }
 
 static void
@@ -1002,7 +1011,6 @@ static const struct dev_pm_ops dcssblk_pm_ops = {
 static struct platform_driver dcssblk_pdrv = {
 	.driver = {
 		.name	= "dcssblk",
-		.owner	= THIS_MODULE,
 		.pm	= &dcssblk_pm_ops,
 	},
 };

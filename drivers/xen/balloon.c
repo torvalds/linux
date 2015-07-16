@@ -92,7 +92,6 @@ EXPORT_SYMBOL_GPL(balloon_stats);
 
 /* We increase/decrease in batches which fit in a page */
 static xen_pfn_t frame_list[PAGE_SIZE / sizeof(unsigned long)];
-static DEFINE_PER_CPU(struct page *, balloon_scratch_page);
 
 
 /* List of ballooned pages, threaded through the mem_map array. */
@@ -157,13 +156,6 @@ static struct page *balloon_retrieve(bool prefer_highmem)
 	return page;
 }
 
-static struct page *balloon_first_page(void)
-{
-	if (list_empty(&ballooned_pages))
-		return NULL;
-	return list_entry(ballooned_pages.next, struct page, lru);
-}
-
 static struct page *balloon_next_page(struct page *page)
 {
 	struct list_head *next = page->lru.next;
@@ -174,6 +166,9 @@ static struct page *balloon_next_page(struct page *page)
 
 static enum bp_state update_schedule(enum bp_state state)
 {
+	if (state == BP_ECANCELED)
+		return BP_ECANCELED;
+
 	if (state == BP_DONE) {
 		balloon_stats.schedule_delay = 1;
 		balloon_stats.retry_count = 1;
@@ -234,11 +229,34 @@ static enum bp_state reserve_additional_memory(long credit)
 	balloon_hotplug = round_up(balloon_hotplug, PAGES_PER_SECTION);
 	nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
 
+#ifdef CONFIG_XEN_HAVE_PVMMU
+        /*
+         * add_memory() will build page tables for the new memory so
+         * the p2m must contain invalid entries so the correct
+         * non-present PTEs will be written.
+         *
+         * If a failure occurs, the original (identity) p2m entries
+         * are not restored since this region is now known not to
+         * conflict with any devices.
+         */ 
+	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		unsigned long pfn, i;
+
+		pfn = PFN_DOWN(hotplug_start_paddr);
+		for (i = 0; i < balloon_hotplug; i++) {
+			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
+				pr_warn("set_phys_to_machine() failed, no memory added\n");
+				return BP_ECANCELED;
+			}
+                }
+	}
+#endif
+
 	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
 
 	if (rc) {
-		pr_info("%s: add_memory() failed: %i\n", __func__, rc);
-		return BP_EAGAIN;
+		pr_warn("Cannot add additional memory (%i)\n", rc);
+		return BP_ECANCELED;
 	}
 
 	balloon_hotplug -= credit;
@@ -328,7 +346,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 	if (nr_pages > ARRAY_SIZE(frame_list))
 		nr_pages = ARRAY_SIZE(frame_list);
 
-	page = balloon_first_page();
+	page = list_first_entry_or_null(&ballooned_pages, struct page, lru);
 	for (i = 0; i < nr_pages; i++) {
 		if (!page) {
 			nr_pages = i;
@@ -350,17 +368,19 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 
 		pfn = page_to_pfn(page);
 
-		set_phys_to_machine(pfn, frame_list[i]);
-
 #ifdef CONFIG_XEN_HAVE_PVMMU
-		/* Link back into the page tables if not highmem. */
-		if (xen_pv_domain() && !PageHighMem(page)) {
-			int ret;
-			ret = HYPERVISOR_update_va_mapping(
-				(unsigned long)__va(pfn << PAGE_SHIFT),
-				mfn_pte(frame_list[i], PAGE_KERNEL),
-				0);
-			BUG_ON(ret);
+		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+			set_phys_to_machine(pfn, frame_list[i]);
+
+			/* Link back into the page tables if not highmem. */
+			if (!PageHighMem(page)) {
+				int ret;
+				ret = HYPERVISOR_update_va_mapping(
+						(unsigned long)__va(pfn << PAGE_SHIFT),
+						mfn_pte(frame_list[i], PAGE_KERNEL),
+						0);
+				BUG_ON(ret);
+			}
 		}
 #endif
 
@@ -378,7 +398,6 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	enum bp_state state = BP_DONE;
 	unsigned long  pfn, i;
 	struct page   *page;
-	struct page   *scratch_page;
 	int ret;
 	struct xen_memory_reservation reservation = {
 		.address_bits = 0,
@@ -405,39 +424,41 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 			state = BP_EAGAIN;
 			break;
 		}
-
-		pfn = page_to_pfn(page);
-		frame_list[i] = pfn_to_mfn(pfn);
-
 		scrub_page(page);
 
-		/*
-		 * Ballooned out frames are effectively replaced with
-		 * a scratch frame.  Ensure direct mappings and the
-		 * p2m are consistent.
-		 */
-		scratch_page = get_balloon_scratch_page();
-#ifdef CONFIG_XEN_HAVE_PVMMU
-		if (xen_pv_domain() && !PageHighMem(page)) {
-			ret = HYPERVISOR_update_va_mapping(
-				(unsigned long)__va(pfn << PAGE_SHIFT),
-				pfn_pte(page_to_pfn(scratch_page),
-					PAGE_KERNEL_RO), 0);
-			BUG_ON(ret);
-		}
-#endif
-		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-			unsigned long p;
-			p = page_to_pfn(scratch_page);
-			__set_phys_to_machine(pfn, pfn_to_mfn(p));
-		}
-		put_balloon_scratch_page();
-
-		balloon_append(pfn_to_page(pfn));
+		frame_list[i] = page_to_pfn(page);
 	}
 
-	/* Ensure that ballooned highmem pages don't have kmaps. */
+	/*
+	 * Ensure that ballooned highmem pages don't have kmaps.
+	 *
+	 * Do this before changing the p2m as kmap_flush_unused()
+	 * reads PTEs to obtain pages (and hence needs the original
+	 * p2m entry).
+	 */
 	kmap_flush_unused();
+
+	/* Update direct mapping, invalidate P2M, and add to balloon. */
+	for (i = 0; i < nr_pages; i++) {
+		pfn = frame_list[i];
+		frame_list[i] = pfn_to_mfn(pfn);
+		page = pfn_to_page(pfn);
+
+#ifdef CONFIG_XEN_HAVE_PVMMU
+		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+			if (!PageHighMem(page)) {
+				ret = HYPERVISOR_update_va_mapping(
+						(unsigned long)__va(pfn << PAGE_SHIFT),
+						__pte_ma(0), 0);
+				BUG_ON(ret);
+			}
+			__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+		}
+#endif
+
+		balloon_append(page);
+	}
+
 	flush_tlb_all();
 
 	set_xen_guest_handle(reservation.extent_start, frame_list);
@@ -489,18 +510,6 @@ static void balloon_process(struct work_struct *work)
 		schedule_delayed_work(&balloon_worker, balloon_stats.schedule_delay * HZ);
 
 	mutex_unlock(&balloon_mutex);
-}
-
-struct page *get_balloon_scratch_page(void)
-{
-	struct page *ret = get_cpu_var(balloon_scratch_page);
-	BUG_ON(ret == NULL);
-	return ret;
-}
-
-void put_balloon_scratch_page(void)
-{
-	put_cpu_var(balloon_scratch_page);
 }
 
 /* Resets the Xen limit, sets new target, and kicks off processing. */
@@ -596,46 +605,12 @@ static void __init balloon_add_region(unsigned long start_pfn,
 	}
 }
 
-static int balloon_cpu_notify(struct notifier_block *self,
-				    unsigned long action, void *hcpu)
-{
-	int cpu = (long)hcpu;
-	switch (action) {
-	case CPU_UP_PREPARE:
-		if (per_cpu(balloon_scratch_page, cpu) != NULL)
-			break;
-		per_cpu(balloon_scratch_page, cpu) = alloc_page(GFP_KERNEL);
-		if (per_cpu(balloon_scratch_page, cpu) == NULL) {
-			pr_warn("Failed to allocate balloon_scratch_page for cpu %d\n", cpu);
-			return NOTIFY_BAD;
-		}
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block balloon_cpu_notifier = {
-	.notifier_call	= balloon_cpu_notify,
-};
-
 static int __init balloon_init(void)
 {
-	int i, cpu;
+	int i;
 
 	if (!xen_domain())
 		return -ENODEV;
-
-	for_each_online_cpu(cpu)
-	{
-		per_cpu(balloon_scratch_page, cpu) = alloc_page(GFP_KERNEL);
-		if (per_cpu(balloon_scratch_page, cpu) == NULL) {
-			pr_warn("Failed to allocate balloon_scratch_page for cpu %d\n", cpu);
-			return -ENOMEM;
-		}
-	}
-	register_cpu_notifier(&balloon_cpu_notifier);
 
 	pr_info("Initialising balloon driver\n");
 
@@ -672,16 +647,5 @@ static int __init balloon_init(void)
 }
 
 subsys_initcall(balloon_init);
-
-static int __init balloon_clear(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu(balloon_scratch_page, cpu) = NULL;
-
-	return 0;
-}
-early_initcall(balloon_clear);
 
 MODULE_LICENSE("GPL");

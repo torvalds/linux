@@ -80,12 +80,17 @@ but also control clock generators, voltage regulators, gather
 environmental data like temperature, power consumption etc. Even
 the video output switch (FPGA) is controlled that way.
 
-Nodes describing devices controlled by this infrastructure should
-point at the bridge device node:
+The controllers are not mapped into normal memory address space
+and must be accessed through bridges - other devices capable
+of generating transactions on the configuration bus.
+
+The nodes describing configuration controllers must define
+the following properties:
+- compatible value:
+	compatible = "arm,vexpress,config-bus";
 - bridge phandle:
 	arm,vexpress,config-bridge = <phandle>;
-This property can be also defined in a parent node (eg. for a DCC)
-and is effective for all children.
+and children describing available functions.
 
 
 Platform topology
@@ -197,7 +202,7 @@ Example of a VE tile description (simplified)
 	};
 
 	dcc {
-		compatible = "simple-bus";
+		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
 		osc@0 {

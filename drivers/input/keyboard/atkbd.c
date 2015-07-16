@@ -243,6 +243,12 @@ static void (*atkbd_platform_fixup)(struct atkbd *, const void *data);
 static void *atkbd_platform_fixup_data;
 static unsigned int (*atkbd_platform_scancode_fixup)(struct atkbd *, unsigned int);
 
+/*
+ * Certain keyboards to not like ATKBD_CMD_RESET_DIS and stop responding
+ * to many commands until full reset (ATKBD_CMD_RESET_BAT) is performed.
+ */
+static bool atkbd_skip_deactivate;
+
 static ssize_t atkbd_attr_show_helper(struct device *dev, char *buf,
 				ssize_t (*handler)(struct atkbd *, char *));
 static ssize_t atkbd_attr_set_helper(struct device *dev, const char *buf, size_t count,
@@ -450,8 +456,9 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 
 	keycode = atkbd->keycode[code];
 
-	if (keycode != ATKBD_KEY_NULL)
-		input_event(dev, EV_MSC, MSC_SCAN, code);
+	if (!(atkbd->release && test_bit(code, atkbd->force_release_mask)))
+		if (keycode != ATKBD_KEY_NULL)
+			input_event(dev, EV_MSC, MSC_SCAN, code);
 
 	switch (keycode) {
 	case ATKBD_KEY_NULL:
@@ -505,6 +512,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		input_sync(dev);
 
 		if (value && test_bit(code, atkbd->force_release_mask)) {
+			input_event(dev, EV_MSC, MSC_SCAN, code);
 			input_report_key(dev, keycode, 0);
 			input_sync(dev);
 		}
@@ -768,7 +776,8 @@ static int atkbd_probe(struct atkbd *atkbd)
  * Make sure nothing is coming from the keyboard and disturbs our
  * internal state.
  */
-	atkbd_deactivate(atkbd);
+	if (!atkbd_skip_deactivate)
+		atkbd_deactivate(atkbd);
 
 	return 0;
 }
@@ -1390,8 +1399,8 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 
 static ssize_t atkbd_show_force_release(struct atkbd *atkbd, char *buf)
 {
-	size_t len = bitmap_scnlistprintf(buf, PAGE_SIZE - 2,
-			atkbd->force_release_mask, ATKBD_KEYMAP_SIZE);
+	size_t len = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
+			       ATKBD_KEYMAP_SIZE, atkbd->force_release_mask);
 
 	buf[len++] = '\n';
 	buf[len] = '\0';
@@ -1638,6 +1647,18 @@ static int __init atkbd_setup_scancode_fixup(const struct dmi_system_id *id)
 	return 1;
 }
 
+static int __init atkbd_deactivate_fixup(const struct dmi_system_id *id)
+{
+	atkbd_skip_deactivate = true;
+	return 1;
+}
+
+/*
+ * NOTE: do not add any more "force release" quirks to this table.  The
+ * task of adjusting list of keys that should be "released" automatically
+ * by the driver is now delegated to userspace tools, such as udev, so
+ * submit such quirks there.
+ */
 static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {
 	{
 		.matches = {
@@ -1774,6 +1795,12 @@ static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {
 		},
 		.callback = atkbd_setup_scancode_fixup,
 		.driver_data = atkbd_oqo_01plus_scancode_fixup,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LG Electronics"),
+		},
+		.callback = atkbd_deactivate_fixup,
 	},
 	{ }
 };

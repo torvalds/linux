@@ -80,12 +80,6 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	unsigned int data[2], primary;
 	unsigned long flags;
 
-	/*
-	 * Register the IRQ position with the global IRQ map, then insert
-	 * it in to the radix tree.
-	 */
-	irq_reserve_irq(irq);
-
 	raw_spin_lock_irqsave(&intc_big_lock, flags);
 	radix_tree_insert(&d->tree, enum_id, intc_irq_xlate_get(irq));
 	raw_spin_unlock_irqrestore(&intc_big_lock, flags);
@@ -372,8 +366,9 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 			/* redirect this interrupts to the first one */
 			irq_set_chip(irq2, &dummy_irq_chip);
-			irq_set_chained_handler(irq2, intc_redirect_irq);
-			irq_set_handler_data(irq2, (void *)irq);
+			irq_set_chained_handler_and_data(irq2,
+							 intc_redirect_irq,
+							 (void *)irq);
 		}
 	}
 

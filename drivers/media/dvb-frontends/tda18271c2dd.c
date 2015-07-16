@@ -1030,7 +1030,7 @@ static int ChannelConfiguration(struct tda_state *state,
 			state->m_Regs[EP4] = state->m_EP4 | state->m_IFLevelDigital;
 
 		if ((Standard == HF_FM_Radio) && state->m_bFMInput)
-			state->m_Regs[EP4] |= 80;
+			state->m_Regs[EP4] |= 0x80;
 
 		state->m_Regs[MPD] &= ~0x80;
 		if (Standard > HF_AnalogMax)

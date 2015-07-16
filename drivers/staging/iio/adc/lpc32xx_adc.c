@@ -116,7 +116,7 @@ static const struct iio_chan_spec lpc32xx_adc_iio_channels[] = {
 
 static irqreturn_t lpc32xx_adc_isr(int irq, void *dev_id)
 {
-	struct lpc32xx_adc_info *info = (struct lpc32xx_adc_info *) dev_id;
+	struct lpc32xx_adc_info *info = dev_id;
 
 	/* Read value and clear irq */
 	info->value = __raw_readl(LPC32XX_ADC_VALUE(info->adc_base)) &
@@ -183,20 +183,11 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	iodev->channels = lpc32xx_adc_iio_channels;
 	iodev->num_channels = ARRAY_SIZE(lpc32xx_adc_iio_channels);
 
-	retval = iio_device_register(iodev);
+	retval = devm_iio_device_register(&pdev->dev, iodev);
 	if (retval)
 		return retval;
 
 	dev_info(&pdev->dev, "LPC32XX ADC driver loaded, IRQ %d\n", irq);
-
-	return 0;
-}
-
-static int lpc32xx_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *iodev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(iodev);
 
 	return 0;
 }
@@ -211,10 +202,8 @@ MODULE_DEVICE_TABLE(of, lpc32xx_adc_match);
 
 static struct platform_driver lpc32xx_adc_driver = {
 	.probe		= lpc32xx_adc_probe,
-	.remove		= lpc32xx_adc_remove,
 	.driver		= {
 		.name	= MOD_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(lpc32xx_adc_match),
 	},
 };

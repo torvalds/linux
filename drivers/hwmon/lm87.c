@@ -5,7 +5,7 @@
  *                          Philip Edelbrock <phil@netroedge.com>
  *                          Stephen Rousset <stephen.rousset@rocketlogix.com>
  *                          Dan Eaton <dan.eaton@rocketlogix.com>
- * Copyright (C) 2004-2008  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2004-2008  Jean Delvare <jdelvare@suse.de>
  *
  * Original port to Linux 2.6 by Jeff Oliver.
  *
@@ -617,6 +617,10 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
+
+	if (val > 255)
+		return -EINVAL;
+
 	data->vrm = val;
 	return count;
 }
@@ -903,7 +907,6 @@ static int lm87_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	/* Initialize the LM87 chip */
@@ -1011,6 +1014,6 @@ static struct i2c_driver lm87_driver = {
 
 module_i2c_driver(lm87_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org> and others");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de> and others");
 MODULE_DESCRIPTION("LM87 driver");
 MODULE_LICENSE("GPL");

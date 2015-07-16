@@ -15,7 +15,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <net/mac80211.h>
@@ -283,6 +282,7 @@ static void rtl8225_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 
 	msleep(1); /* FIXME: optional? */
 
+	/* TODO: use set_anaparam2 dev.c_func*/
 	/* anaparam2 on */
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
@@ -731,32 +731,11 @@ static void rtl8225_rf_set_channel(struct ieee80211_hw *dev,
 	msleep(10);
 }
 
-static void rtl8225_rf_conf_erp(struct ieee80211_hw *dev,
-				struct ieee80211_bss_conf *info)
-{
-	struct rtl8180_priv *priv = dev->priv;
-
-	if (info->use_short_slot) {
-		rtl818x_iowrite8(priv, &priv->map->SLOT, 0x9);
-		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x22);
-		rtl818x_iowrite8(priv, &priv->map->DIFS, 0x14);
-		rtl818x_iowrite8(priv, &priv->map->EIFS, 81);
-		rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0x73);
-	} else {
-		rtl818x_iowrite8(priv, &priv->map->SLOT, 0x14);
-		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x44);
-		rtl818x_iowrite8(priv, &priv->map->DIFS, 0x24);
-		rtl818x_iowrite8(priv, &priv->map->EIFS, 81);
-		rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0xa5);
-	}
-}
-
 static const struct rtl818x_rf_ops rtl8225_ops = {
 	.name		= "rtl8225",
 	.init		= rtl8225_rf_init,
 	.stop		= rtl8225_rf_stop,
 	.set_chan	= rtl8225_rf_set_channel,
-	.conf_erp	= rtl8225_rf_conf_erp,
 };
 
 static const struct rtl818x_rf_ops rtl8225z2_ops = {
@@ -764,7 +743,6 @@ static const struct rtl818x_rf_ops rtl8225z2_ops = {
 	.init		= rtl8225z2_rf_init,
 	.stop		= rtl8225_rf_stop,
 	.set_chan	= rtl8225_rf_set_channel,
-	.conf_erp	= rtl8225_rf_conf_erp,
 };
 
 const struct rtl818x_rf_ops * rtl8180_detect_rf(struct ieee80211_hw *dev)

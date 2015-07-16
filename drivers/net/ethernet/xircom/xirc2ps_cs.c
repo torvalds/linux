@@ -27,8 +27,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *
  * ALTERNATIVELY, this driver may be distributed under the terms of
@@ -267,7 +266,7 @@ static void xirc2ps_detach(struct pcmcia_device *p_dev);
 
 static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id);
 
-typedef struct local_info_t {
+struct local_info {
 	struct net_device	*dev;
 	struct pcmcia_device	*p_dev;
 
@@ -282,7 +281,7 @@ typedef struct local_info_t {
     unsigned last_ptr_value; /* last packets transmitted value */
     const char *manf_str;
     struct work_struct tx_timeout_task;
-} local_info_t;
+};
 
 /****************
  * Some more prototypes
@@ -476,12 +475,12 @@ static int
 xirc2ps_probe(struct pcmcia_device *link)
 {
     struct net_device *dev;
-    local_info_t *local;
+    struct local_info *local;
 
     dev_dbg(&link->dev, "attach()\n");
 
     /* Allocate the device structure */
-    dev = alloc_etherdev(sizeof(local_info_t));
+    dev = alloc_etherdev(sizeof(struct local_info));
     if (!dev)
 	    return -ENOMEM;
     local = netdev_priv(dev);
@@ -537,7 +536,7 @@ static int
 set_card_type(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    local_info_t *local = netdev_priv(dev);
+    struct local_info *local = netdev_priv(dev);
     u8 *buf;
     unsigned int cisrev, mediaid, prodid;
     size_t len;
@@ -691,7 +690,7 @@ static int
 xirc2ps_config(struct pcmcia_device * link)
 {
     struct net_device *dev = link->priv;
-    local_info_t *local = netdev_priv(dev);
+    struct local_info *local = netdev_priv(dev);
     unsigned int ioaddr;
     int err;
     u8 *buf;
@@ -932,7 +931,7 @@ xirc2ps_release(struct pcmcia_device *link)
 
 	if (link->resource[2]->end) {
 		struct net_device *dev = link->priv;
-		local_info_t *local = netdev_priv(dev);
+		struct local_info *local = netdev_priv(dev);
 		if (local->dingo)
 			iounmap(local->dingo_ccr - 0x0800);
 	}
@@ -976,7 +975,7 @@ static irqreturn_t
 xirc2ps_interrupt(int irq, void *dev_id)
 {
     struct net_device *dev = (struct net_device *)dev_id;
-    local_info_t *lp = netdev_priv(dev);
+    struct local_info *lp = netdev_priv(dev);
     unsigned int ioaddr;
     u_char saved_page;
     unsigned bytes_rcvd;
@@ -1195,8 +1194,8 @@ xirc2ps_interrupt(int irq, void *dev_id)
 static void
 xirc2ps_tx_timeout_task(struct work_struct *work)
 {
-	local_info_t *local =
-		container_of(work, local_info_t, tx_timeout_task);
+	struct local_info *local =
+		container_of(work, struct local_info, tx_timeout_task);
 	struct net_device *dev = local->dev;
     /* reset the card */
     do_reset(dev,1);
@@ -1207,7 +1206,7 @@ xirc2ps_tx_timeout_task(struct work_struct *work)
 static void
 xirc_tx_timeout(struct net_device *dev)
 {
-    local_info_t *lp = netdev_priv(dev);
+    struct local_info *lp = netdev_priv(dev);
     dev->stats.tx_errors++;
     netdev_notice(dev, "transmit timed out\n");
     schedule_work(&lp->tx_timeout_task);
@@ -1216,7 +1215,7 @@ xirc_tx_timeout(struct net_device *dev)
 static netdev_tx_t
 do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-    local_info_t *lp = netdev_priv(dev);
+    struct local_info *lp = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
     int okay;
     unsigned freespace;
@@ -1301,7 +1300,7 @@ static void set_address(struct set_address_info *sa_info, char *addr)
 static void set_addresses(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
-	local_info_t *lp = netdev_priv(dev);
+	struct local_info *lp = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
 	struct set_address_info sa_info;
 	int i;
@@ -1363,7 +1362,7 @@ set_multicast_list(struct net_device *dev)
 static int
 do_config(struct net_device *dev, struct ifmap *map)
 {
-    local_info_t *local = netdev_priv(dev);
+    struct local_info *local = netdev_priv(dev);
 
     pr_debug("do_config(%p)\n", dev);
     if (map->port != 255 && map->port != dev->if_port) {
@@ -1388,7 +1387,7 @@ do_config(struct net_device *dev, struct ifmap *map)
 static int
 do_open(struct net_device *dev)
 {
-    local_info_t *lp = netdev_priv(dev);
+    struct local_info *lp = netdev_priv(dev);
     struct pcmcia_device *link = lp->p_dev;
 
     dev_dbg(&link->dev, "do_open(%p)\n", dev);
@@ -1422,7 +1421,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 static int
 do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-    local_info_t *local = netdev_priv(dev);
+    struct local_info *local = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
     struct mii_ioctl_data *data = if_mii(rq);
 
@@ -1454,7 +1453,7 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 static void
 hardreset(struct net_device *dev)
 {
-    local_info_t *local = netdev_priv(dev);
+    struct local_info *local = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
 
     SelectPage(4);
@@ -1471,7 +1470,7 @@ hardreset(struct net_device *dev)
 static void
 do_reset(struct net_device *dev, int full)
 {
-    local_info_t *local = netdev_priv(dev);
+    struct local_info *local = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
     unsigned value;
 
@@ -1632,7 +1631,7 @@ do_reset(struct net_device *dev, int full)
 static int
 init_mii(struct net_device *dev)
 {
-    local_info_t *local = netdev_priv(dev);
+    struct local_info *local = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
     unsigned control, status, linkpartner;
     int i;
@@ -1716,7 +1715,7 @@ static int
 do_stop(struct net_device *dev)
 {
     unsigned int ioaddr = dev->base_addr;
-    local_info_t *lp = netdev_priv(dev);
+    struct local_info *lp = netdev_priv(dev);
     struct pcmcia_device *link = lp->p_dev;
 
     dev_dbg(&link->dev, "do_stop(%p)\n", dev);

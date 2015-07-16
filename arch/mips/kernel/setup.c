@@ -24,11 +24,14 @@
 #include <linux/debugfs.h>
 #include <linux/kexec.h>
 #include <linux/sizes.h>
+#include <linux/device.h>
+#include <linux/dma-contiguous.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 #include <asm/bugs.h>
 #include <asm/cache.h>
+#include <asm/cdmm.h>
 #include <asm/cpu.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -80,14 +83,14 @@ static struct resource data_resource = { .name = "Kernel data", };
 
 static void *detect_magic __initdata = detect_memory_region;
 
-void __init add_memory_region(phys_t start, phys_t size, long type)
+void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
 {
 	int x = boot_mem_map.nr_map;
 	int i;
 
 	/* Sanity check */
 	if (start + size < start) {
-		pr_warning("Trying to add an invalid memory region, skipped\n");
+		pr_warn("Trying to add an invalid memory region, skipped\n");
 		return;
 	}
 
@@ -125,10 +128,10 @@ void __init add_memory_region(phys_t start, phys_t size, long type)
 	boot_mem_map.nr_map++;
 }
 
-void __init detect_memory_region(phys_t start, phys_t sz_min, phys_t sz_max)
+void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_addr_t sz_max)
 {
 	void *dm = &detect_magic;
-	phys_t size;
+	phys_addr_t size;
 
 	for (size = sz_min; size < sz_max; size <<= 1) {
 		if (!memcmp(dm, dm + size, sizeof(detect_magic)))
@@ -282,7 +285,7 @@ static unsigned long __init init_initrd(void)
  * Initialize the bootmem allocator. It also setup initrd related data
  * if needed.
  */
-#ifdef CONFIG_SGI_IP27
+#if defined(CONFIG_SGI_IP27) || (defined(CONFIG_CPU_LOONGSON3) && defined(CONFIG_NUMA))
 
 static void __init bootmem_init(void)
 {
@@ -334,6 +337,11 @@ static void __init bootmem_init(void)
 			min_low_pfn = start;
 		if (end <= reserved_end)
 			continue;
+#ifdef CONFIG_BLK_DEV_INITRD
+		/* mapstart should be after initrd_end */
+		if (initrd_end && end <= (unsigned long)PFN_UP(__pa(initrd_end)))
+			continue;
+#endif
 		if (start >= mapstart)
 			continue;
 		mapstart = max(reserved_end, start);
@@ -362,14 +370,6 @@ static void __init bootmem_init(void)
 #endif
 		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 	}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	/*
-	 * mapstart should be after initrd_end
-	 */
-	if (initrd_end)
-		mapstart = max(mapstart, (unsigned long)PFN_UP(__pa(initrd_end)));
-#endif
 
 	/*
 	 * Initialize the boot-time allocator with low memory only.
@@ -476,13 +476,14 @@ static void __init bootmem_init(void)
  *  o bootmem_init()
  *  o sparse_init()
  *  o paging_init()
+ *  o dma_continguous_reserve()
  *
  * At this stage the bootmem allocator is ready to use.
  *
  * NOTE: historically plat_mem_setup did the entire platform initialization.
  *	 This was rather impractical because it meant plat_mem_setup had to
  * get away without any kind of memory allocator.  To keep old code from
- * breaking plat_setup was just renamed to plat_setup and a second platform
+ * breaking plat_setup was just renamed to plat_mem_setup and a second platform
  * initialization hook for anything else was introduced.
  */
 
@@ -490,7 +491,7 @@ static int usermem __initdata;
 
 static int __init early_parse_mem(char *p)
 {
-	unsigned long start, size;
+	phys_addr_t start, size;
 
 	/*
 	 * If a user specifies memory size, we
@@ -542,9 +543,9 @@ static int __init early_parse_elfcorehdr(char *p)
 early_param("elfcorehdr", early_parse_elfcorehdr);
 #endif
 
-static void __init arch_mem_addpart(phys_t mem, phys_t end, int type)
+static void __init arch_mem_addpart(phys_addr_t mem, phys_addr_t end, int type)
 {
-	phys_t size;
+	phys_addr_t size;
 	int i;
 
 	size = end - mem;
@@ -609,6 +610,7 @@ static void __init request_crashkernel(struct resource *res)
 
 static void __init arch_mem_init(char **cmdline_p)
 {
+	struct memblock_region *reg;
 	extern void plat_mem_setup(void);
 
 	/* call board setup routine */
@@ -675,6 +677,12 @@ static void __init arch_mem_init(char **cmdline_p)
 	sparse_init();
 	plat_swiotlb_setup();
 	paging_init();
+
+	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
+	/* Tell bootmem about cma reserved memblock section */
+	for_each_memblock(reserved, reg)
+		if (reg->size != 0)
+			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
 }
 
 static void __init resource_init(void)
@@ -729,11 +737,31 @@ static void __init resource_init(void)
 	}
 }
 
+#ifdef CONFIG_SMP
+static void __init prefill_possible_map(void)
+{
+	int i, possible = num_possible_cpus();
+
+	if (possible > nr_cpu_ids)
+		possible = nr_cpu_ids;
+
+	for (i = 0; i < possible; i++)
+		set_cpu_possible(i, true);
+	for (; i < NR_CPUS; i++)
+		set_cpu_possible(i, false);
+
+	nr_cpu_ids = possible;
+}
+#else
+static inline void prefill_possible_map(void) {}
+#endif
+
 void __init setup_arch(char **cmdline_p)
 {
 	cpu_probe();
 	prom_init();
 
+	setup_early_fdc_console();
 #ifdef CONFIG_EARLY_PRINTK
 	setup_early_printk();
 #endif
@@ -752,6 +780,7 @@ void __init setup_arch(char **cmdline_p)
 
 	resource_init();
 	plat_smp_setup();
+	prefill_possible_map();
 
 	cpu_cache_init();
 }

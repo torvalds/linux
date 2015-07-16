@@ -39,6 +39,8 @@ enum pstore_type_id {
 	PSTORE_TYPE_PPC_RTAS	= 4,
 	PSTORE_TYPE_PPC_OF	= 5,
 	PSTORE_TYPE_PPC_COMMON	= 6,
+	PSTORE_TYPE_PMSG	= 7,
+	PSTORE_TYPE_PPC_OPAL	= 8,
 	PSTORE_TYPE_UNKNOWN	= 255
 };
 
@@ -51,6 +53,7 @@ struct pstore_info {
 	char		*buf;
 	size_t		bufsize;
 	struct mutex	read_mutex;	/* serialize open/read/close */
+	int		flags;
 	int		(*open)(struct pstore_info *psi);
 	int		(*close)(struct pstore_info *psi);
 	ssize_t		(*read)(u64 *id, enum pstore_type_id *type,
@@ -69,6 +72,8 @@ struct pstore_info {
 			struct pstore_info *psi);
 	void		*data;
 };
+
+#define	PSTORE_FLAGS_FRAGILE	1
 
 #ifdef CONFIG_PSTORE
 extern int pstore_register(struct pstore_info *);

@@ -34,11 +34,35 @@ struct drm_fb_helper;
 
 #include <linux/kgdb.h>
 
+struct drm_fb_offset {
+	int x, y;
+};
+
 struct drm_fb_helper_crtc {
 	struct drm_mode_set mode_set;
 	struct drm_display_mode *desired_mode;
+	int x, y;
 };
 
+/**
+ * struct drm_fb_helper_surface_size - describes fbdev size and scanout surface size
+ * @fb_width: fbdev width
+ * @fb_height: fbdev height
+ * @surface_width: scanout buffer width
+ * @surface_height: scanout buffer height
+ * @surface_bpp: scanout buffer bpp
+ * @surface_depth: scanout buffer depth
+ *
+ * Note that the scanout surface width/height may be larger than the fbdev
+ * width/height.  In case of multiple displays, the scanout surface is sized
+ * according to the largest width/height (so it is large enough for all CRTCs
+ * to scanout).  But the fbdev width/height is sized to the minimum width/
+ * height of all the displays.  This ensures that fbcon fits on the smallest
+ * of the attached displays.
+ *
+ * So what is passed to drm_fb_helper_fill_var() should be fb_width/fb_height,
+ * rather than the surface size.
+ */
 struct drm_fb_helper_surface_size {
 	u32 fb_width;
 	u32 fb_height;
@@ -55,7 +79,7 @@ struct drm_fb_helper_surface_size {
  *             save the current lut when force-restoring the fbdev for e.g.
  *             kdbg.
  * @fb_probe: Driver callback to allocate and initialize the fbdev info
- *            structure. Futhermore it also needs to allocate the drm
+ *            structure. Furthermore it also needs to allocate the drm
  *            framebuffer used to back the fbdev.
  * @initial_config: Setup an initial fbdev display configuration
  *
@@ -72,12 +96,12 @@ struct drm_fb_helper_funcs {
 	bool (*initial_config)(struct drm_fb_helper *fb_helper,
 			       struct drm_fb_helper_crtc **crtcs,
 			       struct drm_display_mode **modes,
+			       struct drm_fb_offset *offsets,
 			       bool *enabled, int width, int height);
 };
 
 struct drm_fb_helper_connector {
 	struct drm_connector *connector;
-	struct drm_cmdline_mode cmdline_mode;
 };
 
 struct drm_fb_helper {
@@ -86,8 +110,9 @@ struct drm_fb_helper {
 	int crtc_count;
 	struct drm_fb_helper_crtc *crtc_info;
 	int connector_count;
+	int connector_info_alloc_count;
 	struct drm_fb_helper_connector **connector_info;
-	struct drm_fb_helper_funcs *funcs;
+	const struct drm_fb_helper_funcs *funcs;
 	struct fb_info *fbdev;
 	u32 pseudo_palette[17];
 	struct list_head kernel_fb_list;
@@ -97,6 +122,8 @@ struct drm_fb_helper {
 	bool delayed_hotplug;
 };
 
+void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
+			   const struct drm_fb_helper_funcs *funcs);
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *helper, int crtc_count,
 		       int max_conn);
@@ -108,7 +135,7 @@ int drm_fb_helper_set_par(struct fb_info *info);
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info);
 
-bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper);
+bool drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
@@ -117,9 +144,18 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
-bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
+int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_debug_enter(struct fb_info *info);
 int drm_fb_helper_debug_leave(struct fb_info *info);
+struct drm_display_mode *
+drm_has_preferred_mode(struct drm_fb_helper_connector *fb_connector,
+			int width, int height);
+struct drm_display_mode *
+drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
+		      int width, int height);
 
+int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_connector *connector);
+int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
+				       struct drm_connector *connector);
 #endif

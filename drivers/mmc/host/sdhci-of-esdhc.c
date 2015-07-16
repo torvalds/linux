@@ -199,13 +199,14 @@ static unsigned int esdhc_of_get_min_clock(struct sdhci_host *host)
 
 static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 {
-
-	int pre_div = 2;
+	int pre_div = 1;
 	int div = 1;
 	u32 temp;
 
+	host->mmc->actual_clock = 0;
+
 	if (clock == 0)
-		goto out;
+		return;
 
 	/* Workaround to reduce the clock frequency for p1010 esdhc */
 	if (of_find_compatible_node(NULL, NULL, "fsl,p1010-esdhc")) {
@@ -228,7 +229,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	dev_dbg(mmc_dev(host->mmc), "desired SD clock: %d, actual: %d\n",
 		clock, host->max_clk / pre_div / div);
-
+	host->mmc->actual_clock = host->max_clk / pre_div / div;
 	pre_div >>= 1;
 	div--;
 
@@ -238,23 +239,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 		| (pre_div << ESDHC_PREDIV_SHIFT));
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 	mdelay(1);
-out:
-	host->clock = clock;
 }
-
-#ifdef CONFIG_PM
-static u32 esdhc_proctl;
-static void esdhc_of_suspend(struct sdhci_host *host)
-{
-	esdhc_proctl = sdhci_be32bs_readl(host, SDHCI_HOST_CONTROL);
-}
-
-static void esdhc_of_resume(struct sdhci_host *host)
-{
-	esdhc_of_enable_dma(host);
-	sdhci_be32bs_writel(host, esdhc_proctl, SDHCI_HOST_CONTROL);
-}
-#endif
 
 static void esdhc_of_platform_init(struct sdhci_host *host)
 {
@@ -269,7 +254,7 @@ static void esdhc_of_platform_init(struct sdhci_host *host)
 		host->quirks &= ~SDHCI_QUIRK_NO_BUSY_IRQ;
 }
 
-static int esdhc_pltfm_bus_width(struct sdhci_host *host, int width)
+static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
 {
 	u32 ctrl;
 
@@ -289,8 +274,14 @@ static int esdhc_pltfm_bus_width(struct sdhci_host *host, int width)
 
 	clrsetbits_be32(host->ioaddr + SDHCI_HOST_CONTROL,
 			ESDHC_CTRL_BUSWIDTH_MASK, ctrl);
+}
 
-	return 0;
+static void esdhc_reset(struct sdhci_host *host, u8 mask)
+{
+	sdhci_reset(host, mask);
+
+	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
+	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
 }
 
 static const struct sdhci_ops sdhci_esdhc_ops = {
@@ -305,13 +296,46 @@ static const struct sdhci_ops sdhci_esdhc_ops = {
 	.get_max_clock = esdhc_of_get_max_clock,
 	.get_min_clock = esdhc_of_get_min_clock,
 	.platform_init = esdhc_of_platform_init,
-#ifdef CONFIG_PM
-	.platform_suspend = esdhc_of_suspend,
-	.platform_resume = esdhc_of_resume,
-#endif
 	.adma_workaround = esdhci_of_adma_workaround,
-	.platform_bus_width = esdhc_pltfm_bus_width,
+	.set_bus_width = esdhc_pltfm_set_bus_width,
+	.reset = esdhc_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
+
+#ifdef CONFIG_PM
+
+static u32 esdhc_proctl;
+static int esdhc_of_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+
+	esdhc_proctl = sdhci_be32bs_readl(host, SDHCI_HOST_CONTROL);
+
+	return sdhci_suspend_host(host);
+}
+
+static int esdhc_of_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	int ret = sdhci_resume_host(host);
+
+	if (ret == 0) {
+		/* Isn't this already done by sdhci_resume_host() ? --rmk */
+		esdhc_of_enable_dma(host);
+		sdhci_be32bs_writel(host, esdhc_proctl, SDHCI_HOST_CONTROL);
+	}
+
+	return ret;
+}
+
+static const struct dev_pm_ops esdhc_pmops = {
+	.suspend	= esdhc_of_suspend,
+	.resume		= esdhc_of_resume,
+};
+#define ESDHC_PMOPS (&esdhc_pmops)
+#else
+#define ESDHC_PMOPS NULL
+#endif
 
 static const struct sdhci_pltfm_data sdhci_esdhc_pdata = {
 	/*
@@ -337,6 +361,13 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	sdhci_get_of_property(pdev);
 
 	np = pdev->dev.of_node;
+	if (of_device_is_compatible(np, "fsl,p5040-esdhc") ||
+	    of_device_is_compatible(np, "fsl,p5020-esdhc") ||
+	    of_device_is_compatible(np, "fsl,p4080-esdhc") ||
+	    of_device_is_compatible(np, "fsl,p1020-esdhc") ||
+	    of_device_is_compatible(np, "fsl,t1040-esdhc"))
+		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+
 	if (of_device_is_compatible(np, "fsl,p2020-esdhc")) {
 		/*
 		 * Freescale messed up with P2020 as it has a non-standard
@@ -346,19 +377,20 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	}
 
 	/* call to generic mmc_of_parse to support additional capabilities */
-	mmc_of_parse(host->mmc);
+	ret = mmc_of_parse(host->mmc);
+	if (ret)
+		goto err;
+
 	mmc_of_parse_voltage(np, &host->ocr_mask);
 
 	ret = sdhci_add_host(host);
 	if (ret)
-		sdhci_pltfm_free(pdev);
+		goto err;
 
+	return 0;
+ err:
+	sdhci_pltfm_free(pdev);
 	return ret;
-}
-
-static int sdhci_esdhc_remove(struct platform_device *pdev)
-{
-	return sdhci_pltfm_unregister(pdev);
 }
 
 static const struct of_device_id sdhci_esdhc_of_match[] = {
@@ -372,12 +404,11 @@ MODULE_DEVICE_TABLE(of, sdhci_esdhc_of_match);
 static struct platform_driver sdhci_esdhc_driver = {
 	.driver = {
 		.name = "sdhci-esdhc",
-		.owner = THIS_MODULE,
 		.of_match_table = sdhci_esdhc_of_match,
-		.pm = SDHCI_PLTFM_PMOPS,
+		.pm = ESDHC_PMOPS,
 	},
 	.probe = sdhci_esdhc_probe,
-	.remove = sdhci_esdhc_remove,
+	.remove = sdhci_pltfm_unregister,
 };
 
 module_platform_driver(sdhci_esdhc_driver);

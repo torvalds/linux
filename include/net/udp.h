@@ -95,15 +95,6 @@ static inline struct udp_hslot *udp_hashslot2(struct udp_table *table,
 	return &table->hash2[hash & table->mask];
 }
 
-/* Note: this must match 'valbool' in sock_setsockopt */
-#define UDP_CSUM_NOXMIT		1
-
-/* Used by SunRPC/xprt layer. */
-#define UDP_CSUM_NORCV		2
-
-/* Default, as per the RFC, is to always do csums. */
-#define UDP_CSUM_DEFAULT	0
-
 extern struct proto udp_prot;
 
 extern atomic_long_t udp_memory_allocated;
@@ -120,7 +111,9 @@ struct sk_buff;
  */
 static inline __sum16 __udp_lib_checksum_complete(struct sk_buff *skb)
 {
-	return __skb_checksum_complete_head(skb, UDP_SKB_CB(skb)->cscov);
+	return (UDP_SKB_CB(skb)->cscov == skb->len ?
+		__skb_checksum_complete(skb) :
+		__skb_checksum_complete_head(skb, UDP_SKB_CB(skb)->cscov));
 }
 
 static inline int udp_lib_checksum_complete(struct sk_buff *skb)
@@ -156,6 +149,33 @@ static inline __wsum udp_csum(struct sk_buff *skb)
 	return csum;
 }
 
+static inline __sum16 udp_v4_check(int len, __be32 saddr,
+				   __be32 daddr, __wsum base)
+{
+	return csum_tcpudp_magic(saddr, daddr, len, IPPROTO_UDP, base);
+}
+
+void udp_set_csum(bool nocheck, struct sk_buff *skb,
+		  __be32 saddr, __be32 daddr, int len);
+
+struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
+				 struct udphdr *uh);
+int udp_gro_complete(struct sk_buff *skb, int nhoff);
+
+static inline struct udphdr *udp_gro_udphdr(struct sk_buff *skb)
+{
+	struct udphdr *uh;
+	unsigned int hlen, off;
+
+	off  = skb_gro_offset(skb);
+	hlen = off + sizeof(*uh);
+	uh   = skb_gro_header_fast(skb, off);
+	if (skb_gro_header_hard(skb, hlen))
+		uh = skb_gro_header_slow(skb, hlen, off);
+
+	return uh;
+}
+
 /* hash routines shared between UDPv4/6 and UDP-Litev4/6 */
 static inline void udp_lib_hash(struct sock *sk)
 {
@@ -174,14 +194,51 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		     int (*)(const struct sock *, const struct sock *),
 		     unsigned int hash2_nulladdr);
 
+u32 udp_flow_hashrnd(void);
+
+static inline __be16 udp_flow_src_port(struct net *net, struct sk_buff *skb,
+				       int min, int max, bool use_eth)
+{
+	u32 hash;
+
+	if (min >= max) {
+		/* Use default range */
+		inet_get_local_port_range(net, &min, &max);
+	}
+
+	hash = skb_get_hash(skb);
+	if (unlikely(!hash)) {
+		if (use_eth) {
+			/* Can't find a normal hash, caller has indicated an
+			 * Ethernet packet so use that to compute a hash.
+			 */
+			hash = jhash(skb->data, 2 * ETH_ALEN,
+				     (__force u32) skb->protocol);
+		} else {
+			/* Can't derive any sort of hash for the packet, set
+			 * to some consistent random value.
+			 */
+			hash = udp_flow_hashrnd();
+		}
+	}
+
+	/* Since this is being sent on the wire obfuscate hash a bit
+	 * to minimize possbility that any useful information to an
+	 * attacker is leaked. Only upper 16 bits are relevant in the
+	 * computation for 16 bit port value.
+	 */
+	hash ^= hash << 16;
+
+	return htons((((u64) hash * (max - min)) >> 32) + min);
+}
+
 /* net/ipv4/udp.c */
 void udp_v4_early_demux(struct sk_buff *skb);
 int udp_get_port(struct sock *sk, unsigned short snum,
 		 int (*saddr_cmp)(const struct sock *,
 				  const struct sock *));
 void udp_err(struct sk_buff *, u32);
-int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		size_t len);
+int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len);
 int udp_push_pending_frames(struct sock *sk);
 void udp_flush_pending_frames(struct sock *sk);
 void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst);
@@ -190,7 +247,8 @@ int udp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 int udp_disconnect(struct sock *sk, int flags);
 unsigned int udp_poll(struct file *file, struct socket *sock, poll_table *wait);
 struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
-				       netdev_features_t features);
+				       netdev_features_t features,
+				       bool is_ipv6);
 int udp_lib_getsockopt(struct sock *sk, int level, int optname,
 		       char __user *optval, int __user *optlen);
 int udp_lib_setsockopt(struct sock *sk, int level, int optname,

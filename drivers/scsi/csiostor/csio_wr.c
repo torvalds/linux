@@ -51,12 +51,12 @@ int csio_intr_coalesce_time = 10;	/* value:SGE_TIMER_VALUE_1 */
 static int csio_sge_timer_reg = 1;
 
 #define CSIO_SET_FLBUF_SIZE(_hw, _reg, _val)				\
-	csio_wr_reg32((_hw), (_val), SGE_FL_BUFFER_SIZE##_reg)
+	csio_wr_reg32((_hw), (_val), SGE_FL_BUFFER_SIZE##_reg##_A)
 
 static void
 csio_get_flbuf_size(struct csio_hw *hw, struct csio_sge *sge, uint32_t reg)
 {
-	sge->sge_fl_buf_size[reg] = csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE0 +
+	sge->sge_fl_buf_size[reg] = csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE0_A +
 							reg * sizeof(uint32_t));
 }
 
@@ -71,7 +71,7 @@ csio_wr_fl_bufsz(struct csio_sge *sge, struct csio_dma_buf *buf)
 static inline uint32_t
 csio_wr_qstat_pgsz(struct csio_hw *hw)
 {
-	return (hw->wrm.sge.sge_control & EGRSTATUSPAGESIZE(1)) ?  128 : 64;
+	return (hw->wrm.sge.sge_control & EGRSTATUSPAGESIZE_F) ?  128 : 64;
 }
 
 /* Ring freelist doorbell */
@@ -84,9 +84,9 @@ csio_wr_ring_fldb(struct csio_hw *hw, struct csio_q *flq)
 	 * 8 freelist buffer pointers (since each pointer is 8 bytes).
 	 */
 	if (flq->inc_idx >= 8) {
-		csio_wr_reg32(hw, DBPRIO(1) | QID(flq->un.fl.flid) |
-				  CSIO_HW_PIDX(hw, flq->inc_idx / 8),
-				  MYPF_REG(SGE_PF_KDOORBELL));
+		csio_wr_reg32(hw, DBPRIO_F | QID_V(flq->un.fl.flid) |
+				  PIDX_T5_V(flq->inc_idx / 8) | DBTYPE_F,
+				  MYPF_REG(SGE_PF_KDOORBELL_A));
 		flq->inc_idx &= 7;
 	}
 }
@@ -95,10 +95,10 @@ csio_wr_ring_fldb(struct csio_hw *hw, struct csio_q *flq)
 static void
 csio_wr_sge_intr_enable(struct csio_hw *hw, uint16_t iqid)
 {
-	csio_wr_reg32(hw, CIDXINC(0)		|
-			  INGRESSQID(iqid)	|
-			  TIMERREG(X_TIMERREG_RESTART_COUNTER),
-			  MYPF_REG(SGE_PF_GTS));
+	csio_wr_reg32(hw, CIDXINC_V(0)		|
+			  INGRESSQID_V(iqid)	|
+			  TIMERREG_V(X_TIMERREG_RESTART_COUNTER),
+			  MYPF_REG(SGE_PF_GTS_A));
 }
 
 /*
@@ -232,19 +232,13 @@ csio_wr_alloc_q(struct csio_hw *hw, uint32_t qsize, uint32_t wrsize,
 
 	q = wrm->q_arr[free_idx];
 
-	q->vstart = pci_alloc_consistent(hw->pdev, qsz, &q->pstart);
+	q->vstart = pci_zalloc_consistent(hw->pdev, qsz, &q->pstart);
 	if (!q->vstart) {
 		csio_err(hw,
 			 "Failed to allocate DMA memory for "
 			 "queue at id: %d size: %d\n", free_idx, qsize);
 		return -1;
 	}
-
-	/*
-	 * We need to zero out the contents, importantly for ingress,
-	 * since we start with a generatiom bit of 1 for ingress.
-	 */
-	memset(q->vstart, 0, qsz);
 
 	q->type		= type;
 	q->owner	= owner;
@@ -988,9 +982,9 @@ csio_wr_issue(struct csio_hw *hw, int qidx, bool prio)
 
 	wmb();
 	/* Ring SGE Doorbell writing q->pidx into it */
-	csio_wr_reg32(hw, DBPRIO(prio) | QID(q->un.eq.physeqid) |
-			  CSIO_HW_PIDX(hw, q->inc_idx),
-			  MYPF_REG(SGE_PF_KDOORBELL));
+	csio_wr_reg32(hw, DBPRIO_V(prio) | QID_V(q->un.eq.physeqid) |
+			  PIDX_T5_V(q->inc_idx) | DBTYPE_F,
+			  MYPF_REG(SGE_PF_KDOORBELL_A));
 	q->inc_idx = 0;
 
 	return 0;
@@ -1248,10 +1242,10 @@ csio_wr_process_iq(struct csio_hw *hw, struct csio_q *q,
 
 restart:
 	/* Now inform SGE about our incremental index value */
-	csio_wr_reg32(hw, CIDXINC(q->inc_idx)		|
-			  INGRESSQID(q->un.iq.physiqid)	|
-			  TIMERREG(csio_sge_timer_reg),
-			  MYPF_REG(SGE_PF_GTS));
+	csio_wr_reg32(hw, CIDXINC_V(q->inc_idx)		|
+			  INGRESSQID_V(q->un.iq.physiqid)	|
+			  TIMERREG_V(csio_sge_timer_reg),
+			  MYPF_REG(SGE_PF_GTS_A));
 	q->stats.n_tot_rsps += q->inc_idx;
 
 	q->inc_idx = 0;
@@ -1316,22 +1310,23 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 	uint32_t ingpad = 0;
 	uint32_t stat_len = clsz > 64 ? 128 : 64;
 
-	csio_wr_reg32(hw, HOSTPAGESIZEPF0(s_hps) | HOSTPAGESIZEPF1(s_hps) |
-		      HOSTPAGESIZEPF2(s_hps) | HOSTPAGESIZEPF3(s_hps) |
-		      HOSTPAGESIZEPF4(s_hps) | HOSTPAGESIZEPF5(s_hps) |
-		      HOSTPAGESIZEPF6(s_hps) | HOSTPAGESIZEPF7(s_hps),
-		      SGE_HOST_PAGE_SIZE);
+	csio_wr_reg32(hw, HOSTPAGESIZEPF0_V(s_hps) | HOSTPAGESIZEPF1_V(s_hps) |
+		      HOSTPAGESIZEPF2_V(s_hps) | HOSTPAGESIZEPF3_V(s_hps) |
+		      HOSTPAGESIZEPF4_V(s_hps) | HOSTPAGESIZEPF5_V(s_hps) |
+		      HOSTPAGESIZEPF6_V(s_hps) | HOSTPAGESIZEPF7_V(s_hps),
+		      SGE_HOST_PAGE_SIZE_A);
 
 	sge->csio_fl_align = clsz < 32 ? 32 : clsz;
 	ingpad = ilog2(sge->csio_fl_align) - 5;
 
-	csio_set_reg_field(hw, SGE_CONTROL, INGPADBOUNDARY_MASK |
-					    EGRSTATUSPAGESIZE(1),
-			   INGPADBOUNDARY(ingpad) |
-			   EGRSTATUSPAGESIZE(stat_len != 64));
+	csio_set_reg_field(hw, SGE_CONTROL_A,
+			   INGPADBOUNDARY_V(INGPADBOUNDARY_M) |
+			   EGRSTATUSPAGESIZE_F,
+			   INGPADBOUNDARY_V(ingpad) |
+			   EGRSTATUSPAGESIZE_V(stat_len != 64));
 
 	/* FL BUFFER SIZE#0 is Page size i,e already aligned to cache line */
-	csio_wr_reg32(hw, PAGE_SIZE, SGE_FL_BUFFER_SIZE0);
+	csio_wr_reg32(hw, PAGE_SIZE, SGE_FL_BUFFER_SIZE0_A);
 
 	/*
 	 * If using hard params, the following will get set correctly
@@ -1339,23 +1334,24 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 	 */
 	if (hw->flags & CSIO_HWF_USING_SOFT_PARAMS) {
 		csio_wr_reg32(hw,
-			(csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE2) +
+			(csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE2_A) +
 			sge->csio_fl_align - 1) & ~(sge->csio_fl_align - 1),
-			SGE_FL_BUFFER_SIZE2);
+			SGE_FL_BUFFER_SIZE2_A);
 		csio_wr_reg32(hw,
-			(csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE3) +
+			(csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE3_A) +
 			sge->csio_fl_align - 1) & ~(sge->csio_fl_align - 1),
-			SGE_FL_BUFFER_SIZE3);
+			SGE_FL_BUFFER_SIZE3_A);
 	}
 
-	csio_wr_reg32(hw, HPZ0(PAGE_SHIFT - 12), ULP_RX_TDDP_PSZ);
+	csio_wr_reg32(hw, HPZ0_V(PAGE_SHIFT - 12), ULP_RX_TDDP_PSZ_A);
 
 	/* default value of rx_dma_offset of the NIC driver */
-	csio_set_reg_field(hw, SGE_CONTROL, PKTSHIFT_MASK,
-			   PKTSHIFT(CSIO_SGE_RX_DMA_OFFSET));
+	csio_set_reg_field(hw, SGE_CONTROL_A,
+			   PKTSHIFT_V(PKTSHIFT_M),
+			   PKTSHIFT_V(CSIO_SGE_RX_DMA_OFFSET));
 
-	csio_hw_tp_wr_bits_indirect(hw, TP_INGRESS_CONFIG,
-				    CSUM_HAS_PSEUDO_HDR, 0);
+	csio_hw_tp_wr_bits_indirect(hw, TP_INGRESS_CONFIG_A,
+				    CSUM_HAS_PSEUDO_HDR_F, 0);
 }
 
 static void
@@ -1390,9 +1386,9 @@ csio_wr_get_sge(struct csio_hw *hw)
 	u32 timer_value_0_and_1, timer_value_2_and_3, timer_value_4_and_5;
 	u32 ingress_rx_threshold;
 
-	sge->sge_control = csio_rd_reg32(hw, SGE_CONTROL);
+	sge->sge_control = csio_rd_reg32(hw, SGE_CONTROL_A);
 
-	ingpad = INGPADBOUNDARY_GET(sge->sge_control);
+	ingpad = INGPADBOUNDARY_G(sge->sge_control);
 
 	switch (ingpad) {
 	case X_INGPCIEBOUNDARY_32B:
@@ -1416,28 +1412,28 @@ csio_wr_get_sge(struct csio_hw *hw)
 	for (i = 0; i < CSIO_SGE_FL_SIZE_REGS; i++)
 		csio_get_flbuf_size(hw, sge, i);
 
-	timer_value_0_and_1 = csio_rd_reg32(hw, SGE_TIMER_VALUE_0_AND_1);
-	timer_value_2_and_3 = csio_rd_reg32(hw, SGE_TIMER_VALUE_2_AND_3);
-	timer_value_4_and_5 = csio_rd_reg32(hw, SGE_TIMER_VALUE_4_AND_5);
+	timer_value_0_and_1 = csio_rd_reg32(hw, SGE_TIMER_VALUE_0_AND_1_A);
+	timer_value_2_and_3 = csio_rd_reg32(hw, SGE_TIMER_VALUE_2_AND_3_A);
+	timer_value_4_and_5 = csio_rd_reg32(hw, SGE_TIMER_VALUE_4_AND_5_A);
 
 	sge->timer_val[0] = (uint16_t)csio_core_ticks_to_us(hw,
-					TIMERVALUE0_GET(timer_value_0_and_1));
+					TIMERVALUE0_G(timer_value_0_and_1));
 	sge->timer_val[1] = (uint16_t)csio_core_ticks_to_us(hw,
-					TIMERVALUE1_GET(timer_value_0_and_1));
+					TIMERVALUE1_G(timer_value_0_and_1));
 	sge->timer_val[2] = (uint16_t)csio_core_ticks_to_us(hw,
-					TIMERVALUE2_GET(timer_value_2_and_3));
+					TIMERVALUE2_G(timer_value_2_and_3));
 	sge->timer_val[3] = (uint16_t)csio_core_ticks_to_us(hw,
-					TIMERVALUE3_GET(timer_value_2_and_3));
+					TIMERVALUE3_G(timer_value_2_and_3));
 	sge->timer_val[4] = (uint16_t)csio_core_ticks_to_us(hw,
-					TIMERVALUE4_GET(timer_value_4_and_5));
+					TIMERVALUE4_G(timer_value_4_and_5));
 	sge->timer_val[5] = (uint16_t)csio_core_ticks_to_us(hw,
-					TIMERVALUE5_GET(timer_value_4_and_5));
+					TIMERVALUE5_G(timer_value_4_and_5));
 
-	ingress_rx_threshold = csio_rd_reg32(hw, SGE_INGRESS_RX_THRESHOLD);
-	sge->counter_val[0] = THRESHOLD_0_GET(ingress_rx_threshold);
-	sge->counter_val[1] = THRESHOLD_1_GET(ingress_rx_threshold);
-	sge->counter_val[2] = THRESHOLD_2_GET(ingress_rx_threshold);
-	sge->counter_val[3] = THRESHOLD_3_GET(ingress_rx_threshold);
+	ingress_rx_threshold = csio_rd_reg32(hw, SGE_INGRESS_RX_THRESHOLD_A);
+	sge->counter_val[0] = THRESHOLD_0_G(ingress_rx_threshold);
+	sge->counter_val[1] = THRESHOLD_1_G(ingress_rx_threshold);
+	sge->counter_val[2] = THRESHOLD_2_G(ingress_rx_threshold);
+	sge->counter_val[3] = THRESHOLD_3_G(ingress_rx_threshold);
 
 	csio_init_intr_coalesce_parms(hw);
 }
@@ -1460,9 +1456,9 @@ csio_wr_set_sge(struct csio_hw *hw)
 	 * Set up our basic SGE mode to deliver CPL messages to our Ingress
 	 * Queue and Packet Date to the Free List.
 	 */
-	csio_set_reg_field(hw, SGE_CONTROL, RXPKTCPLMODE(1), RXPKTCPLMODE(1));
+	csio_set_reg_field(hw, SGE_CONTROL_A, RXPKTCPLMODE_F, RXPKTCPLMODE_F);
 
-	sge->sge_control = csio_rd_reg32(hw, SGE_CONTROL);
+	sge->sge_control = csio_rd_reg32(hw, SGE_CONTROL_A);
 
 	/* sge->csio_fl_align is set up by csio_wr_fixup_host_params(). */
 
@@ -1470,22 +1466,23 @@ csio_wr_set_sge(struct csio_hw *hw)
 	 * Set up to drop DOORBELL writes when the DOORBELL FIFO overflows
 	 * and generate an interrupt when this occurs so we can recover.
 	 */
-	csio_set_reg_field(hw, SGE_DBFIFO_STATUS,
-		   HP_INT_THRESH(HP_INT_THRESH_MASK) |
-		   CSIO_HW_LP_INT_THRESH(hw, CSIO_HW_M_LP_INT_THRESH(hw)),
-		   HP_INT_THRESH(CSIO_SGE_DBFIFO_INT_THRESH) |
-		   CSIO_HW_LP_INT_THRESH(hw, CSIO_SGE_DBFIFO_INT_THRESH));
+	csio_set_reg_field(hw, SGE_DBFIFO_STATUS_A,
+			   LP_INT_THRESH_T5_V(LP_INT_THRESH_T5_M),
+			   LP_INT_THRESH_T5_V(CSIO_SGE_DBFIFO_INT_THRESH));
+	csio_set_reg_field(hw, SGE_DBFIFO_STATUS2_A,
+			   HP_INT_THRESH_T5_V(LP_INT_THRESH_T5_M),
+			   HP_INT_THRESH_T5_V(CSIO_SGE_DBFIFO_INT_THRESH));
 
-	csio_set_reg_field(hw, SGE_DOORBELL_CONTROL, ENABLE_DROP,
-			   ENABLE_DROP);
+	csio_set_reg_field(hw, SGE_DOORBELL_CONTROL_A, ENABLE_DROP_F,
+			   ENABLE_DROP_F);
 
 	/* SGE_FL_BUFFER_SIZE0 is set up by csio_wr_fixup_host_params(). */
 
 	CSIO_SET_FLBUF_SIZE(hw, 1, CSIO_SGE_FLBUF_SIZE1);
 	csio_wr_reg32(hw, (CSIO_SGE_FLBUF_SIZE2 + sge->csio_fl_align - 1)
-		      & ~(sge->csio_fl_align - 1), SGE_FL_BUFFER_SIZE2);
+		      & ~(sge->csio_fl_align - 1), SGE_FL_BUFFER_SIZE2_A);
 	csio_wr_reg32(hw, (CSIO_SGE_FLBUF_SIZE3 + sge->csio_fl_align - 1)
-		      & ~(sge->csio_fl_align - 1), SGE_FL_BUFFER_SIZE3);
+		      & ~(sge->csio_fl_align - 1), SGE_FL_BUFFER_SIZE3_A);
 	CSIO_SET_FLBUF_SIZE(hw, 4, CSIO_SGE_FLBUF_SIZE4);
 	CSIO_SET_FLBUF_SIZE(hw, 5, CSIO_SGE_FLBUF_SIZE5);
 	CSIO_SET_FLBUF_SIZE(hw, 6, CSIO_SGE_FLBUF_SIZE6);
@@ -1508,26 +1505,26 @@ csio_wr_set_sge(struct csio_hw *hw)
 	sge->counter_val[2] = CSIO_SGE_INT_CNT_VAL_2;
 	sge->counter_val[3] = CSIO_SGE_INT_CNT_VAL_3;
 
-	csio_wr_reg32(hw, THRESHOLD_0(sge->counter_val[0]) |
-		      THRESHOLD_1(sge->counter_val[1]) |
-		      THRESHOLD_2(sge->counter_val[2]) |
-		      THRESHOLD_3(sge->counter_val[3]),
-		      SGE_INGRESS_RX_THRESHOLD);
+	csio_wr_reg32(hw, THRESHOLD_0_V(sge->counter_val[0]) |
+		      THRESHOLD_1_V(sge->counter_val[1]) |
+		      THRESHOLD_2_V(sge->counter_val[2]) |
+		      THRESHOLD_3_V(sge->counter_val[3]),
+		      SGE_INGRESS_RX_THRESHOLD_A);
 
 	csio_wr_reg32(hw,
-		   TIMERVALUE0(csio_us_to_core_ticks(hw, sge->timer_val[0])) |
-		   TIMERVALUE1(csio_us_to_core_ticks(hw, sge->timer_val[1])),
-		   SGE_TIMER_VALUE_0_AND_1);
+		   TIMERVALUE0_V(csio_us_to_core_ticks(hw, sge->timer_val[0])) |
+		   TIMERVALUE1_V(csio_us_to_core_ticks(hw, sge->timer_val[1])),
+		   SGE_TIMER_VALUE_0_AND_1_A);
 
 	csio_wr_reg32(hw,
-		   TIMERVALUE2(csio_us_to_core_ticks(hw, sge->timer_val[2])) |
-		   TIMERVALUE3(csio_us_to_core_ticks(hw, sge->timer_val[3])),
-		   SGE_TIMER_VALUE_2_AND_3);
+		   TIMERVALUE2_V(csio_us_to_core_ticks(hw, sge->timer_val[2])) |
+		   TIMERVALUE3_V(csio_us_to_core_ticks(hw, sge->timer_val[3])),
+		   SGE_TIMER_VALUE_2_AND_3_A);
 
 	csio_wr_reg32(hw,
-		   TIMERVALUE4(csio_us_to_core_ticks(hw, sge->timer_val[4])) |
-		   TIMERVALUE5(csio_us_to_core_ticks(hw, sge->timer_val[5])),
-		   SGE_TIMER_VALUE_4_AND_5);
+		   TIMERVALUE4_V(csio_us_to_core_ticks(hw, sge->timer_val[4])) |
+		   TIMERVALUE5_V(csio_us_to_core_ticks(hw, sge->timer_val[5])),
+		   SGE_TIMER_VALUE_4_AND_5_A);
 
 	csio_init_intr_coalesce_parms(hw);
 }

@@ -132,6 +132,7 @@ static int tb10x_gpio_direction_out(struct gpio_chip *chip,
 	int mask = BIT(offset);
 	int val = TB10X_GPIO_DIR_OUT << offset;
 
+	tb10x_gpio_set(chip, offset, value);
 	tb10x_set_bits(tb10x_gpio, OFFSET_TO_REG_DDR, mask, val);
 
 	return 0;
@@ -194,18 +195,13 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	if (of_property_read_u32(dn, "abilis,ngpio", &ngpio))
 		return -EINVAL;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "No memory resource defined.\n");
-		return -EINVAL;
-	}
-
 	tb10x_gpio = devm_kzalloc(&pdev->dev, sizeof(*tb10x_gpio), GFP_KERNEL);
 	if (tb10x_gpio == NULL)
 		return -ENOMEM;
 
 	spin_lock_init(&tb10x_gpio->spinlock);
 
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tb10x_gpio->base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(tb10x_gpio->base))
 		return PTR_ERR(tb10x_gpio->base);
@@ -221,7 +217,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	tb10x_gpio->gc.free		= tb10x_gpio_free;
 	tb10x_gpio->gc.base		= -1;
 	tb10x_gpio->gc.ngpio		= ngpio;
-	tb10x_gpio->gc.can_sleep	= 0;
+	tb10x_gpio->gc.can_sleep	= false;
 
 
 	ret = gpiochip_add(&tb10x_gpio->gc);
@@ -287,21 +283,17 @@ fail_ioremap:
 	return ret;
 }
 
-static int __exit tb10x_gpio_remove(struct platform_device *pdev)
+static int tb10x_gpio_remove(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio = platform_get_drvdata(pdev);
-	int ret;
 
 	if (tb10x_gpio->gc.to_irq) {
 		irq_remove_generic_chip(tb10x_gpio->domain->gc->gc[0],
 					BIT(tb10x_gpio->gc.ngpio) - 1, 0, 0);
 		kfree(tb10x_gpio->domain->gc);
 		irq_domain_remove(tb10x_gpio->domain);
-		free_irq(tb10x_gpio->irq, tb10x_gpio);
 	}
-	ret = gpiochip_remove(&tb10x_gpio->gc);
-	if (ret)
-		return ret;
+	gpiochip_remove(&tb10x_gpio->gc);
 
 	return 0;
 }
@@ -317,8 +309,7 @@ static struct platform_driver tb10x_gpio_driver = {
 	.remove		= tb10x_gpio_remove,
 	.driver = {
 		.name	= "tb10x-gpio",
-		.of_match_table = of_match_ptr(tb10x_gpio_dt_ids),
-		.owner	= THIS_MODULE,
+		.of_match_table = tb10x_gpio_dt_ids,
 	}
 };
 

@@ -16,7 +16,29 @@
 #ifndef __LINUX_MFD_CROS_EC_H
 #define __LINUX_MFD_CROS_EC_H
 
+#include <linux/cdev.h>
+#include <linux/device.h>
+#include <linux/notifier.h>
 #include <linux/mfd/cros_ec_commands.h>
+#include <linux/mutex.h>
+
+#define CROS_EC_DEV_NAME "cros_ec"
+#define CROS_EC_DEV_PD_NAME "cros_pd"
+
+/*
+ * The EC is unresponsive for a time after a reboot command.  Add a
+ * simple delay to make sure that the bus stays locked.
+ */
+#define EC_REBOOT_DELAY_MS             50
+
+/*
+ * Max bus-specific overhead incurred by request/responses.
+ * I2C requires 1 additional byte for requests.
+ * I2C requires 2 additional bytes for responses.
+ * */
+#define EC_PROTO_VERSION_UNKNOWN	0
+#define EC_MAX_REQUEST_OVERHEAD		1
+#define EC_MAX_RESPONSE_OVERHEAD	2
 
 /*
  * Command interface between EC and AP, for LPC, I2C and SPI interfaces.
@@ -29,87 +51,119 @@ enum {
 	EC_MSG_RX_PROTO_BYTES	= 3,
 
 	/* Max length of messages */
-	EC_MSG_BYTES		= EC_HOST_PARAM_SIZE + EC_MSG_TX_PROTO_BYTES,
-
+	EC_MSG_BYTES		= EC_PROTO2_MAX_PARAM_SIZE +
+					EC_MSG_TX_PROTO_BYTES,
 };
 
-/**
- * struct cros_ec_msg - A message sent to the EC, and its reply
- *
+/*
  * @version: Command version number (often 0)
- * @cmd: Command to send (EC_CMD_...)
- * @out_buf: Outgoing payload (to EC)
- * @outlen: Outgoing length
- * @in_buf: Incoming payload (from EC)
- * @in_len: Incoming length
+ * @command: Command to send (EC_CMD_...)
+ * @outsize: Outgoing length in bytes
+ * @insize: Max number of bytes to accept from EC
+ * @result: EC's response to the command (separate from communication failure)
+ * @data: Where to put the incoming data from EC and outgoing data to EC
  */
-struct cros_ec_msg {
-	u8 version;
-	u8 cmd;
-	uint8_t *out_buf;
-	int out_len;
-	uint8_t *in_buf;
-	int in_len;
+struct cros_ec_command {
+	uint32_t version;
+	uint32_t command;
+	uint32_t outsize;
+	uint32_t insize;
+	uint32_t result;
+	uint8_t data[0];
 };
 
 /**
  * struct cros_ec_device - Information about a ChromeOS EC device
  *
- * @name: Name of this EC interface
+ * @phys_name: name of physical comms layer (e.g. 'i2c-4')
+ * @dev: Device pointer for physical comms device
+ * @was_wake_device: true if this device was set to wake the system from
+ * sleep at the last suspend
+ * @cmd_readmem: direct read of the EC memory-mapped region, if supported
+ *     @offset is within EC_LPC_ADDR_MEMMAP region.
+ *     @bytes: number of bytes to read. zero means "read a string" (including
+ *     the trailing '\0'). At most only EC_MEMMAP_SIZE bytes can be read.
+ *     Caller must ensure that the buffer is large enough for the result when
+ *     reading a string.
+ *
  * @priv: Private data
  * @irq: Interrupt to use
- * @din: input buffer (from EC)
- * @dout: output buffer (to EC)
+ * @id: Device id
+ * @din: input buffer (for data from EC)
+ * @dout: output buffer (for data to EC)
  * \note
  * These two buffers will always be dword-aligned and include enough
  * space for up to 7 word-alignment bytes also, so we can ensure that
  * the body of the message is always dword-aligned (64-bit).
- *
  * We use this alignment to keep ARM and x86 happy. Probably word
  * alignment would be OK, there might be a small performance advantage
  * to using dword.
- * @din_size: size of din buffer
- * @dout_size: size of dout buffer
- * @command_send: send a command
- * @command_recv: receive a command
- * @ec_name: name of EC device (e.g. 'chromeos-ec')
- * @phys_name: name of physical comms layer (e.g. 'i2c-4')
- * @parent: pointer to parent device (e.g. i2c or spi device)
- * @dev: Device pointer
- * dev_lock: Lock to prevent concurrent access
+ * @din_size: size of din buffer to allocate (zero to use static din)
+ * @dout_size: size of dout buffer to allocate (zero to use static dout)
  * @wake_enabled: true if this device can wake the system from sleep
- * @was_wake_device: true if this device was set to wake the system from
- * sleep at the last suspend
- * @event_notifier: interrupt event notifier for transport devices
+ * @cmd_xfer: send command to EC and get response
+ *     Returns the number of bytes received if the communication succeeded, but
+ *     that doesn't mean the EC was happy with the command. The caller
+ *     should check msg.result for the EC's result code.
+ * @pkt_xfer: send packet to EC and get response
+ * @lock: one transaction at a time
  */
 struct cros_ec_device {
-	const char *name;
+
+	/* These are used by other drivers that want to talk to the EC */
+	const char *phys_name;
+	struct device *dev;
+	bool was_wake_device;
+	struct class *cros_class;
+	int (*cmd_readmem)(struct cros_ec_device *ec, unsigned int offset,
+			   unsigned int bytes, void *dest);
+
+	/* These are used to implement the platform-specific interface */
+	u16 max_request;
+	u16 max_response;
+	u16 max_passthru;
+	u16 proto_version;
 	void *priv;
 	int irq;
-	uint8_t *din;
-	uint8_t *dout;
+	u8 *din;
+	u8 *dout;
 	int din_size;
 	int dout_size;
-	int (*command_send)(struct cros_ec_device *ec,
-			uint16_t cmd, void *out_buf, int out_len);
-	int (*command_recv)(struct cros_ec_device *ec,
-			uint16_t cmd, void *in_buf, int in_len);
-	int (*command_sendrecv)(struct cros_ec_device *ec,
-			uint16_t cmd, void *out_buf, int out_len,
-			void *in_buf, int in_len);
-	int (*command_xfer)(struct cros_ec_device *ec,
-			struct cros_ec_msg *msg);
-
-	const char *ec_name;
-	const char *phys_name;
-	struct device *parent;
-
-	/* These are --private-- fields - do not assign */
-	struct device *dev;
-	struct mutex dev_lock;
 	bool wake_enabled;
-	bool was_wake_device;
-	struct blocking_notifier_head event_notifier;
+	int (*cmd_xfer)(struct cros_ec_device *ec,
+			struct cros_ec_command *msg);
+	int (*pkt_xfer)(struct cros_ec_device *ec,
+			struct cros_ec_command *msg);
+	struct mutex lock;
+};
+
+/* struct cros_ec_platform - ChromeOS EC platform information
+ *
+ * @ec_name: name of EC device (e.g. 'cros-ec', 'cros-pd', ...)
+ * used in /dev/ and sysfs.
+ * @cmd_offset: offset to apply for each command. Set when
+ * registering a devicde behind another one.
+ */
+struct cros_ec_platform {
+	const char *ec_name;
+	u16 cmd_offset;
+};
+
+/*
+ * struct cros_ec_dev - ChromeOS EC device entry point
+ *
+ * @class_dev: Device structure used in sysfs
+ * @cdev: Character device structure in /dev
+ * @ec_dev: cros_ec_device structure to talk to the physical device
+ * @dev: pointer to the platform device
+ * @cmd_offset: offset to apply for each command.
+ */
+struct cros_ec_dev {
+	struct device class_dev;
+	struct cdev cdev;
+	struct cros_ec_device *ec_dev;
+	struct device *dev;
+	u16 cmd_offset;
 };
 
 /**
@@ -143,13 +197,36 @@ int cros_ec_resume(struct cros_ec_device *ec_dev);
  * @msg: Message to write
  */
 int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
-		       struct cros_ec_msg *msg);
+		       struct cros_ec_command *msg);
+
+/**
+ * cros_ec_check_result - Check ec_msg->result
+ *
+ * This is used by ChromeOS EC drivers to check the ec_msg->result for
+ * errors and to warn about them.
+ *
+ * @ec_dev: EC device
+ * @msg: Message to check
+ */
+int cros_ec_check_result(struct cros_ec_device *ec_dev,
+			 struct cros_ec_command *msg);
+
+/**
+ * cros_ec_cmd_xfer - Send a command to the ChromeOS EC
+ *
+ * Call this to send a command to the ChromeOS EC.  This should be used
+ * instead of calling the EC's cmd_xfer() callback directly.
+ *
+ * @ec_dev: EC device
+ * @msg: Message to write
+ */
+int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
+		     struct cros_ec_command *msg);
 
 /**
  * cros_ec_remove - Remove a ChromeOS EC
  *
- * Call this to deregister a ChromeOS EC. After this you should call
- * cros_ec_free().
+ * Call this to deregister a ChromeOS EC, then clean up any private data.
  *
  * @ec_dev: Device to register
  * @return 0 if ok, -ve on error
@@ -166,5 +243,17 @@ int cros_ec_remove(struct cros_ec_device *ec_dev);
  * @return 0 if ok, -ve on error
  */
 int cros_ec_register(struct cros_ec_device *ec_dev);
+
+/**
+ * cros_ec_register -  Query the protocol version supported by the ChromeOS EC
+ *
+ * @ec_dev: Device to register
+ * @return 0 if ok, -ve on error
+ */
+int cros_ec_query_all(struct cros_ec_device *ec_dev);
+
+/* sysfs stuff */
+extern struct attribute_group cros_ec_attr_group;
+extern struct attribute_group cros_ec_lightbar_attr_group;
 
 #endif /* __LINUX_MFD_CROS_EC_H */

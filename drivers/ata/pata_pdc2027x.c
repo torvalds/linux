@@ -25,10 +25,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/ktime.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
@@ -63,7 +63,7 @@ enum {
 };
 
 static int pdc2027x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pdc2027x_reinit_one(struct pci_dev *pdev);
 #endif
 static int pdc2027x_prereset(struct ata_link *link, unsigned long deadline);
@@ -129,7 +129,7 @@ static struct pci_driver pdc2027x_pci_driver = {
 	.id_table		= pdc2027x_pci_tbl,
 	.probe			= pdc2027x_init_one,
 	.remove			= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= ata_pci_device_suspend,
 	.resume			= pdc2027x_reinit_one,
 #endif
@@ -606,7 +606,7 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 	void __iomem *mmio_base = host->iomap[PDC_MMIO_BAR];
 	u32 scr;
 	long start_count, end_count;
-	struct timeval start_time, end_time;
+	ktime_t start_time, end_time;
 	long pll_clock, usec_elapsed;
 
 	/* Start the test mode */
@@ -617,14 +617,14 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 
 	/* Read current counter value */
 	start_count = pdc_read_counter(host);
-	do_gettimeofday(&start_time);
+	start_time = ktime_get();
 
 	/* Let the counter run for 100 ms. */
 	mdelay(100);
 
 	/* Read the counter values again */
 	end_count = pdc_read_counter(host);
-	do_gettimeofday(&end_time);
+	end_time = ktime_get();
 
 	/* Stop the test mode */
 	scr = ioread32(mmio_base + PDC_SYS_CTL);
@@ -633,8 +633,7 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 	ioread32(mmio_base + PDC_SYS_CTL); /* flush */
 
 	/* calculate the input clock in Hz */
-	usec_elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
-		(end_time.tv_usec - start_time.tv_usec);
+	usec_elapsed = (long) ktime_us_delta(end_time, start_time);
 
 	pll_clock = ((start_count - end_count) & 0x3fffffff) / 100 *
 		(100000000 / usec_elapsed);
@@ -731,11 +730,11 @@ static int pdc2027x_init_one(struct pci_dev *pdev,
 		return rc;
 	host->iomap = pcim_iomap_table(pdev);
 
-	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
+	rc = dma_set_mask(&pdev->dev, ATA_DMA_MASK);
 	if (rc)
 		return rc;
 
-	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
+	rc = dma_set_coherent_mask(&pdev->dev, ATA_DMA_MASK);
 	if (rc)
 		return rc;
 
@@ -762,7 +761,7 @@ static int pdc2027x_init_one(struct pci_dev *pdev,
 				 IRQF_SHARED, &pdc2027x_sht);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pdc2027x_reinit_one(struct pci_dev *pdev)
 {
 	struct ata_host *host = pci_get_drvdata(pdev);

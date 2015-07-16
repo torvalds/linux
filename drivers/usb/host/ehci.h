@@ -38,7 +38,7 @@ typedef __u16 __bitwise __hc16;
 #endif
 
 /* statistics can be kept for tuning/monitoring */
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 #define EHCI_STATS
 #endif
 
@@ -225,6 +225,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		has_synopsys_hc_bug:1; /* Synopsys HC */
 	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
 	unsigned		need_oc_pp_cycle:1; /* MPC834X port power */
+	unsigned		imx28_write_fix:1; /* For Freescale i.MX28 */
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)
@@ -248,7 +249,7 @@ struct ehci_hcd {			/* one per controller */
 #endif
 
 	/* debug files */
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 	struct dentry		*debug_dir;
 #endif
 
@@ -728,6 +729,18 @@ static inline unsigned int ehci_readl(const struct ehci_hcd *ehci,
 #endif
 }
 
+#ifdef CONFIG_SOC_IMX28
+static inline void imx28_ehci_writel(const unsigned int val,
+		volatile __u32 __iomem *addr)
+{
+	__asm__ ("swp %0, %0, [%1]" : : "r"(val), "r"(addr));
+}
+#else
+static inline void imx28_ehci_writel(const unsigned int val,
+		volatile __u32 __iomem *addr)
+{
+}
+#endif
 static inline void ehci_writel(const struct ehci_hcd *ehci,
 		const unsigned int val, __u32 __iomem *regs)
 {
@@ -736,7 +749,10 @@ static inline void ehci_writel(const struct ehci_hcd *ehci,
 		writel_be(val, regs) :
 		writel(val, regs);
 #else
-	writel(val, regs);
+	if (ehci->imx28_write_fix)
+		imx28_ehci_writel(val, regs);
+	else
+		writel(val, regs);
 #endif
 }
 
@@ -832,9 +848,9 @@ static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 	dev_warn(ehci_to_hcd(ehci)->self.controller , fmt , ## args)
 
 
-#if !defined(DEBUG) && !defined(CONFIG_DYNAMIC_DEBUG)
+#ifndef CONFIG_DYNAMIC_DEBUG
 #define STUB_DEBUG_FILES
-#endif	/* !DEBUG && !CONFIG_DYNAMIC_DEBUG */
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -843,6 +859,8 @@ static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 struct ehci_driver_overrides {
 	size_t		extra_priv_size;
 	int		(*reset)(struct usb_hcd *hcd);
+	int		(*port_power)(struct usb_hcd *hcd,
+				int portnum, bool enable);
 };
 
 extern void	ehci_init_driver(struct hc_driver *drv,
@@ -850,10 +868,16 @@ extern void	ehci_init_driver(struct hc_driver *drv,
 extern int	ehci_setup(struct usb_hcd *hcd);
 extern int	ehci_handshake(struct ehci_hcd *ehci, void __iomem *ptr,
 				u32 mask, u32 done, int usec);
+extern int	ehci_reset(struct ehci_hcd *ehci);
 
 #ifdef CONFIG_PM
 extern int	ehci_suspend(struct usb_hcd *hcd, bool do_wakeup);
-extern int	ehci_resume(struct usb_hcd *hcd, bool hibernated);
+extern int	ehci_resume(struct usb_hcd *hcd, bool force_reset);
+extern void	ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
+			bool suspending, bool do_wakeup);
 #endif	/* CONFIG_PM */
+
+extern int	ehci_hub_control(struct usb_hcd	*hcd, u16 typeReq, u16 wValue,
+				 u16 wIndex, char *buf, u16 wLength);
 
 #endif /* __LINUX_EHCI_HCD_H */

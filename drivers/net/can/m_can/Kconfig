@@ -1,0 +1,5 @@
+config CAN_M_CAN
+	depends on HAS_IOMEM
+	tristate "Bosch M_CAN devices"
+	---help---
+	  Say Y here if you want to support for Bosch M_CAN controller.

@@ -13,11 +13,11 @@
  */
 
 #include <linux/kobject.h>
-#include <linux/kobj_completion.h>
 #include <linux/string.h>
 #include <linux/export.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
+#include <linux/random.h>
 
 /**
  * kobject_namespace - return @kobj's namespace tag
@@ -65,13 +65,17 @@ static int populate_dir(struct kobject *kobj)
 
 static int create_dir(struct kobject *kobj)
 {
+	const struct kobj_ns_type_operations *ops;
 	int error;
 
 	error = sysfs_create_dir_ns(kobj, kobject_namespace(kobj));
-	if (!error) {
-		error = populate_dir(kobj);
-		if (error)
-			sysfs_remove_dir(kobj);
+	if (error)
+		return error;
+
+	error = populate_dir(kobj);
+	if (error) {
+		sysfs_remove_dir(kobj);
+		return error;
 	}
 
 	/*
@@ -80,7 +84,20 @@ static int create_dir(struct kobject *kobj)
 	 */
 	sysfs_get(kobj->sd);
 
-	return error;
+	/*
+	 * If @kobj has ns_ops, its children need to be filtered based on
+	 * their namespace tags.  Enable namespace support on @kobj->sd.
+	 */
+	ops = kobj_child_ns_ops(kobj);
+	if (ops) {
+		BUG_ON(ops->type <= KOBJ_NS_TYPE_NONE);
+		BUG_ON(ops->type >= KOBJ_NS_TYPES);
+		BUG_ON(!kobj_ns_type_registered(ops->type));
+
+		sysfs_enable_ns(kobj->sd);
+	}
+
+	return 0;
 }
 
 static int get_kobj_path_length(struct kobject *kobj)
@@ -240,21 +257,20 @@ static int kobject_add_internal(struct kobject *kobj)
 int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 				  va_list vargs)
 {
-	const char *old_name = kobj->name;
 	char *s;
 
 	if (kobj->name && !fmt)
 		return 0;
 
-	kobj->name = kvasprintf(GFP_KERNEL, fmt, vargs);
-	if (!kobj->name)
+	s = kvasprintf(GFP_KERNEL, fmt, vargs);
+	if (!s)
 		return -ENOMEM;
 
 	/* ewww... some of these buggers have '/' in the name ... */
-	while ((s = strchr(kobj->name, '/')))
-		s[0] = '!';
+	strreplace(s, '/', '!');
+	kfree(kobj->name);
+	kobj->name = s;
 
-	kfree(old_name);
 	return 0;
 }
 
@@ -346,7 +362,7 @@ static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
  *
  * If @parent is set, then the parent of the @kobj will be set to it.
  * If @parent is NULL, then the parent of the @kobj will be set to the
- * kobject associted with the kset assigned to this kobject.  If no kset
+ * kobject associated with the kset assigned to this kobject.  If no kset
  * is assigned to the kobject, then the kobject will be located in the
  * root of the sysfs tree.
  *
@@ -529,6 +545,7 @@ out:
 	kfree(devpath);
 	return error;
 }
+EXPORT_SYMBOL_GPL(kobject_move);
 
 /**
  * kobject_del - unlink kobject from hierarchy.
@@ -536,7 +553,7 @@ out:
  */
 void kobject_del(struct kobject *kobj)
 {
-	struct sysfs_dirent *sd;
+	struct kernfs_node *sd;
 
 	if (!kobj)
 		return;
@@ -557,8 +574,13 @@ void kobject_del(struct kobject *kobj)
  */
 struct kobject *kobject_get(struct kobject *kobj)
 {
-	if (kobj)
+	if (kobj) {
+		if (!kobj->state_initialized)
+			WARN(1, KERN_WARNING "kobject: '%s' (%p): is not "
+			       "initialized, yet kobject_get() is being "
+			       "called.\n", kobject_name(kobj), kobj);
 		kref_get(&kobj->kref);
+	}
 	return kobj;
 }
 
@@ -625,10 +647,12 @@ static void kobject_release(struct kref *kref)
 {
 	struct kobject *kobj = container_of(kref, struct kobject, kref);
 #ifdef CONFIG_DEBUG_KOBJECT_RELEASE
-	pr_info("kobject: '%s' (%p): %s, parent %p (delayed)\n",
-		 kobject_name(kobj), kobj, __func__, kobj->parent);
+	unsigned long delay = HZ + HZ * (get_random_int() & 0x3);
+	pr_info("kobject: '%s' (%p): %s, parent %p (delayed %ld)\n",
+		 kobject_name(kobj), kobj, __func__, kobj->parent, delay);
 	INIT_DELAYED_WORK(&kobj->release, kobject_delayed_cleanup);
-	schedule_delayed_work(&kobj->release, HZ);
+
+	schedule_delayed_work(&kobj->release, delay);
 #else
 	kobject_cleanup(kobj);
 #endif
@@ -758,55 +782,7 @@ const struct sysfs_ops kobj_sysfs_ops = {
 	.show	= kobj_attr_show,
 	.store	= kobj_attr_store,
 };
-
-/**
- * kobj_completion_init - initialize a kobj_completion object.
- * @kc: kobj_completion
- * @ktype: type of kobject to initialize
- *
- * kobj_completion structures can be embedded within structures with different
- * lifetime rules.  During the release of the enclosing object, we can
- * wait on the release of the kobject so that we don't free it while it's
- * still busy.
- */
-void kobj_completion_init(struct kobj_completion *kc, struct kobj_type *ktype)
-{
-	init_completion(&kc->kc_unregister);
-	kobject_init(&kc->kc_kobj, ktype);
-}
-EXPORT_SYMBOL_GPL(kobj_completion_init);
-
-/**
- * kobj_completion_release - release a kobj_completion object
- * @kobj: kobject embedded in kobj_completion
- *
- * Used with kobject_release to notify waiters that the kobject has been
- * released.
- */
-void kobj_completion_release(struct kobject *kobj)
-{
-	struct kobj_completion *kc = kobj_to_kobj_completion(kobj);
-	complete(&kc->kc_unregister);
-}
-EXPORT_SYMBOL_GPL(kobj_completion_release);
-
-/**
- * kobj_completion_del_and_wait - release the kobject and wait for it
- * @kc: kobj_completion object to release
- *
- * Delete the kobject from sysfs and drop the reference count.  Then wait
- * until any other outstanding references are also dropped.  This routine
- * is only necessary once other references may have been taken on the
- * kobject.  Typically this happens when the kobject has been published
- * to sysfs via kobject_add.
- */
-void kobj_completion_del_and_wait(struct kobj_completion *kc)
-{
-	kobject_del(&kc->kc_kobj);
-	kobject_put(&kc->kc_kobj);
-	wait_for_completion(&kc->kc_unregister);
-}
-EXPORT_SYMBOL_GPL(kobj_completion_del_and_wait);
+EXPORT_SYMBOL_GPL(kobj_sysfs_ops);
 
 /**
  * kset_register - initialize and add a kset.
@@ -835,6 +811,7 @@ void kset_unregister(struct kset *k)
 {
 	if (!k)
 		return;
+	kobject_del(&k->kobj);
 	kobject_put(&k->kobj);
 }
 
@@ -1002,7 +979,7 @@ const struct kobj_ns_type_operations *kobj_child_ns_ops(struct kobject *parent)
 {
 	const struct kobj_ns_type_operations *ops = NULL;
 
-	if (parent && parent->ktype->child_ns_type)
+	if (parent && parent->ktype && parent->ktype->child_ns_type)
 		ops = parent->ktype->child_ns_type(parent);
 
 	return ops;

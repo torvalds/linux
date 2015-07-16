@@ -35,9 +35,6 @@ void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 	struct irq_fd *irq_fd;
 	int n;
 
-	if (smp_sigio_handler())
-		return;
-
 	while (1) {
 		n = os_waiting_for_events(active_fds);
 		if (n <= 0) {

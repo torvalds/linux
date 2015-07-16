@@ -31,19 +31,15 @@
 
 #include <rtl8188e_hal.h>
 
-static void dm_CheckStatistics(struct adapter *Adapter)
-{
-}
-
 /*  Initialize GPIO setting registers */
 static void dm_InitGPIOSetting(struct adapter *Adapter)
 {
 	u8	tmp1byte;
 
-	tmp1byte = rtw_read8(Adapter, REG_GPIO_MUXCFG);
+	tmp1byte = usb_read8(Adapter, REG_GPIO_MUXCFG);
 	tmp1byte &= (GPIOSEL_GPIO | ~GPIOSEL_ENBT);
 
-	rtw_write8(Adapter, REG_GPIO_MUXCFG, tmp1byte);
+	usb_write8(Adapter, REG_GPIO_MUXCFG, tmp1byte);
 }
 
 /*  */
@@ -57,16 +53,11 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 	u8 cut_ver, fab_ver;
 
 	/*  Init Value */
-	_rtw_memset(dm_odm, 0, sizeof(*dm_odm));
+	memset(dm_odm, 0, sizeof(*dm_odm));
 
 	dm_odm->Adapter = Adapter;
 
 	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_PLATFORM, ODM_CE);
-
-	if (Adapter->interface_type == RTW_GSPI)
-		ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_INTERFACE, ODM_ITRF_SDIO);
-	else
-		ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_INTERFACE, Adapter->interface_type);/* RTL871X_HCI_TYPE */
 
 	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_IC_TYPE, ODM_RTL8188E);
 
@@ -160,18 +151,17 @@ void rtl8188e_InitHalDm(struct adapter *Adapter)
 
 void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 {
-	bool fw_cur_in_ps = false;
 	bool fw_ps_awake = true;
 	u8 hw_init_completed = false;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct mlme_priv *pmlmepriv = NULL;
+	u8 bLinked = false;
 
-	_func_enter_;
 	hw_init_completed = Adapter->hw_init_completed;
 
 	if (!hw_init_completed)
 		goto skip_dm;
 
-	fw_cur_in_ps = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
 	rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&fw_ps_awake));
 
 	/*  Fw is under p2p powersaving mode, driver should stop dynamic mechanism. */
@@ -179,30 +169,21 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 	if (Adapter->wdinfo.p2p_ps_mode)
 		fw_ps_awake = false;
 
-	if (hw_init_completed && ((!fw_cur_in_ps) && fw_ps_awake)) {
-		/*  Calculate Tx/Rx statistics. */
-		dm_CheckStatistics(Adapter);
-
-	_func_exit_;
-	}
-
 	/* ODM */
-	if (hw_init_completed) {
-		struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
-		u8 bLinked = false;
+	pmlmepriv = &Adapter->mlmepriv;
 
-		if ((check_fwstate(pmlmepriv, WIFI_AP_STATE)) ||
-		    (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE))) {
-			if (Adapter->stapriv.asoc_sta_count > 2)
-				bLinked = true;
-		} else {/* Station mode */
-			if (check_fwstate(pmlmepriv, _FW_LINKED))
-				bLinked = true;
-		}
-
-		ODM_CmnInfoUpdate(&hal_data->odmpriv, ODM_CMNINFO_LINK, bLinked);
-		ODM_DMWatchdog(&hal_data->odmpriv);
+	if ((check_fwstate(pmlmepriv, WIFI_AP_STATE)) ||
+	    (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE |
+			   WIFI_ADHOC_MASTER_STATE))) {
+		if (Adapter->stapriv.asoc_sta_count > 2)
+			bLinked = true;
+	} else {/* Station mode */
+		if (check_fwstate(pmlmepriv, _FW_LINKED))
+			bLinked = true;
 	}
+
+	ODM_CmnInfoUpdate(&hal_data->odmpriv, ODM_CMNINFO_LINK, bLinked);
+	ODM_DMWatchdog(&hal_data->odmpriv);
 skip_dm:
 	/*  Check GPIO to determine current RF on/off and Pbc status. */
 	/*  Check Hardware Radio ON/OFF or not */
@@ -215,13 +196,9 @@ void rtl8188e_init_dm_priv(struct adapter *Adapter)
 	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
 	struct odm_dm_struct *podmpriv = &hal_data->odmpriv;
 
-	_rtw_memset(pdmpriv, 0, sizeof(struct dm_priv));
+	memset(pdmpriv, 0, sizeof(struct dm_priv));
 	Init_ODM_ComInfo_88E(Adapter);
 	ODM_InitDebugSetting(podmpriv);
-}
-
-void rtl8188e_deinit_dm_priv(struct adapter *Adapter)
-{
 }
 
 /*  Add new function to reset the state of antenna diversity before link. */

@@ -122,7 +122,6 @@ $(check-file): scripts/headers_check.pl $(output-files) FORCE
 endif
 
 # Recursion
-hdr-inst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
 .PHONY: $(subdirs)
 $(subdirs):
 	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(_dst)/$@

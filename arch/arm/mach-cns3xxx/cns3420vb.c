@@ -246,10 +246,10 @@ static void __init cns3420_map_io(void)
 
 MACHINE_START(CNS3420VB, "Cavium Networks CNS3420 Validation Board")
 	.atag_offset	= 0x100,
-	.nr_irqs	= NR_IRQS_CNS3XXX,
 	.map_io		= cns3420_map_io,
 	.init_irq	= cns3xxx_init_irq,
 	.init_time	= cns3xxx_timer_init,
 	.init_machine	= cns3420_init,
+	.init_late      = cns3xxx_pcie_init_late,
 	.restart	= cns3xxx_restart,
 MACHINE_END

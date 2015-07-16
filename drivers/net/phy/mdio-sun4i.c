@@ -13,7 +13,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -91,11 +90,6 @@ static int sun4i_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	return 0;
 }
 
-static int sun4i_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static int sun4i_mdio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -111,7 +105,6 @@ static int sun4i_mdio_probe(struct platform_device *pdev)
 	bus->name = "sun4i_mii_bus";
 	bus->read = &sun4i_mdio_read;
 	bus->write = &sun4i_mdio_write;
-	bus->reset = &sun4i_mdio_reset;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii", dev_name(&pdev->dev));
 	bus->parent = &pdev->dev;
 
@@ -171,6 +164,9 @@ static int sun4i_mdio_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id sun4i_mdio_dt_ids[] = {
+	{ .compatible = "allwinner,sun4i-a10-mdio" },
+
+	/* Deprecated */
 	{ .compatible = "allwinner,sun4i-mdio" },
 	{ }
 };

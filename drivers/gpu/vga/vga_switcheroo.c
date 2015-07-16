@@ -623,7 +623,8 @@ static int vga_switcheroo_runtime_suspend(struct device *dev)
 	ret = dev->bus->pm->runtime_suspend(dev);
 	if (ret)
 		return ret;
-
+	if (vgasr_priv.handler->switchto)
+		vgasr_priv.handler->switchto(VGA_SWITCHEROO_IGD);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_OFF);
 	return 0;
 }
@@ -658,6 +659,12 @@ int vga_switcheroo_init_domain_pm_ops(struct device *dev, struct dev_pm_domain *
 	return -EINVAL;
 }
 EXPORT_SYMBOL(vga_switcheroo_init_domain_pm_ops);
+
+void vga_switcheroo_fini_domain_pm_ops(struct device *dev)
+{
+	dev->pm_domain = NULL;
+}
+EXPORT_SYMBOL(vga_switcheroo_fini_domain_pm_ops);
 
 static int vga_switcheroo_runtime_resume_hdmi_audio(struct device *dev)
 {

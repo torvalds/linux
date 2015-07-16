@@ -14,13 +14,12 @@
  *   along with Portals; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * header for libptlctl.a
+ * header for lnet ioctl
  */
-#ifndef _PTLCTL_H_
-#define _PTLCTL_H_
+#ifndef _LNETCTL_H_
+#define _LNETCTL_H_
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/types.h>
+#include "types.h"
 
 #define LNET_DEV_ID 0
 #define LNET_DEV_PATH "/dev/lnet"
@@ -43,10 +42,10 @@ int jt_ptl_which_nid(int argc, char **argv);
 int jt_ptl_print_interfaces(int argc, char **argv);
 int jt_ptl_add_interface(int argc, char **argv);
 int jt_ptl_del_interface(int argc, char **argv);
-int jt_ptl_print_peers (int argc, char **argv);
-int jt_ptl_add_peer (int argc, char **argv);
-int jt_ptl_del_peer (int argc, char **argv);
-int jt_ptl_print_connections (int argc, char **argv);
+int jt_ptl_print_peers(int argc, char **argv);
+int jt_ptl_add_peer(int argc, char **argv);
+int jt_ptl_del_peer(int argc, char **argv);
+int jt_ptl_print_connections(int argc, char **argv);
 int jt_ptl_disconnect(int argc, char **argv);
 int jt_ptl_push_connection(int argc, char **argv);
 int jt_ptl_print_active_txs(int argc, char **argv);
@@ -56,11 +55,11 @@ int jt_ptl_add_uuid(int argc, char **argv);
 int jt_ptl_add_uuid_old(int argc, char **argv); /* backwards compatibility  */
 int jt_ptl_close_uuid(int argc, char **argv);
 int jt_ptl_del_uuid(int argc, char **argv);
-int jt_ptl_add_route (int argc, char **argv);
-int jt_ptl_del_route (int argc, char **argv);
-int jt_ptl_notify_router (int argc, char **argv);
-int jt_ptl_print_routes (int argc, char **argv);
-int jt_ptl_fail_nid (int argc, char **argv);
+int jt_ptl_add_route(int argc, char **argv);
+int jt_ptl_del_route(int argc, char **argv);
+int jt_ptl_notify_router(int argc, char **argv);
+int jt_ptl_print_routes(int argc, char **argv);
+int jt_ptl_fail_nid(int argc, char **argv);
 int jt_ptl_lwt(int argc, char **argv);
 int jt_ptl_testprotocompat(int argc, char **argv);
 int jt_ptl_memhog(int argc, char **argv);

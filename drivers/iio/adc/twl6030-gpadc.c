@@ -28,7 +28,6 @@
  * 02110-1301 USA
  *
  */
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -969,7 +968,7 @@ static int twl6030_gpadc_suspend(struct device *pdev)
 	ret = twl_i2c_write_u8(TWL6030_MODULE_ID1, TWL6030_GPADCR,
 				TWL6030_REG_TOGGLE1);
 	if (ret)
-		dev_err(pdev, "error reseting GPADC (%d)!\n", ret);
+		dev_err(pdev, "error resetting GPADC (%d)!\n", ret);
 
 	return 0;
 };
@@ -995,7 +994,6 @@ static struct platform_driver twl6030_gpadc_driver = {
 	.remove		= twl6030_gpadc_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &twl6030_gpadc_pm_ops,
 		.of_match_table = of_twl6030_match_tbl,
 	},
@@ -1003,7 +1001,7 @@ static struct platform_driver twl6030_gpadc_driver = {
 
 module_platform_driver(twl6030_gpadc_driver);
 
-MODULE_ALIAS("platform: " DRIVER_NAME);
+MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_AUTHOR("Balaji T K <balajitk@ti.com>");
 MODULE_AUTHOR("Graeme Gregory <gg@slimlogic.co.uk>");
 MODULE_AUTHOR("Oleksandr Kozaruk <oleksandr.kozaruk@ti.com");

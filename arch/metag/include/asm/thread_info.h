@@ -28,16 +28,14 @@
 /* This must be 8 byte aligned so we can ensure stack alignment. */
 struct thread_info {
 	struct task_struct *task;	/* main task structure */
-	struct exec_domain *exec_domain;	/* execution domain */
 	unsigned long flags;	/* low level flags */
 	unsigned long status;	/* thread-synchronous flags */
 	u32 cpu;		/* current CPU */
 	int preempt_count;	/* 0 => preemptable, <0 => BUG */
 
 	mm_segment_t addr_limit;	/* thread address space */
-	struct restart_block restart_block;
 
-	u8 supervisor_stack[0];
+	u8 supervisor_stack[0] __aligned(8);
 };
 
 #else /* !__ASSEMBLY__ */
@@ -69,14 +67,10 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
-	.restart_block = {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -117,10 +111,8 @@ static inline int kstack_end(void *addr)
 #define TIF_SECCOMP		5	/* secure computing */
 #define TIF_RESTORE_SIGMASK	6	/* restore signal mask in do_signal() */
 #define TIF_NOTIFY_RESUME	7	/* callback before returning to user */
-#define TIF_POLLING_NRFLAG      8	/* true if poll_idle() is polling
-					   TIF_NEED_RESCHED */
-#define TIF_MEMDIE		9	/* is terminating due to OOM killer */
-#define TIF_SYSCALL_TRACEPOINT  10	/* syscall tracepoint instrumentation */
+#define TIF_MEMDIE		8	/* is terminating due to OOM killer */
+#define TIF_SYSCALL_TRACEPOINT	9	/* syscall tracepoint instrumentation */
 
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)

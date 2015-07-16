@@ -49,7 +49,23 @@ const char *usbcore_name = "usbcore";
 
 static bool nousb;	/* Disable USB when built into kernel image */
 
-#ifdef	CONFIG_PM_RUNTIME
+/* To disable USB, kernel command line is 'nousb' not 'usbcore.nousb' */
+#ifdef MODULE
+module_param(nousb, bool, 0444);
+#else
+core_param(nousb, nousb, bool, 0444);
+#endif
+
+/*
+ * for external read access to <nousb>
+ */
+int usb_disabled(void)
+{
+	return nousb;
+}
+EXPORT_SYMBOL_GPL(usb_disabled);
+
+#ifdef	CONFIG_PM
 static int usb_autosuspend_delay = 2;		/* Default delay value,
 						 * in seconds */
 module_param_named(autosuspend, usb_autosuspend_delay, int, 0644);
@@ -348,11 +364,9 @@ static const struct dev_pm_ops usb_device_pm_ops = {
 	.thaw =		usb_dev_thaw,
 	.poweroff =	usb_dev_poweroff,
 	.restore =	usb_dev_restore,
-#ifdef CONFIG_PM_RUNTIME
 	.runtime_suspend =	usb_runtime_suspend,
 	.runtime_resume =	usb_runtime_resume,
 	.runtime_idle =		usb_runtime_idle,
-#endif
 };
 
 #endif	/* CONFIG_PM */
@@ -501,6 +515,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	}
 	return dev;
 }
+EXPORT_SYMBOL_GPL(usb_alloc_dev);
 
 /**
  * usb_get_dev - increments the reference count of the usb device structure
@@ -965,22 +980,6 @@ void usb_buffer_unmap_sg(const struct usb_device *dev, int is_in,
 EXPORT_SYMBOL_GPL(usb_buffer_unmap_sg);
 #endif
 
-/* To disable USB, kernel command line is 'nousb' not 'usbcore.nousb' */
-#ifdef MODULE
-module_param(nousb, bool, 0444);
-#else
-core_param(nousb, nousb, bool, 0444);
-#endif
-
-/*
- * for external read access to <nousb>
- */
-int usb_disabled(void)
-{
-	return nousb;
-}
-EXPORT_SYMBOL_GPL(usb_disabled);
-
 /*
  * Notifications of device and interface registration
  */
@@ -1046,10 +1045,11 @@ static void usb_debugfs_cleanup(void)
 static int __init usb_init(void)
 {
 	int retval;
-	if (nousb) {
+	if (usb_disabled()) {
 		pr_info("%s: USB support disabled\n", usbcore_name);
 		return 0;
 	}
+	usb_init_pool_max();
 
 	retval = usb_debugfs_init();
 	if (retval)
@@ -1102,7 +1102,7 @@ out:
 static void __exit usb_exit(void)
 {
 	/* This will matter if shutdown/reboot does exitcalls. */
-	if (nousb)
+	if (usb_disabled())
 		return;
 
 	usb_deregister_device_driver(&usb_generic_driver);

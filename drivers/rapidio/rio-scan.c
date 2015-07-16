@@ -83,7 +83,7 @@ static u16 rio_destid_alloc(struct rio_net *net)
  * @destid: destID to reserve
  *
  * Tries to reserve the specified destID.
- * Returns 0 if successfull.
+ * Returns 0 if successful.
  */
 static int rio_destid_reserve(struct rio_net *net, u16 destid)
 {
@@ -461,6 +461,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 			     rdev->comp_tag & RIO_CTAG_UDEVID);
 	}
 
+	rdev->dev.parent = &port->dev;
 	rio_attach_device(rdev);
 
 	device_initialize(&rdev->dev);

@@ -9,13 +9,11 @@
 #include <linux/mm.h>
 #include <linux/sysctl.h>
 #include <net/net_namespace.h>
+#include <net/ipx.h>
 
 #ifndef CONFIG_SYSCTL
 #error This file should not be compiled without CONFIG_SYSCTL defined
 #endif
-
-/* From af_ipx.c */
-extern int sysctl_ipx_pprop_broadcasting;
 
 static struct ctl_table ipx_table[] = {
 	{

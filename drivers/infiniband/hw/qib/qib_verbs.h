@@ -664,6 +664,13 @@ struct qib_opcode_stats_perctx {
 	struct qib_opcode_stats stats[128];
 };
 
+struct qib_pma_counters {
+	u64 n_unicast_xmit;     /* total unicast packets sent */
+	u64 n_unicast_rcv;      /* total unicast packets received */
+	u64 n_multicast_xmit;   /* total multicast packets sent */
+	u64 n_multicast_rcv;    /* total multicast packets received */
+};
+
 struct qib_ibport {
 	struct qib_qp __rcu *qp0;
 	struct qib_qp __rcu *qp1;
@@ -680,10 +687,11 @@ struct qib_ibport {
 	__be64 mkey;
 	__be64 guids[QIB_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
 	u64 tid;		/* TID for traps */
-	u64 n_unicast_xmit;     /* total unicast packets sent */
-	u64 n_unicast_rcv;      /* total unicast packets received */
-	u64 n_multicast_xmit;   /* total multicast packets sent */
-	u64 n_multicast_rcv;    /* total multicast packets received */
+	struct qib_pma_counters __percpu *pmastats;
+	u64 z_unicast_xmit;     /* starting count for PMA */
+	u64 z_unicast_rcv;      /* starting count for PMA */
+	u64 z_multicast_xmit;   /* starting count for PMA */
+	u64 z_multicast_rcv;    /* starting count for PMA */
 	u64 z_symbol_error_counter;             /* starting count for PMA */
 	u64 z_link_error_recovery_counter;      /* starting count for PMA */
 	u64 z_link_downed_counter;              /* starting count for PMA */
@@ -864,8 +872,10 @@ void qib_cap_mask_chg(struct qib_ibport *ibp);
 void qib_sys_guid_chg(struct qib_ibport *ibp);
 void qib_node_desc_chg(struct qib_ibport *ibp);
 int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-		    struct ib_wc *in_wc, struct ib_grh *in_grh,
-		    struct ib_mad *in_mad, struct ib_mad *out_mad);
+		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+		    const struct ib_mad_hdr *in, size_t in_mad_size,
+		    struct ib_mad_hdr *out, size_t *out_mad_size,
+		    u16 *out_mad_pkey_index);
 int qib_create_agents(struct qib_ibdev *dev);
 void qib_free_agents(struct qib_ibdev *dev);
 
@@ -999,8 +1009,9 @@ void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int sig);
 
 int qib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
 
-struct ib_cq *qib_create_cq(struct ib_device *ibdev, int entries,
-			    int comp_vector, struct ib_ucontext *context,
+struct ib_cq *qib_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_ucontext *context,
 			    struct ib_udata *udata);
 
 int qib_destroy_cq(struct ib_cq *ibcq);

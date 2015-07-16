@@ -65,11 +65,11 @@ static const struct regmap_irq wm8997_irqs[ARIZONA_NUM_IRQ] = {
 	[ARIZONA_IRQ_GP2] = { .reg_offset = 0, .mask = ARIZONA_GP2_EINT1 },
 	[ARIZONA_IRQ_GP1] = { .reg_offset = 0, .mask = ARIZONA_GP1_EINT1 },
 
-	[ARIZONA_IRQ_SPK_SHUTDOWN_WARN] = {
-		.reg_offset = 2, .mask = ARIZONA_SPK_SHUTDOWN_WARN_EINT1
+	[ARIZONA_IRQ_SPK_OVERHEAT_WARN] = {
+		.reg_offset = 2, .mask = ARIZONA_SPK_OVERHEAT_WARN_EINT1
 	},
-	[ARIZONA_IRQ_SPK_SHUTDOWN] = {
-		.reg_offset = 2, .mask = ARIZONA_SPK_SHUTDOWN_EINT1
+	[ARIZONA_IRQ_SPK_OVERHEAT] = {
+		.reg_offset = 2, .mask = ARIZONA_SPK_OVERHEAT_EINT1
 	},
 	[ARIZONA_IRQ_HPDET] = {
 		.reg_offset = 2, .mask = ARIZONA_HPDET_EINT1
@@ -174,10 +174,10 @@ static const struct reg_default wm8997_reg_default[] = {
 	{ 0x00000062, 0x01FF },    /* R98    - Sample Rate Sequence Select 2 */
 	{ 0x00000063, 0x01FF },    /* R99    - Sample Rate Sequence Select 3 */
 	{ 0x00000064, 0x01FF },    /* R100   - Sample Rate Sequence Select 4 */
-	{ 0x00000068, 0x01FF },    /* R104   - Always On Triggers Sequence Select 1 */
-	{ 0x00000069, 0x01FF },    /* R105   - Always On Triggers Sequence Select 2 */
-	{ 0x0000006A, 0x01FF },    /* R106   - Always On Triggers Sequence Select 3 */
-	{ 0x0000006B, 0x01FF },    /* R107   - Always On Triggers Sequence Select 4 */
+	{ 0x00000068, 0x01FF },    /* R104   - AlwaysOn Triggers Seq Select 3 */
+	{ 0x00000069, 0x01FF },    /* R105   - AlwaysOn Triggers Seq Select 4 */
+	{ 0x0000006A, 0x01FF },    /* R106   - AlwaysOn Triggers Seq Select 5 */
+	{ 0x0000006B, 0x01FF },    /* R107   - AlwaysOn Triggers Seq Select 6 */
 	{ 0x00000070, 0x0000 },    /* R112   - Comfort Noise Generator */
 	{ 0x00000090, 0x0000 },    /* R144   - Haptics Control 1 */
 	{ 0x00000091, 0x7FFF },    /* R145   - Haptics Control 2 */
@@ -670,6 +670,7 @@ static const struct reg_default wm8997_reg_default[] = {
 	{ 0x00000C23, 0x0000 },    /* R3107  - Misc Pad Ctrl 4 */
 	{ 0x00000C24, 0x0000 },    /* R3108  - Misc Pad Ctrl 5 */
 	{ 0x00000D08, 0xFFFF },    /* R3336  - Interrupt Status 1 Mask */
+	{ 0x00000D09, 0xFFFF },    /* R3337  - Interrupt Status 2 Mask */
 	{ 0x00000D0A, 0xFFFF },    /* R3338  - Interrupt Status 3 Mask */
 	{ 0x00000D0B, 0xFFFF },    /* R3339  - Interrupt Status 4 Mask */
 	{ 0x00000D0C, 0xFEFF },    /* R3340  - Interrupt Status 5 Mask */
@@ -814,10 +815,10 @@ static bool wm8997_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_2:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_3:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_4:
-	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_1:
-	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_2:
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_3:
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_4:
+	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_5:
+	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_6:
 	case ARIZONA_COMFORT_NOISE_GENERATOR:
 	case ARIZONA_HAPTICS_CONTROL_1:
 	case ARIZONA_HAPTICS_CONTROL_2:
@@ -846,6 +847,7 @@ static bool wm8997_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_RATE_ESTIMATOR_3:
 	case ARIZONA_RATE_ESTIMATOR_4:
 	case ARIZONA_RATE_ESTIMATOR_5:
+	case ARIZONA_DYNAMIC_FREQUENCY_SCALING_1:
 	case ARIZONA_FLL1_CONTROL_1:
 	case ARIZONA_FLL1_CONTROL_2:
 	case ARIZONA_FLL1_CONTROL_3:
@@ -880,10 +882,13 @@ static bool wm8997_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL2_GPIO_CLOCK:
 	case ARIZONA_MIC_CHARGE_PUMP_1:
 	case ARIZONA_LDO1_CONTROL_1:
+	case ARIZONA_LDO1_CONTROL_2:
 	case ARIZONA_LDO2_CONTROL_1:
 	case ARIZONA_MIC_BIAS_CTRL_1:
 	case ARIZONA_MIC_BIAS_CTRL_2:
 	case ARIZONA_MIC_BIAS_CTRL_3:
+	case ARIZONA_HP_CTRL_1L:
+	case ARIZONA_HP_CTRL_1R:
 	case ARIZONA_ACCESSORY_DETECT_MODE_1:
 	case ARIZONA_HEADPHONE_DETECT_1:
 	case ARIZONA_HEADPHONE_DETECT_2:
@@ -1326,6 +1331,7 @@ static bool wm8997_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INTERRUPT_STATUS_4:
 	case ARIZONA_INTERRUPT_STATUS_5:
 	case ARIZONA_INTERRUPT_STATUS_1_MASK:
+	case ARIZONA_INTERRUPT_STATUS_2_MASK:
 	case ARIZONA_INTERRUPT_STATUS_3_MASK:
 	case ARIZONA_INTERRUPT_STATUS_4_MASK:
 	case ARIZONA_INTERRUPT_STATUS_5_MASK:
@@ -1475,6 +1481,8 @@ static bool wm8997_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_SAMPLE_RATE_3_STATUS:
 	case ARIZONA_ASYNC_SAMPLE_RATE_1_STATUS:
 	case ARIZONA_MIC_DETECT_3:
+	case ARIZONA_HP_CTRL_1L:
+	case ARIZONA_HP_CTRL_1R:
 	case ARIZONA_HEADPHONE_DETECT_2:
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_OUTPUT_STATUS_1:

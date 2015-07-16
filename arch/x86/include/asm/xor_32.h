@@ -26,7 +26,7 @@
 #define XO3(x, y)	"       pxor   8*("#x")(%4), %%mm"#y"   ;\n"
 #define XO4(x, y)	"       pxor   8*("#x")(%5), %%mm"#y"   ;\n"
 
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 static void
 xor_pII_mmx_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)

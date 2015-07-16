@@ -13,6 +13,16 @@ struct nft_cmp_fast_expr {
 	u8			len;
 };
 
+/* Calculate the mask for the nft_cmp_fast expression. On big endian the
+ * mask needs to include the *upper* bytes when interpreting that data as
+ * something smaller than the full u32, therefore a cpu_to_le32 is done.
+ */
+static inline u32 nft_cmp_fast_mask(unsigned int len)
+{
+	return cpu_to_le32(~0U >> (FIELD_SIZEOF(struct nft_cmp_fast_expr,
+						data) * BITS_PER_BYTE - len));
+}
+
 extern const struct nft_expr_ops nft_cmp_fast_ops;
 
 int nft_cmp_module_init(void);
@@ -20,6 +30,9 @@ void nft_cmp_module_exit(void);
 
 int nft_lookup_module_init(void);
 void nft_lookup_module_exit(void);
+
+int nft_dynset_module_init(void);
+void nft_dynset_module_exit(void);
 
 int nft_bitwise_module_init(void);
 void nft_bitwise_module_exit(void);

@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/pm.h>
 #include <asm/io.h>
 
@@ -87,7 +86,6 @@ static int iris_remove(struct platform_device *pdev)
 static struct platform_driver iris_driver = {
 	.driver		= {
 		.name   = "iris",
-		.owner  = THIS_MODULE,
 	},
 	.probe          = iris_probe,
 	.remove         = iris_remove,

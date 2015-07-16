@@ -33,15 +33,15 @@
 
 #include "wm8994.h"
 
-static struct mfd_cell wm8994_regulator_devs[] = {
+static const struct mfd_cell wm8994_regulator_devs[] = {
 	{
 		.name = "wm8994-ldo",
-		.id = 1,
+		.id = 0,
 		.pm_runtime_no_callbacks = true,
 	},
 	{
 		.name = "wm8994-ldo",
-		.id = 2,
+		.id = 1,
 		.pm_runtime_no_callbacks = true,
 	},
 };
@@ -62,7 +62,7 @@ static struct resource wm8994_gpio_resources[] = {
 	},
 };
 
-static struct mfd_cell wm8994_devs[] = {
+static const struct mfd_cell wm8994_devs[] = {
 	{
 		.name = "wm8994-codec",
 		.num_resources = ARRAY_SIZE(wm8994_codec_resources),
@@ -116,7 +116,7 @@ static const char *wm8958_main_supplies[] = {
 	"SPKVDD2",
 };
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int wm8994_suspend(struct device *dev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);
@@ -344,7 +344,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	dev_set_drvdata(wm8994->dev, wm8994);
 
 	/* Add the on-chip regulators first for bootstrapping */
-	ret = mfd_add_devices(wm8994->dev, -1,
+	ret = mfd_add_devices(wm8994->dev, 0,
 			      wm8994_regulator_devs,
 			      ARRAY_SIZE(wm8994_regulator_devs),
 			      NULL, 0, NULL);
@@ -636,7 +636,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	if (i2c->dev.of_node) {
 		of_id = of_match_device(wm8994_of_match, &i2c->dev);
 		if (of_id)
-			wm8994->type = (int)of_id->data;
+			wm8994->type = (enum wm8994_type)of_id->data;
 	} else {
 		wm8994->type = id->driver_data;
 	}

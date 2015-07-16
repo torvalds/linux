@@ -7,6 +7,9 @@
  *
  * For licencing details see kernel-base/COPYING
  */
+
+#define pr_fmt(fmt) "ODEBUG: " fmt
+
 #include <linux/debugobjects.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -218,7 +221,7 @@ static void debug_objects_oom(void)
 	unsigned long flags;
 	int i;
 
-	printk(KERN_WARNING "ODEBUG: Out of memory. ODEBUG disabled\n");
+	pr_warn("Out of memory. ODEBUG disabled\n");
 
 	for (i = 0; i < ODEBUG_HASH_SIZE; i++, db++) {
 		raw_spin_lock_irqsave(&db->lock, flags);
@@ -292,11 +295,9 @@ static void debug_object_is_on_stack(void *addr, int onstack)
 
 	limit++;
 	if (is_on_stack)
-		printk(KERN_WARNING
-		       "ODEBUG: object is on stack, but not annotated\n");
+		pr_warn("object is on stack, but not annotated\n");
 	else
-		printk(KERN_WARNING
-		       "ODEBUG: object is not on stack, but annotated\n");
+		pr_warn("object is not on stack, but annotated\n");
 	WARN_ON(1);
 }
 
@@ -985,7 +986,7 @@ static void __init debug_objects_selftest(void)
 	if (check_results(&obj, ODEBUG_STATE_NONE, ++fixups, ++warnings))
 		goto out;
 #endif
-	printk(KERN_INFO "ODEBUG: selftest passed\n");
+	pr_info("selftest passed\n");
 
 out:
 	debug_objects_fixups = oldfixups;
@@ -1060,8 +1061,8 @@ static int __init debug_objects_replace_static_objects(void)
 	}
 	local_irq_enable();
 
-	printk(KERN_DEBUG "ODEBUG: %d of %d active objects replaced\n", cnt,
-	       obj_pool_used);
+	pr_debug("%d of %d active objects replaced\n",
+		 cnt, obj_pool_used);
 	return 0;
 free:
 	hlist_for_each_entry_safe(obj, tmp, &objects, node) {
@@ -1090,7 +1091,7 @@ void __init debug_objects_mem_init(void)
 		debug_objects_enabled = 0;
 		if (obj_cache)
 			kmem_cache_destroy(obj_cache);
-		printk(KERN_WARNING "ODEBUG: out of memory.\n");
+		pr_warn("out of memory.\n");
 	} else
 		debug_objects_selftest();
 }

@@ -21,7 +21,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
@@ -279,15 +278,14 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 	else
 		priv->ba_tx_tid_mask = 0xff; /* Enable TX BLKACK for all TIDs */
 
-	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_SUPPORTS_PS |
-		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		    IEEE80211_HW_SUPPORTS_UAPSD |
-		    IEEE80211_HW_CONNECTION_MONITOR |
-		    IEEE80211_HW_AMPDU_AGGREGATION |
-		    IEEE80211_HW_TX_AMPDU_SETUP_IN_HW |
-		    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC;
+	ieee80211_hw_set(hw, NEED_DTIM_BEFORE_ASSOC);
+	ieee80211_hw_set(hw, TX_AMPDU_SETUP_IN_HW);
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(hw, CONNECTION_MONITOR);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					  BIT(NL80211_IFTYPE_ADHOC) |
@@ -302,7 +300,6 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 
-	hw->channel_change_time = 1000;	/* TODO: find actual value */
 	hw->queues = 4;
 
 	priv->rts_threshold = -1;
@@ -376,9 +373,8 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 	INIT_WORK(&priv->update_filtering_work, cw1200_update_filtering_work);
 	INIT_WORK(&priv->set_beacon_wakeup_period_work,
 		  cw1200_set_beacon_wakeup_period_work);
-	init_timer(&priv->mcast_timeout);
-	priv->mcast_timeout.data = (unsigned long)priv;
-	priv->mcast_timeout.function = cw1200_mcast_timeout;
+	setup_timer(&priv->mcast_timeout, cw1200_mcast_timeout,
+		    (unsigned long)priv);
 
 	if (cw1200_queue_stats_init(&priv->tx_queue_stats,
 				    CW1200_LINK_ID_MAX,

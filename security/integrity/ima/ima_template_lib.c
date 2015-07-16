@@ -27,7 +27,6 @@ static bool ima_template_hash_algo_allowed(u8 algo)
 enum data_formats {
 	DATA_FMT_DIGEST = 0,
 	DATA_FMT_DIGEST_WITH_ALGO,
-	DATA_FMT_EVENT_NAME,
 	DATA_FMT_STRING,
 	DATA_FMT_HEX
 };
@@ -37,18 +36,10 @@ static int ima_write_template_field_data(const void *data, const u32 datalen,
 					 struct ima_field_data *field_data)
 {
 	u8 *buf, *buf_ptr;
-	u32 buflen;
+	u32 buflen = datalen;
 
-	switch (datafmt) {
-	case DATA_FMT_EVENT_NAME:
-		buflen = IMA_EVENT_NAME_LEN_MAX + 1;
-		break;
-	case DATA_FMT_STRING:
+	if (datafmt == DATA_FMT_STRING)
 		buflen = datalen + 1;
-		break;
-	default:
-		buflen = datalen;
-	}
 
 	buf = kzalloc(buflen, GFP_KERNEL);
 	if (!buf)
@@ -63,7 +54,7 @@ static int ima_write_template_field_data(const void *data, const u32 datalen,
 	 * split into multiple template fields (the space is the delimitator
 	 * character for measurements lists in ASCII format).
 	 */
-	if (datafmt == DATA_FMT_EVENT_NAME || datafmt == DATA_FMT_STRING) {
+	if (datafmt == DATA_FMT_STRING) {
 		for (buf_ptr = buf; buf_ptr - buf < datalen; buf_ptr++)
 			if (*buf_ptr == ' ')
 				*buf_ptr = '_';
@@ -79,7 +70,8 @@ static void ima_show_template_data_ascii(struct seq_file *m,
 					 enum data_formats datafmt,
 					 struct ima_field_data *field_data)
 {
-	u8 *buf_ptr = field_data->data, buflen = field_data->len;
+	u8 *buf_ptr = field_data->data;
+	u32 buflen = field_data->len;
 
 	switch (datafmt) {
 	case DATA_FMT_DIGEST_WITH_ALGO:
@@ -109,10 +101,16 @@ static void ima_show_template_data_binary(struct seq_file *m,
 					  enum data_formats datafmt,
 					  struct ima_field_data *field_data)
 {
-	ima_putc(m, &field_data->len, sizeof(u32));
-	if (!field_data->len)
+	u32 len = (show == IMA_SHOW_BINARY_OLD_STRING_FMT) ?
+	    strlen(field_data->data) : field_data->len;
+
+	if (show != IMA_SHOW_BINARY_NO_FIELD_LEN)
+		ima_putc(m, &len, sizeof(len));
+
+	if (!len)
 		return;
-	ima_putc(m, field_data->data, field_data->len);
+
+	ima_putc(m, field_data->data, len);
 }
 
 static void ima_show_template_field_data(struct seq_file *m,
@@ -125,6 +123,8 @@ static void ima_show_template_field_data(struct seq_file *m,
 		ima_show_template_data_ascii(m, show, datafmt, field_data);
 		break;
 	case IMA_SHOW_BINARY:
+	case IMA_SHOW_BINARY_NO_FIELD_LEN:
+	case IMA_SHOW_BINARY_OLD_STRING_FMT:
 		ima_show_template_data_binary(m, show, datafmt, field_data);
 		break;
 	default:
@@ -158,8 +158,7 @@ void ima_show_template_sig(struct seq_file *m, enum ima_show_type show,
 }
 
 static int ima_eventdigest_init_common(u8 *digest, u32 digestsize, u8 hash_algo,
-				       struct ima_field_data *field_data,
-				       bool size_limit)
+				       struct ima_field_data *field_data)
 {
 	/*
 	 * digest formats:
@@ -172,11 +171,10 @@ static int ima_eventdigest_init_common(u8 *digest, u32 digestsize, u8 hash_algo,
 	enum data_formats fmt = DATA_FMT_DIGEST;
 	u32 offset = 0;
 
-	if (!size_limit) {
+	if (hash_algo < HASH_ALGO__LAST) {
 		fmt = DATA_FMT_DIGEST_WITH_ALGO;
-		if (hash_algo < HASH_ALGO__LAST)
-			offset += snprintf(buffer, CRYPTO_MAX_ALG_NAME + 1,
-					   "%s", hash_algo_name[hash_algo]);
+		offset += snprintf(buffer, CRYPTO_MAX_ALG_NAME + 1, "%s",
+				   hash_algo_name[hash_algo]);
 		buffer[offset] = ':';
 		offset += 2;
 	}
@@ -198,9 +196,7 @@ static int ima_eventdigest_init_common(u8 *digest, u32 digestsize, u8 hash_algo,
 /*
  * This function writes the digest of an event (with size limit).
  */
-int ima_eventdigest_init(struct integrity_iint_cache *iint, struct file *file,
-			 const unsigned char *filename,
-			 struct evm_ima_xattr_data *xattr_value, int xattr_len,
+int ima_eventdigest_init(struct ima_event_data *event_data,
 			 struct ima_field_data *field_data)
 {
 	struct {
@@ -214,82 +210,75 @@ int ima_eventdigest_init(struct integrity_iint_cache *iint, struct file *file,
 
 	memset(&hash, 0, sizeof(hash));
 
-	if (!iint)		/* recording a violation. */
+	if (event_data->violation)	/* recording a violation. */
 		goto out;
 
-	if (ima_template_hash_algo_allowed(iint->ima_hash->algo)) {
-		cur_digest = iint->ima_hash->digest;
-		cur_digestsize = iint->ima_hash->length;
+	if (ima_template_hash_algo_allowed(event_data->iint->ima_hash->algo)) {
+		cur_digest = event_data->iint->ima_hash->digest;
+		cur_digestsize = event_data->iint->ima_hash->length;
 		goto out;
 	}
 
-	if (!file)		/* missing info to re-calculate the digest */
+	if (!event_data->file)	/* missing info to re-calculate the digest */
 		return -EINVAL;
 
-	inode = file_inode(file);
+	inode = file_inode(event_data->file);
 	hash.hdr.algo = ima_template_hash_algo_allowed(ima_hash_algo) ?
 	    ima_hash_algo : HASH_ALGO_SHA1;
-	result = ima_calc_file_hash(file, &hash.hdr);
+	result = ima_calc_file_hash(event_data->file, &hash.hdr);
 	if (result) {
 		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
-				    filename, "collect_data",
+				    event_data->filename, "collect_data",
 				    "failed", result, 0);
 		return result;
 	}
 	cur_digest = hash.hdr.digest;
 	cur_digestsize = hash.hdr.length;
 out:
-	return ima_eventdigest_init_common(cur_digest, cur_digestsize, -1,
-					   field_data, true);
+	return ima_eventdigest_init_common(cur_digest, cur_digestsize,
+					   HASH_ALGO__LAST, field_data);
 }
 
 /*
  * This function writes the digest of an event (without size limit).
  */
-int ima_eventdigest_ng_init(struct integrity_iint_cache *iint,
-			    struct file *file, const unsigned char *filename,
-			    struct evm_ima_xattr_data *xattr_value,
-			    int xattr_len, struct ima_field_data *field_data)
+int ima_eventdigest_ng_init(struct ima_event_data *event_data,
+			    struct ima_field_data *field_data)
 {
-	u8 *cur_digest = NULL, hash_algo = HASH_ALGO__LAST;
+	u8 *cur_digest = NULL, hash_algo = HASH_ALGO_SHA1;
 	u32 cur_digestsize = 0;
 
-	/* If iint is NULL, we are recording a violation. */
-	if (!iint)
+	if (event_data->violation)	/* recording a violation. */
 		goto out;
 
-	cur_digest = iint->ima_hash->digest;
-	cur_digestsize = iint->ima_hash->length;
+	cur_digest = event_data->iint->ima_hash->digest;
+	cur_digestsize = event_data->iint->ima_hash->length;
 
-	hash_algo = iint->ima_hash->algo;
+	hash_algo = event_data->iint->ima_hash->algo;
 out:
 	return ima_eventdigest_init_common(cur_digest, cur_digestsize,
-					   hash_algo, field_data, false);
+					   hash_algo, field_data);
 }
 
-static int ima_eventname_init_common(struct integrity_iint_cache *iint,
-				     struct file *file,
-				     const unsigned char *filename,
+static int ima_eventname_init_common(struct ima_event_data *event_data,
 				     struct ima_field_data *field_data,
 				     bool size_limit)
 {
 	const char *cur_filename = NULL;
 	u32 cur_filename_len = 0;
-	enum data_formats fmt = size_limit ?
-	    DATA_FMT_EVENT_NAME : DATA_FMT_STRING;
 
-	BUG_ON(filename == NULL && file == NULL);
+	BUG_ON(event_data->filename == NULL && event_data->file == NULL);
 
-	if (filename) {
-		cur_filename = filename;
-		cur_filename_len = strlen(filename);
+	if (event_data->filename) {
+		cur_filename = event_data->filename;
+		cur_filename_len = strlen(event_data->filename);
 
 		if (!size_limit || cur_filename_len <= IMA_EVENT_NAME_LEN_MAX)
 			goto out;
 	}
 
-	if (file) {
-		cur_filename = file->f_dentry->d_name.name;
+	if (event_data->file) {
+		cur_filename = event_data->file->f_path.dentry->d_name.name;
 		cur_filename_len = strlen(cur_filename);
 	} else
 		/*
@@ -299,42 +288,36 @@ static int ima_eventname_init_common(struct integrity_iint_cache *iint,
 		cur_filename_len = IMA_EVENT_NAME_LEN_MAX;
 out:
 	return ima_write_template_field_data(cur_filename, cur_filename_len,
-					     fmt, field_data);
+					     DATA_FMT_STRING, field_data);
 }
 
 /*
  * This function writes the name of an event (with size limit).
  */
-int ima_eventname_init(struct integrity_iint_cache *iint, struct file *file,
-		       const unsigned char *filename,
-		       struct evm_ima_xattr_data *xattr_value, int xattr_len,
+int ima_eventname_init(struct ima_event_data *event_data,
 		       struct ima_field_data *field_data)
 {
-	return ima_eventname_init_common(iint, file, filename,
-					 field_data, true);
+	return ima_eventname_init_common(event_data, field_data, true);
 }
 
 /*
  * This function writes the name of an event (without size limit).
  */
-int ima_eventname_ng_init(struct integrity_iint_cache *iint, struct file *file,
-			  const unsigned char *filename,
-			  struct evm_ima_xattr_data *xattr_value, int xattr_len,
+int ima_eventname_ng_init(struct ima_event_data *event_data,
 			  struct ima_field_data *field_data)
 {
-	return ima_eventname_init_common(iint, file, filename,
-					 field_data, false);
+	return ima_eventname_init_common(event_data, field_data, false);
 }
 
 /*
  *  ima_eventsig_init - include the file signature as part of the template data
  */
-int ima_eventsig_init(struct integrity_iint_cache *iint, struct file *file,
-		      const unsigned char *filename,
-		      struct evm_ima_xattr_data *xattr_value, int xattr_len,
+int ima_eventsig_init(struct ima_event_data *event_data,
 		      struct ima_field_data *field_data)
 {
 	enum data_formats fmt = DATA_FMT_HEX;
+	struct evm_ima_xattr_data *xattr_value = event_data->xattr_value;
+	int xattr_len = event_data->xattr_len;
 	int rc = 0;
 
 	if ((!xattr_value) || (xattr_value->type != EVM_IMA_XATTR_DIGSIG))

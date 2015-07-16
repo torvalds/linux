@@ -86,9 +86,12 @@ config PPC
 	bool
 	default y
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BINFMT_ELF
+	select ARCH_HAS_ELF_RANDOMIZE
 	select OF
 	select OF_EARLY_FLATTREE
+	select OF_RESERVED_MEM
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
@@ -109,6 +112,7 @@ config PPC
 	select HAVE_DMA_API_DEBUG
 	select HAVE_OPROFILE
 	select HAVE_DEBUG_KMEMLEAK
+	select ARCH_HAS_SG_CHAIN
 	select GENERIC_ATOMIC64 if PPC32
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_PERF_EVENTS
@@ -122,13 +126,16 @@ config PPC
 	select IRQ_FORCED_THREADING
 	select HAVE_RCU_TABLE_FREE if SMP
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_BPF_JIT if PPC64
+	select HAVE_BPF_JIT
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_TIME_VSYSCALL_OLD
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HAVE_MOD_ARCH_SPECIFIC
@@ -139,6 +146,15 @@ config PPC
 	select OLD_SIGACTION if PPC32
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+	select ARCH_USE_CMPXCHG_LOCKREF if PPC64
+	select HAVE_ARCH_AUDITSYSCALL
+	select ARCH_SUPPORTS_ATOMIC_RMW
+	select DCACHE_WORD_ACCESS if PPC64 && CPU_LITTLE_ENDIAN
+	select NO_BOOTMEM
+	select HAVE_GENERIC_RCU_GUP
+	select HAVE_PERF_EVENTS_NMI if PPC64
+	select EDAC_SUPPORT
+	select EDAC_ATOMIC_SCRUB
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
@@ -146,6 +162,10 @@ config GENERIC_CSUM
 config EARLY_PRINTK
 	bool
 	default y
+
+config PANIC_TIMEOUT
+	int
+	default 180
 
 config COMPAT
 	bool
@@ -170,10 +190,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
-	default !PPC_PSERIES || PCI
-
-config PPC_OF
-	def_bool y
+	default PCI
 
 config PPC_UDBG_16550
 	bool
@@ -209,9 +226,6 @@ config DEFAULT_UIMAGE
 	  Used to allow a board to specify it wants a uImage built by default
 	default n
 
-config REDBOOT
-	bool
-
 config ARCH_HIBERNATION_POSSIBLE
 	bool
 	default y
@@ -242,6 +256,7 @@ config PPC_OF_PLATFORM_PCI
 	default n
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	depends on PPC32 || PPC_STD_MMU_64
 	def_bool y
 
 config ARCH_SUPPORTS_UPROBES
@@ -277,6 +292,16 @@ config PPC_ADV_DEBUG_DAC_RANGE
 config PPC_EMULATE_SSTEP
 	bool
 	default y if KPROBES || UPROBES || XMON || HAVE_HW_BREAKPOINT
+
+config ZONE_DMA32
+	bool
+	default y if PPC64
+
+config PGTABLE_LEVELS
+	int
+	default 2 if !PPC64
+	default 3 if PPC_64K_PAGES
+	default 4
 
 source "init/Kconfig"
 
@@ -339,6 +364,8 @@ config PPC_TRANSACTIONAL_MEM
        bool "Transactional Memory support for POWERPC"
        depends on PPC_BOOK3S_64
        depends on SMP
+       select ALTIVEC
+       select VSX
        default n
        ---help---
          Support user-mode Transactional Memory on POWERPC.
@@ -379,6 +406,12 @@ config ARCH_HAS_WALK_MEMORY
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
 
+config PPC64_SUPPORTS_MEMORY_FAILURE
+	bool "Add support for memory hwpoison"
+	depends on PPC_BOOK3S_64
+	default "y" if PPC_POWERNV
+	select ARCH_SUPPORTS_MEMORY_FAILURE
+
 config KEXEC
 	bool "kexec system call"
 	depends on (PPC_BOOK3S || FSL_BOOKE || (44x && !SMP))
@@ -399,8 +432,7 @@ config KEXEC
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
 	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP)
-	select RELOCATABLE if PPC64 || 44x
-	select DYNAMIC_MEMSTART if FSL_BOOKE
+	select RELOCATABLE if (PPC64 && !COMPILE_TEST) || 44x || FSL_BOOKE
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
 	  The same kernel binary can be used as production kernel and dump
@@ -438,6 +470,14 @@ config NODES_SHIFT
 	default "8" if PPC64
 	default "4"
 	depends on NEED_MULTIPLE_NODES
+
+config USE_PERCPU_NUMA_NODE_ID
+	def_bool y
+	depends on NUMA
+
+config HAVE_MEMORYLESS_NODES
+	def_bool y
+	depends on NUMA
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
@@ -520,10 +560,11 @@ config PPC_4K_PAGES
 	bool "4k page size"
 
 config PPC_16K_PAGES
-	bool "16k page size" if 44x
+	bool "16k page size" if 44x || PPC_8xx
 
 config PPC_64K_PAGES
 	bool "64k page size" if 44x || PPC_STD_MMU_64 || PPC_BOOK3E_64
+	depends on !PPC_FSL_BOOK3E
 	select PPC_HAS_HASH_64K if PPC_STD_MMU_64
 
 config PPC_256K_PAGES
@@ -578,6 +619,10 @@ config PPC_SUBPAGE_PROT
 	  to set access permissions (read/write, readonly, or no access)
 	  on the 4k subpages of each 64k page.
 
+config PPC_COPRO_BASE
+	bool
+	default n
+
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
 	depends on PPC64 && SMP
@@ -606,6 +651,15 @@ config CMDLINE
 	  pass arguments to the kernel. For these platforms, you can supply
 	  some command-line options at build time by entering them here.  In
 	  most cases you will need to specify the root device here.
+
+config CMDLINE_FORCE
+	bool "Always use the default kernel command string"
+	depends on CMDLINE_BOOL
+	help
+	  Always use the default kernel command string, even if the boot
+	  loader passes other arguments to the kernel.
+	  This is useful if you cannot or don't want to change the
+	  command-line options your boot loader passes to the kernel.
 
 config EXTRA_TARGETS
 	string "Additional default image types"
@@ -725,10 +779,6 @@ config FSL_LBC
 	  controller.  Also contains some common code used by
 	  drivers for specific local bus peripherals.
 
-config FSL_IFC
-	bool
-        depends on FSL_SOC
-
 config FSL_GTM
 	bool
 	depends on PPC_83xx || QUICC_ENGINE || CPM2
@@ -790,7 +840,7 @@ config HAS_RAPIDIO
 	default n
 
 config RAPIDIO
-	bool "RapidIO support"
+	tristate "RapidIO support"
 	depends on HAS_RAPIDIO || PCI
 	help
 	  If you say Y here, the kernel will include drivers and
@@ -798,7 +848,7 @@ config RAPIDIO
 
 config FSL_RIO
 	bool "Freescale Embedded SRIO Controller support"
-	depends on RAPIDIO && HAS_RAPIDIO
+	depends on RAPIDIO = y && HAS_RAPIDIO
 	default "n"
 	---help---
 	  Include support for RapidIO controller on Freescale embedded
@@ -881,7 +931,7 @@ config DYNAMIC_MEMSTART
 
 config RELOCATABLE
 	bool "Build a relocatable kernel"
-	depends on ADVANCED_OPTIONS && FLATMEM && 44x
+	depends on ADVANCED_OPTIONS && FLATMEM && (44x || FSL_BOOKE)
 	select NONSTATIC_KERNEL
 	help
 	  This builds a kernel image that is capable of running at the
@@ -989,6 +1039,7 @@ endmenu
 if PPC64
 config RELOCATABLE
 	bool "Build a relocatable kernel"
+	depends on !COMPILE_TEST
 	select NONSTATIC_KERNEL
 	help
 	  This builds a kernel image that is capable of running anywhere
@@ -1036,11 +1087,6 @@ config KEYS_COMPAT
 	default y
 
 source "crypto/Kconfig"
-
-config PPC_CLOCK
-	bool
-	default n
-	select HAVE_CLK
 
 config PPC_LIB_RHEAP
 	bool

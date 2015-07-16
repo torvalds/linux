@@ -1,7 +1,7 @@
 /*
  *  mxl111sf-i2c.h - driver for the MaxLinear MXL111SF
  *
- *  Copyright (C) 2010 Michael Krufky <mkrufky@kernellabs.com>
+ *  Copyright (C) 2010-2014 Michael Krufky <mkrufky@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,9 +27,3 @@ int mxl111sf_i2c_xfer(struct i2c_adapter *adap,
 		      struct i2c_msg msg[], int num);
 
 #endif /* _DVB_USB_MXL111SF_I2C_H_ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

@@ -65,4 +65,7 @@ extern int notsc_setup(char *);
 extern void tsc_save_sched_clock_state(void);
 extern void tsc_restore_sched_clock_state(void);
 
+/* MSR based TSC calibration for Intel Atom SoC platforms */
+unsigned long try_msr_calibrate_tsc(void);
+
 #endif /* _ASM_X86_TSC_H */

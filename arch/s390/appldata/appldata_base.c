@@ -511,7 +511,6 @@ static const struct dev_pm_ops appldata_pm_ops = {
 static struct platform_driver appldata_pdrv = {
 	.driver = {
 		.name	= "appldata",
-		.owner	= THIS_MODULE,
 		.pm	= &appldata_pm_ops,
 	},
 };
@@ -529,6 +528,7 @@ static int __init appldata_init(void)
 {
 	int rc;
 
+	init_virt_timer(&appldata_timer);
 	appldata_timer.function = appldata_timer_function;
 	appldata_timer.data = (unsigned long) &appldata_work;
 

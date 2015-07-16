@@ -325,8 +325,7 @@ int rds_iw_recv(struct rds_connection *conn);
 int rds_iw_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 		       gfp_t page_gfp, int prefill);
 void rds_iw_inc_free(struct rds_incoming *inc);
-int rds_iw_inc_copy_to_user(struct rds_incoming *inc, struct iovec *iov,
-			     size_t size);
+int rds_iw_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to);
 void rds_iw_recv_cq_comp_handler(struct ib_cq *cq, void *context);
 void rds_iw_recv_tasklet_fn(unsigned long data);
 void rds_iw_recv_init_ring(struct rds_iw_connection *ic);

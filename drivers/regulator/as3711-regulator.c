@@ -22,12 +22,10 @@
 
 struct as3711_regulator_info {
 	struct regulator_desc	desc;
-	unsigned int		max_uV;
 };
 
 struct as3711_regulator {
 	struct as3711_regulator_info *reg_info;
-	struct regulator_dev *rdev;
 };
 
 /*
@@ -132,39 +130,37 @@ static const struct regulator_linear_range as3711_dldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1750000, 0x20, 0x3f, 50000),
 };
 
-#define AS3711_REG(_id, _en_reg, _en_bit, _vmask, _vshift, _min_uV, _max_uV, _sfx)	\
-	[AS3711_REGULATOR_ ## _id] = {							\
-	.desc = {									\
-		.name = "as3711-regulator-" # _id,					\
-		.id = AS3711_REGULATOR_ ## _id,						\
-		.n_voltages = (_vmask + 1),						\
-		.ops = &as3711_ ## _sfx ## _ops,					\
-		.type = REGULATOR_VOLTAGE,						\
-		.owner = THIS_MODULE,							\
-		.vsel_reg = AS3711_ ## _id ## _VOLTAGE,					\
-		.vsel_mask = _vmask << _vshift,						\
-		.enable_reg = AS3711_ ## _en_reg,					\
-		.enable_mask = BIT(_en_bit),						\
-		.min_uV	= _min_uV,							\
-		.linear_ranges = as3711_ ## _sfx ## _ranges,				\
-		.n_linear_ranges = ARRAY_SIZE(as3711_ ## _sfx ## _ranges),		\
-	},										\
-	.max_uV = _max_uV,								\
+#define AS3711_REG(_id, _en_reg, _en_bit, _vmask, _sfx)			   \
+	[AS3711_REGULATOR_ ## _id] = {					   \
+	.desc = {							   \
+		.name = "as3711-regulator-" # _id,			   \
+		.id = AS3711_REGULATOR_ ## _id,				   \
+		.n_voltages = (_vmask + 1),				   \
+		.ops = &as3711_ ## _sfx ## _ops,			   \
+		.type = REGULATOR_VOLTAGE,				   \
+		.owner = THIS_MODULE,					   \
+		.vsel_reg = AS3711_ ## _id ## _VOLTAGE,			   \
+		.vsel_mask = _vmask,					   \
+		.enable_reg = AS3711_ ## _en_reg,			   \
+		.enable_mask = BIT(_en_bit),				   \
+		.linear_ranges = as3711_ ## _sfx ## _ranges,		   \
+		.n_linear_ranges = ARRAY_SIZE(as3711_ ## _sfx ## _ranges), \
+	},								   \
 }
 
 static struct as3711_regulator_info as3711_reg_info[] = {
-	AS3711_REG(SD_1, SD_CONTROL, 0, 0x7f, 0, 612500, 3350000, sd),
-	AS3711_REG(SD_2, SD_CONTROL, 1, 0x7f, 0, 612500, 3350000, sd),
-	AS3711_REG(SD_3, SD_CONTROL, 2, 0x7f, 0, 612500, 3350000, sd),
-	AS3711_REG(SD_4, SD_CONTROL, 3, 0x7f, 0, 612500, 3350000, sd),
-	AS3711_REG(LDO_1, LDO_1_VOLTAGE, 7, 0x1f, 0, 1200000, 3300000, aldo),
-	AS3711_REG(LDO_2, LDO_2_VOLTAGE, 7, 0x1f, 0, 1200000, 3300000, aldo),
-	AS3711_REG(LDO_3, LDO_3_VOLTAGE, 7, 0x3f, 0, 900000, 3300000, dldo),
-	AS3711_REG(LDO_4, LDO_4_VOLTAGE, 7, 0x3f, 0, 900000, 3300000, dldo),
-	AS3711_REG(LDO_5, LDO_5_VOLTAGE, 7, 0x3f, 0, 900000, 3300000, dldo),
-	AS3711_REG(LDO_6, LDO_6_VOLTAGE, 7, 0x3f, 0, 900000, 3300000, dldo),
-	AS3711_REG(LDO_7, LDO_7_VOLTAGE, 7, 0x3f, 0, 900000, 3300000, dldo),
-	AS3711_REG(LDO_8, LDO_8_VOLTAGE, 7, 0x3f, 0, 900000, 3300000, dldo),
+	AS3711_REG(SD_1, SD_CONTROL, 0, 0x7f, sd),
+	AS3711_REG(SD_2, SD_CONTROL, 1, 0x7f, sd),
+	AS3711_REG(SD_3, SD_CONTROL, 2, 0x7f, sd),
+	AS3711_REG(SD_4, SD_CONTROL, 3, 0x7f, sd),
+	AS3711_REG(LDO_1, LDO_1_VOLTAGE, 7, 0x1f, aldo),
+	AS3711_REG(LDO_2, LDO_2_VOLTAGE, 7, 0x1f, aldo),
+	AS3711_REG(LDO_3, LDO_3_VOLTAGE, 7, 0x3f, dldo),
+	AS3711_REG(LDO_4, LDO_4_VOLTAGE, 7, 0x3f, dldo),
+	AS3711_REG(LDO_5, LDO_5_VOLTAGE, 7, 0x3f, dldo),
+	AS3711_REG(LDO_6, LDO_6_VOLTAGE, 7, 0x3f, dldo),
+	AS3711_REG(LDO_7, LDO_7_VOLTAGE, 7, 0x3f, dldo),
+	AS3711_REG(LDO_8, LDO_8_VOLTAGE, 7, 0x3f, dldo),
 	/* StepUp output voltage depends on supplying regulator */
 };
 
@@ -191,7 +187,7 @@ static int as3711_regulator_parse_dt(struct device *dev,
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(dev);
 	struct device_node *regulators =
-		of_find_node_by_name(dev->parent->of_node, "regulators");
+		of_get_child_by_name(dev->parent->of_node, "regulators");
 	struct of_regulator_match *match;
 	int ret, i;
 
@@ -221,7 +217,6 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct as3711 *as3711 = dev_get_drvdata(pdev->dev.parent);
-	struct regulator_init_data *reg_data;
 	struct regulator_config config = {.dev = &pdev->dev,};
 	struct as3711_regulator *reg = NULL;
 	struct as3711_regulator *regs;
@@ -246,22 +241,14 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 
 	regs = devm_kzalloc(&pdev->dev, AS3711_REGULATOR_NUM *
 			sizeof(struct as3711_regulator), GFP_KERNEL);
-	if (!regs) {
-		dev_err(&pdev->dev, "Memory allocation failed exiting..\n");
+	if (!regs)
 		return -ENOMEM;
-	}
 
 	for (id = 0, ri = as3711_reg_info; id < AS3711_REGULATOR_NUM; ++id, ri++) {
-		reg_data = pdata->init_data[id];
-
-		/* No need to register if there is no regulator data */
-		if (!reg_data)
-			continue;
-
 		reg = &regs[id];
 		reg->reg_info = ri;
 
-		config.init_data = reg_data;
+		config.init_data = pdata->init_data[id];
 		config.driver_data = reg;
 		config.regmap = as3711->regmap;
 		config.of_node = of_node[id];
@@ -272,7 +259,6 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 				ri->desc.name);
 			return PTR_ERR(rdev);
 		}
-		reg->rdev = rdev;
 	}
 	platform_set_drvdata(pdev, regs);
 	return 0;
@@ -281,7 +267,6 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 static struct platform_driver as3711_regulator_driver = {
 	.driver	= {
 		.name	= "as3711-regulator",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= as3711_regulator_probe,
 };

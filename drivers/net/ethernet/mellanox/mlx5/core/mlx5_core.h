@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -37,37 +37,52 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 
+#define DRIVER_NAME "mlx5_core"
+#define DRIVER_VERSION "3.0-1"
+#define DRIVER_RELDATE  "January 2015"
+
 extern int mlx5_core_debug_mask;
 
-#define mlx5_core_dbg(dev, format, arg...)				       \
-pr_debug("%s:%s:%d:(pid %d): " format, (dev)->priv.name, __func__, __LINE__,   \
-	 current->pid, ##arg)
+#define mlx5_core_dbg(dev, format, ...)					\
+	pr_debug("%s:%s:%d:(pid %d): " format,				\
+		 (dev)->priv.name, __func__, __LINE__, current->pid,	\
+		 ##__VA_ARGS__)
 
-#define mlx5_core_dbg_mask(dev, mask, format, arg...)			       \
-do {									       \
-	if ((mask) & mlx5_core_debug_mask)				       \
-		pr_debug("%s:%s:%d:(pid %d): " format, (dev)->priv.name,       \
-			 __func__, __LINE__, current->pid, ##arg);	       \
+#define mlx5_core_dbg_mask(dev, mask, format, ...)			\
+do {									\
+	if ((mask) & mlx5_core_debug_mask)				\
+		mlx5_core_dbg(dev, format, ##__VA_ARGS__);		\
 } while (0)
 
-#define mlx5_core_err(dev, format, arg...) \
-pr_err("%s:%s:%d:(pid %d): " format, (dev)->priv.name, __func__, __LINE__,     \
-	current->pid, ##arg)
+#define mlx5_core_err(dev, format, ...)					\
+	pr_err("%s:%s:%d:(pid %d): " format,				\
+	       (dev)->priv.name, __func__, __LINE__, current->pid,	\
+	       ##__VA_ARGS__)
 
-#define mlx5_core_warn(dev, format, arg...) \
-pr_warn("%s:%s:%d:(pid %d): " format, (dev)->priv.name, __func__, __LINE__,    \
-	current->pid, ##arg)
+#define mlx5_core_warn(dev, format, ...)				\
+	pr_warn("%s:%s:%d:(pid %d): " format,				\
+		(dev)->priv.name, __func__, __LINE__, current->pid,	\
+		##__VA_ARGS__)
 
 enum {
 	MLX5_CMD_DATA, /* print command payload only */
 	MLX5_CMD_TIME, /* print command execution time */
 };
 
+static inline int mlx5_cmd_exec_check_status(struct mlx5_core_dev *dev, u32 *in,
+					     int in_size, u32 *out,
+					     int out_size)
+{
+	mlx5_cmd_exec(dev, in, in_size, out, out_size);
+	return mlx5_cmd_status_to_err((struct mlx5_outbox_hdr *)out);
+}
 
-int mlx5_cmd_query_hca_cap(struct mlx5_core_dev *dev,
-			   struct mlx5_caps *caps);
-int mlx5_cmd_query_adapter(struct mlx5_core_dev *dev);
+int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
+int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
+
+void mlx5e_init(void);
+void mlx5e_cleanup(void);
 
 #endif /* __MLX5_CORE_H__ */

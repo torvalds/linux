@@ -12,7 +12,6 @@
 
 #include <linux/kernel.h>
 #include <linux/mii.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include "tulip.h"
@@ -458,7 +457,7 @@ void tulip_find_mii(struct net_device *dev, int board_idx)
 	/* Find the connected MII xcvrs.
 	   Doing this in open() would allow detecting external xcvrs later,
 	   but takes much time. */
-	for (phyn = 1; phyn <= 32 && phy_idx < sizeof (tp->phys); phyn++) {
+	for (phyn = 1; phyn <= 32 && phy_idx < ARRAY_SIZE(tp->phys); phyn++) {
 		int phy = phyn & 0x1f;
 		int mii_status = tulip_mdio_read (dev, phy, MII_BMSR);
 		if ((mii_status & 0x8301) == 0x8001 ||

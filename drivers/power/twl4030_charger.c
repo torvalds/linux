@@ -28,9 +28,12 @@
 #define TWL4030_BCIICHG		0x08
 #define TWL4030_BCIVAC		0x0a
 #define TWL4030_BCIVBUS		0x0c
+#define TWL4030_BCIMFSTS3	0x0F
 #define TWL4030_BCIMFSTS4	0x10
 #define TWL4030_BCICTL1		0x23
 #define TWL4030_BB_CFG		0x12
+
+#define TWL4030_BCIMFSTS1	0x01
 
 #define TWL4030_BCIAUTOWEN	BIT(5)
 #define TWL4030_CONFIG_DONE	BIT(4)
@@ -51,6 +54,9 @@
 #define TWL4030_BBISEL_150uA	0x01
 #define TWL4030_BBISEL_500uA	0x02
 #define TWL4030_BBISEL_1000uA	0x03
+
+#define TWL4030_BATSTSPCHG	BIT(2)
+#define TWL4030_BATSTSMCHG	BIT(6)
 
 /* BCI interrupts */
 #define TWL4030_WOVF		BIT(0) /* Watchdog overflow */
@@ -81,8 +87,8 @@ MODULE_PARM_DESC(allow_usb, "Allow USB charge drawing default current");
 
 struct twl4030_bci {
 	struct device		*dev;
-	struct power_supply	ac;
-	struct power_supply	usb;
+	struct power_supply	*ac;
+	struct power_supply	*usb;
 	struct usb_phy		*transceiver;
 	struct notifier_block	usb_nb;
 	struct work_struct	work;
@@ -142,6 +148,35 @@ static int twl4030bci_read_adc_val(u8 reg)
 		return ret;
 
 	return temp | val;
+}
+
+/*
+ * Check if Battery Pack was present
+ */
+static int twl4030_is_battery_present(struct twl4030_bci *bci)
+{
+	int ret;
+	u8 val = 0;
+
+	/* Battery presence in Main charge? */
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE, &val, TWL4030_BCIMFSTS3);
+	if (ret)
+		return ret;
+	if (val & TWL4030_BATSTSMCHG)
+		return 0;
+
+	/*
+	 * OK, It could be that bootloader did not enable main charger,
+	 * pre-charge is h/w auto. So, Battery presence in Pre-charge?
+	 */
+	ret = twl_i2c_read_u8(TWL4030_MODULE_PRECHARGE, &val,
+			      TWL4030_BCIMFSTS1);
+	if (ret)
+		return ret;
+	if (val & TWL4030_BATSTSPCHG)
+		return 0;
+
+	return -ENODEV;
 }
 
 /*
@@ -283,8 +318,8 @@ static irqreturn_t twl4030_charger_interrupt(int irq, void *arg)
 	struct twl4030_bci *bci = arg;
 
 	dev_dbg(bci->dev, "CHG_PRES irq\n");
-	power_supply_changed(&bci->ac);
-	power_supply_changed(&bci->usb);
+	power_supply_changed(bci->ac);
+	power_supply_changed(bci->usb);
 
 	return IRQ_HANDLED;
 }
@@ -312,8 +347,8 @@ static irqreturn_t twl4030_bci_interrupt(int irq, void *arg)
 
 	if (irqs1 & (TWL4030_ICHGLOW | TWL4030_ICHGEOC)) {
 		/* charger state change, inform the core */
-		power_supply_changed(&bci->ac);
-		power_supply_changed(&bci->usb);
+		power_supply_changed(bci->ac);
+		power_supply_changed(bci->usb);
 	}
 
 	/* various monitoring events, for now we just log them here */
@@ -428,7 +463,7 @@ static int twl4030_bci_get_property(struct power_supply *psy,
 				    enum power_supply_property psp,
 				    union power_supply_propval *val)
 {
-	struct twl4030_bci *bci = dev_get_drvdata(psy->dev->parent);
+	struct twl4030_bci *bci = dev_get_drvdata(psy->dev.parent);
 	int is_charging;
 	int state;
 	int ret;
@@ -437,7 +472,7 @@ static int twl4030_bci_get_property(struct power_supply *psy,
 	if (state < 0)
 		return state;
 
-	if (psy->type == POWER_SUPPLY_TYPE_USB)
+	if (psy->desc->type == POWER_SUPPLY_TYPE_USB)
 		is_charging = state & TWL4030_MSTATEC_USB;
 	else
 		is_charging = state & TWL4030_MSTATEC_AC;
@@ -453,7 +488,7 @@ static int twl4030_bci_get_property(struct power_supply *psy,
 		/* charging must be active for meaningful result */
 		if (!is_charging)
 			return -ENODATA;
-		if (psy->type == POWER_SUPPLY_TYPE_USB) {
+		if (psy->desc->type == POWER_SUPPLY_TYPE_USB) {
 			ret = twl4030bci_read_adc_val(TWL4030_BCIVBUS);
 			if (ret < 0)
 				return ret;
@@ -523,6 +558,22 @@ twl4030_bci_parse_dt(struct device *dev)
 }
 #endif
 
+static const struct power_supply_desc twl4030_bci_ac_desc = {
+	.name		= "twl4030_ac",
+	.type		= POWER_SUPPLY_TYPE_MAINS,
+	.properties	= twl4030_charger_props,
+	.num_properties	= ARRAY_SIZE(twl4030_charger_props),
+	.get_property	= twl4030_bci_get_property,
+};
+
+static const struct power_supply_desc twl4030_bci_usb_desc = {
+	.name		= "twl4030_usb",
+	.type		= POWER_SUPPLY_TYPE_USB,
+	.properties	= twl4030_charger_props,
+	.num_properties	= ARRAY_SIZE(twl4030_charger_props),
+	.get_property	= twl4030_bci_get_property,
+};
+
 static int __init twl4030_bci_probe(struct platform_device *pdev)
 {
 	struct twl4030_bci *bci;
@@ -541,30 +592,29 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	bci->irq_chg = platform_get_irq(pdev, 0);
 	bci->irq_bci = platform_get_irq(pdev, 1);
 
+	/* Only proceed further *IF* battery is physically present */
+	ret = twl4030_is_battery_present(bci);
+	if  (ret) {
+		dev_crit(&pdev->dev, "Battery was not detected:%d\n", ret);
+		goto fail_no_battery;
+	}
+
 	platform_set_drvdata(pdev, bci);
 
-	bci->ac.name = "twl4030_ac";
-	bci->ac.type = POWER_SUPPLY_TYPE_MAINS;
-	bci->ac.properties = twl4030_charger_props;
-	bci->ac.num_properties = ARRAY_SIZE(twl4030_charger_props);
-	bci->ac.get_property = twl4030_bci_get_property;
-
-	ret = power_supply_register(&pdev->dev, &bci->ac);
-	if (ret) {
+	bci->ac = power_supply_register(&pdev->dev, &twl4030_bci_ac_desc,
+					NULL);
+	if (IS_ERR(bci->ac)) {
+		ret = PTR_ERR(bci->ac);
 		dev_err(&pdev->dev, "failed to register ac: %d\n", ret);
 		goto fail_register_ac;
 	}
 
-	bci->usb.name = "twl4030_usb";
-	bci->usb.type = POWER_SUPPLY_TYPE_USB;
-	bci->usb.properties = twl4030_charger_props;
-	bci->usb.num_properties = ARRAY_SIZE(twl4030_charger_props);
-	bci->usb.get_property = twl4030_bci_get_property;
-
 	bci->usb_reg = regulator_get(bci->dev, "bci3v1");
 
-	ret = power_supply_register(&pdev->dev, &bci->usb);
-	if (ret) {
+	bci->usb = power_supply_register(&pdev->dev, &twl4030_bci_usb_desc,
+					 NULL);
+	if (IS_ERR(bci->usb)) {
+		ret = PTR_ERR(bci->usb);
 		dev_err(&pdev->dev, "failed to register usb: %d\n", ret);
 		goto fail_register_usb;
 	}
@@ -588,10 +638,15 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	INIT_WORK(&bci->work, twl4030_bci_usb_work);
 
-	bci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (!IS_ERR_OR_NULL(bci->transceiver)) {
-		bci->usb_nb.notifier_call = twl4030_bci_usb_ncb;
-		usb_register_notifier(bci->transceiver, &bci->usb_nb);
+	bci->usb_nb.notifier_call = twl4030_bci_usb_ncb;
+	if (bci->dev->of_node) {
+		struct device_node *phynode;
+
+		phynode = of_find_compatible_node(bci->dev->of_node->parent,
+						  NULL, "ti,twl4030-usb");
+		if (phynode)
+			bci->transceiver = devm_usb_get_phy_by_node(
+				bci->dev, phynode, &bci->usb_nb);
 	}
 
 	/* Enable interrupts now. */
@@ -621,18 +676,15 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	return 0;
 
 fail_unmask_interrupts:
-	if (!IS_ERR_OR_NULL(bci->transceiver)) {
-		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
-		usb_put_phy(bci->transceiver);
-	}
 	free_irq(bci->irq_bci, bci);
 fail_bci_irq:
 	free_irq(bci->irq_chg, bci);
 fail_chg_irq:
-	power_supply_unregister(&bci->usb);
+	power_supply_unregister(bci->usb);
 fail_register_usb:
-	power_supply_unregister(&bci->ac);
+	power_supply_unregister(bci->ac);
 fail_register_ac:
+fail_no_battery:
 	kfree(bci);
 
 	return ret;
@@ -652,14 +704,10 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 	twl_i2c_write_u8(TWL4030_MODULE_INTERRUPTS, 0xff,
 			 TWL4030_INTERRUPTS_BCIIMR2A);
 
-	if (!IS_ERR_OR_NULL(bci->transceiver)) {
-		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
-		usb_put_phy(bci->transceiver);
-	}
 	free_irq(bci->irq_bci, bci);
 	free_irq(bci->irq_chg, bci);
-	power_supply_unregister(&bci->usb);
-	power_supply_unregister(&bci->ac);
+	power_supply_unregister(bci->usb);
+	power_supply_unregister(bci->ac);
 	kfree(bci);
 
 	return 0;
@@ -674,7 +722,6 @@ MODULE_DEVICE_TABLE(of, twl_bci_of_match);
 static struct platform_driver twl4030_bci_driver = {
 	.driver	= {
 		.name	= "twl4030_bci",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl_bci_of_match),
 	},
 	.remove	= __exit_p(twl4030_bci_remove),

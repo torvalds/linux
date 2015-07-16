@@ -38,7 +38,7 @@ Example:
 		chan_allocation_order = <1>;
 		chan_priority = <1>;
 		block_size = <0xfff>;
-		data_width = <3 3 0 0>;
+		data_width = <3 3>;
 	};
 
 DMA clients connected to the Designware DMA controller must use the format

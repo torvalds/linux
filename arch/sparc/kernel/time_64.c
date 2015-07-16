@@ -28,7 +28,6 @@
 #include <linux/cpufreq.h>
 #include <linux/percpu.h>
 #include <linux/miscdevice.h>
-#include <linux/rtc.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
@@ -394,19 +393,6 @@ static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 
 static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
 
-int update_persistent_clock(struct timespec now)
-{
-	struct rtc_device *rtc = rtc_class_open("rtc0");
-	int err = -1;
-
-	if (rtc) {
-		err = rtc_set_mmss(rtc, now.tv_sec);
-		rtc_class_close(rtc);
-	}
-
-	return err;
-}
-
 unsigned long cmos_regs;
 EXPORT_SYMBOL(cmos_regs);
 
@@ -466,7 +452,6 @@ static struct platform_driver rtc_driver = {
 	.probe		= rtc_probe,
 	.driver = {
 		.name = "rtc",
-		.owner = THIS_MODULE,
 		.of_match_table = rtc_match,
 	},
 };
@@ -499,7 +484,6 @@ static struct platform_driver bq4802_driver = {
 	.probe		= bq4802_probe,
 	.driver = {
 		.name = "bq4802",
-		.owner = THIS_MODULE,
 		.of_match_table = bq4802_match,
 	},
 };
@@ -563,7 +547,6 @@ static struct platform_driver mostek_driver = {
 	.probe		= mostek_probe,
 	.driver = {
 		.name = "mostek",
-		.owner = THIS_MODULE,
 		.of_match_table = mostek_match,
 	},
 };
@@ -659,8 +642,7 @@ static int sparc64_cpufreq_notifier(struct notifier_block *nb, unsigned long val
 		ft->clock_tick_ref = cpu_data(cpu).clock_tick;
 	}
 	if ((val == CPUFREQ_PRECHANGE  && freq->old < freq->new) ||
-	    (val == CPUFREQ_POSTCHANGE && freq->old > freq->new) ||
-	    (val == CPUFREQ_RESUMECHANGE)) {
+	    (val == CPUFREQ_POSTCHANGE && freq->old > freq->new)) {
 		cpu_data(cpu).clock_tick =
 			cpufreq_scale(ft->clock_tick_ref,
 				      ft->ref_freq,
@@ -733,7 +715,7 @@ void __irq_entry timer_interrupt(int irq, struct pt_regs *regs)
 	irq_enter();
 
 	local_cpu_data().irq0_irqs++;
-	kstat_incr_irqs_this_cpu(0, irq_to_desc(0));
+	kstat_incr_irq_this_cpu(0);
 
 	if (unlikely(!evt->event_handler)) {
 		printk(KERN_WARNING
@@ -766,7 +748,7 @@ void setup_sparc64_timer(void)
 			     : /* no outputs */
 			     : "r" (pstate));
 
-	sevt = &__get_cpu_var(sparc64_events);
+	sevt = this_cpu_ptr(&sparc64_events);
 
 	memcpy(sevt, &sparc64_clockevent, sizeof(*sevt));
 	sevt->cpumask = cpumask_of(smp_processor_id());

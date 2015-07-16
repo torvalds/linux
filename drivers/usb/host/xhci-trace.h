@@ -14,6 +14,13 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM xhci-hcd
 
+/*
+ * The TRACE_SYSTEM_VAR defaults to TRACE_SYSTEM, but must be a
+ * legitimate C variable. It is not exported to user space.
+ */
+#undef TRACE_SYSTEM_VAR
+#define TRACE_SYSTEM_VAR xhci_hcd
+
 #if !defined(__XHCI_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define __XHCI_TRACE_H
 
@@ -116,12 +123,12 @@ DECLARE_EVENT_CLASS(xhci_log_event,
 		__field(u64, dma)
 		__field(u32, status)
 		__field(u32, flags)
-		__dynamic_array(__le32, trb, 4)
+		__dynamic_array(u8, trb, sizeof(struct xhci_generic_trb))
 	),
 	TP_fast_assign(
 		__entry->va = trb_va;
-		__entry->dma = le64_to_cpu(((u64)ev->field[1]) << 32 |
-						ev->field[0]);
+		__entry->dma = ((u64)le32_to_cpu(ev->field[1])) << 32 |
+					le32_to_cpu(ev->field[0]);
 		__entry->status = le32_to_cpu(ev->field[2]);
 		__entry->flags = le32_to_cpu(ev->field[3]);
 		memcpy(__get_dynamic_array(trb), trb_va,

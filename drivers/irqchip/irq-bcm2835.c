@@ -95,7 +95,7 @@ struct armctrl_ic {
 };
 
 static struct armctrl_ic intc __read_mostly;
-static asmlinkage void __exception_irq_entry bcm2835_handle_irq(
+static void __exception_irq_entry bcm2835_handle_irq(
 	struct pt_regs *regs);
 
 static void armctrl_mask_irq(struct irq_data *d)
@@ -135,7 +135,7 @@ static int armctrl_xlate(struct irq_domain *d, struct device_node *ctrlr,
 	return 0;
 }
 
-static struct irq_domain_ops armctrl_ops = {
+static const struct irq_domain_ops armctrl_ops = {
 	.xlate = armctrl_xlate
 };
 
@@ -196,7 +196,7 @@ static void armctrl_handle_shortcut(int bank, struct pt_regs *regs,
 	handle_IRQ(irq_linear_revmap(intc.domain, irq), regs);
 }
 
-static asmlinkage void __exception_irq_entry bcm2835_handle_irq(
+static void __exception_irq_entry bcm2835_handle_irq(
 	struct pt_regs *regs)
 {
 	u32 stat, irq;

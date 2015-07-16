@@ -24,7 +24,8 @@ config ATH10K_DEBUG
 
 config ATH10K_DEBUGFS
 	bool "Atheros ath10k debugfs support"
-	depends on ATH10K
+	depends on ATH10K && DEBUG_FS
+	select RELAY
 	---help---
 	  Enabled debugfs support
 
@@ -37,3 +38,10 @@ config ATH10K_TRACING
 	---help---
 	  Select this to ath10k use tracing infrastructure.
 
+config ATH10K_DFS_CERTIFIED
+	bool "Atheros DFS support for certified platforms"
+	depends on ATH10K && CFG80211_CERTIFICATION_ONUS
+	default n
+	---help---
+	This option enables DFS support for initiating radiation on
+	ath10k.

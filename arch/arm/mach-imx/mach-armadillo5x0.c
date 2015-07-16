@@ -50,6 +50,7 @@
 #include "common.h"
 #include "devices-imx31.h"
 #include "crmregs-imx3.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx3.h"
 #include "ulpi.h"
@@ -536,7 +537,7 @@ static void __init armadillo5x0_init(void)
 			gpio_free(ARMADILLO5X0_RTC_GPIO);
 	}
 	if (armadillo5x0_i2c_rtc.irq == 0)
-		pr_warning("armadillo5x0_init: failed to get RTC IRQ\n");
+		pr_warn("armadillo5x0_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(1, &armadillo5x0_i2c_rtc, 1);
 
 	/* USB */
@@ -562,7 +563,6 @@ MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
 	.init_time	= armadillo5x0_timer_init,
 	.init_machine = armadillo5x0_init,
 	.restart	= mxc_restart,

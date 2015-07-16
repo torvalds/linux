@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,23 +12,40 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
-#include "distributed-arp-table.h"
 #include "send.h"
-#include "routing.h"
-#include "translation-table.h"
-#include "soft-interface.h"
-#include "hard-interface.h"
-#include "gateway_common.h"
-#include "gateway_client.h"
-#include "originator.h"
-#include "network-coding.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
+#include <linux/if_ether.h>
+#include <linux/if.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/netdevice.h>
+#include <linux/printk.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
+#include <linux/workqueue.h>
+
+#include "distributed-arp-table.h"
 #include "fragmentation.h"
+#include "gateway_client.h"
+#include "hard-interface.h"
+#include "network-coding.h"
+#include "originator.h"
+#include "routing.h"
+#include "soft-interface.h"
+#include "translation-table.h"
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 
@@ -61,8 +78,8 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	skb_reset_mac_header(skb);
 
 	ethhdr = eth_hdr(skb);
-	memcpy(ethhdr->h_source, hard_iface->net_dev->dev_addr, ETH_ALEN);
-	memcpy(ethhdr->h_dest, dst_addr, ETH_ALEN);
+	ether_addr_copy(ethhdr->h_source, hard_iface->net_dev->dev_addr);
+	ether_addr_copy(ethhdr->h_dest, dst_addr);
 	ethhdr->h_proto = htons(ETH_P_BATMAN);
 
 	skb_set_network_header(skb, ETH_HLEN);
@@ -161,13 +178,13 @@ batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
 		return false;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
-	unicast_packet->header.version = BATADV_COMPAT_VERSION;
+	unicast_packet->version = BATADV_COMPAT_VERSION;
 	/* batman packet type: unicast */
-	unicast_packet->header.packet_type = BATADV_UNICAST;
+	unicast_packet->packet_type = BATADV_UNICAST;
 	/* set unicast ttl */
-	unicast_packet->header.ttl = BATADV_TTL;
+	unicast_packet->ttl = BATADV_TTL;
 	/* copy the destination for faster routing */
-	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
+	ether_addr_copy(unicast_packet->dest, orig_node->orig);
 	/* set the destination tt version number */
 	unicast_packet->ttvn = ttvn;
 
@@ -221,8 +238,8 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 		goto out;
 
 	uc_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
-	uc_4addr_packet->u.header.packet_type = BATADV_UNICAST_4ADDR;
-	memcpy(uc_4addr_packet->src, primary_if->net_dev->dev_addr, ETH_ALEN);
+	uc_4addr_packet->u.packet_type = BATADV_UNICAST_4ADDR;
+	ether_addr_copy(uc_4addr_packet->src, primary_if->net_dev->dev_addr);
 	uc_4addr_packet->subtype = packet_subtype;
 	uc_4addr_packet->reserved = 0;
 
@@ -250,14 +267,14 @@ out:
  *
  * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
-static int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
-				   struct sk_buff *skb, int packet_type,
-				   int packet_subtype,
-				   struct batadv_orig_node *orig_node,
-				   unsigned short vid)
+int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
+			    struct sk_buff *skb, int packet_type,
+			    int packet_subtype,
+			    struct batadv_orig_node *orig_node,
+			    unsigned short vid)
 {
-	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batadv_unicast_packet *unicast_packet;
+	struct ethhdr *ethhdr;
 	int ret = NET_XMIT_DROP;
 
 	if (!orig_node)
@@ -281,6 +298,10 @@ static int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 		goto out;
 	}
 
+	/* skb->data might have been reallocated by
+	 * batadv_send_skb_prepare_unicast{,_4addr}()
+	 */
+	ethhdr = eth_hdr(skb);
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 
 	/* inform the destination node that we are still missing a correct route
@@ -309,6 +330,7 @@ out:
  * @packet_type: the batman unicast packet type to use
  * @packet_subtype: the unicast 4addr packet subtype (only relevant for unicast
  *  4addr packets)
+ * @dst_hint: can be used to override the destination contained in the skb
  * @vid: the vid to be used to search the translation table
  *
  * Look up the recipient node for the destination address in the ethernet
@@ -321,13 +343,23 @@ out:
  */
 int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, int packet_type,
-				   int packet_subtype, unsigned short vid)
+				   int packet_subtype, uint8_t *dst_hint,
+				   unsigned short vid)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batadv_orig_node *orig_node;
+	uint8_t *src, *dst;
 
-	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
-					     ethhdr->h_dest, vid);
+	src = ethhdr->h_source;
+	dst = ethhdr->h_dest;
+
+	/* if we got an hint! let's send the packet to this client (if any) */
+	if (dst_hint) {
+		src = NULL;
+		dst = dst_hint;
+	}
+	orig_node = batadv_transtable_search(bat_priv, src, dst, vid);
+
 	return batadv_send_skb_unicast(bat_priv, skb, packet_type,
 				       packet_subtype, orig_node, vid);
 }
@@ -379,6 +411,8 @@ static void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet)
 		kfree_skb(forw_packet->skb);
 	if (forw_packet->if_incoming)
 		batadv_hardif_free_ref(forw_packet->if_incoming);
+	if (forw_packet->if_outgoing)
+		batadv_hardif_free_ref(forw_packet->if_outgoing);
 	kfree(forw_packet);
 }
 
@@ -436,12 +470,13 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 
 	/* as we have a copy now, it is safe to decrease the TTL */
 	bcast_packet = (struct batadv_bcast_packet *)newskb->data;
-	bcast_packet->header.ttl--;
+	bcast_packet->ttl--;
 
 	skb_reset_mac_header(newskb);
 
 	forw_packet->skb = newskb;
 	forw_packet->if_incoming = primary_if;
+	forw_packet->if_outgoing = NULL;
 
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;
@@ -537,11 +572,16 @@ void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 
 	bat_priv->bat_algo_ops->bat_ogm_emit(forw_packet);
 
-	/* we have to have at least one packet in the queue
-	 * to determine the queues wake up time unless we are
-	 * shutting down
+	/* we have to have at least one packet in the queue to determine the
+	 * queues wake up time unless we are shutting down.
+	 *
+	 * only re-schedule if this is the "original" copy, e.g. the OGM of the
+	 * primary interface should only be rescheduled once per period, but
+	 * this function will be called for the forw_packet instances of the
+	 * other secondary interfaces as well.
 	 */
-	if (forw_packet->own)
+	if (forw_packet->own &&
+	    forw_packet->if_incoming == forw_packet->if_outgoing)
 		batadv_schedule_bat_ogm(forw_packet->if_incoming);
 
 out:
@@ -602,7 +642,8 @@ batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 		 * we delete only packets belonging to the given interface
 		 */
 		if ((hard_iface) &&
-		    (forw_packet->if_incoming != hard_iface))
+		    (forw_packet->if_incoming != hard_iface) &&
+		    (forw_packet->if_outgoing != hard_iface))
 			continue;
 
 		spin_unlock_bh(&bat_priv->forw_bat_list_lock);

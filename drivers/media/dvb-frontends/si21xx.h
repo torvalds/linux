@@ -13,7 +13,7 @@ struct si21xx_config {
 	int min_delay_ms;
 };
 
-#if IS_ENABLED(CONFIG_DVB_SI21XX)
+#if IS_REACHABLE(CONFIG_DVB_SI21XX)
 extern struct dvb_frontend *si21xx_attach(const struct si21xx_config *config,
 						struct i2c_adapter *i2c);
 #else

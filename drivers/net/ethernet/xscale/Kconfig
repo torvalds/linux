@@ -8,9 +8,7 @@ config NET_VENDOR_XSCALE
 	depends on NET_VENDOR_INTEL && (ARM && ARCH_IXP4XX && \
 		   IXP4XX_NPE && IXP4XX_QMGR)
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question does not directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -23,6 +21,7 @@ config IXP4XX_ETH
 	tristate "Intel IXP4xx Ethernet support"
 	depends on ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR
 	select PHYLIB
+	select NET_PTP_CLASSIFY
 	---help---
 	  Say Y here if you want to use built-in Ethernet ports
 	  on IXP4xx processor.

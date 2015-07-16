@@ -14,6 +14,7 @@
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/perf_event.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu.h>
 
@@ -85,7 +86,7 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto no_context;
 
 	if (user_mode(regs))
@@ -139,13 +140,20 @@ good_area:
 			return;
 	}
 
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+
 	if (likely(!(fault & VM_FAULT_ERROR))) {
 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
 			/* To avoid updating stats twice for retry case */
-			if (fault & VM_FAULT_MAJOR)
+			if (fault & VM_FAULT_MAJOR) {
 				tsk->maj_flt++;
-			else
+				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
+					      regs, address);
+			} else {
 				tsk->min_flt++;
+				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
+					      regs, address);
+			}
 
 			if (fault & VM_FAULT_RETRY) {
 				flags &= ~FAULT_FLAG_ALLOW_RETRY;
@@ -159,9 +167,10 @@ good_area:
 		return;
 	}
 
-	/* TBD: switch to pagefault_out_of_memory() */
 	if (fault & VM_FAULT_OOM)
 		goto out_of_memory;
+	else if (fault & VM_FAULT_SIGSEGV)
+		goto bad_area;
 	else if (fault & VM_FAULT_SIGBUS)
 		goto do_sigbus;
 

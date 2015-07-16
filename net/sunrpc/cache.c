@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
+#include <linux/string_helpers.h>
 #include <asm/uaccess.h>
 #include <linux/poll.h>
 #include <linux/seq_file.h>
@@ -374,7 +375,7 @@ void sunrpc_destroy_cache_detail(struct cache_detail *cd)
 	}
 	return;
 out:
-	printk(KERN_ERR "nfsd: failed to unregister %s cache\n", cd->name);
+	printk(KERN_ERR "RPC: failed to unregister %s cache\n", cd->name);
 }
 EXPORT_SYMBOL_GPL(sunrpc_destroy_cache_detail);
 
@@ -619,7 +620,7 @@ static void cache_limit_defers(void)
 
 	/* Consider removing either the first or the last */
 	if (cache_defer_cnt > DFR_MAX) {
-		if (net_random() & 1)
+		if (prandom_u32() & 1)
 			discard = list_entry(cache_defer_list.next,
 					     struct cache_deferred_req, recent);
 		else
@@ -920,7 +921,7 @@ static unsigned int cache_poll(struct file *filp, poll_table *wait,
 	poll_wait(filp, &queue_wait, wait);
 
 	/* alway allow write */
-	mask = POLL_OUT | POLLWRNORM;
+	mask = POLLOUT | POLLWRNORM;
 
 	if (!rp)
 		return mask;
@@ -1067,30 +1068,17 @@ void qword_add(char **bpp, int *lp, char *str)
 {
 	char *bp = *bpp;
 	int len = *lp;
-	char c;
+	int ret;
 
 	if (len < 0) return;
 
-	while ((c=*str++) && len)
-		switch(c) {
-		case ' ':
-		case '\t':
-		case '\n':
-		case '\\':
-			if (len >= 4) {
-				*bp++ = '\\';
-				*bp++ = '0' + ((c & 0300)>>6);
-				*bp++ = '0' + ((c & 0070)>>3);
-				*bp++ = '0' + ((c & 0007)>>0);
-			}
-			len -= 4;
-			break;
-		default:
-			*bp++ = c;
-			len--;
-		}
-	if (c || len <1) len = -1;
-	else {
+	ret = string_escape_str(str, bp, len, ESCAPE_OCTAL, "\\ \n\t");
+	if (ret >= len) {
+		bp += len;
+		len = -1;
+	} else {
+		bp += ret;
+		len -= ret;
 		*bp++ = ' ';
 		len--;
 	}
@@ -1111,9 +1099,7 @@ void qword_addhex(char **bpp, int *lp, char *buf, int blen)
 		*bp++ = 'x';
 		len -= 2;
 		while (blen && len >= 2) {
-			unsigned char c = *buf++;
-			*bp++ = '0' + ((c&0xf0)>>4) + (c>=0xa0)*('a'-'9'-1);
-			*bp++ = '0' + (c&0x0f) + ((c&0x0f)>=0x0a)*('a'-'9'-1);
+			bp = hex_byte_pack(bp, *buf++);
 			len -= 2;
 			blen--;
 		}

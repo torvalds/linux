@@ -15,14 +15,10 @@
 #ifndef __XTENSA_XTAVNET_HARDWARE_H
 #define __XTENSA_XTAVNET_HARDWARE_H
 
-/* By default NO_IRQ is defined to 0 in Linux, but we use the
-   interrupt 0 for UART... */
-#define NO_IRQ                 -1
-
 /* Memory configuration. */
 
-#define PLATFORM_DEFAULT_MEM_START 0x00000000
-#define PLATFORM_DEFAULT_MEM_SIZE  0x04000000
+#define PLATFORM_DEFAULT_MEM_START CONFIG_DEFAULT_MEM_START
+#define PLATFORM_DEFAULT_MEM_SIZE  CONFIG_DEFAULT_MEM_SIZE
 
 /* Interrupt configuration. */
 
@@ -30,7 +26,7 @@
 
 /* Default assignment of LX60 devices to external interrupts. */
 
-#ifdef CONFIG_ARCH_HAS_SMP
+#ifdef CONFIG_XTENSA_MX
 #define DUART16552_INTNUM	XCHAL_EXTINT3_NUM
 #define OETH_IRQ		XCHAL_EXTINT4_NUM
 #else
@@ -44,9 +40,6 @@
 
 /* UART */
 #define DUART16552_PADDR	(XCHAL_KIO_PADDR + 0x0D050020)
-/* LCD instruction and data addresses. */
-#define LCD_INSTR_ADDR		((char *)IOADDR(0x0D040000))
-#define LCD_DATA_ADDR		((char *)IOADDR(0x0D040004))
 
 /* Misc. */
 #define XTFPGA_FPGAREGS_VADDR	IOADDR(0x0D020000)
@@ -66,4 +59,7 @@
 				/* 5*rx buffs + 5*tx buffs */
 #define OETH_SRAMBUFF_SIZE	(5 * 0x600 + 5 * 0x600)
 
+#define C67X00_PADDR		(XCHAL_KIO_PADDR + 0x0D0D0000)
+#define C67X00_SIZE		0x10
+#define C67X00_IRQ		5
 #endif /* __XTENSA_XTAVNET_HARDWARE_H */

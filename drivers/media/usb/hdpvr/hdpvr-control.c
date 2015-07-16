@@ -59,13 +59,10 @@ int get_video_info(struct hdpvr_device *dev, struct hdpvr_video_info *vidinf)
 			      1000);
 
 #ifdef HDPVR_DEBUG
-	if (hdpvr_debug & MSG_INFO) {
-		char print_buf[15];
-		hex_dump_to_buffer(dev->usbc_buf, 5, 16, 1, print_buf,
-				   sizeof(print_buf), 0);
+	if (hdpvr_debug & MSG_INFO)
 		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
-			 "get video info returned: %d, %s\n", ret, print_buf);
-	}
+			 "get video info returned: %d, %5ph\n", ret,
+			 dev->usbc_buf);
 #endif
 	mutex_unlock(&dev->usbc_mutex);
 
@@ -82,9 +79,6 @@ int get_video_info(struct hdpvr_device *dev, struct hdpvr_video_info *vidinf)
 
 int get_input_lines_info(struct hdpvr_device *dev)
 {
-#ifdef HDPVR_DEBUG
-	char print_buf[9];
-#endif
 	int ret, lines;
 
 	mutex_lock(&dev->usbc_mutex);
@@ -96,13 +90,10 @@ int get_input_lines_info(struct hdpvr_device *dev)
 			      1000);
 
 #ifdef HDPVR_DEBUG
-	if (hdpvr_debug & MSG_INFO) {
-		hex_dump_to_buffer(dev->usbc_buf, 3, 16, 1, print_buf,
-				   sizeof(print_buf), 0);
+	if (hdpvr_debug & MSG_INFO)
 		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
-			 "get input lines info returned: %d, %s\n", ret,
-			 print_buf);
-	}
+			 "get input lines info returned: %d, %3ph\n", ret,
+			 dev->usbc_buf);
 #else
 	(void)ret;	/* suppress compiler warning */
 #endif

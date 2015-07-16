@@ -19,40 +19,9 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 
-#ifdef CONFIG_PM_RUNTIME
-static int keystone_pm_runtime_suspend(struct device *dev)
-{
-	int ret;
-
-	dev_dbg(dev, "%s\n", __func__);
-
-	ret = pm_generic_runtime_suspend(dev);
-	if (ret)
-		return ret;
-
-	ret = pm_clk_suspend(dev);
-	if (ret) {
-		pm_generic_runtime_resume(dev);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int keystone_pm_runtime_resume(struct device *dev)
-{
-	dev_dbg(dev, "%s\n", __func__);
-
-	pm_clk_resume(dev);
-
-	return pm_generic_runtime_resume(dev);
-}
-#endif
-
 static struct dev_pm_domain keystone_pm_domain = {
 	.ops = {
-		SET_RUNTIME_PM_OPS(keystone_pm_runtime_suspend,
-				   keystone_pm_runtime_resume, NULL)
+		USE_PM_CLK_RUNTIME_OPS
 		USE_PLATFORM_PM_SLEEP_OPS
 	},
 };
@@ -61,7 +30,7 @@ static struct pm_clk_notifier_block platform_domain_notifier = {
 	.pm_domain = &keystone_pm_domain,
 };
 
-static struct of_device_id of_keystone_table[] = {
+static const struct of_device_id of_keystone_table[] = {
 	{.compatible = "ti,keystone"},
 	{ /* end of list */ },
 };
@@ -74,9 +43,7 @@ int __init keystone_pm_runtime_init(void)
 	if (!np)
 		return 0;
 
-	of_clk_init(NULL);
 	pm_clk_add_notifier(&platform_bus_type, &platform_domain_notifier);
 
 	return 0;
 }
-subsys_initcall(keystone_pm_runtime_init);

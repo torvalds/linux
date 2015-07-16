@@ -12,6 +12,7 @@
 #define _LINUX_SERIAL_8250_H
 
 #include <linux/serial_core.h>
+#include <linux/serial_reg.h>
 #include <linux/platform_device.h>
 
 /*
@@ -60,6 +61,20 @@ enum {
 };
 
 struct uart_8250_dma;
+struct uart_8250_port;
+
+/**
+ * 8250 core driver operations
+ *
+ * @setup_irq()		Setup irq handling. The universal 8250 driver links this
+ *			port to the irq chain. Other drivers may @request_irq().
+ * @release_irq()	Undo irq handling. The universal 8250 driver unlinks
+ *			the port from the irq chain.
+ */
+struct uart_8250_ops {
+	int		(*setup_irq)(struct uart_8250_port *);
+	void		(*release_irq)(struct uart_8250_port *);
+};
 
 /*
  * This should be used by drivers which want to register
@@ -74,14 +89,22 @@ struct uart_8250_port {
 	struct list_head	list;		/* ports on this IRQ */
 	unsigned short		capabilities;	/* port capabilities */
 	unsigned short		bugs;		/* port bugs */
+	bool			fifo_bug;	/* min RX trigger if enabled */
 	unsigned int		tx_loadsz;	/* transmit fifo load size */
 	unsigned char		acr;
+	unsigned char		fcr;
 	unsigned char		ier;
 	unsigned char		lcr;
 	unsigned char		mcr;
 	unsigned char		mcr_mask;	/* mask of user bits */
 	unsigned char		mcr_force;	/* mask of forced bits */
 	unsigned char		cur_iotype;	/* Running I/O type */
+	unsigned int		rpm_tx_active;
+	unsigned char		canary;		/* non-zero during system sleep
+						 *   if no_console_suspend
+						 */
+	unsigned char		probe;
+#define UART_PROBE_RSA	(1 << 0)
 
 	/*
 	 * Some bits in registers are cleared on a read, so they must
@@ -94,11 +117,17 @@ struct uart_8250_port {
 	unsigned char		msr_saved_flags;
 
 	struct uart_8250_dma	*dma;
+	const struct uart_8250_ops *ops;
 
 	/* 8250 specific callbacks */
 	int			(*dl_read)(struct uart_8250_port *);
 	void			(*dl_write)(struct uart_8250_port *, int);
 };
+
+static inline struct uart_8250_port *up_to_u8250p(struct uart_port *up)
+{
+	return container_of(up, struct uart_8250_port, port);
+}
 
 int serial8250_register_8250_port(struct uart_8250_port *);
 void serial8250_unregister_port(int line);
@@ -107,15 +136,17 @@ void serial8250_resume_port(int line);
 
 extern int early_serial_setup(struct uart_port *port);
 
-extern int serial8250_find_port(struct uart_port *p);
-extern int serial8250_find_port_for_earlycon(void);
 extern unsigned int serial8250_early_in(struct uart_port *port, int offset);
 extern void serial8250_early_out(struct uart_port *port, int offset, int value);
-extern int setup_early_serial8250_console(char *cmdline);
+extern int early_serial8250_setup(struct earlycon_device *device,
+					 const char *options);
 extern void serial8250_do_set_termios(struct uart_port *port,
 		struct ktermios *termios, struct ktermios *old);
+extern int serial8250_do_startup(struct uart_port *port);
+extern void serial8250_do_shutdown(struct uart_port *port);
 extern void serial8250_do_pm(struct uart_port *port, unsigned int state,
 			     unsigned int oldstate);
+extern void serial8250_do_set_mctrl(struct uart_port *port, unsigned int mctrl);
 extern int fsl8250_handle_irq(struct uart_port *port);
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir);
 unsigned char serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr);

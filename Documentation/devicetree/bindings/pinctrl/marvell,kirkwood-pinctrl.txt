@@ -8,6 +8,7 @@ Required properties:
               "marvell,88f6190-pinctrl", "marvell,88f6192-pinctrl",
               "marvell,88f6281-pinctrl", "marvell,88f6282-pinctrl"
               "marvell,98dx4122-pinctrl"
+- reg: register specifier of MPP registers
 
 This driver supports all kirkwood variants, i.e. 88f6180, 88f619x, and 88f628x.
 It also support the 88f6281-based variant in the 98dx412x Bobcat SoCs.

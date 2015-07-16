@@ -36,6 +36,7 @@
 #include <linux/nfs.h>
 
 #include "netns.h"
+#include "procfs.h"
 
 #define NLMDBG_FACILITY		NLMDBG_SVC
 #define LOCKD_BUFSIZE		(1024 + NLMSVC_XDRSIZE)
@@ -137,10 +138,6 @@ lockd(void *vrqstp)
 
 	dprintk("NFS locking service started (ver " LOCKD_VERSION ").\n");
 
-	if (!nlm_timeout)
-		nlm_timeout = LOCKD_DFLT_TIMEO;
-	nlmsvc_timeout = nlm_timeout * HZ;
-
 	/*
 	 * The main request loop. We don't terminate until the last
 	 * NFS mount or NFS daemon has gone away.
@@ -235,6 +232,7 @@ out_err:
 	if (warned++ == 0)
 		printk(KERN_WARNING
 			"lockd_up: makesock failed, error=%d\n", err);
+	svc_shutdown_net(serv, net);
 	return err;
 }
 
@@ -252,13 +250,11 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 
 	error = make_socks(serv, net);
 	if (error < 0)
-		goto err_socks;
+		goto err_bind;
 	set_grace_period(net);
 	dprintk("lockd_up_net: per-net data created; net=%p\n", net);
 	return 0;
 
-err_socks:
-	svc_rpcb_cleanup(serv, net);
 err_bind:
 	ln->nlmsvc_users--;
 	return error;
@@ -305,13 +301,16 @@ static int lockd_start_svc(struct svc_serv *serv)
 	svc_sock_update_bufs(serv);
 	serv->sv_maxconn = nlm_max_connections;
 
-	nlmsvc_task = kthread_run(lockd, nlmsvc_rqst, "%s", serv->sv_name);
+	nlmsvc_task = kthread_create(lockd, nlmsvc_rqst, "%s", serv->sv_name);
 	if (IS_ERR(nlmsvc_task)) {
 		error = PTR_ERR(nlmsvc_task);
 		printk(KERN_WARNING
 			"lockd_up: kthread_run failed, error=%d\n", error);
 		goto out_task;
 	}
+	nlmsvc_rqst->rq_task = nlmsvc_task;
+	wake_up_process(nlmsvc_task);
+
 	dprintk("lockd_up: service started\n");
 	return 0;
 
@@ -347,7 +346,11 @@ static struct svc_serv *lockd_create_svc(void)
 		printk(KERN_WARNING
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
 
-	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, NULL);
+	if (!nlm_timeout)
+		nlm_timeout = LOCKD_DFLT_TIMEO;
+	nlmsvc_timeout = nlm_timeout * HZ;
+
+	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, svc_rpcb_cleanup);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		return ERR_PTR(-ENOMEM);
@@ -435,7 +438,7 @@ EXPORT_SYMBOL_GPL(lockd_down);
  * Sysctl parameters (same as module parameters, different interface).
  */
 
-static ctl_table nlm_sysctls[] = {
+static struct ctl_table nlm_sysctls[] = {
 	{
 		.procname	= "nlm_grace_period",
 		.data		= &nlm_grace_period,
@@ -489,7 +492,7 @@ static ctl_table nlm_sysctls[] = {
 	{ }
 };
 
-static ctl_table nlm_sysctl_dir[] = {
+static struct ctl_table nlm_sysctl_dir[] = {
 	{
 		.procname	= "nfs",
 		.mode		= 0555,
@@ -498,7 +501,7 @@ static ctl_table nlm_sysctl_dir[] = {
 	{ }
 };
 
-static ctl_table nlm_sysctl_root[] = {
+static struct ctl_table nlm_sysctl_root[] = {
 	{
 		.procname	= "fs",
 		.mode		= 0555,
@@ -582,7 +585,7 @@ static int lockd_init_net(struct net *net)
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	INIT_DELAYED_WORK(&ln->grace_period_end, grace_ender);
-	INIT_LIST_HEAD(&ln->grace_list);
+	INIT_LIST_HEAD(&ln->lockd_manager.list);
 	spin_lock_init(&ln->nsm_clnt_lock);
 	return 0;
 }
@@ -616,13 +619,20 @@ static int __init init_nlm(void)
 	err = register_pernet_subsys(&lockd_net_ops);
 	if (err)
 		goto err_pernet;
+
+	err = lockd_create_procfs();
+	if (err)
+		goto err_procfs;
+
 	return 0;
 
+err_procfs:
+	unregister_pernet_subsys(&lockd_net_ops);
 err_pernet:
 #ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(nlm_sysctl_table);
-#endif
 err_sysctl:
+#endif
 	return err;
 }
 
@@ -630,6 +640,7 @@ static void __exit exit_nlm(void)
 {
 	/* FIXME: delete all NLM clients */
 	nlm_shutdown_hosts();
+	lockd_remove_procfs();
 	unregister_pernet_subsys(&lockd_net_ops);
 #ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(nlm_sysctl_table);

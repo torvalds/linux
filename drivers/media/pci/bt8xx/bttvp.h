@@ -42,6 +42,7 @@
 #include <media/tveeprom.h>
 #include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
+#include <media/tea575x.h>
 
 #include "bt848.h"
 #include "bttv.h"
@@ -133,8 +134,6 @@ struct bttv_ir {
 	u32                     polling;
 	u32                     last_gpio;
 	int                     shift_by;
-	int                     start; // What should RC5_START() be
-	int                     addr; // What RC5_ADDR() should be.
 	int                     rc5_remote_gap;
 
 	/* RC5 gpio */
@@ -361,6 +360,10 @@ struct bttv_suspend_state {
 	struct bttv_buffer     *vbi;
 };
 
+struct bttv_tea575x_gpio {
+	u8 data, clk, wren, most;
+};
+
 struct bttv {
 	struct bttv_core c;
 
@@ -401,9 +404,9 @@ struct bttv {
 	struct v4l2_subdev	  *sd_tda7432;
 
 	/* video4linux (1) */
-	struct video_device *video_dev;
-	struct video_device *radio_dev;
-	struct video_device *vbi_dev;
+	struct video_device video_dev;
+	struct video_device radio_dev;
+	struct video_device vbi_dev;
 
 	/* controls */
 	struct v4l2_ctrl_handler   ctrl_handler;
@@ -447,12 +450,9 @@ struct bttv {
 
 	/* miro/pinnacle + Aimslab VHX
 	   philips matchbox (tea5757 radio tuner) support */
-	int has_matchbox;
-	int mbox_we;
-	int mbox_data;
-	int mbox_clk;
-	int mbox_most;
-	int mbox_mask;
+	int has_tea575x;
+	struct bttv_tea575x_gpio tea_gpio;
+	struct snd_tea575x tea;
 
 	/* ISA stuff (Terratec Active Radio Upgrade) */
 	int mbox_ior;
@@ -533,9 +533,3 @@ static inline unsigned int bttv_muxsel(const struct bttv *btv,
 #define btaor(dat,mask,adr) btwrite((dat) | ((mask) & btread(adr)), adr)
 
 #endif /* _BTTVP_H_ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

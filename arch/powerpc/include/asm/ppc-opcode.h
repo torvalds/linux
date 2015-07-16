@@ -136,9 +136,12 @@
 #define PPC_INST_DCBAL			0x7c2005ec
 #define PPC_INST_DCBZL			0x7c2007ec
 #define PPC_INST_ICBT			0x7c00002c
+#define PPC_INST_ICSWX			0x7c00032d
+#define PPC_INST_ICSWEPX		0x7c00076d
 #define PPC_INST_ISEL			0x7c00001e
 #define PPC_INST_ISEL_MASK		0xfc00003e
 #define PPC_INST_LDARX			0x7c0000a8
+#define PPC_INST_LOGMPP			0x7c0007e4
 #define PPC_INST_LSWI			0x7c0004aa
 #define PPC_INST_LSWX			0x7c00042a
 #define PPC_INST_LWARX			0x7c000028
@@ -150,8 +153,11 @@
 #define PPC_INST_MCRXR_MASK		0xfc0007fe
 #define PPC_INST_MFSPR_PVR		0x7c1f42a6
 #define PPC_INST_MFSPR_PVR_MASK		0xfc1fffff
+#define PPC_INST_MFTMR			0x7c0002dc
 #define PPC_INST_MSGSND			0x7c00019c
+#define PPC_INST_MSGCLR			0x7c0001dc
 #define PPC_INST_MSGSNDP		0x7c00011c
+#define PPC_INST_MTTMR			0x7c0003dc
 #define PPC_INST_NOP			0x60000000
 #define PPC_INST_POPCNTB		0x7c0000f4
 #define PPC_INST_POPCNTB_MASK		0xfc0007fe
@@ -191,6 +197,7 @@
 
 #define PPC_INST_NAP			0x4c000364
 #define PPC_INST_SLEEP			0x4c0003a4
+#define PPC_INST_WINKLE			0x4c0003e4
 
 /* A2 specific instructions */
 #define PPC_INST_ERATWE			0x7c0001a6
@@ -201,12 +208,15 @@
 #define PPC_INST_ERATSX_DOT		0x7c000127
 
 /* Misc instructions for BPF compiler */
+#define PPC_INST_LBZ			0x88000000
 #define PPC_INST_LD			0xe8000000
 #define PPC_INST_LHZ			0xa0000000
 #define PPC_INST_LHBRX			0x7c00062c
 #define PPC_INST_LWZ			0x80000000
 #define PPC_INST_STD			0xf8000000
 #define PPC_INST_STDU			0xf8000001
+#define PPC_INST_STW			0x90000000
+#define PPC_INST_STWU			0x94000000
 #define PPC_INST_MFLR			0x7c0802a6
 #define PPC_INST_MTLR			0x7c0803a6
 #define PPC_INST_CMPWI			0x2c000000
@@ -275,6 +285,20 @@
 #define __PPC_EH(eh)	0
 #endif
 
+/* POWER8 Micro Partition Prefetch (MPP) parameters */
+/* Address mask is common for LOGMPP instruction and MPPR SPR */
+#define PPC_MPPE_ADDRESS_MASK 0xffffffffc000
+
+/* Bits 60 and 61 of MPP SPR should be set to one of the following */
+/* Aborting the fetch is indeed setting 00 in the table size bits */
+#define PPC_MPPR_FETCH_ABORT (0x0ULL << 60)
+#define PPC_MPPR_FETCH_WHOLE_TABLE (0x2ULL << 60)
+
+/* Bits 54 and 55 of register for LOGMPP instruction should be set to: */
+#define PPC_LOGMPP_LOG_L2 (0x02ULL << 54)
+#define PPC_LOGMPP_LOG_L2L3 (0x01ULL << 54)
+#define PPC_LOGMPP_LOG_ABORT (0x03ULL << 54)
+
 /* Deal with instructions that older assemblers aren't aware of */
 #define	PPC_DCBAL(a, b)		stringify_in_c(.long PPC_INST_DCBAL | \
 					__PPC_RA(a) | __PPC_RB(b))
@@ -283,10 +307,14 @@
 #define PPC_LDARX(t, a, b, eh)	stringify_in_c(.long PPC_INST_LDARX | \
 					___PPC_RT(t) | ___PPC_RA(a) | \
 					___PPC_RB(b) | __PPC_EH(eh))
+#define PPC_LOGMPP(b)		stringify_in_c(.long PPC_INST_LOGMPP | \
+					__PPC_RB(b))
 #define PPC_LWARX(t, a, b, eh)	stringify_in_c(.long PPC_INST_LWARX | \
 					___PPC_RT(t) | ___PPC_RA(a) | \
 					___PPC_RB(b) | __PPC_EH(eh))
 #define PPC_MSGSND(b)		stringify_in_c(.long PPC_INST_MSGSND | \
+					___PPC_RB(b))
+#define PPC_MSGCLR(b)		stringify_in_c(.long PPC_INST_MSGCLR | \
 					___PPC_RB(b))
 #define PPC_MSGSNDP(b)		stringify_in_c(.long PPC_INST_MSGSNDP | \
 					___PPC_RB(b))
@@ -355,6 +383,7 @@
 
 #define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
 #define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
+#define PPC_WINKLE		stringify_in_c(.long PPC_INST_WINKLE)
 
 /* BHRB instructions */
 #define PPC_CLRBHRB		stringify_in_c(.long PPC_INST_CLRBHRB)
@@ -368,5 +397,23 @@
 					       | __PPC_RA(r))
 #define TABORT(r)		stringify_in_c(.long PPC_INST_TABORT \
 					       | __PPC_RA(r))
+
+/* book3e thread control instructions */
+#define TMRN(x)			((((x) & 0x1f) << 16) | (((x) & 0x3e0) << 6))
+#define MTTMR(tmr, r)		stringify_in_c(.long PPC_INST_MTTMR | \
+					       TMRN(tmr) | ___PPC_RS(r))
+#define MFTMR(tmr, r)		stringify_in_c(.long PPC_INST_MFTMR | \
+					       TMRN(tmr) | ___PPC_RT(r))
+
+/* Coprocessor instructions */
+#define PPC_ICSWX(s, a, b)	stringify_in_c(.long PPC_INST_ICSWX |	\
+					       ___PPC_RS(s) |		\
+					       ___PPC_RA(a) |		\
+					       ___PPC_RB(b))
+#define PPC_ICSWEPX(s, a, b)	stringify_in_c(.long PPC_INST_ICSWEPX | \
+					       ___PPC_RS(s) |		\
+					       ___PPC_RA(a) |		\
+					       ___PPC_RB(b))
+
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

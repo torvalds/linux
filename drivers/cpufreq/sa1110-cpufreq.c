@@ -312,7 +312,7 @@ static int __init sa1110_cpu_init(struct cpufreq_policy *policy)
 /* sa1110_driver needs __refdata because it must remain after init registers
  * it with cpufreq_register_driver() */
 static struct cpufreq_driver sa1110_driver __refdata = {
-	.flags		= CPUFREQ_STICKY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= sa1110_target,
 	.get		= sa11x0_getspeed,
@@ -349,7 +349,7 @@ static int __init sa1110_clk_init(void)
 			name = "K4S641632D";
 		if (machine_is_h3100())
 			name = "KM416S4030CT";
-		if (machine_is_jornada720())
+		if (machine_is_jornada720() || machine_is_h3600())
 			name = "K4S281632B-1H";
 		if (machine_is_nanoengine())
 			name = "MT48LC8M16A2TG-75";

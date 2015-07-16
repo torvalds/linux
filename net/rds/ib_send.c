@@ -39,40 +39,6 @@
 #include "rds.h"
 #include "ib.h"
 
-static char *rds_ib_wc_status_strings[] = {
-#define RDS_IB_WC_STATUS_STR(foo) \
-		[IB_WC_##foo] = __stringify(IB_WC_##foo)
-	RDS_IB_WC_STATUS_STR(SUCCESS),
-	RDS_IB_WC_STATUS_STR(LOC_LEN_ERR),
-	RDS_IB_WC_STATUS_STR(LOC_QP_OP_ERR),
-	RDS_IB_WC_STATUS_STR(LOC_EEC_OP_ERR),
-	RDS_IB_WC_STATUS_STR(LOC_PROT_ERR),
-	RDS_IB_WC_STATUS_STR(WR_FLUSH_ERR),
-	RDS_IB_WC_STATUS_STR(MW_BIND_ERR),
-	RDS_IB_WC_STATUS_STR(BAD_RESP_ERR),
-	RDS_IB_WC_STATUS_STR(LOC_ACCESS_ERR),
-	RDS_IB_WC_STATUS_STR(REM_INV_REQ_ERR),
-	RDS_IB_WC_STATUS_STR(REM_ACCESS_ERR),
-	RDS_IB_WC_STATUS_STR(REM_OP_ERR),
-	RDS_IB_WC_STATUS_STR(RETRY_EXC_ERR),
-	RDS_IB_WC_STATUS_STR(RNR_RETRY_EXC_ERR),
-	RDS_IB_WC_STATUS_STR(LOC_RDD_VIOL_ERR),
-	RDS_IB_WC_STATUS_STR(REM_INV_RD_REQ_ERR),
-	RDS_IB_WC_STATUS_STR(REM_ABORT_ERR),
-	RDS_IB_WC_STATUS_STR(INV_EECN_ERR),
-	RDS_IB_WC_STATUS_STR(INV_EEC_STATE_ERR),
-	RDS_IB_WC_STATUS_STR(FATAL_ERR),
-	RDS_IB_WC_STATUS_STR(RESP_TIMEOUT_ERR),
-	RDS_IB_WC_STATUS_STR(GENERAL_ERR),
-#undef RDS_IB_WC_STATUS_STR
-};
-
-char *rds_ib_wc_status_str(enum ib_wc_status status)
-{
-	return rds_str_array(rds_ib_wc_status_strings,
-			     ARRAY_SIZE(rds_ib_wc_status_strings), status);
-}
-
 /*
  * Convert IB-specific error message to RDS error message and call core
  * completion handler.
@@ -293,12 +259,12 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 	while (ib_poll_cq(cq, 1, &wc) > 0) {
 		rdsdebug("wc wr_id 0x%llx status %u (%s) byte_len %u imm_data %u\n",
 			 (unsigned long long)wc.wr_id, wc.status,
-			 rds_ib_wc_status_str(wc.status), wc.byte_len,
+			 ib_wc_status_msg(wc.status), wc.byte_len,
 			 be32_to_cpu(wc.ex.imm_data));
 		rds_ib_stats_inc(s_ib_tx_cq_event);
 
 		if (wc.wr_id == RDS_IB_ACK_WR_ID) {
-			if (ic->i_ack_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, ic->i_ack_queued + HZ/2))
 				rds_ib_stats_inc(s_ib_tx_stalled);
 			rds_ib_ack_send_complete(ic);
 			continue;
@@ -315,7 +281,7 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 
 			rm = rds_ib_send_unmap_op(ic, send, wc.status);
 
-			if (send->s_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, send->s_queued + HZ/2))
 				rds_ib_stats_inc(s_ib_tx_stalled);
 
 			if (send->s_op) {
@@ -344,7 +310,7 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 			rds_ib_conn_error(conn, "send completion on %pI4 had status "
 					  "%u (%s), disconnecting and reconnecting\n",
 					  &conn->c_faddr, wc.status,
-					  rds_ib_wc_status_str(wc.status));
+					  ib_wc_status_msg(wc.status));
 		}
 	}
 }
@@ -409,7 +375,7 @@ try_again:
 	posted = IB_GET_POST_CREDITS(oldval);
 	avail = IB_GET_SEND_CREDITS(oldval);
 
-	rdsdebug("rds_ib_send_grab_credits(%u): credits=%u posted=%u\n",
+	rdsdebug("wanted=%u credits=%u posted=%u\n",
 			wanted, avail, posted);
 
 	/* The last credit must be used to send a credit update. */
@@ -453,7 +419,7 @@ void rds_ib_send_add_credits(struct rds_connection *conn, unsigned int credits)
 	if (credits == 0)
 		return;
 
-	rdsdebug("rds_ib_send_add_credits(%u): current=%u%s\n",
+	rdsdebug("credits=%u current=%u%s\n",
 			credits,
 			IB_GET_SEND_CREDITS(atomic_read(&ic->i_credits)),
 			test_bit(RDS_LL_SEND_FULL, &conn->c_flags) ? ", ll_send_full" : "");
@@ -552,9 +518,8 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	    && rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
 		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
 		scat = &rm->data.op_sg[sg];
-		ret = sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
-		ret = min_t(int, ret, scat->length - conn->c_xmit_data_off);
-		return ret;
+		ret = max_t(int, RDS_CONG_MAP_BYTES, scat->length);
+		return sizeof(struct rds_header) + ret;
 	}
 
 	/* FIXME we may overallocate here */
@@ -606,6 +571,8 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		}
 
 		rds_message_addref(rm);
+		rm->data.op_dmasg = 0;
+		rm->data.op_dmaoff = 0;
 		ic->i_data_op = &rm->data;
 
 		/* Finalize the header */
@@ -659,7 +626,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	send = &ic->i_sends[pos];
 	first = send;
 	prev = NULL;
-	scat = &ic->i_data_op->op_sg[sg];
+	scat = &ic->i_data_op->op_sg[rm->data.op_dmasg];
 	i = 0;
 	do {
 		unsigned int len = 0;
@@ -681,17 +648,20 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		/* Set up the data, if present */
 		if (i < work_alloc
 		    && scat != &rm->data.op_sg[rm->data.op_count]) {
-			len = min(RDS_FRAG_SIZE, ib_sg_dma_len(dev, scat) - off);
+			len = min(RDS_FRAG_SIZE,
+				ib_sg_dma_len(dev, scat) - rm->data.op_dmaoff);
 			send->s_wr.num_sge = 2;
 
-			send->s_sge[1].addr = ib_sg_dma_address(dev, scat) + off;
+			send->s_sge[1].addr = ib_sg_dma_address(dev, scat);
+			send->s_sge[1].addr += rm->data.op_dmaoff;
 			send->s_sge[1].length = len;
 
 			bytes_sent += len;
-			off += len;
-			if (off == ib_sg_dma_len(dev, scat)) {
+			rm->data.op_dmaoff += len;
+			if (rm->data.op_dmaoff == ib_sg_dma_len(dev, scat)) {
 				scat++;
-				off = 0;
+				rm->data.op_dmasg++;
+				rm->data.op_dmaoff = 0;
 			}
 		}
 

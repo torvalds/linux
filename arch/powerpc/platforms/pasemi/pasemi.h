@@ -30,5 +30,6 @@ static inline void restore_astate(int cpu)
 }
 #endif
 
+extern struct pci_controller_ops pasemi_pci_controller_ops;
 
 #endif /* _PASEMI_PASEMI_H */

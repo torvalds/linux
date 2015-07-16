@@ -31,10 +31,7 @@ static struct sk_buff *mpls_gso_segment(struct sk_buff *skb,
 				  SKB_GSO_TCPV6 |
 				  SKB_GSO_UDP |
 				  SKB_GSO_DODGY |
-				  SKB_GSO_TCP_ECN |
-				  SKB_GSO_GRE |
-				  SKB_GSO_IPIP |
-				  SKB_GSO_MPLS)))
+				  SKB_GSO_TCP_ECN)))
 		goto out;
 
 	/* Setup inner SKB. */
@@ -47,7 +44,7 @@ static struct sk_buff *mpls_gso_segment(struct sk_buff *skb,
 	__skb_push(skb, skb->mac_len);
 
 	/* Segment inner packet. */
-	mpls_features = skb->dev->mpls_features & netif_skb_features(skb);
+	mpls_features = skb->dev->mpls_features & features;
 	segs = skb_mac_gso_segment(skb, mpls_features);
 
 
@@ -58,29 +55,23 @@ static struct sk_buff *mpls_gso_segment(struct sk_buff *skb,
 	 * above pulled.  It will be re-pushed after returning
 	 * skb_mac_gso_segment(), an indirect caller of this function.
 	 */
-	__skb_push(skb, skb->data - skb_mac_header(skb));
-
+	__skb_pull(skb, skb->data - skb_mac_header(skb));
 out:
 	return segs;
 }
 
-static int mpls_gso_send_check(struct sk_buff *skb)
-{
-	return 0;
-}
-
-static struct packet_offload mpls_mc_offload = {
+static struct packet_offload mpls_mc_offload __read_mostly = {
 	.type = cpu_to_be16(ETH_P_MPLS_MC),
+	.priority = 15,
 	.callbacks = {
-		.gso_send_check =	mpls_gso_send_check,
 		.gso_segment    =	mpls_gso_segment,
 	},
 };
 
-static struct packet_offload mpls_uc_offload = {
+static struct packet_offload mpls_uc_offload __read_mostly = {
 	.type = cpu_to_be16(ETH_P_MPLS_UC),
+	.priority = 15,
 	.callbacks = {
-		.gso_send_check =	mpls_gso_send_check,
 		.gso_segment    =	mpls_gso_segment,
 	},
 };

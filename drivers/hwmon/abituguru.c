@@ -1547,7 +1547,6 @@ static SIMPLE_DEV_PM_OPS(abituguru_pm, abituguru_suspend, abituguru_resume);
 
 static struct platform_driver abituguru_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= ABIT_UGURU_NAME,
 		.pm	= ABIT_UGURU_PM,
 	},

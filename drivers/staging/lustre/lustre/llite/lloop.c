@@ -100,11 +100,10 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/pagevec.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
-
-#include <lustre_lib.h>
-#include <lustre_lite.h>
+#include "../include/lustre_lib.h"
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 
 #define LLOOP_MAX_SEGMENTS	LNET_MAX_IOV
@@ -122,14 +121,11 @@ struct lloop_device {
 	loff_t	       lo_offset;
 	loff_t	       lo_sizelimit;
 	int		  lo_flags;
-	int		(*ioctl)(struct lloop_device *, int cmd,
-				    unsigned long arg);
-
 	struct file	 *lo_backing_file;
 	struct block_device *lo_device;
 	unsigned	     lo_blocksize;
 
-	int		  old_gfp_mask;
+	gfp_t		  old_gfp_mask;
 
 	spinlock_t		lo_lock;
 	struct bio		*lo_bio;
@@ -190,14 +186,14 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 {
 	const struct lu_env  *env   = lo->lo_env;
 	struct cl_io	 *io    = &lo->lo_io;
-	struct inode	 *inode = lo->lo_backing_file->f_dentry->d_inode;
+	struct inode	 *inode = file_inode(lo->lo_backing_file);
 	struct cl_object     *obj = ll_i2info(inode)->lli_clob;
 	pgoff_t	       offset;
 	int		   ret;
-	int		   i;
 	int		   rw;
-	obd_count	     page_count = 0;
-	struct bio_vec       *bvec;
+	u32		   page_count = 0;
+	struct bio_vec       bvec;
+	struct bvec_iter   iter;
 	struct bio	   *bio;
 	ssize_t	       bytes;
 
@@ -220,15 +216,15 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	for (bio = head; bio != NULL; bio = bio->bi_next) {
 		LASSERT(rw == bio->bi_rw);
 
-		offset = (pgoff_t)(bio->bi_sector << 9) + lo->lo_offset;
-		bio_for_each_segment(bvec, bio, i) {
-			BUG_ON(bvec->bv_offset != 0);
-			BUG_ON(bvec->bv_len != PAGE_CACHE_SIZE);
+		offset = (pgoff_t)(bio->bi_iter.bi_sector << 9) + lo->lo_offset;
+		bio_for_each_segment(bvec, bio, iter) {
+			BUG_ON(bvec.bv_offset != 0);
+			BUG_ON(bvec.bv_len != PAGE_CACHE_SIZE);
 
-			pages[page_count] = bvec->bv_page;
+			pages[page_count] = bvec.bv_page;
 			offsets[page_count] = offset;
 			page_count++;
-			offset += bvec->bv_len;
+			offset += bvec.bv_len;
 		}
 		LASSERT(page_count <= LLOOP_MAX_SEGMENTS);
 	}
@@ -255,7 +251,7 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	 *    to store parity;
 	 * 2. Reserve the # of (page_count * depth) cl_pages from the reserved
 	 *    pool. Afterwards, the clio would allocate the pages from reserved
-	 *    pool, this guarantees we neeedn't allocate the cl_pages from
+	 *    pool, this guarantees we needn't allocate the cl_pages from
 	 *    generic cl_page slab cache.
 	 *    Of course, if there is NOT enough pages in the pool, we might
 	 *    be asked to write less pages once, this purely depends on
@@ -313,7 +309,8 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	bio = &lo->lo_bio;
 	while (*bio && (*bio)->bi_rw == rw) {
 		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u \n",
-		       (unsigned long long)(*bio)->bi_sector, (*bio)->bi_size,
+		       (unsigned long long)(*bio)->bi_iter.bi_sector,
+		       (*bio)->bi_iter.bi_size,
 		       page_count, (*bio)->bi_vcnt);
 		if (page_count + (*bio)->bi_vcnt > LLOOP_MAX_SEGMENTS)
 			break;
@@ -324,7 +321,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 		bio = &(*bio)->bi_next;
 	}
 	if (*bio) {
-		/* Some of bios can't be mergable. */
+		/* Some of bios can't be mergeable. */
 		lo->lo_bio = *bio;
 		*bio = NULL;
 	} else {
@@ -347,10 +344,11 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 		goto err;
 
 	CDEBUG(D_INFO, "submit bio sector %llu size %u\n",
-	       (unsigned long long)old_bio->bi_sector, old_bio->bi_size);
+	       (unsigned long long)old_bio->bi_iter.bi_sector,
+	       old_bio->bi_iter.bi_size);
 
 	spin_lock_irq(&lo->lo_lock);
-	inactive = (lo->lo_state != LLOOP_BOUND);
+	inactive = lo->lo_state != LLOOP_BOUND;
 	spin_unlock_irq(&lo->lo_lock);
 	if (inactive)
 		goto err;
@@ -367,7 +365,7 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 	loop_add_bio(lo, old_bio);
 	return;
 err:
-	cfs_bio_io_error(old_bio, old_bio->bi_size);
+	cfs_bio_io_error(old_bio, old_bio->bi_iter.bi_size);
 }
 
 
@@ -378,7 +376,7 @@ static inline void loop_handle_bio(struct lloop_device *lo, struct bio *bio)
 	while (bio) {
 		struct bio *tmp = bio->bi_next;
 		bio->bi_next = NULL;
-		cfs_bio_endio(bio, bio->bi_size, ret);
+		cfs_bio_endio(bio, bio->bi_iter.bi_size, ret);
 		bio = tmp;
 	}
 }
@@ -405,13 +403,15 @@ static int loop_thread(void *data)
 	int refcheck;
 	int ret = 0;
 
-	set_user_nice(current, -20);
+	set_user_nice(current, MIN_NICE);
 
 	lo->lo_state = LLOOP_BOUND;
 
 	env = cl_env_get(&refcheck);
-	if (IS_ERR(env))
-		GOTO(out, ret = PTR_ERR(env));
+	if (IS_ERR(env)) {
+		ret = PTR_ERR(env);
+		goto out;
+	}
 
 	lo->lo_env = env;
 	memset(&lo->lo_pvec, 0, sizeof(lo->lo_pvec));
@@ -507,7 +507,6 @@ static int loop_set_fd(struct lloop_device *lo, struct file *unused,
 	lo->lo_device = bdev;
 	lo->lo_flags = lo_flags;
 	lo->lo_backing_file = file;
-	lo->ioctl = NULL;
 	lo->lo_sizelimit = 0;
 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
@@ -548,7 +547,7 @@ static int loop_clr_fd(struct lloop_device *lo, struct block_device *bdev,
 		       int count)
 {
 	struct file *filp = lo->lo_backing_file;
-	int gfp = lo->old_gfp_mask;
+	gfp_t gfp = lo->old_gfp_mask;
 
 	if (lo->lo_state != LLOOP_BOUND)
 		return -ENXIO;
@@ -566,7 +565,6 @@ static int loop_clr_fd(struct lloop_device *lo, struct block_device *bdev,
 
 	down(&lo->lo_sem);
 	lo->lo_backing_file = NULL;
-	lo->ioctl = NULL;
 	lo->lo_device = NULL;
 	lo->lo_offset = 0;
 	lo->lo_sizelimit = 0;
@@ -622,9 +620,12 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	case LL_IOC_LLOOP_INFO: {
 		struct lu_fid fid;
 
-		LASSERT(lo->lo_backing_file != NULL);
+		if (lo->lo_backing_file == NULL) {
+			err = -ENOENT;
+			break;
+		}
 		if (inode == NULL)
-			inode = lo->lo_backing_file->f_dentry->d_inode;
+			inode = file_inode(lo->lo_backing_file);
 		if (lo->lo_state == LLOOP_BOUND)
 			fid = ll_i2info(inode)->lli_fid;
 		else
@@ -656,7 +657,7 @@ static struct block_device_operations lo_fops = {
  * ll_iocontrol_call.
  *
  * This is a llite regular file ioctl function. It takes the responsibility
- * of attaching or detaching a file by a lloop's device numner.
+ * of attaching or detaching a file by a lloop's device number.
  */
 static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 				   unsigned int cmd, unsigned long arg,
@@ -670,8 +671,10 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 	if (magic != ll_iocontrol_magic)
 		return LLIOC_CONT;
 
-	if (disks == NULL)
-		GOTO(out1, err = -ENODEV);
+	if (disks == NULL) {
+		err = -ENODEV;
+		goto out1;
+	}
 
 	CWARN("Enter llop_ioctl\n");
 
@@ -688,23 +691,28 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 					lo_free = lo;
 				continue;
 			}
-			if (lo->lo_backing_file->f_dentry->d_inode ==
-			    file->f_dentry->d_inode)
+			if (file_inode(lo->lo_backing_file) == file_inode(file))
 				break;
 		}
-		if (lo || !lo_free)
-			GOTO(out, err = -EBUSY);
+		if (lo || !lo_free) {
+			err = -EBUSY;
+			goto out;
+		}
 
 		lo = lo_free;
 		dev = MKDEV(lloop_major, lo->lo_number);
 
 		/* quit if the used pointer is writable */
-		if (put_user((long)old_encode_dev(dev), (long*)arg))
-			GOTO(out, err = -EFAULT);
+		if (put_user((long)old_encode_dev(dev), (long *)arg)) {
+			err = -EFAULT;
+			goto out;
+		}
 
 		bdev = blkdev_get_by_dev(dev, file->f_mode, NULL);
-		if (IS_ERR(bdev))
-			GOTO(out, err = PTR_ERR(bdev));
+		if (IS_ERR(bdev)) {
+			err = PTR_ERR(bdev);
+			goto out;
+		}
 
 		get_file(file);
 		err = loop_set_fd(lo, NULL, bdev, file);
@@ -720,16 +728,22 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 		int minor;
 
 		dev = old_decode_dev(arg);
-		if (MAJOR(dev) != lloop_major)
-			GOTO(out, err = -EINVAL);
+		if (MAJOR(dev) != lloop_major) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		minor = MINOR(dev);
-		if (minor > max_loop - 1)
-			GOTO(out, err = -EINVAL);
+		if (minor > max_loop - 1) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		lo = &loop_dev[minor];
-		if (lo->lo_state != LLOOP_BOUND)
-			GOTO(out, err = -EINVAL);
+		if (lo->lo_state != LLOOP_BOUND) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		bdev = lo->lo_device;
 		err = loop_clr_fd(lo, bdev, 1);
@@ -762,8 +776,8 @@ static int __init lloop_init(void)
 
 	if (max_loop < 1 || max_loop > 256) {
 		max_loop = MAX_LOOP_DEFAULT;
-		CWARN("lloop: invalid max_loop (must be between"
-		      " 1 and 256), using default (%u)\n", max_loop);
+		CWARN("lloop: invalid max_loop (must be between 1 and 256), using default (%u)\n",
+		      max_loop);
 	}
 
 	lloop_major = register_blkdev(0, "lloop");
@@ -777,11 +791,11 @@ static int __init lloop_init(void)
 	if (ll_iocontrol_magic == NULL)
 		goto out_mem1;
 
-	OBD_ALLOC_WAIT(loop_dev, max_loop * sizeof(*loop_dev));
+	loop_dev = kcalloc(max_loop, sizeof(*loop_dev), GFP_KERNEL);
 	if (!loop_dev)
 		goto out_mem1;
 
-	OBD_ALLOC_WAIT(disks, max_loop * sizeof(*disks));
+	disks = kcalloc(max_loop, sizeof(*disks), GFP_KERNEL);
 	if (!disks)
 		goto out_mem2;
 
@@ -826,9 +840,9 @@ out_mem4:
 out_mem3:
 	while (i--)
 		put_disk(disks[i]);
-	OBD_FREE(disks, max_loop * sizeof(*disks));
+	kfree(disks);
 out_mem2:
-	OBD_FREE(loop_dev, max_loop * sizeof(*loop_dev));
+	kfree(loop_dev);
 out_mem1:
 	unregister_blkdev(lloop_major, "lloop");
 	ll_iocontrol_unregister(ll_iocontrol_magic);
@@ -849,14 +863,15 @@ static void lloop_exit(void)
 
 	unregister_blkdev(lloop_major, "lloop");
 
-	OBD_FREE(disks, max_loop * sizeof(*disks));
-	OBD_FREE(loop_dev, max_loop * sizeof(*loop_dev));
+	kfree(disks);
+	kfree(loop_dev);
 }
 
 module_init(lloop_init);
 module_exit(lloop_exit);
 
-CFS_MODULE_PARM(max_loop, "i", int, 0444, "maximum of lloop_device");
+module_param(max_loop, int, 0444);
+MODULE_PARM_DESC(max_loop, "maximum of lloop_device");
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre virtual block device");
 MODULE_LICENSE("GPL");

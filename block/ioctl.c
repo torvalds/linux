@@ -150,21 +150,48 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	}
 }
 
-static int blkdev_reread_part(struct block_device *bdev)
+/*
+ * This is an exported API for the block driver, and will not
+ * acquire bd_mutex. This API should be used in case that
+ * caller has held bd_mutex already.
+ */
+int __blkdev_reread_part(struct block_device *bdev)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	int res;
 
 	if (!disk_part_scan_enabled(disk) || bdev != bdev->bd_contains)
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
-	if (!mutex_trylock(&bdev->bd_mutex))
-		return -EBUSY;
-	res = rescan_partitions(disk, bdev);
+
+	lockdep_assert_held(&bdev->bd_mutex);
+
+	return rescan_partitions(disk, bdev);
+}
+EXPORT_SYMBOL(__blkdev_reread_part);
+
+/*
+ * This is an exported API for the block driver, and will
+ * try to acquire bd_mutex. If bd_mutex has been held already
+ * in current context, please call __blkdev_reread_part().
+ *
+ * Make sure the held locks in current context aren't required
+ * in open()/close() handler and I/O path for avoiding ABBA deadlock:
+ * - bd_mutex is held before calling block driver's open/close
+ *   handler
+ * - reading partition table may submit I/O to the block device
+ */
+int blkdev_reread_part(struct block_device *bdev)
+{
+	int res;
+
+	mutex_lock(&bdev->bd_mutex);
+	res = __blkdev_reread_part(bdev);
 	mutex_unlock(&bdev->bd_mutex);
+
 	return res;
 }
+EXPORT_SYMBOL(blkdev_reread_part);
 
 static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
 			     uint64_t len, int secure)
@@ -198,7 +225,7 @@ static int blk_ioctl_zeroout(struct block_device *bdev, uint64_t start,
 	if (start + len > (i_size_read(bdev->bd_inode) >> 9))
 		return -EINVAL;
 
-	return blkdev_issue_zeroout(bdev, start, len, GFP_KERNEL);
+	return blkdev_issue_zeroout(bdev, start, len, GFP_KERNEL, false);
 }
 
 static int put_ushort(unsigned long arg, unsigned short val)
@@ -278,6 +305,7 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	struct backing_dev_info *bdi;
 	loff_t size;
 	int ret, n;
+	unsigned int max_sectors;
 
 	switch(cmd) {
 	case BLKFLSBUF:
@@ -355,8 +383,6 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		if (!arg)
 			return -EINVAL;
 		bdi = blk_get_backing_dev_info(bdev);
-		if (bdi == NULL)
-			return -ENOTTY;
 		return put_long(arg, (bdi->ra_pages * PAGE_CACHE_SIZE) / 512);
 	case BLKROGET:
 		return put_int(arg, bdev_read_only(bdev) != 0);
@@ -375,7 +401,9 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKDISCARDZEROES:
 		return put_uint(arg, bdev_discard_zeroes_data(bdev));
 	case BLKSECTGET:
-		return put_ushort(arg, queue_max_sectors(bdev_get_queue(bdev)));
+		max_sectors = min_t(unsigned int, USHRT_MAX,
+				    queue_max_sectors(bdev_get_queue(bdev)));
+		return put_ushort(arg, max_sectors);
 	case BLKROTATIONAL:
 		return put_ushort(arg, !blk_queue_nonrot(bdev_get_queue(bdev)));
 	case BLKRASET:
@@ -383,8 +411,6 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		if(!capable(CAP_SYS_ADMIN))
 			return -EACCES;
 		bdi = blk_get_backing_dev_info(bdev);
-		if (bdi == NULL)
-			return -ENOTTY;
 		bdi->ra_pages = (arg * 512) / PAGE_CACHE_SIZE;
 		return 0;
 	case BLKBSZSET:

@@ -266,11 +266,11 @@ static ssize_t set_mode(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(min_microvolts, 0666, show_min_uV, set_min_uV);
-static DEVICE_ATTR(max_microvolts, 0666, show_max_uV, set_max_uV);
-static DEVICE_ATTR(min_microamps, 0666, show_min_uA, set_min_uA);
-static DEVICE_ATTR(max_microamps, 0666, show_max_uA, set_max_uA);
-static DEVICE_ATTR(mode, 0666, show_mode, set_mode);
+static DEVICE_ATTR(min_microvolts, 0664, show_min_uV, set_min_uV);
+static DEVICE_ATTR(max_microvolts, 0664, show_max_uV, set_max_uV);
+static DEVICE_ATTR(min_microamps, 0664, show_min_uA, set_min_uA);
+static DEVICE_ATTR(max_microamps, 0664, show_max_uA, set_max_uA);
+static DEVICE_ATTR(mode, 0664, show_mode, set_mode);
 
 static struct attribute *regulator_virtual_attributes[] = {
 	&dev_attr_min_microvolts.attr,
@@ -338,7 +338,6 @@ static struct platform_driver regulator_virtual_consumer_driver = {
 	.remove		= regulator_virtual_remove,
 	.driver		= {
 		.name		= "reg-virt-consumer",
-		.owner		= THIS_MODULE,
 	},
 };
 

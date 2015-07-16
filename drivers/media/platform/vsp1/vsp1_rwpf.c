@@ -1,7 +1,7 @@
 /*
  * vsp1_rwpf.c  --  R-Car VSP1 Read and Write Pixel Formatters
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -25,12 +25,12 @@
  */
 
 int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
-			     struct v4l2_subdev_fh *fh,
+			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_mbus_code_enum *code)
 {
 	static const unsigned int codes[] = {
-		V4L2_MBUS_FMT_ARGB8888_1X32,
-		V4L2_MBUS_FMT_AYUV8_1X32,
+		MEDIA_BUS_FMT_ARGB8888_1X32,
+		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
 
 	if (code->index >= ARRAY_SIZE(codes))
@@ -42,13 +42,14 @@ int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
 }
 
 int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_fh *fh,
+			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_try_format(fh, fse->pad);
+	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, fse->pad,
+					    fse->which);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -71,29 +72,43 @@ int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-int vsp1_rwpf_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
+static struct v4l2_rect *
+vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf, struct v4l2_subdev_pad_config *cfg, u32 which)
+{
+	switch (which) {
+	case V4L2_SUBDEV_FORMAT_TRY:
+		return v4l2_subdev_get_try_crop(&rwpf->entity.subdev, cfg, RWPF_PAD_SINK);
+	case V4L2_SUBDEV_FORMAT_ACTIVE:
+		return &rwpf->crop;
+	default:
+		return NULL;
+	}
+}
+
+int vsp1_rwpf_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
 			 struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
 
-	fmt->format = *vsp1_entity_get_pad_format(&rwpf->entity, fh, fmt->pad,
+	fmt->format = *vsp1_entity_get_pad_format(&rwpf->entity, cfg, fmt->pad,
 						  fmt->which);
 
 	return 0;
 }
 
-int vsp1_rwpf_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
+int vsp1_rwpf_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
 			 struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
 	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *crop;
 
 	/* Default to YUV if the requested format is not supported. */
-	if (fmt->format.code != V4L2_MBUS_FMT_ARGB8888_1X32 &&
-	    fmt->format.code != V4L2_MBUS_FMT_AYUV8_1X32)
-		fmt->format.code = V4L2_MBUS_FMT_AYUV8_1X32;
+	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
+	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)
+		fmt->format.code = MEDIA_BUS_FMT_AYUV8_1X32;
 
-	format = vsp1_entity_get_pad_format(&rwpf->entity, fh, fmt->pad,
+	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, fmt->pad,
 					    fmt->which);
 
 	if (fmt->pad == RWPF_PAD_SOURCE) {
@@ -115,10 +130,92 @@ int vsp1_rwpf_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 
 	fmt->format = *format;
 
+	/* Update the sink crop rectangle. */
+	crop = vsp1_rwpf_get_crop(rwpf, cfg, fmt->which);
+	crop->left = 0;
+	crop->top = 0;
+	crop->width = fmt->format.width;
+	crop->height = fmt->format.height;
+
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&rwpf->entity, fh, RWPF_PAD_SOURCE,
+	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, RWPF_PAD_SOURCE,
 					    fmt->which);
 	*format = fmt->format;
+
+	return 0;
+}
+
+int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_selection *sel)
+{
+	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
+	struct v4l2_mbus_framefmt *format;
+
+	/* Cropping is implemented on the sink pad. */
+	if (sel->pad != RWPF_PAD_SINK)
+		return -EINVAL;
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		sel->r = *vsp1_rwpf_get_crop(rwpf, cfg, sel->which);
+		break;
+
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		format = vsp1_entity_get_pad_format(&rwpf->entity, cfg,
+						    RWPF_PAD_SINK, sel->which);
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = format->width;
+		sel->r.height = format->height;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_selection *sel)
+{
+	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
+	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *crop;
+
+	/* Cropping is implemented on the sink pad. */
+	if (sel->pad != RWPF_PAD_SINK)
+		return -EINVAL;
+
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	/* Make sure the crop rectangle is entirely contained in the image. The
+	 * WPF top and left offsets are limited to 255.
+	 */
+	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, RWPF_PAD_SINK,
+					    sel->which);
+	sel->r.left = min_t(unsigned int, sel->r.left, format->width - 2);
+	sel->r.top = min_t(unsigned int, sel->r.top, format->height - 2);
+	if (rwpf->entity.type == VSP1_ENTITY_WPF) {
+		sel->r.left = min_t(unsigned int, sel->r.left, 255);
+		sel->r.top = min_t(unsigned int, sel->r.top, 255);
+	}
+	sel->r.width = min_t(unsigned int, sel->r.width,
+			     format->width - sel->r.left);
+	sel->r.height = min_t(unsigned int, sel->r.height,
+			      format->height - sel->r.top);
+
+	crop = vsp1_rwpf_get_crop(rwpf, cfg, sel->which);
+	*crop = sel->r;
+
+	/* Propagate the format to the source pad. */
+	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, RWPF_PAD_SOURCE,
+					    sel->which);
+	format->width = crop->width;
+	format->height = crop->height;
 
 	return 0;
 }

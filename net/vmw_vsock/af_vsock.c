@@ -581,13 +581,14 @@ struct sock *__vsock_create(struct net *net,
 			    struct socket *sock,
 			    struct sock *parent,
 			    gfp_t priority,
-			    unsigned short type)
+			    unsigned short type,
+			    int kern)
 {
 	struct sock *sk;
 	struct vsock_sock *psk;
 	struct vsock_sock *vsk;
 
-	sk = sk_alloc(net, AF_VSOCK, priority, &vsock_proto);
+	sk = sk_alloc(net, AF_VSOCK, priority, &vsock_proto, kern);
 	if (!sk)
 		return NULL;
 
@@ -949,8 +950,8 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 	return mask;
 }
 
-static int vsock_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
-			       struct msghdr *msg, size_t len)
+static int vsock_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
+			       size_t len)
 {
 	int err;
 	struct sock *sk;
@@ -1013,7 +1014,7 @@ static int vsock_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto out;
 	}
 
-	err = transport->dgram_enqueue(vsk, remote_addr, msg->msg_iov, len);
+	err = transport->dgram_enqueue(vsk, remote_addr, msg, len);
 
 out:
 	release_sock(sk);
@@ -1062,11 +1063,10 @@ out:
 	return err;
 }
 
-static int vsock_dgram_recvmsg(struct kiocb *kiocb, struct socket *sock,
-			       struct msghdr *msg, size_t len, int flags)
+static int vsock_dgram_recvmsg(struct socket *sock, struct msghdr *msg,
+			       size_t len, int flags)
 {
-	return transport->dgram_dequeue(kiocb, vsock_sk(sock->sk), msg, len,
-					flags);
+	return transport->dgram_dequeue(vsock_sk(sock->sk), msg, len, flags);
 }
 
 static const struct proto_ops vsock_dgram_ops = {
@@ -1505,8 +1505,8 @@ static int vsock_stream_getsockopt(struct socket *sock,
 	return 0;
 }
 
-static int vsock_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
-				struct msghdr *msg, size_t len)
+static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
+				size_t len)
 {
 	struct sock *sk;
 	struct vsock_sock *vsk;
@@ -1617,7 +1617,7 @@ static int vsock_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		 */
 
 		written = transport->stream_enqueue(
-				vsk, msg->msg_iov,
+				vsk, msg,
 				len - total_written);
 		if (written < 0) {
 			err = -ENOMEM;
@@ -1644,9 +1644,8 @@ out:
 
 
 static int
-vsock_stream_recvmsg(struct kiocb *kiocb,
-		     struct socket *sock,
-		     struct msghdr *msg, size_t len, int flags)
+vsock_stream_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+		     int flags)
 {
 	struct sock *sk;
 	struct vsock_sock *vsk;
@@ -1739,7 +1738,7 @@ vsock_stream_recvmsg(struct kiocb *kiocb,
 				break;
 
 			read = transport->stream_dequeue(
-					vsk, msg->msg_iov,
+					vsk, msg,
 					len - copied, flags);
 			if (read < 0) {
 				err = -ENOMEM;
@@ -1868,7 +1867,7 @@ static int vsock_create(struct net *net, struct socket *sock,
 
 	sock->state = SS_UNCONNECTED;
 
-	return __vsock_create(net, sock, NULL, GFP_KERNEL, 0) ? 0 : -ENOMEM;
+	return __vsock_create(net, sock, NULL, GFP_KERNEL, 0, kern) ? 0 : -ENOMEM;
 }
 
 static const struct net_proto_family vsock_family_ops = {
@@ -1925,9 +1924,23 @@ static struct miscdevice vsock_device = {
 	.fops		= &vsock_device_ops,
 };
 
-static int __vsock_core_init(void)
+int __vsock_core_init(const struct vsock_transport *t, struct module *owner)
 {
-	int err;
+	int err = mutex_lock_interruptible(&vsock_register_mutex);
+
+	if (err)
+		return err;
+
+	if (transport) {
+		err = -EBUSY;
+		goto err_busy;
+	}
+
+	/* Transport must be the owner of the protocol so that it can't
+	 * unload while there are open sockets.
+	 */
+	vsock_proto.owner = owner;
+	transport = t;
 
 	vsock_init_tables();
 
@@ -1951,36 +1964,19 @@ static int __vsock_core_init(void)
 		goto err_unregister_proto;
 	}
 
+	mutex_unlock(&vsock_register_mutex);
 	return 0;
 
 err_unregister_proto:
 	proto_unregister(&vsock_proto);
 err_misc_deregister:
 	misc_deregister(&vsock_device);
+	transport = NULL;
+err_busy:
+	mutex_unlock(&vsock_register_mutex);
 	return err;
 }
-
-int vsock_core_init(const struct vsock_transport *t)
-{
-	int retval = mutex_lock_interruptible(&vsock_register_mutex);
-	if (retval)
-		return retval;
-
-	if (transport) {
-		retval = -EBUSY;
-		goto out;
-	}
-
-	transport = t;
-	retval = __vsock_core_init();
-	if (retval)
-		transport = NULL;
-
-out:
-	mutex_unlock(&vsock_register_mutex);
-	return retval;
-}
-EXPORT_SYMBOL_GPL(vsock_core_init);
+EXPORT_SYMBOL_GPL(__vsock_core_init);
 
 void vsock_core_exit(void)
 {
@@ -2000,5 +1996,5 @@ EXPORT_SYMBOL_GPL(vsock_core_exit);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");
-MODULE_VERSION("1.0.0.0-k");
+MODULE_VERSION("1.0.1.0-k");
 MODULE_LICENSE("GPL v2");

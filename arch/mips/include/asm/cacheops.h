@@ -83,6 +83,6 @@
 /*
  * Loongson2-specific cacheops
  */
-#define Hit_Invalidate_I_Loongson23	0x00
+#define Hit_Invalidate_I_Loongson2	0x00
 
 #endif	/* __ASM_CACHEOPS_H */

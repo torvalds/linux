@@ -15,8 +15,8 @@
  */
 /* Changes
  *
- * 	Mitsuru KANDA @USAGI and
- * 	YOSHIFUJI Hideaki @USAGI: Remove ipv6_parse_exthdrs().
+ *	Mitsuru KANDA @USAGI and
+ *	YOSHIFUJI Hideaki @USAGI: Remove ipv6_parse_exthdrs().
  */
 
 #include <linux/errno.h>
@@ -46,10 +46,9 @@
 #include <net/xfrm.h>
 #include <net/inet_ecn.h>
 
-
-int ip6_rcv_finish(struct sk_buff *skb)
+int ip6_rcv_finish(struct sock *sk, struct sk_buff *skb)
 {
-	if (sysctl_ip_early_demux && !skb_dst(skb)) {
+	if (sysctl_ip_early_demux && !skb_dst(skb) && skb->sk == NULL) {
 		const struct inet6_protocol *ipprot;
 
 		ipprot = rcu_dereference(inet6_protos[ipv6_hdr(skb)->nexthdr]);
@@ -65,7 +64,7 @@ int ip6_rcv_finish(struct sk_buff *skb)
 int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	const struct ipv6hdr *hdr;
-	u32 		pkt_len;
+	u32 pkt_len;
 	struct inet6_dev *idev;
 	struct net *net = dev_net(skb->dev);
 
@@ -183,7 +182,8 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	/* Must drop socket now because of tproxy. */
 	skb_orphan(skb);
 
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING, skb, dev, NULL,
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING, NULL, skb,
+		       dev, NULL,
 		       ip6_rcv_finish);
 err:
 	IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INHDRERRORS);
@@ -198,7 +198,7 @@ drop:
  */
 
 
-static int ip6_input_finish(struct sk_buff *skb)
+static int ip6_input_finish(struct sock *sk, struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	const struct inet6_protocol *ipprot;
@@ -220,7 +220,8 @@ resubmit:
 	nexthdr = skb_network_header(skb)[nhoff];
 
 	raw = raw6_local_deliver(skb, nexthdr);
-	if ((ipprot = rcu_dereference(inet6_protos[nexthdr])) != NULL) {
+	ipprot = rcu_dereference(inet6_protos[nexthdr]);
+	if (ipprot) {
 		int ret;
 
 		if (ipprot->flags & INET6_PROTO_FINAL) {
@@ -276,7 +277,8 @@ discard:
 
 int ip6_input(struct sk_buff *skb)
 {
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_IN, skb, skb->dev, NULL,
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_IN, NULL, skb,
+		       skb->dev, NULL,
 		       ip6_input_finish);
 }
 
@@ -329,10 +331,10 @@ int ip6_mc_input(struct sk_buff *skb)
 				if (offset < 0)
 					goto out;
 
-				if (!ipv6_is_mld(skb, nexthdr, offset))
-					goto out;
+				if (ipv6_is_mld(skb, nexthdr, offset))
+					deliver = true;
 
-				deliver = true;
+				goto out;
 			}
 			/* unknown RA - process it normally */
 		}

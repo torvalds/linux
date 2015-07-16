@@ -25,7 +25,6 @@ extern void pmac_pci_init(void);
 extern void pmac_nvram_update(void);
 extern unsigned char pmac_nvram_read_byte(int addr);
 extern void pmac_nvram_write_byte(int addr, unsigned char val);
-extern int pmac_pci_enable_device_hook(struct pci_dev *dev);
 extern void pmac_pcibios_after_init(void);
 extern int of_show_percpuinfo(struct seq_file *m, int i);
 
@@ -38,5 +37,7 @@ extern void low_cpu_die(void) __attribute__((noreturn));
 
 extern int pmac_nvram_init(void);
 extern void pmac_pic_init(void);
+
+extern struct pci_controller_ops pmac_pci_controller_ops;
 
 #endif /* __PMAC_H__ */

@@ -379,7 +379,7 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	tc = atmel_tc_alloc(tcblock, "tcb-pwm");
+	tc = atmel_tc_alloc(tcblock);
 	if (tc == NULL) {
 		dev_err(&pdev->dev, "failed to allocate Timer Counter Block\n");
 		return -ENOMEM;
@@ -436,7 +436,6 @@ MODULE_DEVICE_TABLE(of, atmel_tcb_pwm_dt_ids);
 static struct platform_driver atmel_tcb_pwm_driver = {
 	.driver = {
 		.name = "atmel-tcb-pwm",
-		.owner = THIS_MODULE,
 		.of_match_table = atmel_tcb_pwm_dt_ids,
 	},
 	.probe = atmel_tcb_pwm_probe,

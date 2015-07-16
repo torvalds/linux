@@ -25,8 +25,6 @@
 #ifndef __STMMAC_PTP_H__
 #define __STMMAC_PTP_H__
 
-#define STMMAC_SYSCLOCK 62500000
-
 /* IEEE 1588 PTP register offsets */
 #define PTP_TCR		0x0700	/* Timestamp Control Reg */
 #define PTP_SSIR	0x0704	/* Sub-Second Increment Reg */

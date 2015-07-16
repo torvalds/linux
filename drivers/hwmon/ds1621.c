@@ -4,7 +4,7 @@
  * Christian W. Zuckschwerdt  <zany@triq.net>  2000-11-23
  * based on lm75.c by Frodo Looijaard <frodol@dds.nl>
  * Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with
- * the help of Jean Delvare <khali@linux-fr.org>
+ * the help of Jean Delvare <jdelvare@suse.de>
  *
  * The DS1621 device is a digital temperature/thermometer with 9-bit
  * resolution, a thermal alarm output (Tout), and user-defined minimum
@@ -309,6 +309,7 @@ static ssize_t set_convrate(struct device *dev, struct device_attribute *da,
 	data->conf |= (resol << DS1621_REG_CONFIG_RESOL_SHIFT);
 	i2c_smbus_write_byte_data(client, DS1621_REG_CONF, data->conf);
 	data->update_interval = ds1721_convrates[resol];
+	data->zbits = 7 - resol;
 	mutex_unlock(&data->update_lock);
 
 	return count;

@@ -210,7 +210,7 @@ static int em_sti_clocksource_enable(struct clocksource *cs)
 
 	ret = em_sti_start(p, USER_CLOCKSOURCE);
 	if (!ret)
-		__clocksource_updatefreq_hz(cs, p->rate);
+		__clocksource_update_freq_hz(cs, p->rate);
 	return ret;
 }
 
@@ -318,10 +318,8 @@ static int em_sti_probe(struct platform_device *pdev)
 	int irq;
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
-	if (p == NULL) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
+	if (p == NULL)
 		return -ENOMEM;
-	}
 
 	p->pdev = pdev;
 	platform_set_drvdata(pdev, p);

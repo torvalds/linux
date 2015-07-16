@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Broadcom Corporation
+ * Copyright (C) 2012-2014 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -11,64 +11,64 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/of_platform.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
 #include <linux/clocksource.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
-#include <asm/hardware/cache-l2x0.h>
 
-#include "bcm_kona_smc.h"
-#include "kona.h"
+#include "kona_l2_cache.h"
 
-static int __init kona_l2_cache_init(void)
+#define SECWDOG_OFFSET			0x00000000
+#define SECWDOG_RESERVED_MASK		0xe2000000
+#define SECWDOG_WD_LOAD_FLAG_MASK	0x10000000
+#define SECWDOG_EN_MASK			0x08000000
+#define SECWDOG_SRSTEN_MASK		0x04000000
+#define SECWDOG_CLKS_SHIFT		20
+#define SECWDOG_COUNT_SHIFT		0
+
+static void bcm281xx_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (!IS_ENABLED(CONFIG_CACHE_L2X0))
-		return 0;
+	uint32_t val;
+	void __iomem *base;
+	struct device_node *np_wdog;
 
-	if (bcm_kona_smc_init() < 0) {
-		pr_info("Kona secure API not available. Skipping L2 init\n");
-		return 0;
+	np_wdog = of_find_compatible_node(NULL, NULL, "brcm,kona-wdt");
+	if (!np_wdog) {
+		pr_emerg("Couldn't find brcm,kona-wdt\n");
+		return;
+	}
+	base = of_iomap(np_wdog, 0);
+	if (!base) {
+		pr_emerg("Couldn't map brcm,kona-wdt\n");
+		return;
 	}
 
-	bcm_kona_smc(SSAPI_ENABLE_L2_CACHE, 0, 0, 0, 0);
+	/* Enable watchdog with short timeout (244us). */
+	val = readl(base + SECWDOG_OFFSET);
+	val &= SECWDOG_RESERVED_MASK | SECWDOG_WD_LOAD_FLAG_MASK;
+	val |= SECWDOG_EN_MASK | SECWDOG_SRSTEN_MASK |
+		(0x15 << SECWDOG_CLKS_SHIFT) |
+		(0x8 << SECWDOG_COUNT_SHIFT);
+	writel(val, base + SECWDOG_OFFSET);
 
-	/*
-	 * The aux_val and aux_mask have no effect since L2 cache is already
-	 * enabled.  Pass 0s for aux_val and 1s for aux_mask for default value.
-	 */
-	return l2x0_of_init(0, ~0);
+	/* Wait for reset */
+	while (1);
 }
 
-static void bcm_board_setup_restart(void)
+static void __init bcm281xx_init(void)
 {
-	struct device_node *np;
-
-	np = of_find_compatible_node(NULL, NULL, "brcm,bcm11351");
-	if (np) {
-		if (of_device_is_available(np))
-			bcm_kona_setup_restart();
-		of_node_put(np);
-	}
-	/* Restart setup for other boards goes here */
-}
-
-static void __init board_init(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL,
-		&platform_bus);
-
-	bcm_board_setup_restart();
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	kona_l2_cache_init();
 }
 
-static const char * const bcm11351_dt_compat[] = { "brcm,bcm11351", NULL, };
+static const char * const bcm281xx_dt_compat[] = {
+	"brcm,bcm11351",	/* Have to use the first number upstreamed */
+	NULL,
+};
 
-DT_MACHINE_START(BCM11351_DT, "BCM281xx Broadcom Application Processor")
-	.init_machine = board_init,
-	.restart = bcm_kona_restart,
-	.dt_compat = bcm11351_dt_compat,
+DT_MACHINE_START(BCM281XX_DT, "BCM281xx Broadcom Application Processor")
+	.init_machine = bcm281xx_init,
+	.restart = bcm281xx_restart,
+	.dt_compat = bcm281xx_dt_compat,
 MACHINE_END

@@ -86,6 +86,7 @@ struct st_proto_s {
 extern long st_register(struct st_proto_s *);
 extern long st_unregister(struct st_proto_s *);
 
+extern struct ti_st_plat_data   *dt_pdata;
 
 /*
  * header information used by st_core.c
@@ -261,16 +262,16 @@ struct kim_data_s {
 	struct completion kim_rcvd, ldisc_installed;
 	char resp_buffer[30];
 	const struct firmware *fw_entry;
-	long nshutdown;
+	unsigned nshutdown;
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
 	struct st_data_s *core_data;
 	struct chip_version version;
 	unsigned char ldisc_install;
-	unsigned char dev_name[UART_DEV_NAME_LEN];
-	unsigned char flow_cntrl;
-	unsigned long baud_rate;
+	unsigned char dev_name[UART_DEV_NAME_LEN + 1];
+	unsigned flow_cntrl;
+	unsigned baud_rate;
 };
 
 /**
@@ -436,10 +437,10 @@ struct gps_event_hdr {
  *
  */
 struct ti_st_plat_data {
-	long nshutdown_gpio;
+	u32 nshutdown_gpio;
 	unsigned char dev_name[UART_DEV_NAME_LEN]; /* uart name */
-	unsigned char flow_cntrl; /* flow control flag */
-	unsigned long baud_rate;
+	u32 flow_cntrl; /* flow control flag */
+	u32 baud_rate;
 	int (*suspend)(struct platform_device *, pm_message_t);
 	int (*resume)(struct platform_device *);
 	int (*chip_enable) (struct kim_data_s *);

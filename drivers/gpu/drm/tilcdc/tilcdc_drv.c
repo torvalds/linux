@@ -17,16 +17,17 @@
 
 /* LCDC DRM driver, based on da8xx-fb */
 
+#include <linux/component.h>
+
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
 #include "tilcdc_tfp410.h"
-#include "tilcdc_slave.h"
 #include "tilcdc_panel.h"
+#include "tilcdc_external.h"
 
 #include "drm_fb_helper.h"
 
 static LIST_HEAD(module_list);
-static bool slave_probing;
 
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 		const struct tilcdc_module_ops *funcs)
@@ -42,11 +43,6 @@ void tilcdc_module_cleanup(struct tilcdc_module *mod)
 	list_del(&mod->list);
 }
 
-void tilcdc_slave_probedefer(bool defered)
-{
-	slave_probing = defered;
-}
-
 static struct of_device_id tilcdc_of_match[];
 
 static struct drm_framebuffer *tilcdc_fb_create(struct drm_device *dev,
@@ -58,8 +54,7 @@ static struct drm_framebuffer *tilcdc_fb_create(struct drm_device *dev,
 static void tilcdc_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
-	if (priv->fbdev)
-		drm_fbdev_cma_hotplug_event(priv->fbdev);
+	drm_fbdev_cma_hotplug_event(priv->fbdev);
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
@@ -79,12 +74,6 @@ static int modeset_init(struct drm_device *dev)
 	list_for_each_entry(mod, &module_list, list) {
 		DBG("loading module: %s", mod->name);
 		mod->funcs->modeset_init(mod, dev);
-	}
-
-	if ((priv->num_encoders == 0) || (priv->num_connectors == 0)) {
-		/* oh nos! */
-		dev_err(dev->dev, "no encoders/connectors found\n");
-		return -ENXIO;
 	}
 
 	dev->mode_config.min_width = 0;
@@ -120,8 +109,10 @@ static int cpufreq_transition(struct notifier_block *nb,
 static int tilcdc_unload(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
-	struct tilcdc_module *mod, *cur;
 
+	tilcdc_remove_external_encoders(dev);
+
+	drm_fbdev_cma_fini(priv->fbdev);
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
@@ -148,11 +139,6 @@ static int tilcdc_unload(struct drm_device *dev)
 
 	pm_runtime_disable(dev->dev);
 
-	list_for_each_entry_safe(mod, cur, &module_list, list) {
-		DBG("destroying module: %s", mod->name);
-		mod->funcs->destroy(mod);
-	}
-
 	kfree(priv);
 
 	return 0;
@@ -176,34 +162,41 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = priv;
 
+	priv->is_componentized =
+		tilcdc_get_external_components(dev->dev, NULL) > 0;
+
 	priv->wq = alloc_ordered_workqueue("tilcdc", 0);
+	if (!priv->wq) {
+		ret = -ENOMEM;
+		goto fail_free_priv;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev->dev, "failed to get memory resource\n");
 		ret = -EINVAL;
-		goto fail;
+		goto fail_free_wq;
 	}
 
 	priv->mmio = ioremap_nocache(res->start, resource_size(res));
 	if (!priv->mmio) {
 		dev_err(dev->dev, "failed to ioremap\n");
 		ret = -ENOMEM;
-		goto fail;
+		goto fail_free_wq;
 	}
 
 	priv->clk = clk_get(dev->dev, "fck");
 	if (IS_ERR(priv->clk)) {
 		dev_err(dev->dev, "failed to get functional clock\n");
 		ret = -ENODEV;
-		goto fail;
+		goto fail_iounmap;
 	}
 
 	priv->disp_clk = clk_get(dev->dev, "dpll_disp_ck");
 	if (IS_ERR(priv->clk)) {
 		dev_err(dev->dev, "failed to get display clock\n");
 		ret = -ENODEV;
-		goto fail;
+		goto fail_put_clk;
 	}
 
 #ifdef CONFIG_CPU_FREQ
@@ -213,7 +206,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 			CPUFREQ_TRANSITION_NOTIFIER);
 	if (ret) {
 		dev_err(dev->dev, "failed to register cpufreq notifier\n");
-		goto fail;
+		goto fail_put_disp_clk;
 	}
 #endif
 
@@ -234,6 +227,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	DBG("Maximum Pixel Clock Value %dKHz", priv->max_pixelclock);
 
 	pm_runtime_enable(dev->dev);
+	pm_runtime_irq_safe(dev->dev);
 
 	/* Determine LCD IP Version */
 	pm_runtime_get_sync(dev->dev);
@@ -258,25 +252,40 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	ret = modeset_init(dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize mode setting\n");
-		goto fail;
+		goto fail_cpufreq_unregister;
+	}
+
+	platform_set_drvdata(pdev, dev);
+
+	if (priv->is_componentized) {
+		ret = component_bind_all(dev->dev, dev);
+		if (ret < 0)
+			goto fail_mode_config_cleanup;
+
+		ret = tilcdc_add_external_encoders(dev, &bpp);
+		if (ret < 0)
+			goto fail_component_cleanup;
+	}
+
+	if ((priv->num_encoders == 0) || (priv->num_connectors == 0)) {
+		dev_err(dev->dev, "no encoders/connectors found\n");
+		ret = -ENXIO;
+		goto fail_external_cleanup;
 	}
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize vblank\n");
-		goto fail;
+		goto fail_external_cleanup;
 	}
 
 	pm_runtime_get_sync(dev->dev);
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
 	pm_runtime_put_sync(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to install IRQ handler\n");
-		goto fail;
+		goto fail_vblank_cleanup;
 	}
-
-	platform_set_drvdata(pdev, dev);
-
 
 	list_for_each_entry(mod, &module_list, list) {
 		DBG("%s: preferred_bpp: %d", mod->name, mod->preferred_bpp);
@@ -288,13 +297,55 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	priv->fbdev = drm_fbdev_cma_init(dev, bpp,
 			dev->mode_config.num_crtc,
 			dev->mode_config.num_connector);
+	if (IS_ERR(priv->fbdev)) {
+		ret = PTR_ERR(priv->fbdev);
+		goto fail_irq_uninstall;
+	}
 
 	drm_kms_helper_poll_init(dev);
 
 	return 0;
 
-fail:
-	tilcdc_unload(dev);
+fail_irq_uninstall:
+	pm_runtime_get_sync(dev->dev);
+	drm_irq_uninstall(dev);
+	pm_runtime_put_sync(dev->dev);
+
+fail_vblank_cleanup:
+	drm_vblank_cleanup(dev);
+
+fail_mode_config_cleanup:
+	drm_mode_config_cleanup(dev);
+
+fail_component_cleanup:
+	if (priv->is_componentized)
+		component_unbind_all(dev->dev, dev);
+
+fail_external_cleanup:
+	tilcdc_remove_external_encoders(dev);
+
+fail_cpufreq_unregister:
+	pm_runtime_disable(dev->dev);
+#ifdef CONFIG_CPU_FREQ
+	cpufreq_unregister_notifier(&priv->freq_transition,
+			CPUFREQ_TRANSITION_NOTIFIER);
+fail_put_disp_clk:
+	clk_put(priv->disp_clk);
+#endif
+
+fail_put_clk:
+	clk_put(priv->clk);
+
+fail_iounmap:
+	iounmap(priv->mmio);
+
+fail_free_wq:
+	flush_workqueue(priv->wq);
+	destroy_workqueue(priv->wq);
+
+fail_free_priv:
+	dev->dev_private = NULL;
+	kfree(priv);
 	return ret;
 }
 
@@ -311,7 +362,7 @@ static void tilcdc_lastclose(struct drm_device *dev)
 	drm_fbdev_cma_restore_mode(priv->fbdev);
 }
 
-static irqreturn_t tilcdc_irq(DRM_IRQ_ARGS)
+static irqreturn_t tilcdc_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct tilcdc_drm_private *priv = dev->dev_private;
@@ -444,7 +495,7 @@ static int tilcdc_mm_show(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	return drm_mm_dump_table(m, dev->mm_private);
+	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
 }
 
 static struct drm_info_list tilcdc_debugfs_list[] = {
@@ -507,6 +558,7 @@ static struct drm_driver tilcdc_driver = {
 	.unload             = tilcdc_unload,
 	.preclose           = tilcdc_preclose,
 	.lastclose          = tilcdc_lastclose,
+	.set_busid          = drm_platform_set_busid,
 	.irq_handler        = tilcdc_irq,
 	.irq_preinstall     = tilcdc_irq_preinstall,
 	.irq_postinstall    = tilcdc_irq_postinstall,
@@ -577,24 +629,56 @@ static const struct dev_pm_ops tilcdc_pm_ops = {
  * Platform driver:
  */
 
+static int tilcdc_bind(struct device *dev)
+{
+	return drm_platform_init(&tilcdc_driver, to_platform_device(dev));
+}
+
+static void tilcdc_unbind(struct device *dev)
+{
+	drm_put_dev(dev_get_drvdata(dev));
+}
+
+static const struct component_master_ops tilcdc_comp_ops = {
+	.bind = tilcdc_bind,
+	.unbind = tilcdc_unbind,
+};
+
 static int tilcdc_pdev_probe(struct platform_device *pdev)
 {
+	struct component_match *match = NULL;
+	int ret;
+
 	/* bail out early if no DT data: */
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "device-tree data is missing\n");
 		return -ENXIO;
 	}
 
-	/* defer probing if slave is in deferred probing */
-	if (slave_probing == true)
-		return -EPROBE_DEFER;
-
-	return drm_platform_init(&tilcdc_driver, pdev);
+	ret = tilcdc_get_external_components(&pdev->dev, &match);
+	if (ret < 0)
+		return ret;
+	else if (ret == 0)
+		return drm_platform_init(&tilcdc_driver, pdev);
+	else
+		return component_master_add_with_match(&pdev->dev,
+						       &tilcdc_comp_ops,
+						       match);
 }
 
 static int tilcdc_pdev_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&tilcdc_driver, pdev);
+	struct drm_device *ddev = dev_get_drvdata(&pdev->dev);
+	struct tilcdc_drm_private *priv = ddev->dev_private;
+
+	/* Check if a subcomponent has already triggered the unloading. */
+	if (!priv)
+		return 0;
+
+	if (priv->is_componentized)
+		component_master_del(&pdev->dev, &tilcdc_comp_ops);
+	else
+		drm_put_dev(platform_get_drvdata(pdev));
 
 	return 0;
 }
@@ -609,7 +693,6 @@ static struct platform_driver tilcdc_platform_driver = {
 	.probe      = tilcdc_pdev_probe,
 	.remove     = tilcdc_pdev_remove,
 	.driver     = {
-		.owner  = THIS_MODULE,
 		.name   = "tilcdc",
 		.pm     = &tilcdc_pm_ops,
 		.of_match_table = tilcdc_of_match,
@@ -620,7 +703,6 @@ static int __init tilcdc_drm_init(void)
 {
 	DBG("init");
 	tilcdc_tfp410_init();
-	tilcdc_slave_init();
 	tilcdc_panel_init();
 	return platform_driver_register(&tilcdc_platform_driver);
 }
@@ -628,13 +710,12 @@ static int __init tilcdc_drm_init(void)
 static void __exit tilcdc_drm_fini(void)
 {
 	DBG("fini");
-	tilcdc_tfp410_fini();
-	tilcdc_slave_fini();
-	tilcdc_panel_fini();
 	platform_driver_unregister(&tilcdc_platform_driver);
+	tilcdc_panel_fini();
+	tilcdc_tfp410_fini();
 }
 
-late_initcall(tilcdc_drm_init);
+module_init(tilcdc_drm_init);
 module_exit(tilcdc_drm_fini);
 
 MODULE_AUTHOR("Rob Clark <robdclark@gmail.com");

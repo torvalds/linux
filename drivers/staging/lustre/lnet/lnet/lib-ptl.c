@@ -36,19 +36,19 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 /* NB: add /proc interfaces in upcoming patches */
-int	portal_rotor	= LNET_PTL_ROTOR_HASH_RT;
-CFS_MODULE_PARM(portal_rotor, "i", int, 0644,
-		"redirect PUTs to different cpu-partitions");
+int portal_rotor = LNET_PTL_ROTOR_HASH_RT;
+module_param(portal_rotor, int, 0644);
+MODULE_PARM_DESC(portal_rotor, "redirect PUTs to different cpu-partitions");
 
 static int
 lnet_ptl_match_type(unsigned int index, lnet_process_id_t match_id,
 		    __u64 mbits, __u64 ignore_bits)
 {
-	struct lnet_portal	*ptl = the_lnet.ln_portals[index];
-	int			unique;
+	struct lnet_portal *ptl = the_lnet.ln_portals[index];
+	int unique;
 
 	unique = ignore_bits == 0 &&
 		 match_id.nid != LNET_NID_ANY &&
@@ -89,7 +89,7 @@ static void
 lnet_ptl_enable_mt(struct lnet_portal *ptl, int cpt)
 {
 	struct lnet_match_table	*mtable = ptl->ptl_mtables[cpt];
-	int			i;
+	int i;
 
 	/* with hold of both lnet_res_lock(cpt) and lnet_ptl_lock */
 	LASSERT(lnet_ptl_is_wildcard(ptl));
@@ -114,7 +114,7 @@ static void
 lnet_ptl_disable_mt(struct lnet_portal *ptl, int cpt)
 {
 	struct lnet_match_table	*mtable = ptl->ptl_mtables[cpt];
-	int			i;
+	int i;
 
 	/* with hold of both lnet_res_lock(cpt) and lnet_ptl_lock */
 	LASSERT(lnet_ptl_is_wildcard(ptl));
@@ -141,9 +141,9 @@ lnet_try_match_md(lnet_libmd_t *md,
 {
 	/* ALWAYS called holding the lnet_res_lock, and can't lnet_res_unlock;
 	 * lnet_match_blocked_msg() relies on this to avoid races */
-	unsigned int	offset;
-	unsigned int	mlength;
-	lnet_me_t	*me = md->md_me;
+	unsigned int offset;
+	unsigned int mlength;
+	lnet_me_t *me = md->md_me;
 
 	/* MD exhausted */
 	if (lnet_md_exhausted(md))
@@ -184,8 +184,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 		mlength = info->mi_rlength;
 	} else if ((md->md_options & LNET_MD_TRUNCATE) == 0) {
 		/* this packet _really_ is too big */
-		CERROR("Matching packet from %s, match "LPU64
-		       " length %d too big: %d left, %d allowed\n",
+		CERROR("Matching packet from %s, match %llu length %d too big: %d left, %d allowed\n",
 		       libcfs_id2str(info->mi_id), info->mi_mbits,
 		       info->mi_rlength, md->md_length - offset, mlength);
 
@@ -193,8 +192,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 	}
 
 	/* Commit to this ME/MD */
-	CDEBUG(D_NET, "Incoming %s index %x from %s of "
-	       "length %d/%d into md "LPX64" [%d] + %d\n",
+	CDEBUG(D_NET, "Incoming %s index %x from %s of length %d/%d into md %#llx [%d] + %d\n",
 	       (info->mi_opc == LNET_MD_OP_PUT) ? "put" : "get",
 	       info->mi_portal, libcfs_id2str(info->mi_id), mlength,
 	       info->mi_rlength, md->md_lh.lh_cookie, md->md_niov, offset);
@@ -229,7 +227,7 @@ struct lnet_match_table *
 lnet_mt_of_attach(unsigned int index, lnet_process_id_t id,
 		  __u64 mbits, __u64 ignore_bits, lnet_ins_pos_t pos)
 {
-	struct lnet_portal	*ptl;
+	struct lnet_portal *ptl;
 	struct lnet_match_table	*mtable;
 
 	/* NB: called w/o lock */
@@ -263,11 +261,11 @@ static struct lnet_match_table *
 lnet_mt_of_match(struct lnet_match_info *info, struct lnet_msg *msg)
 {
 	struct lnet_match_table	*mtable;
-	struct lnet_portal	*ptl;
-	int			nmaps;
-	int			rotor;
-	int			routed;
-	int			cpt;
+	struct lnet_portal *ptl;
+	unsigned int nmaps;
+	unsigned int rotor;
+	unsigned int cpt;
+	bool routed;
 
 	/* NB: called w/o lock */
 	LASSERT(info->mi_portal < the_lnet.ln_nportals);
@@ -314,8 +312,8 @@ lnet_mt_of_match(struct lnet_match_info *info, struct lnet_msg *msg)
 static int
 lnet_mt_test_exhausted(struct lnet_match_table *mtable, int pos)
 {
-	__u64	*bmap;
-	int	i;
+	__u64 *bmap;
+	int i;
 
 	if (!lnet_ptl_is_wildcard(the_lnet.ln_portals[mtable->mt_portal]))
 		return 0;
@@ -339,7 +337,7 @@ lnet_mt_test_exhausted(struct lnet_match_table *mtable, int pos)
 static void
 lnet_mt_set_exhausted(struct lnet_match_table *mtable, int pos, int exhausted)
 {
-	__u64	*bmap;
+	__u64 *bmap;
 
 	LASSERT(lnet_ptl_is_wildcard(the_lnet.ln_portals[mtable->mt_portal]));
 	LASSERT(pos <= LNET_MT_HASH_IGNORE);
@@ -366,7 +364,7 @@ lnet_mt_match_head(struct lnet_match_table *mtable,
 		unsigned long hash = mbits + id.nid + id.pid;
 
 		LASSERT(lnet_ptl_is_unique(ptl));
-		hash = cfs_hash_long(hash, LNET_MT_HASH_BITS);
+		hash = hash_long(hash, LNET_MT_HASH_BITS);
 		return &mtable->mt_mhash[hash];
 	}
 }
@@ -375,11 +373,11 @@ int
 lnet_mt_match_md(struct lnet_match_table *mtable,
 		 struct lnet_match_info *info, struct lnet_msg *msg)
 {
-	struct list_head		*head;
-	lnet_me_t		*me;
-	lnet_me_t		*tmp;
-	int			exhausted = 0;
-	int			rc;
+	struct list_head *head;
+	lnet_me_t *me;
+	lnet_me_t *tmp;
+	int exhausted = 0;
+	int rc;
 
 	/* any ME with ignore bits? */
 	if (!list_empty(&mtable->mt_mhash[LNET_MT_HASH_IGNORE]))
@@ -430,7 +428,7 @@ lnet_mt_match_md(struct lnet_match_table *mtable,
 static int
 lnet_ptl_match_early(struct lnet_portal *ptl, struct lnet_msg *msg)
 {
-	int	rc;
+	int rc;
 
 	/* message arrived before any buffer posting on this portal,
 	 * simply delay or drop this message */
@@ -463,9 +461,9 @@ static int
 lnet_ptl_match_delay(struct lnet_portal *ptl,
 		     struct lnet_match_info *info, struct lnet_msg *msg)
 {
-	int	first = ptl->ptl_mt_maps[0]; /* read w/o lock */
-	int	rc = 0;
-	int	i;
+	int first = ptl->ptl_mt_maps[0]; /* read w/o lock */
+	int rc = 0;
+	int i;
 
 	/* steal buffer from other CPTs, and delay it if nothing to steal,
 	 * this function is more expensive than a regular match, but we
@@ -474,7 +472,7 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 
 	for (i = 0; i < LNET_CPT_NUMBER; i++) {
 		struct lnet_match_table *mtable;
-		int			cpt;
+		int cpt;
 
 		cpt = (first + i) % LNET_CPT_NUMBER;
 		mtable = ptl->ptl_mtables[cpt];
@@ -538,12 +536,12 @@ int
 lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 {
 	struct lnet_match_table	*mtable;
-	struct lnet_portal	*ptl;
-	int			rc;
+	struct lnet_portal *ptl;
+	int rc;
 
-	CDEBUG(D_NET, "Request from %s of length %d into portal %d "
-	       "MB="LPX64"\n", libcfs_id2str(info->mi_id),
-	       info->mi_rlength, info->mi_portal, info->mi_mbits);
+	CDEBUG(D_NET, "Request from %s of length %d into portal %d MB=%#llx\n",
+	       libcfs_id2str(info->mi_id), info->mi_rlength, info->mi_portal,
+	       info->mi_mbits);
 
 	if (info->mi_portal >= the_lnet.ln_nportals) {
 		CERROR("Invalid portal %d not in [0-%d]\n",
@@ -597,7 +595,7 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 
 	if (msg->msg_rx_delayed) {
 		CDEBUG(D_NET,
-		       "Delaying %s from %s ptl %d MB "LPX64" off %d len %d\n",
+		       "Delaying %s from %s ptl %d MB %#llx off %d len %d\n",
 		       info->mi_opc == LNET_MD_OP_PUT ? "PUT" : "GET",
 		       libcfs_id2str(info->mi_id), info->mi_portal,
 		       info->mi_mbits, info->mi_roffset, info->mi_rlength);
@@ -624,13 +622,13 @@ void
 lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 		   struct list_head *matches, struct list_head *drops)
 {
-	struct lnet_portal	*ptl = the_lnet.ln_portals[me->me_portal];
+	struct lnet_portal *ptl = the_lnet.ln_portals[me->me_portal];
 	struct lnet_match_table	*mtable;
-	struct list_head		*head;
-	lnet_msg_t		*tmp;
-	lnet_msg_t		*msg;
-	int			exhausted = 0;
-	int			cpt;
+	struct list_head *head;
+	lnet_msg_t *tmp;
+	lnet_msg_t *msg;
+	int exhausted = 0;
+	int cpt;
 
 	LASSERT(md->md_refcount == 0); /* a brand new MD */
 
@@ -649,20 +647,20 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 	head = &ptl->ptl_msg_stealing;
  again:
 	list_for_each_entry_safe(msg, tmp, head, msg_list) {
-		struct lnet_match_info	info;
-		lnet_hdr_t		*hdr;
-		int			rc;
+		struct lnet_match_info info;
+		lnet_hdr_t *hdr;
+		int rc;
 
 		LASSERT(msg->msg_rx_delayed || head == &ptl->ptl_msg_stealing);
 
-		hdr   = &msg->msg_hdr;
-		info.mi_id.nid	= hdr->src_nid;
-		info.mi_id.pid	= hdr->src_pid;
-		info.mi_opc	= LNET_MD_OP_PUT;
-		info.mi_portal	= hdr->msg.put.ptl_index;
-		info.mi_rlength	= hdr->payload_length;
-		info.mi_roffset	= hdr->msg.put.offset;
-		info.mi_mbits	= hdr->msg.put.match_bits;
+		hdr = &msg->msg_hdr;
+		info.mi_id.nid  = hdr->src_nid;
+		info.mi_id.pid  = hdr->src_pid;
+		info.mi_opc     = LNET_MD_OP_PUT;
+		info.mi_portal  = hdr->msg.put.ptl_index;
+		info.mi_rlength = hdr->payload_length;
+		info.mi_roffset = hdr->msg.put.offset;
+		info.mi_mbits   = hdr->msg.put.match_bits;
 
 		rc = lnet_try_match_md(md, &info, msg);
 
@@ -687,8 +685,7 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 		if ((rc & LNET_MATCHMD_OK) != 0) {
 			list_add_tail(&msg->msg_list, matches);
 
-			CDEBUG(D_NET, "Resuming delayed PUT from %s portal %d "
-			       "match "LPU64" offset %d length %d.\n",
+			CDEBUG(D_NET, "Resuming delayed PUT from %s portal %d match %llu offset %d length %d.\n",
 			       libcfs_id2str(info.mi_id),
 			       info.mi_portal, info.mi_mbits,
 			       info.mi_roffset, info.mi_rlength);
@@ -714,11 +711,11 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 	lnet_ptl_unlock(ptl);
 }
 
-void
+static void
 lnet_ptl_cleanup(struct lnet_portal *ptl)
 {
 	struct lnet_match_table	*mtable;
-	int			i;
+	int i;
 
 	if (ptl->ptl_mtables == NULL) /* uninitialized portal */
 		return;
@@ -726,9 +723,9 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 	LASSERT(list_empty(&ptl->ptl_msg_delayed));
 	LASSERT(list_empty(&ptl->ptl_msg_stealing));
 	cfs_percpt_for_each(mtable, i, ptl->ptl_mtables) {
-		struct list_head	*mhash;
-		lnet_me_t	*me;
-		int		j;
+		struct list_head *mhash;
+		lnet_me_t *me;
+		int j;
 
 		if (mtable->mt_mhash == NULL) /* uninitialized match-table */
 			continue;
@@ -752,13 +749,13 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 	ptl->ptl_mtables = NULL;
 }
 
-int
+static int
 lnet_ptl_setup(struct lnet_portal *ptl, int index)
 {
 	struct lnet_match_table	*mtable;
-	struct list_head		*mhash;
-	int			i;
-	int			j;
+	struct list_head *mhash;
+	int i;
+	int j;
 
 	ptl->ptl_mtables = cfs_percpt_alloc(lnet_cpt_table(),
 					    sizeof(struct lnet_match_table));
@@ -801,7 +798,7 @@ lnet_ptl_setup(struct lnet_portal *ptl, int index)
 void
 lnet_portals_destroy(void)
 {
-	int	i;
+	int i;
 
 	if (the_lnet.ln_portals == NULL)
 		return;
@@ -816,8 +813,8 @@ lnet_portals_destroy(void)
 int
 lnet_portals_create(void)
 {
-	int	size;
-	int	i;
+	int size;
+	int i;
 
 	size = offsetof(struct lnet_portal, ptl_mt_maps[LNET_CPT_NUMBER]);
 
@@ -901,8 +898,8 @@ EXPORT_SYMBOL(LNetSetLazyPortal);
 int
 LNetClearLazyPortal(int portal)
 {
-	struct lnet_portal	*ptl;
-	LIST_HEAD		(zombies);
+	struct lnet_portal *ptl;
+	LIST_HEAD(zombies);
 
 	if (portal < 0 || portal >= the_lnet.ln_nportals)
 		return -EINVAL;

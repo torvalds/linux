@@ -37,16 +37,15 @@
 #define DEBUG_SUBSYSTEM S_MDC
 
 # include <linux/module.h>
-# include <linux/pagemap.h>
-# include <linux/miscdevice.h>
-# include <linux/init.h>
 
-#include <lustre_acl.h>
-#include <obd_class.h>
-#include <lustre_dlm.h>
-/* fid_res_name_eq() */
-#include <lustre_fid.h>
-#include <lprocfs_status.h>
+#include "../include/lustre_intent.h"
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_fid.h"	/* fid_res_name_eq() */
+#include "../include/lustre_mdc.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_req_layout.h"
 #include "mdc_internal.h"
 
 struct mdc_getattr_args {
@@ -75,6 +74,12 @@ EXPORT_SYMBOL(it_clear_disposition);
 
 int it_open_error(int phase, struct lookup_intent *it)
 {
+	if (it_disposition(it, DISP_OPEN_LEASE)) {
+		if (phase >= DISP_OPEN_LEASE)
+			return it->d.lustre.it_status;
+		else
+			return 0;
+	}
 	if (it_disposition(it, DISP_OPEN_OPEN)) {
 		if (phase >= DISP_OPEN_OPEN)
 			return it->d.lustre.it_status;
@@ -116,7 +121,7 @@ int mdc_set_lock_data(struct obd_export *exp, __u64 *lockh, void *data,
 	struct ldlm_lock *lock;
 	struct inode *new_inode = data;
 
-	if(bits)
+	if (bits)
 		*bits = 0;
 
 	if (!*lockh)
@@ -129,12 +134,12 @@ int mdc_set_lock_data(struct obd_export *exp, __u64 *lockh, void *data,
 	if (lock->l_resource->lr_lvb_inode &&
 	    lock->l_resource->lr_lvb_inode != data) {
 		struct inode *old_inode = lock->l_resource->lr_lvb_inode;
+
 		LASSERTF(old_inode->i_state & I_FREEING,
-			 "Found existing inode %p/%lu/%u state %lu in lock: "
-			 "setting data to %p/%lu/%u\n", old_inode,
-			 old_inode->i_ino, old_inode->i_generation,
-			 old_inode->i_state,
-			 new_inode, new_inode->i_ino, new_inode->i_generation);
+			 "Found existing inode %p/%lu/%u state %lu in lock: setting data to %p/%lu/%u\n",
+			 old_inode, old_inode->i_ino, old_inode->i_generation,
+			 old_inode->i_state, new_inode, new_inode->i_ino,
+			 new_inode->i_generation);
 	}
 	lock->l_resource->lr_lvb_inode = new_inode;
 	if (bits)
@@ -155,6 +160,8 @@ ldlm_mode_t mdc_lock_match(struct obd_export *exp, __u64 flags,
 	ldlm_mode_t rc;
 
 	fid_build_reg_res_name(fid, &res_id);
+	/* LU-4405: Clear bits not supported by server */
+	policy->l_inodebits.bits &= exp_connect_ibits(exp);
 	rc = ldlm_lock_match(class_exp2obd(exp)->obd_namespace, flags,
 			     &res_id, type, policy, mode, lockh, 0);
 	return rc;
@@ -189,7 +196,7 @@ int mdc_null_inode(struct obd_export *exp,
 	fid_build_reg_res_name(fid, &res_id);
 
 	res = ldlm_resource_get(ns, NULL, &res_id, 0, 0);
-	if(res == NULL)
+	if (res == NULL)
 		return 0;
 
 	lock_res(res);
@@ -211,7 +218,7 @@ int mdc_find_cbdata(struct obd_export *exp,
 	struct ldlm_res_id res_id;
 	int rc = 0;
 
-	fid_build_reg_res_name((struct lu_fid*)fid, &res_id);
+	fid_build_reg_res_name((struct lu_fid *)fid, &res_id);
 	rc = ldlm_resource_iterate(class_exp2obd(exp)->obd_namespace, &res_id,
 				   it, data);
 	if (rc == LDLM_ITER_STOP)
@@ -281,14 +288,19 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 	/* XXX: openlock is not cancelled for cross-refs. */
 	/* If inode is known, cancel conflicting OPEN locks. */
 	if (fid_is_sane(&op_data->op_fid2)) {
-		if (it->it_flags & (FMODE_WRITE|MDS_OPEN_TRUNC))
-			mode = LCK_CW;
-#ifdef FMODE_EXEC
-		else if (it->it_flags & FMODE_EXEC)
-			mode = LCK_PR;
-#endif
-		else
-			mode = LCK_CR;
+		if (it->it_flags & MDS_OPEN_LEASE) { /* try to get lease */
+			if (it->it_flags & FMODE_WRITE)
+				mode = LCK_EX;
+			else
+				mode = LCK_PR;
+		} else {
+			if (it->it_flags & (FMODE_WRITE|MDS_OPEN_TRUNC))
+				mode = LCK_CW;
+			else if (it->it_flags & __FMODE_EXEC)
+				mode = LCK_PR;
+			else
+				mode = LCK_CR;
+		}
 		count = mdc_resource_get_unused(exp, &op_data->op_fid2,
 						&cancels, mode,
 						MDS_INODELOCK_OPEN);
@@ -322,9 +334,9 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 			     max(lmmsize, obddev->u.cli.cl_default_mds_easize));
 
 	rc = ldlm_prep_enqueue_req(exp, req, &cancels, count);
-	if (rc) {
+	if (rc < 0) {
 		ptlrpc_request_free(req);
-		return NULL;
+		return ERR_PTR(rc);
 	}
 
 	spin_lock(&req->rq_lock);
@@ -344,6 +356,55 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 		req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
 				     sizeof(struct mdt_remote_perm));
 	ptlrpc_request_set_replen(req);
+	return req;
+}
+
+static struct ptlrpc_request *
+mdc_intent_getxattr_pack(struct obd_export *exp,
+			 struct lookup_intent *it,
+			 struct md_op_data *op_data)
+{
+	struct ptlrpc_request	*req;
+	struct ldlm_intent	*lit;
+	int			rc, count = 0, maxdata;
+	LIST_HEAD(cancels);
+
+
+
+	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
+					&RQF_LDLM_INTENT_GETXATTR);
+	if (req == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
+
+	rc = ldlm_prep_enqueue_req(exp, req, &cancels, count);
+	if (rc) {
+		ptlrpc_request_free(req);
+		return ERR_PTR(rc);
+	}
+
+	/* pack the intent */
+	lit = req_capsule_client_get(&req->rq_pill, &RMF_LDLM_INTENT);
+	lit->opc = IT_GETXATTR;
+
+	maxdata = class_exp2cliimp(exp)->imp_connect_data.ocd_max_easize;
+
+	/* pack the intended request */
+	mdc_pack_body(req, &op_data->op_fid1, op_data->op_capa1,
+			op_data->op_valid, maxdata, -1, 0);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_EADATA,
+				RCL_SERVER, maxdata);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS,
+				RCL_SERVER, maxdata);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS_LENS,
+				RCL_SERVER, maxdata);
+
+	ptlrpc_request_set_replen(req);
+
 	return req;
 }
 
@@ -379,26 +440,27 @@ static struct ptlrpc_request *mdc_intent_unlink_pack(struct obd_export *exp,
 	mdc_unlink_pack(req, op_data);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
-			     obddev->u.cli.cl_max_mds_easize);
+			     obddev->u.cli.cl_default_mds_easize);
 	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
-			     obddev->u.cli.cl_max_mds_cookiesize);
+			     obddev->u.cli.cl_default_mds_cookiesize);
 	ptlrpc_request_set_replen(req);
 	return req;
 }
 
 static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
-						      struct lookup_intent *it,
-						      struct md_op_data *op_data)
+						    struct lookup_intent *it,
+						    struct md_op_data *op_data)
 {
 	struct ptlrpc_request *req;
 	struct obd_device     *obddev = class_exp2obd(exp);
-	obd_valid	      valid = OBD_MD_FLGETATTR | OBD_MD_FLEASIZE |
+	u64		       valid = OBD_MD_FLGETATTR | OBD_MD_FLEASIZE |
 				       OBD_MD_FLMODEASIZE | OBD_MD_FLDIREA |
 				       OBD_MD_FLMDSCAPA | OBD_MD_MEA |
 				       (client_is_remote(exp) ?
 					       OBD_MD_FLRMTPERM : OBD_MD_FLACL);
 	struct ldlm_intent    *lit;
 	int		    rc;
+	int		    easize;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_LDLM_INTENT_GETATTR);
@@ -419,12 +481,15 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 	lit = req_capsule_client_get(&req->rq_pill, &RMF_LDLM_INTENT);
 	lit->opc = (__u64)it->it_op;
 
-	/* pack the intended request */
-	mdc_getattr_pack(req, valid, it->it_flags, op_data,
-			 obddev->u.cli.cl_max_mds_easize);
+	if (obddev->u.cli.cl_default_mds_easize > 0)
+		easize = obddev->u.cli.cl_default_mds_easize;
+	else
+		easize = obddev->u.cli.cl_max_mds_easize;
 
-	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
-			     obddev->u.cli.cl_max_mds_easize);
+	/* pack the intended request */
+	mdc_getattr_pack(req, valid, it->it_flags, op_data, easize);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER, easize);
 	if (client_is_remote(exp))
 		req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
 				     sizeof(struct mdt_remote_perm));
@@ -465,7 +530,7 @@ static struct ptlrpc_request *mdc_intent_layout_pack(struct obd_export *exp,
 	layout->li_opc = LAYOUT_INTENT_ACCESS;
 
 	req_capsule_set_size(&req->rq_pill, &RMF_DLM_LVB, RCL_SERVER,
-			obd->u.cli.cl_max_mds_easize);
+			     obd->u.cli.cl_default_mds_easize);
 	ptlrpc_request_set_replen(req);
 	return req;
 }
@@ -554,7 +619,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 	 * function without doing so, and try to replay a failed create
 	 * (bug 3440) */
 	if (it->it_op & IT_OPEN && req->rq_replay &&
-	    (!it_disposition(it, DISP_OPEN_OPEN) ||intent->it_status != 0))
+	    (!it_disposition(it, DISP_OPEN_OPEN) || intent->it_status != 0))
 		mdc_clear_replay_flag(req, intent->it_status);
 
 	DEBUG_REQ(D_RPCTRACE, req, "op: %d disposition: %x, status: %d",
@@ -566,7 +631,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 
 		body = req_capsule_server_get(pill, &RMF_MDT_BODY);
 		if (body == NULL) {
-			CERROR ("Can't swab mdt_body\n");
+			CERROR("Can't swab mdt_body\n");
 			return -EPROTO;
 		}
 
@@ -578,7 +643,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 			 * happens immediately after swabbing below, new reply
 			 * is swabbed by that handler correctly.
 			 */
-			mdc_set_open_replay_data(NULL, NULL, req);
+			mdc_set_open_replay_data(NULL, NULL, it);
 		}
 
 		if ((body->valid & (OBD_MD_FLDIREA | OBD_MD_FLEASIZE)) != 0) {
@@ -611,6 +676,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 			 */
 			if ((it->it_op & IT_OPEN) && req->rq_replay) {
 				void *lmm;
+
 				if (req_capsule_get_size(pill, &RMF_EADATA,
 							 RCL_CLIENT) <
 				    body->eadatasize)
@@ -680,7 +746,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		LDLM_DEBUG(lock, "layout lock returned by: %s, lvb_len: %d\n",
 			ldlm_it2str(it->it_op), lvb_len);
 
-		OBD_ALLOC_LARGE(lmm, lvb_len);
+		lmm = libcfs_kvzalloc(lvb_len, GFP_NOFS);
 		if (lmm == NULL) {
 			LDLM_LOCK_PUT(lock);
 			return -ENOMEM;
@@ -690,13 +756,14 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		/* install lvb_data */
 		lock_res_and_lock(lock);
 		if (lock->l_lvb_data == NULL) {
+			lock->l_lvb_type = LVB_T_LAYOUT;
 			lock->l_lvb_data = lmm;
 			lock->l_lvb_len = lvb_len;
 			lmm = NULL;
 		}
 		unlock_res_and_lock(lock);
 		if (lmm != NULL)
-			OBD_FREE_LARGE(lmm, lvb_len);
+			kvfree(lmm);
 	}
 	if (lock != NULL)
 		LDLM_LOCK_PUT(lock);
@@ -709,23 +776,29 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		struct lookup_intent *it, struct md_op_data *op_data,
 		struct lustre_handle *lockh, void *lmm, int lmmsize,
-		struct ptlrpc_request **reqp, __u64 extra_lock_flags)
+		struct ptlrpc_request **reqp, u64 extra_lock_flags)
 {
-	struct obd_device     *obddev = class_exp2obd(exp);
-	struct ptlrpc_request *req = NULL;
-	__u64		  flags, saved_flags = extra_lock_flags;
-	int		    rc;
-	struct ldlm_res_id res_id;
-	static const ldlm_policy_data_t lookup_policy =
-			    { .l_inodebits = { MDS_INODELOCK_LOOKUP } };
-	static const ldlm_policy_data_t update_policy =
-			    { .l_inodebits = { MDS_INODELOCK_UPDATE } };
-	static const ldlm_policy_data_t layout_policy =
-			    { .l_inodebits = { MDS_INODELOCK_LAYOUT } };
+	static const ldlm_policy_data_t lookup_policy = {
+		.l_inodebits = { MDS_INODELOCK_LOOKUP }
+	};
+	static const ldlm_policy_data_t update_policy = {
+		.l_inodebits = { MDS_INODELOCK_UPDATE }
+	};
+	static const ldlm_policy_data_t layout_policy = {
+		.l_inodebits = { MDS_INODELOCK_LAYOUT }
+	};
+	static const ldlm_policy_data_t getxattr_policy = {
+		.l_inodebits = { MDS_INODELOCK_XATTR }
+	};
 	ldlm_policy_data_t const *policy = &lookup_policy;
-	int		    generation, resends = 0;
-	struct ldlm_reply     *lockrep;
-	enum lvb_type	       lvb_type = 0;
+	struct obd_device *obddev = class_exp2obd(exp);
+	struct ptlrpc_request *req;
+	u64 flags, saved_flags = extra_lock_flags;
+	struct ldlm_res_id res_id;
+	int generation, resends = 0;
+	struct ldlm_reply *lockrep;
+	enum lvb_type lvb_type = LVB_T_NONE;
+	int rc;
 
 	LASSERTF(!it || einfo->ei_type == LDLM_IBITS, "lock type %d\n",
 		 einfo->ei_type);
@@ -738,6 +811,8 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 			policy = &update_policy;
 		else if (it->it_op & IT_LAYOUT)
 			policy = &layout_policy;
+		else if (it->it_op & (IT_GETXATTR | IT_SETXATTR))
+			policy = &getxattr_policy;
 	}
 
 	LASSERT(reqp == NULL);
@@ -753,6 +828,7 @@ resend:
 			 einfo->ei_type);
 		policy = (ldlm_policy_data_t *)lmm;
 		res_id.name[3] = LDLM_FLOCK;
+		req = NULL;
 	} else if (it->it_op & IT_OPEN) {
 		req = mdc_intent_open_pack(exp, it, op_data, lmm, lmmsize,
 					   einfo->ei_cbdata);
@@ -768,9 +844,10 @@ resend:
 	} else if (it->it_op & IT_LAYOUT) {
 		if (!imp_connect_lvb_type(class_exp2cliimp(exp)))
 			return -EOPNOTSUPP;
-
 		req = mdc_intent_layout_pack(exp, it, op_data);
 		lvb_type = LVB_T_LAYOUT;
+	} else if (it->it_op & IT_GETXATTR) {
+		req = mdc_intent_getxattr_pack(exp, it, op_data);
 	} else {
 		LBUG();
 		return -EINVAL;
@@ -787,7 +864,7 @@ resend:
 	if (resends) {
 		req->rq_generation_set = 1;
 		req->rq_import_generation = generation;
-		req->rq_sent = cfs_time_current_sec() + resends;
+		req->rq_sent = get_seconds() + resends;
 	}
 
 	/* It is important to obtain rpc_lock first (if applicable), so that
@@ -807,7 +884,7 @@ resend:
 	rc = ldlm_cli_enqueue(exp, &req, einfo, &res_id, policy, &flags, NULL,
 			      0, lvb_type, lockh, 0);
 	if (!it) {
-		/* For flock requests we immediatelly return without further
+		/* For flock requests we immediately return without further
 		   delay and let caller deal with the rest, since rest of
 		   this function metadata processing makes no sense for flock
 		   requests anyway. But in case of problem during comms with
@@ -824,7 +901,10 @@ resend:
 	mdc_put_rpc_lock(obddev->u.cli.cl_rpc_lock, it);
 
 	if (rc < 0) {
-		CERROR("ldlm_cli_enqueue: %d\n", rc);
+		CDEBUG_LIMIT((rc == -EACCES || rc == -EIDRM) ? D_INFO : D_ERROR,
+			     "%s: ldlm_cli_enqueue failed: rc = %d\n",
+			     obddev->obd_name, rc);
+
 		mdc_clear_replay_flag(req, rc);
 		ptlrpc_req_finished(req);
 		return rc;
@@ -863,7 +943,12 @@ resend:
 			memset(lockh, 0, sizeof(*lockh));
 		}
 		ptlrpc_req_finished(req);
+
+		it->d.lustre.it_lock_handle = 0;
+		it->d.lustre.it_lock_mode = 0;
+		it->d.lustre.it_data = NULL;
 	}
+
 	return rc;
 }
 
@@ -900,7 +985,6 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	if (fid_is_sane(&op_data->op_fid2) &&
 	    it->it_create_mode & M_CHECK_STALE &&
 	    it->it_op != IT_GETATTR) {
-		it_set_disposition(it, DISP_ENQ_COMPLETE);
 
 		/* Also: did we find the same inode? */
 		/* sever can return one of two fids:
@@ -954,29 +1038,27 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	lock = ldlm_handle2lock(lockh);
 	if (lock) {
 		ldlm_policy_data_t policy = lock->l_policy_data;
+
 		LDLM_DEBUG(lock, "matching against this");
 
 		LASSERTF(fid_res_name_eq(&mdt_body->fid1,
 					 &lock->l_resource->lr_name),
-			 "Lock res_id: %lu/%lu/%lu, fid: %lu/%lu/%lu.\n",
-			 (unsigned long)lock->l_resource->lr_name.name[0],
-			 (unsigned long)lock->l_resource->lr_name.name[1],
-			 (unsigned long)lock->l_resource->lr_name.name[2],
-			 (unsigned long)fid_seq(&mdt_body->fid1),
-			 (unsigned long)fid_oid(&mdt_body->fid1),
-			 (unsigned long)fid_ver(&mdt_body->fid1));
+			 "Lock res_id: "DLDLMRES", fid: "DFID"\n",
+			 PLDLMRES(lock->l_resource), PFID(&mdt_body->fid1));
 		LDLM_LOCK_PUT(lock);
 
 		memcpy(&old_lock, lockh, sizeof(*lockh));
 		if (ldlm_lock_match(NULL, LDLM_FL_BLOCK_GRANTED, NULL,
-				    LDLM_IBITS, &policy, LCK_NL, &old_lock, 0)) {
+				    LDLM_IBITS, &policy, LCK_NL,
+				    &old_lock, 0)) {
 			ldlm_lock_decref_and_cancel(lockh,
 						    it->d.lustre.it_lock_mode);
 			memcpy(lockh, &old_lock, sizeof(old_lock));
 			it->d.lustre.it_lock_handle = lockh->cookie;
 		}
 	}
-	CDEBUG(D_DENTRY,"D_IT dentry %.*s intent: %s status %d disp %x rc %d\n",
+	CDEBUG(D_DENTRY,
+	       "D_IT dentry %.*s intent: %s status %d disp %x rc %d\n",
 	       op_data->op_namelen, op_data->op_name, ldlm_it2str(it->it_op),
 	       it->d.lustre.it_status, it->d.lustre.it_disposition, rc);
 	return rc;
@@ -1000,7 +1082,23 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 		fid_build_reg_res_name(fid, &res_id);
 		switch (it->it_op) {
 		case IT_GETATTR:
-			policy.l_inodebits.bits = MDS_INODELOCK_UPDATE;
+			/* File attributes are held under multiple bits:
+			 * nlink is under lookup lock, size and times are
+			 * under UPDATE lock and recently we've also got
+			 * a separate permissions lock for owner/group/acl that
+			 * were protected by lookup lock before.
+			 * Getattr must provide all of that information,
+			 * so we need to ensure we have all of those locks.
+			 * Unfortunately, if the bits are split across multiple
+			 * locks, there's no easy way to match all of them here,
+			 * so an extra RPC would be performed to fetch all
+			 * of those bits at once for now. */
+			/* For new MDTs(> 2.4), UPDATE|PERM should be enough,
+			 * but for old MDTs (< 2.4), permission is covered
+			 * by LOOKUP lock, so it needs to match all bits here.*/
+			policy.l_inodebits.bits = MDS_INODELOCK_UPDATE |
+						  MDS_INODELOCK_LOOKUP |
+						  MDS_INODELOCK_PERM;
 			break;
 		case IT_LAYOUT:
 			policy.l_inodebits.bits = MDS_INODELOCK_LAYOUT;
@@ -1009,10 +1107,11 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 			policy.l_inodebits.bits = MDS_INODELOCK_LOOKUP;
 			break;
 		}
-		mode = ldlm_lock_match(exp->exp_obd->obd_namespace,
-				       LDLM_FL_BLOCK_GRANTED, &res_id,
+
+		mode = mdc_lock_match(exp, LDLM_FL_BLOCK_GRANTED, fid,
 				       LDLM_IBITS, &policy,
-				       LCK_CR|LCK_CW|LCK_PR|LCK_PW, &lockh, 0);
+				      LCK_CR | LCK_CW | LCK_PR | LCK_PW,
+				      &lockh);
 	}
 
 	if (mode) {
@@ -1059,16 +1158,22 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 		    ldlm_blocking_callback cb_blocking,
 		    __u64 extra_lock_flags)
 {
+	struct ldlm_enqueue_info einfo = {
+		.ei_type	= LDLM_IBITS,
+		.ei_mode	= it_to_lock_mode(it),
+		.ei_cb_bl	= cb_blocking,
+		.ei_cb_cp	= ldlm_completion_ast,
+	};
 	struct lustre_handle lockh;
 	int rc = 0;
 
 	LASSERT(it);
 
 	CDEBUG(D_DLMTRACE, "(name: %.*s,"DFID") in obj "DFID
-	       ", intent: %s flags %#o\n", op_data->op_namelen,
-	       op_data->op_name, PFID(&op_data->op_fid2),
-	       PFID(&op_data->op_fid1), ldlm_it2str(it->it_op),
-	       it->it_flags);
+		", intent: %s flags %#Lo\n", op_data->op_namelen,
+		op_data->op_name, PFID(&op_data->op_fid2),
+		PFID(&op_data->op_fid1), ldlm_it2str(it->it_op),
+		it->it_flags);
 
 	lockh.cookie = 0;
 	if (fid_is_sane(&op_data->op_fid2) &&
@@ -1084,42 +1189,19 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 			return rc;
 	}
 
-	/* lookup_it may be called only after revalidate_it has run, because
-	 * revalidate_it cannot return errors, only zero.  Returning zero causes
-	 * this call to lookup, which *can* return an error.
-	 *
-	 * We only want to execute the request associated with the intent one
-	 * time, however, so don't send the request again.  Instead, skip past
-	 * this and use the request from revalidate.  In this case, revalidate
-	 * never dropped its reference, so the refcounts are all OK */
-	if (!it_disposition(it, DISP_ENQ_COMPLETE)) {
-		struct ldlm_enqueue_info einfo = {
-			.ei_type	= LDLM_IBITS,
-			.ei_mode	= it_to_lock_mode(it),
-			.ei_cb_bl	= cb_blocking,
-			.ei_cb_cp	= ldlm_completion_ast,
-		};
-
-		/* For case if upper layer did not alloc fid, do it now. */
-		if (!fid_is_sane(&op_data->op_fid2) && it->it_op & IT_CREAT) {
-			rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
-			if (rc < 0) {
-				CERROR("Can't alloc new fid, rc %d\n", rc);
-				return rc;
-			}
-		}
-		rc = mdc_enqueue(exp, &einfo, it, op_data, &lockh,
-				 lmm, lmmsize, NULL, extra_lock_flags);
-		if (rc < 0)
+	/* For case if upper layer did not alloc fid, do it now. */
+	if (!fid_is_sane(&op_data->op_fid2) && it->it_op & IT_CREAT) {
+		rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
+		if (rc < 0) {
+			CERROR("Can't alloc new fid, rc %d\n", rc);
 			return rc;
-	} else if (!fid_is_sane(&op_data->op_fid2) ||
-		   !(it->it_create_mode & M_CHECK_STALE)) {
-		/* DISP_ENQ_COMPLETE set means there is extra reference on
-		 * request referenced from this intent, saved for subsequent
-		 * lookup.  This path is executed when we proceed to this
-		 * lookup, so we clear DISP_ENQ_COMPLETE */
-		it_clear_disposition(it, DISP_ENQ_COMPLETE);
+		}
 	}
+	rc = mdc_enqueue(exp, &einfo, it, op_data, &lockh, lmm, lmmsize, NULL,
+			 extra_lock_flags);
+	if (rc < 0)
+		return rc;
+
 	*reqp = it->d.lustre.it_data;
 	rc = mdc_finish_intent_lock(exp, *reqp, op_data, it, &lockh);
 	return rc;
@@ -1153,7 +1235,7 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 	if (rc < 0) {
 		CERROR("ldlm_cli_enqueue_fini: %d\n", rc);
 		mdc_clear_replay_flag(req, rc);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	lockrep = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
@@ -1164,12 +1246,12 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 
 	rc = mdc_finish_enqueue(exp, req, einfo, it, lockh, rc);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	rc = mdc_finish_intent_lock(exp, req, &minfo->mi_data, it, lockh);
 
 out:
-	OBD_FREE_PTR(einfo);
+	kfree(einfo);
 	minfo->mi_cb(req, minfo, rc);
 	return 0;
 }
@@ -1194,14 +1276,15 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 	int		      rc = 0;
 	__u64		    flags = LDLM_FL_HAS_INTENT;
 
-	CDEBUG(D_DLMTRACE,"name: %.*s in inode "DFID", intent: %s flags %#o\n",
-	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
-	       ldlm_it2str(it->it_op), it->it_flags);
+	CDEBUG(D_DLMTRACE,
+		"name: %.*s in inode "DFID", intent: %s flags %#Lo\n",
+		op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
+		ldlm_it2str(it->it_op), it->it_flags);
 
 	fid_build_reg_res_name(&op_data->op_fid1, &res_id);
 	req = mdc_intent_getattr_pack(exp, it, op_data);
-	if (!req)
-		return -ENOMEM;
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	rc = mdc_enter_request(&obddev->u.cli);
 	if (rc != 0) {

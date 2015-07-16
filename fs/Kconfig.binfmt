@@ -27,7 +27,7 @@ config COMPAT_BINFMT_ELF
 	bool
 	depends on COMPAT && BINFMT_ELF
 
-config ARCH_BINFMT_ELF_RANDOMIZE_PIE
+config ARCH_BINFMT_ELF_STATE
 	bool
 
 config BINFMT_ELF_FDPIC
@@ -145,13 +145,6 @@ config BINFMT_EM86
 	  You may answer M to compile the emulation support as a module and
 	  later load the module when you want to use a Linux/Intel binary. The
 	  module will be called binfmt_em86. If unsure, say Y.
-
-config BINFMT_SOM
-	tristate "Kernel support for SOM binaries"
-	depends on PARISC && HPUX
-	help
-	  SOM is a binary executable format inherited from HP/UX.  Say
-	  Y here to be able to load and execute SOM binaries directly.
 
 config BINFMT_MISC
 	tristate "Kernel support for MISC binaries"

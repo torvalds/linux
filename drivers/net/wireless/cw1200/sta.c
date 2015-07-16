@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/etherdevice.h>
 
 #include "cw1200.h"
 #include "sta.h"
@@ -212,6 +213,7 @@ int cw1200_add_interface(struct ieee80211_hw *dev,
 	/* __le32 auto_calibration_mode = __cpu_to_le32(1); */
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
+			     IEEE80211_VIF_SUPPORTS_UAPSD |
 			     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 
 	mutex_lock(&priv->conf_mutex);
@@ -291,7 +293,7 @@ void cw1200_remove_interface(struct ieee80211_hw *dev,
 	}
 	priv->vif = NULL;
 	priv->mode = NL80211_IFTYPE_MONITOR;
-	memset(priv->mac_addr, 0, ETH_ALEN);
+	eth_zero_addr(priv->mac_addr);
 	memset(&priv->p2p_ps_modeinfo, 0, sizeof(priv->p2p_ps_modeinfo));
 	cw1200_free_keys(priv);
 	cw1200_setup_mac(priv);
@@ -555,8 +557,8 @@ u64 cw1200_prepare_multicast(struct ieee80211_hw *hw,
 		pr_debug("[STA] multicast: %pM\n", ha->addr);
 		memcpy(&priv->multicast_filter.macaddrs[count],
 		       ha->addr, ETH_ALEN);
-		if (memcmp(ha->addr, broadcast_ipv4, ETH_ALEN) &&
-		    memcmp(ha->addr, broadcast_ipv6, ETH_ALEN))
+		if (!ether_addr_equal(ha->addr, broadcast_ipv4) &&
+		    !ether_addr_equal(ha->addr, broadcast_ipv6))
 			priv->has_multicast_subscription = true;
 		count++;
 	}
@@ -576,13 +578,11 @@ void cw1200_configure_filter(struct ieee80211_hw *dev,
 {
 	struct cw1200_common *priv = dev->priv;
 	bool listening = !!(*total_flags &
-			    (FIF_PROMISC_IN_BSS |
-			     FIF_OTHER_BSS |
+			    (FIF_OTHER_BSS |
 			     FIF_BCN_PRBRESP_PROMISC |
 			     FIF_PROBE_REQ));
 
-	*total_flags &= FIF_PROMISC_IN_BSS |
-			FIF_OTHER_BSS |
+	*total_flags &= FIF_OTHER_BSS |
 			FIF_FCSFAIL |
 			FIF_BCN_PRBRESP_PROMISC |
 			FIF_PROBE_REQ;
@@ -590,14 +590,12 @@ void cw1200_configure_filter(struct ieee80211_hw *dev,
 	down(&priv->scan.lock);
 	mutex_lock(&priv->conf_mutex);
 
-	priv->rx_filter.promiscuous = (*total_flags & FIF_PROMISC_IN_BSS)
-			? 1 : 0;
+	priv->rx_filter.promiscuous = 0;
 	priv->rx_filter.bssid = (*total_flags & (FIF_OTHER_BSS |
 			FIF_PROBE_REQ)) ? 1 : 0;
 	priv->rx_filter.fcs = (*total_flags & FIF_FCSFAIL) ? 1 : 0;
 	priv->disable_beacon_filter = !(*total_flags &
 					(FIF_BCN_PRBRESP_PROMISC |
-					 FIF_PROMISC_IN_BSS |
 					 FIF_PROBE_REQ));
 	if (priv->listening != listening) {
 		priv->listening = listening;
@@ -707,7 +705,8 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		if (sta)
 			peer_addr = sta->addr;
 
-		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE |
+			      IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
 
 		switch (key->cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
@@ -935,7 +934,8 @@ static int __cw1200_flush(struct cw1200_common *priv, bool drop)
 	return ret;
 }
 
-void cw1200_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+void cw1200_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  u32 queues, bool drop)
 {
 	struct cw1200_common *priv = hw->priv;
 
@@ -1236,8 +1236,8 @@ static void cw1200_do_join(struct cw1200_common *priv)
 
 	bssid = priv->vif->bss_conf.bssid;
 
-	bss = cfg80211_get_bss(priv->hw->wiphy, priv->channel,
-			bssid, NULL, 0, 0, 0);
+	bss = cfg80211_get_bss(priv->hw->wiphy, priv->channel, bssid, NULL, 0,
+			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
 
 	if (!bss && !conf->ibss_joined) {
 		wsm_unlock_tx(priv);
@@ -2287,7 +2287,6 @@ static int cw1200_upload_null(struct cw1200_common *priv)
 
 static int cw1200_upload_qosnull(struct cw1200_common *priv)
 {
-	int ret = 0;
 	/* TODO:  This needs to be implemented
 
 	struct wsm_template_frame frame = {
@@ -2304,7 +2303,7 @@ static int cw1200_upload_qosnull(struct cw1200_common *priv)
 	dev_kfree_skb(frame.skb);
 
 	*/
-	return ret;
+	return 0;
 }
 
 static int cw1200_enable_beaconing(struct cw1200_common *priv,

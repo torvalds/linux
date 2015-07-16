@@ -12,6 +12,7 @@ obj-$(CONFIG_KGDB) += xtensa-stub.o
 obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 obj-$(CONFIG_FUNCTION_TRACER) += mcount.o
+obj-$(CONFIG_SMP) += smp.o mxhead.o
 
 AFLAGS_head.o += -mtext-section-literals
 
@@ -28,6 +29,7 @@ AFLAGS_head.o += -mtext-section-literals
 
 sed-y = -e 's/\*(\(\.[a-z]*it\|\.ref\|\)\.text)/*(\1.literal \1.text)/g' \
 	-e 's/\.text\.unlikely/.literal.unlikely .text.unlikely/g'	 \
+	-e 's/\*(\(\.text .*\))/*(.literal \1)/g'			 \
 	-e 's/\*(\(\.text\.[a-z]*\))/*(\1.literal \1)/g'
 
 quiet_cmd__cpp_lds_S = LDS     $@

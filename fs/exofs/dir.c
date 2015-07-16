@@ -2,7 +2,7 @@
  * Copyright (C) 2005, 2006
  * Avishay Traeger (avishay@gmail.com)
  * Copyright (C) 2008, 2009
- * Boaz Harrosh <bharrosh@panasas.com>
+ * Boaz Harrosh <ooo@electrozaur.com>
  *
  * Copyrights for code taken from ext2:
  *     Copyright (C) 1992, 1993, 1994, 1995
@@ -42,12 +42,6 @@ static inline void exofs_put_page(struct page *page)
 {
 	kunmap(page);
 	page_cache_release(page);
-}
-
-/* Accesses dir's inode->i_size must be called under inode lock */
-static inline unsigned long dir_pages(struct inode *inode)
-{
-	return (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 }
 
 static unsigned exofs_last_byte(struct inode *inode, unsigned long page_nr)
@@ -379,7 +373,7 @@ ino_t exofs_parent_ino(struct dentry *child)
 	struct exofs_dir_entry *de;
 	ino_t ino;
 
-	de = exofs_dotdot(child->d_inode, &page);
+	de = exofs_dotdot(d_inode(child), &page);
 	if (!de)
 		return 0;
 
@@ -429,7 +423,7 @@ int exofs_set_link(struct inode *dir, struct exofs_dir_entry *de,
 
 int exofs_add_link(struct dentry *dentry, struct inode *inode)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	const unsigned char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	unsigned chunk_size = exofs_chunk_size(dir);

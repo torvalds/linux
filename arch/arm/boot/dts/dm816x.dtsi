@@ -1,0 +1,488 @@
+/*
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/omap.h>
+
+#include "skeleton.dtsi"
+
+/ {
+	compatible = "ti,dm816";
+	interrupt-parent = <&intc>;
+
+	aliases {
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			compatible = "arm,cortex-a8";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupts = <3>;
+	};
+
+	/*
+	 * The soc node represents the soc top level view. It is used for IPs
+	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 */
+	soc {
+		compatible = "ti,omap-infra";
+		mpu {
+			compatible = "ti,omap3-mpu";
+			ti,hwmods = "mpu";
+		};
+	};
+
+	/*
+	 * XXX: Use a flat representation of the dm816x interconnect.
+	 * The real dm816x interconnect network is quite complex. Since
+	 * it will not bring real advantage to represent that in DT
+	 * for the moment, just use a fake OCP bus entry to represent
+	 * the whole bus hierarchy.
+	 */
+	ocp {
+		compatible = "ti,omap3-l3-smx", "simple-bus";
+		reg = <0x44000000 0x10000>;
+		interrupts = <9 10>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		ti,hwmods = "l3_main";
+
+		prcm: prcm@48180000 {
+			compatible = "ti,dm816-prcm";
+			reg = <0x48180000 0x4000>;
+
+			prcm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prcm_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@48140000 {
+			compatible = "ti,dm816-scrm", "simple-bus";
+			reg = <0x48140000 0x21000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x48140000 0x21000>;
+
+			dm816x_pinmux: pinmux@800 {
+				compatible = "pinctrl-single";
+				reg = <0x800 0x50a>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pinctrl-single,register-width = <16>;
+				pinctrl-single,function-mask = <0xf>;
+			};
+
+			/* Device Configuration Registers */
+			scm_conf: syscon@600 {
+				compatible = "syscon", "simple-bus";
+				reg = <0x600 0x110>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x600 0x110>;
+
+				usb_phy0: usb-phy@20 {
+					compatible = "ti,dm8168-usb-phy";
+					reg = <0x20 0x8>;
+					reg-names = "phy";
+					clocks = <&main_fapll 6>;
+					clock-names = "refclk";
+					#phy-cells = <0>;
+					syscon = <&scm_conf>;
+				};
+
+				usb_phy1: usb-phy@28 {
+					compatible = "ti,dm8168-usb-phy";
+					reg = <0x28 0x8>;
+					reg-names = "phy";
+					clocks = <&main_fapll 6>;
+					clock-names = "refclk";
+					#phy-cells = <0>;
+					syscon = <&scm_conf>;
+				};
+			};
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
+
+		edma: edma@49000000 {
+			compatible = "ti,edma3";
+			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2", "tptc3";
+			reg =   <0x49000000 0x10000>,
+			        <0x44e10f90 0x40>;
+			interrupts = <12 13 14>;
+			#dma-cells = <1>;
+		};
+
+		elm: elm@48080000 {
+			compatible = "ti,816-elm";
+			ti,hwmods = "elm";
+			reg = <0x48080000 0x2000>;
+			interrupts = <4>;
+		};
+
+		gpio1: gpio@48032000 {
+			compatible = "ti,omap4-gpio";
+			ti,hwmods = "gpio1";
+			ti,gpio-always-on;
+			reg = <0x48032000 0x1000>;
+			interrupts = <96>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@4804c000 {
+			compatible = "ti,omap4-gpio";
+			ti,hwmods = "gpio2";
+			ti,gpio-always-on;
+			reg = <0x4804c000 0x1000>;
+			interrupts = <98>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpmc: gpmc@50000000 {
+			compatible = "ti,am3352-gpmc";
+			ti,hwmods = "gpmc";
+			reg = <0x50000000 0x2000>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			interrupts = <100>;
+			gpmc,num-cs = <6>;
+			gpmc,num-waitpins = <2>;
+		};
+
+		i2c1: i2c@48028000 {
+			compatible = "ti,omap4-i2c";
+			ti,hwmods = "i2c1";
+			reg = <0x48028000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <70>;
+			dmas = <&edma 58 &edma 59>;
+			dma-names = "tx", "rx";
+		};
+
+		i2c2: i2c@4802a000 {
+			compatible = "ti,omap4-i2c";
+			ti,hwmods = "i2c2";
+			reg = <0x4802a000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <71>;
+			dmas = <&edma 60 &edma 61>;
+			dma-names = "tx", "rx";
+		};
+
+		intc: interrupt-controller@48200000 {
+			compatible = "ti,dm816-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x48200000 0x1000>;
+		};
+
+		mailbox: mailbox@480c8000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x480c8000 0x2000>;
+			interrupts = <77>;
+			ti,hwmods = "mailbox";
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			mbox_dsp: mbox_dsp {
+				ti,mbox-tx = <3 0 0>;
+				ti,mbox-rx = <0 0 0>;
+			};
+		};
+
+		mdio: mdio@4a100800 {
+			compatible = "ti,davinci_mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x4a100800 0x100>;
+			ti,hwmods = "davinci_mdio";
+			bus_freq = <1000000>;
+			phy0: ethernet-phy@0 {
+				reg = <1>;
+			};
+			phy1: ethernet-phy@1 {
+				reg = <2>;
+			};
+		};
+
+		eth0: ethernet@4a100000 {
+			compatible = "ti,dm816-emac";
+			ti,hwmods = "emac0";
+			reg = <0x4a100000 0x800
+			       0x4a100900 0x3700>;
+			clocks = <&sysclk24_ck>;
+			syscon = <&scm_conf>;
+			ti,davinci-ctrl-reg-offset = <0>;
+			ti,davinci-ctrl-mod-reg-offset = <0x900>;
+			ti,davinci-ctrl-ram-offset = <0x2000>;
+			ti,davinci-ctrl-ram-size = <0x2000>;
+			interrupts = <40 41 42 43>;
+			phy-handle = <&phy0>;
+		};
+
+		eth1: ethernet@4a120000 {
+			compatible = "ti,dm816-emac";
+			ti,hwmods = "emac1";
+			reg = <0x4a120000 0x4000>;
+			clocks = <&sysclk24_ck>;
+			syscon = <&scm_conf>;
+			ti,davinci-ctrl-reg-offset = <0>;
+			ti,davinci-ctrl-mod-reg-offset = <0x900>;
+			ti,davinci-ctrl-ram-offset = <0x2000>;
+			ti,davinci-ctrl-ram-size = <0x2000>;
+			interrupts = <44 45 46 47>;
+			phy-handle = <&phy1>;
+		};
+
+		mcspi1: spi@48030000 {
+			compatible = "ti,omap4-mcspi";
+			reg = <0x48030000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <65>;
+			ti,spi-num-cs = <4>;
+			ti,hwmods = "mcspi1";
+			dmas = <&edma 16 &edma 17
+				&edma 18 &edma 19>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
+		};
+
+		mmc1: mmc@48060000 {
+			compatible = "ti,omap4-hsmmc";
+			reg = <0x48060000 0x11000>;
+			ti,hwmods = "mmc1";
+			interrupts = <64>;
+			dmas = <&edma 24 &edma 25>;
+			dma-names = "tx", "rx";
+		};
+
+		timer1: timer@4802e000 {
+			compatible = "ti,dm816-timer";
+			reg = <0x4802e000 0x2000>;
+			interrupts = <67>;
+			ti,hwmods = "timer1";
+			ti,timer-alwon;
+		};
+
+		timer2: timer@48040000 {
+			compatible = "ti,dm816-timer";
+			reg = <0x48040000 0x2000>;
+			interrupts = <68>;
+			ti,hwmods = "timer2";
+		};
+
+		timer3: timer@48042000 {
+			compatible = "ti,dm816-timer";
+			reg = <0x48042000 0x2000>;
+			interrupts = <69>;
+			ti,hwmods = "timer3";
+		};
+
+		timer4: timer@48044000 {
+			compatible = "ti,dm816-timer";
+			reg = <0x48044000 0x2000>;
+			interrupts = <92>;
+			ti,hwmods = "timer4";
+		};
+
+		timer5: timer@48046000 {
+			compatible = "ti,dm816-timer";
+			reg = <0x48046000 0x2000>;
+			interrupts = <93>;
+			ti,hwmods = "timer5";
+		};
+
+		timer6: timer@48048000 {
+			compatible = "ti,dm816-timer";
+			reg = <0x48048000 0x2000>;
+			interrupts = <94>;
+			ti,hwmods = "timer6";
+		};
+
+		timer7: timer@4804a000 {
+			compatible = "ti,dm816-timer";
+			reg = <0x4804a000 0x2000>;
+			interrupts = <95>;
+			ti,hwmods = "timer7";
+		};
+
+		uart1: uart@48020000 {
+			compatible = "ti,omap3-uart";
+			ti,hwmods = "uart1";
+			reg = <0x48020000 0x2000>;
+			clock-frequency = <48000000>;
+			interrupts = <72>;
+			dmas = <&edma 26 &edma 27>;
+			dma-names = "tx", "rx";
+		};
+
+		uart2: uart@48022000 {
+			compatible = "ti,omap3-uart";
+			ti,hwmods = "uart2";
+			reg = <0x48022000 0x2000>;
+			clock-frequency = <48000000>;
+			interrupts = <73>;
+			dmas = <&edma 28 &edma 29>;
+			dma-names = "tx", "rx";
+		};
+
+		uart3: uart@48024000 {
+			compatible = "ti,omap3-uart";
+			ti,hwmods = "uart3";
+			reg = <0x48024000 0x2000>;
+			clock-frequency = <48000000>;
+			interrupts = <74>;
+			dmas = <&edma 30 &edma 31>;
+			dma-names = "tx", "rx";
+		};
+
+		/* NOTE: USB needs a transceiver driver for phys to work */
+		usb: usb_otg_hs@47401000 {
+			compatible = "ti,am33xx-usb";
+			reg = <0x47401000 0x400000>;
+			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ti,hwmods = "usb_otg_hs";
+
+			usb0: usb@47401000 {
+				compatible = "ti,musb-dm816";
+				reg = <0x47401400 0x400
+				       0x47401000 0x200>;
+				reg-names = "mc", "control";
+				interrupts = <18>;
+				interrupt-names = "mc";
+				dr_mode = "host";
+				interface-type = <0>;
+				phys = <&usb_phy0>;
+				phy-names = "usb2-phy";
+				mentor,multipoint = <1>;
+				mentor,num-eps = <16>;
+				mentor,ram-bits = <12>;
+				mentor,power = <500>;
+
+				dmas = <&cppi41dma  0 0 &cppi41dma  1 0
+					&cppi41dma  2 0 &cppi41dma  3 0
+					&cppi41dma  4 0 &cppi41dma  5 0
+					&cppi41dma  6 0 &cppi41dma  7 0
+					&cppi41dma  8 0 &cppi41dma  9 0
+					&cppi41dma 10 0 &cppi41dma 11 0
+					&cppi41dma 12 0 &cppi41dma 13 0
+					&cppi41dma 14 0 &cppi41dma  0 1
+					&cppi41dma  1 1 &cppi41dma  2 1
+					&cppi41dma  3 1 &cppi41dma  4 1
+					&cppi41dma  5 1 &cppi41dma  6 1
+					&cppi41dma  7 1 &cppi41dma  8 1
+					&cppi41dma  9 1 &cppi41dma 10 1
+					&cppi41dma 11 1 &cppi41dma 12 1
+					&cppi41dma 13 1 &cppi41dma 14 1>;
+				dma-names =
+					"rx1", "rx2", "rx3", "rx4", "rx5", "rx6", "rx7",
+					"rx8", "rx9", "rx10", "rx11", "rx12", "rx13",
+					"rx14", "rx15",
+					"tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
+					"tx8", "tx9", "tx10", "tx11", "tx12", "tx13",
+					"tx14", "tx15";
+			};
+
+			usb1: usb@47401800 {
+				compatible = "ti,musb-dm816";
+				reg = <0x47401c00 0x400
+				       0x47401800 0x200>;
+				reg-names = "mc", "control";
+				interrupts = <19>;
+				interrupt-names = "mc";
+				dr_mode = "host";
+				interface-type = <0>;
+				phys = <&usb_phy1>;
+				phy-names = "usb2-phy";
+				mentor,multipoint = <1>;
+				mentor,num-eps = <16>;
+				mentor,ram-bits = <12>;
+				mentor,power = <500>;
+
+				dmas = <&cppi41dma 15 0 &cppi41dma 16 0
+					&cppi41dma 17 0 &cppi41dma 18 0
+					&cppi41dma 19 0 &cppi41dma 20 0
+					&cppi41dma 21 0 &cppi41dma 22 0
+					&cppi41dma 23 0 &cppi41dma 24 0
+					&cppi41dma 25 0 &cppi41dma 26 0
+					&cppi41dma 27 0 &cppi41dma 28 0
+					&cppi41dma 29 0 &cppi41dma 15 1
+					&cppi41dma 16 1 &cppi41dma 17 1
+					&cppi41dma 18 1 &cppi41dma 19 1
+					&cppi41dma 20 1 &cppi41dma 21 1
+					&cppi41dma 22 1 &cppi41dma 23 1
+					&cppi41dma 24 1 &cppi41dma 25 1
+					&cppi41dma 26 1 &cppi41dma 27 1
+					&cppi41dma 28 1 &cppi41dma 29 1>;
+				dma-names =
+					"rx1", "rx2", "rx3", "rx4", "rx5", "rx6", "rx7",
+					"rx8", "rx9", "rx10", "rx11", "rx12", "rx13",
+					"rx14", "rx15",
+					"tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
+					"tx8", "tx9", "tx10", "tx11", "tx12", "tx13",
+					"tx14", "tx15";
+			};
+
+			cppi41dma: dma-controller@47402000 {
+				compatible = "ti,am3359-cppi41";
+				reg =  <0x47400000 0x1000
+					0x47402000 0x1000
+					0x47403000 0x1000
+					0x47404000 0x4000>;
+				reg-names = "glue", "controller", "scheduler", "queuemgr";
+				interrupts = <17>;
+				interrupt-names = "glue";
+				#dma-cells = <2>;
+				#dma-channels = <30>;
+				#dma-requests = <256>;
+			};
+		};
+
+		wd_timer2: wd_timer@480c2000 {
+			compatible = "ti,omap3-wdt";
+			ti,hwmods = "wd_timer";
+			reg = <0x480c2000 0x1000>;
+			interrupts = <0>;
+		};
+	};
+};
+
+#include "dm816x-clocks.dtsi"

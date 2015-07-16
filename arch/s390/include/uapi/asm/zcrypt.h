@@ -154,6 +154,67 @@ struct ica_xcRB {
 	unsigned short	priority_window;
 	unsigned int	status;
 } __attribute__((packed));
+
+/**
+ * struct ep11_cprb - EP11 connectivity programming request block
+ * @cprb_len:		CPRB header length [0x0020]
+ * @cprb_ver_id:	CPRB version id.   [0x04]
+ * @pad_000:		Alignment pad bytes
+ * @flags:		Admin cmd [0x80] or functional cmd [0x00]
+ * @func_id:		Function id / subtype [0x5434]
+ * @source_id:		Source id [originator id]
+ * @target_id:		Target id [usage/ctrl domain id]
+ * @ret_code:		Return code
+ * @reserved1:		Reserved
+ * @reserved2:		Reserved
+ * @payload_len:	Payload length
+ */
+struct ep11_cprb {
+	uint16_t	cprb_len;
+	unsigned char	cprb_ver_id;
+	unsigned char	pad_000[2];
+	unsigned char	flags;
+	unsigned char	func_id[2];
+	uint32_t	source_id;
+	uint32_t	target_id;
+	uint32_t	ret_code;
+	uint32_t	reserved1;
+	uint32_t	reserved2;
+	uint32_t	payload_len;
+} __attribute__((packed));
+
+/**
+ * struct ep11_target_dev - EP11 target device list
+ * @ap_id:	AP device id
+ * @dom_id:	Usage domain id
+ */
+struct ep11_target_dev {
+	uint16_t ap_id;
+	uint16_t dom_id;
+};
+
+/**
+ * struct ep11_urb - EP11 user request block
+ * @targets_num:	Number of target adapters
+ * @targets:		Addr to target adapter list
+ * @weight:		Level of request priority
+ * @req_no:		Request id/number
+ * @req_len:		Request length
+ * @req:		Addr to request block
+ * @resp_len:		Response length
+ * @resp:		Addr to response block
+ */
+struct ep11_urb {
+	uint16_t		targets_num;
+	uint64_t		targets;
+	uint64_t		weight;
+	uint64_t		req_no;
+	uint64_t		req_len;
+	uint64_t		req;
+	uint64_t		resp_len;
+	uint64_t		resp;
+} __attribute__((packed));
+
 #define AUTOSELECT ((unsigned int)0xFFFFFFFF)
 
 #define ZCRYPT_IOCTL_MAGIC 'z'
@@ -182,6 +243,9 @@ struct ica_xcRB {
  *
  *   ZSECSENDCPRB
  *     Send an arbitrary CPRB to a crypto card.
+ *
+ *   ZSENDEP11CPRB
+ *     Send an arbitrary EP11 CPRB to an EP11 coprocessor crypto card.
  *
  *   Z90STAT_STATUS_MASK
  *     Return an 64 element array of unsigned chars for the status of
@@ -256,6 +320,7 @@ struct ica_xcRB {
 #define ICARSAMODEXPO	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x05, 0)
 #define ICARSACRT	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x06, 0)
 #define ZSECSENDCPRB	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x81, 0)
+#define ZSENDEP11CPRB	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x04, 0)
 
 /* New status calls */
 #define Z90STAT_TOTALCOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x40, int)

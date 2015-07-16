@@ -1,0 +1,31 @@
+MediaTek mt65xx & mt81xx Platforms Device Tree Bindings
+
+Boards with a MediaTek mt65xx/mt81xx SoC shall have the following property:
+
+Required root node property:
+
+compatible: Must contain one of
+   "mediatek,mt6589"
+   "mediatek,mt6592"
+   "mediatek,mt8127"
+   "mediatek,mt8135"
+   "mediatek,mt8173"
+
+
+Supported boards:
+
+- bq Aquaris5 smart phone:
+    Required root node properties:
+      - compatible = "mundoreader,bq-aquaris5", "mediatek,mt6589";
+- Evaluation board for MT6592:
+    Required root node properties:
+      - compatible = "mediatek,mt6592-evb", "mediatek,mt6592";
+- MTK mt8127 tablet moose EVB:
+    Required root node properties:
+      - compatible = "mediatek,mt8127-moose", "mediatek,mt8127";
+- MTK mt8135 tablet EVB:
+    Required root node properties:
+      - compatible = "mediatek,mt8135-evbp1", "mediatek,mt8135";
+- MTK mt8173 tablet EVB:
+    Required root node properties:
+      - compatible = "mediatek,mt8173-evb", "mediatek,mt8173";

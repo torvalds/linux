@@ -84,14 +84,18 @@
  *	processing.  <cp> is a pointer to the buffer of input
  *	character received by the device.  <fp> is a pointer to a
  *	pointer of flag bytes which indicate whether a character was
- *	received with a parity error, etc.
+ *	received with a parity error, etc. <fp> may be NULL to indicate
+ *	all data received is TTY_NORMAL.
  *
  * void	(*write_wakeup)(struct tty_struct *);
  *
  *	This function is called by the low-level tty driver to signal
  *	that line discpline should try to send more characters to the
  *	low-level driver for transmission.  If the line discpline does
- *	not have any more data to send, it can just return.
+ *	not have any more data to send, it can just return. If the line
+ *	discipline does have some data to send, please arise a tasklet
+ *	or workqueue to do the real data transfer. Do not send data in
+ *	this hook, it may leads to a deadlock.
  *
  * int (*hangup)(struct tty_struct *)
  *
@@ -118,12 +122,12 @@
  *	processing.  <cp> is a pointer to the buffer of input
  *	character received by the device.  <fp> is a pointer to a
  *	pointer of flag bytes which indicate whether a character was
- *	received with a parity error, etc.
+ *	received with a parity error, etc. <fp> may be NULL to indicate
+ *	all data received is TTY_NORMAL.
  *	If assigned, prefer this function for automatic flow control.
  */
 
 #include <linux/fs.h>
-#include <linux/wait.h>
 #include <linux/wait.h>
 
 

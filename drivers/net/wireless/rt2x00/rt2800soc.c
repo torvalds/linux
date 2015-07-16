@@ -19,9 +19,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the
- *	Free Software Foundation, Inc.,
- *	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*	Module: rt2800soc
@@ -150,7 +148,7 @@ static const struct ieee80211_ops rt2800soc_mac80211_ops = {
 	.sw_scan_start		= rt2x00mac_sw_scan_start,
 	.sw_scan_complete	= rt2x00mac_sw_scan_complete,
 	.get_stats		= rt2x00mac_get_stats,
-	.get_tkip_seq		= rt2800_get_tkip_seq,
+	.get_key_seq		= rt2800_get_key_seq,
 	.set_rts_threshold	= rt2800_set_rts_threshold,
 	.sta_add		= rt2x00mac_sta_add,
 	.sta_remove		= rt2x00mac_sta_remove,
@@ -246,7 +244,6 @@ static int rt2800soc_probe(struct platform_device *pdev)
 static struct platform_driver rt2800soc_driver = {
 	.driver		= {
 		.name		= "rt2800_wmac",
-		.owner		= THIS_MODULE,
 		.mod_name	= KBUILD_MODNAME,
 	},
 	.probe		= rt2800soc_probe,

@@ -6,6 +6,11 @@ Required properties:
   region.
 - interrupts: The EHCI interrupt
 
+Optional properties:
+- clocks: reference to the clock
+- phys: reference to the USB PHY
+- phy-names: name of the USB PHY, should be "usb"
+
 Example:
 
 	ehci@50000 {

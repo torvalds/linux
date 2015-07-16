@@ -20,11 +20,27 @@
 
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
-#include "xfs_quota_priv.h"
 
 struct xfs_inode;
 
 extern struct kmem_zone	*xfs_qm_dqtrxzone;
+
+/*
+ * Number of bmaps that we ask from bmapi when doing a quotacheck.
+ * We make this restriction to keep the memory usage to a minimum.
+ */
+#define XFS_DQITER_MAP_SIZE	10
+
+#define XFS_IS_DQUOT_UNINITIALIZED(dqp) ( \
+	!dqp->q_core.d_blk_hardlimit && \
+	!dqp->q_core.d_blk_softlimit && \
+	!dqp->q_core.d_rtb_hardlimit && \
+	!dqp->q_core.d_rtb_softlimit && \
+	!dqp->q_core.d_ino_hardlimit && \
+	!dqp->q_core.d_ino_softlimit && \
+	!dqp->q_core.d_bcount && \
+	!dqp->q_core.d_rtbcount && \
+	!dqp->q_core.d_icount)
 
 /*
  * This defines the unit of allocation of dquots.
@@ -141,8 +157,6 @@ struct xfs_dquot_acct {
 #define XFS_QM_RTBWARNLIMIT	5
 
 extern void		xfs_qm_destroy_quotainfo(struct xfs_mount *);
-extern int		xfs_qm_quotacheck(struct xfs_mount *);
-extern int		xfs_qm_write_sb_changes(struct xfs_mount *, __int64_t);
 
 /* dquot stuff */
 extern void		xfs_qm_dqpurge_all(struct xfs_mount *, uint);
@@ -151,13 +165,9 @@ extern void		xfs_qm_dqrele_all_inodes(struct xfs_mount *, uint);
 /* quota ops */
 extern int		xfs_qm_scall_trunc_qfiles(struct xfs_mount *, uint);
 extern int		xfs_qm_scall_getquota(struct xfs_mount *, xfs_dqid_t,
-					uint, struct fs_disk_quota *);
+					uint, struct qc_dqblk *);
 extern int		xfs_qm_scall_setqlim(struct xfs_mount *, xfs_dqid_t, uint,
-					struct fs_disk_quota *);
-extern int		xfs_qm_scall_getqstat(struct xfs_mount *,
-					struct fs_quota_stat *);
-extern int		xfs_qm_scall_getqstatv(struct xfs_mount *,
-					struct fs_quota_statv *);
+					struct qc_dqblk *);
 extern int		xfs_qm_scall_quotaon(struct xfs_mount *, uint);
 extern int		xfs_qm_scall_quotaoff(struct xfs_mount *, uint);
 

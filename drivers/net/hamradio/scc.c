@@ -1515,7 +1515,7 @@ static int scc_net_alloc(const char *name, struct scc_channel *scc)
 	int err;
 	struct net_device *dev;
 
-	dev = alloc_netdev(0, name, scc_net_setup);
+	dev = alloc_netdev(0, name, NET_NAME_UNKNOWN, scc_net_setup);
 	if (!dev) 
 		return -ENOMEM;
 
@@ -1638,6 +1638,9 @@ static netdev_tx_t scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 	unsigned long flags;
 	char kisscmd;
+
+	if (skb->protocol == htons(ETH_P_IP))
+		return ax25_ip_xmit(skb);
 
 	if (skb->len > scc->stat.bufsize || skb->len < 2) {
 		scc->dev_stat.tx_dropped++;	/* bogus frame */

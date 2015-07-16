@@ -1041,10 +1041,7 @@ static int dib7000m_tune(struct dvb_frontend *demod)
 	u16 value;
 
 	// we are already tuned - just resuming from suspend
-	if (ch != NULL)
-		dib7000m_set_channel(state, ch, 0);
-	else
-		return -EINVAL;
+	dib7000m_set_channel(state, ch, 0);
 
 	// restart demod
 	ret |= dib7000m_write_word(state, 898, 0x4000);
@@ -1259,7 +1256,7 @@ static int dib7000m_set_frontend(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int dib7000m_read_status(struct dvb_frontend *fe, fe_status_t *stat)
+static int dib7000m_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 {
 	struct dib7000m_state *state = fe->demodulator_priv;
 	u16 lock = dib7000m_read_word(state, 535);

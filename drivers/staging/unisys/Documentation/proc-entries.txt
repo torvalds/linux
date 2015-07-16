@@ -1,0 +1,93 @@
+ s-Par Proc Entries
+This document describes the proc entries created by the Unisys s-Par modules.
+
+Support Module Entries
+These entries are provided primarily for debugging.
+
+/proc/uislib/info: This entry contains debugging information for the
+uislib module, including bus information and memory usage.
+
+/proc/visorchipset/controlvm: This directory contains debugging
+entries for the controlvm channel used by visorchipset.
+
+/proc/uislib/platform: This entry is used to display the platform
+number this node is in the system. For some guests, this may be
+invalid.
+
+/proc/visorchipset/chipsetready: This entry is written to by scripts
+to signify that any user level activity has been completed before the
+guest can be considered running and is shown as running in the s-Par
+UI.
+
+Device Entries
+These entries provide status of the devices shared by a service partition.
+
+/proc/uislib/vbus: this is a directory containing entries for each
+virtual bus. Each numbered sub-directory contains an info entry, which
+describes the devices that appear on that bus.
+
+/proc/uislib/cycles_before_wait: This entry is used to tune
+performance, by setting the number of cycles we wait before going idle
+when in polling mode. A longer time will reduce message latency but
+spend more processing time polling.
+
+/proc/uislib/smart_wakeup: This entry is used to tune performance, by
+enabling or disabling smart wakeup.
+
+/proc/virthba/info: This entry contains debugging information for the
+virthba module, including interrupt information and memory usage.
+
+/proc/virthba/enable_ints: This entry controls interrupt use by the
+virthba module. Writing a 0 to this entry will disable interrupts.
+
+/proc/virtnic/info: This entry contains debugging information for the
+virtnic module, including interrupt information, send and receive
+counts, and other device information.
+
+/proc/virtnic/ethX: This is a directory containing entries for each
+virtual NIC. Each named subdirectory contains two entries,
+clientstring and zone.
+
+/proc/virtpci/info: This entry contains debugging information for the
+virtpci module, including virtual PCI bus information and device
+locations.
+
+/proc/virtnic/enable_ints: This entry controls interrupt use by the
+virtnic module. Writing a 0 to this entry will disable interrupts.
+
+Visorconinclient, visordiag, visornoop, visorserialclient, and
+visorvideoclient Entries
+
+The entries in proc for these modules all follow the same
+pattern. Each module has its own proc directory with the same name,
+e.g. visordiag presents a /proc/visordiag directory. Inside of the
+module's directory are a device directory, which contains one numbered
+directory for each device provided by that module. Each device has a
+diag entry that presents the device number and visorbus name for that
+device. The module directory also has a driver/diag entry, which
+reports the corresponding s-Par version number of the driver.
+
+Automated Installation Entries
+
+These entries are used to pass information between the s-Par platform
+and the Linux-based installation and recovery tool. These values are
+read/write, however, the guest can only reset them to 0, or report an
+error status through the installer entry. The values are only set via
+s-Par's firmware interface, to help prevent accidentally booting into
+the tool.
+
+/proc/visorchipset/boottotool: This entry instructs s-Par that the
+next reboot will launch the installation and recovery tool. If set to
+0, the next boot will happen according to the UEFI boot manager
+settings.
+
+/proc/visorchipset/toolaction: This entry indicates the installation
+and recovery tool mode requested for the next boot.
+
+/proc/visorchipset/installer: this entry is used by the installation
+and recovery tool to pass status and result information back to the
+s-Par firmware.
+
+/proc/visorchipset/partition: This directory contains the guest
+partition configuration data for each virtual bus, for use during
+installation and at runtime for s-Par service partitions.

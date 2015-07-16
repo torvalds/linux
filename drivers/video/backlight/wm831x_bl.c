@@ -111,6 +111,7 @@ static int wm831x_backlight_update_status(struct backlight_device *bl)
 static int wm831x_backlight_get_brightness(struct backlight_device *bl)
 {
 	struct wm831x_backlight_data *data = bl_get_data(bl);
+
 	return data->current_brightness;
 }
 
@@ -217,7 +218,6 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 static struct platform_driver wm831x_backlight_driver = {
 	.driver		= {
 		.name	= "wm831x-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= wm831x_backlight_probe,
 };

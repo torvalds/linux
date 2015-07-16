@@ -1203,7 +1203,7 @@ static int lg216x_read_lock_status(struct lg216x_state *state,
 #endif
 }
 
-static int lg216x_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int lg216x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct lg216x_state *state = fe->demodulator_priv;
 	int ret, acq_lock, sync_lock;
@@ -1456,9 +1456,3 @@ MODULE_DESCRIPTION("LG Electronics LG216x ATSC/MH Demodulator Driver");
 MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.3");
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

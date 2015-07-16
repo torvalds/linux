@@ -74,7 +74,7 @@ static int l2tp_eth_dev_init(struct net_device *dev)
 
 	priv->dev = dev;
 	eth_hw_addr_random(dev);
-	memset(&dev->broadcast[0], 0xff, 6);
+	eth_broadcast_addr(dev->broadcast);
 	dev->qdisc_tx_busylock = &l2tp_eth_tx_busylock;
 	return 0;
 }
@@ -126,6 +126,7 @@ static struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_uninit		= l2tp_eth_dev_uninit,
 	.ndo_start_xmit		= l2tp_eth_dev_xmit,
 	.ndo_get_stats64	= l2tp_eth_get_stats64,
+	.ndo_set_mac_address	= eth_mac_addr,
 };
 
 static void l2tp_eth_dev_setup(struct net_device *dev)
@@ -246,7 +247,8 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 		goto out;
 	}
 
-	dev = alloc_netdev(sizeof(*priv), name, l2tp_eth_dev_setup);
+	dev = alloc_netdev(sizeof(*priv), name, NET_NAME_UNKNOWN,
+			   l2tp_eth_dev_setup);
 	if (!dev) {
 		rc = -ENOMEM;
 		goto out_del_session;

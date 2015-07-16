@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/firmware.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -143,7 +142,7 @@ static int ti_download_firmware(struct ti_device *tdev);
 static int closing_wait = TI_DEFAULT_CLOSING_WAIT;
 
 /* supported devices */
-static struct usb_device_id ti_id_table_3410[] = {
+static const struct usb_device_id ti_id_table_3410[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -163,7 +162,7 @@ static struct usb_device_id ti_id_table_3410[] = {
 	{ }	/* terminator */
 };
 
-static struct usb_device_id ti_id_table_5052[] = {
+static const struct usb_device_id ti_id_table_5052[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5152_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_EEPROM_PRODUCT_ID) },
@@ -171,7 +170,7 @@ static struct usb_device_id ti_id_table_5052[] = {
 	{ }	/* terminator */
 };
 
-static struct usb_device_id ti_id_table_combined[] = {
+static const struct usb_device_id ti_id_table_combined[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -294,17 +293,16 @@ static int ti_startup(struct usb_serial *serial)
 	int status;
 
 	dev_dbg(&dev->dev,
-		"%s - product 0x%4X, num configurations %d, configuration value %d",
+		"%s - product 0x%4X, num configurations %d, configuration value %d\n",
 		__func__, le16_to_cpu(dev->descriptor.idProduct),
 		dev->descriptor.bNumConfigurations,
 		dev->actconfig->desc.bConfigurationValue);
 
 	/* create device structure */
 	tdev = kzalloc(sizeof(struct ti_device), GFP_KERNEL);
-	if (tdev == NULL) {
-		dev_err(&dev->dev, "%s - out of memory\n", __func__);
+	if (!tdev)
 		return -ENOMEM;
-	}
+
 	mutex_init(&tdev->td_open_close_lock);
 	tdev->td_serial = serial;
 	usb_set_serial_data(serial, tdev);
@@ -683,8 +681,6 @@ static int ti_ioctl(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
 
-	dev_dbg(&port->dev, "%s - cmd = 0x%04X\n", __func__, cmd);
-
 	if (tport == NULL)
 		return -ENODEV;
 
@@ -724,10 +720,8 @@ static void ti_set_termios(struct tty_struct *tty,
 		return;
 
 	config = kmalloc(sizeof(*config), GFP_KERNEL);
-	if (!config) {
-		dev_err(&port->dev, "%s - out of memory\n", __func__);
+	if (!config)
 		return;
-	}
 
 	config->wFlags = 0;
 
@@ -779,7 +773,6 @@ static void ti_set_termios(struct tty_struct *tty,
 			config->wFlags |= TI_UART_ENABLE_RTS_IN;
 		config->wFlags |= TI_UART_ENABLE_CTS_OUT;
 	} else {
-		tty->hw_stopped = 0;
 		ti_restart_read(tport, tty);
 	}
 
@@ -809,7 +802,7 @@ static void ti_set_termios(struct tty_struct *tty,
 		tty_encode_baud_rate(tty, baud, baud);
 
 	dev_dbg(&port->dev,
-		"%s - BaudRate=%d, wBaudRate=%d, wFlags=0x%04X, bDataBits=%d, bParity=%d, bStopBits=%d, cXon=%d, cXoff=%d, bUartMode=%d",
+		"%s - BaudRate=%d, wBaudRate=%d, wFlags=0x%04X, bDataBits=%d, bParity=%d, bStopBits=%d, cXon=%d, cXoff=%d, bUartMode=%d\n",
 		__func__, baud, config->wBaudRate, config->wFlags,
 		config->bDataBits, config->bParity, config->bStopBits,
 		config->cXon, config->cXoff, config->bUartMode);
@@ -1196,10 +1189,8 @@ static int ti_get_lsr(struct ti_port *tport, u8 *lsr)
 
 	size = sizeof(struct ti_port_status);
 	data = kmalloc(size, GFP_KERNEL);
-	if (!data) {
-		dev_err(&port->dev, "%s - out of memory\n", __func__);
+	if (!data)
 		return -ENOMEM;
-	}
 
 	status = ti_command_in_sync(tdev, TI_GET_PORT_STATUS,
 		(__u8)(TI_UART1_PORT+port_number), 0, (__u8 *)data, size);
@@ -1299,12 +1290,8 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 	/* handle CTS flow control */
 	tty = tty_port_tty_get(&tport->tp_port->port);
 	if (tty && C_CRTSCTS(tty)) {
-		if (msr & TI_MSR_CTS) {
-			tty->hw_stopped = 0;
+		if (msr & TI_MSR_CTS)
 			tty_wakeup(tty);
-		} else {
-			tty->hw_stopped = 1;
-		}
 	}
 	tty_kref_put(tty);
 }
@@ -1399,10 +1386,8 @@ static int ti_write_byte(struct usb_serial_port *port,
 
 	size = sizeof(struct ti_write_data_bytes) + 2;
 	data = kmalloc(size, GFP_KERNEL);
-	if (!data) {
-		dev_err(&port->dev, "%s - out of memory\n", __func__);
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->bAddrType = TI_RW_DATA_ADDR_XDATA;
 	data->bDataType = TI_RW_DATA_BYTE;
@@ -1518,7 +1503,6 @@ static int ti_download_firmware(struct ti_device *tdev)
 		status = ti_do_download(dev, pipe, buffer, fw_p->size);
 		kfree(buffer);
 	} else {
-		dev_dbg(&dev->dev, "%s ENOMEM\n", __func__);
 		status = -ENOMEM;
 	}
 	release_firmware(fw_p);

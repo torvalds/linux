@@ -43,13 +43,11 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd.h>
-#include <dt_object.h>
+#include "../include/obd.h"
+#include "../include/dt_object.h"
 #include <linux/list.h>
 /* fid_be_to_cpu() */
-#include <lustre_fid.h>
-
-#include <lustre_quota.h>
+#include "../include/lustre_fid.h"
 
 /* context key constructor/destructor: dt_global_key_init, dt_global_key_fini */
 LU_KEY_INIT(dt_global, struct dt_thread_info);
@@ -237,7 +235,8 @@ EXPORT_SYMBOL(dt_locate_at);
 /**
  * find a object named \a entry in given \a dfh->dfh_o directory.
  */
-static int dt_find_entry(const struct lu_env *env, const char *entry, void *data)
+static int dt_find_entry(const struct lu_env *env,
+			 const char *entry, void *data)
 {
 	struct dt_find_hint  *dfh = data;
 	struct dt_device     *dt = dfh->dfh_dt;
@@ -330,9 +329,8 @@ static struct dt_object *dt_reg_open(const struct lu_env *env,
 	int result;
 
 	result = dt_lookup_dir(env, p, name, fid);
-	if (result == 0){
+	if (result == 0)
 		o = dt_locate(env, dt, fid);
-	}
 	else
 		o = ERR_PTR(result);
 
@@ -384,26 +382,30 @@ struct dt_object *dt_find_or_create(const struct lu_env *env,
 		return dto;
 
 	th = dt_trans_create(env, dt);
-	if (IS_ERR(th))
-		GOTO(out, rc = PTR_ERR(th));
+	if (IS_ERR(th)) {
+		rc = PTR_ERR(th);
+		goto out;
+	}
 
 	rc = dt_declare_create(env, dto, at, NULL, dof, th);
 	if (rc)
-		GOTO(trans_stop, rc);
+		goto trans_stop;
 
 	rc = dt_trans_start_local(env, dt, th);
 	if (rc)
-		GOTO(trans_stop, rc);
+		goto trans_stop;
 
 	dt_write_lock(env, dto, 0);
-	if (dt_object_exists(dto))
-		GOTO(unlock, rc = 0);
+	if (dt_object_exists(dto)) {
+		rc = 0;
+		goto unlock;
+	}
 
 	CDEBUG(D_OTHER, "create new object "DFID"\n", PFID(fid));
 
 	rc = dt_create(env, dto, at, NULL, dof, th);
 	if (rc)
-		GOTO(unlock, rc);
+		goto unlock;
 	LASSERT(dt_object_exists(dto));
 unlock:
 	dt_write_unlock(env, dto);
@@ -421,11 +423,8 @@ EXPORT_SYMBOL(dt_find_or_create);
 /* dt class init function. */
 int dt_global_init(void)
 {
-	int result;
-
 	LU_CONTEXT_KEY_INIT(&dt_key);
-	result = lu_context_key_register(&dt_key);
-	return result;
+	return lu_context_key_register(&dt_key);
 }
 
 void dt_global_fini(void)
@@ -683,14 +682,18 @@ static int dt_index_page_build(const struct lu_env *env, union lu_page *lp,
 		ii->ii_hash_end = hash;
 
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_IDX_READ_BREAK)) {
-			if (lip->lip_nr != 0)
-				GOTO(out, rc = 0);
+			if (lip->lip_nr != 0) {
+				rc = 0;
+				goto out;
+			}
 		}
 
 		if (nob < size) {
 			if (lip->lip_nr == 0)
-				GOTO(out, rc = -EINVAL);
-			GOTO(out, rc = 0);
+				rc = -EINVAL;
+			else
+				rc = 0;
+			goto out;
 		}
 
 		if ((ii->ii_flags & II_FL_NOHASH) == 0) {
@@ -710,7 +713,7 @@ static int dt_index_page_build(const struct lu_env *env, union lu_page *lp,
 		rc = iops->rec(env, it, (struct dt_rec *)tmp_entry, attr);
 		if (rc != -ESTALE) {
 			if (rc != 0)
-				GOTO(out, rc);
+				goto out;
 
 			/* hash/key/record successfully copied! */
 			lip->lip_nr++;
@@ -727,7 +730,7 @@ static int dt_index_page_build(const struct lu_env *env, union lu_page *lp,
 
 	} while (rc == 0);
 
-	GOTO(out, rc);
+	goto out;
 out:
 	if (rc >= 0 && lip->lip_nr > 0)
 		/* one more container */
@@ -869,20 +872,24 @@ int dt_index_read(const struct lu_env *env, struct dt_device *dev,
 	obj = dt_locate(env, dev, &ii->ii_fid);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
-	if (dt_object_exists(obj) == 0)
-		GOTO(out, rc = -ENOENT);
+	if (dt_object_exists(obj) == 0) {
+		rc = -ENOENT;
+		goto out;
+	}
 
 	/* fetch index features associated with index object */
 	feat = dt_index_feat_select(fid_seq(&ii->ii_fid),
 				    lu_object_attr(&obj->do_lu));
-	if (IS_ERR(feat))
-		GOTO(out, rc = PTR_ERR(feat));
+	if (IS_ERR(feat)) {
+		rc = PTR_ERR(feat);
+		goto out;
+	}
 
 	/* load index feature if not done already */
 	if (obj->do_index_ops == NULL) {
 		rc = obj->do_ops->do_index_try(env, obj, feat);
 		if (rc)
-			GOTO(out, rc);
+			goto out;
 	}
 
 	/* fill ii_flags with supported index features */
@@ -893,7 +900,8 @@ int dt_index_read(const struct lu_env *env, struct dt_device *dev,
 		/* key size is variable */
 		ii->ii_flags |= II_FL_VARKEY;
 		/* we don't support variable key size for the time being */
-		GOTO(out, rc = -EOPNOTSUPP);
+		rc = -EOPNOTSUPP;
+		goto out;
 	}
 
 	ii->ii_recsize = feat->dif_recsize_max;
@@ -901,7 +909,8 @@ int dt_index_read(const struct lu_env *env, struct dt_device *dev,
 		/* record size is variable */
 		ii->ii_flags |= II_FL_VARREC;
 		/* we don't support variable record size for the time being */
-		GOTO(out, rc = -EOPNOTSUPP);
+		rc = -EOPNOTSUPP;
+		goto out;
 	}
 
 	if ((feat->dif_flags & DT_IND_NONUNQ) != 0)
@@ -913,7 +922,7 @@ int dt_index_read(const struct lu_env *env, struct dt_device *dev,
 	ii->ii_version = dt_version_get(env, obj);
 
 	/* walk the index and fill lu_idxpages with key/record pairs */
-	rc = dt_index_walk(env, obj, rdpg, dt_index_page_build ,ii);
+	rc = dt_index_walk(env, obj, rdpg, dt_index_page_build, ii);
 	dt_read_unlock(env, obj);
 
 	if (rc == 0) {
@@ -922,22 +931,20 @@ int dt_index_read(const struct lu_env *env, struct dt_device *dev,
 		ii->ii_hash_end = II_END_OFF;
 	}
 
-	GOTO(out, rc);
+	goto out;
 out:
 	lu_object_put(env, &obj->do_lu);
 	return rc;
 }
 EXPORT_SYMBOL(dt_index_read);
 
-#ifdef LPROCFS
-
 int lprocfs_dt_rd_blksize(char *page, char **start, off_t off,
 			  int count, int *eof, void *data)
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		*eof = 1;
 		rc = snprintf(page, count, "%u\n",
@@ -953,8 +960,8 @@ int lprocfs_dt_rd_kbytestotal(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		__u32 blk_size = osfs.os_bsize >> 10;
 		__u64 result = osfs.os_blocks;
@@ -963,7 +970,7 @@ int lprocfs_dt_rd_kbytestotal(char *page, char **start, off_t off,
 			result <<= 1;
 
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", result);
+		rc = snprintf(page, count, "%llu\n", result);
 	}
 
 	return rc;
@@ -975,8 +982,8 @@ int lprocfs_dt_rd_kbytesfree(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		__u32 blk_size = osfs.os_bsize >> 10;
 		__u64 result = osfs.os_bfree;
@@ -985,7 +992,7 @@ int lprocfs_dt_rd_kbytesfree(char *page, char **start, off_t off,
 			result <<= 1;
 
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", result);
+		rc = snprintf(page, count, "%llu\n", result);
 	}
 
 	return rc;
@@ -997,8 +1004,8 @@ int lprocfs_dt_rd_kbytesavail(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		__u32 blk_size = osfs.os_bsize >> 10;
 		__u64 result = osfs.os_bavail;
@@ -1007,7 +1014,7 @@ int lprocfs_dt_rd_kbytesavail(char *page, char **start, off_t off,
 			result <<= 1;
 
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", result);
+		rc = snprintf(page, count, "%llu\n", result);
 	}
 
 	return rc;
@@ -1019,11 +1026,11 @@ int lprocfs_dt_rd_filestotal(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", osfs.os_files);
+		rc = snprintf(page, count, "%llu\n", osfs.os_files);
 	}
 
 	return rc;
@@ -1035,15 +1042,13 @@ int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", osfs.os_ffree);
+		rc = snprintf(page, count, "%llu\n", osfs.os_ffree);
 	}
 
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_dt_rd_filesfree);
-
-#endif /* LPROCFS */

@@ -1,0 +1,227 @@
+/*
+ * Copyright 2014, 2015 O.S. Systems Software LTDA.
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of
+ *     the License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public
+ *     License along with this file; if not, write to the Free
+ *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+ *     MA 02110-1301 USA
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "imx6sl.dtsi"
+
+/ {
+	model = "WaRP Board";
+	compatible = "warp,imx6sl-warp", "fsl,imx6sl";
+
+	memory {
+		reg = <0x80000000 0x20000000>;
+	};
+
+	usdhc3_pwrseq: usdhc3_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpio4 5 GPIO_ACTIVE_LOW>, 	/* WL_REG_ON */
+			      <&gpio3 25 GPIO_ACTIVE_LOW>, 	/* BT_REG_ON */
+			      <&gpio4 4 GPIO_ACTIVE_LOW>, 	/* BT_WAKE */
+			      <&gpio4 6 GPIO_ACTIVE_LOW>; 	/* BT_RST_N */
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
+&usbotg1 {
+	dr_mode = "peripheral";
+	disable-over-current;
+	status = "okay";
+};
+
+&usbotg2 {
+	dr_mode = "host";
+	disable-over-current;
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc2>;
+	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
+	bus-width = <8>;
+	non-removable;
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
+	bus-width = <4>;
+	non-removable;
+	keep-power-in-suspend;
+	enable-sdio-wakeup;
+	mmc-pwrseq = <&usdhc3_pwrseq>;
+	status = "okay";
+};
+
+&iomuxc {
+	imx6sl-warp {
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX6SL_PAD_UART1_RXD__UART1_RX_DATA	0x41b0b1
+				MX6SL_PAD_UART1_TXD__UART1_TX_DATA	0x41b0b1
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX6SL_PAD_EPDC_D12__UART2_RX_DATA	0x41b0b1
+				MX6SL_PAD_EPDC_D13__UART2_TX_DATA	0x41b0b1
+				MX6SL_PAD_EPDC_D14__UART2_RTS_B		0x4130B1
+				MX6SL_PAD_EPDC_D15__UART2_CTS_B		0x4130B1
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX6SL_PAD_AUD_RXC__UART3_RX_DATA	0x41b0b1
+				MX6SL_PAD_AUD_RXC__UART3_TX_DATA	0x41b0b1
+			>;
+		};
+
+		pinctrl_usdhc2: usdhc2grp {
+			fsl,pins = <
+				MX6SL_PAD_SD2_CMD__SD2_CMD		0x417059
+				MX6SL_PAD_SD2_CLK__SD2_CLK		0x410059
+				MX6SL_PAD_SD2_DAT0__SD2_DATA0		0x417059
+				MX6SL_PAD_SD2_DAT1__SD2_DATA1		0x417059
+				MX6SL_PAD_SD2_DAT2__SD2_DATA2		0x417059
+				MX6SL_PAD_SD2_DAT3__SD2_DATA3		0x417059
+				MX6SL_PAD_SD2_DAT4__SD2_DATA4		0x417059
+				MX6SL_PAD_SD2_DAT5__SD2_DATA5		0x417059
+				MX6SL_PAD_SD2_DAT6__SD2_DATA6		0x417059
+				MX6SL_PAD_SD2_DAT7__SD2_DATA7		0x417059
+			>;
+		};
+
+		pinctrl_usdhc2_100mhz: usdhc2grp100mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD2_CMD__SD2_CMD		0x4170b9
+				MX6SL_PAD_SD2_CLK__SD2_CLK		0x4100b9
+				MX6SL_PAD_SD2_DAT0__SD2_DATA0		0x4170b9
+				MX6SL_PAD_SD2_DAT1__SD2_DATA1		0x4170b9
+				MX6SL_PAD_SD2_DAT2__SD2_DATA2		0x4170b9
+				MX6SL_PAD_SD2_DAT3__SD2_DATA3		0x4170b9
+				MX6SL_PAD_SD2_DAT4__SD2_DATA4		0x4170b9
+				MX6SL_PAD_SD2_DAT5__SD2_DATA5		0x4170b9
+				MX6SL_PAD_SD2_DAT6__SD2_DATA6		0x4170b9
+				MX6SL_PAD_SD2_DAT7__SD2_DATA7		0x4170b9
+			>;
+		};
+
+		pinctrl_usdhc2_200mhz: usdhc2grp200mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD2_CMD__SD2_CMD		0x4170f9
+				MX6SL_PAD_SD2_CLK__SD2_CLK		0x4100f9
+				MX6SL_PAD_SD2_DAT0__SD2_DATA0		0x4170f9
+				MX6SL_PAD_SD2_DAT1__SD2_DATA1		0x4170f9
+				MX6SL_PAD_SD2_DAT2__SD2_DATA2		0x4170f9
+				MX6SL_PAD_SD2_DAT3__SD2_DATA3		0x4170f9
+				MX6SL_PAD_SD2_DAT4__SD2_DATA4		0x4170f9
+				MX6SL_PAD_SD2_DAT5__SD2_DATA5		0x4170f9
+				MX6SL_PAD_SD2_DAT6__SD2_DATA6		0x4170f9
+				MX6SL_PAD_SD2_DAT7__SD2_DATA7		0x4170f9
+			>;
+		};
+
+		pinctrl_usdhc3: usdhc3grp {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x417059
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x410059
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x417059
+				MX6SL_PAD_SD3_DAT1__SD3_DATA1		0x417059
+				MX6SL_PAD_SD3_DAT2__SD3_DATA2		0x417059
+				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x417059
+			>;
+		};
+
+		pinctrl_usdhc3_100mhz: usdhc3grp100mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x4170b9
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x4100b9
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x4170b9
+				MX6SL_PAD_SD3_DAT1__SD3_DATA1		0x4170b9
+				MX6SL_PAD_SD3_DAT2__SD3_DATA2		0x4170b9
+				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x4170b9
+			>;
+		};
+
+		pinctrl_usdhc3_200mhz: usdhc3grp200mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x4170f9
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x4100f9
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x4170f9
+				MX6SL_PAD_SD3_DAT1__SD3_DATA1		0x4170f9
+				MX6SL_PAD_SD3_DAT2__SD3_DATA2		0x4170f9
+				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x4170f9
+			>;
+		};
+	};
+};

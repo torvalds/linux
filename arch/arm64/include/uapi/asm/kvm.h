@@ -31,11 +31,13 @@
 #define KVM_NR_SPSR	5
 
 #ifndef __ASSEMBLY__
+#include <linux/psci.h>
 #include <asm/types.h>
 #include <asm/ptrace.h>
 
 #define __KVM_HAVE_GUEST_DEBUG
 #define __KVM_HAVE_IRQ_LINE
+#define __KVM_HAVE_READONLY_MEM
 
 #define KVM_REG_SIZE(id)						\
 	(1U << (((id) & KVM_REG_SIZE_MASK) >> KVM_REG_SIZE_SHIFT))
@@ -55,8 +57,10 @@ struct kvm_regs {
 #define KVM_ARM_TARGET_AEM_V8		0
 #define KVM_ARM_TARGET_FOUNDATION_V8	1
 #define KVM_ARM_TARGET_CORTEX_A57	2
+#define KVM_ARM_TARGET_XGENE_POTENZA	3
+#define KVM_ARM_TARGET_CORTEX_A53	4
 
-#define KVM_ARM_NUM_TARGETS		3
+#define KVM_ARM_NUM_TARGETS		5
 
 /* KVM_ARM_SET_DEVICE_ADDR ioctl id encoding */
 #define KVM_ARM_DEVICE_TYPE_SHIFT	0
@@ -74,8 +78,16 @@ struct kvm_regs {
 #define KVM_VGIC_V2_DIST_SIZE		0x1000
 #define KVM_VGIC_V2_CPU_SIZE		0x2000
 
+/* Supported VGICv3 address types  */
+#define KVM_VGIC_V3_ADDR_TYPE_DIST	2
+#define KVM_VGIC_V3_ADDR_TYPE_REDIST	3
+
+#define KVM_VGIC_V3_DIST_SIZE		SZ_64K
+#define KVM_VGIC_V3_REDIST_SIZE		(2 * SZ_64K)
+
 #define KVM_ARM_VCPU_POWER_OFF		0 /* CPU is started in OFF state */
 #define KVM_ARM_VCPU_EL1_32BIT		1 /* CPU running a 32bit VM */
+#define KVM_ARM_VCPU_PSCI_0_2		2 /* CPU uses PSCI v0.2 */
 
 struct kvm_vcpu_init {
 	__u32 target;
@@ -129,6 +141,36 @@ struct kvm_arch_memory_slot {
 #define KVM_REG_ARM64_SYSREG_OP2_MASK	0x0000000000000007
 #define KVM_REG_ARM64_SYSREG_OP2_SHIFT	0
 
+#define ARM64_SYS_REG_SHIFT_MASK(x,n) \
+	(((x) << KVM_REG_ARM64_SYSREG_ ## n ## _SHIFT) & \
+	KVM_REG_ARM64_SYSREG_ ## n ## _MASK)
+
+#define __ARM64_SYS_REG(op0,op1,crn,crm,op2) \
+	(KVM_REG_ARM64 | KVM_REG_ARM64_SYSREG | \
+	ARM64_SYS_REG_SHIFT_MASK(op0, OP0) | \
+	ARM64_SYS_REG_SHIFT_MASK(op1, OP1) | \
+	ARM64_SYS_REG_SHIFT_MASK(crn, CRN) | \
+	ARM64_SYS_REG_SHIFT_MASK(crm, CRM) | \
+	ARM64_SYS_REG_SHIFT_MASK(op2, OP2))
+
+#define ARM64_SYS_REG(...) (__ARM64_SYS_REG(__VA_ARGS__) | KVM_REG_SIZE_U64)
+
+#define KVM_REG_ARM_TIMER_CTL		ARM64_SYS_REG(3, 3, 14, 3, 1)
+#define KVM_REG_ARM_TIMER_CNT		ARM64_SYS_REG(3, 3, 14, 3, 2)
+#define KVM_REG_ARM_TIMER_CVAL		ARM64_SYS_REG(3, 3, 14, 0, 2)
+
+/* Device Control API: ARM VGIC */
+#define KVM_DEV_ARM_VGIC_GRP_ADDR	0
+#define KVM_DEV_ARM_VGIC_GRP_DIST_REGS	1
+#define KVM_DEV_ARM_VGIC_GRP_CPU_REGS	2
+#define   KVM_DEV_ARM_VGIC_CPUID_SHIFT	32
+#define   KVM_DEV_ARM_VGIC_CPUID_MASK	(0xffULL << KVM_DEV_ARM_VGIC_CPUID_SHIFT)
+#define   KVM_DEV_ARM_VGIC_OFFSET_SHIFT	0
+#define   KVM_DEV_ARM_VGIC_OFFSET_MASK	(0xffffffffULL << KVM_DEV_ARM_VGIC_OFFSET_SHIFT)
+#define KVM_DEV_ARM_VGIC_GRP_NR_IRQS	3
+#define KVM_DEV_ARM_VGIC_GRP_CTRL	4
+#define   KVM_DEV_ARM_VGIC_CTRL_INIT	0
+
 /* KVM_IRQ_LINE irq field index values */
 #define KVM_ARM_IRQ_TYPE_SHIFT		24
 #define KVM_ARM_IRQ_TYPE_MASK		0xff
@@ -146,8 +188,17 @@ struct kvm_arch_memory_slot {
 #define KVM_ARM_IRQ_CPU_IRQ		0
 #define KVM_ARM_IRQ_CPU_FIQ		1
 
-/* Highest supported SPI, from VGIC_NR_IRQS */
+/*
+ * This used to hold the highest supported SPI, but it is now obsolete
+ * and only here to provide source code level compatibility with older
+ * userland. The highest SPI number can be set via KVM_DEV_ARM_VGIC_GRP_NR_IRQS.
+ */
+#ifndef __KERNEL__
 #define KVM_ARM_IRQ_GIC_MAX		127
+#endif
+
+/* One single KVM irqchip, ie. the VGIC */
+#define KVM_NR_IRQCHIPS          1
 
 /* PSCI interface */
 #define KVM_PSCI_FN_BASE		0x95c1ba5e
@@ -158,10 +209,10 @@ struct kvm_arch_memory_slot {
 #define KVM_PSCI_FN_CPU_ON		KVM_PSCI_FN(2)
 #define KVM_PSCI_FN_MIGRATE		KVM_PSCI_FN(3)
 
-#define KVM_PSCI_RET_SUCCESS		0
-#define KVM_PSCI_RET_NI			((unsigned long)-1)
-#define KVM_PSCI_RET_INVAL		((unsigned long)-2)
-#define KVM_PSCI_RET_DENIED		((unsigned long)-3)
+#define KVM_PSCI_RET_SUCCESS		PSCI_RET_SUCCESS
+#define KVM_PSCI_RET_NI			PSCI_RET_NOT_SUPPORTED
+#define KVM_PSCI_RET_INVAL		PSCI_RET_INVALID_PARAMS
+#define KVM_PSCI_RET_DENIED		PSCI_RET_DENIED
 
 #endif
 

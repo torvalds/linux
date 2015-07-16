@@ -14,7 +14,7 @@
 #include <linux/sunrpc/debug.h>
 #include <linux/sunrpc/sched.h>
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
@@ -37,6 +37,12 @@ struct rpc_cred *rpc_lookup_cred(void)
 	return rpcauth_lookupcred(&generic_auth, 0);
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_cred);
+
+struct rpc_cred *rpc_lookup_cred_nonblock(void)
+{
+	return rpcauth_lookupcred(&generic_auth, RPCAUTH_LOOKUP_RCU);
+}
+EXPORT_SYMBOL_GPL(rpc_lookup_cred_nonblock);
 
 /*
  * Public call interface for looking up machine creds.

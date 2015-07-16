@@ -17,79 +17,36 @@
  * battery charging and regulator control, firmware update.
  */
 
+#include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
 
-int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
-		       struct cros_ec_msg *msg)
-{
-	uint8_t *out;
-	int csum, i;
+#define CROS_EC_DEV_EC_INDEX 0
+#define CROS_EC_DEV_PD_INDEX 1
 
-	BUG_ON(msg->out_len > EC_HOST_PARAM_SIZE);
-	out = ec_dev->dout;
-	out[0] = EC_CMD_VERSION0 + msg->version;
-	out[1] = msg->cmd;
-	out[2] = msg->out_len;
-	csum = out[0] + out[1] + out[2];
-	for (i = 0; i < msg->out_len; i++)
-		csum += out[EC_MSG_TX_HEADER_BYTES + i] = msg->out_buf[i];
-	out[EC_MSG_TX_HEADER_BYTES + msg->out_len] = (uint8_t)(csum & 0xff);
+static struct cros_ec_platform ec_p = {
+	.ec_name = CROS_EC_DEV_NAME,
+	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_EC_INDEX),
+};
 
-	return EC_MSG_TX_PROTO_BYTES + msg->out_len;
-}
-EXPORT_SYMBOL(cros_ec_prepare_tx);
+static struct cros_ec_platform pd_p = {
+	.ec_name = CROS_EC_DEV_PD_NAME,
+	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX),
+};
 
-static int cros_ec_command_sendrecv(struct cros_ec_device *ec_dev,
-		uint16_t cmd, void *out_buf, int out_len,
-		void *in_buf, int in_len)
-{
-	struct cros_ec_msg msg;
+static const struct mfd_cell ec_cell = {
+	.name = "cros-ec-ctl",
+	.platform_data = &ec_p,
+	.pdata_size = sizeof(ec_p),
+};
 
-	msg.version = cmd >> 8;
-	msg.cmd = cmd & 0xff;
-	msg.out_buf = out_buf;
-	msg.out_len = out_len;
-	msg.in_buf = in_buf;
-	msg.in_len = in_len;
-
-	return ec_dev->command_xfer(ec_dev, &msg);
-}
-
-static int cros_ec_command_recv(struct cros_ec_device *ec_dev,
-		uint16_t cmd, void *buf, int buf_len)
-{
-	return cros_ec_command_sendrecv(ec_dev, cmd, NULL, 0, buf, buf_len);
-}
-
-static int cros_ec_command_send(struct cros_ec_device *ec_dev,
-		uint16_t cmd, void *buf, int buf_len)
-{
-	return cros_ec_command_sendrecv(ec_dev, cmd, buf, buf_len, NULL, 0);
-}
-
-static irqreturn_t ec_irq_thread(int irq, void *data)
-{
-	struct cros_ec_device *ec_dev = data;
-
-	if (device_may_wakeup(ec_dev->dev))
-		pm_wakeup_event(ec_dev->dev, 0);
-
-	blocking_notifier_call_chain(&ec_dev->event_notifier, 1, ec_dev);
-
-	return IRQ_HANDLED;
-}
-
-static struct mfd_cell cros_devs[] = {
-	{
-		.name = "cros-ec-keyb",
-		.id = 1,
-		.of_compatible = "google,cros-ec-keyb",
-	},
+static const struct mfd_cell ec_pd_cell = {
+	.name = "cros-ec-ctl",
+	.platform_data = &pd_p,
+	.pdata_size = sizeof(pd_p),
 };
 
 int cros_ec_register(struct cros_ec_device *ec_dev)
@@ -97,59 +54,68 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	struct device *dev = ec_dev->dev;
 	int err = 0;
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->event_notifier);
+	ec_dev->max_request = sizeof(struct ec_params_hello);
+	ec_dev->max_response = sizeof(struct ec_response_get_protocol_info);
+	ec_dev->max_passthru = 0;
 
-	ec_dev->command_send = cros_ec_command_send;
-	ec_dev->command_recv = cros_ec_command_recv;
-	ec_dev->command_sendrecv = cros_ec_command_sendrecv;
+	ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
+	if (!ec_dev->din)
+		return -ENOMEM;
 
-	if (ec_dev->din_size) {
-		ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
-		if (!ec_dev->din)
-			return -ENOMEM;
-	}
-	if (ec_dev->dout_size) {
-		ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
-		if (!ec_dev->dout)
-			return -ENOMEM;
-	}
+	ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
+	if (!ec_dev->dout)
+		return -ENOMEM;
 
-	if (!ec_dev->irq) {
-		dev_dbg(dev, "no valid IRQ: %d\n", ec_dev->irq);
-		return err;
-	}
+	mutex_init(&ec_dev->lock);
 
-	err = request_threaded_irq(ec_dev->irq, NULL, ec_irq_thread,
-				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				   "chromeos-ec", ec_dev);
-	if (err) {
-		dev_err(dev, "request irq %d: error %d\n", ec_dev->irq, err);
-		return err;
-	}
+	cros_ec_query_all(ec_dev);
 
-	err = mfd_add_devices(dev, 0, cros_devs,
-			      ARRAY_SIZE(cros_devs),
+	err = mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO, &ec_cell, 1,
 			      NULL, ec_dev->irq, NULL);
 	if (err) {
-		dev_err(dev, "failed to add mfd devices\n");
-		goto fail_mfd;
+		dev_err(dev,
+			"Failed to register Embedded Controller subdevice %d\n",
+			err);
+		return err;
 	}
 
-	dev_info(dev, "Chrome EC (%s)\n", ec_dev->name);
+	if (ec_dev->max_passthru) {
+		/*
+		 * Register a PD device as well on top of this device.
+		 * We make the following assumptions:
+		 * - behind an EC, we have a pd
+		 * - only one device added.
+		 * - the EC is responsive at init time (it is not true for a
+		 *   sensor hub.
+		 */
+		err = mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO,
+				      &ec_pd_cell, 1, NULL, ec_dev->irq, NULL);
+		if (err) {
+			dev_err(dev,
+				"Failed to register Power Delivery subdevice %d\n",
+				err);
+			return err;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+		err = of_platform_populate(dev->of_node, NULL, NULL, dev);
+		if (err) {
+			mfd_remove_devices(dev);
+			dev_err(dev, "Failed to register sub-devices\n");
+			return err;
+		}
+	}
+
+	dev_info(dev, "Chrome EC device registered\n");
 
 	return 0;
-
-fail_mfd:
-	free_irq(ec_dev->irq, ec_dev);
-
-	return err;
 }
 EXPORT_SYMBOL(cros_ec_register);
 
 int cros_ec_remove(struct cros_ec_device *ec_dev)
 {
 	mfd_remove_devices(ec_dev->dev);
-	free_irq(ec_dev->irq, ec_dev);
 
 	return 0;
 }
@@ -184,3 +150,6 @@ int cros_ec_resume(struct cros_ec_device *ec_dev)
 EXPORT_SYMBOL(cros_ec_resume);
 
 #endif
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ChromeOS EC core driver");

@@ -18,9 +18,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include "soc.h"
-#include "iomap.h"
-#include "common.h"
 #include "prm2xxx.h"
 #include "cm.h"
 #include "cm2xxx.h"
@@ -56,7 +53,7 @@ static void _write_clktrctrl(u8 c, s16 module, u32 mask)
 	omap2_cm_write_mod_reg(v, module, OMAP2_CM_CLKSTCTRL);
 }
 
-bool omap2xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
+static bool omap2xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
 {
 	u32 v;
 
@@ -67,12 +64,12 @@ bool omap2xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
 	return (v == OMAP24XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
 }
 
-void omap2xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
+static void omap2xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP24XX_CLKSTCTRL_ENABLE_AUTO, module, mask);
 }
 
-void omap2xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
+static void omap2xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP24XX_CLKSTCTRL_DISABLE_AUTO, module, mask);
 }
@@ -153,7 +150,7 @@ static int _omap2xxx_apll_enable(u8 enable_bit, u8 status_bit)
 	v |= m;
 	omap2_cm_write_mod_reg(v, PLL_MOD, CM_CLKEN);
 
-	omap2xxx_cm_wait_module_ready(PLL_MOD, 1, status_bit);
+	omap2xxx_cm_wait_module_ready(0, PLL_MOD, 1, status_bit);
 
 	/*
 	 * REVISIT: Should we return an error code if
@@ -207,8 +204,9 @@ void omap2xxx_cm_apll96_disable(void)
  * XXX This function is only needed until absolute register addresses are
  * removed from the OMAP struct clk records.
  */
-int omap2xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
-				 u8 *idlest_reg_id)
+static int omap2xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
+					s16 *prcm_inst,
+					u8 *idlest_reg_id)
 {
 	unsigned long offs;
 	u8 idlest_offs;
@@ -241,6 +239,7 @@ int omap2xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
 
 /**
  * omap2xxx_cm_wait_module_ready - wait for a module to leave idle or standby
+ * @part: PRCM partition, ignored for OMAP2
  * @prcm_mod: PRCM module offset
  * @idlest_id: CM_IDLESTx register ID (i.e., x = 1, 2, 3)
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
@@ -249,7 +248,8 @@ int omap2xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
  * (@prcm_mod, @idlest_id, @idlest_shift) is clocked.  Return 0 upon
  * success or -EBUSY if the module doesn't enable in time.
  */
-int omap2xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
+int omap2xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
+				  u8 idlest_shift)
 {
 	int ena = 0, i = 0;
 	u8 cm_idlest_reg;
@@ -370,16 +370,6 @@ u32 omap2xxx_cm_get_core_pll_config(void)
 	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
 }
 
-u32 omap2xxx_cm_get_pll_config(void)
-{
-	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL1);
-}
-
-u32 omap2xxx_cm_get_pll_status(void)
-{
-	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
-}
-
 void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core, u32 mdm)
 {
 	u32 tmp;
@@ -390,7 +380,7 @@ void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core, u32 mdm)
 	tmp = omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL1) &
 		OMAP24XX_CLKSEL_DSS2_MASK;
 	omap2_cm_write_mod_reg(core | tmp, CORE_MOD, CM_CLKSEL1);
-	if (cpu_is_omap2430())
+	if (mdm)
 		omap2_cm_write_mod_reg(mdm, OMAP2430_MDM_MOD, CM_CLKSEL);
 }
 
@@ -403,21 +393,13 @@ static struct cm_ll_data omap2xxx_cm_ll_data = {
 	.wait_module_ready	= &omap2xxx_cm_wait_module_ready,
 };
 
-int __init omap2xxx_cm_init(void)
+int __init omap2xxx_cm_init(const struct omap_prcm_init_data *data)
 {
-	if (!cpu_is_omap24xx())
-		return 0;
-
 	return cm_register(&omap2xxx_cm_ll_data);
 }
 
 static void __exit omap2xxx_cm_exit(void)
 {
-	if (!cpu_is_omap24xx())
-		return;
-
-	/* Should never happen */
-	WARN(cm_unregister(&omap2xxx_cm_ll_data),
-	     "%s: cm_ll_data function pointer mismatch\n", __func__);
+	cm_unregister(&omap2xxx_cm_ll_data);
 }
 __exitcall(omap2xxx_cm_exit);

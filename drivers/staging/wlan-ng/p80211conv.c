@@ -107,7 +107,7 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 			struct p80211_metawep *p80211_wep)
 {
 
-	u16 fc;
+	__le16 fc;
 	u16 proto;
 	struct wlan_ethhdr e_hdr;
 	struct wlan_llc *e_llc;
@@ -129,7 +129,7 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 	} else {
 		/* step 1: classify ether frame, DIX or 802.3? */
 		proto = ntohs(e_hdr.type);
-		if (proto <= 1500) {
+		if (proto <= ETH_DATA_LEN) {
 			pr_debug("802.3 len: %d\n", skb->len);
 			/* codes <= 1500 reserved for 802.3 lengths */
 			/* it's 802.3, pass ether payload unchanged,  */
@@ -195,10 +195,9 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 		memcpy(p80211_hdr->a3.a3, &e_hdr.saddr, ETH_ALEN);
 		break;
 	default:
-		printk(KERN_ERR
-		       "Error: Converting eth to wlan in unknown mode.\n");
+		netdev_err(wlandev->netdev,
+			   "Error: Converting eth to wlan in unknown mode.\n");
 		return 1;
-		break;
 	}
 
 	p80211_wep->data = NULL;
@@ -208,12 +207,14 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 		/* XXXX need to pick keynum other than default? */
 
 		p80211_wep->data = kmalloc(skb->len, GFP_ATOMIC);
+		if (!p80211_wep->data)
+			return -ENOMEM;
 		foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
 				  skb->len,
 				  (wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK),
 				  p80211_wep->iv, p80211_wep->icv);
 		if (foo) {
-			printk(KERN_WARNING
+			netdev_warn(wlandev->netdev,
 			       "Host en-WEP failed, dropping frame (%d).\n",
 			       foo);
 			return 2;
@@ -310,7 +311,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	} else {
 		payload_offset = WLAN_HDR_A4_LEN;
 		if (payload_length < WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN) {
-			printk(KERN_ERR "A4 frame too short!\n");
+			netdev_err(netdev, "A4 frame too short!\n");
 			return 1;
 		}
 		payload_length -= (WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN);
@@ -322,8 +323,8 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 	if ((wlandev->hostwep & HOSTWEP_PRIVACYINVOKED) && WLAN_GET_FC_ISWEP(fc)
 	    && (wlandev->hostwep & HOSTWEP_DECRYPT)) {
 		if (payload_length <= 8) {
-			printk(KERN_ERR "WEP frame too short (%u).\n",
-			       skb->len);
+			netdev_err(netdev,
+				   "WEP frame too short (%u).\n", skb->len);
 			return 1;
 		}
 		foo = wep_decrypt(wlandev, skb->data + payload_offset + 4,
@@ -367,7 +368,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		if (payload_length > (netdev->mtu + WLAN_ETHHDR_LEN)) {
 			/* A bogus length ethfrm has been encap'd. */
 			/* Is someone trying an oflow attack? */
-			printk(KERN_ERR "ENCAP frame too large (%d > %d)\n",
+			netdev_err(netdev, "ENCAP frame too large (%d > %d)\n",
 			       payload_length, netdev->mtu + WLAN_ETHHDR_LEN);
 			return 1;
 		}
@@ -396,7 +397,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		if (payload_length > netdev->mtu) {
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
-			printk(KERN_ERR "SNAP frame too large (%d > %d)\n",
+			netdev_err(netdev, "SNAP frame too large (%d > %d)\n",
 			       payload_length, netdev->mtu);
 			return 1;
 		}
@@ -428,7 +429,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			> netdev->mtu) {
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
-			printk(KERN_ERR "DIXII frame too large (%ld > %d)\n",
+			netdev_err(netdev, "DIXII frame too large (%ld > %d)\n",
 			       (long int)(payload_length -
 					sizeof(struct wlan_llc) -
 					sizeof(struct wlan_snap)), netdev->mtu);
@@ -463,7 +464,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 		if (payload_length > netdev->mtu) {
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
-			printk(KERN_ERR "OTHER frame too large (%d > %d)\n",
+			netdev_err(netdev, "OTHER frame too large (%d > %d)\n",
 			       payload_length, netdev->mtu);
 			return 1;
 		}
@@ -512,7 +513,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 * protocol.
 *
 * Arguments:
-*	proto	protocl number (in host order) to search for.
+*	proto	protocol number (in host order) to search for.
 *
 * Returns:
 *	1 - if the table is empty or a match is found.
@@ -530,7 +531,7 @@ int p80211_stt_findproto(u16 proto)
 	   Need to do some testing to confirm.
 	 */
 
-	if (proto == 0x80f3)	/* APPLETALK */
+	if (proto == ETH_P_AARP)	/* APPLETALK */
 		return 1;
 
 	return 0;
@@ -603,8 +604,8 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 
 	/* If these already have metadata, we error out! */
 	if (P80211SKB_RXMETA(skb) != NULL) {
-		printk(KERN_ERR "%s: RXmeta already attached!\n",
-		       wlandev->name);
+		netdev_err(wlandev->netdev,
+			   "%s: RXmeta already attached!\n", wlandev->name);
 		result = 0;
 		goto exit;
 	}
@@ -613,8 +614,8 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	rxmeta = kzalloc(sizeof(struct p80211_rxmeta), GFP_ATOMIC);
 
 	if (rxmeta == NULL) {
-		printk(KERN_ERR "%s: Failed to allocate rxmeta.\n",
-		       wlandev->name);
+		netdev_err(wlandev->netdev,
+			   "%s: Failed to allocate rxmeta.\n", wlandev->name);
 		result = 1;
 		goto exit;
 	}
@@ -656,6 +657,7 @@ void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
 	if (meta && meta->rx)
 		p80211skb_rxmeta_detach(skb);
 	else
-		printk(KERN_ERR "Freeing an skb (%p) w/ no frmmeta.\n", skb);
+		netdev_err(wlandev->netdev,
+			   "Freeing an skb (%p) w/ no frmmeta.\n", skb);
 	dev_kfree_skb(skb);
 }

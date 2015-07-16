@@ -60,7 +60,7 @@ MODULE_DESCRIPTION(KBUILD_MODNAME "CAN netdevice driver");
  *
  * The message objects 1..14 can be used for TX and RX while the message
  * objects 15 is optimized for RX. It has a shadow register for reliable
- * data receiption under heavy bus load. Therefore it makes sense to use
+ * data reception under heavy bus load. Therefore it makes sense to use
  * this message object for the needed use case. The frame type (EFF/SFF)
  * for the message object 15 can be defined via kernel module parameter
  * "msgobj15_eff". If not equal 0, it will receive 29-bit EFF frames,
@@ -535,6 +535,7 @@ static int cc770_err(struct net_device *dev, u8 status)
 		cc770_write_reg(priv, control, CTRL_INI);
 		cf->can_id |= CAN_ERR_BUSOFF;
 		priv->can.state = CAN_STATE_BUS_OFF;
+		priv->can.can_stats.bus_off++;
 		can_bus_off(dev);
 	} else if (status & STAT_WARN) {
 		cf->can_id |= CAN_ERR_CRTL;
@@ -823,6 +824,7 @@ static const struct net_device_ops cc770_netdev_ops = {
 	.ndo_open = cc770_open,
 	.ndo_stop = cc770_close,
 	.ndo_start_xmit = cc770_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 int register_cc770dev(struct net_device *dev)

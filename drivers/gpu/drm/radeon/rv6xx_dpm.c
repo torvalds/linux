@@ -24,6 +24,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "rv6xxd.h"
 #include "r600_dpm.h"
 #include "rv6xx_dpm.h"
@@ -1546,7 +1547,6 @@ int rv6xx_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv6xx_power_info *pi = rv6xx_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
-	int ret;
 
 	if (r600_dynamicpm_enabled(rdev))
 		return -EINVAL;
@@ -1593,15 +1593,6 @@ int rv6xx_dpm_enable(struct radeon_device *rdev)
 	r600_power_level_enable(rdev, R600_POWER_LEVEL_LOW, true);
 	r600_power_level_enable(rdev, R600_POWER_LEVEL_MEDIUM, true);
 	r600_power_level_enable(rdev, R600_POWER_LEVEL_HIGH, true);
-
-	if (rdev->irq.installed &&
-	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		ret = r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
-		if (ret)
-			return ret;
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-	}
 
 	rv6xx_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
@@ -1901,9 +1892,6 @@ static int rv6xx_parse_power_table(struct radeon_device *rdev)
 				  power_info->pplib.ucNumStates, GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 
 	for (i = 0; i < power_info->pplib.ucNumStates; i++) {
 		power_state = (union pplib_power_state *)
@@ -1952,6 +1940,10 @@ int rv6xx_dpm_init(struct radeon_device *rdev)
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = rv6xx_parse_power_table(rdev);
 	if (ret)
@@ -2055,6 +2047,52 @@ void rv6xx_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
 		seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u\n",
 			   current_index, pl->sclk, pl->mclk, pl->vddc);
+	}
+}
+
+/* get the current sclk in 10 khz units */
+u32 rv6xx_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct rv6xx_ps *ps = rv6xx_get_ps(rps);
+	struct rv6xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		return 0;
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		return pl->sclk;
+	}
+}
+
+/* get the current mclk in 10 khz units */
+u32 rv6xx_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct rv6xx_ps *ps = rv6xx_get_ps(rps);
+	struct rv6xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		return 0;
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		return pl->mclk;
 	}
 }
 

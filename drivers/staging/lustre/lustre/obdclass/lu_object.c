@@ -44,18 +44,18 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 # include <linux/module.h>
 
 /* hash_long() */
-#include <linux/libcfs/libcfs_hash.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_disk.h>
-#include <lustre_fid.h>
-#include <lu_object.h>
-#include <lu_ref.h>
+#include "../../include/linux/libcfs/libcfs_hash.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_fid.h"
+#include "../include/lu_object.h"
+#include "../include/lu_ref.h"
 #include <linux/list.h>
 
 static void lu_object_free(const struct lu_env *env, struct lu_object *o);
@@ -200,6 +200,8 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 	struct lu_object *scan;
 	struct lu_object *top;
 	struct list_head *layers;
+	unsigned int init_mask = 0;
+	unsigned int init_flag;
 	int clean;
 	int result;
 
@@ -218,15 +220,17 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 	 */
 	top->lo_header->loh_fid = *f;
 	layers = &top->lo_header->loh_layers;
+
 	do {
 		/*
 		 * Call ->loo_object_init() repeatedly, until no more new
 		 * object slices are created.
 		 */
 		clean = 1;
+		init_flag = 1;
 		list_for_each_entry(scan, layers, lo_linkage) {
-			if (scan->lo_flags & LU_OBJECT_ALLOCATED)
-				continue;
+			if (init_mask & init_flag)
+				goto next;
 			clean = 0;
 			scan->lo_header = top->lo_header;
 			result = scan->lo_ops->loo_object_init(env, scan, conf);
@@ -234,7 +238,9 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 				lu_object_free(env, top);
 				return ERR_PTR(result);
 			}
-			scan->lo_flags |= LU_OBJECT_ALLOCATED;
+			init_mask |= init_flag;
+next:
+			init_flag <<= 1;
 		}
 	} while (!clean);
 
@@ -423,7 +429,7 @@ LU_KEY_INIT_FINI(lu_global, struct lu_cdebug_data);
  */
 struct lu_context_key lu_global_key = {
 	.lct_tags = LCT_MD_THREAD | LCT_DT_THREAD |
-		    LCT_MG_THREAD | LCT_CL_THREAD,
+		    LCT_MG_THREAD | LCT_CL_THREAD | LCT_LOCAL,
 	.lct_init = lu_global_key_init,
 	.lct_fini = lu_global_key_fini
 };
@@ -487,23 +493,25 @@ void lu_object_print(const struct lu_env *env, void *cookie,
 {
 	static const char ruler[] = "........................................";
 	struct lu_object_header *top;
-	int depth;
+	int depth = 4;
 
 	top = o->lo_header;
 	lu_object_header_print(env, cookie, printer, top);
-	(*printer)(env, cookie, "{ \n");
-	list_for_each_entry(o, &top->loh_layers, lo_linkage) {
-		depth = o->lo_depth + 4;
+	(*printer)(env, cookie, "{\n");
 
+	list_for_each_entry(o, &top->loh_layers, lo_linkage) {
 		/*
 		 * print `.' \a depth times followed by type name and address
 		 */
 		(*printer)(env, cookie, "%*.*s%s@%p", depth, depth, ruler,
 			   o->lo_dev->ld_type->ldt_name, o);
+
 		if (o->lo_ops->loo_object_print != NULL)
-			o->lo_ops->loo_object_print(env, cookie, printer, o);
+			(*o->lo_ops->loo_object_print)(env, cookie, printer, o);
+
 		(*printer)(env, cookie, "\n");
 	}
+
 	(*printer)(env, cookie, "} header@%p\n", top);
 }
 EXPORT_SYMBOL(lu_object_print);
@@ -563,7 +571,7 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 	 * drained), and moreover, lookup has to wait until object is freed.
 	 */
 
-	init_waitqueue_entry_current(waiter);
+	init_waitqueue_entry(waiter, current);
 	add_wait_queue(&bkt->lsb_marche_funebre, waiter);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_DEATH_RACE);
@@ -704,7 +712,7 @@ struct lu_object *lu_object_find_at(const struct lu_env *env,
 		 * lu_object_find_try() already added waiter into the
 		 * wait queue.
 		 */
-		waitq_wait(&wait, TASK_UNINTERRUPTIBLE);
+		schedule();
 		bkt = lu_site_bkt_from_fid(dev->ld_site, (void *)f);
 		remove_wait_queue(&bkt->lsb_marche_funebre, &wait);
 	}
@@ -830,8 +838,8 @@ enum {
 };
 
 static unsigned int lu_cache_percent = LU_CACHE_PERCENT_DEFAULT;
-CFS_MODULE_PARM(lu_cache_percent, "i", int, 0644,
-		"Percentage of memory to be used as lu_object cache");
+module_param(lu_cache_percent, int, 0644);
+MODULE_PARM_DESC(lu_cache_percent, "Percentage of memory to be used as lu_object cache");
 
 /**
  * Return desired hash table order.
@@ -858,8 +866,7 @@ static int lu_htable_order(void)
 
 	/* clear off unreasonable cache setting. */
 	if (lu_cache_percent == 0 || lu_cache_percent > LU_CACHE_PERCENT_MAX) {
-		CWARN("obdclass: invalid lu_cache_percent: %u, it must be in"
-		      " the range of (0, %u]. Will use default value: %u.\n",
+		CWARN("obdclass: invalid lu_cache_percent: %u, it must be in the range of (0, %u]. Will use default value: %u.\n",
 		      lu_cache_percent, LU_CACHE_PERCENT_MAX,
 		      LU_CACHE_PERCENT_DEFAULT);
 
@@ -882,10 +889,10 @@ static unsigned lu_obj_hop_hash(struct cfs_hash *hs,
 
 	hash = fid_flatten32(fid);
 	hash += (hash >> 4) + (hash << 12); /* mixing oid and seq */
-	hash = cfs_hash_long(hash, hs->hs_bkt_bits);
+	hash = hash_long(hash, hs->hs_bkt_bits);
 
 	/* give me another random factor */
-	hash -= cfs_hash_long((unsigned long)hs, fid_oid(fid) % 11 + 3);
+	hash -= hash_long((unsigned long)hs, fid_oid(fid) % 11 + 3);
 
 	hash <<= hs->hs_cur_bits - hs->hs_bkt_bits;
 	hash |= (fid_seq(fid) + fid_oid(fid)) & (CFS_HASH_NBKT(hs) - 1);
@@ -1301,7 +1308,7 @@ static DEFINE_SPINLOCK(lu_keys_guard);
  * lu_context_refill(). No locking is provided, as initialization and shutdown
  * are supposed to be externally serialized.
  */
-static unsigned key_set_version = 0;
+static unsigned key_set_version;
 
 /**
  * Register new key.
@@ -1525,7 +1532,7 @@ static void keys_fini(struct lu_context *ctx)
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i)
 		key_fini(ctx, i);
 
-	OBD_FREE(ctx->lc_value, ARRAY_SIZE(lu_keys) * sizeof(ctx->lc_value[0]));
+	kfree(ctx->lc_value);
 	ctx->lc_value = NULL;
 }
 
@@ -1574,8 +1581,8 @@ static int keys_fill(struct lu_context *ctx)
 
 static int keys_init(struct lu_context *ctx)
 {
-	OBD_ALLOC(ctx->lc_value,
-		  ARRAY_SIZE(lu_keys) * sizeof(ctx->lc_value[0]));
+	ctx->lc_value = kcalloc(ARRAY_SIZE(lu_keys), sizeof(ctx->lc_value[0]),
+				GFP_NOFS);
 	if (likely(ctx->lc_value != NULL))
 		return keys_fill(ctx);
 
@@ -1762,8 +1769,6 @@ EXPORT_SYMBOL(lu_env_refill);
 int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 			  __u32 stags)
 {
-	int    result;
-
 	if ((env->le_ctx.lc_tags & ctags) != ctags) {
 		env->le_ctx.lc_version = 0;
 		env->le_ctx.lc_tags |= ctags;
@@ -1774,9 +1779,7 @@ int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 		env->le_ses->lc_tags |= stags;
 	}
 
-	result = lu_env_refill(env);
-
-	return result;
+	return lu_env_refill(env);
 }
 EXPORT_SYMBOL(lu_env_refill_by_tags);
 
@@ -1986,14 +1989,10 @@ void lu_global_fini(void)
 
 static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx)
 {
-#ifdef LPROCFS
 	struct lprocfs_counter ret;
 
 	lprocfs_stats_collect(stats, idx, &ret);
 	return (__u32)ret.lc_count;
-#else
-	return 0;
-#endif
 }
 
 /**
@@ -2007,18 +2006,19 @@ int lu_site_stats_print(const struct lu_site *s, struct seq_file *m)
 	memset(&stats, 0, sizeof(stats));
 	lu_site_stats_get(s->ls_obj_hash, &stats, 1);
 
-	return seq_printf(m, "%d/%d %d/%d %d %d %d %d %d %d %d\n",
-			stats.lss_busy,
-			stats.lss_total,
-			stats.lss_populated,
-			CFS_HASH_NHLIST(s->ls_obj_hash),
-			stats.lss_max_search,
-			ls_stats_read(s->ls_stats, LU_SS_CREATED),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_HIT),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_MISS),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_RACE),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_DEATH_RACE),
-			ls_stats_read(s->ls_stats, LU_SS_LRU_PURGED));
+	seq_printf(m, "%d/%d %d/%d %d %d %d %d %d %d %d\n",
+		   stats.lss_busy,
+		   stats.lss_total,
+		   stats.lss_populated,
+		   CFS_HASH_NHLIST(s->ls_obj_hash),
+		   stats.lss_max_search,
+		   ls_stats_read(s->ls_stats, LU_SS_CREATED),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_HIT),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_MISS),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_RACE),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_DEATH_RACE),
+		   ls_stats_read(s->ls_stats, LU_SS_LRU_PURGED));
+	return 0;
 }
 EXPORT_SYMBOL(lu_site_stats_print);
 
@@ -2092,7 +2092,7 @@ void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
 EXPORT_SYMBOL(lu_object_assign_fid);
 
 /**
- * allocates object with 0 (non-assiged) fid
+ * allocates object with 0 (non-assigned) fid
  * XXX: temporary solution to be able to assign fid in ->do_create()
  *      till we have fully-functional OST fids
  */
@@ -2121,7 +2121,7 @@ void lu_buf_free(struct lu_buf *buf)
 	LASSERT(buf);
 	if (buf->lb_buf) {
 		LASSERT(buf->lb_len > 0);
-		OBD_FREE_LARGE(buf->lb_buf, buf->lb_len);
+		kvfree(buf->lb_buf);
 		buf->lb_buf = NULL;
 		buf->lb_len = 0;
 	}
@@ -2133,7 +2133,7 @@ void lu_buf_alloc(struct lu_buf *buf, int size)
 	LASSERT(buf);
 	LASSERT(buf->lb_buf == NULL);
 	LASSERT(buf->lb_len == 0);
-	OBD_ALLOC_LARGE(buf->lb_buf, size);
+	buf->lb_buf = libcfs_kvzalloc(size, GFP_NOFS);
 	if (likely(buf->lb_buf))
 		buf->lb_len = size;
 }
@@ -2171,14 +2171,14 @@ int lu_buf_check_and_grow(struct lu_buf *buf, int len)
 	if (len <= buf->lb_len)
 		return 0;
 
-	OBD_ALLOC_LARGE(ptr, len);
+	ptr = libcfs_kvzalloc(len, GFP_NOFS);
 	if (ptr == NULL)
 		return -ENOMEM;
 
 	/* Free the old buf */
 	if (buf->lb_buf != NULL) {
 		memcpy(ptr, buf->lb_buf, buf->lb_len);
-		OBD_FREE_LARGE(buf->lb_buf, buf->lb_len);
+		kvfree(buf->lb_buf);
 	}
 
 	buf->lb_buf = ptr;

@@ -31,6 +31,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 /**
  * ehci_xilinx_port_handed_over - hand the port out if failed to enable it
@@ -155,7 +156,8 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 
 	irq = irq_of_parse_and_map(dn, 0);
 	if (!irq) {
-		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
+		dev_err(&op->dev, "%s: irq_of_parse_and_map failed\n",
+			__FILE__);
 		rv = -EBUSY;
 		goto err_irq;
 	}
@@ -191,8 +193,10 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 	ehci->caps = hcd->regs + 0x100;
 
 	rv = usb_add_hcd(hcd, irq, 0);
-	if (rv == 0)
+	if (rv == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return 0;
+	}
 
 err_irq:
 	usb_put_hcd(hcd);
@@ -232,7 +236,6 @@ static struct platform_driver ehci_hcd_xilinx_of_driver = {
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "xilinx-of-ehci",
-		.owner = THIS_MODULE,
 		.of_match_table = ehci_hcd_xilinx_of_match,
 	},
 };

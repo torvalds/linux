@@ -45,10 +45,8 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 				struct vm_area_struct *vma,
 				struct vm_fault *vmf)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
 	int ret = 0;
 
-	spin_lock(&bdev->fence_lock);
 	if (likely(!test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)))
 		goto out_unlock;
 
@@ -82,7 +80,6 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 			VM_FAULT_NOPAGE;
 
 out_unlock:
-	spin_unlock(&bdev->fence_lock);
 	return ret;
 }
 
@@ -132,6 +129,15 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return VM_FAULT_NOPAGE;
 	}
 
+	/*
+	 * Refuse to fault imported pages. This should be handled
+	 * (if at all) by redirecting mmap to the exporter.
+	 */
+	if (bo->ttm && (bo->ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+		retval = VM_FAULT_SIGBUS;
+		goto out_unlock;
+	}
+
 	if (bdev->driver->fault_reserve_notify) {
 		ret = bdev->driver->fault_reserve_notify(bo);
 		switch (ret) {
@@ -169,9 +175,9 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	page_offset = ((address - vma->vm_start) >> PAGE_SHIFT) +
-	    drm_vma_node_start(&bo->vma_node) - vma->vm_pgoff;
-	page_last = vma_pages(vma) +
-	    drm_vma_node_start(&bo->vma_node) - vma->vm_pgoff;
+		vma->vm_pgoff - drm_vma_node_start(&bo->vma_node);
+	page_last = vma_pages(vma) + vma->vm_pgoff -
+		drm_vma_node_start(&bo->vma_node);
 
 	if (unlikely(page_offset >= bo->num_pages)) {
 		retval = VM_FAULT_SIGBUS;
@@ -191,9 +197,8 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 						cvma.vm_page_prot);
 	} else {
 		ttm = bo->ttm;
-		if (!(bo->mem.placement & TTM_PL_FLAG_CACHED))
-			cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
-							cvma.vm_page_prot);
+		cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
+						cvma.vm_page_prot);
 
 		/* Allocate all page at once, most common usage */
 		if (ttm->bdev->driver->ttm_tt_populate(ttm)) {
@@ -217,10 +222,17 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			} else if (unlikely(!page)) {
 				break;
 			}
+			page->mapping = vma->vm_file->f_mapping;
+			page->index = drm_vma_node_start(&bo->vma_node) +
+				page_offset;
 			pfn = page_to_pfn(page);
 		}
 
-		ret = vm_insert_mixed(&cvma, address, pfn);
+		if (vma->vm_flags & VM_MIXEDMAP)
+			ret = vm_insert_mixed(&cvma, address, pfn);
+		else
+			ret = vm_insert_pfn(&cvma, address, pfn);
+
 		/*
 		 * Somebody beat us to this PTE or prefaulting to
 		 * an already populated PTE, or prefaulting error.
@@ -249,6 +261,8 @@ static void ttm_bo_vm_open(struct vm_area_struct *vma)
 {
 	struct ttm_buffer_object *bo =
 	    (struct ttm_buffer_object *)vma->vm_private_data;
+
+	WARN_ON(bo->bdev->dev_mapping != vma->vm_file->f_mapping);
 
 	(void)ttm_bo_reference(bo);
 }
@@ -319,7 +333,16 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	 */
 
 	vma->vm_private_data = bo;
-	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
+
+	/*
+	 * We'd like to use VM_PFNMAP on shared mappings, where
+	 * (vma->vm_flags & VM_SHARED) != 0, for performance reasons,
+	 * but for some reason VM_PFNMAP + x86 PAT + write-combine is very
+	 * bad for performance. Until that has been sorted out, use
+	 * VM_MIXEDMAP on all mappings. See freedesktop.org bug #75719
+	 */
+	vma->vm_flags |= VM_MIXEDMAP;
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
 out_unref:
 	ttm_bo_unref(&bo);
@@ -334,7 +357,8 @@ int ttm_fbdev_mmap(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 
 	vma->vm_ops = &ttm_bo_vm_ops;
 	vma->vm_private_data = ttm_bo_reference(bo);
-	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND;
+	vma->vm_flags |= VM_MIXEDMAP;
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND;
 	return 0;
 }
 EXPORT_SYMBOL(ttm_fbdev_mmap);

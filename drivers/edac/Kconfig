@@ -2,15 +2,16 @@
 #	EDAC Kconfig
 #	Copyright (c) 2008 Doug Thompson www.softwarebitmaker.com
 #	Licensed and distributed under the GPL
-#
+
+config EDAC_ATOMIC_SCRUB
+	bool
 
 config EDAC_SUPPORT
 	bool
 
 menuconfig EDAC
 	bool "EDAC (Error Detection And Correction) reporting"
-	depends on HAS_IOMEM
-	depends on X86 || PPC || TILE || ARM || EDAC_SUPPORT
+	depends on HAS_IOMEM && EDAC_SUPPORT
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
@@ -61,17 +62,18 @@ config EDAC_DECODE_MCE
 	  has been initialized.
 
 config EDAC_MCE_INJ
-	tristate "Simple MCE injection interface over /sysfs"
-	depends on EDAC_DECODE_MCE
+	tristate "Simple MCE injection interface"
+	depends on EDAC_DECODE_MCE && DEBUG_FS
 	default n
 	help
-	  This is a simple interface to inject MCEs over /sysfs and test
-	  the MCE decoding code in EDAC.
+	  This is a simple debugfs interface to inject MCEs and test different
+	  aspects of the MCE handling code.
 
-	  This is currently AMD-only.
+	  WARNING: Do not even assume this interface is staying stable!
 
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
+	select RAS
 	help
 	  Some systems are able to detect and correct errors in main
 	  memory.  EDAC can report statistics on memory error
@@ -104,11 +106,11 @@ config EDAC_GHES
 	  In doubt, say 'Y'.
 
 config EDAC_AMD64
-	tristate "AMD64 (Opteron, Athlon64) K8, F10h"
-	depends on EDAC_MM_EDAC && AMD_NB && X86_64 && EDAC_DECODE_MCE
+	tristate "AMD64 (Opteron, Athlon64)"
+	depends on EDAC_MM_EDAC && AMD_NB && EDAC_DECODE_MCE
 	help
 	  Support for error detection and correction of DRAM ECC errors on
-	  the AMD64 families of memory controllers (K8 and F10h)
+	  the AMD64 families (>= K8) of memory controllers.
 
 config EDAC_AMD64_ERROR_INJECTION
 	bool "Sysfs HW Error injection facilities"
@@ -186,6 +188,13 @@ config EDAC_I3200
 	  Support for error detection and correction on the Intel
 	  3200 and 3210 server chipsets.
 
+config EDAC_IE31200
+	tristate "Intel e312xx"
+	depends on EDAC_MM_EDAC && PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  E3-1200 based DRAM controllers.
+
 config EDAC_X38
 	tristate "Intel X38"
 	depends on EDAC_MM_EDAC && PCI && X86
@@ -245,19 +254,19 @@ config EDAC_I7300
 	  Clarksboro MCH (Intel 7300 chipset).
 
 config EDAC_SBRIDGE
-	tristate "Intel Sandy-Bridge Integrated MC"
+	tristate "Intel Sandy-Bridge/Ivy-Bridge/Haswell Integrated MC"
 	depends on EDAC_MM_EDAC && PCI && X86_64 && X86_MCE_INTEL
 	depends on PCI_MMCONFIG
 	help
 	  Support for error detection and correction the Intel
-	  Sandy Bridge Integrated Memory Controller.
+	  Sandy Bridge, Ivy Bridge and Haswell Integrated Memory Controllers.
 
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"
-	depends on EDAC_MM_EDAC && FSL_SOC && (PPC_83xx || PPC_85xx)
+	depends on EDAC_MM_EDAC && FSL_SOC
 	help
 	  Support for error detection and correction on the Freescale
-	  MPC8349, MPC8560, MPC8540, MPC8548
+	  MPC8349, MPC8560, MPC8540, MPC8548, T4240
 
 config EDAC_MV64X60
 	tristate "Marvell MV64x60"
@@ -367,5 +376,28 @@ config EDAC_OCTEON_PCI
 	help
 	  Support for error detection and correction on the
 	  Cavium Octeon family of SOCs.
+
+config EDAC_ALTERA_MC
+	bool "Altera SDRAM Memory Controller EDAC"
+	depends on EDAC_MM_EDAC=y && ARCH_SOCFPGA
+	help
+	  Support for error detection and correction on the
+	  Altera SDRAM memory controller. Note that the
+	  preloader must initialize the SDRAM before loading
+	  the kernel.
+
+config EDAC_SYNOPSYS
+	tristate "Synopsys DDR Memory Controller"
+	depends on EDAC_MM_EDAC && ARCH_ZYNQ
+	help
+	  Support for error detection and correction on the Synopsys DDR
+	  memory controller.
+
+config EDAC_XGENE
+	tristate "APM X-Gene SoC"
+	depends on EDAC_MM_EDAC && (ARM64 || COMPILE_TEST)
+	help
+	  Support for error detection and correction on the
+	  APM X-Gene family of SOCs.
 
 endif # EDAC

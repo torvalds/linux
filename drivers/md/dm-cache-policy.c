@@ -146,6 +146,10 @@ const char *dm_cache_policy_get_name(struct dm_cache_policy *p)
 {
 	struct dm_cache_policy_type *t = p->private;
 
+	/* if t->real is set then an alias was used (e.g. "default") */
+	if (t->real)
+		return t->real->name;
+
 	return t->name;
 }
 EXPORT_SYMBOL_GPL(dm_cache_policy_get_name);

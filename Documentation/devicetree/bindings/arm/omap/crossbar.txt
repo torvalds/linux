@@ -1,0 +1,55 @@
+Some socs have a large number of interrupts requests to service
+the needs of its many peripherals and subsystems. All of the
+interrupt lines from the subsystems are not needed at the same
+time, so they have to be muxed to the irq-controller appropriately.
+In such places a interrupt controllers are preceded by an CROSSBAR
+that provides flexibility in muxing the device requests to the controller
+inputs.
+
+Required properties:
+- compatible : Should be "ti,irq-crossbar"
+- reg: Base address and the size of the crossbar registers.
+- interrupt-controller: indicates that this block is an interrupt controller.
+- interrupt-parent: the interrupt controller this block is connected to.
+- ti,max-irqs: Total number of irqs available at the parent interrupt controller.
+- ti,max-crossbar-sources: Maximum number of crossbar sources that can be routed.
+- ti,reg-size: Size of a individual register in bytes. Every individual
+	    register is assumed to be of same size. Valid sizes are 1, 2, 4.
+- ti,irqs-reserved: List of the reserved irq lines that are not muxed using
+		 crossbar. These interrupt lines are reserved in the soc,
+		 so crossbar bar driver should not consider them as free
+		 lines.
+
+Optional properties:
+- ti,irqs-skip: This is similar to "ti,irqs-reserved", but these are for
+  SOC-specific hard-wiring of those irqs which unexpectedly bypasses the
+  crossbar. These irqs have a crossbar register, but still cannot be used.
+
+- ti,irqs-safe-map: integer which maps to a safe configuration to use
+  when the interrupt controller irq is unused (when not provided, default is 0)
+
+Examples:
+		crossbar_mpu: crossbar@4a002a48 {
+			compatible = "ti,irq-crossbar";
+			reg = <0x4a002a48 0x130>;
+			ti,max-irqs = <160>;
+			ti,max-crossbar-sources = <400>;
+			ti,reg-size = <2>;
+			ti,irqs-reserved = <0 1 2 3 5 6 131 132>;
+			ti,irqs-skip = <10 133 139 140>;
+		};
+
+Consumer:
+========
+See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt and
+Documentation/devicetree/bindings/arm/gic.txt for further details.
+
+An interrupt consumer on an SoC using crossbar will use:
+	interrupts = <GIC_SPI request_number interrupt_level>
+
+Example:
+	device_x@0x4a023000 {
+		/* Crossbar 8 used */
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		...
+	};

@@ -46,9 +46,9 @@ static struct bus_node *find_bus_wprev (u8, struct bus_node **, u8);
 
 static LIST_HEAD(gbuses);
 
-static struct bus_node * __init alloc_error_bus (struct ebda_pci_rsrc * curr, u8 busno, int flag)
+static struct bus_node * __init alloc_error_bus (struct ebda_pci_rsrc *curr, u8 busno, int flag)
 {
-	struct bus_node * newbus;
+	struct bus_node *newbus;
 
 	if (!(curr) && !(flag)) {
 		err ("NULL pointer passed\n");
@@ -69,7 +69,7 @@ static struct bus_node * __init alloc_error_bus (struct ebda_pci_rsrc * curr, u8
 	return newbus;
 }
 
-static struct resource_node * __init alloc_resources (struct ebda_pci_rsrc * curr)
+static struct resource_node * __init alloc_resources (struct ebda_pci_rsrc *curr)
 {
 	struct resource_node *rs;
 
@@ -93,7 +93,7 @@ static struct resource_node * __init alloc_resources (struct ebda_pci_rsrc * cur
 
 static int __init alloc_bus_range (struct bus_node **new_bus, struct range_node **new_range, struct ebda_pci_rsrc *curr, int flag, u8 first_bus)
 {
-	struct bus_node * newbus;
+	struct bus_node *newbus;
 	struct range_node *newrange;
 	u8 num_ranges = 0;
 
@@ -224,7 +224,8 @@ int __init ibmphp_rsrc_init (void)
 			if ((curr->rsrc_type & RESTYPE) == MMASK) {
 				/* no bus structure exists in place yet */
 				if (list_empty (&gbuses)) {
-					if ((rc = alloc_bus_range (&newbus, &newrange, curr, MEM, 1)))
+					rc = alloc_bus_range(&newbus, &newrange, curr, MEM, 1);
+					if (rc)
 						return rc;
 					list_add_tail (&newbus->bus_list, &gbuses);
 					debug ("gbuses = NULL, Memory Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
@@ -237,7 +238,8 @@ int __init ibmphp_rsrc_init (void)
 							return rc;
 					} else {
 						/* went through all the buses and didn't find ours, need to create a new bus node */
-						if ((rc = alloc_bus_range (&newbus, &newrange, curr, MEM, 1)))
+						rc = alloc_bus_range(&newbus, &newrange, curr, MEM, 1);
+						if (rc)
 							return rc;
 
 						list_add_tail (&newbus->bus_list, &gbuses);
@@ -248,7 +250,8 @@ int __init ibmphp_rsrc_init (void)
 				/* prefetchable memory */
 				if (list_empty (&gbuses)) {
 					/* no bus structure exists in place yet */
-					if ((rc = alloc_bus_range (&newbus, &newrange, curr, PFMEM, 1)))
+					rc = alloc_bus_range(&newbus, &newrange, curr, PFMEM, 1);
+					if (rc)
 						return rc;
 					list_add_tail (&newbus->bus_list, &gbuses);
 					debug ("gbuses = NULL, PFMemory Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
@@ -261,7 +264,8 @@ int __init ibmphp_rsrc_init (void)
 							return rc;
 					} else {
 						/* went through all the buses and didn't find ours, need to create a new bus node */
-						if ((rc = alloc_bus_range (&newbus, &newrange, curr, PFMEM, 1)))
+						rc = alloc_bus_range(&newbus, &newrange, curr, PFMEM, 1);
+						if (rc)
 							return rc;
 						list_add_tail (&newbus->bus_list, &gbuses);
 						debug ("1st Bus, PFMemory Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
@@ -271,7 +275,8 @@ int __init ibmphp_rsrc_init (void)
 				/* IO */
 				if (list_empty (&gbuses)) {
 					/* no bus structure exists in place yet */
-					if ((rc = alloc_bus_range (&newbus, &newrange, curr, IO, 1)))
+					rc = alloc_bus_range(&newbus, &newrange, curr, IO, 1);
+					if (rc)
 						return rc;
 					list_add_tail (&newbus->bus_list, &gbuses);
 					debug ("gbuses = NULL, IO Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
@@ -283,7 +288,8 @@ int __init ibmphp_rsrc_init (void)
 							return rc;
 					} else {
 						/* went through all the buses and didn't find ours, need to create a new bus node */
-						if ((rc = alloc_bus_range (&newbus, &newrange, curr, IO, 1)))
+						rc = alloc_bus_range(&newbus, &newrange, curr, IO, 1);
+						if (rc)
 							return rc;
 						list_add_tail (&newbus->bus_list, &gbuses);
 						debug ("1st Bus, IO Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
@@ -370,10 +376,7 @@ int __init ibmphp_rsrc_init (void)
 		if (rc)
 			return rc;
 	}
-	rc = once_over ();  /* This is to align ranges (so no -1) */
-	if (rc)
-		return rc;
-	return 0;
+	return once_over ();	/* This is to align ranges (so no -1) */
 }
 
 /********************************************************************************
@@ -789,8 +792,7 @@ int ibmphp_remove_resource (struct resource_node *res)
 	bus_cur = find_bus_wprev (res->busno, NULL, 0);
 
 	if (!bus_cur) {
-		err ("cannot find corresponding bus of the io resource to remove  "
-			"bailing out...\n");
+		err ("cannot find corresponding bus of the io resource to remove  bailing out...\n");
 		return -ENODEV;
 	}
 
@@ -934,9 +936,9 @@ int ibmphp_remove_resource (struct resource_node *res)
 	return 0;
 }
 
-static struct range_node * find_range (struct bus_node *bus_cur, struct resource_node * res)
+static struct range_node *find_range (struct bus_node *bus_cur, struct resource_node *res)
 {
-	struct range_node * range = NULL;
+	struct range_node *range = NULL;
 
 	switch (res->type) {
 		case IO:
@@ -1039,7 +1041,9 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 		/* found our range */
 		if (!res_prev) {
 			/* first time in the loop */
-			if ((res_cur->start != range->start) && ((len_tmp = res_cur->start - 1 - range->start) >= res->len)) {
+			len_tmp = res_cur->start - 1 - range->start;
+
+			if ((res_cur->start != range->start) && (len_tmp >= res->len)) {
 				debug ("len_tmp = %x\n", len_tmp);
 
 				if ((len_tmp < len_cur) || (len_cur == 0)) {
@@ -1079,7 +1083,9 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 		}
 		if (!res_cur->next) {
 			/* last device on the range */
-			if ((range->end != res_cur->end) && ((len_tmp = range->end - (res_cur->end + 1)) >= res->len)) {
+			len_tmp = range->end - (res_cur->end + 1);
+
+			if ((range->end != res_cur->end) && (len_tmp >= res->len)) {
 				debug ("len_tmp = %x\n", len_tmp);
 				if ((len_tmp < len_cur) || (len_cur == 0)) {
 
@@ -1118,8 +1124,9 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 		if (res_prev) {
 			if (res_prev->rangeno != res_cur->rangeno) {
 				/* 1st device on this range */
-				if ((res_cur->start != range->start) &&
-					((len_tmp = res_cur->start - 1 - range->start) >= res->len)) {
+				len_tmp = res_cur->start - 1 - range->start;
+
+				if ((res_cur->start != range->start) &&	(len_tmp >= res->len)) {
 					if ((len_tmp < len_cur) || (len_cur == 0)) {
 						if ((range->start % tmp_divide) == 0) {
 							/* just perfect, starting address is divisible by length */
@@ -1154,7 +1161,9 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 				}
 			} else {
 				/* in the same range */
-				if ((len_tmp = res_cur->start - 1 - res_prev->end - 1) >= res->len) {
+				len_tmp = res_cur->start - 1 - res_prev->end - 1;
+
+				if (len_tmp >= res->len) {
 					if ((len_tmp < len_cur) || (len_cur == 0)) {
 						if (((res_prev->end + 1) % tmp_divide) == 0) {
 							/* just perfect, starting address's divisible by length */
@@ -1213,7 +1222,9 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 				break;
 		}
 		while (range) {
-			if ((len_tmp = range->end - range->start) >= res->len) {
+			len_tmp = range->end - range->start;
+
+			if (len_tmp >= res->len) {
 				if ((len_tmp < len_cur) || (len_cur == 0)) {
 					if ((range->start % tmp_divide) == 0) {
 						/* just perfect, starting address's divisible by length */
@@ -1277,7 +1288,9 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 					break;
 			}
 			while (range) {
-				if ((len_tmp = range->end - range->start) >= res->len) {
+				len_tmp = range->end - range->start;
+
+				if (len_tmp >= res->len) {
 					if ((len_tmp < len_cur) || (len_cur == 0)) {
 						if ((range->start % tmp_divide) == 0) {
 							/* just perfect, starting address's divisible by length */
@@ -1336,7 +1349,7 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 				return -EINVAL;
 			}
 		}
-	}	/* end if(!res_cur) */
+	}	/* end if (!res_cur) */
 	return -EINVAL;
 }
 

@@ -1,5 +1,4 @@
-# kbuild trick to avoid linker error. Can be omitted if a module is built.
-obj- := dummy.o
+subdir-y := configfs
 
 # List of programs to build
 hostprogs-y := dnotify_test

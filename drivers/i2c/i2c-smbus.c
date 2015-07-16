@@ -2,7 +2,7 @@
  * i2c-smbus.c - SMBus extensions to the I2C protocol
  *
  * Copyright (C) 2008 David Brownell
- * Copyright (C) 2010 Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2010 Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,11 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301 USA.
  */
 
 #include <linux/kernel.h>
@@ -94,7 +89,7 @@ static void smbus_alert(struct work_struct *work)
 		 * to high, because of slave transmit arbitration.  After
 		 * responding, an SMBus device stops asserting SMBALERT#.
 		 *
-		 * Note that SMBus 2.0 reserves 10-bit addresess for future
+		 * Note that SMBus 2.0 reserves 10-bit addresses for future
 		 * use.  We neither handle them, nor try to use PEC here.
 		 */
 		status = i2c_smbus_read_byte(ara);
@@ -246,6 +241,6 @@ EXPORT_SYMBOL_GPL(i2c_handle_smbus_alert);
 
 module_i2c_driver(smbalert_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("SMBus protocol extensions support");
 MODULE_LICENSE("GPL");

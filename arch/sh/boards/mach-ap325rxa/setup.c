@@ -18,6 +18,7 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
+#include <linux/mfd/tmio.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/regulator/fixed.h>
@@ -338,7 +339,7 @@ static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
 	.format_depth = 16,
 	.format = {
-		.code = V4L2_MBUS_FMT_UYVY8_2X8,
+		.code = MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 		.field = V4L2_FIELD_NONE,
 		.width = 640,
@@ -447,8 +448,8 @@ static struct resource sdhi0_cn3_resources[] = {
 	},
 };
 
-static struct sh_mobile_sdhi_info sdhi0_cn3_data = {
-	.tmio_caps      = MMC_CAP_SDIO_IRQ,
+static struct tmio_mmc_data sdhi0_cn3_data = {
+	.capabilities	= MMC_CAP_SDIO_IRQ,
 };
 
 static struct platform_device sdhi0_cn3_device = {
@@ -474,8 +475,8 @@ static struct resource sdhi1_cn7_resources[] = {
 	},
 };
 
-static struct sh_mobile_sdhi_info sdhi1_cn7_data = {
-	.tmio_caps      = MMC_CAP_SDIO_IRQ,
+static struct tmio_mmc_data sdhi1_cn7_data = {
+	.capabilities	= MMC_CAP_SDIO_IRQ,
 };
 
 static struct platform_device sdhi1_cn7_device = {

@@ -25,7 +25,7 @@ struct unx_cred {
 
 #define UNX_WRITESLACK		(21 + (UNX_MAXNODENAME >> 2))
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 

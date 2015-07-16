@@ -27,26 +27,12 @@
 #include "prm33xx.h"
 #include "prm-regbits-33xx.h"
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 #include "omap_hwmod_33xx_43xx_common_data.h"
 
 /*
  * IP blocks
  */
-
-/*
- * 'emif' class
- * instance(s): emif
- */
-static struct omap_hwmod_class_sysconfig am33xx_emif_sysc = {
-	.rev_offs	= 0x0000,
-};
-
-static struct omap_hwmod_class am33xx_emif_hwmod_class = {
-	.name		= "emif",
-	.sysc		= &am33xx_emif_sysc,
-};
 
 /* emif */
 static struct omap_hwmod am33xx_emif_hwmod = {

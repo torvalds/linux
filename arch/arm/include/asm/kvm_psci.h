@@ -18,6 +18,10 @@
 #ifndef __ARM_KVM_PSCI_H__
 #define __ARM_KVM_PSCI_H__
 
-bool kvm_psci_call(struct kvm_vcpu *vcpu);
+#define KVM_ARM_PSCI_0_1	1
+#define KVM_ARM_PSCI_0_2	2
+
+int kvm_psci_version(struct kvm_vcpu *vcpu);
+int kvm_psci_call(struct kvm_vcpu *vcpu);
 
 #endif /* __ARM_KVM_PSCI_H__ */

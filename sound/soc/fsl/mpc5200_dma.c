@@ -200,10 +200,6 @@ static const struct snd_pcm_hardware psc_dma_hardware = {
 		SNDRV_PCM_INFO_BATCH,
 	.formats = SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_BE |
 		SNDRV_PCM_FMTBIT_S24_BE | SNDRV_PCM_FMTBIT_S32_BE,
-	.rate_min = 8000,
-	.rate_max = 48000,
-	.channels_min = 1,
-	.channels_max = 2,
 	.period_bytes_max	= 1024 * 1024,
 	.period_bytes_min	= 32,
 	.periods_min		= 2,
@@ -330,9 +326,6 @@ static int psc_dma_new(struct snd_soc_pcm_runtime *rtd)
 		if (rc)
 			goto capture_alloc_err;
 	}
-
-	if (rtd->codec->ac97)
-		rtd->codec->ac97->private_data = psc_dma;
 
 	return 0;
 

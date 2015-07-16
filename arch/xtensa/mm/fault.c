@@ -15,13 +15,13 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/hardirq.h>
-#include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 
-unsigned long asid_cache = ASID_USER_FIRST;
+DEFINE_PER_CPU(unsigned long, asid_cache) = ASID_USER_FIRST;
 void bad_page_fault(struct pt_regs*, unsigned long, int);
 
 #undef DEBUG_PAGE_FAULT
@@ -57,7 +57,7 @@ void do_page_fault(struct pt_regs *regs)
 	/* If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm) {
+	if (faulthandler_disabled() || !mm) {
 		bad_page_fault(regs, address, SIGSEGV);
 		return;
 	}
@@ -117,6 +117,8 @@ good_area:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGSEGV)
+			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();

@@ -667,7 +667,7 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 	lbs_deb_enter(LBS_DEB_FW);
 
 	/* Read MAC address from firmware */
-	memset(priv->current_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(priv->current_addr);
 	ret = lbs_update_hw_spec(priv);
 	if (ret)
 		goto done;
@@ -871,7 +871,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	memset(priv->current_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(priv->current_addr);
 
 	priv->connect_status = LBS_DISCONNECTED;
 	priv->channel = DEFAULT_AD_HOC_CHANNEL;
@@ -981,7 +981,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 		goto err_wdev;
 	}
 
-	dev = alloc_netdev(0, "wlan%d", ether_setup);
+	dev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, ether_setup);
 	if (!dev) {
 		dev_err(dmdev, "no memory for network device instance\n");
 		goto err_adapter;

@@ -26,11 +26,13 @@
 #include <net/xfrm.h>
 
 #include <crypto/algapi.h>
+#include <crypto/null.h>
 #include <crypto/aes.h>
+#include <crypto/ctr.h>
 #include <crypto/des.h>
 #include <crypto/sha.h>
 #include <crypto/md5.h>
-#include <crypto/aead.h>
+#include <crypto/internal/aead.h>
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/skcipher.h>

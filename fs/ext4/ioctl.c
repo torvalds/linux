@@ -8,12 +8,12 @@
  */
 
 #include <linux/fs.h>
-#include <linux/jbd2.h>
 #include <linux/capability.h>
 #include <linux/time.h>
 #include <linux/compat.h>
 #include <linux/mount.h>
 #include <linux/file.h>
+#include <linux/random.h>
 #include <asm/uaccess.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
@@ -31,14 +31,11 @@
 static void memswap(void *a, void *b, size_t len)
 {
 	unsigned char *ap, *bp;
-	unsigned char tmp;
 
 	ap = (unsigned char *)a;
 	bp = (unsigned char *)b;
 	while (len-- > 0) {
-		tmp = *ap;
-		*ap = *bp;
-		*bp = tmp;
+		swap(*ap, *bp);
 		ap++;
 		bp++;
 	}
@@ -78,8 +75,6 @@ static void swap_inode_data(struct inode *inode1, struct inode *inode2)
 	memswap(&ei1->i_disksize, &ei2->i_disksize, sizeof(ei1->i_disksize));
 	ext4_es_remove_extent(inode1, 0, EXT_MAX_BLOCKS);
 	ext4_es_remove_extent(inode2, 0, EXT_MAX_BLOCKS);
-	ext4_es_lru_del(inode1);
-	ext4_es_lru_del(inode2);
 
 	isize = i_size_read(inode1);
 	i_size_write(inode1, i_size_read(inode2));
@@ -101,28 +96,18 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	handle_t *handle;
 	int err;
 	struct inode *inode_bl;
-	struct ext4_inode_info *ei;
 	struct ext4_inode_info *ei_bl;
-	struct ext4_sb_info *sbi;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	if (inode->i_nlink != 1 || !S_ISREG(inode->i_mode)) {
-		err = -EINVAL;
-		goto swap_boot_out;
-	}
+	if (inode->i_nlink != 1 || !S_ISREG(inode->i_mode))
+		return -EINVAL;
 
-	if (!inode_owner_or_capable(inode) || !capable(CAP_SYS_ADMIN)) {
-		err = -EPERM;
-		goto swap_boot_out;
-	}
-
-	sbi = EXT4_SB(sb);
-	ei = EXT4_I(inode);
+	if (!inode_owner_or_capable(inode) || !capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	inode_bl = ext4_iget(sb, EXT4_BOOT_LOADER_INO);
-	if (IS_ERR(inode_bl)) {
-		err = PTR_ERR(inode_bl);
-		goto swap_boot_out;
-	}
+	if (IS_ERR(inode_bl))
+		return PTR_ERR(inode_bl);
 	ei_bl = EXT4_I(inode_bl);
 
 	filemap_flush(inode->i_mapping);
@@ -144,7 +129,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	handle = ext4_journal_start(inode_bl, EXT4_HT_MOVE_EXTENTS, 2);
 	if (IS_ERR(handle)) {
 		err = -EINVAL;
-		goto swap_boot_out;
+		goto journal_err_out;
 	}
 
 	/* Protect extent tree against block allocations via delalloc */
@@ -197,20 +182,25 @@ static long swap_inode_boot_loader(struct super_block *sb,
 			ext4_mark_inode_dirty(handle, inode);
 		}
 	}
-
 	ext4_journal_stop(handle);
-
 	ext4_double_up_write_data_sem(inode, inode_bl);
 
+journal_err_out:
 	ext4_inode_resume_unlocked_dio(inode);
 	ext4_inode_resume_unlocked_dio(inode_bl);
-
 	unlock_two_nondirectories(inode, inode_bl);
-
 	iput(inode_bl);
-
-swap_boot_out:
 	return err;
+}
+
+static int uuid_is_zero(__u8 u[16])
+{
+	int	i;
+
+	for (i = 0; i < 16; i++)
+		if (u[i])
+			return 0;
+	return 1;
 }
 
 long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -346,8 +336,7 @@ flags_out:
 		if (!inode_owner_or_capable(inode))
 			return -EPERM;
 
-		if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-				EXT4_FEATURE_RO_COMPAT_METADATA_CSUM)) {
+		if (ext4_has_metadata_csum(inode->i_sb)) {
 			ext4_warning(sb, "Setting inode version is not "
 				     "supported with metadata_csum enabled.");
 			return -ENOTTY;
@@ -547,9 +536,17 @@ group_add_out:
 	}
 
 	case EXT4_IOC_SWAP_BOOT:
+	{
+		int err;
 		if (!(filp->f_mode & FMODE_WRITE))
 			return -EBADF;
-		return swap_inode_boot_loader(sb, inode);
+		err = mnt_want_write_file(filp);
+		if (err)
+			return err;
+		err = swap_inode_boot_loader(sb, inode);
+		mnt_drop_write_file(filp);
+		return err;
+	}
 
 	case EXT4_IOC_RESIZE_FS: {
 		ext4_fsblk_t n_blocks_count;
@@ -625,7 +622,78 @@ resizefs_out:
 	}
 	case EXT4_IOC_PRECACHE_EXTENTS:
 		return ext4_ext_precache(inode);
+	case EXT4_IOC_SET_ENCRYPTION_POLICY: {
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+		struct ext4_encryption_policy policy;
+		int err = 0;
 
+		if (copy_from_user(&policy,
+				   (struct ext4_encryption_policy __user *)arg,
+				   sizeof(policy))) {
+			err = -EFAULT;
+			goto encryption_policy_out;
+		}
+
+		err = ext4_process_policy(&policy, inode);
+encryption_policy_out:
+		return err;
+#else
+		return -EOPNOTSUPP;
+#endif
+	}
+	case EXT4_IOC_GET_ENCRYPTION_PWSALT: {
+		int err, err2;
+		struct ext4_sb_info *sbi = EXT4_SB(sb);
+		handle_t *handle;
+
+		if (!ext4_sb_has_crypto(sb))
+			return -EOPNOTSUPP;
+		if (uuid_is_zero(sbi->s_es->s_encrypt_pw_salt)) {
+			err = mnt_want_write_file(filp);
+			if (err)
+				return err;
+			handle = ext4_journal_start_sb(sb, EXT4_HT_MISC, 1);
+			if (IS_ERR(handle)) {
+				err = PTR_ERR(handle);
+				goto pwsalt_err_exit;
+			}
+			err = ext4_journal_get_write_access(handle, sbi->s_sbh);
+			if (err)
+				goto pwsalt_err_journal;
+			generate_random_uuid(sbi->s_es->s_encrypt_pw_salt);
+			err = ext4_handle_dirty_metadata(handle, NULL,
+							 sbi->s_sbh);
+		pwsalt_err_journal:
+			err2 = ext4_journal_stop(handle);
+			if (err2 && !err)
+				err = err2;
+		pwsalt_err_exit:
+			mnt_drop_write_file(filp);
+			if (err)
+				return err;
+		}
+		if (copy_to_user((void __user *) arg,
+				 sbi->s_es->s_encrypt_pw_salt, 16))
+			return -EFAULT;
+		return 0;
+	}
+	case EXT4_IOC_GET_ENCRYPTION_POLICY: {
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+		struct ext4_encryption_policy policy;
+		int err = 0;
+
+		if (!ext4_encrypted_inode(inode))
+			return -ENOENT;
+		err = ext4_get_policy(inode, &policy);
+		if (err)
+			return err;
+		if (copy_to_user((void __user *)arg, &policy, sizeof(policy)))
+			return -EFAULT;
+		return 0;
+#else
+		return -EOPNOTSUPP;
+#endif
+	}
 	default:
 		return -ENOTTY;
 	}
@@ -687,9 +755,11 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 	}
 	case EXT4_IOC_MOVE_EXT:
-	case FITRIM:
 	case EXT4_IOC_RESIZE_FS:
 	case EXT4_IOC_PRECACHE_EXTENTS:
+	case EXT4_IOC_SET_ENCRYPTION_POLICY:
+	case EXT4_IOC_GET_ENCRYPTION_PWSALT:
+	case EXT4_IOC_GET_ENCRYPTION_POLICY:
 		break;
 	default:
 		return -ENOIOCTLCMD;

@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -45,6 +45,8 @@
 #include "l2t.h"
 #include "t4_msg.h"
 #include "t4fw_api.h"
+#include "t4_regs.h"
+#include "t4_values.h"
 
 #define VLAN_NONE 0xfff
 
@@ -149,11 +151,11 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ,
 					e->idx | (sync ? F_SYNC_WR : 0) |
-					TID_QID(adap->sge.fw_evtq.abs_id)));
-	req->params = htons(L2T_W_PORT(e->lport) | L2T_W_NOREPLY(!sync));
+					TID_QID_V(adap->sge.fw_evtq.abs_id)));
+	req->params = htons(L2T_W_PORT_V(e->lport) | L2T_W_NOREPLY_V(!sync));
 	req->l2t_idx = htons(e->idx);
 	req->vlan = htons(e->vlan);
-	if (e->neigh)
+	if (e->neigh && !(e->neigh->dev->flags & IFF_LOOPBACK))
 		memcpy(e->dmac, e->neigh->ha, sizeof(e->dmac));
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 
@@ -393,6 +395,8 @@ struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 	if (e) {
 		spin_lock(&e->lock);          /* avoid race with t4_l2t_free */
 		e->state = L2T_STATE_RESOLVING;
+		if (neigh->dev->flags & IFF_LOOPBACK)
+			memcpy(e->dmac, physdev->dev_addr, sizeof(e->dmac));
 		memcpy(e->addr, addr, addr_len);
 		e->ifindex = ifidx;
 		e->hash = hash;
@@ -410,6 +414,40 @@ done:
 	return e;
 }
 EXPORT_SYMBOL(cxgb4_l2t_get);
+
+u64 cxgb4_select_ntuple(struct net_device *dev,
+			const struct l2t_entry *l2t)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct tp_params *tp = &adap->params.tp;
+	u64 ntuple = 0;
+
+	/* Initialize each of the fields which we care about which are present
+	 * in the Compressed Filter Tuple.
+	 */
+	if (tp->vlan_shift >= 0 && l2t->vlan != VLAN_NONE)
+		ntuple |= (u64)(FT_VLAN_VLD_F | l2t->vlan) << tp->vlan_shift;
+
+	if (tp->port_shift >= 0)
+		ntuple |= (u64)l2t->lport << tp->port_shift;
+
+	if (tp->protocol_shift >= 0)
+		ntuple |= (u64)IPPROTO_TCP << tp->protocol_shift;
+
+	if (tp->vnic_shift >= 0) {
+		u32 viid = cxgb4_port_viid(dev);
+		u32 vf = FW_VIID_VIN_G(viid);
+		u32 pf = FW_VIID_PFN_G(viid);
+		u32 vld = FW_VIID_VIVLD_G(viid);
+
+		ntuple |= (u64)(FT_VNID_ID_VF_V(vf) |
+				FT_VNID_ID_PF_V(pf) |
+				FT_VNID_ID_VLD_V(vld)) << tp->vnic_shift;
+	}
+
+	return ntuple;
+}
+EXPORT_SYMBOL(cxgb4_select_ntuple);
 
 /*
  * Called when address resolution fails for an L2T entry to handle packets

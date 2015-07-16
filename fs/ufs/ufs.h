@@ -1,6 +1,12 @@
 #ifndef _UFS_UFS_H
 #define _UFS_UFS_H 1
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define UFS_MAX_GROUP_LOADED 8
 #define UFS_CGNO_EMPTY ((unsigned)-1)
 
@@ -72,9 +78,9 @@ struct ufs_inode_info {
  */
 #ifdef CONFIG_UFS_DEBUG
 #	define UFSD(f, a...)	{					\
-		printk ("UFSD (%s, %d): %s:",				\
+		pr_debug("UFSD (%s, %d): %s:",				\
 			__FILE__, __LINE__, __func__);		\
-		printk (f, ## a);					\
+		pr_debug(f, ## a);					\
 	}
 #else
 #	define UFSD(f, a...)	/**/
@@ -100,7 +106,7 @@ extern int ufs_delete_entry(struct inode *, struct ufs_dir_entry *, struct page 
 extern int ufs_empty_dir (struct inode *);
 extern struct ufs_dir_entry *ufs_dotdot(struct inode *, struct page **);
 extern void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-			 struct page *page, struct inode *inode);
+			 struct page *page, struct inode *inode, bool update_times);
 
 /* file.c */
 extern const struct inode_operations ufs_file_inode_operations;

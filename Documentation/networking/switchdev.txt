@@ -1,0 +1,360 @@
+Ethernet switch device driver model (switchdev)
+===============================================
+Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
+Copyright (c) 2014-2015 Scott Feldman <sfeldma@gmail.com>
+
+
+The Ethernet switch device driver model (switchdev) is an in-kernel driver
+model for switch devices which offload the forwarding (data) plane from the
+kernel.
+
+Figure 1 is a block diagram showing the components of the switchdev model for
+an example setup using a data-center-class switch ASIC chip.  Other setups
+with SR-IOV or soft switches, such as OVS, are possible.
+
+
+                             User-space tools                                 
+                                                                              
+       user space                   |                                         
+      +-------------------------------------------------------------------+   
+       kernel                       | Netlink                                 
+                                    |                                         
+                     +--------------+-------------------------------+         
+                     |         Network stack                        |         
+                     |           (Linux)                            |         
+                     |                                              |         
+                     +----------------------------------------------+         
+                                                                              
+                           sw1p2     sw1p4     sw1p6
+                      sw1p1  +  sw1p3  +  sw1p5  +          eth1             
+                        +    |    +    |    +    |            +               
+                        |    |    |    |    |    |            |               
+                     +--+----+----+----+-+--+----+---+  +-----+-----+         
+                     |         Switch driver         |  |    mgmt   |         
+                     |        (this document)        |  |   driver  |         
+                     |                               |  |           |         
+                     +--------------+----------------+  +-----------+         
+                                    |                                         
+       kernel                       | HW bus (eg PCI)                         
+      +-------------------------------------------------------------------+   
+       hardware                     |                                         
+                     +--------------+---+------------+                        
+                     |         Switch device (sw1)   |                        
+                     |  +----+                       +--------+               
+                     |  |    v offloaded data path   | mgmt port              
+                     |  |    |                       |                        
+                     +--|----|----+----+----+----+---+                        
+                        |    |    |    |    |    |                            
+                        +    +    +    +    +    +                            
+                       p1   p2   p3   p4   p5   p6
+                                       
+                             front-panel ports                                
+                                                                              
+
+                                    Fig 1.
+
+
+Include Files
+-------------
+
+#include <linux/netdevice.h>
+#include <net/switchdev.h>
+
+
+Configuration
+-------------
+
+Use "depends NET_SWITCHDEV" in driver's Kconfig to ensure switchdev model
+support is built for driver.
+
+
+Switch Ports
+------------
+
+On switchdev driver initialization, the driver will allocate and register a
+struct net_device (using register_netdev()) for each enumerated physical switch
+port, called the port netdev.  A port netdev is the software representation of
+the physical port and provides a conduit for control traffic to/from the
+controller (the kernel) and the network, as well as an anchor point for higher
+level constructs such as bridges, bonds, VLANs, tunnels, and L3 routers.  Using
+standard netdev tools (iproute2, ethtool, etc), the port netdev can also
+provide to the user access to the physical properties of the switch port such
+as PHY link state and I/O statistics.
+
+There is (currently) no higher-level kernel object for the switch beyond the
+port netdevs.  All of the switchdev driver ops are netdev ops or switchdev ops.
+
+A switch management port is outside the scope of the switchdev driver model.
+Typically, the management port is not participating in offloaded data plane and
+is loaded with a different driver, such as a NIC driver, on the management port
+device.
+
+Port Netdev Naming
+^^^^^^^^^^^^^^^^^^
+
+Udev rules should be used for port netdev naming, using some unique attribute
+of the port as a key, for example the port MAC address or the port PHYS name.
+Hard-coding of kernel netdev names within the driver is discouraged; let the
+kernel pick the default netdev name, and let udev set the final name based on a
+port attribute.
+
+Using port PHYS name (ndo_get_phys_port_name) for the key is particularly
+useful for dynamically-named ports where the device names its ports based on
+external configuration.  For example, if a physical 40G port is split logically
+into 4 10G ports, resulting in 4 port netdevs, the device can give a unique
+name for each port using port PHYS name.  The udev rule would be:
+
+SUBSYSTEM=="net", ACTION=="add", DRIVER="<driver>", ATTR{phys_port_name}!="", \
+	NAME="$attr{phys_port_name}"
+
+Suggested naming convention is "swXpYsZ", where X is the switch name or ID, Y
+is the port name or ID, and Z is the sub-port name or ID.  For example, sw1p1s0
+would be sub-port 0 on port 1 on switch 1.
+
+Switch ID
+^^^^^^^^^
+
+The switchdev driver must implement the switchdev op switchdev_port_attr_get
+for SWITCHDEV_ATTR_PORT_PARENT_ID for each port netdev, returning the same
+physical ID for each port of a switch.  The ID must be unique between switches
+on the same system.  The ID does not need to be unique between switches on
+different systems.
+
+The switch ID is used to locate ports on a switch and to know if aggregated
+ports belong to the same switch.
+
+Port Features
+^^^^^^^^^^^^^
+
+NETIF_F_NETNS_LOCAL
+
+If the switchdev driver (and device) only supports offloading of the default
+network namespace (netns), the driver should set this feature flag to prevent
+the port netdev from being moved out of the default netns.  A netns-aware
+driver/device would not set this flag and be responsible for partitioning
+hardware to preserve netns containment.  This means hardware cannot forward
+traffic from a port in one namespace to another port in another namespace.
+
+Port Topology
+^^^^^^^^^^^^^
+
+The port netdevs representing the physical switch ports can be organized into
+higher-level switching constructs.  The default construct is a standalone
+router port, used to offload L3 forwarding.  Two or more ports can be bonded
+together to form a LAG.  Two or more ports (or LAGs) can be bridged to bridge
+L2 networks.  VLANs can be applied to sub-divide L2 networks.  L2-over-L3
+tunnels can be built on ports.  These constructs are built using standard Linux
+tools such as the bridge driver, the bonding/team drivers, and netlink-based
+tools such as iproute2.
+
+The switchdev driver can know a particular port's position in the topology by
+monitoring NETDEV_CHANGEUPPER notifications.  For example, a port moved into a
+bond will see it's upper master change.  If that bond is moved into a bridge,
+the bond's upper master will change.  And so on.  The driver will track such
+movements to know what position a port is in in the overall topology by
+registering for netdevice events and acting on NETDEV_CHANGEUPPER.
+
+L2 Forwarding Offload
+---------------------
+
+The idea is to offload the L2 data forwarding (switching) path from the kernel
+to the switchdev device by mirroring bridge FDB entries down to the device.  An
+FDB entry is the {port, MAC, VLAN} tuple forwarding destination.
+
+To offloading L2 bridging, the switchdev driver/device should support:
+
+	- Static FDB entries installed on a bridge port
+	- Notification of learned/forgotten src mac/vlans from device
+	- STP state changes on the port
+	- VLAN flooding of multicast/broadcast and unknown unicast packets
+
+Static FDB Entries
+^^^^^^^^^^^^^^^^^^
+
+The switchdev driver should implement ndo_fdb_add, ndo_fdb_del and ndo_fdb_dump
+to support static FDB entries installed to the device.  Static bridge FDB
+entries are installed, for example, using iproute2 bridge cmd:
+
+	bridge fdb add ADDR dev DEV [vlan VID] [self]
+
+The driver should use the helper switchdev_port_fdb_xxx ops for ndo_fdb_xxx
+ops, and handle add/delete/dump of SWITCHDEV_OBJ_PORT_FDB object using
+switchdev_port_obj_xxx ops.
+
+XXX: what should be done if offloading this rule to hardware fails (for
+example, due to full capacity in hardware tables) ?
+
+Note: by default, the bridge does not filter on VLAN and only bridges untagged
+traffic.  To enable VLAN support, turn on VLAN filtering:
+
+	echo 1 >/sys/class/net/<bridge>/bridge/vlan_filtering
+
+Notification of Learned/Forgotten Source MAC/VLANs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The switch device will learn/forget source MAC address/VLAN on ingress packets
+and notify the switch driver of the mac/vlan/port tuples.  The switch driver,
+in turn, will notify the bridge driver using the switchdev notifier call:
+
+	err = call_switchdev_notifiers(val, dev, info);
+
+Where val is SWITCHDEV_FDB_ADD when learning and SWITCHDEV_FDB_DEL when
+forgetting, and info points to a struct switchdev_notifier_fdb_info.  On
+SWITCHDEV_FDB_ADD, the bridge driver will install the FDB entry into the
+bridge's FDB and mark the entry as NTF_EXT_LEARNED.  The iproute2 bridge
+command will label these entries "offload":
+
+	$ bridge fdb
+	52:54:00:12:35:01 dev sw1p1 master br0 permanent
+	00:02:00:00:02:00 dev sw1p1 master br0 offload
+	00:02:00:00:02:00 dev sw1p1 self
+	52:54:00:12:35:02 dev sw1p2 master br0 permanent
+	00:02:00:00:03:00 dev sw1p2 master br0 offload
+	00:02:00:00:03:00 dev sw1p2 self
+	33:33:00:00:00:01 dev eth0 self permanent
+	01:00:5e:00:00:01 dev eth0 self permanent
+	33:33:ff:00:00:00 dev eth0 self permanent
+	01:80:c2:00:00:0e dev eth0 self permanent
+	33:33:00:00:00:01 dev br0 self permanent
+	01:00:5e:00:00:01 dev br0 self permanent
+	33:33:ff:12:35:01 dev br0 self permanent
+
+Learning on the port should be disabled on the bridge using the bridge command:
+
+	bridge link set dev DEV learning off
+
+Learning on the device port should be enabled, as well as learning_sync:
+
+	bridge link set dev DEV learning on self
+	bridge link set dev DEV learning_sync on self
+
+Learning_sync attribute enables syncing of the learned/forgotton FDB entry to
+the bridge's FDB.  It's possible, but not optimal, to enable learning on the
+device port and on the bridge port, and disable learning_sync.
+
+To support learning and learning_sync port attributes, the driver implements
+switchdev op switchdev_port_attr_get/set for SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS.
+The driver should initialize the attributes to the hardware defaults.
+
+FDB Ageing
+^^^^^^^^^^
+
+There are two FDB ageing models supported: 1) ageing by the device, and 2)
+ageing by the kernel.  Ageing by the device is preferred if many FDB entries
+are supported.  The driver calls call_switchdev_notifiers(SWITCHDEV_FDB_DEL,
+...) to age out the FDB entry.  In this model, ageing by the kernel should be
+turned off.  XXX: how to turn off ageing in kernel on a per-port basis or
+otherwise prevent the kernel from ageing out the FDB entry?
+
+In the kernel ageing model, the standard bridge ageing mechanism is used to age
+out stale FDB entries.  To keep an FDB entry "alive", the driver should refresh
+the FDB entry by calling call_switchdev_notifiers(SWITCHDEV_FDB_ADD, ...).  The
+notification will reset the FDB entry's last-used time to now.  The driver
+should rate limit refresh notifications, for example, no more than once a
+second.  If the FDB entry expires, fdb_delete is called to remove entry from
+the device.
+
+STP State Change on Port
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Internally or with a third-party STP protocol implementation (e.g. mstpd), the
+bridge driver maintains the STP state for ports, and will notify the switch
+driver of STP state change on a port using the switchdev op
+switchdev_attr_port_set for SWITCHDEV_ATTR_PORT_STP_UPDATE.
+
+State is one of BR_STATE_*.  The switch driver can use STP state updates to
+update ingress packet filter list for the port.  For example, if port is
+DISABLED, no packets should pass, but if port moves to BLOCKED, then STP BPDUs
+and other IEEE 01:80:c2:xx:xx:xx link-local multicast packets can pass.
+
+Note that STP BDPUs are untagged and STP state applies to all VLANs on the port
+so packet filters should be applied consistently across untagged and tagged
+VLANs on the port.
+
+Flooding L2 domain
+^^^^^^^^^^^^^^^^^^
+
+For a given L2 VLAN domain, the switch device should flood multicast/broadcast
+and unknown unicast packets to all ports in domain, if allowed by port's
+current STP state.  The switch driver, knowing which ports are within which
+vlan L2 domain, can program the switch device for flooding.  The packet should
+also be sent to the port netdev for processing by the bridge driver.  The
+bridge should not reflood the packet to the same ports the device flooded.
+XXX: the mechanism to avoid duplicate flood packets is being discuseed.
+
+It is possible for the switch device to not handle flooding and push the
+packets up to the bridge driver for flooding.  This is not ideal as the number
+of ports scale in the L2 domain as the device is much more efficient at
+flooding packets that software.
+
+IGMP Snooping
+^^^^^^^^^^^^^
+
+XXX: complete this section
+
+
+L3 Routing Offload
+------------------
+
+Offloading L3 routing requires that device be programmed with FIB entries from
+the kernel, with the device doing the FIB lookup and forwarding.  The device
+does a longest prefix match (LPM) on FIB entries matching route prefix and
+forwards the packet to the matching FIB entry's nexthop(s) egress ports.
+
+To program the device, the driver implements support for
+SWITCHDEV_OBJ_IPV[4|6]_FIB object using switchdev_port_obj_xxx ops.
+switchdev_port_obj_add is used for both adding a new FIB entry to the device,
+or modifying an existing entry on the device.
+
+XXX: Currently, only SWITCHDEV_OBJ_IPV4_FIB objects are supported.
+
+SWITCHDEV_OBJ_IPV4_FIB object passes:
+
+	struct switchdev_obj_ipv4_fib {         /* IPV4_FIB */
+		u32 dst;
+		int dst_len;
+		struct fib_info *fi;
+		u8 tos;
+		u8 type;
+		u32 nlflags;
+		u32 tb_id;
+	} ipv4_fib;
+
+to add/modify/delete IPv4 dst/dest_len prefix on table tb_id.  The *fi
+structure holds details on the route and route's nexthops.  *dev is one of the
+port netdevs mentioned in the routes next hop list.  If the output port netdevs
+referenced in the route's nexthop list don't all have the same switch ID, the
+driver is not called to add/modify/delete the FIB entry.
+
+Routes offloaded to the device are labeled with "offload" in the ip route
+listing:
+
+	$ ip route show
+	default via 192.168.0.2 dev eth0
+	11.0.0.0/30 dev sw1p1  proto kernel  scope link  src 11.0.0.2 offload
+	11.0.0.4/30 via 11.0.0.1 dev sw1p1  proto zebra  metric 20 offload
+	11.0.0.8/30 dev sw1p2  proto kernel  scope link  src 11.0.0.10 offload
+	11.0.0.12/30 via 11.0.0.9 dev sw1p2  proto zebra  metric 20 offload
+	12.0.0.2  proto zebra  metric 30 offload
+		nexthop via 11.0.0.1  dev sw1p1 weight 1
+		nexthop via 11.0.0.9  dev sw1p2 weight 1
+	12.0.0.3 via 11.0.0.1 dev sw1p1  proto zebra  metric 20 offload
+	12.0.0.4 via 11.0.0.9 dev sw1p2  proto zebra  metric 20 offload
+	192.168.0.0/24 dev eth0  proto kernel  scope link  src 192.168.0.15
+
+XXX: add/mod/del IPv6 FIB API
+
+Nexthop Resolution
+^^^^^^^^^^^^^^^^^^
+
+The FIB entry's nexthop list contains the nexthop tuple (gateway, dev), but for
+the switch device to forward the packet with the correct dst mac address, the
+nexthop gateways must be resolved to the neighbor's mac address.  Neighbor mac
+address discovery comes via the ARP (or ND) process and is available via the
+arp_tbl neighbor table.  To resolve the routes nexthop gateways, the driver
+should trigger the kernel's neighbor resolution process.  See the rocker
+driver's rocker_port_ipv4_resolve() for an example.
+
+The driver can monitor for updates to arp_tbl using the netevent notifier
+NETEVENT_NEIGH_UPDATE.  The device can be programmed with resolved nexthops
+for the routes as arp_tbl updates.

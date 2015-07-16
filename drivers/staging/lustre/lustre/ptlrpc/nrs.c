@@ -40,11 +40,11 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lprocfs_status.h>
-#include <linux/libcfs/libcfs.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lprocfs_status.h"
+#include "../../include/linux/libcfs/libcfs.h"
 #include "ptlrpc_internal.h"
 
 /* XXX: This is just for liblustre. Remove the #if defined directive when the
@@ -155,9 +155,8 @@ static void nrs_policy_stop_primary(struct ptlrpc_nrs *nrs)
 {
 	struct ptlrpc_nrs_policy *tmp = nrs->nrs_policy_primary;
 
-	if (tmp == NULL) {
+	if (tmp == NULL)
 		return;
-	}
 
 	nrs->nrs_policy_primary = NULL;
 
@@ -189,8 +188,8 @@ static void nrs_policy_stop_primary(struct ptlrpc_nrs *nrs)
  */
 static int nrs_policy_start_locked(struct ptlrpc_nrs_policy *policy)
 {
-	struct ptlrpc_nrs      *nrs = policy->pol_nrs;
-	int			rc = 0;
+	struct ptlrpc_nrs *nrs = policy->pol_nrs;
+	int rc = 0;
 
 	/**
 	 * Don't allow multiple starting which is too complex, and has no real
@@ -264,7 +263,7 @@ static int nrs_policy_start_locked(struct ptlrpc_nrs_policy *policy)
 				module_put(policy->pol_desc->pd_owner);
 
 			policy->pol_state = NRS_POL_STATE_STOPPED;
-			GOTO(out, rc);
+			goto out;
 		}
 	}
 
@@ -327,7 +326,7 @@ static void nrs_policy_put(struct ptlrpc_nrs_policy *policy)
 /**
  * Find and return a policy by name.
  */
-static struct ptlrpc_nrs_policy * nrs_policy_find_locked(struct ptlrpc_nrs *nrs,
+static struct ptlrpc_nrs_policy *nrs_policy_find_locked(struct ptlrpc_nrs *nrs,
 							 char *name)
 {
 	struct ptlrpc_nrs_policy *tmp;
@@ -377,16 +376,16 @@ static void nrs_resource_put(struct ptlrpc_nrs_resource *res)
  * \see ptlrpc_nrs_pol_ops::op_res_get()
  */
 static
-struct ptlrpc_nrs_resource * nrs_resource_get(struct ptlrpc_nrs_policy *policy,
-					      struct ptlrpc_nrs_request *nrq,
-					      bool moving_req)
+struct ptlrpc_nrs_resource *nrs_resource_get(struct ptlrpc_nrs_policy *policy,
+					     struct ptlrpc_nrs_request *nrq,
+					     bool moving_req)
 {
 	/**
 	 * Set to NULL to traverse the resource hierarchy from the top.
 	 */
 	struct ptlrpc_nrs_resource *res = NULL;
 	struct ptlrpc_nrs_resource *tmp = NULL;
-	int			    rc;
+	int rc;
 
 	while (1) {
 		rc = policy->pol_desc->pd_ops->op_res_get(policy, nrq, res,
@@ -433,8 +432,8 @@ static void nrs_resource_get_safe(struct ptlrpc_nrs *nrs,
 				  struct ptlrpc_nrs_resource **resp,
 				  bool moving_req)
 {
-	struct ptlrpc_nrs_policy   *primary = NULL;
-	struct ptlrpc_nrs_policy   *fallback = NULL;
+	struct ptlrpc_nrs_policy *primary = NULL;
+	struct ptlrpc_nrs_policy *fallback = NULL;
 
 	memset(resp, 0, sizeof(resp[0]) * NRS_RES_MAX);
 
@@ -479,14 +478,14 @@ static void nrs_resource_get_safe(struct ptlrpc_nrs *nrs,
  *
  * \param resp	the resource hierarchy that is being released
  *
- * \see ptlrpcnrs_req_hp_move()
+ * \see ptlrpc_nrs_req_hp_move()
  * \see ptlrpc_nrs_req_finalize()
  */
 static void nrs_resource_put_safe(struct ptlrpc_nrs_resource **resp)
 {
 	struct ptlrpc_nrs_policy *pols[NRS_RES_MAX];
-	struct ptlrpc_nrs	 *nrs = NULL;
-	int			  i;
+	struct ptlrpc_nrs *nrs = NULL;
+	int i;
 
 	for (i = 0; i < NRS_RES_MAX; i++) {
 		if (resp[i] != NULL) {
@@ -530,8 +529,8 @@ static void nrs_resource_put_safe(struct ptlrpc_nrs_resource **resp)
  * \retval the NRS request to be handled
  */
 static inline
-struct ptlrpc_nrs_request * nrs_request_get(struct ptlrpc_nrs_policy *policy,
-					    bool peek, bool force)
+struct ptlrpc_nrs_request *nrs_request_get(struct ptlrpc_nrs_policy *policy,
+					   bool peek, bool force)
 {
 	struct ptlrpc_nrs_request *nrq;
 
@@ -557,8 +556,8 @@ struct ptlrpc_nrs_request * nrs_request_get(struct ptlrpc_nrs_policy *policy,
 static inline void nrs_request_enqueue(struct ptlrpc_nrs_request *nrq)
 {
 	struct ptlrpc_nrs_policy *policy;
-	int			  rc;
-	int			  i;
+	int rc;
+	int i;
 
 	/**
 	 * Try in descending order, because the primary policy (if any) is
@@ -629,14 +628,16 @@ static inline void nrs_request_stop(struct ptlrpc_nrs_request *nrq)
 static int nrs_policy_ctl(struct ptlrpc_nrs *nrs, char *name,
 			  enum ptlrpc_nrs_ctl opc, void *arg)
 {
-	struct ptlrpc_nrs_policy       *policy;
-	int				rc = 0;
+	struct ptlrpc_nrs_policy *policy;
+	int rc = 0;
 
 	spin_lock(&nrs->nrs_lock);
 
 	policy = nrs_policy_find_locked(nrs, name);
-	if (policy == NULL)
-		GOTO(out, rc = -ENOENT);
+	if (policy == NULL) {
+		rc = -ENOENT;
+		goto out;
+	}
 
 	switch (opc) {
 		/**
@@ -714,7 +715,7 @@ static int nrs_policy_unregister(struct ptlrpc_nrs *nrs, char *name)
 	nrs_policy_fini(policy);
 
 	LASSERT(policy->pol_private == NULL);
-	OBD_FREE_PTR(policy);
+	kfree(policy);
 
 	return 0;
 }
@@ -732,10 +733,10 @@ static int nrs_policy_unregister(struct ptlrpc_nrs *nrs, char *name)
 static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 			       struct ptlrpc_nrs_pol_desc *desc)
 {
-	struct ptlrpc_nrs_policy       *policy;
-	struct ptlrpc_nrs_policy       *tmp;
-	struct ptlrpc_service_part     *svcpt = nrs->nrs_svcpt;
-	int				rc;
+	struct ptlrpc_nrs_policy *policy;
+	struct ptlrpc_nrs_policy *tmp;
+	struct ptlrpc_service_part *svcpt = nrs->nrs_svcpt;
+	int rc;
 
 	LASSERT(svcpt != NULL);
 	LASSERT(desc->pd_ops != NULL);
@@ -745,22 +746,23 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 	LASSERT(desc->pd_ops->op_req_dequeue != NULL);
 	LASSERT(desc->pd_compat != NULL);
 
-	OBD_CPT_ALLOC_GFP(policy, svcpt->scp_service->srv_cptable,
-			  svcpt->scp_cpt, sizeof(*policy), __GFP_IO);
+	policy = kzalloc_node(sizeof(*policy), GFP_NOFS,
+			cfs_cpt_spread_node(svcpt->scp_service->srv_cptable,
+					    svcpt->scp_cpt));
 	if (policy == NULL)
 		return -ENOMEM;
 
-	policy->pol_nrs     = nrs;
-	policy->pol_desc    = desc;
-	policy->pol_state   = NRS_POL_STATE_STOPPED;
-	policy->pol_flags   = desc->pd_flags;
+	policy->pol_nrs = nrs;
+	policy->pol_desc = desc;
+	policy->pol_state = NRS_POL_STATE_STOPPED;
+	policy->pol_flags = desc->pd_flags;
 
 	INIT_LIST_HEAD(&policy->pol_list);
 	INIT_LIST_HEAD(&policy->pol_list_queued);
 
 	rc = nrs_policy_init(policy);
 	if (rc != 0) {
-		OBD_FREE_PTR(policy);
+		kfree(policy);
 		return rc;
 	}
 
@@ -768,14 +770,14 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 
 	tmp = nrs_policy_find_locked(nrs, policy->pol_desc->pd_name);
 	if (tmp != NULL) {
-		CERROR("NRS policy %s has been registered, can't register it "
-		       "for %s\n", policy->pol_desc->pd_name,
+		CERROR("NRS policy %s has been registered, can't register it for %s\n",
+		       policy->pol_desc->pd_name,
 		       svcpt->scp_service->srv_name);
 		nrs_policy_put_locked(tmp);
 
 		spin_unlock(&nrs->nrs_lock);
 		nrs_policy_fini(policy);
-		OBD_FREE_PTR(policy);
+		kfree(policy);
 
 		return -EEXIST;
 	}
@@ -802,7 +804,7 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
  */
 static void ptlrpc_nrs_req_add_nolock(struct ptlrpc_request *req)
 {
-	struct ptlrpc_nrs_policy       *policy;
+	struct ptlrpc_nrs_policy *policy;
 
 	LASSERT(req->rq_nrq.nr_initialized);
 	LASSERT(!req->rq_nrq.nr_enqueued);
@@ -827,7 +829,7 @@ static void ptlrpc_nrs_req_add_nolock(struct ptlrpc_request *req)
  */
 static void ptlrpc_nrs_hpreq_add_nolock(struct ptlrpc_request *req)
 {
-	int	opc = lustre_msg_get_opc(req->rq_reqmsg);
+	int opc = lustre_msg_get_opc(req->rq_reqmsg);
 
 	spin_lock(&req->rq_lock);
 	req->rq_hp = 1;
@@ -870,9 +872,9 @@ static int nrs_register_policies_locked(struct ptlrpc_nrs *nrs)
 {
 	struct ptlrpc_nrs_pol_desc *desc;
 	/* for convenience */
-	struct ptlrpc_service_part	 *svcpt = nrs->nrs_svcpt;
-	struct ptlrpc_service		 *svc = svcpt->scp_service;
-	int				  rc = -EINVAL;
+	struct ptlrpc_service_part *svcpt = nrs->nrs_svcpt;
+	struct ptlrpc_service *svc = svcpt->scp_service;
+	int rc = -EINVAL;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 
@@ -880,8 +882,7 @@ static int nrs_register_policies_locked(struct ptlrpc_nrs *nrs)
 		if (nrs_policy_compatible(svc, desc)) {
 			rc = nrs_policy_register(nrs, desc);
 			if (rc != 0) {
-				CERROR("Failed to register NRS policy %s for "
-				       "partition %d of service %s: %d\n",
+				CERROR("Failed to register NRS policy %s for partition %d of service %s: %d\n",
 				       desc->pd_name, svcpt->scp_cpt,
 				       svc->srv_name, rc);
 				/**
@@ -911,8 +912,7 @@ static int nrs_register_policies_locked(struct ptlrpc_nrs *nrs)
 static int nrs_svcpt_setup_locked0(struct ptlrpc_nrs *nrs,
 				   struct ptlrpc_service_part *svcpt)
 {
-	int				rc;
-	enum ptlrpc_nrs_queue_type	queue;
+	enum ptlrpc_nrs_queue_type queue;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 
@@ -929,9 +929,7 @@ static int nrs_svcpt_setup_locked0(struct ptlrpc_nrs *nrs,
 	INIT_LIST_HEAD(&nrs->nrs_policy_list);
 	INIT_LIST_HEAD(&nrs->nrs_policy_queued);
 
-	rc = nrs_register_policies_locked(nrs);
-
-	return rc;
+	return nrs_register_policies_locked(nrs);
 }
 
 /**
@@ -945,8 +943,8 @@ static int nrs_svcpt_setup_locked0(struct ptlrpc_nrs *nrs,
  */
 static int nrs_svcpt_setup_locked(struct ptlrpc_service_part *svcpt)
 {
-	struct ptlrpc_nrs	       *nrs;
-	int				rc;
+	struct ptlrpc_nrs *nrs;
+	int rc;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 
@@ -956,19 +954,22 @@ static int nrs_svcpt_setup_locked(struct ptlrpc_service_part *svcpt)
 	nrs = nrs_svcpt2nrs(svcpt, false);
 	rc = nrs_svcpt_setup_locked0(nrs, svcpt);
 	if (rc < 0)
-		GOTO(out, rc);
+		goto out;
 
 	/**
 	 * Optionally allocate a high-priority NRS head.
 	 */
 	if (svcpt->scp_service->srv_ops.so_hpreq_handler == NULL)
-		GOTO(out, rc);
+		goto out;
 
-	OBD_CPT_ALLOC_PTR(svcpt->scp_nrs_hp,
-			  svcpt->scp_service->srv_cptable,
-			  svcpt->scp_cpt);
-	if (svcpt->scp_nrs_hp == NULL)
-		GOTO(out, rc = -ENOMEM);
+	svcpt->scp_nrs_hp =
+		kzalloc_node(sizeof(*svcpt->scp_nrs_hp), GFP_NOFS,
+			cfs_cpt_spread_node(svcpt->scp_service->srv_cptable,
+					    svcpt->scp_cpt));
+	if (svcpt->scp_nrs_hp == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	nrs = nrs_svcpt2nrs(svcpt, true);
 	rc = nrs_svcpt_setup_locked0(nrs, svcpt);
@@ -987,11 +988,11 @@ out:
  */
 static void nrs_svcpt_cleanup_locked(struct ptlrpc_service_part *svcpt)
 {
-	struct ptlrpc_nrs	       *nrs;
-	struct ptlrpc_nrs_policy       *policy;
-	struct ptlrpc_nrs_policy       *tmp;
-	int				rc;
-	bool				hp = false;
+	struct ptlrpc_nrs *nrs;
+	struct ptlrpc_nrs_policy *policy;
+	struct ptlrpc_nrs_policy *tmp;
+	int rc;
+	bool hp = false;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 
@@ -1014,7 +1015,7 @@ again:
 	}
 
 	if (hp)
-		OBD_FREE_PTR(nrs);
+		kfree(nrs);
 }
 
 /**
@@ -1027,7 +1028,7 @@ again:
  */
 static struct ptlrpc_nrs_pol_desc *nrs_policy_find_desc_locked(const char *name)
 {
-	struct ptlrpc_nrs_pol_desc     *tmp;
+	struct ptlrpc_nrs_pol_desc *tmp;
 
 	list_for_each_entry(tmp, &nrs_core.nrs_policies, pd_list) {
 		if (strncmp(tmp->pd_name, name, NRS_POL_NAME_MAX) == 0)
@@ -1050,11 +1051,11 @@ static struct ptlrpc_nrs_pol_desc *nrs_policy_find_desc_locked(const char *name)
  */
 static int nrs_policy_unregister_locked(struct ptlrpc_nrs_pol_desc *desc)
 {
-	struct ptlrpc_nrs	       *nrs;
-	struct ptlrpc_service	       *svc;
-	struct ptlrpc_service_part     *svcpt;
-	int				i;
-	int				rc = 0;
+	struct ptlrpc_nrs *nrs;
+	struct ptlrpc_service *svc;
+	struct ptlrpc_service_part *svcpt;
+	int i;
+	int rc = 0;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 	LASSERT(mutex_is_locked(&ptlrpc_all_services_mutex));
@@ -1078,8 +1079,7 @@ again:
 			if (rc == -ENOENT) {
 				rc = 0;
 			} else if (rc != 0) {
-				CERROR("Failed to unregister NRS policy %s for "
-				       "partition %d of service %s: %d\n",
+				CERROR("Failed to unregister NRS policy %s for partition %d of service %s: %d\n",
 				       desc->pd_name, svcpt->scp_cpt,
 				       svcpt->scp_service->srv_name, rc);
 				return rc;
@@ -1115,9 +1115,9 @@ again:
  */
 int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 {
-	struct ptlrpc_service	       *svc;
-	struct ptlrpc_nrs_pol_desc     *desc;
-	int				rc = 0;
+	struct ptlrpc_service *svc;
+	struct ptlrpc_nrs_pol_desc *desc;
+	int rc = 0;
 
 	LASSERT(conf != NULL);
 	LASSERT(conf->nc_ops != NULL);
@@ -1141,33 +1141,33 @@ int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 	if ((conf->nc_flags & PTLRPC_NRS_FL_REG_EXTERN) &&
 	    (conf->nc_flags & (PTLRPC_NRS_FL_FALLBACK |
 			       PTLRPC_NRS_FL_REG_START))) {
-		CERROR("NRS: failing to register policy %s. Please check "
-		       "policy flags; external policies cannot act as fallback "
-		       "policies, or be started immediately upon registration "
-		       "without interaction with lprocfs\n", conf->nc_name);
+		CERROR("NRS: failing to register policy %s. Please check policy flags; external policies cannot act as fallback policies, or be started immediately upon registration without interaction with lprocfs\n",
+		       conf->nc_name);
 		return -EINVAL;
 	}
 
 	mutex_lock(&nrs_core.nrs_mutex);
 
 	if (nrs_policy_find_desc_locked(conf->nc_name) != NULL) {
-		CERROR("NRS: failing to register policy %s which has already "
-		       "been registered with NRS core!\n",
+		CERROR("NRS: failing to register policy %s which has already been registered with NRS core!\n",
 		       conf->nc_name);
-		GOTO(fail, rc = -EEXIST);
+		rc = -EEXIST;
+		goto fail;
 	}
 
-	OBD_ALLOC_PTR(desc);
-	if (desc == NULL)
-		GOTO(fail, rc = -ENOMEM);
+	desc = kzalloc(sizeof(*desc), GFP_NOFS);
+	if (desc == NULL) {
+		rc = -ENOMEM;
+		goto fail;
+	}
 
 	strncpy(desc->pd_name, conf->nc_name, NRS_POL_NAME_MAX);
-	desc->pd_ops		 = conf->nc_ops;
-	desc->pd_compat		 = conf->nc_compat;
+	desc->pd_ops = conf->nc_ops;
+	desc->pd_compat = conf->nc_compat;
 	desc->pd_compat_svc_name = conf->nc_compat_svc_name;
 	if ((conf->nc_flags & PTLRPC_NRS_FL_REG_EXTERN) != 0)
-		desc->pd_owner	 = conf->nc_owner;
-	desc->pd_flags		 = conf->nc_flags;
+		desc->pd_owner = conf->nc_owner;
+	desc->pd_flags = conf->nc_flags;
 	atomic_set(&desc->pd_refs, 0);
 
 	/**
@@ -1187,23 +1187,22 @@ int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 	mutex_lock(&ptlrpc_all_services_mutex);
 
 	list_for_each_entry(svc, &ptlrpc_all_services, srv_list) {
-		struct ptlrpc_service_part     *svcpt;
-		int				i;
-		int				rc2;
+		struct ptlrpc_service_part *svcpt;
+		int i;
+		int rc2;
 
 		if (!nrs_policy_compatible(svc, desc) ||
 		    unlikely(svc->srv_is_stopping))
 			continue;
 
 		ptlrpc_service_for_each_part(svcpt, i, svc) {
-			struct ptlrpc_nrs      *nrs;
-			bool			hp = false;
+			struct ptlrpc_nrs *nrs;
+			bool hp = false;
 again:
 			nrs = nrs_svcpt2nrs(svcpt, hp);
 			rc = nrs_policy_register(nrs, desc);
 			if (rc != 0) {
-				CERROR("Failed to register NRS policy %s for "
-				       "partition %d of service %s: %d\n",
+				CERROR("Failed to register NRS policy %s for partition %d of service %s: %d\n",
 				       desc->pd_name, svcpt->scp_cpt,
 				       svcpt->scp_service->srv_name, rc);
 
@@ -1213,8 +1212,8 @@ again:
 				 */
 				LASSERT(rc2 == 0);
 				mutex_unlock(&ptlrpc_all_services_mutex);
-				OBD_FREE_PTR(desc);
-				GOTO(fail, rc);
+				kfree(desc);
+				goto fail;
 			}
 
 			if (!hp && nrs_svc_has_hp(svc)) {
@@ -1236,8 +1235,8 @@ again:
 				 */
 				LASSERT(rc2 == 0);
 				mutex_unlock(&ptlrpc_all_services_mutex);
-				OBD_FREE_PTR(desc);
-				GOTO(fail, rc);
+				kfree(desc);
+				goto fail;
 			}
 		}
 	}
@@ -1268,14 +1267,13 @@ EXPORT_SYMBOL(ptlrpc_nrs_policy_register);
  */
 int ptlrpc_nrs_policy_unregister(struct ptlrpc_nrs_pol_conf *conf)
 {
-	struct ptlrpc_nrs_pol_desc	*desc;
-	int				 rc;
+	struct ptlrpc_nrs_pol_desc *desc;
+	int rc;
 
 	LASSERT(conf != NULL);
 
 	if (conf->nc_flags & PTLRPC_NRS_FL_FALLBACK) {
-		CERROR("Unable to unregister a fallback policy, unless the "
-		       "PTLRPC service is stopping.\n");
+		CERROR("Unable to unregister a fallback policy, unless the PTLRPC service is stopping.\n");
 		return -EPERM;
 	}
 
@@ -1285,10 +1283,10 @@ int ptlrpc_nrs_policy_unregister(struct ptlrpc_nrs_pol_conf *conf)
 
 	desc = nrs_policy_find_desc_locked(conf->nc_name);
 	if (desc == NULL) {
-		CERROR("Failing to unregister NRS policy %s which has "
-		       "not been registered with NRS core!\n",
+		CERROR("Failing to unregister NRS policy %s which has not been registered with NRS core!\n",
 		       conf->nc_name);
-		GOTO(not_exist, rc = -ENOENT);
+		rc = -ENOENT;
+		goto not_exist;
 	}
 
 	mutex_lock(&ptlrpc_all_services_mutex);
@@ -1296,17 +1294,16 @@ int ptlrpc_nrs_policy_unregister(struct ptlrpc_nrs_pol_conf *conf)
 	rc = nrs_policy_unregister_locked(desc);
 	if (rc < 0) {
 		if (rc == -EBUSY)
-			CERROR("Please first stop policy %s on all service "
-			       "partitions and then retry to unregister the "
-			       "policy.\n", conf->nc_name);
-		GOTO(fail, rc);
+			CERROR("Please first stop policy %s on all service partitions and then retry to unregister the policy.\n",
+			       conf->nc_name);
+		goto fail;
 	}
 
 	CDEBUG(D_INFO, "Unregistering policy %s from NRS core.\n",
 	       conf->nc_name);
 
 	list_del(&desc->pd_list);
-	OBD_FREE_PTR(desc);
+	kfree(desc);
 
 fail:
 	mutex_unlock(&ptlrpc_all_services_mutex);
@@ -1322,7 +1319,7 @@ EXPORT_SYMBOL(ptlrpc_nrs_policy_unregister);
  * Setup NRS heads on all service partitions of service \a svc, and register
  * all compatible policies on those NRS heads.
  *
- * To be called from withing ptl
+ * To be called from within ptl
  * \param[in] svc the service to setup
  *
  * \retval -ve error, the calling logic should eventually call
@@ -1334,10 +1331,10 @@ EXPORT_SYMBOL(ptlrpc_nrs_policy_unregister);
  */
 int ptlrpc_service_nrs_setup(struct ptlrpc_service *svc)
 {
-	struct ptlrpc_service_part	       *svcpt;
-	const struct ptlrpc_nrs_pol_desc       *desc;
-	int					i;
-	int					rc = 0;
+	struct ptlrpc_service_part *svcpt;
+	const struct ptlrpc_nrs_pol_desc *desc;
+	int i;
+	int rc = 0;
 
 	mutex_lock(&nrs_core.nrs_mutex);
 
@@ -1347,7 +1344,7 @@ int ptlrpc_service_nrs_setup(struct ptlrpc_service *svc)
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
 		rc = nrs_svcpt_setup_locked(svcpt);
 		if (rc != 0)
-			GOTO(failed, rc);
+			goto failed;
 	}
 
 	/**
@@ -1361,7 +1358,7 @@ int ptlrpc_service_nrs_setup(struct ptlrpc_service *svc)
 		if (desc->pd_ops->op_lprocfs_init != NULL) {
 			rc = desc->pd_ops->op_lprocfs_init(svc);
 			if (rc != 0)
-				GOTO(failed, rc);
+				goto failed;
 		}
 	}
 
@@ -1379,9 +1376,9 @@ failed:
  */
 void ptlrpc_service_nrs_cleanup(struct ptlrpc_service *svc)
 {
-	struct ptlrpc_service_part	     *svcpt;
-	const struct ptlrpc_nrs_pol_desc     *desc;
-	int				      i;
+	struct ptlrpc_service_part *svcpt;
+	const struct ptlrpc_nrs_pol_desc *desc;
+	int i;
 
 	mutex_lock(&nrs_core.nrs_mutex);
 
@@ -1420,7 +1417,7 @@ void ptlrpc_service_nrs_cleanup(struct ptlrpc_service *svc)
 void ptlrpc_nrs_req_initialize(struct ptlrpc_service_part *svcpt,
 			       struct ptlrpc_request *req, bool hp)
 {
-	struct ptlrpc_nrs	*nrs = nrs_svcpt2nrs(svcpt, hp);
+	struct ptlrpc_nrs *nrs = nrs_svcpt2nrs(svcpt, hp);
 
 	memset(&req->rq_nrq, 0, sizeof(req->rq_nrq));
 	nrs_resource_get_safe(nrs, &req->rq_nrq, req->rq_nrq.nr_res_ptrs,
@@ -1528,8 +1525,8 @@ struct ptlrpc_request *
 ptlrpc_nrs_req_get_nolock0(struct ptlrpc_service_part *svcpt, bool hp,
 			   bool peek, bool force)
 {
-	struct ptlrpc_nrs	  *nrs = nrs_svcpt2nrs(svcpt, hp);
-	struct ptlrpc_nrs_policy  *policy;
+	struct ptlrpc_nrs *nrs = nrs_svcpt2nrs(svcpt, hp);
+	struct ptlrpc_nrs_policy *policy;
 	struct ptlrpc_nrs_request *nrq;
 
 	/**
@@ -1599,10 +1596,10 @@ bool ptlrpc_nrs_req_pending_nolock(struct ptlrpc_service_part *svcpt, bool hp)
  */
 void ptlrpc_nrs_req_hp_move(struct ptlrpc_request *req)
 {
-	struct ptlrpc_service_part	*svcpt = req->rq_rqbd->rqbd_svcpt;
-	struct ptlrpc_nrs_request	*nrq = &req->rq_nrq;
-	struct ptlrpc_nrs_resource	*res1[NRS_RES_MAX];
-	struct ptlrpc_nrs_resource	*res2[NRS_RES_MAX];
+	struct ptlrpc_service_part *svcpt = req->rq_rqbd->rqbd_svcpt;
+	struct ptlrpc_nrs_request *nrq = &req->rq_nrq;
+	struct ptlrpc_nrs_resource *res1[NRS_RES_MAX];
+	struct ptlrpc_nrs_resource *res2[NRS_RES_MAX];
 
 	/**
 	 * Obtain the high-priority NRS head resources.
@@ -1664,9 +1661,9 @@ int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
 			      enum ptlrpc_nrs_queue_type queue, char *name,
 			      enum ptlrpc_nrs_ctl opc, bool single, void *arg)
 {
-	struct ptlrpc_service_part     *svcpt;
-	int				i;
-	int				rc = 0;
+	struct ptlrpc_service_part *svcpt;
+	int i;
+	int rc = 0;
 
 	LASSERT(opc != PTLRPC_NRS_CTL_INVALID);
 
@@ -1679,7 +1676,7 @@ int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
 					    opc, arg);
 			if (rc != 0 || (queue == PTLRPC_NRS_QUEUE_REG &&
 					single))
-				GOTO(out, rc);
+				goto out;
 		}
 
 		if ((queue & PTLRPC_NRS_QUEUE_HP) != 0) {
@@ -1694,7 +1691,7 @@ int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
 			rc = nrs_policy_ctl(nrs_svcpt2nrs(svcpt, true), name,
 					    opc, arg);
 			if (rc != 0 || single)
-				GOTO(out, rc);
+				goto out;
 		}
 	}
 out:
@@ -1714,14 +1711,14 @@ extern struct ptlrpc_nrs_pol_conf nrs_conf_fifo;
  */
 int ptlrpc_nrs_init(void)
 {
-	int	rc;
+	int rc;
 
 	mutex_init(&nrs_core.nrs_mutex);
 	INIT_LIST_HEAD(&nrs_core.nrs_policies);
 
 	rc = ptlrpc_nrs_policy_register(&nrs_conf_fifo);
 	if (rc != 0)
-		GOTO(fail, rc);
+		goto fail;
 
 
 	return rc;
@@ -1736,7 +1733,7 @@ fail:
 }
 
 /**
- * Removes all policy desciptors from nrs_core::nrs_policies, and frees the
+ * Removes all policy descriptors from nrs_core::nrs_policies, and frees the
  * policy descriptors.
  *
  * Since all PTLRPC services are stopped at this point, there are no more
@@ -1752,7 +1749,7 @@ void ptlrpc_nrs_fini(void)
 	list_for_each_entry_safe(desc, tmp, &nrs_core.nrs_policies,
 				     pd_list) {
 		list_del_init(&desc->pd_list);
-		OBD_FREE_PTR(desc);
+		kfree(desc);
 	}
 }
 

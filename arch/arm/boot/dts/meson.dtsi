@@ -1,0 +1,174 @@
+/*
+ * Copyright 2014 Carlo Caione <carlo@caione.org>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public
+ *     License along with this library; if not, write to the Free
+ *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+ *     MA 02110-1301 USA
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	interrupt-parent = <&gic>;
+
+	L2: l2-cache-controller@c4200000 {
+		compatible = "arm,pl310-cache";
+		reg = <0xc4200000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	gic: interrupt-controller@c4301000 {
+		compatible = "arm,cortex-a9-gic";
+		reg = <0xc4301000 0x1000>,
+		      <0xc4300100 0x0100>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+	};
+
+	timer@c1109940 {
+		compatible = "amlogic,meson6-timer";
+		reg = <0xc1109940 0x14>;
+		interrupts = <0 10 1>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		wdt: watchdog@c1109900 {
+			compatible = "amlogic,meson6-wdt";
+			reg = <0xc1109900 0x8>;
+		};
+
+		uart_AO: serial@c81004c0 {
+			compatible = "amlogic,meson-uart";
+			reg = <0xc81004c0 0x14>;
+			interrupts = <0 90 1>;
+			clocks = <&clk81>;
+			status = "disabled";
+		};
+
+		uart_A: serial@c81084c0 {
+			compatible = "amlogic,meson-uart";
+			reg = <0xc81084c0 0x14>;
+			interrupts = <0 90 1>;
+			clocks = <&clk81>;
+			status = "disabled";
+		};
+
+		uart_B: serial@c81084dc {
+			compatible = "amlogic,meson-uart";
+			reg = <0xc81084dc 0x14>;
+			interrupts = <0 90 1>;
+			clocks = <&clk81>;
+			status = "disabled";
+		};
+
+		uart_C: serial@c8108700 {
+			compatible = "amlogic,meson-uart";
+			reg = <0xc8108700 0x14>;
+			interrupts = <0 90 1>;
+			clocks = <&clk81>;
+			status = "disabled";
+		};
+
+		i2c_AO: i2c@c8100500 {
+			compatible = "amlogic,meson6-i2c";
+			reg = <0xc8100500 0x20>;
+			interrupts = <0 92 1>;
+			clocks = <&clk81>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c_A: i2c@c1108500 {
+			compatible = "amlogic,meson6-i2c";
+			reg = <0xc1108500 0x20>;
+			interrupts = <0 21 1>;
+			clocks = <&clk81>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c_B: i2c@c11087c0 {
+			compatible = "amlogic,meson6-i2c";
+			reg = <0xc11087c0 0x20>;
+			interrupts = <0 128 1>;
+			clocks = <&clk81>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		ir_receiver: ir-receiver@c8100480 {
+			compatible= "amlogic,meson6-ir";
+			reg = <0xc8100480 0x20>;
+			interrupts = <0 15 1>;
+			status = "disabled";
+		};
+
+		spifc: spi@c1108c80 {
+			compatible = "amlogic,meson6-spifc";
+			reg = <0xc1108c80 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk81>;
+			status = "disabled";
+		};
+
+		ethmac: ethernet@c9410000 {
+			compatible = "amlogic,meson6-dwmac", "snps,dwmac";
+			reg = <0xc9410000 0x10000
+			       0xc1108108 0x4>;
+			interrupts = <0 8 1>;
+			interrupt-names = "macirq";
+			clocks = <&clk81>;
+			clock-names = "stmmaceth";
+			status = "disabled";
+		};
+	};
+}; /* end of / */

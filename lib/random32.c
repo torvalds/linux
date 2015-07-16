@@ -1,37 +1,35 @@
 /*
-  This is a maximally equidistributed combined Tausworthe generator
-  based on code from GNU Scientific Library 1.5 (30 Jun 2004)
-
-  lfsr113 version:
-
-   x_n = (s1_n ^ s2_n ^ s3_n ^ s4_n)
-
-   s1_{n+1} = (((s1_n & 4294967294) << 18) ^ (((s1_n <<  6) ^ s1_n) >> 13))
-   s2_{n+1} = (((s2_n & 4294967288) <<  2) ^ (((s2_n <<  2) ^ s2_n) >> 27))
-   s3_{n+1} = (((s3_n & 4294967280) <<  7) ^ (((s3_n << 13) ^ s3_n) >> 21))
-   s4_{n+1} = (((s4_n & 4294967168) << 13) ^ (((s4_n <<  3) ^ s4_n) >> 12))
-
-   The period of this generator is about 2^113 (see erratum paper).
-
-   From: P. L'Ecuyer, "Maximally Equidistributed Combined Tausworthe
-   Generators", Mathematics of Computation, 65, 213 (1996), 203--213:
-   http://www.iro.umontreal.ca/~lecuyer/myftp/papers/tausme.ps
-   ftp://ftp.iro.umontreal.ca/pub/simulation/lecuyer/papers/tausme.ps
-
-   There is an erratum in the paper "Tables of Maximally
-   Equidistributed Combined LFSR Generators", Mathematics of
-   Computation, 68, 225 (1999), 261--269:
-   http://www.iro.umontreal.ca/~lecuyer/myftp/papers/tausme2.ps
-
-        ... the k_j most significant bits of z_j must be non-
-        zero, for each j. (Note: this restriction also applies to the
-        computer code given in [4], but was mistakenly not mentioned in
-        that paper.)
-
-   This affects the seeding procedure by imposing the requirement
-   s1 > 1, s2 > 7, s3 > 15, s4 > 127.
-
-*/
+ * This is a maximally equidistributed combined Tausworthe generator
+ * based on code from GNU Scientific Library 1.5 (30 Jun 2004)
+ *
+ * lfsr113 version:
+ *
+ * x_n = (s1_n ^ s2_n ^ s3_n ^ s4_n)
+ *
+ * s1_{n+1} = (((s1_n & 4294967294) << 18) ^ (((s1_n <<  6) ^ s1_n) >> 13))
+ * s2_{n+1} = (((s2_n & 4294967288) <<  2) ^ (((s2_n <<  2) ^ s2_n) >> 27))
+ * s3_{n+1} = (((s3_n & 4294967280) <<  7) ^ (((s3_n << 13) ^ s3_n) >> 21))
+ * s4_{n+1} = (((s4_n & 4294967168) << 13) ^ (((s4_n <<  3) ^ s4_n) >> 12))
+ *
+ * The period of this generator is about 2^113 (see erratum paper).
+ *
+ * From: P. L'Ecuyer, "Maximally Equidistributed Combined Tausworthe
+ * Generators", Mathematics of Computation, 65, 213 (1996), 203--213:
+ * http://www.iro.umontreal.ca/~lecuyer/myftp/papers/tausme.ps
+ * ftp://ftp.iro.umontreal.ca/pub/simulation/lecuyer/papers/tausme.ps
+ *
+ * There is an erratum in the paper "Tables of Maximally Equidistributed
+ * Combined LFSR Generators", Mathematics of Computation, 68, 225 (1999),
+ * 261--269: http://www.iro.umontreal.ca/~lecuyer/myftp/papers/tausme2.ps
+ *
+ *      ... the k_j most significant bits of z_j must be non-zero,
+ *      for each j. (Note: this restriction also applies to the
+ *      computer code given in [4], but was mistakenly not mentioned
+ *      in that paper.)
+ *
+ * This affects the seeding procedure by imposing the requirement
+ * s1 > 1, s2 > 7, s3 > 15, s4 > 127.
+ */
 
 #include <linux/types.h>
 #include <linux/percpu.h>
@@ -39,9 +37,14 @@
 #include <linux/jiffies.h>
 #include <linux/random.h>
 #include <linux/sched.h>
+#include <asm/unaligned.h>
 
 #ifdef CONFIG_RANDOM32_SELFTEST
 static void __init prandom_state_selftest(void);
+#else
+static inline void prandom_state_selftest(void)
+{
+}
 #endif
 
 static DEFINE_PER_CPU(struct rnd_state, net_rand_state);
@@ -55,8 +58,7 @@ static DEFINE_PER_CPU(struct rnd_state, net_rand_state);
  */
 u32 prandom_u32_state(struct rnd_state *state)
 {
-#define TAUSWORTHE(s,a,b,c,d) ((s&c)<<d) ^ (((s <<a) ^ s)>>b)
-
+#define TAUSWORTHE(s, a, b, c, d) ((s & c) << d) ^ (((s << a) ^ s) >> b)
 	state->s1 = TAUSWORTHE(state->s1,  6U, 13U, 4294967294U, 18U);
 	state->s2 = TAUSWORTHE(state->s2,  2U, 27U, 4294967288U,  2U);
 	state->s3 = TAUSWORTHE(state->s3, 13U, 21U, 4294967280U,  7U);
@@ -75,15 +77,17 @@ EXPORT_SYMBOL(prandom_u32_state);
  */
 u32 prandom_u32(void)
 {
-	unsigned long r;
 	struct rnd_state *state = &get_cpu_var(net_rand_state);
-	r = prandom_u32_state(state);
+	u32 res;
+
+	res = prandom_u32_state(state);
 	put_cpu_var(state);
-	return r;
+
+	return res;
 }
 EXPORT_SYMBOL(prandom_u32);
 
-/*
+/**
  *	prandom_bytes_state - get the requested number of pseudo-random bytes
  *
  *	@state: pointer to state structure holding seeded state.
@@ -93,27 +97,23 @@ EXPORT_SYMBOL(prandom_u32);
  *	This is used for pseudo-randomness with no outside seeding.
  *	For more random results, use prandom_bytes().
  */
-void prandom_bytes_state(struct rnd_state *state, void *buf, int bytes)
+void prandom_bytes_state(struct rnd_state *state, void *buf, size_t bytes)
 {
-	unsigned char *p = buf;
-	int i;
+	u8 *ptr = buf;
 
-	for (i = 0; i < round_down(bytes, sizeof(u32)); i += sizeof(u32)) {
-		u32 random = prandom_u32_state(state);
-		int j;
-
-		for (j = 0; j < sizeof(u32); j++) {
-			p[i + j] = random;
-			random >>= BITS_PER_BYTE;
-		}
+	while (bytes >= sizeof(u32)) {
+		put_unaligned(prandom_u32_state(state), (u32 *) ptr);
+		ptr += sizeof(u32);
+		bytes -= sizeof(u32);
 	}
-	if (i < bytes) {
-		u32 random = prandom_u32_state(state);
 
-		for (; i < bytes; i++) {
-			p[i] = random;
-			random >>= BITS_PER_BYTE;
-		}
+	if (bytes > 0) {
+		u32 rem = prandom_u32_state(state);
+		do {
+			*ptr++ = (u8) rem;
+			bytes--;
+			rem >>= BITS_PER_BYTE;
+		} while (bytes > 0);
 	}
 }
 EXPORT_SYMBOL(prandom_bytes_state);
@@ -123,7 +123,7 @@ EXPORT_SYMBOL(prandom_bytes_state);
  *	@buf: where to copy the pseudo-random bytes to
  *	@bytes: the requested number of bytes
  */
-void prandom_bytes(void *buf, int bytes)
+void prandom_bytes(void *buf, size_t bytes)
 {
 	struct rnd_state *state = &get_cpu_var(net_rand_state);
 
@@ -134,7 +134,7 @@ EXPORT_SYMBOL(prandom_bytes);
 
 static void prandom_warmup(struct rnd_state *state)
 {
-	/* Calling RNG ten times to satify recurrence condition */
+	/* Calling RNG ten times to satisfy recurrence condition */
 	prandom_u32_state(state);
 	prandom_u32_state(state);
 	prandom_u32_state(state);
@@ -147,21 +147,25 @@ static void prandom_warmup(struct rnd_state *state)
 	prandom_u32_state(state);
 }
 
-static void prandom_seed_very_weak(struct rnd_state *state, u32 seed)
+static u32 __extract_hwseed(void)
 {
-	/* Note: This sort of seeding is ONLY used in test cases and
-	 * during boot at the time from core_initcall until late_initcall
-	 * as we don't have a stronger entropy source available yet.
-	 * After late_initcall, we reseed entire state, we have to (!),
-	 * otherwise an attacker just needs to search 32 bit space to
-	 * probe for our internal 128 bit state if he knows a couple
-	 * of prandom32 outputs!
-	 */
-#define LCG(x)	((x) * 69069U)	/* super-duper LCG */
-	state->s1 = __seed(LCG(seed),        2U);
-	state->s2 = __seed(LCG(state->s1),   8U);
-	state->s3 = __seed(LCG(state->s2),  16U);
-	state->s4 = __seed(LCG(state->s3), 128U);
+	unsigned int val = 0;
+
+	(void)(arch_get_random_seed_int(&val) ||
+	       arch_get_random_int(&val));
+
+	return val;
+}
+
+static void prandom_seed_early(struct rnd_state *state, u32 seed,
+			       bool mix_with_hwseed)
+{
+#define LCG(x)	 ((x) * 69069U)	/* super-duper LCG */
+#define HWSEED() (mix_with_hwseed ? __extract_hwseed() : 0)
+	state->s1 = __seed(HWSEED() ^ LCG(seed),        2U);
+	state->s2 = __seed(HWSEED() ^ LCG(state->s1),   8U);
+	state->s3 = __seed(HWSEED() ^ LCG(state->s2),  16U);
+	state->s4 = __seed(HWSEED() ^ LCG(state->s3), 128U);
 }
 
 /**
@@ -194,21 +198,22 @@ static int __init prandom_init(void)
 {
 	int i;
 
-#ifdef CONFIG_RANDOM32_SELFTEST
 	prandom_state_selftest();
-#endif
 
 	for_each_possible_cpu(i) {
 		struct rnd_state *state = &per_cpu(net_rand_state,i);
+		u32 weak_seed = (i + jiffies) ^ random_get_entropy();
 
-		prandom_seed_very_weak(state, (i + jiffies) ^ random_get_entropy());
+		prandom_seed_early(state, weak_seed, true);
 		prandom_warmup(state);
 	}
+
 	return 0;
 }
 core_initcall(prandom_init);
 
 static void __prandom_timer(unsigned long dontcare);
+
 static DEFINE_TIMER(seed_timer, __prandom_timer, 0, 0);
 
 static void __prandom_timer(unsigned long dontcare)
@@ -220,7 +225,7 @@ static void __prandom_timer(unsigned long dontcare)
 	prandom_seed(entropy);
 
 	/* reseed every ~60 seconds, in [40 .. 80) interval with slack */
-	expires = 40 + (prandom_u32() % 40);
+	expires = 40 + prandom_u32_max(40);
 	seed_timer.expires = jiffies + msecs_to_jiffies(expires * MSEC_PER_SEC);
 
 	add_timer(&seed_timer);
@@ -244,10 +249,22 @@ static void __prandom_reseed(bool late)
 	static bool latch = false;
 	static DEFINE_SPINLOCK(lock);
 
+	/* Asking for random bytes might result in bytes getting
+	 * moved into the nonblocking pool and thus marking it
+	 * as initialized. In this case we would double back into
+	 * this function and attempt to do a late reseed.
+	 * Ignore the pointless attempt to reseed again if we're
+	 * already waiting for bytes when the nonblocking pool
+	 * got initialized.
+	 */
+
 	/* only allow initial seeding (late == false) once */
-	spin_lock_irqsave(&lock, flags);
+	if (!spin_trylock_irqsave(&lock, flags))
+		return;
+
 	if (latch && !late)
 		goto out;
+
 	latch = true;
 
 	for_each_possible_cpu(i) {
@@ -406,7 +423,7 @@ static void __init prandom_state_selftest(void)
 	for (i = 0; i < ARRAY_SIZE(test1); i++) {
 		struct rnd_state state;
 
-		prandom_seed_very_weak(&state, test1[i].seed);
+		prandom_seed_early(&state, test1[i].seed, false);
 		prandom_warmup(&state);
 
 		if (test1[i].result != prandom_u32_state(&state))
@@ -421,7 +438,7 @@ static void __init prandom_state_selftest(void)
 	for (i = 0; i < ARRAY_SIZE(test2); i++) {
 		struct rnd_state state;
 
-		prandom_seed_very_weak(&state, test2[i].seed);
+		prandom_seed_early(&state, test2[i].seed, false);
 		prandom_warmup(&state);
 
 		for (j = 0; j < test2[i].iteration - 1; j++)

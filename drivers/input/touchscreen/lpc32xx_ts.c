@@ -15,7 +15,6 @@
  */
 
 #include <linux/platform_device.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -385,7 +384,7 @@ static const struct dev_pm_ops lpc32xx_ts_pm_ops = {
 #endif
 
 #ifdef CONFIG_OF
-static struct of_device_id lpc32xx_tsc_of_match[] = {
+static const struct of_device_id lpc32xx_tsc_of_match[] = {
 	{ .compatible = "nxp,lpc3220-tsc", },
 	{ },
 };
@@ -397,7 +396,6 @@ static struct platform_driver lpc32xx_ts_driver = {
 	.remove		= lpc32xx_ts_remove,
 	.driver		= {
 		.name	= MOD_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= LPC32XX_TS_PM_OPS,
 		.of_match_table = of_match_ptr(lpc32xx_tsc_of_match),
 	},

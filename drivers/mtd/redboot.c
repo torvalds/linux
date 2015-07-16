@@ -300,7 +300,8 @@ MODULE_ALIAS("RedBoot");
 
 static int __init redboot_parser_init(void)
 {
-	return register_mtd_parser(&redboot_parser);
+	register_mtd_parser(&redboot_parser);
+	return 0;
 }
 
 static void __exit redboot_parser_exit(void)

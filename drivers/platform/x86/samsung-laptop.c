@@ -27,6 +27,7 @@
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
 #include <linux/efi.h>
+#include <linux/suspend.h>
 #include <acpi/video.h>
 
 /*
@@ -123,6 +124,10 @@ struct sabi_commands {
 	u16 get_wireless_status;
 	u16 set_wireless_status;
 
+	/* 0x80 is off, 0x81 is on */
+	u16 get_lid_handling;
+	u16 set_lid_handling;
+
 	/* 0x81 to read, (0x82 | level << 8) to set, 0xaabb to enable */
 	u16 kbd_backlight;
 
@@ -193,6 +198,9 @@ static const struct sabi_config sabi_configs[] = {
 			.get_wireless_status = 0xFFFF,
 			.set_wireless_status = 0xFFFF,
 
+			.get_lid_handling = 0xFFFF,
+			.set_lid_handling = 0xFFFF,
+
 			.kbd_backlight = 0xFFFF,
 
 			.set_linux = 0x0a,
@@ -252,6 +260,9 @@ static const struct sabi_config sabi_configs[] = {
 
 			.get_wireless_status = 0x69,
 			.set_wireless_status = 0x6a,
+
+			.get_lid_handling = 0x6d,
+			.set_lid_handling = 0x6e,
 
 			.kbd_backlight = 0x78,
 
@@ -340,6 +351,8 @@ struct samsung_laptop {
 	struct samsung_laptop_debug debug;
 	struct samsung_quirks *quirks;
 
+	struct notifier_block pm_nb;
+
 	bool handle_backlight;
 	bool has_stepping_quirk;
 
@@ -348,12 +361,29 @@ struct samsung_laptop {
 
 struct samsung_quirks {
 	bool broken_acpi_video;
+	bool four_kbd_backlight_levels;
+	bool enable_kbd_backlight;
+	bool use_native_backlight;
+	bool lid_handling;
 };
 
 static struct samsung_quirks samsung_unknown = {};
 
 static struct samsung_quirks samsung_broken_acpi_video = {
 	.broken_acpi_video = true,
+};
+
+static struct samsung_quirks samsung_use_native_backlight = {
+	.use_native_backlight = true,
+};
+
+static struct samsung_quirks samsung_np740u3e = {
+	.four_kbd_backlight_levels = true,
+	.enable_kbd_backlight = true,
+};
+
+static struct samsung_quirks samsung_lid_handling = {
+	.lid_handling = true,
 };
 
 static bool force;
@@ -738,7 +768,7 @@ static ssize_t set_battery_life_extender(struct device *dev,
 	struct samsung_laptop *samsung = dev_get_drvdata(dev);
 	int ret, value;
 
-	if (!count || sscanf(buf, "%i", &value) != 1)
+	if (!count || kstrtoint(buf, 0, &value) != 0)
 		return -EINVAL;
 
 	ret = write_battery_life_extender(samsung, !!value);
@@ -807,7 +837,7 @@ static ssize_t set_usb_charge(struct device *dev,
 	struct samsung_laptop *samsung = dev_get_drvdata(dev);
 	int ret, value;
 
-	if (!count || sscanf(buf, "%i", &value) != 1)
+	if (!count || kstrtoint(buf, 0, &value) != 0)
 		return -EINVAL;
 
 	ret = write_usb_charge(samsung, !!value);
@@ -820,10 +850,76 @@ static ssize_t set_usb_charge(struct device *dev,
 static DEVICE_ATTR(usb_charge, S_IWUSR | S_IRUGO,
 		   get_usb_charge, set_usb_charge);
 
+static int read_lid_handling(struct samsung_laptop *samsung)
+{
+	const struct sabi_commands *commands = &samsung->config->commands;
+	struct sabi_data data;
+	int retval;
+
+	if (commands->get_lid_handling == 0xFFFF)
+		return -ENODEV;
+
+	memset(&data, 0, sizeof(data));
+	retval = sabi_command(samsung, commands->get_lid_handling,
+			      &data, &data);
+
+	if (retval)
+		return retval;
+
+	return data.data[0] & 0x1;
+}
+
+static int write_lid_handling(struct samsung_laptop *samsung,
+			      int enabled)
+{
+	const struct sabi_commands *commands = &samsung->config->commands;
+	struct sabi_data data;
+
+	memset(&data, 0, sizeof(data));
+	data.data[0] = 0x80 | enabled;
+	return sabi_command(samsung, commands->set_lid_handling,
+			    &data, NULL);
+}
+
+static ssize_t get_lid_handling(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct samsung_laptop *samsung = dev_get_drvdata(dev);
+	int ret;
+
+	ret = read_lid_handling(samsung);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", ret);
+}
+
+static ssize_t set_lid_handling(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct samsung_laptop *samsung = dev_get_drvdata(dev);
+	int ret, value;
+
+	if (!count || kstrtoint(buf, 0, &value) != 0)
+		return -EINVAL;
+
+	ret = write_lid_handling(samsung, !!value);
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static DEVICE_ATTR(lid_handling, S_IWUSR | S_IRUGO,
+		   get_lid_handling, set_lid_handling);
+
 static struct attribute *platform_attributes[] = {
 	&dev_attr_performance_level.attr,
 	&dev_attr_battery_life_extender.attr,
 	&dev_attr_usb_charge.attr,
+	&dev_attr_lid_handling.attr,
 	NULL
 };
 
@@ -946,6 +1042,22 @@ static int __init samsung_rfkill_init(struct samsung_laptop *samsung)
 	return 0;
 }
 
+static void samsung_lid_handling_exit(struct samsung_laptop *samsung)
+{
+	if (samsung->quirks->lid_handling)
+		write_lid_handling(samsung, 0);
+}
+
+static int __init samsung_lid_handling_init(struct samsung_laptop *samsung)
+{
+	int retval = 0;
+
+	if (samsung->quirks->lid_handling)
+		retval = write_lid_handling(samsung, 1);
+
+	return retval;
+}
+
 static int kbd_backlight_enable(struct samsung_laptop *samsung)
 {
 	const struct sabi_commands *commands = &samsung->config->commands;
@@ -1051,6 +1163,8 @@ static int __init samsung_leds_init(struct samsung_laptop *samsung)
 		samsung->kbd_led.brightness_set = kbd_led_set;
 		samsung->kbd_led.brightness_get = kbd_led_get;
 		samsung->kbd_led.max_brightness = 8;
+		if (samsung->quirks->four_kbd_backlight_levels)
+			samsung->kbd_led.max_brightness = 4;
 
 		ret = led_classdev_register(&samsung->platform_device->dev,
 					   &samsung->kbd_led);
@@ -1099,7 +1213,7 @@ static int __init samsung_backlight_init(struct samsung_laptop *samsung)
 }
 
 static umode_t samsung_sysfs_is_visible(struct kobject *kobj,
-				       struct attribute *attr, int idx)
+					struct attribute *attr, int idx)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1112,6 +1226,8 @@ static umode_t samsung_sysfs_is_visible(struct kobject *kobj,
 		ok = !!(read_battery_life_extender(samsung) >= 0);
 	if (attr == &dev_attr_usb_charge.attr)
 		ok = !!(read_usb_charge(samsung) >= 0);
+	if (attr == &dev_attr_lid_handling.attr)
+		ok = !!(read_lid_handling(samsung) >= 0);
 
 	return ok ? attr->mode : 0;
 }
@@ -1345,7 +1461,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	samsung_sabi_diag(samsung);
 
 	/* Try to find one of the signatures in memory to find the header */
-	for (i = 0; sabi_configs[i].test_string != 0; ++i) {
+	for (i = 0; sabi_configs[i].test_string != NULL; ++i) {
 		samsung->config = &sabi_configs[i];
 		loca = find_signature(samsung->f0000_segment,
 				      samsung->config->test_string);
@@ -1412,6 +1528,22 @@ static void samsung_platform_exit(struct samsung_laptop *samsung)
 		platform_device_unregister(samsung->platform_device);
 		samsung->platform_device = NULL;
 	}
+}
+
+static int samsung_pm_notification(struct notifier_block *nb,
+				   unsigned long val, void *ptr)
+{
+	struct samsung_laptop *samsung;
+
+	samsung = container_of(nb, struct samsung_laptop, pm_nb);
+	if (val == PM_POST_HIBERNATION &&
+	    samsung->quirks->enable_kbd_backlight)
+		kbd_backlight_enable(samsung);
+
+	if (val == PM_POST_HIBERNATION && samsung->quirks->lid_handling)
+		write_lid_handling(samsung, 1);
+
+	return 0;
 }
 
 static int __init samsung_platform_init(struct samsung_laptop *samsung)
@@ -1482,7 +1614,7 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "N150P"),
 		DMI_MATCH(DMI_BOARD_NAME, "N150P"),
 		},
-	 .driver_data = &samsung_broken_acpi_video,
+	 .driver_data = &samsung_use_native_backlight,
 	},
 	{
 	 .callback = samsung_dmi_matched,
@@ -1492,7 +1624,7 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "N145P/N250P/N260P"),
 		DMI_MATCH(DMI_BOARD_NAME, "N145P/N250P/N260P"),
 		},
-	 .driver_data = &samsung_broken_acpi_video,
+	 .driver_data = &samsung_use_native_backlight,
 	},
 	{
 	 .callback = samsung_dmi_matched,
@@ -1532,7 +1664,35 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "N250P"),
 		DMI_MATCH(DMI_BOARD_NAME, "N250P"),
 		},
+	 .driver_data = &samsung_use_native_backlight,
+	},
+	{
+	 .callback = samsung_dmi_matched,
+	 .ident = "NC210",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "NC210/NC110"),
+		DMI_MATCH(DMI_BOARD_NAME, "NC210/NC110"),
+		},
 	 .driver_data = &samsung_broken_acpi_video,
+	},
+	{
+	 .callback = samsung_dmi_matched,
+	 .ident = "730U3E/740U3E",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "730U3E/740U3E"),
+		},
+	 .driver_data = &samsung_np740u3e,
+	},
+	{
+	 .callback = samsung_dmi_matched,
+	 .ident = "300V3Z/300V4Z/300V5Z",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "300V3Z/300V4Z/300V5Z"),
+		},
+	 .driver_data = &samsung_lid_handling,
 	},
 	{ },
 };
@@ -1560,18 +1720,14 @@ static int __init samsung_init(void)
 	samsung->handle_backlight = true;
 	samsung->quirks = quirks;
 
-
 #ifdef CONFIG_ACPI
 	if (samsung->quirks->broken_acpi_video)
-		acpi_video_dmi_promote_vendor();
+		acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
+	if (samsung->quirks->use_native_backlight)
+		acpi_video_set_dmi_backlight_type(acpi_backlight_native);
 
-	/* Don't handle backlight here if the acpi video already handle it */
-	if (acpi_video_backlight_support()) {
+	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		samsung->handle_backlight = false;
-	} else if (samsung->quirks->broken_acpi_video) {
-		pr_info("Disabling ACPI video driver\n");
-		acpi_video_unregister();
-	}
 #endif
 
 	ret = samsung_platform_init(samsung);
@@ -1581,12 +1737,6 @@ static int __init samsung_init(void)
 	ret = samsung_sabi_init(samsung);
 	if (ret)
 		goto error_sabi;
-
-#ifdef CONFIG_ACPI
-	/* Only log that if we are really on a sabi platform */
-	if (acpi_video_backlight_support())
-		pr_info("Backlight controlled by ACPI video driver\n");
-#endif
 
 	ret = samsung_sysfs_init(samsung);
 	if (ret)
@@ -1604,14 +1754,23 @@ static int __init samsung_init(void)
 	if (ret)
 		goto error_leds;
 
+	ret = samsung_lid_handling_init(samsung);
+	if (ret)
+		goto error_lid_handling;
+
 	ret = samsung_debugfs_init(samsung);
 	if (ret)
 		goto error_debugfs;
+
+	samsung->pm_nb.notifier_call = samsung_pm_notification;
+	register_pm_notifier(&samsung->pm_nb);
 
 	samsung_platform_device = samsung->platform_device;
 	return ret;
 
 error_debugfs:
+	samsung_lid_handling_exit(samsung);
+error_lid_handling:
 	samsung_leds_exit(samsung);
 error_leds:
 	samsung_rfkill_exit(samsung);
@@ -1633,8 +1792,10 @@ static void __exit samsung_exit(void)
 	struct samsung_laptop *samsung;
 
 	samsung = platform_get_drvdata(samsung_platform_device);
+	unregister_pm_notifier(&samsung->pm_nb);
 
 	samsung_debugfs_exit(samsung);
+	samsung_lid_handling_exit(samsung);
 	samsung_leds_exit(samsung);
 	samsung_rfkill_exit(samsung);
 	samsung_backlight_exit(samsung);

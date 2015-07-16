@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 
 #include "cna.h"
@@ -266,8 +267,8 @@ bnad_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 		ethtool_cmd_speed_set(cmd, SPEED_10000);
 		cmd->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(cmd, -1);
-		cmd->duplex = -1;
+		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->duplex = DUPLEX_UNKNOWN;
 	}
 	cmd->transceiver = XCVR_EXTERNAL;
 	cmd->maxtxpkt = 0;
@@ -444,13 +445,13 @@ bnad_set_ringparam(struct net_device *netdev,
 
 	if (ringparam->rx_pending < BNAD_MIN_Q_DEPTH ||
 	    ringparam->rx_pending > BNAD_MAX_RXQ_DEPTH ||
-	    !BNA_POWER_OF_2(ringparam->rx_pending)) {
+	    !is_power_of_2(ringparam->rx_pending)) {
 		mutex_unlock(&bnad->conf_mutex);
 		return -EINVAL;
 	}
 	if (ringparam->tx_pending < BNAD_MIN_Q_DEPTH ||
 	    ringparam->tx_pending > BNAD_MAX_TXQ_DEPTH ||
-	    !BNA_POWER_OF_2(ringparam->tx_pending)) {
+	    !is_power_of_2(ringparam->tx_pending)) {
 		mutex_unlock(&bnad->conf_mutex);
 		return -EINVAL;
 	}
@@ -532,7 +533,7 @@ bnad_set_pauseparam(struct net_device *netdev,
 		pause_config.rx_pause = pauseparam->rx_pause;
 		pause_config.tx_pause = pauseparam->tx_pause;
 		spin_lock_irqsave(&bnad->bna_lock, flags);
-		bna_enet_pause_config(&bnad->bna.enet, &pause_config, NULL);
+		bna_enet_pause_config(&bnad->bna.enet, &pause_config);
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 	}
 	mutex_unlock(&bnad->conf_mutex);
@@ -997,10 +998,8 @@ bnad_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	unsigned long flags = 0;
 	int ret = 0;
 
-	/* Check if the flash read request is valid */
-	if (eeprom->magic != (bnad->pcidev->vendor |
-			     (bnad->pcidev->device << 16)))
-		return -EFAULT;
+	/* Fill the magic value */
+	eeprom->magic = bnad->pcidev->vendor | (bnad->pcidev->device << 16);
 
 	/* Query the flash partition based on the offset */
 	flash_part = bnad_get_flash_partition_by_offset(bnad,
@@ -1081,7 +1080,7 @@ bnad_flash_device(struct net_device *netdev, struct ethtool_flash *eflash)
 
 	ret = request_firmware(&fw, eflash->data, &bnad->pcidev->dev);
 	if (ret) {
-		pr_err("BNA: Can't locate firmware %s\n", eflash->data);
+		netdev_err(netdev, "can't load firmware %s\n", eflash->data);
 		goto out;
 	}
 
@@ -1094,7 +1093,7 @@ bnad_flash_device(struct net_device *netdev, struct ethtool_flash *eflash)
 				bnad->id, (u8 *)fw->data, fw->size, 0,
 				bnad_cb_completion, &fcomp);
 	if (ret != BFA_STATUS_OK) {
-		pr_warn("BNA: Flash update failed with err: %d\n", ret);
+		netdev_warn(netdev, "flash update failed with err=%d\n", ret);
 		ret = -EIO;
 		spin_unlock_irq(&bnad->bna_lock);
 		goto out;
@@ -1104,8 +1103,9 @@ bnad_flash_device(struct net_device *netdev, struct ethtool_flash *eflash)
 	wait_for_completion(&fcomp.comp);
 	if (fcomp.comp_status != BFA_STATUS_OK) {
 		ret = -EIO;
-		pr_warn("BNA: Firmware image update to flash failed with: %d\n",
-			fcomp.comp_status);
+		netdev_warn(netdev,
+			    "firmware image update failed with err=%d\n",
+			    fcomp.comp_status);
 	}
 out:
 	release_firmware(fw);
@@ -1131,10 +1131,11 @@ static const struct ethtool_ops bnad_ethtool_ops = {
 	.get_eeprom = bnad_get_eeprom,
 	.set_eeprom = bnad_set_eeprom,
 	.flash_device = bnad_flash_device,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 void
 bnad_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &bnad_ethtool_ops);
+	netdev->ethtool_ops = &bnad_ethtool_ops;
 }

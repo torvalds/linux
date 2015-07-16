@@ -23,10 +23,6 @@
 
 struct powerdomain;
 
-/* XXX document */
-#define VOLTSCALE_VPFORCEUPDATE		1
-#define VOLTSCALE_VCBYPASS		2
-
 /*
  * OMAP3 GENERIC setup times. Revisit to see if these needs to be
  * passed from board or PMIC file
@@ -55,7 +51,6 @@ struct omap_vfsm_instance {
  * @name: Name of the voltage domain which can be used as a unique identifier.
  * @scalable: Whether or not this voltage domain is scalable
  * @node: list_head linking all voltage domains
- * @pwrdm_list: list_head linking all powerdomains in this voltagedomain
  * @vc: pointer to VC channel associated with this voltagedomain
  * @vp: pointer to VP associated with this voltagedomain
  * @read: read a VC/VP register
@@ -71,7 +66,6 @@ struct voltagedomain {
 	char *name;
 	bool scalable;
 	struct list_head node;
-	struct list_head pwrdm_list;
 	struct omap_vc_channel *vc;
 	const struct omap_vfsm_instance *vfsm;
 	struct omap_vp_instance *vp;
@@ -163,8 +157,6 @@ struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 		unsigned long volt);
 int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 			       struct omap_voltdm_pmic *pmic);
-void omap_change_voltscale_method(struct voltagedomain *voltdm,
-		int voltscale_method);
 int omap_voltage_late_init(void);
 
 extern void omap2xxx_voltagedomains_init(void);
@@ -175,11 +167,6 @@ extern void omap54xx_voltagedomains_init(void);
 struct voltagedomain *voltdm_lookup(const char *name);
 void voltdm_init(struct voltagedomain **voltdm_list);
 int voltdm_add_pwrdm(struct voltagedomain *voltdm, struct powerdomain *pwrdm);
-int voltdm_for_each(int (*fn)(struct voltagedomain *voltdm, void *user),
-		    void *user);
-int voltdm_for_each_pwrdm(struct voltagedomain *voltdm,
-			  int (*fn)(struct voltagedomain *voltdm,
-				    struct powerdomain *pwrdm));
 int voltdm_scale(struct voltagedomain *voltdm, unsigned long target_volt);
 void voltdm_reset(struct voltagedomain *voltdm);
 unsigned long voltdm_get_voltage(struct voltagedomain *voltdm);

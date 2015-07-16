@@ -10,7 +10,9 @@ Required properties:
 - compatible:
  Should be "ti,omap2-hsmmc", for OMAP2 controllers
  Should be "ti,omap3-hsmmc", for OMAP3 controllers
+ Should be "ti,omap3-pre-es3-hsmmc" for OMAP3 controllers pre ES3.0
  Should be "ti,omap4-hsmmc", for OMAP4 controllers
+ Should be "ti,am33xx-hsmmc", for AM335x controllers
 - ti,hwmods: Must be "mmc<n>", n is controller instance starting 1
 
 Optional properties:
@@ -54,4 +56,57 @@ Examples:
 		dmas = <&edma 24
 			&edma 25>;
 		dma-names = "tx", "rx";
+	};
+
+[workaround for missing swakeup on am33xx]
+
+This SOC is missing the swakeup line, it will not detect SDIO irq
+while in suspend.
+
+                             ------
+                             | PRCM |
+                              ------
+                               ^ |
+                       swakeup | | fclk
+                               | v
+       ------                -------               -----
+      | card | -- CIRQ -->  | hsmmc | -- IRQ -->  | CPU |
+       ------                -------               -----
+
+In suspend the fclk is off and the module is disfunctional. Even register reads
+will fail. A small logic in the host will request fclk restore, when an
+external event is detected. Once the clock is restored, the host detects the
+event normally. Since am33xx doesn't have this line it never wakes from
+suspend.
+
+The workaround is to reconfigure the dat1 line as a GPIO upon suspend. To make
+this work, we need to set the named pinctrl states "default" and "idle".
+Prepare idle to remux dat1 as a gpio, and default to remux it back as sdio
+dat1. The MMC driver will then toggle between idle and default state during
+runtime.
+
+In summary:
+1. select matching 'compatible' section, see example below.
+2. specify pinctrl states "default" and "idle", "sleep" is optional.
+3. specify the gpio irq used for detecting sdio irq in suspend
+
+If configuration is incomplete, a warning message is emitted "falling back to
+polling". Also check the "sdio irq mode" in /sys/kernel/debug/mmc0/regs. Mind
+not every application needs SDIO irq, e.g. MMC cards.
+
+	mmc1: mmc@48060100 {
+		compatible = "ti,am33xx-hsmmc";
+		...
+		pinctrl-names = "default", "idle", "sleep"
+		pinctrl-0 = <&mmc1_pins>;
+		pinctrl-1 = <&mmc1_idle>;
+		pinctrl-2 = <&mmc1_sleep>;
+		...
+		interrupts-extended = <&intc 64 &gpio2 28 0>;
+	};
+
+	mmc1_idle : pinmux_cirq_pin {
+		pinctrl-single,pins = <
+		        0x0f8 0x3f      /* GPIO2_28 */
+		>;
 	};

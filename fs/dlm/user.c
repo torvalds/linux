@@ -238,6 +238,7 @@ static int device_user_lock(struct dlm_user_proc *proc,
 {
 	struct dlm_ls *ls;
 	struct dlm_user_args *ua;
+	uint32_t lkid;
 	int error = -ENOMEM;
 
 	ls = dlm_find_lockspace_local(proc->lockspace);
@@ -260,12 +261,20 @@ static int device_user_lock(struct dlm_user_proc *proc,
 	ua->bastaddr = params->bastaddr;
 	ua->xid = params->xid;
 
-	if (params->flags & DLM_LKF_CONVERT)
+	if (params->flags & DLM_LKF_CONVERT) {
 		error = dlm_user_convert(ls, ua,
 				         params->mode, params->flags,
 				         params->lkid, params->lvb,
 					 (unsigned long) params->timeout);
-	else {
+	} else if (params->flags & DLM_LKF_ORPHAN) {
+		error = dlm_user_adopt_orphan(ls, ua,
+					 params->mode, params->flags,
+					 params->name, params->namelen,
+					 (unsigned long) params->timeout,
+					 &lkid);
+		if (!error)
+			error = lkid;
+	} else {
 		error = dlm_user_request(ls, ua,
 					 params->mode, params->flags,
 					 params->name, params->namelen,

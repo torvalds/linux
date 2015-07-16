@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <sys/types.h>
 #include <os.h>
 
 static void copy_stat(struct uml_stat *dst, const struct stat64 *src)
@@ -236,6 +237,12 @@ out:
 void os_close_file(int fd)
 {
 	close(fd);
+}
+int os_fsync_file(int fd)
+{
+	if (fsync(fd) < 0)
+	    return -errno;
+	return 0;
 }
 
 int os_seek_file(int fd, unsigned long long offset)

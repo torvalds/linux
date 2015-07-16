@@ -60,7 +60,6 @@ static int ve_spc_cpufreq_remove(struct platform_device *pdev)
 static struct platform_driver ve_spc_cpufreq_platdrv = {
 	.driver = {
 		.name	= "vexpress-spc-cpufreq",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ve_spc_cpufreq_probe,
 	.remove		= ve_spc_cpufreq_remove,

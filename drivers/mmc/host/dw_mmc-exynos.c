@@ -21,42 +21,7 @@
 
 #include "dw_mmc.h"
 #include "dw_mmc-pltfm.h"
-
-#define NUM_PINS(x)			(x + 2)
-
-#define SDMMC_CLKSEL			0x09C
-#define SDMMC_CLKSEL_CCLK_SAMPLE(x)	(((x) & 7) << 0)
-#define SDMMC_CLKSEL_CCLK_DRIVE(x)	(((x) & 7) << 16)
-#define SDMMC_CLKSEL_CCLK_DIVIDER(x)	(((x) & 7) << 24)
-#define SDMMC_CLKSEL_GET_DRV_WD3(x)	(((x) >> 16) & 0x7)
-#define SDMMC_CLKSEL_TIMING(x, y, z)	(SDMMC_CLKSEL_CCLK_SAMPLE(x) |	\
-					SDMMC_CLKSEL_CCLK_DRIVE(y) |	\
-					SDMMC_CLKSEL_CCLK_DIVIDER(z))
-#define SDMMC_CLKSEL_WAKEUP_INT		BIT(11)
-
-#define EXYNOS4210_FIXED_CIU_CLK_DIV	2
-#define EXYNOS4412_FIXED_CIU_CLK_DIV	4
-
-/* Block number in eMMC */
-#define DWMCI_BLOCK_NUM		0xFFFFFFFF
-
-#define SDMMC_EMMCP_BASE	0x1000
-#define SDMMC_MPSECURITY	(SDMMC_EMMCP_BASE + 0x0010)
-#define SDMMC_MPSBEGIN0		(SDMMC_EMMCP_BASE + 0x0200)
-#define SDMMC_MPSEND0		(SDMMC_EMMCP_BASE + 0x0204)
-#define SDMMC_MPSCTRL0		(SDMMC_EMMCP_BASE + 0x020C)
-
-/* SMU control bits */
-#define DWMCI_MPSCTRL_SECURE_READ_BIT		BIT(7)
-#define DWMCI_MPSCTRL_SECURE_WRITE_BIT		BIT(6)
-#define DWMCI_MPSCTRL_NON_SECURE_READ_BIT	BIT(5)
-#define DWMCI_MPSCTRL_NON_SECURE_WRITE_BIT	BIT(4)
-#define DWMCI_MPSCTRL_USE_FUSE_KEY		BIT(3)
-#define DWMCI_MPSCTRL_ECB_MODE			BIT(2)
-#define DWMCI_MPSCTRL_ENCRYPTION		BIT(1)
-#define DWMCI_MPSCTRL_VALID			BIT(0)
-
-#define EXYNOS_CCLKIN_MIN	50000000	/* unit: HZ */
+#include "dw_mmc-exynos.h"
 
 /* Variations in Exynos specific dw-mshc controller */
 enum dw_mci_exynos_type {
@@ -65,6 +30,8 @@ enum dw_mci_exynos_type {
 	DW_MCI_TYPE_EXYNOS5250,
 	DW_MCI_TYPE_EXYNOS5420,
 	DW_MCI_TYPE_EXYNOS5420_SMU,
+	DW_MCI_TYPE_EXYNOS7,
+	DW_MCI_TYPE_EXYNOS7_SMU,
 };
 
 /* Exynos implementation specific driver private data */
@@ -73,7 +40,12 @@ struct dw_mci_exynos_priv_data {
 	u8				ciu_div;
 	u32				sdr_timing;
 	u32				ddr_timing;
+	u32				hs400_timing;
+	u32				tuned_sample;
 	u32				cur_speed;
+	u32				dqs_delay;
+	u32				saved_dqs_en;
+	u32				saved_strobe_ctrl;
 };
 
 static struct dw_mci_exynos_compatible {
@@ -95,20 +67,52 @@ static struct dw_mci_exynos_compatible {
 	}, {
 		.compatible	= "samsung,exynos5420-dw-mshc-smu",
 		.ctrl_type	= DW_MCI_TYPE_EXYNOS5420_SMU,
+	}, {
+		.compatible	= "samsung,exynos7-dw-mshc",
+		.ctrl_type	= DW_MCI_TYPE_EXYNOS7,
+	}, {
+		.compatible	= "samsung,exynos7-dw-mshc-smu",
+		.ctrl_type	= DW_MCI_TYPE_EXYNOS7_SMU,
 	},
 };
+
+static inline u8 dw_mci_exynos_get_ciu_div(struct dw_mci *host)
+{
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS4412)
+		return EXYNOS4412_FIXED_CIU_CLK_DIV;
+	else if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS4210)
+		return EXYNOS4210_FIXED_CIU_CLK_DIV;
+	else if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+			priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		return SDMMC_CLKSEL_GET_DIV(mci_readl(host, CLKSEL64)) + 1;
+	else
+		return SDMMC_CLKSEL_GET_DIV(mci_readl(host, CLKSEL)) + 1;
+}
 
 static int dw_mci_exynos_priv_init(struct dw_mci *host)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 
-	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS5420_SMU) {
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS5420_SMU ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU) {
 		mci_writel(host, MPSBEGIN0, 0);
-		mci_writel(host, MPSEND0, DWMCI_BLOCK_NUM);
-		mci_writel(host, MPSCTRL0, DWMCI_MPSCTRL_SECURE_WRITE_BIT |
-			   DWMCI_MPSCTRL_NON_SECURE_READ_BIT |
-			   DWMCI_MPSCTRL_VALID |
-			   DWMCI_MPSCTRL_NON_SECURE_WRITE_BIT);
+		mci_writel(host, MPSEND0, SDMMC_ENDING_SEC_NR_MAX);
+		mci_writel(host, MPSCTRL0, SDMMC_MPSCTRL_SECURE_WRITE_BIT |
+			   SDMMC_MPSCTRL_NON_SECURE_READ_BIT |
+			   SDMMC_MPSCTRL_VALID |
+			   SDMMC_MPSCTRL_NON_SECURE_WRITE_BIT);
+	}
+
+	if (priv->ctrl_type >= DW_MCI_TYPE_EXYNOS5420) {
+		priv->saved_strobe_ctrl = mci_readl(host, HS400_DLINE_CTRL);
+		priv->saved_dqs_en = mci_readl(host, HS400_DQS_EN);
+		priv->saved_dqs_en |= AXI_NON_BLOCKING_WR;
+		mci_writel(host, HS400_DQS_EN, priv->saved_dqs_en);
+		if (!priv->dqs_delay)
+			priv->dqs_delay =
+				DQS_CTRL_GET_RD_DELAY(priv->saved_strobe_ctrl);
 	}
 
 	return 0;
@@ -117,10 +121,30 @@ static int dw_mci_exynos_priv_init(struct dw_mci *host)
 static int dw_mci_exynos_setup_clock(struct dw_mci *host)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
-	unsigned long rate = clk_get_rate(host->ciu_clk);
 
-	host->bus_hz = rate / (priv->ciu_div + 1);
+	host->bus_hz /= (priv->ciu_div + 1);
+
 	return 0;
+}
+
+static void dw_mci_exynos_set_clksel_timing(struct dw_mci *host, u32 timing)
+{
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+	u32 clksel;
+
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		clksel = mci_readl(host, CLKSEL64);
+	else
+		clksel = mci_readl(host, CLKSEL);
+
+	clksel = (clksel & ~SDMMC_CLKSEL_TIMING_MASK) | timing;
+
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		mci_writel(host, CLKSEL64, clksel);
+	else
+		mci_writel(host, CLKSEL, clksel);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -153,11 +177,22 @@ static int dw_mci_exynos_resume(struct device *dev)
 static int dw_mci_exynos_resume_noirq(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
+	struct dw_mci_exynos_priv_data *priv = host->priv;
 	u32 clksel;
 
-	clksel = mci_readl(host, CLKSEL);
-	if (clksel & SDMMC_CLKSEL_WAKEUP_INT)
-		mci_writel(host, CLKSEL, clksel);
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		clksel = mci_readl(host, CLKSEL64);
+	else
+		clksel = mci_readl(host, CLKSEL);
+
+	if (clksel & SDMMC_CLKSEL_WAKEUP_INT) {
+		if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+			priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+			mci_writel(host, CLKSEL64, clksel);
+		else
+			mci_writel(host, CLKSEL, clksel);
+	}
 
 	return 0;
 }
@@ -169,6 +204,7 @@ static int dw_mci_exynos_resume_noirq(struct device *dev)
 
 static void dw_mci_exynos_prepare_command(struct dw_mci *host, u32 *cmdr)
 {
+	struct dw_mci_exynos_priv_data *priv = host->priv;
 	/*
 	 * Exynos4412 and Exynos5250 extends the use of CMD register with the
 	 * use of bit 29 (which is reserved on standard MSHC controllers) for
@@ -176,45 +212,105 @@ static void dw_mci_exynos_prepare_command(struct dw_mci *host, u32 *cmdr)
 	 * HOLD register should be bypassed in case there is no phase shift
 	 * applied on CMD/DATA that is sent to the card.
 	 */
-	if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL)))
-		*cmdr |= SDMMC_CMD_USE_HOLD_REG;
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU) {
+		if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL64)))
+			*cmdr |= SDMMC_CMD_USE_HOLD_REG;
+	 } else {
+		if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL)))
+			*cmdr |= SDMMC_CMD_USE_HOLD_REG;
+	}
 }
 
-static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
+static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
-	unsigned int wanted = ios->clock;
-	unsigned long actual;
-	u8 div = priv->ciu_div + 1;
+	u32 dqs, strobe;
 
-	if (ios->timing == MMC_TIMING_UHS_DDR50) {
-		mci_writel(host, CLKSEL, priv->ddr_timing);
-		/* Should be double rate for DDR mode */
-		if (ios->bus_width == MMC_BUS_WIDTH_8)
-			wanted <<= 1;
+	/*
+	 * Not supported to configure register
+	 * related to HS400
+	 */
+	if (priv->ctrl_type < DW_MCI_TYPE_EXYNOS5420)
+		return;
+
+	dqs = priv->saved_dqs_en;
+	strobe = priv->saved_strobe_ctrl;
+
+	if (timing == MMC_TIMING_MMC_HS400) {
+		dqs |= DATA_STROBE_EN;
+		strobe = DQS_CTRL_RD_DELAY(strobe, priv->dqs_delay);
 	} else {
-		mci_writel(host, CLKSEL, priv->sdr_timing);
+		dqs &= ~DATA_STROBE_EN;
 	}
 
-	/* Don't care if wanted clock is zero */
-	if (!wanted)
+	mci_writel(host, HS400_DQS_EN, dqs);
+	mci_writel(host, HS400_DLINE_CTRL, strobe);
+}
+
+static void dw_mci_exynos_adjust_clock(struct dw_mci *host, unsigned int wanted)
+{
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+	unsigned long actual;
+	u8 div;
+	int ret;
+	/*
+	 * Don't care if wanted clock is zero or
+	 * ciu clock is unavailable
+	 */
+	if (!wanted || IS_ERR(host->ciu_clk))
 		return;
 
 	/* Guaranteed minimum frequency for cclkin */
 	if (wanted < EXYNOS_CCLKIN_MIN)
 		wanted = EXYNOS_CCLKIN_MIN;
 
-	if (wanted != priv->cur_speed) {
-		int ret = clk_set_rate(host->ciu_clk, wanted * div);
-		if (ret)
-			dev_warn(host->dev,
-				"failed to set clk-rate %u error: %d\n",
-				 wanted * div, ret);
-		actual = clk_get_rate(host->ciu_clk);
-		host->bus_hz = actual / div;
-		priv->cur_speed = wanted;
-		host->current_speed = 0;
+	if (wanted == priv->cur_speed)
+		return;
+
+	div = dw_mci_exynos_get_ciu_div(host);
+	ret = clk_set_rate(host->ciu_clk, wanted * div);
+	if (ret)
+		dev_warn(host->dev,
+			"failed to set clk-rate %u error: %d\n",
+			wanted * div, ret);
+	actual = clk_get_rate(host->ciu_clk);
+	host->bus_hz = actual / div;
+	priv->cur_speed = wanted;
+	host->current_speed = 0;
+}
+
+static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
+{
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+	unsigned int wanted = ios->clock;
+	u32 timing = ios->timing, clksel;
+
+	switch (timing) {
+	case MMC_TIMING_MMC_HS400:
+		/* Update tuned sample timing */
+		clksel = SDMMC_CLKSEL_UP_SAMPLE(
+				priv->hs400_timing, priv->tuned_sample);
+		wanted <<= 1;
+		break;
+	case MMC_TIMING_MMC_DDR52:
+		clksel = priv->ddr_timing;
+		/* Should be double rate for DDR mode */
+		if (ios->bus_width == MMC_BUS_WIDTH_8)
+			wanted <<= 1;
+		break;
+	default:
+		clksel = priv->sdr_timing;
 	}
+
+	/* Set clock timing for the requested speed mode*/
+	dw_mci_exynos_set_clksel_timing(host, clksel);
+
+	/* Configure setting for HS400 */
+	dw_mci_exynos_config_hs400(host, timing);
+
+	/* Configure clock rate */
+	dw_mci_exynos_adjust_clock(host, wanted);
 }
 
 static int dw_mci_exynos_parse_dt(struct dw_mci *host)
@@ -227,10 +323,8 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 	int ret;
 
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(host->dev, "mem alloc failed for private data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	for (idx = 0; idx < ARRAY_SIZE(exynos_compat); idx++) {
 		if (of_device_is_compatible(np, exynos_compat[idx].compatible))
@@ -259,32 +353,70 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 		return ret;
 
 	priv->ddr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
+
+	ret = of_property_read_u32_array(np,
+			"samsung,dw-mshc-hs400-timing", timing, 2);
+	if (!ret && of_property_read_u32(np,
+				"samsung,read-strobe-delay", &priv->dqs_delay))
+		dev_dbg(host->dev,
+			"read-strobe-delay is not found, assuming usage of default value\n");
+
+	priv->hs400_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1],
+						HS400_FIXED_CIU_CLK_DIV);
 	host->priv = priv;
 	return 0;
 }
 
 static inline u8 dw_mci_exynos_get_clksmpl(struct dw_mci *host)
 {
-	return SDMMC_CLKSEL_CCLK_SAMPLE(mci_readl(host, CLKSEL));
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		return SDMMC_CLKSEL_CCLK_SAMPLE(mci_readl(host, CLKSEL64));
+	else
+		return SDMMC_CLKSEL_CCLK_SAMPLE(mci_readl(host, CLKSEL));
 }
 
 static inline void dw_mci_exynos_set_clksmpl(struct dw_mci *host, u8 sample)
 {
 	u32 clksel;
-	clksel = mci_readl(host, CLKSEL);
-	clksel = (clksel & ~0x7) | SDMMC_CLKSEL_CCLK_SAMPLE(sample);
-	mci_writel(host, CLKSEL, clksel);
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		clksel = mci_readl(host, CLKSEL64);
+	else
+		clksel = mci_readl(host, CLKSEL);
+	clksel = SDMMC_CLKSEL_UP_SAMPLE(clksel, sample);
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		mci_writel(host, CLKSEL64, clksel);
+	else
+		mci_writel(host, CLKSEL, clksel);
 }
 
 static inline u8 dw_mci_exynos_move_next_clksmpl(struct dw_mci *host)
 {
+	struct dw_mci_exynos_priv_data *priv = host->priv;
 	u32 clksel;
 	u8 sample;
 
-	clksel = mci_readl(host, CLKSEL);
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		clksel = mci_readl(host, CLKSEL64);
+	else
+		clksel = mci_readl(host, CLKSEL);
+
 	sample = (clksel + 1) & 0x7;
-	clksel = (clksel & ~0x7) | sample;
-	mci_writel(host, CLKSEL, clksel);
+	clksel = SDMMC_CLKSEL_UP_SAMPLE(clksel, sample);
+
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		mci_writel(host, CLKSEL64, clksel);
+	else
+		mci_writel(host, CLKSEL, clksel);
+
 	return sample;
 }
 
@@ -314,80 +446,51 @@ out:
 	return loc;
 }
 
-static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
-					struct dw_mci_tuning_data *tuning_data)
+static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot)
 {
 	struct dw_mci *host = slot->host;
+	struct dw_mci_exynos_priv_data *priv = host->priv;
 	struct mmc_host *mmc = slot->mmc;
-	const u8 *blk_pattern = tuning_data->blk_pattern;
-	u8 *blk_test;
-	unsigned int blksz = tuning_data->blksz;
 	u8 start_smpl, smpl, candiates = 0;
 	s8 found = -1;
 	int ret = 0;
 
-	blk_test = kmalloc(blksz, GFP_KERNEL);
-	if (!blk_test)
-		return -ENOMEM;
-
 	start_smpl = dw_mci_exynos_get_clksmpl(host);
 
 	do {
-		struct mmc_request mrq = {NULL};
-		struct mmc_command cmd = {0};
-		struct mmc_command stop = {0};
-		struct mmc_data data = {0};
-		struct scatterlist sg;
-
-		cmd.opcode = opcode;
-		cmd.arg = 0;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-		stop.opcode = MMC_STOP_TRANSMISSION;
-		stop.arg = 0;
-		stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
-
-		data.blksz = blksz;
-		data.blocks = 1;
-		data.flags = MMC_DATA_READ;
-		data.sg = &sg;
-		data.sg_len = 1;
-
-		sg_init_one(&sg, blk_test, blksz);
-		mrq.cmd = &cmd;
-		mrq.stop = &stop;
-		mrq.data = &data;
-		host->mrq = &mrq;
-
 		mci_writel(host, TMOUT, ~0);
 		smpl = dw_mci_exynos_move_next_clksmpl(host);
 
-		mmc_wait_for_req(mmc, &mrq);
+		if (!mmc_send_tuning(mmc))
+			candiates |= (1 << smpl);
 
-		if (!cmd.error && !data.error) {
-			if (!memcmp(blk_pattern, blk_test, blksz))
-				candiates |= (1 << smpl);
-		} else {
-			dev_dbg(host->dev,
-				"Tuning error: cmd.error:%d, data.error:%d\n",
-				cmd.error, data.error);
-		}
 	} while (start_smpl != smpl);
 
 	found = dw_mci_exynos_get_best_clksmpl(candiates);
-	if (found >= 0)
+	if (found >= 0) {
 		dw_mci_exynos_set_clksmpl(host, found);
-	else
+		priv->tuned_sample = found;
+	} else {
 		ret = -EIO;
+	}
 
-	kfree(blk_test);
 	return ret;
+}
+
+static int dw_mci_exynos_prepare_hs400_tuning(struct dw_mci *host,
+					struct mmc_ios *ios)
+{
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+
+	dw_mci_exynos_set_clksel_timing(host, priv->hs400_timing);
+	dw_mci_exynos_adjust_clock(host, (ios->clock) << 1);
+
+	return 0;
 }
 
 /* Common capabilities of Exynos4/Exynos5 SoC */
 static unsigned long exynos_dwmmc_caps[4] = {
-	MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR |
-		MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23,
+	MMC_CAP_1_8V_DDR | MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
@@ -401,6 +504,7 @@ static const struct dw_mci_drv_data exynos_drv_data = {
 	.set_ios		= dw_mci_exynos_set_ios,
 	.parse_dt		= dw_mci_exynos_parse_dt,
 	.execute_tuning		= dw_mci_exynos_execute_tuning,
+	.prepare_hs400_tuning	= dw_mci_exynos_prepare_hs400_tuning,
 };
 
 static const struct of_device_id dw_mci_exynos_match[] = {
@@ -411,6 +515,10 @@ static const struct of_device_id dw_mci_exynos_match[] = {
 	{ .compatible = "samsung,exynos5420-dw-mshc",
 			.data = &exynos_drv_data, },
 	{ .compatible = "samsung,exynos5420-dw-mshc-smu",
+			.data = &exynos_drv_data, },
+	{ .compatible = "samsung,exynos7-dw-mshc",
+			.data = &exynos_drv_data, },
+	{ .compatible = "samsung,exynos7-dw-mshc-smu",
 			.data = &exynos_drv_data, },
 	{},
 };
@@ -426,7 +534,7 @@ static int dw_mci_exynos_probe(struct platform_device *pdev)
 	return dw_mci_pltfm_register(pdev, drv_data);
 }
 
-const struct dev_pm_ops dw_mci_exynos_pmops = {
+static const struct dev_pm_ops dw_mci_exynos_pmops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dw_mci_exynos_suspend, dw_mci_exynos_resume)
 	.resume_noirq = dw_mci_exynos_resume_noirq,
 	.thaw_noirq = dw_mci_exynos_resume_noirq,
@@ -435,7 +543,7 @@ const struct dev_pm_ops dw_mci_exynos_pmops = {
 
 static struct platform_driver dw_mci_exynos_pltfm_driver = {
 	.probe		= dw_mci_exynos_probe,
-	.remove		= __exit_p(dw_mci_pltfm_remove),
+	.remove		= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dwmmc_exynos",
 		.of_match_table	= dw_mci_exynos_match,
@@ -448,4 +556,4 @@ module_platform_driver(dw_mci_exynos_pltfm_driver);
 MODULE_DESCRIPTION("Samsung Specific DW-MSHC Driver Extension");
 MODULE_AUTHOR("Thomas Abraham <thomas.ab@samsung.com");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:dwmmc-exynos");
+MODULE_ALIAS("platform:dwmmc_exynos");

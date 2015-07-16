@@ -9,4 +9,6 @@ config ORE
 	tristate
 	depends on EXOFS_FS || PNFS_OBJLAYOUT
 	select ASYNC_XOR
+	select RAID6_PQ
+	select ASYNC_PQ
 	default SCSI_OSD_ULD

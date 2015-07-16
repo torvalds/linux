@@ -500,10 +500,14 @@ extern inline void writeq(u64 b, volatile void __iomem *addr)
 #define outb_p		outb
 #define outw_p		outw
 #define outl_p		outl
-#define readb_relaxed(addr) __raw_readb(addr)
-#define readw_relaxed(addr) __raw_readw(addr)
-#define readl_relaxed(addr) __raw_readl(addr)
-#define readq_relaxed(addr) __raw_readq(addr)
+#define readb_relaxed(addr)	__raw_readb(addr)
+#define readw_relaxed(addr)	__raw_readw(addr)
+#define readl_relaxed(addr)	__raw_readl(addr)
+#define readq_relaxed(addr)	__raw_readq(addr)
+#define writeb_relaxed(b, addr)	__raw_writeb(b, addr)
+#define writew_relaxed(b, addr)	__raw_writew(b, addr)
+#define writel_relaxed(b, addr)	__raw_writel(b, addr)
+#define writeq_relaxed(b, addr)	__raw_writeq(b, addr)
 
 #define mmiowb()
 

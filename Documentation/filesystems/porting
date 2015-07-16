@@ -295,9 +295,9 @@ in the beginning of ->setattr unconditionally.
 	->clear_inode() and ->delete_inode() are gone; ->evict_inode() should
 be used instead.  It gets called whenever the inode is evicted, whether it has
 remaining links or not.  Caller does *not* evict the pagecache or inode-associated
-metadata buffers; getting rid of those is responsibility of method, as it had
-been for ->delete_inode(). Caller makes sure async writeback cannot be running
-for the inode while (or after) ->evict_inode() is called.
+metadata buffers; the method has to use truncate_inode_pages_final() to get rid
+of those. Caller makes sure async writeback cannot be running for the inode while
+(or after) ->evict_inode() is called.
 
 	->drop_inode() returns int now; it's called on final iput() with
 inode->i_lock held and it returns true if filesystems wants the inode to be
@@ -379,10 +379,10 @@ may now be called in rcu-walk mode (nd->flags & LOOKUP_RCU). -ECHILD should be
 returned if the filesystem cannot handle rcu-walk. See
 Documentation/filesystems/vfs.txt for more details.
 
-	permission and check_acl are inode permission checks that are called
-on many or all directory inodes on the way down a path walk (to check for
-exec permission). These must now be rcu-walk aware (flags & IPERM_FLAG_RCU).
-See Documentation/filesystems/vfs.txt for more details.
+	permission is an inode permission check that is called on many or all
+directory inodes on the way down a path walk (to check for exec permission). It
+must now be rcu-walk aware (mask & MAY_NOT_BLOCK).  See
+Documentation/filesystems/vfs.txt for more details.
  
 --
 [mandatory]
@@ -463,3 +463,44 @@ in your dentry operations instead.
 	of the in-tree instances did).  inode_hash_lock is still held,
 	of course, so they are still serialized wrt removal from inode hash,
 	as well as wrt set() callback of iget5_locked().
+--
+[mandatory]
+	d_materialise_unique() is gone; d_splice_alias() does everything you
+	need now.  Remember that they have opposite orders of arguments ;-/
+--
+[mandatory]
+	f_dentry is gone; use f_path.dentry, or, better yet, see if you can avoid
+	it entirely.
+--
+[mandatory]
+	never call ->read() and ->write() directly; use __vfs_{read,write} or
+	wrappers; instead of checking for ->write or ->read being NULL, look for
+	FMODE_CAN_{WRITE,READ} in file->f_mode.
+--
+[mandatory]
+	do _not_ use new_sync_{read,write} for ->read/->write; leave it NULL
+	instead.
+--
+[mandatory]
+	->aio_read/->aio_write are gone.  Use ->read_iter/->write_iter.
+---
+[recommended]
+	for embedded ("fast") symlinks just set inode->i_link to wherever the
+	symlink body is and use simple_follow_link() as ->follow_link().
+--
+[mandatory]
+	calling conventions for ->follow_link() have changed.  Instead of returning
+	cookie and using nd_set_link() to store the body to traverse, we return
+	the body to traverse and store the cookie using explicit void ** argument.
+	nameidata isn't passed at all - nd_jump_link() doesn't need it and
+	nd_[gs]et_link() is gone.
+--
+[mandatory]
+	calling conventions for ->put_link() have changed.  It gets inode instead of
+	dentry,  it does not get nameidata at all and it gets called only when cookie
+	is non-NULL.  Note that link body isn't available anymore, so if you need it,
+	store it as cookie.
+--
+[mandatory]
+	__fd_install() & fd_install() can now sleep. Callers should not
+	hold a spinlock	or other resources that do not allow a schedule.

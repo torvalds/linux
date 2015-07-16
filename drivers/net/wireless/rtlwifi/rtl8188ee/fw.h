@@ -55,10 +55,11 @@
 #define H2C_88E_AOAC_RSVDPAGE_LOC_LEN		7
 
 /* Fw PS state for RPWM.
- * BIT[2:0] = HW state
- * BIT[3] = Protocol PS state, 1: register active state, 0: register sleep state
- * BIT[4] = sub-state
- */
+*BIT[2:0] = HW state
+*BIT[3] = Protocol PS state,
+*1: register active state , 0: register sleep state
+*BIT[4] = sub-state
+*/
 #define	FW_PS_GO_ON			BIT(0)
 #define	FW_PS_TX_NULL			BIT(1)
 #define	FW_PS_RF_ON			BIT(2)
@@ -98,10 +99,13 @@
 #define	FW_PS_STATE_S2			(FW_PS_RF_OFF)
 #define	FW_PS_STATE_S3			(FW_PS_ALL_ON)
 #define	FW_PS_STATE_S4			((FW_PS_ST_ACTIVE) | (FW_PS_ALL_ON))
-
+/* ((FW_PS_RF_ON) | (FW_PS_REGISTER_ACTIVE))*/
 #define	FW_PS_STATE_ALL_ON_88E		(FW_PS_CLOCK_ON)
+/* (FW_PS_RF_ON)*/
 #define	FW_PS_STATE_RF_ON_88E		(FW_PS_CLOCK_ON)
-#define	FW_PS_STATE_RF_OFF_88E		(FW_PS_CLOCK_ON)
+/* 0x0*/
+#define	FW_PS_STATE_RF_OFF_88E	(FW_PS_CLOCK_ON)
+/* (FW_PS_STATE_RF_OFF)*/
 #define	FW_PS_STATE_RF_OFF_LOW_PWR_88E	(FW_PS_CLOCK_OFF)
 
 #define	FW_PS_STATE_ALL_ON_92C		(FW_PS_STATE_S4)
@@ -146,7 +150,7 @@ struct rtl92c_firmware_header {
 	u32 rsvd5;
 };
 
-enum rtl8192c_h2c_cmd {
+enum rtl8188e_h2c_cmd {
 	H2C_88E_RSVDPAGE = 0,
 	H2C_88E_JOINBSSRPT = 1,
 	H2C_88E_SCAN = 2,
@@ -175,7 +179,7 @@ enum rtl8192c_h2c_cmd {
 	H2C_88E_AOAC_GLOBAL_INFO = 0x82,
 	H2C_88E_AOAC_RSVDPAGE = 0x83,
 #endif
-	/* Not defined in new 88E H2C CMD Format */
+	/*Not defined in new 88E H2C CMD Format*/
 	H2C_88E_RA_MASK,
 	H2C_88E_SELECTIVE_SUSPEND_ROF_CMD,
 	H2C_88E_P2P_PS_MODE,
@@ -289,13 +293,12 @@ enum rtl8192c_h2c_cmd {
 int rtl88e_download_fw(struct ieee80211_hw *hw,
 		       bool buse_wake_on_wlan_fw);
 void rtl88e_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,
-			 u32 cmd_len, u8 *p_cmdbuffer);
+			 u32 cmd_len, u8 *cmdbuffer);
 void rtl88e_firmware_selfreset(struct ieee80211_hw *hw);
 void rtl88e_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
-void rtl88e_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,
-				      u8 mstatus);
-void rtl88e_set_fw_ap_off_load_cmd(struct ieee80211_hw *hw,  u8 enable);
+void rtl88e_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw, u8 mstatus);
+void rtl88e_set_fw_ap_off_load_cmd(struct ieee80211_hw *hw,
+				   u8 ap_offload_enable);
 void rtl88e_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
 void rtl88e_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);
-
 #endif

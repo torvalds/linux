@@ -9,12 +9,21 @@
 static int exited;
 static int nr_exit;
 
-static void sig_handler(int sig)
+static void sig_handler(int sig __maybe_unused)
 {
 	exited = 1;
+}
 
-	if (sig == SIGUSR1)
-		nr_exit = -1;
+/*
+ * perf_evlist__prepare_workload will send a SIGUSR1 if the fork fails, since
+ * we asked by setting its exec_error to this handler.
+ */
+static void workload_exec_failed_signal(int signo __maybe_unused,
+					siginfo_t *info __maybe_unused,
+					void *ucontext __maybe_unused)
+{
+	exited	= 1;
+	nr_exit = -1;
 }
 
 /*
@@ -33,9 +42,9 @@ int test__task_exit(void)
 		.uses_mmap	= true,
 	};
 	const char *argv[] = { "true", NULL };
+	char sbuf[STRERR_BUFSIZE];
 
 	signal(SIGCHLD, sig_handler);
-	signal(SIGUSR1, sig_handler);
 
 	evlist = perf_evlist__new_default();
 	if (evlist == NULL) {
@@ -54,13 +63,14 @@ int test__task_exit(void)
 	if (!evlist->cpus || !evlist->threads) {
 		err = -ENOMEM;
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
-	err = perf_evlist__prepare_workload(evlist, &target, argv, false, true);
+	err = perf_evlist__prepare_workload(evlist, &target, argv, false,
+					    workload_exec_failed_signal);
 	if (err < 0) {
 		pr_debug("Couldn't run the workload!\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	evsel = perf_evlist__first(evlist);
@@ -73,14 +83,15 @@ int test__task_exit(void)
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
-		pr_debug("Couldn't open the evlist: %s\n", strerror(-err));
-		goto out_delete_maps;
+		pr_debug("Couldn't open the evlist: %s\n",
+			 strerror_r(-err, sbuf, sizeof(sbuf)));
+		goto out_delete_evlist;
 	}
 
 	if (perf_evlist__mmap(evlist, 128, true) < 0) {
 		pr_debug("failed to mmap events: %d (%s)\n", errno,
-			 strerror(errno));
-		goto out_close_evlist;
+			 strerror_r(errno, sbuf, sizeof(sbuf)));
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__start_workload(evlist);
@@ -94,7 +105,7 @@ retry:
 	}
 
 	if (!exited || !nr_exit) {
-		poll(evlist->pollfd, evlist->nr_fds, -1);
+		perf_evlist__poll(evlist, -1);
 		goto retry;
 	}
 
@@ -103,11 +114,7 @@ retry:
 		err = -1;
 	}
 
-	perf_evlist__munmap(evlist);
-out_close_evlist:
-	perf_evlist__close(evlist);
-out_delete_maps:
-	perf_evlist__delete_maps(evlist);
+out_delete_evlist:
 	perf_evlist__delete(evlist);
 	return err;
 }

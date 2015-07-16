@@ -275,7 +275,7 @@ static int omap_aes_write_ctrl(struct omap_aes_dev *dd)
 	if (dd->flags & FLAGS_CBC)
 		val |= AES_REG_CTRL_CBC;
 	if (dd->flags & FLAGS_CTR) {
-		val |= AES_REG_CTRL_CTR | AES_REG_CTRL_CTR_WIDTH_32;
+		val |= AES_REG_CTRL_CTR | AES_REG_CTRL_CTR_WIDTH_128;
 		mask = AES_REG_CTRL_CTR | AES_REG_CTRL_CTR_WIDTH_MASK;
 	}
 	if (dd->flags & FLAGS_ENCRYPT)
@@ -554,19 +554,27 @@ static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 	return err;
 }
 
-int omap_aes_check_aligned(struct scatterlist *sg)
+static int omap_aes_check_aligned(struct scatterlist *sg, int total)
 {
+	int len = 0;
+
 	while (sg) {
 		if (!IS_ALIGNED(sg->offset, 4))
 			return -1;
 		if (!IS_ALIGNED(sg->length, AES_BLOCK_SIZE))
 			return -1;
+
+		len += sg->length;
 		sg = sg_next(sg);
 	}
+
+	if (len != total)
+		return -1;
+
 	return 0;
 }
 
-int omap_aes_copy_sgs(struct omap_aes_dev *dd)
+static int omap_aes_copy_sgs(struct omap_aes_dev *dd)
 {
 	void *buf_in, *buf_out;
 	int pages;
@@ -633,8 +641,8 @@ static int omap_aes_handle_queue(struct omap_aes_dev *dd,
 	dd->in_sg = req->src;
 	dd->out_sg = req->dst;
 
-	if (omap_aes_check_aligned(dd->in_sg) ||
-	    omap_aes_check_aligned(dd->out_sg)) {
+	if (omap_aes_check_aligned(dd->in_sg, dd->total) ||
+	    omap_aes_check_aligned(dd->out_sg, dd->total)) {
 		if (omap_aes_copy_sgs(dd))
 			pr_err("Failed to copy SGs for unaligned cases\n");
 		dd->sgs_copied = 1;
@@ -784,6 +792,7 @@ static int omap_aes_ctr_decrypt(struct ablkcipher_request *req)
 static int omap_aes_cra_init(struct crypto_tfm *tfm)
 {
 	struct omap_aes_dev *dd = NULL;
+	int err;
 
 	/* Find AES device, currently picks the first device */
 	spin_lock_bh(&list_lock);
@@ -792,7 +801,13 @@ static int omap_aes_cra_init(struct crypto_tfm *tfm)
 	}
 	spin_unlock_bh(&list_lock);
 
-	pm_runtime_get_sync(dd->dev);
+	err = pm_runtime_get_sync(dd->dev);
+	if (err < 0) {
+		dev_err(dd->dev, "%s: failed to get_sync(%d)\n",
+			__func__, err);
+		return err;
+	}
+
 	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_aes_reqctx);
 
 	return 0;
@@ -987,7 +1002,7 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 
 			scatterwalk_advance(&dd->in_walk, 4);
 			if (dd->in_sg->length == _calc_walked(in)) {
-				dd->in_sg = scatterwalk_sg_next(dd->in_sg);
+				dd->in_sg = sg_next(dd->in_sg);
 				if (dd->in_sg) {
 					scatterwalk_start(&dd->in_walk,
 							  dd->in_sg);
@@ -1019,7 +1034,7 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 			*dst = omap_aes_read(dd, AES_REG_DATA_N(dd, i));
 			scatterwalk_advance(&dd->out_walk, 4);
 			if (dd->out_sg->length == _calc_walked(out)) {
-				dd->out_sg = scatterwalk_sg_next(dd->out_sg);
+				dd->out_sg = sg_next(dd->out_sg);
 				if (dd->out_sg) {
 					scatterwalk_start(&dd->out_walk,
 							  dd->out_sg);
@@ -1182,7 +1197,12 @@ static int omap_aes_probe(struct platform_device *pdev)
 	dd->phys_base = res.start;
 
 	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
+	err = pm_runtime_get_sync(dev);
+	if (err < 0) {
+		dev_err(dev, "%s: failed to get_sync(%d)\n",
+			__func__, err);
+		goto err_res;
+	}
 
 	omap_aes_dma_stop(dd);
 
@@ -1295,16 +1315,13 @@ static int omap_aes_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops omap_aes_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(omap_aes_suspend, omap_aes_resume)
-};
+static SIMPLE_DEV_PM_OPS(omap_aes_pm_ops, omap_aes_suspend, omap_aes_resume);
 
 static struct platform_driver omap_aes_driver = {
 	.probe	= omap_aes_probe,
 	.remove	= omap_aes_remove,
 	.driver	= {
 		.name	= "omap-aes",
-		.owner	= THIS_MODULE,
 		.pm	= &omap_aes_pm_ops,
 		.of_match_table	= omap_aes_of_match,
 	},

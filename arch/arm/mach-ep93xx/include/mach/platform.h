@@ -6,6 +6,7 @@
 
 #include <linux/reboot.h>
 
+struct device;
 struct i2c_gpio_platform_data;
 struct i2c_board_info;
 struct spi_board_info;
@@ -54,7 +55,7 @@ void ep93xx_register_ide(void);
 int ep93xx_ide_acquire_gpio(struct platform_device *pdev);
 void ep93xx_ide_release_gpio(struct platform_device *pdev);
 
-void ep93xx_init_devices(void);
+struct device *ep93xx_init_devices(void);
 extern void ep93xx_timer_init(void);
 
 void ep93xx_restart(enum reboot_mode, const char *);

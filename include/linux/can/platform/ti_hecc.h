@@ -1,5 +1,5 @@
-#ifndef __CAN_PLATFORM_TI_HECC_H__
-#define __CAN_PLATFORM_TI_HECC_H__
+#ifndef _CAN_PLATFORM_TI_HECC_H
+#define _CAN_PLATFORM_TI_HECC_H
 
 /*
  * TI HECC (High End CAN Controller) driver platform header
@@ -41,4 +41,4 @@ struct ti_hecc_platform_data {
 	u32 version;
 	void (*transceiver_switch) (int);
 };
-#endif
+#endif /* !_CAN_PLATFORM_TI_HECC_H */

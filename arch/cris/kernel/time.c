@@ -79,11 +79,13 @@ cris_do_profile(struct pt_regs* regs)
 #endif
 }
 
+#ifndef CONFIG_GENERIC_SCHED_CLOCK
 unsigned long long sched_clock(void)
 {
 	return (unsigned long long)jiffies * (NSEC_PER_SEC / HZ) +
 		get_ns_in_jiffie();
 }
+#endif
 
 static int
 __init init_udelay(void)

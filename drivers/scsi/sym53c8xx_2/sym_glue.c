@@ -820,9 +820,7 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 	if (reqtags > SYM_CONF_MAX_TAG)
 		reqtags = SYM_CONF_MAX_TAG;
 	depth_to_use = reqtags ? reqtags : 1;
-	scsi_adjust_queue_depth(sdev,
-				sdev->tagged_supported ? MSG_SIMPLE_TAG : 0,
-				depth_to_use);
+	scsi_change_queue_depth(sdev, depth_to_use);
 	lp->s.scdev_depth = depth_to_use;
 	sym_tune_dev_queuing(tp, sdev->lun, reqtags);
 
@@ -851,7 +849,7 @@ static void sym53c8xx_slave_destroy(struct scsi_device *sdev)
 		 * so let's try to stop all on-going I/O.
 		 */
 		starget_printk(KERN_WARNING, tp->starget,
-			       "Removing busy LCB (%d)\n", sdev->lun);
+			       "Removing busy LCB (%d)\n", (u8)sdev->lun);
 		sym_reset_scsi_bus(np, 1);
 	}
 
@@ -1531,7 +1529,7 @@ static int sym_iomap_device(struct sym_device *device)
 	struct pci_bus_region bus_addr;
 	int i = 2;
 
-	pcibios_resource_to_bus(pdev, &bus_addr, &pdev->resource[1]);
+	pcibios_resource_to_bus(pdev->bus, &bus_addr, &pdev->resource[1]);
 	device->mmio_base = bus_addr.start;
 
 	if (device->chip.features & FE_RAM) {
@@ -1541,7 +1539,8 @@ static int sym_iomap_device(struct sym_device *device)
 		 */
 		if (!pdev->resource[i].flags)
 			i++;
-		pcibios_resource_to_bus(pdev, &bus_addr, &pdev->resource[i]);
+		pcibios_resource_to_bus(pdev->bus, &bus_addr,
+					&pdev->resource[i]);
 		device->ram_base = bus_addr.start;
 	}
 

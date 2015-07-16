@@ -29,7 +29,8 @@ static struct clk *prcc_kclk[(PRCC_NUM_PERIPH_CLUSTERS + 1) * PRCC_PERIPHS_PER_C
 #define PRCC_KCLK_STORE(clk, base, bit)        \
 	prcc_kclk[(base * PRCC_PERIPHS_PER_CLUSTER) + bit] = clk
 
-struct clk *ux500_twocell_get(struct of_phandle_args *clkspec, void *data)
+static struct clk *ux500_twocell_get(struct of_phandle_args *clkspec,
+				     void *data)
 {
 	struct clk **clk_data = data;
 	unsigned int base, bit;
@@ -165,8 +166,8 @@ void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 	clk = clk_reg_prcmu_gate("apeatclk", NULL, PRCMU_APEATCLK, CLK_IS_ROOT);
 	prcmu_clk[PRCMU_APEATCLK] = clk;
 
-	clk = clk_reg_prcmu_gate("apetraceclk", NULL, PRCMU_APETRACECLK,
-				CLK_IS_ROOT);
+	clk = clk_reg_prcmu_scalable("apetraceclk", NULL, PRCMU_APETRACECLK, 0,
+				CLK_IS_ROOT|CLK_SET_RATE_GATE);
 	prcmu_clk[PRCMU_APETRACECLK] = clk;
 
 	clk = clk_reg_prcmu_gate("mcdeclk", NULL, PRCMU_MCDECLK, CLK_IS_ROOT);

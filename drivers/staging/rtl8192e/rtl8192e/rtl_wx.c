@@ -19,6 +19,7 @@
 
 #include <linux/string.h>
 #include "rtl_core.h"
+#include "rtl_wx.h"
 
 #define RATE_COUNT 12
 static u32 rtl8192_rates[] = {
@@ -53,6 +54,7 @@ static int r8192_wx_get_rate(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	return rtllib_wx_get_rate(priv->rtllib, info, wrqu, extra);
 }
 
@@ -65,7 +67,7 @@ static int r8192_wx_set_rate(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -85,7 +87,7 @@ static int r8192_wx_set_rts(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -102,6 +104,7 @@ static int r8192_wx_get_rts(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	return rtllib_wx_get_rts(priv->rtllib, info, wrqu, extra);
 }
 
@@ -112,9 +115,9 @@ static int r8192_wx_set_power(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true) {
-		RT_TRACE(COMP_ERR, "%s():Hw is Radio Off, we can't set "
-			 "Power,return\n", __func__);
+	if (priv->bHwRadioOff) {
+		netdev_warn(dev, "%s(): Can't set Power: Radio is Off.\n",
+			    __func__);
 		return 0;
 	}
 	down(&priv->wx_sem);
@@ -131,6 +134,7 @@ static int r8192_wx_get_power(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	return rtllib_wx_get_power(priv->rtllib, info, wrqu, extra);
 }
 
@@ -141,7 +145,7 @@ static int r8192_wx_set_rawtx(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -168,48 +172,6 @@ static int r8192_wx_force_reset(struct net_device *dev,
 	up(&priv->wx_sem);
 	return 0;
 
-}
-
-static int r8192_wx_force_mic_error(struct net_device *dev,
-		struct iw_request_info *info,
-		union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rtllib_device *ieee = priv->rtllib;
-
-	down(&priv->wx_sem);
-
-	RT_TRACE(COMP_DBG, "%s(): force mic error !\n", __func__);
-	ieee->force_mic_error = true;
-	up(&priv->wx_sem);
-	return 0;
-
-}
-
-#define MAX_ADHOC_PEER_NUM 64
-struct adhoc_peer_entry {
-	unsigned char MacAddr[ETH_ALEN];
-	unsigned char WirelessMode;
-	unsigned char bCurTxBW40MHz;
-};
-struct adhoc_peers_info {
-	struct adhoc_peer_entry Entry[MAX_ADHOC_PEER_NUM];
-	unsigned char num;
-};
-
-static int r8192_wx_get_adhoc_peers(struct net_device *dev,
-				    struct iw_request_info *info,
-				    union iwreq_data *wrqu, char *extra)
-{
-	return 0;
-}
-
-
-static int r8191se_wx_get_firm_version(struct net_device *dev,
-		struct iw_request_info *info,
-		struct iw_param *wrqu, char *extra)
-{
-	return 0;
 }
 
 static int r8192_wx_adapter_power_status(struct net_device *dev,
@@ -242,27 +204,6 @@ static int r8192_wx_adapter_power_status(struct net_device *dev,
 	return 0;
 }
 
-static int r8192se_wx_set_radio(struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	down(&priv->wx_sem);
-
-	printk(KERN_INFO "%s(): set radio ! extra is %d\n", __func__, *extra);
-	if ((*extra != 0) && (*extra != 1)) {
-		RT_TRACE(COMP_ERR, "%s(): set radio an err value,must 0(radio "
-			 "off) or 1(radio on)\n", __func__);
-		up(&priv->wx_sem);
-		return -1;
-	}
-	priv->sw_radio_on = *extra;
-	up(&priv->wx_sem);
-	return 0;
-
-}
-
 static int r8192se_wx_set_lps_awake_interval(struct net_device *dev,
 	struct iw_request_info *info,
 	union iwreq_data *wrqu, char *extra)
@@ -273,8 +214,8 @@ static int r8192se_wx_set_lps_awake_interval(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	printk(KERN_INFO "%s(): set lps awake interval ! extra is %d\n",
-	       __func__, *extra);
+	netdev_info(dev, "%s(): set lps awake interval ! extra is %d\n",
+		    __func__, *extra);
 
 	pPSC->RegMaxLPSAwakeIntvl = *extra;
 	up(&priv->wx_sem);
@@ -289,8 +230,9 @@ static int r8192se_wx_set_force_lps(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	printk(KERN_INFO "%s(): force LPS ! extra is %d (1 is open 0 is "
-	       "close)\n", __func__, *extra);
+	netdev_info(dev,
+		    "%s(): force LPS ! extra is %d (1 is open 0 is close)\n",
+		    __func__, *extra);
 	priv->force_lps = *extra;
 	up(&priv->wx_sem);
 	return 0;
@@ -304,11 +246,11 @@ static int r8192_wx_set_debugflag(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 c = *extra;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
-	printk(KERN_INFO "=====>%s(), *extra:%x, debugflag:%x\n", __func__,
-	       *extra, rt_global_debug_component);
+	netdev_info(dev, "=====>%s(), *extra:%x, debugflag:%x\n", __func__,
+		    *extra, rt_global_debug_component);
 	if (c > 0)
 		rt_global_debug_component |= (1<<c);
 	else
@@ -325,7 +267,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	enum rt_rf_power_state rtState;
 	int ret;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 	rtState = priv->rtllib->eRFPowerState;
 	down(&priv->wx_sem);
@@ -335,17 +277,16 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 			if (rtState == eRfOff) {
 				if (priv->rtllib->RfOffReason >
 				    RF_CHANGE_BY_IPS) {
-					RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",
-						 __func__);
+					netdev_warn(dev, "%s(): RF is OFF.\n",
+						    __func__);
 					up(&priv->wx_sem);
 					return -1;
-				} else {
-					printk(KERN_INFO "=========>%s(): "
-					       "IPSLeave\n", __func__);
-					down(&priv->rtllib->ips_sem);
-					IPSLeave(dev);
-					up(&priv->rtllib->ips_sem);
 				}
+				netdev_info(dev,  "=========>%s(): IPSLeave\n",
+					    __func__);
+				down(&priv->rtllib->ips_sem);
+				IPSLeave(dev);
+				up(&priv->rtllib->ips_sem);
 			}
 		}
 	}
@@ -466,9 +407,9 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			return 0;
 	}
 
-	if (priv->bHwRadioOff == true) {
-		printk(KERN_INFO "================>%s(): hwradio off\n",
-		       __func__);
+	if (priv->bHwRadioOff) {
+		netdev_info(dev, "================>%s(): hwradio off\n",
+			    __func__);
 		return 0;
 	}
 	rtState = priv->rtllib->eRFPowerState;
@@ -479,6 +420,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		struct iw_scan_req *req = (struct iw_scan_req *)b;
+
 		if (req->essid_len) {
 			ieee->current_network.ssid_len = req->essid_len;
 			memcpy(ieee->current_network.ssid, req->essid,
@@ -495,17 +437,16 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			if (rtState == eRfOff) {
 				if (priv->rtllib->RfOffReason >
 				    RF_CHANGE_BY_IPS) {
-					RT_TRACE(COMP_ERR, "%s(): RF is "
-						 "OFF.\n", __func__);
+					netdev_warn(dev, "%s(): RF is OFF.\n",
+						    __func__);
 					up(&priv->wx_sem);
 					return -1;
-				} else {
-					RT_TRACE(COMP_PS, "=========>%s(): "
-						 "IPSLeave\n", __func__);
-					down(&priv->rtllib->ips_sem);
-					IPSLeave(dev);
-					up(&priv->rtllib->ips_sem);
 				}
+				RT_TRACE(COMP_PS, "=========>%s(): IPSLeave\n",
+					 __func__);
+				down(&priv->rtllib->ips_sem);
+				IPSLeave(dev);
+				up(&priv->rtllib->ips_sem);
 			}
 		}
 		rtllib_stop_scan(priv->rtllib);
@@ -547,7 +488,7 @@ static int r8192_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	if (!priv->up)
 		return -ENETDOWN;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 
@@ -567,13 +508,10 @@ static int r8192_wx_set_essid(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 
-	if ((rtllib_act_scanning(priv->rtllib, false)) &&
-	    !(priv->rtllib->softmac_features & IEEE_SOFTMAC_SCAN)) {
-		;	/* TODO - get rid of if */
-	}
-	if (priv->bHwRadioOff == true) {
-		printk(KERN_INFO "=========>%s():hw radio off,or Rf state is "
-		       "eRfOff, return\n", __func__);
+	if (priv->bHwRadioOff) {
+		netdev_info(dev,
+			    "=========>%s():hw radio off,or Rf state is eRfOff, return\n",
+			    __func__);
 		return 0;
 	}
 	down(&priv->wx_sem);
@@ -609,7 +547,8 @@ static int r8192_wx_set_nick(struct net_device *dev,
 	if (wrqu->data.length > IW_ESSID_MAX_SIZE)
 		return -E2BIG;
 	down(&priv->wx_sem);
-	wrqu->data.length = min((size_t) wrqu->data.length, sizeof(priv->nick));
+	wrqu->data.length = min_t(size_t, wrqu->data.length,
+				  sizeof(priv->nick));
 	memset(priv->nick, 0, sizeof(priv->nick));
 	memcpy(priv->nick, extra, wrqu->data.length);
 	up(&priv->wx_sem);
@@ -637,7 +576,7 @@ static int r8192_wx_set_freq(struct net_device *dev, struct iw_request_info *a,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -653,6 +592,7 @@ static int r8192_wx_get_name(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	return rtllib_wx_get_name(priv->rtllib, info, wrqu, extra);
 }
 
@@ -663,7 +603,7 @@ static int r8192_wx_set_frag(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	if (wrqu->frag.disabled)
@@ -702,12 +642,7 @@ static int r8192_wx_set_wap(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if ((rtllib_act_scanning(priv->rtllib, false)) &&
-	    !(priv->rtllib->softmac_features & IEEE_SOFTMAC_SCAN)) {
-		;	/* TODO - get rid of if */
-	}
-
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -757,10 +692,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 			     {0x00, 0x00, 0x00, 0x00, 0x00, 0x03} };
 	int i;
 
-	if ((rtllib_act_scanning(priv->rtllib, false)) &&
-	   !(priv->rtllib->softmac_features & IEEE_SOFTMAC_SCAN))
-		;	/* TODO - get rid of if */
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	if (!priv->up)
@@ -832,7 +764,8 @@ static int r8192_wx_set_enc(struct net_device *dev,
 			set_swcam(dev, key_idx, key_idx, KEY_TYPE_WEP104,
 				  zero_addr[key_idx], 0, hwkey, 0);
 		} else {
-			 printk(KERN_INFO "wrong type in WEP, not WEP40 and WEP104\n");
+			netdev_info(dev,
+				    "wrong type in WEP, not WEP40 and WEP104\n");
 		}
 	}
 
@@ -849,7 +782,7 @@ static int r8192_wx_set_scan_type(struct net_device *dev,
 	int *parms = (int *)p;
 	int mode = parms[0];
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	priv->rtllib->active_scan = mode;
@@ -867,7 +800,7 @@ static int r8192_wx_set_retry(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int err = 0;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -933,6 +866,7 @@ static int r8192_wx_get_sens(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	if (priv->rf_set_sens == NULL)
 		return -1; /* we have not this support for this radio */
 	wrqu->sens.value = priv->sens;
@@ -949,7 +883,7 @@ static int r8192_wx_set_sens(struct net_device *dev,
 
 	short err = 0;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -976,7 +910,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -988,12 +922,13 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 
 	ret = rtllib_wx_set_encode_ext(ieee, info, wrqu, extra);
 	{
-		u8 broadcast_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-		u8 zero[6] = {0};
+		const u8 broadcast_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+		const u8 zero[ETH_ALEN] = {0};
 		u32 key[4] = {0};
 		struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 		struct iw_point *encoding = &wrqu->encoding;
 		u8 idx = 0, alg = 0, group = 0;
+
 		if ((encoding->flags & IW_ENCODE_DISABLED) ||
 		     ext->alg == IW_ENCODE_ALG_NONE) {
 			ieee->pairwise_key_type = ieee->group_key_type
@@ -1056,7 +991,7 @@ static int r8192_wx_set_auth(struct net_device *dev,
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1074,7 +1009,7 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1091,7 +1026,7 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1130,11 +1065,18 @@ static int r8192_wx_set_PromiscuousMode(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	u32 *info_buf = (u32 *)(wrqu->data.pointer);
+	u32 info_buf[3];
 
-	u32 oid = info_buf[0];
-	u32 bPromiscuousOn = info_buf[1];
-	u32 bFilterSourceStationFrame = info_buf[2];
+	u32 oid;
+	u32 bPromiscuousOn;
+	u32 bFilterSourceStationFrame;
+
+	if (copy_from_user(info_buf, wrqu->data.pointer, sizeof(info_buf)))
+		return -EFAULT;
+
+	oid = info_buf[0];
+	bPromiscuousOn = info_buf[1];
+	bFilterSourceStationFrame = info_buf[2];
 
 	if (OID_RT_INTEL_PROMISCUOUS_MODE == oid) {
 		ieee->IntelPromiscuousModeInfo.bPromiscuousOn =
@@ -1145,8 +1087,10 @@ static int r8192_wx_set_PromiscuousMode(struct net_device *dev,
 			(rtllib_EnableIntelPromiscuousMode(dev, false)) :
 			(rtllib_DisableIntelPromiscuousMode(dev, false));
 
-		printk(KERN_INFO "=======>%s(), on = %d, filter src sta = %d\n",
-		       __func__, bPromiscuousOn, bFilterSourceStationFrame);
+		netdev_info(dev,
+			    "=======>%s(), on = %d, filter src sta = %d\n",
+			    __func__, bPromiscuousOn,
+			    bFilterSourceStationFrame);
 	} else {
 		return -1;
 	}
@@ -1212,11 +1156,10 @@ static iw_handler r8192_wx_handlers[] = {
 	IW_IOCTL(SIOCSIWENCODEEXT) = r8192_wx_set_enc_ext,
 };
 
-/*
- * the following rule need to be follwing,
+/* the following rule need to be following,
  * Odd : get (world access),
  * even : set (root access)
- * */
+ */
 static const struct iw_priv_args r8192_private_args[] = {
 	{
 		SIOCIWFIRSTPRIV + 0x0,
@@ -1231,20 +1174,9 @@ static const struct iw_priv_args r8192_private_args[] = {
 		SIOCIWFIRSTPRIV + 0x3,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "forcereset"
 	}, {
-		SIOCIWFIRSTPRIV + 0x4,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "force_mic_error"
-	}, {
-		SIOCIWFIRSTPRIV + 0x5,
-		IW_PRIV_TYPE_NONE, IW_PRIV_TYPE_INT|IW_PRIV_SIZE_FIXED|1,
-		"firm_ver"
-	}, {
 		SIOCIWFIRSTPRIV + 0x6,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
 		"set_power"
-	}, {
-		SIOCIWFIRSTPRIV + 0x9,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
-		"radio"
 	}, {
 		SIOCIWFIRSTPRIV + 0xa,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
@@ -1253,9 +1185,6 @@ static const struct iw_priv_args r8192_private_args[] = {
 		SIOCIWFIRSTPRIV + 0xb,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
 		"lps_force"
-	}, {
-		SIOCIWFIRSTPRIV + 0xc,
-		0, IW_PRIV_TYPE_CHAR|2047, "adhoc_peer_list"
 	}, {
 		SIOCIWFIRSTPRIV + 0x16,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "setpromisc"
@@ -1271,15 +1200,15 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)r8192_wx_set_scan_type,
 	(iw_handler)r8192_wx_set_rawtx,
 	(iw_handler)r8192_wx_force_reset,
-	(iw_handler)r8192_wx_force_mic_error,
-	(iw_handler)r8191se_wx_get_firm_version,
+	(iw_handler)NULL,
+	(iw_handler)NULL,
 	(iw_handler)r8192_wx_adapter_power_status,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
-	(iw_handler)r8192se_wx_set_radio,
+	(iw_handler)NULL,
 	(iw_handler)r8192se_wx_set_lps_awake_interval,
 	(iw_handler)r8192se_wx_set_force_lps,
-	(iw_handler)r8192_wx_get_adhoc_peers,
+	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
@@ -1301,6 +1230,7 @@ static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	int tmp_level = 0;
 	int tmp_qual = 0;
 	int tmp_noise = 0;
+
 	if (ieee->state < RTLLIB_LINKED) {
 		wstats->qual.qual = 10;
 		wstats->qual.level = 0;
@@ -1320,7 +1250,7 @@ static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	return wstats;
 }
 
-struct iw_handler_def  r8192_wx_handlers_def = {
+const struct iw_handler_def r8192_wx_handlers_def = {
 	.standard = r8192_wx_handlers,
 	.num_standard = ARRAY_SIZE(r8192_wx_handlers),
 	.private = r8192_private_handler,

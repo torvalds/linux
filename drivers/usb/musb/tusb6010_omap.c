@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -626,7 +625,7 @@ static void tusb_omap_dma_release(struct dma_channel *channel)
 	channel = NULL;
 }
 
-void dma_controller_destroy(struct dma_controller *c)
+void tusb_dma_controller_destroy(struct dma_controller *c)
 {
 	struct tusb_omap_dma	*tusb_dma;
 	int			i;
@@ -645,8 +644,10 @@ void dma_controller_destroy(struct dma_controller *c)
 
 	kfree(tusb_dma);
 }
+EXPORT_SYMBOL_GPL(tusb_dma_controller_destroy);
 
-struct dma_controller *dma_controller_create(struct musb *musb, void __iomem *base)
+struct dma_controller *
+tusb_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	void __iomem		*tbase = musb->ctrl_base;
 	struct tusb_omap_dma	*tusb_dma;
@@ -678,7 +679,7 @@ struct dma_controller *dma_controller_create(struct musb *musb, void __iomem *ba
 	tusb_dma->controller.channel_program = tusb_omap_dma_program;
 	tusb_dma->controller.channel_abort = tusb_omap_dma_abort;
 
-	if (tusb_get_revision(musb) >= TUSB_REV_30)
+	if (musb->tusb_revision >= TUSB_REV_30)
 		tusb_dma->multichannel = 1;
 
 	for (i = 0; i < MAX_DMAREQ; i++) {
@@ -702,7 +703,8 @@ struct dma_controller *dma_controller_create(struct musb *musb, void __iomem *ba
 	return &tusb_dma->controller;
 
 cleanup:
-	dma_controller_destroy(&tusb_dma->controller);
+	musb_dma_controller_destroy(&tusb_dma->controller);
 out:
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(tusb_dma_controller_create);

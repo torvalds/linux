@@ -338,7 +338,6 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 
 	/* set the file options */
 	filp->private_data = logptr;
-	filp->f_op = &vmlogrdr_fops;
 
 	/* start recording for this service*/
 	if (logptr->autorecording) {
@@ -761,7 +760,7 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 
 	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (dev) {
-		dev_set_name(dev, priv->internal_name);
+		dev_set_name(dev, "%s", priv->internal_name);
 		dev->bus = &iucv_bus;
 		dev->parent = iucv_root;
 		dev->driver = &vmlogrdr_driver;

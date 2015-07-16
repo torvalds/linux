@@ -15,8 +15,10 @@
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <asm/exception.h>
 #include <plat/irq.h>
 #include <plat/orion-gpio.h>
+#include <mach/bridge-regs.h>
 
 void __init orion_irq_init(unsigned int irq_start, void __iomem *maskaddr)
 {
@@ -36,35 +38,3 @@ void __init orion_irq_init(unsigned int irq_start, void __iomem *maskaddr)
 	irq_setup_generic_chip(gc, IRQ_MSK(32), IRQ_GC_INIT_MASK_CACHE,
 			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
 }
-
-#ifdef CONFIG_OF
-static int __init orion_add_irq_domain(struct device_node *np,
-				       struct device_node *interrupt_parent)
-{
-	int i = 0;
-	void __iomem *base;
-
-	do {
-		base = of_iomap(np, i);
-		if (base) {
-			orion_irq_init(i * 32, base + 0x04);
-			i++;
-		}
-	} while (base);
-
-	irq_domain_add_legacy(np, i * 32, 0, 0,
-			      &irq_domain_simple_ops, NULL);
-	return 0;
-}
-
-static const struct of_device_id orion_irq_match[] = {
-	{ .compatible = "marvell,orion-intc",
-	  .data = orion_add_irq_domain, },
-	{},
-};
-
-void __init orion_dt_init_irq(void)
-{
-	of_irq_init(orion_irq_match);
-}
-#endif

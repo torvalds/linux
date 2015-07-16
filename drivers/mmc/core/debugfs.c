@@ -135,8 +135,14 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 	case MMC_TIMING_UHS_DDR50:
 		str = "sd uhs DDR50";
 		break;
+	case MMC_TIMING_MMC_DDR52:
+		str = "mmc DDR52";
+		break;
 	case MMC_TIMING_MMC_HS200:
-		str = "mmc high-speed SDR200";
+		str = "mmc HS200";
+		break;
+	case MMC_TIMING_MMC_HS400:
+		str = "mmc HS400";
 		break;
 	default:
 		str = "invalid";
@@ -285,14 +291,8 @@ static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
 	if (!buf)
 		return -ENOMEM;
 
-	ext_csd = kmalloc(512, GFP_KERNEL);
-	if (!ext_csd) {
-		err = -ENOMEM;
-		goto out_free;
-	}
-
 	mmc_get_card(card);
-	err = mmc_send_ext_csd(card, ext_csd);
+	err = mmc_get_ext_csd(card, &ext_csd);
 	mmc_put_card(card);
 	if (err)
 		goto out_free;
@@ -308,7 +308,6 @@ static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
 
 out_free:
 	kfree(buf);
-	kfree(ext_csd);
 	return err;
 }
 

@@ -36,6 +36,13 @@
 
 #include <asm/octeon/cvmx-helper.h>
 
+enum cvmx_helper_board_usb_clock_types {
+	USB_CLOCK_TYPE_REF_12,
+	USB_CLOCK_TYPE_REF_24,
+	USB_CLOCK_TYPE_REF_48,
+	USB_CLOCK_TYPE_CRYSTAL_12,
+};
+
 typedef enum {
 	set_phy_link_flags_autoneg = 0x1,
 	set_phy_link_flags_flow_control_dont_touch = 0x0 << 1,
@@ -153,5 +160,7 @@ extern int __cvmx_helper_board_interface_probe(int interface,
  * Returns Zero on success, negative on failure
  */
 extern int __cvmx_helper_board_hardware_enable(int interface);
+
+enum cvmx_helper_board_usb_clock_types __cvmx_helper_board_usb_get_clock_type(void);
 
 #endif /* __CVMX_HELPER_BOARD_H__ */

@@ -31,7 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/io-mapping.h>
@@ -59,7 +58,7 @@ EXPORT_SYMBOL_GPL(mlx4_pd_alloc);
 
 void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->pd_bitmap, pdn);
+	mlx4_bitmap_free(&mlx4_priv(dev)->pd_bitmap, pdn, MLX4_USE_RR);
 }
 EXPORT_SYMBOL_GPL(mlx4_pd_free);
 
@@ -96,7 +95,7 @@ EXPORT_SYMBOL_GPL(mlx4_xrcd_alloc);
 
 void __mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->xrcd_bitmap, xrcdn);
+	mlx4_bitmap_free(&mlx4_priv(dev)->xrcd_bitmap, xrcdn, MLX4_USE_RR);
 }
 
 void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
@@ -152,11 +151,13 @@ int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar)
 		return -ENOMEM;
 
 	if (mlx4_is_slave(dev))
-		offset = uar->index % ((int) pci_resource_len(dev->pdev, 2) /
+		offset = uar->index % ((int)pci_resource_len(dev->persist->pdev,
+							     2) /
 				       dev->caps.uar_page_size);
 	else
 		offset = uar->index;
-	uar->pfn = (pci_resource_start(dev->pdev, 2) >> PAGE_SHIFT) + offset;
+	uar->pfn = (pci_resource_start(dev->persist->pdev, 2) >> PAGE_SHIFT)
+		    + offset;
 	uar->map = NULL;
 	return 0;
 }
@@ -164,7 +165,7 @@ EXPORT_SYMBOL_GPL(mlx4_uar_alloc);
 
 void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->uar_table.bitmap, uar->index);
+	mlx4_bitmap_free(&mlx4_priv(dev)->uar_table.bitmap, uar->index, MLX4_USE_RR);
 }
 EXPORT_SYMBOL_GPL(mlx4_uar_free);
 
@@ -213,7 +214,6 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 		list_add(&uar->bf_list, &priv->bf_list);
 	}
 
-	bf->uar = uar;
 	idx = ffz(uar->free_bf_bmap);
 	uar->free_bf_bmap |= 1 << idx;
 	bf->uar = uar;

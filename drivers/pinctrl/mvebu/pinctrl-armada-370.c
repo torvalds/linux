@@ -23,6 +23,18 @@
 
 #include "pinctrl-mvebu.h"
 
+static void __iomem *mpp_base;
+
+static int armada_370_mpp_ctrl_get(unsigned pid, unsigned long *config)
+{
+	return default_mpp_ctrl_get(mpp_base, pid, config);
+}
+
+static int armada_370_mpp_ctrl_set(unsigned pid, unsigned long config)
+{
+	return default_mpp_ctrl_set(mpp_base, pid, config);
+}
+
 static struct mvebu_mpp_mode mv88f6710_mpp_modes[] = {
 	MPP_MODE(0,
 	   MPP_FUNCTION(0x0, "gpio", NULL),
@@ -40,12 +52,12 @@ static struct mvebu_mpp_mode mv88f6710_mpp_modes[] = {
 	   MPP_FUNCTION(0x2, "uart0", "rxd")),
 	MPP_MODE(4,
 	   MPP_FUNCTION(0x0, "gpio", NULL),
-	   MPP_FUNCTION(0x1, "cpu_pd", "vdd")),
+	   MPP_FUNCTION(0x1, "vdd", "cpu-pd")),
 	MPP_MODE(5,
 	   MPP_FUNCTION(0x0, "gpo", NULL),
-	   MPP_FUNCTION(0x1, "ge0", "txclko"),
+	   MPP_FUNCTION(0x1, "ge0", "txclkout"),
 	   MPP_FUNCTION(0x2, "uart1", "txd"),
-	   MPP_FUNCTION(0x4, "spi1", "clk"),
+	   MPP_FUNCTION(0x4, "spi1", "sck"),
 	   MPP_FUNCTION(0x5, "audio", "mclk")),
 	MPP_MODE(6,
 	   MPP_FUNCTION(0x0, "gpio", NULL),
@@ -56,7 +68,7 @@ static struct mvebu_mpp_mode mv88f6710_mpp_modes[] = {
 	MPP_MODE(7,
 	   MPP_FUNCTION(0x0, "gpo", NULL),
 	   MPP_FUNCTION(0x1, "ge0", "txd1"),
-	   MPP_FUNCTION(0x4, "tdm", "tdx"),
+	   MPP_FUNCTION(0x4, "tdm", "dtx"),
 	   MPP_FUNCTION(0x5, "audio", "lrclk")),
 	MPP_MODE(8,
 	   MPP_FUNCTION(0x0, "gpio", NULL),
@@ -195,11 +207,11 @@ static struct mvebu_mpp_mode mv88f6710_mpp_modes[] = {
 	   MPP_FUNCTION(0x2, "spi0", "cs0")),
 	MPP_MODE(34,
 	   MPP_FUNCTION(0x0, "gpo", NULL),
-	   MPP_FUNCTION(0x1, "dev", "wen0"),
+	   MPP_FUNCTION(0x1, "dev", "we0"),
 	   MPP_FUNCTION(0x2, "spi0", "mosi")),
 	MPP_MODE(35,
 	   MPP_FUNCTION(0x0, "gpo", NULL),
-	   MPP_FUNCTION(0x1, "dev", "oen"),
+	   MPP_FUNCTION(0x1, "dev", "oe"),
 	   MPP_FUNCTION(0x2, "spi0", "sck")),
 	MPP_MODE(36,
 	   MPP_FUNCTION(0x0, "gpo", NULL),
@@ -336,13 +348,13 @@ static struct mvebu_mpp_mode mv88f6710_mpp_modes[] = {
 	   MPP_FUNCTION(0x1, "dev", "ale1"),
 	   MPP_FUNCTION(0x2, "uart1", "rxd"),
 	   MPP_FUNCTION(0x3, "sata0", "prsnt"),
-	   MPP_FUNCTION(0x4, "pcie", "rst-out"),
+	   MPP_FUNCTION(0x4, "pcie", "rstout"),
 	   MPP_FUNCTION(0x5, "audio", "sdi")),
 	MPP_MODE(61,
 	   MPP_FUNCTION(0x0, "gpo", NULL),
-	   MPP_FUNCTION(0x1, "dev", "wen1"),
+	   MPP_FUNCTION(0x1, "dev", "we1"),
 	   MPP_FUNCTION(0x2, "uart1", "txd"),
-	   MPP_FUNCTION(0x5, "audio", "rclk")),
+	   MPP_FUNCTION(0x5, "audio", "lrclk")),
 	MPP_MODE(62,
 	   MPP_FUNCTION(0x0, "gpio", NULL),
 	   MPP_FUNCTION(0x1, "dev", "a2"),
@@ -352,28 +364,28 @@ static struct mvebu_mpp_mode mv88f6710_mpp_modes[] = {
 	   MPP_FUNCTION(0x5, "audio", "mclk"),
 	   MPP_FUNCTION(0x6, "uart0", "cts")),
 	MPP_MODE(63,
-	   MPP_FUNCTION(0x0, "gpo", NULL),
+	   MPP_FUNCTION(0x0, "gpio", NULL),
 	   MPP_FUNCTION(0x1, "spi0", "sck"),
 	   MPP_FUNCTION(0x2, "tclk", NULL)),
 	MPP_MODE(64,
 	   MPP_FUNCTION(0x0, "gpio", NULL),
 	   MPP_FUNCTION(0x1, "spi0", "miso"),
-	   MPP_FUNCTION(0x2, "spi0-1", "cs1")),
+	   MPP_FUNCTION(0x2, "spi0", "cs1")),
 	MPP_MODE(65,
 	   MPP_FUNCTION(0x0, "gpio", NULL),
 	   MPP_FUNCTION(0x1, "spi0", "mosi"),
-	   MPP_FUNCTION(0x2, "spi0-1", "cs2")),
+	   MPP_FUNCTION(0x2, "spi0", "cs2")),
 };
 
 static struct mvebu_pinctrl_soc_info armada_370_pinctrl_info;
 
-static struct of_device_id armada_370_pinctrl_of_match[] = {
+static const struct of_device_id armada_370_pinctrl_of_match[] = {
 	{ .compatible = "marvell,mv88f6710-pinctrl" },
 	{ },
 };
 
 static struct mvebu_mpp_ctrl mv88f6710_mpp_controls[] = {
-	MPP_REG_CTRL(0, 65),
+	MPP_FUNC_CTRL(0, 65, NULL, armada_370_mpp_ctrl),
 };
 
 static struct pinctrl_gpio_range mv88f6710_mpp_gpio_ranges[] = {
@@ -385,6 +397,12 @@ static struct pinctrl_gpio_range mv88f6710_mpp_gpio_ranges[] = {
 static int armada_370_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = &armada_370_pinctrl_info;
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mpp_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mpp_base))
+		return PTR_ERR(mpp_base);
 
 	soc->variant = 0; /* no variants for Armada 370 */
 	soc->controls = mv88f6710_mpp_controls;
@@ -407,7 +425,6 @@ static int armada_370_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver armada_370_pinctrl_driver = {
 	.driver = {
 		.name = "armada-370-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = armada_370_pinctrl_of_match,
 	},
 	.probe = armada_370_pinctrl_probe,

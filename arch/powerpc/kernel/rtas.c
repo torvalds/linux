@@ -401,7 +401,7 @@ static char *__fetch_rtas_last_error(char *altbuf)
 			buf = altbuf;
 		} else {
 			buf = rtas_err_buf;
-			if (mem_init_done)
+			if (slab_is_available())
 				buf = kmalloc(RTAS_ERROR_LOG_MAX, GFP_ATOMIC);
 		}
 		if (buf)
@@ -461,7 +461,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 
 	if (buff_copy) {
 		log_error(buff_copy, ERR_TYPE_RTAS_LOG, 0);
-		if (mem_init_done)
+		if (slab_is_available())
 			kfree(buff_copy);
 	}
 	return ret;
@@ -897,7 +897,7 @@ int rtas_offline_cpus_mask(cpumask_var_t cpus)
 }
 EXPORT_SYMBOL(rtas_offline_cpus_mask);
 
-int rtas_ibm_suspend_me(struct rtas_args *args)
+int rtas_ibm_suspend_me(u64 handle)
 {
 	long state;
 	long rc;
@@ -911,8 +911,7 @@ int rtas_ibm_suspend_me(struct rtas_args *args)
 		return -ENOSYS;
 
 	/* Make sure the state is valid */
-	rc = plpar_hcall(H_VASI_STATE, retbuf,
-			 ((u64)args->args[0] << 32) | args->args[1]);
+	rc = plpar_hcall(H_VASI_STATE, retbuf, handle);
 
 	state = retbuf[0];
 
@@ -920,13 +919,11 @@ int rtas_ibm_suspend_me(struct rtas_args *args)
 		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned %ld\n",rc);
 		return rc;
 	} else if (state == H_VASI_ENABLED) {
-		args->args[args->nargs] = RTAS_NOT_SUSPENDABLE;
-		return 0;
+		return -EAGAIN;
 	} else if (state != H_VASI_SUSPENDING) {
 		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned state %ld\n",
 		       state);
-		args->args[args->nargs] = -1;
-		return 0;
+		return -EIO;
 	}
 
 	if (!alloc_cpumask_var(&offline_mask, GFP_TEMPORARY))
@@ -973,7 +970,7 @@ out:
 	return atomic_read(&data.error);
 }
 #else /* CONFIG_PPC_PSERIES */
-int rtas_ibm_suspend_me(struct rtas_args *args)
+int rtas_ibm_suspend_me(u64 handle)
 {
 	return -ENOSYS;
 }
@@ -993,33 +990,36 @@ struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 		(struct rtas_ext_event_log_v6 *)log->buffer;
 	struct pseries_errorlog *sect;
 	unsigned char *p, *log_end;
+	uint32_t ext_log_length = rtas_error_extended_log_length(log);
+	uint8_t log_format = rtas_ext_event_log_format(ext_log);
+	uint32_t company_id = rtas_ext_event_company_id(ext_log);
 
 	/* Check that we understand the format */
-	if (log->extended_log_length < sizeof(struct rtas_ext_event_log_v6) ||
-	    ext_log->log_format != RTAS_V6EXT_LOG_FORMAT_EVENT_LOG ||
-	    ext_log->company_id != RTAS_V6EXT_COMPANY_ID_IBM)
+	if (ext_log_length < sizeof(struct rtas_ext_event_log_v6) ||
+	    log_format != RTAS_V6EXT_LOG_FORMAT_EVENT_LOG ||
+	    company_id != RTAS_V6EXT_COMPANY_ID_IBM)
 		return NULL;
 
-	log_end = log->buffer + log->extended_log_length;
+	log_end = log->buffer + ext_log_length;
 	p = ext_log->vendor_log;
 
 	while (p < log_end) {
 		sect = (struct pseries_errorlog *)p;
-		if (sect->id == section_id)
+		if (pseries_errorlog_id(sect) == section_id)
 			return sect;
-		p += sect->length;
+		p += pseries_errorlog_length(sect);
 	}
 
 	return NULL;
 }
 
+/* We assume to be passed big endian arguments */
 asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 {
 	struct rtas_args args;
 	unsigned long flags;
 	char *buff_copy, *errbuf = NULL;
-	int nargs;
-	int rc;
+	int nargs, nret, token;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1027,10 +1027,13 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	if (copy_from_user(&args, uargs, 3 * sizeof(u32)) != 0)
 		return -EFAULT;
 
-	nargs = args.nargs;
+	nargs = be32_to_cpu(args.nargs);
+	nret  = be32_to_cpu(args.nret);
+	token = be32_to_cpu(args.token);
+
 	if (nargs > ARRAY_SIZE(args.args)
-	    || args.nret > ARRAY_SIZE(args.args)
-	    || nargs + args.nret > ARRAY_SIZE(args.args))
+	    || nret > ARRAY_SIZE(args.args)
+	    || nargs + nret > ARRAY_SIZE(args.args))
 		return -EINVAL;
 
 	/* Copy in args. */
@@ -1038,16 +1041,28 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 			   nargs * sizeof(rtas_arg_t)) != 0)
 		return -EFAULT;
 
-	if (args.token == RTAS_UNKNOWN_SERVICE)
+	if (token == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
 	args.rets = &args.args[nargs];
-	memset(args.rets, 0, args.nret * sizeof(rtas_arg_t));
+	memset(args.rets, 0, nret * sizeof(rtas_arg_t));
 
 	/* Need to handle ibm,suspend_me call specially */
-	if (args.token == ibm_suspend_me_token) {
-		rc = rtas_ibm_suspend_me(&args);
-		if (rc)
+	if (token == ibm_suspend_me_token) {
+
+		/*
+		 * rtas_ibm_suspend_me assumes the streamid handle is in cpu
+		 * endian, or at least the hcall within it requires it.
+		 */
+		int rc = 0;
+		u64 handle = ((u64)be32_to_cpu(args.args[0]) << 32)
+		              | be32_to_cpu(args.args[1]);
+		rc = rtas_ibm_suspend_me(handle);
+		if (rc == -EAGAIN)
+			args.rets[0] = cpu_to_be32(RTAS_NOT_SUSPENDABLE);
+		else if (rc == -EIO)
+			args.rets[0] = cpu_to_be32(-1);
+		else if (rc)
 			return rc;
 		goto copy_return;
 	}
@@ -1062,7 +1077,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 
 	/* A -1 return code indicates that the last command couldn't
 	   be completed due to a hardware error. */
-	if (args.rets[0] == -1)
+	if (be32_to_cpu(args.rets[0]) == -1)
 		errbuf = __fetch_rtas_last_error(buff_copy);
 
 	unlock_rtas(flags);
@@ -1077,15 +1092,15 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	/* Copy out args. */
 	if (copy_to_user(uargs->args + nargs,
 			 args.args + nargs,
-			 args.nret * sizeof(rtas_arg_t)) != 0)
+			 nret * sizeof(rtas_arg_t)) != 0)
 		return -EFAULT;
 
 	return 0;
 }
 
 /*
- * Call early during boot, before mem init or bootmem, to retrieve the RTAS
- * informations from the device-tree and allocate the RMO buffer for userland
+ * Call early during boot, before mem init, to retrieve the RTAS
+ * information from the device-tree and allocate the RMO buffer for userland
  * accesses.
  */
 void __init rtas_initialize(void)
@@ -1135,7 +1150,7 @@ void __init rtas_initialize(void)
 int __init early_init_dt_scan_rtas(unsigned long node,
 		const char *uname, int depth, void *data)
 {
-	u32 *basep, *entryp, *sizep;
+	const u32 *basep, *entryp, *sizep;
 
 	if (depth != 1 || strcmp(uname, "rtas") != 0)
 		return 0;

@@ -33,15 +33,13 @@
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
 #include <linux/pci-aspm.h>
+#include <linux/dmar.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/apei.h>
+#include <linux/dmi.h>
+#include <acpi/apei.h>	/* for acpi_hest_init() */
 
 #include "internal.h"
-
-#define PREFIX "ACPI: "
 
 #define _COMPONENT		ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_root");
@@ -50,6 +48,12 @@ ACPI_MODULE_NAME("pci_root");
 static int acpi_pci_root_add(struct acpi_device *device,
 			     const struct acpi_device_id *not_used);
 static void acpi_pci_root_remove(struct acpi_device *device);
+
+static int acpi_pci_root_scan_dependent(struct acpi_device *adev)
+{
+	acpiphp_check_host_bridge(adev);
+	return 0;
+}
 
 #define ACPI_PCIE_REQ_SUPPORT (OSC_PCI_EXT_CONFIG_SUPPORT \
 				| OSC_PCI_ASPM_SUPPORT \
@@ -65,6 +69,10 @@ static struct acpi_scan_handler pci_root_handler = {
 	.ids = root_device_ids,
 	.attach = acpi_pci_root_add,
 	.detach = acpi_pci_root_remove,
+	.hotplug = {
+		.enabled = true,
+		.scan_dependent = acpi_pci_root_scan_dependent,
+	},
 };
 
 static DEFINE_MUTEX(osc_lock);
@@ -104,10 +112,10 @@ get_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 	if (ACPI_FAILURE(status))
 		return AE_OK;
 
-	if ((address.address_length > 0) &&
+	if ((address.address.address_length > 0) &&
 	    (address.resource_type == ACPI_BUS_NUMBER_RANGE)) {
-		res->start = address.minimum;
-		res->end = address.minimum + address.address_length - 1;
+		res->start = address.address.minimum;
+		res->end = address.address.minimum + address.address.address_length - 1;
 	}
 
 	return AE_OK;
@@ -415,13 +423,25 @@ out:
 }
 EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
-static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
-				 int *clear_aspm)
+static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 {
 	u32 support, control, requested;
 	acpi_status status;
 	struct acpi_device *device = root->device;
 	acpi_handle handle = device->handle;
+
+	/*
+	 * Apple always return failure on _OSC calls when _OSI("Darwin") has
+	 * been called successfully. We know the feature set supported by the
+	 * platform, so avoid calling _OSC at all
+	 */
+
+	if (dmi_match(DMI_SYS_VENDOR, "Apple Inc.")) {
+		root->osc_control_set = ~OSC_PCI_EXPRESS_PME_CONTROL;
+		decode_osc_control(root, "OS assumes control of",
+				   root->osc_control_set);
+		return;
+	}
 
 	/*
 	 * All supported architectures that use ACPI have support for
@@ -474,10 +494,12 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 		decode_osc_control(root, "OS now controls", control);
 		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
 			/*
-			 * We have ASPM control, but the FADT indicates
-			 * that it's unsupported. Clear it.
+			 * We have ASPM control, but the FADT indicates that
+			 * it's unsupported. Leave existing configuration
+			 * intact and prevent the OS from touching it.
 			 */
-			*clear_aspm = 1;
+			dev_info(&device->dev, "FADT indicates ASPM is unsupported, using BIOS configuration\n");
+			*no_aspm = 1;
 		}
 	} else {
 		decode_osc_control(root, "OS requested", requested);
@@ -504,7 +526,8 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	int result;
 	struct acpi_pci_root *root;
 	acpi_handle handle = device->handle;
-	int no_aspm = 0, clear_aspm = 0;
+	int no_aspm = 0;
+	bool hotadd = system_state != SYSTEM_BOOTING;
 
 	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
@@ -551,13 +574,18 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	device->driver_data = root;
 
+	if (hotadd && dmar_device_add(handle)) {
+		result = -ENXIO;
+		goto end;
+	}
+
 	pr_info(PREFIX "%s [%s] (domain %04x %pR)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
 	       root->segment, &root->secondary);
 
 	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(handle);
 
-	negotiate_os_control(root, &no_aspm, &clear_aspm);
+	negotiate_os_control(root, &no_aspm);
 
 	/*
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
@@ -577,28 +605,30 @@ static int acpi_pci_root_add(struct acpi_device *device,
 			root->segment, (unsigned int)root->secondary.start);
 		device->driver_data = NULL;
 		result = -ENODEV;
-		goto end;
+		goto remove_dmar;
 	}
 
-	if (clear_aspm) {
-		dev_info(&device->dev, "Disabling ASPM (FADT indicates it is unsupported)\n");
-		pcie_clear_aspm(root->bus);
-	}
 	if (no_aspm)
 		pcie_no_aspm();
 
-	pci_acpi_add_bus_pm_notifier(device, root->bus);
+	pci_acpi_add_bus_pm_notifier(device);
 	if (device->wakeup.flags.run_wake)
 		device_set_run_wake(root->bus->bridge, true);
 
-	if (system_state != SYSTEM_BOOTING) {
+	if (hotadd) {
 		pcibios_resource_survey_bus(root->bus);
 		pci_assign_unassigned_root_bus_resources(root->bus);
+		acpi_ioapic_add(root);
 	}
 
+	pci_lock_rescan_remove();
 	pci_bus_add_devices(root->bus);
+	pci_unlock_rescan_remove();
 	return 1;
 
+remove_dmar:
+	if (hotadd)
+		dmar_device_remove(handle);
 end:
 	kfree(root);
 	return result;
@@ -608,12 +638,20 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 {
 	struct acpi_pci_root *root = acpi_driver_data(device);
 
+	pci_lock_rescan_remove();
+
 	pci_stop_root_bus(root->bus);
+
+	WARN_ON(acpi_ioapic_remove(root));
 
 	device_set_run_wake(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
 
 	pci_remove_root_bus(root->bus);
+
+	dmar_device_remove(device->handle);
+
+	pci_unlock_rescan_remove();
 
 	kfree(root);
 }
@@ -621,116 +659,9 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 void __init acpi_pci_root_init(void)
 {
 	acpi_hest_init();
-
-	if (!acpi_pci_disabled) {
-		pci_acpi_crs_quirks();
-		acpi_scan_add_handler(&pci_root_handler);
-	}
-}
-/* Support root bridge hotplug */
-
-static void handle_root_bridge_insertion(acpi_handle handle)
-{
-	struct acpi_device *device;
-
-	if (!acpi_bus_get_device(handle, &device)) {
-		dev_printk(KERN_DEBUG, &device->dev,
-			   "acpi device already exists; ignoring notify\n");
+	if (acpi_pci_disabled)
 		return;
-	}
 
-	if (acpi_bus_scan(handle))
-		acpi_handle_err(handle, "cannot add bridge to acpi list\n");
-}
-
-static void hotplug_event_root(void *data, u32 type)
-{
-	acpi_handle handle = data;
-	struct acpi_pci_root *root;
-
-	acpi_scan_lock_acquire();
-
-	root = acpi_pci_find_root(handle);
-
-	switch (type) {
-	case ACPI_NOTIFY_BUS_CHECK:
-		/* bus enumerate */
-		acpi_handle_printk(KERN_DEBUG, handle,
-				   "Bus check notify on %s\n", __func__);
-		if (root)
-			acpiphp_check_host_bridge(handle);
-		else
-			handle_root_bridge_insertion(handle);
-
-		break;
-
-	case ACPI_NOTIFY_DEVICE_CHECK:
-		/* device check */
-		acpi_handle_printk(KERN_DEBUG, handle,
-				   "Device check notify on %s\n", __func__);
-		if (!root)
-			handle_root_bridge_insertion(handle);
-		break;
-
-	case ACPI_NOTIFY_EJECT_REQUEST:
-		/* request device eject */
-		acpi_handle_printk(KERN_DEBUG, handle,
-				   "Device eject notify on %s\n", __func__);
-		if (!root)
-			break;
-
-		get_device(&root->device->dev);
-
-		acpi_scan_lock_release();
-
-		acpi_bus_device_eject(root->device, ACPI_NOTIFY_EJECT_REQUEST);
-		return;
-	default:
-		acpi_handle_warn(handle,
-				 "notify_handler: unknown event type 0x%x\n",
-				 type);
-		break;
-	}
-
-	acpi_scan_lock_release();
-}
-
-static void handle_hotplug_event_root(acpi_handle handle, u32 type,
-					void *context)
-{
-	acpi_hotplug_execute(hotplug_event_root, handle, type);
-}
-
-static acpi_status __init
-find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
-{
-	acpi_status status;
-	int *count = (int *)context;
-
-	if (!acpi_is_root_bridge(handle))
-		return AE_OK;
-
-	(*count)++;
-
-	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					handle_hotplug_event_root, NULL);
-	if (ACPI_FAILURE(status))
-		acpi_handle_printk(KERN_DEBUG, handle,
-			"notify handler is not installed, exit status: %u\n",
-			 (unsigned int)status);
-	else
-		acpi_handle_printk(KERN_DEBUG, handle,
-				   "notify handler is installed\n");
-
-	return AE_OK;
-}
-
-void __init acpi_pci_root_hp_init(void)
-{
-	int num = 0;
-
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-		ACPI_UINT32_MAX, find_root_bridges, NULL, &num, NULL);
-
-	printk(KERN_DEBUG "Found %d acpi root devices\n", num);
+	pci_acpi_crs_quirks();
+	acpi_scan_add_handler_with_hotplug(&pci_root_handler, "pci_root");
 }

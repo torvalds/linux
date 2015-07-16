@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,6 +70,7 @@
 #define MAC_INDEX_AUX		4
 #define MAC_INDEX_MIN_DRIVER	0
 #define NUM_MAC_INDEX_DRIVER	MAC_INDEX_AUX
+#define NUM_MAC_INDEX		(MAC_INDEX_AUX + 1)
 
 enum iwl_ac {
 	AC_BK,
@@ -254,7 +255,7 @@ struct iwl_mac_data_p2p_dev {
 /**
  * enum iwl_mac_filter_flags - MAC context filter flags
  * @MAC_FILTER_IN_PROMISC: accept all data frames
- * @MAC_FILTER_IN_CONTROL_AND_MGMT: pass all mangement and
+ * @MAC_FILTER_IN_CONTROL_AND_MGMT: pass all management and
  *	control frames to the host
  * @MAC_FILTER_ACCEPT_GRP: accept multicast frames
  * @MAC_FILTER_DIS_DECRYPT: don't decrypt unicast frames

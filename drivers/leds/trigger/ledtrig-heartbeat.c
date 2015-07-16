@@ -74,7 +74,7 @@ static void led_heartbeat_function(unsigned long data)
 		break;
 	}
 
-	__led_set_brightness(led_cdev, brightness);
+	led_set_brightness_async(led_cdev, brightness);
 	mod_timer(&heartbeat_data->timer, jiffies + delay);
 }
 

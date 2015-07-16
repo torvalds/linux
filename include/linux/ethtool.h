@@ -59,6 +59,26 @@ enum ethtool_phys_id_state {
 	ETHTOOL_ID_OFF
 };
 
+enum {
+	ETH_RSS_HASH_TOP_BIT, /* Configurable RSS hash function - Toeplitz */
+	ETH_RSS_HASH_XOR_BIT, /* Configurable RSS hash function - Xor */
+
+	/*
+	 * Add your fresh new hash function bits above and remember to update
+	 * rss_hash_func_strings[] in ethtool.c
+	 */
+	ETH_RSS_HASH_FUNCS_COUNT
+};
+
+#define __ETH_RSS_HASH_BIT(bit)	((u32)1 << (bit))
+#define __ETH_RSS_HASH(name)	__ETH_RSS_HASH_BIT(ETH_RSS_HASH_##name##_BIT)
+
+#define ETH_RSS_HASH_TOP	__ETH_RSS_HASH(TOP)
+#define ETH_RSS_HASH_XOR	__ETH_RSS_HASH(XOR)
+
+#define ETH_RSS_HASH_UNKNOWN	0
+#define ETH_RSS_HASH_NO_CHANGE	0
+
 struct net_device;
 
 /* Some generic methods drivers may use in their ethtool_ops */
@@ -154,14 +174,18 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
  * @reset: Reset (part of) the device, as specified by a bitmask of
  *	flags from &enum ethtool_reset_flags.  Returns a negative
  *	error code or zero.
+ * @get_rxfh_key_size: Get the size of the RX flow hash key.
+ *	Returns zero if not supported for this specific device.
  * @get_rxfh_indir_size: Get the size of the RX flow hash indirection table.
  *	Returns zero if not supported for this specific device.
- * @get_rxfh_indir: Get the contents of the RX flow hash indirection table.
- *	Will not be called if @get_rxfh_indir_size returns zero.
+ * @get_rxfh: Get the contents of the RX flow hash indirection table, hash key
+ *	and/or hash function.
  *	Returns a negative error code or zero.
- * @set_rxfh_indir: Set the contents of the RX flow hash indirection table.
- *	Will not be called if @get_rxfh_indir_size returns zero.
- *	Returns a negative error code or zero.
+ * @set_rxfh: Set the contents of the RX flow hash indirection table, hash
+ *	key, and/or hash function.  Arguments which are set to %NULL or zero
+ *	will remain unchanged.
+ *	Returns a negative error code or zero. An error code must be returned
+ *	if at least one unsupported change was requested.
  * @get_channels: Get number of channels.
  * @set_channels: Set number of channels.  Returns a negative error code or
  *	zero.
@@ -183,6 +207,9 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
  * hold the RTNL lock.
  *
  * See the structures used by these operations for further documentation.
+ * Note that for all operations using a structure ending with a zero-
+ * length array, the array is allocated separately in the kernel and
+ * is passed to the driver as an additional parameter.
  *
  * See &struct net_device and &struct net_device_ops for documentation
  * of the generic netdev features interface.
@@ -229,9 +256,12 @@ struct ethtool_ops {
 	int	(*set_rxnfc)(struct net_device *, struct ethtool_rxnfc *);
 	int	(*flash_device)(struct net_device *, struct ethtool_flash *);
 	int	(*reset)(struct net_device *, u32 *);
+	u32	(*get_rxfh_key_size)(struct net_device *);
 	u32	(*get_rxfh_indir_size)(struct net_device *);
-	int	(*get_rxfh_indir)(struct net_device *, u32 *);
-	int	(*set_rxfh_indir)(struct net_device *, const u32 *);
+	int	(*get_rxfh)(struct net_device *, u32 *indir, u8 *key,
+			    u8 *hfunc);
+	int	(*set_rxfh)(struct net_device *, const u32 *indir,
+			    const u8 *key, const u8 hfunc);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);
@@ -245,6 +275,10 @@ struct ethtool_ops {
 				     struct ethtool_eeprom *, u8 *);
 	int	(*get_eee)(struct net_device *, struct ethtool_eee *);
 	int	(*set_eee)(struct net_device *, struct ethtool_eee *);
+	int	(*get_tunable)(struct net_device *,
+			       const struct ethtool_tunable *, void *);
+	int	(*set_tunable)(struct net_device *,
+			       const struct ethtool_tunable *, const void *);
 
 
 };

@@ -24,35 +24,83 @@
 #include "public_key.h"
 #include "x509_parser.h"
 
-/*
- * Find a key in the given keyring by issuer and authority.
+static bool use_builtin_keys;
+static struct asymmetric_key_id *ca_keyid;
+
+#ifndef MODULE
+static struct {
+	struct asymmetric_key_id id;
+	unsigned char data[10];
+} cakey;
+
+static int __init ca_keys_setup(char *str)
+{
+	if (!str)		/* default system keyring */
+		return 1;
+
+	if (strncmp(str, "id:", 3) == 0) {
+		struct asymmetric_key_id *p = &cakey.id;
+		size_t hexlen = (strlen(str) - 3) / 2;
+		int ret;
+
+		if (hexlen == 0 || hexlen > sizeof(cakey.data)) {
+			pr_err("Missing or invalid ca_keys id\n");
+			return 1;
+		}
+
+		ret = __asymmetric_key_hex_to_key_id(str + 3, p, hexlen);
+		if (ret < 0)
+			pr_err("Unparsable ca_keys id hex string\n");
+		else
+			ca_keyid = p;	/* owner key 'id:xxxxxx' */
+	} else if (strcmp(str, "builtin") == 0) {
+		use_builtin_keys = true;
+	}
+
+	return 1;
+}
+__setup("ca_keys=", ca_keys_setup);
+#endif
+
+/**
+ * x509_request_asymmetric_key - Request a key by X.509 certificate params.
+ * @keyring: The keys to search.
+ * @kid: The key ID.
+ * @partial: Use partial match if true, exact if false.
+ *
+ * Find a key in the given keyring by subject name and key ID.  These might,
+ * for instance, be the issuer name and the authority key ID of an X.509
+ * certificate that needs to be verified.
  */
-static struct key *x509_request_asymmetric_key(
-	struct key *keyring,
-	const char *signer, size_t signer_len,
-	const char *authority, size_t auth_len)
+struct key *x509_request_asymmetric_key(struct key *keyring,
+					const struct asymmetric_key_id *kid,
+					bool partial)
 {
 	key_ref_t key;
-	char *id;
+	char *id, *p;
 
-	/* Construct an identifier. */
-	id = kmalloc(signer_len + 2 + auth_len + 1, GFP_KERNEL);
+	/* Construct an identifier "id:<keyid>". */
+	p = id = kmalloc(2 + 1 + kid->len * 2 + 1, GFP_KERNEL);
 	if (!id)
 		return ERR_PTR(-ENOMEM);
 
-	memcpy(id, signer, signer_len);
-	id[signer_len + 0] = ':';
-	id[signer_len + 1] = ' ';
-	memcpy(id + signer_len + 2, authority, auth_len);
-	id[signer_len + 2 + auth_len] = 0;
+	if (partial) {
+		*p++ = 'i';
+		*p++ = 'd';
+	} else {
+		*p++ = 'e';
+		*p++ = 'x';
+	}
+	*p++ = ':';
+	p = bin2hex(p, kid->data, kid->len);
+	*p = 0;
 
 	pr_debug("Look up: \"%s\"\n", id);
 
 	key = keyring_search(make_key_ref(keyring, 1),
 			     &key_type_asymmetric, id);
 	if (IS_ERR(key))
-		pr_debug("Request for module key '%s' err %ld\n",
-			 id, PTR_ERR(key));
+		pr_debug("Request for key '%s' err %ld\n", id, PTR_ERR(key));
 	kfree(id);
 
 	if (IS_ERR(key)) {
@@ -67,9 +115,11 @@ static struct key *x509_request_asymmetric_key(
 		}
 	}
 
-	pr_devel("<==%s() = 0 [%x]\n", __func__, key_serial(key_ref_to_ptr(key)));
+	pr_devel("<==%s() = 0 [%x]\n", __func__,
+		 key_serial(key_ref_to_ptr(key)));
 	return key_ref_to_ptr(key);
 }
+EXPORT_SYMBOL_GPL(x509_request_asymmetric_key);
 
 /*
  * Set up the signature parameters in an X.509 certificate.  This involves
@@ -85,6 +135,8 @@ int x509_get_sig_params(struct x509_certificate *cert)
 
 	pr_devel("==>%s()\n", __func__);
 
+	if (cert->unsupported_crypto)
+		return -ENOPKG;
 	if (cert->sig.rsa.s)
 		return 0;
 
@@ -97,8 +149,13 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	 * big the hash operational data will be.
 	 */
 	tfm = crypto_alloc_shash(hash_algo_name[cert->sig.pkey_hash_algo], 0, 0);
-	if (IS_ERR(tfm))
-		return (PTR_ERR(tfm) == -ENOENT) ? -ENOPKG : PTR_ERR(tfm);
+	if (IS_ERR(tfm)) {
+		if (PTR_ERR(tfm) == -ENOENT) {
+			cert->unsupported_crypto = true;
+			return -ENOPKG;
+		}
+		return PTR_ERR(tfm);
+	}
 
 	desc_size = crypto_shash_descsize(tfm) + sizeof(*desc);
 	digest_size = crypto_shash_digestsize(tfm);
@@ -145,6 +202,8 @@ int x509_check_signature(const struct public_key *pub,
 		return ret;
 
 	ret = public_key_verify_signature(pub, &cert->sig);
+	if (ret == -ENOPKG)
+		cert->unsupported_crypto = true;
 	pr_debug("Cert Verification: %d\n", ret);
 	return ret;
 }
@@ -162,17 +221,22 @@ EXPORT_SYMBOL_GPL(x509_check_signature);
 static int x509_validate_trust(struct x509_certificate *cert,
 			       struct key *trust_keyring)
 {
-	const struct public_key *pk;
 	struct key *key;
 	int ret = 1;
 
-	key = x509_request_asymmetric_key(trust_keyring,
-					  cert->issuer, strlen(cert->issuer),
-					  cert->authority,
-					  strlen(cert->authority));
+	if (!trust_keyring)
+		return -EOPNOTSUPP;
+
+	if (ca_keyid && !asymmetric_key_id_partial(cert->authority, ca_keyid))
+		return -EPERM;
+
+	key = x509_request_asymmetric_key(trust_keyring, cert->authority,
+					  false);
 	if (!IS_ERR(key))  {
-		pk = key->payload.data;
-		ret = x509_check_signature(pk, cert);
+		if (!use_builtin_keys
+		    || test_bit(KEY_FLAG_BUILTIN, &key->flags))
+			ret = x509_check_signature(key->payload.data, cert);
+		key_put(key);
 	}
 	return ret;
 }
@@ -182,9 +246,11 @@ static int x509_validate_trust(struct x509_certificate *cert,
  */
 static int x509_key_preparse(struct key_preparsed_payload *prep)
 {
+	struct asymmetric_key_ids *kids;
 	struct x509_certificate *cert;
+	const char *q;
 	size_t srlen, sulen;
-	char *desc = NULL;
+	char *desc = NULL, *p;
 	int ret;
 
 	cert = x509_cert_parse(prep->data, prep->datalen);
@@ -217,55 +283,69 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 		 pkey_algo_name[cert->sig.pkey_algo],
 		 hash_algo_name[cert->sig.pkey_hash_algo]);
 
-	if (!cert->fingerprint) {
-		pr_warn("Cert for '%s' must have a SubjKeyId extension\n",
-			cert->subject);
-		ret = -EKEYREJECTED;
-		goto error_free_cert;
-	}
-
 	cert->pub->algo = pkey_algo[cert->pub->pkey_algo];
 	cert->pub->id_type = PKEY_ID_X509;
 
 	/* Check the signature on the key if it appears to be self-signed */
 	if (!cert->authority ||
-	    strcmp(cert->fingerprint, cert->authority) == 0) {
+	    asymmetric_key_id_same(cert->skid, cert->authority)) {
 		ret = x509_check_signature(cert->pub, cert); /* self-signed */
 		if (ret < 0)
 			goto error_free_cert;
-	} else {
-		ret = x509_validate_trust(cert, system_trusted_keyring);
+	} else if (!prep->trusted) {
+		ret = x509_validate_trust(cert, get_system_trusted_keyring());
 		if (!ret)
 			prep->trusted = 1;
 	}
 
 	/* Propose a description */
 	sulen = strlen(cert->subject);
-	srlen = strlen(cert->fingerprint);
+	if (cert->raw_skid) {
+		srlen = cert->raw_skid_size;
+		q = cert->raw_skid;
+	} else {
+		srlen = cert->raw_serial_size;
+		q = cert->raw_serial;
+	}
+	if (srlen > 1 && *q == 0) {
+		srlen--;
+		q++;
+	}
+
 	ret = -ENOMEM;
-	desc = kmalloc(sulen + 2 + srlen + 1, GFP_KERNEL);
+	desc = kmalloc(sulen + 2 + srlen * 2 + 1, GFP_KERNEL);
 	if (!desc)
 		goto error_free_cert;
-	memcpy(desc, cert->subject, sulen);
-	desc[sulen] = ':';
-	desc[sulen + 1] = ' ';
-	memcpy(desc + sulen + 2, cert->fingerprint, srlen);
-	desc[sulen + 2 + srlen] = 0;
+	p = memcpy(desc, cert->subject, sulen);
+	p += sulen;
+	*p++ = ':';
+	*p++ = ' ';
+	p = bin2hex(p, q, srlen);
+	*p = 0;
+
+	kids = kmalloc(sizeof(struct asymmetric_key_ids), GFP_KERNEL);
+	if (!kids)
+		goto error_free_desc;
+	kids->id[0] = cert->id;
+	kids->id[1] = cert->skid;
 
 	/* We're pinning the module by being linked against it */
 	__module_get(public_key_subtype.owner);
 	prep->type_data[0] = &public_key_subtype;
-	prep->type_data[1] = cert->fingerprint;
-	prep->payload = cert->pub;
+	prep->type_data[1] = kids;
+	prep->payload[0] = cert->pub;
 	prep->description = desc;
 	prep->quotalen = 100;
 
 	/* We've finished with the certificate */
 	cert->pub = NULL;
-	cert->fingerprint = NULL;
+	cert->id = NULL;
+	cert->skid = NULL;
 	desc = NULL;
 	ret = 0;
 
+error_free_desc:
+	kfree(desc);
 error_free_cert:
 	x509_free_certificate(cert);
 	return ret;

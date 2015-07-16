@@ -64,6 +64,7 @@ void usage()
 	printf("  -h, --help            show this help message\n");
 	printf("  -l, --log             log data to /var/tmp/tmon.log\n");
 	printf("  -t, --time-interval   sampling time interval, > 1 sec.\n");
+	printf("  -T, --target-temp     initial target temperature\n");
 	printf("  -v, --version         show version\n");
 	printf("  -z, --zone            target thermal zone id\n");
 
@@ -142,6 +143,7 @@ static void start_syslog(void)
 static void prepare_logging(void)
 {
 	int i;
+	struct stat logstat;
 
 	if (!logging)
 		return;
@@ -151,6 +153,29 @@ static void prepare_logging(void)
 		syslog(LOG_ERR, "failed to open log file %s\n", TMON_LOG_FILE);
 		return;
 	}
+
+	if (lstat(TMON_LOG_FILE, &logstat) < 0) {
+		syslog(LOG_ERR, "Unable to stat log file %s\n", TMON_LOG_FILE);
+		fclose(tmon_log);
+		tmon_log = NULL;
+		return;
+	}
+
+	/* The log file must be a regular file owned by us */
+	if (S_ISLNK(logstat.st_mode)) {
+		syslog(LOG_ERR, "Log file is a symlink.  Will not log\n");
+		fclose(tmon_log);
+		tmon_log = NULL;
+		return;
+	}
+
+	if (logstat.st_uid != getuid()) {
+		syslog(LOG_ERR, "We don't own the log file.  Not logging\n");
+		fclose(tmon_log);
+		tmon_log = NULL;
+		return;
+	}
+
 
 	fprintf(tmon_log, "#----------- THERMAL SYSTEM CONFIG -------------\n");
 	for (i = 0; i < ptdata.nr_tz_sensor; i++) {
@@ -195,6 +220,7 @@ static struct option opts[] = {
 	{ "control", 1, NULL, 'c' },
 	{ "daemon", 0, NULL, 'd' },
 	{ "time-interval", 1, NULL, 't' },
+	{ "target-temp", 1, NULL, 'T' },
 	{ "log", 0, NULL, 'l' },
 	{ "help", 0, NULL, 'h' },
 	{ "version", 0, NULL, 'v' },
@@ -207,7 +233,7 @@ int main(int argc, char **argv)
 {
 	int err = 0;
 	int id2 = 0, c;
-	double yk = 0.0; /* controller output */
+	double yk = 0.0, temp; /* controller output */
 	int target_tz_index;
 
 	if (geteuid() != 0) {
@@ -215,7 +241,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	while ((c = getopt_long(argc, argv, "c:dlht:vgz:", opts, &id2)) != -1) {
+	while ((c = getopt_long(argc, argv, "c:dlht:T:vgz:", opts, &id2)) != -1) {
 		switch (c) {
 		case 'c':
 			no_control = 0;
@@ -229,6 +255,14 @@ int main(int argc, char **argv)
 			ticktime = strtod(optarg, NULL);
 			if (ticktime < 1)
 				ticktime = 1;
+			break;
+		case 'T':
+			temp = strtod(optarg, NULL);
+			if (temp < 0) {
+				fprintf(stderr, "error: temperature must be positive\n");
+				return 1;
+			}
+			target_temp_user = temp;
 			break;
 		case 'l':
 			printf("Logging data to /var/tmp/tmon.log\n");
@@ -331,7 +365,7 @@ static void start_daemon_mode()
 	disable_tui();
 
 	/* change the file mode mask */
-	umask(0);
+	umask(S_IWGRP | S_IWOTH);
 
 	/* new SID for the daemon process */
 	sid = setsid();

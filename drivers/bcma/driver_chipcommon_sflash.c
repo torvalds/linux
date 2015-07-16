@@ -38,7 +38,7 @@ static const struct bcma_sflash_tbl_e bcma_sflash_st_tbl[] = {
 	{ "M25P32", 0x15, 0x10000, 64, },
 	{ "M25P64", 0x16, 0x10000, 128, },
 	{ "M25FL128", 0x17, 0x10000, 256, },
-	{ 0 },
+	{ NULL },
 };
 
 static const struct bcma_sflash_tbl_e bcma_sflash_sst_tbl[] = {
@@ -56,7 +56,7 @@ static const struct bcma_sflash_tbl_e bcma_sflash_sst_tbl[] = {
 	{ "SST25VF016", 0x41, 0x1000, 512, },
 	{ "SST25VF032", 0x4a, 0x1000, 1024, },
 	{ "SST25VF064", 0x4b, 0x1000, 2048, },
-	{ 0 },
+	{ NULL },
 };
 
 static const struct bcma_sflash_tbl_e bcma_sflash_at_tbl[] = {
@@ -67,7 +67,7 @@ static const struct bcma_sflash_tbl_e bcma_sflash_at_tbl[] = {
 	{ "AT45DB161", 0x2c, 512, 4096, },
 	{ "AT45DB321", 0x34, 512, 8192, },
 	{ "AT45DB642", 0x3c, 1024, 8192, },
-	{ 0 },
+	{ NULL },
 };
 
 static void bcma_sflash_cmd(struct bcma_drv_cc *cc, u32 opcode)

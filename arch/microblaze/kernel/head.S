@@ -64,6 +64,10 @@ real_start:
 #endif
 
 	mts	rmsr, r0
+/* Disable stack protection from bootloader */
+	mts	rslr, r0
+	addi	r8, r0, 0xFFFFFFFF
+	mts	rshr, r8
 /*
  * According to Xilinx, msrclr instruction behaves like 'mfs rX,rpc'
  * if the msrclr instruction is not enabled. We use this to detect
@@ -201,7 +205,7 @@ GT4: /* r11 contains the rest - will be either 1 or 4 */
 GT16: /* TLB0 is 16MB */
 	addik	r9, r0, 0x1000000 /* means TLB0 is 16MB */
 TLB1:
-	/* must be used r2 because of substract if failed */
+	/* must be used r2 because of subtract if failed */
 	addik	r2, r11, -0x0400000
 	bgei	r2, GT20 /* size is greater than 16MB */
 	/* size is >16MB and <20MB */

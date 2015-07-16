@@ -160,7 +160,7 @@ void __fscache_enable_cookie(struct fscache_cookie *cookie,
 	_enter("%p", cookie);
 
 	wait_on_bit_lock(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK,
-			 fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+			 TASK_UNINTERRUPTIBLE);
 
 	if (test_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags))
 		goto out_unlock;
@@ -255,7 +255,7 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie)
 	if (!fscache_defer_lookup) {
 		_debug("non-deferred lookup %p", &cookie->flags);
 		wait_on_bit(&cookie->flags, FSCACHE_COOKIE_LOOKING_UP,
-			    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+			    TASK_UNINTERRUPTIBLE);
 		_debug("complete");
 		if (test_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags))
 			goto unavailable;
@@ -327,7 +327,8 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 
 object_already_extant:
 	ret = -ENOBUFS;
-	if (fscache_object_is_dead(object)) {
+	if (fscache_object_is_dying(object) ||
+	    fscache_cache_is_broken(object)) {
 		spin_unlock(&cookie->lock);
 		goto error;
 	}
@@ -463,7 +464,6 @@ void __fscache_wait_on_invalidate(struct fscache_cookie *cookie)
 	_enter("%p", cookie);
 
 	wait_on_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING,
-		    fscache_wait_bit_interruptible,
 		    TASK_UNINTERRUPTIBLE);
 
 	_leave("");
@@ -519,13 +519,13 @@ void __fscache_disable_cookie(struct fscache_cookie *cookie, bool invalidate)
 	ASSERTCMP(atomic_read(&cookie->n_active), >, 0);
 
 	if (atomic_read(&cookie->n_children) != 0) {
-		printk(KERN_ERR "FS-Cache: Cookie '%s' still has children\n",
+		pr_err("Cookie '%s' still has children\n",
 		       cookie->def->name);
 		BUG();
 	}
 
 	wait_on_bit_lock(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK,
-			 fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+			 TASK_UNINTERRUPTIBLE);
 	if (!test_and_clear_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags))
 		goto out_unlock_enable;
 
@@ -672,7 +672,7 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 	if (!op)
 		return -ENOMEM;
 
-	fscache_operation_init(op, NULL, NULL);
+	fscache_operation_init(op, NULL, NULL, NULL);
 	op->flags = FSCACHE_OP_MYTHREAD |
 		(1 << FSCACHE_OP_WAITING) |
 		(1 << FSCACHE_OP_UNUSE_COOKIE);
@@ -696,8 +696,7 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 	/* the work queue now carries its own ref on the object */
 	spin_unlock(&cookie->lock);
 
-	ret = fscache_wait_for_operation_activation(object, op,
-						    NULL, NULL, NULL);
+	ret = fscache_wait_for_operation_activation(object, op, NULL, NULL);
 	if (ret == 0) {
 		/* ask the cache to honour the operation */
 		ret = object->cache->ops->check_consistency(op);

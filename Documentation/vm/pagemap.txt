@@ -62,6 +62,8 @@ There are three components to pagemap:
     20. NOPAGE
     21. KSM
     22. THP
+    23. BALLOON
+    24. ZERO_PAGE
 
 Short descriptions to the page flags:
 
@@ -102,6 +104,12 @@ Short descriptions to the page flags:
 22. THP
     contiguous pages which construct transparent hugepages
 
+23. BALLOON
+    balloon compaction page
+
+24. ZERO_PAGE
+    zero page for pfn_zero or huge_zero page
+
     [IO related page flags]
  1. ERROR     IO error occurred
  3. UPTODATE  page has up-to-date data
@@ -123,7 +131,8 @@ Short descriptions to the page flags:
 13. SWAPCACHE   page is mapped to swap space, ie. has an associated swap entry
 14. SWAPBACKED  page is backed by swap/RAM
 
-The page-types tool in this directory can be used to query the above flags.
+The page-types tool in the tools/vm directory can be used to query the
+above flags.
 
 Using pagemap to do something useful:
 

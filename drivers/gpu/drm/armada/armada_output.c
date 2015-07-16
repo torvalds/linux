@@ -48,7 +48,7 @@ static void armada_drm_connector_destroy(struct drm_connector *conn)
 {
 	struct armada_connector *dconn = drm_to_armada_conn(conn);
 
-	drm_sysfs_connector_remove(conn);
+	drm_connector_unregister(conn);
 	drm_connector_cleanup(conn);
 	kfree(dconn);
 }
@@ -71,22 +71,6 @@ static const struct drm_connector_funcs armada_drm_conn_funcs = {
 	.destroy	= armada_drm_connector_destroy,
 	.set_property	= armada_drm_connector_set_property,
 };
-
-void armada_drm_encoder_prepare(struct drm_encoder *encoder)
-{
-	encoder_helper_funcs(encoder)->dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-void armada_drm_encoder_commit(struct drm_encoder *encoder)
-{
-	encoder_helper_funcs(encoder)->dpms(encoder, DRM_MODE_DPMS_ON);
-}
-
-bool armada_drm_encoder_mode_fixup(struct drm_encoder *encoder,
-	const struct drm_display_mode *mode, struct drm_display_mode *adjusted)
-{
-	return true;
-}
 
 /* Shouldn't this be a generic helper function? */
 int armada_drm_slave_encoder_mode_valid(struct drm_connector *conn,
@@ -141,7 +125,7 @@ int armada_output_create(struct drm_device *dev,
 	if (ret)
 		goto err_conn;
 
-	ret = drm_sysfs_connector_add(&dconn->conn);
+	ret = drm_connector_register(&dconn->conn);
 	if (ret)
 		goto err_sysfs;
 

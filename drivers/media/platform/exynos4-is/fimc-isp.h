@@ -24,7 +24,7 @@
 #include <media/videobuf2-core.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 
 extern int fimc_isp_debug;
 
@@ -35,17 +35,18 @@ extern int fimc_isp_debug;
 #define FIMC_ISP_SINK_WIDTH_MIN		(16 + 8)
 #define FIMC_ISP_SINK_HEIGHT_MIN	(12 + 8)
 #define FIMC_ISP_SOURCE_WIDTH_MIN	8
-#define FIMC_ISP_SOURC_HEIGHT_MIN	8
+#define FIMC_ISP_SOURCE_HEIGHT_MIN	8
 #define FIMC_ISP_CAC_MARGIN_WIDTH	16
 #define FIMC_ISP_CAC_MARGIN_HEIGHT	12
 
 #define FIMC_ISP_SINK_WIDTH_MAX		(4000 - 16)
 #define FIMC_ISP_SINK_HEIGHT_MAX	(4000 + 12)
 #define FIMC_ISP_SOURCE_WIDTH_MAX	4000
-#define FIMC_ISP_SOURC_HEIGHT_MAX	4000
+#define FIMC_ISP_SOURCE_HEIGHT_MAX	4000
 
 #define FIMC_ISP_NUM_FORMATS		3
 #define FIMC_ISP_REQ_BUFS_MIN		2
+#define FIMC_ISP_REQ_BUFS_MAX		32
 
 #define FIMC_ISP_SD_PAD_SINK		0
 #define FIMC_ISP_SD_PAD_SRC_FIFO	1
@@ -100,6 +101,16 @@ struct fimc_isp_ctrls {
 	struct v4l2_ctrl *colorfx;
 };
 
+struct isp_video_buf {
+	struct vb2_buffer vb;
+	dma_addr_t dma_addr[FIMC_ISP_MAX_PLANES];
+	unsigned int index;
+};
+
+#define to_isp_video_buf(_b) container_of(_b, struct isp_video_buf, vb)
+
+#define FIMC_ISP_MAX_BUFS	4
+
 /**
  * struct fimc_is_video - fimc-is video device structure
  * @vdev: video_device structure
@@ -114,17 +125,25 @@ struct fimc_isp_ctrls {
  * @format: current pixel format
  */
 struct fimc_is_video {
-	struct video_device	vdev;
+	struct exynos_video_entity ve;
 	enum v4l2_buf_type	type;
 	struct media_pad	pad;
 	struct list_head	pending_buf_q;
 	struct list_head	active_buf_q;
 	struct vb2_queue	vb_queue;
-	unsigned int		frame_count;
 	unsigned int		reqbufs_count;
+	unsigned int		buf_count;
+	unsigned int		buf_mask;
+	unsigned int		frame_count;
 	int			streaming;
+	struct isp_video_buf	*buffers[FIMC_ISP_MAX_BUFS];
 	const struct fimc_fmt	*format;
+	struct v4l2_pix_format_mplane pixfmt;
 };
+
+/* struct fimc_isp:state bit definitions */
+#define ST_ISP_VID_CAP_BUF_PREP		0
+#define ST_ISP_VID_CAP_STREAMING	1
 
 /**
  * struct fimc_isp - FIMC-IS ISP data structure

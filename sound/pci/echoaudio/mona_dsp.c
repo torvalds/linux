@@ -41,12 +41,12 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	DE_INIT(("init_hw() - Mona\n"));
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != MONA))
 		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
-		DE_INIT(("init_hw - could not initialize DSP comm page\n"));
+		dev_err(chip->card->dev,
+			"init_hw - could not initialize DSP comm page\n");
 		return err;
 	}
 
@@ -71,7 +71,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 	chip->bad_board = FALSE;
 
-	DE_INIT(("init_hw done\n"));
 	return err;
 }
 
@@ -202,8 +201,8 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 	/* Only set the clock for internal mode. */
 	if (chip->input_clock != ECHO_CLOCK_INTERNAL) {
-		DE_ACT(("set_sample_rate: Cannot set sample rate - "
-			"clock not set to CLK_CLOCKININTERNAL\n"));
+		dev_dbg(chip->card->dev,
+			"Cannot set sample rate - clock not set to CLK_CLOCKININTERNAL\n");
 		/* Save the rate anyhow */
 		chip->comm_page->sample_rate = cpu_to_le32(rate);
 		chip->sample_rate = rate;
@@ -279,7 +278,8 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 		clock = GML_8KHZ;
 		break;
 	default:
-		DE_ACT(("set_sample_rate: %d invalid!\n", rate));
+		dev_err(chip->card->dev,
+			"set_sample_rate: %d invalid!\n", rate);
 		return -EINVAL;
 	}
 
@@ -287,7 +287,8 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* ignored by the DSP */
 	chip->sample_rate = rate;
-	DE_ACT(("set_sample_rate: %d clock %d\n", rate, clock));
+	dev_dbg(chip->card->dev,
+		"set_sample_rate: %d clock %d\n", rate, clock);
 
 	return write_control_reg(chip, control_reg, force_write);
 }
@@ -299,7 +300,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 	u32 control_reg, clocks_from_dsp;
 	int err;
 
-	DE_ACT(("set_input_clock:\n"));
 
 	/* Prevent two simultaneous calls to switch_asic() */
 	if (atomic_read(&chip->opencount))
@@ -312,7 +312,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 
 	switch (clock) {
 	case ECHO_CLOCK_INTERNAL:
-		DE_ACT(("Set Mona clock to INTERNAL\n"));
 		chip->input_clock = ECHO_CLOCK_INTERNAL;
 		return set_sample_rate(chip, chip->sample_rate);
 	case ECHO_CLOCK_SPDIF:
@@ -324,7 +323,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		spin_lock_irq(&chip->lock);
 		if (err < 0)
 			return err;
-		DE_ACT(("Set Mona clock to SPDIF\n"));
 		control_reg |= GML_SPDIF_CLOCK;
 		if (clocks_from_dsp & GML_CLOCK_DETECT_BIT_SPDIF96)
 			control_reg |= GML_DOUBLE_SPEED_MODE;
@@ -332,7 +330,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 			control_reg &= ~GML_DOUBLE_SPEED_MODE;
 		break;
 	case ECHO_CLOCK_WORD:
-		DE_ACT(("Set Mona clock to WORD\n"));
 		spin_unlock_irq(&chip->lock);
 		err = switch_asic(chip, clocks_from_dsp &
 				  GML_CLOCK_DETECT_BIT_WORD96);
@@ -346,14 +343,15 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 			control_reg &= ~GML_DOUBLE_SPEED_MODE;
 		break;
 	case ECHO_CLOCK_ADAT:
-		DE_ACT(("Set Mona clock to ADAT\n"));
+		dev_dbg(chip->card->dev, "Set Mona clock to ADAT\n");
 		if (chip->digital_mode != DIGITAL_MODE_ADAT)
 			return -EAGAIN;
 		control_reg |= GML_ADAT_CLOCK;
 		control_reg &= ~GML_DOUBLE_SPEED_MODE;
 		break;
 	default:
-		DE_ACT(("Input clock 0x%x not supported for Mona\n", clock));
+		dev_err(chip->card->dev,
+			"Input clock 0x%x not supported for Mona\n", clock);
 		return -EINVAL;
 	}
 
@@ -381,7 +379,8 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 			incompatible_clock = TRUE;
 		break;
 	default:
-		DE_ACT(("Digital mode not supported: %d\n", mode));
+		dev_err(chip->card->dev,
+			"Digital mode not supported: %d\n", mode);
 		return -EINVAL;
 	}
 
@@ -422,6 +421,6 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 		return err;
 	chip->digital_mode = mode;
 
-	DE_ACT(("set_digital_mode to %d\n", mode));
+	dev_dbg(chip->card->dev, "set_digital_mode to %d\n", mode);
 	return incompatible_clock;
 }

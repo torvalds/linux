@@ -23,6 +23,16 @@
 		};
 	};
 
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
 	ahb {
 		apb {
 			pinctrl@fffff400 {
@@ -31,6 +41,10 @@
 						atmel,pins = <AT91_PIOB 18 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE>; /* PB18 multidrive, conflicts with led */
 					};
 				};
+			};
+
+			rtc@fffffeb0 {
+				status = "okay";
 			};
 		};
 

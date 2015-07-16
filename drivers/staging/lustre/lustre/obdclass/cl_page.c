@@ -40,12 +40,12 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/libcfs/libcfs.h>
-#include <obd_class.h>
-#include <obd_support.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
 #include <linux/list.h>
 
-#include <cl_object.h>
+#include "../include/cl_object.h"
 #include "cl_internal.h"
 
 static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg,
@@ -61,12 +61,6 @@ static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg,
 
 # define PINVRNT(env, page, exp) \
 	((void)sizeof(env), (void)sizeof(page), (void)sizeof !!(exp))
-
-/* Disable page statistic by default due to huge performance penalty. */
-#define CS_PAGE_INC(o, item)
-#define CS_PAGE_DEC(o, item)
-#define CS_PAGESTATE_INC(o, state)
-#define CS_PAGESTATE_DEC(o, state)
 
 /**
  * Internal version of cl_page_top, it should be called if the page is
@@ -130,7 +124,7 @@ struct cl_page *cl_page_lookup(struct cl_object_header *hdr, pgoff_t index)
 {
 	struct cl_page *page;
 
-	LASSERT(spin_is_locked(&hdr->coh_page_guard));
+	assert_spin_locked(&hdr->coh_page_guard);
 
 	page = radix_tree_lookup(&hdr->coh_tree, index);
 	if (page != NULL)
@@ -248,7 +242,6 @@ EXPORT_SYMBOL(cl_page_gang_lookup);
 static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 {
 	struct cl_object *obj  = page->cp_obj;
-	int pagesize = cl_object_header(obj)->coh_page_bufsize;
 
 	PASSERT(env, page, list_empty(&page->cp_batch));
 	PASSERT(env, page, page->cp_owner == NULL);
@@ -265,12 +258,10 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 		list_del_init(page->cp_layers.next);
 		slice->cpl_ops->cpo_fini(env, slice);
 	}
-	CS_PAGE_DEC(obj, total);
-	CS_PAGESTATE_DEC(obj, page->cp_state);
 	lu_object_ref_del_at(&obj->co_lu, &page->cp_obj_ref, "cl_page", page);
 	cl_object_put(env, obj);
 	lu_ref_fini(&page->cp_reference);
-	OBD_FREE(page, pagesize);
+	kfree(page);
 }
 
 /**
@@ -292,7 +283,7 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 	struct lu_object_header *head;
 
 	OBD_ALLOC_GFP(page, cl_object_header(o)->coh_page_bufsize,
-			__GFP_IO);
+			GFP_NOFS);
 	if (page != NULL) {
 		int result = 0;
 		atomic_set(&page->cp_ref, 1);
@@ -323,11 +314,6 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 					break;
 				}
 			}
-		}
-		if (result == 0) {
-			CS_PAGE_INC(o, total);
-			CS_PAGE_INC(o, create);
-			CS_PAGESTATE_DEC(o, CPS_CACHED);
 		}
 	} else {
 		page = ERR_PTR(-ENOMEM);
@@ -361,7 +347,6 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 	might_sleep();
 
 	hdr = cl_object_header(o);
-	CS_PAGE_INC(o, lookup);
 
 	CDEBUG(D_PAGE, "%lu@"DFID" %p %lx %d\n",
 	       idx, PFID(&hdr->coh_lu.loh_fid), vmpage, vmpage->private, type);
@@ -388,7 +373,6 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 	}
 
 	if (page != NULL) {
-		CS_PAGE_INC(o, hit);
 		return page;
 	}
 
@@ -555,8 +539,6 @@ static void cl_page_state_set0(const struct lu_env *env,
 		PASSERT(env, page,
 			equi(state == CPS_OWNED, page->cp_owner != NULL));
 
-		CS_PAGESTATE_DEC(page->cp_obj, page->cp_state);
-		CS_PAGESTATE_INC(page->cp_obj, state);
 		cl_page_state_set_trust(page, state);
 	}
 }

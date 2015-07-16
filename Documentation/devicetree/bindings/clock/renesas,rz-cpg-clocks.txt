@@ -1,0 +1,29 @@
+* Renesas RZ Clock Pulse Generator (CPG)
+
+The CPG generates core clocks for the RZ SoCs. It includes the PLL, variable
+CPU and GPU clocks, and several fixed ratio dividers.
+
+Required Properties:
+
+  - compatible: Must be one of
+    - "renesas,r7s72100-cpg-clocks" for the r7s72100 CPG
+    and "renesas,rz-cpg-clocks" as a fallback.
+  - reg: Base address and length of the memory resource used by the CPG
+  - clocks: References to possible parent clocks. Order must match clock modes
+    in the datasheet. For the r7s72100, this is extal, usb_x1.
+  - #clock-cells: Must be 1
+  - clock-output-names: The names of the clocks. Supported clocks are "pll",
+    "i", and "g"
+
+
+Example
+-------
+
+	cpg_clocks: cpg_clocks@fcfe0000 {
+		#clock-cells = <1>;
+		compatible = "renesas,r7s72100-cpg-clocks",
+			     "renesas,rz-cpg-clocks";
+		reg = <0xfcfe0000 0x18>;
+		clocks = <&extal_clk>, <&usb_x1_clk>;
+		clock-output-names = "pll", "i", "g";
+	};

@@ -101,16 +101,13 @@ struct pt1_adapter {
 	struct dmxdev dmxdev;
 	struct dvb_frontend *fe;
 	int (*orig_set_voltage)(struct dvb_frontend *fe,
-				fe_sec_voltage_t voltage);
+				enum fe_sec_voltage voltage);
 	int (*orig_sleep)(struct dvb_frontend *fe);
 	int (*orig_init)(struct dvb_frontend *fe);
 
-	fe_sec_voltage_t voltage;
+	enum fe_sec_voltage voltage;
 	int sleep;
 };
-
-#define pt1_printk(level, pt1, format, arg...)	\
-	dev_printk(level, &(pt1)->pdev->dev, format, ##arg)
 
 static void pt1_write_reg(struct pt1 *pt1, int reg, u32 data)
 {
@@ -154,7 +151,7 @@ static int pt1_sync(struct pt1 *pt1)
 			return 0;
 		pt1_write_reg(pt1, 0, 0x00000008);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not sync\n");
+	dev_err(&pt1->pdev->dev, "could not sync\n");
 	return -EIO;
 }
 
@@ -179,7 +176,7 @@ static int pt1_unlock(struct pt1 *pt1)
 			return 0;
 		schedule_timeout_uninterruptible((HZ + 999) / 1000);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not unlock\n");
+	dev_err(&pt1->pdev->dev, "could not unlock\n");
 	return -EIO;
 }
 
@@ -193,7 +190,7 @@ static int pt1_reset_pci(struct pt1 *pt1)
 			return 0;
 		schedule_timeout_uninterruptible((HZ + 999) / 1000);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not reset PCI\n");
+	dev_err(&pt1->pdev->dev, "could not reset PCI\n");
 	return -EIO;
 }
 
@@ -207,7 +204,7 @@ static int pt1_reset_ram(struct pt1 *pt1)
 			return 0;
 		schedule_timeout_uninterruptible((HZ + 999) / 1000);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not reset RAM\n");
+	dev_err(&pt1->pdev->dev, "could not reset RAM\n");
 	return -EIO;
 }
 
@@ -224,7 +221,7 @@ static int pt1_do_enable_ram(struct pt1 *pt1)
 		}
 		schedule_timeout_uninterruptible((HZ + 999) / 1000);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not enable RAM\n");
+	dev_err(&pt1->pdev->dev, "could not enable RAM\n");
 	return -EIO;
 }
 
@@ -578,7 +575,7 @@ pt1_update_power(struct pt1 *pt1)
 	mutex_unlock(&pt1->lock);
 }
 
-static int pt1_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int pt1_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
 {
 	struct pt1_adapter *adap;
 

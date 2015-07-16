@@ -31,7 +31,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <linux/init.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -71,7 +70,7 @@ static int twl6030_interrupt_mapping[24] = {
 	BATDETECT_INTR_OFFSET,	/* Bit 9	BAT			*/
 	SIMDETECT_INTR_OFFSET,	/* Bit 10	SIM			*/
 	MMCDETECT_INTR_OFFSET,	/* Bit 11	MMC			*/
-	RSV_INTR_OFFSET,  	/* Bit 12	Reserved		*/
+	RSV_INTR_OFFSET,	/* Bit 12	Reserved		*/
 	MADC_INTR_OFFSET,	/* Bit 13	GPADC_RT_EOC		*/
 	MADC_INTR_OFFSET,	/* Bit 14	GPADC_SW_EOC		*/
 	GASGAUGE_INTR_OFFSET,	/* Bit 15	CC_AUTOCAL		*/
@@ -176,8 +175,9 @@ static irqreturn_t twl6030_irq_thread(int irq, void *data)
 	int i, ret;
 	union {
 		u8 bytes[4];
-		u32 int_sts;
+		__le32 int_sts;
 	} sts;
+	u32 int_sts; /* sts.int_sts converted to CPU endianness */
 	struct twl6030_irq *pdata = data;
 
 	/* read INT_STS_A, B and C in one shot using a burst read */
@@ -196,8 +196,9 @@ static irqreturn_t twl6030_irq_thread(int irq, void *data)
 	if (sts.bytes[2] & 0x10)
 		sts.bytes[2] |= 0x08;
 
-	for (i = 0; sts.int_sts; sts.int_sts >>= 1, i++)
-		if (sts.int_sts & 0x1) {
+	int_sts = le32_to_cpu(sts.int_sts);
+	for (i = 0; int_sts; int_sts >>= 1, i++)
+		if (int_sts & 0x1) {
 			int module_irq =
 				irq_find_mapping(pdata->irq_domain,
 						 pdata->irq_mapping_tbl[i]);
@@ -244,6 +245,7 @@ int twl6030_interrupt_unmask(u8 bit_mask, u8 offset)
 {
 	int ret;
 	u8 unmask_value;
+
 	ret = twl_i2c_read_u8(TWL_MODULE_PIH, &unmask_value,
 			REG_INT_STS_A + offset);
 	unmask_value &= (~(bit_mask));
@@ -257,6 +259,7 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset)
 {
 	int ret;
 	u8 mask_value;
+
 	ret = twl_i2c_read_u8(TWL_MODULE_PIH, &mask_value,
 			REG_INT_STS_A + offset);
 	mask_value |= (bit_mask);
@@ -373,7 +376,7 @@ static void twl6030_irq_unmap(struct irq_domain *d, unsigned int virq)
 	irq_set_chip_data(virq, NULL);
 }
 
-static struct irq_domain_ops twl6030_irq_domain_ops = {
+static const struct irq_domain_ops twl6030_irq_domain_ops = {
 	.map	= twl6030_irq_map,
 	.unmap	= twl6030_irq_unmap,
 	.xlate	= irq_domain_xlate_onetwocell,

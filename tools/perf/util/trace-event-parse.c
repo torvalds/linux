@@ -28,19 +28,6 @@
 #include "util.h"
 #include "trace-event.h"
 
-struct pevent *read_trace_init(int file_bigendian, int host_bigendian)
-{
-	struct pevent *pevent = pevent_alloc();
-
-	if (pevent != NULL) {
-		pevent_set_flag(pevent, PEVENT_NSEC_OUTPUT);
-		pevent_set_file_bigendian(pevent, file_bigendian);
-		pevent_set_host_bigendian(pevent, host_bigendian);
-	}
-
-	return pevent;
-}
-
 static int get_common_field(struct scripting_context *context,
 			    int *offset, int *size, const char *type)
 {
@@ -125,8 +112,8 @@ unsigned long long read_size(struct event_format *event, void *ptr, int size)
 	return pevent_read_number(event->pevent, ptr, size);
 }
 
-void event_format__print(struct event_format *event,
-			 int cpu, void *data, int size)
+void event_format__fprintf(struct event_format *event,
+			   int cpu, void *data, int size, FILE *fp)
 {
 	struct pevent_record record;
 	struct trace_seq s;
@@ -138,7 +125,14 @@ void event_format__print(struct event_format *event,
 
 	trace_seq_init(&s);
 	pevent_event_info(&s, event, &record);
-	trace_seq_do_printf(&s);
+	trace_seq_do_fprintf(&s, fp);
+	trace_seq_destroy(&s);
+}
+
+void event_format__print(struct event_format *event,
+			 int cpu, void *data, int size)
+{
+	return event_format__fprintf(event, cpu, data, size, stdout);
 }
 
 void parse_proc_kallsyms(struct pevent *pevent,
@@ -179,7 +173,7 @@ void parse_ftrace_printk(struct pevent *pevent,
 	char *line;
 	char *next = NULL;
 	char *addr_str;
-	char *fmt;
+	char *fmt = NULL;
 
 	line = strtok_r(file, "\n", &next);
 	while (line) {

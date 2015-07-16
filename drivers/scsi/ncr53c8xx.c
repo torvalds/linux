@@ -6633,7 +6633,7 @@ static void ncr_sir_to_redo(struct ncb *np, int num, struct ccb *cp)
 		**	patch requested size into sense command
 		*/
 		cp->sensecmd[0]		= 0x03;
-		cp->sensecmd[1]		= cmd->device->lun << 5;
+		cp->sensecmd[1]		= (cmd->device->lun & 0x7) << 5;
 		cp->sensecmd[4]		= sizeof(cp->sense_buf);
 
 		/*
@@ -7997,10 +7997,7 @@ static int ncr53c8xx_slave_configure(struct scsi_device *device)
 	if (depth_to_use > MAX_TAGS)
 		depth_to_use = MAX_TAGS;
 
-	scsi_adjust_queue_depth(device,
-				(device->tagged_supported ?
-				 MSG_SIMPLE_TAG : 0),
-				depth_to_use);
+	scsi_change_queue_depth(device, depth_to_use);
 
 	/*
 	**	Since the queue depth is not tunable under Linux,

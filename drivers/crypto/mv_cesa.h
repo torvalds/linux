@@ -1,4 +1,5 @@
 #ifndef __MV_CRYPTO_H__
+#define __MV_CRYPTO_H__
 
 #define DIGEST_INITIAL_VAL_A	0xdd00
 #define DIGEST_INITIAL_VAL_B	0xdd04

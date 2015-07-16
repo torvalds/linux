@@ -56,12 +56,9 @@
 
 static const char	hcd_name[] = "fotg210_hcd";
 
-#undef VERBOSE_DEBUG
 #undef FOTG210_URB_TRACE
 
-#ifdef DEBUG
 #define FOTG210_STATS
-#endif
 
 /* magic numbers that can affect system performance */
 #define	FOTG210_TUNE_CERR		3 /* 0-3 qtd retries; 0 == don't stop */
@@ -107,14 +104,6 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 #define fotg210_warn(fotg210, fmt, args...) \
 	dev_warn(fotg210_to_hcd(fotg210)->self.controller , fmt , ## args)
 
-#ifdef VERBOSE_DEBUG
-#	define fotg210_vdbg fotg210_dbg
-#else
-	static inline void fotg210_vdbg(struct fotg210_hcd *fotg210, ...) {}
-#endif
-
-#ifdef	DEBUG
-
 /* check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
  * see EHCI spec, Table 2-4 for each value
@@ -129,13 +118,6 @@ static void dbg_hcs_params(struct fotg210_hcd *fotg210, char *label)
 		HCS_N_PORTS(params)
 		);
 }
-#else
-
-static inline void dbg_hcs_params(struct fotg210_hcd *fotg210, char *label) {}
-
-#endif
-
-#ifdef	DEBUG
 
 /* check the values in the HCCPARAMS register
  * (host controller _Capability_ parameters)
@@ -152,13 +134,6 @@ static void dbg_hcc_params(struct fotg210_hcd *fotg210, char *label)
 		HCC_PGM_FRAMELISTLEN(params) ? "256/512/1024" : "1024",
 		HCC_CANPARK(params) ? " park" : "");
 }
-#else
-
-static inline void dbg_hcc_params(struct fotg210_hcd *fotg210, char *label) {}
-
-#endif
-
-#ifdef	DEBUG
 
 static void __maybe_unused
 dbg_qtd(const char *label, struct fotg210_hcd *fotg210, struct fotg210_qtd *qtd)
@@ -272,8 +247,8 @@ dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
 		);
 }
 
-static int
-dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
+static char
+*dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 {
 	char	*sig;
 
@@ -293,7 +268,7 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 		break;
 	}
 
-	return scnprintf(buf, len,
+	scnprintf(buf, len,
 		"%s%sport:%d status %06x %d "
 		"sig=%s%s%s%s%s%s%s%s",
 		label, label[0] ? " " : "", port, status,
@@ -306,30 +281,8 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 		(status & PORT_PE) ? " PE" : "",
 		(status & PORT_CSC) ? " CSC" : "",
 		(status & PORT_CONNECT) ? " CONNECT" : "");
+	return buf;
 }
-
-#else
-static inline void __maybe_unused
-dbg_qh(char *label, struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
-{}
-
-static inline int __maybe_unused
-dbg_status_buf(char *buf, unsigned len, const char *label, u32 status)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_intr_buf(char *buf, unsigned len, const char *label, u32 enable)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
-{ return 0; }
-
-#endif	/* DEBUG */
 
 /* functions have the "wrong" filename when they're output... */
 #define dbg_status(fotg210, label, status) { \
@@ -346,18 +299,10 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 
 #define dbg_port(fotg210, label, port, status) { \
 	char _buf[80]; \
-	dbg_port_buf(_buf, sizeof(_buf), label, port, status); \
-	fotg210_dbg(fotg210, "%s\n", _buf); \
+	fotg210_dbg(fotg210, "%s\n", dbg_port_buf(_buf, sizeof(_buf), label, port, status) ); \
 }
 
 /*-------------------------------------------------------------------------*/
-
-#ifdef STUB_DEBUG_FILES
-
-static inline void create_debug_files(struct fotg210_hcd *bus) { }
-static inline void remove_debug_files(struct fotg210_hcd *bus) { }
-
-#else
 
 /* troubleshooting help: expose state in debugfs */
 
@@ -954,7 +899,6 @@ static inline void remove_debug_files(struct fotg210_hcd *fotg210)
 	debugfs_remove_recursive(fotg210->debug_dir);
 }
 
-#endif /* STUB_DEBUG_FILES */
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -1398,7 +1342,7 @@ static void fotg210_iaa_watchdog(struct fotg210_hcd *fotg210)
 				       &fotg210->regs->status);
 		}
 
-		fotg210_vdbg(fotg210, "IAA watchdog: status %x cmd %x\n",
+		fotg210_dbg(fotg210, "IAA watchdog: status %x cmd %x\n",
 				status, cmd);
 		end_unlink_async(fotg210);
 	}
@@ -1539,7 +1483,7 @@ fotg210_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 	/*
 	 * Return status information even for ports with OWNER set.
-	 * Otherwise khubd wouldn't see the disconnect event when a
+	 * Otherwise hub_wq wouldn't see the disconnect event when a
 	 * high-speed device is switched over to the companion
 	 * controller by the user.
 	 */
@@ -1565,7 +1509,7 @@ fotg210_hub_descriptor(
 	int		ports = HCS_N_PORTS(fotg210->hcs_params);
 	u16		temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bPwrOn2PwrGood = 10;	/* fotg210 1.0, 2.3.9 says 20ms max */
 	desc->bHubContrCurrent = 0;
 
@@ -1577,8 +1521,8 @@ fotg210_hub_descriptor(
 	memset(&desc->u.hs.DeviceRemovable[0], 0, temp);
 	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
-	temp = 0x0008;		/* per-port overcurrent reporting */
-	temp |= 0x0002;		/* no power switching */
+	temp = HUB_CHAR_INDV_PORT_OCPM;	/* per-port overcurrent reporting */
+	temp |= HUB_CHAR_NO_LPSM;	/* no power switching */
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
 
@@ -1628,7 +1572,7 @@ static int fotg210_hub_control(
 
 		/*
 		 * Even if OWNER is set, so the port is owned by the
-		 * companion controller, khubd needs to be able to clear
+		 * companion controller, hub_wq needs to be able to clear
 		 * the port-change status bits (especially
 		 * USB_PORT_STAT_C_CONNECTION).
 		 */
@@ -1651,7 +1595,7 @@ static int fotg210_hub_control(
 			/* resume signaling for 20 msec */
 			fotg210_writel(fotg210, temp | PORT_RESUME, status_reg);
 			fotg210->reset_done[wIndex] = jiffies
-					+ msecs_to_jiffies(20);
+					+ msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			clear_bit(wIndex, &fotg210->port_c_suspend);
@@ -1779,7 +1723,7 @@ static int fotg210_hub_control(
 		}
 
 		/*
-		 * Even if OWNER is set, there's no harm letting khubd
+		 * Even if OWNER is set, there's no harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */
@@ -1810,10 +1754,8 @@ static int fotg210_hub_control(
 		if (test_bit(wIndex, &fotg210->port_c_suspend))
 			status |= USB_PORT_STAT_C_SUSPEND << 16;
 
-#ifndef	VERBOSE_DEBUG
-	if (status & ~0xffff)	/* only if wPortChange is interesting */
-#endif
-		dbg_port(fotg210, "GetStatus", wIndex + 1, temp);
+		if (status & ~0xffff)	/* only if wPortChange is interesting */
+			dbg_port(fotg210, "GetStatus", wIndex + 1, temp);
 		put_unaligned_le32(status, buf);
 		break;
 	case SetHubFeature:
@@ -1856,7 +1798,7 @@ static int fotg210_hub_control(
 			 * which can be fine if this root hub has a
 			 * transaction translator built in.
 			 */
-			fotg210_vdbg(fotg210, "port %d reset\n", wIndex + 1);
+			fotg210_dbg(fotg210, "port %d reset\n", wIndex + 1);
 			temp |= PORT_RESET;
 			temp &= ~PORT_PE;
 
@@ -2274,13 +2216,12 @@ static void fotg210_clear_tt_buffer(struct fotg210_hcd *fotg210,
 	 * Note: this routine is never called for Isochronous transfers.
 	 */
 	if (urb->dev->tt && !usb_pipeint(urb->pipe) && !qh->clearing_tt) {
-#ifdef DEBUG
 		struct usb_device *tt = urb->dev->tt->hub;
 		dev_dbg(&tt->dev,
 			"clear tt buffer port %d, a%d ep%d t%08x\n",
 			urb->dev->ttport, urb->dev->devnum,
 			usb_pipeendpoint(urb->pipe), token);
-#endif /* DEBUG */
+
 		if (urb->dev->tt->hub !=
 		    fotg210_to_hcd(fotg210)->self.root_hub) {
 			if (usb_hub_clear_tt_buffer(urb) == 0)
@@ -2341,7 +2282,7 @@ static int qtd_copy_status(
 			status = -EPROTO;
 		}
 
-		fotg210_vdbg(fotg210,
+		fotg210_dbg(fotg210,
 			"dev%d ep%d%s qtd token %08x --> status %d\n",
 			usb_pipedevice(urb->pipe),
 			usb_pipeendpoint(urb->pipe),
@@ -3583,11 +3524,9 @@ periodic_usecs(struct fotg210_hcd *fotg210, unsigned frame, unsigned uframe)
 			break;
 		}
 	}
-#ifdef	DEBUG
 	if (usecs > fotg210->uframe_periodic_max)
 		fotg210_err(fotg210, "uframe %d sched overrun: %d usecs\n",
 			frame * 8 + uframe, usecs);
-#endif
 	return usecs;
 }
 
@@ -4646,7 +4585,7 @@ static void itd_link_urb(
 	if (unlikely(list_empty(&stream->td_list))) {
 		fotg210_to_hcd(fotg210)->self.bandwidth_allocated
 				+= stream->bandwidth;
-		fotg210_vdbg(fotg210,
+		fotg210_dbg(fotg210,
 			"schedule devp %s ep%d%s-iso period %d start %d.%d\n",
 			urb->dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
@@ -4779,7 +4718,7 @@ static bool itd_complete(struct fotg210_hcd *fotg210, struct fotg210_itd *itd)
 	if (unlikely(list_is_singular(&stream->td_list))) {
 		fotg210_to_hcd(fotg210)->self.bandwidth_allocated
 				-= stream->bandwidth;
-		fotg210_vdbg(fotg210,
+		fotg210_dbg(fotg210,
 			"deschedule devp %s ep%d%s-iso\n",
 			dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
@@ -5019,7 +4958,7 @@ static ssize_t store_uframe_periodic_max(struct device *dev,
 
 		if (allocated_max > uframe_periodic_max) {
 			fotg210_info(fotg210,
-				"cannot decrease uframe_periodic_max becase "
+				"cannot decrease uframe_periodic_max because "
 				"periodic bandwidth is already allocated "
 				"(%u > %u)\n",
 				allocated_max, uframe_periodic_max);
@@ -5444,10 +5383,8 @@ static irqreturn_t fotg210_irq(struct usb_hcd *hcd)
 	cmd = fotg210_readl(fotg210, &fotg210->regs->command);
 	bh = 0;
 
-#ifdef	VERBOSE_DEBUG
 	/* unrequested/ignored: Frame List Rollover */
 	dbg_status(fotg210, "irq", status);
-#endif
 
 	/* INT, ERR, and IAA interrupt rates can be throttled */
 
@@ -5508,7 +5445,7 @@ static irqreturn_t fotg210_irq(struct usb_hcd *hcd)
 				fotg210->reset_done[0] == 0) {
 
 			/* start 20 msec resume signaling from this port,
-			 * and make khubd collect PORT_STAT_C_SUSPEND to
+			 * and make hub_wq collect PORT_STAT_C_SUSPEND to
 			 * stop that signaling.  Use 5 ms extra for safety,
 			 * like usb_port_resume() does.
 			 */
@@ -5901,41 +5838,17 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 		goto fail_create_hcd;
 	}
 
+	hcd->has_tt = 1;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev,
-			"Found HC with no register addr. Check %s setup!\n",
-			dev_name(dev));
-		retval = -ENODEV;
-		goto fail_request_resource;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		retval = PTR_ERR(hcd->regs);
+		goto failed;
 	}
 
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->has_tt = 1;
-
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
-				fotg210_fotg210_hc_driver.description)) {
-		dev_dbg(dev, "controller already in use\n");
-		retval = -EBUSY;
-		goto fail_request_resource;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!res) {
-		dev_err(dev,
-			"Found HC with no register addr. Check %s setup!\n",
-			dev_name(dev));
-		retval = -ENODEV;
-		goto fail_request_resource;
-	}
-
-	hcd->regs = ioremap_nocache(res->start, resource_size(res));
-	if (hcd->regs == NULL) {
-		dev_dbg(dev, "error mapping memory\n");
-		retval = -EFAULT;
-		goto fail_ioremap;
-	}
 
 	fotg210 = hcd_to_fotg210(hcd);
 
@@ -5943,23 +5856,20 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 
 	retval = fotg210_setup(hcd);
 	if (retval)
-		goto fail_add_hcd;
+		goto failed;
 
 	fotg210_init(fotg210);
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval) {
 		dev_err(dev, "failed to add hcd with err %d\n", retval);
-		goto fail_add_hcd;
+		goto failed;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return retval;
 
-fail_add_hcd:
-	iounmap(hcd->regs);
-fail_ioremap:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-fail_request_resource:
+failed:
 	usb_put_hcd(hcd);
 fail_create_hcd:
 	dev_err(dev, "init %s fail, %d\n", dev_name(dev), retval);
@@ -5980,8 +5890,6 @@ static int fotg210_hcd_remove(struct platform_device *pdev)
 		return 0;
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
 	return 0;
@@ -6013,13 +5921,11 @@ static int __init fotg210_hcd_init(void)
 		 sizeof(struct fotg210_qh), sizeof(struct fotg210_qtd),
 		 sizeof(struct fotg210_itd));
 
-#ifdef DEBUG
 	fotg210_debug_root = debugfs_create_dir("fotg210", usb_debug_root);
 	if (!fotg210_debug_root) {
 		retval = -ENOENT;
 		goto err_debug;
 	}
-#endif
 
 	retval = platform_driver_register(&fotg210_hcd_driver);
 	if (retval < 0)
@@ -6028,11 +5934,9 @@ static int __init fotg210_hcd_init(void)
 
 	platform_driver_unregister(&fotg210_hcd_driver);
 clean:
-#ifdef DEBUG
 	debugfs_remove(fotg210_debug_root);
 	fotg210_debug_root = NULL;
 err_debug:
-#endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
@@ -6041,9 +5945,7 @@ module_init(fotg210_hcd_init);
 static void __exit fotg210_hcd_cleanup(void)
 {
 	platform_driver_unregister(&fotg210_hcd_driver);
-#ifdef DEBUG
 	debugfs_remove(fotg210_debug_root);
-#endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(fotg210_hcd_cleanup);

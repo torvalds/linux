@@ -37,14 +37,13 @@
 #include "dlmglue.h"
 #include "file.h"
 #include "inode.h"
-#include "super.h"
 #include "ocfs2_trace.h"
 
 void ocfs2_dentry_attach_gen(struct dentry *dentry)
 {
 	unsigned long gen =
-		OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
-	BUG_ON(dentry->d_inode);
+		OCFS2_I(d_inode(dentry->d_parent))->ip_dir_lock_gen;
+	BUG_ON(d_inode(dentry));
 	dentry->d_fsdata = (void *)gen;
 }
 
@@ -58,7 +57,7 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 	osb = OCFS2_SB(dentry->d_sb);
 
 	trace_ocfs2_dentry_revalidate(dentry, dentry->d_name.len,
@@ -72,7 +71,7 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 		unsigned long gen = (unsigned long) dentry->d_fsdata;
 		unsigned long pgen;
 		spin_lock(&dentry->d_lock);
-		pgen = OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
+		pgen = OCFS2_I(d_inode(dentry->d_parent))->ip_dir_lock_gen;
 		spin_unlock(&dentry->d_lock);
 		trace_ocfs2_dentry_revalidate_negative(dentry->d_name.len,
 						       dentry->d_name.name,
@@ -147,7 +146,7 @@ static int ocfs2_match_dentry(struct dentry *dentry,
 	if (skip_unhashed && d_unhashed(dentry))
 		return 0;
 
-	parent = dentry->d_parent->d_inode;
+	parent = d_inode(dentry->d_parent);
 	/* Negative parent dentry? */
 	if (!parent)
 		return 0;
@@ -173,7 +172,7 @@ struct dentry *ocfs2_find_local_alias(struct inode *inode,
 	struct dentry *dentry;
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (ocfs2_match_dentry(dentry, parent_blkno, skip_unhashed)) {
 			trace_ocfs2_find_local_alias(dentry->d_name.len,
@@ -244,7 +243,7 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	if (!inode)
 		return 0;
 
-	if (!dentry->d_inode && dentry->d_fsdata) {
+	if (d_really_is_negative(dentry) && dentry->d_fsdata) {
 		/* Converting a negative dentry to positive
 		   Clear dentry->d_fsdata */
 		dentry->d_fsdata = dl = NULL;
@@ -252,8 +251,8 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 
 	if (dl) {
 		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
-				" \"%.*s\": old parent: %llu, new: %llu\n",
-				dentry->d_name.len, dentry->d_name.name,
+				" \"%pd\": old parent: %llu, new: %llu\n",
+				dentry,
 				(unsigned long long)parent_blkno,
 				(unsigned long long)dl->dl_parent_blkno);
 		return 0;
@@ -278,8 +277,8 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 				(unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
-				" \"%.*s\": old parent: %llu, new: %llu\n",
-				dentry->d_name.len, dentry->d_name.name,
+				" \"%pd\": old parent: %llu, new: %llu\n",
+				dentry,
 				(unsigned long long)parent_blkno,
 				(unsigned long long)dl->dl_parent_blkno);
 
@@ -346,52 +345,6 @@ out_attach:
 	return ret;
 }
 
-DEFINE_SPINLOCK(dentry_list_lock);
-
-/* We limit the number of dentry locks to drop in one go. We have
- * this limit so that we don't starve other users of ocfs2_wq. */
-#define DL_INODE_DROP_COUNT 64
-
-/* Drop inode references from dentry locks */
-static void __ocfs2_drop_dl_inodes(struct ocfs2_super *osb, int drop_count)
-{
-	struct ocfs2_dentry_lock *dl;
-
-	spin_lock(&dentry_list_lock);
-	while (osb->dentry_lock_list && (drop_count < 0 || drop_count--)) {
-		dl = osb->dentry_lock_list;
-		osb->dentry_lock_list = dl->dl_next;
-		spin_unlock(&dentry_list_lock);
-		iput(dl->dl_inode);
-		kfree(dl);
-		spin_lock(&dentry_list_lock);
-	}
-	spin_unlock(&dentry_list_lock);
-}
-
-void ocfs2_drop_dl_inodes(struct work_struct *work)
-{
-	struct ocfs2_super *osb = container_of(work, struct ocfs2_super,
-					       dentry_lock_work);
-
-	__ocfs2_drop_dl_inodes(osb, DL_INODE_DROP_COUNT);
-	/*
-	 * Don't queue dropping if umount is in progress. We flush the
-	 * list in ocfs2_dismount_volume
-	 */
-	spin_lock(&dentry_list_lock);
-	if (osb->dentry_lock_list &&
-	    !ocfs2_test_osb_flag(osb, OCFS2_OSB_DROP_DENTRY_LOCK_IMMED))
-		queue_work(ocfs2_wq, &osb->dentry_lock_work);
-	spin_unlock(&dentry_list_lock);
-}
-
-/* Flush the whole work queue */
-void ocfs2_drop_all_dl_inodes(struct ocfs2_super *osb)
-{
-	__ocfs2_drop_dl_inodes(osb, -1);
-}
-
 /*
  * ocfs2_dentry_iput() and friends.
  *
@@ -416,24 +369,16 @@ void ocfs2_drop_all_dl_inodes(struct ocfs2_super *osb)
 static void ocfs2_drop_dentry_lock(struct ocfs2_super *osb,
 				   struct ocfs2_dentry_lock *dl)
 {
+	iput(dl->dl_inode);
 	ocfs2_simple_drop_lockres(osb, &dl->dl_lockres);
 	ocfs2_lock_res_free(&dl->dl_lockres);
-
-	/* We leave dropping of inode reference to ocfs2_wq as that can
-	 * possibly lead to inode deletion which gets tricky */
-	spin_lock(&dentry_list_lock);
-	if (!osb->dentry_lock_list &&
-	    !ocfs2_test_osb_flag(osb, OCFS2_OSB_DROP_DENTRY_LOCK_IMMED))
-		queue_work(ocfs2_wq, &osb->dentry_lock_work);
-	dl->dl_next = osb->dentry_lock_list;
-	osb->dentry_lock_list = dl;
-	spin_unlock(&dentry_list_lock);
+	kfree(dl);
 }
 
 void ocfs2_dentry_lock_put(struct ocfs2_super *osb,
 			   struct ocfs2_dentry_lock *dl)
 {
-	int unlock;
+	int unlock = 0;
 
 	BUG_ON(dl->dl_count == 0);
 
@@ -461,17 +406,15 @@ static void ocfs2_dentry_iput(struct dentry *dentry, struct inode *inode)
 			if (inode)
 				ino = (unsigned long long)OCFS2_I(inode)->ip_blkno;
 			mlog(ML_ERROR, "Dentry is missing cluster lock. "
-			     "inode: %llu, d_flags: 0x%x, d_name: %.*s\n",
-			     ino, dentry->d_flags, dentry->d_name.len,
-			     dentry->d_name.name);
+			     "inode: %llu, d_flags: 0x%x, d_name: %pd\n",
+			     ino, dentry->d_flags, dentry);
 		}
 
 		goto out;
 	}
 
-	mlog_bug_on_msg(dl->dl_count == 0, "dentry: %.*s, count: %u\n",
-			dentry->d_name.len, dentry->d_name.name,
-			dl->dl_count);
+	mlog_bug_on_msg(dl->dl_count == 0, "dentry: %pd, count: %u\n",
+			dentry, dl->dl_count);
 
 	ocfs2_dentry_lock_put(OCFS2_SB(dentry->d_sb), dl);
 
@@ -503,7 +446,7 @@ void ocfs2_dentry_move(struct dentry *dentry, struct dentry *target,
 {
 	int ret;
 	struct ocfs2_super *osb = OCFS2_SB(old_dir->i_sb);
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	/*
 	 * Move within the same directory, so the actual lock info won't

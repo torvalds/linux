@@ -21,20 +21,15 @@
 
 #include <asm-generic/gpio.h>
 
-enum davinci_gpio_type {
-	GPIO_TYPE_TNETV107X = 0,
-};
-
 struct davinci_gpio_platform_data {
 	u32	ngpio;
 	u32	gpio_unbanked;
-	u32	intc_irq_num;
 };
 
 
 struct davinci_gpio_controller {
 	struct gpio_chip	chip;
-	int			irq_base;
+	struct irq_domain	*irq_domain;
 	/* Serialize access to GPIO registers */
 	spinlock_t		lock;
 	void __iomem		*regs;

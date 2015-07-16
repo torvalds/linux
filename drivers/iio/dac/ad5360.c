@@ -107,7 +107,12 @@ enum ad5360_type {
 		BIT(IIO_CHAN_INFO_OFFSET) |				\
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |			\
 		BIT(IIO_CHAN_INFO_CALIBBIAS),			\
-	.scan_type = IIO_ST('u', (bits), 16, 16 - (bits))	\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (bits),				\
+		.storagebits = 16,				\
+		.shift = 16 - (bits),				\
+	},							\
 }
 
 static const struct ad5360_chip_info ad5360_chip_info_tbl[] = {

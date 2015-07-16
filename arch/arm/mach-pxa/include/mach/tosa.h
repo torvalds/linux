@@ -13,6 +13,8 @@
 #ifndef _ASM_ARCH_TOSA_H_
 #define _ASM_ARCH_TOSA_H_ 1
 
+#include "irqs.h" /* PXA_NR_BUILTIN_GPIO */
+
 /*  TOSA Chip selects  */
 #define TOSA_LCDC_PHYS		PXA_CS4_PHYS
 /* Internel Scoop */

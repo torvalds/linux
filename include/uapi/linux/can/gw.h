@@ -41,8 +41,8 @@
  * DAMAGE.
  */
 
-#ifndef CAN_GW_H
-#define CAN_GW_H
+#ifndef _UAPI_CAN_GW_H
+#define _UAPI_CAN_GW_H
 
 #include <linux/types.h>
 #include <linux/can.h>
@@ -78,6 +78,7 @@ enum {
 	CGW_FILTER,	/* specify struct can_filter on source CAN device */
 	CGW_DELETED,	/* number of deleted CAN frames (see max_hops param) */
 	CGW_LIM_HOPS,	/* limit the number of hops of this specific rule */
+	CGW_MOD_UID,	/* user defined identifier for modification updates */
 	__CGW_MAX
 };
 
@@ -162,6 +163,10 @@ enum {
  * load time of the can-gw module). This value is used to reduce the number of
  * possible hops for this gateway rule to a value smaller then max_hops.
  *
+ * CGW_MOD_UID (length 4 bytes):
+ * Optional non-zero user defined routing job identifier to alter existing
+ * modification settings at runtime.
+ *
  * CGW_CS_XOR (length 4 bytes):
  * Set a simple XOR checksum starting with an initial value into
  * data[result-idx] using data[start-idx] .. data[end-idx]
@@ -200,4 +205,4 @@ enum {
  *         Beware of sending unpacked or aligned structs!
  */
 
-#endif
+#endif /* !_UAPI_CAN_GW_H */

@@ -29,6 +29,8 @@
 #ifndef __V4L2_COMMON__
 #define __V4L2_COMMON__
 
+#include <linux/types.h>
+
 /*
  *
  * Selection interface definitions
@@ -41,6 +43,8 @@
 #define V4L2_SEL_TGT_CROP_DEFAULT	0x0001
 /* Cropping bounds */
 #define V4L2_SEL_TGT_CROP_BOUNDS	0x0002
+/* Native frame size */
+#define V4L2_SEL_TGT_NATIVE_SIZE	0x0003
 /* Current composing area */
 #define V4L2_SEL_TGT_COMPOSE		0x0100
 /* Default composing area */
@@ -67,5 +71,13 @@
 #define V4L2_SUBDEV_SEL_FLAG_SIZE_GE	V4L2_SEL_FLAG_GE
 #define V4L2_SUBDEV_SEL_FLAG_SIZE_LE	V4L2_SEL_FLAG_LE
 #define V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG V4L2_SEL_FLAG_KEEP_CONFIG
+
+struct v4l2_edid {
+	__u32 pad;
+	__u32 start_block;
+	__u32 blocks;
+	__u32 reserved[5];
+	__u8  *edid;
+};
 
 #endif /* __V4L2_COMMON__ */

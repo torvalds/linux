@@ -17,13 +17,16 @@
 #include <linux/io.h>
 
 #include <asm/smp_plat.h>
+#include <asm/prom.h>
+#include <asm/tlbflush.h>
+#include <asm/pgtable.h>
 
 #include "keystone.h"
 
 static int keystone_smp_boot_secondary(unsigned int cpu,
 						struct task_struct *idle)
 {
-	unsigned long start = virt_to_phys(&secondary_startup);
+	unsigned long start = virt_to_idmap(&secondary_startup);
 	int error;
 
 	pr_debug("keystone-smp: booting cpu %d, vector %08lx\n",

@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  * The full GNU General Public License is included in this distribution in the
  * file called COPYING.
  */
@@ -56,6 +52,11 @@
 #define PCI_DEVICE_ID_INTEL_IOAT_BWD1	0x0C51
 #define PCI_DEVICE_ID_INTEL_IOAT_BWD2	0x0C52
 #define PCI_DEVICE_ID_INTEL_IOAT_BWD3	0x0C53
+
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE0	0x6f50
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE1	0x6f51
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE2	0x6f52
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE3	0x6f53
 
 #define IOAT_VER_1_2            0x12    /* Version 1.2 */
 #define IOAT_VER_2_0            0x20    /* Version 2.0 */

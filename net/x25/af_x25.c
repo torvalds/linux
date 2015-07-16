@@ -35,6 +35,8 @@
  *					response
  */
 
+#define pr_fmt(fmt) "X25: " fmt
+
 #include <linux/module.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
@@ -513,10 +515,10 @@ static struct proto x25_proto = {
 	.obj_size = sizeof(struct x25_sock),
 };
 
-static struct sock *x25_alloc_socket(struct net *net)
+static struct sock *x25_alloc_socket(struct net *net, int kern)
 {
 	struct x25_sock *x25;
-	struct sock *sk = sk_alloc(net, AF_X25, GFP_ATOMIC, &x25_proto);
+	struct sock *sk = sk_alloc(net, AF_X25, GFP_ATOMIC, &x25_proto, kern);
 
 	if (!sk)
 		goto out;
@@ -551,7 +553,7 @@ static int x25_create(struct net *net, struct socket *sock, int protocol,
 		goto out;
 
 	rc = -ENOBUFS;
-	if ((sk = x25_alloc_socket(net)) == NULL)
+	if ((sk = x25_alloc_socket(net, kern)) == NULL)
 		goto out;
 
 	x25 = x25_sk(sk);
@@ -600,7 +602,7 @@ static struct sock *x25_make_new(struct sock *osk)
 	if (osk->sk_type != SOCK_SEQPACKET)
 		goto out;
 
-	if ((sk = x25_alloc_socket(sock_net(osk))) == NULL)
+	if ((sk = x25_alloc_socket(sock_net(osk), 0)) == NULL)
 		goto out;
 
 	x25 = x25_sk(sk);
@@ -1062,7 +1064,7 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	x25_start_heartbeat(make);
 
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb->len);
+		sk->sk_data_ready(sk);
 	rc = 1;
 	sock_put(sk);
 out:
@@ -1075,12 +1077,11 @@ out_clear_request:
 	goto out;
 }
 
-static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
-		       struct msghdr *msg, size_t len)
+static int x25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct x25_sock *x25 = x25_sk(sk);
-	struct sockaddr_x25 *usx25 = (struct sockaddr_x25 *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_x25 *, usx25, msg->msg_name);
 	struct sockaddr_x25 sx25;
 	struct sk_buff *skb;
 	unsigned char *asmptr;
@@ -1168,7 +1169,7 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb_reset_transport_header(skb);
 	skb_put(skb, len);
 
-	rc = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
+	rc = memcpy_from_msg(skb_transport_header(skb), msg, len);
 	if (rc)
 		goto out_kfree_skb;
 
@@ -1250,13 +1251,12 @@ out_kfree_skb:
 }
 
 
-static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
-		       struct msghdr *msg, size_t size,
+static int x25_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		       int flags)
 {
 	struct sock *sk = sock->sk;
 	struct x25_sock *x25 = x25_sk(sk);
-	struct sockaddr_x25 *sx25 = (struct sockaddr_x25 *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_x25 *, sx25, msg->msg_name);
 	size_t copied;
 	int qbit, header_len;
 	struct sk_buff *skb;
@@ -1333,7 +1333,7 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 	/* Currently, each datagram always contains a complete record */
 	msg->msg_flags |= MSG_EOR;
 
-	rc = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	rc = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (rc)
 		goto out_free_dgram;
 
@@ -1809,7 +1809,7 @@ static int __init x25_init(void)
 	if (rc != 0)
 		goto out_sock;
 
-	printk(KERN_INFO "X.25 for Linux Version 0.2\n");
+	pr_info("Linux Version 0.2\n");
 
 	x25_register_sysctl();
 	rc = x25_proc_init();

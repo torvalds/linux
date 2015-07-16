@@ -9,7 +9,7 @@ Properties:
 
   Compatibility with many Cavium evaluation boards.
 
-- reg: The base address of the the CF chip select banks.  Depending on
+- reg: The base address of the CF chip select banks.  Depending on
   the device configuration, there may be one or two banks.
 
 - cavium,bus-width: The width of the connection to the CF devices.  Valid

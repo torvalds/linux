@@ -70,7 +70,7 @@ typedef struct nodepda_s nodepda_t;
  */
 
 DECLARE_PER_CPU(struct nodepda_s *, __sn_nodepda);
-#define sn_nodepda		(__get_cpu_var(__sn_nodepda))
+#define sn_nodepda		__this_cpu_read(__sn_nodepda)
 #define	NODEPDA(cnodeid)	(sn_nodepda->pernode_pdaindr[cnodeid])
 
 /*

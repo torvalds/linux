@@ -429,14 +429,6 @@ static void init_software_driven_irq(void)
 	bfin_sec_enable_ssi(37);
 }
 
-void bfin_sec_resume(void)
-{
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_RESET);
-	udelay(100);
-	bfin_write_SEC_GCTL(SEC_GCTL_EN);
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_EN | SEC_CCTL_NMI_EN);
-}
-
 void handle_sec_sfi_fault(uint32_t gstat)
 {
 
@@ -455,7 +447,7 @@ void handle_sec_sci_fault(uint32_t gstat)
 			printk(KERN_DEBUG "sec ack err\n");
 			break;
 		default:
-			printk(KERN_DEBUG "sec sci unknow err\n");
+			printk(KERN_DEBUG "sec sci unknown err\n");
 		}
 	}
 
@@ -471,13 +463,8 @@ void handle_sec_ssi_fault(uint32_t gstat)
 
 }
 
-void handle_sec_fault(unsigned int irq, struct irq_desc *desc)
+void handle_sec_fault(uint32_t sec_gstat)
 {
-	uint32_t sec_gstat;
-
-	raw_spin_lock(&desc->lock);
-
-	sec_gstat = bfin_read32(SEC_GSTAT);
 	if (sec_gstat & SEC_GSTAT_ERR) {
 
 		switch (sec_gstat & SEC_GSTAT_ERRC) {
@@ -494,17 +481,15 @@ void handle_sec_fault(unsigned int irq, struct irq_desc *desc)
 
 
 	}
-
-	raw_spin_unlock(&desc->lock);
-
-	handle_fasteoi_irq(irq, desc);
 }
 
-void handle_core_fault(unsigned int irq, struct irq_desc *desc)
+static struct irqaction bfin_fault_irq = {
+	.name = "Blackfin fault",
+};
+
+static irqreturn_t bfin_fault_routine(int irq, void *data)
 {
 	struct pt_regs *fp = get_irq_regs();
-
-	raw_spin_lock(&desc->lock);
 
 	switch (irq) {
 	case IRQ_C0_DBL_FAULT:
@@ -522,11 +507,15 @@ void handle_core_fault(unsigned int irq, struct irq_desc *desc)
 	case IRQ_C0_NMI_L1_PARITY_ERR:
 		panic("Core 0 NMI L1 parity error");
 		break;
+	case IRQ_SEC_ERR:
+		pr_err("SEC error\n");
+		handle_sec_fault(bfin_read32(SEC_GSTAT));
+		break;
 	default:
-		panic("Core 1 fault %d occurs unexpectedly", irq);
+		panic("Unknown fault %d", irq);
 	}
 
-	raw_spin_unlock(&desc->lock);
+	return IRQ_HANDLED;
 }
 #endif /* SEC_GCTL */
 
@@ -1195,12 +1184,7 @@ int __init init_arch_irq(void)
 				handle_percpu_irq);
 		} else {
 			irq_set_chip(irq, &bfin_sec_irqchip);
-			if (irq == IRQ_SEC_ERR)
-				irq_set_handler(irq, handle_sec_fault);
-			else if (irq >= IRQ_C0_DBL_FAULT && irq < CORE_IRQS)
-				irq_set_handler(irq, handle_core_fault);
-			else
-				irq_set_handler(irq, handle_fasteoi_irq);
+			irq_set_handler(irq, handle_fasteoi_irq);
 			__irq_set_preflow_handler(irq, bfin_sec_preflow_handler);
 		}
 	}
@@ -1213,8 +1197,6 @@ int __init init_arch_irq(void)
 	CSYNC();
 
 	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
-
-	bfin_sec_set_priority(CONFIG_SEC_IRQ_PRIORITY_LEVELS, sec_int_priority);
 
 	bfin_sec_set_priority(CONFIG_SEC_IRQ_PRIORITY_LEVELS, sec_int_priority);
 
@@ -1238,6 +1220,13 @@ int __init init_arch_irq(void)
 #ifdef CONFIG_PM
 	register_syscore_ops(&sec_pm_syscore_ops);
 #endif
+
+	bfin_fault_irq.handler = bfin_fault_routine;
+#ifdef CONFIG_L1_PARITY_CHECK
+	setup_irq(IRQ_C0_NMI_L1_PARITY_ERR, &bfin_fault_irq);
+#endif
+	setup_irq(IRQ_C0_DBL_FAULT, &bfin_fault_irq);
+	setup_irq(IRQ_SEC_ERR, &bfin_fault_irq);
 
 	return 0;
 }
@@ -1312,12 +1301,12 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 		bfin_write_TIMER_STATUS(1); /* Latch TIMIL0 */
 #endif
 		/* This is basically what we need from the register frame. */
-		__raw_get_cpu_var(__ipipe_tick_regs).ipend = regs->ipend;
-		__raw_get_cpu_var(__ipipe_tick_regs).pc = regs->pc;
+		__this_cpu_write(__ipipe_tick_regs.ipend, regs->ipend);
+		__this_cpu_write(__ipipe_tick_regs.pc, regs->pc);
 		if (this_domain != ipipe_root_domain)
-			__raw_get_cpu_var(__ipipe_tick_regs).ipend &= ~0x10;
+			__this_cpu_and(__ipipe_tick_regs.ipend, ~0x10);
 		else
-			__raw_get_cpu_var(__ipipe_tick_regs).ipend |= 0x10;
+			__this_cpu_or(__ipipe_tick_regs.ipend, 0x10);
 	}
 
 	/*

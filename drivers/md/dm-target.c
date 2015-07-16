@@ -137,13 +137,26 @@ static int io_err_map_rq(struct dm_target *ti, struct request *clone,
 	return -EIO;
 }
 
+static int io_err_clone_and_map_rq(struct dm_target *ti, struct request *rq,
+				   union map_info *map_context,
+				   struct request **clone)
+{
+	return -EIO;
+}
+
+static void io_err_release_clone_rq(struct request *clone)
+{
+}
+
 static struct target_type error_target = {
 	.name = "error",
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.ctr  = io_err_ctr,
 	.dtr  = io_err_dtr,
 	.map  = io_err_map,
 	.map_rq = io_err_map_rq,
+	.clone_and_map_rq = io_err_clone_and_map_rq,
+	.release_clone_rq = io_err_release_clone_rq,
 };
 
 int __init dm_target_init(void)

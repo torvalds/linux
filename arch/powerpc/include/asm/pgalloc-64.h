@@ -16,6 +16,7 @@ struct vmemmap_backing {
 	unsigned long phys;
 	unsigned long virt_addr;
 };
+extern struct vmemmap_backing *vmemmap_list;
 
 /*
  * Functions that deal with pagetables that could be at any level of
@@ -147,11 +148,9 @@ static inline void pgtable_free_tlb(struct mmu_gather *tlb,
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 				  unsigned long address)
 {
-	struct page *page = page_address(table);
-
 	tlb_flush_pgtable(tlb, address);
-	pgtable_page_dtor(page);
-	pgtable_free_tlb(tlb, page, 0);
+	pgtable_page_dtor(table);
+	pgtable_free_tlb(tlb, page_address(table), 0);
 }
 
 #else /* if CONFIG_PPC_64K_PAGES */

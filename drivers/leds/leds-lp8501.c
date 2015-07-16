@@ -263,7 +263,7 @@ static void lp8501_firmware_loaded(struct lp55xx_chip *chip)
 	}
 
 	/*
-	 * Program momery sequence
+	 * Program memory sequence
 	 *  1) set engine mode to "LOAD"
 	 *  2) write firmware data into program memory
 	 */
@@ -406,6 +406,6 @@ static struct i2c_driver lp8501_driver = {
 
 module_i2c_driver(lp8501_driver);
 
-MODULE_DESCRIPTION("Texas Instruments LP8501 LED drvier");
+MODULE_DESCRIPTION("Texas Instruments LP8501 LED driver");
 MODULE_AUTHOR("Milo Kim");
 MODULE_LICENSE("GPL");

@@ -59,7 +59,7 @@ struct osc_async_page {
 	struct list_head	      oap_pending_item;
 	struct list_head	      oap_rpc_item;
 
-	obd_off		 oap_obj_off;
+	u64		 oap_obj_off;
 	unsigned		oap_page_off;
 	enum async_flags	oap_async_flags;
 
@@ -97,7 +97,7 @@ void osc_update_next_shrink(struct client_obd *cli);
 /*
  * cl integration.
  */
-#include <cl_object.h>
+#include "../include/cl_object.h"
 
 extern struct ptlrpc_request_set *PTLRPCD_SET;
 
@@ -112,7 +112,7 @@ int osc_cancel_base(struct lustre_handle *lockh, __u32 mode);
 
 int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		   __u32 type, ldlm_policy_data_t *policy, __u32 mode,
-		   int *flags, void *data, struct lustre_handle *lockh,
+		   __u64 *flags, void *data, struct lustre_handle *lockh,
 		   int unref);
 
 int osc_setattr_async_base(struct obd_export *exp, struct obd_info *oinfo,
@@ -136,16 +136,8 @@ extern spinlock_t osc_ast_guard;
 int osc_cleanup(struct obd_device *obd);
 int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg);
 
-#ifdef LPROCFS
 int lproc_osc_attach_seqstat(struct obd_device *dev);
 void lprocfs_osc_init_vars(struct lprocfs_static_vars *lvars);
-#else
-static inline int lproc_osc_attach_seqstat(struct obd_device *dev) {return 0;}
-static inline void lprocfs_osc_init_vars(struct lprocfs_static_vars *lvars)
-{
-	memset(lvars, 0, sizeof(*lvars));
-}
-#endif
 
 extern struct lu_device_type osc_device_type;
 
@@ -159,11 +151,6 @@ static inline unsigned long rpcs_in_flight(struct client_obd *cli)
 {
 	return cli->cl_r_in_flight + cli->cl_w_in_flight;
 }
-
-#ifndef min_t
-#define min_t(type,x,y) \
-	({ type __x = (x); type __y = (y); __x < __y ? __x: __y; })
-#endif
 
 struct osc_device {
 	struct cl_device    od_cl;
@@ -192,12 +179,12 @@ extern struct kmem_cache *osc_quota_kmem;
 struct osc_quota_info {
 	/** linkage for quota hash table */
 	struct hlist_node oqi_hash;
-	obd_uid	  oqi_id;
+	u32	  oqi_id;
 };
 int osc_quota_setup(struct obd_device *obd);
 int osc_quota_cleanup(struct obd_device *obd);
 int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
-		    obd_flag valid, obd_flag flags);
+		    u32 valid, u32 flags);
 int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[]);
 int osc_quotactl(struct obd_device *unused, struct obd_export *exp,
 		 struct obd_quotactl *oqctl);

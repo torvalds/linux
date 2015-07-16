@@ -71,7 +71,7 @@ static int puv3_rtc_setpie(struct device *dev, int enabled)
 {
 	unsigned int tmp;
 
-	dev_debug(dev, "%s: pie=%d\n", __func__, enabled);
+	dev_dbg(dev, "%s: pie=%d\n", __func__, enabled);
 
 	spin_lock_irq(&puv3_rtc_pie_lock);
 	tmp = readl(RTC_RTSR) & ~RTC_RTSR_HZE;
@@ -140,7 +140,7 @@ static int puv3_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	rtc_tm_to_time(tm, &rtcalarm_count);
 	writel(rtcalarm_count, RTC_RTAR);
 
-	puv3_rtc_setaie(&dev->dev, alrm->enabled);
+	puv3_rtc_setaie(dev, alrm->enabled);
 
 	if (alrm->enabled)
 		enable_irq_wake(puv3_rtc_alarmno);
@@ -328,7 +328,6 @@ static struct platform_driver puv3_rtc_driver = {
 	.remove		= puv3_rtc_remove,
 	.driver		= {
 		.name	= "PKUnity-v3-RTC",
-		.owner	= THIS_MODULE,
 		.pm	= &puv3_rtc_pm_ops,
 	}
 };

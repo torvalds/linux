@@ -1,0 +1,12 @@
+nvkm-y += nvkm/engine/device/acpi.o
+nvkm-y += nvkm/engine/device/base.o
+nvkm-y += nvkm/engine/device/ctrl.o
+nvkm-y += nvkm/engine/device/nv04.o
+nvkm-y += nvkm/engine/device/nv10.o
+nvkm-y += nvkm/engine/device/nv20.o
+nvkm-y += nvkm/engine/device/nv30.o
+nvkm-y += nvkm/engine/device/nv40.o
+nvkm-y += nvkm/engine/device/nv50.o
+nvkm-y += nvkm/engine/device/gf100.o
+nvkm-y += nvkm/engine/device/gk104.o
+nvkm-y += nvkm/engine/device/gm100.o

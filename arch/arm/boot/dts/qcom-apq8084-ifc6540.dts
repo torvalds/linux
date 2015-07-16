@@ -1,0 +1,24 @@
+#include "qcom-apq8084.dtsi"
+#include "qcom-pma8084.dtsi"
+
+/ {
+	model = "Qualcomm APQ8084/IFC6540";
+	compatible = "qcom,apq8084-ifc6540", "qcom,apq8084";
+
+	soc {
+		serial@f995e000 {
+			status = "okay";
+		};
+
+		sdhci@f9824900 {
+			bus-width = <8>;
+			non-removable;
+			status = "okay";
+		};
+
+		sdhci@f98a4900 {
+			cd-gpios = <&tlmm 122 GPIO_ACTIVE_LOW>;
+			bus-width = <4>;
+		};
+	};
+};

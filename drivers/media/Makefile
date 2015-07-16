@@ -28,6 +28,6 @@ obj-y += rc/
 # Finally, merge the drivers that require the core
 #
 
-obj-y += common/ platform/ pci/ usb/ mmc/ firewire/ parport/
+obj-y += common/ platform/ pci/ usb/ mmc/ firewire/
 obj-$(CONFIG_VIDEO_DEV) += radio/
 

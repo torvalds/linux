@@ -165,6 +165,13 @@ SECTIONS
 		   .DoubleExceptionVector.text);
     RELOCATE_ENTRY(_DebugInterruptVector_text,
 		   .DebugInterruptVector.text);
+#if defined(CONFIG_SMP)
+    RELOCATE_ENTRY(_SecondaryResetVector_literal,
+		   .SecondaryResetVector.literal);
+    RELOCATE_ENTRY(_SecondaryResetVector_text,
+		   .SecondaryResetVector.text);
+#endif
+
   
     __boot_reloc_table_end = ABSOLUTE(.) ;
 
@@ -262,16 +269,35 @@ SECTIONS
 		  .UserExceptionVector.literal)
   SECTION_VECTOR (_DoubleExceptionVector_literal,
 		  .DoubleExceptionVector.literal,
-		  DOUBLEEXC_VECTOR_VADDR - 16,
+		  DOUBLEEXC_VECTOR_VADDR - 48,
 		  SIZEOF(.UserExceptionVector.text),
 		  .UserExceptionVector.text)
   SECTION_VECTOR (_DoubleExceptionVector_text,
 		  .DoubleExceptionVector.text,
 		  DOUBLEEXC_VECTOR_VADDR,
-		  32,
+		  48,
 		  .DoubleExceptionVector.literal)
 
   . = (LOADADDR( .DoubleExceptionVector.text ) + SIZEOF( .DoubleExceptionVector.text ) + 3) & ~ 3;
+
+#if defined(CONFIG_SMP)
+
+  SECTION_VECTOR (_SecondaryResetVector_literal,
+		  .SecondaryResetVector.literal,
+		  RESET_VECTOR1_VADDR - 4,
+		  SIZEOF(.DoubleExceptionVector.text),
+		  .DoubleExceptionVector.text)
+
+  SECTION_VECTOR (_SecondaryResetVector_text,
+		  .SecondaryResetVector.text,
+		  RESET_VECTOR1_VADDR,
+		  4,
+		  .SecondaryResetVector.literal)
+
+  . = LOADADDR(.SecondaryResetVector.text)+SIZEOF(.SecondaryResetVector.text);
+
+#endif
+
   . = ALIGN(PAGE_SIZE);
 
   __init_end = .;

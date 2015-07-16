@@ -77,7 +77,7 @@ static struct resource codec_resources[] = {
 	 },
 };
 
-static struct mfd_cell codec_devs[] = {
+static const struct mfd_cell codec_devs[] = {
 	{
 	 .name = "88pm80x-codec",
 	 .num_resources = ARRAY_SIZE(codec_resources),
@@ -158,7 +158,7 @@ static int device_irq_init_805(struct pm80x_chip *chip)
 	 * PM805_INT_STATUS is under 32K clock domain, so need to
 	 * add proper delay before the next I2C register access.
 	 */
-	msleep(1);
+	usleep_range(1000, 3000);
 
 	if (ret < 0)
 		goto out;

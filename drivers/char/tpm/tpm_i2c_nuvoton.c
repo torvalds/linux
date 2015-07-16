@@ -96,13 +96,13 @@ static s32 i2c_nuvoton_write_buf(struct i2c_client *client, u8 offset, u8 size,
 /* read TPM_STS register */
 static u8 i2c_nuvoton_read_status(struct tpm_chip *chip)
 {
-	struct i2c_client *client = to_i2c_client(chip->dev);
+	struct i2c_client *client = to_i2c_client(chip->pdev);
 	s32 status;
 	u8 data;
 
 	status = i2c_nuvoton_read_buf(client, TPM_STS, 1, &data);
 	if (status <= 0) {
-		dev_err(chip->dev, "%s() error return %d\n", __func__,
+		dev_err(chip->pdev, "%s() error return %d\n", __func__,
 			status);
 		data = TPM_STS_ERR_VAL;
 	}
@@ -127,13 +127,13 @@ static s32 i2c_nuvoton_write_status(struct i2c_client *client, u8 data)
 /* write commandReady to TPM_STS register */
 static void i2c_nuvoton_ready(struct tpm_chip *chip)
 {
-	struct i2c_client *client = to_i2c_client(chip->dev);
+	struct i2c_client *client = to_i2c_client(chip->pdev);
 	s32 status;
 
 	/* this causes the current command to be aborted */
 	status = i2c_nuvoton_write_status(client, TPM_STS_COMMAND_READY);
 	if (status < 0)
-		dev_err(chip->dev,
+		dev_err(chip->pdev,
 			"%s() fail to write TPM_STS.commandReady\n", __func__);
 }
 
@@ -178,7 +178,6 @@ static int i2c_nuvoton_wait_for_stat(struct tpm_chip *chip, u8 mask, u8 value,
 {
 	if (chip->vendor.irq && queue) {
 		s32 rc;
-		DEFINE_WAIT(wait);
 		struct priv_data *priv = chip->vendor.priv;
 		unsigned int cur_intrs = priv->intrs;
 
@@ -213,7 +212,7 @@ static int i2c_nuvoton_wait_for_stat(struct tpm_chip *chip, u8 mask, u8 value,
 				return 0;
 		} while (time_before(jiffies, stop));
 	}
-	dev_err(chip->dev, "%s(%02x, %02x) -> timeout\n", __func__, mask,
+	dev_err(chip->pdev, "%s(%02x, %02x) -> timeout\n", __func__, mask,
 		value);
 	return -ETIMEDOUT;
 }
@@ -241,7 +240,7 @@ static int i2c_nuvoton_recv_data(struct i2c_client *client,
 					       &chip->vendor.read_queue) == 0) {
 		burst_count = i2c_nuvoton_get_burstcount(client, chip);
 		if (burst_count < 0) {
-			dev_err(chip->dev,
+			dev_err(chip->pdev,
 				"%s() fail to read burstCount=%d\n", __func__,
 				burst_count);
 			return -EIO;
@@ -250,12 +249,12 @@ static int i2c_nuvoton_recv_data(struct i2c_client *client,
 		rc = i2c_nuvoton_read_buf(client, TPM_DATA_FIFO_R,
 					  bytes2read, &buf[size]);
 		if (rc < 0) {
-			dev_err(chip->dev,
+			dev_err(chip->pdev,
 				"%s() fail on i2c_nuvoton_read_buf()=%d\n",
 				__func__, rc);
 			return -EIO;
 		}
-		dev_dbg(chip->dev, "%s(%d):", __func__, bytes2read);
+		dev_dbg(chip->pdev, "%s(%d):", __func__, bytes2read);
 		size += bytes2read;
 	}
 
@@ -265,7 +264,7 @@ static int i2c_nuvoton_recv_data(struct i2c_client *client,
 /* Read TPM command results */
 static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct device *dev = chip->dev;
+	struct device *dev = chip->pdev;
 	struct i2c_client *client = to_i2c_client(dev);
 	s32 rc;
 	int expected, status, burst_count, retries, size = 0;
@@ -335,7 +334,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		break;
 	}
 	i2c_nuvoton_ready(chip);
-	dev_dbg(chip->dev, "%s() -> %d\n", __func__, size);
+	dev_dbg(chip->pdev, "%s() -> %d\n", __func__, size);
 	return size;
 }
 
@@ -348,7 +347,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
  */
 static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 {
-	struct device *dev = chip->dev;
+	struct device *dev = chip->pdev;
 	struct i2c_client *client = to_i2c_client(dev);
 	u32 ordinal;
 	size_t count = 0;
@@ -456,45 +455,7 @@ static bool i2c_nuvoton_req_canceled(struct tpm_chip *chip, u8 status)
 	return (status == TPM_STS_COMMAND_READY);
 }
 
-static const struct file_operations i2c_nuvoton_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
-
-static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
-static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
-static DEVICE_ATTR(enabled, S_IRUGO, tpm_show_enabled, NULL);
-static DEVICE_ATTR(active, S_IRUGO, tpm_show_active, NULL);
-static DEVICE_ATTR(owned, S_IRUGO, tpm_show_owned, NULL);
-static DEVICE_ATTR(temp_deactivated, S_IRUGO, tpm_show_temp_deactivated, NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
-static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
-static DEVICE_ATTR(durations, S_IRUGO, tpm_show_durations, NULL);
-static DEVICE_ATTR(timeouts, S_IRUGO, tpm_show_timeouts, NULL);
-
-static struct attribute *i2c_nuvoton_attrs[] = {
-	&dev_attr_pubek.attr,
-	&dev_attr_pcrs.attr,
-	&dev_attr_enabled.attr,
-	&dev_attr_active.attr,
-	&dev_attr_owned.attr,
-	&dev_attr_temp_deactivated.attr,
-	&dev_attr_caps.attr,
-	&dev_attr_cancel.attr,
-	&dev_attr_durations.attr,
-	&dev_attr_timeouts.attr,
-	NULL,
-};
-
-static struct attribute_group i2c_nuvoton_attr_grp = {
-	.attrs = i2c_nuvoton_attrs
-};
-
-static const struct tpm_vendor_specific tpm_i2c = {
+static const struct tpm_class_ops tpm_i2c = {
 	.status = i2c_nuvoton_read_status,
 	.recv = i2c_nuvoton_recv,
 	.send = i2c_nuvoton_send,
@@ -502,8 +463,6 @@ static const struct tpm_vendor_specific tpm_i2c = {
 	.req_complete_mask = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 	.req_complete_val = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 	.req_canceled = i2c_nuvoton_req_canceled,
-	.attr_group = &i2c_nuvoton_attr_grp,
-	.miscdev.fops = &i2c_nuvoton_ops,
 };
 
 /* The only purpose for the handler is to signal to any waiting threads that
@@ -571,14 +530,15 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	dev_info(dev, "VID: %04X DID: %02X RID: %02X\n", (u16) vid,
 		 (u8) (vid >> 16), (u8) (vid >> 24));
 
-	chip = tpm_register_hardware(dev, &tpm_i2c);
-	if (!chip) {
-		dev_err(dev, "%s() error in tpm_register_hardware\n", __func__);
-		return -ENODEV;
-	}
+	chip = tpmm_chip_alloc(dev, &tpm_i2c);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
 	chip->vendor.priv = devm_kzalloc(dev, sizeof(struct priv_data),
 					 GFP_KERNEL);
+	if (!chip->vendor.priv)
+		return -ENOMEM;
+
 	init_waitqueue_head(&chip->vendor.read_queue);
 	init_waitqueue_head(&chip->vendor.int_queue);
 
@@ -600,7 +560,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 		rc = devm_request_irq(dev, chip->vendor.irq,
 				      i2c_nuvoton_int_handler,
 				      IRQF_TRIGGER_LOW,
-				      chip->vendor.miscdev.name,
+				      chip->devname,
 				      chip);
 		if (rc) {
 			dev_err(dev, "%s() Unable to request irq: %d for use\n",
@@ -625,7 +585,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 							   TPM_DATA_FIFO_W,
 							   1, (u8 *) (&rc));
 				if (rc < 0)
-					goto out_err;
+					return rc;
 				/* TPM_STS <- 0x40 (commandReady) */
 				i2c_nuvoton_ready(chip);
 			} else {
@@ -635,44 +595,28 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 				 * only TPM_STS_VALID should be set
 				 */
 				if (i2c_nuvoton_read_status(chip) !=
-				    TPM_STS_VALID) {
-					rc = -EIO;
-					goto out_err;
-				}
+				    TPM_STS_VALID)
+					return -EIO;
 			}
 		}
 	}
 
-	if (tpm_get_timeouts(chip)) {
-		rc = -ENODEV;
-		goto out_err;
-	}
+	if (tpm_get_timeouts(chip))
+		return -ENODEV;
 
-	if (tpm_do_selftest(chip)) {
-		rc = -ENODEV;
-		goto out_err;
-	}
+	if (tpm_do_selftest(chip))
+		return -ENODEV;
 
-	return 0;
-
-out_err:
-	tpm_dev_vendor_release(chip);
-	tpm_remove_hardware(chip->dev);
-	return rc;
+	return tpm_chip_register(chip);
 }
 
 static int i2c_nuvoton_remove(struct i2c_client *client)
 {
 	struct device *dev = &(client->dev);
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-
-	if (chip)
-		tpm_dev_vendor_release(chip);
-	tpm_remove_hardware(dev);
-	kfree(chip);
+	tpm_chip_unregister(chip);
 	return 0;
 }
-
 
 static const struct i2c_device_id i2c_nuvoton_id[] = {
 	{I2C_DRIVER_NAME, 0},

@@ -44,6 +44,14 @@ static void wcn36xx_dxe_write_register(struct wcn36xx *wcn, int addr, int data)
 	writel(data, wcn->mmio + addr);
 }
 
+#define wcn36xx_dxe_write_register_x(wcn, reg, reg_data)		 \
+do {									 \
+	if (wcn->chip_version == WCN36XX_CHIP_3680)			 \
+		wcn36xx_dxe_write_register(wcn, reg ## _3680, reg_data); \
+	else								 \
+		wcn36xx_dxe_write_register(wcn, reg ## _3660, reg_data); \
+} while (0)								 \
+
 static void wcn36xx_dxe_read_register(struct wcn36xx *wcn, int addr, int *data)
 {
 	*data = readl(wcn->mmio + addr);
@@ -76,6 +84,7 @@ static int wcn36xx_dxe_allocate_ctl_block(struct wcn36xx_dxe_ch *ch)
 		if (!cur_ctl)
 			goto out_fail;
 
+		spin_lock_init(&cur_ctl->skb_lock);
 		cur_ctl->ctl_blk_order = i;
 		if (i == 0) {
 			ch->head_blk_ctl = cur_ctl;
@@ -346,6 +355,8 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	 * and while-do will not make any cycles.
 	 */
 	do {
+		if (ctl->desc->ctrl & WCN36XX_DXE_CTRL_VALID_MASK)
+			break;
 		if (ctl->skb) {
 			dma_unmap_single(NULL, ctl->desc->src_addr_l,
 					 ctl->skb->len, DMA_TO_DEVICE);
@@ -680,7 +691,7 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 
 	/* Setting interrupt path */
 	reg_data = WCN36XX_DXE_CCU_INT;
-	wcn36xx_dxe_write_register(wcn, WCN36XX_DXE_REG_CCU_INT, reg_data);
+	wcn36xx_dxe_write_register_x(wcn, WCN36XX_DXE_REG_CCU_INT, reg_data);
 
 	/***************************************/
 	/* Init descriptors for TX LOW channel */

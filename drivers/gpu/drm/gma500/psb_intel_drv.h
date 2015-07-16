@@ -223,6 +223,7 @@ extern void oaktrail_lvds_init(struct drm_device *dev,
 extern void oaktrail_wait_for_INTR_PKT_SENT(struct drm_device *dev);
 extern void oaktrail_dsi_init(struct drm_device *dev,
 			   struct psb_intel_mode_device *mode_dev);
+extern void oaktrail_lvds_i2c_init(struct drm_encoder *encoder);
 extern void mid_dsi_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev, int dsi_num);
 
@@ -238,8 +239,6 @@ static inline struct gma_encoder *gma_attached_encoder(
 
 extern struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);
-extern int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);
 extern struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev,
 						 int pipe);
 extern struct drm_connector *psb_intel_sdvo_find(struct drm_device *dev,
@@ -250,11 +249,6 @@ extern void psb_intel_sdvo_set_hotplug(struct drm_connector *connector,
 extern int intelfb_probe(struct drm_device *dev);
 extern int intelfb_remove(struct drm_device *dev,
 			  struct drm_framebuffer *fb);
-extern struct drm_framebuffer *psb_intel_framebuffer_create(struct drm_device
-							*dev, struct
-							drm_mode_fb_cmd
-							*mode_cmd,
-							void *mm_private);
 extern bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				      const struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode);

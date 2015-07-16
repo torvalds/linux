@@ -154,7 +154,7 @@ static unsigned int serports[] =
 	0x3f8,0x2f8,0x3e8,0x2e8,0
 };
 
-static void q40_disable_irqs(void)
+static void __init q40_disable_irqs(void)
 {
 	unsigned i, j;
 
@@ -198,7 +198,7 @@ void __init config_q40(void)
 }
 
 
-int q40_parse_bootinfo(const struct bi_record *rec)
+int __init q40_parse_bootinfo(const struct bi_record *rec)
 {
 	return 1;
 }

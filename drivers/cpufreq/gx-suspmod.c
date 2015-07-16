@@ -144,7 +144,7 @@ module_param(max_duration, int, 0444);
 
 
 /**
- * we can detect a core multipiler from dir0_lsb
+ * we can detect a core multiplier from dir0_lsb
  * from GX1 datasheet p.56,
  *	MULT[3:0]:
  *	0000 = SYSCLK multiplied by 4 (test only)
@@ -265,7 +265,7 @@ static void gx_set_cpuspeed(struct cpufreq_policy *policy, unsigned int khz)
 
 	freqs.new = new_khz;
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
 	local_irq_save(flags);
 
 	if (new_khz != stock_freq) {
@@ -314,7 +314,7 @@ static void gx_set_cpuspeed(struct cpufreq_policy *policy, unsigned int khz)
 
 	gx_params->pci_suscfg = suscfg;
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_freq_transition_end(policy, &freqs, 0);
 
 	pr_debug("suspend modulation w/ duration of ON:%d us, OFF:%d us\n",
 		gx_params->on_duration * 32, gx_params->off_duration * 32);
@@ -346,7 +346,7 @@ static int cpufreq_gx_verify(struct cpufreq_policy *policy)
 
 	/* it needs to be assured that at least one supported frequency is
 	 * within policy->min and policy->max. If it is not, policy->max
-	 * needs to be increased until one freuqency is supported.
+	 * needs to be increased until one frequency is supported.
 	 * policy->min may not be decreased, though. This way we guarantee a
 	 * specific processing capacity.
 	 */

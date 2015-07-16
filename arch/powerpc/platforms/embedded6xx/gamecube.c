@@ -67,6 +67,8 @@ static int __init gamecube_probe(void)
 	if (!of_flat_dt_is_compatible(dt_root, "nintendo,gamecube"))
 		return 0;
 
+	pm_power_off = gamecube_power_off;
+
 	return 1;
 }
 
@@ -80,7 +82,6 @@ define_machine(gamecube) {
 	.probe			= gamecube_probe,
 	.init_early		= gamecube_init_early,
 	.restart		= gamecube_restart,
-	.power_off		= gamecube_power_off,
 	.halt			= gamecube_halt,
 	.init_IRQ		= flipper_pic_probe,
 	.get_irq		= flipper_pic_get_irq,
@@ -90,7 +91,7 @@ define_machine(gamecube) {
 };
 
 
-static struct of_device_id gamecube_of_bus[] = {
+static const struct of_device_id gamecube_of_bus[] = {
 	{ .compatible = "nintendo,flipper", },
 	{ },
 };

@@ -287,7 +287,7 @@ static void mxr_mplane_fill(struct v4l2_plane_pix_format *planes,
 		u32 bl_width = divup(width, blk->width);
 		u32 bl_height = divup(height, blk->height);
 		u32 sizeimage = bl_width * bl_height * blk->size;
-		u16 bytesperline = bl_width * blk->size / blk->height;
+		u32 bytesperline = bl_width * blk->size / blk->height;
 
 		plane->sizeimage += sizeimage;
 		plane->bytesperline = max(plane->bytesperline, bytesperline);
@@ -509,9 +509,11 @@ static int mxr_enum_dv_timings(struct file *file, void *fh,
 	struct mxr_device *mdev = layer->mdev;
 	int ret;
 
+	timings->pad = 0;
+
 	/* lock protects from changing sd_out */
 	mutex_lock(&mdev->mutex);
-	ret = v4l2_subdev_call(to_outsd(mdev), video, enum_dv_timings, timings);
+	ret = v4l2_subdev_call(to_outsd(mdev), pad, enum_dv_timings, timings);
 	mutex_unlock(&mdev->mutex);
 
 	return ret ? -EINVAL : 0;
@@ -528,7 +530,7 @@ static int mxr_s_dv_timings(struct file *file, void *fh,
 	mutex_lock(&mdev->mutex);
 
 	/* timings change cannot be done while there is an entity
-	 * dependant on output configuration
+	 * dependent on output configuration
 	 */
 	if (mdev->n_output > 0) {
 		mutex_unlock(&mdev->mutex);
@@ -567,9 +569,11 @@ static int mxr_dv_timings_cap(struct file *file, void *fh,
 	struct mxr_device *mdev = layer->mdev;
 	int ret;
 
+	cap->pad = 0;
+
 	/* lock protects from changing sd_out */
 	mutex_lock(&mdev->mutex);
-	ret = v4l2_subdev_call(to_outsd(mdev), video, dv_timings_cap, cap);
+	ret = v4l2_subdev_call(to_outsd(mdev), pad, dv_timings_cap, cap);
 	mutex_unlock(&mdev->mutex);
 
 	return ret ? -EINVAL : 0;
@@ -585,7 +589,7 @@ static int mxr_s_std(struct file *file, void *fh, v4l2_std_id norm)
 	mutex_lock(&mdev->mutex);
 
 	/* standard change cannot be done while there is an entity
-	 * dependant on output configuration
+	 * dependent on output configuration
 	 */
 	if (mdev->n_output > 0) {
 		mutex_unlock(&mdev->mutex);
@@ -922,22 +926,6 @@ static void buf_queue(struct vb2_buffer *vb)
 	mxr_dbg(mdev, "queuing buffer\n");
 }
 
-static void wait_lock(struct vb2_queue *vq)
-{
-	struct mxr_layer *layer = vb2_get_drv_priv(vq);
-
-	mxr_dbg(layer->mdev, "%s\n", __func__);
-	mutex_lock(&layer->mutex);
-}
-
-static void wait_unlock(struct vb2_queue *vq)
-{
-	struct mxr_layer *layer = vb2_get_drv_priv(vq);
-
-	mxr_dbg(layer->mdev, "%s\n", __func__);
-	mutex_unlock(&layer->mutex);
-}
-
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct mxr_layer *layer = vb2_get_drv_priv(vq);
@@ -945,11 +933,6 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	unsigned long flags;
 
 	mxr_dbg(mdev, "%s\n", __func__);
-
-	if (count == 0) {
-		mxr_dbg(mdev, "no output buffers queued\n");
-		return -EINVAL;
-	}
 
 	/* block any changes in output configuration */
 	mxr_output_get(mdev);
@@ -990,7 +973,7 @@ static void mxr_watchdog(unsigned long arg)
 	spin_unlock_irqrestore(&layer->enq_slock, flags);
 }
 
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct mxr_layer *layer = vb2_get_drv_priv(vq);
 	struct mxr_device *mdev = layer->mdev;
@@ -1036,14 +1019,13 @@ static int stop_streaming(struct vb2_queue *vq)
 	mxr_streamer_put(mdev);
 	/* allow changes in output configuration */
 	mxr_output_put(mdev);
-	return 0;
 }
 
 static struct vb2_ops mxr_video_qops = {
 	.queue_setup = queue_setup,
 	.buf_queue = buf_queue,
-	.wait_prepare = wait_unlock,
-	.wait_finish = wait_lock,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,
 };
@@ -1111,8 +1093,6 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 		.ioctl_ops = &mxr_ioctl_ops,
 	};
 	strlcpy(layer->vfd.name, name, sizeof(layer->vfd.name));
-	/* let framework control PRIORITY */
-	set_bit(V4L2_FL_USE_FH_PRIO, &layer->vfd.flags);
 
 	video_set_drvdata(&layer->vfd, layer);
 	layer->vfd.lock = &layer->mutex;
@@ -1124,7 +1104,9 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 		.drv_priv = layer,
 		.buf_struct_size = sizeof(struct mxr_buffer),
 		.ops = &mxr_video_qops,
+		.min_buffers_needed = 1,
 		.mem_ops = &vb2_dma_contig_memops,
+		.lock = &layer->mutex,
 	};
 
 	return layer;

@@ -13,9 +13,11 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include "common.h"
 
 /*
@@ -193,13 +195,6 @@ static const struct coreclk_soc_desc kirkwood_coreclks = {
 	.num_ratios = ARRAY_SIZE(kirkwood_coreclk_ratios),
 };
 
-static void __init kirkwood_coreclk_init(struct device_node *np)
-{
-	mvebu_coreclk_setup(np, &kirkwood_coreclks);
-}
-CLK_OF_DECLARE(kirkwood_core_clk, "marvell,kirkwood-core-clock",
-	       kirkwood_coreclk_init);
-
 static const struct coreclk_soc_desc mv88f6180_coreclks = {
 	.get_tclk_freq = kirkwood_get_tclk_freq,
 	.get_cpu_freq = mv88f6180_get_cpu_freq,
@@ -207,13 +202,6 @@ static const struct coreclk_soc_desc mv88f6180_coreclks = {
 	.ratios = kirkwood_coreclk_ratios,
 	.num_ratios = ARRAY_SIZE(kirkwood_coreclk_ratios),
 };
-
-static void __init mv88f6180_coreclk_init(struct device_node *np)
-{
-	mvebu_coreclk_setup(np, &mv88f6180_coreclks);
-}
-CLK_OF_DECLARE(mv88f6180_core_clk, "marvell,mv88f6180-core-clock",
-	       mv88f6180_coreclk_init);
 
 /*
  * Clock Gating Control
@@ -228,7 +216,6 @@ static const struct clk_gating_soc_desc kirkwood_gating_desc[] __initconst = {
 	{ "runit", NULL, 7, 0 },
 	{ "xor0", NULL, 8, 0 },
 	{ "audio", NULL, 9, 0 },
-	{ "powersave", "cpuclk", 11, 0 },
 	{ "sata0", NULL, 14, 0 },
 	{ "sata1", NULL, 15, 0 },
 	{ "xor1", NULL, 16, 0 },
@@ -239,9 +226,118 @@ static const struct clk_gating_soc_desc kirkwood_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init kirkwood_clk_gating_init(struct device_node *np)
+
+/*
+ * Clock Muxing Control
+ */
+
+struct clk_muxing_soc_desc {
+	const char *name;
+	const char **parents;
+	int num_parents;
+	int shift;
+	int width;
+	unsigned long flags;
+};
+
+struct clk_muxing_ctrl {
+	spinlock_t *lock;
+	struct clk **muxes;
+	int num_muxes;
+};
+
+static const char *powersave_parents[] = {
+	"cpuclk",
+	"ddrclk",
+};
+
+static const struct clk_muxing_soc_desc kirkwood_mux_desc[] __initconst = {
+	{ "powersave", powersave_parents, ARRAY_SIZE(powersave_parents),
+		11, 1, 0 },
+};
+
+#define to_clk_mux(_hw) container_of(_hw, struct clk_mux, hw)
+
+static struct clk *clk_muxing_get_src(
+	struct of_phandle_args *clkspec, void *data)
 {
-	mvebu_clk_gating_setup(np, kirkwood_gating_desc);
+	struct clk_muxing_ctrl *ctrl = (struct clk_muxing_ctrl *)data;
+	int n;
+
+	if (clkspec->args_count < 1)
+		return ERR_PTR(-EINVAL);
+
+	for (n = 0; n < ctrl->num_muxes; n++) {
+		struct clk_mux *mux =
+			to_clk_mux(__clk_get_hw(ctrl->muxes[n]));
+		if (clkspec->args[0] == mux->shift)
+			return ctrl->muxes[n];
+	}
+	return ERR_PTR(-ENODEV);
 }
-CLK_OF_DECLARE(kirkwood_clk_gating, "marvell,kirkwood-gating-clock",
-	       kirkwood_clk_gating_init);
+
+static void __init kirkwood_clk_muxing_setup(struct device_node *np,
+				   const struct clk_muxing_soc_desc *desc)
+{
+	struct clk_muxing_ctrl *ctrl;
+	void __iomem *base;
+	int n;
+
+	base = of_iomap(np, 0);
+	if (WARN_ON(!base))
+		return;
+
+	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	if (WARN_ON(!ctrl))
+		goto ctrl_out;
+
+	/* lock must already be initialized */
+	ctrl->lock = &ctrl_gating_lock;
+
+	/* Count, allocate, and register clock muxes */
+	for (n = 0; desc[n].name;)
+		n++;
+
+	ctrl->num_muxes = n;
+	ctrl->muxes = kcalloc(ctrl->num_muxes, sizeof(struct clk *),
+			GFP_KERNEL);
+	if (WARN_ON(!ctrl->muxes))
+		goto muxes_out;
+
+	for (n = 0; n < ctrl->num_muxes; n++) {
+		ctrl->muxes[n] = clk_register_mux(NULL, desc[n].name,
+				desc[n].parents, desc[n].num_parents,
+				desc[n].flags, base, desc[n].shift,
+				desc[n].width, desc[n].flags, ctrl->lock);
+		WARN_ON(IS_ERR(ctrl->muxes[n]));
+	}
+
+	of_clk_add_provider(np, clk_muxing_get_src, ctrl);
+
+	return;
+muxes_out:
+	kfree(ctrl);
+ctrl_out:
+	iounmap(base);
+}
+
+static void __init kirkwood_clk_init(struct device_node *np)
+{
+	struct device_node *cgnp =
+		of_find_compatible_node(NULL, NULL, "marvell,kirkwood-gating-clock");
+
+
+	if (of_device_is_compatible(np, "marvell,mv88f6180-core-clock"))
+		mvebu_coreclk_setup(np, &mv88f6180_coreclks);
+	else
+		mvebu_coreclk_setup(np, &kirkwood_coreclks);
+
+	if (cgnp) {
+		mvebu_clk_gating_setup(cgnp, kirkwood_gating_desc);
+		kirkwood_clk_muxing_setup(cgnp, kirkwood_mux_desc);
+	}
+}
+CLK_OF_DECLARE(kirkwood_clk, "marvell,kirkwood-core-clock",
+	       kirkwood_clk_init);
+CLK_OF_DECLARE(mv88f6180_clk, "marvell,mv88f6180-core-clock",
+	       kirkwood_clk_init);

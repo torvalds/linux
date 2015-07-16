@@ -23,7 +23,6 @@
  * who were very cooperative and answered my questions.
  */
 
-#include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -378,6 +377,7 @@ static void usb_8dev_rx_err_msg(struct usb_8dev_priv *priv,
 	case USB_8DEV_STATUSMSG_BUSOFF:
 		priv->can.state = CAN_STATE_BUS_OFF;
 		cf->can_id |= CAN_ERR_BUSOFF;
+		priv->can.can_stats.bus_off++;
 		can_bus_off(priv->netdev);
 		break;
 	case USB_8DEV_STATUSMSG_OVERRUN:
@@ -698,8 +698,8 @@ static netdev_tx_t usb_8dev_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 nofreecontext:
-	usb_unanchor_urb(urb);
 	usb_free_coherent(priv->udev, size, buf, urb->transfer_dma);
+	usb_free_urb(urb);
 
 	netdev_warn(netdev, "couldn't find free context");
 
@@ -888,6 +888,7 @@ static const struct net_device_ops usb_8dev_netdev_ops = {
 	.ndo_open = usb_8dev_open,
 	.ndo_stop = usb_8dev_close,
 	.ndo_start_xmit = usb_8dev_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct can_bittiming_const usb_8dev_bittiming_const = {

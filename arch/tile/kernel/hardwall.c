@@ -365,8 +365,7 @@ void __kprobes do_hardwall_trap(struct pt_regs* regs, int fault_num)
 	 * to quiesce.
 	 */
 	if (rect->teardown_in_progress) {
-		pr_notice("cpu %d: detected %s hardwall violation %#lx"
-		       " while teardown already in progress\n",
+		pr_notice("cpu %d: detected %s hardwall violation %#lx while teardown already in progress\n",
 			  cpu, hwt->name,
 			  (long)mfspr_XDN(hwt, DIRECTION_PROTECT));
 		goto done;
@@ -630,8 +629,7 @@ static void _hardwall_deactivate(struct hardwall_type *hwt,
 	struct thread_struct *ts = &task->thread;
 
 	if (cpumask_weight(&task->cpus_allowed) != 1) {
-		pr_err("pid %d (%s) releasing %s hardwall with"
-		       " an affinity mask containing %d cpus!\n",
+		pr_err("pid %d (%s) releasing %s hardwall with an affinity mask containing %d cpus!\n",
 		       task->pid, task->comm, hwt->name,
 		       cpumask_weight(&task->cpus_allowed));
 		BUG();
@@ -911,11 +909,8 @@ static void hardwall_destroy(struct hardwall_info *info)
 static int hardwall_proc_show(struct seq_file *sf, void *v)
 {
 	struct hardwall_info *info = sf->private;
-	char buf[256];
 
-	int rc = cpulist_scnprintf(buf, sizeof(buf), &info->cpumask);
-	buf[rc++] = '\n';
-	seq_write(sf, buf, rc);
+	seq_printf(sf, "%*pbl\n", cpumask_pr_args(&info->cpumask));
 	return 0;
 }
 
@@ -947,15 +942,15 @@ static void hardwall_remove_proc(struct hardwall_info *info)
 	remove_proc_entry(buf, info->type->proc_dir);
 }
 
-int proc_pid_hardwall(struct task_struct *task, char *buffer)
+int proc_pid_hardwall(struct seq_file *m, struct pid_namespace *ns,
+		      struct pid *pid, struct task_struct *task)
 {
 	int i;
 	int n = 0;
 	for (i = 0; i < HARDWALL_TYPES; ++i) {
 		struct hardwall_info *info = task->thread.hardwall[i].info;
 		if (info)
-			n += sprintf(&buffer[n], "%s: %d\n",
-				     info->type->name, info->id);
+			seq_printf(m, "%s: %d\n", info->type->name, info->id);
 	}
 	return n;
 }

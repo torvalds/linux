@@ -93,6 +93,7 @@ static const struct i2c_device_id ds2482_id[] = {
 	{ "ds2482", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, ds2482_id);
 
 static struct i2c_driver ds2482_driver = {
 	.driver = {
@@ -226,7 +227,7 @@ static int ds2482_wait_1wire_idle(struct ds2482_data *pdev)
 	}
 
 	if (retries >= DS2482_WAIT_IDLE_TIMEOUT)
-		printk(KERN_ERR "%s: timeout on channel %d\n",
+		pr_err("%s: timeout on channel %d\n",
 		       __func__, pdev->channel);
 
 	return temp;

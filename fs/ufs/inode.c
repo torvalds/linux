@@ -158,16 +158,16 @@ out:
 
 /**
  * ufs_inode_getfrag() - allocate new fragment(s)
- * @inode - pointer to inode
- * @fragment - number of `fragment' which hold pointer
+ * @inode: pointer to inode
+ * @fragment: number of `fragment' which hold pointer
  *   to new allocated fragment(s)
- * @new_fragment - number of new allocated fragment(s)
- * @required - how many fragment(s) we require
- * @err - we set it if something wrong
- * @phys - pointer to where we save physical number of new allocated fragments,
+ * @new_fragment: number of new allocated fragment(s)
+ * @required: how many fragment(s) we require
+ * @err: we set it if something wrong
+ * @phys: pointer to where we save physical number of new allocated fragments,
  *   NULL if we allocate not data(indirect blocks for example).
- * @new - we set it if we allocate new block
- * @locked_page - for ufs_new_fragments()
+ * @new: we set it if we allocate new block
+ * @locked_page: for ufs_new_fragments()
  */
 static struct buffer_head *
 ufs_inode_getfrag(struct inode *inode, u64 fragment,
@@ -315,16 +315,16 @@ repeat2:
 
 /**
  * ufs_inode_getblock() - allocate new block
- * @inode - pointer to inode
- * @bh - pointer to block which hold "pointer" to new allocated block
- * @fragment - number of `fragment' which hold pointer
+ * @inode: pointer to inode
+ * @bh: pointer to block which hold "pointer" to new allocated block
+ * @fragment: number of `fragment' which hold pointer
  *   to new allocated block
- * @new_fragment - number of new allocated fragment
+ * @new_fragment: number of new allocated fragment
  *  (block will hold this fragment and also uspi->s_fpb-1)
- * @err - see ufs_inode_getfrag()
- * @phys - see ufs_inode_getfrag()
- * @new - see ufs_inode_getfrag()
- * @locked_page - see ufs_inode_getfrag()
+ * @err: see ufs_inode_getfrag()
+ * @phys: see ufs_inode_getfrag()
+ * @new: see ufs_inode_getfrag()
+ * @locked_page: see ufs_inode_getfrag()
  */
 static struct buffer_head *
 ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
@@ -572,9 +572,10 @@ static void ufs_set_inode_ops(struct inode *inode)
 		inode->i_fop = &ufs_dir_operations;
 		inode->i_mapping->a_ops = &ufs_aops;
 	} else if (S_ISLNK(inode->i_mode)) {
-		if (!inode->i_blocks)
+		if (!inode->i_blocks) {
 			inode->i_op = &ufs_fast_symlink_inode_operations;
-		else {
+			inode->i_link = (char *)UFS_I(inode)->i_u1.i_symlink;
+		} else {
 			inode->i_op = &ufs_symlink_inode_operations;
 			inode->i_mapping->a_ops = &ufs_aops;
 		}
@@ -885,7 +886,7 @@ void ufs_evict_inode(struct inode * inode)
 	if (!inode->i_nlink && !is_bad_inode(inode))
 		want_delete = 1;
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	if (want_delete) {
 		loff_t old_i_size;
 		/*UFS_I(inode)->i_dtime = CURRENT_TIME;*/
@@ -904,7 +905,7 @@ void ufs_evict_inode(struct inode * inode)
 
 	if (want_delete) {
 		lock_ufs(inode->i_sb);
-		ufs_free_inode (inode);
+		ufs_free_inode(inode);
 		unlock_ufs(inode->i_sb);
 	}
 }

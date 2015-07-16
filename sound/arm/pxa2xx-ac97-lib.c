@@ -152,9 +152,9 @@ static inline void pxa_ac97_cold_pxa27x(void)
 	gsr_bits = 0;
 
 	/* PXA27x Developers Manual section 13.5.2.2.1 */
-	clk_enable(ac97conf_clk);
+	clk_prepare_enable(ac97conf_clk);
 	udelay(5);
-	clk_disable(ac97conf_clk);
+	clk_disable_unprepare(ac97conf_clk);
 	GCR = GCR_COLD_RST | GCR_WARM_RST;
 }
 #endif
@@ -299,14 +299,14 @@ static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id)
 int pxa2xx_ac97_hw_suspend(void)
 {
 	GCR |= GCR_ACLINK_OFF;
-	clk_disable(ac97_clk);
+	clk_disable_unprepare(ac97_clk);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_suspend);
 
 int pxa2xx_ac97_hw_resume(void)
 {
-	clk_enable(ac97_clk);
+	clk_prepare_enable(ac97_clk);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_resume);
@@ -368,7 +368,7 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 		goto err_clk;
 	}
 
-	ret = clk_enable(ac97_clk);
+	ret = clk_prepare_enable(ac97_clk);
 	if (ret)
 		goto err_clk2;
 
@@ -403,7 +403,7 @@ void pxa2xx_ac97_hw_remove(struct platform_device *dev)
 		clk_put(ac97conf_clk);
 		ac97conf_clk = NULL;
 	}
-	clk_disable(ac97_clk);
+	clk_disable_unprepare(ac97_clk);
 	clk_put(ac97_clk);
 	ac97_clk = NULL;
 }

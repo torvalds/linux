@@ -29,7 +29,6 @@ struct cpuinfo_data {
 };
 
 extern int root_mountflags, end_mem;
-extern int running_on_hw;
 
 void setup_processor(void);
 void __init setup_arch_memory(void);

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -564,6 +564,17 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 								 acpi_operand_object,
 								 acpi_gbl_root_node);
 					status = AE_OK;
+				} else if (parent_op->common.aml_opcode ==
+					   AML_EXTERNAL_OP) {
+
+					/* TBD: May only be temporary */
+
+					obj_desc =
+					    acpi_ut_create_string_object((acpi_size) name_length);
+
+					strncpy(obj_desc->string.pointer,
+						name_string, name_length);
+					status = AE_OK;
 				} else {
 					/*
 					 * We just plain didn't find it -- which is a
@@ -727,27 +738,26 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 		index++;
 	}
 
+	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			  "NumOperands %d, ArgCount %d, Index %d\n",
+			  walk_state->num_operands, arg_count, index));
+
+	/* Create the interpreter arguments, in reverse order */
+
 	index--;
-
-	/* It is the appropriate order to get objects from the Result stack */
-
 	for (i = 0; i < arg_count; i++) {
 		arg = arguments[index];
-
-		/* Force the filling of the operand stack in inverse order */
-
-		walk_state->operand_index = (u8) index;
+		walk_state->operand_index = (u8)index;
 
 		status = acpi_ds_create_operand(walk_state, arg, index);
 		if (ACPI_FAILURE(status)) {
 			goto cleanup;
 		}
 
-		index--;
-
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-				  "Arg #%u (%p) done, Arg1=%p\n", index, arg,
-				  first_arg));
+				  "Created Arg #%u (%p) %u args total\n",
+				  index, arg, arg_count));
+		index--;
 	}
 
 	return_ACPI_STATUS(status);

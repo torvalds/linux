@@ -1,0 +1,101 @@
+What:		install/error
+Date:		7/18/2014
+KernelVersion: 	TBD
+Contact:	sparmaintainer@unisys.com
+Description:	used to send the ID of a string that should be displayed on
+		s-Par's automatic installation progress screen when an error
+		is encountered during installation. This field has no effect
+		if not in installation mode.
+Users:		sparmaintainer@unisys.com
+
+What:		install/remainingsteps
+Date:		7/18/2014
+KernelVersion: 	TBD
+Contact:	sparmaintainer@unisys.com
+Description:	used to set the value of the progress bar on the s-Par automatic
+		installation progress screen. This field has no effect if not in
+		installation mode.
+Users:		sparmaintainer@unisys.com
+
+What:		install/textid
+Date:		7/18/2014
+KernelVersion: 	TBD
+Contact:	sparmaintainer@unisys.com
+Description:	used to send the ID of a string that should be displayed on
+		s-Par's automatic installation progress screen. Setting this
+		field when not in installation mode (boottotool was set on
+		the previous guest boot) has no effect.
+Users:		sparmaintainer@unisys.com
+
+What:		install/boottotool
+Date:		7/18/2014
+KernelVersion: 	TBD
+Contact:	sparmaintainer@unisys.com
+Description:	The boottotool flag controls s-Par behavior on the next boot of
+		this guest. Setting the flag will cause the guest to boot from
+		the utility and installation image, which will use the value in
+		the toolaction field to determine what operation is being
+		requested.
+Users:		sparmaintainer@unisys.com
+
+What:		install/toolaction
+Date:		7/18/2014
+KernelVersion: 	TBD
+Contact:	sparmaintainer@unisys.com
+Description:	This field is used to tell s-Par which type of recovery tool
+		action to perform on the next guest boot-up. The meaning of the
+		value is dependent on the type of installation software used to
+		commission the guest.
+Users:		sparmaintainer@unisys.com
+
+What:		guest/chipsetready
+Date:		7/18/2014
+KernelVersion: 	TBD
+Contact:	sparmaintainer@unisys.com
+Description:	This entry is used by Unisys application software on the guest
+		to acknowledge completion of specific events for integration
+		purposes, but these acknowledgements are not required for the
+		guest to operate correctly. The interface accepts one of two
+		strings: MODULES_LOADED to indicate that the s-Par driver
+		modules have been loaded successfully, or CALLHOMEDISK_MOUNTED,
+		which indicates that the disk used to support call home services
+		has been successfully mounted.
+Users:		sparmaintainer@unisys.com
+
+What:		parahotplug/deviceenabled
+Date:		7/18/2014
+KernelVersion: 	TBD
+Contact:	sparmaintainer@unisys.com
+Description:	This entry is used by a Unisys support script installed on the
+		guest, and triggered by a udev event. The support script is
+		responsible for enabling and disabling SR-IOV devices when the
+		PF device is being recovered in another guest.
+
+		Some SR-IOV devices have problems when the PF is reset without
+		first disabling all VFs attached to that PF. s-Par handles this
+		situation by sending a message to guests using these VFs, and
+		the script will disable the device. When the PF is recovered,
+		another message is sent to the guests to re-enable the VFs.
+
+		The parahotplug/deviceenabled interface is used to acknowledge
+		the recovery message.
+Users:		sparmaintainer@unisys.com
+
+What:		parahotplug/devicedisabled
+Date:		7/18/2014
+KernelVersion: 	TBD
+Contact:	sparmaintainer@unisys.com
+Description:	This entry is used by a Unisys support script installed on the
+		guest, and triggered by a udev event. The support script is
+		responsible for enabling and disabling SR-IOV devices when the
+		PF device is being recovered in another guest.
+
+		Some SR-IOV devices have problems when the PF is reset without
+		first disabling all VFs attached to that PF. s-Par handles this
+		situation by sending a message to guests using these VFs, and
+		the script will disable the device. When the PF is recovered,
+		another message is sent to the guests to re-enable the VFs.
+
+		The parahotplug/devicedisaabled interface is used to acknowledge
+		the initial recovery message.
+Users:		sparmaintainer@unisys.com

@@ -87,7 +87,9 @@ struct media_device {
 /* media_devnode to media_device */
 #define to_media_device(node) container_of(node, struct media_device, devnode)
 
-int __must_check media_device_register(struct media_device *mdev);
+int __must_check __media_device_register(struct media_device *mdev,
+					 struct module *owner);
+#define media_device_register(mdev) __media_device_register(mdev, THIS_MODULE)
 void media_device_unregister(struct media_device *mdev);
 
 int __must_check media_device_register_entity(struct media_device *mdev,

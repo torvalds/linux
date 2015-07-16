@@ -162,14 +162,16 @@ err2:
  */
 int hfs_cat_keycmp(const btree_key *key1, const btree_key *key2)
 {
-	int retval;
+	__be32 k1p, k2p;
 
-	retval = be32_to_cpu(key1->cat.ParID) - be32_to_cpu(key2->cat.ParID);
-	if (!retval)
-		retval = hfs_strcmp(key1->cat.CName.name, key1->cat.CName.len,
-				    key2->cat.CName.name, key2->cat.CName.len);
+	k1p = key1->cat.ParID;
+	k2p = key2->cat.ParID;
 
-	return retval;
+	if (k1p != k2p)
+		return be32_to_cpu(k1p) < be32_to_cpu(k2p) ? -1 : 1;
+
+	return hfs_strcmp(key1->cat.CName.name, key1->cat.CName.len,
+			  key2->cat.CName.name, key2->cat.CName.len);
 }
 
 /* Try to get a catalog entry for given catalog id */

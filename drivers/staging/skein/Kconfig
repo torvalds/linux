@@ -1,0 +1,16 @@
+config CRYPTO_SKEIN
+	tristate "Skein digest algorithm"
+	depends on (X86 || UML_X86) && 64BIT && CRYPTO
+	select CRYPTO_HASH
+	select CRYPTO_ALGAPI
+	help
+	  Skein secure hash algorithm is one of 5 finalists from the NIST SHA3
+	  competition.
+
+	  Skein is optimized for modern, 64bit processors and is highly
+	  customizable.  See:
+
+	  http://www.skein-hash.info/sites/default/files/skein1.3.pdf
+
+	  for more information. This module also contains the threefish block
+	  cipher algorithm.

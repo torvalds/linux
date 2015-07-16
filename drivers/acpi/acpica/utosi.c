@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,31 @@
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utosi")
 
+/******************************************************************************
+ *
+ * ACPICA policy for new _OSI strings:
+ *
+ * It is the stated policy of ACPICA that new _OSI strings will be integrated
+ * into this module as soon as possible after they are defined. It is strongly
+ * recommended that all ACPICA hosts mirror this policy and integrate any
+ * changes to this module as soon as possible. There are several historical
+ * reasons behind this policy:
+ *
+ * 1) New BIOSs tend to test only the case where the host responds TRUE to
+ *    the latest version of Windows, which would respond to the latest/newest
+ *    _OSI string. Not responding TRUE to the latest version of Windows will
+ *    risk executing untested code paths throughout the DSDT and SSDTs.
+ *
+ * 2) If a new _OSI string is recognized only after a significant delay, this
+ *    has the potential to cause problems on existing working machines because
+ *    of the possibility that a new and different path through the ASL code
+ *    will be executed.
+ *
+ * 3) New _OSI strings are tending to come out about once per year. A delay
+ *    in recognizing a new string for a significant amount of time risks the
+ *    release of another string which only compounds the initial problem.
+ *
+ *****************************************************************************/
 /*
  * Strings supported by the _OSI predefined control method (which is
  * implemented internally within this module.)
@@ -74,6 +99,8 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
 	{"Windows 2006 SP2", NULL, 0, ACPI_OSI_WIN_VISTA_SP2},	/* Windows Vista SP2 - Added 09/2010 */
 	{"Windows 2009", NULL, 0, ACPI_OSI_WIN_7},	/* Windows 7 and Server 2008 R2 - Added 09/2009 */
 	{"Windows 2012", NULL, 0, ACPI_OSI_WIN_8},	/* Windows 8 and Server 2012 - Added 08/2012 */
+	{"Windows 2013", NULL, 0, ACPI_OSI_WIN_8},	/* Windows 8.1 and Server 2012 R2 - Added 01/2014 */
+	{"Windows 2015", NULL, 0, ACPI_OSI_WIN_10},	/* Windows 10 - Added 03/2015 */
 
 	/* Feature Group Strings */
 
@@ -205,8 +232,7 @@ acpi_status acpi_ut_install_interface(acpi_string interface_name)
 		return (AE_NO_MEMORY);
 	}
 
-	interface_info->name =
-	    ACPI_ALLOCATE_ZEROED(ACPI_STRLEN(interface_name) + 1);
+	interface_info->name = ACPI_ALLOCATE_ZEROED(strlen(interface_name) + 1);
 	if (!interface_info->name) {
 		ACPI_FREE(interface_info);
 		return (AE_NO_MEMORY);
@@ -214,7 +240,7 @@ acpi_status acpi_ut_install_interface(acpi_string interface_name)
 
 	/* Initialize new info and insert at the head of the global list */
 
-	ACPI_STRCPY(interface_info->name, interface_name);
+	strcpy(interface_info->name, interface_name);
 	interface_info->flags = ACPI_OSI_DYNAMIC;
 	interface_info->next = acpi_gbl_supported_interfaces;
 
@@ -242,7 +268,7 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 
 	previous_interface = next_interface = acpi_gbl_supported_interfaces;
 	while (next_interface) {
-		if (!ACPI_STRCMP(interface_name, next_interface->name)) {
+		if (!strcmp(interface_name, next_interface->name)) {
 
 			/* Found: name is in either the static list or was added at runtime */
 
@@ -346,7 +372,7 @@ struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name)
 
 	next_interface = acpi_gbl_supported_interfaces;
 	while (next_interface) {
-		if (!ACPI_STRCMP(interface_name, next_interface->name)) {
+		if (!strcmp(interface_name, next_interface->name)) {
 			return (next_interface);
 		}
 

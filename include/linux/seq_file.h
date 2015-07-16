@@ -43,6 +43,21 @@ struct seq_operations {
 #define SEQ_SKIP 1
 
 /**
+ * seq_has_overflowed - check if the buffer has overflowed
+ * @m: the seq_file handle
+ *
+ * seq_files have a buffer which may overflow. When this happens a larger
+ * buffer is reallocated and all the data will be printed again.
+ * The overflow state is true when m->count == m->size.
+ *
+ * Returns true if the buffer received more than it can hold.
+ */
+static inline bool seq_has_overflowed(struct seq_file *m)
+{
+	return m->count == m->size;
+}
+
+/**
  * seq_get_buf - get buffer to write arbitrary data to
  * @m: the seq_file handle
  * @bufp: the beginning of the buffer is stored here
@@ -108,34 +123,10 @@ __printf(2, 3) int seq_printf(struct seq_file *, const char *, ...);
 __printf(2, 0) int seq_vprintf(struct seq_file *, const char *, va_list args);
 
 int seq_path(struct seq_file *, const struct path *, const char *);
+int seq_file_path(struct seq_file *, struct file *, const char *);
 int seq_dentry(struct seq_file *, struct dentry *, const char *);
 int seq_path_root(struct seq_file *m, const struct path *path,
 		  const struct path *root, const char *esc);
-int seq_bitmap(struct seq_file *m, const unsigned long *bits,
-				   unsigned int nr_bits);
-static inline int seq_cpumask(struct seq_file *m, const struct cpumask *mask)
-{
-	return seq_bitmap(m, cpumask_bits(mask), nr_cpu_ids);
-}
-
-static inline int seq_nodemask(struct seq_file *m, nodemask_t *mask)
-{
-	return seq_bitmap(m, mask->bits, MAX_NUMNODES);
-}
-
-int seq_bitmap_list(struct seq_file *m, const unsigned long *bits,
-		unsigned int nr_bits);
-
-static inline int seq_cpumask_list(struct seq_file *m,
-				   const struct cpumask *mask)
-{
-	return seq_bitmap_list(m, cpumask_bits(mask), nr_cpu_ids);
-}
-
-static inline int seq_nodemask_list(struct seq_file *m, nodemask_t *mask)
-{
-	return seq_bitmap_list(m, mask->bits, MAX_NUMNODES);
-}
 
 int single_open(struct file *, int (*)(struct seq_file *, void *), void *);
 int single_open_size(struct file *, int (*)(struct seq_file *, void *), void *, size_t);

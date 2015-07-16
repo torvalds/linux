@@ -1,7 +1,7 @@
 /*
  * This file contains definitions for mwifiex USB interface driver.
  *
- * Copyright (C) 2012, Marvell International Ltd.
+ * Copyright (C) 2012-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -22,19 +22,30 @@
 
 #include <linux/usb.h>
 
-#define USB8797_VID		0x1286
+#define USB8XXX_VID		0x1286
+
+#define USB8766_PID_1		0x2041
+#define USB8766_PID_2		0x2042
 #define USB8797_PID_1		0x2043
 #define USB8797_PID_2		0x2044
+#define USB8897_PID_1		0x2045
+#define USB8897_PID_2		0x2046
+#define USB8801_PID_1		0x2049
+#define USB8801_PID_2		0x204a
 
-#define USB8797_FW_DNLD		1
-#define USB8797_FW_READY	2
-#define USB8797_FW_MAX_RETRY	3
+
+#define USB8XXX_FW_DNLD		1
+#define USB8XXX_FW_READY	2
+#define USB8XXX_FW_MAX_RETRY	3
 
 #define MWIFIEX_TX_DATA_URB	6
 #define MWIFIEX_RX_DATA_URB	6
 #define MWIFIEX_USB_TIMEOUT	100
 
+#define USB8766_DEFAULT_FW_NAME	"mrvl/usb8766_uapsta.bin"
 #define USB8797_DEFAULT_FW_NAME	"mrvl/usb8797_uapsta.bin"
+#define USB8801_DEFAULT_FW_NAME	"mrvl/usb8801_uapsta.bin"
+#define USB8897_DEFAULT_FW_NAME	"mrvl/usb8897_uapsta.bin"
 
 #define FW_DNLD_TX_BUF_SIZE	620
 #define FW_DNLD_RX_BUF_SIZE	2048
@@ -88,12 +99,5 @@ struct fw_data {
 	__le32 seq_num;
 	u8 data[1];
 };
-
-/* This function is called after the card has woken up. */
-static inline int
-mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
-{
-	return 0;
-}
 
 #endif /*_MWIFIEX_USB_H */

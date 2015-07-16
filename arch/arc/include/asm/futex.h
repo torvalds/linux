@@ -16,12 +16,15 @@
 #include <linux/uaccess.h>
 #include <asm/errno.h>
 
+#ifdef CONFIG_ARC_HAS_LLSC
+
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)\
 							\
 	__asm__ __volatile__(				\
-	"1:	ld  %1, [%2]			\n"	\
+	"1:	llock	%1, [%2]		\n"	\
 		insn				"\n"	\
-	"2:	st  %0, [%2]			\n"	\
+	"2:	scond	%0, [%2]		\n"	\
+	"	bnz	1b			\n"	\
 	"	mov %0, 0			\n"	\
 	"3:					\n"	\
 	"	.section .fixup,\"ax\"		\n"	\
@@ -39,6 +42,33 @@
 	: "r" (uaddr), "r" (oparg), "ir" (-EFAULT)	\
 	: "cc", "memory")
 
+#else	/* !CONFIG_ARC_HAS_LLSC */
+
+#define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)\
+							\
+	__asm__ __volatile__(				\
+	"1:	ld	%1, [%2]		\n"	\
+		insn				"\n"	\
+	"2:	st	%0, [%2]		\n"	\
+	"	mov %0, 0			\n"	\
+	"3:					\n"	\
+	"	.section .fixup,\"ax\"		\n"	\
+	"	.align  4			\n"	\
+	"4:	mov %0, %4			\n"	\
+	"	b   3b				\n"	\
+	"	.previous			\n"	\
+	"	.section __ex_table,\"a\"	\n"	\
+	"	.align  4			\n"	\
+	"	.word   1b, 4b			\n"	\
+	"	.word   2b, 4b			\n"	\
+	"	.previous			\n"	\
+							\
+	: "=&r" (ret), "=&r" (oldval)			\
+	: "r" (uaddr), "r" (oparg), "ir" (-EFAULT)	\
+	: "cc", "memory")
+
+#endif
+
 static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 {
 	int op = (encoded_op >> 28) & 7;
@@ -53,7 +83,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	pagefault_disable();	/* implies preempt_disable() */
+	pagefault_disable();
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -75,7 +105,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 		ret = -ENOSYS;
 	}
 
-	pagefault_enable();	/* subsumes preempt_enable() */
+	pagefault_enable();
 
 	if (!ret) {
 		switch (cmp) {
@@ -104,7 +134,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	return ret;
 }
 
-/* Compare-xchg with preemption disabled.
+/* Compare-xchg with pagefaults disabled.
  *  Notes:
  *      -Best-Effort: Exchg happens only if compare succeeds.
  *          If compare fails, returns; leaving retry/looping to upper layers
@@ -121,13 +151,19 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval,
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	pagefault_disable();	/* implies preempt_disable() */
+	pagefault_disable();
 
-	/* TBD : can use llock/scond */
 	__asm__ __volatile__(
-	"1:	ld    %0, [%3]	\n"
-	"	brne  %0, %1, 3f	\n"
-	"2:	st    %2, [%3]	\n"
+#ifdef CONFIG_ARC_HAS_LLSC
+	"1:	llock	%0, [%3]		\n"
+	"	brne	%0, %1, 3f		\n"
+	"2:	scond	%2, [%3]		\n"
+	"	bnz	1b			\n"
+#else
+	"1:	ld	%0, [%3]		\n"
+	"	brne	%0, %1, 3f		\n"
+	"2:	st	%2, [%3]		\n"
+#endif
 	"3:	\n"
 	"	.section .fixup,\"ax\"	\n"
 	"4:	mov %0, %4	\n"
@@ -142,7 +178,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval,
 	: "r"(oldval), "r"(newval), "r"(uaddr), "ir"(-EFAULT)
 	: "cc", "memory");
 
-	pagefault_enable();	/* subsumes preempt_enable() */
+	pagefault_enable();
 
 	*uval = val;
 	return val;

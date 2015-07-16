@@ -123,26 +123,31 @@
 /* trigger flags */
 /* These flags are used in comedi_trig structures */
 
-#define TRIG_BOGUS	0x0001	/* do the motions */
 #define TRIG_DITHER	0x0002	/* enable dithering */
 #define TRIG_DEGLITCH	0x0004	/* enable deglitching */
-	/*#define TRIG_RT       0x0008 *//* perform op in real time */
 #define TRIG_CONFIG	0x0010	/* perform configuration, not triggering */
-#define TRIG_WAKE_EOS	0x0020	/* wake up on end-of-scan events */
-	/*#define TRIG_WRITE    0x0040*//* write to bidirectional devices */
 
 /* command flags */
 /* These flags are used in comedi_cmd structures */
 
+#define CMDF_BOGUS		0x00000001	/* do the motions */
+
 /* try to use a real-time interrupt while performing command */
 #define CMDF_PRIORITY		0x00000008
 
-#define TRIG_RT		CMDF_PRIORITY	/* compatibility definition */
+/* wake up on end-of-scan events */
+#define CMDF_WAKE_EOS		0x00000020
 
 #define CMDF_WRITE		0x00000040
-#define TRIG_WRITE	CMDF_WRITE	/* compatibility definition */
 
 #define CMDF_RAWDATA		0x00000080
+
+/* timer rounding definitions */
+#define CMDF_ROUND_MASK		0x00030000
+#define CMDF_ROUND_NEAREST	0x00000000
+#define CMDF_ROUND_DOWN		0x00010000
+#define CMDF_ROUND_UP		0x00020000
+#define CMDF_ROUND_UP_NEXT	0x00030000
 
 #define COMEDI_EV_START		0x00040000
 #define COMEDI_EV_SCAN_BEGIN	0x00080000
@@ -150,11 +155,16 @@
 #define COMEDI_EV_SCAN_END	0x00200000
 #define COMEDI_EV_STOP		0x00400000
 
-#define TRIG_ROUND_MASK		0x00030000
-#define TRIG_ROUND_NEAREST	0x00000000
-#define TRIG_ROUND_DOWN		0x00010000
-#define TRIG_ROUND_UP		0x00020000
-#define TRIG_ROUND_UP_NEXT	0x00030000
+/* compatibility definitions */
+#define TRIG_BOGUS		CMDF_BOGUS
+#define TRIG_RT			CMDF_PRIORITY
+#define TRIG_WAKE_EOS		CMDF_WAKE_EOS
+#define TRIG_WRITE		CMDF_WRITE
+#define TRIG_ROUND_MASK		CMDF_ROUND_MASK
+#define TRIG_ROUND_NEAREST	CMDF_ROUND_NEAREST
+#define TRIG_ROUND_DOWN		CMDF_ROUND_DOWN
+#define TRIG_ROUND_UP		CMDF_ROUND_UP
+#define TRIG_ROUND_UP_NEXT	CMDF_ROUND_UP_NEXT
 
 /* trigger sources */
 
@@ -207,7 +217,7 @@
 #define SDF_RUNNING	0x08000000	/* subdevice is acquiring data */
 #define SDF_LSAMPL	0x10000000	/* subdevice uses 32-bit samples */
 #define SDF_PACKED	0x20000000	/* subdevice can do packed DIO */
-/* re recyle these flags for PWM */
+/* re recycle these flags for PWM */
 #define SDF_PWM_COUNTER SDF_MODE0	/* PWM can automatically switch off */
 #define SDF_PWM_HBRIDGE SDF_MODE1	/* PWM is signed (H-bridge) */
 
@@ -357,6 +367,8 @@ enum comedi_support_level {
 #define COMEDI_BUFCONFIG _IOR(CIO, 13, struct comedi_bufconfig)
 #define COMEDI_BUFINFO _IOWR(CIO, 14, struct comedi_bufinfo)
 #define COMEDI_POLL _IO(CIO, 15)
+#define COMEDI_SETRSUBD _IO(CIO, 16)
+#define COMEDI_SETWSUBD _IO(CIO, 17)
 
 /* structures */
 
@@ -504,17 +516,6 @@ struct comedi_bufinfo {
 
 #define COMEDI_MIN_SPEED	((unsigned int)0xffffffff)
 
-/* callback stuff */
-/* only relevant to kernel modules. */
-
-#define COMEDI_CB_EOS		1	/* end of scan */
-#define COMEDI_CB_EOA		2	/* end of acquisition/output */
-#define COMEDI_CB_BLOCK		4	/* data has arrived:
-					 * wakes up read() / write() */
-#define COMEDI_CB_EOBUF		8	/* DEPRECATED: end of buffer */
-#define COMEDI_CB_ERROR		16	/* card error during acquisition */
-#define COMEDI_CB_OVERFLOW	32	/* buffer overflow/underflow */
-
 /**********************************************************/
 /* everything after this line is ALPHA */
 /**********************************************************/
@@ -551,21 +552,8 @@ enum i8254_mode {
 	I8254_BINARY = 0
 };
 
-static inline unsigned NI_USUAL_PFI_SELECT(unsigned pfi_channel)
-{
-	if (pfi_channel < 10)
-		return 0x1 + pfi_channel;
-	else
-		return 0xb + pfi_channel;
-}
-
-static inline unsigned NI_USUAL_RTSI_SELECT(unsigned rtsi_channel)
-{
-	if (rtsi_channel < 7)
-		return 0xb + rtsi_channel;
-	else
-		return 0x1b;
-}
+#define NI_USUAL_PFI_SELECT(x)	(((x) < 10) ? (0x1 + (x)) : (0xb + (x)))
+#define NI_USUAL_RTSI_SELECT(x)	(((x) < 7) ? (0xb + (x)) : 0x1b)
 
 /* mode bits for NI general-purpose counters, set with
  * INSN_CONFIG_SET_COUNTER_MODE */
@@ -659,20 +647,14 @@ enum ni_gpct_clock_source_bits {
 	NI_GPCT_PRESCALE_X8_CLOCK_SRC_BITS = 0x20000000,
 	NI_GPCT_INVERT_CLOCK_SRC_BIT = 0x80000000
 };
-static inline unsigned NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(unsigned n)
-{
-	/* NI 660x-specific */
-	return 0x10 + n;
-}
-static inline unsigned NI_GPCT_RTSI_CLOCK_SRC_BITS(unsigned n)
-{
-	return 0x18 + n;
-}
-static inline unsigned NI_GPCT_PFI_CLOCK_SRC_BITS(unsigned n)
-{
-	/* no pfi on NI 660x */
-	return 0x20 + n;
-}
+
+/* NI 660x-specific */
+#define NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(x)	(0x10 + (x))
+
+#define NI_GPCT_RTSI_CLOCK_SRC_BITS(x)		(0x18 + (x))
+
+/* no pfi on NI 660x */
+#define NI_GPCT_PFI_CLOCK_SRC_BITS(x)		(0x20 + (x))
 
 /* Possibilities for setting a gate source with
 INSN_CONFIG_SET_GATE_SRC when using NI general-purpose counters.
@@ -698,22 +680,11 @@ enum ni_gpct_gate_select {
 	 * known. */
 	NI_GPCT_DISABLED_GATE_SELECT = 0x8000,
 };
-static inline unsigned NI_GPCT_GATE_PIN_GATE_SELECT(unsigned n)
-{
-	return 0x102 + n;
-}
-static inline unsigned NI_GPCT_RTSI_GATE_SELECT(unsigned n)
-{
-	return NI_USUAL_RTSI_SELECT(n);
-}
-static inline unsigned NI_GPCT_PFI_GATE_SELECT(unsigned n)
-{
-	return NI_USUAL_PFI_SELECT(n);
-}
-static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n)
-{
-	return 0x202 + n;
-}
+
+#define NI_GPCT_GATE_PIN_GATE_SELECT(x)		(0x102 + (x))
+#define NI_GPCT_RTSI_GATE_SELECT(x)		NI_USUAL_RTSI_SELECT(x)
+#define NI_GPCT_PFI_GATE_SELECT(x)		NI_USUAL_PFI_SELECT(x)
+#define NI_GPCT_UP_DOWN_PIN_GATE_SELECT(x)	(0x202 + (x))
 
 /* Possibilities for setting a source with
 INSN_CONFIG_SET_OTHER_SRC when using NI general-purpose counters. */
@@ -722,15 +693,14 @@ enum ni_gpct_other_index {
 	NI_GPCT_SOURCE_ENCODER_B,
 	NI_GPCT_SOURCE_ENCODER_Z
 };
+
 enum ni_gpct_other_select {
 	/* m-series gates */
 	/* Still unknown, probably only need NI_GPCT_PFI_OTHER_SELECT */
 	NI_GPCT_DISABLED_OTHER_SELECT = 0x8000,
 };
-static inline unsigned NI_GPCT_PFI_OTHER_SELECT(unsigned n)
-{
-	return NI_USUAL_PFI_SELECT(n);
-}
+
+#define NI_GPCT_PFI_OTHER_SELECT(x)	NI_USUAL_PFI_SELECT(x)
 
 /* start sources for ni general-purpose counters for use with
 INSN_CONFIG_ARM */
@@ -777,10 +747,8 @@ enum ni_mio_clock_source {
 	NI_MIO_PLL_PXI10_CLOCK = 3,
 	NI_MIO_PLL_RTSI0_CLOCK = 4
 };
-static inline unsigned NI_MIO_PLL_RTSI_CLOCK(unsigned rtsi_channel)
-{
-	return NI_MIO_PLL_RTSI0_CLOCK + rtsi_channel;
-}
+
+#define NI_MIO_PLL_RTSI_CLOCK(x)	(NI_MIO_PLL_RTSI0_CLOCK + (x))
 
 /* Signals which can be routed to an NI RTSI pin with INSN_CONFIG_SET_ROUTING.
  The numbers assigned are not arbitrary, they correspond to the bits required
@@ -798,10 +766,8 @@ enum ni_rtsi_routing {
 	NI_RTSI_OUTPUT_RTSI_OSC = 12	/* pre-m-series always have RTSI
 					 * clock on line 7 */
 };
-static inline unsigned NI_RTSI_OUTPUT_RTSI_BRD(unsigned n)
-{
-	return NI_RTSI_OUTPUT_RTSI_BRD_0 + n;
-}
+
+#define NI_RTSI_OUTPUT_RTSI_BRD(x)	(NI_RTSI_OUTPUT_RTSI_BRD_0 + (x))
 
 /* Signals which can be routed to an NI PFI pin on an m-series board with
  * INSN_CONFIG_SET_ROUTING.  These numbers are also returned by
@@ -834,10 +800,8 @@ enum ni_pfi_routing {
 	NI_PFI_OUTPUT_CDI_SAMPLE = 29,
 	NI_PFI_OUTPUT_CDO_UPDATE = 30
 };
-static inline unsigned NI_PFI_OUTPUT_RTSI(unsigned rtsi_channel)
-{
-	return NI_PFI_OUTPUT_RTSI0 + rtsi_channel;
-}
+
+#define NI_PFI_OUTPUT_RTSI(x)		(NI_PFI_OUTPUT_RTSI0 + (x))
 
 /* Signals which can be routed to output on a NI PFI pin on a 660x board
  with INSN_CONFIG_SET_ROUTING.  The numbers assigned are
@@ -853,14 +817,8 @@ enum ni_660x_pfi_routing {
 /* NI External Trigger lines.  These values are not arbitrary, but are related
  * to the bits required to program the board (offset by 1 for historical
  * reasons). */
-static inline unsigned NI_EXT_PFI(unsigned pfi_channel)
-{
-	return NI_USUAL_PFI_SELECT(pfi_channel) - 1;
-}
-static inline unsigned NI_EXT_RTSI(unsigned rtsi_channel)
-{
-	return NI_USUAL_RTSI_SELECT(rtsi_channel) - 1;
-}
+#define NI_EXT_PFI(x)			(NI_USUAL_PFI_SELECT(x) - 1)
+#define NI_EXT_RTSI(x)			(NI_USUAL_RTSI_SELECT(x) - 1)
 
 /* status bits for INSN_CONFIG_GET_COUNTER_STATUS */
 enum comedi_counter_status_flags {
@@ -884,26 +842,15 @@ enum ni_m_series_cdio_scan_begin_src {
 	NI_CDIO_SCAN_BEGIN_SRC_FREQ_OUT = 32,
 	NI_CDIO_SCAN_BEGIN_SRC_DIO_CHANGE_DETECT_IRQ = 33
 };
-static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel)
-{
-	return NI_USUAL_PFI_SELECT(pfi_channel);
-}
-static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
-{
-	return NI_USUAL_RTSI_SELECT(rtsi_channel);
-}
+
+#define NI_CDIO_SCAN_BEGIN_SRC_PFI(x)	NI_USUAL_PFI_SELECT(x)
+#define NI_CDIO_SCAN_BEGIN_SRC_RTSI(x)	NI_USUAL_RTSI_SELECT(x)
 
 /* scan_begin_src for scan_begin_arg==TRIG_EXT with analog output command on NI
  * boards.  These scan begin sources can also be bitwise-or'd with CR_INVERT to
  * change polarity. */
-static inline unsigned NI_AO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel)
-{
-	return NI_USUAL_PFI_SELECT(pfi_channel);
-}
-static inline unsigned NI_AO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
-{
-	return NI_USUAL_RTSI_SELECT(rtsi_channel);
-}
+#define NI_AO_SCAN_BEGIN_SRC_PFI(x)	NI_USUAL_PFI_SELECT(x)
+#define NI_AO_SCAN_BEGIN_SRC_RTSI(x)	NI_USUAL_RTSI_SELECT(x)
 
 /* Bits for setting a clock source with
  * INSN_CONFIG_SET_CLOCK_SRC when using NI frequency output subdevice. */
@@ -974,6 +921,17 @@ enum amplc_dio_gate_source {
 	AMPLC_DIO_GAT_NPAT_PRESENT, /* negated "pattern present" */
 	AMPLC_DIO_GAT_NPAT_OCCURRED, /* negated "pattern occurred" */
 	AMPLC_DIO_GAT_NPAT_GONE	/* negated "pattern gone away" */
+};
+
+/*
+ * Values for setting a clock source with INSN_CONFIG_SET_CLOCK_SRC for
+ * the counter subdevice on the Kolter Electronic PCI-Counter board
+ * (ke_counter driver).
+ */
+enum ke_counter_clock_source {
+	KE_CLK_20MHZ,	/* internal 20MHz (default) */
+	KE_CLK_4MHZ,	/* internal 4MHz (option) */
+	KE_CLK_EXT	/* external clock on pin 21 of D-Sub */
 };
 
 #endif /* _COMEDI_H */

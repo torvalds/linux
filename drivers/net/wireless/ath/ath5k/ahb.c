@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/etherdevice.h>
 #include <linux/export.h>
-#include <ar231x_platform.h>
+#include <ath25_platform.h>
 #include "ath5k.h"
 #include "debug.h"
 #include "base.h"
@@ -227,7 +227,6 @@ static struct platform_driver ath_ahb_driver = {
 	.remove     = ath_ahb_remove,
 	.driver		= {
 		.name	= "ar231x-wmac",
-		.owner	= THIS_MODULE,
 	},
 };
 

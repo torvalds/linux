@@ -36,6 +36,11 @@ int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 	if (off == 0)
 		return 0;
 
+	if (unlikely(!seqadj)) {
+		WARN_ONCE(1, "Missing nfct_seqadj_ext_add() setup call\n");
+		return 0;
+	}
+
 	set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
 
 	spin_lock_bh(&ct->lock);
@@ -93,9 +98,9 @@ static void nf_ct_sack_block_adjust(struct sk_buff *skb,
 			new_end_seq = htonl(ntohl(sack->end_seq) -
 				      seq->offset_before);
 
-		pr_debug("sack_adjust: start_seq: %d->%d, end_seq: %d->%d\n",
-			 ntohl(sack->start_seq), new_start_seq,
-			 ntohl(sack->end_seq), new_end_seq);
+		pr_debug("sack_adjust: start_seq: %u->%u, end_seq: %u->%u\n",
+			 ntohl(sack->start_seq), ntohl(new_start_seq),
+			 ntohl(sack->end_seq), ntohl(new_end_seq));
 
 		inet_proto_csum_replace4(&tcph->check, skb,
 					 sack->start_seq, new_start_seq, 0);

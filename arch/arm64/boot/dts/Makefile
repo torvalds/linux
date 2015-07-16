@@ -1,9 +1,13 @@
-dtb-$(CONFIG_ARCH_VEXPRESS) += rtsm_ve-aemv8a.dtb foundation-v8.dtb
-dtb-$(CONFIG_ARCH_XGENE) += apm-mustang.dtb
+dts-dirs += amd
+dts-dirs += apm
+dts-dirs += arm
+dts-dirs += cavium
+dts-dirs += exynos
+dts-dirs += freescale
+dts-dirs += hisilicon
+dts-dirs += mediatek
+dts-dirs += qcom
+dts-dirs += sprd
+dts-dirs += xilinx
 
-targets += dtbs
-targets += $(dtb-y)
-
-dtbs: $(addprefix $(obj)/, $(dtb-y))
-
-clean-files := *.dtb
+subdir-y	:= $(dts-dirs)

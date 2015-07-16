@@ -49,10 +49,18 @@
 
 #define INIT_UDATA(udata, ibuf, obuf, ilen, olen)			\
 	do {								\
-		(udata)->inbuf  = (void __user *) (ibuf);		\
+		(udata)->inbuf  = (const void __user *) (ibuf);		\
 		(udata)->outbuf = (void __user *) (obuf);		\
 		(udata)->inlen  = (ilen);				\
 		(udata)->outlen = (olen);				\
+	} while (0)
+
+#define INIT_UDATA_BUF_OR_NULL(udata, ibuf, obuf, ilen, olen)			\
+	do {									\
+		(udata)->inbuf  = (ilen) ? (const void __user *) (ibuf) : NULL;	\
+		(udata)->outbuf = (olen) ? (void __user *) (obuf) : NULL;	\
+		(udata)->inlen  = (ilen);					\
+		(udata)->outlen = (olen);					\
 	} while (0)
 
 /*
@@ -213,6 +221,7 @@ IB_UVERBS_DECLARE_CMD(query_port);
 IB_UVERBS_DECLARE_CMD(alloc_pd);
 IB_UVERBS_DECLARE_CMD(dealloc_pd);
 IB_UVERBS_DECLARE_CMD(reg_mr);
+IB_UVERBS_DECLARE_CMD(rereg_mr);
 IB_UVERBS_DECLARE_CMD(dereg_mr);
 IB_UVERBS_DECLARE_CMD(alloc_mw);
 IB_UVERBS_DECLARE_CMD(dealloc_mw);
@@ -249,5 +258,7 @@ IB_UVERBS_DECLARE_CMD(close_xrcd);
 
 IB_UVERBS_DECLARE_EX_CMD(create_flow);
 IB_UVERBS_DECLARE_EX_CMD(destroy_flow);
+IB_UVERBS_DECLARE_EX_CMD(query_device);
+IB_UVERBS_DECLARE_EX_CMD(create_cq);
 
 #endif /* UVERBS_H */

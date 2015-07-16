@@ -271,7 +271,8 @@ static int crypto_ccm_auth(struct aead_request *req, struct scatterlist *plain,
 	}
 
 	/* compute plaintext into mac */
-	get_data_to_compute(cipher, pctx, plain, cryptlen);
+	if (cryptlen)
+		get_data_to_compute(cipher, pctx, plain, cryptlen);
 
 out:
 	return err;
@@ -363,7 +364,7 @@ static void crypto_ccm_decrypt_done(struct crypto_async_request *areq,
 
 	if (!err) {
 		err = crypto_ccm_auth(req, req->dst, cryptlen);
-		if (!err && memcmp(pctx->auth_tag, pctx->odata, authsize))
+		if (!err && crypto_memneq(pctx->auth_tag, pctx->odata, authsize))
 			err = -EBADMSG;
 	}
 	aead_request_complete(req, err);
@@ -422,7 +423,7 @@ static int crypto_ccm_decrypt(struct aead_request *req)
 		return err;
 
 	/* verify */
-	if (memcmp(authtag, odata, authsize))
+	if (crypto_memneq(authtag, odata, authsize))
 		return -EBADMSG;
 
 	return err;
@@ -452,9 +453,9 @@ static int crypto_ccm_init_tfm(struct crypto_tfm *tfm)
 
 	align = crypto_tfm_alg_alignmask(tfm);
 	align &= ~(crypto_tfm_ctx_alignment() - 1);
-	tfm->crt_aead.reqsize = align +
-				sizeof(struct crypto_ccm_req_priv_ctx) +
-				crypto_ablkcipher_reqsize(ctr);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+		align + sizeof(struct crypto_ccm_req_priv_ctx) +
+		crypto_ablkcipher_reqsize(ctr));
 
 	return 0;
 
@@ -728,10 +729,10 @@ static int crypto_rfc4309_init_tfm(struct crypto_tfm *tfm)
 
 	align = crypto_aead_alignmask(aead);
 	align &= ~(crypto_tfm_ctx_alignment() - 1);
-	tfm->crt_aead.reqsize = sizeof(struct aead_request) +
-				ALIGN(crypto_aead_reqsize(aead),
-				      crypto_tfm_ctx_alignment()) +
-				align + 16;
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+		sizeof(struct aead_request) +
+		ALIGN(crypto_aead_reqsize(aead), crypto_tfm_ctx_alignment()) +
+		align + 16);
 
 	return 0;
 }
@@ -878,5 +879,6 @@ module_exit(crypto_ccm_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Counter with CBC MAC");
-MODULE_ALIAS("ccm_base");
-MODULE_ALIAS("rfc4309");
+MODULE_ALIAS_CRYPTO("ccm_base");
+MODULE_ALIAS_CRYPTO("rfc4309");
+MODULE_ALIAS_CRYPTO("ccm");

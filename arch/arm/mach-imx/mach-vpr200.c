@@ -34,6 +34,7 @@
 
 #include "common.h"
 #include "devices-imx35.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx35.h"
 
@@ -160,7 +161,7 @@ static struct i2c_board_info vpr200_i2c_devices[] = {
 	}
 };
 
-static iomux_v3_cfg_t vpr200_pads[] = {
+static const iomux_v3_cfg_t vpr200_pads[] __initconst = {
 	/* UART1 */
 	MX35_PAD_TXD1__UART1_TXD_MUX,
 	MX35_PAD_RXD1__UART1_RXD_MUX,
@@ -310,7 +311,6 @@ MACHINE_START(VPR200, "VPR200")
 	.map_io = mx35_map_io,
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
-	.handle_irq = imx35_handle_irq,
 	.init_time = vpr200_timer_init,
 	.init_machine = vpr200_board_init,
 	.restart	= mxc_restart,

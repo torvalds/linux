@@ -209,7 +209,7 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 	ehci->periodic = (__le32 *)
 		dma_alloc_coherent (ehci_to_hcd(ehci)->self.controller,
 			ehci->periodic_size * sizeof(__le32),
-			&ehci->periodic_dma, 0);
+			&ehci->periodic_dma, flags);
 	if (ehci->periodic == NULL) {
 		goto fail;
 	}

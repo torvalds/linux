@@ -95,7 +95,7 @@ static int check_dev_ioctl_version(int cmd, struct autofs_dev_ioctl *param)
  */
 static struct autofs_dev_ioctl *copy_dev_ioctl(struct autofs_dev_ioctl __user *in)
 {
-	struct autofs_dev_ioctl tmp;
+	struct autofs_dev_ioctl tmp, *res;
 
 	if (copy_from_user(&tmp, in, sizeof(tmp)))
 		return ERR_PTR(-EFAULT);
@@ -103,7 +103,14 @@ static struct autofs_dev_ioctl *copy_dev_ioctl(struct autofs_dev_ioctl __user *i
 	if (tmp.size < sizeof(tmp))
 		return ERR_PTR(-EINVAL);
 
-	return memdup_user(in, tmp.size);
+	if (tmp.size > (PATH_MAX + sizeof(tmp)))
+		return ERR_PTR(-ENAMETOOLONG);
+
+	res = memdup_user(in, tmp.size);
+	if (!IS_ERR(res))
+		res->size = tmp.size;
+
+	return res;
 }
 
 static inline void free_dev_ioctl(struct autofs_dev_ioctl *param)
@@ -346,6 +353,7 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 {
 	int pipefd;
 	int err = 0;
+	struct pid *new_pid = NULL;
 
 	if (param->setpipefd.pipefd == -1)
 		return -EINVAL;
@@ -357,7 +365,17 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		mutex_unlock(&sbi->wq_mutex);
 		return -EBUSY;
 	} else {
-		struct file *pipe = fget(pipefd);
+		struct file *pipe;
+
+		new_pid = get_task_pid(current, PIDTYPE_PGID);
+
+		if (ns_of_pid(new_pid) != ns_of_pid(sbi->oz_pgrp)) {
+			AUTOFS_WARN("Not allowed to change PID namespace");
+			err = -EINVAL;
+			goto out;
+		}
+
+		pipe = fget(pipefd);
 		if (!pipe) {
 			err = -EBADF;
 			goto out;
@@ -367,12 +385,13 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 			fput(pipe);
 			goto out;
 		}
-		sbi->oz_pgrp = task_pgrp_nr(current);
+		swap(sbi->oz_pgrp, new_pid);
 		sbi->pipefd = pipefd;
 		sbi->pipe = pipe;
 		sbi->catatonic = 0;
 	}
 out:
+	put_pid(new_pid);
 	mutex_unlock(&sbi->wq_mutex);
 	return err;
 }
@@ -435,7 +454,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	ino = autofs4_dentry_ino(path.dentry);
 	if (ino) {
 		err = 0;
-		autofs4_expire_wait(path.dentry);
+		autofs4_expire_wait(path.dentry, 0);
 		spin_lock(&sbi->fs_lock);
 		param->requester.uid = from_kuid_munged(current_user_ns(), ino->uid);
 		param->requester.gid = from_kgid_munged(current_user_ns(), ino->gid);
@@ -722,7 +741,7 @@ MODULE_ALIAS_MISCDEV(AUTOFS_MINOR);
 MODULE_ALIAS("devname:autofs");
 
 /* Register/deregister misc character device */
-int autofs_dev_ioctl_init(void)
+int __init autofs_dev_ioctl_init(void)
 {
 	int r;
 

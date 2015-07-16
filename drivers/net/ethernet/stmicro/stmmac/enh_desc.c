@@ -145,7 +145,7 @@ static void enh_desc_get_ext_status(void *data, struct stmmac_extra_stats *x,
 			x->rx_msg_type_delay_req++;
 		else if (p->des4.erx.msg_type == RDES_EXT_DELAY_RESP)
 			x->rx_msg_type_delay_resp++;
-		else if (p->des4.erx.msg_type == RDES_EXT_DELAY_REQ)
+		else if (p->des4.erx.msg_type == RDES_EXT_PDELAY_REQ)
 			x->rx_msg_type_pdelay_req++;
 		else if (p->des4.erx.msg_type == RDES_EXT_PDELAY_RESP)
 			x->rx_msg_type_pdelay_resp++;
@@ -240,6 +240,7 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 static void enh_desc_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
 				  int mode, int end)
 {
+	p->des01.all_flags = 0;
 	p->des01.erx.own = 1;
 	p->des01.erx.buffer1_size = BUF_SIZE_8KiB - 1;
 
@@ -254,7 +255,7 @@ static void enh_desc_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
 
 static void enh_desc_init_tx_desc(struct dma_desc *p, int mode, int end)
 {
-	p->des01.etx.own = 0;
+	p->des01.all_flags = 0;
 	if (mode == STMMAC_CHAIN_MODE)
 		ehn_desc_tx_set_on_chain(p, end);
 	else

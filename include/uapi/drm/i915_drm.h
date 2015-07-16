@@ -171,8 +171,12 @@ typedef struct _drm_i915_sarea {
 #define I915_BOX_TEXTURE_LOAD  0x8
 #define I915_BOX_LOST_CONTEXT  0x10
 
-/* I915 specific ioctls
- * The device specific ioctl range is 0x40 to 0x79.
+/*
+ * i915 specific ioctls.
+ *
+ * The device specific ioctl range is [DRM_COMMAND_BASE, DRM_COMMAND_END) ie
+ * [0x40, 0xa0) (a0 is excluded). The numbers below are defined as offset
+ * against DRM_COMMAND_BASE and should be between [0x0, 0x60).
  */
 #define DRM_I915_INIT		0x00
 #define DRM_I915_FLUSH		0x01
@@ -222,6 +226,10 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_SET_CACHING	0x2f
 #define DRM_I915_GEM_GET_CACHING	0x30
 #define DRM_I915_REG_READ		0x31
+#define DRM_I915_GET_RESET_STATS	0x32
+#define DRM_I915_GEM_USERPTR		0x33
+#define DRM_I915_GEM_CONTEXT_GETPARAM	0x34
+#define DRM_I915_GEM_CONTEXT_SETPARAM	0x35
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -266,11 +274,15 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_OVERLAY_PUT_IMAGE	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_OVERLAY_PUT_IMAGE, struct drm_intel_overlay_put_image)
 #define DRM_IOCTL_I915_OVERLAY_ATTRS	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_OVERLAY_ATTRS, struct drm_intel_overlay_attrs)
 #define DRM_IOCTL_I915_SET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
-#define DRM_IOCTL_I915_GET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
+#define DRM_IOCTL_I915_GET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
 #define DRM_IOCTL_I915_GEM_WAIT		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_WAIT, struct drm_i915_gem_wait)
 #define DRM_IOCTL_I915_GEM_CONTEXT_CREATE	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_CREATE, struct drm_i915_gem_context_create)
 #define DRM_IOCTL_I915_GEM_CONTEXT_DESTROY	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_DESTROY, struct drm_i915_gem_context_destroy)
 #define DRM_IOCTL_I915_REG_READ			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_REG_READ, struct drm_i915_reg_read)
+#define DRM_IOCTL_I915_GET_RESET_STATS		DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GET_RESET_STATS, struct drm_i915_reset_stats)
+#define DRM_IOCTL_I915_GEM_USERPTR			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_USERPTR, struct drm_i915_gem_userptr)
+#define DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_GETPARAM, struct drm_i915_gem_context_param)
+#define DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_SETPARAM, struct drm_i915_gem_context_param)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -335,6 +347,13 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_EXEC_NO_RELOC	 25
 #define I915_PARAM_HAS_EXEC_HANDLE_LUT   26
 #define I915_PARAM_HAS_WT     	 	 27
+#define I915_PARAM_CMD_PARSER_VERSION	 28
+#define I915_PARAM_HAS_COHERENT_PHYS_GTT 29
+#define I915_PARAM_MMAP_VERSION          30
+#define I915_PARAM_HAS_BSD2		 31
+#define I915_PARAM_REVISION              32
+#define I915_PARAM_SUBSLICE_TOTAL	 33
+#define I915_PARAM_EU_TOTAL		 34
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -482,6 +501,14 @@ struct drm_i915_gem_mmap {
 	 * This is a fixed-size type for 32/64 compatibility.
 	 */
 	__u64 addr_ptr;
+
+	/**
+	 * Flags for extended behaviour.
+	 *
+	 * Added in version 2.
+	 */
+	__u64 flags;
+#define I915_MMAP_WC 0x1
 };
 
 struct drm_i915_gem_mmap_gtt {
@@ -719,7 +746,7 @@ struct drm_i915_gem_execbuffer2 {
  */
 #define I915_EXEC_IS_PINNED		(1<<10)
 
-/** Provide a hint to the kernel that the command stream and auxilliary
+/** Provide a hint to the kernel that the command stream and auxiliary
  * state buffers already holds the correct presumed addresses and so the
  * relocation process may be skipped if no buffers need to be moved in
  * preparation for the execbuffer.
@@ -731,7 +758,13 @@ struct drm_i915_gem_execbuffer2 {
  */
 #define I915_EXEC_HANDLE_LUT		(1<<12)
 
-#define __I915_EXEC_UNKNOWN_FLAGS -(I915_EXEC_HANDLE_LUT<<1)
+/** Used for switching BSD rings on the platforms with two BSD rings */
+#define I915_EXEC_BSD_MASK		(3<<13)
+#define I915_EXEC_BSD_DEFAULT		(0<<13) /* default ping-pong mode */
+#define I915_EXEC_BSD_RING1		(1<<13)
+#define I915_EXEC_BSD_RING2		(2<<13)
+
+#define __I915_EXEC_UNKNOWN_FLAGS -(1<<15)
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \
@@ -871,6 +904,12 @@ struct drm_i915_gem_get_tiling {
 	 * mmap mapping.
 	 */
 	__u32 swizzle_mode;
+
+	/**
+	 * Returned address bit 6 swizzling required for CPU access through
+	 * mmap mapping whilst bound.
+	 */
+	__u32 phys_swizzle_mode;
 };
 
 struct drm_i915_gem_get_aperture {
@@ -961,6 +1000,7 @@ struct drm_intel_overlay_put_image {
 /* flags */
 #define I915_OVERLAY_UPDATE_ATTRS	(1<<0)
 #define I915_OVERLAY_UPDATE_GAMMA	(1<<1)
+#define I915_OVERLAY_DISABLE_DEST_COLORKEY	(1<<2)
 struct drm_intel_overlay_attrs {
 	__u32 flags;
 	__u32 color_key;
@@ -1030,4 +1070,43 @@ struct drm_i915_reg_read {
 	__u64 offset;
 	__u64 val; /* Return value */
 };
+
+struct drm_i915_reset_stats {
+	__u32 ctx_id;
+	__u32 flags;
+
+	/* All resets since boot/module reload, for all contexts */
+	__u32 reset_count;
+
+	/* Number of batches lost when active in GPU, for this context */
+	__u32 batch_active;
+
+	/* Number of batches lost pending for execution, for this context */
+	__u32 batch_pending;
+
+	__u32 pad;
+};
+
+struct drm_i915_gem_userptr {
+	__u64 user_ptr;
+	__u64 user_size;
+	__u32 flags;
+#define I915_USERPTR_READ_ONLY 0x1
+#define I915_USERPTR_UNSYNCHRONIZED 0x80000000
+	/**
+	 * Returned handle for the object.
+	 *
+	 * Object handles are nonzero.
+	 */
+	__u32 handle;
+};
+
+struct drm_i915_gem_context_param {
+	__u32 ctx_id;
+	__u32 size;
+	__u64 param;
+#define I915_CONTEXT_PARAM_BAN_PERIOD 0x1
+	__u64 value;
+};
+
 #endif /* _UAPI_I915_DRM_H_ */

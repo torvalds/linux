@@ -56,15 +56,15 @@ static struct s_elan_multiplier elan_multiplier[] = {
 };
 
 static struct cpufreq_frequency_table elanfreq_table[] = {
-	{0,	1000},
-	{1,	2000},
-	{2,	4000},
-	{3,	8000},
-	{4,	16000},
-	{5,	33000},
-	{6,	66000},
-	{7,	99000},
-	{0,	CPUFREQ_TABLE_END},
+	{0, 0,	1000},
+	{0, 1,	2000},
+	{0, 2,	4000},
+	{0, 3,	8000},
+	{0, 4,	16000},
+	{0, 5,	33000},
+	{0, 6,	66000},
+	{0, 7,	99000},
+	{0, 0,	CPUFREQ_TABLE_END},
 };
 
 
@@ -147,7 +147,7 @@ static int elanfreq_target(struct cpufreq_policy *policy,
 static int elanfreq_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
-	unsigned int i;
+	struct cpufreq_frequency_table *pos;
 
 	/* capability check */
 	if ((c->x86_vendor != X86_VENDOR_AMD) ||
@@ -159,10 +159,9 @@ static int elanfreq_cpu_init(struct cpufreq_policy *policy)
 		max_freq = elanfreq_get_cpu_frequency(0);
 
 	/* table init */
-	for (i = 0; (elanfreq_table[i].frequency != CPUFREQ_TABLE_END); i++) {
-		if (elanfreq_table[i].frequency > max_freq)
-			elanfreq_table[i].frequency = CPUFREQ_ENTRY_INVALID;
-	}
+	cpufreq_for_each_entry(pos, elanfreq_table)
+		if (pos->frequency > max_freq)
+			pos->frequency = CPUFREQ_ENTRY_INVALID;
 
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
@@ -198,7 +197,6 @@ static struct cpufreq_driver elanfreq_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= elanfreq_target,
 	.init		= elanfreq_cpu_init,
-	.exit		= cpufreq_generic_exit,
 	.name		= "elanfreq",
 	.attr		= cpufreq_generic_attr,
 };

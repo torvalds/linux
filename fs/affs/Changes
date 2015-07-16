@@ -91,7 +91,7 @@ more 2.4 fixes: [Roman Zippel]
 Version 3.11
 ------------
 
-- Converted to use 2.3.x page cache [Dave Jones <dave@powertweak.com>]
+- Converted to use 2.3.x page cache [Dave Jones]
 - Corruption in truncate() bugfix [Ken Tyler <kent@werple.net.au>]
 
 Version 3.10

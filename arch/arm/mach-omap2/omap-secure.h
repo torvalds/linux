@@ -45,6 +45,7 @@
 #define OMAP4_MON_L2X0_PREFETCH_INDEX	0x113
 
 #define OMAP5_DRA7_MON_SET_CNTFRQ_INDEX	0x109
+#define OMAP5_MON_AMBA_IF_INDEX		0x108
 
 /* Secure PPA(Primary Protected Application) APIs */
 #define OMAP4_PPA_L2_POR_INDEX		0x23
@@ -69,13 +70,13 @@ extern u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
 extern u32 rx51_secure_update_aux_cr(u32 set_bits, u32 clear_bits);
 extern u32 rx51_secure_rng_call(u32 ptr, u32 count, u32 flag);
 
-#ifdef CONFIG_OMAP4_ERRATA_I688
-extern int omap_barrier_reserve_memblock(void);
+#ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
+void set_cntfreq(void);
 #else
-static inline void omap_barrier_reserve_memblock(void)
-{ }
+static inline void set_cntfreq(void)
+{
+}
 #endif
 
-void set_cntfreq(void);
 #endif /* __ASSEMBLER__ */
 #endif /* OMAP_ARCH_OMAP_SECURE_H */

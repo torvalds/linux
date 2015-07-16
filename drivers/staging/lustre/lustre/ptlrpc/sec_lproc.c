@@ -38,24 +38,20 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/crypto.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_dlm.h>
-#include <lustre_sec.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_import.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_sec.h"
 
 #include "ptlrpc_internal.h"
 
-
-struct proc_dir_entry *sptlrpc_proc_root = NULL;
-EXPORT_SYMBOL(sptlrpc_proc_root);
-
-char *sec_flags2str(unsigned long flags, char *buf, int bufsize)
+static char *sec_flags2str(unsigned long flags, char *buf, int bufsize)
 {
 	buf[0] = '\0';
 
@@ -78,7 +74,7 @@ static int sptlrpc_info_lprocfs_seq_show(struct seq_file *seq, void *v)
 	struct obd_device *dev = seq->private;
 	struct client_obd *cli = &dev->u.cli;
 	struct ptlrpc_sec *sec = NULL;
-	char	       str[32];
+	char str[32];
 
 	LASSERT(strcmp(dev->obd_type->typ_name, LUSTRE_OSC_NAME) == 0 ||
 		strcmp(dev->obd_type->typ_name, LUSTRE_MDC_NAME) == 0 ||
@@ -104,7 +100,7 @@ static int sptlrpc_info_lprocfs_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "gc internal    %ld\n", sec->ps_gc_interval);
 	seq_printf(seq, "gc next	%ld\n",
 		   sec->ps_gc_interval ?
-		   sec->ps_gc_next - cfs_time_current_sec() : 0);
+		   sec->ps_gc_next - get_seconds() : 0);
 
 	sptlrpc_sec_put(sec);
 out:
@@ -138,7 +134,7 @@ LPROC_SEQ_FOPS_RO(sptlrpc_ctxs_lprocfs);
 
 int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev)
 {
-	int     rc;
+	int rc;
 
 	if (strcmp(dev->obd_type->typ_name, LUSTRE_OSC_NAME) != 0 &&
 	    strcmp(dev->obd_type->typ_name, LUSTRE_MDC_NAME) != 0 &&
@@ -148,16 +144,16 @@ int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev)
 		return -EINVAL;
 	}
 
-	rc = lprocfs_obd_seq_create(dev, "srpc_info", 0444,
-				    &sptlrpc_info_lprocfs_fops, dev);
+	rc = ldebugfs_obd_seq_create(dev, "srpc_info", 0444,
+				     &sptlrpc_info_lprocfs_fops, dev);
 	if (rc) {
 		CERROR("create proc entry srpc_info for %s: %d\n",
 		       dev->obd_name, rc);
 		return rc;
 	}
 
-	rc = lprocfs_obd_seq_create(dev, "srpc_contexts", 0444,
-				    &sptlrpc_ctxs_lprocfs_fops, dev);
+	rc = ldebugfs_obd_seq_create(dev, "srpc_contexts", 0444,
+				     &sptlrpc_ctxs_lprocfs_fops, dev);
 	if (rc) {
 		CERROR("create proc entry srpc_contexts for %s: %d\n",
 		       dev->obd_name, rc);
@@ -174,17 +170,20 @@ static struct lprocfs_vars sptlrpc_lprocfs_vars[] = {
 	{ NULL }
 };
 
+static struct dentry *sptlrpc_debugfs_dir;
+
 int sptlrpc_lproc_init(void)
 {
-	int     rc;
+	int rc;
 
-	LASSERT(sptlrpc_proc_root == NULL);
+	LASSERT(sptlrpc_debugfs_dir == NULL);
 
-	sptlrpc_proc_root = lprocfs_register("sptlrpc", proc_lustre_root,
-					     sptlrpc_lprocfs_vars, NULL);
-	if (IS_ERR(sptlrpc_proc_root)) {
-		rc = PTR_ERR(sptlrpc_proc_root);
-		sptlrpc_proc_root = NULL;
+	sptlrpc_debugfs_dir = ldebugfs_register("sptlrpc", debugfs_lustre_root,
+						sptlrpc_lprocfs_vars, NULL);
+	if (IS_ERR_OR_NULL(sptlrpc_debugfs_dir)) {
+		rc = sptlrpc_debugfs_dir ? PTR_ERR(sptlrpc_debugfs_dir)
+					 : -ENOMEM;
+		sptlrpc_debugfs_dir = NULL;
 		return rc;
 	}
 	return 0;
@@ -192,8 +191,6 @@ int sptlrpc_lproc_init(void)
 
 void sptlrpc_lproc_fini(void)
 {
-	if (sptlrpc_proc_root) {
-		lprocfs_remove(&sptlrpc_proc_root);
-		sptlrpc_proc_root = NULL;
-	}
+	if (!IS_ERR_OR_NULL(sptlrpc_debugfs_dir))
+		ldebugfs_remove(&sptlrpc_debugfs_dir);
 }

@@ -20,6 +20,8 @@
 #include <asm/cputime.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
+#include <asm/switch_to.h>
+#include <asm/ctl_reg.h>
 
 struct mcck_struct {
 	int kill_task;
@@ -53,9 +55,9 @@ void s390_handle_mcck(void)
 	 */
 	local_irq_save(flags);
 	local_mcck_disable();
-	mcck = __get_cpu_var(cpu_mcck);
-	memset(&__get_cpu_var(cpu_mcck), 0, sizeof(struct mcck_struct));
-	clear_thread_flag(TIF_MCCK_PENDING);
+	mcck = *this_cpu_ptr(&cpu_mcck);
+	memset(this_cpu_ptr(&cpu_mcck), 0, sizeof(mcck));
+	clear_cpu_flag(CIF_MCCK_PENDING);
 	local_mcck_enable();
 	local_irq_restore(flags);
 
@@ -116,34 +118,20 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 		 */
 		kill_task = 1;
 	}
-#ifndef CONFIG_64BIT
-	asm volatile(
-		"	ld	0,0(%0)\n"
-		"	ld	2,8(%0)\n"
-		"	ld	4,16(%0)\n"
-		"	ld	6,24(%0)"
-		: : "a" (&S390_lowcore.floating_pt_save_area));
-#endif
+	fpt_save_area = &S390_lowcore.floating_pt_save_area;
+	fpt_creg_save_area = &S390_lowcore.fpt_creg_save_area;
+	if (!mci->fc) {
+		/*
+		 * Floating point control register can't be restored.
+		 * Task will be terminated.
+		 */
+		asm volatile("lfpc 0(%0)" : : "a" (&zero), "m" (zero));
+		kill_task = 1;
+	} else
+		asm volatile("lfpc 0(%0)" : : "a" (fpt_creg_save_area));
 
-	if (MACHINE_HAS_IEEE) {
-#ifdef CONFIG_64BIT
-		fpt_save_area = &S390_lowcore.floating_pt_save_area;
-		fpt_creg_save_area = &S390_lowcore.fpt_creg_save_area;
-#else
-		fpt_save_area = (void *) S390_lowcore.extended_save_area_addr;
-		fpt_creg_save_area = fpt_save_area + 128;
-#endif
-		if (!mci->fc) {
-			/*
-			 * Floating point control register can't be restored.
-			 * Task will be terminated.
-			 */
-			asm volatile("lfpc 0(%0)" : : "a" (&zero), "m" (zero));
-			kill_task = 1;
-
-		} else
-			asm volatile("lfpc 0(%0)" : : "a" (fpt_creg_save_area));
-
+	if (!MACHINE_HAS_VX) {
+		/* Revalidate floating point registers */
 		asm volatile(
 			"	ld	0,0(%0)\n"
 			"	ld	1,8(%0)\n"
@@ -162,6 +150,23 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 			"	ld	14,112(%0)\n"
 			"	ld	15,120(%0)\n"
 			: : "a" (fpt_save_area));
+	} else {
+		/* Revalidate vector registers */
+		union ctlreg0 cr0;
+
+		if (!mci->vr) {
+			/*
+			 * Vector registers can't be restored and therefore
+			 * the process needs to be terminated.
+			 */
+			kill_task = 1;
+		}
+		cr0.val = S390_lowcore.cregs_save_area[0];
+		cr0.afp = cr0.vx = 1;
+		__ctl_load(cr0.val, 0, 0);
+		restore_vx_regs((__vector128 *)
+				&S390_lowcore.vector_save_area);
+		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
 	/* Revalidate access registers */
 	asm volatile(
@@ -182,21 +187,14 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 		 */
 		s390_handle_damage("invalid control registers.");
 	} else {
-#ifdef CONFIG_64BIT
 		asm volatile(
 			"	lctlg	0,15,0(%0)"
 			: : "a" (&S390_lowcore.cregs_save_area));
-#else
-		asm volatile(
-			"	lctl	0,15,0(%0)"
-			: : "a" (&S390_lowcore.cregs_save_area));
-#endif
 	}
 	/*
 	 * We don't even try to revalidate the TOD register, since we simply
 	 * can't write something sensible into that register.
 	 */
-#ifdef CONFIG_64BIT
 	/*
 	 * See if we can revalidate the TOD programmable register with its
 	 * old contents (should be zero) otherwise set it to zero.
@@ -212,7 +210,6 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 			"	sckpf"
 			: : "a" (&S390_lowcore.tod_progreg_save_area)
 			: "0", "cc");
-#endif
 	/* Revalidate clock comparator register */
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	/* Check if old PSW is valid */
@@ -253,7 +250,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	nmi_enter();
 	inc_irq_stat(NMI_NMI);
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
-	mcck = &__get_cpu_var(cpu_mcck);
+	mcck = this_cpu_ptr(&cpu_mcck);
 	umode = user_mode(regs);
 
 	if (mci->sd) {
@@ -264,19 +261,11 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		if (mci->b) {
 			/* Processing backup -> verify if we can survive this */
 			u64 z_mcic, o_mcic, t_mcic;
-#ifdef CONFIG_64BIT
 			z_mcic = (1ULL<<63 | 1ULL<<59 | 1ULL<<29);
 			o_mcic = (1ULL<<43 | 1ULL<<42 | 1ULL<<41 | 1ULL<<40 |
 				  1ULL<<36 | 1ULL<<35 | 1ULL<<34 | 1ULL<<32 |
 				  1ULL<<30 | 1ULL<<21 | 1ULL<<20 | 1ULL<<17 |
 				  1ULL<<16);
-#else
-			z_mcic = (1ULL<<63 | 1ULL<<59 | 1ULL<<57 | 1ULL<<50 |
-				  1ULL<<29);
-			o_mcic = (1ULL<<43 | 1ULL<<42 | 1ULL<<41 | 1ULL<<40 |
-				  1ULL<<36 | 1ULL<<35 | 1ULL<<34 | 1ULL<<32 |
-				  1ULL<<30 | 1ULL<<20 | 1ULL<<17 | 1ULL<<16);
-#endif
 			t_mcic = *(u64 *)mci;
 
 			if (((t_mcic & z_mcic) != 0) ||
@@ -313,7 +302,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			 */
 			mcck->kill_task = 1;
 			mcck->mcck_code = *(unsigned long long *) mci;
-			set_thread_flag(TIF_MCCK_PENDING);
+			set_cpu_flag(CIF_MCCK_PENDING);
 		} else {
 			/*
 			 * Couldn't restore all register contents while in
@@ -352,12 +341,12 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	if (mci->cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
-		set_thread_flag(TIF_MCCK_PENDING);
+		set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	if (mci->w) {
 		/* Warning pending */
 		mcck->warning = 1;
-		set_thread_flag(TIF_MCCK_PENDING);
+		set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	nmi_exit();
 }

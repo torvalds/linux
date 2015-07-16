@@ -31,6 +31,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <linux/if_arp.h>      /* For ARPHRD_xxx */
 #include <linux/module.h>
 #include <net/rtnetlink.h>
 #include "ipoib.h"
@@ -103,7 +104,7 @@ static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 
 	pdev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
-	if (!pdev)
+	if (!pdev || pdev->type != ARPHRD_INFINIBAND)
 		return -ENODEV;
 
 	ppriv = netdev_priv(pdev);

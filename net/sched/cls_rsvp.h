@@ -70,31 +70,34 @@ struct rsvp_head {
 	u32			tmap[256/32];
 	u32			hgenerator;
 	u8			tgenerator;
-	struct rsvp_session	*ht[256];
+	struct rsvp_session __rcu *ht[256];
+	struct rcu_head		rcu;
 };
 
 struct rsvp_session {
-	struct rsvp_session	*next;
-	__be32			dst[RSVP_DST_LEN];
-	struct tc_rsvp_gpi 	dpi;
-	u8			protocol;
-	u8			tunnelid;
+	struct rsvp_session __rcu	*next;
+	__be32				dst[RSVP_DST_LEN];
+	struct tc_rsvp_gpi		dpi;
+	u8				protocol;
+	u8				tunnelid;
 	/* 16 (src,sport) hash slots, and one wildcard source slot */
-	struct rsvp_filter	*ht[16 + 1];
+	struct rsvp_filter __rcu	*ht[16 + 1];
+	struct rcu_head			rcu;
 };
 
 
 struct rsvp_filter {
-	struct rsvp_filter	*next;
-	__be32			src[RSVP_DST_LEN];
-	struct tc_rsvp_gpi	spi;
-	u8			tunnelhdr;
+	struct rsvp_filter __rcu	*next;
+	__be32				src[RSVP_DST_LEN];
+	struct tc_rsvp_gpi		spi;
+	u8				tunnelhdr;
 
-	struct tcf_result	res;
-	struct tcf_exts		exts;
+	struct tcf_result		res;
+	struct tcf_exts			exts;
 
-	u32			handle;
-	struct rsvp_session	*sess;
+	u32				handle;
+	struct rsvp_session		*sess;
+	struct rcu_head			rcu;
 };
 
 static inline unsigned int hash_dst(__be32 *dst, u8 protocol, u8 tunnelid)
@@ -116,11 +119,6 @@ static inline unsigned int hash_src(__be32 *src)
 	return h & 0xF;
 }
 
-static struct tcf_ext_map rsvp_ext_map = {
-	.police = TCA_RSVP_POLICE,
-	.action = TCA_RSVP_ACT
-};
-
 #define RSVP_APPLY_RESULT()				\
 {							\
 	int r = tcf_exts_exec(skb, &f->exts, res);	\
@@ -133,7 +131,7 @@ static struct tcf_ext_map rsvp_ext_map = {
 static int rsvp_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			 struct tcf_result *res)
 {
-	struct rsvp_session **sht = ((struct rsvp_head *)tp->root)->ht;
+	struct rsvp_head *head = rcu_dereference_bh(tp->root);
 	struct rsvp_session *s;
 	struct rsvp_filter *f;
 	unsigned int h1, h2;
@@ -174,7 +172,8 @@ restart:
 	h1 = hash_dst(dst, protocol, tunnelid);
 	h2 = hash_src(src);
 
-	for (s = sht[h1]; s; s = s->next) {
+	for (s = rcu_dereference_bh(head->ht[h1]); s;
+	     s = rcu_dereference_bh(s->next)) {
 		if (dst[RSVP_DST_LEN-1] == s->dst[RSVP_DST_LEN - 1] &&
 		    protocol == s->protocol &&
 		    !(s->dpi.mask &
@@ -186,7 +185,8 @@ restart:
 #endif
 		    tunnelid == s->tunnelid) {
 
-			for (f = s->ht[h2]; f; f = f->next) {
+			for (f = rcu_dereference_bh(s->ht[h2]); f;
+			     f = rcu_dereference_bh(f->next)) {
 				if (src[RSVP_DST_LEN-1] == f->src[RSVP_DST_LEN - 1] &&
 				    !(f->spi.mask & (*(u32 *)(xprt + f->spi.offset) ^ f->spi.key))
 #if RSVP_DST_LEN == 4
@@ -210,7 +210,8 @@ matched:
 			}
 
 			/* And wildcard bucket... */
-			for (f = s->ht[16]; f; f = f->next) {
+			for (f = rcu_dereference_bh(s->ht[16]); f;
+			     f = rcu_dereference_bh(f->next)) {
 				*res = f->res;
 				RSVP_APPLY_RESULT();
 				goto matched;
@@ -221,9 +222,36 @@ matched:
 	return -1;
 }
 
+static void rsvp_replace(struct tcf_proto *tp, struct rsvp_filter *n, u32 h)
+{
+	struct rsvp_head *head = rtnl_dereference(tp->root);
+	struct rsvp_session *s;
+	struct rsvp_filter __rcu **ins;
+	struct rsvp_filter *pins;
+	unsigned int h1 = h & 0xFF;
+	unsigned int h2 = (h >> 8) & 0xFF;
+
+	for (s = rtnl_dereference(head->ht[h1]); s;
+	     s = rtnl_dereference(s->next)) {
+		for (ins = &s->ht[h2], pins = rtnl_dereference(*ins); ;
+		     ins = &pins->next, pins = rtnl_dereference(*ins)) {
+			if (pins->handle == h) {
+				RCU_INIT_POINTER(n->next, pins->next);
+				rcu_assign_pointer(*ins, n);
+				return;
+			}
+		}
+	}
+
+	/* Something went wrong if we are trying to replace a non-existant
+	 * node. Mind as well halt instead of silently failing.
+	 */
+	BUG_ON(1);
+}
+
 static unsigned long rsvp_get(struct tcf_proto *tp, u32 handle)
 {
-	struct rsvp_session **sht = ((struct rsvp_head *)tp->root)->ht;
+	struct rsvp_head *head = rtnl_dereference(tp->root);
 	struct rsvp_session *s;
 	struct rsvp_filter *f;
 	unsigned int h1 = handle & 0xFF;
@@ -232,17 +260,15 @@ static unsigned long rsvp_get(struct tcf_proto *tp, u32 handle)
 	if (h2 > 16)
 		return 0;
 
-	for (s = sht[h1]; s; s = s->next) {
-		for (f = s->ht[h2]; f; f = f->next) {
+	for (s = rtnl_dereference(head->ht[h1]); s;
+	     s = rtnl_dereference(s->next)) {
+		for (f = rtnl_dereference(s->ht[h2]); f;
+		     f = rtnl_dereference(f->next)) {
 			if (f->handle == handle)
 				return (unsigned long)f;
 		}
 	}
 	return 0;
-}
-
-static void rsvp_put(struct tcf_proto *tp, unsigned long f)
-{
 }
 
 static int rsvp_init(struct tcf_proto *tp)
@@ -251,7 +277,7 @@ static int rsvp_init(struct tcf_proto *tp)
 
 	data = kzalloc(sizeof(struct rsvp_head), GFP_KERNEL);
 	if (data) {
-		tp->root = data;
+		rcu_assign_pointer(tp->root, data);
 		return 0;
 	}
 	return -ENOBUFS;
@@ -261,54 +287,63 @@ static void
 rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
 {
 	tcf_unbind_filter(tp, &f->res);
-	tcf_exts_destroy(tp, &f->exts);
-	kfree(f);
+	tcf_exts_destroy(&f->exts);
+	kfree_rcu(f, rcu);
 }
 
-static void rsvp_destroy(struct tcf_proto *tp)
+static bool rsvp_destroy(struct tcf_proto *tp, bool force)
 {
-	struct rsvp_head *data = xchg(&tp->root, NULL);
-	struct rsvp_session **sht;
+	struct rsvp_head *data = rtnl_dereference(tp->root);
 	int h1, h2;
 
 	if (data == NULL)
-		return;
+		return true;
 
-	sht = data->ht;
+	if (!force) {
+		for (h1 = 0; h1 < 256; h1++) {
+			if (rcu_access_pointer(data->ht[h1]))
+				return false;
+		}
+	}
+
+	RCU_INIT_POINTER(tp->root, NULL);
 
 	for (h1 = 0; h1 < 256; h1++) {
 		struct rsvp_session *s;
 
-		while ((s = sht[h1]) != NULL) {
-			sht[h1] = s->next;
+		while ((s = rtnl_dereference(data->ht[h1])) != NULL) {
+			RCU_INIT_POINTER(data->ht[h1], s->next);
 
 			for (h2 = 0; h2 <= 16; h2++) {
 				struct rsvp_filter *f;
 
-				while ((f = s->ht[h2]) != NULL) {
-					s->ht[h2] = f->next;
+				while ((f = rtnl_dereference(s->ht[h2])) != NULL) {
+					rcu_assign_pointer(s->ht[h2], f->next);
 					rsvp_delete_filter(tp, f);
 				}
 			}
-			kfree(s);
+			kfree_rcu(s, rcu);
 		}
 	}
-	kfree(data);
+	kfree_rcu(data, rcu);
+	return true;
 }
 
 static int rsvp_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct rsvp_filter **fp, *f = (struct rsvp_filter *)arg;
+	struct rsvp_head *head = rtnl_dereference(tp->root);
+	struct rsvp_filter *nfp, *f = (struct rsvp_filter *)arg;
+	struct rsvp_filter __rcu **fp;
 	unsigned int h = f->handle;
-	struct rsvp_session **sp;
-	struct rsvp_session *s = f->sess;
+	struct rsvp_session __rcu **sp;
+	struct rsvp_session *nsp, *s = f->sess;
 	int i;
 
-	for (fp = &s->ht[(h >> 8) & 0xFF]; *fp; fp = &(*fp)->next) {
-		if (*fp == f) {
-			tcf_tree_lock(tp);
-			*fp = f->next;
-			tcf_tree_unlock(tp);
+	fp = &s->ht[(h >> 8) & 0xFF];
+	for (nfp = rtnl_dereference(*fp); nfp;
+	     fp = &nfp->next, nfp = rtnl_dereference(*fp)) {
+		if (nfp == f) {
+			RCU_INIT_POINTER(*fp, f->next);
 			rsvp_delete_filter(tp, f);
 
 			/* Strip tree */
@@ -318,14 +353,12 @@ static int rsvp_delete(struct tcf_proto *tp, unsigned long arg)
 					return 0;
 
 			/* OK, session has no flows */
-			for (sp = &((struct rsvp_head *)tp->root)->ht[h & 0xFF];
-			     *sp; sp = &(*sp)->next) {
-				if (*sp == s) {
-					tcf_tree_lock(tp);
-					*sp = s->next;
-					tcf_tree_unlock(tp);
-
-					kfree(s);
+			sp = &head->ht[h & 0xFF];
+			for (nsp = rtnl_dereference(*sp); nsp;
+			     sp = &nsp->next, nsp = rtnl_dereference(*sp)) {
+				if (nsp == s) {
+					RCU_INIT_POINTER(*sp, s->next);
+					kfree_rcu(s, rcu);
 					return 0;
 				}
 			}
@@ -338,7 +371,7 @@ static int rsvp_delete(struct tcf_proto *tp, unsigned long arg)
 
 static unsigned int gen_handle(struct tcf_proto *tp, unsigned salt)
 {
-	struct rsvp_head *data = tp->root;
+	struct rsvp_head *data = rtnl_dereference(tp->root);
 	int i = 0xFFFF;
 
 	while (i-- > 0) {
@@ -366,7 +399,7 @@ static int tunnel_bts(struct rsvp_head *data)
 
 static void tunnel_recycle(struct rsvp_head *data)
 {
-	struct rsvp_session **sht = data->ht;
+	struct rsvp_session __rcu **sht = data->ht;
 	u32 tmap[256/32];
 	int h1, h2;
 
@@ -374,11 +407,13 @@ static void tunnel_recycle(struct rsvp_head *data)
 
 	for (h1 = 0; h1 < 256; h1++) {
 		struct rsvp_session *s;
-		for (s = sht[h1]; s; s = s->next) {
+		for (s = rtnl_dereference(sht[h1]); s;
+		     s = rtnl_dereference(s->next)) {
 			for (h2 = 0; h2 <= 16; h2++) {
 				struct rsvp_filter *f;
 
-				for (f = s->ht[h2]; f; f = f->next) {
+				for (f = rtnl_dereference(s->ht[h2]); f;
+				     f = rtnl_dereference(f->next)) {
 					if (f->tunnelhdr == 0)
 						continue;
 					data->tgenerator = f->res.classid;
@@ -420,11 +455,13 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle,
 		       struct nlattr **tca,
-		       unsigned long *arg)
+		       unsigned long *arg, bool ovr)
 {
-	struct rsvp_head *data = tp->root;
-	struct rsvp_filter *f, **fp;
-	struct rsvp_session *s, **sp;
+	struct rsvp_head *data = rtnl_dereference(tp->root);
+	struct rsvp_filter *f, *nfp;
+	struct rsvp_filter __rcu **fp;
+	struct rsvp_session *nsp, *s;
+	struct rsvp_session __rcu **sp;
 	struct tc_rsvp_pinfo *pinfo = NULL;
 	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_RSVP_MAX + 1];
@@ -440,22 +477,34 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		return err;
 
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, &rsvp_ext_map);
+	tcf_exts_init(&e, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
 	if (err < 0)
 		return err;
 
 	f = (struct rsvp_filter *)*arg;
 	if (f) {
 		/* Node exists: adjust only classid */
+		struct rsvp_filter *n;
 
 		if (f->handle != handle && handle)
 			goto errout2;
-		if (tb[TCA_RSVP_CLASSID]) {
-			f->res.classid = nla_get_u32(tb[TCA_RSVP_CLASSID]);
-			tcf_bind_filter(tp, &f->res, base);
+
+		n = kmemdup(f, sizeof(*f), GFP_KERNEL);
+		if (!n) {
+			err = -ENOMEM;
+			goto errout2;
 		}
 
-		tcf_exts_change(tp, &f->exts, &e);
+		tcf_exts_init(&n->exts, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+
+		if (tb[TCA_RSVP_CLASSID]) {
+			n->res.classid = nla_get_u32(tb[TCA_RSVP_CLASSID]);
+			tcf_bind_filter(tp, &n->res, base);
+		}
+
+		tcf_exts_change(tp, &n->exts, &e);
+		rsvp_replace(tp, n, handle);
 		return 0;
 	}
 
@@ -471,6 +520,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		goto errout2;
 
+	tcf_exts_init(&f->exts, TCA_RSVP_ACT, TCA_RSVP_POLICE);
 	h2 = 16;
 	if (tb[TCA_RSVP_SRC]) {
 		memcpy(f->src, nla_data(tb[TCA_RSVP_SRC]), sizeof(f->src));
@@ -502,7 +552,9 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 			goto errout;
 	}
 
-	for (sp = &data->ht[h1]; (s = *sp) != NULL; sp = &s->next) {
+	for (sp = &data->ht[h1];
+	     (s = rtnl_dereference(*sp)) != NULL;
+	     sp = &s->next) {
 		if (dst[RSVP_DST_LEN-1] == s->dst[RSVP_DST_LEN-1] &&
 		    pinfo && pinfo->protocol == s->protocol &&
 		    memcmp(&pinfo->dpi, &s->dpi, sizeof(s->dpi)) == 0 &&
@@ -524,12 +576,16 @@ insert:
 
 			tcf_exts_change(tp, &f->exts, &e);
 
-			for (fp = &s->ht[h2]; *fp; fp = &(*fp)->next)
-				if (((*fp)->spi.mask & f->spi.mask) != f->spi.mask)
+			fp = &s->ht[h2];
+			for (nfp = rtnl_dereference(*fp); nfp;
+			     fp = &nfp->next, nfp = rtnl_dereference(*fp)) {
+				__u32 mask = nfp->spi.mask & f->spi.mask;
+
+				if (mask != f->spi.mask)
 					break;
-			f->next = *fp;
-			wmb();
-			*fp = f;
+			}
+			RCU_INIT_POINTER(f->next, nfp);
+			rcu_assign_pointer(*fp, f);
 
 			*arg = (unsigned long)f;
 			return 0;
@@ -549,26 +605,27 @@ insert:
 		s->protocol = pinfo->protocol;
 		s->tunnelid = pinfo->tunnelid;
 	}
-	for (sp = &data->ht[h1]; *sp; sp = &(*sp)->next) {
-		if (((*sp)->dpi.mask&s->dpi.mask) != s->dpi.mask)
+	sp = &data->ht[h1];
+	for (nsp = rtnl_dereference(*sp); nsp;
+	     sp = &nsp->next, nsp = rtnl_dereference(*sp)) {
+		if ((nsp->dpi.mask & s->dpi.mask) != s->dpi.mask)
 			break;
 	}
-	s->next = *sp;
-	wmb();
-	*sp = s;
+	RCU_INIT_POINTER(s->next, nsp);
+	rcu_assign_pointer(*sp, s);
 
 	goto insert;
 
 errout:
 	kfree(f);
 errout2:
-	tcf_exts_destroy(tp, &e);
+	tcf_exts_destroy(&e);
 	return err;
 }
 
 static void rsvp_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 {
-	struct rsvp_head *head = tp->root;
+	struct rsvp_head *head = rtnl_dereference(tp->root);
 	unsigned int h, h1;
 
 	if (arg->stop)
@@ -577,11 +634,13 @@ static void rsvp_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	for (h = 0; h < 256; h++) {
 		struct rsvp_session *s;
 
-		for (s = head->ht[h]; s; s = s->next) {
+		for (s = rtnl_dereference(head->ht[h]); s;
+		     s = rtnl_dereference(s->next)) {
 			for (h1 = 0; h1 <= 16; h1++) {
 				struct rsvp_filter *f;
 
-				for (f = s->ht[h1]; f; f = f->next) {
+				for (f = rtnl_dereference(s->ht[h1]); f;
+				     f = rtnl_dereference(f->next)) {
 					if (arg->count < arg->skip) {
 						arg->count++;
 						continue;
@@ -597,12 +656,11 @@ static void rsvp_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	}
 }
 
-static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
+static int rsvp_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
 	struct rsvp_filter *f = (struct rsvp_filter *)fh;
 	struct rsvp_session *s;
-	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 	struct tc_rsvp_pinfo pinfo;
 
@@ -633,17 +691,17 @@ static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
 	    nla_put(skb, TCA_RSVP_SRC, sizeof(f->src), f->src))
 		goto nla_put_failure;
 
-	if (tcf_exts_dump(skb, &f->exts, &rsvp_ext_map) < 0)
+	if (tcf_exts_dump(skb, &f->exts) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 
-	if (tcf_exts_dump_stats(skb, &f->exts, &rsvp_ext_map) < 0)
+	if (tcf_exts_dump_stats(skb, &f->exts) < 0)
 		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -653,7 +711,6 @@ static struct tcf_proto_ops RSVP_OPS __read_mostly = {
 	.init		=	rsvp_init,
 	.destroy	=	rsvp_destroy,
 	.get		=	rsvp_get,
-	.put		=	rsvp_put,
 	.change		=	rsvp_change,
 	.delete		=	rsvp_delete,
 	.walk		=	rsvp_walk,

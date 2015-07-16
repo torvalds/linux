@@ -820,8 +820,7 @@ ip_vs_conn_fill_param_sync(struct net *net, int af, union ip_vs_sync_conn *sc,
 
 		p->pe_data = kmemdup(pe_data, pe_data_len, GFP_ATOMIC);
 		if (!p->pe_data) {
-			if (p->pe->module)
-				module_put(p->pe->module);
+			module_put(p->pe->module);
 			return -ENOMEM;
 		}
 		p->pe_data_len = pe_data_len;
@@ -846,10 +845,27 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 	struct ip_vs_conn *cp;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	if (!(flags & IP_VS_CONN_F_TEMPLATE))
+	if (!(flags & IP_VS_CONN_F_TEMPLATE)) {
 		cp = ip_vs_conn_in_get(param);
-	else
+		if (cp && ((cp->dport != dport) ||
+			   !ip_vs_addr_equal(cp->daf, &cp->daddr, daddr))) {
+			if (!(flags & IP_VS_CONN_F_INACTIVE)) {
+				ip_vs_conn_expire_now(cp);
+				__ip_vs_conn_put(cp);
+				cp = NULL;
+			} else {
+				/* This is the expiration message for the
+				 * connection that was already replaced, so we
+				 * just ignore it.
+				 */
+				__ip_vs_conn_put(cp);
+				kfree(param->pe_data);
+				return;
+			}
+		}
+	} else {
 		cp = ip_vs_ct_in_get(param);
+	}
 
 	if (cp) {
 		/* Free pe_data */
@@ -880,17 +896,25 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 		 * but still handled.
 		 */
 		rcu_read_lock();
-		dest = ip_vs_find_dest(net, type, daddr, dport, param->vaddr,
-				       param->vport, protocol, fwmark, flags);
+		/* This function is only invoked by the synchronization
+		 * code. We do not currently support heterogeneous pools
+		 * with synchronization, so we can make the assumption that
+		 * the svc_af is the same as the dest_af
+		 */
+		dest = ip_vs_find_dest(net, type, type, daddr, dport,
+				       param->vaddr, param->vport, protocol,
+				       fwmark, flags);
 
-		cp = ip_vs_conn_new(param, daddr, dport, flags, dest, fwmark);
+		cp = ip_vs_conn_new(param, type, daddr, dport, flags, dest,
+				    fwmark);
 		rcu_read_unlock();
 		if (!cp) {
-			if (param->pe_data)
-				kfree(param->pe_data);
+			kfree(param->pe_data);
 			IP_VS_DBG(2, "BACKUP, add new conn. failed\n");
 			return;
 		}
+		if (!(flags & IP_VS_CONN_F_TEMPLATE))
+			kfree(param->pe_data);
 	}
 
 	if (opt)
@@ -1164,6 +1188,7 @@ static inline int ip_vs_proc_sync_conn(struct net *net, __u8 *p, __u8 *msg_end)
 				(opt_flags & IPVS_OPT_F_SEQ_DATA ? &opt : NULL)
 				);
 #endif
+	ip_vs_pe_put(param.pe);
 	return 0;
 	/* Error exit */
 out:
@@ -1380,9 +1405,11 @@ join_mcast_group(struct sock *sk, struct in_addr *addr, char *ifname)
 
 	mreq.imr_ifindex = dev->ifindex;
 
+	rtnl_lock();
 	lock_sock(sk);
 	ret = ip_mc_join_group(sk, &mreq);
 	release_sock(sk);
+	rtnl_unlock();
 
 	return ret;
 }
@@ -1430,18 +1457,12 @@ static struct socket *make_send_sock(struct net *net, int id)
 	struct socket *sock;
 	int result;
 
-	/* First create a socket move it to right name space later */
-	result = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	/* First create a socket */
+	result = sock_create_kern(net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
 	if (result < 0) {
 		pr_err("Error during creation of socket; terminating\n");
 		return ERR_PTR(result);
 	}
-	/*
-	 * Kernel sockets that are a part of a namespace, should not
-	 * hold a reference to a namespace in order to allow to stop it.
-	 * After sk_change_net should be released using sk_release_kernel.
-	 */
-	sk_change_net(sock->sk, net);
 	result = set_mcast_if(sock->sk, ipvs->master_mcast_ifn);
 	if (result < 0) {
 		pr_err("Error setting outbound mcast interface\n");
@@ -1470,7 +1491,7 @@ static struct socket *make_send_sock(struct net *net, int id)
 	return sock;
 
 error:
-	sk_release_kernel(sock->sk);
+	sock_release(sock);
 	return ERR_PTR(result);
 }
 
@@ -1491,17 +1512,11 @@ static struct socket *make_receive_sock(struct net *net, int id)
 	int result;
 
 	/* First create a socket */
-	result = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	result = sock_create_kern(net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
 	if (result < 0) {
 		pr_err("Error during creation of socket; terminating\n");
 		return ERR_PTR(result);
 	}
-	/*
-	 * Kernel sockets that are a part of a namespace, should not
-	 * hold a reference to a namespace in order to allow to stop it.
-	 * After sk_change_net should be released using sk_release_kernel.
-	 */
-	sk_change_net(sock->sk, net);
 	/* it is equivalent to the REUSEADDR option in user-space */
 	sock->sk->sk_reuse = SK_CAN_REUSE;
 	result = sysctl_sync_sock_size(ipvs);
@@ -1527,7 +1542,7 @@ static struct socket *make_receive_sock(struct net *net, int id)
 	return sock;
 
 error:
-	sk_release_kernel(sock->sk);
+	sock_release(sock);
 	return ERR_PTR(result);
 }
 
@@ -1637,7 +1652,10 @@ static int sync_thread_master(void *data)
 			continue;
 		}
 		while (ip_vs_send_sync_msg(tinfo->sock, sb->mesg) < 0) {
-			int ret = __wait_event_interruptible(*sk_sleep(sk),
+			/* (Ab)use interruptible sleep to avoid increasing
+			 * the load avg.
+			 */
+			__wait_event_interruptible(*sk_sleep(sk),
 						   sock_writeable(sk) ||
 						   kthread_should_stop());
 			if (unlikely(kthread_should_stop()))
@@ -1662,7 +1680,7 @@ done:
 		ip_vs_sync_buff_release(sb);
 
 	/* release the sending multicast socket */
-	sk_release_kernel(tinfo->sock->sk);
+	sock_release(tinfo->sock);
 	kfree(tinfo);
 
 	return 0;
@@ -1699,7 +1717,7 @@ static int sync_thread_backup(void *data)
 	}
 
 	/* release the sending multicast socket */
-	sk_release_kernel(tinfo->sock->sk);
+	sock_release(tinfo->sock);
 	kfree(tinfo->buf);
 	kfree(tinfo);
 
@@ -1824,11 +1842,11 @@ int start_sync_thread(struct net *net, int state, char *mcast_ifn, __u8 syncid)
 	return 0;
 
 outsocket:
-	sk_release_kernel(sock->sk);
+	sock_release(sock);
 
 outtinfo:
 	if (tinfo) {
-		sk_release_kernel(tinfo->sock->sk);
+		sock_release(tinfo->sock);
 		kfree(tinfo->buf);
 		kfree(tinfo);
 	}

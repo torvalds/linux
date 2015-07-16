@@ -12,16 +12,13 @@
 
 /* posix_acl.c */
 struct posix_acl *hfsplus_get_posix_acl(struct inode *inode, int type);
-extern int hfsplus_posix_acl_chmod(struct inode *);
+int hfsplus_set_posix_acl(struct inode *inode, struct posix_acl *acl,
+		int type);
 extern int hfsplus_init_posix_acl(struct inode *, struct inode *);
 
 #else  /* CONFIG_HFSPLUS_FS_POSIX_ACL */
 #define hfsplus_get_posix_acl NULL
-
-static inline int hfsplus_posix_acl_chmod(struct inode *inode)
-{
-	return 0;
-}
+#define hfsplus_set_posix_acl NULL
 
 static inline int hfsplus_init_posix_acl(struct inode *inode, struct inode *dir)
 {

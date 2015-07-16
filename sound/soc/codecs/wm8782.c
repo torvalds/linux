@@ -72,7 +72,6 @@ static int wm8782_remove(struct platform_device *pdev)
 static struct platform_driver wm8782_codec_driver = {
 	.driver = {
 		.name = "wm8782",
-		.owner = THIS_MODULE,
 	},
 	.probe = wm8782_probe,
 	.remove = wm8782_remove,

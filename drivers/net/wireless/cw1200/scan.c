@@ -39,9 +39,9 @@ static int cw1200_scan_start(struct cw1200_common *priv, struct wsm_scan *scan)
 	cancel_delayed_work_sync(&priv->clear_recent_scan_work);
 	atomic_set(&priv->scan.in_progress, 1);
 	atomic_set(&priv->recent_scan, 1);
-	cw1200_pm_stay_awake(&priv->pm_state, tmo * HZ / 1000);
+	cw1200_pm_stay_awake(&priv->pm_state, msecs_to_jiffies(tmo));
 	queue_delayed_work(priv->workqueue, &priv->scan.timeout,
-			   tmo * HZ / 1000);
+			   msecs_to_jiffies(tmo));
 	ret = wsm_scan(priv, scan);
 	if (ret) {
 		atomic_set(&priv->scan.in_progress, 0);
@@ -53,9 +53,10 @@ static int cw1200_scan_start(struct cw1200_common *priv, struct wsm_scan *scan)
 
 int cw1200_hw_scan(struct ieee80211_hw *hw,
 		   struct ieee80211_vif *vif,
-		   struct cfg80211_scan_request *req)
+		   struct ieee80211_scan_request *hw_req)
 {
 	struct cw1200_common *priv = hw->priv;
+	struct cfg80211_scan_request *req = &hw_req->req;
 	struct wsm_template_frame frame = {
 		.frame_type = WSM_FRAME_TYPE_PROBE_REQUEST,
 	};
@@ -77,7 +78,7 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 	if (req->n_ssids > WSM_SCAN_MAX_NUM_OF_SSIDS)
 		return -EINVAL;
 
-	frame.skb = ieee80211_probereq_get(hw, priv->vif, NULL, 0,
+	frame.skb = ieee80211_probereq_get(hw, priv->vif->addr, NULL, 0,
 		req->ie_len);
 	if (!frame.skb)
 		return -ENOMEM;
@@ -173,8 +174,9 @@ void cw1200_scan_work(struct work_struct *work)
 			cw1200_set_pm(priv, &priv->powersave_mode);
 
 		if (priv->scan.status < 0)
-			wiphy_dbg(priv->hw->wiphy, "[SCAN] Scan failed (%d).\n",
-				  priv->scan.status);
+			wiphy_warn(priv->hw->wiphy,
+				   "[SCAN] Scan failed (%d).\n",
+				   priv->scan.status);
 		else if (priv->scan.req)
 			wiphy_dbg(priv->hw->wiphy,
 				  "[SCAN] Scan completed.\n");
@@ -197,9 +199,9 @@ void cw1200_scan_work(struct work_struct *work)
 			if ((*it)->band != first->band)
 				break;
 			if (((*it)->flags ^ first->flags) &
-					IEEE80211_CHAN_PASSIVE_SCAN)
+					IEEE80211_CHAN_NO_IR)
 				break;
-			if (!(first->flags & IEEE80211_CHAN_PASSIVE_SCAN) &&
+			if (!(first->flags & IEEE80211_CHAN_NO_IR) &&
 			    (*it)->max_power != first->max_power)
 				break;
 		}
@@ -210,7 +212,7 @@ void cw1200_scan_work(struct work_struct *work)
 		else
 			scan.max_tx_rate = WSM_TRANSMIT_RATE_1;
 		scan.num_probes =
-			(first->flags & IEEE80211_CHAN_PASSIVE_SCAN) ? 0 : 2;
+			(first->flags & IEEE80211_CHAN_NO_IR) ? 0 : 2;
 		scan.num_ssids = priv->scan.n_ssids;
 		scan.ssids = &priv->scan.ssids[0];
 		scan.num_channels = it - priv->scan.curr;
@@ -233,7 +235,7 @@ void cw1200_scan_work(struct work_struct *work)
 		}
 		for (i = 0; i < scan.num_channels; ++i) {
 			scan.ch[i].number = priv->scan.curr[i]->hw_value;
-			if (priv->scan.curr[i]->flags & IEEE80211_CHAN_PASSIVE_SCAN) {
+			if (priv->scan.curr[i]->flags & IEEE80211_CHAN_NO_IR) {
 				scan.ch[i].min_chan_time = 50;
 				scan.ch[i].max_chan_time = 100;
 			} else {
@@ -241,7 +243,7 @@ void cw1200_scan_work(struct work_struct *work)
 				scan.ch[i].max_chan_time = 25;
 			}
 		}
-		if (!(first->flags & IEEE80211_CHAN_PASSIVE_SCAN) &&
+		if (!(first->flags & IEEE80211_CHAN_NO_IR) &&
 		    priv->scan.output_power != first->max_power) {
 			priv->scan.output_power = first->max_power;
 			wsm_set_output_power(priv,
@@ -384,8 +386,8 @@ void cw1200_probe_work(struct work_struct *work)
 	if (down_trylock(&priv->scan.lock)) {
 		/* Scan is already in progress. Requeue self. */
 		schedule();
-		queue_delayed_work(priv->workqueue,
-				   &priv->scan.probe_work, HZ / 10);
+		queue_delayed_work(priv->workqueue, &priv->scan.probe_work,
+				   msecs_to_jiffies(100));
 		mutex_unlock(&priv->conf_mutex);
 		return;
 	}

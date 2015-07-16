@@ -36,10 +36,8 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
-
 #include <linux/thermal.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 MODULE_AUTHOR("Thomas Sujith");
 MODULE_AUTHOR("Zhang Rui");

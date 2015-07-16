@@ -68,7 +68,7 @@ static inline struct device *mic_dev(struct mic_vdev *mvdev)
 }
 
 /* This gets the device's feature bits. */
-static u32 mic_get_features(struct virtio_device *vdev)
+static u64 mic_get_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	u32 features = 0;
@@ -76,8 +76,7 @@ static u32 mic_get_features(struct virtio_device *vdev)
 	u8 __iomem *in_features = mic_vq_features(desc);
 	int feature_len = ioread8(&desc->feature_len);
 
-	bits = min_t(unsigned, feature_len,
-		sizeof(vdev->features)) * 8;
+	bits = min_t(unsigned, feature_len, sizeof(features)) * 8;
 	for (i = 0; i < bits; i++)
 		if (ioread8(&in_features[i / 8]) & (BIT(i % 8)))
 			features |= BIT(i);
@@ -85,7 +84,7 @@ static u32 mic_get_features(struct virtio_device *vdev)
 	return features;
 }
 
-static void mic_finalize_features(struct virtio_device *vdev)
+static int mic_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	struct mic_device_desc __iomem *desc = to_micvdev(vdev)->desc;
@@ -97,14 +96,19 @@ static void mic_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
+	/* Make sure we don't have any features > 32 bits! */
+	BUG_ON((u32)vdev->features != vdev->features);
+
 	memset_io(out_features, 0, feature_len);
 	bits = min_t(unsigned, feature_len,
 		sizeof(vdev->features)) * 8;
 	for (i = 0; i < bits; i++) {
-		if (test_bit(i, vdev->features))
+		if (__virtio_test_bit(vdev, i))
 			iowrite8(ioread8(&out_features[i / 8]) | (1 << (i % 8)),
 				 &out_features[i / 8]);
 	}
+
+	return 0;
 }
 
 /*
@@ -154,14 +158,14 @@ static void mic_reset_inform_host(struct virtio_device *vdev)
 {
 	struct mic_vdev *mvdev = to_micvdev(vdev);
 	struct mic_device_ctrl __iomem *dc = mvdev->dc;
-	int retry = 100, i;
+	int retry;
 
 	iowrite8(0, &dc->host_ack);
 	iowrite8(1, &dc->vdev_reset);
 	mic_send_intr(mvdev->mdev, mvdev->c2h_vdev_db);
 
 	/* Wait till host completes all card accesses and acks the reset */
-	for (i = retry; i--;) {
+	for (retry = 100; retry--;) {
 		if (ioread8(&dc->host_ack))
 			break;
 		msleep(100);
@@ -187,11 +191,12 @@ static void mic_reset(struct virtio_device *vdev)
 /*
  * The virtio_ring code calls this API when it wants to notify the Host.
  */
-static void mic_notify(struct virtqueue *vq)
+static bool mic_notify(struct virtqueue *vq)
 {
 	struct mic_vdev *mvdev = vq->priv;
 
 	mic_send_intr(mvdev->mdev, mvdev->c2h_vdev_db);
+	return true;
 }
 
 static void mic_del_vq(struct virtqueue *vq, int n)
@@ -247,17 +252,17 @@ static struct virtqueue *mic_find_vq(struct virtio_device *vdev,
 	/* First assign the vring's allocated in host memory */
 	vqconfig = mic_vq_config(mvdev->desc) + index;
 	memcpy_fromio(&config, vqconfig, sizeof(config));
-	_vr_size = vring_size(config.num, MIC_VIRTIO_RING_ALIGN);
+	_vr_size = vring_size(le16_to_cpu(config.num), MIC_VIRTIO_RING_ALIGN);
 	vr_size = PAGE_ALIGN(_vr_size + sizeof(struct _mic_vring_info));
-	va = mic_card_map(mvdev->mdev, config.address, vr_size);
+	va = mic_card_map(mvdev->mdev, le64_to_cpu(config.address), vr_size);
 	if (!va)
 		return ERR_PTR(-ENOMEM);
 	mvdev->vr[index] = va;
 	memset_io(va, 0x0, _vr_size);
-	vq = vring_new_virtqueue(index,
-				config.num, MIC_VIRTIO_RING_ALIGN, vdev,
-				false,
-				va, mic_notify, callback, name);
+	vq = vring_new_virtqueue(index, le16_to_cpu(config.num),
+				 MIC_VIRTIO_RING_ALIGN, vdev, false,
+				 (void __force *)va, mic_notify, callback,
+				 name);
 	if (!vq) {
 		err = -ENOMEM;
 		goto unmap;
@@ -272,7 +277,8 @@ static struct virtqueue *mic_find_vq(struct virtio_device *vdev,
 
 	/* Allocate and reassign used ring now */
 	mvdev->used_size[index] = PAGE_ALIGN(sizeof(__u16) * 3 +
-			sizeof(struct vring_used_elem) * config.num);
+					     sizeof(struct vring_used_elem) *
+					     le16_to_cpu(config.num));
 	used = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 					get_order(mvdev->used_size[index]));
 	if (!used) {
@@ -309,7 +315,7 @@ static int mic_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 {
 	struct mic_vdev *mvdev = to_micvdev(vdev);
 	struct mic_device_ctrl __iomem *dc = mvdev->dc;
-	int i, err, retry = 100;
+	int i, err, retry;
 
 	/* We must have this many virtqueues. */
 	if (nvqs > ioread8(&mvdev->desc->num_vq))
@@ -331,7 +337,7 @@ static int mic_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	 * rings have been re-assigned.
 	 */
 	mic_send_intr(mvdev->mdev, mvdev->c2h_vdev_db);
-	for (i = retry; i--;) {
+	for (retry = 100; retry--;) {
 		if (!ioread8(&dc->used_address_updated))
 			break;
 		msleep(100);
@@ -415,7 +421,7 @@ static int mic_add_device(struct mic_device_desc __iomem *d,
 
 	virtio_db = mic_next_card_db();
 	mvdev->virtio_cookie = mic_request_card_irq(mic_virtio_intr_handler,
-			"virtio intr", mvdev, virtio_db);
+			NULL, "virtio intr", mvdev, virtio_db);
 	if (IS_ERR(mvdev->virtio_cookie)) {
 		ret = PTR_ERR(mvdev->virtio_cookie);
 		goto kfree;
@@ -460,16 +466,12 @@ static void mic_handle_config_change(struct mic_device_desc __iomem *d,
 	struct mic_device_ctrl __iomem *dc
 		= (void __iomem *)d + mic_aligned_desc_size(d);
 	struct mic_vdev *mvdev = (struct mic_vdev *)ioread64(&dc->vdev);
-	struct virtio_driver *drv;
 
 	if (ioread8(&dc->config_change) != MIC_VIRTIO_PARAM_CONFIG_CHANGED)
 		return;
 
 	dev_dbg(mdrv->dev, "%s %d\n", __func__, __LINE__);
-	drv = container_of(mvdev->vdev.dev.driver,
-				struct virtio_driver, driver);
-	if (drv->config_changed)
-		drv->config_changed(&mvdev->vdev);
+	virtio_config_changed(&mvdev->vdev);
 	iowrite8(1, &dc->guest_ack);
 }
 
@@ -519,8 +521,8 @@ static void mic_scan_devices(struct mic_driver *mdrv, bool remove)
 	struct device *dev;
 	int ret;
 
-	for (i = mic_aligned_size(struct mic_bootparam);
-		i < MIC_DP_SIZE; i += mic_total_desc_size(d)) {
+	for (i = sizeof(struct mic_bootparam); i < MIC_DP_SIZE;
+		i += mic_total_desc_size(d)) {
 		d = mdrv->dp + i;
 		dc = (void __iomem *)d + mic_aligned_desc_size(d);
 		/*
@@ -539,7 +541,8 @@ static void mic_scan_devices(struct mic_driver *mdrv, bool remove)
 			continue;
 
 		/* device already exists */
-		dev = device_find_child(mdrv->dev, d, mic_match_desc);
+		dev = device_find_child(mdrv->dev, (void __force *)d,
+					mic_match_desc);
 		if (dev) {
 			if (remove)
 				iowrite8(MIC_VIRTIO_PARAM_DEV_REMOVE,
@@ -603,8 +606,9 @@ int mic_devices_init(struct mic_driver *mdrv)
 	mic_scan_devices(mdrv, !REMOVE_DEVICES);
 
 	config_db = mic_next_card_db();
-	virtio_config_cookie = mic_request_card_irq(mic_extint_handler,
-			"virtio_config_intr", mdrv, config_db);
+	virtio_config_cookie = mic_request_card_irq(mic_extint_handler, NULL,
+						    "virtio_config_intr", mdrv,
+						    config_db);
 	if (IS_ERR(virtio_config_cookie)) {
 		rc = PTR_ERR(virtio_config_cookie);
 		goto exit;

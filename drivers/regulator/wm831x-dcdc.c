@@ -469,10 +469,8 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 
 	dcdc = devm_kzalloc(&pdev->dev,  sizeof(struct wm831x_dcdc),
 			    GFP_KERNEL);
-	if (dcdc == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!dcdc)
 		return -ENOMEM;
-	}
 
 	dcdc->wm831x = wm831x;
 
@@ -535,7 +533,8 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					wm831x_dcdc_uv_irq,
-					IRQF_TRIGGER_RISING, dcdc->name, dcdc);
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					dcdc->name, dcdc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
@@ -545,7 +544,8 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "HC"));
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					wm831x_dcdc_oc_irq,
-					IRQF_TRIGGER_RISING, dcdc->name, dcdc);
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					dcdc->name, dcdc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request HC IRQ %d: %d\n",
 			irq, ret);
@@ -564,7 +564,6 @@ static struct platform_driver wm831x_buckv_driver = {
 	.probe = wm831x_buckv_probe,
 	.driver		= {
 		.name	= "wm831x-buckv",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -622,10 +621,8 @@ static int wm831x_buckp_probe(struct platform_device *pdev)
 
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc),
 			    GFP_KERNEL);
-	if (dcdc == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!dcdc)
 		return -ENOMEM;
-	}
 
 	dcdc->wm831x = wm831x;
 
@@ -674,7 +671,8 @@ static int wm831x_buckp_probe(struct platform_device *pdev)
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					wm831x_dcdc_uv_irq,
-					IRQF_TRIGGER_RISING, dcdc->name, dcdc);
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					dcdc->name, dcdc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
@@ -693,7 +691,6 @@ static struct platform_driver wm831x_buckp_driver = {
 	.probe = wm831x_buckp_probe,
 	.driver		= {
 		.name	= "wm831x-buckp",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -752,18 +749,15 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc), GFP_KERNEL);
-	if (dcdc == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!dcdc)
 		return -ENOMEM;
-	}
 
 	dcdc->wm831x = wm831x;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "No REG resource\n");
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 	dcdc->base = res->start;
 
@@ -788,33 +782,30 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register DCDC%d: %d\n",
 			id + 1, ret);
-		goto err;
+		return ret;
 	}
 
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					wm831x_dcdc_uv_irq,
-					IRQF_TRIGGER_RISING, dcdc->name,
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					dcdc->name,
 					dcdc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
-		goto err;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, dcdc);
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static struct platform_driver wm831x_boostp_driver = {
 	.probe = wm831x_boostp_probe,
 	.driver		= {
 		.name	= "wm831x-boostp",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -846,10 +837,8 @@ static int wm831x_epe_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Probing EPE%d\n", id + 1);
 
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc), GFP_KERNEL);
-	if (dcdc == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!dcdc)
 		return -ENOMEM;
-	}
 
 	dcdc->wm831x = wm831x;
 
@@ -892,7 +881,6 @@ static struct platform_driver wm831x_epe_driver = {
 	.probe = wm831x_epe_probe,
 	.driver		= {
 		.name	= "wm831x-epe",
-		.owner	= THIS_MODULE,
 	},
 };
 

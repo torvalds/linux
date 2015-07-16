@@ -8,7 +8,6 @@
  *	Author: Maciej W. Rozycki <macro@mips.com>
  */
 
-#include <linux/init.h>
 
 #include <asm/addrspace.h>
 #include <asm/bug.h>

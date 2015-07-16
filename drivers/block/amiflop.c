@@ -1406,7 +1406,7 @@ next_segment:
 
 		track = block / (floppy->dtype->sects * floppy->type->sect_mult);
 		sector = block % (floppy->dtype->sects * floppy->type->sect_mult);
-		data = rq->buffer + 512 * cnt;
+		data = bio_data(rq->bio) + 512 * cnt;
 #ifdef DEBUG
 		printk("access to track %d, sector %d, with buffer at "
 		       "0x%08lx\n", track, sector, data);
@@ -1864,7 +1864,6 @@ static int __exit amiga_floppy_remove(struct platform_device *pdev)
 static struct platform_driver amiga_floppy_driver = {
 	.driver   = {
 		.name	= "amiga-floppy",
-		.owner	= THIS_MODULE,
 	},
 };
 

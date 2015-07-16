@@ -327,6 +327,13 @@ temp[1-*]_max_hyst
 		from the max value.
 		RW
 
+temp[1-*]_min_hyst
+		Temperature hysteresis value for min limit.
+		Unit: millidegree Celsius
+		Must be reported as an absolute temperature, NOT a delta
+		from the min value.
+		RW
+
 temp[1-*]_input Temperature input value.
 		Unit: millidegree Celsius
 		RO
@@ -360,6 +367,13 @@ temp[1-*]_emergency_hyst
 temp[1-*]_lcrit	Temperature critical min value, typically lower than
 		corresponding temp_min values.
 		Unit: millidegree Celsius
+		RW
+
+temp[1-*]_lcrit_hyst
+		Temperature hysteresis value for critical min limit.
+		Unit: millidegree Celsius
+		Must be reported as an absolute temperature, NOT a delta
+		from the critical min value.
 		RW
 
 temp[1-*]_offset

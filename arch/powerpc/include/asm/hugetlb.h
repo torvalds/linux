@@ -48,7 +48,7 @@ static inline unsigned int hugepd_shift(hugepd_t hpd)
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 
-static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
+static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
 				    unsigned pdshift)
 {
 	/*
@@ -58,9 +58,9 @@ static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
 	 */
 	unsigned long idx = 0;
 
-	pte_t *dir = hugepd_page(*hpdp);
+	pte_t *dir = hugepd_page(hpd);
 #ifndef CONFIG_PPC_FSL_BOOK3E
-	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(*hpdp);
+	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(hpd);
 #endif
 
 	return dir + idx;
@@ -71,7 +71,7 @@ pte_t *huge_pte_offset_and_shift(struct mm_struct *mm,
 
 void flush_dcache_icache_hugepage(struct page *page);
 
-#if defined(CONFIG_PPC_MM_SLICES) || defined(CONFIG_PPC_SUBPAGE_PROT)
+#if defined(CONFIG_PPC_MM_SLICES)
 int is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 			   unsigned long len);
 #else
@@ -112,11 +112,6 @@ static inline int prepare_hugepage_range(struct file *file,
 	return 0;
 }
 
-static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
-{
-}
-
-
 static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 				   pte_t *ptep, pte_t pte)
 {
@@ -127,7 +122,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 					    unsigned long addr, pte_t *ptep)
 {
 #ifdef CONFIG_PPC64
-	return __pte(pte_update(mm, addr, ptep, ~0UL, 1));
+	return __pte(pte_update(mm, addr, ptep, ~0UL, 0, 1));
 #else
 	return __pte(pte_update(ptep, ~0UL, 0));
 #endif
@@ -173,15 +168,6 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
 	return *ptep;
 }
 
-static inline int arch_prepare_hugepage(struct page *page)
-{
-	return 0;
-}
-
-static inline void arch_release_hugepage(struct page *page)
-{
-}
-
 static inline void arch_clear_hugepage_flags(struct page *page)
 {
 }
@@ -193,7 +179,7 @@ static inline void flush_hugetlb_page(struct vm_area_struct *vma,
 }
 
 #define hugepd_shift(x) 0
-static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
+static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
 				    unsigned pdshift)
 {
 	return 0;

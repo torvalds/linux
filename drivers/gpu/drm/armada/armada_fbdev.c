@@ -105,9 +105,9 @@ static int armada_fb_create(struct drm_fb_helper *fbh,
 	drm_fb_helper_fill_fix(info, dfb->fb.pitches[0], dfb->fb.depth);
 	drm_fb_helper_fill_var(info, fbh, sizes->fb_width, sizes->fb_height);
 
-	DRM_DEBUG_KMS("allocated %dx%d %dbpp fb: 0x%08x\n",
-		dfb->fb.width, dfb->fb.height,
-		dfb->fb.bits_per_pixel, obj->phys_addr);
+	DRM_DEBUG_KMS("allocated %dx%d %dbpp fb: 0x%08llx\n",
+		dfb->fb.width, dfb->fb.height, dfb->fb.bits_per_pixel,
+		(unsigned long long)obj->phys_addr);
 
 	return 0;
 
@@ -131,7 +131,7 @@ static int armada_fb_probe(struct drm_fb_helper *fbh,
 	return ret;
 }
 
-static struct drm_fb_helper_funcs armada_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs armada_fb_helper_funcs = {
 	.gamma_set	= armada_drm_crtc_gamma_set,
 	.gamma_get	= armada_drm_crtc_gamma_get,
 	.fb_probe	= armada_fb_probe,
@@ -149,7 +149,7 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	priv->fbdev = fbh;
 
-	fbh->funcs = &armada_fb_helper_funcs;
+	drm_fb_helper_prepare(dev, fbh, &armada_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, fbh, 1, 1);
 	if (ret) {
@@ -177,6 +177,14 @@ int armada_fbdev_init(struct drm_device *dev)
 	return ret;
 }
 
+void armada_fbdev_lastclose(struct drm_device *dev)
+{
+	struct armada_private *priv = dev->dev_private;
+
+	if (priv->fbdev)
+		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
+}
+
 void armada_fbdev_fini(struct drm_device *dev)
 {
 	struct armada_private *priv = dev->dev_private;
@@ -192,10 +200,10 @@ void armada_fbdev_fini(struct drm_device *dev)
 			framebuffer_release(info);
 		}
 
+		drm_fb_helper_fini(fbh);
+
 		if (fbh->fb)
 			fbh->fb->funcs->destroy(fbh->fb);
-
-		drm_fb_helper_fini(fbh);
 
 		priv->fbdev = NULL;
 	}

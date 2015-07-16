@@ -101,7 +101,9 @@ struct snd_pcm_sw_params32 {
 	u32 silence_threshold;
 	u32 silence_size;
 	u32 boundary;
-	unsigned char reserved[64];
+	u32 proto;
+	u32 tstamp_type;
+	unsigned char reserved[56];
 };
 
 /* recalcuate the boundary within 32bit */
@@ -133,7 +135,9 @@ static int snd_pcm_ioctl_sw_params_compat(struct snd_pcm_substream *substream,
 	    get_user(params.start_threshold, &src->start_threshold) ||
 	    get_user(params.stop_threshold, &src->stop_threshold) ||
 	    get_user(params.silence_threshold, &src->silence_threshold) ||
-	    get_user(params.silence_size, &src->silence_size))
+	    get_user(params.silence_size, &src->silence_size) ||
+	    get_user(params.tstamp_type, &src->tstamp_type) ||
+	    get_user(params.proto, &src->proto))
 		return -EFAULT;
 	/*
 	 * Check silent_size parameter.  Since we have 64bit boundary,
@@ -190,22 +194,36 @@ struct snd_pcm_status32 {
 	u32 avail_max;
 	u32 overrange;
 	s32 suspended_state;
-	u32 reserved_alignment;
+	u32 audio_tstamp_data;
 	struct compat_timespec audio_tstamp;
-	unsigned char reserved[56-sizeof(struct compat_timespec)];
+	struct compat_timespec driver_tstamp;
+	u32 audio_tstamp_accuracy;
+	unsigned char reserved[52-2*sizeof(struct compat_timespec)];
 } __attribute__((packed));
 
 
 static int snd_pcm_status_user_compat(struct snd_pcm_substream *substream,
-				      struct snd_pcm_status32 __user *src)
+				      struct snd_pcm_status32 __user *src,
+				      bool ext)
 {
 	struct snd_pcm_status status;
 	int err;
 
+	memset(&status, 0, sizeof(status));
+	/*
+	 * with extension, parameters are read/write,
+	 * get audio_tstamp_data from user,
+	 * ignore rest of status structure
+	 */
+	if (ext && get_user(status.audio_tstamp_data,
+				(u32 __user *)(&src->audio_tstamp_data)))
+		return -EFAULT;
 	err = snd_pcm_status(substream, &status);
 	if (err < 0)
 		return err;
 
+	if (clear_user(src, sizeof(*src)))
+		return -EFAULT;
 	if (put_user(status.state, &src->state) ||
 	    compat_put_timespec(&status.trigger_tstamp, &src->trigger_tstamp) ||
 	    compat_put_timespec(&status.tstamp, &src->tstamp) ||
@@ -216,7 +234,10 @@ static int snd_pcm_status_user_compat(struct snd_pcm_substream *substream,
 	    put_user(status.avail_max, &src->avail_max) ||
 	    put_user(status.overrange, &src->overrange) ||
 	    put_user(status.suspended_state, &src->suspended_state) ||
-	    compat_put_timespec(&status.audio_tstamp, &src->audio_tstamp))
+	    put_user(status.audio_tstamp_data, &src->audio_tstamp_data) ||
+	    compat_put_timespec(&status.audio_tstamp, &src->audio_tstamp) ||
+	    compat_put_timespec(&status.driver_tstamp, &src->driver_tstamp) ||
+	    put_user(status.audio_tstamp_accuracy, &src->audio_tstamp_accuracy))
 		return -EFAULT;
 
 	return err;
@@ -451,6 +472,7 @@ enum {
 	SNDRV_PCM_IOCTL_HW_PARAMS32 = _IOWR('A', 0x11, struct snd_pcm_hw_params32),
 	SNDRV_PCM_IOCTL_SW_PARAMS32 = _IOWR('A', 0x13, struct snd_pcm_sw_params32),
 	SNDRV_PCM_IOCTL_STATUS32 = _IOR('A', 0x20, struct snd_pcm_status32),
+	SNDRV_PCM_IOCTL_STATUS_EXT32 = _IOWR('A', 0x24, struct snd_pcm_status32),
 	SNDRV_PCM_IOCTL_DELAY32 = _IOR('A', 0x21, s32),
 	SNDRV_PCM_IOCTL_CHANNEL_INFO32 = _IOR('A', 0x32, struct snd_pcm_channel_info32),
 	SNDRV_PCM_IOCTL_REWIND32 = _IOW('A', 0x46, u32),
@@ -511,7 +533,9 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	case SNDRV_PCM_IOCTL_SW_PARAMS32:
 		return snd_pcm_ioctl_sw_params_compat(substream, argp);
 	case SNDRV_PCM_IOCTL_STATUS32:
-		return snd_pcm_status_user_compat(substream, argp);
+		return snd_pcm_status_user_compat(substream, argp, false);
+	case SNDRV_PCM_IOCTL_STATUS_EXT32:
+		return snd_pcm_status_user_compat(substream, argp, true);
 	case SNDRV_PCM_IOCTL_SYNC_PTR32:
 		return snd_pcm_ioctl_sync_ptr_compat(substream, argp);
 	case SNDRV_PCM_IOCTL_CHANNEL_INFO32:

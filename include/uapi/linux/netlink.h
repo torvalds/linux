@@ -101,13 +101,15 @@ struct nlmsgerr {
 	struct nlmsghdr msg;
 };
 
-#define NETLINK_ADD_MEMBERSHIP	1
-#define NETLINK_DROP_MEMBERSHIP	2
-#define NETLINK_PKTINFO		3
-#define NETLINK_BROADCAST_ERROR	4
-#define NETLINK_NO_ENOBUFS	5
-#define NETLINK_RX_RING		6
-#define NETLINK_TX_RING		7
+#define NETLINK_ADD_MEMBERSHIP		1
+#define NETLINK_DROP_MEMBERSHIP		2
+#define NETLINK_PKTINFO			3
+#define NETLINK_BROADCAST_ERROR		4
+#define NETLINK_NO_ENOBUFS		5
+#define NETLINK_RX_RING			6
+#define NETLINK_TX_RING			7
+#define NETLINK_LISTEN_ALL_NSID		8
+#define NETLINK_LIST_MEMBERSHIPS	9
 
 struct nl_pktinfo {
 	__u32	group;

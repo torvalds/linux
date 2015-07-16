@@ -79,7 +79,7 @@ int request_dma(unsigned int chan, const char *device_id)
 	return ret;
 
 bad_dma:
-	printk(KERN_ERR "dma: trying to allocate DMA%d\n", chan);
+	pr_err("dma: trying to allocate DMA%d\n", chan);
 	return -EINVAL;
 
 busy:
@@ -100,7 +100,7 @@ void free_dma(unsigned int chan)
 		goto bad_dma;
 
 	if (dma->active) {
-		printk(KERN_ERR "dma%d: freeing active DMA\n", chan);
+		pr_err("dma%d: freeing active DMA\n", chan);
 		dma->d_ops->disable(chan, dma);
 		dma->active = 0;
 	}
@@ -111,11 +111,11 @@ void free_dma(unsigned int chan)
 		return;
 	}
 
-	printk(KERN_ERR "dma%d: trying to free free DMA\n", chan);
+	pr_err("dma%d: trying to free free DMA\n", chan);
 	return;
 
 bad_dma:
-	printk(KERN_ERR "dma: trying to free DMA%d\n", chan);
+	pr_err("dma: trying to free DMA%d\n", chan);
 }
 EXPORT_SYMBOL(free_dma);
 
@@ -126,8 +126,7 @@ void set_dma_sg (unsigned int chan, struct scatterlist *sg, int nr_sg)
 	dma_t *dma = dma_channel(chan);
 
 	if (dma->active)
-		printk(KERN_ERR "dma%d: altering DMA SG while "
-		       "DMA active\n", chan);
+		pr_err("dma%d: altering DMA SG while DMA active\n", chan);
 
 	dma->sg = sg;
 	dma->sgcount = nr_sg;
@@ -144,8 +143,7 @@ void __set_dma_addr (unsigned int chan, void *addr)
 	dma_t *dma = dma_channel(chan);
 
 	if (dma->active)
-		printk(KERN_ERR "dma%d: altering DMA address while "
-		       "DMA active\n", chan);
+		pr_err("dma%d: altering DMA address while DMA active\n", chan);
 
 	dma->sg = NULL;
 	dma->addr = addr;
@@ -162,8 +160,7 @@ void set_dma_count (unsigned int chan, unsigned long count)
 	dma_t *dma = dma_channel(chan);
 
 	if (dma->active)
-		printk(KERN_ERR "dma%d: altering DMA count while "
-		       "DMA active\n", chan);
+		pr_err("dma%d: altering DMA count while DMA active\n", chan);
 
 	dma->sg = NULL;
 	dma->count = count;
@@ -178,8 +175,7 @@ void set_dma_mode (unsigned int chan, unsigned int mode)
 	dma_t *dma = dma_channel(chan);
 
 	if (dma->active)
-		printk(KERN_ERR "dma%d: altering DMA mode while "
-		       "DMA active\n", chan);
+		pr_err("dma%d: altering DMA mode while DMA active\n", chan);
 
 	dma->dma_mode = mode;
 	dma->invalid = 1;
@@ -202,7 +198,7 @@ void enable_dma (unsigned int chan)
 	return;
 
 free_dma:
-	printk(KERN_ERR "dma%d: trying to enable free DMA\n", chan);
+	pr_err("dma%d: trying to enable free DMA\n", chan);
 	BUG();
 }
 EXPORT_SYMBOL(enable_dma);
@@ -223,7 +219,7 @@ void disable_dma (unsigned int chan)
 	return;
 
 free_dma:
-	printk(KERN_ERR "dma%d: trying to disable free DMA\n", chan);
+	pr_err("dma%d: trying to disable free DMA\n", chan);
 	BUG();
 }
 EXPORT_SYMBOL(disable_dma);
@@ -240,7 +236,7 @@ EXPORT_SYMBOL(dma_channel_active);
 
 void set_dma_page(unsigned int chan, char pagenr)
 {
-	printk(KERN_ERR "dma%d: trying to set_dma_page\n", chan);
+	pr_err("dma%d: trying to set_dma_page\n", chan);
 }
 EXPORT_SYMBOL(set_dma_page);
 

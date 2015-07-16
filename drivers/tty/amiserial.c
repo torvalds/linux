@@ -931,7 +931,7 @@ static void rs_send_xchar(struct tty_struct *tty, char ch)
 	struct serial_state *info = tty->driver_data;
         unsigned long flags;
 
-	if (serial_paranoia_check(info, tty->name, "rs_send_char"))
+	if (serial_paranoia_check(info, tty->name, "rs_send_xchar"))
 		return;
 
 	info->x_char = ch;
@@ -966,9 +966,7 @@ static void rs_throttle(struct tty_struct * tty)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 #ifdef SERIAL_DEBUG_THROTTLE
-	char	buf[64];
-
-	printk("throttle %s: %d....\n", tty_name(tty, buf),
+	printk("throttle %s: %d....\n", tty_name(tty),
 	       tty->ldisc.chars_in_buffer(tty));
 #endif
 
@@ -991,9 +989,7 @@ static void rs_unthrottle(struct tty_struct * tty)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 #ifdef SERIAL_DEBUG_THROTTLE
-	char	buf[64];
-
-	printk("unthrottle %s: %d....\n", tty_name(tty, buf),
+	printk("unthrottle %s: %d....\n", tty_name(tty),
 	       tty->ldisc.chars_in_buffer(tty));
 #endif
 
@@ -1248,6 +1244,8 @@ static int rs_ioctl(struct tty_struct *tty,
 	struct async_icount cprev, cnow;	/* kernel counter temps */
 	void __user *argp = (void __user *)arg;
 	unsigned long flags;
+	DEFINE_WAIT(wait);
+	int ret;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
 		return -ENODEV;
@@ -1288,25 +1286,33 @@ static int rs_ioctl(struct tty_struct *tty,
 			cprev = info->icount;
 			local_irq_restore(flags);
 			while (1) {
-				interruptible_sleep_on(&info->tport.delta_msr_wait);
-				/* see if a signal did it */
-				if (signal_pending(current))
-					return -ERESTARTSYS;
+				prepare_to_wait(&info->tport.delta_msr_wait,
+						&wait, TASK_INTERRUPTIBLE);
 				local_irq_save(flags);
 				cnow = info->icount; /* atomic copy */
 				local_irq_restore(flags);
 				if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr && 
-				    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
-					return -EIO; /* no change => error */
+				    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts) {
+					ret = -EIO; /* no change => error */
+					break;
+				}
 				if ( ((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
 				     ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
 				     ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
 				     ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts)) ) {
-					return 0;
+					ret = 0;
+					break;
+				}
+				schedule();
+				/* see if a signal did it */
+				if (signal_pending(current)) {
+					ret = -ERESTARTSYS;
+					break;
 				}
 				cprev = cnow;
 			}
-			/* NOTREACHED */
+			finish_wait(&info->tport.delta_msr_wait, &wait);
+			return ret;
 
 		case TIOCSERGWILD:
 		case TIOCSERSWILD:
@@ -1776,7 +1782,8 @@ static int __exit amiga_serial_remove(struct platform_device *pdev)
 	struct serial_state *state = platform_get_drvdata(pdev);
 
 	/* printk("Unloading %s: version %s\n", serial_name, serial_version); */
-	if ((error = tty_unregister_driver(serial_driver)))
+	error = tty_unregister_driver(serial_driver);
+	if (error)
 		printk("SERIAL: failed to unregister serial driver (%d)\n",
 		       error);
 	put_tty_driver(serial_driver);
@@ -1792,7 +1799,6 @@ static struct platform_driver amiga_serial_driver = {
 	.remove = __exit_p(amiga_serial_remove),
 	.driver   = {
 		.name	= "amiga-serial",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1855,6 +1861,9 @@ static struct console sercons = {
  */
 static int __init amiserial_console_init(void)
 {
+	if (!MACH_IS_AMIGA)
+		return -ENODEV;
+
 	register_console(&sercons);
 	return 0;
 }

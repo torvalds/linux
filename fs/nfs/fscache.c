@@ -269,8 +269,8 @@ int nfs_fscache_release_page(struct page *page, gfp_t gfp)
 		if (!fscache_maybe_release_page(cookie, page, gfp))
 			return 0;
 
-		nfs_add_fscache_stats(page->mapping->host,
-				      NFSIOS_FSCACHE_PAGES_UNCACHED, 1);
+		nfs_inc_fscache_stats(page->mapping->host,
+				      NFSIOS_FSCACHE_PAGES_UNCACHED);
 	}
 
 	return 1;
@@ -293,8 +293,8 @@ void __nfs_fscache_invalidate_page(struct page *page, struct inode *inode)
 
 	BUG_ON(!PageLocked(page));
 	fscache_uncache_page(cookie, page);
-	nfs_add_fscache_stats(page->mapping->host,
-			      NFSIOS_FSCACHE_PAGES_UNCACHED, 1);
+	nfs_inc_fscache_stats(page->mapping->host,
+			      NFSIOS_FSCACHE_PAGES_UNCACHED);
 }
 
 /*
@@ -343,19 +343,19 @@ int __nfs_readpage_from_fscache(struct nfs_open_context *ctx,
 	case 0: /* read BIO submitted (page in fscache) */
 		dfprintk(FSCACHE,
 			 "NFS:    readpage_from_fscache: BIO submitted\n");
-		nfs_add_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_OK, 1);
+		nfs_inc_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_OK);
 		return ret;
 
 	case -ENOBUFS: /* inode not in cache */
 	case -ENODATA: /* page not in cache */
-		nfs_add_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_FAIL, 1);
+		nfs_inc_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_FAIL);
 		dfprintk(FSCACHE,
 			 "NFS:    readpage_from_fscache %d\n", ret);
 		return 1;
 
 	default:
 		dfprintk(FSCACHE, "NFS:    readpage_from_fscache %d\n", ret);
-		nfs_add_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_FAIL, 1);
+		nfs_inc_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_FAIL);
 	}
 	return ret;
 }
@@ -429,11 +429,11 @@ void __nfs_readpage_to_fscache(struct inode *inode, struct page *page, int sync)
 
 	if (ret != 0) {
 		fscache_uncache_page(nfs_i_fscache(inode), page);
-		nfs_add_fscache_stats(inode,
-				      NFSIOS_FSCACHE_PAGES_WRITTEN_FAIL, 1);
-		nfs_add_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_UNCACHED, 1);
+		nfs_inc_fscache_stats(inode,
+				      NFSIOS_FSCACHE_PAGES_WRITTEN_FAIL);
+		nfs_inc_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_UNCACHED);
 	} else {
-		nfs_add_fscache_stats(inode,
-				      NFSIOS_FSCACHE_PAGES_WRITTEN_OK, 1);
+		nfs_inc_fscache_stats(inode,
+				      NFSIOS_FSCACHE_PAGES_WRITTEN_OK);
 	}
 }

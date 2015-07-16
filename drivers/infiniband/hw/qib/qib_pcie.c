@@ -197,46 +197,49 @@ static void qib_msix_setup(struct qib_devdata *dd, int pos, u32 *msixcnt,
 			   struct qib_msix_entry *qib_msix_entry)
 {
 	int ret;
-	u32 tabsize = 0;
-	u16 msix_flags;
+	int nvec = *msixcnt;
 	struct msix_entry *msix_entry;
 	int i;
+
+	ret = pci_msix_vec_count(dd->pcidev);
+	if (ret < 0)
+		goto do_intx;
+
+	nvec = min(nvec, ret);
 
 	/* We can't pass qib_msix_entry array to qib_msix_setup
 	 * so use a dummy msix_entry array and copy the allocated
 	 * irq back to the qib_msix_entry array. */
-	msix_entry = kmalloc(*msixcnt * sizeof(*msix_entry), GFP_KERNEL);
-	if (!msix_entry) {
-		ret = -ENOMEM;
+	msix_entry = kcalloc(nvec, sizeof(*msix_entry), GFP_KERNEL);
+	if (!msix_entry)
 		goto do_intx;
-	}
-	for (i = 0; i < *msixcnt; i++)
+
+	for (i = 0; i < nvec; i++)
 		msix_entry[i] = qib_msix_entry[i].msix;
 
-	pci_read_config_word(dd->pcidev, pos + PCI_MSIX_FLAGS, &msix_flags);
-	tabsize = 1 + (msix_flags & PCI_MSIX_FLAGS_QSIZE);
-	if (tabsize > *msixcnt)
-		tabsize = *msixcnt;
-	ret = pci_enable_msix(dd->pcidev, msix_entry, tabsize);
-	if (ret > 0) {
-		tabsize = ret;
-		ret = pci_enable_msix(dd->pcidev, msix_entry, tabsize);
-	}
-do_intx:
-	if (ret) {
-		qib_dev_err(dd,
-			"pci_enable_msix %d vectors failed: %d, falling back to INTx\n",
-			tabsize, ret);
-		tabsize = 0;
-	}
-	for (i = 0; i < tabsize; i++)
+	ret = pci_enable_msix_range(dd->pcidev, msix_entry, 1, nvec);
+	if (ret < 0)
+		goto free_msix_entry;
+	else
+		nvec = ret;
+
+	for (i = 0; i < nvec; i++)
 		qib_msix_entry[i].msix = msix_entry[i];
+
 	kfree(msix_entry);
-	*msixcnt = tabsize;
+	*msixcnt = nvec;
+	return;
 
-	if (ret)
-		qib_enable_intx(dd->pcidev);
+free_msix_entry:
+	kfree(msix_entry);
 
+do_intx:
+	qib_dev_err(
+		dd,
+		"pci_enable_msix_range %d vectors failed: %d, falling back to INTx\n",
+		nvec, ret);
+	*msixcnt = 0;
+	qib_enable_intx(dd->pcidev);
 }
 
 /**
@@ -458,6 +461,7 @@ void qib_pcie_getcmd(struct qib_devdata *dd, u16 *cmd, u8 *iline, u8 *cline)
 void qib_pcie_reenable(struct qib_devdata *dd, u16 cmd, u8 iline, u8 cline)
 {
 	int r;
+
 	r = pci_write_config_dword(dd->pcidev, PCI_BASE_ADDRESS_0,
 				   dd->pcibar0);
 	if (r)
@@ -695,6 +699,7 @@ static void
 qib_pci_resume(struct pci_dev *pdev)
 {
 	struct qib_devdata *dd = pci_get_drvdata(pdev);
+
 	qib_devinfo(pdev, "QIB resume function called\n");
 	pci_cleanup_aer_uncorrect_error_status(pdev);
 	/*

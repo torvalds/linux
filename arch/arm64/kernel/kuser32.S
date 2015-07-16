@@ -28,7 +28,7 @@
  * See Documentation/arm/kernel_user_helpers.txt for formal definitions.
  */
 
-#include <asm/unistd32.h>
+#include <asm/unistd.h>
 
 	.align	5
 	.globl	__kuser_helper_start
@@ -38,12 +38,13 @@ __kuser_cmpxchg64:			// 0xffff0f60
 	.inst	0xe92d00f0		//	push		{r4, r5, r6, r7}
 	.inst	0xe1c040d0		//	ldrd		r4, r5, [r0]
 	.inst	0xe1c160d0		//	ldrd		r6, r7, [r1]
-	.inst	0xe1b20e9f		// 1:	ldaexd		r0, r1, [r2]
+	.inst	0xe1b20f9f		// 1:	ldrexd		r0, r1, [r2]
 	.inst	0xe0303004		//	eors		r3, r0, r4
 	.inst	0x00313005		//	eoreqs		r3, r1, r5
 	.inst	0x01a23e96		//	stlexdeq	r3, r6, [r2]
 	.inst	0x03330001		//	teqeq		r3, #1
 	.inst	0x0afffff9		//	beq		1b
+	.inst	0xf57ff05b		//	dmb		ish
 	.inst	0xe2730000		//	rsbs		r0, r3, #0
 	.inst	0xe8bd00f0		//	pop		{r4, r5, r6, r7}
 	.inst	0xe12fff1e		//	bx		lr
@@ -55,11 +56,12 @@ __kuser_memory_barrier:			// 0xffff0fa0
 
 	.align	5
 __kuser_cmpxchg:			// 0xffff0fc0
-	.inst	0xe1923e9f		// 1:	ldaex		r3, [r2]
+	.inst	0xe1923f9f		// 1:	ldrex		r3, [r2]
 	.inst	0xe0533000		//	subs		r3, r3, r0
 	.inst	0x01823e91		//	stlexeq		r3, r1, [r2]
 	.inst	0x03330001		//	teqeq		r3, #1
 	.inst	0x0afffffa		//	beq		1b
+	.inst	0xf57ff05b		//	dmb		ish
 	.inst	0xe2730000		//	rsbs		r0, r3, #0
 	.inst	0xe12fff1e		//	bx		lr
 

@@ -24,6 +24,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "rs780d.h"
 #include "r600_dpm.h"
 #include "rs780_dpm.h"
@@ -623,14 +624,6 @@ int rs780_dpm_enable(struct radeon_device *rdev)
 	if (pi->gfx_clock_gating)
 		r600_gfx_clockgating_enable(rdev, true);
 
-	if (rdev->irq.installed && (rdev->pm.int_thermal_type == THERMAL_TYPE_RV6XX)) {
-		ret = r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
-		if (ret)
-			return ret;
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-	}
-
 	return 0;
 }
 
@@ -815,9 +808,6 @@ static int rs780_parse_power_table(struct radeon_device *rdev)
 				  power_info->pplib.ucNumStates, GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 
 	for (i = 0; i < power_info->pplib.ucNumStates; i++) {
 		power_state = (union pplib_power_state *)
@@ -866,6 +856,10 @@ int rs780_dpm_init(struct radeon_device *rdev)
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = rs780_parse_power_table(rdev);
 	if (ret)
@@ -1005,6 +999,28 @@ void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 	else
 		seq_printf(m, "power level 1    sclk: %u vddc_index: %d\n",
 			   ps->sclk_high, ps->max_voltage);
+}
+
+/* get the current sclk in 10 khz units */
+u32 rs780_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	u32 current_fb_div = RREG32(FVTHROT_STATUS_REG0) & CURRENT_FEEDBACK_DIV_MASK;
+	u32 func_cntl = RREG32(CG_SPLL_FUNC_CNTL);
+	u32 ref_div = ((func_cntl & SPLL_REF_DIV_MASK) >> SPLL_REF_DIV_SHIFT) + 1;
+	u32 post_div = ((func_cntl & SPLL_SW_HILEN_MASK) >> SPLL_SW_HILEN_SHIFT) + 1 +
+		((func_cntl & SPLL_SW_LOLEN_MASK) >> SPLL_SW_LOLEN_SHIFT) + 1;
+	u32 sclk = (rdev->clock.spll.reference_freq * current_fb_div) /
+		(post_div * ref_div);
+
+	return sclk;
+}
+
+/* get the current mclk in 10 khz units */
+u32 rs780_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	struct igp_power_info *pi = rs780_get_pi(rdev);
+
+	return pi->bootup_uma_clk;
 }
 
 int rs780_dpm_force_performance_level(struct radeon_device *rdev,

@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -29,7 +28,6 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/libata.h>
-#include <linux/ahci_platform.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -143,7 +141,7 @@ static ssize_t ecx_transmit_led_message(struct ata_port *ap, u32 state,
 					ssize_t size)
 {
 	struct ahci_host_priv *hpriv =  ap->host->private_data;
-	struct ecx_plat_data *pdata = (struct ecx_plat_data *) hpriv->plat_data;
+	struct ecx_plat_data *pdata = hpriv->plat_data;
 	struct ahci_port_priv *pp = ap->private_data;
 	unsigned long flags;
 	int pmp, i;
@@ -404,6 +402,7 @@ static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
 	static const unsigned long timing[] = { 5, 100, 500};
 	struct ata_port *ap = link->ap;
 	struct ahci_port_priv *pp = ap->private_data;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	struct ata_taskfile tf;
 	bool online;
@@ -432,7 +431,7 @@ static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
 			break;
 	} while (!online && retry--);
 
-	ahci_start_engine(ap);
+	hpriv->start_engine(ap);
 
 	if (online)
 		*class = ahci_dev_classify(ap);
@@ -500,6 +499,7 @@ static int ahci_highbank_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	hpriv->irq = irq;
 	hpriv->flags |= (unsigned long)pi.private_data;
 
 	hpriv->mmio = devm_ioremap(dev, mem->start, resource_size(mem));
@@ -513,7 +513,7 @@ static int ahci_highbank_probe(struct platform_device *pdev)
 		return rc;
 
 
-	ahci_save_initial_config(dev, hpriv, 0, 0);
+	ahci_save_initial_config(dev, hpriv);
 
 	/* prepare host */
 	if (hpriv->cap & HOST_CAP_NCQ)
@@ -569,8 +569,7 @@ static int ahci_highbank_probe(struct platform_device *pdev)
 	ahci_init_controller(host);
 	ahci_print_info(host, "platform");
 
-	rc = ata_host_activate(host, irq, ahci_interrupt, 0,
-					&ahci_highbank_platform_sht);
+	rc = ahci_host_activate(host, &ahci_highbank_platform_sht);
 	if (rc)
 		goto err0;
 
@@ -636,7 +635,6 @@ static struct platform_driver ahci_highbank_driver = {
 	.remove = ata_platform_remove_one,
         .driver = {
                 .name = "highbank-ahci",
-                .owner = THIS_MODULE,
                 .of_match_table = ahci_of_match,
                 .pm = &ahci_highbank_pm_ops,
         },

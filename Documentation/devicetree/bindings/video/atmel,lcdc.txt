@@ -10,7 +10,9 @@ Required properties:
 	"atmel,at91sam9g45es-lcdc" ,
 	"atmel,at91sam9rl-lcdc" ,
 	"atmel,at32ap-lcdc"
-- reg : Should contain 1 register ranges(address and length)
+- reg : Should contain 1 register ranges(address and length).
+	Can contain an additional register range(address and length)
+	for fixed framebuffer memory. Useful for dedicated memories.
 - interrupts : framebuffer controller interrupt
 - display: a phandle pointing to the display node
 
@@ -19,6 +21,9 @@ Required nodes:
 	This should be in the board dts.
 - default-mode: a videomode within the display with timing parameters
 	as specified below.
+
+Optional properties:
+- lcd-supply: Regulator for LCD supply voltage.
 
 Example:
 
@@ -35,17 +40,26 @@ Example:
 
 	};
 
+Example for fixed framebuffer memory:
+
+	fb0: fb@0x00500000 {
+		compatible = "atmel,at91sam9263-lcdc";
+		reg = <0x00700000 0x1000 0x70000000 0x200000>;
+		[...]
+	};
+
 Atmel LCDC Display
 -----------------------------------------------------
 Required properties (as per of_videomode_helper):
 
- - atmel,dmacon: dma controler configuration
- - atmel,lcdcon2: lcd controler configuration
+ - atmel,dmacon: dma controller configuration
+ - atmel,lcdcon2: lcd controller configuration
  - atmel,guard-time: lcd guard time (Delay in frame periods)
  - bits-per-pixel: lcd panel bit-depth.
 
 Optional properties (as per of_videomode_helper):
  - atmel,lcdcon-backlight: enable backlight
+ - atmel,lcdcon-backlight-inverted: invert backlight PWM polarity
  - atmel,lcd-wiring-mode: lcd wiring mode "RGB" or "BRG"
  - atmel,power-control-gpio: gpio to power on or off the LCD (as many as needed)
 

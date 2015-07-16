@@ -210,9 +210,8 @@ MODULE_DEVICE_TABLE(of, sirfsoc_wdt_of_match);
 static struct platform_driver sirfsoc_wdt_driver = {
 	.driver = {
 		.name = "sirfsoc-wdt",
-		.owner = THIS_MODULE,
 		.pm = &sirfsoc_wdt_pm_ops,
-		.of_match_table	= of_match_ptr(sirfsoc_wdt_of_match),
+		.of_match_table	= sirfsoc_wdt_of_match,
 	},
 	.probe = sirfsoc_wdt_probe,
 	.remove = sirfsoc_wdt_remove,

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -28,7 +28,6 @@
  *****************************************************************************/
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -105,15 +104,16 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	hw->rate_control_algorithm = "iwl-agn-rs";
 
 	/* Tell mac80211 our characteristics */
-	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_AMPDU_AGGREGATION |
-		    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
-		    IEEE80211_HW_SPECTRUM_MGMT |
-		    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		    IEEE80211_HW_QUEUE_CONTROL |
-		    IEEE80211_HW_SUPPORTS_PS |
-		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		    IEEE80211_HW_WANT_MONITOR_VIF;
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(hw, NEED_DTIM_BEFORE_ASSOC);
+	ieee80211_hw_set(hw, SPECTRUM_MGMT);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, QUEUE_CONTROL);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
+	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
+	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 
 	hw->offchannel_tx_hw_queue = IWL_AUX_QUEUE;
 	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FMT;
@@ -126,8 +126,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 */
 
 	if (priv->nvm_data->sku_cap_11n_enable)
-		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
+		hw->wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS |
+				       NL80211_FEATURE_STATIC_SMPS;
 
 	/*
 	 * Enable 11w if advertised by firmware and software crypto
@@ -136,7 +136,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 */
 	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
 	    !iwlwifi_mod_params.sw_crypto)
-		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
+		ieee80211_hw_set(hw, MFP_CAPABLE);
 
 	hw->sta_data_size = sizeof(struct iwl_station_priv);
 	hw->vif_data_size = sizeof(struct iwl_vif_priv);
@@ -155,9 +155,9 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			ARRAY_SIZE(iwlagn_iface_combinations_dualmode);
 	}
 
-	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
-			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
-			    WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				       REGULATORY_DISABLE_BEACON_HINTS;
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
@@ -322,12 +322,6 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 
 	flush_workqueue(priv->workqueue);
 
-	/* User space software may expect getting rfkill changes
-	 * even if interface is down, trans->down will leave the RF
-	 * kill interrupt enabled
-	 */
-	iwl_trans_stop_hw(priv->trans, false);
-
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -413,9 +407,8 @@ static bool iwl_resume_status_fn(struct iwl_notif_wait_data *notif_wait,
 {
 	struct iwl_resume_data *resume_data = data;
 	struct iwl_priv *priv = resume_data->priv;
-	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 
-	if (len - 4 != sizeof(*resume_data->cmd)) {
+	if (iwl_rx_packet_payload_len(pkt) != sizeof(*resume_data->cmd)) {
 		IWL_ERR(priv, "rx wrong size data\n");
 		return true;
 	}
@@ -704,6 +697,24 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
+static inline bool iwl_enable_rx_ampdu(const struct iwl_cfg *cfg)
+{
+	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
+		return false;
+	return true;
+}
+
+static inline bool iwl_enable_tx_ampdu(const struct iwl_cfg *cfg)
+{
+	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
+		return false;
+	if (iwlwifi_mod_params.disable_11n & IWL_ENABLE_HT_TXAGG)
+		return true;
+
+	/* disabled by default */
+	return false;
+}
+
 static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   enum ieee80211_ampdu_mlme_action action,
@@ -725,7 +736,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
+		if (!iwl_enable_rx_ampdu(priv->cfg))
 			break;
 		IWL_DEBUG_HT(priv, "start Rx\n");
 		ret = iwl_sta_rx_agg_start(priv, sta, tid, *ssn);
@@ -737,7 +748,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		if (!priv->trans->ops->txq_enable)
 			break;
-		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
+		if (!iwl_enable_tx_ampdu(priv->cfg))
 			break;
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
@@ -931,6 +942,7 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 }
 
 static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
 				      struct ieee80211_channel_switch *ch_switch)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
@@ -1050,7 +1062,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "Enter: changed: 0x%x, total: 0x%x\n",
 			changed_flags, *total_flags);
 
-	CHK(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS, RXON_FILTER_PROMISC_MSK);
+	CHK(FIF_OTHER_BSS, RXON_FILTER_PROMISC_MSK);
 	/* Setting _just_ RXON_FILTER_CTL2HOST_MSK causes FH errors */
 	CHK(FIF_CONTROL, RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_PROMISC_MSK);
 	CHK(FIF_BCN_PRBRESP_PROMISC, RXON_FILTER_BCON_AWARE_MSK);
@@ -1077,13 +1089,15 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 	 * since we currently do not support programming multicast
 	 * filters into the device.
 	 */
-	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI | FIF_PROMISC_IN_BSS |
+	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI |
 			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
 }
 
-static void iwlagn_mac_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void iwlagn_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			     u32 queues, bool drop)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+	u32 scd_queues;
 
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -1097,47 +1111,50 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 		goto done;
 	}
 
-	/*
-	 * mac80211 will not push any more frames for transmit
-	 * until the flush is completed
-	 */
+	scd_queues = BIT(priv->cfg->base_params->num_of_queues) - 1;
+	scd_queues &= ~(BIT(IWL_IPAN_CMD_QUEUE_NUM) |
+			BIT(IWL_DEFAULT_CMD_QUEUE_NUM));
+
 	if (drop) {
-		IWL_DEBUG_MAC80211(priv, "send flush command\n");
-		if (iwlagn_txfifo_flush(priv, 0)) {
+		IWL_DEBUG_TX_QUEUES(priv, "Flushing SCD queues: 0x%x\n",
+				    scd_queues);
+		if (iwlagn_txfifo_flush(priv, scd_queues)) {
 			IWL_ERR(priv, "flush request fail\n");
 			goto done;
 		}
 	}
-	IWL_DEBUG_MAC80211(priv, "wait transmit/flush all frames\n");
-	iwl_trans_wait_tx_queue_empty(priv->trans);
+
+	IWL_DEBUG_TX_QUEUES(priv, "wait transmit/flush all frames\n");
+	iwl_trans_wait_tx_queue_empty(priv->trans, scd_queues);
 done:
 	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif,
-				     enum ieee80211_rssi_event rssi_event)
+static void iwlagn_mac_event_callback(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      const struct ieee80211_event *event)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
+	if (event->type != RSSI_EVENT)
+		return;
+
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->mutex);
 
 	if (priv->lib->bt_params &&
 	    priv->lib->bt_params->advanced_bt_coexist) {
-		if (rssi_event == RSSI_EVENT_LOW)
+		if (event->u.rssi.data == RSSI_EVENT_LOW)
 			priv->bt_enable_pspoll = true;
-		else if (rssi_event == RSSI_EVENT_HIGH)
+		else if (event->u.rssi.data == RSSI_EVENT_HIGH)
 			priv->bt_enable_pspoll = false;
 
-		iwlagn_send_advance_bt_config(priv);
+		queue_work(priv->workqueue, &priv->bt_runtime_config);
 	} else {
 		IWL_DEBUG_MAC80211(priv, "Advanced BT coex disabled,"
 				"ignoring RSSI callback\n");
 	}
 
-	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -1325,9 +1342,9 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	 * other interfaces are added, this is safe.
 	 */
 	if (vif->type == NL80211_IFTYPE_MONITOR)
-		priv->hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS;
+		ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
 	else
-		priv->hw->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, priv->hw->flags);
 
 	err = iwl_setup_interface(priv, ctx);
 	if (!err || reset)
@@ -1484,9 +1501,10 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 
 static int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      struct cfg80211_scan_request *req)
+			      struct ieee80211_scan_request *hw_req)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+	struct cfg80211_scan_request *req = &hw_req->req;
 	int ret;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -1572,7 +1590,7 @@ static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-struct ieee80211_ops iwlagn_hw_ops = {
+const struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwlagn_mac_tx,
 	.start = iwlagn_mac_start,
 	.stop = iwlagn_mac_stop,
@@ -1598,7 +1616,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.channel_switch = iwlagn_mac_channel_switch,
 	.flush = iwlagn_mac_flush,
 	.tx_last_beacon = iwlagn_mac_tx_last_beacon,
-	.rssi_callback = iwlagn_mac_rssi_callback,
+	.event_callback = iwlagn_mac_event_callback,
 	.set_tim = iwlagn_mac_set_tim,
 };
 

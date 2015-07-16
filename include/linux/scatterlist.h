@@ -2,12 +2,38 @@
 #define _LINUX_SCATTERLIST_H
 
 #include <linux/string.h>
+#include <linux/types.h>
 #include <linux/bug.h>
 #include <linux/mm.h>
-
-#include <asm/types.h>
-#include <asm/scatterlist.h>
 #include <asm/io.h>
+
+struct scatterlist {
+#ifdef CONFIG_DEBUG_SG
+	unsigned long	sg_magic;
+#endif
+	unsigned long	page_link;
+	unsigned int	offset;
+	unsigned int	length;
+	dma_addr_t	dma_address;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+	unsigned int	dma_length;
+#endif
+};
+
+/*
+ * These macros should be used after a dma_map_sg call has been done
+ * to get bus addresses of each of the SG entries and their lengths.
+ * You should only work with the number of sg entries dma_map_sg
+ * returns, or alternatively stop on the first sg_dma_len(sg) which
+ * is 0.
+ */
+#define sg_dma_address(sg)	((sg)->dma_address)
+
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+#define sg_dma_len(sg)		((sg)->dma_length)
+#else
+#define sg_dma_len(sg)		((sg)->length)
+#endif
 
 struct sg_table {
 	struct scatterlist *sgl;	/* the list */
@@ -18,10 +44,9 @@ struct sg_table {
 /*
  * Notes on SG table design.
  *
- * Architectures must provide an unsigned long page_link field in the
- * scatterlist struct. We use that to place the page pointer AND encode
- * information about the sg table as well. The two lower bits are reserved
- * for this information.
+ * We use the unsigned long page_link field in the scatterlist struct to place
+ * the page pointer AND encode information about the sg table as well. The two
+ * lower bits are reserved for this information.
  *
  * If bit 0 is set, then the page_link contains a pointer to the next sg
  * table list. Otherwise the next entry is at sg + 1.
@@ -136,7 +161,7 @@ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 			    struct scatterlist *sgl)
 {
-#ifndef ARCH_HAS_SG_CHAIN
+#ifndef CONFIG_ARCH_HAS_SG_CHAIN
 	BUG();
 #endif
 
@@ -221,6 +246,7 @@ static inline void *sg_virt(struct scatterlist *sg)
 }
 
 int sg_nents(struct scatterlist *sg);
+int sg_nents_for_len(struct scatterlist *sg, u64 len);
 struct scatterlist *sg_next(struct scatterlist *);
 struct scatterlist *sg_last(struct scatterlist *s, unsigned int);
 void sg_init_table(struct scatterlist *, unsigned int);
@@ -229,23 +255,26 @@ void sg_init_one(struct scatterlist *, const void *, unsigned int);
 typedef struct scatterlist *(sg_alloc_fn)(unsigned int, gfp_t);
 typedef void (sg_free_fn)(struct scatterlist *, unsigned int);
 
-void __sg_free_table(struct sg_table *, unsigned int, sg_free_fn *);
+void __sg_free_table(struct sg_table *, unsigned int, bool, sg_free_fn *);
 void sg_free_table(struct sg_table *);
-int __sg_alloc_table(struct sg_table *, unsigned int, unsigned int, gfp_t,
-		     sg_alloc_fn *);
+int __sg_alloc_table(struct sg_table *, unsigned int, unsigned int,
+		     struct scatterlist *, gfp_t, sg_alloc_fn *);
 int sg_alloc_table(struct sg_table *, unsigned int, gfp_t);
 int sg_alloc_table_from_pages(struct sg_table *sgt,
 	struct page **pages, unsigned int n_pages,
 	unsigned long offset, unsigned long size,
 	gfp_t gfp_mask);
 
+size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
+		      size_t buflen, off_t skip, bool to_buffer);
+
 size_t sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
-			   void *buf, size_t buflen);
+			   const void *buf, size_t buflen);
 size_t sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 			 void *buf, size_t buflen);
 
 size_t sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
-			    void *buf, size_t buflen, off_t skip);
+			    const void *buf, size_t buflen, off_t skip);
 size_t sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 			  void *buf, size_t buflen, off_t skip);
 
@@ -345,6 +374,7 @@ struct sg_mapping_iter {
 
 void sg_miter_start(struct sg_mapping_iter *miter, struct scatterlist *sgl,
 		    unsigned int nents, unsigned int flags);
+bool sg_miter_skip(struct sg_mapping_iter *miter, off_t offset);
 bool sg_miter_next(struct sg_mapping_iter *miter);
 void sg_miter_stop(struct sg_mapping_iter *miter);
 

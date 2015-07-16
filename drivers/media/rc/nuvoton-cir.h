@@ -63,6 +63,7 @@ static int debug;
  */
 #define TX_BUF_LEN 256
 #define RX_BUF_LEN 32
+#define WAKE_FIFO_LEN 67
 
 struct nvt_dev {
 	struct pnp_dev *pdev;
@@ -363,7 +364,6 @@ struct nvt_dev {
 #define LOGICAL_DEV_ENABLE	0x01
 
 #define CIR_WAKE_ENABLE_BIT	0x08
-#define CIR_INTR_MOUSE_IRQ_BIT	0x80
 #define PME_INTR_CIR_PASS_BIT	0x08
 
 /* w83677hg CIR pin config */

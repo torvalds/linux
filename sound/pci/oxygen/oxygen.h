@@ -35,7 +35,7 @@
 #define CAPTURE_1_FROM_SPDIF	0x0080
 #define CAPTURE_2_FROM_I2S_2	0x0100
 #define CAPTURE_2_FROM_AC97_1	0x0200
-     /* CAPTURE_3_FROM_I2S_3		not implemented */
+#define CAPTURE_3_FROM_I2S_3	0x0400
 #define MIDI_OUTPUT		0x0800
 #define MIDI_INPUT		0x1000
 #define AC97_CD_INPUT		0x2000
@@ -198,7 +198,7 @@ void oxygen_write_ac97(struct oxygen *chip, unsigned int codec,
 void oxygen_write_ac97_masked(struct oxygen *chip, unsigned int codec,
 			      unsigned int index, u16 data, u16 mask);
 
-void oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data);
+int oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data);
 void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data);
 
 void oxygen_reset_uart(struct oxygen *chip);

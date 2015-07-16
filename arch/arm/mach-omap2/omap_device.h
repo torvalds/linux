@@ -29,6 +29,7 @@
 #include "omap_hwmod.h"
 
 extern struct dev_pm_domain omap_device_pm_domain;
+extern struct dev_pm_domain omap_device_fail_pm_domain;
 
 /* omap_device._state values */
 #define OMAP_DEVICE_STATE_UNKNOWN	0

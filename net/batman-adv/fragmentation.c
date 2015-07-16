@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2015 B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll <martin@hundeboll.net>
  *
@@ -12,19 +12,32 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "fragmentation.h"
-#include "send.h"
-#include "originator.h"
-#include "routing.h"
-#include "hard-interface.h"
-#include "soft-interface.h"
+#include "main.h"
 
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
+#include <linux/if_ether.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/netdevice.h>
+#include <linux/pkt_sched.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+
+#include "hard-interface.h"
+#include "originator.h"
+#include "packet.h"
+#include "routing.h"
+#include "send.h"
+#include "soft-interface.h"
 
 /**
  * batadv_frag_clear_chain - delete entries in the fragment buffer chain
@@ -130,6 +143,7 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 {
 	struct batadv_frag_table_entry *chain;
 	struct batadv_frag_list_entry *frag_entry_new = NULL, *frag_entry_curr;
+	struct batadv_frag_list_entry *frag_entry_last = NULL;
 	struct batadv_frag_packet *frag_packet;
 	uint8_t bucket;
 	uint16_t seqno, hdr_size = sizeof(struct batadv_frag_packet);
@@ -163,6 +177,7 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 		hlist_add_head(&frag_entry_new->list, &chain->head);
 		chain->size = skb->len - hdr_size;
 		chain->timestamp = jiffies;
+		chain->total_size = ntohs(frag_packet->total_size);
 		ret = true;
 		goto out;
 	}
@@ -182,11 +197,14 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 			ret = true;
 			goto out;
 		}
+
+		/* store current entry because it could be the last in list */
+		frag_entry_last = frag_entry_curr;
 	}
 
-	/* Reached the end of the list, so insert after 'frag_entry_curr'. */
-	if (likely(frag_entry_curr)) {
-		hlist_add_after(&frag_entry_curr->list, &frag_entry_new->list);
+	/* Reached the end of the list, so insert after 'frag_entry_last'. */
+	if (likely(frag_entry_last)) {
+		hlist_add_behind(&frag_entry_new->list, &frag_entry_last->list);
 		chain->size += skb->len - hdr_size;
 		chain->timestamp = jiffies;
 		ret = true;
@@ -194,9 +212,11 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 
 out:
 	if (chain->size > batadv_frag_size_limit() ||
-	    ntohs(frag_packet->total_size) > batadv_frag_size_limit()) {
+	    chain->total_size != ntohs(frag_packet->total_size) ||
+	    chain->total_size > batadv_frag_size_limit()) {
 		/* Clear chain if total size of either the list or the packet
-		 * exceeds the maximum size of one merged packet.
+		 * exceeds the maximum size of one merged packet. Don't allow
+		 * packets to have different total_size.
 		 */
 		batadv_frag_clear_chain(&chain->head);
 		chain->size = 0;
@@ -227,18 +247,12 @@ err:
  * Returns the merged skb or NULL on error.
  */
 static struct sk_buff *
-batadv_frag_merge_packets(struct hlist_head *chain, struct sk_buff *skb)
+batadv_frag_merge_packets(struct hlist_head *chain)
 {
 	struct batadv_frag_packet *packet;
 	struct batadv_frag_list_entry *entry;
 	struct sk_buff *skb_out = NULL;
 	int size, hdr_size = sizeof(struct batadv_frag_packet);
-
-	/* Make sure incoming skb has non-bogus data. */
-	packet = (struct batadv_frag_packet *)skb->data;
-	size = ntohs(packet->total_size);
-	if (size > batadv_frag_size_limit())
-		goto free;
 
 	/* Remove first entry, as this is the destination for the rest of the
 	 * fragments.
@@ -248,8 +262,11 @@ batadv_frag_merge_packets(struct hlist_head *chain, struct sk_buff *skb)
 	skb_out = entry->skb;
 	kfree(entry);
 
+	packet = (struct batadv_frag_packet *)skb_out->data;
+	size = ntohs(packet->total_size);
+
 	/* Make room for the rest of the fragments. */
-	if (pskb_expand_head(skb_out, 0, size - skb->len, GFP_ATOMIC) < 0) {
+	if (pskb_expand_head(skb_out, 0, size - skb_out->len, GFP_ATOMIC) < 0) {
 		kfree_skb(skb_out);
 		skb_out = NULL;
 		goto free;
@@ -303,7 +320,7 @@ bool batadv_frag_skb_buffer(struct sk_buff **skb,
 	if (hlist_empty(&head))
 		goto out;
 
-	skb_out = batadv_frag_merge_packets(&head, *skb);
+	skb_out = batadv_frag_merge_packets(&head);
 	if (!skb_out)
 		goto out_err;
 
@@ -355,7 +372,7 @@ bool batadv_frag_skb_fwd(struct sk_buff *skb,
 		batadv_add_counter(bat_priv, BATADV_CNT_FRAG_FWD_BYTES,
 				   skb->len + ETH_HLEN);
 
-		packet->header.ttl--;
+		packet->ttl--;
 		batadv_send_skb_packet(skb, neigh_node->if_incoming,
 				       neigh_node->addr);
 		ret = true;
@@ -420,18 +437,19 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 			     struct batadv_neigh_node *neigh_node)
 {
 	struct batadv_priv *bat_priv;
-	struct batadv_hard_iface *primary_if;
+	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_frag_packet frag_header;
 	struct sk_buff *skb_fragment;
 	unsigned mtu = neigh_node->if_incoming->net_dev->mtu;
 	unsigned header_size = sizeof(frag_header);
 	unsigned max_fragment_size, max_packet_size;
+	bool ret = false;
 
 	/* To avoid merge and refragmentation at next-hops we never send
 	 * fragments larger than BATADV_FRAG_MAX_FRAG_SIZE
 	 */
 	mtu = min_t(unsigned, mtu, BATADV_FRAG_MAX_FRAG_SIZE);
-	max_fragment_size = (mtu - header_size - ETH_HLEN);
+	max_fragment_size = mtu - header_size;
 	max_packet_size = max_fragment_size * BATADV_FRAG_MAX_FRAGMENTS;
 
 	/* Don't even try to fragment, if we need more than 16 fragments */
@@ -444,15 +462,15 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 		goto out_err;
 
 	/* Create one header to be copied to all fragments */
-	frag_header.header.packet_type = BATADV_UNICAST_FRAG;
-	frag_header.header.version = BATADV_COMPAT_VERSION;
-	frag_header.header.ttl = BATADV_TTL;
+	frag_header.packet_type = BATADV_UNICAST_FRAG;
+	frag_header.version = BATADV_COMPAT_VERSION;
+	frag_header.ttl = BATADV_TTL;
 	frag_header.seqno = htons(atomic_inc_return(&bat_priv->frag_seqno));
 	frag_header.reserved = 0;
 	frag_header.no = 0;
 	frag_header.total_size = htons(skb->len);
-	memcpy(frag_header.orig, primary_if->net_dev->dev_addr, ETH_ALEN);
-	memcpy(frag_header.dest, orig_node->orig, ETH_ALEN);
+	ether_addr_copy(frag_header.orig, primary_if->net_dev->dev_addr);
+	ether_addr_copy(frag_header.dest, orig_node->orig);
 
 	/* Eat and send fragments from the tail of skb */
 	while (skb->len > max_fragment_size) {
@@ -485,7 +503,11 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 			   skb->len + ETH_HLEN);
 	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 
-	return true;
+	ret = true;
+
 out_err:
-	return false;
+	if (primary_if)
+		batadv_hardif_free_ref(primary_if);
+
+	return ret;
 }

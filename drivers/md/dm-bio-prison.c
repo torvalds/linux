@@ -14,59 +14,38 @@
 
 /*----------------------------------------------------------------*/
 
+#define MIN_CELLS 1024
+
 struct dm_bio_prison {
 	spinlock_t lock;
 	mempool_t *cell_pool;
-
-	unsigned nr_buckets;
-	unsigned hash_mask;
-	struct hlist_head *cells;
+	struct rb_root cells;
 };
 
-/*----------------------------------------------------------------*/
-
-static uint32_t calc_nr_buckets(unsigned nr_cells)
-{
-	uint32_t n = 128;
-
-	nr_cells /= 4;
-	nr_cells = min(nr_cells, 8192u);
-
-	while (n < nr_cells)
-		n <<= 1;
-
-	return n;
-}
-
 static struct kmem_cache *_cell_cache;
+
+/*----------------------------------------------------------------*/
 
 /*
  * @nr_cells should be the number of cells you want in use _concurrently_.
  * Don't confuse it with the number of distinct keys.
  */
-struct dm_bio_prison *dm_bio_prison_create(unsigned nr_cells)
+struct dm_bio_prison *dm_bio_prison_create(void)
 {
-	unsigned i;
-	uint32_t nr_buckets = calc_nr_buckets(nr_cells);
-	size_t len = sizeof(struct dm_bio_prison) +
-		(sizeof(struct hlist_head) * nr_buckets);
-	struct dm_bio_prison *prison = kmalloc(len, GFP_KERNEL);
+	struct dm_bio_prison *prison = kmalloc(sizeof(*prison), GFP_KERNEL);
 
 	if (!prison)
 		return NULL;
 
 	spin_lock_init(&prison->lock);
-	prison->cell_pool = mempool_create_slab_pool(nr_cells, _cell_cache);
+
+	prison->cell_pool = mempool_create_slab_pool(MIN_CELLS, _cell_cache);
 	if (!prison->cell_pool) {
 		kfree(prison);
 		return NULL;
 	}
 
-	prison->nr_buckets = nr_buckets;
-	prison->hash_mask = nr_buckets - 1;
-	prison->cells = (struct hlist_head *) (prison + 1);
-	for (i = 0; i < nr_buckets; i++)
-		INIT_HLIST_HEAD(prison->cells + i);
+	prison->cells = RB_ROOT;
 
 	return prison;
 }
@@ -92,43 +71,37 @@ void dm_bio_prison_free_cell(struct dm_bio_prison *prison,
 }
 EXPORT_SYMBOL_GPL(dm_bio_prison_free_cell);
 
-static uint32_t hash_key(struct dm_bio_prison *prison, struct dm_cell_key *key)
-{
-	const unsigned long BIG_PRIME = 4294967291UL;
-	uint64_t hash = key->block * BIG_PRIME;
-
-	return (uint32_t) (hash & prison->hash_mask);
-}
-
-static int keys_equal(struct dm_cell_key *lhs, struct dm_cell_key *rhs)
-{
-	       return (lhs->virtual == rhs->virtual) &&
-		       (lhs->dev == rhs->dev) &&
-		       (lhs->block == rhs->block);
-}
-
-static struct dm_bio_prison_cell *__search_bucket(struct hlist_head *bucket,
-						  struct dm_cell_key *key)
-{
-	struct dm_bio_prison_cell *cell;
-
-	hlist_for_each_entry(cell, bucket, list)
-		if (keys_equal(&cell->key, key))
-			return cell;
-
-	return NULL;
-}
-
-static void __setup_new_cell(struct dm_bio_prison *prison,
-			     struct dm_cell_key *key,
+static void __setup_new_cell(struct dm_cell_key *key,
 			     struct bio *holder,
-			     uint32_t hash,
 			     struct dm_bio_prison_cell *cell)
 {
-	memcpy(&cell->key, key, sizeof(cell->key));
-	cell->holder = holder;
-	bio_list_init(&cell->bios);
-	hlist_add_head(&cell->list, prison->cells + hash);
+       memcpy(&cell->key, key, sizeof(cell->key));
+       cell->holder = holder;
+       bio_list_init(&cell->bios);
+}
+
+static int cmp_keys(struct dm_cell_key *lhs,
+		    struct dm_cell_key *rhs)
+{
+	if (lhs->virtual < rhs->virtual)
+		return -1;
+
+	if (lhs->virtual > rhs->virtual)
+		return 1;
+
+	if (lhs->dev < rhs->dev)
+		return -1;
+
+	if (lhs->dev > rhs->dev)
+		return 1;
+
+	if (lhs->block_end <= rhs->block_begin)
+		return -1;
+
+	if (lhs->block_begin >= rhs->block_end)
+		return 1;
+
+	return 0;
 }
 
 static int __bio_detain(struct dm_bio_prison *prison,
@@ -137,19 +110,34 @@ static int __bio_detain(struct dm_bio_prison *prison,
 			struct dm_bio_prison_cell *cell_prealloc,
 			struct dm_bio_prison_cell **cell_result)
 {
-	uint32_t hash = hash_key(prison, key);
-	struct dm_bio_prison_cell *cell;
+	int r;
+	struct rb_node **new = &prison->cells.rb_node, *parent = NULL;
 
-	cell = __search_bucket(prison->cells + hash, key);
-	if (cell) {
-		if (inmate)
-			bio_list_add(&cell->bios, inmate);
-		*cell_result = cell;
-		return 1;
+	while (*new) {
+		struct dm_bio_prison_cell *cell =
+			container_of(*new, struct dm_bio_prison_cell, node);
+
+		r = cmp_keys(key, &cell->key);
+
+		parent = *new;
+		if (r < 0)
+			new = &((*new)->rb_left);
+		else if (r > 0)
+			new = &((*new)->rb_right);
+		else {
+			if (inmate)
+				bio_list_add(&cell->bios, inmate);
+			*cell_result = cell;
+			return 1;
+		}
 	}
 
-	__setup_new_cell(prison, key, inmate, hash, cell_prealloc);
+	__setup_new_cell(key, inmate, cell_prealloc);
 	*cell_result = cell_prealloc;
+
+	rb_link_node(&cell_prealloc->node, parent, new);
+	rb_insert_color(&cell_prealloc->node, &prison->cells);
+
 	return 0;
 }
 
@@ -191,10 +179,11 @@ EXPORT_SYMBOL_GPL(dm_get_cell);
 /*
  * @inmates must have been initialised prior to this call
  */
-static void __cell_release(struct dm_bio_prison_cell *cell,
+static void __cell_release(struct dm_bio_prison *prison,
+			   struct dm_bio_prison_cell *cell,
 			   struct bio_list *inmates)
 {
-	hlist_del(&cell->list);
+	rb_erase(&cell->node, &prison->cells);
 
 	if (inmates) {
 		if (cell->holder)
@@ -210,7 +199,7 @@ void dm_cell_release(struct dm_bio_prison *prison,
 	unsigned long flags;
 
 	spin_lock_irqsave(&prison->lock, flags);
-	__cell_release(cell, bios);
+	__cell_release(prison, cell, bios);
 	spin_unlock_irqrestore(&prison->lock, flags);
 }
 EXPORT_SYMBOL_GPL(dm_cell_release);
@@ -218,10 +207,11 @@ EXPORT_SYMBOL_GPL(dm_cell_release);
 /*
  * Sometimes we don't want the holder, just the additional bios.
  */
-static void __cell_release_no_holder(struct dm_bio_prison_cell *cell,
+static void __cell_release_no_holder(struct dm_bio_prison *prison,
+				     struct dm_bio_prison_cell *cell,
 				     struct bio_list *inmates)
 {
-	hlist_del(&cell->list);
+	rb_erase(&cell->node, &prison->cells);
 	bio_list_merge(inmates, &cell->bios);
 }
 
@@ -232,28 +222,64 @@ void dm_cell_release_no_holder(struct dm_bio_prison *prison,
 	unsigned long flags;
 
 	spin_lock_irqsave(&prison->lock, flags);
-	__cell_release_no_holder(cell, inmates);
+	__cell_release_no_holder(prison, cell, inmates);
 	spin_unlock_irqrestore(&prison->lock, flags);
 }
 EXPORT_SYMBOL_GPL(dm_cell_release_no_holder);
 
 void dm_cell_error(struct dm_bio_prison *prison,
-		   struct dm_bio_prison_cell *cell)
+		   struct dm_bio_prison_cell *cell, int error)
 {
 	struct bio_list bios;
 	struct bio *bio;
-	unsigned long flags;
 
 	bio_list_init(&bios);
-
-	spin_lock_irqsave(&prison->lock, flags);
-	__cell_release(cell, &bios);
-	spin_unlock_irqrestore(&prison->lock, flags);
+	dm_cell_release(prison, cell, &bios);
 
 	while ((bio = bio_list_pop(&bios)))
-		bio_io_error(bio);
+		bio_endio(bio, error);
 }
 EXPORT_SYMBOL_GPL(dm_cell_error);
+
+void dm_cell_visit_release(struct dm_bio_prison *prison,
+			   void (*visit_fn)(void *, struct dm_bio_prison_cell *),
+			   void *context,
+			   struct dm_bio_prison_cell *cell)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&prison->lock, flags);
+	visit_fn(context, cell);
+	rb_erase(&cell->node, &prison->cells);
+	spin_unlock_irqrestore(&prison->lock, flags);
+}
+EXPORT_SYMBOL_GPL(dm_cell_visit_release);
+
+static int __promote_or_release(struct dm_bio_prison *prison,
+				struct dm_bio_prison_cell *cell)
+{
+	if (bio_list_empty(&cell->bios)) {
+		rb_erase(&cell->node, &prison->cells);
+		return 1;
+	}
+
+	cell->holder = bio_list_pop(&cell->bios);
+	return 0;
+}
+
+int dm_cell_promote_or_release(struct dm_bio_prison *prison,
+			       struct dm_bio_prison_cell *cell)
+{
+	int r;
+	unsigned long flags;
+
+	spin_lock_irqsave(&prison->lock, flags);
+	r = __promote_or_release(prison, cell);
+	spin_unlock_irqrestore(&prison->lock, flags);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_cell_promote_or_release);
 
 /*----------------------------------------------------------------*/
 

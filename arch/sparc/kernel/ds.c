@@ -1200,14 +1200,14 @@ static int ds_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	ds_cfg.tx_irq = vdev->tx_irq;
 	ds_cfg.rx_irq = vdev->rx_irq;
 
-	lp = ldc_alloc(vdev->channel_id, &ds_cfg, dp);
+	lp = ldc_alloc(vdev->channel_id, &ds_cfg, dp, "DS");
 	if (IS_ERR(lp)) {
 		err = PTR_ERR(lp);
 		goto out_free_ds_states;
 	}
 	dp->lp = lp;
 
-	err = ldc_bind(lp, "DS");
+	err = ldc_bind(lp);
 	if (err)
 		goto out_free_ldc;
 

@@ -13,6 +13,12 @@ Required properties:
   array of pin numbers which is used as column.
 - linux,keymap: The keymap for keys as described in the binding document
   devicetree/bindings/input/matrix-keymap.txt.
+- clocks: Must contain one entry, for the module clock.
+  See ../clocks/clock-bindings.txt for details.
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must include the following entries:
+  - kbc
 
 Optional properties, in addition to those specified by the shared
 matrix-keyboard bindings:
@@ -31,6 +37,9 @@ keyboard: keyboard {
 	compatible = "nvidia,tegra20-kbc";
 	reg = <0x7000e200 0x100>;
 	interrupts = <0 85 0x04>;
+	clocks = <&tegra_car 36>;
+	resets = <&tegra_car 36>;
+	reset-names = "kbc";
 	nvidia,ghost-filter;
 	nvidia,debounce-delay-ms = <640>;
 	nvidia,kbc-row-pins = <0 1 2>;    /* pin 0, 1, 2 as rows */

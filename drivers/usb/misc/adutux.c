@@ -22,7 +22,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -815,15 +814,10 @@ static void adu_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 
 	/* if the device is not opened, then we clean up right now */
-	dev_dbg(&dev->udev->dev, "%s : open count %d\n",
-		__func__, dev->open_count);
 	if (!dev->open_count)
 		adu_delete(dev);
 
 	mutex_unlock(&adutux_mutex);
-
-	dev_info(&interface->dev, "ADU device adutux%d now disconnected\n",
-		 (minor - ADU_MINOR_BASE));
 }
 
 /* usb specific object needed to register this driver with the usb subsystem */

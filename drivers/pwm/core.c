@@ -192,7 +192,7 @@ static void of_pwmchip_add(struct pwm_chip *chip)
 
 static void of_pwmchip_remove(struct pwm_chip *chip)
 {
-	if (chip->dev && chip->dev->of_node)
+	if (chip->dev)
 		of_node_put(chip->dev->of_node);
 }
 
@@ -223,20 +223,23 @@ void *pwm_get_chip_data(struct pwm_device *pwm)
 EXPORT_SYMBOL_GPL(pwm_get_chip_data);
 
 /**
- * pwmchip_add() - register a new PWM chip
+ * pwmchip_add_with_polarity() - register a new PWM chip
  * @chip: the PWM chip to add
+ * @polarity: initial polarity of PWM channels
  *
  * Register a new PWM chip. If chip->base < 0 then a dynamically assigned base
- * will be used.
+ * will be used. The initial polarity for all channels is specified by the
+ * @polarity parameter.
  */
-int pwmchip_add(struct pwm_chip *chip)
+int pwmchip_add_with_polarity(struct pwm_chip *chip,
+			      enum pwm_polarity polarity)
 {
 	struct pwm_device *pwm;
 	unsigned int i;
 	int ret;
 
 	if (!chip || !chip->dev || !chip->ops || !chip->ops->config ||
-	    !chip->ops->enable || !chip->ops->disable)
+	    !chip->ops->enable || !chip->ops->disable || !chip->npwm)
 		return -EINVAL;
 
 	mutex_lock(&pwm_lock);
@@ -259,6 +262,7 @@ int pwmchip_add(struct pwm_chip *chip)
 		pwm->chip = chip;
 		pwm->pwm = chip->base + i;
 		pwm->hwpwm = i;
+		pwm->polarity = polarity;
 
 		radix_tree_insert(&pwm_tree, pwm->pwm, pwm);
 	}
@@ -278,6 +282,19 @@ int pwmchip_add(struct pwm_chip *chip)
 out:
 	mutex_unlock(&pwm_lock);
 	return ret;
+}
+EXPORT_SYMBOL_GPL(pwmchip_add_with_polarity);
+
+/**
+ * pwmchip_add() - register a new PWM chip
+ * @chip: the PWM chip to add
+ *
+ * Register a new PWM chip. If chip->base < 0 then a dynamically assigned base
+ * will be used. The initial polarity for all channels is normal.
+ */
+int pwmchip_add(struct pwm_chip *chip)
+{
+	return pwmchip_add_with_polarity(chip, PWM_POLARITY_NORMAL);
 }
 EXPORT_SYMBOL_GPL(pwmchip_add);
 
@@ -573,12 +590,29 @@ EXPORT_SYMBOL_GPL(of_pwm_get);
  * @table: array of consumers to register
  * @num: number of consumers in table
  */
-void __init pwm_add_table(struct pwm_lookup *table, size_t num)
+void pwm_add_table(struct pwm_lookup *table, size_t num)
 {
 	mutex_lock(&pwm_lookup_lock);
 
 	while (num--) {
 		list_add_tail(&table->list, &pwm_lookup_list);
+		table++;
+	}
+
+	mutex_unlock(&pwm_lookup_lock);
+}
+
+/**
+ * pwm_remove_table() - unregister PWM device consumers
+ * @table: array of consumers to unregister
+ * @num: number of consumers in table
+ */
+void pwm_remove_table(struct pwm_lookup *table, size_t num)
+{
+	mutex_lock(&pwm_lookup_lock);
+
+	while (num--) {
+		list_del(&table->list);
 		table++;
 	}
 
@@ -602,9 +636,8 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	struct pwm_device *pwm = ERR_PTR(-EPROBE_DEFER);
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct pwm_chip *chip = NULL;
-	unsigned int index = 0;
 	unsigned int best = 0;
-	struct pwm_lookup *p;
+	struct pwm_lookup *p, *chosen = NULL;
 	unsigned int match;
 
 	/* look up via DT first */
@@ -651,8 +684,7 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 
 		if (match > best) {
-			chip = pwmchip_find_by_name(p->provider);
-			index = p->index;
+			chosen = p;
 
 			if (match != 3)
 				best = match;
@@ -661,11 +693,22 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 	}
 
-	if (chip)
-		pwm = pwm_request_from_chip(chip, index, con_id ?: dev_id);
+	if (!chosen)
+		goto out;
 
+	chip = pwmchip_find_by_name(chosen->provider);
+	if (!chip)
+		goto out;
+
+	pwm = pwm_request_from_chip(chip, chosen->index, con_id ?: dev_id);
+	if (IS_ERR(pwm))
+		goto out;
+
+	pwm_set_period(pwm, chosen->period);
+	pwm_set_polarity(pwm, chosen->polarity);
+
+out:
 	mutex_unlock(&pwm_lookup_lock);
-
 	return pwm;
 }
 EXPORT_SYMBOL_GPL(pwm_get);
@@ -808,12 +851,12 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 		seq_printf(s, " pwm-%-3d (%-20.20s):", i, pwm->label);
 
 		if (test_bit(PWMF_REQUESTED, &pwm->flags))
-			seq_printf(s, " requested");
+			seq_puts(s, " requested");
 
 		if (test_bit(PWMF_ENABLED, &pwm->flags))
-			seq_printf(s, " enabled");
+			seq_puts(s, " enabled");
 
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 }
 

@@ -85,7 +85,7 @@ int umc_match_pci_id(struct umc_driver *umc_drv, struct umc_dev *umc)
 	const struct pci_device_id *id_table = umc_drv->match_data;
 	struct pci_dev *pci;
 
-	if (umc->dev.parent->bus != &pci_bus_type)
+	if (!dev_is_pci(umc->dev.parent))
 		return 0;
 
 	pci = to_pci_dev(umc->dev.parent);
@@ -163,38 +163,6 @@ static int umc_device_remove(struct device *dev)
 	return 0;
 }
 
-static int umc_device_suspend(struct device *dev, pm_message_t state)
-{
-	struct umc_dev *umc;
-	struct umc_driver *umc_driver;
-	int err = 0;
-
-	umc = to_umc_dev(dev);
-
-	if (dev->driver) {
-		umc_driver = to_umc_driver(dev->driver);
-		if (umc_driver->suspend)
-			err = umc_driver->suspend(umc, state);
-	}
-	return err;
-}
-
-static int umc_device_resume(struct device *dev)
-{
-	struct umc_dev *umc;
-	struct umc_driver *umc_driver;
-	int err = 0;
-
-	umc = to_umc_dev(dev);
-
-	if (dev->driver) {
-		umc_driver = to_umc_driver(dev->driver);
-		if (umc_driver->resume)
-			err = umc_driver->resume(umc);
-	}
-	return err;
-}
-
 static ssize_t capability_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct umc_dev *umc = to_umc_dev(dev);
@@ -223,8 +191,6 @@ struct bus_type umc_bus_type = {
 	.match		= umc_bus_match,
 	.probe		= umc_device_probe,
 	.remove		= umc_device_remove,
-	.suspend        = umc_device_suspend,
-	.resume         = umc_device_resume,
 	.dev_groups	= umc_dev_groups,
 };
 EXPORT_SYMBOL_GPL(umc_bus_type);

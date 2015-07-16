@@ -23,6 +23,7 @@
 #include "ctimap.h"
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <sound/core.h>
 
 #define SRC_STATE_OFF	0x0
 #define SRC_STATE_INIT	0x4
@@ -85,6 +86,7 @@ struct src_desc {
 /* Define src manager object */
 struct src_mgr {
 	struct rsc_mgr mgr;	/* Basic resource manager info */
+	struct snd_card *card;	/* pointer to this card */
 	spinlock_t mgr_lock;
 
 	 /* request src resource */
@@ -123,6 +125,7 @@ struct srcimp_desc {
 
 struct srcimp_mgr {
 	struct rsc_mgr mgr;	/* Basic resource manager info */
+	struct snd_card *card;	/* pointer to this card */
 	spinlock_t mgr_lock;
 	spinlock_t imap_lock;
 	struct list_head imappers;
@@ -140,10 +143,10 @@ struct srcimp_mgr {
 };
 
 /* Constructor and destructor of SRC resource manager */
-int src_mgr_create(void *hw, struct src_mgr **rsrc_mgr);
+int src_mgr_create(struct hw *hw, struct src_mgr **rsrc_mgr);
 int src_mgr_destroy(struct src_mgr *src_mgr);
 /* Constructor and destructor of SRCIMP resource manager */
-int srcimp_mgr_create(void *hw, struct srcimp_mgr **rsrc_mgr);
+int srcimp_mgr_create(struct hw *hw, struct srcimp_mgr **rsrc_mgr);
 int srcimp_mgr_destroy(struct srcimp_mgr *srcimp_mgr);
 
 #endif /* CTSRC_H */

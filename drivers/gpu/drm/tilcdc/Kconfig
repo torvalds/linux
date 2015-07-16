@@ -1,6 +1,6 @@
 config DRM_TILCDC
 	tristate "DRM Support for TI LCDC Display Controller"
-	depends on DRM && OF && ARM
+	depends on DRM && OF && ARM && HAVE_DMA_ATTRS
 	select DRM_KMS_HELPER
 	select DRM_KMS_FB_HELPER
 	select DRM_KMS_CMA_HELPER
@@ -12,3 +12,15 @@ config DRM_TILCDC
 	  Choose this option if you have an TI SoC with LCDC display
 	  controller, for example AM33xx in beagle-bone, DA8xx, or
 	  OMAP-L1xx.  This driver replaces the FB_DA8XX fbdev driver.
+
+config DRM_TILCDC_SLAVE_COMPAT
+	bool "Support device tree blobs using TI LCDC Slave binding"
+	depends on DRM_TILCDC
+	default y
+	select OF_RESOLVE
+	select OF_OVERLAY
+	help
+	  Choose this option if you need a kernel that is compatible
+	  with device tree blobs using the obsolete "ti,tilcdc,slave"
+	  binding. If you find "ti,tilcdc,slave"-string from your DTB,
+	  you probably need this. Otherwise you do not.

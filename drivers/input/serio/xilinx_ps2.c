@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
@@ -364,7 +363,6 @@ MODULE_DEVICE_TABLE(of, xps2_of_match);
 static struct platform_driver xps2_of_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = xps2_of_match,
 	},
 	.probe		= xps2_of_probe,

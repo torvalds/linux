@@ -20,9 +20,8 @@ af-rxrpc-y := \
 	ar-skbuff.o \
 	ar-transport.o
 
-ifeq ($(CONFIG_PROC_FS),y)
-af-rxrpc-y += ar-proc.o
-endif
+af-rxrpc-$(CONFIG_PROC_FS) += ar-proc.o
+af-rxrpc-$(CONFIG_SYSCTL) += sysctl.o
 
 obj-$(CONFIG_AF_RXRPC) += af-rxrpc.o
 

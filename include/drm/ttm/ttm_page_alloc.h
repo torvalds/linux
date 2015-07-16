@@ -29,6 +29,8 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_memory.h>
 
+struct device;
+
 /**
  * Initialize pool allocator.
  */

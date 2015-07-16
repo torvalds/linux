@@ -96,20 +96,47 @@ int fcoe_link_speed_update(struct fc_lport *lport)
 	struct ethtool_cmd ecmd;
 
 	if (!__ethtool_get_settings(netdev, &ecmd)) {
-		lport->link_supported_speeds &=
-			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
+		lport->link_supported_speeds &= ~(FC_PORTSPEED_1GBIT  |
+		                                  FC_PORTSPEED_10GBIT |
+		                                  FC_PORTSPEED_20GBIT |
+		                                  FC_PORTSPEED_40GBIT);
+
 		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
-				      SUPPORTED_1000baseT_Full))
+		                      SUPPORTED_1000baseT_Full |
+		                      SUPPORTED_1000baseKX_Full))
 			lport->link_supported_speeds |= FC_PORTSPEED_1GBIT;
-		if (ecmd.supported & SUPPORTED_10000baseT_Full)
-			lport->link_supported_speeds |=
-				FC_PORTSPEED_10GBIT;
+
+		if (ecmd.supported & (SUPPORTED_10000baseT_Full   |
+		                      SUPPORTED_10000baseKX4_Full |
+		                      SUPPORTED_10000baseKR_Full  |
+		                      SUPPORTED_10000baseR_FEC))
+			lport->link_supported_speeds |= FC_PORTSPEED_10GBIT;
+
+		if (ecmd.supported & (SUPPORTED_20000baseMLD2_Full |
+		                      SUPPORTED_20000baseKR2_Full))
+			lport->link_supported_speeds |= FC_PORTSPEED_20GBIT;
+
+		if (ecmd.supported & (SUPPORTED_40000baseKR4_Full |
+		                      SUPPORTED_40000baseCR4_Full |
+		                      SUPPORTED_40000baseSR4_Full |
+		                      SUPPORTED_40000baseLR4_Full))
+			lport->link_supported_speeds |= FC_PORTSPEED_40GBIT;
+
 		switch (ethtool_cmd_speed(&ecmd)) {
 		case SPEED_1000:
 			lport->link_speed = FC_PORTSPEED_1GBIT;
 			break;
 		case SPEED_10000:
 			lport->link_speed = FC_PORTSPEED_10GBIT;
+			break;
+		case 20000:
+			lport->link_speed = FC_PORTSPEED_20GBIT;
+			break;
+		case 40000:
+			lport->link_speed = FC_PORTSPEED_40GBIT;
+			break;
+		default:
+			lport->link_speed = FC_PORTSPEED_UNKNOWN;
 			break;
 		}
 		return 0;

@@ -564,13 +564,3 @@ MODULE_FIRMWARE(PVR2_FIRMWARE_29xxx);
 MODULE_FIRMWARE(PVR2_FIRMWARE_24xxx);
 MODULE_FIRMWARE(PVR2_FIRMWARE_73xxx);
 MODULE_FIRMWARE(PVR2_FIRMWARE_75xxx);
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

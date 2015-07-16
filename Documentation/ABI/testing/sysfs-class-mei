@@ -1,0 +1,31 @@
+What:		/sys/class/mei/
+Date:		May 2014
+KernelVersion:	3.17
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:
+		The mei/ class sub-directory belongs to mei device class
+
+
+What:		/sys/class/mei/meiN/
+Date:		May 2014
+KernelVersion:	3.17
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:
+		The /sys/class/mei/meiN directory is created for
+		each probed mei device
+
+What:		/sys/class/mei/meiN/fw_status
+Date:		Nov 2014
+KernelVersion:	3.19
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Display fw status registers content
+
+		The ME FW writes its status information into fw status
+		registers for BIOS and OS to monitor fw health.
+
+		The register contains running state, power management
+		state, error codes, and others. The way the registers
+		are decoded depends on PCH or SoC generation.
+		Also number of registers varies between 1 and 6
+		depending on generation.
+

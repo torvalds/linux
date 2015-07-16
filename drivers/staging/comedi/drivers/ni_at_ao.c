@@ -19,8 +19,7 @@
 /*
  * Driver: ni_at_ao
  * Description: National Instruments AT-AO-6/10
- * Devices: (National Instruments) AT-AO-6 [at-ao-6]
- *          (National Instruments) AT-AO-10 [at-ao-10]
+ * Devices: [National Instruments] AT-AO-6 (at-ao-6), AT-AO-10 (at-ao-10)
  * Status: should work
  * Author: David A. Schleef <ds@schleef.org>
  * Updated: Sun Dec 26 12:26:28 EST 2004
@@ -38,7 +37,7 @@
 
 #include "../comedidev.h"
 
-#include "8253.h"
+#include "comedi_8254.h"
 
 /*
  * Register map
@@ -118,9 +117,6 @@ struct atao_private {
 	unsigned short cfg1;
 	unsigned short cfg3;
 
-	/* Used for AO readback */
-	unsigned int ao_readback[10];
-
 	/* Used for caldac readback */
 	unsigned char caldac[21];
 };
@@ -141,9 +137,8 @@ static int atao_ao_insn_write(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct atao_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val;
+	unsigned int val = s->readback[chan];
 	int i;
 
 	if (chan == 0)
@@ -151,30 +146,15 @@ static int atao_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		devpriv->ao_readback[chan] = val;
 
-		/* munge offset binary (unsigned) to two's complement */
-		val = comedi_offset_munge(s, val);
-		outw(val, dev->iobase + ATAO_AO_REG(chan));
+		/* the hardware expects two's complement values */
+		outw(comedi_offset_munge(s, val),
+		     dev->iobase + ATAO_AO_REG(chan));
 	}
+	s->readback[chan] = val;
 
 	if (chan == 0)
 		atao_select_reg_group(dev, 0);
-
-	return insn->n;
-}
-
-static int atao_ao_insn_read(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn,
-			     unsigned int *data)
-{
-	struct atao_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
 
 	return insn->n;
 }
@@ -263,46 +243,30 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct atao_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int bitstring;
-	unsigned int val;
-	int bit;
 
-	if (insn->n == 0)
-		return 0;
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
+		unsigned int bitstring = ((chan & 0x7) << 8) | val;
+		unsigned int bits;
+		int bit;
 
-	devpriv->caldac[chan] = data[insn->n - 1] & s->maxdata;
+		/* write the channel and last data value to the caldac */
+		/* clock the bitstring to the caldac; MSB -> LSB */
+		for (bit = 1 << 10; bit; bit >>= 1) {
+			bits = (bit & bitstring) ? ATAO_CFG2_SDATA : 0;
 
-	/* write the channel and last data value to the caldac */
-	bitstring = ((chan & 0x7) << 8) | devpriv->caldac[chan];
+			outw(bits, dev->iobase + ATAO_CFG2_REG);
+			outw(bits | ATAO_CFG2_SCLK,
+			     dev->iobase + ATAO_CFG2_REG);
+		}
 
-	/* clock the bitstring to the caldac; MSB -> LSB */
-	for (bit = 1 << 10; bit; bit >>= 1) {
-		val = (bit & bitstring) ? ATAO_CFG2_SDATA : 0;
+		/* strobe the caldac to load the value */
+		outw(ATAO_CFG2_CALLD(chan), dev->iobase + ATAO_CFG2_REG);
+		outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
 
-		outw(val, dev->iobase + ATAO_CFG2_REG);
-		outw(val | ATAO_CFG2_SCLK, dev->iobase + ATAO_CFG2_REG);
+		s->readback[chan] = val;
 	}
-
-	/* strobe the caldac to load the value */
-	outw(ATAO_CFG2_CALLD(chan), dev->iobase + ATAO_CFG2_REG);
-	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
-
-	return insn->n;
-}
-
-static int atao_calib_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn,
-				unsigned int *data)
-{
-	struct atao_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->caldac[chan];
 
 	return insn->n;
 }
@@ -317,10 +281,9 @@ static void atao_reset(struct comedi_device *dev)
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 
 	/* Put outputs of counter 1 and counter 2 in a high state */
-	i8254_load(dev->iobase + ATAO_82C53_BASE, 0,
-		   0, 0x0003, I8254_MODE4 | I8254_BINARY);
-	i8254_set_mode(dev->iobase + ATAO_82C53_BASE, 0,
-		   1, I8254_MODE4 | I8254_BINARY);
+	comedi_8254_set_mode(dev->pacer, 0, I8254_MODE4 | I8254_BINARY);
+	comedi_8254_set_mode(dev->pacer, 1, I8254_MODE4 | I8254_BINARY);
+	comedi_8254_write(dev->pacer, 0, 0x0003);
 
 	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
 
@@ -338,7 +301,7 @@ static void atao_reset(struct comedi_device *dev)
 
 static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct atao_board *board = comedi_board(dev);
+	const struct atao_board *board = dev->board_ptr;
 	struct atao_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -349,6 +312,11 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
+		return -ENOMEM;
+
+	dev->pacer = comedi_8254_init(dev->iobase + ATAO_82C53_BASE,
+				      0, I8254_IO8, 0);
+	if (!dev->pacer)
 		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
@@ -363,7 +331,10 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0x0fff;
 	s->range_table	= it->options[3] ? &range_unipolar10 : &range_bipolar10;
 	s->insn_write	= atao_ao_insn_write;
-	s->insn_read	= atao_ao_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[1];
@@ -381,8 +352,11 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags	= SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan	= (board->n_ao_chans * 2) + 1;
 	s->maxdata	= 0xff;
-	s->insn_read	= atao_calib_insn_read;
 	s->insn_write	= atao_calib_insn_write;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* EEPROM subdevice */
 	s = &dev->subdevices[3];

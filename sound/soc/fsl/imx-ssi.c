@@ -50,6 +50,7 @@
 #include <linux/platform_data/asoc-imx-ssi.h>
 
 #include "imx-ssi.h"
+#include "fsl_utils.h"
 
 #define SSI_SACNT_DEFAULT (SSI_SACNT_AC97EN | SSI_SACNT_FV)
 
@@ -73,8 +74,8 @@ static int imx_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 	sccr |= SSI_STCCR_DC(slots - 1);
 	writel(sccr, ssi->base + SSI_SRCCR);
 
-	writel(tx_mask, ssi->base + SSI_STMSK);
-	writel(rx_mask, ssi->base + SSI_SRMSK);
+	writel(~tx_mask, ssi->base + SSI_STMSK);
+	writel(~rx_mask, ssi->base + SSI_SRMSK);
 
 	return 0;
 }
@@ -304,8 +305,7 @@ static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 			scr |= SSI_SCR_RE;
 		sier |= sier_bits;
 
-		if (++ssi->enabled == 1)
-			scr |= SSI_SCR_SSIEN;
+		scr |= SSI_SCR_SSIEN;
 
 		break;
 
@@ -318,7 +318,7 @@ static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 			scr &= ~SSI_SCR_RE;
 		sier &= ~sier_bits;
 
-		if (--ssi->enabled == 0)
+		if (!(scr & (SSI_SCR_TE | SSI_SCR_RE)))
 			scr &= ~SSI_SCR_SSIEN;
 
 		break;
@@ -381,7 +381,7 @@ static struct snd_soc_dai_driver imx_ssi_dai = {
 
 static struct snd_soc_dai_driver imx_ac97_dai = {
 	.probe = imx_ssi_dai_probe,
-	.ac97_control = 1,
+	.bus_control = true,
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 2,
@@ -536,7 +536,9 @@ static int imx_ssi_probe(struct platform_device *pdev)
 			ret);
 		goto failed_clk;
 	}
-	clk_prepare_enable(ssi->clk);
+	ret = clk_prepare_enable(ssi->clk);
+	if (ret)
+		goto failed_clk;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ssi->base = devm_ioremap_resource(&pdev->dev, res);
@@ -624,9 +626,6 @@ static int imx_ssi_remove(struct platform_device *pdev)
 {
 	struct imx_ssi *ssi = platform_get_drvdata(pdev);
 
-	if (!ssi->dma_init)
-		imx_pcm_dma_exit(pdev);
-
 	if (!ssi->fiq_init)
 		imx_pcm_fiq_exit(pdev);
 
@@ -647,7 +646,6 @@ static struct platform_driver imx_ssi_driver = {
 
 	.driver = {
 		.name = "imx-ssi",
-		.owner = THIS_MODULE,
 	},
 };
 

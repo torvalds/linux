@@ -36,20 +36,15 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/crypto.h>
 #include <linux/key.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_log.h>
-#include <lustre_disk.h>
-#include <lustre_dlm.h>
-#include <lustre_param.h>
-#include <lustre_sec.h>
+#include "../include/obd.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_import.h"
+#include "../include/lustre_param.h"
+#include "../include/lustre_sec.h"
 
 #include "ptlrpc_internal.h"
 
@@ -99,8 +94,8 @@ EXPORT_SYMBOL(sptlrpc_target_sec_part);
  */
 int sptlrpc_parse_flavor(const char *str, struct sptlrpc_flavor *flvr)
 {
-	char	    buf[32];
-	char	   *bulk, *alg;
+	char buf[32];
+	char *bulk, *alg;
 
 	memset(flvr, 0, sizeof(*flvr));
 
@@ -187,8 +182,8 @@ static void sptlrpc_rule_init(struct sptlrpc_rule *rule)
  */
 int sptlrpc_parse_rule(char *param, struct sptlrpc_rule *rule)
 {
-	char	   *flavor, *dir;
-	int	     rc;
+	char *flavor, *dir;
+	int rc;
 
 	sptlrpc_rule_init(rule);
 
@@ -247,15 +242,14 @@ void sptlrpc_rule_set_free(struct sptlrpc_rule_set *rset)
 		(rset->srs_nrule == 0 && rset->srs_rules == NULL));
 
 	if (rset->srs_nslot) {
-		OBD_FREE(rset->srs_rules,
-			 rset->srs_nslot * sizeof(*rset->srs_rules));
+		kfree(rset->srs_rules);
 		sptlrpc_rule_set_init(rset);
 	}
 }
 EXPORT_SYMBOL(sptlrpc_rule_set_free);
 
 /*
- * return 0 if the rule set could accomodate one more rule.
+ * return 0 if the rule set could accommodate one more rule.
  */
 int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
 {
@@ -270,7 +264,7 @@ int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
 	nslot = rset->srs_nslot + 8;
 
 	/* better use realloc() if available */
-	OBD_ALLOC(rules, nslot * sizeof(*rset->srs_rules));
+	rules = kcalloc(nslot, sizeof(*rset->srs_rules), GFP_NOFS);
 	if (rules == NULL)
 		return -ENOMEM;
 
@@ -279,8 +273,7 @@ int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
 		memcpy(rules, rset->srs_rules,
 		       rset->srs_nrule * sizeof(*rset->srs_rules));
 
-		OBD_FREE(rset->srs_rules,
-			 rset->srs_nslot * sizeof(*rset->srs_rules));
+		kfree(rset->srs_rules);
 	}
 
 	rset->srs_rules = rules;
@@ -316,9 +309,9 @@ static inline int rule_match_net(struct sptlrpc_rule *r1,
 int sptlrpc_rule_set_merge(struct sptlrpc_rule_set *rset,
 			   struct sptlrpc_rule *rule)
 {
-	struct sptlrpc_rule      *p = rset->srs_rules;
-	int		       spec_dir, spec_net;
-	int		       rc, n, match = 0;
+	struct sptlrpc_rule *p = rset->srs_rules;
+	int spec_dir, spec_net;
+	int rc, n, match = 0;
 
 	might_sleep();
 
@@ -410,8 +403,8 @@ int sptlrpc_rule_set_choose(struct sptlrpc_rule_set *rset,
 			    lnet_nid_t nid,
 			    struct sptlrpc_flavor *sf)
 {
-	struct sptlrpc_rule    *r;
-	int		     n;
+	struct sptlrpc_rule *r;
+	int n;
 
 	for (n = 0; n < rset->srs_nrule; n++) {
 		r = &rset->srs_rules[n];
@@ -440,7 +433,7 @@ EXPORT_SYMBOL(sptlrpc_rule_set_choose);
 void sptlrpc_rule_set_dump(struct sptlrpc_rule_set *rset)
 {
 	struct sptlrpc_rule *r;
-	int     n;
+	int n;
 
 	for (n = 0; n < rset->srs_nrule; n++) {
 		r = &rset->srs_rules[n];
@@ -449,46 +442,6 @@ void sptlrpc_rule_set_dump(struct sptlrpc_rule_set *rset)
 	}
 }
 EXPORT_SYMBOL(sptlrpc_rule_set_dump);
-
-static int sptlrpc_rule_set_extract(struct sptlrpc_rule_set *gen,
-				    struct sptlrpc_rule_set *tgt,
-				    enum lustre_sec_part from,
-				    enum lustre_sec_part to,
-				    struct sptlrpc_rule_set *rset)
-{
-	struct sptlrpc_rule_set *src[2] = { gen, tgt };
-	struct sptlrpc_rule     *rule;
-	int		      i, n, rc;
-
-	might_sleep();
-
-	/* merge general rules firstly, then target-specific rules */
-	for (i = 0; i < 2; i++) {
-		if (src[i] == NULL)
-			continue;
-
-		for (n = 0; n < src[i]->srs_nrule; n++) {
-			rule = &src[i]->srs_rules[n];
-
-			if (from != LUSTRE_SP_ANY &&
-			    rule->sr_from != LUSTRE_SP_ANY &&
-			    rule->sr_from != from)
-				continue;
-			if (to != LUSTRE_SP_ANY &&
-			    rule->sr_to != LUSTRE_SP_ANY &&
-			    rule->sr_to != to)
-				continue;
-
-			rc = sptlrpc_rule_set_merge(rset, rule);
-			if (rc) {
-				CERROR("can't merge: %d\n", rc);
-				return rc;
-			}
-		}
-	}
-
-	return 0;
-}
 
 /**********************************
  * sptlrpc configuration support  *
@@ -521,8 +474,8 @@ static inline int is_hex(char c)
 
 static void target2fsname(const char *tgt, char *fsname, int buflen)
 {
-	const char     *ptr;
-	int	     len;
+	const char *ptr;
+	int len;
 
 	ptr = strrchr(tgt, '-');
 	if (ptr) {
@@ -554,7 +507,7 @@ static void sptlrpc_conf_free_rsets(struct sptlrpc_conf *conf)
 				     &conf->sc_tgts, sct_list) {
 		sptlrpc_rule_set_free(&conf_tgt->sct_rset);
 		list_del(&conf_tgt->sct_list);
-		OBD_FREE_PTR(conf_tgt);
+		kfree(conf_tgt);
 	}
 	LASSERT(list_empty(&conf->sc_tgts));
 
@@ -568,7 +521,7 @@ static void sptlrpc_conf_free(struct sptlrpc_conf *conf)
 
 	sptlrpc_conf_free_rsets(conf);
 	list_del(&conf->sc_list);
-	OBD_FREE_PTR(conf);
+	kfree(conf);
 }
 
 static
@@ -586,7 +539,7 @@ struct sptlrpc_conf_tgt *sptlrpc_conf_get_tgt(struct sptlrpc_conf *conf,
 	if (!create)
 		return NULL;
 
-	OBD_ALLOC_PTR(conf_tgt);
+	conf_tgt = kzalloc(sizeof(*conf_tgt), GFP_NOFS);
 	if (conf_tgt) {
 		strlcpy(conf_tgt->sct_name, name, sizeof(conf_tgt->sct_name));
 		sptlrpc_rule_set_init(&conf_tgt->sct_rset);
@@ -610,7 +563,7 @@ struct sptlrpc_conf *sptlrpc_conf_get(const char *fsname,
 	if (!create)
 		return NULL;
 
-	OBD_ALLOC_PTR(conf);
+	conf = kzalloc(sizeof(*conf), GFP_NOFS);
 	if (conf == NULL)
 		return NULL;
 
@@ -630,8 +583,8 @@ static int sptlrpc_conf_merge_rule(struct sptlrpc_conf *conf,
 				   const char *target,
 				   struct sptlrpc_rule *rule)
 {
-	struct sptlrpc_conf_tgt  *conf_tgt;
-	struct sptlrpc_rule_set  *rule_set;
+	struct sptlrpc_conf_tgt *conf_tgt;
+	struct sptlrpc_rule_set *rule_set;
 
 	/* fsname == target means general rules for the whole fs */
 	if (strcmp(conf->sc_fsname, target) == 0) {
@@ -657,10 +610,10 @@ static int sptlrpc_conf_merge_rule(struct sptlrpc_conf *conf,
 static int __sptlrpc_process_config(struct lustre_cfg *lcfg,
 				    struct sptlrpc_conf *conf)
 {
-	char		   *target, *param;
-	char		    fsname[MTI_NAME_MAXLEN];
-	struct sptlrpc_rule     rule;
-	int		     rc;
+	char *target, *param;
+	char fsname[MTI_NAME_MAXLEN];
+	struct sptlrpc_rule rule;
+	int rc;
 
 	target = lustre_cfg_string(lcfg, 1);
 	if (target == NULL) {
@@ -718,8 +671,8 @@ EXPORT_SYMBOL(sptlrpc_process_config);
 
 static int logname2fsname(const char *logname, char *buf, int buflen)
 {
-	char   *ptr;
-	int     len;
+	char *ptr;
+	int len;
 
 	ptr = strrchr(logname, '-');
 	if (ptr == NULL || strcmp(ptr, "-sptlrpc")) {
@@ -737,7 +690,7 @@ static int logname2fsname(const char *logname, char *buf, int buflen)
 void sptlrpc_conf_log_update_begin(const char *logname)
 {
 	struct sptlrpc_conf *conf;
-	char		 fsname[16];
+	char fsname[16];
 
 	if (logname2fsname(logname, fsname, sizeof(fsname)))
 		return;
@@ -745,11 +698,13 @@ void sptlrpc_conf_log_update_begin(const char *logname)
 	mutex_lock(&sptlrpc_conf_lock);
 
 	conf = sptlrpc_conf_get(fsname, 0);
-	if (conf && conf->sc_local) {
-		LASSERT(conf->sc_updated == 0);
-		sptlrpc_conf_free_rsets(conf);
+	if (conf) {
+		if (conf->sc_local) {
+			LASSERT(conf->sc_updated == 0);
+			sptlrpc_conf_free_rsets(conf);
+		}
+		conf->sc_modified = 0;
 	}
-	conf->sc_modified = 0;
 
 	mutex_unlock(&sptlrpc_conf_lock);
 }
@@ -761,7 +716,7 @@ EXPORT_SYMBOL(sptlrpc_conf_log_update_begin);
 void sptlrpc_conf_log_update_end(const char *logname)
 {
 	struct sptlrpc_conf *conf;
-	char		 fsname[16];
+	char fsname[16];
 
 	if (logname2fsname(logname, fsname, sizeof(fsname)))
 		return;
@@ -786,7 +741,7 @@ EXPORT_SYMBOL(sptlrpc_conf_log_update_end);
 
 void sptlrpc_conf_log_start(const char *logname)
 {
-	char		 fsname[16];
+	char fsname[16];
 
 	if (logname2fsname(logname, fsname, sizeof(fsname)))
 		return;
@@ -800,7 +755,7 @@ EXPORT_SYMBOL(sptlrpc_conf_log_start);
 void sptlrpc_conf_log_stop(const char *logname)
 {
 	struct sptlrpc_conf *conf;
-	char		 fsname[16];
+	char fsname[16];
 
 	if (logname2fsname(logname, fsname, sizeof(fsname)))
 		return;
@@ -813,7 +768,7 @@ void sptlrpc_conf_log_stop(const char *logname)
 }
 EXPORT_SYMBOL(sptlrpc_conf_log_stop);
 
-static void inline flavor_set_flags(struct sptlrpc_flavor *sf,
+static inline void flavor_set_flags(struct sptlrpc_flavor *sf,
 				    enum lustre_sec_part from,
 				    enum lustre_sec_part to,
 				    unsigned int fl_udesc)
@@ -844,10 +799,10 @@ void sptlrpc_conf_choose_flavor(enum lustre_sec_part from,
 				lnet_nid_t nid,
 				struct sptlrpc_flavor *sf)
 {
-	struct sptlrpc_conf     *conf;
+	struct sptlrpc_conf *conf;
 	struct sptlrpc_conf_tgt *conf_tgt;
-	char		     name[MTI_NAME_MAXLEN];
-	int		      len, rc = 0;
+	char name[MTI_NAME_MAXLEN];
+	int len, rc = 0;
 
 	target2fsname(target->uuid, name, sizeof(name));
 
@@ -903,10 +858,10 @@ EXPORT_SYMBOL(sptlrpc_target_choose_flavor);
  */
 void sptlrpc_conf_client_adapt(struct obd_device *obd)
 {
-	struct obd_import  *imp;
+	struct obd_import *imp;
 
 	LASSERT(strcmp(obd->obd_type->typ_name, LUSTRE_MDC_NAME) == 0 ||
-		strcmp(obd->obd_type->typ_name, LUSTRE_OSC_NAME) ==0);
+		strcmp(obd->obd_type->typ_name, LUSTRE_OSC_NAME) == 0);
 	CDEBUG(D_SEC, "obd %s\n", obd->u.cli.cl_target_uuid.uuid);
 
 	/* serialize with connect/disconnect import */
@@ -916,7 +871,7 @@ void sptlrpc_conf_client_adapt(struct obd_device *obd)
 	if (imp) {
 		spin_lock(&imp->imp_lock);
 		if (imp->imp_sec)
-			imp->imp_sec_expire = cfs_time_current_sec() +
+			imp->imp_sec_expire = get_seconds() +
 				SEC_ADAPT_DELAY;
 		spin_unlock(&imp->imp_lock);
 	}
@@ -925,289 +880,7 @@ void sptlrpc_conf_client_adapt(struct obd_device *obd)
 }
 EXPORT_SYMBOL(sptlrpc_conf_client_adapt);
 
-
-static void rule2string(struct sptlrpc_rule *r, char *buf, int buflen)
-{
-	char    dirbuf[8];
-	char   *net;
-	char   *ptr = buf;
-
-	if (r->sr_netid == LNET_NIDNET(LNET_NID_ANY))
-		net = "default";
-	else
-		net = libcfs_net2str(r->sr_netid);
-
-	if (r->sr_from == LUSTRE_SP_ANY && r->sr_to == LUSTRE_SP_ANY)
-		dirbuf[0] = '\0';
-	else
-		snprintf(dirbuf, sizeof(dirbuf), ".%s2%s",
-			 sptlrpc_part2name(r->sr_from),
-			 sptlrpc_part2name(r->sr_to));
-
-	ptr += snprintf(buf, buflen, "srpc.flavor.%s%s=", net, dirbuf);
-
-	sptlrpc_flavor2name(&r->sr_flvr, ptr, buflen - (ptr - buf));
-	buf[buflen - 1] = '\0';
-}
-
-static int sptlrpc_record_rule_set(struct llog_handle *llh,
-				   char *target,
-				   struct sptlrpc_rule_set *rset)
-{
-	struct lustre_cfg_bufs  bufs;
-	struct lustre_cfg      *lcfg;
-	struct llog_rec_hdr     rec;
-	int		     buflen;
-	char		    param[48];
-	int		     i, rc;
-
-	for (i = 0; i < rset->srs_nrule; i++) {
-		rule2string(&rset->srs_rules[i], param, sizeof(param));
-
-		lustre_cfg_bufs_reset(&bufs, NULL);
-		lustre_cfg_bufs_set_string(&bufs, 1, target);
-		lustre_cfg_bufs_set_string(&bufs, 2, param);
-		lcfg = lustre_cfg_new(LCFG_SPTLRPC_CONF, &bufs);
-		LASSERT(lcfg);
-
-		buflen = lustre_cfg_len(lcfg->lcfg_bufcount,
-					lcfg->lcfg_buflens);
-		rec.lrh_len = llog_data_len(buflen);
-		rec.lrh_type = OBD_CFG_REC;
-		rc = llog_write(NULL, llh, &rec, NULL, 0, (void *)lcfg, -1);
-		if (rc)
-			CERROR("failed to write a rec: rc = %d\n", rc);
-		lustre_cfg_free(lcfg);
-	}
-	return 0;
-}
-
-static int sptlrpc_record_rules(struct llog_handle *llh,
-				struct sptlrpc_conf *conf)
-{
-	struct sptlrpc_conf_tgt *conf_tgt;
-
-	sptlrpc_record_rule_set(llh, conf->sc_fsname, &conf->sc_rset);
-
-	list_for_each_entry(conf_tgt, &conf->sc_tgts, sct_list) {
-		sptlrpc_record_rule_set(llh, conf_tgt->sct_name,
-					&conf_tgt->sct_rset);
-	}
-	return 0;
-}
-
-#define LOG_SPTLRPC_TMP "sptlrpc.tmp"
-#define LOG_SPTLRPC     "sptlrpc"
-
-static
-int sptlrpc_target_local_copy_conf(struct obd_device *obd,
-				   struct sptlrpc_conf *conf)
-{
-	struct llog_handle   *llh = NULL;
-	struct llog_ctxt     *ctxt;
-	struct lvfs_run_ctxt  saved;
-	struct dentry	*dentry;
-	int		   rc;
-
-	ctxt = llog_get_context(obd, LLOG_CONFIG_ORIG_CTXT);
-	if (ctxt == NULL)
-		return -EINVAL;
-
-	push_ctxt(&saved, &obd->obd_lvfs_ctxt, NULL);
-
-	dentry = ll_lookup_one_len(MOUNT_CONFIGS_DIR, cfs_fs_pwd(current->fs),
-				   strlen(MOUNT_CONFIGS_DIR));
-	if (IS_ERR(dentry)) {
-		rc = PTR_ERR(dentry);
-		CERROR("cannot lookup %s directory: rc = %d\n",
-		       MOUNT_CONFIGS_DIR, rc);
-		GOTO(out_ctx, rc);
-	}
-
-	/* erase the old tmp log */
-	rc = llog_erase(NULL, ctxt, NULL, LOG_SPTLRPC_TMP);
-	if (rc < 0 && rc != -ENOENT) {
-		CERROR("%s: cannot erase temporary sptlrpc log: rc = %d\n",
-		       obd->obd_name, rc);
-		GOTO(out_dput, rc);
-	}
-
-	/* write temporary log */
-	rc = llog_open_create(NULL, ctxt, &llh, NULL, LOG_SPTLRPC_TMP);
-	if (rc)
-		GOTO(out_dput, rc);
-	rc = llog_init_handle(NULL, llh, LLOG_F_IS_PLAIN, NULL);
-	if (rc)
-		GOTO(out_close, rc);
-
-	rc = sptlrpc_record_rules(llh, conf);
-
-out_close:
-	llog_close(NULL, llh);
-	if (rc == 0)
-		rc = lustre_rename(dentry, obd->obd_lvfs_ctxt.pwdmnt,
-				   LOG_SPTLRPC_TMP, LOG_SPTLRPC);
-out_dput:
-	l_dput(dentry);
-out_ctx:
-	pop_ctxt(&saved, &obd->obd_lvfs_ctxt, NULL);
-	llog_ctxt_put(ctxt);
-	CDEBUG(D_SEC, "target %s: write local sptlrpc conf: rc = %d\n",
-	       obd->obd_name, rc);
-	return rc;
-}
-
-static int local_read_handler(const struct lu_env *env,
-			      struct llog_handle *llh,
-			      struct llog_rec_hdr *rec, void *data)
-{
-	struct sptlrpc_conf  *conf = (struct sptlrpc_conf *) data;
-	struct lustre_cfg    *lcfg = (struct lustre_cfg *)(rec + 1);
-	int		   cfg_len, rc;
-
-	if (rec->lrh_type != OBD_CFG_REC) {
-		CERROR("unhandled lrh_type: %#x\n", rec->lrh_type);
-		return -EINVAL;
-	}
-
-	cfg_len = rec->lrh_len - sizeof(struct llog_rec_hdr) -
-		  sizeof(struct llog_rec_tail);
-
-	rc = lustre_cfg_sanity_check(lcfg, cfg_len);
-	if (rc) {
-		CERROR("Insane cfg\n");
-		return rc;
-	}
-
-	if (lcfg->lcfg_command != LCFG_SPTLRPC_CONF) {
-		CERROR("invalid command (%x)\n", lcfg->lcfg_command);
-		return -EINVAL;
-	}
-
-	return __sptlrpc_process_config(lcfg, conf);
-}
-
-static
-int sptlrpc_target_local_read_conf(struct obd_device *obd,
-				   struct sptlrpc_conf *conf)
-{
-	struct llog_handle    *llh = NULL;
-	struct llog_ctxt      *ctxt;
-	struct lvfs_run_ctxt   saved;
-	int		    rc;
-
-	LASSERT(conf->sc_updated == 0 && conf->sc_local == 0);
-
-	ctxt = llog_get_context(obd, LLOG_CONFIG_ORIG_CTXT);
-	if (ctxt == NULL) {
-		CERROR("missing llog context\n");
-		return -EINVAL;
-	}
-
-	push_ctxt(&saved, &obd->obd_lvfs_ctxt, NULL);
-
-	rc = llog_open(NULL, ctxt, &llh, NULL, LOG_SPTLRPC, LLOG_OPEN_EXISTS);
-	if (rc < 0) {
-		if (rc == -ENOENT)
-			rc = 0;
-		GOTO(out_pop, rc);
-	}
-
-	rc = llog_init_handle(NULL, llh, LLOG_F_IS_PLAIN, NULL);
-	if (rc)
-		GOTO(out_close, rc);
-
-	if (llog_get_size(llh) <= 1) {
-		CDEBUG(D_SEC, "no local sptlrpc copy found\n");
-		GOTO(out_close, rc = 0);
-	}
-
-	rc = llog_process(NULL, llh, local_read_handler, (void *)conf, NULL);
-
-	if (rc == 0) {
-		conf->sc_local = 1;
-	} else {
-		sptlrpc_conf_free_rsets(conf);
-	}
-
-out_close:
-	llog_close(NULL, llh);
-out_pop:
-	pop_ctxt(&saved, &obd->obd_lvfs_ctxt, NULL);
-	llog_ctxt_put(ctxt);
-	CDEBUG(D_SEC, "target %s: read local sptlrpc conf: rc = %d\n",
-	       obd->obd_name, rc);
-	return rc;
-}
-
-
-/**
- * called by target devices, extract sptlrpc rules which applies to
- * this target, to be used for future rpc flavor checking.
- */
-int sptlrpc_conf_target_get_rules(struct obd_device *obd,
-				  struct sptlrpc_rule_set *rset,
-				  int initial)
-{
-	struct sptlrpc_conf      *conf;
-	struct sptlrpc_conf_tgt  *conf_tgt;
-	enum lustre_sec_part      sp_dst;
-	char		      fsname[MTI_NAME_MAXLEN];
-	int		       rc = 0;
-
-	if (strcmp(obd->obd_type->typ_name, LUSTRE_MDT_NAME) == 0) {
-		sp_dst = LUSTRE_SP_MDT;
-	} else if (strcmp(obd->obd_type->typ_name, LUSTRE_OST_NAME) == 0) {
-		sp_dst = LUSTRE_SP_OST;
-	} else {
-		CERROR("unexpected obd type %s\n", obd->obd_type->typ_name);
-		return -EINVAL;
-	}
-	CDEBUG(D_SEC, "get rules for target %s\n", obd->obd_uuid.uuid);
-
-	target2fsname(obd->obd_uuid.uuid, fsname, sizeof(fsname));
-
-	mutex_lock(&sptlrpc_conf_lock);
-
-	conf = sptlrpc_conf_get(fsname, 0);
-	if (conf == NULL) {
-		CERROR("missing sptlrpc config log\n");
-		GOTO(out, rc);
-	}
-
-	if (conf->sc_updated  == 0) {
-		/*
-		 * always read from local copy. here another option is
-		 * if we already have a local copy (read from another
-		 * target device hosted on the same node) we simply use that.
-		 */
-		if (conf->sc_local)
-			sptlrpc_conf_free_rsets(conf);
-
-		sptlrpc_target_local_read_conf(obd, conf);
-	} else {
-		LASSERT(conf->sc_local == 0);
-
-		/* write a local copy */
-		if (initial || conf->sc_modified)
-			sptlrpc_target_local_copy_conf(obd, conf);
-		else
-			CDEBUG(D_SEC, "unchanged, skip updating local copy\n");
-	}
-
-	/* extract rule set for this target */
-	conf_tgt = sptlrpc_conf_get_tgt(conf, obd->obd_name, 0);
-
-	rc = sptlrpc_rule_set_extract(&conf->sc_rset,
-				      conf_tgt ? &conf_tgt->sct_rset: NULL,
-				      LUSTRE_SP_ANY, sp_dst, rset);
-out:
-	mutex_unlock(&sptlrpc_conf_lock);
-	return rc;
-}
-EXPORT_SYMBOL(sptlrpc_conf_target_get_rules);
-
-int  sptlrpc_conf_init(void)
+int sptlrpc_conf_init(void)
 {
 	mutex_init(&sptlrpc_conf_lock);
 	return 0;
@@ -1215,7 +888,7 @@ int  sptlrpc_conf_init(void)
 
 void sptlrpc_conf_fini(void)
 {
-	struct sptlrpc_conf  *conf, *conf_next;
+	struct sptlrpc_conf *conf, *conf_next;
 
 	mutex_lock(&sptlrpc_conf_lock);
 	list_for_each_entry_safe(conf, conf_next, &sptlrpc_confs, sc_list) {

@@ -50,14 +50,12 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LDLM
-# include <linux/libcfs/libcfs.h>
-
-#include <lustre_dlm.h>
-#include <obd_support.h>
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
-
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../include/lustre_dlm.h"
+#include "../include/obd_support.h"
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
 #include "ldlm_internal.h"
 
 
@@ -92,7 +90,7 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 		if (lck->l_policy_data.l_extent.end + 1 > kms)
 			kms = lck->l_policy_data.l_extent.end + 1;
 	}
-	LASSERTF(kms <= old_kms, "kms "LPU64" old_kms "LPU64"\n", kms, old_kms);
+	LASSERTF(kms <= old_kms, "kms %llu old_kms %llu\n", kms, old_kms);
 
 	return kms;
 }
@@ -104,7 +102,7 @@ struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock)
 	struct ldlm_interval *node;
 
 	LASSERT(lock->l_resource->lr_type == LDLM_EXTENT);
-	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, GFP_NOFS);
 	if (node == NULL)
 		return NULL;
 
@@ -153,7 +151,8 @@ static inline int lock_mode_to_index(ldlm_mode_t mode)
 
 	LASSERT(mode != 0);
 	LASSERT(IS_PO2(mode));
-	for (index = -1; mode; index++, mode >>= 1) ;
+	for (index = -1; mode; index++)
+		mode >>= 1;
 	LASSERT(index < LCK_MODE_NUM);
 	return index;
 }
@@ -184,7 +183,9 @@ void ldlm_extent_add_lock(struct ldlm_resource *res,
 	root = &res->lr_itree[idx].lit_root;
 	found = interval_insert(&node->li_node, root);
 	if (found) { /* The policy group found. */
-		struct ldlm_interval *tmp = ldlm_interval_detach(lock);
+		struct ldlm_interval *tmp;
+
+		tmp = ldlm_interval_detach(lock);
 		LASSERT(tmp != NULL);
 		ldlm_interval_free(tmp);
 		ldlm_interval_attach(to_ldlm_interval(found), lock);

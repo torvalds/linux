@@ -173,16 +173,15 @@ static int vt8500_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops vt8500_irq_domain_ops = {
+static const struct irq_domain_ops vt8500_irq_domain_ops = {
 	.map = vt8500_irq_map,
 	.xlate = irq_domain_xlate_onecell,
 };
 
-static asmlinkage
-void __exception_irq_entry vt8500_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry vt8500_handle_irq(struct pt_regs *regs)
 {
 	u32 stat, i;
-	int irqnr, virq;
+	int irqnr;
 	void __iomem *base;
 
 	/* Loop through each active controller */
@@ -199,8 +198,7 @@ void __exception_irq_entry vt8500_handle_irq(struct pt_regs *regs)
 				continue;
 		}
 
-		virq = irq_find_mapping(intc[i].domain, irqnr);
-		handle_IRQ(virq, regs);
+		handle_domain_irq(intc[i].domain, irqnr, regs);
 	}
 }
 

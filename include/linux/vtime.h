@@ -19,8 +19,8 @@ static inline bool vtime_accounting_enabled(void) { return true; }
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 static inline bool vtime_accounting_enabled(void)
 {
-	if (static_key_false(&context_tracking_enabled)) {
-		if (context_tracking_active())
+	if (context_tracking_is_enabled()) {
+		if (context_tracking_cpu_is_enabled())
 			return true;
 	}
 

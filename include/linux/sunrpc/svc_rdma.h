@@ -63,8 +63,6 @@ extern atomic_t rdma_stat_rq_prod;
 extern atomic_t rdma_stat_sq_poll;
 extern atomic_t rdma_stat_sq_prod;
 
-#define RPCRDMA_VERSION 1
-
 /*
  * Contexts are built when an RDMA request is created and are a
  * record of the resources that can be recovered when the request
@@ -79,6 +77,7 @@ struct svc_rdma_op_ctxt {
 	enum ib_wr_opcode wr_op;
 	enum ib_wc_status wc_status;
 	u32 byte_len;
+	u32 position;
 	struct svcxprt_rdma *xprt;
 	unsigned long flags;
 	enum dma_data_direction direction;
@@ -115,14 +114,13 @@ struct svc_rdma_fastreg_mr {
 	struct list_head frmr_list;
 };
 struct svc_rdma_req_map {
-	struct svc_rdma_fastreg_mr *frmr;
 	unsigned long count;
 	union {
 		struct kvec sge[RPCSVC_MAXPAGES];
 		struct svc_rdma_chunk_sge ch[RPCSVC_MAXPAGES];
+		unsigned long lkey[RPCSVC_MAXPAGES];
 	};
 };
-#define RDMACTXT_F_FAST_UNREG	1
 #define RDMACTXT_F_LAST_CTXT	2
 
 #define	SVCRDMA_DEVCAP_FAST_REG		1	/* fast mr registration */
@@ -151,6 +149,10 @@ struct svcxprt_rdma {
 	struct ib_cq         *sc_rq_cq;
 	struct ib_cq         *sc_sq_cq;
 	struct ib_mr         *sc_phys_mr;	/* MR for server memory */
+	int		     (*sc_reader)(struct svcxprt_rdma *,
+					  struct svc_rqst *,
+					  struct svc_rdma_op_ctxt *,
+					  int *, u32 *, u32, u32, u64, bool);
 	u32		     sc_dev_caps;	/* distilled device caps */
 	u32		     sc_dma_lkey;	/* local dma key */
 	unsigned int	     sc_frmr_pg_list_len;
@@ -170,23 +172,26 @@ struct svcxprt_rdma {
 #define RDMAXPRT_SQ_PENDING	2
 #define RDMAXPRT_CONN_PENDING	3
 
+#define RPCRDMA_MAX_SVC_SEGS	(64)	/* server max scatter/gather */
+#if RPCSVC_MAXPAYLOAD < (RPCRDMA_MAX_SVC_SEGS << PAGE_SHIFT)
+#define RPCRDMA_MAXPAYLOAD	RPCSVC_MAXPAYLOAD
+#else
+#define RPCRDMA_MAXPAYLOAD	(RPCRDMA_MAX_SVC_SEGS << PAGE_SHIFT)
+#endif
+
 #define RPCRDMA_LISTEN_BACKLOG  10
 /* The default ORD value is based on two outstanding full-size writes with a
  * page size of 4k, or 32k * 2 ops / 4k = 16 outstanding RDMA_READ.  */
 #define RPCRDMA_ORD             (64/4)
 #define RPCRDMA_SQ_DEPTH_MULT   8
-#define RPCRDMA_MAX_THREADS     16
-#define RPCRDMA_MAX_REQUESTS    16
+#define RPCRDMA_MAX_REQUESTS    32
 #define RPCRDMA_MAX_REQ_SIZE    4096
 
 /* svc_rdma_marshal.c */
-extern void svc_rdma_rcl_chunk_counts(struct rpcrdma_read_chunk *,
-				      int *, int *);
 extern int svc_rdma_xdr_decode_req(struct rpcrdma_msg **, struct svc_rqst *);
-extern int svc_rdma_xdr_decode_deferred_req(struct svc_rqst *);
 extern int svc_rdma_xdr_encode_error(struct svcxprt_rdma *,
 				     struct rpcrdma_msg *,
-				     enum rpcrdma_errcode, u32 *);
+				     enum rpcrdma_errcode, __be32 *);
 extern void svc_rdma_xdr_encode_write_list(struct rpcrdma_msg *, int);
 extern void svc_rdma_xdr_encode_reply_array(struct rpcrdma_write_array *, int);
 extern void svc_rdma_xdr_encode_array_chunk(struct rpcrdma_write_array *, int,
@@ -199,6 +204,12 @@ extern int svc_rdma_xdr_get_reply_hdr_len(struct rpcrdma_msg *);
 
 /* svc_rdma_recvfrom.c */
 extern int svc_rdma_recvfrom(struct svc_rqst *);
+extern int rdma_read_chunk_lcl(struct svcxprt_rdma *, struct svc_rqst *,
+			       struct svc_rdma_op_ctxt *, int *, u32 *,
+			       u32, u32, u64, bool);
+extern int rdma_read_chunk_frmr(struct svcxprt_rdma *, struct svc_rqst *,
+				struct svc_rdma_op_ctxt *, int *, u32 *,
+				u32, u32, u64, bool);
 
 /* svc_rdma_sendto.c */
 extern int svc_rdma_sendto(struct svc_rqst *);
@@ -207,7 +218,6 @@ extern int svc_rdma_sendto(struct svc_rqst *);
 extern int svc_rdma_send(struct svcxprt_rdma *, struct ib_send_wr *);
 extern void svc_rdma_send_error(struct svcxprt_rdma *, struct rpcrdma_msg *,
 				enum rpcrdma_errcode);
-struct page *svc_rdma_get_page(void);
 extern int svc_rdma_post_recv(struct svcxprt_rdma *);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);

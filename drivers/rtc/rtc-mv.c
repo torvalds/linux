@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
@@ -24,7 +25,7 @@
 #define RTC_MINUTES_OFFS	8
 #define RTC_HOURS_OFFS		16
 #define RTC_WDAY_OFFS		24
-#define RTC_HOURS_12H_MODE		(1 << 22) /* 12 hours mode */
+#define RTC_HOURS_12H_MODE	BIT(22) /* 12 hour mode */
 
 #define RTC_DATE_REG_OFFS	4
 #define RTC_MDAY_OFFS		0
@@ -33,7 +34,7 @@
 
 #define RTC_ALARM_TIME_REG_OFFS	8
 #define RTC_ALARM_DATE_REG_OFFS	0xc
-#define RTC_ALARM_VALID		(1 << 7)
+#define RTC_ALARM_VALID		BIT(7)
 
 #define RTC_ALARM_INTERRUPT_MASK_REG_OFFS	0x10
 #define RTC_ALARM_INTERRUPT_CASUE_REG_OFFS	0x14
@@ -77,7 +78,7 @@ static int mv_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	second = rtc_time & 0x7f;
 	minute = (rtc_time >> RTC_MINUTES_OFFS) & 0x7f;
-	hour = (rtc_time >> RTC_HOURS_OFFS) & 0x3f; /* assume 24 hours mode */
+	hour = (rtc_time >> RTC_HOURS_OFFS) & 0x3f; /* assume 24 hour mode */
 	wday = (rtc_time >> RTC_WDAY_OFFS) & 0x7;
 
 	day = rtc_date & 0x3f;
@@ -108,7 +109,7 @@ static int mv_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 	second = rtc_time & 0x7f;
 	minute = (rtc_time >> RTC_MINUTES_OFFS) & 0x7f;
-	hour = (rtc_time >> RTC_HOURS_OFFS) & 0x3f; /* assume 24 hours mode */
+	hour = (rtc_time >> RTC_HOURS_OFFS) & 0x3f; /* assume 24 hour mode */
 	wday = (rtc_time >> RTC_WDAY_OFFS) & 0x7;
 
 	day = rtc_date & 0x3f;
@@ -222,6 +223,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct rtc_plat_data *pdata;
 	u32 rtc_time;
+	u32 rtc_date;
 	int ret = 0;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -238,10 +240,10 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	if (!IS_ERR(pdata->clk))
 		clk_prepare_enable(pdata->clk);
 
-	/* make sure the 24 hours mode is enabled */
+	/* make sure the 24 hour mode is enabled */
 	rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
 	if (rtc_time & RTC_HOURS_12H_MODE) {
-		dev_err(&pdev->dev, "24 Hours mode not supported.\n");
+		dev_err(&pdev->dev, "12 Hour mode is enabled but not supported.\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -255,6 +257,17 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 			ret = -ENODEV;
 			goto out;
 		}
+	}
+
+	/*
+	 * A date after January 19th, 2038 does not fit on 32 bits and
+	 * will confuse the kernel and userspace. Reset to a sane date
+	 * (January 1st, 2013) if we're after 2038.
+	 */
+	rtc_date = readl(pdata->ioaddr + RTC_DATE_REG_OFFS);
+	if (bcd2bin((rtc_date >> RTC_YEAR_OFFS) & 0xff) >= 38) {
+		dev_info(&pdev->dev, "invalid RTC date, resetting to January 1st, 2013\n");
+		writel(0x130101, pdata->ioaddr + RTC_DATE_REG_OFFS);
 	}
 
 	pdata->irq = platform_get_irq(pdev, 0);
@@ -307,7 +320,7 @@ static int __exit mv_rtc_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id rtc_mv_of_match_table[] = {
+static const struct of_device_id rtc_mv_of_match_table[] = {
 	{ .compatible = "marvell,orion-rtc", },
 	{}
 };
@@ -317,7 +330,6 @@ static struct platform_driver mv_rtc_driver = {
 	.remove		= __exit_p(mv_rtc_remove),
 	.driver		= {
 		.name	= "rtc-mv",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(rtc_mv_of_match_table),
 	},
 };

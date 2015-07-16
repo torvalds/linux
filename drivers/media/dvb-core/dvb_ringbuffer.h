@@ -133,6 +133,8 @@ extern void dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf,
 */
 extern ssize_t dvb_ringbuffer_write(struct dvb_ringbuffer *rbuf, const u8 *buf,
 				    size_t len);
+extern ssize_t dvb_ringbuffer_write_user(struct dvb_ringbuffer *rbuf,
+				         const u8 __user *buf, size_t len);
 
 
 /**

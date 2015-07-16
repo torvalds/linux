@@ -381,7 +381,7 @@ static struct velocity_info_tbl chip_info_table[] = {
  *	device driver. Used for hotplug autoloading.
  */
 
-static DEFINE_PCI_DEVICE_TABLE(velocity_pci_id_table) = {
+static const struct pci_device_id velocity_pci_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_612X) },
 	{ }
 };
@@ -392,7 +392,7 @@ MODULE_DEVICE_TABLE(pci, velocity_pci_id_table);
  *	Describe the OF device identifiers that we support in this
  *	device driver. Used for devicetree nodes.
  */
-static struct of_device_id velocity_of_ids[] = {
+static const struct of_device_id velocity_of_ids[] = {
 	{ .compatible = "via,velocity-vt6110", .data = &chip_info_table[0] },
 	{ /* Sentinel */ },
 };
@@ -2056,7 +2056,7 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 	struct sk_buff *skb;
 
 	if (rd->rdesc0.RSR & (RSR_STP | RSR_EDP)) {
-		VELOCITY_PRT(MSG_LEVEL_VERBOSE, KERN_ERR " %s : the received frame span multple RDs.\n", vptr->netdev->name);
+		VELOCITY_PRT(MSG_LEVEL_VERBOSE, KERN_ERR " %s : the received frame spans multiple RDs.\n", vptr->netdev->name);
 		stats->rx_length_errors++;
 		return -EINVAL;
 	}
@@ -2172,16 +2172,13 @@ static int velocity_poll(struct napi_struct *napi, int budget)
 	unsigned int rx_done;
 	unsigned long flags;
 
-	spin_lock_irqsave(&vptr->lock, flags);
 	/*
 	 * Do rx and tx twice for performance (taken from the VIA
 	 * out-of-tree driver).
 	 */
-	rx_done = velocity_rx_srv(vptr, budget / 2);
+	rx_done = velocity_rx_srv(vptr, budget);
+	spin_lock_irqsave(&vptr->lock, flags);
 	velocity_tx_srv(vptr);
-	rx_done += velocity_rx_srv(vptr, budget - rx_done);
-	velocity_tx_srv(vptr);
-
 	/* If budget not fully consumed, exit the polling mode */
 	if (rx_done < budget) {
 		napi_complete(napi);
@@ -2342,6 +2339,8 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		if (ret < 0)
 			goto out_free_tmp_vptr_1;
 
+		napi_disable(&vptr->napi);
+
 		spin_lock_irqsave(&vptr->lock, flags);
 
 		netif_stop_queue(dev);
@@ -2361,6 +2360,8 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		velocity_init_registers(vptr, VELOCITY_INIT_COLD);
 
 		velocity_give_many_rx_descs(vptr);
+
+		napi_enable(&vptr->napi);
 
 		mac_enable_int(vptr->mac_regs);
 		netif_start_queue(dev);
@@ -2564,7 +2565,7 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 	/* The hardware can handle at most 7 memory segments, so merge
 	 * the skb if there are more */
 	if (skb_shinfo(skb)->nr_frags > 6 && __skb_linearize(skb)) {
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -2610,8 +2611,8 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 
 	td_ptr->tdesc1.cmd = TCPLS_NORMAL + (tdinfo->nskb_dma + 1) * 16;
 
-	if (vlan_tx_tag_present(skb)) {
-		td_ptr->tdesc1.vlan = cpu_to_le16(vlan_tx_tag_get(skb));
+	if (skb_vlan_tag_present(skb)) {
+		td_ptr->tdesc1.vlan = cpu_to_le16(skb_vlan_tag_get(skb));
 		td_ptr->tdesc1.TCR |= TCR0_VETAG;
 	}
 
@@ -3280,7 +3281,6 @@ static struct platform_driver velocity_platform_driver = {
 	.remove		= velocity_platform_remove,
 	.driver = {
 		.name = "via-velocity",
-		.owner = THIS_MODULE,
 		.of_match_table = velocity_of_ids,
 		.pm = &velocity_pm_ops,
 	},

@@ -119,7 +119,8 @@ static inline void ar933x_uart_putc(struct ar933x_uart_port *up, int ch)
 
 static unsigned int ar933x_uart_tx_empty(struct uart_port *port)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 	unsigned long flags;
 	unsigned int rdata;
 
@@ -141,21 +142,24 @@ static void ar933x_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 static void ar933x_uart_start_tx(struct uart_port *port)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 
 	ar933x_uart_start_tx_interrupt(up);
 }
 
 static void ar933x_uart_stop_tx(struct uart_port *port)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 
 	ar933x_uart_stop_tx_interrupt(up);
 }
 
 static void ar933x_uart_stop_rx(struct uart_port *port)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 
 	up->ier &= ~AR933X_UART_INT_RX_VALID;
 	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, up->ier);
@@ -163,7 +167,8 @@ static void ar933x_uart_stop_rx(struct uart_port *port)
 
 static void ar933x_uart_break_ctl(struct uart_port *port, int break_state)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 	unsigned long flags;
 
 	spin_lock_irqsave(&up->port.lock, flags);
@@ -174,10 +179,6 @@ static void ar933x_uart_break_ctl(struct uart_port *port, int break_state)
 		ar933x_uart_rmw_clear(up, AR933X_UART_CS_REG,
 				      AR933X_UART_CS_TX_BREAK);
 	spin_unlock_irqrestore(&up->port.lock, flags);
-}
-
-static void ar933x_uart_enable_ms(struct uart_port *port)
-{
 }
 
 /*
@@ -235,7 +236,8 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 				    struct ktermios *new,
 				    struct ktermios *old)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 	unsigned int cs;
 	unsigned long flags;
 	unsigned int baud, scale, step;
@@ -408,7 +410,8 @@ static irqreturn_t ar933x_uart_interrupt(int irq, void *dev_id)
 
 static int ar933x_uart_startup(struct uart_port *port)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 	unsigned long flags;
 	int ret;
 
@@ -434,7 +437,8 @@ static int ar933x_uart_startup(struct uart_port *port)
 
 static void ar933x_uart_shutdown(struct uart_port *port)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 
 	/* Disable all interrupts */
 	up->ier = 0;
@@ -472,7 +476,8 @@ static void ar933x_uart_config_port(struct uart_port *port, int flags)
 static int ar933x_uart_verify_port(struct uart_port *port,
 				   struct serial_struct *ser)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 
 	if (ser->type != PORT_UNKNOWN &&
 	    ser->type != PORT_AR933X)
@@ -495,7 +500,6 @@ static struct uart_ops ar933x_uart_ops = {
 	.stop_tx	= ar933x_uart_stop_tx,
 	.start_tx	= ar933x_uart_start_tx,
 	.stop_rx	= ar933x_uart_stop_rx,
-	.enable_ms	= ar933x_uart_enable_ms,
 	.break_ctl	= ar933x_uart_break_ctl,
 	.startup	= ar933x_uart_startup,
 	.shutdown	= ar933x_uart_shutdown,
@@ -526,7 +530,8 @@ static void ar933x_uart_wait_xmitr(struct ar933x_uart_port *up)
 
 static void ar933x_uart_console_putchar(struct uart_port *port, int ch)
 {
-	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
 
 	ar933x_uart_wait_xmitr(up);
 	ar933x_uart_putc(up, ch);
@@ -644,7 +649,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 			id = 0;
 	}
 
-	if (id > CONFIG_SERIAL_AR933X_NR_UARTS)
+	if (id >= CONFIG_SERIAL_AR933X_NR_UARTS)
 		return -EINVAL;
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -739,7 +744,6 @@ static struct platform_driver ar933x_uart_platform_driver = {
 	.remove		= ar933x_uart_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(ar933x_uart_of_ids),
 	},
 };

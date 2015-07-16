@@ -146,9 +146,6 @@ static const struct consw fb_con;
 
 static int fbcon_set_origin(struct vc_data *);
 
-#define CURSOR_DRAW_DELAY		(1)
-
-static int vbl_cursor_cnt;
 static int fbcon_cursor_noblink;
 
 #define divides(a, b)	((!(a) || (b)%(a)) ? 0 : 1)
@@ -405,7 +402,7 @@ static void cursor_timer_handler(unsigned long dev_addr)
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	queue_work(system_power_efficient_wq, &info->queue);
-	mod_timer(&ops->cursor_timer, jiffies + HZ/5);
+	mod_timer(&ops->cursor_timer, jiffies + ops->cur_blink_jiffies);
 }
 
 static void fbcon_add_cursor_timer(struct fb_info *info)
@@ -420,7 +417,7 @@ static void fbcon_add_cursor_timer(struct fb_info *info)
 
 		init_timer(&ops->cursor_timer);
 		ops->cursor_timer.function = cursor_timer_handler;
-		ops->cursor_timer.expires = jiffies + HZ / 5;
+		ops->cursor_timer.expires = jiffies + ops->cur_blink_jiffies;
 		ops->cursor_timer.data = (unsigned long ) info;
 		add_timer(&ops->cursor_timer);
 		ops->flags |= FBCON_FLAGS_CURSOR_TIMER;
@@ -448,8 +445,10 @@ static int __init fb_console_setup(char *this_opt)
 		return 1;
 
 	while ((options = strsep(&this_opt, ",")) != NULL) {
-		if (!strncmp(options, "font:", 5))
+		if (!strncmp(options, "font:", 5)) {
 			strlcpy(fontname, options + 5, sizeof(fontname));
+			continue;
+		}
 		
 		if (!strncmp(options, "scrollback:", 11)) {
 			options += 11;
@@ -457,13 +456,9 @@ static int __init fb_console_setup(char *this_opt)
 				fbcon_softback_size = simple_strtoul(options, &options, 0);
 				if (*options == 'k' || *options == 'K') {
 					fbcon_softback_size *= 1024;
-					options++;
 				}
-				if (*options != ',')
-					return 1;
-				options++;
-			} else
-				return 1;
+			}
+			continue;
 		}
 		
 		if (!strncmp(options, "map:", 4)) {
@@ -478,8 +473,7 @@ static int __init fb_console_setup(char *this_opt)
 
 				fbcon_map_override();
 			}
-
-			return 1;
+			continue;
 		}
 
 		if (!strncmp(options, "vc:", 3)) {
@@ -491,7 +485,8 @@ static int __init fb_console_setup(char *this_opt)
 			if (*options++ == '-')
 				last_fb_vc = simple_strtoul(options, &options, 10) - 1;
 			fbcon_is_default = 0; 
-		}	
+			continue;
+		}
 
 		if (!strncmp(options, "rotate:", 7)) {
 			options += 7;
@@ -499,6 +494,7 @@ static int __init fb_console_setup(char *this_opt)
 				initial_rotation = simple_strtoul(options, &options, 0);
 			if (initial_rotation > 3)
 				initial_rotation = 0;
+			continue;
 		}
 	}
 	return 1;
@@ -748,6 +744,7 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 		fbcon_del_cursor_timer(oldinfo);
 		kfree(ops->cursor_state.mask);
 		kfree(ops->cursor_data);
+		kfree(ops->cursor_src);
 		kfree(ops->fontbuffer);
 		kfree(oldinfo->fbcon_par);
 		oldinfo->fbcon_par = NULL;
@@ -759,7 +756,7 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 		  newinfo in an undefined state. Thus, a call to
 		  fb_set_par() may be needed for the newinfo.
 		*/
-		if (newinfo->fbops->fb_set_par) {
+		if (newinfo && newinfo->fbops->fb_set_par) {
 			ret = newinfo->fbops->fb_set_par(newinfo);
 
 			if (ret)
@@ -1312,6 +1309,7 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 	if (fbcon_is_inactive(vc, info) || vc->vc_deccm != 1)
 		return;
 
+	ops->cur_blink_jiffies = msecs_to_jiffies(vc->vc_cur_blink_ms);
 	if (vc->vc_cursor_type & 0x10)
 		fbcon_del_cursor_timer(info);
 	else
@@ -1329,7 +1327,6 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 
 	ops->cursor(vc, info, mode, y, get_color(vc, info, c, 1),
 		    get_color(vc, info, c, 0));
-	vbl_cursor_cnt = CURSOR_DRAW_DELAY;
 }
 
 static int scrollback_phys_max = 0;
@@ -3028,8 +3025,31 @@ static int fbcon_fb_unbind(int idx)
 			if (con2fb_map[i] == idx)
 				set_con2fb_map(i, new_idx, 0);
 		}
-	} else
+	} else {
+		struct fb_info *info = registered_fb[idx];
+
+		/* This is sort of like set_con2fb_map, except it maps
+		 * the consoles to no device and then releases the
+		 * oldinfo to free memory and cancel the cursor blink
+		 * timer. I can imagine this just becoming part of
+		 * set_con2fb_map where new_idx is -1
+		 */
+		for (i = first_fb_vc; i <= last_fb_vc; i++) {
+			if (con2fb_map[i] == idx) {
+				con2fb_map[i] = -1;
+				if (!search_fb_in_map(idx)) {
+					ret = con2fb_release_oldinfo(vc_cons[i].d,
+								     info, NULL, i,
+								     idx, 0);
+					if (ret) {
+						con2fb_map[i] = idx;
+						return ret;
+					}
+				}
+			}
+		}
 		ret = fbcon_unbind();
+	}
 
 	return ret;
 }
@@ -3547,8 +3567,10 @@ static void fbcon_exit(void)
 			"no"));
 
 		for (j = first_fb_vc; j <= last_fb_vc; j++) {
-			if (con2fb_map[j] == i)
+			if (con2fb_map[j] == i) {
 				mapped = 1;
+				break;
+			}
 		}
 
 		if (mapped) {
@@ -3561,6 +3583,7 @@ static void fbcon_exit(void)
 
 				fbcon_del_cursor_timer(info);
 				kfree(ops->cursor_src);
+				kfree(ops->cursor_state.mask);
 				kfree(info->fbcon_par);
 				info->fbcon_par = NULL;
 			}
@@ -3598,7 +3621,7 @@ static int __init fb_console_init(void)
 	return 0;
 }
 
-module_init(fb_console_init);
+fs_initcall(fb_console_init);
 
 #ifdef MODULE
 

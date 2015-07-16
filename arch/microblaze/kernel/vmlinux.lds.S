@@ -51,6 +51,7 @@ SECTIONS {
 	. = ALIGN(16);
 	RODATA
 	EXCEPTION_TABLE(16)
+	NOTES
 
 	/*
 	 * sdata2 section can go anywhere, but must be word aligned

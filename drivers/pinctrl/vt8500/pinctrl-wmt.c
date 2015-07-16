@@ -131,25 +131,14 @@ static int wmt_set_pinmux(struct wmt_pinctrl_data *data, unsigned func,
 	return 0;
 }
 
-static int wmt_pmx_enable(struct pinctrl_dev *pctldev,
-			  unsigned func_selector,
-			  unsigned group_selector)
+static int wmt_pmx_set_mux(struct pinctrl_dev *pctldev,
+			   unsigned func_selector,
+			   unsigned group_selector)
 {
 	struct wmt_pinctrl_data *data = pinctrl_dev_get_drvdata(pctldev);
 	u32 pinnum = data->pins[group_selector].number;
 
 	return wmt_set_pinmux(data, func_selector, pinnum);
-}
-
-static void wmt_pmx_disable(struct pinctrl_dev *pctldev,
-			    unsigned func_selector,
-			    unsigned group_selector)
-{
-	struct wmt_pinctrl_data *data = pinctrl_dev_get_drvdata(pctldev);
-	u32 pinnum = data->pins[group_selector].number;
-
-	/* disable by setting GPIO_IN */
-	wmt_set_pinmux(data, WMT_FSEL_GPIO_IN, pinnum);
 }
 
 static void wmt_pmx_gpio_disable_free(struct pinctrl_dev *pctldev,
@@ -179,8 +168,7 @@ static struct pinmux_ops wmt_pinmux_ops = {
 	.get_functions_count = wmt_pmx_get_functions_count,
 	.get_function_name = wmt_pmx_get_function_name,
 	.get_function_groups = wmt_pmx_get_function_groups,
-	.enable = wmt_pmx_enable,
-	.disable = wmt_pmx_disable,
+	.set_mux = wmt_pmx_set_mux,
 	.gpio_disable_free = wmt_pmx_gpio_disable_free,
 	.gpio_set_direction = wmt_pmx_gpio_set_direction,
 };
@@ -276,7 +264,20 @@ static int wmt_pctl_dt_node_to_map_pull(struct wmt_pinctrl_data *data,
 	if (!configs)
 		return -ENOMEM;
 
-	configs[0] = pull;
+	switch (pull) {
+	case 0:
+		configs[0] = PIN_CONFIG_BIAS_DISABLE;
+		break;
+	case 1:
+		configs[0] = PIN_CONFIG_BIAS_PULL_DOWN;
+		break;
+	case 2:
+		configs[0] = PIN_CONFIG_BIAS_PULL_UP;
+		break;
+	default:
+		configs[0] = PIN_CONFIG_BIAS_DISABLE;
+		dev_err(data->dev, "invalid pull state %d - disabling\n", pull);
+	}
 
 	map->type = PIN_MAP_TYPE_CONFIGS_PIN;
 	map->data.configs.group_or_pin = data->groups[group];
@@ -510,17 +511,6 @@ static int wmt_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 		return GPIOF_DIR_IN;
 }
 
-static int wmt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_gpio_direction_input(chip->base + offset);
-}
-
-static int wmt_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
-				     int value)
-{
-	return pinctrl_gpio_direction_output(chip->base + offset);
-}
-
 static int wmt_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 {
 	struct wmt_pinctrl_data *data = dev_get_drvdata(chip->dev);
@@ -555,6 +545,18 @@ static void wmt_gpio_set_value(struct gpio_chip *chip, unsigned offset,
 		wmt_clearbits(data, reg_data_out, BIT(bit));
 }
 
+static int wmt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_gpio_direction_input(chip->base + offset);
+}
+
+static int wmt_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
+				     int value)
+{
+	wmt_gpio_set_value(chip, offset, value);
+	return pinctrl_gpio_direction_output(chip->base + offset);
+}
+
 static struct gpio_chip wmt_gpio_chip = {
 	.label = "gpio-wmt",
 	.owner = THIS_MODULE,
@@ -565,7 +567,7 @@ static struct gpio_chip wmt_gpio_chip = {
 	.direction_output = wmt_gpio_direction_output,
 	.get = wmt_gpio_get_value,
 	.set = wmt_gpio_set_value,
-	.can_sleep = 0,
+	.can_sleep = false,
 };
 
 int wmt_pinctrl_probe(struct platform_device *pdev,
@@ -592,9 +594,9 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 	data->dev = &pdev->dev;
 
 	data->pctl_dev = pinctrl_register(&wmt_desc, &pdev->dev, data);
-	if (!data->pctl_dev) {
+	if (IS_ERR(data->pctl_dev)) {
 		dev_err(&pdev->dev, "Failed to register pinctrl\n");
-		return -EINVAL;
+		return PTR_ERR(data->pctl_dev);
 	}
 
 	err = gpiochip_add(&data->gpio_chip);
@@ -613,8 +615,7 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 
 fail_range:
-	if (gpiochip_remove(&data->gpio_chip))
-		dev_err(&pdev->dev, "failed to remove gpio chip\n");
+	gpiochip_remove(&data->gpio_chip);
 fail_gpio:
 	pinctrl_unregister(data->pctl_dev);
 	return err;
@@ -623,12 +624,8 @@ fail_gpio:
 int wmt_pinctrl_remove(struct platform_device *pdev)
 {
 	struct wmt_pinctrl_data *data = platform_get_drvdata(pdev);
-	int err;
 
-	err = gpiochip_remove(&data->gpio_chip);
-	if (err)
-		dev_err(&pdev->dev, "failed to remove gpio chip\n");
-
+	gpiochip_remove(&data->gpio_chip);
 	pinctrl_unregister(data->pctl_dev);
 
 	return 0;

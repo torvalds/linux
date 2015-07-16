@@ -1,0 +1,30 @@
+BCM2835 PWM controller (Raspberry Pi controller)
+
+Required properties:
+- compatible: should be "brcm,bcm2835-pwm"
+- reg: physical base address and length of the controller's registers
+- clock: This clock defines the base clock frequency of the PWM hardware
+  system, the period and the duty_cycle of the PWM signal is a multiple of
+  the base period.
+- #pwm-cells: Should be 2. See pwm.txt in this directory for a description of
+  the cells format.
+
+Examples:
+
+pwm@2020c000 {
+	compatible = "brcm,bcm2835-pwm";
+	reg = <0x2020c000 0x28>;
+	clocks = <&clk_pwm>;
+	#pwm-cells = <2>;
+};
+
+clocks {
+	....
+		clk_pwm: pwm {
+			compatible = "fixed-clock";
+			reg = <3>;
+			#clock-cells = <0>;
+			clock-frequency = <9200000>;
+		};
+	....
+};

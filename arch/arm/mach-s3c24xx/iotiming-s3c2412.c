@@ -29,7 +29,6 @@
 
 #include <plat/cpu.h>
 #include <plat/cpu-freq-core.h>
-#include <plat/clock.h>
 
 #include <mach/s3c2412.h>
 

@@ -42,6 +42,7 @@ static int nx_xcbc_set_key(struct crypto_shash *desc,
 			   unsigned int         key_len)
 {
 	struct nx_crypto_ctx *nx_ctx = crypto_shash_ctx(desc);
+	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 
 	switch (key_len) {
 	case AES_KEYSIZE_128:
@@ -51,7 +52,7 @@ static int nx_xcbc_set_key(struct crypto_shash *desc,
 		return -EINVAL;
 	}
 
-	memcpy(nx_ctx->priv.xcbc.key, in_key, key_len);
+	memcpy(csbcpb->cpb.aes_xcbc.key, in_key, key_len);
 
 	return 0;
 }
@@ -75,6 +76,7 @@ static int nx_xcbc_empty(struct shash_desc *desc, u8 *out)
 	u8 keys[2][AES_BLOCK_SIZE];
 	u8 key[32];
 	int rc = 0;
+	int len;
 
 	/* Change to ECB mode */
 	csbcpb->cpb.hdr.mode = NX_MODE_AES_ECB;
@@ -86,11 +88,20 @@ static int nx_xcbc_empty(struct shash_desc *desc, u8 *out)
 	memset(keys[0], 0x01, sizeof(keys[0]));
 	memset(keys[1], 0x03, sizeof(keys[1]));
 
+	len = sizeof(keys);
 	/* Generate K1 and K3 encrypting the patterns */
-	in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *) keys, sizeof(keys),
+	in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *) keys, &len,
 				 nx_ctx->ap->sglen);
-	out_sg = nx_build_sg_list(nx_ctx->out_sg, (u8 *) keys, sizeof(keys),
+
+	if (len != sizeof(keys))
+		return -EINVAL;
+
+	out_sg = nx_build_sg_list(nx_ctx->out_sg, (u8 *) keys, &len,
 				  nx_ctx->ap->sglen);
+
+	if (len != sizeof(keys))
+		return -EINVAL;
+
 	nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) * sizeof(struct nx_sg);
 	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
 
@@ -103,12 +114,23 @@ static int nx_xcbc_empty(struct shash_desc *desc, u8 *out)
 	/* XOr K3 with the padding for a 0 length message */
 	keys[1][0] ^= 0x80;
 
+	len = sizeof(keys[1]);
+
 	/* Encrypt the final result */
 	memcpy(csbcpb->cpb.aes_ecb.key, keys[0], AES_BLOCK_SIZE);
-	in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *) keys[1], sizeof(keys[1]),
+	in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *) keys[1], &len,
 				 nx_ctx->ap->sglen);
-	out_sg = nx_build_sg_list(nx_ctx->out_sg, out, AES_BLOCK_SIZE,
+
+	if (len != sizeof(keys[1]))
+		return -EINVAL;
+
+	len = AES_BLOCK_SIZE;
+	out_sg = nx_build_sg_list(nx_ctx->out_sg, out, &len,
 				  nx_ctx->ap->sglen);
+
+	if (len != AES_BLOCK_SIZE)
+		return -EINVAL;
+
 	nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) * sizeof(struct nx_sg);
 	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
 
@@ -127,26 +149,29 @@ out:
 	return rc;
 }
 
-static int nx_xcbc_init(struct shash_desc *desc)
+static int nx_crypto_ctx_aes_xcbc_init2(struct crypto_tfm *tfm)
 {
-	struct xcbc_state *sctx = shash_desc_ctx(desc);
-	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
+	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(tfm);
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
-	struct nx_sg *out_sg;
+	int err;
+
+	err = nx_crypto_ctx_aes_xcbc_init(tfm);
+	if (err)
+		return err;
 
 	nx_ctx_init(nx_ctx, HCOP_FC_AES);
-
-	memset(sctx, 0, sizeof *sctx);
 
 	NX_CPB_SET_KEY_SIZE(csbcpb, NX_KS_AES_128);
 	csbcpb->cpb.hdr.mode = NX_MODE_AES_XCBC_MAC;
 
-	memcpy(csbcpb->cpb.aes_xcbc.key, nx_ctx->priv.xcbc.key, AES_BLOCK_SIZE);
-	memset(nx_ctx->priv.xcbc.key, 0, sizeof *nx_ctx->priv.xcbc.key);
+	return 0;
+}
 
-	out_sg = nx_build_sg_list(nx_ctx->out_sg, (u8 *)sctx->state,
-				  AES_BLOCK_SIZE, nx_ctx->ap->sglen);
-	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
+static int nx_xcbc_init(struct shash_desc *desc)
+{
+	struct xcbc_state *sctx = shash_desc_ctx(desc);
+
+	memset(sctx, 0, sizeof *sctx);
 
 	return 0;
 }
@@ -159,10 +184,12 @@ static int nx_xcbc_update(struct shash_desc *desc,
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	struct nx_sg *in_sg;
-	u32 to_process, leftover, total;
-	u32 max_sg_len;
+	struct nx_sg *out_sg;
+	u32 to_process = 0, leftover, total;
+	unsigned int max_sg_len;
 	unsigned long irq_flags;
 	int rc = 0;
+	int data_len;
 
 	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
@@ -180,17 +207,26 @@ static int nx_xcbc_update(struct shash_desc *desc,
 	}
 
 	in_sg = nx_ctx->in_sg;
-	max_sg_len = min_t(u32, nx_driver.of.max_sg_len/sizeof(struct nx_sg),
+	max_sg_len = min_t(u64, nx_driver.of.max_sg_len/sizeof(struct nx_sg),
 				nx_ctx->ap->sglen);
+	max_sg_len = min_t(u64, max_sg_len,
+				nx_ctx->ap->databytelen/NX_PAGE_SIZE);
+
+	data_len = AES_BLOCK_SIZE;
+	out_sg = nx_build_sg_list(nx_ctx->out_sg, (u8 *)sctx->state,
+				  &len, nx_ctx->ap->sglen);
+
+	if (data_len != AES_BLOCK_SIZE) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
 
 	do {
-
-		/* to_process: the AES_BLOCK_SIZE data chunk to process in this
-		 * update */
-		to_process = min_t(u64, total, nx_ctx->ap->databytelen);
-		to_process = min_t(u64, to_process,
-					NX_PAGE_SIZE * (max_sg_len - 1));
+		to_process = total - to_process;
 		to_process = to_process & ~(AES_BLOCK_SIZE - 1);
+
 		leftover = total - to_process;
 
 		/* the hardware will not accept a 0 byte operation for this
@@ -204,15 +240,28 @@ static int nx_xcbc_update(struct shash_desc *desc,
 		}
 
 		if (sctx->count) {
+			data_len = sctx->count;
 			in_sg = nx_build_sg_list(nx_ctx->in_sg,
 						(u8 *) sctx->buffer,
-						sctx->count,
+						&data_len,
 						max_sg_len);
+			if (data_len != sctx->count) {
+				rc = -EINVAL;
+				goto out;
+			}
 		}
+
+		data_len = to_process - sctx->count;
 		in_sg = nx_build_sg_list(in_sg,
 					(u8 *) data,
-					to_process - sctx->count,
+					&data_len,
 					max_sg_len);
+
+		if (data_len != to_process - sctx->count) {
+			rc = -EINVAL;
+			goto out;
+		}
+
 		nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) *
 					sizeof(struct nx_sg);
 
@@ -263,6 +312,7 @@ static int nx_xcbc_final(struct shash_desc *desc, u8 *out)
 	struct nx_sg *in_sg, *out_sg;
 	unsigned long irq_flags;
 	int rc = 0;
+	int len;
 
 	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
@@ -285,10 +335,23 @@ static int nx_xcbc_final(struct shash_desc *desc, u8 *out)
 	 * this is not an intermediate operation */
 	NX_CPB_FDM(csbcpb) &= ~NX_FDM_INTERMEDIATE;
 
+	len = sctx->count;
 	in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *)sctx->buffer,
-				 sctx->count, nx_ctx->ap->sglen);
-	out_sg = nx_build_sg_list(nx_ctx->out_sg, out, AES_BLOCK_SIZE,
+				 &len, nx_ctx->ap->sglen);
+
+	if (len != sctx->count) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	len = AES_BLOCK_SIZE;
+	out_sg = nx_build_sg_list(nx_ctx->out_sg, out, &len,
 				  nx_ctx->ap->sglen);
+
+	if (len != AES_BLOCK_SIZE) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) * sizeof(struct nx_sg);
 	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
@@ -327,7 +390,7 @@ struct shash_alg nx_shash_aes_xcbc_alg = {
 		.cra_blocksize   = AES_BLOCK_SIZE,
 		.cra_module      = THIS_MODULE,
 		.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
-		.cra_init        = nx_crypto_ctx_aes_xcbc_init,
+		.cra_init        = nx_crypto_ctx_aes_xcbc_init2,
 		.cra_exit        = nx_crypto_ctx_exit,
 	}
 };

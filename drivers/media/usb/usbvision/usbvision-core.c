@@ -1463,8 +1463,6 @@ static int usbvision_write_reg_irq(struct usb_usbvision *usbvision, int address,
 
 static int usbvision_init_compression(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
-
 	usbvision->last_isoc_frame_num = -1;
 	usbvision->isoc_data_count = 0;
 	usbvision->isoc_packet_count = 0;
@@ -1475,7 +1473,7 @@ static int usbvision_init_compression(struct usb_usbvision *usbvision)
 	usbvision->request_intra = 1;
 	usbvision->isoc_measure_bandwidth_count = 0;
 
-	return err_code;
+	return 0;
 }
 
 /* this function measures the used bandwidth since last call
@@ -1484,11 +1482,9 @@ static int usbvision_init_compression(struct usb_usbvision *usbvision)
  */
 static int usbvision_measure_bandwidth(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
-
 	if (usbvision->isoc_measure_bandwidth_count < 2) { /* this gives an average bandwidth of 3 frames */
 		usbvision->isoc_measure_bandwidth_count++;
-		return err_code;
+		return 0;
 	}
 	if ((usbvision->isoc_packet_size > 0) && (usbvision->isoc_packet_count > 0)) {
 		usbvision->used_bandwidth = usbvision->isoc_data_count /
@@ -1499,7 +1495,7 @@ static int usbvision_measure_bandwidth(struct usb_usbvision *usbvision)
 	usbvision->isoc_data_count = 0;
 	usbvision->isoc_packet_count = 0;
 	usbvision->isoc_skip_count = 0;
-	return err_code;
+	return 0;
 }
 
 static int usbvision_adjust_compression(struct usb_usbvision *usbvision)
@@ -1546,26 +1542,24 @@ static int usbvision_adjust_compression(struct usb_usbvision *usbvision)
 
 static int usbvision_request_intra(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
 	unsigned char buffer[1];
 
 	PDEBUG(DBG_IRQ, "");
 	usbvision->request_intra = 1;
 	buffer[0] = 1;
 	usbvision_write_reg_irq(usbvision, USBVISION_FORCE_INTRA, buffer, 1);
-	return err_code;
+	return 0;
 }
 
 static int usbvision_unrequest_intra(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
 	unsigned char buffer[1];
 
 	PDEBUG(DBG_IRQ, "");
 	usbvision->request_intra = 0;
 	buffer[0] = 0;
 	usbvision_write_reg_irq(usbvision, USBVISION_FORCE_INTRA, buffer, 1);
-	return err_code;
+	return 0;
 }
 
 /*******************************
@@ -2200,9 +2194,8 @@ static void usbvision_power_off_timer(unsigned long data)
 
 void usbvision_init_power_off_timer(struct usb_usbvision *usbvision)
 {
-	init_timer(&usbvision->power_off_timer);
-	usbvision->power_off_timer.data = (long)usbvision;
-	usbvision->power_off_timer.function = usbvision_power_off_timer;
+	setup_timer(&usbvision->power_off_timer, usbvision_power_off_timer,
+		    (unsigned long)usbvision);
 }
 
 void usbvision_set_power_off_timer(struct usb_usbvision *usbvision)
@@ -2397,8 +2390,8 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 
 	/* Submit all URBs */
 	for (buf_idx = 0; buf_idx < USBVISION_NUMSBUF; buf_idx++) {
-			err_code = usb_submit_urb(usbvision->sbuf[buf_idx].urb,
-						 GFP_KERNEL);
+		err_code = usb_submit_urb(usbvision->sbuf[buf_idx].urb,
+					 GFP_KERNEL);
 		if (err_code) {
 			dev_err(&usbvision->dev->dev,
 				"%s: usb_submit_urb(%d) failed: error %d\n",
@@ -2508,11 +2501,3 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 	usbvision_set_audio(usbvision, audio[channel]);
 	return 0;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

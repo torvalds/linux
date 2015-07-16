@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: 802.11n RX Re-ordering
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -21,6 +21,8 @@
 #define _MWIFIEX_11N_RXREORDER_H_
 
 #define MIN_FLUSH_TIMER_MS		50
+#define MIN_FLUSH_TIMER_15_MS		15
+#define MWIFIEX_BA_WIN_SIZE_32		32
 
 #define PKT_TYPE_BAR 0xE7
 #define MAX_TID_VALUE			(2 << 11)
@@ -42,7 +44,8 @@
 #define BA_SETUP_PACKET_OFFSET		16
 
 enum mwifiex_rxreor_flags {
-	RXREOR_FORCE_NO_DROP	= 1<<0,
+	RXREOR_FORCE_NO_DROP		= 1<<0,
+	RXREOR_INIT_WINDOW_SHIFT	= 1<<1,
 };
 
 static inline void mwifiex_reset_11n_rx_seq_num(struct mwifiex_private *priv)

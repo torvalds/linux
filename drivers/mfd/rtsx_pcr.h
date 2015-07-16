@@ -27,11 +27,20 @@
 #define MIN_DIV_N_PCR		80
 #define MAX_DIV_N_PCR		208
 
+#define RTS524A_PME_FORCE_CTL		0xFF78
+#define RTS524A_PM_CTRL3		0xFF7E
+
+int __rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val);
+int __rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val);
+
 void rts5209_init_params(struct rtsx_pcr *pcr);
 void rts5229_init_params(struct rtsx_pcr *pcr);
 void rtl8411_init_params(struct rtsx_pcr *pcr);
+void rtl8402_init_params(struct rtsx_pcr *pcr);
 void rts5227_init_params(struct rtsx_pcr *pcr);
 void rts5249_init_params(struct rtsx_pcr *pcr);
+void rts524a_init_params(struct rtsx_pcr *pcr);
+void rts525a_init_params(struct rtsx_pcr *pcr);
 void rtl8411b_init_params(struct rtsx_pcr *pcr);
 
 static inline u8 map_sd_drive(int idx)
@@ -62,5 +71,16 @@ static inline u8 map_sd_drive(int idx)
 #define rts5209_reg_to_card_drive_sel(reg)	((reg) >> 8)
 #define rtl8411_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 5) & 0x07)
 #define rtl8411b_reg_to_sd30_drive_sel_3v3(reg)	((reg) & 0x03)
+
+#define set_pull_ctrl_tables(pcr, __device)				\
+do {									\
+	pcr->sd_pull_ctl_enable_tbl  = __device##_sd_pull_ctl_enable_tbl;  \
+	pcr->sd_pull_ctl_disable_tbl = __device##_sd_pull_ctl_disable_tbl; \
+	pcr->ms_pull_ctl_enable_tbl  = __device##_ms_pull_ctl_enable_tbl;  \
+	pcr->ms_pull_ctl_disable_tbl = __device##_ms_pull_ctl_disable_tbl; \
+} while (0)
+
+/* generic operations */
+int rtsx_gops_pm_reset(struct rtsx_pcr *pcr);
 
 #endif

@@ -315,11 +315,9 @@ synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 
 static unsigned int ipv6_synproxy_hook(const struct nf_hook_ops *ops,
 				       struct sk_buff *skb,
-				       const struct net_device *in,
-				       const struct net_device *out,
-				       int (*okfn)(struct sk_buff *))
+				       const struct nf_hook_state *nhs)
 {
-	struct synproxy_net *snet = synproxy_pernet(dev_net(in ? : out));
+	struct synproxy_net *snet = synproxy_pernet(dev_net(nhs->in ? : nhs->out));
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
 	struct nf_conn_synproxy *synproxy;
@@ -446,6 +444,7 @@ static void synproxy_tg6_destroy(const struct xt_tgdtor_param *par)
 static struct xt_target synproxy_tg6_reg __read_mostly = {
 	.name		= "SYNPROXY",
 	.family		= NFPROTO_IPV6,
+	.hooks		= (1 << NF_INET_LOCAL_IN) | (1 << NF_INET_FORWARD),
 	.target		= synproxy_tg6,
 	.targetsize	= sizeof(struct xt_synproxy_info),
 	.checkentry	= synproxy_tg6_check,

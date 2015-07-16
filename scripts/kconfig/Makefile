@@ -2,7 +2,7 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config \
+PHONY += xconfig gconfig menuconfig config silentoldconfig update-po-config \
 	localmodconfig localyesconfig
 
 ifdef KBUILD_KCONFIG
@@ -11,50 +11,51 @@ else
 Kconfig := Kconfig
 endif
 
+ifeq ($(quiet),silent_)
+silent := -s
+endif
+
 # We need this, in case the user has it in its environment
 unexport CONFIG_
 
 xconfig: $(obj)/qconf
-	$< $(Kconfig)
+	$< $(silent) $(Kconfig)
 
 gconfig: $(obj)/gconf
-	$< $(Kconfig)
+	$< $(silent) $(Kconfig)
 
 menuconfig: $(obj)/mconf
-	$< $(Kconfig)
+	$< $(silent) $(Kconfig)
 
 config: $(obj)/conf
-	$< --oldaskconfig $(Kconfig)
+	$< $(silent) --oldaskconfig $(Kconfig)
 
 nconfig: $(obj)/nconf
-	$< $(Kconfig)
-
-oldconfig: $(obj)/conf
-	$< --$@ $(Kconfig)
+	$< $(silent) $(Kconfig)
 
 silentoldconfig: $(obj)/conf
-	$(Q)mkdir -p include/generated
-	$< --$@ $(Kconfig)
+	$(Q)mkdir -p include/config include/generated
+	$< $(silent) --$@ $(Kconfig)
 
 localyesconfig localmodconfig: $(obj)/streamline_config.pl $(obj)/conf
-	$(Q)mkdir -p include/generated
+	$(Q)mkdir -p include/config include/generated
 	$(Q)perl $< --$@ $(srctree) $(Kconfig) > .tmp.config
 	$(Q)if [ -f .config ]; then 					\
 			cmp -s .tmp.config .config ||			\
 			(mv -f .config .config.old.1;			\
 			 mv -f .tmp.config .config;			\
-			 $(obj)/conf --silentoldconfig $(Kconfig);	\
+			 $(obj)/conf $(silent) --silentoldconfig $(Kconfig); \
 			 mv -f .config.old.1 .config.old)		\
 	else								\
 			mv -f .tmp.config .config;			\
-			$(obj)/conf --silentoldconfig $(Kconfig);	\
+			$(obj)/conf $(silent) --silentoldconfig $(Kconfig); \
 	fi
 	$(Q)rm -f .tmp.config
 
 # Create new linux.pot file
 # Adjust charset to UTF-8 in .po file to accept UTF-8 in Kconfig files
 update-po-config: $(obj)/kxgettext $(obj)/gconf.glade.h
-	$(Q)echo "  GEN     config.pot"
+	$(Q)$(kecho) "  GEN     config.pot"
 	$(Q)xgettext --default-domain=linux                         \
 	    --add-comments --keyword=_ --keyword=N_                 \
 	    --from-code=UTF-8                                       \
@@ -65,52 +66,71 @@ update-po-config: $(obj)/kxgettext $(obj)/gconf.glade.h
 	$(Q)(for i in `ls $(srctree)/arch/*/Kconfig      \
 	    $(srctree)/arch/*/um/Kconfig`;               \
 	    do                                           \
-		echo "  GEN     $$i";                    \
+		$(kecho) "  GEN     $$i";                    \
 		$(obj)/kxgettext $$i                     \
 		     >> $(obj)/config.pot;               \
 	    done )
-	$(Q)echo "  GEN     linux.pot"
+	$(Q)$(kecho) "  GEN     linux.pot"
 	$(Q)msguniq --sort-by-file --to-code=UTF-8 $(obj)/config.pot \
 	    --output $(obj)/linux.pot
 	$(Q)rm -f $(obj)/config.pot
 
-PHONY += allnoconfig allyesconfig allmodconfig alldefconfig randconfig
+# These targets map 1:1 to the commandline options of 'conf'
+simple-targets := oldconfig allnoconfig allyesconfig allmodconfig \
+	alldefconfig randconfig listnewconfig olddefconfig
+PHONY += $(simple-targets)
 
-allnoconfig allyesconfig allmodconfig alldefconfig randconfig: $(obj)/conf
-	$< --$@ $(Kconfig)
+$(simple-targets): $(obj)/conf
+	$< $(silent) --$@ $(Kconfig)
 
-PHONY += listnewconfig olddefconfig oldnoconfig savedefconfig defconfig
-
-listnewconfig olddefconfig: $(obj)/conf
-	$< --$@ $(Kconfig)
+PHONY += oldnoconfig savedefconfig defconfig
 
 # oldnoconfig is an alias of olddefconfig, because people already are dependent
-# on its behavior(sets new symbols to their default value but not 'n') with the
+# on its behavior (sets new symbols to their default value but not 'n') with the
 # counter-intuitive name.
-oldnoconfig: $(obj)/conf
-	$< --olddefconfig $(Kconfig)
+oldnoconfig: olddefconfig
 
 savedefconfig: $(obj)/conf
-	$< --$@=defconfig $(Kconfig)
+	$< $(silent) --$@=defconfig $(Kconfig)
 
 defconfig: $(obj)/conf
 ifeq ($(KBUILD_DEFCONFIG),)
-	$< --defconfig $(Kconfig)
+	$< $(silent) --defconfig $(Kconfig)
 else
-	@echo "*** Default configuration is based on '$(KBUILD_DEFCONFIG)'"
-	$(Q)$< --defconfig=arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG) $(Kconfig)
+	@$(kecho) "*** Default configuration is based on '$(KBUILD_DEFCONFIG)'"
+	$(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG) $(Kconfig)
 endif
 
 %_defconfig: $(obj)/conf
-	$(Q)$< --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
+	$(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
+
+configfiles=$(wildcard $(srctree)/kernel/configs/$@ $(srctree)/arch/$(SRCARCH)/configs/$@)
+
+%.config: $(obj)/conf
+	$(if $(call configfiles),, $(error No configuration exists for this target on this architecture))
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh -m .config $(configfiles)
+	+$(Q)yes "" | $(MAKE) -f $(srctree)/Makefile oldconfig
+
+PHONY += kvmconfig
+kvmconfig: kvm_guest.config
+	@:
+
+PHONY += xenconfig
+xenconfig: xen.config
+	@:
+
+PHONY += tinyconfig
+tinyconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile allnoconfig tiny.config
 
 # Help text used by make help
 help:
 	@echo  '  config	  - Update current config utilising a line-oriented program'
-	@echo  '  nconfig         - Update current config utilising a ncurses menu based program'
+	@echo  '  nconfig         - Update current config utilising a ncurses menu based'
+	@echo  '                    program'
 	@echo  '  menuconfig	  - Update current config utilising a menu based program'
-	@echo  '  xconfig	  - Update current config utilising a QT based front-end'
-	@echo  '  gconfig	  - Update current config utilising a GTK based front-end'
+	@echo  '  xconfig	  - Update current config utilising a Qt based front-end'
+	@echo  '  gconfig	  - Update current config utilising a GTK+ based front-end'
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
 	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
 	@echo  '  localyesconfig  - Update current config converting local mods to core'
@@ -123,7 +143,11 @@ help:
 	@echo  '  alldefconfig    - New config with all symbols set to default'
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  listnewconfig   - List new options'
-	@echo  '  olddefconfig	  - Same as silentoldconfig but sets new symbols to their default value'
+	@echo  '  olddefconfig	  - Same as silentoldconfig but sets new symbols to their'
+	@echo  '                    default value'
+	@echo  '  kvmconfig	  - Enable additional options for kvm guest kernel support'
+	@echo  '  xenconfig       - Enable additional options for xen dom0 and guest kernel support'
+	@echo  '  tinyconfig	  - Configure the tiniest possible kernel'
 
 # lxdialog stuff
 check-lxdialog  := $(srctree)/$(src)/lxdialog/check-lxdialog.sh
@@ -141,9 +165,9 @@ HOST_EXTRACFLAGS += $(shell $(CONFIG_SHELL) $(check-lxdialog) -ccflags) \
 # mconf:  Used for the menuconfig target
 #         Utilizes the lxdialog package
 # qconf:  Used for the xconfig target
-#         Based on QT which needs to be installed to compile it
+#         Based on Qt which needs to be installed to compile it
 # gconf:  Used for the gconfig target
-#         Based on GTK which needs to be installed to compile it
+#         Based on GTK+ which needs to be installed to compile it
 # object files used by all kconfig flavours
 
 lxdialog := lxdialog/checklist.o lxdialog/util.o lxdialog/inputbox.o
@@ -157,39 +181,10 @@ qconf-cxxobjs	:= qconf.o
 qconf-objs	:= zconf.tab.o
 gconf-objs	:= gconf.o zconf.tab.o
 
-hostprogs-y := conf
-
-ifeq ($(MAKECMDGOALS),nconfig)
-	hostprogs-y += nconf
-endif
-
-ifeq ($(MAKECMDGOALS),menuconfig)
-	hostprogs-y += mconf
-endif
-
-ifeq ($(MAKECMDGOALS),update-po-config)
-	hostprogs-y += kxgettext
-endif
-
-ifeq ($(MAKECMDGOALS),xconfig)
-	qconf-target := 1
-endif
-ifeq ($(MAKECMDGOALS),gconfig)
-	gconf-target := 1
-endif
-
-
-ifeq ($(qconf-target),1)
-	hostprogs-y += qconf
-endif
-
-ifeq ($(gconf-target),1)
-	hostprogs-y += gconf
-endif
+hostprogs-y := conf nconf mconf kxgettext qconf gconf
 
 clean-files	:= qconf.moc .tmp_qtcheck .tmp_gtkcheck
 clean-files	+= zconf.tab.c zconf.lex.c zconf.hash.c gconf.glade.h
-clean-files     += mconf qconf gconf nconf
 clean-files     += config.pot linux.pot
 
 # Check that we have the required ncurses stuff installed for lxdialog (menuconfig)
@@ -220,19 +215,20 @@ HOSTCFLAGS_gconf.o	= `pkg-config --cflags gtk+-2.0 gmodule-2.0 libglade-2.0` \
 HOSTLOADLIBES_mconf   = $(shell $(CONFIG_SHELL) $(check-lxdialog) -ldflags $(HOSTCC))
 
 HOSTLOADLIBES_nconf	= $(shell \
-				pkg-config --libs menu panel ncurses 2>/dev/null \
+				pkg-config --libs menuw panelw ncursesw 2>/dev/null \
+				|| pkg-config --libs menu panel ncurses 2>/dev/null \
 				|| echo "-lmenu -lpanel -lncurses"  )
 $(obj)/qconf.o: $(obj)/.tmp_qtcheck
 
-ifeq ($(qconf-target),1)
+ifeq ($(MAKECMDGOALS),xconfig)
 $(obj)/.tmp_qtcheck: $(src)/Makefile
 -include $(obj)/.tmp_qtcheck
 
-# QT needs some extra effort...
+# Qt needs some extra effort...
 $(obj)/.tmp_qtcheck:
-	@set -e; echo "  CHECK   qt"; dir=""; pkg=""; \
+	@set -e; $(kecho) "  CHECK   qt"; dir=""; pkg=""; \
 	if ! pkg-config --exists QtCore 2> /dev/null; then \
-	    echo "* Unable to find the QT4 tool qmake. Trying to use QT3"; \
+	    echo "* Unable to find the Qt4 tool qmake. Trying to use Qt3"; \
 	    pkg-config --exists qt 2> /dev/null && pkg=qt; \
 	    pkg-config --exists qt-mt 2> /dev/null && pkg=qt-mt; \
 	    if [ -n "$$pkg" ]; then \
@@ -246,8 +242,8 @@ $(obj)/.tmp_qtcheck:
 	      done; \
 	      if [ -z "$$dir" ]; then \
 	        echo >&2 "*"; \
-	        echo >&2 "* Unable to find any QT installation. Please make sure that"; \
-	        echo >&2 "* the QT4 or QT3 development package is correctly installed and"; \
+	        echo >&2 "* Unable to find any Qt installation. Please make sure that"; \
+	        echo >&2 "* the Qt4 or Qt3 development package is correctly installed and"; \
 	        echo >&2 "* either qmake can be found or install pkg-config or set"; \
 	        echo >&2 "* the QTDIR environment variable to the correct location."; \
 	        echo >&2 "*"; \
@@ -281,10 +277,10 @@ endif
 
 $(obj)/gconf.o: $(obj)/.tmp_gtkcheck
 
-ifeq ($(gconf-target),1)
+ifeq ($(MAKECMDGOALS),gconfig)
 -include $(obj)/.tmp_gtkcheck
 
-# GTK needs some extra effort, too...
+# GTK+ needs some extra effort, too...
 $(obj)/.tmp_gtkcheck:
 	@if `pkg-config --exists gtk+-2.0 gmodule-2.0 libglade-2.0`; then		\
 		if `pkg-config --atleast-version=2.0.0 gtk+-2.0`; then			\
@@ -315,8 +311,7 @@ quiet_cmd_moc = MOC     $@
 $(obj)/%.moc: $(src)/%.h $(obj)/.tmp_qtcheck
 	$(call cmd,moc)
 
-# Extract gconf menu items for I18N support
+# Extract gconf menu items for i18n support
 $(obj)/gconf.glade.h: $(obj)/gconf.glade
 	$(Q)intltool-extract --type=gettext/glade --srcdir=$(srctree) \
 	$(obj)/gconf.glade
-

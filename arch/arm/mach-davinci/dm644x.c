@@ -322,7 +322,7 @@ static struct clk_lookup dm644x_clks[] = {
 	CLK(NULL, "pwm2", &pwm2_clk),
 	CLK(NULL, "timer0", &timer0_clk),
 	CLK(NULL, "timer1", &timer1_clk),
-	CLK("watchdog", NULL, &timer2_clk),
+	CLK("davinci-wdt", NULL, &timer2_clk),
 	CLK(NULL, NULL, NULL),
 };
 
@@ -499,14 +499,6 @@ static u8 dm644x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 /*----------------------------------------------------------------------*/
 
 static s8
-queue_tc_mapping[][2] = {
-	/* {event queue no, TC no} */
-	{0, 0},
-	{1, 1},
-	{-1, -1},
-};
-
-static s8
 queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 3},
@@ -515,12 +507,6 @@ queue_priority_mapping[][2] = {
 };
 
 static struct edma_soc_info edma_cc0_info = {
-	.n_channel		= 64,
-	.n_region		= 4,
-	.n_slot			= 128,
-	.n_tc			= 2,
-	.n_cc			= 1,
-	.queue_tc_mapping	= queue_tc_mapping,
 	.queue_priority_mapping	= queue_priority_mapping,
 	.default_queue		= EVENTQ_1,
 };
@@ -572,6 +558,7 @@ static struct platform_device dm644x_edma_device = {
 /* DM6446 EVM uses ASP0; line-out is a pair of RCA jacks */
 static struct resource dm644x_asp_resources[] = {
 	{
+		.name	= "mpu",
 		.start	= DAVINCI_ASP0_BASE,
 		.end	= DAVINCI_ASP0_BASE + SZ_8K - 1,
 		.flags	= IORESOURCE_MEM,
@@ -786,13 +773,12 @@ static struct resource dm644_gpio_resources[] = {
 
 static struct davinci_gpio_platform_data dm644_gpio_platform_data = {
 	.ngpio		= 71,
-	.intc_irq_num	= DAVINCI_N_AINTC_IRQ,
 };
 
 int __init dm644x_gpio_register(void)
 {
 	return davinci_gpio_register(dm644_gpio_resources,
-				     sizeof(dm644_gpio_resources),
+				     ARRAY_SIZE(dm644_gpio_resources),
 				     &dm644_gpio_platform_data);
 }
 /*----------------------------------------------------------------------*/
@@ -964,6 +950,8 @@ int __init dm644x_init_video(struct vpfe_config *vpfe_cfg,
 
 static int __init dm644x_init_devices(void)
 {
+	int ret = 0;
+
 	if (!cpu_is_davinci_dm644x())
 		return 0;
 
@@ -972,6 +960,10 @@ static int __init dm644x_init_devices(void)
 	platform_device_register(&dm644x_mdio_device);
 	platform_device_register(&dm644x_emac_device);
 
-	return 0;
+	ret = davinci_init_wdt();
+	if (ret)
+		pr_warn("%s: watchdog init failed: %d\n", __func__, ret);
+
+	return ret;
 }
 postcore_initcall(dm644x_init_devices);

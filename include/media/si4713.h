@@ -23,7 +23,7 @@
  * Platform dependent definition
  */
 struct si4713_platform_data {
-	int gpio_reset; /* < 0 if not used */
+	bool is_platform_device;
 };
 
 /*

@@ -247,8 +247,8 @@ static __be64 get_sguid(struct qib_ibport *ibp, unsigned index)
 		struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 
 		return ppd->guid;
-	} else
-		return ibp->guids[index - 1];
+	}
+	return ibp->guids[index - 1];
 }
 
 static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)
@@ -420,7 +420,7 @@ again:
 		goto serr;
 	}
 
-	memset(&wc, 0, sizeof wc);
+	memset(&wc, 0, sizeof(wc));
 	send_status = IB_WC_SUCCESS;
 
 	release = 1;
@@ -703,6 +703,7 @@ void qib_make_ruc_header(struct qib_qp *qp, struct qib_other_headers *ohdr,
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(bth2);
+	this_cpu_inc(ibp->pmastats->n_unicast_xmit);
 }
 
 /**
@@ -791,7 +792,7 @@ void qib_send_complete(struct qib_qp *qp, struct qib_swqe *wqe,
 	    status != IB_WC_SUCCESS) {
 		struct ib_wc wc;
 
-		memset(&wc, 0, sizeof wc);
+		memset(&wc, 0, sizeof(wc));
 		wc.wr_id = wqe->wr.wr_id;
 		wc.status = status;
 		wc.opcode = ib_qib_wc_opcode[wqe->wr.opcode];

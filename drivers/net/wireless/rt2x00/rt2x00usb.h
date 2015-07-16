@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -35,27 +33,14 @@
 })
 
 /*
- * For USB vendor requests we need to pass a timeout
- * time in ms, for this we use the REGISTER_TIMEOUT,
- * however when loading firmware a higher value is
- * required. In that case we use the REGISTER_TIMEOUT_FIRMWARE.
+ * For USB vendor requests we need to pass a timeout time in ms, for this we
+ * use the REGISTER_TIMEOUT, however when loading firmware or read EEPROM
+ * a higher value is required. In that case we use the REGISTER_TIMEOUT_FIRMWARE
+ * and EEPROM_TIMEOUT.
  */
-#define REGISTER_TIMEOUT		500
+#define REGISTER_TIMEOUT		100
 #define REGISTER_TIMEOUT_FIRMWARE	1000
-
-/**
- * REGISTER_TIMEOUT16 - Determine the timeout for 16bit register access
- * @__datalen: Data length
- */
-#define REGISTER_TIMEOUT16(__datalen)	\
-	( REGISTER_TIMEOUT * ((__datalen) / sizeof(u16)) )
-
-/**
- * REGISTER_TIMEOUT32 - Determine the timeout for 32bit register access
- * @__datalen: Data length
- */
-#define REGISTER_TIMEOUT32(__datalen)	\
-	( REGISTER_TIMEOUT * ((__datalen) / sizeof(u32)) )
+#define EEPROM_TIMEOUT			2000
 
 /*
  * Cache size
@@ -95,6 +80,7 @@ enum rt2x00usb_mode_offset {
 	USB_MODE_SLEEP = 7,	/* RT73USB */
 	USB_MODE_FIRMWARE = 8,	/* RT73USB */
 	USB_MODE_WAKEUP = 9,	/* RT73USB */
+	USB_MODE_AUTORUN = 17, /* RT2800USB */
 };
 
 /**
@@ -127,7 +113,6 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
  * @offset: Register offset to perform action on
  * @buffer: Buffer where information will be read/written to by device
  * @buffer_length: Size of &buffer
- * @timeout: Operation timeout
  *
  * This function will use a previously with kmalloc allocated cache
  * to communicate with the device. The contents of the buffer pointer
@@ -140,7 +125,7 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 				  const u8 request, const u8 requesttype,
 				  const u16 offset, void *buffer,
-				  const u16 buffer_length, const int timeout);
+				  const u16 buffer_length);
 
 /**
  * rt2x00usb_vendor_request_buff - Send register command to device (buffered)
@@ -198,8 +183,7 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
 {
 	return rt2x00usb_vendor_request(rt2x00dev, USB_EEPROM_READ,
 					USB_VENDOR_REQUEST_IN, 0, 0,
-					eeprom, length,
-					REGISTER_TIMEOUT16(length));
+					eeprom, length, EEPROM_TIMEOUT);
 }
 
 /**
@@ -215,10 +199,10 @@ static inline void rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
 					   const unsigned int offset,
 					   u32 *value)
 {
-	__le32 reg;
+	__le32 reg = 0;
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
-				      &reg, sizeof(reg), REGISTER_TIMEOUT);
+				      &reg, sizeof(reg));
 	*value = le32_to_cpu(reg);
 }
 
@@ -235,7 +219,7 @@ static inline void rt2x00usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
 						const unsigned int offset,
 						u32 *value)
 {
-	__le32 reg;
+	__le32 reg = 0;
 	rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_READ,
 				       USB_VENDOR_REQUEST_IN, offset,
 				       &reg, sizeof(reg), REGISTER_TIMEOUT);
@@ -258,8 +242,7 @@ static inline void rt2x00usb_register_multiread(struct rt2x00_dev *rt2x00dev,
 {
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
-				      value, length,
-				      REGISTER_TIMEOUT32(length));
+				      value, length);
 }
 
 /**
@@ -278,7 +261,7 @@ static inline void rt2x00usb_register_write(struct rt2x00_dev *rt2x00dev,
 	__le32 reg = cpu_to_le32(value);
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      &reg, sizeof(reg), REGISTER_TIMEOUT);
+				      &reg, sizeof(reg));
 }
 
 /**
@@ -317,8 +300,7 @@ static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 {
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      (void *)value, length,
-				      REGISTER_TIMEOUT32(length));
+				      (void *)value, length);
 }
 
 /**

@@ -10,7 +10,8 @@
 / {
 
 	chosen {
-		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock5 rw rootfstype=ubifs";
+		bootargs = "mem=64M root=/dev/mtdblock5 rw rootfstype=ubifs";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -24,6 +25,14 @@
 
 		main_clock: clock@0 {
 			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <18432000>;
+		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
 			clock-frequency = <18432000>;
 		};
 	};
@@ -104,7 +113,21 @@
 				};
 			};
 
+			shdwc@fffffd10 {
+				atmel,wakeup-counter = <10>;
+				atmel,wakeup-rtt-timer;
+			};
+
+			rtc@fffffd20 {
+				atmel,rtt-rtc-time-reg = <&gpbr 0x0>;
+				status = "okay";
+			};
+
 			watchdog@fffffd40 {
+				status = "okay";
+			};
+
+			gpbr: syscon@fffffd50 {
 				status = "okay";
 			};
 		};

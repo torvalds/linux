@@ -35,9 +35,6 @@
 #include <linux/init.h>
 #include <linux/security.h>
 #include <linux/types.h>
-#include <linux/netfilter.h>
-#include <linux/netfilter_ipv4.h>
-#include <linux/netfilter_ipv6.h>
 #include <linux/slab.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -78,7 +75,8 @@ static inline int selinux_authorizable_xfrm(struct xfrm_state *x)
  * xfrm_user_sec_ctx context.
  */
 static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
-				   struct xfrm_user_sec_ctx *uctx)
+				   struct xfrm_user_sec_ctx *uctx,
+				   gfp_t gfp)
 {
 	int rc;
 	const struct task_security_struct *tsec = current_security();
@@ -94,7 +92,7 @@ static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
 	if (str_len >= PAGE_SIZE)
 		return -ENOMEM;
 
-	ctx = kmalloc(sizeof(*ctx) + str_len + 1, GFP_KERNEL);
+	ctx = kmalloc(sizeof(*ctx) + str_len + 1, gfp);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -103,7 +101,7 @@ static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
 	ctx->ctx_len = str_len;
 	memcpy(ctx->ctx_str, &uctx[1], str_len);
 	ctx->ctx_str[str_len] = '\0';
-	rc = security_context_to_sid(ctx->ctx_str, str_len, &ctx->ctx_sid);
+	rc = security_context_to_sid(ctx->ctx_str, str_len, &ctx->ctx_sid, gfp);
 	if (rc)
 		goto err;
 
@@ -209,19 +207,26 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 			    NULL) ? 0 : 1);
 }
 
-/*
- * LSM hook implementation that checks and/or returns the xfrm sid for the
- * incoming packet.
- */
-int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
+static u32 selinux_xfrm_skb_sid_egress(struct sk_buff *skb)
+{
+	struct dst_entry *dst = skb_dst(skb);
+	struct xfrm_state *x;
+
+	if (dst == NULL)
+		return SECSID_NULL;
+	x = dst->xfrm;
+	if (x == NULL || !selinux_authorizable_xfrm(x))
+		return SECSID_NULL;
+
+	return x->security->ctx_sid;
+}
+
+static int selinux_xfrm_skb_sid_ingress(struct sk_buff *skb,
+					u32 *sid, int ckall)
 {
 	u32 sid_session = SECSID_NULL;
-	struct sec_path *sp;
+	struct sec_path *sp = skb->sp;
 
-	if (skb == NULL)
-		goto out;
-
-	sp = skb->sp;
 	if (sp) {
 		int i;
 
@@ -248,12 +253,37 @@ out:
 }
 
 /*
+ * LSM hook implementation that checks and/or returns the xfrm sid for the
+ * incoming packet.
+ */
+int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
+{
+	if (skb == NULL) {
+		*sid = SECSID_NULL;
+		return 0;
+	}
+	return selinux_xfrm_skb_sid_ingress(skb, sid, ckall);
+}
+
+int selinux_xfrm_skb_sid(struct sk_buff *skb, u32 *sid)
+{
+	int rc;
+
+	rc = selinux_xfrm_skb_sid_ingress(skb, sid, 0);
+	if (rc == 0 && *sid == SECSID_NULL)
+		*sid = selinux_xfrm_skb_sid_egress(skb);
+
+	return rc;
+}
+
+/*
  * LSM hook implementation that allocs and transfers uctx spec to xfrm_policy.
  */
 int selinux_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
-			      struct xfrm_user_sec_ctx *uctx)
+			      struct xfrm_user_sec_ctx *uctx,
+			      gfp_t gfp)
 {
-	return selinux_xfrm_alloc_user(ctxp, uctx);
+	return selinux_xfrm_alloc_user(ctxp, uctx, gfp);
 }
 
 /*
@@ -301,7 +331,7 @@ int selinux_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 int selinux_xfrm_state_alloc(struct xfrm_state *x,
 			     struct xfrm_user_sec_ctx *uctx)
 {
-	return selinux_xfrm_alloc_user(&x->security, uctx);
+	return selinux_xfrm_alloc_user(&x->security, uctx, GFP_KERNEL);
 }
 
 /*
@@ -327,19 +357,22 @@ int selinux_xfrm_state_alloc_acquire(struct xfrm_state *x,
 		return rc;
 
 	ctx = kmalloc(sizeof(*ctx) + str_len, GFP_ATOMIC);
-	if (!ctx)
-		return -ENOMEM;
+	if (!ctx) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	ctx->ctx_doi = XFRM_SC_DOI_LSM;
 	ctx->ctx_alg = XFRM_SC_ALG_SELINUX;
 	ctx->ctx_sid = secid;
 	ctx->ctx_len = str_len;
 	memcpy(ctx->ctx_str, ctx_str, str_len);
-	kfree(ctx_str);
 
 	x->security = ctx;
 	atomic_inc(&selinux_xfrm_refcount);
-	return 0;
+out:
+	kfree(ctx_str);
+	return rc;
 }
 
 /*

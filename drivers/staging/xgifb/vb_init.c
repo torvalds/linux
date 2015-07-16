@@ -63,14 +63,13 @@ XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtension,
 		/* ~HOTPLUG_SUPPORT */
 		xgifb_reg_or(pVBInfo->P3d4, 0xB4, 0x02);
 		return data;
-	} else {
-		data = xgifb_reg_get(pVBInfo->P3d4, 0x97) & 0x01;
-
-		if (data == 1)
-			data++;
-
-		return data;
 	}
+	data = xgifb_reg_get(pVBInfo->P3d4, 0x97) & 0x01;
+
+	if (data == 1)
+		data++;
+
+	return data;
 }
 
 static void XGINew_DDR1x_MRS_340(unsigned long P3c4,
@@ -130,6 +129,7 @@ static void XGINew_DDRII_Bootup_XG27(
 			unsigned long P3c4, struct vb_device_info *pVBInfo)
 {
 	unsigned long P3d4 = P3c4 + 0x10;
+
 	pVBInfo->ram_type = XGINew_GetXG20DRAMType(HwDeviceExtension, pVBInfo);
 	XGINew_SetMemoryClock(pVBInfo);
 
@@ -389,6 +389,7 @@ static void XGI_SetDRAM_Helper(unsigned long P3d4, u8 seed, u8 temp2, u8 reg,
 	u8 shift_factor, u8 mask1, u8 mask2)
 {
 	u8 j;
+
 	for (j = 0; j < 4; j++) {
 		temp2 |= (((seed >> (2 * j)) & 0x03) << shift_factor);
 		xgifb_reg_set(P3d4, reg, temp2);
@@ -576,9 +577,8 @@ static unsigned char XGINew_CheckFrequence(struct vb_device_info *pVBInfo)
 		data = xgifb_reg_get(pVBInfo->P3c4, 0x39);
 		data = (data & 0x02) >> 1;
 		return data;
-	} else {
-		return data & 0x01;
 	}
+	return data & 0x01;
 }
 
 static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
@@ -635,10 +635,9 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 
 				if (XGINew_ReadWriteRest(23, 22, pVBInfo) == 1)
 					return;
-				else
-					xgifb_reg_set(pVBInfo->P3c4,
-						      0x13,
-						      0x31);
+				xgifb_reg_set(pVBInfo->P3c4,
+					      0x13,
+					      0x31);
 				udelay(15);
 			}
 
@@ -685,10 +684,11 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 
 				if (XGINew_ReadWriteRest(22, 21, pVBInfo) == 1)
 					return;
-				else /* (0x31:12x8x2) 22bit + 1 rank */
-					xgifb_reg_set(pVBInfo->P3c4,
-						      0x13,
-						      0x31);
+
+				/* (0x31:12x8x2) 22bit + 1 rank */
+				xgifb_reg_set(pVBInfo->P3c4,
+					      0x13,
+					      0x31);
 				udelay(15);
 			}
 		}
@@ -727,10 +727,8 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 
 			if (XGINew_ReadWriteRest(23, 22, pVBInfo) == 1)
 				return;
-			else {
-				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
-				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x30);
-			}
+			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
+			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x30);
 		} else { /* DDR */
 			pVBInfo->ram_bus = 64; /* 64 bits */
 			pVBInfo->ram_channel = 1; /* 1 channels */
@@ -739,10 +737,8 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 
 			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
 				return;
-			else {
-				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
-				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x42);
-			}
+			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
+			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x42);
 		}
 
 		break;
@@ -779,12 +775,10 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x5A);
 
-			if (XGINew_ReadWriteRest(25, 24, pVBInfo) == 1) {
+			if (XGINew_ReadWriteRest(25, 24, pVBInfo) == 1)
 				return;
-			} else {
-				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
-				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x4A);
-			}
+			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
+			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x4A);
 		}
 		break;
 	}

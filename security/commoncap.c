@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
@@ -51,11 +51,6 @@ static void warn_setuid_and_fcaps_mixed(const char *fname)
 			" capabilities.\n", fname);
 		warned = 1;
 	}
-}
-
-int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
-{
-	return 0;
 }
 
 /**
@@ -297,7 +292,7 @@ static inline void bprm_clear_caps(struct linux_binprm *bprm)
  */
 int cap_inode_need_killpriv(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	int error;
 
 	if (!inode->i_op->getxattr)
@@ -319,7 +314,7 @@ int cap_inode_need_killpriv(struct dentry *dentry)
  */
 int cap_inode_killpriv(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 
 	if (!inode->i_op->removexattr)
 	       return 0;
@@ -375,7 +370,7 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
  */
 int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	__u32 magic_etc;
 	unsigned tocopy, i;
 	int size;
@@ -421,6 +416,9 @@ int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data 
 		cpu_caps->inheritable.cap[i] = le32_to_cpu(caps.data[i].inheritable);
 	}
 
+	cpu_caps->permitted.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
+	cpu_caps->inheritable.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
+
 	return 0;
 }
 
@@ -431,7 +429,6 @@ int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data 
  */
 static int get_file_caps(struct linux_binprm *bprm, bool *effective, bool *has_cap)
 {
-	struct dentry *dentry;
 	int rc = 0;
 	struct cpu_vfs_cap_data vcaps;
 
@@ -443,9 +440,7 @@ static int get_file_caps(struct linux_binprm *bprm, bool *effective, bool *has_c
 	if (bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)
 		return 0;
 
-	dentry = dget(bprm->file->f_dentry);
-
-	rc = get_vfs_caps_from_disk(dentry, &vcaps);
+	rc = get_vfs_caps_from_disk(bprm->file->f_path.dentry, &vcaps);
 	if (rc < 0) {
 		if (rc == -EINVAL)
 			printk(KERN_NOTICE "%s: get_vfs_caps_from_disk returned %d for %s\n",
@@ -461,7 +456,6 @@ static int get_file_caps(struct linux_binprm *bprm, bool *effective, bool *has_c
 		       __func__, rc, bprm->filename);
 
 out:
-	dput(dentry);
 	if (rc)
 		bprm_clear_caps(bprm);
 
@@ -822,15 +816,20 @@ int cap_task_setnice(struct task_struct *p, int nice)
  * Implement PR_CAPBSET_DROP.  Attempt to remove the specified capability from
  * the current task's bounding set.  Returns 0 on success, -ve on error.
  */
-static long cap_prctl_drop(struct cred *new, unsigned long cap)
+static int cap_prctl_drop(unsigned long cap)
 {
+	struct cred *new;
+
 	if (!ns_capable(current_user_ns(), CAP_SETPCAP))
 		return -EPERM;
 	if (!cap_valid(cap))
 		return -EINVAL;
 
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
 	cap_lower(new->cap_bset, cap);
-	return 0;
+	return commit_creds(new);
 }
 
 /**
@@ -848,26 +847,17 @@ static long cap_prctl_drop(struct cred *new, unsigned long cap)
 int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		   unsigned long arg4, unsigned long arg5)
 {
+	const struct cred *old = current_cred();
 	struct cred *new;
-	long error = 0;
-
-	new = prepare_creds();
-	if (!new)
-		return -ENOMEM;
 
 	switch (option) {
 	case PR_CAPBSET_READ:
-		error = -EINVAL;
 		if (!cap_valid(arg2))
-			goto error;
-		error = !!cap_raised(new->cap_bset, arg2);
-		goto no_change;
+			return -EINVAL;
+		return !!cap_raised(old->cap_bset, arg2);
 
 	case PR_CAPBSET_DROP:
-		error = cap_prctl_drop(new, arg2);
-		if (error < 0)
-			goto error;
-		goto changed;
+		return cap_prctl_drop(arg2);
 
 	/*
 	 * The next four prctl's remain to assist with transitioning a
@@ -889,10 +879,9 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 	 * capability-based-privilege environment.
 	 */
 	case PR_SET_SECUREBITS:
-		error = -EPERM;
-		if ((((new->securebits & SECURE_ALL_LOCKS) >> 1)
-		     & (new->securebits ^ arg2))			/*[1]*/
-		    || ((new->securebits & SECURE_ALL_LOCKS & ~arg2))	/*[2]*/
+		if ((((old->securebits & SECURE_ALL_LOCKS) >> 1)
+		     & (old->securebits ^ arg2))			/*[1]*/
+		    || ((old->securebits & SECURE_ALL_LOCKS & ~arg2))	/*[2]*/
 		    || (arg2 & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS))	/*[3]*/
 		    || (cap_capable(current_cred(),
 				    current_cred()->user_ns, CAP_SETPCAP,
@@ -906,46 +895,39 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 */
 		    )
 			/* cannot change a locked bit */
-			goto error;
+			return -EPERM;
+
+		new = prepare_creds();
+		if (!new)
+			return -ENOMEM;
 		new->securebits = arg2;
-		goto changed;
+		return commit_creds(new);
 
 	case PR_GET_SECUREBITS:
-		error = new->securebits;
-		goto no_change;
+		return old->securebits;
 
 	case PR_GET_KEEPCAPS:
-		if (issecure(SECURE_KEEP_CAPS))
-			error = 1;
-		goto no_change;
+		return !!issecure(SECURE_KEEP_CAPS);
 
 	case PR_SET_KEEPCAPS:
-		error = -EINVAL;
 		if (arg2 > 1) /* Note, we rely on arg2 being unsigned here */
-			goto error;
-		error = -EPERM;
+			return -EINVAL;
 		if (issecure(SECURE_KEEP_CAPS_LOCKED))
-			goto error;
+			return -EPERM;
+
+		new = prepare_creds();
+		if (!new)
+			return -ENOMEM;
 		if (arg2)
 			new->securebits |= issecure_mask(SECURE_KEEP_CAPS);
 		else
 			new->securebits &= ~issecure_mask(SECURE_KEEP_CAPS);
-		goto changed;
+		return commit_creds(new);
 
 	default:
 		/* No functionality available - continue with default */
-		error = -ENOSYS;
-		goto error;
+		return -ENOSYS;
 	}
-
-	/* Functionality provided */
-changed:
-	return commit_creds(new);
-
-no_change:
-error:
-	abort_creds(new);
-	return error;
 }
 
 /**
@@ -954,7 +936,7 @@ error:
  * @pages: The size of the mapping
  *
  * Determine whether the allocation of a new virtual mapping by the current
- * task is permitted, returning 0 if permission is granted, -ve if not.
+ * task is permitted, returning 1 if permission is granted, 0 if not.
  */
 int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 {
@@ -963,7 +945,7 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 	if (cap_capable(current_cred(), &init_user_ns, CAP_SYS_ADMIN,
 			SECURITY_CAP_NOAUDIT) == 0)
 		cap_sys_admin = 1;
-	return __vm_enough_memory(mm, pages, cap_sys_admin);
+	return cap_sys_admin;
 }
 
 /*
@@ -994,3 +976,33 @@ int cap_mmap_file(struct file *file, unsigned long reqprot,
 {
 	return 0;
 }
+
+#ifdef CONFIG_SECURITY
+
+struct security_hook_list capability_hooks[] = {
+	LSM_HOOK_INIT(capable, cap_capable),
+	LSM_HOOK_INIT(settime, cap_settime),
+	LSM_HOOK_INIT(ptrace_access_check, cap_ptrace_access_check),
+	LSM_HOOK_INIT(ptrace_traceme, cap_ptrace_traceme),
+	LSM_HOOK_INIT(capget, cap_capget),
+	LSM_HOOK_INIT(capset, cap_capset),
+	LSM_HOOK_INIT(bprm_set_creds, cap_bprm_set_creds),
+	LSM_HOOK_INIT(bprm_secureexec, cap_bprm_secureexec),
+	LSM_HOOK_INIT(inode_need_killpriv, cap_inode_need_killpriv),
+	LSM_HOOK_INIT(inode_killpriv, cap_inode_killpriv),
+	LSM_HOOK_INIT(mmap_addr, cap_mmap_addr),
+	LSM_HOOK_INIT(mmap_file, cap_mmap_file),
+	LSM_HOOK_INIT(task_fix_setuid, cap_task_fix_setuid),
+	LSM_HOOK_INIT(task_prctl, cap_task_prctl),
+	LSM_HOOK_INIT(task_setscheduler, cap_task_setscheduler),
+	LSM_HOOK_INIT(task_setioprio, cap_task_setioprio),
+	LSM_HOOK_INIT(task_setnice, cap_task_setnice),
+	LSM_HOOK_INIT(vm_enough_memory, cap_vm_enough_memory),
+};
+
+void __init capability_add_hooks(void)
+{
+	security_add_hooks(capability_hooks, ARRAY_SIZE(capability_hooks));
+}
+
+#endif /* CONFIG_SECURITY */

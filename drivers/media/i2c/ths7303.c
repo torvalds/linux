@@ -52,10 +52,6 @@ MODULE_DESCRIPTION("TI THS7303 video amplifier driver");
 MODULE_AUTHOR("Chaithrika U S");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level 0-1");
-
 static inline struct ths7303_state *to_state(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct ths7303_state, sd);
@@ -83,7 +79,8 @@ static int ths7303_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 }
 
 /* following function is used to set ths7303 */
-int ths7303_setval(struct v4l2_subdev *sd, enum ths7303_filter_mode mode)
+static int ths7303_setval(struct v4l2_subdev *sd,
+			  enum ths7303_filter_mode mode)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ths7303_state *state = to_state(sd);

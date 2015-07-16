@@ -56,7 +56,7 @@ static int vcnl4000_measure(struct vcnl4000_data *data, u8 req_mask,
 				u8 rdy_mask, u8 data_reg, int *val)
 {
 	int tries = 20;
-	u16 buf;
+	__be16 buf;
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(data->client, VCNL4000_COMMAND,
@@ -179,13 +179,7 @@ static int vcnl4000_probe(struct i2c_client *client,
 	indio_dev->name = VCNL4000_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	return iio_device_register(indio_dev);
-}
-
-static int vcnl4000_remove(struct i2c_client *client)
-{
-	iio_device_unregister(i2c_get_clientdata(client));
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static struct i2c_driver vcnl4000_driver = {
@@ -194,7 +188,6 @@ static struct i2c_driver vcnl4000_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe  = vcnl4000_probe,
-	.remove = vcnl4000_remove,
 	.id_table = vcnl4000_id,
 };
 

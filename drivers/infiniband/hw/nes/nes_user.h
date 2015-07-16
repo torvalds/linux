@@ -39,8 +39,8 @@
 
 #include <linux/types.h>
 
-#define NES_ABI_USERSPACE_VER 1
-#define NES_ABI_KERNEL_VER    1
+#define NES_ABI_USERSPACE_VER 2
+#define NES_ABI_KERNEL_VER    2
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -78,6 +78,7 @@ struct nes_create_cq_req {
 
 struct nes_create_qp_req {
 	__u64 user_wqe_buffers;
+	__u64 user_qp_buffer;
 };
 
 enum iwnes_memreg_type {

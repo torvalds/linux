@@ -12,13 +12,17 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 #include <linux/irq.h>
 
 #include <asm/i8259.h>
 #include <asm/io.h>
+
+#include "../../drivers/irqchip/irqchip.h"
 
 /*
  * This is the 'legacy' 8259A Programmable Interrupt Controller,
@@ -42,9 +46,6 @@ static struct irq_chip i8259A_chip = {
 	.irq_disable		= disable_8259A_irq,
 	.irq_unmask		= enable_8259A_irq,
 	.irq_mask_ack		= mask_and_ack_8259A,
-#ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
-	.irq_set_affinity	= plat_set_irq_affinity,
-#endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */
 };
 
 /*
@@ -180,7 +181,6 @@ handle_real_irq:
 		outb(cached_master_mask, PIC_MASTER_IMR);
 		outb(0x60+irq, PIC_MASTER_CMD); /* 'Specific EOI to master */
 	}
-	smtc_im_ack_irq(irq);
 	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 	return;
 
@@ -312,24 +312,73 @@ static struct resource pic2_io_resource = {
 	.flags = IORESOURCE_BUSY
 };
 
+static int i8259A_irq_domain_map(struct irq_domain *d, unsigned int virq,
+				 irq_hw_number_t hw)
+{
+	irq_set_chip_and_handler(virq, &i8259A_chip, handle_level_irq);
+	irq_set_probe(virq);
+	return 0;
+}
+
+static struct irq_domain_ops i8259A_ops = {
+	.map = i8259A_irq_domain_map,
+	.xlate = irq_domain_xlate_onecell,
+};
+
 /*
  * On systems with i8259-style interrupt controllers we assume for
  * driver compatibility reasons interrupts 0 - 15 to be the i8259
  * interrupts even if the hardware uses a different interrupt numbering.
  */
-void __init init_i8259_irqs(void)
+struct irq_domain * __init __init_i8259_irqs(struct device_node *node)
 {
-	int i;
+	struct irq_domain *domain;
 
 	insert_resource(&ioport_resource, &pic1_io_resource);
 	insert_resource(&ioport_resource, &pic2_io_resource);
 
 	init_8259A(0);
 
-	for (i = I8259A_IRQ_BASE; i < I8259A_IRQ_BASE + 16; i++) {
-		irq_set_chip_and_handler(i, &i8259A_chip, handle_level_irq);
-		irq_set_probe(i);
-	}
+	domain = irq_domain_add_legacy(node, 16, I8259A_IRQ_BASE, 0,
+				       &i8259A_ops, NULL);
+	if (!domain)
+		panic("Failed to add i8259 IRQ domain");
 
 	setup_irq(I8259A_IRQ_BASE + PIC_CASCADE_IR, &irq2);
+	return domain;
 }
+
+void __init init_i8259_irqs(void)
+{
+	__init_i8259_irqs(NULL);
+}
+
+static void i8259_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+{
+	struct irq_domain *domain = irq_get_handler_data(irq);
+	int hwirq = i8259_irq();
+
+	if (hwirq < 0)
+		return;
+
+	irq = irq_linear_revmap(domain, hwirq);
+	generic_handle_irq(irq);
+}
+
+int __init i8259_of_init(struct device_node *node, struct device_node *parent)
+{
+	struct irq_domain *domain;
+	unsigned int parent_irq;
+
+	parent_irq = irq_of_parse_and_map(node, 0);
+	if (!parent_irq) {
+		pr_err("Failed to map i8259 parent IRQ\n");
+		return -ENODEV;
+	}
+
+	domain = __init_i8259_irqs(node);
+	irq_set_handler_data(parent_irq, domain);
+	irq_set_chained_handler(parent_irq, i8259_irq_dispatch);
+	return 0;
+}
+IRQCHIP_DECLARE(i8259, "intel,i8259", i8259_of_init);

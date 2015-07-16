@@ -21,16 +21,6 @@
 #include <sound/soc.h>
 #include "kirkwood.h"
 
-#define KIRKWOOD_RATES \
-	(SNDRV_PCM_RATE_8000_192000 |		\
-	 SNDRV_PCM_RATE_CONTINUOUS |		\
-	 SNDRV_PCM_RATE_KNOT)
-
-#define KIRKWOOD_FORMATS \
-	(SNDRV_PCM_FMTBIT_S16_LE | \
-	 SNDRV_PCM_FMTBIT_S24_LE | \
-	 SNDRV_PCM_FMTBIT_S32_LE)
-
 static struct kirkwood_dma_data *kirkwood_priv(struct snd_pcm_substream *subs)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = subs->private_data;
@@ -38,17 +28,12 @@ static struct kirkwood_dma_data *kirkwood_priv(struct snd_pcm_substream *subs)
 }
 
 static struct snd_pcm_hardware kirkwood_dma_snd_hw = {
-	.info = (SNDRV_PCM_INFO_INTERLEAVED |
-		 SNDRV_PCM_INFO_MMAP |
-		 SNDRV_PCM_INFO_MMAP_VALID |
-		 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-		 SNDRV_PCM_INFO_PAUSE),
-	.formats		= KIRKWOOD_FORMATS,
-	.rates			= KIRKWOOD_RATES,
-	.rate_min		= 8000,
-	.rate_max		= 384000,
-	.channels_min		= 1,
-	.channels_max		= 8,
+	.info = SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_BLOCK_TRANSFER |
+		SNDRV_PCM_INFO_PAUSE |
+		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 	.buffer_bytes_max	= KIRKWOOD_SND_MAX_BUFFER_BYTES,
 	.period_bytes_min	= KIRKWOOD_SND_MIN_PERIOD_BYTES,
 	.period_bytes_max	= KIRKWOOD_SND_MAX_PERIOD_BYTES,

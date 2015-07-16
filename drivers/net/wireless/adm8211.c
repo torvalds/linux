@@ -15,7 +15,6 @@
  * more details.
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/if.h>
 #include <linux/skbuff.h>
@@ -42,7 +41,7 @@ static unsigned int rx_ring_size __read_mostly = 16;
 module_param(tx_ring_size, uint, 0);
 module_param(rx_ring_size, uint, 0);
 
-static DEFINE_PCI_DEVICE_TABLE(adm8211_pci_id_table) = {
+static const struct pci_device_id adm8211_pci_id_table[] = {
 	/* ADMtek ADM8211 */
 	{ PCI_DEVICE(0x10B7, 0x6000) }, /* 3Com 3CRSHPW796 */
 	{ PCI_DEVICE(0x1200, 0x8201) }, /* ? */
@@ -1099,14 +1098,18 @@ static void adm8211_hw_init(struct ieee80211_hw *dev)
 		pci_read_config_byte(priv->pdev, PCI_CACHE_LINE_SIZE, &cline);
 
 		switch (cline) {
-		case  0x8: reg |= (0x1 << 14);
-			   break;
-		case 0x16: reg |= (0x2 << 14);
-			   break;
-		case 0x32: reg |= (0x3 << 14);
-			   break;
-		  default: reg |= (0x0 << 14);
-			   break;
+		case  0x8:
+			reg |= (0x1 << 14);
+			break;
+		case 0x10:
+			reg |= (0x2 << 14);
+			break;
+		case 0x20:
+			reg |= (0x3 << 14);
+			break;
+		default:
+			reg |= (0x0 << 14);
+			break;
 		}
 	}
 
@@ -1314,7 +1317,7 @@ static void adm8211_bss_info_changed(struct ieee80211_hw *dev,
 	if (!(changes & BSS_CHANGED_BSSID))
 		return;
 
-	if (memcmp(conf->bssid, priv->bssid, ETH_ALEN)) {
+	if (!ether_addr_equal(conf->bssid, priv->bssid)) {
 		adm8211_set_bssid(dev, conf->bssid);
 		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 	}
@@ -1354,12 +1357,7 @@ static void adm8211_configure_filter(struct ieee80211_hw *dev,
 
 	new_flags = 0;
 
-	if (*total_flags & FIF_PROMISC_IN_BSS) {
-		new_flags |= FIF_PROMISC_IN_BSS;
-		priv->nar |= ADM8211_NAR_PR;
-		priv->nar &= ~ADM8211_NAR_MM;
-		mc_filter[1] = mc_filter[0] = ~0;
-	} else if (*total_flags & FIF_ALLMULTI || multicast == ~(0ULL)) {
+	if (*total_flags & FIF_ALLMULTI || multicast == ~(0ULL)) {
 		new_flags |= FIF_ALLMULTI;
 		priv->nar &= ~ADM8211_NAR_PR;
 		priv->nar |= ADM8211_NAR_MM;
@@ -1375,9 +1373,9 @@ static void adm8211_configure_filter(struct ieee80211_hw *dev,
 	ADM8211_CSR_READ(NAR);
 
 	if (priv->nar & ADM8211_NAR_PR)
-		dev->flags |= IEEE80211_HW_RX_INCLUDES_FCS;
+		ieee80211_hw_set(dev, RX_INCLUDES_FCS);
 	else
-		dev->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, dev->flags);
 
 	if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
 		adm8211_set_bssid(dev, bcast);
@@ -1838,6 +1836,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 	if (!priv->map) {
 		printk(KERN_ERR "%s (adm8211): Cannot map device memory\n",
 		       pci_name(pdev));
+		err = -ENOMEM;
 		goto err_free_dev;
 	}
 
@@ -1862,11 +1861,10 @@ static int adm8211_probe(struct pci_dev *pdev,
 	SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 
 	dev->extra_tx_headroom = sizeof(struct adm8211_tx_hdr);
-	/* dev->flags = IEEE80211_HW_RX_INCLUDES_FCS in promisc mode */
-	dev->flags = IEEE80211_HW_SIGNAL_UNSPEC;
+	/* dev->flags = RX_INCLUDES_FCS in promisc mode */
+	ieee80211_hw_set(dev, SIGNAL_UNSPEC);
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
-	dev->channel_change_time = 1000;
 	dev->max_signal = 100;    /* FIXME: find better value */
 
 	dev->queues = 1; /* ADM8211C supports more, maybe ADM8211B too */

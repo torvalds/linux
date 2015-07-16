@@ -16,7 +16,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-#include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -140,7 +139,7 @@ struct tx_msg {
 	u8 cmd;
 	u8 net;
 	u8 dlc;
-	__le32 hnd;
+	u32 hnd;	/* opaque handle, not used by device */
 	__le32 id; /* upper 3 bits contain flags */
 	u8 data[8];
 };
@@ -150,7 +149,7 @@ struct tx_done_msg {
 	u8 cmd;
 	u8 net;
 	u8 status;
-	__le32 hnd;
+	u32 hnd;	/* opaque handle, not used by device */
 	__le32 ts;
 };
 
@@ -251,6 +250,7 @@ static void esd_usb2_rx_event(struct esd_usb2_net_priv *priv,
 			case ESD_BUSSTATE_BUSOFF:
 				priv->can.state = CAN_STATE_BUS_OFF;
 				cf->can_id |= CAN_ERR_BUSOFF;
+				priv->can.can_stats.bus_off++;
 				can_bus_off(priv->netdev);
 				break;
 			case ESD_BUSSTATE_WARN:
@@ -465,7 +465,6 @@ static void esd_usb2_write_bulk_callback(struct urb *urb)
 {
 	struct esd_tx_urb_context *context = urb->context;
 	struct esd_usb2_net_priv *priv;
-	struct esd_usb2 *dev;
 	struct net_device *netdev;
 	size_t size = sizeof(struct esd_usb2_msg);
 
@@ -473,7 +472,6 @@ static void esd_usb2_write_bulk_callback(struct urb *urb)
 
 	priv = context->priv;
 	netdev = priv->netdev;
-	dev = priv->usb2;
 
 	/* free up our allocated buffer */
 	usb_free_coherent(urb->dev, size,
@@ -889,6 +887,7 @@ static const struct net_device_ops esd_usb2_netdev_ops = {
 	.ndo_open = esd_usb2_open,
 	.ndo_stop = esd_usb2_close,
 	.ndo_start_xmit = esd_usb2_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct can_bittiming_const esd_usb2_bittiming_const = {
@@ -1025,6 +1024,7 @@ static int esd_usb2_probe_one_net(struct usb_interface *intf, int index)
 	netdev->netdev_ops = &esd_usb2_netdev_ops;
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
+	netdev->dev_id = index;
 
 	err = register_candev(netdev);
 	if (err) {
@@ -1142,6 +1142,7 @@ static void esd_usb2_disconnect(struct usb_interface *intf)
 			}
 		}
 		unlink_all_urbs(dev);
+		kfree(dev);
 	}
 }
 

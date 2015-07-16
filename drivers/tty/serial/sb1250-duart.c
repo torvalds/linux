@@ -596,7 +596,7 @@ static void sbd_set_termios(struct uart_port *uport, struct ktermios *termios,
 	if (termios->c_iflag & INPCK)
 		uport->read_status_mask |= M_DUART_FRM_ERR |
 					   M_DUART_PARITY_ERR;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		uport->read_status_mask |= M_DUART_RCVD_BRK;
 
 	uport->ignore_status_mask = 0;

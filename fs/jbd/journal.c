@@ -573,7 +573,7 @@ int log_wait_commit(journal_t *journal, tid_t tid)
 #ifdef CONFIG_JBD_DEBUG
 	spin_lock(&journal->j_state_lock);
 	if (!tid_geq(journal->j_commit_request, tid)) {
-		printk(KERN_EMERG
+		printk(KERN_ERR
 		       "%s: error: j_commit_request=%d, tid=%d\n",
 		       __func__, journal->j_commit_request, tid);
 	}
@@ -604,10 +604,8 @@ int log_wait_commit(journal_t *journal, tid_t tid)
 out_unlock:
 	spin_unlock(&journal->j_state_lock);
 
-	if (unlikely(is_journal_aborted(journal))) {
-		printk(KERN_EMERG "journal commit I/O error\n");
+	if (unlikely(is_journal_aborted(journal)))
 		err = -EIO;
-	}
 	return err;
 }
 
@@ -888,7 +886,7 @@ journal_t * journal_init_inode (struct inode *inode)
 		goto out_err;
 	}
 
-	bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
+	bh = getblk_unmovable(journal->j_dev, blocknr, journal->j_blocksize);
 	if (!bh) {
 		printk(KERN_ERR
 		       "%s: Cannot get buffer for journal superblock\n",
@@ -1375,8 +1373,7 @@ int journal_destroy(journal_t *journal)
 	}
 	mutex_unlock(&journal->j_checkpoint_mutex);
 
-	if (journal->j_inode)
-		iput(journal->j_inode);
+	iput(journal->j_inode);
 	if (journal->j_revoke)
 		journal_destroy_revoke(journal);
 	kfree(journal->j_wbuf);
@@ -2136,7 +2133,7 @@ static void __exit journal_exit(void)
 #ifdef CONFIG_JBD_DEBUG
 	int n = atomic_read(&nr_journal_heads);
 	if (n)
-		printk(KERN_EMERG "JBD: leaked %d journal_heads!\n", n);
+		printk(KERN_ERR "JBD: leaked %d journal_heads!\n", n);
 #endif
 	jbd_remove_debugfs_entry();
 	journal_destroy_caches();

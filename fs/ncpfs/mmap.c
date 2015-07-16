@@ -30,9 +30,7 @@
 static int ncp_file_mmap_fault(struct vm_area_struct *area,
 					struct vm_fault *vmf)
 {
-	struct file *file = area->vm_file;
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file_inode(area->vm_file);
 	char *pg_addr;
 	unsigned int already_read;
 	unsigned int count;
@@ -107,7 +105,7 @@ int ncp_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file_inode(file);
 	
-	DPRINTK("ncp_mmap: called\n");
+	ncp_dbg(1, "called\n");
 
 	if (!ncp_conn_valid(NCP_SERVER(inode)))
 		return -EIO;

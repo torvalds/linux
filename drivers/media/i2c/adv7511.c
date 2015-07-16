@@ -26,6 +26,7 @@
 #include <linux/videodev2.h>
 #include <linux/gpio.h>
 #include <linux/workqueue.h>
+#include <linux/hdmi.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
@@ -76,7 +77,7 @@ struct adv7511_state_edid {
 	u32 blocks;
 	/* Number of segments read */
 	u32 segments;
-	uint8_t data[EDID_MAX_SEGM * 256];
+	u8 data[EDID_MAX_SEGM * 256];
 	/* Number of EDID read retries left */
 	unsigned read_retries;
 	bool complete;
@@ -88,14 +89,20 @@ struct adv7511_state {
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
 	int chip_revision;
-	uint8_t i2c_edid_addr;
-	uint8_t i2c_cec_addr;
+	u8 i2c_edid_addr;
+	u8 i2c_cec_addr;
+	u8 i2c_pktmem_addr;
 	/* Is the adv7511 powered on? */
 	bool power_on;
 	/* Did we receive hotplug and rx-sense signals? */
 	bool have_monitor;
 	/* timings from s_dv_timings */
 	struct v4l2_dv_timings dv_timings;
+	u32 fmt_code;
+	u32 colorspace;
+	u32 ycbcr_enc;
+	u32 quantization;
+	u32 xfer_func;
 	/* controls */
 	struct v4l2_ctrl *hdmi_mode_ctrl;
 	struct v4l2_ctrl *hotplug_ctrl;
@@ -103,6 +110,7 @@ struct adv7511_state {
 	struct v4l2_ctrl *have_edid0_ctrl;
 	struct v4l2_ctrl *rgb_quantization_range_ctrl;
 	struct i2c_client *i2c_edid;
+	struct i2c_client *i2c_pktmem;
 	struct adv7511_state_edid edid;
 	/* Running counter of the number of detected EDIDs (for debugging) */
 	unsigned edid_detect_counter;
@@ -195,7 +203,7 @@ static int adv7511_wr(struct v4l2_subdev *sd, u8 reg, u8 val)
 
 /* To set specific bits in the register, a clear-mask is given (to be AND-ed),
    and then the value-mask (to be OR-ed). */
-static inline void adv7511_wr_and_or(struct v4l2_subdev *sd, u8 reg, uint8_t clr_mask, uint8_t val_mask)
+static inline void adv7511_wr_and_or(struct v4l2_subdev *sd, u8 reg, u8 clr_mask, u8 val_mask)
 {
 	adv7511_wr(sd, reg, (adv7511_rd(sd, reg) & clr_mask) | val_mask);
 }
@@ -217,7 +225,7 @@ static int adv_smbus_read_i2c_block_data(struct i2c_client *client,
 	return ret;
 }
 
-static inline void adv7511_edid_rd(struct v4l2_subdev *sd, uint16_t len, uint8_t *buf)
+static inline void adv7511_edid_rd(struct v4l2_subdev *sd, u16 len, u8 *buf)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
 	int i;
@@ -232,6 +240,35 @@ static inline void adv7511_edid_rd(struct v4l2_subdev *sd, uint16_t len, uint8_t
 		v4l2_err(sd, "%s: i2c read error\n", __func__);
 }
 
+static int adv7511_pktmem_rd(struct v4l2_subdev *sd, u8 reg)
+{
+	struct adv7511_state *state = get_adv7511_state(sd);
+
+	return adv_smbus_read_byte_data(state->i2c_pktmem, reg);
+}
+
+static int adv7511_pktmem_wr(struct v4l2_subdev *sd, u8 reg, u8 val)
+{
+	struct adv7511_state *state = get_adv7511_state(sd);
+	int ret;
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		ret = i2c_smbus_write_byte_data(state->i2c_pktmem, reg, val);
+		if (ret == 0)
+			return 0;
+	}
+	v4l2_err(sd, "%s: i2c write error\n", __func__);
+	return ret;
+}
+
+/* To set specific bits in the register, a clear-mask is given (to be AND-ed),
+   and then the value-mask (to be OR-ed). */
+static inline void adv7511_pktmem_wr_and_or(struct v4l2_subdev *sd, u8 reg, u8 clr_mask, u8 val_mask)
+{
+	adv7511_pktmem_wr(sd, reg, (adv7511_pktmem_rd(sd, reg) & clr_mask) | val_mask);
+}
+
 static inline bool adv7511_have_hotplug(struct v4l2_subdev *sd)
 {
 	return adv7511_rd(sd, 0x42) & MASK_ADV7511_HPD_DETECT;
@@ -242,7 +279,7 @@ static inline bool adv7511_have_rx_sense(struct v4l2_subdev *sd)
 	return adv7511_rd(sd, 0x42) & MASK_ADV7511_MSEN_DETECT;
 }
 
-static void adv7511_csc_conversion_mode(struct v4l2_subdev *sd, uint8_t mode)
+static void adv7511_csc_conversion_mode(struct v4l2_subdev *sd, u8 mode)
 {
 	adv7511_wr_and_or(sd, 0x18, 0x9f, (mode & 0x3)<<5);
 }
@@ -286,7 +323,7 @@ static void adv7511_csc_coeff(struct v4l2_subdev *sd,
 static void adv7511_csc_rgb_full2limit(struct v4l2_subdev *sd, bool enable)
 {
 	if (enable) {
-		uint8_t csc_mode = 0;
+		u8 csc_mode = 0;
 		adv7511_csc_conversion_mode(sd, csc_mode);
 		adv7511_csc_coeff(sd,
 				  4096-564, 0, 0, 256,
@@ -307,8 +344,8 @@ static void adv7511_csc_rgb_full2limit(struct v4l2_subdev *sd, bool enable)
 static void adv7511_set_IT_content_AVI_InfoFrame(struct v4l2_subdev *sd)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
-	if (state->dv_timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
-		/* CEA format, not IT  */
+	if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
+		/* CE format, not IT  */
 		adv7511_wr_and_or(sd, 0x57, 0x7f, 0x00);
 	} else {
 		/* IT format */
@@ -326,11 +363,11 @@ static int adv7511_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l2
 		/* automatic */
 		struct adv7511_state *state = get_adv7511_state(sd);
 
-		if (state->dv_timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
-			/* cea format, RGB limited range (16-235) */
+		if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
+			/* CE format, RGB limited range (16-235) */
 			adv7511_csc_rgb_full2limit(sd, true);
 		} else {
-			/* not cea format, RGB full range (0-255) */
+			/* not CE format, RGB full range (0-255) */
 			adv7511_csc_rgb_full2limit(sd, false);
 		}
 	}
@@ -409,6 +446,80 @@ static int adv7511_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 }
 #endif
 
+struct adv7511_cfg_read_infoframe {
+	const char *desc;
+	u8 present_reg;
+	u8 present_mask;
+	u8 header[3];
+	u16 payload_addr;
+};
+
+static u8 hdmi_infoframe_checksum(u8 *ptr, size_t size)
+{
+	u8 csum = 0;
+	size_t i;
+
+	/* compute checksum */
+	for (i = 0; i < size; i++)
+		csum += ptr[i];
+
+	return 256 - csum;
+}
+
+static void log_infoframe(struct v4l2_subdev *sd, const struct adv7511_cfg_read_infoframe *cri)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct device *dev = &client->dev;
+	union hdmi_infoframe frame;
+	u8 buffer[32];
+	u8 len;
+	int i;
+
+	if (!(adv7511_rd(sd, cri->present_reg) & cri->present_mask)) {
+		v4l2_info(sd, "%s infoframe not transmitted\n", cri->desc);
+		return;
+	}
+
+	memcpy(buffer, cri->header, sizeof(cri->header));
+
+	len = buffer[2];
+
+	if (len + 4 > sizeof(buffer)) {
+		v4l2_err(sd, "%s: invalid %s infoframe length %d\n", __func__, cri->desc, len);
+		return;
+	}
+
+	if (cri->payload_addr >= 0x100) {
+		for (i = 0; i < len; i++)
+			buffer[i + 4] = adv7511_pktmem_rd(sd, cri->payload_addr + i - 0x100);
+	} else {
+		for (i = 0; i < len; i++)
+			buffer[i + 4] = adv7511_rd(sd, cri->payload_addr + i);
+	}
+	buffer[3] = 0;
+	buffer[3] = hdmi_infoframe_checksum(buffer, len + 4);
+
+	if (hdmi_infoframe_unpack(&frame, buffer) < 0) {
+		v4l2_err(sd, "%s: unpack of %s infoframe failed\n", __func__, cri->desc);
+		return;
+	}
+
+	hdmi_infoframe_log(KERN_INFO, dev, &frame);
+}
+
+static void adv7511_log_infoframes(struct v4l2_subdev *sd)
+{
+	static const struct adv7511_cfg_read_infoframe cri[] = {
+		{ "AVI", 0x44, 0x10, { 0x82, 2, 13 }, 0x55 },
+		{ "Audio", 0x44, 0x08, { 0x84, 1, 10 }, 0x73 },
+		{ "SDP", 0x40, 0x40, { 0x83, 1, 25 }, 0x103 },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cri); i++)
+		log_infoframe(sd, &cri[i]);
+}
+
 static int adv7511_log_status(struct v4l2_subdev *sd)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
@@ -452,6 +563,30 @@ static int adv7511_log_status(struct v4l2_subdev *sd)
 			  errors[adv7511_rd(sd, 0xc8) >> 4], state->edid_detect_counter,
 			  adv7511_rd(sd, 0x94), adv7511_rd(sd, 0x96));
 	v4l2_info(sd, "RGB quantization: %s range\n", adv7511_rd(sd, 0x18) & 0x80 ? "limited" : "full");
+	if (adv7511_rd(sd, 0xaf) & 0x02) {
+		/* HDMI only */
+		u8 manual_cts = adv7511_rd(sd, 0x0a) & 0x80;
+		u32 N = (adv7511_rd(sd, 0x01) & 0xf) << 16 |
+			adv7511_rd(sd, 0x02) << 8 |
+			adv7511_rd(sd, 0x03);
+		u8 vic_detect = adv7511_rd(sd, 0x3e) >> 2;
+		u8 vic_sent = adv7511_rd(sd, 0x3d) & 0x3f;
+		u32 CTS;
+
+		if (manual_cts)
+			CTS = (adv7511_rd(sd, 0x07) & 0xf) << 16 |
+			      adv7511_rd(sd, 0x08) << 8 |
+			      adv7511_rd(sd, 0x09);
+		else
+			CTS = (adv7511_rd(sd, 0x04) & 0xf) << 16 |
+			      adv7511_rd(sd, 0x05) << 8 |
+			      adv7511_rd(sd, 0x06);
+		v4l2_info(sd, "CTS %s mode: N %d, CTS %d\n",
+			  manual_cts ? "manual" : "automatic", N, CTS);
+		v4l2_info(sd, "VIC: detected %d, sent %d\n",
+			  vic_detect, vic_sent);
+		adv7511_log_infoframes(sd);
+	}
 	if (state->dv_timings.type == V4L2_DV_BT_656_1120)
 		v4l2_print_dv_timings(sd->name, "timings: ",
 				&state->dv_timings, false);
@@ -459,6 +594,7 @@ static int adv7511_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "no timings set\n");
 	v4l2_info(sd, "i2c edid addr: 0x%x\n", state->i2c_edid_addr);
 	v4l2_info(sd, "i2c cec addr: 0x%x\n", state->i2c_cec_addr);
+	v4l2_info(sd, "i2c pktmem addr: 0x%x\n", state->i2c_pktmem_addr);
 	return 0;
 }
 
@@ -508,6 +644,7 @@ static int adv7511_s_power(struct v4l2_subdev *sd, int on)
 	adv7511_wr(sd, 0xf9, 0x00);
 
 	adv7511_wr(sd, 0x43, state->i2c_edid_addr);
+	adv7511_wr(sd, 0x45, state->i2c_pktmem_addr);
 
 	/* Set number of attempts to read the EDID */
 	adv7511_wr(sd, 0xc9, 0xf);
@@ -517,8 +654,8 @@ static int adv7511_s_power(struct v4l2_subdev *sd, int on)
 /* Enable interrupts */
 static void adv7511_set_isr(struct v4l2_subdev *sd, bool enable)
 {
-	uint8_t irqs = MASK_ADV7511_HPD_INT | MASK_ADV7511_MSEN_INT;
-	uint8_t irqs_rd;
+	u8 irqs = MASK_ADV7511_HPD_INT | MASK_ADV7511_MSEN_INT;
+	u8 irqs_rd;
 	int retries = 100;
 
 	v4l2_dbg(2, debug, sd, "%s: %s\n", __func__, enable ? "enable" : "disable");
@@ -551,7 +688,7 @@ static void adv7511_set_isr(struct v4l2_subdev *sd, bool enable)
 /* Interrupt handler */
 static int adv7511_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 {
-	uint8_t irq_status;
+	u8 irq_status;
 
 	/* disable interrupts to prevent a race condition */
 	adv7511_set_isr(sd, false);
@@ -573,34 +710,6 @@ static int adv7511_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 		*handled = true;
 	return 0;
 }
-
-static int adv7511_get_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *edid)
-{
-	struct adv7511_state *state = get_adv7511_state(sd);
-
-	if (edid->pad != 0)
-		return -EINVAL;
-	if ((edid->blocks == 0) || (edid->blocks > 256))
-		return -EINVAL;
-	if (!edid->edid)
-		return -EINVAL;
-	if (!state->edid.segments) {
-		v4l2_dbg(1, debug, sd, "EDID segment 0 not found\n");
-		return -ENODATA;
-	}
-	if (edid->start_block >= state->edid.segments * 2)
-		return -E2BIG;
-	if ((edid->blocks + edid->start_block) >= state->edid.segments * 2)
-		edid->blocks = state->edid.segments * 2 - edid->start_block;
-
-	memcpy(edid->edid, &state->edid.data[edid->start_block * 128],
-			128 * edid->blocks);
-	return 0;
-}
-
-static const struct v4l2_subdev_pad_ops adv7511_pad_ops = {
-	.get_edid = adv7511_get_edid,
-};
 
 static const struct v4l2_subdev_core_ops adv7511_core_ops = {
 	.log_status = adv7511_log_status,
@@ -677,12 +786,18 @@ static int adv7511_g_dv_timings(struct v4l2_subdev *sd,
 static int adv7511_enum_dv_timings(struct v4l2_subdev *sd,
 				   struct v4l2_enum_dv_timings *timings)
 {
+	if (timings->pad != 0)
+		return -EINVAL;
+
 	return v4l2_enum_dv_timings_cap(timings, &adv7511_timings_cap, NULL, NULL);
 }
 
 static int adv7511_dv_timings_cap(struct v4l2_subdev *sd,
 				  struct v4l2_dv_timings_cap *cap)
 {
+	if (cap->pad != 0)
+		return -EINVAL;
+
 	*cap = adv7511_timings_cap;
 	return 0;
 }
@@ -691,8 +806,6 @@ static const struct v4l2_subdev_video_ops adv7511_video_ops = {
 	.s_stream = adv7511_s_stream,
 	.s_dv_timings = adv7511_s_dv_timings,
 	.g_dv_timings = adv7511_g_dv_timings,
-	.enum_dv_timings = adv7511_enum_dv_timings,
-	.dv_timings_cap = adv7511_dv_timings_cap,
 };
 
 /* ------------------------------ AUDIO OPS ------------------------------ */
@@ -774,6 +887,250 @@ static const struct v4l2_subdev_audio_ops adv7511_audio_ops = {
 	.s_routing = adv7511_s_routing,
 };
 
+/* ---------------------------- PAD OPS ------------------------------------- */
+
+static int adv7511_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
+{
+	struct adv7511_state *state = get_adv7511_state(sd);
+
+	memset(edid->reserved, 0, sizeof(edid->reserved));
+
+	if (edid->pad != 0)
+		return -EINVAL;
+
+	if (edid->start_block == 0 && edid->blocks == 0) {
+		edid->blocks = state->edid.segments * 2;
+		return 0;
+	}
+
+	if (state->edid.segments == 0)
+		return -ENODATA;
+
+	if (edid->start_block >= state->edid.segments * 2)
+		return -EINVAL;
+
+	if (edid->start_block + edid->blocks > state->edid.segments * 2)
+		edid->blocks = state->edid.segments * 2 - edid->start_block;
+
+	memcpy(edid->edid, &state->edid.data[edid->start_block * 128],
+			128 * edid->blocks);
+
+	return 0;
+}
+
+static int adv7511_enum_mbus_code(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_mbus_code_enum *code)
+{
+	if (code->pad != 0)
+		return -EINVAL;
+
+	switch (code->index) {
+	case 0:
+		code->code = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+	case 1:
+		code->code = MEDIA_BUS_FMT_YUYV8_1X16;
+		break;
+	case 2:
+		code->code = MEDIA_BUS_FMT_UYVY8_1X16;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void adv7511_fill_format(struct adv7511_state *state,
+				struct v4l2_mbus_framefmt *format)
+{
+	memset(format, 0, sizeof(*format));
+
+	format->width = state->dv_timings.bt.width;
+	format->height = state->dv_timings.bt.height;
+	format->field = V4L2_FIELD_NONE;
+}
+
+static int adv7511_get_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_format *format)
+{
+	struct adv7511_state *state = get_adv7511_state(sd);
+
+	if (format->pad != 0)
+		return -EINVAL;
+
+	adv7511_fill_format(state, &format->format);
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		struct v4l2_mbus_framefmt *fmt;
+
+		fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		format->format.code = fmt->code;
+		format->format.colorspace = fmt->colorspace;
+		format->format.ycbcr_enc = fmt->ycbcr_enc;
+		format->format.quantization = fmt->quantization;
+		format->format.xfer_func = fmt->xfer_func;
+	} else {
+		format->format.code = state->fmt_code;
+		format->format.colorspace = state->colorspace;
+		format->format.ycbcr_enc = state->ycbcr_enc;
+		format->format.quantization = state->quantization;
+		format->format.xfer_func = state->xfer_func;
+	}
+
+	return 0;
+}
+
+static int adv7511_set_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_format *format)
+{
+	struct adv7511_state *state = get_adv7511_state(sd);
+	/*
+	 * Bitfield namings come the CEA-861-F standard, table 8 "Auxiliary
+	 * Video Information (AVI) InfoFrame Format"
+	 *
+	 * c = Colorimetry
+	 * ec = Extended Colorimetry
+	 * y = RGB or YCbCr
+	 * q = RGB Quantization Range
+	 * yq = YCC Quantization Range
+	 */
+	u8 c = HDMI_COLORIMETRY_NONE;
+	u8 ec = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+	u8 y = HDMI_COLORSPACE_RGB;
+	u8 q = HDMI_QUANTIZATION_RANGE_DEFAULT;
+	u8 yq = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
+
+	if (format->pad != 0)
+		return -EINVAL;
+	switch (format->format.code) {
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_RGB888_1X24:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	adv7511_fill_format(state, &format->format);
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		struct v4l2_mbus_framefmt *fmt;
+
+		fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		fmt->code = format->format.code;
+		fmt->colorspace = format->format.colorspace;
+		fmt->ycbcr_enc = format->format.ycbcr_enc;
+		fmt->quantization = format->format.quantization;
+		fmt->xfer_func = format->format.xfer_func;
+		return 0;
+	}
+
+	switch (format->format.code) {
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+		adv7511_wr_and_or(sd, 0x15, 0xf0, 0x01);
+		adv7511_wr_and_or(sd, 0x16, 0x03, 0xb8);
+		y = HDMI_COLORSPACE_YUV422;
+		break;
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+		adv7511_wr_and_or(sd, 0x15, 0xf0, 0x01);
+		adv7511_wr_and_or(sd, 0x16, 0x03, 0xbc);
+		y = HDMI_COLORSPACE_YUV422;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	default:
+		adv7511_wr_and_or(sd, 0x15, 0xf0, 0x00);
+		adv7511_wr_and_or(sd, 0x16, 0x03, 0x00);
+		break;
+	}
+	state->fmt_code = format->format.code;
+	state->colorspace = format->format.colorspace;
+	state->ycbcr_enc = format->format.ycbcr_enc;
+	state->quantization = format->format.quantization;
+	state->xfer_func = format->format.xfer_func;
+
+	switch (format->format.colorspace) {
+	case V4L2_COLORSPACE_ADOBERGB:
+		c = HDMI_COLORIMETRY_EXTENDED;
+		ec = y ? HDMI_EXTENDED_COLORIMETRY_ADOBE_YCC_601 :
+			 HDMI_EXTENDED_COLORIMETRY_ADOBE_RGB;
+		break;
+	case V4L2_COLORSPACE_SMPTE170M:
+		c = y ? HDMI_COLORIMETRY_ITU_601 : HDMI_COLORIMETRY_NONE;
+		if (y && format->format.ycbcr_enc == V4L2_YCBCR_ENC_XV601) {
+			c = HDMI_COLORIMETRY_EXTENDED;
+			ec = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+		}
+		break;
+	case V4L2_COLORSPACE_REC709:
+		c = y ? HDMI_COLORIMETRY_ITU_709 : HDMI_COLORIMETRY_NONE;
+		if (y && format->format.ycbcr_enc == V4L2_YCBCR_ENC_XV709) {
+			c = HDMI_COLORIMETRY_EXTENDED;
+			ec = HDMI_EXTENDED_COLORIMETRY_XV_YCC_709;
+		}
+		break;
+	case V4L2_COLORSPACE_SRGB:
+		c = y ? HDMI_COLORIMETRY_EXTENDED : HDMI_COLORIMETRY_NONE;
+		ec = y ? HDMI_EXTENDED_COLORIMETRY_S_YCC_601 :
+			 HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+		break;
+	case V4L2_COLORSPACE_BT2020:
+		c = HDMI_COLORIMETRY_EXTENDED;
+		if (y && format->format.ycbcr_enc == V4L2_YCBCR_ENC_BT2020_CONST_LUM)
+			ec = 5; /* Not yet available in hdmi.h */
+		else
+			ec = 6; /* Not yet available in hdmi.h */
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * CEA-861-F says that for RGB formats the YCC range must match the
+	 * RGB range, although sources should ignore the YCC range.
+	 *
+	 * The RGB quantization range shouldn't be non-zero if the EDID doesn't
+	 * have the Q bit set in the Video Capabilities Data Block, however this
+	 * isn't checked at the moment. The assumption is that the application
+	 * knows the EDID and can detect this.
+	 *
+	 * The same is true for the YCC quantization range: non-standard YCC
+	 * quantization ranges should only be sent if the EDID has the YQ bit
+	 * set in the Video Capabilities Data Block.
+	 */
+	switch (format->format.quantization) {
+	case V4L2_QUANTIZATION_FULL_RANGE:
+		q = y ? HDMI_QUANTIZATION_RANGE_DEFAULT :
+			HDMI_QUANTIZATION_RANGE_FULL;
+		yq = q ? q - 1 : HDMI_YCC_QUANTIZATION_RANGE_FULL;
+		break;
+	case V4L2_QUANTIZATION_LIM_RANGE:
+		q = y ? HDMI_QUANTIZATION_RANGE_DEFAULT :
+			HDMI_QUANTIZATION_RANGE_LIMITED;
+		yq = q ? q - 1 : HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
+		break;
+	}
+
+	adv7511_wr_and_or(sd, 0x4a, 0xbf, 0);
+	adv7511_wr_and_or(sd, 0x55, 0x9f, y << 5);
+	adv7511_wr_and_or(sd, 0x56, 0x3f, c << 6);
+	adv7511_wr_and_or(sd, 0x57, 0x83, (ec << 4) | (q << 2));
+	adv7511_wr_and_or(sd, 0x59, 0x0f, yq << 4);
+	adv7511_wr_and_or(sd, 0x4a, 0xff, 1);
+
+	return 0;
+}
+
+static const struct v4l2_subdev_pad_ops adv7511_pad_ops = {
+	.get_edid = adv7511_get_edid,
+	.enum_mbus_code = adv7511_enum_mbus_code,
+	.get_fmt = adv7511_get_fmt,
+	.set_fmt = adv7511_set_fmt,
+	.enum_dv_timings = adv7511_enum_dv_timings,
+	.dv_timings_cap = adv7511_dv_timings_cap,
+};
+
 /* --------------------- SUBDEV OPS --------------------------------------- */
 
 static const struct v4l2_subdev_ops adv7511_ops = {
@@ -784,7 +1141,7 @@ static const struct v4l2_subdev_ops adv7511_ops = {
 };
 
 /* ----------------------------------------------------------------------- */
-static void adv7511_dbg_dump_edid(int lvl, int debug, struct v4l2_subdev *sd, int segment, uint8_t *buf)
+static void adv7511_dbg_dump_edid(int lvl, int debug, struct v4l2_subdev *sd, int segment, u8 *buf)
 {
 	if (debug >= lvl) {
 		int i, j;
@@ -896,7 +1253,7 @@ static void adv7511_check_monitor_present_status(struct v4l2_subdev *sd)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
 	/* read hotplug and rx-sense state */
-	uint8_t status = adv7511_rd(sd, 0x42);
+	u8 status = adv7511_rd(sd, 0x42);
 
 	v4l2_dbg(1, debug, sd, "%s: status: 0x%x%s%s\n",
 			 __func__,
@@ -940,34 +1297,46 @@ static void adv7511_check_monitor_present_status(struct v4l2_subdev *sd)
 	}
 }
 
-static bool edid_block_verify_crc(uint8_t *edid_block)
+static bool edid_block_verify_crc(u8 *edid_block)
 {
+	u8 sum = 0;
 	int i;
-	uint8_t sum = 0;
 
 	for (i = 0; i < 128; i++)
-		sum += *(edid_block + i);
-	return (sum == 0);
+		sum += edid_block[i];
+	return sum == 0;
 }
 
-static bool edid_segment_verify_crc(struct v4l2_subdev *sd, u32 segment)
+static bool edid_verify_crc(struct v4l2_subdev *sd, u32 segment)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
 	u32 blocks = state->edid.blocks;
-	uint8_t *data = state->edid.data;
+	u8 *data = state->edid.data;
 
-	if (edid_block_verify_crc(&data[segment * 256])) {
-		if ((segment + 1) * 2 <= blocks)
-			return edid_block_verify_crc(&data[segment * 256 + 128]);
+	if (!edid_block_verify_crc(&data[segment * 256]))
+		return false;
+	if ((segment + 1) * 2 <= blocks)
+		return edid_block_verify_crc(&data[segment * 256 + 128]);
+	return true;
+}
+
+static bool edid_verify_header(struct v4l2_subdev *sd, u32 segment)
+{
+	static const u8 hdmi_header[] = {
+		0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
+	};
+	struct adv7511_state *state = get_adv7511_state(sd);
+	u8 *data = state->edid.data;
+
+	if (segment != 0)
 		return true;
-	}
-	return false;
+	return !memcmp(data, hdmi_header, sizeof(hdmi_header));
 }
 
 static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
-	uint8_t edidRdy = adv7511_rd(sd, 0xc5);
+	u8 edidRdy = adv7511_rd(sd, 0xc5);
 
 	v4l2_dbg(1, debug, sd, "%s: edid ready (retries: %d)\n",
 			 __func__, EDID_MAX_RETRIES - state->edid.read_retries);
@@ -990,9 +1359,10 @@ static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
 			state->edid.blocks = state->edid.data[0x7e] + 1;
 			v4l2_dbg(1, debug, sd, "%s: %d blocks in total\n", __func__, state->edid.blocks);
 		}
-		if (!edid_segment_verify_crc(sd, segment)) {
+		if (!edid_verify_crc(sd, segment) ||
+		    !edid_verify_header(sd, segment)) {
 			/* edid crc error, force reread of edid segment */
-			v4l2_dbg(1, debug, sd, "%s: edid crc error\n", __func__);
+			v4l2_err(sd, "%s: edid crc or header error\n", __func__);
 			state->have_monitor = false;
 			adv7511_s_power(sd, false);
 			adv7511_s_power(sd, true);
@@ -1038,6 +1408,12 @@ static void adv7511_init_setup(struct v4l2_subdev *sd)
 
 	/* clear all interrupts */
 	adv7511_wr(sd, 0x96, 0xff);
+	/*
+	 * Stop HPD from resetting a lot of registers.
+	 * It might leave the chip in a partly un-initialized state,
+	 * in particular with regards to hotplug bounces.
+	 */
+	adv7511_wr_and_or(sd, 0xd6, 0x3f, 0xc0);
 	memset(edid, 0, sizeof(struct adv7511_state_edid));
 	state->have_monitor = false;
 	adv7511_set_isr(sd, false);
@@ -1068,6 +1444,8 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 		return -ENODEV;
 	}
 	memcpy(&state->pdata, pdata, sizeof(state->pdata));
+	state->fmt_code = MEDIA_BUS_FMT_RGB888_1X24;
+	state->colorspace = V4L2_COLORSPACE_SRGB;
 
 	sd = &state->sd;
 
@@ -1111,6 +1489,7 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 	/* EDID and CEC i2c addr */
 	state->i2c_edid_addr = state->pdata.i2c_edid << 1;
 	state->i2c_cec_addr = state->pdata.i2c_cec << 1;
+	state->i2c_pktmem_addr = state->pdata.i2c_pktmem << 1;
 
 	state->chip_revision = adv7511_rd(sd, 0x0);
 	chip_id[0] = adv7511_rd(sd, 0xf5);
@@ -1128,12 +1507,19 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 		goto err_entity;
 	}
 
+	state->i2c_pktmem = i2c_new_dummy(client->adapter, state->i2c_pktmem_addr >> 1);
+	if (state->i2c_pktmem == NULL) {
+		v4l2_err(sd, "failed to register pktmem i2c client\n");
+		err = -ENOMEM;
+		goto err_unreg_edid;
+	}
+
 	adv7511_wr(sd, 0xe2, 0x01); /* power down cec section */
 	state->work_queue = create_singlethread_workqueue(sd->name);
 	if (state->work_queue == NULL) {
 		v4l2_err(sd, "could not create workqueue\n");
 		err = -ENOMEM;
-		goto err_unreg_cec;
+		goto err_unreg_pktmem;
 	}
 
 	INIT_DELAYED_WORK(&state->edid_handler, adv7511_edid_handler);
@@ -1146,7 +1532,9 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 			  client->addr << 1, client->adapter->name);
 	return 0;
 
-err_unreg_cec:
+err_unreg_pktmem:
+	i2c_unregister_device(state->i2c_pktmem);
+err_unreg_edid:
 	i2c_unregister_device(state->i2c_edid);
 err_entity:
 	media_entity_cleanup(&sd->entity);
@@ -1170,6 +1558,7 @@ static int adv7511_remove(struct i2c_client *client)
 	adv7511_init_setup(sd);
 	cancel_delayed_work(&state->edid_handler);
 	i2c_unregister_device(state->i2c_edid);
+	i2c_unregister_device(state->i2c_pktmem);
 	destroy_workqueue(state->work_queue);
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);

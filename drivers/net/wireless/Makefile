@@ -45,6 +45,8 @@ obj-$(CONFIG_IWLWIFI)	+= iwlwifi/
 obj-$(CONFIG_IWLEGACY)	+= iwlegacy/
 obj-$(CONFIG_RT2X00)	+= rt2x00/
 
+obj-$(CONFIG_WL_MEDIATEK)	+= mediatek/
+
 obj-$(CONFIG_P54_COMMON)	+= p54/
 
 obj-$(CONFIG_ATH_CARDS)		+= ath/
@@ -59,3 +61,4 @@ obj-$(CONFIG_BRCMFMAC)	+= brcm80211/
 obj-$(CONFIG_BRCMSMAC)	+= brcm80211/
 
 obj-$(CONFIG_CW1200)	+= cw1200/
+obj-$(CONFIG_RSI_91X)	+= rsi/

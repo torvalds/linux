@@ -41,10 +41,10 @@
  */
 
 #define DEBUG_SUBSYSTEM S_SEC
-#include <lu_object.h>
-#include <lustre_acl.h>
-#include <lustre_eacl.h>
-#include <obd_support.h>
+#include "../include/lu_object.h"
+#include "../include/lustre_acl.h"
+#include "../include/lustre_eacl.h"
+#include "../include/obd_support.h"
 
 #ifdef CONFIG_FS_POSIX_ACL
 
@@ -104,12 +104,12 @@ static int lustre_posix_acl_xattr_reduce_space(posix_acl_xattr_header **header,
 	if (unlikely(old_count <= new_count))
 		return old_size;
 
-	OBD_ALLOC(new, new_size);
+	new = kzalloc(new_size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return -ENOMEM;
 
 	memcpy(new, *header, new_size);
-	OBD_FREE(*header, old_size);
+	kfree(*header);
 	*header = new;
 	return new_size;
 }
@@ -120,18 +120,17 @@ static int lustre_ext_acl_xattr_reduce_space(ext_acl_xattr_header **header,
 {
 	int ext_count = le32_to_cpu((*header)->a_count);
 	int ext_size = CFS_ACL_XATTR_SIZE(ext_count, ext_acl_xattr);
-	int old_size = CFS_ACL_XATTR_SIZE(old_count, ext_acl_xattr);
 	ext_acl_xattr_header *new;
 
 	if (unlikely(old_count <= ext_count))
 		return 0;
 
-	OBD_ALLOC(new, ext_size);
+	new = kzalloc(ext_size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return -ENOMEM;
 
 	memcpy(new, *header, ext_size);
-	OBD_FREE(*header, old_size);
+	kfree(*header);
 	*header = new;
 	return 0;
 }
@@ -152,7 +151,7 @@ lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size)
 	else
 		count = CFS_ACL_XATTR_COUNT(size, posix_acl_xattr);
 	esize = CFS_ACL_XATTR_SIZE(count, ext_acl_xattr);
-	OBD_ALLOC(new, esize);
+	new = kzalloc(esize, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return ERR_PTR(-ENOMEM);
 
@@ -171,19 +170,19 @@ EXPORT_SYMBOL(lustre_posix_acl_xattr_2ext);
 /*
  * Filter out the "nobody" entries in the posix ACL.
  */
-int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
+int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, size_t size,
 				  posix_acl_xattr_header **out)
 {
 	int count, i, j, rc = 0;
 	__u32 id;
 	posix_acl_xattr_header *new;
 
-	if (unlikely(size < 0))
-		return -EINVAL;
-	else if (!size)
+	if (!size)
 		return 0;
+	if (size < sizeof(*new))
+		return -EINVAL;
 
-	OBD_ALLOC(new, size);
+	new = kzalloc(size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return -ENOMEM;
 
@@ -196,8 +195,10 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 		case ACL_GROUP_OBJ:
 		case ACL_MASK:
 		case ACL_OTHER:
-			if (id != ACL_UNDEFINED_ID)
-				GOTO(_out, rc = -EIO);
+			if (id != ACL_UNDEFINED_ID) {
+				rc = -EIO;
+				goto _out;
+			}
 
 			memcpy(&new->a_entries[j++], &header->a_entries[i],
 			       sizeof(posix_acl_xattr_entry));
@@ -215,7 +216,8 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 				       sizeof(posix_acl_xattr_entry));
 			break;
 		default:
-			GOTO(_out, rc = -EIO);
+			rc = -EIO;
+			goto _out;
 		}
 	}
 
@@ -229,7 +231,7 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 
 _out:
 	if (rc) {
-		OBD_FREE(new, size);
+		kfree(new);
 		size = rc;
 	}
 	return size;
@@ -241,7 +243,7 @@ EXPORT_SYMBOL(lustre_posix_acl_xattr_filter);
  */
 void lustre_posix_acl_xattr_free(posix_acl_xattr_header *header, int size)
 {
-	OBD_FREE(header, size);
+	kfree(header);
 }
 EXPORT_SYMBOL(lustre_posix_acl_xattr_free);
 
@@ -250,8 +252,7 @@ EXPORT_SYMBOL(lustre_posix_acl_xattr_free);
  */
 void lustre_ext_acl_xattr_free(ext_acl_xattr_header *header)
 {
-	OBD_FREE(header, CFS_ACL_XATTR_SIZE(le32_to_cpu(header->a_count), \
-					    ext_acl_xattr));
+	kfree(header);
 }
 EXPORT_SYMBOL(lustre_ext_acl_xattr_free);
 
@@ -306,7 +307,7 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 		/* there are only base ACL entries at most. */
 		posix_count = 3;
 		posix_size = CFS_ACL_XATTR_SIZE(posix_count, posix_acl_xattr);
-		OBD_ALLOC(new, posix_size);
+		new = kzalloc(posix_size, GFP_NOFS);
 		if (unlikely(new == NULL))
 			return -ENOMEM;
 
@@ -318,8 +319,10 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 			case ACL_USER_OBJ:
 			case ACL_GROUP_OBJ:
 			case ACL_OTHER:
-				if (ae.e_id != ACL_UNDEFINED_ID)
-					GOTO(_out, rc = -EIO);
+				if (ae.e_id != ACL_UNDEFINED_ID) {
+					rc = -EIO;
+					goto _out;
+				}
 
 				if (ae.e_stat != ES_DEL) {
 					new->a_entries[j].e_tag =
@@ -336,7 +339,8 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 				if (ae.e_stat == ES_DEL)
 					break;
 			default:
-				GOTO(_out, rc = -EIO);
+				rc = -EIO;
+				goto _out;
 			}
 		}
 	} else {
@@ -354,7 +358,7 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 		posix_count = ori_posix_count + ext_count;
 		posix_size =
 			CFS_ACL_XATTR_SIZE(posix_count, posix_acl_xattr);
-		OBD_ALLOC(new, posix_size);
+		new = kzalloc(posix_size, GFP_NOFS);
 		if (unlikely(new == NULL))
 			return -ENOMEM;
 
@@ -396,7 +400,7 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 
 _out:
 	if (rc) {
-		OBD_FREE(new, posix_size);
+		kfree(new);
 		posix_size = rc;
 	}
 	return posix_size;
@@ -426,7 +430,7 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 	ext_count = posix_count + ori_ext_count;
 	ext_size = CFS_ACL_XATTR_SIZE(ext_count, ext_acl_xattr);
 
-	OBD_ALLOC(new, ext_size);
+	new = kzalloc(ext_size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return ERR_PTR(-ENOMEM);
 
@@ -437,8 +441,10 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 		case ACL_GROUP_OBJ:
 		case ACL_MASK:
 		case ACL_OTHER:
-			if (pae.e_id != ACL_UNDEFINED_ID)
-				GOTO(out, rc = -EIO);
+			if (pae.e_id != ACL_UNDEFINED_ID) {
+				rc = -EIO;
+				goto out;
+		}
 		case ACL_USER:
 			/* ignore "nobody" entry. */
 			if (pae.e_id == NOBODY_UID)
@@ -501,7 +507,8 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 			}
 			break;
 		default:
-			GOTO(out, rc = -EIO);
+			rc = -EIO;
+			goto out;
 		}
 	}
 
@@ -529,7 +536,7 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 
 out:
 	if (rc) {
-		OBD_FREE(new, ext_size);
+		kfree(new);
 		new = ERR_PTR(rc);
 	}
 	return new;

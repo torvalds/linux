@@ -108,9 +108,12 @@ config DMI_SYSFS
 	  under /sys/firmware/dmi when this option is enabled and
 	  loaded.
 
+config DMI_SCAN_MACHINE_NON_EFI_FALLBACK
+	bool
+
 config ISCSI_IBFT_FIND
 	bool "iSCSI Boot Firmware Table Attributes"
-	depends on X86
+	depends on X86 && ACPI
 	default n
 	help
 	  This option enables the kernel to find the region of memory
@@ -129,6 +132,11 @@ config ISCSI_IBFT
 	  detect iSCSI boot parameters dynamically during system boot, say Y.
 	  Otherwise, say N.
 
+config QCOM_SCM
+	bool
+	depends on ARM || ARM64
+
+source "drivers/firmware/broadcom/Kconfig"
 source "drivers/firmware/google/Kconfig"
 source "drivers/firmware/efi/Kconfig"
 

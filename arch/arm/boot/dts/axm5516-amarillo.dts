@@ -1,0 +1,51 @@
+/*
+ * arch/arm/boot/dts/axm5516-amarillo.dts
+ *
+ * Copyright (C) 2013 LSI
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+/dts-v1/;
+
+/memreserve/ 0x00000000 0x00400000;
+
+#include "axm55xx.dtsi"
+#include "axm5516-cpus.dtsi"
+
+/ {
+	model = "Amarillo AXM5516";
+	compatible = "lsi,axm5516-amarillo", "lsi,axm5516";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x00000000 0x02 0x00000000>;
+	};
+};
+
+&serial0 {
+	status = "okay";
+};
+
+&serial1 {
+	status = "okay";
+};
+
+&serial2 {
+	status = "okay";
+};
+
+&serial3 {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};

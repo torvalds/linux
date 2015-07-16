@@ -6,16 +6,31 @@
 menu "Accelerometers"
 
 config BMA180
-	tristate "Bosch BMA180 3-Axis Accelerometer Driver"
+	tristate "Bosch BMA180/BMA250 3-Axis Accelerometer Driver"
 	depends on I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say Y here if you want to build a driver for the Bosch BMA180
-	  triaxial acceleration sensor.
+	  Say Y here if you want to build a driver for the Bosch BMA180 or
+	  BMA250 triaxial acceleration sensor.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bma180.
+
+config BMC150_ACCEL
+	tristate "Bosch BMC150 Accelerometer Driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the following Bosch accelerometers:
+	  BMC150, BMI055, BMA250E, BMA222E, BMA255, BMA280.
+
+	  Currently this only supports the device via an i2c interface.
+
+	  This is a combo module with both accelerometer and magnetometer.
+	  This driver is only implementing accelerometer part, which has
+	  its own address and register map.
 
 config HID_SENSOR_ACCEL_3D
 	depends on HID_SENSOR_HUB
@@ -27,6 +42,9 @@ config HID_SENSOR_ACCEL_3D
 	help
 	  Say yes here to build support for the HID SENSOR
 	  accelerometers 3D.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-sensor-accel-3d.
 
 config IIO_ST_ACCEL_3AXIS
 	tristate "STMicroelectronics accelerometers 3-Axis Driver"
@@ -64,5 +82,79 @@ config KXSD9
 	help
 	  Say yes here to build support for the Kionix KXSD9 accelerometer.
 	  Currently this only supports the device via an SPI interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called kxsd9.
+
+config MMA8452
+	tristate "Freescale MMA8452Q Accelerometer Driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the Freescale MMA8452Q 3-axis
+	  accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mma8452.
+
+config KXCJK1013
+	tristate "Kionix 3-Axis Accelerometer Driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build a driver for the Kionix KXCJK-1013
+	  triaxial acceleration sensor. This driver also supports KXCJ9-1008
+	  and KXTJ2-1009.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called kxcjk-1013.
+
+config MMA9551_CORE
+	tristate
+
+config MMA9551
+	tristate "Freescale MMA9551L Intelligent Motion-Sensing Platform Driver"
+	depends on I2C
+	select MMA9551_CORE
+
+	help
+	  Say yes here to build support for the Freescale MMA9551L
+	  Intelligent Motion-Sensing Platform Driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mma9551.
+
+config MMA9553
+	tristate "Freescale MMA9553L Intelligent Pedometer Platform Driver"
+	depends on I2C
+	select MMA9551_CORE
+	help
+	  Say yes here to build support for the Freescale MMA9553L
+	  Intelligent Pedometer Platform Driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mma9553.
+
+config STK8312
+	tristate "Sensortek STK8312 3-Axis Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to get support for the Sensortek STK8312 3-axis
+	  accelerometer.
+
+	  Choosing M will build the driver as a module. If so, the module
+	  will be called stk8312.
+
+config STK8BA50
+	tristate "Sensortek STK8BA50 3-Axis Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to get support for the Sensortek STK8BA50 3-axis
+	  accelerometer.
+
+	  Choosing M will build the driver as a module. If so, the module
+	  will be called stk8ba50.
 
 endmenu

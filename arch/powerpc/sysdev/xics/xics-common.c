@@ -140,22 +140,20 @@ static void xics_request_ipi(void)
 			   IRQF_PERCPU | IRQF_NO_THREAD, "IPI", NULL));
 }
 
-int __init xics_smp_probe(void)
+void __init xics_smp_probe(void)
 {
 	/* Setup cause_ipi callback  based on which ICP is used */
 	smp_ops->cause_ipi = icp_ops->cause_ipi;
 
 	/* Register all the IPIs */
 	xics_request_ipi();
-
-	return cpumask_weight(cpu_possible_mask);
 }
 
 #endif /* CONFIG_SMP */
 
 void xics_teardown_cpu(void)
 {
-	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
+	struct xics_cppr *os_cppr = this_cpu_ptr(&xics_cppr);
 
 	/*
 	 * we have to reset the cppr index to 0 because we're
@@ -229,7 +227,7 @@ void xics_migrate_irqs_away(void)
 
 		/* Locate interrupt server */
 		server = -1;
-		ics = irq_get_chip_data(virq);
+		ics = irq_desc_get_chip_data(desc);
 		if (ics)
 			server = ics->get_server(ics, irq);
 		if (server < 0) {
@@ -362,7 +360,7 @@ static int xics_host_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops xics_host_ops = {
+static const struct irq_domain_ops xics_host_ops = {
 	.match = xics_host_match,
 	.map = xics_host_map,
 	.xlate = xics_host_xlate,

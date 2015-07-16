@@ -39,7 +39,13 @@ void event_init_named(struct event *e, u64 config, char *name)
 	event_init_opts(e, config, PERF_TYPE_RAW, name);
 }
 
+void event_init(struct event *e, u64 config)
+{
+	event_init_opts(e, config, PERF_TYPE_RAW, "event");
+}
+
 #define PERF_CURRENT_PID	0
+#define PERF_NO_PID		-1
 #define PERF_NO_CPU		-1
 #define PERF_NO_GROUP		-1
 
@@ -59,6 +65,16 @@ int event_open_with_group(struct event *e, int group_fd)
 	return event_open_with_options(e, PERF_CURRENT_PID, PERF_NO_CPU, group_fd);
 }
 
+int event_open_with_pid(struct event *e, pid_t pid)
+{
+	return event_open_with_options(e, pid, PERF_NO_CPU, PERF_NO_GROUP);
+}
+
+int event_open_with_cpu(struct event *e, int cpu)
+{
+	return event_open_with_options(e, PERF_NO_PID, cpu, PERF_NO_GROUP);
+}
+
 int event_open(struct event *e)
 {
 	return event_open_with_options(e, PERF_CURRENT_PID, PERF_NO_CPU, PERF_NO_GROUP);
@@ -67,6 +83,16 @@ int event_open(struct event *e)
 void event_close(struct event *e)
 {
 	close(e->fd);
+}
+
+int event_enable(struct event *e)
+{
+	return ioctl(e->fd, PERF_EVENT_IOC_ENABLE);
+}
+
+int event_disable(struct event *e)
+{
+	return ioctl(e->fd, PERF_EVENT_IOC_DISABLE);
 }
 
 int event_reset(struct event *e)

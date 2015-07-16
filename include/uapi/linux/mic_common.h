@@ -23,12 +23,7 @@
 
 #include <linux/virtio_ring.h>
 
-#ifndef __KERNEL__
-#define ALIGN(a, x)	(((a) + (x) - 1) & ~((x) - 1))
-#define __aligned(x)	__attribute__ ((aligned(x)))
-#endif
-
-#define mic_aligned_size(x) ALIGN(sizeof(x), 8)
+#define __mic_align(a, x) (((a) + (x) - 1) & ~((x) - 1))
 
 /**
  * struct mic_device_desc: Virtio device information shared between the
@@ -48,8 +43,8 @@ struct mic_device_desc {
 	__u8 feature_len;
 	__u8 config_len;
 	__u8 status;
-	__u64 config[0];
-} __aligned(8);
+	__le64 config[0];
+} __attribute__ ((aligned(8)));
 
 /**
  * struct mic_device_ctrl: Per virtio device information in the device page
@@ -66,7 +61,7 @@ struct mic_device_desc {
  * @h2c_vdev_db: The doorbell number to be used by host. Set by guest.
  */
 struct mic_device_ctrl {
-	__u64 vdev;
+	__le64 vdev;
 	__u8 config_change;
 	__u8 vdev_reset;
 	__u8 guest_ack;
@@ -74,7 +69,7 @@ struct mic_device_ctrl {
 	__u8 used_address_updated;
 	__s8 c2h_vdev_db;
 	__s8 h2c_vdev_db;
-} __aligned(8);
+} __attribute__ ((aligned(8)));
 
 /**
  * struct mic_bootparam: Virtio device independent information in device page
@@ -85,15 +80,27 @@ struct mic_device_ctrl {
  * @h2c_config_db: Host to Card Virtio config doorbell set by card
  * @shutdown_status: Card shutdown status set by card
  * @shutdown_card: Set to 1 by the host when a card shutdown is initiated
+ * @tot_nodes: Total number of nodes in the SCIF network
+ * @node_id: Unique id of the node
+ * @h2c_scif_db - Host to card SCIF doorbell set by card
+ * @c2h_scif_db - Card to host SCIF doorbell set by host
+ * @scif_host_dma_addr - SCIF host queue pair DMA address
+ * @scif_card_dma_addr - SCIF card queue pair DMA address
  */
 struct mic_bootparam {
-	__u32 magic;
+	__le32 magic;
 	__s8 c2h_shutdown_db;
 	__s8 h2c_shutdown_db;
 	__s8 h2c_config_db;
 	__u8 shutdown_status;
 	__u8 shutdown_card;
-} __aligned(8);
+	__u8 tot_nodes;
+	__u8 node_id;
+	__u8 h2c_scif_db;
+	__u8 c2h_scif_db;
+	__u64 scif_host_dma_addr;
+	__u64 scif_card_dma_addr;
+} __attribute__ ((aligned(8)));
 
 /**
  * struct mic_device_page: High level representation of the device page
@@ -116,10 +123,10 @@ struct mic_device_page {
  * @num: The number of entries in the virtio_ring
  */
 struct mic_vqconfig {
-	__u64 address;
-	__u64 used_address;
-	__u16 num;
-} __aligned(8);
+	__le64 address;
+	__le64 used_address;
+	__le16 num;
+} __attribute__ ((aligned(8)));
 
 /*
  * The alignment to use between consumer and producer parts of vring.
@@ -154,7 +161,7 @@ struct mic_vqconfig {
  */
 struct _mic_vring_info {
 	__u16 avail_idx;
-	int magic;
+	__le32 magic;
 };
 
 /**
@@ -173,15 +180,13 @@ struct mic_vring {
 	int len;
 };
 
-#define mic_aligned_desc_size(d) ALIGN(mic_desc_size(d), 8)
+#define mic_aligned_desc_size(d) __mic_align(mic_desc_size(d), 8)
 
 #ifndef INTEL_MIC_CARD
 static inline unsigned mic_desc_size(const struct mic_device_desc *desc)
 {
-	return mic_aligned_size(*desc)
-		+ desc->num_vq * mic_aligned_size(struct mic_vqconfig)
-		+ desc->feature_len * 2
-		+ desc->config_len;
+	return sizeof(*desc) + desc->num_vq * sizeof(struct mic_vqconfig)
+		+ desc->feature_len * 2 + desc->config_len;
 }
 
 static inline struct mic_vqconfig *
@@ -201,8 +206,7 @@ static inline __u8 *mic_vq_configspace(const struct mic_device_desc *desc)
 }
 static inline unsigned mic_total_desc_size(struct mic_device_desc *desc)
 {
-	return mic_aligned_desc_size(desc) +
-		mic_aligned_size(struct mic_device_ctrl);
+	return mic_aligned_desc_size(desc) + sizeof(struct mic_device_ctrl);
 }
 #endif
 

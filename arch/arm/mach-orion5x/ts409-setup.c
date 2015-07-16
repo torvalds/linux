@@ -302,7 +302,7 @@ static void __init qnap_ts409_init(void)
 			gpio_free(TS409_RTC_GPIO);
 	}
 	if (qnap_ts409_i2c_rtc.irq == 0)
-		pr_warning("qnap_ts409_init: failed to get RTC IRQ\n");
+		pr_warn("qnap_ts409_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &qnap_ts409_i2c_rtc, 1);
 	platform_device_register(&ts409_leds);
 

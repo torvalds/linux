@@ -44,7 +44,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
 
 	pages = end_index - start_index + 1;
 
-	page = kmalloc(sizeof(void *) * pages, GFP_KERNEL);
+	page = kmalloc_array(pages, sizeof(void *), GFP_KERNEL);
 	if (page == NULL)
 		return res;
 
@@ -84,6 +84,9 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
 		 */
 		res = squashfs_read_cache(target_page, block, bsize, pages,
 								page);
+		if (res < 0)
+			goto mark_errored;
+
 		goto out;
 	}
 
@@ -119,7 +122,7 @@ mark_errored:
 	 * dealt with by the caller
 	 */
 	for (i = 0; i < pages; i++) {
-		if (page[i] == target_page)
+		if (page[i] == NULL || page[i] == target_page)
 			continue;
 		flush_dcache_page(page[i]);
 		SetPageError(page[i]);

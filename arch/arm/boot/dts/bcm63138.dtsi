@@ -1,0 +1,178 @@
+/*
+ * Broadcom BCM63138 DSL SoCs Device Tree
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#include "skeleton.dtsi"
+
+/ {
+	compatible = "brcm,bcm63138";
+	model = "Broadcom BCM63138 DSL SoC";
+	interrupt-parent = <&gic>;
+
+	aliases {
+		uart0 = &serial0;
+		uart1 = &serial1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0>;
+			enable-method = "brcm,bcm63138";
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <1>;
+			enable-method = "brcm,bcm63138";
+			resets = <&pmb0 4 1>;
+		};
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		arm_timer_clk: arm_timer_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <500000000>;
+		};
+
+		periph_clk: periph_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <50000000>;
+			clock-output-names = "periph";
+		};
+	};
+
+	/* ARM bus */
+	axi@80000000 {
+		compatible = "simple-bus";
+		ranges = <0 0x80000000 0x784000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		L2: cache-controller@1d000 {
+			compatible = "arm,pl310-cache";
+			reg = <0x1d000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <524288>;
+			cache-sets = <1024>;
+			cache-line-size = <32>;
+			interrupts = <GIC_PPI 0 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		scu: scu@1e000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0x1e000 0x100>;
+		};
+
+		gic: interrupt-controller@1e100 {
+			compatible = "arm,cortex-a9-gic";
+			reg = <0x1f000 0x1000
+				0x1e100 0x100>;
+			#interrupt-cells = <3>;
+			#address-cells = <0>;
+			interrupt-controller;
+		};
+
+		global_timer: timer@1e200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0x1e200 0x20>;
+			interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&arm_timer_clk>;
+		};
+
+		local_timer: local-timer@1e600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x1e600 0x20>;
+			interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&arm_timer_clk>;
+		};
+
+		twd_watchdog: watchdog@1e620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0x1e620 0x20>;
+			interrupts = <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pmb0: reset-controller@4800c0 {
+			compatible = "brcm,bcm63138-pmb";
+			reg = <0x4800c0 0x10>;
+			#reset-cells = <2>;
+		};
+
+		pmb1: reset-controller@4800e0 {
+			compatible = "brcm,bcm63138-pmb";
+			reg = <0x4800e0 0x10>;
+			#reset-cells = <2>;
+		};
+	};
+
+	/* Legacy UBUS base */
+	ubus@fffe8000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xfffe8000 0x8100>;
+
+		timer: timer@80 {
+			compatible = "brcm,bcm6328-timer", "syscon";
+			reg = <0x80 0x3c>;
+		};
+
+		serial0: serial@600 {
+			compatible = "brcm,bcm6345-uart";
+			reg = <0x600 0x1b>;
+			interrupts = <GIC_SPI 32 0>;
+			clocks = <&periph_clk>;
+			clock-names = "periph";
+			status = "disabled";
+		};
+
+		serial1: serial@620 {
+			compatible = "brcm,bcm6345-uart";
+			reg = <0x620 0x1b>;
+			interrupts = <GIC_SPI 33 0>;
+			clocks = <&periph_clk>;
+			clock-names = "periph";
+			status = "disabled";
+		};
+
+		nand: nand@2000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,nand-bcm63138", "brcm,brcmnand-v7.0", "brcm,brcmnand";
+			reg = <0x2000 0x600>, <0xf0 0x10>;
+			reg-names = "nand", "nand-int-base";
+			status = "disabled";
+			interrupts = <GIC_SPI 38 0>;
+			interrupt-names = "nand";
+		};
+
+		bootlut: bootlut@8000 {
+			compatible = "brcm,bcm63138-bootlut";
+			reg = <0x8000 0x50>;
+		};
+
+		reboot {
+			compatible = "syscon-reboot";
+			regmap = <&timer>;
+			offset = <0x34>;
+			mask = <1>;
+		};
+	};
+};

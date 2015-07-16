@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -30,33 +26,35 @@
 #ifndef __RTL92C_PHY_H__
 #define __RTL92C_PHY_H__
 
-/*It must always set to 4, otherwise read efuse table secquence will be wrong.*/
-#define	MAX_TX_COUNT				4
+/* MAX_TX_COUNT must always set to 4, otherwise read efuse
+ * table secquence will be wrong.
+ */
+#define		MAX_TX_COUNT				4
 
 #define MAX_PRECMD_CNT				16
-#define MAX_RFDEPENDCMD_CNT			16
+#define MAX_RFDEPENDCMD_CNT		16
 #define MAX_POSTCMD_CNT				16
 
-#define MAX_DOZE_WAITING_TIMES_9x		64
+#define MAX_DOZE_WAITING_TIMES_9x	64
 
 #define RT_CANNOT_IO(hw)			false
-#define HIGHPOWER_RADIOA_ARRAYLEN		22
+#define HIGHPOWER_RADIOA_ARRAYLEN	22
 
 #define IQK_ADDA_REG_NUM			16
 #define IQK_BB_REG_NUM				9
 #define MAX_TOLERANCE				5
 #define	IQK_DELAY_TIME				10
-#define	IDX_MAP					15
+#define	INDEX_MAPPING_NUM	15
 
 #define	APK_BB_REG_NUM				5
 #define	APK_AFE_REG_NUM				16
 #define	APK_CURVE_REG_NUM			4
-#define	PATH_NUM				2
+#define	PATH_NUM					2
 
-#define LOOP_LIMIT				5
+#define LOOP_LIMIT					5
 #define MAX_STALL_TIME				50
-#define ANTENNADIVERSITYVALUE			0x80
-#define MAX_TXPWR_IDX_NMODE_92S			63
+#define ANTENNADIVERSITYVALUE		0x80
+#define MAX_TXPWR_IDX_NMODE_92S		63
 #define RESET_CNT_LIMIT				3
 
 #define IQK_ADDA_REG_NUM			16
@@ -66,8 +64,8 @@
 
 #define CT_OFFSET_MAC_ADDR			0X16
 
-#define CT_OFFSET_CCK_TX_PWR_IDX		0x5A
-#define CT_OFFSET_HT401S_TX_PWR_IDX		0x60
+#define CT_OFFSET_CCK_TX_PWR_IDX			0x5A
+#define CT_OFFSET_HT401S_TX_PWR_IDX			0x60
 #define CT_OFFSET_HT402S_TX_PWR_IDX_DIFF	0x66
 #define CT_OFFSET_HT20_TX_PWR_IDX_DIFF		0x69
 #define CT_OFFSET_OFDM_TX_PWR_IDX_DIFF		0x6C
@@ -75,13 +73,13 @@
 #define CT_OFFSET_HT40_MAX_PWR_OFFSET		0x6F
 #define CT_OFFSET_HT20_MAX_PWR_OFFSET		0x72
 
-#define CT_OFFSET_CHANNEL_PLAH			0x75
-#define CT_OFFSET_THERMAL_METER			0x78
-#define CT_OFFSET_RF_OPTION			0x79
-#define CT_OFFSET_VERSION			0x7E
-#define CT_OFFSET_CUSTOMER_ID			0x7F
+#define CT_OFFSET_CHANNEL_PLAH				0x75
+#define CT_OFFSET_THERMAL_METER				0x78
+#define CT_OFFSET_RF_OPTION					0x79
+#define CT_OFFSET_VERSION					0x7E
+#define CT_OFFSET_CUSTOMER_ID				0x7F
 
-#define RTL92C_MAX_PATH_NUM			2
+#define RTL92C_MAX_PATH_NUM					2
 
 enum swchnlcmd_id {
 	CMDID_END,
@@ -160,7 +158,6 @@ struct r_antenna_select_cck {
 	u8 r_ccktx_enable:4;
 };
 
-
 struct efuse_contents {
 	u8 mac_addr[ETH_ALEN];
 	u8 cck_tx_power_idx[6];
@@ -192,10 +189,10 @@ struct tx_power_struct {
 };
 
 enum _ANT_DIV_TYPE {
-	NO_ANTDIV			= 0xFF,
+	NO_ANTDIV				= 0xFF,
 	CG_TRX_HW_ANTDIV		= 0x01,
 	CGCS_RX_HW_ANTDIV		= 0x02,
-	FIXED_HW_ANTDIV			= 0x03,
+	FIXED_HW_ANTDIV         = 0x03,
 	CG_TRX_SMART_ANTDIV		= 0x04,
 	CGCS_RX_SW_ANTDIV		= 0x05,
 };
@@ -217,6 +214,8 @@ void rtl88e_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
 void rtl88e_phy_get_txpower_level(struct ieee80211_hw *hw,
 				  long *powerlevel);
 void rtl88e_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel);
+void rtl88e_phy_scan_operation_backup(struct ieee80211_hw *hw,
+				      u8 operation);
 void rtl88e_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
 void rtl88e_phy_set_bw_mode(struct ieee80211_hw *hw,
 			    enum nl80211_channel_type ch_type);

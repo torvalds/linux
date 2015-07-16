@@ -139,14 +139,19 @@ static const struct iio_chan_spec_ext_info ad5446_ext_info_powerdown[] = {
 	{ },
 };
 
-#define _AD5446_CHANNEL(bits, storage, shift, ext) { \
+#define _AD5446_CHANNEL(bits, storage, _shift, ext) { \
 	.type = IIO_VOLTAGE, \
 	.indexed = 1, \
 	.output = 1, \
 	.channel = 0, \
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
-	.scan_type = IIO_ST('u', (bits), (storage), (shift)), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = (bits), \
+		.storagebits = (storage), \
+		.shift = (_shift), \
+		}, \
 	.ext_info = (ext), \
 }
 

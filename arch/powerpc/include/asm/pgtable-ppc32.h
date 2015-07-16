@@ -8,8 +8,6 @@
 #include <linux/threads.h>
 #include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
 
-extern unsigned long va_to_phys(unsigned long address);
-extern pte_t *va_to_pte(unsigned long address);
 extern unsigned long ioremap_bot;
 
 #ifdef CONFIG_44x
@@ -47,13 +45,13 @@ extern int icache_44x_need_flush;
 #define PTRS_PER_PGD	(1 << (32 - PGDIR_SHIFT))
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 
 #define pte_ERROR(e) \
-	printk("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
+	pr_err("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
 		(unsigned long long)pte_val(e))
 #define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
@@ -257,7 +255,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pte_t *ptep)
 {
-	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), 0);
+	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), _PAGE_RO);
 }
 static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 					   unsigned long addr, pte_t *ptep)
@@ -268,9 +266,11 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 
 static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 {
-	unsigned long bits = pte_val(entry) &
+	unsigned long set = pte_val(entry) &
 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
-	pte_update(ptep, 0, bits);
+	unsigned long clr = ~pte_val(entry) & _PAGE_RO;
+
+	pte_update(ptep, clr, set);
 }
 
 #define __HAVE_ARCH_PTE_SAME
@@ -314,8 +314,8 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 /*
  * Encode and decode a swap entry.
  * Note that the bits we use in a PTE for representing a swap entry
- * must not include the _PAGE_PRESENT bit, the _PAGE_FILE bit, or the
- *_PAGE_HASHPTE bit (if used).  -- paulus
+ * must not include the _PAGE_PRESENT bit or the _PAGE_HASHPTE bit (if used).
+ *   -- paulus
  */
 #define __swp_type(entry)		((entry).val & 0x1f)
 #define __swp_offset(entry)		((entry).val >> 5)
@@ -323,15 +323,14 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
 
-/* Encode and decode a nonlinear file mapping entry */
-#define PTE_FILE_MAX_BITS	29
-#define pte_to_pgoff(pte)	(pte_val(pte) >> 3)
-#define pgoff_to_pte(off)	((pte_t) { ((off) << 3) | _PAGE_FILE })
-
+#ifndef CONFIG_PPC_4K_PAGES
+void pgtable_cache_init(void);
+#else
 /*
  * No page table caches to initialise
  */
 #define pgtable_cache_init()	do { } while (0)
+#endif
 
 extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep,
 		      pmd_t **pmdp);

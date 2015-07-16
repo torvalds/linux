@@ -169,6 +169,7 @@ int register_vlan_dev(struct net_device *dev)
 	if (err < 0)
 		goto out_uninit_mvrp;
 
+	vlan->nest_level = dev_get_nest_level(real_dev, is_vlan_dev) + 1;
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto out_uninit_mvrp;
@@ -249,7 +250,8 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 		snprintf(name, IFNAMSIZ, "vlan%.4i", vlan_id);
 	}
 
-	new_dev = alloc_netdev(sizeof(struct vlan_dev_priv), name, vlan_setup);
+	new_dev = alloc_netdev(sizeof(struct vlan_dev_priv), name,
+			       NET_NAME_UNKNOWN, vlan_setup);
 
 	if (new_dev == NULL)
 		return -ENOBUFS;
@@ -301,15 +303,17 @@ static void vlan_sync_address(struct net_device *dev,
 	    !ether_addr_equal(vlandev->dev_addr, dev->dev_addr))
 		dev_uc_add(dev, vlandev->dev_addr);
 
-	memcpy(vlan->real_dev_addr, dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(vlan->real_dev_addr, dev->dev_addr);
 }
 
 static void vlan_transfer_features(struct net_device *dev,
 				   struct net_device *vlandev)
 {
+	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
+
 	vlandev->gso_max_size = dev->gso_max_size;
 
-	if (dev->features & NETIF_F_HW_VLAN_CTAG_TX)
+	if (vlan_hw_offload_capable(dev->features, vlan->vlan_proto))
 		vlandev->hard_header_len = dev->hard_header_len;
 	else
 		vlandev->hard_header_len = dev->hard_header_len + VLAN_HLEN;
@@ -321,23 +325,24 @@ static void vlan_transfer_features(struct net_device *dev,
 	netdev_update_features(vlandev);
 }
 
-static void __vlan_device_event(struct net_device *dev, unsigned long event)
+static int __vlan_device_event(struct net_device *dev, unsigned long event)
 {
+	int err = 0;
+
 	switch (event) {
 	case NETDEV_CHANGENAME:
 		vlan_proc_rem_dev(dev);
-		if (vlan_proc_add_dev(dev) < 0)
-			pr_warn("failed to change proc name for %s\n",
-				dev->name);
+		err = vlan_proc_add_dev(dev);
 		break;
 	case NETDEV_REGISTER:
-		if (vlan_proc_add_dev(dev) < 0)
-			pr_warn("failed to add proc entry for %s\n", dev->name);
+		err = vlan_proc_add_dev(dev);
 		break;
 	case NETDEV_UNREGISTER:
 		vlan_proc_rem_dev(dev);
 		break;
 	}
+
+	return err;
 }
 
 static int vlan_device_event(struct notifier_block *unused, unsigned long event,
@@ -352,8 +357,12 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	bool last = false;
 	LIST_HEAD(list);
 
-	if (is_vlan_dev(dev))
-		__vlan_device_event(dev, event);
+	if (is_vlan_dev(dev)) {
+		int err = __vlan_device_event(dev, event);
+
+		if (err)
+			return notifier_from_errno(err);
+	}
 
 	if ((event == NETDEV_UP) &&
 	    (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
@@ -404,7 +413,10 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			vlan_transfer_features(dev, vlandev);
 		break;
 
-	case NETDEV_DOWN:
+	case NETDEV_DOWN: {
+		struct net_device *tmp;
+		LIST_HEAD(close_list);
+
 		if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
 			vlan_vid_del(dev, htons(ETH_P_8021Q), 0);
 
@@ -416,15 +428,22 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 
 			vlan = vlan_dev_priv(vlandev);
 			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
-				dev_change_flags(vlandev, flgs & ~IFF_UP);
-			netif_stacked_transfer_operstate(dev, vlandev);
+				list_add(&vlandev->close_list, &close_list);
 		}
-		break;
 
+		dev_close_many(&close_list, false);
+
+		list_for_each_entry_safe(vlandev, tmp, &close_list, close_list) {
+			netif_stacked_transfer_operstate(dev, vlandev);
+			list_del_init(&vlandev->close_list);
+		}
+		list_del(&close_list);
+		break;
+	}
 	case NETDEV_UP:
 		/* Put all VLANs for this dev in the up state too.  */
 		vlan_group_for_each_dev(grp, i, vlandev) {
-			flgs = vlandev->flags;
+			flgs = dev_get_flags(vlandev);
 			if (flgs & IFF_UP)
 				continue;
 
@@ -599,6 +618,92 @@ out:
 	return err;
 }
 
+static struct sk_buff **vlan_gro_receive(struct sk_buff **head,
+					 struct sk_buff *skb)
+{
+	struct sk_buff *p, **pp = NULL;
+	struct vlan_hdr *vhdr;
+	unsigned int hlen, off_vlan;
+	const struct packet_offload *ptype;
+	__be16 type;
+	int flush = 1;
+
+	off_vlan = skb_gro_offset(skb);
+	hlen = off_vlan + sizeof(*vhdr);
+	vhdr = skb_gro_header_fast(skb, off_vlan);
+	if (skb_gro_header_hard(skb, hlen)) {
+		vhdr = skb_gro_header_slow(skb, hlen, off_vlan);
+		if (unlikely(!vhdr))
+			goto out;
+	}
+
+	type = vhdr->h_vlan_encapsulated_proto;
+
+	rcu_read_lock();
+	ptype = gro_find_receive_by_type(type);
+	if (!ptype)
+		goto out_unlock;
+
+	flush = 0;
+
+	for (p = *head; p; p = p->next) {
+		struct vlan_hdr *vhdr2;
+
+		if (!NAPI_GRO_CB(p)->same_flow)
+			continue;
+
+		vhdr2 = (struct vlan_hdr *)(p->data + off_vlan);
+		if (compare_vlan_header(vhdr, vhdr2))
+			NAPI_GRO_CB(p)->same_flow = 0;
+	}
+
+	skb_gro_pull(skb, sizeof(*vhdr));
+	skb_gro_postpull_rcsum(skb, vhdr, sizeof(*vhdr));
+	pp = ptype->callbacks.gro_receive(head, skb);
+
+out_unlock:
+	rcu_read_unlock();
+out:
+	NAPI_GRO_CB(skb)->flush |= flush;
+
+	return pp;
+}
+
+static int vlan_gro_complete(struct sk_buff *skb, int nhoff)
+{
+	struct vlan_hdr *vhdr = (struct vlan_hdr *)(skb->data + nhoff);
+	__be16 type = vhdr->h_vlan_encapsulated_proto;
+	struct packet_offload *ptype;
+	int err = -ENOENT;
+
+	rcu_read_lock();
+	ptype = gro_find_complete_by_type(type);
+	if (ptype)
+		err = ptype->callbacks.gro_complete(skb, nhoff + sizeof(*vhdr));
+
+	rcu_read_unlock();
+	return err;
+}
+
+static struct packet_offload vlan_packet_offloads[] __read_mostly = {
+	{
+		.type = cpu_to_be16(ETH_P_8021Q),
+		.priority = 10,
+		.callbacks = {
+			.gro_receive = vlan_gro_receive,
+			.gro_complete = vlan_gro_complete,
+		},
+	},
+	{
+		.type = cpu_to_be16(ETH_P_8021AD),
+		.priority = 10,
+		.callbacks = {
+			.gro_receive = vlan_gro_receive,
+			.gro_complete = vlan_gro_complete,
+		},
+	},
+};
+
 static int __net_init vlan_init_net(struct net *net)
 {
 	struct vlan_net *vn = net_generic(net, vlan_net_id);
@@ -626,6 +731,7 @@ static struct pernet_operations vlan_net_ops = {
 static int __init vlan_proto_init(void)
 {
 	int err;
+	unsigned int i;
 
 	pr_info("%s v%s\n", vlan_fullname, vlan_version);
 
@@ -649,6 +755,9 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err5;
 
+	for (i = 0; i < ARRAY_SIZE(vlan_packet_offloads); i++)
+		dev_add_offload(&vlan_packet_offloads[i]);
+
 	vlan_ioctl_set(vlan_ioctl_handler);
 	return 0;
 
@@ -666,7 +775,13 @@ err0:
 
 static void __exit vlan_cleanup_module(void)
 {
+	unsigned int i;
+
 	vlan_ioctl_set(NULL);
+
+	for (i = 0; i < ARRAY_SIZE(vlan_packet_offloads); i++)
+		dev_remove_offload(&vlan_packet_offloads[i]);
+
 	vlan_netlink_fini();
 
 	unregister_netdevice_notifier(&vlan_notifier_block);

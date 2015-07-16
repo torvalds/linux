@@ -398,7 +398,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 		return -1;
 	}
 
-	self = kzalloc(sizeof(*self), GFP_KERNEL);
+	self = devm_kzalloc(&func->dev, sizeof(*self), GFP_KERNEL);
 	if (!self) {
 		pr_err("Can't allocate SPI hwbus_priv.");
 		return -ENOMEM;
@@ -424,7 +424,6 @@ static int cw1200_spi_probe(struct spi_device *func)
 	if (status) {
 		cw1200_spi_irq_unsubscribe(self);
 		cw1200_spi_off(plat_data);
-		kfree(self);
 	}
 
 	return status;
@@ -441,7 +440,6 @@ static int cw1200_spi_disconnect(struct spi_device *func)
 			cw1200_core_release(self->core);
 			self->core = NULL;
 		}
-		kfree(self);
 	}
 	cw1200_spi_off(dev_get_platdata(&func->dev));
 
@@ -449,7 +447,7 @@ static int cw1200_spi_disconnect(struct spi_device *func)
 }
 
 #ifdef CONFIG_PM
-static int cw1200_spi_suspend(struct device *dev, pm_message_t state)
+static int cw1200_spi_suspend(struct device *dev)
 {
 	struct hwbus_priv *self = spi_get_drvdata(to_spi_device(dev));
 
@@ -460,10 +458,8 @@ static int cw1200_spi_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int cw1200_spi_resume(struct device *dev)
-{
-	return 0;
-}
+static SIMPLE_DEV_PM_OPS(cw1200_pm_ops, cw1200_spi_suspend, NULL);
+
 #endif
 
 static struct spi_driver spi_driver = {
@@ -474,8 +470,7 @@ static struct spi_driver spi_driver = {
 		.bus            = &spi_bus_type,
 		.owner          = THIS_MODULE,
 #ifdef CONFIG_PM
-		.suspend        = cw1200_spi_suspend,
-		.resume         = cw1200_spi_resume,
+		.pm		= &cw1200_pm_ops,
 #endif
 	},
 };

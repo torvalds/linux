@@ -244,7 +244,7 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 	if (!keypad)
 		return -ENOMEM;
 
-	keypad->pdata = pdev->dev.platform_data;
+	keypad->pdata = dev_get_platdata(&pdev->dev);
 	if (!keypad->pdata) {
 		err = -EINVAL;
 		goto failed_free;
@@ -373,7 +373,6 @@ static int ep93xx_keypad_remove(struct platform_device *pdev)
 static struct platform_driver ep93xx_keypad_driver = {
 	.driver		= {
 		.name	= "ep93xx-keypad",
-		.owner	= THIS_MODULE,
 		.pm	= &ep93xx_keypad_pm_ops,
 	},
 	.probe		= ep93xx_keypad_probe,

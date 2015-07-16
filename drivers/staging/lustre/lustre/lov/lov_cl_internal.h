@@ -46,10 +46,10 @@
 #ifndef LOV_CL_INTERNAL_H
 #define LOV_CL_INTERNAL_H
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd.h>
-#include <cl_object.h>
+#include "../include/obd.h"
+#include "../include/cl_object.h"
 #include "lov_internal.h"
 
 /** \defgroup lov lov
@@ -167,6 +167,22 @@ enum lov_layout_type {
 	LLT_RELEASED,	/** file with no objects (data in HSM) */
 	LLT_NR
 };
+
+static inline char *llt2str(enum lov_layout_type llt)
+{
+	switch (llt) {
+	case LLT_EMPTY:
+		return "EMPTY";
+	case LLT_RAID0:
+		return "RAID0";
+	case LLT_RELEASED:
+		return "RELEASED";
+	case LLT_NR:
+		LBUG();
+	}
+	LBUG();
+	return "";
+}
 
 /**
  * lov-specific file state.
@@ -499,12 +515,12 @@ struct lov_io {
 	 * starting position within a file, for the current io loop iteration
 	 * (stripe), used by ci_io_loop().
 	 */
-	obd_off	    lis_pos;
+	u64	    lis_pos;
 	/**
 	 * end position with in a file, for the current stripe io. This is
 	 * exclusive (i.e., next offset after last byte affected by io).
 	 */
-	obd_off	    lis_endpos;
+	u64	    lis_endpos;
 
 	int		lis_mem_frozen;
 	int		lis_stripe_count;

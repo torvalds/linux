@@ -26,15 +26,20 @@
 #include <linux/mount.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
-#include <linux/btrfs.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifsfs.h"
+#include <linux/btrfs.h>
+
+#define CIFS_IOCTL_MAGIC	0xCF
+#define CIFS_IOC_COPYCHUNK_FILE	_IOW(CIFS_IOCTL_MAGIC, 3, int)
+#define CIFS_IOC_SET_INTEGRITY  _IO(CIFS_IOCTL_MAGIC, 4)
 
 static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
-			unsigned long srcfd, u64 off, u64 len, u64 destoff)
+			unsigned long srcfd, u64 off, u64 len, u64 destoff,
+			bool dup_extents)
 {
 	int rc;
 	struct cifsFileInfo *smb_file_target = dst_file->private_data;
@@ -83,22 +88,17 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 		goto out_fput;
 	}
 
-	src_inode = src_file.file->f_dentry->d_inode;
+	src_inode = file_inode(src_file.file);
+	rc = -EINVAL;
+	if (S_ISDIR(src_inode->i_mode))
+		goto out_fput;
 
 	/*
 	 * Note: cifs case is easier than btrfs since server responsible for
 	 * checks for proper open modes and file type and if it wants
 	 * server could even support copy of range where source = target
 	 */
-
-	/* so we do not deadlock racing two ioctls on same files */
-	if (target_inode < src_inode) {
-		mutex_lock_nested(&target_inode->i_mutex, I_MUTEX_PARENT);
-		mutex_lock_nested(&src_inode->i_mutex, I_MUTEX_CHILD);
-	} else {
-		mutex_lock_nested(&src_inode->i_mutex, I_MUTEX_PARENT);
-		mutex_lock_nested(&target_inode->i_mutex, I_MUTEX_CHILD);
-	}
+	lock_two_nondirectories(target_inode, src_inode);
 
 	/* determine range to clone */
 	rc = -EINVAL;
@@ -112,9 +112,14 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 	truncate_inode_pages_range(&target_inode->i_data, destoff,
 				   PAGE_CACHE_ALIGN(destoff + len)-1);
 
-	if (target_tcon->ses->server->ops->clone_range)
+	if (dup_extents && target_tcon->ses->server->ops->duplicate_extents)
+		rc = target_tcon->ses->server->ops->duplicate_extents(xid,
+			smb_file_src, smb_file_target, off, len, destoff);
+	else if (!dup_extents && target_tcon->ses->server->ops->clone_range)
 		rc = target_tcon->ses->server->ops->clone_range(xid,
 			smb_file_src, smb_file_target, off, len, destoff);
+	else
+		rc = -EOPNOTSUPP;
 
 	/* force revalidate of size and timestamps of target file now
 	   that target is updated on the server */
@@ -122,13 +127,7 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 out_unlock:
 	/* although unlocking in the reverse order from locking is not
 	   strictly necessary here it is a little cleaner to be consistent */
-	if (target_inode < src_inode) {
-		mutex_unlock(&src_inode->i_mutex);
-		mutex_unlock(&target_inode->i_mutex);
-	} else {
-		mutex_unlock(&target_inode->i_mutex);
-		mutex_unlock(&src_inode->i_mutex);
-	}
+	unlock_two_nondirectories(src_inode, target_inode);
 out_fput:
 	fdput(src_file);
 out_drop_write:
@@ -213,8 +212,21 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				cifs_dbg(FYI, "set compress flag rc %d\n", rc);
 			}
 			break;
+		case CIFS_IOC_COPYCHUNK_FILE:
+			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0, false);
+			break;
 		case BTRFS_IOC_CLONE:
-			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0);
+			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0, true);
+			break;
+		case CIFS_IOC_SET_INTEGRITY:
+			if (pSMBFile == NULL)
+				break;
+			tcon = tlink_tcon(pSMBFile->tlink);
+			if (tcon->ses->server->ops->set_integrity)
+				rc = tcon->ses->server->ops->set_integrity(xid,
+						tcon, pSMBFile);
+			else
+				rc = -EOPNOTSUPP;
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

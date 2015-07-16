@@ -566,8 +566,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	}
 
 	irq_set_irq_type(ucb->irq, IRQ_TYPE_EDGE_RISING);
-	irq_set_handler_data(ucb->irq, ucb);
-	irq_set_chained_handler(ucb->irq, ucb1x00_irq);
+	irq_set_chained_handler_and_data(ucb->irq, ucb1x00_irq, ucb);
 
 	if (pdata && pdata->gpio_base) {
 		ucb->gpio.label = dev_name(&ucb->dev);
@@ -621,7 +620,6 @@ static void ucb1x00_remove(struct mcp *mcp)
 	struct ucb1x00_plat_data *pdata = mcp->attached_device.platform_data;
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct list_head *l, *n;
-	int ret;
 
 	mutex_lock(&ucb1x00_mutex);
 	list_del(&ucb->node);
@@ -631,11 +629,8 @@ static void ucb1x00_remove(struct mcp *mcp)
 	}
 	mutex_unlock(&ucb1x00_mutex);
 
-	if (ucb->gpio.base != -1) {
-		ret = gpiochip_remove(&ucb->gpio);
-		if (ret)
-			dev_err(&ucb->dev, "Can't remove gpio chip: %d\n", ret);
-	}
+	if (ucb->gpio.base != -1)
+		gpiochip_remove(&ucb->gpio);
 
 	irq_set_chained_handler(ucb->irq, NULL);
 	irq_free_descs(ucb->irq_base, 16);
@@ -742,9 +737,7 @@ static int ucb1x00_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops ucb1x00_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ucb1x00_suspend, ucb1x00_resume)
-};
+static SIMPLE_DEV_PM_OPS(ucb1x00_pm_ops, ucb1x00_suspend, ucb1x00_resume);
 
 static struct mcp_driver ucb1x00_driver = {
 	.drv		= {

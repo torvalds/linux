@@ -43,12 +43,11 @@
 static const struct super_operations ramfs_ops;
 static const struct inode_operations ramfs_dir_inode_operations;
 
-static struct backing_dev_info ramfs_backing_dev_info = {
-	.name		= "ramfs",
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK |
-			  BDI_CAP_MAP_DIRECT | BDI_CAP_MAP_COPY |
-			  BDI_CAP_READ_MAP | BDI_CAP_WRITE_MAP | BDI_CAP_EXEC_MAP,
+static const struct address_space_operations ramfs_aops = {
+	.readpage	= simple_readpage,
+	.write_begin	= simple_write_begin,
+	.write_end	= simple_write_end,
+	.set_page_dirty	= __set_page_dirty_no_writeback,
 };
 
 struct inode *ramfs_get_inode(struct super_block *sb,
@@ -60,7 +59,6 @@ struct inode *ramfs_get_inode(struct super_block *sb,
 		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
 		inode->i_mapping->a_ops = &ramfs_aops;
-		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
 		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
 		mapping_set_unevictable(inode->i_mapping);
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -260,19 +258,9 @@ static struct file_system_type ramfs_fs_type = {
 int __init init_ramfs_fs(void)
 {
 	static unsigned long once;
-	int err;
 
 	if (test_and_set_bit(0, &once))
 		return 0;
-
-	err = bdi_init(&ramfs_backing_dev_info);
-	if (err)
-		return err;
-
-	err = register_filesystem(&ramfs_fs_type);
-	if (err)
-		bdi_destroy(&ramfs_backing_dev_info);
-
-	return err;
+	return register_filesystem(&ramfs_fs_type);
 }
-module_init(init_ramfs_fs)
+fs_initcall(init_ramfs_fs);

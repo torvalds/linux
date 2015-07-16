@@ -245,7 +245,7 @@ static int m920x_rc_core_query(struct dvb_usb_device *d)
 	else if (state == REMOTE_KEY_REPEAT)
 		rc_repeat(d->rc_dev);
 	else
-		rc_keydown(d->rc_dev, rc_state[1], 0);
+		rc_keydown(d->rc_dev, RC_TYPE_UNKNOWN, rc_state[1], 0);
 
 out:
 	kfree(rc_state);
@@ -1269,8 +1269,3 @@ MODULE_AUTHOR("Aapo Tahkola <aet@rasterburn.org>");
 MODULE_DESCRIPTION("DVB Driver for ULI M920x");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
-
-/*
- * Local variables:
- * c-basic-offset: 8
- */

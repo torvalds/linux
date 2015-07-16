@@ -432,7 +432,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 				pd->pp->name,
 				((direction == IP_VS_DIR_OUTPUT) ?
 				 "output " : "input "),
-				IP_VS_DBG_ADDR(cp->af, &cp->daddr),
+				IP_VS_DBG_ADDR(cp->daf, &cp->daddr),
 				ntohs(cp->dport),
 				IP_VS_DBG_ADDR(cp->af, &cp->caddr),
 				ntohs(cp->cport),

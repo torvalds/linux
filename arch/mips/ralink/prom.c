@@ -18,6 +18,7 @@
 #include "common.h"
 
 struct ralink_soc_info soc_info;
+struct rt2880_pmx_group *rt2880_pinmux_data = NULL;
 
 const char *get_system_type(void)
 {

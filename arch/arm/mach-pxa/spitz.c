@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
+#include <linux/memblock.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -923,6 +924,14 @@ static inline void spitz_i2c_init(void) {}
 #endif
 
 /******************************************************************************
+ * Audio devices
+ ******************************************************************************/
+static inline void spitz_audio_init(void)
+{
+	platform_device_register_simple("spitz-audio", -1, NULL, 0);
+}
+
+/******************************************************************************
  * Machine init
  ******************************************************************************/
 static void spitz_poweroff(void)
@@ -969,15 +978,15 @@ static void __init spitz_init(void)
 	spitz_nor_init();
 	spitz_nand_init();
 	spitz_i2c_init();
+	spitz_audio_init();
+
+	regulator_has_full_constraints();
 }
 
-static void __init spitz_fixup(struct tag *tags, char **cmdline,
-			       struct meminfo *mi)
+static void __init spitz_fixup(struct tag *tags, char **cmdline)
 {
 	sharpsl_save_param();
-	mi->nr_banks = 1;
-	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].size = (64*1024*1024);
+	memblock_add(0xa0000000, SZ_64M);
 }
 
 #ifdef CONFIG_MACH_SPITZ

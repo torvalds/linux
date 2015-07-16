@@ -32,7 +32,7 @@ ENTRY(__set_fiq_regs)
 	ldr	lr, [r0]
 	msr	cpsr_c, r1	@ return to SVC mode
 	mov	r0, r0		@ avoid hazard prior to ARMv4
-	mov	pc, lr
+	ret	lr
 ENDPROC(__set_fiq_regs)
 
 ENTRY(__get_fiq_regs)
@@ -45,5 +45,5 @@ ENTRY(__get_fiq_regs)
 	str	lr, [r0]
 	msr	cpsr_c, r1	@ return to SVC mode
 	mov	r0, r0		@ avoid hazard prior to ARMv4
-	mov	pc, lr
+	ret	lr
 ENDPROC(__get_fiq_regs)

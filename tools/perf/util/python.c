@@ -14,12 +14,12 @@
  */
 int verbose;
 
-int eprintf(int level, const char *fmt, ...)
+int eprintf(int level, int var, const char *fmt, ...)
 {
 	va_list args;
 	int ret = 0;
 
-	if (verbose >= level) {
+	if (var >= level) {
 		va_start(args, fmt);
 		ret = vfprintf(stderr, fmt, args);
 		va_end(args);
@@ -384,7 +384,7 @@ static int pyrf_cpu_map__init(struct pyrf_cpu_map *pcpus,
 
 static void pyrf_cpu_map__delete(struct pyrf_cpu_map *pcpus)
 {
-	cpu_map__delete(pcpus->cpus);
+	cpu_map__put(pcpus->cpus);
 	pcpus->ob_type->tp_free((PyObject*)pcpus);
 }
 
@@ -453,7 +453,7 @@ static int pyrf_thread_map__init(struct pyrf_thread_map *pthreads,
 
 static void pyrf_thread_map__delete(struct pyrf_thread_map *pthreads)
 {
-	thread_map__delete(pthreads->threads);
+	thread_map__put(pthreads->threads);
 	pthreads->ob_type->tp_free((PyObject*)pthreads);
 }
 
@@ -736,7 +736,7 @@ static PyObject *pyrf_evlist__poll(struct pyrf_evlist *pevlist,
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|i", kwlist, &timeout))
 		return NULL;
 
-	n = poll(evlist->pollfd, evlist->nr_fds, timeout);
+	n = perf_evlist__poll(evlist, timeout);
 	if (n < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
@@ -753,9 +753,9 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
         PyObject *list = PyList_New(0);
 	int i;
 
-	for (i = 0; i < evlist->nr_fds; ++i) {
+	for (i = 0; i < evlist->pollfd.nr; ++i) {
 		PyObject *file;
-		FILE *fp = fdopen(evlist->pollfd[i].fd, "r");
+		FILE *fp = fdopen(evlist->pollfd.entries[i].fd, "r");
 
 		if (fp == NULL)
 			goto free_list;
@@ -768,7 +768,7 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
 			Py_DECREF(file);
 			goto free_list;
 		}
-			
+
 		Py_DECREF(file);
 	}
 
@@ -908,9 +908,10 @@ static PyObject *pyrf_evlist__item(PyObject *obj, Py_ssize_t i)
 	if (i >= pevlist->evlist.nr_entries)
 		return NULL;
 
-	list_for_each_entry(pos, &pevlist->evlist.entries, node)
+	evlist__for_each(&pevlist->evlist, pos) {
 		if (i-- == 0)
 			break;
+	}
 
 	return Py_BuildValue("O", container_of(pos, struct pyrf_evsel, evsel));
 }

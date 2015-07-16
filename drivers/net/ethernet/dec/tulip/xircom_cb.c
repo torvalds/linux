@@ -28,7 +28,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/bitops.h>
 
 #include <asm/uaccess.h>
@@ -138,7 +137,7 @@ static int link_status(struct xircom_private *card);
 
 
 
-static DEFINE_PCI_DEVICE_TABLE(xircom_pci_table) = {
+static const struct pci_device_id xircom_pci_table[] = {
 	{ PCI_VDEVICE(XIRCOM, 0x0003), },
 	{0,},
 };

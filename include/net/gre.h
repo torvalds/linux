@@ -33,16 +33,14 @@ struct gre_cisco_protocol {
 int gre_cisco_register(struct gre_cisco_protocol *proto);
 int gre_cisco_unregister(struct gre_cisco_protocol *proto);
 
-int gre_offload_init(void);
-void gre_offload_exit(void);
-
 void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 		      int hdr_len);
 
 static inline struct sk_buff *gre_handle_offloads(struct sk_buff *skb,
-						  bool gre_csum)
+						  bool csum)
 {
-	return iptunnel_handle_offloads(skb, gre_csum, SKB_GSO_GRE);
+	return iptunnel_handle_offloads(skb, csum,
+					csum ? SKB_GSO_GRE_CSUM : SKB_GSO_GRE);
 }
 
 

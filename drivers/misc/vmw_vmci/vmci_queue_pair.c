@@ -27,6 +27,7 @@
 #include <linux/uio.h>
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
+#include <linux/skbuff.h>
 
 #include "vmci_handle_array.h"
 #include "vmci_queue_pair.h"
@@ -294,12 +295,20 @@ static void *qp_alloc_queue(u64 size, u32 flags)
 {
 	u64 i;
 	struct vmci_queue *queue;
-	const size_t num_pages = DIV_ROUND_UP(size, PAGE_SIZE) + 1;
-	const size_t pas_size = num_pages * sizeof(*queue->kernel_if->u.g.pas);
-	const size_t vas_size = num_pages * sizeof(*queue->kernel_if->u.g.vas);
-	const size_t queue_size =
-		sizeof(*queue) + sizeof(*queue->kernel_if) +
-		pas_size + vas_size;
+	size_t pas_size;
+	size_t vas_size;
+	size_t queue_size = sizeof(*queue) + sizeof(*queue->kernel_if);
+	const u64 num_pages = DIV_ROUND_UP(size, PAGE_SIZE) + 1;
+
+	if (num_pages >
+		 (SIZE_MAX - queue_size) /
+		 (sizeof(*queue->kernel_if->u.g.pas) +
+		  sizeof(*queue->kernel_if->u.g.vas)))
+		return NULL;
+
+	pas_size = num_pages * sizeof(*queue->kernel_if->u.g.pas);
+	vas_size = num_pages * sizeof(*queue->kernel_if->u.g.vas);
+	queue_size += pas_size + vas_size;
 
 	queue = vmalloc(queue_size);
 	if (!queue)
@@ -369,12 +378,12 @@ static int __qp_memcpy_to_queue(struct vmci_queue *queue,
 			to_copy = size - bytes_copied;
 
 		if (is_iovec) {
-			struct iovec *iov = (struct iovec *)src;
+			struct msghdr *msg = (struct msghdr *)src;
 			int err;
 
 			/* The iovec will track bytes_copied internally. */
-			err = memcpy_fromiovec((u8 *)va + page_offset,
-					       iov, to_copy);
+			err = memcpy_from_msg((u8 *)va + page_offset,
+					      msg, to_copy);
 			if (err != 0) {
 				if (kernel_if->host)
 					kunmap(kernel_if->u.h.page[page_index]);
@@ -429,11 +438,11 @@ static int __qp_memcpy_from_queue(void *dest,
 			to_copy = size - bytes_copied;
 
 		if (is_iovec) {
-			struct iovec *iov = (struct iovec *)dest;
+			struct msghdr *msg = dest;
 			int err;
 
 			/* The iovec will track bytes_copied internally. */
-			err = memcpy_toiovec(iov, (u8 *)va + page_offset,
+			err = memcpy_to_msg(msg, (u8 *)va + page_offset,
 					     to_copy);
 			if (err != 0) {
 				if (kernel_if->host)
@@ -579,7 +588,7 @@ static int qp_memcpy_from_queue(void *dest,
  */
 static int qp_memcpy_to_queue_iov(struct vmci_queue *queue,
 				  u64 queue_offset,
-				  const void *src,
+				  const void *msg,
 				  size_t src_offset, size_t size)
 {
 
@@ -587,7 +596,7 @@ static int qp_memcpy_to_queue_iov(struct vmci_queue *queue,
 	 * We ignore src_offset because src is really a struct iovec * and will
 	 * maintain offset internally.
 	 */
-	return __qp_memcpy_to_queue(queue, queue_offset, src, size, true);
+	return __qp_memcpy_to_queue(queue, queue_offset, msg, size, true);
 }
 
 /*
@@ -614,10 +623,15 @@ static int qp_memcpy_from_queue_iov(void *dest,
 static struct vmci_queue *qp_host_alloc_queue(u64 size)
 {
 	struct vmci_queue *queue;
-	const size_t num_pages = DIV_ROUND_UP(size, PAGE_SIZE) + 1;
+	size_t queue_page_size;
+	const u64 num_pages = DIV_ROUND_UP(size, PAGE_SIZE) + 1;
 	const size_t queue_size = sizeof(*queue) + sizeof(*(queue->kernel_if));
-	const size_t queue_page_size =
-	    num_pages * sizeof(*queue->kernel_if->u.h.page);
+
+	if (num_pages > (SIZE_MAX - queue_size) /
+		 sizeof(*queue->kernel_if->u.h.page))
+		return NULL;
+
+	queue_page_size = num_pages * sizeof(*queue->kernel_if->u.h.page);
 
 	queue = kzalloc(queue_size + queue_page_size, GFP_KERNEL);
 	if (queue) {
@@ -736,7 +750,8 @@ static int qp_host_get_user_memory(u64 produce_uva,
 				     produce_q->kernel_if->num_pages, 1,
 				     produce_q->kernel_if->u.h.header_page);
 	if (retval < produce_q->kernel_if->num_pages) {
-		pr_warn("get_user_pages(produce) failed (retval=%d)", retval);
+		pr_debug("get_user_pages_fast(produce) failed (retval=%d)",
+			retval);
 		qp_release_pages(produce_q->kernel_if->u.h.header_page,
 				 retval, false);
 		err = VMCI_ERROR_NO_MEM;
@@ -747,7 +762,8 @@ static int qp_host_get_user_memory(u64 produce_uva,
 				     consume_q->kernel_if->num_pages, 1,
 				     consume_q->kernel_if->u.h.header_page);
 	if (retval < consume_q->kernel_if->num_pages) {
-		pr_warn("get_user_pages(consume) failed (retval=%d)", retval);
+		pr_debug("get_user_pages_fast(consume) failed (retval=%d)",
+			retval);
 		qp_release_pages(consume_q->kernel_if->u.h.header_page,
 				 retval, false);
 		qp_release_pages(produce_q->kernel_if->u.h.header_page,
@@ -3222,13 +3238,13 @@ EXPORT_SYMBOL_GPL(vmci_qpair_peek);
  * of bytes enqueued or < 0 on error.
  */
 ssize_t vmci_qpair_enquev(struct vmci_qp *qpair,
-			  void *iov,
+			  struct msghdr *msg,
 			  size_t iov_size,
 			  int buf_type)
 {
 	ssize_t result;
 
-	if (!qpair || !iov)
+	if (!qpair)
 		return VMCI_ERROR_INVALID_ARGS;
 
 	qp_lock(qpair);
@@ -3237,7 +3253,7 @@ ssize_t vmci_qpair_enquev(struct vmci_qp *qpair,
 		result = qp_enqueue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->produce_q_size,
-					   iov, iov_size,
+					   msg, iov_size,
 					   qp_memcpy_to_queue_iov);
 
 		if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY &&
@@ -3264,13 +3280,13 @@ EXPORT_SYMBOL_GPL(vmci_qpair_enquev);
  * of bytes dequeued or < 0 on error.
  */
 ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,
-			  void *iov,
+			  struct msghdr *msg,
 			  size_t iov_size,
 			  int buf_type)
 {
 	ssize_t result;
 
-	if (!qpair || !iov)
+	if (!qpair)
 		return VMCI_ERROR_INVALID_ARGS;
 
 	qp_lock(qpair);
@@ -3279,7 +3295,7 @@ ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   iov, iov_size,
+					   msg, iov_size,
 					   qp_memcpy_from_queue_iov,
 					   true);
 
@@ -3308,13 +3324,13 @@ EXPORT_SYMBOL_GPL(vmci_qpair_dequev);
  * of bytes peeked or < 0 on error.
  */
 ssize_t vmci_qpair_peekv(struct vmci_qp *qpair,
-			 void *iov,
+			 struct msghdr *msg,
 			 size_t iov_size,
 			 int buf_type)
 {
 	ssize_t result;
 
-	if (!qpair || !iov)
+	if (!qpair)
 		return VMCI_ERROR_INVALID_ARGS;
 
 	qp_lock(qpair);
@@ -3323,7 +3339,7 @@ ssize_t vmci_qpair_peekv(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   iov, iov_size,
+					   msg, iov_size,
 					   qp_memcpy_from_queue_iov,
 					   false);
 

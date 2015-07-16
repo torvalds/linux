@@ -35,6 +35,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
@@ -46,7 +47,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
 #include <plat/devs.h>
@@ -99,9 +99,14 @@ static struct platform_device *smdk2410_devices[] __initdata = {
 static void __init smdk2410_map_io(void)
 {
 	s3c24xx_init_io(smdk2410_iodesc, ARRAY_SIZE(smdk2410_iodesc));
-	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(smdk2410_uartcfgs, ARRAY_SIZE(smdk2410_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init smdk2410_init_time(void)
+{
+	s3c2410_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init smdk2410_init(void)
@@ -118,6 +123,5 @@ MACHINE_START(SMDK2410, "SMDK2410") /* @TODO: request a new identifier and switc
 	.map_io		= smdk2410_map_io,
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= smdk2410_init,
-	.init_time	= samsung_timer_init,
-	.restart	= s3c2410_restart,
+	.init_time	= smdk2410_init_time,
 MACHINE_END

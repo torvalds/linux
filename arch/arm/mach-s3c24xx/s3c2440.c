@@ -29,6 +29,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-samsung.h>
 #include <asm/irq.h>
 
 #include <plat/devs.h>
@@ -56,11 +57,11 @@ int __init s3c2440_init(void)
 
 	/* register suspend/resume handlers */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	register_syscore_ops(&s3c2410_pm_syscore_ops);
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
-#endif
 	register_syscore_ops(&s3c244x_pm_syscore_ops);
+#endif
 
 	/* register our system device for everything else */
 

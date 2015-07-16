@@ -14,9 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution
  * in the file called "COPYING".
@@ -356,7 +354,7 @@ struct cmd_desc_type0 {
 
 } __attribute__ ((aligned(64)));
 
-/* Note: sizeof(rcv_desc) should always be a mutliple of 2 */
+/* Note: sizeof(rcv_desc) should always be a multiple of 2 */
 struct rcv_desc {
 	__le16 reference_handle;
 	__le16 reserved;
@@ -501,7 +499,7 @@ struct uni_data_desc{
 #define NETXEN_IMAGE_START	0x43000	/* compressed image */
 #define NETXEN_SECONDARY_START	0x200000	/* backup images */
 #define NETXEN_PXE_START	0x3E0000	/* PXE boot rom */
-#define NETXEN_USER_START	0x3E8000	/* Firmare info */
+#define NETXEN_USER_START	0x3E8000	/* Firmware info */
 #define NETXEN_FIXED_START	0x3F0000	/* backup of crbinit */
 #define NETXEN_USER_START_OLD	NETXEN_PXE_START /* very old flash */
 

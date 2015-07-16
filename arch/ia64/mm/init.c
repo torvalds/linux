@@ -34,7 +34,6 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/mca.h>
-#include <asm/paravirt.h>
 
 extern void ia64_tlb_init (void);
 
@@ -216,10 +215,6 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 	pmd_t *pmd;
 	pte_t *pte;
 
-	if (!PageReserved(page))
-		printk(KERN_ERR "put_kernel_page: page at 0x%p not in reserved memory\n",
-		       page_address(page));
-
 	pgd = pgd_offset_k(address);		/* note: this is NOT pgd_offset()! */
 
 	{
@@ -244,7 +239,6 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 static void __init
 setup_gate (void)
 {
-	void *gate_section;
 	struct page *page;
 
 	/*
@@ -252,11 +246,10 @@ setup_gate (void)
 	 * headers etc. and once execute-only page to enable
 	 * privilege-promotion via "epc":
 	 */
-	gate_section = paravirt_get_gate_section();
-	page = virt_to_page(ia64_imva(gate_section));
+	page = virt_to_page(ia64_imva(__start_gate_section));
 	put_kernel_page(page, GATE_ADDR, PAGE_READONLY);
 #ifdef HAVE_BUGGY_SEGREL
-	page = virt_to_page(ia64_imva(gate_section + PAGE_SIZE));
+	page = virt_to_page(ia64_imva(__start_gate_section + PAGE_SIZE));
 	put_kernel_page(page, GATE_ADDR + PAGE_SIZE, PAGE_GATE);
 #else
 	put_kernel_page(page, GATE_ADDR + PERCPU_PAGE_SIZE, PAGE_GATE);
@@ -276,6 +269,37 @@ setup_gate (void)
 	}
 #endif
 	ia64_patch_gate();
+}
+
+static struct vm_area_struct gate_vma;
+
+static int __init gate_vma_init(void)
+{
+	gate_vma.vm_mm = NULL;
+	gate_vma.vm_start = FIXADDR_USER_START;
+	gate_vma.vm_end = FIXADDR_USER_END;
+	gate_vma.vm_flags = VM_READ | VM_MAYREAD | VM_EXEC | VM_MAYEXEC;
+	gate_vma.vm_page_prot = __P101;
+
+	return 0;
+}
+__initcall(gate_vma_init);
+
+struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
+{
+	return &gate_vma;
+}
+
+int in_gate_area_no_mm(unsigned long addr)
+{
+	if ((addr >= FIXADDR_USER_START) && (addr < FIXADDR_USER_END))
+		return 1;
+	return 0;
+}
+
+int in_gate_area(struct mm_struct *mm, unsigned long addr)
+{
+	return in_gate_area_no_mm(addr);
 }
 
 void ia64_mmu_init(void *my_cpu_data)
@@ -611,8 +635,8 @@ mem_init (void)
 	 * code can tell them apart.
 	 */
 	for (i = 0; i < NR_syscalls; ++i) {
+		extern unsigned long fsyscall_table[NR_syscalls];
 		extern unsigned long sys_call_table[NR_syscalls];
-		unsigned long *fsyscall_table = paravirt_get_fsyscall_table();
 
 		if (!fsyscall_table[i] || nolwsys)
 			fsyscall_table[i] = sys_call_table[i] | 1;
@@ -631,7 +655,8 @@ int arch_add_memory(int nid, u64 start, u64 size)
 
 	pgdat = NODE_DATA(nid);
 
-	zone = pgdat->node_zones + ZONE_NORMAL;
+	zone = pgdat->node_zones +
+		zone_for_memory(nid, start, size, ZONE_NORMAL);
 	ret = __add_pages(nid, zone, start_pfn, nr_pages);
 
 	if (ret)
@@ -660,27 +685,50 @@ int arch_remove_memory(u64 start, u64 size)
 #endif
 #endif
 
-/*
- * Even when CONFIG_IA32_SUPPORT is not enabled it is
- * useful to have the Linux/x86 domain registered to
- * avoid an attempted module load when emulators call
- * personality(PER_LINUX32). This saves several milliseconds
- * on each such call.
+/**
+ * show_mem - give short summary of memory stats
+ *
+ * Shows a simple page count of reserved and used pages in the system.
+ * For discontig machines, it does this on a per-pgdat basis.
  */
-static struct exec_domain ia32_exec_domain;
-
-static int __init
-per_linux32_init(void)
+void show_mem(unsigned int filter)
 {
-	ia32_exec_domain.name = "Linux/x86";
-	ia32_exec_domain.handler = NULL;
-	ia32_exec_domain.pers_low = PER_LINUX32;
-	ia32_exec_domain.pers_high = PER_LINUX32;
-	ia32_exec_domain.signal_map = default_exec_domain.signal_map;
-	ia32_exec_domain.signal_invmap = default_exec_domain.signal_invmap;
-	register_exec_domain(&ia32_exec_domain);
+	int total_reserved = 0;
+	unsigned long total_present = 0;
+	pg_data_t *pgdat;
 
-	return 0;
+	printk(KERN_INFO "Mem-info:\n");
+	show_free_areas(filter);
+	printk(KERN_INFO "Node memory in pages:\n");
+	for_each_online_pgdat(pgdat) {
+		unsigned long present;
+		unsigned long flags;
+		int reserved = 0;
+		int nid = pgdat->node_id;
+		int zoneid;
+
+		if (skip_free_areas_node(filter, nid))
+			continue;
+		pgdat_resize_lock(pgdat, &flags);
+
+		for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
+			struct zone *zone = &pgdat->node_zones[zoneid];
+			if (!populated_zone(zone))
+				continue;
+
+			reserved += zone->present_pages - zone->managed_pages;
+		}
+		present = pgdat->node_present_pages;
+
+		pgdat_resize_unlock(pgdat, &flags);
+		total_present += present;
+		total_reserved += reserved;
+		printk(KERN_INFO "Node %4d:  RAM: %11ld, rsvd: %8d, ",
+		       nid, present, reserved);
+	}
+	printk(KERN_INFO "%ld pages of RAM\n", total_present);
+	printk(KERN_INFO "%d reserved pages\n", total_reserved);
+	printk(KERN_INFO "Total of %ld pages in page table cache\n",
+	       quicklist_total_size());
+	printk(KERN_INFO "%ld free buffer pages\n", nr_free_buffer_pages());
 }
-
-__initcall(per_linux32_init);

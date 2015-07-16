@@ -43,11 +43,6 @@ enum desc_packet_type {
 	DESC_PACKET_TYPE_NORMAL = 1,
 };
 
-enum firmware_source {
-	FW_SOURCE_IMG_FILE = 0,
-	FW_SOURCE_HEADER_FILE = 1,
-};
-
 enum firmware_status {
 	FW_STATUS_0_INIT = 0,
 	FW_STATUS_1_MOVE_BOOT_CODE = 1,
@@ -55,11 +50,6 @@ enum firmware_status {
 	FW_STATUS_3_TURNON_CPU = 3,
 	FW_STATUS_4_MOVE_DATA_CODE = 4,
 	FW_STATUS_5_READY = 5,
-};
-
-struct fw_seg_container {
-	u16	seg_size;
-	u8	*seg_ptr;
 };
 
 struct rt_firmware {

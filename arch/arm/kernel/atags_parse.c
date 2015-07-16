@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/root_dev.h>
 #include <linux/screen_info.h>
+#include <linux/memblock.h>
 
 #include <asm/setup.h>
 #include <asm/system_info.h>
@@ -129,7 +130,7 @@ static int __init parse_tag_cmdline(const struct tag *tag)
 	strlcat(default_command_line, tag->u.cmdline.cmdline,
 		COMMAND_LINE_SIZE);
 #elif defined(CONFIG_CMDLINE_FORCE)
-	pr_warning("Ignoring tag cmdline (using the default kernel command line)\n");
+	pr_warn("Ignoring tag cmdline (using the default kernel command line)\n");
 #else
 	strlcpy(default_command_line, tag->u.cmdline.cmdline,
 		COMMAND_LINE_SIZE);
@@ -166,8 +167,7 @@ static void __init parse_tags(const struct tag *t)
 {
 	for (; t->hdr.size; t = tag_next(t))
 		if (!parse_tag(t))
-			printk(KERN_WARNING
-				"Ignoring unrecognised tag 0x%08x\n",
+			pr_warn("Ignoring unrecognised tag 0x%08x\n",
 				t->hdr.tag);
 }
 
@@ -192,7 +192,7 @@ setup_machine_tags(phys_addr_t __atags_pointer, unsigned int machine_nr)
 	 */
 	for_each_machine_desc(p)
 		if (machine_nr == p->nr) {
-			printk("Machine: %s\n", p->name);
+			pr_info("Machine: %s\n", p->name);
 			mdesc = p;
 			break;
 		}
@@ -222,10 +222,10 @@ setup_machine_tags(phys_addr_t __atags_pointer, unsigned int machine_nr)
 	}
 
 	if (mdesc->fixup)
-		mdesc->fixup(tags, &from, &meminfo);
+		mdesc->fixup(tags, &from);
 
 	if (tags->hdr.tag == ATAG_CORE) {
-		if (meminfo.nr_banks != 0)
+		if (memblock_phys_mem_size())
 			squash_mem_tags(tags);
 		save_atags(tags);
 		parse_tags(tags);

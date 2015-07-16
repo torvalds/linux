@@ -410,7 +410,7 @@ static irqreturn_t ad_sd_data_rdy_trig_poll(int irq, void *private)
 	complete(&sigma_delta->completion);
 	disable_irq_nosync(irq);
 	sigma_delta->irq_dis = true;
-	iio_trigger_poll(sigma_delta->trig, iio_get_time_ns());
+	iio_trigger_poll(sigma_delta->trig);
 
 	return IRQ_HANDLED;
 }
@@ -472,7 +472,7 @@ static int ad_sd_probe_trigger(struct iio_dev *indio_dev)
 		goto error_free_irq;
 
 	/* select default trigger */
-	indio_dev->trig = sigma_delta->trig;
+	indio_dev->trig = iio_trigger_get(sigma_delta->trig);
 
 	return 0;
 

@@ -27,7 +27,6 @@
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
 #include <linux/completion.h>
@@ -288,7 +287,6 @@ static struct platform_driver rdc321x_wdt_driver = {
 	.probe = rdc321x_wdt_probe,
 	.remove = rdc321x_wdt_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "rdc321x-wdt",
 	},
 };

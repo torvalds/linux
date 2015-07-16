@@ -12,6 +12,7 @@
 #include <linux/clk-provider.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
+#include <linux/platform_data/clk-u300.h>
 
 /* APP side SYSCON registers */
 /* CLK Control Register 16bit (R/W) */
@@ -1168,6 +1169,7 @@ static const struct of_device_id u300_clk_match[] __initconst = {
 		.compatible = "stericsson,u300-syscon-mclk",
 		.data = of_u300_syscon_mclk_init,
 	},
+	{}
 };
 
 

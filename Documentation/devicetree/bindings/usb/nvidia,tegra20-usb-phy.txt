@@ -3,7 +3,10 @@ Tegra SOC USB PHY
 The device node for Tegra SOC USB PHY:
 
 Required properties :
- - compatible : Should be "nvidia,tegra<chip>-usb-phy".
+ - compatible : For Tegra20, must contain "nvidia,tegra20-usb-phy".
+   For Tegra30, must contain "nvidia,tegra30-usb-phy".  Otherwise, must contain
+   "nvidia,<chip>-usb-phy" plus at least one of the above, where <chip> is
+   tegra114, tegra124, tegra132, or tegra210.
  - reg : Defines the following set of registers, in the order listed:
    - The PHY's own register set.
      Always present.
@@ -20,6 +23,12 @@ Required properties :
      Present if phy_type == utmi.
    - ulpi-link: The clock Tegra provides to the ULPI PHY (cdev2).
      Present if phy_type == ulpi, and ULPI link mode is in use.
+ - resets : Must contain an entry for each entry in reset-names.
+   See ../reset/reset.txt for details.
+ - reset-names : Must include the following entries:
+   - usb: The PHY's own reset signal.
+   - utmi-pads: The reset of the PHY containing the chip-wide UTMI pad control
+     registers. Required even if phy_type == ulpi.
 
 Required properties for phy_type == ulpi:
   - nvidia,phy-reset-gpio : The GPIO used to reset the PHY.
@@ -56,6 +65,8 @@ Optional properties:
       host means this is a host controller
       peripheral means it is device controller
       otg means it can operate as either ("on the go")
+  - nvidia,has-utmi-pad-registers : boolean indicates whether this controller
+    contains the UTMI pad control registers common to all USB controllers.
 
 VBUS control (required for dr_mode == otg, optional for dr_mode == host):
   - vbus-supply: regulator for VBUS

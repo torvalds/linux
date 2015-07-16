@@ -3,6 +3,8 @@
 
 config TILE
 	def_bool y
+	select HAVE_PERF_EVENTS
+	select USE_PMC if PERF_EVENTS
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_KVM if !TILEGX
@@ -22,9 +24,14 @@ config TILE
 	select MODULES_USE_ELF_RELA
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_SYSCALL_TRACEPOINTS
+	select USER_STACKTRACE_SUPPORT
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_DEBUG_STACKOVERFLOW
 	select ARCH_WANT_FRAME_POINTERS
+	select HAVE_CONTEXT_TRACKING
+	select EDAC_SUPPORT
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -65,6 +72,10 @@ config HUGETLB_SUPER_PAGES
 
 config GENERIC_TIME_VSYSCALL
 	def_bool y
+
+# Enable PMC if PERF_EVENTS, OPROFILE, or WATCHPOINTS are enabled.
+config USE_PMC
+	bool
 
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
@@ -117,16 +128,20 @@ config HVC_TILE
 	select HVC_IRQ if TILEGX
 	def_bool y
 
+# Building with ARCH=tilegx (or ARCH=tile) implies using the
+# 64-bit TILE-Gx toolchain, so force CONFIG_TILEGX on.
 config TILEGX
-	bool "Building for TILE-Gx (64-bit) processor"
+	def_bool ARCH != "tilepro"
+	select SPARSE_IRQ
+	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 	select HAVE_FUNCTION_TRACER
-	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_ARCH_KGDB
+	select ARCH_SUPPORTS_ATOMIC_RMW
 
 config TILEPRO
 	def_bool !TILEGX
@@ -138,6 +153,11 @@ config ARCH_DEFCONFIG
 	string
 	default "arch/tile/configs/tilepro_defconfig" if !TILEGX
 	default "arch/tile/configs/tilegx_defconfig" if TILEGX
+
+config PGTABLE_LEVELS
+	int
+	default 3 if 64BIT
+	default 2
 
 source "init/Kconfig"
 
@@ -405,7 +425,7 @@ config PCI_DOMAINS
 config NO_IOMEM
 	def_bool !PCI
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool !PCI
 
 config TILE_PCI_IO

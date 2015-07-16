@@ -29,7 +29,21 @@
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
+			clocks = <&clks 12>;
+			operating-points = <
+				/* kHz    uV */
+				200000  1025000
+				400000  1025000
+				664000  1050000
+				800000  1100000
+			>;
+			clock-latency = <150000>;
 		};
+	};
+
+	arm-pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <29>;
 	};
 
 	axi {
@@ -39,7 +53,7 @@
 		ranges = <0x40000000 0x40000000 0x80000000>;
 
 		l2-cache-controller@80040000 {
-			compatible = "arm,pl310-cache", "sirf,prima2-pl310-cache";
+			compatible = "arm,pl310-cache";
 			reg = <0x80040000 0x1000>;
 			interrupts = <59>;
 			arm,tag-latency = <1 1 1>;
@@ -67,9 +81,10 @@
 				#clock-cells = <1>;
 			};
 
-			reset-controller@88010000 {
+			rstc: reset-controller@88010000 {
 				compatible = "sirf,prima2-rstc";
 				reg = <0x88010000 0x1000>;
+				#reset-cells = <1>;
 			};
 
 			rsc-controller@88020000 {
@@ -80,6 +95,7 @@
 			cphifbg@88030000 {
 				compatible = "sirf,prima2-cphifbg";
 				reg = <0x88030000 0x1000>;
+				clocks = <&clks 42>;
 			};
 		};
 
@@ -121,6 +137,7 @@
 				reg = <0x90020000 0x10000>;
 				interrupts = <31>;
 				clocks = <&clks 35>;
+				resets = <&rstc 6>;
 			};
 		};
 
@@ -162,6 +179,7 @@
 				compatible = "sirf,prima2-dspif";
 				reg = <0xa8000000 0x10000>;
 				interrupts = <9>;
+				resets = <&rstc 1>;
 			};
 
 			gps@a8010000 {
@@ -169,6 +187,7 @@
 				reg = <0xa8010000 0x10000>;
 				interrupts = <7>;
 				clocks = <&clks 9>;
+				resets = <&rstc 2>;
 			};
 
 			dsp@a9000000 {
@@ -176,6 +195,7 @@
 				reg = <0xa9000000 0x1000000>;
 				interrupts = <8>;
 				clocks = <&clks 8>;
+				resets = <&rstc 0>;
 			};
 		};
 
@@ -190,6 +210,7 @@
 				compatible = "sirf,prima2-tick";
 				reg = <0xb0020000 0x1000>;
 				interrupts = <0>;
+				clocks = <&clks 11>;
 			};
 
 			nand@b0030000 {
@@ -213,8 +234,8 @@
 				interrupts = <17>;
 				fifosize = <128>;
 				clocks = <&clks 13>;
-				sirf,uart-dma-rx-channel = <21>;
-				sirf,uart-dma-tx-channel = <2>;
+				dmas = <&dmac1 5>, <&dmac0 2>;
+				dma-names = "rx", "tx";
 			};
 
 			uart1: uart@b0060000 {
@@ -233,8 +254,8 @@
 				interrupts = <19>;
 				fifosize = <128>;
 				clocks = <&clks 15>;
-				sirf,uart-dma-rx-channel = <6>;
-				sirf,uart-dma-tx-channel = <7>;
+				dmas = <&dmac0 6>, <&dmac0 7>;
+				dma-names = "rx", "tx";
 			};
 
 			usp0: usp@b0080000 {
@@ -244,8 +265,8 @@
 				interrupts = <20>;
 				fifosize = <128>;
 				clocks = <&clks 28>;
-				sirf,usp-dma-rx-channel = <17>;
-				sirf,usp-dma-tx-channel = <18>;
+				dmas = <&dmac1 1>, <&dmac1 2>;
+				dma-names = "rx", "tx";
 			};
 
 			usp1: usp@b0090000 {
@@ -255,8 +276,8 @@
 				interrupts = <21>;
 				fifosize = <128>;
 				clocks = <&clks 29>;
-				sirf,usp-dma-rx-channel = <14>;
-				sirf,usp-dma-tx-channel = <15>;
+				dmas = <&dmac0 14>, <&dmac0 15>;
+				dma-names = "rx", "tx";
 			};
 
 			usp2: usp@b00a0000 {
@@ -266,8 +287,8 @@
 				interrupts = <22>;
 				fifosize = <128>;
 				clocks = <&clks 30>;
-				sirf,usp-dma-rx-channel = <10>;
-				sirf,usp-dma-tx-channel = <11>;
+				dmas = <&dmac0 10>, <&dmac0 11>;
+				dma-names = "rx", "tx";
 			};
 
 			dmac0: dma-controller@b00b0000 {
@@ -276,6 +297,7 @@
 				reg = <0xb00b0000 0x10000>;
 				interrupts = <12>;
 				clocks = <&clks 24>;
+				#dma-cells = <1>;
 			};
 
 			dmac1: dma-controller@b0160000 {
@@ -284,6 +306,7 @@
 				reg = <0xb0160000 0x10000>;
 				interrupts = <13>;
 				clocks = <&clks 25>;
+				#dma-cells = <1>;
 			};
 
 			vip@b00C0000 {
@@ -300,8 +323,9 @@
 				reg = <0xb00d0000 0x10000>;
 				interrupts = <15>;
 				sirf,spi-num-chipselects = <1>;
-				sirf,spi-dma-rx-channel = <25>;
-				sirf,spi-dma-tx-channel = <20>;
+				dmas = <&dmac1 9>,
+				     <&dmac1 4>;
+				dma-names = "rx", "tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 19>;
@@ -314,8 +338,9 @@
 				reg = <0xb0170000 0x10000>;
 				interrupts = <16>;
 				sirf,spi-num-chipselects = <1>;
-				sirf,spi-dma-rx-channel = <12>;
-				sirf,spi-dma-tx-channel = <13>;
+				dmas = <&dmac0 12>,
+				     <&dmac0 13>;
+				dma-names = "rx", "tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 20>;
@@ -508,10 +533,34 @@
                                                 sirf,function = "sdmmc5";
                                         };
                                 };
+				i2s_mclk_pins_a: i2s_mclk@0 {
+                                        i2s_mclk {
+                                                sirf,pins = "i2smclkgrp";
+                                                sirf,function = "i2s_mclk";
+                                        };
+                                };
+				i2s_ext_clk_input_pins_a: i2s_ext_clk_input@0 {
+                                        i2s_ext_clk_input {
+                                                sirf,pins = "i2s_ext_clk_inputgrp";
+                                                sirf,function = "i2s_ext_clk_input";
+                                        };
+                                };
                                 i2s_pins_a: i2s@0 {
                                         i2s {
                                                 sirf,pins = "i2sgrp";
                                                 sirf,function = "i2s";
+                                        };
+                                };
+				i2s_no_din_pins_a: i2s_no_din@0 {
+                                        i2s_no_din {
+                                                sirf,pins = "i2s_no_dingrp";
+                                                sirf,function = "i2s_no_din";
+                                        };
+                                };
+				i2s_6chn_pins_a: i2s_6chn@0 {
+                                        i2s_6chn {
+                                                sirf,pins = "i2s_6chngrp";
+                                                sirf,function = "i2s_6chn";
                                         };
                                 };
                                 ac97_pins_a: ac97@0 {
@@ -538,6 +587,18 @@
 							"usp0_uart_nostreamctrl_grp";
                                                 sirf,function =
 							"usp0_uart_nostreamctrl";
+                                        };
+                                };
+                                usp0_only_utfs_pins_a: usp0@2 {
+                                        usp0 {
+                                                sirf,pins = "usp0_only_utfs_grp";
+                                                sirf,function = "usp0_only_utfs";
+                                        };
+                                };
+                                usp0_only_urfs_pins_a: usp0@3 {
+                                        usp0 {
+                                                sirf,pins = "usp0_only_urfs_grp";
+                                                sirf,function = "usp0_only_urfs";
                                         };
                                 };
                                 usp1_pins_a: usp1@0 {
@@ -648,6 +709,9 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56000000 0x100000>;
 					interrupts = <38>;
+					status = "disabled";
+					bus-width = <8>;
+					clocks = <&clks 36>;
 				};
 
 				sd1: sdhci@56100000 {
@@ -655,6 +719,9 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56100000 0x100000>;
 					interrupts = <38>;
+					status = "disabled";
+					bus-width = <4>;
+					clocks = <&clks 36>;
 				};
 
 				sd2: sdhci@56200000 {
@@ -662,6 +729,8 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56200000 0x100000>;
 					interrupts = <23>;
+					status = "disabled";
+					clocks = <&clks 37>;
 				};
 
 				sd3: sdhci@56300000 {
@@ -669,6 +738,8 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56300000 0x100000>;
 					interrupts = <23>;
+					status = "disabled";
+					clocks = <&clks 37>;
 				};
 
 				sd4: sdhci@56400000 {
@@ -676,6 +747,8 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56400000 0x100000>;
 					interrupts = <39>;
+					status = "disabled";
+					clocks = <&clks 38>;
 				};
 
 				sd5: sdhci@56500000 {
@@ -683,6 +756,7 @@
 					compatible = "sirf,prima2-sdhc";
 					reg = <0x56500000 0x100000>;
 					interrupts = <39>;
+					clocks = <&clks 38>;
 				};
 
 				pci-copy@57900000 {
@@ -714,6 +788,12 @@
 				compatible = "sirf,prima2-sysrtc";
 				reg = <0x2000 0x1000>;
 				interrupts = <52 53 54>;
+			};
+
+			minigpsrtc@2000 {
+				compatible = "sirf,prima2-minigpsrtc";
+				reg = <0x2000 0x1000>;
+				interrupts = <54>;
 			};
 
 			pwrc@3000 {

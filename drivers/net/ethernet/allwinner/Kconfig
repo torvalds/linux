@@ -9,8 +9,7 @@ config NET_VENDOR_ALLWINNER
 	depends on ARCH_SUNXI
 	---help---
 	  If you have a network (Ethernet) card belonging to this
-	  class, say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  class, say Y here.
 
 	  Note that the answer to this question doesn't directly
 	  affect the kernel: saying N will just cause the configurator

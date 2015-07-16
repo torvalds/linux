@@ -5,7 +5,6 @@
  *
  */
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
@@ -15,7 +14,6 @@
 #include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/fs.h>
 
 #include "trace.h"
 
@@ -305,7 +303,7 @@ static int t_show(struct seq_file *m, void *v)
 			seq_puts(m, "\\t");
 			break;
 		case '\\':
-			seq_puts(m, "\\");
+			seq_putc(m, '\\');
 			break;
 		case '"':
 			seq_puts(m, "\\\"");
@@ -349,7 +347,7 @@ static __init int init_trace_printk_function_export(void)
 	struct dentry *d_tracer;
 
 	d_tracer = tracing_init_dentry();
-	if (!d_tracer)
+	if (IS_ERR(d_tracer))
 		return 0;
 
 	trace_create_file("printk_formats", 0444, d_tracer,

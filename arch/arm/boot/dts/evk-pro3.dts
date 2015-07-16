@@ -15,6 +15,12 @@
 	model = "Telit EVK-PRO3 for Telit GE863-PRO3";
 	compatible = "telit,evk-pro3", "atmel,at91sam9260", "atmel,at91sam9";
 
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+	};
+
 	ahb {
 		apb {
 			macb0: ethernet@fffc4000 {

@@ -106,15 +106,15 @@ static inline int convert_error(struct zcrypt_device *zdev,
 	//   REP88_ERROR_MESSAGE_TYPE		// '20' CEX2A
 		/*
 		 * To sent a message of the wrong type is a bug in the
-		 * device driver. Warn about it, disable the device
+		 * device driver. Send error msg, disable the device
 		 * and then repeat the request.
 		 */
-		WARN_ON(1);
 		atomic_set(&zcrypt_rescan_req, 1);
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
 		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
-			       zdev->ap_dev->qid,
-			       zdev->online, ehdr->reply_code);
+			zdev->ap_dev->qid, zdev->online, ehdr->reply_code);
 		return -EAGAIN;
 	case REP82_ERROR_TRANSPORT_FAIL:
 	case REP82_ERROR_MACHINE_FAILURE:
@@ -122,15 +122,17 @@ static inline int convert_error(struct zcrypt_device *zdev,
 		/* If a card fails disable it and repeat the request. */
 		atomic_set(&zcrypt_rescan_req, 1);
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
 		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
-			       zdev->ap_dev->qid,
-			       zdev->online, ehdr->reply_code);
+			zdev->ap_dev->qid, zdev->online, ehdr->reply_code);
 		return -EAGAIN;
 	default:
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
 		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
-			       zdev->ap_dev->qid,
-			       zdev->online, ehdr->reply_code);
+			zdev->ap_dev->qid, zdev->online, ehdr->reply_code);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }

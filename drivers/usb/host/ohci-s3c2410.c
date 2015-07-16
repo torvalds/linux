@@ -45,10 +45,6 @@ static struct clk *usb_clk;
 
 /* forward definitions */
 
-static int (*orig_ohci_hub_control)(struct usb_hcd  *hcd, u16 typeReq,
-			u16 wValue, u16 wIndex, char *buf, u16 wLength);
-static int (*orig_ohci_hub_status_data)(struct usb_hcd *hcd, char *buf);
-
 static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc);
 
 /* conversion functions */
@@ -110,7 +106,7 @@ ohci_s3c2410_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int orig;
 	int portno;
 
-	orig = orig_ohci_hub_status_data(hcd, buf);
+	orig = ohci_hub_status_data(hcd, buf);
 
 	if (info == NULL)
 		return orig;
@@ -181,7 +177,7 @@ static int ohci_s3c2410_hub_control(
 	 * process the request straight away and exit */
 
 	if (info == NULL) {
-		ret = orig_ohci_hub_control(hcd, typeReq, wValue,
+		ret = ohci_hub_control(hcd, typeReq, wValue,
 				       wIndex, buf, wLength);
 		goto out;
 	}
@@ -231,7 +227,7 @@ static int ohci_s3c2410_hub_control(
 		break;
 	}
 
-	ret = orig_ohci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+	ret = ohci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
 	if (ret)
 		goto out;
 
@@ -253,14 +249,14 @@ static int ohci_s3c2410_hub_control(
 		 */
 
 		desc->wHubCharacteristics &= ~cpu_to_le16(HUB_CHAR_LPSM);
-		desc->wHubCharacteristics |= cpu_to_le16(0x0001);
+		desc->wHubCharacteristics |= cpu_to_le16(
+			HUB_CHAR_INDV_PORT_LPSM);
 
 		if (info->enable_oc) {
 			desc->wHubCharacteristics &= ~cpu_to_le16(
 				HUB_CHAR_OCPM);
 			desc->wHubCharacteristics |=  cpu_to_le16(
-				0x0008 |
-				0x0001);
+				HUB_CHAR_INDV_PORT_OCPM);
 		}
 
 		dev_dbg(hcd->self.controller, "wHubCharacteristics after 0x%04x\n",
@@ -395,6 +391,7 @@ static int usb_hcd_s3c2410_probe(const struct hc_driver *driver,
 	if (retval != 0)
 		goto err_ioremap;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
  err_ioremap:
@@ -426,28 +423,15 @@ static int ohci_hcd_s3c2410_drv_remove(struct platform_device *pdev)
 static int ohci_hcd_s3c2410_drv_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	struct platform_device *pdev = to_platform_device(dev);
-	unsigned long flags;
+	bool do_wakeup = device_may_wakeup(dev);
 	int rc = 0;
 
-	/*
-	 * Root hub was already suspended. Disable irq emission and
-	 * mark HW unaccessible, bail out if RH has been resumed. Use
-	 * the spinlock to properly synchronize with possible pending
-	 * RH suspend or resume activity.
-	 */
-	spin_lock_irqsave(&ohci->lock, flags);
-	if (ohci->rh_state != OHCI_RH_SUSPENDED) {
-		rc = -EINVAL;
-		goto bail;
-	}
-
-	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	rc = ohci_suspend(hcd, do_wakeup);
+	if (rc)
+		return rc;
 
 	s3c2410_stop_hc(pdev);
-bail:
-	spin_unlock_irqrestore(&ohci->lock, flags);
 
 	return rc;
 }
@@ -478,7 +462,6 @@ static struct platform_driver ohci_hcd_s3c2410_driver = {
 	.remove		= ohci_hcd_s3c2410_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "s3c2410-ohci",
 		.pm	= &ohci_hcd_s3c2410_pm_ops,
 	},
@@ -500,9 +483,6 @@ static int __init ohci_s3c2410_init(void)
 	 * is an unusual case, and we don't want to encourage others to
 	 * override these functions by making it too easy.
 	 */
-
-	orig_ohci_hub_control = ohci_s3c2410_hc_driver.hub_control;
-	orig_ohci_hub_status_data = ohci_s3c2410_hc_driver.hub_status_data;
 
 	ohci_s3c2410_hc_driver.hub_status_data	= ohci_s3c2410_hub_status_data;
 	ohci_s3c2410_hc_driver.hub_control	= ohci_s3c2410_hub_control;

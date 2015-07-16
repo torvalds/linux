@@ -81,14 +81,14 @@ struct pci_ops pci_root_ops = {
  */
 DEFINE_RAW_SPINLOCK(pci_config_lock);
 
-static int can_skip_ioresource_align(const struct dmi_system_id *d)
+static int __init can_skip_ioresource_align(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
 	printk(KERN_INFO "PCI: %s detected, can skip ISA alignment\n", d->ident);
 	return 0;
 }
 
-static const struct dmi_system_id can_skip_pciprobe_dmi_table[] = {
+static const struct dmi_system_id can_skip_pciprobe_dmi_table[] __initconst = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
  * when the ISA enable bit in the bridge control is not set
@@ -186,7 +186,7 @@ void pcibios_remove_bus(struct pci_bus *bus)
  * on the kernel command line (which was parsed earlier).
  */
 
-static int set_bf_sort(const struct dmi_system_id *d)
+static int __init set_bf_sort(const struct dmi_system_id *d)
 {
 	if (pci_bf_sort == pci_bf_sort_default) {
 		pci_bf_sort = pci_dmi_bf;
@@ -195,8 +195,8 @@ static int set_bf_sort(const struct dmi_system_id *d)
 	return 0;
 }
 
-static void read_dmi_type_b1(const struct dmi_header *dm,
-				       void *private_data)
+static void __init read_dmi_type_b1(const struct dmi_header *dm,
+				    void *private_data)
 {
 	u8 *d = (u8 *)dm + 4;
 
@@ -217,7 +217,7 @@ static void read_dmi_type_b1(const struct dmi_header *dm,
 	}
 }
 
-static int find_sort_method(const struct dmi_system_id *d)
+static int __init find_sort_method(const struct dmi_system_id *d)
 {
 	dmi_walk(read_dmi_type_b1, NULL);
 
@@ -232,7 +232,7 @@ static int find_sort_method(const struct dmi_system_id *d)
  * Enable renumbering of PCI bus# ranges to reach all PCI busses (Cardbus)
  */
 #ifdef __i386__
-static int assign_all_busses(const struct dmi_system_id *d)
+static int __init assign_all_busses(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_ASSIGN_ALL_BUSSES;
 	printk(KERN_INFO "%s detected: enabling PCI bus# renumbering"
@@ -241,7 +241,7 @@ static int assign_all_busses(const struct dmi_system_id *d)
 }
 #endif
 
-static int set_scan_all(const struct dmi_system_id *d)
+static int __init set_scan_all(const struct dmi_system_id *d)
 {
 	printk(KERN_INFO "PCI: %s detected, enabling pci=pcie_scan_all\n",
 	       d->ident);
@@ -249,7 +249,7 @@ static int set_scan_all(const struct dmi_system_id *d)
 	return 0;
 }
 
-static const struct dmi_system_id pciprobe_dmi_table[] = {
+static const struct dmi_system_id pciprobe_dmi_table[] __initconst = {
 #ifdef __i386__
 /*
  * Laptops which need pci=assign-busses to see Cardbus cards
@@ -448,6 +448,22 @@ static const struct dmi_system_id pciprobe_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ftServer"),
 		},
 	},
+        {
+                .callback = set_scan_all,
+                .ident = "Stratus/NEC ftServer",
+                .matches = {
+                        DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
+                        DMI_MATCH(DMI_PRODUCT_NAME, "Express5800/R32"),
+                },
+        },
+        {
+                .callback = set_scan_all,
+                .ident = "Stratus/NEC ftServer",
+                .matches = {
+                        DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
+                        DMI_MATCH(DMI_PRODUCT_NAME, "Express5800/R31"),
+                },
+        },
 	{}
 };
 
@@ -456,19 +472,27 @@ void __init dmi_check_pciprobe(void)
 	dmi_check_system(pciprobe_dmi_table);
 }
 
-struct pci_bus *pcibios_scan_root(int busnum)
+void pcibios_scan_root(int busnum)
 {
-	struct pci_bus *bus = NULL;
+	struct pci_bus *bus;
+	struct pci_sysdata *sd;
+	LIST_HEAD(resources);
 
-	while ((bus = pci_find_next_bus(bus)) != NULL) {
-		if (bus->number == busnum) {
-			/* Already scanned */
-			return bus;
-		}
+	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
+	if (!sd) {
+		printk(KERN_ERR "PCI: OOM, skipping PCI bus %02x\n", busnum);
+		return;
 	}
-
-	return pci_scan_bus_on_node(busnum, &pci_root_ops,
-					get_mp_bus_to_node(busnum));
+	sd->node = x86_pci_root_bus_node(busnum);
+	x86_pci_root_bus_resources(busnum, &resources);
+	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
+	bus = pci_scan_root_bus(NULL, busnum, &pci_root_ops, sd, &resources);
+	if (!bus) {
+		pci_free_resource_list(&resources);
+		kfree(sd);
+		return;
+	}
+	pci_bus_add_devices(bus);
 }
 
 void __init pcibios_set_cache_line_size(void)
@@ -506,7 +530,7 @@ int __init pcibios_init(void)
 	return 0;
 }
 
-char * __init pcibios_setup(char *str)
+char *__init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;
@@ -561,7 +585,6 @@ char * __init pcibios_setup(char *str)
 		pci_probe |= PCI_PROBE_NOEARLY;
 		return NULL;
 	}
-#ifndef CONFIG_X86_VISWS
 	else if (!strcmp(str, "usepirqmask")) {
 		pci_probe |= PCI_USE_PIRQ_MASK;
 		return NULL;
@@ -571,9 +594,7 @@ char * __init pcibios_setup(char *str)
 	} else if (!strncmp(str, "lastbus=", 8)) {
 		pcibios_last_bus = simple_strtol(str+8, NULL, 0);
 		return NULL;
-	}
-#endif
-	else if (!strcmp(str, "rom")) {
+	} else if (!strcmp(str, "rom")) {
 		pci_probe |= PCI_ASSIGN_ROMS;
 		return NULL;
 	} else if (!strcmp(str, "norom")) {
@@ -677,105 +698,3 @@ int pci_ext_cfg_avail(void)
 	else
 		return 0;
 }
-
-struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
-{
-	LIST_HEAD(resources);
-	struct pci_bus *bus = NULL;
-	struct pci_sysdata *sd;
-
-	/*
-	 * Allocate per-root-bus (not per bus) arch-specific data.
-	 * TODO: leak; this memory is never freed.
-	 * It's arguable whether it's worth the trouble to care.
-	 */
-	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
-	if (!sd) {
-		printk(KERN_ERR "PCI: OOM, skipping PCI bus %02x\n", busno);
-		return NULL;
-	}
-	sd->node = node;
-	x86_pci_root_bus_resources(busno, &resources);
-	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busno);
-	bus = pci_scan_root_bus(NULL, busno, ops, sd, &resources);
-	if (!bus) {
-		pci_free_resource_list(&resources);
-		kfree(sd);
-	}
-
-	return bus;
-}
-
-struct pci_bus *pci_scan_bus_with_sysdata(int busno)
-{
-	return pci_scan_bus_on_node(busno, &pci_root_ops, -1);
-}
-
-/*
- * NUMA info for PCI busses
- *
- * Early arch code is responsible for filling in reasonable values here.
- * A node id of "-1" means "use current node".  In other words, if a bus
- * has a -1 node id, it's not tightly coupled to any particular chunk
- * of memory (as is the case on some Nehalem systems).
- */
-#ifdef CONFIG_NUMA
-
-#define BUS_NR 256
-
-#ifdef CONFIG_X86_64
-
-static int mp_bus_to_node[BUS_NR] = {
-	[0 ... BUS_NR - 1] = -1
-};
-
-void set_mp_bus_to_node(int busnum, int node)
-{
-	if (busnum >= 0 &&  busnum < BUS_NR)
-		mp_bus_to_node[busnum] = node;
-}
-
-int get_mp_bus_to_node(int busnum)
-{
-	int node = -1;
-
-	if (busnum < 0 || busnum > (BUS_NR - 1))
-		return node;
-
-	node = mp_bus_to_node[busnum];
-
-	/*
-	 * let numa_node_id to decide it later in dma_alloc_pages
-	 * if there is no ram on that node
-	 */
-	if (node != -1 && !node_online(node))
-		node = -1;
-
-	return node;
-}
-
-#else /* CONFIG_X86_32 */
-
-static int mp_bus_to_node[BUS_NR] = {
-	[0 ... BUS_NR - 1] = -1
-};
-
-void set_mp_bus_to_node(int busnum, int node)
-{
-	if (busnum >= 0 &&  busnum < BUS_NR)
-	mp_bus_to_node[busnum] = (unsigned char) node;
-}
-
-int get_mp_bus_to_node(int busnum)
-{
-	int node;
-
-	if (busnum < 0 || busnum > (BUS_NR - 1))
-		return 0;
-	node = mp_bus_to_node[busnum];
-	return node;
-}
-
-#endif /* CONFIG_X86_32 */
-
-#endif /* CONFIG_NUMA */

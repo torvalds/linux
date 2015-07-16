@@ -41,8 +41,6 @@
 
 #include "internal.h"
 
-#define PREFIX "ACPI: "
-
 #define ACPI_PROCESSOR_NOTIFY_PERFORMANCE 0x80
 #define ACPI_PROCESSOR_NOTIFY_POWER	0x81
 #define ACPI_PROCESSOR_NOTIFY_THROTTLING	0x82
@@ -122,6 +120,14 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 	unsigned int cpu = (unsigned long)hcpu;
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 	struct acpi_device *device;
+	action &= ~CPU_TASKS_FROZEN;
+
+	/*
+	 * CPU_STARTING and CPU_DYING must not sleep. Return here since
+	 * acpi_bus_get_device() may sleep.
+	 */
+	if (action == CPU_STARTING || action == CPU_DYING)
+		return NOTIFY_DONE;
 
 	if (!pr || acpi_bus_get_device(pr->handle, &device))
 		return NOTIFY_DONE;
@@ -224,9 +230,9 @@ static int __acpi_processor_start(struct acpi_device *device)
 
 static int acpi_processor_start(struct device *dev)
 {
-	struct acpi_device *device;
+	struct acpi_device *device = ACPI_COMPANION(dev);
 
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &device))
+	if (!device)
 		return -ENODEV;
 
 	return __acpi_processor_start(device);
@@ -234,10 +240,10 @@ static int acpi_processor_start(struct device *dev)
 
 static int acpi_processor_stop(struct device *dev)
 {
-	struct acpi_device *device;
+	struct acpi_device *device = ACPI_COMPANION(dev);
 	struct acpi_processor *pr;
 
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &device))
+	if (!device)
 		return 0;
 
 	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,

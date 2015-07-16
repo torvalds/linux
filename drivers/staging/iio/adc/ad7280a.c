@@ -55,37 +55,37 @@
 #define AD7280A_CNVST_CONTROL		0x1D /* D7 to D0, Read/write */
 
 /* Bits and Masks */
-#define AD7280A_CTRL_HB_CONV_INPUT_ALL			(0 << 6)
-#define AD7280A_CTRL_HB_CONV_INPUT_6CELL_AUX1_3_4	(1 << 6)
-#define AD7280A_CTRL_HB_CONV_INPUT_6CELL		(2 << 6)
-#define AD7280A_CTRL_HB_CONV_INPUT_SELF_TEST		(3 << 6)
-#define AD7280A_CTRL_HB_CONV_RES_READ_ALL		(0 << 4)
-#define AD7280A_CTRL_HB_CONV_RES_READ_6CELL_AUX1_3_4	(1 << 4)
-#define AD7280A_CTRL_HB_CONV_RES_READ_6CELL		(2 << 4)
-#define AD7280A_CTRL_HB_CONV_RES_READ_NO		(3 << 4)
-#define AD7280A_CTRL_HB_CONV_START_CNVST		(0 << 3)
-#define AD7280A_CTRL_HB_CONV_START_CS			(1 << 3)
-#define AD7280A_CTRL_HB_CONV_AVG_DIS			(0 << 1)
-#define AD7280A_CTRL_HB_CONV_AVG_2			(1 << 1)
-#define AD7280A_CTRL_HB_CONV_AVG_4			(2 << 1)
-#define AD7280A_CTRL_HB_CONV_AVG_8			(3 << 1)
+#define AD7280A_CTRL_HB_CONV_INPUT_ALL			0
+#define AD7280A_CTRL_HB_CONV_INPUT_6CELL_AUX1_3_4	BIT(6)
+#define AD7280A_CTRL_HB_CONV_INPUT_6CELL		BIT(7)
+#define AD7280A_CTRL_HB_CONV_INPUT_SELF_TEST		(BIT(7) | BIT(6))
+#define AD7280A_CTRL_HB_CONV_RES_READ_ALL		0
+#define AD7280A_CTRL_HB_CONV_RES_READ_6CELL_AUX1_3_4	BIT(4)
+#define AD7280A_CTRL_HB_CONV_RES_READ_6CELL		BIT(5)
+#define AD7280A_CTRL_HB_CONV_RES_READ_NO		(BIT(5) | BIT(4))
+#define AD7280A_CTRL_HB_CONV_START_CNVST		0
+#define AD7280A_CTRL_HB_CONV_START_CS			BIT(3)
+#define AD7280A_CTRL_HB_CONV_AVG_DIS			0
+#define AD7280A_CTRL_HB_CONV_AVG_2			BIT(1)
+#define AD7280A_CTRL_HB_CONV_AVG_4			BIT(2)
+#define AD7280A_CTRL_HB_CONV_AVG_8			(BIT(2) | BIT(1))
 #define AD7280A_CTRL_HB_CONV_AVG(x)			((x) << 1)
-#define AD7280A_CTRL_HB_PWRDN_SW			(1 << 0)
+#define AD7280A_CTRL_HB_PWRDN_SW			BIT(0)
 
-#define AD7280A_CTRL_LB_SWRST				(1 << 7)
-#define AD7280A_CTRL_LB_ACQ_TIME_400ns			(0 << 5)
-#define AD7280A_CTRL_LB_ACQ_TIME_800ns			(1 << 5)
-#define AD7280A_CTRL_LB_ACQ_TIME_1200ns			(2 << 5)
-#define AD7280A_CTRL_LB_ACQ_TIME_1600ns			(3 << 5)
+#define AD7280A_CTRL_LB_SWRST				BIT(7)
+#define AD7280A_CTRL_LB_ACQ_TIME_400ns			0
+#define AD7280A_CTRL_LB_ACQ_TIME_800ns			BIT(5)
+#define AD7280A_CTRL_LB_ACQ_TIME_1200ns			BIT(6)
+#define AD7280A_CTRL_LB_ACQ_TIME_1600ns			(BIT(6) | BIT(5))
 #define AD7280A_CTRL_LB_ACQ_TIME(x)			((x) << 5)
-#define AD7280A_CTRL_LB_MUST_SET			(1 << 4)
-#define AD7280A_CTRL_LB_THERMISTOR_EN			(1 << 3)
-#define AD7280A_CTRL_LB_LOCK_DEV_ADDR			(1 << 2)
-#define AD7280A_CTRL_LB_INC_DEV_ADDR			(1 << 1)
-#define AD7280A_CTRL_LB_DAISY_CHAIN_RB_EN		(1 << 0)
+#define AD7280A_CTRL_LB_MUST_SET			BIT(4)
+#define AD7280A_CTRL_LB_THERMISTOR_EN			BIT(3)
+#define AD7280A_CTRL_LB_LOCK_DEV_ADDR			BIT(2)
+#define AD7280A_CTRL_LB_INC_DEV_ADDR			BIT(1)
+#define AD7280A_CTRL_LB_DAISY_CHAIN_RB_EN		BIT(0)
 
-#define AD7280A_ALERT_GEN_STATIC_HIGH			(1 << 6)
-#define AD7280A_ALERT_RELAY_SIG_CHAIN_DOWN		(3 << 6)
+#define AD7280A_ALERT_GEN_STATIC_HIGH			BIT(6)
+#define AD7280A_ALERT_RELAY_SIG_CHAIN_DOWN		(BIT(7) | BIT(6))
 
 #define AD7280A_ALL_CELLS				(0xAD << 16)
 
@@ -134,6 +134,8 @@ struct ad7280_state {
 	unsigned char			aux_threshhigh;
 	unsigned char			aux_threshlow;
 	unsigned char			cb_mask[AD7280A_MAX_CHAIN];
+
+	__be32				buf[2] ____cacheline_aligned;
 };
 
 static void ad7280_crc8_build_table(unsigned char *crc_tab)
@@ -186,25 +188,25 @@ static void ad7280_delay(struct ad7280_state *st)
 	if (st->readback_delay_us < 50)
 		udelay(st->readback_delay_us);
 	else
-		msleep(1);
+		usleep_range(250, 500);
 }
 
-static int __ad7280_read32(struct spi_device *spi, unsigned *val)
+static int __ad7280_read32(struct ad7280_state *st, unsigned *val)
 {
-	unsigned rx_buf, tx_buf = cpu_to_be32(AD7280A_READ_TXVAL);
 	int ret;
-
 	struct spi_transfer t = {
-		.tx_buf	= &tx_buf,
-		.rx_buf = &rx_buf,
+		.tx_buf	= &st->buf[0],
+		.rx_buf = &st->buf[1],
 		.len = 4,
 	};
 
-	ret = spi_sync_transfer(spi, &t, 1);
+	st->buf[0] = cpu_to_be32(AD7280A_READ_TXVAL);
+
+	ret = spi_sync_transfer(st->spi, &t, 1);
 	if (ret)
 		return ret;
 
-	*val = be32_to_cpu(rx_buf);
+	*val = be32_to_cpu(st->buf[1]);
 
 	return 0;
 }
@@ -216,9 +218,9 @@ static int ad7280_write(struct ad7280_state *st, unsigned devaddr,
 			(val & 0xFF) << 13 | all << 12);
 
 	reg |= ad7280_calc_crc8(st->crc_tab, reg >> 11) << 3 | 0x2;
-	reg = cpu_to_be32(reg);
+	st->buf[0] = cpu_to_be32(reg);
 
-	return spi_write(st->spi, &reg, 4);
+	return spi_write(st->spi, &st->buf[0], 4);
 }
 
 static int ad7280_read(struct ad7280_state *st, unsigned devaddr,
@@ -248,7 +250,7 @@ static int ad7280_read(struct ad7280_state *st, unsigned devaddr,
 	if (ret)
 		return ret;
 
-	__ad7280_read32(st->spi, &tmp);
+	__ad7280_read32(st, &tmp);
 
 	if (ad7280_check_crc(st, tmp))
 		return -EIO;
@@ -286,7 +288,7 @@ static int ad7280_read_channel(struct ad7280_state *st, unsigned devaddr,
 
 	ad7280_delay(st);
 
-	__ad7280_read32(st->spi, &tmp);
+	__ad7280_read32(st, &tmp);
 
 	if (ad7280_check_crc(st, tmp))
 		return -EIO;
@@ -319,7 +321,7 @@ static int ad7280_read_all_channels(struct ad7280_state *st, unsigned cnt,
 	ad7280_delay(st);
 
 	for (i = 0; i < cnt; i++) {
-		__ad7280_read32(st->spi, &tmp);
+		__ad7280_read32(st, &tmp);
 
 		if (ad7280_check_crc(st, tmp))
 			return -EIO;
@@ -362,7 +364,7 @@ static int ad7280_chain_setup(struct ad7280_state *st)
 		return ret;
 
 	for (n = 0; n <= AD7280A_MAX_CHAIN; n++) {
-		__ad7280_read32(st->spi, &val);
+		__ad7280_read32(st, &val);
 		if (val == 0)
 			return n - 1;
 
@@ -441,7 +443,7 @@ static ssize_t ad7280_show_balance_timer(struct device *dev,
 
 	msecs = (ret >> 3) * 71500;
 
-	return sprintf(buf, "%d\n", msecs);
+	return sprintf(buf, "%u\n", msecs);
 }
 
 static ssize_t ad7280_store_balance_timer(struct device *dev,
@@ -545,8 +547,9 @@ static int ad7280_attr_init(struct ad7280_state *st)
 {
 	int dev, ch, cnt;
 
-	st->iio_attr = kzalloc(sizeof(*st->iio_attr) * (st->slave_num + 1) *
-				AD7280A_CELLS_PER_DEV * 2, GFP_KERNEL);
+	st->iio_attr = kcalloc(2, sizeof(*st->iio_attr) *
+			       (st->slave_num + 1) * AD7280A_CELLS_PER_DEV,
+			       GFP_KERNEL);
 	if (st->iio_attr == NULL)
 		return -ENOMEM;
 
@@ -617,7 +620,7 @@ static ssize_t ad7280_read_channel_config(struct device *dev,
 		return -EINVAL;
 	}
 
-	return sprintf(buf, "%d\n", val);
+	return sprintf(buf, "%u\n", val);
 }
 
 static ssize_t ad7280_write_channel_config(struct device *dev,

@@ -13,6 +13,7 @@
 
 #include <asm/amigahw.h>
 #include <asm/amigayle.h>
+#include <asm/byteorder.h>
 
 
 #ifdef CONFIG_ZORRO
@@ -66,10 +67,12 @@ static int __init z_dev_present(zorro_id id)
 {
 	unsigned int i;
 
-	for (i = 0; i < zorro_num_autocon; i++)
-		if (zorro_autocon[i].rom.er_Manufacturer == ZORRO_MANUF(id) &&
-		    zorro_autocon[i].rom.er_Product == ZORRO_PROD(id))
+	for (i = 0; i < zorro_num_autocon; i++) {
+		const struct ExpansionRom *rom = &zorro_autocon_init[i].rom;
+		if (be16_to_cpu(rom->er_Manufacturer) == ZORRO_MANUF(id) &&
+		    rom->er_Product == ZORRO_PROD(id))
 			return 1;
+	}
 
 	return 0;
 }

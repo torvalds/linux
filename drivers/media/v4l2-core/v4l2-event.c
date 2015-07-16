@@ -318,3 +318,39 @@ int v4l2_event_subdev_unsubscribe(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 	return v4l2_event_unsubscribe(fh, sub);
 }
 EXPORT_SYMBOL_GPL(v4l2_event_subdev_unsubscribe);
+
+static void v4l2_event_src_replace(struct v4l2_event *old,
+				const struct v4l2_event *new)
+{
+	u32 old_changes = old->u.src_change.changes;
+
+	old->u.src_change = new->u.src_change;
+	old->u.src_change.changes |= old_changes;
+}
+
+static void v4l2_event_src_merge(const struct v4l2_event *old,
+				struct v4l2_event *new)
+{
+	new->u.src_change.changes |= old->u.src_change.changes;
+}
+
+static const struct v4l2_subscribed_event_ops v4l2_event_src_ch_ops = {
+	.replace = v4l2_event_src_replace,
+	.merge = v4l2_event_src_merge,
+};
+
+int v4l2_src_change_event_subscribe(struct v4l2_fh *fh,
+				const struct v4l2_event_subscription *sub)
+{
+	if (sub->type == V4L2_EVENT_SOURCE_CHANGE)
+		return v4l2_event_subscribe(fh, sub, 0, &v4l2_event_src_ch_ops);
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(v4l2_src_change_event_subscribe);
+
+int v4l2_src_change_event_subdev_subscribe(struct v4l2_subdev *sd,
+		struct v4l2_fh *fh, struct v4l2_event_subscription *sub)
+{
+	return v4l2_src_change_event_subscribe(fh, sub);
+}
+EXPORT_SYMBOL_GPL(v4l2_src_change_event_subdev_subscribe);

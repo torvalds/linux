@@ -28,6 +28,7 @@
 #include "tx.h"
 #include "ps.h"
 #include "io.h"
+#include "event.h"
 
 static bool wl1251_tx_double_buffer_busy(struct wl1251 *wl, u32 data_out_count)
 {
@@ -89,8 +90,12 @@ static void wl1251_tx_control(struct tx_double_buffer_desc *tx_hdr,
 	/* 802.11 packets */
 	tx_hdr->control.packet_type = 0;
 
-	if (control->flags & IEEE80211_TX_CTL_NO_ACK)
+	/* Also disable retry and ACK policy for injected packets */
+	if ((control->flags & IEEE80211_TX_CTL_NO_ACK) ||
+	    (control->flags & IEEE80211_TX_CTL_INJECTED)) {
+		tx_hdr->control.rate_policy = 1;
 		tx_hdr->control.ack_policy = 1;
+	}
 
 	tx_hdr->control.tx_complete = 1;
 
@@ -277,6 +282,26 @@ static void wl1251_tx_trigger(struct wl1251 *wl)
 		TX_STATUS_DATA_OUT_COUNT_MASK;
 }
 
+static void enable_tx_for_packet_injection(struct wl1251 *wl)
+{
+	int ret;
+
+	ret = wl1251_cmd_join(wl, BSS_TYPE_STA_BSS, wl->channel,
+			      wl->beacon_int, wl->dtim_period);
+	if (ret < 0) {
+		wl1251_warning("join failed");
+		return;
+	}
+
+	ret = wl1251_event_wait(wl, JOIN_EVENT_COMPLETE_ID, 100);
+	if (ret < 0) {
+		wl1251_warning("join timeout");
+		return;
+	}
+
+	wl->joined = true;
+}
+
 /* caller must hold wl->mutex */
 static int wl1251_tx_frame(struct wl1251 *wl, struct sk_buff *skb)
 {
@@ -287,6 +312,9 @@ static int wl1251_tx_frame(struct wl1251 *wl, struct sk_buff *skb)
 	info = IEEE80211_SKB_CB(skb);
 
 	if (info->control.hw_key) {
+		if (unlikely(wl->monitor_present))
+			return -EINVAL;
+
 		idx = info->control.hw_key->hw_key_idx;
 		if (unlikely(wl->default_key != idx)) {
 			ret = wl1251_acx_default_key(wl, idx);
@@ -294,6 +322,10 @@ static int wl1251_tx_frame(struct wl1251 *wl, struct sk_buff *skb)
 				return ret;
 		}
 	}
+
+	/* Enable tx path in monitor mode for packet injection */
+	if ((wl->vif == NULL) && !wl->joined)
+		enable_tx_for_packet_injection(wl);
 
 	ret = wl1251_tx_path_status(wl);
 	if (ret < 0)
@@ -394,6 +426,7 @@ static void wl1251_tx_packet_cb(struct wl1251 *wl,
 	info = IEEE80211_SKB_CB(skb);
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
 	    (result->status == TX_SUCCESS))
 		info->flags |= IEEE80211_TX_STAT_ACK;
 

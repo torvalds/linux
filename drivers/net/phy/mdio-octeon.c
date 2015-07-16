@@ -10,7 +10,6 @@
 #include <linux/of_mdio.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/gfp.h>
 #include <linux/phy.h>
 #include <linux/io.h>
@@ -253,7 +252,7 @@ static int octeon_mdiobus_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id octeon_mdiobus_match[] = {
+static const struct of_device_id octeon_mdiobus_match[] = {
 	{
 		.compatible = "cavium,octeon-3860-mdio",
 	},
@@ -264,7 +263,6 @@ MODULE_DEVICE_TABLE(of, octeon_mdiobus_match);
 static struct platform_driver octeon_mdiobus_driver = {
 	.driver = {
 		.name		= "mdio-octeon",
-		.owner		= THIS_MODULE,
 		.of_match_table = octeon_mdiobus_match,
 	},
 	.probe		= octeon_mdiobus_probe,

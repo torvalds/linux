@@ -80,7 +80,6 @@ static char lancestr[] = "LANCE";
 #include <linux/in.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/errno.h>
 #include <linux/socket.h> /* Used for the temporal inet entries and routing */
@@ -1525,7 +1524,6 @@ MODULE_DEVICE_TABLE(of, sunlance_sbus_match);
 static struct platform_driver sunlance_sbus_driver = {
 	.driver = {
 		.name = "sunlance",
-		.owner = THIS_MODULE,
 		.of_match_table = sunlance_sbus_match,
 	},
 	.probe		= sunlance_sbus_probe,

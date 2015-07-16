@@ -54,13 +54,19 @@ struct mbus_dram_target_info
  */
 #ifdef CONFIG_PLAT_ORION
 extern const struct mbus_dram_target_info *mv_mbus_dram_info(void);
+extern const struct mbus_dram_target_info *mv_mbus_dram_info_nooverlap(void);
 #else
 static inline const struct mbus_dram_target_info *mv_mbus_dram_info(void)
 {
 	return NULL;
 }
+static inline const struct mbus_dram_target_info *mv_mbus_dram_info_nooverlap(void)
+{
+	return NULL;
+}
 #endif
 
+int mvebu_mbus_save_cpu_target(u32 *store_addr);
 void mvebu_mbus_get_pcie_mem_aperture(struct resource *res);
 void mvebu_mbus_get_pcie_io_aperture(struct resource *res);
 int mvebu_mbus_add_window_remap_by_id(unsigned int target,
@@ -73,6 +79,6 @@ int mvebu_mbus_del_window(phys_addr_t base, size_t size);
 int mvebu_mbus_init(const char *soc, phys_addr_t mbus_phys_base,
 		    size_t mbus_size, phys_addr_t sdram_phys_base,
 		    size_t sdram_size);
-int mvebu_mbus_dt_init(void);
+int mvebu_mbus_dt_init(bool is_coherent);
 
 #endif /* __LINUX_MBUS_H */

@@ -7,12 +7,13 @@
 maintainers on how to implement atomic counter, bitops, and spinlock
 interfaces properly.
 
-	The atomic_t type should be defined as a signed integer.
-Also, it should be made opaque such that any kind of cast to a normal
-C integer type will fail.  Something like the following should
-suffice:
+	The atomic_t type should be defined as a signed integer and
+the atomic_long_t type as a signed long integer.  Also, they should
+be made opaque such that any kind of cast to a normal C integer type
+will fail.  Something like the following should suffice:
 
 	typedef struct { int counter; } atomic_t;
+	typedef struct { long counter; } atomic_long_t;
 
 Historically, counter has been declared volatile.  This is now discouraged.
 See Documentation/volatile-considered-harmful.txt for the complete rationale.
@@ -36,6 +37,9 @@ are guaranteed to be correct reflecting the initialized value if the
 initializer is used before runtime.  If the initializer is used at runtime, a
 proper implicit or explicit read memory barrier is needed before reading the
 value with atomic_read from another thread.
+
+As with all of the atomic_ interfaces, replace the leading "atomic_"
+with "atomic_long_" to operate on atomic_long_t.
 
 The second interface can be used at runtime, as in:
 
@@ -197,11 +201,11 @@ These routines add 1 and subtract 1, respectively, from the given
 atomic_t and return the new counter value after the operation is
 performed.
 
-Unlike the above routines, it is required that explicit memory
-barriers are performed before and after the operation.  It must be
-done such that all memory operations before and after the atomic
-operation calls are strongly ordered with respect to the atomic
-operation itself.
+Unlike the above routines, it is required that these primitives
+include explicit memory barriers that are performed before and after
+the operation.  It must be done such that all memory operations before
+and after the atomic operation calls are strongly ordered with respect
+to the atomic operation itself.
 
 For example, it should behave as if a smp_mb() call existed both
 before and after the atomic operation.
@@ -229,21 +233,21 @@ These two routines increment and decrement by 1, respectively, the
 given atomic counter.  They return a boolean indicating whether the
 resulting counter value was zero or not.
 
-It requires explicit memory barrier semantics around the operation as
-above.
+Again, these primitives provide explicit memory barrier semantics around
+the atomic operation.
 
 	int atomic_sub_and_test(int i, atomic_t *v);
 
 This is identical to atomic_dec_and_test() except that an explicit
-decrement is given instead of the implicit "1".  It requires explicit
-memory barrier semantics around the operation.
+decrement is given instead of the implicit "1".  This primitive must
+provide explicit memory barrier semantics around the operation.
 
 	int atomic_add_negative(int i, atomic_t *v);
 
-The given increment is added to the given atomic counter value.  A
-boolean is return which indicates whether the resulting counter value
-is negative.  It requires explicit memory barrier semantics around the
-operation.
+The given increment is added to the given atomic counter value.  A boolean
+is return which indicates whether the resulting counter value is negative.
+This primitive must provide explicit memory barrier semantics around
+the operation.
 
 Then:
 
@@ -253,7 +257,7 @@ This performs an atomic exchange operation on the atomic variable v, setting
 the given new value.  It returns the old value that the atomic variable v had
 just before the operation.
 
-atomic_xchg requires explicit memory barriers around the operation.
+atomic_xchg must provide explicit memory barriers around the operation.
 
 	int atomic_cmpxchg(atomic_t *v, int old, int new);
 
@@ -262,7 +266,7 @@ with the given old and new values. Like all atomic_xxx operations,
 atomic_cmpxchg will only satisfy its atomicity semantics as long as all
 other accesses of *v are performed through atomic_xxx operations.
 
-atomic_cmpxchg requires explicit memory barriers around the operation.
+atomic_cmpxchg must provide explicit memory barriers around the operation.
 
 The semantics for atomic_cmpxchg are the same as those defined for 'cas'
 below.
@@ -275,8 +279,8 @@ If the atomic value v is not equal to u, this function adds a to v, and
 returns non zero. If v is equal to u then it returns zero. This is done as
 an atomic operation.
 
-atomic_add_unless requires explicit memory barriers around the operation
-unless it fails (returns 0).
+atomic_add_unless must provide explicit memory barriers around the
+operation unless it fails (returns 0).
 
 atomic_inc_not_zero, equivalent to atomic_add_unless(v, 1, 0)
 
@@ -285,15 +289,13 @@ If a caller requires memory barrier semantics around an atomic_t
 operation which does not return a value, a set of interfaces are
 defined which accomplish this:
 
-	void smp_mb__before_atomic_dec(void);
-	void smp_mb__after_atomic_dec(void);
-	void smp_mb__before_atomic_inc(void);
-	void smp_mb__after_atomic_inc(void);
+	void smp_mb__before_atomic(void);
+	void smp_mb__after_atomic(void);
 
-For example, smp_mb__before_atomic_dec() can be used like so:
+For example, smp_mb__before_atomic() can be used like so:
 
 	obj->dead = 1;
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_dec(&obj->ref_count);
 
 It makes sure that all memory operations preceding the atomic_dec()
@@ -302,14 +304,9 @@ operation.  In the above example, it guarantees that the assignment of
 "1" to obj->dead will be globally visible to other cpus before the
 atomic counter decrement.
 
-Without the explicit smp_mb__before_atomic_dec() call, the
+Without the explicit smp_mb__before_atomic() call, the
 implementation could legally allow the atomic counter update visible
 to other cpus before the "obj->dead = 1;" assignment.
-
-The other three interfaces listed are used to provide explicit
-ordering with respect to memory operations after an atomic_dec() call
-(smp_mb__after_atomic_dec()) and around atomic_inc() calls
-(smp_mb__{before,after}_atomic_inc()).
 
 A missing memory barrier in the cases where they are required by the
 atomic_t implementation above can have disastrous results.  Here is
@@ -463,9 +460,9 @@ the return value into an int.  There are other places where things
 like this occur as well.
 
 These routines, like the atomic_t counter operations returning values,
-require explicit memory barrier semantics around their execution.  All
-memory operations before the atomic bit operation call must be made
-visible globally before the atomic bit operation is made visible.
+must provide explicit memory barrier semantics around their execution.
+All memory operations before the atomic bit operation call must be
+made visible globally before the atomic bit operation is made visible.
 Likewise, the atomic bit operation must be visible globally before any
 subsequent memory operation is made visible.  For example:
 
@@ -487,12 +484,12 @@ Finally there is the basic operation:
 Which returns a boolean indicating if bit "nr" is set in the bitmask
 pointed to by "addr".
 
-If explicit memory barriers are required around clear_bit() (which
-does not return a value, and thus does not need to provide memory
-barrier semantics), two interfaces are provided:
+If explicit memory barriers are required around {set,clear}_bit() (which do
+not return a value, and thus does not need to provide memory barrier
+semantics), two interfaces are provided:
 
-	void smp_mb__before_clear_bit(void);
-	void smp_mb__after_clear_bit(void);
+	void smp_mb__before_atomic(void);
+	void smp_mb__after_atomic(void);
 
 They are used as follows, and are akin to their atomic_t operation
 brothers:
@@ -500,13 +497,13 @@ brothers:
 	/* All memory operations before this call will
 	 * be globally visible before the clear_bit().
 	 */
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit( ... );
 
 	/* The clear_bit() will be visible before all
 	 * subsequent memory operations.
 	 */
-	 smp_mb__after_clear_bit();
+	 smp_mb__after_atomic();
 
 There are two special bitops with lock barrier semantics (acquire/release,
 same as spinlocks). These operate in the same way as their non-_lock/unlock
@@ -539,8 +536,9 @@ except that two underscores are prefixed to the interface name.
 These non-atomic variants also do not require any special memory
 barrier semantics.
 
-The routines xchg() and cmpxchg() need the same exact memory barriers
-as the atomic and bit operations returning values.
+The routines xchg() and cmpxchg() must provide the same exact
+memory-barrier semantics as the atomic and bit operations returning
+values.
 
 Spinlocks and rwlocks have memory barrier expectations as well.
 The rule to follow is simple:

@@ -26,18 +26,9 @@
 
 #include "mv_sas.h"
 
-static int lldd_max_execute_num = 1;
-module_param_named(collector, lldd_max_execute_num, int, S_IRUGO);
-MODULE_PARM_DESC(collector, "\n"
-	"\tIf greater than one, tells the SAS Layer to run in Task Collector\n"
-	"\tMode.  If 1 or 0, tells the SAS Layer to run in Direct Mode.\n"
-	"\tThe mvsas SAS LLDD supports both modes.\n"
-	"\tDefault: 1 (Direct Mode).\n");
-
 int interrupt_coalescing = 0x80;
 
 static struct scsi_transport_template *mvs_stt;
-struct kmem_cache *mvs_task_list_cache;
 static const struct mvs_chip_info mvs_chips[] = {
 	[chip_6320] =	{ 1, 2, 0x400, 17, 16, 6,  9, &mvs_64xx_dispatch, },
 	[chip_6440] =	{ 1, 4, 0x400, 17, 16, 6,  9, &mvs_64xx_dispatch, },
@@ -63,10 +54,8 @@ static struct scsi_host_template mvs_sht = {
 	.scan_finished		= mvs_scan_finished,
 	.scan_start		= mvs_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,
-	.change_queue_type	= sas_change_queue_type,
 	.bios_param		= sas_bios_param,
 	.can_queue		= 1,
-	.cmd_per_lun		= 1,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
@@ -76,6 +65,8 @@ static struct scsi_host_template mvs_sht = {
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= mvst_host_attrs,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static struct sas_domain_function_template mvs_transport_ops = {
@@ -511,14 +502,11 @@ static void  mvs_post_sas_ha_init(struct Scsi_Host *shost,
 
 	sha->num_phys = nr_core * chip_info->n_phy;
 
-	sha->lldd_max_execute_num = lldd_max_execute_num;
-
 	if (mvi->flags & MVF_FLAG_SOC)
 		can_queue = MVS_SOC_CAN_QUEUE;
 	else
 		can_queue = MVS_CHIP_SLOT_SZ;
 
-	sha->lldd_queue_size = can_queue;
 	shost->sg_tablesize = min_t(u16, SG_ALL, MVS_MAX_SG);
 	shost->can_queue = can_queue;
 	mvi->shost->cmd_per_lun = MVS_QUEUE_SIZE;
@@ -728,6 +716,15 @@ static struct pci_device_id mvs_pci_table[] = {
 		.class_mask	= 0,
 		.driver_data	= chip_9485,
 	},
+	{
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
+		.device		= 0x9485,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= 0x9485,
+		.class		= 0,
+		.class_mask	= 0,
+		.driver_data	= chip_9485,
+	},
 	{ PCI_VDEVICE(OCZ, 0x1021), chip_9485}, /* OCZ RevoDrive3 */
 	{ PCI_VDEVICE(OCZ, 0x1022), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
 	{ PCI_VDEVICE(OCZ, 0x1040), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
@@ -822,16 +819,7 @@ static int __init mvs_init(void)
 	if (!mvs_stt)
 		return -ENOMEM;
 
-	mvs_task_list_cache = kmem_cache_create("mvs_task_list", sizeof(struct mvs_task_list),
-							 0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!mvs_task_list_cache) {
-		rc = -ENOMEM;
-		mv_printk("%s: mvs_task_list_cache alloc failed! \n", __func__);
-		goto err_out;
-	}
-
 	rc = pci_register_driver(&mvs_pci_driver);
-
 	if (rc)
 		goto err_out;
 
@@ -846,7 +834,6 @@ static void __exit mvs_exit(void)
 {
 	pci_unregister_driver(&mvs_pci_driver);
 	sas_release_transport(mvs_stt);
-	kmem_cache_destroy(mvs_task_list_cache);
 }
 
 struct device_attribute *mvst_host_attrs[] = {

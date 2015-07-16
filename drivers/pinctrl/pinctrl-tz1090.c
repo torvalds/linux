@@ -1131,7 +1131,7 @@ static int tz1090_pinctrl_dt_subnode_to_map(struct device *dev,
 		function = NULL;
 	}
 
-	ret = pinconf_generic_parse_dt_config(np, &configs, &num_configs);
+	ret = pinconf_generic_parse_dt_config(np, NULL, &configs, &num_configs);
 	if (ret)
 		return ret;
 
@@ -1415,8 +1415,8 @@ found_mux:
  * the effect is the same as enabling the function on each individual pin in the
  * group.
  */
-static int tz1090_pinctrl_enable(struct pinctrl_dev *pctldev,
-				 unsigned int function, unsigned int group)
+static int tz1090_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+				  unsigned int function, unsigned int group)
 {
 	struct tz1090_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct tz1090_pingroup *grp;
@@ -1479,63 +1479,6 @@ mux_pins:
 }
 
 /**
- * tz1090_pinctrl_disable() - Disable a function on a pin group.
- * @pctldev:		Pin control data
- * @function:		Function index to disable
- * @group:		Group index to disable
- *
- * Disable a particular function on a group of pins. The per GPIO pin pseudo pin
- * groups can be used (in which case the pin will be taken out of peripheral
- * mode. Some convenience pin groups can also be used in which case the effect
- * is the same as enabling the function on each individual pin in the group.
- */
-static void tz1090_pinctrl_disable(struct pinctrl_dev *pctldev,
-				   unsigned int function, unsigned int group)
-{
-	struct tz1090_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct tz1090_pingroup *grp;
-	unsigned int pin_num, mux_group, i, npins;
-	const unsigned int *pins;
-
-	/* group of pins? */
-	if (group < ARRAY_SIZE(tz1090_groups)) {
-		grp = &tz1090_groups[group];
-		npins = grp->npins;
-		pins = grp->pins;
-		/*
-		 * All pins in the group must belong to the same mux group,
-		 * which allows us to just use the mux group of the first pin.
-		 * By explicitly listing permitted pingroups for each function
-		 * the pinmux core should ensure this is always the case.
-		 */
-	} else {
-		pin_num = group - ARRAY_SIZE(tz1090_groups);
-		npins = 1;
-		pins = &pin_num;
-	}
-	mux_group = tz1090_mux_pins[*pins];
-
-	/* no mux group, but can still be individually muxed to peripheral */
-	if (mux_group >= TZ1090_MUX_GROUP_MAX) {
-		if (function == TZ1090_MUX_PERIP)
-			goto unmux_pins;
-		return;
-	}
-
-	/* mux group already set to a different function? */
-	grp = &tz1090_mux_groups[mux_group];
-	dev_dbg(pctldev->dev, "%s: unmuxing %u pin(s) in '%s' from '%s'\n",
-		__func__, npins, grp->name, tz1090_functions[function].name);
-
-	/* subtract pins from ref count and unmux individually */
-	WARN_ON(grp->func_count < npins);
-	grp->func_count -= npins;
-unmux_pins:
-	for (i = 0; i < npins; ++i)
-		tz1090_pinctrl_perip_select(pmx, pins[i], false);
-}
-
-/**
  * tz1090_pinctrl_gpio_request_enable() - Put pin in GPIO mode.
  * @pctldev:		Pin control data
  * @range:		GPIO range
@@ -1574,8 +1517,7 @@ static struct pinmux_ops tz1090_pinmux_ops = {
 	.get_functions_count	= tz1090_pinctrl_get_funcs_count,
 	.get_function_name	= tz1090_pinctrl_get_func_name,
 	.get_function_groups	= tz1090_pinctrl_get_func_groups,
-	.enable			= tz1090_pinctrl_enable,
-	.disable		= tz1090_pinctrl_disable,
+	.set_mux		= tz1090_pinctrl_set_mux,
 	.gpio_request_enable	= tz1090_pinctrl_gpio_request_enable,
 	.gpio_disable_free	= tz1090_pinctrl_gpio_disable_free,
 };
@@ -2021,9 +1963,9 @@ static int tz1090_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pmx->regs);
 
 	pmx->pctl = pinctrl_register(&tz1090_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
 
 	platform_set_drvdata(pdev, pmx);
@@ -2042,7 +1984,7 @@ static int tz1090_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tz1090_pinctrl_of_match[] = {
+static const struct of_device_id tz1090_pinctrl_of_match[] = {
 	{ .compatible = "img,tz1090-pinctrl", },
 	{ },
 };
@@ -2050,7 +1992,6 @@ static struct of_device_id tz1090_pinctrl_of_match[] = {
 static struct platform_driver tz1090_pinctrl_driver = {
 	.driver = {
 		.name		= "tz1090-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= tz1090_pinctrl_of_match,
 	},
 	.probe	= tz1090_pinctrl_probe,

@@ -117,7 +117,7 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 		rover = be16_to_cpu(*port);
 		last = rover;
 	} else {
-		rover = max_t(u16, net_random(), 2);
+		rover = max_t(u16, prandom_u32(), 2);
 		last = rover - 1;
 	}
 
@@ -181,6 +181,10 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (ret)
 		goto out;
 
+	if (rs->rs_transport) { /* previously bound */
+		ret = 0;
+		goto out;
+	}
 	trans = rds_trans_get_preferred(sin->sin_addr.s_addr);
 	if (!trans) {
 		ret = -EADDRNOTAVAIL;

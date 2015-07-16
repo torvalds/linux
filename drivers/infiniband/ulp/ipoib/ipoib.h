@@ -86,9 +86,7 @@ enum {
 	IPOIB_FLAG_INITIALIZED	  = 1,
 	IPOIB_FLAG_ADMIN_UP	  = 2,
 	IPOIB_PKEY_ASSIGNED	  = 3,
-	IPOIB_PKEY_STOP		  = 4,
 	IPOIB_FLAG_SUBINTERFACE	  = 5,
-	IPOIB_MCAST_RUN		  = 6,
 	IPOIB_STOP_REAPER	  = 7,
 	IPOIB_FLAG_ADMIN_CM	  = 9,
 	IPOIB_FLAG_UMCAST	  = 10,
@@ -99,9 +97,15 @@ enum {
 
 	IPOIB_MCAST_FLAG_FOUND	  = 0,	/* used in set_multicast_list */
 	IPOIB_MCAST_FLAG_SENDONLY = 1,
-	IPOIB_MCAST_FLAG_BUSY	  = 2,	/* joining or already joined */
+	/*
+	 * For IPOIB_MCAST_FLAG_BUSY
+	 * When set, in flight join and mcast->mc is unreliable
+	 * When clear and mcast->mc IS_ERR_OR_NULL, need to restart or
+	 *   haven't started yet
+	 * When clear and mcast->mc is valid pointer, join was successful
+	 */
+	IPOIB_MCAST_FLAG_BUSY	  = 2,
 	IPOIB_MCAST_FLAG_ATTACHED = 3,
-	IPOIB_MCAST_JOIN_STARTED  = 4,
 
 	MAX_SEND_CQE		  = 16,
 	IPOIB_CM_COPYBREAK	  = 256,
@@ -132,6 +136,12 @@ struct ipoib_cb {
 	u8			hwaddr[INFINIBAND_ALEN];
 };
 
+static inline struct ipoib_cb *ipoib_skb_cb(const struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct ipoib_cb));
+	return (struct ipoib_cb *)skb->cb;
+}
+
 /* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
 struct ipoib_mcast {
 	struct ib_sa_mcmember_rec mcmember;
@@ -143,6 +153,7 @@ struct ipoib_mcast {
 
 	unsigned long created;
 	unsigned long backoff;
+	unsigned long delay_until;
 
 	unsigned long flags;
 	unsigned char logcount;
@@ -228,7 +239,7 @@ struct ipoib_cm_tx {
 	struct net_device   *dev;
 	struct ipoib_neigh  *neigh;
 	struct ipoib_path   *path;
-	struct ipoib_cm_tx_buf *tx_ring;
+	struct ipoib_tx_buf *tx_ring;
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
 	unsigned long	     flags;
@@ -287,6 +298,11 @@ struct ipoib_neigh_table {
 	struct completion		deleted;
 };
 
+struct ipoib_qp_state_validate {
+	struct work_struct work;
+	struct ipoib_dev_priv   *priv;
+};
+
 /*
  * Device private locking: network stack tx_lock protects members used
  * in TX fast path, lock protects everything else.  lock nests inside
@@ -312,7 +328,7 @@ struct ipoib_dev_priv {
 	struct list_head multicast_list;
 	struct rb_root multicast_tree;
 
-	struct delayed_work pkey_poll_task;
+	struct workqueue_struct *wq;
 	struct delayed_work mcast_task;
 	struct work_struct carrier_on_task;
 	struct work_struct flush_light;
@@ -422,11 +438,6 @@ struct ipoib_neigh {
 #define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
 #define IPOIB_UD_BUF_SIZE(ib_mtu)	(ib_mtu + IB_GRH_BYTES)
 
-static inline int ipoib_ud_need_sg(unsigned int ib_mtu)
-{
-	return IPOIB_UD_BUF_SIZE(ib_mtu) > PAGE_SIZE;
-}
-
 void ipoib_neigh_dtor(struct ipoib_neigh *neigh);
 static inline void ipoib_neigh_put(struct ipoib_neigh *neigh)
 {
@@ -475,8 +486,9 @@ void ipoib_ib_dev_cleanup(struct net_device *dev);
 
 int ipoib_ib_dev_open(struct net_device *dev);
 int ipoib_ib_dev_up(struct net_device *dev);
-int ipoib_ib_dev_down(struct net_device *dev, int flush);
-int ipoib_ib_dev_stop(struct net_device *dev, int flush);
+int ipoib_ib_dev_down(struct net_device *dev);
+int ipoib_ib_dev_stop(struct net_device *dev);
+void ipoib_pkey_dev_check_presence(struct net_device *dev);
 
 int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
 void ipoib_dev_cleanup(struct net_device *dev);
@@ -487,10 +499,37 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
 int ipoib_mcast_start_thread(struct net_device *dev);
-int ipoib_mcast_stop_thread(struct net_device *dev, int flush);
+int ipoib_mcast_stop_thread(struct net_device *dev);
 
 void ipoib_mcast_dev_down(struct net_device *dev);
 void ipoib_mcast_dev_flush(struct net_device *dev);
+
+int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
+void ipoib_dma_unmap_tx(struct ipoib_dev_priv *priv,
+			struct ipoib_tx_buf *tx_req);
+
+static inline void ipoib_build_sge(struct ipoib_dev_priv *priv,
+				   struct ipoib_tx_buf *tx_req)
+{
+	int i, off;
+	struct sk_buff *skb = tx_req->skb;
+	skb_frag_t *frags = skb_shinfo(skb)->frags;
+	int nr_frags = skb_shinfo(skb)->nr_frags;
+	u64 *mapping = tx_req->mapping;
+
+	if (skb_headlen(skb)) {
+		priv->tx_sge[0].addr         = mapping[0];
+		priv->tx_sge[0].length       = skb_headlen(skb);
+		off = 1;
+	} else
+		off = 0;
+
+	for (i = 0; i < nr_frags; ++i) {
+		priv->tx_sge[i + off].addr = mapping[i + off];
+		priv->tx_sge[i + off].length = skb_frag_size(&frags[i]);
+	}
+	priv->tx_wr.num_sge	     = nr_frags + off;
+}
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev);
@@ -532,8 +571,7 @@ int  ipoib_set_mode(struct net_device *dev, const char *buf);
 
 void ipoib_setup(struct net_device *dev);
 
-void ipoib_pkey_poll(struct work_struct *work);
-int ipoib_pkey_dev_delay_open(struct net_device *dev);
+void ipoib_pkey_open(struct ipoib_dev_priv *priv);
 void ipoib_drain_cq(struct net_device *dev);
 
 void ipoib_set_ethtool_ops(struct net_device *dev);

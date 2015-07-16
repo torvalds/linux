@@ -191,6 +191,9 @@ static struct platform_device osk5912_tps_leds = {
 
 static int osk_tps_setup(struct i2c_client *client, void *context)
 {
+	if (!IS_BUILTIN(CONFIG_TPS65010))
+		return -ENOSYS;
+
 	/* Set GPIO 1 HIGH to disable VBUS power supply;
 	 * OHCI driver powers it up/down as needed.
 	 */
@@ -280,7 +283,7 @@ static struct omap_usb_config osk_usb_config __initdata = {
 	 * be used, with a NONSTANDARD gender-bending cable/dongle, as
 	 * a peripheral.
 	 */
-#ifdef	CONFIG_USB_GADGET_OMAP
+#if IS_ENABLED(CONFIG_USB_OMAP)
 	.register_dev	= 1,
 	.hmc_mode	= 0,
 #else
@@ -607,6 +610,7 @@ MACHINE_START(OMAP_OSK, "TI-OSK")
 	.map_io		= omap16xx_map_io,
 	.init_early	= omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= osk_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

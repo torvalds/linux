@@ -444,11 +444,15 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 	avc_dump_query(ab, ad->selinux_audit_data->ssid,
 			   ad->selinux_audit_data->tsid,
 			   ad->selinux_audit_data->tclass);
+	if (ad->selinux_audit_data->denied) {
+		audit_log_format(ab, " permissive=%u",
+				 ad->selinux_audit_data->result ? 0 : 1);
+	}
 }
 
 /* This is the slow part of avc audit with big stack footprint */
 noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
-		u32 requested, u32 audited, u32 denied,
+		u32 requested, u32 audited, u32 denied, int result,
 		struct common_audit_data *a,
 		unsigned flags)
 {
@@ -477,6 +481,7 @@ noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 	sad.tsid = tsid;
 	sad.audited = audited;
 	sad.denied = denied;
+	sad.result = result;
 
 	a->selinux_audit_data = &sad;
 
@@ -510,11 +515,6 @@ int __init avc_add_callback(int (*callback)(u32 event), u32 events)
 	avc_callbacks = c;
 out:
 	return rc;
-}
-
-static inline int avc_sidcmp(u32 x, u32 y)
-{
-	return (x == y || x == SECSID_WILD || y == SECSID_WILD);
 }
 
 /**
@@ -724,12 +724,10 @@ inline int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 	rcu_read_lock();
 
 	node = avc_lookup(ssid, tsid, tclass);
-	if (unlikely(!node)) {
+	if (unlikely(!node))
 		node = avc_compute_av(ssid, tsid, tclass, avd);
-	} else {
+	else
 		memcpy(avd, &node->ae.avd, sizeof(*avd));
-		avd = &node->ae.avd;
-	}
 
 	denied = requested & ~(avd->allowed);
 	if (unlikely(denied))
@@ -763,7 +761,23 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
 
 	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
 
-	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata);
+	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata, 0);
+	if (rc2)
+		return rc2;
+	return rc;
+}
+
+int avc_has_perm_flags(u32 ssid, u32 tsid, u16 tclass,
+		       u32 requested, struct common_audit_data *auditdata,
+		       int flags)
+{
+	struct av_decision avd;
+	int rc, rc2;
+
+	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
+
+	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc,
+			auditdata, flags);
 	if (rc2)
 		return rc2;
 	return rc;

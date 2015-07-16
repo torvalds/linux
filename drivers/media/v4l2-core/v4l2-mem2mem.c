@@ -97,7 +97,7 @@ EXPORT_SYMBOL(v4l2_m2m_get_vq);
  */
 void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 {
-	struct v4l2_m2m_buffer *b = NULL;
+	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_next_buf);
  */
 void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
 {
-	struct v4l2_m2m_buffer *b = NULL;
+	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
@@ -208,7 +208,7 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
  * An example of the above could be an instance that requires more than one
  * src/dst buffer per transaction.
  */
-static void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
+void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	struct v4l2_m2m_dev *m2m_dev;
 	unsigned long flags_job, flags_out, flags_cap;
@@ -274,6 +274,7 @@ static void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 
 	v4l2_m2m_try_run(m2m_dev);
 }
+EXPORT_SYMBOL_GPL(v4l2_m2m_try_schedule);
 
 /**
  * v4l2_m2m_cancel_job() - cancel pending jobs for the context
@@ -426,6 +427,25 @@ int v4l2_m2m_dqbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 EXPORT_SYMBOL_GPL(v4l2_m2m_dqbuf);
 
 /**
+ * v4l2_m2m_prepare_buf() - prepare a source or destination buffer, depending on
+ * the type
+ */
+int v4l2_m2m_prepare_buf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
+			 struct v4l2_buffer *buf)
+{
+	struct vb2_queue *vq;
+	int ret;
+
+	vq = v4l2_m2m_get_vq(m2m_ctx, buf->type);
+	ret = vb2_prepare_buf(vq, buf);
+	if (!ret)
+		v4l2_m2m_try_schedule(m2m_ctx);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_prepare_buf);
+
+/**
  * v4l2_m2m_create_bufs() - create a source or destination buffer, depending
  * on the type
  */
@@ -558,14 +578,30 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 
 	if (m2m_ctx->m2m_dev->m2m_ops->unlock)
 		m2m_ctx->m2m_dev->m2m_ops->unlock(m2m_ctx->priv);
+	else if (m2m_ctx->q_lock)
+		mutex_unlock(m2m_ctx->q_lock);
 
 	if (list_empty(&src_q->done_list))
 		poll_wait(file, &src_q->done_wq, wait);
-	if (list_empty(&dst_q->done_list))
+	if (list_empty(&dst_q->done_list)) {
+		/*
+		 * If the last buffer was dequeued from the capture queue,
+		 * return immediately. DQBUF will return -EPIPE.
+		 */
+		if (dst_q->last_buffer_dequeued)
+			return rc | POLLIN | POLLRDNORM;
+
 		poll_wait(file, &dst_q->done_wq, wait);
+	}
 
 	if (m2m_ctx->m2m_dev->m2m_ops->lock)
 		m2m_ctx->m2m_dev->m2m_ops->lock(m2m_ctx->priv);
+	else if (m2m_ctx->q_lock) {
+		if (mutex_lock_interruptible(m2m_ctx->q_lock)) {
+			rc |= POLLERR;
+			goto end;
+		}
+	}
 
 	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (!list_empty(&src_q->done_list))
@@ -693,6 +729,13 @@ struct v4l2_m2m_ctx *v4l2_m2m_ctx_init(struct v4l2_m2m_dev *m2m_dev,
 
 	if (ret)
 		goto err;
+	/*
+	 * If both queues use same mutex assign it as the common buffer
+	 * queues lock to the m2m context. This lock is used in the
+	 * v4l2_m2m_ioctl_* helpers.
+	 */
+	if (out_q_ctx->q.lock == cap_q_ctx->q.lock)
+		m2m_ctx->q_lock = out_q_ctx->q.lock;
 
 	return m2m_ctx;
 err:
@@ -739,4 +782,128 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx, struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_buf_queue);
+
+/* Videobuf2 ioctl helpers */
+
+int v4l2_m2m_ioctl_reqbufs(struct file *file, void *priv,
+				struct v4l2_requestbuffers *rb)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_reqbufs(file, fh->m2m_ctx, rb);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_reqbufs);
+
+int v4l2_m2m_ioctl_create_bufs(struct file *file, void *priv,
+				struct v4l2_create_buffers *create)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_create_bufs(file, fh->m2m_ctx, create);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_create_bufs);
+
+int v4l2_m2m_ioctl_querybuf(struct file *file, void *priv,
+				struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_querybuf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_querybuf);
+
+int v4l2_m2m_ioctl_qbuf(struct file *file, void *priv,
+				struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_qbuf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_qbuf);
+
+int v4l2_m2m_ioctl_dqbuf(struct file *file, void *priv,
+				struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_dqbuf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_dqbuf);
+
+int v4l2_m2m_ioctl_prepare_buf(struct file *file, void *priv,
+			       struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_prepare_buf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_prepare_buf);
+
+int v4l2_m2m_ioctl_expbuf(struct file *file, void *priv,
+				struct v4l2_exportbuffer *eb)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_expbuf(file, fh->m2m_ctx, eb);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_expbuf);
+
+int v4l2_m2m_ioctl_streamon(struct file *file, void *priv,
+				enum v4l2_buf_type type)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_streamon(file, fh->m2m_ctx, type);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamon);
+
+int v4l2_m2m_ioctl_streamoff(struct file *file, void *priv,
+				enum v4l2_buf_type type)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_streamoff(file, fh->m2m_ctx, type);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamoff);
+
+/*
+ * v4l2_file_operations helpers. It is assumed here same lock is used
+ * for the output and the capture buffer queue.
+ */
+
+int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_m2m_ctx *m2m_ctx = fh->m2m_ctx;
+	int ret;
+
+	if (m2m_ctx->q_lock && mutex_lock_interruptible(m2m_ctx->q_lock))
+		return -ERESTARTSYS;
+
+	ret = v4l2_m2m_mmap(file, m2m_ctx, vma);
+
+	if (m2m_ctx->q_lock)
+		mutex_unlock(m2m_ctx->q_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_fop_mmap);
+
+unsigned int v4l2_m2m_fop_poll(struct file *file, poll_table *wait)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_m2m_ctx *m2m_ctx = fh->m2m_ctx;
+	unsigned int ret;
+
+	if (m2m_ctx->q_lock)
+		mutex_lock(m2m_ctx->q_lock);
+
+	ret = v4l2_m2m_poll(file, m2m_ctx, wait);
+
+	if (m2m_ctx->q_lock)
+		mutex_unlock(m2m_ctx->q_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_fop_poll);
 

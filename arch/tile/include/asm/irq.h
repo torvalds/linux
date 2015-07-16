@@ -18,10 +18,12 @@
 #include <linux/hardirq.h>
 
 /* The hypervisor interface provides 32 IRQs. */
-#define NR_IRQS 32
+#define NR_IRQS			32
 
 /* IRQ numbers used for linux IPIs. */
-#define IRQ_RESCHEDULE 0
+#define IRQ_RESCHEDULE	0
+/* Interrupts for dynamic allocation start at 1. Let the core allocate irq0 */
+#define NR_IRQS_LEGACY	1
 
 #define irq_canonicalize(irq)   (irq)
 
@@ -75,5 +77,10 @@ enum {
 void tile_irq_activate(unsigned int irq, int tile_irq_type);
 
 void setup_irq_regs(void);
+
+#ifdef __tilegx__
+void arch_trigger_all_cpu_backtrace(bool self);
+#define arch_trigger_all_cpu_backtrace arch_trigger_all_cpu_backtrace
+#endif
 
 #endif /* _ASM_TILE_IRQ_H */

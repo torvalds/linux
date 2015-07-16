@@ -11,6 +11,7 @@
 
 #include "bcma_private.h"
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/bcma/bcma.h>
 #include <asm/paccess.h>
@@ -593,7 +594,7 @@ int bcma_core_pci_plat_dev_init(struct pci_dev *dev)
 	pr_info("PCI: Fixing up device %s\n", pci_name(dev));
 
 	/* Fix up interrupt lines */
-	dev->irq = bcma_core_irq(pc_host->pdev->core);
+	dev->irq = bcma_core_irq(pc_host->pdev->core, 0);
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
 
 	readrq = pcie_get_readrq(dev);
@@ -617,6 +618,6 @@ int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev)
 
 	pc_host = container_of(dev->bus->ops, struct bcma_drv_pci_host,
 			       pci_ops);
-	return bcma_core_irq(pc_host->pdev->core);
+	return bcma_core_irq(pc_host->pdev->core, 0);
 }
 EXPORT_SYMBOL(bcma_core_pci_pcibios_map_irq);

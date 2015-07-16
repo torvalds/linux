@@ -107,16 +107,10 @@ struct P2P_PS_CTWPeriod_t {
 /*  host message to firmware cmd */
 void rtl8188e_set_FwPwrMode_cmd(struct adapter *padapter, u8 Mode);
 void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *padapter, u8 mstatus);
-u8 rtl8188e_set_rssi_cmd(struct adapter *padapter, u8 *param);
 u8 rtl8188e_set_raid_cmd(struct adapter *padapter, u32 mask);
 void rtl8188e_Add_RateATid(struct adapter *padapter, u32 bitmap, u8 arg,
 			   u8 rssi_level);
 
-#ifdef CONFIG_88EU_P2P
-void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state);
-#endif /* CONFIG_88EU_P2P */
-
-void CheckFwRsvdPageContent(struct adapter *adapt);
 void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt);
 
 #endif/* __RTL8188E_CMD_H__ */

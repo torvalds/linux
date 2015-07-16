@@ -23,7 +23,6 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
-#include <linux/rtc.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/timex.h>
 #include <linux/clocksource.h>
@@ -36,6 +35,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 
+#include <asm/mc146818rtc.h>
 #include <asm/oplib.h>
 #include <asm/timex.h>
 #include <asm/timer.h>
@@ -47,6 +47,7 @@
 #include <asm/irq_regs.h>
 #include <asm/setup.h>
 
+#include "kernel.h"
 #include "irq.h"
 
 static __cacheline_aligned_in_smp DEFINE_SEQLOCK(timer_cs_lock);
@@ -62,8 +63,6 @@ DEFINE_PER_CPU(struct clock_event_device, sparc32_clockevent);
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
-
-static int set_rtc_mmss(unsigned long);
 
 unsigned long profile_pc(struct pt_regs *regs)
 {
@@ -83,12 +82,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 
 EXPORT_SYMBOL(profile_pc);
 
-__volatile__ unsigned int *master_l10_counter;
-
-int update_persistent_clock(struct timespec now)
-{
-	return set_rtc_mmss(now.tv_sec);
-}
+volatile u32 __iomem *master_l10_counter;
 
 irqreturn_t notrace timer_interrupt(int dummy, void *dev_id)
 {
@@ -143,9 +137,9 @@ static __init void setup_timer_ce(void)
 
 static unsigned int sbus_cycles_offset(void)
 {
-	unsigned int val, offset;
+	u32 val, offset;
 
-	val = *master_l10_counter;
+	val = sbus_readl(master_l10_counter);
 	offset = (val >> TIMER_VALUE_SHIFT) & TIMER_VALUE_MASK;
 
 	/* Limit hit? */
@@ -179,24 +173,20 @@ static struct clocksource timer_cs = {
 	.rating	= 100,
 	.read	= timer_cs_read,
 	.mask	= CLOCKSOURCE_MASK(64),
-	.shift	= 2,
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static __init int setup_timer_cs(void)
 {
 	timer_cs_enabled = 1;
-	timer_cs.mult = clocksource_hz2mult(sparc_config.clock_rate,
-	                                    timer_cs.shift);
-
-	return clocksource_register(&timer_cs);
+	return clocksource_register_hz(&timer_cs, sparc_config.clock_rate);
 }
 
 #ifdef CONFIG_SMP
 static void percpu_ce_setup(enum clock_event_mode mode,
 			struct clock_event_device *evt)
 {
-	int cpu = __first_cpu(evt->cpumask);
+	int cpu = cpumask_first(evt->cpumask);
 
 	switch (mode) {
 		case CLOCK_EVT_MODE_PERIODIC:
@@ -216,7 +206,7 @@ static void percpu_ce_setup(enum clock_event_mode mode,
 static int percpu_ce_set_next_event(unsigned long delta,
 				    struct clock_event_device *evt)
 {
-	int cpu = __first_cpu(evt->cpumask);
+	int cpu = cpumask_first(evt->cpumask);
 	unsigned int next = (unsigned int)delta;
 
 	sparc_config.load_profile_irq(cpu, next);
@@ -320,7 +310,6 @@ static struct platform_driver clock_driver = {
 	.probe		= clock_probe,
 	.driver = {
 		.name = "rtc",
-		.owner = THIS_MODULE,
 		.of_match_table = clock_match,
 	},
 };
@@ -365,16 +354,3 @@ void __init time_init(void)
 		sbus_time_init();
 }
 
-
-static int set_rtc_mmss(unsigned long secs)
-{
-	struct rtc_device *rtc = rtc_class_open("rtc0");
-	int err = -1;
-
-	if (rtc) {
-		err = rtc_set_mmss(rtc, secs);
-		rtc_class_close(rtc);
-	}
-
-	return err;
-}

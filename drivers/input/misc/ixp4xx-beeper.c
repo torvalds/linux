@@ -67,7 +67,7 @@ static int ixp4xx_spkr_event(struct input_dev *dev, unsigned int type, unsigned 
 	}
 
 	if (value > 20 && value < 32767)
-		count = (IXP4XX_TIMER_FREQ / (value * 4)) - 1;
+		count = (ixp4xx_timer_freq / (value * 4)) - 1;
 
 	ixp4xx_spkr_control(pin, count);
 
@@ -168,7 +168,6 @@ static void ixp4xx_spkr_shutdown(struct platform_device *dev)
 static struct platform_driver ixp4xx_spkr_platform_driver = {
 	.driver		= {
 		.name	= "ixp4xx-beeper",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ixp4xx_spkr_probe,
 	.remove		= ixp4xx_spkr_remove,

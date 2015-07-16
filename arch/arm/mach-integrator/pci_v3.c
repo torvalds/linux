@@ -34,15 +34,13 @@
 #include <linux/of_pci.h>
 #include <video/vga.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
-
 #include <asm/mach/map.h>
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
 #include <asm/irq_regs.h>
 
 #include "pci_v3.h"
+#include "hardware.h"
 
 /*
  * Where in the memory map does PCI live?
@@ -358,7 +356,6 @@ static u64 pre_mem_pci_sz;
  *	 7:2	register number
  *
  */
-static DEFINE_RAW_SPINLOCK(v3_lock);
 
 #undef V3_LB_BASE_PREFETCH
 #define V3_LB_BASE_PREFETCH 0
@@ -459,67 +456,21 @@ static void v3_close_config_window(void)
 static int v3_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 			  int size, u32 *val)
 {
-	void __iomem *addr;
-	unsigned long flags;
-	u32 v;
-
-	raw_spin_lock_irqsave(&v3_lock, flags);
-	addr = v3_open_config_window(bus, devfn, where);
-
-	switch (size) {
-	case 1:
-		v = __raw_readb(addr);
-		break;
-
-	case 2:
-		v = __raw_readw(addr);
-		break;
-
-	default:
-		v = __raw_readl(addr);
-		break;
-	}
-
+	int ret = pci_generic_config_read(bus, devfn, where, size, val);
 	v3_close_config_window();
-	raw_spin_unlock_irqrestore(&v3_lock, flags);
-
-	*val = v;
-	return PCIBIOS_SUCCESSFUL;
+	return ret;
 }
 
 static int v3_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 			   int size, u32 val)
 {
-	void __iomem *addr;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&v3_lock, flags);
-	addr = v3_open_config_window(bus, devfn, where);
-
-	switch (size) {
-	case 1:
-		__raw_writeb((u8)val, addr);
-		__raw_readb(addr);
-		break;
-
-	case 2:
-		__raw_writew((u16)val, addr);
-		__raw_readw(addr);
-		break;
-
-	case 4:
-		__raw_writel(val, addr);
-		__raw_readl(addr);
-		break;
-	}
-
+	int ret = pci_generic_config_write(bus, devfn, where, size, val);
 	v3_close_config_window();
-	raw_spin_unlock_irqrestore(&v3_lock, flags);
-
-	return PCIBIOS_SUCCESSFUL;
+	return ret;
 }
 
 static struct pci_ops pci_v3_ops = {
+	.map_bus = v3_open_config_window,
 	.read	= v3_read_config,
 	.write	= v3_write_config,
 };
@@ -660,8 +611,8 @@ static int __init pci_v3_setup(int nr, struct pci_sys_data *sys)
  */
 static void __init pci_v3_preinit(void)
 {
-	unsigned long flags;
 	unsigned int temp;
+	phys_addr_t io_address = pci_pio_to_address(io_mem.start);
 
 	pcibios_min_mem = 0x00100000;
 
@@ -672,8 +623,6 @@ static void __init pci_v3_preinit(void)
 	hook_fault_code(6, v3_pci_fault, SIGBUS, 0, "external abort on linefetch");
 	hook_fault_code(8, v3_pci_fault, SIGBUS, 0, "external abort on non-linefetch");
 	hook_fault_code(10, v3_pci_fault, SIGBUS, 0, "external abort on non-linefetch");
-
-	raw_spin_lock_irqsave(&v3_lock, flags);
 
 	/*
 	 * Unlock V3 registers, but only if they were previously locked.
@@ -703,7 +652,7 @@ static void __init pci_v3_preinit(void)
 	/*
 	 * Setup window 2 - PCI IO
 	 */
-	v3_writel(V3_LB_BASE2, v3_addr_to_lb_base2(io_mem.start) |
+	v3_writel(V3_LB_BASE2, v3_addr_to_lb_base2(io_address) |
 			V3_LB_BASE_ENABLE);
 	v3_writew(V3_LB_MAP2, v3_addr_to_lb_map2(0));
 
@@ -737,13 +686,12 @@ static void __init pci_v3_preinit(void)
 	v3_writew(V3_LB_CFG, v3_readw(V3_LB_CFG) | (1 << 10));
 	v3_writeb(V3_LB_IMASK, 0x28);
 	__raw_writel(3, ap_syscon_base + INTEGRATOR_SC_PCIENABLE_OFFSET);
-
-	raw_spin_unlock_irqrestore(&v3_lock, flags);
 }
 
 static void __init pci_v3_postinit(void)
 {
 	unsigned int pci_cmd;
+	phys_addr_t io_address = pci_pio_to_address(io_mem.start);
 
 	pci_cmd = PCI_COMMAND_MEMORY |
 		  PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE;
@@ -760,7 +708,7 @@ static void __init pci_v3_postinit(void)
 		       "interrupt: %d\n", ret);
 #endif
 
-	register_isa_ports(non_mem.start, io_mem.start, 0);
+	register_isa_ports(non_mem.start, io_address, 0);
 }
 
 /*
@@ -869,33 +817,32 @@ static int __init pci_v3_probe(struct platform_device *pdev)
 
 	for_each_of_pci_range(&parser, &range) {
 		if (!range.flags) {
-			of_pci_range_to_resource(&range, np, &conf_mem);
+			ret = of_pci_range_to_resource(&range, np, &conf_mem);
 			conf_mem.name = "PCIv3 config";
 		}
 		if (range.flags & IORESOURCE_IO) {
-			of_pci_range_to_resource(&range, np, &io_mem);
+			ret = of_pci_range_to_resource(&range, np, &io_mem);
 			io_mem.name = "PCIv3 I/O";
 		}
 		if ((range.flags & IORESOURCE_MEM) &&
 			!(range.flags & IORESOURCE_PREFETCH)) {
 			non_mem_pci = range.pci_addr;
 			non_mem_pci_sz = range.size;
-			of_pci_range_to_resource(&range, np, &non_mem);
+			ret = of_pci_range_to_resource(&range, np, &non_mem);
 			non_mem.name = "PCIv3 non-prefetched mem";
 		}
 		if ((range.flags & IORESOURCE_MEM) &&
 			(range.flags & IORESOURCE_PREFETCH)) {
 			pre_mem_pci = range.pci_addr;
 			pre_mem_pci_sz = range.size;
-			of_pci_range_to_resource(&range, np, &pre_mem);
+			ret = of_pci_range_to_resource(&range, np, &pre_mem);
 			pre_mem.name = "PCIv3 prefetched mem";
 		}
-	}
 
-	if (!conf_mem.start || !io_mem.start ||
-	    !non_mem.start || !pre_mem.start) {
-		dev_err(&pdev->dev, "missing ranges in device node\n");
-		return -EINVAL;
+		if (ret < 0) {
+			dev_err(&pdev->dev, "missing ranges in device node\n");
+			return ret;
+		}
 	}
 
 	pci_v3.map_irq = of_irq_parse_and_map_pci;

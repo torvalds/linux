@@ -39,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 
@@ -121,7 +120,7 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 		if (csr != lastcsr)
 			dev_dbg(musb->controller, "Host TX FIFONOTEMPTY csr: %02x\n", csr);
 		lastcsr = csr;
-		csr |= MUSB_TXCSR_FLUSHFIFO;
+		csr |= MUSB_TXCSR_FLUSHFIFO | MUSB_TXCSR_TXPKTRDY;
 		musb_writew(epio, MUSB_TXCSR, csr);
 		csr = musb_readw(epio, MUSB_TXCSR);
 		if (WARN(retries-- < 1,
@@ -182,7 +181,7 @@ static inline void musb_h_tx_dma_start(struct musb_hw_ep *ep)
 	/* NOTE: no locks here; caller should lock and select EP */
 	txcsr = musb_readw(ep->regs, MUSB_TXCSR);
 	txcsr |= MUSB_TXCSR_DMAENAB | MUSB_TXCSR_H_WZC_BITS;
-	if (is_cppi_enabled())
+	if (is_cppi_enabled(ep->musb))
 		txcsr |= MUSB_TXCSR_DMAMODE;
 	musb_writew(ep->regs, MUSB_TXCSR, txcsr);
 }
@@ -295,7 +294,7 @@ start:
 
 		if (!hw_ep->tx_channel)
 			musb_h_tx_start(hw_ep);
-		else if (is_cppi_enabled() || tusb_dma_omap())
+		else if (is_cppi_enabled(musb) || tusb_dma_omap(musb))
 			musb_h_tx_dma_start(hw_ep);
 	}
 }
@@ -556,8 +555,9 @@ musb_host_packet_rx(struct musb *musb, struct urb *urb, u8 epnum, u8 iso_err)
  * the busy/not-empty tests are basically paranoia.
  */
 static void
-musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
+musb_rx_reinit(struct musb *musb, struct musb_qh *qh, u8 epnum)
 {
+	struct musb_hw_ep *ep = musb->endpoints + epnum;
 	u16	csr;
 
 	/* NOTE:  we know the "rx" fifo reinit never triggers for ep0.
@@ -595,10 +595,9 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
 
 	/* target addr and (for multipoint) hub addr/port */
 	if (musb->is_multipoint) {
-		musb_write_rxfunaddr(ep->target_regs, qh->addr_reg);
-		musb_write_rxhubaddr(ep->target_regs, qh->h_addr_reg);
-		musb_write_rxhubport(ep->target_regs, qh->h_port_reg);
-
+		musb_write_rxfunaddr(musb, epnum, qh->addr_reg);
+		musb_write_rxhubaddr(musb, epnum, qh->h_addr_reg);
+		musb_write_rxhubport(musb, epnum, qh->h_port_reg);
 	} else
 		musb_writeb(musb->mregs, MUSB_FADDR, qh->addr_reg);
 
@@ -618,23 +617,22 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
 	ep->rx_reinit = 0;
 }
 
-static bool musb_tx_dma_program(struct dma_controller *dma,
+static int musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
 		struct musb_hw_ep *hw_ep, struct musb_qh *qh,
-		struct urb *urb, u32 offset, u32 length)
+		struct urb *urb, u32 offset,
+		u32 *length, u8 *mode)
 {
 	struct dma_channel	*channel = hw_ep->tx_channel;
 	void __iomem		*epio = hw_ep->regs;
 	u16			pkt_size = qh->maxpacket;
 	u16			csr;
-	u8			mode;
 
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
-	if (length > channel->max_len)
-		length = channel->max_len;
+	if (*length > channel->max_len)
+		*length = channel->max_len;
 
 	csr = musb_readw(epio, MUSB_TXCSR);
-	if (length > pkt_size) {
-		mode = 1;
+	if (*length > pkt_size) {
+		*mode = 1;
 		csr |= MUSB_TXCSR_DMAMODE | MUSB_TXCSR_DMAENAB;
 		/* autoset shouldn't be set in high bandwidth */
 		/*
@@ -650,15 +648,28 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 					can_bulk_split(hw_ep->musb, qh->type)))
 			csr |= MUSB_TXCSR_AUTOSET;
 	} else {
-		mode = 0;
+		*mode = 0;
 		csr &= ~(MUSB_TXCSR_AUTOSET | MUSB_TXCSR_DMAMODE);
 		csr |= MUSB_TXCSR_DMAENAB; /* against programmer's guide */
 	}
 	channel->desired_mode = mode;
 	musb_writew(epio, MUSB_TXCSR, csr);
-#else
-	if (!is_cppi_enabled() && !tusb_dma_omap())
-		return false;
+
+	return 0;
+}
+
+static int musb_tx_dma_set_mode_cppi_tusb(struct dma_controller *dma,
+					  struct musb_hw_ep *hw_ep,
+					  struct musb_qh *qh,
+					  struct urb *urb,
+					  u32 offset,
+					  u32 *length,
+					  u8 *mode)
+{
+	struct dma_channel *channel = hw_ep->tx_channel;
+
+	if (!is_cppi_enabled(hw_ep->musb) && !tusb_dma_omap(hw_ep->musb))
+		return -ENODEV;
 
 	channel->actual_len = 0;
 
@@ -666,8 +677,28 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 	 * TX uses "RNDIS" mode automatically but needs help
 	 * to identify the zero-length-final-packet case.
 	 */
-	mode = (urb->transfer_flags & URB_ZERO_PACKET) ? 1 : 0;
-#endif
+	*mode = (urb->transfer_flags & URB_ZERO_PACKET) ? 1 : 0;
+
+	return 0;
+}
+
+static bool musb_tx_dma_program(struct dma_controller *dma,
+		struct musb_hw_ep *hw_ep, struct musb_qh *qh,
+		struct urb *urb, u32 offset, u32 length)
+{
+	struct dma_channel	*channel = hw_ep->tx_channel;
+	u16			pkt_size = qh->maxpacket;
+	u8			mode;
+	int			res;
+
+	if (musb_dma_inventra(hw_ep->musb) || musb_dma_ux500(hw_ep->musb))
+		res = musb_tx_dma_set_mode_mentor(dma, hw_ep, qh, urb,
+						 offset, &length, &mode);
+	else
+		res = musb_tx_dma_set_mode_cppi_tusb(dma, hw_ep, qh, urb,
+						     offset, &length, &mode);
+	if (res)
+		return false;
 
 	qh->segsize = length;
 
@@ -679,6 +710,9 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 
 	if (!dma->channel_program(channel, pkt_size, mode,
 			urb->transfer_dma + offset, length)) {
+		void __iomem *epio = hw_ep->regs;
+		u16 csr;
+
 		dma->channel_release(channel);
 		hw_ep->tx_channel = NULL;
 
@@ -802,9 +836,9 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 
 		/* target addr and (for multipoint) hub addr/port */
 		if (musb->is_multipoint) {
-			musb_write_txfunaddr(mbase, epnum, qh->addr_reg);
-			musb_write_txhubaddr(mbase, epnum, qh->h_addr_reg);
-			musb_write_txhubport(mbase, epnum, qh->h_port_reg);
+			musb_write_txfunaddr(musb, epnum, qh->addr_reg);
+			musb_write_txhubaddr(musb, epnum, qh->h_addr_reg);
+			musb_write_txhubport(musb, epnum, qh->h_port_reg);
 /* FIXME if !epnum, do the same for RX ... */
 		} else
 			musb_writeb(mbase, MUSB_FADDR, qh->addr_reg);
@@ -876,7 +910,7 @@ finish:
 		u16	csr;
 
 		if (hw_ep->rx_reinit) {
-			musb_rx_reinit(musb, qh, hw_ep);
+			musb_rx_reinit(musb, qh, epnum);
 
 			/* init new state: toggle and NYET, maybe DMA later */
 			if (usb_gettoggle(urb->dev, qh->epnum, 0))
@@ -902,7 +936,7 @@ finish:
 
 		/* kick things off */
 
-		if ((is_cppi_enabled() || tusb_dma_omap()) && dma_channel) {
+		if ((is_cppi_enabled(musb) || tusb_dma_omap(musb)) && dma_channel) {
 			/* Candidate for DMA */
 			dma_channel->actual_len = 0L;
 			qh->segsize = len;
@@ -1184,6 +1218,9 @@ irqreturn_t musb_h_ep0_irq(struct musb *musb)
 				csr = MUSB_CSR0_H_STATUSPKT
 					| MUSB_CSR0_TXPKTRDY;
 
+			/* disable ping token in status phase */
+			csr |= MUSB_CSR0_H_DIS_PING;
+
 			/* flag status stage */
 			musb->ep0_stage = MUSB_EP0_STATUS;
 
@@ -1293,7 +1330,7 @@ done:
 	if (status) {
 		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
 			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
-			(void) musb->dma_controller->channel_abort(dma);
+			musb->dma_controller->channel_abort(dma);
 		}
 
 		/* do the proper sequence to abort the transfer in the
@@ -1439,7 +1476,7 @@ done:
 	} else if ((usb_pipeisoc(pipe) || transfer_pending) && dma) {
 		if (musb_tx_dma_program(musb->dma_controller, hw_ep, qh, urb,
 				offset, length)) {
-			if (is_cppi_enabled() || tusb_dma_omap())
+			if (is_cppi_enabled(musb) || tusb_dma_omap(musb))
 				musb_h_tx_dma_start(hw_ep);
 			return;
 		}
@@ -1496,9 +1533,47 @@ done:
 			MUSB_TXCSR_H_WZC_BITS | MUSB_TXCSR_TXPKTRDY);
 }
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+/* Seems to set up ISO for cppi41 and not advance len. See commit c57c41d */
+static int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
+				  struct musb_hw_ep *hw_ep,
+				  struct musb_qh *qh,
+				  struct urb *urb,
+				  size_t len)
+{
+	struct dma_channel *channel = hw_ep->tx_channel;
+	void __iomem *epio = hw_ep->regs;
+	dma_addr_t *buf;
+	u32 length, res;
+	u16 val;
 
-#ifdef CONFIG_USB_INVENTRA_DMA
+	buf = (void *)urb->iso_frame_desc[qh->iso_idx].offset +
+		(u32)urb->transfer_dma;
 
+	length = urb->iso_frame_desc[qh->iso_idx].length;
+
+	val = musb_readw(epio, MUSB_RXCSR);
+	val |= MUSB_RXCSR_DMAENAB;
+	musb_writew(hw_ep->regs, MUSB_RXCSR, val);
+
+	res = dma->channel_program(channel, qh->maxpacket, 0,
+				   (u32)buf, length);
+
+	return res;
+}
+#else
+static inline int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
+					 struct musb_hw_ep *hw_ep,
+					 struct musb_qh *qh,
+					 struct urb *urb,
+					 size_t len)
+{
+	return false;
+}
+#endif
+
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA) || \
+	defined(CONFIG_USB_TI_CPPI41_DMA)
 /* Host side RX (IN) using Mentor DMA works as follows:
 	submit_urb ->
 		- if queue was empty, ProgramEndpoint
@@ -1533,7 +1608,194 @@ done:
  *	thus be a great candidate for using mode 1 ... for all but the
  *	last packet of one URB's transfer.
  */
+static int musb_rx_dma_inventra_cppi41(struct dma_controller *dma,
+				       struct musb_hw_ep *hw_ep,
+				       struct musb_qh *qh,
+				       struct urb *urb,
+				       size_t len)
+{
+	struct dma_channel *channel = hw_ep->rx_channel;
+	void __iomem *epio = hw_ep->regs;
+	u16 val;
+	int pipe;
+	bool done;
 
+	pipe = urb->pipe;
+
+	if (usb_pipeisoc(pipe)) {
+		struct usb_iso_packet_descriptor *d;
+
+		d = urb->iso_frame_desc + qh->iso_idx;
+		d->actual_length = len;
+
+		/* even if there was an error, we did the dma
+		 * for iso_frame_desc->length
+		 */
+		if (d->status != -EILSEQ && d->status != -EOVERFLOW)
+			d->status = 0;
+
+		if (++qh->iso_idx >= urb->number_of_packets) {
+			done = true;
+		} else {
+			/* REVISIT: Why ignore return value here? */
+			if (musb_dma_cppi41(hw_ep->musb))
+				done = musb_rx_dma_iso_cppi41(dma, hw_ep, qh,
+							      urb, len);
+			done = false;
+		}
+
+	} else  {
+		/* done if urb buffer is full or short packet is recd */
+		done = (urb->actual_length + len >=
+			urb->transfer_buffer_length
+			|| channel->actual_len < qh->maxpacket
+			|| channel->rx_packet_done);
+	}
+
+	/* send IN token for next packet, without AUTOREQ */
+	if (!done) {
+		val = musb_readw(epio, MUSB_RXCSR);
+		val |= MUSB_RXCSR_H_REQPKT;
+		musb_writew(epio, MUSB_RXCSR, MUSB_RXCSR_H_WZC_BITS | val);
+	}
+
+	return done;
+}
+
+/* Disadvantage of using mode 1:
+ *	It's basically usable only for mass storage class; essentially all
+ *	other protocols also terminate transfers on short packets.
+ *
+ * Details:
+ *	An extra IN token is sent at the end of the transfer (due to AUTOREQ)
+ *	If you try to use mode 1 for (transfer_buffer_length - 512), and try
+ *	to use the extra IN token to grab the last packet using mode 0, then
+ *	the problem is that you cannot be sure when the device will send the
+ *	last packet and RxPktRdy set. Sometimes the packet is recd too soon
+ *	such that it gets lost when RxCSR is re-set at the end of the mode 1
+ *	transfer, while sometimes it is recd just a little late so that if you
+ *	try to configure for mode 0 soon after the mode 1 transfer is
+ *	completed, you will find rxcount 0. Okay, so you might think why not
+ *	wait for an interrupt when the pkt is recd. Well, you won't get any!
+ */
+static int musb_rx_dma_in_inventra_cppi41(struct dma_controller *dma,
+					  struct musb_hw_ep *hw_ep,
+					  struct musb_qh *qh,
+					  struct urb *urb,
+					  size_t len,
+					  u8 iso_err)
+{
+	struct musb *musb = hw_ep->musb;
+	void __iomem *epio = hw_ep->regs;
+	struct dma_channel *channel = hw_ep->rx_channel;
+	u16 rx_count, val;
+	int length, pipe, done;
+	dma_addr_t buf;
+
+	rx_count = musb_readw(epio, MUSB_RXCOUNT);
+	pipe = urb->pipe;
+
+	if (usb_pipeisoc(pipe)) {
+		int d_status = 0;
+		struct usb_iso_packet_descriptor *d;
+
+		d = urb->iso_frame_desc + qh->iso_idx;
+
+		if (iso_err) {
+			d_status = -EILSEQ;
+			urb->error_count++;
+		}
+		if (rx_count > d->length) {
+			if (d_status == 0) {
+				d_status = -EOVERFLOW;
+				urb->error_count++;
+			}
+			dev_dbg(musb->controller, "** OVERFLOW %d into %d\n",
+				rx_count, d->length);
+
+			length = d->length;
+		} else
+			length = rx_count;
+		d->status = d_status;
+		buf = urb->transfer_dma + d->offset;
+	} else {
+		length = rx_count;
+		buf = urb->transfer_dma + urb->actual_length;
+	}
+
+	channel->desired_mode = 0;
+#ifdef USE_MODE1
+	/* because of the issue below, mode 1 will
+	 * only rarely behave with correct semantics.
+	 */
+	if ((urb->transfer_flags & URB_SHORT_NOT_OK)
+	    && (urb->transfer_buffer_length - urb->actual_length)
+	    > qh->maxpacket)
+		channel->desired_mode = 1;
+	if (rx_count < hw_ep->max_packet_sz_rx) {
+		length = rx_count;
+		channel->desired_mode = 0;
+	} else {
+		length = urb->transfer_buffer_length;
+	}
+#endif
+
+	/* See comments above on disadvantages of using mode 1 */
+	val = musb_readw(epio, MUSB_RXCSR);
+	val &= ~MUSB_RXCSR_H_REQPKT;
+
+	if (channel->desired_mode == 0)
+		val &= ~MUSB_RXCSR_H_AUTOREQ;
+	else
+		val |= MUSB_RXCSR_H_AUTOREQ;
+	val |= MUSB_RXCSR_DMAENAB;
+
+	/* autoclear shouldn't be set in high bandwidth */
+	if (qh->hb_mult == 1)
+		val |= MUSB_RXCSR_AUTOCLEAR;
+
+	musb_writew(epio, MUSB_RXCSR, MUSB_RXCSR_H_WZC_BITS | val);
+
+	/* REVISIT if when actual_length != 0,
+	 * transfer_buffer_length needs to be
+	 * adjusted first...
+	 */
+	done = dma->channel_program(channel, qh->maxpacket,
+				   channel->desired_mode,
+				   buf, length);
+
+	if (!done) {
+		dma->channel_release(channel);
+		hw_ep->rx_channel = NULL;
+		channel = NULL;
+		val = musb_readw(epio, MUSB_RXCSR);
+		val &= ~(MUSB_RXCSR_DMAENAB
+			 | MUSB_RXCSR_H_AUTOREQ
+			 | MUSB_RXCSR_AUTOCLEAR);
+		musb_writew(epio, MUSB_RXCSR, val);
+	}
+
+	return done;
+}
+#else
+static inline int musb_rx_dma_inventra_cppi41(struct dma_controller *dma,
+					      struct musb_hw_ep *hw_ep,
+					      struct musb_qh *qh,
+					      struct urb *urb,
+					      size_t len)
+{
+	return false;
+}
+
+static inline int musb_rx_dma_in_inventra_cppi41(struct dma_controller *dma,
+						 struct musb_hw_ep *hw_ep,
+						 struct musb_qh *qh,
+						 struct urb *urb,
+						 size_t len,
+						 u8 iso_err)
+{
+	return false;
+}
 #endif
 
 /*
@@ -1544,6 +1806,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 {
 	struct urb		*urb;
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
+	struct dma_controller	*c = musb->dma_controller;
 	void __iomem		*epio = hw_ep->regs;
 	struct musb_qh		*qh = hw_ep->in_qh;
 	size_t			xfer_len;
@@ -1638,7 +1901,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		/* clean up dma and collect transfer count */
 		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
 			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
-			(void) musb->dma_controller->channel_abort(dma);
+			musb->dma_controller->channel_abort(dma);
 			xfer_len = dma->actual_len;
 		}
 		musb_h_flush_rxfifo(hw_ep, MUSB_RXCSR_CLRDATATOG);
@@ -1659,9 +1922,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 	 */
 
 	/* FIXME this is _way_ too much in-line logic for Mentor DMA */
-
-#if !defined(CONFIG_USB_INVENTRA_DMA) && !defined(CONFIG_USB_UX500_DMA)
-	if (rx_csr & MUSB_RXCSR_H_REQPKT)  {
+	if (!musb_dma_inventra(musb) && !musb_dma_ux500(musb) &&
+	    (rx_csr & MUSB_RXCSR_H_REQPKT)) {
 		/* REVISIT this happened for a while on some short reads...
 		 * the cleanup still needs investigation... looks bad...
 		 * and also duplicates dma cleanup code above ... plus,
@@ -1669,7 +1931,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		 */
 		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
 			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
-			(void) musb->dma_controller->channel_abort(dma);
+			musb->dma_controller->channel_abort(dma);
 			xfer_len = dma->actual_len;
 			done = true;
 		}
@@ -1682,7 +1944,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		musb_writew(epio, MUSB_RXCSR,
 				MUSB_RXCSR_H_WZC_BITS | rx_csr);
 	}
-#endif
+
 	if (dma && (rx_csr & MUSB_RXCSR_DMAENAB)) {
 		xfer_len = dma->actual_len;
 
@@ -1692,45 +1954,18 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			| MUSB_RXCSR_RXPKTRDY);
 		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
-		if (usb_pipeisoc(pipe)) {
-			struct usb_iso_packet_descriptor *d;
-
-			d = urb->iso_frame_desc + qh->iso_idx;
-			d->actual_length = xfer_len;
-
-			/* even if there was an error, we did the dma
-			 * for iso_frame_desc->length
-			 */
-			if (d->status != -EILSEQ && d->status != -EOVERFLOW)
-				d->status = 0;
-
-			if (++qh->iso_idx >= urb->number_of_packets)
-				done = true;
-			else
-				done = false;
-
-		} else  {
-		/* done if urb buffer is full or short packet is recd */
-		done = (urb->actual_length + xfer_len >=
-				urb->transfer_buffer_length
-			|| dma->actual_len < qh->maxpacket);
+		if (musb_dma_inventra(musb) || musb_dma_ux500(musb) ||
+		    musb_dma_cppi41(musb)) {
+			    done = musb_rx_dma_inventra_cppi41(c, hw_ep, qh, urb, xfer_len);
+			    dev_dbg(hw_ep->musb->controller,
+				    "ep %d dma %s, rxcsr %04x, rxcount %d\n",
+				    epnum, done ? "off" : "reset",
+				    musb_readw(epio, MUSB_RXCSR),
+				    musb_readw(epio, MUSB_RXCOUNT));
+		} else {
+			done = true;
 		}
 
-		/* send IN token for next packet, without AUTOREQ */
-		if (!done) {
-			val |= MUSB_RXCSR_H_REQPKT;
-			musb_writew(epio, MUSB_RXCSR,
-				MUSB_RXCSR_H_WZC_BITS | val);
-		}
-
-		dev_dbg(musb->controller, "ep %d dma %s, rxcsr %04x, rxcount %d\n", epnum,
-			done ? "off" : "reset",
-			musb_readw(epio, MUSB_RXCSR),
-			musb_readw(epio, MUSB_RXCOUNT));
-#else
-		done = true;
-#endif
 	} else if (urb->status == -EINPROGRESS) {
 		/* if no errors, be sure a packet is ready for unloading */
 		if (unlikely(!(rx_csr & MUSB_RXCSR_RXPKTRDY))) {
@@ -1748,125 +1983,24 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		}
 
 		/* we are expecting IN packets */
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
-		if (dma) {
-			struct dma_controller	*c;
-			u16			rx_count;
-			int			ret, length;
-			dma_addr_t		buf;
+		if ((musb_dma_inventra(musb) || musb_dma_ux500(musb) ||
+		    musb_dma_cppi41(musb)) && dma) {
+			dev_dbg(hw_ep->musb->controller,
+				"RX%d count %d, buffer 0x%llx len %d/%d\n",
+				epnum, musb_readw(epio, MUSB_RXCOUNT),
+				(unsigned long long) urb->transfer_dma
+				+ urb->actual_length,
+				qh->offset,
+				urb->transfer_buffer_length);
 
-			rx_count = musb_readw(epio, MUSB_RXCOUNT);
-
-			dev_dbg(musb->controller, "RX%d count %d, buffer 0x%llx len %d/%d\n",
-					epnum, rx_count,
-					(unsigned long long) urb->transfer_dma
-					+ urb->actual_length,
-					qh->offset,
-					urb->transfer_buffer_length);
-
-			c = musb->dma_controller;
-
-			if (usb_pipeisoc(pipe)) {
-				int d_status = 0;
-				struct usb_iso_packet_descriptor *d;
-
-				d = urb->iso_frame_desc + qh->iso_idx;
-
-				if (iso_err) {
-					d_status = -EILSEQ;
-					urb->error_count++;
-				}
-				if (rx_count > d->length) {
-					if (d_status == 0) {
-						d_status = -EOVERFLOW;
-						urb->error_count++;
-					}
-					dev_dbg(musb->controller, "** OVERFLOW %d into %d\n",\
-					    rx_count, d->length);
-
-					length = d->length;
-				} else
-					length = rx_count;
-				d->status = d_status;
-				buf = urb->transfer_dma + d->offset;
-			} else {
-				length = rx_count;
-				buf = urb->transfer_dma +
-						urb->actual_length;
-			}
-
-			dma->desired_mode = 0;
-#ifdef USE_MODE1
-			/* because of the issue below, mode 1 will
-			 * only rarely behave with correct semantics.
-			 */
-			if ((urb->transfer_flags &
-						URB_SHORT_NOT_OK)
-				&& (urb->transfer_buffer_length -
-						urb->actual_length)
-					> qh->maxpacket)
-				dma->desired_mode = 1;
-			if (rx_count < hw_ep->max_packet_sz_rx) {
-				length = rx_count;
-				dma->desired_mode = 0;
-			} else {
-				length = urb->transfer_buffer_length;
-			}
-#endif
-
-/* Disadvantage of using mode 1:
- *	It's basically usable only for mass storage class; essentially all
- *	other protocols also terminate transfers on short packets.
- *
- * Details:
- *	An extra IN token is sent at the end of the transfer (due to AUTOREQ)
- *	If you try to use mode 1 for (transfer_buffer_length - 512), and try
- *	to use the extra IN token to grab the last packet using mode 0, then
- *	the problem is that you cannot be sure when the device will send the
- *	last packet and RxPktRdy set. Sometimes the packet is recd too soon
- *	such that it gets lost when RxCSR is re-set at the end of the mode 1
- *	transfer, while sometimes it is recd just a little late so that if you
- *	try to configure for mode 0 soon after the mode 1 transfer is
- *	completed, you will find rxcount 0. Okay, so you might think why not
- *	wait for an interrupt when the pkt is recd. Well, you won't get any!
- */
-
-			val = musb_readw(epio, MUSB_RXCSR);
-			val &= ~MUSB_RXCSR_H_REQPKT;
-
-			if (dma->desired_mode == 0)
-				val &= ~MUSB_RXCSR_H_AUTOREQ;
+			done = musb_rx_dma_in_inventra_cppi41(c, hw_ep, qh,
+							      urb, xfer_len,
+							      iso_err);
+			if (done)
+				goto finish;
 			else
-				val |= MUSB_RXCSR_H_AUTOREQ;
-			val |= MUSB_RXCSR_DMAENAB;
-
-			/* autoclear shouldn't be set in high bandwidth */
-			if (qh->hb_mult == 1)
-				val |= MUSB_RXCSR_AUTOCLEAR;
-
-			musb_writew(epio, MUSB_RXCSR,
-				MUSB_RXCSR_H_WZC_BITS | val);
-
-			/* REVISIT if when actual_length != 0,
-			 * transfer_buffer_length needs to be
-			 * adjusted first...
-			 */
-			ret = c->channel_program(
-				dma, qh->maxpacket,
-				dma->desired_mode, buf, length);
-
-			if (!ret) {
-				c->channel_release(dma);
-				hw_ep->rx_channel = NULL;
-				dma = NULL;
-				val = musb_readw(epio, MUSB_RXCSR);
-				val &= ~(MUSB_RXCSR_DMAENAB
-					| MUSB_RXCSR_H_AUTOREQ
-					| MUSB_RXCSR_AUTOCLEAR);
-				musb_writew(epio, MUSB_RXCSR, val);
-			}
+				dev_err(musb->controller, "error: rx_dma failed\n");
 		}
-#endif	/* Mentor DMA */
 
 		if (!dma) {
 			unsigned int received_len;
@@ -1933,7 +2067,7 @@ static int musb_schedule(
 	struct musb_qh		*qh,
 	int			is_in)
 {
-	int			idle;
+	int			idle = 0;
 	int			best_diff;
 	int			best_end, epnum;
 	struct musb_hw_ep	*hw_ep = NULL;
@@ -2013,7 +2147,7 @@ static int musb_schedule(
 			head = &musb->out_bulk;
 
 		/* Enable bulk RX/TX NAK timeout scheme when bulk requests are
-		 * multiplexed.  This scheme doen't work in high speed to full
+		 * multiplexed. This scheme does not work in high speed to full
 		 * speed scenario as NAK interrupts are not coming from a
 		 * full speed device connected to a high speed device.
 		 * NAK timeout interval is 8 (128 uframe or 16ms) for HS and
@@ -2433,10 +2567,12 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 	struct musb	*musb = hcd_to_musb(hcd);
 	u8		devctl;
 
+	musb_port_suspend(musb, true);
+
 	if (!is_host_active(musb))
 		return 0;
 
-	switch (musb->xceiv->state) {
+	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_SUSPEND:
 		return 0;
 	case OTG_STATE_A_WAIT_VRISE:
@@ -2446,7 +2582,7 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 		 */
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 		if ((devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS)
-			musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_BCON;
 		break;
 	default:
 		break;
@@ -2454,7 +2590,7 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 
 	if (musb->is_active) {
 		WARNING("trying to suspend as %s while active\n",
-				usb_otg_state_string(musb->xceiv->state));
+				usb_otg_state_string(musb->xceiv->otg->state));
 		return -EBUSY;
 	} else
 		return 0;
@@ -2462,7 +2598,12 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 
 static int musb_bus_resume(struct usb_hcd *hcd)
 {
-	/* resuming child port does the work */
+	struct musb *musb = hcd_to_musb(hcd);
+
+	if (musb->config &&
+	    musb->config->host_port_deassert_reset_at_resume)
+		musb_port_reset(musb, false);
+
 	return 0;
 }
 
@@ -2480,6 +2621,7 @@ static void musb_free_temp_buffer(struct urb *urb)
 {
 	enum dma_data_direction dir;
 	struct musb_temp_buffer *temp;
+	size_t length;
 
 	if (!(urb->transfer_flags & URB_ALIGNED_TEMP_BUFFER))
 		return;
@@ -2490,8 +2632,12 @@ static void musb_free_temp_buffer(struct urb *urb)
 			    data);
 
 	if (dir == DMA_FROM_DEVICE) {
-		memcpy(temp->old_xfer_buffer, temp->data,
-		       urb->transfer_buffer_length);
+		if (usb_pipeisoc(urb->pipe))
+			length = urb->transfer_buffer_length;
+		else
+			length = urb->actual_length;
+
+		memcpy(temp->old_xfer_buffer, temp->data, length);
 	}
 	urb->transfer_buffer = temp->old_xfer_buffer;
 	kfree(temp->kmalloc_ptr);
@@ -2581,7 +2727,7 @@ static const struct hc_driver musb_hc_driver = {
 	.description		= "musb-hcd",
 	.product_desc		= "MUSB HDRC host driver",
 	.hcd_priv_size		= sizeof(struct musb *),
-	.flags			= HCD_USB2 | HCD_MEMORY,
+	.flags			= HCD_USB2 | HCD_MEMORY | HCD_BH,
 
 	/* not using irq handler or reset hooks from usbcore, since
 	 * those must be shared with peripheral code for OTG configs
@@ -2631,7 +2777,6 @@ void musb_host_cleanup(struct musb *musb)
 	if (musb->port_mode == MUSB_PORT_MODE_GADGET)
 		return;
 	usb_remove_hcd(musb->hcd);
-	musb->hcd = NULL;
 }
 
 void musb_host_free(struct musb *musb)
@@ -2646,7 +2791,7 @@ int musb_host_setup(struct musb *musb, int power_budget)
 
 	MUSB_HST_MODE(musb);
 	musb->xceiv->otg->default_a = 1;
-	musb->xceiv->state = OTG_STATE_A_IDLE;
+	musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 
 	otg_set_host(musb->xceiv->otg, &hcd->self);
 	hcd->self.otg_port = 1;
@@ -2657,6 +2802,7 @@ int musb_host_setup(struct musb *musb, int power_budget)
 	if (ret < 0)
 		return ret;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 }
 

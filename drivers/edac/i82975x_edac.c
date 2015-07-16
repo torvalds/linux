@@ -628,7 +628,7 @@ static void i82975x_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(i82975x_pci_tbl) = {
+static const struct pci_device_id i82975x_pci_tbl[] = {
 	{
 		PCI_VEND_DEV(INTEL, 82975_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		I82975X
@@ -685,9 +685,7 @@ fail1:
 	pci_unregister_driver(&i82975x_driver);
 
 fail0:
-	if (mci_pdev != NULL)
-		pci_dev_put(mci_pdev);
-
+	pci_dev_put(mci_pdev);
 	return pci_rc;
 }
 

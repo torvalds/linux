@@ -1,173 +1,375 @@
 /*
- * A simple MCE injection facility for testing the MCE decoding code. This
- * driver should be built as module so that it can be loaded on production
- * kernels for testing purposes.
+ * A simple MCE injection facility for testing different aspects of the RAS
+ * code. This driver should be built as module so that it can be loaded
+ * on production kernels for testing purposes.
  *
  * This file may be distributed under the terms of the GNU General Public
  * License version 2.
  *
- * Copyright (c) 2010:  Borislav Petkov <bp@alien8.de>
+ * Copyright (c) 2010-14:  Borislav Petkov <bp@alien8.de>
  *			Advanced Micro Devices Inc.
  */
 
 #include <linux/kobject.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
-#include <linux/edac.h>
 #include <linux/module.h>
+#include <linux/cpu.h>
+#include <linux/string.h>
+#include <linux/uaccess.h>
 #include <asm/mce.h>
 
 #include "mce_amd.h"
-
-struct edac_mce_attr {
-	struct attribute attr;
-	ssize_t (*show) (struct kobject *kobj, struct edac_mce_attr *attr, char *buf);
-	ssize_t (*store)(struct kobject *kobj, struct edac_mce_attr *attr,
-			 const char *buf, size_t count);
-};
-
-#define EDAC_MCE_ATTR(_name, _mode, _show, _store)			\
-static struct edac_mce_attr mce_attr_##_name = __ATTR(_name, _mode, _show, _store)
-
-static struct kobject *mce_kobj;
 
 /*
  * Collect all the MCi_XXX settings
  */
 static struct mce i_mce;
+static struct dentry *dfs_inj;
 
-#define MCE_INJECT_STORE(reg)						\
-static ssize_t edac_inject_##reg##_store(struct kobject *kobj,		\
-					 struct edac_mce_attr *attr,	\
-					 const char *data, size_t count)\
+static u8 n_banks;
+
+#define MAX_FLAG_OPT_SIZE	3
+
+enum injection_type {
+	SW_INJ = 0,	/* SW injection, simply decode the error */
+	HW_INJ,		/* Trigger a #MC */
+	N_INJ_TYPES,
+};
+
+static const char * const flags_options[] = {
+	[SW_INJ] = "sw",
+	[HW_INJ] = "hw",
+	NULL
+};
+
+/* Set default injection to SW_INJ */
+static enum injection_type inj_type = SW_INJ;
+
+#define MCE_INJECT_SET(reg)						\
+static int inj_##reg##_set(void *data, u64 val)				\
 {									\
-	int ret = 0;							\
-	unsigned long value;						\
+	struct mce *m = (struct mce *)data;				\
 									\
-	ret = kstrtoul(data, 16, &value);				\
-	if (ret < 0)							\
-		printk(KERN_ERR "Error writing MCE " #reg " field.\n");	\
-									\
-	i_mce.reg = value;						\
-									\
-	return count;							\
+	m->reg = val;							\
+	return 0;							\
 }
 
-MCE_INJECT_STORE(status);
-MCE_INJECT_STORE(misc);
-MCE_INJECT_STORE(addr);
+MCE_INJECT_SET(status);
+MCE_INJECT_SET(misc);
+MCE_INJECT_SET(addr);
 
-#define MCE_INJECT_SHOW(reg)						\
-static ssize_t edac_inject_##reg##_show(struct kobject *kobj,		\
-					struct edac_mce_attr *attr,	\
-					char *buf)			\
+#define MCE_INJECT_GET(reg)						\
+static int inj_##reg##_get(void *data, u64 *val)			\
 {									\
-	return sprintf(buf, "0x%016llx\n", i_mce.reg);			\
+	struct mce *m = (struct mce *)data;				\
+									\
+	*val = m->reg;							\
+	return 0;							\
 }
 
-MCE_INJECT_SHOW(status);
-MCE_INJECT_SHOW(misc);
-MCE_INJECT_SHOW(addr);
+MCE_INJECT_GET(status);
+MCE_INJECT_GET(misc);
+MCE_INJECT_GET(addr);
 
-EDAC_MCE_ATTR(status, 0644, edac_inject_status_show, edac_inject_status_store);
-EDAC_MCE_ATTR(misc, 0644, edac_inject_misc_show, edac_inject_misc_store);
-EDAC_MCE_ATTR(addr, 0644, edac_inject_addr_show, edac_inject_addr_store);
+DEFINE_SIMPLE_ATTRIBUTE(status_fops, inj_status_get, inj_status_set, "%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(misc_fops, inj_misc_get, inj_misc_set, "%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(addr_fops, inj_addr_get, inj_addr_set, "%llx\n");
+
+/*
+ * Caller needs to be make sure this cpu doesn't disappear
+ * from under us, i.e.: get_cpu/put_cpu.
+ */
+static int toggle_hw_mce_inject(unsigned int cpu, bool enable)
+{
+	u32 l, h;
+	int err;
+
+	err = rdmsr_on_cpu(cpu, MSR_K7_HWCR, &l, &h);
+	if (err) {
+		pr_err("%s: error reading HWCR\n", __func__);
+		return err;
+	}
+
+	enable ? (l |= BIT(18)) : (l &= ~BIT(18));
+
+	err = wrmsr_on_cpu(cpu, MSR_K7_HWCR, l, h);
+	if (err)
+		pr_err("%s: error writing HWCR\n", __func__);
+
+	return err;
+}
+
+static int __set_inj(const char *buf)
+{
+	int i;
+
+	for (i = 0; i < N_INJ_TYPES; i++) {
+		if (!strncmp(flags_options[i], buf, strlen(flags_options[i]))) {
+			inj_type = i;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static ssize_t flags_read(struct file *filp, char __user *ubuf,
+			  size_t cnt, loff_t *ppos)
+{
+	char buf[MAX_FLAG_OPT_SIZE];
+	int n;
+
+	n = sprintf(buf, "%s\n", flags_options[inj_type]);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, n);
+}
+
+static ssize_t flags_write(struct file *filp, const char __user *ubuf,
+			   size_t cnt, loff_t *ppos)
+{
+	char buf[MAX_FLAG_OPT_SIZE], *__buf;
+	int err;
+	size_t ret;
+
+	if (cnt > MAX_FLAG_OPT_SIZE)
+		cnt = MAX_FLAG_OPT_SIZE;
+
+	ret = cnt;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt - 1] = 0;
+
+	/* strip whitespace */
+	__buf = strstrip(buf);
+
+	err = __set_inj(__buf);
+	if (err) {
+		pr_err("%s: Invalid flags value: %s\n", __func__, __buf);
+		return err;
+	}
+
+	*ppos += ret;
+
+	return ret;
+}
+
+static const struct file_operations flags_fops = {
+	.read           = flags_read,
+	.write          = flags_write,
+	.llseek         = generic_file_llseek,
+};
+
+/*
+ * On which CPU to inject?
+ */
+MCE_INJECT_GET(extcpu);
+
+static int inj_extcpu_set(void *data, u64 val)
+{
+	struct mce *m = (struct mce *)data;
+
+	if (val >= nr_cpu_ids || !cpu_online(val)) {
+		pr_err("%s: Invalid CPU: %llu\n", __func__, val);
+		return -EINVAL;
+	}
+	m->extcpu = val;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(extcpu_fops, inj_extcpu_get, inj_extcpu_set, "%llu\n");
+
+static void trigger_mce(void *info)
+{
+	asm volatile("int $18");
+}
+
+static void do_inject(void)
+{
+	u64 mcg_status = 0;
+	unsigned int cpu = i_mce.extcpu;
+	u8 b = i_mce.bank;
+
+	if (i_mce.misc)
+		i_mce.status |= MCI_STATUS_MISCV;
+
+	if (inj_type == SW_INJ) {
+		amd_decode_mce(NULL, 0, &i_mce);
+		return;
+	}
+
+	/* prep MCE global settings for the injection */
+	mcg_status = MCG_STATUS_MCIP | MCG_STATUS_EIPV;
+
+	if (!(i_mce.status & MCI_STATUS_PCC))
+		mcg_status |= MCG_STATUS_RIPV;
+
+	get_online_cpus();
+	if (!cpu_online(cpu))
+		goto err;
+
+	toggle_hw_mce_inject(cpu, true);
+
+	wrmsr_on_cpu(cpu, MSR_IA32_MCG_STATUS,
+		     (u32)mcg_status, (u32)(mcg_status >> 32));
+
+	wrmsr_on_cpu(cpu, MSR_IA32_MCx_STATUS(b),
+		     (u32)i_mce.status, (u32)(i_mce.status >> 32));
+
+	wrmsr_on_cpu(cpu, MSR_IA32_MCx_ADDR(b),
+		     (u32)i_mce.addr, (u32)(i_mce.addr >> 32));
+
+	wrmsr_on_cpu(cpu, MSR_IA32_MCx_MISC(b),
+		     (u32)i_mce.misc, (u32)(i_mce.misc >> 32));
+
+	toggle_hw_mce_inject(cpu, false);
+
+	smp_call_function_single(cpu, trigger_mce, NULL, 0);
+
+err:
+	put_online_cpus();
+
+}
 
 /*
  * This denotes into which bank we're injecting and triggers
  * the injection, at the same time.
  */
-static ssize_t edac_inject_bank_store(struct kobject *kobj,
-				      struct edac_mce_attr *attr,
-				      const char *data, size_t count)
+static int inj_bank_set(void *data, u64 val)
 {
-	int ret = 0;
-	unsigned long value;
+	struct mce *m = (struct mce *)data;
 
-	ret = kstrtoul(data, 10, &value);
-	if (ret < 0) {
-		printk(KERN_ERR "Invalid bank value!\n");
+	if (val >= n_banks) {
+		pr_err("Non-existent MCE bank: %llu\n", val);
 		return -EINVAL;
 	}
 
-	if (value > 5)
-		if (boot_cpu_data.x86 != 0x15 || value > 6) {
-			printk(KERN_ERR "Non-existent MCE bank: %lu\n", value);
-			return -EINVAL;
-		}
+	m->bank = val;
+	do_inject();
 
-	i_mce.bank = value;
-
-	amd_decode_mce(NULL, 0, &i_mce);
-
-	return count;
+	return 0;
 }
 
-static ssize_t edac_inject_bank_show(struct kobject *kobj,
-				     struct edac_mce_attr *attr, char *buf)
+MCE_INJECT_GET(bank);
+
+DEFINE_SIMPLE_ATTRIBUTE(bank_fops, inj_bank_get, inj_bank_set, "%llu\n");
+
+static const char readme_msg[] =
+"Description of the files and their usages:\n"
+"\n"
+"Note1: i refers to the bank number below.\n"
+"Note2: See respective BKDGs for the exact bit definitions of the files below\n"
+"as they mirror the hardware registers.\n"
+"\n"
+"status:\t Set MCi_STATUS: the bits in that MSR control the error type and\n"
+"\t attributes of the error which caused the MCE.\n"
+"\n"
+"misc:\t Set MCi_MISC: provide auxiliary info about the error. It is mostly\n"
+"\t used for error thresholding purposes and its validity is indicated by\n"
+"\t MCi_STATUS[MiscV].\n"
+"\n"
+"addr:\t Error address value to be written to MCi_ADDR. Log address information\n"
+"\t associated with the error.\n"
+"\n"
+"cpu:\t The CPU to inject the error on.\n"
+"\n"
+"bank:\t Specify the bank you want to inject the error into: the number of\n"
+"\t banks in a processor varies and is family/model-specific, therefore, the\n"
+"\t supplied value is sanity-checked. Setting the bank value also triggers the\n"
+"\t injection.\n"
+"\n"
+"flags:\t Injection type to be performed. Writing to this file will trigger a\n"
+"\t real machine check, an APIC interrupt or invoke the error decoder routines\n"
+"\t for AMD processors.\n"
+"\n"
+"\t Allowed error injection types:\n"
+"\t  - \"sw\": Software error injection. Decode error to a human-readable \n"
+"\t    format only. Safe to use.\n"
+"\t  - \"hw\": Hardware error injection. Causes the #MC exception handler to \n"
+"\t    handle the error. Be warned: might cause system panic if MCi_STATUS[PCC] \n"
+"\t    is set. Therefore, consider setting (debugfs_mountpoint)/mce/fake_panic \n"
+"\t    before injecting.\n"
+"\n";
+
+static ssize_t
+inj_readme_read(struct file *filp, char __user *ubuf,
+		       size_t cnt, loff_t *ppos)
 {
-	return sprintf(buf, "%d\n", i_mce.bank);
+	return simple_read_from_buffer(ubuf, cnt, ppos,
+					readme_msg, strlen(readme_msg));
 }
 
-EDAC_MCE_ATTR(bank, 0644, edac_inject_bank_show, edac_inject_bank_store);
-
-static struct edac_mce_attr *sysfs_attrs[] = { &mce_attr_status, &mce_attr_misc,
-					       &mce_attr_addr, &mce_attr_bank
+static const struct file_operations readme_fops = {
+	.read		= inj_readme_read,
 };
 
-static int __init edac_init_mce_inject(void)
-{
-	struct bus_type *edac_subsys = NULL;
-	int i, err = 0;
+static struct dfs_node {
+	char *name;
+	struct dentry *d;
+	const struct file_operations *fops;
+	umode_t perm;
+} dfs_fls[] = {
+	{ .name = "status",	.fops = &status_fops, .perm = S_IRUSR | S_IWUSR },
+	{ .name = "misc",	.fops = &misc_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "addr",	.fops = &addr_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "bank",	.fops = &bank_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "flags",	.fops = &flags_fops,  .perm = S_IRUSR | S_IWUSR },
+	{ .name = "cpu",	.fops = &extcpu_fops, .perm = S_IRUSR | S_IWUSR },
+	{ .name = "README",	.fops = &readme_fops, .perm = S_IRUSR | S_IRGRP | S_IROTH },
+};
 
-	edac_subsys = edac_get_sysfs_subsys();
-	if (!edac_subsys)
+static int __init init_mce_inject(void)
+{
+	int i;
+	u64 cap;
+
+	rdmsrl(MSR_IA32_MCG_CAP, cap);
+	n_banks = cap & MCG_BANKCNT_MASK;
+
+	dfs_inj = debugfs_create_dir("mce-inject", NULL);
+	if (!dfs_inj)
 		return -EINVAL;
 
-	mce_kobj = kobject_create_and_add("mce", &edac_subsys->dev_root->kobj);
-	if (!mce_kobj) {
-		printk(KERN_ERR "Error creating a mce kset.\n");
-		err = -ENOMEM;
-		goto err_mce_kobj;
+	for (i = 0; i < ARRAY_SIZE(dfs_fls); i++) {
+		dfs_fls[i].d = debugfs_create_file(dfs_fls[i].name,
+						    dfs_fls[i].perm,
+						    dfs_inj,
+						    &i_mce,
+						    dfs_fls[i].fops);
+
+		if (!dfs_fls[i].d)
+			goto err_dfs_add;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sysfs_attrs); i++) {
-		err = sysfs_create_file(mce_kobj, &sysfs_attrs[i]->attr);
-		if (err) {
-			printk(KERN_ERR "Error creating %s in sysfs.\n",
-					sysfs_attrs[i]->attr.name);
-			goto err_sysfs_create;
-		}
-	}
 	return 0;
 
-err_sysfs_create:
+err_dfs_add:
 	while (--i >= 0)
-		sysfs_remove_file(mce_kobj, &sysfs_attrs[i]->attr);
+		debugfs_remove(dfs_fls[i].d);
 
-	kobject_del(mce_kobj);
+	debugfs_remove(dfs_inj);
+	dfs_inj = NULL;
 
-err_mce_kobj:
-	edac_put_sysfs_subsys();
-
-	return err;
+	return -ENOMEM;
 }
 
-static void __exit edac_exit_mce_inject(void)
+static void __exit exit_mce_inject(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(sysfs_attrs); i++)
-		sysfs_remove_file(mce_kobj, &sysfs_attrs[i]->attr);
+	for (i = 0; i < ARRAY_SIZE(dfs_fls); i++)
+		debugfs_remove(dfs_fls[i].d);
 
-	kobject_del(mce_kobj);
+	memset(&dfs_fls, 0, sizeof(dfs_fls));
 
-	edac_put_sysfs_subsys();
+	debugfs_remove(dfs_inj);
+	dfs_inj = NULL;
 }
-
-module_init(edac_init_mce_inject);
-module_exit(edac_exit_mce_inject);
+module_init(init_mce_inject);
+module_exit(exit_mce_inject);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Borislav Petkov <bp@alien8.de>");
 MODULE_AUTHOR("AMD Inc.");
-MODULE_DESCRIPTION("MCE injection facility for testing MCE decoding");
+MODULE_DESCRIPTION("MCE injection facility for RAS testing");

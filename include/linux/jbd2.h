@@ -159,7 +159,11 @@ typedef struct journal_header_s
  * journal_block_tag (in the descriptor).  The other h_chksum* fields are
  * not used.
  *
- * Checksum v1 and v2 are mutually exclusive features.
+ * If FEATURE_INCOMPAT_CSUM_V3 is set, the descriptor block uses
+ * journal_block_tag3_t to store a full 32-bit checksum.  Everything else
+ * is the same as v2.
+ *
+ * Checksum v1, v2, and v3 are mutually exclusive features.
  */
 struct commit_header {
 	__be32		h_magic;
@@ -179,6 +183,14 @@ struct commit_header {
  * raw struct shouldn't be used for pointer math or sizeof() - use
  * journal_tag_bytes(journal) instead to compute this.
  */
+typedef struct journal_block_tag3_s
+{
+	__be32		t_blocknr;	/* The on-disk block number */
+	__be32		t_flags;	/* See below */
+	__be32		t_blocknr_high; /* most-significant high 32bits. */
+	__be32		t_checksum;	/* crc32c(uuid+seq+block) */
+} journal_block_tag3_t;
+
 typedef struct journal_block_tag_s
 {
 	__be32		t_blocknr;	/* The on-disk block number */
@@ -186,9 +198,6 @@ typedef struct journal_block_tag_s
 	__be16		t_flags;	/* See below */
 	__be32		t_blocknr_high; /* most-significant high 32bits. */
 } journal_block_tag_t;
-
-#define JBD2_TAG_SIZE32 (offsetof(journal_block_tag_t, t_blocknr_high))
-#define JBD2_TAG_SIZE64 (sizeof(journal_block_tag_t))
 
 /* Tail of descriptor block, for checksumming */
 struct jbd2_journal_block_tail {
@@ -284,6 +293,7 @@ typedef struct journal_superblock_s
 #define JBD2_FEATURE_INCOMPAT_64BIT		0x00000002
 #define JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT	0x00000004
 #define JBD2_FEATURE_INCOMPAT_CSUM_V2		0x00000008
+#define JBD2_FEATURE_INCOMPAT_CSUM_V3		0x00000010
 
 /* Features known to this kernel version: */
 #define JBD2_KNOWN_COMPAT_FEATURES	JBD2_FEATURE_COMPAT_CHECKSUM
@@ -291,7 +301,8 @@ typedef struct journal_superblock_s
 #define JBD2_KNOWN_INCOMPAT_FEATURES	(JBD2_FEATURE_INCOMPAT_REVOKE | \
 					JBD2_FEATURE_INCOMPAT_64BIT | \
 					JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT | \
-					JBD2_FEATURE_INCOMPAT_CSUM_V2)
+					JBD2_FEATURE_INCOMPAT_CSUM_V2 | \
+					JBD2_FEATURE_INCOMPAT_CSUM_V3)
 
 #ifdef __KERNEL__
 
@@ -1024,14 +1035,14 @@ struct buffer_head *jbd2_journal_get_descriptor_buffer(journal_t *journal);
 int jbd2_journal_next_log_block(journal_t *, unsigned long long *);
 int jbd2_journal_get_log_tail(journal_t *journal, tid_t *tid,
 			      unsigned long *block);
-void __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block);
+int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block);
 void jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block);
 
 /* Commit management */
 extern void jbd2_journal_commit_transaction(journal_t *);
 
 /* Checkpoint list management */
-int __jbd2_journal_clean_checkpoint_list(journal_t *journal);
+void __jbd2_journal_clean_checkpoint_list(journal_t *journal);
 int __jbd2_journal_remove_checkpoint(struct journal_head *);
 void __jbd2_journal_insert_checkpoint(struct journal_head *, transaction_t *);
 
@@ -1146,7 +1157,7 @@ extern int	   jbd2_journal_recover    (journal_t *journal);
 extern int	   jbd2_journal_wipe       (journal_t *, int);
 extern int	   jbd2_journal_skip_recovery	(journal_t *);
 extern void	   jbd2_journal_update_sb_errno(journal_t *);
-extern void	   jbd2_journal_update_sb_log_tail	(journal_t *, tid_t,
+extern int	   jbd2_journal_update_sb_log_tail	(journal_t *, tid_t,
 				unsigned long, int);
 extern void	   __jbd2_journal_abort_hard	(journal_t *);
 extern void	   jbd2_journal_abort      (journal_t *, int);
@@ -1240,15 +1251,6 @@ void __jbd2_log_wait_for_space(journal_t *journal);
 extern void __jbd2_journal_drop_transaction(journal_t *, transaction_t *);
 extern int jbd2_cleanup_journal_tail(journal_t *);
 
-/* Debugging code only: */
-
-#define jbd_ENOSYS() \
-do {								           \
-	printk (KERN_ERR "JBD unimplemented function %s\n", __func__); \
-	current->state = TASK_UNINTERRUPTIBLE;			           \
-	schedule();						           \
-} while (1)
-
 /*
  * is_journal_abort
  *
@@ -1295,6 +1297,15 @@ static inline int tid_geq(tid_t x, tid_t y)
 
 extern int jbd2_journal_blocks_per_page(struct inode *inode);
 extern size_t journal_tag_bytes(journal_t *journal);
+
+static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
+{
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2) ||
+	    JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V3))
+		return 1;
+
+	return 0;
+}
 
 /*
  * We reserve t_outstanding_credits >> JBD2_CONTROL_BLOCKS_SHIFT for

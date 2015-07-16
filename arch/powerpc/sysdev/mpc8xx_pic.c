@@ -1,6 +1,5 @@
 #include <linux/kernel.h>
 #include <linux/stddef.h>
-#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/irq.h>
@@ -121,7 +120,7 @@ static int mpc8xx_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
 }
 
 
-static struct irq_domain_ops mpc8xx_pic_host_ops = {
+static const struct irq_domain_ops mpc8xx_pic_host_ops = {
 	.map = mpc8xx_pic_host_map,
 	.xlate = mpc8xx_pic_host_xlate,
 };

@@ -345,14 +345,14 @@ the named feature on.
 The implementation is simple.
 
 Setting the flag 'cpuset.memory_spread_page' turns on a per-process flag
-PF_SPREAD_PAGE for each task that is in that cpuset or subsequently
+PFA_SPREAD_PAGE for each task that is in that cpuset or subsequently
 joins that cpuset.  The page allocation calls for the page cache
-is modified to perform an inline check for this PF_SPREAD_PAGE task
+is modified to perform an inline check for this PFA_SPREAD_PAGE task
 flag, and if set, a call to a new routine cpuset_mem_spread_node()
 returns the node to prefer for the allocation.
 
 Similarly, setting 'cpuset.memory_spread_slab' turns on the flag
-PF_SPREAD_SLAB, and appropriately marked slab caches will allocate
+PFA_SPREAD_SLAB, and appropriately marked slab caches will allocate
 pages from the node returned by cpuset_mem_spread_node().
 
 The cpuset_mem_spread_node() routine is also simple.  It uses the
@@ -392,8 +392,10 @@ Put simply, it costs less to balance between two smaller sched domains
 than one big one, but doing so means that overloads in one of the
 two domains won't be load balanced to the other one.
 
-By default, there is one sched domain covering all CPUs, except those
-marked isolated using the kernel boot time "isolcpus=" argument.
+By default, there is one sched domain covering all CPUs, including those
+marked isolated using the kernel boot time "isolcpus=" argument. However,
+the isolated CPUs will not participate in load balancing, and will not
+have tasks running on them unless explicitly assigned.
 
 This default load balancing across all CPUs is not well suited for
 the following two situations:
@@ -445,7 +447,7 @@ across partially overlapping sets of CPUs would risk unstable dynamics
 that would be beyond our understanding.  So if each of two partially
 overlapping cpusets enables the flag 'cpuset.sched_load_balance', then we
 form a single sched domain that is a superset of both.  We won't move
-a task to a CPU outside it cpuset, but the scheduler load balancing
+a task to a CPU outside its cpuset, but the scheduler load balancing
 code might waste some compute cycles considering that possibility.
 
 This mismatch is why there is not a simple one-to-one relation
@@ -464,6 +466,10 @@ don't leave tasks that might use non-trivial amounts of CPU in
 such partially load balanced cpusets, as they may be artificially
 constrained to some subset of the CPUs allowed to them, for lack of
 load balancing to the other CPUs.
+
+CPUs in "cpuset.isolcpus" were excluded from load balancing by the
+isolcpus= kernel boot option, and will never be load balanced regardless
+of the value of "cpuset.sched_load_balance" in any cpuset.
 
 1.7.1 sched_load_balance implementation details.
 ------------------------------------------------
@@ -552,8 +558,8 @@ otherwise initial value -1 that indicates the cpuset has no request.
    1  : search siblings (hyperthreads in a core).
    2  : search cores in a package.
    3  : search cpus in a node [= system wide on non-NUMA system]
- ( 4  : search nodes in a chunk of node [on NUMA system] )
- ( 5  : search system wide [on NUMA system] )
+   4  : search nodes in a chunk of node [on NUMA system]
+   5  : search system wide [on NUMA system]
 
 The system default is architecture dependent.  The system default
 can be changed using the relax_domain_level= boot parameter.

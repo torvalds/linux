@@ -41,9 +41,7 @@ END(boot_args)
         .import fault_vector_11,code    /* IVA parisc 1.1 32 bit */
 	.import	$global$		/* forward declaration */
 #endif /*!CONFIG_64BIT*/
-	.export _stext,data		/* Kernel want it this way! */
-_stext:
-ENTRY(stext)
+ENTRY(parisc_kernel_start)
 	.proc
 	.callinfo
 
@@ -76,7 +74,7 @@ $bss_loop:
 	mtctl		%r4,%cr24	/* Initialize kernel root pointer */
 	mtctl		%r4,%cr25	/* Initialize user root pointer */
 
-#if PT_NLEVELS == 3
+#if CONFIG_PGTABLE_LEVELS == 3
 	/* Set pmd in pgd */
 	load32		PA(pmd0),%r5
 	shrd            %r5,PxD_VALUE_SHIFT,%r3	
@@ -99,7 +97,7 @@ $bss_loop:
 	stw		%r3,0(%r4)
 	ldo		(PAGE_SIZE >> PxD_VALUE_SHIFT)(%r3),%r3
 	addib,>		-1,%r1,1b
-#if PT_NLEVELS == 3
+#if CONFIG_PGTABLE_LEVELS == 3
 	ldo             ASM_PMD_ENTRY_SIZE(%r4),%r4
 #else
 	ldo             ASM_PGD_ENTRY_SIZE(%r4),%r4
@@ -347,7 +345,7 @@ smp_slave_stext:
 	.procend
 #endif /* CONFIG_SMP */
 
-ENDPROC(stext)
+ENDPROC(parisc_kernel_start)
 
 #ifndef CONFIG_64BIT
 	.section .data..read_mostly

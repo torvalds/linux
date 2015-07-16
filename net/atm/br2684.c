@@ -682,8 +682,8 @@ static int br2684_create(void __user *arg)
 
 	netdev = alloc_netdev(sizeof(struct br2684_dev),
 			      ni.ifname[0] ? ni.ifname : "nas%d",
-			      (payload == p_routed) ?
-			      br2684_setup_routed : br2684_setup);
+			      NET_NAME_UNKNOWN,
+			      (payload == p_routed) ? br2684_setup_routed : br2684_setup);
 	if (!netdev)
 		return -ENOMEM;
 

@@ -30,6 +30,7 @@
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_device.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
@@ -101,10 +102,6 @@ struct atmel_sha_ctx {
 	struct atmel_sha_dev	*dd;
 
 	unsigned long		flags;
-
-	/* fallback stuff */
-	struct crypto_shash	*fallback;
-
 };
 
 #define ATMEL_SHA_QUEUE_LENGTH	50
@@ -166,8 +163,20 @@ static size_t atmel_sha_append_sg(struct atmel_sha_reqctx *ctx)
 		count = min(ctx->sg->length - ctx->offset, ctx->total);
 		count = min(count, ctx->buflen - ctx->bufcnt);
 
-		if (count <= 0)
-			break;
+		if (count <= 0) {
+			/*
+			* Check if count <= 0 because the buffer is full or
+			* because the sg length is 0. In the latest case,
+			* check if there is another sg in the list, a 0 length
+			* sg doesn't necessarily mean the end of the sg list.
+			*/
+			if ((ctx->sg->length == 0) && !sg_is_last(ctx->sg)) {
+				ctx->sg = sg_next(ctx->sg);
+				continue;
+			} else {
+				break;
+			}
+		}
 
 		scatterwalk_map_and_copy(ctx->buffer + ctx->bufcnt, ctx->sg,
 			ctx->offset, count, 0);
@@ -423,14 +432,8 @@ static int atmel_sha_xmit_dma(struct atmel_sha_dev *dd, dma_addr_t dma_addr1,
 	dev_dbg(dd->dev, "xmit_dma: digcnt: 0x%llx 0x%llx, length: %d, final: %d\n",
 		ctx->digcnt[1], ctx->digcnt[0], length1, final);
 
-	if (ctx->flags & (SHA_FLAGS_SHA1 | SHA_FLAGS_SHA224 |
-			SHA_FLAGS_SHA256)) {
-		dd->dma_lch_in.dma_conf.src_maxburst = 16;
-		dd->dma_lch_in.dma_conf.dst_maxburst = 16;
-	} else {
-		dd->dma_lch_in.dma_conf.src_maxburst = 32;
-		dd->dma_lch_in.dma_conf.dst_maxburst = 32;
-	}
+	dd->dma_lch_in.dma_conf.src_maxburst = 16;
+	dd->dma_lch_in.dma_conf.dst_maxburst = 16;
 
 	dmaengine_slave_config(dd->dma_lch_in.chan, &dd->dma_lch_in.dma_conf);
 
@@ -532,7 +535,7 @@ static int atmel_sha_update_dma_slow(struct atmel_sha_dev *dd)
 	if (final)
 		atmel_sha_fill_padding(ctx, 0);
 
-	if (final || (ctx->bufcnt == ctx->buflen && ctx->total)) {
+	if (final || (ctx->bufcnt == ctx->buflen)) {
 		count = ctx->bufcnt;
 		ctx->bufcnt = 0;
 		return atmel_sha_xmit_dma_map(dd, ctx, count, final);
@@ -973,37 +976,13 @@ static int atmel_sha_digest(struct ahash_request *req)
 	return atmel_sha_init(req) ?: atmel_sha_finup(req);
 }
 
-static int atmel_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
+static int atmel_sha_cra_init(struct crypto_tfm *tfm)
 {
-	struct atmel_sha_ctx *tctx = crypto_tfm_ctx(tfm);
-	const char *alg_name = crypto_tfm_alg_name(tfm);
-
-	/* Allocate a fallback and abort if it failed. */
-	tctx->fallback = crypto_alloc_shash(alg_name, 0,
-					    CRYPTO_ALG_NEED_FALLBACK);
-	if (IS_ERR(tctx->fallback)) {
-		pr_err("atmel-sha: fallback driver '%s' could not be loaded.\n",
-				alg_name);
-		return PTR_ERR(tctx->fallback);
-	}
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct atmel_sha_reqctx) +
 				 SHA_BUFFER_LEN + SHA512_BLOCK_SIZE);
 
 	return 0;
-}
-
-static int atmel_sha_cra_init(struct crypto_tfm *tfm)
-{
-	return atmel_sha_cra_init_alg(tfm, NULL);
-}
-
-static void atmel_sha_cra_exit(struct crypto_tfm *tfm)
-{
-	struct atmel_sha_ctx *tctx = crypto_tfm_ctx(tfm);
-
-	crypto_free_shash(tctx->fallback);
-	tctx->fallback = NULL;
 }
 
 static struct ahash_alg sha_1_256_algs[] = {
@@ -1019,14 +998,12 @@ static struct ahash_alg sha_1_256_algs[] = {
 			.cra_name		= "sha1",
 			.cra_driver_name	= "atmel-sha1",
 			.cra_priority		= 100,
-			.cra_flags		= CRYPTO_ALG_ASYNC |
-						CRYPTO_ALG_NEED_FALLBACK,
+			.cra_flags		= CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= SHA1_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
 			.cra_alignmask		= 0,
 			.cra_module		= THIS_MODULE,
 			.cra_init		= atmel_sha_cra_init,
-			.cra_exit		= atmel_sha_cra_exit,
 		}
 	}
 },
@@ -1042,14 +1019,12 @@ static struct ahash_alg sha_1_256_algs[] = {
 			.cra_name		= "sha256",
 			.cra_driver_name	= "atmel-sha256",
 			.cra_priority		= 100,
-			.cra_flags		= CRYPTO_ALG_ASYNC |
-						CRYPTO_ALG_NEED_FALLBACK,
+			.cra_flags		= CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= SHA256_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
 			.cra_alignmask		= 0,
 			.cra_module		= THIS_MODULE,
 			.cra_init		= atmel_sha_cra_init,
-			.cra_exit		= atmel_sha_cra_exit,
 		}
 	}
 },
@@ -1067,14 +1042,12 @@ static struct ahash_alg sha_224_alg = {
 			.cra_name		= "sha224",
 			.cra_driver_name	= "atmel-sha224",
 			.cra_priority		= 100,
-			.cra_flags		= CRYPTO_ALG_ASYNC |
-						CRYPTO_ALG_NEED_FALLBACK,
+			.cra_flags		= CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= SHA224_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
 			.cra_alignmask		= 0,
 			.cra_module		= THIS_MODULE,
 			.cra_init		= atmel_sha_cra_init,
-			.cra_exit		= atmel_sha_cra_exit,
 		}
 	}
 };
@@ -1092,14 +1065,12 @@ static struct ahash_alg sha_384_512_algs[] = {
 			.cra_name		= "sha384",
 			.cra_driver_name	= "atmel-sha384",
 			.cra_priority		= 100,
-			.cra_flags		= CRYPTO_ALG_ASYNC |
-						CRYPTO_ALG_NEED_FALLBACK,
+			.cra_flags		= CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= SHA384_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
 			.cra_alignmask		= 0x3,
 			.cra_module		= THIS_MODULE,
 			.cra_init		= atmel_sha_cra_init,
-			.cra_exit		= atmel_sha_cra_exit,
 		}
 	}
 },
@@ -1115,14 +1086,12 @@ static struct ahash_alg sha_384_512_algs[] = {
 			.cra_name		= "sha512",
 			.cra_driver_name	= "atmel-sha512",
 			.cra_priority		= 100,
-			.cra_flags		= CRYPTO_ALG_ASYNC |
-						CRYPTO_ALG_NEED_FALLBACK,
+			.cra_flags		= CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= SHA512_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
 			.cra_alignmask		= 0x3,
 			.cra_module		= THIS_MODULE,
 			.cra_init		= atmel_sha_cra_init,
-			.cra_exit		= atmel_sha_cra_exit,
 		}
 	}
 },
@@ -1263,32 +1232,29 @@ static int atmel_sha_dma_init(struct atmel_sha_dev *dd,
 	int err = -ENOMEM;
 	dma_cap_mask_t mask_in;
 
-	if (pdata && pdata->dma_slave->rxdata.dma_dev) {
-		/* Try to grab DMA channel */
-		dma_cap_zero(mask_in);
-		dma_cap_set(DMA_SLAVE, mask_in);
+	/* Try to grab DMA channel */
+	dma_cap_zero(mask_in);
+	dma_cap_set(DMA_SLAVE, mask_in);
 
-		dd->dma_lch_in.chan = dma_request_channel(mask_in,
-				atmel_sha_filter, &pdata->dma_slave->rxdata);
-
-		if (!dd->dma_lch_in.chan)
-			return err;
-
-		dd->dma_lch_in.dma_conf.direction = DMA_MEM_TO_DEV;
-		dd->dma_lch_in.dma_conf.dst_addr = dd->phys_base +
-			SHA_REG_DIN(0);
-		dd->dma_lch_in.dma_conf.src_maxburst = 1;
-		dd->dma_lch_in.dma_conf.src_addr_width =
-			DMA_SLAVE_BUSWIDTH_4_BYTES;
-		dd->dma_lch_in.dma_conf.dst_maxburst = 1;
-		dd->dma_lch_in.dma_conf.dst_addr_width =
-			DMA_SLAVE_BUSWIDTH_4_BYTES;
-		dd->dma_lch_in.dma_conf.device_fc = false;
-
-		return 0;
+	dd->dma_lch_in.chan = dma_request_slave_channel_compat(mask_in,
+			atmel_sha_filter, &pdata->dma_slave->rxdata, dd->dev, "tx");
+	if (!dd->dma_lch_in.chan) {
+		dev_warn(dd->dev, "no DMA channel available\n");
+		return err;
 	}
 
-	return -ENODEV;
+	dd->dma_lch_in.dma_conf.direction = DMA_MEM_TO_DEV;
+	dd->dma_lch_in.dma_conf.dst_addr = dd->phys_base +
+		SHA_REG_DIN(0);
+	dd->dma_lch_in.dma_conf.src_maxburst = 1;
+	dd->dma_lch_in.dma_conf.src_addr_width =
+		DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dd->dma_lch_in.dma_conf.dst_maxburst = 1;
+	dd->dma_lch_in.dma_conf.dst_addr_width =
+		DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dd->dma_lch_in.dma_conf.device_fc = false;
+
+	return 0;
 }
 
 static void atmel_sha_dma_cleanup(struct atmel_sha_dev *dd)
@@ -1306,6 +1272,12 @@ static void atmel_sha_get_cap(struct atmel_sha_dev *dd)
 
 	/* keep only major version number */
 	switch (dd->hw_version & 0xff0) {
+	case 0x420:
+		dd->caps.has_dma = 1;
+		dd->caps.has_dualbuff = 1;
+		dd->caps.has_sha224 = 1;
+		dd->caps.has_sha_384_512 = 1;
+		break;
 	case 0x410:
 		dd->caps.has_dma = 1;
 		dd->caps.has_dualbuff = 1;
@@ -1326,6 +1298,47 @@ static void atmel_sha_get_cap(struct atmel_sha_dev *dd)
 	}
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id atmel_sha_dt_ids[] = {
+	{ .compatible = "atmel,at91sam9g46-sha" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, atmel_sha_dt_ids);
+
+static struct crypto_platform_data *atmel_sha_of_init(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct crypto_platform_data *pdata;
+
+	if (!np) {
+		dev_err(&pdev->dev, "device node not found\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(&pdev->dev, "could not allocate memory for pdata\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pdata->dma_slave = devm_kzalloc(&pdev->dev,
+					sizeof(*(pdata->dma_slave)),
+					GFP_KERNEL);
+	if (!pdata->dma_slave) {
+		dev_err(&pdev->dev, "could not allocate memory for dma_slave\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	return pdata;
+}
+#else /* CONFIG_OF */
+static inline struct crypto_platform_data *atmel_sha_of_init(struct platform_device *dev)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif
+
 static int atmel_sha_probe(struct platform_device *pdev)
 {
 	struct atmel_sha_dev *sha_dd;
@@ -1335,7 +1348,8 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	unsigned long sha_phys_size;
 	int err;
 
-	sha_dd = kzalloc(sizeof(struct atmel_sha_dev), GFP_KERNEL);
+	sha_dd = devm_kzalloc(&pdev->dev, sizeof(struct atmel_sha_dev),
+				GFP_KERNEL);
 	if (sha_dd == NULL) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		err = -ENOMEM;
@@ -1347,6 +1361,7 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sha_dd);
 
 	INIT_LIST_HEAD(&sha_dd->list);
+	spin_lock_init(&sha_dd->lock);
 
 	tasklet_init(&sha_dd->done_task, atmel_sha_done_task,
 					(unsigned long)sha_dd);
@@ -1383,7 +1398,7 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	/* Initializing the clock */
 	sha_dd->iclk = clk_get(&pdev->dev, "sha_clk");
 	if (IS_ERR(sha_dd->iclk)) {
-		dev_err(dev, "clock intialization failed.\n");
+		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(sha_dd->iclk);
 		goto clk_err;
 	}
@@ -1402,13 +1417,23 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	if (sha_dd->caps.has_dma) {
 		pdata = pdev->dev.platform_data;
 		if (!pdata) {
-			dev_err(&pdev->dev, "platform data not available\n");
+			pdata = atmel_sha_of_init(pdev);
+			if (IS_ERR(pdata)) {
+				dev_err(&pdev->dev, "platform data not available\n");
+				err = PTR_ERR(pdata);
+				goto err_pdata;
+			}
+		}
+		if (!pdata->dma_slave) {
 			err = -ENXIO;
 			goto err_pdata;
 		}
 		err = atmel_sha_dma_init(sha_dd, pdata);
 		if (err)
 			goto err_sha_dma;
+
+		dev_info(dev, "using %s for DMA transfers\n",
+				dma_chan_name(sha_dd->dma_lch_in.chan));
 	}
 
 	spin_lock(&atmel_sha.lock);
@@ -1419,7 +1444,9 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	if (err)
 		goto err_algs;
 
-	dev_info(dev, "Atmel SHA1/SHA256\n");
+	dev_info(dev, "Atmel SHA1/SHA256%s%s\n",
+			sha_dd->caps.has_sha224 ? "/SHA224" : "",
+			sha_dd->caps.has_sha_384_512 ? "/SHA384/SHA512" : "");
 
 	return 0;
 
@@ -1438,8 +1465,6 @@ clk_err:
 	free_irq(sha_dd->irq, sha_dd);
 res_err:
 	tasklet_kill(&sha_dd->done_task);
-	kfree(sha_dd);
-	sha_dd = NULL;
 sha_dd_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1471,9 +1496,6 @@ static int atmel_sha_remove(struct platform_device *pdev)
 	if (sha_dd->irq >= 0)
 		free_irq(sha_dd->irq, sha_dd);
 
-	kfree(sha_dd);
-	sha_dd = NULL;
-
 	return 0;
 }
 
@@ -1482,7 +1504,7 @@ static struct platform_driver atmel_sha_driver = {
 	.remove		= atmel_sha_remove,
 	.driver		= {
 		.name	= "atmel_sha",
-		.owner	= THIS_MODULE,
+		.of_match_table	= of_match_ptr(atmel_sha_dt_ids),
 	},
 };
 

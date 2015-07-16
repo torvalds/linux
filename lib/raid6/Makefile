@@ -15,7 +15,7 @@ quiet_cmd_unroll = UNROLL  $@
                    < $< > $@ || ( rm -f $@ && exit 1 )
 
 ifeq ($(CONFIG_ALTIVEC),y)
-altivec_flags := -maltivec -mabi=altivec
+altivec_flags := -maltivec $(call cc-option,-mabi=altivec)
 endif
 
 # The GCC option -ffreestanding is required in order to compile code containing

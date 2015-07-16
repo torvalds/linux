@@ -166,12 +166,12 @@ static struct xmit_frame *dequeue_one_xmitframe(struct xmit_priv *pxmitpriv,
 	struct list_head *xmitframe_plist, *xmitframe_phead;
 	struct	xmit_frame *pxmitframe = NULL;
 
-	xmitframe_phead = get_list_head(pframe_queue);
-	xmitframe_plist = get_next(xmitframe_phead);
+	xmitframe_phead = &pframe_queue->queue;
+	xmitframe_plist = xmitframe_phead->next;
 	if ((end_of_queue_search(xmitframe_phead, xmitframe_plist)) == false) {
 		pxmitframe = LIST_CONTAINOR(xmitframe_plist,
 			     struct xmit_frame, list);
-		list_delete(&pxmitframe->list);
+		list_del_init(&pxmitframe->list);
 		ptxservq->qcnt--;
 		phwxmit->txcmdcnt++;
 	}
@@ -188,7 +188,7 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 	struct  __queue *pframe_queue = NULL;
 	struct	xmit_frame *pxmitframe = NULL;
 	int i, inx[4];
-	int j, tmp, acirp_cnt[4];
+	int j, acirp_cnt[4];
 
 	/*entry indx: 0->vo, 1->vi, 2->be, 3->bk.*/
 	inx[0] = 0; acirp_cnt[0] = pxmitpriv->voq_cnt;
@@ -198,20 +198,16 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 	for (i = 0; i < 4; i++) {
 		for (j = i + 1; j < 4; j++) {
 			if (acirp_cnt[j] < acirp_cnt[i]) {
-				tmp = acirp_cnt[i];
-				acirp_cnt[i] = acirp_cnt[j];
-				acirp_cnt[j] = tmp;
-				tmp = inx[i];
-				inx[i] = inx[j];
-				inx[j] = tmp;
+				swap(acirp_cnt[i], acirp_cnt[j]);
+				swap(inx[i], inx[j]);
 			}
 		}
 	}
 	spin_lock_irqsave(&pxmitpriv->lock, irqL0);
 	for (i = 0; i < entry; i++) {
 		phwxmit = phwxmit_i + inx[i];
-		sta_phead = get_list_head(phwxmit->sta_queue);
-		sta_plist = get_next(sta_phead);
+		sta_phead = &phwxmit->sta_queue->queue;
+		sta_plist = sta_phead->next;
 		while ((end_of_queue_search(sta_phead, sta_plist)) == false) {
 			ptxservq = LIST_CONTAINOR(sta_plist, struct tx_servq,
 				  tx_pending);
@@ -222,11 +218,13 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 				phwxmit->accnt--;
 				goto exit_dequeue_xframe_ex;
 			}
-			sta_plist = get_next(sta_plist);
+			sta_plist = sta_plist->next;
 			/*Remove sta node when there are no pending packets.*/
-			if (_queue_empty(pframe_queue)) {
-				/*must be done after get_next and before break*/
-				list_delete(&ptxservq->tx_pending);
+			if (list_empty(&pframe_queue->queue)) {
+				/* must be done after sta_plist->next
+				 * and before break
+				 */
+				list_del_init(&ptxservq->tx_pending);
 			}
 		}
 	}
@@ -322,6 +320,7 @@ u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 	padding_sz = (8 - (last_txcmdsz % 8));
 	if ((last_txcmdsz % 8) != 0) {
 		int i;
+
 		for (i = 0; i < padding_sz; i++)
 			*(pxmitframe->buf_addr+TXDESC_SIZE+last_txcmdsz+i) = 0;
 	}
@@ -337,7 +336,7 @@ u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 u8 r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
 			struct xmit_frame *pxmitframe)
 {
-	/* linux complete context doesnt need to protect */
+	/* linux complete context doesn't need to protect */
 	pxmitframe->pxmitbuf = pxmitbuf;
 	pxmitbuf->priv_data = pxmitframe;
 	pxmitframe->pxmit_urb[0] = pxmitbuf->pxmit_urb[0];
@@ -552,6 +551,7 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		}
 		if (pattrib->pctrl == 1) { /* mp tx packets */
 			struct tx_desc *ptxdesc_mp;
+
 			ptxdesc_mp = &txdesc_mp;
 			/* offset 8 */
 			ptxdesc->txdw2 = cpu_to_le32(ptxdesc_mp->txdw2);
@@ -653,6 +653,7 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 		r8712_xmitframe_aggr_1st(pxmitbuf, pxmitframe);
 		if (p2ndxmitframe != NULL) {
 			u16 total_length;
+
 			total_length = r8712_xmitframe_aggr_next(
 				pxmitbuf, p2ndxmitframe);
 			do {

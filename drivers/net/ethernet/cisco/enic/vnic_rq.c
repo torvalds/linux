@@ -188,16 +188,15 @@ void vnic_rq_clean(struct vnic_rq *rq,
 	struct vnic_rq_buf *buf;
 	u32 fetch_index;
 	unsigned int count = rq->ring.desc_count;
+	int i;
 
 	buf = rq->to_clean;
 
-	while (vnic_rq_desc_used(rq) > 0) {
-
+	for (i = 0; i < rq->ring.desc_count; i++) {
 		(*buf_clean)(rq, buf);
-
-		buf = rq->to_clean = buf->next;
-		rq->ring.desc_avail++;
+		buf = buf->next;
 	}
+	rq->ring.desc_avail = rq->ring.desc_count - 1;
 
 	/* Use current fetch_index as the ring starting point */
 	fetch_index = ioread32(&rq->ctrl->fetch_index);

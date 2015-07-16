@@ -655,24 +655,14 @@ static void ucma_copy_ib_route(struct rdma_ucm_query_route_resp *resp,
 static void ucma_copy_iboe_route(struct rdma_ucm_query_route_resp *resp,
 				 struct rdma_route *route)
 {
-	struct rdma_dev_addr *dev_addr;
-	struct net_device *dev;
-	u16 vid = 0;
 
 	resp->num_paths = route->num_paths;
 	switch (route->num_paths) {
 	case 0:
-		dev_addr = &route->addr.dev_addr;
-		dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
-			if (dev) {
-				vid = rdma_vlan_dev_vlan_id(dev);
-				dev_put(dev);
-			}
-
-		iboe_mac_vlan_to_ll((union ib_gid *) &resp->ib_route[0].dgid,
-				    dev_addr->dst_dev_addr, vid);
-		iboe_addr_get_sgid(dev_addr,
-				   (union ib_gid *) &resp->ib_route[0].sgid);
+		rdma_ip2gid((struct sockaddr *)&route->addr.dst_addr,
+			    (union ib_gid *)&resp->ib_route[0].dgid);
+		rdma_ip2gid((struct sockaddr *)&route->addr.src_addr,
+			    (union ib_gid *)&resp->ib_route[0].sgid);
 		resp->ib_route[0].pkey = cpu_to_be16(0xffff);
 		break;
 	case 2:
@@ -732,26 +722,13 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 
 	resp.node_guid = (__force __u64) ctx->cm_id->device->node_guid;
 	resp.port_num = ctx->cm_id->port_num;
-	switch (rdma_node_get_transport(ctx->cm_id->device->node_type)) {
-	case RDMA_TRANSPORT_IB:
-		switch (rdma_port_get_link_layer(ctx->cm_id->device,
-			ctx->cm_id->port_num)) {
-		case IB_LINK_LAYER_INFINIBAND:
-			ucma_copy_ib_route(&resp, &ctx->cm_id->route);
-			break;
-		case IB_LINK_LAYER_ETHERNET:
-			ucma_copy_iboe_route(&resp, &ctx->cm_id->route);
-			break;
-		default:
-			break;
-		}
-		break;
-	case RDMA_TRANSPORT_IWARP:
+
+	if (rdma_cap_ib_sa(ctx->cm_id->device, ctx->cm_id->port_num))
+		ucma_copy_ib_route(&resp, &ctx->cm_id->route);
+	else if (rdma_protocol_roce(ctx->cm_id->device, ctx->cm_id->port_num))
+		ucma_copy_iboe_route(&resp, &ctx->cm_id->route);
+	else if (rdma_protocol_iwarp(ctx->cm_id->device, ctx->cm_id->port_num))
 		ucma_copy_iw_route(&resp, &ctx->cm_id->route);
-		break;
-	default:
-		break;
-	}
 
 out:
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
@@ -1134,6 +1111,9 @@ static int ucma_set_ib_path(struct ucma_context *ctx,
 	if (!optlen)
 		return -EINVAL;
 
+	memset(&sa_path, 0, sizeof(sa_path));
+	sa_path.vlan_id = 0xffff;
+
 	ib_sa_unpack_path(path_data->path_rec, &sa_path);
 	ret = rdma_set_ib_paths(ctx->cm_id, &sa_path, 1);
 	if (ret)
@@ -1374,10 +1354,10 @@ static void ucma_lock_files(struct ucma_file *file1, struct ucma_file *file2)
 	/* Acquire mutex's based on pointer comparison to prevent deadlock. */
 	if (file1 < file2) {
 		mutex_lock(&file1->mut);
-		mutex_lock(&file2->mut);
+		mutex_lock_nested(&file2->mut, SINGLE_DEPTH_NESTING);
 	} else {
 		mutex_lock(&file2->mut);
-		mutex_lock(&file1->mut);
+		mutex_lock_nested(&file1->mut, SINGLE_DEPTH_NESTING);
 	}
 }
 
@@ -1636,6 +1616,7 @@ static void __exit ucma_cleanup(void)
 	device_remove_file(ucma_misc.this_device, &dev_attr_abi_version);
 	misc_deregister(&ucma_misc);
 	idr_destroy(&ctx_idr);
+	idr_destroy(&multicast_idr);
 }
 
 module_init(ucma_init);

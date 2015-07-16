@@ -551,7 +551,7 @@ static int dscc4_wait_ack_cec(struct dscc4_dev_priv *dpriv,
 			       msg, i);
 			goto done;
 		}
-		schedule_timeout_uninterruptible(10);
+		schedule_timeout_uninterruptible(msecs_to_jiffies(100));
 		rmb();
 	} while (++i > 0);
 	netdev_err(dev, "%s timeout\n", msg);
@@ -596,7 +596,7 @@ static inline int dscc4_xpr_ack(struct dscc4_dev_priv *dpriv)
 		    (dpriv->iqtx[cur] & cpu_to_le32(Xpr)))
 			break;
 		smp_rmb();
-		schedule_timeout_uninterruptible(10);
+		schedule_timeout_uninterruptible(msecs_to_jiffies(100));
 	} while (++i > 0);
 
 	return (i >= 0 ) ? i : -EAGAIN;
@@ -698,8 +698,6 @@ static void dscc4_free1(struct pci_dev *pdev)
 
 	for (i = 0; i < dev_per_card; i++)
 		unregister_hdlc_device(dscc4_to_dev(root + i));
-
-	pci_set_drvdata(pdev, NULL);
 
 	for (i = 0; i < dev_per_card; i++)
 		free_netdev(root[i].dev);
@@ -1035,7 +1033,7 @@ static void dscc4_pci_reset(struct pci_dev *pdev, void __iomem *ioaddr)
 	/* Flush posted writes */
 	readl(ioaddr + GSTAR);
 
-	schedule_timeout_uninterruptible(10);
+	schedule_timeout_uninterruptible(msecs_to_jiffies(100));
 
 	for (i = 0; i < 16; i++)
 		pci_write_config_dword(pdev, i << 2, dscc4_pci_config_store[i]);
@@ -1048,7 +1046,6 @@ static void dscc4_pci_reset(struct pci_dev *pdev, void __iomem *ioaddr)
 static int dscc4_open(struct net_device *dev)
 {
 	struct dscc4_dev_priv *dpriv = dscc4_priv(dev);
-	struct dscc4_pci_priv *ppriv;
 	int ret = -EAGAIN;
 
 	if ((dscc4_loopback_check(dpriv) < 0))
@@ -1056,8 +1053,6 @@ static int dscc4_open(struct net_device *dev)
 
 	if ((ret = hdlc_open(dev)))
 		goto err;
-
-	ppriv = dpriv->pci_priv;
 
 	/*
 	 * Due to various bugs, there is no way to reliably reset a
@@ -2041,7 +2036,7 @@ static int __init dscc4_setup(char *str)
 __setup("dscc4.setup=", dscc4_setup);
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(dscc4_pci_tbl) = {
+static const struct pci_device_id dscc4_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SIEMENS, PCI_DEVICE_ID_SIEMENS_DSCC4,
 	        PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0,}

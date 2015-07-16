@@ -12,6 +12,7 @@ struct mmc_blk_request {
 	struct mmc_command	cmd;
 	struct mmc_command	stop;
 	struct mmc_data		data;
+	int			retune_retry_done;
 };
 
 enum mmc_packed_type {
@@ -72,5 +73,7 @@ extern void mmc_queue_bounce_post(struct mmc_queue_req *);
 
 extern int mmc_packed_init(struct mmc_queue *, struct mmc_card *);
 extern void mmc_packed_clean(struct mmc_queue *);
+
+extern int mmc_access_rpmb(struct mmc_queue *);
 
 #endif

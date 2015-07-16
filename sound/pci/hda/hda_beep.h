@@ -1,7 +1,7 @@
 /*
  * Digital Beep Input Interface for HD-audio codec
  *
- * Author: Matthew Ranostay <mranostay@embeddedalley.com>
+ * Author: Matt Ranostay <mranostay@gmail.com>
  * Copyright (c) 2008 Embedded Alley Solutions Inc
  *
  *  This driver is free software; you can redistribute it and/or modify
@@ -34,17 +34,20 @@ struct hda_beep {
 	char phys[32];
 	int tone;
 	hda_nid_t nid;
+	unsigned int registered:1;
 	unsigned int enabled:1;
 	unsigned int linear_tone:1;	/* linear tone for IDT/STAC codec */
 	unsigned int playing:1;
 	struct work_struct beep_work; /* scheduled task for beep event */
 	struct mutex mutex;
+	void (*power_hook)(struct hda_beep *beep, bool on);
 };
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
 int snd_hda_enable_beep_device(struct hda_codec *codec, int enable);
 int snd_hda_attach_beep_device(struct hda_codec *codec, int nid);
 void snd_hda_detach_beep_device(struct hda_codec *codec);
+int snd_hda_register_beep_device(struct hda_codec *codec);
 #else
 static inline int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 {
@@ -52,6 +55,10 @@ static inline int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 }
 static inline void snd_hda_detach_beep_device(struct hda_codec *codec)
 {
+}
+static inline int snd_hda_register_beep_device(struct hda_codec *codec)
+{
+	return 0;
 }
 #endif
 #endif

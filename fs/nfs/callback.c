@@ -135,6 +135,7 @@ nfs41_callback_svc(void *vrqstp)
 					struct rpc_rqst, rq_bc_list);
 			list_del(&req->rq_bc_list);
 			spin_unlock_bh(&serv->sv_cb_lock);
+			finish_wait(&serv->sv_cb_waitq, &wq);
 			dprintk("Invoking bc_svc_process()\n");
 			error = bc_svc_process(serv, req, rqstp);
 			dprintk("bc_svc_process() returned w/ error code= %d\n",
@@ -142,8 +143,9 @@ nfs41_callback_svc(void *vrqstp)
 		} else {
 			spin_unlock_bh(&serv->sv_cb_lock);
 			schedule();
+			finish_wait(&serv->sv_cb_waitq, &wq);
 		}
-		finish_wait(&serv->sv_cb_waitq, &wq);
+		flush_signals(current);
 	}
 	return 0;
 }
@@ -235,7 +237,7 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 
 	cb_info->serv = serv;
 	cb_info->rqst = rqstp;
-	cb_info->task = kthread_run(callback_svc, cb_info->rqst,
+	cb_info->task = kthread_create(callback_svc, cb_info->rqst,
 				    "nfsv4.%u-svc", minorversion);
 	if (IS_ERR(cb_info->task)) {
 		ret = PTR_ERR(cb_info->task);
@@ -244,6 +246,8 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 		cb_info->task = NULL;
 		return ret;
 	}
+	rqstp->rq_task = cb_info->task;
+	wake_up_process(cb_info->task);
 	dprintk("nfs_callback_up: service started\n");
 	return 0;
 }
@@ -428,6 +432,18 @@ check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
 	if (p == NULL)
 		return 0;
 
+	/*
+	 * Did we get the acceptor from userland during the SETCLIENID
+	 * negotiation?
+	 */
+	if (clp->cl_acceptor)
+		return !strcmp(p, clp->cl_acceptor);
+
+	/*
+	 * Otherwise try to verify it using the cl_hostname. Note that this
+	 * doesn't work if a non-canonical hostname was used in the devname.
+	 */
+
 	/* Expect a GSS_C_NT_HOSTBASED_NAME like "nfs@serverhostname" */
 
 	if (memcmp(p, "nfs@", 4) != 0)
@@ -442,7 +458,7 @@ check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
  * pg_authenticate method for nfsv4 callback threads.
  *
  * The authflavor has been negotiated, so an incorrect flavor is a server
- * bug. Drop packets with incorrect authflavor.
+ * bug. Deny packets with incorrect authflavor.
  *
  * All other checking done after NFS decoding where the nfs_client can be
  * found in nfs4_callback_compound
@@ -452,12 +468,12 @@ static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 	switch (rqstp->rq_authop->flavour) {
 	case RPC_AUTH_NULL:
 		if (rqstp->rq_proc != CB_NULL)
-			return SVC_DROP;
+			return SVC_DENIED;
 		break;
 	case RPC_AUTH_GSS:
 		/* No RPC_AUTH_GSS support yet in NFSv4.1 */
 		 if (svc_is_backchannel(rqstp))
-			return SVC_DROP;
+			return SVC_DENIED;
 	}
 	return SVC_OK;
 }

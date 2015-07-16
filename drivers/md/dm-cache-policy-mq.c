@@ -8,6 +8,7 @@
 #include "dm.h"
 
 #include <linux/hash.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -72,7 +73,7 @@ static enum io_pattern iot_pattern(struct io_tracker *t)
 
 static void iot_update_stats(struct io_tracker *t, struct bio *bio)
 {
-	if (bio->bi_sector == from_oblock(t->last_end_oblock) + 1)
+	if (bio->bi_iter.bi_sector == from_oblock(t->last_end_oblock) + 1)
 		t->nr_seq_samples++;
 	else {
 		/*
@@ -87,7 +88,7 @@ static void iot_update_stats(struct io_tracker *t, struct bio *bio)
 		t->nr_rand_samples++;
 	}
 
-	t->last_end_oblock = to_oblock(bio->bi_sector + bio_sectors(bio) - 1);
+	t->last_end_oblock = to_oblock(bio_end_sector(bio) - 1);
 }
 
 static void iot_check_for_pattern_switch(struct io_tracker *t)
@@ -124,32 +125,41 @@ static void iot_examine_bio(struct io_tracker *t, struct bio *bio)
  * sorted queue.
  */
 #define NR_QUEUE_LEVELS 16u
+#define NR_SENTINELS NR_QUEUE_LEVELS * 3
+
+#define WRITEBACK_PERIOD HZ
 
 struct queue {
+	unsigned nr_elts;
+	bool current_writeback_sentinels;
+	unsigned long next_writeback;
 	struct list_head qs[NR_QUEUE_LEVELS];
+	struct list_head sentinels[NR_SENTINELS];
 };
 
 static void queue_init(struct queue *q)
 {
 	unsigned i;
 
-	for (i = 0; i < NR_QUEUE_LEVELS; i++)
+	q->nr_elts = 0;
+	q->current_writeback_sentinels = false;
+	q->next_writeback = 0;
+	for (i = 0; i < NR_QUEUE_LEVELS; i++) {
 		INIT_LIST_HEAD(q->qs + i);
+		INIT_LIST_HEAD(q->sentinels + i);
+		INIT_LIST_HEAD(q->sentinels + NR_QUEUE_LEVELS + i);
+		INIT_LIST_HEAD(q->sentinels + (2 * NR_QUEUE_LEVELS) + i);
+	}
 }
 
-/*
- * Checks to see if the queue is empty.
- * FIXME: reduce cpu usage.
- */
+static unsigned queue_size(struct queue *q)
+{
+	return q->nr_elts;
+}
+
 static bool queue_empty(struct queue *q)
 {
-	unsigned i;
-
-	for (i = 0; i < NR_QUEUE_LEVELS; i++)
-		if (!list_empty(q->qs + i))
-			return false;
-
-	return true;
+	return q->nr_elts == 0;
 }
 
 /*
@@ -157,45 +167,66 @@ static bool queue_empty(struct queue *q)
  */
 static void queue_push(struct queue *q, unsigned level, struct list_head *elt)
 {
+	q->nr_elts++;
 	list_add_tail(elt, q->qs + level);
 }
 
-static void queue_remove(struct list_head *elt)
+static void queue_remove(struct queue *q, struct list_head *elt)
 {
+	q->nr_elts--;
 	list_del(elt);
 }
 
-/*
- * Shifts all regions down one level.  This has no effect on the order of
- * the queue.
- */
-static void queue_shift_down(struct queue *q)
+static bool is_sentinel(struct queue *q, struct list_head *h)
 {
-	unsigned level;
-
-	for (level = 1; level < NR_QUEUE_LEVELS; level++)
-		list_splice_init(q->qs + level, q->qs + level - 1);
+	return (h >= q->sentinels) && (h < (q->sentinels + NR_SENTINELS));
 }
 
 /*
  * Gives us the oldest entry of the lowest popoulated level.  If the first
  * level is emptied then we shift down one level.
  */
-static struct list_head *queue_pop(struct queue *q)
+static struct list_head *queue_peek(struct queue *q)
 {
 	unsigned level;
-	struct list_head *r;
+	struct list_head *h;
 
 	for (level = 0; level < NR_QUEUE_LEVELS; level++)
-		if (!list_empty(q->qs + level)) {
-			r = q->qs[level].next;
-			list_del(r);
+		list_for_each(h, q->qs + level)
+			if (!is_sentinel(q, h))
+				return h;
 
-			/* have we just emptied the bottom level? */
-			if (level == 0 && list_empty(q->qs))
-				queue_shift_down(q);
+	return NULL;
+}
 
-			return r;
+static struct list_head *queue_pop(struct queue *q)
+{
+	struct list_head *r = queue_peek(q);
+
+	if (r) {
+		q->nr_elts--;
+		list_del(r);
+	}
+
+	return r;
+}
+
+/*
+ * Pops an entry from a level that is not past a sentinel.
+ */
+static struct list_head *queue_pop_old(struct queue *q)
+{
+	unsigned level;
+	struct list_head *h;
+
+	for (level = 0; level < NR_QUEUE_LEVELS; level++)
+		list_for_each(h, q->qs + level) {
+			if (is_sentinel(q, h))
+				break;
+
+			q->nr_elts--;
+			list_del(h);
+			return h;
 		}
 
 	return NULL;
@@ -209,6 +240,62 @@ static struct list_head *list_pop(struct list_head *lh)
 	list_del_init(r);
 
 	return r;
+}
+
+static struct list_head *writeback_sentinel(struct queue *q, unsigned level)
+{
+	if (q->current_writeback_sentinels)
+		return q->sentinels + NR_QUEUE_LEVELS + level;
+	else
+		return q->sentinels + 2 * NR_QUEUE_LEVELS + level;
+}
+
+static void queue_update_writeback_sentinels(struct queue *q)
+{
+	unsigned i;
+	struct list_head *h;
+
+	if (time_after(jiffies, q->next_writeback)) {
+		for (i = 0; i < NR_QUEUE_LEVELS; i++) {
+			h = writeback_sentinel(q, i);
+			list_del(h);
+			list_add_tail(h, q->qs + i);
+		}
+
+		q->next_writeback = jiffies + WRITEBACK_PERIOD;
+		q->current_writeback_sentinels = !q->current_writeback_sentinels;
+	}
+}
+
+/*
+ * Sometimes we want to iterate through entries that have been pushed since
+ * a certain event.  We use sentinel entries on the queues to delimit these
+ * 'tick' events.
+ */
+static void queue_tick(struct queue *q)
+{
+	unsigned i;
+
+	for (i = 0; i < NR_QUEUE_LEVELS; i++) {
+		list_del(q->sentinels + i);
+		list_add_tail(q->sentinels + i, q->qs + i);
+	}
+}
+
+typedef void (*iter_fn)(struct list_head *, void *);
+static void queue_iterate_tick(struct queue *q, iter_fn fn, void *context)
+{
+	unsigned i;
+	struct list_head *h;
+
+	for (i = 0; i < NR_QUEUE_LEVELS; i++) {
+		list_for_each_prev(h, q->qs + i) {
+			if (is_sentinel(q, h))
+				break;
+
+			fn(h, context);
+		}
+	}
 }
 
 /*----------------------------------------------------------------*/
@@ -226,8 +313,6 @@ struct entry {
 	 */
 	bool dirty:1;
 	unsigned hit_count;
-	unsigned generation;
-	unsigned tick;
 };
 
 /*
@@ -287,9 +372,8 @@ static struct entry *alloc_entry(struct entry_pool *ep)
 static struct entry *alloc_particular_entry(struct entry_pool *ep, dm_cblock_t cblock)
 {
 	struct entry *e = ep->entries + from_cblock(cblock);
-	list_del(&e->list);
 
-	INIT_LIST_HEAD(&e->list);
+	list_del_init(&e->list);
 	INIT_HLIST_NODE(&e->hlist);
 	ep->nr_allocated++;
 
@@ -384,12 +468,9 @@ struct mq_policy {
 	unsigned generation;
 	unsigned generation_period; /* in lookups (will probably change) */
 
-	/*
-	 * Entries in the pre_cache whose hit count passes the promotion
-	 * threshold move to the cache proper.  Working out the correct
-	 * value for the promotion_threshold is crucial to this policy.
-	 */
-	unsigned promote_threshold;
+	unsigned discard_promote_adjustment;
+	unsigned read_promote_adjustment;
+	unsigned write_promote_adjustment;
 
 	/*
 	 * The hash table allows us to quickly find an entry by origin
@@ -399,6 +480,11 @@ struct mq_policy {
 	dm_block_t hash_bits;
 	struct hlist_head *table;
 };
+
+#define DEFAULT_DISCARD_PROMOTE_ADJUSTMENT 1
+#define DEFAULT_READ_PROMOTE_ADJUSTMENT 4
+#define DEFAULT_WRITE_PROMOTE_ADJUSTMENT 8
+#define DISCOURAGE_DEMOTING_DIRTY_THRESHOLD 128
 
 /*----------------------------------------------------------------*/
 
@@ -474,7 +560,6 @@ static bool in_cache(struct mq_policy *mq, struct entry *e)
  */
 static void push(struct mq_policy *mq, struct entry *e)
 {
-	e->tick = mq->tick;
 	hash_insert(mq, e);
 
 	if (in_cache(mq, e))
@@ -489,7 +574,11 @@ static void push(struct mq_policy *mq, struct entry *e)
  */
 static void del(struct mq_policy *mq, struct entry *e)
 {
-	queue_remove(&e->list);
+	if (in_cache(mq, e))
+		queue_remove(e->dirty ? &mq->cache_dirty : &mq->cache_clean, &e->list);
+	else
+		queue_remove(&mq->pre_cache, &e->list);
+
 	hash_remove(e);
 }
 
@@ -511,12 +600,24 @@ static struct entry *pop(struct mq_policy *mq, struct queue *q)
 	return e;
 }
 
-/*
- * Has this entry already been updated?
- */
-static bool updated_this_tick(struct mq_policy *mq, struct entry *e)
+static struct entry *pop_old(struct mq_policy *mq, struct queue *q)
 {
-	return mq->tick == e->tick;
+	struct entry *e;
+	struct list_head *h = queue_pop_old(q);
+
+	if (!h)
+		return NULL;
+
+	e = container_of(h, struct entry, list);
+	hash_remove(e);
+
+	return e;
+}
+
+static struct entry *peek(struct queue *q)
+{
+	struct list_head *h = queue_peek(q);
+	return h ? container_of(h, struct entry, list) : NULL;
 }
 
 /*
@@ -563,10 +664,6 @@ static void check_generation(struct mq_policy *mq)
 					break;
 			}
 		}
-
-		mq->promote_threshold = nr ? total / nr : 1;
-		if (mq->promote_threshold * nr < total)
-			mq->promote_threshold++;
 	}
 }
 
@@ -574,20 +671,9 @@ static void check_generation(struct mq_policy *mq)
  * Whenever we use an entry we bump up it's hit counter, and push it to the
  * back to it's current level.
  */
-static void requeue_and_update_tick(struct mq_policy *mq, struct entry *e)
+static void requeue(struct mq_policy *mq, struct entry *e)
 {
-	if (updated_this_tick(mq, e))
-		return;
-
-	e->hit_count++;
-	mq->hit_count++;
 	check_generation(mq);
-
-	/* generation adjustment, to stop the counts increasing forever. */
-	/* FIXME: divide? */
-	/* e->hit_count -= min(e->hit_count - 1, mq->generation - e->generation); */
-	e->generation = mq->generation;
-
 	del(mq, e);
 	push(mq, e);
 }
@@ -607,9 +693,10 @@ static void requeue_and_update_tick(struct mq_policy *mq, struct entry *e)
  * - set the hit count to a hard coded value other than 1, eg, is it better
  *   if it goes in at level 2?
  */
-static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
+static int demote_cblock(struct mq_policy *mq,
+			 struct policy_locker *locker, dm_oblock_t *oblock)
 {
-	struct entry *demoted = pop(mq, &mq->cache_clean);
+	struct entry *demoted = peek(&mq->cache_clean);
 
 	if (!demoted)
 		/*
@@ -621,6 +708,13 @@ static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
 		 */
 		return -ENOSPC;
 
+	if (locker->fn(locker, demoted->oblock))
+		/*
+		 * We couldn't lock the demoted block.
+		 */
+		return -EBUSY;
+
+	del(mq, demoted);
 	*oblock = demoted->oblock;
 	free_entry(&mq->cache_pool, demoted);
 
@@ -634,6 +728,30 @@ static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
 }
 
 /*
+ * Entries in the pre_cache whose hit count passes the promotion
+ * threshold move to the cache proper.  Working out the correct
+ * value for the promotion_threshold is crucial to this policy.
+ */
+static unsigned promote_threshold(struct mq_policy *mq)
+{
+	struct entry *e;
+
+	if (any_free_cblocks(mq))
+		return 0;
+
+	e = peek(&mq->cache_clean);
+	if (e)
+		return e->hit_count;
+
+	e = peek(&mq->cache_dirty);
+	if (e)
+		return e->hit_count + DISCOURAGE_DEMOTING_DIRTY_THRESHOLD;
+
+	/* This should never happen */
+	return 0;
+}
+
+/*
  * We modify the basic promotion_threshold depending on the specific io.
  *
  * If the origin block has been discarded then there's no cost to copy it
@@ -642,25 +760,21 @@ static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
  * We bias towards reads, since they can be demoted at no cost if they
  * haven't been dirtied.
  */
-#define DISCARDED_PROMOTE_THRESHOLD 1
-#define READ_PROMOTE_THRESHOLD 4
-#define WRITE_PROMOTE_THRESHOLD 8
-
 static unsigned adjusted_promote_threshold(struct mq_policy *mq,
 					   bool discarded_oblock, int data_dir)
 {
 	if (data_dir == READ)
-		return mq->promote_threshold + READ_PROMOTE_THRESHOLD;
+		return promote_threshold(mq) + mq->read_promote_adjustment;
 
 	if (discarded_oblock && (any_free_cblocks(mq) || any_clean_cblocks(mq))) {
 		/*
 		 * We don't need to do any copying at all, so give this a
 		 * very low threshold.
 		 */
-		return DISCARDED_PROMOTE_THRESHOLD;
+		return mq->discard_promote_adjustment;
 	}
 
-	return mq->promote_threshold + WRITE_PROMOTE_THRESHOLD;
+	return promote_threshold(mq) + mq->write_promote_adjustment;
 }
 
 static bool should_promote(struct mq_policy *mq, struct entry *e,
@@ -674,7 +788,7 @@ static int cache_entry_found(struct mq_policy *mq,
 			     struct entry *e,
 			     struct policy_result *result)
 {
-	requeue_and_update_tick(mq, e);
+	requeue(mq, e);
 
 	if (in_cache(mq, e)) {
 		result->op = POLICY_HIT;
@@ -689,6 +803,7 @@ static int cache_entry_found(struct mq_policy *mq,
  * finding which cache block to use.
  */
 static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
+			      struct policy_locker *locker,
 			      struct policy_result *result)
 {
 	int r;
@@ -697,11 +812,12 @@ static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
 	/* Ensure there's a free cblock in the cache */
 	if (epool_empty(&mq->cache_pool)) {
 		result->op = POLICY_REPLACE;
-		r = demote_cblock(mq, &result->old_oblock);
+		r = demote_cblock(mq, locker, &result->old_oblock);
 		if (r) {
 			result->op = POLICY_MISS;
 			return 0;
 		}
+
 	} else
 		result->op = POLICY_NEW;
 
@@ -711,8 +827,6 @@ static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
 	new_e->oblock = e->oblock;
 	new_e->dirty = false;
 	new_e->hit_count = e->hit_count;
-	new_e->generation = e->generation;
-	new_e->tick = e->tick;
 
 	del(mq, e);
 	free_entry(&mq->pre_cache_pool, e);
@@ -725,20 +839,22 @@ static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
 
 static int pre_cache_entry_found(struct mq_policy *mq, struct entry *e,
 				 bool can_migrate, bool discarded_oblock,
-				 int data_dir, struct policy_result *result)
+				 int data_dir, struct policy_locker *locker,
+				 struct policy_result *result)
 {
 	int r = 0;
-	bool updated = updated_this_tick(mq, e);
 
-	requeue_and_update_tick(mq, e);
-
-	if ((!discarded_oblock && updated) ||
-	    !should_promote(mq, e, discarded_oblock, data_dir))
+	if (!should_promote(mq, e, discarded_oblock, data_dir)) {
+		requeue(mq, e);
 		result->op = POLICY_MISS;
-	else if (!can_migrate)
+
+	} else if (!can_migrate)
 		r = -EWOULDBLOCK;
-	else
-		r = pre_cache_to_cache(mq, e, result);
+
+	else {
+		requeue(mq, e);
+		r = pre_cache_to_cache(mq, e, locker, result);
+	}
 
 	return r;
 }
@@ -763,11 +879,11 @@ static void insert_in_pre_cache(struct mq_policy *mq,
 	e->dirty = false;
 	e->oblock = oblock;
 	e->hit_count = 1;
-	e->generation = mq->generation;
 	push(mq, e);
 }
 
 static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
+			    struct policy_locker *locker,
 			    struct policy_result *result)
 {
 	int r;
@@ -775,7 +891,7 @@ static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 
 	if (epool_empty(&mq->cache_pool)) {
 		result->op = POLICY_REPLACE;
-		r = demote_cblock(mq, &result->old_oblock);
+		r = demote_cblock(mq, locker, &result->old_oblock);
 		if (unlikely(r)) {
 			result->op = POLICY_MISS;
 			insert_in_pre_cache(mq, oblock);
@@ -796,7 +912,6 @@ static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 	e->oblock = oblock;
 	e->dirty = false;
 	e->hit_count = 1;
-	e->generation = mq->generation;
 	push(mq, e);
 
 	result->cblock = infer_cblock(&mq->cache_pool, e);
@@ -804,11 +919,12 @@ static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 
 static int no_entry_found(struct mq_policy *mq, dm_oblock_t oblock,
 			  bool can_migrate, bool discarded_oblock,
-			  int data_dir, struct policy_result *result)
+			  int data_dir, struct policy_locker *locker,
+			  struct policy_result *result)
 {
-	if (adjusted_promote_threshold(mq, discarded_oblock, data_dir) == 1) {
+	if (adjusted_promote_threshold(mq, discarded_oblock, data_dir) <= 1) {
 		if (can_migrate)
-			insert_in_cache(mq, oblock, result);
+			insert_in_cache(mq, oblock, locker, result);
 		else
 			return -EWOULDBLOCK;
 	} else {
@@ -825,7 +941,8 @@ static int no_entry_found(struct mq_policy *mq, dm_oblock_t oblock,
  */
 static int map(struct mq_policy *mq, dm_oblock_t oblock,
 	       bool can_migrate, bool discarded_oblock,
-	       int data_dir, struct policy_result *result)
+	       int data_dir, struct policy_locker *locker,
+	       struct policy_result *result)
 {
 	int r = 0;
 	struct entry *e = hash_lookup(mq, oblock);
@@ -833,16 +950,17 @@ static int map(struct mq_policy *mq, dm_oblock_t oblock,
 	if (e && in_cache(mq, e))
 		r = cache_entry_found(mq, e, result);
 
-	else if (iot_pattern(&mq->tracker) == PATTERN_SEQUENTIAL)
+	else if (mq->tracker.thresholds[PATTERN_SEQUENTIAL] &&
+		 iot_pattern(&mq->tracker) == PATTERN_SEQUENTIAL)
 		result->op = POLICY_MISS;
 
 	else if (e)
 		r = pre_cache_entry_found(mq, e, can_migrate, discarded_oblock,
-					  data_dir, result);
+					  data_dir, locker, result);
 
 	else
 		r = no_entry_found(mq, oblock, can_migrate, discarded_oblock,
-				   data_dir, result);
+				   data_dir, locker, result);
 
 	if (r == -EWOULDBLOCK)
 		result->op = POLICY_MISS;
@@ -866,24 +984,50 @@ static void mq_destroy(struct dm_cache_policy *p)
 {
 	struct mq_policy *mq = to_mq_policy(p);
 
-	kfree(mq->table);
+	vfree(mq->table);
 	epool_exit(&mq->cache_pool);
 	epool_exit(&mq->pre_cache_pool);
 	kfree(mq);
 }
 
+static void update_pre_cache_hits(struct list_head *h, void *context)
+{
+	struct entry *e = container_of(h, struct entry, list);
+	e->hit_count++;
+}
+
+static void update_cache_hits(struct list_head *h, void *context)
+{
+	struct mq_policy *mq = context;
+	struct entry *e = container_of(h, struct entry, list);
+	e->hit_count++;
+	mq->hit_count++;
+}
+
 static void copy_tick(struct mq_policy *mq)
 {
-	unsigned long flags;
+	unsigned long flags, tick;
 
 	spin_lock_irqsave(&mq->tick_lock, flags);
-	mq->tick = mq->tick_protected;
+	tick = mq->tick_protected;
+	if (tick != mq->tick) {
+		queue_iterate_tick(&mq->pre_cache, update_pre_cache_hits, mq);
+		queue_iterate_tick(&mq->cache_dirty, update_cache_hits, mq);
+		queue_iterate_tick(&mq->cache_clean, update_cache_hits, mq);
+		mq->tick = tick;
+	}
+
+	queue_tick(&mq->pre_cache);
+	queue_tick(&mq->cache_dirty);
+	queue_tick(&mq->cache_clean);
+	queue_update_writeback_sentinels(&mq->cache_dirty);
 	spin_unlock_irqrestore(&mq->tick_lock, flags);
 }
 
 static int mq_map(struct dm_cache_policy *p, dm_oblock_t oblock,
 		  bool can_block, bool can_migrate, bool discarded_oblock,
-		  struct bio *bio, struct policy_result *result)
+		  struct bio *bio, struct policy_locker *locker,
+		  struct policy_result *result)
 {
 	int r;
 	struct mq_policy *mq = to_mq_policy(p);
@@ -899,7 +1043,7 @@ static int mq_map(struct dm_cache_policy *p, dm_oblock_t oblock,
 
 	iot_examine_bio(&mq->tracker, bio);
 	r = map(mq, oblock, can_migrate, discarded_oblock,
-		bio_data_dir(bio), result);
+		bio_data_dir(bio), locker, result);
 
 	mutex_unlock(&mq->lock);
 
@@ -968,7 +1112,6 @@ static int mq_load_mapping(struct dm_cache_policy *p,
 	e->oblock = oblock;
 	e->dirty = false;	/* this gets corrected in a minute */
 	e->hit_count = hint_valid ? hint : 1;
-	e->generation = mq->generation;
 	push(mq, e);
 
 	return 0;
@@ -979,10 +1122,15 @@ static int mq_save_hints(struct mq_policy *mq, struct queue *q,
 {
 	int r;
 	unsigned level;
+	struct list_head *h;
 	struct entry *e;
 
 	for (level = 0; level < NR_QUEUE_LEVELS; level++)
-		list_for_each_entry(e, q->qs + level, list) {
+		list_for_each(h, q->qs + level) {
+			if (is_sentinel(q, h))
+				continue;
+
+			e = container_of(h, struct entry, list);
 			r = fn(context, infer_cblock(&mq->cache_pool, e),
 			       e->oblock, e->hit_count);
 			if (r)
@@ -1054,10 +1202,27 @@ static int mq_remove_cblock(struct dm_cache_policy *p, dm_cblock_t cblock)
 	return r;
 }
 
+#define CLEAN_TARGET_PERCENTAGE 25
+
+static bool clean_target_met(struct mq_policy *mq)
+{
+	/*
+	 * Cache entries may not be populated.  So we're cannot rely on the
+	 * size of the clean queue.
+	 */
+	unsigned nr_clean = from_cblock(mq->cache_size) - queue_size(&mq->cache_dirty);
+	unsigned target = from_cblock(mq->cache_size) * CLEAN_TARGET_PERCENTAGE / 100;
+
+	return nr_clean >= target;
+}
+
 static int __mq_writeback_work(struct mq_policy *mq, dm_oblock_t *oblock,
 			      dm_cblock_t *cblock)
 {
-	struct entry *e = pop(mq, &mq->cache_dirty);
+	struct entry *e = pop_old(mq, &mq->cache_dirty);
+
+	if (!e && !clean_target_met(mq))
+		e = pop(mq, &mq->cache_dirty);
 
 	if (!e)
 		return -ENODATA;
@@ -1071,7 +1236,7 @@ static int __mq_writeback_work(struct mq_policy *mq, dm_oblock_t *oblock,
 }
 
 static int mq_writeback_work(struct dm_cache_policy *p, dm_oblock_t *oblock,
-			     dm_cblock_t *cblock)
+			     dm_cblock_t *cblock, bool critical_only)
 {
 	int r;
 	struct mq_policy *mq = to_mq_policy(p);
@@ -1118,7 +1283,7 @@ static dm_cblock_t mq_residency(struct dm_cache_policy *p)
 	return r;
 }
 
-static void mq_tick(struct dm_cache_policy *p)
+static void mq_tick(struct dm_cache_policy *p, bool can_block)
 {
 	struct mq_policy *mq = to_mq_policy(p);
 	unsigned long flags;
@@ -1126,39 +1291,62 @@ static void mq_tick(struct dm_cache_policy *p)
 	spin_lock_irqsave(&mq->tick_lock, flags);
 	mq->tick_protected++;
 	spin_unlock_irqrestore(&mq->tick_lock, flags);
+
+	if (can_block) {
+		mutex_lock(&mq->lock);
+		copy_tick(mq);
+		mutex_unlock(&mq->lock);
+	}
 }
 
 static int mq_set_config_value(struct dm_cache_policy *p,
 			       const char *key, const char *value)
 {
 	struct mq_policy *mq = to_mq_policy(p);
-	enum io_pattern pattern;
 	unsigned long tmp;
-
-	if (!strcasecmp(key, "random_threshold"))
-		pattern = PATTERN_RANDOM;
-	else if (!strcasecmp(key, "sequential_threshold"))
-		pattern = PATTERN_SEQUENTIAL;
-	else
-		return -EINVAL;
 
 	if (kstrtoul(value, 10, &tmp))
 		return -EINVAL;
 
-	mq->tracker.thresholds[pattern] = tmp;
+	if (!strcasecmp(key, "random_threshold")) {
+		mq->tracker.thresholds[PATTERN_RANDOM] = tmp;
+
+	} else if (!strcasecmp(key, "sequential_threshold")) {
+		mq->tracker.thresholds[PATTERN_SEQUENTIAL] = tmp;
+
+	} else if (!strcasecmp(key, "discard_promote_adjustment"))
+		mq->discard_promote_adjustment = tmp;
+
+	else if (!strcasecmp(key, "read_promote_adjustment"))
+		mq->read_promote_adjustment = tmp;
+
+	else if (!strcasecmp(key, "write_promote_adjustment"))
+		mq->write_promote_adjustment = tmp;
+
+	else
+		return -EINVAL;
 
 	return 0;
 }
 
-static int mq_emit_config_values(struct dm_cache_policy *p, char *result, unsigned maxlen)
+static int mq_emit_config_values(struct dm_cache_policy *p, char *result,
+				 unsigned maxlen, ssize_t *sz_ptr)
 {
-	ssize_t sz = 0;
+	ssize_t sz = *sz_ptr;
 	struct mq_policy *mq = to_mq_policy(p);
 
-	DMEMIT("4 random_threshold %u sequential_threshold %u",
+	DMEMIT("10 random_threshold %u "
+	       "sequential_threshold %u "
+	       "discard_promote_adjustment %u "
+	       "read_promote_adjustment %u "
+	       "write_promote_adjustment %u ",
 	       mq->tracker.thresholds[PATTERN_RANDOM],
-	       mq->tracker.thresholds[PATTERN_SEQUENTIAL]);
+	       mq->tracker.thresholds[PATTERN_SEQUENTIAL],
+	       mq->discard_promote_adjustment,
+	       mq->read_promote_adjustment,
+	       mq->write_promote_adjustment);
 
+	*sz_ptr = sz;
 	return 0;
 }
 
@@ -1209,7 +1397,9 @@ static struct dm_cache_policy *mq_create(dm_cblock_t cache_size,
 	mq->tick = 0;
 	mq->hit_count = 0;
 	mq->generation = 0;
-	mq->promote_threshold = 0;
+	mq->discard_promote_adjustment = DEFAULT_DISCARD_PROMOTE_ADJUSTMENT;
+	mq->read_promote_adjustment = DEFAULT_READ_PROMOTE_ADJUSTMENT;
+	mq->write_promote_adjustment = DEFAULT_WRITE_PROMOTE_ADJUSTMENT;
 	mutex_init(&mq->lock);
 	spin_lock_init(&mq->tick_lock);
 
@@ -1221,7 +1411,7 @@ static struct dm_cache_policy *mq_create(dm_cblock_t cache_size,
 
 	mq->nr_buckets = next_power(from_cblock(cache_size) / 2, 16);
 	mq->hash_bits = ffs(mq->nr_buckets) - 1;
-	mq->table = kzalloc(sizeof(*mq->table) * mq->nr_buckets, GFP_KERNEL);
+	mq->table = vzalloc(sizeof(*mq->table) * mq->nr_buckets);
 	if (!mq->table)
 		goto bad_alloc_table;
 
@@ -1241,15 +1431,7 @@ bad_pre_cache_init:
 
 static struct dm_cache_policy_type mq_policy_type = {
 	.name = "mq",
-	.version = {1, 1, 0},
-	.hint_size = 4,
-	.owner = THIS_MODULE,
-	.create = mq_create
-};
-
-static struct dm_cache_policy_type default_policy_type = {
-	.name = "default",
-	.version = {1, 1, 0},
+	.version = {1, 4, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = mq_create
@@ -1264,36 +1446,21 @@ static int __init mq_init(void)
 					   __alignof__(struct entry),
 					   0, NULL);
 	if (!mq_entry_cache)
-		goto bad;
+		return -ENOMEM;
 
 	r = dm_cache_policy_register(&mq_policy_type);
 	if (r) {
 		DMERR("register failed %d", r);
-		goto bad_register_mq;
+		kmem_cache_destroy(mq_entry_cache);
+		return -ENOMEM;
 	}
 
-	r = dm_cache_policy_register(&default_policy_type);
-	if (!r) {
-		DMINFO("version %u.%u.%u loaded",
-		       mq_policy_type.version[0],
-		       mq_policy_type.version[1],
-		       mq_policy_type.version[2]);
-		return 0;
-	}
-
-	DMERR("register failed (as default) %d", r);
-
-	dm_cache_policy_unregister(&mq_policy_type);
-bad_register_mq:
-	kmem_cache_destroy(mq_entry_cache);
-bad:
-	return -ENOMEM;
+	return 0;
 }
 
 static void __exit mq_exit(void)
 {
 	dm_cache_policy_unregister(&mq_policy_type);
-	dm_cache_policy_unregister(&default_policy_type);
 
 	kmem_cache_destroy(mq_entry_cache);
 }

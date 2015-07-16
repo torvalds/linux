@@ -13,6 +13,14 @@ Required properties:
   The second cell is the flags, encoded as the trigger masks from binding document
 	interrupts.txt, using dt-bindings/irq.
 
+Optional properties:
+--------------------
+- ams,enable-internal-int-pullup: Boolean property, to enable internal pullup on
+	interrupt pin. Missing this will disable internal pullup on INT pin.
+- ams,enable-internal-i2c-pullup: Boolean property, to enable internal pullup on
+	i2c scl/sda pins. Missing this will disable internal pullup on i2c
+	scl/sda lines.
+
 Optional submodule and their properties:
 =======================================
 
@@ -112,6 +120,15 @@ Following are properties of regulator subnode.
 		ams,enable-tracking: Enable tracking with SD1, only supported
 			by LDO3.
 
+Power-off:
+=========
+AS3722 supports the system power off by turning off all its rail. This
+is provided through pm_power_off.
+The device node should have the following properties to enable this
+functionality
+ams,system-power-controller: Boolean, to enable the power off functionality
+        through this device.
+
 Example:
 --------
 #include <dt-bindings/mfd/as3722.h>
@@ -119,6 +136,8 @@ Example:
 ams3722 {
 	compatible = "ams,as3722";
 	reg = <0x48>;
+
+	ams,system-power-controller;
 
 	interrupt-parent = <&intc>;
 	interrupt-controller;

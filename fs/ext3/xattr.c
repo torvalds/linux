@@ -102,8 +102,8 @@ static struct mb_cache *ext3_xattr_cache;
 static const struct xattr_handler *ext3_xattr_handler_map[] = {
 	[EXT3_XATTR_INDEX_USER]		     = &ext3_xattr_user_handler,
 #ifdef CONFIG_EXT3_FS_POSIX_ACL
-	[EXT3_XATTR_INDEX_POSIX_ACL_ACCESS]  = &ext3_xattr_acl_access_handler,
-	[EXT3_XATTR_INDEX_POSIX_ACL_DEFAULT] = &ext3_xattr_acl_default_handler,
+	[EXT3_XATTR_INDEX_POSIX_ACL_ACCESS]  = &posix_acl_access_xattr_handler,
+	[EXT3_XATTR_INDEX_POSIX_ACL_DEFAULT] = &posix_acl_default_xattr_handler,
 #endif
 	[EXT3_XATTR_INDEX_TRUSTED]	     = &ext3_xattr_trusted_handler,
 #ifdef CONFIG_EXT3_FS_SECURITY
@@ -115,8 +115,8 @@ const struct xattr_handler *ext3_xattr_handlers[] = {
 	&ext3_xattr_user_handler,
 	&ext3_xattr_trusted_handler,
 #ifdef CONFIG_EXT3_FS_POSIX_ACL
-	&ext3_xattr_acl_access_handler,
-	&ext3_xattr_acl_default_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 #endif
 #ifdef CONFIG_EXT3_FS_SECURITY
 	&ext3_xattr_security_handler,
@@ -137,7 +137,7 @@ ext3_xattr_handler(int name_index)
 /*
  * Inode operation listxattr()
  *
- * dentry->d_inode->i_mutex: don't care
+ * d_inode(dentry)->i_mutex: don't care
  */
 ssize_t
 ext3_listxattr(struct dentry *dentry, char *buffer, size_t size)
@@ -355,7 +355,7 @@ ext3_xattr_list_entries(struct dentry *dentry, struct ext3_xattr_entry *entry,
 static int
 ext3_xattr_block_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct buffer_head *bh = NULL;
 	int error;
 
@@ -391,7 +391,7 @@ cleanup:
 static int
 ext3_xattr_ibody_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ext3_xattr_ibody_header *header;
 	struct ext3_inode *raw_inode;
 	struct ext3_iloc iloc;
@@ -432,7 +432,7 @@ ext3_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	int i_error, b_error;
 
-	down_read(&EXT3_I(dentry->d_inode)->xattr_sem);
+	down_read(&EXT3_I(d_inode(dentry))->xattr_sem);
 	i_error = ext3_xattr_ibody_list(dentry, buffer, buffer_size);
 	if (i_error < 0) {
 		b_error = 0;
@@ -445,7 +445,7 @@ ext3_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 		if (b_error < 0)
 			i_error = 0;
 	}
-	up_read(&EXT3_I(dentry->d_inode)->xattr_sem);
+	up_read(&EXT3_I(d_inode(dentry))->xattr_sem);
 	return i_error + b_error;
 }
 
@@ -546,8 +546,7 @@ ext3_xattr_set_entry(struct ext3_xattr_info *i, struct ext3_xattr_search *s)
 		free += EXT3_XATTR_LEN(name_len);
 	}
 	if (i->value) {
-		if (free < EXT3_XATTR_SIZE(i->value_len) ||
-		    free < EXT3_XATTR_LEN(name_len) +
+		if (free < EXT3_XATTR_LEN(name_len) +
 			   EXT3_XATTR_SIZE(i->value_len))
 			return -ENOSPC;
 	}

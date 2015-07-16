@@ -21,7 +21,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -110,6 +109,7 @@ struct usbtmc_ID_rigol_quirk {
 
 static const struct usbtmc_ID_rigol_quirk usbtmc_id_quirk[] = {
 	{ 0x1ab1, 0x0588 },
+	{ 0x1ab1, 0x04b0 },
 	{ 0, 0 }
 };
 
@@ -384,9 +384,12 @@ exit:
 static int send_request_dev_dep_msg_in(struct usbtmc_device_data *data, size_t transfer_size)
 {
 	int retval;
-	u8 buffer[USBTMC_HEADER_SIZE];
+	u8 *buffer;
 	int actual;
 
+	buffer = kmalloc(USBTMC_HEADER_SIZE, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 	/* Setup IO buffer for REQUEST_DEV_DEP_MSG_IN message
 	 * Refer to class specs for details
 	 */
@@ -418,6 +421,7 @@ static int send_request_dev_dep_msg_in(struct usbtmc_device_data *data, size_t t
 	if (!data->bTag)
 		data->bTag++;
 
+	kfree(buffer);
 	if (retval < 0) {
 		dev_err(&data->intf->dev, "usb_bulk_msg in send_request_dev_dep_msg_in() returned %d\n", retval);
 		return retval;
@@ -712,7 +716,7 @@ static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 	u8 *buffer;
 	int rv;
 	int n;
-	int actual;
+	int actual = 0;
 	int max_size;
 
 	dev = &data->intf->dev;
@@ -1101,10 +1105,8 @@ static int usbtmc_probe(struct usb_interface *intf,
 	dev_dbg(&intf->dev, "%s called\n", __func__);
 
 	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&intf->dev, "Unable to allocate kernel memory\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->intf = intf;
 	data->id = id;

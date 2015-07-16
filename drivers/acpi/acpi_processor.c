@@ -170,6 +170,9 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	acpi_status status;
 	int ret;
 
+	if (invalid_phys_cpuid(pr->phys_id))
+		return -ENODEV;
+
 	status = acpi_evaluate_integer(pr->handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_PRESENT))
 		return -ENODEV;
@@ -177,13 +180,13 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	cpu_maps_update_begin();
 	cpu_hotplug_begin();
 
-	ret = acpi_map_lsapic(pr->handle, pr->apic_id, &pr->id);
+	ret = acpi_map_cpu(pr->handle, pr->phys_id, &pr->id);
 	if (ret)
 		goto out;
 
 	ret = arch_register_cpu(pr->id);
 	if (ret) {
-		acpi_unmap_lsapic(pr->id);
+		acpi_unmap_cpu(pr->id);
 		goto out;
 	}
 
@@ -212,7 +215,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	union acpi_object object = { 0 };
 	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
 	struct acpi_processor *pr = acpi_driver_data(device);
-	int cpu_index, device_declaration = 0;
+	int device_declaration = 0;
 	acpi_status status = AE_OK;
 	static int cpu0_initialized;
 	unsigned long long value;
@@ -258,30 +261,34 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		device_declaration = 1;
 		pr->acpi_id = value;
 	}
-	pr->apic_id = acpi_get_apicid(pr->handle, device_declaration,
+
+	pr->phys_id = acpi_get_phys_id(pr->handle, device_declaration,
 					pr->acpi_id);
-	cpu_index = acpi_map_cpuid(pr->apic_id, pr->acpi_id);
+	if (invalid_phys_cpuid(pr->phys_id))
+		acpi_handle_debug(pr->handle, "failed to get CPU physical ID.\n");
 
-	/* Handle UP system running SMP kernel, with no LAPIC in MADT */
-	if (!cpu0_initialized && (cpu_index == -1) &&
-	    (num_online_cpus() == 1)) {
-		cpu_index = 0;
+	pr->id = acpi_map_cpuid(pr->phys_id, pr->acpi_id);
+	if (!cpu0_initialized && !acpi_has_cpu_in_madt()) {
+		cpu0_initialized = 1;
+		/*
+		 * Handle UP system running SMP kernel, with no CPU
+		 * entry in MADT
+		 */
+		if (invalid_logical_cpuid(pr->id) && (num_online_cpus() == 1))
+			pr->id = 0;
 	}
-
-	cpu0_initialized = 1;
-
-	pr->id = cpu_index;
 
 	/*
 	 *  Extra Processor objects may be enumerated on MP systems with
 	 *  less than the max # of CPUs. They should be ignored _iff
 	 *  they are physically not present.
 	 */
-	if (pr->id == -1) {
+	if (invalid_logical_cpuid(pr->id)) {
 		int ret = acpi_processor_hotadd_init(pr);
 		if (ret)
 			return ret;
 	}
+
 	/*
 	 * On some boxes several processors use the same processor bus id.
 	 * But they are located in different scope. For example:
@@ -395,12 +402,11 @@ static int acpi_processor_add(struct acpi_device *device,
 		goto err;
 	}
 
-	result = acpi_bind_one(dev, pr->handle);
+	result = acpi_bind_one(dev, device);
 	if (result)
 		goto err;
 
 	pr->dev = dev;
-	dev->offline = pr->flags.need_hotplug_init;
 
 	/* Trigger the processor driver's .probe() if present. */
 	if (device_attach(dev) >= 0)
@@ -454,7 +460,7 @@ static void acpi_processor_remove(struct acpi_device *device)
 
 	/* Remove the CPU. */
 	arch_unregister_cpu(pr->id);
-	acpi_unmap_lsapic(pr->id);
+	acpi_unmap_cpu(pr->id);
 
 	cpu_hotplug_done();
 	cpu_maps_update_done();

@@ -110,6 +110,7 @@ struct cf_mod {
 		void (*xor)(struct can_frame *cf, struct cgw_csum_xor *xor);
 		void (*crc8)(struct can_frame *cf, struct cgw_csum_crc8 *crc8);
 	} csumfunc;
+	u32 uid;
 };
 
 
@@ -361,7 +362,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 	 * The Controller Area Network controllers only accept CAN frames with
 	 * correct CRCs - which are not visible in the controller registers.
 	 * According to skbuff.h documentation the csum_start element for IP
-	 * checksums is undefined/unsued when ip_summed == CHECKSUM_UNNECESSARY.
+	 * checksums is undefined/unused when ip_summed == CHECKSUM_UNNECESSARY.
 	 * Only CAN skbs can be processed here which already have this property.
 	 */
 
@@ -548,6 +549,11 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
 			goto cancel;
 	}
 
+	if (gwj->mod.uid) {
+		if (nla_put_u32(skb, CGW_MOD_UID, gwj->mod.uid) < 0)
+			goto cancel;
+	}
+
 	if (gwj->mod.csumfunc.crc8) {
 		if (nla_put(skb, CGW_CS_CRC8, CGW_CS_CRC8_LEN,
 			    &gwj->mod.csum.crc8) < 0)
@@ -575,7 +581,8 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
 			goto cancel;
 	}
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 cancel:
 	nlmsg_cancel(skb, nlh);
@@ -618,6 +625,7 @@ static const struct nla_policy cgw_policy[CGW_MAX+1] = {
 	[CGW_DST_IF]	= { .type = NLA_U32 },
 	[CGW_FILTER]	= { .len = sizeof(struct can_filter) },
 	[CGW_LIM_HOPS]	= { .type = NLA_U8 },
+	[CGW_MOD_UID]	= { .type = NLA_U32 },
 };
 
 /* check for common and gwtype specific attributes */
@@ -760,6 +768,10 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			else
 				mod->csumfunc.xor = cgw_csum_xor_neg;
 		}
+
+		if (tb[CGW_MOD_UID]) {
+			nla_memcpy(&mod->uid, tb[CGW_MOD_UID], sizeof(u32));
+		}
 	}
 
 	if (gwtype == CGW_TYPE_CAN_CAN) {
@@ -801,10 +813,12 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh)
 {
 	struct rtcanmsg *r;
 	struct cgw_job *gwj;
+	struct cf_mod mod;
+	struct can_can_gw ccgw;
 	u8 limhops = 0;
 	int err = 0;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (nlmsg_len(nlh) < sizeof(*r))
@@ -818,6 +832,36 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh)
 	if (r->gwtype != CGW_TYPE_CAN_CAN)
 		return -EINVAL;
 
+	err = cgw_parse_attr(nlh, &mod, CGW_TYPE_CAN_CAN, &ccgw, &limhops);
+	if (err < 0)
+		return err;
+
+	if (mod.uid) {
+
+		ASSERT_RTNL();
+
+		/* check for updating an existing job with identical uid */
+		hlist_for_each_entry(gwj, &cgw_list, list) {
+
+			if (gwj->mod.uid != mod.uid)
+				continue;
+
+			/* interfaces & filters must be identical */
+			if (memcmp(&gwj->ccgw, &ccgw, sizeof(ccgw)))
+				return -EINVAL;
+
+			/* update modifications with disabled softirq & quit */
+			local_bh_disable();
+			memcpy(&gwj->mod, &mod, sizeof(mod));
+			local_bh_enable();
+			return 0;
+		}
+	}
+
+	/* ifindex == 0 is not allowed for job creation */
+	if (!ccgw.src_idx || !ccgw.dst_idx)
+		return -ENODEV;
+
 	gwj = kmem_cache_alloc(cgw_cache, GFP_KERNEL);
 	if (!gwj)
 		return -ENOMEM;
@@ -827,48 +871,35 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh)
 	gwj->deleted_frames = 0;
 	gwj->flags = r->flags;
 	gwj->gwtype = r->gwtype;
+	gwj->limit_hops = limhops;
 
-	err = cgw_parse_attr(nlh, &gwj->mod, CGW_TYPE_CAN_CAN, &gwj->ccgw,
-			     &limhops);
-	if (err < 0)
-		goto out;
+	/* insert already parsed information */
+	memcpy(&gwj->mod, &mod, sizeof(mod));
+	memcpy(&gwj->ccgw, &ccgw, sizeof(ccgw));
 
 	err = -ENODEV;
 
-	/* ifindex == 0 is not allowed for job creation */
-	if (!gwj->ccgw.src_idx || !gwj->ccgw.dst_idx)
-		goto out;
-
-	gwj->src.dev = dev_get_by_index(&init_net, gwj->ccgw.src_idx);
+	gwj->src.dev = __dev_get_by_index(&init_net, gwj->ccgw.src_idx);
 
 	if (!gwj->src.dev)
 		goto out;
 
-	/* check for CAN netdev not using header_ops - see gw_rcv() */
-	if (gwj->src.dev->type != ARPHRD_CAN || gwj->src.dev->header_ops)
-		goto put_src_out;
+	if (gwj->src.dev->type != ARPHRD_CAN)
+		goto out;
 
-	gwj->dst.dev = dev_get_by_index(&init_net, gwj->ccgw.dst_idx);
+	gwj->dst.dev = __dev_get_by_index(&init_net, gwj->ccgw.dst_idx);
 
 	if (!gwj->dst.dev)
-		goto put_src_out;
+		goto out;
 
-	/* check for CAN netdev not using header_ops - see gw_rcv() */
-	if (gwj->dst.dev->type != ARPHRD_CAN || gwj->dst.dev->header_ops)
-		goto put_src_dst_out;
-
-	gwj->limit_hops = limhops;
+	if (gwj->dst.dev->type != ARPHRD_CAN)
+		goto out;
 
 	ASSERT_RTNL();
 
 	err = cgw_register_filter(gwj);
 	if (!err)
 		hlist_add_head_rcu(&gwj->list, &cgw_list);
-
-put_src_dst_out:
-	dev_put(gwj->dst.dev);
-put_src_out:
-	dev_put(gwj->src.dev);
 out:
 	if (err)
 		kmem_cache_free(cgw_cache, gwj);
@@ -900,7 +931,7 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh)
 	u8 limhops = 0;
 	int err = 0;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (nlmsg_len(nlh) < sizeof(*r))
@@ -937,8 +968,15 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (gwj->limit_hops != limhops)
 			continue;
 
-		if (memcmp(&gwj->mod, &mod, sizeof(mod)))
-			continue;
+		/* we have a match when uid is enabled and identical */
+		if (gwj->mod.uid || mod.uid) {
+			if (gwj->mod.uid != mod.uid)
+				continue;
+		} else {
+			/* no uid => check for identical modifications */
+			if (memcmp(&gwj->mod, &mod, sizeof(mod)))
+				continue;
+		}
 
 		/* if (r->gwtype == CGW_TYPE_CAN_CAN) - is made sure here */
 		if (memcmp(&gwj->ccgw, &ccgw, sizeof(ccgw)))

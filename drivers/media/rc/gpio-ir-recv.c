@@ -59,7 +59,7 @@ static int gpio_ir_recv_get_devtree_pdata(struct device *dev,
 	return 0;
 }
 
-static struct of_device_id gpio_ir_recv_of_match[] = {
+static const struct of_device_id gpio_ir_recv_of_match[] = {
 	{ .compatible = "gpio-ir-receiver", },
 	{ },
 };
@@ -78,7 +78,7 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 	int rc = 0;
 	enum raw_event_type type = IR_SPACE;
 
-	gval = gpio_get_value_cansleep(gpio_dev->gpio_nr);
+	gval = gpio_get_value(gpio_dev->gpio_nr);
 
 	if (gval < 0)
 		goto err_get_value;
@@ -145,9 +145,9 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	rcdev->dev.parent = &pdev->dev;
 	rcdev->driver_name = GPIO_IR_DRIVER_NAME;
 	if (pdata->allowed_protos)
-		rcdev->allowed_protos = pdata->allowed_protos;
+		rcdev->allowed_protocols = pdata->allowed_protos;
 	else
-		rcdev->allowed_protos = RC_BIT_ALL;
+		rcdev->allowed_protocols = RC_BIT_ALL;
 	rcdev->map_name = pdata->map_name ?: RC_MAP_EMPTY;
 
 	gpio_dev->rcdev = rcdev;
@@ -240,7 +240,6 @@ static struct platform_driver gpio_ir_recv_driver = {
 	.remove = gpio_ir_recv_remove,
 	.driver = {
 		.name   = GPIO_IR_DRIVER_NAME,
-		.owner  = THIS_MODULE,
 		.of_match_table = of_match_ptr(gpio_ir_recv_of_match),
 #ifdef CONFIG_PM
 		.pm	= &gpio_ir_recv_pm_ops,

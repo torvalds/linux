@@ -131,8 +131,11 @@ static int bfusb_send_bulk(struct bfusb_data *data, struct sk_buff *skb)
 
 	BT_DBG("bfusb %p skb %p len %d", data, skb, skb->len);
 
-	if (!urb && !(urb = usb_alloc_urb(0, GFP_ATOMIC)))
-		return -ENOMEM;
+	if (!urb) {
+		urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!urb)
+			return -ENOMEM;
+	}
 
 	pipe = usb_sndbulkpipe(data->udev, data->bulk_out_ep);
 
@@ -218,8 +221,11 @@ static int bfusb_rx_submit(struct bfusb_data *data, struct urb *urb)
 
 	BT_DBG("bfusb %p urb %p", data, urb);
 
-	if (!urb && !(urb = usb_alloc_urb(0, GFP_ATOMIC)))
-		return -ENOMEM;
+	if (!urb) {
+		urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!urb)
+			return -ENOMEM;
+	}
 
 	skb = bt_skb_alloc(size, GFP_ATOMIC);
 	if (!skb) {
@@ -689,6 +695,8 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	hdev->close = bfusb_close;
 	hdev->flush = bfusb_flush;
 	hdev->send  = bfusb_send_frame;
+
+	set_bit(HCI_QUIRK_BROKEN_LOCAL_COMMANDS, &hdev->quirks);
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");

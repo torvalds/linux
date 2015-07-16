@@ -21,12 +21,6 @@ struct e8390_pkt_hdr {
   unsigned short count; /* header + packet length in bytes */
 };
 
-#ifdef notdef
-extern int ei_debug;
-#else
-#define ei_debug 1
-#endif
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 void ei_poll(struct net_device *dev);
 void eip_poll(struct net_device *dev);
@@ -99,6 +93,7 @@ struct ei_device {
 	u32 *reg_offset;		/* Register mapping table */
 	spinlock_t page_lock;		/* Page register locks */
 	unsigned long priv;		/* Private field to store bus IDs etc. */
+	u32 msg_enable;			/* debug message level */
 #ifdef AX88796_PLATFORM
 	unsigned char rxcr_base;	/* default value for RXCR */
 #endif

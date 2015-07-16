@@ -99,7 +99,7 @@ static int ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 
 /* Known SREVs */
 static const struct ath5k_srev_name srev_names[] = {
-#ifdef CONFIG_ATHEROS_AR231X
+#ifdef CONFIG_ATH5K_AHB
 	{ "5312",	AR5K_VERSION_MAC,	AR5K_SREV_AR5312_R2 },
 	{ "5312",	AR5K_VERSION_MAC,	AR5K_SREV_AR5312_R7 },
 	{ "2313",	AR5K_VERSION_MAC,	AR5K_SREV_AR2313_R8 },
@@ -142,7 +142,7 @@ static const struct ath5k_srev_name srev_names[] = {
 	{ "5413",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_5413 },
 	{ "5424",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_5424 },
 	{ "5133",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_5133 },
-#ifdef CONFIG_ATHEROS_AR231X
+#ifdef CONFIG_ATH5K_AHB
 	{ "2316",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_2316 },
 	{ "2317",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_2317 },
 #endif
@@ -528,7 +528,7 @@ ath5k_update_bssid_mask_and_opmode(struct ath5k_hw *ah,
 	 * together with the BSSID mask when matching addresses.
 	 */
 	iter_data.hw_macaddr = common->macaddr;
-	memset(&iter_data.mask, 0xff, ETH_ALEN);
+	eth_broadcast_addr(iter_data.mask);
 	iter_data.found_active = false;
 	iter_data.need_set_hw_addr = true;
 	iter_data.opmode = NL80211_IFTYPE_UNSPECIFIED;
@@ -750,6 +750,9 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 	/* XXX endianness */
 	bf->skbaddr = dma_map_single(ah->dev, skb->data, skb->len,
 			DMA_TO_DEVICE);
+
+	if (dma_mapping_error(ah->dev, bf->skbaddr))
+		return -ENOSPC;
 
 	ieee80211_get_tx_rates(info->control.vif, (control) ? control->sta : NULL, skb, bf->rates,
 			       ARRAY_SIZE(bf->rates));
@@ -1238,14 +1241,11 @@ static void
 ath5k_check_ibss_tsf(struct ath5k_hw *ah, struct sk_buff *skb,
 		     struct ieee80211_rx_status *rxs)
 {
-	struct ath_common *common = ath5k_hw_common(ah);
 	u64 tsf, bc_tstamp;
 	u32 hw_tu;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
-	if (ieee80211_is_beacon(mgmt->frame_control) &&
-	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
-	    ether_addr_equal(mgmt->bssid, common->curbssid)) {
+	if (le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS) {
 		/*
 		 * Received an IBSS beacon with the same BSSID. Hardware *must*
 		 * have updated the local TSF. We have to work around various
@@ -1299,23 +1299,6 @@ ath5k_check_ibss_tsf(struct ath5k_hw *ah, struct sk_buff *skb,
 				"fixed beacon timers after beacon receive\n");
 		}
 	}
-}
-
-static void
-ath5k_update_beacon_rssi(struct ath5k_hw *ah, struct sk_buff *skb, int rssi)
-{
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
-	struct ath_common *common = ath5k_hw_common(ah);
-
-	/* only beacons from our BSSID */
-	if (!ieee80211_is_beacon(mgmt->frame_control) ||
-	    !ether_addr_equal(mgmt->bssid, common->curbssid))
-		return;
-
-	ewma_add(&ah->ah_beacon_rssi_avg, rssi);
-
-	/* in IBSS mode we should keep RSSI statistics per neighbour */
-	/* le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS */
 }
 
 /*
@@ -1390,6 +1373,7 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 		    struct ath5k_rx_status *rs)
 {
 	struct ieee80211_rx_status *rxs;
+	struct ath_common *common = ath5k_hw_common(ah);
 
 	ath5k_remove_padding(skb);
 
@@ -1398,6 +1382,9 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 	rxs->flag = 0;
 	if (unlikely(rs->rs_status & AR5K_RXERR_MIC))
 		rxs->flag |= RX_FLAG_MMIC_ERROR;
+	if (unlikely(rs->rs_status & AR5K_RXERR_CRC))
+		rxs->flag |= RX_FLAG_FAILED_FCS_CRC;
+
 
 	/*
 	 * always extend the mac timestamp, since this information is
@@ -1436,17 +1423,19 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 		break;
 	}
 
-	if (rxs->rate_idx >= 0 && rs->rs_rate ==
+	if (rs->rs_rate ==
 	    ah->sbands[ah->curchan->band].bitrates[rxs->rate_idx].hw_value_short)
 		rxs->flag |= RX_FLAG_SHORTPRE;
 
 	trace_ath5k_rx(ah, skb);
 
-	ath5k_update_beacon_rssi(ah, skb, rs->rs_rssi);
+	if (ath_is_mybeacon(common, (struct ieee80211_hdr *)skb->data)) {
+		ewma_add(&ah->ah_beacon_rssi_avg, rs->rs_rssi);
 
-	/* check beacons in IBSS mode */
-	if (ah->opmode == NL80211_IFTYPE_ADHOC)
-		ath5k_check_ibss_tsf(ah, skb, rxs);
+		/* check beacons in IBSS mode */
+		if (ah->opmode == NL80211_IFTYPE_ADHOC)
+			ath5k_check_ibss_tsf(ah, skb, rxs);
+	}
 
 	ieee80211_rx(ah->hw, skb);
 }
@@ -1463,6 +1452,8 @@ ath5k_receive_frame_ok(struct ath5k_hw *ah, struct ath5k_rx_status *rs)
 	ah->stats.rx_bytes_count += rs->rs_datalen;
 
 	if (unlikely(rs->rs_status)) {
+		unsigned int filters;
+
 		if (rs->rs_status & AR5K_RXERR_CRC)
 			ah->stats.rxerr_crc++;
 		if (rs->rs_status & AR5K_RXERR_FIFO)
@@ -1471,7 +1462,20 @@ ath5k_receive_frame_ok(struct ath5k_hw *ah, struct ath5k_rx_status *rs)
 			ah->stats.rxerr_phy++;
 			if (rs->rs_phyerr > 0 && rs->rs_phyerr < 32)
 				ah->stats.rxerr_phy_code[rs->rs_phyerr]++;
-			return false;
+
+			/*
+			 * Treat packets that underwent a CCK or OFDM reset as having a bad CRC.
+			 * These restarts happen when the radio resynchronizes to a stronger frame
+			 * while receiving a weaker frame. Here we receive the prefix of the weak
+			 * frame. Since these are incomplete packets, mark their CRC as invalid.
+			 */
+			if (rs->rs_phyerr == AR5K_RX_PHY_ERROR_OFDM_RESTART ||
+			    rs->rs_phyerr == AR5K_RX_PHY_ERROR_CCK_RESTART) {
+				rs->rs_status |= AR5K_RXERR_CRC;
+				rs->rs_status &= ~AR5K_RXERR_PHY;
+			} else {
+				return false;
+			}
 		}
 		if (rs->rs_status & AR5K_RXERR_DECRYPT) {
 			/*
@@ -1494,8 +1498,15 @@ ath5k_receive_frame_ok(struct ath5k_hw *ah, struct ath5k_rx_status *rs)
 			return true;
 		}
 
-		/* reject any frames with non-crypto errors */
-		if (rs->rs_status & ~(AR5K_RXERR_DECRYPT))
+		/*
+		 * Reject any frames with non-crypto errors, and take into account the
+		 * current FIF_* filters.
+		 */
+		filters = AR5K_RXERR_DECRYPT;
+		if (ah->fif_filter_flags & FIF_FCSFAIL)
+			filters |= AR5K_RXERR_CRC;
+
+		if (rs->rs_status & ~filters)
 			return false;
 	}
 
@@ -1511,6 +1522,9 @@ ath5k_set_current_imask(struct ath5k_hw *ah)
 {
 	enum ath5k_int imask;
 	unsigned long flags;
+
+	if (test_bit(ATH_STAT_RESET, ah->status))
+		return;
 
 	spin_lock_irqsave(&ah->irqlock, flags);
 	imask = ah->imask;
@@ -2523,12 +2537,12 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 
 	/* Initialize driver private data */
 	SET_IEEE80211_DEV(hw, ah->dev);
-	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-			IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-			IEEE80211_HW_SIGNAL_DBM |
-			IEEE80211_HW_MFP_CAPABLE |
-			IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-			IEEE80211_HW_SUPPORTS_RC_TABLE;
+	ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, MFP_CAPABLE);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
@@ -2549,7 +2563,6 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 	hw->wiphy->available_antennas_rx = 0x3;
 
 	hw->extra_tx_headroom = 2;
-	hw->channel_change_time = 5000;
 
 	/*
 	 * Mark the device as detached to avoid processing
@@ -2848,9 +2861,11 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 {
 	struct ath_common *common = ath5k_hw_common(ah);
 	int ret, ani_mode;
-	bool fast;
+	bool fast = chan && modparam_fastchanswitch ? 1 : 0;
 
 	ATH5K_DBG(ah, ATH5K_DEBUG_RESET, "resetting\n");
+
+	__set_bit(ATH_STAT_RESET, ah->status);
 
 	ath5k_hw_set_imr(ah, 0);
 	synchronize_irq(ah->irq);
@@ -2866,10 +2881,28 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 	 * so we should also free any remaining
 	 * tx buffers */
 	ath5k_drain_tx_buffs(ah);
+
+	/* Stop PCU */
+	ath5k_hw_stop_rx_pcu(ah);
+
+	/* Stop DMA
+	 *
+	 * Note: If DMA didn't stop continue
+	 * since only a reset will fix it.
+	 */
+	ret = ath5k_hw_dma_stop(ah);
+
+	/* RF Bus grant won't work if we have pending
+	 * frames
+	 */
+	if (ret && fast) {
+		ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
+			  "DMA didn't stop, falling back to normal reset\n");
+		fast = false;
+	}
+
 	if (chan)
 		ah->curchan = chan;
-
-	fast = ((chan != NULL) && modparam_fastchanswitch) ? 1 : 0;
 
 	ret = ath5k_hw_reset(ah, ah->opmode, ah->curchan, fast, skip_pcu);
 	if (ret) {
@@ -2923,6 +2956,8 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 	 * XXX needed?
 	 */
 /*	ath5k_chan_change(ah, c); */
+
+	__clear_bit(ATH_STAT_RESET, ah->status);
 
 	ath5k_beacon_config(ah);
 	/* intrs are enabled by ath5k_beacon_config */

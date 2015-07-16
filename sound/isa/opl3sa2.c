@@ -26,14 +26,13 @@
 #include <linux/pm.h>
 #include <linux/pnp.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/wss.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-
-#include <asm/io.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Yamaha OPL3SA2+");
@@ -627,14 +626,15 @@ static void snd_opl3sa2_free(struct snd_card *card)
 	release_and_free_resource(chip->res_port);
 }
 
-static int snd_opl3sa2_card_new(int dev, struct snd_card **cardp)
+static int snd_opl3sa2_card_new(struct device *pdev, int dev,
+				struct snd_card **cardp)
 {
 	struct snd_card *card;
 	struct snd_opl3sa2 *chip;
 	int err;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_opl3sa2), &card);
+	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_opl3sa2), &card);
 	if (err < 0)
 		return err;
 	strcpy(card->driver, "OPL3SA2");
@@ -683,7 +683,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 		return err;
 	}
 	chip->wss = wss;
-	err = snd_wss_pcm(wss, 0, NULL);
+	err = snd_wss_pcm(wss, 0);
 	if (err < 0)
 		return err;
 	err = snd_wss_mixer(wss);
@@ -692,7 +692,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 	err = snd_opl3sa2_mixer(card);
 	if (err < 0)
 		return err;
-	err = snd_wss_timer(wss, 0, NULL);
+	err = snd_wss_timer(wss, 0);
 	if (err < 0)
 		return err;
 	if (fm_port[dev] >= 0x340 && fm_port[dev] < 0x400) {
@@ -737,14 +737,13 @@ static int snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 
-	err = snd_opl3sa2_card_new(dev, &card);
+	err = snd_opl3sa2_card_new(&pdev->dev, dev, &card);
 	if (err < 0)
 		return err;
 	if ((err = snd_opl3sa2_pnp(dev, card->private_data, pdev)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	snd_card_set_dev(card, &pdev->dev);
 	if ((err = snd_opl3sa2_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -802,14 +801,13 @@ static int snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 
-	err = snd_opl3sa2_card_new(dev, &card);
+	err = snd_opl3sa2_card_new(&pdev->dev, dev, &card);
 	if (err < 0)
 		return err;
 	if ((err = snd_opl3sa2_pnp(dev, card->private_data, pdev)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	snd_card_set_dev(card, &pdev->dev);
 	if ((err = snd_opl3sa2_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -883,10 +881,9 @@ static int snd_opl3sa2_isa_probe(struct device *pdev,
 	struct snd_card *card;
 	int err;
 
-	err = snd_opl3sa2_card_new(dev, &card);
+	err = snd_opl3sa2_card_new(pdev, dev, &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, pdev);
 	if ((err = snd_opl3sa2_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;

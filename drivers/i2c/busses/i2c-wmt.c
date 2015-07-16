@@ -128,7 +128,8 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 {
 	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	u16 val, tcr_val;
-	int ret, wait_result;
+	int ret;
+	unsigned long wait_result;
 	int xfer_len = 0;
 
 	if (!(pmsg->flags & I2C_M_NOSTART)) {
@@ -177,7 +178,7 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 
 	while (xfer_len < pmsg->len) {
 		wait_result = wait_for_completion_timeout(&i2c_dev->complete,
-							  500 * HZ / 1000);
+							msecs_to_jiffies(500));
 
 		if (wait_result == 0)
 			return -ETIMEDOUT;
@@ -218,7 +219,8 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 {
 	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	u16 val, tcr_val;
-	int ret, wait_result;
+	int ret;
+	unsigned long wait_result;
 	u32 xfer_len = 0;
 
 	if (!(pmsg->flags & I2C_M_NOSTART)) {
@@ -266,7 +268,7 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 
 	while (xfer_len < pmsg->len) {
 		wait_result = wait_for_completion_timeout(&i2c_dev->complete,
-							  500 * HZ / 1000);
+							msecs_to_jiffies(500));
 
 		if (!wait_result)
 			return -ETIMEDOUT;
@@ -379,10 +381,8 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	u32 clk_rate;
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
-	if (!i2c_dev) {
-		dev_err(&pdev->dev, "device memory allocation failed\n");
+	if (!i2c_dev)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i2c_dev->base = devm_ioremap_resource(&pdev->dev, res);
@@ -454,7 +454,7 @@ static int wmt_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id wmt_i2c_dt_ids[] = {
+static const struct of_device_id wmt_i2c_dt_ids[] = {
 	{ .compatible = "wm,wm8505-i2c" },
 	{ /* Sentinel */ },
 };
@@ -464,7 +464,6 @@ static struct platform_driver wmt_i2c_driver = {
 	.remove		= wmt_i2c_remove,
 	.driver		= {
 		.name	= "wmt-i2c",
-		.owner	= THIS_MODULE,
 		.of_match_table = wmt_i2c_dt_ids,
 	},
 };

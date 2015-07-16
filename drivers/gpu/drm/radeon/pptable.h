@@ -23,7 +23,7 @@
 #ifndef _PPTABLE_H
 #define _PPTABLE_H
 
-#pragma pack(push, 1)
+#pragma pack(1)
 
 typedef struct _ATOM_PPLIB_THERMALCONTROLLER
 
@@ -95,6 +95,14 @@ typedef struct _ATOM_PPLIB_FANTABLE2
     ATOM_PPLIB_FANTABLE basicTable;
     USHORT  usTMax;                          // The max temperature
 } ATOM_PPLIB_FANTABLE2;
+
+typedef struct _ATOM_PPLIB_FANTABLE3
+{
+	ATOM_PPLIB_FANTABLE2 basicTable2;
+	UCHAR ucFanControlMode;
+	USHORT usFanPWMMax;
+	USHORT usFanOutputSensitivity;
+} ATOM_PPLIB_FANTABLE3;
 
 typedef struct _ATOM_PPLIB_EXTENDEDHEADER
 {
@@ -677,6 +685,6 @@ typedef struct _ATOM_PPLIB_PPM_Table
       ULONG  ulTjmax;
 } ATOM_PPLIB_PPM_Table;
 
-#pragma pack(pop)
+#pragma pack()
 
 #endif

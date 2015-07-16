@@ -43,15 +43,15 @@
 
 /* PaRAM slots are laid out like this */
 struct edmacc_param {
-	unsigned int opt;
-	unsigned int src;
-	unsigned int a_b_cnt;
-	unsigned int dst;
-	unsigned int src_dst_bidx;
-	unsigned int link_bcntrld;
-	unsigned int src_dst_cidx;
-	unsigned int ccnt;
-};
+	u32 opt;
+	u32 src;
+	u32 a_b_cnt;
+	u32 dst;
+	u32 src_dst_bidx;
+	u32 link_bcntrld;
+	u32 src_dst_cidx;
+	u32 ccnt;
+} __packed;
 
 /* fields in edmacc_param.opt */
 #define SAM		BIT(0)
@@ -130,7 +130,7 @@ void edma_set_src(unsigned slot, dma_addr_t src_port,
 				enum address_mode mode, enum fifo_width);
 void edma_set_dest(unsigned slot, dma_addr_t dest_port,
 				 enum address_mode mode, enum fifo_width);
-void edma_get_position(unsigned slot, dma_addr_t *src, dma_addr_t *dst);
+dma_addr_t edma_get_position(unsigned slot, bool dst);
 void edma_set_src_index(unsigned slot, s16 src_bidx, s16 src_cidx);
 void edma_set_dest_index(unsigned slot, s16 dest_bidx, s16 dest_cidx);
 void edma_set_transfer_params(unsigned slot, u16 acnt, u16 bcnt, u16 ccnt,
@@ -150,6 +150,8 @@ void edma_clear_event(unsigned channel);
 void edma_pause(unsigned channel);
 void edma_resume(unsigned channel);
 
+void edma_assign_channel_eventq(unsigned channel, enum dma_event_q eventq_no);
+
 struct edma_rsv_info {
 
 	const s16	(*rsv_chans)[2];
@@ -158,13 +160,6 @@ struct edma_rsv_info {
 
 /* platform_data for EDMA driver */
 struct edma_soc_info {
-
-	/* how many dma resources of each type */
-	unsigned	n_channel;
-	unsigned	n_region;
-	unsigned	n_slot;
-	unsigned	n_tc;
-	unsigned	n_cc;
 	/*
 	 * Default queue is expected to be a low-priority queue.
 	 * This way, long transfers on the default queue started
@@ -175,7 +170,6 @@ struct edma_soc_info {
 	/* Resource reservation for other cores */
 	struct edma_rsv_info	*rsv;
 
-	s8	(*queue_tc_mapping)[2];
 	s8	(*queue_priority_mapping)[2];
 	const s16	(*xbar_chans)[2];
 };

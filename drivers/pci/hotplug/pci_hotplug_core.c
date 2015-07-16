@@ -59,14 +59,12 @@ static bool debug;
 #define DRIVER_DESC	"PCI Hot Plug PCI Core"
 
 
-//////////////////////////////////////////////////////////////////
-
 static LIST_HEAD(pci_hotplug_slot_list);
 static DEFINE_MUTEX(pci_hp_mutex);
 
 /* Weee, fun with macros... */
-#define GET_STATUS(name,type)	\
-static int get_##name (struct hotplug_slot *slot, type *value)		\
+#define GET_STATUS(name, type)	\
+static int get_##name(struct hotplug_slot *slot, type *value)		\
 {									\
 	struct hotplug_slot_ops *ops = slot->ops;			\
 	int retval = 0;							\
@@ -92,42 +90,41 @@ static ssize_t power_read_file(struct pci_slot *slot, char *buf)
 
 	retval = get_power_status(slot->hotplug, &value);
 	if (retval)
-		goto exit;
-	retval = sprintf (buf, "%d\n", value);
-exit:
-	return retval;
+		return retval;
+
+	return sprintf(buf, "%d\n", value);
 }
 
 static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
-		size_t count)
+				size_t count)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
 	unsigned long lpower;
 	u8 power;
 	int retval = 0;
 
-	lpower = simple_strtoul (buf, NULL, 10);
+	lpower = simple_strtoul(buf, NULL, 10);
 	power = (u8)(lpower & 0xff);
-	dbg ("power = %d\n", power);
+	dbg("power = %d\n", power);
 
 	if (!try_module_get(slot->ops->owner)) {
 		retval = -ENODEV;
 		goto exit;
 	}
 	switch (power) {
-		case 0:
-			if (slot->ops->disable_slot)
-				retval = slot->ops->disable_slot(slot);
-			break;
+	case 0:
+		if (slot->ops->disable_slot)
+			retval = slot->ops->disable_slot(slot);
+		break;
 
-		case 1:
-			if (slot->ops->enable_slot)
-				retval = slot->ops->enable_slot(slot);
-			break;
+	case 1:
+		if (slot->ops->enable_slot)
+			retval = slot->ops->enable_slot(slot);
+		break;
 
-		default:
-			err ("Illegal value specified for power\n");
-			retval = -EINVAL;
+	default:
+		err("Illegal value specified for power\n");
+		retval = -EINVAL;
 	}
 	module_put(slot->ops->owner);
 
@@ -150,24 +147,22 @@ static ssize_t attention_read_file(struct pci_slot *slot, char *buf)
 
 	retval = get_attention_status(slot->hotplug, &value);
 	if (retval)
-		goto exit;
-	retval = sprintf(buf, "%d\n", value);
+		return retval;
 
-exit:
-	return retval;
+	return sprintf(buf, "%d\n", value);
 }
 
 static ssize_t attention_write_file(struct pci_slot *slot, const char *buf,
-		size_t count)
+				    size_t count)
 {
 	struct hotplug_slot_ops *ops = slot->hotplug->ops;
 	unsigned long lattention;
 	u8 attention;
 	int retval = 0;
 
-	lattention = simple_strtoul (buf, NULL, 10);
+	lattention = simple_strtoul(buf, NULL, 10);
 	attention = (u8)(lattention & 0xff);
-	dbg (" - attention = %d\n", attention);
+	dbg(" - attention = %d\n", attention);
 
 	if (!try_module_get(ops->owner)) {
 		retval = -ENODEV;
@@ -196,11 +191,9 @@ static ssize_t latch_read_file(struct pci_slot *slot, char *buf)
 
 	retval = get_latch_status(slot->hotplug, &value);
 	if (retval)
-		goto exit;
-	retval = sprintf (buf, "%d\n", value);
+		return retval;
 
-exit:
-	return retval;
+	return sprintf(buf, "%d\n", value);
 }
 
 static struct pci_slot_attribute hotplug_slot_attr_latch = {
@@ -215,11 +208,9 @@ static ssize_t presence_read_file(struct pci_slot *slot, char *buf)
 
 	retval = get_adapter_status(slot->hotplug, &value);
 	if (retval)
-		goto exit;
-	retval = sprintf (buf, "%d\n", value);
+		return retval;
 
-exit:
-	return retval;
+	return sprintf(buf, "%d\n", value);
 }
 
 static struct pci_slot_attribute hotplug_slot_attr_presence = {
@@ -228,7 +219,7 @@ static struct pci_slot_attribute hotplug_slot_attr_presence = {
 };
 
 static ssize_t test_write_file(struct pci_slot *pci_slot, const char *buf,
-		size_t count)
+			       size_t count)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
 	unsigned long ltest;
@@ -237,7 +228,7 @@ static ssize_t test_write_file(struct pci_slot *pci_slot, const char *buf,
 
 	ltest = simple_strtoul (buf, NULL, 10);
 	test = (u32)(ltest & 0xffffffff);
-	dbg ("test = %d\n", test);
+	dbg("test = %d\n", test);
 
 	if (!try_module_get(slot->ops->owner)) {
 		retval = -ENODEV;
@@ -261,6 +252,7 @@ static struct pci_slot_attribute hotplug_slot_attr_test = {
 static bool has_power_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
+
 	if ((!slot) || (!slot->ops))
 		return false;
 	if ((slot->ops->enable_slot) ||
@@ -273,6 +265,7 @@ static bool has_power_file(struct pci_slot *pci_slot)
 static bool has_attention_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
+
 	if ((!slot) || (!slot->ops))
 		return false;
 	if ((slot->ops->set_attention_status) ||
@@ -284,6 +277,7 @@ static bool has_attention_file(struct pci_slot *pci_slot)
 static bool has_latch_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
+
 	if ((!slot) || (!slot->ops))
 		return false;
 	if (slot->ops->get_latch_status)
@@ -294,6 +288,7 @@ static bool has_latch_file(struct pci_slot *pci_slot)
 static bool has_adapter_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
+
 	if ((!slot) || (!slot->ops))
 		return false;
 	if (slot->ops->get_adapter_status)
@@ -304,6 +299,7 @@ static bool has_adapter_file(struct pci_slot *pci_slot)
 static bool has_test_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
+
 	if ((!slot) || (!slot->ops))
 		return false;
 	if (slot->ops->hardware_test)
@@ -397,13 +393,13 @@ static void fs_remove_slot(struct pci_slot *slot)
 	pci_hp_remove_module_link(slot);
 }
 
-static struct hotplug_slot *get_slot_from_name (const char *name)
+static struct hotplug_slot *get_slot_from_name(const char *name)
 {
 	struct hotplug_slot *slot;
 	struct list_head *tmp;
 
-	list_for_each (tmp, &pci_hotplug_slot_list) {
-		slot = list_entry (tmp, struct hotplug_slot, slot_list);
+	list_for_each(tmp, &pci_hotplug_slot_list) {
+		slot = list_entry(tmp, struct hotplug_slot, slot_list);
 		if (strcmp(hotplug_slot_name(slot), name) == 0)
 			return slot;
 	}
@@ -436,8 +432,7 @@ int __pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus,
 	if ((slot->info == NULL) || (slot->ops == NULL))
 		return -EINVAL;
 	if (slot->release == NULL) {
-		dbg("Why are you trying to register a hotplug slot "
-		    "without a proper release function?\n");
+		dbg("Why are you trying to register a hotplug slot without a proper release function?\n");
 		return -EINVAL;
 	}
 
@@ -468,6 +463,7 @@ out:
 	mutex_unlock(&pci_hp_mutex);
 	return result;
 }
+EXPORT_SYMBOL_GPL(__pci_hp_register);
 
 /**
  * pci_hp_deregister - deregister a hotplug_slot with the PCI hotplug subsystem
@@ -506,6 +502,7 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_hp_deregister);
 
 /**
  * pci_hp_change_slot_info - changes the slot's information structure in the core
@@ -527,24 +524,23 @@ int pci_hp_change_slot_info(struct hotplug_slot *hotplug,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_hp_change_slot_info);
 
-static int __init pci_hotplug_init (void)
+static int __init pci_hotplug_init(void)
 {
 	int result;
 
 	result = cpci_hotplug_init(debug);
 	if (result) {
-		err ("cpci_hotplug_init with error %d\n", result);
-		goto err_cpci;
+		err("cpci_hotplug_init with error %d\n", result);
+		return result;
 	}
 
-	info (DRIVER_DESC " version: " DRIVER_VERSION "\n");
-
-err_cpci:
+	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	return result;
 }
 
-static void __exit pci_hotplug_exit (void)
+static void __exit pci_hotplug_exit(void)
 {
 	cpci_hotplug_exit();
 }
@@ -557,7 +553,3 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
-
-EXPORT_SYMBOL_GPL(__pci_hp_register);
-EXPORT_SYMBOL_GPL(pci_hp_deregister);
-EXPORT_SYMBOL_GPL(pci_hp_change_slot_info);

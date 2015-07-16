@@ -1,0 +1,604 @@
+* Thermal Framework Device Tree descriptor
+
+This file describes a generic binding to provide a way of
+defining hardware thermal structure using device tree.
+A thermal structure includes thermal zones and their components,
+such as trip points, polling intervals, sensors and cooling devices
+binding descriptors.
+
+The target of device tree thermal descriptors is to describe only
+the hardware thermal aspects. The thermal device tree bindings are
+not about how the system must control or which algorithm or policy
+must be taken in place.
+
+There are five types of nodes involved to describe thermal bindings:
+- thermal sensors: devices which may be used to take temperature
+  measurements.
+- cooling devices: devices which may be used to dissipate heat.
+- trip points: describe key temperatures at which cooling is recommended. The
+  set of points should be chosen based on hardware limits.
+- cooling maps: used to describe links between trip points and cooling devices;
+- thermal zones: used to describe thermal data within the hardware;
+
+The following is a description of each of these node types.
+
+* Thermal sensor devices
+
+Thermal sensor devices are nodes providing temperature sensing capabilities on
+thermal zones. Typical devices are I2C ADC converters and bandgaps. These are
+nodes providing temperature data to thermal zones. Thermal sensor devices may
+control one or more internal sensors.
+
+Required property:
+- #thermal-sensor-cells: Used to provide sensor device specific information
+  Type: unsigned	 while referring to it. Typically 0 on thermal sensor
+  Size: one cell	 nodes with only one sensor, and at least 1 on nodes
+			 with several internal sensors, in order
+			 to identify uniquely the sensor instances within
+			 the IC. See thermal zone binding for more details
+			 on how consumers refer to sensor devices.
+
+* Cooling device nodes
+
+Cooling devices are nodes providing control on power dissipation. There
+are essentially two ways to provide control on power dissipation. First
+is by means of regulating device performance, which is known as passive
+cooling. A typical passive cooling is a CPU that has dynamic voltage and
+frequency scaling (DVFS), and uses lower frequencies as cooling states.
+Second is by means of activating devices in order to remove
+the dissipated heat, which is known as active cooling, e.g. regulating
+fan speeds. In both cases, cooling devices shall have a way to determine
+the state of cooling in which the device is.
+
+Any cooling device has a range of cooling states (i.e. different levels
+of heat dissipation). For example a fan's cooling states correspond to
+the different fan speeds possible. Cooling states are referred to by
+single unsigned integers, where larger numbers mean greater heat
+dissipation. The precise set of cooling states associated with a device
+(as referred to be the cooling-min-state and cooling-max-state
+properties) should be defined in a particular device's binding.
+For more examples of cooling devices, refer to the example sections below.
+
+Required properties:
+- cooling-min-state:	An integer indicating the smallest
+  Type: unsigned	cooling state accepted. Typically 0.
+  Size: one cell
+
+- cooling-max-state:	An integer indicating the largest
+  Type: unsigned	cooling state accepted.
+  Size: one cell
+
+- #cooling-cells:	Used to provide cooling device specific information
+  Type: unsigned	while referring to it. Must be at least 2, in order
+  Size: one cell      	to specify minimum and maximum cooling state used
+			in the reference. The first cell is the minimum
+			cooling state requested and the second cell is
+			the maximum cooling state requested in the reference.
+			See Cooling device maps section below for more details
+			on how consumers refer to cooling devices.
+
+* Trip points
+
+The trip node is a node to describe a point in the temperature domain
+in which the system takes an action. This node describes just the point,
+not the action.
+
+Required properties:
+- temperature:		An integer indicating the trip temperature level,
+  Type: signed		in millicelsius.
+  Size: one cell
+
+- hysteresis:		A low hysteresis value on temperature property (above).
+  Type: unsigned	This is a relative value, in millicelsius.
+  Size: one cell
+
+- type:			a string containing the trip type. Expected values are:
+	"active":	A trip point to enable active cooling
+	"passive":	A trip point to enable passive cooling
+	"hot":		A trip point to notify emergency
+	"critical":	Hardware not reliable.
+  Type: string
+
+* Cooling device maps
+
+The cooling device maps node is a node to describe how cooling devices
+get assigned to trip points of the zone. The cooling devices are expected
+to be loaded in the target system.
+
+Required properties:
+- cooling-device:	A phandle of a cooling device with its specifier,
+  Type: phandle +	referring to which cooling device is used in this
+    cooling specifier	binding. In the cooling specifier, the first cell
+			is the minimum cooling state and the second cell
+			is the maximum cooling state used in this map.
+- trip:			A phandle of a trip point node within the same thermal
+  Type: phandle of	zone.
+   trip point node
+
+Optional property:
+- contribution:		The cooling contribution to the thermal zone of the
+  Type: unsigned	referred cooling device at the referred trip point.
+  Size: one cell      	The contribution is a ratio of the sum
+			of all cooling contributions within a thermal zone.
+
+Note: Using the THERMAL_NO_LIMIT (-1UL) constant in the cooling-device phandle
+limit specifier means:
+(i)   - minimum state allowed for minimum cooling state used in the reference.
+(ii)  - maximum state allowed for maximum cooling state used in the reference.
+Refer to include/dt-bindings/thermal/thermal.h for definition of this constant.
+
+* Thermal zone nodes
+
+The thermal zone node is the node containing all the required info
+for describing a thermal zone, including its cooling device bindings. The
+thermal zone node must contain, apart from its own properties, one sub-node
+containing trip nodes and one sub-node containing all the zone cooling maps.
+
+Required properties:
+- polling-delay:	The maximum number of milliseconds to wait between polls
+  Type: unsigned	when checking this thermal zone.
+  Size: one cell
+
+- polling-delay-passive: The maximum number of milliseconds to wait
+  Type: unsigned	between polls when performing passive cooling.
+  Size: one cell
+
+- thermal-sensors:	A list of thermal sensor phandles and sensor specifier
+  Type: list of 	used while monitoring the thermal zone.
+  phandles + sensor
+  specifier
+
+- trips:		A sub-node which is a container of only trip point nodes
+  Type: sub-node	required to describe the thermal zone.
+
+- cooling-maps:		A sub-node which is a container of only cooling device
+  Type: sub-node	map nodes, used to describe the relation between trips
+			and cooling devices.
+
+Optional property:
+- coefficients:		An array of integers (one signed cell) containing
+  Type: array		coefficients to compose a linear relation between
+  Elem size: one cell	the sensors listed in the thermal-sensors property.
+  Elem type: signed	Coefficients defaults to 1, in case this property
+			is not specified. A simple linear polynomial is used:
+			Z = c0 * x0 + c1 + x1 + ... + c(n-1) * x(n-1) + cn.
+
+			The coefficients are ordered and they match with sensors
+			by means of sensor ID. Additional coefficients are
+			interpreted as constant offset.
+
+- sustainable-power:	An estimate of the sustainable power (in mW) that the
+  Type: unsigned	thermal zone can dissipate at the desired
+  Size: one cell	control temperature.  For reference, the
+			sustainable power of a 4'' phone is typically
+			2000mW, while on a 10'' tablet is around
+			4500mW.
+
+Note: The delay properties are bound to the maximum dT/dt (temperature
+derivative over time) in two situations for a thermal zone:
+(i)  - when passive cooling is activated (polling-delay-passive); and
+(ii) - when the zone just needs to be monitored (polling-delay) or
+when active cooling is activated.
+
+The maximum dT/dt is highly bound to hardware power consumption and dissipation
+capability. The delays should be chosen to account for said max dT/dt,
+such that a device does not cross several trip boundaries unexpectedly
+between polls. Choosing the right polling delays shall avoid having the
+device in temperature ranges that may damage the silicon structures and
+reduce silicon lifetime.
+
+* The thermal-zones node
+
+The "thermal-zones" node is a container for all thermal zone nodes. It shall
+contain only sub-nodes describing thermal zones as in the section
+"Thermal zone nodes". The "thermal-zones" node appears under "/".
+
+* Examples
+
+Below are several examples on how to use thermal data descriptors
+using device tree bindings:
+
+(a) - CPU thermal zone
+
+The CPU thermal zone example below describes how to setup one thermal zone
+using one single sensor as temperature source and many cooling devices and
+power dissipation control sources.
+
+#include <dt-bindings/thermal/thermal.h>
+
+cpus {
+	/*
+	 * Here is an example of describing a cooling device for a DVFS
+	 * capable CPU. The CPU node describes its four OPPs.
+	 * The cooling states possible are 0..3, and they are
+	 * used as OPP indexes. The minimum cooling state is 0, which means
+	 * all four OPPs can be available to the system. The maximum
+	 * cooling state is 3, which means only the lowest OPPs (198MHz@0.85V)
+	 * can be available in the system.
+	 */
+	cpu0: cpu@0 {
+		...
+		operating-points = <
+			/* kHz    uV */
+			970000  1200000
+			792000  1100000
+			396000  950000
+			198000  850000
+		>;
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>; /* min followed by max */
+	};
+	...
+};
+
+&i2c1 {
+	...
+	/*
+	 * A simple fan controller which supports 10 speeds of operation
+	 * (represented as 0-9).
+	 */
+	fan0: fan@0x48 {
+		...
+		cooling-min-state = <0>;
+		cooling-max-state = <9>;
+		#cooling-cells = <2>; /* min followed by max */
+	};
+};
+
+ocp {
+	...
+	/*
+	 * A simple IC with a single bandgap temperature sensor.
+	 */
+	bandgap0: bandgap@0x0000ED00 {
+		...
+		#thermal-sensor-cells = <0>;
+	};
+};
+
+thermal-zones {
+	cpu_thermal: cpu-thermal {
+		polling-delay-passive = <250>; /* milliseconds */
+		polling-delay = <1000>; /* milliseconds */
+
+		thermal-sensors = <&bandgap0>;
+
+		trips {
+			cpu_alert0: cpu-alert0 {
+				temperature = <90000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "active";
+			};
+			cpu_alert1: cpu-alert1 {
+				temperature = <100000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "passive";
+			};
+			cpu_crit: cpu-crit {
+				temperature = <125000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "critical";
+			};
+		};
+
+		cooling-maps {
+			map0 {
+				trip = <&cpu_alert0>;
+				cooling-device = <&fan0 THERMAL_NO_LIMIT 4>;
+			};
+			map1 {
+				trip = <&cpu_alert1>;
+				cooling-device = <&fan0 5 THERMAL_NO_LIMIT>;
+			};
+			map2 {
+				trip = <&cpu_alert1>;
+				cooling-device =
+				    <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			};
+		};
+	};
+};
+
+In the example above, the ADC sensor (bandgap0) at address 0x0000ED00 is
+used to monitor the zone 'cpu-thermal' using its sole sensor. A fan
+device (fan0) is controlled via I2C bus 1, at address 0x48, and has ten
+different cooling states 0-9. It is used to remove the heat out of
+the thermal zone 'cpu-thermal' using its cooling states
+from its minimum to 4, when it reaches trip point 'cpu_alert0'
+at 90C, as an example of active cooling. The same cooling device is used at
+'cpu_alert1', but from 5 to its maximum state. The cpu@0 device is also
+linked to the same thermal zone, 'cpu-thermal', as a passive cooling device,
+using all its cooling states at trip point 'cpu_alert1',
+which is a trip point at 100C. On the thermal zone 'cpu-thermal', at the
+temperature of 125C, represented by the trip point 'cpu_crit', the silicon
+is not reliable anymore.
+
+(b) - IC with several internal sensors
+
+The example below describes how to deploy several thermal zones based off a
+single sensor IC, assuming it has several internal sensors. This is a common
+case on SoC designs with several internal IPs that may need different thermal
+requirements, and thus may have their own sensor to monitor or detect internal
+hotspots in their silicon.
+
+#include <dt-bindings/thermal/thermal.h>
+
+ocp {
+	...
+	/*
+	 * A simple IC with several bandgap temperature sensors.
+	 */
+	bandgap0: bandgap@0x0000ED00 {
+		...
+		#thermal-sensor-cells = <1>;
+	};
+};
+
+thermal-zones {
+	cpu_thermal: cpu-thermal {
+		polling-delay-passive = <250>; /* milliseconds */
+		polling-delay = <1000>; /* milliseconds */
+
+				/* sensor       ID */
+		thermal-sensors = <&bandgap0     0>;
+
+		trips {
+			/* each zone within the SoC may have its own trips */
+			cpu_alert: cpu-alert {
+				temperature = <100000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "passive";
+			};
+			cpu_crit: cpu-crit {
+				temperature = <125000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "critical";
+			};
+		};
+
+		cooling-maps {
+			/* each zone within the SoC may have its own cooling */
+			...
+		};
+	};
+
+	gpu_thermal: gpu-thermal {
+		polling-delay-passive = <120>; /* milliseconds */
+		polling-delay = <1000>; /* milliseconds */
+
+				/* sensor       ID */
+		thermal-sensors = <&bandgap0     1>;
+
+		trips {
+			/* each zone within the SoC may have its own trips */
+			gpu_alert: gpu-alert {
+				temperature = <90000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "passive";
+			};
+			gpu_crit: gpu-crit {
+				temperature = <105000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "critical";
+			};
+		};
+
+		cooling-maps {
+			/* each zone within the SoC may have its own cooling */
+			...
+		};
+	};
+
+	dsp_thermal: dsp-thermal {
+		polling-delay-passive = <50>; /* milliseconds */
+		polling-delay = <1000>; /* milliseconds */
+
+				/* sensor       ID */
+		thermal-sensors = <&bandgap0     2>;
+
+		trips {
+			/* each zone within the SoC may have its own trips */
+			dsp_alert: dsp-alert {
+				temperature = <90000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "passive";
+			};
+			dsp_crit: gpu-crit {
+				temperature = <135000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "critical";
+			};
+		};
+
+		cooling-maps {
+			/* each zone within the SoC may have its own cooling */
+			...
+		};
+	};
+};
+
+In the example above, there is one bandgap IC which has the capability to
+monitor three sensors. The hardware has been designed so that sensors are
+placed on different places in the DIE to monitor different temperature
+hotspots: one for CPU thermal zone, one for GPU thermal zone and the
+other to monitor a DSP thermal zone.
+
+Thus, there is a need to assign each sensor provided by the bandgap IC
+to different thermal zones. This is achieved by means of using the
+#thermal-sensor-cells property and using the first cell of the sensor
+specifier as sensor ID. In the example, then, <bandgap 0> is used to
+monitor CPU thermal zone, <bandgap 1> is used to monitor GPU thermal
+zone and <bandgap 2> is used to monitor DSP thermal zone. Each zone
+may be uncorrelated, having its own dT/dt requirements, trips
+and cooling maps.
+
+
+(c) - Several sensors within one single thermal zone
+
+The example below illustrates how to use more than one sensor within
+one thermal zone.
+
+#include <dt-bindings/thermal/thermal.h>
+
+&i2c1 {
+	...
+	/*
+	 * A simple IC with a single temperature sensor.
+	 */
+	adc: sensor@0x49 {
+		...
+		#thermal-sensor-cells = <0>;
+	};
+};
+
+ocp {
+	...
+	/*
+	 * A simple IC with a single bandgap temperature sensor.
+	 */
+	bandgap0: bandgap@0x0000ED00 {
+		...
+		#thermal-sensor-cells = <0>;
+	};
+};
+
+thermal-zones {
+	cpu_thermal: cpu-thermal {
+		polling-delay-passive = <250>; /* milliseconds */
+		polling-delay = <1000>; /* milliseconds */
+
+		thermal-sensors = <&bandgap0>,	/* cpu */
+				  <&adc>;	/* pcb north */
+
+		/* hotspot = 100 * bandgap - 120 * adc + 484 */
+		coefficients = 		<100	-120	484>;
+
+		trips {
+			...
+		};
+
+		cooling-maps {
+			...
+		};
+	};
+};
+
+In some cases, there is a need to use more than one sensor to extrapolate
+a thermal hotspot in the silicon. The above example illustrates this situation.
+For instance, it may be the case that a sensor external to CPU IP may be placed
+close to CPU hotspot and together with internal CPU sensor, it is used
+to determine the hotspot. Assuming this is the case for the above example,
+the hypothetical extrapolation rule would be:
+		hotspot = 100 * bandgap - 120 * adc + 484
+
+In other context, the same idea can be used to add fixed offset. For instance,
+consider the hotspot extrapolation rule below:
+		hotspot = 1 * adc + 6000
+
+In the above equation, the hotspot is always 6C higher than what is read
+from the ADC sensor. The binding would be then:
+        thermal-sensors =  <&adc>;
+
+		/* hotspot = 1 * adc + 6000 */
+	coefficients = 		<1	6000>;
+
+(d) - Board thermal
+
+The board thermal example below illustrates how to setup one thermal zone
+with many sensors and many cooling devices.
+
+#include <dt-bindings/thermal/thermal.h>
+
+&i2c1 {
+	...
+	/*
+	 * An IC with several temperature sensor.
+	 */
+	adc_dummy: sensor@0x50 {
+		...
+		#thermal-sensor-cells = <1>; /* sensor internal ID */
+	};
+};
+
+thermal-zones {
+	batt-thermal {
+		polling-delay-passive = <500>; /* milliseconds */
+		polling-delay = <2500>; /* milliseconds */
+
+				/* sensor       ID */
+		thermal-sensors = <&adc_dummy     4>;
+
+		trips {
+			...
+		};
+
+		cooling-maps {
+			...
+		};
+	};
+
+	board_thermal: board-thermal {
+		polling-delay-passive = <1000>; /* milliseconds */
+		polling-delay = <2500>; /* milliseconds */
+
+				/* sensor       ID */
+		thermal-sensors = <&adc_dummy     0>, /* pcb top edge */
+				  <&adc_dummy     1>, /* lcd */
+				  <&adc_dummy     2>; /* back cover */
+		/*
+		 * An array of coefficients describing the sensor
+		 * linear relation. E.g.:
+		 * z = c1*x1 + c2*x2 + c3*x3
+		 */
+		coefficients =		<1200	-345	890>;
+
+		sustainable-power = <2500>;
+
+		trips {
+			/* Trips are based on resulting linear equation */
+			cpu_trip: cpu-trip {
+				temperature = <60000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "passive";
+			};
+			gpu_trip: gpu-trip {
+				temperature = <55000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "passive";
+			}
+			lcd_trip: lcp-trip {
+				temperature = <53000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "passive";
+			};
+			crit_trip: crit-trip {
+				temperature = <68000>; /* millicelsius */
+				hysteresis = <2000>; /* millicelsius */
+				type = "critical";
+			};
+		};
+
+		cooling-maps {
+			map0 {
+				trip = <&cpu_trip>;
+				cooling-device = <&cpu0 0 2>;
+				contribution = <55>;
+			};
+			map1 {
+				trip = <&gpu_trip>;
+				cooling-device = <&gpu0 0 2>;
+				contribution = <20>;
+			};
+			map2 {
+				trip = <&lcd_trip>;
+				cooling-device = <&lcd0 5 10>;
+				contribution = <15>;
+			};
+		};
+	};
+};
+
+The above example is a mix of previous examples, a sensor IP with several internal
+sensors used to monitor different zones, one of them is composed by several sensors and
+with different cooling devices.

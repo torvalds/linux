@@ -685,7 +685,8 @@ static int palmas_pinctrl_get_func_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int palmas_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned function,
+static int palmas_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+		unsigned function,
 		unsigned group)
 {
 	struct palmas_pctrl_chip_info *pci = pinctrl_dev_get_drvdata(pctldev);
@@ -742,7 +743,7 @@ static const struct pinmux_ops palmas_pinmux_ops = {
 	.get_functions_count = palmas_pinctrl_get_funcs_count,
 	.get_function_name = palmas_pinctrl_get_func_name,
 	.get_function_groups = palmas_pinctrl_get_func_groups,
-	.enable = palmas_pinctrl_enable,
+	.set_mux = palmas_pinctrl_set_mux,
 };
 
 static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
@@ -986,7 +987,7 @@ static struct palmas_pinctrl_data tps80036_pinctrl_data = {
 	.num_pin_groups = ARRAY_SIZE(tps80036_pingroups),
 };
 
-static struct of_device_id palmas_pinctrl_of_match[] = {
+static const struct of_device_id palmas_pinctrl_of_match[] = {
 	{ .compatible = "ti,palmas-pinctrl", .data = &tps65913_pinctrl_data},
 	{ .compatible = "ti,tps65913-pinctrl", .data = &tps65913_pinctrl_data},
 	{ .compatible = "ti,tps80036-pinctrl", .data = &tps80036_pinctrl_data},
@@ -1043,9 +1044,9 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 	palmas_pinctrl_desc.pins = palmas_pins_desc;
 	palmas_pinctrl_desc.npins = ARRAY_SIZE(palmas_pins_desc);
 	pci->pctl = pinctrl_register(&palmas_pinctrl_desc, &pdev->dev, pci);
-	if (!pci->pctl) {
+	if (IS_ERR(pci->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pci->pctl);
 	}
 	return 0;
 }
@@ -1061,7 +1062,6 @@ static int palmas_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver palmas_pinctrl_driver = {
 	.driver = {
 		.name = "palmas-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = palmas_pinctrl_of_match,
 	},
 	.probe = palmas_pinctrl_probe,

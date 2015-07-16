@@ -70,7 +70,7 @@ static void lov_io_sub_fini(const struct lu_env *env, struct lov_io *lio,
 		if (sub->sub_stripe == lio->lis_single_subio_index)
 			lio->lis_single_subio_index = -1;
 		else if (!sub->sub_borrowed)
-			OBD_FREE_PTR(sub->sub_io);
+			kfree(sub->sub_io);
 		sub->sub_io = NULL;
 	}
 	if (sub->sub_env != NULL && !IS_ERR(sub->sub_env)) {
@@ -148,6 +148,9 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 	LASSERT(sub->sub_env == NULL);
 	LASSERT(sub->sub_stripe < lio->lis_stripe_count);
 
+	if (unlikely(lov_r0(lov)->lo_sub[stripe] == NULL))
+		return -EIO;
+
 	result = 0;
 	sub->sub_io_initialized = 0;
 	sub->sub_borrowed = 0;
@@ -176,7 +179,8 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 				sub->sub_io = &lio->lis_single_subio;
 				lio->lis_single_subio_index = stripe;
 			} else {
-				OBD_ALLOC_PTR(sub->sub_io);
+				sub->sub_io = kzalloc(sizeof(*sub->sub_io),
+						      GFP_NOFS);
 				if (sub->sub_io == NULL)
 					result = -ENOMEM;
 			}
@@ -194,6 +198,7 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 		sub_io->ci_lockreq = io->ci_lockreq;
 		sub_io->ci_type    = io->ci_type;
 		sub_io->ci_no_srvlock = io->ci_no_srvlock;
+		sub_io->ci_noatime = io->ci_noatime;
 
 		lov_sub_enter(sub);
 		result = cl_io_sub_init(sub->sub_env, sub_io,
@@ -281,8 +286,10 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 	 * Need to be optimized, we can't afford to allocate a piece of memory
 	 * when writing a page. -jay
 	 */
-	OBD_ALLOC_LARGE(lio->lis_subs,
-			lsm->lsm_stripe_count * sizeof(lio->lis_subs[0]));
+	lio->lis_subs =
+		libcfs_kvzalloc(lsm->lsm_stripe_count *
+				sizeof(lio->lis_subs[0]),
+				GFP_NOFS);
 	if (lio->lis_subs != NULL) {
 		lio->lis_nr_subios = lio->lis_stripe_count;
 		lio->lis_single_subio_index = -1;
@@ -355,8 +362,7 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 	if (lio->lis_subs != NULL) {
 		for (i = 0; i < lio->lis_nr_subios; i++)
 			lov_io_sub_fini(env, lio, &lio->lis_subs[i]);
-		OBD_FREE_LARGE(lio->lis_subs,
-			 lio->lis_nr_subios * sizeof(lio->lis_subs[0]));
+		kvfree(lio->lis_subs);
 		lio->lis_nr_subios = 0;
 	}
 
@@ -365,7 +371,7 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		wake_up_all(&lov->lo_waitq);
 }
 
-static obd_off lov_offset_mod(obd_off val, int delta)
+static u64 lov_offset_mod(u64 val, int delta)
 {
 	if (val != OBD_OBJECT_EOF)
 		val += delta;
@@ -378,9 +384,9 @@ static int lov_io_iter_init(const struct lu_env *env,
 	struct lov_io	*lio = cl2lov_io(env, ios);
 	struct lov_stripe_md *lsm = lio->lis_object->lo_lsm;
 	struct lov_io_sub    *sub;
-	obd_off endpos;
-	obd_off start;
-	obd_off end;
+	u64 endpos;
+	u64 start;
+	u64 end;
 	int stripe;
 	int rc = 0;
 
@@ -390,14 +396,23 @@ static int lov_io_iter_init(const struct lu_env *env,
 					   endpos, &start, &end))
 			continue;
 
-		end = lov_offset_mod(end, +1);
+		if (unlikely(lov_r0(lio->lis_object)->lo_sub[stripe] == NULL)) {
+			if (ios->cis_io->ci_type == CIT_READ ||
+			    ios->cis_io->ci_type == CIT_WRITE ||
+			    ios->cis_io->ci_type == CIT_FAULT)
+				return -EIO;
+
+			continue;
+		}
+
+		end = lov_offset_mod(end, 1);
 		sub = lov_sub_get(env, lio, stripe);
 		if (!IS_ERR(sub)) {
 			lov_io_sub_inherit(sub->sub_io, lio, stripe,
 					   start, end);
 			rc = cl_io_iter_init(sub->sub_env, sub->sub_io);
 			lov_sub_put(sub);
-			CDEBUG(D_VFSTRACE, "shrink: %d ["LPU64", "LPU64")\n",
+			CDEBUG(D_VFSTRACE, "shrink: %d [%llu, %llu)\n",
 			       stripe, start, end);
 		} else
 			rc = PTR_ERR(sub);
@@ -435,8 +450,8 @@ static int lov_io_rw_iter_init(const struct lu_env *env,
 					      next) - io->u.ci_rw.crw_pos;
 		lio->lis_pos    = io->u.ci_rw.crw_pos;
 		lio->lis_endpos = io->u.ci_rw.crw_pos + io->u.ci_rw.crw_count;
-		CDEBUG(D_VFSTRACE, "stripe: "LPU64" chunk: ["LPU64", "LPU64") "
-		       LPU64"\n", (__u64)start, lio->lis_pos, lio->lis_endpos,
+		CDEBUG(D_VFSTRACE, "stripe: %llu chunk: [%llu, %llu) %llu\n",
+		       (__u64)start, lio->lis_pos, lio->lis_endpos,
 		       (__u64)lio->lis_io_endpos);
 	}
 	/*
@@ -590,8 +605,10 @@ static int lov_io_submit(const struct lu_env *env,
 
 	LASSERT(lio->lis_subs != NULL);
 	if (alloc) {
-		OBD_ALLOC_LARGE(stripes_qin,
-				sizeof(*stripes_qin) * lio->lis_nr_subios);
+		stripes_qin =
+			libcfs_kvzalloc(sizeof(*stripes_qin) *
+					lio->lis_nr_subios,
+					GFP_NOFS);
 		if (stripes_qin == NULL)
 			return -ENOMEM;
 
@@ -644,8 +661,7 @@ static int lov_io_submit(const struct lu_env *env,
 	}
 
 	if (alloc) {
-		OBD_FREE_LARGE(stripes_qin,
-			 sizeof(*stripes_qin) * lio->lis_nr_subios);
+		kvfree(stripes_qin);
 	} else {
 		int i;
 
@@ -912,7 +928,7 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 		break;
 	case CIT_FSYNC:
 	case CIT_SETATTR:
-		result = +1;
+		result = 1;
 		break;
 	case CIT_WRITE:
 		result = -EBADF;
@@ -947,14 +963,23 @@ int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 		LASSERTF(0, "invalid type %d\n", io->ci_type);
 	case CIT_MISC:
 	case CIT_FSYNC:
-		result = +1;
+		result = 1;
 		break;
 	case CIT_SETATTR:
+		/* the truncate to 0 is managed by MDT:
+		 * - in open, for open O_TRUNC
+		 * - in setattr, for truncate
+		 */
+		/* the truncate is for size > 0 so triggers a restore */
+		if (cl_io_is_trunc(io))
+			io->ci_restore_needed = 1;
+		result = -ENODATA;
+		break;
 	case CIT_READ:
 	case CIT_WRITE:
 	case CIT_FAULT:
-		/* TODO: need to restore the file. */
-		result = -EBADF;
+		io->ci_restore_needed = 1;
+		result = -ENODATA;
 		break;
 	}
 	if (result == 0) {

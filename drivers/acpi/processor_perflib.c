@@ -31,14 +31,11 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
-
+#include <linux/acpi.h>
+#include <acpi/processor.h>
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>
 #endif
-
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/processor.h>
 
 #define PREFIX "ACPI: "
 
@@ -159,17 +156,9 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
  */
 static void acpi_processor_ppc_ost(acpi_handle handle, int status)
 {
-	union acpi_object params[2] = {
-		{.type = ACPI_TYPE_INTEGER,},
-		{.type = ACPI_TYPE_INTEGER,},
-	};
-	struct acpi_object_list arg_list = {2, params};
-
-	if (acpi_has_method(handle, "_OST")) {
-		params[0].integer.value = ACPI_PROCESSOR_NOTIFY_PERFORMANCE;
-		params[1].integer.value =  status;
-		acpi_evaluate_object(handle, "_OST", &arg_list, NULL);
-	}
+	if (acpi_has_method(handle, "_OST"))
+		acpi_evaluate_ost(handle, ACPI_PROCESSOR_NOTIFY_PERFORMANCE,
+				  status, NULL);
 }
 
 int acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)

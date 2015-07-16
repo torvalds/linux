@@ -57,15 +57,16 @@ bit is set, preventing any new lsegs from being added.
 layout drivers
 --------------
 
-PNFS utilizes what is called layout drivers. The STD defines 3 basic
-layout types: "files" "objects" and "blocks". For each of these types
-there is a layout-driver with a common function-vectors table which
-are called by the nfs-client pnfs-core to implement the different layout
-types.
+PNFS utilizes what is called layout drivers. The STD defines 4 basic
+layout types: "files", "objects", "blocks", and "flexfiles". For each
+of these types there is a layout-driver with a common function-vectors
+table which are called by the nfs-client pnfs-core to implement the
+different layout types.
 
-Files-layout-driver code is in: fs/nfs/nfs4filelayout.c && nfs4filelayoutdev.c
+Files-layout-driver code is in: fs/nfs/filelayout/.. directory
 Objects-layout-deriver code is in: fs/nfs/objlayout/.. directory
 Blocks-layout-deriver code is in: fs/nfs/blocklayout/.. directory
+Flexfiles-layout-driver code is in: fs/nfs/flexfilelayout/.. directory
 
 objects-layout setup
 --------------------

@@ -49,10 +49,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (root->ref_cows == 0)
-		goto out;
-
-	if (btrfs_test_opt(root, SSD))
+	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 		goto out;
 
 	path = btrfs_alloc_path();

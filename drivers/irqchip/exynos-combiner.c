@@ -13,11 +13,12 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/syscore_ops.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <asm/mach/irq.h>
 
 #include "irqchip.h"
 
@@ -34,9 +35,14 @@ struct combiner_chip_data {
 	unsigned int irq_mask;
 	void __iomem *base;
 	unsigned int parent_irq;
+#ifdef CONFIG_PM
+	u32 pm_save;
+#endif
 };
 
+static struct combiner_chip_data *combiner_data;
 static struct irq_domain *combiner_irq_domain;
+static unsigned int max_nr = 20;
 
 static inline void __iomem *combiner_base(struct irq_data *data)
 {
@@ -81,7 +87,7 @@ static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	cascade_irq = irq_find_mapping(combiner_irq_domain, combiner_irq);
 
 	if (unlikely(!cascade_irq))
-		do_bad_IRQ(irq, desc);
+		handle_bad_irq(irq, desc);
 	else
 		generic_handle_irq(cascade_irq);
 
@@ -164,19 +170,16 @@ static int combiner_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops combiner_irq_domain_ops = {
+static const struct irq_domain_ops combiner_irq_domain_ops = {
 	.xlate	= combiner_irq_domain_xlate,
 	.map	= combiner_irq_domain_map,
 };
 
 static void __init combiner_init(void __iomem *combiner_base,
-				 struct device_node *np,
-				 unsigned int max_nr,
-				 int irq_base)
+				 struct device_node *np)
 {
 	int i, irq;
 	unsigned int nr_irq;
-	struct combiner_chip_data *combiner_data;
 
 	nr_irq = max_nr * IRQ_IN_COMBINER;
 
@@ -186,7 +189,7 @@ static void __init combiner_init(void __iomem *combiner_base,
 		return;
 	}
 
-	combiner_irq_domain = irq_domain_add_simple(np, nr_irq, irq_base,
+	combiner_irq_domain = irq_domain_add_linear(np, nr_irq,
 				&combiner_irq_domain_ops, combiner_data);
 	if (WARN_ON(!combiner_irq_domain)) {
 		pr_warning("%s: irq domain init failed\n", __func__);
@@ -202,12 +205,59 @@ static void __init combiner_init(void __iomem *combiner_base,
 	}
 }
 
+#ifdef CONFIG_PM
+
+/**
+ * combiner_suspend - save interrupt combiner state before suspend
+ *
+ * Save the interrupt enable set register for all combiner groups since
+ * the state is lost when the system enters into a sleep state.
+ *
+ */
+static int combiner_suspend(void)
+{
+	int i;
+
+	for (i = 0; i < max_nr; i++)
+		combiner_data[i].pm_save =
+			__raw_readl(combiner_data[i].base + COMBINER_ENABLE_SET);
+
+	return 0;
+}
+
+/**
+ * combiner_resume - restore interrupt combiner state after resume
+ *
+ * Restore the interrupt enable set register for all combiner groups since
+ * the state is lost when the system enters into a sleep state on suspend.
+ *
+ */
+static void combiner_resume(void)
+{
+	int i;
+
+	for (i = 0; i < max_nr; i++) {
+		__raw_writel(combiner_data[i].irq_mask,
+			     combiner_data[i].base + COMBINER_ENABLE_CLEAR);
+		__raw_writel(combiner_data[i].pm_save,
+			     combiner_data[i].base + COMBINER_ENABLE_SET);
+	}
+}
+
+#else
+#define combiner_suspend	NULL
+#define combiner_resume		NULL
+#endif
+
+static struct syscore_ops combiner_syscore_ops = {
+	.suspend	= combiner_suspend,
+	.resume		= combiner_resume,
+};
+
 static int __init combiner_of_init(struct device_node *np,
 				   struct device_node *parent)
 {
 	void __iomem *combiner_base;
-	unsigned int max_nr = 20;
-	int irq_base = -1;
 
 	combiner_base = of_iomap(np, 0);
 	if (!combiner_base) {
@@ -221,14 +271,9 @@ static int __init combiner_of_init(struct device_node *np,
 			__func__, max_nr);
 	}
 
-	/* 
-	 * FIXME: This is a hardwired COMBINER_IRQ(0,0). Once all devices
-	 * get their IRQ from DT, remove this in order to get dynamic
-	 * allocation.
-	 */
-	irq_base = 160;
+	combiner_init(combiner_base, np);
 
-	combiner_init(combiner_base, np, max_nr, irq_base);
+	register_syscore_ops(&combiner_syscore_ops);
 
 	return 0;
 }

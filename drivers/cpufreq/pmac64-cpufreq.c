@@ -65,9 +65,9 @@
 #define CPUFREQ_LOW                   1
 
 static struct cpufreq_frequency_table g5_cpu_freqs[] = {
-	{CPUFREQ_HIGH, 		0},
-	{CPUFREQ_LOW,		0},
-	{0,			CPUFREQ_TABLE_END},
+	{0, CPUFREQ_HIGH,	0},
+	{0, CPUFREQ_LOW,	0},
+	{0, 0,			CPUFREQ_TABLE_END},
 };
 
 /* Power mode data is an array of the 32 bits PCR values to use for
@@ -499,8 +499,7 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 	}
 
 	/* Lookup the i2c hwclock */
-	for (hwclock = NULL;
-	     (hwclock = of_find_node_by_name(hwclock, "i2c-hwclock")) != NULL;){
+	for_each_node_by_name(hwclock, "i2c-hwclock") {
 		const char *loc = of_get_property(hwclock,
 				"hwctrl-location", NULL);
 		if (loc == NULL)

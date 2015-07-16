@@ -19,11 +19,6 @@
 #define __ASM_ARCH_MEMORY_H
 
 /*
- * Physical DRAM offset.
- */
-#define PLAT_PHYS_OFFSET	UL(0x10000000)
-
-/*
  * Cache flushing area - ROM
  */
 #define FLUSH_BASE_PHYS		0x00000000

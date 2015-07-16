@@ -21,32 +21,22 @@
 #ifndef E4000_H
 #define E4000_H
 
-#include <linux/kconfig.h>
 #include "dvb_frontend.h"
 
+/*
+ * I2C address
+ * 0x64, 0x65, 0x66, 0x67
+ */
 struct e4000_config {
 	/*
-	 * I2C address
-	 * 0x64, 0x65, 0x66, 0x67
+	 * frontend
 	 */
-	u8 i2c_addr;
+	struct dvb_frontend *fe;
 
 	/*
 	 * clock
 	 */
 	u32 clock;
 };
-
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_E4000)
-extern struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
-		struct i2c_adapter *i2c, const struct e4000_config *cfg);
-#else
-static inline struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
-		struct i2c_adapter *i2c, const struct e4000_config *cfg)
-{
-	dev_warn(&i2c->dev, "%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif
 
 #endif

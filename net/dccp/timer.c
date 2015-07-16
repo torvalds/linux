@@ -161,33 +161,11 @@ out:
 	sock_put(sk);
 }
 
-/*
- *	Timer for listening sockets
- */
-static void dccp_response_timer(struct sock *sk)
-{
-	inet_csk_reqsk_queue_prune(sk, TCP_SYNQ_INTERVAL, DCCP_TIMEOUT_INIT,
-				   DCCP_RTO_MAX);
-}
-
 static void dccp_keepalive_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
 
-	/* Only process if socket is not in use. */
-	bh_lock_sock(sk);
-	if (sock_owned_by_user(sk)) {
-		/* Try again later. */
-		inet_csk_reset_keepalive_timer(sk, HZ / 20);
-		goto out;
-	}
-
-	if (sk->sk_state == DCCP_LISTEN) {
-		dccp_response_timer(sk);
-		goto out;
-	}
-out:
-	bh_unlock_sock(sk);
+	pr_err("dccp should not use a keepalive timer !\n");
 	sock_put(sk);
 }
 
@@ -280,7 +258,7 @@ static ktime_t dccp_timestamp_seed;
  */
 u32 dccp_timestamp(void)
 {
-	s64 delta = ktime_us_delta(ktime_get_real(), dccp_timestamp_seed);
+	u64 delta = (u64)ktime_us_delta(ktime_get_real(), dccp_timestamp_seed);
 
 	do_div(delta, 10);
 	return delta;

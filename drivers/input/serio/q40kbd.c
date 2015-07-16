@@ -30,7 +30,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/serio.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
@@ -187,7 +186,6 @@ static int q40kbd_remove(struct platform_device *pdev)
 static struct platform_driver q40kbd_driver = {
 	.driver		= {
 		.name	= "q40kbd",
-		.owner	= THIS_MODULE,
 	},
 	.remove		= q40kbd_remove,
 };

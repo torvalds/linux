@@ -1,0 +1,8 @@
+Boards based on the CRIS SoCs:
+
+Required root node properties:
+    - compatible = should be one or more of the following:
+	- "axis,dev88"	- for Axis devboard 88 with ETRAX FS
+
+Optional:
+

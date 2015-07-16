@@ -21,12 +21,13 @@
 #define	Z2_DEFAULT_NAME	"Z2"
 
 struct z2_charger {
-	struct z2_battery_info	*info;
-	int			bat_status;
-	struct i2c_client	*client;
-	struct power_supply	batt_ps;
-	struct mutex		work_lock;
-	struct work_struct	bat_work;
+	struct z2_battery_info		*info;
+	int				bat_status;
+	struct i2c_client		*client;
+	struct power_supply		*batt_ps;
+	struct power_supply_desc	batt_ps_desc;
+	struct mutex			work_lock;
+	struct work_struct		bat_work;
 };
 
 static unsigned long z2_read_bat(struct z2_charger *charger)
@@ -44,8 +45,7 @@ static int z2_batt_get_property(struct power_supply *batt_ps,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
 {
-	struct z2_charger *charger = container_of(batt_ps, struct z2_charger,
-						batt_ps);
+	struct z2_charger *charger = power_supply_get_drvdata(batt_ps);
 	struct z2_battery_info *info = charger->info;
 
 	switch (psp) {
@@ -85,8 +85,8 @@ static int z2_batt_get_property(struct power_supply *batt_ps,
 
 static void z2_batt_ext_power_changed(struct power_supply *batt_ps)
 {
-	struct z2_charger *charger = container_of(batt_ps, struct z2_charger,
-						batt_ps);
+	struct z2_charger *charger = power_supply_get_drvdata(batt_ps);
+
 	schedule_work(&charger->bat_work);
 }
 
@@ -106,9 +106,10 @@ static void z2_batt_update(struct z2_charger *charger)
 		POWER_SUPPLY_STATUS_UNKNOWN;
 
 	if (old_status != charger->bat_status) {
-		pr_debug("%s: %i -> %i\n", charger->batt_ps.name, old_status,
-			charger->bat_status);
-		power_supply_changed(&charger->batt_ps);
+		pr_debug("%s: %i -> %i\n", charger->batt_ps->desc->name,
+				old_status,
+				charger->bat_status);
+		power_supply_changed(charger->batt_ps);
 	}
 
 	mutex_unlock(&charger->work_lock);
@@ -166,16 +167,17 @@ static int z2_batt_ps_init(struct z2_charger *charger, int props)
 				"Please consider setting proper battery "
 				"name in platform definition file, falling "
 				"back to name \" Z2_DEFAULT_NAME \"\n");
-		charger->batt_ps.name = Z2_DEFAULT_NAME;
+		charger->batt_ps_desc.name = Z2_DEFAULT_NAME;
 	} else
-		charger->batt_ps.name = info->batt_name;
+		charger->batt_ps_desc.name = info->batt_name;
 
-	charger->batt_ps.properties		= prop;
-	charger->batt_ps.num_properties		= props;
-	charger->batt_ps.type			= POWER_SUPPLY_TYPE_BATTERY;
-	charger->batt_ps.get_property		= z2_batt_get_property;
-	charger->batt_ps.external_power_changed	= z2_batt_ext_power_changed;
-	charger->batt_ps.use_for_apm		= 1;
+	charger->batt_ps_desc.properties	= prop;
+	charger->batt_ps_desc.num_properties	= props;
+	charger->batt_ps_desc.type		= POWER_SUPPLY_TYPE_BATTERY;
+	charger->batt_ps_desc.get_property	= z2_batt_get_property;
+	charger->batt_ps_desc.external_power_changed =
+						z2_batt_ext_power_changed;
+	charger->batt_ps_desc.use_for_apm	= 1;
 
 	return 0;
 }
@@ -187,6 +189,7 @@ static int z2_batt_probe(struct i2c_client *client,
 	int props = 1;	/* POWER_SUPPLY_PROP_PRESENT */
 	struct z2_charger *charger;
 	struct z2_battery_info *info = client->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 
 	if (info == NULL) {
 		dev_err(&client->dev,
@@ -203,6 +206,7 @@ static int z2_batt_probe(struct i2c_client *client,
 	charger->info = info;
 	charger->client = client;
 	i2c_set_clientdata(client, charger);
+	psy_cfg.drv_data = charger;
 
 	mutex_init(&charger->work_lock);
 
@@ -230,16 +234,20 @@ static int z2_batt_probe(struct i2c_client *client,
 
 	INIT_WORK(&charger->bat_work, z2_batt_work);
 
-	ret = power_supply_register(&client->dev, &charger->batt_ps);
-	if (ret)
+	charger->batt_ps = power_supply_register(&client->dev,
+						 &charger->batt_ps_desc,
+						 &psy_cfg);
+	if (IS_ERR(charger->batt_ps)) {
+		ret = PTR_ERR(charger->batt_ps);
 		goto err4;
+	}
 
 	schedule_work(&charger->bat_work);
 
 	return 0;
 
 err4:
-	kfree(charger->batt_ps.properties);
+	kfree(charger->batt_ps_desc.properties);
 err3:
 	if (info->charge_gpio >= 0 && gpio_is_valid(info->charge_gpio))
 		free_irq(gpio_to_irq(info->charge_gpio), charger);
@@ -257,9 +265,9 @@ static int z2_batt_remove(struct i2c_client *client)
 	struct z2_battery_info *info = charger->info;
 
 	cancel_work_sync(&charger->bat_work);
-	power_supply_unregister(&charger->batt_ps);
+	power_supply_unregister(charger->batt_ps);
 
-	kfree(charger->batt_ps.properties);
+	kfree(charger->batt_ps_desc.properties);
 	if (info->charge_gpio >= 0 && gpio_is_valid(info->charge_gpio)) {
 		free_irq(gpio_to_irq(info->charge_gpio), charger);
 		gpio_free(info->charge_gpio);

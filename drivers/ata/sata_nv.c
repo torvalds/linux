@@ -40,7 +40,6 @@
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -296,7 +295,7 @@ struct nv_swncq_port_priv {
 #define NV_ADMA_CHECK_INTR(GCTL, PORT) ((GCTL) & (1 << (19 + (12 * (PORT)))))
 
 static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int nv_pci_device_resume(struct pci_dev *pdev);
 #endif
 static void nv_ck804_host_stop(struct ata_host *host);
@@ -380,7 +379,7 @@ static struct pci_driver nv_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= nv_pci_tbl,
 	.probe			= nv_init_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= ata_pci_device_suspend,
 	.resume			= nv_pci_device_resume,
 #endif
@@ -600,7 +599,7 @@ MODULE_DEVICE_TABLE(pci, nv_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
 static bool adma_enabled;
-static bool swncq_enabled = 1;
+static bool swncq_enabled = true;
 static bool msi_enabled;
 
 static void nv_adma_register_mode(struct ata_port *ap)
@@ -757,10 +756,10 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 			blk_queue_bounce_limit(sdev1->request_queue,
 					       ATA_DMA_MASK);
 
-		pci_set_dma_mask(pdev, ATA_DMA_MASK);
+		dma_set_mask(&pdev->dev, ATA_DMA_MASK);
 	} else {
 		/** This shouldn't fail as it was set to this value before */
-		pci_set_dma_mask(pdev, pp->adma_dma_mask);
+		dma_set_mask(&pdev->dev, pp->adma_dma_mask);
 		if (sdev0)
 			blk_queue_bounce_limit(sdev0->request_queue,
 					       pp->adma_dma_mask);
@@ -1134,10 +1133,10 @@ static int nv_adma_port_start(struct ata_port *ap)
 
 	/* Ensure DMA mask is set to 32-bit before allocating legacy PRD and
 	   pad buffers */
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc)
 		return rc;
-	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+	rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc)
 		return rc;
 
@@ -1162,8 +1161,8 @@ static int nv_adma_port_start(struct ata_port *ap)
 	   These are allowed to fail since we store the value that ends up
 	   being used to set as the bounce limit in slave_config later if
 	   needed. */
-	pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 	pp->adma_dma_mask = *dev->dma_mask;
 
 	mem = dmam_alloc_coherent(dev, NV_ADMA_PORT_PRIV_DMA_SZ,
@@ -1952,7 +1951,7 @@ static int nv_swncq_slave_config(struct scsi_device *sdev)
 	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 
 	if (strncmp(model_num, "Maxtor", 6) == 0) {
-		ata_scsi_change_queue_depth(sdev, 1, SCSI_QDEPTH_DEFAULT);
+		ata_scsi_change_queue_depth(sdev, 1);
 		ata_dev_notice(dev, "Disabling SWNCQ mode (depth %x)\n",
 			       sdev->queue_depth);
 	}
@@ -2432,7 +2431,7 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ata_pci_sff_activate_host(host, ipriv->irq_handler, ipriv->sht);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int nv_pci_device_resume(struct pci_dev *pdev)
 {
 	struct ata_host *host = pci_get_drvdata(pdev);
