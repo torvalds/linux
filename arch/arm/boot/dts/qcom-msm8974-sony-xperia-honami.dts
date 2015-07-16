@@ -17,3 +17,13 @@
 		status = "ok";
 	};
 };
+
+&spmi_bus {
+	pm8941@0 {
+		coincell@2800 {
+			status = "ok";
+			qcom,rset-ohms = <2100>;
+			qcom,vset-millivolts = <3000>;
+		};
+	};
+};
