@@ -91,6 +91,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		return -ENOMEM;
 
 	card->func = func;
+	card->device_id = id;
 
 	func->card->quirks |= MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
 
@@ -2107,26 +2108,46 @@ mwifiex_update_mp_end_port(struct mwifiex_adapter *adapter, u16 port)
 		    port, card->mp_data_port_mask);
 }
 
+static void mwifiex_recreate_adapter(struct sdio_mmc_card *card)
+{
+	struct sdio_func *func = card->func;
+	const struct sdio_device_id *device_id = card->device_id;
+
+	/* TODO mmc_hw_reset does not require destroying and re-probing the
+	 * whole adapter. Hence there was no need to for this rube-goldberg
+	 * design to reload the fw from an external workqueue. If we don't
+	 * destroy the adapter we could reload the fw from
+	 * mwifiex_main_work_queue directly.
+	 * The real difficulty with fw reset is to restore all the user
+	 * settings applied through ioctl. By destroying and recreating the
+	 * adapter, we take the easy way out, since we rely on user space to
+	 * restore them. We assume that user space will treat the new
+	 * incarnation of the adapter(interfaces) as if they had been just
+	 * discovered and initializes them from scratch.
+	 */
+
+	mwifiex_sdio_remove(func);
+
+	/* power cycle the adapter */
+	sdio_claim_host(func);
+	mmc_hw_reset(func->card->host);
+	sdio_release_host(func);
+
+	mwifiex_sdio_probe(func, device_id);
+}
+
 static struct mwifiex_adapter *save_adapter;
 static void mwifiex_sdio_card_reset_work(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
-	struct mmc_host *target = card->func->card->host;
 
-	/* The actual reset operation must be run outside of driver thread.
-	 * This is because mmc_remove_host() will cause the device to be
-	 * instantly destroyed, and the driver then needs to end its thread,
-	 * leading to a deadlock.
-	 *
-	 * We run it in a totally independent workqueue.
+	/* TODO card pointer is unprotected. If the adapter is removed
+	 * physically, sdio core might trigger mwifiex_sdio_remove, before this
+	 * workqueue is run, which will destroy the adapter struct. When this
+	 * workqueue eventually exceutes it will dereference an invalid adapter
+	 * pointer
 	 */
-
-	mwifiex_dbg(adapter, WARN, "Resetting card...\n");
-	mmc_remove_host(target);
-	/* 200ms delay is based on experiment with sdhci controller */
-	mdelay(200);
-	target->rescan_entered = 0; /* rescan non-removable cards */
-	mmc_add_host(target);
+	mwifiex_recreate_adapter(card);
 }
 
 /* This function read/write firmware */
