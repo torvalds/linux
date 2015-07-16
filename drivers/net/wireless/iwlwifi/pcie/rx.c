@@ -1443,8 +1443,9 @@ void iwl_pcie_reset_ict(struct iwl_trans *trans)
 
 	val = trans_pcie->ict_tbl_dma >> ICT_SHIFT;
 
-	val |= CSR_DRAM_INT_TBL_ENABLE;
-	val |= CSR_DRAM_INIT_TBL_WRAP_CHECK;
+	val |= CSR_DRAM_INT_TBL_ENABLE |
+	       CSR_DRAM_INIT_TBL_WRAP_CHECK |
+	       CSR_DRAM_INIT_TBL_WRITE_POINTER;
 
 	IWL_DEBUG_ISR(trans, "CSR_DRAM_INT_TBL_REG =0x%x\n", val);
 
