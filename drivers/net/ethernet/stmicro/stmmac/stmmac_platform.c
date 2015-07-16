@@ -104,9 +104,8 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
  * this function is to read the driver parameters from device-tree and
  * set some private fields that will be used by the main at runtime.
  */
-static int stmmac_probe_config_dt(struct platform_device *pdev,
-				  struct plat_stmmacenet_data **plat_dat,
-				  const char **mac)
+static struct plat_stmmacenet_data *
+stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
@@ -115,9 +114,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
-		return -ENOMEM;
-
-	*plat_dat = plat;
+		return ERR_PTR(-ENOMEM);
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (data) {
@@ -156,7 +153,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	/* If phy-handle is not specified, check if we have a fixed-phy */
 	if (!plat->phy_node && of_phy_is_fixed_link(np)) {
 		if ((of_phy_register_fixed_link(np) < 0))
-			return -ENODEV;
+			return ERR_PTR(-ENODEV);
 
 		plat->phy_node = of_node_get(np);
 	}
@@ -233,7 +230,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 				       GFP_KERNEL);
 		if (!dma_cfg) {
 			of_node_put(np);
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 		}
 		plat->dma_cfg = dma_cfg;
 		of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
@@ -251,14 +248,13 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		pr_warn("force_sf_dma_mode is ignored if force_thresh_dma_mode is set.");
 	}
 
-	return 0;
+	return plat;
 }
 #else
-static int stmmac_probe_config_dt(struct platform_device *pdev,
-				  struct plat_stmmacenet_data **plat,
-				  const char **mac)
+static struct plat_stmmacenet_data *
+stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 {
-	return -ENOSYS;
+	return ERR_PTR(-ENOSYS);
 }
 #endif /* CONFIG_OF */
 
@@ -325,10 +321,10 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 		return ret;
 
 	if (pdev->dev.of_node) {
-		ret = stmmac_probe_config_dt(pdev, &plat_dat, &stmmac_res.mac);
-		if (ret) {
+		plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+		if (IS_ERR(plat_dat)) {
 			dev_err(&pdev->dev, "dt configuration failed\n");
-			return ret;
+			return PTR_ERR(plat_dat);
 		}
 	} else {
 		plat_dat = dev_get_platdata(&pdev->dev);
