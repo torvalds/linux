@@ -891,13 +891,13 @@ struct rx_ppdu_end_common {
 	__le32 evm_p15;
 	__le32 tsf_timestamp;
 	__le32 wb_timestamp;
+} __packed;
+
+struct rx_ppdu_end_qca988x {
 	u8 locationing_timestamp;
 	u8 phy_err_code;
 	__le16 flags; /* %RX_PPDU_END_FLAGS_ */
 	__le32 info0; /* %RX_PPDU_END_INFO0_ */
-} __packed;
-
-struct rx_ppdu_end_qca988x {
 	__le16 bb_length;
 	__le16 info1; /* %RX_PPDU_END_INFO1_ */
 } __packed;
@@ -909,6 +909,10 @@ struct rx_ppdu_end_qca988x {
 #define RX_PPDU_END_RTT_NORMAL_MODE            BIT(31)
 
 struct rx_ppdu_end_qca6174 {
+	u8 locationing_timestamp;
+	u8 phy_err_code;
+	__le16 flags; /* %RX_PPDU_END_FLAGS_ */
+	__le32 info0; /* %RX_PPDU_END_INFO0_ */
 	__le32 rtt; /* %RX_PPDU_END_RTT_ */
 	__le16 bb_length;
 	__le16 info1; /* %RX_PPDU_END_INFO1_ */
