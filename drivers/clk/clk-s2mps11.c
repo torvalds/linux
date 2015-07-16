@@ -246,7 +246,7 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 					s2mps11_name(s2mps11_clk), NULL);
 		if (!s2mps11_clk->lookup) {
 			ret = -ENOMEM;
-			goto err_lup;
+			goto err_reg;
 		}
 	}
 
@@ -265,16 +265,10 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, s2mps11_clks);
 
 	return ret;
-err_lup:
-	devm_clk_unregister(&pdev->dev, s2mps11_clk->clk);
+
 err_reg:
-	while (s2mps11_clk > s2mps11_clks) {
-		if (s2mps11_clk->lookup) {
-			clkdev_drop(s2mps11_clk->lookup);
-			devm_clk_unregister(&pdev->dev, s2mps11_clk->clk);
-		}
-		s2mps11_clk--;
-	}
+	while (--i >= 0)
+		clkdev_drop(s2mps11_clks[i].lookup);
 
 	return ret;
 }
