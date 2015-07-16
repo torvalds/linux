@@ -2695,7 +2695,7 @@ static int bcmgenet_open(struct net_device *dev)
 	return 0;
 
 err_irq0:
-	free_irq(priv->irq0, dev);
+	free_irq(priv->irq0, priv);
 err_fini_dma:
 	bcmgenet_fini_dma(priv);
 err_clk_disable:
