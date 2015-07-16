@@ -1077,9 +1077,8 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 	dev->mode_config.funcs = &vmw_kms_funcs;
 	dev->mode_config.min_width = 1;
 	dev->mode_config.min_height = 1;
-	/* assumed largest fb size */
-	dev->mode_config.max_width = 8192;
-	dev->mode_config.max_height = 8192;
+	dev->mode_config.max_width = dev_priv->texture_max_width;
+	dev->mode_config.max_height = dev_priv->texture_max_height;
 
 	ret = vmw_kms_stdu_init_display(dev_priv);
 	if (ret) {
@@ -1580,6 +1579,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	unsigned rects_size;
 	int ret;
 	int i;
+	u64 total_pixels = 0;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_vmw_rect bounding_box = {0};
 
@@ -1622,20 +1622,31 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 
 		if (rects[i].y + rects[i].h > bounding_box.h)
 			bounding_box.h = rects[i].y + rects[i].h;
+
+		total_pixels += (u64) rects[i].w * (u64) rects[i].h;
 	}
 
-	/*
-	 * For Screen Target Display Unit, all the displays must fit
-	 * inside of maximum texture size.
-	 */
-	if (dev_priv->active_display_unit == vmw_du_screen_target)
-		if (bounding_box.w > dev_priv->texture_max_width ||
-		    bounding_box.h > dev_priv->texture_max_height) {
-			DRM_ERROR("Layout exceeds maximum texture size\n");
+	if (dev_priv->active_display_unit == vmw_du_screen_target) {
+		/*
+		 * For Screen Targets, the limits for a toplogy are:
+		 *	1. Bounding box (assuming 32bpp) must be < prim_bb_mem
+		 *      2. Total pixels (assuming 32bpp) must be < prim_bb_mem
+		 */
+		u64 bb_mem    = bounding_box.w * bounding_box.h * 4;
+		u64 pixel_mem = total_pixels * 4;
+
+		if (bb_mem > dev_priv->prim_bb_mem) {
+			DRM_ERROR("Topology is beyond supported limits.\n");
 			ret = -EINVAL;
 			goto out_free;
 		}
 
+		if (pixel_mem > dev_priv->prim_bb_mem) {
+			DRM_ERROR("Combined output size too large\n");
+			ret = -EINVAL;
+			goto out_free;
+		}
+	}
 
 	vmw_du_update_layout(dev_priv, arg->num_outputs, rects);
 
