@@ -49,19 +49,14 @@
  */
 #define INVALID_LINK_SEQ 0x10000
 
-/* Link working states
- */
-#define WORKING_WORKING 560810u
-#define WORKING_UNKNOWN 560811u
-#define RESET_UNKNOWN   560812u
-#define RESET_RESET     560813u
 
-/* Link endpoint execution states
+/* Link endpoint receive states
  */
-#define LINK_STARTED     0x0001
-#define LINK_STOPPED     0x0002
-#define LINK_SYNCHING    0x0004
-#define LINK_FAILINGOVER 0x0008
+enum {
+	TIPC_LINK_OPEN,
+	TIPC_LINK_BLOCKED,
+	TIPC_LINK_TUNNEL
+};
 
 /* Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
@@ -106,7 +101,6 @@ struct tipc_stats {
  * @timer: link timer
  * @owner: pointer to peer node
  * @refcnt: reference counter for permanent references (owner node & timer)
- * @flags: execution state flags for link endpoint instance
  * @peer_session: link session # being used by peer end of link
  * @peer_bearer_id: bearer id used by link's peer endpoint
  * @bearer_id: local bearer id used by link
@@ -119,6 +113,7 @@ struct tipc_stats {
  * @pmsg: convenience pointer to "proto_msg" field
  * @priority: current link priority
  * @net_plane: current link network plane ('A' through 'H')
+ * @exec_mode: transmit/receive mode for link endpoint instance
  * @backlog_limit: backlog queue congestion thresholds (indexed by importance)
  * @exp_msg_count: # of tunnelled messages expected during link changeover
  * @reset_rcv_checkpt: seq # of last acknowledged message at time of link reset
@@ -149,7 +144,6 @@ struct tipc_link {
 	struct kref ref;
 
 	/* Management and link supervision data */
-	unsigned int flags;
 	u32 peer_session;
 	u32 peer_bearer_id;
 	u32 bearer_id;
@@ -165,6 +159,7 @@ struct tipc_link {
 	struct tipc_msg *pmsg;
 	u32 priority;
 	char net_plane;
+	u8 exec_mode;
 	u16 synch_point;
 
 	/* Failover */
@@ -247,29 +242,6 @@ void link_prepare_wakeup(struct tipc_link *l);
 static inline u32 link_own_addr(struct tipc_link *l)
 {
 	return msg_prevnode(l->pmsg);
-}
-
-/*
- * Link status checking routines
- */
-static inline int link_working_working(struct tipc_link *l_ptr)
-{
-	return l_ptr->state == WORKING_WORKING;
-}
-
-static inline int link_working_unknown(struct tipc_link *l_ptr)
-{
-	return l_ptr->state == WORKING_UNKNOWN;
-}
-
-static inline int link_reset_unknown(struct tipc_link *l_ptr)
-{
-	return l_ptr->state == RESET_UNKNOWN;
-}
-
-static inline int link_reset_reset(struct tipc_link *l_ptr)
-{
-	return l_ptr->state == RESET_RESET;
 }
 
 #endif

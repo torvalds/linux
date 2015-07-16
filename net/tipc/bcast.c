@@ -924,7 +924,6 @@ int tipc_bclink_init(struct net *net)
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);
 	bcl->bearer_id = MAX_BEARERS;
 	rcu_assign_pointer(tn->bearer_list[MAX_BEARERS], &bcbearer->bearer);
-	bcl->state = WORKING_WORKING;
 	bcl->pmsg = (struct tipc_msg *)&bcl->proto_msg;
 	msg_set_prevnode(bcl->pmsg, tn->own_addr);
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);

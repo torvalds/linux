@@ -403,7 +403,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		struct tipc_link *l_ptr = n_ptr->links[i].link;
 		if (!l_ptr)
 			continue;
-		l_ptr->flags &= ~LINK_FAILINGOVER;
+		l_ptr->exec_mode = TIPC_LINK_OPEN;
 		l_ptr->failover_checkpt = 0;
 		l_ptr->failover_pkts = 0;
 		kfree_skb(l_ptr->failover_skb);
