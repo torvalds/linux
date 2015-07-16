@@ -1065,6 +1065,14 @@ struct drm_i915_reg_read {
 	__u64 offset;
 	__u64 val; /* Return value */
 };
+/* Known registers:
+ *
+ * Render engine timestamp - 0x2358 + 64bit - gen7+
+ * - Note this register returns an invalid value if using the default
+ *   single instruction 8byte read, in order to workaround that use
+ *   offset (0x2538 | 1) instead.
+ *
+ */
 
 struct drm_i915_reset_stats {
 	__u32 ctx_id;
