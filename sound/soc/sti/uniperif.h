@@ -1212,4 +1212,7 @@ int uni_player_init(struct platform_device *pdev,
 		    struct uniperif *uni_player);
 int uni_player_resume(struct uniperif *player);
 
+/* uniperiph reader */
+int uni_reader_init(struct platform_device *pdev,
+		    struct uniperif *uni_reader);
 #endif
