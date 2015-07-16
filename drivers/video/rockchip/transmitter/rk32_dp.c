@@ -1428,7 +1428,7 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	}
 
 	edp->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-	if (IS_ERR(edp->grf)) {
+	if (IS_ERR(edp->grf) && !cpu_is_rk3288()) {
 		dev_err(&pdev->dev, "can't find rockchip,grf property\n");
 		return PTR_ERR(edp->grf);
 	}
