@@ -1175,6 +1175,7 @@ struct uniperif {
 	/* Clocks */
 	struct clk *clk;
 	int mclk;
+	int clk_adj;
 
 	/* Runtime data */
 	enum uniperif_state state;
@@ -1183,6 +1184,7 @@ struct uniperif {
 
 	/* Specific to IEC958 player */
 	struct uniperif_iec958_settings stream_settings;
+	struct mutex ctrl_lock; /* For resource updated by stream and controls*/
 
 	/*alsa ctrl*/
 	struct snd_kcontrol_new *snd_ctrls;
