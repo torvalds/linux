@@ -93,7 +93,7 @@ Evolution (GUI)
 Some people use this successfully for patches.
 
 When composing mail select: Preformat
-  from Format->Heading->Preformatted (Ctrl-7)
+  from Format->Paragraph Style->Preformatted (Ctrl-7)
   or the toolbar
 
 Then use:
