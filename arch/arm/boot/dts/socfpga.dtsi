@@ -639,6 +639,8 @@
 			cache-level = <2>;
 			arm,tag-latency = <1 1 1>;
 			arm,data-latency = <2 1 1>;
+			prefetch-data = <1>;
+			prefetch-instr = <1>;
 		};
 
 		mmc: dwmmc0@ff704000 {
