@@ -334,6 +334,33 @@ bool tipc_node_is_up(struct tipc_node *n)
 	return n->active_links[0];
 }
 
+void tipc_node_check_dest(struct tipc_node *n, struct tipc_bearer *b,
+			  bool *link_up, bool *addr_match,
+			  struct tipc_media_addr *maddr)
+{
+	struct tipc_link *l = n->links[b->identity].link;
+	struct tipc_media_addr *curr = &n->links[b->identity].maddr;
+
+	*link_up = l && tipc_link_is_up(l);
+	*addr_match = l && !memcmp(curr, maddr, sizeof(*maddr));
+}
+
+bool tipc_node_update_dest(struct tipc_node *n,  struct tipc_bearer *b,
+			   struct tipc_media_addr *maddr)
+{
+	struct tipc_link *l = n->links[b->identity].link;
+	struct tipc_media_addr *curr = &n->links[b->identity].maddr;
+
+	if (!l)
+		l = tipc_link_create(n, b, maddr);
+	if (!l)
+		return false;
+	memcpy(&l->media_addr, maddr, sizeof(*maddr));
+	memcpy(curr, maddr, sizeof(*maddr));
+	tipc_link_reset(l);
+	return true;
+}
+
 void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	n_ptr->links[l_ptr->bearer_id].link = l_ptr;

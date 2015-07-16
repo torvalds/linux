@@ -92,6 +92,7 @@ struct tipc_node_bclink {
 struct tipc_link_entry {
 	struct tipc_link *link;
 	u32 mtu;
+	struct tipc_media_addr maddr;
 };
 
 /**
@@ -143,6 +144,11 @@ struct tipc_node *tipc_node_find(struct net *net, u32 addr);
 void tipc_node_put(struct tipc_node *node);
 struct tipc_node *tipc_node_create(struct net *net, u32 addr);
 void tipc_node_stop(struct net *net);
+void tipc_node_check_dest(struct tipc_node *n, struct tipc_bearer *bearer,
+			  bool *link_up, bool *addr_match,
+			  struct tipc_media_addr *maddr);
+bool tipc_node_update_dest(struct tipc_node *n, struct tipc_bearer *bearer,
+			   struct tipc_media_addr *maddr);
 void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_link_down(struct tipc_node *n_ptr, int bearer_id);
