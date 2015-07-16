@@ -312,17 +312,13 @@ static struct irq_chip mpc8xxx_irq_chip = {
 	.irq_unmask	= mpc8xxx_irq_unmask,
 	.irq_mask	= mpc8xxx_irq_mask,
 	.irq_ack	= mpc8xxx_irq_ack,
+	/* this might get overwritten in mpc8xxx_probe() */
 	.irq_set_type	= mpc8xxx_irq_set_type,
 };
 
 static int mpc8xxx_gpio_irq_map(struct irq_domain *h, unsigned int irq,
 				irq_hw_number_t hwirq)
 {
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = h->host_data;
-
-	if (mpc8xxx_gc->of_dev_id_data)
-		mpc8xxx_irq_chip.irq_set_type = mpc8xxx_gc->of_dev_id_data;
-
 	irq_set_chip_data(irq, h->host_data);
 	irq_set_chip_and_handler(irq, &mpc8xxx_irq_chip, handle_level_irq);
 
@@ -334,11 +330,32 @@ static const struct irq_domain_ops mpc8xxx_gpio_irq_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
+struct mpc8xxx_gpio_devtype {
+	int (*gpio_dir_out)(struct gpio_chip *, unsigned int, int);
+	int (*gpio_get)(struct gpio_chip *, unsigned int);
+	int (*irq_set_type)(struct irq_data *, unsigned int);
+};
+
+static const struct mpc8xxx_gpio_devtype mpc512x_gpio_devtype = {
+	.gpio_dir_out = mpc5121_gpio_dir_out,
+	.irq_set_type = mpc512x_irq_set_type,
+};
+
+static const struct mpc8xxx_gpio_devtype mpc8572_gpio_devtype = {
+	.gpio_get = mpc8572_gpio_get,
+};
+
+static const struct mpc8xxx_gpio_devtype mpc8xxx_gpio_devtype_default = {
+	.gpio_dir_out = mpc8xxx_gpio_dir_out,
+	.gpio_get = mpc8xxx_gpio_get,
+	.irq_set_type = mpc8xxx_irq_set_type,
+};
+
 static const struct of_device_id mpc8xxx_gpio_ids[] = {
 	{ .compatible = "fsl,mpc8349-gpio", },
-	{ .compatible = "fsl,mpc8572-gpio", },
+	{ .compatible = "fsl,mpc8572-gpio", .data = &mpc8572_gpio_devtype, },
 	{ .compatible = "fsl,mpc8610-gpio", },
-	{ .compatible = "fsl,mpc5121-gpio", .data = mpc512x_irq_set_type, },
+	{ .compatible = "fsl,mpc5121-gpio", .data = &mpc512x_gpio_devtype, },
 	{ .compatible = "fsl,pq3-gpio",     },
 	{ .compatible = "fsl,qoriq-gpio",   },
 	{}
@@ -351,6 +368,8 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	struct of_mm_gpio_chip *mm_gc;
 	struct gpio_chip *gc;
 	const struct of_device_id *id;
+	const struct mpc8xxx_gpio_devtype *devtype =
+		of_device_get_match_data(&pdev->dev);
 	int ret;
 
 	mpc8xxx_gc = devm_kzalloc(&pdev->dev, sizeof(*mpc8xxx_gc), GFP_KERNEL);
@@ -367,10 +386,18 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	mm_gc->save_regs = mpc8xxx_gpio_save_regs;
 	gc->ngpio = MPC8XXX_GPIO_PINS;
 	gc->direction_input = mpc8xxx_gpio_dir_in;
-	gc->direction_output = of_device_is_compatible(np, "fsl,mpc5121-gpio") ?
-		mpc5121_gpio_dir_out : mpc8xxx_gpio_dir_out;
-	gc->get = of_device_is_compatible(np, "fsl,mpc8572-gpio") ?
-		mpc8572_gpio_get : mpc8xxx_gpio_get;
+
+	if (!devtype)
+		devtype = &mpc8xxx_gpio_devtype_default;
+
+	/*
+	 * It's assumed that only a single type of gpio controller is available
+	 * on the current machine, so overwriting global data is fine.
+	 */
+	mpc8xxx_irq_chip.irq_set_type = devtype->irq_set_type;
+
+	gc->direction_output = devtype->gpio_dir_out ?: mpc8xxx_gpio_dir_out;
+	gc->get = devtype->gpio_get ?: mpc8xxx_gpio_get;
 	gc->set = mpc8xxx_gpio_set;
 	gc->set_multiple = mpc8xxx_gpio_set_multiple;
 	gc->to_irq = mpc8xxx_gpio_to_irq;
