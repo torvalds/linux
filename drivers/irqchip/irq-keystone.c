@@ -83,8 +83,9 @@ static void keystone_irq_ack(struct irq_data *d)
 	/* nothing to do here */
 }
 
-static void keystone_irq_handler(unsigned irq, struct irq_desc *desc)
+static void keystone_irq_handler(unsigned __irq, struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_irq_device *kirq = irq_desc_get_handler_data(desc);
 	unsigned long pending;
 	int src, virq;
