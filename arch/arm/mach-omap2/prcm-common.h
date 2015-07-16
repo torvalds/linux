@@ -472,6 +472,7 @@ struct omap_prcm_irq {
  * struct omap_prcm_irq_setup - PRCM interrupt controller details
  * @ack: PRM register offset for the first PRM_IRQSTATUS_MPU register
  * @mask: PRM register offset for the first PRM_IRQENABLE_MPU register
+ * @pm_ctrl: PRM register offset for the PRM_IO_PMCTRL register
  * @nr_regs: number of PRM_IRQ{STATUS,ENABLE}_MPU* registers
  * @nr_irqs: number of entries in the @irqs array
  * @irqs: ptr to an array of PRCM interrupt bits (see @nr_irqs)
@@ -494,6 +495,7 @@ struct omap_prcm_irq {
 struct omap_prcm_irq_setup {
 	u16 ack;
 	u16 mask;
+	u16 pm_ctrl;
 	u8 nr_regs;
 	u8 nr_irqs;
 	const struct omap_prcm_irq *irqs;
