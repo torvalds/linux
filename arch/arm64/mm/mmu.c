@@ -461,17 +461,6 @@ void __init paging_init(void)
 }
 
 /*
- * Enable the identity mapping to allow the MMU disabling.
- */
-void setup_mm_for_reboot(void)
-{
-	cpu_set_reserved_ttbr0();
-	flush_tlb_all();
-	cpu_set_idmap_tcr_t0sz();
-	cpu_switch_mm(idmap_pg_dir, &init_mm);
-}
-
-/*
  * Check whether a kernel address is valid (derived from arch/x86/).
  */
 int kern_addr_valid(unsigned long addr)
