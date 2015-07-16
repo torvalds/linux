@@ -340,7 +340,7 @@ void tipc_link_delete_list(struct net *net, unsigned int bearer_id)
  * @link: congested link
  * @list: message that was attempted sent
  * Create pseudo msg to send back to user when congestion abates
- * Only consumes message if there is an error
+ * Does not consume buffer list
  */
 static int link_schedule_user(struct tipc_link *link, struct sk_buff_head *list)
 {
@@ -354,7 +354,7 @@ static int link_schedule_user(struct tipc_link *link, struct sk_buff_head *list)
 	if (unlikely(imp > TIPC_CRITICAL_IMPORTANCE)) {
 		pr_warn("%s<%s>, send queue full", link_rst_msg, link->name);
 		tipc_link_reset(link);
-		goto err;
+		return -ENOBUFS;
 	}
 	/* Non-blocking sender: */
 	if (TIPC_SKB_CB(skb_peek(list))->wakeup_pending)
@@ -364,15 +364,12 @@ static int link_schedule_user(struct tipc_link *link, struct sk_buff_head *list)
 	skb = tipc_msg_create(SOCK_WAKEUP, 0, INT_H_SIZE, 0,
 			      addr, addr, oport, 0, 0);
 	if (!skb)
-		goto err;
+		return -ENOBUFS;
 	TIPC_SKB_CB(skb)->chain_sz = skb_queue_len(list);
 	TIPC_SKB_CB(skb)->chain_imp = imp;
 	skb_queue_tail(&link->wakeupq, skb);
 	link->stats.link_congs++;
 	return -ELINKCONG;
-err:
-	__skb_queue_purge(list);
-	return -ENOBUFS;
 }
 
 /**
@@ -641,8 +638,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
  * @link: link to use
  * @list: chain of buffers containing message
  *
- * Consumes the buffer chain, except when returning -ELINKCONG,
- * since the caller then may want to make more send attempts.
+ * Consumes the buffer chain, except when returning an error code,
  * Returns 0 if success, or errno: -ELINKCONG, -EMSGSIZE or -ENOBUFS
  * Messages at TIPC_SYSTEM_IMPORTANCE are always accepted
  */
@@ -666,10 +662,9 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 		if (unlikely(link->backlog[i].len >= link->backlog[i].limit))
 			return link_schedule_user(link, list);
 	}
-	if (unlikely(msg_size(msg) > mtu)) {
-		__skb_queue_purge(list);
+	if (unlikely(msg_size(msg) > mtu))
 		return -EMSGSIZE;
-	}
+
 	/* Prepare each packet for sending, and add to relevant queue: */
 	while (skb_queue_len(list)) {
 		skb = skb_peek(list);
@@ -722,7 +717,7 @@ static int __tipc_link_xmit_skb(struct tipc_link *link, struct sk_buff *skb)
 
 /* tipc_link_xmit_skb(): send single buffer to destination
  * Buffers sent via this functon are generally TIPC_SYSTEM_IMPORTANCE
- * messages, which will not be rejected
+ * messages, which will not cause link congestion
  * The only exception is datagram messages rerouted after secondary
  * lookup, which are rare and safe to dispose of anyway.
  * TODO: Return real return value, and let callers use
@@ -736,7 +731,7 @@ int tipc_link_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
 
 	skb2list(skb, &head);
 	rc = tipc_link_xmit(net, &head, dnode, selector);
-	if (rc == -ELINKCONG)
+	if (rc)
 		kfree_skb(skb);
 	return 0;
 }
@@ -748,7 +743,7 @@ int tipc_link_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
  * @dsz: amount of user data to be sent
  * @dnode: address of destination node
  * @selector: a number used for deterministic link selection
- * Consumes the buffer chain, except when returning -ELINKCONG
+ * Consumes the buffer chain, except when returning error
  * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
  */
 int tipc_link_xmit(struct net *net, struct sk_buff_head *list, u32 dnode,

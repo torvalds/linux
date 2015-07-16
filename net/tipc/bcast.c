@@ -358,10 +358,9 @@ int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list)
 
 	/* Prepare clone of message for local node */
 	skb = tipc_msg_reassemble(list);
-	if (unlikely(!skb)) {
-		__skb_queue_purge(list);
+	if (unlikely(!skb))
 		return -EHOSTUNREACH;
-	}
+
 	/* Broadcast to all nodes */
 	if (likely(bclink)) {
 		tipc_bclink_lock(net);

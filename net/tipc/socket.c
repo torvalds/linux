@@ -686,21 +686,22 @@ new_mtu:
 
 	do {
 		rc = tipc_bclink_xmit(net, pktchain);
-		if (likely(rc >= 0)) {
-			rc = dsz;
-			break;
+		if (likely(!rc))
+			return dsz;
+
+		if (rc == -ELINKCONG) {
+			tsk->link_cong = 1;
+			rc = tipc_wait_for_sndmsg(sock, &timeo);
+			if (!rc)
+				continue;
 		}
+		__skb_queue_purge(pktchain);
 		if (rc == -EMSGSIZE) {
 			msg->msg_iter = save;
 			goto new_mtu;
 		}
-		if (rc != -ELINKCONG)
-			break;
-		tipc_sk(sk)->link_cong = 1;
-		rc = tipc_wait_for_sndmsg(sock, &timeo);
-		if (rc)
-			__skb_queue_purge(pktchain);
-	} while (!rc);
+		break;
+	} while (1);
 	return rc;
 }
 
@@ -925,23 +926,24 @@ new_mtu:
 		skb = skb_peek(pktchain);
 		TIPC_SKB_CB(skb)->wakeup_pending = tsk->link_cong;
 		rc = tipc_link_xmit(net, pktchain, dnode, tsk->portid);
-		if (likely(rc >= 0)) {
+		if (likely(!rc)) {
 			if (sock->state != SS_READY)
 				sock->state = SS_CONNECTING;
-			rc = dsz;
-			break;
+			return dsz;
 		}
+		if (rc == -ELINKCONG) {
+			tsk->link_cong = 1;
+			rc = tipc_wait_for_sndmsg(sock, &timeo);
+			if (!rc)
+				continue;
+		}
+		__skb_queue_purge(pktchain);
 		if (rc == -EMSGSIZE) {
 			m->msg_iter = save;
 			goto new_mtu;
 		}
-		if (rc != -ELINKCONG)
-			break;
-		tsk->link_cong = 1;
-		rc = tipc_wait_for_sndmsg(sock, &timeo);
-		if (rc)
-			__skb_queue_purge(pktchain);
-	} while (!rc);
+		break;
+	} while (1);
 
 	return rc;
 }
@@ -1048,10 +1050,11 @@ next:
 				tsk->sent_unacked++;
 				sent += send;
 				if (sent == dsz)
-					break;
+					return dsz;
 				goto next;
 			}
 			if (rc == -EMSGSIZE) {
+				__skb_queue_purge(pktchain);
 				tsk->max_pkt = tipc_node_get_mtu(net, dnode,
 								 portid);
 				m->msg_iter = save;
@@ -1059,13 +1062,13 @@ next:
 			}
 			if (rc != -ELINKCONG)
 				break;
+
 			tsk->link_cong = 1;
 		}
 		rc = tipc_wait_for_sndpkt(sock, &timeo);
-		if (rc)
-			__skb_queue_purge(pktchain);
 	} while (!rc);
 
+	__skb_queue_purge(pktchain);
 	return sent ? sent : rc;
 }
 
