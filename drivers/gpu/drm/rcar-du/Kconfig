@@ -1,6 +1,6 @@
 config DRM_RCAR_DU
 	tristate "DRM Support for R-Car Display Unit"
-	depends on DRM && ARM && HAVE_DMA_ATTRS
+	depends on DRM && ARM && HAVE_DMA_ATTRS && OF
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
