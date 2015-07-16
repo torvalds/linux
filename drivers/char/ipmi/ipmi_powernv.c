@@ -143,8 +143,15 @@ static int ipmi_powernv_recv(struct ipmi_smi_powernv *smi)
 	pr_devel("%s:   -> %d (size %lld)\n", __func__,
 			rc, rc == 0 ? size : 0);
 	if (rc) {
+		/* If came via the poll, and response was not yet ready */
+		if (rc == OPAL_EMPTY) {
+			spin_unlock_irqrestore(&smi->msg_lock, flags);
+			return 0;
+		}
+
+		smi->cur_msg = NULL;
 		spin_unlock_irqrestore(&smi->msg_lock, flags);
-		ipmi_free_smi_msg(msg);
+		send_error_reply(smi, msg, IPMI_ERR_UNSPECIFIED);
 		return 0;
 	}
 
