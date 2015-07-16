@@ -218,8 +218,9 @@ static int pdc_irq_set_wake(struct irq_data *data, unsigned int on)
 	return 0;
 }
 
-static void pdc_intc_perip_isr(unsigned int irq, struct irq_desc *desc)
+static void pdc_intc_perip_isr(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	struct pdc_intc_priv *priv;
 	unsigned int i, irq_no;
 
