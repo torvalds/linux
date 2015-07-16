@@ -7024,22 +7024,9 @@ static void dgap_stop(bool removesys, struct pci_driver *drv)
 static void dgap_remove_one(struct pci_dev *dev)
 {
 	unsigned int i;
-	ulong lock_flags;
 	struct pci_driver *drv = to_pci_driver(dev->dev.driver);
 
-	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
-	dgap_poll_stop = 1;
-	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
-
-	/* Turn off poller right away. */
-	del_timer_sync(&dgap_poll_timer);
-
-	dgap_remove_driver_sysfiles(drv);
-
-	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
-	class_destroy(dgap_class);
-	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
-
+	dgap_stop(true, drv);
 	for (i = 0; i < dgap_numboards; ++i) {
 		dgap_remove_ports_sysfiles(dgap_board[i]);
 		dgap_cleanup_tty(dgap_board[i]);
