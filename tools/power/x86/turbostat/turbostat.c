@@ -3118,7 +3118,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt_long_only(argc, argv, "C:c:Ddhi:JM:m:PpST:v",
+	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:PpST:v",
 				long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'C':
