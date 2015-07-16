@@ -979,14 +979,16 @@ static int azx_runtime_resume(struct device *dev)
 	if (!azx_has_pm_runtime(chip))
 		return 0;
 
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
-		&& hda->need_i915_power) {
-		bus =  azx_bus(chip);
-		snd_hdac_display_power(bus, true);
-		haswell_set_bclk(hda);
-		/* toggle codec wakeup bit for STATESTS read */
-		snd_hdac_set_codec_wakeup(bus, true);
-		snd_hdac_set_codec_wakeup(bus, false);
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+		bus = azx_bus(chip);
+		if (hda->need_i915_power) {
+			snd_hdac_display_power(bus, true);
+			haswell_set_bclk(hda);
+		} else {
+			/* toggle codec wakeup bit for STATESTS read */
+			snd_hdac_set_codec_wakeup(bus, true);
+			snd_hdac_set_codec_wakeup(bus, false);
+		}
 	}
 
 	/* Read STATESTS before controller reset */
