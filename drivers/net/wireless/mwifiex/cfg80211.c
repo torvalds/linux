@@ -1145,8 +1145,10 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 	case NL80211_IFTYPE_P2P_GO:
 		switch (type) {
 		case NL80211_IFTYPE_STATION:
-			if (mwifiex_cfg80211_init_p2p_client(priv))
+			if (mwifiex_cfg80211_deinit_p2p(priv))
 				return -EFAULT;
+			priv->adapter->curr_iface_comb.p2p_intf--;
+			priv->adapter->curr_iface_comb.sta_intf++;
 			dev->ieee80211_ptr->iftype = type;
 			break;
 		case NL80211_IFTYPE_ADHOC:
