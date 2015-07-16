@@ -33,6 +33,7 @@
 #include <asm/firmware.h>
 #include <asm/reg.h>
 #include <asm/smp.h> /* Required for cpu_sibling_mask() in UP configs */
+#include <asm/opal.h>
 
 #define POWERNV_MAX_PSTATES	256
 #define PMSR_PSAFE_ENABLE	(1UL << 30)
@@ -41,7 +42,7 @@
 #define PMSR_LP(x)		((x >> 48) & 0xFF)
 
 static struct cpufreq_frequency_table powernv_freqs[POWERNV_MAX_PSTATES+1];
-static bool rebooting, throttled;
+static bool rebooting, throttled, occ_reset;
 
 static struct chip {
 	unsigned int id;
@@ -414,6 +415,74 @@ static struct notifier_block powernv_cpufreq_reboot_nb = {
 	.notifier_call = powernv_cpufreq_reboot_notifier,
 };
 
+static char throttle_reason[][30] = {
+					"No throttling",
+					"Power Cap",
+					"Processor Over Temperature",
+					"Power Supply Failure",
+					"Over Current",
+					"OCC Reset"
+				     };
+
+static int powernv_cpufreq_occ_msg(struct notifier_block *nb,
+				   unsigned long msg_type, void *_msg)
+{
+	struct opal_msg *msg = _msg;
+	struct opal_occ_msg omsg;
+
+	if (msg_type != OPAL_MSG_OCC)
+		return 0;
+
+	omsg.type = be64_to_cpu(msg->params[0]);
+
+	switch (omsg.type) {
+	case OCC_RESET:
+		occ_reset = true;
+		/*
+		 * powernv_cpufreq_throttle_check() is called in
+		 * target() callback which can detect the throttle state
+		 * for governors like ondemand.
+		 * But static governors will not call target() often thus
+		 * report throttling here.
+		 */
+		if (!throttled) {
+			throttled = true;
+			pr_crit("CPU Frequency is throttled\n");
+		}
+		pr_info("OCC: Reset\n");
+		break;
+	case OCC_LOAD:
+		pr_info("OCC: Loaded\n");
+		break;
+	case OCC_THROTTLE:
+		omsg.chip = be64_to_cpu(msg->params[1]);
+		omsg.throttle_status = be64_to_cpu(msg->params[2]);
+
+		if (occ_reset) {
+			occ_reset = false;
+			throttled = false;
+			pr_info("OCC: Active\n");
+			return 0;
+		}
+
+		if (omsg.throttle_status &&
+		    omsg.throttle_status <= OCC_MAX_THROTTLE_STATUS)
+			pr_info("OCC: Chip %u Pmax reduced due to %s\n",
+				(unsigned int)omsg.chip,
+				throttle_reason[omsg.throttle_status]);
+		else if (!omsg.throttle_status)
+			pr_info("OCC: Chip %u %s\n", (unsigned int)omsg.chip,
+				throttle_reason[omsg.throttle_status]);
+	}
+	return 0;
+}
+
+static struct notifier_block powernv_cpufreq_opal_nb = {
+	.notifier_call	= powernv_cpufreq_occ_msg,
+	.next		= NULL,
+	.priority	= 0,
+};
+
 static void powernv_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 {
 	struct powernv_smp_call_data freq_data;
@@ -481,6 +550,7 @@ static int __init powernv_cpufreq_init(void)
 		return rc;
 
 	register_reboot_notifier(&powernv_cpufreq_reboot_nb);
+	opal_message_notifier_register(OPAL_MSG_OCC, &powernv_cpufreq_opal_nb);
 	return cpufreq_register_driver(&powernv_cpufreq_driver);
 }
 module_init(powernv_cpufreq_init);
@@ -488,6 +558,8 @@ module_init(powernv_cpufreq_init);
 static void __exit powernv_cpufreq_exit(void)
 {
 	unregister_reboot_notifier(&powernv_cpufreq_reboot_nb);
+	opal_message_notifier_unregister(OPAL_MSG_OCC,
+					 &powernv_cpufreq_opal_nb);
 	cpufreq_unregister_driver(&powernv_cpufreq_driver);
 }
 module_exit(powernv_cpufreq_exit);
