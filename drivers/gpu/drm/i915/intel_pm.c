@@ -3316,8 +3316,10 @@ skl_compute_linetime_wm(struct drm_crtc *crtc, struct skl_pipe_wm_parameters *p)
 	if (!to_intel_crtc(crtc)->active)
 		return 0;
 
-	return DIV_ROUND_UP(8 * p->pipe_htotal * 1000, p->pixel_rate);
+	if (WARN_ON(p->pixel_rate == 0))
+		return 0;
 
+	return DIV_ROUND_UP(8 * p->pipe_htotal * 1000, p->pixel_rate);
 }
 
 static void skl_compute_transition_wm(struct drm_crtc *crtc,
