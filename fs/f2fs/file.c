@@ -579,7 +579,7 @@ out:
 	return err;
 }
 
-void f2fs_truncate(struct inode *inode)
+void f2fs_truncate(struct inode *inode, bool lock)
 {
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 				S_ISLNK(inode->i_mode)))
@@ -593,7 +593,7 @@ void f2fs_truncate(struct inode *inode)
 			return;
 	}
 
-	if (!truncate_blocks(inode, i_size_read(inode), true)) {
+	if (!truncate_blocks(inode, i_size_read(inode), lock)) {
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty(inode);
 	}
@@ -656,7 +656,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 
 		if (attr->ia_size <= i_size_read(inode)) {
 			truncate_setsize(inode, attr->ia_size);
-			f2fs_truncate(inode);
+			f2fs_truncate(inode, true);
 			f2fs_balance_fs(F2FS_I_SB(inode));
 		} else {
 			/*

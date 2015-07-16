@@ -343,7 +343,7 @@ void f2fs_evict_inode(struct inode *inode)
 	i_size_write(inode, 0);
 
 	if (F2FS_HAS_BLOCKS(inode))
-		f2fs_truncate(inode);
+		f2fs_truncate(inode, true);
 
 	f2fs_lock_op(sbi);
 	remove_inode_page(inode);
@@ -385,7 +385,7 @@ void handle_failed_inode(struct inode *inode)
 
 	i_size_write(inode, 0);
 	if (F2FS_HAS_BLOCKS(inode))
-		f2fs_truncate(inode);
+		f2fs_truncate(inode, false);
 
 	remove_inode_page(inode);
 

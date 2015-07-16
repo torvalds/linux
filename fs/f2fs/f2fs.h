@@ -1579,7 +1579,7 @@ static inline bool f2fs_may_extent_tree(struct inode *inode)
 int f2fs_sync_file(struct file *, loff_t, loff_t, int);
 void truncate_data_blocks(struct dnode_of_data *);
 int truncate_blocks(struct inode *, u64, bool);
-void f2fs_truncate(struct inode *);
+void f2fs_truncate(struct inode *, bool);
 int f2fs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 int f2fs_setattr(struct dentry *, struct iattr *);
 int truncate_hole(struct inode *, pgoff_t, pgoff_t);
