@@ -1144,8 +1144,6 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 	const struct acpi_device_id *acpiid;
 	int i, ret;
 
-	pr_info("%s\n", __func__);
-
 	rt298 = devm_kzalloc(&i2c->dev,	sizeof(*rt298),
 				GFP_KERNEL);
 	if (NULL == rt298)
