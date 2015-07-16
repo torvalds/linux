@@ -235,4 +235,9 @@ static inline size_t sg_pcopy_from_buffer(struct scatterlist *sgl,
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+#define list_last_entry(ptr, type, member) \
+	list_entry((ptr)->prev, type, member)
+#endif
+
 #endif	/* __GREYBUS_KERNEL_VER_H */
