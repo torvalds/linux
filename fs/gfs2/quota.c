@@ -550,10 +550,10 @@ int gfs2_qa_alloc(struct gfs2_inode *ip)
 	return error;
 }
 
-void gfs2_qa_delete(struct gfs2_inode *ip)
+void gfs2_qa_delete(struct gfs2_inode *ip, atomic_t *wcount)
 {
 	down_write(&ip->i_rw_mutex);
-	if (ip->i_qadata) {
+	if (ip->i_qadata && ((wcount == NULL) || (atomic_read(wcount) <= 1))) {
 		kmem_cache_free(gfs2_qadata_cachep, ip->i_qadata);
 		ip->i_qadata = NULL;
 	}

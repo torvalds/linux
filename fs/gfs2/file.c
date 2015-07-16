@@ -336,8 +336,8 @@ static void gfs2_size_hint(struct file *filep, loff_t offset, size_t size)
 	size_t blks = (size + sdp->sd_sb.sb_bsize - 1) >> sdp->sd_sb.sb_bsize_shift;
 	int hint = min_t(size_t, INT_MAX, blks);
 
-	if (hint > atomic_read(&ip->i_res->rs_sizehint))
-		atomic_set(&ip->i_res->rs_sizehint, hint);
+	if (hint > atomic_read(&ip->i_res.rs_sizehint))
+		atomic_set(&ip->i_res.rs_sizehint, hint);
 }
 
 /**
@@ -397,13 +397,9 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Update file times before taking page lock */
 	file_update_time(vma->vm_file);
 
-	ret = get_write_access(inode);
-	if (ret)
-		goto out;
-
 	ret = gfs2_rsqa_alloc(ip);
 	if (ret)
-		goto out_write_access;
+		goto out;
 
 	gfs2_size_hint(vma->vm_file, pos, PAGE_CACHE_SIZE);
 
@@ -486,8 +482,6 @@ out_uninit:
 		set_page_dirty(page);
 		wait_for_stable_page(page);
 	}
-out_write_access:
-	put_write_access(inode);
 out:
 	sb_end_pagefault(inode->i_sb);
 	return block_page_mkwrite_return(ret);
@@ -944,7 +938,8 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t le
 
 	ret = __gfs2_fallocate(file, mode, offset, len);
 	if (ret)
-		gfs2_rs_deltree(ip->i_res);
+		gfs2_rs_deltree(&ip->i_res);
+
 out_putw:
 	put_write_access(inode);
 out_unlock:

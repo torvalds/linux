@@ -78,7 +78,7 @@ extern int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 extern int gfs2_fitrim(struct file *filp, void __user *argp);
 
 /* This is how to tell if a reservation is in the rgrp tree: */
-static inline bool gfs2_rs_active(struct gfs2_blkreserv *rs)
+static inline bool gfs2_rs_active(const struct gfs2_blkreserv *rs)
 {
 	return rs && !RB_EMPTY_NODE(&rs->rs_node);
 }
