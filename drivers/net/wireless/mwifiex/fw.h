@@ -179,6 +179,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_CHANNEL_STATS      (PROPRIETARY_TLV_BASE_ID + 198)
 #define TLV_BTCOEX_WL_AGGR_WINSIZE  (PROPRIETARY_TLV_BASE_ID + 202)
 #define TLV_BTCOEX_WL_SCANTIME      (PROPRIETARY_TLV_BASE_ID + 203)
+#define TLV_TYPE_BSS_MODE           (PROPRIETARY_TLV_BASE_ID + 206)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -1432,6 +1433,11 @@ struct host_cmd_ds_802_11_scan_rsp {
 struct host_cmd_ds_802_11_scan_ext {
 	u32   reserved;
 	u8    tlv_buffer[1];
+} __packed;
+
+struct mwifiex_ie_types_bss_mode {
+	struct mwifiex_ie_types_header  header;
+	u8 bss_mode;
 } __packed;
 
 struct mwifiex_ie_types_bss_scan_rsp {

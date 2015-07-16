@@ -823,6 +823,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	int i;
 	u8 ssid_filter;
 	struct mwifiex_ie_types_htcap *ht_cap;
+	struct mwifiex_ie_types_bss_mode *bss_mode;
 
 	/* The tlv_buf_len is calculated for each scan command.  The TLVs added
 	   in this routine will be preserved since the routine that sends the
@@ -967,6 +968,15 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 		*max_chan_per_scan = MWIFIEX_MAX_CHANNELS_PER_SPECIFIC_SCAN;
 	else
 		*max_chan_per_scan = MWIFIEX_DEF_CHANNELS_PER_SCAN_CMD;
+
+	if (adapter->ext_scan) {
+		bss_mode = (struct mwifiex_ie_types_bss_mode *)tlv_pos;
+		bss_mode->header.type = cpu_to_le16(TLV_TYPE_BSS_MODE);
+		bss_mode->header.len = cpu_to_le16(sizeof(bss_mode->bss_mode));
+		bss_mode->bss_mode = scan_cfg_out->bss_mode;
+		tlv_pos += sizeof(bss_mode->header) +
+			   le16_to_cpu(bss_mode->header.len);
+	}
 
 	/* If the input config or adapter has the number of Probes set,
 	   add tlv */
