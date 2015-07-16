@@ -404,6 +404,19 @@ static ssize_t group_store(struct device *dev, struct device_attribute *attr,
 NETDEVICE_SHOW(group, fmt_dec);
 static DEVICE_ATTR(netdev_group, S_IRUGO | S_IWUSR, group_show, group_store);
 
+static int change_proto_down(struct net_device *dev, unsigned long proto_down)
+{
+	return dev_change_proto_down(dev, (bool) proto_down);
+}
+
+static ssize_t proto_down_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t len)
+{
+	return netdev_store(dev, attr, buf, len, change_proto_down);
+}
+NETDEVICE_SHOW_RW(proto_down, fmt_dec);
+
 static ssize_t phys_port_id_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -501,6 +514,7 @@ static struct attribute *net_class_attrs[] = {
 	&dev_attr_phys_port_id.attr,
 	&dev_attr_phys_port_name.attr,
 	&dev_attr_phys_switch_id.attr,
+	&dev_attr_proto_down.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(net_class);

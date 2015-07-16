@@ -6075,6 +6075,26 @@ int dev_get_phys_port_name(struct net_device *dev,
 EXPORT_SYMBOL(dev_get_phys_port_name);
 
 /**
+ *	dev_change_proto_down - update protocol port state information
+ *	@dev: device
+ *	@proto_down: new value
+ *
+ *	This info can be used by switch drivers to set the phys state of the
+ *	port.
+ */
+int dev_change_proto_down(struct net_device *dev, bool proto_down)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (!ops->ndo_change_proto_down)
+		return -EOPNOTSUPP;
+	if (!netif_device_present(dev))
+		return -ENODEV;
+	return ops->ndo_change_proto_down(dev, proto_down);
+}
+EXPORT_SYMBOL(dev_change_proto_down);
+
+/**
  *	dev_new_index	-	allocate an ifindex
  *	@net: the applicable net namespace
  *
