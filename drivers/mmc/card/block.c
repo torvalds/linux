@@ -208,6 +208,8 @@ static ssize_t power_ro_lock_show(struct device *dev,
 
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", locked);
 
+	mmc_blk_put(md);
+
 	return ret;
 }
 
