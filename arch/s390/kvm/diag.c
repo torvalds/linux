@@ -88,6 +88,9 @@ static int __diag_page_ref_service(struct kvm_vcpu *vcpu)
 
 	switch (parm.subcode) {
 	case 0: /* TOKEN */
+		VCPU_EVENT(vcpu, 3, "pageref token addr 0x%llx "
+			   "select mask 0x%llx compare mask 0x%llx",
+			   parm.token_addr, parm.select_mask, parm.compare_mask);
 		if (vcpu->arch.pfault_token != KVM_S390_PFAULT_TOKEN_INVALID) {
 			/*
 			 * If the pagefault handshake is already activated,
@@ -117,6 +120,7 @@ static int __diag_page_ref_service(struct kvm_vcpu *vcpu)
 		 * the cancel, therefore to reduce code complexity, we assume
 		 * all outstanding tokens are already pending.
 		 */
+		VCPU_EVENT(vcpu, 3, "pageref cancel addr 0x%llx", parm.token_addr);
 		if (parm.token_addr || parm.select_mask ||
 		    parm.compare_mask || parm.zarch)
 			return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
