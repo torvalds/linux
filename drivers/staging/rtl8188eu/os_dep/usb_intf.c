@@ -123,7 +123,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	status = _SUCCESS;
 
 free_dvobj:
-	if (status != _SUCCESS && pdvobjpriv) {
+	if (status != _SUCCESS) {
 		usb_set_intfdata(usb_intf, NULL);
 		kfree(pdvobjpriv);
 		pdvobjpriv = NULL;
