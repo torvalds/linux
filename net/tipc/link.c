@@ -193,60 +193,30 @@ int tipc_link_is_active(struct tipc_link *l)
 
 /**
  * link_timeout - handle expiration of link timer
- * @l_ptr: pointer to link
  */
 static void link_timeout(unsigned long data)
 {
-	struct tipc_link *l_ptr = (struct tipc_link *)data;
+	struct tipc_link *l = (struct tipc_link *)data;
+	struct sk_buff_head xmitq;
 	struct sk_buff *skb;
+	int rc;
 
-	tipc_node_lock(l_ptr->owner);
+	__skb_queue_head_init(&xmitq);
 
-	/* update counters used in statistical profiling of send traffic */
-	l_ptr->stats.accu_queue_sz += skb_queue_len(&l_ptr->transmq);
-	l_ptr->stats.queue_sz_counts++;
+	tipc_node_lock(l->owner);
 
-	skb = skb_peek(&l_ptr->transmq);
-	if (skb) {
-		struct tipc_msg *msg = buf_msg(skb);
-		u32 length = msg_size(msg);
+	rc = tipc_link_timeout(l, &xmitq);
 
-		if ((msg_user(msg) == MSG_FRAGMENTER) &&
-		    (msg_type(msg) == FIRST_FRAGMENT)) {
-			length = msg_size(msg_get_wrapped(msg));
-		}
-		if (length) {
-			l_ptr->stats.msg_lengths_total += length;
-			l_ptr->stats.msg_length_counts++;
-			if (length <= 64)
-				l_ptr->stats.msg_length_profile[0]++;
-			else if (length <= 256)
-				l_ptr->stats.msg_length_profile[1]++;
-			else if (length <= 1024)
-				l_ptr->stats.msg_length_profile[2]++;
-			else if (length <= 4096)
-				l_ptr->stats.msg_length_profile[3]++;
-			else if (length <= 16384)
-				l_ptr->stats.msg_length_profile[4]++;
-			else if (length <= 32768)
-				l_ptr->stats.msg_length_profile[5]++;
-			else
-				l_ptr->stats.msg_length_profile[6]++;
-		}
-	}
+	if (rc & TIPC_LINK_DOWN_EVT)
+		tipc_link_reset(l);
 
-	/* do all other link processing performed on a periodic basis */
-	if (l_ptr->silent_intv_cnt)
-		link_state_event(l_ptr, SILENCE_EVT);
-	else if (link_working(l_ptr) && tipc_bclink_acks_missing(l_ptr->owner))
-		tipc_link_proto_xmit(l_ptr, STATE_MSG, 0, 0, 0, 0);
-
-	l_ptr->silent_intv_cnt++;
-	if (skb_queue_len(&l_ptr->backlogq))
-		tipc_link_push_packets(l_ptr);
-	link_set_timer(l_ptr, l_ptr->keepalive_intv);
-	tipc_node_unlock(l_ptr->owner);
-	tipc_link_put(l_ptr);
+	skb = __skb_dequeue(&xmitq);
+	if (skb)
+		tipc_bearer_send(l->owner->net, l->bearer_id,
+				 skb, &l->media_addr);
+	link_set_timer(l, l->keepalive_intv);
+	tipc_node_unlock(l->owner);
+	tipc_link_put(l);
 }
 
 static void link_set_timer(struct tipc_link *link, unsigned long time)
@@ -496,6 +466,62 @@ static int tipc_link_fsm_evt(struct tipc_link *l, int evt,
 	if (actions & (SND_PROBE | SND_STATE | SND_RESET | SND_ACTIVATE))
 		tipc_link_build_proto_msg(l, mtyp, actions & SND_PROBE,
 					  0, 0, 0, xmitq);
+	return rc;
+}
+
+/* link_profile_stats - update statistical profiling of traffic
+ */
+static void link_profile_stats(struct tipc_link *l)
+{
+	struct sk_buff *skb;
+	struct tipc_msg *msg;
+	int length;
+
+	/* Update counters used in statistical profiling of send traffic */
+	l->stats.accu_queue_sz += skb_queue_len(&l->transmq);
+	l->stats.queue_sz_counts++;
+
+	skb = skb_peek(&l->transmq);
+	if (!skb)
+		return;
+	msg = buf_msg(skb);
+	length = msg_size(msg);
+
+	if (msg_user(msg) == MSG_FRAGMENTER) {
+		if (msg_type(msg) != FIRST_FRAGMENT)
+			return;
+		length = msg_size(msg_get_wrapped(msg));
+	}
+	l->stats.msg_lengths_total += length;
+	l->stats.msg_length_counts++;
+	if (length <= 64)
+		l->stats.msg_length_profile[0]++;
+	else if (length <= 256)
+		l->stats.msg_length_profile[1]++;
+	else if (length <= 1024)
+		l->stats.msg_length_profile[2]++;
+	else if (length <= 4096)
+		l->stats.msg_length_profile[3]++;
+	else if (length <= 16384)
+		l->stats.msg_length_profile[4]++;
+	else if (length <= 32768)
+		l->stats.msg_length_profile[5]++;
+	else
+		l->stats.msg_length_profile[6]++;
+}
+
+/* tipc_link_timeout - perform periodic task as instructed from node timeout
+ */
+int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
+{
+	int rc = 0;
+
+	link_profile_stats(l);
+	if (l->silent_intv_cnt)
+		rc = tipc_link_fsm_evt(l, SILENCE_EVT, xmitq);
+	else if (link_working(l) && tipc_bclink_acks_missing(l->owner))
+		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, 0, xmitq);
+	l->silent_intv_cnt++;
 	return rc;
 }
 

@@ -245,6 +245,7 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[]);
 void link_prepare_wakeup(struct tipc_link *l);
+int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq);
 
 static inline u32 link_own_addr(struct tipc_link *l)
 {
