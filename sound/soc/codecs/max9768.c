@@ -183,11 +183,13 @@ static int max9768_i2c_probe(struct i2c_client *client,
 
 	if (pdata) {
 		/* Mute on powerup to avoid clicks */
-		err = gpio_request_one(pdata->mute_gpio, GPIOF_INIT_HIGH, "MAX9768 Mute");
+		err = devm_gpio_request_one(&client->dev, pdata->mute_gpio,
+				GPIOF_INIT_HIGH, "MAX9768 Mute");
 		max9768->mute_gpio = err ?: pdata->mute_gpio;
 
 		/* Activate chip by releasing shutdown, enables I2C */
-		err = gpio_request_one(pdata->shdn_gpio, GPIOF_INIT_HIGH, "MAX9768 Shutdown");
+		err = devm_gpio_request_one(&client->dev, pdata->shdn_gpio,
+				GPIOF_INIT_HIGH, "MAX9768 Shutdown");
 		max9768->shdn_gpio = err ?: pdata->shdn_gpio;
 
 		max9768->flags = pdata->flags;
@@ -199,36 +201,16 @@ static int max9768_i2c_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, max9768);
 
 	max9768->regmap = devm_regmap_init_i2c(client, &max9768_i2c_regmap_config);
-	if (IS_ERR(max9768->regmap)) {
-		err = PTR_ERR(max9768->regmap);
-		goto err_gpio_free;
-	}
+	if (IS_ERR(max9768->regmap))
+		return PTR_ERR(max9768->regmap);
 
-	err = snd_soc_register_codec(&client->dev, &max9768_codec_driver, NULL, 0);
-	if (err)
-		goto err_gpio_free;
-
-	return 0;
-
- err_gpio_free:
-	if (gpio_is_valid(max9768->shdn_gpio))
-		gpio_free(max9768->shdn_gpio);
-	if (gpio_is_valid(max9768->mute_gpio))
-		gpio_free(max9768->mute_gpio);
-
-	return err;
+	return snd_soc_register_codec(&client->dev, &max9768_codec_driver,
+		NULL, 0);
 }
 
 static int max9768_i2c_remove(struct i2c_client *client)
 {
-	struct max9768 *max9768 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-
-	if (gpio_is_valid(max9768->shdn_gpio))
-		gpio_free(max9768->shdn_gpio);
-	if (gpio_is_valid(max9768->mute_gpio))
-		gpio_free(max9768->mute_gpio);
 
 	return 0;
 }
