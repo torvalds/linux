@@ -2021,8 +2021,11 @@ dcopuop:
 			break;
 		}
 		break;
+	}
 
-	case w_fmt:
+	case w_fmt: {
+		union ieee754dp fs;
+
 		switch (MIPSInst_FUNC(ir)) {
 		case fcvts_op:
 			/* convert word to single precision real */
