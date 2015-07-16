@@ -399,21 +399,6 @@ common_exception:
 
 	save_xtregs_opt a1 a3 a4 a5 a6 a7 PT_XTREGS_OPT
 	
-#ifdef CONFIG_TRACE_IRQFLAGS
-	l32i	a4, a1, PT_DEPC
-	/* Double exception means we came here with an exception
-	 * while PS.EXCM was set, i.e. interrupts disabled.
-	 */
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-	bnei	a2, EXCCAUSE_LEVEL1_INTERRUPT, 1f
-	/* We came here with an interrupt means interrupts were enabled
-	 * and we've just disabled them.
-	 */
-	movi	a4, trace_hardirqs_off
-	callx4	a4
-1:
-#endif
-
 	/* Go to second-level dispatcher. Set up parameters to pass to the
 	 * exception handler and call the exception handler.
 	 */
@@ -434,6 +419,10 @@ common_exception_return:
 
 1:
 	rsil	a2, LOCKLEVEL
+#ifdef CONFIG_TRACE_IRQFLAGS
+	movi	a4, trace_hardirqs_off
+	callx4	a4
+#endif
 
 	/* Jump if we are returning from kernel exceptions. */
 
@@ -458,6 +447,10 @@ common_exception_return:
 
 	/* Call do_signal() */
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+#endif
 	rsil	a2, 0
 	movi	a4, do_notify_resume	# int do_notify_resume(struct pt_regs*)
 	mov	a6, a1
@@ -466,6 +459,10 @@ common_exception_return:
 
 3:	/* Reschedule */
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+#endif
 	rsil	a2, 0
 	movi	a4, schedule	# void schedule (void)
 	callx4	a4
@@ -494,16 +491,8 @@ common_exception_return:
 6:
 4:
 #ifdef CONFIG_TRACE_IRQFLAGS
-	l32i	a4, a1, PT_DEPC
-	/* Double exception means we came here with an exception
-	 * while PS.EXCM was set, i.e. interrupts disabled.
-	 */
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-	l32i	a4, a1, PT_EXCCAUSE
-	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
-	/* We came here with an interrupt means interrupts were enabled
-	 * and we'll reenable them on return.
-	 */
+	extui	a4, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	bgei	a4, LOCKLEVEL, 1f
 	movi	a4, trace_hardirqs_on
 	callx4	a4
 1:

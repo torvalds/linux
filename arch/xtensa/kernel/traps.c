@@ -211,8 +211,11 @@ void do_interrupt(struct pt_regs *regs)
 		XCHAL_INTLEVEL6_MASK,
 		XCHAL_INTLEVEL7_MASK,
 	};
-	struct pt_regs *old_regs = set_irq_regs(regs);
+	struct pt_regs *old_regs;
 
+	trace_hardirqs_off();
+
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
 	for (;;) {
