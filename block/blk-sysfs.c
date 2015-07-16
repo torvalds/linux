@@ -145,10 +145,41 @@ static ssize_t queue_discard_granularity_show(struct request_queue *q, char *pag
 	return queue_var_show(q->limits.discard_granularity, page);
 }
 
+static ssize_t queue_discard_max_hw_show(struct request_queue *q, char *page)
+{
+	unsigned long long val;
+
+	val = q->limits.max_hw_discard_sectors << 9;
+	return sprintf(page, "%llu\n", val);
+}
+
 static ssize_t queue_discard_max_show(struct request_queue *q, char *page)
 {
 	return sprintf(page, "%llu\n",
 		       (unsigned long long)q->limits.max_discard_sectors << 9);
+}
+
+static ssize_t queue_discard_max_store(struct request_queue *q,
+				       const char *page, size_t count)
+{
+	unsigned long max_discard;
+	ssize_t ret = queue_var_store(&max_discard, page, count);
+
+	if (ret < 0)
+		return ret;
+
+	if (max_discard & (q->limits.discard_granularity - 1))
+		return -EINVAL;
+
+	max_discard >>= 9;
+	if (max_discard > UINT_MAX)
+		return -EINVAL;
+
+	if (max_discard > q->limits.max_hw_discard_sectors)
+		max_discard = q->limits.max_hw_discard_sectors;
+
+	q->limits.max_discard_sectors = max_discard;
+	return ret;
 }
 
 static ssize_t queue_discard_zeroes_data_show(struct request_queue *q, char *page)
@@ -360,9 +391,15 @@ static struct queue_sysfs_entry queue_discard_granularity_entry = {
 	.show = queue_discard_granularity_show,
 };
 
+static struct queue_sysfs_entry queue_discard_max_hw_entry = {
+	.attr = {.name = "discard_max_hw_bytes", .mode = S_IRUGO },
+	.show = queue_discard_max_hw_show,
+};
+
 static struct queue_sysfs_entry queue_discard_max_entry = {
-	.attr = {.name = "discard_max_bytes", .mode = S_IRUGO },
+	.attr = {.name = "discard_max_bytes", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_discard_max_show,
+	.store = queue_discard_max_store,
 };
 
 static struct queue_sysfs_entry queue_discard_zeroes_data_entry = {
@@ -421,6 +458,7 @@ static struct attribute *default_attrs[] = {
 	&queue_io_opt_entry.attr,
 	&queue_discard_granularity_entry.attr,
 	&queue_discard_max_entry.attr,
+	&queue_discard_max_hw_entry.attr,
 	&queue_discard_zeroes_data_entry.attr,
 	&queue_write_same_max_entry.attr,
 	&queue_nonrot_entry.attr,
