@@ -1962,10 +1962,11 @@ static void kvmppc_vcore_preempt(struct kvmppc_vcore *vc)
 
 static void kvmppc_vcore_end_preempt(struct kvmppc_vcore *vc)
 {
-	struct preempted_vcore_list *lp = this_cpu_ptr(&preempted_vcores);
+	struct preempted_vcore_list *lp;
 
 	kvmppc_core_end_stolen(vc);
 	if (!list_empty(&vc->preempt_list)) {
+		lp = &per_cpu(preempted_vcores, vc->pcpu);
 		spin_lock(&lp->lock);
 		list_del_init(&vc->preempt_list);
 		spin_unlock(&lp->lock);
