@@ -7133,8 +7133,10 @@ static int dgap_init_module(void)
 		return rc;
 
 	rc = pci_register_driver(&dgap_driver);
-	if (rc)
-		goto err_stop;
+	if (rc) {
+		dgap_stop();
+		return rc;
+	}
 
 	rc = dgap_create_driver_sysfiles(&dgap_driver);
 	if (rc)
@@ -7146,9 +7148,6 @@ static int dgap_init_module(void)
 
 err_unregister:
 	pci_unregister_driver(&dgap_driver);
-err_stop:
-	dgap_stop();
-
 	return rc;
 }
 
