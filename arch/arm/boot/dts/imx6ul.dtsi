@@ -484,6 +484,33 @@
 			reg = <0x02100000 0x100000>;
 			ranges;
 
+			usbotg1: usb@02184000 {
+				compatible = "fsl,imx6ul-usb", "fsl,imx27-usb";
+				reg = <0x02184000 0x200>;
+				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_USBOH3>;
+				fsl,usbphy = <&usbphy1>;
+				fsl,usbmisc = <&usbmisc 0>;
+				fsl,anatop = <&anatop>;
+				status = "disabled";
+			};
+
+			usbotg2: usb@02184200 {
+				compatible = "fsl,imx6ul-usb", "fsl,imx27-usb";
+				reg = <0x02184200 0x200>;
+				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_USBOH3>;
+				fsl,usbphy = <&usbphy2>;
+				fsl,usbmisc = <&usbmisc 1>;
+				status = "disabled";
+			};
+
+			usbmisc: usbmisc@02184800 {
+				#index-cells = <1>;
+				compatible = "fsl,imx6ul-usbmisc", "fsl,imx6q-usbmisc";
+				reg = <0x02184800 0x200>;
+			};
+
 			usdhc1: usdhc@02190000 {
 				compatible = "fsl,imx6ul-usdhc", "fsl,imx6sx-usdhc";
 				reg = <0x02190000 0x4000>;
