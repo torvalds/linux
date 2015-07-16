@@ -18,13 +18,14 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of_irq.h>
-
+#include <linux/of.h>
 
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
 #include "vp.h"
 #include "prm44xx.h"
+#include "prcm43xx.h"
 #include "prm-regbits-44xx.h"
 #include "prcm44xx.h"
 #include "prminst44xx.h"
@@ -721,6 +722,15 @@ int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 		prm_features |= PRM_HAS_VOLTAGE;
 
 	omap4_prminst_set_prm_dev_inst(data->device_inst_offset);
+
+	/* Add AM437X specific differences */
+	if (of_device_is_compatible(data->np, "ti,am4-prcm")) {
+		omap4_prcm_irq_setup.nr_irqs = 1;
+		omap4_prcm_irq_setup.nr_regs = 1;
+		omap4_prcm_irq_setup.pm_ctrl = AM43XX_PRM_IO_PMCTRL_OFFSET;
+		omap4_prcm_irq_setup.ack = AM43XX_PRM_IRQSTATUS_MPU_OFFSET;
+		omap4_prcm_irq_setup.mask = AM43XX_PRM_IRQENABLE_MPU_OFFSET;
+	}
 
 	return prm_register(&omap44xx_prm_ll_data);
 }
