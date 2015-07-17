@@ -42,6 +42,7 @@ void pci_ats_init(struct pci_dev *dev)
 int pci_enable_ats(struct pci_dev *dev, int ps)
 {
 	u16 ctrl;
+	struct pci_dev *pdev;
 
 	BUG_ON(dev->ats_cap && dev->ats_enabled);
 
@@ -57,8 +58,7 @@ int pci_enable_ats(struct pci_dev *dev, int ps)
 	 */
 	ctrl = PCI_ATS_CTRL_ENABLE;
 	if (dev->is_virtfn) {
-		struct pci_dev *pdev = dev->physfn;
-
+		pdev = pci_physfn(dev);
 		if (pdev->ats_stu != ps)
 			return -EINVAL;
 
@@ -80,6 +80,7 @@ EXPORT_SYMBOL_GPL(pci_enable_ats);
  */
 void pci_disable_ats(struct pci_dev *dev)
 {
+	struct pci_dev *pdev;
 	u16 ctrl;
 
 	BUG_ON(!dev->ats_cap || !dev->ats_enabled);
@@ -88,8 +89,7 @@ void pci_disable_ats(struct pci_dev *dev)
 		return;		/* VFs still enabled */
 
 	if (dev->is_virtfn) {
-		struct pci_dev *pdev = dev->physfn;
-
+		pdev = pci_physfn(dev);
 		atomic_dec(&pdev->ats_ref_cnt);
 	}
 
