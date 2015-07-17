@@ -331,10 +331,24 @@ static int __swiotlb_mmap(struct device *dev,
 	return ret;
 }
 
+static int __swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
+				 void *cpu_addr, dma_addr_t handle, size_t size,
+				 struct dma_attrs *attrs)
+{
+	int ret = sg_alloc_table(sgt, 1, GFP_KERNEL);
+
+	if (!ret)
+		sg_set_page(sgt->sgl, phys_to_page(dma_to_phys(dev, handle)),
+			    PAGE_ALIGN(size), 0);
+
+	return ret;
+}
+
 static struct dma_map_ops swiotlb_dma_ops = {
 	.alloc = __dma_alloc,
 	.free = __dma_free,
 	.mmap = __swiotlb_mmap,
+	.get_sgtable = __swiotlb_get_sgtable,
 	.map_page = __swiotlb_map_page,
 	.unmap_page = __swiotlb_unmap_page,
 	.map_sg = __swiotlb_map_sg_attrs,
