@@ -191,7 +191,7 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
  *
  * Return: Pointer to the newly allocated QH, or NULL on error
  */
-static struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
+struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
 					  struct dwc2_hcd_urb *urb,
 					  gfp_t mem_flags)
 {
@@ -767,57 +767,32 @@ void dwc2_hcd_qtd_init(struct dwc2_qtd *qtd, struct dwc2_hcd_urb *urb)
  *
  * @hsotg:        The DWC HCD structure
  * @qtd:          The QTD to add
- * @qh:           Out parameter to return queue head
- * @atomic_alloc: Flag to do atomic alloc if needed
+ * @qh:           Queue head to add qtd to
  *
  * Return: 0 if successful, negative error code otherwise
  *
- * Finds the correct QH to place the QTD into. If it does not find a QH, it
- * will create a new QH. If the QH to which the QTD is added is not currently
- * scheduled, it is placed into the proper schedule based on its EP type.
+ * If the QH to which the QTD is added is not currently scheduled, it is placed
+ * into the proper schedule based on its EP type.
  */
 int dwc2_hcd_qtd_add(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
-		     struct dwc2_qh **qh, gfp_t mem_flags)
+		     struct dwc2_qh *qh)
 {
-	struct dwc2_hcd_urb *urb = qtd->urb;
-	int allocated = 0;
 	int retval;
 
-	/*
-	 * Get the QH which holds the QTD-list to insert to. Create QH if it
-	 * doesn't exist.
-	 */
-	if (*qh == NULL) {
-		*qh = dwc2_hcd_qh_create(hsotg, urb, mem_flags);
-		if (*qh == NULL)
-			return -ENOMEM;
-		allocated = 1;
+	if (unlikely(!qh)) {
+		dev_err(hsotg->dev, "%s: Invalid QH\n", __func__);
+		retval = -EINVAL;
+		goto fail;
 	}
 
-	retval = dwc2_hcd_qh_add(hsotg, *qh);
+	retval = dwc2_hcd_qh_add(hsotg, qh);
 	if (retval)
 		goto fail;
 
-	qtd->qh = *qh;
-	list_add_tail(&qtd->qtd_list_entry, &(*qh)->qtd_list);
+	qtd->qh = qh;
+	list_add_tail(&qtd->qtd_list_entry, &qh->qtd_list);
 
 	return 0;
-
 fail:
-	if (allocated) {
-		struct dwc2_qtd *qtd2, *qtd2_tmp;
-		struct dwc2_qh *qh_tmp = *qh;
-
-		*qh = NULL;
-		dwc2_hcd_qh_unlink(hsotg, qh_tmp);
-
-		/* Free each QTD in the QH's QTD list */
-		list_for_each_entry_safe(qtd2, qtd2_tmp, &qh_tmp->qtd_list,
-					 qtd_list_entry)
-			dwc2_hcd_qtd_unlink_and_free(hsotg, qtd2, qh_tmp);
-
-		dwc2_hcd_qh_free(hsotg, qh_tmp);
-	}
-
 	return retval;
 }
