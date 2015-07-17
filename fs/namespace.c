@@ -1565,11 +1565,8 @@ void __detach_mounts(struct dentry *dentry)
 	while (!hlist_empty(&mp->m_list)) {
 		mnt = hlist_entry(mp->m_list.first, struct mount, mnt_mp_list);
 		if (mnt->mnt.mnt_flags & MNT_UMOUNT) {
-			struct mount *p, *tmp;
-			list_for_each_entry_safe(p, tmp, &mnt->mnt_mounts,  mnt_child) {
-				hlist_add_head(&p->mnt_umount.s_list, &unmounted);
-				umount_mnt(p);
-			}
+			hlist_add_head(&mnt->mnt_umount.s_list, &unmounted);
+			umount_mnt(mnt);
 		}
 		else umount_tree(mnt, UMOUNT_CONNECTED);
 	}
