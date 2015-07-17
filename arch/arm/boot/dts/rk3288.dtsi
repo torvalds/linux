@@ -78,6 +78,7 @@
 			     <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
 	cpus {
@@ -110,19 +111,19 @@
 			clock-latency = <40000>;
 			clocks = <&cru ARMCLK>;
 		};
-		cpu@501 {
+		cpu1: cpu@501 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a12";
 			reg = <0x501>;
 			resets = <&cru SRST_CORE1>;
 		};
-		cpu@502 {
+		cpu2: cpu@502 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a12";
 			reg = <0x502>;
 			resets = <&cru SRST_CORE2>;
 		};
-		cpu@503 {
+		cpu3: cpu@503 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a12";
 			reg = <0x503>;
@@ -447,6 +448,8 @@
 			"mac_clk_rx", "mac_clk_tx",
 			"clk_mac_ref", "clk_mac_refout",
 			"aclk_mac", "pclk_mac";
+		resets = <&cru SRST_MAC>;
+		reset-names = "stmmaceth";
 		status = "disabled";
 	};
 
@@ -626,7 +629,7 @@
 		compatible = "rockchip,rk3288-wdt", "snps,dw-wdt";
 		reg = <0xff800000 0x100>;
 		clocks = <&cru PCLK_WDT>;
-		interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 

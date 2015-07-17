@@ -26,3 +26,23 @@ Rockchip platforms device tree bindings
 - ChipSPARK PopMetal-RK3288 board:
     Required root node properties:
       - compatible = "chipspark,popmetal-rk3288", "rockchip,rk3288";
+
+- Netxeon R89 board:
+    Required root node properties:
+      - compatible = "netxeon,r89", "rockchip,rk3288";
+
+- Google Jerry (Hisense Chromebook C11 and more):
+    Required root node properties:
+      - compatible = "google,veyron-jerry-rev7", "google,veyron-jerry-rev6",
+		     "google,veyron-jerry-rev5", "google,veyron-jerry-rev4",
+		     "google,veyron-jerry-rev3", "google,veyron-jerry",
+		     "google,veyron", "rockchip,rk3288";
+
+- Google Pinky (dev-board):
+    Required root node properties:
+      - compatible = "google,veyron-pinky-rev2", "google,veyron-pinky",
+		     "google,veyron", "rockchip,rk3288";
+
+- Rockchip R88 board:
+    Required root node properties:
+      - compatible = "rockchip,r88", "rockchip,rk3368";
