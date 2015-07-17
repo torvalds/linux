@@ -126,6 +126,7 @@ struct intel_pt_queue {
 	u64 timestamp;
 	u32 flags;
 	u16 insn_len;
+	u64 last_insn_cnt;
 };
 
 static void intel_pt_dump(struct intel_pt *pt __maybe_unused,
@@ -920,10 +921,12 @@ static int intel_pt_synth_instruction_sample(struct intel_pt_queue *ptq)
 	sample.addr = ptq->state->to_ip;
 	sample.id = ptq->pt->instructions_id;
 	sample.stream_id = ptq->pt->instructions_id;
-	sample.period = ptq->pt->instructions_sample_period;
+	sample.period = ptq->state->tot_insn_cnt - ptq->last_insn_cnt;
 	sample.cpu = ptq->cpu;
 	sample.flags = ptq->flags;
 	sample.insn_len = ptq->insn_len;
+
+	ptq->last_insn_cnt = ptq->state->tot_insn_cnt;
 
 	if (pt->synth_opts.callchain) {
 		thread_stack__sample(ptq->thread, ptq->chain,

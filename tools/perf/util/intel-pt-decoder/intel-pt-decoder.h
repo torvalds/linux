@@ -58,6 +58,7 @@ struct intel_pt_state {
 	uint64_t from_ip;
 	uint64_t to_ip;
 	uint64_t cr3;
+	uint64_t tot_insn_cnt;
 	uint64_t timestamp;
 	uint64_t est_timestamp;
 	uint64_t trace_nr;

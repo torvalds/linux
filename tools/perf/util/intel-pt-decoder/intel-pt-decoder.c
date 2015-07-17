@@ -108,6 +108,7 @@ struct intel_pt_decoder {
 	uint64_t sign_bits;
 	uint64_t period;
 	enum intel_pt_period_type period_type;
+	uint64_t tot_insn_cnt;
 	uint64_t period_insn_cnt;
 	uint64_t period_mask;
 	uint64_t period_ticks;
@@ -559,6 +560,7 @@ static int intel_pt_walk_insn(struct intel_pt_decoder *decoder,
 	err = decoder->walk_insn(intel_pt_insn, &insn_cnt, &decoder->ip, ip,
 				 max_insn_cnt, decoder->data);
 
+	decoder->tot_insn_cnt += insn_cnt;
 	decoder->timestamp_insn_cnt += insn_cnt;
 	decoder->period_insn_cnt += insn_cnt;
 
@@ -1529,6 +1531,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 	decoder->state.timestamp = decoder->timestamp;
 	decoder->state.est_timestamp = intel_pt_est_timestamp(decoder);
 	decoder->state.cr3 = decoder->cr3;
+	decoder->state.tot_insn_cnt = decoder->tot_insn_cnt;
 
 	if (err)
 		decoder->state.from_ip = decoder->ip;
