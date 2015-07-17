@@ -17,7 +17,7 @@
 
 #include "pci.h"
 
-static void ats_alloc_one(struct pci_dev *dev)
+void pci_ats_init(struct pci_dev *dev)
 {
 	int pos;
 	u16 cap;
@@ -30,11 +30,6 @@ static void ats_alloc_one(struct pci_dev *dev)
 	pci_read_config_word(dev, dev->ats_cap + PCI_ATS_CAP, &cap);
 	dev->ats_qdep = PCI_ATS_CAP_QDEP(cap) ? PCI_ATS_CAP_QDEP(cap) :
 					    PCI_ATS_MAX_QDEP;
-}
-
-void pci_ats_init(struct pci_dev *dev)
-{
-	ats_alloc_one(dev);
 }
 
 /**
