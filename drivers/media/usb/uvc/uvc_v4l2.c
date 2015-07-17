@@ -28,7 +28,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
-
+#include <linux/of.h>
 #include "uvcvideo.h"
 
 /* ------------------------------------------------------------------------
@@ -558,6 +558,8 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_QUERYCAP:
 	{
 		struct v4l2_capability *cap = arg;
+		struct device_node *vpu_node;
+		int vpu_iommu_enabled = 0;
 
 		memset(cap, 0, sizeof *cap);
 		strlcpy(cap->driver, "uvcvideo", sizeof cap->driver);
@@ -573,6 +575,13 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		else
 			cap->device_caps = V4L2_CAP_VIDEO_OUTPUT
 					 | V4L2_CAP_STREAMING;
+        vpu_node = of_find_node_by_name(NULL, "vpu_service");
+    	if(vpu_node){
+        	ret = of_property_read_u32(vpu_node, "iommu_enabled", &vpu_iommu_enabled);
+    	}else{
+        	printk("get vpu_node failed,vpu_iommu_enabled == 0 !!!!!!\n");
+    	}
+        cap->reserved[0] = vpu_iommu_enabled;
 		break;
 	}
 
