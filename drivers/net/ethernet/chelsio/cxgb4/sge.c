@@ -1137,7 +1137,7 @@ cxgb_fcoe_offload(struct sk_buff *skb, struct adapter *adap,
  */
 netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	u32 wr_mid;
+	u32 wr_mid, ctrl0;
 	u64 cntrl, *end;
 	int qidx, credits;
 	unsigned int flits, ndesc;
@@ -1274,9 +1274,15 @@ out_free:	dev_kfree_skb_any(skb);
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	}
 
-	cpl->ctrl0 = htonl(TXPKT_OPCODE_V(CPL_TX_PKT_XT) |
-			   TXPKT_INTF_V(pi->tx_chan) |
-			   TXPKT_PF_V(adap->pf));
+	ctrl0 = TXPKT_OPCODE_V(CPL_TX_PKT_XT) | TXPKT_INTF_V(pi->tx_chan) |
+		TXPKT_PF_V(adap->pf);
+#ifdef CONFIG_CHELSIO_T4_DCB
+	if (is_t4(adap->params.chip))
+		ctrl0 |= TXPKT_OVLAN_IDX_V(q->dcb_prio);
+	else
+		ctrl0 |= TXPKT_T5_OVLAN_IDX_V(q->dcb_prio);
+#endif
+	cpl->ctrl0 = htonl(ctrl0);
 	cpl->pack = htons(0);
 	cpl->len = htons(skb->len);
 	cpl->ctrl1 = cpu_to_be64(cntrl);
