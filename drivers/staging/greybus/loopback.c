@@ -283,7 +283,8 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 		}
 
 		if (len) {
-			if (!gb_operation_response_alloc(operation, len)) {
+			if (!gb_operation_response_alloc(operation, len,
+							 GFP_KERNEL)) {
 				dev_err(&connection->dev,
 					"error allocating response\n");
 				return -ENOMEM;

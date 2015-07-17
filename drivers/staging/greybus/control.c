@@ -75,7 +75,8 @@ static int gb_control_request_recv(u8 type, struct gb_operation *op)
 		// an AP.
 		break;
 	case GB_CONTROL_TYPE_PROTOCOL_VERSION:
-		if (!gb_operation_response_alloc(op, sizeof(*version))) {
+		if (!gb_operation_response_alloc(op, sizeof(*version),
+						 GFP_KERNEL)) {
 			dev_err(&connection->dev,
 				"%s: error allocating response\n", __func__);
 			return -ENOMEM;

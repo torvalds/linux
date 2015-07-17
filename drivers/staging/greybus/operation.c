@@ -426,7 +426,7 @@ static u8 gb_operation_errno_map(int errno)
 }
 
 bool gb_operation_response_alloc(struct gb_operation *operation,
-					size_t response_size)
+					size_t response_size, gfp_t gfp)
 {
 	struct greybus_host_device *hd = operation->connection->hd;
 	struct gb_operation_msg_hdr *request_header;
@@ -434,8 +434,7 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 	u8 type;
 
 	type = operation->type | GB_MESSAGE_TYPE_RESPONSE;
-	response = gb_operation_message_alloc(hd, type, response_size,
-						GFP_KERNEL);
+	response = gb_operation_message_alloc(hd, type, response_size, gfp);
 	if (!response)
 		return false;
 	response->operation = operation;
@@ -497,8 +496,10 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 
 	/* Allocate the response buffer for outgoing operations */
 	if (!(op_flags & GB_OPERATION_FLAG_INCOMING)) {
-		if (!gb_operation_response_alloc(operation, response_size))
+		if (!gb_operation_response_alloc(operation, response_size,
+						 gfp_flags)) {
 			goto err_request;
+		}
 	}
 
 	operation->flags = op_flags;
@@ -734,7 +735,7 @@ static int gb_operation_response_send(struct gb_operation *operation,
 
 	if (!operation->response &&
 			!gb_operation_is_unidirectional(operation)) {
-		if (!gb_operation_response_alloc(operation, 0))
+		if (!gb_operation_response_alloc(operation, 0, GFP_KERNEL))
 			return -ENOMEM;
 	}
 
