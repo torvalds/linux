@@ -36,6 +36,7 @@ enum intel_pt_period_type {
 	INTEL_PT_PERIOD_NONE,
 	INTEL_PT_PERIOD_INSTRUCTIONS,
 	INTEL_PT_PERIOD_TICKS,
+	INTEL_PT_PERIOD_MTC,
 };
 
 enum {
