@@ -337,6 +337,26 @@ config USB_CDC_COMPOSITE
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module.
 
+config USB_G_FRIENDLYARM
+	tristate "FriendlyARM Gadget"
+	depends on NET
+	select USB_U_SERIAL
+	select USB_U_ETHER
+	select USB_F_ACM
+	select USB_F_ECM
+	select USB_F_SERIAL
+	select USB_LIBCOMPOSITE
+	help
+	  This driver provides two functions in one configuration:
+	  a CDC ACM (serial port) link, and a CDC Ethernet (ECM) link.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_friendlyarm".
+
+	  For more information, see Documentation/usb/gadget_serial.txt
+	  which includes instructions and a "driver info file" needed to
+	  make MS-Windows work with CDC ACM.
+
 config USB_G_NOKIA
 	tristate "Nokia composite gadget"
 	depends on PHONET
