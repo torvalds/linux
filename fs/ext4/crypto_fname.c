@@ -329,6 +329,10 @@ int _ext4_fname_disk_to_usr(struct inode *inode,
 			return oname->len;
 		}
 	}
+	if (iname->len < EXT4_CRYPTO_BLOCK_SIZE) {
+		EXT4_ERROR_INODE(inode, "encrypted inode too small");
+		return -EUCLEAN;
+	}
 	if (EXT4_I(inode)->i_crypt_info)
 		return ext4_fname_decrypt(inode, iname, oname);
 
