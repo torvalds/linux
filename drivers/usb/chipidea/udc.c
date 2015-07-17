@@ -1090,6 +1090,13 @@ __acquires(ci->lock)
 				if (ci_otg_is_fsm_mode(ci))
 					err = otg_a_alt_hnp_support(ci);
 				break;
+			case USB_DEVICE_A_HNP_SUPPORT:
+				if (ci_otg_is_fsm_mode(ci)) {
+					ci->gadget.a_hnp_support = 1;
+					err = isr_setup_status_phase(
+							ci);
+				}
+				break;
 			default:
 				goto delegate;
 			}
