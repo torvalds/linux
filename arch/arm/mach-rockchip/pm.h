@@ -59,13 +59,6 @@ static inline void rockchip_suspend_init(void)
 #define SGRF_DAPDEVICEEN		BIT(0)
 #define SGRF_DAPDEVICEEN_WRITE		BIT(16)
 
-#define RK3288_CRU_MODE_CON		0x50
-#define RK3288_CRU_SEL0_CON		0x60
-#define RK3288_CRU_SEL1_CON		0x64
-#define RK3288_CRU_SEL10_CON		0x88
-#define RK3288_CRU_SEL33_CON		0xe4
-#define RK3288_CRU_SEL37_CON		0xf4
-
 /* PMU_WAKEUP_CFG1 bits */
 #define PMU_ARMINT_WAKEUP_EN		BIT(0)
 
