@@ -108,7 +108,7 @@ static int dump_devices(void)
 
 	dp = opendir(iio_dir);
 	if (!dp) {
-		printf("No industrial I/O devices available\n");
+		fprintf(stderr, "No industrial I/O devices available\n");
 		return -ENODEV;
 	}
 

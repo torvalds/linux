@@ -140,7 +140,8 @@ int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
 			sysfsfp = fopen(filename, "r");
 			if (!sysfsfp) {
 				ret = -errno;
-				printf("failed to open %s\n", filename);
+				fprintf(stderr, "failed to open %s\n",
+					filename);
 				goto error_free_filename;
 			}
 
@@ -152,11 +153,13 @@ int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
 				     &padint, shift);
 			if (ret < 0) {
 				ret = -errno;
-				printf("failed to pass scan type description\n");
+				fprintf(stderr,
+					"failed to pass scan type description\n");
 				goto error_close_sysfsfp;
 			} else if (ret != 5) {
 				ret = -EIO;
-				printf("scan type description didn't match\n");
+				fprintf(stderr,
+					"scan type description didn't match\n");
 				goto error_close_sysfsfp;
 			}
 
@@ -170,7 +173,8 @@ int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
 			*is_signed = (signchar == 's');
 			if (fclose(sysfsfp)) {
 				ret = -errno;
-				printf("Failed to close %s\n", filename);
+				fprintf(stderr, "Failed to close %s\n",
+					filename);
 				goto error_free_filename;
 			}
 
@@ -454,7 +458,8 @@ int build_channel_array(const char *device_dir,
 			sysfsfp = fopen(filename, "r");
 			if (!sysfsfp) {
 				ret = -errno;
-				printf("failed to open %s\n", filename);
+				fprintf(stderr, "failed to open %s\n",
+					filename);
 				free(filename);
 				goto error_cleanup_array;
 			}
@@ -568,7 +573,7 @@ int find_type_by_name(const char *name, const char *type)
 
 	dp = opendir(iio_dir);
 	if (!dp) {
-		printf("No industrialio devices available\n");
+		fprintf(stderr, "No industrialio devices available\n");
 		return -ENODEV;
 	}
 
@@ -581,11 +586,13 @@ int find_type_by_name(const char *name, const char *type)
 			ret = sscanf(ent->d_name + strlen(type), "%d", &number);
 			if (ret < 0) {
 				ret = -errno;
-				printf("failed to read element number\n");
+				fprintf(stderr,
+					"failed to read element number\n");
 				goto error_close_dir;
 			} else if (ret != 1) {
 				ret = -EIO;
-				printf("failed to match element number\n");
+				fprintf(stderr,
+					"failed to match element number\n");
 				goto error_close_dir;
 			}
 
@@ -664,7 +671,7 @@ static int _write_sysfs_int(const char *filename, const char *basedir, int val,
 	sysfsfp = fopen(temp, "w");
 	if (!sysfsfp) {
 		ret = -errno;
-		printf("failed to open %s\n", temp);
+		fprintf(stderr, "failed to open %s\n", temp);
 		goto error_free;
 	}
 
@@ -685,7 +692,7 @@ static int _write_sysfs_int(const char *filename, const char *basedir, int val,
 		sysfsfp = fopen(temp, "r");
 		if (!sysfsfp) {
 			ret = -errno;
-			printf("failed to open %s\n", temp);
+			fprintf(stderr, "failed to open %s\n", temp);
 			goto error_free;
 		}
 
@@ -703,8 +710,9 @@ static int _write_sysfs_int(const char *filename, const char *basedir, int val,
 		}
 
 		if (test != val) {
-			printf("Possible failure in int write %d to %s/%s\n",
-			       val, basedir, filename);
+			fprintf(stderr,
+				"Possible failure in int write %d to %s/%s\n",
+				val, basedir, filename);
 			ret = -1;
 		}
 	}
@@ -750,7 +758,7 @@ static int _write_sysfs_string(const char *filename, const char *basedir,
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 
 	if (!temp) {
-		printf("Memory allocation failed\n");
+		fprintf(stderr, "Memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -761,7 +769,7 @@ static int _write_sysfs_string(const char *filename, const char *basedir,
 	sysfsfp = fopen(temp, "w");
 	if (!sysfsfp) {
 		ret = -errno;
-		printf("Could not open %s\n", temp);
+		fprintf(stderr, "Could not open %s\n", temp);
 		goto error_free;
 	}
 
@@ -782,7 +790,7 @@ static int _write_sysfs_string(const char *filename, const char *basedir,
 		sysfsfp = fopen(temp, "r");
 		if (!sysfsfp) {
 			ret = -errno;
-			printf("Could not open file to verify\n");
+			fprintf(stderr, "Could not open file to verify\n");
 			goto error_free;
 		}
 
@@ -800,9 +808,10 @@ static int _write_sysfs_string(const char *filename, const char *basedir,
 		}
 
 		if (strcmp(temp, val) != 0) {
-			printf("Possible failure in string write of %s "
-			       "Should be %s written to %s/%s\n", temp, val,
-			       basedir, filename);
+			fprintf(stderr,
+				"Possible failure in string write of %s "
+				"Should be %s written to %s/%s\n", temp, val,
+				basedir, filename);
 			ret = -1;
 		}
 	}
@@ -856,7 +865,7 @@ int read_sysfs_posint(const char *filename, const char *basedir)
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 
 	if (!temp) {
-		printf("Memory allocation failed");
+		fprintf(stderr, "Memory allocation failed");
 		return -ENOMEM;
 	}
 
@@ -903,7 +912,7 @@ int read_sysfs_float(const char *filename, const char *basedir, float *val)
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 
 	if (!temp) {
-		printf("Memory allocation failed");
+		fprintf(stderr, "Memory allocation failed");
 		return -ENOMEM;
 	}
 
@@ -950,7 +959,7 @@ int read_sysfs_string(const char *filename, const char *basedir, char *str)
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 
 	if (!temp) {
-		printf("Memory allocation failed");
+		fprintf(stderr, "Memory allocation failed");
 		return -ENOMEM;
 	}
 
