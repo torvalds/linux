@@ -190,17 +190,33 @@ static int intel_pt_pick_bit(int bits, int target)
 static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 {
 	char buf[256];
+	int mtc, mtc_periods = 0, mtc_period;
 	int psb_cyc, psb_periods, psb_period;
 	int pos = 0;
 	u64 config;
 
 	pos += scnprintf(buf + pos, sizeof(buf) - pos, "tsc");
 
+	if (perf_pmu__scan_file(intel_pt_pmu, "caps/mtc", "%d",
+				&mtc) != 1)
+		mtc = 1;
+
+	if (mtc) {
+		if (perf_pmu__scan_file(intel_pt_pmu, "caps/mtc_periods", "%x",
+					&mtc_periods) != 1)
+			mtc_periods = 0;
+		if (mtc_periods) {
+			mtc_period = intel_pt_pick_bit(mtc_periods, 3);
+			pos += scnprintf(buf + pos, sizeof(buf) - pos,
+					 ",mtc,mtc_period=%d", mtc_period);
+		}
+	}
+
 	if (perf_pmu__scan_file(intel_pt_pmu, "caps/psb_cyc", "%d",
 				&psb_cyc) != 1)
 		psb_cyc = 1;
 
-	if (psb_cyc) {
+	if (psb_cyc && mtc_periods) {
 		if (perf_pmu__scan_file(intel_pt_pmu, "caps/psb_periods", "%x",
 					&psb_periods) != 1)
 			psb_periods = 0;
@@ -454,8 +470,16 @@ out_err:
 static int intel_pt_validate_config(struct perf_pmu *intel_pt_pmu,
 				    struct perf_evsel *evsel)
 {
+	int err;
+
 	if (!evsel)
 		return 0;
+
+	err = intel_pt_val_config_term(intel_pt_pmu, "caps/mtc_periods",
+				       "mtc_period", "caps/mtc",
+				       evsel->attr.config);
+	if (err)
+		return err;
 
 	return intel_pt_val_config_term(intel_pt_pmu, "caps/psb_periods",
 					"psb_period", "caps/psb_cyc",
