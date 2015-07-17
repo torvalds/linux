@@ -15,6 +15,9 @@
 #include "lpc18xx.dtsi"
 #include "lpc4357.dtsi"
 
+#include "dt-bindings/input/input.h"
+#include "dt-bindings/gpio/gpio.h"
+
 / {
 	model = "Embedded Artists' LPC4357 Developer's Kit";
 	compatible = "ea,lpc4357-developers-kit", "nxp,lpc4357", "nxp,lpc4350";
@@ -34,8 +37,219 @@
 		device_type = "memory";
 		reg = <0x28000000 0x2000000>; /* 32 MB */
 	};
+
+	/* vmmc is controlled by sdmmc host internally */
+	vmmc: vmmc_fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	gpio_joystick {
+		compatible = "gpio-keys-polled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_joystick_pins>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+		autorepeat;
+
+		button@0 {
+			label = "joy_enter";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpio LPC_GPIO(4,8) GPIO_ACTIVE_LOW>;
+		};
+
+		button@1 {
+			label = "joy_left";
+			linux,code = <KEY_LEFT>;
+			gpios = <&gpio LPC_GPIO(4,9) GPIO_ACTIVE_LOW>;
+		};
+
+		button@2 {
+			label = "joy_up";
+			linux,code = <KEY_UP>;
+			gpios = <&gpio LPC_GPIO(4,10) GPIO_ACTIVE_LOW>;
+		};
+
+		button@3 {
+			label = "joy_right";
+			linux,code = <KEY_RIGHT>;
+			gpios = <&gpio LPC_GPIO(4,12) GPIO_ACTIVE_LOW>;
+		};
+
+		button@4 {
+			label = "joy_down";
+			linux,code = <KEY_DOWN>;
+			gpios = <&gpio LPC_GPIO(4,13) GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&pinctrl {
+	enet_rmii_pins: enet-rmii-pins {
+		enet_rmii_rxd_cfg {
+			pins = "p1_15", "p0_0";
+			function = "enet";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		enet_rmii_txd_cfg {
+			pins = "p1_18", "p1_20";
+			function = "enet";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		enet_rmii_rx_dv_cfg {
+			pins = "p1_16";
+			function = "enet";
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		enet_rmii_tx_en_cfg {
+			pins = "p0_1";
+			function = "enet";
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		enet_ref_clk_cfg {
+			pins = "p1_19";
+			function = "enet";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		enet_mdio_cfg {
+			pins = "p1_17";
+			function = "enet";
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		enet_mdc_cfg {
+			pins = "pc_1";
+			function = "enet";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+	};
+
+	gpio_joystick_pins: gpio-joystick-pins {
+		gpio_joystick_cfg {
+			pins =	"p9_0", "p9_1", "pa_1", "pa_2", "pa_3";
+			function = "gpio";
+			input-enable;
+			bias-disable;
+		};
+	};
+
+	sdmmc_pins: sdmmc-pins {
+		sdmmc_clk_cfg {
+			pins = "pc_0";
+			function = "sdmmc";
+			slew-rate = <1>;
+			bias-pull-down;
+		};
+
+		sdmmc_cmd_dat0_3_cfg {
+			pins = "pc_4", "pc_5", "pc_6", "pc_7", "pc_10";
+			function = "sdmmc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		sdmmc_cd_cfg {
+			pins = "pc_8";
+			function = "sdmmc";
+			bias-pull-down;
+			input-enable;
+		};
+
+		sdmmc_pow_cfg {
+			pins = "pc_9";
+			function = "sdmmc";
+			bias-pull-down;
+		};
+	};
+
+	uart0_pins: uart0-pins {
+		uart0_rx_cfg {
+			pins = "pf_11";
+			function = "uart0";
+			input-schmitt-disable;
+			bias-disable;
+			input-enable;
+		};
+
+		uart0_tx_cfg {
+			pins = "pf_10";
+			function = "uart0";
+			bias-pull-down;
+		};
+	};
+
+	uart3_pins: uart3-pins {
+		uart3_rx_cfg {
+			pins = "p2_4";
+			function = "uart3";
+			input-schmitt-disable;
+			bias-disable;
+			input-enable;
+		};
+
+		uart3_tx_cfg {
+			pins = "p9_3";
+			function = "uart3";
+			bias-pull-down;
+		};
+	};
+};
+
+&enet_tx_clk {
+	clock-frequency = <50000000>;
+};
+
+&mac {
+	status = "okay";
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&enet_rmii_pins>;
+};
+
+&mmcsd {
+	status = "okay";
+	bus-width = <4>;
+	vmmc-supply = <&vmmc>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_pins>;
 };
 
 &uart0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+};
+
+&uart3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
 };
