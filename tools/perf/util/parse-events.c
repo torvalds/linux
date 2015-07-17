@@ -1168,7 +1168,7 @@ static void parse_events_print_error(struct parse_events_error *err,
 		 * Maximum error index indent, we will cut
 		 * the event string if it's bigger.
 		 */
-		int max_err_idx = 10;
+		int max_err_idx = 13;
 
 		/*
 		 * Let's be specific with the message when
