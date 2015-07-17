@@ -597,6 +597,40 @@ bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size)
 }
 
 /*
+ * Find a free area in physical memory not yet reserved and compliant with
+ * E820 map.
+ * Used to relocate pre-allocated areas like initrd or p2m list which are in
+ * conflict with the to be used E820 map.
+ * In case no area is found, return 0. Otherwise return the physical address
+ * of the area which is already reserved for convenience.
+ */
+phys_addr_t __init xen_find_free_area(phys_addr_t size)
+{
+	unsigned mapcnt;
+	phys_addr_t addr, start;
+	struct e820entry *entry = xen_e820_map;
+
+	for (mapcnt = 0; mapcnt < xen_e820_map_entries; mapcnt++, entry++) {
+		if (entry->type != E820_RAM || entry->size < size)
+			continue;
+		start = entry->addr;
+		for (addr = start; addr < start + size; addr += PAGE_SIZE) {
+			if (!memblock_is_reserved(addr))
+				continue;
+			start = addr + PAGE_SIZE;
+			if (start + size > entry->addr + entry->size)
+				break;
+		}
+		if (addr >= start + size) {
+			memblock_reserve(start, size);
+			return start;
+		}
+	}
+
+	return 0;
+}
+
+/*
  * Reserve Xen mfn_list.
  * See comment above "struct start_info" in <xen/interface/xen.h>
  * We tried to make the the memblock_reserve more selective so
