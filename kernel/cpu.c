@@ -21,6 +21,7 @@
 #include <linux/suspend.h>
 #include <linux/lockdep.h>
 #include <linux/tick.h>
+#include <linux/irq.h>
 #include <trace/events/power.h>
 
 #include "smpboot.h"
@@ -392,13 +393,19 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	smpboot_park_threads(cpu);
 
 	/*
+	 * Prevent irq alloc/free while the dying cpu reorganizes the
+	 * interrupt affinities.
+	 */
+	irq_lock_sparse();
+
+	/*
 	 * So now all preempt/rcu users must observe !cpu_active().
 	 */
-
 	err = __stop_machine(take_cpu_down, &tcd_param, cpumask_of(cpu));
 	if (err) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
 		cpu_notify_nofail(CPU_DOWN_FAILED | mod, hcpu);
+		irq_unlock_sparse();
 		goto out_release;
 	}
 	BUG_ON(cpu_online(cpu));
@@ -414,6 +421,9 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 		cpu_relax();
 	smp_mb(); /* Read from cpu_dead_idle before __cpu_die(). */
 	per_cpu(cpu_dead_idle, cpu) = false;
+
+	/* Interrupts are moved away from the dying cpu, reenable alloc/free */
+	irq_unlock_sparse();
 
 	hotplug_cpu__broadcast_tick_pull(cpu);
 	/* This actually kills the CPU. */
@@ -517,8 +527,18 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen)
 		goto out_notify;
 	}
 
+	/*
+	 * Some architectures have to walk the irq descriptors to
+	 * setup the vector space for the cpu which comes online.
+	 * Prevent irq alloc/free across the bringup.
+	 */
+	irq_lock_sparse();
+
 	/* Arch-specific enabling code. */
 	ret = __cpu_up(cpu, idle);
+
+	irq_unlock_sparse();
+
 	if (ret != 0)
 		goto out_notify;
 	BUG_ON(!cpu_online(cpu));

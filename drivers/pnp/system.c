@@ -7,7 +7,6 @@
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
-#include <linux/acpi.h>
 #include <linux/pnp.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -23,41 +22,25 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{"", 0}
 };
 
-#ifdef CONFIG_ACPI
-static bool __reserve_range(u64 start, unsigned int length, bool io, char *desc)
-{
-	u8 space_id = io ? ACPI_ADR_SPACE_SYSTEM_IO : ACPI_ADR_SPACE_SYSTEM_MEMORY;
-	return !acpi_reserve_region(start, length, space_id, IORESOURCE_BUSY, desc);
-}
-#else
-static bool __reserve_range(u64 start, unsigned int length, bool io, char *desc)
-{
-	struct resource *res;
-
-	res = io ? request_region(start, length, desc) :
-		request_mem_region(start, length, desc);
-	if (res) {
-		res->flags &= ~IORESOURCE_BUSY;
-		return true;
-	}
-	return false;
-}
-#endif
-
 static void reserve_range(struct pnp_dev *dev, struct resource *r, int port)
 {
 	char *regionid;
 	const char *pnpid = dev_name(&dev->dev);
 	resource_size_t start = r->start, end = r->end;
-	bool reserved;
+	struct resource *res;
 
 	regionid = kmalloc(16, GFP_KERNEL);
 	if (!regionid)
 		return;
 
 	snprintf(regionid, 16, "pnp %s", pnpid);
-	reserved = __reserve_range(start, end - start + 1, !!port, regionid);
-	if (!reserved)
+	if (port)
+		res = request_region(start, end - start + 1, regionid);
+	else
+		res = request_mem_region(start, end - start + 1, regionid);
+	if (res)
+		res->flags &= ~IORESOURCE_BUSY;
+	else
 		kfree(regionid);
 
 	/*
@@ -66,7 +49,7 @@ static void reserve_range(struct pnp_dev *dev, struct resource *r, int port)
 	 * have double reservations.
 	 */
 	dev_info(&dev->dev, "%pR %s reserved\n", r,
-		 reserved ? "has been" : "could not be");
+		 res ? "has been" : "could not be");
 }
 
 static void reserve_resources_of_dev(struct pnp_dev *dev)

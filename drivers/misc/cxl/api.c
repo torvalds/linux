@@ -23,6 +23,7 @@ struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 
 	afu = cxl_pci_to_afu(dev);
 
+	get_device(&afu->dev);
 	ctx = cxl_context_alloc();
 	if (IS_ERR(ctx))
 		return ctx;
@@ -31,6 +32,7 @@ struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 	rc = cxl_context_init(ctx, afu, false, NULL);
 	if (rc) {
 		kfree(ctx);
+		put_device(&afu->dev);
 		return ERR_PTR(-ENOMEM);
 	}
 	cxl_assign_psn_space(ctx);
@@ -59,6 +61,8 @@ int cxl_release_context(struct cxl_context *ctx)
 {
 	if (ctx->status != CLOSED)
 		return -EBUSY;
+
+	put_device(&ctx->afu->dev);
 
 	cxl_context_free(ctx);
 
@@ -159,7 +163,6 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 	}
 
 	ctx->status = STARTED;
-	get_device(&ctx->afu->dev);
 out:
 	mutex_unlock(&ctx->status_mutex);
 	return rc;
@@ -175,12 +178,7 @@ EXPORT_SYMBOL_GPL(cxl_process_element);
 /* Stop a context.  Returns 0 on success, otherwise -Errno */
 int cxl_stop_context(struct cxl_context *ctx)
 {
-	int rc;
-
-	rc = __detach_context(ctx);
-	if (!rc)
-		put_device(&ctx->afu->dev);
-	return rc;
+	return __detach_context(ctx);
 }
 EXPORT_SYMBOL_GPL(cxl_stop_context);
 
