@@ -40,6 +40,9 @@ void __init xen_pt_check_e820(void);
 
 void xen_mm_pin_all(void);
 void xen_mm_unpin_all(void);
+#ifdef CONFIG_X86_64
+void __init xen_relocate_p2m(void);
+#endif
 
 bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size);
 unsigned long __ref xen_chk_extra_mem(unsigned long pfn);

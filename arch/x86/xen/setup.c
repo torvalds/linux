@@ -663,37 +663,35 @@ static void __init xen_phys_memcpy(phys_addr_t dest, phys_addr_t src,
 
 /*
  * Reserve Xen mfn_list.
- * See comment above "struct start_info" in <xen/interface/xen.h>
- * We tried to make the the memblock_reserve more selective so
- * that it would be clear what region is reserved. Sadly we ran
- * in the problem wherein on a 64-bit hypervisor with a 32-bit
- * initial domain, the pt_base has the cr3 value which is not
- * neccessarily where the pagetable starts! As Jan put it: "
- * Actually, the adjustment turns out to be correct: The page
- * tables for a 32-on-64 dom0 get allocated in the order "first L1",
- * "first L2", "first L3", so the offset to the page table base is
- * indeed 2. When reading xen/include/public/xen.h's comment
- * very strictly, this is not a violation (since there nothing is said
- * that the first thing in the page table space is pointed to by
- * pt_base; I admit that this seems to be implied though, namely
- * do I think that it is implied that the page table space is the
- * range [pt_base, pt_base + nt_pt_frames), whereas that
- * range here indeed is [pt_base - 2, pt_base - 2 + nt_pt_frames),
- * which - without a priori knowledge - the kernel would have
- * difficulty to figure out)." - so lets just fall back to the
- * easy way and reserve the whole region.
  */
 static void __init xen_reserve_xen_mfnlist(void)
 {
+	phys_addr_t start, size;
+
 	if (xen_start_info->mfn_list >= __START_KERNEL_map) {
-		memblock_reserve(__pa(xen_start_info->mfn_list),
-				 xen_start_info->pt_base -
-				 xen_start_info->mfn_list);
+		start = __pa(xen_start_info->mfn_list);
+		size = PFN_ALIGN(xen_start_info->nr_pages *
+				 sizeof(unsigned long));
+	} else {
+		start = PFN_PHYS(xen_start_info->first_p2m_pfn);
+		size = PFN_PHYS(xen_start_info->nr_p2m_frames);
+	}
+
+	if (!xen_is_e820_reserved(start, size)) {
+		memblock_reserve(start, size);
 		return;
 	}
 
-	memblock_reserve(PFN_PHYS(xen_start_info->first_p2m_pfn),
-			 PFN_PHYS(xen_start_info->nr_p2m_frames));
+#ifdef CONFIG_X86_32
+	/*
+	 * Relocating the p2m on 32 bit system to an arbitrary virtual address
+	 * is not supported, so just give up.
+	 */
+	xen_raw_console_write("Xen hypervisor allocated p2m list conflicts with E820 map\n");
+	BUG();
+#else
+	xen_relocate_p2m();
+#endif
 }
 
 /**
@@ -895,7 +893,10 @@ char * __init xen_auto_xlated_memory_setup(void)
 		e820_add_region(xen_e820_map[i].addr, xen_e820_map[i].size,
 				xen_e820_map[i].type);
 
-	xen_reserve_xen_mfnlist();
+	/* Remove p2m info, it is not needed. */
+	xen_start_info->mfn_list = 0;
+	xen_start_info->first_p2m_pfn = 0;
+	xen_start_info->nr_p2m_frames = 0;
 
 	return "Xen";
 }
