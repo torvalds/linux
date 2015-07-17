@@ -194,6 +194,17 @@ static int rename_slot(struct pci_slot *slot, const char *name)
 	return result;
 }
 
+void pci_dev_assign_slot(struct pci_dev *dev)
+{
+	struct pci_slot *slot;
+
+	mutex_lock(&pci_slot_mutex);
+	list_for_each_entry(slot, &dev->bus->slots, list)
+		if (PCI_SLOT(dev->devfn) == slot->number)
+			dev->slot = slot;
+	mutex_unlock(&pci_slot_mutex);
+}
+
 static struct pci_slot *get_slot(struct pci_bus *parent, int slot_nr)
 {
 	struct pci_slot *slot;
