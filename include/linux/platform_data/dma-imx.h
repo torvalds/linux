@@ -56,6 +56,8 @@ struct imx_dma_data {
 	int dma_request2; /* secondary DMA request line */
 	enum sdma_peripheral_type peripheral_type;
 	int priority;
+	bool src_dualfifo;
+	bool dst_dualfifo;
 };
 
 static inline int imx_dma_is_ipu(struct dma_chan *chan)
