@@ -1868,9 +1868,7 @@ ENTRY(_switch_to)
 	/* Disable ints while we manipulate the stack pointer. */
 
 	rsil	a14, LOCKLEVEL
-	rsr	a3, excsave1
 	rsync
-	s32i	a3, a3, EXC_TABLE_FIXUP	/* enter critical section */
 
 	/* Switch CPENABLE */
 
@@ -1891,9 +1889,7 @@ ENTRY(_switch_to)
 	 */
 
 	rsr	a3, excsave1		# exc_table
-	movi	a6, 0
 	addi	a7, a5, PT_REGS_OFFSET
-	s32i	a6, a3, EXC_TABLE_FIXUP
 	s32i	a7, a3, EXC_TABLE_KSTK
 
 	/* restore context of the task 'next' */
