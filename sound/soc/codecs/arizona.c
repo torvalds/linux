@@ -1366,7 +1366,7 @@ static void arizona_wm5102_set_dac_comp(struct snd_soc_codec *codec,
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
-	struct reg_default dac_comp[] = {
+	struct reg_sequence dac_comp[] = {
 		{ 0x80, 0x3 },
 		{ ARIZONA_DAC_COMP_1, 0 },
 		{ ARIZONA_DAC_COMP_2, 0 },

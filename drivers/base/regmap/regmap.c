@@ -1743,7 +1743,7 @@ EXPORT_SYMBOL_GPL(regmap_bulk_write);
  * relative. The page register has been written if that was neccessary.
  */
 static int _regmap_raw_multi_reg_write(struct regmap *map,
-				       const struct reg_default *regs,
+				       const struct reg_sequence *regs,
 				       size_t num_regs)
 {
 	int ret;
@@ -1800,12 +1800,12 @@ static unsigned int _regmap_register_page(struct regmap *map,
 }
 
 static int _regmap_range_multi_paged_reg_write(struct regmap *map,
-					       struct reg_default *regs,
+					       struct reg_sequence *regs,
 					       size_t num_regs)
 {
 	int ret;
 	int i, n;
-	struct reg_default *base;
+	struct reg_sequence *base;
 	unsigned int this_page = 0;
 	/*
 	 * the set of registers are not neccessarily in order, but
@@ -1843,7 +1843,7 @@ static int _regmap_range_multi_paged_reg_write(struct regmap *map,
 }
 
 static int _regmap_multi_reg_write(struct regmap *map,
-				   const struct reg_default *regs,
+				   const struct reg_sequence *regs,
 				   size_t num_regs)
 {
 	int i;
@@ -1895,8 +1895,8 @@ static int _regmap_multi_reg_write(struct regmap *map,
 		struct regmap_range_node *range;
 		range = _regmap_range_lookup(map, reg);
 		if (range) {
-			size_t len = sizeof(struct reg_default)*num_regs;
-			struct reg_default *base = kmemdup(regs, len,
+			size_t len = sizeof(struct reg_sequence)*num_regs;
+			struct reg_sequence *base = kmemdup(regs, len,
 							   GFP_KERNEL);
 			if (!base)
 				return -ENOMEM;
@@ -1929,7 +1929,7 @@ static int _regmap_multi_reg_write(struct regmap *map,
  * A value of zero will be returned on success, a negative errno will be
  * returned in error cases.
  */
-int regmap_multi_reg_write(struct regmap *map, const struct reg_default *regs,
+int regmap_multi_reg_write(struct regmap *map, const struct reg_sequence *regs,
 			   int num_regs)
 {
 	int ret;
@@ -1962,7 +1962,7 @@ EXPORT_SYMBOL_GPL(regmap_multi_reg_write);
  * be returned in error cases.
  */
 int regmap_multi_reg_write_bypassed(struct regmap *map,
-				    const struct reg_default *regs,
+				    const struct reg_sequence *regs,
 				    int num_regs)
 {
 	int ret;
@@ -2552,10 +2552,10 @@ EXPORT_SYMBOL_GPL(regmap_async_complete);
  * The caller must ensure that this function cannot be called
  * concurrently with either itself or regcache_sync().
  */
-int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
+int regmap_register_patch(struct regmap *map, const struct reg_sequence *regs,
 			  int num_regs)
 {
-	struct reg_default *p;
+	struct reg_sequence *p;
 	int ret;
 	bool bypass;
 
@@ -2564,7 +2564,7 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 		return 0;
 
 	p = krealloc(map->patch,
-		     sizeof(struct reg_default) * (map->patch_regs + num_regs),
+		     sizeof(struct reg_sequence) * (map->patch_regs + num_regs),
 		     GFP_KERNEL);
 	if (p) {
 		memcpy(p + map->patch_regs, regs, num_regs * sizeof(*regs));

@@ -3495,7 +3495,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
 };
 
 /* Improve power consumption for IN4 DC measurement mode */
-static const struct reg_default wm8962_dc_measure[] = {
+static const struct reg_sequence wm8962_dc_measure[] = {
 	{ 0xfd, 0x1 },
 	{ 0xcc, 0x40 },
 	{ 0xfd, 0 },

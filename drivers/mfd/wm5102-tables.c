@@ -21,7 +21,7 @@
 #define WM5102_NUM_AOD_ISR 2
 #define WM5102_NUM_ISR 5
 
-static const struct reg_default wm5102_reva_patch[] = {
+static const struct reg_sequence wm5102_reva_patch[] = {
 	{ 0x80, 0x0003 },
 	{ 0x221, 0x0090 },
 	{ 0x211, 0x0014 },
@@ -57,7 +57,7 @@ static const struct reg_default wm5102_reva_patch[] = {
 	{ 0x80, 0x0000 },
 };
 
-static const struct reg_default wm5102_revb_patch[] = {
+static const struct reg_sequence wm5102_revb_patch[] = {
 	{ 0x19, 0x0001 },
 	{ 0x80, 0x0003 },
 	{ 0x081, 0xE022 },
@@ -80,7 +80,7 @@ static const struct reg_default wm5102_revb_patch[] = {
 /* We use a function so we can use ARRAY_SIZE() */
 int wm5102_patch(struct arizona *arizona)
 {
-	const struct reg_default *wm5102_patch;
+	const struct reg_sequence *wm5102_patch;
 	int patch_size;
 
 	switch (arizona->rev) {
