@@ -100,13 +100,15 @@ static void ep93xx_gpio_ab_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static void ep93xx_gpio_f_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ep93xx_gpio_f_irq_handler(unsigned int __irq,
+				      struct irq_desc *desc)
 {
 	/*
 	 * map discontiguous hw irq range to continuous sw irq range:
 	 *
 	 *  IRQ_EP93XX_GPIO{0..7}MUX -> gpio_to_irq(EP93XX_GPIO_LINE_F({0..7})
 	 */
+	unsigned int irq = irq_desc_get_irq(desc);
 	int port_f_idx = ((irq + 1) & 7) ^ 4; /* {19..22,47..50} -> {0..7} */
 	int gpio_irq = gpio_to_irq(EP93XX_GPIO_LINE_F(0)) + port_f_idx;
 
@@ -208,7 +210,7 @@ static int ep93xx_gpio_irq_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	__irq_set_handler_locked(d->irq, handler);
+	irq_set_handler_locked(d, handler);
 
 	gpio_int_enabled[port] |= port_mask;
 

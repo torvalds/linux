@@ -446,8 +446,8 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 		 * The parent irqchip is already using the chip_data for this
 		 * irqchip, so our callbacks simply use the handler_data.
 		 */
-		irq_set_handler_data(parent_irq, gpiochip);
-		irq_set_chained_handler(parent_irq, parent_handler);
+		irq_set_chained_handler_and_data(parent_irq, parent_handler,
+						 gpiochip);
 
 		gpiochip->irq_parent = parent_irq;
 	}

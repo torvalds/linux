@@ -157,7 +157,7 @@ static void mxs_flip_edge(struct mxs_gpio_port *port, u32 gpio)
 static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	u32 irq_stat;
-	struct mxs_gpio_port *port = irq_get_handler_data(irq);
+	struct mxs_gpio_port *port = irq_desc_get_handler_data(desc);
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
