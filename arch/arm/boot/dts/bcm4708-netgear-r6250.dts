@@ -24,16 +24,6 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
-	chipcommonA {
-		uart0: serial@0300 {
-			status = "okay";
-		};
-
-		uart1: serial@0400 {
-			status = "okay";
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
@@ -91,4 +81,8 @@
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&uart0 {
+	status = "okay";
 };
