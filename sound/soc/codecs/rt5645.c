@@ -3397,12 +3397,23 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		ret = request_threaded_irq(rt5645->i2c->irq, NULL, rt5645_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
 			| IRQF_ONESHOT, "rt5645", rt5645);
-		if (ret)
+		if (ret) {
 			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
+			return ret;
+		}
 	}
 
-	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5645,
-				      rt5645_dai, ARRAY_SIZE(rt5645_dai));
+	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5645,
+				     rt5645_dai, ARRAY_SIZE(rt5645_dai));
+	if (ret)
+		goto err_irq;
+
+	return 0;
+
+err_irq:
+	if (rt5645->i2c->irq)
+		free_irq(rt5645->i2c->irq, rt5645);
+	return ret;
 }
 
 static int rt5645_i2c_remove(struct i2c_client *i2c)
