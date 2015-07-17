@@ -246,9 +246,7 @@ static inline void reset_deferred_meminit(pg_data_t *pgdat)
 /* Returns true if the struct page for the pfn is uninitialised */
 static inline bool __meminit early_page_uninitialised(unsigned long pfn)
 {
-	int nid = early_pfn_to_nid(pfn);
-
-	if (pfn >= NODE_DATA(nid)->first_deferred_pfn)
+	if (pfn >= NODE_DATA(early_pfn_to_nid(pfn))->first_deferred_pfn)
 		return true;
 
 	return false;
