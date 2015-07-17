@@ -1891,12 +1891,6 @@ int __init acpi_scan_init(void)
 {
 	int result;
 
-	result = bus_register(&acpi_bus_type);
-	if (result) {
-		/* We don't want to quit even if we failed to add suspend/resume */
-		printk(KERN_ERR PREFIX "Could not register bus type\n");
-	}
-
 	acpi_pci_root_init();
 	acpi_pci_link_init();
 	acpi_processor_init();

@@ -1039,7 +1039,9 @@ static int __init acpi_bus_init(void)
 	 */
 	acpi_root_dir = proc_mkdir(ACPI_BUS_FILE_ROOT, NULL);
 
-	return 0;
+	result = bus_register(&acpi_bus_type);
+	if (!result)
+		return 0;
 
 	/* Mimic structured exception handling */
       error1:
