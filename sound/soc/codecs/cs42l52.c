@@ -1118,7 +1118,7 @@ static const struct snd_soc_codec_driver soc_codec_dev_cs42l52 = {
 };
 
 /* Current and threshold powerup sequence Pg37 */
-static const struct reg_default cs42l52_threshold_patch[] = {
+static const struct reg_sequence cs42l52_threshold_patch[] = {
 
 	{ 0x00, 0x99 },
 	{ 0x3E, 0xBA },

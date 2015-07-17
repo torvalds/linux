@@ -243,21 +243,21 @@ static int wm8994_ldo_in_use(struct wm8994_pdata *pdata, int ldo)
 }
 #endif
 
-static const struct reg_default wm8994_revc_patch[] = {
+static const struct reg_sequence wm8994_revc_patch[] = {
 	{ 0x102, 0x3 },
 	{ 0x56, 0x3 },
 	{ 0x817, 0x0 },
 	{ 0x102, 0x0 },
 };
 
-static const struct reg_default wm8958_reva_patch[] = {
+static const struct reg_sequence wm8958_reva_patch[] = {
 	{ 0x102, 0x3 },
 	{ 0xcb, 0x81 },
 	{ 0x817, 0x0 },
 	{ 0x102, 0x0 },
 };
 
-static const struct reg_default wm1811_reva_patch[] = {
+static const struct reg_sequence wm1811_reva_patch[] = {
 	{ 0x102, 0x3 },
 	{ 0x56, 0xc07 },
 	{ 0x5d, 0x7e },
@@ -326,7 +326,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 {
 	struct wm8994_pdata *pdata;
 	struct regmap_config *regmap_config;
-	const struct reg_default *regmap_patch = NULL;
+	const struct reg_sequence *regmap_patch = NULL;
 	const char *devname;
 	int ret, i, patch_regs = 0;
 	int pulls = 0;

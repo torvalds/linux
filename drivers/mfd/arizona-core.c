@@ -392,7 +392,7 @@ err:
  * Register patch to some of the CODECs internal write sequences
  * to ensure a clean exit from the low power sleep state.
  */
-static const struct reg_default wm5110_sleep_patch[] = {
+static const struct reg_sequence wm5110_sleep_patch[] = {
 	{ 0x337A, 0xC100 },
 	{ 0x337B, 0x0041 },
 	{ 0x3300, 0xA210 },
