@@ -4665,7 +4665,7 @@ F:	drivers/media/usb/stk1160/
 
 H8/300 ARCHITECTURE
 M:	Yoshinori Sato <ysato@users.sourceforge.jp>
-L:	uclinux-h8-devel@lists.sourceforge.jp
+L:	uclinux-h8-devel@lists.sourceforge.jp (moderated for non-subscribers)
 W:	http://uclinux-h8.sourceforge.jp
 T:	git git://git.sourceforge.jp/gitroot/uclinux-h8/linux.git
 S:	Maintained
