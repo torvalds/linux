@@ -96,8 +96,10 @@ static int render_state_setup(struct render_state *so)
 			s = lower_32_bits(r);
 			if (so->gen >= 8) {
 				if (i + 1 >= rodata->batch_items ||
-				    rodata->batch[i + 1] != 0)
-					return -EINVAL;
+				    rodata->batch[i + 1] != 0) {
+					ret = -EINVAL;
+					goto err_out;
+				}
 
 				d[i++] = s;
 				s = upper_32_bits(r);
@@ -120,6 +122,10 @@ static int render_state_setup(struct render_state *so)
 	}
 
 	return 0;
+
+err_out:
+	kunmap(page);
+	return ret;
 }
 
 void i915_gem_render_state_fini(struct render_state *so)
