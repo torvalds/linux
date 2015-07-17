@@ -1002,8 +1002,10 @@ struct btrfs_dev_replace {
 	pid_t lock_owner;
 	atomic_t nesting_level;
 	struct mutex lock_finishing_cancel_unmount;
-	struct mutex lock_management_lock;
-	struct mutex lock;
+	rwlock_t lock;
+	atomic_t read_locks;
+	atomic_t blocking_readers;
+	wait_queue_head_t read_lock_wq;
 
 	struct btrfs_scrub_progress scrub_progress;
 };

@@ -1714,12 +1714,12 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	} while (read_seqretry(&root->fs_info->profiles_lock, seq));
 
 	num_devices = root->fs_info->fs_devices->num_devices;
-	btrfs_dev_replace_lock(&root->fs_info->dev_replace);
+	btrfs_dev_replace_lock(&root->fs_info->dev_replace, 0);
 	if (btrfs_dev_replace_is_ongoing(&root->fs_info->dev_replace)) {
 		WARN_ON(num_devices < 1);
 		num_devices--;
 	}
-	btrfs_dev_replace_unlock(&root->fs_info->dev_replace);
+	btrfs_dev_replace_unlock(&root->fs_info->dev_replace, 0);
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID10) && num_devices <= 4) {
 		ret = BTRFS_ERROR_DEV_RAID10_MIN_NOT_MET;
@@ -3686,12 +3686,12 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	}
 
 	num_devices = fs_info->fs_devices->num_devices;
-	btrfs_dev_replace_lock(&fs_info->dev_replace);
+	btrfs_dev_replace_lock(&fs_info->dev_replace, 0);
 	if (btrfs_dev_replace_is_ongoing(&fs_info->dev_replace)) {
 		BUG_ON(num_devices < 1);
 		num_devices--;
 	}
-	btrfs_dev_replace_unlock(&fs_info->dev_replace);
+	btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
 	allowed = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
 	if (num_devices == 1)
 		allowed |= BTRFS_BLOCK_GROUP_DUP;
@@ -5062,10 +5062,10 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 		ret = 1;
 	free_extent_map(em);
 
-	btrfs_dev_replace_lock(&fs_info->dev_replace);
+	btrfs_dev_replace_lock(&fs_info->dev_replace, 0);
 	if (btrfs_dev_replace_is_ongoing(&fs_info->dev_replace))
 		ret++;
-	btrfs_dev_replace_unlock(&fs_info->dev_replace);
+	btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
 
 	return ret;
 }
@@ -5325,10 +5325,12 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 	if (!bbio_ret)
 		goto out;
 
-	btrfs_dev_replace_lock(dev_replace);
+	btrfs_dev_replace_lock(dev_replace, 0);
 	dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(dev_replace);
 	if (!dev_replace_is_ongoing)
-		btrfs_dev_replace_unlock(dev_replace);
+		btrfs_dev_replace_unlock(dev_replace, 0);
+	else
+		btrfs_dev_replace_set_lock_blocking(dev_replace);
 
 	if (dev_replace_is_ongoing && mirror_num == map->num_stripes + 1 &&
 	    !(rw & (REQ_WRITE | REQ_DISCARD | REQ_GET_READ_MIRRORS)) &&
@@ -5751,8 +5753,10 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		bbio->mirror_num = map->num_stripes + 1;
 	}
 out:
-	if (dev_replace_is_ongoing)
-		btrfs_dev_replace_unlock(dev_replace);
+	if (dev_replace_is_ongoing) {
+		btrfs_dev_replace_clear_lock_blocking(dev_replace);
+		btrfs_dev_replace_unlock(dev_replace, 0);
+	}
 	free_extent_map(em);
 	return ret;
 }

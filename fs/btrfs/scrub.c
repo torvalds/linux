@@ -3857,16 +3857,16 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		return -EIO;
 	}
 
-	btrfs_dev_replace_lock(&fs_info->dev_replace);
+	btrfs_dev_replace_lock(&fs_info->dev_replace, 0);
 	if (dev->scrub_device ||
 	    (!is_dev_replace &&
 	     btrfs_dev_replace_is_ongoing(&fs_info->dev_replace))) {
-		btrfs_dev_replace_unlock(&fs_info->dev_replace);
+		btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		return -EINPROGRESS;
 	}
-	btrfs_dev_replace_unlock(&fs_info->dev_replace);
+	btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
 
 	ret = scrub_workers_get(fs_info, is_dev_replace);
 	if (ret) {
