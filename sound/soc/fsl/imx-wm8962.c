@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * Based on imx-sgtl5000.c
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
@@ -33,7 +33,7 @@
 #define DAI_NAME_SIZE	32
 
 struct imx_wm8962_data {
-	struct snd_soc_dai_link dai;
+	struct snd_soc_dai_link dai[3];
 	struct snd_soc_card card;
 	char codec_dai_name[DAI_NAME_SIZE];
 	char platform_name[DAI_NAME_SIZE];
@@ -53,6 +53,9 @@ struct imx_priv {
 	struct snd_pcm_substream *second_stream;
 	struct snd_kcontrol *headphone_kctl;
 	struct snd_card *snd_card;
+	struct platform_device *asrc_pdev;
+	u32 asrc_rate;
+	u32 asrc_format;
 };
 static struct imx_priv card_priv;
 
@@ -492,6 +495,25 @@ static int imx_wm8962_late_probe(struct snd_soc_card *card)
 	return ret;
 }
 
+static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+				struct snd_pcm_hw_params *params) {
+	struct imx_priv *priv = &card_priv;
+	struct snd_interval *rate;
+	struct snd_mask *mask;
+
+	if (!priv->asrc_pdev)
+		return -EINVAL;
+
+	rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	rate->max = rate->min = priv->asrc_rate;
+
+	mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	snd_mask_none(mask);
+	snd_mask_set(mask, priv->asrc_format);
+
+	return 0;
+}
+
 static int imx_wm8962_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -503,8 +525,12 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	struct clk *codec_clk = NULL;
 	int int_port, ext_port;
 	int ret;
+	struct platform_device *asrc_pdev = NULL;
+	struct device_node *asrc_np;
+	u32 width;
 
 	priv->pdev = pdev;
+	priv->asrc_pdev = NULL;
 
 	cpu_np = of_parse_phandle(pdev->dev.of_node, "cpu-dai", 0);
 	if (!cpu_np) {
@@ -573,6 +599,12 @@ audmux_bypass:
 		goto fail;
 	}
 
+	asrc_np = of_parse_phandle(pdev->dev.of_node, "asrc-controller", 0);
+	if (asrc_np) {
+		asrc_pdev = of_find_device_by_node(asrc_np);
+		priv->asrc_pdev = asrc_pdev;
+	}
+
 	priv->first_stream = NULL;
 	priv->second_stream = NULL;
 
@@ -599,15 +631,65 @@ audmux_bypass:
 	priv->mic_gpio = of_get_named_gpio_flags(np, "mic-det-gpios", 0,
 				(enum of_gpio_flags *)&priv->mic_active_low);
 
-	data->dai.name = "HiFi";
-	data->dai.stream_name = "HiFi";
-	data->dai.codec_dai_name = "wm8962";
-	data->dai.codec_of_node = codec_np;
-	data->dai.cpu_dai_name = dev_name(&cpu_pdev->dev);
-	data->dai.platform_of_node = cpu_np;
-	data->dai.ops = &imx_hifi_ops;
-	data->dai.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+	data->dai[0].name = "HiFi";
+	data->dai[0].stream_name = "HiFi";
+	data->dai[0].codec_dai_name = "wm8962";
+	data->dai[0].codec_of_node = codec_np;
+	data->dai[0].cpu_dai_name = dev_name(&cpu_pdev->dev);
+	data->dai[0].platform_of_node = cpu_np;
+	data->dai[0].ops = &imx_hifi_ops;
+	data->dai[0].dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			    SND_SOC_DAIFMT_CBM_CFM;
+
+	data->card.num_links = 1;
+
+	if (asrc_pdev) {
+		data->dai[0].ignore_pmdown_time = 1;
+		data->dai[1].name = "HiFi-ASRC-FE";
+		data->dai[1].stream_name = "HiFi-ASRC-FE";
+		data->dai[1].codec_name = "snd-soc-dummy";
+		data->dai[1].codec_dai_name = "snd-soc-dummy-dai";
+		data->dai[1].cpu_of_node = asrc_np;
+		data->dai[1].platform_of_node = asrc_np;
+		data->dai[1].dynamic = 1;
+		data->dai[1].ignore_pmdown_time = 1;
+		data->dai[1].dpcm_playback = 1;
+		data->dai[1].dpcm_capture = 1;
+
+		data->dai[2].name = "HiFi-ASRC-BE";
+		data->dai[2].stream_name = "HiFi-ASRC-BE";
+		data->dai[2].codec_dai_name = "wm8962";
+		data->dai[2].codec_of_node = codec_np;
+		data->dai[2].cpu_dai_name = dev_name(&cpu_pdev->dev);
+		data->dai[2].platform_name = "snd-soc-dummy";
+		data->dai[2].ops = &imx_hifi_ops;
+		data->dai[2].be_hw_params_fixup = be_hw_params_fixup;
+		data->dai[2].no_pcm = 1;
+		data->dai[2].ignore_pmdown_time = 1;
+		data->dai[2].dpcm_playback = 1;
+		data->dai[2].dpcm_capture = 1;
+		data->card.num_links = 3;
+
+		ret = of_property_read_u32(asrc_np, "fsl,asrc-rate",
+						&priv->asrc_rate);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get output rate\n");
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		ret = of_property_read_u32(asrc_np, "fsl,asrc-width", &width);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get output rate\n");
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		if (width == 24)
+			priv->asrc_format = SNDRV_PCM_FORMAT_S24_LE;
+		else
+			priv->asrc_format = SNDRV_PCM_FORMAT_S16_LE;
+	}
 
 	data->card.dev = &pdev->dev;
 	ret = snd_soc_of_parse_card_name(&data->card, "model");
@@ -616,9 +698,8 @@ audmux_bypass:
 	ret = snd_soc_of_parse_audio_routing(&data->card, "audio-routing");
 	if (ret)
 		goto fail;
-	data->card.num_links = 1;
 	data->card.owner = THIS_MODULE;
-	data->card.dai_link = &data->dai;
+	data->card.dai_link = data->dai;
 	data->card.dapm_widgets = imx_wm8962_dapm_widgets;
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_wm8962_dapm_widgets);
 

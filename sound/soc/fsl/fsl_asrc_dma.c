@@ -157,6 +157,7 @@ static int fsl_asrc_dma_hw_params(struct snd_pcm_substream *substream,
 	struct device *dev_be;
 	u8 dir = tx ? OUT : IN;
 	dma_cap_mask_t mask;
+	enum sdma_peripheral_type be_peripheral_type;
 	int ret;
 
 	/* Fetch the Back-End dma_data from DPCM */
@@ -212,6 +213,7 @@ static int fsl_asrc_dma_hw_params(struct snd_pcm_substream *substream,
 	tmp_chan = dma_request_slave_channel(dev_be, tx ? "tx" : "rx");
 	tmp_data = tmp_chan->private;
 	pair->dma_data.dma_request = tmp_data->dma_request;
+	be_peripheral_type = tmp_data->peripheral_type;
 	dma_release_channel(tmp_chan);
 
 	/* Get DMA request of Front-End */
@@ -221,6 +223,11 @@ static int fsl_asrc_dma_hw_params(struct snd_pcm_substream *substream,
 	pair->dma_data.peripheral_type = tmp_data->peripheral_type;
 	pair->dma_data.priority = tmp_data->priority;
 	dma_release_channel(tmp_chan);
+
+	if (tx && be_peripheral_type == IMX_DMATYPE_SSI_DUAL)
+		pair->dma_data.dst_dualfifo = true;
+	if (!tx && be_peripheral_type == IMX_DMATYPE_SSI_DUAL)
+		pair->dma_data.src_dualfifo = true;
 
 	pair->dma_chan[dir] = dma_request_channel(mask, filter, &pair->dma_data);
 	if (!pair->dma_chan[dir]) {
@@ -232,6 +239,8 @@ static int fsl_asrc_dma_hw_params(struct snd_pcm_substream *substream,
 		buswidth = DMA_SLAVE_BUSWIDTH_2_BYTES;
 	else
 		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
+
+	memset(&config_be, 0, sizeof(config_be));
 
 	config_be.direction = DMA_DEV_TO_DEV;
 	config_be.src_addr_width = buswidth;
