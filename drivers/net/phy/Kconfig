@@ -54,6 +54,11 @@ config VITESSE_PHY
         ---help---
           Currently supports the vsc8244
 
+config TERANETICS_PHY
+        tristate "Drivers for the Teranetics PHYs"
+        ---help---
+          Currently supports the Teranetics TN2020
+
 config SMSC_PHY
 	tristate "Drivers for SMSC PHYs"
 	---help---
