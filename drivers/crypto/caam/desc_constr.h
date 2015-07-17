@@ -367,7 +367,7 @@ do { \
 	if (upper) \
 		append_u64(desc, data); \
 	else \
-		append_u32(desc, data); \
+		append_u32(desc, lower_32_bits(data)); \
 } while (0)
 
 #define append_math_add_imm_u64(desc, dest, src0, src1, data) \
