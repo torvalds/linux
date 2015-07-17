@@ -2061,7 +2061,6 @@ static void process_deferred_writethrough_bios(struct cache *cache)
 
 static void writeback_some_dirty_blocks(struct cache *cache)
 {
-	int r = 0;
 	dm_oblock_t oblock;
 	dm_cblock_t cblock;
 	struct prealloc structs;
@@ -2071,15 +2070,11 @@ static void writeback_some_dirty_blocks(struct cache *cache)
 	memset(&structs, 0, sizeof(structs));
 
 	while (spare_migration_bandwidth(cache)) {
-		if (prealloc_data_structs(cache, &structs))
-			break;
+		if (policy_writeback_work(cache->policy, &oblock, &cblock, busy))
+			break; /* no work to do */
 
-		r = policy_writeback_work(cache->policy, &oblock, &cblock, busy);
-		if (r)
-			break;
-
-		r = get_cell(cache, oblock, &structs, &old_ocell);
-		if (r) {
+		if (prealloc_data_structs(cache, &structs) ||
+		    get_cell(cache, oblock, &structs, &old_ocell)) {
 			policy_set_dirty(cache->policy, oblock);
 			break;
 		}
