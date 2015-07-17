@@ -77,6 +77,10 @@ static const struct regmap_irq da9063_irqs[] = {
 		.reg_offset = DA9063_REG_EVENT_B_OFFSET,
 		.mask = DA9063_M_UVOV,
 	},
+	[DA9063_IRQ_DVC_RDY] = {
+		.reg_offset = DA9063_REG_EVENT_B_OFFSET,
+		.mask = DA9063_M_DVC_RDY,
+	},
 	[DA9063_IRQ_VDD_MON] = {
 		.reg_offset = DA9063_REG_EVENT_B_OFFSET,
 		.mask = DA9063_M_VDD_MON,
