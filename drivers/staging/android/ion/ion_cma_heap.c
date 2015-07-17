@@ -73,8 +73,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	if (!info->table)
 		goto free_mem;
 
-	if (dma_common_get_sgtable
-	    (dev, info->table, info->cpu_addr, info->handle, len))
+	if (dma_get_sgtable(dev, info->table, info->cpu_addr, info->handle, len))
 		goto free_table;
 	/* keep this for memory release */
 	buffer->priv_virt = info;
