@@ -7834,7 +7834,8 @@ void md_do_sync(struct md_thread *thread)
 		      > (max_sectors >> 4)) ||
 		     time_after_eq(jiffies, update_time + UPDATE_FREQUENCY) ||
 		     (j - mddev->curr_resync_completed)*2
-		     >= mddev->resync_max - mddev->curr_resync_completed
+		     >= mddev->resync_max - mddev->curr_resync_completed ||
+		     mddev->curr_resync_completed > mddev->resync_max
 			    )) {
 			/* time to update curr_resync_completed */
 			wait_event(mddev->recovery_wait,
