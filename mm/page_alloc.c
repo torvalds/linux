@@ -1948,6 +1948,7 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
 void split_page(struct page *page, unsigned int order)
 {
 	int i;
+	gfp_t gfp_mask;
 
 	VM_BUG_ON_PAGE(PageCompound(page), page);
 	VM_BUG_ON_PAGE(!page_count(page), page);
@@ -1961,10 +1962,11 @@ void split_page(struct page *page, unsigned int order)
 		split_page(virt_to_page(page[0].shadow), order);
 #endif
 
-	set_page_owner(page, 0, 0);
+	gfp_mask = get_page_owner_gfp(page);
+	set_page_owner(page, 0, gfp_mask);
 	for (i = 1; i < (1 << order); i++) {
 		set_page_refcounted(page + i);
-		set_page_owner(page + i, 0, 0);
+		set_page_owner(page + i, 0, gfp_mask);
 	}
 }
 EXPORT_SYMBOL_GPL(split_page);
@@ -1994,7 +1996,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
 	zone->free_area[order].nr_free--;
 	rmv_page_order(page);
 
-	set_page_owner(page, order, 0);
+	set_page_owner(page, order, __GFP_MOVABLE);
 
 	/* Set the pageblock if the isolated page is at least a pageblock */
 	if (order >= pageblock_order - 1) {
