@@ -370,14 +370,14 @@ static void kick_trng(struct platform_device *pdev, int ent_delay)
 int caam_get_era(void)
 {
 	struct device_node *caam_node;
-	for_each_compatible_node(caam_node, NULL, "fsl,sec-v4.0") {
-		const uint32_t *prop = (uint32_t *)of_get_property(caam_node,
-				"fsl,sec-era",
-				NULL);
-		return prop ? *prop : -ENOTSUPP;
-	}
+	int ret;
+	u32 prop;
 
-	return -ENOTSUPP;
+	caam_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
+	ret = of_property_read_u32(caam_node, "fsl,sec-era", &prop);
+	of_node_put(caam_node);
+
+	return IS_ERR_VALUE(ret) ? -ENOTSUPP : prop;
 }
 EXPORT_SYMBOL(caam_get_era);
 
