@@ -6572,7 +6572,7 @@ F:	drivers/extcon/extcon-max77693.c
 F:	drivers/rtc/rtc-max77686.c
 F:	drivers/clk/clk-max77686.c
 F:	Documentation/devicetree/bindings/mfd/max14577.txt
-F:	Documentation/devicetree/bindings/mfd/max77686.txt
+F:	Documentation/devicetree/bindings/*/max77686.txt
 F:	Documentation/devicetree/bindings/mfd/max77693.txt
 F:	Documentation/devicetree/bindings/clock/maxim,max77686.txt
 F:	include/linux/mfd/max14577*.h
