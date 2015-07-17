@@ -1786,7 +1786,11 @@ struct task_struct {
  */
 };
 
-extern int arch_task_struct_size(void);
+#ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
+extern int arch_task_struct_size __read_mostly;
+#else
+# define arch_task_struct_size (sizeof(struct task_struct))
+#endif
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */
 #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)

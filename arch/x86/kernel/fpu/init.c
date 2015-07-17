@@ -4,6 +4,8 @@
 #include <asm/fpu/internal.h>
 #include <asm/tlbflush.h>
 
+#include <linux/sched.h>
+
 /*
  * Initialize the TS bit in CR0 according to the style of context-switches
  * we are using:
@@ -136,16 +138,14 @@ static void __init fpu__init_system_generic(void)
 unsigned int xstate_size;
 EXPORT_SYMBOL_GPL(xstate_size);
 
-#define CHECK_MEMBER_AT_END_OF(TYPE, MEMBER)	\
-	BUILD_BUG_ON((sizeof(TYPE) -			\
-			offsetof(TYPE, MEMBER) -	\
-			sizeof(((TYPE *)0)->MEMBER)) > 	\
-			0)				\
+/* Enforce that 'MEMBER' is the last field of 'TYPE': */
+#define CHECK_MEMBER_AT_END_OF(TYPE, MEMBER) \
+	BUILD_BUG_ON(sizeof(TYPE) != offsetofend(TYPE, MEMBER))
 
 /*
- * We append the 'struct fpu' to the task_struct.
+ * We append the 'struct fpu' to the task_struct:
  */
-int __weak arch_task_struct_size(void)
+static void __init fpu__init_task_struct_size(void)
 {
 	int task_size = sizeof(struct task_struct);
 
@@ -172,7 +172,7 @@ int __weak arch_task_struct_size(void)
 	CHECK_MEMBER_AT_END_OF(struct thread_struct, fpu);
 	CHECK_MEMBER_AT_END_OF(struct task_struct, thread);
 
-	return task_size;
+	arch_task_struct_size = task_size;
 }
 
 /*
@@ -326,6 +326,7 @@ void __init fpu__init_system(struct cpuinfo_x86 *c)
 	fpu__init_system_generic();
 	fpu__init_system_xstate_size_legacy();
 	fpu__init_system_xstate();
+	fpu__init_task_struct_size();
 
 	fpu__init_system_ctx_switch();
 }
