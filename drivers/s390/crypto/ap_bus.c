@@ -1666,8 +1666,6 @@ void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg)
 		rc = -ENODEV;
 	}
 	spin_unlock_bh(&ap_dev->lock);
-	if (rc == -ENODEV)
-		device_unregister(&ap_dev->device);
 }
 EXPORT_SYMBOL(ap_queue_message);
 
