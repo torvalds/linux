@@ -36,9 +36,6 @@ struct cs4349_platform_data {
 #define CS4349_RMPFLT		0x07	/* Ramp and Filter Control */
 #define CS4349_MISC		0x08	/* Power Down,Freeze Control,Pop Stop*/
 
-#define CS4349_FIRSTREG		0x01
-#define CS4349_LASTREG		0x08
-#define CS4349_NUMREGS		(CS4349_LASTREG - CS4349_FIRSTREG + 1)
 #define CS4349_I2C_INCR		0x80
 
 

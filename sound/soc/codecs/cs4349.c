@@ -268,7 +268,7 @@ static struct regmap_config cs4349_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
 
-	.max_register		= CS4349_NUMREGS,
+	.max_register		= CS4349_MISC,
 	.reg_defaults		= cs4349_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(cs4349_reg_defaults),
 	.readable_reg		= cs4349_readable_register,
