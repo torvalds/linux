@@ -584,7 +584,7 @@ int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
 	seq_puts(seq, "Available routing algorithms:\n");
 
 	hlist_for_each_entry(bat_algo_ops, &batadv_algo_list, list) {
-		seq_printf(seq, "%s\n", bat_algo_ops->name);
+		seq_printf(seq, " * %s\n", bat_algo_ops->name);
 	}
 
 	return 0;
