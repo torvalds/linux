@@ -3859,7 +3859,7 @@ static int wm8962_runtime_suspend(struct device *dev)
 }
 #endif
 
-static struct dev_pm_ops wm8962_pm = {
+static const struct dev_pm_ops wm8962_pm = {
 	SET_RUNTIME_PM_OPS(wm8962_runtime_suspend, wm8962_runtime_resume, NULL)
 };
 

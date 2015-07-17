@@ -2708,7 +2708,7 @@ static int wm5100_runtime_resume(struct device *dev)
 }
 #endif
 
-static struct dev_pm_ops wm5100_pm = {
+static const struct dev_pm_ops wm5100_pm = {
 	SET_RUNTIME_PM_OPS(wm5100_runtime_suspend, wm5100_runtime_resume,
 			   NULL)
 };
