@@ -175,7 +175,7 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 {
 	struct caam_drv_private *ctrlpriv = dev_get_drvdata(ctrldev);
 	struct caam_ctrl __iomem *ctrl;
-	u32 *desc, status, rdsta_val;
+	u32 *desc, status = 0, rdsta_val;
 	int ret = 0, sh_idx;
 
 	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
@@ -207,7 +207,8 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 		 * CAAM eras), then try again.
 		 */
 		rdsta_val = rd_reg32(&ctrl->r4tst[0].rdsta) & RDSTA_IFMASK;
-		if (status || !(rdsta_val & (1 << sh_idx)))
+		if ((status && status != JRSTA_SSRC_JUMP_HALT_CC) ||
+		    !(rdsta_val & (1 << sh_idx)))
 			ret = -EAGAIN;
 		if (ret)
 			break;
