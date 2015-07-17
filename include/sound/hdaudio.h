@@ -164,15 +164,15 @@ static inline int snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid,
 }
 
 #ifdef CONFIG_PM
-void snd_hdac_power_up(struct hdac_device *codec);
-void snd_hdac_power_down(struct hdac_device *codec);
-void snd_hdac_power_up_pm(struct hdac_device *codec);
-void snd_hdac_power_down_pm(struct hdac_device *codec);
+int snd_hdac_power_up(struct hdac_device *codec);
+int snd_hdac_power_down(struct hdac_device *codec);
+int snd_hdac_power_up_pm(struct hdac_device *codec);
+int snd_hdac_power_down_pm(struct hdac_device *codec);
 #else
-static inline void snd_hdac_power_up(struct hdac_device *codec) {}
-static inline void snd_hdac_power_down(struct hdac_device *codec) {}
-static inline void snd_hdac_power_up_pm(struct hdac_device *codec) {}
-static inline void snd_hdac_power_down_pm(struct hdac_device *codec) {}
+static inline int snd_hdac_power_up(struct hdac_device *codec) { return 0; }
+static inline int snd_hdac_power_down(struct hdac_device *codec) { return 0; }
+static inline int snd_hdac_power_up_pm(struct hdac_device *codec) { return 0; }
+static inline int snd_hdac_power_down_pm(struct hdac_device *codec) { return 0; }
 #endif
 
 /*
