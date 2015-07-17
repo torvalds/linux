@@ -167,8 +167,6 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 		mwifiex_dbg(adapter, ERROR,
 			    "DNLD_CMD: FW in reset state, ignore cmd %#x\n",
 			cmd_code);
-		if (cmd_node->wait_q_enabled)
-			mwifiex_complete_cmd(adapter, cmd_node);
 		mwifiex_recycle_cmd_node(adapter, cmd_node);
 		queue_work(adapter->workqueue, &adapter->main_work);
 		return -1;
@@ -1024,6 +1022,7 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 		adapter->curr_cmd->wait_q_enabled = false;
 		adapter->cmd_wait_q.status = -1;
 		mwifiex_complete_cmd(adapter, adapter->curr_cmd);
+		/* no recycle probably wait for response */
 	}
 	/* Cancel all pending command */
 	spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
@@ -1032,11 +1031,8 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 		list_del(&cmd_node->list);
 		spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
 
-		if (cmd_node->wait_q_enabled) {
+		if (cmd_node->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
-			mwifiex_complete_cmd(adapter, cmd_node);
-			cmd_node->wait_q_enabled = false;
-		}
 		mwifiex_recycle_cmd_node(adapter, cmd_node);
 		spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
 	}
@@ -1094,10 +1090,8 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 	    (adapter->curr_cmd->wait_q_enabled)) {
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, cmd_flags);
 		cmd_node = adapter->curr_cmd;
-		cmd_node->wait_q_enabled = false;
 		cmd_node->cmd_flag |= CMD_F_CANCELED;
 		mwifiex_recycle_cmd_node(adapter, cmd_node);
-		mwifiex_complete_cmd(adapter, adapter->curr_cmd);
 		adapter->curr_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
 	}
