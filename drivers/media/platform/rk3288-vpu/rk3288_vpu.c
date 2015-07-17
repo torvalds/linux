@@ -93,6 +93,17 @@ static void __rk3288_vpu_dequeue_run_locked(struct rk3288_vpu_ctx *ctx)
 	ctx->run.dst = dst;
 }
 
+static struct rk3288_vpu_ctx *
+rk3288_vpu_encode_after_decode_war(struct rk3288_vpu_ctx *ctx)
+{
+	struct rk3288_vpu_dev *dev = ctx->dev;
+
+	if (dev->was_decoding && rk3288_vpu_ctx_is_encoder(ctx))
+		return dev->dummy_encode_ctx;
+
+	return ctx;
+}
+
 static void rk3288_vpu_try_run(struct rk3288_vpu_dev *dev)
 {
 	struct rk3288_vpu_ctx *ctx = NULL;
@@ -115,10 +126,24 @@ static void rk3288_vpu_try_run(struct rk3288_vpu_dev *dev)
 		goto out;
 
 	ctx = list_entry(dev->ready_ctxs.next, struct rk3288_vpu_ctx, list);
-	list_del_init(&ctx->list);
+
+	/*
+	 * WAR for corrupted hardware state when encoding directly after
+	 * certain decoding runs.
+	 *
+	 * If previous context was decoding and currently picked one is
+	 * encoding then we need to execute a dummy encode with proper
+	 * settings to reinitialize certain internal hardware state.
+	 */
+	ctx = rk3288_vpu_encode_after_decode_war(ctx);
+
+	if (!rk3288_vpu_ctx_is_dummy_encode(ctx)) {
+		list_del_init(&ctx->list);
+		__rk3288_vpu_dequeue_run_locked(ctx);
+	}
 
 	dev->current_ctx = ctx;
-	__rk3288_vpu_dequeue_run_locked(ctx);
+	dev->was_decoding = !rk3288_vpu_ctx_is_encoder(ctx);
 
 out:
 	spin_unlock_irqrestore(&dev->irqlock, flags);
@@ -145,8 +170,6 @@ static void __rk3288_vpu_try_context_locked(struct rk3288_vpu_dev *dev,
 void rk3288_vpu_run_done(struct rk3288_vpu_ctx *ctx,
 			 enum vb2_buffer_state result)
 {
-	struct vb2_buffer *src = &ctx->run.src->b;
-	struct vb2_buffer *dst = &ctx->run.dst->b;
 	struct rk3288_vpu_dev *dev = ctx->dev;
 	unsigned long flags;
 
@@ -155,9 +178,14 @@ void rk3288_vpu_run_done(struct rk3288_vpu_ctx *ctx,
 	if (ctx->run_ops->run_done)
 		ctx->run_ops->run_done(ctx, result);
 
-	dst->v4l2_buf.timestamp = src->v4l2_buf.timestamp;
-	vb2_buffer_done(&ctx->run.src->b, result);
-	vb2_buffer_done(&ctx->run.dst->b, result);
+	if (!rk3288_vpu_ctx_is_dummy_encode(ctx)) {
+		struct vb2_buffer *src = &ctx->run.src->b;
+		struct vb2_buffer *dst = &ctx->run.dst->b;
+
+		dst->v4l2_buf.timestamp = src->v4l2_buf.timestamp;
+		vb2_buffer_done(&ctx->run.src->b, result);
+		vb2_buffer_done(&ctx->run.dst->b, result);
+	}
 
 	dev->current_ctx = NULL;
 	wake_up_all(&dev->run_wq);
@@ -603,6 +631,12 @@ static int rk3288_vpu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vpu);
 
+	ret = rk3288_vpu_enc_init_dummy_ctx(vpu);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to create dummy encode context\n");
+		goto err_dummy_enc;
+	}
+
 	/* encoder */
 	vfd = video_device_alloc();
 	if (!vfd) {
@@ -674,6 +708,8 @@ err_dec_alloc:
 err_enc_reg:
 	video_device_release(vpu->vfd_enc);
 err_enc_alloc:
+	rk3288_vpu_enc_free_dummy_ctx(vpu);
+err_dummy_enc:
 	v4l2_device_unregister(&vpu->v4l2_dev);
 err_v4l2_dev_reg:
 	vb2_dma_contig_cleanup_ctx(vpu->alloc_ctx_vm);
@@ -704,6 +740,7 @@ static int rk3288_vpu_remove(struct platform_device *pdev)
 
 	video_unregister_device(vpu->vfd_dec);
 	video_unregister_device(vpu->vfd_enc);
+	rk3288_vpu_enc_free_dummy_ctx(vpu);
 	v4l2_device_unregister(&vpu->v4l2_dev);
 	vb2_dma_contig_cleanup_ctx(vpu->alloc_ctx_vm);
 	vb2_dma_contig_cleanup_ctx(vpu->alloc_ctx);

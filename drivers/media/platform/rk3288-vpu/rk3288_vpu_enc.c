@@ -1391,4 +1391,127 @@ void rk3288_vpu_enc_exit(struct rk3288_vpu_ctx *ctx)
 
 	rk3288_vpu_aux_buf_free(vpu, &ctx->run.priv_dst);
 	rk3288_vpu_aux_buf_free(vpu, &ctx->run.priv_src);
+};
+
+/*
+ * WAR for encoder state corruption after decoding
+ */
+
+static const struct rk3288_vpu_run_ops dummy_encode_run_ops = {
+	/* No ops needed for dummy encoding. */
+};
+
+#define DUMMY_W		64
+#define DUMMY_H		64
+#define DUMMY_SRC_FMT	V4L2_PIX_FMT_YUYV
+#define DUMMY_DST_FMT	V4L2_PIX_FMT_VP8
+#define DUMMY_DST_SIZE	(32 * 1024)
+
+int rk3288_vpu_enc_init_dummy_ctx(struct rk3288_vpu_dev *dev)
+{
+	struct rk3288_vpu_ctx *ctx;
+	int ret;
+	int i;
+
+	ctx = devm_kzalloc(dev->dev, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->dev = dev;
+
+	ctx->vpu_src_fmt = find_format(DUMMY_SRC_FMT, false);
+	ctx->src_fmt.width = DUMMY_W;
+	ctx->src_fmt.height = DUMMY_H;
+	ctx->src_fmt.pixelformat = ctx->vpu_src_fmt->fourcc;
+	ctx->src_fmt.num_planes = ctx->vpu_src_fmt->num_planes;
+
+	calculate_plane_sizes(ctx->vpu_src_fmt, ctx->src_fmt.width,
+				ctx->src_fmt.height, &ctx->src_fmt);
+
+	ctx->vpu_dst_fmt = find_format(DUMMY_DST_FMT, true);
+	ctx->dst_fmt.width = ctx->src_fmt.width;
+	ctx->dst_fmt.height = ctx->src_fmt.height;
+	ctx->dst_fmt.pixelformat = ctx->vpu_dst_fmt->fourcc;
+	ctx->dst_fmt.plane_fmt[0].sizeimage = DUMMY_DST_SIZE;
+	ctx->dst_fmt.plane_fmt[0].bytesperline = 0;
+	ctx->dst_fmt.num_planes = 1;
+
+	INIT_LIST_HEAD(&ctx->src_queue);
+
+	ctx->src_crop.left = 0;
+	ctx->src_crop.top = 0;
+	ctx->src_crop.width = ctx->src_fmt.width;
+	ctx->src_crop.left = ctx->src_fmt.height;
+
+	INIT_LIST_HEAD(&ctx->dst_queue);
+	INIT_LIST_HEAD(&ctx->list);
+
+	ctx->run.vp8e.reg_params = rk3288_vpu_vp8e_get_dummy_params();
+	ctx->run_ops = &dummy_encode_run_ops;
+
+	ctx->run.dst = devm_kzalloc(dev->dev, sizeof(*ctx->run.dst),
+					GFP_KERNEL);
+	if (!ctx->run.dst)
+		return -ENOMEM;
+
+	ret = rk3288_vpu_aux_buf_alloc(dev, &ctx->run.priv_src,
+					RK3288_HW_PARAMS_SIZE);
+	if (ret)
+		return ret;
+
+	ret = rk3288_vpu_aux_buf_alloc(dev, &ctx->run.priv_dst,
+					RK3288_RET_PARAMS_SIZE);
+	if (ret)
+		goto err_free_priv_src;
+
+	for (i = 0; i < ctx->src_fmt.num_planes; ++i) {
+		ret = rk3288_vpu_aux_buf_alloc(dev, &dev->dummy_encode_src[i],
+					ctx->src_fmt.plane_fmt[i].sizeimage);
+		if (ret)
+			goto err_free_src;
+
+		memset(dev->dummy_encode_src[i].cpu, 0,
+			dev->dummy_encode_src[i].size);
+	}
+
+	ret = rk3288_vpu_aux_buf_alloc(dev, &dev->dummy_encode_dst,
+					ctx->dst_fmt.plane_fmt[0].sizeimage);
+	if (ret)
+		goto err_free_src;
+
+	memset(dev->dummy_encode_dst.cpu, 0, dev->dummy_encode_dst.size);
+
+	ret = rk3288_vpu_init(ctx);
+	if (ret)
+		goto err_free_dst;
+
+	dev->dummy_encode_ctx = ctx;
+
+	return 0;
+
+err_free_dst:
+	rk3288_vpu_aux_buf_free(dev, &dev->dummy_encode_dst);
+err_free_src:
+	for (i = 0; i < ctx->src_fmt.num_planes; ++i)
+		if (dev->dummy_encode_src[i].cpu)
+			rk3288_vpu_aux_buf_free(dev, &dev->dummy_encode_src[i]);
+	rk3288_vpu_aux_buf_free(dev, &ctx->run.priv_dst);
+err_free_priv_src:
+	rk3288_vpu_aux_buf_free(dev, &ctx->run.priv_src);
+
+	return ret;
+}
+
+void rk3288_vpu_enc_free_dummy_ctx(struct rk3288_vpu_dev *dev)
+{
+	struct rk3288_vpu_ctx *ctx = dev->dummy_encode_ctx;
+	int i;
+
+	rk3288_vpu_deinit(ctx);
+
+	for (i = 0; i < ctx->src_fmt.num_planes; ++i)
+		rk3288_vpu_aux_buf_free(dev, &dev->dummy_encode_src[i]);
+	rk3288_vpu_aux_buf_free(dev, &dev->dummy_encode_dst);
+	rk3288_vpu_aux_buf_free(dev, &ctx->run.priv_src);
+	rk3288_vpu_aux_buf_free(dev, &ctx->run.priv_dst);
 }

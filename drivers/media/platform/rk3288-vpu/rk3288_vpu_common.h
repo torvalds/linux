@@ -156,6 +156,11 @@ enum rk3288_vpu_state {
  * @current_ctx:	Context being currently processed by hardware.
  * @run_wq:		Wait queue to wait for run completion.
  * @watchdog_work:	Delayed work for hardware timeout handling.
+ * @dummy_encode_ctx:	Context used to run dummy frame encoding to initialize
+ *			encoder hardware state.
+ * @dummy_encode_src:	Source buffers used for dummy frame encoding.
+ * @dummy_encode_dst:	Desintation buffer used for dummy frame encoding.
+ * @was_decoding:	Indicates whether last run context was a decoder.
  */
 struct rk3288_vpu_dev {
 	struct v4l2_device v4l2_dev;
@@ -180,6 +185,10 @@ struct rk3288_vpu_dev {
 	struct rk3288_vpu_ctx *current_ctx;
 	wait_queue_head_t run_wq;
 	struct delayed_work watchdog_work;
+	struct rk3288_vpu_ctx *dummy_encode_ctx;
+	struct rk3288_vpu_aux_buf dummy_encode_src[VIDEO_MAX_PLANES];
+	struct rk3288_vpu_aux_buf dummy_encode_dst;
+	bool was_decoding;
 };
 
 /**
@@ -437,6 +446,13 @@ static inline struct rk3288_vpu_buf *vb_to_buf(struct vb2_buffer *vb)
 static inline bool rk3288_vpu_ctx_is_encoder(struct rk3288_vpu_ctx *ctx)
 {
 	return ctx->vpu_dst_fmt->codec_mode != RK_VPU_CODEC_NONE;
+}
+
+static inline bool rk3288_vpu_ctx_is_dummy_encode(struct rk3288_vpu_ctx *ctx)
+{
+	struct rk3288_vpu_dev *dev = ctx->dev;
+
+	return ctx == dev->dummy_encode_ctx;
 }
 
 int rk3288_vpu_ctrls_setup(struct rk3288_vpu_ctx *ctx,

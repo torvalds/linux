@@ -171,6 +171,7 @@ void rk3288_vpu_vp8e_exit(struct rk3288_vpu_ctx *ctx);
 void rk3288_vpu_vp8e_run(struct rk3288_vpu_ctx *ctx);
 void rk3288_vpu_vp8e_done(struct rk3288_vpu_ctx *ctx,
 			  enum vb2_buffer_state result);
+const struct rk3288_vp8e_reg_params *rk3288_vpu_vp8e_get_dummy_params(void);
 
 void rk3288_vpu_vp8e_assemble_bitstream(struct rk3288_vpu_ctx *ctx,
 					struct rk3288_vpu_buf *dst_buf);

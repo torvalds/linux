@@ -30,5 +30,7 @@ const struct v4l2_ioctl_ops *get_enc_v4l2_ioctl_ops(void);
 struct rk3288_vpu_fmt *get_enc_def_fmt(bool src);
 int rk3288_vpu_enc_init(struct rk3288_vpu_ctx *ctx);
 void rk3288_vpu_enc_exit(struct rk3288_vpu_ctx *ctx);
+int rk3288_vpu_enc_init_dummy_ctx(struct rk3288_vpu_dev *dev);
+void rk3288_vpu_enc_free_dummy_ctx(struct rk3288_vpu_dev *dev);
 
 #endif				/* RK3288_VPU_ENC_H_  */

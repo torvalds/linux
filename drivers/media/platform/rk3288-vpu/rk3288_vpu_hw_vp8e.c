@@ -201,8 +201,13 @@ static void rk3288_vpu_vp8e_set_buffers(struct rk3288_vpu_dev *vpu,
 		rec_buf_dma += rounded_size * 3 / 2;
 	ctx->hw.vp8e.ref_rec_ptr ^= 1;
 
-	dst_dma = vb2_dma_contig_plane_dma_addr(&ctx->run.dst->b, 0);
-	dst_size = vb2_plane_size(&ctx->run.dst->b, 0);
+	if (rk3288_vpu_ctx_is_dummy_encode(ctx)) {
+		dst_dma = vpu->dummy_encode_dst.dma;
+		dst_size = vpu->dummy_encode_dst.size;
+	} else {
+		dst_dma = vb2_dma_contig_plane_dma_addr(&ctx->run.dst->b, 0);
+		dst_size = vb2_plane_size(&ctx->run.dst->b, 0);
+	}
 
 	/*
 	 * stream addr-->|
@@ -266,12 +271,24 @@ static void rk3288_vpu_vp8e_set_buffers(struct rk3288_vpu_dev *vpu,
 				VEPU_REG_ADDR_REC_CHROMA);
 
 	/* Source buffer. */
-	vepu_write_relaxed(vpu, vb2_dma_contig_plane_dma_addr(&ctx->run.src->b,
-				PLANE_Y), VEPU_REG_ADDR_IN_LUMA);
-	vepu_write_relaxed(vpu, vb2_dma_contig_plane_dma_addr(&ctx->run.src->b,
-				PLANE_CB), VEPU_REG_ADDR_IN_CB);
-	vepu_write_relaxed(vpu, vb2_dma_contig_plane_dma_addr(&ctx->run.src->b,
-				PLANE_CR), VEPU_REG_ADDR_IN_CR);
+	if (rk3288_vpu_ctx_is_dummy_encode(ctx)) {
+		vepu_write_relaxed(vpu, vpu->dummy_encode_src[PLANE_Y].dma,
+					VEPU_REG_ADDR_IN_LUMA);
+		vepu_write_relaxed(vpu, vpu->dummy_encode_src[PLANE_CB].dma,
+					VEPU_REG_ADDR_IN_CB);
+		vepu_write_relaxed(vpu, vpu->dummy_encode_src[PLANE_CR].dma,
+					VEPU_REG_ADDR_IN_CR);
+	} else {
+		vepu_write_relaxed(vpu, vb2_dma_contig_plane_dma_addr(
+					&ctx->run.src->b, PLANE_Y),
+					VEPU_REG_ADDR_IN_LUMA);
+		vepu_write_relaxed(vpu, vb2_dma_contig_plane_dma_addr(
+					&ctx->run.src->b, PLANE_CB),
+					VEPU_REG_ADDR_IN_CB);
+		vepu_write_relaxed(vpu, vb2_dma_contig_plane_dma_addr(
+					&ctx->run.src->b, PLANE_CR),
+					VEPU_REG_ADDR_IN_CR);
+	}
 
 	/* Source parameters. */
 	vepu_write_relaxed(vpu, enc_in_img_ctrl(ctx), VEPU_REG_IN_IMG_CTRL);
@@ -407,4 +424,111 @@ void rk3288_vpu_vp8e_done(struct rk3288_vpu_ctx *ctx,
 	ctx->run.dst->vp8e.dct_size = ctrl_buf->dct_size;
 
 	rk3288_vpu_run_done(ctx, result);
+}
+
+/*
+ * WAR for encoder state corruption after decoding
+ */
+
+static const struct rk3288_vp8e_reg_params dummy_encode_reg_params = {
+	/* 00000014 */ .hdr_len = 0x00000000,
+	/* 00000038 */ .enc_ctrl = VEPU_REG_ENC_CTRL_KEYFRAME_BIT,
+	/* 00000040 */ .enc_ctrl0 = 0x00000000,
+	/* 00000044 */ .enc_ctrl1 = 0x00000000,
+	/* 00000048 */ .enc_ctrl2 = 0x00040014,
+	/* 0000004c */ .enc_ctrl3 = 0x404083c0,
+	/* 00000050 */ .enc_ctrl5 = 0x01006bff,
+	/* 00000054 */ .enc_ctrl4 = 0x00000039,
+	/* 00000058 */ .str_hdr_rem_msb = 0x85848805,
+	/* 0000005c */ .str_hdr_rem_lsb = 0x02000000,
+	/* 00000064 */ .mad_ctrl = 0x00000000,
+	/* 0000006c */ .qp_val = {
+		/* 0000006c */ 0x020213b1,
+		/* 00000070 */ 0x02825249,
+		/* 00000074 */ 0x048409d8,
+		/* 00000078 */ 0x03834c30,
+		/* 0000007c */ 0x020213b1,
+		/* 00000080 */ 0x02825249,
+		/* 00000084 */ 0x00340e0d,
+		/* 00000088 */ 0x401c1a15,
+	},
+	/* 0000008c */ .bool_enc = 0x00018140,
+	/* 00000090 */ .vp8_ctrl0 = 0x000695c0,
+	/* 00000094 */ .rlc_ctrl = 0x14000000,
+	/* 00000098 */ .mb_ctrl = 0x00000000,
+	/* 000000d4 */ .rgb_yuv_coeff = {
+		/* 000000d4 */ 0x962b4c85,
+		/* 000000d8 */ 0x90901d50,
+	},
+	/* 000000dc */ .rgb_mask_msb = 0x0000b694,
+	/* 000000e0 */ .intra_area_ctrl = 0xffffffff,
+	/* 000000e4 */ .cir_intra_ctrl = 0x00000000,
+	/* 000000f0 */ .first_roi_area = 0xffffffff,
+	/* 000000f4 */ .second_roi_area = 0xffffffff,
+	/* 000000f8 */ .mvc_ctrl = 0x01780000,
+	/* 00000100 */ .intra_penalty = {
+		/* 00000100 */ 0x00010005,
+		/* 00000104 */ 0x00015011,
+		/* 00000108 */ 0x0000c005,
+		/* 0000010c */ 0x00016010,
+		/* 00000110 */ 0x0001a018,
+		/* 00000114 */ 0x00018015,
+		/* 00000118 */ 0x0001d01a,
+	},
+	/* 00000120 */ .seg_qp = {
+		/* 00000120 */ 0x020213b1,
+		/* 00000124 */ 0x02825249,
+		/* 00000128 */ 0x048409d8,
+		/* 0000012c */ 0x03834c30,
+		/* 00000130 */ 0x020213b1,
+		/* 00000134 */ 0x02825249,
+		/* 00000138 */ 0x00340e0d,
+		/* 0000013c */ 0x341c1a15,
+		/* 00000140 */ 0x020213b1,
+		/* 00000144 */ 0x02825249,
+		/* 00000148 */ 0x048409d8,
+		/* 0000014c */ 0x03834c30,
+		/* 00000150 */ 0x020213b1,
+		/* 00000154 */ 0x02825249,
+		/* 00000158 */ 0x00340e0d,
+		/* 0000015c */ 0x341c1a15,
+		/* 00000160 */ 0x020213b1,
+		/* 00000164 */ 0x02825249,
+		/* 00000168 */ 0x048409d8,
+		/* 0000016c */ 0x03834c30,
+		/* 00000170 */ 0x020213b1,
+		/* 00000174 */ 0x02825249,
+		/* 00000178 */ 0x00340e0d,
+		/* 0000017c */ 0x341c1a15,
+	},
+	/* 00000180 */ .dmv_4p_1p_penalty = {
+		/* 00000180 */ 0x00020406,
+		/* 00000184 */ 0x080a0c0e,
+		/* 00000188 */ 0x10121416,
+		/* 0000018c */ 0x181a1c1e,
+		/* 00000190 */ 0x20222426,
+		/* 00000194 */ 0x282a2c2e,
+		/* 00000198 */ 0x30323436,
+		/* 0000019c */ 0x383a3c3e,
+		/* 000001a0 */ 0x40424446,
+		/* 000001a4 */ 0x484a4c4e,
+		/* 000001a8 */ 0x50525456,
+		/* 000001ac */ 0x585a5c5e,
+		/* 000001b0 */ 0x60626466,
+		/* 000001b4 */ 0x686a6c6e,
+		/* 000001b8 */ 0x70727476,
+		/* NOTE: Further 17 registers set to 0. */
+	},
+	/*
+	 * NOTE: Following registers all set to 0:
+	 * - dmv_qpel_penalty,
+	 * - vp8_ctrl1,
+	 * - bit_cost_golden,
+	 * - loop_flt_delta.
+	 */
+};
+
+const struct rk3288_vp8e_reg_params *rk3288_vpu_vp8e_get_dummy_params(void)
+{
+	return &dummy_encode_reg_params;
 }
