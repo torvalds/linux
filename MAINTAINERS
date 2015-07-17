@@ -6090,7 +6090,7 @@ F:	include/linux/ata.h
 F:	include/linux/libata.h
 
 LIBATA PATA ARASAN COMPACT FLASH CONTROLLER
-M:	Viresh Kumar <viresh.linux@gmail.com>
+M:	Viresh Kumar <vireshk@kernel.org>
 L:	linux-ide@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/libata.git
 S:	Maintained
@@ -7996,7 +7996,7 @@ S:	Maintained
 F:	drivers/pinctrl/samsung/
 
 PIN CONTROLLER - ST SPEAR
-M:	Viresh Kumar <viresh.linux@gmail.com>
+M:	Viresh Kumar <vireshk@kernel.org>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
@@ -8895,7 +8895,7 @@ S:	Maintained
 F:	drivers/tty/serial/
 
 SYNOPSYS DESIGNWARE DMAC DRIVER
-M:	Viresh Kumar <viresh.linux@gmail.com>
+M:	Viresh Kumar <vireshk@kernel.org>
 M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 S:	Maintained
 F:	include/linux/dma/dw.h
@@ -9062,7 +9062,7 @@ S:	Maintained
 F:	drivers/mmc/host/sdhci-s3c*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) ST SPEAR DRIVER
-M:	Viresh Kumar <viresh.linux@gmail.com>
+M:	Viresh Kumar <vireshk@kernel.org>
 L:	spear-devel@list.st.com
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
@@ -9600,7 +9600,7 @@ S:	Maintained
 F:	include/linux/compiler.h
 
 SPEAR PLATFORM SUPPORT
-M:	Viresh Kumar <viresh.linux@gmail.com>
+M:	Viresh Kumar <vireshk@kernel.org>
 M:	Shiraz Hashim <shiraz.linux.kernel@gmail.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -9609,7 +9609,7 @@ S:	Maintained
 F:	arch/arm/mach-spear/
 
 SPEAR CLOCK FRAMEWORK SUPPORT
-M:	Viresh Kumar <viresh.linux@gmail.com>
+M:	Viresh Kumar <vireshk@kernel.org>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
