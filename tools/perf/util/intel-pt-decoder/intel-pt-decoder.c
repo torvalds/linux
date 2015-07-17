@@ -88,6 +88,7 @@ struct intel_pt_decoder {
 	bool mtc_insn;
 	bool pge;
 	bool have_tma;
+	bool have_cyc;
 	uint64_t pos;
 	uint64_t last_ip;
 	uint64_t ip;
@@ -98,6 +99,8 @@ struct intel_pt_decoder {
 	uint64_t ret_addr;
 	uint64_t ctc_timestamp;
 	uint64_t ctc_delta;
+	uint64_t cycle_cnt;
+	uint64_t cyc_ref_timestamp;
 	uint32_t last_mtc;
 	uint32_t tsc_ctc_ratio_n;
 	uint32_t tsc_ctc_ratio_d;
@@ -111,8 +114,13 @@ struct intel_pt_decoder {
 	struct intel_pt_pkt tnt;
 	int pkt_step;
 	int pkt_len;
+	int last_packet_type;
 	unsigned int cbr;
 	unsigned int max_non_turbo_ratio;
+	double max_non_turbo_ratio_fp;
+	double cbr_cyc_to_tsc;
+	double calc_cyc_to_tsc;
+	bool have_calc_cyc_to_tsc;
 	int exec_mode;
 	unsigned int insn_bytes;
 	uint64_t sign_bit;
@@ -189,7 +197,8 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->period             = params->period;
 	decoder->period_type        = params->period_type;
 
-	decoder->max_non_turbo_ratio = params->max_non_turbo_ratio;
+	decoder->max_non_turbo_ratio    = params->max_non_turbo_ratio;
+	decoder->max_non_turbo_ratio_fp = params->max_non_turbo_ratio;
 
 	intel_pt_setup_period(decoder);
 
@@ -514,9 +523,246 @@ static int intel_pt_get_split_packet(struct intel_pt_decoder *decoder)
 	return ret;
 }
 
+struct intel_pt_pkt_info {
+	struct intel_pt_decoder	  *decoder;
+	struct intel_pt_pkt       packet;
+	uint64_t                  pos;
+	int                       pkt_len;
+	int                       last_packet_type;
+	void                      *data;
+};
+
+typedef int (*intel_pt_pkt_cb_t)(struct intel_pt_pkt_info *pkt_info);
+
+/* Lookahead packets in current buffer */
+static int intel_pt_pkt_lookahead(struct intel_pt_decoder *decoder,
+				  intel_pt_pkt_cb_t cb, void *data)
+{
+	struct intel_pt_pkt_info pkt_info;
+	const unsigned char *buf = decoder->buf;
+	size_t len = decoder->len;
+	int ret;
+
+	pkt_info.decoder          = decoder;
+	pkt_info.pos              = decoder->pos;
+	pkt_info.pkt_len          = decoder->pkt_step;
+	pkt_info.last_packet_type = decoder->last_packet_type;
+	pkt_info.data             = data;
+
+	while (1) {
+		do {
+			pkt_info.pos += pkt_info.pkt_len;
+			buf          += pkt_info.pkt_len;
+			len          -= pkt_info.pkt_len;
+
+			if (!len)
+				return INTEL_PT_NEED_MORE_BYTES;
+
+			ret = intel_pt_get_packet(buf, len, &pkt_info.packet);
+			if (!ret)
+				return INTEL_PT_NEED_MORE_BYTES;
+			if (ret < 0)
+				return ret;
+
+			pkt_info.pkt_len = ret;
+		} while (pkt_info.packet.type == INTEL_PT_PAD);
+
+		ret = cb(&pkt_info);
+		if (ret)
+			return 0;
+
+		pkt_info.last_packet_type = pkt_info.packet.type;
+	}
+}
+
+struct intel_pt_calc_cyc_to_tsc_info {
+	uint64_t        cycle_cnt;
+	unsigned int    cbr;
+	uint32_t        last_mtc;
+	uint64_t        ctc_timestamp;
+	uint64_t        ctc_delta;
+	uint64_t        tsc_timestamp;
+	uint64_t        timestamp;
+	bool            have_tma;
+	bool            from_mtc;
+	double          cbr_cyc_to_tsc;
+};
+
+static int intel_pt_calc_cyc_cb(struct intel_pt_pkt_info *pkt_info)
+{
+	struct intel_pt_decoder *decoder = pkt_info->decoder;
+	struct intel_pt_calc_cyc_to_tsc_info *data = pkt_info->data;
+	uint64_t timestamp;
+	double cyc_to_tsc;
+	unsigned int cbr;
+	uint32_t mtc, mtc_delta, ctc, fc, ctc_rem;
+
+	switch (pkt_info->packet.type) {
+	case INTEL_PT_TNT:
+	case INTEL_PT_TIP_PGE:
+	case INTEL_PT_TIP:
+	case INTEL_PT_FUP:
+	case INTEL_PT_PSB:
+	case INTEL_PT_PIP:
+	case INTEL_PT_MODE_EXEC:
+	case INTEL_PT_MODE_TSX:
+	case INTEL_PT_PSBEND:
+	case INTEL_PT_PAD:
+	case INTEL_PT_VMCS:
+	case INTEL_PT_MNT:
+		return 0;
+
+	case INTEL_PT_MTC:
+		if (!data->have_tma)
+			return 0;
+
+		mtc = pkt_info->packet.payload;
+		if (mtc > data->last_mtc)
+			mtc_delta = mtc - data->last_mtc;
+		else
+			mtc_delta = mtc + 256 - data->last_mtc;
+		data->ctc_delta += mtc_delta << decoder->mtc_shift;
+		data->last_mtc = mtc;
+
+		if (decoder->tsc_ctc_mult) {
+			timestamp = data->ctc_timestamp +
+				data->ctc_delta * decoder->tsc_ctc_mult;
+		} else {
+			timestamp = data->ctc_timestamp +
+				multdiv(data->ctc_delta,
+					decoder->tsc_ctc_ratio_n,
+					decoder->tsc_ctc_ratio_d);
+		}
+
+		if (timestamp < data->timestamp)
+			return 1;
+
+		if (pkt_info->last_packet_type != INTEL_PT_CYC) {
+			data->timestamp = timestamp;
+			return 0;
+		}
+
+		break;
+
+	case INTEL_PT_TSC:
+		timestamp = pkt_info->packet.payload |
+			    (data->timestamp & (0xffULL << 56));
+		if (data->from_mtc && timestamp < data->timestamp &&
+		    data->timestamp - timestamp < decoder->tsc_slip)
+			return 1;
+		while (timestamp < data->timestamp)
+			timestamp += (1ULL << 56);
+		if (pkt_info->last_packet_type != INTEL_PT_CYC) {
+			if (data->from_mtc)
+				return 1;
+			data->tsc_timestamp = timestamp;
+			data->timestamp = timestamp;
+			return 0;
+		}
+		break;
+
+	case INTEL_PT_TMA:
+		if (data->from_mtc)
+			return 1;
+
+		if (!decoder->tsc_ctc_ratio_d)
+			return 0;
+
+		ctc = pkt_info->packet.payload;
+		fc = pkt_info->packet.count;
+		ctc_rem = ctc & decoder->ctc_rem_mask;
+
+		data->last_mtc = (ctc >> decoder->mtc_shift) & 0xff;
+
+		data->ctc_timestamp = data->tsc_timestamp - fc;
+		if (decoder->tsc_ctc_mult) {
+			data->ctc_timestamp -= ctc_rem * decoder->tsc_ctc_mult;
+		} else {
+			data->ctc_timestamp -=
+				multdiv(ctc_rem, decoder->tsc_ctc_ratio_n,
+					decoder->tsc_ctc_ratio_d);
+		}
+
+		data->ctc_delta = 0;
+		data->have_tma = true;
+
+		return 0;
+
+	case INTEL_PT_CYC:
+		data->cycle_cnt += pkt_info->packet.payload;
+		return 0;
+
+	case INTEL_PT_CBR:
+		cbr = pkt_info->packet.payload;
+		if (data->cbr && data->cbr != cbr)
+			return 1;
+		data->cbr = cbr;
+		data->cbr_cyc_to_tsc = decoder->max_non_turbo_ratio_fp / cbr;
+		return 0;
+
+	case INTEL_PT_TIP_PGD:
+	case INTEL_PT_TRACESTOP:
+	case INTEL_PT_OVF:
+	case INTEL_PT_BAD: /* Does not happen */
+	default:
+		return 1;
+	}
+
+	if (!data->cbr && decoder->cbr) {
+		data->cbr = decoder->cbr;
+		data->cbr_cyc_to_tsc = decoder->cbr_cyc_to_tsc;
+	}
+
+	if (!data->cycle_cnt)
+		return 1;
+
+	cyc_to_tsc = (double)(timestamp - decoder->timestamp) / data->cycle_cnt;
+
+	if (data->cbr && cyc_to_tsc > data->cbr_cyc_to_tsc &&
+	    cyc_to_tsc / data->cbr_cyc_to_tsc > 1.25) {
+		intel_pt_log("Timestamp: calculated %g TSC ticks per cycle too big (c.f. CBR-based value %g), pos " x64_fmt "\n",
+			     cyc_to_tsc, data->cbr_cyc_to_tsc, pkt_info->pos);
+		return 1;
+	}
+
+	decoder->calc_cyc_to_tsc = cyc_to_tsc;
+	decoder->have_calc_cyc_to_tsc = true;
+
+	if (data->cbr) {
+		intel_pt_log("Timestamp: calculated %g TSC ticks per cycle c.f. CBR-based value %g, pos " x64_fmt "\n",
+			     cyc_to_tsc, data->cbr_cyc_to_tsc, pkt_info->pos);
+	} else {
+		intel_pt_log("Timestamp: calculated %g TSC ticks per cycle c.f. unknown CBR-based value, pos " x64_fmt "\n",
+			     cyc_to_tsc, pkt_info->pos);
+	}
+
+	return 1;
+}
+
+static void intel_pt_calc_cyc_to_tsc(struct intel_pt_decoder *decoder,
+				     bool from_mtc)
+{
+	struct intel_pt_calc_cyc_to_tsc_info data = {
+		.cycle_cnt      = 0,
+		.cbr            = 0,
+		.last_mtc       = decoder->last_mtc,
+		.ctc_timestamp  = decoder->ctc_timestamp,
+		.ctc_delta      = decoder->ctc_delta,
+		.tsc_timestamp  = decoder->tsc_timestamp,
+		.timestamp      = decoder->timestamp,
+		.have_tma       = decoder->have_tma,
+		.from_mtc       = from_mtc,
+		.cbr_cyc_to_tsc = 0,
+	};
+
+	intel_pt_pkt_lookahead(decoder, intel_pt_calc_cyc_cb, &data);
+}
+
 static int intel_pt_get_next_packet(struct intel_pt_decoder *decoder)
 {
 	int ret;
+
+	decoder->last_packet_type = decoder->packet.type;
 
 	do {
 		decoder->pos += decoder->pkt_step;
@@ -954,6 +1200,13 @@ static void intel_pt_calc_tsc_timestamp(struct intel_pt_decoder *decoder)
 		decoder->timestamp_insn_cnt = 0;
 	}
 
+	if (decoder->last_packet_type == INTEL_PT_CYC) {
+		decoder->cyc_ref_timestamp = decoder->timestamp;
+		decoder->cycle_cnt = 0;
+		decoder->have_calc_cyc_to_tsc = false;
+		intel_pt_calc_cyc_to_tsc(decoder, false);
+	}
+
 	intel_pt_log_to("Setting timestamp", decoder->timestamp);
 }
 
@@ -962,6 +1215,7 @@ static int intel_pt_overflow(struct intel_pt_decoder *decoder)
 	intel_pt_log("ERROR: Buffer overflow\n");
 	intel_pt_clear_tx_flags(decoder);
 	decoder->have_tma = false;
+	decoder->cbr = 0;
 	decoder->pkt_state = INTEL_PT_STATE_ERR_RESYNC;
 	decoder->overflow = true;
 	return -EOVERFLOW;
@@ -1026,6 +1280,49 @@ static void intel_pt_calc_mtc_timestamp(struct intel_pt_decoder *decoder)
 
 	decoder->timestamp_insn_cnt = 0;
 	decoder->last_mtc = mtc;
+
+	if (decoder->last_packet_type == INTEL_PT_CYC) {
+		decoder->cyc_ref_timestamp = decoder->timestamp;
+		decoder->cycle_cnt = 0;
+		decoder->have_calc_cyc_to_tsc = false;
+		intel_pt_calc_cyc_to_tsc(decoder, true);
+	}
+}
+
+static void intel_pt_calc_cbr(struct intel_pt_decoder *decoder)
+{
+	unsigned int cbr = decoder->packet.payload;
+
+	if (decoder->cbr == cbr)
+		return;
+
+	decoder->cbr = cbr;
+	decoder->cbr_cyc_to_tsc = decoder->max_non_turbo_ratio_fp / cbr;
+}
+
+static void intel_pt_calc_cyc_timestamp(struct intel_pt_decoder *decoder)
+{
+	uint64_t timestamp = decoder->cyc_ref_timestamp;
+
+	decoder->have_cyc = true;
+
+	decoder->cycle_cnt += decoder->packet.payload;
+
+	if (!decoder->cyc_ref_timestamp)
+		return;
+
+	if (decoder->have_calc_cyc_to_tsc)
+		timestamp += decoder->cycle_cnt * decoder->calc_cyc_to_tsc;
+	else if (decoder->cbr)
+		timestamp += decoder->cycle_cnt * decoder->cbr_cyc_to_tsc;
+	else
+		return;
+
+	if (timestamp < decoder->timestamp)
+		intel_pt_log("Suppressing CYC timestamp " x64_fmt " less than current timestamp " x64_fmt "\n",
+			     timestamp, decoder->timestamp);
+	else
+		decoder->timestamp = timestamp;
 }
 
 /* Walk PSB+ packets when already in sync. */
@@ -1065,7 +1362,7 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_CBR:
-			decoder->cbr = decoder->packet.payload;
+			intel_pt_calc_cbr(decoder);
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -1182,6 +1479,7 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_CYC:
+			intel_pt_calc_cyc_timestamp(decoder);
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -1318,10 +1616,11 @@ next:
 			break;
 
 		case INTEL_PT_CYC:
+			intel_pt_calc_cyc_timestamp(decoder);
 			break;
 
 		case INTEL_PT_CBR:
-			decoder->cbr = decoder->packet.payload;
+			intel_pt_calc_cbr(decoder);
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -1398,10 +1697,11 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_CYC:
+			intel_pt_calc_cyc_timestamp(decoder);
 			break;
 
 		case INTEL_PT_CBR:
-			decoder->cbr = decoder->packet.payload;
+			intel_pt_calc_cbr(decoder);
 			break;
 
 		case INTEL_PT_PIP:
@@ -1493,10 +1793,11 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_CYC:
+			intel_pt_calc_cyc_timestamp(decoder);
 			break;
 
 		case INTEL_PT_CBR:
-			decoder->cbr = decoder->packet.payload;
+			intel_pt_calc_cbr(decoder);
 			break;
 
 		case INTEL_PT_PIP:
