@@ -807,17 +807,6 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	adapter->is_cmd_timedout = 0;
 
 	resp = (struct host_cmd_ds_command *) adapter->curr_cmd->resp_skb->data;
-	if (adapter->curr_cmd->cmd_flag & CMD_F_CANCELED) {
-		mwifiex_dbg(adapter, ERROR,
-			    "CMD_RESP: %#x been canceled\n",
-			    le16_to_cpu(resp->command));
-		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
-		adapter->curr_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-		return -1;
-	}
-
 	if (adapter->curr_cmd->cmd_flag & CMD_F_HOSTCMD) {
 		/* Copy original response back to response buffer */
 		struct mwifiex_ds_misc_cmd *hostcmd;
@@ -1090,10 +1079,18 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 	    (adapter->curr_cmd->wait_q_enabled)) {
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, cmd_flags);
 		cmd_node = adapter->curr_cmd;
-		cmd_node->cmd_flag |= CMD_F_CANCELED;
-		mwifiex_recycle_cmd_node(adapter, cmd_node);
+		/* setting curr_cmd to NULL is quite dangerous, because
+		 * mwifiex_process_cmdresp checks curr_cmd to be != NULL
+		 * at the beginning then relies on it and dereferences
+		 * it at will
+		 * this probably works since mwifiex_cmd_timeout_func
+		 * is the only caller of this function and responses
+		 * at that point
+		 */
 		adapter->curr_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+
+		mwifiex_recycle_cmd_node(adapter, cmd_node);
 	}
 
 	/* Cancel all pending scan command */

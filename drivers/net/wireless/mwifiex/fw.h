@@ -438,7 +438,6 @@ enum P2P_MODES {
 
 
 #define CMD_F_HOSTCMD           (1 << 0)
-#define CMD_F_CANCELED          (1 << 1)
 
 #define HostCmd_CMD_ID_MASK             0x0fff
 
