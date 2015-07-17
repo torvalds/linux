@@ -651,7 +651,9 @@ static const struct iio_info bmc150_magn_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static const unsigned long bmc150_magn_scan_masks[] = {0x07, 0};
+static const unsigned long bmc150_magn_scan_masks[] = {
+					BIT(AXIS_X) | BIT(AXIS_Y) | BIT(AXIS_Z),
+					0};
 
 static irqreturn_t bmc150_magn_trigger_handler(int irq, void *p)
 {
