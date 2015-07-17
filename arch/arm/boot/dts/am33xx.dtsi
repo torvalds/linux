@@ -153,6 +153,14 @@
 					};
 				};
 
+				wkup_m3_ipc: wkup_m3_ipc@1324 {
+					compatible = "ti,am3352-wkup-m3-ipc";
+					reg = <0x1324 0x24>;
+					interrupts = <78>;
+					ti,rproc = <&wkup_m3>;
+					mboxes = <&mailbox &mbox_wkupm3>;
+				};
+
 				scm_clockdomains: clockdomains {
 				};
 			};
