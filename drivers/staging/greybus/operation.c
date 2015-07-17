@@ -200,7 +200,7 @@ static int gb_message_send(struct gb_message *message, gfp_t gfp)
 	return connection->hd->driver->message_send(connection->hd,
 					connection->hd_cport_id,
 					message,
-					GFP_KERNEL);
+					gfp);
 }
 
 /*
