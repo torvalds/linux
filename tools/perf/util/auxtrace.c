@@ -884,6 +884,7 @@ int perf_event__process_auxtrace_info(struct perf_tool *tool __maybe_unused,
 		fprintf(stdout, " type: %u\n", type);
 
 	switch (type) {
+	case PERF_AUXTRACE_INTEL_PT:
 	case PERF_AUXTRACE_UNKNOWN:
 	default:
 		return -EINVAL;
