@@ -32,6 +32,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/interrupt.h>
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <linux/v4l2-dv-timings.h>
@@ -1306,6 +1307,16 @@ static int tc358743_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	return 0;
 }
 
+static irqreturn_t tc358743_irq_handler(int irq, void *dev_id)
+{
+	struct tc358743_state *state = dev_id;
+	bool handled;
+
+	tc358743_isr(&state->sd, 0, &handled);
+
+	return handled ? IRQ_HANDLED : IRQ_NONE;
+}
+
 /* --------------- VIDEO OPS --------------- */
 
 static int tc358743_g_input_status(struct v4l2_subdev *sd, u32 *status)
@@ -1876,6 +1887,17 @@ static int tc358743_probe(struct i2c_client *client,
 	tc358743_set_csi_color_space(sd);
 
 	tc358743_init_interrupts(sd);
+
+	if (state->i2c_client->irq) {
+		err = devm_request_threaded_irq(&client->dev,
+						state->i2c_client->irq,
+						NULL, tc358743_irq_handler,
+						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+						"tc358743", state);
+		if (err)
+			goto err_work_queues;
+	}
+
 	tc358743_enable_interrupts(sd, tx_5v_power_present(sd));
 	i2c_wr16(sd, INTMASK, ~(MASK_HDMI_MSK | MASK_CSI_MSK) & 0xffff);
 
