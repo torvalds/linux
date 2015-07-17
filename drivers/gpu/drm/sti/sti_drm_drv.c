@@ -242,14 +242,16 @@ static const struct component_master_ops sti_drm_ops = {
 	.unbind = sti_drm_unbind,
 };
 
-static int sti_drm_master_probe(struct platform_device *pdev)
+static int sti_drm_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->parent->of_node;
+	struct device_node *node = dev->of_node;
 	struct device_node *child_np;
 	struct component_match *match = NULL;
 
 	dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+
+	of_platform_populate(node, NULL, NULL, dev);
 
 	child_np = of_get_next_available_child(node, NULL);
 
@@ -262,46 +264,11 @@ static int sti_drm_master_probe(struct platform_device *pdev)
 	return component_master_add_with_match(dev, &sti_drm_ops, match);
 }
 
-static int sti_drm_master_remove(struct platform_device *pdev)
-{
-	component_master_del(&pdev->dev, &sti_drm_ops);
-	return 0;
-}
-
-static struct platform_driver sti_drm_master_driver = {
-	.probe = sti_drm_master_probe,
-	.remove = sti_drm_master_remove,
-	.driver = {
-		.name = DRIVER_NAME "__master",
-	},
-};
-
-static int sti_drm_platform_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct platform_device *master;
-
-	of_platform_populate(node, NULL, NULL, dev);
-
-	platform_driver_register(&sti_drm_master_driver);
-	master = platform_device_register_resndata(dev,
-			DRIVER_NAME "__master", -1,
-			NULL, 0, NULL, 0);
-	if (IS_ERR(master))
-               return PTR_ERR(master);
-
-	platform_set_drvdata(pdev, master);
-	return 0;
-}
-
 static int sti_drm_platform_remove(struct platform_device *pdev)
 {
-	struct platform_device *master = platform_get_drvdata(pdev);
-
+	component_master_del(&pdev->dev, &sti_drm_ops);
 	of_platform_depopulate(&pdev->dev);
-	platform_device_unregister(master);
-	platform_driver_unregister(&sti_drm_master_driver);
+
 	return 0;
 }
 
