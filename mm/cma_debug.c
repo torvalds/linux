@@ -170,10 +170,10 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
 
 	tmp = debugfs_create_dir(name, cma_debugfs_root);
 
-	debugfs_create_file("alloc", S_IWUSR, cma_debugfs_root, cma,
+	debugfs_create_file("alloc", S_IWUSR, tmp, cma,
 				&cma_alloc_fops);
 
-	debugfs_create_file("free", S_IWUSR, cma_debugfs_root, cma,
+	debugfs_create_file("free", S_IWUSR, tmp, cma,
 				&cma_free_fops);
 
 	debugfs_create_file("base_pfn", S_IRUGO, tmp,
