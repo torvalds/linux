@@ -20,6 +20,7 @@
 #include <linux/rcupdate.h>
 #include <linux/rhashtable.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 
 #define MAX_ENTRIES	1000000
 #define TEST_INSERT_FAIL INT_MAX
@@ -87,6 +88,8 @@ static int __init test_rht_lookup(struct rhashtable *ht)
 				return -EINVAL;
 			}
 		}
+
+		cond_resched_rcu();
 	}
 
 	return 0;
@@ -160,6 +163,8 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 		} else if (err) {
 			return err;
 		}
+
+		cond_resched();
 	}
 
 	if (insert_fails)
@@ -183,6 +188,8 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 
 			rhashtable_remove_fast(ht, &obj->node, test_rht_params);
 		}
+
+		cond_resched();
 	}
 
 	end = ktime_get_ns();
