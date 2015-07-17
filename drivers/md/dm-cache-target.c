@@ -424,7 +424,6 @@ static void free_migration(struct dm_cache_migration *mg)
 		wake_up(&cache->migration_wait);
 
 	mempool_free(mg, cache->migration_pool);
-	wake_worker(cache);
 }
 
 static int prealloc_data_structs(struct cache *cache, struct prealloc *p)
