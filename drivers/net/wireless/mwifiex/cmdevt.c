@@ -1123,7 +1123,6 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 			}
 		}
 	}
-	adapter->cmd_wait_q.status = -1;
 }
 
 /*
