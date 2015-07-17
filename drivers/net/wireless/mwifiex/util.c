@@ -496,16 +496,12 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
 			 struct cmd_ctrl_node *cmd_node)
 {
-	mwifiex_dbg(adapter, CMD,
-		    "cmd completed: status=%d\n",
+	WARN_ON(!cmd_node->wait_q_enabled);
+	mwifiex_dbg(adapter, CMD, "cmd completed: status=%d\n",
 		    adapter->cmd_wait_q.status);
 
-	*(cmd_node->condition) = true;
-
-	if (adapter->cmd_wait_q.status == -ETIMEDOUT)
-		mwifiex_dbg(adapter, ERROR, "cmd timeout\n");
-	else
-		wake_up_interruptible(&adapter->cmd_wait_q.wait);
+	*cmd_node->condition = true;
+	wake_up_interruptible(&adapter->cmd_wait_q.wait);
 
 	return 0;
 }

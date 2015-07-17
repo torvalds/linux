@@ -976,7 +976,6 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 
 		if (cmd_node->wait_q_enabled) {
 			adapter->cmd_wait_q.status = -ETIMEDOUT;
-			wake_up_interruptible(&adapter->cmd_wait_q.wait);
 			mwifiex_cancel_pending_ioctl(adapter);
 		}
 	}
