@@ -1883,6 +1883,9 @@ static const tvinfo_t tvinfoTab[] = {
     {.xres =  720, .yres =  576, .id = "576p"},
     {.xres =  720, .yres =  576, .id = "576p_prt"},
     {.xres = 1280, .yres =  720, .id = "720p"},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	{.xres = 1280, .yres =  720, .id = "720p59hz"},
+#endif
     {.xres = 1280, .yres =  800, .id = "800p"},
     {.xres = 800, .yres =  480, .id = "800x480p60hz"},
     {.xres = 1366, .yres = 768, .id = "1366x768p60hz"},
@@ -1893,9 +1896,6 @@ static const tvinfo_t tvinfoTab[] = {
     {.xres = 1360, .yres = 768, .id = "1360x768p60hz"},
     {.xres = 1440, .yres = 900, .id = "1440x900p60hz"},
     {.xres = 1680, .yres = 1050, .id = "1680x1050p60hz"},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{.xres = 1280, .yres =  720, .id = "720p59hz"},
-#endif
     {.xres = 1920, .yres = 1080, .id = "1080i"},
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION    
   	{.xres = 1920, .yres = 1080, .id = "1080i59hz"},
