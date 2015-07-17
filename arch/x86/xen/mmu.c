@@ -116,6 +116,7 @@ static pud_t level3_user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
 DEFINE_PER_CPU(unsigned long, xen_cr3);	 /* cr3 stored as physaddr */
 DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
 
+static phys_addr_t xen_pt_base, xen_pt_size __initdata;
 
 /*
  * Just beyond the highest usermode address.  STACK_TOP_MAX has a
@@ -1998,7 +1999,9 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 		check_pt_base(&pt_base, &pt_end, addr[i]);
 
 	/* Our (by three pages) smaller Xen pagetable that we are using */
-	memblock_reserve(PFN_PHYS(pt_base), (pt_end - pt_base) * PAGE_SIZE);
+	xen_pt_base = PFN_PHYS(pt_base);
+	xen_pt_size = (pt_end - pt_base) * PAGE_SIZE;
+	memblock_reserve(xen_pt_base, xen_pt_size);
 	/* protect xen_start_info */
 	memblock_reserve(__pa(xen_start_info), PAGE_SIZE);
 	/* Revector the xen_start_info */
@@ -2074,10 +2077,20 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 			  PFN_DOWN(__pa(initial_page_table)));
 	xen_write_cr3(__pa(initial_page_table));
 
-	memblock_reserve(__pa(xen_start_info->pt_base),
-			 xen_start_info->nr_pt_frames * PAGE_SIZE);
+	xen_pt_base = __pa(xen_start_info->pt_base);
+	xen_pt_size = xen_start_info->nr_pt_frames * PAGE_SIZE;
+
+	memblock_reserve(xen_pt_base, xen_pt_size);
 }
 #endif	/* CONFIG_X86_64 */
+
+void __init xen_pt_check_e820(void)
+{
+	if (xen_is_e820_reserved(xen_pt_base, xen_pt_size)) {
+		xen_raw_console_write("Xen hypervisor allocated page table memory conflicts with E820 map\n");
+		BUG();
+	}
+}
 
 static unsigned char dummy_mapping[PAGE_SIZE] __page_aligned_bss;
 

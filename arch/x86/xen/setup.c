@@ -802,6 +802,12 @@ char * __init xen_memory_setup(void)
 		BUG();
 	}
 
+	/*
+	 * Check for a conflict of the hypervisor supplied page tables with
+	 * the target E820 map.
+	 */
+	xen_pt_check_e820();
+
 	xen_reserve_xen_mfnlist();
 
 	/*
