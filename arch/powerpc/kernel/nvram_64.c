@@ -1079,6 +1079,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	if (rc <= 0) {
 		pr_err("nvram_create_os_partition: nvram_write_header "
 		       "failed (%d)\n", rc);
+		kfree(new_part);
 		return rc;
 	}
 	list_add_tail(&new_part->partition, &free_part->partition);
