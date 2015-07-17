@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <cpuid.h>
 
 #include "../../perf.h"
 #include "../../util/session.h"
@@ -261,6 +262,15 @@ static size_t intel_pt_info_priv_size(struct auxtrace_record *itr __maybe_unused
 	return INTEL_PT_AUXTRACE_PRIV_SIZE;
 }
 
+static void intel_pt_tsc_ctc_ratio(u32 *n, u32 *d)
+{
+	unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
+
+	__get_cpuid(0x15, &eax, &ebx, &ecx, &edx);
+	*n = ebx;
+	*d = eax;
+}
+
 static int intel_pt_info_fill(struct auxtrace_record *itr,
 			      struct perf_session *session,
 			      struct auxtrace_info_event *auxtrace_info,
@@ -272,7 +282,8 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	struct perf_event_mmap_page *pc;
 	struct perf_tsc_conversion tc = { .time_mult = 0, };
 	bool cap_user_time_zero = false, per_cpu_mmaps;
-	u64 tsc_bit, noretcomp_bit;
+	u64 tsc_bit, mtc_bit, mtc_freq_bits, cyc_bit, noretcomp_bit;
+	u32 tsc_ctc_ratio_n, tsc_ctc_ratio_d;
 	int err;
 
 	if (priv_size != INTEL_PT_AUXTRACE_PRIV_SIZE)
@@ -281,6 +292,12 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	intel_pt_parse_terms(&intel_pt_pmu->format, "tsc", &tsc_bit);
 	intel_pt_parse_terms(&intel_pt_pmu->format, "noretcomp",
 			     &noretcomp_bit);
+	intel_pt_parse_terms(&intel_pt_pmu->format, "mtc", &mtc_bit);
+	mtc_freq_bits = perf_pmu__format_bits(&intel_pt_pmu->format,
+					      "mtc_period");
+	intel_pt_parse_terms(&intel_pt_pmu->format, "cyc", &cyc_bit);
+
+	intel_pt_tsc_ctc_ratio(&tsc_ctc_ratio_n, &tsc_ctc_ratio_d);
 
 	if (!session->evlist->nr_mmaps)
 		return -EINVAL;
@@ -311,6 +328,11 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	auxtrace_info->priv[INTEL_PT_HAVE_SCHED_SWITCH] = ptr->have_sched_switch;
 	auxtrace_info->priv[INTEL_PT_SNAPSHOT_MODE] = ptr->snapshot_mode;
 	auxtrace_info->priv[INTEL_PT_PER_CPU_MMAPS] = per_cpu_mmaps;
+	auxtrace_info->priv[INTEL_PT_MTC_BIT] = mtc_bit;
+	auxtrace_info->priv[INTEL_PT_MTC_FREQ_BITS] = mtc_freq_bits;
+	auxtrace_info->priv[INTEL_PT_TSC_CTC_N] = tsc_ctc_ratio_n;
+	auxtrace_info->priv[INTEL_PT_TSC_CTC_D] = tsc_ctc_ratio_d;
+	auxtrace_info->priv[INTEL_PT_CYC_BIT] = cyc_bit;
 
 	return 0;
 }

@@ -91,6 +91,11 @@ struct intel_pt {
 	bool synth_needs_swap;
 
 	u64 tsc_bit;
+	u64 mtc_bit;
+	u64 mtc_freq_bits;
+	u32 tsc_ctc_ratio_n;
+	u32 tsc_ctc_ratio_d;
+	u64 cyc_bit;
 	u64 noretcomp_bit;
 	unsigned max_non_turbo_ratio;
 };
@@ -568,6 +573,25 @@ static bool intel_pt_return_compression(struct intel_pt *pt)
 	return true;
 }
 
+static unsigned int intel_pt_mtc_period(struct intel_pt *pt)
+{
+	struct perf_evsel *evsel;
+	unsigned int shift;
+	u64 config;
+
+	if (!pt->mtc_freq_bits)
+		return 0;
+
+	for (shift = 0, config = pt->mtc_freq_bits; !(config & 1); shift++)
+		config >>= 1;
+
+	evlist__for_each(pt->session->evlist, evsel) {
+		if (intel_pt_get_config(pt, &evsel->attr, &config))
+			return (config & pt->mtc_freq_bits) >> shift;
+	}
+	return 0;
+}
+
 static bool intel_pt_timeless_decoding(struct intel_pt *pt)
 {
 	struct perf_evsel *evsel;
@@ -668,6 +692,9 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.data = ptq;
 	params.return_compression = intel_pt_return_compression(pt);
 	params.max_non_turbo_ratio = pt->max_non_turbo_ratio;
+	params.mtc_period = intel_pt_mtc_period(pt);
+	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
+	params.tsc_ctc_ratio_d = pt->tsc_ctc_ratio_d;
 
 	if (pt->synth_opts.instructions) {
 		if (pt->synth_opts.period) {
@@ -1751,16 +1778,20 @@ static struct perf_evsel *intel_pt_find_sched_switch(struct perf_evlist *evlist)
 }
 
 static const char * const intel_pt_info_fmts[] = {
-	[INTEL_PT_PMU_TYPE]		= "  PMU Type           %"PRId64"\n",
-	[INTEL_PT_TIME_SHIFT]		= "  Time Shift         %"PRIu64"\n",
-	[INTEL_PT_TIME_MULT]		= "  Time Muliplier     %"PRIu64"\n",
-	[INTEL_PT_TIME_ZERO]		= "  Time Zero          %"PRIu64"\n",
-	[INTEL_PT_CAP_USER_TIME_ZERO]	= "  Cap Time Zero      %"PRId64"\n",
-	[INTEL_PT_TSC_BIT]		= "  TSC bit            %#"PRIx64"\n",
-	[INTEL_PT_NORETCOMP_BIT]	= "  NoRETComp bit      %#"PRIx64"\n",
-	[INTEL_PT_HAVE_SCHED_SWITCH]	= "  Have sched_switch  %"PRId64"\n",
-	[INTEL_PT_SNAPSHOT_MODE]	= "  Snapshot mode      %"PRId64"\n",
-	[INTEL_PT_PER_CPU_MMAPS]	= "  Per-cpu maps       %"PRId64"\n",
+	[INTEL_PT_PMU_TYPE]		= "  PMU Type            %"PRId64"\n",
+	[INTEL_PT_TIME_SHIFT]		= "  Time Shift          %"PRIu64"\n",
+	[INTEL_PT_TIME_MULT]		= "  Time Muliplier      %"PRIu64"\n",
+	[INTEL_PT_TIME_ZERO]		= "  Time Zero           %"PRIu64"\n",
+	[INTEL_PT_CAP_USER_TIME_ZERO]	= "  Cap Time Zero       %"PRId64"\n",
+	[INTEL_PT_TSC_BIT]		= "  TSC bit             %#"PRIx64"\n",
+	[INTEL_PT_NORETCOMP_BIT]	= "  NoRETComp bit       %#"PRIx64"\n",
+	[INTEL_PT_HAVE_SCHED_SWITCH]	= "  Have sched_switch   %"PRId64"\n",
+	[INTEL_PT_SNAPSHOT_MODE]	= "  Snapshot mode       %"PRId64"\n",
+	[INTEL_PT_PER_CPU_MMAPS]	= "  Per-cpu maps        %"PRId64"\n",
+	[INTEL_PT_MTC_BIT]		= "  MTC bit             %#"PRIx64"\n",
+	[INTEL_PT_TSC_CTC_N]		= "  TSC:CTC numerator   %"PRIu64"\n",
+	[INTEL_PT_TSC_CTC_D]		= "  TSC:CTC denominator %"PRIu64"\n",
+	[INTEL_PT_CYC_BIT]		= "  CYC bit             %#"PRIx64"\n",
 };
 
 static void intel_pt_print_info(u64 *arr, int start, int finish)
@@ -1811,6 +1842,17 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	pt->per_cpu_mmaps = auxtrace_info->priv[INTEL_PT_PER_CPU_MMAPS];
 	intel_pt_print_info(&auxtrace_info->priv[0], INTEL_PT_PMU_TYPE,
 			    INTEL_PT_PER_CPU_MMAPS);
+
+	if (auxtrace_info->header.size >= sizeof(struct auxtrace_info_event) +
+					(sizeof(u64) * INTEL_PT_CYC_BIT)) {
+		pt->mtc_bit = auxtrace_info->priv[INTEL_PT_MTC_BIT];
+		pt->mtc_freq_bits = auxtrace_info->priv[INTEL_PT_MTC_FREQ_BITS];
+		pt->tsc_ctc_ratio_n = auxtrace_info->priv[INTEL_PT_TSC_CTC_N];
+		pt->tsc_ctc_ratio_d = auxtrace_info->priv[INTEL_PT_TSC_CTC_D];
+		pt->cyc_bit = auxtrace_info->priv[INTEL_PT_CYC_BIT];
+		intel_pt_print_info(&auxtrace_info->priv[0], INTEL_PT_MTC_BIT,
+				    INTEL_PT_CYC_BIT);
+	}
 
 	pt->timeless_decoding = intel_pt_timeless_decoding(pt);
 	pt->have_tsc = intel_pt_have_tsc(pt);

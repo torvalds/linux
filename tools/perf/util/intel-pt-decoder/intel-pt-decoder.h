@@ -87,6 +87,9 @@ struct intel_pt_params {
 	uint64_t period;
 	enum intel_pt_period_type period_type;
 	unsigned max_non_turbo_ratio;
+	unsigned int mtc_period;
+	uint32_t tsc_ctc_ratio_n;
+	uint32_t tsc_ctc_ratio_d;
 };
 
 struct intel_pt_decoder;
