@@ -264,7 +264,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs4349 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs4349_routes),
 };
 
-static struct regmap_config cs4349_regmap = {
+static const struct regmap_config cs4349_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
 
