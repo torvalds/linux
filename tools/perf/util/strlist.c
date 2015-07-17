@@ -108,29 +108,47 @@ struct str_node *strlist__find(struct strlist *slist, const char *entry)
 	return snode;
 }
 
-static int strlist__parse_list_entry(struct strlist *slist, const char *s)
+static int strlist__parse_list_entry(struct strlist *slist, const char *s,
+				     const char *subst_dir)
 {
+	int err;
+	char *subst = NULL;
+
 	if (strncmp(s, "file://", 7) == 0)
 		return strlist__load(slist, s + 7);
 
-	return strlist__add(slist, s);
+	if (subst_dir) {
+		err = -ENOMEM;
+		if (asprintf(&subst, "%s/%s", subst_dir, s) < 0)
+			goto out;
+
+		if (access(subst, F_OK) == 0) {
+			err = strlist__load(slist, subst);
+			goto out;
+		}
+	}
+
+	err = strlist__add(slist, s);
+out:
+	free(subst);
+	return err;
 }
 
-int strlist__parse_list(struct strlist *slist, const char *s)
+int strlist__parse_list(struct strlist *slist, const char *s, const char *subst_dir)
 {
 	char *sep;
 	int err;
 
 	while ((sep = strchr(s, ',')) != NULL) {
 		*sep = '\0';
-		err = strlist__parse_list_entry(slist, s);
+		err = strlist__parse_list_entry(slist, s, subst_dir);
 		*sep = ',';
 		if (err != 0)
 			return err;
 		s = sep + 1;
 	}
 
-	return *s ? strlist__parse_list_entry(slist, s) : 0;
+	return *s ? strlist__parse_list_entry(slist, s, subst_dir) : 0;
 }
 
 struct strlist *strlist__new(const char *list, const struct strlist_config *config)
@@ -138,13 +156,22 @@ struct strlist *strlist__new(const char *list, const struct strlist_config *conf
 	struct strlist *slist = malloc(sizeof(*slist));
 
 	if (slist != NULL) {
+		bool dupstr = true;
+		const char *dirname = NULL;
+
+		if (config) {
+			dupstr = !config->dont_dupstr;
+			dirname = config->dirname;
+		}
+
 		rblist__init(&slist->rblist);
 		slist->rblist.node_cmp    = strlist__node_cmp;
 		slist->rblist.node_new    = strlist__node_new;
 		slist->rblist.node_delete = strlist__node_delete;
 
-		slist->dupstr	 = config ? !config->dont_dupstr : true;
-		if (list && strlist__parse_list(slist, list) != 0)
+		slist->dupstr	 = dupstr;
+
+		if (list && strlist__parse_list(slist, list, dirname) != 0)
 			goto out_error;
 	}
 
