@@ -475,6 +475,12 @@ static int intel_pt_validate_config(struct perf_pmu *intel_pt_pmu,
 	if (!evsel)
 		return 0;
 
+	err = intel_pt_val_config_term(intel_pt_pmu, "caps/cycle_thresholds",
+				       "cyc_thresh", "caps/psb_cyc",
+				       evsel->attr.config);
+	if (err)
+		return err;
+
 	err = intel_pt_val_config_term(intel_pt_pmu, "caps/mtc_periods",
 				       "mtc_period", "caps/mtc",
 				       evsel->attr.config);
