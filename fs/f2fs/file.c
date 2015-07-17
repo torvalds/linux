@@ -1357,7 +1357,7 @@ static int f2fs_ioc_commit_atomic_write(struct file *filp)
 		commit_inmem_pages(inode, false);
 	}
 
-	ret = f2fs_sync_file(filp, 0, LONG_MAX, 0);
+	ret = f2fs_sync_file(filp, 0, LLONG_MAX, 0);
 	mnt_drop_write_file(filp);
 	return ret;
 }
