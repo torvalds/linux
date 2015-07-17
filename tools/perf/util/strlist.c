@@ -134,7 +134,7 @@ out:
 	return err;
 }
 
-int strlist__parse_list(struct strlist *slist, const char *s, const char *subst_dir)
+static int strlist__parse_list(struct strlist *slist, const char *s, const char *subst_dir)
 {
 	char *sep;
 	int err;

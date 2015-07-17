@@ -79,6 +79,4 @@ static inline struct str_node *strlist__next(struct str_node *sn)
 #define strlist__for_each_safe(pos, n, slist)	\
 	for (pos = strlist__first(slist), n = strlist__next(pos); pos;\
 	     pos = n, n = strlist__next(n))
-
-int strlist__parse_list(struct strlist *slist, const char *s, const char *subst_dir);
 #endif /* __PERF_STRLIST_H */
