@@ -4,14 +4,6 @@
 #include <linux/pci.h>
 
 /* Address Translation Service */
-struct pci_ats {
-	int pos;        /* capability position */
-	int stu;        /* Smallest Translation Unit */
-	int qdep;       /* Invalidate Queue Depth */
-	atomic_t ref_cnt; /* number of VFs with ATS enabled */
-	unsigned int is_enabled:1;      /* Enable bit is set */
-};
-
 #ifdef CONFIG_PCI_ATS
 
 int pci_enable_ats(struct pci_dev *dev, int ps);
@@ -26,7 +18,7 @@ int pci_ats_queue_depth(struct pci_dev *dev);
  */
 static inline int pci_ats_enabled(struct pci_dev *dev)
 {
-	return dev->ats && dev->ats->is_enabled;
+	return dev->ats_cap && dev->ats_enabled;
 }
 
 #else /* CONFIG_PCI_ATS */

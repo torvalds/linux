@@ -343,6 +343,7 @@ struct pci_dev {
 	unsigned int	msi_enabled:1;
 	unsigned int	msix_enabled:1;
 	unsigned int	ari_enabled:1;	/* ARI forwarding */
+	unsigned int	ats_enabled:1;	/* Address Translation Service */
 	unsigned int	is_managed:1;
 	unsigned int    needs_freset:1; /* Dev requires fundamental reset */
 	unsigned int	state_saved:1;
@@ -375,7 +376,10 @@ struct pci_dev {
 		struct pci_sriov *sriov;	/* SR-IOV capability related */
 		struct pci_dev *physfn;	/* the PF this VF is associated with */
 	};
-	struct pci_ats	*ats;	/* Address Translation Service */
+	int		ats_cap;	/* ATS Capability offset */
+	int		ats_stu;	/* ATS Smallest Translation Unit */
+	int		ats_qdep;	/* ATS Invalidate Queue Depth */
+	atomic_t	ats_ref_cnt;	/* number of VFs with ATS enabled */
 #endif
 	phys_addr_t rom; /* Physical address of ROM if it's not from the BAR */
 	size_t romlen; /* Length of ROM if it's not from the BAR */
@@ -1297,10 +1301,8 @@ void ht_destroy_irq(unsigned int irq);
 #ifdef CONFIG_PCI_ATS
 /* Address Translation Service */
 void pci_ats_init(struct pci_dev *dev);
-void pci_ats_free(struct pci_dev *dev);
 #else
 static inline void pci_ats_init(struct pci_dev *dev) { }
-static inline void pci_ats_free(struct pci_dev *dev) { }
 #endif
 
 void pci_cfg_access_lock(struct pci_dev *dev);
