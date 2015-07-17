@@ -169,6 +169,7 @@ static struct spi_board_info simone_spi_devices[] __initdata = {
 
 static struct ep93xx_spi_info simone_spi_info __initdata = {
 	.num_chipselect	= ARRAY_SIZE(simone_spi_devices),
+	.use_dma = 1,
 };
 
 static struct i2c_gpio_platform_data __initdata simone_i2c_gpio_data = {
