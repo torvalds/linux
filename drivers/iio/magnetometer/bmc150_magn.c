@@ -664,7 +664,6 @@ static irqreturn_t bmc150_magn_trigger_handler(int irq, void *p)
 
 	mutex_lock(&data->mutex);
 	ret = bmc150_magn_read_xyz(data, data->buffer);
-	mutex_unlock(&data->mutex);
 	if (ret < 0)
 		goto err;
 
@@ -672,6 +671,7 @@ static irqreturn_t bmc150_magn_trigger_handler(int irq, void *p)
 					   pf->timestamp);
 
 err:
+	mutex_unlock(&data->mutex);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
