@@ -202,7 +202,7 @@ int pinconf_apply_setting(struct pinctrl_setting const *setting)
 
 #ifdef CONFIG_DEBUG_FS
 
-void pinconf_show_config(struct seq_file *s, struct pinctrl_dev *pctldev,
+static void pinconf_show_config(struct seq_file *s, struct pinctrl_dev *pctldev,
 		      unsigned long *configs, unsigned num_configs)
 {
 	const struct pinconf_ops *confops;
