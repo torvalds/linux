@@ -1,0 +1,137 @@
+ORANGEFS
+========
+
+OrangeFS is an LGPL userspace scale-out parallel storage system. It is ideal
+for large storage problems faced by HPC, BigData, Streaming Video,
+Genomics, Bioinformatics.
+
+Orangefs, originally called PVFS, was first developed in 1993 by
+Walt Ligon and Eric Blumer as a parallel file system for Parallel
+Virtual Machine (PVM) as part of a NASA grant to study the I/O patterns
+of parallel programs.
+
+Orangefs features include:
+
+  * Distributes file data among multiple file servers
+  * Supports simultaneous access by multiple clients
+  * Stores file data and metadata on servers using local file system
+    and access methods
+  * Userspace implementation is easy to install and maintain
+  * Direct MPI support
+  * Stateless
+
+
+MAILING LIST
+============
+
+http://beowulf-underground.org/mailman/listinfo/pvfs2-users
+
+
+DOCUMENTATION
+=============
+
+http://www.orangefs.org/documentation/
+
+
+USERSPACE FILESYSTEM SOURCE
+===========================
+
+http://www.orangefs.org/download
+
+Orangefs versions prior to 2.9.3 would not be compatible with the
+upstream version of the kernel client.
+
+
+BUILDING THE USERSPACE FILESYSTEM ON A SINGLE SERVER
+====================================================
+
+When Orangefs is upstream, "--with-kernel" shouldn't be needed, but
+until then the path to where the kernel with the Orangefs kernel client
+patch was built is needed to ensure that pvfs2-client-core (the bridge
+between kernel space and user space) will build properly. You can omit
+--prefix if you don't care that things are sprinkled around in
+/usr/local.
+
+./configure --prefix=/opt/ofs --with-kernel=/path/to/orangefs/kernel
+
+make
+
+make install
+
+Create an orangefs config file:
+/opt/ofs/bin/pvfs2-genconfig /etc/pvfs2.conf
+
+  for "Enter hostnames", use the hostname, don't let it default to
+  localhost.
+
+create a pvfs2tab file in /etc:
+cat /etc/pvfs2tab
+tcp://myhostname:3334/orangefs /mymountpoint pvfs2 defaults,noauto 0 0
+
+create the mount point you specified in the tab file if needed:
+mkdir /mymountpoint
+
+bootstrap the server:
+/opt/ofs/sbin/pvfs2-server /etc/pvfs2.conf -f
+
+start the server:
+/opt/osf/sbin/pvfs2-server /etc/pvfs2.conf
+
+Now the server is running. At this point you might like to
+prove things are working with:
+
+/opt/osf/bin/pvfs2-ls /mymountpoint
+
+You might not want to enforce selinux, it doesn't seem to matter by
+linux 3.11...
+
+If stuff seems to be working, turn on the client core:
+/opt/osf/sbin/pvfs2-client -p /opt/osf/sbin/pvfs2-client-core
+
+Mount your filesystem.
+mount -t pvfs2 tcp://myhostname:3334/orangefs /mymountpoint
+
+
+OPTIONS
+=======
+
+The following mount options are accepted:
+
+  acl
+    Allow the use of Access Control Lists on files and directories.
+
+  intr
+    Some operations between the kernel client and the user space
+    filesystem can be interruptible, such as changes in debug levels
+    and the setting of tunable parameters.
+
+  local_lock
+    Enable posix locking from the perspective of "this" kernel. The
+    default file_operations lock action is to return ENOSYS. Posix
+    locking kicks in if the filesystem is mounted with -o local_lock.
+    Distributed locking is being worked on for the future.
+
+
+DEBUGGING
+=========
+
+If you want the debug (GOSSIP) statments in a particular
+source file (inode.c for example) go to syslog:
+
+  echo inode > /sys/kernel/debug/orangefs/kernel-debug
+
+No debugging (the default):
+
+  echo none > /sys/kernel/debug/orangefs/kernel-debug
+
+Debugging from several source files:
+
+  echo inode,dir > /sys/kernel/debug/orangefs/kernel-debug
+
+All debugging:
+
+  echo all > /sys/kernel/debug/orangefs/kernel-debug
+
+Get a list of all debugging keywords:
+
+  cat /sys/kernel/debug/orangefs/debug-help
