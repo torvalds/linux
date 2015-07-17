@@ -1572,6 +1572,10 @@ next:
 			return intel_pt_walk_fup_tip(decoder);
 
 		case INTEL_PT_TRACESTOP:
+			decoder->pge = false;
+			decoder->continuous_period = false;
+			intel_pt_clear_tx_flags(decoder);
+			decoder->have_tma = false;
 			break;
 
 		case INTEL_PT_PSB:
@@ -1717,6 +1721,9 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_TRACESTOP:
+			decoder->pge = false;
+			decoder->continuous_period = false;
+			intel_pt_clear_tx_flags(decoder);
 		case INTEL_PT_TNT:
 			decoder->have_tma = false;
 			intel_pt_log("ERROR: Unexpected packet\n");
@@ -1819,6 +1826,10 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 			return intel_pt_bug(decoder);
 
 		case INTEL_PT_TRACESTOP:
+			decoder->pge = false;
+			decoder->continuous_period = false;
+			intel_pt_clear_tx_flags(decoder);
+			decoder->have_tma = false;
 			break;
 
 		case INTEL_PT_PSB:
