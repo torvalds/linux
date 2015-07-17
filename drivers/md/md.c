@@ -5218,6 +5218,11 @@ int md_run(struct mddev *mddev)
 			if (sysfs_link_rdev(mddev, rdev))
 				/* failure here is OK */;
 
+	if (mddev->degraded && !mddev->ro)
+		/* This ensures that recovering status is reported immediately
+		 * via sysfs - until a lack of spares is confirmed.
+		 */
+		set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 
 	if (mddev->flags & MD_UPDATE_SB_FLAGS)
@@ -8164,6 +8169,7 @@ void md_check_recovery(struct mddev *mddev)
 			 */
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			md_reap_sync_thread(mddev);
+			clear_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 			clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 			goto unlock;
 		}
