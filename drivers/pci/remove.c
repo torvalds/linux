@@ -26,6 +26,7 @@ static void pci_stop_dev(struct pci_dev *dev)
 		dev->is_added = 0;
 	}
 
+	pci_ats_free(dev);
 	if (dev->bus->self)
 		pcie_aspm_exit_link_state(dev);
 }

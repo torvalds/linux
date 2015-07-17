@@ -1540,6 +1540,9 @@ static void pci_init_capabilities(struct pci_dev *dev)
 	/* Single Root I/O Virtualization */
 	pci_iov_init(dev);
 
+	/* Address Translation Services */
+	pci_ats_init(dev);
+
 	/* Enable ACS P2P upstream forwarding */
 	pci_enable_acs(dev);
 }
