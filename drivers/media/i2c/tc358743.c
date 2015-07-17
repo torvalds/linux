@@ -1668,7 +1668,7 @@ static int tc358743_probe(struct i2c_client *client,
 	state->i2c_client = client;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &tc358743_ops);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	/* i2c access */
 	if ((i2c_rd16(sd, CHIPID) & MASK_CHIPID) != 0) {
