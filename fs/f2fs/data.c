@@ -1207,9 +1207,7 @@ continue_unlock:
 				goto continue_unlock;
 			}
 
-			if (step == 0 && !is_cold_data(page))
-				goto continue_unlock;
-			if (step == 1 && is_cold_data(page))
+			if (step == is_cold_data(page))
 				goto continue_unlock;
 
 			if (PageWriteback(page)) {
