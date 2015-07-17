@@ -1,5 +1,6 @@
 libperf-y += header.o
 libperf-y += tsc.o
+libperf-y += pmu.o
 libperf-y += kvm-stat.o
 
 libperf-$(CONFIG_DWARF) += dwarf-regs.o
@@ -7,4 +8,5 @@ libperf-$(CONFIG_DWARF) += dwarf-regs.o
 libperf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
 libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 
+libperf-$(CONFIG_AUXTRACE) += auxtrace.o
 libperf-$(CONFIG_AUXTRACE) += intel-pt.o

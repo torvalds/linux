@@ -47,6 +47,8 @@
 #include "debug.h"
 #include "parse-options.h"
 
+#include "intel-pt.h"
+
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 			struct auxtrace_mmap_params *mp,
 			void *userpg, int fd)
@@ -876,7 +878,7 @@ static bool auxtrace__dont_decode(struct perf_session *session)
 
 int perf_event__process_auxtrace_info(struct perf_tool *tool __maybe_unused,
 				      union perf_event *event,
-				      struct perf_session *session __maybe_unused)
+				      struct perf_session *session)
 {
 	enum auxtrace_type type = event->auxtrace_info.type;
 
@@ -885,6 +887,7 @@ int perf_event__process_auxtrace_info(struct perf_tool *tool __maybe_unused,
 
 	switch (type) {
 	case PERF_AUXTRACE_INTEL_PT:
+		return intel_pt_process_auxtrace_info(event, session);
 	case PERF_AUXTRACE_UNKNOWN:
 	default:
 		return -EINVAL;
