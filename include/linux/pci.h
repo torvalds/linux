@@ -376,9 +376,9 @@ struct pci_dev {
 		struct pci_sriov *sriov;	/* SR-IOV capability related */
 		struct pci_dev *physfn;	/* the PF this VF is associated with */
 	};
-	int		ats_cap;	/* ATS Capability offset */
-	int		ats_stu;	/* ATS Smallest Translation Unit */
-	int		ats_qdep;	/* ATS Invalidate Queue Depth */
+	u16		ats_cap;	/* ATS Capability offset */
+	u8		ats_stu;	/* ATS Smallest Translation Unit */
+	u8		ats_qdep;	/* ATS Invalidate Queue Depth */
 	atomic_t	ats_ref_cnt;	/* number of VFs with ATS enabled */
 #endif
 	phys_addr_t rom; /* Physical address of ROM if it's not from the BAR */
