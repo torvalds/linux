@@ -35,6 +35,7 @@ void xen_build_mfn_list_list(void);
 void xen_setup_machphys_mapping(void);
 void xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn);
 void xen_reserve_top(void);
+void __init xen_reserve_special_pages(void);
 void __init xen_pt_check_e820(void);
 
 void xen_mm_pin_all(void);

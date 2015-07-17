@@ -2084,6 +2084,21 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 }
 #endif	/* CONFIG_X86_64 */
 
+void __init xen_reserve_special_pages(void)
+{
+	phys_addr_t paddr;
+
+	memblock_reserve(__pa(xen_start_info), PAGE_SIZE);
+	if (xen_start_info->store_mfn) {
+		paddr = PFN_PHYS(mfn_to_pfn(xen_start_info->store_mfn));
+		memblock_reserve(paddr, PAGE_SIZE);
+	}
+	if (!xen_initial_domain()) {
+		paddr = PFN_PHYS(mfn_to_pfn(xen_start_info->console.domU.mfn));
+		memblock_reserve(paddr, PAGE_SIZE);
+	}
+}
+
 void __init xen_pt_check_e820(void)
 {
 	if (xen_is_e820_reserved(xen_pt_base, xen_pt_size)) {
