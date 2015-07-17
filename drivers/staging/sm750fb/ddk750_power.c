@@ -8,7 +8,8 @@ void ddk750_setDPMS(DPMS_t state)
 
 	if (getChipType() == SM750LE) {
 		value = PEEK32(CRT_DISPLAY_CTRL);
-		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(value, CRT_DISPLAY_CTRL, DPMS, state));
+		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(value, CRT_DISPLAY_CTRL,
+						     DPMS, state));
 	} else {
 		value = PEEK32(SYSTEM_CTRL);
 		value = FIELD_VALUE(value, SYSTEM_CTRL, DPMS, state);
@@ -39,15 +40,18 @@ void setPowerMode(unsigned int powerMode)
 
 	switch (powerMode) {
 	case POWER_MODE_CTRL_MODE_MODE0:
-		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE, MODE0);
+		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE,
+					  MODE0);
 		break;
 
 	case POWER_MODE_CTRL_MODE_MODE1:
-		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE, MODE1);
+		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE,
+					  MODE1);
 		break;
 
 	case POWER_MODE_CTRL_MODE_SLEEP:
-		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE, SLEEP);
+		control_value = FIELD_SET(control_value, POWER_MODE_CTRL, MODE,
+					  SLEEP);
 		break;
 
 	default:
@@ -138,8 +142,9 @@ void enableZVPort(unsigned int enable)
 		gate = FIELD_SET(gate, CURRENT_GATE, I2C,    ON);
 #endif
 	} else {
-		/* Disable ZV Port Gate. There is no way to know whether the GPIO pins are being used
-		 or not. Therefore, do not disable the GPIO gate. */
+		/* Disable ZV Port Gate. There is no way to know whether the
+		GPIO pins are being used or not. Therefore, do not disable the
+		GPIO gate. */
 		gate = FIELD_SET(gate, CURRENT_GATE, ZVPORT, OFF);
 	}
 
