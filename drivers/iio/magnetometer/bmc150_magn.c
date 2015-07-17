@@ -85,6 +85,7 @@
 #define BMC150_MAGN_REG_HIGH_THRESH		0x50
 #define BMC150_MAGN_REG_REP_XY			0x51
 #define BMC150_MAGN_REG_REP_Z			0x52
+#define BMC150_MAGN_REG_REP_DATAMASK		GENMASK(7, 0)
 
 #define BMC150_MAGN_REG_TRIM_START		0x5D
 #define BMC150_MAGN_REG_TRIM_END		0x71
@@ -559,7 +560,7 @@ static int bmc150_magn_write_raw(struct iio_dev *indio_dev,
 			}
 			ret = regmap_update_bits(data->regmap,
 						 BMC150_MAGN_REG_REP_XY,
-						 0xFF,
+						 BMC150_MAGN_REG_REP_DATAMASK,
 						 BMC150_MAGN_REPXY_TO_REGVAL
 						 (val));
 			mutex_unlock(&data->mutex);
@@ -575,7 +576,7 @@ static int bmc150_magn_write_raw(struct iio_dev *indio_dev,
 			}
 			ret = regmap_update_bits(data->regmap,
 						 BMC150_MAGN_REG_REP_Z,
-						 0xFF,
+						 BMC150_MAGN_REG_REP_DATAMASK,
 						 BMC150_MAGN_REPZ_TO_REGVAL
 						 (val));
 			mutex_unlock(&data->mutex);
