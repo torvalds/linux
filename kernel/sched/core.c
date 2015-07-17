@@ -701,31 +701,36 @@ static inline bool got_nohz_idle_kick(void)
 #endif /* CONFIG_NO_HZ_COMMON */
 
 #ifdef CONFIG_NO_HZ_FULL
-bool sched_can_stop_tick(void)
+bool sched_can_stop_tick(struct rq *rq)
 {
+	int fifo_nr_running;
+
+	/* Deadline tasks, even if single, need the tick */
+	if (rq->dl.dl_nr_running)
+		return false;
+
 	/*
-	 * FIFO realtime policy runs the highest priority task. Other runnable
-	 * tasks are of a lower priority. The scheduler tick does nothing.
+	 * FIFO realtime policy runs the highest priority task (after DEADLINE).
+	 * Other runnable tasks are of a lower priority. The scheduler tick
+	 * isn't needed.
 	 */
-	if (current->policy == SCHED_FIFO)
+	fifo_nr_running = rq->rt.rt_nr_running - rq->rt.rr_nr_running;
+	if (fifo_nr_running)
 		return true;
 
 	/*
 	 * Round-robin realtime tasks time slice with other tasks at the same
-	 * realtime priority. Is this task the only one at this priority?
+	 * realtime priority.
 	 */
-	if (current->policy == SCHED_RR) {
-		struct sched_rt_entity *rt_se = &current->rt;
-
-		return list_is_singular(&rt_se->run_list);
+	if (rq->rt.rr_nr_running) {
+		if (rq->rt.rr_nr_running == 1)
+			return true;
+		else
+			return false;
 	}
 
-	/*
-	 * More than one running task need preemption.
-	 * nr_running update is assumed to be visible
-	 * after IPI is sent from wakers.
-	 */
-	if (this_rq()->nr_running > 1)
+	/* Normal multitasking need periodic preemption checks */
+	if (rq->cfs.nr_running > 1)
 		return false;
 
 	return true;

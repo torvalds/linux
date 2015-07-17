@@ -2364,10 +2364,7 @@ static inline void wake_up_nohz_cpu(int cpu) { }
 #endif
 
 #ifdef CONFIG_NO_HZ_FULL
-extern bool sched_can_stop_tick(void);
 extern u64 scheduler_tick_max_deferment(void);
-#else
-static inline bool sched_can_stop_tick(void) { return false; }
 #endif
 
 #ifdef CONFIG_SCHED_AUTOGROUP
