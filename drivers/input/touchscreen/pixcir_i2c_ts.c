@@ -604,7 +604,6 @@ MODULE_DEVICE_TABLE(of, pixcir_of_match);
 
 static struct i2c_driver pixcir_i2c_ts_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "pixcir_ts",
 		.pm	= &pixcir_dev_pm_ops,
 		.of_match_table = of_match_ptr(pixcir_of_match),

@@ -1382,7 +1382,6 @@ MODULE_DEVICE_TABLE(acpi, cyapa_acpi_id);
 static struct i2c_driver cyapa_driver = {
 	.driver = {
 		.name = "cyapa",
-		.owner = THIS_MODULE,
 		.pm = &cyapa_pm_ops,
 		.acpi_match_table = ACPI_PTR(cyapa_acpi_id),
 	},

@@ -271,7 +271,6 @@ static const struct i2c_device_id gp2a_i2c_id[] = {
 static struct i2c_driver gp2a_i2c_driver = {
 	.driver = {
 		.name	= GP2A_I2C_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &gp2a_pm,
 	},
 	.probe		= gp2a_probe,

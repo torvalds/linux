@@ -74,7 +74,6 @@ MODULE_DEVICE_TABLE(i2c, cyttsp4_i2c_id);
 static struct i2c_driver cyttsp4_i2c_driver = {
 	.driver = {
 		.name	= CYTTSP4_I2C_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &cyttsp4_pm_ops,
 	},
 	.probe		= cyttsp4_i2c_probe,

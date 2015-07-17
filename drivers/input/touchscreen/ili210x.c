@@ -343,7 +343,6 @@ MODULE_DEVICE_TABLE(i2c, ili210x_i2c_id);
 static struct i2c_driver ili210x_ts_driver = {
 	.driver = {
 		.name = "ili210x_i2c",
-		.owner = THIS_MODULE,
 		.pm = &ili210x_i2c_pm,
 	},
 	.id_table = ili210x_i2c_id,

@@ -412,7 +412,6 @@ static struct i2c_driver goodix_ts_driver = {
 	.id_table = goodix_ts_id,
 	.driver = {
 		.name = "Goodix-TS",
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(goodix_acpi_match),
 		.of_match_table = of_match_ptr(goodix_of_match),
 	},

@@ -1183,7 +1183,6 @@ MODULE_DEVICE_TABLE(of, elan_of_match);
 static struct i2c_driver elan_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &elan_pm_ops,
 		.acpi_match_table = ACPI_PTR(elan_acpi_id),
 		.of_match_table = of_match_ptr(elan_of_match),

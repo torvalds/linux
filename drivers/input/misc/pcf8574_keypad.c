@@ -208,7 +208,6 @@ MODULE_DEVICE_TABLE(i2c, pcf8574_kp_id);
 static struct i2c_driver pcf8574_kp_driver = {
 	.driver = {
 		.name  = DRV_NAME,
-		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm = &pcf8574_kp_pm_ops,
 #endif

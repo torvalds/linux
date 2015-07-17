@@ -919,7 +919,6 @@ MODULE_DEVICE_TABLE(of, zforce_dt_idtable);
 
 static struct i2c_driver zforce_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "zforce-ts",
 		.pm	= &zforce_pm_ops,
 		.of_match_table	= of_match_ptr(zforce_dt_idtable),

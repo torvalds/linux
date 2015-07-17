@@ -2666,7 +2666,6 @@ MODULE_DEVICE_TABLE(i2c, mxt_id);
 static struct i2c_driver mxt_driver = {
 	.driver = {
 		.name	= "atmel_mxt_ts",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(mxt_of_match),
 		.acpi_match_table = ACPI_PTR(mxt_acpi_id),
 		.pm	= &mxt_pm_ops,

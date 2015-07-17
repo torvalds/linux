@@ -577,7 +577,6 @@ static const struct of_device_id mms114_dt_match[] = {
 static struct i2c_driver mms114_driver = {
 	.driver = {
 		.name	= "mms114",
-		.owner	= THIS_MODULE,
 		.pm	= &mms114_pm_ops,
 		.of_match_table = of_match_ptr(mms114_dt_match),
 	},

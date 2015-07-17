@@ -361,7 +361,6 @@ MODULE_DEVICE_TABLE(i2c, cap11xx_i2c_ids);
 static struct i2c_driver cap11xx_i2c_driver = {
 	.driver = {
 		.name	= "cap11xx",
-		.owner	= THIS_MODULE,
 		.of_match_table = cap11xx_dt_ids,
 	},
 	.id_table	= cap11xx_i2c_ids,

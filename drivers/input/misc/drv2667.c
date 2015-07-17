@@ -484,7 +484,6 @@ static struct i2c_driver drv2667_driver = {
 	.probe		= drv2667_probe,
 	.driver		= {
 		.name	= "drv2667-haptics",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(drv2667_of_match),
 		.pm	= &drv2667_pm_ops,
 	},
