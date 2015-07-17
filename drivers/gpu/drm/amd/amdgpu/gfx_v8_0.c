@@ -1813,10 +1813,7 @@ static u32 gfx_v8_0_get_rb_disabled(struct amdgpu_device *adev,
 	u32 data, mask;
 
 	data = RREG32(mmCC_RB_BACKEND_DISABLE);
-	if (data & 1)
-		data &= CC_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK;
-	else
-		data = 0;
+	data &= CC_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK;
 
 	data |= RREG32(mmGC_USER_RB_BACKEND_DISABLE);
 

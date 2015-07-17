@@ -193,6 +193,7 @@ static bool acpi_decode_space(struct resource_win *win,
 	u8 iodec = attr->granularity == 0xfff ? ACPI_DECODE_10 : ACPI_DECODE_16;
 	bool wp = addr->info.mem.write_protect;
 	u64 len = attr->address_length;
+	u64 start, end, offset = 0;
 	struct resource *res = &win->res;
 
 	/*
@@ -204,9 +205,6 @@ static bool acpi_decode_space(struct resource_win *win,
 		pr_debug("ACPI: Invalid address space min_addr_fix %d, max_addr_fix %d, len %llx\n",
 			 addr->min_address_fixed, addr->max_address_fixed, len);
 
-	res->start = attr->minimum;
-	res->end = attr->maximum;
-
 	/*
 	 * For bridges that translate addresses across the bridge,
 	 * translation_offset is the offset that must be added to the
@@ -214,12 +212,22 @@ static bool acpi_decode_space(struct resource_win *win,
 	 * primary side. Non-bridge devices must list 0 for all Address
 	 * Translation offset bits.
 	 */
-	if (addr->producer_consumer == ACPI_PRODUCER) {
-		res->start += attr->translation_offset;
-		res->end += attr->translation_offset;
-	} else if (attr->translation_offset) {
+	if (addr->producer_consumer == ACPI_PRODUCER)
+		offset = attr->translation_offset;
+	else if (attr->translation_offset)
 		pr_debug("ACPI: translation_offset(%lld) is invalid for non-bridge device.\n",
 			 attr->translation_offset);
+	start = attr->minimum + offset;
+	end = attr->maximum + offset;
+
+	win->offset = offset;
+	res->start = start;
+	res->end = end;
+	if (sizeof(resource_size_t) < sizeof(u64) &&
+	    (offset != win->offset || start != res->start || end != res->end)) {
+		pr_warn("acpi resource window ([%#llx-%#llx] ignored, not CPU addressable)\n",
+			attr->minimum, attr->maximum);
+		return false;
 	}
 
 	switch (addr->resource_type) {
@@ -235,8 +243,6 @@ static bool acpi_decode_space(struct resource_win *win,
 	default:
 		return false;
 	}
-
-	win->offset = attr->translation_offset;
 
 	if (addr->producer_consumer == ACPI_PRODUCER)
 		res->flags |= IORESOURCE_WINDOW;

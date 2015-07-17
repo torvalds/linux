@@ -734,6 +734,24 @@ static inline bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
 	return false;
 }
 #endif
+#ifdef __KVM_HAVE_ARCH_ASSIGNED_DEVICE
+void kvm_arch_start_assignment(struct kvm *kvm);
+void kvm_arch_end_assignment(struct kvm *kvm);
+bool kvm_arch_has_assigned_device(struct kvm *kvm);
+#else
+static inline void kvm_arch_start_assignment(struct kvm *kvm)
+{
+}
+
+static inline void kvm_arch_end_assignment(struct kvm *kvm)
+{
+}
+
+static inline bool kvm_arch_has_assigned_device(struct kvm *kvm)
+{
+	return false;
+}
+#endif
 
 static inline wait_queue_head_t *kvm_arch_vcpu_wq(struct kvm_vcpu *vcpu)
 {

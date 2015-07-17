@@ -2044,9 +2044,9 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 
 	spin_lock_init(&idev->qp_table.lock);
 	spin_lock_init(&idev->lk_table.lock);
-	idev->sm_lid = __constant_be16_to_cpu(IB_LID_PERMISSIVE);
+	idev->sm_lid = be16_to_cpu(IB_LID_PERMISSIVE);
 	/* Set the prefix to the default value (see ch. 4.1.1) */
-	idev->gid_prefix = __constant_cpu_to_be64(0xfe80000000000000ULL);
+	idev->gid_prefix = cpu_to_be64(0xfe80000000000000ULL);
 
 	ret = ipath_init_qp_table(idev, ib_ipath_qp_table_size);
 	if (ret)

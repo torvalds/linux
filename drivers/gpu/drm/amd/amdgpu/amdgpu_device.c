@@ -1207,10 +1207,15 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		} else {
 			if (adev->ip_blocks[i].funcs->early_init) {
 				r = adev->ip_blocks[i].funcs->early_init((void *)adev);
-				if (r)
+				if (r == -ENOENT)
+					adev->ip_block_enabled[i] = false;
+				else if (r)
 					return r;
+				else
+					adev->ip_block_enabled[i] = true;
+			} else {
+				adev->ip_block_enabled[i] = true;
 			}
-			adev->ip_block_enabled[i] = true;
 		}
 	}
 
