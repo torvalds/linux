@@ -6559,6 +6559,14 @@ S:	Supported
 F:	drivers/power/max14577_charger.c
 F:	drivers/power/max77693_charger.c
 
+MAXIM MAX77802 MULTIFUNCTION PMIC DEVICE DRIVERS
+M:	Javier Martinez Canillas <javier@osg.samsung.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	drivers/*/*max77802.c
+F:	Documentation/devicetree/bindings/*/*max77802.txt
+F:	include/dt-bindings/*/*max77802.h
+
 MAXIM PMIC AND MUIC DRIVERS FOR EXYNOS BASED BOARDS
 M:	Chanwoo Choi <cw00.choi@samsung.com>
 M:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
