@@ -141,6 +141,8 @@ struct rmi_data {
 	unsigned long firmware_id;
 
 	u8 f01_ctrl0;
+	u8 interrupt_enable_mask;
+	bool restore_interrupt_mask;
 };
 
 #define RMI_PAGE(addr) (((addr) >> 8) & 0xff)
@@ -361,13 +363,34 @@ static void rmi_f11_process_touch(struct rmi_data *hdata, int slot,
 	}
 }
 
+static int rmi_reset_attn_mode(struct hid_device *hdev)
+{
+	struct rmi_data *data = hid_get_drvdata(hdev);
+	int ret;
+
+	ret = rmi_set_mode(hdev, RMI_MODE_ATTN_REPORTS);
+	if (ret)
+		return ret;
+
+	if (data->restore_interrupt_mask) {
+		ret = rmi_write(hdev, data->f01.control_base_addr + 1,
+				&data->interrupt_enable_mask);
+		if (ret) {
+			hid_err(hdev, "can not write F01 control register\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void rmi_reset_work(struct work_struct *work)
 {
 	struct rmi_data *hdata = container_of(work, struct rmi_data,
 						reset_work);
 
 	/* switch the device to RMI if we receive a generic mouse report */
-	rmi_set_mode(hdata->hdev, RMI_MODE_ATTN_REPORTS);
+	rmi_reset_attn_mode(hdata->hdev);
 }
 
 static inline int rmi_schedule_reset(struct hid_device *hdev)
@@ -590,7 +613,7 @@ static int rmi_post_reset(struct hid_device *hdev)
 	struct rmi_data *data = hid_get_drvdata(hdev);
 	int ret;
 
-	ret = rmi_set_mode(hdev, RMI_MODE_ATTN_REPORTS);
+	ret = rmi_reset_attn_mode(hdev);
 	if (ret) {
 		hid_err(hdev, "can not set rmi mode\n");
 		return ret;
@@ -617,7 +640,7 @@ static int rmi_post_reset(struct hid_device *hdev)
 
 static int rmi_post_resume(struct hid_device *hdev)
 {
-	return rmi_set_mode(hdev, RMI_MODE_ATTN_REPORTS);
+	return rmi_reset_attn_mode(hdev);
 }
 #endif /* CONFIG_PM */
 
@@ -673,6 +696,7 @@ static void rmi_register_function(struct rmi_data *data,
 		f->interrupt_count = pdt_entry->interrupt_source_count;
 		f->irq_mask = rmi_gen_mask(f->interrupt_base,
 						f->interrupt_count);
+		data->interrupt_enable_mask |= f->irq_mask;
 	}
 }
 
@@ -810,12 +834,35 @@ static int rmi_populate_f01(struct hid_device *hdev)
 		data->firmware_id += info[2] * 65536;
 	}
 
-	ret = rmi_read(hdev, data->f01.control_base_addr, &data->f01_ctrl0);
+	ret = rmi_read_block(hdev, data->f01.control_base_addr, info,
+				2);
 
 	if (ret) {
-		hid_err(hdev, "can not read f01 ctrl0\n");
+		hid_err(hdev, "can not read f01 ctrl registers\n");
 		return ret;
 	}
+
+	data->f01_ctrl0 = info[0];
+
+	if (!info[1]) {
+		/*
+		 * Do to a firmware bug in some touchpads the F01 interrupt
+		 * enable control register will be cleared on reset.
+		 * This will stop the touchpad from reporting data, so
+		 * if F01 CTRL1 is 0 then we need to explicitly enable
+		 * interrupts for the functions we want data for.
+		 */
+		data->restore_interrupt_mask = true;
+
+		ret = rmi_write(hdev, data->f01.control_base_addr + 1,
+				&data->interrupt_enable_mask);
+		if (ret) {
+			hid_err(hdev, "can not write to control reg 1: %d.\n",
+				ret);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
