@@ -2215,7 +2215,7 @@ static struct intel_uncore_type *hswep_pci_uncores[] = {
 	NULL,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(hswep_uncore_pci_ids) = {
+static const struct pci_device_id hswep_uncore_pci_ids[] = {
 	{ /* Home Agent 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x2f30),
 		.driver_data = UNCORE_PCI_DEV_DATA(HSWEP_PCI_UNCORE_HA, 0),
