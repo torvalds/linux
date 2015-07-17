@@ -517,16 +517,13 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
  */
 static bool alloc_p2m(unsigned long pfn)
 {
-	unsigned topidx, mididx;
+	unsigned topidx;
 	unsigned long *top_mfn_p, *mid_mfn;
 	pte_t *ptep, *pte_pg;
 	unsigned int level;
 	unsigned long flags;
 	unsigned long addr = (unsigned long)(xen_p2m_addr + pfn);
 	unsigned long p2m_pfn;
-
-	topidx = p2m_top_index(pfn);
-	mididx = p2m_mid_index(pfn);
 
 	ptep = lookup_address(addr, &level);
 	BUG_ON(!ptep || level != PG_LEVEL_4K);
@@ -539,7 +536,8 @@ static bool alloc_p2m(unsigned long pfn)
 			return false;
 	}
 
-	if (p2m_top_mfn) {
+	if (p2m_top_mfn && pfn < MAX_P2M_PFN) {
+		topidx = p2m_top_index(pfn);
 		top_mfn_p = &p2m_top_mfn[topidx];
 		mid_mfn = ACCESS_ONCE(p2m_top_mfn_p[topidx]);
 
@@ -596,7 +594,7 @@ static bool alloc_p2m(unsigned long pfn)
 			wmb(); /* Tools are synchronizing via p2m_generation. */
 			HYPERVISOR_shared_info->arch.p2m_generation++;
 			if (mid_mfn)
-				mid_mfn[mididx] = virt_to_mfn(p2m);
+				mid_mfn[p2m_mid_index(pfn)] = virt_to_mfn(p2m);
 			p2m = NULL;
 		}
 

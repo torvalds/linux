@@ -33,6 +33,8 @@
 #include "p2m.h"
 #include "mmu.h"
 
+#define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
+
 /* Amount of extra memory space we add to the e820 ranges */
 struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 
@@ -68,6 +70,26 @@ static unsigned long xen_remap_mfn __initdata = INVALID_P2M_ENTRY;
  * leaving a practically usable system.
  */
 #define EXTRA_MEM_RATIO		(10)
+
+static bool xen_512gb_limit __initdata = IS_ENABLED(CONFIG_XEN_512GB);
+
+static void __init xen_parse_512gb(void)
+{
+	bool val = false;
+	char *arg;
+
+	arg = strstr(xen_start_info->cmd_line, "xen_512gb_limit");
+	if (!arg)
+		return;
+
+	arg = strstr(xen_start_info->cmd_line, "xen_512gb_limit=");
+	if (!arg)
+		val = true;
+	else if (strtobool(arg + strlen("xen_512gb_limit="), &val))
+		return;
+
+	xen_512gb_limit = val;
+}
 
 static void __init xen_add_extra_mem(phys_addr_t start, phys_addr_t size)
 {
@@ -503,11 +525,28 @@ void __init xen_remap_memory(void)
 	pr_info("Remapped %ld page(s)\n", remapped);
 }
 
+static unsigned long __init xen_get_pages_limit(void)
+{
+	unsigned long limit;
+
+#ifdef CONFIG_X86_32
+	limit = GB(64) / PAGE_SIZE;
+#else
+	limit = ~0ul;
+	if (!xen_initial_domain() && xen_512gb_limit)
+		limit = GB(512) / PAGE_SIZE;
+#endif
+	return limit;
+}
+
 static unsigned long __init xen_get_max_pages(void)
 {
-	unsigned long max_pages = MAX_DOMAIN_PAGES;
+	unsigned long max_pages, limit;
 	domid_t domid = DOMID_SELF;
 	int ret;
+
+	limit = xen_get_pages_limit();
+	max_pages = limit;
 
 	/*
 	 * For the initial domain we use the maximum reservation as
@@ -524,7 +563,7 @@ static unsigned long __init xen_get_max_pages(void)
 			max_pages = ret;
 	}
 
-	return min(max_pages, MAX_DOMAIN_PAGES);
+	return min(max_pages, limit);
 }
 
 static void __init xen_align_and_add_e820_region(phys_addr_t start,
@@ -699,7 +738,7 @@ static void __init xen_reserve_xen_mfnlist(void)
  **/
 char * __init xen_memory_setup(void)
 {
-	unsigned long max_pfn = xen_start_info->nr_pages;
+	unsigned long max_pfn;
 	phys_addr_t mem_end, addr, size, chunk_size;
 	u32 type;
 	int rc;
@@ -709,7 +748,9 @@ char * __init xen_memory_setup(void)
 	int i;
 	int op;
 
-	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
+	xen_parse_512gb();
+	max_pfn = xen_get_pages_limit();
+	max_pfn = min(max_pfn, xen_start_info->nr_pages);
 	mem_end = PFN_PHYS(max_pfn);
 
 	memmap.nr_entries = E820MAX;
@@ -762,12 +803,15 @@ char * __init xen_memory_setup(void)
 	 * is limited to the max size of lowmem, so that it doesn't
 	 * get completely filled.
 	 *
+	 * Make sure we have no memory above max_pages, as this area
+	 * isn't handled by the p2m management.
+	 *
 	 * In principle there could be a problem in lowmem systems if
 	 * the initial memory is also very large with respect to
 	 * lowmem, but we won't try to deal with that here.
 	 */
-	extra_pages = min(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
-			  extra_pages);
+	extra_pages = min3(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
+			   extra_pages, max_pages - max_pfn);
 	i = 0;
 	addr = xen_e820_map[0].addr;
 	size = xen_e820_map[0].size;
@@ -803,9 +847,6 @@ char * __init xen_memory_setup(void)
 	/*
 	 * Set the rest as identity mapped, in case PCI BARs are
 	 * located here.
-	 *
-	 * PFNs above MAX_P2M_PFN are considered identity mapped as
-	 * well.
 	 */
 	set_phys_range_identity(addr / PAGE_SIZE, ~0ul);
 
