@@ -542,7 +542,7 @@ struct perf_pmu *perf_pmu__find(const char *name)
 }
 
 static struct perf_pmu_format *
-pmu_find_format(struct list_head *formats, char *name)
+pmu_find_format(struct list_head *formats, const char *name)
 {
 	struct perf_pmu_format *format;
 
@@ -551,6 +551,21 @@ pmu_find_format(struct list_head *formats, char *name)
 			return format;
 
 	return NULL;
+}
+
+__u64 perf_pmu__format_bits(struct list_head *formats, const char *name)
+{
+	struct perf_pmu_format *format = pmu_find_format(formats, name);
+	__u64 bits = 0;
+	int fbit;
+
+	if (!format)
+		return 0;
+
+	for_each_set_bit(fbit, format->bits, PERF_PMU_FORMAT_BITS)
+		bits |= 1ULL << fbit;
+
+	return bits;
 }
 
 /*
