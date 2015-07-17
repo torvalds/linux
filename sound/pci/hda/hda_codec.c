@@ -975,7 +975,7 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 	if (codec->bus->modelname) {
 		codec->modelname = kstrdup(codec->bus->modelname, GFP_KERNEL);
 		if (!codec->modelname) {
-			err = -ENODEV;
+			err = -ENOMEM;
 			goto error;
 		}
 	}
