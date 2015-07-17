@@ -24,6 +24,8 @@
 
 #define BIT63		((uint64_t)1 << 63)
 
+#define NR_FLAG		BIT63
+
 #if __BYTE_ORDER == __BIG_ENDIAN
 #define le16_to_cpu bswap_16
 #define le32_to_cpu bswap_32
@@ -46,15 +48,21 @@ static const char * const packet_name[] = {
 	[INTEL_PT_TIP_PGD]	= "TIP.PGD",
 	[INTEL_PT_TIP_PGE]	= "TIP.PGE",
 	[INTEL_PT_TSC]		= "TSC",
+	[INTEL_PT_TMA]		= "TMA",
 	[INTEL_PT_MODE_EXEC]	= "MODE.Exec",
 	[INTEL_PT_MODE_TSX]	= "MODE.TSX",
+	[INTEL_PT_MTC]		= "MTC",
 	[INTEL_PT_TIP]		= "TIP",
 	[INTEL_PT_FUP]		= "FUP",
+	[INTEL_PT_CYC]		= "CYC",
+	[INTEL_PT_VMCS]		= "VMCS",
 	[INTEL_PT_PSB]		= "PSB",
 	[INTEL_PT_PSBEND]	= "PSBEND",
 	[INTEL_PT_CBR]		= "CBR",
+	[INTEL_PT_TRACESTOP]	= "TraceSTOP",
 	[INTEL_PT_PIP]		= "PIP",
 	[INTEL_PT_OVF]		= "OVF",
+	[INTEL_PT_MNT]		= "MNT",
 };
 
 const char *intel_pt_pkt_name(enum intel_pt_pkt_type type)
@@ -96,8 +104,16 @@ static int intel_pt_get_pip(const unsigned char *buf, size_t len,
 	packet->type = INTEL_PT_PIP;
 	memcpy_le64(&payload, buf + 2, 6);
 	packet->payload = payload >> 1;
+	if (payload & 1)
+		packet->payload |= NR_FLAG;
 
 	return 8;
+}
+
+static int intel_pt_get_tracestop(struct intel_pt_pkt *packet)
+{
+	packet->type = INTEL_PT_TRACESTOP;
+	return 2;
 }
 
 static int intel_pt_get_cbr(const unsigned char *buf, size_t len,
@@ -108,6 +124,24 @@ static int intel_pt_get_cbr(const unsigned char *buf, size_t len,
 	packet->type = INTEL_PT_CBR;
 	packet->payload = buf[2];
 	return 4;
+}
+
+static int intel_pt_get_vmcs(const unsigned char *buf, size_t len,
+			     struct intel_pt_pkt *packet)
+{
+	unsigned int count = (52 - 5) >> 3;
+
+	if (count < 1 || count > 7)
+		return INTEL_PT_BAD_PACKET;
+
+	if (len < count + 2)
+		return INTEL_PT_NEED_MORE_BYTES;
+
+	packet->type = INTEL_PT_VMCS;
+	packet->count = count;
+	memcpy_le64(&packet->payload, buf + 2, count);
+
+	return count + 2;
 }
 
 static int intel_pt_get_ovf(struct intel_pt_pkt *packet)
@@ -139,10 +173,47 @@ static int intel_pt_get_psbend(struct intel_pt_pkt *packet)
 	return 2;
 }
 
+static int intel_pt_get_tma(const unsigned char *buf, size_t len,
+			    struct intel_pt_pkt *packet)
+{
+	if (len < 7)
+		return INTEL_PT_NEED_MORE_BYTES;
+
+	packet->type = INTEL_PT_TMA;
+	packet->payload = buf[2] | (buf[3] << 8);
+	packet->count = buf[5] | ((buf[6] & BIT(0)) << 8);
+	return 7;
+}
+
 static int intel_pt_get_pad(struct intel_pt_pkt *packet)
 {
 	packet->type = INTEL_PT_PAD;
 	return 1;
+}
+
+static int intel_pt_get_mnt(const unsigned char *buf, size_t len,
+			    struct intel_pt_pkt *packet)
+{
+	if (len < 11)
+		return INTEL_PT_NEED_MORE_BYTES;
+	packet->type = INTEL_PT_MNT;
+	memcpy_le64(&packet->payload, buf + 3, 8);
+	return 11
+;
+}
+
+static int intel_pt_get_3byte(const unsigned char *buf, size_t len,
+			      struct intel_pt_pkt *packet)
+{
+	if (len < 3)
+		return INTEL_PT_NEED_MORE_BYTES;
+
+	switch (buf[2]) {
+	case 0x88: /* MNT */
+		return intel_pt_get_mnt(buf, len, packet);
+	default:
+		return INTEL_PT_BAD_PACKET;
+	}
 }
 
 static int intel_pt_get_ext(const unsigned char *buf, size_t len,
@@ -156,14 +227,22 @@ static int intel_pt_get_ext(const unsigned char *buf, size_t len,
 		return intel_pt_get_long_tnt(buf, len, packet);
 	case 0x43: /* PIP */
 		return intel_pt_get_pip(buf, len, packet);
+	case 0x83: /* TraceStop */
+		return intel_pt_get_tracestop(packet);
 	case 0x03: /* CBR */
 		return intel_pt_get_cbr(buf, len, packet);
+	case 0xc8: /* VMCS */
+		return intel_pt_get_vmcs(buf, len, packet);
 	case 0xf3: /* OVF */
 		return intel_pt_get_ovf(packet);
 	case 0x82: /* PSB */
 		return intel_pt_get_psb(buf, len, packet);
 	case 0x23: /* PSBEND */
 		return intel_pt_get_psbend(packet);
+	case 0x73: /* TMA */
+		return intel_pt_get_tma(buf, len, packet);
+	case 0xC3: /* 3-byte header */
+		return intel_pt_get_3byte(buf, len, packet);
 	default:
 		return INTEL_PT_BAD_PACKET;
 	}
@@ -185,6 +264,28 @@ static int intel_pt_get_short_tnt(unsigned int byte,
 	packet->payload = (uint64_t)byte << 57;
 
 	return 1;
+}
+
+static int intel_pt_get_cyc(unsigned int byte, const unsigned char *buf,
+			    size_t len, struct intel_pt_pkt *packet)
+{
+	unsigned int offs = 1, shift;
+	uint64_t payload = byte >> 3;
+
+	byte >>= 2;
+	len -= 1;
+	for (shift = 5; byte & 1; shift += 7) {
+		if (offs > 9)
+			return INTEL_PT_BAD_PACKET;
+		if (len < offs)
+			return INTEL_PT_NEED_MORE_BYTES;
+		byte = buf[offs++];
+		payload |= (byte >> 1) << shift;
+	}
+
+	packet->type = INTEL_PT_CYC;
+	packet->payload = payload;
+	return offs;
 }
 
 static int intel_pt_get_ip(enum intel_pt_pkt_type type, unsigned int byte,
@@ -269,6 +370,16 @@ static int intel_pt_get_tsc(const unsigned char *buf, size_t len,
 	return 8;
 }
 
+static int intel_pt_get_mtc(const unsigned char *buf, size_t len,
+			    struct intel_pt_pkt *packet)
+{
+	if (len < 2)
+		return INTEL_PT_NEED_MORE_BYTES;
+	packet->type = INTEL_PT_MTC;
+	packet->payload = buf[1];
+	return 2;
+}
+
 static int intel_pt_do_get_packet(const unsigned char *buf, size_t len,
 				  struct intel_pt_pkt *packet)
 {
@@ -288,6 +399,9 @@ static int intel_pt_do_get_packet(const unsigned char *buf, size_t len,
 		return intel_pt_get_short_tnt(byte, packet);
 	}
 
+	if ((byte & 2))
+		return intel_pt_get_cyc(byte, buf, len, packet);
+
 	switch (byte & 0x1f) {
 	case 0x0D:
 		return intel_pt_get_ip(INTEL_PT_TIP, byte, buf, len, packet);
@@ -305,6 +419,8 @@ static int intel_pt_do_get_packet(const unsigned char *buf, size_t len,
 			return intel_pt_get_mode(buf, len, packet);
 		case 0x19:
 			return intel_pt_get_tsc(buf, len, packet);
+		case 0x59:
+			return intel_pt_get_mtc(buf, len, packet);
 		default:
 			return INTEL_PT_BAD_PACKET;
 		}
@@ -329,7 +445,7 @@ int intel_pt_get_packet(const unsigned char *buf, size_t len,
 int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 		      size_t buf_len)
 {
-	int ret, i;
+	int ret, i, nr;
 	unsigned long long payload = packet->payload;
 	const char *name = intel_pt_pkt_name(packet->type);
 
@@ -338,6 +454,7 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 	case INTEL_PT_PAD:
 	case INTEL_PT_PSB:
 	case INTEL_PT_PSBEND:
+	case INTEL_PT_TRACESTOP:
 	case INTEL_PT_OVF:
 		return snprintf(buf, buf_len, "%s", name);
 	case INTEL_PT_TNT: {
@@ -371,17 +488,16 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 	case INTEL_PT_FUP:
 		if (!(packet->count))
 			return snprintf(buf, buf_len, "%s no ip", name);
+	case INTEL_PT_CYC:
+	case INTEL_PT_VMCS:
+	case INTEL_PT_MTC:
+	case INTEL_PT_MNT:
 	case INTEL_PT_CBR:
-		return snprintf(buf, buf_len, "%s 0x%llx", name, payload);
 	case INTEL_PT_TSC:
-		if (packet->count)
-			return snprintf(buf, buf_len,
-					"%s 0x%llx CTC 0x%x FC 0x%x",
-					name, payload, packet->count & 0xffff,
-					(packet->count >> 16) & 0x1ff);
-		else
-			return snprintf(buf, buf_len, "%s 0x%llx",
-					name, payload);
+		return snprintf(buf, buf_len, "%s 0x%llx", name, payload);
+	case INTEL_PT_TMA:
+		return snprintf(buf, buf_len, "%s CTC 0x%x FC 0x%x", name,
+				(unsigned)payload, packet->count);
 	case INTEL_PT_MODE_EXEC:
 		return snprintf(buf, buf_len, "%s %lld", name, payload);
 	case INTEL_PT_MODE_TSX:
@@ -389,8 +505,10 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 				name, (unsigned)(payload >> 1) & 1,
 				(unsigned)payload & 1);
 	case INTEL_PT_PIP:
-		ret = snprintf(buf, buf_len, "%s 0x%llx",
-			       name, payload);
+		nr = packet->payload & NR_FLAG ? 1 : 0;
+		payload &= ~NR_FLAG;
+		ret = snprintf(buf, buf_len, "%s 0x%llx (NR=%d)",
+			       name, payload, nr);
 		return ret;
 	default:
 		break;

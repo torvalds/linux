@@ -923,6 +923,7 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 		case INTEL_PT_TIP_PGE:
 		case INTEL_PT_TIP:
 		case INTEL_PT_TNT:
+		case INTEL_PT_TRACESTOP:
 		case INTEL_PT_BAD:
 		case INTEL_PT_PSB:
 			intel_pt_log("ERROR: Unexpected packet\n");
@@ -935,6 +936,9 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 			intel_pt_calc_tsc_timestamp(decoder);
 			break;
 
+		case INTEL_PT_TMA:
+			break;
+
 		case INTEL_PT_CBR:
 			decoder->cbr = decoder->packet.payload;
 			break;
@@ -944,7 +948,7 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PIP:
-			decoder->cr3 = decoder->packet.payload;
+			decoder->cr3 = decoder->packet.payload & (BIT63 - 1);
 			break;
 
 		case INTEL_PT_FUP:
@@ -956,6 +960,12 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 			intel_pt_update_in_tx(decoder);
 			break;
 
+		case INTEL_PT_MTC:
+			break;
+
+		case INTEL_PT_CYC:
+		case INTEL_PT_VMCS:
+		case INTEL_PT_MNT:
 		case INTEL_PT_PAD:
 		default:
 			break;
@@ -983,8 +993,10 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 		switch (decoder->packet.type) {
 		case INTEL_PT_TNT:
 		case INTEL_PT_FUP:
+		case INTEL_PT_TRACESTOP:
 		case INTEL_PT_PSB:
 		case INTEL_PT_TSC:
+		case INTEL_PT_TMA:
 		case INTEL_PT_CBR:
 		case INTEL_PT_MODE_TSX:
 		case INTEL_PT_BAD:
@@ -1032,13 +1044,21 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 			return 0;
 
 		case INTEL_PT_PIP:
-			decoder->cr3 = decoder->packet.payload;
+			decoder->cr3 = decoder->packet.payload & (BIT63 - 1);
+			break;
+
+		case INTEL_PT_MTC:
+			break;
+
+		case INTEL_PT_CYC:
 			break;
 
 		case INTEL_PT_MODE_EXEC:
 			decoder->exec_mode = decoder->packet.payload;
 			break;
 
+		case INTEL_PT_VMCS:
+		case INTEL_PT_MNT:
 		case INTEL_PT_PAD:
 			break;
 
@@ -1122,6 +1142,9 @@ next:
 			}
 			return intel_pt_walk_fup_tip(decoder);
 
+		case INTEL_PT_TRACESTOP:
+			break;
+
 		case INTEL_PT_PSB:
 			intel_pt_clear_stack(&decoder->stack);
 			err = intel_pt_walk_psbend(decoder);
@@ -1132,11 +1155,20 @@ next:
 			break;
 
 		case INTEL_PT_PIP:
-			decoder->cr3 = decoder->packet.payload;
+			decoder->cr3 = decoder->packet.payload & (BIT63 - 1);
+			break;
+
+		case INTEL_PT_MTC:
 			break;
 
 		case INTEL_PT_TSC:
 			intel_pt_calc_tsc_timestamp(decoder);
+			break;
+
+		case INTEL_PT_TMA:
+			break;
+
+		case INTEL_PT_CYC:
 			break;
 
 		case INTEL_PT_CBR:
@@ -1162,6 +1194,8 @@ next:
 			return intel_pt_bug(decoder);
 
 		case INTEL_PT_PSBEND:
+		case INTEL_PT_VMCS:
+		case INTEL_PT_MNT:
 		case INTEL_PT_PAD:
 			break;
 
@@ -1202,8 +1236,17 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			}
 			break;
 
+		case INTEL_PT_MTC:
+			break;
+
 		case INTEL_PT_TSC:
 			intel_pt_calc_tsc_timestamp(decoder);
+			break;
+
+		case INTEL_PT_TMA:
+			break;
+
+		case INTEL_PT_CYC:
 			break;
 
 		case INTEL_PT_CBR:
@@ -1211,7 +1254,7 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PIP:
-			decoder->cr3 = decoder->packet.payload;
+			decoder->cr3 = decoder->packet.payload & (BIT63 - 1);
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -1222,6 +1265,7 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			intel_pt_update_in_tx(decoder);
 			break;
 
+		case INTEL_PT_TRACESTOP:
 		case INTEL_PT_TNT:
 			intel_pt_log("ERROR: Unexpected packet\n");
 			if (decoder->ip)
@@ -1240,6 +1284,8 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			return 0;
 
 		case INTEL_PT_PSB:
+		case INTEL_PT_VMCS:
+		case INTEL_PT_MNT:
 		case INTEL_PT_PAD:
 		default:
 			break;
@@ -1282,8 +1328,17 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 				intel_pt_set_last_ip(decoder);
 			break;
 
+		case INTEL_PT_MTC:
+			break;
+
 		case INTEL_PT_TSC:
 			intel_pt_calc_tsc_timestamp(decoder);
+			break;
+
+		case INTEL_PT_TMA:
+			break;
+
+		case INTEL_PT_CYC:
 			break;
 
 		case INTEL_PT_CBR:
@@ -1291,7 +1346,7 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PIP:
-			decoder->cr3 = decoder->packet.payload;
+			decoder->cr3 = decoder->packet.payload & (BIT63 - 1);
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -1308,6 +1363,9 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 		case INTEL_PT_BAD: /* Does not happen */
 			return intel_pt_bug(decoder);
 
+		case INTEL_PT_TRACESTOP:
+			break;
+
 		case INTEL_PT_PSB:
 			err = intel_pt_walk_psb(decoder);
 			if (err)
@@ -1321,6 +1379,8 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 
 		case INTEL_PT_TNT:
 		case INTEL_PT_PSBEND:
+		case INTEL_PT_VMCS:
+		case INTEL_PT_MNT:
 		case INTEL_PT_PAD:
 		default:
 			break;
