@@ -20,7 +20,7 @@ unsigned int getPowerMode(void)
 {
 	if (getChipType() == SM750LE)
 		return 0;
-	return (FIELD_GET(PEEK32(POWER_MODE_CTRL), POWER_MODE_CTRL, MODE));
+	return FIELD_GET(PEEK32(POWER_MODE_CTRL), POWER_MODE_CTRL, MODE);
 }
 
 
