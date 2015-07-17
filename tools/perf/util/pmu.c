@@ -589,6 +589,18 @@ static void pmu_format_value(unsigned long *format, __u64 value, __u64 *v,
 	}
 }
 
+static __u64 pmu_format_max_value(const unsigned long *format)
+{
+	int w;
+
+	w = bitmap_weight(format, PERF_PMU_FORMAT_BITS);
+	if (!w)
+		return 0;
+	if (w < 64)
+		return (1ULL << w) - 1;
+	return -1;
+}
+
 /*
  * Term is a string term, and might be a param-term. Try to look up it's value
  * in the remaining terms.
@@ -662,7 +674,7 @@ static int pmu_config_term(struct list_head *formats,
 {
 	struct perf_pmu_format *format;
 	__u64 *vp;
-	__u64 val;
+	__u64 val, max_val;
 
 	/*
 	 * If this is a parameter we've already used for parameterized-eval,
@@ -727,6 +739,22 @@ static int pmu_config_term(struct list_head *formats,
 			return -EINVAL;
 	} else
 		return -EINVAL;
+
+	max_val = pmu_format_max_value(format->bits);
+	if (val > max_val) {
+		if (err) {
+			err->idx = term->err_val;
+			if (asprintf(&err->str,
+				     "value too big for format, maximum is %llu",
+				     (unsigned long long)max_val) < 0)
+				err->str = strdup("value too big for format");
+			return -EINVAL;
+		}
+		/*
+		 * Assume we don't care if !err, in which case the value will be
+		 * silently truncated.
+		 */
+	}
 
 	pmu_format_value(format->bits, val, vp, zero);
 	return 0;
