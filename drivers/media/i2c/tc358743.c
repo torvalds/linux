@@ -1710,6 +1710,16 @@ static int tc358743_probe(struct i2c_client *client,
 		goto err_hdl;
 	}
 
+	state->pad.flags = MEDIA_PAD_FL_SOURCE;
+	err = media_entity_init(&sd->entity, 1, &state->pad, 0);
+	if (err < 0)
+		goto err_hdl;
+
+	sd->dev = &client->dev;
+	err = v4l2_async_register_subdev(sd);
+	if (err < 0)
+		goto err_hdl;
+
 	mutex_init(&state->confctl_mutex);
 
 	INIT_DELAYED_WORK(&state->delayed_work_enable_hotplug,
@@ -1740,6 +1750,7 @@ err_work_queues:
 	destroy_workqueue(state->work_queues);
 	mutex_destroy(&state->confctl_mutex);
 err_hdl:
+	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(&state->hdl);
 	return err;
 }
@@ -1751,8 +1762,10 @@ static int tc358743_remove(struct i2c_client *client)
 
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
 	destroy_workqueue(state->work_queues);
+	v4l2_async_unregister_subdev(sd);
 	v4l2_device_unregister_subdev(sd);
 	mutex_destroy(&state->confctl_mutex);
+	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(&state->hdl);
 
 	return 0;
