@@ -1,0 +1,1 @@
+libperf-$(CONFIG_AUXTRACE) += intel-pt-pkt-decoder.o
