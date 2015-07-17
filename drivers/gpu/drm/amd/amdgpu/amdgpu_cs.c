@@ -147,13 +147,13 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 
 	/* get chunks */
 	INIT_LIST_HEAD(&p->validated);
-	chunk_array = kcalloc(cs->in.num_chunks, sizeof(uint64_t), GFP_KERNEL);
+	chunk_array = kmalloc_array(cs->in.num_chunks, sizeof(uint64_t), GFP_KERNEL);
 	if (chunk_array == NULL) {
 		r = -ENOMEM;
 		goto out;
 	}
 
-	chunk_array_user = (uint64_t *)(unsigned long)(cs->in.chunks);
+	chunk_array_user = (uint64_t __user *)(cs->in.chunks);
 	if (copy_from_user(chunk_array, chunk_array_user,
 			   sizeof(uint64_t)*cs->in.num_chunks)) {
 		r = -EFAULT;
@@ -161,7 +161,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	}
 
 	p->nchunks = cs->in.num_chunks;
-	p->chunks = kcalloc(p->nchunks, sizeof(struct amdgpu_cs_chunk),
+	p->chunks = kmalloc_array(p->nchunks, sizeof(struct amdgpu_cs_chunk),
 			    GFP_KERNEL);
 	if (p->chunks == NULL) {
 		r = -ENOMEM;
@@ -173,7 +173,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		struct drm_amdgpu_cs_chunk user_chunk;
 		uint32_t __user *cdata;
 
-		chunk_ptr = (void __user *)(unsigned long)chunk_array[i];
+		chunk_ptr = (void __user *)chunk_array[i];
 		if (copy_from_user(&user_chunk, chunk_ptr,
 				       sizeof(struct drm_amdgpu_cs_chunk))) {
 			r = -EFAULT;
@@ -183,7 +183,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		p->chunks[i].length_dw = user_chunk.length_dw;
 
 		size = p->chunks[i].length_dw;
-		cdata = (void __user *)(unsigned long)user_chunk.chunk_data;
+		cdata = (void __user *)user_chunk.chunk_data;
 		p->chunks[i].user_ptr = cdata;
 
 		p->chunks[i].kdata = drm_malloc_ab(size, sizeof(uint32_t));
@@ -235,11 +235,10 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		}
 	}
 
-	p->ibs = kcalloc(p->num_ibs, sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!p->ibs) {
+
+	p->ibs = kmalloc_array(p->num_ibs, sizeof(struct amdgpu_ib), GFP_KERNEL);
+	if (!p->ibs)
 		r = -ENOMEM;
-		goto out;
-	}
 
 out:
 	kfree(chunk_array);
