@@ -79,6 +79,7 @@ libperf-y += cloexec.o
 libperf-y += thread-stack.o
 libperf-$(CONFIG_AUXTRACE) += auxtrace.o
 libperf-$(CONFIG_AUXTRACE) += intel-pt-decoder/
+libperf-$(CONFIG_AUXTRACE) += intel-pt.o
 libperf-y += parse-branch-options.o
 
 libperf-$(CONFIG_LIBELF) += symbol-elf.o
