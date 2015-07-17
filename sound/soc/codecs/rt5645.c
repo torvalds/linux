@@ -2763,7 +2763,6 @@ static void rt5645_enable_push_button_irq(struct snd_soc_codec *codec,
 	bool enable)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
 
 	if (enable) {
 		snd_soc_dapm_force_enable_pin(dapm, "ADC L power");
