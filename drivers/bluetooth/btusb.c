@@ -68,6 +68,9 @@ static const struct usb_device_id btusb_table[] = {
 	/* Generic Bluetooth AMP device */
 	{ USB_DEVICE_INFO(0xe0, 0x01, 0x04), .driver_info = BTUSB_AMP },
 
+	/* Generic Bluetooth USB interface */
+	{ USB_INTERFACE_INFO(0xe0, 0x01, 0x01) },
+
 	/* Apple-specific (Broadcom) devices */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x05ac, 0xff, 0x01, 0x01),
 	  .driver_info = BTUSB_BCM_APPLE },
