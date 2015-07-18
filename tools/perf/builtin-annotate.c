@@ -187,6 +187,7 @@ find_next:
 			 * symbol, free he->ms.sym->src to signal we already
 			 * processed this symbol.
 			 */
+			zfree(&notes->src->cycles_hist);
 			zfree(&notes->src);
 		}
 	}
