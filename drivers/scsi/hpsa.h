@@ -50,6 +50,11 @@ struct hpsa_scsi_dev_t {
 					 * device via "ioaccel" path.
 					 */
 	u32 ioaccel_handle;
+	u8 active_path_index;
+	u8 path_map;
+	u8 bay;
+	u8 box[8];
+	u16 phys_connector[8];
 	int offload_config;		/* I/O accel RAID offload configured */
 	int offload_enabled;		/* I/O accel RAID offload enabled */
 	int offload_to_be_enabled;
