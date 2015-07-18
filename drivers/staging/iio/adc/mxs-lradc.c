@@ -23,18 +23,13 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/wait.h>
-#include <linux/sched.h>
 #include <linux/stmp_device.h>
 #include <linux/bitops.h>
 #include <linux/completion.h>
-#include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/clk.h>
 
