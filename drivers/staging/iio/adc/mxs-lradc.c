@@ -1,5 +1,5 @@
 /*
- * Freescale i.MX28 LRADC driver
+ * Freescale MXS LRADC driver
  *
  * Copyright (c) 2012 DENX Software Engineering, GmbH.
  * Marek Vasut <marex@denx.de>
@@ -1392,7 +1392,7 @@ static const struct iio_chan_spec mxs_lradc_chan_spec[] = {
 	MXS_ADC_CHAN(4, IIO_VOLTAGE),
 	MXS_ADC_CHAN(5, IIO_VOLTAGE),
 	MXS_ADC_CHAN(6, IIO_VOLTAGE),
-	MXS_ADC_CHAN(7, IIO_VOLTAGE),	/* VBATT */
+	MXS_ADC_CHAN(7, IIO_VOLTAGE),
 	/* Combined Temperature sensors */
 	{
 		.type = IIO_TEMP,
@@ -1411,12 +1411,12 @@ static const struct iio_chan_spec mxs_lradc_chan_spec[] = {
 		.scan_index = -1,
 		.channel = 9,
 	},
-	MXS_ADC_CHAN(10, IIO_VOLTAGE),	/* VDDIO */
-	MXS_ADC_CHAN(11, IIO_VOLTAGE),	/* VTH */
-	MXS_ADC_CHAN(12, IIO_VOLTAGE),	/* VDDA */
-	MXS_ADC_CHAN(13, IIO_VOLTAGE),	/* VDDD */
-	MXS_ADC_CHAN(14, IIO_VOLTAGE),	/* VBG */
-	MXS_ADC_CHAN(15, IIO_VOLTAGE),	/* VDD5V */
+	MXS_ADC_CHAN(10, IIO_VOLTAGE),
+	MXS_ADC_CHAN(11, IIO_VOLTAGE),
+	MXS_ADC_CHAN(12, IIO_VOLTAGE),
+	MXS_ADC_CHAN(13, IIO_VOLTAGE),
+	MXS_ADC_CHAN(14, IIO_VOLTAGE),
+	MXS_ADC_CHAN(15, IIO_VOLTAGE),
 };
 
 static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
@@ -1707,6 +1707,6 @@ static struct platform_driver mxs_lradc_driver = {
 module_platform_driver(mxs_lradc_driver);
 
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
-MODULE_DESCRIPTION("Freescale i.MX28 LRADC driver");
+MODULE_DESCRIPTION("Freescale MXS LRADC driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRIVER_NAME);
