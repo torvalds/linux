@@ -40,6 +40,7 @@
 #include "util/xyarray.h"
 #include "util/sort.h"
 #include "util/intlist.h"
+#include "util/parse-branch-options.h"
 #include "arch/common.h"
 
 #include "util/debug.h"
@@ -695,6 +696,8 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 		perf_top__record_precise_ip(top, he, evsel->idx, ip);
 	}
 
+	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
+		     !(top->record_opts.branch_stack & PERF_SAMPLE_BRANCH_ANY));
 	return 0;
 }
 
@@ -1171,6 +1174,12 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "don't try to adjust column width, use these fixed values"),
 	OPT_UINTEGER(0, "proc-map-timeout", &opts->proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
+	OPT_CALLBACK_NOOPT('b', "branch-any", &opts->branch_stack,
+		     "branch any", "sample any taken branches",
+		     parse_branch_stack),
+	OPT_CALLBACK('j', "branch-filter", &opts->branch_stack,
+		     "branch filter mask", "branch stack filter modes",
+		     parse_branch_stack),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
