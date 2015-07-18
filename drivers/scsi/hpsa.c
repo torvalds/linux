@@ -325,7 +325,7 @@ static int check_for_unit_attention(struct ctlr_info *h,
 
 	decode_sense_data(c->err_info->SenseInfo, sense_len,
 				&sense_key, &asc, &ascq);
-	if (sense_key != UNIT_ATTENTION || asc == -1)
+	if (sense_key != UNIT_ATTENTION || asc == 0xff)
 		return 0;
 
 	switch (asc) {
