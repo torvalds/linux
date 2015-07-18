@@ -8272,6 +8272,14 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 	destroy_workqueue(h->rescan_ctlr_wq);
 	destroy_workqueue(h->resubmit_wq);
 
+	/*
+	 * Call before disabling interrupts.
+	 * scsi_remove_host can trigger I/O operations especially
+	 * when multipath is enabled. There can be SYNCHRONIZE CACHE
+	 * operations which cannot complete and will hang the system.
+	 */
+	if (h->scsi_host)
+		scsi_remove_host(h->scsi_host);		/* init_one 8 */
 	/* includes hpsa_free_irqs - init_one 4 */
 	/* includes hpsa_disable_interrupt_mode - pci_init 2 */
 	hpsa_shutdown(pdev);
@@ -8280,8 +8288,6 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 
 	kfree(h->hba_inquiry_data);			/* init_one 10 */
 	h->hba_inquiry_data = NULL;			/* init_one 10 */
-	if (h->scsi_host)
-		scsi_remove_host(h->scsi_host);		/* init_one 8 */
 	hpsa_free_ioaccel2_sg_chain_blocks(h);
 	hpsa_free_performant_mode(h);			/* init_one 7 */
 	hpsa_free_sg_chain_blocks(h);			/* init_one 6 */
