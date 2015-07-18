@@ -65,14 +65,14 @@
  * Once the pen touches the touchscreen, the touchscreen switches from
  * IRQ-driven mode to polling mode to prevent interrupt storm. The polling
  * is realized by worker thread, which is called every 20 or so milliseconds.
- * This gives the touchscreen enough fluence and does not strain the system
+ * This gives the touchscreen enough fluency and does not strain the system
  * too much.
  */
 #define LRADC_TS_SAMPLE_DELAY_MS	5
 
 /*
  * The LRADC reads the following amount of samples from each touchscreen
- * channel and the driver then computes avarage of these.
+ * channel and the driver then computes average of these.
  */
 #define LRADC_TS_SAMPLE_AMOUNT		4
 
@@ -238,7 +238,7 @@ struct mxs_lradc {
 	 * CH5 -- Touch screen YNLR
 	 * CH6 -- Touch screen WIPER (5-wire only)
 	 *
-	 * The bitfields below represents which parts of the LRADC block are
+	 * The bit fields below represents which parts of the LRADC block are
 	 * switched into special mode of operation. These channels can not
 	 * be sampled as regular LRADC channels. The driver will refuse any
 	 * attempt to sample these channels.
@@ -252,7 +252,7 @@ struct mxs_lradc {
 	struct input_dev	*ts_input;
 
 	enum mxs_lradc_id	soc;
-	enum lradc_ts_plate	cur_plate; /* statemachine */
+	enum lradc_ts_plate	cur_plate; /* state machine */
 	bool			ts_valid;
 	unsigned		ts_x_pos;
 	unsigned		ts_y_pos;
@@ -812,7 +812,7 @@ static int mxs_lradc_read_single(struct iio_dev *iio_dev, int chan, int *val)
 	int ret;
 
 	/*
-	 * See if there is no buffered operation in progess. If there is, simply
+	 * See if there is no buffered operation in progress. If there is, simply
 	 * bail out. This can be improved to support both buffered and raw IO at
 	 * the same time, yet the code becomes horribly complicated. Therefore I
 	 * applied KISS principle here.
