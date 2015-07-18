@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
