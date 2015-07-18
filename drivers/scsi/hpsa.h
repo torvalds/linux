@@ -116,7 +116,6 @@ struct bmic_controller_parameters {
 	u8   automatic_drive_slamming;
 	u8   reserved1;
 	u8   nvram_flags;
-#define HBA_MODE_ENABLED_FLAG (1 << 3)
 	u8   cache_nvram_flags;
 	u8   drive_config_flags;
 	u16  reserved2;
@@ -155,7 +154,6 @@ struct ctlr_info {
 	unsigned int msi_vector;
 	int intr_mode; /* either PERF_MODE_INT or SIMPLE_MODE_INT */
 	struct access_method access;
-	char hba_mode_enabled;
 
 	/* queue and queue Info */
 	unsigned int Qdepth;
