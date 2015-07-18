@@ -1415,6 +1415,39 @@ int hists__link(struct hists *leader, struct hists *other)
 	return 0;
 }
 
+void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
+			  struct perf_sample *sample, bool nonany_branch_mode)
+{
+	struct branch_info *bi;
+
+	/* If we have branch cycles always annotate them. */
+	if (bs && bs->nr && bs->entries[0].flags.cycles) {
+		int i;
+
+		bi = sample__resolve_bstack(sample, al);
+		if (bi) {
+			struct addr_map_symbol *prev = NULL;
+
+			/*
+			 * Ignore errors, still want to process the
+			 * other entries.
+			 *
+			 * For non standard branch modes always
+			 * force no IPC (prev == NULL)
+			 *
+			 * Note that perf stores branches reversed from
+			 * program order!
+			 */
+			for (i = bs->nr - 1; i >= 0; i--) {
+				addr_map_symbol__account_cycles(&bi[i].from,
+					nonany_branch_mode ? NULL : prev,
+					bi[i].flags.cycles);
+				prev = &bi[i].to;
+			}
+			free(bi);
+		}
+	}
+}
 
 size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp)
 {
