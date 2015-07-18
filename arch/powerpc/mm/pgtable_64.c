@@ -149,17 +149,7 @@ int map_kernel_page(unsigned long ea, unsigned long pa, int flags)
 #endif /* !CONFIG_PPC_MMU_NOHASH */
 	}
 
-#ifdef CONFIG_PPC_BOOK3E_64
-	/*
-	 * With hardware tablewalk, a sync is needed to ensure that
-	 * subsequent accesses see the PTE we just wrote.  Unlike userspace
-	 * mappings, we can't tolerate spurious faults, so make sure
-	 * the new PTE will be seen the first time.
-	 */
-	mb();
-#else
 	smp_wmb();
-#endif
 	return 0;
 }
 
