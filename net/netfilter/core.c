@@ -96,8 +96,10 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	new->priority = reg->priority;
 
 	nf_hook_list = find_nf_hook_list(net, reg);
-	if (!nf_hook_list)
+	if (!nf_hook_list) {
+		kfree(new);
 		return -ENOENT;
+	}
 
 	mutex_lock(&nf_hook_mutex);
 	list_for_each_entry(elem, nf_hook_list, list) {
