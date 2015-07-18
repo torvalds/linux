@@ -164,6 +164,7 @@
 /* Logical volume states */
 #define HPSA_VPD_LV_STATUS_UNSUPPORTED			0xff
 #define HPSA_LV_OK                                      0x0
+#define HPSA_LV_NOT_AVAILABLE				0x0b
 #define HPSA_LV_UNDERGOING_ERASE			0x0F
 #define HPSA_LV_UNDERGOING_RPI				0x12
 #define HPSA_LV_PENDING_RPI				0x13
