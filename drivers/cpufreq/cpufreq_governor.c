@@ -543,7 +543,7 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	else
 		dbs_data = cdata->gdbs_data;
 
-	if (WARN_ON(!dbs_data && (event != CPUFREQ_GOV_POLICY_INIT))) {
+	if (!dbs_data && (event != CPUFREQ_GOV_POLICY_INIT)) {
 		ret = -EINVAL;
 		goto unlock;
 	}
