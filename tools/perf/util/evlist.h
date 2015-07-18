@@ -165,6 +165,7 @@ void perf_evlist__set_leader(struct perf_evlist *evlist);
 u64 perf_evlist__read_format(struct perf_evlist *evlist);
 u64 __perf_evlist__combined_sample_type(struct perf_evlist *evlist);
 u64 perf_evlist__combined_sample_type(struct perf_evlist *evlist);
+u64 perf_evlist__combined_branch_type(struct perf_evlist *evlist);
 bool perf_evlist__sample_id_all(struct perf_evlist *evlist);
 u16 perf_evlist__id_hdr_size(struct perf_evlist *evlist);
 

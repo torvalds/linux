@@ -53,6 +53,7 @@ struct report {
 	bool			mem_mode;
 	bool			header;
 	bool			header_only;
+	bool			nonany_branch_mode;
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
 	const char		*pretty_printing_style;
@@ -258,6 +259,12 @@ static int report__setup_sample_type(struct report *rep)
 		else
 			callchain_param.record_mode = CALLCHAIN_FP;
 	}
+
+	/* ??? handle more cases than just ANY? */
+	if (!(perf_evlist__combined_branch_type(session->evlist) &
+				PERF_SAMPLE_BRANCH_ANY))
+		rep->nonany_branch_mode = true;
+
 	return 0;
 }
 

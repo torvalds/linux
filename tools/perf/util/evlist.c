@@ -1273,6 +1273,16 @@ u64 perf_evlist__combined_sample_type(struct perf_evlist *evlist)
 	return __perf_evlist__combined_sample_type(evlist);
 }
 
+u64 perf_evlist__combined_branch_type(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+	u64 branch_type = 0;
+
+	evlist__for_each(evlist, evsel)
+		branch_type |= evsel->attr.branch_sample_type;
+	return branch_type;
+}
+
 bool perf_evlist__valid_read_format(struct perf_evlist *evlist)
 {
 	struct perf_evsel *first = perf_evlist__first(evlist), *pos = first;
