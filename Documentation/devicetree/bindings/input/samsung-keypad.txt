@@ -36,9 +36,11 @@ Required Board Specific Properties:
 - pinctrl-0: Should specify pin control groups used for this controller.
 - pinctrl-names: Should contain only one value - "default".
 
+Optional Properties:
+- wakeup-source: use any event on keypad as wakeup event.
+
 Optional Properties specific to linux:
 - linux,keypad-no-autorepeat: do no enable autorepeat feature.
-- linux,keypad-wakeup: use any event on keypad as wakeup event.
 
 
 Example:
