@@ -255,7 +255,7 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 	int r;
 	struct del_stack *s;
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kmalloc(sizeof(*s), GFP_NOIO);
 	if (!s)
 		return -ENOMEM;
 	s->info = info;
