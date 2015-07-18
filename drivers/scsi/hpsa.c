@@ -1379,8 +1379,9 @@ static inline int device_updated(struct hpsa_scsi_dev_t *dev1,
 		return 1;
 	if (dev1->offload_enabled != dev2->offload_enabled)
 		return 1;
-	if (dev1->queue_depth != dev2->queue_depth)
-		return 1;
+	if (!is_logical_dev_addr_mode(dev1->scsi3addr))
+		if (dev1->queue_depth != dev2->queue_depth)
+			return 1;
 	return 0;
 }
 
@@ -3889,7 +3890,6 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 			else if (!(h->transMethod & CFGTBL_Trans_io_accel1 ||
 				h->transMethod & CFGTBL_Trans_io_accel2))
 				break;
-
 			hpsa_get_ioaccel_drive_info(h, this_device,
 						lunaddrbytes, id_phys);
 			hpsa_get_path_info(this_device, lunaddrbytes, id_phys);
