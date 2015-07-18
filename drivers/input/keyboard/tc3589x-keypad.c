@@ -352,7 +352,10 @@ tc3589x_keypad_of_probe(struct device *dev)
 	}
 
 	plat->no_autorepeat = of_property_read_bool(np, "linux,no-autorepeat");
-	plat->enable_wakeup = of_property_read_bool(np, "linux,wakeup");
+
+	plat->enable_wakeup = of_property_read_bool(np, "wakeup-source") ||
+			      /* legacy name */
+			      of_property_read_bool(np, "linux,wakeup");
 
 	/* The custom delay format is ms/16 */
 	of_property_read_u32(np, "debounce-delay-ms", &debounce_ms);
