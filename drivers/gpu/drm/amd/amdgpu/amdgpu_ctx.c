@@ -226,7 +226,7 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (seq < cring->sequence - AMDGPU_CTX_MAX_CS_PENDING) {
+	if (seq + AMDGPU_CTX_MAX_CS_PENDING < cring->sequence) {
 		spin_unlock(&ctx->ring_lock);
 		return NULL;
 	}
