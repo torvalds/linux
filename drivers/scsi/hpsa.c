@@ -1187,17 +1187,19 @@ static int hpsa_scsi_add_entry(struct ctlr_info *h, int hostno,
 
 	/* This is a non-zero lun of a multi-lun device.
 	 * Search through our list and find the device which
-	 * has the same 8 byte LUN address, excepting byte 4.
+	 * has the same 8 byte LUN address, excepting byte 4 and 5.
 	 * Assign the same bus and target for this new LUN.
 	 * Use the logical unit number from the firmware.
 	 */
 	memcpy(addr1, device->scsi3addr, 8);
 	addr1[4] = 0;
+	addr1[5] = 0;
 	for (i = 0; i < n; i++) {
 		sd = h->dev[i];
 		memcpy(addr2, sd->scsi3addr, 8);
 		addr2[4] = 0;
-		/* differ only in byte 4? */
+		addr2[5] = 0;
+		/* differ only in byte 4 and 5? */
 		if (memcmp(addr1, addr2, 8) == 0) {
 			device->bus = sd->bus;
 			device->target = sd->target;
