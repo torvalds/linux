@@ -9,7 +9,7 @@ regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
 const char	default_sort_order[] = "comm,dso,symbol";
-const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,dso_to,symbol_to";
+const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,symbol_to,cycles";
 const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked";
 const char	default_top_sort_order[] = "dso,symbol";
 const char	default_diff_sort_order[] = "dso,symbol";
