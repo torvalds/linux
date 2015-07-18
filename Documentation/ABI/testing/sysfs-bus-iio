@@ -1040,13 +1040,6 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Number of scans contained by the buffer.
 
-What:		/sys/bus/iio/devices/iio:deviceX/buffer/bytes_per_datum
-KernelVersion:	2.6.37
-Contact:	linux-iio@vger.kernel.org
-Description:
-		Bytes per scan.  Due to alignment fun, the scan may be larger
-		than implied directly by the scan_element parameters.
-
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/enable
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
