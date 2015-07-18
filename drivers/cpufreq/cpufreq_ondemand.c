@@ -191,48 +191,40 @@ static void od_check_cpu(int cpu, unsigned int load)
 	}
 }
 
-static void od_dbs_timer(struct work_struct *work)
+static unsigned int od_dbs_timer(struct cpu_dbs_info *cdbs,
+				 struct dbs_data *dbs_data, bool modify_all)
 {
-	struct od_cpu_dbs_info_s *dbs_info =
-		container_of(work, struct od_cpu_dbs_info_s, cdbs.dwork.work);
-	struct cpufreq_policy *policy = dbs_info->cdbs.shared->policy;
+	struct cpufreq_policy *policy = cdbs->shared->policy;
 	unsigned int cpu = policy->cpu;
-	struct od_cpu_dbs_info_s *core_dbs_info = &per_cpu(od_cpu_dbs_info,
+	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info,
 			cpu);
-	struct dbs_data *dbs_data = policy->governor_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
-	int delay = 0, sample_type = core_dbs_info->sample_type;
-	bool modify_all = true;
+	int delay = 0, sample_type = dbs_info->sample_type;
 
-	mutex_lock(&core_dbs_info->cdbs.shared->timer_mutex);
-	if (!need_load_eval(core_dbs_info->cdbs.shared,
-			    od_tuners->sampling_rate)) {
-		modify_all = false;
+	if (!modify_all)
 		goto max_delay;
-	}
 
 	/* Common NORMAL_SAMPLE setup */
-	core_dbs_info->sample_type = OD_NORMAL_SAMPLE;
+	dbs_info->sample_type = OD_NORMAL_SAMPLE;
 	if (sample_type == OD_SUB_SAMPLE) {
-		delay = core_dbs_info->freq_lo_jiffies;
-		__cpufreq_driver_target(policy, core_dbs_info->freq_lo,
+		delay = dbs_info->freq_lo_jiffies;
+		__cpufreq_driver_target(policy, dbs_info->freq_lo,
 					CPUFREQ_RELATION_H);
 	} else {
 		dbs_check_cpu(dbs_data, cpu);
-		if (core_dbs_info->freq_lo) {
+		if (dbs_info->freq_lo) {
 			/* Setup timer for SUB_SAMPLE */
-			core_dbs_info->sample_type = OD_SUB_SAMPLE;
-			delay = core_dbs_info->freq_hi_jiffies;
+			dbs_info->sample_type = OD_SUB_SAMPLE;
+			delay = dbs_info->freq_hi_jiffies;
 		}
 	}
 
 max_delay:
 	if (!delay)
 		delay = delay_for_sampling_rate(od_tuners->sampling_rate
-				* core_dbs_info->rate_mult);
+				* dbs_info->rate_mult);
 
-	gov_queue_work(dbs_data, policy, delay, modify_all);
-	mutex_unlock(&core_dbs_info->cdbs.shared->timer_mutex);
+	return delay;
 }
 
 /************************** sysfs interface ************************/

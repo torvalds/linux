@@ -102,28 +102,15 @@ static void cs_check_cpu(int cpu, unsigned int load)
 	}
 }
 
-static void cs_dbs_timer(struct work_struct *work)
+static unsigned int cs_dbs_timer(struct cpu_dbs_info *cdbs,
+				 struct dbs_data *dbs_data, bool modify_all)
 {
-	struct cs_cpu_dbs_info_s *dbs_info = container_of(work,
-			struct cs_cpu_dbs_info_s, cdbs.dwork.work);
-	struct cpufreq_policy *policy = dbs_info->cdbs.shared->policy;
-	unsigned int cpu = policy->cpu;
-	struct cs_cpu_dbs_info_s *core_dbs_info = &per_cpu(cs_cpu_dbs_info,
-			cpu);
-	struct dbs_data *dbs_data = policy->governor_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
-	int delay = delay_for_sampling_rate(cs_tuners->sampling_rate);
-	bool modify_all = true;
 
-	mutex_lock(&core_dbs_info->cdbs.shared->timer_mutex);
-	if (!need_load_eval(core_dbs_info->cdbs.shared,
-			    cs_tuners->sampling_rate))
-		modify_all = false;
-	else
-		dbs_check_cpu(dbs_data, cpu);
+	if (modify_all)
+		dbs_check_cpu(dbs_data, cdbs->shared->policy->cpu);
 
-	gov_queue_work(dbs_data, policy, delay, modify_all);
-	mutex_unlock(&core_dbs_info->cdbs.shared->timer_mutex);
+	return delay_for_sampling_rate(cs_tuners->sampling_rate);
 }
 
 static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
