@@ -2749,11 +2749,10 @@ static int hpsa_do_reset(struct ctlr_info *h, struct hpsa_scsi_dev_t *dev,
 			lockup_detected(h));
 
 	if (unlikely(lockup_detected(h))) {
-			dev_warn(&h->pdev->dev,
-				 "Controller lockup detected during reset wait\n");
-			mutex_unlock(&h->reset_mutex);
-			rc = -ENODEV;
-		}
+		dev_warn(&h->pdev->dev,
+			 "Controller lockup detected during reset wait\n");
+		rc = -ENODEV;
+	}
 
 	if (unlikely(rc))
 		atomic_set(&dev->reset_cmds_out, 0);
