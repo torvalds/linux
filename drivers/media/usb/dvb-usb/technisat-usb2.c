@@ -707,7 +707,7 @@ static struct dvb_usb_device_properties technisat_usb2_devices = {
 
 			.stream = {
 				.type = USB_ISOC,
-				.count = 8,
+				.count = 4,
 				.endpoint = 0x2,
 				.u = {
 					.isoc = {
