@@ -90,7 +90,7 @@ patch.
 
 Make sure your patch does not include any extra files which do not
 belong in a patch submission.  Make sure to review your patch -after-
-generated it with diff(1), to ensure accuracy.
+generating it with diff(1), to ensure accuracy.
 
 If your changes produce a lot of deltas, you need to split them into
 individual patches which modify things in logical stages; see section
