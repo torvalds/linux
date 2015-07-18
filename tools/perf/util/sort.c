@@ -526,6 +526,29 @@ static int hist_entry__mispredict_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, out);
 }
 
+static int64_t
+sort__cycles_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return left->branch_info->flags.cycles -
+		right->branch_info->flags.cycles;
+}
+
+static int hist_entry__cycles_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	if (he->branch_info->flags.cycles == 0)
+		return repsep_snprintf(bf, size, "%-*s", width, "-");
+	return repsep_snprintf(bf, size, "%-*hd", width,
+			       he->branch_info->flags.cycles);
+}
+
+struct sort_entry sort_cycles = {
+	.se_header	= "Basic Block Cycles",
+	.se_cmp		= sort__cycles_cmp,
+	.se_snprintf	= hist_entry__cycles_snprintf,
+	.se_width_idx	= HISTC_CYCLES,
+};
+
 /* --sort daddr_sym */
 static int64_t
 sort__daddr_cmp(struct hist_entry *left, struct hist_entry *right)
@@ -1190,6 +1213,7 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 	DIM(SORT_MISPREDICT, "mispredict", sort_mispredict),
 	DIM(SORT_IN_TX, "in_tx", sort_in_tx),
 	DIM(SORT_ABORT, "abort", sort_abort),
+	DIM(SORT_CYCLES, "cycles", sort_cycles),
 };
 
 #undef DIM

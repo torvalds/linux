@@ -47,6 +47,7 @@ enum hist_column {
 	HISTC_MEM_SNOOP,
 	HISTC_MEM_DCACHELINE,
 	HISTC_TRANSACTION,
+	HISTC_CYCLES,
 	HISTC_NR_COLS, /* Last entry */
 };
 

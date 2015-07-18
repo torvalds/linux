@@ -185,6 +185,7 @@ enum sort_type {
 	SORT_MISPREDICT,
 	SORT_ABORT,
 	SORT_IN_TX,
+	SORT_CYCLES,
 
 	/* memory mode specific sort keys */
 	__SORT_MEMORY_MODE,
