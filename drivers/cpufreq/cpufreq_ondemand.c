@@ -155,7 +155,7 @@ static void dbs_freq_increase(struct cpufreq_policy *policy, unsigned int freq)
 static void od_check_cpu(int cpu, unsigned int load)
 {
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
-	struct cpufreq_policy *policy = dbs_info->cdbs.policy;
+	struct cpufreq_policy *policy = dbs_info->cdbs.shared->policy;
 	struct dbs_data *dbs_data = policy->governor_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
@@ -195,16 +195,18 @@ static void od_dbs_timer(struct work_struct *work)
 {
 	struct od_cpu_dbs_info_s *dbs_info =
 		container_of(work, struct od_cpu_dbs_info_s, cdbs.dwork.work);
-	unsigned int cpu = dbs_info->cdbs.policy->cpu;
+	struct cpufreq_policy *policy = dbs_info->cdbs.shared->policy;
+	unsigned int cpu = policy->cpu;
 	struct od_cpu_dbs_info_s *core_dbs_info = &per_cpu(od_cpu_dbs_info,
 			cpu);
-	struct dbs_data *dbs_data = dbs_info->cdbs.policy->governor_data;
+	struct dbs_data *dbs_data = policy->governor_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	int delay = 0, sample_type = core_dbs_info->sample_type;
 	bool modify_all = true;
 
-	mutex_lock(&core_dbs_info->cdbs.timer_mutex);
-	if (!need_load_eval(&core_dbs_info->cdbs, od_tuners->sampling_rate)) {
+	mutex_lock(&core_dbs_info->cdbs.shared->timer_mutex);
+	if (!need_load_eval(core_dbs_info->cdbs.shared,
+			    od_tuners->sampling_rate)) {
 		modify_all = false;
 		goto max_delay;
 	}
@@ -213,8 +215,7 @@ static void od_dbs_timer(struct work_struct *work)
 	core_dbs_info->sample_type = OD_NORMAL_SAMPLE;
 	if (sample_type == OD_SUB_SAMPLE) {
 		delay = core_dbs_info->freq_lo_jiffies;
-		__cpufreq_driver_target(core_dbs_info->cdbs.policy,
-					core_dbs_info->freq_lo,
+		__cpufreq_driver_target(policy, core_dbs_info->freq_lo,
 					CPUFREQ_RELATION_H);
 	} else {
 		dbs_check_cpu(dbs_data, cpu);
@@ -230,8 +231,8 @@ max_delay:
 		delay = delay_for_sampling_rate(od_tuners->sampling_rate
 				* core_dbs_info->rate_mult);
 
-	gov_queue_work(dbs_data, dbs_info->cdbs.policy, delay, modify_all);
-	mutex_unlock(&core_dbs_info->cdbs.timer_mutex);
+	gov_queue_work(dbs_data, policy, delay, modify_all);
+	mutex_unlock(&core_dbs_info->cdbs.shared->timer_mutex);
 }
 
 /************************** sysfs interface ************************/
@@ -274,10 +275,10 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 		dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 		cpufreq_cpu_put(policy);
 
-		mutex_lock(&dbs_info->cdbs.timer_mutex);
+		mutex_lock(&dbs_info->cdbs.shared->timer_mutex);
 
 		if (!delayed_work_pending(&dbs_info->cdbs.dwork)) {
-			mutex_unlock(&dbs_info->cdbs.timer_mutex);
+			mutex_unlock(&dbs_info->cdbs.shared->timer_mutex);
 			continue;
 		}
 
@@ -286,15 +287,15 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 
 		if (time_before(next_sampling, appointed_at)) {
 
-			mutex_unlock(&dbs_info->cdbs.timer_mutex);
+			mutex_unlock(&dbs_info->cdbs.shared->timer_mutex);
 			cancel_delayed_work_sync(&dbs_info->cdbs.dwork);
-			mutex_lock(&dbs_info->cdbs.timer_mutex);
+			mutex_lock(&dbs_info->cdbs.shared->timer_mutex);
 
-			gov_queue_work(dbs_data, dbs_info->cdbs.policy,
+			gov_queue_work(dbs_data, policy,
 				       usecs_to_jiffies(new_rate), true);
 
 		}
-		mutex_unlock(&dbs_info->cdbs.timer_mutex);
+		mutex_unlock(&dbs_info->cdbs.shared->timer_mutex);
 	}
 }
 
@@ -557,13 +558,16 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
+		struct cpu_common_dbs_info *shared;
+
 		if (cpumask_test_cpu(cpu, &done))
 			continue;
 
-		policy = per_cpu(od_cpu_dbs_info, cpu).cdbs.policy;
-		if (!policy)
+		shared = per_cpu(od_cpu_dbs_info, cpu).cdbs.shared;
+		if (!shared)
 			continue;
 
+		policy = shared->policy;
 		cpumask_or(&done, &done, policy->cpus);
 
 		if (policy->governor != &cpufreq_gov_ondemand)
