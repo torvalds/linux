@@ -2266,7 +2266,7 @@ static const u32 TX_DESC_BASE[] = {
 	BKQDA, BEQDA, VIQDA, VOQDA, HCCAQDA, CQDA, MQDA, HQDA, BQDA
 };
 
-void rtl8192_enable_tx(struct net_device *dev)
+void rtl92e_enable_tx(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	u32 i;
