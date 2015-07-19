@@ -2255,7 +2255,7 @@ void rtl92e_clear_irq(struct net_device *dev)
 }
 
 
-void rtl8192_enable_rx(struct net_device *dev)
+void rtl92e_enable_rx(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
