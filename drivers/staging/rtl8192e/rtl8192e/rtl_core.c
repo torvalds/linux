@@ -706,7 +706,7 @@ static u8 rtl8192_getSupportedWireleeMode(struct net_device *dev)
 	return ret;
 }
 
-void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
+void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 bSupportMode = rtl8192_getSupportedWireleeMode(dev);
@@ -874,7 +874,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->check_nic_enough_desc	= rtl8192_check_nic_enough_desc;
 	priv->rtllib->handle_assoc_response	= rtl8192_handle_assoc_response;
 	priv->rtllib->handle_beacon		= rtl8192_handle_beacon;
-	priv->rtllib->SetWirelessMode		= rtl8192_SetWirelessMode;
+	priv->rtllib->SetWirelessMode		= rtl92e_set_wireless_mode;
 	priv->rtllib->LeisurePSLeave		= LeisurePSLeave;
 	priv->rtllib->SetBWModeHandler		= rtl92e_set_bw_mode;
 	priv->rf_set_chan			= rtl92e_set_channel;

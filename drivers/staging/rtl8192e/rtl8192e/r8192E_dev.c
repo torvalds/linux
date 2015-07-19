@@ -808,7 +808,7 @@ start:
 	write_nic_byte(dev, ACK_TIMEOUT, 0x30);
 
 	if (priv->ResetProgress == RESET_TYPE_NORESET)
-		rtl8192_SetWirelessMode(dev, priv->rtllib->mode);
+		rtl92e_set_wireless_mode(dev, priv->rtllib->mode);
 	rtl92e_cam_reset(dev);
 	{
 		u8 SECR_value = 0x0;
