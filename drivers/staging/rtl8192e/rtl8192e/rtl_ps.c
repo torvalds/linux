@@ -88,7 +88,7 @@ void rtl8192_hw_wakeup_wq(void *data)
 
 #define MIN_SLEEP_TIME 50
 #define MAX_SLEEP_TIME 10000
-void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
+void rtl92e_enter_sleep(struct net_device *dev, u64 time)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
