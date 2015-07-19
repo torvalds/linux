@@ -127,8 +127,8 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path) eRFPath, 0x0,
 				     bMask12Bits, 0xbf);
 
-		rtStatus = rtl8192_phy_checkBBAndRF(dev, HW90_BLOCK_RF,
-						(enum rf90_radio_path)eRFPath);
+		rtStatus = rtl92e_check_bb_and_rf(dev, HW90_BLOCK_RF,
+						  (enum rf90_radio_path)eRFPath);
 		if (!rtStatus) {
 			netdev_err(dev, "%s(): Failed to check RF Path %d.\n",
 				   __func__, eRFPath);

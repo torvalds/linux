@@ -489,9 +489,8 @@ static void rtl8192_InitBBRFRegDef(struct net_device *dev)
 
 }
 
-bool rtl8192_phy_checkBBAndRF(struct net_device *dev,
-			      enum hw90_block CheckBlock,
-			      enum rf90_radio_path eRFPath)
+bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
+			    enum rf90_radio_path eRFPath)
 {
 	bool ret = true;
 	u32 i, CheckTimes = 4, dwRegRead = 0;
@@ -563,9 +562,9 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 
 	for (eCheckItem = (enum hw90_block)HW90_BLOCK_PHY0;
 	     eCheckItem <= HW90_BLOCK_PHY1; eCheckItem++) {
-		rtStatus  = rtl8192_phy_checkBBAndRF(dev,
-					 (enum hw90_block)eCheckItem,
-					 (enum rf90_radio_path)0);
+		rtStatus  = rtl92e_check_bb_and_rf(dev,
+						   (enum hw90_block)eCheckItem,
+						   (enum rf90_radio_path)0);
 		if (!rtStatus) {
 			RT_TRACE((COMP_ERR | COMP_PHY),
 				 "rtl92e_config_rf():Check PHY%d Fail!!\n",
