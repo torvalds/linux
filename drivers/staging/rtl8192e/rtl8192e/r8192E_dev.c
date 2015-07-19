@@ -1023,8 +1023,8 @@ void rtl8192_link_change(struct net_device *dev)
 	}
 }
 
-void rtl8192_AllowAllDestAddr(struct net_device *dev,
-			      bool bAllowAllDA, bool WriteIntoReg)
+void rtl92e_set_monitor_mode(struct net_device *dev, bool bAllowAllDA,
+			     bool WriteIntoReg)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 

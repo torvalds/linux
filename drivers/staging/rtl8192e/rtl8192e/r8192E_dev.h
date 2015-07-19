@@ -44,8 +44,8 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val);
 void rtl8192_get_eeprom_size(struct net_device *dev);
 bool rtl92e_start_adapter(struct net_device *dev);
 void rtl8192_link_change(struct net_device *dev);
-void rtl8192_AllowAllDestAddr(struct net_device *dev, bool bAllowAllDA,
-			      bool WriteIntoReg);
+void rtl92e_set_monitor_mode(struct net_device *dev, bool bAllowAllDA,
+			     bool WriteIntoReg);
 void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 			   struct cb_desc *cb_desc,
 			   struct sk_buff *skb);
