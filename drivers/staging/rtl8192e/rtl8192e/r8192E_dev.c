@@ -1586,7 +1586,7 @@ static void rtl8192_query_rxphystatus(
 			}
 		}
 
-		pwdb_all = rtl819x_query_rxpwrpercentage(rx_pwr_all);
+		pwdb_all = rtl92e_rx_db_to_percent(rx_pwr_all);
 		pstats->RxPWDBAll = precord_stats->RxPWDBAll = pwdb_all;
 		pstats->RecvSignalPower = rx_pwr_all;
 
@@ -1626,7 +1626,7 @@ static void rtl8192_query_rxphystatus(
 			rx_snrX /= 2;
 			priv->stats.rxSNRdB[i] = (long)rx_snrX;
 
-			RSSI = rtl819x_query_rxpwrpercentage(rx_pwr[i]);
+			RSSI = rtl92e_rx_db_to_percent(rx_pwr[i]);
 			if (priv->brfpath_rxenable[i])
 				total_rssi += RSSI;
 
@@ -1639,7 +1639,7 @@ static void rtl8192_query_rxphystatus(
 
 
 		rx_pwr_all = (((pofdm_buf->pwdb_all) >> 1) & 0x7f) - 106;
-		pwdb_all = rtl819x_query_rxpwrpercentage(rx_pwr_all);
+		pwdb_all = rtl92e_rx_db_to_percent(rx_pwr_all);
 
 		pstats->RxPWDBAll = precord_stats->RxPWDBAll = pwdb_all;
 		pstats->RxPower = precord_stats->RxPower =	rx_pwr_all;

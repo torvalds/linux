@@ -2028,7 +2028,7 @@ rtl819x_update_rxsignalstatistics8190pci(
 					weighting) / 6;
 }
 
-u8 rtl819x_query_rxpwrpercentage(char antpower)
+u8 rtl92e_rx_db_to_percent(char antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
 		return	0;
