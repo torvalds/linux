@@ -610,8 +610,8 @@ void rtl819x_update_rxsignalstatistics8190pci(struct r8192_priv *priv,
 				      struct rtllib_rx_stats *pprevious_stats);
 u8 rtl819x_evm_dbtopercentage(char value);
 u8 rtl819x_query_rxpwrpercentage(char antpower);
-void rtl8192_record_rxdesc_forlateruse(struct rtllib_rx_stats *psrc_stats,
-				       struct rtllib_rx_stats *ptarget_stats);
+void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
+			    struct rtllib_rx_stats *ptarget_stats);
 bool rtl92e_enable_nic(struct net_device *dev);
 bool rtl92e_disable_nic(struct net_device *dev);
 

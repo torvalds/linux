@@ -1908,7 +1908,7 @@ static void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
 	rtl8192_query_rxphystatus(priv, pstats, pdesc, pdrvinfo,
 				  &previous_stats, bpacket_match_bssid,
 				  bpacket_toself, bPacketBeacon, bToSelfBA);
-	rtl8192_record_rxdesc_forlateruse(pstats, &previous_stats);
+	rtl92e_copy_mpdu_stats(pstats, &previous_stats);
 }
 
 static void rtl8192_UpdateReceivedRateHistogramStatistics(

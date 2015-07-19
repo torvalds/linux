@@ -2059,11 +2059,8 @@ rtl819x_evm_dbtopercentage(
 	return ret_val;
 }
 
-void
-rtl8192_record_rxdesc_forlateruse(
-	struct rtllib_rx_stats *psrc_stats,
-	struct rtllib_rx_stats *ptarget_stats
-)
+void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
+			    struct rtllib_rx_stats *ptarget_stats)
 {
 	ptarget_stats->bIsAMPDU = psrc_stats->bIsAMPDU;
 	ptarget_stats->bFirstMPDU = psrc_stats->bFirstMPDU;
