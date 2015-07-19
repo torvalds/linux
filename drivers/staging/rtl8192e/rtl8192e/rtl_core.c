@@ -890,7 +890,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->GetHalfNmodeSupportByAPsHandler =
 					 rtl8192_GetHalfNmodeSupportByAPs;
 
-	priv->rtllib->SetHwRegHandler = rtl8192e_SetHwReg;
+	priv->rtllib->SetHwRegHandler = rtl92e_set_reg;
 	priv->rtllib->AllowAllDestAddrHandler = rtl92e_set_monitor_mode;
 	priv->rtllib->SetFwCmdHandler = NULL;
 	priv->rtllib->InitialGainHandler = InitialGain819xPci;

@@ -95,7 +95,7 @@ static void rtl8192e_update_msr(struct net_device *dev)
 		priv->rtllib->LedControlHandler(dev, LedAction);
 }
 
-void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
+void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
