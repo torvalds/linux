@@ -48,9 +48,8 @@ void rtl92e_set_monitor_mode(struct net_device *dev, bool bAllowAllDA,
 void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 			   struct cb_desc *cb_desc,
 			   struct sk_buff *skb);
-void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
-			       struct tx_desc_cmd *entry,
-			       struct cb_desc *cb_desc, struct sk_buff *skb);
+void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
+			      struct cb_desc *cb_desc, struct sk_buff *skb);
 bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 			 struct rx_desc *pdesc, struct sk_buff *skb);
 void rtl92e_stop_adapter(struct net_device *dev, bool reset);

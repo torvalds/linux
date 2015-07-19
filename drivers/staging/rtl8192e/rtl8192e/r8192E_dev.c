@@ -1297,9 +1297,8 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->TxBuffAddr = mapping;
 }
 
-void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
-			       struct tx_desc_cmd *entry,
-			       struct cb_desc *cb_desc, struct sk_buff *skb)
+void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
+			      struct cb_desc *cb_desc, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len,
