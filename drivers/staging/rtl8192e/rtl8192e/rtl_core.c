@@ -83,7 +83,7 @@ static struct pci_driver rtl8192_pci_driver = {
 	.id_table = rtl8192_pci_id_tbl,	/* PCI_ID table  */
 	.probe	= rtl8192_pci_probe,	/* probe fn      */
 	.remove	 = rtl8192_pci_disconnect,	/* remove fn */
-	.suspend = rtl8192E_suspend,	/* PM suspend fn */
+	.suspend = rtl92e_suspend,	/* PM suspend fn */
 	.resume = rtl92e_resume,                 /* PM resume fn  */
 };
 

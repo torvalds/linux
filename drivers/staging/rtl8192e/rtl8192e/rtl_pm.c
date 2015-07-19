@@ -23,7 +23,7 @@
 #include "rtl_pm.h"
 
 
-int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
+int rtl92e_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = rtllib_priv(dev);
