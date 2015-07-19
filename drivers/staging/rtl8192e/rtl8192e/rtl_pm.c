@@ -70,7 +70,7 @@ out_pci_suspend:
 	return 0;
 }
 
-int rtl8192E_resume(struct pci_dev *pdev)
+int rtl92e_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = rtllib_priv(dev);

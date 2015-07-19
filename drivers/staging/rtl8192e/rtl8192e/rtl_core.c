@@ -84,7 +84,7 @@ static struct pci_driver rtl8192_pci_driver = {
 	.probe	= rtl8192_pci_probe,	/* probe fn      */
 	.remove	 = rtl8192_pci_disconnect,	/* remove fn */
 	.suspend = rtl8192E_suspend,	/* PM suspend fn */
-	.resume = rtl8192E_resume,                 /* PM resume fn  */
+	.resume = rtl92e_resume,                 /* PM resume fn  */
 };
 
 static short rtl8192_is_tx_queue_empty(struct net_device *dev);
