@@ -34,6 +34,6 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
 void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	       const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh);
-void CamRestoreAllEntry(struct net_device *dev);
+void rtl92e_cam_restore(struct net_device *dev);
 
 #endif

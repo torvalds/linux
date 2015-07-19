@@ -1376,7 +1376,7 @@ RESET_START:
 			rtl819x_silentreset_mesh_bk(dev, IsPortal);
 		}
 
-		CamRestoreAllEntry(dev);
+		rtl92e_cam_restore(dev);
 		dm_restore_dynamic_mechanism_state(dev);
 END:
 		priv->ResetProgress = RESET_TYPE_NORESET;

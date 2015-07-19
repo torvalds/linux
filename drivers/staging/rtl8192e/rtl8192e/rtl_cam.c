@@ -154,7 +154,7 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	RT_TRACE(COMP_SEC, "=========>after set key, usconfig:%x\n", usConfig);
 }
 
-void CamRestoreAllEntry(struct net_device *dev)
+void rtl92e_cam_restore(struct net_device *dev)
 {
 	u8 EntryId = 0;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -170,7 +170,7 @@ void CamRestoreAllEntry(struct net_device *dev)
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 	};
 
-	RT_TRACE(COMP_SEC, "CamRestoreAllEntry:\n");
+	RT_TRACE(COMP_SEC, "rtl92e_cam_restore:\n");
 
 
 	if ((priv->rtllib->pairwise_key_type == KEY_TYPE_WEP40) ||
