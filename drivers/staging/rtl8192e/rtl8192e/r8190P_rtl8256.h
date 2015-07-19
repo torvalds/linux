@@ -24,7 +24,7 @@
 extern void rtl92e_set_bandwidth(struct net_device *dev,
 				 enum ht_channel_width Bandwidth);
 extern bool rtl92e_config_rf(struct net_device *dev);
-extern void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8	powerlevel);
+extern void rtl92e_set_cck_tx_power(struct net_device *dev, u8	powerlevel);
 extern void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel);
 
 #endif
