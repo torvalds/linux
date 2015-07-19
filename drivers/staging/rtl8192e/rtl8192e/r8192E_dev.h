@@ -35,7 +35,7 @@ void rtl8192_interrupt_recognized(struct net_device *dev, u32 *p_inta,
 				  u32 *p_intb);
 void rtl8192_enable_rx(struct net_device *dev);
 void rtl8192_enable_tx(struct net_device *dev);
-void rtl8192_EnableInterrupt(struct net_device *dev);
+void rtl92e_enable_irq(struct net_device *dev);
 void rtl92e_disable_irq(struct net_device *dev);
 void rtl92e_clear_irq(struct net_device *dev);
 void rtl8192_InitializeVariables(struct net_device  *dev);
