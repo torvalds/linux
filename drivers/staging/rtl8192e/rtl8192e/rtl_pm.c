@@ -48,11 +48,11 @@ int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
 		rtl92e_set_rf_state(dev, eRfOff, RF_CHANGE_BY_INIT, true);
 		ulRegRead = rtl92e_readl(dev, CPU_GEN);
 		ulRegRead |= CPU_GEN_SYSTEM_RESET;
-		write_nic_dword(dev, CPU_GEN, ulRegRead);
+		rtl92e_writel(dev, CPU_GEN, ulRegRead);
 	} else {
-		write_nic_dword(dev, WFCRC0, 0xffffffff);
-		write_nic_dword(dev, WFCRC1, 0xffffffff);
-		write_nic_dword(dev, WFCRC2, 0xffffffff);
+		rtl92e_writel(dev, WFCRC0, 0xffffffff);
+		rtl92e_writel(dev, WFCRC1, 0xffffffff);
+		rtl92e_writel(dev, WFCRC2, 0xffffffff);
 		rtl92e_writeb(dev, PMR, 0x5);
 		rtl92e_writeb(dev, MacBlkCtrl, 0xa);
 	}

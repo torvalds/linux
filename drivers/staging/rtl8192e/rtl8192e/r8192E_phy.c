@@ -91,9 +91,9 @@ void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 		BitShift = rtl8192_CalculateBitShift(dwBitMask);
 		NewValue = (((OriginalValue) & (~dwBitMask)) |
 			    (dwData << BitShift));
-		write_nic_dword(dev, dwRegAddr, NewValue);
+		rtl92e_writel(dev, dwRegAddr, NewValue);
 	} else
-		write_nic_dword(dev, dwRegAddr, dwData);
+		rtl92e_writel(dev, dwRegAddr, dwData);
 }
 
 u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
@@ -293,7 +293,7 @@ static u32 phy_FwRFSerialRead(struct net_device *dev,
 		else
 			break;
 	}
-	write_nic_dword(dev, QPNR, Data);
+	rtl92e_writel(dev, QPNR, Data);
 	while (rtl92e_readl(dev, QPNR) & 0x80000000) {
 		if (time++ < 100)
 			udelay(10);
@@ -321,7 +321,7 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 		else
 			break;
 	}
-	write_nic_dword(dev, QPNR, Data);
+	rtl92e_writel(dev, QPNR, Data);
 
 }
 
@@ -512,8 +512,8 @@ bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
 		switch (CheckBlock) {
 		case HW90_BLOCK_PHY0:
 		case HW90_BLOCK_PHY1:
-			write_nic_dword(dev, WriteAddr[CheckBlock],
-					WriteData[i]);
+			rtl92e_writel(dev, WriteAddr[CheckBlock],
+				      WriteData[i]);
 			dwRegRead = rtl92e_readl(dev, WriteAddr[CheckBlock]);
 			break;
 
@@ -556,7 +556,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	rtl92e_writeb(dev, BB_GLOBAL_RESET, (bRegValue|BB_GLOBAL_RESET_BIT));
 
 	dwRegValue = rtl92e_readl(dev, CPU_GEN);
-	write_nic_dword(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
+	rtl92e_writel(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
 
 	for (eCheckItem = (enum hw90_block)HW90_BLOCK_PHY0;
 	     eCheckItem <= HW90_BLOCK_PHY1; eCheckItem++) {
@@ -574,7 +574,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	rtl8192_phyConfigBB(dev, BaseBand_Config_PHY_REG);
 
 	dwRegValue = rtl92e_readl(dev, CPU_GEN);
-	write_nic_dword(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
+	rtl92e_writel(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
 
 	rtl8192_phyConfigBB(dev, BaseBand_Config_AGC_TAB);
 
@@ -935,8 +935,8 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 					rtl8192_SetTxPowerLevel(dev, channel);
 				break;
 			case CmdID_WritePortUlong:
-				write_nic_dword(dev, CurrentCmd->Para1,
-						CurrentCmd->Para2);
+				rtl92e_writel(dev, CurrentCmd->Para1,
+					      CurrentCmd->Para2);
 				break;
 			case CmdID_WritePortUshort:
 				write_nic_word(dev, CurrentCmd->Para1,
@@ -1202,9 +1202,9 @@ static void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		rtl92e_set_bb_reg(dev, rFPGA1_RFMOD, bRFMOD, 0x0);
 
 		if (!priv->btxpower_tracking) {
-			write_nic_dword(dev, rCCK0_TxFilter1, 0x1a1b0000);
-			write_nic_dword(dev, rCCK0_TxFilter2, 0x090e1317);
-			write_nic_dword(dev, rCCK0_DebugPort, 0x00000204);
+			rtl92e_writel(dev, rCCK0_TxFilter1, 0x1a1b0000);
+			rtl92e_writel(dev, rCCK0_TxFilter2, 0x090e1317);
+			rtl92e_writel(dev, rCCK0_DebugPort, 0x00000204);
 		} else {
 			CCK_Tx_Power_Track_BW_Switch(dev);
 		}
@@ -1217,9 +1217,9 @@ static void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		rtl92e_set_bb_reg(dev, rFPGA1_RFMOD, bRFMOD, 0x1);
 
 		if (!priv->btxpower_tracking) {
-			write_nic_dword(dev, rCCK0_TxFilter1, 0x35360000);
-			write_nic_dword(dev, rCCK0_TxFilter2, 0x121c252e);
-			write_nic_dword(dev, rCCK0_DebugPort, 0x00000409);
+			rtl92e_writel(dev, rCCK0_TxFilter1, 0x35360000);
+			rtl92e_writel(dev, rCCK0_TxFilter2, 0x121c252e);
+			rtl92e_writel(dev, rCCK0_DebugPort, 0x00000409);
 		} else {
 			CCK_Tx_Power_Track_BW_Switch(dev);
 		}

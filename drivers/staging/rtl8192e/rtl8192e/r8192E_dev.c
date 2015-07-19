@@ -101,7 +101,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 
 	switch (variable) {
 	case HW_VAR_BSSID:
-		write_nic_dword(dev, BSSIDR, ((u32 *)(val))[0]);
+		rtl92e_writel(dev, BSSIDR, ((u32 *)(val))[0]);
 		write_nic_word(dev, BSSIDR+2, ((u16 *)(val+2))[0]);
 		break;
 
@@ -151,7 +151,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		else if (Type == false)
 			RegRCR &= (~RCR_CBSSID);
 
-		write_nic_dword(dev, RCR, RegRCR);
+		rtl92e_writel(dev, RCR, RegRCR);
 		priv->ReceiveConfig = RegRCR;
 
 	}
@@ -172,12 +172,12 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		regTmp = priv->basic_rate;
 		if (priv->short_preamble)
 			regTmp |= BRSR_AckShortPmb;
-		write_nic_dword(dev, RRSR, regTmp);
+		rtl92e_writel(dev, RRSR, regTmp);
 		break;
 	}
 
 	case HW_VAR_CPU_RST:
-		write_nic_dword(dev, CPU_GEN, ((u32 *)(val))[0]);
+		rtl92e_writel(dev, CPU_GEN, ((u32 *)(val))[0]);
 		break;
 
 	case HW_VAR_AC_PARAM:
@@ -207,19 +207,19 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 			 __func__, eACI, u4bAcParam);
 		switch (eACI) {
 		case AC1_BK:
-			write_nic_dword(dev, EDCAPARA_BK, u4bAcParam);
+			rtl92e_writel(dev, EDCAPARA_BK, u4bAcParam);
 			break;
 
 		case AC0_BE:
-			write_nic_dword(dev, EDCAPARA_BE, u4bAcParam);
+			rtl92e_writel(dev, EDCAPARA_BE, u4bAcParam);
 			break;
 
 		case AC2_VI:
-			write_nic_dword(dev, EDCAPARA_VI, u4bAcParam);
+			rtl92e_writel(dev, EDCAPARA_VI, u4bAcParam);
 			break;
 
 		case AC3_VO:
-			write_nic_dword(dev, EDCAPARA_VO, u4bAcParam);
+			rtl92e_writel(dev, EDCAPARA_VO, u4bAcParam);
 			break;
 
 		default:
@@ -690,12 +690,12 @@ static void rtl8192_hwconfig(struct net_device *dev)
 		ratr_value = regRATR;
 		if (priv->rf_type == RF_1T2R)
 			ratr_value &= ~(RATE_ALL_OFDM_2SS);
-		write_nic_dword(dev, RATR0, ratr_value);
+		rtl92e_writel(dev, RATR0, ratr_value);
 		rtl92e_writeb(dev, UFWP, 1);
 	}
 	regTmp = rtl92e_readb(dev, 0x313);
 	regRRSR = ((regTmp) << 24) | (regRRSR & 0x00ffffff);
-	write_nic_dword(dev, RRSR, regRRSR);
+	rtl92e_writel(dev, RRSR, regRRSR);
 
 	write_nic_word(dev, RETRY_LIMIT,
 			priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT |
@@ -738,7 +738,7 @@ start:
 		netdev_err(dev, "%s(): undefined firmware state: %d.\n",
 			   __func__, priv->pFirmware->firmware_status);
 
-	write_nic_dword(dev, CPU_GEN, ulRegRead);
+	rtl92e_writel(dev, CPU_GEN, ulRegRead);
 
 	ICVersion = rtl92e_readb(dev, IC_VERRSION);
 	if (ICVersion >= 0x4) {
@@ -769,7 +769,7 @@ start:
 			netdev_err(dev, "%s: Invalid loopback mode setting.\n",
 				   __func__);
 
-		write_nic_dword(dev, CPU_GEN, ulRegRead);
+		rtl92e_writel(dev, CPU_GEN, ulRegRead);
 
 		udelay(500);
 	}
@@ -778,32 +778,32 @@ start:
 
 	rtl92e_writeb(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
 				  (MXDMA2_NoLimit<<MXDMA2_TX_SHIFT)));
-	write_nic_dword(dev, MAC0, ((u32 *)dev->dev_addr)[0]);
+	rtl92e_writel(dev, MAC0, ((u32 *)dev->dev_addr)[0]);
 	write_nic_word(dev, MAC4, ((u16 *)(dev->dev_addr + 4))[0]);
-	write_nic_dword(dev, RCR, priv->ReceiveConfig);
+	rtl92e_writel(dev, RCR, priv->ReceiveConfig);
 
-	write_nic_dword(dev, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK <<
-			RSVD_FW_QUEUE_PAGE_BK_SHIFT |
-			NUM_OF_PAGE_IN_FW_QUEUE_BE <<
-			RSVD_FW_QUEUE_PAGE_BE_SHIFT |
-			NUM_OF_PAGE_IN_FW_QUEUE_VI <<
-			RSVD_FW_QUEUE_PAGE_VI_SHIFT |
-			NUM_OF_PAGE_IN_FW_QUEUE_VO <<
-			RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-	write_nic_dword(dev, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT <<
-			RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
-	write_nic_dword(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW |
-			NUM_OF_PAGE_IN_FW_QUEUE_BCN <<
-			RSVD_FW_QUEUE_PAGE_BCN_SHIFT|
-			NUM_OF_PAGE_IN_FW_QUEUE_PUB <<
-			RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
+	rtl92e_writel(dev, RQPN1, NUM_OF_PAGE_IN_FW_QUEUE_BK <<
+		      RSVD_FW_QUEUE_PAGE_BK_SHIFT |
+		      NUM_OF_PAGE_IN_FW_QUEUE_BE <<
+		      RSVD_FW_QUEUE_PAGE_BE_SHIFT |
+		      NUM_OF_PAGE_IN_FW_QUEUE_VI <<
+		      RSVD_FW_QUEUE_PAGE_VI_SHIFT |
+		      NUM_OF_PAGE_IN_FW_QUEUE_VO <<
+		      RSVD_FW_QUEUE_PAGE_VO_SHIFT);
+	rtl92e_writel(dev, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT <<
+		      RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
+	rtl92e_writel(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW |
+		      NUM_OF_PAGE_IN_FW_QUEUE_BCN <<
+		      RSVD_FW_QUEUE_PAGE_BCN_SHIFT|
+		      NUM_OF_PAGE_IN_FW_QUEUE_PUB <<
+		      RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
 
 	rtl92e_tx_enable(dev);
 	rtl92e_rx_enable(dev);
 	ulRegRead = (0xFFF00000 & rtl92e_readl(dev, RRSR))  |
 		     RATE_ALL_OFDM_AG | RATE_ALL_CCK;
-	write_nic_dword(dev, RRSR, ulRegRead);
-	write_nic_dword(dev, RATR0+4*7, (RATE_ALL_OFDM_AG | RATE_ALL_CCK));
+	rtl92e_writel(dev, RRSR, ulRegRead);
+	rtl92e_writel(dev, RATR0+4*7, (RATE_ALL_OFDM_AG | RATE_ALL_CCK));
 
 	rtl92e_writeb(dev, ACK_TIMEOUT, 0x30);
 
@@ -824,7 +824,7 @@ start:
 		int i;
 
 		for (i = 0; i < QOS_QUEUE_NUM; i++)
-			write_nic_dword(dev, WDCAPARA_ADD[i], 0x005e4332);
+			rtl92e_writel(dev, WDCAPARA_ADD[i], 0x005e4332);
 	}
 	rtl92e_writeb(dev, 0xbe, 0xc0);
 
@@ -971,7 +971,7 @@ static void rtl8192_net_update(struct net_device *dev)
 	rtl92e_config_rate(dev, &rate_config);
 	priv->dot11CurrentPreambleMode = PREAMBLE_AUTO;
 	 priv->basic_rate = rate_config &= 0x15f;
-	write_nic_dword(dev, BSSIDR, ((u32 *)net->bssid)[0]);
+	rtl92e_writel(dev, BSSIDR, ((u32 *)net->bssid)[0]);
 	write_nic_word(dev, BSSIDR+4, ((u16 *)net->bssid)[2]);
 
 	if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
@@ -1019,7 +1019,7 @@ void rtl92e_link_change(struct net_device *dev)
 		} else
 			priv->ReceiveConfig = reg &= ~RCR_CBSSID;
 
-		write_nic_dword(dev, RCR, reg);
+		rtl92e_writel(dev, RCR, reg);
 	}
 }
 
@@ -1034,7 +1034,7 @@ void rtl92e_set_monitor_mode(struct net_device *dev, bool bAllowAllDA,
 		priv->ReceiveConfig &= ~RCR_AAP;
 
 	if (WriteIntoReg)
-		write_nic_dword(dev, RCR, priv->ReceiveConfig);
+		rtl92e_writel(dev, RCR, priv->ReceiveConfig);
 }
 
 static u8 MRateToHwRate8190Pci(u8 rate)
@@ -2122,11 +2122,11 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 			rtl92e_set_rf_off(dev);
 			ulRegRead = rtl92e_readl(dev, CPU_GEN);
 			ulRegRead |= CPU_GEN_SYSTEM_RESET;
-			write_nic_dword(dev, CPU_GEN, ulRegRead);
+			rtl92e_writel(dev, CPU_GEN, ulRegRead);
 		} else {
-			write_nic_dword(dev, WFCRC0, 0xffffffff);
-			write_nic_dword(dev, WFCRC1, 0xffffffff);
-			write_nic_dword(dev, WFCRC2, 0xffffffff);
+			rtl92e_writel(dev, WFCRC0, 0xffffffff);
+			rtl92e_writel(dev, WFCRC1, 0xffffffff);
+			rtl92e_writel(dev, WFCRC2, 0xffffffff);
 
 
 			rtl92e_writeb(dev, PMR, 0x5);
@@ -2185,7 +2185,7 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 	else if (!ieee->pHTInfo->bCurTxBW40MHz &&
 		  ieee->pHTInfo->bCurShortGI20MHz)
 		ratr_value |= 0x80000000;
-	write_nic_dword(dev, RATR0+rate_index*4, ratr_value);
+	rtl92e_writel(dev, RATR0+rate_index*4, ratr_value);
 	rtl92e_writeb(dev, UFWP, 1);
 }
 
@@ -2230,7 +2230,7 @@ void rtl92e_enable_irq(struct net_device *dev)
 
 	priv->irq_enabled = 1;
 
-	write_nic_dword(dev, INTA_MASK, priv->irq_mask[0]);
+	rtl92e_writel(dev, INTA_MASK, priv->irq_mask[0]);
 
 }
 
@@ -2238,7 +2238,7 @@ void rtl92e_disable_irq(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
-	write_nic_dword(dev, INTA_MASK, 0);
+	rtl92e_writel(dev, INTA_MASK, 0);
 
 	priv->irq_enabled = 0;
 }
@@ -2248,7 +2248,7 @@ void rtl92e_clear_irq(struct net_device *dev)
 	u32 tmp = 0;
 
 	tmp = rtl92e_readl(dev, ISR);
-	write_nic_dword(dev, ISR, tmp);
+	rtl92e_writel(dev, ISR, tmp);
 }
 
 
@@ -2256,7 +2256,7 @@ void rtl92e_enable_rx(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
-	write_nic_dword(dev, RDQDA, priv->rx_ring_dma[RX_MPDU_QUEUE]);
+	rtl92e_writel(dev, RDQDA, priv->rx_ring_dma[RX_MPDU_QUEUE]);
 }
 
 static const u32 TX_DESC_BASE[] = {
@@ -2269,14 +2269,14 @@ void rtl92e_enable_tx(struct net_device *dev)
 	u32 i;
 
 	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
-		write_nic_dword(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
+		rtl92e_writel(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
 }
 
 
 void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta, u32 *p_intb)
 {
 	*p_inta = rtl92e_readl(dev, ISR);
-	write_nic_dword(dev, ISR, *p_inta);
+	rtl92e_writel(dev, ISR, *p_inta);
 }
 
 bool rtl92e_is_rx_stuck(struct net_device *dev)

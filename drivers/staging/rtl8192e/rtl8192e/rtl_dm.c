@@ -454,7 +454,7 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 				 currentRATR, targetRATR);
 			if (priv->rf_type == RF_1T2R)
 				ratr_value &= ~(RATE_ALL_OFDM_2SS);
-			write_nic_dword(dev, RATR0, ratr_value);
+			rtl92e_writel(dev, RATR0, ratr_value);
 			rtl92e_writeb(dev, UFWP, 1);
 
 			pra->last_ratr = targetRATR;
@@ -1211,7 +1211,7 @@ void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 	ratr_value = reg_ratr;
 	if (priv->rf_type == RF_1T2R)
 		ratr_value &= ~(RATE_ALL_OFDM_2SS);
-	write_nic_dword(dev, RATR0, ratr_value);
+	rtl92e_writel(dev, RATR0, ratr_value);
 	rtl92e_writeb(dev, UFWP, 1);
 	if (priv->btxpower_trackingInit && priv->btxpower_tracking)
 		dm_txpower_reset_recovery(dev);
@@ -1741,21 +1741,19 @@ static void dm_check_edca_turbo(struct net_device *dev)
 			if (curTxOkCnt > 4*curRxOkCnt) {
 				if (priv->bis_cur_rdlstate ||
 				    !priv->bcurrent_turbo_EDCA) {
-					write_nic_dword(dev, EDCAPARA_BE,
-						 edca_setting_UL[pHTInfo->IOTPeer]);
+					rtl92e_writel(dev, EDCAPARA_BE,
+						      edca_setting_UL[pHTInfo->IOTPeer]);
 					priv->bis_cur_rdlstate = false;
 				}
 			} else {
 				if (!priv->bis_cur_rdlstate ||
 				    !priv->bcurrent_turbo_EDCA) {
 					if (priv->rtllib->mode == WIRELESS_MODE_G)
-						write_nic_dword(dev,
-								EDCAPARA_BE,
-							 edca_setting_DL_GMode[pHTInfo->IOTPeer]);
+						rtl92e_writel(dev, EDCAPARA_BE,
+							      edca_setting_DL_GMode[pHTInfo->IOTPeer]);
 					else
-						write_nic_dword(dev,
-								EDCAPARA_BE,
-							 edca_setting_DL[pHTInfo->IOTPeer]);
+						rtl92e_writel(dev, EDCAPARA_BE,
+							      edca_setting_DL[pHTInfo->IOTPeer]);
 					priv->bis_cur_rdlstate = true;
 				}
 			}
@@ -1765,20 +1763,18 @@ static void dm_check_edca_turbo(struct net_device *dev)
 				if (!priv->bis_cur_rdlstate ||
 				    !priv->bcurrent_turbo_EDCA) {
 					if (priv->rtllib->mode == WIRELESS_MODE_G)
-						write_nic_dword(dev,
-								EDCAPARA_BE,
-							 edca_setting_DL_GMode[pHTInfo->IOTPeer]);
+						rtl92e_writel(dev, EDCAPARA_BE,
+							      edca_setting_DL_GMode[pHTInfo->IOTPeer]);
 					else
-						write_nic_dword(dev,
-								EDCAPARA_BE,
-							 edca_setting_DL[pHTInfo->IOTPeer]);
+						rtl92e_writel(dev, EDCAPARA_BE,
+							      edca_setting_DL[pHTInfo->IOTPeer]);
 					priv->bis_cur_rdlstate = true;
 				}
 			} else {
 				if (priv->bis_cur_rdlstate ||
 				    !priv->bcurrent_turbo_EDCA) {
-					write_nic_dword(dev, EDCAPARA_BE,
-							edca_setting_UL[pHTInfo->IOTPeer]);
+					rtl92e_writel(dev, EDCAPARA_BE,
+						      edca_setting_UL[pHTInfo->IOTPeer]);
 					priv->bis_cur_rdlstate = false;
 				}
 
@@ -2283,7 +2279,7 @@ static void dm_fsync_timer_callback(unsigned long data)
 			rtl92e_writeb(dev, 0xC3e, 0x96);
 		}
 		priv->ContinueDiffCount = 0;
-		write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
+		rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	}
 	RT_TRACE(COMP_HALDM, "ContinueDiffCount %d\n", priv->ContinueDiffCount);
 	RT_TRACE(COMP_HALDM,
@@ -2298,7 +2294,7 @@ static void dm_StartHWFsync(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	RT_TRACE(COMP_HALDM, "%s\n", __func__);
-	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cf);
+	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c12cf);
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING,
 				      (u8 *)(&rf_timing));
 	rtl92e_writeb(dev, 0xc3b, 0x41);
@@ -2310,7 +2306,7 @@ static void dm_EndHWFsync(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	RT_TRACE(COMP_HALDM, "%s\n", __func__);
-	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
+	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING, (u8 *)
 				     (&rf_timing));
 	rtl92e_writeb(dev, 0xc3b, 0x49);
@@ -2332,7 +2328,7 @@ static void dm_EndSWFsync(struct net_device *dev)
 	}
 
 	priv->ContinueDiffCount = 0;
-	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
+	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c52cd);
 }
 
 static void dm_StartSWFsync(struct net_device *dev)
@@ -2367,7 +2363,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 				    msecs_to_jiffies(priv->rtllib->fsync_time_interval);
 	add_timer(&priv->fsync_timer);
 
-	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cd);
+	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c12cd);
 
 }
 

@@ -33,7 +33,7 @@ void rtl92e_cam_reset(struct net_device *dev)
 	u32 ulcommand = 0;
 
 	ulcommand |= BIT31|BIT30;
-	write_nic_dword(dev, RWCAM, ulcommand);
+	rtl92e_writel(dev, RWCAM, ulcommand);
 }
 
 void rtl92e_enable_hw_security_config(struct net_device *dev)
@@ -135,20 +135,20 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 				(u32)(*(MacAddr+1)) << 24 |
 				(u32)usConfig;
 
-			write_nic_dword(dev, WCAMI, TargetContent);
-			write_nic_dword(dev, RWCAM, TargetCommand);
+			rtl92e_writel(dev, WCAMI, TargetContent);
+			rtl92e_writel(dev, RWCAM, TargetCommand);
 		} else if (i == 1) {
 			TargetContent = (u32)(*(MacAddr+2)) |
 				(u32)(*(MacAddr+3)) <<  8 |
 				(u32)(*(MacAddr+4)) << 16 |
 				(u32)(*(MacAddr+5)) << 24;
-			write_nic_dword(dev, WCAMI, TargetContent);
-			write_nic_dword(dev, RWCAM, TargetCommand);
+			rtl92e_writel(dev, WCAMI, TargetContent);
+			rtl92e_writel(dev, RWCAM, TargetCommand);
 		} else {
 			if (KeyContent != NULL) {
-				write_nic_dword(dev, WCAMI,
-						(u32)(*(KeyContent+i-2)));
-				write_nic_dword(dev, RWCAM, TargetCommand);
+				rtl92e_writel(dev, WCAMI,
+					      (u32)(*(KeyContent+i-2)));
+				rtl92e_writel(dev, RWCAM, TargetCommand);
 				udelay(100);
 			}
 		}

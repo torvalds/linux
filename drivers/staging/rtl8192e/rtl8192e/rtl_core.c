@@ -132,7 +132,7 @@ void rtl92e_writeb(struct net_device *dev, int x, u8 y)
 	udelay(20);
 }
 
-void write_nic_dword(struct net_device *dev, int x, u32 y)
+void rtl92e_writel(struct net_device *dev, int x, u32 y)
 {
 	writel(y, (u8 __iomem *)dev->mem_start + x);
 
@@ -2194,8 +2194,8 @@ static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 {
 	rtl8192_rx_normal(priv->rtllib->dev);
 
-	write_nic_dword(priv->rtllib->dev, INTA_MASK,
-			rtl92e_readl(priv->rtllib->dev, INTA_MASK) | IMR_RDU);
+	rtl92e_writel(priv->rtllib->dev, INTA_MASK,
+		      rtl92e_readl(priv->rtllib->dev, INTA_MASK) | IMR_RDU);
 }
 
 /****************************************************************************
@@ -2526,8 +2526,8 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 	if (inta & IMR_RDU) {
 		RT_TRACE(COMP_INTR, "rx descriptor unavailable!\n");
 		priv->stats.rxrdu++;
-		write_nic_dword(dev, INTA_MASK,
-				rtl92e_readl(dev, INTA_MASK) & ~IMR_RDU);
+		rtl92e_writel(dev, INTA_MASK,
+			      rtl92e_readl(dev, INTA_MASK) & ~IMR_RDU);
 		tasklet_schedule(&priv->irq_rx_tasklet);
 	}
 
