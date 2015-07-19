@@ -33,7 +33,7 @@ struct net_device;
 
 void rtl92e_hw_wakeup(struct net_device *dev);
 void rtl92e_enter_sleep(struct net_device *dev, u64 time);
-void rtllib_ips_leave_wq(struct net_device *dev);
+void rtl92e_rtllib_ips_leave_wq(struct net_device *dev);
 void rtl92e_rtllib_ips_leave(struct net_device *dev);
 void rtl92e_ips_leave_wq(void *data);
 

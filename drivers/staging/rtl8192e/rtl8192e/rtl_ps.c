@@ -192,7 +192,7 @@ void rtl92e_ips_leave_wq(void *data)
 	up(&priv->rtllib->ips_sem);
 }
 
-void rtllib_ips_leave_wq(struct net_device *dev)
+void rtl92e_rtllib_ips_leave_wq(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	enum rt_rf_power_state rtState;
