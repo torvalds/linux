@@ -1438,7 +1438,7 @@ static void rtl819x_watchdog_wqcallback(void *data)
 		priv->rtllib->CntAfterLink = 0;
 	}
 
-	hal_dm_watchdog(dev);
+	rtl92e_dm_watchdog(dev);
 
 	if (rtllib_act_scanning(priv->rtllib, false) == false) {
 		if ((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state ==

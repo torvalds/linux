@@ -256,7 +256,7 @@ void rtl92e_dm_deinit(struct net_device *dev)
 
 }
 
-void hal_dm_watchdog(struct net_device *dev)
+void rtl92e_dm_watchdog(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
