@@ -2276,7 +2276,7 @@ static int rtl8192_down(struct net_device *dev, bool shutdownrf)
 	return 0;
 }
 
-void rtl8192_commit(struct net_device *dev)
+void rtl92e_commit(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -2296,7 +2296,7 @@ static void rtl8192_restart(void *data)
 
 	down(&priv->wx_sem);
 
-	rtl8192_commit(dev);
+	rtl92e_commit(dev);
 
 	up(&priv->wx_sem);
 }

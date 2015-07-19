@@ -824,7 +824,7 @@ static int r8192_wx_set_retry(struct net_device *dev,
 	}
 
 
-	rtl8192_commit(dev);
+	rtl92e_commit(dev);
 exit:
 	up(&priv->wx_sem);
 
