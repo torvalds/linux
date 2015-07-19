@@ -157,6 +157,9 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev,
 			    struct net_device *filter_dev, int idx);
+void switchdev_port_fwd_mark_set(struct net_device *dev,
+				 struct net_device *group_dev,
+				 bool joining);
 
 #else
 
@@ -269,6 +272,12 @@ static inline int switchdev_port_fdb_dump(struct sk_buff *skb,
 					  int idx)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline void switchdev_port_fwd_mark_set(struct net_device *dev,
+					       struct net_device *group_dev,
+					       bool joining)
+{
 }
 
 #endif
