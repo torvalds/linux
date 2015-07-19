@@ -1037,7 +1037,7 @@ static void rtl8192_init_priv_task(struct net_device *dev)
 	INIT_DELAYED_WORK_RSL(&priv->rtllib->hw_wakeup_wq,
 			      (void *) rtl8192_hw_wakeup_wq, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rtllib->hw_sleep_wq,
-			      (void *) rtl8192_hw_sleep_wq, dev);
+			      (void *) rtl92e_hw_sleep_wq, dev);
 	tasklet_init(&priv->irq_rx_tasklet,
 		     (void(*)(unsigned long))rtl8192_irq_rx_tasklet,
 		     (unsigned long)priv);
