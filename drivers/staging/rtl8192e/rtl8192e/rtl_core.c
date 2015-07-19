@@ -2039,10 +2039,7 @@ u8 rtl819x_query_rxpwrpercentage(char antpower)
 
 }	/* QueryRxPwrPercentage */
 
-u8
-rtl819x_evm_dbtopercentage(
-	char value
-	)
+u8 rtl92e_evm_db_to_percent(char value)
 {
 	char ret_val;
 

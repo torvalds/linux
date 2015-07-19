@@ -1656,7 +1656,7 @@ static void rtl8192_query_rxphystatus(
 
 			rx_evmX /= 2;
 
-			evm = rtl819x_evm_dbtopercentage(rx_evmX);
+			evm = rtl92e_evm_db_to_percent(rx_evmX);
 			if (bpacket_match_bssid) {
 				if (i == 0) {
 					pstats->SignalQuality = (u8)(evm &
