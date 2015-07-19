@@ -571,7 +571,6 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
 	 struct rtl_80211_hdr_3addr *delba = NULL;
 	PDELBA_PARAM_SET	pDelBaParamSet = NULL;
-	u16			*pReasonCode = NULL;
 	u8			*dst = NULL;
 
 	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 6) {
@@ -592,9 +591,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 	delba = (struct rtl_80211_hdr_3addr *)skb->data;
 	dst = (u8 *)(&delba->addr2[0]);
-	delba += sizeof(struct rtl_80211_hdr_3addr);
-	pDelBaParamSet = (PDELBA_PARAM_SET)(delba+2);
-	pReasonCode = (u16 *)(delba+4);
+	pDelBaParamSet = (PDELBA_PARAM_SET)&delba->payload[2];
 
 	if(pDelBaParamSet->field.Initiator == 1)
 	{
