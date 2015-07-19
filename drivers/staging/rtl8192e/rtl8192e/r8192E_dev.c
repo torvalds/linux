@@ -43,17 +43,17 @@ void rtl92e_start_beacon(struct net_device *dev)
 
 	rtl92e_irq_disable(dev);
 
-	write_nic_word(dev, ATIMWND, 2);
+	rtl92e_writew(dev, ATIMWND, 2);
 
-	write_nic_word(dev, BCN_INTERVAL, net->beacon_interval);
-	write_nic_word(dev, BCN_DRV_EARLY_INT, 10);
-	write_nic_word(dev, BCN_DMATIME, 256);
+	rtl92e_writew(dev, BCN_INTERVAL, net->beacon_interval);
+	rtl92e_writew(dev, BCN_DRV_EARLY_INT, 10);
+	rtl92e_writew(dev, BCN_DMATIME, 256);
 
 	rtl92e_writeb(dev, BCN_ERR_THRESH, 100);
 
 	BcnTimeCfg |= BcnCW<<BCN_TCFG_CW_SHIFT;
 	BcnTimeCfg |= BcnIFS<<BCN_TCFG_IFS;
-	write_nic_word(dev, BCN_TCFG, BcnTimeCfg);
+	rtl92e_writew(dev, BCN_TCFG, BcnTimeCfg);
 	rtl92e_irq_enable(dev);
 }
 
@@ -102,7 +102,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 	switch (variable) {
 	case HW_VAR_BSSID:
 		rtl92e_writel(dev, BSSIDR, ((u32 *)(val))[0]);
-		write_nic_word(dev, BSSIDR+2, ((u16 *)(val+2))[0]);
+		rtl92e_writew(dev, BSSIDR+2, ((u16 *)(val+2))[0]);
 		break;
 
 	case HW_VAR_MEDIA_STATUS:
@@ -697,9 +697,9 @@ static void rtl8192_hwconfig(struct net_device *dev)
 	regRRSR = ((regTmp) << 24) | (regRRSR & 0x00ffffff);
 	rtl92e_writel(dev, RRSR, regRRSR);
 
-	write_nic_word(dev, RETRY_LIMIT,
-			priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT |
-			priv->LongRetryLimit << RETRY_LIMIT_LONG_SHIFT);
+	rtl92e_writew(dev, RETRY_LIMIT,
+		      priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT |
+		      priv->LongRetryLimit << RETRY_LIMIT_LONG_SHIFT);
 }
 
 bool rtl92e_start_adapter(struct net_device *dev)
@@ -779,7 +779,7 @@ start:
 	rtl92e_writeb(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
 				  (MXDMA2_NoLimit<<MXDMA2_TX_SHIFT)));
 	rtl92e_writel(dev, MAC0, ((u32 *)dev->dev_addr)[0]);
-	write_nic_word(dev, MAC4, ((u16 *)(dev->dev_addr + 4))[0]);
+	rtl92e_writew(dev, MAC4, ((u16 *)(dev->dev_addr + 4))[0]);
 	rtl92e_writel(dev, RCR, priv->ReceiveConfig);
 
 	rtl92e_writel(dev, RQPN1, NUM_OF_PAGE_IN_FW_QUEUE_BK <<
@@ -818,8 +818,8 @@ start:
 		SECR_value |= SCR_NoSKMC;
 		rtl92e_writeb(dev, SECR, SECR_value);
 	}
-	write_nic_word(dev, ATIMWND, 2);
-	write_nic_word(dev, BCN_INTERVAL, 100);
+	rtl92e_writew(dev, ATIMWND, 2);
+	rtl92e_writew(dev, BCN_INTERVAL, 100);
 	{
 		int i;
 
@@ -972,19 +972,19 @@ static void rtl8192_net_update(struct net_device *dev)
 	priv->dot11CurrentPreambleMode = PREAMBLE_AUTO;
 	 priv->basic_rate = rate_config &= 0x15f;
 	rtl92e_writel(dev, BSSIDR, ((u32 *)net->bssid)[0]);
-	write_nic_word(dev, BSSIDR+4, ((u16 *)net->bssid)[2]);
+	rtl92e_writew(dev, BSSIDR+4, ((u16 *)net->bssid)[2]);
 
 	if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
-		write_nic_word(dev, ATIMWND, 2);
-		write_nic_word(dev, BCN_DMATIME, 256);
-		write_nic_word(dev, BCN_INTERVAL, net->beacon_interval);
-		write_nic_word(dev, BCN_DRV_EARLY_INT, 10);
+		rtl92e_writew(dev, ATIMWND, 2);
+		rtl92e_writew(dev, BCN_DMATIME, 256);
+		rtl92e_writew(dev, BCN_INTERVAL, net->beacon_interval);
+		rtl92e_writew(dev, BCN_DRV_EARLY_INT, 10);
 		rtl92e_writeb(dev, BCN_ERR_THRESH, 100);
 
 		BcnTimeCfg |= (BcnCW<<BCN_TCFG_CW_SHIFT);
 		BcnTimeCfg |= BcnIFS<<BCN_TCFG_IFS;
 
-		write_nic_word(dev, BCN_TCFG, BcnTimeCfg);
+		rtl92e_writew(dev, BCN_TCFG, BcnTimeCfg);
 	}
 }
 

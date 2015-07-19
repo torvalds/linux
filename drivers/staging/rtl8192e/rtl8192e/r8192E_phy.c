@@ -939,8 +939,8 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 					      CurrentCmd->Para2);
 				break;
 			case CmdID_WritePortUshort:
-				write_nic_word(dev, CurrentCmd->Para1,
-					       (u16)CurrentCmd->Para2);
+				rtl92e_writew(dev, CurrentCmd->Para1,
+					      (u16)CurrentCmd->Para2);
 				break;
 			case CmdID_WritePortUchar:
 				rtl92e_writeb(dev, CurrentCmd->Para1,

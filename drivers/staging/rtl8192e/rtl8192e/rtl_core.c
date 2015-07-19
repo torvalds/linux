@@ -139,7 +139,7 @@ void rtl92e_writel(struct net_device *dev, int x, u32 y)
 	udelay(20);
 }
 
-void write_nic_word(struct net_device *dev, int x, u16 y)
+void rtl92e_writew(struct net_device *dev, int x, u16 y)
 {
 	writew(y, (u8 __iomem *)dev->mem_start + x);
 
@@ -1837,7 +1837,7 @@ static short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 	dev->trans_start = jiffies;
 
-	write_nic_word(dev, TPPoll, 0x01 << tcb_desc->queue_index);
+	rtl92e_writew(dev, TPPoll, 0x01 << tcb_desc->queue_index);
 	return 0;
 }
 

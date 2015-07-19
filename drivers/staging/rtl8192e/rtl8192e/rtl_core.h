@@ -582,7 +582,7 @@ u8 rtl92e_readb(struct net_device *dev, int x);
 u32 rtl92e_readl(struct net_device *dev, int x);
 u16 rtl92e_readw(struct net_device *dev, int x);
 void rtl92e_writeb(struct net_device *dev, int x, u8 y);
-void write_nic_word(struct net_device *dev, int x, u16 y);
+void rtl92e_writew(struct net_device *dev, int x, u16 y);
 void rtl92e_writel(struct net_device *dev, int x, u32 y);
 
 void force_pci_posting(struct net_device *dev);
