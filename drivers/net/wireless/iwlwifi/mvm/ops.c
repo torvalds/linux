@@ -291,6 +291,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(FW_PAGING_BLOCK_CMD),
 	CMD(ADD_STA_KEY),
 	CMD(ADD_STA),
+	CMD(FW_GET_ITEM_CMD),
 	CMD(REMOVE_STA),
 	CMD(LQ_CMD),
 	CMD(SCAN_OFFLOAD_CONFIG_CMD),

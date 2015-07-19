@@ -120,6 +120,9 @@ enum {
 	ADD_STA = 0x18,
 	REMOVE_STA = 0x19,
 
+	/* paging get item */
+	FW_GET_ITEM_CMD = 0x1a,
+
 	/* TX */
 	TX_CMD = 0x1c,
 	TXPATH_FLUSH = 0x1e,
@@ -393,6 +396,29 @@ struct iwl_fw_paging_cmd {
 	__le32 block_num;
 	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
 } __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
+
+/*
+ * Fw items ID's
+ *
+ * @IWL_FW_ITEM_ID_PAGING: Address of the pages that the FW will upload
+ *	download
+ */
+enum iwl_fw_item_id {
+	IWL_FW_ITEM_ID_PAGING = 3,
+};
+
+/*
+ * struct iwl_fw_get_item_cmd - get an item from the fw
+ */
+struct iwl_fw_get_item_cmd {
+	__le32 item_id;
+} __packed; /* FW_GET_ITEM_CMD_API_S_VER_1 */
+
+struct iwl_fw_get_item_resp {
+	__le32 item_id;
+	__le32 item_byte_cnt;
+	__le32 item_val;
+} __packed; /* FW_GET_ITEM_RSP_S_VER_1 */
 
 /**
  * struct iwl_nvm_access_resp_ver2 - response to NVM_ACCESS_CMD

@@ -163,6 +163,9 @@ struct iwl_sf_region {
 /* maximum image size 1024KB */
 #define MAX_PAGING_IMAGE_SIZE (NUM_OF_BLOCK_PER_IMAGE * PAGING_BLOCK_SIZE)
 
+/* Virtual address signature */
+#define PAGING_ADDR_SIG 0xAA000000
+
 #define PAGING_CMD_IS_SECURED BIT(9)
 #define PAGING_CMD_IS_ENABLED BIT(8)
 #define PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS	0

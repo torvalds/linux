@@ -125,6 +125,7 @@ static void iwl_free_fw_paging(struct iwl_mvm *mvm)
 		__free_pages(mvm->fw_paging_db[i].fw_paging_block,
 			     get_order(mvm->fw_paging_db[i].fw_paging_size));
 	}
+	kfree(mvm->trans->paging_download_buf);
 	memset(mvm->fw_paging_db, 0, sizeof(mvm->fw_paging_db));
 }
 
@@ -258,6 +259,9 @@ static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
 			return -ENOMEM;
 		}
 		mvm->fw_paging_db[blk_idx].fw_paging_phys = phys;
+	} else {
+		mvm->fw_paging_db[blk_idx].fw_paging_phys = PAGING_ADDR_SIG |
+			blk_idx << BLOCK_2_EXP_SIZE;
 	}
 
 	IWL_DEBUG_FW(mvm,
@@ -294,6 +298,10 @@ static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
 				return -ENOMEM;
 			}
 			mvm->fw_paging_db[blk_idx].fw_paging_phys = phys;
+		} else {
+			mvm->fw_paging_db[blk_idx].fw_paging_phys =
+				PAGING_ADDR_SIG |
+				blk_idx << BLOCK_2_EXP_SIZE;
 		}
 
 		IWL_DEBUG_FW(mvm,
@@ -342,6 +350,60 @@ static int iwl_send_paging_cmd(struct iwl_mvm *mvm, const struct fw_img *fw)
 	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(FW_PAGING_BLOCK_CMD,
 						    IWL_ALWAYS_LONG_GROUP, 0),
 				    0, sizeof(fw_paging_cmd), &fw_paging_cmd);
+}
+
+/*
+ * Send paging item cmd to FW in case CPU2 has paging image
+ */
+static int iwl_trans_get_paging_item(struct iwl_mvm *mvm)
+{
+	int ret;
+	struct iwl_fw_get_item_cmd fw_get_item_cmd = {
+		.item_id = cpu_to_le32(IWL_FW_ITEM_ID_PAGING),
+	};
+
+	struct iwl_fw_get_item_resp *item_resp;
+	struct iwl_host_cmd cmd = {
+		.id = iwl_cmd_id(FW_GET_ITEM_CMD, IWL_ALWAYS_LONG_GROUP, 0),
+		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
+		.data = { &fw_get_item_cmd, },
+	};
+
+	cmd.len[0] = sizeof(struct iwl_fw_get_item_cmd);
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret) {
+		IWL_ERR(mvm,
+			"Paging: Failed to send FW_GET_ITEM_CMD cmd (err = %d)\n",
+			ret);
+		return ret;
+	}
+
+	item_resp = (void *)((struct iwl_rx_packet *)cmd.resp_pkt)->data;
+	if (item_resp->item_id != cpu_to_le32(IWL_FW_ITEM_ID_PAGING)) {
+		IWL_ERR(mvm,
+			"Paging: got wrong item in FW_GET_ITEM_CMD resp (item_id = %u)\n",
+			le32_to_cpu(item_resp->item_id));
+		ret = -EIO;
+		goto exit;
+	}
+
+	mvm->trans->paging_download_buf = kzalloc(MAX_PAGING_IMAGE_SIZE,
+						  GFP_KERNEL);
+	if (!mvm->trans->paging_download_buf) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+	mvm->trans->paging_req_addr = le32_to_cpu(item_resp->item_val);
+	mvm->trans->paging_db = mvm->fw_paging_db;
+	IWL_DEBUG_FW(mvm,
+		     "Paging: got paging request address (paging_req_addr 0x%08x)\n",
+		     mvm->trans->paging_req_addr);
+
+exit:
+	iwl_free_resp(&cmd);
+
+	return ret;
 }
 
 static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
@@ -517,6 +579,20 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 * included in the IWL_UCODE_INIT image.
 	 */
 	if (fw->paging_mem_size) {
+		/*
+		 * When dma is not enabled, the driver needs to copy / write
+		 * the downloaded / uploaded page to / from the smem.
+		 * This gets the location of the place were the pages are
+		 * stored.
+		 */
+		if (!is_device_dma_capable(mvm->trans->dev)) {
+			ret = iwl_trans_get_paging_item(mvm);
+			if (ret) {
+				IWL_ERR(mvm, "failed to get FW paging item\n");
+				return ret;
+			}
+		}
+
 		ret = iwl_save_fw_paging(mvm, fw);
 		if (ret) {
 			IWL_ERR(mvm, "failed to save the FW paging image\n");

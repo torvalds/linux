@@ -392,4 +392,10 @@ enum {
 	LMPM_CHICK_EXTENDED_ADDR_SPACE = BIT(0),
 };
 
+/* FW chicken bits */
+#define LMPM_PAGE_PASS_NOTIF			0xA03824
+enum {
+	LMPM_PAGE_PASS_NOTIF_POS = BIT(20),
+};
+
 #endif				/* __iwl_prph_h__ */
