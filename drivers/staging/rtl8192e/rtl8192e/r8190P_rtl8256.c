@@ -143,7 +143,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 			       RetryTimes != 0) {
 				ret = rtl92e_config_rf_path(dev,
 						(enum rf90_radio_path)eRFPath);
-				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev,
+				RF3_Final_Value = rtl92e_get_rf_reg(dev,
 						 (enum rf90_radio_path)eRFPath,
 						 RegOffSetToBeCheck,
 						 bMask12Bits);
@@ -159,7 +159,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 			       RetryTimes != 0) {
 				ret = rtl92e_config_rf_path(dev,
 						(enum rf90_radio_path)eRFPath);
-				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev,
+				RF3_Final_Value = rtl92e_get_rf_reg(dev,
 						 (enum rf90_radio_path)eRFPath,
 						 RegOffSetToBeCheck,
 						 bMask12Bits);
@@ -175,7 +175,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 			       RetryTimes != 0) {
 				ret = rtl92e_config_rf_path(dev,
 						(enum rf90_radio_path)eRFPath);
-				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev,
+				RF3_Final_Value = rtl92e_get_rf_reg(dev,
 						(enum rf90_radio_path)eRFPath,
 						RegOffSetToBeCheck,
 						bMask12Bits);
@@ -191,7 +191,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 			       RetryTimes != 0) {
 				ret = rtl92e_config_rf_path(dev,
 					       (enum rf90_radio_path)eRFPath);
-				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev,
+				RF3_Final_Value = rtl92e_get_rf_reg(dev,
 					       (enum rf90_radio_path)eRFPath,
 					       RegOffSetToBeCheck, bMask12Bits);
 				RT_TRACE(COMP_RF,

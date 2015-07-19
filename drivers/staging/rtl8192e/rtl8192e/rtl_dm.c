@@ -883,7 +883,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 		return;
 	}
 
-	tmpRegA = rtl8192_phy_QueryRFReg(dev, RF90_PATH_A, 0x12, 0x078);
+	tmpRegA = rtl92e_get_rf_reg(dev, RF90_PATH_A, 0x12, 0x078);
 	RT_TRACE(COMP_POWER_TRACKING, "Readback ThermalMeterA = %d\n", tmpRegA);
 	if (tmpRegA < 3 || tmpRegA > 13)
 		return;

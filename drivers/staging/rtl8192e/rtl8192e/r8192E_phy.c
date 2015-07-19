@@ -256,8 +256,8 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	}
 }
 
-u32 rtl8192_phy_QueryRFReg(struct net_device *dev, enum rf90_radio_path eRFPath,
-			   u32 RegAddr, u32 BitMask)
+u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
+		      u32 RegAddr, u32 BitMask)
 {
 	u32 Original_Value, Readback_Value, BitShift;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -525,9 +525,9 @@ bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
 						 WriteAddr[HW90_BLOCK_RF],
 						 bMask12Bits, WriteData[i]);
 			mdelay(10);
-			dwRegRead = rtl8192_phy_QueryRFReg(dev, eRFPath,
-						 WriteAddr[HW90_BLOCK_RF],
-						 bMaskDWord);
+			dwRegRead = rtl92e_get_rf_reg(dev, eRFPath,
+						      WriteAddr[HW90_BLOCK_RF],
+						      bMaskDWord);
 			mdelay(10);
 			break;
 
