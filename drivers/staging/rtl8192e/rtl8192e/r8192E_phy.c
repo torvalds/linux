@@ -1441,7 +1441,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 				do {
 					InitilizeCount--;
 					priv->RegRfOff = false;
-					rtstatus = NicIFEnableNIC(dev);
+					rtstatus = rtl92e_enable_nic(dev);
 				} while (!rtstatus && (InitilizeCount > 0));
 
 				if (!rtstatus) {

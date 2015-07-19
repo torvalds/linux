@@ -2775,7 +2775,7 @@ static void rtl8192_pci_disconnect(struct pci_dev *pdev)
 	RT_TRACE(COMP_DOWN, "wlan driver removed\n");
 }
 
-bool NicIFEnableNIC(struct net_device *dev)
+bool rtl92e_enable_nic(struct net_device *dev)
 {
 	bool init_status = true;
 	struct r8192_priv *priv = rtllib_priv(dev);
