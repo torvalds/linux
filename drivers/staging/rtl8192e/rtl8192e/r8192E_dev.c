@@ -863,7 +863,7 @@ start:
 	RT_TRACE(COMP_INIT, "Load Firmware finished!\n");
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 		RT_TRACE(COMP_INIT, "RF Config Started!\n");
-		rtStatus = rtl8192_phy_RFConfig(dev);
+		rtStatus = rtl92e_config_phy(dev);
 		if (!rtStatus) {
 			netdev_info(dev, "RF Config failed\n");
 			return rtStatus;

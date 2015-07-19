@@ -689,7 +689,7 @@ void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
 	}
 }
 
-bool rtl8192_phy_RFConfig(struct net_device *dev)
+bool rtl92e_config_phy(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool rtStatus = true;
