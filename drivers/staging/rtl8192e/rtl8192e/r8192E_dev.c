@@ -54,7 +54,7 @@ void rtl92e_start_beacon(struct net_device *dev)
 	BcnTimeCfg |= BcnCW<<BCN_TCFG_CW_SHIFT;
 	BcnTimeCfg |= BcnIFS<<BCN_TCFG_IFS;
 	write_nic_word(dev, BCN_TCFG, BcnTimeCfg);
-	rtl8192_irq_enable(dev);
+	rtl92e_irq_enable(dev);
 }
 
 static void rtl8192e_update_msr(struct net_device *dev)
@@ -953,7 +953,7 @@ start:
 			priv->btxpower_tracking = false;
 		}
 	}
-	rtl8192_irq_enable(dev);
+	rtl92e_irq_enable(dev);
 end:
 	priv->being_init_adapter = false;
 	return rtStatus;

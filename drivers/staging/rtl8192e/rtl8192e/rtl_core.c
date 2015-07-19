@@ -300,7 +300,7 @@ static void rtl8192_tx_timeout(struct net_device *dev)
 	netdev_info(dev, "TXTIMEOUT");
 }
 
-void rtl8192_irq_enable(struct net_device *dev)
+void rtl92e_irq_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
@@ -2800,7 +2800,7 @@ bool rtl92e_enable_nic(struct net_device *dev)
 	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 	priv->bfirst_init = false;
 
-	rtl8192_irq_enable(dev);
+	rtl92e_irq_enable(dev);
 	priv->bdisable_nic = false;
 	RT_TRACE(COMP_PS, "<===========%s()\n", __func__);
 	return init_status;
