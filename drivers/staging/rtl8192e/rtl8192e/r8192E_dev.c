@@ -750,7 +750,7 @@ start:
 		}
 	}
 	RT_TRACE(COMP_INIT, "BB Config Start!\n");
-	rtStatus = rtl8192_BBConfig(dev);
+	rtStatus = rtl92e_config_bb(dev);
 	if (!rtStatus) {
 		netdev_warn(dev, "%s(): Failed to configure BB\n", __func__);
 		return rtStatus;

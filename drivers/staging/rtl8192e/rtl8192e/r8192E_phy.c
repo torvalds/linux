@@ -599,7 +599,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 
 	return rtStatus;
 }
-bool rtl8192_BBConfig(struct net_device *dev)
+bool rtl92e_config_bb(struct net_device *dev)
 {
 	rtl8192_InitBBRFRegDef(dev);
 	return rtl8192_BB_Config_ParaFile(dev);
