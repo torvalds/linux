@@ -77,7 +77,7 @@ void rtl92e_hw_wakeup(struct net_device *dev)
 	rtl92e_set_rf_state(dev, eRfOn, RF_CHANGE_BY_PS, false);
 }
 
-void rtl8192_hw_wakeup_wq(void *data)
+void rtl92e_hw_wakeup_wq(void *data)
 {
 	struct rtllib_device *ieee = container_of_dwork_rsl(data,
 				     struct rtllib_device, hw_wakeup_wq);

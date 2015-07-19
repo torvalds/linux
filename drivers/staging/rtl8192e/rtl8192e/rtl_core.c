@@ -1035,7 +1035,7 @@ static void rtl8192_init_priv_task(struct net_device *dev)
 			      (void *)rtl8192_update_beacon, dev);
 	INIT_WORK_RSL(&priv->qos_activate, (void *)rtl8192_qos_activate, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rtllib->hw_wakeup_wq,
-			      (void *) rtl8192_hw_wakeup_wq, dev);
+			      (void *) rtl92e_hw_wakeup_wq, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rtllib->hw_sleep_wq,
 			      (void *) rtl92e_hw_sleep_wq, dev);
 	tasklet_init(&priv->irq_rx_tasklet,

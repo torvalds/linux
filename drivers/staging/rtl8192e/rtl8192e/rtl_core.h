@@ -595,7 +595,7 @@ void rtl92e_commit(struct net_device *dev);
 
 void rtl92e_check_rfctrl_gpio_timer(unsigned long data);
 
-void rtl8192_hw_wakeup_wq(void *data);
+void rtl92e_hw_wakeup_wq(void *data);
 
 void rtl92e_reset_desc_ring(struct net_device *dev);
 void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode);
