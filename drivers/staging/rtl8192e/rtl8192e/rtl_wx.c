@@ -192,7 +192,7 @@ static int r8192_wx_adapter_power_status(struct net_device *dev,
 		pPSC->bLeisurePs = true;
 	} else {
 		if (priv->rtllib->state == RTLLIB_LINKED)
-			LeisurePSLeave(dev);
+			rtl92e_leisure_ps_leave(dev);
 
 		priv->ps_force = true;
 		pPSC->bLeisurePs = false;

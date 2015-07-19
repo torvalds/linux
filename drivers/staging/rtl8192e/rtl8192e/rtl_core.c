@@ -811,7 +811,7 @@ static int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 		priv->rtllib->rtllib_ips_leave(dev);
 
 	if (priv->rtllib->state == RTLLIB_LINKED)
-		LeisurePSLeave(dev);
+		rtl92e_leisure_ps_leave(dev);
 
 	priv->bDriverIsGoingToUnload = true;
 	priv->up = 0;
@@ -875,7 +875,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->handle_assoc_response	= rtl8192_handle_assoc_response;
 	priv->rtllib->handle_beacon		= rtl8192_handle_beacon;
 	priv->rtllib->SetWirelessMode		= rtl92e_set_wireless_mode;
-	priv->rtllib->LeisurePSLeave		= LeisurePSLeave;
+	priv->rtllib->LeisurePSLeave		= rtl92e_leisure_ps_leave;
 	priv->rtllib->SetBWModeHandler		= rtl92e_set_bw_mode;
 	priv->rf_set_chan			= rtl92e_set_channel;
 
@@ -1282,7 +1282,7 @@ RESET_START:
 		down(&priv->wx_sem);
 
 		if (priv->rtllib->state == RTLLIB_LINKED)
-			LeisurePSLeave(dev);
+			rtl92e_leisure_ps_leave(dev);
 
 		if (priv->up) {
 			netdev_info(dev, "%s():the driver is not up.\n",
@@ -1484,11 +1484,11 @@ static void rtl819x_watchdog_wqcallback(void *data)
 		if (bEnterPS)
 			rtl92e_leisure_ps_enter(dev);
 		else
-			LeisurePSLeave(dev);
+			rtl92e_leisure_ps_leave(dev);
 
 	} else {
 		RT_TRACE(COMP_LPS, "====>no link LPS leave\n");
-		LeisurePSLeave(dev);
+		rtl92e_leisure_ps_leave(dev);
 	}
 
 	ieee->LinkDetectInfo.NumRxOkInPeriod = 0;

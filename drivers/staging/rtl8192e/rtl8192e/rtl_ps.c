@@ -291,21 +291,21 @@ void rtl92e_leisure_ps_enter(struct net_device *dev)
 	}
 }
 
-void LeisurePSLeave(struct net_device *dev)
+void rtl92e_leisure_ps_leave(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					&(priv->rtllib->PowerSaveControl);
 
 
-	RT_TRACE(COMP_PS, "LeisurePSLeave()...\n");
+	RT_TRACE(COMP_PS, "rtl92e_leisure_ps_leave()...\n");
 	RT_TRACE(COMP_PS, "pPSC->bLeisurePs = %d, ieee->ps = %d\n",
 		pPSC->bLeisurePs, priv->rtllib->ps);
 
 	if (pPSC->bLeisurePs) {
 		if (priv->rtllib->ps != RTLLIB_PS_DISABLED) {
 			RT_TRACE(COMP_LPS,
-				 "LeisurePSLeave(): Busy Traffic , Leave 802.11 power save..\n");
+				 "rtl92e_leisure_ps_leave(): Busy Traffic , Leave 802.11 power save..\n");
 			MgntActSet_802_11_PowerSaveMode(dev,
 					 RTLLIB_PS_DISABLED);
 

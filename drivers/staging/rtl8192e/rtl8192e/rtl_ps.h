@@ -41,6 +41,6 @@ void rtl92e_ips_enter(struct net_device *dev);
 void rtl92e_ips_leave(struct net_device *dev);
 
 void rtl92e_leisure_ps_enter(struct net_device *dev);
-void LeisurePSLeave(struct net_device *dev);
+void rtl92e_leisure_ps_leave(struct net_device *dev);
 
 #endif
