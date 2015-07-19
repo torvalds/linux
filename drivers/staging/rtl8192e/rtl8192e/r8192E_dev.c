@@ -2025,10 +2025,8 @@ static void rtl8192_UpdateReceivedRateHistogramStatistics(
 	priv->stats.received_rate_histogram[rcvType][rateIndex]++;
 }
 
-bool rtl8192_rx_query_status_desc(struct net_device *dev,
-				  struct rtllib_rx_stats *stats,
-				  struct rx_desc *pdesc,
-				  struct sk_buff *skb)
+bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
+			 struct rx_desc *pdesc, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rx_fwinfo *pDrvInfo = NULL;
