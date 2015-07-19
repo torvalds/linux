@@ -2276,8 +2276,7 @@ void rtl92e_enable_tx(struct net_device *dev)
 }
 
 
-void rtl8192_interrupt_recognized(struct net_device *dev, u32 *p_inta,
-				  u32 *p_intb)
+void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta, u32 *p_intb)
 {
 	*p_inta = read_nic_dword(dev, ISR);
 	write_nic_dword(dev, ISR, *p_inta);
