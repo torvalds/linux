@@ -698,7 +698,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 				continue;
 			}
 
-			Avg_TSSI_Meas = read_nic_word(dev, Tssi_Mea_Value);
+			Avg_TSSI_Meas = rtl92e_readw(dev, Tssi_Mea_Value);
 
 			if (Avg_TSSI_Meas == 0) {
 				write_nic_byte(dev, Pw_Track_Flag, 0);

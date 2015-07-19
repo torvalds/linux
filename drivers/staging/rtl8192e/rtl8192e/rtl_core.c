@@ -120,7 +120,7 @@ u32 rtl92e_readl(struct net_device *dev, int x)
 	return readl((u8 __iomem *)dev->mem_start + x);
 }
 
-u16 read_nic_word(struct net_device *dev, int x)
+u16 rtl92e_readw(struct net_device *dev, int x)
 {
 	return readw((u8 __iomem *)dev->mem_start + x);
 }

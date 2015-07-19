@@ -2282,7 +2282,7 @@ void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta, u32 *p_intb)
 bool rtl92e_is_rx_stuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u16		  RegRxCounter = read_nic_word(dev, 0x130);
+	u16		  RegRxCounter = rtl92e_readw(dev, 0x130);
 	bool		  bStuck = false;
 	static u8	  rx_chk_cnt;
 	u32		SlotIndex = 0, TotalRxStuckCount = 0;
@@ -2347,7 +2347,7 @@ bool rtl92e_is_tx_stuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool	bStuck = false;
-	u16	RegTxCounter = read_nic_word(dev, 0x128);
+	u16	RegTxCounter = rtl92e_readw(dev, 0x128);
 
 	RT_TRACE(COMP_RESET, "%s():RegTxCounter is %d,TxCounter is %d\n",
 		 __func__, RegTxCounter, priv->TxCounter);

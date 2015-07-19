@@ -632,7 +632,7 @@ void rtl92e_get_tx_power(struct net_device *dev)
 	priv->framesyncC34 = rtl92e_readl(dev, rOFDM0_RxDetector2);
 	RT_TRACE(COMP_INIT, "Default framesync (0x%x) = 0x%x\n",
 		rOFDM0_RxDetector3, priv->framesync);
-	priv->SifsTime = read_nic_word(dev, SIFS);
+	priv->SifsTime = rtl92e_readw(dev, SIFS);
 }
 
 void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
