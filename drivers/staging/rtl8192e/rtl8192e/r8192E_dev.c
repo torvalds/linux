@@ -852,7 +852,7 @@ start:
 	}
 
 	RT_TRACE(COMP_INIT, "Load Firmware!\n");
-	bfirmwareok = init_firmware(dev);
+	bfirmwareok = rtl92e_init_fw(dev);
 	if (!bfirmwareok) {
 		if (retry_times < 10) {
 			retry_times++;

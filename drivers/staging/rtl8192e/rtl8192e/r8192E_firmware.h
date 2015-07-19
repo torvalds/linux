@@ -59,7 +59,7 @@ struct rt_firmware {
 	u16		  firmware_buf_size[MAX_FW_INIT_STEP];
 };
 
-bool init_firmware(struct net_device *dev);
+bool rtl92e_init_fw(struct net_device *dev);
 extern void rtl92e_init_fw_param(struct net_device *dev);
 
 #endif

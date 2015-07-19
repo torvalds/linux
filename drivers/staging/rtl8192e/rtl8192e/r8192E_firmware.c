@@ -223,7 +223,7 @@ static bool firmware_check_ready(struct net_device *dev,
 	return rt_status;
 }
 
-bool init_firmware(struct net_device *dev)
+bool rtl92e_init_fw(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool			rt_status = true;
