@@ -38,7 +38,7 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u8 *code_virtual_address,
 	struct tx_fwinfo_8190pci *pTxFwInfo = NULL;
 
 	RT_TRACE(COMP_CMDPKT, "%s(),buffer_len is %d\n", __func__, buffer_len);
-	firmware_init_param(dev);
+	rtl92e_init_fw_param(dev);
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
 
 	do {

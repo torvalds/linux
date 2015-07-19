@@ -23,7 +23,7 @@
 #include "r8192E_firmware.h"
 #include <linux/firmware.h>
 
-void firmware_init_param(struct net_device *dev)
+void rtl92e_init_fw_param(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_firmware *pfirmware = priv->pFirmware;
@@ -46,7 +46,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	struct cb_desc *tcb_desc;
 	u8                  bLastIniPkt;
 
-	firmware_init_param(dev);
+	rtl92e_init_fw_param(dev);
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
 	do {
 		if ((buffer_len - frag_offset) > frag_threshold) {
