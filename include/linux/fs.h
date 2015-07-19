@@ -1391,6 +1391,11 @@ extern struct timespec current_fs_time(struct super_block *sb);
 void __sb_end_write(struct super_block *sb, int level);
 int __sb_start_write(struct super_block *sb, int level, bool wait);
 
+#define __sb_writers_acquired(sb, lev)	\
+	rwsem_acquire_read(&(sb)->s_writers.lock_map[(lev)-1], 0, 1, _THIS_IP_)
+#define __sb_writers_release(sb, lev)	\
+	rwsem_release(&(sb)->s_writers.lock_map[(lev)-1], 1, _THIS_IP_)
+
 /**
  * sb_end_write - drop write access to a superblock
  * @sb: the super we wrote to

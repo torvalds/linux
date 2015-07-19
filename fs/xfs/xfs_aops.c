@@ -119,8 +119,7 @@ xfs_setfilesize_trans_alloc(
 	 * We may pass freeze protection with a transaction.  So tell lockdep
 	 * we released it.
 	 */
-	rwsem_release(&ioend->io_inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
-		      1, _THIS_IP_);
+	__sb_writers_release(ioend->io_inode->i_sb, SB_FREEZE_FS);
 	/*
 	 * We hand off the transaction to the completion thread now, so
 	 * clear the flag here.
@@ -171,8 +170,7 @@ xfs_setfilesize_ioend(
 	 * Similarly for freeze protection.
 	 */
 	current_set_flags_nested(&tp->t_pflags, PF_FSTRANS);
-	rwsem_acquire_read(&VFS_I(ip)->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
-			   0, 1, _THIS_IP_);
+	__sb_writers_acquired(VFS_I(ip)->i_sb, SB_FREEZE_FS);
 
 	return xfs_setfilesize(ip, tp, ioend->io_offset, ioend->io_size);
 }
