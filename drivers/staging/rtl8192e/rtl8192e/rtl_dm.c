@@ -947,7 +947,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 	priv->txpower_count = 0;
 }
 
-void	dm_txpower_trackingcallback(void *data)
+void rtl92e_dm_txpower_tracking_wq(void *data)
 {
 	struct r8192_priv *priv = container_of_dwork_rsl(data,
 				  struct r8192_priv, txpower_tracking_wq);
