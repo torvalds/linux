@@ -900,7 +900,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->LedControlHandler = NULL;
 	priv->rtllib->UpdateBeaconInterruptHandler = NULL;
 
-	priv->rtllib->ScanOperationBackupHandler = PHY_ScanOperationBackup8192;
+	priv->rtllib->ScanOperationBackupHandler = rtl92e_scan_op_backup;
 }
 
 static void rtl8192_init_priv_constant(struct net_device *dev)

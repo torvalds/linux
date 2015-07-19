@@ -106,6 +106,6 @@ SetRFPowerState(
 	);
 #define PHY_SetRFPowerState SetRFPowerState
 
-extern void PHY_ScanOperationBackup8192(struct net_device *dev, u8 Operation);
+extern void rtl92e_scan_op_backup(struct net_device *dev, u8 Operation);
 
 #endif

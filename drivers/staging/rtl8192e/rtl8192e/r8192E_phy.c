@@ -1611,7 +1611,7 @@ bool SetRFPowerState(struct net_device *dev,
 	return bResult;
 }
 
-void PHY_ScanOperationBackup8192(struct net_device *dev, u8 Operation)
+void rtl92e_scan_op_backup(struct net_device *dev, u8 Operation)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
