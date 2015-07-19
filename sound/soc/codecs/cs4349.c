@@ -54,14 +54,17 @@ struct  cs4349_private {
 static bool cs4349_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CS4349_CHIPID:
-	case CS4349_MODE:
-	case CS4349_VMI:
-	case CS4349_MUTE:
-	case CS4349_VOLA:
-	case CS4349_VOLB:
-	case CS4349_RMPFLT:
-	case CS4349_MISC:
+	case CS4349_CHIPID ... CS4349_MISC:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool cs4349_writeable_register(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CS4349_MODE ...  CS4349_MISC:
 		return true;
 	default:
 		return false;
@@ -270,6 +273,7 @@ static const struct regmap_config cs4349_regmap = {
 	.reg_defaults		= cs4349_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(cs4349_reg_defaults),
 	.readable_reg		= cs4349_readable_register,
+	.writeable_reg		= cs4349_writeable_register,
 	.cache_type		= REGCACHE_RBTREE,
 };
 
