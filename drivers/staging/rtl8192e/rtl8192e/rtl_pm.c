@@ -46,7 +46,7 @@ int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (!priv->rtllib->bSupportRemoteWakeUp) {
 		rtl92e_set_rf_state(dev, eRfOff, RF_CHANGE_BY_INIT, true);
-		ulRegRead = read_nic_dword(dev, CPU_GEN);
+		ulRegRead = rtl92e_readl(dev, CPU_GEN);
 		ulRegRead |= CPU_GEN_SYSTEM_RESET;
 		write_nic_dword(dev, CPU_GEN, ulRegRead);
 	} else {

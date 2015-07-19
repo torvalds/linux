@@ -444,7 +444,7 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 		if (priv->rtllib->GetHalfNmodeSupportByAPsHandler(dev))
 			targetRATR &=  0xf00fffff;
 
-		currentRATR = read_nic_dword(dev, RATR0);
+		currentRATR = rtl92e_readl(dev, RATR0);
 		if (targetRATR !=  currentRATR) {
 			u32 ratr_value;
 
@@ -2570,7 +2570,7 @@ static void dm_check_txrateandretrycount(struct net_device *dev)
 	ieee->softmac_stats.last_packet_rate = rtl92e_readb(dev,
 						 Initial_Tx_Rate_Reg);
 
-	ieee->softmac_stats.txretrycount = read_nic_dword(dev,
+	ieee->softmac_stats.txretrycount = rtl92e_readl(dev,
 						 Tx_Retry_Count_Reg);
 }
 

@@ -87,7 +87,7 @@ void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 	u32 OriginalValue, BitShift, NewValue;
 
 	if (dwBitMask != bMaskDWord) {
-		OriginalValue = read_nic_dword(dev, dwRegAddr);
+		OriginalValue = rtl92e_readl(dev, dwRegAddr);
 		BitShift = rtl8192_CalculateBitShift(dwBitMask);
 		NewValue = (((OriginalValue) & (~dwBitMask)) |
 			    (dwData << BitShift));
@@ -100,7 +100,7 @@ u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
 {
 	u32 Ret = 0, OriginalValue, BitShift;
 
-	OriginalValue = read_nic_dword(dev, dwRegAddr);
+	OriginalValue = rtl92e_readl(dev, dwRegAddr);
 	BitShift = rtl8192_CalculateBitShift(dwBitMask);
 	Ret = (OriginalValue & dwBitMask) >> BitShift;
 
@@ -287,20 +287,20 @@ static u32 phy_FwRFSerialRead(struct net_device *dev,
 	Data |= ((Offset & 0xFF) << 12);
 	Data |= ((eRFPath & 0x3) << 20);
 	Data |= 0x80000000;
-	while (read_nic_dword(dev, QPNR)&0x80000000) {
+	while (rtl92e_readl(dev, QPNR) & 0x80000000) {
 		if (time++ < 100)
 			udelay(10);
 		else
 			break;
 	}
 	write_nic_dword(dev, QPNR, Data);
-	while (read_nic_dword(dev, QPNR) & 0x80000000) {
+	while (rtl92e_readl(dev, QPNR) & 0x80000000) {
 		if (time++ < 100)
 			udelay(10);
 		else
 			return 0;
 	}
-	return read_nic_dword(dev, RF_DATA);
+	return rtl92e_readl(dev, RF_DATA);
 
 }
 
@@ -315,7 +315,7 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 	Data |= 0x400000;
 	Data |= 0x80000000;
 
-	while (read_nic_dword(dev, QPNR) & 0x80000000) {
+	while (rtl92e_readl(dev, QPNR) & 0x80000000) {
 		if (time++ < 100)
 			udelay(10);
 		else
@@ -514,7 +514,7 @@ bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
 		case HW90_BLOCK_PHY1:
 			write_nic_dword(dev, WriteAddr[CheckBlock],
 					WriteData[i]);
-			dwRegRead = read_nic_dword(dev, WriteAddr[CheckBlock]);
+			dwRegRead = rtl92e_readl(dev, WriteAddr[CheckBlock]);
 			break;
 
 		case HW90_BLOCK_RF:
@@ -555,7 +555,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	bRegValue = rtl92e_readb(dev, BB_GLOBAL_RESET);
 	write_nic_byte(dev, BB_GLOBAL_RESET, (bRegValue|BB_GLOBAL_RESET_BIT));
 
-	dwRegValue = read_nic_dword(dev, CPU_GEN);
+	dwRegValue = rtl92e_readl(dev, CPU_GEN);
 	write_nic_dword(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
 
 	for (eCheckItem = (enum hw90_block)HW90_BLOCK_PHY0;
@@ -573,7 +573,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn|bOFDMEn, 0x0);
 	rtl8192_phyConfigBB(dev, BaseBand_Config_PHY_REG);
 
-	dwRegValue = read_nic_dword(dev, CPU_GEN);
+	dwRegValue = rtl92e_readl(dev, CPU_GEN);
 	write_nic_dword(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
 
 	rtl8192_phyConfigBB(dev, BaseBand_Config_AGC_TAB);
@@ -607,17 +607,17 @@ void rtl92e_get_tx_power(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->MCSTxPowerLevelOriginalOffset[0] =
-		read_nic_dword(dev, rTxAGC_Rate18_06);
+		rtl92e_readl(dev, rTxAGC_Rate18_06);
 	priv->MCSTxPowerLevelOriginalOffset[1] =
-		read_nic_dword(dev, rTxAGC_Rate54_24);
+		rtl92e_readl(dev, rTxAGC_Rate54_24);
 	priv->MCSTxPowerLevelOriginalOffset[2] =
-		read_nic_dword(dev, rTxAGC_Mcs03_Mcs00);
+		rtl92e_readl(dev, rTxAGC_Mcs03_Mcs00);
 	priv->MCSTxPowerLevelOriginalOffset[3] =
-		read_nic_dword(dev, rTxAGC_Mcs07_Mcs04);
+		rtl92e_readl(dev, rTxAGC_Mcs07_Mcs04);
 	priv->MCSTxPowerLevelOriginalOffset[4] =
-		read_nic_dword(dev, rTxAGC_Mcs11_Mcs08);
+		rtl92e_readl(dev, rTxAGC_Mcs11_Mcs08);
 	priv->MCSTxPowerLevelOriginalOffset[5] =
-		read_nic_dword(dev, rTxAGC_Mcs15_Mcs12);
+		rtl92e_readl(dev, rTxAGC_Mcs15_Mcs12);
 
 	priv->DefaultInitialGain[0] = rtl92e_readb(dev, rOFDM0_XAAGCCore1);
 	priv->DefaultInitialGain[1] = rtl92e_readb(dev, rOFDM0_XBAGCCore1);
@@ -629,7 +629,7 @@ void rtl92e_get_tx_power(struct net_device *dev)
 		 priv->DefaultInitialGain[2], priv->DefaultInitialGain[3]);
 
 	priv->framesync = rtl92e_readb(dev, rOFDM0_RxDetector3);
-	priv->framesyncC34 = read_nic_dword(dev, rOFDM0_RxDetector2);
+	priv->framesyncC34 = rtl92e_readl(dev, rOFDM0_RxDetector2);
 	RT_TRACE(COMP_INIT, "Default framesync (0x%x) = 0x%x\n",
 		rOFDM0_RxDetector3, priv->framesync);
 	priv->SifsTime = read_nic_word(dev, SIFS);

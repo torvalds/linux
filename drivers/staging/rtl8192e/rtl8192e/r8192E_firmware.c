@@ -109,7 +109,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 
 	timeout = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, timeout)) {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		CPU_status = rtl92e_readl(dev, CPU_GEN);
 		if (CPU_status & CPU_GEN_PUT_CODE_OK)
 			break;
 		mdelay(2);
@@ -122,14 +122,14 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 		RT_TRACE(COMP_FIRMWARE, "Download Firmware: Put code ok!\n");
 	}
 
-	CPU_status = read_nic_dword(dev, CPU_GEN);
+	CPU_status = rtl92e_readl(dev, CPU_GEN);
 	write_nic_byte(dev, CPU_GEN,
 		       (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
 	mdelay(1);
 
 	timeout = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, timeout)) {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		CPU_status = rtl92e_readl(dev, CPU_GEN);
 		if (CPU_status&CPU_GEN_BOOT_RDY)
 			break;
 		mdelay(2);
@@ -158,7 +158,7 @@ static bool CPUcheck_firmware_ready(struct net_device *dev)
 
 	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		CPU_status = rtl92e_readl(dev, CPU_GEN);
 		if (CPU_status&CPU_GEN_FIRM_RDY)
 			break;
 		mdelay(2);

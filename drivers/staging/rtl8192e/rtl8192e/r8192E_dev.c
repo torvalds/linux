@@ -143,7 +143,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		u32	RegRCR, Type;
 
 		Type = ((u8 *)(val))[0];
-		RegRCR = read_nic_dword(dev, RCR);
+		RegRCR = rtl92e_readl(dev, RCR);
 		priv->ReceiveConfig = RegRCR;
 
 		if (Type == true)
@@ -631,7 +631,7 @@ void rtl92e_get_eeprom_size(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	RT_TRACE(COMP_INIT, "===========>%s()\n", __func__);
-	curCR = read_nic_dword(dev, EPROM_CMD);
+	curCR = rtl92e_readl(dev, EPROM_CMD);
 	RT_TRACE(COMP_INIT, "read from Reg Cmd9346CR(%x):%x\n", EPROM_CMD,
 		 curCR);
 	priv->epromtype = (curCR & EPROM_CMD_9356SEL) ? EEPROM_93C56 :
@@ -729,7 +729,7 @@ start:
 	if (priv->RegRfOff)
 		priv->rtllib->eRFPowerState = eRfOff;
 
-	ulRegRead = read_nic_dword(dev, CPU_GEN);
+	ulRegRead = rtl92e_readl(dev, CPU_GEN);
 	if (priv->pFirmware->firmware_status == FW_STATUS_0_INIT)
 		ulRegRead |= CPU_GEN_SYSTEM_RESET;
 	else if (priv->pFirmware->firmware_status == FW_STATUS_5_READY)
@@ -759,7 +759,7 @@ start:
 
 	priv->LoopbackMode = RTL819X_NO_LOOPBACK;
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
-		ulRegRead = read_nic_dword(dev, CPU_GEN);
+		ulRegRead = rtl92e_readl(dev, CPU_GEN);
 		if (priv->LoopbackMode == RTL819X_NO_LOOPBACK)
 			ulRegRead = ((ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
 				     CPU_GEN_NO_LOOPBACK_SET);
@@ -800,7 +800,7 @@ start:
 
 	rtl8192_tx_enable(dev);
 	rtl8192_rx_enable(dev);
-	ulRegRead = (0xFFF00000 & read_nic_dword(dev, RRSR))  |
+	ulRegRead = (0xFFF00000 & rtl92e_readl(dev, RRSR))  |
 		     RATE_ALL_OFDM_AG | RATE_ALL_CCK;
 	write_nic_dword(dev, RRSR, ulRegRead);
 	write_nic_dword(dev, RATR0+4*7, (RATE_ALL_OFDM_AG | RATE_ALL_CCK));
@@ -1010,7 +1010,7 @@ void rtl92e_link_change(struct net_device *dev)
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
 		u32 reg = 0;
 
-		reg = read_nic_dword(dev, RCR);
+		reg = rtl92e_readl(dev, RCR);
 		if (priv->rtllib->state == RTLLIB_LINKED) {
 			if (ieee->IntelPromiscuousModeInfo.bPromiscuousOn)
 				;
@@ -2069,7 +2069,7 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 			    (pDrvInfo->FirstAGGR == 1);
 
 	stats->TimeStampLow = pDrvInfo->TSFL;
-	stats->TimeStampHigh = read_nic_dword(dev, TSFR+4);
+	stats->TimeStampHigh = rtl92e_readl(dev, TSFR+4);
 
 	rtl819x_UpdateRxPktTimeStamp(dev, stats);
 
@@ -2120,7 +2120,7 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 
 		if (!priv->rtllib->bSupportRemoteWakeUp) {
 			rtl92e_set_rf_off(dev);
-			ulRegRead = read_nic_dword(dev, CPU_GEN);
+			ulRegRead = rtl92e_readl(dev, CPU_GEN);
 			ulRegRead |= CPU_GEN_SYSTEM_RESET;
 			write_nic_dword(dev, CPU_GEN, ulRegRead);
 		} else {
@@ -2247,7 +2247,7 @@ void rtl92e_clear_irq(struct net_device *dev)
 {
 	u32 tmp = 0;
 
-	tmp = read_nic_dword(dev, ISR);
+	tmp = rtl92e_readl(dev, ISR);
 	write_nic_dword(dev, ISR, tmp);
 }
 
@@ -2275,7 +2275,7 @@ void rtl92e_enable_tx(struct net_device *dev)
 
 void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta, u32 *p_intb)
 {
-	*p_inta = read_nic_dword(dev, ISR);
+	*p_inta = rtl92e_readl(dev, ISR);
 	write_nic_dword(dev, ISR, *p_inta);
 }
 
