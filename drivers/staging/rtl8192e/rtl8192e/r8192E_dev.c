@@ -1821,7 +1821,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 					(RX_SMOOTH-1)) +
 					(prev_st->RxPWDBAll)) / (RX_SMOOTH);
 		}
-		rtl819x_update_rxsignalstatistics8190pci(priv, prev_st);
+		rtl92e_update_rx_statistics(priv, prev_st);
 	}
 
 	if (prev_st->SignalQuality != 0) {

@@ -2005,11 +2005,8 @@ long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index)
 }
 
 
-void
-rtl819x_update_rxsignalstatistics8190pci(
-	struct r8192_priv *priv,
-	struct rtllib_rx_stats *pprevious_stats
-	)
+void rtl92e_update_rx_statistics(struct r8192_priv *priv,
+				 struct rtllib_rx_stats *pprevious_stats)
 {
 	int weighting = 0;
 

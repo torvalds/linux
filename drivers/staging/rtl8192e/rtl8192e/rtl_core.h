@@ -606,8 +606,8 @@ void rtl92e_irq_disable(struct net_device *dev);
 void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
 				    struct rtllib_rx_stats *stats);
 long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index);
-void rtl819x_update_rxsignalstatistics8190pci(struct r8192_priv *priv,
-				      struct rtllib_rx_stats *pprevious_stats);
+void rtl92e_update_rx_statistics(struct r8192_priv *priv,
+				 struct rtllib_rx_stats *pprevious_stats);
 u8 rtl92e_evm_db_to_percent(char value);
 u8 rtl92e_rx_db_to_percent(char antpower);
 void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
