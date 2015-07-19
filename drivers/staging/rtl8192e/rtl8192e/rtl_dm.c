@@ -2555,8 +2555,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		RT_TRACE(COMP_TXAGC, "SetTxPowerLevel8190()  channel = %d\n",
 			 priv->rtllib->current_network.channel);
 
-		rtl8192_phy_setTxPower(dev,
-				 priv->rtllib->current_network.channel);
+		rtl92e_set_tx_power(dev, priv->rtllib->current_network.channel);
 	}
 	priv->bLastDTPFlag_High = priv->bDynamicTxHighPower;
 	priv->bLastDTPFlag_Low = priv->bDynamicTxLowPower;

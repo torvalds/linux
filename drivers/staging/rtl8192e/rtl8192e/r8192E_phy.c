@@ -637,7 +637,7 @@ void rtl92e_get_tx_power(struct net_device *dev)
 	priv->SifsTime = read_nic_word(dev, SIFS);
 }
 
-void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
+void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8	powerlevel = 0, powerlevelOFDM24G = 0;
@@ -1386,7 +1386,7 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 				 "Scan BBInitialGainRestore 0xa0a is %x\n",
 				 priv->initgain_backup.cca);
 
-			rtl8192_phy_setTxPower(dev,
+			rtl92e_set_tx_power(dev,
 					 priv->rtllib->current_network.channel);
 
 			if (dm_digtable.dig_algorithm ==

@@ -832,7 +832,7 @@ start:
 
 	if (priv->card_8192_version > (u8) VERSION_8190_BD) {
 		rtl92e_get_tx_power(dev);
-		rtl8192_phy_setTxPower(dev, priv->chan);
+		rtl92e_set_tx_power(dev, priv->chan);
 	}
 
 	tmpvalue = read_nic_byte(dev, IC_VERRSION);
