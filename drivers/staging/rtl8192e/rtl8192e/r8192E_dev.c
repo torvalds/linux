@@ -625,7 +625,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	RT_TRACE(COMP_TRACE, "<==== ReadAdapterInfo\n");
 }
 
-void rtl8192_get_eeprom_size(struct net_device *dev)
+void rtl92e_get_eeprom_size(struct net_device *dev)
 {
 	u16 curCR;
 	struct r8192_priv *priv = rtllib_priv(dev);

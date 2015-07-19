@@ -41,7 +41,7 @@ void rtl92e_clear_irq(struct net_device *dev);
 void rtl8192_InitializeVariables(struct net_device  *dev);
 void rtl92e_start_beacon(struct net_device *dev);
 void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val);
-void rtl8192_get_eeprom_size(struct net_device *dev);
+void rtl92e_get_eeprom_size(struct net_device *dev);
 bool rtl92e_start_adapter(struct net_device *dev);
 void rtl8192_link_change(struct net_device *dev);
 void rtl92e_set_monitor_mode(struct net_device *dev, bool bAllowAllDA,

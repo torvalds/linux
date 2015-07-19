@@ -44,7 +44,7 @@ static char *ifname = "wlan%d";
 
 static struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
-	.get_eeprom_size		= rtl8192_get_eeprom_size,
+	.get_eeprom_size		= rtl92e_get_eeprom_size,
 	.init_adapter_variable		= rtl8192_InitializeVariables,
 	.initialize_adapter		= rtl92e_start_adapter,
 	.link_change			= rtl8192_link_change,
