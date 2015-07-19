@@ -831,7 +831,7 @@ start:
 	rtl92e_config_mac(dev);
 
 	if (priv->card_8192_version > (u8) VERSION_8190_BD) {
-		rtl8192_phy_getTxPower(dev);
+		rtl92e_get_tx_power(dev);
 		rtl8192_phy_setTxPower(dev, priv->chan);
 	}
 

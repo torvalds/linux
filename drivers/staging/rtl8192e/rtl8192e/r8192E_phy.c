@@ -604,7 +604,7 @@ bool rtl92e_config_bb(struct net_device *dev)
 	return rtl8192_BB_Config_ParaFile(dev);
 }
 
-void rtl8192_phy_getTxPower(struct net_device *dev)
+void rtl92e_get_tx_power(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
