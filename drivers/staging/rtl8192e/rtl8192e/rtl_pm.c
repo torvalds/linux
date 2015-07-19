@@ -95,7 +95,7 @@ int rtl8192E_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D0, 0);
 
 	if (priv->polling_timer_on == 0)
-		check_rfctrl_gpio_timer((unsigned long)dev);
+		rtl92e_check_rfctrl_gpio_timer((unsigned long)dev);
 
 	if (!netif_running(dev)) {
 		netdev_info(dev,

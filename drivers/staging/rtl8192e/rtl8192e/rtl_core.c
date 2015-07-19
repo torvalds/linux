@@ -783,7 +783,7 @@ static int _rtl8192_sta_up(struct net_device *dev, bool is_silent_reset)
 	priv->bfirst_init = false;
 
 	if (priv->polling_timer_on == 0)
-		check_rfctrl_gpio_timer((unsigned long)dev);
+		rtl92e_check_rfctrl_gpio_timer((unsigned long)dev);
 
 	if (priv->rtllib->state != RTLLIB_LINKED)
 		rtllib_softmac_start_protocol(priv->rtllib, 0);
@@ -1099,7 +1099,7 @@ static short rtl8192_init(struct net_device *dev)
 		    (unsigned long) dev);
 
 	setup_timer(&priv->gpio_polling_timer,
-		    check_rfctrl_gpio_timer,
+		    rtl92e_check_rfctrl_gpio_timer,
 		    (unsigned long)dev);
 
 	rtl8192_irq_disable(dev);
@@ -2713,7 +2713,7 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 	RT_TRACE(COMP_INIT, "dev name: %s\n", dev->name);
 
 	if (priv->polling_timer_on == 0)
-		check_rfctrl_gpio_timer((unsigned long)dev);
+		rtl92e_check_rfctrl_gpio_timer((unsigned long)dev);
 
 	RT_TRACE(COMP_INIT, "Driver probe completed\n");
 	return 0;
@@ -2843,7 +2843,7 @@ static void __exit rtl8192_pci_module_exit(void)
 	RT_TRACE(COMP_DOWN, "Exiting");
 }
 
-void check_rfctrl_gpio_timer(unsigned long data)
+void rtl92e_check_rfctrl_gpio_timer(unsigned long data)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
 
