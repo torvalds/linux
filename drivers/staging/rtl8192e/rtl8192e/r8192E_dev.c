@@ -2347,7 +2347,7 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 	return bStuck;
 }
 
-bool rtl8192_HalTxCheckStuck(struct net_device *dev)
+bool rtl92e_is_tx_stuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool	bStuck = false;

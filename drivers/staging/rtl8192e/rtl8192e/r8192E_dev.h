@@ -29,7 +29,7 @@
 
 bool rtl92e_is_halfn_supported_by_ap(struct net_device *dev);
 bool rtl92e_get_nmode_support_by_sec(struct net_device *dev);
-bool rtl8192_HalTxCheckStuck(struct net_device *dev);
+bool rtl92e_is_tx_stuck(struct net_device *dev);
 bool rtl92e_is_rx_stuck(struct net_device *dev);
 void rtl8192_interrupt_recognized(struct net_device *dev, u32 *p_inta,
 				  u32 *p_intb);

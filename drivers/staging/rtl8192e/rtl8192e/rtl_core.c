@@ -60,7 +60,7 @@ static struct rtl819x_ops rtl819xp_ops = {
 	.rx_enable			= rtl92e_enable_rx,
 	.tx_enable			= rtl92e_enable_tx,
 	.interrupt_recognized		= rtl8192_interrupt_recognized,
-	.TxCheckStuckHandler		= rtl8192_HalTxCheckStuck,
+	.TxCheckStuckHandler		= rtl92e_is_tx_stuck,
 	.RxCheckStuckHandler		= rtl92e_is_rx_stuck,
 };
 
