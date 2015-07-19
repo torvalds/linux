@@ -28,12 +28,13 @@
 static void eprom_cs(struct net_device *dev, short bit)
 {
 	if (bit)
-		write_nic_byte(dev, EPROM_CMD,
-			       (1 << EPROM_CS_SHIFT) |
-			       rtl92e_readb(dev, EPROM_CMD));
+		rtl92e_writeb(dev, EPROM_CMD,
+			      (1 << EPROM_CS_SHIFT) |
+			      rtl92e_readb(dev, EPROM_CMD));
 	else
-		write_nic_byte(dev, EPROM_CMD, rtl92e_readb(dev, EPROM_CMD)
-			       & ~(1<<EPROM_CS_SHIFT));
+		rtl92e_writeb(dev, EPROM_CMD,
+			      rtl92e_readb(dev, EPROM_CMD) &
+			      ~(1<<EPROM_CS_SHIFT));
 
 	udelay(EPROM_DELAY);
 }
@@ -41,11 +42,11 @@ static void eprom_cs(struct net_device *dev, short bit)
 
 static void eprom_ck_cycle(struct net_device *dev)
 {
-	write_nic_byte(dev, EPROM_CMD,
-		       (1<<EPROM_CK_SHIFT) | rtl92e_readb(dev, EPROM_CMD));
+	rtl92e_writeb(dev, EPROM_CMD,
+		      (1<<EPROM_CK_SHIFT) | rtl92e_readb(dev, EPROM_CMD));
 	udelay(EPROM_DELAY);
-	write_nic_byte(dev, EPROM_CMD,
-		       rtl92e_readb(dev, EPROM_CMD) & ~(1<<EPROM_CK_SHIFT));
+	rtl92e_writeb(dev, EPROM_CMD,
+		      rtl92e_readb(dev, EPROM_CMD) & ~(1<<EPROM_CK_SHIFT));
 	udelay(EPROM_DELAY);
 }
 
@@ -53,11 +54,12 @@ static void eprom_ck_cycle(struct net_device *dev)
 static void eprom_w(struct net_device *dev, short bit)
 {
 	if (bit)
-		write_nic_byte(dev, EPROM_CMD, (1<<EPROM_W_SHIFT) |
-			       rtl92e_readb(dev, EPROM_CMD));
+		rtl92e_writeb(dev, EPROM_CMD, (1<<EPROM_W_SHIFT) |
+			      rtl92e_readb(dev, EPROM_CMD));
 	else
-		write_nic_byte(dev, EPROM_CMD, rtl92e_readb(dev, EPROM_CMD)
-			       & ~(1<<EPROM_W_SHIFT));
+		rtl92e_writeb(dev, EPROM_CMD,
+			      rtl92e_readb(dev, EPROM_CMD) &
+			      ~(1<<EPROM_W_SHIFT));
 
 	udelay(EPROM_DELAY);
 }
@@ -95,8 +97,8 @@ u32 eprom_read(struct net_device *dev, u32 addr)
 	u32 ret;
 
 	ret = 0;
-	write_nic_byte(dev, EPROM_CMD,
-		       (EPROM_CMD_PROGRAM << EPROM_CMD_OPERATING_MODE_SHIFT));
+	rtl92e_writeb(dev, EPROM_CMD,
+		      (EPROM_CMD_PROGRAM << EPROM_CMD_OPERATING_MODE_SHIFT));
 	udelay(EPROM_DELAY);
 
 	if (priv->epromtype == EEPROM_93C56) {
@@ -133,7 +135,7 @@ u32 eprom_read(struct net_device *dev, u32 addr)
 	eprom_cs(dev, 0);
 	eprom_ck_cycle(dev);
 
-	write_nic_byte(dev, EPROM_CMD,
-		       (EPROM_CMD_NORMAL<<EPROM_CMD_OPERATING_MODE_SHIFT));
+	rtl92e_writeb(dev, EPROM_CMD,
+		      (EPROM_CMD_NORMAL<<EPROM_CMD_OPERATING_MODE_SHIFT));
 	return ret;
 }

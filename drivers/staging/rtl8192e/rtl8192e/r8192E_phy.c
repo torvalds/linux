@@ -553,7 +553,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	u32 dwRegValue = 0;
 
 	bRegValue = rtl92e_readb(dev, BB_GLOBAL_RESET);
-	write_nic_byte(dev, BB_GLOBAL_RESET, (bRegValue|BB_GLOBAL_RESET_BIT));
+	rtl92e_writeb(dev, BB_GLOBAL_RESET, (bRegValue|BB_GLOBAL_RESET_BIT));
 
 	dwRegValue = rtl92e_readl(dev, CPU_GEN);
 	write_nic_dword(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
@@ -943,8 +943,8 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 					       (u16)CurrentCmd->Para2);
 				break;
 			case CmdID_WritePortUchar:
-				write_nic_byte(dev, CurrentCmd->Para1,
-					       (u8)CurrentCmd->Para2);
+				rtl92e_writeb(dev, CurrentCmd->Para1,
+					      (u8)CurrentCmd->Para2);
 				break;
 			case CmdID_RF_WriteReg:
 				for (eRFPath = 0; eRFPath <
@@ -1182,12 +1182,12 @@ static void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	switch (priv->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:
 		regBwOpMode |= BW_OPMODE_20MHZ;
-		write_nic_byte(dev, BW_OPMODE, regBwOpMode);
+		rtl92e_writeb(dev, BW_OPMODE, regBwOpMode);
 		break;
 
 	case HT_CHANNEL_WIDTH_20_40:
 		regBwOpMode &= ~BW_OPMODE_20MHZ;
-		write_nic_byte(dev, BW_OPMODE, regBwOpMode);
+		rtl92e_writeb(dev, BW_OPMODE, regBwOpMode);
 		break;
 
 	default:
@@ -1341,13 +1341,13 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 
 			RT_TRACE(COMP_SCAN, "Write scan initial gain = 0x%x\n",
 				 initial_gain);
-			write_nic_byte(dev, rOFDM0_XAAGCCore1, initial_gain);
-			write_nic_byte(dev, rOFDM0_XBAGCCore1, initial_gain);
-			write_nic_byte(dev, rOFDM0_XCAGCCore1, initial_gain);
-			write_nic_byte(dev, rOFDM0_XDAGCCore1, initial_gain);
+			rtl92e_writeb(dev, rOFDM0_XAAGCCore1, initial_gain);
+			rtl92e_writeb(dev, rOFDM0_XBAGCCore1, initial_gain);
+			rtl92e_writeb(dev, rOFDM0_XCAGCCore1, initial_gain);
+			rtl92e_writeb(dev, rOFDM0_XDAGCCore1, initial_gain);
 			RT_TRACE(COMP_SCAN, "Write scan 0xa0a = 0x%x\n",
 				 POWER_DETECTION_TH);
-			write_nic_byte(dev, 0xa0a, POWER_DETECTION_TH);
+			rtl92e_writeb(dev, 0xa0a, POWER_DETECTION_TH);
 			break;
 		case IG_Restore:
 			RT_TRACE(COMP_SCAN,
@@ -1409,7 +1409,7 @@ void rtl92e_set_rf_off(struct net_device *dev)
 	rtl92e_set_bb_reg(dev, rOFDM1_TRxPathEnable, 0xf, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x60, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x4, 0x0);
-	write_nic_byte(dev, ANAPAR_FOR_8192PciE, 0x07);
+	rtl92e_writeb(dev, ANAPAR_FOR_8192PciE, 0x07);
 
 }
 
@@ -1455,7 +1455,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 				RT_CLEAR_PS_LEVEL(pPSC,
 						  RT_RF_OFF_LEVL_HALT_NIC);
 			} else {
-				write_nic_byte(dev, ANAPAR, 0x37);
+				rtl92e_writeb(dev, ANAPAR, 0x37);
 				mdelay(1);
 				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
 						 0x4, 0x1);

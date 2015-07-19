@@ -81,7 +81,7 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u8 *code_virtual_address,
 
 	} while (frag_offset < buffer_len);
 
-	write_nic_byte(dev, TPPoll, TPPoll_CQ);
+	rtl92e_writeb(dev, TPPoll, TPPoll_CQ);
 Failed:
 	return rt_status;
 }

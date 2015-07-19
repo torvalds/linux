@@ -65,7 +65,7 @@ void rtl92e_enable_hw_security_config(struct net_device *dev)
 	RT_TRACE(COMP_SEC, "%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n",
 		 __func__, ieee->hwsec_active, ieee->pairwise_key_type,
 		 SECR_value);
-	write_nic_byte(dev, SECR,  SECR_value);
+	rtl92e_writeb(dev, SECR, SECR_value);
 }
 
 void rtl92e_set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex,

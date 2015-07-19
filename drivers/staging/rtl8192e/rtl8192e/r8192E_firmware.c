@@ -96,7 +96,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 
 	} while (frag_offset < buffer_len);
 
-	write_nic_byte(dev, TPPoll, TPPoll_CQ);
+	rtl92e_writeb(dev, TPPoll, TPPoll_CQ);
 
 	return true;
 }
@@ -123,8 +123,8 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 	}
 
 	CPU_status = rtl92e_readl(dev, CPU_GEN);
-	write_nic_byte(dev, CPU_GEN,
-		       (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
+	rtl92e_writeb(dev, CPU_GEN,
+		      (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
 	mdelay(1);
 
 	timeout = jiffies + msecs_to_jiffies(200);

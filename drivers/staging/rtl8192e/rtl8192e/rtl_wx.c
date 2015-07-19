@@ -961,7 +961,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		} else {
 			if ((ieee->pairwise_key_type == KEY_TYPE_CCMP) &&
 			     ieee->pHTInfo->bCurrentHTSupport)
-				write_nic_byte(dev, 0x173, 1);
+				rtl92e_writeb(dev, 0x173, 1);
 			rtl92e_set_key(dev, 4, idx, alg,
 				       (u8 *)ieee->ap_mac_addr, 0, key);
 			rtl92e_set_swcam(dev, 4, idx, alg,

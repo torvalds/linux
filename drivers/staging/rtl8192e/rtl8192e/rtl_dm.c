@@ -455,7 +455,7 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 			if (priv->rf_type == RF_1T2R)
 				ratr_value &= ~(RATE_ALL_OFDM_2SS);
 			write_nic_dword(dev, RATR0, ratr_value);
-			write_nic_byte(dev, UFWP, 1);
+			rtl92e_writeb(dev, UFWP, 1);
 
 			pra->last_ratr = targetRATR;
 		}
@@ -653,8 +653,8 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 	u32	delta = 0;
 
 	RT_TRACE(COMP_POWER_TRACKING, "%s()\n", __func__);
-	write_nic_byte(dev, Pw_Track_Flag, 0);
-	write_nic_byte(dev, FW_Busy_Flag, 0);
+	rtl92e_writeb(dev, Pw_Track_Flag, 0);
+	rtl92e_writeb(dev, FW_Busy_Flag, 0);
 	priv->rtllib->bdynamic_txpower_enable = false;
 	bHighpowerstate = priv->bDynamicTxHighPower;
 
@@ -683,15 +683,15 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 				if (priv->bResetInProgress) {
 					RT_TRACE(COMP_POWER_TRACKING,
 						 "we are in silent reset progress, so return\n");
-					write_nic_byte(dev, Pw_Track_Flag, 0);
-					write_nic_byte(dev, FW_Busy_Flag, 0);
+					rtl92e_writeb(dev, Pw_Track_Flag, 0);
+					rtl92e_writeb(dev, FW_Busy_Flag, 0);
 					return;
 				}
 				if (priv->rtllib->eRFPowerState != eRfOn) {
 					RT_TRACE(COMP_POWER_TRACKING,
 						 "we are in power save, so return\n");
-					write_nic_byte(dev, Pw_Track_Flag, 0);
-					write_nic_byte(dev, FW_Busy_Flag, 0);
+					rtl92e_writeb(dev, Pw_Track_Flag, 0);
+					rtl92e_writeb(dev, FW_Busy_Flag, 0);
 					return;
 				}
 
@@ -701,8 +701,8 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			Avg_TSSI_Meas = rtl92e_readw(dev, Tssi_Mea_Value);
 
 			if (Avg_TSSI_Meas == 0) {
-				write_nic_byte(dev, Pw_Track_Flag, 0);
-				write_nic_byte(dev, FW_Busy_Flag, 0);
+				rtl92e_writeb(dev, Pw_Track_Flag, 0);
+				rtl92e_writeb(dev, FW_Busy_Flag, 0);
 				return;
 			}
 
@@ -725,7 +725,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			}
 
 			if (viviflag) {
-				write_nic_byte(dev, Pw_Track_Flag, 0);
+				rtl92e_writeb(dev, Pw_Track_Flag, 0);
 				viviflag = false;
 				RT_TRACE(COMP_POWER_TRACKING,
 					 "we filted this data\n");
@@ -752,8 +752,8 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 
 			if (delta <= E_FOR_TX_POWER_TRACK) {
 				priv->rtllib->bdynamic_txpower_enable = true;
-				write_nic_byte(dev, Pw_Track_Flag, 0);
-				write_nic_byte(dev, FW_Busy_Flag, 0);
+				rtl92e_writeb(dev, Pw_Track_Flag, 0);
+				rtl92e_writeb(dev, FW_Busy_Flag, 0);
 				RT_TRACE(COMP_POWER_TRACKING,
 					 "tx power track is done\n");
 				RT_TRACE(COMP_POWER_TRACKING,
@@ -825,23 +825,23 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			if (priv->CCKPresentAttentuation_difference <= -12 ||
 			    priv->CCKPresentAttentuation_difference >= 24) {
 				priv->rtllib->bdynamic_txpower_enable = true;
-				write_nic_byte(dev, Pw_Track_Flag, 0);
-				write_nic_byte(dev, FW_Busy_Flag, 0);
+				rtl92e_writeb(dev, Pw_Track_Flag, 0);
+				rtl92e_writeb(dev, FW_Busy_Flag, 0);
 				RT_TRACE(COMP_POWER_TRACKING,
 					 "tx power track--->limited\n");
 				return;
 			}
 
-			write_nic_byte(dev, Pw_Track_Flag, 0);
+			rtl92e_writeb(dev, Pw_Track_Flag, 0);
 			Avg_TSSI_Meas_from_driver = 0;
 			for (k = 0; k < 5; k++)
 				tmp_report[k] = 0;
 			break;
 		}
-		write_nic_byte(dev, FW_Busy_Flag, 0);
+		rtl92e_writeb(dev, FW_Busy_Flag, 0);
 	}
 	priv->rtllib->bdynamic_txpower_enable = true;
-	write_nic_byte(dev, Pw_Track_Flag, 0);
+	rtl92e_writeb(dev, Pw_Track_Flag, 0);
 }
 
 static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
@@ -1212,7 +1212,7 @@ void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 	if (priv->rf_type == RF_1T2R)
 		ratr_value &= ~(RATE_ALL_OFDM_2SS);
 	write_nic_dword(dev, RATR0, ratr_value);
-	write_nic_byte(dev, UFWP, 1);
+	rtl92e_writeb(dev, UFWP, 1);
 	if (priv->btxpower_trackingInit && priv->btxpower_tracking)
 		dm_txpower_reset_recovery(dev);
 
@@ -1427,17 +1427,17 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 		rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x8);
 
-		write_nic_byte(dev, rOFDM0_XAAGCCore1, 0x17);
-		write_nic_byte(dev, rOFDM0_XBAGCCore1, 0x17);
-		write_nic_byte(dev, rOFDM0_XCAGCCore1, 0x17);
-		write_nic_byte(dev, rOFDM0_XDAGCCore1, 0x17);
+		rtl92e_writeb(dev, rOFDM0_XAAGCCore1, 0x17);
+		rtl92e_writeb(dev, rOFDM0_XBAGCCore1, 0x17);
+		rtl92e_writeb(dev, rOFDM0_XCAGCCore1, 0x17);
+		rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x17);
 
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
-			write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
+			rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x00);
 		else
-			write_nic_byte(dev, rOFDM0_RxDetector1, 0x42);
+			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x42);
 
-		write_nic_byte(dev, 0xa0a, 0x08);
+		rtl92e_writeb(dev, 0xa0a, 0x08);
 
 		return;
 	}
@@ -1458,23 +1458,23 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		dm_digtable.dig_state = DM_STA_DIG_ON;
 
 		if (reset_flag == 1) {
-			write_nic_byte(dev, rOFDM0_XAAGCCore1, 0x2c);
-			write_nic_byte(dev, rOFDM0_XBAGCCore1, 0x2c);
-			write_nic_byte(dev, rOFDM0_XCAGCCore1, 0x2c);
-			write_nic_byte(dev, rOFDM0_XDAGCCore1, 0x2c);
+			rtl92e_writeb(dev, rOFDM0_XAAGCCore1, 0x2c);
+			rtl92e_writeb(dev, rOFDM0_XBAGCCore1, 0x2c);
+			rtl92e_writeb(dev, rOFDM0_XCAGCCore1, 0x2c);
+			rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x2c);
 		} else {
-			write_nic_byte(dev, rOFDM0_XAAGCCore1, 0x20);
-			write_nic_byte(dev, rOFDM0_XBAGCCore1, 0x20);
-			write_nic_byte(dev, rOFDM0_XCAGCCore1, 0x20);
-			write_nic_byte(dev, rOFDM0_XDAGCCore1, 0x20);
+			rtl92e_writeb(dev, rOFDM0_XAAGCCore1, 0x20);
+			rtl92e_writeb(dev, rOFDM0_XBAGCCore1, 0x20);
+			rtl92e_writeb(dev, rOFDM0_XCAGCCore1, 0x20);
+			rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x20);
 		}
 
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
-			write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
+			rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x20);
 		else
-			write_nic_byte(dev, rOFDM0_RxDetector1, 0x44);
+			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
 
-		write_nic_byte(dev, 0xa0a, 0xcd);
+		rtl92e_writeb(dev, 0xa0a, 0xcd);
 
 		rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x1);
 	}
@@ -1501,9 +1501,9 @@ static void dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
 
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x10);
+				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x10);
 		else
-			write_nic_byte(dev, rOFDM0_RxDetector1, 0x43);
+			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x43);
 	} else {
 		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_OFF &&
 			(priv->reset_count == reset_cnt_highpwr))
@@ -1515,9 +1515,9 @@ static void dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 		    (priv->undecorated_smoothed_pwdb >=
 		    dm_digtable.rssi_high_thresh)) {
 			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
+				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x20);
 			else
-				write_nic_byte(dev, rOFDM0_RxDetector1, 0x44);
+				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
 		}
 	}
 	reset_cnt_highpwr = priv->reset_count;
@@ -1570,10 +1570,10 @@ static void dm_initial_gain(struct net_device *dev)
 	if ((dm_digtable.pre_ig_value != dm_digtable.cur_ig_value)
 	    || !initialized || force_write) {
 		initial_gain = (u8)dm_digtable.cur_ig_value;
-		write_nic_byte(dev, rOFDM0_XAAGCCore1, initial_gain);
-		write_nic_byte(dev, rOFDM0_XBAGCCore1, initial_gain);
-		write_nic_byte(dev, rOFDM0_XCAGCCore1, initial_gain);
-		write_nic_byte(dev, rOFDM0_XDAGCCore1, initial_gain);
+		rtl92e_writeb(dev, rOFDM0_XAAGCCore1, initial_gain);
+		rtl92e_writeb(dev, rOFDM0_XBAGCCore1, initial_gain);
+		rtl92e_writeb(dev, rOFDM0_XCAGCCore1, initial_gain);
+		rtl92e_writeb(dev, rOFDM0_XDAGCCore1, initial_gain);
 		dm_digtable.pre_ig_value = dm_digtable.cur_ig_value;
 		initialized = 1;
 		force_write = 0;
@@ -1626,20 +1626,20 @@ static void dm_pd_th(struct net_device *dev)
 	    (initialized <= 3) || force_write) {
 		if (dm_digtable.curpd_thstate == DIG_PD_AT_LOW_POWER) {
 			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
+				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x00);
 			else
-				write_nic_byte(dev, rOFDM0_RxDetector1, 0x42);
+				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x42);
 		} else if (dm_digtable.curpd_thstate ==
 			   DIG_PD_AT_NORMAL_POWER) {
 			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
+				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x20);
 			else
-				write_nic_byte(dev, rOFDM0_RxDetector1, 0x44);
+				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
 		} else if (dm_digtable.curpd_thstate == DIG_PD_AT_HIGH_POWER) {
 			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x10);
+				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x10);
 			else
-				write_nic_byte(dev, rOFDM0_RxDetector1, 0x43);
+				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x43);
 		}
 		dm_digtable.prepd_thstate = dm_digtable.curpd_thstate;
 		if (initialized <= 3)
@@ -1683,9 +1683,9 @@ static	void dm_cs_ratio(struct net_device *dev)
 	if ((dm_digtable.precs_ratio_state != dm_digtable.curcs_ratio_state) ||
 	    !initialized || force_write) {
 		if (dm_digtable.curcs_ratio_state == DIG_CS_RATIO_LOWER)
-			write_nic_byte(dev, 0xa0a, 0x08);
+			rtl92e_writeb(dev, 0xa0a, 0x08);
 		else if (dm_digtable.curcs_ratio_state == DIG_CS_RATIO_HIGHER)
-			write_nic_byte(dev, 0xa0a, 0xcd);
+			rtl92e_writeb(dev, 0xa0a, 0xcd);
 		dm_digtable.precs_ratio_state = dm_digtable.curcs_ratio_state;
 		initialized = 1;
 		force_write = 0;
@@ -2248,18 +2248,18 @@ static void dm_fsync_timer_callback(unsigned long data)
 			bDoubleTimeInterval = true;
 			priv->bswitch_fsync = !priv->bswitch_fsync;
 			if (priv->bswitch_fsync) {
-				write_nic_byte(dev, 0xC36, 0x1c);
-				write_nic_byte(dev, 0xC3e, 0x90);
+				rtl92e_writeb(dev, 0xC36, 0x1c);
+				rtl92e_writeb(dev, 0xC3e, 0x90);
 			} else {
-				write_nic_byte(dev, 0xC36, 0x5c);
-				write_nic_byte(dev, 0xC3e, 0x96);
+				rtl92e_writeb(dev, 0xC36, 0x5c);
+				rtl92e_writeb(dev, 0xC3e, 0x96);
 			}
 		} else if (priv->undecorated_smoothed_pwdb <=
 			   priv->rtllib->fsync_rssi_threshold) {
 			if (priv->bswitch_fsync) {
 				priv->bswitch_fsync  = false;
-				write_nic_byte(dev, 0xC36, 0x5c);
-				write_nic_byte(dev, 0xC3e, 0x96);
+				rtl92e_writeb(dev, 0xC36, 0x5c);
+				rtl92e_writeb(dev, 0xC3e, 0x96);
 			}
 		}
 		if (bDoubleTimeInterval) {
@@ -2279,8 +2279,8 @@ static void dm_fsync_timer_callback(unsigned long data)
 	} else {
 		if (priv->bswitch_fsync) {
 			priv->bswitch_fsync  = false;
-			write_nic_byte(dev, 0xC36, 0x5c);
-			write_nic_byte(dev, 0xC3e, 0x96);
+			rtl92e_writeb(dev, 0xC36, 0x5c);
+			rtl92e_writeb(dev, 0xC3e, 0x96);
 		}
 		priv->ContinueDiffCount = 0;
 		write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
@@ -2301,7 +2301,7 @@ static void dm_StartHWFsync(struct net_device *dev)
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cf);
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING,
 				      (u8 *)(&rf_timing));
-	write_nic_byte(dev, 0xc3b, 0x41);
+	rtl92e_writeb(dev, 0xc3b, 0x41);
 }
 
 static void dm_EndHWFsync(struct net_device *dev)
@@ -2313,7 +2313,7 @@ static void dm_EndHWFsync(struct net_device *dev)
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING, (u8 *)
 				     (&rf_timing));
-	write_nic_byte(dev, 0xc3b, 0x49);
+	rtl92e_writeb(dev, 0xc3b, 0x49);
 }
 
 static void dm_EndSWFsync(struct net_device *dev)
@@ -2326,9 +2326,9 @@ static void dm_EndSWFsync(struct net_device *dev)
 	if (priv->bswitch_fsync) {
 		priv->bswitch_fsync  = false;
 
-		write_nic_byte(dev, 0xC36, 0x5c);
+		rtl92e_writeb(dev, 0xC36, 0x5c);
 
-		write_nic_byte(dev, 0xC3e, 0x96);
+		rtl92e_writeb(dev, 0xC3e, 0x96);
 	}
 
 	priv->ContinueDiffCount = 0;
@@ -2427,7 +2427,7 @@ static void dm_check_fsync(struct net_device *dev)
 		}
 		if (priv->framesyncMonitor) {
 			if (reg_c38_State != RegC38_Fsync_AP_BCM) {
-				write_nic_byte(dev, rOFDM0_RxDetector3, 0x95);
+				rtl92e_writeb(dev, rOFDM0_RxDetector3, 0x95);
 
 				reg_c38_State = RegC38_Fsync_AP_BCM;
 			}
@@ -2453,7 +2453,7 @@ static void dm_check_fsync(struct net_device *dev)
 				    RegC38_TH) {
 					if (reg_c38_State !=
 					    RegC38_NonFsync_Other_AP) {
-							write_nic_byte(dev,
+							rtl92e_writeb(dev,
 							    rOFDM0_RxDetector3,
 							    0x90);
 
@@ -2463,7 +2463,7 @@ static void dm_check_fsync(struct net_device *dev)
 				} else if (priv->undecorated_smoothed_pwdb >=
 					   (RegC38_TH+5)) {
 					if (reg_c38_State) {
-						write_nic_byte(dev,
+						rtl92e_writeb(dev,
 							rOFDM0_RxDetector3,
 							priv->framesync);
 						reg_c38_State = RegC38_Default;
@@ -2471,8 +2471,8 @@ static void dm_check_fsync(struct net_device *dev)
 				}
 			} else {
 				if (reg_c38_State) {
-					write_nic_byte(dev, rOFDM0_RxDetector3,
-						       priv->framesync);
+					rtl92e_writeb(dev, rOFDM0_RxDetector3,
+						      priv->framesync);
 					reg_c38_State = RegC38_Default;
 				}
 			}
@@ -2480,14 +2480,14 @@ static void dm_check_fsync(struct net_device *dev)
 	}
 	if (priv->framesyncMonitor) {
 		if (priv->reset_count != reset_cnt) {
-			write_nic_byte(dev, rOFDM0_RxDetector3,
+			rtl92e_writeb(dev, rOFDM0_RxDetector3,
 				       priv->framesync);
 			reg_c38_State = RegC38_Default;
 			reset_cnt = priv->reset_count;
 		}
 	} else {
 		if (reg_c38_State) {
-			write_nic_byte(dev, rOFDM0_RxDetector3,
+			rtl92e_writeb(dev, rOFDM0_RxDetector3,
 				       priv->framesync);
 			reg_c38_State = RegC38_Default;
 		}
@@ -2578,5 +2578,5 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	write_nic_byte(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
+	rtl92e_writeb(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
 }

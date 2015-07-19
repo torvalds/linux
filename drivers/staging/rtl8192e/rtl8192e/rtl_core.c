@@ -125,7 +125,7 @@ u16 rtl92e_readw(struct net_device *dev, int x)
 	return readw((u8 __iomem *)dev->mem_start + x);
 }
 
-void write_nic_byte(struct net_device *dev, int x, u8 y)
+void rtl92e_writeb(struct net_device *dev, int x, u8 y)
 {
 	writeb(y, (u8 __iomem *)dev->mem_start + x);
 
@@ -1385,7 +1385,7 @@ END:
 		priv->bForcedSilentReset = false;
 		priv->bResetInProgress = false;
 
-		write_nic_byte(dev, UFWP, 1);
+		rtl92e_writeb(dev, UFWP, 1);
 		RT_TRACE(COMP_RESET, "Reset finished!! ====>[%d]\n",
 			 priv->reset_count);
 	}
@@ -2393,7 +2393,7 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 				}
 				if ((ieee->pairwise_key_type == KEY_TYPE_CCMP)
 				     && ieee->pHTInfo->bCurrentHTSupport) {
-					write_nic_byte(dev, 0x173, 1);
+					rtl92e_writeb(dev, 0x173, 1);
 				}
 
 			} else {
