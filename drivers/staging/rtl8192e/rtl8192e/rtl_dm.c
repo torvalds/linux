@@ -985,7 +985,7 @@ static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 		 priv->btxpower_tracking);
 }
 
-void dm_initialize_txpower_tracking(struct net_device *dev)
+void rtl92e_dm_init_txpower_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 

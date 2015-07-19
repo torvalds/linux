@@ -907,7 +907,7 @@ start:
 		priv->Rf_Mode = RF_OP_By_SW_3wire;
 
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
-		dm_initialize_txpower_tracking(dev);
+		rtl92e_dm_init_txpower_tracking(dev);
 
 		if (priv->IC_Cut >= IC_VersionCut_D) {
 			tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,

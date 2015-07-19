@@ -203,5 +203,5 @@ extern  void    dm_restore_dynamic_mechanism_state(struct net_device *dev);
 extern  void    rtl92e_dm_backup_state(struct net_device *dev);
 extern  void    rtl92e_dm_init_edca_turbo(struct net_device *dev);
 extern  void    dm_rf_pathcheck_workitemcallback(void *data);
-extern  void dm_initialize_txpower_tracking(struct net_device *dev);
+extern  void rtl92e_dm_init_txpower_tracking(struct net_device *dev);
 #endif	/*__R8192UDM_H__ */
