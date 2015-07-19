@@ -134,7 +134,7 @@ u8 cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off)
 	return (val >> ((off & 0x3) * 8)) & 0xff;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cxl_pci_tbl) = {
+static const struct pci_device_id cxl_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x0477), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x044b), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x04cf), },
