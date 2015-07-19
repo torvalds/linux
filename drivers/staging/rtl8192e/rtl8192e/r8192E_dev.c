@@ -2098,7 +2098,7 @@ bool rtl8192_rx_query_status_desc(struct net_device *dev,
 	return true;
 }
 
-void rtl8192_halt_adapter(struct net_device *dev, bool reset)
+void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int i;
