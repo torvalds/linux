@@ -72,9 +72,9 @@ extern void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr,
 			     u32 dwBitMask, u32 dwData);
 extern u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr,
 			      u32 dwBitMask);
-extern void rtl8192_phy_SetRFReg(struct net_device *dev,
-				 enum rf90_radio_path eRFPath,
-				 u32 RegAddr, u32 BitMask, u32 Data);
+extern void rtl92e_set_rf_reg(struct net_device *dev,
+			      enum rf90_radio_path eRFPath, u32 RegAddr,
+			      u32 BitMask, u32 Data);
 extern u32 rtl92e_get_rf_reg(struct net_device *dev,
 			     enum rf90_radio_path eRFPath, u32 RegAddr,
 			     u32 BitMask);

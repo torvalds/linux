@@ -216,8 +216,8 @@ static void rtl8192_phy_RFSerialWrite(struct net_device *dev,
 	}
 }
 
-void rtl8192_phy_SetRFReg(struct net_device *dev, enum rf90_radio_path eRFPath,
-			  u32 RegAddr, u32 BitMask, u32 Data)
+void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
+		       u32 RegAddr, u32 BitMask, u32 Data)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 Original_Value, BitShift, New_Value;
@@ -521,9 +521,9 @@ bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
 
 		case HW90_BLOCK_RF:
 			WriteData[i] &= 0xfff;
-			rtl8192_phy_SetRFReg(dev, eRFPath,
-						 WriteAddr[HW90_BLOCK_RF],
-						 bMask12Bits, WriteData[i]);
+			rtl92e_set_rf_reg(dev, eRFPath,
+					  WriteAddr[HW90_BLOCK_RF],
+					  bMask12Bits, WriteData[i]);
 			mdelay(10);
 			dwRegRead = rtl92e_get_rf_reg(dev, eRFPath,
 						      WriteAddr[HW90_BLOCK_RF],
@@ -729,10 +729,9 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 				msleep(100);
 				continue;
 			}
-			rtl8192_phy_SetRFReg(dev, eRFPath,
-					     Rtl819XRadioA_Array[i],
-					     bMask12Bits,
-					     Rtl819XRadioA_Array[i+1]);
+			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioA_Array[i],
+					  bMask12Bits,
+					  Rtl819XRadioA_Array[i+1]);
 
 		}
 		break;
@@ -742,10 +741,9 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 				msleep(100);
 				continue;
 			}
-			rtl8192_phy_SetRFReg(dev, eRFPath,
-					     Rtl819XRadioB_Array[i],
-					     bMask12Bits,
-					     Rtl819XRadioB_Array[i+1]);
+			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioB_Array[i],
+					  bMask12Bits,
+					  Rtl819XRadioB_Array[i+1]);
 
 		}
 		break;
@@ -755,10 +753,9 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 				msleep(100);
 				continue;
 			}
-			rtl8192_phy_SetRFReg(dev, eRFPath,
-					     Rtl819XRadioC_Array[i],
-					     bMask12Bits,
-					     Rtl819XRadioC_Array[i+1]);
+			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioC_Array[i],
+					  bMask12Bits,
+					  Rtl819XRadioC_Array[i+1]);
 
 		}
 		break;
@@ -768,9 +765,9 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 					msleep(100);
 					continue;
 			}
-			rtl8192_phy_SetRFReg(dev, eRFPath,
-					 Rtl819XRadioD_Array[i], bMask12Bits,
-					 Rtl819XRadioD_Array[i+1]);
+			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioD_Array[i],
+					  bMask12Bits,
+					  Rtl819XRadioD_Array[i+1]);
 
 		}
 		break;
@@ -953,7 +950,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 			case CmdID_RF_WriteReg:
 				for (eRFPath = 0; eRFPath <
 				     priv->NumTotalRFPath; eRFPath++)
-					rtl8192_phy_SetRFReg(dev,
+					rtl92e_set_rf_reg(dev,
 						 (enum rf90_radio_path)eRFPath,
 						 CurrentCmd->Para1, bMask12Bits,
 						 CurrentCmd->Para2<<7);

@@ -36,15 +36,15 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 		case HT_CHANNEL_WIDTH_20:
 			if (priv->card_8192_version == VERSION_8190_BD ||
 			    priv->card_8192_version == VERSION_8190_BE) {
-				rtl8192_phy_SetRFReg(dev,
-						(enum rf90_radio_path)eRFPath,
-						0x0b, bMask12Bits, 0x100);
-				rtl8192_phy_SetRFReg(dev,
-						(enum rf90_radio_path)eRFPath,
-						0x2c, bMask12Bits, 0x3d7);
-				rtl8192_phy_SetRFReg(dev,
-						(enum rf90_radio_path)eRFPath,
-						0x0e, bMask12Bits, 0x021);
+				rtl92e_set_rf_reg(dev,
+						  (enum rf90_radio_path)eRFPath,
+						  0x0b, bMask12Bits, 0x100);
+				rtl92e_set_rf_reg(dev,
+						  (enum rf90_radio_path)eRFPath,
+						  0x2c, bMask12Bits, 0x3d7);
+				rtl92e_set_rf_reg(dev,
+						  (enum rf90_radio_path)eRFPath,
+						  0x0e, bMask12Bits, 0x021);
 
 			} else {
 				netdev_warn(dev, "%s(): Unknown HW version.\n",
@@ -55,15 +55,15 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 		case HT_CHANNEL_WIDTH_20_40:
 			if (priv->card_8192_version == VERSION_8190_BD ||
 			    priv->card_8192_version == VERSION_8190_BE) {
-				rtl8192_phy_SetRFReg(dev,
-						 (enum rf90_radio_path)eRFPath,
-						 0x0b, bMask12Bits, 0x300);
-				rtl8192_phy_SetRFReg(dev,
-						 (enum rf90_radio_path)eRFPath,
-						 0x2c, bMask12Bits, 0x3ff);
-				rtl8192_phy_SetRFReg(dev,
-						 (enum rf90_radio_path)eRFPath,
-						 0x0e, bMask12Bits, 0x0e1);
+				rtl92e_set_rf_reg(dev,
+						  (enum rf90_radio_path)eRFPath,
+						  0x0b, bMask12Bits, 0x300);
+				rtl92e_set_rf_reg(dev,
+						  (enum rf90_radio_path)eRFPath,
+						  0x2c, bMask12Bits, 0x3ff);
+				rtl92e_set_rf_reg(dev,
+						  (enum rf90_radio_path)eRFPath,
+						  0x0e, bMask12Bits, 0x0e1);
 
 			} else {
 				netdev_warn(dev, "%s(): Unknown HW version.\n",
@@ -124,8 +124,8 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2,
 				 b3WireDataLength, 0x0);
 
-		rtl8192_phy_SetRFReg(dev, (enum rf90_radio_path) eRFPath, 0x0,
-				     bMask12Bits, 0xbf);
+		rtl92e_set_rf_reg(dev, (enum rf90_radio_path)eRFPath, 0x0,
+				  bMask12Bits, 0xbf);
 
 		rtStatus = rtl92e_check_bb_and_rf(dev, HW90_BLOCK_RF,
 						  (enum rf90_radio_path)eRFPath);
