@@ -224,7 +224,7 @@ static	void dm_send_rssi_tofw(struct net_device *dev);
 static	void	dm_ctstoself(struct net_device *dev);
 /*---------------------------Define function prototype------------------------*/
 
-void init_hal_dm(struct net_device *dev)
+void rtl92e_dm_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 

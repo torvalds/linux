@@ -1093,7 +1093,7 @@ static short rtl8192_init(struct net_device *dev)
 	priv->ops->init_adapter_variable(dev);
 	rtl8192_get_channel_map(dev);
 
-	init_hal_dm(dev);
+	rtl92e_dm_init(dev);
 
 	setup_timer(&priv->watch_dog_timer,
 		    watch_dog_timer_callback,
