@@ -193,7 +193,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		u1bAIFS = qop->aifs[pAcParam] *
 			  ((mode&(IEEE_G|IEEE_N_24G)) ? 9 : 20) + aSifsTime;
 
-		dm_init_edca_turbo(dev);
+		rtl92e_dm_init_edca_turbo(dev);
 
 		u4bAcParam = (le16_to_cpu(qop->tx_op_limit[pAcParam]) <<
 			      AC_PARAM_TXOP_LIMIT_OFFSET) |

@@ -237,7 +237,7 @@ void init_hal_dm(struct net_device *dev)
 	init_rate_adaptive(dev);
 
 	dm_dig_init(dev);
-	dm_init_edca_turbo(dev);
+	rtl92e_dm_init_edca_turbo(dev);
 	dm_init_bandwidth_autoswitch(dev);
 	dm_init_fsync(dev);
 	dm_init_rxpath_selection(dev);
@@ -1692,7 +1692,7 @@ static	void dm_cs_ratio(struct net_device *dev)
 	}
 }
 
-void dm_init_edca_turbo(struct net_device *dev)
+void rtl92e_dm_init_edca_turbo(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 

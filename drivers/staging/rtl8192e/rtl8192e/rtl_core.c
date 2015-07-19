@@ -525,7 +525,7 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 	RT_TRACE(COMP_QOS, "%s: network->flags = %d,%d\n", __func__,
 		 network->flags, priv->rtllib->current_network.qos_data.active);
 	if (set_qos_param == 1) {
-		dm_init_edca_turbo(priv->rtllib->dev);
+		rtl92e_dm_init_edca_turbo(priv->rtllib->dev);
 		queue_work_rsl(priv->priv_wq, &priv->qos_activate);
 	}
 	return 0;
