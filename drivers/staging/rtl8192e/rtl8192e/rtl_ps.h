@@ -38,7 +38,7 @@ void rtllib_ips_leave(struct net_device *dev);
 void IPSLeave_wq(void *data);
 
 void rtl92e_ips_enter(struct net_device *dev);
-void IPSLeave(struct net_device *dev);
+void rtl92e_ips_leave(struct net_device *dev);
 
 void LeisurePSEnter(struct net_device *dev);
 void LeisurePSLeave(struct net_device *dev);

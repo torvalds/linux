@@ -161,7 +161,7 @@ void rtl92e_ips_enter(struct net_device *dev)
 	}
 }
 
-void IPSLeave(struct net_device *dev)
+void rtl92e_ips_leave(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -172,7 +172,7 @@ void IPSLeave(struct net_device *dev)
 		rtState = priv->rtllib->eRFPowerState;
 		if (rtState != eRfOn  && !pPSC->bSwRfProcessing &&
 		    priv->rtllib->RfOffReason <= RF_CHANGE_BY_IPS) {
-			RT_TRACE(COMP_PS, "IPSLeave(): Turn on RF.\n");
+			RT_TRACE(COMP_PS, "rtl92e_ips_leave(): Turn on RF.\n");
 			pPSC->eInactivePowerState = eRfOn;
 			priv->bInPowerSaveMode = false;
 			InactivePsWorkItemCallback(dev);
@@ -188,7 +188,7 @@ void IPSLeave_wq(void *data)
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
 	down(&priv->rtllib->ips_sem);
-	IPSLeave(dev);
+	rtl92e_ips_leave(dev);
 	up(&priv->rtllib->ips_sem);
 }
 
@@ -206,7 +206,7 @@ void rtllib_ips_leave_wq(struct net_device *dev)
 					    __func__);
 				return;
 			}
-			netdev_info(dev, "=========>%s(): IPSLeave\n",
+			netdev_info(dev, "=========>%s(): rtl92e_ips_leave\n",
 				    __func__);
 			queue_work_rsl(priv->rtllib->wq,
 				       &priv->rtllib->ips_leave_wq);
@@ -219,7 +219,7 @@ void rtllib_ips_leave(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
 	down(&priv->rtllib->ips_sem);
-	IPSLeave(dev);
+	rtl92e_ips_leave(dev);
 	up(&priv->rtllib->ips_sem);
 }
 

@@ -282,10 +282,11 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 					up(&priv->wx_sem);
 					return -1;
 				}
-				netdev_info(dev,  "=========>%s(): IPSLeave\n",
+				netdev_info(dev,
+					    "=========>%s(): rtl92e_ips_leave\n",
 					    __func__);
 				down(&priv->rtllib->ips_sem);
-				IPSLeave(dev);
+				rtl92e_ips_leave(dev);
 				up(&priv->rtllib->ips_sem);
 			}
 		}
@@ -442,10 +443,11 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 					up(&priv->wx_sem);
 					return -1;
 				}
-				RT_TRACE(COMP_PS, "=========>%s(): IPSLeave\n",
+				RT_TRACE(COMP_PS,
+					 "=========>%s(): rtl92e_ips_leave\n",
 					 __func__);
 				down(&priv->rtllib->ips_sem);
-				IPSLeave(dev);
+				rtl92e_ips_leave(dev);
 				up(&priv->rtllib->ips_sem);
 			}
 		}
@@ -700,7 +702,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 
 	priv->rtllib->wx_set_enc = 1;
 	down(&priv->rtllib->ips_sem);
-	IPSLeave(dev);
+	rtl92e_ips_leave(dev);
 	up(&priv->rtllib->ips_sem);
 	down(&priv->wx_sem);
 
@@ -910,7 +912,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 
 	priv->rtllib->wx_set_enc = 1;
 	down(&priv->rtllib->ips_sem);
-	IPSLeave(dev);
+	rtl92e_ips_leave(dev);
 	up(&priv->rtllib->ips_sem);
 
 	ret = rtllib_wx_set_encode_ext(ieee, info, wrqu, extra);
