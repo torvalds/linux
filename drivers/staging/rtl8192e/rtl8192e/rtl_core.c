@@ -1578,7 +1578,7 @@ static void watch_dog_timer_callback(unsigned long data)
 /****************************************************************************
  ---------------------------- NIC TX/RX STUFF---------------------------
 *****************************************************************************/
-void rtl8192_rx_enable(struct net_device *dev)
+void rtl92e_rx_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 

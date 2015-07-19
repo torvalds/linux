@@ -799,7 +799,7 @@ start:
 			RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
 
 	rtl8192_tx_enable(dev);
-	rtl8192_rx_enable(dev);
+	rtl92e_rx_enable(dev);
 	ulRegRead = (0xFFF00000 & rtl92e_readl(dev, RRSR))  |
 		     RATE_ALL_OFDM_AG | RATE_ALL_CCK;
 	write_nic_dword(dev, RRSR, ulRegRead);
