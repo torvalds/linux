@@ -881,18 +881,18 @@ start:
 		RT_TRACE((COMP_INIT | COMP_RF | COMP_POWER),
 			  "%s(): Turn off RF for RegRfOff ----------\n",
 			  __func__);
-		MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_SW, true);
+		rtl92e_set_rf_state(dev, eRfOff, RF_CHANGE_BY_SW, true);
 	} else if (priv->rtllib->RfOffReason > RF_CHANGE_BY_PS) {
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER),
 			 "%s(): Turn off RF for RfOffReason(%d) ----------\n",
 			 __func__, priv->rtllib->RfOffReason);
-		MgntActSet_RF_State(dev, eRfOff, priv->rtllib->RfOffReason,
+		rtl92e_set_rf_state(dev, eRfOff, priv->rtllib->RfOffReason,
 				    true);
 	} else if (priv->rtllib->RfOffReason >= RF_CHANGE_BY_IPS) {
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER),
 			 "%s(): Turn off RF for RfOffReason(%d) ----------\n",
 			 __func__, priv->rtllib->RfOffReason);
-		MgntActSet_RF_State(dev, eRfOff, priv->rtllib->RfOffReason,
+		rtl92e_set_rf_state(dev, eRfOff, priv->rtllib->RfOffReason,
 				    true);
 	} else {
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): RF-ON\n",

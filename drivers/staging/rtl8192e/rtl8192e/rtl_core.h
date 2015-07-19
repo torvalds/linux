@@ -617,7 +617,7 @@ void rtl8192_record_rxdesc_forlateruse(struct rtllib_rx_stats *psrc_stats,
 bool NicIFEnableNIC(struct net_device *dev);
 bool NicIFDisableNIC(struct net_device *dev);
 
-bool MgntActSet_RF_State(struct net_device *dev,
+bool rtl92e_set_rf_state(struct net_device *dev,
 			 enum rt_rf_power_state StateToSet,
 			 RT_RF_CHANGE_SOURCE ChangeSource,
 			 bool	ProtectOrNot);

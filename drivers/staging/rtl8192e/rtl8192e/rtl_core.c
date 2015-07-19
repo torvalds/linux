@@ -149,7 +149,7 @@ void write_nic_word(struct net_device *dev, int x, u16 y)
 /****************************************************************************
    -----------------------------GENERAL FUNCTION-------------------------
 *****************************************************************************/
-bool MgntActSet_RF_State(struct net_device *dev,
+bool rtl92e_set_rf_state(struct net_device *dev,
 			 enum rt_rf_power_state StateToSet,
 			 RT_RF_CHANGE_SOURCE ChangeSource,
 			 bool	ProtectOrNot)
@@ -163,7 +163,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 	unsigned long flag;
 
 	RT_TRACE((COMP_PS | COMP_RF),
-		 "===>MgntActSet_RF_State(): StateToSet(%d)\n", StateToSet);
+		 "===>rtl92e_set_rf_state(): StateToSet(%d)\n", StateToSet);
 
 	ProtectOrNot = false;
 
@@ -174,13 +174,13 @@ bool MgntActSet_RF_State(struct net_device *dev,
 			if (priv->RFChangeInProgress) {
 				spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 				RT_TRACE((COMP_PS | COMP_RF),
-					 "MgntActSet_RF_State(): RF Change in progress! Wait to set..StateToSet(%d).\n",
+					 "rtl92e_set_rf_state(): RF Change in progress! Wait to set..StateToSet(%d).\n",
 					 StateToSet);
 
 				while (priv->RFChangeInProgress) {
 					RFWaitCounter++;
 					RT_TRACE((COMP_PS | COMP_RF),
-						 "MgntActSet_RF_State(): Wait 1 ms (%d times)...\n",
+						 "rtl92e_set_rf_state(): Wait 1 ms (%d times)...\n",
 						 RFWaitCounter);
 					mdelay(1);
 
@@ -218,7 +218,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 				bConnectBySSID = true;
 		} else {
 			RT_TRACE((COMP_PS | COMP_RF),
-				 "MgntActSet_RF_State - eRfon reject pMgntInfo->RfOffReason= 0x%x, ChangeSource=0x%X\n",
+				 "rtl92e_set_rf_state - eRfon reject pMgntInfo->RfOffReason= 0x%x, ChangeSource=0x%X\n",
 				  priv->rtllib->RfOffReason, ChangeSource);
 	}
 
@@ -255,7 +255,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 
 	if (bActionAllowed) {
 		RT_TRACE((COMP_PS | COMP_RF),
-			 "MgntActSet_RF_State(): Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n",
+			 "rtl92e_set_rf_state(): Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n",
 			 StateToSet, priv->rtllib->RfOffReason);
 		PHY_SetRFPowerState(dev, StateToSet);
 		if (StateToSet == eRfOn) {
@@ -268,7 +268,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 		}
 	} else {
 		RT_TRACE((COMP_PS | COMP_RF),
-			 "MgntActSet_RF_State(): Action is rejected.... StateToSet(%d), ChangeSource(%#X), RfOffReason(%#X)\n",
+			 "rtl92e_set_rf_state(): Action is rejected.... StateToSet(%d), ChangeSource(%#X), RfOffReason(%#X)\n",
 			 StateToSet, ChangeSource, priv->rtllib->RfOffReason);
 	}
 
@@ -278,7 +278,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 	}
 
-	RT_TRACE((COMP_PS | COMP_RF), "<===MgntActSet_RF_State()\n");
+	RT_TRACE((COMP_PS | COMP_RF), "<===rtl92e_set_rf_state()\n");
 	return bActionAllowed;
 }
 

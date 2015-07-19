@@ -1892,7 +1892,7 @@ static void dm_CheckRfCtrlGPIO(void *data)
 	if (bActuallySet) {
 		mdelay(1000);
 		priv->bHwRfOffAction = 1;
-		MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW,
+		rtl92e_set_rf_state(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW,
 				    true);
 		if (priv->bHwRadioOff)
 			argv[1] = "RFOFF";

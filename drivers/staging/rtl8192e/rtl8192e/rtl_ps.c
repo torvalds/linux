@@ -45,7 +45,7 @@ static void rtl8192_hw_sleep_down(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 	RT_TRACE(COMP_DBG, "%s()============>come to sleep down\n", __func__);
 
-	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS, false);
+	rtl92e_set_rf_state(dev, eRfSleep, RF_CHANGE_BY_PS, false);
 }
 
 void rtl8192_hw_sleep_wq(void *data)
@@ -74,7 +74,7 @@ void rtl8192_hw_wakeup(struct net_device *dev)
 	}
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 	RT_TRACE(COMP_PS, "%s()============>come to wake up\n", __func__);
-	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS, false);
+	rtl92e_set_rf_state(dev, eRfOn, RF_CHANGE_BY_PS, false);
 }
 
 void rtl8192_hw_wakeup_wq(void *data)
@@ -133,7 +133,7 @@ static void InactivePsWorkItemCallback(struct net_device *dev)
 
 	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback(): Set RF to %s.\n",
 		 pPSC->eInactivePowerState == eRfOff ? "OFF" : "ON");
-	MgntActSet_RF_State(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS,
+	rtl92e_set_rf_state(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS,
 			    false);
 
 	pPSC->bSwRfProcessing = false;
