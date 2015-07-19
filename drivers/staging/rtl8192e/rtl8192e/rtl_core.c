@@ -824,7 +824,7 @@ static int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 	priv->rtllib->wpa_ie_len = 0;
 	kfree(priv->rtllib->wpa_ie);
 	priv->rtllib->wpa_ie = NULL;
-	CamResetAllEntry(dev);
+	rtl92e_cam_reset(dev);
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
 	rtl8192_irq_disable(dev);
 

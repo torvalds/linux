@@ -711,7 +711,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 
 	if (wrqu->encoding.flags & IW_ENCODE_DISABLED) {
 		ieee->pairwise_key_type = ieee->group_key_type = KEY_TYPE_NA;
-		CamResetAllEntry(dev);
+		rtl92e_cam_reset(dev);
 		memset(priv->rtllib->swcamtable, 0,
 		       sizeof(struct sw_cam_table) * 32);
 		goto end_hw_sec;
@@ -926,7 +926,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		     ext->alg == IW_ENCODE_ALG_NONE) {
 			ieee->pairwise_key_type = ieee->group_key_type
 						= KEY_TYPE_NA;
-			CamResetAllEntry(dev);
+			rtl92e_cam_reset(dev);
 			memset(priv->rtllib->swcamtable, 0,
 			       sizeof(struct sw_cam_table) * 32);
 			goto end_hw_sec;

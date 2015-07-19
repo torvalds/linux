@@ -28,7 +28,7 @@
 #include <linux/types.h>
 struct net_device;
 
-void CamResetAllEntry(struct net_device *dev);
+void rtl92e_cam_reset(struct net_device *dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
