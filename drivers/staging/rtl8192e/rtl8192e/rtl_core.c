@@ -1350,7 +1350,7 @@ RESET_START:
 		priv->RFChangeInProgress = false;
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 
-		EnableHWSecurityConfig8192(dev);
+		rtl92e_enable_hw_security_config(dev);
 
 		if (ieee->state == RTLLIB_LINKED && ieee->iw_mode ==
 		    IW_MODE_INFRA) {
@@ -2375,7 +2375,7 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 					if (is_zero_ether_addr(ieee->ap_mac_addr))
 						ieee->iw_mode = IW_MODE_ADHOC;
 					memcpy((u8 *)key, ipw->u.crypt.key, 16);
-					EnableHWSecurityConfig8192(dev);
+					rtl92e_enable_hw_security_config(dev);
 					set_swcam(dev, 4, ipw->u.crypt.idx,
 						  ieee->pairwise_key_type,
 						  (u8 *)ieee->ap_mac_addr,

@@ -750,12 +750,12 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		}
 		if (wrqu->encoding.length == 0x5) {
 			ieee->pairwise_key_type = KEY_TYPE_WEP40;
-			EnableHWSecurityConfig8192(dev);
+			rtl92e_enable_hw_security_config(dev);
 		}
 
 		else if (wrqu->encoding.length == 0xd) {
 			ieee->pairwise_key_type = KEY_TYPE_WEP104;
-				EnableHWSecurityConfig8192(dev);
+				rtl92e_enable_hw_security_config(dev);
 			setKey(dev, key_idx, key_idx, KEY_TYPE_WEP104,
 			       zero_addr[key_idx], 0, hwkey);
 			set_swcam(dev, key_idx, key_idx, KEY_TYPE_WEP104,
@@ -943,7 +943,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 			if ((ext->key_len == 13) && (alg == KEY_TYPE_WEP40))
 				alg = KEY_TYPE_WEP104;
 			ieee->pairwise_key_type = alg;
-			EnableHWSecurityConfig8192(dev);
+			rtl92e_enable_hw_security_config(dev);
 		}
 		memcpy((u8 *)key, ext->key, 16);
 

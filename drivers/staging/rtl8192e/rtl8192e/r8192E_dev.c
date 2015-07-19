@@ -1001,7 +1001,7 @@ void rtl92e_link_change(struct net_device *dev)
 		priv->ops->update_ratr_table(dev);
 		if ((KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
 		    (KEY_TYPE_WEP104 == ieee->pairwise_key_type))
-			EnableHWSecurityConfig8192(dev);
+			rtl92e_enable_hw_security_config(dev);
 	} else {
 		write_nic_byte(dev, 0x173, 0);
 	}

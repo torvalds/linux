@@ -36,7 +36,7 @@ void rtl92e_cam_reset(struct net_device *dev)
 	write_nic_dword(dev, RWCAM, ulcommand);
 }
 
-void EnableHWSecurityConfig8192(struct net_device *dev)
+void rtl92e_enable_hw_security_config(struct net_device *dev)
 {
 	u8 SECR_value = 0x0;
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
