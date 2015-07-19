@@ -258,7 +258,7 @@ void rtl92e_set_cck_tx_power(struct net_device *dev, u8 powerlevel)
 }
 
 
-void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel)
+void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 writeVal, powerBase0, powerBase1, writeVal_tmp;
