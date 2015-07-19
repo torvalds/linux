@@ -96,17 +96,16 @@ static int cs4349_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs4349_private *cs4349 = snd_soc_codec_get_drvdata(codec);
-	int mode, fmt, ret;
+	int fmt, ret;
 
-	mode = snd_soc_read(codec, CS4349_MODE);
 	cs4349->rate = params_rate(params);
 
 	switch (cs4349->mode) {
 	case SND_SOC_DAIFMT_I2S:
-		mode |= MODE_FORMAT(DIF_I2S);
+		fmt = DIF_I2S;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		mode |= MODE_FORMAT(DIF_LEFT_JST);
+		fmt = DIF_LEFT_JST;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
 		switch (params_width(params)) {
@@ -119,13 +118,13 @@ static int cs4349_pcm_hw_params(struct snd_pcm_substream *substream,
 		default:
 			return -EINVAL;
 		}
-		mode |= MODE_FORMAT(fmt);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	ret = snd_soc_write(codec, CS4349_MODE, mode);
+	ret = snd_soc_update_bits(codec, CS4349_MODE, DIF_MASK,
+				  MODE_FORMAT(fmt));
 	if (ret < 0)
 		return ret;
 
