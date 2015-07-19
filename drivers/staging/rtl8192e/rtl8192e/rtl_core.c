@@ -879,7 +879,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->SetBWModeHandler		= rtl8192_SetBWMode;
 	priv->rf_set_chan			= rtl8192_phy_SwChnl;
 
-	priv->rtllib->start_send_beacons = rtl8192e_start_beacon;
+	priv->rtllib->start_send_beacons = rtl92e_start_beacon;
 	priv->rtllib->stop_send_beacons = rtl8192_stop_beacon;
 
 	priv->rtllib->sta_wake_up = rtl8192_hw_wakeup;
