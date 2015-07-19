@@ -2142,7 +2142,7 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 	skb_queue_purge(&priv->skb_queue);
 }
 
-void rtl8192_update_ratr_table(struct net_device *dev)
+void rtl92e_update_ratr_table(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;

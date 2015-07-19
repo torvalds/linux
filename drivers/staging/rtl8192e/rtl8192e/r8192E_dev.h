@@ -52,5 +52,5 @@ void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
 bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 			 struct rx_desc *pdesc, struct sk_buff *skb);
 void rtl92e_stop_adapter(struct net_device *dev, bool reset);
-void rtl8192_update_ratr_table(struct net_device *dev);
+void rtl92e_update_ratr_table(struct net_device *dev);
 #endif
