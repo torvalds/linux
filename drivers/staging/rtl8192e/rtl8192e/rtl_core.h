@@ -602,7 +602,7 @@ void rtl8192_irq_disable(struct net_device *dev);
 void rtl8192_pci_resetdescring(struct net_device *dev);
 void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode);
 void rtl8192_irq_enable(struct net_device *dev);
-void rtl8192_config_rate(struct net_device *dev, u16 *rate_config);
+void rtl92e_config_rate(struct net_device *dev, u16 *rate_config);
 void rtl8192_irq_disable(struct net_device *dev);
 
 void rtl819x_UpdateRxPktTimeStamp(struct net_device *dev,

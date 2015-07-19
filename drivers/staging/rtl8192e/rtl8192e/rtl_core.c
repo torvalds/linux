@@ -575,7 +575,7 @@ static void rtl8192_stop_beacon(struct net_device *dev)
 {
 }
 
-void rtl8192_config_rate(struct net_device *dev, u16 *rate_config)
+void rtl92e_config_rate(struct net_device *dev, u16 *rate_config)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_network *net;

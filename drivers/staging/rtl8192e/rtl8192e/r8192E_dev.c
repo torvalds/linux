@@ -968,7 +968,7 @@ static void rtl8192_net_update(struct net_device *dev)
 	u16 rate_config = 0;
 
 	net = &priv->rtllib->current_network;
-	rtl8192_config_rate(dev, &rate_config);
+	rtl92e_config_rate(dev, &rate_config);
 	priv->dot11CurrentPreambleMode = PREAMBLE_AUTO;
 	 priv->basic_rate = rate_config &= 0x15f;
 	write_nic_dword(dev, BSSIDR, ((u32 *)net->bssid)[0]);
@@ -2151,7 +2151,7 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 	u16 rate_config = 0;
 	u8 rate_index = 0;
 
-	rtl8192_config_rate(dev, &rate_config);
+	rtl92e_config_rate(dev, &rate_config);
 	ratr_value = rate_config | *pMcsRate << 12;
 	switch (ieee->mode) {
 	case IEEE_A:
