@@ -2670,7 +2670,7 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 
 	priv->ops = ops;
 
-	if (rtl8192_pci_findadapter(pdev, dev) == false)
+	if (rtl92e_check_adapter(pdev, dev) == false)
 		goto err_rel_mem;
 
 	dev->irq = pdev->irq;
