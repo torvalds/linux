@@ -988,7 +988,7 @@ static void rtl8192_net_update(struct net_device *dev)
 	}
 }
 
-void rtl8192_link_change(struct net_device *dev)
+void rtl92e_link_change(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
