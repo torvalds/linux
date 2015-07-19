@@ -560,7 +560,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 		RT_TRACE(COMP_INIT, "\n2T4R config\n");
 	}
 
-	init_rate_adaptive(dev);
+	rtl92e_init_adaptive_rate(dev);
 
 	priv->rf_chip = RF_8256;
 

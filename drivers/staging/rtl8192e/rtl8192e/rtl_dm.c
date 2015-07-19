@@ -234,7 +234,7 @@ void init_hal_dm(struct net_device *dev)
 
 	dm_init_dynamic_txpower(dev);
 
-	init_rate_adaptive(dev);
+	rtl92e_init_adaptive_rate(dev);
 
 	dm_dig_init(dev);
 	rtl92e_dm_init_edca_turbo(dev);
@@ -307,7 +307,7 @@ static void dm_check_ac_dc_power(struct net_device *dev)
 };
 
 
-void init_rate_adaptive(struct net_device *dev)
+void rtl92e_init_adaptive_rate(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
