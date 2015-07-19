@@ -615,7 +615,7 @@ u8 rtl819x_query_rxpwrpercentage(char antpower);
 void rtl8192_record_rxdesc_forlateruse(struct rtllib_rx_stats *psrc_stats,
 				       struct rtllib_rx_stats *ptarget_stats);
 bool NicIFEnableNIC(struct net_device *dev);
-bool NicIFDisableNIC(struct net_device *dev);
+bool rtl92e_disable_nic(struct net_device *dev);
 
 bool rtl92e_set_rf_state(struct net_device *dev,
 			 enum rt_rf_power_state StateToSet,

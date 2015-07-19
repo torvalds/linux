@@ -1537,7 +1537,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 
 			if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC &&
 			    !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC)) {
-				NicIFDisableNIC(dev);
+				rtl92e_disable_nic(dev);
 				RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 			} else if (!(pPSC->RegRfPsLevel &
 				   RT_RF_OFF_LEVL_HALT_NIC)) {

@@ -2805,7 +2805,7 @@ bool NicIFEnableNIC(struct net_device *dev)
 	RT_TRACE(COMP_PS, "<===========%s()\n", __func__);
 	return init_status;
 }
-bool NicIFDisableNIC(struct net_device *dev)
+bool rtl92e_disable_nic(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 tmp_state = 0;
