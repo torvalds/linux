@@ -1191,7 +1191,7 @@ static void dm_txpower_reset_recovery(struct net_device *dev)
 		 dm_tx_bb_gain_idx_to_amplify(priv->rfc_txpowertrackingindex));
 }
 
-void dm_restore_dynamic_mechanism_state(struct net_device *dev)
+void rtl92e_dm_restore_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32	reg_ratr = priv->rate_adaptive.last_ratr;
@@ -1199,7 +1199,7 @@ void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 
 	if (!priv->up) {
 		RT_TRACE(COMP_RATE,
-			 "<---- dm_restore_dynamic_mechanism_state(): driver is going to unload\n");
+			 "<---- rtl92e_dm_restore_state(): driver is going to unload\n");
 		return;
 	}
 

@@ -1377,7 +1377,7 @@ RESET_START:
 		}
 
 		rtl92e_cam_restore(dev);
-		dm_restore_dynamic_mechanism_state(dev);
+		rtl92e_dm_restore_state(dev);
 END:
 		priv->ResetProgress = RESET_TYPE_NORESET;
 		priv->reset_count++;
