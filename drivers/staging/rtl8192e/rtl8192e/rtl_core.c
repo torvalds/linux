@@ -1482,7 +1482,7 @@ static void rtl819x_watchdog_wqcallback(void *data)
 			bEnterPS = false;
 
 		if (bEnterPS)
-			LeisurePSEnter(dev);
+			rtl92e_leisure_ps_enter(dev);
 		else
 			LeisurePSLeave(dev);
 

@@ -251,13 +251,13 @@ static bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,
 	return true;
 }
 
-void LeisurePSEnter(struct net_device *dev)
+void rtl92e_leisure_ps_enter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					&(priv->rtllib->PowerSaveControl);
 
-	RT_TRACE(COMP_PS, "LeisurePSEnter()...\n");
+	RT_TRACE(COMP_PS, "rtl92e_leisure_ps_enter()...\n");
 	RT_TRACE(COMP_PS,
 		 "pPSC->bLeisurePs = %d, ieee->ps = %d,pPSC->LpsIdleCount is %d,RT_CHECK_FOR_HANG_PERIOD is %d\n",
 		 pPSC->bLeisurePs, priv->rtllib->ps, pPSC->LpsIdleCount,
@@ -275,7 +275,7 @@ void LeisurePSEnter(struct net_device *dev)
 			if (priv->rtllib->ps == RTLLIB_PS_DISABLED) {
 
 				RT_TRACE(COMP_LPS,
-					 "LeisurePSEnter(): Enter 802.11 power save mode...\n");
+					 "rtl92e_leisure_ps_enter(): Enter 802.11 power save mode...\n");
 
 				if (!pPSC->bFwCtrlLPS) {
 					if (priv->rtllib->SetFwCmdHandler)
