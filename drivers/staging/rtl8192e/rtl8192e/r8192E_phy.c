@@ -1580,26 +1580,28 @@ static bool SetRFPowerState8190(struct net_device *dev,
 	return bResult;
 }
 
-bool SetRFPowerState(struct net_device *dev,
-		     enum rt_rf_power_state eRFPowerState)
+bool rtl92e_set_rf_power_state(struct net_device *dev,
+			       enum rt_rf_power_state eRFPowerState)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	bool bResult = false;
 
-	RT_TRACE(COMP_PS, "---------> SetRFPowerState(): eRFPowerState(%d)\n",
+	RT_TRACE(COMP_PS,
+		 "---------> rtl92e_set_rf_power_state(): eRFPowerState(%d)\n",
 		 eRFPowerState);
 	if (eRFPowerState == priv->rtllib->eRFPowerState &&
 	    priv->bHwRfOffAction == 0) {
 		RT_TRACE(COMP_PS,
-			 "<--------- SetRFPowerState(): discard the request for eRFPowerState(%d) is the same.\n",
+			 "<--------- rtl92e_set_rf_power_state(): discard the request for eRFPowerState(%d) is the same.\n",
 			 eRFPowerState);
 		return bResult;
 	}
 
 	bResult = SetRFPowerState8190(dev, eRFPowerState);
 
-	RT_TRACE(COMP_PS, "<--------- SetRFPowerState(): bResult(%d)\n",
+	RT_TRACE(COMP_PS,
+		 "<--------- rtl92e_set_rf_power_state(): bResult(%d)\n",
 		 bResult);
 
 	return bResult;
