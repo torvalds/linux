@@ -2193,7 +2193,7 @@ void rtl8192_update_ratr_table(struct net_device *dev)
 }
 
 void
-rtl8192_InitializeVariables(struct net_device  *dev)
+rtl92e_init_variables(struct net_device  *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
