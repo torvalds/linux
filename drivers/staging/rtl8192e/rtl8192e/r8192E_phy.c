@@ -328,7 +328,7 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 }
 
 
-void rtl8192_phy_configmac(struct net_device *dev)
+void rtl92e_config_mac(struct net_device *dev)
 {
 	u32 dwArrayLen = 0, i = 0;
 	u32 *pdwArray = NULL;

@@ -828,7 +828,7 @@ start:
 	}
 	write_nic_byte(dev, 0xbe, 0xc0);
 
-	rtl8192_phy_configmac(dev);
+	rtl92e_config_mac(dev);
 
 	if (priv->card_8192_version > (u8) VERSION_8190_BD) {
 		rtl8192_phy_getTxPower(dev);

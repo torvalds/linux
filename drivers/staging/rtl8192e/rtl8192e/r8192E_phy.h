@@ -78,7 +78,7 @@ extern void rtl8192_phy_SetRFReg(struct net_device *dev,
 extern u32 rtl8192_phy_QueryRFReg(struct net_device *dev,
 				  enum rf90_radio_path eRFPath,
 				  u32 RegAddr, u32 BitMask);
-extern void rtl8192_phy_configmac(struct net_device *dev);
+extern void rtl92e_config_mac(struct net_device *dev);
 extern bool rtl92e_check_bb_and_rf(struct net_device *dev,
 				   enum hw90_block CheckBlock,
 				   enum rf90_radio_path eRFPath);
