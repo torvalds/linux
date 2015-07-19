@@ -2380,20 +2380,22 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 						  ieee->pairwise_key_type,
 						  (u8 *)ieee->ap_mac_addr,
 						  0, key, 0);
-					setKey(dev, 4, ipw->u.crypt.idx,
-					       ieee->pairwise_key_type,
-					       (u8 *)ieee->ap_mac_addr, 0, key);
+					rtl92e_set_key(dev, 4, ipw->u.crypt.idx,
+						       ieee->pairwise_key_type,
+						       (u8 *)ieee->ap_mac_addr,
+						       0, key);
 					if (ieee->iw_mode == IW_MODE_ADHOC) {
 						set_swcam(dev, ipw->u.crypt.idx,
 							ipw->u.crypt.idx,
 							ieee->pairwise_key_type,
 							(u8 *)ieee->ap_mac_addr,
 							0, key, 0);
-						setKey(dev, ipw->u.crypt.idx,
-						       ipw->u.crypt.idx,
-						       ieee->pairwise_key_type,
-						       (u8 *)ieee->ap_mac_addr,
-						       0, key);
+						rtl92e_set_key(dev,
+							       ipw->u.crypt.idx,
+							       ipw->u.crypt.idx,
+							       ieee->pairwise_key_type,
+							       (u8 *)ieee->ap_mac_addr,
+							       0, key);
 					}
 				}
 				if ((ieee->pairwise_key_type == KEY_TYPE_CCMP)
@@ -2422,10 +2424,10 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 						  ipw->u.crypt.idx,
 						  ieee->group_key_type,
 						  broadcast_addr, 0, key, 0);
-					setKey(dev, ipw->u.crypt.idx,
-					       ipw->u.crypt.idx,
-					       ieee->group_key_type,
-					       broadcast_addr, 0, key);
+					rtl92e_set_key(dev, ipw->u.crypt.idx,
+						       ipw->u.crypt.idx,
+						       ieee->group_key_type,
+						       broadcast_addr, 0, key);
 				}
 			}
 		}

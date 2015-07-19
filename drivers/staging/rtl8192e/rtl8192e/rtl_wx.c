@@ -756,8 +756,8 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		else if (wrqu->encoding.length == 0xd) {
 			ieee->pairwise_key_type = KEY_TYPE_WEP104;
 				rtl92e_enable_hw_security_config(dev);
-			setKey(dev, key_idx, key_idx, KEY_TYPE_WEP104,
-			       zero_addr[key_idx], 0, hwkey);
+			rtl92e_set_key(dev, key_idx, key_idx, KEY_TYPE_WEP104,
+				       zero_addr[key_idx], 0, hwkey);
 			set_swcam(dev, key_idx, key_idx, KEY_TYPE_WEP104,
 				  zero_addr[key_idx], 0, hwkey, 0);
 		} else {
@@ -950,19 +950,20 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		if ((alg & KEY_TYPE_WEP40) && (ieee->auth_mode != 2)) {
 			if (ext->key_len == 13)
 				ieee->pairwise_key_type = alg = KEY_TYPE_WEP104;
-			setKey(dev, idx, idx, alg, zero, 0, key);
+			rtl92e_set_key(dev, idx, idx, alg, zero, 0, key);
 			set_swcam(dev, idx, idx, alg, zero, 0, key, 0);
 		} else if (group) {
 			ieee->group_key_type = alg;
-			setKey(dev, idx, idx, alg, broadcast_addr, 0, key);
+			rtl92e_set_key(dev, idx, idx, alg, broadcast_addr, 0,
+				       key);
 			set_swcam(dev, idx, idx, alg, broadcast_addr, 0,
 				  key, 0);
 		} else {
 			if ((ieee->pairwise_key_type == KEY_TYPE_CCMP) &&
 			     ieee->pHTInfo->bCurrentHTSupport)
 				write_nic_byte(dev, 0x173, 1);
-			setKey(dev, 4, idx, alg, (u8 *)ieee->ap_mac_addr,
-			       0, key);
+			rtl92e_set_key(dev, 4, idx, alg,
+				       (u8 *)ieee->ap_mac_addr, 0, key);
 			set_swcam(dev, 4, idx, alg, (u8 *)ieee->ap_mac_addr,
 				  0, key, 0);
 		}
