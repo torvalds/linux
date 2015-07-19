@@ -249,7 +249,7 @@ void init_hal_dm(struct net_device *dev)
 			      (void *)dm_CheckRfCtrlGPIO, dev);
 }
 
-void deinit_hal_dm(struct net_device *dev)
+void rtl92e_dm_deinit(struct net_device *dev)
 {
 
 	dm_deInit_fsync(dev);

@@ -1304,7 +1304,7 @@ RESET_START:
 		rtl92e_irq_disable(dev);
 		del_timer_sync(&priv->watch_dog_timer);
 		rtl8192_cancel_deferred_work(priv);
-		deinit_hal_dm(dev);
+		rtl92e_dm_deinit(dev);
 		rtllib_stop_scan_syncro(ieee);
 
 		if (ieee->state == RTLLIB_LINKED) {
@@ -2736,7 +2736,7 @@ static void rtl8192_pci_disconnect(struct pci_dev *pdev)
 		cancel_delayed_work(&priv->gpio_change_rf_wq);
 		priv->polling_timer_on = 0;
 		rtl8192_down(dev, true);
-		deinit_hal_dm(dev);
+		rtl92e_dm_deinit(dev);
 		if (priv->pFirmware) {
 			vfree(priv->pFirmware);
 			priv->pFirmware = NULL;

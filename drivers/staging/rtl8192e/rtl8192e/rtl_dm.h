@@ -189,7 +189,7 @@ extern const u8 dm_cck_tx_bb_gain_ch14[CCKTxBBGainTableLength][8];
 /*--------------------------Exported Function prototype---------------------*/
 
 extern  void    init_hal_dm(struct net_device *dev);
-extern  void deinit_hal_dm(struct net_device *dev);
+extern  void rtl92e_dm_deinit(struct net_device *dev);
 
 extern void hal_dm_watchdog(struct net_device *dev);
 
