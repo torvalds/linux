@@ -2378,7 +2378,7 @@ bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev)
 	}
 }
 
-bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device *dev)
+bool rtl92e_is_halfn_supported_by_ap(struct net_device *dev)
 {
 	bool Reval;
 	struct r8192_priv *priv = rtllib_priv(dev);

@@ -27,7 +27,7 @@
 
 #include "r8190P_def.h"
 
-bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device *dev);
+bool rtl92e_is_halfn_supported_by_ap(struct net_device *dev);
 bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev);
 bool rtl8192_HalTxCheckStuck(struct net_device *dev);
 bool rtl8192_HalRxCheckStuck(struct net_device *dev);

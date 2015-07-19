@@ -888,7 +888,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 
 	priv->rtllib->GetNmodeSupportBySecCfg = rtl8192_GetNmodeSupportBySecCfg;
 	priv->rtllib->GetHalfNmodeSupportByAPsHandler =
-					 rtl8192_GetHalfNmodeSupportByAPs;
+						rtl92e_is_halfn_supported_by_ap;
 
 	priv->rtllib->SetHwRegHandler = rtl92e_set_reg;
 	priv->rtllib->AllowAllDestAddrHandler = rtl92e_set_monitor_mode;
