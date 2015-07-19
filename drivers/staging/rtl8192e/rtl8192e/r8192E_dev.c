@@ -2246,7 +2246,7 @@ void rtl8192_DisableInterrupt(struct net_device *dev)
 	priv->irq_enabled = 0;
 }
 
-void rtl8192_ClearInterrupt(struct net_device *dev)
+void rtl92e_clear_irq(struct net_device *dev)
 {
 	u32 tmp = 0;
 
