@@ -197,7 +197,7 @@ extern void hal_dm_watchdog(struct net_device *dev);
 extern  void    init_rate_adaptive(struct net_device *dev);
 extern  void    dm_txpower_trackingcallback(void *data);
 
-extern  void dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
+extern  void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
 
 extern  void    dm_restore_dynamic_mechanism_state(struct net_device *dev);
 extern  void    rtl92e_dm_backup_state(struct net_device *dev);

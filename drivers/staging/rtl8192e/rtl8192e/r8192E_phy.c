@@ -1076,13 +1076,13 @@ static void CCK_Tx_Power_Track_BW_Switch_TSSI(struct net_device *dev)
 		if (priv->rtllib->current_network.channel == 14 &&
 		    !priv->bcck_in_ch14) {
 			priv->bcck_in_ch14 = true;
-			dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+			rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 		} else if (priv->rtllib->current_network.channel !=
 			   14 && priv->bcck_in_ch14) {
 			priv->bcck_in_ch14 = false;
-			dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+			rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 		} else {
-			dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+			rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 		}
 		break;
 
@@ -1104,13 +1104,13 @@ static void CCK_Tx_Power_Track_BW_Switch_TSSI(struct net_device *dev)
 		if (priv->rtllib->current_network.channel == 14 &&
 		    !priv->bcck_in_ch14) {
 			priv->bcck_in_ch14 = true;
-			dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+			rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 		} else if (priv->rtllib->current_network.channel != 14
 			   && priv->bcck_in_ch14) {
 			priv->bcck_in_ch14 = false;
-			dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+			rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 		} else {
-			dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+			rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 		}
 		break;
 	}
@@ -1144,7 +1144,7 @@ static void CCK_Tx_Power_Track_BW_Switch_ThermalMeter(struct net_device *dev)
 			 priv->CCK_index);
 	break;
 	}
-	dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+	rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 }
 
 static void CCK_Tx_Power_Track_BW_Switch(struct net_device *dev)

@@ -802,12 +802,12 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 				if (priv->rtllib->current_network.channel == 14 &&
 				    !priv->bcck_in_ch14) {
 					priv->bcck_in_ch14 = true;
-					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+					rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 				} else if (priv->rtllib->current_network.channel != 14 && priv->bcck_in_ch14) {
 					priv->bcck_in_ch14 = false;
-					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+					rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 				} else
-					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+					rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 			}
 			RT_TRACE(COMP_POWER_TRACKING,
 				 "priv->rfa_txpowertrackingindex = %d\n",
@@ -935,7 +935,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 	}
 
 	if (CCKSwingNeedUpdate)
-		dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+		rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 	if (priv->OFDM_index[0] != tmpOFDMindex) {
 		priv->OFDM_index[0] = tmpOFDMindex;
 		rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance, bMaskDWord,
@@ -1149,7 +1149,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,
 	}
 }
 
-void dm_cck_txpower_adjust(struct net_device *dev, bool  binch14)
+void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1177,7 +1177,7 @@ static void dm_txpower_reset_recovery(struct net_device *dev)
 	RT_TRACE(COMP_POWER_TRACKING,
 		 "Reset Recovery: CCK Attenuation is %d dB\n",
 		 priv->CCKPresentAttentuation);
-	dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+	rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 
 	rtl92e_set_bb_reg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord,
 			  dm_tx_bb_gain[priv->rfc_txpowertrackingindex]);
