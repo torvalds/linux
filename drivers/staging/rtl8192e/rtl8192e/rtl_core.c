@@ -882,7 +882,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->start_send_beacons = rtl92e_start_beacon;
 	priv->rtllib->stop_send_beacons = rtl8192_stop_beacon;
 
-	priv->rtllib->sta_wake_up = rtl8192_hw_wakeup;
+	priv->rtllib->sta_wake_up = rtl92e_hw_wakeup;
 	priv->rtllib->enter_sleep_state = rtl92e_enter_sleep;
 	priv->rtllib->ps_is_queue_empty = rtl8192_is_tx_queue_empty;
 

@@ -57,7 +57,7 @@ void rtl92e_hw_sleep_wq(void *data)
 	rtl8192_hw_sleep_down(dev);
 }
 
-void rtl8192_hw_wakeup(struct net_device *dev)
+void rtl92e_hw_wakeup(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
@@ -66,7 +66,7 @@ void rtl8192_hw_wakeup(struct net_device *dev)
 	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 		RT_TRACE(COMP_DBG,
-			 "rtl8192_hw_wakeup(): RF Change in progress!\n");
+			 "rtl92e_hw_wakeup(): RF Change in progress!\n");
 		queue_delayed_work_rsl(priv->rtllib->wq,
 				       &priv->rtllib->hw_wakeup_wq,
 				       msecs_to_jiffies(10));
@@ -83,7 +83,7 @@ void rtl8192_hw_wakeup_wq(void *data)
 				     struct rtllib_device, hw_wakeup_wq);
 	struct net_device *dev = ieee->dev;
 
-	rtl8192_hw_wakeup(dev);
+	rtl92e_hw_wakeup(dev);
 }
 
 #define MIN_SLEEP_TIME 50
@@ -238,7 +238,7 @@ static bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,
 	    rtPsMode == RTLLIB_PS_DISABLED) {
 		unsigned long flags;
 
-		rtl8192_hw_wakeup(dev);
+		rtl92e_hw_wakeup(dev);
 		priv->rtllib->sta_sleep = LPS_IS_WAKE;
 
 		spin_lock_irqsave(&(priv->rtllib->mgmt_tx_lock), flags);
