@@ -140,7 +140,7 @@ static void InactivePsWorkItemCallback(struct net_device *dev)
 	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback() <---------\n");
 }
 
-void IPSEnter(struct net_device *dev)
+void rtl92e_ips_enter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -152,7 +152,7 @@ void IPSEnter(struct net_device *dev)
 		if (rtState == eRfOn && !pPSC->bSwRfProcessing &&
 			(priv->rtllib->state != RTLLIB_LINKED) &&
 			(priv->rtllib->iw_mode != IW_MODE_MASTER)) {
-			RT_TRACE(COMP_PS, "IPSEnter(): Turn off RF.\n");
+			RT_TRACE(COMP_PS, "rtl92e_ips_enter(): Turn off RF.\n");
 			pPSC->eInactivePowerState = eRfOff;
 			priv->isRFOff = true;
 			priv->bInPowerSaveMode = true;

@@ -1449,8 +1449,8 @@ static void rtl819x_watchdog_wqcallback(void *data)
 			     IPS_CALLBACK_NONE) &&
 			     (!ieee->bNetPromiscuousMode)) {
 				RT_TRACE(COMP_PS,
-					 "====================>haha: IPSEnter()\n");
-				IPSEnter(dev);
+					 "====================>haha: rtl92e_ips_enter()\n");
+				rtl92e_ips_enter(dev);
 			}
 		}
 	}
