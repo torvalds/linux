@@ -1295,7 +1295,7 @@ void rtl8192_SetBWMode(struct net_device *dev, enum ht_channel_width Bandwidth,
 
 }
 
-void InitialGain819xPci(struct net_device *dev, u8 Operation)
+void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 {
 #define SCAN_RX_INITIAL_GAIN	0x17
 #define POWER_DETECTION_TH	0x08

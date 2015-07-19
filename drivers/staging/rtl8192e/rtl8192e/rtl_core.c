@@ -893,7 +893,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->SetHwRegHandler = rtl92e_set_reg;
 	priv->rtllib->AllowAllDestAddrHandler = rtl92e_set_monitor_mode;
 	priv->rtllib->SetFwCmdHandler = NULL;
-	priv->rtllib->InitialGainHandler = InitialGain819xPci;
+	priv->rtllib->InitialGainHandler = rtl92e_init_gain;
 	priv->rtllib->rtllib_ips_leave_wq = rtllib_ips_leave_wq;
 	priv->rtllib->rtllib_ips_leave = rtllib_ips_leave;
 

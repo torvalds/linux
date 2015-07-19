@@ -95,7 +95,7 @@ extern u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel);
 extern void rtl8192_SetBWMode(struct net_device *dev,
 			      enum ht_channel_width Bandwidth,
 			      enum ht_extchnl_offset Offset);
-extern void InitialGain819xPci(struct net_device *dev, u8 Operation);
+extern void rtl92e_init_gain(struct net_device *dev, u8 Operation);
 
 extern	void PHY_SetRtl8192eRfOff(struct net_device *dev);
 
