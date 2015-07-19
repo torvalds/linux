@@ -252,7 +252,7 @@ static ssize_t led_rgb_store(struct device *dev, struct device_attribute *attr,
 
 		ret = sscanf(buf, "%i", &val[i++]);
 		if (ret == 0)
-			return -EINVAL;
+			goto exit;
 
 		if (i == 4) {
 			param = (struct ec_params_lightbar *)msg->data;
@@ -268,17 +268,15 @@ static ssize_t led_rgb_store(struct device *dev, struct device_attribute *attr,
 			if ((j++ % 4) == 0) {
 				ret = lb_throttle();
 				if (ret)
-					return ret;
+					goto exit;
 			}
 
 			ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
 			if (ret < 0)
 				goto exit;
 
-			if (msg->result != EC_RES_SUCCESS) {
-				ret = -EINVAL;
+			if (msg->result != EC_RES_SUCCESS)
 				goto exit;
-			}
 
 			i = 0;
 			ok = 1;
