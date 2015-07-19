@@ -872,8 +872,8 @@ start:
 	}
 	rtl8192_phy_updateInitGain(dev);
 
-	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bCCKEn, 0x1);
-	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bOFDMEn, 0x1);
+	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn, 0x1);
+	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bOFDMEn, 0x1);
 
 	write_nic_byte(dev, 0x87, 0x0);
 

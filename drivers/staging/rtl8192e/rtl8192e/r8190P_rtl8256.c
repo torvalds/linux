@@ -115,14 +115,14 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 			break;
 		}
 
-		rtl8192_setBBreg(dev, pPhyReg->rfintfe, bRFSI_RFENV<<16, 0x1);
+		rtl92e_set_bb_reg(dev, pPhyReg->rfintfe, bRFSI_RFENV<<16, 0x1);
 
-		rtl8192_setBBreg(dev, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
+		rtl92e_set_bb_reg(dev, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
 
-		rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2,
-				 b3WireAddressLength, 0x0);
-		rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2,
-				 b3WireDataLength, 0x0);
+		rtl92e_set_bb_reg(dev, pPhyReg->rfHSSIPara2,
+				  b3WireAddressLength, 0x0);
+		rtl92e_set_bb_reg(dev, pPhyReg->rfHSSIPara2,
+				  b3WireDataLength, 0x0);
 
 		rtl92e_set_rf_reg(dev, (enum rf90_radio_path)eRFPath, 0x0,
 				  bMask12Bits, 0xbf);
@@ -206,13 +206,13 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		switch (eRFPath) {
 		case RF90_PATH_A:
 		case RF90_PATH_C:
-			rtl8192_setBBreg(dev, pPhyReg->rfintfs, bRFSI_RFENV,
-					 u4RegValue);
+			rtl92e_set_bb_reg(dev, pPhyReg->rfintfs, bRFSI_RFENV,
+					  u4RegValue);
 			break;
 		case RF90_PATH_B:
 		case RF90_PATH_D:
-			rtl8192_setBBreg(dev, pPhyReg->rfintfs, bRFSI_RFENV<<16,
-					 u4RegValue);
+			rtl92e_set_bb_reg(dev, pPhyReg->rfintfs,
+					  bRFSI_RFENV<<16, u4RegValue);
 			break;
 		}
 
@@ -254,7 +254,7 @@ void rtl92e_set_cck_tx_power(struct net_device *dev, u8 powerlevel)
 	}
 	if (TxAGC > 0x24)
 		TxAGC = 0x24;
-	rtl8192_setBBreg(dev, rTxAGC_CCK_Mcs32, bTxAGCRateCCK, TxAGC);
+	rtl92e_set_bb_reg(dev, rTxAGC_CCK_Mcs32, bTxAGCRateCCK, TxAGC);
 }
 
 
@@ -300,7 +300,7 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 		else
 			writeVal = (byte3 << 24) | (byte2 << 16) |
 				   (byte1 << 8) | byte0;
-		rtl8192_setBBreg(dev, RegOffset[index], 0x7f7f7f7f, writeVal);
+		rtl92e_set_bb_reg(dev, RegOffset[index], 0x7f7f7f7f, writeVal);
 	}
 
 }
