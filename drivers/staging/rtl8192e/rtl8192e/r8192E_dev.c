@@ -702,7 +702,7 @@ static void rtl8192_hwconfig(struct net_device *dev)
 			priv->LongRetryLimit << RETRY_LIMIT_LONG_SHIFT);
 }
 
-bool rtl8192_adapter_start(struct net_device *dev)
+bool rtl92e_start_adapter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 ulRegRead;
