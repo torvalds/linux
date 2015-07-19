@@ -97,7 +97,7 @@ extern void rtl8192_SetBWMode(struct net_device *dev,
 			      enum ht_extchnl_offset Offset);
 extern void rtl92e_init_gain(struct net_device *dev, u8 Operation);
 
-extern	void PHY_SetRtl8192eRfOff(struct net_device *dev);
+extern	void rtl92e_set_rf_off(struct net_device *dev);
 
 bool
 SetRFPowerState(

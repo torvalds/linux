@@ -2119,7 +2119,7 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 		priv->bHwRfOffAction = 2;
 
 		if (!priv->rtllib->bSupportRemoteWakeUp) {
-			PHY_SetRtl8192eRfOff(dev);
+			rtl92e_set_rf_off(dev);
 			ulRegRead = read_nic_dword(dev, CPU_GEN);
 			ulRegRead |= CPU_GEN_SYSTEM_RESET;
 			write_nic_dword(dev, CPU_GEN, ulRegRead);

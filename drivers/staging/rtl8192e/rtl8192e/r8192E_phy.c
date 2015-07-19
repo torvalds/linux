@@ -1405,7 +1405,7 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 	}
 }
 
-void PHY_SetRtl8192eRfOff(struct net_device *dev)
+void rtl92e_set_rf_off(struct net_device *dev)
 {
 
 	rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
@@ -1511,7 +1511,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 					break;
 				}
 			}
-			PHY_SetRtl8192eRfOff(dev);
+			rtl92e_set_rf_off(dev);
 			break;
 
 		case eRfOff:
@@ -1547,7 +1547,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 				RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 			} else if (!(pPSC->RegRfPsLevel &
 				   RT_RF_OFF_LEVL_HALT_NIC)) {
-				PHY_SetRtl8192eRfOff(dev);
+				rtl92e_set_rf_off(dev);
 			}
 
 			break;
