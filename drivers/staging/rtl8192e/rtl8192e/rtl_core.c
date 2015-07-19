@@ -1585,7 +1585,7 @@ void rtl92e_rx_enable(struct net_device *dev)
 	priv->ops->rx_enable(dev);
 }
 
-void rtl8192_tx_enable(struct net_device *dev)
+void rtl92e_tx_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 

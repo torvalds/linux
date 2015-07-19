@@ -798,7 +798,7 @@ start:
 			NUM_OF_PAGE_IN_FW_QUEUE_PUB <<
 			RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
 
-	rtl8192_tx_enable(dev);
+	rtl92e_tx_enable(dev);
 	rtl92e_rx_enable(dev);
 	ulRegRead = (0xFFF00000 & rtl92e_readl(dev, RRSR))  |
 		     RATE_ALL_OFDM_AG | RATE_ALL_CCK;
