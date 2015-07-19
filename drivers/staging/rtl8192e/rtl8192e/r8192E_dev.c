@@ -41,7 +41,7 @@ void rtl92e_start_beacon(struct net_device *dev)
 	u16 BcnCW = 6;
 	u16 BcnIFS = 0xf;
 
-	rtl8192_irq_disable(dev);
+	rtl92e_irq_disable(dev);
 
 	write_nic_word(dev, ATIMWND, 2);
 

@@ -309,7 +309,7 @@ void rtl8192_irq_enable(struct net_device *dev)
 	priv->ops->irq_enable(dev);
 }
 
-void rtl8192_irq_disable(struct net_device *dev)
+void rtl92e_irq_disable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
@@ -826,7 +826,7 @@ static int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 	priv->rtllib->wpa_ie = NULL;
 	rtl92e_cam_reset(dev);
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
-	rtl8192_irq_disable(dev);
+	rtl92e_irq_disable(dev);
 
 	del_timer_sync(&priv->watch_dog_timer);
 	rtl8192_cancel_deferred_work(priv);
@@ -1102,7 +1102,7 @@ static short rtl8192_init(struct net_device *dev)
 		    rtl92e_check_rfctrl_gpio_timer,
 		    (unsigned long)dev);
 
-	rtl8192_irq_disable(dev);
+	rtl92e_irq_disable(dev);
 	if (request_irq(dev->irq, rtl8192_interrupt, IRQF_SHARED,
 	    dev->name, dev)) {
 		netdev_err(dev, "Error allocating IRQ %d", dev->irq);
@@ -1301,7 +1301,7 @@ RESET_START:
 		if (!netif_queue_stopped(dev))
 			netif_stop_queue(dev);
 
-		rtl8192_irq_disable(dev);
+		rtl92e_irq_disable(dev);
 		del_timer_sync(&priv->watch_dog_timer);
 		rtl8192_cancel_deferred_work(priv);
 		deinit_hal_dm(dev);
@@ -2283,7 +2283,7 @@ void rtl92e_commit(struct net_device *dev)
 	if (priv->up == 0)
 		return;
 	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
-	rtl8192_irq_disable(dev);
+	rtl92e_irq_disable(dev);
 	priv->ops->stop_adapter(dev, true);
 	_rtl8192_up(dev, false);
 }
@@ -2816,7 +2816,7 @@ bool rtl92e_disable_nic(struct net_device *dev)
 	rtllib_softmac_stop_protocol(priv->rtllib, 0, false);
 	priv->rtllib->state = tmp_state;
 	rtl8192_cancel_deferred_work(priv);
-	rtl8192_irq_disable(dev);
+	rtl92e_irq_disable(dev);
 
 	priv->ops->stop_adapter(dev, false);
 	RT_TRACE(COMP_PS, "<=========%s()\n", __func__);

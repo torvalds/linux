@@ -597,13 +597,11 @@ void rtl92e_check_rfctrl_gpio_timer(unsigned long data);
 
 void rtl8192_hw_wakeup_wq(void *data);
 
-void rtl8192_irq_disable(struct net_device *dev);
-
 void rtl8192_pci_resetdescring(struct net_device *dev);
 void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode);
 void rtl8192_irq_enable(struct net_device *dev);
 void rtl92e_config_rate(struct net_device *dev, u16 *rate_config);
-void rtl8192_irq_disable(struct net_device *dev);
+void rtl92e_irq_disable(struct net_device *dev);
 
 void rtl819x_UpdateRxPktTimeStamp(struct net_device *dev,
 				  struct rtllib_rx_stats *stats);
