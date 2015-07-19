@@ -996,7 +996,7 @@ static void rtl8192_SwChnl_WorkItem(struct net_device *dev)
 	RT_TRACE(COMP_TRACE, "<== SwChnlCallback819xUsbWorkItem()\n");
 }
 
-u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
+u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 

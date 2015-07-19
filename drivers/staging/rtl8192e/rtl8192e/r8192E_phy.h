@@ -90,7 +90,7 @@ extern void rtl8192_phy_updateInitGain(struct net_device *dev);
 extern u8 rtl92e_config_rf_path(struct net_device *dev,
 				enum rf90_radio_path eRFPath);
 
-extern u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel);
+extern u8 rtl92e_set_channel(struct net_device *dev, u8 channel);
 extern void rtl8192_SetBWMode(struct net_device *dev,
 			      enum ht_channel_width Bandwidth,
 			      enum ht_extchnl_offset Offset);
