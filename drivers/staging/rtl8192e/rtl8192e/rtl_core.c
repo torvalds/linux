@@ -886,7 +886,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->enter_sleep_state = rtl8192_hw_to_sleep;
 	priv->rtllib->ps_is_queue_empty = rtl8192_is_tx_queue_empty;
 
-	priv->rtllib->GetNmodeSupportBySecCfg = rtl8192_GetNmodeSupportBySecCfg;
+	priv->rtllib->GetNmodeSupportBySecCfg = rtl92e_get_nmode_support_by_sec;
 	priv->rtllib->GetHalfNmodeSupportByAPsHandler =
 						rtl92e_is_halfn_supported_by_ap;
 

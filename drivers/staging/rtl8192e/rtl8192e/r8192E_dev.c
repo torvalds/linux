@@ -2364,7 +2364,7 @@ bool rtl8192_HalTxCheckStuck(struct net_device *dev)
 	return bStuck;
 }
 
-bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev)
+bool rtl92e_get_nmode_support_by_sec(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
