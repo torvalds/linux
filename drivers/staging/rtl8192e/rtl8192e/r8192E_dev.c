@@ -1732,8 +1732,8 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 		slide_rssi_index = 0;
 
 	tmp_val = priv->stats.slide_rssi_total/slide_rssi_statistics;
-	priv->stats.signal_strength = rtl819x_translate_todbm(priv,
-				      (u8)tmp_val);
+	priv->stats.signal_strength = rtl92e_translate_to_dbm(priv,
+							      (u8)tmp_val);
 	curr_st->rssi = priv->stats.signal_strength;
 	if (!prev_st->bPacketMatchBSSID) {
 		if (!prev_st->bToSelfBA)

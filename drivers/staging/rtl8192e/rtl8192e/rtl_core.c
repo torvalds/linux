@@ -1994,7 +1994,7 @@ void rtl819x_UpdateRxPktTimeStamp(struct net_device *dev,
 		priv->LastRxDescTSF = stats->mac_time;
 }
 
-long rtl819x_translate_todbm(struct r8192_priv *priv, u8 signal_strength_index)
+long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index)
 {
 	long	signal_power;
 
