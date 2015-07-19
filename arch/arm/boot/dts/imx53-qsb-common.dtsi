@@ -295,9 +295,10 @@
 &tve {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_vga_sync>;
+	ddc-i2c-bus = <&i2c2>;
 	fsl,tve-mode = "vga";
-	fsl,hsync-pin = <4>;
-	fsl,vsync-pin = <6>;
+	fsl,hsync-pin = <7>;	/* IPU DI1 PIN7 via EIM_OE */
+	fsl,vsync-pin = <8>;	/* IPU DI1 PIN8 via EIM_RW */
 	status = "okay";
 };
 
