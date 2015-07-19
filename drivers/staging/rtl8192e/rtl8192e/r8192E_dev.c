@@ -2283,7 +2283,7 @@ void rtl8192_interrupt_recognized(struct net_device *dev, u32 *p_inta,
 	write_nic_dword(dev, ISR, *p_inta);
 }
 
-bool rtl8192_HalRxCheckStuck(struct net_device *dev)
+bool rtl92e_is_rx_stuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u16		  RegRxCounter = read_nic_word(dev, 0x130);

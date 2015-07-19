@@ -61,7 +61,7 @@ static struct rtl819x_ops rtl819xp_ops = {
 	.tx_enable			= rtl92e_enable_tx,
 	.interrupt_recognized		= rtl8192_interrupt_recognized,
 	.TxCheckStuckHandler		= rtl8192_HalTxCheckStuck,
-	.RxCheckStuckHandler		= rtl8192_HalRxCheckStuck,
+	.RxCheckStuckHandler		= rtl92e_is_rx_stuck,
 };
 
 static struct pci_device_id rtl8192_pci_id_tbl[] = {
