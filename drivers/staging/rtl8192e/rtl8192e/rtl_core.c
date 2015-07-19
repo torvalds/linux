@@ -1983,8 +1983,8 @@ void rtl92e_reset_desc_ring(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 }
 
-void rtl819x_UpdateRxPktTimeStamp(struct net_device *dev,
-				  struct rtllib_rx_stats *stats)
+void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
+				    struct rtllib_rx_stats *stats)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 

@@ -2071,7 +2071,7 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 	stats->TimeStampLow = pDrvInfo->TSFL;
 	stats->TimeStampHigh = rtl92e_readl(dev, TSFR+4);
 
-	rtl819x_UpdateRxPktTimeStamp(dev, stats);
+	rtl92e_update_rx_pkt_timestamp(dev, stats);
 
 	if ((stats->RxBufShift + stats->RxDrvInfoSize) > 0)
 		stats->bShift = 1;
