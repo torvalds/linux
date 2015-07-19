@@ -1901,7 +1901,7 @@ static void dm_CheckRfCtrlGPIO(void *data)
 	}
 }
 
-void	dm_rf_pathcheck_workitemcallback(void *data)
+void rtl92e_dm_rf_pathcheck_wq(void *data)
 {
 	struct r8192_priv *priv = container_of_dwork_rsl(data,
 				  struct r8192_priv,

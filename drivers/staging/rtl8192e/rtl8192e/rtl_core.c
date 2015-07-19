@@ -1029,7 +1029,7 @@ static void rtl8192_init_priv_task(struct net_device *dev)
 	INIT_DELAYED_WORK_RSL(&priv->txpower_tracking_wq,
 			      (void *)dm_txpower_trackingcallback, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rfpath_check_wq,
-			      (void *)dm_rf_pathcheck_workitemcallback, dev);
+			      (void *)rtl92e_dm_rf_pathcheck_wq, dev);
 	INIT_DELAYED_WORK_RSL(&priv->update_beacon_wq,
 			      (void *)rtl8192_update_beacon, dev);
 	INIT_WORK_RSL(&priv->qos_activate, (void *)rtl8192_qos_activate, dev);
