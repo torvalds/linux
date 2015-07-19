@@ -1943,7 +1943,7 @@ err_free_rings:
 	return 1;
 }
 
-void rtl8192_pci_resetdescring(struct net_device *dev)
+void rtl92e_reset_desc_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int i, rx_queue_idx;

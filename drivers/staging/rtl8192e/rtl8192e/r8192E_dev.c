@@ -718,7 +718,7 @@ bool rtl92e_start_adapter(struct net_device *dev)
 	priv->being_init_adapter = true;
 
 start:
-	rtl8192_pci_resetdescring(dev);
+	rtl92e_reset_desc_ring(dev);
 	priv->Rf_Mode = RF_OP_By_SW_3wire;
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 		write_nic_byte(dev, ANAPAR, 0x37);
