@@ -141,7 +141,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		case RF90_PATH_A:
 			while (RF3_Final_Value != RegValueToBeCheck &&
 			       RetryTimes != 0) {
-				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,
+				ret = rtl92e_config_rf_path(dev,
 						(enum rf90_radio_path)eRFPath);
 				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev,
 						 (enum rf90_radio_path)eRFPath,
@@ -157,7 +157,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		case RF90_PATH_B:
 			while (RF3_Final_Value != RegValueToBeCheck &&
 			       RetryTimes != 0) {
-				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,
+				ret = rtl92e_config_rf_path(dev,
 						(enum rf90_radio_path)eRFPath);
 				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev,
 						 (enum rf90_radio_path)eRFPath,
@@ -173,7 +173,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		case RF90_PATH_C:
 			while (RF3_Final_Value != RegValueToBeCheck &&
 			       RetryTimes != 0) {
-				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,
+				ret = rtl92e_config_rf_path(dev,
 						(enum rf90_radio_path)eRFPath);
 				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev,
 						(enum rf90_radio_path)eRFPath,
@@ -189,7 +189,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		case RF90_PATH_D:
 			while (RF3_Final_Value != RegValueToBeCheck &&
 			       RetryTimes != 0) {
-				ret = rtl8192_phy_ConfigRFWithHeaderFile(dev,
+				ret = rtl92e_config_rf_path(dev,
 					       (enum rf90_radio_path)eRFPath);
 				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev,
 					       (enum rf90_radio_path)eRFPath,

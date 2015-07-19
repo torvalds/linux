@@ -717,8 +717,7 @@ void rtl8192_phy_updateInitGain(struct net_device *dev)
 {
 }
 
-u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
-				      enum rf90_radio_path eRFPath)
+u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 {
 
 	int i;
