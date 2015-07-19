@@ -1321,7 +1321,7 @@ RESET_START:
 			rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
 		}
 
-		dm_backup_dynamic_mechanism_state(dev);
+		rtl92e_dm_backup_state(dev);
 
 		up(&priv->wx_sem);
 		RT_TRACE(COMP_RESET,

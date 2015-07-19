@@ -1256,7 +1256,7 @@ static void dm_bb_initialgain_restore(struct net_device *dev)
 }
 
 
-void dm_backup_dynamic_mechanism_state(struct net_device *dev)
+void rtl92e_dm_backup_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
