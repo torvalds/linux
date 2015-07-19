@@ -45,7 +45,6 @@ static const struct reg_default cs4349_reg_defaults[] = {
 /* Private data for the CS4349 */
 struct  cs4349_private {
 	struct regmap			*regmap;
-	struct cs4349_platform_data	pdata;
 	struct gpio_desc		*reset_gpio;
 	unsigned int			mode;
 	int				rate;
@@ -281,8 +280,7 @@ static int cs4349_i2c_probe(struct i2c_client *client,
 				      const struct i2c_device_id *id)
 {
 	struct cs4349_private *cs4349;
-	struct cs4349_platform_data *pdata = dev_get_platdata(&client->dev);
-	int ret = 0;
+	int ret;
 
 	cs4349 = devm_kzalloc(&client->dev, sizeof(*cs4349), GFP_KERNEL);
 	if (!cs4349)
@@ -294,9 +292,6 @@ static int cs4349_i2c_probe(struct i2c_client *client,
 		dev_err(&client->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
-
-	if (pdata)
-		cs4349->pdata = *pdata;
 
 	/* Reset the Device */
 	cs4349->reset_gpio = devm_gpiod_get_optional(&client->dev,

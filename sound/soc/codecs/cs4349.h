@@ -19,13 +19,6 @@
 #ifndef __CS4349_H__
 #define __CS4349_H__
 
-struct cs4349_platform_data {
-
-	/* GPIO for Reset */
-	unsigned int gpio_nreset;
-
-};
-
 /* CS4349 registers addresses */
 #define CS4349_CHIPID		0x01	/* Device and Rev ID, Read Only */
 #define CS4349_MODE		0x02	/* Mode Control */
