@@ -110,7 +110,7 @@ static void rtl8192_restart(void *data);
    -----------------------------IO STUFF-------------------------
 *****************************************************************************/
 
-u8 read_nic_byte(struct net_device *dev, int x)
+u8 rtl92e_readb(struct net_device *dev, int x)
 {
 	return 0xff & readb((u8 __iomem *)dev->mem_start + x);
 }

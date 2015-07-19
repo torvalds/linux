@@ -63,7 +63,7 @@ static void rtl8192e_update_msr(struct net_device *dev)
 	u8 msr;
 	enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
 
-	msr  = read_nic_byte(dev, MSR);
+	msr  = rtl92e_readb(dev, MSR);
 	msr &= ~MSR_LINK_MASK;
 
 	switch (priv->rtllib->iw_mode) {
@@ -109,7 +109,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 	{
 		enum rt_op_mode OpMode = *((enum rt_op_mode *)(val));
 		enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
-		u8		btMsr = read_nic_byte(dev, MSR);
+		u8 btMsr = rtl92e_readb(dev, MSR);
 
 		btMsr &= 0xfc;
 
@@ -241,7 +241,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		union aci_aifsn *pAciAifsn = (union aci_aifsn *) &
 					      (qos_parameters->aifs[0]);
 		u8 acm = pAciAifsn->f.acm;
-		u8 AcmCtrl = read_nic_byte(dev, AcmHwCtrl);
+		u8 AcmCtrl = rtl92e_readb(dev, AcmHwCtrl);
 
 		RT_TRACE(COMP_DBG, "===========>%s():HW_VAR_ACM_CTRL:%x\n",
 			 __func__, eACI);
@@ -693,7 +693,7 @@ static void rtl8192_hwconfig(struct net_device *dev)
 		write_nic_dword(dev, RATR0, ratr_value);
 		write_nic_byte(dev, UFWP, 1);
 	}
-	regTmp = read_nic_byte(dev, 0x313);
+	regTmp = rtl92e_readb(dev, 0x313);
 	regRRSR = ((regTmp) << 24) | (regRRSR & 0x00ffffff);
 	write_nic_dword(dev, RRSR, regRRSR);
 
@@ -740,9 +740,9 @@ start:
 
 	write_nic_dword(dev, CPU_GEN, ulRegRead);
 
-	ICVersion = read_nic_byte(dev, IC_VERRSION);
+	ICVersion = rtl92e_readb(dev, IC_VERRSION);
 	if (ICVersion >= 0x4) {
-		SwitchingRegulatorOutput = read_nic_byte(dev, SWREGULATOR);
+		SwitchingRegulatorOutput = rtl92e_readb(dev, SWREGULATOR);
 		if (SwitchingRegulatorOutput  != 0xb8) {
 			write_nic_byte(dev, SWREGULATOR, 0xa8);
 			mdelay(1);
@@ -835,7 +835,7 @@ start:
 		rtl92e_set_tx_power(dev, priv->chan);
 	}
 
-	tmpvalue = read_nic_byte(dev, IC_VERRSION);
+	tmpvalue = rtl92e_readb(dev, IC_VERRSION);
 	priv->IC_Cut = tmpvalue;
 	RT_TRACE(COMP_INIT, "priv->IC_Cut= 0x%x\n", priv->IC_Cut);
 	if (priv->IC_Cut >= IC_VersionCut_D) {

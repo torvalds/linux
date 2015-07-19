@@ -578,7 +578,7 @@ struct r8192_priv {
 
 extern const struct ethtool_ops rtl819x_ethtool_ops;
 
-u8 read_nic_byte(struct net_device *dev, int x);
+u8 rtl92e_readb(struct net_device *dev, int x);
 u32 read_nic_dword(struct net_device *dev, int x);
 u16 read_nic_word(struct net_device *dev, int x);
 void write_nic_byte(struct net_device *dev, int x, u8 y);

@@ -30,9 +30,9 @@ static void eprom_cs(struct net_device *dev, short bit)
 	if (bit)
 		write_nic_byte(dev, EPROM_CMD,
 			       (1 << EPROM_CS_SHIFT) |
-			       read_nic_byte(dev, EPROM_CMD));
+			       rtl92e_readb(dev, EPROM_CMD));
 	else
-		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)
+		write_nic_byte(dev, EPROM_CMD, rtl92e_readb(dev, EPROM_CMD)
 			       & ~(1<<EPROM_CS_SHIFT));
 
 	udelay(EPROM_DELAY);
@@ -42,10 +42,10 @@ static void eprom_cs(struct net_device *dev, short bit)
 static void eprom_ck_cycle(struct net_device *dev)
 {
 	write_nic_byte(dev, EPROM_CMD,
-		       (1<<EPROM_CK_SHIFT) | read_nic_byte(dev, EPROM_CMD));
+		       (1<<EPROM_CK_SHIFT) | rtl92e_readb(dev, EPROM_CMD));
 	udelay(EPROM_DELAY);
 	write_nic_byte(dev, EPROM_CMD,
-		       read_nic_byte(dev, EPROM_CMD) & ~(1<<EPROM_CK_SHIFT));
+		       rtl92e_readb(dev, EPROM_CMD) & ~(1<<EPROM_CK_SHIFT));
 	udelay(EPROM_DELAY);
 }
 
@@ -54,9 +54,9 @@ static void eprom_w(struct net_device *dev, short bit)
 {
 	if (bit)
 		write_nic_byte(dev, EPROM_CMD, (1<<EPROM_W_SHIFT) |
-			       read_nic_byte(dev, EPROM_CMD));
+			       rtl92e_readb(dev, EPROM_CMD));
 	else
-		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)
+		write_nic_byte(dev, EPROM_CMD, rtl92e_readb(dev, EPROM_CMD)
 			       & ~(1<<EPROM_W_SHIFT));
 
 	udelay(EPROM_DELAY);
@@ -67,7 +67,7 @@ static short eprom_r(struct net_device *dev)
 {
 	short bit;
 
-	bit = (read_nic_byte(dev, EPROM_CMD) & (1<<EPROM_R_SHIFT));
+	bit = (rtl92e_readb(dev, EPROM_CMD) & (1<<EPROM_R_SHIFT));
 	udelay(EPROM_DELAY);
 
 	if (bit)

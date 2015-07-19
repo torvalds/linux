@@ -552,7 +552,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	u8 bRegValue = 0, eCheckItem = 0;
 	u32 dwRegValue = 0;
 
-	bRegValue = read_nic_byte(dev, BB_GLOBAL_RESET);
+	bRegValue = rtl92e_readb(dev, BB_GLOBAL_RESET);
 	write_nic_byte(dev, BB_GLOBAL_RESET, (bRegValue|BB_GLOBAL_RESET_BIT));
 
 	dwRegValue = read_nic_dword(dev, CPU_GEN);
@@ -619,16 +619,16 @@ void rtl92e_get_tx_power(struct net_device *dev)
 	priv->MCSTxPowerLevelOriginalOffset[5] =
 		read_nic_dword(dev, rTxAGC_Mcs15_Mcs12);
 
-	priv->DefaultInitialGain[0] = read_nic_byte(dev, rOFDM0_XAAGCCore1);
-	priv->DefaultInitialGain[1] = read_nic_byte(dev, rOFDM0_XBAGCCore1);
-	priv->DefaultInitialGain[2] = read_nic_byte(dev, rOFDM0_XCAGCCore1);
-	priv->DefaultInitialGain[3] = read_nic_byte(dev, rOFDM0_XDAGCCore1);
+	priv->DefaultInitialGain[0] = rtl92e_readb(dev, rOFDM0_XAAGCCore1);
+	priv->DefaultInitialGain[1] = rtl92e_readb(dev, rOFDM0_XBAGCCore1);
+	priv->DefaultInitialGain[2] = rtl92e_readb(dev, rOFDM0_XCAGCCore1);
+	priv->DefaultInitialGain[3] = rtl92e_readb(dev, rOFDM0_XDAGCCore1);
 	RT_TRACE(COMP_INIT,
 		 "Default initial gain (c50=0x%x, c58=0x%x, c60=0x%x, c68=0x%x)\n",
 		 priv->DefaultInitialGain[0], priv->DefaultInitialGain[1],
 		 priv->DefaultInitialGain[2], priv->DefaultInitialGain[3]);
 
-	priv->framesync = read_nic_byte(dev, rOFDM0_RxDetector3);
+	priv->framesync = rtl92e_readb(dev, rOFDM0_RxDetector3);
 	priv->framesyncC34 = read_nic_dword(dev, rOFDM0_RxDetector2);
 	RT_TRACE(COMP_INIT, "Default framesync (0x%x) = 0x%x\n",
 		rOFDM0_RxDetector3, priv->framesync);
@@ -1177,7 +1177,7 @@ static void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
 		return;
 	}
-	regBwOpMode = read_nic_byte(dev, BW_OPMODE);
+	regBwOpMode = rtl92e_readb(dev, BW_OPMODE);
 
 	switch (priv->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:

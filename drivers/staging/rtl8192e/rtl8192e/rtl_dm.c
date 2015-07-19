@@ -675,7 +675,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 				    sizeof(struct dcmd_txcmd));
 		mdelay(1);
 		for (i = 0; i <= 30; i++) {
-			Pwr_Flag = read_nic_byte(dev, Pw_Track_Flag);
+			Pwr_Flag = rtl92e_readb(dev, Pw_Track_Flag);
 
 			if (Pwr_Flag == 0) {
 				mdelay(1);
@@ -708,10 +708,10 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 
 			for (k = 0; k < 5; k++) {
 				if (k != 4)
-					tmp_report[k] = read_nic_byte(dev,
+					tmp_report[k] = rtl92e_readb(dev,
 							 Tssi_Report_Value1+k);
 				else
-					tmp_report[k] = read_nic_byte(dev,
+					tmp_report[k] = rtl92e_readb(dev,
 							 Tssi_Report_Value2);
 
 				RT_TRACE(COMP_POWER_TRACKING,
@@ -1001,7 +1001,7 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 	static u32 tx_power_track_counter;
 
 	RT_TRACE(COMP_POWER_TRACKING, "%s()\n", __func__);
-	if (read_nic_byte(dev, 0x11e) == 1)
+	if (rtl92e_readb(dev, 0x11e) == 1)
 		return;
 	if (!priv->btxpower_tracking)
 		return;
@@ -1564,7 +1564,7 @@ static void dm_initial_gain(struct net_device *dev)
 		reset_cnt = priv->reset_count;
 	}
 
-	if (dm_digtable.pre_ig_value != read_nic_byte(dev, rOFDM0_XAAGCCore1))
+	if (dm_digtable.pre_ig_value != rtl92e_readb(dev, rOFDM0_XAAGCCore1))
 		force_write = 1;
 
 	if ((dm_digtable.pre_ig_value != dm_digtable.cur_ig_value)
@@ -1873,7 +1873,7 @@ static void dm_CheckRfCtrlGPIO(void *data)
 		return;
 	}
 
-	tmp1byte = read_nic_byte(dev, GPI);
+	tmp1byte = rtl92e_readb(dev, GPI);
 
 	eRfPowerStateToSet = (tmp1byte&BIT1) ?  eRfOn : eRfOff;
 
@@ -1913,7 +1913,7 @@ void	dm_rf_pathcheck_workitemcallback(void *data)
 	struct net_device *dev = priv->rtllib->dev;
 	u8 rfpath = 0, i;
 
-	rfpath = read_nic_byte(dev, 0xc04);
+	rfpath = rtl92e_readb(dev, 0xc04);
 
 	for (i = 0; i < RF90_PATH_MAX; i++) {
 		if (rfpath & (0x01<<i))
@@ -1970,12 +1970,12 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 		return;
 
 	if (!cck_Rx_Path_initialized) {
-		DM_RxPathSelTable.cck_Rx_path = (read_nic_byte(dev, 0xa07)&0xf);
+		DM_RxPathSelTable.cck_Rx_path = (rtl92e_readb(dev, 0xa07)&0xf);
 		cck_Rx_Path_initialized = 1;
 	}
 
 	DM_RxPathSelTable.disabledRF = 0xf;
-	DM_RxPathSelTable.disabledRF &= ~(read_nic_byte(dev, 0xc04));
+	DM_RxPathSelTable.disabledRF &= ~(rtl92e_readb(dev, 0xc04));
 
 	if (priv->rtllib->mode == WIRELESS_MODE_B)
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
@@ -2564,10 +2564,10 @@ static void dm_check_txrateandretrycount(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	ieee->softmac_stats.CurrentShowTxate = read_nic_byte(dev,
+	ieee->softmac_stats.CurrentShowTxate = rtl92e_readb(dev,
 						 Current_Tx_Rate_Reg);
 
-	ieee->softmac_stats.last_packet_rate = read_nic_byte(dev,
+	ieee->softmac_stats.last_packet_rate = rtl92e_readb(dev,
 						 Initial_Tx_Rate_Reg);
 
 	ieee->softmac_stats.txretrycount = read_nic_dword(dev,
