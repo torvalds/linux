@@ -1158,38 +1158,11 @@ void __sb_end_write(struct super_block *sb, int level)
 }
 EXPORT_SYMBOL(__sb_end_write);
 
-#ifdef CONFIG_LOCKDEP
-/*
- * We want lockdep to tell us about possible deadlocks with freezing but
- * it's it bit tricky to properly instrument it. Getting a freeze protection
- * works as getting a read lock but there are subtle problems. XFS for example
- * gets freeze protection on internal level twice in some cases, which is OK
- * only because we already hold a freeze protection also on higher level. Due
- * to these cases we have to tell lockdep we are doing trylock when we
- * already hold a freeze protection for a higher freeze level.
- */
-static void acquire_freeze_lock(struct super_block *sb, int level, bool trylock,
+static int do_sb_start_write(struct super_block *sb, int level, bool wait,
 				unsigned long ip)
 {
-	int i;
-
-	if (!trylock) {
-		for (i = 0; i < level - 1; i++)
-			if (lock_is_held(&sb->s_writers.lock_map[i])) {
-				trylock = true;
-				break;
-			}
-	}
-	rwsem_acquire_read(&sb->s_writers.lock_map[level-1], 0, trylock, ip);
-}
-#endif
-
-/*
- * This is an internal function, please use sb_start_{write,pagefault,intwrite}
- * instead.
- */
-int __sb_start_write(struct super_block *sb, int level, bool wait)
-{
+	if (wait)
+		rwsem_acquire_read(&sb->s_writers.lock_map[level-1], 0, 0, ip);
 retry:
 	if (unlikely(sb->s_writers.frozen >= level)) {
 		if (!wait)
@@ -1198,9 +1171,6 @@ retry:
 			   sb->s_writers.frozen < level);
 	}
 
-#ifdef CONFIG_LOCKDEP
-	acquire_freeze_lock(sb, level, !wait, _RET_IP_);
-#endif
 	percpu_counter_inc(&sb->s_writers.counter[level-1]);
 	/*
 	 * Make sure counter is updated before we check for frozen.
@@ -1211,7 +1181,44 @@ retry:
 		__sb_end_write(sb, level);
 		goto retry;
 	}
+
+	if (!wait)
+		rwsem_acquire_read(&sb->s_writers.lock_map[level-1], 0, 1, ip);
 	return 1;
+}
+
+/*
+ * This is an internal function, please use sb_start_{write,pagefault,intwrite}
+ * instead.
+ */
+int __sb_start_write(struct super_block *sb, int level, bool wait)
+{
+	bool force_trylock = false;
+	int ret;
+
+#ifdef CONFIG_LOCKDEP
+	/*
+	 * We want lockdep to tell us about possible deadlocks with freezing
+	 * but it's it bit tricky to properly instrument it. Getting a freeze
+	 * protection works as getting a read lock but there are subtle
+	 * problems. XFS for example gets freeze protection on internal level
+	 * twice in some cases, which is OK only because we already hold a
+	 * freeze protection also on higher level. Due to these cases we have
+	 * to use wait == F (trylock mode) which must not fail.
+	 */
+	if (wait) {
+		int i;
+
+		for (i = 0; i < level - 1; i++)
+			if (lock_is_held(&sb->s_writers.lock_map[i])) {
+				force_trylock = true;
+				break;
+			}
+	}
+#endif
+	ret = do_sb_start_write(sb, level, wait && !force_trylock, _RET_IP_);
+	WARN_ON(force_trylock & !ret);
+	return ret;
 }
 EXPORT_SYMBOL(__sb_start_write);
 
