@@ -29,7 +29,7 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	for (eRFPath = 0; eRFPath < priv->NumTotalRFPath; eRFPath++) {
-		if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
+		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 				continue;
 
 		switch (Bandwidth) {
@@ -96,7 +96,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 
 	for (eRFPath = (enum rf90_radio_path)RF90_PATH_A;
 	     eRFPath < priv->NumTotalRFPath; eRFPath++) {
-		if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
+		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 				continue;
 
 		pPhyReg = &priv->PHYRegDef[eRFPath];

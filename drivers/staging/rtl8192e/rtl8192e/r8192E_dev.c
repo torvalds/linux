@@ -1745,8 +1745,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	priv->stats.num_process_phyinfo++;
 	if (!prev_st->bIsCCK && prev_st->bPacketToSelf) {
 		for (rfpath = RF90_PATH_A; rfpath < RF90_PATH_C; rfpath++) {
-			if (!rtl8192_phy_CheckIsLegalRFPath(priv->rtllib->dev,
-			    rfpath))
+			if (!rtl92e_is_legal_rf_path(priv->rtllib->dev, rfpath))
 				continue;
 			RT_TRACE(COMP_DBG,
 				 "Jacken -> pPreviousstats->RxMIMOSignalStrength[rfpath]  = %d\n",

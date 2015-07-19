@@ -64,7 +64,7 @@ static u32 rtl8192_CalculateBitShift(u32 dwBitMask)
 	return i;
 }
 
-u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device *dev, u32 eRFPath)
+u8 rtl92e_is_legal_rf_path(struct net_device *dev, u32 eRFPath)
 {
 	u8 ret = 1;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -222,7 +222,7 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 Original_Value, BitShift, New_Value;
 
-	if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
+	if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 		return;
 	if (priv->rtllib->eRFPowerState != eRfOn && !priv->being_init_adapter)
 		return;
@@ -262,7 +262,7 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	u32 Original_Value, Readback_Value, BitShift;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
+	if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 		return 0;
 	if (priv->rtllib->eRFPowerState != eRfOn && !priv->being_init_adapter)
 		return	0;

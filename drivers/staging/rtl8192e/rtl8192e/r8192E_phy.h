@@ -67,8 +67,7 @@ enum rf90_radio_path {
 #define bMaskLWord                0x0000ffff
 #define bMaskDWord                0xffffffff
 
-extern u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device *dev,
-					 u32 eRFPath);
+extern u8 rtl92e_is_legal_rf_path(struct net_device *dev, u32 eRFPath);
 extern void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr,
 			     u32 dwBitMask, u32 dwData);
 extern u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr,
