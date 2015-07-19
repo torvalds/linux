@@ -105,13 +105,13 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		switch (eRFPath) {
 		case RF90_PATH_A:
 		case RF90_PATH_C:
-			u4RegValue = rtl8192_QueryBBReg(dev, pPhyReg->rfintfs,
-							bRFSI_RFENV);
+			u4RegValue = rtl92e_get_bb_reg(dev, pPhyReg->rfintfs,
+						       bRFSI_RFENV);
 			break;
 		case RF90_PATH_B:
 		case RF90_PATH_D:
-			u4RegValue = rtl8192_QueryBBReg(dev, pPhyReg->rfintfs,
-							bRFSI_RFENV<<16);
+			u4RegValue = rtl92e_get_bb_reg(dev, pPhyReg->rfintfs,
+						       bRFSI_RFENV<<16);
 			break;
 		}
 

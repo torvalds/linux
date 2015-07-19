@@ -96,7 +96,7 @@ void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 		write_nic_dword(dev, dwRegAddr, dwData);
 }
 
-u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
+u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
 {
 	u32 Ret = 0, OriginalValue, BitShift;
 
@@ -146,8 +146,8 @@ static u32 rtl8192_phy_RFSerialRead(struct net_device *dev,
 
 	mdelay(1);
 
-	ret = rtl8192_QueryBBReg(dev, pPhyReg->rfLSSIReadBack,
-				 bLSSIReadBackData);
+	ret = rtl92e_get_bb_reg(dev, pPhyReg->rfLSSIReadBack,
+				bLSSIReadBackData);
 
 	if (priv->rf_chip == RF_8256) {
 		priv->RfReg0Value[eRFPath] &= 0xebf;
@@ -1309,19 +1309,19 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 			    DIG_ALGO_BY_FALSE_ALARM)
 				rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x8);
 			priv->initgain_backup.xaagccore1 =
-				 (u8)rtl8192_QueryBBReg(dev, rOFDM0_XAAGCCore1,
-				 BitMask);
+				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XAAGCCore1,
+						       BitMask);
 			priv->initgain_backup.xbagccore1 =
-				 (u8)rtl8192_QueryBBReg(dev, rOFDM0_XBAGCCore1,
-				 BitMask);
+				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XBAGCCore1,
+						       BitMask);
 			priv->initgain_backup.xcagccore1 =
-				 (u8)rtl8192_QueryBBReg(dev, rOFDM0_XCAGCCore1,
-				 BitMask);
+				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XCAGCCore1,
+						       BitMask);
 			priv->initgain_backup.xdagccore1 =
-				 (u8)rtl8192_QueryBBReg(dev, rOFDM0_XDAGCCore1,
-				 BitMask);
+				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XDAGCCore1,
+						       BitMask);
 			BitMask = bMaskByte2;
-			priv->initgain_backup.cca = (u8)rtl8192_QueryBBReg(dev,
+			priv->initgain_backup.cca = (u8)rtl92e_get_bb_reg(dev,
 						    rCCK0_CCA, BitMask);
 
 			RT_TRACE(COMP_SCAN,

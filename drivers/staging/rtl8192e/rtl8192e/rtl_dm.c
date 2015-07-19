@@ -856,8 +856,8 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 	int i = 0, CCKSwingNeedUpdate = 0;
 
 	if (!priv->btxpower_trackingInit) {
-		tmpRegA = rtl8192_QueryBBReg(dev, rOFDM0_XATxIQImbalance,
-					     bMaskDWord);
+		tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
+					    bMaskDWord);
 		for (i = 0; i < OFDM_Table_Length; i++) {
 			if (tmpRegA == OFDMSwingTable[i]) {
 				priv->OFDM_index[0] = (u8)i;
@@ -868,7 +868,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 			}
 		}
 
-		TempCCk = rtl8192_QueryBBReg(dev, rCCK0_TxFilter1, bMaskByte2);
+		TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1, bMaskByte2);
 		for (i = 0; i < CCK_Table_length; i++) {
 			if (TempCCk == (u32)CCKSwingTable_Ch1_Ch13[i][0]) {
 				priv->CCK_index = (u8) i;
@@ -1279,12 +1279,12 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
 		return;
 
 	rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x8);
-	priv->initgain_backup.xaagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XAAGCCore1, bit_mask);
-	priv->initgain_backup.xbagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XBAGCCore1, bit_mask);
-	priv->initgain_backup.xcagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XCAGCCore1, bit_mask);
-	priv->initgain_backup.xdagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XDAGCCore1, bit_mask);
+	priv->initgain_backup.xaagccore1 = (u8)rtl92e_get_bb_reg(dev, rOFDM0_XAAGCCore1, bit_mask);
+	priv->initgain_backup.xbagccore1 = (u8)rtl92e_get_bb_reg(dev, rOFDM0_XBAGCCore1, bit_mask);
+	priv->initgain_backup.xcagccore1 = (u8)rtl92e_get_bb_reg(dev, rOFDM0_XCAGCCore1, bit_mask);
+	priv->initgain_backup.xdagccore1 = (u8)rtl92e_get_bb_reg(dev, rOFDM0_XDAGCCore1, bit_mask);
 	bit_mask  = bMaskByte2;
-	priv->initgain_backup.cca = (u8)rtl8192_QueryBBReg(dev, rCCK0_CCA, bit_mask);
+	priv->initgain_backup.cca = (u8)rtl92e_get_bb_reg(dev, rCCK0_CCA, bit_mask);
 
 	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc50 is %x\n",
 		 priv->initgain_backup.xaagccore1);

@@ -910,10 +910,10 @@ start:
 		dm_initialize_txpower_tracking(dev);
 
 		if (priv->IC_Cut >= IC_VersionCut_D) {
-			tmpRegA = rtl8192_QueryBBReg(dev,
-				  rOFDM0_XATxIQImbalance, bMaskDWord);
-			tmpRegC = rtl8192_QueryBBReg(dev,
-				  rOFDM0_XCTxIQImbalance, bMaskDWord);
+			tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
+						    bMaskDWord);
+			tmpRegC = rtl92e_get_bb_reg(dev, rOFDM0_XCTxIQImbalance,
+						    bMaskDWord);
 			for (i = 0; i < TxBBGainTableLength; i++) {
 				if (tmpRegA == dm_tx_bb_gain[i]) {
 					priv->rfa_txpowertrackingindex = (u8)i;
@@ -925,8 +925,8 @@ start:
 				}
 			}
 
-			TempCCk = rtl8192_QueryBBReg(dev,
-				  rCCK0_TxFilter1, bMaskByte2);
+			TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1,
+						    bMaskByte2);
 
 			for (i = 0; i < CCKTxBBGainTableLength; i++) {
 				if (TempCCk == dm_cck_tx_bb_gain[i][0]) {
@@ -1516,8 +1516,9 @@ static void rtl8192_query_rxphystatus(
 	pstats->bPacketBeacon = precord_stats->bPacketBeacon = bPacketBeacon;
 	pstats->bToSelfBA = precord_stats->bToSelfBA = bToSelfBA;
 	if (check_reg824 == 0) {
-		reg824_bit9 = rtl8192_QueryBBReg(priv->rtllib->dev,
-			      rFPGA0_XA_HSSIParameter2, 0x200);
+		reg824_bit9 = rtl92e_get_bb_reg(priv->rtllib->dev,
+						rFPGA0_XA_HSSIParameter2,
+						0x200);
 		check_reg824 = 1;
 	}
 

@@ -70,8 +70,8 @@ enum rf90_radio_path {
 extern u8 rtl92e_is_legal_rf_path(struct net_device *dev, u32 eRFPath);
 extern void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr,
 			     u32 dwBitMask, u32 dwData);
-extern u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr,
-			      u32 dwBitMask);
+extern u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr,
+			     u32 dwBitMask);
 extern void rtl92e_set_rf_reg(struct net_device *dev,
 			      enum rf90_radio_path eRFPath, u32 RegAddr,
 			      u32 BitMask, u32 Data);
