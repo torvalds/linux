@@ -568,7 +568,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 					 (enum rf90_radio_path)0);
 		if (!rtStatus) {
 			RT_TRACE((COMP_ERR | COMP_PHY),
-				 "PHY_RF8256_Config():Check PHY%d Fail!!\n",
+				 "rtl92e_config_rf():Check PHY%d Fail!!\n",
 				 eCheckItem-1);
 			return rtStatus;
 		}
@@ -699,7 +699,7 @@ bool rtl8192_phy_RFConfig(struct net_device *dev)
 	case RF_8225:
 		break;
 	case RF_8256:
-		rtStatus = PHY_RF8256_Config(dev);
+		rtStatus = rtl92e_config_rf(dev);
 		break;
 
 	case RF_8258:

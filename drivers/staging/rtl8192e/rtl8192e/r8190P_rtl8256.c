@@ -232,7 +232,7 @@ phy_RF8256_Config_ParaFile_Fail:
 	return false;
 }
 
-bool PHY_RF8256_Config(struct net_device *dev)
+bool rtl92e_config_rf(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
