@@ -323,7 +323,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	RT_TRACE(COMP_INIT, "====> rtl8192_read_eeprom_info\n");
 
-	EEPROMId = eprom_read(dev, 0);
+	EEPROMId = rtl92e_eeprom_read(dev, 0);
 	if (EEPROMId != RTL8190_EEPROM_ID) {
 		netdev_err(dev, "%s(): Invalid EEPROM ID: %x\n", __func__,
 			   EEPROMId);
@@ -333,12 +333,14 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	}
 
 	if (!priv->AutoloadFailFlag) {
-		priv->eeprom_vid = eprom_read(dev, EEPROM_VID >> 1);
-		priv->eeprom_did = eprom_read(dev, EEPROM_DID >> 1);
+		priv->eeprom_vid = rtl92e_eeprom_read(dev, EEPROM_VID >> 1);
+		priv->eeprom_did = rtl92e_eeprom_read(dev, EEPROM_DID >> 1);
 
-		usValue = eprom_read(dev, (u16)(EEPROM_Customer_ID>>1)) >> 8;
+		usValue = rtl92e_eeprom_read(dev,
+					     (u16)(EEPROM_Customer_ID>>1)) >> 8;
 		priv->eeprom_CustomerID = (u8)(usValue & 0xff);
-		usValue = eprom_read(dev, EEPROM_ICVersion_ChannelPlan>>1);
+		usValue = rtl92e_eeprom_read(dev,
+					     EEPROM_ICVersion_ChannelPlan>>1);
 		priv->eeprom_ChannelPlan = usValue&0xff;
 		IC_Version = (usValue & 0xff00)>>8;
 
@@ -376,7 +378,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	if (!priv->AutoloadFailFlag) {
 		for (i = 0; i < 6; i += 2) {
-			usValue = eprom_read(dev,
+			usValue = rtl92e_eeprom_read(dev,
 				 (u16)((EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1));
 			*(u16 *)(&dev->dev_addr[i]) = usValue;
 		}
@@ -396,8 +398,8 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	if (priv->card_8192_version > VERSION_8190_BD) {
 		if (!priv->AutoloadFailFlag) {
-			tempval = (eprom_read(dev, (EEPROM_RFInd_PowerDiff >>
-					      1))) & 0xff;
+			tempval = (rtl92e_eeprom_read(dev,
+						      (EEPROM_RFInd_PowerDiff >> 1))) & 0xff;
 			priv->EEPROMLegacyHTTxPowerDiff = tempval & 0xf;
 
 			if (tempval&0x80)
@@ -411,7 +413,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 			priv->EEPROMLegacyHTTxPowerDiff);
 
 		if (!priv->AutoloadFailFlag)
-			priv->EEPROMThermalMeter = (u8)(((eprom_read(dev,
+			priv->EEPROMThermalMeter = (u8)(((rtl92e_eeprom_read(dev,
 						   (EEPROM_ThermalMeter>>1))) &
 						   0xff00)>>8);
 		else
@@ -422,7 +424,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 		if (priv->epromtype == EEPROM_93C46) {
 			if (!priv->AutoloadFailFlag) {
-				usValue = eprom_read(dev,
+				usValue = rtl92e_eeprom_read(dev,
 					  EEPROM_TxPwDiff_CrystalCap >> 1);
 				priv->EEPROMAntPwDiff = (usValue&0x0fff);
 				priv->EEPROMCrystalCap = (u8)((usValue & 0xf000)
@@ -440,7 +442,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 			for (i = 0; i < 14; i += 2) {
 				if (!priv->AutoloadFailFlag)
-					usValue = eprom_read(dev,
+					usValue = rtl92e_eeprom_read(dev,
 						  (u16)((EEPROM_TxPwIndex_CCK +
 						  i) >> 1));
 				else
@@ -456,7 +458,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 			}
 			for (i = 0; i < 14; i += 2) {
 				if (!priv->AutoloadFailFlag)
-					usValue = eprom_read(dev,
+					usValue = rtl92e_eeprom_read(dev,
 						(u16)((EEPROM_TxPwIndex_OFDM_24G
 						+ i) >> 1));
 				else
