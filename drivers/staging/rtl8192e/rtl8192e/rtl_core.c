@@ -895,7 +895,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->SetFwCmdHandler = NULL;
 	priv->rtllib->InitialGainHandler = rtl92e_init_gain;
 	priv->rtllib->rtllib_ips_leave_wq = rtllib_ips_leave_wq;
-	priv->rtllib->rtllib_ips_leave = rtllib_ips_leave;
+	priv->rtllib->rtllib_ips_leave = rtl92e_rtllib_ips_leave;
 
 	priv->rtllib->LedControlHandler = NULL;
 	priv->rtllib->UpdateBeaconInterruptHandler = NULL;
