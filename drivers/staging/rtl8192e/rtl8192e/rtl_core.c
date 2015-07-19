@@ -1023,7 +1023,8 @@ static void rtl8192_init_priv_task(struct net_device *dev)
 
 	priv->priv_wq = create_workqueue(DRV_NAME);
 	INIT_WORK_RSL(&priv->reset_wq, (void *)rtl8192_restart, dev);
-	INIT_WORK_RSL(&priv->rtllib->ips_leave_wq, (void *)IPSLeave_wq, dev);
+	INIT_WORK_RSL(&priv->rtllib->ips_leave_wq, (void *)rtl92e_ips_leave_wq,
+		      dev);
 	INIT_DELAYED_WORK_RSL(&priv->watch_dog_wq,
 			      (void *)rtl819x_watchdog_wqcallback, dev);
 	INIT_DELAYED_WORK_RSL(&priv->txpower_tracking_wq,

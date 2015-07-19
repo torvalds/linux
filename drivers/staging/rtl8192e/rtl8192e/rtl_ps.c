@@ -180,7 +180,7 @@ void rtl92e_ips_leave(struct net_device *dev)
 	}
 }
 
-void IPSLeave_wq(void *data)
+void rtl92e_ips_leave_wq(void *data)
 {
 	struct rtllib_device *ieee = container_of_work_rsl(data,
 				     struct rtllib_device, ips_leave_wq);
