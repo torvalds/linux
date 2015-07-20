@@ -91,7 +91,7 @@ This has a number of options available:
  (4) "File name or PKCS#11 URI of module signing key" (CONFIG_MODULE_SIG_KEY)
 
      Setting this option to something other than its default of
-     "signing_key.priv" will disable the autogeneration of signing keys and
+     "signing_key.pem" will disable the autogeneration of signing keys and
      allow the kernel modules to be signed with a key of your choosing.
      The string provided should identify a file containing both a private
      key and its corresponding X.509 certificate in PEM form, or — on
@@ -116,11 +116,10 @@ kernel so that it can be used to check the signatures as the modules are
 loaded.
 
 Under normal conditions, when CONFIG_MODULE_SIG_KEY is unchanged from its
-default of "signing_key.priv", the kernel build will automatically generate
-a new keypair using openssl if one does not exist in the files:
+default, the kernel build will automatically generate a new keypair using
+openssl if one does not exist in the file:
 
-	signing_key.priv
-	signing_key.x509
+	signing_key.pem
 
 during the building of vmlinux (the public part of the key needs to be built
 into vmlinux) using parameters in the:

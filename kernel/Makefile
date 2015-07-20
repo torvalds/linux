@@ -173,8 +173,8 @@ endif
 # We do it this way rather than having a boolean option for enabling an
 # external private key, because 'make randconfig' might enable such a
 # boolean option and we unfortunately can't make it depend on !RANDCONFIG.
-ifeq ($(CONFIG_MODULE_SIG_KEY),"signing_key.priv")
-signing_key.priv signing_key.x509: x509.genkey
+ifeq ($(CONFIG_MODULE_SIG_KEY),"signing_key.pem")
+signing_key.pem: x509.genkey
 	@echo "###"
 	@echo "### Now generating an X.509 key pair to be used for signing modules."
 	@echo "###"
@@ -185,8 +185,8 @@ signing_key.priv signing_key.x509: x509.genkey
 	@echo "###"
 	openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
 		-batch -x509 -config x509.genkey \
-		-outform DER -out signing_key.x509 \
-		-keyout signing_key.priv 2>&1
+		-outform PEM -out signing_key.pem \
+		-keyout signing_key.pem 2>&1
 	@echo "###"
 	@echo "### Key pair generated."
 	@echo "###"
@@ -210,9 +210,9 @@ x509.genkey:
 	@echo >>x509.genkey "keyUsage=digitalSignature"
 	@echo >>x509.genkey "subjectKeyIdentifier=hash"
 	@echo >>x509.genkey "authorityKeyIdentifier=keyid"
-else
-# For external (PKCS#11 or PEM) key, we need to obtain the certificate from
-# CONFIG_MODULE_SIG_KEY automatically.
+endif
+
+# We need to obtain the certificate from CONFIG_MODULE_SIG_KEY.
 quiet_cmd_extract_der = CERT_DER $(2)
       cmd_extract_der = scripts/extract-cert "$(2)" signing_key.x509
 
@@ -248,5 +248,4 @@ endif
 
 signing_key.x509: scripts/extract-cert include/config/module/sig/key.h $(X509_DEP)
 	$(call cmd,extract_der,$(X509_SOURCE))
-endif
 endif

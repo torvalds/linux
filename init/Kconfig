@@ -1950,7 +1950,7 @@ config MODULE_SIG_HASH
 
 config MODULE_SIG_KEY
 	string "File name or PKCS#11 URI of module signing key"
-	default "signing_key.priv"
+	default "signing_key.pem"
 	depends on MODULE_SIG
 	help
          Provide the file name of a private key/certificate in PEM format,
@@ -1958,7 +1958,7 @@ config MODULE_SIG_KEY
          the URI should identify, both the certificate and its corresponding
          private key.
 
-         If this option is unchanged from its default "signing_key.priv",
+         If this option is unchanged from its default "signing_key.pem",
          then the kernel will automatically generate the private key and
          certificate as described in Documentation/module-signing.txt
 
