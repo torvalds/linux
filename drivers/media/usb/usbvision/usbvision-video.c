@@ -494,7 +494,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		sizeof(vc->card));
 	usb_make_path(usbvision->dev, vc->bus_info, sizeof(vc->bus_info));
 	vc->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_AUDIO |
 		V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING |
 		(usbvision->have_tuner ? V4L2_CAP_TUNER : 0);
@@ -524,7 +523,6 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		} else {
 			strcpy(vi->name, "Television");
 			vi->type = V4L2_INPUT_TYPE_TUNER;
-			vi->audioset = 1;
 			vi->tuner = chan;
 			vi->std = USBVISION_NORMS;
 		}
@@ -658,26 +656,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	usbvision->freq = freq->frequency;
 	call_all(usbvision, tuner, s_frequency, freq);
 
-	return 0;
-}
-
-static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
-{
-	struct usb_usbvision *usbvision = video_drvdata(file);
-
-	if (usbvision->radio)
-		strcpy(a->name, "Radio");
-	else
-		strcpy(a->name, "TV");
-
-	return 0;
-}
-
-static int vidioc_s_audio(struct file *file, void *fh,
-			  const struct v4l2_audio *a)
-{
-	if (a->index)
-		return -EINVAL;
 	return 0;
 }
 
@@ -1204,8 +1182,6 @@ static const struct v4l2_ioctl_ops usbvision_ioctl_ops = {
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,
-	.vidioc_g_audio       = vidioc_g_audio,
-	.vidioc_s_audio       = vidioc_s_audio,
 	.vidioc_streamon      = vidioc_streamon,
 	.vidioc_streamoff     = vidioc_streamoff,
 	.vidioc_g_tuner       = vidioc_g_tuner,
@@ -1241,11 +1217,6 @@ static const struct v4l2_file_operations usbvision_radio_fops = {
 
 static const struct v4l2_ioctl_ops usbvision_radio_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
-	.vidioc_enum_input    = vidioc_enum_input,
-	.vidioc_g_input       = vidioc_g_input,
-	.vidioc_s_input       = vidioc_s_input,
-	.vidioc_g_audio       = vidioc_g_audio,
-	.vidioc_s_audio       = vidioc_s_audio,
 	.vidioc_g_tuner       = vidioc_g_tuner,
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
